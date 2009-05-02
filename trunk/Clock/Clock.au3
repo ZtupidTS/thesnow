@@ -118,7 +118,7 @@ Func ClockInit()
   ; 分配窗体资源
   $hDial = GUICreate("Clock", $iRadius * 2, $iRadius * 2,  -1,  -1, 0, $WS_EX_LAYERED,$DesktopHwnd)
   GUISetState()
-  WinSetOnTop($DesktopHwnd,"",1)  
+
   $hTime = GUICreate("Time" , $iRadius * 2, $iRadius * 2, $iX, $iY, 0, BitOR($WS_EX_LAYERED, $WS_EX_MDICHILD), $hDial)
   GUISetState()
   $hHour = GUICreate("Hour" , $iRadius * 2, $iRadius * 2, $iX, $iY, 0, BitOR($WS_EX_LAYERED, $WS_EX_MDICHILD), $hDial)
@@ -129,7 +129,7 @@ Func ClockInit()
   GUISetState()
   $hDot  = GUICreate("Dot"  , $iRadius * 2, $iRadius * 2, $iX, $iY, 0, BitOR($WS_EX_LAYERED, $WS_EX_MDICHILD), $hDial)
   GUISetState()
-
+  WinSetOnTop($DesktopHwnd,"",1)  
   ; Initialize GDI+ library
   _GDIPlus_Startup()
 
