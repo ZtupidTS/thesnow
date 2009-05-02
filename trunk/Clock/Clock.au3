@@ -33,7 +33,7 @@
 ;不使用数字时钟				--0%
 ;支持右键菜单				--0%
 ;透明						--0%
-;总在最前					--0%
+
 #Region 包含文件
 #include <GDIPlus.au3>
 #include <WinAPI.au3>
@@ -45,11 +45,11 @@ Opt("MustDeclareVars", 1)
 
 #Region 声明变量
 ; ===============================================================================================================================
-; Global constants
+; 全局常量
 ; ===============================================================================================================================
 
-Global Const $iCenter           = 200
-Global Const $iDotOpacity       = 250
+Global Const $iCenter           = 200	;中心位置
+Global Const $iDotOpacity       = 250	
 Global Const $iHourRad          = 140
 Global Const $iMinRad           = 200
 Global Const $iOpacity          = 128
@@ -57,16 +57,15 @@ Global Const $nPI               = 3.1415926535897932384626433832795
 Global Const $iRadius           = 200
 Global Const $iSecRad           = 200
 Global Const $iTickLen          = 0.02
-
 Global Const $AC_SRC_ALPHA      = 1
-
 Global Enum $eScrDC=0, $eMemDC, $eBitmap, $eWidth, $eHeight, $eGraphic, $ePen, $eCap, $eBrush, $eFormat, $eFamily, $eFont, $eLayout, $eLast
 
 ; ===============================================================================================================================
-; Global variables
+; 全局变量
 ; ===============================================================================================================================
 
 Global $hDial, $hTime, $hHour, $hMin, $hSec, $hDot, $aTime, $aHour, $aMin, $aSec, $aCurr[3][2], $aLast[3][2]
+Global $DesktopHwnd = WinGetHandle("[title:Program Manager;class:Progman]")
 #EndRegion
 
 #Region 检查是否只运行一次
@@ -82,12 +81,12 @@ Global $hDial, $hTime, $hHour, $hMin, $hSec, $hDot, $aTime, $aHour, $aMin, $aSec
 #EndRegion
 
 #Region 主代码
-ClockInit()
-DialDraw ()
-Draw     ()
-DotDraw  ()
-ClockLoop()
-ClockDone()
+	ClockInit()
+	DialDraw ()
+	Draw     ()
+	DotDraw  ()
+	ClockLoop()
+	ClockDone()
 #EndRegion
 
 #Region 函数
@@ -116,9 +115,10 @@ Func ClockInit()
   $iX = -(_WinAPI_GetSystemMetrics($SM_CXFRAME))
   $iY = -(_WinAPI_GetSystemMetrics($SM_CYCAPTION) + _WinAPI_GetSystemMetrics($SM_CYFRAME))
 
-  ; Allocate the window resources
-  $hDial = GUICreate("Clock", $iRadius * 2, $iRadius * 2,  -1,  -1, 0, BitOR($WS_EX_LAYERED, $WS_EX_TOPMOST))
+  ; 分配窗体资源
+  $hDial = GUICreate("Clock", $iRadius * 2, $iRadius * 2,  -1,  -1, 0, $WS_EX_LAYERED,$DesktopHwnd)
   GUISetState()
+  WinSetOnTop($DesktopHwnd,"",1)  
   $hTime = GUICreate("Time" , $iRadius * 2, $iRadius * 2, $iX, $iY, 0, BitOR($WS_EX_LAYERED, $WS_EX_MDICHILD), $hDial)
   GUISetState()
   $hHour = GUICreate("Hour" , $iRadius * 2, $iRadius * 2, $iX, $iY, 0, BitOR($WS_EX_LAYERED, $WS_EX_MDICHILD), $hDial)
@@ -157,7 +157,6 @@ EndFunc
 ; ===============================================================================================================================
 Func DotDraw()
   Local $aDot
-
   $aDot = ResourceInit($iRadius * 2, $iRadius * 2)
   _GDIPlus_GraphicsFillEllipse($aDot[$eGraphic], $iRadius-10, $iRadius-10, 20, 20)
   ResourceSet ($hDot, $aDot, $iDotOpacity)
