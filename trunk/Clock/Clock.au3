@@ -7,7 +7,7 @@
 #AutoIt3Wrapper_UseUpx=y 									;使用压缩
 #AutoIt3Wrapper_Res_Comment= 小闹钟							;注释
 #AutoIt3Wrapper_Res_Description=小闹钟						;详细信息
-#AutoIt3Wrapper_Res_Fileversion=0.0.0.0						;文件版本
+#AutoIt3Wrapper_Res_Fileversion=0.0.0.1
 #AutoIt3Wrapper_Res_FileVersion_AutoIncrement=p				;自动更新版本  
 #AutoIt3Wrapper_Res_LegalCopyright=thesnoW 					;版权
 #AutoIt3Wrapper_Change2CUI=N                   				;修改输出的程序为CUI(控制台程序)
@@ -39,8 +39,8 @@
 #include <WinAPI.au3>
 #include <GuiConstantsEx.au3>
 #include <WindowsConstants.au3>
-
-Opt("MustDeclareVars", 1)
+#Include <Constants.au3>
+;Opt("MustDeclareVars", 1)
 #EndRegion
 
 #Region 声明变量
@@ -147,9 +147,32 @@ EndFunc
 ; Loop until user exits
 ; ===============================================================================================================================
 Func ClockLoop()
-  do
-    Draw()
-  until GUIGetMsg() = $GUI_EVENT_CLOSE
+;  do
+;    Draw()
+;  until GUIGetMsg() = $GUI_EVENT_CLOSE
+	Opt("TrayMenuMode",1)   ; 默认菜单项目 (脚本暂停中/退出)(Script Paused/Exit) 将不会显示. 
+
+	$settingsitem   = TrayCreateMenu("设置")
+	$displayitem    = TrayCreateItem("显示", $settingsitem)
+	$printeritem    = TrayCreateItem("打印", $settingsitem)
+	TrayCreateItem("")
+	$aboutitem      = TrayCreateItem("关于")
+	TrayCreateItem("")
+	$exititem       = TrayCreateItem("退出")
+
+	TraySetState()
+	AdlibEnable("Draw")
+	While 1
+		$msg = TrayGetMsg()
+		Select
+			Case $msg = 0
+				ContinueLoop
+			Case $msg = $aboutitem
+				Msgbox(64,"关于:","AutoIt3-托盘-例子")
+			Case $msg = $exititem
+				ExitLoop
+		EndSelect
+	WEnd
 EndFunc
 
 ; ===============================================================================================================================
