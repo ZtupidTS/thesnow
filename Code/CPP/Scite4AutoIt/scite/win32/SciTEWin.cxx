@@ -26,7 +26,9 @@
 #ifdef STATIC_BUILD
 const char appName[] = "Sc1";			//应用程序名称
 #else
-#include "USkin.h"
+//#if $(PlatformName)=="Win32"
+//#include "USkin.h"
+//#endif
 #ifdef AUTOIT
 const char appName[] = "SciTE(ACN)";
 #else
@@ -1193,9 +1195,11 @@ void SciTEWin::Run(const char *cmdLine) {
 		LoadSessionFile("");
 	}
 	#ifndef STATIC_BUILD
-	if ((props.GetInt("load.skin") != 0)) {
-		USkinInit(NULL,NULL,"skin.msstyles");
-	}
+//   #if $(PlatformName)=="Win32"
+//	if ((props.GetInt("load.skin") != 0)) {
+//		USkinInit(NULL,NULL,"skin.msstyles");
+//	}
+//	#endif
 	#endif
 	
 	// Break up the command line into individual arguments
