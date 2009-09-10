@@ -352,11 +352,11 @@ static void HackColour(int &n) {
 SciTEBase::SciTEBase(Extension *ext) : apis(true), extender(ext) {
 	codePage = 0;						//活页代码
 	characterSet = 0;					//字符集
-	language = "java";					//语言
-	lexLanguage = SCLEX_CPP;			//扩展语言
-	functionDefinition = 0;				//函数定义
-	indentOpening = true;				//缩进打开
-	indentClosing = true;				//缩进关闭
+	language = "au3";					//语言
+	lexLanguage = SCLEX_AU3;				//扩展语言
+	functionDefinition = 0;					//函数定义
+	indentOpening = true;					//缩进打开
+	indentClosing = true;					//缩进关闭
 	statementLookback = 10;
 
 	fnEditor = 0;
@@ -379,22 +379,22 @@ SciTEBase::SciTEBase(Extension *ext) : apis(true), extender(ext) {
 	wrapOutput = false;
 	wrapStyle = SC_WRAP_WORD;
 	isReadOnly = false;					//只读
-	openFilesHere = false;				//在这里打开文件
+	openFilesHere = false;					//在这里打开文件
 	fullScreen = false;					//全屏
 
 	heightOutput = 0;
 	previousHeightOutput = 0;
 
-	allowMenuActions = true;			//允许菜单行为
+	allowMenuActions = true;				//允许菜单行为
 	scrollOutput = 1;
-	returnOutputToCommand = true;		//返回输出到命令行
+	returnOutputToCommand = true;				//返回输出到命令行
 
 	ptStartDrag.x = 0;					//开始拖动X坐标
 	ptStartDrag.y = 0;					//开始拖动Y坐标
-	capturedMouse = false;				//捕捉鼠标
-	firstPropertiesRead = true;			//
+	capturedMouse = false;					//捕捉鼠标
+	firstPropertiesRead = true;				//
 	localiser.read = false;
-	splitVertical = false;				//垂直分割
+	splitVertical = false;					//垂直分割
 	bufferedDraw = true;
 	twoPhaseDraw = true;
 	bracesCheck = true;
@@ -1026,11 +1026,11 @@ void SciTEBase::BraceMatch(bool editor) {
 }
 //设置窗口名称
 void SciTEBase::SetWindowName() {
-	if (filePath.IsUntitled()) {						//如果是未命名的文档
+	if (filePath.IsUntitled()) {					//如果是未命名的文档
 		windowName = localiser.Text("未命名文档");		//设置为"Untitled"
-		windowName.insert(0, "(");						//前面插入"("
+		windowName.insert(0, "(");				//前面插入"("
 		windowName += ")";								//后面插入")"
-	} else if (props.GetInt("title.full.path") == 2) {	//
+	} else if (props.GetInt("title.full.path") == 2) {		//
 		windowName = FileNameExt().AsInternal();
 		windowName += " in ";
 		windowName += filePath.Directory().AsInternal();
@@ -1628,10 +1628,8 @@ int SciTEBase::DoReplaceAll(bool inSelection) {
 	int startPosition = cr.cpMin;
 	int endPosition = cr.cpMax;
 	int selType = SC_SEL_STREAM;
+	int countSelections = SendEditor(SCI_GETSELECTIONS);
 	if (inSelection) {
-		if (startPosition == endPosition) {
-			return -2;
-		}
 		selType = SendEditor(SCI_GETSELECTIONMODE);
 		if (selType == SC_SEL_LINES) {
 			// Take care to replace in whole lines
@@ -1639,6 +1637,14 @@ int SciTEBase::DoReplaceAll(bool inSelection) {
 			startPosition = SendEditor(SCI_POSITIONFROMLINE, startLine);
 			int endLine = SendEditor(SCI_LINEFROMPOSITION, endPosition);
 			endPosition = SendEditor(SCI_POSITIONFROMLINE, endLine + 1);
+		} else {
+			for (int i=0; i<countSelections; i++) {
+				startPosition = Platform::Minimum(startPosition, SendEditor(SCI_GETSELECTIONNSTART, i));
+				endPosition = Platform::Maximum(endPosition, SendEditor(SCI_GETSELECTIONNEND, i));
+			}
+		}
+		if (startPosition == endPosition) {
+			return -2;
 		}
 	} else {
 		endPosition = LengthDocument();
@@ -1670,15 +1676,17 @@ int SciTEBase::DoReplaceAll(bool inSelection) {
 		// 替换循环
 		while (posFind != -1) {
 			int lenTarget = SendEditor(SCI_GETTARGETEND) - SendEditor(SCI_GETTARGETSTART);
-			if (inSelection && selType == SC_SEL_RECTANGLE) {
-				// We must check that the found target is entirely inside the rectangular selection:
-				// it must fit in one line, and inside the selection bounds of this line.
-				int line = SendEditor(SCI_LINEFROMPOSITION, posFind);
-				int startPos = SendEditor(SCI_GETLINESELSTARTPOSITION, line);
-				int endPos = SendEditor(SCI_GETLINESELENDPOSITION, line);
-				if (startPos == INVALID_POSITION ||	// No selection on this line (?)
-				        posFind < startPos || posFind + lenTarget > endPos) {
-					// Found target is totally or partly outside the rectangular selection
+			if (inSelection && countSelections > 1) {
+				// We must check that the found target is entirely inside a selection
+				bool insideASelection = false;
+				for (int i=0; i<countSelections && !insideASelection; i++) {
+					int startPos= SendEditor(SCI_GETSELECTIONNSTART, i);
+					int endPos = SendEditor(SCI_GETSELECTIONNEND, i);
+					if (posFind >= startPos && posFind + lenTarget <= endPos)
+						insideASelection = true;
+				}
+				if (!insideASelection) {
+					// Found target is totally or partly outside the selections
 					lastMatch = posFind + 1;
 					if (lastMatch >= endPosition) {
 						// Run off the end of the document/selection with an empty match
@@ -1719,7 +1727,8 @@ int SciTEBase::DoReplaceAll(bool inSelection) {
 			replacements++;
 		}
 		if (inSelection) {
-			SetSelection(startPosition, endPosition);
+			if (countSelections == 1) 
+				SetSelection(startPosition, endPosition);
 		} else {
 			SetSelection(lastMatch, lastMatch);
 		}
@@ -2165,7 +2174,7 @@ bool SciTEBase::StartAutoCompleteWord(bool onlyOneWord) {
 	// at the start and end. This makes it easy to search for words.
 	SString wordsNear;
 	wordsNear.setsizegrowth(1000);
-	wordsNear.append(" ");
+	wordsNear.append("\n");
 
 	int posFind = SendEditorString(SCI_FINDTEXT, flags, reinterpret_cast<char *>(&ft));
 	WindowAccessor acc(wEditor.GetID(), props);
@@ -2177,8 +2186,8 @@ bool SciTEBase::StartAutoCompleteWord(bool onlyOneWord) {
 			size_t wordLength = wordEnd - posFind;
 			if (wordLength > root.length()) {
 				SString word = GetRange(wEditor, posFind, wordEnd);
-				word.insert(0, " ");
-				word.append(" ");
+				word.insert(0, "\n");
+				word.append("\n");
 				if (!wordsNear.contains(word.c_str())) {	// 添加新条目
 					wordsNear += word.c_str() + 1;
 					if (minWordLength < wordLength)
@@ -2196,10 +2205,18 @@ bool SciTEBase::StartAutoCompleteWord(bool onlyOneWord) {
 	}
 	size_t length = wordsNear.length();
 	if ((length > 2) && (!onlyOneWord || (minWordLength > root.length()))) {
-		StringList wl;
+		// Protect spaces by temporrily transforming to \001
+		wordsNear.substitute(' ', '\001');
+		StringList wl(true);
 		wl.Set(wordsNear.c_str());
 		char *words = wl.GetNearestWords("", 0, autoCompleteIgnoreCase);
-		SendEditorString(SCI_AUTOCSHOW, root.length(), words);
+		SString acText(words);
+		// Use \n as word separator
+		acText.substitute(' ', '\n');
+		// Return spaces from \001
+		acText.substitute('\001', ' ');
+		SendEditor(SCI_AUTOCSETSEPARATOR, '\n');
+		SendEditorString(SCI_AUTOCSHOW, root.length(), acText.c_str());
 		delete []words;
 	} else {
 		SendEditor(SCI_AUTOCCANCEL);
@@ -3425,7 +3442,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		OpenDialog(filePath.Directory(), props.GetExpanded("open.filter").c_str());
 		WindowSetFocus(wEditor);
 		break;
-	case IDM_OPENSELECTED:					//打开所选
+	case IDM_OPENSELECTED:						//打开所选
 		if (OpenSelected())
 			WindowSetFocus(wEditor);
 		break;
@@ -3453,7 +3470,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		SaveACopy();
 		WindowSetFocus(wEditor);
 		break;
-	case IDM_SAVEASHTML:					//保存为HTML
+	case IDM_SAVEASHTML:						//保存为HTML
 		SaveAsHTML();
 		WindowSetFocus(wEditor);
 		break;

@@ -2311,6 +2311,7 @@ static IFaceFunction ifaceFunctions[] = {
 	{"ReplaceSel", 2170, iface_void, {iface_void, iface_string}},
 	{"ReplaceTarget", 2194, iface_int, {iface_length, iface_string}},
 	{"ReplaceTargetRE", 2195, iface_int, {iface_length, iface_string}},
+	{"RotateSelection", 2606, iface_void, {iface_void, iface_void}},
 	{"ScrollCaret", 2169, iface_void, {iface_void, iface_void}},
 	{"SearchAnchor", 2366, iface_void, {iface_void, iface_void}},
 	{"SearchInTarget", 2197, iface_int, {iface_length, iface_string}},
@@ -2351,6 +2352,7 @@ static IFaceFunction ifaceFunctions[] = {
 	{"StyleClearAll", 2050, iface_void, {iface_void, iface_void}},
 	{"StyleGetFont", 2486, iface_int, {iface_int, iface_stringresult}},
 	{"StyleResetDefault", 2058, iface_void, {iface_void, iface_void}},
+	{"SwapMainAnchorCaret", 2607, iface_void, {iface_void, iface_void}},
 	{"Tab", 2327, iface_void, {iface_void, iface_void}},
 	{"TargetAsUTF8", 2447, iface_int, {iface_void, iface_stringresult}},
 	{"TargetFromSelection", 2287, iface_void, {iface_void, iface_void}},
@@ -2556,7 +2558,7 @@ static IFaceProperty ifaceProperties[] = {
 };
 
 enum {
-	ifaceFunctionCount = 263,
+	ifaceFunctionCount = 265,
 	ifaceConstantCount = 1989,
 	ifacePropertyCount = 165
 };
