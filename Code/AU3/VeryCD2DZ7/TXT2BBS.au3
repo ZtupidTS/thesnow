@@ -6,8 +6,8 @@
 #AutoIt3Wrapper_Compression=4								;压缩等级
 #AutoIt3Wrapper_UseUpx=y 									;使用压缩
 #AutoIt3Wrapper_Res_Comment= 								;注释
-#AutoIt3Wrapper_Res_Description=							;详细信息
-#AutoIt3Wrapper_Res_Fileversion=0.0.1.7
+#AutoIt3Wrapper_Res_Description=thesnoW							;详细信息
+#AutoIt3Wrapper_Res_Fileversion=0.0.1.8
 #AutoIt3Wrapper_Res_FileVersion_AutoIncrement=p				;自动更新版本  
 #AutoIt3Wrapper_Res_LegalCopyright=thesnoW 						;版权
 #AutoIt3Wrapper_Change2CUI=N                   				;修改输出的程序为CUI(控制台程序)
@@ -87,7 +87,7 @@ Func ReadFile()
 				While 1
 					$line = StringStripWS(FileReadLine($file),3)
 					If @error = -1 Then ExitLoop
-					$lineX= _StringBetween($line,'value=','onclick="em_size')
+					$lineX= _StringBetween($line,'ed2k="','</a>')
 					If Not @error Then WrapED2K($lineX[0])
 					If StringInStr($line,'<!--eMule end-->') Then ExitLoop
 				WEnd
@@ -115,13 +115,12 @@ Func ReadFile()
 EndFunc
 
 Func WrapED2K($ED2K)
-	Local $reg
+	Local $ED2KURLS
 	$ED2K=StringStripWS($ED2K,3)
-	If StringLeft($ED2K,1)='"' Then $ED2K=StringTrimLeft($ED2K,1)
-	If StringRight($ED2K,1)='"' Then $ED2K=StringTrimRight($ED2K,1)
-	$ED2KFile=StringReplace($ED2K,'ed2k://|file|','')
-	$ED2KFile=StringTrimRight($ED2KFile,(StringLen($ED2KFile)-StringInStr($ED2KFile,'|')+1))
-	$ED2K='[emule=' & $ED2K & ']' & $ED2KFile & '[/emule]'
+	$ED2KURLS=stringleft($ED2K,StringInStr($ED2K,'">',-1)-1)
+	$ED2KFile=StringReplace($ED2K,$ED2KURLS,'')
+	$ED2KFile=stringtrimleft($ED2KFile,2)
+	$ED2K='[emule=' & $ED2KURLS & ']' & $ED2KFile & '[/emule]'
 	$ED2KURL=$ED2KURL & @CRLF & $ED2K
 	Return $ED2K
 EndFunc
@@ -134,6 +133,7 @@ Func DropHtml($str)
 	$str=StringReplace($str,'</div><div class="iptcom" id="iptcomVersion"><span class="iptcom-title">',@CRLF)			;资源版本
 	$str=StringReplace($str,'</div><div class="iptcom" id="iptcomTime"><span class="iptcom-title">',@CRLF)				;发行时间
 	$str=StringReplace($str,'</div><div class="iptcom" id="iptcomCountry"><span class="iptcom-title">',@CRLF)			;地区
+	$str=StringReplace($str,'<div class="iptcom" id="iptcomLanguageWriting"><span class="iptcom-title">',@CRLF)			;同上
 	$str=StringReplace($str,'</div><div class="iptcom" id="iptcomLanguage"><span class="iptcom-title">',@CRLF)			;语言
 	$str=StringReplace($str,'</div><div class="iptcom" id="iptcomContents"><span class="iptcom-title">',@CRLF)			;简介
 	$str=StringReplace($str,'</div><div class="iptcom" id="iptcomTrack"><br /><br /><span class="iptcom-title">',"")	;专辑曲目
@@ -200,7 +200,9 @@ Func post()
 ;	$ie=_IECreate ( 'http://www.zwtiso.com/post.php?action=newthread&fid=31', 1 , 1 , 1 , 1)	;欧美
 ;	$ie=_IECreate ( 'http://www.zwtiso.com/post.php?action=newthread&fid=32', 1 , 1 , 1 , 1)	;日韩	
 ;	$ie=_IECreate ( 'http://www.zwtiso.com/post.php?action=newthread&fid=33', 1 , 1 , 1 , 1)	;国语
-	$ie=_IECreate ( 'http://www.zwtiso.com/post.php?action=newthread&fid=34', 1 , 1 , 1 , 1)	;MTV
+;	$ie=_IECreate ( 'http://www.zwtiso.com/post.php?action=newthread&fid=34', 1 , 1 , 1 , 1)	;MTV
+	
+	$ie=_IECreate ( $CmdLineRaw, 1 , 1 , 1 , 1)	;MTV
 	;$ie=_IECreate ( 'http://thesnow.111.80000web.net.cn/post.php?action=newthread&fid=33', 1 , 1 , 1 , 1)
 	$oForm = _IEFormGetObjByName ($IE, "postform")
 	$oQuery = _IEGetObjById ($oForm, "subject")					;标题
