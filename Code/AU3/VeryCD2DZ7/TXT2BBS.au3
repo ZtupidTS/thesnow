@@ -32,6 +32,7 @@
 	#Include <Array.au3>
 	#include <IE.au3> 
 	#Include <String.au3>
+	If $CmdLineRaw='' Then Exit
 #EndRegion
 
 Global $SrcUrl=	InputBox("请输入一个URL","请输入一个URL","")
