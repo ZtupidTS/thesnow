@@ -9,20 +9,23 @@
 
 第一步:
 编译端(C):
+
  * 完整安装MinGW-5.1.6.exe
  * 安装MSYS-1.0.11.exe
  * 解压缩mingw-w32-bin_i686-mingw_20090925.zip到mingw安装目录
 
 二进制端(B):
 使用MinGW-5.1.6.exe安装下列组件:
-* mingwrt-3.15.2-mingw32-dev.tar.gz
-* mingwrt-3.15.2-mingw32-dll.tar.gz
-* w32api-3.13-mingw32-dev.tar.gz
-* binutils-2.19.1-mingw32-bin.tar.gz
-* gcc-core-3.4.5-20060117-3.tar.gz
-* mingw32-make-3.81-20080326-2.tar.gz
-* MSYS-1.0.11.exe
+
+ * mingwrt-3.15.2-mingw32-dev.tar.gz
+ * mingwrt-3.15.2-mingw32-dll.tar.gz
+ * w32api-3.13-mingw32-dev.tar.gz
+ * binutils-2.19.1-mingw32-bin.tar.gz
+ * gcc-core-3.4.5-20060117-3.tar.gz
+ * mingw32-make-3.81-20080326-2.tar.gz
+ * MSYS-1.0.11.exe
+
 移除:
-* gcc-core-3.4.5-20060117-3.tar.gz
+ * gcc-core-3.4.5-20060117-3.tar.gz
 
 第二步:
