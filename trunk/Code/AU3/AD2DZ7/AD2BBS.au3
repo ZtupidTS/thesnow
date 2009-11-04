@@ -5,7 +5,7 @@
 #AutoIt3Wrapper_Outfile_Type=exe							;文件类型
 #AutoIt3Wrapper_Compression=4								;压缩等级
 #AutoIt3Wrapper_UseUpx=y 									;使用压缩
-#AutoIt3Wrapper_Res_Comment= 								;注释
+#AutoIt3Wrapper_Res_Comment= 发帖器主程序								;注释
 #AutoIt3Wrapper_Res_Description=thesnoW							;详细信息
 #AutoIt3Wrapper_Res_Fileversion=0.0.1.1
 #AutoIt3Wrapper_Res_FileVersion_AutoIncrement=n				;自动更新版本
@@ -119,56 +119,6 @@ While 1
 	EndSwitch
 WEnd
 
-;~ While 1
-;~ 	Sleep(5000)
-;~ 	havefile()
-;~ WEnd
-
-;~ Func havefile()
-;~ 	; 显示当前目录中所有文件的文件名
-;~ 	$search = FileFindFirstFile(@ScriptDir & "\site\*.*")
-
-;~ 	; 检查搜索是否成功
-;~ 	If $search = -1 Then
-;~     MsgBox(0, "错误", "没有文件/目录 匹配搜索")
-;~ 		Return
-;~ 	EndIf
-
-;~ 	While 1
-;~ 		$file = FileFindNextFile($search)
-;~ 		If @error Then ExitLoop
-;~
-;~ 			$files = FileOpen(@ScriptDir & "\site\" & $file, 0)
-
-;~ 			; 检查打开的文件是否可读
-;~ 			If $files = -1 Then
-;~ 				Return
-;~ 			EndIf
-
-;~ 			; 每次读取一行文本,直到文件结束.
-;~ 			While 1
-;~ 				$line = FileReadLine($files)
-;~ 				If @error = -1 Then ExitLoop
-;~ 				GUICtrlSetData($CFG_NAME, $line)
-;~ 				;MsgBox(32,"",$line)
-;~ 				If RegisterBbs($line) = 0 Then
-;~ 					FileWriteLine("f.txt",$line)
-;~ 				Else
-;~ 					FileWriteLine("t.txt",$line)
-;~ 				EndIf
-;~ 			Wend
-
-;~ 			FileClose($files)
-;~ 			FileMove(@ScriptDir & "\site\" & $file,@ScriptDir & "\X\" & $file,1)
-;~
-;~ 		;  MsgBox(4096, "文件:", $file)
-;~ 	WEnd
-
-;~ 	; 关闭搜索句柄
-;~ 	FileClose($search)
-
-
-;~ EndFunc   ;==>havefile
 
 
 Func LoadFile()
@@ -253,7 +203,7 @@ Func getBBSinfo()
 	Local $CFG = GUICtrlRead($GUI_CFG)
 	Local $url = GUICtrlRead($GUI_URL)
 	Local $Name=GUICtrlRead($CFG_NAME)
-	If $CFG = '' Or $url = '' Or $CFG_NAME Then 
+	If $CFG = '' Or $url = '' Or $CFG_NAME='' Then 
 		ToolTip("")
 		Return
 	EndIf
@@ -267,6 +217,15 @@ Func getBBSinfo()
 		$urla = StringTrimRight($mini[$j], (StringLen($mini[$j]) - StringInStr($mini[$j], '">')) + 1)
 		$urlb = StringTrimRight($mini[$j], (StringLen($mini[$j]) - StringInStr($mini[$j], '</A>')) + 1)
 		$urlb = StringTrimLeft($urlb, StringInStr($mini[$j], '">') + 1)
+		$urlb = StringReplace($urlb,'&amp;','&')
+		If StringInStr($urlb,'</FONT>') And  StringInStr($urlb,'<FONT') Then
+			$urlb= _StringBetween($urlb,'>','</FONT>')
+			If IsArray($urlb) Then
+				$urlb=$urlb[0]
+			Else
+				$urlb='未知版块'
+			EndIf
+		EndIf
 		GUICtrlCreateTreeViewItem($urlb, $TreeView1)
 		IniWrite(@ScriptDir & '\forum\' & $CFG, $urlb, "URL", $urla)
 	Next
@@ -365,14 +324,14 @@ Func POST()
 	Local $TreeViewText=_GUICtrlTreeView_GetText($TreeView1, $first)
 	If _GUICtrlTreeView_GetChecked($TreeView1, $first) Then
 		
-		IniWrite(@ScriptDir & '\' & $CFG,$TreeViewText, 'checked', 1)
+		IniWrite(@ScriptDir & '\forum\' & $CFG,$TreeViewText, 'checked', 1)
 		RunWait("post.exe " & $Name & ' ' & $CFG & ' ' & $URL & ' ' & $PostUrl & ' ' & $TreeViewText)
 ;~ 		If postfile($TreeViewText)=0 Then
 ;~ 			GUISetState(@SW_SHOW, $Main)
 ;~ 			Return
 ;~ 		EndIf
 	Else
-		IniWrite(@ScriptDir & '\' & $CFG, $TreeViewText, 'checked', 0)
+		IniWrite(@ScriptDir & '\forum\' & $CFG, $TreeViewText, 'checked', 0)
 	EndIf
 	While 1
 		$first = _GUICtrlTreeView_GetNext($TreeView1, $first)
@@ -382,14 +341,14 @@ Func POST()
 			$TreeViewText=_GUICtrlTreeView_GetText($TreeView1, $first)
 			If _GUICtrlTreeView_GetChecked($TreeView1, $first) Then
 				
-				IniWrite(@ScriptDir & '\' & $CFG, $TreeViewText, 'checked', 1)
+				IniWrite(@ScriptDir & '\forum\' & $CFG, $TreeViewText, 'checked', 1)
 ;~ 				If postfile($TreeViewText) =0 Then 
 ;~ 					GUISetState(@SW_SHOW, $Main)
 ;~ 					Return
 ;~ 				EndIf
 				RunWait("post.exe " & $Name & ' ' & $CFG & ' ' & $URL & ' ' & $PostUrl & ' ' & $TreeViewText)
 			Else
-				IniWrite(@ScriptDir & '\' & $CFG, $TreeViewText, 'checked', 0)
+				IniWrite(@ScriptDir & '\forum\' & $CFG, $TreeViewText, 'checked', 0)
 			EndIf
 		EndIf
 	WEnd

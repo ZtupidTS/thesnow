@@ -1,14 +1,14 @@
 #Region AutoIt3Wrapper 预编译参数(常用参数)
-#AutoIt3Wrapper_Icon= 										;图标,支持EXE,DLL,ICO
+#AutoIt3Wrapper_Icon= nis										;图标,支持EXE,DLL,ICO
 #AutoIt3Wrapper_OutFile=									;输出文件名
 #AutoIt3Wrapper_OutFile_Type=exe							;文件类型
 #AutoIt3Wrapper_Compression=4								;压缩等级
-#AutoIt3Wrapper_UseUpx=y 									;使用压缩
-#AutoIt3Wrapper_Res_Comment= 								;注释
-#AutoIt3Wrapper_Res_Description=							;详细信息
-#AutoIt3Wrapper_Res_Fileversion=							;文件版本
-#AutoIt3Wrapper_Res_FileVersion_AutoIncrement=p				;自动更新版本  
-#AutoIt3Wrapper_Res_LegalCopyright= 						;版权
+#AutoIt3Wrapper_UseUpx=n 									;使用压缩
+#AutoIt3Wrapper_Res_Comment= 发帖器(发帖功能)								;注释
+#AutoIt3Wrapper_Res_Description=发帖器(发帖功能)							;详细信息
+#AutoIt3Wrapper_Res_Fileversion=1.0							;文件版本
+#AutoIt3Wrapper_Res_FileVersion_AutoIncrement=n				;自动更新版本  
+#AutoIt3Wrapper_Res_LegalCopyright= thesnoW						;版权
 #AutoIt3Wrapper_Change2CUI=N                   				;修改输出的程序为CUI(控制台程序)
 ;#AutoIt3Wrapper_Res_Field=AutoIt Version|%AutoItVer%		;自定义资源段
 ;#AutoIt3Wrapper_Run_Tidy=                   				;脚本整理
@@ -45,7 +45,7 @@ Func postfile($BOARD)
 	EndIf
 	$PostUrlFid = StringReplace($PostUrlFid, 'forumdisplay.php?fid=', '')
 ;	GUICtrlSetData($Label9, StringInStr($PostUrl, '.htm'))
-	If Not IsInt($PostUrlFid) Then
+	If Int($PostUrlFid)=0 Then
 		Local $tmp = _StringBetween($PostUrlFid, '-', '-')
 		If IsArray($tmp) Then
 			$PostUrlFid = $tmp[0]
