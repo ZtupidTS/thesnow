@@ -28,7 +28,7 @@
 
 #ce ＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿脚本开始＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿
 	#include <IE.au3>
-$file = FileOpen("XX.txt", 0)
+$file = FileOpen("WEBSITE.txt", 0)
 
 ; 检查打开的文件是否可读
 If $file = -1 Then
@@ -41,7 +41,6 @@ While 1
     $line = FileReadLine($file)
     If @error = -1 Then ExitLoop
 	$ie = _IECreate($line, 1, 1, 1, 1) ;MTV
-
     ;MsgBox(0, "读取的行:", $line)
 	$url=InputBox("填入注册地址","填入注册地址",'')
 	_IEQuit($ie)
