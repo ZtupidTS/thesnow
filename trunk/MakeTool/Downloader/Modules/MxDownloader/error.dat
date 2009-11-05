@@ -1,0 +1,11 @@
+[dl_crt]
+resolver=2568
+file_asyn_io_helper=1492
+asyn_io_manager=3728
+udp_socket_portal=3124
+nat_check=1564
+intra_node_manager=1184
+udt_timer=2636
+wait_objects_thread=2264
+host_resolver=3044
+external_node_manager=1676

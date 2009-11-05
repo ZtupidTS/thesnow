@@ -70,7 +70,7 @@ const char menuAccessIndicator[] = "&";
 #include "JobQueue.h"
 #include "SciTEBase.h"
 #include "IFaceTable.h"
-
+//设置导入菜单
 void SciTEBase::SetImportMenu() {
 	for (int i = 0; i < importMax; i++) {
 		DestroyMenuItem(menuOptions, importCmdID + i);
@@ -88,7 +88,7 @@ void SciTEBase::SetImportMenu() {
 		}
 	}
 }
-
+//导入菜单
 void SciTEBase::ImportMenu(int pos) {
 	//Platform::DebugPrintf("Stack menu %d\n", pos);
 	if (pos >= 0) {
@@ -97,7 +97,7 @@ void SciTEBase::ImportMenu(int pos) {
 		}
 	}
 }
-
+//设置语言菜单
 void SciTEBase::SetLanguageMenu() {
 	for (int i = 0; i < 100; i++) {
 		DestroyMenuItem(menuLanguage, languageCmdID + i);
@@ -122,8 +122,8 @@ void SciTEBase::SetLanguageMenu() {
 const char propLocalFileName[] = "SciTE.properties";
 const char propDirectoryFileName[] = "SciTEDirectory.properties";
 
-/**
-Read global and user properties files.
+/*
+	读取全局与本地属性文件.
 */
 void SciTEBase::ReadGlobalPropFile() {
 #ifdef unix
@@ -159,7 +159,7 @@ void SciTEBase::ReadGlobalPropFile() {
 		ReadLocalization();
 	}
 }
-
+//读取缩写属性文件
 void SciTEBase::ReadAbbrevPropFile() {
 	propsAbbrev.Clear();
 	propsAbbrev.Read(pathAbbreviations, pathAbbreviations.Directory(), importFiles, importMax);
@@ -171,6 +171,7 @@ Reads the directory properties file depending on the variable
 where this property file is found. If it is not found $(SciteDirectoryHome) will
 be set to $(FilePath).
 */
+//读取缩写属性文件
 void SciTEBase::ReadDirectoryPropFile() {
 	propsDirectory.Clear();
 
@@ -265,7 +266,7 @@ const char *SciTEBase::GetNextPropItem(
 	pPropItem[size] = '\0';
 	return pNext;
 }
-
+//样式定义
 StyleDefinition::StyleDefinition(const char *definition) :
 		size(0), fore("#000000"), back("#FFFFFF"),
 		bold(false), italics(false), eolfilled(false), underlined(false),
@@ -274,7 +275,7 @@ StyleDefinition::StyleDefinition(const char *definition) :
 		specified(sdNone) {
 	ParseStyleDefinition(definition);
 }
-
+//表达式样式定义
 bool StyleDefinition::ParseStyleDefinition(const char *definition) {
 	if (definition == 0 || *definition == '\0') {
 		return false;
@@ -480,7 +481,7 @@ static int FileLength(const char *path) {
 	}
 	return len;
 }
-
+//读取API接口
 void SciTEBase::ReadAPI(const SString &fileNameForExtension) {
 	SString apisFileNames = props.GetNewExpand("api.",
 	                        fileNameForExtension.c_str());
@@ -521,7 +522,7 @@ void SciTEBase::ReadAPI(const SString &fileNameForExtension) {
 		}
 	}
 }
-
+//查找语言属性
 SString SciTEBase::FindLanguageProperty(const char *pattern, const char *defaultValue) {
 	SString key = pattern;
 	key.substitute("*", language.c_str());

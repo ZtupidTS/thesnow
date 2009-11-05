@@ -30,104 +30,108 @@
 #include <IE.au3>
 #include <String.au3>
 ;~ MsgBox(32,"",$cmdline[0])
-If $cmdline[0] <> 5 Then Exit
-postfile($cmdline[5])
-Func postfile($BOARD)
-	;创建对象
-	Local $Name = $cmdline[1]
-	Local $CFG = $cmdline[2]
-	Local $URL = $cmdline[3]
-	Local $PostUrl = $cmdline[4]
+If $cmdline[0] <> 1 Then Exit
+Global $Name = IniRead('POST.ini','POST','NAME',"")
+Global $CFG = IniRead('POST.ini','POST','CFG',"")
+Global $URL = IniRead('POST.ini','POST','URL',"")
+Global $PostUrl = IniRead('POST.ini','POST','POSTURL',"")
+Global $BOARD = IniRead('POST.ini','POST','POSTBOARD',"")
+Global $BBSVER=	IniRead('POST.ini','POST','BBSVER',"DZ7")	
+Global $PostText = FileRead("文本.txt")
+Global $PostTitle = FileRead("标题.txt")
+
+Switch $BBSVER
+	Case 'DZ7'
+		While 1
+			PostFileDZ7()
+		WEnd
+	Case 'DZ6.1'
+		While 1
+			PostFileDZ7()
+		WEnd
+	Case 'DZ6'
+		While 1
+			PostFileDZ7()
+		WEnd
+	Case Else
+		MsgBox(32,"",'未知论坛版本')
+		Exit -1
+EndSwitch
+
+Func PostFileDZ7()
+	;检测版块FID
 	Local $PostUrlFid = IniRead(@ScriptDir & '\forum\' & $CFG, $BOARD, "URL", '')
 	If $PostUrlFid = '' Then
-		MsgBox(32, "", "请先得到论坛版块信息")
-		Return
+		MsgBox(32, "", "请先得到(修改)论坛版块信息")
+		Exit -2
 	EndIf
 	$PostUrlFid = StringReplace($PostUrlFid, 'forumdisplay.php?fid=', '')
-;	GUICtrlSetData($Label9, StringInStr($PostUrl, '.htm'))
 	If Int($PostUrlFid)=0 Then
 		Local $tmp = _StringBetween($PostUrlFid, '-', '-')
 		If IsArray($tmp) Then
 			$PostUrlFid = $tmp[0]
 		Else
 			MsgBox(32, "错误FID", $PostUrlFid)
-			Return
+			Exit -2
 		EndIf
 	EndIf
-	Local $PostText = FileRead("文本.txt")
-	Local $PostTitle = FileRead("标题.txt")
+	;放入剪切板
 	ClipPut($PostText)
-	$url = $url & '/' & $PostUrl & '?action=newthread&fid=' & $PostUrlFid
+	;发帖URL
+	Local $URLS = $URL & '/' & $PostUrl & '?action=newthread&fid=' & $PostUrlFid
 ;~ 	$time = TimerInit()
-;~ 	MsgBox(32,"","b")
-	$oIE = _IECreate($url, 0, 1, 1, 1) ;MTV
-;~ 	If IsObj($oIE) Then MsgBox(32,0,1)
-;~ 	ConsoleWrite('IE' & @CRLF & TimerDiff($time) & @CRLF)
-
+	;创建IE
+	$oIE = _IECreate($URLS, 0, 1, 1, 1)
+	;得到发帖内容窗口
 	$oForm = _IEFormGetObjByName($oIE, "postform")
 	If IsObj($oForm) Then
-;~ 		ConsoleWrite('postform' & @CRLF & TimerDiff($time) & @CRLF)
-
+		;选中源码
 		_IEFormElementCheckBoxSelect($oForm, '0', 'checkbox', 1)
-;~ 		ConsoleWrite('checkbox' & @CRLF & TimerDiff($time) & @CRLF)
 
+		;设置标题
 		$oQuery = _IEGetObjById($oForm, "subject") ;标题
 		If IsObj($oQuery) Then
 			_IEFormElementSetValue($oQuery, $PostTitle)
 		EndIf
-;~ 		ConsoleWrite('subject' & @CRLF & TimerDiff($time) & @CRLF)
-
-;~ 		$Message = _IEFormElementGetObjByName($oForm, 'newediter')
-;~ 		If IsObj($Message) Then ConsoleWrite('newediter' & @CRLF)
-;~ 		ConsoleWrite('newediter' & @CRLF & TimerDiff($time) & @CRLF)
-
-		$Message = _IEFormElementGetObjByName($oForm, 'message') ;7.1	status
+		;设置内容
+		$Message = _IEFormElementGetObjByName($oForm, 'message') ;DZ7.1
 		If IsObj($Message) Then 
-;~ 			ConsoleWrite('message' & @CRLF)
 			_IEFormElementSetValue($Message, $PostText)
 		EndIf
-
-;~ 		$Message = _IEFormElementGetObjByName($oForm, 'e_iframe')
-;~ 		If IsObj($Message) Then 
-;~ 			ConsoleWrite('e_iframe' & @CRLF)
-;~ 		EndIf
-
-;~ 		$Message = _IEFormElementGetObjByName($oForm, 'wysiwyg') ;7.1	status
-;~ 		If IsObj($Message) Then ConsoleWrite('wysiwyg' & @CRLF)
-;~ 		_IEFormElementSetValue($Message, $PostText)
-
 	Else
-		MsgBox(32, "", "未发现DZ7发帖界面,可能是未登录造成的!")
+		$oForm=_IEFormGetObjByName($oIE, "loginform")
+		If IsObj($oForm) Then 
+			$oQuery = _IEGetObjById($oForm, "username")
+			_IEFormElementSetValue($oQuery, IniRead(@ScriptDir & "\site.ini",$Name,'username',""))
+			$oQuery = _IEGetObjById($oForm, "password")
+			_IEFormElementSetValue($oQuery, IniRead(@ScriptDir & "\site.ini",$Name,'password',""))
+			_IEFormElementCheckBoxSelect($oForm, '0', '2592000', 1)
+			;_IEFormElementCheckBoxSelect($oForm, '0', 'cookietime', 1)
+			If MsgBox(36,"","您并没有登录论坛...,登录后按[确定]重新发帖,按[取消]退出") =6 Then
+				_IEQuit($oIE)
+				Return
+			Else
+				_IEQuit($oIE)
+				Exit -4
+			EndIf
+			
+		Else
+			MsgBox(32, "", "未发现DZ7发帖界面,可能是页面不对(等级不够,禁止发帖等)!")
+		EndIf
 		_IEQuit($oIE)
-		Return 0
+		Exit -3
 	EndIf
-;~ 	ConsoleWrite('End' & @CRLF & TimerDiff($time) & @CRLF)
 	If MsgBox(36, 0, "请在完成后点击,是否成功发帖?") = 6 Then
-		FileWriteLine("log.txt", "成功在(" & $Name & ")发布了一篇名为(" & $PostTitle & ")的文章");	' & date())
+		FileWriteLine("log.txt",Date() & "	成功在(" & $Name & ")发布了一篇名为(" & $PostTitle & ")的文章")
 		_IEQuit($oIE)
-;~ 		MsgBox(32,"","q")
 	Else
-		FileWriteLine("log.txt", "没能在(" & $Name & ")发布一篇名为(" & $PostTitle & ")的文章");	' & date())
+		FileWriteLine("log.txt",Date() & "	没能在(" & $Name & ")发布一篇名为(" & $PostTitle & ")的文章")
 		_IEQuit($oIE)
 	EndIf
-;~ 	$t=_IEFormElementGetCollection($oFORM)
-;~ 	For $j=1 To @extended
-;~ 		_IEFormElementSetValue($t,$j)
-;~ 	Next
-
-
-
-;~ 	$oFORM = _IEFormGetObjByName($IE, 'FORM')
-;~ 	$oINPUT = _IEFormElementGetObjByName($oForm, 'wysiwyg')
-;~ 	_IEFormElementSetValue($oINPUT, "asdasdasd")
-;~ ;_IEFormSubmit ($oForm)
-	;AdlibRegister("LoadData")
-	;$attach = _IEGetObjById($ie,"attachnew_1")					;添加附件
-	;$attach.click
-	;AdlibUnRegister("LoadData")
-	Return 1
+	Exit 0
 EndFunc   ;==>postfile
 
-Func date()
-	Return '[' & @YEAR & @MON & @MDAY & '/' & @HOUR & ":" & @MIN & ":" & @SEC & ']'
+Func Date()
+	Local $DATE='[' & @YEAR & @MON & @MDAY & '/' & @HOUR & ":" & @MIN & ":" & @SEC & ']'
+	Return $DATE
 EndFunc   ;==>date

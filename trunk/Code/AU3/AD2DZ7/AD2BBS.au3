@@ -7,7 +7,7 @@
 #AutoIt3Wrapper_UseUpx=y 									;使用压缩
 #AutoIt3Wrapper_Res_Comment= 发帖器主程序								;注释
 #AutoIt3Wrapper_Res_Description=thesnoW							;详细信息
-#AutoIt3Wrapper_Res_Fileversion=0.0.1.1
+#AutoIt3Wrapper_Res_Fileversion=0.0.1.2
 #AutoIt3Wrapper_Res_FileVersion_AutoIncrement=n				;自动更新版本
 #AutoIt3Wrapper_Res_LegalCopyright=thesnoW 						;版权
 #AutoIt3Wrapper_Change2CUI=N                   				;修改输出的程序为CUI(控制台程序)
@@ -52,8 +52,8 @@
 Global $UserName = 'KOKR2009'
 Global $PassWord = '123456'
 DirCreate("forum")
-DirCreate("site")
-DirCreate("X")
+;~ DirCreate("site")
+;~ DirCreate("X")
 #EndRegion 声明变量
 
 #Region ### START Koda GUI section ### Form=f:\workspace\svn\svnthesnow\trunk\code\au3\ad2dz7\main.kxf
@@ -104,6 +104,7 @@ While 1
 		Case $Button1
 ;~ 			RegisterBbs()
 		Case $Button2
+;~ 			GetBoardInfo()
 			getBBSinfo()
 		Case $Button3
 			AutoLogin()
@@ -112,28 +113,11 @@ While 1
 		Case $Button5
 			Exit
 		Case $Button6
-			;LoadFile()
 			LoadSite()
 		Case $Button7
 			SaveSite()
 	EndSwitch
 WEnd
-
-
-
-Func LoadFile()
-	Local $url = URL()
-	Local $board = IniReadSectionNames(@ScriptDir & '\forum\' & $url & ".bbs")
-	_GUICtrlTreeView_DeleteAll($TreeView1)
-	For $i = 1 To $board[0]
-		If $board[$i] <> 'forum' Then
-			GUICtrlCreateTreeViewItem($board[$i], $TreeView1)
-			If IniRead(@ScriptDir & '\forum\' & $url & ".bbs", $board[$i], "checked", "0") = 1 Then
-				GUICtrlSetState(-1, $GUI_CHECKED)
-			EndIf
-		EndIf
-	Next
-EndFunc   ;==>LoadFile
 
 Func LoadSite()
 	Local $Name = GUICtrlRead($CFG_NAME)
@@ -166,50 +150,52 @@ Func SaveSite()
 	IniWrite('site.ini', $Name, 'username', GUICtrlRead($GUI_USER))
 	IniWrite('site.ini', $Name, 'version', GUICtrlRead($GUI_VER))
 	IniWrite('site.ini', $Name, 'POST', GUICtrlRead($GUI_POST))
+	WinSetState($Main,"",@SW_HIDE)
 	MsgBox(32, "", "OK!")
+	WinSetState($Main,"",@SW_SHOW)	
 EndFunc   ;==>SaveSite
 
 Func AddSite2List()
-	Local $siteini = IniReadSectionNames(@ScriptDir & "\site.ini")
 	Local $site = ''
-	For $k = 1 To $siteini[0]
-		$site = $siteini[$k] & "|" & $site
-	Next
-	GUICtrlSetData($CFG_NAME, $site)
+	Local $siteini = IniReadSectionNames(@ScriptDir & "\site.ini")
+	If @error  Then
+		MsgBox(32,"","未发现任何站点")
+	Else
+		For $k = 1 To $siteini[0]
+			$site = $siteini[$k] & "|" & $site
+		Next
+		GUICtrlSetData($CFG_NAME, $site)
+	EndIf
 EndFunc   ;==>AddSite2List
 
 Func AutoLogin()
-	Local $url = GUICtrlRead($GUI_URL)
-	If $url = '' Then Return
+	Local $URL = GUICtrlRead($GUI_URL)
+	If $URL = '' Then Return
 	Local $UserName = GUICtrlRead($GUI_USER)
 	If $UserName = '' Then Return
 	Local $PassWord = GUICtrlRead($GUI_PASS)
 	If $PassWord = '' Then Return
 	;用户名密码改成你自己的
-	$oIE = _IECreate($url & "/logging.php?action=login&" & _
+	$oIE = _IECreate($URL & "/logging.php?action=login&" & _
 			"loginfield=username&username=" & $UserName & "&password=" & $PassWord & "&questionid=0&answer=&cookietime=2592000" & _
 			"&loginmode=&styleid=&loginsubmit=%CC%E1%BD%BB", 0, 0, 0)
-	Sleep(3000)
+	Sleep(5000)
 	_IEQuit($oIE)
+	MsgBox(32,"","理论上已经成功登陆")
 EndFunc   ;==>AutoLogin
-
-Func URL()
-	Local $url = GUICtrlRead($GUI_URL)
-	Return $url
-EndFunc   ;==>URL
 
 Func getBBSinfo()
 	ToolTip("正在得到信息,不要关闭IE窗口.", 0, 0)
 	Local $CFG = GUICtrlRead($GUI_CFG)
-	Local $url = GUICtrlRead($GUI_URL)
+	Local $URL = GUICtrlRead($GUI_URL)
 	Local $Name=GUICtrlRead($CFG_NAME)
-	If $CFG = '' Or $url = '' Or $CFG_NAME='' Then 
+	If $CFG = '' Or $URL = '' Or $CFG_NAME='' Then 
 		ToolTip("")
 		Return
 	EndIf
 ;~ 	Local $PostUrl=GUICtrlRead($GUI_POST)
 	_GUICtrlTreeView_DeleteAll($TreeView1)
-	$oIE = _IECreate($url, 1, 1, 1, 1) ;MTV
+	$oIE = _IECreate($URL, 1, 1, 1, 1) ;MTV
 	$src = _IEBodyReadHTML($oIE)
 	$mini = _StringBetween($src, '<H2><A href="', '</H2>')
 	FileDelete(@ScriptDir & '\forum\' & $CFG)
@@ -218,6 +204,10 @@ Func getBBSinfo()
 		$urlb = StringTrimRight($mini[$j], (StringLen($mini[$j]) - StringInStr($mini[$j], '</A>')) + 1)
 		$urlb = StringTrimLeft($urlb, StringInStr($mini[$j], '">') + 1)
 		$urlb = StringReplace($urlb,'&amp;','&')
+;~ 		$urlb = StringReplace($urlb,'&lt;','<')
+		$urlb = StringReplace($urlb,'&lt;','“')
+;~ 		$urlb = StringReplace($urlb,'&gt;','>')
+		$urlb = StringReplace($urlb,'&gt;','”')
 		If StringInStr($urlb,'</FONT>') And  StringInStr($urlb,'<FONT') Then
 			$urlb= _StringBetween($urlb,'>','</FONT>')
 			If IsArray($urlb) Then
@@ -233,11 +223,51 @@ Func getBBSinfo()
 	ToolTip("")
 EndFunc   ;==>getBBSinfo
 
+Func GetBoardInfo()
+	ToolTip("正在得到信息,不要关闭IE窗口.", 0, 0)
+	Local $CFG = GUICtrlRead($GUI_CFG)
+	Local $URL = GUICtrlRead($GUI_URL)
+	Local $Name=GUICtrlRead($CFG_NAME)
+	If $CFG = '' Or $URL = '' Or $CFG_NAME='' Then 
+		ToolTip("")
+		Return
+	EndIf
+;~ 	Local $PostUrl=GUICtrlRead($GUI_POST)
+	_GUICtrlTreeView_DeleteAll($TreeView1)
+	$oIE = _IECreate($URL, 1, 1, 1, 1) ;MTV
+	$src = _IEBodyReadHTML($oIE)
+	$mini = _StringBetween($src, '<A href="', '</A>')
+	FileDelete(@ScriptDir & '\forum\' & $CFG)
+	For $j = 0 To UBound($mini) - 1
+		$urla = StringTrimRight($mini[$j], (StringLen($mini[$j]) - StringInStr($mini[$j], '">')) + 1)
+		If Not (StringInStr($urla,'forum') Or StringInStr($urla,'fid')) Then ContinueLoop
+		;$urlb = StringReplace($mini[$j],$urla,"")
+		$urlb = StringTrimRight($mini[$j], (StringLen($mini[$j]) - StringInStr($mini[$j], '</A>')) + 1)
+		$urlb = StringTrimLeft($urlb, StringInStr($mini[$j], '">') + 1)
+		$urlb = StringReplace($urlb,'&amp;','&')
+;~ 		$urlb = StringReplace($urlb,'&lt;','<')
+		$urlb = StringReplace($urlb,'&lt;','“')
+;~ 		$urlb = StringReplace($urlb,'&gt;','>')
+		$urlb = StringReplace($urlb,'&gt;','”')
+		If StringInStr($urlb,'</FONT>') And  StringInStr($urlb,'<FONT') Then
+			$urlb= _StringBetween($urlb,'>','</FONT>')
+			If IsArray($urlb) Then
+				$urlb=$urlb[0]
+			Else
+				$urlb='未知版块'
+			EndIf
+		EndIf
+		GUICtrlCreateTreeViewItem($urlb, $TreeView1)
+		IniWrite(@ScriptDir & '\forum\' & $CFG, $urlb, "URL", $urla)
+	Next
+	_IEQuit($oIE)
+	ToolTip("")
+EndFunc   ;==>getBBSinfo
 
 Func GetRegistrAddr()
 	ToolTip('检测论坛数据中,请等待.', 0, 0)
-	$url = URL()
-	$oIE = _IECreate($url, 1, 0, 1, 1) ;MTV
+	Local $URL = GUICtrlRead($GUI_URL)
+	$oIE = _IECreate($URL, 1, 0, 1, 1) ;MTV
 	$src = _IEBodyReadHTML($oIE)
 	_IEQuit($oIE)
 	$reg = _StringBetween($src, '<A class=lightlink', '</A>')
@@ -257,24 +287,24 @@ Func GetRegistrAddr()
 EndFunc   ;==>GetRegistrAddr
 
 Func RegisterBbs()
-	Local $url = GUICtrlRead($GUI_URL)
-	If IniRead(@ScriptDir & '\forum\' & $url & ".bbs", "forum", "已注册", 0) = 1 Then
+	Local $URL = GUICtrlRead($GUI_URL)
+	If IniRead(@ScriptDir & '\forum\' & $URL & ".bbs", "forum", "已注册", 0) = 1 Then
 		If MsgBox(36, "", "上次的报告说已经成功注册了,是否重新注册?") <> 6 Then Return
 	EndIf
 	$url2 = GetRegistrAddr()
-	If Not StringInStr($url2, "http:") Then $url2 = $url & "/" & $url2
-	;	$url2 = $url; & "/registerbbs.php"
+	If Not StringInStr($url2, "http:") Then $url2 = $URL & "/" & $url2
+	;	$url2 = $URL; & "/registerbbs.php"
 	$ie = _IECreate($url2, 1, 1, 1, 1) ;MTV
 	$oForm = _IEFormGetObjByName($ie, "registerform")
 	If Not IsObj($oForm) Then
-		IniWrite(@ScriptDir & '\forum\' & $url & ".bbs", "forum", "已注册", 0)
+		IniWrite(@ScriptDir & '\forum\' & $URL & ".bbs", "forum", "已注册", 0)
 		MsgBox(32, "错误", "很明显,这个弱智的程序,找不到注册地址.", 5)
 		_IEQuit($ie)
 		Return 0
 	EndIf
 	$oQuery = _IEGetObjById($oForm, "invitecode") ;用户名
 	If $oQuery <> 0 Then
-		IniWrite(@ScriptDir & '\forum\' & $url & ".bbs", "forum", "已注册", 0)
+		IniWrite(@ScriptDir & '\forum\' & $URL & ".bbs", "forum", "已注册", 0)
 		MsgBox(32, "错误", "很明显,需要邀请码.帮不了你.")
 		_IEQuit($ie)
 		Return 0
@@ -292,16 +322,16 @@ Func RegisterBbs()
 	$oQuery.click()
 	_IEFormElementSetValue($oQuery, '')
 	If MsgBox(36, "能不能注册?", "是不是注册成功了?") = 6 Then
-		IniWrite(@ScriptDir & '\forum\' & $url & ".bbs", "forum", "已注册", 1)
+		IniWrite(@ScriptDir & '\forum\' & $URL & ".bbs", "forum", "已注册", 1)
 		_IEQuit($ie)
 		getBBSinfo()
-		IniWrite(@ScriptDir & '\forum\' & $url & ".bbs", "forum", "username", $UserName)
-		IniWrite(@ScriptDir & '\forum\' & $url & ".bbs", "forum", "password", $PassWord)
-		$url = GUICtrlRead($CFG_NAME)
-		FileMove(@ScriptDir & "\site\" & $url, @ScriptDir & "\X\" & $url, 1)
+		IniWrite(@ScriptDir & '\forum\' & $URL & ".bbs", "forum", "username", $UserName)
+		IniWrite(@ScriptDir & '\forum\' & $URL & ".bbs", "forum", "password", $PassWord)
+		$URL = GUICtrlRead($CFG_NAME)
+		FileMove(@ScriptDir & "\site\" & $URL, @ScriptDir & "\X\" & $URL, 1)
 		Return 1
 	Else
-		IniWrite(@ScriptDir & '\forum\' & $url & ".bbs", "forum", "已注册", 0)
+		IniWrite(@ScriptDir & '\forum\' & $URL & ".bbs", "forum", "已注册", 0)
 		_IEQuit($ie)
 	EndIf
 ;~ 	$oQuery = _IEGetObjById ($oForm, "registerformsubmit")			;提交
@@ -313,10 +343,10 @@ EndFunc   ;==>RegisterBbs
 Func POST()
 	Local $Name = GUICtrlRead($CFG_NAME)
 	Local $CFG = GUICtrlRead($GUI_CFG)
-	Local $url = GUICtrlRead($GUI_URL)
+	Local $URL = GUICtrlRead($GUI_URL)
 	Local $PostUrl = GUICtrlRead($GUI_POST)
 	If $PostUrl = '' Then $PostUrl = 'post.php'
-	
+	Local $BBSVER=GUICtrlRead($GUI_VER)
 	GUISetState(@SW_HIDE, $Main)
 	Local $CFG = GUICtrlRead($GUI_CFG)
 	Local $count = _GUICtrlTreeView_GetCount($TreeView1)
@@ -325,7 +355,14 @@ Func POST()
 	If _GUICtrlTreeView_GetChecked($TreeView1, $first) Then
 		
 		IniWrite(@ScriptDir & '\forum\' & $CFG,$TreeViewText, 'checked', 1)
-		RunWait("post.exe " & $Name & ' ' & $CFG & ' ' & $URL & ' ' & $PostUrl & ' ' & $TreeViewText)
+		IniWrite('POST.ini','POST','NAME',$Name)
+		IniWrite('POST.ini','POST','CFG',$CFG)
+		IniWrite('POST.ini','POST','URL',$URL)
+		IniWrite('POST.ini','POST','POSTURL',$PostUrl)
+		IniWrite('POST.ini','POST','POSTBOARD',$TreeViewText)
+		IniWrite('POST.ini','POST','BBSVER',$BBSVER)
+		RunWait("post.exe X")
+;~ 		RunWait("post.exe " & $Name & ' ' & $CFG & ' ' & $URL & ' ' & $PostUrl & ' ' & $TreeViewText)
 ;~ 		If postfile($TreeViewText)=0 Then
 ;~ 			GUISetState(@SW_SHOW, $Main)
 ;~ 			Return
@@ -346,20 +383,30 @@ Func POST()
 ;~ 					GUISetState(@SW_SHOW, $Main)
 ;~ 					Return
 ;~ 				EndIf
-				RunWait("post.exe " & $Name & ' ' & $CFG & ' ' & $URL & ' ' & $PostUrl & ' ' & $TreeViewText)
+				IniWrite('POST.ini','POST','NAME',$Name)
+				IniWrite('POST.ini','POST','CFG',$CFG)
+				IniWrite('POST.ini','POST','URL',$URL)
+				IniWrite('POST.ini','POST','POSTURL',$PostUrl)
+				IniWrite('POST.ini','POST','POSTBOARD',$TreeViewText)
+				IniWrite('POST.ini','POST','BBSVER',$BBSVER)
+				RunWait("post.exe X")
+				;RunWait("post.exe " & $Name & ' ' & $CFG & ' ' & $URL & ' ' & $PostUrl & ' ' & $TreeViewText)
 			Else
 				IniWrite(@ScriptDir & '\forum\' & $CFG, $TreeViewText, 'checked', 0)
 			EndIf
 		EndIf
 	WEnd
+	MsgBox(32, "", "所有已选版块已经发帖.")	
 	GUISetState(@SW_SHOW, $Main)
-	MsgBox(32, "", "所有已选版块已经发帖.")
 EndFunc   ;==>Getchecked
+
+
+
 Func postfile($BOARD)
 	;创建对象
 	Local $Name = GUICtrlRead($CFG_NAME)
 	Local $CFG = GUICtrlRead($GUI_CFG)
-	Local $url = GUICtrlRead($GUI_URL)
+	Local $URL = GUICtrlRead($GUI_URL)
 	Local $PostUrl = GUICtrlRead($GUI_POST)
 	If $PostUrl = '' Then $PostUrl = 'post.php'
 	Local $PostUrlFid = IniRead(@ScriptDir & '\forum\' & $CFG, $BOARD, "URL", '')
@@ -381,10 +428,10 @@ Func postfile($BOARD)
 	Local $PostText = FileRead("文本.txt")
 	Local $PostTitle = FileRead("标题.txt")
 	ClipPut($PostText)
-	$url = $url & '/' & $PostUrl & '?action=newthread&fid=' & $PostUrlFid
+	$URL = $URL & '/' & $PostUrl & '?action=newthread&fid=' & $PostUrlFid
 ;~ 	$time = TimerInit()
 ;~ 	MsgBox(32,"","b")
-	$oIE = _IECreate($url, 0, 1, 1, 1) ;MTV
+	$oIE = _IECreate($URL, 0, 1, 1, 1) ;MTV
 	If IsObj($oIE) Then MsgBox(32,0,1)
 ;~ 	ConsoleWrite('IE' & @CRLF & TimerDiff($time) & @CRLF)
 

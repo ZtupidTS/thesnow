@@ -192,6 +192,7 @@
 #define IDC_TABCLOSE		962
 #define IDC_SHIFTTAB		963
 #define IDM_OLDTOOLBAR		964		//汉化添加-----老式工具栏
+
 // 对话框控件 IDs
 #define IDGOLINE			220
 #define IDABOUTSCINTILLA	221

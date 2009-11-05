@@ -14,7 +14,7 @@
  */
 static void FlashThisWindow(
     HWND hWnd,    		///< ÒªÉÁË¸µÄ´°¿Ú¾ä±ú.
-    int duration) {		///< Duration of the flash state.
+    int duration) {	///< Duration of the flash state.
 
 	HDC hDC = ::GetDC(hWnd);
 	if (hDC != NULL) {

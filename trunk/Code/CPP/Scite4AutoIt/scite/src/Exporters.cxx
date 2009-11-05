@@ -75,7 +75,7 @@
 #include "SciTEBase.h"
 
 
-//---------- Save to RTF ----------
+//---------- 另存为 RTF ----------
 
 #define RTF_HEADEROPEN "{\\rtf1\\ansi\\deff0\\deftab720"
 #define RTF_FONTDEFOPEN "{\\fonttbl"

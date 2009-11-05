@@ -1,0 +1,100 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!-- saved from url=(0014)about:internet -->
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<link rel="shortcut icon" href="../_shared/favicon.ico" type="image/x-icon" />
+	<title>Download Manager</title>
+	<link rel="stylesheet" type="text/css" href="../_shared/css/base.css" />
+	<link rel="stylesheet" type="text/css" href="maxDownload.css" />
+	<script type="text/javascript" src="../security.src"></script>
+	<script type="text/javascript" src="../_shared/js/func.js"></script>
+	<script type="text/javascript" src="../_shared/js/maxTable.js"></script>
+	<script type="text/javascript" src="maxDownload.js"></script>
+</head>
+
+<body>
+
+<div class="wrapper">
+
+	<!-- header -->
+	<div class="header">
+		<div class="innerHeader">
+			<div class="title">
+				<img src="images/logo.png" alt="logo" id="logo" />
+				<h1><script type="text/javascript">document.write("老潇の下载器");</script></h1>
+			</div>
+		</div>
+	</div>
+	<!-- end header -->
+
+	  <!-- nav -->
+		<div class="navPanel">
+			<div class="innerNavPanel">
+				<div class="buttons" id="navMenu">
+				<a href="javascript:;" onclick="maxDownload.activateCategory('incomplete');this.blur();" id="page_incomplete"><script type="text/javascript">document.write("未完成");</script> <span id="num_incomplete"></span></a>
+				<a href="javascript:;" onclick="maxDownload.activateCategory('completed');this.blur();" id="page_completed"><script type="text/javascript">document.write("已完成");</script> <span id="num_completed"></span></a>
+				<a href="javascript:;" onclick="maxDownload.activateCategory('all');this.blur();" id="page_all"><script type="text/javascript">document.write("所有任务");</script> <span id="num_all"></span></a>
+				<div class="label" id="page_search">
+					<input type="text" class="text" size="20" onclick="this.select();" id="searchBar" />
+					<a href="javascript:;"><img id="searchButton" src="images/search.png" alt=""/></a>
+				</div>
+				<a href="javascript:;" onclick="maxDownload.activateCategory('deleted');this.blur();" id="page_deleted"><script type="text/javascript">document.write("回收站");</script> <span id="num_deleted"></span></a>
+				</div>
+			</div>
+		</div>
+	  <!-- end nav -->
+	<div class="shadowStrip">&nbsp;</div>
+
+	<div class="contentWrapper">
+		<div class="contentText">
+
+			<div class="controlPanel">
+				&nbsp;&nbsp;
+				<a href="javascript:maxDownload.addTask();" style="font-weight:bold;"><script type="text/javascript">document.write("添加新任务");</script></a>
+				&nbsp;&nbsp;
+				<span id="ucontrol">
+					<a href="javascript:maxDownload.startAll();"><script type="text/javascript">document.write("全部开始");</script></a>
+					&nbsp;&nbsp;
+					<a href="javascript:maxDownload.stopAll();"><script type="text/javascript">document.write("全部停止");</script></a>
+					&nbsp;&nbsp;
+				</span>
+				<a href="javascript:maxDownload.deleteSelected();"><script type="text/javascript">document.write("删除选定的任务");</script></a>
+				&nbsp;&nbsp;
+				<span id="emptybin">
+					<a href="javascript:maxDownload.emptyBin();"><script type="text/javascript">document.write("清空回收站");</script></a>
+					&nbsp;&nbsp;
+				</span>
+				<a href="javascript:maxDownload.showSettings();"><script type="text/javascript">document.write("设置...");</script></a>
+				&nbsp;&nbsp;
+				<span id="pagerWrapper" class="pagerWrapper" style="display: none;">
+				</span>
+				&nbsp;&nbsp;
+				<span id="stats">
+				</span>
+			</div>
+
+			<hr/>
+
+			<div class="selectedControl">
+			</div>
+
+			<div id="errorMessage" class="errorMessage" style="display: none;">
+			</div>
+
+
+			<div id="contentWrapper" class="outputContent" style="width:100%; height: 500px; overflow-y:auto; overflow-x:hidden;">
+				<div id="downloadTable_wrapper"></div>
+			</div>
+
+		</div>
+
+	</div>
+  <!-- end content wrapper -->
+
+</div>
+
+<script type="text/javascript">maxDownload.init();</script>
+
+</body>
+</html>
