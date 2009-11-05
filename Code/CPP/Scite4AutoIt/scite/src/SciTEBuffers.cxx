@@ -1,6 +1,6 @@
 // SciTE - Scintilla based Text Editor
 /** @file SciTEBuffers.cxx
- ** Buffers and jobs management.
+ ** 缓冲器与任务管理.
  **/
 // Copyright 1998-2003 by Neil Hodgson <neilh@scintilla.org>
 // The License.txt file describes the conditions under which this software may be distributed.
@@ -610,7 +610,7 @@ void SciTEBase::SetIndentSettings() {
 		SendEditor(SCI_SETINDENT, indentSize);
 	}
 }
-
+//设置行末字符
 void SciTEBase::SetEol() {
 	SString eol_mode = props.Get("eol.mode");
 	if (eol_mode == "LF") {
@@ -621,7 +621,7 @@ void SciTEBase::SetEol() {
 		SendEditor(SCI_SETEOLMODE, SC_EOL_CRLF);
 	}
 }
-
+//新建文件
 void SciTEBase::New() {
 	InitialiseBuffers();
 	UpdateBuffersCurrent();
@@ -677,7 +677,7 @@ void SciTEBase::RestoreState(const Buffer &buffer) {
 		SendEditor(SCI_TOGGLEFOLD, buffer.foldState.Line(fold));
 	}
 }
-
+//关闭
 void SciTEBase::Close(bool updateUI, bool loadingSession, bool makingRoomForNew) {
 	bool closingLast = false;
 
@@ -741,7 +741,7 @@ void SciTEBase::Close(bool updateUI, bool loadingSession, bool makingRoomForNew)
 		QuitProgram();
 	}
 }
-
+//关闭标签
 void SciTEBase::CloseTab(int tab) {
 	int tabCurrent = buffers.Current();
 	if (tab == tabCurrent) {
@@ -759,7 +759,7 @@ void SciTEBase::CloseTab(int tab) {
 		}
 	}
 }
-
+//关闭所有缓冲器
 void SciTEBase::CloseAllBuffers(bool loadingSession) {
 	if (SaveAllBuffers(false) != IDCANCEL) {
 		while (buffers.length > 1)
@@ -768,7 +768,7 @@ void SciTEBase::CloseAllBuffers(bool loadingSession) {
 		Close(true, loadingSession);
 	}
 }
-
+//保存所有缓冲器
 int SciTEBase::SaveAllBuffers(bool forceQuestion, bool alwaysYes) {
 	int choice = IDYES;
 	UpdateBuffersCurrent();
@@ -800,7 +800,7 @@ void SciTEBase::SaveTitledBuffers() {
 	}
 	SetDocumentAt(currentBuffer);
 }
-
+//下一缓冲器
 void SciTEBase::Next() {
 	int next = buffers.Current();
 	if (++next >= buffers.length)
@@ -808,7 +808,7 @@ void SciTEBase::Next() {
 	SetDocumentAt(next);
 	CheckReload();
 }
-
+//上一缓冲器
 void SciTEBase::Prev() {
 	int prev = buffers.Current();
 	if (--prev < 0)
@@ -817,7 +817,7 @@ void SciTEBase::Prev() {
 	SetDocumentAt(prev);
 	CheckReload();
 }
-
+//切换标签
 void SciTEBase::ShiftTab(int indexFrom, int indexTo) {
 	buffers.ShiftTo(indexFrom, indexTo);
 	buffers.SetCurrent(indexTo);
@@ -857,7 +857,7 @@ void SciTEBase::PrevInStack() {
 void SciTEBase::EndStackedTabbing() {
 	buffers.CommitStackSelection();
 }
-
+//缓冲器菜单
 void SciTEBase::BuffersMenu() {
 	UpdateBuffersCurrent();
 	DestroyMenuItem(menuBuffers, IDM_BUFFERSEP);
@@ -968,7 +968,7 @@ void SciTEBase::DropFileStackTop() {
 	recentFileStack[fileStackMax - 1].Init();
 	SetFileStackMenu();
 }
-
+//添加文件到缓冲器
 void SciTEBase::AddFileToBuffer(FilePath file, int pos) {
 	// file existence test
 	if (file.Exists()) {                      // for missing files Open() gives an empty buffer - do not want this
@@ -976,7 +976,7 @@ void SciTEBase::AddFileToBuffer(FilePath file, int pos) {
 		SendEditor(SCI_GOTOPOS, pos);
 	}
 }
-
+//添加文件到堆栈
 void SciTEBase::AddFileToStack(FilePath file, Sci_CharacterRange selection, int scrollPos) {
 	if (!file.IsSet())
 		return;
@@ -996,7 +996,7 @@ void SciTEBase::AddFileToStack(FilePath file, Sci_CharacterRange selection, int 
 	}
 	SetFileStackMenu();
 }
-
+//从堆栈移除文件
 void SciTEBase::RemoveFileFromStack(FilePath file) {
 	if (!file.IsSet())
 		return;
@@ -1012,7 +1012,7 @@ void SciTEBase::RemoveFileFromStack(FilePath file) {
 	}
 	SetFileStackMenu();
 }
-
+//得到文件坐标
 RecentFile SciTEBase::GetFilePosition() {
 	RecentFile rf;
 	rf.selection = GetSelection();
@@ -1103,7 +1103,7 @@ void SciTEBase::StackMenu(int pos) {
 		}
 	}
 }
-
+//移除工具菜单
 void SciTEBase::RemoveToolsMenu() {
 	for (int pos = 0; pos < toolMax; pos++) {
 		DestroyMenuItem(menuTools, IDM_TOOLS + pos);
@@ -1115,7 +1115,7 @@ void SciTEBase::SetMenuItemLocalised(int menuNumber, int position, int itemID,
 	SString localised = localiser.Text(text);
 	SetMenuItem(menuNumber, position, itemID, localised.c_str(), mnemonic);
 }
-
+//设置工具菜单
 void SciTEBase::SetToolsMenu() {
 	//command.name.0.*.py=Edit in PythonWin
 	//command.0.*.py="c:\program files\python\pythonwin\pythonwin" /edit c:\coloreditor.py
@@ -1175,7 +1175,7 @@ JobSubsystem SciTEBase::SubsystemType(char c) {
 		return jobOtherHelp;
 	return jobCLI;
 }
-
+//子系统类型
 JobSubsystem SciTEBase::SubsystemType(const char *cmd, int item) {
 	SString subsysprefix = cmd;
 	if (item >= 0) {
@@ -1185,7 +1185,7 @@ JobSubsystem SciTEBase::SubsystemType(const char *cmd, int item) {
 	SString subsystem = props.GetNewExpand(subsysprefix.c_str(), FileNameExt().AsInternal());
 	return SubsystemType(subsystem[0]);
 }
-
+//工具菜单
 void SciTEBase::ToolsMenu(int item) {
 	SelectionIntoProperties();
 

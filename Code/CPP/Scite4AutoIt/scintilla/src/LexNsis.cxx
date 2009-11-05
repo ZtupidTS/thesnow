@@ -78,7 +78,7 @@ static bool NsisNextLineHasElse(unsigned int start, unsigned int end, Accessor &
     }
   }
 
-  if( nNextLine == -1 ) // We never foudn the next line...
+  if( nNextLine == -1 ) // We never found the next line...
     return false;
 
   for( unsigned int firstChar = nNextLine; firstChar < end; firstChar++ )

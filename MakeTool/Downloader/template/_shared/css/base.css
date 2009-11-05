@@ -1,0 +1,404 @@
+/*
+
+Base Style Sheet For Maxthon Websites v1.3.0
+Last Modified: 2007-09-18 10:35:23
+
+*/
+
+/****** General Styles ******/
+body {
+	font-size: 75%;
+	font-family: Tahoma, Arial, Helvetica, Sans-Serif;
+	color: #000000;
+	line-height: 150%;
+	background: white;
+	margin: 0px;
+	padding: 0px;
+	min-width: 750px;
+}
+
+/* text */
+
+p {
+	line-height: 150%;
+	margin: 5px 0px 10px 0px;
+	padding: 0px;
+}
+
+td, th {
+	font-size: 100%;
+	line-height: 150%;
+}
+
+ul {
+	margin: 0px;
+	padding: 0px;
+	list-style: square;
+}
+
+li {
+	margin: 0px 0px 5px 0px;
+	padding: 0px;
+	margin-left: 2em;
+	list-style: outside;
+}
+
+/* links */
+
+a,
+a:link,
+a:visited,
+a:active {
+	color: #4F7500;
+	text-decoration: underline;
+}
+a:hover {
+	color: #395500;
+	background: #EFF9D0;
+}
+
+/* inputs */
+form{
+	display: inline;
+	margin: 0;
+	padding: 0;
+}
+
+input,
+select{
+	vertical-align: middle;
+}
+
+input.button{
+	color: #645A44;
+	padding: 2px 5px;
+	text-decoration: none;
+	vertical-align: middle;
+	border: 1px solid #ABA498;
+	border-top: 1px solid #C8C4BB;
+	border-left: 1px solid #C8C4BB;
+	background: #F4FBE1 url('base/bg_input_btn.png');
+}
+input.button:hover{
+	color: #395500;
+	background: #F4FADF url('base/bg_input_btn_hover.png');
+	border: 1px solid #80AA00;
+	border-top: 1px solid #99CC00;
+	border-left: 1px solid #99CC00;
+}
+
+input.text,
+textarea {
+	padding: 2px 3px;
+	vertical-align: middle;
+	border: 1px solid #C0BBB4;
+	background: white url('base/bg_input_text.png') top left repeat-x;
+}
+input.text:hover,
+textarea:hover {
+	border: 1px solid #99CC00;
+	background: white url('base/bg_input_text_hover.png') top left repeat-x;
+}
+
+label {
+	cursor: pointer;
+}
+
+
+/* other */
+
+img {
+	border: none;
+	vertical-align: middle;
+}
+
+hr {
+	height: 1px;
+	border: 0;
+	border-top: 1px dashed #CCCCCC;
+}
+
+.wrapper {}
+
+/****** Header ******/
+.header{
+	background: white url('base/bg_header.png') top left;
+	height: 80px;
+}
+.innerHeader{
+	min-width: 610px;
+	width: 750px;
+	margin: 0 auto;
+}
+
+.title{
+	float: left;
+	margin-top: 16px;
+	white-space: nowrap;
+}
+.title img{
+	float: left;
+	margin-right: 12px;
+}
+.title h1{
+	font-size: 150%;
+	font-weight: bold;
+	padding: 6px 0px 4px 0px;
+	margin: 0px;
+}
+.title h1 a:link,
+.title h1 a:visited,
+.title h1 a:active
+{
+	color: black;
+	text-decoration: none;
+}
+.title p{
+	margin: 0px;
+	padding: 0px;
+	color: #666666;
+}
+
+/* top nav menu */
+.title-menu{
+	padding-top: 26px;
+	float: right;
+}
+
+.title-menu a:link,
+.title-menu a:visited,
+.title-menu a:active,
+.title-menu a:hover{
+	float: left;
+	display: block;
+	padding: 4px 8px;
+	margin: 0px 5px 0px 0px;
+	color: #666666;
+	text-decoration: none;
+}
+.title-menu a:hover{
+	color: white;
+	background: #666666;
+}
+
+/****** Nav Panel ******/
+.navPanel{
+	border-top: 1px solid #DAD7CF;
+	border-bottom: 1px solid #DAD7CF;
+	line-height: 200%;
+	background: #F2F0EE url('base/bg_btn.png') top left;
+}
+.innerNavPanel {
+	margin: 0 auto;
+	width: 750px;
+}
+
+
+/* buttons */
+.buttonWrapper{
+	border: 1px solid #E4E1DA;
+	border-left: none;
+	background: #F2F0EE url('base/bg_btn.png') top left;
+}
+.buttons{
+	line-height: 200%;
+	white-space: nowrap;
+	width: 99%; /* ie6 fix */
+	overflow: hidden;
+	border-left: 1px solid #E4E1DA;
+}
+.buttons a:link,
+.buttons a:active,
+.buttons a:visited,
+.buttons a:hover
+{
+	float: left;
+	display: block;
+	padding: 4px 20px;
+	color: #645A44;
+	text-decoration: none;
+	border-left: 1px solid white;
+	border-right: 1px solid #E4E1DA;
+	background: #F4FBE1 url('base/bg_btn.png');
+}
+.buttons a:hover
+{
+	color: #395500;
+	background: #F4FADF url('base/bg_btn_hover.png') top left repeat-x;
+}
+.buttons-special
+{
+	font-weight: bold;
+}
+.buttons-active {
+	color: #993300 !important;
+	background: #FFF1BB url('base/bg_btn_active.png') !important;
+}
+
+.buttons .label{
+	float: left;
+	overflow: hidden;
+	display: block;
+	padding: 4px 20px;
+	color: #645A44;
+}
+.buttons .label a:link,
+.buttons .label a:active,
+.buttons .label a:visited,
+.buttons .label a:hover
+{
+	float: none;
+	display: inline;
+	height: auto;
+	padding: 0px;
+	font-weight: bold;
+	text-decoration: underline;
+	border: none;
+	background: none;
+}
+
+/* sorry for this ie6 hack */
+* html .buttons img {
+	float: left;
+	margin: 5px 5px 5px 0px;
+}
+
+.shadowStrip{
+	height: 4px;
+	font-size: 1%;
+	line-height: 1%;
+	background: url('base/bg_shadow.png');
+}
+
+
+/****** Content Block ******/
+.contentWrapper{
+	min-width: 610px;
+	width: 740px;
+	margin: 10px auto;
+}
+
+.content{
+	float: left;
+	width: 100%;
+	margin: 0px -210px 0px 0px;
+}
+.innerContent{
+	margin-right: 210px;
+	overflow: visible;
+}
+
+/* content block */
+.contentBlock{
+	margin: 0px 0px 40px 0px;
+}
+h3{
+	color: #669900;
+	font-size: 150%;
+	font-weight: bold;
+	padding: 5px 0px 5px 0px;
+	margin: 10px 0px 10px 0px;
+	border-bottom: 1px dashed #E0E0E0;
+}
+h4 {
+	color: #666666;
+	font-size: 125%;
+	font-weight: bold;
+	padding: 5px 5px 5px 0px;
+	margin: 10px 0px 5px 0px;
+}
+.contentText{
+	line-height: 150%;
+}
+
+
+/****** Sidebar Block ******/
+.sidebar{
+	float: right;
+	width: 180px;
+}
+.innerSidebar{}
+
+.sidebarBlock{
+	padding: 0px;
+	margin: 10px 0px 20px 0px;
+}
+.sidebarBlock h5{
+	font-size: 100%;
+	color: #666666;
+	font-weight: bold;
+	padding: 5px 10px 5px 10px;
+	margin: 0px;
+	background: #EEEDEA;
+	border-bottom: 1px solid #E4E2DA;
+}
+.sidebarContent{
+}
+.sidebarBlock ul{
+	margin: 0px;
+	padding: 0px;
+}
+.sidebarBlock li
+{
+	margin: 0px;
+	padding: 0px;
+	list-style: none;
+	border-bottom: 1px dotted #E4E2DA;
+}
+.sidebarBlock li a:link,
+.sidebarBlock li a:hover,
+.sidebarBlock li a:active,
+.sidebarBlock li a:visited
+{
+	padding: 5px 0px 5px 10px;
+	display: block;
+	text-decoration: none;
+	color: #333333;
+	overflow: hidden;
+}
+.sidebarContent li a:hover{
+	text-decoration: underline;
+	color: #395500;
+	background: #EFF9D0;
+}
+
+
+/****** Footer Block ******/
+.footer{
+	clear: both;
+	text-align: center;
+	color: #666666;
+	margin: 20px auto;
+}
+.innerFooter{
+	width: 750px;
+	margin: 0px auto;
+}
+
+.footerLinks{
+	color: #666666;
+	background: #F2F1EE;
+	border: 1px solid #E4E1DC;
+	text-align: left;
+	line-height: 1.5em;
+	margin-bottom: 20px;
+}
+.footerLinks h5{
+	font-size: 100%;
+	color: #333333;
+	font-weight: bold;
+	padding: 0px 0px 5px 0px;
+	margin: 0px;
+}
+.footerLinks a:link,
+.footerLinks a:visited,
+.footerLinks a:active {
+	color: #666666;
+}
+.footerLinks a:hover {
+	color: #000000;
+}
+
+.copyright{
+	margin: 20px auto;
+}
