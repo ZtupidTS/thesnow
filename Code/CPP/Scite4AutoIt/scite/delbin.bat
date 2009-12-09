@@ -2,6 +2,6 @@ del /S /Q *.a *.aps *.bsc *.dll *.dsw *.exe *.idb *.ilc *.ild *.ilf *.ilk *.ils 
 rd /s /q bin
 md bin\properties
 md bin\ÊôÐÔÎÄ¼þ
-echo "This empty files ensures that the directory is created." >bin\empty.txt
+echo This empty files ensures that the directory is created. >bin\empty.txt
 copy USkin.dl_ bin\USkin.dll /y
 copy USkin.li_ win32\USkin.lib /y

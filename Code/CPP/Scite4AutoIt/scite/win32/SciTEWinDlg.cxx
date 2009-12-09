@@ -935,7 +935,7 @@ BOOL SciTEWin::FindMessage(HWND hDlg, UINT message, WPARAM wParam) {
 // add start
 		 else if (ControlIDOfCommand(wParam) == IDGOOGLE) {
 			findWhat = dlg.ItemText(IDFINDWHAT);
-			char google[1024]= "http://www.google.com/search?hl=en&q=";
+			char google[2048]= "http://www.google.com/search?hl=en&q=";
 			::ShellExecute(0,NULL, strcat(google,findWhat.c_str()),NULL,NULL,SW_SHOW);
 			::EndDialog(hDlg, IDCANCEL);
 			wFindReplace.Destroy();
@@ -943,7 +943,7 @@ BOOL SciTEWin::FindMessage(HWND hDlg, UINT message, WPARAM wParam) {
 		 }
 		 else if (ControlIDOfCommand(wParam) == IDMSDN) {
 			findWhat = dlg.ItemText(IDFINDWHAT).c_str();
-			char msdn[1024]= "http://social.msdn.microsoft.com/Search/en-US/?ac=8&query=";
+			char msdn[2048]= "http://social.msdn.microsoft.com/Search/en-US/?ac=8&query=";
 			::ShellExecute(NULL,NULL, strcat(msdn,findWhat.c_str()),NULL,NULL,SW_SHOW);
 			::EndDialog(hDlg, IDCANCEL);
 			wFindReplace.Destroy();
@@ -951,7 +951,7 @@ BOOL SciTEWin::FindMessage(HWND hDlg, UINT message, WPARAM wParam) {
 		 }
 		 else if (ControlIDOfCommand(wParam) == IDICIBA) {
 			findWhat = dlg.ItemText(IDFINDWHAT).c_str();
-			char iciba[1024]= "http://www.iciba.com/";
+			char iciba[2048]= "http://www.iciba.com/";
 			::ShellExecute(NULL,NULL, strcat(iciba,findWhat.c_str()),NULL,NULL,SW_SHOW);
 			::EndDialog(hDlg, IDCANCEL);
 			wFindReplace.Destroy();
@@ -1404,7 +1404,7 @@ BOOL SciTEWin::GrepMessage(HWND hDlg, UINT message, WPARAM wParam) {
 BOOL CALLBACK SciTEWin::GrepDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
 	return Caller(hDlg, message, lParam)->GrepMessage(hDlg, message, wParam);
 }
-
+//文件中查找
 void SciTEWin::FindInFiles() {
 	if (wFindInFiles.Created())
 		return;
@@ -1416,7 +1416,7 @@ void SciTEWin::FindInFiles() {
 		reinterpret_cast<DLGPROC>(GrepDlg), reinterpret_cast<sptr_t>(this));
 	wFindInFiles.Show();
 }
-
+//替换
 void SciTEWin::Replace() {
 	if (wFindReplace.Created())
 		return;
@@ -1451,11 +1451,11 @@ void SciTEWin::Replace() {
 	replacing = true;
 	havefound = false;
 }
-
+//查找替换
 void SciTEWin::FindReplace(bool replace) {
 	replacing = replace;
 }
-
+//销毁搜索替换
 void SciTEWin::DestroyFindReplace() {
 	if (wFindReplace.Created()) {
 		::EndDialog(reinterpret_cast<HWND>(wFindReplace.GetID()), IDCANCEL);
@@ -1562,11 +1562,11 @@ BOOL SciTEWin::AbbrevMessage(HWND hDlg, UINT message, WPARAM wParam) {
 
 	return FALSE;
 }
-
+//缩写对话框回调
 BOOL CALLBACK SciTEWin::AbbrevDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
 	return Caller(hDlg, message, lParam)->AbbrevMessage(hDlg, message, wParam);
 }
-
+//缩写对话框
 bool SciTEWin::AbbrevDialog() {
 	bool success = (DoDialog(hInstance, "InsAbbrev", MainHWND(), reinterpret_cast<DLGPROC>(AbbrevDlg)) == IDOK);
 	WindowSetFocus(wEditor);
@@ -1775,7 +1775,7 @@ void SciTEWin::FindMessageBox(const SString &msg, const SString *findItem) {
 		}
 	}
 }
-
+//关于对话框
 BOOL SciTEWin::AboutMessage(HWND hDlg, UINT message, WPARAM wParam) {
 	switch (message) {
 
@@ -1801,7 +1801,7 @@ BOOL SciTEWin::AboutMessage(HWND hDlg, UINT message, WPARAM wParam) {
 
 	return FALSE;
 }
-
+//回调
 BOOL CALLBACK SciTEWin::AboutDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
 	return Caller(hDlg, message, lParam)->AboutMessage(hDlg, message, wParam);
 }

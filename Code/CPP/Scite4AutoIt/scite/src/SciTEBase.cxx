@@ -323,6 +323,7 @@ const char *contributors[] = {
             "maXmo",
             "David Severwright",
             "Jon Strait",
+            "Oliver Kiddle",
         };
 
 // AddStyledText only called from About so static size buffer is OK
@@ -350,9 +351,9 @@ static void HackColour(int &n) {
 }
 
 SciTEBase::SciTEBase(Extension *ext) : apis(true), extender(ext) {
-	codePage = 0;						//活页代码
-	characterSet = 0;					//字符集
-	language = "au3";					//语言
+	codePage = 0;							//活页代码
+	characterSet = 0;						//字符集
+	language = "au3";						//语言
 	lexLanguage = SCLEX_AU3;				//扩展语言
 	functionDefinition = 0;					//函数定义
 	indentOpening = true;					//缩进打开
@@ -365,36 +366,36 @@ SciTEBase::SciTEBase(Extension *ext) : apis(true), extender(ext) {
 	ptrOutput = 0;
 	tbVisible = false;
 	sbVisible = false;
-	tabVisible = false;
-	tabHideOne = false;
-	tabMultiLine = false;						//多行标签
+	tabVisible = true;						//标签可见
+	tabHideOne = false;						//一个标签时隐藏
+	tabMultiLine = false;					//多行标签
 	sbNum = 1;
 	visHeightTools = 0;
 	visHeightStatus = 0;
 	visHeightEditor = 1;
 	heightBar = 7;
 	dialogsOnScreen = 0;
-	topMost = true;						//窗口置顶,官方为 false
-	wrap = false;
+	topMost = true;							//窗口置顶,官方为 false
+	wrap = false;							
 	wrapOutput = false;
 	wrapStyle = SC_WRAP_WORD;
-	isReadOnly = false;					//只读
+	isReadOnly = false;						//只读
 	openFilesHere = false;					//在这里打开文件
-	fullScreen = false;					//全屏
+	fullScreen = false;						//全屏
 
 	heightOutput = 0;
 	previousHeightOutput = 0;
 
-	allowMenuActions = true;					//允许菜单行为
-	scrollOutput = 1;							//输出滚动
-	returnOutputToCommand = true;				//返回输出到命令行
+	allowMenuActions = true;				//允许菜单行为
+	scrollOutput = 1;						//输出滚动
+	returnOutputToCommand = true;			//返回输出到命令行
 
-	ptStartDrag.x = 0;					//开始拖动X坐标
-	ptStartDrag.y = 0;					//开始拖动Y坐标
+	ptStartDrag.x = 0;						//开始拖动X坐标
+	ptStartDrag.y = 0;						//开始拖动Y坐标
 	capturedMouse = false;					//捕捉鼠标
-	firstPropertiesRead = true;					//首先读取属性文件
+	firstPropertiesRead = true;				//首先读取属性文件
 	localiser.read = false;
-	splitVertical = false;						//垂直分割
+	splitVertical = false;					//垂直分割
 	bufferedDraw = true;
 	twoPhaseDraw = true;
 	bracesCheck = true;
@@ -402,8 +403,8 @@ SciTEBase::SciTEBase(Extension *ext) : apis(true), extender(ext) {
 	bracesStyle = 0;
 	braceCount = 0;
 
-	indentationWSVisible = true;
-	indentExamine = SC_IV_LOOKBOTH;
+	indentationWSVisible = true;			//缩进
+	indentExamine = SC_IV_LOOKBOTH;			//缩进元素
 
 	autoCompleteIgnoreCase = false;
 	callTipIgnoreCase = false;
@@ -425,9 +426,9 @@ SciTEBase::SciTEBase(Extension *ext) : apis(true), extender(ext) {
 
 	replacing = false;							//替换
 	havefound = false;							//已经找到
-	matchCase = false;
+	matchCase = false;							//区分大小写
 	wholeWord = false;
-	reverseFind = false;
+	reverseFind = false;						//反向查找
 	regExp = false;								//使用正则表达式
 	wrapFind = true;
 	unSlash = false;
@@ -636,7 +637,7 @@ void SciTEBase::SetAboutMessage(WindowID wsci, const char *appTitle) {
 #endif
 		AddStyledText(wsci, GetTranslationToAbout("汉化增强版本").c_str(), trsSty);
 		AddStyledText(wsci, " 2.01\n", 1);
-		AddStyledText(wsci, "    " __DATE__ " " __TIME__ "\n", 1);
+		AddStyledText(wsci, " Build: " __DATE__ " " __TIME__ "\n", 1);
 		SetAboutStyle(wsci, 2, ColourDesired(0, 0, 0));
 		Platform::SendScintilla(wsci, SCI_STYLESETITALIC, 2, 1);
 		AddStyledText(wsci, GetTranslationToAbout("by").c_str(), trsSty);
@@ -658,7 +659,7 @@ void SciTEBase::SetAboutMessage(WindowID wsci, const char *appTitle) {
 			AddStyledText(wsci, translator.c_str(), trsSty);
 			AddStyledText(wsci, "\n", 5);
 		}
-		AddStyledText(wsci, GetTranslationToAbout("Contributors:").c_str(), trsSty);
+		AddStyledText(wsci, GetTranslationToAbout("贡献者:").c_str(), trsSty);
 		srand(static_cast<unsigned>(time(0)));
 		for (unsigned int co = 0;co < ELEMENTS(contributors);co++) {
 			int colourIndex = 50 + (co % 78);
@@ -927,6 +928,11 @@ bool SciTEBase::FindMatchingBracePosition(bool editor, int &braceAtCaret, int &b
 	int maskStyle = (1 << SendEditor(SCI_GETSTYLEBITSNEEDED)) - 1;
 	bool isInside = false;
 	Window &win = editor ? wEditor : wOutput;
+
+	int mainSel = Platform::SendScintilla(win.GetID(), SCI_GETMAINSELECTION, 0, 0);
+	if (Platform::SendScintilla(win.GetID(), SCI_GETSELECTIONNCARETVIRTUALSPACE, mainSel, 0) > 0)
+		return false;
+
 	int bracesStyleCheck = editor ? bracesStyle : 0;
 	int caretPos = Platform::SendScintilla(win.GetID(), SCI_GETCURRENTPOS, 0, 0);
 	braceAtCaret = -1;
@@ -1026,11 +1032,11 @@ void SciTEBase::BraceMatch(bool editor) {
 }
 //设置窗口名称
 void SciTEBase::SetWindowName() {
-	if (filePath.IsUntitled()) {					//如果是未命名的文档
+	if (filePath.IsUntitled()) {						//如果是未命名的文档
 		windowName = localiser.Text("未命名文档");		//设置为"Untitled"
-		windowName.insert(0, "(");				//前面插入"("
+		windowName.insert(0, "(");						//前面插入"("
 		windowName += ")";								//后面插入")"
-	} else if (props.GetInt("title.full.path") == 2) {		//
+	} else if (props.GetInt("title.full.path") == 2) {
 		windowName = FileNameExt().AsInternal();
 		windowName += " in ";
 		windowName += filePath.Directory().AsInternal();
@@ -1228,7 +1234,7 @@ SString SciTEBase::SelectionExtend(
 	int selEnd = SendFocused(SCI_GETSELECTIONEND);
 	return RangeExtendAndGrab(wCurrent, selStart, selEnd, ischarforsel, stripEol);
 }
-
+//查找光标处单词
 void SciTEBase::FindWordAtCaret(int &start, int &end) {
 	Window wCurrent;
 
@@ -1242,7 +1248,7 @@ void SciTEBase::FindWordAtCaret(int &start, int &end) {
 	// Call just to update start & end
 	RangeExtendAndGrab(wCurrent, start, end, &SciTEBase::iswordcharforsel, false);
 }
-
+//选择光标处单词
 bool SciTEBase::SelectWordAtCaret() {
 	int selStart = 0;
 	int selEnd = 0;
@@ -1583,7 +1589,6 @@ int SciTEBase::FindNext(bool reverseDirection, bool showWarnings) {
 		havefound = false;
 		if (showWarnings) {
 			WarnUser(warnNotFound);
-			
 			FindMessageBox("不能找到字符串 '^0'.",
 			        &findWhat);
 		}
@@ -1629,10 +1634,9 @@ int SciTEBase::DoReplaceAll(bool inSelection) {
 	Sci_CharacterRange cr = GetSelection();
 	int startPosition = cr.cpMin;
 	int endPosition = cr.cpMax;
-	int selType = SC_SEL_STREAM;
 	int countSelections = SendEditor(SCI_GETSELECTIONS);
 	if (inSelection) {
-		selType = SendEditor(SCI_GETSELECTIONMODE);
+		int selType = SendEditor(SCI_GETSELECTIONMODE);
 		if (selType == SC_SEL_LINES) {
 			// Take care to replace in whole lines
 			int startLine = SendEditor(SCI_LINEFROMPOSITION, startPosition);
@@ -1755,7 +1759,7 @@ int SciTEBase::ReplaceAll(bool inSelection) {
 		    "使用'替换所选'命令时所选的字符串不能为空.");
 	} else if (replacements == 0) {
 		FindMessageBox(
-		    "No replacements because string '^0' was not present.", &findWhat);
+		    "不能执行替换,因为字符串 '^0' 没有出现.", &findWhat);
 	}
 	return replacements;
 }
@@ -1777,7 +1781,7 @@ int SciTEBase::ReplaceInBuffers() {
 	UpdateStatusBar(false);
 	if (replacements == 0) {
 		FindMessageBox(
-		    "No replacements because string '^0' was not present.", &findWhat);
+		    "不能执行替换,因为字符串 '^0' 没有出现.", &findWhat);
 	}
 	return replacements;
 }
@@ -1936,7 +1940,7 @@ void SciTEBase::BookmarkNext(bool forwardScan, bool select) {
 		}
 	}
 }
-
+//得到客户区坐标
 PRectangle SciTEBase::GetClientRectangle() {
 	return wContent.GetClientPosition();
 }
@@ -2180,7 +2184,7 @@ bool SciTEBase::StartAutoCompleteWord(bool onlyOneWord) {
 
 	int posFind = SendEditorString(SCI_FINDTEXT, flags, reinterpret_cast<char *>(&ft));
 	WindowAccessor acc(wEditor.GetID(), props);
-	while (posFind >= 0 && posFind < doclen) {	// 搜索所有文档
+	while (posFind >= 0 && posFind < doclen) {				// 搜索所有文档
 		int wordEnd = posFind + root.length();
 		if (posFind != posCurrentWord) {
 			while (wordCharacters.contains(acc.SafeGetCharAt(wordEnd)))
@@ -2207,18 +2211,18 @@ bool SciTEBase::StartAutoCompleteWord(bool onlyOneWord) {
 	}
 	size_t length = wordsNear.length();
 	if ((length > 2) && (!onlyOneWord || (minWordLength > root.length()))) {
-		// Protect spaces by temporrily transforming to \001
-		wordsNear.substitute(' ', '\001');
-		StringList wl(true);
+//
+//		警告!不要同步此处(导致语法提示错误!!!!)
+		StringList wl;
 		wl.Set(wordsNear.c_str());
 		char *words = wl.GetNearestWords("", 0, autoCompleteIgnoreCase);
-		SString acText(words);
-		// Use \n as word separator
-		acText.substitute(' ', '\n');
-		// Return spaces from \001
-		acText.substitute('\001', ' ');
-		SendEditor(SCI_AUTOCSETSEPARATOR, '\n');
-		SendEditorString(SCI_AUTOCSHOW, root.length(), acText.c_str());
+//
+//
+//		警告!不要同步此处(导致语法提示错误!!!!)
+//
+//
+//
+		SendEditorString(SCI_AUTOCSHOW, root.length(), words);
 		delete []words;
 	} else {
 		SendEditor(SCI_AUTOCCANCEL);
@@ -2543,12 +2547,12 @@ bool SciTEBase::StartBlockComment() {
 static const char *LineEndString(int eolMode) {
 	switch (eolMode) {
 		case SC_EOL_CRLF:
-			return "\r\n";
+			return "\r\n";		//CR+LF
 		case SC_EOL_CR:
-			return "\r";
+			return "\r";		//CR
 		case SC_EOL_LF:
 		default:
-			return "\n";
+			return "\n";		//LF
 	}
 }
 
@@ -2961,7 +2965,7 @@ unsigned int SciTEBase::GetLinePartsInStyle(int line, int style1, int style2, SS
 	}
 	return part;
 }
-
+//是不是一个字母?
 inline bool IsAlphabetic(unsigned int ch) {
 	return ((ch >= 'A') && (ch <= 'Z')) || ((ch >= 'a') && (ch <= 'z'));
 }
@@ -3492,7 +3496,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		SaveAsXML();
 		WindowSetFocus(wEditor);
 		break;
-	case IDM_REVERT:
+	case IDM_REVERT:							//重置
 		Revert();
 		WindowSetFocus(wEditor);
 		break;
@@ -3650,7 +3654,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		FindNext(!reverseFind);
 		break;
 
-	case IDM_FINDINFILES:
+	case IDM_FINDINFILES:						//文件中查找
 		FindInFiles();
 		break;
 
@@ -3686,7 +3690,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		GoMatchingPreprocCond(IDM_NEXTMATCHPPC, true);
 		break;
 
-	case IDM_SHOWCALLTIP:						//显示所有提示
+	case IDM_SHOWCALLTIP:						//显示调用提示
 		StartCallTip();
 		break;
 
@@ -3722,29 +3726,29 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		StartStreamComment();
 		break;
 
-	case IDM_TOGGLE_FOLDALL:
+	case IDM_TOGGLE_FOLDALL:					//切换折叠所有
 		FoldAll();
 		break;
 
-	case IDM_UPRCASE:
+	case IDM_UPRCASE:							//大写
 		SendFocused(SCI_UPPERCASE);
 		break;
 
-	case IDM_LWRCASE:
+	case IDM_LWRCASE:							//小写
 		SendFocused(SCI_LOWERCASE);
 		break;
 
-	case IDM_JOIN:
+	case IDM_JOIN:								//组合
 		SendFocused(SCI_TARGETFROMSELECTION);
 		SendFocused(SCI_LINESJOIN);
 		break;
 
-	case IDM_SPLIT:
+	case IDM_SPLIT:								//切割
 		SendFocused(SCI_TARGETFROMSELECTION);
 		SendFocused(SCI_LINESSPLIT);
 		break;
 
-	case IDM_EXPAND:
+	case IDM_EXPAND:							//展开
 		SendEditor(SCI_TOGGLEFOLD, GetCurrentLineNumber());
 		break;
 
@@ -3799,7 +3803,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		CheckMenus();
 		break;
 
-	case IDM_TOGGLEOUTPUT:
+	case IDM_TOGGLEOUTPUT:							//切换输出
 		ToggleOutputVisible();
 		CheckMenus();
 		break;
@@ -3828,24 +3832,24 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		CheckMenus();
 		break;
 
-	case IDM_VIEWTABBAR:
+	case IDM_VIEWTABBAR:							//查看标签栏
 		tabVisible = !tabVisible;
 		ShowTabBar();
 		CheckMenus();
 		break;
 
-	case IDM_VIEWSTATUSBAR:
+	case IDM_VIEWSTATUSBAR:							//查看状态栏
 		sbVisible = !sbVisible;
 		ShowStatusBar();
 		UpdateStatusBar(true);
 		CheckMenus();
 		break;
 
-	case IDM_CLEAROUTPUT:
+	case IDM_CLEAROUTPUT:							//清除输出
 		SendOutputEx(SCI_CLEARALL, 0, 0, false);
 		break;
 
-	case IDM_SWITCHPANE:
+	case IDM_SWITCHPANE:							//切换面板(输出/编辑器面板)
 		if (wEditor.HasFocus())
 			WindowSetFocus(wOutput);
 		else
@@ -3872,7 +3876,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		SendEditor(SCI_CONVERTEOLS, SendEditor(SCI_GETEOLMODE));
 		break;
 
-	case IDM_VIEWSPACE:
+	case IDM_VIEWSPACE:								//空白可见
 		ViewWhitespace(!SendEditor(SCI_GETVIEWWS));
 		CheckMenus();
 		Redraw();
@@ -3991,11 +3995,11 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		BookmarkNext(false);
 		break;
 
-	case IDM_BOOKMARK_NEXT_SELECT:
+	case IDM_BOOKMARK_NEXT_SELECT:					//下一所选
 		BookmarkNext(true, true);
 		break;
 
-	case IDM_BOOKMARK_PREV_SELECT:
+	case IDM_BOOKMARK_PREV_SELECT:					//上一所选
 		BookmarkNext(false, true);
 		break;
 
@@ -4061,7 +4065,8 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 			 "  大绯狼			30.00RMB			\n"
 			 "  卜一样的青年		30.00RMB			\n"
 			 "  什么也不懂		50.00RMB			\n"
-			 "  路人甲(匿名)		50.00RMB			\n"			
+			 "  路人甲(匿名)		50.00RMB			\n"		
+			 "  nxbigdaddy			55.5RMB			\n"
 			 "  silentdream		100.00RMB			\n"
 			 "  &老刀			200.00RMB			\n"			
 			 "  o︻$▅▆▇◤		40GB+80GB HD	\n"
@@ -4073,7 +4078,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 			 "  小可			100.00RMB			\n"
 			 "  o瀟灑..酷唲		100.00RMB			\n"
 			 "  Sanhen			500.00RMB			\n"
-			 "  特别鸣谢:			KYO/jack金枪鱼		\n"	
+			 "  特别鸣谢:		KYO/jack金枪鱼		\n"	
 			 "└───────────────────────────────────┘	\n"		
 			);
 		WindowMessageBox(wSciTE, msg, MB_OK | MB_ICONWARNING);
@@ -4205,7 +4210,7 @@ void SciTEBase::FoldAll() {
 		}
 	}
 }
-
+//跳转行确认可见
 void SciTEBase::GotoLineEnsureVisible(int line) {
 	SendEditor(SCI_ENSUREVISIBLEENFORCEPOLICY, line);
 	SendEditor(SCI_GOTOLINE, line);
@@ -4352,7 +4357,7 @@ void SciTEBase::Notify(SCNotification *notification) {
 		BuffersMenu();
 		break;
 
-	case SCN_DOUBLECLICK:
+	case SCN_DOUBLECLICK:				//双击
 		if (extender)
 			handled = extender->OnDoubleClick();
 		if (!handled && notification->nmhdr.idFrom == IDM_RUNWIN) {
@@ -4375,7 +4380,7 @@ void SciTEBase::Notify(SCNotification *notification) {
 		}
 		break;
 
-	case SCN_MODIFIED:
+	case SCN_MODIFIED:					//已修改
 		if (notification->modificationType & SC_LASTSTEPINUNDOREDO) {
 			//when the user hits undo or redo, several normal insert/delete
 			//notifications may fire, but we will end up here in the end
@@ -4514,7 +4519,7 @@ void SciTEBase::CheckMenus() {
 	EnableAMenuItem(IDM_STOPEXECUTE, jobQueue.IsExecuting());
 	if (buffers.size > 0) {
 #if PLAT_WIN
-		// Tab Bar
+		// 标签栏
 #ifndef TCM_DESELECTALL
 #define TCM_DESELECTALL TCM_FIRST+50
 #endif
@@ -4606,7 +4611,7 @@ void SciTEBase::MoveSplit(Point ptNewDrag) {
 
 	previousHeightOutput = newHeightOutput;
 }
-
+//UI可见
 void SciTEBase::UIAvailable() {
 	SetImportMenu();
 	if (extender) {

@@ -124,6 +124,8 @@ void SciTEWin::Notify(SCNotification *notification) {
 
 			// 弹出菜单:
 			popup.CreatePopUp();
+			AddToPopUp("新建文件", IDM_NEW, true);
+			AddToPopUp("");
 			AddToPopUp("关闭文件", IDM_CLOSE, true);
 			AddToPopUp("关闭所有", IDM_CLOSEALL, true);
 			AddToPopUp("");
@@ -443,6 +445,48 @@ void SciTEWin::SetMenuItem(int menuNumber, int position, int itemID,
 		::SetMenuItemInfo(hmenu, itemID, FALSE, &mii);
 	}
 }
+//add
+/*
+void SciTEWin::SetMenuItem(int menuNumber, int position, int itemID,
+						   HBITMAP unchecked,HBITMAP checked) {
+	// On Windows the menu items are modified if they already exist or are created
+	HMENU hmenu = ::GetSubMenu(::GetMenu(MainHWND()), menuNumber);
+//	SString sTextMnemonic = text;
+//	long keycode = 0;
+//	if (mnemonic && *mnemonic) {
+//		keycode = SciTEKeys::ParseKeyCode(mnemonic);
+//		if (keycode) {
+//			sTextMnemonic += "\t";
+//			sTextMnemonic += LocaliseAccelerator(mnemonic, itemID);
+//		}
+		// the keycode could be used to make a custom accelerator table
+		// but for now, the menu's item data is used instead for command
+		// tools, and for other menu entries it is just discarded.
+//	}
+
+	if (::GetMenuState(hmenu, itemID, MF_BYCOMMAND) == 0xffffffff) {
+		//if (text[0])
+		//	::InsertMenu(hmenu, position, MF_BYPOSITION, itemID, sTextMnemonic.c_str());
+		//else
+		//	::InsertMenu(hmenu, position, MF_BYPOSITION | MF_SEPARATOR, itemID, sTextMnemonic.c_str());
+	} else {
+	//	::ModifyMenu(hmenu, position, MF_BYCOMMAND, itemID, sTextMnemonic.c_str());
+		::SetMenuItemBitmaps(hmenu,position,MF_BYCOMMAND,unchecked,checked)
+	}
+
+//	if (itemID >= IDM_TOOLS && itemID < IDM_TOOLS + toolMax) {
+//		// Stow the keycode for later retrieval.
+//		// Do this even if 0, in case the menu already existed (e.g. ModifyMenu)
+//		MENUITEMINFO mii;
+//		mii.cbSize = sizeof(MENUITEMINFO);
+//		mii.fMask = MIIM_DATA;
+//		mii.dwItemData = reinterpret_cast<DWORD&>(keycode);
+//		::SetMenuItemInfo(hmenu, itemID, FALSE, &mii);
+	}
+}
+*/
+//added
+
 //重绘菜单
 void SciTEWin::RedrawMenu() {
 	// Make previous change visible.
@@ -684,56 +728,7 @@ struct BarButton {
 	int id;
 	int cmd;
 };
-/*
-BarButton bbs[];
 
-if (1 != 0) {
-	bbs[] = {
-		{ -1,           0 },
-		{ STD_FILENEW,  IDM_NEW },
-		{ STD_FILEOPEN, IDM_OPEN },
-		{ STD_FILESAVE, IDM_SAVE },
-		{ 0,            IDM_CLOSE },
-		{ -1,           0 },
-		{ STD_PRINT,    IDM_PRINT },
-		{ -1,           0 },
-		{ STD_CUT,      IDM_CUT },
-		{ STD_COPY,     IDM_COPY },
-		{ STD_PASTE,    IDM_PASTE },
-		{ STD_DELETE,   IDM_CLEAR },
-		{ -1,           0 },
-		{ STD_UNDO,     IDM_UNDO },
-		{ STD_REDOW,    IDM_REDO },
-		{ -1,           0 },
-		{ STD_FIND,     IDM_FIND },
-		{ STD_REPLACE,  IDM_REPLACE },
-		{ STD_HELP,		IDM_HELP}
-	};
-}
-else
-	bbs[] = {
-		{ -1,		0 },
-		{ 0,		IDM_NEW },
-		{ 1,		IDM_OPEN },
-		{ 2, 		IDM_SAVE },
-		{ 3,		IDM_CLOSE },
-		{ -1,     	0 },
-		{ 4, 		IDM_PRINT },
-		{ -1, 		0 },
-		{ 5,		IDM_CUT },
-		{ 6, 		IDM_COPY },
-		{ 7, 		IDM_PASTE },
-		{ 8, 		IDM_CLEAR },
-		{ -1, 	  	0 },
-		{ 9, 		IDM_UNDO },
-		{ 10, 		IDM_REDO },
-		{ -1,		0 },
-		{ 11, 		IDM_FIND },
-		{ 12,		IDM_REPLACE },
-		{ -1,		0 },	
-		{ 13,		IDM_HELP}
-	};
-*/
 /*
 static BarButton bbs[] = {
     { -1,           0 },
@@ -780,7 +775,6 @@ static BarButton bbs[] = {
 	{ 13,		IDM_HELP}
 };
 
-
 static WNDPROC stDefaultTabProc = NULL;
 static LRESULT PASCAL TabWndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam) {
 
@@ -811,7 +805,6 @@ static LRESULT PASCAL TabWndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM
 
 	switch (iMessage) {
 
-	case WM_LBUTTONDBLCLK:
 	case WM_MBUTTONDOWN: {
 			// Check if on tab bar
 			Point pt = Point::FromLong(lParam);

@@ -163,7 +163,7 @@
 			<Tool
 				Name="VCResourceCompilerTool"
 				PreprocessorDefinitions="NDEBUG"
-				Culture="3081"
+				Culture="2052"
 				AdditionalIncludeDirectories="..\src;..\..\Scintilla\Win32"
 			/>
 			<Tool
@@ -177,7 +177,7 @@
 				SuppressStartupBanner="true"
 				GenerateMapFile="true"
 				MapFileName=".\Release/ACNSciTE.map"
-				OptimizeForWindows98="1"
+				OptimizeForWindows98="0"
 				RandomizedBaseAddress="1"
 				DataExecutionPrevention="0"
 				TargetMachine="1"
@@ -475,28 +475,6 @@
 						Name="VCCLCompilerTool"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="..\Win32\SciTERes.rc"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCResourceCompilerTool"
-						PreprocessorDefinitions=""
-						AdditionalIncludeDirectories="\Crack\AU3\AllCode\scite178CHS\scite178\scite\Win32"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCResourceCompilerTool"
-						PreprocessorDefinitions=""
-						AdditionalIncludeDirectories="\Crack\AU3\AllCode\scite178CHS\scite178\scite\Win32"
 					/>
 				</FileConfiguration>
 			</File>
@@ -808,7 +786,33 @@
 				RelativePath="..\win32\SciTE.exe.manifest"
 				>
 			</File>
+			<File
+				RelativePath="..\Win32\SciTERes.rc"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCResourceCompilerTool"
+						PreprocessorDefinitions=""
+						AdditionalIncludeDirectories="\Crack\AU3\AllCode\scite178CHS\scite178\scite\Win32"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCResourceCompilerTool"
+						PreprocessorDefinitions=""
+						AdditionalIncludeDirectories="\Crack\AU3\AllCode\scite178CHS\scite178\scite\Win32"
+					/>
+				</FileConfiguration>
+			</File>
 		</Filter>
+		<File
+			RelativePath=".\ClassDiagram1.cd"
+			>
+		</File>
 	</Files>
 	<Globals>
 	</Globals>
