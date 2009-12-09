@@ -36,7 +36,7 @@ Global $CFG = IniRead('POST.ini','POST','CFG',"")
 Global $URL = IniRead('POST.ini','POST','URL',"")
 Global $PostUrl = IniRead('POST.ini','POST','POSTURL',"")
 Global $BOARD = IniRead('POST.ini','POST','POSTBOARD',"")
-Global $BBSVER=	IniRead('POST.ini','POST','BBSVER',"DZ7")	
+Global $BBSVER=	IniRead('POST.ini','POST','BBSVER',"DZ7")
 Global $PostText = FileRead("文本.txt")
 Global $PostTitle = FileRead("标题.txt")
 
@@ -86,15 +86,18 @@ Func PostFileDZ7()
 	$oForm = _IEFormGetObjByName($oIE, "postform")
 	If IsObj($oForm) Then
 		;选中源码
-		_IEFormElementCheckBoxSelect($oForm, '0', 'checkbox', 1)
-
+		_IEFormElementCheckBoxSelect($oForm, '0', 'checkbox', 1)	;DZ7 源码 checkbox
+		$oQuery = _IEGetObjById($oForm, "bbcodemode") 				;DZ6 UBB代码 模式
+		If IsObj($oQuery) Then
+			$oQuery.click()
+		EndIf
 		;设置标题
 		$oQuery = _IEGetObjById($oForm, "subject") ;标题
 		If IsObj($oQuery) Then
 			_IEFormElementSetValue($oQuery, $PostTitle)
 		EndIf
 		;设置内容
-		$Message = _IEFormElementGetObjByName($oForm, 'message') ;DZ7.1
+		$Message = _IEFormElementGetObjByName($oForm, 'message') ;DZ6~7.1
 		If IsObj($Message) Then 
 			_IEFormElementSetValue($Message, $PostText)
 		EndIf
