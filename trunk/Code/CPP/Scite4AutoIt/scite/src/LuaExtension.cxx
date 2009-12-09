@@ -239,11 +239,11 @@ static int cf_scite_send(lua_State *L) {
 		if (IFaceFunctionIsScriptable(func)) {
 			return iface_function_helper(L, func);
 		} else {
-			raise_error(L, "Cannot call send for this function: not scriptable.");
+			raise_error(L, "不能调用,发送此函数: 不能脚本化.");
 			return 0;
 		}
 	} else {
-		raise_error(L, "Message number does not match any published Scintilla function or property");
+		raise_error(L, "消息号不匹配任何发布的 Scintilla 函数或者属性");
 		return 0;
 	}
 }
@@ -255,7 +255,7 @@ static int cf_scite_constname(lua_State *L) {
 		lua_pushstring(L, constName);
 		return 1;
 	} else {
-		raise_error(L, "Argument does not match any Scintilla / SciTE constant");
+		raise_error(L, "参数不匹配任何 Scintilla / SciTE 常量");
 		return 0;
 	}
 }
@@ -298,7 +298,7 @@ static ExtensionAPI::Pane check_pane_object(lua_State *L, int index) {
 
 	if (pPane) {
 		if ((*pPane == ExtensionAPI::paneEditor) && (curBufferIndex < 0))
-			raise_error(L, "Editor pane is not accessible at this time.");
+			raise_error(L, "编辑器面板此时不可访问.");
 
 		return *pPane;
 	}
@@ -559,7 +559,7 @@ static int cf_pane_match(lua_State *L) {
 
 		return 3;
 	} else {
-		raise_error(L, "Internal error: could not create match object.");
+		raise_error(L, "内部错误: 不能创建匹配对象.");
 		return 0;
 	}
 }
@@ -644,7 +644,7 @@ static int cf_props_metatable_newindex(lua_State *L) {
 			raise_error(L, "Expected string or nil for property assignment.");
 		}
 	} else {
-		raise_error(L, "Property name must be a non-empty string.");
+		raise_error(L, "属性名称必须为非空字符串.");
 	}
 	return 0;
 }
@@ -683,7 +683,7 @@ static int cf_global_print(lua_State *L) {
 			if (argStr) {
 				host->Trace(argStr);
 			} else {
-				raise_error(L, "tostring (called from print) returned a non-string");
+				raise_error(L, "tostring (被 print 调用) 返回一个非字符串");
 			}
 			lua_settop(L, nargs + 1);
 		}
@@ -906,7 +906,7 @@ static int cf_ifaceprop_metatable_index(lua_State *L) {
 		return 0;
 	}
 	if (ipb->prop->getter == 0) {
-		raise_error(L, "Attempt to read a write-only indexed property");
+		raise_error(L, "尝试读取一个只写索引属性");
 		return 0;
 	}
 	IFaceFunction func = ipb->prop->GetterFunction();
@@ -925,7 +925,7 @@ static int cf_ifaceprop_metatable_newindex(lua_State *L) {
 		return 0;
 	}
 	if (ipb->prop->setter == 0) {
-		raise_error(L, "Attempt to write a read-only indexed property");
+		raise_error(L, "尝试读取一个只写索引属性");
 		return 0;
 	}
 	IFaceFunction func = ipb->prop->SetterFunction();
@@ -974,7 +974,7 @@ static int push_iface_propval(lua_State *L, const char *name) {
 	if (propidx >= 0) {
 		const IFaceProperty &prop = IFaceTable::properties[propidx];
 		if (!IFacePropertyIsScriptable(prop)) {
-			raise_error(L, "Error: iface property is not scriptable.");
+			raise_error(L, "错误: iface 属性不可脚本化.");
 			return -1;
 		}
 
@@ -1160,7 +1160,7 @@ static int LuaPanicFunction(lua_State *L) {
 		luaState = NULL;
 		luaDisabled = true;
 	}
-	host->Trace("\n> Lua: error occurred in unprotected call.  This is very bad.\n");
+	host->Trace("\n> Lua: 错误发生于一个不受保护的调用(call). 非常糟糕.\n");
 	return 1;
 }
 
@@ -1367,7 +1367,7 @@ static bool InitGlobalScope(bool checkProperties, bool forceReload = false) {
 
 		luaL_loadfile(luaState, startupScript);
 		if (!call_function(luaState, 0, true)) {
-			host->Trace(">Lua: error occurred while loading startup script\n");
+			host->Trace(">Lua: 当载入启动脚本时发送错误,灰常郁闷..\n");
 		}
 	}
 
@@ -1440,7 +1440,7 @@ bool LuaExtension::Load(const char *filename) {
 				extensionScript = filename;
 				luaL_loadfile(luaState, filename);
 				if (!call_function(luaState, 0, true)) {
-					host->Trace(">Lua: error occurred while loading extension script\n");
+					host->Trace(">Lua: 当载入一个扩展脚本时发生错误\n");
 				}
 				loaded = true;
 			}
@@ -1556,16 +1556,16 @@ bool LuaExtension::OnExecute(const char *s) {
 							lua_insert(luaState, stackBase+1);
 							lua_settop(luaState, stackBase+2);
 							if (!call_function(luaState, 1, true)) {
-								host->Trace(">Lua: error occurred while processing command\n");
+								host->Trace(">Lua: 当处理命令时发生一个错误\n");
 							}
 						}
 					} else {
-						host->Trace("> Lua: error checking global scope for command\n");
+						host->Trace("> Lua: 检查命令全局范围错误\n");
 					}
 				}
 			}
 		} else {
-			host->Trace("> Lua: string library not loaded\n");
+			host->Trace("> Lua: 字符串脚本库未载入\n");
 		}
 
 		lua_settop(luaState, stackBase);

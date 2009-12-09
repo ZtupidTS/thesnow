@@ -159,7 +159,7 @@ bool FilePath::IsAbsolute() const {
 		return true;
 #endif
 #ifdef WIN32
-	if (fileName[0] == pathSepChar || fileName[1] == ':')	// UNC path or drive separator
+	if (fileName[0] == pathSepChar || fileName[1] == ':')	// UNC 路径或者驱动器分隔符
 		return true;
 #endif
 

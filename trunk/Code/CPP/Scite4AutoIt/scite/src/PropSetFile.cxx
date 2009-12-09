@@ -295,7 +295,7 @@ bool PropSetFile::ReadLine(const char *lineBuffer, bool ifIsTrue, FilePath direc
 void PropSetFile::ReadFromMemory(const char *data, int len, FilePath directoryForImports,
                                  FilePath imports[], int sizeImports) {
 	const char *pd = data;
-	char lineBuffer[60000];
+	char lineBuffer[120000];		//设置文件读取字符数量
 	bool ifIsTrue = true;
 	while (len > 0) {
 		GetFullLine(pd, len, lineBuffer, sizeof(lineBuffer));
@@ -314,7 +314,7 @@ bool PropSetFile::Read(FilePath filename, FilePath directoryForImports,
                        FilePath imports[], int sizeImports) {
 	FILE *rcfile = filename.Open(fileRead);
 	if (rcfile) {
-		char propsData[60000];
+		char propsData[120000];		//设置文件读取字符数量
 		int lenFile = static_cast<int>(fread(propsData, 1, sizeof(propsData), rcfile));
 		fclose(rcfile);
 		const char *data = propsData;

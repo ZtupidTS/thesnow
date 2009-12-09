@@ -171,7 +171,7 @@ Reads the directory properties file depending on the variable
 where this property file is found. If it is not found $(SciteDirectoryHome) will
 be set to $(FilePath).
 */
-//读取缩写属性文件
+//读取目录属性文件
 void SciTEBase::ReadDirectoryPropFile() {
 	propsDirectory.Clear();
 
@@ -427,7 +427,7 @@ void SciTEBase::SetStyleFor(Window &win, const char *lang) {
 		}
 	}
 }
-
+//小写字符串
 void LowerCaseString(char *s) {
 	while (*s) {
 		if ((*s >= 'A') && (*s <= 'Z')) {
@@ -445,11 +445,13 @@ SString SciTEBase::ExtensionFileName() {
 		if (name.IsSet()) {
 			// Force extension to lower case
 			char fileNameWithLowerCaseExtension[MAX_PATH];
-				strcpy(fileNameWithLowerCaseExtension, name.AsInternal());
+			strcpy(fileNameWithLowerCaseExtension, name.AsInternal());
+#if PLAT_WIN
 			char *extension = strrchr(fileNameWithLowerCaseExtension, '.');
 			if (extension) {
 				LowerCaseString(extension);
 			}
+#endif
 			return SString(fileNameWithLowerCaseExtension);
 		} else {
 			return props.Get("default.file.ext");
@@ -470,7 +472,7 @@ void SciTEBase::DefineMarker(int marker, int markerType, ColourDesired fore, Col
 	SendEditor(SCI_MARKERSETFORE, marker, fore.AsLong());
 	SendEditor(SCI_MARKERSETBACK, marker, back.AsLong());
 }
-
+//文件长度
 static int FileLength(const char *path) {
 	int len = 0;
 	FILE *fp = fopen(path, fileRead);
@@ -564,6 +566,7 @@ static const char *propertiesToForward[] = {
 	"lexer.cpp.allow.dollars",
 	"lexer.d.fold.at.else",
 	"lexer.errorlist.value.separate",
+	"lexer.html.mako",
 	"lexer.metapost.comment.process",
 	"lexer.metapost.interface.default",
 	"lexer.pascal.smart.highlighting",
@@ -688,7 +691,7 @@ SString SciTEBase::GetFileNameProperty(const char *name) {
 		return props.Get(name);
 	}
 }
-
+//读取属性
 void SciTEBase::ReadProperties() {
 	if (extender)
 		extender->Clear();
@@ -1202,7 +1205,7 @@ void SciTEBase::ReadProperties() {
 	firstPropertiesRead = false;
 	needReadProperties = false;
 }
-
+//读取字体属性
 void SciTEBase::ReadFontProperties() {
 	char key[200];
 	SString sval;
@@ -1283,7 +1286,7 @@ void SciTEBase::SetPropertiesInitial() {
 	unSlash = props.GetInt("find.replace.escapes");
 	wrapFind = props.GetInt("find.replace.wrap", 1);
 }
-
+//本地化文本
 SString Localization::Text(const char *s, bool retainIfNotFound) {
 	SString translation = s;
 	int ellipseIndicator = translation.remove("...");
@@ -1319,7 +1322,7 @@ SString Localization::Text(const char *s, bool retainIfNotFound) {
 	}
 	return s;
 }
-
+//本地化消息
 SString SciTEBase::LocaliseMessage(const char *s, const char *param0, const char *param1, const char *param2) {
 	SString translation = localiser.Text(s);
 	if (param0)
@@ -1330,7 +1333,7 @@ SString SciTEBase::LocaliseMessage(const char *s, const char *param0, const char
 		translation.substitute("^2", param2);
 	return translation;
 }
-
+//读取本地化文件
 void SciTEBase::ReadLocalization() {
 	localiser.Clear();
 	const char *title = "locale.properties";	//本地化文件
@@ -1425,23 +1428,23 @@ void SciTEBase::ReadPropertiesInitial() {
 	homepath = GetSciteUserHome();
 	props.Set("SciteUserHome", homepath.AsFileSystem());
 }
-
+//得到默认属性文件名
 FilePath SciTEBase::GetDefaultPropertiesFileName() {
 	return FilePath(GetSciteDefaultHome(), propGlobalFileName);
 }
-
+//得到缩写属性文件名
 FilePath SciTEBase::GetAbbrevPropertiesFileName() {
 	return FilePath(GetSciteUserHome(), propAbbrevFileName);
 }
-
+//得到用户属性文件名
 FilePath SciTEBase::GetUserPropertiesFileName() {
 	return FilePath(GetSciteUserHome(), propUserFileName);
 }
-
+//得到本地化属性文件名
 FilePath SciTEBase::GetLocalPropertiesFileName() {
 	return FilePath(filePath.Directory(), propLocalFileName);
 }
-
+//得到目录属性文件名
 FilePath SciTEBase::GetDirectoryPropertiesFileName() {
 	FilePath propfile;
 
@@ -1460,7 +1463,7 @@ FilePath SciTEBase::GetDirectoryPropertiesFileName() {
 	}
 	return propfile;
 }
-
+//打开属性文件
 void SciTEBase::OpenProperties(int propsFile) {
 	FilePath propfile;
 	switch (propsFile) {

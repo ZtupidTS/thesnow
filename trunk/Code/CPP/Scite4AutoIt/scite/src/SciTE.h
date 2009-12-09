@@ -249,19 +249,19 @@
 #define IDD_REPLACE_ADV		404
 
 // ืสิด IDs
-#define IDR_NEWFILE			100
-#define IDR_OPENFILE		101
-#define IDR_SAVEFILE		102
-#define IDR_CLOSEFILE		103
-#define IDR_PRINTFILE		104
-#define IDR_CUT				105
-#define IDR_COPY			106
-#define IDR_PASTE			107
-#define IDR_DELETE			108
-#define IDR_UNDO			109
-#define IDR_REDO			110
-#define IDR_FIND			111
-#define IDR_REPLACE			112
-#define IDR_HELP			113
+#define IDR_NEWFILE			100			//mod
+#define IDR_OPENFILE		101			//added
+#define IDR_SAVEFILE		102			//added
+#define IDR_CLOSEFILE		103			//added
+#define IDR_PRINTFILE		104			//added
+#define IDR_CUT				105			//added
+#define IDR_COPY			106			//added
+#define IDR_PASTE			107			//added
+#define IDR_DELETE			108			//added
+#define IDR_UNDO			109			//added
+#define IDR_REDO			110			//added
+#define IDR_FIND			111			//added
+#define IDR_REPLACE			112			//added
+#define IDR_HELP			113			//added
 #define IDC_DRAGDROP        401
 #endif

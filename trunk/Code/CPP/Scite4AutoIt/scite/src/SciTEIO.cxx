@@ -1,6 +1,6 @@
 // SciTE - Scintilla based Text Editor
 /** @file SciTEIO.cxx
- ** Manage input and output with the system.
+ ** 管理系统输入输出.
  **/
 // Copyright 1998-2003 by Neil Hodgson <neilh@scintilla.org>
 // The License.txt file describes the conditions under which this software may be distributed.
@@ -84,14 +84,14 @@ const char propGlobalFileName[] = "全局设置.properties";
 const char propAbbrevFileName[] = "全局缩写.properties";
 
 #define PROPERTIES_EXTENSION	".properties"
-
+//是不是属性文件
 static bool IsPropertiesFile(const FilePath &filename) {
 	FilePath ext = filename.Extension();
 	if (EqualCaseInsensitive(ext.AsInternal(), PROPERTIES_EXTENSION + 1))
 		return true;
 	return false;
 }
-
+//设置文件名
 void SciTEBase::SetFileName(FilePath openName, bool fixCase) {
 	if (openName.AsInternal()[0] == '\"') {
 		// openName is surrounded by double quotes
@@ -145,7 +145,7 @@ bool SciTEBase::Exists(const char *dir, const char *path, FilePath *resultPath) 
 	}
 	return true;
 }
-
+//计算行末
 void SciTEBase::CountLineEnds(int &linesCR, int &linesLF, int &linesCRLF) {
 	linesCR = 0;
 	linesLF = 0;
@@ -175,7 +175,7 @@ static bool isEncodingChar(char ch) {
 	       (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
 	       (ch >= '0' && ch <= '9');
 }
-
+//是不是空白符
 static bool isSpaceChar(char ch) {
 	return (ch == ' ') || (ch == '\t');
 }
@@ -341,7 +341,7 @@ void SciTEBase::DiscoverIndentSetting() {
 		SendEditor(SCI_SETINDENT, topTabSize);
 	}
 }
-
+//打开文件
 void SciTEBase::OpenFile(int fileSize, bool suppressMessage) {
 	Utf8_16_Read convert;
 
@@ -415,7 +415,7 @@ void SciTEBase::OpenFile(int fileSize, bool suppressMessage) {
 bool SciTEBase::PreOpenCheck(const char *) {
 	return false;
 }
-
+//打开文件
 bool SciTEBase::Open(FilePath file, OpenFlags of) {
 	InitialiseBuffers();
 
@@ -617,7 +617,7 @@ bool SciTEBase::OpenSelected() {
 	}
 	return false;
 }
-
+//重置
 void SciTEBase::Revert() {
 	RecentFile rf = GetFilePosition();
 	OpenFile(filePath.GetFileLength(), false);
@@ -629,7 +629,7 @@ void SciTEBase::CheckReload() {
 		// Make a copy of fullPath as otherwise it gets aliased in Open
 		time_t newModTime = filePath.ModifiedTime();
 		//Platform::DebugPrintf("Times are %d %d\n", CurrentBuffer()->fileModTime, newModTime);
-		if (newModTime != CurrentBuffer()->fileModTime) {
+		if ((newModTime != 0) && (newModTime != CurrentBuffer()->fileModTime)) {
 			RecentFile rf = GetFilePosition();
 			OpenFlags of = props.GetInt("reload.preserves.undo") ? ofPreserveUndo : ofNone;
 			if (CurrentBuffer()->isDirty || props.GetInt("are.you.sure.on.reload") != 0) {
@@ -850,7 +850,7 @@ bool SciTEBase::SaveBuffer(FilePath saveName) {
 	UpdateStatusBar(true);
 	return retVal;
 }
-
+//重新载入属性
 void SciTEBase::ReloadProperties() {
 	ReadGlobalPropFile();
 	SetImportMenu();
@@ -889,7 +889,7 @@ bool SciTEBase::Save() {
 		return SaveAsDialog();
 	}
 }
-
+//另存为
 void SciTEBase::SaveAs(const char *file, bool fixCase) {
 	SetFileName(file, fixCase);
 	Save();

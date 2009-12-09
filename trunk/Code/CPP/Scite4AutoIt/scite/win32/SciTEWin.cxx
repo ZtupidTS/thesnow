@@ -347,7 +347,7 @@ void SciTEWin::ExecuteHelp(const char *cmd) {
 			*path = '\0';
 			path++;	// After the !
 			typedef HWND (WINAPI *HelpFn) (HWND, const char *, UINT, DWORD);
-			HelpFn fnHHA = (HelpFn)::GetProcAddress(hHH, "HtmlHelpA");
+			HelpFn fnHHA = (HelpFn)::GetProcAddress(hHH, "HtmlHelpW");
 			if (fnHHA) {
 				XHH_AKLINK ak;
 				ak.cbStruct = sizeof(ak);
@@ -1745,14 +1745,13 @@ LRESULT SciTEWin::WndProc(UINT iMessage, WPARAM wParam, LPARAM lParam) {
 	if ((statusFailure > 0) && (boxesVisible == 0)) {
 		boxesVisible++;
 		char buff[200];
-		//if (statusFailure == SC_STATUS_BADALLOC) {
-		if (statusFailure == 0) {
+		if (statusFailure == SC_STATUS_BADALLOC) {
 			strcpy(buff, "Memory exhausted.");
 		} else {
 			sprintf(buff, "Scintilla failed with status %d.", statusFailure);
 		}
-		strcat(buff, " SciTE 将被关闭.");
-		::MessageBox(MainHWND(), buff, "失败于 Scintilla", MB_OK | MB_ICONERROR | MB_APPLMODAL);
+		strcat(buff, " SciTE will now close.");
+		::MessageBox(MainHWND(), buff, "Failure in Scintilla", MB_OK | MB_ICONERROR | MB_APPLMODAL);
 		exit(FALSE);
 	}
 	return 0l;
