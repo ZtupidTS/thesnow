@@ -1,6 +1,6 @@
-// SciTE - Scintilla based Text Editor
+ï»¿// SciTE - Scintilla based Text Editor
 /** @file SciTEProps.cxx
- ** Properties ÎÄ¼ş¹ÜÀí.
+ ** Properties æ–‡ä»¶ç®¡ç†.
  **/
 // Copyright 1998-2004 by Neil Hodgson <neilh@scintilla.org>
 // The License.txt file describes the conditions under which this software may be distributed.
@@ -70,7 +70,7 @@ const char menuAccessIndicator[] = "&";
 #include "JobQueue.h"
 #include "SciTEBase.h"
 #include "IFaceTable.h"
-//ÉèÖÃµ¼Èë²Ëµ¥
+//è®¾ç½®å¯¼å…¥èœå•
 void SciTEBase::SetImportMenu() {
 	for (int i = 0; i < importMax; i++) {
 		DestroyMenuItem(menuOptions, importCmdID + i);
@@ -79,16 +79,16 @@ void SciTEBase::SetImportMenu() {
 		for (int stackPos = 0; stackPos < importMax; stackPos++) {
 			int itemID = importCmdID + stackPos;
 			if (importFiles[stackPos].IsSet()) {
-				SString entry = localiser.Text("´ò¿ª");
+				SString entry = localiser.Text("æ‰“å¼€");
 				entry += " ";
 				entry += importFiles[stackPos].Name().AsInternal();
-				entry += " ÎÄ¼ş";
+				entry += " æ–‡ä»¶";
 				SetMenuItem(menuOptions, IMPORT_START + stackPos, itemID, entry.c_str());
 			}
 		}
 	}
 }
-//µ¼Èë²Ëµ¥
+//å¯¼å…¥èœå•
 void SciTEBase::ImportMenu(int pos) {
 	//Platform::DebugPrintf("Stack menu %d\n", pos);
 	if (pos >= 0) {
@@ -97,7 +97,7 @@ void SciTEBase::ImportMenu(int pos) {
 		}
 	}
 }
-//ÉèÖÃÓïÑÔ²Ëµ¥
+//è®¾ç½®è¯­è¨€èœå•
 void SciTEBase::SetLanguageMenu() {
 	for (int i = 0; i < 100; i++) {
 		DestroyMenuItem(menuLanguage, languageCmdID + i);
@@ -123,7 +123,7 @@ const char propLocalFileName[] = "SciTE.properties";
 const char propDirectoryFileName[] = "SciTEDirectory.properties";
 
 /*
-	¶ÁÈ¡È«¾ÖÓë±¾µØÊôĞÔÎÄ¼ş.
+	è¯»å–å…¨å±€ä¸æœ¬åœ°å±æ€§æ–‡ä»¶.
 */
 void SciTEBase::ReadGlobalPropFile() {
 #ifdef unix
@@ -159,7 +159,7 @@ void SciTEBase::ReadGlobalPropFile() {
 		ReadLocalization();
 	}
 }
-//¶ÁÈ¡ËõĞ´ÊôĞÔÎÄ¼ş
+//è¯»å–ç¼©å†™å±æ€§æ–‡ä»¶
 void SciTEBase::ReadAbbrevPropFile() {
 	propsAbbrev.Clear();
 	propsAbbrev.Read(pathAbbreviations, pathAbbreviations.Directory(), importFiles, importMax);
@@ -171,7 +171,7 @@ Reads the directory properties file depending on the variable
 where this property file is found. If it is not found $(SciteDirectoryHome) will
 be set to $(FilePath).
 */
-//¶ÁÈ¡Ä¿Â¼ÊôĞÔÎÄ¼ş
+//è¯»å–ç›®å½•å±æ€§æ–‡ä»¶
 void SciTEBase::ReadDirectoryPropFile() {
 	propsDirectory.Clear();
 
@@ -266,7 +266,7 @@ const char *SciTEBase::GetNextPropItem(
 	pPropItem[size] = '\0';
 	return pNext;
 }
-//ÑùÊ½¶¨Òå
+//æ ·å¼å®šä¹‰
 StyleDefinition::StyleDefinition(const char *definition) :
 		size(0), fore("#000000"), back("#FFFFFF"),
 		bold(false), italics(false), eolfilled(false), underlined(false),
@@ -275,7 +275,7 @@ StyleDefinition::StyleDefinition(const char *definition) :
 		specified(sdNone) {
 	ParseStyleDefinition(definition);
 }
-//±í´ïÊ½ÑùÊ½¶¨Òå
+//è¡¨è¾¾å¼æ ·å¼å®šä¹‰
 bool StyleDefinition::ParseStyleDefinition(const char *definition) {
 	if (definition == 0 || *definition == '\0') {
 		return false;
@@ -284,13 +284,13 @@ bool StyleDefinition::ParseStyleDefinition(const char *definition) {
 	//Platform::DebugPrintf("Style %d is [%s]\n", style, val);
 	char *opt = val;
 	while (opt) {
-		// ²éÕÒÊôĞÔ·Ö¸î
+		// æŸ¥æ‰¾å±æ€§åˆ†å‰²
 		char *cpComma = strchr(opt, ',');
 		if (cpComma) {
 			// If found, we terminate the current attribute (opt) string
 			*cpComma = '\0';
 		}
-		// ²éÕÒÊôĞÔÃû³Æ/Öµ·Ö¸î
+		// æŸ¥æ‰¾å±æ€§åç§°/å€¼åˆ†å‰²
 		char *colon = strchr(opt, ':');
 		if (colon) {
 			// If found, we terminate the current attribute name and point on the value
@@ -427,7 +427,7 @@ void SciTEBase::SetStyleFor(Window &win, const char *lang) {
 		}
 	}
 }
-//Ğ¡Ğ´×Ö·û´®
+//å°å†™å­—ç¬¦ä¸²
 void LowerCaseString(char *s) {
 	while (*s) {
 		if ((*s >= 'A') && (*s <= 'Z')) {
@@ -472,7 +472,7 @@ void SciTEBase::DefineMarker(int marker, int markerType, ColourDesired fore, Col
 	SendEditor(SCI_MARKERSETFORE, marker, fore.AsLong());
 	SendEditor(SCI_MARKERSETBACK, marker, back.AsLong());
 }
-//ÎÄ¼ş³¤¶È
+//æ–‡ä»¶é•¿åº¦
 static int FileLength(const char *path) {
 	int len = 0;
 	FILE *fp = fopen(path, fileRead);
@@ -483,7 +483,7 @@ static int FileLength(const char *path) {
 	}
 	return len;
 }
-//¶ÁÈ¡API½Ó¿Ú
+//è¯»å–APIæ¥å£
 void SciTEBase::ReadAPI(const SString &fileNameForExtension) {
 	SString apisFileNames = props.GetNewExpand("api.",
 	                        fileNameForExtension.c_str());
@@ -524,7 +524,7 @@ void SciTEBase::ReadAPI(const SString &fileNameForExtension) {
 		}
 	}
 }
-//²éÕÒÓïÑÔÊôĞÔ
+//æŸ¥æ‰¾è¯­è¨€å±æ€§
 SString SciTEBase::FindLanguageProperty(const char *pattern, const char *defaultValue) {
 	SString key = pattern;
 	key.substitute("*", language.c_str());
@@ -559,6 +559,7 @@ static const char *propertiesToForward[] = {
 	"fold.preprocessor",
 	"fold.quotes.nimrod",
 	"fold.quotes.python",
+	"fold.sql.exists",
 	"fold.sql.only.begin",
 	"fold.verilog.flags",
 	"html.tags.case.sensitive",
@@ -691,7 +692,7 @@ SString SciTEBase::GetFileNameProperty(const char *name) {
 		return props.Get(name);
 	}
 }
-//¶ÁÈ¡ÊôĞÔ
+//è¯»å–å±æ€§
 void SciTEBase::ReadProperties() {
 	if (extender)
 		extender->Clear();
@@ -756,7 +757,7 @@ void SciTEBase::ReadProperties() {
 
 	codePage = props.GetInt("code.page");
 	if (CurrentBuffer()->unicodeMode != uni8Bit) {
-		// ¸²¸ÇÊôĞÔÎÄ¼şÈ·±£UnicodeÏÔÊ¾Õı³£.	Override properties file to ensure Unicode displayed.
+		// è¦†ç›–å±æ€§æ–‡ä»¶ç¡®ä¿Unicodeæ˜¾ç¤ºæ­£å¸¸.	Override properties file to ensure Unicode displayed.
 		codePage = SC_CP_UTF8;
 	}
 	SendEditor(SCI_SETCODEPAGE, codePage);
@@ -1205,7 +1206,7 @@ void SciTEBase::ReadProperties() {
 	firstPropertiesRead = false;
 	needReadProperties = false;
 }
-//¶ÁÈ¡×ÖÌåÊôĞÔ
+//è¯»å–å­—ä½“å±æ€§
 void SciTEBase::ReadFontProperties() {
 	char key[200];
 	SString sval;
@@ -1286,7 +1287,7 @@ void SciTEBase::SetPropertiesInitial() {
 	unSlash = props.GetInt("find.replace.escapes");
 	wrapFind = props.GetInt("find.replace.wrap", 1);
 }
-//±¾µØ»¯ÎÄ±¾
+//æœ¬åœ°åŒ–æ–‡æœ¬
 SString Localization::Text(const char *s, bool retainIfNotFound) {
 	SString translation = s;
 	int ellipseIndicator = translation.remove("...");
@@ -1322,7 +1323,7 @@ SString Localization::Text(const char *s, bool retainIfNotFound) {
 	}
 	return s;
 }
-//±¾µØ»¯ÏûÏ¢
+//æœ¬åœ°åŒ–æ¶ˆæ¯
 SString SciTEBase::LocaliseMessage(const char *s, const char *param0, const char *param1, const char *param2) {
 	SString translation = localiser.Text(s);
 	if (param0)
@@ -1333,10 +1334,10 @@ SString SciTEBase::LocaliseMessage(const char *s, const char *param0, const char
 		translation.substitute("^2", param2);
 	return translation;
 }
-//¶ÁÈ¡±¾µØ»¯ÎÄ¼ş
+//è¯»å–æœ¬åœ°åŒ–æ–‡ä»¶
 void SciTEBase::ReadLocalization() {
 	localiser.Clear();
-	const char *title = "locale.properties";	//±¾µØ»¯ÎÄ¼ş
+	const char *title = "locale.properties";	//æœ¬åœ°åŒ–æ–‡ä»¶
 	SString localeProps = props.GetExpanded(title);
 	if (localeProps.length()) {
 		title = localeProps.c_str();
@@ -1428,23 +1429,23 @@ void SciTEBase::ReadPropertiesInitial() {
 	homepath = GetSciteUserHome();
 	props.Set("SciteUserHome", homepath.AsFileSystem());
 }
-//µÃµ½Ä¬ÈÏÊôĞÔÎÄ¼şÃû
+//å¾—åˆ°é»˜è®¤å±æ€§æ–‡ä»¶å
 FilePath SciTEBase::GetDefaultPropertiesFileName() {
 	return FilePath(GetSciteDefaultHome(), propGlobalFileName);
 }
-//µÃµ½ËõĞ´ÊôĞÔÎÄ¼şÃû
+//å¾—åˆ°ç¼©å†™å±æ€§æ–‡ä»¶å
 FilePath SciTEBase::GetAbbrevPropertiesFileName() {
 	return FilePath(GetSciteUserHome(), propAbbrevFileName);
 }
-//µÃµ½ÓÃ»§ÊôĞÔÎÄ¼şÃû
+//å¾—åˆ°ç”¨æˆ·å±æ€§æ–‡ä»¶å
 FilePath SciTEBase::GetUserPropertiesFileName() {
 	return FilePath(GetSciteUserHome(), propUserFileName);
 }
-//µÃµ½±¾µØ»¯ÊôĞÔÎÄ¼şÃû
+//å¾—åˆ°æœ¬åœ°åŒ–å±æ€§æ–‡ä»¶å
 FilePath SciTEBase::GetLocalPropertiesFileName() {
 	return FilePath(filePath.Directory(), propLocalFileName);
 }
-//µÃµ½Ä¿Â¼ÊôĞÔÎÄ¼şÃû
+//å¾—åˆ°ç›®å½•å±æ€§æ–‡ä»¶å
 FilePath SciTEBase::GetDirectoryPropertiesFileName() {
 	FilePath propfile;
 
@@ -1463,7 +1464,7 @@ FilePath SciTEBase::GetDirectoryPropertiesFileName() {
 	}
 	return propfile;
 }
-//´ò¿ªÊôĞÔÎÄ¼ş
+//æ‰“å¼€å±æ€§æ–‡ä»¶
 void SciTEBase::OpenProperties(int propsFile) {
 	FilePath propfile;
 	switch (propsFile) {

@@ -3617,6 +3617,11 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 	case IDM_CLEAR:								//清除
 		SendPane(source, SCI_CLEAR);
 		break;
+	//added-------------
+	case IDM_CLEARLINE:							//删除行
+		SendPane(source, SCI_LINEDELETE);
+		break;
+	//added-------------
 	case IDM_SELECTALL:							//全选
 		SendPane(source, SCI_SELECTALL);
 		break;
@@ -3812,7 +3817,16 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		ParametersDialog(false);
 		CheckMenus();
 		break;
+	//added
+//	case IDM_CODEPAGE:{
+//		CHAR icodePage[] = (CHAR)SendEditor(SCI_GETLINECOUNT);
+		//SendOutput(SCI_GETCODEPAGE);
+//		::MessageBox(0,icodePage,"当前代码页",0);
 
+		//delete codePage;
+//		};
+//		break;
+	//added
 	case IDM_WRAP:
 		wrap = !wrap;
 		SendEditor(SCI_SETWRAPMODE, wrap ? wrapStyle : SC_WRAP_NONE);

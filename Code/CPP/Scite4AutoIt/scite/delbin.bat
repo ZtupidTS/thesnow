@@ -3,5 +3,5 @@ rd /s /q bin
 md bin\properties
 md bin\ÊôÐÔÎÄ¼þ
 echo This empty files ensures that the directory is created. >bin\empty.txt
-copy USkin.dl_ bin\USkin.dll /y
-copy USkin.li_ win32\USkin.lib /y
+::copy USkin.dl_ bin\USkin.dll /y
+::copy USkin.li_ win32\USkin.lib /y
