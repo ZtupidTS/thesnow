@@ -1,0 +1,22 @@
+# -*- python -*- 
+
+Import('env')
+import sys
+
+files = [
+	"dis_decode.cpp",
+	"dis_groups.cpp",
+	"resolve.cpp",
+	"syntax.cpp",
+	"PowerPCDisasm.cpp",
+	]
+
+if sys.platform == 'win32':
+	files += [ "stdafx.cpp" ]
+
+env_bochs = env.Clone(
+	CCFLAGS = env.filterWarnings(env['CCFLAGS']),
+	CXXFLAGS = env.filterWarnings(env['CXXFLAGS']),
+	)
+
+env_bochs.StaticLibrary(env['local_libs'] + "bdisasm", files)

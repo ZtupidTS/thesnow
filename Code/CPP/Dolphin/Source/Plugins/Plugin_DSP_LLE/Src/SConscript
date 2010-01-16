@@ -1,0 +1,43 @@
+
+# -*- python -*-
+
+Import('env')
+import sys
+
+name = "Plugin_DSP_LLE"
+
+if not env['HAVE_AO']:
+    print name + " must have AO to be build"
+    Return()
+
+files = [
+	"Config.cpp",
+	"DSPDebugInterface.cpp",
+	"DSPSymbols.cpp",
+	"Globals.cpp",
+	"main.cpp",
+	"Tools.cpp",
+	"DSPHost.cpp",
+	]
+
+if env['HAVE_WX']:
+        files += [
+	"DSPConfigDlgLLE.cpp",
+	"Debugger/DSPDebugWindow.cpp",
+	"Debugger/DSPRegisterView.cpp",
+	]
+
+lleenv = env.Clone()
+if env['HAVE_WX']:
+	lleenv.Append(
+		CXXFLAGS = [ '-fPIC' ],
+		LIBS = [ 'dspcore', 'audiocommon', 'common', 'debugger_ui_util'  ],
+		)
+else:
+	lleenv.Append(
+		CXXFLAGS = [ '-fPIC' ],
+		LIBS = [ 'dspcore', 'audiocommon', 'common' ],
+		)
+if sys.platform == 'darwin':
+   lleenv['FRAMEWORKS'] = ['CoreFoundation', 'System', 'CoreAudio', 'CoreServices' ]
+lleenv.SharedLibrary(env['plugin_dir']+name, files)

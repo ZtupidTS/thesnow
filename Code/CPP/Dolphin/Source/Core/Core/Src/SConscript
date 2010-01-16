@@ -1,0 +1,144 @@
+# -*- python -*-
+
+Import('env')
+import sys
+
+files = ["ActionReplay.cpp",
+         "ARDecrypt.cpp",
+         "ConfigManager.cpp",
+         "Console.cpp",
+         "Core.cpp",
+         "CoreParameter.cpp",
+         "CoreRerecording.cpp",
+         "CoreTiming.cpp",
+         "OnFrame.cpp",
+         "Host.cpp",
+         "MemTools.cpp",
+         "PatchEngine.cpp",
+         "PluginManager.cpp",
+	 "LuaInterface.cpp",
+         "State.cpp",
+         "Tracer.cpp",
+         "VolumeHandler.cpp",
+         "Boot/Boot.cpp",
+         "Boot/Boot_BS2Emu.cpp",
+         "Boot/Boot_DOL.cpp",
+         "Boot/Boot_ELF.cpp",
+         "Boot/Boot_WiiWAD.cpp",
+         "Boot/ElfReader.cpp",
+         "Debugger/Debugger_SymbolMap.cpp",
+         "Debugger/Dump.cpp",
+         "Debugger/PPCDebugInterface.cpp",
+         "HW/AudioInterface.cpp",
+         "HW/CPU.cpp",
+         "HW/DSP.cpp",
+         "HW/DVDInterface.cpp",
+         "HW/EXI.cpp",
+         "HW/EXI_Channel.cpp",
+         "HW/EXI_Device.cpp",
+         "HW/EXI_DeviceIPL.cpp",
+         "HW/EXI_DeviceAD16.cpp",
+         "HW/EXI_DeviceAMBaseboard.cpp",
+         "HW/EXI_DeviceMemoryCard.cpp",
+         "HW/EXI_DeviceMic.cpp",
+         "HW/EXI_DeviceEthernet.cpp",
+         "HW/GPFifo.cpp",
+         "HW/HW.cpp",
+         "HW/Memmap.cpp",
+         "HW/MemmapFunctions.cpp",
+         "HW/MemoryInterface.cpp",
+         "HW/ProcessorInterface.cpp",
+         "HW/SI.cpp",
+         "HW/SI_Device.cpp",
+         "HW/SI_DeviceAMBaseboard.cpp",
+         "HW/SI_DeviceGBA.cpp",
+         "HW/GBAPipe.cpp", # TEMPORARY
+         "HW/SI_DeviceGCController.cpp",
+         "HW/StreamADPCM.cpp",
+         "HW/SystemTimers.cpp",
+         "HW/VideoInterface.cpp",
+         "HW/WII_IOB.cpp",
+         "HW/WII_IPC.cpp",
+         "IPC_HLE/WII_IPC_HLE.cpp",
+         "IPC_HLE/WII_IPC_HLE_Device_DI.cpp",
+         "IPC_HLE/WII_IPC_HLE_Device_FileIO.cpp",
+         "IPC_HLE/WII_IPC_HLE_Device_es.cpp",
+         "IPC_HLE/WII_IPC_HLE_Device_fs.cpp",
+         "IPC_HLE/WII_IPC_HLE_Device_sdio_slot0.cpp",
+         "IPC_HLE/WII_IPC_HLE_Device_net.cpp",
+         "IPC_HLE/WII_IPC_HLE_WiiMote.cpp",
+         "IPC_HLE/WII_IPC_HLE_Device_usb.cpp",
+         "IPC_HLE/WII_IPC_HLE_Device_usb_kbd.cpp",
+         "IPC_HLE/WiiMote_HID_Attr.cpp",
+         "PowerPC/PowerPC.cpp",
+         "PowerPC/PPCAnalyst.cpp",
+         "PowerPC/PPCTables.cpp",
+         "PowerPC/PPCCache.cpp",
+         "PowerPC/Profiler.cpp",
+         "PowerPC/SignatureDB.cpp",
+         "PowerPC/PPCSymbolDB.cpp",
+         "PowerPC/Interpreter/Interpreter.cpp",
+         "PowerPC/Interpreter/Interpreter_Branch.cpp",
+         "PowerPC/Interpreter/Interpreter_Integer.cpp",
+         "PowerPC/Interpreter/Interpreter_FloatingPoint.cpp",
+         "PowerPC/Interpreter/Interpreter_Paired.cpp",
+         "PowerPC/Interpreter/Interpreter_LoadStore.cpp",
+         "PowerPC/Interpreter/Interpreter_LoadStorePaired.cpp",
+         "PowerPC/Interpreter/Interpreter_SystemRegisters.cpp",
+	 "PowerPC/Interpreter/Interpreter_Tables.cpp",
+         "PowerPC/JitCommon/JitCache.cpp",
+         "PowerPC/JitCommon/JitBackpatch.cpp",
+         "PowerPC/JitCommon/Jit_Util.cpp",
+         "HLE/HLE.cpp",
+         "HLE/HLE_Misc.cpp",
+         "HLE/HLE_OS.cpp",
+        ]
+if not env['NOJIT']:
+	if env['JITTEST']:
+		files += ["PowerPC/Jit64IL/Jit.cpp",
+				  "PowerPC/Jit64IL/JitAsm.cpp",
+				  "PowerPC/Jit64IL/Jit_Branch.cpp",
+				  "PowerPC/Jit64IL/Jit_Integer.cpp",
+				  "PowerPC/Jit64IL/Jit_FloatingPoint.cpp",
+				  "PowerPC/Jit64IL/Jit_LoadStorePaired.cpp",
+				  "PowerPC/Jit64IL/Jit_Paired.cpp",
+				  "PowerPC/Jit64IL/Jit_LoadStore.cpp",
+				  "PowerPC/Jit64IL/Jit_LoadStoreFloating.cpp",
+				  "PowerPC/Jit64IL/Jit_SystemRegisters.cpp",
+				  "PowerPC/Jit64IL/IR.cpp",
+				  "PowerPC/Jit64IL/IR_X86.cpp",
+				  "PowerPC/JitCommon//Jit_Tables.cpp",
+				 ]
+	else:
+		files += ["PowerPC/Jit64/Jit.cpp",
+				  "PowerPC/Jit64/JitRegCache.cpp",
+				  "PowerPC/Jit64/JitAsm.cpp",
+				  "PowerPC/Jit64/Jit_Branch.cpp",
+				  "PowerPC/Jit64/Jit_Integer.cpp",
+				  "PowerPC/Jit64/Jit_FloatingPoint.cpp",
+				  "PowerPC/Jit64/Jit_LoadStorePaired.cpp",
+				  "PowerPC/Jit64/Jit_Paired.cpp",
+				  "PowerPC/Jit64/Jit_LoadStore.cpp",
+				  "PowerPC/Jit64/Jit_LoadStoreFloating.cpp",
+				  "PowerPC/Jit64/Jit_SystemRegisters.cpp",
+				  "PowerPC/JitCommon/Jit_Tables.cpp",
+				 ]
+
+if sys.platform == 'win32':
+    files += [ "stdafx.cpp",
+		"HW/BBA-TAP/TAP_Win32.cpp"
+		 ]
+else: 
+    if sys.platform == 'darwin':
+        files += [ "HW/BBA-TAP/TAP_Apple.cpp"]
+    else:
+        files += [ "HW/BBA-TAP/TAP_Unix.cpp"]
+
+libs = [
+	'bdisasm',
+        'inputcommon',
+	'lua'
+	]
+
+env_core = env.Clone();
+env_core.StaticLibrary(env['local_libs'] + 'core', files, LIBS=libs)

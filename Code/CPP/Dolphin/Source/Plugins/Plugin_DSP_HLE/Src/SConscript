@@ -1,0 +1,48 @@
+# -*- python -*-
+
+Import('env')
+import sys
+
+name = "Plugin_DSP_HLE"
+
+files = [
+	'DSPHandler.cpp',
+	'MailHandler.cpp',
+	'HLEMixer.cpp',
+	'main.cpp',
+	'Config.cpp',
+	'Globals.cpp',
+	'Debugger/File.cpp',
+	'UCodes/UCode_AX.cpp',
+	'UCodes/UCode_AXWii.cpp',
+	'UCodes/UCode_CARD.cpp',
+	'UCodes/UCode_InitAudioSystem.cpp',
+	'UCodes/UCode_ROM.cpp',
+	'UCodes/UCodes.cpp',
+	'UCodes/UCode_Zelda.cpp',
+	'UCodes/UCode_Zelda_ADPCM.cpp',
+	'UCodes/UCode_Zelda_Voice.cpp',
+	'UCodes/UCode_Zelda_Synth.cpp',
+	]
+
+dspenv = env.Clone()
+
+if dspenv['HAVE_WX']:
+    files += [
+        'ConfigDlg.cpp',
+        'Debugger/Debugger.cpp',
+        'Debugger/PBView.cpp',
+        'Debugger/Mails.cpp',
+        'Debugger/Blocks.cpp',
+        'Debugger/Logging.cpp',
+
+        ]
+
+dspenv.Append(
+	CXXFLAGS = [ '-fPIC' ],
+	LIBS = [ 'common', 'audiocommon' ],
+	)
+if sys.platform == 'darwin':
+    dspenv['FRAMEWORKS'] = [ 'CoreAudio', 'CoreServices' ]
+
+dspenv.SharedLibrary(env['plugin_dir']+name, files)

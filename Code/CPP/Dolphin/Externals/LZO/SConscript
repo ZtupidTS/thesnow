@@ -1,0 +1,13 @@
+# -*- python -*- 
+
+Import('env')
+
+files = [
+	"minilzo.c",
+	]
+
+env_lzo = env.Clone(
+        CCFLAGS = env.filterWarnings(env['CCFLAGS']),
+        CXXFLAGS = env.filterWarnings(env['CXXFLAGS']),
+        )
+env_lzo.StaticLibrary(env['local_libs'] + "minilzo", files)
