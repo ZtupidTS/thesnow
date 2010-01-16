@@ -1,0 +1,49 @@
+# -*- python -*-
+
+Import('env')
+import sys
+
+files = [
+	"ABI.cpp",
+	"BreakPoints.cpp",
+	"CDUtils.cpp",
+	"ChunkFile.cpp",
+	"ColorUtil.cpp",
+	"ConsoleListener.cpp",
+	"CPUDetect.cpp",
+	"DynamicLibrary.cpp",
+	"ExtendedTrace.cpp",
+	"FileSearch.cpp",
+	"FileUtil.cpp",
+	"Hash.cpp",
+	"IniFile.cpp",
+	"LogManager.cpp",
+	"MathUtil.cpp",
+	"MemArena.cpp",
+	"MemoryUtil.cpp",
+	"Misc.cpp",
+	"MsgHandler.cpp",
+	"OpenCL.cpp",
+	"Plugin.cpp",
+	"PluginDSP.cpp",
+	"PluginWiimote.cpp",
+	"PluginVideo.cpp",
+	"PluginPAD.cpp",
+	"SDCardUtil.cpp",
+	"StringUtil.cpp",
+	"SymbolDB.cpp",
+	"SysConf.cpp",
+	"Thread.cpp",
+	"Thunk.cpp",
+	"Timer.cpp",
+	"Thread.cpp",
+	"x64Emitter.cpp",
+	"x64Analyzer.cpp",
+	]
+
+if sys.platform == 'win32':
+	files += [ "stdafx.cpp" ]
+
+env_common = env.Clone()
+env_common.Append(CXXFLAGS = [ '-fPIC' ])
+env_common.StaticLibrary(env['local_libs'] + "common", files)

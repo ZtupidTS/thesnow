@@ -1,0 +1,181 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include <windows.h>
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (U.S.) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE LANG_CHINESE, SUBLANG_CHINESE_SIMPLIFIED
+#pragma code_page(936)
+#endif //_WIN32
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_ABOUT DIALOGEX 0, 0, 188, 81
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Dolphin D3D9 视频插件"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "关闭",IDOK,131,60,50,14
+    LTEXT           "Code by ector",IDC_STATIC,7,7,85,9
+    LTEXT           "硬件需求: Radeon 9500 或者更高, 或者 Geforce FX5200 或者更高.\n推荐使用 Radeon.",IDC_STATIC,7,19,174,26
+    LTEXT           "将不能正确工作的老的 GPU:s.",IDC_STATIC,7,47,170,8
+END
+
+IDD_SETTINGS DIALOGEX 0, 0, 244, 183
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD | WS_BORDER | WS_SYSMENU
+FONT 8, "MS Shell Dlg", 0, 0, 0x0
+BEGIN
+    LTEXT           "图形卡(&G):",IDC_STATIC,7,9,61,8
+    COMBOBOX        IDC_ADAPTER,68,7,169,48,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "全屏(&F)",IDC_FULLSCREENENABLE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,68,25,56,8
+    CONTROL         "垂直同步(&V)",IDC_VSYNC,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,68,38,141,8
+    CONTROL         "吸附到主窗口(&R)",IDC_RENDER_TO_MAINWINDOW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,68,50,141,8
+    LTEXT           "全屏分辨率(&S):",IDC_STATIC,7,86,69,8
+    COMBOBOX        IDC_RESOLUTION,87,85,150,73,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "窗口分辨率(&W):",IDC_STATIC,7,106,74,8
+    COMBOBOX        IDC_RESOLUTIONWINDOWED,87,104,150,73,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "抗锯齿模式(&A):",IDC_STATIC,7,127,56,8
+    COMBOBOX        IDC_ANTIALIASMODE,68,125,169,73,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "高宽比(&A):",IDC_STATIC,7,66,52,8
+    CONTROL         "宽屏修正(&W)",IDC_WIDESCREEN_HACK,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,170,66,67,10
+    CONTROL         "安全材质缓存(&S)",IDC_SAFE_TEXTURE_CACHE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,68,143,85,11
+    CONTROL         "启用 CPU->&EFB 访问\n (可能导致速度变慢, 用于萨尔达游戏)",IDC_EFB_ACCESS_ENABLE,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,68,153,169,23
+    COMBOBOX        IDC_ASPECTRATIO,68,64,97,57,CBS_DROPDOWNLIST | CBS_SORT | WS_VSCROLL | WS_TABSTOP
+END
+
+IDD_ADVANCED DIALOGEX 0, 0, 244, 200
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD | WS_BORDER | WS_SYSMENU
+FONT 8, "MS Shell Dlg", 0, 0, 0x0
+BEGIN
+    GROUPBOX        "设置(&S)",IDC_STATIC,6,7,228,67
+    CONTROL         "显示 FPS 计数",IDC_OVERLAYFPS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,114,18,82,8
+    CONTROL         "显示部分状态(&O)",IDC_OVERLAYSTATS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,137,90,8
+    CONTROL         "显示渲染兼容错误(&H)",IDC_SHOWSHADERERRORS,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,151,114,8
+    CONTROL         "启用线框图(&W)",IDC_WIREFRAME,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,18,78,8
+    CONTROL         "禁用雾化",IDC_DISABLEFOG,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,114,33,87,8
+    CONTROL         "启用 EFB 复制",IDC_ENABLEEFBCOPY,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,33,81,8
+    CONTROL         "到内存",IDC_EFBTORAM,"Button",BS_AUTORADIOBUTTON | WS_GROUP,29,44,59,10
+    CONTROL         "到材质",IDC_EFBTOTEX,"Button",BS_AUTORADIOBUTTON,29,57,60,10
+    GROUPBOX        "数据转储(&D)",IDC_STATIC,7,79,228,41
+    CONTROL         "转储材质(&T)",IDC_TEXDUMP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,92,70,9
+    CONTROL         "转储帧到 User/Dump/Frames",IDC_DUMPFRAMES,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,106,138,9
+    GROUPBOX        "调试工具",IDC_STATIC,7,125,228,70
+    CONTROL         "材质格式覆盖",IDC_TEXFMT_OVERLAY,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,164,92,10
+    CONTROL         "居中",IDC_TEXFMT_CENTER,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,29,177,52,10
+END
+
+IDD_ENHANCEMENTS DIALOGEX 0, 0, 224, 175
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD | WS_SYSMENU
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    GROUPBOX        "材质筛选(&F)",IDC_STATIC,7,7,210,60
+    CONTROL         "强制中断视频于部分Wii游戏/三线性",IDC_FORCEFILTERING,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,20,192,9
+    CONTROL         "启用 16x 各向异性筛选(&A)",IDC_FORCEANISOTROPY,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,35,110,10
+    CONTROL         "Enable hires texture loading",IDC_LOADHIRESTEXTURE,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,50,110,11
+    GROUPBOX        "EFB Hacks",IDC_STATIC,7,70,210,27
+    CONTROL         "EFB Scaled Copy",IDC_EFBSCALEDCOPY,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,80,110,12
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO 
+BEGIN
+    IDD_ABOUT, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 181
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 74
+    END
+
+    IDD_SETTINGS, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 237
+        VERTGUIDE, 7
+        VERTGUIDE, 68
+        VERTGUIDE, 81
+        VERTGUIDE, 87
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 176
+    END
+
+    IDD_ADVANCED, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 237
+        VERTGUIDE, 14
+        VERTGUIDE, 29
+        VERTGUIDE, 114
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 195
+        HORZGUIDE, 18
+        HORZGUIDE, 33
+        HORZGUIDE, 49
+        HORZGUIDE, 156
+    END
+
+    IDD_ENHANCEMENTS, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 217
+        VERTGUIDE, 16
+        VERTGUIDE, 74
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 168
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include <windows.h\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+#endif    // English (U.S.) resources
+/////////////////////////////////////////////////////////////////////////////

@@ -1,0 +1,33 @@
+
+# -*- python -*-
+
+Import('env')
+import sys
+
+files = [
+    'AudioCommonConfig.cpp',
+    'WaveFile.cpp',
+    'Mixer.cpp',
+    'AudioCommon.cpp',
+    ]
+
+acenv = env.Clone()
+acenv.Append(CXXFLAGS = [ '-fPIC' ])
+
+if acenv['HAVE_OPENAL']:
+    files += [ 'OpenALStream.cpp', 'aldlist.cpp' ]
+    
+if acenv['HAVE_AO']:
+    files += [ 'AOSoundStream.cpp' ]
+
+if acenv['HAVE_ALSA']:
+    files += [ 'AlsaSoundStream.cpp' ]
+
+if acenv['HAVE_PULSEAUDIO']:
+    files += [ 'PulseAudioStream.cpp' ]
+
+if sys.platform == 'darwin':
+    files += [ 'CoreAudioSoundStream.cpp' ]
+    acenv['FRAMEWORKS'] = [ 'CoreAudio' ]
+    
+acenv.StaticLibrary(env['local_libs'] + 'audiocommon', files)

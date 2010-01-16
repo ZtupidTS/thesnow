@@ -1,0 +1,17 @@
+# -*- python -*-
+
+Import('env')
+
+if not env['HAVE_WX']:
+	Return()
+
+files = [
+	'CodeView.cpp',
+	'DebuggerUIUtil.cpp',
+	'MemoryView.cpp',
+	]
+
+acenv = env.Clone()
+acenv.Append(CXXFLAGS = [ '-fPIC' ])
+
+acenv.StaticLibrary(env['local_libs'] + 'debugger_ui_util', files)

@@ -1,0 +1,119 @@
+# -*- python -*-
+
+Import('env')
+import sys
+
+wxenv = env.Clone()
+
+files = [
+	'BootManager.cpp',
+	'cmdline.c',
+	]
+
+libs = [
+	'core', 'minilzo', 'discio', 'bdisasm', 'videocommon', 
+	'inputcommon', 'common', 'lua', 'z'
+	]
+
+if wxenv['HAVE_WX']:
+	files += [
+		'AboutDolphin.cpp',
+		'ARCodeAddEdit.cpp',
+		'ConfigMain.cpp',
+		'Frame.cpp',
+		'FrameAui.cpp',
+		'FrameTools.cpp',
+		'FrameWiimote.cpp',
+		'LuaWindow.cpp',
+		'LogWindow.cpp',
+		'GameListCtrl.cpp',
+		'Globals.cpp',
+		'ISOFile.cpp',
+		'ISOProperties.cpp',
+		'MemcardManager.cpp',
+		'MemoryCards/GCMemcard.cpp',
+		'PatchAddEdit.cpp',
+		'CheatsWindow.cpp',
+		'stdafx.cpp',
+		'WxUtils.cpp',
+		'MemoryCards/WiiSaveCrypted.cpp',
+		'MemoryCards/Crypto/bn.cpp',
+		'MemoryCards/Crypto/ec.cpp',
+		'MemoryCards/Crypto/md5.cpp',
+		'MemoryCards/Crypto/sha1.cpp',
+		]
+
+        CPPDEFINES = [
+                'USE_XPM_BITMAPS',
+                'wxNEEDS_CHARPP',
+                ],
+
+	libs = [ 'debwx', 'debugger_ui_util'] + libs
+
+if wxenv['HAVE_SFML']:
+	files += [ 
+		'NetEvent.cpp',
+		'NetFunctions.cpp',
+		'NetSockets.cpp',
+		'NetWindow.cpp',
+		]
+
+if wxenv['HAVE_COCOA']:
+    files += [ 'cocoaApp.m', ]
+    compileFlags = [
+            '-x',
+            'objective-c++',
+            ]
+    wxenv.Append(
+	CXXFLAGS = compileFlags,
+       	LINKFLAGS = [
+               	'-pthread', '-framework', 'IOKit'
+               	],
+       	LIBS = libs
+       	)
+else:
+    wxenv.Append(
+       	LINKFLAGS = [
+               	'-pthread',
+               	],
+       	LIBS = libs
+       	)
+
+
+
+
+if sys.platform == 'darwin':
+	exeGUI = env['binary_dir'] + 'Dolphin.app/Contents/MacOS/Dolphin'
+	exeNoGUI = env['binary_dir'] + 'DolphinNoGUI'
+
+	icon = 'Dolphin'
+	version = 'svn'
+	wxenv['FRAMEWORKS'] = ['Cocoa', 'CoreFoundation', 'System']
+	wxenv.Plist(
+		env['binary_dir'] + 'Dolphin.app/Contents/Info.plist',
+		Value(dict(
+			CFAppleHelpAnchor = 'index',
+			CFBundleExecutable = 'Dolphin',
+			CFBundleGetInfoHTML = 'Dolphin ' + version,
+			CFBundleIconFile = icon,
+			CFBundleIdentifier = 'com.dolphin-emu.dolphin',
+			CFBundleName = 'Dolphin',
+			CFBundlePackageType = 'APPL',
+			CFBundleShortVersionString = version,
+			CFBundleSignature = 'dlfn',
+			CFBundleVersion = version,
+			LSRequiresCarbon = True,
+			NSPrefPaneIconFile = icon,
+			NSPrefPaneIconLabel = 'Dolphin',
+			))
+		)
+else:
+	exeGUI = env['binary_dir'] + 'Dolphin'
+	exeNoGUI = env['binary_dir'] + 'DolphinNoGUI'
+
+#objects = [ wxenv.Object(srcFile) for srcFile in files ]
+
+if wxenv['HAVE_WX']:
+	wxenv.Program(exeGUI, files + [ 'Main.cpp' ])
+else:
+	wxenv.Program(exeNoGUI, files + [ 'MainNoGUI.cpp' ])
