@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="9,00"
+	Version="9.00"
 	Name="tftpd32_gui"
 	ProjectGUID="{32D8CBBA-2289-4EBE-95E3-5B0EB019D259}"
 	RootNamespace="tftpd32_gui"
@@ -137,7 +137,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="user32.lib shell32.lib gdi32.lib Comdlg32.lib advapi32.lib ws2_32.lib comctl32.lib iphlpapi.lib d:\tftpd32\release\libs.lib"
+				AdditionalDependencies="user32.lib shell32.lib gdi32.lib Comdlg32.lib advapi32.lib ws2_32.lib comctl32.lib iphlpapi.lib ..\release\libs.lib"
 				Version="3.28"
 				LinkIncremental="1"
 				GenerateDebugInformation="false"

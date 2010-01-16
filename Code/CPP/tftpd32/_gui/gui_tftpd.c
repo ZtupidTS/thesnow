@@ -8,7 +8,7 @@
 //////////////////////////////////////////////////////
 
 
-#include "headers.h"
+#include "../_common/headers.h"
 
 
 enum E_fields { FD_PEER, FD_FILE, FD_START, FD_PROGRESS, FD_BYTES, FD_TOTAL, FD_TIMEOUT };
@@ -33,7 +33,7 @@ char		cDel;
     LvItem.mask = LVIF_PARAM | LVIF_STATE;
     LvItem.state = 0;
     LvItem.stateMask = 0;
-    LvItem.iItem = Pos;      // numéro de l'item
+    LvItem.iItem = Pos;      // numÃ©ro de l'item
     LvItem.lParam = (LPARAM) pTftpGui->dwTransferId;    // for Right-Click actions
     LvItem.iSubItem = 0;     // index dans la ligne
     // LvItem.pszText = "";

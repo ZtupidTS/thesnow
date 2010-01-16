@@ -8,7 +8,7 @@
 //////////////////////////////////////////////////////
 
 
-#include "headers.h"
+#include "../_common/headers.h"
 
 #ifdef PORTABLE
 #  define TFTPD_STRING   "TFTPD32-Portable v2.86 Build " __DATE__ " " __TIME__

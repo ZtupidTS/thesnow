@@ -7,7 +7,7 @@
 //////////////////////////////////////////////////////
 
 
-#include "headers.h"
+#include "../_common/headers.h"
 
 // as global variables, we have the settings both general and DHCP)
 struct S_DHCP_Param  sGuiParamDHCP;

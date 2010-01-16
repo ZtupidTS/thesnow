@@ -18,7 +18,7 @@
 
 
 #include <stdio.h>
-#include "headers.h"
+#include "../_common/headers.h"
 
 
 #define  RESET_DEFAULT_TEXT  "Reset current configuration\nand destroy registry entries ?"
@@ -97,7 +97,7 @@ char        sz [32];
            CHECK_DLG_IF (hWnd, IDC_CHECK_LOCALIP, sGuiSettings.szLocalIP[0]!=0);
            ComboBox_Enable (GetDlgItem (hWnd, IDC_CB_LOCALIP), ISDLG_CHECKED (hWnd, IDC_CHECK_LOCALIP) );
 
-           // Fenêtre d'anticipation
+           // FenÃªtre d'anticipation
            CHECK_DLG_IF (hWnd, IDC_CHECK_WINSIZE, sGuiSettings.WinSize>0);
            Edit_Enable (GetDlgItem (hWnd, IDC_WINSIZE), sGuiSettings.WinSize > 0);
            // local ports
@@ -250,7 +250,7 @@ char        sz [32];
                     sNewSettings.bBeep       = ISDLG_CHECKED (hWnd, IDC_CHECK_BEEP);
                     sNewSettings.bVirtualRoot= ISDLG_CHECKED (hWnd, IDC_CHECK_VROOT);
                     sNewSettings.bPXECompatibility = ISDLG_CHECKED (hWnd, IDC_CHECK_PXE);
-                    // Sécurité sur l'accès
+                    // SÃ©curit?sur l'accÃ¨s
                     if (ISDLG_CHECKED (hWnd, IDC_CHECK_LOCALIP))
                          ComboBox_GetText (GetDlgItem(hWnd, IDC_CB_LOCALIP), sNewSettings.szLocalIP, sizeof sNewSettings.szLocalIP);
                     else sNewSettings.szLocalIP [0] = 0;
@@ -369,7 +369,7 @@ char  sz[128], *pCur, *pNext;
                       0,                      // Reserved.
                       KEY_READ,                // Requesting read access.
                     & hKey);                 // Address of key to be returned.
-    // Lire les données dans cette entrée
+    // Lire les donnÃ©es dans cette entrÃ©e
     READKEY (KEY_WINDOW_POS, sz);
     if (hKey!=INVALID_HANDLE_VALUE)
             RegCloseKey (hKey);

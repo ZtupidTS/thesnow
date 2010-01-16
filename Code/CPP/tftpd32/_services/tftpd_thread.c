@@ -15,7 +15,7 @@
 
 // #define DEB_TEST
 
-#include "headers.h"
+#include "../_common/headers.h"
 #include <process.h>
 #include <stdio.h>
 
@@ -80,7 +80,7 @@ BOOL          bForward = (    strstr (szFile, "..")==NULL
             if (bForward  && op_code==TFTP_RRQ) return TRUE;
            SetLastError (ERROR_DIRECTORY);
             return FALSE;
-    } // type de sécurité
+    } // type de sÃ©curit?
 return FALSE;
 } // SecAllowSecurity
 
@@ -152,7 +152,7 @@ char *p;
     }
     if (szFile[1] == ':')   szFile[0] = toupper (szFile[0]);
     // Si option Virtual Root : Suppression de '\\'
-    // sera traité à partir du répertoire courant
+    // sera trait??partir du rÃ©pertoire courant
   if (sSettings.bVirtualRoot  && szFile[0] == '\\')
       memmove (szFile, szFile+1, lstrlen (szFile));
 } // SecFileName
@@ -498,7 +498,7 @@ char  szExtendedName [2 * _MAX_PATH];
              if (IS_OPT (p, TFTP_OPT_TSIZE))
              {
                 lstrcpy (pAck, p), pAck += lstrlen (p)+1;
-                // vérue si read request -> on envoie la taille du fichier
+                // vÃ©rue si read request -> on envoie la taille du fichier
                 if (opcode==TFTP_RRQ)
                 {
                     wsprintf (pAck, "%d", pTftp->st.dwTransferSize);
