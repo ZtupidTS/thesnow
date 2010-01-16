@@ -1,0 +1,226 @@
+#!/bin/bash
+# -*- mode: shell-script; coding: UTF-8 -*-
+# 
+# Build Xvnc with Xorg 7.4
+#
+
+set -e
+
+if [ "$PREFIX" = "" ]; then
+    PREFIX=`pwd`/xorg.build
+fi
+export ACLOCAL="aclocal -I ${PREFIX}/share/aclocal"
+export PKG_CONFIG_PATH="${PREFIX}/lib/pkgconfig"
+MAKE="make"
+STATIC=0
+
+modules="dri2proto \
+    libpthread-stubs \
+    glproto \
+    xf86vidmodeproto \
+    xextproto \
+    xproto \
+    kbproto \
+    inputproto \
+    xcmiscproto \
+    bigreqsproto \
+    fixesproto \
+    damageproto \
+    xf86driproto \
+    randrproto \
+    renderproto \
+    scrnsaverproto \
+    resourceproto \
+    fontsproto \
+    videoproto \
+    compositeproto \
+    xineramaproto \
+    fontcacheproto \
+    libdrm \
+    libXau \
+    xtrans \
+    libXdmcp \
+    libX11 \
+    libXext \
+    libXxf86vm \
+    libICE \
+    libSM \
+    libXt \
+    libXmu \
+    libXfixes \
+    libXdamage \
+    libXi \
+    evieext \
+    libxkbfile \
+    libfontenc \
+    libXfont \
+    libpciaccess \
+    pixman"
+
+
+init()
+{
+    mkdir -p xorg
+    update_modules
+
+    pushd xorg
+    tar jxf ~/.tigervnc-build/util-macros.tar.bz2
+    pushd util-macros-*
+    echo "Building macros"
+    ./configure ${1+"$@"} --prefix=${PREFIX}
+    ($MAKE);
+    make install
+    popd
+    popd
+
+    pushd xserver
+    patch -p1 < ../xserver15.patch
+    popd
+
+    cd ..
+    autoreconf -fiv
+    cd unix
+}
+
+
+update_modules()
+{
+    pushd xorg
+    ../download-xorg
+    for module in ${modules}; do
+        tar jxf ~/.tigervnc-build/${module}.tar.bz2
+    done
+    tar jxf ~/.tigervnc-build/Mesa.tar.bz2
+    tar jxf ~/.tigervnc-build/freetype.tar.bz2
+    tar jxf ~/.tigervnc-build/xorg-server.tar.bz2
+    cp -r xorg-server-1.*/* ../xserver
+    popd
+}
+
+
+build ()
+{
+    # Build VNC
+    echo "*** Building VNC ***"
+    cd ..
+    make distclean || true
+    ./configure ${1+"$@"} --prefix=${PREFIX}
+    make
+    cd unix
+
+    # Build Xorg
+    echo "*** Building Xorg ***"
+    pushd xorg
+    for module in ${modules}; do
+        extraoptions=""
+        cd ${module}-*
+        echo ======================
+        echo configuring ${module}
+        echo ======================
+        if [ "${module}" = "libX11" ]; then
+            extraoptions="${extraoptions} --without-xcb"
+        fi
+        if [ "${module}" = "libSM" ]; then
+            extraoptions="${extraoptions} --without-libuuid"
+        fi
+        if [ $STATIC = 1 ]; then
+            extraoptions="${extraoptions} --enable-static --disable-shared"
+            OLD_CFLAGS=${CFLAGS}
+            OLD_CXXFLAGS=${CXXFLAGS}
+            CFLAGS=${CFLAGS}' -fPIC'
+            CXXFLAGS=${CXXFLAGS}' -fPIC'
+            export CFLAGS CXXFLAGS
+        fi
+        ./configure ${1+"$@"} --prefix="${PREFIX}" ${extraoptions}
+        if [ $STATIC = 1 ]; then
+            CFLAGS=${OLD_CFLAGS}
+            CXXFLAGS=${OLD_CXXFLAGS}
+            export CFLAGS CXXFLAGS
+        fi
+        echo ======================
+        echo building ${module}
+        echo ======================
+        if [ $? -ne 0 ]; then
+                echo "Failed to configure ${module}."
+                exit
+        fi
+        ($MAKE);
+        make install
+        cd ..
+    done
+
+    # build mesa
+    echo "*** Building Mesa ***"
+    pushd Mesa-*
+    ./configure ${1+"$@"} --prefix=${PREFIX} --with-driver=dri --disable-glut --without-demos
+    if [ $? -ne 0 ]; then
+	echo "Failed to configure Mesa."
+	exit
+    fi
+    ($MAKE)
+    make install
+    popd
+
+    # build freetype
+    if [ $STATIC = 1 ]; then
+        echo "*** Building freetype ***"
+        pushd freetype-*
+        ./configure ${1+"$@"} --prefix=${PREFIX} --enable-static --disable-shared
+        if [ $? -ne 0 ]; then
+	    echo "Failed to configure freetype."
+	    exit
+        fi
+        ($MAKE)
+        make install
+        popd
+    fi
+
+    popd
+
+    # build xserver
+    echo "*** Building xserver ***"
+    cd xserver
+    autoreconf -fiv
+    XORGCFGFLAGS='--disable-xinerama --disable-xvfb --disable-xnest --disable-xorg'
+    if [ $STATIC = 1 ]; then
+        XORGCFGFLAGS="${XORGCFGFLAGS} --disable-shared --enable-static"
+    fi
+    ./configure ${1+"$@"} --prefix=${PREFIX} ${XORGCFGFLAGS}
+    if [ $? -ne 0 ]; then
+	echo "Failed to configure X server."
+	exit
+    fi
+    ($MAKE)
+    make install
+    cd ..
+}
+
+case "$1" in
+    init)
+	shift
+	if [ "$1" = "-static" ]; then
+	    STATIC=1
+	    shift
+	fi
+	init ${1+"$@"}
+	;;
+    build)
+	shift
+	if [ "$1" = "-static" ]; then
+	    STATIC=1
+	    shift
+	fi
+	build ${1+"$@"}
+	;;
+    update)
+	shift
+	if [ "$1" = "-static" ]; then
+	    STATIC=1
+	    shift
+	fi
+	update_modules
+	;;
+    *)
+	echo "Usage: $0 init | build | update [-static] [additional configure flags]"
+	exit 3
+esac
