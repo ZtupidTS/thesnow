@@ -8,7 +8,7 @@
 //
 //////////////////////////////////////////////////////
 
-#include "headers.h"
+#include "../_common/headers.h"
 
 #include <stdio.h>          // sscanf is used
 #include <process.h>        // endthread + beginthread
@@ -433,7 +433,7 @@ void LoadLeases(void)
  
    // From Nick : I realized that there was a race condition in that code, 
    // particularly with the reading and saving of KEY_LEASE_NUMLEASES
-   // I’ve added a function, which LoadLeases calls immediately on entry:
+   // Iâ€™ve added a function, which LoadLeases calls immediately on entry:
    WaitForMsgQueueToFinish (LL_ID_SETTINGS);
 
    nAllocatedIP = 0;

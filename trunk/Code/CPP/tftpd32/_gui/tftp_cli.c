@@ -8,7 +8,7 @@
 //////////////////////////////////////////////////////
 
 
-#include "headers.h"
+#include "../_common/headers.h"
 #include <commdlg.h>
 
 
@@ -29,25 +29,25 @@ static HANDLE    hTftpClientSemaphore;
 static struct S_TftpClient
 {
     unsigned char opcode;           // TFTP_RRQ ou TFTP_WRQ
-    char szFile [256];              // nom du fichier à transférer
+    char szFile [256];              // nom du fichier Ã  transfÃ©rer
     char szDestFile [256];          // nom du fichier en remote
     char szHost [256];              // adresse du serveur
-    unsigned char BufSnd [MAXPKTSIZE];     // dernier datagram émis
-    unsigned char BufRcv [MAXPKTSIZE];     // dernier datagram reçu
+    unsigned char BufSnd [MAXPKTSIZE];     // dernier datagram Ã©mis
+    unsigned char BufRcv [MAXPKTSIZE];     // dernier datagram reÃ§u
 	struct sockaddr_in  saFrom;    // Server address
     int           nPort;           // port pour la connexion (0 -> default)
-    DWORD         nToSend;         // nombre de caractères à envoyer
-    DWORD          nRcvd;           // nombre de caractères reçus
+    DWORD         nToSend;         // nombre de caractÃ¨res Ã  envoyer
+    DWORD          nRcvd;           // nombre de caractÃ¨res reÃ§us
     SOCKET        s;                // socket de communication
-    BOOL          bConnected;       // socket "connectée"
+    BOOL          bConnected;       // socket "connectÃ©e"
     HANDLE        hFile;            // Handler du fichier local
-    DWORD         nCount;           // nombre de block émis/reçus
+    DWORD         nCount;           // nombre de block Ã©mis/reÃ§us
     DWORD         nRetransmit;      // nombre de retransmissions
     DWORD         dwTimeout;        // Timeout en 1000e de secondes
     time_t        StartTime;        // Horodatage
     time_t        dLastUpdate;
     DWORD         dwFileSize;
-    DWORD         nTotRetrans;       // retransmissions complètes
+    DWORD         nTotRetrans;       // retransmissions complÃ¨tes
     BOOL          bBreak;           // break has been selected
     DWORD         nPktSize;
     BOOL          bMultiFile;        // several files are to be transferred
@@ -437,7 +437,7 @@ char szCurDir[MAX_PATH];
           // init MD5 computation
           MD5Init (& sTC.m.ctx);
 
-          // récupérer les valeurs
+          // rÃ©cupÃ©rer les valeurs
               sTC.opcode = wItem==IDC_CLIENT_GET_BUTTON ? TFTP_RRQ : TFTP_WRQ;
           GetDlgItemText (hParentWnd, IDC_CLIENT_HOST, sTC.szHost, sizeof sTC.szHost);
           GetDlgItemText (hParentWnd, IDC_CLIENT_LOCALFILE, sTC.szFile, sizeof sTC.szFile);
@@ -648,13 +648,13 @@ LogToMonitor ("GUI: Closing Tftp Client");
          break;
 
       //////////////////////
-      // Download : fichier envoyé par le serveur
+      // Download : fichier envoyÃ© par le serveur
      case WM_CLIENT_DATA :
         // WSAAsyncSelect (sTC.s, hWnd, 0, 0);  A SUPPRIMER
         KillTimer(hWnd, wParam);
         if (sTC.bBreak) return FALSE;
         sTC.nRcvd = 0;
-        // On est reveillé par un message reçu
+        // On est reveillÃ© par un message reÃ§u
         tpr = (struct tftphdr *) sTC.BufRcv;
         if (WSAGETSELECTEVENT(lParam) == FD_READ)
         {
@@ -688,8 +688,8 @@ LogToMonitor ("GUI: Closing Tftp Client");
              default :
                  return BadEndOfTransfer ("Server sent illegal opcode %d", htons (tpr->th_opcode));
           } // switch opcode
-        } // il y a un message à recevoir
-        // La comparaison marche si le paquet est le bon ou une répétition du précédent message
+        } // il y a un message Ã  recevoir
+        // La comparaison marche si le paquet est le bon ou une rÃ©pÃ©tition du prÃ©cÃ©dent message
         if ( htons (tpr->th_block) == (unsigned short) sTC.nCount)
         {
            if (sTC.nRetransmit)  sTC.nTotRetrans ++;
@@ -698,7 +698,7 @@ LogToMonitor ("GUI: Closing Tftp Client");
             send (sTC.s, sTC.BufSnd, sTC.nToSend, 0);
             SetTimer (hWnd, WM_CLIENT_DATA, sTC.dwTimeout, NULL);
         }
-      // sTC.nRcvd ne peut être inférieur que si on a reçu un block
+      // sTC.nRcvd ne peut Ãªtre infÃ©rieur que si on a reÃ§u un block
         if (  htons (tpr->th_opcode)==TFTP_DATA
           &&  sTC.nRcvd!=0
            && sTC.nRcvd < sTC.nPktSize + TFTP_DATA_HEADERSIZE)
@@ -756,7 +756,7 @@ LogToMonitor ("GUI: Closing Tftp Client");
              default :
                    return BadEndOfTransfer ("Server sent illegal opcode %d", htons (tpr->th_opcode));
             } // switch opcode
-        } // il y a un message à recevoir
+        } // il y a un message Ã  recevoir
 
         // Timeout or ack of previous block
         else if ( htons (tpr->th_block) == (unsigned short) (sTC.nCount-1) )
@@ -764,7 +764,7 @@ LogToMonitor ("GUI: Closing Tftp Client");
            if (sTC.nRetransmit)  sTC.nTotRetrans ++;
            if (sTC.nRetransmit++ > TFTP_RETRANSMIT)
                 return BadEndOfTransfer ("Timeout while waiting ack block #%d", sTC.nCount);
-            // une possibilité : on est au dernier message et le serveur TFTP n'a pas acquitté
+            // une possibilitÃ© : on est au dernier message et le serveur TFTP n'a pas acquittÃ©
             // --> on renvoie, mais sur Timeout, on signale un transfert OK
             if (sTC.nToSend < TFTP_DATA_HEADERSIZE + sTC.nPktSize  &&  sTC.nRetransmit<TFTP_RETRANSMIT)
                 return TransferOK (dNow);

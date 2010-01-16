@@ -8,9 +8,9 @@
 
 
 
-#include "headers.h"
+#include "../_common/headers.h"
 
-#define TOOLBAR_HEIGHT  0        // pas de fenêtre Toolbar
+#define TOOLBAR_HEIGHT  0        // pas de fenÃªtre Toolbar
 
 
 // The tabs

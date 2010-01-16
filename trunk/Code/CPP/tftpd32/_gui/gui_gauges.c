@@ -7,13 +7,13 @@
 //////////////////////////////////////////////////////
 
 
-#include "headers.h"
+#include "../_common/headers.h"
 
 
 #define TFTP_MIN_VERT_GAUGE  3
 #define TFTP_MIN_HORZ_GAUGE  1
 
-// descripteur du menu système
+// descripteur du menu systÃ¨me
 enum { IDM_TFTP_ABORTTRF = 0x1100 };     // should be under 0xF000
 
 
@@ -80,7 +80,7 @@ return FALSE;
 }/* end TftpGaugeProc */
 
 ///////////////////////////////////
-// positionne la Gauge Window dans la fenêtre TFTP
+// positionne la Gauge Window dans la fenÃªtre TFTP
 ///////////////////////////////////
 static int NewGaugePos (HWND hWnd, int n)
 {
@@ -92,15 +92,15 @@ int  NbVert, NbHoriz;
    GetClientRect (hTftpWnd, & sTftpClientRect);
    GetWindowRect (hWnd,     & sGaugeRect);
    GetClientRect (hWnd,     & sGaugeClientRect);
-   // Ajustement des paramètres (barres de tâches et non recouvrement)
+   // Ajustement des paramÃ¨tres (barres de tÃ¢ches et non recouvrement)
    sGaugeClientRect.bottom += 10;
    sGaugeClientRect.right  += 0;
    sTftpRect.top += sTftpRect.bottom - sTftpRect.top - sTftpClientRect.bottom;
    sTftpRect.left += 10;
 
-// Nombre de fenêtres en vertical et Horizontal.
+// Nombre de fenÃªtres en vertical et Horizontal.
 // Attention, on peut avoir sTftpClientRect = {0,0}.
-// Pour éviter la division par 0, on force NbVert=3, NbHoriz=1.
+// Pour Ã©viter la division par 0, on force NbVert=3, NbHoriz=1.
    NbVert  =  max (TFTP_MIN_VERT_GAUGE, sTftpClientRect.bottom  / sGaugeClientRect.bottom);
    NbHoriz =  max (TFTP_MIN_HORZ_GAUGE, sTftpClientRect.right   / sGaugeClientRect.right);
 

@@ -22,7 +22,7 @@
 #else
 // TFTPD32's compilation
 #  pragma message ("                  Tftpd32 compilation")
-#  include "headers.h"
+#  include "../_common/headers.h"
 #endif
 
 #include <stdio.h>          // sscanf is used
@@ -83,7 +83,7 @@ HWND hWnd = hDbgMainWnd;
   	  LvItem.mask = LVIF_PARAM | LVIF_STATE;
       LvItem.state = 0;
       LvItem.stateMask = 0;
-      LvItem.iItem = Ark;      // numéro de l'item
+      LvItem.iItem = Ark;      // numÃ©ro de l'item
       LvItem.iSubItem = 0;     // index dans la ligne
       LvItem.lParam = inet_addr (tLeases[Ark].szIP);  // keep track of assignation
 	  itemPos = ListView_InsertItem(hListV,(LPARAM)&LvItem);

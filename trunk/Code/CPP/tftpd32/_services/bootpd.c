@@ -22,14 +22,14 @@
 #else
 // TFTPD32's compilation
 #  // pragma message ("                  Tftpd32 compilation")
-#  include "headers.h"
+#  include "../_common/headers.h"
 #endif
 
 #include <stdio.h>          // sscanf is used
 #include <process.h>        // endthread + beginthread
 #include <iphlpapi.h>
 
-#include "_libs/ping_api/ping_api.h"
+#include "../_libs/ping_api/ping_api.h"
 #include "threading.h"
 #include "bootpd_functions.h"
 
