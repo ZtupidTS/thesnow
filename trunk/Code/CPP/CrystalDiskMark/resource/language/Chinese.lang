@@ -1,0 +1,30 @@
+[Information]
+AUTHOR=thesnoW
+TRANSLATOR=thesnoW
+CONTACT_ADDRESS=thegfw@gmail.com
+
+[Language]
+LANGUAGE=Chinese
+CHARACTER_CODE=ASCII
+LOCALE_ID=0x0409, 0x0809, 0x0C09, 0x1009, 0x1409, 0x1809, 0x1C09, 0x2009, 0x2409, 0x2809, 0x2C09, 0x3009,
+
+[Menu]
+FILE=文件(&F)
+FILE_EXIT=退出(&E)
+EDIT=编辑(&E)
+EDIT_COPY=复制(&C)
+THEME=主题(&T)
+HELP=帮助(&H)
+HELP_ABOUT=关于 Cryst&alDiskMark
+
+[Message]
+STOP_BENCHMARK=请停止基准测试.
+DISK_CAPACITY_ERROR=Disk capacity is insufficient.
+DISK_CREATE_FILE_ERROR=创建文件失败.
+DISK_WRITE_ERROR=写入错误.
+DISK_READ_ERROR=读取错误.
+
+[Title]
+TEST_DRIVE=测试驱动器
+TEST_SIZE=测试大小
+TEST_NUMBER=测试数量
