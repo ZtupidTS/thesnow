@@ -1,0 +1,25 @@
+SetACL by Helge Klein
+
+Homepage:        http://setacl.sourceforge.net
+Version:         2.0.3.0
+Copyright:       Helge Klein
+License:         GPL
+
+-C-O-M-P-I-L-I-N-G--S-e-t-A-C-L-----------------------------------------------------------------------------
+
+SetACL was developed with Microsoft Visual C++ 9.
+
+The latest core Platform SDK, which can be downloaded free of charge on Microsoft's site 
+(http://www.microsoft.com/msdownload/platformsdk/sdkupdate/psdkredist.htm), is needed for compiling SetACL.
+Please make sure that the Platform SDK include folders are searched before Visual Studio's, because the
+SDK contains updated versions of many header files.
+
+Example:
+
+The file "winspool.h" contained in the Platform SDK defines JOB_ACCESS_READ.
+The file "winspool.h" that comes with Visual C++ 6 does not.
+
+To set the correct order of the include and library files in Visual Studio 6 go to:
+
+Extras / Options and go to the tab "directories".  Make sure that the Platform SDK folders are on top of 
+the list for header and library files.
