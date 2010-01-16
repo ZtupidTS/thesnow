@@ -1,0 +1,30 @@
+[Information]
+AUTHOR=hiyohiyo
+TRANSLATOR=hiyohiyo
+CONTACT_ADDRESS=hiyohiyo@crystalmark.info
+
+[Language]
+LANGUAGE=English
+CHARACTER_CODE=ASCII
+LOCALE_ID=0x0409, 0x0809, 0x0C09, 0x1009, 0x1409, 0x1809, 0x1C09, 0x2009, 0x2409, 0x2809, 0x2C09, 0x3009,
+
+[Menu]
+FILE=&File
+FILE_EXIT=&Exit
+EDIT=&Edit
+EDIT_COPY=&Copy
+THEME=&Theme
+HELP=&Help
+HELP_ABOUT=&About CrystalDiskMark
+
+[Message]
+STOP_BENCHMARK=Please Stop Benchmark.
+DISK_CAPACITY_ERROR=Disk capacity is insufficient.
+DISK_CREATE_FILE_ERROR=Failed Create File.
+DISK_WRITE_ERROR=Write Error.
+DISK_READ_ERROR=Read Error.
+
+[Title]
+TEST_DRIVE=Test Drive
+TEST_SIZE=Test Size
+TEST_NUMBER=Test Number
