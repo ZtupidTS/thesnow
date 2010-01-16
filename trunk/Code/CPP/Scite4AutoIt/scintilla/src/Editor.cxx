@@ -1,4 +1,4 @@
-// Scintilla source code edit control
+﻿// Scintilla source code edit control
 /** @file Editor.cxx
  ** Main code for the edit control.
  **/
@@ -3912,6 +3912,7 @@ void Editor::Clear() {
 }
 
 void Editor::SelectAll() {
+	sel.Clear();
 	SetSelection(0, pdoc->Length());
 	Redraw();
 }
