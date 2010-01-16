@@ -529,6 +529,13 @@ SString::SString(int i) : sizeGrowth(sizeGrowthDefault) {
 	sSize = sLen = (s) ? strlen(s) : 0;
 }
 
+SStringW::SStringW(int i) : sizeGrowth(sizeGrowthDefault) {		//added
+	wchar_t number[32];
+	swprintf(number, L"%0d", i);
+	s = StringAllocate(number);
+	sSize = sLen = (s) ? wcslen(s) : 0;
+}
+
 SString::SString(double d, int precision) : sizeGrowth(sizeGrowthDefault) {
 	char number[32];
 	sprintf(number, "%.*f", precision, d);
@@ -548,6 +555,23 @@ bool SString::grow(lenpos_t lenNew) {
 		}
 		s = sNew;
 		s[sLen] = '\0';
+		sSize = lenNew + sizeGrowth;
+	}
+	return sNew != 0;
+}
+
+bool SStringW::grow(lenpos_t lenNew) {		//added
+	while (sizeGrowth * 6 < lenNew) {
+		sizeGrowth *= 2;
+	}
+	wchar_t *sNew = new wchar_t[lenNew + sizeGrowth + 1];
+	if (sNew) {
+		if (s) {
+			memcpy(sNew, s, sLen);
+			delete []s;
+		}
+		s = sNew;
+		s[sLen] = L'\0';
 		sSize = lenNew + sizeGrowth;
 	}
 	return sNew != 0;
@@ -577,7 +601,30 @@ SString &SString::assign(const char *sOther, lenpos_t sSize_) {
 	}
 	return *this;
 }
-
+SStringW &SStringW::assign(const wchar_t *sOther, lenpos_t sSize_) {		//added
+	if (!sOther) {
+		sSize_ = 0;
+	} else if (sSize_ == measure_length) {
+		sSize_ = wcslen(sOther);
+	}
+	if (sSize > 0 && sSize_ <= sSize) {	// Does not allocate new buffer if the current is big enough
+		if (s && sSize_) {
+			memcpy(s, sOther, sSize_);
+		}
+		s[sSize_] = L'\0';
+		sLen = sSize_;
+	} else {
+		delete []s;
+		s = StringAllocate(sOther, sSize_);
+		if (s) {
+			sSize = sSize_;	// Allow buffer bigger than real string, thus providing space to grow
+			sLen = sSize_;
+		} else {
+			sSize = sLen = 0;
+		}
+	}
+	return *this;
+}
 bool SString::operator==(const SString &sOther) const {
 	if ((s == 0) && (sOther.s == 0))
 		return true;
@@ -675,6 +722,40 @@ SString &SString::insert(lenpos_t pos, const char *sOther, lenpos_t sLenOther) {
 	return *this;
 }
 
+SStringW &SStringW::insert(lenpos_t pos, const wchar_t *sOther, lenpos_t sLenOther) {//added
+	if (!sOther || pos > sLen) {
+		return *this;
+	}
+	if (sLenOther == measure_length) {
+		sLenOther = wcslen(sOther);
+	}
+	lenpos_t lenNew = sLen + sLenOther;
+	// Conservative about growing the buffer: don't do it, unless really needed
+	if ((lenNew < sSize) || grow(lenNew)) {
+		lenpos_t moveChars = sLen - pos + 1;
+		for (lenpos_t i = moveChars; i > 0; i--) {
+			s[pos + sLenOther + i - 1] = s[pos + i - 1];
+		}
+		memcpy(s + pos, sOther, sLenOther);
+		sLen = lenNew;
+	}
+	return *this;
+}
+
+/*
+char* SStringW::SStringWtoA(SStringW *origs){
+    wchar_t *orig = origs.c_str();
+    //wchar_t Convert to a char*
+    size_t origsize = wcslen(orig) + 1;
+    const size_t newsize = 100;
+    size_t convertedChars = 0;
+    char nstring[newsize];
+    wcstombs_s(&convertedChars, nstring, origsize, orig, _TRUNCATE);
+    strcat_s(nstring, " (char *)");
+	return 	nstring;
+}
+*/
+
 /**
  * Remove @a len characters from the @a pos position, included.
  * Characters at pos + len and beyond replace characters at pos.
@@ -687,6 +768,21 @@ void SString::remove(lenpos_t pos, lenpos_t len) {
 	}
 	if (len < 1 || pos + len >= sLen) {
 		s[pos] = '\0';
+		sLen = pos;
+	} else {
+		for (lenpos_t i = pos; i < sLen - len + 1; i++) {
+			s[i] = s[i+len];
+		}
+		sLen -= len;
+	}
+}
+
+void SStringW::remove(lenpos_t pos, lenpos_t len) {		//added
+	if (pos >= sLen) {
+		return;
+	}
+	if (len < 1 || pos + len >= sLen) {
+		s[pos] = L'\0';
 		sLen = pos;
 	} else {
 		for (lenpos_t i = pos; i < sLen - len + 1; i++) {
@@ -722,6 +818,16 @@ int SString::search(const char *sFind, lenpos_t start) const {
 	return -1;
 }
 
+int SStringW::search(const wchar_t *sFind, lenpos_t start) const {	//added
+	if (start < sLen) {
+		const wchar_t *sFound = wcsstr(s + start, sFind);
+		if (sFound) {
+			return sFound - s;
+		}
+	}
+	return -1;
+}
+
 int SString::substitute(char chFind, char chReplace) {
 	int c = 0;
 	char *t = s;
@@ -750,6 +856,20 @@ int SString::substitute(const char *sFind, const char *sReplace) {
 	return c;
 }
 
+int SStringW::substitute(const wchar_t *sFind, const wchar_t *sReplace) {		//added
+	int c = 0;
+	lenpos_t lenFind = wcslen(sFind);
+	lenpos_t lenReplace = wcslen(sReplace);
+	int posFound = search(sFind);
+	while (posFound >= 0) {
+		remove(posFound, lenFind);
+		insert(posFound, sReplace, lenReplace);
+		posFound = search(sFind, posFound + lenReplace);
+		c++;
+	}
+	return c;
+}
+
 char *SContainer::StringAllocate(lenpos_t len) {
 	if (len != measure_length) {
 		return new char[len + 1];
@@ -757,6 +877,7 @@ char *SContainer::StringAllocate(lenpos_t len) {
 		return 0;
 	}
 }
+
 
 char *SContainer::StringAllocate(const char *s, lenpos_t len) {
 	if (s == 0) {
@@ -766,6 +887,21 @@ char *SContainer::StringAllocate(const char *s, lenpos_t len) {
 		len = strlen(s);
 	}
 	char *sNew = new char[len + 1];
+	if (sNew) {
+		memcpy(sNew, s, len);
+		sNew[len] = '\0';
+	}
+	return sNew;
+}
+
+wchar_t *SContainerW::StringAllocate(const wchar_t *s, lenpos_t len) {		//added
+	if (s == 0) {
+		return 0;
+	}
+	if (len == measure_length) {
+		len = wcslen(s);
+	}
+	wchar_t *sNew = new wchar_t[len + 1];
 	if (sNew) {
 		memcpy(sNew, s, len);
 		sNew[len] = '\0';

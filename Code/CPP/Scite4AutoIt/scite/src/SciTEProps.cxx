@@ -436,7 +436,15 @@ void LowerCaseString(char *s) {
 		s++;
 	}
 }
-
+//小写字符串
+void LowerCaseString(wchar_t *s) {						//added
+	while (*s) {
+		if ((*s >= L'A') && (*s <= L'Z')) {
+			*s = static_cast<wchar_t>(*s - L'A' + L'a');
+		}
+		s++;
+	}
+}
 SString SciTEBase::ExtensionFileName() {
 	if (CurrentBuffer()->overrideExtension.length()) {
 		return CurrentBuffer()->overrideExtension;
@@ -1323,6 +1331,43 @@ SString Localization::Text(const char *s, bool retainIfNotFound) {
 	}
 	return s;
 }
+
+SString Localization::Text(const wchar_t *s, bool retainIfNotFound) {		//added
+	SString translation = (char)s;
+	int ellipseIndicator = translation.remove("...");
+	int accessKeyPresent = translation.remove(menuAccessIndicator);
+	translation.lowercase();
+	translation.substitute("\n", "\\n");
+	translation = Get(translation.c_str());
+	if (translation.length()) {
+		if (ellipseIndicator)
+			translation += "...";
+		if (0 == accessKeyPresent) {
+#if PLAT_WIN
+			// Following codes are required because accelerator is not always
+			// part of alphabetical word in several language. In these cases,
+			// accelerator is written like "(&O)".
+			int posOpenParenAnd = translation.search("(&");
+			if (posOpenParenAnd > 0 && translation.search(")", posOpenParenAnd) == posOpenParenAnd+3) {
+				translation.remove(posOpenParenAnd, 4);
+			} else {
+				translation.remove("&");
+			}
+#else
+			translation.remove("&");
+#endif
+		}
+		translation.substitute("&", menuAccessIndicator);
+		translation.substitute("\\n", "\n");
+	} else {
+		translation = missing;
+	}
+	if ((translation.length() > 0) || !retainIfNotFound) {
+		return translation;
+	}
+	return (char)s;
+}
+
 //本地化消息
 SString SciTEBase::LocaliseMessage(const char *s, const char *param0, const char *param1, const char *param2) {
 	SString translation = localiser.Text(s);
@@ -1334,6 +1379,18 @@ SString SciTEBase::LocaliseMessage(const char *s, const char *param0, const char
 		translation.substitute("^2", param2);
 	return translation;
 }
+
+SStringW SciTEBase::LocaliseMessage(const wchar_t *s, const wchar_t *param0, const wchar_t *param1, const wchar_t *param2) {//added
+	SStringW translation = s;//localiser.Text(s).c_str();
+	if (param0)
+		translation.substitute(L"^0", param0);
+	if (param1)
+		translation.substitute(L"^1", param1);
+	if (param2)
+		translation.substitute(L"^2", param2);
+	return translation;
+}
+
 //读取本地化文件
 void SciTEBase::ReadLocalization() {
 	localiser.Clear();

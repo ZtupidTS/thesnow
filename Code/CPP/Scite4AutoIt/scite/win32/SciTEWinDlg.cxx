@@ -1,4 +1,4 @@
-// SciTE - Scintilla based Text Editor
+ï»¿// SciTE - Scintilla based Text Editor
 /** @file SciTEWinDlg.cxx
  ** Dialog code for the Windows version of the editor.
  **/
@@ -13,7 +13,7 @@
  * Flash the given window for the asked @a duration to visually warn the user.
  */
 static void FlashThisWindow(
-    HWND hWnd,    		///< ÒªÉÁË¸µÄ´°¿Ú¾ä±ú.
+    HWND hWnd,    		///< è¦é—ªçƒçš„çª—å£å¥æŸ„.
     int duration) {	///< Duration of the flash state.
 
 	HDC hDC = ::GetDC(hWnd);
@@ -149,7 +149,7 @@ bool SciTEWin::ModelessHandler(MSG *pmsg) {
 		               (pmsg->wParam != VK_ESCAPE) &&
 		               (pmsg->wParam != VK_RETURN) &&
 		               (Platform::IsKeyDown(VK_CONTROL) || !Platform::IsKeyDown(VK_MENU));
-		if (!menuKey && ::IsDialogMessage(reinterpret_cast<HWND>(wParameters.GetID()), pmsg))
+		if (!menuKey && DialogHandled(wParameters.GetID(), pmsg))
 			return true;
 	}
 	if (pmsg->message == WM_KEYDOWN || pmsg->message == WM_SYSKEYDOWN) {
@@ -169,13 +169,25 @@ int SciTEWin::DoDialog(HINSTANCE hInst, const char *resName, HWND hWnd, DLGPROC 
 
 	if (result == -1) {
 		SString errorNum(::GetLastError());
-		SString msg = LocaliseMessage("´´½¨¶Ô»°¿òÊ§°Ü: ^0.", errorNum.c_str());
+		SString msg = LocaliseMessage("åˆ›å»ºå¯¹è¯æ¡†å¤±è´¥: ^0.", errorNum.c_str());
 		::MessageBox(hWnd, msg.c_str(), appName, MB_OK | MB_SETFOREGROUND);
 	}
 
 	return result;
 }
+#ifdef UNICODETEST
+int SciTEWin::DoDialog(HINSTANCE hInst, const wchar_t *resName, HWND hWnd, DLGPROC lpProc) {
+	int result = ::DialogBoxParamW(hInst, resName, hWnd, lpProc, reinterpret_cast<LPARAM>(this));
 
+	if (result == -1) {
+		SString errorNum(::GetLastError());
+		SString msg = LocaliseMessage("åˆ›å»ºå¯¹è¯æ¡†å¤±è´¥: ^0.", errorNum.c_str());
+		::MessageBox(hWnd, msg.c_str(), appName, MB_OK | MB_SETFOREGROUND);
+	}
+
+	return result;
+}
+#endif
 bool SciTEWin::OpenDialog(FilePath directory, const char *filter) {
 	enum {maxBufferSize=2048};
 
@@ -202,7 +214,7 @@ bool SciTEWin::OpenDialog(FilePath directory, const char *filter) {
 	}
 
 	if (!openWhat[0]) {
-		strcpy(openWhat, localiser.Text("×Ô¶¨ÒåÀàĞÍ").c_str());
+		strcpy(openWhat, localiser.Text("è‡ªå®šä¹‰ç±»å‹").c_str());
 		openWhat[strlen(openWhat) + 1] = '\0';
 	}
 
@@ -221,7 +233,7 @@ bool SciTEWin::OpenDialog(FilePath directory, const char *filter) {
 	ofn.lpstrCustomFilter = openWhat;
 	ofn.nMaxCustFilter = sizeof(openWhat);
 	ofn.nFilterIndex = filterDefault;
-	SString translatedTitle = localiser.Text("´ò¿ªÎÄ¼ş");
+	SString translatedTitle = localiser.Text("æ‰“å¼€æ–‡ä»¶");
 	ofn.lpstrTitle = translatedTitle.c_str();
 	if (props.GetInt("open.dialog.in.file.directory")) {
 		ofn.lpstrInitialDir = directory.AsFileSystem();
@@ -267,7 +279,7 @@ FilePath SciTEWin::ChooseSaveName(FilePath directory, const char *title, const c
 		                   };
 		ofn.hwndOwner = MainHWND();
 		ofn.hInstance = hInstance;
-		ofn.lpstrDefExt = "au3";		//Õâ¸öÊÇĞÂÔö¼ÓµÄ
+		ofn.lpstrDefExt = "au3";		//è¿™ä¸ªæ˜¯æ–°å¢åŠ çš„
 		ofn.lpstrFile = saveName;
 		ofn.nMaxFile = sizeof(saveName);
 		SString translatedTitle = localiser.Text(title);
@@ -310,8 +322,8 @@ bool SciTEWin::SaveAsDialog() {
 	}
 	
 	//add end
-	//FilePath path = ChooseSaveName(filePath.Directory(), "±£´æÎÄ¼ş");
-	FilePath path = ChooseSaveName(filePath.Directory(), "±£´æÎÄ¼ş",saveFilter.c_str());
+	//FilePath path = ChooseSaveName(filePath.Directory(), "ä¿å­˜æ–‡ä»¶");
+	FilePath path = ChooseSaveName(filePath.Directory(), "ä¿å­˜æ–‡ä»¶",saveFilter.c_str());
 	if (path.IsSet()) {
 		//Platform::DebugPrintf("Save: <%s>\n", openName);
 		SaveIfNotOpen(path, false);
@@ -321,38 +333,38 @@ bool SciTEWin::SaveAsDialog() {
 }
 
 void SciTEWin::SaveACopy() {
-	FilePath path = ChooseSaveName(filePath.Directory(), "ÎÄ¼şÁí´æÎª");
+	FilePath path = ChooseSaveName(filePath.Directory(), "æ–‡ä»¶å¦å­˜ä¸º");
 	if (path.IsSet()) {
 		SaveBuffer(path);
 	}
 }
 
 void SciTEWin::SaveAsHTML() {
-	FilePath path = ChooseSaveName(filePath.Directory(), "Êä³öÎÄ¼şÎª HTML",
-	                              "ÍøÒ³ÎÄ¼ş (.html;.htm)\0*.html;*.htm\0", ".html");
+	FilePath path = ChooseSaveName(filePath.Directory(), "è¾“å‡ºæ–‡ä»¶ä¸º HTML",
+	                              "ç½‘é¡µæ–‡ä»¶ (.html;.htm)\0*.html;*.htm\0", ".html");
 	if (path.IsSet()) {
 		SaveToHTML(path);
 	}
 }
 
 void SciTEWin::SaveAsRTF() {
-	FilePath path = ChooseSaveName(filePath.Directory(), "Êä³öÎÄ¼şÎª RTF",
-	                              "RTF ÎÄµµ(.rtf)\0*.rtf\0", ".rtf");
+	FilePath path = ChooseSaveName(filePath.Directory(), "è¾“å‡ºæ–‡ä»¶ä¸º RTF",
+	                              "RTF æ–‡æ¡£(.rtf)\0*.rtf\0", ".rtf");
 	if (path.IsSet()) {
 		SaveToRTF(path);
 	}
 }
 
 void SciTEWin::SaveAsPDF() {
-	FilePath path = ChooseSaveName(filePath.Directory(), "Êä³öÎÄ¼şÎª PDF",
-	                              "PDF ÎÄµµ(.pdf)\0*.pdf\0", ".pdf");
+	FilePath path = ChooseSaveName(filePath.Directory(), "è¾“å‡ºæ–‡ä»¶ä¸º PDF",
+	                              "PDF æ–‡æ¡£(.pdf)\0*.pdf\0", ".pdf");
 	if (path.IsSet()) {
 		SaveToPDF(path);
 	}
 }
 
 void SciTEWin::SaveAsTEX() {
-	FilePath path = ChooseSaveName(filePath.Directory(), "Êä³öÎÄ¼şÎª LaTeX",
+	FilePath path = ChooseSaveName(filePath.Directory(), "è¾“å‡ºæ–‡ä»¶ä¸º LaTeX",
 	                              "TeX (.tex)\0*.tex\0", ".tex");
 	if (path.IsSet()) {
 		SaveToTEX(path);
@@ -360,8 +372,8 @@ void SciTEWin::SaveAsTEX() {
 }
 
 void SciTEWin::SaveAsXML() {
-	FilePath path = ChooseSaveName(filePath.Directory(), "Êä³öÎÄ¼şÎª XML",
-	                              "XMLÎÄµµ (.xml)\0*.xml\0", ".xml");
+	FilePath path = ChooseSaveName(filePath.Directory(), "è¾“å‡ºæ–‡ä»¶ä¸º XML",
+	                              "XMLæ–‡æ¡£ (.xml)\0*.xml\0", ".xml");
 	if (path.IsSet()) {
 		SaveToXML(path);
 	}
@@ -376,8 +388,8 @@ void SciTEWin::LoadSessionDialog() {
 	ofn.hInstance = hInstance;
 	ofn.lpstrFile = openName;
 	ofn.nMaxFile = sizeof(openName);
-	ofn.lpstrFilter = "»á»°ÁĞ±í(*.session)\0*.session\0";
-	SString translatedTitle = localiser.Text("ÔØÈë»á»°");
+	ofn.lpstrFilter = "ä¼šè¯åˆ—è¡¨(*.session)\0*.session\0";
+	SString translatedTitle = localiser.Text("è½½å…¥ä¼šè¯");
 	ofn.lpstrTitle = translatedTitle.c_str();
 	ofn.Flags = OFN_HIDEREADONLY;
 	if (::GetOpenFileName(&ofn)) {
@@ -397,10 +409,10 @@ void SciTEWin::SaveSessionDialog() {
 	ofn.lpstrDefExt = "session";
 	ofn.lpstrFile = saveName;
 	ofn.nMaxFile = sizeof(saveName);
-	SString translatedTitle = localiser.Text("±£´æµ±Ç°»á»°");
+	SString translatedTitle = localiser.Text("ä¿å­˜å½“å‰ä¼šè¯");
 	ofn.lpstrTitle = translatedTitle.c_str();
 	ofn.Flags = OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT;
-	ofn.lpstrFilter = "»á»°ÁĞ±í(*.session)\0*.session\0";
+	ofn.lpstrFilter = "ä¼šè¯åˆ—è¡¨(*.session)\0*.session\0";
 	if (::GetSaveFileName(&ofn)) {
 		SaveSessionFile(saveName);
 	}
@@ -590,7 +602,7 @@ void SciTEWin::Print(
 		::DeleteDC(hdc);
 		DeleteFontObject(fontHeader);
 		DeleteFontObject(fontFooter);
-		SString msg = LocaliseMessage("²»ÄÜ¿ªÊ¼´òÓ¡ÎÄµµ.");
+		SString msg = LocaliseMessage("ä¸èƒ½å¼€å§‹æ‰“å°æ–‡æ¡£.");
 		WindowMessageBox(wSciTE, msg, MB_OK);
 		return;
 	}
@@ -1368,7 +1380,7 @@ BOOL SciTEWin::GrepMessage(HWND hDlg, UINT message, WPARAM wParam) {
 				info.pidlRoot = NULL;
 				char szDisplayName[MAX_PATH];
 				info.pszDisplayName = szDisplayName;
-				SString title = localiser.Text("ÄúÒªËÑË÷ÄÄÒ»¸öÄ¿Â¼?");
+				SString title = localiser.Text("æ‚¨è¦æœç´¢å“ªä¸€ä¸ªç›®å½•?");
 				info.lpszTitle = title.c_str();
 				info.ulFlags = 0;
 				info.lpfn = BrowseCallbackProc;
@@ -1404,7 +1416,7 @@ BOOL SciTEWin::GrepMessage(HWND hDlg, UINT message, WPARAM wParam) {
 BOOL CALLBACK SciTEWin::GrepDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
 	return Caller(hDlg, message, lParam)->GrepMessage(hDlg, message, wParam);
 }
-//ÎÄ¼şÖĞ²éÕÒ
+//æ–‡ä»¶ä¸­æŸ¥æ‰¾
 void SciTEWin::FindInFiles() {
 	if (wFindInFiles.Created())
 		return;
@@ -1416,7 +1428,7 @@ void SciTEWin::FindInFiles() {
 		reinterpret_cast<DLGPROC>(GrepDlg), reinterpret_cast<sptr_t>(this));
 	wFindInFiles.Show();
 }
-//Ìæ»»
+//æ›¿æ¢
 void SciTEWin::Replace() {
 	if (wFindReplace.Created())
 		return;
@@ -1451,11 +1463,11 @@ void SciTEWin::Replace() {
 	replacing = true;
 	havefound = false;
 }
-//²éÕÒÌæ»»
+//æŸ¥æ‰¾æ›¿æ¢
 void SciTEWin::FindReplace(bool replace) {
 	replacing = replace;
 }
-//Ïú»ÙËÑË÷Ìæ»»
+//é”€æ¯æœç´¢æ›¿æ¢
 void SciTEWin::DestroyFindReplace() {
 	if (wFindReplace.Created()) {
 		::EndDialog(reinterpret_cast<HWND>(wFindReplace.GetID()), IDCANCEL);
@@ -1532,7 +1544,11 @@ BOOL CALLBACK SciTEWin::GoLineDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM
 }
 
 void SciTEWin::GoLineDialog() {
-	DoDialog(hInstance, "GoLine", MainHWND(), reinterpret_cast<DLGPROC>(GoLineDlg));
+#ifdef UNICODETEST
+	DoDialog(hInstance, L"GoLine", MainHWND(), reinterpret_cast<DLGPROC>(GoLineDlg));
+#else
+	DoDialog(hInstance,  "GoLine", MainHWND(), reinterpret_cast<DLGPROC>(GoLineDlg));
+#endif
 	WindowSetFocus(wEditor);
 }
 
@@ -1562,13 +1578,17 @@ BOOL SciTEWin::AbbrevMessage(HWND hDlg, UINT message, WPARAM wParam) {
 
 	return FALSE;
 }
-//ËõĞ´¶Ô»°¿ò»Øµ÷
+//ç¼©å†™å¯¹è¯æ¡†å›è°ƒ
 BOOL CALLBACK SciTEWin::AbbrevDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
 	return Caller(hDlg, message, lParam)->AbbrevMessage(hDlg, message, wParam);
 }
-//ËõĞ´¶Ô»°¿ò
+//ç¼©å†™å¯¹è¯æ¡†
 bool SciTEWin::AbbrevDialog() {
-	bool success = (DoDialog(hInstance, "InsAbbrev", MainHWND(), reinterpret_cast<DLGPROC>(AbbrevDlg)) == IDOK);
+#ifdef UNICODETEST
+	bool success = (DoDialog(hInstance, L"InsAbbrev", MainHWND(), reinterpret_cast<DLGPROC>(AbbrevDlg)) == IDOK);
+#else
+	bool success = (DoDialog(hInstance,  "InsAbbrev", MainHWND(), reinterpret_cast<DLGPROC>(AbbrevDlg)) == IDOK);
+#endif
 	WindowSetFocus(wEditor);
 	return success;
 }
@@ -1632,7 +1652,11 @@ BOOL CALLBACK SciTEWin::TabSizeDlg(HWND hDlg, UINT message, WPARAM wParam, LPARA
 }
 
 void SciTEWin::TabSizeDialog() {
-	DoDialog(hInstance, "TabSize", MainHWND(), reinterpret_cast<DLGPROC>(TabSizeDlg));
+#ifdef UNICODETEST
+	DoDialog(hInstance, L"TabSize", MainHWND(), reinterpret_cast<DLGPROC>(TabSizeDlg));
+#else
+	DoDialog(hInstance,  "TabSize", MainHWND(), reinterpret_cast<DLGPROC>(TabSizeDlg));
+#endif
 	WindowSetFocus(wEditor);
 }
 
@@ -1710,10 +1734,17 @@ bool SciTEWin::ParametersDialog(bool modal) {
 	bool success = false;
 	modalParameters = modal;
 	if (modal) {
+#ifdef UNICODETEST
 		success = DoDialog(hInstance,
-		                   "PARAMETERS",
+		                   L"PARAMETERS",
 		                   MainHWND(),
 		                   reinterpret_cast<DLGPROC>(ParametersDlg)) == IDOK;
+#else
+		success = DoDialog(hInstance,
+		                    "PARAMETERS",
+		                   MainHWND(),
+		                   reinterpret_cast<DLGPROC>(ParametersDlg)) == IDOK;
+#endif
 		wParameters = 0;
 		WindowSetFocus(wEditor);
 	} else {
@@ -1775,7 +1806,7 @@ void SciTEWin::FindMessageBox(const SString &msg, const SString *findItem) {
 		}
 	}
 }
-//¹ØÓÚ¶Ô»°¿ò
+//å…³äºå¯¹è¯æ¡†
 BOOL SciTEWin::AboutMessage(HWND hDlg, UINT message, WPARAM wParam) {
 	switch (message) {
 
@@ -1801,7 +1832,7 @@ BOOL SciTEWin::AboutMessage(HWND hDlg, UINT message, WPARAM wParam) {
 
 	return FALSE;
 }
-//»Øµ÷
+//å›è°ƒ
 BOOL CALLBACK SciTEWin::AboutDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
 	return Caller(hDlg, message, lParam)->AboutMessage(hDlg, message, wParam);
 }

@@ -6,7 +6,7 @@
 // The License.txt file describes the conditions under which this software may be distributed.
 
 extern const char appName[];
-
+extern const wchar_t appNameW[];
 extern const char propUserFileName[];
 extern const char propGlobalFileName[];
 extern const char propAbbrevFileName[];
@@ -337,6 +337,7 @@ public:
 	Localization() : PropSetFile(true), read(false) {
 	}
 	SString Text(const char *s, bool retainIfNotFound=true);
+	SString Text(const wchar_t *s, bool retainIfNotFound=true);//added
 	void SetMissing(const SString &missing_) {
 		missing = missing_;
 	}
@@ -815,6 +816,8 @@ protected:
 	void SetPropertiesInitial();
 	SString LocaliseMessage(const char *s, const char *param0 = 0,
 	        const char *param1 = 0, const char *param2 = 0);
+	SStringW LocaliseMessage(const wchar_t *s, const wchar_t *param0 = 0,//added
+	        const wchar_t *param1 = 0, const wchar_t *param2 = 0);
 	virtual void ReadLocalization();
 	SString GetFileNameProperty(const char *name);
 	virtual void ReadPropertiesInitial();
@@ -920,6 +923,7 @@ const int blockSize = 131072;
 
 int ControlIDOfCommand(unsigned long);
 void LowerCaseString(char *s);
+void LowerCaseString(wchar_t *s);	//added
 long ColourOfProperty(PropSetFile &props, const char *key, ColourDesired colourDefault);
 char *Slash(const char *s, bool quoteQuotes);
 unsigned int UnSlash(char *s);
