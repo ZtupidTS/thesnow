@@ -338,6 +338,18 @@ void AddStyledText(WindowID hwnd, const char *s, int attr) {
 	        static_cast<int>(len*2), const_cast<char *>(buf));
 }
 
+// AddStyledText only called from About so static size buffer is OK
+void AddStyledText(WindowID hwnd, const wchar_t *s, int attr) {		//added
+	wchar_t buf[1000];
+	size_t len = wcslen(s);
+	for (size_t i = 0; i < len; i++) {
+		buf[i*2] = s[i];
+		buf[i*2 + 1] = static_cast<wchar_t>(attr);
+	}
+	Platform::SendScintillaPointer(hwnd, SCI_ADDSTYLEDTEXT,
+	        static_cast<int>(len*2), const_cast<wchar_t *>(buf));
+}
+
 void SetAboutStyle(WindowID wsci, int style, ColourDesired fore) {
 	Platform::SendScintilla(wsci, SCI_STYLESETFORE, style, fore.AsLong());
 }
@@ -3827,6 +3839,10 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 //		};
 //		break;
 	//added
+	case IDM_EDITORCONFIG:
+		::MessageBoxW(0,L"注意:此功能可能导致设置文件混乱,请小心使用.",L"警告!",0);
+		::ShellExecuteW(0,L"open",L"sciteconfig.exe",L"acn",L"",SW_SHOW);
+		break;
 	case IDM_WRAP:
 		wrap = !wrap;
 		SendEditor(SCI_SETWRAPMODE, wrap ? wrapStyle : SC_WRAP_NONE);

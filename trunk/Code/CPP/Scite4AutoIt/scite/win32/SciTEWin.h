@@ -153,6 +153,9 @@ protected:
 	void LocaliseDialog(HWND wDialog);
 
 	int DoDialog(HINSTANCE hInst, const char *resName, HWND hWnd, DLGPROC lpProc);
+#ifdef UNICODETEST
+	int DoDialog(HINSTANCE hInst, const wchar_t *resName, HWND hWnd, DLGPROC lpProc);
+#endif
 	virtual bool OpenDialog(FilePath directory, const char *filter);
 	FilePath ChooseSaveName(FilePath directory, const char *title, const char *filter=0, const char *ext=0);
 	virtual bool SaveAsDialog();
@@ -189,6 +192,7 @@ protected:
 
 	virtual void SetFileProperties(PropSetFile &ps);
 	virtual void SetStatusBarText(const char *s);
+	virtual void SetStatusBarText(const wchar_t *s);
 
 	virtual void TabInsert(int index, char *title);
 	virtual void TabSelect(int index);

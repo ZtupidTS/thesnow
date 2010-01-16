@@ -68,9 +68,15 @@ void SciTEWin::SetFileProperties(
  * 更新状态栏文本.
  */
 void SciTEWin::SetStatusBarText(const char *s) {
-	::SendMessage(reinterpret_cast<HWND>(wStatusBar.GetID()),
+	::SendMessageW(reinterpret_cast<HWND>(wStatusBar.GetID()),
 	              SB_SETTEXT, 0, reinterpret_cast<LPARAM>(s));
 }
+//兼容unicode
+void SciTEWin::SetStatusBarText(const wchar_t *s) {
+	::SendMessage(reinterpret_cast<HWND>(wStatusBar.GetID()),
+	              SB_SETTEXTW, 0, reinterpret_cast<LPARAM>(s));
+}
+
 //标签插入
 void SciTEWin::TabInsert(int index, char *title) {
 	TCITEM tie;
@@ -290,19 +296,19 @@ void SciTEWin::Notify(SCNotification *notification) {
 		break;
 	}
 }
-
+//显示工具栏
 void SciTEWin::ShowToolBar() {
 	SizeSubWindows();
 }
-
+//显示标签栏
 void SciTEWin::ShowTabBar() {
 	SizeSubWindows();
 }
-
+//显示状态栏
 void SciTEWin::ShowStatusBar() {
 	SizeSubWindows();
 }
-
+//激活窗口
 void SciTEWin::ActivateWindow(const char *) {
 	// This does nothing as, on Windows, you can no longer activate yourself
 }
@@ -408,7 +414,7 @@ void SciTEWin::SizeSubWindows() {
 // code) as KeyMatch uses in SciTEWin.cxx.
 
 
-
+//设置菜单项目
 void SciTEWin::SetMenuItem(int menuNumber, int position, int itemID,
                            const char *text, const char *mnemonic) {
 	// On Windows the menu items are modified if they already exist or are created
@@ -445,47 +451,6 @@ void SciTEWin::SetMenuItem(int menuNumber, int position, int itemID,
 		::SetMenuItemInfo(hmenu, itemID, FALSE, &mii);
 	}
 }
-//add
-/*
-void SciTEWin::SetMenuItem(int menuNumber, int position, int itemID,
-						   HBITMAP unchecked,HBITMAP checked) {
-	// On Windows the menu items are modified if they already exist or are created
-	HMENU hmenu = ::GetSubMenu(::GetMenu(MainHWND()), menuNumber);
-//	SString sTextMnemonic = text;
-//	long keycode = 0;
-//	if (mnemonic && *mnemonic) {
-//		keycode = SciTEKeys::ParseKeyCode(mnemonic);
-//		if (keycode) {
-//			sTextMnemonic += "\t";
-//			sTextMnemonic += LocaliseAccelerator(mnemonic, itemID);
-//		}
-		// the keycode could be used to make a custom accelerator table
-		// but for now, the menu's item data is used instead for command
-		// tools, and for other menu entries it is just discarded.
-//	}
-
-	if (::GetMenuState(hmenu, itemID, MF_BYCOMMAND) == 0xffffffff) {
-		//if (text[0])
-		//	::InsertMenu(hmenu, position, MF_BYPOSITION, itemID, sTextMnemonic.c_str());
-		//else
-		//	::InsertMenu(hmenu, position, MF_BYPOSITION | MF_SEPARATOR, itemID, sTextMnemonic.c_str());
-	} else {
-	//	::ModifyMenu(hmenu, position, MF_BYCOMMAND, itemID, sTextMnemonic.c_str());
-		::SetMenuItemBitmaps(hmenu,position,MF_BYCOMMAND,unchecked,checked)
-	}
-
-//	if (itemID >= IDM_TOOLS && itemID < IDM_TOOLS + toolMax) {
-//		// Stow the keycode for later retrieval.
-//		// Do this even if 0, in case the menu already existed (e.g. ModifyMenu)
-//		MENUITEMINFO mii;
-//		mii.cbSize = sizeof(MENUITEMINFO);
-//		mii.fMask = MIIM_DATA;
-//		mii.dwItemData = reinterpret_cast<DWORD&>(keycode);
-//		::SetMenuItemInfo(hmenu, itemID, FALSE, &mii);
-	}
-}
-*/
-//added
 
 //重绘菜单
 void SciTEWin::RedrawMenu() {
@@ -962,7 +927,7 @@ static LRESULT PASCAL TabWndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM
  * 创建所有需要的窗口.
  */
 void SciTEWin::Creation() {
-
+	//创建内容区
 	wContent = ::CreateWindowEx(
 	               WS_EX_CLIENTEDGE,
 	               classNameInternal,
@@ -975,7 +940,7 @@ void SciTEWin::Creation() {
 	               hInstance,
 	               reinterpret_cast<LPSTR>(this));
 	wContent.Show();
-
+	//创建编辑区
 	wEditor = ::CreateWindowEx(
 	              0,
 	              "Scintilla",
@@ -998,7 +963,7 @@ void SciTEWin::Creation() {
 	wEditor.Show();
 	SendEditor(SCI_USEPOPUP, 0);
 	WindowSetFocus(wEditor);
-
+	//创建输出区
 	wOutput = ::CreateWindowEx(
 	              0,
 	              "Scintilla",
@@ -1024,7 +989,7 @@ void SciTEWin::Creation() {
 	//SendOutput(SCI_SETCARETPERIOD, 0);
 	SendOutput(SCI_USEPOPUP, 0);
 	::DragAcceptFiles(MainHWND(), true);
-
+	//创建工具栏
 	HWND hwndToolBar = ::CreateWindowEx(
 	               0,
 	               TOOLBARCLASSNAME,
@@ -1089,7 +1054,7 @@ void SciTEWin::Creation() {
 	icce.dwSize = sizeof(icce);
 	icce.dwICC = ICC_TAB_CLASSES;
 	InitCommonControlsEx(&icce);
-
+	//创建tab控件
 	WNDCLASS wndClass = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 	GetClassInfo(NULL, WC_TABCONTROL, &wndClass);
 	stDefaultTabProc = wndClass.lpfnWndProc;
@@ -1122,11 +1087,11 @@ void SciTEWin::Creation() {
 	fontTabs = ::CreateFontIndirect(&lfIconTitle);
 	::SendMessage(reinterpret_cast<HWND>(wTabBar.GetID()),
 	              WM_SETFONT,
-	              reinterpret_cast<WPARAM>(fontTabs),      // 字体句柄
-	              0);    // 重绘选项
+	              reinterpret_cast<WPARAM>(fontTabs),		// 字体句柄
+	              0);										// 重绘选项
 
 	wTabBar.Show();
-
+	//创建状态栏
 	wStatusBar = ::CreateWindowEx(
 	                 0,
 	                 STATUSCLASSNAME,

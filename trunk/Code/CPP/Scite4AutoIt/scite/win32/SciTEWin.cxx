@@ -25,14 +25,17 @@
 
 #ifdef STATIC_BUILD
 const char appName[] = "Sc1";			//应用程序名称
+const wchar_t appNameW[] = L"SciTE(ACN)";
 #else
 //#if $(PlatformName)=="Win32"
 //#include "USkin.h"
 //#endif
 #ifdef AUTOIT
 const char appName[] = "SciTE(ACN)";
+const wchar_t appNameW[] = L"SciTE(ACN)";
 #else
 const char appName[] = "SciTE(thesnoW)";
+const wchar_t appNameW[] = L"SciTE(thesnoW)";
 #endif
 #endif
 

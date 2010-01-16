@@ -17,12 +17,12 @@
 	<Configurations>
 		<Configuration
 			Name="Release|Win32"
-			OutputDirectory=".\Release"
+			OutputDirectory="..\..\bin"
 			IntermediateDirectory=".\Release"
 			ConfigurationType="1"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="false"
-			CharacterSet="1"
+			CharacterSet="2"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -54,9 +54,10 @@
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="false"
 				PrecompiledHeaderFile=".\Release/SciTE.pch"
-				AssemblerListingLocation=".\Release/"
-				ObjectFile=".\Release/"
-				ProgramDataBaseFileName=".\Release/"
+				AssemblerListingLocation=".\Release/ASM/"
+				ObjectFile=".\Release/OBJ/"
+				ProgramDataBaseFileName=".\Release/DB/"
+				XMLDocumentationFileName="$(IntDir)\XML\"
 				WarningLevel="4"
 				SuppressStartupBanner="true"
 				DebugInformationFormat="3"
@@ -68,8 +69,8 @@
 			/>
 			<Tool
 				Name="VCResourceCompilerTool"
-				PreprocessorDefinitions="NDEBUG,STATIC_BUILD"
-				Culture="3081"
+				PreprocessorDefinitions="NDEBUG;NO_STATIC_BUILD"
+				Culture="2052"
 				AdditionalIncludeDirectories="..\src;..\..\Scintilla\Win32"
 			/>
 			<Tool
@@ -79,18 +80,19 @@
 				Name="VCLinkerTool"
 				AdditionalOptions="/MACHINE:I386"
 				AdditionalDependencies="imm32.lib comctl32.lib"
-				OutputFile=".\Release/SciTE.exe"
+				OutputFile="..\..\bin\SciTE.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
 				ProgramDatabaseFile=".\Release/SciTE.pdb"
 				GenerateMapFile="true"
-				OptimizeForWindows98="1"
+				OptimizeForWindows98="0"
 			/>
 			<Tool
 				Name="VCALinkTool"
 			/>
 			<Tool
 				Name="VCManifestTool"
+				AdditionalManifestFiles="..\win32\SciTE.exe.manifest"
 			/>
 			<Tool
 				Name="VCXDCMakeTool"
@@ -106,6 +108,7 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
+				CommandLine="md $(OutDir)\&#23646;&#24615;&#25991;&#20214;\&#x0D;&#x0A;copy ..\src\*.properties $(OutDir)\&#23646;&#24615;&#25991;&#20214;\*.properties&#x0D;&#x0A;copy ..\src\&#20840;&#23616;*.properties $(OutDir)\&#20840;&#23616;*.properties&#x0D;&#x0A;"
 			/>
 		</Configuration>
 		<Configuration
@@ -201,6 +204,101 @@
 				Name="VCPostBuildEventTool"
 			/>
 		</Configuration>
+		<Configuration
+			Name="ReleaseT|Win32"
+			OutputDirectory="$(ConfigurationName)"
+			IntermediateDirectory="$(ConfigurationName)"
+			ConfigurationType="1"
+			UseOfMFC="0"
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			CharacterSet="2"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+				PreprocessorDefinitions="NDEBUG"
+				MkTypLibCompatible="true"
+				SuppressStartupBanner="true"
+				TargetEnvironment="1"
+				TypeLibraryName=".\Release/SciTE.tlb"
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				Optimization="3"
+				InlineFunctionExpansion="2"
+				OmitFramePointers="true"
+				AdditionalIncludeDirectories="..\src;..\lua\include;..\..\scintilla\include;..\..\scintilla\src"
+				PreprocessorDefinitions="NDEBUG;WIN32;_WINDOWS;STATIC_BUILD;SCI_LEXER;LINK_LEXERS;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE"
+				RuntimeLibrary="0"
+				EnableFunctionLevelLinking="false"
+				PrecompiledHeaderFile=".\Release/SciTE.pch"
+				AssemblerListingLocation=".\Release/ASM/"
+				ObjectFile=".\Release/OBJ/"
+				ProgramDataBaseFileName=".\Release/DB/"
+				XMLDocumentationFileName="$(IntDir)\XML\"
+				WarningLevel="4"
+				SuppressStartupBanner="true"
+				DebugInformationFormat="3"
+				CompileAs="0"
+				DisableSpecificWarnings="4702"
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+				PreprocessorDefinitions="NDEBUG;STATIC_BUILD"
+				Culture="2052"
+				AdditionalIncludeDirectories="..\src;..\..\Scintilla\Win32"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				AdditionalOptions="/MACHINE:I386"
+				AdditionalDependencies="imm32.lib comctl32.lib"
+				OutputFile="..\..\bin\SciTE.exe"
+				LinkIncremental="1"
+				SuppressStartupBanner="true"
+				ProgramDatabaseFile=".\Release/SciTE.pdb"
+				GenerateMapFile="true"
+				OptimizeForWindows98="0"
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+				AdditionalManifestFiles="..\win32\SciTE.exe.manifest"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+			/>
+		</Configuration>
 	</Configurations>
 	<References>
 	</References>
@@ -278,123 +376,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\lua\src\lapi.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lib\lauxlib.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lib\lbaselib.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lcode.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lib\ldblib.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\ldebug.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\ldo.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\ldump.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lfunc.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lgc.c"
-				>
-			</File>
-			<File
 				RelativePath="..\..\scintilla\src\LineMarker.cxx"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lib\linit.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lib\liolib.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\llex.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lib\lmathlib.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lmem.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lib\loadlib.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lobject.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lopcodes.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lib\loslib.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lparser.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lstate.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lstring.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lib\lstrlib.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\ltable.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lib\ltablib.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\ltm.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lundump.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lvm.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lzio.c"
 				>
 			</File>
 			<File
@@ -829,6 +811,126 @@
 					>
 				</File>
 			</Filter>
+			<Filter
+				Name="LUA"
+				>
+				<File
+					RelativePath="..\lua\src\lapi.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lib\lauxlib.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lib\lbaselib.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lcode.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lib\ldblib.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\ldebug.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\ldo.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\ldump.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lfunc.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lgc.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lib\linit.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lib\liolib.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\llex.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lib\lmathlib.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lmem.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lib\loadlib.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lobject.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lopcodes.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lib\loslib.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lparser.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lstate.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lstring.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lib\lstrlib.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\ltable.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lib\ltablib.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\ltm.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lundump.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lvm.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lzio.c"
+					>
+				</File>
+			</Filter>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -995,10 +1097,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\scintilla\Include\WinDefs.h"
-				>
-			</File>
-			<File
 				RelativePath="..\..\scintilla\Include\WindowAccessor.h"
 				>
 			</File>
@@ -1034,9 +1132,21 @@
 						AdditionalIncludeDirectories="..\src;..\..\Scintilla\Win32;..\Win32;$(NoInherit)"
 					/>
 				</FileConfiguration>
+				<FileConfiguration
+					Name="ReleaseT|Win32"
+					>
+					<Tool
+						Name="VCResourceCompilerTool"
+						AdditionalIncludeDirectories="..\src;..\..\Scintilla\Win32;..\Win32;$(NoInherit)"
+					/>
+				</FileConfiguration>
 			</File>
 		</Filter>
 	</Files>
 	<Globals>
+		<Global
+			Name="RESOURCE_FILE"
+			Value="\WorkSpace\Code\CPP\scite\scite\Win32\SciTERes.rc"
+		/>
 	</Globals>
 </VisualStudioProject>
