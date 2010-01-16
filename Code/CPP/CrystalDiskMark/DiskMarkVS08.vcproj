@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="shift_jis"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="8.00"
+	Version="9.00"
 	Name="DiskMark"
 	ProjectGUID="{CDF33C67-147E-4C50-BC76-99A6BCB214D9}"
 	RootNamespace="DiskMark"
