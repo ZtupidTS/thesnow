@@ -18,7 +18,7 @@
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
 #ifdef _WIN32
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
-#pragma code_page(1252)
+#pragma code_page(936)
 #endif //_WIN32
 
 /////////////////////////////////////////////////////////////////////////////
@@ -28,16 +28,16 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 
 IDD_ABOUT DIALOG DISCARDABLE  0, 0, 292, 135
 STYLE DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "About TightVNC Server"
+CAPTION "关于 TightVNC 服务器"
 FONT 8, "MS Sans Serif"
 BEGIN
     CONTROL         132,IDC_VNCLOGO,"Static",SS_BITMAP | SS_SUNKEN,7,7,87,80
     CTEXT           "www.TightVNC.com",IDC_STATIC_URL,7,95,87,13
-    LTEXT           "TightVNC Server version 1.4.0",IDC_STATIC_VERSION,104,7,
+    LTEXT           "TightVNC 服务器版本 1.4.0",IDC_STATIC_VERSION,104,7,
                     181,10
     LTEXT           "Based on VNC software\nCopyright (C) 1999-2001 AT&&T Laboratories Cambridge\nCopyright (C) 2002-2003 RealVNC Ltd.\nhttp://www.realvnc.com/",
                     IDC_STATIC_BASEDON,104,71,181,38
-    DEFPUSHBUTTON   "&OK",IDOK,120,114,50,14
+    DEFPUSHBUTTON   "确定(&O)",IDOK,120,114,50,14
     LTEXT           "Copyright (C) 2000-2006 Constantin Kaplinsky\nCopyright (C) 2000-2008 TightVNC Group\nCopyright (C) 2001-2004 HorizonLive.com, Inc.\nhttp://www.horizonlive.com/",
                     IDC_STATIC_COPYRIGHTS,104,33,181,35
     LTEXT           "[build time unknown]",IDC_BUILDTIME,104,19,181,10
@@ -50,18 +50,18 @@ CAPTION "Initiate Outgoing Connection (Add New Client)"
 FONT 8, "MS Sans Serif"
 BEGIN
     EDITTEXT        IDC_HOSTNAME_EDIT,55,6,130,14,ES_AUTOHSCROLL
-    DEFPUSHBUTTON   "OK",IDOK,196,6,54,14
-    PUSHBUTTON      "Cancel",IDCANCEL,196,34,54,14
-    LTEXT           "Host name:",IDC_HOSTNAME_STATIC,7,6,43,14,
+    DEFPUSHBUTTON   "确定",IDOK,196,6,54,14
+    PUSHBUTTON      "取消",IDCANCEL,196,34,54,14
+    LTEXT           "主机名称:",IDC_HOSTNAME_STATIC,7,6,43,14,
                     SS_CENTERIMAGE | NOT WS_GROUP
     LTEXT           "Formats host:display and host::port are supported.\nThe default is to use display 0 or port 5500.",
                     IDC_STATIC_FORMATS,7,58,178,18,NOT WS_GROUP
     LTEXT           "Note: Host must be running VNC viewer in 'listen' mode.",
                     IDC_STATIC_NOTE,7,76,178,10,SS_CENTERIMAGE | NOT 
                     WS_GROUP
-    CONTROL         "Full control",IDC_FULL_CONTROL_CON,"Button",
+    CONTROL         "完全控制",IDC_FULL_CONTROL_CON,"Button",
                     BS_AUTORADIOBUTTON,65,34,48,14
-    CONTROL         "View-only",IDC_VIEW_ONLY_CON,"Button",
+    CONTROL         "只是可见",IDC_VIEW_ONLY_CON,"Button",
                     BS_AUTORADIOBUTTON,130,34,45,14
     GROUPBOX        "Status Connection",IDC_STATIC_CONNSTATUS,55,26,130,28
 END
@@ -69,18 +69,18 @@ END
 IDD_ACCEPT_CONN DIALOG DISCARDABLE  0, 0, 235, 102
 STYLE DS_SYSMODAL | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_VISIBLE | 
     WS_CAPTION
-CAPTION "Accept WinVNC Connection?"
+CAPTION "接受 WinVNC 连接?"
 FONT 8, "MS Sans Serif"
 BEGIN
-    DEFPUSHBUTTON   "&Accept",IDACCEPT,7,78,53,17
-    PUSHBUTTON      "&Reject",IDREJECT,175,78,53,17
+    DEFPUSHBUTTON   "接受(&A)",IDACCEPT,7,78,53,17
+    PUSHBUTTON      "拒绝(&R)",IDREJECT,175,78,53,17
     CTEXT           "WinVNC has received an incoming connection from",
                     IDC_STATIC_TEXT1,7,2,221,17,SS_CENTERIMAGE
     CTEXT           "<unknown host>",IDC_ACCEPT_IP,7,21,221,16,
                     SS_CENTERIMAGE
     CTEXT           "Do you wish to Accept or Reject the connection?",
                     IDC_STATIC_TEXT,7,38,221,15,SS_CENTERIMAGE
-    CTEXT           "AutoReject:",IDC_ACCEPT_TIMEOUT,7,58,221,14,
+    CTEXT           "自动拒绝:",IDC_ACCEPT_TIMEOUT,7,58,221,14,
                     SS_CENTERIMAGE
     PUSHBUTTON      "Accept without &Password",IDACCEPT_NOPASS,70,78,95,17
 END
@@ -128,7 +128,7 @@ IDD_LIVESHAREADVPROP DIALOGEX 0, 0, 280, 138
 STYLE DS_MODALFRAME | DS_3DLOOK | DS_CENTER | DS_CONTEXTHELP | WS_POPUP | 
     WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 EXSTYLE WS_EX_CONTEXTHELP
-CAPTION "Advanced Properties"
+CAPTION "高级属性"
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
     GROUPBOX        "Update Handling",IDC_UPDATE_BORDER,5,5,196,92
@@ -155,9 +155,9 @@ BEGIN
     CONTROL         "Disable remote control while local keyboard or mouse in use",
                     IDC_REMOTE_DISABLE,"Button",BS_AUTOCHECKBOX | BS_TOP | 
                     BS_MULTILINE | WS_TABSTOP,150,107,125,20
-    DEFPUSHBUTTON   "&OK",IDOK,208,5,67,15
-    PUSHBUTTON      "&Cancel",IDCANCEL,208,25,67,15
-    PUSHBUTTON      "&Apply",IDC_APPLY,207,45,67,15
+    DEFPUSHBUTTON   "确定(&O)",IDOK,208,5,67,15
+    PUSHBUTTON      "取消(&C)",IDCANCEL,208,25,67,15
+    PUSHBUTTON      "应用(&A)",IDC_APPLY,207,45,67,15
 END
 #endif
 
@@ -333,7 +333,7 @@ IDD_CONTROL_PANEL DIALOGEX 0, 0, 209, 218
 STYLE DS_MODALFRAME | DS_CENTER | DS_CONTEXTHELP | WS_VISIBLE | WS_CAPTION | 
     WS_SYSMENU
 EXSTYLE WS_EX_CONTEXTHELP
-CAPTION "Control Panel"
+CAPTION "控制面板"
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
     CONTROL         "List1",IDC_LIST_CONNECTIONS,"SysListView32",LVS_REPORT | 
@@ -739,7 +739,7 @@ VS_VERSION_INFO VERSIONINFO
 BEGIN
     BLOCK "StringFileInfo"
     BEGIN
-        BLOCK "040904b0"
+        BLOCK "080404b0"
         BEGIN
             VALUE "Comments", "Based on VNC by AT&T Research Labs Cambridge, RealVNC Ltd.\0"
             VALUE "CompanyName", "TightVNC Group\0"
@@ -757,7 +757,7 @@ BEGIN
     END
     BLOCK "VarFileInfo"
     BEGIN
-        VALUE "Translation", 0x409, 1200
+        VALUE "Translation", 0x804, 1200
     END
 END
 
@@ -787,16 +787,16 @@ IDR_TRAYMENU MENU DISCARDABLE
 BEGIN
     POPUP "tray"
     BEGIN
-        MENUITEM "&Properties...",              ID_PROPERTIES
+        MENUITEM "程序设置(&P)...",              ID_PROPERTIES
         MENUITEM SEPARATOR
-        MENUITEM "C&ontrol Panel...",           ID_CONTROL_PANEL
-        MENUITEM "Add &New Client...",          ID_OUTGOING_CONN
-        MENUITEM "&Kill All Clients",           ID_KILLCLIENTS
-        MENUITEM "&Disable New Clients",        ID_DISABLE_CONN
+        MENUITEM "控制面板(&O)...",           ID_CONTROL_PANEL
+        MENUITEM "添加新的客户端(&N)...",          ID_OUTGOING_CONN
+        MENUITEM "杀死所有客户端(&K)",           ID_KILLCLIENTS
+        MENUITEM "禁用新的客户端(&D)",        ID_DISABLE_CONN
         MENUITEM SEPARATOR
-        MENUITEM "&About...",                   ID_ABOUT
+        MENUITEM "关于(&A)...",                   ID_ABOUT
         MENUITEM SEPARATOR
-        MENUITEM "&Close TightVNC Server",      ID_CLOSE
+        MENUITEM "关闭 &TightVNC 服务器",      ID_CLOSE
     END
 END
 

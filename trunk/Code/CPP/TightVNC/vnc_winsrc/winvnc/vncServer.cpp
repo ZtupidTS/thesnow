@@ -1626,10 +1626,10 @@ bool vncServer::updateSharedRect()
 		GetWindowShared() == NULL) {
 			// Disconnect clients if the shared window has dissapeared.
 			// FIXME: Make this behavior configurable.
-			MessageBox(NULL, "You have exited an application that is being\n"
-							 "viewed/controlled from a remote PC. Exiting this\n"
-							 "application will terminate the session with the remote PC.",
-							 "Warning", MB_ICONWARNING | MB_OK);
+			MessageBox(NULL, L"You have exited an application that is being\n"
+							 L"viewed/controlled from a remote PC. Exiting this\n"
+							 L"application will terminate the session with the remote PC.",
+							 L"Warning", MB_ICONWARNING | MB_OK);
 			vnclog.Print(LL_CONNERR, VNCLOG("shared window not found - disconnecting clients\n"));
 			KillAuthClients();
 			return false;

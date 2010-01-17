@@ -48,14 +48,14 @@ BOOL ControlPanel::InitListViewColumns()
 { 
 	ListView_SetExtendedListViewStyle(GetDlgItem(m_hwnd, IDC_LIST_CONNECTIONS), 
 		LVS_EX_FULLROWSELECT);
-	char szText[256];      
+	wchar_t szText[256];      
 	LVCOLUMN lvc; 
 	int iCol;
     
 	TCHAR *ColumnsStrings[] = {
-		"IP address",
-		"Time connected",
-		"Status"
+		L"IP address",
+		L"Time connected",
+		L"Status"
 	};
 	
 	lvc.mask = LVCF_FMT | LVCF_WIDTH | LVCF_TEXT | LVCF_SUBITEM; 
@@ -66,7 +66,7 @@ BOOL ControlPanel::InitListViewColumns()
 		lvc.cx = 96;           
 		lvc.fmt = LVCFMT_LEFT;
 		
-		strcpy(szText, ColumnsStrings[iCol]); 
+		wcscpy(szText, ColumnsStrings[iCol]); 
 		if (ListView_InsertColumn(GetDlgItem(m_hwnd, IDC_LIST_CONNECTIONS), iCol, &lvc) == -1) 
 			return FALSE; 
 	} 
@@ -107,16 +107,16 @@ void ControlPanel::UpdateListView()
 	vncClientList::iterator ci;
 	for (ci = m_clients.begin(); ci != m_clients.end(); ci++) {	
 		
-		strcpy(ItemString[0], m_server->GetClient(*ci)->GetClientName());
-		strcpy(ItemString[1], m_server->GetClient(*ci)->getStartTime());
+		wcscpy(ItemString[0], (LPWSTR)m_server->GetClient(*ci)->GetClientName());
+		wcscpy(ItemString[1], (LPWSTR)m_server->GetClient(*ci)->getStartTime());
 		ItemString[1][24] = '\0';
 		if (m_server->GetClient(*ci)->getStopUpdate()) {
-			strcpy(ItemString[2], "Stop updating");
+			wcscpy(ItemString[2], L"Stop updating");
 		} else {
 			if (m_server->GetClient(*ci)->IsInputEnabled()) {
-				strcpy(ItemString[2], "Full Control");
+				wcscpy(ItemString[2], L"Full Control");
 			} else {
-				strcpy(ItemString[2], "View-only");
+				wcscpy(ItemString[2], L"View-only");
 			}
 		}
 		InsertListViewItem(i, ItemString);

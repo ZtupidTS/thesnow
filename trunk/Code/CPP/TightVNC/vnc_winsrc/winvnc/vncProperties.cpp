@@ -44,22 +44,22 @@
 #include "echoConCtrl.h"
 #include "echoTypes.h"
 
-const char NO_PASSWORD_WARN [] = "WARNING : Running WinVNC without setting a password is "
-								"a dangerous security risk!\n"
-								"Until you set a password, WinVNC will not accept incoming connections.";
-const char NO_OVERRIDE_ERR [] = "This machine has been preconfigured with WinVNC settings, "
-								"which cannot be overridden by individual users.  "
-								"The preconfigured settings may be modified only by a System Administrator.";
-const char NO_PASSWD_NO_OVERRIDE_ERR [] =
-								"No password has been set & this machine has been "
-								"preconfigured to prevent users from setting their own.\n"
-								"You must contact a System Administrator to configure WinVNC properly.";
-const char NO_PASSWD_NO_LOGON_WARN [] =
-								"WARNING : This machine has no default password set.  WinVNC will present the "
-								"Default Properties dialog now to allow one to be entered.";
-const char NO_CURRENT_USER_ERR [] = "The WinVNC settings for the current user are unavailable at present.\n"
-								"If you have started the service manually, please run the Service Helper as well.";
-const char CANNOT_EDIT_DEFAULT_PREFS [] = "You do not have sufficient priviliges to edit the default local WinVNC settings.";
+const wchar_t NO_PASSWORD_WARN [] = L"WARNING : Running WinVNC without setting a password is "
+								L"a dangerous security risk!\n"
+								L"Until you set a password, WinVNC will not accept incoming connections.";
+const wchar_t NO_OVERRIDE_ERR [] = L"This machine has been preconfigured with WinVNC settings, "
+								L"which cannot be overridden by individual users.  "
+								L"The preconfigured settings may be modified only by a System Administrator.";
+const wchar_t NO_PASSWD_NO_OVERRIDE_ERR [] =
+								L"No password has been set & this machine has been "
+								L"preconfigured to prevent users from setting their own.\n"
+								L"You must contact a System Administrator to configure WinVNC properly.";
+const wchar_t NO_PASSWD_NO_LOGON_WARN [] =
+								L"WARNING : This machine has no default password set.  WinVNC will present the "
+								L"Default Properties dialog now to allow one to be entered.";
+const wchar_t NO_CURRENT_USER_ERR [] = L"The WinVNC settings for the current user are unavailable at present.\n"
+								L"If you have started the service manually, please run the Service Helper as well.";
+const wchar_t CANNOT_EDIT_DEFAULT_PREFS [] = L"You do not have sufficient priviliges to edit the default local WinVNC settings.";
 
 // Constructor & Destructor
 vncProperties::vncProperties()
@@ -104,16 +104,16 @@ vncProperties::Init(vncServer *server)
 	if (m_server->SockConnected() && !m_server->ValidPasswordsSet()) {
 		if (!m_allowproperties) {
 			MessageBox(NULL, NO_PASSWD_NO_OVERRIDE_ERR,
-						"WinVNC Error",
+						L"WinVNC Error",
 						MB_OK | MB_ICONSTOP);
 			PostQuitMessage(0);
 		} else {
-			char username[UNLEN+1];
+			wchar_t username[UNLEN+1];
 			if (!vncService::CurrentUser(username, sizeof(username)))
 				return FALSE;
-			if (strcmp(username, "") == 0) {
+			if (wcscmp(username, L"") == 0) {
 				MessageBox(NULL, NO_PASSWD_NO_LOGON_WARN,
-							"WinVNC Error",
+							L"WinVNC Error",
 							MB_OK | MB_ICONEXCLAMATION);
 				Show(TRUE, FALSE, TRUE);
 			} else {
@@ -134,17 +134,17 @@ vncProperties::Show(BOOL show, BOOL usersettings, BOOL passwordfocused)
 		if (!m_allowproperties)
 		{
 			// If the user isn't allowed to override the settings then tell them
-			MessageBox(NULL, NO_OVERRIDE_ERR, "WinVNC Error", MB_OK | MB_ICONEXCLAMATION);
+			MessageBox(NULL, NO_OVERRIDE_ERR, L"WinVNC Error", MB_OK | MB_ICONEXCLAMATION);
 			return;
 		}
 
 		// Verify that we know who is logged on
 		if (usersettings) {
-			char username[UNLEN+1];
+			wchar_t username[UNLEN+1];
 			if (!vncService::CurrentUser(username, sizeof(username)))
 				return;
-			if (strcmp(username, "") == 0) {
-				MessageBox(NULL, NO_CURRENT_USER_ERR, "WinVNC Error", MB_OK | MB_ICONEXCLAMATION);
+			if (wcscmp(username, L"") == 0) {
+				MessageBox(NULL, NO_CURRENT_USER_ERR, L"WinVNC Error", MB_OK | MB_ICONEXCLAMATION);
 				return;
 			}
 		} else {
@@ -158,7 +158,7 @@ vncProperties::Show(BOOL show, BOOL usersettings, BOOL passwordfocused)
 				KEY_READ, NULL, &hkLocal, &dw) != ERROR_SUCCESS)
 				canEditDefaultPrefs = 0;
 			else if (RegCreateKeyEx(hkLocal,
-				"Default",
+				L"Default",
 				0, REG_NONE, REG_OPTION_NON_VOLATILE,
 				KEY_WRITE | KEY_READ, NULL, &hkDefault, &dw) != ERROR_SUCCESS)
 				canEditDefaultPrefs = 0;
@@ -166,7 +166,7 @@ vncProperties::Show(BOOL show, BOOL usersettings, BOOL passwordfocused)
 			if (hkDefault) RegCloseKey(hkDefault);
 
 			if (!canEditDefaultPrefs) {
-				MessageBox(NULL, CANNOT_EDIT_DEFAULT_PREFS, "WinVNC Error", MB_OK | MB_ICONEXCLAMATION);
+				MessageBox(NULL, CANNOT_EDIT_DEFAULT_PREFS, L"WinVNC Error", MB_OK | MB_ICONEXCLAMATION);
 				return;
 			}
 		}
@@ -206,7 +206,7 @@ vncProperties::Show(BOOL show, BOOL usersettings, BOOL passwordfocused)
 			if (m_server->SockConnected() && !m_server->ValidPasswordsSet()) {
 				vnclog.Print(LL_INTERR, VNCLOG("warning - no valid passwords set\n"));
 				MessageBox(NULL, NO_PASSWORD_WARN,
-						   "WinVNC Warning",
+						   L"WinVNC Warning",
 						   MB_OK | MB_ICONEXCLAMATION);
 			}
 
@@ -288,11 +288,11 @@ vncProperties::ParentDlgProc(HWND hwnd,
 #endif
 
 			// Add child dialogs to the TabDialogContainer.
-			_this->m_tabContainer.addDialog(_this->m_hIncoming, "Server");
-			_this->m_tabContainer.addDialog(_this->m_hShared, "Display");
-			_this->m_tabContainer.addDialog(_this->m_hQuerySettings, "Query");
-			_this->m_tabContainer.addDialog(_this->m_hAdministration, "Administration");
-			_this->m_tabContainer.addDialog(_this->m_hConnectionsAccess, "Access Control");
+			_this->m_tabContainer.addDialog(_this->m_hIncoming, L"服务器");
+			_this->m_tabContainer.addDialog(_this->m_hShared, L"显示");
+			_this->m_tabContainer.addDialog(_this->m_hQuerySettings, L"查询");
+			_this->m_tabContainer.addDialog(_this->m_hAdministration, L"管理");
+			_this->m_tabContainer.addDialog(_this->m_hConnectionsAccess, L"访问控制");
 #ifdef ENABLE_ECHO_CONNECTIONS
 			_this->m_tabContainer.addDialog(_this->m_hEchoConnection, "Echo Servers");
 #endif
@@ -302,7 +302,7 @@ vncProperties::ParentDlgProc(HWND hwnd,
 			TCITEM item;
 			item.mask = TCIF_TEXT;
 			for (int id = 0; id < _this->m_tabContainer.getNumDialogs(); id++) {
-				item.pszText = (LPSTR)_this->m_tabContainer.getLabel(id);
+				item.pszText = (LPWSTR)_this->m_tabContainer.getLabel(id);
 				TabCtrl_InsertItem(_this->m_hTab, id, &item);
 			}
 			int tab_id = (_this->m_tab_id_restore) ? _this->m_tab_id : 0;
@@ -321,9 +321,9 @@ vncProperties::ParentDlgProc(HWND hwnd,
 
 			// Set the dialog box's title to indicate which Properties we're editting
 			if (_this->m_usersettings) {
-				SetWindowText(hwnd, "TightVNC Server: Current User Properties");
+				SetWindowText(hwnd, L"TightVNC Server: Current User Properties");
 			} else {
-				SetWindowText(hwnd, "TightVNC Server: Default Local System Properties");
+				SetWindowText(hwnd, L"TightVNC Server: Default Local System Properties");
 			}						
 
 			SetForegroundWindow(hwnd);
@@ -564,7 +564,7 @@ BOOL CALLBACK vncProperties::EchoConnectionDlgProc(HWND hwnd, UINT uMsg,
 		case IDC_ECHOSERVERS_LIST:
 			switch (((LPNMHDR) lParam)->code)
 			{
-				case LVN_GETDISPINFO:
+				case LVN_GETDISPINFOA:
 					_this->m_pEchoPropView->onGetDispInfo((NMLVDISPINFO *) lParam);
 					return FALSE;
 
@@ -746,7 +746,7 @@ vncProperties::LoadInt(HKEY key, LPCSTR valname, LONG defval)
 		return defval;
 
 	if (RegQueryValueEx(key,
-		valname,
+		(LPWSTR)valname,
 		NULL,
 		&type,
 		(LPBYTE) &pref,
@@ -774,7 +774,7 @@ vncProperties::LoadPassword(HKEY key, char *buffer, const char *entry_name)
 
 	// Retrieve the encrypted password
 	if (RegQueryValueEx(key,
-		(LPCSTR) entry_name,
+		(LPCWSTR) entry_name,
 		NULL,
 		&type,
 		(LPBYTE) &inouttext,
@@ -791,7 +791,7 @@ vncProperties::LoadPassword(HKEY key, char *buffer, const char *entry_name)
 void
 vncProperties::SaveString(HKEY key, LPCSTR keyname, const char *buffer)
 {
-	RegSetValueEx(key, keyname, 0,
+	RegSetValueEx(key, (LPWSTR)keyname, 0,
 		REG_SZ, (const unsigned char *)buffer, strlen(buffer) + 1);
 }
 
@@ -807,7 +807,7 @@ vncProperties::LoadString(HKEY key, LPCSTR keyname)
 
 	// Get the length of the string
 	if (RegQueryValueEx(key,
-		keyname,
+		(LPWSTR)keyname,
 		NULL,
 		&type,
 		NULL,
@@ -822,7 +822,7 @@ vncProperties::LoadString(HKEY key, LPCSTR keyname)
 
 	// Get the string data
 	if (RegQueryValueEx(key,
-		keyname,
+		(LPWSTR)keyname,
 		NULL,
 		&type,
 		buffer,
@@ -878,13 +878,13 @@ vncProperties::Load(BOOL usersettings)
 
 	// Now try to get the per-user local key
 	if ( hkLocal == NULL ||
-		 RegOpenKeyEx(hkLocal, username, 0,
+		 RegOpenKeyEx(hkLocal, (LPWSTR)username, 0,
 					  KEY_READ, &hkLocalUser) != ERROR_SUCCESS )
 		hkLocalUser = NULL;
 
 	// Get the default key
 	if ( hkLocal == NULL ||
-		 RegCreateKeyEx(hkLocal, "Default", 0, REG_NONE, REG_OPTION_NON_VOLATILE,
+		 RegCreateKeyEx(hkLocal, L"Default", 0, REG_NONE, REG_OPTION_NON_VOLATILE,
 						KEY_READ, NULL, &hkDefault, &dw) != ERROR_SUCCESS )
 		hkDefault = NULL;
 
@@ -1130,13 +1130,13 @@ vncProperties::ApplyUserPrefs()
 void
 vncProperties::SaveInt(HKEY key, LPCSTR valname, LONG val)
 {
-	RegSetValueEx(key, valname, 0, REG_DWORD, (LPBYTE) &val, sizeof(val));
+	RegSetValueEx(key, (LPWSTR)valname, 0, REG_DWORD, (LPBYTE) &val, sizeof(val));
 }
 
 void
 vncProperties::SavePassword(HKEY key, const char *buffer, const char *entry_name)
 {
-	RegSetValueEx(key, entry_name, 0, REG_BINARY, (LPBYTE) buffer, MAXPWLEN);
+	RegSetValueEx(key, (LPWSTR)entry_name, 0, REG_BINARY, (LPBYTE) buffer, MAXPWLEN);
 }
 
 void
@@ -1177,11 +1177,11 @@ vncProperties::Save()
 			WINVNC_REGISTRY_KEY,
 			0, REG_NONE, REG_OPTION_NON_VOLATILE,
 			KEY_READ, NULL, &hkLocal, &dw) != ERROR_SUCCESS) {
-			MessageBox(NULL, "MB1", "WVNC", MB_OK);
+			MessageBox(NULL, L"MB1", L"WVNC", MB_OK);
 			return;
 		}
 		if (RegCreateKeyEx(hkLocal,
-			"Default",
+			L"Default",
 			0, REG_NONE, REG_OPTION_NON_VOLATILE,
 			KEY_WRITE | KEY_READ, NULL, &appkey, &dw) != ERROR_SUCCESS) {
 			RegCloseKey(hkLocal);
@@ -1290,7 +1290,7 @@ vncProperties::LoadEchoConnectionSettings(HKEY key)
 	m_server->m_echoConCtrl.setEncryption(LoadInt(key, "AllowEncryption", 0));
 
 	if (key == NULL ||
-		RegCreateKeyEx(key, "EchoProxy", 0, REG_NONE, REG_OPTION_NON_VOLATILE,
+		RegCreateKeyEx(key, L"EchoProxy", 0, REG_NONE, REG_OPTION_NON_VOLATILE,
 					   KEY_READ, NULL, &hkEchoProxy, &dw) != ERROR_SUCCESS) {
 		hkEchoProxy = NULL;
 	} 
@@ -1321,7 +1321,7 @@ vncProperties::LoadEchoConnectionSettings(HKEY key)
 	}
 
 	if (key == NULL || 
-		RegCreateKeyEx(key, "EchoServers", 0, REG_NONE, REG_OPTION_NON_VOLATILE,
+		RegCreateKeyEx(key, L"EchoServers", 0, REG_NONE, REG_OPTION_NON_VOLATILE,
 					   KEY_ALL_ACCESS, NULL, &hkEchoServers, &dw) != ERROR_SUCCESS) {
 		hkEchoServers = NULL;
 		return;
@@ -1338,7 +1338,7 @@ vncProperties::LoadEchoConnectionSettings(HKEY key)
 	pwd[0] = '\0';
 
 	for (int i = 0; i < num; i++) {
-		RegCreateKeyEx(hkEchoServers, (char *)&nameArray[index], 0, REG_NONE, REG_OPTION_NON_VOLATILE,
+		RegCreateKeyEx(hkEchoServers, (wchar_t *)&nameArray[index], 0, REG_NONE, REG_OPTION_NON_VOLATILE,
 					   KEY_ALL_ACCESS, NULL, &hkServerInfo, &dw);
 		server = LoadString(hkServerInfo, "server");
 		if (server != 0) {
@@ -1382,7 +1382,7 @@ vncProperties::SaveEchoConnectionSettings(HKEY key)
 	SaveInt(key, "AllowEncryption", m_server->m_echoConCtrl.isEncrypted());
 
 	if (key == NULL ||
-		RegCreateKeyEx(key, "EchoProxy", 0, REG_NONE, REG_OPTION_NON_VOLATILE,
+		RegCreateKeyEx(key, L"EchoProxy", 0, REG_NONE, REG_OPTION_NON_VOLATILE,
 					   KEY_ALL_ACCESS, NULL, &hkEchoProxy, &dw) != ERROR_SUCCESS) {
 		hkEchoProxy = NULL;
 	} 
@@ -1404,7 +1404,7 @@ vncProperties::SaveEchoConnectionSettings(HKEY key)
 	}
 
 	if (key == NULL || 
-		RegCreateKeyEx(key, "EchoServers", 0, REG_NONE, REG_OPTION_NON_VOLATILE,
+		RegCreateKeyEx(key, L"EchoServers", 0, REG_NONE, REG_OPTION_NON_VOLATILE,
 					   KEY_ALL_ACCESS, NULL, &hkEchoServers, &dw) != ERROR_SUCCESS) {
 		hkEchoServers = NULL;
 		return;
@@ -1420,7 +1420,7 @@ vncProperties::SaveEchoConnectionSettings(HKEY key)
 	for (int i = 0; i < num; i++) {
 		m_server->m_echoConCtrl.getEntriesAt(i, &echoProp);
 		sprintf(keyName, "%s@%s:%s", echoProp.username, echoProp.server, echoProp.port);
-		if (RegCreateKeyEx(hkEchoServers, keyName, 0, REG_NONE, REG_OPTION_NON_VOLATILE,
+		if (RegCreateKeyEx(hkEchoServers, (LPWSTR)keyName, 0, REG_NONE, REG_OPTION_NON_VOLATILE,
 			KEY_ALL_ACCESS, NULL, &hkServerInfo, &dw) == ERROR_SUCCESS) {
 			SaveString(hkServerInfo, "server", echoProp.server);
 			SaveString(hkServerInfo, "username", echoProp.username);
@@ -1444,7 +1444,7 @@ vncProperties::DeleteAllEchoServerKeys(HKEY hkEchoServers)
 	int index = 0;
 
 	for (int i = 0; i < num; i++) {
-		RegDeleteKey(hkEchoServers, (char *)&nameArray[index]);
+		RegDeleteKey(hkEchoServers, (wchar_t *)&nameArray[index]);
 		index += strlen((char *)&nameArray[index]) + 1;
 	}
 }
@@ -1460,7 +1460,7 @@ vncProperties::GetAllEchoServerKeys(HKEY hkEchoServers, char *nameArray)
 	int index = 0;
 
 	for (int i = 0; i < MAX_ECHO_SERVERS; i++) {
-		retCode = RegEnumKeyEx(hkEchoServers, i, name, &nameLen, NULL, NULL, NULL, &lastModTime);
+		retCode = RegEnumKeyEx(hkEchoServers, i, (LPWSTR)name, &nameLen, NULL, NULL, NULL, &lastModTime);
 		if (retCode == ERROR_SUCCESS) {
 			strcpy((char *)&nameArray[index], name);
 			index += strlen(name);

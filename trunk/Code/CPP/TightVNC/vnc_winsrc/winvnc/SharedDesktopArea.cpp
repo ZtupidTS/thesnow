@@ -138,11 +138,11 @@ void SharedDesktopArea::Validate()
 		m_pMatchWindow->Hide();
 	}
 
-	LPCSTR info = NULL;
+	LPCTSTR info = NULL;
 	if (IsChecked(IDC_FULLSCREEN)) {
-		info = "* full desktop selected *";
+		info = L"* full desktop selected *";
 	} else if (IsChecked(IDC_SCREEN)) {
-		info = "* screen area selected *";
+		info = L"* screen area selected *";
 	}
 
 	BOOL enableLocator = IsChecked(IDC_WINDOW) || IsChecked(IDC_APPLICATION);
@@ -178,9 +178,9 @@ bool SharedDesktopArea::Apply()
 	BOOL enableLocator = IsChecked(IDC_WINDOW) || IsChecked(IDC_APPLICATION);
 	if (enableLocator && m_hwndShared == NULL) {
 		MessageBox(NULL,
-				"You have not yet selected a window or application to share.\n"
-				"Please first select a window with the 'Window Target'\n"
-				"icon, and try again.", "No Window Selected",
+				L"You have not yet selected a window or application to share.\n"
+				L"Please first select a window with the 'Window Target'\n"
+				L"icon, and try again.", L"No Window Selected",
 				 MB_OK | MB_ICONEXCLAMATION);
 		return false;
 	}
@@ -322,14 +322,14 @@ void SharedDesktopArea::DrawFrameAroundWindow(HWND hWnd)
 
 void SharedDesktopArea::SetWindowCaption(HWND hWnd)
 {
-	char strWindowText[256];
+	wchar_t strWindowText[256];
 	if (hWnd == NULL) {
-		strcpy(strWindowText, "* no window selected *");
+		wcscpy(strWindowText, L"* no window selected *");
 	} else {
 		GetWindowText(hWnd, strWindowText, sizeof(strWindowText));
 		if (!strWindowText[0]) 
 		{
-			int bytes = sprintf(strWindowText, "0x%x ", hWnd);
+			int bytes = wsprintf(strWindowText, L"0x%x ", hWnd);
 			GetClassName(hWnd, strWindowText + bytes,
 						 sizeof(strWindowText) - bytes);
 		}

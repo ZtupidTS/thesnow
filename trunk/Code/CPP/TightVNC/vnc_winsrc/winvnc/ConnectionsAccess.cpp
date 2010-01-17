@@ -43,7 +43,7 @@ void ConnectionsAccess::Apply()
 	}
 
 	// Allocate 17 bytes per each pattern (IP, action and separator)
-	char *auth_hosts = (char *)malloc(count * 17);
+	wchar_t *auth_hosts = (wchar_t *)malloc(count * 17);
 	auth_hosts[0] = '\0';
 
 	for (int i = count - 1; i >= 0; i--) {
@@ -51,20 +51,20 @@ void ConnectionsAccess::Apply()
 		if (!FormatPattern(FALSE, ItemString[0], NULL))
 			continue;
 
-		if (strcmp(ItemString[1], "Allow") == 0) {
-			strcat(auth_hosts, "+");
-		} else if (strcmp(ItemString[1], "Deny") == 0) {
-			strcat(auth_hosts, "-");
-		} else if (strcmp(ItemString[1], "Query") == 0) {
-			strcat(auth_hosts, "?");
+		if (wcscmp(ItemString[1], L"Allow") == 0) {
+			wcscat(auth_hosts, L"+");
+		} else if (wcscmp(ItemString[1], L"Deny") == 0) {
+			wcscat(auth_hosts, L"-");
+		} else if (wcscmp(ItemString[1], L"Query") == 0) {
+			wcscat(auth_hosts, L"?");
 		}
 
-		strcat(auth_hosts, ItemString[0]);
+		wcscat(auth_hosts, ItemString[0]);
 		if (i != 0)
-			strcat(auth_hosts, ":");
+			wcscat(auth_hosts, L":");
 	}
 
-	m_server->SetAuthHosts(auth_hosts);
+	m_server->SetAuthHosts((LPSTR)auth_hosts);
 	free(auth_hosts);
 }
 
@@ -80,9 +80,9 @@ void ConnectionsAccess::Init()
 			memcpy(ItemString[0], &pattern[1], len - 1);
 			ItemString[0][len - 1] = '\0';
 			switch (pattern[0]) {
-			case '+': strcpy(ItemString[1], "Allow"); break;
-			case '-': strcpy(ItemString[1], "Deny"); break;
-			case '?': strcpy(ItemString[1], "Query"); break;
+			case '+': wcscpy(ItemString[1], L"Allow"); break;
+			case '-': wcscpy(ItemString[1], L"Deny"); break;
+			case '?': wcscpy(ItemString[1], L"Query"); break;
 			}
 			if (FormatPattern(TRUE, ItemString[0], NULL))
 				InsertListViewItem(0, ItemString);
@@ -187,7 +187,7 @@ int ConnectionsAccess::GetSelectedItem()
 void ConnectionsAccess::GetListViewItem(int Numbe, TCHAR ItemString[2][256])
 {
 	for (int i = 0; i < 2; i++) {
-		strcpy(ItemString[i], "");
+		wcscpy(ItemString[i], L"");
 		ListView_GetItemText(GetDlgItem(m_hwnd, IDC_LIST_HOSTS),
 							Numbe, i, ItemString[i], 256);							
 	}
@@ -218,8 +218,8 @@ BOOL ConnectionsAccess::InitListViewColumns()
 	ListView_SetExtendedListViewStyle(GetDlgItem(m_hwnd, IDC_LIST_HOSTS),
 									  LVS_EX_FULLROWSELECT);
 	TCHAR *ColumnsStrings[] = {
-		"IP pattern",
-		"Action"
+		L"IP pattern",
+		L"Action"
 	};
 
 	LVCOLUMN lvc;
@@ -245,16 +245,16 @@ BOOL ConnectionsAccess::FormatPattern(BOOL toList, TCHAR strpattern[256],
 	int num_numbers = 0;
 
 	if (strpattern[0] != '\0') {
-		char *component = strpattern;
+		wchar_t *component = strpattern;
 		for (;;) {
-			int len = strcspn(component, ".");
+			int len = wcscspn(component, L".");
 			if (len == 1 && component[0] == '*') {
 				// The component is single "*" - it's ok, do nothing.
 			} else if (num_components != num_numbers) {
 				return FALSE;		// non-'*' found after there was '*'
 			} else {
-				strncpy(parts[num_numbers], component, len);
-				if (!MatchPatternComponent(parts[num_numbers]))
+				wcsncpy((LPWSTR)parts[num_numbers], component, len);
+				if (!MatchPatternComponent((LPWSTR)parts[num_numbers]))
 					return FALSE;
 				num_numbers++;
 			}
@@ -271,8 +271,8 @@ BOOL ConnectionsAccess::FormatPattern(BOOL toList, TCHAR strpattern[256],
 	int num_parts = (toList) ? 4 : num_numbers;
 	strpattern[0] = '\0';
 	for (int i = 0; i < num_parts; i++) {
-		strcat(strpattern, (i == 0) ? "" : ".");
-		strcat(strpattern, parts[i]);
+		wcscat(strpattern, (i == 0) ? L"" : L".");
+		wcscat(strpattern, (LPWSTR)parts[i]);
 	}
 	if (buf_parts != NULL) {	
 		for (int i = 0; i < 4; i++)
@@ -284,15 +284,15 @@ BOOL ConnectionsAccess::FormatPattern(BOOL toList, TCHAR strpattern[256],
 
 BOOL ConnectionsAccess::MatchPatternComponent(TCHAR component[5])
 {
-	if (strcmp(component, "*") == 0 || strcmp(component, "") == 0)
+	if (wcscmp(component, L"*") == 0 || wcscmp(component, L"") == 0)
 		return TRUE;
-	int len = strlen(component);
-	if (len < 1 || strspn(component, "0123456789") != len)
+	int len = wcslen(component);
+	if (len < 1 || wcsspn(component, L"0123456789") != len)
 		return FALSE;	// not a non-negative number
-	int value = atoi(component);
+	int value = _wtoi(component);
 	if (value > 255)
 		return FALSE;	// not a number in the range 0..255
-	sprintf(component, "%d", value);
+	wsprintf(component, L"%d", value);
 	return TRUE;
 }
 
@@ -318,16 +318,16 @@ void ConnectionsAccess::MatchEdit(HWND hwnd, DWORD idedit)
 	TCHAR buffer[5];
 	GetDlgItemText(hwnd, idedit, buffer, 5);
 	if (!MatchPatternComponent(buffer)) {
-		SetDlgItemText(hwnd, idedit, IPComponent[num_comp]);
+		SetDlgItemTextA(hwnd, idedit, IPComponent[num_comp]);
 		int poscursor = strlen(IPComponent[num_comp]);
 		SendMessage(GetDlgItem(hwnd, idedit), EM_SETSEL,
 					poscursor, poscursor);
-		MessageBox(hwnd,
+		MessageBoxA(hwnd,
 				"Element of pattern should be an unsigned\n"
 				"number from the range 0..255, or *.",
 				"Error", MB_ICONSTOP | MB_OK);
 	} else {
-		strcpy(IPComponent[num_comp], buffer);
+		strcpy(IPComponent[num_comp], (LPSTR)buffer);
 	}
 }
 
@@ -357,11 +357,11 @@ BOOL CALLBACK ConnectionsAccess::EditDlgProc(HWND hwnd,
 
 			if (_this->m_edit) {
 				SendDlgItemMessage(hwnd, IDC_RADIO_ALLOW, BM_SETCHECK,
-					(strcmp(_this->ItemString[1], "Allow") == 0), 0);
+					(wcscmp(_this->ItemString[1], L"Allow") == 0), 0);
 				SendDlgItemMessage(hwnd, IDC_RADIO_DENY, BM_SETCHECK,
-					(strcmp(_this->ItemString[1], "Deny") == 0), 0);
+					(wcscmp(_this->ItemString[1], L"Deny") == 0), 0);
 				SendDlgItemMessage(hwnd, IDC_RADIO_QUERY, BM_SETCHECK,
-					(strcmp(_this->ItemString[1], "Query") == 0), 0);
+					(wcscmp(_this->ItemString[1], L"Query") == 0), 0);
 				_this->FormatPattern(FALSE, _this->ItemString[0], _this->IPComponent);
 			} else {
 				for (int i = 0; i < 4; i++)
@@ -369,10 +369,10 @@ BOOL CALLBACK ConnectionsAccess::EditDlgProc(HWND hwnd,
 				SendDlgItemMessage(hwnd, IDC_RADIO_ALLOW, BM_SETCHECK, TRUE, 0);
 			}
 
-			SetDlgItemText(hwnd, IDC_PATTERN_COMP1, _this->IPComponent[0]);
-			SetDlgItemText(hwnd, IDC_PATTERN_COMP2, _this->IPComponent[1]);
-			SetDlgItemText(hwnd, IDC_PATTERN_COMP3, _this->IPComponent[2]);
-			SetDlgItemText(hwnd, IDC_PATTERN_COMP4, _this->IPComponent[3]);
+			SetDlgItemTextA(hwnd, IDC_PATTERN_COMP1, _this->IPComponent[0]);
+			SetDlgItemTextA(hwnd, IDC_PATTERN_COMP2, _this->IPComponent[1]);
+			SetDlgItemTextA(hwnd, IDC_PATTERN_COMP3, _this->IPComponent[2]);
+			SetDlgItemTextA(hwnd, IDC_PATTERN_COMP4, _this->IPComponent[3]);
 
 			return TRUE;
 		}
@@ -395,24 +395,24 @@ BOOL CALLBACK ConnectionsAccess::EditDlgProc(HWND hwnd,
 			{
 				_this->ItemString[0][0] = '\0';
 				for (int i = 0; i < 4; i++) {
-					strcat(_this->ItemString[0], (i == 0) ? "" : ".");
-					strcat(_this->ItemString[0], _this->IPComponent[i]);
+					wcscat(_this->ItemString[0], (i == 0) ? L"" : L".");
+					wcscat(_this->ItemString[0], (LPWSTR)_this->IPComponent[i]);
 				}
 
 				if (!_this->FormatPattern(TRUE, _this->ItemString[0], NULL)) {
 					MessageBox(hwnd,
-							"The pattern format is incorrect. It should be entered\n"
-							 "as A.B.C.D or A.B.C or A.B or A, where each element\n"
-							 "should be an unsigned number from the range 0..255",
-							"Error", MB_ICONSTOP | MB_OK);
+							L"The pattern format is incorrect. It should be entered\n"
+							 L"as A.B.C.D or A.B.C or A.B or A, where each element\n"
+							 L"should be an unsigned number from the range 0..255",
+							L"Error", MB_ICONSTOP | MB_OK);
 					return TRUE;
 				}
 				if (SendDlgItemMessage(hwnd, IDC_RADIO_ALLOW, BM_GETCHECK, 0, 0) == BST_CHECKED) {
-					strcpy(_this->ItemString[1], "Allow");
+					wcscpy(_this->ItemString[1], L"Allow");
 				} else if (SendDlgItemMessage(hwnd, IDC_RADIO_DENY, BM_GETCHECK, 0, 0) == BST_CHECKED) {
-					strcpy(_this->ItemString[1], "Deny");
+					wcscpy(_this->ItemString[1], L"Deny");
 				} else if (SendDlgItemMessage(hwnd, IDC_RADIO_QUERY, BM_GETCHECK, 0, 0) == BST_CHECKED) {
-					strcpy(_this->ItemString[1], "Query");
+					wcscpy(_this->ItemString[1], L"Query");
 				}
 				EndDialog(hwnd, IDOK);
 				return TRUE;

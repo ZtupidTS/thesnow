@@ -280,8 +280,8 @@ private:
 	BOOL m_bDownloadStarted;
 	HANDLE m_hFileToRead;
 	HANDLE m_hFileToWrite;
-	char m_UploadFilename[MAX_PATH];
-	char m_DownloadFilename[MAX_PATH];
+	wchar_t m_UploadFilename[MAX_PATH];
+	wchar_t m_DownloadFilename[MAX_PATH];
 	void Time70ToFiletime(unsigned int mTime, FILETIME *pFiletime);
 	unsigned int m_modTime;
 	unsigned int beginUploadTime;

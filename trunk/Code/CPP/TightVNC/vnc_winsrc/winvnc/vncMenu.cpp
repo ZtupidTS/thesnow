@@ -43,23 +43,23 @@
 #include "vncMenu.h"
 
 // Constants
-const UINT MENU_PROPERTIES_SHOW = RegisterWindowMessage("WinVNC.Properties.User.Show");
-const UINT MENU_CONTROL_PANEL_SHOW = RegisterWindowMessage("WinVNC.ControlPanel.Show");
-const UINT MENU_SERVER_SHAREALL = RegisterWindowMessage("WinVNC.Server.ShareAll");
-const UINT MENU_SERVER_SHAREPRIMARY = RegisterWindowMessage("WinVNC.Server.SharePrimary");
-const UINT MENU_SERVER_SHAREAREA = RegisterWindowMessage("WinVNC.Server.ShareArea");
-const UINT MENU_SERVER_SHAREWINDOW = RegisterWindowMessage("WinVNC.Server.ShareWindow");
-const UINT MENU_SERVER_VIDEOCLASS = RegisterWindowMessage("WinVNC.Server.VideoClass");
-const UINT MENU_DEFAULT_PROPERTIES_SHOW = RegisterWindowMessage("WinVNC.Properties.Default.Show");
-const UINT MENU_ABOUTBOX_SHOW = RegisterWindowMessage("WinVNC.AboutBox.Show");
-const UINT MENU_SERVICEHELPER_MSG = RegisterWindowMessage("WinVNC.ServiceHelper.Message");
-const UINT MENU_RELOAD_MSG = RegisterWindowMessage("WinVNC.Reload.Message");
-const UINT MENU_ADD_CLIENT_MSG = RegisterWindowMessage("WinVNC.AddClient.Message");
-const UINT MENU_KILL_ALL_CLIENTS_MSG = RegisterWindowMessage("WinVNC.KillAllClients.Message");
+const UINT MENU_PROPERTIES_SHOW = RegisterWindowMessage(L"WinVNC.Properties.User.Show");
+const UINT MENU_CONTROL_PANEL_SHOW = RegisterWindowMessage(L"WinVNC.ControlPanel.Show");
+const UINT MENU_SERVER_SHAREALL = RegisterWindowMessage(L"WinVNC.Server.ShareAll");
+const UINT MENU_SERVER_SHAREPRIMARY = RegisterWindowMessage(L"WinVNC.Server.SharePrimary");
+const UINT MENU_SERVER_SHAREAREA = RegisterWindowMessage(L"WinVNC.Server.ShareArea");
+const UINT MENU_SERVER_SHAREWINDOW = RegisterWindowMessage(L"WinVNC.Server.ShareWindow");
+const UINT MENU_SERVER_VIDEOCLASS = RegisterWindowMessage(L"WinVNC.Server.VideoClass");
+const UINT MENU_DEFAULT_PROPERTIES_SHOW = RegisterWindowMessage(L"WinVNC.Properties.Default.Show");
+const UINT MENU_ABOUTBOX_SHOW = RegisterWindowMessage(L"WinVNC.AboutBox.Show");
+const UINT MENU_SERVICEHELPER_MSG = RegisterWindowMessage(L"WinVNC.ServiceHelper.Message");
+const UINT MENU_RELOAD_MSG = RegisterWindowMessage(L"WinVNC.Reload.Message");
+const UINT MENU_ADD_CLIENT_MSG = RegisterWindowMessage(L"WinVNC.AddClient.Message");
+const UINT MENU_KILL_ALL_CLIENTS_MSG = RegisterWindowMessage(L"WinVNC.KillAllClients.Message");
 
-const UINT fileTransferDownloadMessage = RegisterWindowMessage("VNCServer.1.3.FileTransferDownloadMessage");
+const UINT fileTransferDownloadMessage = RegisterWindowMessage(L"VNCServer.1.3.FileTransferDownloadMessage");
 
-const char *MENU_CLASS_NAME = "WinVNC.Tray.Icon";
+const wchar_t *MENU_CLASS_NAME = L"WinVNC.Tray.Icon";
 
 // Implementation
 
@@ -69,7 +69,7 @@ vncMenu::vncMenu(vncServer *server)
 	m_server = server;
 
 	// Set the initial user name to something sensible...
-	vncService::CurrentUser((char *)&m_username, sizeof(m_username));
+	vncService::CurrentUser((wchar_t *)&m_username, sizeof(m_username));
 
 	// Create a dummy window to handle tray icon messages
 	WNDCLASSEX wndclass;
@@ -83,7 +83,7 @@ vncMenu::vncMenu(vncServer *server)
 	wndclass.hIcon			= LoadIcon(NULL, IDI_APPLICATION);
 	wndclass.hCursor		= LoadCursor(NULL, IDC_ARROW);
 	wndclass.hbrBackground	= (HBRUSH) GetStockObject(WHITE_BRUSH);
-	wndclass.lpszMenuName	= (const char *) NULL;
+	wndclass.lpszMenuName	= (const wchar_t *) NULL;
 	wndclass.lpszClassName	= MENU_CLASS_NAME;
 	wndclass.hIconSm		= LoadIcon(NULL, IDI_APPLICATION);
 
@@ -155,7 +155,7 @@ void
 vncMenu::AddTrayIcon()
 {
 	// If the user name is empty, then we consider no user is logged in.
-	if (strcmp(m_username, "") != 0) {
+	if (wcscmp(m_username, L"") != 0) {
 		// Make sure the server has not been configured to
 		// suppress the tray icon.
 		if (!m_server->GetDisableTrayIcon())
@@ -217,29 +217,29 @@ vncMenu::SendTrayMsg(DWORD msg, BOOL flash)
 	m_nid.uCallbackMessage = WM_TRAYNOTIFY;
 
 	// Construct the tip string
-	const char *title = (vncService::RunningAsService()) ?
-		"TightVNC Service - " : "TightVNC Server - ";
+	const wchar_t *title = (vncService::RunningAsService()) ?
+		L"TightVNC Service - " : L"TightVNC Server - ";
 	m_nid.szTip[0] = '\0';
-	strncat(m_nid.szTip, title, sizeof(m_nid.szTip) - 1);
+	wcsncat(m_nid.szTip, title, sizeof(m_nid.szTip) - 1);
 	if (m_server->SockConnected()) {
-		size_t tiplen = strlen(m_nid.szTip);
-		char *tipptr = ((char *)&m_nid.szTip) + tiplen;
+		size_t tiplen = wcslen(m_nid.szTip);
+		wchar_t *tipptr = ((wchar_t *)&m_nid.szTip) + tiplen;
 
 		// Try to add the server's IP addresses to the tip string, if possible
-		GetIPAddrString(tipptr, sizeof(m_nid.szTip) - tiplen);
+		GetIPAddrString((LPSTR)tipptr, sizeof(m_nid.szTip) - tiplen);
 		if (m_server->ClientsDisabled()) {
 			m_nid.hIcon = m_winvnc_disabled_icon;
-			strncat(m_nid.szTip, " (new clients disabled)",
-					sizeof(m_nid.szTip) - 1 - strlen(m_nid.szTip));
+			wcsncat(m_nid.szTip, L" (new clients disabled)",
+					sizeof(m_nid.szTip) - 1 - wcslen(m_nid.szTip));
 		} else if (!m_server->ValidPasswordsSet()) {
 			m_nid.hIcon = m_winvnc_disabled_icon;
-			strncat(m_nid.szTip, " (no valid passwords set)",
-					sizeof(m_nid.szTip) - 1 - strlen(m_nid.szTip));
+			wcsncat(m_nid.szTip, L" (no valid passwords set)",
+					sizeof(m_nid.szTip) - 1 - wcslen(m_nid.szTip));
 		}
 	} else {
 		m_nid.hIcon = m_winvnc_disabled_icon;
-		strncat(m_nid.szTip, "Not listening",
-				sizeof(m_nid.szTip) - 1 - strlen(m_nid.szTip));
+		wcsncat(m_nid.szTip, L"Not listening",
+				sizeof(m_nid.szTip) - 1 - wcslen(m_nid.szTip));
 	}
 
 	if (flash)
@@ -493,22 +493,22 @@ LRESULT CALLBACK vncMenu::WndProc(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM lP
 	case WM_USERCHANGED:
 		// The current user may have changed.
 		{
-			char newuser[UNLEN+1];
+			wchar_t newuser[UNLEN+1];
 
-			if (vncService::CurrentUser((char *) &newuser, sizeof(newuser)))
+			if (vncService::CurrentUser((wchar_t *) &newuser, sizeof(newuser)))
 			{
 				vnclog.Print(LL_INTINFO,
 					VNCLOG("usernames : old=\"%s\", new=\"%s\"\n"),
 					_this->m_username, newuser);
 
 				// Check whether the user name has changed!
-				if (strcmp(newuser, _this->m_username) != 0)
+				if (wcscmp(newuser, _this->m_username) != 0)
 				{
 					vnclog.Print(LL_INTINFO,
 						VNCLOG("user name has changed\n"));
 
 					// User has changed!
-					strcpy(_this->m_username, newuser);
+					wcscpy(_this->m_username, newuser);
 
 					// Redraw the tray icon and set it's state
 					_this->DelTrayIcon();

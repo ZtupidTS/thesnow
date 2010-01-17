@@ -106,7 +106,7 @@ BOOL CALLBACK vncAcceptDialog::vncAcceptDlgProc(HWND hwnd,
 			EnableWindow(hNoPass, _this->m_allowNoPass);
 
 			// Set the IP-address string
-			SetDlgItemText(hwnd, IDC_ACCEPT_IP, _this->m_ipAddress);
+			SetDlgItemText(hwnd, IDC_ACCEPT_IP,(LPWSTR) _this->m_ipAddress);
 			if (SetTimer(hwnd, 1, 1000, NULL) == 0)
 			{
 				if (_this->m_acceptOnTimeout)
@@ -116,11 +116,11 @@ BOOL CALLBACK vncAcceptDialog::vncAcceptDlgProc(HWND hwnd,
 			}
 			_this->m_timeoutCount = _this->m_timeoutSecs;
 			// Update the displayed count
-			char temp[256];
+			wchar_t temp[256];
 			if (_this->m_acceptOnTimeout)
-				sprintf(temp, "AutoAccept:%u", (_this->m_timeoutCount));
+				wprintf(temp, L"AutoAccept:%u", (_this->m_timeoutCount));
 			else
-				sprintf(temp, "AutoReject:%u", (_this->m_timeoutCount));
+				wprintf(temp, L"AutoReject:%u", (_this->m_timeoutCount));
 			SetDlgItemText(hwnd, IDC_ACCEPT_TIMEOUT, temp);
 
 			SetForegroundWindow(hwnd);
@@ -176,11 +176,11 @@ BOOL CALLBACK vncAcceptDialog::vncAcceptDlgProc(HWND hwnd,
 		}
 
 		// Update the displayed count
-		char temp[256];
+		wchar_t temp[256];
 		if ( _this->m_acceptOnTimeout )
-			sprintf(temp, "AutoAccept: %u", (_this->m_timeoutCount));
+			wsprintf(temp, L"AutoAccept: %u", (_this->m_timeoutCount));
 		else
-			sprintf(temp, "AutoReject: %u", (_this->m_timeoutCount));
+			wsprintf(temp, L"AutoReject: %u", (_this->m_timeoutCount));
 		SetDlgItemText(hwnd, IDC_ACCEPT_TIMEOUT, temp);
 		break;
 

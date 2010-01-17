@@ -147,7 +147,7 @@ void WinDesktop::RequestUpdate()
 
 void WinDesktop::setClipText(LPSTR text)
 {
-  m_clipboard.writeToClipBoard(text);
+  m_clipboard.writeToClipBoard((LPWSTR)text);
 }
 
 void WinDesktop::TryActivateHooks()
@@ -211,7 +211,7 @@ bool WinDesktop::sendUpdate()
   // Send new clipboard text
   TCHAR *clipText = m_clipboard.extract();
   if (clipText) {
-    m_server->UpdateClipText(clipText);
+    m_server->UpdateClipText((LPSTR)clipText);
   }
 
   bool desktopChanged = false;

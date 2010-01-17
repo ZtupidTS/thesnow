@@ -30,14 +30,16 @@ public:
   TabDialogContainer();
 
   void clear();
-  void addDialog(HWND hDialog, const char *tabLabel);
+//void addDialog(HWND hDialog, const char *tabLabel);
+  void addDialog(HWND hDialog, const wchar_t *tabLabel);
 
   int getNumDialogs() const { return m_windowList.size(); }
   HWND getWindow(int tabId) const;
-  const char *getLabel(int tabId) const;
-
+//const char *getLabel(int tabId) const;
+  const wchar_t *getLabel(int tabId) const;
 private:
-  std::vector<const char *> m_labelList;
+//std::vector<const char *> m_labelList;
+  std::vector<const wchar_t *> m_labelList;
   std::vector<HWND> m_windowList;
 };
 
