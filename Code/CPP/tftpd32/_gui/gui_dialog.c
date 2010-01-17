@@ -28,8 +28,8 @@ return GetEnvironmentVariable (TFTP_HOST, NULL, 0);
 int Gui_AbortTftpTransfer (SOCKET sService, DWORD dwTransferId)
 {
 int Rc;
-    LogToMonitor ("Transfer %d cancel by user", dwTransferId);
-    LogToMonitor ("GUI aborting TFTP transfer %d\n", dwTransferId);
+    LogToMonitor ("用户取消传输 %d ", dwTransferId);
+    LogToMonitor ("GUI 终止 TFTP 传输 %d\n", dwTransferId);
     Rc = SendMsg (sService, C_CONS_KILL_TRF, & dwTransferId, sizeof dwTransferId);
 return Rc;
 } // AbortTransfer
@@ -37,7 +37,7 @@ return Rc;
 int Gui_SuppressDHCPAllocation (SOCKET sService, unsigned ip)
 {
 int Rc;
-    LogToMonitor ("Deleting DHCP entry %X\n", ip );
+    LogToMonitor ("删除 DHCP 条目 %X\n", ip );
     Rc = SendMsg (sService, C_DELETE_ASSIGNATION, & ip , sizeof ip);
 return Rc;
 } // Gui_SuppressDHCPAllocation
@@ -45,7 +45,7 @@ return Rc;
 int Gui_DestroySettings (SOCKET sService)
 {
 int Rc;
-    LogToMonitor ("Deleting settings entry\n");
+    LogToMonitor ("删除设置条目\n");
     Rc = SendMsg (sService, C_TFTP_RESTORE_DEFAULT_SETTINGS, "" , 1);
 return Rc;
 } // Gui_DestroySettings
@@ -54,7 +54,7 @@ return Rc;
 int Gui_StopTftpService (SOCKET sService)
 {
 int Rc;
-    LogToMonitor ("GUI Stopping TFTP service\n");
+    LogToMonitor ("GUI 停止 TFTP 服务\n");
     Rc = SendMsg (sService, C_TFTP_TERMINATE, "", 1);
 return Rc;
 } // Gui_StopTftpService 
@@ -62,7 +62,7 @@ return Rc;
 int Gui_StopDhcpService (SOCKET sService)
 {
 int Rc;
-    LogToMonitor ("GUI Stopping DHCP service\n");
+    LogToMonitor ("GUI 停止 DHCP 服务\n");
     Rc = SendMsg (sService, C_DHCP_TERMINATE, "", 1);
 return Rc;
 } // Gui_StopDhcpService
@@ -70,7 +70,7 @@ return Rc;
 int Gui_StopAllServices (SOCKET sService)
 {
 int Rc;
-    LogToMonitor ("GUI Stopping all services\n");
+    LogToMonitor ("GUI 停止所有服务\n");
     Rc = SendMsg (sService, C_TERMINATE, "", 1);
 return Rc;
 } // Gui_StopAllServices
@@ -78,7 +78,7 @@ return Rc;
 int Gui_SuspendServices (SOCKET sService)
 {
 int Rc;
-    LogToMonitor ("GUI Supsending services\n");
+    LogToMonitor ("GUI 挂起所有服务\n");
     Rc = SendMsg (sService, C_SUSPEND, "", 1);
 return Rc;
 } // Gui_SuspendServices
@@ -86,7 +86,7 @@ return Rc;
 int Gui_StartAllServices (SOCKET sService)
 {
 int Rc;
-    LogToMonitor ("GUI Starting all services\n");
+    LogToMonitor ("GUI 开始所有服务\n");
     Rc = SendMsg (sService, C_START, "", 1);
 return Rc;
 } // Gui_StartAllServices
@@ -94,7 +94,7 @@ return Rc;
 int Gui_AskDHCPSettings (SOCKET sService)
 {
 int Rc;
-    LogToMonitor ("GUI Ask DHCP settings\n");
+    LogToMonitor ("GUI 询问 DHCP 设置\n");
     Rc = SendMsg (sService, C_DHCP_RRQ_SETTINGS, "", 1);
 return Rc;    
 } // Gui_AskDHCPSettings
@@ -102,7 +102,7 @@ return Rc;
 int Gui_AskTFTPSettings (SOCKET sService)
 {
 int Rc;
-    LogToMonitor ("GUI Ask TFTP settings\n");
+    LogToMonitor ("GUI 询问 TFTP 设置\n");
     Rc = SendMsg (sService, C_TFTP_RRQ_SETTINGS, "", 1);
 return Rc;    
 } // Gui_AskDHCPSettings
@@ -110,7 +110,7 @@ return Rc;
 int Gui_ChangeWorkingDirectory (SOCKET sService, const char *szNewDir)
 {
 int Rc;
-    LogToMonitor ("GUI Set working directory to %s\n", szNewDir);
+    LogToMonitor ("GUI 设置工作路径到 %s\n", szNewDir);
     Rc = SendMsg (sService, C_TFTP_CHG_WORKING_DIR, szNewDir, lstrlen (szNewDir)+1);
 return Rc;    
 } // Gui_AskDHCPSettings
@@ -118,7 +118,7 @@ return Rc;
 int Gui_SaveSettings (SOCKET sService, struct S_Tftpd32Settings *pset)
 {
 int Rc;
-    LogToMonitor ("Saving global Settings\n");
+    LogToMonitor ("保存全局设置\n");
     Rc = SendMsg (sService, C_TFTP_WRQ_SETTINGS, pset, sizeof *pset);
 return Rc;        
 } // Gui_SaveSettings 
@@ -126,7 +126,7 @@ return Rc;
 int Gui_SaveDhcpSettings (SOCKET sService, struct S_DHCP_Param *pset)
 {
 int Rc;
-    LogToMonitor ("Saving DHCP Settings\n");
+    LogToMonitor ("保存 DHCP 设置\n");
     Rc = SendMsg (sService, C_DHCP_WRQ_SETTINGS, pset, sizeof *pset);
 return Rc;        
 } // Gui_SaveSettings 
@@ -134,7 +134,7 @@ return Rc;
 int Gui_RequestWorkingDir (SOCKET sService)
 {
 int Rc;
-    LogToMonitor ("Requesting Working Directory\n");
+    LogToMonitor ("请求工作目录\n");
     Rc = SendMsg (sService, C_RRQ_WORKING_DIR, "", 1);
 return Rc;        
 } // Gui_RequestWorkingDir 
@@ -142,7 +142,7 @@ return Rc;
 int Gui_RequestRunningServices (SOCKET sService)
 {
 int Rc;
-    LogToMonitor ("Requesting Running Services\n");
+    LogToMonitor ("请求运行服务\n");
     Rc = SendMsg (sService, C_RRQ_GET_SERVICES, "", 1);
 return Rc;        
 } // Gui_RequestRunningServices
@@ -150,7 +150,7 @@ return Rc;
 int Gui_RequestIPInterfaces (SOCKET sService)
 {
 int Rc;
-    LogToMonitor ("Requesting list of IP interfaces\n");
+    LogToMonitor ("请求列出 IP 接口\n");
     Rc = SendMsg (sService, C_RRQ_GET_INTERFACES, "", 1);
 return Rc;        
 } // Gui_RequestIPInterfaces
@@ -158,7 +158,7 @@ return Rc;
 int Gui_RequestListDirectory (SOCKET sService)
 {
 int Rc;
-    LogToMonitor ("Requesting Directory Content\n");
+    LogToMonitor ("请求目录内容\n");
     Rc = SendMsg (sService, C_RRQ_DIRECTORY_CONTENT, "", 1);
 return Rc;        
 } // Gui_RequestWorkingDir 
@@ -252,7 +252,7 @@ static int Gui_VerifyWorkingDirectory (HWND hWnd, const char *szDir)
 {
    TftpDir_AddEntry (GetDlgItem (hWnd, IDC_CB_DIR), szDir);
    if (lstrcmp (sGuiSettings.szWorkingDirectory, szDir)!=0)
-       CMsgBox (hWnd, "Directory has not been changed", APPLICATION, MB_OK | MB_ICONHAND);
+       CMsgBox (hWnd, "目录未修改", APPLICATION, MB_OK | MB_ICONHAND);
 return 0;
 }  //      Gui_VerifyWorkingDirectory
 
@@ -305,13 +305,13 @@ LogToMonitor ("GUI: receiving new DHCP lease\n", pmsg->u.trf_stat.nbTrf);
                 break;
                 
             case C_TFTP_RPLY_SETTINGS :
-LogToMonitor ("GUI: receive TFTP settings\n");
+LogToMonitor ("GUI: 得到 TFTP 设置\n");
                 sGuiSettings = pmsg->u.tftp_settings;
                 // TftpDir_AddEntry (GetDlgItem (hWnd, IDC_CB_DIR), sGuiSettings.szWorkingDirectory);
                 break;
 
             case C_DHCP_RPLY_SETTINGS :
-LogToMonitor ("GUI: receive DHCP settings\n");
+LogToMonitor ("GUI: 得到 DHCP 设置\n");
 				// just record the settings
 				// since the DHCP window may not be created
 				// we don't display them
@@ -319,7 +319,7 @@ LogToMonitor ("GUI: receive DHCP settings\n");
                 break;
 
             case C_REPLY_WORKING_DIR :
-LogToMonitor ("GUI: receive working directory\n");
+LogToMonitor ("GUI: 得到工作路径\n");
                 if (! bFirstTime) Gui_VerifyWorkingDirectory (hWnd, pmsg->u.working_dir);
                 bFirstTime = FALSE;
                 lstrcpy (sGuiSettings.szWorkingDirectory, pmsg->u.working_dir);
@@ -327,20 +327,20 @@ LogToMonitor ("GUI: receive working directory\n");
                 break;
 
 			case C_REPLY_GET_SERVICES :
-LogToMonitor ("GUI: Receive running services (%04X)", pmsg->u.uServices);
+LogToMonitor ("GUI: 得到运行中服务 (%04X)", pmsg->u.uServices);
 				// overwrite GUI settings
 				sGuiSettings.uRunningServices = pmsg->u.uServices;
 				break;
 
             case C_SYSLOG :
-LogToMonitor ("GUI: receive syslog\n");
+LogToMonitor ("GUI: 得到系统日志\n");
                 AddSyslogItem ( GetDlgItem (hWnd, IDC_LB_SYSLOG), 
                                 pmsg->u.syslog_msg.from, 
                                 pmsg->u.syslog_msg.txt );
                 break;
             
 			case C_REPLY_GET_INTERFACES :
-LogToMonitor ("GUI: receive IP address notification\n");
+LogToMonitor ("GUI: 得到 IP 地址通知\n");
 				ChangeIPAddress (hWnd, 
 					             pmsg->u.address.nb_addr,
 								 pmsg->u.address.ent);
@@ -352,7 +352,7 @@ LogToMonitor ("GUI: receive end of init notifications\n");
 				break;
 
             case C_REPLY_DIRECTORY_CONTENT :
-LogToMonitor ("GUI: receive remote directory\n");
+LogToMonitor ("GUI: 得到远程目录\n");
                 OpenNewDialogBox (hWnd,
                                   IDD_DIALOG_SHDIR,
                                   ShDirProc, 
@@ -361,7 +361,7 @@ LogToMonitor ("GUI: receive remote directory\n");
                 break;
 
 			case C_DNS_NEW_ENTRY :
-LogToMonitor ("GUI: receive new DNS entry\n");
+LogToMonitor ("GUI: 得到新 DNS 条目\n");
 				// A DNS request
                 AddDNSItem ( GetDlgItem (hWnd, IDC_LB_DNS), 
 					  	     pmsg->u.dns.name,
@@ -371,7 +371,7 @@ LogToMonitor ("GUI: receive new DNS entry\n");
 
 
             default :
-LogToMonitor ("GUI received unknown message %d, length %d\n", pmsg->type, Rc);
+LogToMonitor ("GUI 得到未知消息 %d, 长度 %d\n", pmsg->type, Rc);
                 break;
             
         }

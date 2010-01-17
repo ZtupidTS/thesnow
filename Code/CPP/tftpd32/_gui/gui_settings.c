@@ -21,7 +21,7 @@
 #include "../_common/headers.h"
 
 
-#define  RESET_DEFAULT_TEXT  "Reset current configuration\nand destroy registry entries ?"
+#define  RESET_DEFAULT_TEXT  "重置当前设置\n并删除注册表项目 ?"
 
 
 
@@ -283,7 +283,7 @@ char        sz [32];
                               // transfer to daemon
                               PostMessage (hWnd, WM_TFTP_CHG_WORKING_DIR, 0, 0);
                         }
-                        else   MY_WARNING ("Can not change directory");
+                        else   MY_WARNING ("不能修改目录");
                     }
 
                  // some change need a restart

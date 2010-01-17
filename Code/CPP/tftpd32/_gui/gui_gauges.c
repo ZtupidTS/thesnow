@@ -1,4 +1,4 @@
-//////////////////////////////////////////////////////
+﻿//////////////////////////////////////////////////////
 //
 // Projet TFTPD32.   Feb 99 By  Ph.jounin
 // File tftp_trf.c:  Gauge Window management
@@ -46,7 +46,7 @@ static int nGaugeWindow;
              if (hMenu != NULL)
              {
                 AppendMenu (hMenu, MF_SEPARATOR, 0, NULL);
-                AppendMenu (hMenu, MF_STRING, IDM_TFTP_ABORTTRF, "Abort Transfer");
+                AppendMenu (hMenu, MF_STRING, IDM_TFTP_ABORTTRF, "终止传输");
              }
             break;
 
@@ -125,7 +125,7 @@ HWND hNW;
 
     if (hNW == NULL)
     {
-            CMsgBox  (hParentWnd, "Error : Can't create temporary window", APPLICATION, MB_OK);
+            CMsgBox  (hParentWnd, "错误 : 不能创建临时窗口", APPLICATION, MB_OK);
             return NULL;
     }
 
@@ -141,7 +141,7 @@ return hNW;
 /////////////////////
 static void Gui_FillGaugeWnd (HWND hNW, struct S_TftpGui *pTftpGui)
 {
-char            szTitle [_MAX_PATH+sizeof " from 255.255.255.255 "];
+char            szTitle [_MAX_PATH+sizeof " 从 255.255.255.255 "];
 
     assert (pTftpGui!=NULL);
 
@@ -152,10 +152,10 @@ char            szTitle [_MAX_PATH+sizeof " from 255.255.255.255 "];
                inet_ntoa (pTftpGui->from_addr.sin_addr) );
     SetWindowText (hNW, szTitle);
     if (pTftpGui->stat.dwTransferSize != 0)
-           wsprintf (szTitle, "File size : %d", pTftpGui->stat.dwTransferSize);
+           wsprintf (szTitle, "文件大小 : %d", pTftpGui->stat.dwTransferSize);
     else
     {
-          wsprintf (szTitle, "File size : Unknown");
+          wsprintf (szTitle, "文件大小 : 未知");
           ShowWindow (GetDlgItem (hNW, IDC_TRF_PROGRESS), SW_HIDE);
          // suppress gauge from window
           SetWindowPos (hNW, 0, 0, 0,
@@ -172,7 +172,7 @@ void Gui_UpdateGaugeWindow (const struct S_TftpGui *pTftpGui, time_t dNow)
 {
 HWND hGaugeWnd = pTftpGui->hGaugeWnd;
 HWND hGWnd;
-char            szTitle [_MAX_PATH+sizeof " from 255.255.255.255 "];
+char            szTitle [_MAX_PATH+sizeof " 从 255.255.255.255 "];
 
    if (hGaugeWnd == NULL)  return;
 
@@ -188,7 +188,7 @@ char            szTitle [_MAX_PATH+sizeof " from 255.255.255.255 "];
                      0);
 
    // Update stat text
-   wsprintf (szTitle, "%d Bytes %s \t %d Bytes/sec",
+   wsprintf (szTitle, "%d 字节 %s \t %d 字节/秒",
              pTftpGui->stat.dwTotalBytes,
              (pTftpGui->opcode == TFTP_RRQ) ? "sent" : "rcvd",
              pTftpGui->stat.dwTotalBytes / (dNow-pTftpGui->stat.StartTime) );

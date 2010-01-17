@@ -1,4 +1,4 @@
-//////////////////////////////////////////////////////
+﻿//////////////////////////////////////////////////////
 //
 // Projet Tftpd32.   Mars 2000 Ph.jounin
 // File tftp_srv.c:  Display management
@@ -208,13 +208,13 @@ static const struct S_TabCtrlData
 	int   service;	// TRUE if tab is the GUI of a service
 } tTabCtrlData [] =
 {
-	ONGLET_TFTP_SERVER,   "Tftp Server" ,  TFTPD32_TFTP_SERVER,	   TRUE,
-	ONGLET_TFTP_CLIENT,   "Tftp Client",   TFTPD32_TFTP_CLIENT,   FALSE,
-	ONGLET_DHCP_SERVER,   "DHCP server",   TFTPD32_DHCP_SERVER,    TRUE,
-	ONGLET_SYSLOG_SERVER, "Syslog server", TFTPD32_SYSLOG_SERVER,  TRUE,
-	ONGLET_SNTP_SERVER,   "SNTP server",   TFTPD32_SNTP_SERVER,    TRUE,
-	ONGLET_DNS_SERVER,    "DNS server",    TFTPD32_DNS_SERVER,    TRUE,
-	ONGLET_EVENTS_VIEWER, "Log viewer",    TFTPD32_ALL_SERVICES,  FALSE,
+	ONGLET_TFTP_SERVER,   "Tftp 服务器" ,  TFTPD32_TFTP_SERVER,	   TRUE,
+	ONGLET_TFTP_CLIENT,   "Tftp 客户端",   TFTPD32_TFTP_CLIENT,   FALSE,
+	ONGLET_DHCP_SERVER,   "DHCP 服务器",   TFTPD32_DHCP_SERVER,    TRUE,
+	ONGLET_SYSLOG_SERVER, "系统日志服务器", TFTPD32_SYSLOG_SERVER,  TRUE,
+	ONGLET_SNTP_SERVER,   "SNTP 服务器",   TFTPD32_SNTP_SERVER,    TRUE,
+	ONGLET_DNS_SERVER,    "DNS 服务器",    TFTPD32_DNS_SERVER,    TRUE,
+	ONGLET_EVENTS_VIEWER, "日志查看器",    TFTPD32_ALL_SERVICES,  FALSE,
 };  // tTabCtrlData
 // Ordonated list of the Client Controls 
 static const int tTftpClientCtrl [] = 
