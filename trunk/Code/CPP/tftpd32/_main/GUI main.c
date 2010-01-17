@@ -39,8 +39,8 @@ int                   Rc;
      {
          CMsgBox (NULL, 
 				  GetLastError()==WSAVERNOTSUPPORTED ?
-					    "Error: Tftpd32 now requires winsock version 2" :
-						"Error: Can't init Winsocket", 
+					    "错误: Tftpd32 需要 winsock 2以上的版本" :
+						"错误: 不能初始化 Winsocket", 
 				   APPLICATION, 
 				   MB_OK | MB_ICONERROR);
          return FALSE;

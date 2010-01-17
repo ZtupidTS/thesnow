@@ -38,15 +38,15 @@ const char LICENSE_TFTPD32 [] =
 #ifdef PORTABLE
 "Tftpd32-Portable comes from Tftpd32's source code and shares the same license\r\n\r\n"
 #endif
-"TFTPD32 is copyrighted 1998-2009 by Philippe Jounin (philippe@jounin.net) "
-"and released under the European Union Public License 1.1 "
-"(see either the help file or the file EUPL-EN.pdf for the full text of the license)\r\n\r\n"
-"Official site: http://tftpd32.jounin.net\r\n\r\n"
-"Tftpd32 uses the following copyrights or contributions\r\n"
-"  - MD5 part is from RSA Data Security\r\n"
-"  - IP checksum computation is from Mike Muss\r\n"
+"TFTPD32 版权所有 1998-2009 by Philippe Jounin (philippe@jounin.net) "
+"发布于欧洲联盟公共许可 1.1 "
+"(参考早期帮助文件或者 EUPL-EN.pdf 中记录的完整许可文本)\r\n\r\n"
+"官方网站: http://tftpd32.jounin.net\r\n\r\n"
+"Tftpd32 使用了下列版权或者贡献\r\n"
+"  - RSA 数据安全中的MD5部分\r\n"
+"  - Mike Muss 的 IP 校检计算\r\n"
 "  - DHCP lease persistance is from Nick Wagner\r\n" 
-"  - DHCP header file from The Internet Software\r\n    Consortium\r\n";
+"  - DHCP 头文件来自互联网软件\r\n    Consortium\r\n";
 #elif defined SERVICE_EDITION
 const char LICENSE_TFTPD32 [] =
 "Tftpd32 Service Edition copyrighted 2007-2009 by Philippe Jounin\r\n";

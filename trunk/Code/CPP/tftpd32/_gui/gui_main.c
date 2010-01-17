@@ -1,4 +1,4 @@
-//////////////////////////////////////////////////////
+﻿//////////////////////////////////////////////////////
 //
 // Projet TFTPD32.  March 2007 Ph.jounin
 // File gui_mai.c:  The MAIN window management
@@ -82,7 +82,7 @@ int Ark;
    {
        ComboBox_AddString (hCBWnd, inet_ntoa (ent[Ark].address));
    }
-   SetDlgItemText (hWnd, IDC_TXT_ADDRESS, Ark>=2 ? "Server interface" : "Server interfaces" );
+   SetDlgItemText (hWnd, IDC_TXT_ADDRESS, Ark>=2 ? "单服务器接口" : "多服务器接口" );
    // Settings button can be safely allowed
    Button_Enable (GetDlgItem (hWnd, IDC_SETTINGS_BUTTON), TRUE);
    // Display first address
@@ -180,7 +180,7 @@ HWND        hSSWindow;
 	  // DHCP controls
       case IDC_DHCP_OK :
                if (Gui_DHCPSaveConfig (hWnd))
-                  CMsgBox (hWnd, "DHCP Configuration has been saved", APPLICATION, MB_OK);
+                  CMsgBox (hWnd, "DHCP 设置成功保存", APPLICATION, MB_OK);
                PostMessage (hWnd, WM_SAVE_DHCP_SETTINGS, 0, 0);
                break;
                
@@ -338,30 +338,30 @@ return 0;
 
 static const struct S_LVHeader tColDhcp [] =
 {
-	{ LVCFMT_LEFT,     90, "allocated at" },
-	{ LVCFMT_LEFT,	  100, "IP" },
-	{ LVCFMT_LEFT,    100, "MAC" },
-	{ LVCFMT_LEFT,     90, "renew at" },
+	{ LVCFMT_LEFT,     90, "分配于" },
+	{ LVCFMT_LEFT,	  100, "IP地址" },
+	{ LVCFMT_LEFT,    100, "MAC地址" },
+	{ LVCFMT_LEFT,     90, "更新于" },
 };
 static const struct S_LVHeader tColTftp[] =
 {
     { LVCFMT_LEFT,    120, "peer" },
-    { LVCFMT_LEFT,	  100, "file" },
-    { LVCFMT_LEFT,     60, "start time" },
-    { LVCFMT_CENTER,   55, "progress" },
-    { LVCFMT_RIGHT,    80, "bytes" },
-    { LVCFMT_RIGHT,    80, "total" },
-    { LVCFMT_RIGHT,    50, "timeouts" },
+    { LVCFMT_LEFT,	  100, "文件" },
+    { LVCFMT_LEFT,     60, "开始时间" },
+    { LVCFMT_CENTER,   55, "进度" },
+    { LVCFMT_RIGHT,    80, "字节" },
+    { LVCFMT_RIGHT,    80, "总数" },
+    { LVCFMT_RIGHT,    50, "超时" },
 };
 static const struct S_LVHeader tColsysLog [] =
 {
-	{ LVCFMT_LEFT,    250, "text" },
-	{ LVCFMT_LEFT,	  100, "from" },
-	{ LVCFMT_LEFT,    100, "date" },
+	{ LVCFMT_LEFT,    250, "文本" },
+	{ LVCFMT_LEFT,	  100, "从" },
+	{ LVCFMT_LEFT,    100, "日期" },
 };
 static const struct S_LVHeader tColDNS [] =
 {
-	{ LVCFMT_LEFT,    150, "hostname" },
+	{ LVCFMT_LEFT,    150, "主机名" },
 	{ LVCFMT_LEFT,	  100, "ipv4" },
 	{ LVCFMT_LEFT,    100, "ipv6" },
 };
@@ -385,9 +385,9 @@ int Tftpd32InitGui (HWND hWnd, HICON *phIcon, HMENU *phMenu)
      {
         AppendMenu (*phMenu, MF_SEPARATOR, 0, NULL);
 #ifdef STANDALONE_EDITION
-        AppendMenu (*phMenu, MF_STRING, IDM_TFTP_HIDE, "Hide Window");
+        AppendMenu (*phMenu, MF_STRING, IDM_TFTP_HIDE, "隐藏窗口");
 #endif
-        AppendMenu (*phMenu, MF_STRING, IDM_TFTP_EXPLORER, "Open TFTP directory");
+        AppendMenu (*phMenu, MF_STRING, IDM_TFTP_EXPLORER, "打开 TFTP 目录");
 #ifdef SERVICE_EDITION
         AppendMenu (*phMenu, MF_SEPARATOR, 0, NULL);
         AppendMenu (*phMenu, MF_STRING, IDM_RESTART_SERVICES, "Restart Tftpd32 services");
@@ -410,7 +410,7 @@ int Tftpd32InitGui (HWND hWnd, HICON *phIcon, HMENU *phMenu)
      // Deactivate Browse Button
      if ( IsGuiConnectedToRemoteService () )
         Button_Enable (GetDlgItem (hWnd, IDC_BROWSE_BUTTON), FALSE);
-     SetDlgItemText (hWnd, IDC_CURRENT_ACTION, "Retrieving server address");
+     SetDlgItemText (hWnd, IDC_CURRENT_ACTION, "获取服务器地址");
 
      // Creates List Views
     InitTftpd32ListView (GetDlgItem (hWnd, IDC_LV_TFTP),   tColTftp, SizeOfTab (tColTftp), LVS_EX_FULLROWSELECT);
@@ -469,7 +469,7 @@ HWND      hCBWnd;
        // Message sent by Tftp server
        case WM_DISPLAY_LISTEN :
            {char szText[128];
-              wsprintf (szText, "Listening on port %d", sGuiSettings.Port);
+              wsprintf (szText, "监听于端口 %d", sGuiSettings.Port);
               SetDlgItemText (hWnd, IDC_CURRENT_ACTION, szText);
            }
 
@@ -503,12 +503,12 @@ HWND      hCBWnd;
             break;           
 
 	   case WM_SOCKET_CLOSED :
-		   CMsgBox (hWnd, "Tftpd32 service has ended\nThis session will terminate", "Tftpd32", MB_OK | MB_ICONEXCLAMATION);
+		   CMsgBox (hWnd, "Tftpd32 服务结束\n这个会话将终止", "Tftpd32", MB_OK | MB_ICONEXCLAMATION);
 		   PostMessage (hWnd, WM_CLOSE, 0, 0);
 		   break;
 
 	   case WM_SOCKET_ERROR :
-		   CMsgBox (hWnd, "Tftpd32 has been disconnected from the service\nThis session will terminate", "Tftpd32", MB_OK | MB_ICONEXCLAMATION);
+		   CMsgBox (hWnd, "Tftpd32 已从服务断开\n这个会话将终止", "Tftpd32", MB_OK | MB_ICONEXCLAMATION);
 		   PostMessage (hWnd, WM_CLOSE, 0, 0);
 		   break;
 
@@ -617,7 +617,7 @@ HWND      hCBWnd;
        case WM_CLOSE :
          {HWND hChildWnd;
             if ( GuiIsActiveTransfer (hWnd) )
-                if (CMsgBox (hWnd, "Cancel current transfer ?", APPLICATION, MB_ICONQUESTION | MB_OKCANCEL) == IDCANCEL)
+                if (CMsgBox (hWnd, "取消当前传输 ?", APPLICATION, MB_ICONQUESTION | MB_OKCANCEL) == IDCANCEL)
                     return FALSE;
 
             // send stop message to services
@@ -629,11 +629,11 @@ HWND      hCBWnd;
              while ( (hChildWnd=GetNextWindow (hChildWnd, GW_HWNDNEXT) ) != NULL);
 	      } // end of hClidWnd
 #ifdef STANDALONE_EDITION             
-			 LogToMonitor ("------- stopping services\n");            
+			 LogToMonitor ("------- 停止服务中\n");            
              Gui_StopAllServices (sService);
              closesocket (sService);
 			 Sleep (200);
-		     LogToMonitor ("------ services stopped\n");            
+		     LogToMonitor ("------ 服务已停止\n");            
 #endif
              // Save window pos and size
              // To be comment out to create a new Tftpd32-Portable version 
@@ -720,7 +720,7 @@ HWND hPrevWnd;
     else // Call previous session back
     {
        if (hPrevWnd == NULL)
-          MessageBox (NULL, "Tftpd32 is already running", APPLICATION, MB_OK | MB_ICONSTOP);
+          MessageBox (NULL, "Tftpd32 已经在运行", APPLICATION, MB_OK | MB_ICONSTOP);
        else
        {
           SetForegroundWindow (hPrevWnd);
@@ -740,10 +740,10 @@ int Rc;
 						   "tftpd32", 
 						   sGuiSettings.uConsolePort==0 ? TFTPD32_TCP_PORT : sGuiSettings.uConsolePort);
 
-	if (sService != INVALID_SOCKET) LogToMonitor ("connected to console\n");
+	if (sService != INVALID_SOCKET) LogToMonitor ("已连接到控制台\n");
 	else 
 	{  
-		CMsgBox (NULL, "Can't connect to the service\nError %d (%s)", 
+		CMsgBox (NULL, "不能连接到服务\n错误 %d (%s)", 
 				 APPLICATION, 
 				 MB_OK, 
 				 GetLastError (),
@@ -760,12 +760,12 @@ int Rc;
     if ( Rc < 0 ) 
     {
         CMsgBox (NULL, 
-                 Rc==TCP4U_BAD_AUTHENT ? "Bad Password"  : "Console version does not match service's", 
+                 Rc==TCP4U_BAD_AUTHENT ? "无效密码"  : "控制台版本不匹配服务", 
                  APPLICATION, 
                  MB_OK | MB_ICONERROR);
         return 0;
     }
-LogToMonitor ( "GUI Version check OK\n" );             // permament listening socket
+LogToMonitor ( "GUI 版本检查成功\n" );             // permament listening socket
 
 #ifdef STANDALONE_EDITION
 	 // Standalone edition shoud wait for services to be started

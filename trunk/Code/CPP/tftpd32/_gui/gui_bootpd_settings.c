@@ -26,7 +26,7 @@ struct in_addr   dwAddr;
    dwAddr.s_addr = inet_addr (szBuf);
    if (bStrict   &&  dwAddr.s_addr==INADDR_ANY)
    {
-    wsprintf (szBuf, "Bad format for field %s", szDescr);
+    wsprintf (szBuf, "字段 %s 含有无效格式", szDescr);
       MY_WARNING (szBuf);
    } // Erreur dans un champ
 return dwAddr;
@@ -66,10 +66,10 @@ INT   Ark;
      sNewParamDHCP.nLease = sGuiParamDHCP.nLease;          
 
      sNewParamDHCP.nPoolSize = GetDlgItemInt (hMainWnd, IDC_DHCP_POOL_SIZE, NULL, FALSE);
-     sNewParamDHCP.dwAddr =    DlgItem2Address (hMainWnd, IDC_DHCP_ADDRESS_POOL, "Address Pool", sNewParamDHCP.nPoolSize!=0);
-     sNewParamDHCP.dwMask =    DlgItem2Address (hMainWnd, IDC_DHCP_MASK, "Mask", sNewParamDHCP.nPoolSize!=0);
-     sNewParamDHCP.dwDns  =    DlgItem2Address (hMainWnd, IDC_DHCP_DNS_SERVER, "DNS Server", FALSE);
-     sNewParamDHCP.dwGateway=  DlgItem2Address (hMainWnd, IDC_DHCP_DEFAULT_ROUTER, "Default Router", FALSE);
+     sNewParamDHCP.dwAddr =    DlgItem2Address (hMainWnd, IDC_DHCP_ADDRESS_POOL, "地址池", sNewParamDHCP.nPoolSize!=0);
+     sNewParamDHCP.dwMask =    DlgItem2Address (hMainWnd, IDC_DHCP_MASK, "子网掩码", sNewParamDHCP.nPoolSize!=0);
+     sNewParamDHCP.dwDns  =    DlgItem2Address (hMainWnd, IDC_DHCP_DNS_SERVER, "DNS 服务器", FALSE);
+     sNewParamDHCP.dwGateway=  DlgItem2Address (hMainWnd, IDC_DHCP_DEFAULT_ROUTER, "默认路由", FALSE);
      GetDlgItemText (hMainWnd, IDC_DHCP_BOOT_FILE,   sNewParamDHCP.szBootFile, sizeof sNewParamDHCP.szBootFile - 1);
      GetDlgItemText (hMainWnd, IDC_DHCP_DOMAINNAME,  sNewParamDHCP.szDomainName, sizeof sNewParamDHCP.szDomainName - 1);
 
@@ -89,7 +89,7 @@ INT   Ark;
 
      // load again (warkaround for a LCC bug)
      sNewParamDHCP.nPoolSize = GetDlgItemInt (hMainWnd, IDC_DHCP_POOL_SIZE, NULL, FALSE);
-     if (sNewParamDHCP.nPoolSize == 0)   MY_WARNING ("DHCP Pool is empty\nDHCP server will only assign\nstatic leases");
+     if (sNewParamDHCP.nPoolSize == 0)   MY_WARNING ("DHCP 池为空\nDHCP 服务器将只能分配\n静态地址");
 
      sGuiParamDHCP = sNewParamDHCP;
 
