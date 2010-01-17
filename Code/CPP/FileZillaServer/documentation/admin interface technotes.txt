@@ -1,0 +1,23 @@
+These are the command/reply IDs used by FZS:
+
+0: sent to the interface after successful authentication
+1: Status messages the interface should display
+2: to the server: change server status to the provided value. To interface: status has changed to the given value
+3: To interface: User information: New user connected/logged in/disconnected. To server: kick user, retrieve complete user list
+4: unused
+5: Settings
+6: Get/Set user/group data
+7: unused
+8: Keep-alive
+
+The current admin interface use the m_nEdit variable to manage setting/account editing so that setting/account data isn't requested/edited multiple times at once
+
+bit 0: requested users
+bit 1: requested groups
+bit 2: requested settings
+bit 3: editing settings
+bit 4: got all data, prepare editing
+bit 8: currently editing
+
+Actually user and group data isn't separated, so this is for the interface only.
+Retrieving data and actual editing are handled in two different messages, else admin connection could get out of sync if the dialogs are displayed immediately after receiving data. 
