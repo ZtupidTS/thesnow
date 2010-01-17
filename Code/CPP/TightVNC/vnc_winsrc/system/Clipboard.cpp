@@ -90,7 +90,7 @@ TCHAR *Clipboard::readFromClipBoard() const
   TCHAR *clipText = 0;
 
   if (!IsClipboardFormatAvailable(CF_TEXT)) {
-    TCHAR empty[] = "";
+    TCHAR empty[] = L"";
     clipText = new TCHAR[sizeof(empty)];
     _tcscpy_s(clipText, sizeof(empty) * sizeof(TCHAR), empty);
     return clipText;

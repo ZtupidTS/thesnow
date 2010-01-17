@@ -98,7 +98,7 @@ BOOL CALLBACK vncConnDialog::vncConnDlgProc(HWND hwnd,
 			int port;
 
 			// Get the hostname of the VNCviewer
-			GetDlgItemText(hwnd, IDC_HOSTNAME_EDIT, hostname, _MAX_PATH);
+			GetDlgItemText(hwnd, IDC_HOSTNAME_EDIT, (LPWSTR)hostname, _MAX_PATH);
 
 			// Calculate the Display and Port offset.
 			port = ParseHostPort(hostname, INCOMING_PORT_OFFSET);
@@ -122,8 +122,8 @@ BOOL CALLBACK vncConnDialog::vncConnDlgProc(HWND hwnd,
 			} else {
 				// Print up an error message
 				MessageBox(NULL, 
-                    "Failed to connect to listening VNC viewer",
-                    "Outgoing Connection",
+                    L"Failed to connect to listening VNC viewer",
+                    L"Outgoing Connection",
 					MB_OK | MB_ICONEXCLAMATION );
 				delete tmpsock;
 			}

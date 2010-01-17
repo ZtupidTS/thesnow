@@ -44,9 +44,9 @@ void IncomingConnectionsControls::Validate(BOOL InitApply)
 	Enable(IDC_PASSWORD_VIEWONLY, bAccept);
 			
 	if (bAuto && !InitApply) {
-		SetDlgItemText(m_hwnd, IDC_PORTRFB, "");
-		SetDlgItemText(m_hwnd, IDC_PORTHTTP, "");
-		SetDlgItemText(m_hwnd, IDC_DISPLAYNO, "");
+		SetDlgItemText(m_hwnd, IDC_PORTRFB, L"");
+		SetDlgItemText(m_hwnd, IDC_PORTHTTP, L"");
+		SetDlgItemText(m_hwnd, IDC_DISPLAYNO, L"");
 	}
 	if (!bAuto && !InitApply)
 		InitPortSettings(FALSE);
@@ -94,10 +94,10 @@ void IncomingConnectionsControls::Apply()
 	// Warn about passwords longer than eight characters
 	if (!isShort || !isShortViewOnly) {
 		MessageBox(NULL, 
-				   "WARNING: You have entered passwords of length exceeding\n"
-				   "eight characters, but the standard VNC authentication scheme\n"
-				   "does not support such long passwords.\n\n"
-				   "Your passwords will be truncated to just eight characters.",
+				   L"WARNING: You have entered passwords of length exceeding\n"
+				   L"eight characters, but the standard VNC authentication scheme\n"
+				   L"does not support such long passwords.\n\n"
+				   L"Your passwords will be truncated to just eight characters.",
 				   szAppName, MB_ICONEXCLAMATION | MB_OK);
 	}
 
@@ -123,8 +123,8 @@ void IncomingConnectionsControls::Apply()
 					m_server->SetPorts(port_rfb, port_http);
 			} else {
 				MessageBox(NULL, 
-						   "WARNING: You have entered equal RFB and HTTP port numbers.\n\n"
-						   "Your changes to port numbers will not be saved.",
+						   L"WARNING: You have entered equal RFB and HTTP port numbers.\n\n"
+						   L"Your changes to port numbers will not be saved.",
 						   szAppName, MB_ICONEXCLAMATION | MB_OK);
 			}
 		}
@@ -152,8 +152,8 @@ void IncomingConnectionsControls::Init()
 	SetChecked(IDC_REMOVE_WALLPAPER, m_server->RemoveWallpaperEnabled());
 	SetChecked(IDC_BLANK_SCREEN, m_server->GetBlankScreen());
 
-	SetDlgItemText(m_hwnd, IDC_PASSWORD, "~~~~~~~~");			
-	SetDlgItemText(m_hwnd, IDC_PASSWORD_VIEWONLY, "~~~~~~~~");
+	SetDlgItemText(m_hwnd, IDC_PASSWORD, L"~~~~~~~~");			
+	SetDlgItemText(m_hwnd, IDC_PASSWORD_VIEWONLY, L"~~~~~~~~");
 
 	if (bConnectSock) {
 		SetFocus(GetDlgItem(m_hwnd, IDC_PASSWORD));
@@ -176,7 +176,7 @@ void IncomingConnectionsControls::InitPortSettings(BOOL CheckedButton)
 	if (bValidDisplay) {
 		SetDlgItemInt(m_hwnd, IDC_DISPLAYNO, d1, FALSE);
 	} else {
-		SetDlgItemText(m_hwnd, IDC_DISPLAYNO, "");
+		SetDlgItemText(m_hwnd, IDC_DISPLAYNO, L"");
 	}
 	SetDlgItemInt(m_hwnd, IDC_PORTRFB, port_rfb, FALSE);
 	SetDlgItemInt(m_hwnd, IDC_PORTHTTP, port_http, FALSE);
@@ -189,10 +189,10 @@ void IncomingConnectionsControls::InitPortSettings(BOOL CheckedButton)
 
 BOOL IncomingConnectionsControls::SetPasswordSettings(DWORD idEditBox)
 {
-	char passwd[MAXPWLEN+2];
-	int len = GetDlgItemText(m_hwnd, idEditBox, (LPSTR)&passwd, MAXPWLEN+2);
+	wchar_t passwd[MAXPWLEN+2];
+	int len = GetDlgItemText(m_hwnd, idEditBox, (LPWSTR)&passwd, MAXPWLEN+2);
 	passwd[MAXPWLEN+1] = '\0';
-	if (strcmp(passwd, "~~~~~~~~") != 0) {
+	if (wcscmp(passwd, L"~~~~~~~~") != 0) {
 		if (len == 0) {
 			vncPasswd::FromClear crypt;
 			if (idEditBox == IDC_PASSWORD)
@@ -200,7 +200,7 @@ BOOL IncomingConnectionsControls::SetPasswordSettings(DWORD idEditBox)
 			if (idEditBox == IDC_PASSWORD_VIEWONLY)
 				m_server->SetPasswordViewOnly(TRUE, crypt);
 		} else {
-			vncPasswd::FromText crypt(passwd);
+			vncPasswd::FromText crypt((LPSTR)passwd);
 			if (idEditBox == IDC_PASSWORD)
 				m_server->SetPassword(TRUE, crypt);
 			if (idEditBox == IDC_PASSWORD_VIEWONLY)

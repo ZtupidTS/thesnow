@@ -10,7 +10,7 @@
 //////////////////////////////////////////////////////////////////////
 
 #if (defined(_UNICODE) || defined(_MBCS))
-#error Cannot compile with multibyte/wide character support
+//#error Cannot compile with multibyte/wide character support
 #endif
 
 const int Log::ToDebug   =  1;
@@ -127,14 +127,14 @@ void Log::OpenFile()
 			strcat(backupfilename, ".bak");
 			// Attempt the move and replace any existing backup
 			// Note that failure is silent - where would we log a message to? ;)
-			DeleteFile(backupfilename);
-			MoveFile(m_filename, backupfilename);
+			DeleteFileA(backupfilename);
+			MoveFileA(m_filename, backupfilename);
 			delete [] backupfilename;
 		}
 	}
 
     // If filename is NULL or invalid we should throw an exception here
-    hlogfile = CreateFile(m_filename,
+    hlogfile = CreateFileA(m_filename,
 						  GENERIC_WRITE,
 						  FILE_SHARE_READ | FILE_SHARE_WRITE,
 						  NULL,
@@ -165,7 +165,7 @@ void Log::CloseFile() {
 
 inline void Log::ReallyPrintLine(char *line) 
 {
-    if (m_todebug) OutputDebugString(line);
+    if (m_todebug) OutputDebugStringA(line);
     if (m_toconsole) {
         DWORD byteswritten;
         WriteConsole(GetStdHandle(STD_OUTPUT_HANDLE), line, strlen(line), &byteswritten, NULL);

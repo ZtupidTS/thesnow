@@ -54,6 +54,7 @@ private:
 
 	void addLVItem(int num);
 	void addColumn(char *iText, int iOrder, int xWidth, int alignFmt);
+	void addColumn(wchar_t *iText, int iOrder, int xWidth, int alignFmt);		//added
 	void setExtendedLVStyle(DWORD styles);
 	void enableWindows(BOOL enable);
 	void deleteItem(int num);

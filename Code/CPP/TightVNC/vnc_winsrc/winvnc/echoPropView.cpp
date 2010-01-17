@@ -46,12 +46,12 @@ echoPropView::editParamsDlgProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPar
 			(strlen(_this->m_echoProps.server) != 0) && (strlen(_this->m_echoProps.port) != 0)) {
 			char buf[ID_STRING_SIZE];
 			sprintf(buf, "%s:%s", _this->m_echoProps.server, _this->m_echoProps.port);
-			SetDlgItemText(hwnd, IDC_ECHO_SERVER, buf);
+			SetDlgItemTextA(hwnd, IDC_ECHO_SERVER, buf);
 		} else {
-			SetDlgItemText(hwnd, IDC_ECHO_SERVER, _this->m_echoProps.server);
+			SetDlgItemTextA(hwnd, IDC_ECHO_SERVER, _this->m_echoProps.server);
 		}
-		SetDlgItemText(hwnd, IDC_ECHO_USER, _this->m_echoProps.username);
-		SetDlgItemText(hwnd, IDC_ECHO_PWD, _this->m_echoProps.pwd);
+		SetDlgItemTextA(hwnd, IDC_ECHO_USER, _this->m_echoProps.username);
+		SetDlgItemTextA(hwnd, IDC_ECHO_PWD, _this->m_echoProps.pwd);
 		return FALSE;
 	case WM_COMMAND:
 		{
@@ -60,15 +60,15 @@ echoPropView::editParamsDlgProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPar
 			case IDOK:
 				{
 					char buf[ID_STRING_SIZE];
-					GetDlgItemText(hwnd, IDC_ECHO_SERVER, buf, ID_STRING_SIZE);
+					GetDlgItemTextA(hwnd, IDC_ECHO_SERVER, buf, ID_STRING_SIZE);
 					if (!_this->m_pEchoConCtrl->parseConnectionString((char *)buf, 
 																	 (char *)_this->m_echoProps.server, 
 																	 (char *)_this->m_echoProps.port)) {
 						_this->m_echoProps.server[0] = '\0';
 						_this->m_echoProps.port[0] = '\0';
 					}
-					GetDlgItemText(hwnd, IDC_ECHO_USER, _this->m_echoProps.username, ID_STRING_SIZE);
-					GetDlgItemText(hwnd, IDC_ECHO_PWD, _this->m_echoProps.pwd, ID_STRING_SIZE);
+					GetDlgItemTextA(hwnd, IDC_ECHO_USER, _this->m_echoProps.username, ID_STRING_SIZE);
+					GetDlgItemTextA(hwnd, IDC_ECHO_PWD, _this->m_echoProps.pwd, ID_STRING_SIZE);
 					EndDialog(hwnd, IDOK);
 				}
 				return TRUE;
@@ -98,10 +98,10 @@ echoPropView::advEchoParamsDlgProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM l
 			_this = (echoPropView *)lParam;
 			ZeroMemory(&_this->m_echoProps, sizeof(_this->m_echoProps));
 			_this->m_pEchoConCtrl->getLocalProxyInfo(&_this->m_echoProps);
-			SetDlgItemText(hwnd, IDC_ECHO_HTTP_ADDR, _this->m_echoProps.server);
-			SetDlgItemText(hwnd, IDC_ECHO_HTTP_PORT, _this->m_echoProps.port);
-			SetDlgItemText(hwnd, IDC_ECHO_HTTP_USERNAME, _this->m_echoProps.username);
-			SetDlgItemText(hwnd, IDC_ECHO_HTTP_PWD, _this->m_echoProps.pwd);
+			SetDlgItemTextA(hwnd, IDC_ECHO_HTTP_ADDR, _this->m_echoProps.server);
+			SetDlgItemTextA(hwnd, IDC_ECHO_HTTP_PORT, _this->m_echoProps.port);
+			SetDlgItemTextA(hwnd, IDC_ECHO_HTTP_USERNAME, _this->m_echoProps.username);
+			SetDlgItemTextA(hwnd, IDC_ECHO_HTTP_PWD, _this->m_echoProps.pwd);
 			BOOL bProxyAuth = FALSE;
 			if ((strlen(_this->m_echoProps.username) == 0) && 
 				(strlen(_this->m_echoProps.pwd) == 0)) {
@@ -120,10 +120,10 @@ echoPropView::advEchoParamsDlgProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM l
 			{
 			case IDOK:
 				{
-					GetDlgItemText(hwnd, IDC_ECHO_HTTP_ADDR, _this->m_echoProps.server, ID_STRING_SIZE);
-					GetDlgItemText(hwnd, IDC_ECHO_HTTP_PORT, _this->m_echoProps.port, ID_STRING_SIZE);
-					GetDlgItemText(hwnd, IDC_ECHO_HTTP_USERNAME, _this->m_echoProps.username, ID_STRING_SIZE);
-					GetDlgItemText(hwnd, IDC_ECHO_HTTP_PWD, _this->m_echoProps.pwd, ID_STRING_SIZE);
+					GetDlgItemTextA(hwnd, IDC_ECHO_HTTP_ADDR, _this->m_echoProps.server, ID_STRING_SIZE);
+					GetDlgItemTextA(hwnd, IDC_ECHO_HTTP_PORT, _this->m_echoProps.port, ID_STRING_SIZE);
+					GetDlgItemTextA(hwnd, IDC_ECHO_HTTP_USERNAME, _this->m_echoProps.username, ID_STRING_SIZE);
+					GetDlgItemTextA(hwnd, IDC_ECHO_HTTP_PWD, _this->m_echoProps.pwd, ID_STRING_SIZE);
 					EndDialog(hwnd, IDOK);
 				}
 				return TRUE;
@@ -136,8 +136,8 @@ echoPropView::advEchoParamsDlgProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM l
 					if (IsDlgButtonChecked(hwnd, IDC_ECHO_AUTH_CHECK) == BST_CHECKED) {
 						bProxyAuth = TRUE;
 					} else {
-						SetDlgItemText(hwnd, IDC_ECHO_HTTP_USERNAME, "");
-						SetDlgItemText(hwnd, IDC_ECHO_HTTP_PWD, "");
+						SetDlgItemTextA(hwnd, IDC_ECHO_HTTP_USERNAME, "");
+						SetDlgItemTextA(hwnd, IDC_ECHO_HTTP_PWD, "");
 					}
 					EnableWindow(GetDlgItem(hwnd, IDC_ECHO_HTTP_USERNAME), bProxyAuth);
 					EnableWindow(GetDlgItem(hwnd, IDC_ECHO_HTTP_PWD), bProxyAuth);
@@ -243,8 +243,8 @@ echoPropView::Add()
 		if (result == IDOK) {
 			if (!checkEchoParams(&m_echoProps)) {
 				if (MessageBox(m_hwnd, 
-					"This echo connection parameters is incorrect.\nDo you want edit parameters?", 
-					"Echo connection parameters", 
+					L"This echo connection parameters is incorrect.\nDo you want edit parameters?", 
+					L"Echo connection parameters", 
 					MB_YESNO) == IDYES) { bContinue = true; } else { bContinue = false; }
 			} else {
 				bool bRes = m_pEchoConCtrl->add(&m_echoProps);
@@ -259,36 +259,36 @@ echoPropView::Add()
 					case ID_ECHO_ERROR_ALREADY_EXIST:
 					case ID_ECHO_ERROR_CHANNEL_EXIST:
 						if (MessageBox(m_hwnd, 
-							"This echo connection parameters already exists.\nDo you want edit parameters?", 
-							"Echo connection parameters exists", 
+							L"This echo connection parameters already exists.\nDo you want edit parameters?", 
+							L"Echo connection parameters exists", 
 							MB_YESNO) == IDYES) { bContinue = true; } else { bContinue = false; }
 						break;
 					case ID_ECHO_ERROR_WRONG_ADDRESS:
 						m_pEchoConCtrl->del(&m_echoProps);
 						if (MessageBox(m_hwnd, 
-							"No proxy server could be connected to at the provided ip-address/ip-port.\nDo you want edit parameters?",
-							"Echo connection parameters",
+							L"No proxy server could be connected to at the provided ip-address/ip-port.\nDo you want edit parameters?",
+							L"Echo connection parameters",
 							MB_YESNO) == IDYES)  { bContinue = true; } else { bContinue = false; }
 						break;
 					case ID_ECHO_ERROR_WRONG_LOGIN:
 						m_pEchoConCtrl->del(&m_echoProps);
 						if (MessageBox(m_hwnd, 
-							"Authentication failed with the proxy server.\nDo you want edit parameters?",
-							"Echo connection parameters",
+							L"Authentication failed with the proxy server.\nDo you want edit parameters?",
+							L"Echo connection parameters",
 							MB_YESNO) == IDYES)  { bContinue = true; } else { bContinue = false; }
 						break;
 					case ID_ECHO_ERROR_LIB_MISSING:
 					case ID_ECHO_ERROR_LIB_NOT_INITIALIZED:
 						m_pEchoConCtrl->del(&m_echoProps);
 						if (MessageBox(m_hwnd, 
-							"Now the echo connection is impossible.\nDo you want edit parameters?", 
-							"Echo connection parameters", 
+							L"Now the echo connection is impossible.\nDo you want edit parameters?", 
+							L"Echo connection parameters", 
 							MB_YESNO) == IDYES)  { bContinue = true; } else { bContinue = false; }
 						break;
 					default:
 						if (MessageBox(m_hwnd, 
-							"Echo connection with this parameters can be not created\nDo you want edit parameters?", 
-							"Echo connection parameters", 
+							L"Echo connection with this parameters can be not created\nDo you want edit parameters?", 
+							L"Echo connection parameters", 
 							MB_YESNO) == IDYES) { bContinue = true; } else { bContinue = false; }
 						m_pEchoConCtrl->del(&m_echoProps);
 					}
@@ -344,7 +344,21 @@ echoPropView::AdvancedProps()
 void 
 echoPropView::addColumn(char *iText, int iOrder, int xWidth, int alignFmt)
 {
-	LVCOLUMN lvc; 
+	LVCOLUMNA lvc; 
+	lvc.mask = LVCF_FMT | LVCF_WIDTH | LVCF_TEXT | LVCF_SUBITEM | LVCF_ORDER;
+	lvc.fmt = alignFmt;
+	lvc.iSubItem = iOrder;
+	lvc.pszText = iText;	
+	lvc.cchTextMax = 32;
+	lvc.cx = xWidth;
+	lvc.iOrder = iOrder;
+	ListView_InsertColumn(GetDlgItem(m_hwnd, IDC_ECHOSERVERS_LIST), iOrder, &lvc);
+}
+
+void 
+echoPropView::addColumn(wchar_t *iText, int iOrder, int xWidth, int alignFmt)
+{
+	LVCOLUMNW lvc; 
 	lvc.mask = LVCF_FMT | LVCF_WIDTH | LVCF_TEXT | LVCF_SUBITEM | LVCF_ORDER;
 	lvc.fmt = alignFmt;
 	lvc.iSubItem = iOrder;
@@ -396,19 +410,19 @@ echoPropView::onGetDispInfo(NMLVDISPINFO *pDI)
 	{
     case 0:
 		{
-			char buf[ID_STRING_SIZE];
-			sprintf(buf, "%s:%s", echoProps.server, echoProps.port);
+			wchar_t buf[ID_STRING_SIZE];
+			wsprintf(buf, L"%s:%s", echoProps.server, echoProps.port);
 			pDI->item.pszText = buf;
 		}
 		break;
 	case 1:
-		pDI->item.pszText = echoProps.ipaddr;
+		pDI->item.pszText = (LPWSTR)echoProps.ipaddr;
 		break;
 	case 2:
-		pDI->item.pszText = m_pEchoConCtrl->getConnectionStatus(&echoProps);
+		pDI->item.pszText = (LPWSTR)m_pEchoConCtrl->getConnectionStatus(&echoProps);
 		break;
 	case 3:
-		pDI->item.pszText = echoProps.username;
+		pDI->item.pszText = (LPWSTR)echoProps.username;
 		break;
 	default:
 		break;
@@ -418,7 +432,7 @@ echoPropView::onGetDispInfo(NMLVDISPINFO *pDI)
 void
 echoPropView::ShowStatus()
 {
-	SetDlgItemText(m_hwnd, IDC_ECHOWARE_STATUS, m_pEchoConCtrl->getEchoWareVersion());
+	SetDlgItemTextA(m_hwnd, IDC_ECHOWARE_STATUS, m_pEchoConCtrl->getEchoWareVersion());
 }
 
 bool
@@ -435,7 +449,7 @@ void
 echoPropView::DisableCheck()
 {
 	if (IsDlgButtonChecked(m_hwnd, IDC_ECHO_CON_DISABLE) == BST_CHECKED) {
-		if (MessageBox(m_hwnd, 
+		if (MessageBoxA(m_hwnd, 
 					   "Some echo connections may be established.\nDo you really disable echo connection now?", 
 					   "Echo connections", 
 					   MB_YESNO) != IDYES) {
@@ -479,36 +493,36 @@ echoPropView::checkEchoError(DWORD lastError)
 	switch (lastError) 
 	{
 		case ID_ECHO_ERROR_ALREADY_EXIST:
-			if (MessageBox(NULL, 
+			if (MessageBoxA(NULL, 
 				"This echo connection parameters already exists.\nDo you want edit parameters?", 
 				"Echo connection parameters exists", 
 				MB_YESNO) == IDYES) { return 1; } else { return 2; }
 		case ID_ECHO_ERROR_LIB_NOT_INITIALIZED:
-			if (MessageBox(NULL, 
+			if (MessageBoxA(NULL, 
 				"EchoWare library not initialized.\nDo you want to save this parameters in the known echoservers list?",
 				"Echo connection parameters",
 				MB_YESNO) == IDYES) { return 3; } else { return 4; }
 			break;
 		case ID_ECHO_ERROR_WRONG_ADDRESS:
-			if (MessageBox(NULL, 
+			if (MessageBoxA(NULL, 
 				"No proxy server could be connected to at the provided ip-address/ip-port.\nDo you want to save this parameters in the known echoservers list?",
 				"Echo connection parameters",
 				MB_YESNO) == IDYES) { return 3; } else { return 4; }
 			break;
 		case ID_ECHO_ERROR_WRONG_LOGIN:
-			if (MessageBox(NULL, 
+			if (MessageBoxA(NULL, 
 				"Authentication failed with the proxy server.\nDo you want to save this parameters in the known echoservers list?",
 				"Echo connection parameters",
 				MB_YESNO) == IDYES) { return 3; } else { return 4; }
 			break;
 		case ID_ECHO_ERROR_CHANNEL_EXIST:
-			if (MessageBox(NULL, 
+			if (MessageBoxA(NULL, 
 				"The authentication channel with this parameters exists and already active.\nDo you want edit parameters?",
 				"Echo connection parameters",
 				MB_YESNO) == IDYES) { return 1; } else { return 2; }
 			break;
 		default:
-			if (MessageBox(NULL, 
+			if (MessageBoxA(NULL, 
 				"Echo connection with this parameters can be not created\nDo you want edit parameters?", 
 				"Echo connection parameters", 
 				MB_YESNO) == IDYES) { return 1; } else { return 2; }

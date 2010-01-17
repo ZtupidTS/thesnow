@@ -92,7 +92,7 @@ BOOL appHookedOK = FALSE;							// Did InitInstance succeed?
 // Registered messages & atoms to be used by ScreenHooks.DLL
 
 // Messages
-const UINT VNC_DEFERRED_UPDATE = RegisterWindowMessage("ScreenHooks.Deferred.UpdateMessage");
+const UINT VNC_DEFERRED_UPDATE = RegisterWindowMessage(L"ScreenHooks.Deferred.UpdateMessage");
 
 // Atoms
 const char *VNC_WINDOWPOS_ATOMNAME = "ScreenHooks.CopyRect.WindowPos";
@@ -261,7 +261,7 @@ DllExport BOOL UnSetHook(HWND hWnd)
 
 	// Is the window handle valid?
 	if (hWnd == NULL)
-		MessageBox(NULL, "Window pointer is null", "Message", MB_OK);
+		MessageBox(NULL, L"Window pointer is null", L"Message", MB_OK);
 
 	// Is the correct application calling UnSetHook?
 	if (hWnd != hVeneto)
@@ -1114,9 +1114,9 @@ char * NameFromPath(const char *path)
 // Initialise / Exit routines.
 // These functions handle the update settings for any apps used with WinVNC.
 
-static const TCHAR szSoftware[] = "Software";
-static const TCHAR szCompany[] = "ORL";
-static const TCHAR szProfile[] = "ScreenHooks";
+static const TCHAR szSoftware[] = L"Software";
+static const TCHAR szCompany[] = L"ORL";
+static const TCHAR szProfile[] = L"ScreenHooks";
 
 HKEY GetRegistryKey()
 {
@@ -1160,7 +1160,7 @@ HKEY GetModuleKey(const char *proc_name)
 		return NULL;
 
 	// Attempt to open the section for this application
-	if (RegOpenKeyEx(hAppKey,
+	if (RegOpenKeyExA(hAppKey,
 					sModulePrefs,
 					0, KEY_WRITE|KEY_READ,
 					&hModule
@@ -1181,7 +1181,7 @@ HKEY GetModuleKey(const char *proc_name)
 
 		// Now get the module key again
 		DWORD dw;
-		if (RegCreateKeyEx(hAppKey,
+		if (RegCreateKeyExA(hAppKey,
 					sModulePrefs,
 					0, REG_NONE, REG_OPTION_NON_VOLATILE,
 					KEY_WRITE|KEY_READ,
@@ -1245,10 +1245,10 @@ void WriteProfileInt(LPTSTR key, int value)
 BOOL InitInstance() 
 {
 	// Create the global atoms
-	VNC_WINDOWPOS_ATOM = GlobalAddAtom(VNC_WINDOWPOS_ATOMNAME);
+	VNC_WINDOWPOS_ATOM = GlobalAddAtomA(VNC_WINDOWPOS_ATOMNAME);
 	if (VNC_WINDOWPOS_ATOM == NULL)
 		return FALSE;
-	VNC_POPUPSELN_ATOM = GlobalAddAtom(VNC_POPUPSELN_ATOMNAME);
+	VNC_POPUPSELN_ATOM = GlobalAddAtomA(VNC_POPUPSELN_ATOMNAME);
 	if (VNC_POPUPSELN_ATOM == NULL)
 		return FALSE;
 
@@ -1257,7 +1257,7 @@ BOOL InitInstance()
 	DWORD size;
 
 	// Attempt to get the program/module name
-	if ((size = GetModuleFileName(
+	if ((size = GetModuleFileNameA(
 		GetModuleHandle(NULL),
 		(char *) &proc_name,
 		_MAX_PATH
@@ -1271,32 +1271,32 @@ BOOL InitInstance()
 
 	// Read in the prefs
 	prf_use_GetUpdateRect = GetProfileInt(
-		"use_GetUpdateRect",
+		L"use_GetUpdateRect",
 		TRUE
 		);
 
 	prf_use_Timer = GetProfileInt(
-		"use_Timer",
+		L"use_Timer",
 		FALSE
 		);
 	prf_use_KeyPress = GetProfileInt(
-		"use_KeyPress",
+		L"use_KeyPress",
 		TRUE
 		);
 	prf_use_LButtonUp = GetProfileInt(
-		"use_LButtonUp",
+		L"use_LButtonUp",
 		TRUE
 		);
 	prf_use_MButtonUp = GetProfileInt(
-		"use_MButtonUp",
+		L"use_MButtonUp",
 		TRUE
 		);
 	prf_use_RButtonUp = GetProfileInt(
-		"use_RButtonUp",
+		L"use_RButtonUp",
 		TRUE
 		);
 	prf_use_Deferral = GetProfileInt(
-		"use_Deferral",
+		L"use_Deferral",
 #ifdef HORIZONLIVE
 		FALSE	// we use full screen polling anyway
 #else
@@ -1325,37 +1325,37 @@ BOOL ExitInstance()
 	if (sModulePrefs != NULL)
 	{
 		WriteProfileInt(
-			"use_GetUpdateRect",
+			L"use_GetUpdateRect",
 			prf_use_GetUpdateRect
 			);
 
 		WriteProfileInt(
-			"use_Timer",
+			L"use_Timer",
 			prf_use_Timer
 			);
 
 		WriteProfileInt(
-			"use_KeyPress",
+			L"use_KeyPress",
 			prf_use_KeyPress
 			);
 
 		WriteProfileInt(
-			"use_LButtonUp",
+			L"use_LButtonUp",
 			prf_use_LButtonUp
 			);
 
 		WriteProfileInt(
-			"use_MButtonUp",
+			L"use_MButtonUp",
 			prf_use_MButtonUp
 			);
 
 		WriteProfileInt(
-			"use_RButtonUp",
+			L"use_RButtonUp",
 			prf_use_RButtonUp
 			);
 
 		WriteProfileInt(
-			"use_Deferral",
+			L"use_Deferral",
 			prf_use_Deferral
 			);
 

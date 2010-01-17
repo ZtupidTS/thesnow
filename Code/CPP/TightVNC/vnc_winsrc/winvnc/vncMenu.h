@@ -60,7 +60,7 @@ extern const UINT MENU_SERVICEHELPER_MSG;
 extern const UINT MENU_RELOAD_MSG;
 extern const UINT MENU_ADD_CLIENT_MSG;
 extern const UINT MENU_KILL_ALL_CLIENTS_MSG;
-extern const char *MENU_CLASS_NAME;
+extern const wchar_t *MENU_CLASS_NAME;
 
 extern const UINT fileTransferDownloadMessage;
 
@@ -100,7 +100,8 @@ protected:
 	HMENU			m_hmenu;
 	NOTIFYICONDATA		m_nid;
 
-	char			m_username[UNLEN+1];
+//	char			m_username[UNLEN+1];
+	wchar_t			m_username[UNLEN+1];
 
 	// The icon handles
 	HICON			m_winvnc_normal_icon;

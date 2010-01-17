@@ -227,19 +227,19 @@ void vncHTTPConnectThread::DoHTTP(VSocket *socket)
 			m_server->GetScreenInfo(width, height, depth);
 
 			// Get the name of this desktop
-			char desktopname[MAX_COMPUTERNAME_LENGTH + 1];
+			wchar_t desktopname[MAX_COMPUTERNAME_LENGTH + 1];
 			DWORD desktopnamelen = MAX_COMPUTERNAME_LENGTH + 1;
 			if (GetComputerName(desktopname, &desktopnamelen))
 			{
 				// Make the name lowercase
-				for (size_t x = 0; x < strlen(desktopname); x++)
+				for (size_t x = 0; x < wcslen(desktopname); x++)
 				{
 					desktopname[x] = tolower(desktopname[x]);
 				}
 			}
 			else
 			{
-				strcpy(desktopname, "WinVNC");
+				wcscpy(desktopname, L"WinVNC");
 			}
 
 			// Parse the applet parameters if specified within URL
@@ -287,7 +287,7 @@ void vncHTTPConnectThread::DoHTTP(VSocket *socket)
 			// Find the resource here
 			resource = FindResource(NULL,
 					MAKEINTRESOURCE(filemapping[x].resourceID),
-					filemapping[x].type
+					(LPCWSTR)filemapping[x].type
 					);
 			if (resource == NULL)
 				return;

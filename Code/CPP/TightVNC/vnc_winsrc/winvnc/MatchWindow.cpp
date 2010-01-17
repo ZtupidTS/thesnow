@@ -30,7 +30,7 @@
 static const int MW_WIDTH = 5 ;
 static const int MW_MARGRIN = ( MW_WIDTH / 2 ) + 1 ;
 
-TCHAR szMatchWindowClass[]="MATCHWINDOW";
+TCHAR szMatchWindowClass[]=L"MATCHWINDOW";
 
 int iCornerNumber;
 
@@ -63,7 +63,7 @@ CMatchWindow::CMatchWindow(vncServer* pServer,int left,int top,int right,int bot
 
 	m_hWnd=CreateWindowEx(WS_EX_TOPMOST|WS_EX_TOOLWINDOW,			//dwExStyle
 		szMatchWindowClass,		//pointer to registered class name
-  		"ScreenShared",					// pointer to window name
+  		L"ScreenShared",					// pointer to window name
   		WS_POPUP  ,				// window style
 		12,		               // horizontal position of window
 		13,				        // vertical position of window

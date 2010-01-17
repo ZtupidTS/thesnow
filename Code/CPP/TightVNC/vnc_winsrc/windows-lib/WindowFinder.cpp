@@ -32,7 +32,7 @@ BOOL CALLBACK WindowFinder::enumWindowsProc(HWND hwnd, LPARAM lParam)
   WindowParam *windowParam = (WindowParam *)lParam;
 
   TCHAR windowCLassName[256];
-  GetClassName(hwnd, (LPSTR)&windowCLassName, sizeof(windowCLassName));
+  GetClassName(hwnd, (LPWSTR)&windowCLassName, sizeof(windowCLassName));
 
   if (_tcsicmp(windowCLassName, windowParam->className) == 0) {
     windowParam->hwnd = hwnd;

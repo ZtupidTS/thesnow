@@ -89,7 +89,7 @@ bool
 echoConnection::loadLibrary()
 {
 	if (m_hEchoInst == NULL) {
-		m_hEchoInst = LoadLibrary("echoware.dll");
+		m_hEchoInst = LoadLibrary(L"echoware.dll");
 		if (m_hEchoInst) return true;
 	}
 	return false;

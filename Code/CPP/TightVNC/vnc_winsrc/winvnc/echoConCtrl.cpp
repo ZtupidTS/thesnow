@@ -326,7 +326,7 @@ echoConCtrl::getEchoWareVersion()
 bool 
 echoConCtrl::isEncryptionPossible() 
 {
-	HMODULE hMod = LoadLibrary("libeay32.dll");
+	HMODULE hMod = LoadLibrary(L"libeay32.dll");
 
 	if (hMod) {
 		m_bEncryptionPossible = true;

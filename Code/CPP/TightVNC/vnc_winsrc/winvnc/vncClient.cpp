@@ -730,19 +730,19 @@ vncClientThread::run(void *arg)
 	m_client->m_fullscreen = m_client->m_buffer->GetSize();
 
 	// Get the name of this desktop
-	char desktopname[MAX_COMPUTERNAME_LENGTH+1];
+	wchar_t desktopname[MAX_COMPUTERNAME_LENGTH+1];
 	DWORD desktopnamelen = MAX_COMPUTERNAME_LENGTH + 1;
 	if (GetComputerName(desktopname, &desktopnamelen))
 	{
 		// Make the name lowercase
-		for (size_t x=0; x<strlen(desktopname); x++)
+		for (size_t x=0; x<wcslen(desktopname); x++)
 		{
 			desktopname[x] = tolower(desktopname[x]);
 		}
 	}
 	else
 	{
-		strcpy(desktopname, "WinVNC");
+		wcscpy(desktopname, L"WinVNC");
 	}
 
 	// Send the server format message to the client
@@ -757,14 +757,14 @@ vncClientThread::run(void *arg)
 	server_ini.format.redMax = Swap16IfLE(server_ini.format.redMax);
 	server_ini.format.greenMax = Swap16IfLE(server_ini.format.greenMax);
 	server_ini.format.blueMax = Swap16IfLE(server_ini.format.blueMax);
-	server_ini.nameLength = Swap32IfLE(strlen(desktopname));
+	server_ini.nameLength = Swap32IfLE(wcslen(desktopname));
 
 	if (!m_socket->SendExact((char *)&server_ini, sizeof(server_ini)))
 	{
 		m_server->RemoveClient(m_client->GetClientId());
 		return;
 	}
-	if (!m_socket->SendExact(desktopname, strlen(desktopname)))
+	if (!m_socket->SendExact((LPCSTR)desktopname, wcslen(desktopname)))
 	{
 		m_server->RemoveClient(m_client->GetClientId());
 		return;
@@ -1252,24 +1252,24 @@ vncClientThread::run(void *arg)
 			{
 				msg.flr.dirNameSize = Swap16IfLE(msg.flr.dirNameSize);
 				if (msg.flr.dirNameSize > 255) break;
-				char path[255 + 1];
-				m_socket->ReadExact(path, msg.flr.dirNameSize);
+				wchar_t path[255 + 1];
+				m_socket->ReadExact((LPSTR)path, msg.flr.dirNameSize);
 				path[msg.flr.dirNameSize] = '\0';
-				m_client->ConvertPath(path);
+				m_client->ConvertPath((LPSTR)path);
 				FileTransferItemInfo ftii;
-				if (strlen(path) == 0) {
+				if (wcslen(path) == 0) {
 					TCHAR szDrivesList[256];
 					if (GetLogicalDriveStrings(255, szDrivesList) == 0)
 						break;
 					int i = 0;
 					while (szDrivesList[i] != '\0') {
-						char *drive = strdup(&szDrivesList[i]);
-						char *backslash = strrchr(drive, '\\');
+						wchar_t *drive = wcsdup(&szDrivesList[i]);
+						wchar_t *backslash = wcsrchr(drive, L'\\');
 						if (backslash != NULL)
 							*backslash = '\0';
-						ftii.Add(drive, -1, 0);
+						ftii.Add((LPSTR)drive, -1, 0);
 						free(drive);
-						i += strcspn(&szDrivesList[i], "\0") + 1;
+						i += wcscspn(&szDrivesList[i], L"\0") + 1;
 					}
 /*
 					char myDocPath[MAX_PATH];
@@ -1278,7 +1278,7 @@ vncClientThread::run(void *arg)
 						ftii.Add(myDocPath, -2, 0);
 */
 				} else {
-					strcat(path, "\\*");
+					wcscat(path, L"\\*");
 					HANDLE FLRhandle;
 					WIN32_FIND_DATA FindFileData;
 					SetErrorMode(SEM_FAILCRITICALERRORS);
@@ -1287,17 +1287,17 @@ vncClientThread::run(void *arg)
 					SetErrorMode(0);
 					if (FLRhandle != INVALID_HANDLE_VALUE) {
 						do {
-							if (strcmp(FindFileData.cFileName, ".") != 0 &&
-								strcmp(FindFileData.cFileName, "..") != 0) {
+							if (wcscmp(FindFileData.cFileName, L".") != 0 &&
+								wcscmp(FindFileData.cFileName, L"..") != 0) {
 								LARGE_INTEGER li;
 								li.LowPart = FindFileData.ftLastWriteTime.dwLowDateTime;
 								li.HighPart = FindFileData.ftLastWriteTime.dwHighDateTime;							
 								li.QuadPart = (li.QuadPart - 116444736000000000) / 10000000;
 								if ((FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {	
-									ftii.Add(FindFileData.cFileName, -1, li.LowPart);
+									ftii.Add((LPSTR)FindFileData.cFileName, -1, li.LowPart);
 								} else {
 									if (!(msg.flr.flags & 0x10))
-										ftii.Add(FindFileData.cFileName, FindFileData.nFileSizeLow, li.LowPart);
+										ftii.Add((LPSTR)FindFileData.cFileName, FindFileData.nFileSizeLow, li.LowPart);
 								}
 							}
 
@@ -1348,13 +1348,13 @@ vncClientThread::run(void *arg)
 			if (m_socket->ReadExact(((char *) &msg)+1, sz_rfbFileSpecDirRequestMsg-1))
 			{
 				msg.fsdr.specFlags = Swap16IfLE(msg.fsdr.specFlags);
-				char path[MAX_PATH];
+				wchar_t path[MAX_PATH];
 				BOOL bCreate = FALSE;
 				switch (msg.fsdr.specFlags) 
 				{
 				case rfbSpecDirMyDocuments:
 					if (SHGetSpecialFolderPath(NULL, path, CSIDL_PERSONAL, bCreate)) {
-						m_client->SendFileSpecDirData(msg.fsdr.flags, msg.fsdr.specFlags, path);
+						m_client->SendFileSpecDirData(msg.fsdr.flags, msg.fsdr.specFlags, (LPSTR)path);
 					} else {
 						CARD8 typeOfRequest = rfbFileSpecDirRequest;
 						char reason[] = "Can't get MyDocuments folder path";
@@ -1364,7 +1364,7 @@ vncClientThread::run(void *arg)
 					break;
 				case rfbSpecDirMyPictures:
 					if (SHGetSpecialFolderPath(NULL, path, 0x0027, bCreate)) {
-						m_client->SendFileSpecDirData(msg.fsdr.flags, msg.fsdr.specFlags, path);
+						m_client->SendFileSpecDirData(msg.fsdr.flags, msg.fsdr.specFlags, (LPSTR)path);
 					} else {
 						CARD8 typeOfRequest = rfbFileSpecDirRequest;
 						char reason[] = "Can't get MyPictures folder path";
@@ -1374,7 +1374,7 @@ vncClientThread::run(void *arg)
 					break;
 				case rfbSpecDirMyMusic:
 					if (SHGetSpecialFolderPath(NULL, path, 0x000d, bCreate)) {
-						m_client->SendFileSpecDirData(msg.fsdr.flags, msg.fsdr.specFlags, path);
+						m_client->SendFileSpecDirData(msg.fsdr.flags, msg.fsdr.specFlags, (LPSTR)path);
 					} else {
 						CARD8 typeOfRequest = rfbFileSpecDirRequest;
 						char reason[] = "Can't get MyMusic folder path";
@@ -1384,7 +1384,7 @@ vncClientThread::run(void *arg)
 					break;
 				case rfbSpecDirDesktop:
 					if (SHGetSpecialFolderPath(NULL, path, CSIDL_DESKTOP, bCreate)) {
-						m_client->SendFileSpecDirData(msg.fsdr.flags, msg.fsdr.specFlags, path);
+						m_client->SendFileSpecDirData(msg.fsdr.flags, msg.fsdr.specFlags,(LPSTR) path);
 					} else {
 						CARD8 typeOfRequest = rfbFileSpecDirRequest;
 						char reason[] = "Can't get Desktop folder path";
@@ -1394,7 +1394,7 @@ vncClientThread::run(void *arg)
 					break;
 				case rfbSpecDirMyNetHood:
 					if (SHGetSpecialFolderPath(NULL, path, CSIDL_NETHOOD, bCreate)) {
-						m_client->SendFileSpecDirData(msg.fsdr.flags, msg.fsdr.specFlags, path);
+						m_client->SendFileSpecDirData(msg.fsdr.flags, msg.fsdr.specFlags, (LPSTR)path);
 					} else {
 						CARD8 typeOfRequest = rfbFileSpecDirRequest;
 						char reason[] = "Can't get MyNetHood folder path";
@@ -1429,11 +1429,11 @@ vncClientThread::run(void *arg)
 					m_client->SendLastRequestFailed(rfbFileDownloadRequest, reasonLen, 0, reason);
 					break;
 				}
-				char path_file[MAX_PATH];
-				m_socket->ReadExact(path_file, msg.fdr.fNameSize);
-				path_file[msg.fdr.fNameSize] = '\0';
-				m_client->ConvertPath(path_file);
-				strcpy(m_client->m_DownloadFilename, path_file);
+				wchar_t path_file[MAX_PATH];
+				m_socket->ReadExact((LPSTR)path_file, msg.fdr.fNameSize);
+				path_file[msg.fdr.fNameSize] = L'\0';
+				m_client->ConvertPath((LPSTR)path_file);
+				wcscpy(m_client->m_DownloadFilename, path_file);
 
 				HANDLE hFile;
 				DWORD sz_rfbFileSize;
@@ -1499,9 +1499,9 @@ vncClientThread::run(void *arg)
 					m_client->SendFileUploadCancel(reasonLen, reason);
 					break;
 				}
-				m_socket->ReadExact(m_client->m_UploadFilename, msg.fupr.fNameSize);
+				m_socket->ReadExact((LPSTR)m_client->m_UploadFilename, msg.fupr.fNameSize);
 				m_client->m_UploadFilename[msg.fupr.fNameSize] = '\0';
-				m_client->ConvertPath(m_client->m_UploadFilename);
+				m_client->ConvertPath((LPSTR)m_client->m_UploadFilename);
 				vnclog.Print(LL_CLIENTS, VNCLOG("file upload requested: %s\n"),
 							 m_client->m_UploadFilename);
 				m_client->m_hFileToWrite = CreateFile(m_client->m_UploadFilename, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
@@ -1646,14 +1646,14 @@ vncClientThread::run(void *arg)
 			{
 				msg.frr.oldNameLen = Swap16IfLE(msg.frr.oldNameLen);
 				msg.frr.newNameLen = Swap16IfLE(msg.frr.newNameLen);
-				char *pOldName = new char[msg.frr.oldNameLen + 1];
-				char *pNewName = new char[msg.frr.newNameLen + 1];
-				m_socket->ReadExact(pOldName, msg.frr.oldNameLen);
-				m_socket->ReadExact(pNewName, msg.frr.newNameLen);
+				wchar_t *pOldName = new wchar_t[msg.frr.oldNameLen + 1];
+				wchar_t *pNewName = new wchar_t[msg.frr.newNameLen + 1];
+				m_socket->ReadExact((LPSTR)pOldName, msg.frr.oldNameLen);
+				m_socket->ReadExact((LPSTR)pNewName, msg.frr.newNameLen);
 				pOldName[msg.frr.oldNameLen] = '\0';
 				pNewName[msg.frr.newNameLen] = '\0';
-				pOldName = m_client->ConvertPath(pOldName);
-				pNewName = m_client->ConvertPath(pNewName);
+				pOldName =(LPWSTR) m_client->ConvertPath((LPSTR)pOldName);
+				pNewName =(LPWSTR) m_client->ConvertPath((LPSTR)pNewName);
 				if (!MoveFile(pOldName, pNewName)) {
 					CARD32 sysError = GetLastError();
 					CARD8 typeOfRequest = rfbFileRenameRequest;
@@ -1679,11 +1679,11 @@ vncClientThread::run(void *arg)
 				dirName[msg.fdsr.dNameLen] = '\0';
 				dirName = m_client->ConvertPath(dirName);
 				FileTransferItemInfo ftfi;
-				char fullPath[MAX_PATH];
+				wchar_t fullPath[MAX_PATH];
 				ftfi.Add(dirName, -1, 0);
 				DWORD64 dirFileSize64 = 0;
 				do {
-					sprintf(fullPath, "%s\\*", ftfi.GetNameAt(0));
+					sprintf((LPSTR)fullPath, "%s\\*", ftfi.GetNameAt(0));
 					WIN32_FIND_DATA FindFileData;
 					SetErrorMode(SEM_FAILCRITICALERRORS);
 					HANDLE hFile = FindFirstFile(fullPath, &FindFileData);
@@ -1691,8 +1691,8 @@ vncClientThread::run(void *arg)
 
 					if (hFile != INVALID_HANDLE_VALUE) {
 						do {
-							if (strcmp(FindFileData.cFileName, ".") != 0 &&
-								strcmp(FindFileData.cFileName, "..") != 0) {
+							if (wcscmp(FindFileData.cFileName, L".") != 0 &&
+								wcscmp(FindFileData.cFileName, L"..") != 0) {
 								char buff[MAX_PATH];
 								if ((FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {	
 									sprintf(buff, "%s\\%s", ftfi.GetNameAt(0), FindFileData.cFileName);
@@ -1719,13 +1719,13 @@ vncClientThread::run(void *arg)
 			if (m_socket->ReadExact(((char *) &msg)+1, sz_rfbFileDeleteRequestMsg-1))
 			{
 				msg.fder.nameLen = Swap16IfLE(msg.fder.nameLen);
-				char *pName = new char[msg.fder.nameLen + 1];
-				m_socket->ReadExact(pName, msg.fder.nameLen);
+				wchar_t *pName = new wchar_t[msg.fder.nameLen + 1];
+				m_socket->ReadExact((LPSTR)pName, msg.fder.nameLen);
 				pName[msg.fder.nameLen] = '\0';
-				pName = m_client->ConvertPath(pName);
+				pName = (LPWSTR)m_client->ConvertPath((LPSTR)pName);
 				WIN32_FIND_DATA FindFileData;
 				SetErrorMode(SEM_FAILCRITICALERRORS);
-				HANDLE hFile = FindFirstFile(pName, &FindFileData);
+				HANDLE hFile = FindFirstFile((LPCWSTR)pName, &FindFileData);
 				SetErrorMode(0);
 				if (hFile != INVALID_HANDLE_VALUE) {
 					if(!(FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {	
@@ -1748,14 +1748,14 @@ vncClientThread::run(void *arg)
 					m_client->SendLastRequestFailed(typeOfRequest, reasonLen, sysError, reason);
 					break;
 				}
-				char fullPath[MAX_PATH];
+				wchar_t fullPath[MAX_PATH];
 				FileTransferItemInfo ftfi;
 				FileTransferItemInfo delDirInfo;
-				ftfi.Add(pName, -1, 0);
+				ftfi.Add((LPSTR)pName, -1, 0);
 				delete [] pName;
 				BOOL bError = FALSE;
 				do {
-					sprintf(fullPath, "%s\\*", ftfi.GetNameAt(0));
+					sprintf((LPSTR)fullPath, "%s\\*", ftfi.GetNameAt(0));
 					delDirInfo.Add(ftfi.GetNameAt(0), -1, 0);
 					WIN32_FIND_DATA FindFileData;
 					SetErrorMode(SEM_FAILCRITICALERRORS);
@@ -1763,12 +1763,12 @@ vncClientThread::run(void *arg)
 					SetErrorMode(0);
 					if (hFile != INVALID_HANDLE_VALUE) {
 						do {
-							if (strcmp(FindFileData.cFileName, ".") != 0 &&
-								strcmp(FindFileData.cFileName, "..") != 0) {
-								char buff[MAX_PATH];
-								sprintf(buff, "%s\\%s", ftfi.GetNameAt(0), FindFileData.cFileName);
+							if (wcscmp(FindFileData.cFileName, L".") != 0 &&
+								wcscmp(FindFileData.cFileName, L"..") != 0) {
+								wchar_t buff[MAX_PATH];
+								wsprintf(buff, L"%s\\%s", ftfi.GetNameAt(0), FindFileData.cFileName);
 								if ((FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {	
-									ftfi.Add(buff, -1, 0);
+									ftfi.Add((LPSTR)buff, -1, 0);
 								} else {
 									if (!DeleteFile(buff)) {
 										bError = TRUE;
@@ -1791,7 +1791,7 @@ vncClientThread::run(void *arg)
 					break;
 				}
 				for (int i = delDirInfo.GetNumEntries() - 1; i >= 0; i--) {
-					if (!RemoveDirectory(delDirInfo.GetNameAt(i))) {
+					if (!RemoveDirectoryA(delDirInfo.GetNameAt(i))) {
 						bError = TRUE;
 						break;
 					}
@@ -1967,8 +1967,8 @@ vncClient::Kill()
 	// Close file transfer
 	if ((m_bDownloadStarted) || (m_bUploadStarted)) {
 		if (MessageBox(NULL, 
-			"File Transfer is active. Are you sure you want to disconnect? This will result in active file transfer operation being discontinued.",
-			"File Transfer Canceling", MB_OKCANCEL) == IDOK) {
+			L"File Transfer is active. Are you sure you want to disconnect? This will result in active file transfer operation being discontinued.",
+			L"File Transfer Canceling", MB_OKCANCEL) == IDOK) {
 			CloseUndoneFileTransfer();
 		} else {
 			return;

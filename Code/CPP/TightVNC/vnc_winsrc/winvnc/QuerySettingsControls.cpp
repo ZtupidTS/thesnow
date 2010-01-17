@@ -49,9 +49,9 @@ void QuerySettingsControls::Validate()
 void QuerySettingsControls::Apply()
 {
 	// Save the timeout
-	char timeout[256];
-	if (GetDlgItemText(m_hwnd, IDQUERYTIMEOUT, (LPSTR) &timeout, 256) != 0)
-		m_server->SetQueryTimeout(atoi(timeout));
+	wchar_t timeout[256];
+	if (GetDlgItemText(m_hwnd, IDQUERYTIMEOUT, (LPWSTR) &timeout, 256) != 0)
+		m_server->SetQueryTimeout(_wtoi(timeout));
 					
 	// Save the new settings to the server
 	m_server->SetQuerySetting((IsChecked(IDQUERY))? 4 : 2);									
@@ -66,11 +66,11 @@ void QuerySettingsControls::Init()
 	SetChecked(IDQUERYALLOWNOPASS, m_server->QueryAllowNoPass());		
 		
 	// Get the timeout
-	char timeout[128];
+	wchar_t timeout[128];
 	UINT t;
 	t = m_server->QueryTimeout();
-	sprintf(timeout, "%d", (int)t);
-	SetDlgItemText(m_hwnd, IDQUERYTIMEOUT, (const char *) timeout);
+	wsprintf(timeout, L"%d", (int)t);
+	SetDlgItemText(m_hwnd, IDQUERYTIMEOUT, (const wchar_t *) timeout);
 
 	Validate();
 }

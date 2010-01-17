@@ -30,7 +30,7 @@ void TabDialogContainer::clear()
   m_windowList.clear();
 }
 
-void TabDialogContainer::addDialog(HWND hDialog, const char *tabLabel)
+void TabDialogContainer::addDialog(HWND hDialog, const wchar_t *tabLabel)
 {
   m_windowList.push_back(hDialog);
   m_labelList.push_back(tabLabel);
@@ -43,8 +43,16 @@ HWND TabDialogContainer::getWindow(int tabId) const
   }
   return m_windowList[tabId];
 }
-
+/*
 const char * TabDialogContainer::getLabel(int tabId) const
+{
+  if (tabId < 0 || tabId >= (int)m_labelList.size()) {
+    return 0;
+  }
+  return m_labelList[tabId];
+}
+*/
+const wchar_t * TabDialogContainer::getLabel(int tabId) const
 {
   if (tabId < 0 || tabId >= (int)m_labelList.size()) {
     return 0;
