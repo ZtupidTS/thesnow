@@ -18,6 +18,7 @@
 #include "Common.h"
 #include "Thunk.h"
 
+#include "CPUDetect.h"
 #include "../PowerPC.h"
 #include "../../Core.h"
 #include "../../HW/GPFifo.h"
@@ -129,14 +130,44 @@ void EmuCodeBlock::SafeWriteRegToReg(X64Reg reg_value, X64Reg reg_addr, int acce
 	FixupBranch argh = J_CC(CC_Z);
 	switch (accessSize)
 	{
-	case 32: ABI_CallFunctionRR(thunks.ProtectFunction((void *)&Memory::Write_U32, 2), reg_value, reg_addr); break;
-	case 16: ABI_CallFunctionRR(thunks.ProtectFunction((void *)&Memory::Write_U16, 2), reg_value, reg_addr); break;
+	case 32: ABI_CallFunctionRR(thunks.ProtectFunction(swap ? ((void *)&Memory::Write_U32) : ((void *)&Memory::Write_U32_Swap), 2), reg_value, reg_addr); break;
+	case 16: ABI_CallFunctionRR(thunks.ProtectFunction(swap ? ((void *)&Memory::Write_U16) : ((void *)&Memory::Write_U16_Swap), 2), reg_value, reg_addr); break;
 	case 8:  ABI_CallFunctionRR(thunks.ProtectFunction((void *)&Memory::Write_U8, 2), reg_value, reg_addr);  break;
 	}
 	FixupBranch arg2 = J();
 	SetJumpTarget(argh);
 	UnsafeWriteRegToReg(reg_value, reg_addr, accessSize, 0, swap);
 	SetJumpTarget(arg2);
+}
+
+static const u8 GC_ALIGNED16(pbswapShuffle1x4[16]) = {3, 2, 1, 0, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+static u32 GC_ALIGNED16(float_buffer);
+
+void EmuCodeBlock::SafeWriteFloatToReg(X64Reg xmm_value, X64Reg reg_addr)
+{
+	TEST(32, R(reg_addr), Imm32(0x0C000000));
+	if (false && cpu_info.bSSSE3) {
+		// This path should be faster but for some reason it causes errors so I've disabled it.
+		FixupBranch argh = J_CC(CC_Z);
+		MOVSS(M(&float_buffer), xmm_value);
+		MOV(32, R(EAX), M(&float_buffer));
+		BSWAP(32, EAX);
+		ABI_CallFunctionRR(thunks.ProtectFunction(((void *)&Memory::Write_U32), 2), EAX, reg_addr);
+		FixupBranch arg2 = J();
+		SetJumpTarget(argh);
+		PSHUFB(xmm_value, M((void *)pbswapShuffle1x4));
+	#ifdef _M_IX86
+		AND(32, R(reg_addr), Imm32(Memory::MEMVIEW32_MASK));
+		MOVD_xmm(MDisp(reg_addr, (u32)Memory::base), xmm_value);
+	#else
+		MOVD_xmm(MComplex(RBX, reg_addr, SCALE_1, 0), xmm_value);
+	#endif
+		SetJumpTarget(arg2);
+	} else {
+		MOVSS(M(&float_buffer), xmm_value);
+		MOV(32, R(EAX), M(&float_buffer));
+		SafeWriteRegToReg(EAX, reg_addr, 32, 0, true);
+	}
 }
 
 void EmuCodeBlock::WriteToConstRamAddress(int accessSize, const Gen::OpArg& arg, u32 address)

@@ -51,9 +51,8 @@ void Jit64::psq_st(UGeckoInstruction inst)
 {
 	INSTRUCTION_START
 	JITDISABLE(LoadStorePaired)
-	js.block_flags |= BLOCK_USE_GQR0 << inst.I;
 
-	if (js.blockSetsQuantizers || !inst.RA)
+	if (!inst.RA)
 	{
 		// TODO: Support these cases if it becomes necessary.
 		Default(inst);
@@ -67,60 +66,12 @@ void Jit64::psq_st(UGeckoInstruction inst)
 	int s = inst.RS; // Fp numbers
 
 	const UGQR gqr(rSPR(SPR_GQR0 + inst.I));
+	u16 store_gqr = gqr.Hex & 0xFFFF;
+
 	const EQuantizeType stType = static_cast<EQuantizeType>(gqr.ST_TYPE);
 	int stScale = gqr.ST_SCALE;
 
-	if (inst.W) {
-		// PanicAlert("W=1: stType %i stScale %i update %i", (int)stType, (int)stScale, (int)update); 
-		// It's fairly common that games write stuff to the pipe using this. Then, it's pretty much only
-		// floats so that's what we'll work on.
-		switch (stType)
-		{
-		case QUANTIZE_FLOAT:
-			{
-			// This one has quite a bit of optimization potential.
-			if (gpr.R(a).IsImm())
-			{
-				PanicAlert("Imm: %08x", gpr.R(a).offset);
-			}
-			gpr.FlushLockX(ABI_PARAM1, ABI_PARAM2);
-			gpr.Lock(a);
-			fpr.Lock(s);
-			if (update)
-				gpr.LoadToX64(a, true, true);
-			MOV(32, R(ABI_PARAM2), gpr.R(a));
-			if (offset)
-				ADD(32, R(ABI_PARAM2), Imm32((u32)offset));
-			TEST(32, R(ABI_PARAM2), Imm32(0x0C000000));
-			if (update && offset)
-				MOV(32, gpr.R(a), R(ABI_PARAM2));
-			CVTSD2SS(XMM0, fpr.R(s));
-			MOVD_xmm(M(&temp64), XMM0);
-			MOV(32, R(ABI_PARAM1), M(&temp64));
-			FixupBranch argh = J_CC(CC_NZ);
-			BSWAP(32, ABI_PARAM1);
-#ifdef _M_X64
-			MOV(32, MComplex(RBX, ABI_PARAM2, SCALE_1, 0), R(ABI_PARAM1));
-#else
-			MOV(32, R(EAX), R(ABI_PARAM2));
-			AND(32, R(EAX), Imm32(Memory::MEMVIEW32_MASK));
-			MOV(32, MDisp(EAX, (u32)Memory::base), R(ABI_PARAM1));
-#endif
-			FixupBranch skip_call = J();
-			SetJumpTarget(argh);
-			ABI_CallFunctionRR(thunks.ProtectFunction((void *)&Memory::Write_U32, 2), ABI_PARAM1, ABI_PARAM2); 
-			SetJumpTarget(skip_call);
-			gpr.UnlockAll();
-			gpr.UnlockAllX();
-			fpr.UnlockAll();
-			return;
-			}
-		default:
-			Default(inst);
-			return;
-		}
-	}
-
+#if 0
 	// Is this specialization still worth it? Let's keep it for now. It's probably
 	// not very risky since a game most likely wouldn't use the same code to process
 	// floats as integers (but you never know....).
@@ -139,6 +90,7 @@ void Jit64::psq_st(UGeckoInstruction inst)
 			}
 		}
 	}
+#endif
 
 	gpr.FlushLockX(EAX, EDX);
 	gpr.FlushLockX(ECX);
@@ -152,14 +104,23 @@ void Jit64::psq_st(UGeckoInstruction inst)
 		MOV(32, gpr.R(a), R(ECX));
 	MOVZX(32, 16, EAX, M(&PowerPC::ppcState.spr[SPR_GQR0 + inst.I]));
 	MOVZX(32, 8, EDX, R(AL));
-	// FIXME: Fix ModR/M encoding to allow [EDX*4+disp32]!
+	// FIXME: Fix ModR/M encoding to allow [EDX*4+disp32] without a base register!
 #ifdef _M_IX86
-	SHL(32, R(EDX), Imm8(2));
+	int addr_shift = 2;
 #else
-	SHL(32, R(EDX), Imm8(3));
+	int addr_shift = 3;
 #endif
-	CVTPD2PS(XMM0, fpr.R(s));
-	CALLptr(MDisp(EDX, (u32)(u64)asm_routines.pairedStoreQuantized));
+	SHL(32, R(EDX), Imm8(addr_shift));
+	if (inst.W) {
+		// One value
+		XORPS(XMM0, R(XMM0));  // TODO: See if we can get rid of this cheaply by tweaking the code in the singleStore* functions.
+		CVTSD2SS(XMM0, fpr.R(s));
+		CALLptr(MDisp(EDX, (u32)(u64)asm_routines.singleStoreQuantized));
+	} else {
+		// Pair of values
+		CVTPD2PS(XMM0, fpr.R(s));
+		CALLptr(MDisp(EDX, (u32)(u64)asm_routines.pairedStoreQuantized));
+	}
 	gpr.UnlockAll();
 	gpr.UnlockAllX();
 }
@@ -169,10 +130,16 @@ void Jit64::psq_l(UGeckoInstruction inst)
 	INSTRUCTION_START
 	JITDISABLE(LoadStorePaired)
 
-	js.block_flags |= BLOCK_USE_GQR0 << inst.I;
-
-	if (js.blockSetsQuantizers || !inst.RA || inst.W)
+	if (!inst.RA)
 	{
+		Default(inst);
+		return;
+	}
+
+	const UGQR gqr(rSPR(SPR_GQR0 + inst.I));
+
+	if (inst.W) {
+		// PanicAlert("Single ps load: %i %i", gqr.ST_TYPE, gqr.ST_SCALE);
 		Default(inst);
 		return;
 	}

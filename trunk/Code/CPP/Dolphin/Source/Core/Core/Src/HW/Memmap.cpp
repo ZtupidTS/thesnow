@@ -48,10 +48,6 @@ may be redirected here (for example to Read_U32()).
 #include "../Debugger/Debugger_SymbolMap.h"
 #include "../PluginManager.h"
 
-
-
-// Declarations and definitions
-// ----------------
 namespace Memory
 {
 
@@ -75,15 +71,13 @@ u8*	base = NULL;
 MemArena g_arena;
 // ==============
 
-
-// STATE_TO_SAVE (applies to a lot of things in this file)
-
+// STATE_TO_SAVE
 bool m_IsInitialized = false; // Save the Init(), Shutdown() state
+// END STATE_TO_SAVE
 
 // 64-bit: Pointers to low-mem (sub-0x10000000) mirror
 // 32-bit: Same as the corresponding physical/virtual pointers.
 u8 *m_pRAM;
-u8 *m_pEFB; 
 u8 *m_pL1Cache;
 u8 *m_pEXRAM;
 u8 *m_pFakeVMEM;
@@ -129,8 +123,6 @@ void HW_Default_Write(const T _Data, const u32 _Address){	ERROR_LOG(MASTER_LOG, 
 
 template <class T>
 void HW_Default_Read(T _Data, const u32 _Address){	ERROR_LOG(MASTER_LOG, "Illegal HW Read%i %08x", sizeof(T)*8, _Address); _dbg_assert_(MEMMAP, 0);}
-
-u32 CheckDTLB(u32 _Address, XCheckTLBFlag _Flag);
 
 #define PAGE_SHIFT 10
 #define PAGE_SIZE (1 << PAGE_SHIFT)
@@ -336,7 +328,9 @@ static const MemoryView views[] =
 	{NULL,         &m_pVirtualCachedRAM,     0x80000000, RAM_SIZE, MV_MIRROR_PREVIOUS},
 	{NULL,         &m_pVirtualUncachedRAM,   0xC0000000, RAM_SIZE, MV_MIRROR_PREVIOUS},
 
-	{&m_pEFB,      &m_pVirtualEFB,           0xC8000000, EFB_SIZE, 0},
+//  Don't map any memory for the EFB. We want all access to this area to go
+//  through the hardware access handlers.
+//	{&m_pEFB,      &m_pVirtualEFB,           0xC8000000, EFB_SIZE, 0},
 	{&m_pL1Cache,  &m_pVirtualL1Cache,       0xE0000000, L1_CACHE_SIZE, 0},
 
 	{&m_pFakeVMEM, &m_pVirtualFakeVMEM,      0x7E000000, FAKEVMEM_SIZE, MV_FAKE_VMEM},
@@ -397,8 +391,6 @@ void Clear()
 		memset(m_pRAM, 0, RAM_SIZE);
 	if (m_pL1Cache)
 		memset(m_pL1Cache, 0, L1_CACHE_SIZE);
-	if (m_pEFB)
-		memset(m_pEFB, 0, EFB_SIZE);
 	if (Core::GetStartupParameter().bWii && m_pEXRAM)
 		memset(m_pEXRAM, 0, EXRAM_SIZE);
 }
@@ -606,12 +598,10 @@ void CheckForBadAddresses(u32 Address, u32 Data, bool Read, int Bits)
 		if(Read)
 		{
 			WARN_LOG(CONSOLE, "Read%i: Program tried to read [%08x] from [%08x]", Bits, Address);		
-			//PanicAlert("Write_U32: Program tried to write [%08x] to [%08x]", _Address);	
 		}
 		else
 		{
 			ERROR_LOG(CONSOLE, "Write%i: Program tried to write [%08x] to [%08x]", Bits, Data, Address);	
-			//PanicAlert("Read: Program tried to write [%08x] to [%08x]", Data, Address);
 		}
 	}
 
@@ -620,16 +610,14 @@ void CheckForBadAddresses(u32 Address, u32 Data, bool Read, int Bits)
 		if(Read)
 		{
 			WARN_LOG(CONSOLE, "Read%i: Program read [0x%08x] from [0x%08x]     * * *   0   * * *", Bits, Data, Address);	
-			//PanicAlert("Read: Program read [%08x] from [%08x]", Data, Address);
 		}
 		else
 		{
 			WARN_LOG(CONSOLE, "Write%i: Program wrote [0x%08x] to [0x%08x]     * * *   0   * * *", Bits, Data, Address);	
-			//PanicAlert("Read: Program wrote [%08x] to [%08x]", Data, Address);
 		}
 	}
-	/* Try to figure out where the dev/di Ioctl arguments are stored (including buffer out), so we can
-	   find the bad one */
+	// Try to figure out where the dev/di Ioctl arguments are stored (including buffer out), so we can
+	// find the bad one
 	if(	
 		Data == 0x1090f4c0 // good out buffer right before it, for sound/smashbros_sound.brsar
 		|| Data == 0x10913b00 // second one
@@ -646,12 +634,10 @@ void CheckForBadAddresses(u32 Address, u32 Data, bool Read, int Bits)
 		if(Read)
 		{
 			ERROR_LOG(CONSOLE, "Read%i: Program read [0x%08x] from [0x%08x]      * * * * * * * * * * * *", Bits, Data, Address);	
-			//PanicAlert("Read%i: Program read [%08x] from [%08x]", Bits, Data, Address);
 		}
 		else
 		{
 			ERROR_LOG(CONSOLE, "Write%i: Program wrote [0x%08x] to [0x%08x]      * * * * * * * * * * * *", Bits,Data, Address);	
-			//PanicAlert("Write%i: Program wrote [0x%08x] to [0x%08x]", Bits, Data, Address);
 		}
 	}
 }
@@ -683,9 +669,6 @@ void Memset(const u32 _Address, const u8 _iValue, const u32 _iLength)
     }
     else
     {
-        // (comment for old implementation) : F|RES: rogue squadron and other games use the TLB ... so this cant work
-        
-        // fixed implementation:
         for (u32 i = 0; i < _iLength; i++)
             Write_U8(_iValue, _Address + i);
     }
@@ -793,7 +776,8 @@ u8 *GetPointer(const u32 _Address)
 			return 0;
 
 	case 0xC8:
-		return m_pEFB + (_Address & 0xFFFFFF);
+		return 0;  // EFB. We don't want to return a pointer here since we have no memory mapped for it.
+
 	case 0xCC:
 	case 0xCD:
 		_dbg_assert_msg_(MEMMAP, 0, "Memory", "GetPointer from IO Bridge doesnt work");
@@ -839,12 +823,9 @@ bool IsRAMAddress(const u32 addr, bool allow_locked_cache)
 			return true;
 		else
 			return false;
-
 	default:
 		return false;
 	}
 }
-
-
 
 }  // namespace
