@@ -53,6 +53,7 @@ extern u8 *base;
 
 // These are guarenteed to point to "low memory" addresses (sub-32-bit).
 extern u8 *m_pRAM;
+extern u8 *m_pEXRAM;
 extern u8 *m_pL1Cache;
 
 enum
@@ -134,13 +135,20 @@ u32 Read_U32(const u32 _Address);
 u64 Read_U64(const u32 _Address);
 
 // used by JIT. Return zero-extended 32bit values
-u32  Read_U8_ZX(const u32 _Address);
+u32 Read_U8_ZX(const u32 _Address);
 u32 Read_U16_ZX(const u32 _Address);
+
+// used by JIT (Jit64::lXz)
+u32 EFB_Read(const u32 addr);
 
 void Write_U8(const u8 _Data, const u32 _Address);
 void Write_U16(const u16 _Data, const u32 _Address);
 void Write_U32(const u32 _Data, const u32 _Address);
 void Write_U64(const u64 _Data, const u32 _Address);
+
+void Write_U16_Swap(const u16 _Data, const u32 _Address);
+void Write_U32_Swap(const u32 _Data, const u32 _Address);
+void Write_U64_Swap(const u64 _Data, const u32 _Address);
 
 void WriteHW_U32(const u32 _Data, const u32 _Address);
 void GetString(std::string& _string, const u32 _Address);

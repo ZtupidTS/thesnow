@@ -791,6 +791,7 @@ void PADConfigDialognJoy::CreateGUIControls()
 		// Create objects for general settings 3
 		m_gGenSettingsID[i] = new wxStaticBoxSizer( wxVERTICAL, m_Controller[i], wxT("设置") );
 		m_CBSaveByID[i] = new wxCheckBox(m_Controller[i], IDC_SAVEBYID, wxT("按 ID 保存"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+		m_CBSaveByID[i]->Enable(false);
 		m_CBShowAdvanced[i] = new wxCheckBox(m_Controller[i], IDC_SHOWADVANCED, wxT("显示高级设置"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 		
 		// Populate general settings 3

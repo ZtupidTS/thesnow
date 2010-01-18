@@ -14,21 +14,12 @@
 
 // Official SVN repository and contact information can be found at
 // http://code.google.com/p/dolphin-emu/
+// Gekko related unions, structs, ...
+//
 
-#pragma once
+#ifndef _LUT_frsqrtex_h_
+#define _LUT_frsqrtex_h_
 
-#include "D3DBase.h"
+extern const unsigned int frsqrtex_lut[65536];
 
-namespace D3D
-{
-	LPDIRECT3DVERTEXSHADER9 CreateVertexShaderFromByteCode(const u8 *bytecode, int len);
-	LPDIRECT3DPIXELSHADER9 CreatePixelShaderFromByteCode(const u8 *bytecode, int len);
-
-	// The returned bytecode buffers should be delete[]-d.
-	bool CompileVertexShader(const char *code, int len, u8 **bytecode, int *bytecodelen);
-	bool CompilePixelShader(const char *code, int len, u8 **bytecode, int *bytecodelen);
-
-	// Utility functions
-	LPDIRECT3DVERTEXSHADER9 CompileAndCreateVertexShader(const char *code, int len);
-	LPDIRECT3DPIXELSHADER9 CompileAndCreatePixelShader(const char *code, int len);
-}
+#endif //_LUT_frsqrtex_h_
