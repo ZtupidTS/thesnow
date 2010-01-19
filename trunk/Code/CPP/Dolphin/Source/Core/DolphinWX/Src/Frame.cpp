@@ -271,6 +271,7 @@ EVT_MENU_RANGE(IDM_LISTWAD, IDM_LISTDRIVES, CFrame::GameListChanged)
 EVT_ACTIVATE(CFrame::OnActive)
 EVT_CLOSE(CFrame::OnClose)
 EVT_SIZE(CFrame::OnResize)
+EVT_MOVE(CFrame::OnMove)
 EVT_LIST_ITEM_ACTIVATED(LIST_CTRL, CFrame::OnGameListCtrl_ItemActivated)
 EVT_HOST_COMMAND(wxID_ANY, CFrame::OnHostMessage)
 #if wxUSE_TIMER
@@ -509,8 +510,6 @@ void CFrame::OnQuit(wxCommandEvent& WXUNUSED (event))
 void CFrame::OnActive(wxActivateEvent& event)
 {
 	event.Skip();
-	if (event.GetActive())
-		UpdateGUI();
 }
 
 void CFrame::OnClose(wxCloseEvent& event)
@@ -555,9 +554,19 @@ void CFrame::PostUpdateUIEvent(wxUpdateUIEvent& event)
 	if (g_pCodeWindow) g_pCodeWindow->AddPendingEvent(event);
 }
 
+void CFrame::OnMove(wxMoveEvent& event)
+{
+	event.Skip();
+
+	SConfig::GetInstance().m_LocalCoreStartupParameter.iPosX = GetPosition().x;
+	SConfig::GetInstance().m_LocalCoreStartupParameter.iPosY = GetPosition().y;
+}
 void CFrame::OnResize(wxSizeEvent& event)
 {
 	event.Skip();
+
+	SConfig::GetInstance().m_LocalCoreStartupParameter.iWidth = GetSize().GetWidth();
+	SConfig::GetInstance().m_LocalCoreStartupParameter.iHeight = GetSize().GetHeight();
 
 	DoMoveIcons();  // In FrameWiimote.cpp
 }
@@ -681,7 +690,9 @@ void CFrame::OnGameListCtrl_ItemActivated(wxListEvent& WXUNUSED (event))
 
 		m_GameListCtrl->Update();
 	}			
-	else BootGame();
+	else
+		// Game started by double click
+		StartGame();
 }
 
 void CFrame::OnKeyDown(wxKeyEvent& event)
@@ -795,6 +806,10 @@ void CFrame::OnMotion(wxMouseEvent& event)
 #if wxUSE_TIMER
 void CFrame::Update()
 {
+	// Update the GUI while a game has not yet been loaded
+	if (!Core::isRunning())
+		UpdateGUI();
+
 	// Check if auto hide is on, or if we are already hiding the cursor all the time
 	if(!SConfig::GetInstance().m_LocalCoreStartupParameter.bAutoHideCursor
 		|| SConfig::GetInstance().m_LocalCoreStartupParameter.bHideCursor) return;
