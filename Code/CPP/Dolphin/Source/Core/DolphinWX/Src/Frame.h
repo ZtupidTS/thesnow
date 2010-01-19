@@ -251,6 +251,7 @@ class CFrame : public wxFrame
 		WXLRESULT MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, WXLPARAM lParam);
 #endif
 		// Event functions
+		void StartGame();
 		void OnQuit(wxCommandEvent& event);
 		void OnHelp(wxCommandEvent& event);
 		void OnToolBar(wxCommandEvent& event);
@@ -293,6 +294,7 @@ class CFrame : public wxFrame
 		void OnToggleSkipIdle(wxCommandEvent& event);
 		void OnToggleThrottle(wxCommandEvent& event);
 		void OnManagerResize(wxAuiManagerEvent& event);
+		void OnMove(wxMoveEvent& event);
 		void OnResize(wxSizeEvent& event);
 		void OnResizeAll(wxSizeEvent& event);
 		void OnToggleToolbar(wxCommandEvent& event);

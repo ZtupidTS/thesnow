@@ -261,14 +261,14 @@ void CFrame::CreateMenu()
 	if (g_pCodeWindow) g_pCodeWindow->CreateMenu(SConfig::GetInstance().m_LocalCoreStartupParameter, m_MenuBar);
 
 	// Help menu
-//	wxMenu* helpMenu = new wxMenu;
+	wxMenu* helpMenu = new wxMenu;
 	/*helpMenu->Append(wxID_HELP, _T("&Help"));
 	re-enable when there's something useful to display*/
-//	helpMenu->Append(IDM_HELPWEBSITE, _T("WiiX 网站(Dolphin Mod)(&W)"));
-//	helpMenu->Append(IDM_HELPGOOGLECODE, _T("WiiX (Dolphin Mod) &Google 代码"));
-//	helpMenu->AppendSeparator();
-//	helpMenu->Append(IDM_HELPABOUT, _T("关于(&A)..."));
-//	m_MenuBar->Append(helpMenu, _T("帮助(&H)"));
+	helpMenu->Append(IDM_HELPWEBSITE, _T("Dolphin (Mod) 网站(&W)"));
+	helpMenu->Append(IDM_HELPGOOGLECODE, _T("Dolphin (Mod) &Google 代码"));
+	helpMenu->AppendSeparator();
+	helpMenu->Append(IDM_HELPABOUT, _T("关于(&A)..."));
+	m_MenuBar->Append(helpMenu, _T("帮助(&H)"));
 
 	// Associate the menu bar with the frame
 	SetMenuBar(m_MenuBar);
@@ -467,31 +467,34 @@ void CFrame::InitBitmaps()
 
 
 // Menu items
-// ---------------------
 
-// Start the game or change the disc
+// Start the game or change the disc.
+// Boot priority:
+// 1. Show the game list and boot the selected game.
+// 2. Default ISO
+// 3. Boot last selected game
 void CFrame::BootGame()
 {
+	SCoreStartupParameter& StartUp = SConfig::GetInstance().m_LocalCoreStartupParameter;
+
 	if (Core::GetState() != Core::CORE_UNINITIALIZED)
 		return;
 
 	// Start the selected ISO, or try one of the saved paths.
 	// If all that fails, ask to add a dir and don't boot
-	else if (m_GameListCtrl->GetSelectedISO() != NULL)
+	if (m_GameListCtrl->GetSelectedISO() != NULL)
 	{
 		if (m_GameListCtrl->GetSelectedISO()->IsValid())
 			BootManager::BootCore(m_GameListCtrl->GetSelectedISO()->GetFileName());
 	}
+	else if (!StartUp.m_strDefaultGCM.empty()
+		&&	wxFileExists(wxString(StartUp.m_strDefaultGCM.c_str(), wxConvUTF8)))
+	{
+		BootManager::BootCore(StartUp.m_strDefaultGCM);
+	}
 	else
 	{
-		SCoreStartupParameter& StartUp = SConfig::GetInstance().m_LocalCoreStartupParameter;
-
-		if (!StartUp.m_strDefaultGCM.empty()
-			&&	wxFileExists(wxString(StartUp.m_strDefaultGCM.c_str(), wxConvUTF8)))
-		{
-			BootManager::BootCore(StartUp.m_strDefaultGCM);
-		}
-		else if (!SConfig::GetInstance().m_LastFilename.empty()
+		if (!SConfig::GetInstance().m_LastFilename.empty()
 			&& wxFileExists(wxString(SConfig::GetInstance().m_LastFilename.c_str(), wxConvUTF8)))
 		{
 			BootManager::BootCore(SConfig::GetInstance().m_LastFilename);
@@ -608,10 +611,14 @@ void CFrame::OnPlayRecording(wxCommandEvent& WXUNUSED (event))
 		BootGame();
 }
 
+// Game loading state
+bool game_started = false;
+
 void CFrame::OnPlay(wxCommandEvent& WXUNUSED (event))
 {
 	if (Core::GetState() != Core::CORE_UNINITIALIZED)
 	{
+		// Core is initialized and emulator is running
 		if (UseDebugger)
 		{
 			if (CCPU::IsStepping())
@@ -630,8 +637,28 @@ void CFrame::OnPlay(wxCommandEvent& WXUNUSED (event))
 			else
 				Core::SetState(Core::CORE_RUN);
 		}
-		
+		// Update toolbar with Play/Pause status
 		UpdateGUI();
+	}
+	else
+		// Core is uninitialized, start the game
+		StartGame();
+}
+
+// Prepare the GUI to start the game.
+void CFrame::StartGame()
+{
+	game_started = true;
+
+	if (m_ToolBar)
+		m_ToolBar->EnableTool(IDM_PLAY, false);
+	GetMenuBar()->FindItem(IDM_PLAY)->Enable(false);
+
+	// Game has been started, hide the game list
+	if (m_GameListCtrl->IsShown())
+	{
+		m_GameListCtrl->Disable();
+		m_GameListCtrl->Hide();
 	}
 
 	BootGame();
@@ -687,6 +714,7 @@ void CFrame::DoStop()
 
 void CFrame::OnStop(wxCommandEvent& WXUNUSED (event))
 {
+	game_started = false;
 	DoStop();
 }
 
@@ -1016,14 +1044,39 @@ void CFrame::UpdateGUI()
 			m_ToolBar->SetToolShortHelp(IDM_PLAY, _("开始"));
 			m_ToolBar->SetToolLabel(IDM_PLAY, wxT(" 开始"));
 		}
-		GetMenuBar()->FindItem(IDM_PLAY)->SetText(_("开始游戏(&P)\tF10"));
-		
+		GetMenuBar()->FindItem(IDM_PLAY)->SetText(_("开始游戏(&P)\tF10"));		
 	}
-
+	
 	if (!Initialized)
 	{
-		if (m_GameListCtrl)
+		if (Core::GetStartupParameter().m_strFilename.empty())
 		{
+			// Prepare to load Default ISO, enable play button
+			if (!Core::GetStartupParameter().m_strDefaultGCM.empty())
+			{
+				if (m_ToolBar)
+					m_ToolBar->EnableTool(IDM_PLAY, true);					
+				GetMenuBar()->FindItem(IDM_PLAY)->Enable(true);
+			}
+			else
+			{
+				// No game has been selected yet, disable play button
+				if (m_ToolBar)
+					m_ToolBar->EnableTool(IDM_PLAY, false);
+				GetMenuBar()->FindItem(IDM_PLAY)->Enable(false);
+			}
+		}
+		else
+		{
+			// Loading Default ELF automatically, disable play button
+			if (m_ToolBar)
+				m_ToolBar->EnableTool(IDM_PLAY, false);
+			GetMenuBar()->FindItem(IDM_PLAY)->Enable(false);
+		}
+
+		if (m_GameListCtrl && !game_started)
+		{
+			// Game has not started, show game list
 			if (!m_GameListCtrl->IsShown())
 			{
 				m_GameListCtrl->Reparent(m_Panel);
@@ -1031,18 +1084,21 @@ void CFrame::UpdateGUI()
 				m_GameListCtrl->Show();
 				sizerPanel->FitInside(m_Panel);
 			}
+			// Game has been selected but not started, enable play button
+			if (m_GameListCtrl->GetSelectedISO() != NULL && m_GameListCtrl->IsEnabled() && !game_started)
+			{
+				if (m_ToolBar)
+					m_ToolBar->EnableTool(IDM_PLAY, true);
+				GetMenuBar()->FindItem(IDM_PLAY)->Enable(true);
+			}
 		}
 	}
 	else
 	{
-		if (m_GameListCtrl)
-		{
-			if (m_GameListCtrl->IsShown())
-			{
-				m_GameListCtrl->Disable();
-				m_GameListCtrl->Hide();
-			}
-		}
+		// Game has been loaded, enable the play button
+		if (m_ToolBar)
+			m_ToolBar->EnableTool(IDM_PLAY, true);
+		GetMenuBar()->FindItem(IDM_PLAY)->Enable(true);
 	}
 
 	if (m_ToolBar) m_ToolBar->Refresh();
