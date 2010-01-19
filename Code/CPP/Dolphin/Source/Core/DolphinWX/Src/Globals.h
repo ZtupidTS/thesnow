@@ -24,8 +24,8 @@
 #ifndef _GLOBALS_H
 #define _GLOBALS_H
 
-#ifndef WiiX
-#define WiiX
+#ifndef NO_MOD
+#define NO_MOD
 #endif
 
 #include "Common.h"

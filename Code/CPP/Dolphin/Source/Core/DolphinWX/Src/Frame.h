@@ -51,7 +51,11 @@ class CFrame : public wxFrame
 	public:
 		CFrame(wxFrame* parent,
 			wxWindowID id = wxID_ANY,
-			const wxString& title = wxT("WiiX"),
+#ifdef NO_MOD
+			const wxString& title = wxT("Dolphin"),
+#else
+			const wxString& title = wxT("Dolphin (MOD)"),
+#endif
 			const wxPoint& pos = wxDefaultPosition,
 			const wxSize& size = wxDefaultSize,
 			bool _UseDebugger = false,

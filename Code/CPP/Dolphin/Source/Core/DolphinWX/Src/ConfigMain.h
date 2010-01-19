@@ -30,10 +30,10 @@ public:
 
 	CConfigMain(wxWindow* parent,
 		wxWindowID id = 1,
-#ifndef WiiX
+#ifndef NO_MOD
 		const wxString& title = wxT("Dolphin ≈‰÷√"),
 #else
-		const wxString& title = wxT("WiiX ≈‰÷√"),
+		const wxString& title = wxT("Dolphin (MOD) ≈‰÷√"),
 #endif
 		const wxPoint& pos = wxDefaultPosition,
 		const wxSize& size = wxDefaultSize,
