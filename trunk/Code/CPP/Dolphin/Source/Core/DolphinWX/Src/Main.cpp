@@ -390,7 +390,7 @@ bool DolphinApp::OnInit()
 		#ifdef DEBUGFAST
 			const char *title = "Dolphin Debugfast SVN R " SVN_REV_STR;
 		#else
-		#ifndef	WiiX
+		#ifndef	NO_MOD
 			const char *title = "Dolphin Rev " SVN_REV_STR;
 		#else
 			const WCHAR *title = wxT("Dolphin -∫„æ√øÏ¿÷,æ≠µ‰”¿‘∂-");
@@ -402,9 +402,12 @@ bool DolphinApp::OnInit()
 	int y = SConfig::GetInstance().m_LocalCoreStartupParameter.iPosY;
 	int w = SConfig::GetInstance().m_LocalCoreStartupParameter.iWidth;
 	int h = SConfig::GetInstance().m_LocalCoreStartupParameter.iHeight;
-
+#ifdef NO_MOD
+	main_frame = new CFrame((wxFrame*)NULL, wxID_ANY, wxString(title),
+#else
 	main_frame = new CFrame((wxFrame*)NULL, wxID_ANY, wxString::FromAscii(title),
-		wxPoint(x, y), wxSize(w, h), UseDebugger, UseLogger);
+#endif
+	wxPoint(x, y), wxSize(w, h), UseDebugger, UseLogger);
 
 	// ------------
 	// Check the autoboot options. 
