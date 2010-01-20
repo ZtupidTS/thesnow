@@ -1,4 +1,4 @@
-// SciTE - Scintilla based Text Editor
+ï»¿// SciTE - Scintilla based Text Editor
 // LuaExtension.cxx - Lua scripting extension
 // Copyright 1998-2000 by Neil Hodgson <neilh@scintilla.org>
 // The License.txt file describes the conditions under which this software may be distributed.
@@ -239,11 +239,11 @@ static int cf_scite_send(lua_State *L) {
 		if (IFaceFunctionIsScriptable(func)) {
 			return iface_function_helper(L, func);
 		} else {
-			raise_error(L, "²»ÄÜµ÷ÓÃ,·¢ËÍ´Ëº¯Êı: ²»ÄÜ½Å±¾»¯.");
+			raise_error(L, "ä¸èƒ½è°ƒç”¨,å‘é€æ­¤å‡½æ•°: ä¸èƒ½è„šæœ¬åŒ–.");
 			return 0;
 		}
 	} else {
-		raise_error(L, "ÏûÏ¢ºÅ²»Æ¥ÅäÈÎºÎ·¢²¼µÄ Scintilla º¯Êı»òÕßÊôĞÔ");
+		raise_error(L, "æ¶ˆæ¯å·ä¸åŒ¹é…ä»»ä½•å‘å¸ƒçš„ Scintilla å‡½æ•°æˆ–è€…å±æ€§");
 		return 0;
 	}
 }
@@ -255,7 +255,7 @@ static int cf_scite_constname(lua_State *L) {
 		lua_pushstring(L, constName);
 		return 1;
 	} else {
-		raise_error(L, "²ÎÊı²»Æ¥ÅäÈÎºÎ Scintilla / SciTE ³£Á¿");
+		raise_error(L, "å‚æ•°ä¸åŒ¹é…ä»»ä½• Scintilla / SciTE å¸¸é‡");
 		return 0;
 	}
 }
@@ -298,7 +298,7 @@ static ExtensionAPI::Pane check_pane_object(lua_State *L, int index) {
 
 	if (pPane) {
 		if ((*pPane == ExtensionAPI::paneEditor) && (curBufferIndex < 0))
-			raise_error(L, "±à¼­Æ÷Ãæ°å´ËÊ±²»¿É·ÃÎÊ.");
+			raise_error(L, "ç¼–è¾‘å™¨é¢æ¿æ­¤æ—¶ä¸å¯è®¿é—®.");
 
 		return *pPane;
 	}
@@ -559,7 +559,7 @@ static int cf_pane_match(lua_State *L) {
 
 		return 3;
 	} else {
-		raise_error(L, "ÄÚ²¿´íÎó: ²»ÄÜ´´½¨Æ¥Åä¶ÔÏó.");
+		raise_error(L, "å†…éƒ¨é”™è¯¯: ä¸èƒ½åˆ›å»ºåŒ¹é…å¯¹è±¡.");
 		return 0;
 	}
 }
@@ -644,7 +644,7 @@ static int cf_props_metatable_newindex(lua_State *L) {
 			raise_error(L, "Expected string or nil for property assignment.");
 		}
 	} else {
-		raise_error(L, "ÊôĞÔÃû³Æ±ØĞëÎª·Ç¿Õ×Ö·û´®.");
+		raise_error(L, "å±æ€§åç§°å¿…é¡»ä¸ºéç©ºå­—ç¬¦ä¸².");
 	}
 	return 0;
 }
@@ -683,7 +683,7 @@ static int cf_global_print(lua_State *L) {
 			if (argStr) {
 				host->Trace(argStr);
 			} else {
-				raise_error(L, "tostring (±» print µ÷ÓÃ) ·µ»ØÒ»¸ö·Ç×Ö·û´®");
+				raise_error(L, "tostring (è¢« print è°ƒç”¨) è¿”å›ä¸€ä¸ªéå­—ç¬¦ä¸²");
 			}
 			lua_settop(L, nargs + 1);
 		}
@@ -749,11 +749,11 @@ static bool call_function(lua_State *L, int nargs, bool ignoreFunctionReturnValu
 		} else {
 			lua_pop(L, 1);
 			if (result == LUA_ERRMEM) {
-				host->Trace("> Lua: ÄÚ´æ·ÖÅä´íÎó\n");
+				host->Trace("> Lua: å†…å­˜åˆ†é…é”™è¯¯\n");
 			} else if (result == LUA_ERRERR) {
 				host->Trace("> Lua: an error occurred, but cannot be reported due to failure in _TRACEBACK\n");
 			} else {
-				host->Trace("> Lua: ÒâÍâ´íÎó\n");
+				host->Trace("> Lua: æ„å¤–é”™è¯¯\n");
 			}
 		}
 	}
@@ -906,7 +906,7 @@ static int cf_ifaceprop_metatable_index(lua_State *L) {
 		return 0;
 	}
 	if (ipb->prop->getter == 0) {
-		raise_error(L, "³¢ÊÔ¶ÁÈ¡Ò»¸öÖ»Ğ´Ë÷ÒıÊôĞÔ");
+		raise_error(L, "å°è¯•è¯»å–ä¸€ä¸ªåªå†™ç´¢å¼•å±æ€§");
 		return 0;
 	}
 	IFaceFunction func = ipb->prop->GetterFunction();
@@ -925,7 +925,7 @@ static int cf_ifaceprop_metatable_newindex(lua_State *L) {
 		return 0;
 	}
 	if (ipb->prop->setter == 0) {
-		raise_error(L, "³¢ÊÔ¶ÁÈ¡Ò»¸öÖ»Ğ´Ë÷ÒıÊôĞÔ");
+		raise_error(L, "å°è¯•è¯»å–ä¸€ä¸ªåªå†™ç´¢å¼•å±æ€§");
 		return 0;
 	}
 	IFaceFunction func = ipb->prop->SetterFunction();
@@ -974,7 +974,7 @@ static int push_iface_propval(lua_State *L, const char *name) {
 	if (propidx >= 0) {
 		const IFaceProperty &prop = IFaceTable::properties[propidx];
 		if (!IFacePropertyIsScriptable(prop)) {
-			raise_error(L, "´íÎó: iface ÊôĞÔ²»¿É½Å±¾»¯.");
+			raise_error(L, "é”™è¯¯: iface å±æ€§ä¸å¯è„šæœ¬åŒ–.");
 			return -1;
 		}
 
@@ -1160,7 +1160,7 @@ static int LuaPanicFunction(lua_State *L) {
 		luaState = NULL;
 		luaDisabled = true;
 	}
-	host->Trace("\n> Lua: ´íÎó·¢ÉúÓÚÒ»¸ö²»ÊÜ±£»¤µÄµ÷ÓÃ(call). ·Ç³£Ôã¸â.\n");
+	host->Trace("\n> Lua: é”™è¯¯å‘ç”Ÿäºä¸€ä¸ªä¸å—ä¿æŠ¤çš„è°ƒç”¨(call). éå¸¸ç³Ÿç³•.\n");
 	return 1;
 }
 
@@ -1172,8 +1172,7 @@ static int LuaPanicFunction(lua_State *L) {
 // using it.
 
 static char *CheckStartupScript() {
-	if (startupScript)
-		delete[] startupScript;
+	delete[] startupScript;
 
 	startupScript = host->Property("ext.lua.startup.script");
 
@@ -1280,7 +1279,7 @@ static bool InitGlobalScope(bool checkProperties, bool forceReload = false) {
 		luaState = lua_open();
 		if (!luaState) {
 			luaDisabled = true;
-			host->Trace("> Lua: ½Å±¾ÒıÇæ³õÊ¼»¯Ê§°Ü\n");
+			host->Trace("> Lua: è„šæœ¬å¼•æ“åˆå§‹åŒ–å¤±è´¥\n");
 			return false;
 		}
 		lua_atpanic(luaState, LuaPanicFunction);
@@ -1367,7 +1366,7 @@ static bool InitGlobalScope(bool checkProperties, bool forceReload = false) {
 
 		luaL_loadfile(luaState, startupScript);
 		if (!call_function(luaState, 0, true)) {
-			host->Trace(">Lua: µ±ÔØÈëÆô¶¯½Å±¾Ê±·¢ËÍ´íÎó,»Ò³£ÓôÃÆ..\n");
+			host->Trace(">Lua: å½“è½½å…¥å¯åŠ¨è„šæœ¬æ—¶å‘é€é”™è¯¯,ç°å¸¸éƒé—·..\n");
 		}
 	}
 
@@ -1440,7 +1439,7 @@ bool LuaExtension::Load(const char *filename) {
 				extensionScript = filename;
 				luaL_loadfile(luaState, filename);
 				if (!call_function(luaState, 0, true)) {
-					host->Trace(">Lua: µ±ÔØÈëÒ»¸öÀ©Õ¹½Å±¾Ê±·¢Éú´íÎó\n");
+					host->Trace(">Lua: å½“è½½å…¥ä¸€ä¸ªæ‰©å±•è„šæœ¬æ—¶å‘ç”Ÿé”™è¯¯\n");
 				}
 				loaded = true;
 			}
@@ -1556,16 +1555,16 @@ bool LuaExtension::OnExecute(const char *s) {
 							lua_insert(luaState, stackBase+1);
 							lua_settop(luaState, stackBase+2);
 							if (!call_function(luaState, 1, true)) {
-								host->Trace(">Lua: µ±´¦ÀíÃüÁîÊ±·¢ÉúÒ»¸ö´íÎó\n");
+								host->Trace(">Lua: å½“å¤„ç†å‘½ä»¤æ—¶å‘ç”Ÿä¸€ä¸ªé”™è¯¯\n");
 							}
 						}
 					} else {
-						host->Trace("> Lua: ¼ì²éÃüÁîÈ«¾Ö·¶Î§´íÎó\n");
+						host->Trace("> Lua: æ£€æŸ¥å‘½ä»¤å…¨å±€èŒƒå›´é”™è¯¯\n");
 					}
 				}
 			}
 		} else {
-			host->Trace("> Lua: ×Ö·û´®½Å±¾¿âÎ´ÔØÈë\n");
+			host->Trace("> Lua: å­—ç¬¦ä¸²è„šæœ¬åº“æœªè½½å…¥\n");
 		}
 
 		lua_settop(luaState, stackBase);

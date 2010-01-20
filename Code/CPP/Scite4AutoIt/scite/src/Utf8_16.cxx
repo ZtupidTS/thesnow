@@ -1,4 +1,4 @@
-// Utf8_16.cxx
+Ôªø// Utf8_16.cxx
 // Copyright (C) 2002 Scott Kirkwood
 //
 // Permission to use, copy, modify, distribute and sell this code
@@ -14,9 +14,9 @@
 #include <stdio.h>
 
 const Utf8_16::utf8 Utf8_16::k_Boms[][3] = {
-	{0x00, 0x00, 0x00},  // Œ¥÷™
-	{0xFE, 0xFF, 0x00},  // ¥Û±‡¬Î(Big endian)
-	{0xFF, 0xFE, 0x00},  // –°±‡¬Î(Little endian)
+	{0x00, 0x00, 0x00},  // Êú™Áü•
+	{0xFE, 0xFF, 0x00},  // Â§ßÁºñÁ†Å(Big endian)
+	{0xFF, 0xFE, 0x00},  // Â∞èÁºñÁ†Å(Little endian)
 	{0xEF, 0xBB, 0xBF},  // UTF8
 };
 
@@ -31,8 +31,10 @@ enum { SURROGATE_FIRST_VALUE = 0x10000 };
 Utf8_16_Read::Utf8_16_Read() {
 	m_eEncoding = eUnknown;
 	m_nBufSize = 0;
+	m_pBuf = NULL;
 	m_pNewBuf = NULL;
 	m_bFirstRead = true;
+	m_nLen = 0;
 }
 
 Utf8_16_Read::~Utf8_16_Read() {
