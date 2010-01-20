@@ -67,8 +67,9 @@ private:
 	wxBoxSizer* sCore;
 	wxStaticBoxSizer* sbBasic, *sbAdvanced, *sbInterface;
 	wxCheckBox* AlwaysHLE_BS2;
-	wxRadioButton* m_RadioJIT;
 	wxRadioButton* m_RadioInt;
+	wxRadioButton* m_RadioJIT;
+	wxRadioButton* m_RadioJITIL;
 	wxCheckBox* CPUThread;
 	wxCheckBox* DSPThread;
 	wxCheckBox* LockThreads;
@@ -164,6 +165,7 @@ private:
 
 		ID_ALWAYS_HLE_BS2,
 		ID_RADIOJIT,
+		ID_RADIOJITIL,
 		ID_RADIOINT,
 		ID_CPUTHREAD,
 		ID_DSPTHREAD,

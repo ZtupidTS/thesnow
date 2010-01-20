@@ -39,6 +39,7 @@
 #include "AboutDolphin.h"
 #include "GameListCtrl.h"
 #include "BootManager.h"
+#include "ConsoleListener.h"
 
 #include "ConfigManager.h" // Core
 #include "Core.h"
@@ -165,11 +166,20 @@ CPanel::CPanel(
 				else
 				{
 					// The Wiimote has been disconnect, we offer reconnect here
-					if(AskYesNo("Wiimote %i has been disconnected by system.\n"
-						"Maybe this game doesn't support multi-wiimote,\n"
-						"or maybe it is due to idle time out or other reason.\n\n"
-						"Do you want to reconnect immediately?", lParam + 1, "Confirm", wxYES_NO))
+					wxMessageDialog *dlg = new wxMessageDialog(
+						this,
+						wxString::Format(wxT("Wiimote %i has been disconnected by system.\n")
+						wxT("Maybe this game doesn't support multi-wiimote,\n")
+						wxT("or maybe it is due to idle time out or other reason.\n\n")
+						wxT("Do you want to reconnect immediately?"), lParam + 1),
+						wxT("Reconnect Wiimote Confirm"),
+						wxYES_NO | wxSTAY_ON_TOP | wxICON_INFORMATION, //wxICON_QUESTION,
+						wxDefaultPosition);
+
+					if (dlg->ShowModal() == wxID_YES)
 						GetUsbPointer()->AccessWiiMote(lParam | 0x100)->Activate(true);
+
+					delete dlg;
 				}
 				return 0;
 			}
@@ -806,10 +816,6 @@ void CFrame::OnMotion(wxMouseEvent& event)
 #if wxUSE_TIMER
 void CFrame::Update()
 {
-	// Update the GUI while a game has not yet been loaded
-	if (!Core::isRunning())
-		UpdateGUI();
-
 	// Check if auto hide is on, or if we are already hiding the cursor all the time
 	if(!SConfig::GetInstance().m_LocalCoreStartupParameter.bAutoHideCursor
 		|| SConfig::GetInstance().m_LocalCoreStartupParameter.bHideCursor) return;

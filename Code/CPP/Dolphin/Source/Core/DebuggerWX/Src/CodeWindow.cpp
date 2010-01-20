@@ -54,7 +54,7 @@
 #include "PowerPC/PPCSymbolDB.h"
 #include "PowerPC/SignatureDB.h"
 #include "PowerPC/PPCTables.h"
-#include "PowerPC/Jit64/Jit.h"
+#include "PowerPC/JitCommon/JitBase.h"
 #include "PowerPC/JitCommon/JitCache.h" // for ClearCache()
 
 #include "PluginManager.h"
@@ -209,7 +209,6 @@ void CCodeWindow::OnHostMessage(wxCommandEvent& event)
 	    case IDM_UPDATEDISASMDIALOG:
 		    Update();
 			if (codeview) codeview->Center(PC);
-//			if (m_JitWindow) Host_ShowJitResults(PC);
 		    if (m_RegisterWindow) m_RegisterWindow->NotifyUpdate();
 		    break;
 
@@ -268,7 +267,6 @@ void CCodeWindow::OnCodeStep(wxCommandEvent& event)
 void CCodeWindow::JumpToAddress(u32 _Address)
 {
     codeview->Center(_Address);
-	if (m_JitWindow) Host_ShowJitResults(_Address);
 	UpdateLists();
 }
 
@@ -437,7 +435,7 @@ void CCodeWindow::CreateMenu(const SCoreStartupParameter& _LocalCoreStartupParam
 		" and stepping to work as explained in the Developer Documentation. But it can be very"
 		" slow, perhaps slower than 1 fps.")
 		, wxITEM_CHECK);
-	interpreter->Check(!_LocalCoreStartupParameter.bUseJIT);
+	interpreter->Check(_LocalCoreStartupParameter.iCPUCore == 0);
 	pCoreMenu->AppendSeparator();
 
 	jitblocklinking = pCoreMenu->Append(IDM_JITBLOCKLINKING, _T("&JIT Block Linking off"),
@@ -553,7 +551,7 @@ void CCodeWindow::OnCPUMode(wxCommandEvent& event)
 	}
 
 	// Clear the JIT cache to enable these changes
-	jit.ClearCache();
+	jit->ClearCache();
 	// Update
 	UpdateButtonStates();
 }
@@ -565,7 +563,7 @@ void CCodeWindow::OnJitMenu(wxCommandEvent& event)
 			PPCTables::LogCompiledInstructions(); break;
 
 		case IDM_CLEARCODECACHE:
-			jit.ClearCache(); break;
+			jit->ClearCache(); break;
 
 		case IDM_SEARCHINSTRUCTION:
 		{
@@ -617,7 +615,7 @@ void CCodeWindow::InitBitmaps()
 	m_Bitmaps[Toolbar_SetPC] = wxGetBitmapFromMemory(toolbar_add_memcheck_png);
 	m_Bitmaps[Toolbar_DebugPause] = wxGetBitmapFromMemory(toolbar_pause_png);
 
-	// scale to 16x16 for toolbar
+	// scale to 24x24 for toolbar
 	for (size_t n = Toolbar_DebugGo; n < ToolbarDebugBitmapMax; n++)
 	{
 		m_Bitmaps[n] = wxBitmap(m_Bitmaps[n].ConvertToImage().Scale(24, 24));

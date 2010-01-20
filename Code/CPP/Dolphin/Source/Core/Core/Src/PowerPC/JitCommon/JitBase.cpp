@@ -12,21 +12,20 @@
 // A copy of the GPL 2.0 should have been included with the program.
 // If not, see http://www.gnu.org/licenses/
 
-// Official SVN repository and contact information can be found at
-// http://code.google.com/p/dolphin-emu/
+#include "JitBase.h"
 
-#ifndef _MEMORYUTIL_H
-#define _MEMORYUTIL_H
+JitBase *jit;
 
-#include <string>
+void Jit(u32 em_address)
+{
+	jit->Jit(em_address);
+}
 
-void* AllocateExecutableMemory(size_t size, bool low = true);
-void* AllocateMemoryPages(size_t size);
-void FreeMemoryPages(void* ptr, size_t size);
-void WriteProtectMemory(void* ptr, size_t size, bool executable = false);
-void UnWriteProtectMemory(void* ptr, size_t size, bool allowExecute = false);
-std::string MemUsage();
-
-inline int GetPageSize() { return 4096; }
-
-#endif
+u32 Helper_Mask(u8 mb, u8 me)
+{
+	return (((mb > me) ?
+		~(((u32)-1 >> mb) ^ ((me >= 31) ? 0 : (u32) -1 >> (me + 1)))
+		:
+		(((u32)-1 >> mb) ^ ((me >= 31) ? 0 : (u32) -1 >> (me + 1))))
+		);
+}
