@@ -1,6 +1,6 @@
-// SciTE - Scintilla based Text Editor
+ï»¿// SciTE - Scintilla based Text Editor
 /** @file FilePath.cxx
- ** Encapsulate ÎÄ¼þÂ·¾¶.
+ ** Encapsulate æ–‡ä»¶è·¯å¾„.
  **/
 // Copyright 1998-2005 by Neil Hodgson <neilh@scintilla.org>
 // The License.txt file describes the conditions under which this software may be distributed.
@@ -159,7 +159,7 @@ bool FilePath::IsAbsolute() const {
 		return true;
 #endif
 #ifdef WIN32
-	if (fileName[0] == pathSepChar || fileName[1] == ':')	// UNC Â·¾¶»òÕßÇý¶¯Æ÷·Ö¸ô·û
+	if (fileName[0] == pathSepChar || fileName[1] == ':')	// UNC è·¯å¾„æˆ–è€…é©±åŠ¨å™¨åˆ†éš”ç¬¦
 		return true;
 #endif
 
@@ -650,11 +650,6 @@ void FilePath::FixName() {
 		}
 	}
 #endif
-}
-
-FilePathSet &FilePathSet::operator=(const FilePathSet &) {
-	// Private so won't be called.
-	return *this;
 }
 
 FilePathSet::FilePathSet(int size_) {

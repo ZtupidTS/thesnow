@@ -1,4 +1,4 @@
-// SciTE - Scintilla based Text Editor
+ï»¿// SciTE - Scintilla based Text Editor
 /** @file SciTEBase.cxx
  ** Platform independent base class of editor.
  **/
@@ -79,7 +79,7 @@
 #include "JobQueue.h"
 #include "SciTEBase.h"
 
-// ¾èÖúÕßÃû³Æ(UTF-8±àÂë)
+// æåŠ©è€…åç§°(UTF-8ç¼–ç )
 const char *contributors[] = {
             "Atsuo Ishimoto",
             "Mark Hammond",
@@ -363,14 +363,16 @@ static void HackColour(int &n) {
 }
 
 SciTEBase::SciTEBase(Extension *ext) : apis(true), extender(ext) {
-	codePage = 0;							//»îÒ³´úÂë
-	characterSet = 0;						//×Ö·û¼¯
-	language = "au3";						//ÓïÑÔ
-	lexLanguage = SCLEX_AU3;				//À©Õ¹ÓïÑÔ
-	functionDefinition = 0;					//º¯Êı¶¨Òå
-	indentOpening = true;					//Ëõ½ø´ò¿ª
-	indentClosing = true;					//Ëõ½ø¹Ø±Õ
+	codePage = 0;							//æ´»é¡µä»£ç 
+	characterSet = 0;						//å­—ç¬¦é›†
+	language = "au3";						//è¯­è¨€
+	lexLanguage = SCLEX_AU3;				//æ‰©å±•è¯­è¨€
+	functionDefinition = 0;					//å‡½æ•°å®šä¹‰
+	indentOpening = true;					//ç¼©è¿›æ‰“å¼€
+	indentClosing = true;					//ç¼©è¿›å…³é—­
+	indentMaintain = false;
 	statementLookback = 10;
+	preprocessorSymbol = '\0';
 
 	fnEditor = 0;
 	ptrEditor = 0;
@@ -378,36 +380,38 @@ SciTEBase::SciTEBase(Extension *ext) : apis(true), extender(ext) {
 	ptrOutput = 0;
 	tbVisible = false;
 	sbVisible = false;
-	tabVisible = true;						//±êÇ©¿É¼û
-	tabHideOne = false;						//Ò»¸ö±êÇ©Ê±Òş²Ø
-	tabMultiLine = false;					//¶àĞĞ±êÇ©
+	tabVisible = true;						//æ ‡ç­¾å¯è§
+	tabHideOne = false;						//ä¸€ä¸ªæ ‡ç­¾æ—¶éšè—
+	tabMultiLine = false;					//å¤šè¡Œæ ‡ç­¾
 	sbNum = 1;
 	visHeightTools = 0;
+	visHeightTab = 0;
 	visHeightStatus = 0;
 	visHeightEditor = 1;
 	heightBar = 7;
 	dialogsOnScreen = 0;
-	topMost = true;							//´°¿ÚÖÃ¶¥,¹Ù·½Îª false
+	topMost = true;							//çª—å£ç½®é¡¶,å®˜æ–¹ä¸º false
 	wrap = false;							
 	wrapOutput = false;
 	wrapStyle = SC_WRAP_WORD;
-	isReadOnly = false;						//Ö»¶Á
-	openFilesHere = false;					//ÔÚÕâÀï´ò¿ªÎÄ¼ş
-	fullScreen = false;						//È«ÆÁ
+	isReadOnly = false;						//åªè¯»
+	openFilesHere = false;					//åœ¨è¿™é‡Œæ‰“å¼€æ–‡ä»¶
+	fullScreen = false;						//å…¨å±
 
 	heightOutput = 0;
+	heightOutputStartDrag = 0;
 	previousHeightOutput = 0;
 
-	allowMenuActions = true;				//ÔÊĞí²Ëµ¥ĞĞÎª
-	scrollOutput = 1;						//Êä³ö¹ö¶¯
-	returnOutputToCommand = true;			//·µ»ØÊä³öµ½ÃüÁîĞĞ
+	allowMenuActions = true;				//å…è®¸èœå•è¡Œä¸º
+	scrollOutput = 1;						//è¾“å‡ºæ»šåŠ¨
+	returnOutputToCommand = true;			//è¿”å›è¾“å‡ºåˆ°å‘½ä»¤è¡Œ
 
-	ptStartDrag.x = 0;						//¿ªÊ¼ÍÏ¶¯X×ø±ê
-	ptStartDrag.y = 0;						//¿ªÊ¼ÍÏ¶¯Y×ø±ê
-	capturedMouse = false;					//²¶×½Êó±ê
-	firstPropertiesRead = true;				//Ê×ÏÈ¶ÁÈ¡ÊôĞÔÎÄ¼ş
+	ptStartDrag.x = 0;						//å¼€å§‹æ‹–åŠ¨Xåæ ‡
+	ptStartDrag.y = 0;						//å¼€å§‹æ‹–åŠ¨Yåæ ‡
+	capturedMouse = false;					//æ•æ‰é¼ æ ‡
+	firstPropertiesRead = true;				//é¦–å…ˆè¯»å–å±æ€§æ–‡ä»¶
 	localiser.read = false;
-	splitVertical = false;					//´¹Ö±·Ö¸î
+	splitVertical = false;					//å‚ç›´åˆ†å‰²
 	bufferedDraw = true;
 	twoPhaseDraw = true;
 	bracesCheck = true;
@@ -415,46 +419,46 @@ SciTEBase::SciTEBase(Extension *ext) : apis(true), extender(ext) {
 	bracesStyle = 0;
 	braceCount = 0;
 
-	indentationWSVisible = true;			//Ëõ½ø
-	indentExamine = SC_IV_LOOKBOTH;			//Ëõ½øÔªËØ
+	indentationWSVisible = true;			//ç¼©è¿›
+	indentExamine = SC_IV_LOOKBOTH;			//ç¼©è¿›å…ƒç´ 
 
 	autoCompleteIgnoreCase = false;
 	callTipIgnoreCase = false;
 	autoCCausedByOnlyOne = false;
 	startCalltipWord = 0;
-	currentCallTip = 0;							//µ±Ç°µ÷ÓÃÌáÊ¾
-	maxCallTips = 1;							//×î´óµ÷ÓÃÌáÊ¾
-	currentCallTipWord = "";					//µ±Ç°µ÷ÓÃÌáÊ¾µ¥´Ê
-	lastPosCallTip = 0;							//×îºóµ÷ÓÃÌáÊ¾×ø±ê
+	currentCallTip = 0;							//å½“å‰è°ƒç”¨æç¤º
+	maxCallTips = 1;							//æœ€å¤§è°ƒç”¨æç¤º
+	currentCallTipWord = "";					//å½“å‰è°ƒç”¨æç¤ºå•è¯
+	lastPosCallTip = 0;							//æœ€åè°ƒç”¨æç¤ºåæ ‡
 
-	margin = false;								//Ò³±ß¿Õ°×
-	marginWidth = marginWidthDefault;			//Ò³±ß¿Õ°×¿í¶È
+	margin = false;								//é¡µè¾¹ç©ºç™½
+	marginWidth = marginWidthDefault;			//é¡µè¾¹ç©ºç™½å®½åº¦
 	foldMargin = true;
 	foldMarginWidth = foldMarginWidthDefault;
-	lineNumbers = true;							//ĞĞºÅ
-	lineNumbersWidth = lineNumbersWidthDefault;	//ĞĞºÅ¿í¶È
-	lineNumbersExpand = false;					//ĞĞºÅÕ¹¿ª
-	usePalette = false;							//Ê¹ÓÃµ÷É«°å
+	lineNumbers = true;							//è¡Œå·
+	lineNumbersWidth = lineNumbersWidthDefault;	//è¡Œå·å®½åº¦
+	lineNumbersExpand = false;					//è¡Œå·å±•å¼€
+	usePalette = false;							//ä½¿ç”¨è°ƒè‰²æ¿
 
-	replacing = false;							//Ìæ»»
-	havefound = false;							//ÒÑ¾­ÕÒµ½
-	matchCase = false;							//Çø·Ö´óĞ¡Ğ´
+	replacing = false;							//æ›¿æ¢
+	havefound = false;							//å·²ç»æ‰¾åˆ°
+	matchCase = false;							//åŒºåˆ†å¤§å°å†™
 	wholeWord = false;
-	reverseFind = false;						//·´Ïò²éÕÒ
-	regExp = false;								//Ê¹ÓÃÕıÔò±í´ïÊ½
+	reverseFind = false;						//åå‘æŸ¥æ‰¾
+	regExp = false;								//ä½¿ç”¨æ­£åˆ™è¡¨è¾¾å¼
 	wrapFind = true;
 	unSlash = false;
 	findInStyle = false;
 	findStyle = 0;
 
-	languageMenu = 0;							//ÓïÑÔ²Ëµ¥
-	languageItems = 0;							//ÓïÑÔÏîÄ¿
+	languageMenu = 0;							//è¯­è¨€èœå•
+	languageItems = 0;							//è¯­è¨€é¡¹ç›®
 
 	shortCutItemList = 0;
 	shortCutItems = 0;
 
-	macrosEnabled = false;						//ÆôÓÃºê
-	recording = false;							//¼ÇÂ¼
+	macrosEnabled = false;						//å¯ç”¨å®
+	recording = false;							//è®°å½•
 
 	propsBase.superPS = &propsEmbed;
 	propsUser.superPS = &propsBase;
@@ -464,7 +468,7 @@ SciTEBase::SciTEBase(Extension *ext) : apis(true), extender(ext) {
 
 	propsStatus.superPS = &props;
 
-	needReadProperties = false;					//ĞèÒª¶ÁÈ¡ÊôĞÔ
+	needReadProperties = false;					//éœ€è¦è¯»å–å±æ€§
 	allowAlpha = true;
 }
 
@@ -596,11 +600,11 @@ SString SciTEBase::GetTranslationToAbout(const char * const propname, bool retai
 	delete []bufc;
 	return result;
 #else
-	// ÔÚ GTK+ ÉÏ, localiser.Text ×ÜÊÇ×ª»»Îª UTF-8.
+	// åœ¨ GTK+ ä¸Š, localiser.Text æ€»æ˜¯è½¬æ¢ä¸º UTF-8.
 	return localiser.Text(propname, retainIfNotFound);
 #endif
 }
-//ÉèÖÃ¹ØÓÚÏûÏ¢
+//è®¾ç½®å…³äºæ¶ˆæ¯
 void SciTEBase::SetAboutMessage(WindowID wsci, const char *appTitle) {
 	if (wsci) {
 		Platform::SendScintilla(wsci, SCI_SETSTYLEBITS, 7, 0);
@@ -647,15 +651,15 @@ void SciTEBase::SetAboutMessage(WindowID wsci, const char *appTitle) {
 			}
 		}
 #endif
-		AddStyledText(wsci, GetTranslationToAbout("ºº»¯ÔöÇ¿°æ±¾").c_str(), trsSty);
-		AddStyledText(wsci, " 2.01\n", 1);
+		AddStyledText(wsci, GetTranslationToAbout("æ±‰åŒ–å¢å¼ºç‰ˆæœ¬").c_str(), trsSty);
+		AddStyledText(wsci, " 2.02\n", 1);
 		AddStyledText(wsci, " Build: " __DATE__ " " __TIME__ "\n", 1);
 		SetAboutStyle(wsci, 2, ColourDesired(0, 0, 0));
 		Platform::SendScintilla(wsci, SCI_STYLESETITALIC, 2, 1);
 		AddStyledText(wsci, GetTranslationToAbout("by").c_str(), trsSty);
 		AddStyledText(wsci, " Neil Hodgson.\n", 2);
 		SetAboutStyle(wsci, 3, ColourDesired(0, 0, 0));
-		AddStyledText(wsci, "December 1998-August 2009.\n", 3);
+		AddStyledText(wsci, "December 1998-January 2010.\n", 3);
 		SetAboutStyle(wsci, 4, ColourDesired(0, 0x7f, 0x7f));
 		AddStyledText(wsci, "http://www.scintilla.org\n", 4);
 		AddStyledText(wsci, "Lua scripting language by TeCGraf, PUC-Rio\n", 3);
@@ -671,7 +675,7 @@ void SciTEBase::SetAboutMessage(WindowID wsci, const char *appTitle) {
 			AddStyledText(wsci, translator.c_str(), trsSty);
 			AddStyledText(wsci, "\n", 5);
 		}
-		AddStyledText(wsci, GetTranslationToAbout("¹±Ï×Õß:").c_str(), trsSty);
+		AddStyledText(wsci, GetTranslationToAbout("è´¡çŒ®è€…:").c_str(), trsSty);
 		srand(static_cast<unsigned>(time(0)));
 		for (unsigned int co = 0;co < ELEMENTS(contributors);co++) {
 			int colourIndex = 50 + (co % 78);
@@ -1042,12 +1046,12 @@ void SciTEBase::BraceMatch(bool editor) {
 			Platform::SendScintilla(win.GetID(), SCI_SETHIGHLIGHTGUIDE, Platform::Minimum(columnAtCaret, columnOpposite), 0);
 	}
 }
-//ÉèÖÃ´°¿ÚÃû³Æ
+//è®¾ç½®çª—å£åç§°
 void SciTEBase::SetWindowName() {
-	if (filePath.IsUntitled()) {						//Èç¹ûÊÇÎ´ÃüÃûµÄÎÄµµ
-		windowName = localiser.Text("Î´ÃüÃûÎÄµµ");		//ÉèÖÃÎª"Untitled"
-		windowName.insert(0, "(");						//Ç°Ãæ²åÈë"("
-		windowName += ")";								//ºóÃæ²åÈë")"
+	if (filePath.IsUntitled()) {						//å¦‚æœæ˜¯æœªå‘½åçš„æ–‡æ¡£
+		windowName = localiser.Text("æœªå‘½åæ–‡æ¡£");		//è®¾ç½®ä¸º"Untitled"
+		windowName.insert(0, "(");						//å‰é¢æ’å…¥"("
+		windowName += ")";								//åé¢æ’å…¥")"
 	} else if (props.GetInt("title.full.path") == 2) {
 		windowName = FileNameExt().AsInternal();
 		windowName += " in ";
@@ -1073,14 +1077,14 @@ void SciTEBase::SetWindowName() {
 
 	wSciTE.SetTitle(windowName.c_str());
 }
-//µÃµ½ËùÑ¡
+//å¾—åˆ°æ‰€é€‰
 Sci_CharacterRange SciTEBase::GetSelection() {
 	Sci_CharacterRange crange;
 	crange.cpMin = SendEditor(SCI_GETSELECTIONSTART);
 	crange.cpMax = SendEditor(SCI_GETSELECTIONEND);
 	return crange;
 }
-//ÉèÖÃËùÑ¡
+//è®¾ç½®æ‰€é€‰
 void SciTEBase::SetSelection(int anchor, int currentPos) {
 	SendEditor(SCI_SETSEL, anchor, currentPos);
 }
@@ -1163,7 +1167,7 @@ bool SciTEBase::islexerwordcharforsel(char ch) {
 	else
 		return iswordcharforsel(ch);
 }
-//µÃµ½·¶Î§
+//å¾—åˆ°èŒƒå›´
 SString SciTEBase::GetRange(Window &win, int selStart, int selEnd) {
 	SBuffer sel(selEnd - selStart);
 	Sci_TextRange tr;
@@ -1177,7 +1181,7 @@ SString SciTEBase::GetRange(Window &win, int selStart, int selEnd) {
 SString SciTEBase::GetRangeInUIEncoding(Window &win, int selStart, int selEnd) {
 	return GetRange(win, selStart, selEnd);
 }
-//µÃµ½ĞĞÄÚÈİ
+//å¾—åˆ°è¡Œå†…å®¹
 SString SciTEBase::GetLine(Window &win, int line) {
 	int lineStart = SendWindow(win, SCI_POSITIONFROMLINE, line);
 	int lineEnd = SendWindow(win, SCI_GETLINEENDPOSITION, line);
@@ -1246,7 +1250,7 @@ SString SciTEBase::SelectionExtend(
 	int selEnd = SendFocused(SCI_GETSELECTIONEND);
 	return RangeExtendAndGrab(wCurrent, selStart, selEnd, ischarforsel, stripEol);
 }
-//²éÕÒ¹â±ê´¦µ¥´Ê
+//æŸ¥æ‰¾å…‰æ ‡å¤„å•è¯
 void SciTEBase::FindWordAtCaret(int &start, int &end) {
 	Window wCurrent;
 
@@ -1260,7 +1264,7 @@ void SciTEBase::FindWordAtCaret(int &start, int &end) {
 	// Call just to update start & end
 	RangeExtendAndGrab(wCurrent, start, end, &SciTEBase::iswordcharforsel, false);
 }
-//Ñ¡Ôñ¹â±ê´¦µ¥´Ê
+//é€‰æ‹©å…‰æ ‡å¤„å•è¯
 bool SciTEBase::SelectWordAtCaret() {
 	int selStart = 0;
 	int selEnd = 0;
@@ -1268,11 +1272,11 @@ bool SciTEBase::SelectWordAtCaret() {
 	SetSelection(selStart, selEnd);
 	return selStart != selEnd;
 }
-//Ñ¡Ôñµ¥´Ê
+//é€‰æ‹©å•è¯
 SString SciTEBase::SelectionWord(bool stripEol /*=true*/) {
 	return SelectionExtend(&SciTEBase::islexerwordcharforsel, stripEol);
 }
-//Ñ¡ÔñÎÄ¼şÃû
+//é€‰æ‹©æ–‡ä»¶å
 SString SciTEBase::SelectionFilename() {
 	return SelectionExtend(&SciTEBase::isfilenamecharforsel);
 }
@@ -1308,13 +1312,13 @@ void SciTEBase::SelectionIntoFind(bool stripEol /*=true*/) {
 	}
 	// else findWhat remains the same as last time.
 }
-//±àÂë×Ö·û´®
+//ç¼–ç å­—ç¬¦ä¸²
 SString SciTEBase::EncodeString(const SString &s) {
 	return SString(s);
 }
 
 /**
- * ×ª»»·´Ğ±¸Ü 
+ * è½¬æ¢åæ–œæ  
  * Convert a string into C string literal form using \a, \b, \f, \n, \r, \t, \v, and \ooo.
  * The return value is a newly allocated character array containing the result.
  * 4 bytes are allocated for each byte of the input because that is the maximum
@@ -1370,14 +1374,14 @@ char *Slash(const char *s, bool quoteQuotes) {
 }
 
 /**
- * ÅĞ¶Ï×Ö·ûÊÇ²»ÊÇÒ»¸ö°Ë½øÖÆÊı?
+ * åˆ¤æ–­å­—ç¬¦æ˜¯ä¸æ˜¯ä¸€ä¸ªå…«è¿›åˆ¶æ•°?
  */
 static bool IsOctalDigit(char ch) {
 	return ch >= '0' && ch <= '7';
 }
 
 /**
- * Èç¹û×Ö·ûÊÇÒ»¸öÊ®Áù½øÖÆÊı,µÃµ½ËüµÄÖµ.
+ * å¦‚æœå­—ç¬¦æ˜¯ä¸€ä¸ªåå…­è¿›åˆ¶æ•°,å¾—åˆ°å®ƒçš„å€¼.
  */
 static int GetHexaDigit(char ch) {
 	if (ch >= '0' && ch <= '9') {
@@ -1393,7 +1397,7 @@ static int GetHexaDigit(char ch) {
 }
 
 /**
- * ×ª»»CÑùÊ½µÄ \a, \b, \f, \n, \r, \t, \v, \ooo ºÍ \xhh ÎªËüÃÇ±í´ïµÄ×Ö·û.
+ * è½¬æ¢Cæ ·å¼çš„ \a, \b, \f, \n, \r, \t, \v, \ooo å’Œ \xhh ä¸ºå®ƒä»¬è¡¨è¾¾çš„å­—ç¬¦.
  */
 unsigned int UnSlash(char *s) {
 	char *sStart = s;
@@ -1500,7 +1504,7 @@ static int UnSlashAsNeeded(SString &s, bool escapes, bool regularExpression) {
 		return s.length();
 	}
 }
-//ÒÆ³ı²éÕÒ±ê¼Ç
+//ç§»é™¤æŸ¥æ‰¾æ ‡è®°
 void SciTEBase::RemoveFindMarks() {
 	if (CurrentBuffer()->findMarks != Buffer::fmNone) {
 		SendEditor(SCI_SETINDICATORCURRENT, indicatorMatch);
@@ -1508,7 +1512,7 @@ void SciTEBase::RemoveFindMarks() {
 		CurrentBuffer()->findMarks = Buffer::fmNone;
 	}
 }
-//±ê¼ÇËùÓĞ
+//æ ‡è®°æ‰€æœ‰
 int SciTEBase::MarkAll() {
 	int posCurrent = SendEditor(SCI_GETCURRENTPOS);
 	int marked = 0;
@@ -1535,12 +1539,12 @@ int SciTEBase::MarkAll() {
 	SendEditor(SCI_SETCURRENTPOS, posCurrent);
 	return marked;
 }
-//µİÔöËÑË÷Ä£Ê½
+//é€’å¢æœç´¢æ¨¡å¼
 int SciTEBase::IncrementSearchMode() {
 	FindIncrement();
 	return 0;
 }
-//ÔÚÄ¿±êÖĞ²éÕÒ
+//åœ¨ç›®æ ‡ä¸­æŸ¥æ‰¾
 int SciTEBase::FindInTarget(const char *findWhat, int lenFind, int startPosition, int endPosition) {
 	SendEditor(SCI_SETTARGETSTART, startPosition);
 	SendEditor(SCI_SETTARGETEND, endPosition);
@@ -1557,7 +1561,7 @@ int SciTEBase::FindInTarget(const char *findWhat, int lenFind, int startPosition
 	}
 	return posFind;
 }
-//²éÕÒÏÂÒ»¸ö
+//æŸ¥æ‰¾ä¸‹ä¸€ä¸ª
 int SciTEBase::FindNext(bool reverseDirection, bool showWarnings) {
 	if (findWhat.length() == 0) {
 		Find();
@@ -1601,7 +1605,7 @@ int SciTEBase::FindNext(bool reverseDirection, bool showWarnings) {
 		havefound = false;
 		if (showWarnings) {
 			WarnUser(warnNotFound);
-			FindMessageBox("²»ÄÜÕÒµ½×Ö·û´® '^0'.",
+			FindMessageBox("ä¸èƒ½æ‰¾åˆ°å­—ç¬¦ä¸² '^0'.",
 			        &findWhat);
 		}
 	} else {
@@ -1616,7 +1620,7 @@ int SciTEBase::FindNext(bool reverseDirection, bool showWarnings) {
 	}
 	return posFind;
 }
-//Ìæ»»Ò»´Î
+//æ›¿æ¢ä¸€æ¬¡
 void SciTEBase::ReplaceOnce() {
 	if (havefound) {
 		SString replaceTarget = EncodeString(replaceWhat);
@@ -1635,7 +1639,7 @@ void SciTEBase::ReplaceOnce() {
 
 	FindNext(false);
 }
-//Ìæ»»ËùÓĞ(Ö´ĞĞÌæ»»)
+//æ›¿æ¢æ‰€æœ‰(æ‰§è¡Œæ›¿æ¢)
 int SciTEBase::DoReplaceAll(bool inSelection) {
 	SString findTarget = EncodeString(findWhat);
 	int findLen = UnSlashAsNeeded(findTarget, unSlash, regExp);
@@ -1691,7 +1695,7 @@ int SciTEBase::DoReplaceAll(bool inSelection) {
 		int lastMatch = posFind;
 		int replacements = 0;
 		SendEditor(SCI_BEGINUNDOACTION);
-		// Ìæ»»Ñ­»·
+		// æ›¿æ¢å¾ªç¯
 		while (posFind != -1) {
 			int lenTarget = SendEditor(SCI_GETTARGETEND) - SendEditor(SCI_GETTARGETSTART);
 			if (inSelection && countSelections > 1) {
@@ -1712,7 +1716,7 @@ int SciTEBase::DoReplaceAll(bool inSelection) {
 					} else {
 						posFind = FindInTarget(findTarget.c_str(), findLen, lastMatch, endPosition);
 					}
-					continue;	// ²»Ìæ»»
+					continue;	// ä¸æ›¿æ¢
 				}
 			}
 			int movepastEOL = 0;
@@ -1756,7 +1760,7 @@ int SciTEBase::DoReplaceAll(bool inSelection) {
 	return 0;
 	//Platform::DebugPrintf("ReplaceAll <%s> -> <%s>\n", findWhat, replaceWhat);
 }
-//Ìæ»»ËùÓĞ
+//æ›¿æ¢æ‰€æœ‰
 int SciTEBase::ReplaceAll(bool inSelection) {
 	int replacements = DoReplaceAll(inSelection);
 	props.SetInteger("Replacements", (replacements > 0 ? replacements : 0));
@@ -1764,14 +1768,14 @@ int SciTEBase::ReplaceAll(bool inSelection) {
 	if (replacements == -1) {
 		FindMessageBox(
 		    inSelection ?
-		    "Ê¹ÓÃ'Ìæ»»ËùÑ¡'ÃüÁîÊ±²éÕÒµÄ×Ö·û´®²»ÄÜÎª¿Õ." :
-		    "Ê¹ÓÃ'Ìæ»»ËùÓĞ'ÃüÁîÊ±²éÕÒµÄ×Ö·û´®²»ÄÜÎª¿Õ.");
+		    "ä½¿ç”¨'æ›¿æ¢æ‰€é€‰'å‘½ä»¤æ—¶æŸ¥æ‰¾çš„å­—ç¬¦ä¸²ä¸èƒ½ä¸ºç©º." :
+		    "ä½¿ç”¨'æ›¿æ¢æ‰€æœ‰'å‘½ä»¤æ—¶æŸ¥æ‰¾çš„å­—ç¬¦ä¸²ä¸èƒ½ä¸ºç©º.");
 	} else if (replacements == -2) {
 		FindMessageBox(
-		    "Ê¹ÓÃ'Ìæ»»ËùÑ¡'ÃüÁîÊ±ËùÑ¡µÄ×Ö·û´®²»ÄÜÎª¿Õ.");
+		    "ä½¿ç”¨'æ›¿æ¢æ‰€é€‰'å‘½ä»¤æ—¶æ‰€é€‰çš„å­—ç¬¦ä¸²ä¸èƒ½ä¸ºç©º.");
 	} else if (replacements == 0) {
 		FindMessageBox(
-		    "²»ÄÜÖ´ĞĞÌæ»»,ÒòÎª×Ö·û´® '^0' Ã»ÓĞ³öÏÖ.", &findWhat);
+		    "ä¸èƒ½æ‰§è¡Œæ›¿æ¢,å› ä¸ºå­—ç¬¦ä¸² '^0' æ²¡æœ‰å‡ºç°.", &findWhat);
 	}
 	return replacements;
 }
@@ -1784,7 +1788,7 @@ int SciTEBase::ReplaceInBuffers() {
 		replacements += DoReplaceAll(false);
 		if (i == 0 && replacements < 0) {
 			FindMessageBox(
-			    "Ö´ĞĞ 'Ìæ»»»º³åÇø' ÃüÁîÊ±²éÕÒµÄ×Ö·û´®²»ÄÜÎª¿Õ.");
+			    "æ‰§è¡Œ 'æ›¿æ¢ç¼“å†²åŒº' å‘½ä»¤æ—¶æŸ¥æ‰¾çš„å­—ç¬¦ä¸²ä¸èƒ½ä¸ºç©º.");
 			break;
 		}
 	}
@@ -1793,7 +1797,7 @@ int SciTEBase::ReplaceInBuffers() {
 	UpdateStatusBar(false);
 	if (replacements == 0) {
 		FindMessageBox(
-		    "²»ÄÜÖ´ĞĞÌæ»»,ÒòÎª×Ö·û´® '^0' Ã»ÓĞ³öÏÖ.", &findWhat);
+		    "ä¸èƒ½æ‰§è¡Œæ›¿æ¢,å› ä¸ºå­—ç¬¦ä¸² '^0' æ²¡æœ‰å‡ºç°.", &findWhat);
 	}
 	return replacements;
 }
@@ -1819,20 +1823,20 @@ void SciTEBase::OutputAppendStringSynchronised(const char *s, int len) {
 		SendOutputEx(SCI_GOTOPOS, lineStart, 0, false);
 	}
 }
-//Ê¹Êä³ö¿É¼û
+//ä½¿è¾“å‡ºå¯è§
 void SciTEBase::MakeOutputVisible() {
 	if (heightOutput <= 0) {
 		ToggleOutputVisible();
 	}
 }
-//Çå³ıÈÎÎñ¶ÓÁĞ
+//æ¸…é™¤ä»»åŠ¡é˜Ÿåˆ—
 void SciTEBase::ClearJobQueue() {
 	for (int ic = 0; ic < jobQueue.commandMax; ic++) {
 		jobQueue.jobQueue[ic].Clear();
 	}
 	jobQueue.commandCurrent = 0;
 }
-//Ö´ĞĞ
+//æ‰§è¡Œ
 void SciTEBase::Execute() {
 	props.Set("CurrentMessage", "");
 	dirNameForExecute = FilePath();
@@ -1867,7 +1871,7 @@ void SciTEBase::Execute() {
 
 	SendOutput(SCI_MARKERDELETEALL, static_cast<uptr_t>(-1));
 	SendEditor(SCI_MARKERDELETEALL, 0);
-	// È·±£Êä³öÃæ°å¿É¼û
+	// ç¡®ä¿è¾“å‡ºé¢æ¿å¯è§
 	if (jobQueue.ShowOutputPane()) {
 		MakeOutputVisible();
 	}
@@ -1878,7 +1882,7 @@ void SciTEBase::Execute() {
 	filePath.Directory().SetWorkingDirectory();
 	dirNameAtExecute = filePath.Directory();
 }
-//ÇĞ»»Êä³ö¿É¼û
+//åˆ‡æ¢è¾“å‡ºå¯è§
 void SciTEBase::ToggleOutputVisible() {
 	if (heightOutput > 0) {
 		heightOutput = NormaliseSplit(0);
@@ -1897,14 +1901,14 @@ void SciTEBase::ToggleOutputVisible() {
 	SizeSubWindows();
 	Redraw();
 }
-//Ìí¼ÓÊéÇ©
+//æ·»åŠ ä¹¦ç­¾
 void SciTEBase::BookmarkAdd(int lineno) {
 	if (lineno == -1)
 		lineno = GetCurrentLineNumber();
 	if (!BookmarkPresent(lineno))
 		SendEditor(SCI_MARKERADD, lineno, markerBookmark);
 }
-//É¾³ıÊéÇ©
+//åˆ é™¤ä¹¦ç­¾
 void SciTEBase::BookmarkDelete(int lineno) {
 	if (lineno == -1)
 		lineno = GetCurrentLineNumber();
@@ -1918,7 +1922,7 @@ bool SciTEBase::BookmarkPresent(int lineno) {
 	int state = SendEditor(SCI_MARKERGET, lineno);
 	return state & (1 << markerBookmark);
 }
-//ÊéÇ©ÇĞ»»
+//ä¹¦ç­¾åˆ‡æ¢
 void SciTEBase::BookmarkToggle(int lineno) {
 	if (lineno == -1)
 		lineno = GetCurrentLineNumber();
@@ -1928,15 +1932,15 @@ void SciTEBase::BookmarkToggle(int lineno) {
 		BookmarkAdd(lineno);
 	}
 }
-//ÏÂÒ»¸öÊéÇ©
+//ä¸‹ä¸€ä¸ªä¹¦ç­¾
 void SciTEBase::BookmarkNext(bool forwardScan, bool select) {
 	int lineno = GetCurrentLineNumber();
 	int sci_marker = SCI_MARKERNEXT;
-	int lineStart = lineno + 1;		//´ÓÏÂÒ»ĞĞ¿ªÊ¼É¨Ãè(Scan starting from next line)
-	int lineRetry = 0;				//Èç¹ûÃ»ÓĞÕÒµ½,³¢ÊÔ´ÓÎÄ¼ş¿ªÊ¼²éÕÒ.
+	int lineStart = lineno + 1;		//ä»ä¸‹ä¸€è¡Œå¼€å§‹æ‰«æ(Scan starting from next line)
+	int lineRetry = 0;				//å¦‚æœæ²¡æœ‰æ‰¾åˆ°,å°è¯•ä»æ–‡ä»¶å¼€å§‹æŸ¥æ‰¾.
 	int anchor = SendEditor(SCI_GETANCHOR);
 	if (!forwardScan) {
-		lineStart = lineno - 1;		//´ÓÉÏÒ»ĞĞ¿ªÊ¼É¨ÃèScan starting from previous line
+		lineStart = lineno - 1;		//ä»ä¸Šä¸€è¡Œå¼€å§‹æ‰«æScan starting from previous line
 		lineRetry = SendEditor(SCI_GETLINECOUNT, 0, 0L);	//If not found, try from the end
 		sci_marker = SCI_MARKERPREVIOUS;
 	}
@@ -1952,11 +1956,11 @@ void SciTEBase::BookmarkNext(bool forwardScan, bool select) {
 		}
 	}
 }
-//µÃµ½¿Í»§Çø×ø±ê
+//å¾—åˆ°å®¢æˆ·åŒºåæ ‡
 PRectangle SciTEBase::GetClientRectangle() {
 	return wContent.GetClientPosition();
 }
-//ÖØ»æ
+//é‡ç»˜
 void SciTEBase::Redraw() {
 	wSciTE.InvalidateAll();
 	wEditor.InvalidateAll();
@@ -2023,7 +2027,7 @@ void SciTEBase::FillFunctionDefinition(int pos /*= -1*/) {
 		}
 	}
 }
-//¿ªÊ¼µ÷ÓÃÌáÊ¾
+//å¼€å§‹è°ƒç”¨æç¤º
 bool SciTEBase::StartCallTip() {
 	currentCallTip = 0;
 	currentCallTipWord = "";
@@ -2067,7 +2071,7 @@ bool SciTEBase::StartCallTip() {
 	FillFunctionDefinition(pos);
 	return true;
 }
-//¼ÌĞøµ÷ÓÃÌáÊ¾
+//ç»§ç»­è°ƒç”¨æç¤º
 void SciTEBase::ContinueCallTip() {
 	SString line = GetLine();
 	int current = GetCaretInLine();
@@ -2134,7 +2138,7 @@ void SciTEBase::EliminateDuplicateWords(char *words) {
 		}
 	}
 }
-//¿ªÊ¼×Ô¶¯Íê³É
+//å¼€å§‹è‡ªåŠ¨å®Œæˆ
 bool SciTEBase::StartAutoComplete() {
 	SString line = GetLine();
 	int current = GetCaretInLine();
@@ -2159,7 +2163,7 @@ bool SciTEBase::StartAutoComplete() {
 	}
 	return true;
 }
-//¿ªÊ¼×Ô¶¯Íê³Éµ¥´Ê
+//å¼€å§‹è‡ªåŠ¨å®Œæˆå•è¯
 bool SciTEBase::StartAutoCompleteWord(bool onlyOneWord) {
 	SString line = GetLine();
 	int current = GetCaretInLine();
@@ -2196,7 +2200,7 @@ bool SciTEBase::StartAutoCompleteWord(bool onlyOneWord) {
 
 	int posFind = SendEditorString(SCI_FINDTEXT, flags, reinterpret_cast<char *>(&ft));
 	WindowAccessor acc(wEditor.GetID(), props);
-	while (posFind >= 0 && posFind < doclen) {				// ËÑË÷ËùÓĞÎÄµµ
+	while (posFind >= 0 && posFind < doclen) {				// æœç´¢æ‰€æœ‰æ–‡æ¡£
 		int wordEnd = posFind + root.length();
 		if (posFind != posCurrentWord) {
 			while (wordCharacters.contains(acc.SafeGetCharAt(wordEnd)))
@@ -2206,7 +2210,7 @@ bool SciTEBase::StartAutoCompleteWord(bool onlyOneWord) {
 				SString word = GetRange(wEditor, posFind, wordEnd);
 				word.insert(0, "\n");
 				word.append("\n");
-				if (!wordsNear.contains(word.c_str())) {	// Ìí¼ÓĞÂÌõÄ¿
+				if (!wordsNear.contains(word.c_str())) {	// æ·»åŠ æ–°æ¡ç›®
 					wordsNear += word.c_str() + 1;
 					if (minWordLength < wordLength)
 						minWordLength = wordLength;
@@ -2224,24 +2228,38 @@ bool SciTEBase::StartAutoCompleteWord(bool onlyOneWord) {
 	size_t length = wordsNear.length();
 	if ((length > 2) && (!onlyOneWord || (minWordLength > root.length()))) {
 //
-//		¾¯¸æ!²»ÒªÍ¬²½´Ë´¦(µ¼ÖÂÓï·¨ÌáÊ¾´íÎó!!!!)
+//		è­¦å‘Š!ä¸è¦åŒæ­¥æ­¤å¤„(å¯¼è‡´è¯­æ³•æç¤ºé”™è¯¯!!!!)
 		StringList wl;
 		wl.Set(wordsNear.c_str());
 		char *words = wl.GetNearestWords("", 0, autoCompleteIgnoreCase);
 //
 //
-//		¾¯¸æ!²»ÒªÍ¬²½´Ë´¦(µ¼ÖÂÓï·¨ÌáÊ¾´íÎó!!!!)
+//		è­¦å‘Š!ä¸è¦åŒæ­¥æ­¤å¤„(å¯¼è‡´è¯­æ³•æç¤ºé”™è¯¯!!!!)
 //
 //
 //
 		SendEditorString(SCI_AUTOCSHOW, root.length(), words);
+/*
+		// Protect spaces by temporrily transforming to \001
+		wordsNear.substitute(' ', '\001');
+		StringList wl(true);
+		wl.Set(wordsNear.c_str());
+		char *words = wl.GetNearestWords("", 0, autoCompleteIgnoreCase);
+		SString acText(words);
+		// Use \n as word separator
+		acText.substitute(' ', '\n');
+		// Return spaces from \001
+		acText.substitute('\001', ' ');
+		SendEditor(SCI_AUTOCSETSEPARATOR, '\n');
+		SendEditorString(SCI_AUTOCSHOW, root.length(), acText.c_str());
+*/
 		delete []words;
 	} else {
 		SendEditor(SCI_AUTOCCANCEL);
 	}
 	return true;
 }
-//¿ªÊ¼²åÈëËõĞ´
+//å¼€å§‹æ’å…¥ç¼©å†™
 bool SciTEBase::StartInsertAbbreviation() {
 	if (!AbbrevDialog()) {
 		return true;
@@ -2368,7 +2386,7 @@ bool SciTEBase::StartInsertAbbreviation() {
 	delete []expbuf;
 	return true;
 }
-//¿ªÊ¼Õ¹¿ªËõĞ´
+//å¼€å§‹å±•å¼€ç¼©å†™
 bool SciTEBase::StartExpandAbbreviation() {
 	int currentPos = GetCaretInLine();
 	int position = SendEditor(SCI_GETCURRENTPOS); // from the beginning
@@ -2475,7 +2493,7 @@ bool SciTEBase::StartExpandAbbreviation() {
 	delete []linebuf;
 	return true;
 }
-//¿ªÊ¼¿é×¢ÊÍ
+//å¼€å§‹å—æ³¨é‡Š
 bool SciTEBase::StartBlockComment() {
 	SString fileNameForExtension = ExtensionFileName();
 	SString lexerName = props.GetNewExpand("lexer.", fileNameForExtension.c_str());
@@ -2488,7 +2506,7 @@ bool SciTEBase::StartBlockComment() {
 	SString comment = props.Get(base.c_str());
 	if (comment == "") { // user friendly error message box
 		SString error = LocaliseMessage(
-		            "ÇøÓò×¢ÊÍ±äÁ¿ '^0' Ã»ÓĞÔÚ SciTE *.properties ÖĞ¶¨Òå!", base.c_str());
+		            "åŒºåŸŸæ³¨é‡Šå˜é‡ '^0' æ²¡æœ‰åœ¨ SciTE *.properties ä¸­å®šä¹‰!", base.c_str());
 		WindowMessageBox(wSciTE, error, MB_OK | MB_ICONWARNING);
 		return true;
 	}
@@ -2555,7 +2573,7 @@ bool SciTEBase::StartBlockComment() {
 	SendEditor(SCI_ENDUNDOACTION);
 	return true;
 }
-//ĞĞÄ©×Ö·û
+//è¡Œæœ«å­—ç¬¦
 static const char *LineEndString(int eolMode) {
 	switch (eolMode) {
 		case SC_EOL_CRLF:
@@ -2585,7 +2603,7 @@ bool SciTEBase::StartBoxComment() {
 	SString end_comment = props.Get(end_base.c_str());
 	if (start_comment == "" || middle_comment == "" || end_comment == "") {
 		SString error = LocaliseMessage(
-		            "ÇøÓò×¢ÊÍ±äÁ¿ '^0', '^1' ºÍ '^2' Ã»ÓĞÔÚ SciTE *.properties ÖĞ¶¨Òå!",
+		            "åŒºåŸŸæ³¨é‡Šå˜é‡ '^0', '^1' å’Œ '^2' æ²¡æœ‰åœ¨ SciTE *.properties ä¸­å®šä¹‰!",
 		            start_base.c_str(), middle_base.c_str(), end_base.c_str());
 		WindowMessageBox(wSciTE, error, MB_OK | MB_ICONWARNING);
 		return true;
@@ -2697,7 +2715,7 @@ bool SciTEBase::StartBoxComment() {
 
 	return true;
 }
-//¿ªÊ¼Á÷Ê½×¢ÊÍ
+//å¼€å§‹æµå¼æ³¨é‡Š
 bool SciTEBase::StartStreamComment() {
 	SString fileNameForExtension = ExtensionFileName();
 	SString lexerName = props.GetNewExpand("lexer.", fileNameForExtension.c_str());
@@ -2710,7 +2728,7 @@ bool SciTEBase::StartStreamComment() {
 	SString end_comment = props.Get(end_base.c_str());
 	if (start_comment == "" || end_comment == "") {
 		SString error = LocaliseMessage(
-		            "Á÷Ê½×¢ÊÍ±äÁ¿ '^0' ºÍ '^1' Î´ÔÚ SciTE *.properties ÖĞ¶¨Òå!",
+		            "æµå¼æ³¨é‡Šå˜é‡ '^0' å’Œ '^1' æœªåœ¨ SciTE *.properties ä¸­å®šä¹‰!",
 		            start_base.c_str(), end_base.c_str());
 		WindowMessageBox(wSciTE, error, MB_OK | MB_ICONWARNING);
 		return true;
@@ -2772,17 +2790,17 @@ bool SciTEBase::StartStreamComment() {
 }
 
 /**
- * µÃµ½ĞĞºÅµÄ³¤¶È,²»¼ÆËãEOL.
+ * å¾—åˆ°è¡Œå·çš„é•¿åº¦,ä¸è®¡ç®—EOL.
  */
 int SciTEBase::GetLineLength(int line) {
 	return SendEditor(SCI_GETLINEENDPOSITION, line) - SendEditor(SCI_POSITIONFROMLINE, line);
 }
-//µÃµ½µ±Ç°ĞĞºÅ
+//å¾—åˆ°å½“å‰è¡Œå·
 int SciTEBase::GetCurrentLineNumber() {
 	return SendEditor(SCI_LINEFROMPOSITION,
 	        SendEditor(SCI_GETCURRENTPOS));
 }
-//µÃµ½µ±Ç°¹ö¶¯×ø±ê
+//å¾—åˆ°å½“å‰æ»šåŠ¨åæ ‡
 int SciTEBase::GetCurrentScrollPosition() {
 	int lineDisplayTop = SendEditor(SCI_GETFIRSTVISIBLELINE);
 	return SendEditor(SCI_DOCLINEFROMVISIBLE, lineDisplayTop);
@@ -2837,7 +2855,7 @@ void SciTEBase::SetTextProperties(
 	}
 	ps.Set("SelHeight", temp);
 }
-//¸üĞÂ×´Ì¬À¸
+//æ›´æ–°çŠ¶æ€æ 
 void SciTEBase::UpdateStatusBar(bool bUpdateSlowData) {
 	if (sbVisible) {
 		if (bUpdateSlowData) {
@@ -2862,7 +2880,7 @@ void SciTEBase::UpdateStatusBar(bool bUpdateSlowData) {
 		sbValue = "";
 	}
 }
-//ÉèÖÃĞĞËõ½ø
+//è®¾ç½®è¡Œç¼©è¿›
 void SciTEBase::SetLineIndentation(int line, int indent) {
 	if (indent < 0)
 		return;
@@ -2896,15 +2914,15 @@ void SciTEBase::SetLineIndentation(int line, int indent) {
 	}
 	SetSelection(crange.cpMin, crange.cpMax);
 }
-//µÃµ½ĞĞËõ½ø
+//å¾—åˆ°è¡Œç¼©è¿›
 int SciTEBase::GetLineIndentation(int line) {
 	return SendEditor(SCI_GETLINEINDENTATION, line);
 }
-//µÃµ½ĞĞËõ½ø×ø±ê
+//å¾—åˆ°è¡Œç¼©è¿›åæ ‡
 int SciTEBase::GetLineIndentPosition(int line) {
 	return SendEditor(SCI_GETLINEINDENTPOSITION, line);
 }
-//²åÈëËõ½ø
+//æ’å…¥ç¼©è¿›
 static SString CreateIndentation(int indent, int tabSize, bool insertSpaces) {
 	SString indentation;
 	if (!insertSpaces) {
@@ -2919,7 +2937,7 @@ static SString CreateIndentation(int indent, int tabSize, bool insertSpaces) {
 	}
 	return indentation;
 }
-//×ª»»Ëõ½ø
+//è½¬æ¢ç¼©è¿›
 void SciTEBase::ConvertIndentation(int tabSize, int useTabs) {
 	SendEditor(SCI_BEGINUNDOACTION);
 	int maxLine = SendEditor(SCI_GETLINECOUNT);
@@ -2977,7 +2995,7 @@ unsigned int SciTEBase::GetLinePartsInStyle(int line, int style1, int style2, SS
 	}
 	return part;
 }
-//ÊÇ²»ÊÇÒ»¸ö×ÖÄ¸?
+//æ˜¯ä¸æ˜¯ä¸€ä¸ªå­—æ¯?
 inline bool IsAlphabetic(unsigned int ch) {
 	return ((ch >= 'A') && (ch <= 'Z')) || ((ch >= 'a') && (ch <= 'z'));
 }
@@ -3075,12 +3093,11 @@ int SciTEBase::IndentOfBlock(int line) {
 	}
 	return indentBlock;
 }
-//ĞŞÕıËõÅÅ
+//ä¿®æ­£ç¼©æ’
 void SciTEBase::MaintainIndentation(char ch) {
 	int eolMode = SendEditor(SCI_GETEOLMODE);
 	int curLine = GetCurrentLineNumber();
 	int lastLine = curLine - 1;
-	int indentAmount = 0;
 
 	if (((eolMode == SC_EOL_CRLF || eolMode == SC_EOL_LF) && ch == '\n') ||
 	        (eolMode == SC_EOL_CR && ch == '\r')) {
@@ -3088,6 +3105,7 @@ void SciTEBase::MaintainIndentation(char ch) {
 			while (lastLine >= 0 && GetLineLength(lastLine) == 0)
 				lastLine--;
 		}
+		int indentAmount = 0;
 		if (lastLine >= 0) {
 			indentAmount = GetLineIndentation(lastLine);
 		}
@@ -3096,7 +3114,7 @@ void SciTEBase::MaintainIndentation(char ch) {
 		}
 	}
 }
-//×Ô¶¯Ëõ½ø
+//è‡ªåŠ¨ç¼©è¿›
 void SciTEBase::AutomaticIndentation(char ch) {
 	Sci_CharacterRange crange = GetSelection();
 	int selStart = crange.cpMin;
@@ -3381,7 +3399,7 @@ void SciTEBase::GoMatchingPreprocCond(int direction, bool select) {
 		WarnUser(warnNotFound);
 	}
 }
-//Ìí¼ÓÃüÁî
+//æ·»åŠ å‘½ä»¤
 void SciTEBase::AddCommand(const SString &cmd, const SString &dir, JobSubsystem jobType, const SString &input, int flags) {
 	if (jobQueue.commandCurrent >= jobQueue.commandMax)
 		return;
@@ -3403,11 +3421,11 @@ void SciTEBase::AddCommand(const SString &cmd, const SString &dir, JobSubsystem 
 int ControlIDOfCommand(unsigned long wParam) {
 	return wParam & 0xffff;
 }
-//´°¿ÚÉèÖÃ½¹µã
+//çª—å£è®¾ç½®ç„¦ç‚¹
 void WindowSetFocus(Window &w) {
 	Platform::SendScintilla(w.GetID(), SCI_GRABFOCUS, 0, 0);
 }
-//ÉèÖÃĞĞºÅ¿í¶È
+//è®¾ç½®è¡Œå·å®½åº¦
 void SciTEBase::SetLineNumberWidth() {
 	if (lineNumbers) {
 		int lineNumWidth = lineNumbersWidth;
@@ -3437,10 +3455,10 @@ void SciTEBase::SetLineNumberWidth() {
 		SendEditor(SCI_SETMARGINWIDTHN, 0, 0);
 	}
 }
-//´¦Àí²Ëµ¥ÃüÁî
+//å¤„ç†èœå•å‘½ä»¤
 void SciTEBase::MenuCommand(int cmdID, int source) {
 	switch (cmdID) {
-	case IDM_NEW:								//ĞÂ½¨ÎÄ¼ş
+	case IDM_NEW:								//æ–°å»ºæ–‡ä»¶
 		// For the New command, the "are you sure" question is always asked as this gives
 		// an opportunity to abandon the edits made to a file when are.you.sure is turned off.
 		if (CanMakeRoom()) {
@@ -3452,7 +3470,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 			WindowSetFocus(wEditor);
 		}
 		break;
-	case IDM_OPEN:								//´ò¿ªÎÄ¼ş
+	case IDM_OPEN:								//æ‰“å¼€æ–‡ä»¶
 		// No need to see if can make room as that will occur
 		// when doing the opening. Must be done there as user
 		// may decide to open multiple files so do not know yet
@@ -3460,82 +3478,82 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		OpenDialog(filePath.Directory(), props.GetExpanded("open.filter").c_str());
 		WindowSetFocus(wEditor);
 		break;
-	case IDM_OPENSELECTED:						//´ò¿ªËùÑ¡
+	case IDM_OPENSELECTED:						//æ‰“å¼€æ‰€é€‰
 		if (OpenSelected())
 			WindowSetFocus(wEditor);
 		break;
-	case IDM_CLOSE:								//¹Ø±ÕÎÄµµ
+	case IDM_CLOSE:								//å…³é—­æ–‡æ¡£
 		if (SaveIfUnsure() != IDCANCEL) {
 			Close();
 			WindowSetFocus(wEditor);
 		}
 		break;
-	case IDM_CLOSEALL:							//¹Ø±ÕËùÓĞ
+	case IDM_CLOSEALL:							//å…³é—­æ‰€æœ‰
 		CloseAllBuffers();
 		break;
-	case IDM_SAVE:								//±£´æ
+	case IDM_SAVE:								//ä¿å­˜
 		Save();
 		WindowSetFocus(wEditor);
 		break;
-	case IDM_SAVEALL:							//±£´æËùÓĞ
+	case IDM_SAVEALL:							//ä¿å­˜æ‰€æœ‰
 		SaveAllBuffers(false, true);
 		break;
-	case IDM_SAVEAS:							//Áí´æÎª
+	case IDM_SAVEAS:							//å¦å­˜ä¸º
 		SaveAsDialog();
 		WindowSetFocus(wEditor);
 		break;
-	case IDM_SAVEACOPY:							//±£´æÎªÒ»¸ö¸±±¾
+	case IDM_SAVEACOPY:							//ä¿å­˜ä¸ºä¸€ä¸ªå‰¯æœ¬
 		SaveACopy();
 		WindowSetFocus(wEditor);
 		break;
-	case IDM_SAVEASHTML:						//±£´æÎªHTML
+	case IDM_SAVEASHTML:						//ä¿å­˜ä¸ºHTML
 		SaveAsHTML();
 		WindowSetFocus(wEditor);
 		break;
-	case IDM_SAVEASRTF:							//±£´æÎªRTF
+	case IDM_SAVEASRTF:							//ä¿å­˜ä¸ºRTF
 		SaveAsRTF();
 		WindowSetFocus(wEditor);
 		break;
-	case IDM_SAVEASPDF:							//±£´æÎªPDF
+	case IDM_SAVEASPDF:							//ä¿å­˜ä¸ºPDF
 		SaveAsPDF();
 		WindowSetFocus(wEditor);
 		break;
-	case IDM_SAVEASTEX:							//±£´æÎªÎÄ±¾
+	case IDM_SAVEASTEX:							//ä¿å­˜ä¸ºæ–‡æœ¬
 		SaveAsTEX();
 		WindowSetFocus(wEditor);
 		break;
-	case IDM_SAVEASXML:							//±£´æÎªXML
+	case IDM_SAVEASXML:							//ä¿å­˜ä¸ºXML
 		SaveAsXML();
 		WindowSetFocus(wEditor);
 		break;
-	case IDM_REVERT:							//ÖØÖÃ
+	case IDM_REVERT:							//é‡ç½®
 		Revert();
 		WindowSetFocus(wEditor);
 		break;
-	case IDM_PRINT:								//´òÓ¡
+	case IDM_PRINT:								//æ‰“å°
 		Print(true);
 		break;
-	case IDM_PRINTSETUP:						//´òÓ¡ÉèÖÃ
+	case IDM_PRINTSETUP:						//æ‰“å°è®¾ç½®
 		PrintSetup();
 		break;
-	case IDM_LOADSESSION:						//ÔØÈë»á»°
+	case IDM_LOADSESSION:						//è½½å…¥ä¼šè¯
 		LoadSessionDialog();
 		WindowSetFocus(wEditor);
 		break;
-	case IDM_SAVESESSION:						//±£´æ»á»°
+	case IDM_SAVESESSION:						//ä¿å­˜ä¼šè¯
 		SaveSessionDialog();
 		WindowSetFocus(wEditor);
 		break;
-	case IDM_ABOUT:								//¹ØÓÚ
+	case IDM_ABOUT:								//å…³äº
 		AboutDialog();
 		break;
-	case IDM_QUIT:								//ÍË³ö
+	case IDM_QUIT:								//é€€å‡º
 		QuitProgram();
 		break;
-	case IDM_ENCODING_DEFAULT:					//Ä¬ÈÏ±àÂë
-	case IDM_ENCODING_UCS2BE:					//UCSµ½UNICODE BE±àÂë
-	case IDM_ENCODING_UCS2LE:					//UCSµ½UNICODE LE±àÂë
-	case IDM_ENCODING_UTF8:						//UTF-8±àÂë
+	case IDM_ENCODING_DEFAULT:					//é»˜è®¤ç¼–ç 
+	case IDM_ENCODING_UCS2BE:					//UCSåˆ°UNICODE BEç¼–ç 
+	case IDM_ENCODING_UCS2LE:					//UCSåˆ°UNICODE LEç¼–ç 
+	case IDM_ENCODING_UTF8:						//UTF-8ç¼–ç 
 	case IDM_ENCODING_UCOOKIE:					
 		CurrentBuffer()->unicodeMode = static_cast<UniMode>(cmdID - IDM_ENCODING_DEFAULT);
 		if (CurrentBuffer()->unicodeMode != uni8Bit) {
@@ -3547,14 +3565,14 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		SendEditor(SCI_SETCODEPAGE, codePage);
 		break;
 
-	case IDM_NEXTFILESTACK:						//ÏÂÒ»ÎÄ¼ş¶ÑÕ»
+	case IDM_NEXTFILESTACK:						//ä¸‹ä¸€æ–‡ä»¶å †æ ˆ
 		if (buffers.size > 1 && props.GetInt("buffers.zorder.switching")) {
 			NextInStack(); // next most recently selected buffer
 			WindowSetFocus(wEditor);
 			break;
 		}
 		// else fall through and do NEXTFILE behaviour...
-	case IDM_NEXTFILE:							//ÏÂÒ»ÎÄ¼ş
+	case IDM_NEXTFILE:							//ä¸‹ä¸€æ–‡ä»¶
 		if (buffers.size > 1) {
 			Next(); // Use Next to tabs move left-to-right
 			WindowSetFocus(wEditor);
@@ -3564,14 +3582,14 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		}
 		break;
 
-	case IDM_PREVFILESTACK:						//ÉÏÒ»ÎÄ¼ş¶ÑÕ»
+	case IDM_PREVFILESTACK:						//ä¸Šä¸€æ–‡ä»¶å †æ ˆ
 		if (buffers.size > 1 && props.GetInt("buffers.zorder.switching")) {
 			PrevInStack(); // next least recently selected buffer
 			WindowSetFocus(wEditor);
 			break;
 		}
 		// else fall through and do PREVFILE behaviour...
-	case IDM_PREVFILE:							//ÉÏÒ»ÎÄ¼ş
+	case IDM_PREVFILE:							//ä¸Šä¸€æ–‡ä»¶
 		if (buffers.size > 1) {
 			Prev(); // Use Prev to tabs move right-to-left
 			WindowSetFocus(wEditor);
@@ -3581,30 +3599,30 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		}
 		break;
 
-	case IDM_MOVETABRIGHT:						//±êÇ©ÓÒÒÆ
+	case IDM_MOVETABRIGHT:						//æ ‡ç­¾å³ç§»
 		MoveTabRight();
 		WindowSetFocus(wEditor);
 		break;
-	case IDM_MOVETABLEFT:						//±êÇ©×óÒÆ
+	case IDM_MOVETABLEFT:						//æ ‡ç­¾å·¦ç§»
 		MoveTabLeft();
 		WindowSetFocus(wEditor);
 		break;
 
-	case IDM_UNDO:								//³·Ïú
+	case IDM_UNDO:								//æ’¤é”€
 		SendPane(source, SCI_UNDO);
 		CheckMenus();
 		break;
-	case IDM_REDO:								//»Ö¸´
+	case IDM_REDO:								//æ¢å¤
 		SendPane(source, SCI_REDO);
 		CheckMenus();
 		break;
 
-	case IDM_CUT:								//¼ôÇĞ
+	case IDM_CUT:								//å‰ªåˆ‡
 		if (SendPane(source, SCI_GETSELECTIONSTART) != SendPane(source, SCI_GETSELECTIONEND)) {
 			SendPane(source, SCI_CUT);
 		}
 		break;
-	case IDM_COPY:								//¸´ÖÆ
+	case IDM_COPY:								//å¤åˆ¶
 		if (SendPane(source, SCI_GETSELECTIONSTART) != SendPane(source, SCI_GETSELECTIONEND)) {
 			//fprintf(stderr, "Copy from %d\n", source);
 			SendPane(source, SCI_COPY);
@@ -3612,7 +3630,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		// does not trigger SCN_UPDATEUI, so do CheckMenusClipboard() here
 		CheckMenusClipboard();
 		break;
-	case IDM_PASTE:								//Õ³Ìù
+	case IDM_PASTE:								//ç²˜è´´
 		SendPane(source, SCI_PASTE);
 		break;
 	case IDM_DUPLICATE:
@@ -3626,30 +3644,30 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 			SendFocused(SCI_LINEDOWN);
 		}
 		break;
-	case IDM_CLEAR:								//Çå³ı
+	case IDM_CLEAR:								//æ¸…é™¤
 		SendPane(source, SCI_CLEAR);
 		break;
 	//added-------------
-	case IDM_CLEARLINE:							//É¾³ıĞĞ
+	case IDM_CLEARLINE:							//åˆ é™¤è¡Œ
 		SendPane(source, SCI_LINEDELETE);
 		break;
 	//added-------------
-	case IDM_SELECTALL:							//È«Ñ¡
+	case IDM_SELECTALL:							//å…¨é€‰
 		SendPane(source, SCI_SELECTALL);
 		break;
-	case IDM_COPYASRTF:							//¸´ÖÆÎªRTF
+	case IDM_COPYASRTF:							//å¤åˆ¶ä¸ºRTF
 		CopyAsRTF();
 		break;
 
-	case IDM_FIND:								//²éÕÒ
+	case IDM_FIND:								//æŸ¥æ‰¾
 		Find();
 		break;
 
-	case IDM_INCSEARCH:							//µİÔöËÑË÷
+	case IDM_INCSEARCH:							//é€’å¢æœç´¢
 		IncrementSearchMode();
 		break;
 
-	case IDM_FINDNEXT:							//²éÕÒÏÂÒ»¸ö
+	case IDM_FINDNEXT:							//æŸ¥æ‰¾ä¸‹ä¸€ä¸ª
 		FindNext(reverseFind);
 		break;
 
@@ -3657,7 +3675,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		FindNext(!reverseFind);
 		break;
 
-	case IDM_FINDNEXTSEL:						//²éÕÒÏÂÒ»ËùÑ¡
+	case IDM_FINDNEXTSEL:						//æŸ¥æ‰¾ä¸‹ä¸€æ‰€é€‰
 		SelectionIntoFind();
 		FindNext(reverseFind);
 		break;
@@ -3671,15 +3689,15 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		FindNext(!reverseFind);
 		break;
 
-	case IDM_FINDINFILES:						//ÎÄ¼şÖĞ²éÕÒ
+	case IDM_FINDINFILES:						//æ–‡ä»¶ä¸­æŸ¥æ‰¾
 		FindInFiles();
 		break;
 
-	case IDM_REPLACE:							//Ìæ»»
+	case IDM_REPLACE:							//æ›¿æ¢
 		Replace();
 		break;
 
-	case IDM_GOTO:								//Ìø×ª
+	case IDM_GOTO:								//è·³è½¬
 		GoLineDialog();
 		break;
 
@@ -3707,65 +3725,65 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		GoMatchingPreprocCond(IDM_NEXTMATCHPPC, true);
 		break;
 
-	case IDM_SHOWCALLTIP:						//ÏÔÊ¾µ÷ÓÃÌáÊ¾
+	case IDM_SHOWCALLTIP:						//æ˜¾ç¤ºè°ƒç”¨æç¤º
 		StartCallTip();
 		break;
 
-	case IDM_COMPLETE:							//Íê³É
+	case IDM_COMPLETE:							//å®Œæˆ
 		autoCCausedByOnlyOne = false;
 		StartAutoComplete();
 		break;
 
-	case IDM_COMPLETEWORD:						//Íê³Éµ¥´Ê
+	case IDM_COMPLETEWORD:						//å®Œæˆå•è¯
 		autoCCausedByOnlyOne = false;
 		StartAutoCompleteWord(false);
 		break;
 
-	case IDM_ABBREV:							//ËõĞ´
+	case IDM_ABBREV:							//ç¼©å†™
 		SendEditor(SCI_CANCEL);
 		StartExpandAbbreviation();
 		break;
 
-	case IDM_INS_ABBREV:						//²åÈëËõĞ´
+	case IDM_INS_ABBREV:						//æ’å…¥ç¼©å†™
 		SendEditor(SCI_CANCEL);
 		StartInsertAbbreviation();
 		break;
 
-	case IDM_BLOCK_COMMENT:						//¿é×¢ÊÍ
+	case IDM_BLOCK_COMMENT:						//å—æ³¨é‡Š
 		StartBlockComment();
 		break;
 
-	case IDM_BOX_COMMENT:						//¿ò×¢ÊÍ
+	case IDM_BOX_COMMENT:						//æ¡†æ³¨é‡Š
 		StartBoxComment();
 		break;
 
-	case IDM_STREAM_COMMENT:					//Á÷×¢ÊÍ
+	case IDM_STREAM_COMMENT:					//æµæ³¨é‡Š
 		StartStreamComment();
 		break;
 
-	case IDM_TOGGLE_FOLDALL:					//ÇĞ»»ÕÛµşËùÓĞ
+	case IDM_TOGGLE_FOLDALL:					//åˆ‡æ¢æŠ˜å æ‰€æœ‰
 		FoldAll();
 		break;
 
-	case IDM_UPRCASE:							//´óĞ´
+	case IDM_UPRCASE:							//å¤§å†™
 		SendFocused(SCI_UPPERCASE);
 		break;
 
-	case IDM_LWRCASE:							//Ğ¡Ğ´
+	case IDM_LWRCASE:							//å°å†™
 		SendFocused(SCI_LOWERCASE);
 		break;
 
-	case IDM_JOIN:								//×éºÏ
+	case IDM_JOIN:								//ç»„åˆ
 		SendFocused(SCI_TARGETFROMSELECTION);
 		SendFocused(SCI_LINESJOIN);
 		break;
 
-	case IDM_SPLIT:								//ÇĞ¸î
+	case IDM_SPLIT:								//åˆ‡å‰²
 		SendFocused(SCI_TARGETFROMSELECTION);
 		SendFocused(SCI_LINESSPLIT);
 		break;
 
-	case IDM_EXPAND:							//Õ¹¿ª
+	case IDM_EXPAND:							//å±•å¼€
 		SendEditor(SCI_TOGGLEFOLD, GetCurrentLineNumber());
 		break;
 
@@ -3809,18 +3827,18 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		CheckMenus();
 		break;
 
-	case IDM_VIEWEOL:								//²é¿´ĞĞÄ©×Ö·û
+	case IDM_VIEWEOL:								//æŸ¥çœ‹è¡Œæœ«å­—ç¬¦
 		SendEditor(SCI_SETVIEWEOL, !SendEditor(SCI_GETVIEWEOL));
 		CheckMenus();
 		break;
 
-	case IDM_VIEWTOOLBAR:							//²é¿´¹¤¾ßÀ¸
+	case IDM_VIEWTOOLBAR:							//æŸ¥çœ‹å·¥å…·æ 
 		tbVisible = !tbVisible;
 		ShowToolBar();
 		CheckMenus();
 		break;
 
-	case IDM_TOGGLEOUTPUT:							//ÇĞ»»Êä³ö
+	case IDM_TOGGLEOUTPUT:							//åˆ‡æ¢è¾“å‡º
 		ToggleOutputVisible();
 		CheckMenus();
 		break;
@@ -3832,15 +3850,15 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 	//added
 //	case IDM_CODEPAGE:{
 //		CHAR icodePage[] = (CHAR)SendEditor(SCI_GETLINECOUNT);
-		//SendOutput(SCI_GETCODEPAGE);
-//		::MessageBox(0,icodePage,"µ±Ç°´úÂëÒ³",0);
+//		//SendOutput(SCI_GETCODEPAGE);
+//		::MessageBox(0,icodePage,"å½“å‰ä»£ç é¡µ",0);
 
 		//delete codePage;
 //		};
 //		break;
 	//added
 	case IDM_EDITORCONFIG:
-		::MessageBoxW(0,L"×¢Òâ:´Ë¹¦ÄÜ¿ÉÄÜµ¼ÖÂÉèÖÃÎÄ¼ş»ìÂÒ,ÇëĞ¡ĞÄÊ¹ÓÃ.",L"¾¯¸æ!",0);
+		::MessageBoxW(0,L"æ³¨æ„:æ­¤åŠŸèƒ½å¯èƒ½å¯¼è‡´è®¾ç½®æ–‡ä»¶æ··ä¹±,è¯·å°å¿ƒä½¿ç”¨.",L"è­¦å‘Š!",0);
 		::ShellExecuteW(0,L"open",L"sciteconfig.exe",L"acn",L"",SW_SHOW);
 		break;
 	case IDM_WRAP:
@@ -3855,58 +3873,58 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		CheckMenus();
 		break;
 
-	case IDM_READONLY:								//Ö»¶Á
+	case IDM_READONLY:								//åªè¯»
 		isReadOnly = !isReadOnly;
 		SendEditor(SCI_SETREADONLY, isReadOnly);
 		UpdateStatusBar(true);
 		CheckMenus();
 		break;
 
-	case IDM_VIEWTABBAR:							//²é¿´±êÇ©À¸
+	case IDM_VIEWTABBAR:							//æŸ¥çœ‹æ ‡ç­¾æ 
 		tabVisible = !tabVisible;
 		ShowTabBar();
 		CheckMenus();
 		break;
 
-	case IDM_VIEWSTATUSBAR:							//²é¿´×´Ì¬À¸
+	case IDM_VIEWSTATUSBAR:							//æŸ¥çœ‹çŠ¶æ€æ 
 		sbVisible = !sbVisible;
 		ShowStatusBar();
 		UpdateStatusBar(true);
 		CheckMenus();
 		break;
 
-	case IDM_CLEAROUTPUT:							//Çå³ıÊä³ö
+	case IDM_CLEAROUTPUT:							//æ¸…é™¤è¾“å‡º
 		SendOutputEx(SCI_CLEARALL, 0, 0, false);
 		break;
 
-	case IDM_SWITCHPANE:							//ÇĞ»»Ãæ°å(Êä³ö/±à¼­Æ÷Ãæ°å)
+	case IDM_SWITCHPANE:							//åˆ‡æ¢é¢æ¿(è¾“å‡º/ç¼–è¾‘å™¨é¢æ¿)
 		if (wEditor.HasFocus())
 			WindowSetFocus(wOutput);
 		else
 			WindowSetFocus(wEditor);
 		break;
 
-	case IDM_EOL_CRLF:								//CRLFĞĞÄ©
+	case IDM_EOL_CRLF:								//CRLFè¡Œæœ«
 		SendEditor(SCI_SETEOLMODE, SC_EOL_CRLF);
 		CheckMenus();
 		UpdateStatusBar(false);
 		break;
 
-	case IDM_EOL_CR:								//CRĞĞÄ©
+	case IDM_EOL_CR:								//CRè¡Œæœ«
 		SendEditor(SCI_SETEOLMODE, SC_EOL_CR);
 		CheckMenus();
 		UpdateStatusBar(false);
 		break;
-	case IDM_EOL_LF:								//LFĞĞÄ©
+	case IDM_EOL_LF:								//LFè¡Œæœ«
 		SendEditor(SCI_SETEOLMODE, SC_EOL_LF);
 		CheckMenus();
 		UpdateStatusBar(false);
 		break;
-	case IDM_EOL_CONVERT:							//×ª»»ĞĞÄ©
+	case IDM_EOL_CONVERT:							//è½¬æ¢è¡Œæœ«
 		SendEditor(SCI_CONVERTEOLS, SendEditor(SCI_GETEOLMODE));
 		break;
 
-	case IDM_VIEWSPACE:								//¿Õ°×¿É¼û
+	case IDM_VIEWSPACE:								//ç©ºç™½å¯è§
 		ViewWhitespace(!SendEditor(SCI_GETVIEWWS));
 		CheckMenus();
 		Redraw();
@@ -3920,7 +3938,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		}
 		break;
 
-	case IDM_COMPILE: {								//±àÒë
+	case IDM_COMPILE: {								//ç¼–è¯‘
 			if (SaveIfUnsureForBuilt() != IDCANCEL) {
 				SelectionIntoProperties();
 				AddCommand(props.GetWild("command.compile.", FileNameExt().AsInternal()), "",
@@ -3931,7 +3949,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		}
 		break;
 
-	case IDM_BUILD: {								//¹¹½¨
+	case IDM_BUILD: {								//æ„å»º
 			if (SaveIfUnsureForBuilt() != IDCANCEL) {
 				SelectionIntoProperties();
 				AddCommand(
@@ -3946,7 +3964,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		}
 		break;
 
-	case IDM_GO: {									//Ö´ĞĞ
+	case IDM_GO: {									//æ‰§è¡Œ
 			if (SaveIfUnsureForBuilt() != IDCANCEL) {
 				SelectionIntoProperties();
 				long flags = 0;
@@ -3968,44 +3986,44 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		}
 		break;
 
-	case IDM_STOPEXECUTE:							//Í£Ö¹Ö´ĞĞ
+	case IDM_STOPEXECUTE:							//åœæ­¢æ‰§è¡Œ
 		StopExecute();
 		break;
 
-	case IDM_NEXTMSG:								//ÏÂÒ»ÏûÏ¢
+	case IDM_NEXTMSG:								//ä¸‹ä¸€æ¶ˆæ¯
 		GoMessage(1);
 		break;
 
-	case IDM_PREVMSG:								//ÉÏÒ»ÏûÏ¢
+	case IDM_PREVMSG:								//ä¸Šä¸€æ¶ˆæ¯
 		GoMessage(-1);
 		break;
 
-	case IDM_OPENLOCALPROPERTIES:					//´ò¿ª±¾µØÊôĞÔÎÄ¼ş
+	case IDM_OPENLOCALPROPERTIES:					//æ‰“å¼€æœ¬åœ°å±æ€§æ–‡ä»¶
 		OpenProperties(IDM_OPENLOCALPROPERTIES);
 		WindowSetFocus(wEditor);
 		break;
 
-	case IDM_OPENUSERPROPERTIES:					//´ò¿ªÓÃ»§ÊôĞÔÎÄ¼ş
+	case IDM_OPENUSERPROPERTIES:					//æ‰“å¼€ç”¨æˆ·å±æ€§æ–‡ä»¶
 		OpenProperties(IDM_OPENUSERPROPERTIES);
 		WindowSetFocus(wEditor);
 		break;
 
-	case IDM_OPENGLOBALPROPERTIES:					//´ò¿ªÈ«¾ÖÊôĞÔÎÄ¼ş
+	case IDM_OPENGLOBALPROPERTIES:					//æ‰“å¼€å…¨å±€å±æ€§æ–‡ä»¶
 		OpenProperties(IDM_OPENGLOBALPROPERTIES);
 		WindowSetFocus(wEditor);
 		break;
 
-	case IDM_OPENABBREVPROPERTIES:					//´ò¿ªËõĞ´ÊôĞÔÎÄ¼ş
+	case IDM_OPENABBREVPROPERTIES:					//æ‰“å¼€ç¼©å†™å±æ€§æ–‡ä»¶
 		OpenProperties(IDM_OPENABBREVPROPERTIES);
 		WindowSetFocus(wEditor);
 		break;
 
-	case IDM_OPENLUAEXTERNALFILE:					//´ò¿ªLUAÊôĞÔ(½Å±¾)ÎÄ¼ş
+	case IDM_OPENLUAEXTERNALFILE:					//æ‰“å¼€LUAå±æ€§(è„šæœ¬)æ–‡ä»¶
 		OpenProperties(IDM_OPENLUAEXTERNALFILE);
 		WindowSetFocus(wEditor);
 		break;
 
-	case IDM_OPENDIRECTORYPROPERTIES:				//´ò¿ªÄ¿Â¼ÊôĞÔÎÄ¼ş
+	case IDM_OPENDIRECTORYPROPERTIES:				//æ‰“å¼€ç›®å½•å±æ€§æ–‡ä»¶
 		OpenProperties(IDM_OPENDIRECTORYPROPERTIES);
 		WindowSetFocus(wEditor);
 		break;
@@ -4013,32 +4031,32 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 	case IDM_SRCWIN:
 		break;
 
-	case IDM_BOOKMARK_TOGGLE:						//ÊéÇ©ÇĞ»»
+	case IDM_BOOKMARK_TOGGLE:						//ä¹¦ç­¾åˆ‡æ¢
 		BookmarkToggle();
 		break;
 
-	case IDM_BOOKMARK_NEXT:							//ÏÂÒ»ÊéÇ©
+	case IDM_BOOKMARK_NEXT:							//ä¸‹ä¸€ä¹¦ç­¾
 		BookmarkNext(true);
 		break;
 
-	case IDM_BOOKMARK_PREV:							//ÉÏÒ»ÊéÇ©
+	case IDM_BOOKMARK_PREV:							//ä¸Šä¸€ä¹¦ç­¾
 		BookmarkNext(false);
 		break;
 
-	case IDM_BOOKMARK_NEXT_SELECT:					//ÏÂÒ»ËùÑ¡
+	case IDM_BOOKMARK_NEXT_SELECT:					//ä¸‹ä¸€æ‰€é€‰
 		BookmarkNext(true, true);
 		break;
 
-	case IDM_BOOKMARK_PREV_SELECT:					//ÉÏÒ»ËùÑ¡
+	case IDM_BOOKMARK_PREV_SELECT:					//ä¸Šä¸€æ‰€é€‰
 		BookmarkNext(false, true);
 		break;
 
-	case IDM_BOOKMARK_CLEARALL:						//Çå³ıËùÓĞÊéÇ©
+	case IDM_BOOKMARK_CLEARALL:						//æ¸…é™¤æ‰€æœ‰ä¹¦ç­¾
 		SendEditor(SCI_MARKERDELETEALL, markerBookmark);
 		RemoveFindMarks();
 		break;
 
-	case IDM_TABSIZE:								//±êÇ©´óĞ¡
+	case IDM_TABSIZE:								//æ ‡ç­¾å¤§å°
 		TabSizeDialog();
 		break;
 
@@ -4048,20 +4066,20 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		Redraw();
 		break;
 
-	case IDM_MACROLIST:								//ºêÁĞ±í
+	case IDM_MACROLIST:								//å®åˆ—è¡¨
 		AskMacroList();
 		break;
-	case IDM_MACROPLAY:								//Ö´ĞĞºê
+	case IDM_MACROPLAY:								//æ‰§è¡Œå®
 		StartPlayMacro();
 		break;
-	case IDM_MACRORECORD:							//Â¼ÖÆºê
+	case IDM_MACRORECORD:							//å½•åˆ¶å®
 		StartRecordMacro();
 		break;
-	case IDM_MACROSTOPRECORD:						//Í£Ö¹Â¼ÖÆºê
+	case IDM_MACROSTOPRECORD:						//åœæ­¢å½•åˆ¶å®
 		StopRecordMacro();
 		break;
 
-	case IDM_HELP: {								//°ïÖú
+	case IDM_HELP: {								//å¸®åŠ©
 			SelectionIntoProperties();
 			AddCommand(props.GetWild("command.help.", FileNameExt().AsInternal()), "",
 			        SubsystemType("command.help.subsystem."));
@@ -4071,51 +4089,53 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 			}
 		}
 		break;
-	case IDM_OLDTOOLBAR:							//added ÀÏÊ½¹¤¾ßÀ¸ËµÃ÷
+	case IDM_OLDTOOLBAR:							//added è€å¼å·¥å…·æ è¯´æ˜
 		{
-		SString msg = LocaliseMessage("ÒòÎª×îĞÂµÄSciteÊ¹ÓÃ32Î»É«µÄ¹¤¾ßÀ¸Í¼±ê,Èç¹ûÄúµÄÏµÍ³²»Ö§³Ö,¿ÉÄÜÏÔÊ¾´íÎó\n"
-			 "Çëµ÷ÕûÄúµÄ¼ÆËã»úÎª32Î»É«.\n\n"
+		SString msg = LocaliseMessage("å› ä¸ºæœ€æ–°çš„Sciteä½¿ç”¨32ä½è‰²çš„å·¥å…·æ å›¾æ ‡,å¦‚æœæ‚¨çš„ç³»ç»Ÿä¸æ”¯æŒ,å¯èƒ½æ˜¾ç¤ºé”™è¯¯\n"
+			 "è¯·è°ƒæ•´æ‚¨çš„è®¡ç®—æœºä¸º32ä½è‰².\n\n"
 			 "\t\t\t\t\t--thesnow\n"
 			);
 		WindowMessageBox(wSciTE, msg, MB_OK | MB_ICONWARNING);
 		break;	
 		}
-	case IDM_DONATE:								//¾èÖú
+	case IDM_DONATE:								//æåŠ©
 		{
-		SString msg = LocaliseMessage("×îĞÂAutoitºº»¯°æ±¾ËùÓĞÎÄ¼ş¸üĞÂÓÚ(·Ç¶ÀÁ¢°²×°ÎÄ¼ş):\n"
+		SString msg = LocaliseMessage("æœ€æ–°Autoitæ±‰åŒ–ç‰ˆæœ¬æ‰€æœ‰æ–‡ä»¶æ›´æ–°äº(éç‹¬ç«‹å®‰è£…æ–‡ä»¶):\n"
 			 "	http://autoit-cn.googlecode.com\n"
-			 "¶ÔÓÚ¿ñÈÈFANS.Çë×ÔĞĞÊ¹ÓÃSVN¿Í»§¶ËÊ¹ÓÃ¼ì³ö.(ÓÀÔ¶±ÈÏÖÔÚ·¢²¼µÄºº»¯°æ±¾ĞÂ)\n"
-			 "ÃüÁî: svn co http://autoit-cn.googlecode.com/svn/trunk/ AutoIt3\n"
-			 "×îĞÂµÄ°ïÖúÎÄ¼ş,Ò²¿ÉÒÔÔÚSVNÏÂÔØ.\n\n"
-			 "Èç¹ûÄúÔ¸Òâ¾èÖúthesnoWµÄºº»¯(Ó²ÅÌ»òÕßRMB),ÇëÁªÏµ:\n"
+			 "å¯¹äºç‹‚çƒ­FANS.è¯·è‡ªè¡Œä½¿ç”¨SVNå®¢æˆ·ç«¯ä½¿ç”¨æ£€å‡º.(æ°¸è¿œæ¯”ç°åœ¨å‘å¸ƒçš„æ±‰åŒ–ç‰ˆæœ¬æ–°)\n"
+			 "å‘½ä»¤: svn co http://autoit-cn.googlecode.com/svn/trunk/ AutoIt3\n"
+			 "æœ€æ–°çš„å¸®åŠ©æ–‡ä»¶,ä¹Ÿå¯ä»¥åœ¨SVNä¸‹è½½.\n\n"
+			 "å¦‚æœæ‚¨æ„¿æ„æåŠ©thesnoWçš„æ±‰åŒ–(ç¡¬ç›˜æˆ–è€…RMB),è¯·è”ç³»:\n"
 			 "rundll32#126.com,thesnow#QQ.com\n\n"
-			 "©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´	\n"
-			 "  ¾èÖúthesnoWÃûµ¥(ºº»¯):				\n"
+			 "â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”	\n"
+			 "  æåŠ©thesnoWåå•(æ±‰åŒ–):				\n"
 			 "  KiwiCsj			30.00RMB			\n"
-			 "  ´óç³ÀÇ			30.00RMB			\n"
-			 "  ²·Ò»ÑùµÄÇàÄê		30.00RMB			\n"
-			 "  Ê²Ã´Ò²²»¶®		50.00RMB			\n"
-			 "  Â·ÈË¼×(ÄäÃû)		50.00RMB			\n"		
+			 "  å¤§ç»¯ç‹¼			30.00RMB			\n"
+			 "  åœä¸€æ ·çš„é’å¹´		30.00RMB			\n"
+			 "  ä»€ä¹ˆä¹Ÿä¸æ‡‚		50.00RMB			\n"
+			 "  è·¯äººç”²(åŒ¿å)		50.00RMB			\n"		
 			 "  nxbigdaddy			55.5RMB			\n"
 			 "  silentdream		100.00RMB			\n"
-			 "  &ÀÏµ¶			200.00RMB			\n"			
-			 "  o¦î$¨|¨}¨~¨		40GB+80GB HD	\n"
-			 "©¸©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¼	\n\n"
-			 "©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´	\n"
-			 "  ¾èÖúACNÍøÕ¾Ãûµ¥(·şÎñÆ÷):			\n"
+			 "  &è€åˆ€			200.00RMB			\n"			
+			 "  oï¸»$â–…â–†â–‡â—¤		40GB+80GB HD	\n"
+			 "  fengwei646		100.00RMB	\n"
+			 "  æœ€å¾Œã®å¤¢		200.00RMB	\n"
+			 "â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜	\n\n"
+			 "â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”	\n"
+			 "  æåŠ©ACNç½‘ç«™åå•(æœåŠ¡å™¨):			\n"
 			 "  gooker			100.00RMB			\n"
 			 "  Crafter			100.00RMB			\n"
-			 "  Ğ¡¿É			100.00RMB			\n"
-			 "  ot¢..¿á†„		100.00RMB			\n"
+			 "  å°å¯			100.00RMB			\n"
+			 "  oç€Ÿç‘..é…·å”²		100.00RMB			\n"
 			 "  Sanhen			500.00RMB			\n"
-			 "  ÌØ±ğÃùĞ»:		KYO/jack½ğÇ¹Óã		\n"	
-			 "©¸©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¼	\n"		
+			 "  ç‰¹åˆ«é¸£è°¢:		KYO/jacké‡‘æªé±¼		\n"	
+			 "â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜	\n"		
 			);
 		WindowMessageBox(wSciTE, msg, MB_OK | MB_ICONWARNING);
 		break;	
 		}
 	
-	case IDM_HELP_SCITE: {							//scite°ïÖú
+	case IDM_HELP_SCITE: {							//sciteå¸®åŠ©
 			SelectionIntoProperties();
 			AddCommand(props.Get("command.scite.help"), "",
 			        SubsystemType(props.Get("command.scite.help.subsystem")[0]));
@@ -4174,7 +4194,7 @@ void SciTEBase::FoldChanged(int line, int levelNow, int levelPrev) {
 		}
 	}
 }
-//Õ¹¿ª
+//å±•å¼€
 void SciTEBase::Expand(int &line, bool doExpand, bool force, int visLevels, int level) {
 	int lineMaxSubord = SendEditor(SCI_GETLASTCHILD, line, level & SC_FOLDLEVELNUMBERMASK);
 	line++;
@@ -4212,7 +4232,7 @@ void SciTEBase::Expand(int &line, bool doExpand, bool force, int visLevels, int 
 		}
 	}
 }
-//ÕÛµşËùÓĞ
+//æŠ˜å æ‰€æœ‰
 void SciTEBase::FoldAll() {
 	SendEditor(SCI_COLOURISE, 0, -1);
 	int maxLine = SendEditor(SCI_GETLINECOUNT);
@@ -4240,12 +4260,12 @@ void SciTEBase::FoldAll() {
 		}
 	}
 }
-//Ìø×ªĞĞÈ·ÈÏ¿É¼û
+//è·³è½¬è¡Œç¡®è®¤å¯è§
 void SciTEBase::GotoLineEnsureVisible(int line) {
 	SendEditor(SCI_ENSUREVISIBLEENFORCEPOLICY, line);
 	SendEditor(SCI_GOTOLINE, line);
 }
-//È·ÈÏ·¶Î§¿É¼û
+//ç¡®è®¤èŒƒå›´å¯è§
 void SciTEBase::EnsureRangeVisible(int posStart, int posEnd, bool enforcePolicy) {
 	int lineStart = SendEditor(SCI_LINEFROMPOSITION, Platform::Minimum(posStart, posEnd));
 	int lineEnd = SendEditor(SCI_LINEFROMPOSITION, Platform::Maximum(posStart, posEnd));
@@ -4253,7 +4273,7 @@ void SciTEBase::EnsureRangeVisible(int posStart, int posEnd, bool enforcePolicy)
 		SendEditor(enforcePolicy ? SCI_ENSUREVISIBLEENFORCEPOLICY : SCI_ENSUREVISIBLE, line);
 	}
 }
-//Ò³±ßµã»÷
+//é¡µè¾¹ç‚¹å‡»
 bool SciTEBase::MarginClick(int position, int modifiers) {
 	int lineClick = SendEditor(SCI_LINEFROMPOSITION, position);
 	//Platform::DebugPrintf("Margin click %d %d %x\n", position, lineClick,
@@ -4318,7 +4338,7 @@ void SciTEBase::NewLineInOutput() {
 	AddCommand(cmd, ".", jobCLI);
 	Execute();
 }
-//Í¨Öª
+//é€šçŸ¥
 void SciTEBase::Notify(SCNotification *notification) {
 	bool handled = false;
 	//Platform::DebugPrintf("Notify %d\n", notification->nmhdr.code);
@@ -4387,7 +4407,7 @@ void SciTEBase::Notify(SCNotification *notification) {
 		BuffersMenu();
 		break;
 
-	case SCN_DOUBLECLICK:				//Ë«»÷
+	case SCN_DOUBLECLICK:				//åŒå‡»
 		if (extender)
 			handled = extender->OnDoubleClick();
 		if (!handled && notification->nmhdr.idFrom == IDM_RUNWIN) {
@@ -4410,7 +4430,7 @@ void SciTEBase::Notify(SCNotification *notification) {
 		}
 		break;
 
-	case SCN_MODIFIED:					//ÒÑĞŞ¸Ä
+	case SCN_MODIFIED:					//å·²ä¿®æ”¹
 		if (notification->modificationType & SC_LASTSTEPINUNDOREDO) {
 			//when the user hits undo or redo, several normal insert/delete
 			//notifications may fire, but we will end up here in the end
@@ -4433,7 +4453,7 @@ void SciTEBase::Notify(SCNotification *notification) {
 			        notification->foldLevelNow, notification->foldLevelPrev);
 		}
 		break;
-	//Ò³±ßµã»÷
+	//é¡µè¾¹ç‚¹å‡»
 	case SCN_MARGINCLICK: {
 			if (extender)
 				handled = extender->OnMarginClick();
@@ -4444,7 +4464,7 @@ void SciTEBase::Notify(SCNotification *notification) {
 			}
 		}
 		break;
-	//ĞèÒªÏÔÊ¾
+	//éœ€è¦æ˜¾ç¤º
 	case SCN_NEEDSHOWN: {
 			EnsureRangeVisible(notification->position, notification->position + notification->length, false);
 		}
@@ -4457,7 +4477,7 @@ void SciTEBase::Notify(SCNotification *notification) {
 				extender->OnUserListSelection(notification->wParam, notification->text);
 		}
 		break;
-	//µ÷ÓÃÌáÊ¾µã»÷
+	//è°ƒç”¨æç¤ºç‚¹å‡»
 	case SCN_CALLTIPCLICK: {
 			if (notification->position == 1 && currentCallTip > 0) {
 				currentCallTip--;
@@ -4468,7 +4488,7 @@ void SciTEBase::Notify(SCNotification *notification) {
 			}
 		}
 		break;
-	//ºê¼ÍÂ¼
+	//å®çºªå½•
 	case SCN_MACRORECORD:
 		RecordMacroCommand(notification);
 		break;
@@ -4500,7 +4520,7 @@ void SciTEBase::Notify(SCNotification *notification) {
 		break;
 	}
 }
-//¼ì²é²Ëµ¥¼ôÇĞ°å
+//æ£€æŸ¥èœå•å‰ªåˆ‡æ¿
 void SciTEBase::CheckMenusClipboard() {
 	bool hasSelection = SendFocused(SCI_GETSELECTIONSTART) != SendFocused(SCI_GETSELECTIONEND);
 	EnableAMenuItem(IDM_CUT, hasSelection);
@@ -4508,7 +4528,7 @@ void SciTEBase::CheckMenusClipboard() {
 	EnableAMenuItem(IDM_CLEAR, hasSelection);
 	EnableAMenuItem(IDM_PASTE, SendFocused(SCI_CANPASTE));
 }
-//¼ì²é²Ëµ¥
+//æ£€æŸ¥èœå•
 void SciTEBase::CheckMenus() {
 	CheckMenusClipboard();
 	EnableAMenuItem(IDM_SAVE, CurrentBuffer()->isDirty);
@@ -4549,7 +4569,7 @@ void SciTEBase::CheckMenus() {
 	EnableAMenuItem(IDM_STOPEXECUTE, jobQueue.IsExecuting());
 	if (buffers.size > 0) {
 #if PLAT_WIN
-		// ±êÇ©À¸
+		// æ ‡ç­¾æ 
 #ifndef TCM_DESELECTALL
 #define TCM_DESELECTALL TCM_FIRST+50
 #endif
@@ -4572,26 +4592,26 @@ void SciTEBase::CheckMenus() {
 	EnableAMenuItem(IDM_MACRORECORD, !recording);
 	EnableAMenuItem(IDM_MACROSTOPRECORD, recording);
 }
-//ÉÏÏÂÎÄ²Ëµ¥
+//ä¸Šä¸‹æ–‡èœå•
 void SciTEBase::ContextMenu(Window wSource, Point pt, Window wCmd) {
 	int currentPos = SendWindow(wSource, SCI_GETCURRENTPOS);
 	int anchor = SendWindow(wSource, SCI_GETANCHOR);
 	popup.CreatePopUp();
 	bool writable = !SendWindow(wSource, SCI_GETREADONLY);
-	AddToPopUp("³·Ïú", IDM_UNDO, writable && SendWindow(wSource, SCI_CANUNDO));
-	AddToPopUp("»Ö¸´", IDM_REDO, writable && SendWindow(wSource, SCI_CANREDO));
+	AddToPopUp("æ’¤é”€", IDM_UNDO, writable && SendWindow(wSource, SCI_CANUNDO));
+	AddToPopUp("æ¢å¤", IDM_REDO, writable && SendWindow(wSource, SCI_CANREDO));
 	AddToPopUp("");
-	AddToPopUp("¼ôÇĞ", IDM_CUT, writable && currentPos != anchor);
-	AddToPopUp("¸´ÖÆ", IDM_COPY, currentPos != anchor);
-	AddToPopUp("Õ³Ìù", IDM_PASTE, writable && SendWindow(wSource, SCI_CANPASTE));
-	AddToPopUp("É¾³ı", IDM_CLEAR, writable && currentPos != anchor);
+	AddToPopUp("å‰ªåˆ‡", IDM_CUT, writable && currentPos != anchor);
+	AddToPopUp("å¤åˆ¶", IDM_COPY, currentPos != anchor);
+	AddToPopUp("ç²˜è´´", IDM_PASTE, writable && SendWindow(wSource, SCI_CANPASTE));
+	AddToPopUp("åˆ é™¤", IDM_CLEAR, writable && currentPos != anchor);
 	AddToPopUp("");
-	AddToPopUp("È«Ñ¡", IDM_SELECTALL);
+	AddToPopUp("å…¨é€‰", IDM_SELECTALL);
 	AddToPopUp("");
 	if (wSource.GetID() == wOutput.GetID()) {
-		AddToPopUp("Òş²Ø", IDM_TOGGLEOUTPUT, true);
+		AddToPopUp("éšè—", IDM_TOGGLEOUTPUT, true);
 	} else {
-		AddToPopUp("¹Ø±Õ", IDM_CLOSE, true);
+		AddToPopUp("å…³é—­", IDM_CLOSE, true);
 	}
 	SString userContextMenu = props.GetNewExpand("user.context.menu");
 	userContextMenu.substitute('|', '\0');
@@ -4641,7 +4661,7 @@ void SciTEBase::MoveSplit(Point ptNewDrag) {
 
 	previousHeightOutput = newHeightOutput;
 }
-//UI¿É¼û
+//UIå¯è§
 void SciTEBase::UIAvailable() {
 	SetImportMenu();
 	if (extender) {
@@ -4681,7 +4701,7 @@ void SciTEBase::PerformOne(char *action) {
 			currentMacro = arg;
 		} else if (isprefix(action, "cwd:")) {
 			if (chdir(arg) != 0) {
-				SString msg = LocaliseMessage("ÎŞĞ§µÄÄ¿Â¼: '^0'.", arg);
+				SString msg = LocaliseMessage("æ— æ•ˆçš„ç›®å½•: '^0'.", arg);
 				WindowMessageBox(wSciTE, msg, MB_OK | MB_ICONWARNING);
 			}
 		} else if (isprefix(action, "enumproperties:")) {
@@ -4773,7 +4793,7 @@ static bool IsSwitchCharacter(char ch) {
 	return (ch == '-') || (ch == '/');
 #endif
 }
-//Ã¶¾ÙÊôĞÔÎÄ¼ş
+//æšä¸¾å±æ€§æ–‡ä»¶
 // Called by SciTEBase::PerformOne when action="enumproperties:"
 void SciTEBase::EnumProperties(const char *propkind) {
 	const char *key = NULL;
@@ -4783,7 +4803,7 @@ void SciTEBase::EnumProperties(const char *propkind) {
 	if (!extender)
 		return;
 	if (!strcmp(propkind, "dyn")) {
-		SelectionIntoProperties(); // Ë¢ĞÂÊôĞÔ ...
+		SelectionIntoProperties(); // åˆ·æ–°å±æ€§ ...
 		pf = &props;
 	} else if (!strcmp(propkind, "local"))
 		pf = &propsLocal;
@@ -4806,7 +4826,7 @@ void SciTEBase::EnumProperties(const char *propkind) {
 		}
 	}
 }
-//·¢ËÍÒ»¸öÊôĞÔ
+//å‘é€ä¸€ä¸ªå±æ€§
 void SciTEBase::SendOneProperty(const char *kind, const char *key, const char *val) {
 	size_t keysize = strlen(kind) + 1 + strlen(key) + 1 + strlen(val) + 1;
 	char *m = new char[keysize];
@@ -4832,7 +4852,7 @@ void SciTEBase::PropertyToDirector(const char *arg) {
 }
 
 /**
- * ²Ëµ¥/¹¤¾ßÀ¸ÃüÁî"¼ÇÂ¼ºê".
+ * èœå•/å·¥å…·æ å‘½ä»¤"è®°å½•å®".
  */
 void SciTEBase::StartRecordMacro() {
 	recording = true;
@@ -4866,7 +4886,7 @@ bool SciTEBase::RecordMacroCommand(SCNotification *notification) {
 }
 
 /**
- * ²Ëµ¥/¹¤¾ßÀ¸ ÃüÁî "Í£Ö¹Â¼ÖÆ".
+ * èœå•/å·¥å…·æ  å‘½ä»¤ "åœæ­¢å½•åˆ¶".
  */
 void SciTEBase::StopRecordMacro() {
 	SendEditor(SCI_STOPRECORD);
@@ -4972,8 +4992,7 @@ void SciTEBase::ExecuteMacroCommand(const char *command) {
 	if (*params == '0') {
 		// no answer ...
 		SendEditor(message, wParam, lParam);
-		if (string1 != NULL)
-			delete []string1;
+		delete []string1;
 		return;
 	}
 
@@ -5017,7 +5036,7 @@ void SciTEBase::ExecuteMacroCommand(const char *command) {
 }
 
 /**
- * ´¦ÀíËùÓĞÃüÁîĞĞ²ÎÊı.
+ * å¤„ç†æ‰€æœ‰å‘½ä»¤è¡Œå‚æ•°.
  * Arguments that start with '-' (also '/' on Windows) are switches or commands with
  * other arguments being file names which are opened. Commands are distinguished
  * from switches by containing a ':' after the command name.
@@ -5173,7 +5192,7 @@ void SciTEBase::UnsetProperty(const char *key) {
 uptr_t SciTEBase::GetInstance() {
 	return 0;
 }
-//ÍË³ö³ÌĞò
+//é€€å‡ºç¨‹åº
 void SciTEBase::ShutDown() {
 	QuitProgram();
 }
@@ -5190,7 +5209,7 @@ void SciTEBase::Perform(const char *actionList) {
 	PerformOne(actions);
 	delete []actionsDup;
 }
-//Ö´ĞĞ²Ëµ¥ÃüÁî
+//æ‰§è¡Œèœå•å‘½ä»¤
 void SciTEBase::DoMenuCommand(int cmdID) {
 	MenuCommand(cmdID, 0);
 }
