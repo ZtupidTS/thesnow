@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="9.00"
+	Version="9,00"
 	Name="Dolphin"
 	ProjectGUID="{A72606EF-C5C1-4954-90AD-F0F93A8D97D9}"
 	RootNamespace="DolphinWX"
@@ -700,236 +700,6 @@
 				ExcludedFromBuild="false"
 			/>
 		</Configuration>
-		<Configuration
-			Name="Release_JITIL|Win32"
-			OutputDirectory="$(ConfigurationName)"
-			IntermediateDirectory="$(ConfigurationName)"
-			ConfigurationType="1"
-			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC60.vsprops"
-			UseOfMFC="0"
-			ATLMinimizesCRunTimeLibraryUsage="false"
-			CharacterSet="1"
-			>
-			<Tool
-				Name="VCPreBuildEventTool"
-				CommandLine="&quot;$(ProjectDir)..\Common\SubWCRev.exe&quot; &quot;$(SolutionDir)\.&quot; &quot;$(ProjectDir)..\Common\src\svnrev_template.h&quot; &quot;$(ProjectDir)..\Common\src\svnrev.h&quot;"
-				ExcludedFromBuild="false"
-			/>
-			<Tool
-				Name="VCCustomBuildTool"
-			/>
-			<Tool
-				Name="VCXMLDataGeneratorTool"
-			/>
-			<Tool
-				Name="VCWebServiceProxyGeneratorTool"
-			/>
-			<Tool
-				Name="VCMIDLTool"
-				PreprocessorDefinitions="WIN32,__WXMSW__,_WINDOWS,NOPCH"
-				MkTypLibCompatible="true"
-				SuppressStartupBanner="true"
-				TargetEnvironment="1"
-				TypeLibraryName=".\vc_msw/toolbar.tlb"
-				HeaderFileName=""
-			/>
-			<Tool
-				Name="VCCLCompilerTool"
-				Optimization="3"
-				InlineFunctionExpansion="0"
-				FavorSizeOrSpeed="1"
-				AdditionalIncludeDirectories="..\Common\Src;..\Core\Src;..\DebuggerWX\src;..\DebuggerUICommon\src;..\DiscIO\Src;..\InputCommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc;..\..\..\Externals\SFML\include"
-				PreprocessorDefinitions="WIN32;__WXMSW__;_WINDOWS;NOPCH;_SECURE_SCL=0;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE"
-				StringPooling="false"
-				RuntimeLibrary="0"
-				BufferSecurityCheck="false"
-				EnableFunctionLevelLinking="false"
-				EnableEnhancedInstructionSet="2"
-				FloatingPointModel="0"
-				RuntimeTypeInfo="false"
-				UsePrecompiledHeader="2"
-				PrecompiledHeaderFile="$(IntDir)\$(TargetName).pch"
-				AssemblerListingLocation="$(IntDir)\"
-				ObjectFile="$(IntDir)\"
-				ProgramDataBaseFileName="$(IntDir)\vc80.pdb"
-				WarningLevel="4"
-				WarnAsError="false"
-				SuppressStartupBanner="true"
-				DebugInformationFormat="3"
-				ForcedIncludeFiles="stdafx.h"
-			/>
-			<Tool
-				Name="VCManagedResourceCompilerTool"
-			/>
-			<Tool
-				Name="VCResourceCompilerTool"
-				PreprocessorDefinitions="__WXMSW__,_WINDOWS,NOPCH"
-				Culture="1033"
-				AdditionalIncludeDirectories=".\..\..\lib\vc_lib\msw;.\..\..\include;.;.\..\..\samples"
-			/>
-			<Tool
-				Name="VCPreLinkEventTool"
-			/>
-			<Tool
-				Name="VCLinkerTool"
-				AdditionalDependencies="comctl32.lib rpcrt4.lib winmm.lib wxbase28u.lib wxmsw28u_core.lib wxmsw28u_adv.lib wxmsw28u_aui.lib Bochs_disasm.lib LZO.lib SFML_Network.lib zlib.lib"
-				OutputFile="../../../Binary/Win32/DolphinIL.exe"
-				LinkIncremental="1"
-				SuppressStartupBanner="true"
-				AdditionalLibraryDirectories="&quot;$(SolutionDir)\Release\$(PlatformName)&quot;;&quot;..\..\..\Externals\wxWidgets\lib\vc_lib\$(PlatformName)&quot;"
-				IgnoreAllDefaultLibraries="false"
-				IgnoreDefaultLibraryNames=""
-				GenerateDebugInformation="true"
-				ProgramDatabaseFile="$(PlatformName)\$(ConfigurationName)\$(TargetName).pdb"
-				GenerateMapFile="false"
-				MapFileName="$(TargetDir)linkermap.map"
-				SubSystem="2"
-				BaseAddress="0x00400000"
-				RandomizedBaseAddress="1"
-				DataExecutionPrevention="2"
-				TargetMachine="1"
-			/>
-			<Tool
-				Name="VCALinkTool"
-			/>
-			<Tool
-				Name="VCManifestTool"
-			/>
-			<Tool
-				Name="VCXDCMakeTool"
-			/>
-			<Tool
-				Name="VCBscMakeTool"
-				SuppressStartupBanner="true"
-				OutputFile=".\vc_msw/toolbar.bsc"
-			/>
-			<Tool
-				Name="VCFxCopTool"
-			/>
-			<Tool
-				Name="VCAppVerifierTool"
-			/>
-			<Tool
-				Name="VCPostBuildEventTool"
-				Description="Copying Data\* to $(TargetDir)"
-				CommandLine="xcopy &quot;$(SolutionDir)..\Data&quot; &quot;$(TargetDir)&quot; /e /s /y /d&#x0D;&#x0A;echo Copying External .dlls&#x0D;&#x0A;xcopy &quot;$(SolutionDir)..\Externals\Cg\*.dll&quot; &quot;$(TargetDir)&quot; /e /s /y /q /d&#x0D;&#x0A;xcopy &quot;$(SolutionDir)..\Externals\SDL\win32\*.dll&quot; &quot;$(TargetDir)&quot; /e /s /y /q /d&#x0D;&#x0A;xcopy &quot;$(SolutionDir)..\Externals\WiiUse\Win32\*.dll&quot; &quot;$(TargetDir)&quot; /e /s /y /q /d&#x0D;&#x0A;"
-				ExcludedFromBuild="false"
-			/>
-		</Configuration>
-		<Configuration
-			Name="Release_JITIL|x64"
-			OutputDirectory="$(PlatformName)\$(ConfigurationName)"
-			IntermediateDirectory="$(PlatformName)\$(ConfigurationName)"
-			ConfigurationType="1"
-			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC60.vsprops"
-			UseOfMFC="0"
-			ATLMinimizesCRunTimeLibraryUsage="false"
-			CharacterSet="1"
-			>
-			<Tool
-				Name="VCPreBuildEventTool"
-				CommandLine="&quot;$(ProjectDir)..\Common\SubWCRev.exe&quot; &quot;$(SolutionDir)\.&quot; &quot;$(ProjectDir)..\Common\src\svnrev_template.h&quot; &quot;$(ProjectDir)..\Common\src\svnrev.h&quot;"
-				ExcludedFromBuild="false"
-			/>
-			<Tool
-				Name="VCCustomBuildTool"
-			/>
-			<Tool
-				Name="VCXMLDataGeneratorTool"
-			/>
-			<Tool
-				Name="VCWebServiceProxyGeneratorTool"
-			/>
-			<Tool
-				Name="VCMIDLTool"
-				PreprocessorDefinitions="WIN32,__WXMSW__,_WINDOWS,NOPCH"
-				MkTypLibCompatible="true"
-				SuppressStartupBanner="true"
-				TargetEnvironment="3"
-				TypeLibraryName=".\vc_msw/toolbar.tlb"
-				HeaderFileName=""
-			/>
-			<Tool
-				Name="VCCLCompilerTool"
-				Optimization="3"
-				InlineFunctionExpansion="2"
-				EnableIntrinsicFunctions="true"
-				FavorSizeOrSpeed="1"
-				OmitFramePointers="false"
-				AdditionalIncludeDirectories="..\Common\Src;..\Core\Src;..\DebuggerWX\src;..\DebuggerUICommon\src;..\DiscIO\Src;..\InputCommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc;..\..\..\Externals\SFML\include"
-				PreprocessorDefinitions="WIN32;__WXMSW__;_WINDOWS;NOPCH;_SECURE_SCL=0;_CRT_SECURE_NO_WARNINGS"
-				StringPooling="true"
-				RuntimeLibrary="0"
-				EnableFunctionLevelLinking="false"
-				FloatingPointModel="0"
-				RuntimeTypeInfo="true"
-				UsePrecompiledHeader="2"
-				PrecompiledHeaderFile="$(IntDir)\$(TargetName).pch"
-				AssemblerListingLocation="$(IntDir)\"
-				ObjectFile="$(IntDir)\"
-				ProgramDataBaseFileName="$(IntDir)\vc80.pdb"
-				WarningLevel="4"
-				WarnAsError="false"
-				SuppressStartupBanner="true"
-				DebugInformationFormat="3"
-				ForcedIncludeFiles="stdafx.h"
-			/>
-			<Tool
-				Name="VCManagedResourceCompilerTool"
-			/>
-			<Tool
-				Name="VCResourceCompilerTool"
-				PreprocessorDefinitions="__WXMSW__,_WINDOWS,NOPCH"
-				Culture="1033"
-				AdditionalIncludeDirectories=".\..\..\lib\vc_lib\msw;.\..\..\include;.;.\..\..\samples"
-			/>
-			<Tool
-				Name="VCPreLinkEventTool"
-			/>
-			<Tool
-				Name="VCLinkerTool"
-				AdditionalDependencies="comctl32.lib rpcrt4.lib wxbase28u.lib wxmsw28u_core.lib wxmsw28u_adv.lib wxmsw28u_aui.lib Bochs_disasm.lib LZO.lib SFML_Network.lib zlib.lib"
-				OutputFile="../../../Binary/x64/DolphinIL.exe"
-				LinkIncremental="1"
-				SuppressStartupBanner="true"
-				AdditionalLibraryDirectories="&quot;$(SolutionDir)\Release\$(PlatformName)&quot;;&quot;..\..\..\Externals\wxWidgets\lib\vc_lib\$(PlatformName)&quot;"
-				IgnoreDefaultLibraryNames=""
-				GenerateDebugInformation="true"
-				ProgramDatabaseFile="$(PlatformName)\$(ConfigurationName)\$(TargetName).pdb"
-				SubSystem="2"
-				BaseAddress="0x00400000"
-				RandomizedBaseAddress="1"
-				FixedBaseAddress="1"
-				DataExecutionPrevention="2"
-				TargetMachine="17"
-			/>
-			<Tool
-				Name="VCALinkTool"
-			/>
-			<Tool
-				Name="VCManifestTool"
-			/>
-			<Tool
-				Name="VCXDCMakeTool"
-			/>
-			<Tool
-				Name="VCBscMakeTool"
-				SuppressStartupBanner="true"
-				OutputFile=".\vc_msw/toolbar.bsc"
-			/>
-			<Tool
-				Name="VCFxCopTool"
-			/>
-			<Tool
-				Name="VCAppVerifierTool"
-			/>
-			<Tool
-				Name="VCPostBuildEventTool"
-				Description="Copying Data\* to $(TargetDir)"
-				CommandLine="xcopy &quot;$(SolutionDir)..\Data&quot; &quot;$(TargetDir)&quot; /s /e /y /d&#x0D;&#x0A;echo Copying External .dlls&#x0D;&#x0A;xcopy &quot;$(SolutionDir)..\Externals\Cg64\*.dll&quot; &quot;$(TargetDir)&quot; /s /e /y /q /d&#x0D;&#x0A;xcopy &quot;$(SolutionDir)..\Externals\SDL\x64\*.dll&quot; &quot;$(TargetDir)&quot; /s /e /y /q /d&#x0D;&#x0A;xcopy &quot;$(SolutionDir)..\Externals\WiiUse\X64\*.dll&quot; &quot;$(TargetDir)&quot; /s /e /y /q /d&#x0D;&#x0A;"
-				ExcludedFromBuild="false"
-			/>
-		</Configuration>
 	</Configurations>
 	<References>
 	</References>
@@ -1205,24 +975,6 @@
 							ForcedIncludeFiles="$(NOINHERIT)"
 						/>
 					</FileConfiguration>
-					<FileConfiguration
-						Name="Release_JITIL|Win32"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-							UsePrecompiledHeader="0"
-							ForcedIncludeFiles="$(NOINHERIT)"
-						/>
-					</FileConfiguration>
-					<FileConfiguration
-						Name="Release_JITIL|x64"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-							UsePrecompiledHeader="0"
-							ForcedIncludeFiles="$(NOINHERIT)"
-						/>
-					</FileConfiguration>
 				</File>
 				<File
 					RelativePath=".\Src\NetFunctions.cpp"
@@ -1281,24 +1033,6 @@
 							ForcedIncludeFiles="$(NOINHERIT)"
 						/>
 					</FileConfiguration>
-					<FileConfiguration
-						Name="Release_JITIL|Win32"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-							UsePrecompiledHeader="0"
-							ForcedIncludeFiles="$(NOINHERIT)"
-						/>
-					</FileConfiguration>
-					<FileConfiguration
-						Name="Release_JITIL|x64"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-							UsePrecompiledHeader="0"
-							ForcedIncludeFiles="$(NOINHERIT)"
-						/>
-					</FileConfiguration>
 				</File>
 				<File
 					RelativePath=".\Src\NetSockets.cpp"
@@ -1350,24 +1084,6 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="DebugFast|x64"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-							UsePrecompiledHeader="0"
-							ForcedIncludeFiles="$(NOINHERIT)"
-						/>
-					</FileConfiguration>
-					<FileConfiguration
-						Name="Release_JITIL|Win32"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-							UsePrecompiledHeader="0"
-							ForcedIncludeFiles="$(NOINHERIT)"
-						/>
-					</FileConfiguration>
-					<FileConfiguration
-						Name="Release_JITIL|x64"
 						>
 						<Tool
 							Name="VCCLCompilerTool"
@@ -1441,24 +1157,6 @@
 							ForcedIncludeFiles="$(NOINHERIT)"
 						/>
 					</FileConfiguration>
-					<FileConfiguration
-						Name="Release_JITIL|Win32"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-							UsePrecompiledHeader="0"
-							ForcedIncludeFiles="$(NOINHERIT)"
-						/>
-					</FileConfiguration>
-					<FileConfiguration
-						Name="Release_JITIL|x64"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-							UsePrecompiledHeader="0"
-							ForcedIncludeFiles="$(NOINHERIT)"
-						/>
-					</FileConfiguration>
 				</File>
 				<File
 					RelativePath=".\Src\NetWindow.h"
@@ -1489,14 +1187,6 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="DebugFast|Win32"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-							WarnAsError="false"
-						/>
-					</FileConfiguration>
-					<FileConfiguration
-						Name="Release_JITIL|Win32"
 						>
 						<Tool
 							Name="VCCLCompilerTool"
@@ -1601,22 +1291,6 @@
 					Name="VCCLCompilerTool"
 				/>
 			</FileConfiguration>
-			<FileConfiguration
-				Name="Release_JITIL|Win32"
-				ExcludedFromBuild="true"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release_JITIL|x64"
-				ExcludedFromBuild="true"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-				/>
-			</FileConfiguration>
 		</File>
 		<File
 			RelativePath="..\..\..\readme.txt"
@@ -1671,22 +1345,6 @@
 			</FileConfiguration>
 			<FileConfiguration
 				Name="DebugFast|x64"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="1"
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release_JITIL|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="1"
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release_JITIL|x64"
 				>
 				<Tool
 					Name="VCCLCompilerTool"

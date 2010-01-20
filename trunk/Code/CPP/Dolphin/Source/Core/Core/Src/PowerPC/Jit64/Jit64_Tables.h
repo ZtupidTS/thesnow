@@ -15,18 +15,16 @@
 // Official SVN repository and contact information can be found at
 // http://code.google.com/p/dolphin-emu/
 
-#ifndef _MEMORYUTIL_H
-#define _MEMORYUTIL_H
+#ifndef JIT64_TABLES_H
+#define JIT64_TABLES_H
 
-#include <string>
+#include "../Gekko.h"
+#include "../PPCTables.h"
+#include "../Jit64/Jit.h"
 
-void* AllocateExecutableMemory(size_t size, bool low = true);
-void* AllocateMemoryPages(size_t size);
-void FreeMemoryPages(void* ptr, size_t size);
-void WriteProtectMemory(void* ptr, size_t size, bool executable = false);
-void UnWriteProtectMemory(void* ptr, size_t size, bool allowExecute = false);
-std::string MemUsage();
-
-inline int GetPageSize() { return 4096; }
-
+namespace Jit64Tables
+{
+	void CompileInstruction(UGeckoInstruction _inst);
+	void InitTables();
+}
 #endif

@@ -502,8 +502,10 @@ void CFrame::BootGame()
 		else
 		{
 			m_GameListCtrl->BrowseForDirectory();
+			m_GameListCtrl->Enable();
+			m_GameListCtrl->Show();
 			return;
-		}
+    }
 	}
 }
 
@@ -693,10 +695,21 @@ void CFrame::DoStop()
 {
 	if (Core::GetState() != Core::CORE_UNINITIALIZED)
 	{
-		// Ask for confirmation in case the user accidently clicked Stop / Escape
-		if(SConfig::GetInstance().m_LocalCoreStartupParameter.bConfirmStop)
-			if(!AskYesNo("是否停止当前的模拟?", "确认", wxYES_NO))
+		// Ask for confirmation in case the user accidentally clicked Stop / Escape
+		if (SConfig::GetInstance().m_LocalCoreStartupParameter.bConfirmStop)
+		{
+			wxMessageDialog *dlg = new wxMessageDialog(
+				this,
+				wxT("是否停止当前的模拟?"),
+				wxT("请确认..."),
+				wxYES_NO | wxSTAY_ON_TOP | wxICON_EXCLAMATION,
+				wxDefaultPosition);
+
+			int Ret = dlg->ShowModal();
+			delete dlg;
+			if (Ret == wxID_NO)
 				return;
+		}
 
 		// TODO: Show the author/description dialog here
 		if(Frame::IsRecordingInput())
@@ -1053,6 +1066,14 @@ void CFrame::UpdateGUI()
 		{
 			// Prepare to load Default ISO, enable play button
 			if (!Core::GetStartupParameter().m_strDefaultGCM.empty())
+			{
+				if (m_ToolBar)
+					m_ToolBar->EnableTool(IDM_PLAY, true);					
+				GetMenuBar()->FindItem(IDM_PLAY)->Enable(true);
+			}
+			// Prepare to load last selected file, enable play button
+			else if (!SConfig::GetInstance().m_LastFilename.empty()
+			&& wxFileExists(wxString(SConfig::GetInstance().m_LastFilename.c_str(), wxConvUTF8)))
 			{
 				if (m_ToolBar)
 					m_ToolBar->EnableTool(IDM_PLAY, true);					
