@@ -1,4 +1,4 @@
-// Copyright (C) 2003 Dolphin Project.
+﻿// Copyright (C) 2003 Dolphin Project.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -291,8 +291,8 @@ HRESULT Create(int adapter, HWND wnd, bool _fullscreen, int _resolution, int aa_
 			&d3dpp, &dev)))
 		{
 			MessageBox(wnd,
-				_T("Failed to initialize Direct3D."),
-				_T("Dolphin Direct3D plugin"), MB_OK | MB_ICONERROR);
+				_T("初始化 Direct3D 失败."),
+				_T("Dolphin Direct3D 插件"), MB_OK | MB_ICONERROR);
 			return E_FAIL;
 		}
 	}

@@ -1,4 +1,4 @@
-// Copyright (C) 2003 Dolphin Project.
+ï»¿// Copyright (C) 2003 Dolphin Project.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -34,14 +34,14 @@ DSPConfigDialogHLE::DSPConfigDialogHLE(wxWindow *parent, wxWindowID id, const wx
 	// Center window
 	CenterOnParent();
 
-	m_OK = new wxButton(this, wxID_OK, wxT("È·¶¨"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	m_OK = new wxButton(this, wxID_OK, wxT("ç¡®å®š"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 
 	// Create items
-	m_buttonEnableHLEAudio = new wxCheckBox(this, ID_ENABLE_HLE_AUDIO, wxT("ÆôÓÃ HLE ÒôÆµ"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	m_buttonEnableDTKMusic = new wxCheckBox(this, ID_ENABLE_DTK_MUSIC, wxT("ÆôÓÃ DTK ÒôÀÖ"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	m_buttonEnableThrottle = new wxCheckBox(this, ID_ENABLE_THROTTLE, wxT("ÆôÓÃ ÒôÆµ Throttle"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	m_buttonEnableRE0Fix = new wxCheckBox(this, ID_ENABLE_RE0_FIX, wxT("ÆôÓÃ RE0 ÒôÆµ Hack"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	wxStaticText *BackendText = new wxStaticText(this, wxID_ANY, wxT("ÒôÆµ Backend"), wxDefaultPosition, wxDefaultSize, 0);
+	m_buttonEnableHLEAudio = new wxCheckBox(this, ID_ENABLE_HLE_AUDIO, wxT("å¯ç”¨ HLE éŸ³é¢‘"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	m_buttonEnableDTKMusic = new wxCheckBox(this, ID_ENABLE_DTK_MUSIC, wxT("å¯ç”¨ DTK éŸ³ä¹"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	m_buttonEnableThrottle = new wxCheckBox(this, ID_ENABLE_THROTTLE, wxT("å¯ç”¨ éŸ³é¢‘ Throttle"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	m_buttonEnableRE0Fix = new wxCheckBox(this, ID_ENABLE_RE0_FIX, wxT("å¯ç”¨ RE0 éŸ³é¢‘ç ´è§£"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	wxStaticText *BackendText = new wxStaticText(this, wxID_ANY, wxT("éŸ³é¢‘ Backend"), wxDefaultPosition, wxDefaultSize, 0);
 	m_BackendSelection = new wxComboBox(this, ID_BACKEND, wxEmptyString, wxDefaultPosition, wxSize(90, 20), wxArrayBackends, wxCB_READONLY, wxDefaultValidator);
 
 	m_volumeSlider = new wxSlider(this, ID_VOLUME, ac_Config.m_Volume, 1, 100, wxDefaultPosition, wxDefaultSize, wxSL_VERTICAL|wxSL_INVERSE);
@@ -69,7 +69,7 @@ DSPConfigDialogHLE::DSPConfigDialogHLE(wxWindow *parent, wxWindowID id, const wx
 	wxBoxSizer *sBackend = new wxBoxSizer(wxHORIZONTAL);
 	wxBoxSizer *sButtons = new wxBoxSizer(wxHORIZONTAL);
 
-	wxStaticBoxSizer *sbSettings = new wxStaticBoxSizer(wxVERTICAL, this, wxT("ÉùÒôÉèÖÃ"));
+	wxStaticBoxSizer *sbSettings = new wxStaticBoxSizer(wxVERTICAL, this, wxT("å£°éŸ³è®¾ç½®"));
 	sbSettings->Add(m_buttonEnableHLEAudio, 0, wxALL, 5);
 	sbSettings->Add(m_buttonEnableDTKMusic, 0, wxALL, 5);
 	sbSettings->Add(m_buttonEnableThrottle, 0, wxALL, 5);
@@ -78,7 +78,7 @@ DSPConfigDialogHLE::DSPConfigDialogHLE(wxWindow *parent, wxWindowID id, const wx
 	sBackend->Add(m_BackendSelection, 0, wxALL, 1);
 	sbSettings->Add(sBackend, 0, wxALL, 2);
 
-	wxStaticBoxSizer *sbSettingsV = new wxStaticBoxSizer(wxVERTICAL, this, wxT("ÒôÁ¿"));
+	wxStaticBoxSizer *sbSettingsV = new wxStaticBoxSizer(wxVERTICAL, this, wxT("éŸ³é‡"));
 	sbSettingsV->Add(m_volumeSlider, 0, wxLEFT|wxRIGHT|wxALIGN_CENTER, 6);
 	sbSettingsV->Add(m_volumeText, 0, wxALL|wxALIGN_LEFT, 4);
 

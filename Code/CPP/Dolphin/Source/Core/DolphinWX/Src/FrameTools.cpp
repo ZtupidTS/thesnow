@@ -1,4 +1,4 @@
-// Copyright (C) 2003 Dolphin Project.
+ï»¿// Copyright (C) 2003 Dolphin Project.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -108,10 +108,10 @@ void CFrame::CreateMenu()
 
 	// file menu
 	wxMenu* fileMenu = new wxMenu;
-	fileMenu->Append(wxID_OPEN, _T("´ò¿ªÓÎÏ·¾µÏñ(&O)...\tCtrl+O"));
+	fileMenu->Append(wxID_OPEN, _T("æ‰“å¼€æ¸¸æˆé•œåƒ(&O)...\tCtrl+O"));
 
 	wxMenu *externalDrive = new wxMenu;
-	m_pSubMenuDrive = fileMenu->AppendSubMenu(externalDrive, _T("´ÓÇı¶¯Æ÷Æô¶¯(&B)..."));
+	m_pSubMenuDrive = fileMenu->AppendSubMenu(externalDrive, _T("ä»é©±åŠ¨å™¨å¯åŠ¨(&B)..."));
 	
 	drives = cdio_get_devices();
 	for (int i = 0; drives[i] != NULL && i < 24; i++) {
@@ -119,103 +119,103 @@ void CFrame::CreateMenu()
 	}
 
 	fileMenu->AppendSeparator();
-	fileMenu->Append(wxID_REFRESH, _T("Ë¢ĞÂÓÎÏ·ÁĞ±í(&R)"));
+	fileMenu->Append(wxID_REFRESH, _T("åˆ·æ–°æ¸¸æˆåˆ—è¡¨(&R)"));
 	fileMenu->AppendSeparator();
-	fileMenu->Append(IDM_BROWSE, _T("Ñ¡Ôñ¾µÏñÄ¿Â¼(&B)..."));
+	fileMenu->Append(IDM_BROWSE, _T("é€‰æ‹©é•œåƒç›®å½•(&B)..."));
 	fileMenu->AppendSeparator();
-	fileMenu->Append(wxID_EXIT, _T("ÍË³ö±¾Ä£ÄâÆ÷(&X)\tAlt+F4"));
-	m_MenuBar->Append(fileMenu, _T("ÓÎÏ·(&F)"));
+	fileMenu->Append(wxID_EXIT, _T("é€€å‡ºæœ¬æ¨¡æ‹Ÿå™¨(&X)\tAlt+F4"));
+	m_MenuBar->Append(fileMenu, _T("æ¸¸æˆ(&F)"));
 
 	// Emulation menu
 	wxMenu* emulationMenu = new wxMenu;
-	emulationMenu->Append(IDM_PLAY, _T("¿ªÊ¼ÓÎÏ·(&P)\tF10"));
-	emulationMenu->Append(IDM_STOP, _T("Í£Ö¹Ä£Äâ(&S)"));
-	emulationMenu->Append(IDM_RESET, _T("ÖØÖÃÓÎÏ·(&R)"));
+	emulationMenu->Append(IDM_PLAY, _T("å¼€å§‹æ¸¸æˆ(&P)\tF10"));
+	emulationMenu->Append(IDM_STOP, _T("åœæ­¢æ¨¡æ‹Ÿ(&S)"));
+	emulationMenu->Append(IDM_RESET, _T("é‡ç½®æ¸¸æˆ(&R)"));
 	emulationMenu->AppendSeparator();
-	emulationMenu->Append(IDM_RECORD, _T("¿ªÊ¼Â¼ÖÆ(&C)..."));
-	emulationMenu->Append(IDM_PLAYRECORD, _T("²¥·ÅÂ¼ÖÆ(&L)..."));
+	emulationMenu->Append(IDM_RECORD, _T("å¼€å§‹å½•åˆ¶(&C)..."));
+	emulationMenu->Append(IDM_PLAYRECORD, _T("æ’­æ”¾å½•åˆ¶(&L)..."));
 	emulationMenu->AppendSeparator();
-	emulationMenu->Append(IDM_CHANGEDISC, _T("ÇĞ»»¹âÅÌ(&D)"));
+	emulationMenu->Append(IDM_CHANGEDISC, _T("åˆ‡æ¢å…‰ç›˜(&D)"));
 	
-	emulationMenu->Append(IDM_FRAMESTEP, _T("Ö¡Êı²½½ø(&F)"), wxEmptyString, wxITEM_CHECK);
+	emulationMenu->Append(IDM_FRAMESTEP, _T("å¸§æ•°æ­¥è¿›(&F)"), wxEmptyString, wxITEM_CHECK);
 
 	wxMenu *skippingMenu = new wxMenu;
-	m_pSubMenuFrameSkipping = emulationMenu->AppendSubMenu(skippingMenu, _T("ÌøÖ¡¼ÓËÙ(&K)"));
+	m_pSubMenuFrameSkipping = emulationMenu->AppendSubMenu(skippingMenu, _T("è·³å¸§åŠ é€Ÿ(&K)"));
 	for(int i = 0; i < 10; i++)
 		skippingMenu->Append(IDM_FRAMESKIP0 + i, wxString::Format(_T("%i"), i), wxEmptyString, wxITEM_RADIO);
 
 	emulationMenu->AppendSeparator();
-	emulationMenu->Append(IDM_SCREENSHOT, _T("ÆÁÄ»½ØÍ¼(&S)\tF9"));
+	emulationMenu->Append(IDM_SCREENSHOT, _T("å±å¹•æˆªå›¾(&S)\tF9"));
 	emulationMenu->AppendSeparator();
 	wxMenu *saveMenu = new wxMenu;
 	wxMenu *loadMenu = new wxMenu;
-	m_pSubMenuLoad = emulationMenu->AppendSubMenu(loadMenu, _T("ÔØÈë×´Ì¬(&L)"));
-	m_pSubMenuSave = emulationMenu->AppendSubMenu(saveMenu, _T("±£´æ×´Ì¬(&V)"));
+	m_pSubMenuLoad = emulationMenu->AppendSubMenu(loadMenu, _T("è½½å…¥çŠ¶æ€(&L)"));
+	m_pSubMenuSave = emulationMenu->AppendSubMenu(saveMenu, _T("ä¿å­˜çŠ¶æ€(&V)"));
 
-	saveMenu->Append(IDM_SAVESTATEFILE, _T("±£´æ×´Ì¬ÎÄ¼ş..."));
-	loadMenu->Append(IDM_UNDOSAVESTATE, _T("×îºó¸²¸Ç×´Ì¬\tShift+F12"));
+	saveMenu->Append(IDM_SAVESTATEFILE, _T("ä¿å­˜çŠ¶æ€æ–‡ä»¶..."));
+	loadMenu->Append(IDM_UNDOSAVESTATE, _T("æœ€åè¦†ç›–çŠ¶æ€\tShift+F12"));
 	saveMenu->AppendSeparator();
 
-	loadMenu->Append(IDM_LOADSTATEFILE, _T("ÔØÈë×´Ì¬ÎÄ¼ş..."));
-	loadMenu->Append(IDM_LOADLASTSTATE, _T("×îºó´æµµ×´Ì¬\tF11"));
-	loadMenu->Append(IDM_UNDOLOADSTATE, _T("³·ÏúÔØÈë×´Ì¬\tF12"));
+	loadMenu->Append(IDM_LOADSTATEFILE, _T("è½½å…¥çŠ¶æ€æ–‡ä»¶..."));
+	loadMenu->Append(IDM_LOADLASTSTATE, _T("æœ€åå­˜æ¡£çŠ¶æ€\tF11"));
+	loadMenu->Append(IDM_UNDOLOADSTATE, _T("æ’¤é”€è½½å…¥çŠ¶æ€\tF12"));
 	loadMenu->AppendSeparator();
 
 	for (int i = 1; i <= 8; i++) {
-		loadMenu->Append(IDM_LOADSLOT1 + i - 1, wxString::Format(_T("²å²Û %i\tF%i"), i, i));
-		saveMenu->Append(IDM_SAVESLOT1 + i - 1, wxString::Format(_T("²å²Û %i\tShift+F%i"), i, i));
+		loadMenu->Append(IDM_LOADSLOT1 + i - 1, wxString::Format(_T("æ’æ§½ %i\tF%i"), i, i));
+		saveMenu->Append(IDM_SAVESLOT1 + i - 1, wxString::Format(_T("æ’æ§½ %i\tShift+F%i"), i, i));
 	}
-	m_MenuBar->Append(emulationMenu, _T("Ä£Äâ(&E)"));
+	m_MenuBar->Append(emulationMenu, _T("æ¨¡æ‹Ÿ(&E)"));
 
 	// Options menu
 	wxMenu* pOptionsMenu = new wxMenu;
-	pOptionsMenu->Append(IDM_CONFIG_MAIN, _T("³ÌĞòÉèÖÃ(&N)..."));
+	pOptionsMenu->Append(IDM_CONFIG_MAIN, _T("ç¨‹åºè®¾ç½®(&N)..."));
 	pOptionsMenu->AppendSeparator();
-	pOptionsMenu->Append(IDM_CONFIG_GFX_PLUGIN, _T("Í¼ĞÎÉèÖÃ(&G)"));
-	pOptionsMenu->Append(IDM_CONFIG_DSP_PLUGIN, _T("ÒôÆµÉèÖÃ(&D)"));
-	pOptionsMenu->Append(IDM_CONFIG_PAD_PLUGIN, _T("ÊÖ±úÉèÖÃ(&P)"));
-	pOptionsMenu->Append(IDM_CONFIG_WIIMOTE_PLUGIN, _T("&Wiimote ÉèÖÃ"));
+	pOptionsMenu->Append(IDM_CONFIG_GFX_PLUGIN, _T("å›¾å½¢è®¾ç½®(&G)"));
+	pOptionsMenu->Append(IDM_CONFIG_DSP_PLUGIN, _T("éŸ³é¢‘è®¾ç½®(&D)"));
+	pOptionsMenu->Append(IDM_CONFIG_PAD_PLUGIN, _T("æ‰‹æŸ„è®¾ç½®(&P)"));
+	pOptionsMenu->Append(IDM_CONFIG_WIIMOTE_PLUGIN, _T("&Wiimote è®¾ç½®"));
 	pOptionsMenu->AppendSeparator();
-	pOptionsMenu->Append(IDM_TOGGLE_FULLSCREEN, _T("È«ÆÁÏÔÊ¾(&F)\tAlt+Enter"));	
+	pOptionsMenu->Append(IDM_TOGGLE_FULLSCREEN, _T("å…¨å±æ˜¾ç¤º(&F)\tAlt+Enter"));	
 	if (g_pCodeWindow)
 	{
 		pOptionsMenu->AppendSeparator();
 		g_pCodeWindow->CreateMenuOptions(NULL, pOptionsMenu);	
 	}
-	m_MenuBar->Append(pOptionsMenu, _T("Ñ¡Ïî(&O)"));
+	m_MenuBar->Append(pOptionsMenu, _T("é€‰é¡¹(&O)"));
 
 	// Tools menu
 	wxMenu* toolsMenu = new wxMenu;
-	toolsMenu->Append(IDM_LUA, _T("ĞÂ &Lua ¿ØÖÆÌ¨"));
-	toolsMenu->Append(IDM_MEMCARD, _T("ÄÚ´æ¿¨¹ÜÀíÆ÷(GC)(&M)"));
-	toolsMenu->Append(IDM_IMPORTSAVE, _T("Wii ´æµµµ¼Èë (experimental)"));
-	toolsMenu->Append(IDM_CHEATS, _T("¶¯×÷»Ø·Å¹ÜÀíÆ÷(&R)"));
+	toolsMenu->Append(IDM_LUA, _T("æ–° &Lua æ§åˆ¶å°"));
+	toolsMenu->Append(IDM_MEMCARD, _T("å†…å­˜å¡ç®¡ç†å™¨(GC)(&M)"));
+	toolsMenu->Append(IDM_IMPORTSAVE, _T("Wii å­˜æ¡£å¯¼å…¥ (ä¸ç¨³å®š)"));
+	toolsMenu->Append(IDM_CHEATS, _T("åŠ¨ä½œå›æ”¾ç®¡ç†å™¨(&R)"));
 
 #if defined(HAVE_SFML) && HAVE_SFML
-	toolsMenu->Append(IDM_NETPLAY, _T("¿ªÊ¼ÍøÂçÓÎÏ·(&N)"));
+	toolsMenu->Append(IDM_NETPLAY, _T("å¼€å§‹ç½‘ç»œæ¸¸æˆ(&N)"));
 #endif
 
 	if (DiscIO::CNANDContentManager::Access().GetNANDLoader(FULL_WII_MENU_DIR).IsValid())
 	{
-		toolsMenu->Append(IDM_LOAD_WII_MENU, _T("ÔØÈë Wii ²Ëµ¥"));
+		toolsMenu->Append(IDM_LOAD_WII_MENU, _T("è½½å…¥ Wii èœå•"));
 	}
 	toolsMenu->AppendSeparator();
-	toolsMenu->AppendCheckItem(IDM_CONNECT_WIIMOTE1, _T("Á¬½Ó Wiimote 1\tAlt+F5"));
-	toolsMenu->AppendCheckItem(IDM_CONNECT_WIIMOTE2, _T("Á¬½Ó Wiimote 2\tAlt+F6"));
-	toolsMenu->AppendCheckItem(IDM_CONNECT_WIIMOTE3, _T("Á¬½Ó Wiimote 3\tAlt+F7"));
-	toolsMenu->AppendCheckItem(IDM_CONNECT_WIIMOTE4, _T("Á¬½Ó Wiimote 4\tAlt+F8"));
+	toolsMenu->AppendCheckItem(IDM_CONNECT_WIIMOTE1, _T("è¿æ¥ Wiimote 1\tAlt+F5"));
+	toolsMenu->AppendCheckItem(IDM_CONNECT_WIIMOTE2, _T("è¿æ¥ Wiimote 2\tAlt+F6"));
+	toolsMenu->AppendCheckItem(IDM_CONNECT_WIIMOTE3, _T("è¿æ¥ Wiimote 3\tAlt+F7"));
+	toolsMenu->AppendCheckItem(IDM_CONNECT_WIIMOTE4, _T("è¿æ¥ Wiimote 4\tAlt+F8"));
 
-	m_MenuBar->Append(toolsMenu, _T("¹¤¾ß(&T)"));
+	m_MenuBar->Append(toolsMenu, _T("å·¥å…·(&T)"));
 
 	wxMenu* viewMenu = new wxMenu;
-	viewMenu->AppendCheckItem(IDM_TOGGLE_TOOLBAR, _T("ÏÔÊ¾¹¤¾ßÀ¸(&T)"));
+	viewMenu->AppendCheckItem(IDM_TOGGLE_TOOLBAR, _T("æ˜¾ç¤ºå·¥å…·æ (&T)"));
 	viewMenu->Check(IDM_TOGGLE_TOOLBAR, SConfig::GetInstance().m_InterfaceToolbar);
-	viewMenu->AppendCheckItem(IDM_TOGGLE_STATUSBAR, _T("ÏÔÊ¾×´Ì¬À¸ (&S)"));
+	viewMenu->AppendCheckItem(IDM_TOGGLE_STATUSBAR, _T("æ˜¾ç¤ºçŠ¶æ€æ  (&S)"));
 	viewMenu->Check(IDM_TOGGLE_STATUSBAR, SConfig::GetInstance().m_InterfaceStatusbar);
 	viewMenu->AppendSeparator();
-	viewMenu->AppendCheckItem(IDM_LOGWINDOW, _T("ÏÔÊ¾ÈÕÖ¾´°¿Ú(&L)"));
+	viewMenu->AppendCheckItem(IDM_LOGWINDOW, _T("æ˜¾ç¤ºæ—¥å¿—çª—å£(&L)"));
 	viewMenu->Check(IDM_LOGWINDOW, SConfig::GetInstance().m_InterfaceLogWindow);
-	viewMenu->AppendCheckItem(IDM_CONSOLEWINDOW, _T("ÏÔÊ¾¿ØÖÆÌ¨(&C)"));
+	viewMenu->AppendCheckItem(IDM_CONSOLEWINDOW, _T("æ˜¾ç¤ºæ§åˆ¶å°(&C)"));
 	viewMenu->Check(IDM_CONSOLEWINDOW, SConfig::GetInstance().m_InterfaceConsole);
 	viewMenu->AppendSeparator();
 
@@ -226,37 +226,37 @@ void CFrame::CreateMenu()
 	}
 
 	wxMenu *platformMenu = new wxMenu;
-	viewMenu->AppendSubMenu(platformMenu, _T("ÏÔÊ¾Æ½Ì¨"));
-	platformMenu->AppendCheckItem(IDM_LISTWII, _T("ÏÔÊ¾ Wii"));
+	viewMenu->AppendSubMenu(platformMenu, _T("æ˜¾ç¤ºå¹³å°"));
+	platformMenu->AppendCheckItem(IDM_LISTWII, _T("æ˜¾ç¤º Wii"));
 	platformMenu->Check(IDM_LISTWII, SConfig::GetInstance().m_ListWii);
-	platformMenu->AppendCheckItem(IDM_LISTGC, _T("ÏÔÊ¾ GameCube"));
+	platformMenu->AppendCheckItem(IDM_LISTGC, _T("æ˜¾ç¤º GameCube"));
 	platformMenu->Check(IDM_LISTGC, SConfig::GetInstance().m_ListGC);
-	platformMenu->AppendCheckItem(IDM_LISTWAD, _T("ÏÔÊ¾ Wad"));
+	platformMenu->AppendCheckItem(IDM_LISTWAD, _T("æ˜¾ç¤º Wad"));
 	platformMenu->Check(IDM_LISTWAD, SConfig::GetInstance().m_ListWad);
 
 	wxMenu *regionMenu = new wxMenu;
-	viewMenu->AppendSubMenu(regionMenu, _T("ÏÔÊ¾ÇøÓò"));
-	regionMenu->AppendCheckItem(IDM_LISTJAP, _T("ÏÔÊ¾ JAP (ÈÕ°æ)"));
+	viewMenu->AppendSubMenu(regionMenu, _T("æ˜¾ç¤ºåŒºåŸŸ"));
+	regionMenu->AppendCheckItem(IDM_LISTJAP, _T("æ˜¾ç¤º JAP (æ—¥ç‰ˆ)"));
 	regionMenu->Check(IDM_LISTJAP, SConfig::GetInstance().m_ListJap);
-	regionMenu->AppendCheckItem(IDM_LISTPAL, _T("ÏÔÊ¾ PAL (Å·°æ)"));
+	regionMenu->AppendCheckItem(IDM_LISTPAL, _T("æ˜¾ç¤º PAL (æ¬§ç‰ˆ)"));
 	regionMenu->Check(IDM_LISTPAL, SConfig::GetInstance().m_ListPal);
-	regionMenu->AppendCheckItem(IDM_LISTUSA, _T("ÏÔÊ¾ USA (ÃÀ°æ)"));
+	regionMenu->AppendCheckItem(IDM_LISTUSA, _T("æ˜¾ç¤º USA (ç¾ç‰ˆ)"));
 	regionMenu->Check(IDM_LISTUSA, SConfig::GetInstance().m_ListUsa);
 	regionMenu->AppendSeparator();
-	regionMenu->AppendCheckItem(IDM_LISTFRANCE, _T("ÏÔÊ¾·¨¹ú"));
+	regionMenu->AppendCheckItem(IDM_LISTFRANCE, _T("æ˜¾ç¤ºæ³•å›½"));
 	regionMenu->Check(IDM_LISTFRANCE, SConfig::GetInstance().m_ListFrance);
-	regionMenu->AppendCheckItem(IDM_LISTITALY, _T("ÏÔÊ¾Òâ´óÀû"));
+	regionMenu->AppendCheckItem(IDM_LISTITALY, _T("æ˜¾ç¤ºæ„å¤§åˆ©"));
 	regionMenu->Check(IDM_LISTITALY, SConfig::GetInstance().m_ListItaly);
-	regionMenu->AppendCheckItem(IDM_LISTKOREA, _T("ÏÔÊ¾º«¹ú"));
+	regionMenu->AppendCheckItem(IDM_LISTKOREA, _T("æ˜¾ç¤ºéŸ©å›½"));
 	regionMenu->Check(IDM_LISTKOREA, SConfig::GetInstance().m_ListKorea);
-	regionMenu->AppendCheckItem(IDM_LISTTAIWAN, _T("ÏÔÊ¾Ì¨Íå"));
+	regionMenu->AppendCheckItem(IDM_LISTTAIWAN, _T("æ˜¾ç¤ºå°æ¹¾"));
 	regionMenu->Check(IDM_LISTTAIWAN, SConfig::GetInstance().m_ListTaiwan);
-	regionMenu->AppendCheckItem(IDM_LIST_UNK, _T("ÏÔÊ¾Î´Öª"));
+	regionMenu->AppendCheckItem(IDM_LIST_UNK, _T("æ˜¾ç¤ºæœªçŸ¥"));
 	regionMenu->Check(IDM_LIST_UNK, SConfig::GetInstance().m_ListUnknown);
-	viewMenu->AppendCheckItem(IDM_LISTDRIVES, _T("ÏÔÊ¾Çı¶¯Æ÷"));
+	viewMenu->AppendCheckItem(IDM_LISTDRIVES, _T("æ˜¾ç¤ºé©±åŠ¨å™¨"));
 	viewMenu->Check(IDM_LISTDRIVES, SConfig::GetInstance().m_ListDrives);
-	viewMenu->Append(IDM_PURGECACHE, _T("ÇåÀí»º´æ"));
-	m_MenuBar->Append(viewMenu, _T("²é¿´(&V)"));	
+	viewMenu->Append(IDM_PURGECACHE, _T("æ¸…ç†ç¼“å­˜"));
+	m_MenuBar->Append(viewMenu, _T("æŸ¥çœ‹(&V)"));	
 
 	if (g_pCodeWindow) g_pCodeWindow->CreateMenu(SConfig::GetInstance().m_LocalCoreStartupParameter, m_MenuBar);
 
@@ -264,11 +264,11 @@ void CFrame::CreateMenu()
 	wxMenu* helpMenu = new wxMenu;
 	/*helpMenu->Append(wxID_HELP, _T("&Help"));
 	re-enable when there's something useful to display*/
-	helpMenu->Append(IDM_HELPWEBSITE, _T("Dolphin (Mod) ÍøÕ¾(&W)"));
-	helpMenu->Append(IDM_HELPGOOGLECODE, _T("Dolphin (Mod) &Google ´úÂë"));
+	helpMenu->Append(IDM_HELPWEBSITE, _T("Dolphin (Mod) ç½‘ç«™(&W)"));
+	helpMenu->Append(IDM_HELPGOOGLECODE, _T("Dolphin (Mod) &Google ä»£ç "));
 	helpMenu->AppendSeparator();
-	helpMenu->Append(IDM_HELPABOUT, _T("¹ØÓÚ(&A)..."));
-	m_MenuBar->Append(helpMenu, _T("°ïÖú(&H)"));
+	helpMenu->Append(IDM_HELPABOUT, _T("å…³äº(&A)..."));
+	m_MenuBar->Append(helpMenu, _T("å¸®åŠ©(&H)"));
 
 	// Associate the menu bar with the frame
 	SetMenuBar(m_MenuBar);
@@ -286,20 +286,20 @@ void CFrame::PopulateToolbar(wxAuiToolBar* ToolBar)
 		ToolBar->SetToolBitmapSize(wxSize(w, h));
 		
 
-	ToolBar->AddTool(wxID_OPEN,    _T("´ò¿ª"),    m_Bitmaps[Toolbar_FileOpen], _T("´ò¿ªÎÄ¼ş..."));
-	ToolBar->AddTool(wxID_REFRESH, _T("Ë¢ĞÂ"), m_Bitmaps[Toolbar_Refresh], _T("Ë¢ĞÂ"));
-	ToolBar->AddTool(IDM_BROWSE, _T("ä¯ÀÀ"),   m_Bitmaps[Toolbar_Browse], _T("´Óä¯ÀÀISOÄ¿Â¼..."));
+	ToolBar->AddTool(wxID_OPEN,    _T("æ‰“å¼€"),    m_Bitmaps[Toolbar_FileOpen], _T("æ‰“å¼€æ–‡ä»¶..."));
+	ToolBar->AddTool(wxID_REFRESH, _T("åˆ·æ–°"), m_Bitmaps[Toolbar_Refresh], _T("åˆ·æ–°"));
+	ToolBar->AddTool(IDM_BROWSE, _T("æµè§ˆ"),   m_Bitmaps[Toolbar_Browse], _T("ä»æµè§ˆISOç›®å½•..."));
 	ToolBar->AddSeparator();
-	ToolBar->AddTool(IDM_PLAY, wxT("¿ªÊ¼"),   m_Bitmaps[Toolbar_Play], _T("¿ªÊ¼"));
-	ToolBar->AddTool(IDM_STOP, _T("Í£Ö¹"),   m_Bitmaps[Toolbar_Stop], _T("Í£Ö¹"));
-	ToolBar->AddTool(IDM_TOGGLE_FULLSCREEN, _T("È«ÆÁ"),  m_Bitmaps[Toolbar_FullScreen], _T("ÇĞ»»È«ÆÁ"));
-	ToolBar->AddTool(IDM_SCREENSHOT, _T("½ØÍ¼"),   m_Bitmaps[Toolbar_FullScreen], _T("ÆÁÄ»½ØÍ¼"));
+	ToolBar->AddTool(IDM_PLAY, wxT("å¼€å§‹"),   m_Bitmaps[Toolbar_Play], _T("å¼€å§‹"));
+	ToolBar->AddTool(IDM_STOP, _T("åœæ­¢"),   m_Bitmaps[Toolbar_Stop], _T("åœæ­¢"));
+	ToolBar->AddTool(IDM_TOGGLE_FULLSCREEN, _T("å…¨å±"),  m_Bitmaps[Toolbar_FullScreen], _T("åˆ‡æ¢å…¨å±"));
+	ToolBar->AddTool(IDM_SCREENSHOT, _T("æˆªå›¾"),   m_Bitmaps[Toolbar_FullScreen], _T("å±å¹•æˆªå›¾"));
 	ToolBar->AddSeparator();
-	ToolBar->AddTool(IDM_CONFIG_MAIN, _T("ÉèÖÃ"), m_Bitmaps[Toolbar_PluginOptions], _T("ÉèÖÃ..."));
-	ToolBar->AddTool(IDM_CONFIG_GFX_PLUGIN, _T("Í¼ĞÎ"),  m_Bitmaps[Toolbar_PluginGFX], _T("Í¼ĞÎÉèÖÃ"));
-	ToolBar->AddTool(IDM_CONFIG_DSP_PLUGIN, _T("ÒôÆµ"),  m_Bitmaps[Toolbar_PluginDSP], _T("DSP ÉèÖÃ"));
-	ToolBar->AddTool(IDM_CONFIG_PAD_PLUGIN, _T("ÊÖ±ú"),  m_Bitmaps[Toolbar_PluginPAD], _T("ÊÖ±úÉèÖÃ"));
-	ToolBar->AddTool(IDM_CONFIG_WIIMOTE_PLUGIN, _T("Wiimote"),  m_Bitmaps[Toolbar_Wiimote], _T("Wiimote ÉèÖÃ"));
+	ToolBar->AddTool(IDM_CONFIG_MAIN, _T("è®¾ç½®"), m_Bitmaps[Toolbar_PluginOptions], _T("è®¾ç½®..."));
+	ToolBar->AddTool(IDM_CONFIG_GFX_PLUGIN, _T("å›¾å½¢"),  m_Bitmaps[Toolbar_PluginGFX], _T("å›¾å½¢è®¾ç½®"));
+	ToolBar->AddTool(IDM_CONFIG_DSP_PLUGIN, _T("éŸ³é¢‘"),  m_Bitmaps[Toolbar_PluginDSP], _T("DSP è®¾ç½®"));
+	ToolBar->AddTool(IDM_CONFIG_PAD_PLUGIN, _T("æ‰‹æŸ„"),  m_Bitmaps[Toolbar_PluginPAD], _T("æ‰‹æŸ„è®¾ç½®"));
+	ToolBar->AddTool(IDM_CONFIG_WIIMOTE_PLUGIN, _T("Wiimote"),  m_Bitmaps[Toolbar_Wiimote], _T("Wiimote è®¾ç½®"));
 
 	// after adding the buttons to the toolbar, must call Realize() to reflect
 	// the changes
@@ -312,8 +312,8 @@ void CFrame::PopulateToolbarAui(wxAuiToolBar* ToolBar)
 	    h = m_Bitmaps[Toolbar_FileOpen].GetHeight();
 	ToolBar->SetToolBitmapSize(wxSize(w, h));
 
-	ToolBar->AddTool(IDM_SAVE_PERSPECTIVE,	wxT("±£´æ"),	g_pCodeWindow->m_Bitmaps[Toolbar_GotoPC], wxT("Save current perspective"));
-	ToolBar->AddTool(IDM_EDIT_PERSPECTIVES,	wxT("±à¼­"),	g_pCodeWindow->m_Bitmaps[Toolbar_GotoPC], wxT("Edit current perspective"));
+	ToolBar->AddTool(IDM_SAVE_PERSPECTIVE,	wxT("ä¿å­˜"),	g_pCodeWindow->m_Bitmaps[Toolbar_GotoPC], wxT("Save current perspective"));
+	ToolBar->AddTool(IDM_EDIT_PERSPECTIVES,	wxT("ç¼–è¾‘"),	g_pCodeWindow->m_Bitmaps[Toolbar_GotoPC], wxT("Edit current perspective"));
 
 	ToolBar->SetToolDropDown(IDM_SAVE_PERSPECTIVE, true);
 	ToolBar->SetToolDropDown(IDM_EDIT_PERSPECTIVES, true);	
@@ -520,11 +520,11 @@ void CFrame::DoOpen(bool Boot)
     std::string currentDir = File::GetCurrentDir();
 
 	wxString path = wxFileSelector(
-			_T("Ñ¡ÔñĞëÔØÈëÎÄ¼ş"),
+			_T("é€‰æ‹©é¡»è½½å…¥æ–‡ä»¶"),
 			wxEmptyString, wxEmptyString, wxEmptyString,
 			wxString::Format
 			(
-					_T("ËùÓĞ GC/Wii ÎÄ¼ş (elf, dol, gcm, iso, wad)|*.elf;*.dol;*.gcm;*.iso;*.gcz;*.wad|ËùÓĞÎÄ¼ş (%s)|%s"),
+					_T("æ‰€æœ‰ GC/Wii æ–‡ä»¶ (elf, dol, gcm, iso, wad)|*.elf;*.dol;*.gcm;*.iso;*.gcz;*.wad|æ‰€æœ‰æ–‡ä»¶ (%s)|%s"),
 					wxFileSelectorDefaultWildcardStr,
 					wxFileSelectorDefaultWildcardStr
 			),
@@ -573,11 +573,11 @@ void CFrame::OnChangeDisc(wxCommandEvent& WXUNUSED (event))
 void CFrame::OnRecord(wxCommandEvent& WXUNUSED (event))
 {
 	wxString path = wxFileSelector(
-			_T("Select The Recording File"),
+			_T("é€‰æ‹©å½•åˆ¶æ–‡ä»¶"),
 			wxEmptyString, wxEmptyString, wxEmptyString,
 			wxString::Format
 			(
-					_T("Dolphin TAS Movies (*.dtm)|*.dtm|All files (%s)|%s"),
+					_T("Dolphin TAS ç”µå½± (*.dtm)|*.dtm|æ‰€æœ‰æ–‡ä»¶ (%s)|%s"),
 					wxFileSelectorDefaultWildcardStr,
 					wxFileSelectorDefaultWildcardStr
 			),
@@ -595,11 +595,11 @@ void CFrame::OnRecord(wxCommandEvent& WXUNUSED (event))
 void CFrame::OnPlayRecording(wxCommandEvent& WXUNUSED (event))
 {
 	wxString path = wxFileSelector(
-			_T("Ñ¡ÔñÂ¼ÖÆÎÄ¼ş"),
+			_T("é€‰æ‹©å½•åˆ¶æ–‡ä»¶"),
 			wxEmptyString, wxEmptyString, wxEmptyString,
 			wxString::Format
 			(
-					_T("Dolphin TAS µçÓ° (*.dtm)|*.dtm|ËùÓĞÎÄ¼ş (%s)|%s"),
+					_T("Dolphin TAS ç”µå½± (*.dtm)|*.dtm|æ‰€æœ‰æ–‡ä»¶ (%s)|%s"),
 					wxFileSelectorDefaultWildcardStr,
 					wxFileSelectorDefaultWildcardStr
 			),
@@ -700,8 +700,8 @@ void CFrame::DoStop()
 		{
 			wxMessageDialog *dlg = new wxMessageDialog(
 				this,
-				wxT("ÊÇ·ñÍ£Ö¹µ±Ç°µÄÄ£Äâ?"),
-				wxT("ÇëÈ·ÈÏ..."),
+				wxT("æ˜¯å¦åœæ­¢å½“å‰çš„æ¨¡æ‹Ÿ?"),
+				wxT("è¯·ç¡®è®¤..."),
 				wxYES_NO | wxSTAY_ON_TOP | wxICON_EXCLAMATION,
 				wxDefaultPosition);
 
@@ -841,11 +841,11 @@ void CFrame::OnMemcard(wxCommandEvent& WXUNUSED (event))
 
 void CFrame::OnImportSave(wxCommandEvent& WXUNUSED (event)) 
 {
-	wxString path = wxFileSelector(_T("Ñ¡Ôñ´æµµÎÄ¼ş"),
+	wxString path = wxFileSelector(_T("é€‰æ‹©å­˜æ¡£æ–‡ä»¶"),
 			wxEmptyString, wxEmptyString, wxEmptyString,
 			wxString::Format
 			(
-					_T("Wii ´æµµÎÄ¼ş|data.bin|ËùÓĞÎÄ¼ş (%s)|%s"),
+					_T("Wii å­˜æ¡£æ–‡ä»¶|data.bin|æ‰€æœ‰æ–‡ä»¶ (%s)|%s"),
 					wxFileSelectorDefaultWildcardStr,
 					wxFileSelectorDefaultWildcardStr
 			),
@@ -881,7 +881,7 @@ void CFrame::OnConnectWiimote(wxCommandEvent& event)
 		int Id = event.GetId() - IDM_CONNECT_WIIMOTE1;
 		bNoWiimoteMsg = !event.IsChecked();
 		GetUsbPointer()->AccessWiiMote(Id | 0x100)->Activate(event.IsChecked());
-		wxString msg(wxString::Format(wxT("Wiimote %i %s"), Id + 1, (event.IsChecked()) ? wxT("Connected") : wxT("Disconnected")));
+		wxString msg(wxString::Format(wxT("Wiimote %i %s"), Id + 1, (event.IsChecked()) ? wxT("å·²è¿æ¥") : wxT("å·²æ–­å¼€")));
 		Core::DisplayMessage(msg.ToAscii(), 3000);
 	}
 }
@@ -908,11 +908,11 @@ void CFrame::OnToggleSkipIdle(wxCommandEvent& WXUNUSED (event))
 void CFrame::OnLoadStateFromFile(wxCommandEvent& WXUNUSED (event))
 {
 	wxString path = wxFileSelector(
-		_T("Select the state to load"),
+		_T("é€‰æ‹©éœ€è¦è½½å…¥çš„çŠ¶æ€"),
 		wxEmptyString, wxEmptyString, wxEmptyString,
 		wxString::Format
 		(
-		_T("All Save States (sav, s##)|*.sav;*.s??|All files (%s)|%s"),
+		_T("æ‰€æœ‰å­˜æ¡£çŠ¶æ€ (sav, s##)|*.sav;*.s??|æ‰€æœ‰æ–‡ä»¶ (%s)|%s"),
 		wxFileSelectorDefaultWildcardStr,
 		wxFileSelectorDefaultWildcardStr
 		),
@@ -930,7 +930,7 @@ void CFrame::OnSaveStateToFile(wxCommandEvent& WXUNUSED (event))
 		wxEmptyString, wxEmptyString, wxEmptyString,
 		wxString::Format
 		(
-		_T("All Save States (sav, s##)|*.sav;*.s??|All files (%s)|%s"),
+		_T("æ‰€æœ‰å­˜æ¡£çŠ¶æ€ (sav, s##)|*.sav;*.s??|æ‰€æœ‰æ–‡ä»¶ (%s)|%s"),
 		wxFileSelectorDefaultWildcardStr,
 		wxFileSelectorDefaultWildcardStr
 		),
@@ -1044,20 +1044,20 @@ void CFrame::UpdateGUI()
 		if (m_ToolBar)
 		{
 			m_ToolBar->SetToolBitmap(IDM_PLAY, m_Bitmaps[Toolbar_Pause]);
-			m_ToolBar->SetToolShortHelp(IDM_PLAY, _("ÔİÍ£"));
-			m_ToolBar->SetToolLabel(IDM_PLAY, _("ÔİÍ£"));
+			m_ToolBar->SetToolShortHelp(IDM_PLAY, _("æš‚åœ"));
+			m_ToolBar->SetToolLabel(IDM_PLAY, _("æš‚åœ"));
 		}
-		GetMenuBar()->FindItem(IDM_PLAY)->SetText(_("ÔİÍ£ÓÎÏ·(&P)\tF10"));
+		GetMenuBar()->FindItem(IDM_PLAY)->SetText(_("æš‚åœæ¸¸æˆ(&P)\tF10"));
 	}
 	else
 	{
 		if (m_ToolBar)
 		{
 			m_ToolBar->SetToolBitmap(IDM_PLAY, m_Bitmaps[Toolbar_Play]);
-			m_ToolBar->SetToolShortHelp(IDM_PLAY, _("¿ªÊ¼"));
-			m_ToolBar->SetToolLabel(IDM_PLAY, wxT(" ¿ªÊ¼"));
+			m_ToolBar->SetToolShortHelp(IDM_PLAY, _("å¼€å§‹"));
+			m_ToolBar->SetToolLabel(IDM_PLAY, wxT(" å¼€å§‹"));
 		}
-		GetMenuBar()->FindItem(IDM_PLAY)->SetText(_("¿ªÊ¼ÓÎÏ·(&P)\tF10"));		
+		GetMenuBar()->FindItem(IDM_PLAY)->SetText(_("å¼€å§‹æ¸¸æˆ(&P)\tF10"));		
 	}
 	
 	if (!Initialized)
