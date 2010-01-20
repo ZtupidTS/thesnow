@@ -1,4 +1,4 @@
-// Copyright (C) 2003 Dolphin Project.
+ï»¿// Copyright (C) 2003 Dolphin Project.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -185,7 +185,7 @@ void CGameListCtrl::BrowseForDirectory()
 	wxGetHomeDir(&dirHome);
 
 	// browse
-	wxDirDialog dialog(this, _("ä¯ÀÀÐèÒªÌí¼ÓµÄÄ¿Â¼"), dirHome, wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
+	wxDirDialog dialog(this, _("æµè§ˆéœ€è¦æ·»åŠ çš„ç›®å½•"), dirHome, wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
 
 	if (dialog.ShowModal() == wxID_OK)
 	{
@@ -233,15 +233,15 @@ void CGameListCtrl::Update()
 
 		// add columns
 		InsertColumn(COLUMN_PLATFORM, _(""));
-		InsertColumn(COLUMN_BANNER, _("±êÌâºá·ù"));
-		InsertColumn(COLUMN_TITLE, _("±êÌâ"));
+		InsertColumn(COLUMN_BANNER, _("æ ‡é¢˜æ¨ªå¹…"));
+		InsertColumn(COLUMN_TITLE, _("æ ‡é¢˜"));
 		
 		// Instead of showing the notes + the company, which is unknown with wii titles
 		// We show in the same column : company for GC games and description for wii/wad games
-		InsertColumn(COLUMN_NOTES, _("Notes"));
+		InsertColumn(COLUMN_NOTES, _("è¯´æ˜Ž"));
 		InsertColumn(COLUMN_COUNTRY, _(""));
-		InsertColumn(COLUMN_SIZE, _("´óÐ¡"));
-		InsertColumn(COLUMN_EMULATION_STATE, _("×´Ì¬"));
+		InsertColumn(COLUMN_SIZE, _("å¤§å°"));
+		InsertColumn(COLUMN_EMULATION_STATE, _("çŠ¶æ€"));
 
 
 		// set initial sizes for columns
@@ -279,13 +279,13 @@ void CGameListCtrl::Update()
 			SConfig::GetInstance().m_ListUsa  &&
 			SConfig::GetInstance().m_ListPal))
 		{
-			errorString = _("Dolphin ²»ÄÜÕÒµ½ÈÎºÎ GC/Wii ISO. Ë«»÷ÕâÀïä¯ÀÀÎÄ¼þ...");
+			errorString = _("Dolphin ä¸èƒ½æ‰¾åˆ°ä»»ä½• GC/Wii ISO. åŒå‡»è¿™é‡Œæµè§ˆæ–‡ä»¶...");
 		}
 		else
 		{
-			errorString = _("Dolphin µ±Ç°ÉèÖÃÎªÒþ²ØËùÓÐÓÎÏ·. Ë«»÷ÕâÀïÏÔÊ¾ËùÓÐÓÎÏ·...");
+			errorString = _("Dolphin å½“å‰è®¾ç½®ä¸ºéšè—æ‰€æœ‰æ¸¸æˆ. åŒå‡»è¿™é‡Œæ˜¾ç¤ºæ‰€æœ‰æ¸¸æˆ...");
 		}
-		InsertColumn(0, _("Ã»ÓÐÕÒµ½ ISO »òÕß WADS"));
+		InsertColumn(0, _("æ²¡æœ‰æ‰¾åˆ° ISO æˆ–è€… WADS"));
 		long index = InsertItem(0, errorString);
 		SetItemFont(index, *wxITALIC_FONT);
 		SetColumnWidth(0, wxLIST_AUTOSIZE);
@@ -482,8 +482,8 @@ void CGameListCtrl::ScanForISOs()
 
 	if (rFilenames.size() > 0)
 	{
-		wxProgressDialog dialog(_T("ËÑË÷ ISO ÖÐ"),
-					_T("ÕýÔÚÉ¨Ãè..."),
+		wxProgressDialog dialog(_T("æœç´¢ ISO ä¸­"),
+					_T("æ­£åœ¨æ‰«æ..."),
 					(int)rFilenames.size(), // range
 					this, // parent
 					wxPD_APP_MODAL |
@@ -821,16 +821,16 @@ void CGameListCtrl::OnRightClick(wxMouseEvent& event)
 		if (selected_iso)
 		{
 			wxMenu* popupMenu = new wxMenu;
-			popupMenu->Append(IDM_PROPERTIES, _("ÊôÐÔ(&P)"));
+			popupMenu->Append(IDM_PROPERTIES, _("å±žæ€§(&P)"));
 			popupMenu->AppendSeparator();
 
 			if (selected_iso->GetPlatform() != GameListItem::GAMECUBE_DISC)
 			{
-				popupMenu->Append(IDM_OPENSAVEFOLDER, _("´ò¿ª Wii ´æµµÎÄ¼þ¼Ð(&S)"));
-				popupMenu->Append(IDM_EXPORTSAVE, _("Export Wii save (Experimental)"));
+				popupMenu->Append(IDM_OPENSAVEFOLDER, _("æ‰“å¼€ Wii å­˜æ¡£æ–‡ä»¶å¤¹(&S)"));
+				popupMenu->Append(IDM_EXPORTSAVE, _("å¯¼å‡º Wii å­˜æ¡£ (ä¸ç¨³å®š)"));
 			}
-			popupMenu->Append(IDM_OPENCONTAININGFOLDER, _("´ò¿ªÓÎÏ·ÎÄ¼þ¼Ð(&C)"));
-			popupMenu->AppendCheckItem(IDM_SETDEFAULTGCM, _("ÉèÖÃÎªÄ¬ÈÏISO(&D)"));
+			popupMenu->Append(IDM_OPENCONTAININGFOLDER, _("æ‰“å¼€æ¸¸æˆæ–‡ä»¶å¤¹(&C)"));
+			popupMenu->AppendCheckItem(IDM_SETDEFAULTGCM, _("è®¾ç½®ä¸ºé»˜è®¤ISO(&D)"));
 			
 			// First we have to decide a starting value when we append it
 			if(selected_iso->GetFileName() == SConfig::GetInstance().
@@ -838,16 +838,16 @@ void CGameListCtrl::OnRightClick(wxMouseEvent& event)
 				popupMenu->FindItem(IDM_SETDEFAULTGCM)->Check();
 
 			popupMenu->AppendSeparator();
-			popupMenu->Append(IDM_DELETEGCM, _("É¾³ýISO(&D)..."));
+			popupMenu->Append(IDM_DELETEGCM, _("åˆ é™¤ISO(&D)..."));
 
 			if (selected_iso->GetPlatform() != GameListItem::WII_WAD)
 			{
 				if (selected_iso->IsCompressed())
-					popupMenu->Append(IDM_COMPRESSGCM, _("½âÑ¹Ëõ ISO..."));
+					popupMenu->Append(IDM_COMPRESSGCM, _("è§£åŽ‹ç¼© ISO..."));
 				else
-					popupMenu->Append(IDM_COMPRESSGCM, _("Ñ¹Ëõ ISO..."));
+					popupMenu->Append(IDM_COMPRESSGCM, _("åŽ‹ç¼© ISO..."));
 			} else
-				popupMenu->Append(IDM_INSTALLWAD, _("°²×°µ½ Wii ²Ëµ¥"));
+				popupMenu->Append(IDM_INSTALLWAD, _("å®‰è£…åˆ° Wii èœå•"));
 
 			PopupMenu(popupMenu);
 		}
@@ -855,10 +855,10 @@ void CGameListCtrl::OnRightClick(wxMouseEvent& event)
 	else if (GetSelectedItemCount() > 1)
 	{
 		wxMenu* popupMenu = new wxMenu;
-		popupMenu->Append(IDM_DELETEGCM, _("É¾³ýËùÑ¡ISO(&D)..."));
+		popupMenu->Append(IDM_DELETEGCM, _("åˆ é™¤æ‰€é€‰ISO(&D)..."));
 		popupMenu->AppendSeparator();
-		popupMenu->Append(IDM_MULTICOMPRESSGCM, _("Ñ¹ËõËùÑ¡ISO..."));
-		popupMenu->Append(IDM_MULTIDECOMPRESSGCM, _("½âÑ¹ËõËùÑ¡ISO..."));
+		popupMenu->Append(IDM_MULTICOMPRESSGCM, _("åŽ‹ç¼©æ‰€é€‰ISO..."));
+		popupMenu->Append(IDM_MULTIDECOMPRESSGCM, _("è§£åŽ‹ç¼©æ‰€é€‰ISO..."));
 		PopupMenu(popupMenu);
 	}
 }
@@ -999,8 +999,8 @@ void CGameListCtrl::OnInstallWAD(wxCommandEvent& WXUNUSED (event))
 	if (!iso)
 		return;
 
-	wxProgressDialog dialog(_T("°²×° WAD µ½ Wii ²Ëµ¥..."),
-		_T("Working..."),
+	wxProgressDialog dialog(_T("å®‰è£… WAD åˆ° Wii èœå•..."),
+		_T("å·¥ä½œä¸­..."),
 		1000, // range
 		this, // parent
 		wxPD_APP_MODAL |
@@ -1040,12 +1040,12 @@ void CGameListCtrl::CompressSelection(bool _compress)
 	wxString dirHome;
 	wxGetHomeDir(&dirHome);
 
-	wxDirDialog browseDialog(this, _("ä¯ÀÀÊä³öÄ¿Â¼"), dirHome, wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
+	wxDirDialog browseDialog(this, _("æµè§ˆè¾“å‡ºç›®å½•"), dirHome, wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
 	if (browseDialog.ShowModal() != wxID_OK)
 		return;
 
-	wxProgressDialog progressDialog(_compress ? _("Ñ¹Ëõ ISO ÖÐ") : _("½âÑ¹Ëõ ISO ÖÐ"),
-		_("¹¤×÷ÖÐ..."),
+	wxProgressDialog progressDialog(_compress ? _("åŽ‹ç¼© ISO ä¸­") : _("è§£åŽ‹ç¼© ISO ä¸­"),
+		_("å·¥ä½œä¸­..."),
 		1000, // range
 		this, // parent
 		wxPD_APP_MODAL |
@@ -1113,11 +1113,11 @@ void CGameListCtrl::OnCompressGCM(wxCommandEvent& WXUNUSED (event))
 	if (iso->IsCompressed())
 	{
 		 path = wxFileSelector(
-			_T("Save decompressed ISO"),
+			_T("ä¿å­˜å·²è§£åŽ‹ç¼©çš„ ISO"),
 			wxEmptyString, wxString(FileName.c_str(), *wxConvCurrent), wxEmptyString,
 			wxString::Format
 			(
-			_T("All GC/Wii ISO files (gcm)|*.gcm|ËùÓÐÎÄ¼þ (%s)|%s"),
+			_T("æ‰€æœ‰ GC/Wii ISO æ–‡ä»¶ (gcm)|*.gcm|æ‰€æœ‰æ–‡ä»¶ (%s)|%s"),
 			wxFileSelectorDefaultWildcardStr,
 			wxFileSelectorDefaultWildcardStr
 			),
@@ -1132,11 +1132,11 @@ void CGameListCtrl::OnCompressGCM(wxCommandEvent& WXUNUSED (event))
 	else
 	{
 		path = wxFileSelector(
-			_T("Save compressed ISO"),
+			_T("ä¿å­˜åŽ‹ç¼©çš„ ISO"),
 			wxEmptyString, wxString(FileName.c_str(), *wxConvCurrent), wxEmptyString,
 			wxString::Format
 			(
-			_T("All compressed GC/Wii ISO files (gcz)|*.gcz|All files (%s)|%s"),
+			_T("æ‰€æœ‰åŽ‹ç¼©çš„ GC/Wii ISO æ–‡ä»¶ (gcz)|*.gcz|æ‰€æœ‰æ–‡ä»¶ (%s)|%s"),
 			wxFileSelectorDefaultWildcardStr,
 			wxFileSelectorDefaultWildcardStr
 			),
@@ -1149,8 +1149,8 @@ void CGameListCtrl::OnCompressGCM(wxCommandEvent& WXUNUSED (event))
 		}
 	}
 
-	wxProgressDialog dialog(iso->IsCompressed() ? _T("½âÑ¹Ëõ ISO ÖÐ") : _T("Ñ¹Ëõ ISO ÖÐ"),
-		_T("¹¤×÷ÖÐ..."),
+	wxProgressDialog dialog(iso->IsCompressed() ? _T("è§£åŽ‹ç¼© ISO ä¸­") : _T("åŽ‹ç¼© ISO ä¸­"),
+		_T("å·¥ä½œä¸­..."),
 		1000, // range
 		this, // parent
 		wxPD_APP_MODAL |

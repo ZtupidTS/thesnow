@@ -1,4 +1,4 @@
-// Copyright (C) 2003 Dolphin Project.
+﻿// Copyright (C) 2003 Dolphin Project.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -128,13 +128,13 @@ void GFXDebuggerOGL::CreateGUIControls()
 	m_MainPanel = new wxPanel(this, ID_MAINPANEL, wxDefaultPosition, wxDefaultSize);
 
 	// Options
-	wxStaticBoxSizer *sOptions = new wxStaticBoxSizer(wxVERTICAL, m_MainPanel, wxT("Options"));
-	m_Check[0] = new wxCheckBox(m_MainPanel, ID_SAVETOFILE, wxT("Save to file"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	m_Check[1] = new wxCheckBox(m_MainPanel, ID_INFOLOG, wxT("Info log"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	m_Check[2] = new wxCheckBox(m_MainPanel, ID_PRIMLOG, wxT("Primary log"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	m_Check[3] = new wxCheckBox(m_MainPanel, ID_SAVETEXTURES, wxT("Save Textures"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	m_Check[4] = new wxCheckBox(m_MainPanel, ID_SAVETARGETS, wxT("Save Targets"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	m_Check[5] = new wxCheckBox(m_MainPanel, ID_SAVESHADERS, wxT("Save Shaders"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	wxStaticBoxSizer *sOptions = new wxStaticBoxSizer(wxVERTICAL, m_MainPanel, wxT("选项"));
+	m_Check[0] = new wxCheckBox(m_MainPanel, ID_SAVETOFILE, wxT("保存到文件"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	m_Check[1] = new wxCheckBox(m_MainPanel, ID_INFOLOG, wxT("信息日志"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	m_Check[2] = new wxCheckBox(m_MainPanel, ID_PRIMLOG, wxT("主要日志"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	m_Check[3] = new wxCheckBox(m_MainPanel, ID_SAVETEXTURES, wxT("保存材质"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	m_Check[4] = new wxCheckBox(m_MainPanel, ID_SAVETARGETS, wxT("保存目标"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	m_Check[5] = new wxCheckBox(m_MainPanel, ID_SAVESHADERS, wxT("保存 Shaders"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 
     for (int i = 0; i < NUM_OPTIONS-ID_SAVETOFILE; ++i)
 		sOptions->Add(m_Check[i], 0, 0, 5);

@@ -1,4 +1,4 @@
-// Copyright (C) 2003 Dolphin Project.
+﻿// Copyright (C) 2003 Dolphin Project.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -30,10 +30,10 @@
 #define ComboBox_GetTextA(hwndCtl, lpch, cchMax) GetWindowTextA((hwndCtl), (lpch), (cchMax))
 
 const char *aspect_ratio_names[4] = {
-	"Auto",
-	"Force 16:9 Widescreen",
-	"Force 4:3 Standard",
-	"Stretch to Window",
+	"自动",
+	"强制 16:9 宽屏",
+	"强制 4:3 标准",
+	"拉伸适合窗口",
 };
 
 struct TabDirect3D : public W32Util::Tab
@@ -275,16 +275,16 @@ void DlgSettings_Show(HINSTANCE hInstance, HWND _hParent)
 	g_Config.Load(FULL_CONFIG_DIR "gfx_dx9.ini");
 	W32Util::PropSheet sheet;
 	sheet.Add(new TabDirect3D, (LPCTSTR)IDD_SETTINGS,_T("Direct3D"));
-	sheet.Add(new TabEnhancements, (LPCTSTR)IDD_ENHANCEMENTS,_T("��ǿ"));
-	sheet.Add(new TabAdvanced, (LPCTSTR)IDD_ADVANCED,_T("�߼�"));
+	sheet.Add(new TabEnhancements, (LPCTSTR)IDD_ENHANCEMENTS,_T("增强"));
+	sheet.Add(new TabAdvanced, (LPCTSTR)IDD_ADVANCED,_T("高级"));
 
 #ifdef DEBUGFAST
-	sheet.Show(hInstance,_hParent,_T("DX9 Graphics Plugin (DEBUGFAST)"));
+	sheet.Show(hInstance,_hParent,_T("DX9 图形插件 (DEBUGFAST)"));
 #else
 #ifndef _DEBUG
-	sheet.Show(hInstance,_hParent,_T("DX9 ͼ�β��"));
+	sheet.Show(hInstance,_hParent,_T("DX9 图形插件"));
 #else
-	sheet.Show(hInstance,_hParent,_T("DX9 Graphics Plugin (DEBUG)"));
+	sheet.Show(hInstance,_hParent,_T("DX9 图形插件 (DEBUG)"));
 #endif
 #endif
 

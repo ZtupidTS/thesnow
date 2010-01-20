@@ -1,4 +1,4 @@
-// Copyright (C) 2003 Dolphin Project.
+﻿// Copyright (C) 2003 Dolphin Project.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -239,7 +239,7 @@ void Initialize(void *init)
 	/*if (!g_Config.RenderToMainframe || g_VideoInitialize.pWindowHandle == NULL) // ignore parent for this plugin
 		g_VideoInitialize.pWindowHandle = (void*)EmuWindow::Create(NULL, g_hInstance, _T("Loading - Please wait."));
 	else*/
-		g_VideoInitialize.pWindowHandle = (void*)EmuWindow::Create((HWND)g_VideoInitialize.pWindowHandle, g_hInstance, _T("Loading - Please wait."));
+		g_VideoInitialize.pWindowHandle = (void*)EmuWindow::Create((HWND)g_VideoInitialize.pWindowHandle, g_hInstance, _T("载入中 - 请稍候."));
 	if (g_VideoInitialize.pWindowHandle == NULL)
 	{
 		ERROR_LOG(VIDEO, "An error has occurred while trying to create the window.");
@@ -250,7 +250,7 @@ void Initialize(void *init)
 	g_VideoInitialize.pUpdateFPSDisplay = UpdateFPSDisplay;
 	if (FAILED(D3D::Init()))
 	{
-		MessageBox(GetActiveWindow(), _T("Unable to initialize Direct3D. Please make sure that you have the latest version of DirectX 9.0c correctly installed."), _T("Fatal Error"), MB_OK);
+		MessageBox(GetActiveWindow(), _T("不能初始化 Direct3D. 请确认您已经安装了最新的 DirectX 9.0c."), _T("Fatal Error"), MB_OK);
 		return;
 	}
 	InitXFBConvTables();
