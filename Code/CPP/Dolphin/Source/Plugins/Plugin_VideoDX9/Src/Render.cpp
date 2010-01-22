@@ -20,6 +20,7 @@
 #include <strsafe.h>
 
 #include "Common.h"
+#include "Timer.h"
 #include "Statistics.h"
 
 #include "VideoConfig.h"
@@ -259,22 +260,22 @@ bool Renderer::Init()
 	if (fullScreenRes == D3D::GetAdapter(g_ActiveConfig.iAdapter).resolutions.size())
 		fullScreenRes = 0;
 
-	D3D::Create(g_ActiveConfig.iAdapter, EmuWindow::GetWnd(), g_ActiveConfig.bFullscreen,
+	D3D::Create(g_ActiveConfig.iAdapter, EmuWindow::GetWnd(), false,
 				fullScreenRes, backbuffer_ms_mode, false);
 
 	s_backbuffer_width = D3D::GetBackBufferWidth();
 	s_backbuffer_height = D3D::GetBackBufferHeight();
 
 	// TODO: Grab target width from configured resolution?
-	s_target_width  = s_backbuffer_width * EFB_WIDTH / 640;
-	s_target_height = s_backbuffer_height * EFB_HEIGHT / 480;	
+	s_target_width  = s_backbuffer_width;
+	s_target_height = s_backbuffer_height * ((float)EFB_HEIGHT / 480.0f);	
 
 	xScale = (float)s_target_width / (float)EFB_WIDTH;
 	yScale = (float)s_target_height / (float)EFB_HEIGHT;
-	s_Fulltarget_width  = s_backbuffer_width;
-	s_Fulltarget_height = s_backbuffer_height;
+	s_Fulltarget_width  = s_target_width;
+	s_Fulltarget_height = s_target_height;
 	//apply automatic resizing only is not an ati card, ati can handle large viewports :)
-	AUTO_ADJUST_RENDERTARGET_SIZE  = true;//!D3D::IsATIDevice();
+	AUTO_ADJUST_RENDERTARGET_SIZE  = !D3D::IsATIDevice();
 	
 	s_LastFrameDumped = false;
 	s_AVIDumping = false;
@@ -454,7 +455,11 @@ static void EFBTextureToD3DBackBuffer(const EFBRectangle& sourceRc)
 	sourcerect.right = src_rect.right;
 	sourcerect.top = src_rect.top;
 
+	D3D::ChangeSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);		
+	D3D::ChangeSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
 	D3D::drawShadedTexQuad(read_texture,&sourcerect,Renderer::GetFullTargetWidth(),Renderer::GetFullTargetHeight(),&destinationrect,PixelShaderCache::GetColorCopyProgram(),VertexShaderCache::GetSimpleVertexShader());	
+	D3D::RefreshSamplerState(0, D3DSAMP_MINFILTER);		
+	D3D::RefreshSamplerState(0, D3DSAMP_MAGFILTER);
 	
 	// Finish up the current frame, print some stats
 	if (g_ActiveConfig.bShowFPS)
@@ -578,7 +583,6 @@ void Renderer::RenderToXFB(u32 xfbAddr, u32 fbWidth, u32 fbHeight, const EFBRect
 	D3D::dev->SetDepthStencilSurface(FBManager::GetEFBDepthRTSurface());	
 	UpdateViewport();	
     VertexShaderManager::SetViewportChanged();
-	
 }
 
 bool Renderer::SetScissorRect()
@@ -1014,9 +1018,9 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight)
 	static int fpscount = 0;
     static unsigned long lasttime;
     ++fpscount;
-    if (timeGetTime() - lasttime > 1000) 
+	if (Common::Timer::GetTimeMs() - lasttime > 1000) 
     {
-        lasttime = timeGetTime();
+        lasttime = Common::Timer::GetTimeMs();
         s_fps = fpscount - 1;
         fpscount = 0;
     }

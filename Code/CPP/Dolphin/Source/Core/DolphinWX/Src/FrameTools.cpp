@@ -85,6 +85,7 @@ extern "C" {
 #include "../resources/toolbar_plugin_gfx.c"
 #include "../resources/toolbar_plugin_options.c"
 #include "../resources/toolbar_plugin_pad.c"
+#include "../resources/toolbar_plugin_wiimote.c"
 #include "../resources/toolbar_refresh.c"
 #include "../resources/toolbar_stop.c"
 #include "../resources/Boomy.h" // Theme packages
@@ -287,7 +288,7 @@ void CFrame::PopulateToolbar(wxAuiToolBar* ToolBar)
 		
 
 	ToolBar->AddTool(wxID_OPEN,    _T("打开"),    m_Bitmaps[Toolbar_FileOpen], _T("打开文件..."));
-	ToolBar->AddTool(wxID_REFRESH, _T("刷新"), m_Bitmaps[Toolbar_Refresh], _T("刷新"));
+	ToolBar->AddTool(wxID_REFRESH, _T("刷新"), m_Bitmaps[Toolbar_Refresh], _T("刷新游戏列表"));
 	ToolBar->AddTool(IDM_BROWSE, _T("浏览"),   m_Bitmaps[Toolbar_Browse], _T("从浏览ISO目录..."));
 	ToolBar->AddSeparator();
 	ToolBar->AddTool(IDM_PLAY, wxT("开始"),   m_Bitmaps[Toolbar_Play], _T("开始"));
@@ -297,7 +298,7 @@ void CFrame::PopulateToolbar(wxAuiToolBar* ToolBar)
 	ToolBar->AddSeparator();
 	ToolBar->AddTool(IDM_CONFIG_MAIN, _T("设置"), m_Bitmaps[Toolbar_PluginOptions], _T("设置..."));
 	ToolBar->AddTool(IDM_CONFIG_GFX_PLUGIN, _T("图形"),  m_Bitmaps[Toolbar_PluginGFX], _T("图形设置"));
-	ToolBar->AddTool(IDM_CONFIG_DSP_PLUGIN, _T("音频"),  m_Bitmaps[Toolbar_PluginDSP], _T("DSP 设置"));
+	ToolBar->AddTool(IDM_CONFIG_DSP_PLUGIN, _T("音频"),  m_Bitmaps[Toolbar_PluginDSP], _T("音频设置"));
 	ToolBar->AddTool(IDM_CONFIG_PAD_PLUGIN, _T("手柄"),  m_Bitmaps[Toolbar_PluginPAD], _T("手柄设置"));
 	ToolBar->AddTool(IDM_CONFIG_WIIMOTE_PLUGIN, _T("Wiimote"),  m_Bitmaps[Toolbar_Wiimote], _T("Wiimote 设置"));
 
@@ -383,7 +384,7 @@ void CFrame::InitBitmaps()
 		m_Bitmaps[Toolbar_PluginGFX]	= wxGetBitmapFromMemory(toolbar_plugin_gfx_png);
 		m_Bitmaps[Toolbar_PluginDSP]	= wxGetBitmapFromMemory(toolbar_plugin_dsp_png);
 		m_Bitmaps[Toolbar_PluginPAD]	= wxGetBitmapFromMemory(toolbar_plugin_pad_png);
-		m_Bitmaps[Toolbar_Wiimote]		= wxGetBitmapFromMemory(toolbar_plugin_pad_png);
+		m_Bitmaps[Toolbar_Wiimote]		= wxGetBitmapFromMemory(toolbar_plugin_wiimote_png);
 		m_Bitmaps[Toolbar_Screenshot]	= wxGetBitmapFromMemory(toolbar_fullscreen_png);
 		m_Bitmaps[Toolbar_FullScreen]	= wxGetBitmapFromMemory(toolbar_fullscreen_png);
 		m_Bitmaps[Toolbar_Help]			= wxGetBitmapFromMemory(toolbar_help_png);
@@ -614,7 +615,7 @@ void CFrame::OnPlayRecording(wxCommandEvent& WXUNUSED (event))
 }
 
 // Game loading state
-bool game_started = false;
+bool game_loading = false;
 
 void CFrame::OnPlay(wxCommandEvent& WXUNUSED (event))
 {
@@ -650,7 +651,7 @@ void CFrame::OnPlay(wxCommandEvent& WXUNUSED (event))
 // Prepare the GUI to start the game.
 void CFrame::StartGame()
 {
-	game_started = true;
+	game_loading = true;
 
 	if (m_ToolBar)
 		m_ToolBar->EnableTool(IDM_PLAY, false);
@@ -698,15 +699,20 @@ void CFrame::DoStop()
 		// Ask for confirmation in case the user accidentally clicked Stop / Escape
 		if (SConfig::GetInstance().m_LocalCoreStartupParameter.bConfirmStop)
 		{
-			wxMessageDialog *dlg = new wxMessageDialog(
+			// Suppress duplicate dialog boxes
+			if (m_StopDlg)
+				return;
+
+			m_StopDlg = new wxMessageDialog(
 				this,
 				wxT("是否停止当前的模拟?"),
 				wxT("请确认..."),
 				wxYES_NO | wxSTAY_ON_TOP | wxICON_EXCLAMATION,
 				wxDefaultPosition);
 
-			int Ret = dlg->ShowModal();
-			delete dlg;
+			int Ret = m_StopDlg->ShowModal();
+			m_StopDlg->Destroy();
+			m_StopDlg = NULL;
 			if (Ret == wxID_NO)
 				return;
 		}
@@ -727,7 +733,7 @@ void CFrame::DoStop()
 
 void CFrame::OnStop(wxCommandEvent& WXUNUSED (event))
 {
-	game_started = false;
+	game_loading = false;
 	DoStop();
 }
 
@@ -1095,7 +1101,7 @@ void CFrame::UpdateGUI()
 			GetMenuBar()->FindItem(IDM_PLAY)->Enable(false);
 		}
 
-		if (m_GameListCtrl && !game_started)
+		if (m_GameListCtrl && !game_loading)
 		{
 			// Game has not started, show game list
 			if (!m_GameListCtrl->IsShown())
@@ -1106,11 +1112,11 @@ void CFrame::UpdateGUI()
 				sizerPanel->FitInside(m_Panel);
 			}
 			// Game has been selected but not started, enable play button
-			if (m_GameListCtrl->GetSelectedISO() != NULL && m_GameListCtrl->IsEnabled() && !game_started)
+			if (m_GameListCtrl->GetSelectedISO() != NULL && m_GameListCtrl->IsEnabled() && !game_loading)
 			{
 				if (m_ToolBar)
 					m_ToolBar->EnableTool(IDM_PLAY, true);
-				GetMenuBar()->FindItem(IDM_PLAY)->Enable(true);
+				GetMenuBar()->FindItem(IDM_PLAY)->Enable(true);				
 			}
 		}
 	}
@@ -1120,6 +1126,9 @@ void CFrame::UpdateGUI()
 		if (m_ToolBar)
 			m_ToolBar->EnableTool(IDM_PLAY, true);
 		GetMenuBar()->FindItem(IDM_PLAY)->Enable(true);
+
+		// Reset game loading flag
+		game_loading = false;
 	}
 
 	if (m_ToolBar) m_ToolBar->Refresh();

@@ -145,11 +145,19 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam )
 
 	case WM_USER:
 		if (wParam == WM_USER_STOP)
+		{
 			SetCursor((lParam) ? hCursor : hCursorBlank);
+		}
 		else if (wParam == TOGGLE_FULLSCREEN)
+		{
 			ToggleFullscreen(hWnd);
+		}
 		else if (wParam == WIIMOTE_DISCONNECT)
+		{
+			if (g_Config.bFullscreen)
+				ToggleFullscreen(hWnd);
 			PostMessage(m_hMain, WM_USER, wParam, lParam);
+		}
 		break;
 
 	case WM_SYSCOMMAND:
@@ -192,33 +200,27 @@ HWND OpenWindow(HWND parent, HINSTANCE hInstance, int width, int height, const T
 	{
 		m_hParent = m_hMain = parent;
 
-		m_hWnd = CreateWindowEx(0, m_szClassName, title, WS_CHILD,
-			0, 0, width, height,
-			m_hParent, NULL, hInstance, NULL);
-
-		/*if( !g_Config.bFullscreen )
-			SetWindowPos( GetParent(m_hParent), NULL, 0, 0, width, height, SWP_NOMOVE|SWP_NOZORDER );*/
+		m_hWnd = CreateWindow(m_szClassName, title, WS_CHILD,
+			0, 0, width, height, m_hParent, NULL, hInstance, NULL);
 	}
 	else
 	{
 		m_hMain = parent;
 		m_hParent = NULL;
 
-		DWORD style = g_Config.bFullscreen ? WS_POPUP : WS_OVERLAPPEDWINDOW;
+		DWORD style = WS_OVERLAPPEDWINDOW;
 
 		RECT rc = {0, 0, width, height};
 		AdjustWindowRect(&rc, style, false);
 
-		int w = rc.right - rc.left;
-		int h = rc.bottom - rc.top;
+		RECT rcdesktop;
+		GetWindowRect(GetDesktopWindow(), &rcdesktop);
 
-		rc.left = (1280 - w)/2;
-		rc.right = rc.left + w;
-		rc.top = (1024 - h)/2;
-		rc.bottom = rc.top + h;
+		int X = (rcdesktop.right-rcdesktop.left)/2 - (rc.right-rc.left)/2;
+		int Y = (rcdesktop.bottom-rcdesktop.top)/2 - (rc.bottom-rc.top)/2;
 
-		m_hWnd = CreateWindowEx(0, m_szClassName, title, style,
-			rc.left, rc.top, rc.right-rc.left, rc.bottom-rc.top,
+		m_hWnd = CreateWindow(m_szClassName, title, style,
+			X, Y, rc.right-rc.left, rc.bottom-rc.top,
 			NULL, NULL, hInstance, NULL);
 	}
 
@@ -239,38 +241,16 @@ HWND Create(HWND hParent, HINSTANCE hInstance, const TCHAR *title)
 	// 2. Make DX9 in fullscreen can be overlapped by other dialogs
 	HWND Ret;
 	int width=640, height=480;
-	sscanf( g_Config.bFullscreen ? g_Config.cFSResolution : g_Config.cInternalRes, "%dx%d", &width, &height );
-//	SetSize(width, height);
+	sscanf(g_Config.cInternalRes, "%dx%d", &width, &height );
+
 	Ret = OpenWindow(hParent, hInstance, width, height, title);
 
 	if (Ret)
 	{
-		DWORD dwStyle = 0;                // Window Style
-		DWORD dwExStyle = 0;              // Window Extended Style
-		RECT rc = {0, 0, width, height};
-		RECT rcdesktop;
-		GetWindowRect(GetDesktopWindow(), &rcdesktop);
-		int X = (rcdesktop.right-rcdesktop.left)/2 - (rc.right-rc.left)/2;
-		int Y = (rcdesktop.bottom-rcdesktop.top)/2 - (rc.bottom-rc.top)/2;
-
-		if (g_Config.bFullscreen && !g_Config.RenderToMainframe)
-		{
-			// Hide the cursor
-			ShowCursor(FALSE);
-		}
-		else
-		{
-			dwExStyle = WS_EX_APPWINDOW | WS_EX_WINDOWEDGE;
-			dwStyle = WS_OVERLAPPEDWINDOW;
-		}
-
-//		AdjustWindowRectEx(&rc, dwStyle, FALSE, dwExStyle);
-
 		if (g_Config.bFullscreen)
-			// We put the window at the upper left corner of the screen, so x = y = 0
-			SetWindowPos(EmuWindow::GetWnd(), NULL, 0, 0, rc.right-rc.left, rc.bottom-rc.top, SWP_NOREPOSITION | SWP_NOZORDER);
-		else if (!g_Config.RenderToMainframe)
-			SetWindowPos(EmuWindow::GetWnd(), NULL, X, Y, rc.right-rc.left, rc.bottom-rc.top, SWP_NOREPOSITION | SWP_NOZORDER);
+			ToggleFullscreen(Ret, true);
+		else
+			Show();
 	}
 	return Ret;
 }
@@ -300,7 +280,7 @@ void SetSize(int width, int height)
 	MoveWindow(m_hWnd, rc.left, rc.top, rc.right-rc.left, rc.bottom-rc.top, TRUE);
 }
 
-void ToggleFullscreen(HWND hParent)
+void ToggleFullscreen(HWND hParent, bool bForceFull)
 {
 	if (m_hParent == NULL)
 	{
@@ -310,37 +290,8 @@ void ToggleFullscreen(HWND hParent)
 			return;
 		}
 
-		RECT rcdesktop;
 		int	w_fs = 640, h_fs = 480;
-		if (g_Config.bFullscreen)
-		{
-			if (strlen(g_Config.cInternalRes) > 1)
-				sscanf(g_Config.cInternalRes, "%dx%d", &w_fs, &h_fs);
-
-			//Get out of fullscreen
-			g_Config.bFullscreen = false;
-
-			// FullScreen - > Desktop
-			ChangeDisplaySettings(NULL, 0);
-
-			// Re-Enable the cursor
-			ShowCursor(TRUE);
-
-			RECT rc = {0, 0, w_fs, h_fs};
-			GetWindowRect(GetDesktopWindow(), &rcdesktop);
-
-			// SetWindowPos to the center of the screen
-			int X = (rcdesktop.right-rcdesktop.left)/2 - (rc.right-rc.left)/2;
-			int Y = (rcdesktop.bottom-rcdesktop.top)/2 - (rc.bottom-rc.top)/2;
-			SetWindowPos(hParent, NULL, X, Y, w_fs, h_fs, SWP_NOREPOSITION | SWP_NOZORDER);
-
-			// Set new window style FS -> Windowed
-			SetWindowLong(hParent, GWL_STYLE, WS_OVERLAPPEDWINDOW);
-
-			// Eventually show the window!
-			EmuWindow::Show();
-		}
-		else
+		if (!g_Config.bFullscreen || bForceFull)
 		{
 			if (strlen(g_Config.cFSResolution) > 1)
 				sscanf(g_Config.cFSResolution, "%dx%d", &w_fs, &h_fs);
@@ -366,6 +317,35 @@ void ToggleFullscreen(HWND hParent)
 			// Disable the cursor
 			ShowCursor(FALSE);
 			g_Config.bFullscreen = true;
+
+			// Eventually show the window!
+			EmuWindow::Show();
+		}
+		else
+		{
+			if (strlen(g_Config.cInternalRes) > 1)
+				sscanf(g_Config.cInternalRes, "%dx%d", &w_fs, &h_fs);
+
+			// FullScreen - > Desktop
+			ChangeDisplaySettings(NULL, 0);
+
+			DWORD style = WS_OVERLAPPEDWINDOW;
+			RECT rc = {0, 0, w_fs, h_fs};
+			AdjustWindowRect(&rc, style, false);
+			RECT rcdesktop;
+			GetWindowRect(GetDesktopWindow(), &rcdesktop);		
+
+			// SetWindowPos to the center of the screen
+			int X = (rcdesktop.right-rcdesktop.left)/2 - (rc.right-rc.left)/2;
+			int Y = (rcdesktop.bottom-rcdesktop.top)/2 - (rc.bottom-rc.top)/2;
+			SetWindowPos(hParent, NULL, X, Y, rc.right-rc.left, rc.bottom-rc.top, SWP_NOREPOSITION | SWP_NOZORDER);
+
+			// Set new window style FS -> Windowed
+			SetWindowLong(hParent, GWL_STYLE, style);
+
+			// Re-Enable the cursor
+			ShowCursor(TRUE);
+			g_Config.bFullscreen = false;
 
 			// Eventually show the window!
 			EmuWindow::Show();

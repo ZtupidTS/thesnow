@@ -135,6 +135,7 @@ void CConfigMain::UpdateGUI()
 		// Disable the Core stuff on GeneralPage
 		AlwaysHLE_BS2->Disable();
 		m_RadioJIT->Disable();
+		m_RadioJITIL->Disable();
 		m_RadioInt->Disable();
 		CPUThread->Disable();
 		DSPThread->Disable();
@@ -228,7 +229,7 @@ void CConfigMain::CreateGUIControls()
 	}
 	LockThreads = new wxCheckBox(GeneralPage, ID_LOCKTHREADS, wxT("锁定线程到核心"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 	LockThreads->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bLockThreads);
-	DSPThread = new wxCheckBox(GeneralPage, ID_DSPTHREAD, wxT("DSP 独立线程 (推荐)"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	DSPThread = new wxCheckBox(GeneralPage, ID_DSPTHREAD, wxT("DSPLLE 独立线程"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 	DSPThread->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bDSPThread);
 
 	// Interface settings
@@ -282,7 +283,7 @@ void CConfigMain::CreateGUIControls()
 		wxT("\nIt can be convenient in a Wii game that already has a cursor."));
 	WiimoteStatusLEDs->SetToolTip(wxT("Show which wiimotes are connected in the statusbar."));
 	WiimoteStatusSpeakers->SetToolTip(wxT("Show wiimote speaker status in the statusbar."));
-	DSPThread->SetToolTip(wxT("Run DSPLLE on a dedicate thread, this has no effects on DSPHLE."));
+	DSPThread->SetToolTip(wxT("Run DSPLLE on a dedicated thread (not recommended)."));
 	CPUThread->SetToolTip(wxT("This splits the Video and CPU threads, so they can be run on separate cores.")
 		wxT("\nCauses major speed improvements on PCs with more than one core,")
 		wxT("\nbut can also cause occasional crashes/glitches."));
@@ -575,7 +576,7 @@ void CConfigMain::CreateGUIControls()
 	DSPSelection = new wxChoice(PluginPage, ID_DSP_CB, wxDefaultPosition, wxDefaultSize, NULL, 0, wxDefaultValidator);
 	DSPConfig = new wxButton(PluginPage, ID_DSP_CONFIG, wxT("配置..."), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 
-	sbPadPlugin = new wxStaticBoxSizer(wxHORIZONTAL, PluginPage, wxT("手柄"));
+	sbPadPlugin = new wxStaticBoxSizer(wxHORIZONTAL, PluginPage, wxT("Gamecube 手柄"));
 	PADSelection = new wxChoice(PluginPage, ID_PAD_CB, wxDefaultPosition, wxDefaultSize, NULL, 0, wxDefaultValidator);
 	PADConfig = new wxButton(PluginPage, ID_PAD_CONFIG, wxT("配置..."), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 
