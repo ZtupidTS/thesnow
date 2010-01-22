@@ -18,21 +18,31 @@
 #include <time.h>
 #include <sys/timeb.h>
 
+#ifdef _WIN32
+#include <Windows.h>
+#include <mmsystem.h>
+#endif
+
 #include "Common.h"
 #include "Timer.h"
 #include "StringUtil.h"
 
-#ifdef __GNUC__
-u32 timeGetTime()
+namespace Common
+{
+
+#ifdef _WIN32
+u32 Timer::GetTimeMs() {
+	return timeGetTime();
+}
+#else
+u32 Timer::GetTimeMs()
 {
 	struct timeb t;
 	ftime(&t);
-	return((u32)(t.time * 1000 + t.millitm));
+	return ((u32)(t.time * 1000 + t.millitm));
 }
 #endif
 
-namespace Common
-{
 
 // --------------------------------------------
 // Initiate, Start, Stop, and Update the time
@@ -52,7 +62,7 @@ Timer::Timer()
 // Write the starting time
 void Timer::Start()
 {
-	m_StartTime = timeGetTime();
+	m_StartTime = GetTimeMs();
 	m_Running = true;
 }
 
@@ -60,14 +70,14 @@ void Timer::Start()
 void Timer::Stop()
 {
 	// Write the final time
-	m_LastTime = timeGetTime();
+	m_LastTime = GetTimeMs();
 	m_Running = false;
 }
 
 // Update the last time variable
 void Timer::Update()
 {
-	m_LastTime = timeGetTime();
+	m_LastTime = GetTimeMs();
 	//TODO(ector) - QPF
 }
 
@@ -80,7 +90,7 @@ void Timer::Update()
 // Get the number of milliseconds since the last Update()
 u64 Timer::GetTimeDifference()
 {
-	return(timeGetTime() - m_LastTime);
+	return GetTimeMs() - m_LastTime;
 }
 
 /* Add the time difference since the last Update() to the starting time. This is used to compensate
@@ -105,7 +115,7 @@ u64 Timer::GetTimeElapsed()
 	// Rrturn the final timer time if the timer is stopped
 	if (!m_Running) return (m_LastTime - m_StartTime);
 
-	return (timeGetTime() - m_StartTime);
+	return (GetTimeMs() - m_StartTime);
 }
 
 // Get the formattet time elapsed since the Start()
@@ -118,7 +128,7 @@ std::string Timer::GetTimeElapsedFormatted() const
 	// The number of milliseconds since the start, use a different value if the timer is stopped
 	u64 Milliseconds;
 	if (m_Running)
-		Milliseconds = timeGetTime() - m_StartTime;
+		Milliseconds = GetTimeMs() - m_StartTime;
 	else
 		Milliseconds = m_LastTime - m_StartTime;
 	// Seconds
