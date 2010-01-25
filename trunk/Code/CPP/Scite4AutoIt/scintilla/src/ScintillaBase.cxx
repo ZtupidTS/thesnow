@@ -1,4 +1,4 @@
-// Scintilla source code edit control
+﻿// Scintilla source code edit control
 /** @file ScintillaBase.cxx
  ** An enhanced subclass of Editor with calltips, autocomplete and context menu.
  **/
@@ -451,15 +451,15 @@ void ScintillaBase::ContextMenu(Point pt) {
 	if (displayPopupMenu) {
 		bool writable = !WndProc(SCI_GETREADONLY, 0, 0);
 		popup.CreatePopUp();
-		AddToPopUp("Undo", idcmdUndo, writable && pdoc->CanUndo());
-		AddToPopUp("Redo", idcmdRedo, writable && pdoc->CanRedo());
+		AddToPopUp("撤销", idcmdUndo, writable && pdoc->CanUndo());
+		AddToPopUp("恢复", idcmdRedo, writable && pdoc->CanRedo());
 		AddToPopUp("");
-		AddToPopUp("Cut", idcmdCut, writable && !sel.Empty());
-		AddToPopUp("Copy", idcmdCopy, !sel.Empty());
-		AddToPopUp("Paste", idcmdPaste, writable && WndProc(SCI_CANPASTE, 0, 0));
-		AddToPopUp("Delete", idcmdDelete, writable && !sel.Empty());
+		AddToPopUp("剪切", idcmdCut, writable && !sel.Empty());
+		AddToPopUp("复制", idcmdCopy, !sel.Empty());
+		AddToPopUp("粘贴", idcmdPaste, writable && WndProc(SCI_CANPASTE, 0, 0));
+		AddToPopUp("删除", idcmdDelete, writable && !sel.Empty());
 		AddToPopUp("");
-		AddToPopUp("Select All", idcmdSelectAll);
+		AddToPopUp("全选", idcmdSelectAll);
 		popup.Show(pt, wMain);
 	}
 }

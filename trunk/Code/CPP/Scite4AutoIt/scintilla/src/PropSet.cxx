@@ -51,7 +51,18 @@ void PropSetSimple::Set(const char *key, const char *val, int lenKey, int lenVal
 		lenVal = static_cast<int>(strlen(val));
 	(*props)[std::string(key, lenKey)] = std::string(val, lenVal);
 }
-
+/*	added unicode
+void PropSetSimple::Set(const wchar_t *key, const wchar_t *val, int lenKey, int lenVal) {
+	mapss *props = static_cast<mapss *>(impl);
+	if (!*key)	// Empty keys are not supported
+		return;
+	if (lenKey == -1)
+		lenKey = static_cast<int>(wcslen(key));
+	if (lenVal == -1)
+		lenVal = static_cast<int>(wcslen(val));
+	(*props)[std::wstring(key, lenKey)] = std::wstring(val, lenVal);
+}
+*/	//added
 static bool IsASpaceCharacter(unsigned int ch) {
     return (ch == ' ') || ((ch >= 0x09) && (ch <= 0x0d));
 }
@@ -79,7 +90,17 @@ void PropSetSimple::SetMultiple(const char *s) {
 	}
 	Set(s);
 }
-
+/*	added unicode
+void PropSetSimple::SetMultiple(const wchar_t *s) {
+	const wchar_t *eol = wcschr(s, '\n');
+	while (eol) {
+		Set(s);
+		s = eol + 1;
+		eol = wcschr(s, '\n');
+	}
+	Set(s);
+}
+*/	//added
 const char *PropSetSimple::Get(const char *key) const {
 	mapss *props = static_cast<mapss *>(impl);
 	mapss::const_iterator keyPos = props->find(std::string(key));

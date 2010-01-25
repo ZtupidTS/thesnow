@@ -1,4 +1,4 @@
-// Scintilla source code edit control
+ï»¿// Scintilla source code edit control
 // PlatGTK.cxx - implementation of platform facilities on GTK+/Linux
 // Copyright 1998-2004 by Neil Hodgson <neilh@scintilla.org>
 // The License.txt file describes the conditions under which this software may be distributed.
@@ -1287,7 +1287,11 @@ void SurfaceImpl::DrawTextBase(PRectangle rc, Font &font_, int ybase, const char
 				pango_layout_set_text(layout, utfForm, len);
 			}
 			pango_layout_set_font_description(layout, PFont(font_)->pfd);
+#ifdef PANGO_VERSION
 			PangoLayoutLine *pll = pango_layout_get_line_readonly(layout,0);
+#else
+			PangoLayoutLine *pll = pango_layout_get_line(layout,0);
+#endif
 			gdk_draw_layout_line(drawable, gc, xText, ybase, pll);
 			if (useGFree) {
 				g_free(utfForm);
@@ -1594,7 +1598,11 @@ int SurfaceImpl::WidthText(Font &font_, const char *s, int len) {
 				}
 				pango_layout_set_text(layout, utfForm, len);
 			}
-			PangoLayoutLine *pangoLine = pango_layout_get_line_readonly(layout, 0);
+#ifdef PANGO_VERSION
+			PangoLayoutLine *pangoLine = pango_layout_get_line_readonly(layout,0);
+#else
+			PangoLayoutLine *pangoLine = pango_layout_get_line(layout,0);
+#endif
 			pango_layout_line_get_extents(pangoLine, NULL, &pos);
 			if (useGFree) {
 				g_free(utfForm);
@@ -1637,11 +1645,11 @@ int SurfaceImpl::WidthChar(Font &font_, char ch) {
 // 3) Call gdk_string_extents with string as 1 but also including accented capitals.
 // Smallest values given by 1 and largest by 3 with 2 in between.
 // Techniques 1 and 2 sometimes chop off extreme portions of ascenders and
-// descenders but are mostly OK except for accented characters like Å which are
+// descenders but are mostly OK except for accented characters like Ã… which are
 // rarely used in code.
 
 // This string contains a good range of characters to test for size.
-//const char largeSizeString[] = "ÂÃÅÄ `~!@#$%^&*()-_=+\\|[]{};:\"\'<,>.?/1234567890"
+//const char largeSizeString[] = "Ã‚ÃƒÃ…Ã„ `~!@#$%^&*()-_=+\\|[]{};:\"\'<,>.?/1234567890"
 //                               "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 #ifndef FAST_WAY
 const char sizeString[] = "`~!@#$%^&*()-_=+\\|[]{};:\"\'<,>.?/1234567890"
