@@ -44,7 +44,7 @@
 #include "JitWindow.h"
 #include "ExtendedTrace.h"
 #include "BootManager.h"
-
+#include "Frame.h"
 
 // ------------
 //  Main window
@@ -367,13 +367,13 @@ bool DolphinApp::OnInit()
 		if (selectPadPlugin && padPluginFilename != wxEmptyString)
 		{
 			int k;
-			for(k=0;k<4;k++)
+			for(k=0;k<MAXPADS;k++)
 				SConfig::GetInstance().m_LocalCoreStartupParameter.m_strPadPlugin[k] = std::string(padPluginFilename.mb_str());
 		}
 		if (selectWiimotePlugin && wiimotePluginFilename != wxEmptyString)
 		{
 			int k;
-			for(k=0;k<4;k++)
+			for(k=0;k<MAXWIIMOTES;k++)
 				SConfig::GetInstance().m_LocalCoreStartupParameter.m_strWiimotePlugin[k] = std::string(wiimotePluginFilename.mb_str());
 		}
 
@@ -405,6 +405,16 @@ bool DolphinApp::OnInit()
 #ifdef NO_MOD
 	main_frame = new CFrame((wxFrame*)NULL, wxID_ANY, wxString(title),
 #else
+// TODO: Do the same check for Linux
+#ifdef _WIN32
+	// Out of desktop check
+	HWND hDesktop = GetDesktopWindow();
+	RECT rc;
+	GetWindowRect(hDesktop, &rc);
+	if (rc.right < x + w || rc.bottom < y + h)
+		x = y = -1;
+#endif
+
 	main_frame = new CFrame((wxFrame*)NULL, wxID_ANY, wxString::FromAscii(title),
 #endif
 	wxPoint(x, y), wxSize(w, h), UseDebugger, UseLogger);
@@ -415,7 +425,7 @@ bool DolphinApp::OnInit()
 	// First check if we have a elf command line. Todo: Should we place this under #if wxUSE_CMDLINE_PARSER?
 	if (LoadElf && ElfFile != wxEmptyString)
 	{
-		BootManager::BootCore(std::string(ElfFile.mb_str()));
+		main_frame->StartGame(std::string(ElfFile.mb_str()));
 	}
 	/* If we have selected Automatic Start, start the default ISO, or if no default
 	   ISO exists, start the last loaded ISO */
@@ -427,13 +437,13 @@ bool DolphinApp::OnInit()
 				&& File::Exists(SConfig::GetInstance().m_LocalCoreStartupParameter.
 					m_strDefaultGCM.c_str()))
 			{
-				BootManager::BootCore(SConfig::GetInstance().m_LocalCoreStartupParameter.
+				main_frame->StartGame(SConfig::GetInstance().m_LocalCoreStartupParameter.
 					m_strDefaultGCM);
 			}
 			else if(!SConfig::GetInstance().m_LastFilename.empty()
 				&& File::Exists(SConfig::GetInstance().m_LastFilename.c_str()))
 			{
-				BootManager::BootCore(SConfig::GetInstance().m_LastFilename);
+				main_frame->StartGame(SConfig::GetInstance().m_LastFilename);
 			}	
 		}
 	}

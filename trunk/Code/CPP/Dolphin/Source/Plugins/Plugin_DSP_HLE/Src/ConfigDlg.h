@@ -1,4 +1,4 @@
-// Copyright (C) 2003 Dolphin Project.
+Ôªø// Copyright (C) 2003 Dolphin Project.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ class DSPConfigDialogHLE : public wxDialog
 public:
 	DSPConfigDialogHLE(wxWindow *parent,
 		     wxWindowID id = 1,
-		     const wxString &title = wxT("Dolphin DSP-HLE ≤Âº˛…Ë÷√"),
+		     const wxString &title = wxT("Dolphin DSP-HLE Êèí‰ª∂ËÆæÁΩÆ"),
 		     const wxPoint& pos = wxDefaultPosition,
 		     const wxSize& size = wxDefaultSize,
 		     long style = wxDEFAULT_DIALOG_STYLE);

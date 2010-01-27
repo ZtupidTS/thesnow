@@ -15,22 +15,18 @@
 // Official SVN repository and contact information can be found at
 // http://code.google.com/p/dolphin-emu/
 
-#ifndef _PLUGIN_NJOY_SDL_CONFIG_H
-#define _PLUGIN_NJOY_SDL_CONFIG_H
+
+#ifndef _PLUGIN_GCPAD_CONFIG_H
+#define _PLUGIN_GCPAD_CONFIG_H
 
 struct Config
 {
     Config();
-    void Load(bool ChangePad = false, bool ChangeSaveByID = false);
-    void Save(int Slot = -1);
-	int CheckForDuplicateJoypads(bool OK);
+    void Load();
+    void Save();
 
     // General
-	bool bShowAdvanced; // Only allow one of these
-	bool bSaveByID;
-	bool bCheckFocus;
 	bool bNoTriggerFilter;
-	int RumbleStrength;
 #ifdef RERECORDING
 	bool bRecording;
 	bool bPlayback;
@@ -39,4 +35,4 @@ struct Config
 
 extern Config g_Config;
 
-#endif  // _PLUGIN_NJOY_SDL_CONFIG_H
+#endif  // _PLUGIN_GCPAD_CONFIG_H

@@ -15,19 +15,13 @@
 // Official SVN repository and contact information can be found at
 // http://code.google.com/p/dolphin-emu/
 
-#include "wiimote_hid.h"
-#include "main.h"
-#include "ConfigPadDlg.h"
 #include "Config.h"
-#include "EmuMain.h" // for WiiMoteEmu class
-#include "EmuDefinitions.h"
+#include "ConfigBox.h"
+#include "GCPad.h"
 
-#if defined(HAVE_X11) && HAVE_X11
-	#include "X11InputBase.h"
-#endif
 
 // Replace the harder to understand -1 with "" for the sake of user friendliness
-void WiimotePadConfigDialog::ToBlank(bool ToBlank, int Id)
+void GCPadConfigDialog::ToBlank(bool ToBlank, int Id)
 {
 	if (!m_ControlsCreated)
 		return;
@@ -44,18 +38,18 @@ void WiimotePadConfigDialog::ToBlank(bool ToBlank, int Id)
 	}
 }
 
-void WiimotePadConfigDialog::DoChangeDeadZone()
+void GCPadConfigDialog::DoChangeDeadZone()
 {
 	float Rad;
 
-	Rad = (float)WiiMoteEmu::WiiMapping[m_Page].DeadZoneL * ((float)BoxW / 100.0) * 0.5;	
+	Rad = (float)GCMapping[m_Page].DeadZoneL * ((float)BoxW / 100.0) * 0.5;	
 	m_bmpDeadZoneLeftIn[m_Page]->SetBitmap(CreateBitmapClear());
 	m_bmpDeadZoneLeftIn[m_Page]->SetSize(0, 0);
 	m_bmpDeadZoneLeftIn[m_Page]->SetBitmap(CreateBitmapDeadZone((int)Rad));
 	m_bmpDeadZoneLeftIn[m_Page]->SetPosition(wxPoint(BoxW / 2 - (int)Rad, BoxH / 2 - (int)Rad));
 	m_bmpDeadZoneLeftIn[m_Page]->Refresh();	
 
-	Rad = (float)WiiMoteEmu::WiiMapping[m_Page].DeadZoneR * ((float)BoxW / 100.0) * 0.5;	
+	Rad = (float)GCMapping[m_Page].DeadZoneR * ((float)BoxW / 100.0) * 0.5;	
 	m_bmpDeadZoneRightIn[m_Page]->SetBitmap(CreateBitmapClear());
 	m_bmpDeadZoneRightIn[m_Page]->SetSize(0, 0);
 	m_bmpDeadZoneRightIn[m_Page]->SetBitmap(CreateBitmapDeadZone((int)Rad));
@@ -63,49 +57,34 @@ void WiimotePadConfigDialog::DoChangeDeadZone()
 	m_bmpDeadZoneRightIn[m_Page]->Refresh();
 }
 
-// Set dialog items from saved values
-
-
 // Update the textbox for the buttons
-void WiimotePadConfigDialog::SetButtonText(int id, const wxString &str)
+void GCPadConfigDialog::SetButtonText(int id, const wxString &str)
 {
 	if (IDB_ANALOG_LEFT_X <= id && id <= IDB_TRIGGER_R)
 		m_Button_Analog[id - IDB_ANALOG_LEFT_X][m_Page]->SetLabel(str);
-	else if (IDB_WM_A <= id && id <= IDB_WM_SHAKE)
-		m_Button_Wiimote[id - IDB_WM_A][m_Page]->SetLabel(str);
-	else if (IDB_NC_Z <= id && id <= IDB_NC_SHAKE)
-		m_Button_NunChuck[id - IDB_NC_Z][m_Page]->SetLabel(str);
-	else if (IDB_CC_A <= id && id <= IDB_CC_RD)
-		m_Button_Classic[id - IDB_CC_A][m_Page]->SetLabel(str);
-	else if (IDB_GH3_GREEN <= id && id <= IDB_GH3_STRUM_DOWN)
-		m_Button_GH3[id - IDB_GH3_GREEN][m_Page]->SetLabel(str);
+	else if (IDB_BTN_A <= id && id <= IDB_SHDR_SEMI_R)
+		m_Button_GC[id - IDB_BTN_A][m_Page]->SetLabel(str);
 }
 
 // Get the text in the textbox for the buttons
-wxString WiimotePadConfigDialog::GetButtonText(int id)
+wxString GCPadConfigDialog::GetButtonText(int id)
 {
 	if (IDB_ANALOG_LEFT_X <= id && id <= IDB_TRIGGER_R)
 		return m_Button_Analog[id - IDB_ANALOG_LEFT_X][m_Page]->GetLabel();
-	else if (IDB_WM_A <= id && id <= IDB_WM_SHAKE)
-		return m_Button_Wiimote[id - IDB_WM_A][m_Page]->GetLabel(); 
-	else if (IDB_NC_Z <= id && id <= IDB_NC_SHAKE)
-		return m_Button_NunChuck[id - IDB_NC_Z][m_Page]->GetLabel(); 
-	else if (IDB_CC_A <= id && id <= IDB_CC_RD)
-		return m_Button_Classic[id - IDB_CC_A][m_Page]->GetLabel(); 
-	else if (IDB_GH3_GREEN <= id && id <= IDB_GH3_STRUM_DOWN)
-		return m_Button_GH3[id - IDB_GH3_GREEN][m_Page]->GetLabel();
+	else if (IDB_BTN_A <= id && id <= IDB_SHDR_SEMI_R)
+		return m_Button_GC[id - IDB_BTN_A][m_Page]->GetLabel(); 
 		
 	return wxString();
 }
 
-void WiimotePadConfigDialog::DoGetButtons(int _GetId)
+void GCPadConfigDialog::DoGetButtons(int _GetId)
 {
 	// Collect the starting values
 	// Get the current controller	
-	int PadID = WiiMoteEmu::WiiMapping[m_Page].ID;
+	int PadID = GCMapping[m_Page].ID;
 
 	// Get the controller and trigger type
-	int TriggerType = WiiMoteEmu::WiiMapping[m_Page].TriggerType;
+	int TriggerType = GCMapping[m_Page].TriggerType;
 
 	// Collect the accepted buttons for this slot
 	bool LeftRight = (_GetId == IDB_TRIGGER_L || _GetId == IDB_TRIGGER_R);
@@ -116,11 +95,11 @@ void WiimotePadConfigDialog::DoGetButtons(int _GetId)
 	
 	bool XInput = (TriggerType == InputCommon::CTL_TRIGGER_XINPUT);
 
-	bool Button = (_GetId >= IDB_WM_A && _GetId <= IDB_GH3_STRUM_DOWN);
+	bool Button = (_GetId >= IDB_BTN_A && _GetId <= IDB_SHDR_SEMI_R);
 
-	bool Hat = (_GetId >= IDB_WM_A && _GetId <= IDB_GH3_STRUM_DOWN);
+	bool Hat = (_GetId >= IDB_BTN_A && _GetId <= IDB_SHDR_SEMI_R);
 
-	bool NoTriggerFilter = false;
+	bool NoTriggerFilter = g_Config.bNoTriggerFilter;
 
 	// Values used in this function
 	int Seconds = 4; // Seconds to wait for
@@ -134,9 +113,6 @@ void WiimotePadConfigDialog::DoGetButtons(int _GetId)
 	int pressed = 0;
 	bool Succeed = false;
 	bool Stop = false; // Stop the timer
-
-	//DEBUG_LOG(WIIMOTE, "Before (%i) Id:%i %i  IsRunning:%i",
-	//	GetButtonWaitingTimer, GetButtonWaitingID, _GetId, m_ButtonMappingTimer->IsRunning());
 
 	// If the Id has changed or the timer is not running we should start one
 	if( GetButtonWaitingID != _GetId || !m_ButtonMappingTimer->IsRunning() )
@@ -152,18 +128,18 @@ void WiimotePadConfigDialog::DoGetButtons(int _GetId)
 		#if wxUSE_TIMER
 		m_ButtonMappingTimer->Start(1000 / TimesPerSecond);
 		#endif
-		DEBUG_LOG(WIIMOTE, "Timer Started: Pad:%i _GetId:%i "
+		DEBUG_LOG(PAD, "Timer Started: Pad:%i _GetId:%i "
 			"Allowed input is Axis:%i LeftRight:%i XInput:%i Button:%i Hat:%i",
-			WiiMoteEmu::WiiMapping[m_Page].ID, _GetId,
+			GCMapping[m_Page].ID, _GetId,
 			Axis, LeftRight, XInput, Button, Hat);
 	}
 
 	// Check for buttons
 	// If there is a timer we should not create a new one
-	else if (WiiMoteEmu::NumGoodPads > 0)
+	else if (NumGoodPads > 0)
 	{
 		InputCommon::GetButton(
-			WiiMoteEmu::WiiMapping[m_Page].joy, PadID, WiiMoteEmu::joyinfo[PadID].NumButtons, WiiMoteEmu::joyinfo[PadID].NumAxes, WiiMoteEmu::joyinfo[PadID].NumHats, 
+			GCMapping[m_Page].joy, PadID, joyinfo[PadID].NumButtons, joyinfo[PadID].NumAxes, joyinfo[PadID].NumHats, 
 			KeyPressed, value, type, pressed, Succeed, Stop,
 			LeftRight, Axis, XInput, Button, Hat, NoTriggerFilter);
 	}
@@ -203,7 +179,7 @@ void WiimotePadConfigDialog::DoGetButtons(int _GetId)
 			else if (value & SDL_HAT_RIGHT) pressed = 0x0100 + 0x0010 * pressed + SDL_HAT_RIGHT;
 			else pressed = -1;
 		}
-		if (IDB_WM_A <= _GetId && _GetId <= IDB_GH3_STRUM_DOWN)
+		if (IDB_BTN_A <= _GetId && _GetId <= IDB_SHDR_SEMI_R)
 		{
 			// Better make the pad button code far from virtual key code
 			SaveButtonMapping(_GetId, 0x1000 + pressed);
@@ -219,8 +195,7 @@ void WiimotePadConfigDialog::DoGetButtons(int _GetId)
 	// Stop the timer
 	if(Stop)
 	{
-		DEBUG_LOG(WIIMOTE, "Timer Stopped for Pad:%i _GetId:%i",
-			WiiMoteEmu::WiiMapping[m_Page].ID, _GetId);
+		DEBUG_LOG(PAD, "Timer Stopped for Pad:%i _GetId:%i", GCMapping[m_Page].ID, _GetId);
 
 		m_ButtonMappingTimer->Stop();
 		GetButtonWaitingTimer = 0;
@@ -242,7 +217,7 @@ void WiimotePadConfigDialog::DoGetButtons(int _GetId)
 }
 
 // Convert the 0x8000 range values to BoxW and BoxH for the plot
-void WiimotePadConfigDialog::Convert2Box(int &x)
+void GCPadConfigDialog::Convert2Box(int &x)
 {
 	// Border adjustment
 	int BoxW_ = BoxW - 2; int BoxH_ = BoxH - 2;
@@ -251,13 +226,9 @@ void WiimotePadConfigDialog::Convert2Box(int &x)
 }
 
 // Update the input status boxes
-void WiimotePadConfigDialog::UpdatePadInfo(wxTimerEvent& WXUNUSED(event))
+void GCPadConfigDialog::UpdatePadInfo(wxTimerEvent& WXUNUSED(event))
 {
-	//DEBUG_LOG(WIIMOTE, "SDL_WasInit: %i", SDL_WasInit(0));
-
-	/* Return if it's not enabled or not detected. The ID should never be less than zero here,
-	   it can only be that because of a manual ini file change, but we make that check anway. */
-	if (WiiMoteEmu::WiiMapping[m_Page].ID < 0 || WiiMoteEmu::WiiMapping[m_Page].ID >= WiiMoteEmu::NumGoodPads)
+	if (GCMapping[m_Page].ID < 0 || GCMapping[m_Page].ID >= NumPads)
 	{
 		m_tStatusLeftIn[m_Page]->SetLabel(wxT("Not connected"));
 		m_tStatusLeftOut[m_Page]->SetLabel(wxT("Not connected"));
@@ -270,26 +241,26 @@ void WiimotePadConfigDialog::UpdatePadInfo(wxTimerEvent& WXUNUSED(event))
 
 	// Check that Dolphin is in focus, otherwise don't update the pad status
 	//if (IsFocus())
-		WiiMoteEmu::GetAxisState(WiiMoteEmu::WiiMapping[m_Page]);
+		GetAxisState(GCMapping[m_Page]);
 
 	// Analog stick
 	// Get original values
-	int main_x = WiiMoteEmu::WiiMapping[m_Page].AxisState.Lx;
-	int main_y = WiiMoteEmu::WiiMapping[m_Page].AxisState.Ly;
-    int right_x = WiiMoteEmu::WiiMapping[m_Page].AxisState.Rx;
-	int right_y = WiiMoteEmu::WiiMapping[m_Page].AxisState.Ry;
+	int main_x = GCMapping[m_Page].AxisState.Lx;
+	int main_y = GCMapping[m_Page].AxisState.Ly;
+    int right_x = GCMapping[m_Page].AxisState.Rx;
+	int right_y = GCMapping[m_Page].AxisState.Ry;
 
 	// Get adjusted values
 	int main_x_after = main_x, main_y_after = main_y;
 	int right_x_after = right_x, right_y_after = right_y;
 
 	// Produce square
-	if(WiiMoteEmu::WiiMapping[m_Page].bCircle2Square)
-		InputCommon::Square2Circle(main_x_after, main_y_after, WiiMoteEmu::WiiMapping[m_Page].Diagonal, true);
+	if(GCMapping[m_Page].bSquare2Circle)
+		InputCommon::Square2Circle(main_x_after, main_y_after, GCMapping[m_Page].Diagonal, false);
 
 	// Check dead zone
-	float DeadZoneLeft = (float)WiiMoteEmu::WiiMapping[m_Page].DeadZoneL / 100.0;
-	float DeadZoneRight = (float)WiiMoteEmu::WiiMapping[m_Page].DeadZoneR / 100.0;
+	float DeadZoneLeft = (float)GCMapping[m_Page].DeadZoneL / 100.0;
+	float DeadZoneRight = (float)GCMapping[m_Page].DeadZoneR / 100.0;
 	if (InputCommon::IsDeadZone(DeadZoneLeft, main_x_after, main_y_after))
 	{
 		main_x_after = 0;
@@ -324,11 +295,11 @@ void WiimotePadConfigDialog::UpdatePadInfo(wxTimerEvent& WXUNUSED(event))
 	m_bmpDotRightOut[m_Page]->SetPosition(wxPoint(right_x_after, right_y_after));
 
 	// Get the trigger values
-	int TriggerLeft = WiiMoteEmu::WiiMapping[m_Page].AxisState.Tl;
-	int TriggerRight = WiiMoteEmu::WiiMapping[m_Page].AxisState.Tr;
+	int TriggerLeft = GCMapping[m_Page].AxisState.Tl;
+	int TriggerRight = GCMapping[m_Page].AxisState.Tr;
 
 	// Convert the triggers values
-	if (WiiMoteEmu::WiiMapping[m_Page].TriggerType == InputCommon::CTL_TRIGGER_SDL)
+	if (GCMapping[m_Page].TriggerType == InputCommon::CTL_TRIGGER_SDL)
 	{
 		TriggerLeft = InputCommon::Pad_Convert(TriggerLeft);
 		TriggerRight = InputCommon::Pad_Convert(TriggerRight);

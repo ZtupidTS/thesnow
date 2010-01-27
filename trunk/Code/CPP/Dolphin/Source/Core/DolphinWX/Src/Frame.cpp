@@ -161,25 +161,28 @@ CPanel::CPanel(
 				return 0;
 
 			case WIIMOTE_DISCONNECT:
-				if (main_frame->bNoWiimoteMsg)
-					main_frame->bNoWiimoteMsg = false;
-				else
+				if (SConfig::GetInstance().m_LocalCoreStartupParameter.bWii)
 				{
-					// The Wiimote has been disconnect, we offer reconnect here
-					wxMessageDialog *dlg = new wxMessageDialog(
-						this,
-						wxString::Format(wxT("Wiimote %i has been disconnected by system.\n")
-						wxT("Maybe this game doesn't support multi-wiimote,\n")
-						wxT("or maybe it is due to idle time out or other reason.\n\n")
-						wxT("Do you want to reconnect immediately?"), lParam + 1),
-						wxT("Reconnect Wiimote Confirm"),
-						wxYES_NO | wxSTAY_ON_TOP | wxICON_INFORMATION, //wxICON_QUESTION,
-						wxDefaultPosition);
+					if (main_frame->bNoWiimoteMsg)
+						main_frame->bNoWiimoteMsg = false;
+					else
+					{
+						// The Wiimote has been disconnect, we offer reconnect here
+						wxMessageDialog *dlg = new wxMessageDialog(
+							this,
+							wxString::Format(wxT("Wiimote %i has been disconnected by system.\n")
+							wxT("Maybe this game doesn't support multi-wiimote,\n")
+							wxT("or maybe it is due to idle time out or other reason.\n\n")
+							wxT("Do you want to reconnect immediately?"), lParam + 1),
+							wxT("Reconnect Wiimote Confirm"),
+							wxYES_NO | wxSTAY_ON_TOP | wxICON_INFORMATION, //wxICON_QUESTION,
+							wxDefaultPosition);
 
-					if (dlg->ShowModal() == wxID_YES)
-						GetUsbPointer()->AccessWiiMote(lParam | 0x100)->Activate(true);
+						if (dlg->ShowModal() == wxID_YES)
+							GetUsbPointer()->AccessWiiMote(lParam | 0x100)->Activate(true);
 
-					dlg->Destroy();
+						dlg->Destroy();
+					}
 				}
 				return 0;
 			}
@@ -524,10 +527,13 @@ void CFrame::OnActive(wxActivateEvent& event)
 
 void CFrame::OnClose(wxCloseEvent& event)
 {
+	//Stop Dolphin from saving the minimized Xpos and Ypos
+	if(main_frame->IsIconized())
+		main_frame->Iconize(false);
+
 	// Don't forget the skip or the window won't be destroyed
 	event.Skip();
 	// Save GUI settings
-	if (g_pCodeWindow) g_pCodeWindow->Save();
 	if (g_pCodeWindow) Save();
 	// Uninit
 	m_Mgr->UnInit();
@@ -702,7 +708,7 @@ void CFrame::OnGameListCtrl_ItemActivated(wxListEvent& WXUNUSED (event))
 	}			
 	else
 		// Game started by double click
-		StartGame();
+		StartGame(std::string(""));
 }
 
 void CFrame::OnKeyDown(wxKeyEvent& event)
