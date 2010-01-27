@@ -30,6 +30,10 @@
 #include "wiimote_hid.h" // Local
 #include "Encryption.h"
 
+#if defined(HAVE_X11) && HAVE_X11
+#include <X11/X.h>
+#endif
+
 extern SWiimoteInitialize g_WiimoteInitialize;
 
 namespace WiiMoteEmu
@@ -282,7 +286,7 @@ struct CONTROLLER_MAPPING_WII	// WII PAD MAPPING
 	int DeadZoneL;			// Analog 1 Deadzone
 	int DeadZoneR;			// Analog 2 Deadzone
 	bool bCircle2Square;
-	std::string Diagonal;
+	int Diagonal;
 
 	int Source; // 0: inactive, 1: emu, 2: real
 	bool bSideways;

@@ -158,6 +158,7 @@ void Fifo_EnterLoop(const SVideoInitialize &video_initialize)
 			// Create pointer to video data and send it to the VideoPlugin
 			u32 readPtr = _fifo.CPReadPointer;
 			u8 *uData = video_initialize.pGetMemoryPointer(readPtr);
+//			NOTICE_LOG(BOOT, "readPtr: %08x uData %08x", readPtr, uData);
 
 			// If we are in BP mode we only send 32B chunks to Video plugin for BP checking
 			if (_fifo.bFF_BPEnable)

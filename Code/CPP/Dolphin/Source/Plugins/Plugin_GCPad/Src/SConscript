@@ -3,7 +3,7 @@
 Import('env')
 import sys
 
-name = "Plugin_nJoy_SDL"
+name = "Plugin_GCPad"
 padenv = env.Clone()
 
 if not env['HAVE_SDL']:
@@ -12,20 +12,17 @@ if not env['HAVE_SDL']:
 
 files = [
 	'Config.cpp',
-	'nJoy.cpp',
+	'GCPad.cpp',
 	'Rumble.cpp',
 	]
 if padenv['HAVE_WX']:
     files += [
-        'GUI/AboutBox.cpp',
-        'GUI/ConfigAdvanced.cpp',
-        'GUI/ConfigJoypad.cpp',
-        'GUI/ConfigBox.cpp',
+        'ConfigJoypad.cpp',
+        'ConfigBox.cpp',
         ]
 
 padenv.Append(
-	CXXFLAGS = [ '-fPIC' ],
-	LIBS = [ 'common', 'inputcommon' ],
+	LIBS = [ 'inputcommon', 'common', ],
 	)
 
 padenv.SharedLibrary(env['plugin_dir']+name, files)

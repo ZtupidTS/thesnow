@@ -50,7 +50,6 @@ PLUGIN_GLOBALS* globals = NULL;
 // General
 bool g_EmulatorRunning = false;
 u32 g_ISOId = 0;
-bool g_FrameOpen = false;
 bool g_SearchDeviceDone = false;
 bool g_RealWiiMotePresent = false;
 bool g_RealWiiMoteInitialized = false;
@@ -182,25 +181,13 @@ void DllConfig(HWND _hParent)
 	}
 
 #if defined(HAVE_WX) && HAVE_WX
-
 	if (!m_BasicConfigFrame)
+	{
 		m_BasicConfigFrame = new WiimoteBasicConfigDialog(GetParentedWxWindow(_hParent));
-	else if (!m_BasicConfigFrame->GetParent()->IsShown())
-		m_BasicConfigFrame->Close(true);
-	// Update the GUI (because it was not updated when it had been already open before...)
-	m_BasicConfigFrame->UpdateGUI();
-	// Only allow one open at a time
-	if (!m_BasicConfigFrame->IsShown())
-	{
-		g_FrameOpen = true;
 		m_BasicConfigFrame->ShowModal();
+		m_BasicConfigFrame->Destroy();
+		m_BasicConfigFrame = NULL;
 	}
-	else
-	{
-		g_FrameOpen = false;
-		m_BasicConfigFrame->Hide();
-	}
-
 #endif
 }
 
@@ -212,7 +199,7 @@ void Initialize(void *init)
 
 	// Update the GUI if the configuration window is already open
 	#if defined(HAVE_WX) && HAVE_WX
-	if (g_FrameOpen)
+	if (m_BasicConfigFrame)
 	{
 		// Save the settings
 		g_Config.Save();
@@ -261,14 +248,6 @@ void Shutdown(void)
 	// Reset the game ID in all cases
 	g_ISOId = 0;
 
-	// We will only shutdown when both a game and the m_ConfigFrame is closed
-	if (g_FrameOpen)
-	{
-		#if defined(HAVE_WX) && HAVE_WX
-			if(m_BasicConfigFrame) m_BasicConfigFrame->UpdateGUI();
-		#endif
-	}
-
 #if HAVE_WIIUSE
 	if (g_RealWiiMoteInitialized) WiiMoteReal::Shutdown();
 #endif
@@ -284,7 +263,6 @@ void DoState(unsigned char **ptr, int mode)
 
 	//p.Do(g_EmulatorRunning);
 	//p.Do(g_ISOId);
-	//p.Do(g_FrameOpen);
 	//p.Do(g_RealWiiMotePresent);
 	//p.Do(g_RealWiiMoteInitialized);
 	//p.Do(g_EmulatedWiiMoteInitialized);

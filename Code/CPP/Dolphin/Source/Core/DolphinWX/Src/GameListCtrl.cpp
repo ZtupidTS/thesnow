@@ -100,7 +100,7 @@ END_EVENT_TABLE()
 BEGIN_EVENT_TABLE(CGameListCtrl, wxListCtrl)
 	EVT_SIZE(CGameListCtrl::OnSize)
 	EVT_RIGHT_DOWN(CGameListCtrl::OnRightClick)
-//	EVT_LEFT_DOWN(CGameListCtrl::OnLeftClick) // Disabled as stops multi-selection in the game list
+	EVT_LEFT_DOWN(CGameListCtrl::OnLeftClick)
 	EVT_LIST_KEY_DOWN(LIST_CTRL, CGameListCtrl::OnKeyPress)
 	EVT_MOTION(CGameListCtrl::OnMouseMotion)
 	EVT_LIST_COL_BEGIN_DRAG(LIST_CTRL, CGameListCtrl::OnColBeginDrag)
@@ -386,6 +386,7 @@ void CGameListCtrl::InsertItemInReportView(long _Index)
 	}
 	else // It's a Wad file
 	{
+		m_gameList.append(StringFromFormat("%s (WAD)\n", rISOFile.GetName(0).c_str()));
 		SetItem(_Index, COLUMN_TITLE, wxString(rISOFile.GetName(0).c_str(), SJISConv), -1);
 		SetItem(_Index, COLUMN_NOTES, wxString(rISOFile.GetDescription(0).c_str(), SJISConv), -1);
 	}
@@ -787,17 +788,14 @@ void CGameListCtrl::OnLeftClick(wxMouseEvent& event)
 	// Focus the clicked item.
 	int flags;
     long item = HitTest(event.GetPosition(), flags);
-	if (item != wxNOT_FOUND) 
+	if ((item != wxNOT_FOUND) && (GetSelectedItemCount() == 0) && (!event.ControlDown()) && (!event.ShiftDown()))
 	{
-		if (GetItemState(item, wxLIST_STATE_SELECTED) != wxLIST_STATE_SELECTED)
-		{
-			UnselectAll();
-			SetItemState(item, wxLIST_STATE_SELECTED, wxLIST_STATE_SELECTED );
-		}
+		SetItemState(item, wxLIST_STATE_SELECTED, wxLIST_STATE_SELECTED );
 		SetItemState(item, wxLIST_STATE_FOCUSED, wxLIST_STATE_FOCUSED);
+		wxGetApp().GetCFrame()->UpdateGUI();
 	}
 	
-	wxGetApp().GetCFrame()->UpdateGUI();
+	event.Skip();
 }
 
 void CGameListCtrl::OnRightClick(wxMouseEvent& event)

@@ -461,6 +461,13 @@ static void EFBTextureToD3DBackBuffer(const EFBRectangle& sourceRc)
 	D3D::RefreshSamplerState(0, D3DSAMP_MINFILTER);		
 	D3D::RefreshSamplerState(0, D3DSAMP_MAGFILTER);
 	
+	vp.X = 0;
+	vp.Y = 0;
+	vp.Width  = s_backbuffer_width;
+	vp.Height = s_backbuffer_height;
+	vp.MinZ = 0.0f;
+	vp.MaxZ = 1.0f;
+	D3D::dev->SetViewport(&vp);
 	// Finish up the current frame, print some stats
 	if (g_ActiveConfig.bShowFPS)
 	{
@@ -1100,7 +1107,8 @@ void Renderer::SetDitherMode()
 void Renderer::SetLineWidth()
 {
 	// We can't change line width in D3D unless we use ID3DXLine
-	float psize = float(bpmem.lineptwidth.pointsize) * 6.0f;
+	float fratio = xfregs.rawViewport[0] != 0 ? Renderer::GetTargetScaleX() : 1.0f;
+	float psize = bpmem.lineptwidth.linesize * fratio / 6.0f;
 	D3D::SetRenderState(D3DRS_POINTSIZE, *((DWORD*)&psize));
 }
 

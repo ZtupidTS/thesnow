@@ -1,36 +1,26 @@
-
-// Project description
-// -------------------
-// Name: nJoy 
-// Description: A Dolphin Compatible Input Plugin
-//
-// Author: Falcon4ever (nJoy@falcon4ever.com)
-// Site: www.multigesture.net
 // Copyright (C) 2003 Dolphin Project.
-//
 
-//
-// Licensetype: GNU General Public License (GPL)
-//
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, version 2.0.
-//
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License 2.0 for more details.
-//
+
 // A copy of the GPL 2.0 should have been included with the program.
 // If not, see http://www.gnu.org/licenses/
-//
+
 // Official SVN repository and contact information can be found at
 // http://code.google.com/p/dolphin-emu/
-//
 
-// Include
-// ---------
-#include "nJoy.h"
+
+#include "GCPad.h"
+
+#ifdef _WIN32
+#include "XInput.h"
+#endif
 
 
 #ifdef RUMBLE_HACK
@@ -49,63 +39,63 @@ BOOL CALLBACK EnumFFDevicesCallback(const DIDEVICEINSTANCE* pInst, VOID* pContex
 BOOL CALLBACK EnumAxesCallback(const DIDEVICEOBJECTINSTANCE* pdidoi, VOID* pContext);
 void SetDeviceForcesXY(int pad, int nXYForce);
 HRESULT InitRumble(HWND hWnd);
+void Rumble_DInput(int _ID, unsigned int _Strength);
+void Rumble_XInput(int _ID, unsigned int _Strength);
+
 
 LPDIRECTINPUT8		g_Rumble;		// DInput Rumble object
 RUMBLE				pRumble[4];		// 4 GC Rumble Pads
 
-//////////////////////
-// Use PAD rumble
-// ¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-
-void Pad_Use_Rumble(u8 _numPAD)
-{
-	if (PadMapping[_numPAD].rumble)
-	{
-		if (!g_Rumble)
-		{
-			// GetForegroundWindow() always sends the good HWND
-			if (FAILED(InitRumble(GetForegroundWindow())))
-				PanicAlert("Could not initialize Rumble!");
-		} else
-		{
-			// Acquire gamepad
-			if (pRumble[_numPAD].g_pDevice != NULL)
-				pRumble[_numPAD].g_pDevice->Acquire();
-		}
-	}
-}
-
-////////////////////////////////////////////////////
-// Set PAD rumble. Explanation: Stop = 0, Rumble = 1
-// ¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 
 void PAD_Rumble(u8 _numPAD, unsigned int _uType, unsigned int _uStrength)
 {
-	if (!PadMapping[_numPAD].enable)
+	if (GCMapping[_numPAD].ID >= NumPads || !GCMapping[_numPAD].Rumble)
 		return;
 
-	Pad_Use_Rumble(_numPAD);
-
-	int Strenght = 0;
-
-	if (PadMapping[_numPAD].rumble)  // rumble activated
+	unsigned int Strength = 0;
+	if (_uType == 1 && _uStrength > 2) 
 	{
-		if (_uType == 1 && _uStrength > 2) 
-		{
-			// it looks like _uStrength is equal to 3 everytime anyway...
-			Strenght = 1000 * (g_Config.RumbleStrength + 1);
-			Strenght = Strenght > 10000 ? 10000 : Strenght;
-		}
-		else
-			Strenght = 0;
-
-		SetDeviceForcesXY(_numPAD, Strenght);
+		Strength = GCMapping[_numPAD].RumbleStrength;
+		Strength = Strength > 100 ? 100 : Strength;
 	}
+
+	if (GCMapping[_numPAD].TriggerType == InputCommon::CTL_TRIGGER_XINPUT)
+		Rumble_XInput(GCMapping[_numPAD].ID, Strength);
+	else
+		Rumble_DInput(GCMapping[_numPAD].ID, Strength);
 }
 
-// Rumble stuff :D!
-// ----------------
-//
+////////////////////////////////////////////////////
+// Set rumble with XInput.
+void Rumble_XInput(int _ID, unsigned int _Strength)
+{
+#ifdef _WIN32
+	XINPUT_VIBRATION vib;
+	vib.wLeftMotorSpeed  = 0xFFFF / 100 * _Strength;
+	vib.wRightMotorSpeed = 0xFFFF / 100 * _Strength;
+	XInputSetState(_ID, &vib);
+#endif
+}
+
+////////////////////////////////////////////////////
+// Set rumble with DInput.¯¯¯¯¯¯¯¯¯¯¯¯
+void Rumble_DInput(int _ID, unsigned int _Strength)
+{
+	if (!g_Rumble)
+	{
+		// GetForegroundWindow() always sends the good HWND
+		if (FAILED(InitRumble(GetForegroundWindow())))
+			PanicAlert("Could not initialize Rumble!");
+	}
+	else
+	{
+		// Acquire gamepad
+		if (pRumble[_ID].g_pDevice != NULL)
+			pRumble[_ID].g_pDevice->Acquire();
+	}
+
+	SetDeviceForcesXY(_ID, _Strength * 100);
+}
 
 HRESULT InitRumble(HWND hWnd)
 {
@@ -123,7 +113,7 @@ HRESULT InitRumble(HWND hWnd)
 	for (int i=0; i<4; i++)
 	{
 		if (NULL == pRumble[i].g_pDevice)
-			PadMapping[i].rumble = false; // Disable Rumble for this pad only.
+			GCMapping[i].Rumble = false; // Disable Rumble for this pad only.
 		else
 		{
 			pRumble[i].g_pDevice->SetDataFormat(&c_dfDIJoystick);
@@ -143,7 +133,7 @@ HRESULT InitRumble(HWND hWnd)
 			{
 				PanicAlert("Device %d doesn't seem to work ! \nRumble for device %d is now Disabled !", i+1);
 
-				PadMapping[i].rumble = false; // Disable Rumble for this pad
+				GCMapping[i].Rumble = false; // Disable Rumble for this pad
 
 				continue;	// Next pad
 			}
@@ -210,7 +200,7 @@ void SetDeviceForcesXY(int npad, int nXYForce)
 	{
 		rglDirection[0] = nXYForce;
 		rglDirection[1] = nXYForce;
-		cf.lMagnitude = 1.4142f*nXYForce;
+		cf.lMagnitude = (long)(1.4142f*nXYForce);
 	}
 
 	ZeroMemory(&pRumble[npad].eff, sizeof(pRumble[npad].eff));
@@ -250,16 +240,15 @@ BOOL CALLBACK EnumFFDevicesCallback(const DIDEVICEINSTANCE* pInst, VOID* pContex
 	else 
 		return DIENUM_CONTINUE;
 
-	//PanicAlert("DInput ID : %d \nSDL ID (1-4) : %d / %d / %d / %d\n", JoystickID, PadMapping[0].ID, PadMapping[1].ID, PadMapping[2].ID, PadMapping[3].ID);
+	//PanicAlert("DInput ID : %d \nSDL ID (1-4) : %d / %d / %d / %d\n", JoystickID, GCMapping[0].ID, GCMapping[1].ID, GCMapping[2].ID, GCMapping[3].ID);
 
 	for (int i=0; i<4; i++) 
 	{
-		if (PadMapping[i].ID == JoystickID) // if SDL ID = DInput ID -> we're dealing with the same device
+		if (GCMapping[i].ID == JoystickID) // if SDL ID = DInput ID -> we're dealing with the same device
 		{
 			// a DInput device is created even if rumble is disabled on startup
 			// this way, you can toggle the rumble setting while in game
-			//if (PadMapping[i].enabled) // && PadMapping[i].rumble
-				pRumble[i].g_pDevice = pDevice; // everything looks good, save the DInput device
+			pRumble[i].g_pDevice = pDevice; // everything looks good, save the DInput device
 		}
 	}
 
@@ -277,13 +266,27 @@ BOOL CALLBACK EnumAxesCallback(const DIDEVICEOBJECTINSTANCE* pdidoi, VOID* pCont
 
 void PAD_RumbleClose()
 {
-    // It may look weird, but we don't free anything here, it was the cause of crashes
-	// on stop, and the DLL isn't unloaded anyway, so the pointers stay
-	// We just stop the rumble in case it's still playing an effect.
-	for (int i=0; i<4; i++)
+	for (int i = 0; i < 4; i++)
 	{
-		if (pRumble[i].g_pDevice && pRumble[i].g_pEffect)
-			pRumble[i].g_pEffect->Stop();
+		if (GCMapping[i].ID < NumPads)
+			if (GCMapping[i].TriggerType == InputCommon::CTL_TRIGGER_XINPUT)
+			{
+#ifdef _WIN32
+				// Kill Xpad rumble
+				XINPUT_VIBRATION vib;
+				vib.wLeftMotorSpeed  = 0;
+				vib.wRightMotorSpeed = 0;
+				XInputSetState(GCMapping[i].ID, &vib);
+#endif
+			}
+			else
+			{
+				// It may look weird, but we don't free anything here, it was the cause of crashes
+				// on stop, and the DLL isn't unloaded anyway, so the pointers stay
+				// We just stop the rumble in case it's still playing an effect.
+				if (pRumble[GCMapping[i].ID].g_pDevice && pRumble[GCMapping[i].ID].g_pEffect)
+					pRumble[GCMapping[i].ID].g_pEffect->Stop();
+			}
 	}
 }
 
@@ -319,7 +322,7 @@ bool PAD_Init_Rumble(u8 _numPAD, SDL_Joystick *SDL_Device)
 	{
 		SDL_HapticClose(pRumble[_numPAD].g_pDevice); // No effect
 		pRumble[_numPAD].g_pDevice = 0;
-		PadMapping[_numPAD].rumble = false;
+		GCMapping[_numPAD].rumble = false;
 		return false;
 	}
 
@@ -351,7 +354,7 @@ void PAD_Rumble(u8 _numPAD, unsigned int _uType, unsigned int _uStrength)
 	int Strenght = 0;
 
 #ifdef SDL_RUMBLE
-	if (PadMapping[_numPAD].rumble)  // rumble activated
+	if (GCMapping[_numPAD].rumble)  // rumble activated
 	{
 		if (!pRumble[_numPAD].g_pDevice)
 			return;
