@@ -23,12 +23,6 @@
 #include "Config.h"
 #include "EmuDefinitions.h" // for joyinfo
 
-enum TriggerType
-{
-	CTL_TRIGGER_SDL = 0,
-	CTL_TRIGGER_XINPUT
-};
-
 BEGIN_EVENT_TABLE(WiimotePadConfigDialog,wxDialog)
 
 	EVT_CLOSE(WiimotePadConfigDialog::OnClose)
@@ -117,9 +111,7 @@ WiimotePadConfigDialog::WiimotePadConfigDialog(wxWindow *parent, wxWindowID id, 
 : wxDialog(parent, id, title, position, size, style)
 {
 	m_ControlsCreated = false;;
-	m_Page = g_Config.CurrentPage;
 	CreatePadGUIControls();
-	m_Notebook->ChangeSelection(m_Page);
 
 #if wxUSE_TIMER
 	m_ButtonMappingTimer = new wxTimer(this, IDTM_BUTTON);
@@ -139,6 +131,8 @@ WiimotePadConfigDialog::WiimotePadConfigDialog(wxWindow *parent, wxWindowID id, 
 	}
 #endif
 
+	m_Page = g_Config.CurrentPage;
+	m_Notebook->ChangeSelection(m_Page);
 	// Set control values
 	UpdateGUI();
 
@@ -211,7 +205,7 @@ void WiimotePadConfigDialog::SaveButtonMapping(int Id, int Key)
 
 void WiimotePadConfigDialog::OnKeyDown(wxKeyEvent& event)
 {
-	event.Skip();
+	//event.Skip();
 
 	if(ClickedButton != NULL)
 	{

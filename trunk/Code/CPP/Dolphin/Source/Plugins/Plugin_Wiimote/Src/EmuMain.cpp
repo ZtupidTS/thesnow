@@ -18,9 +18,6 @@
 #include <vector>
 #include <string>
 
-#include "../../../Core/InputCommon/Src/SDL.h" // Core
-#include "../../../Core/InputCommon/Src/XInput.h"
-
 #include "Common.h" // Common
 #include "StringUtil.h" // for ArrayToString()
 #include "IniFile.h"
@@ -741,7 +738,12 @@ void ReadLinuxKeyboard()
 			XGetWindowAttributes (E.xmotion.display, E.xmotion.window, &WinAttribs);
 			MousePos.WinWidth = WinAttribs.width;
 			MousePos.WinHeight = WinAttribs.height;
+			break;
 		}
+		case ConfigureNotify:
+		case ClientMessage:
+			XPutBackEvent(WMdisplay, &E);
+			break;
 		default:
 			break;
 		}

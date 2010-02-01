@@ -43,26 +43,6 @@
 namespace InputCommon
 {
 
-enum EButtonType
-{
-	CTL_AXIS = 0,
-	CTL_HAT,
-	CTL_BUTTON,	
-	CTL_KEY,
-};
-
-enum ETriggerType
-{
-	CTL_TRIGGER_SDL = 0,
-	CTL_TRIGGER_XINPUT,
-};
-
-enum EXInputTrigger
-{
-	XI_TRIGGER_L = 0,
-	XI_TRIGGER_R,
-};
-
 struct CONTROLLER_INFO		// CONNECTED WINDOWS DEVICES INFO
 {
 	int NumAxes;			// Amount of Axes

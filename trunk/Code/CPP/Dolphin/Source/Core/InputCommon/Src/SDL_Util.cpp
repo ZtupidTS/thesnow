@@ -29,8 +29,11 @@
 
 
 #define _SDL_MAIN_ // Avoid certain declarations in SDL.h
-#include "SDL.h" // Local
-#include "XInput.h"
+#include "InputCommon.h"
+#include "SDL_Util.h" // Local
+#ifdef _WIN32
+#include "XInput_Util.h"
+#endif
 
 namespace InputCommon
 {
@@ -99,7 +102,7 @@ bool SearchDevices(std::vector<CONTROLLER_INFO> &_joyinfo, int &_NumPads, int &_
 bool AvoidValues(int value, bool NoTriggerFilter)
 {
 	// Avoid detecting very small or very big (for triggers) values
-	if(    (value > -0x2000 && value < 0x2000) // Small values
+	if(    (value > -200 && value < 200) // Small values
 		|| ((value < -0x6000 || value > 0x6000) && !NoTriggerFilter)) // Big values
 		return true; // Avoid
 	else
@@ -168,7 +171,7 @@ void GetButton(SDL_Joystick *joy, int ControllerID, int buttons, int axes, int h
 
 	// Check for a XInput trigger
 	#ifdef _WIN32
-		if(XInput)
+		if(XInput && LeftRight)
 		{
 			for(int i = 0; i <= InputCommon::XI_TRIGGER_R; i++)
 			{			
