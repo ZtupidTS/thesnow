@@ -19,7 +19,9 @@
 #include <d3dx9.h>
 #include <strsafe.h>
 
+#include "StringUtil.h"
 #include "Common.h"
+#include "Thread.h"
 #include "Timer.h"
 #include "Statistics.h"
 
@@ -70,6 +72,13 @@ static bool s_AVIDumping;
 static u32 s_blendMode;
 
 char st[32768];
+
+static bool s_bScreenshot = false;
+static Common::CriticalSection s_criticalScreenshot;
+static char s_sScreenshotName[1024];
+static LPDIRECT3DTEXTURE9 ScreenShootTexture =  NULL;
+static LPDIRECT3DSURFACE9 ScreenShootSurface = NULL;
+static LPDIRECT3DSURFACE9 ScreenShootMEMSurface = NULL;
 
 
 // State translation lookup tables
@@ -230,6 +239,15 @@ void SetupDeviceObjects()
 // Kill off all POOL_DEFAULT device objects.
 void TeardownDeviceObjects()
 {
+	if(ScreenShootMEMSurface)
+		ScreenShootMEMSurface->Release();
+	ScreenShootMEMSurface = NULL;
+	if(ScreenShootSurface)
+		ScreenShootSurface->Release();
+	ScreenShootSurface = NULL;
+	if(ScreenShootTexture)
+		ScreenShootTexture->Release();
+	ScreenShootTexture = NULL;
 	D3D::dev->SetRenderTarget(0, D3D::GetBackBufferSurface());
 	D3D::dev->SetDepthStencilSurface(D3D::GetBackBufferDepthSurface());
 	FBManager::Destroy();
@@ -246,7 +264,8 @@ bool Renderer::Init()
 {
 	UpdateActiveConfig();
 	int fullScreenRes, w_temp, h_temp;
-	s_blendMode = 0;	
+	s_blendMode = 0;
+	// Anti-aliasing hasn't been implemented yet
 	int backbuffer_ms_mode = 0;  // g_ActiveConfig.iMultisampleMode;
 
 	sscanf(g_Config.cFSResolution, "%dx%d", &w_temp, &h_temp);
@@ -275,7 +294,7 @@ bool Renderer::Init()
 	s_Fulltarget_width  = s_target_width;
 	s_Fulltarget_height = s_target_height;
 	//apply automatic resizing only is not an ati card, ati can handle large viewports :)
-	AUTO_ADJUST_RENDERTARGET_SIZE  = !D3D::IsATIDevice();
+	AUTO_ADJUST_RENDERTARGET_SIZE  = true;//!D3D::IsATIDevice();
 	
 	s_LastFrameDumped = false;
 	s_AVIDumping = false;
@@ -312,11 +331,21 @@ bool Renderer::Init()
 	D3D::dev->Clear(0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0x0, 1.0f, 0);
 	D3D::BeginFrame();
 	D3D::SetRenderState(D3DRS_SCISSORTESTENABLE, true);
+	D3D::dev->CreateTexture(s_backbuffer_width, s_backbuffer_height, 1, D3DUSAGE_RENDERTARGET, FBManager::GetEFBColorRTSurfaceFormat(),
+		                                 D3DPOOL_DEFAULT, &ScreenShootTexture, NULL);
+	if(ScreenShootTexture)
+	{
+		ScreenShootTexture->GetSurfaceLevel(0,&ScreenShootSurface);
+	}
+	D3D::dev->CreateOffscreenPlainSurface(s_backbuffer_width,s_backbuffer_height, FBManager::GetEFBColorRTSurfaceFormat(), D3DPOOL_SYSTEMMEM, &ScreenShootMEMSurface, NULL );
+	
 	return true;
 }
 
 void Renderer::Shutdown()
 {
+	
+	
 	TeardownDeviceObjects();
 	D3D::EndFrame();
 	D3D::Present();
@@ -334,6 +363,88 @@ int Renderer::GetFullTargetWidth() { return s_Fulltarget_width; }
 int Renderer::GetFullTargetHeight() { return s_Fulltarget_height; }
 float Renderer::GetTargetScaleX() { return xScale; }
 float Renderer::GetTargetScaleY() { return yScale; }
+
+// Create On-Screen-Messages
+void Renderer::DrawDebugText()
+{
+	// OSD Menu messages
+	if (g_ActiveConfig.bOSDHotKey)
+	{
+		if (OSDChoice > 0)
+		{
+			OSDTime = Common::Timer::GetTimeMs() + 3000;
+			OSDChoice = -OSDChoice;
+		}
+		if ((u32)OSDTime > Common::Timer::GetTimeMs())
+		{
+			std::string T1 = "", T2 = "";
+			std::vector<std::string> T0;
+
+/*
+			int W, H;
+			sscanf(g_ActiveConfig.cInternalRes, "%dx%d", &W, &H);
+			std::string OSDM1 = 
+				g_ActiveConfig.bNativeResolution || g_ActiveConfig.b2xResolution ?
+				(g_ActiveConfig.bNativeResolution ? 
+				StringFromFormat("%i x %i (native)", OSDInternalW, OSDInternalH)
+				: StringFromFormat("%i x %i (2x)", OSDInternalW, OSDInternalH))
+				: StringFromFormat("%i x %i (custom)", W, H);
+*/
+			std::string OSDM1 = StringFromFormat("%i x %i", OSDInternalW, OSDInternalH);
+			std::string OSDM21;
+			switch(g_ActiveConfig.iAspectRatio)
+			{
+			case ASPECT_AUTO:
+				OSDM21 = "Auto";
+				break;
+			case ASPECT_FORCE_16_9:
+				OSDM21 = "16:9";
+				break;
+			case ASPECT_FORCE_4_3:
+				OSDM21 = "4:3";
+				break;
+			case ASPECT_STRETCH:
+				OSDM21 = "Stretch";
+				break;
+			}
+			std::string OSDM22 =
+				g_ActiveConfig.bCrop ? " (crop)" : "";			
+			std::string OSDM3 = g_ActiveConfig.bEFBCopyDisable ? "Disabled" :
+				g_ActiveConfig.bCopyEFBToTexture ? "To Texture" : "To RAM";
+
+			// If there is more text than this we will have a collission
+			if (g_ActiveConfig.bShowFPS)
+				{ T1 += "\n\n"; T2 += "\n\n"; }
+
+			// The rows
+			T0.push_back(StringFromFormat("3: Internal Resolution: %s\n", OSDM1.c_str()));
+			T0.push_back(StringFromFormat("4: Aspect Ratio: %s%s\n", OSDM21.c_str(), OSDM22.c_str()));
+			T0.push_back(StringFromFormat("5: Copy EFB: %s\n", OSDM3.c_str()));
+			T0.push_back(StringFromFormat("6: Fog: %s\n", g_ActiveConfig.bDisableFog ? "Disabled" : "Enabled"));
+			T0.push_back(StringFromFormat("7: Material Lighting: %s\n", g_ActiveConfig.bDisableLighting ? "Disabled" : "Enabled"));	
+
+			// The latest changed setting in yellow
+			T1 += (OSDChoice == -1) ? T0.at(0) : "\n";
+			T1 += (OSDChoice == -2) ? T0.at(1) : "\n";
+			T1 += (OSDChoice == -3) ? T0.at(2) : "\n";
+			T1 += (OSDChoice == -4) ? T0.at(3) : "\n";
+			T1 += (OSDChoice == -5) ? T0.at(4) : "\n";		
+
+			// The other settings in cyan
+			T2 += (OSDChoice != -1) ? T0.at(0) : "\n";
+			T2 += (OSDChoice != -2) ? T0.at(1) : "\n";
+			T2 += (OSDChoice != -3) ? T0.at(2) : "\n";
+			T2 += (OSDChoice != -4) ? T0.at(3) : "\n";
+			T2 += (OSDChoice != -5) ? T0.at(4) : "\n";		
+
+			// Render a shadow, and then the text
+			Renderer::RenderText(T1.c_str(), 21, 21, 0xDD000000);
+			Renderer::RenderText(T1.c_str(), 20, 20, 0xFFffff00);
+			Renderer::RenderText(T2.c_str(), 21, 21, 0xDD000000);
+			Renderer::RenderText(T2.c_str(), 20, 20, 0xFF00FFFF);
+		}
+	}
+}
 
 void Renderer::RenderText(const char *text, int left, int top, u32 color)
 {
@@ -385,6 +496,17 @@ void CheckForResize()
 		Sleep(10);
 	}
 
+	
+	if (EmuWindow::GetParentWnd())
+	{
+		// Re-stretch window to parent window size again, if it has a parent window.
+		RECT rcParentWindow;
+		GetWindowRect(EmuWindow::GetParentWnd(), &rcParentWindow);
+		int width = rcParentWindow.right - rcParentWindow.left;
+		int height = rcParentWindow.bottom - rcParentWindow.top;
+		if (width != s_backbuffer_width || height != s_backbuffer_height)
+			::MoveWindow(EmuWindow::GetWnd(), 0, 0, width, height, FALSE);
+	}
 	RECT rcWindow;
 	GetClientRect(EmuWindow::GetWnd(), &rcWindow);
 	int client_width = rcWindow.right - rcWindow.left;
@@ -457,6 +579,7 @@ static void EFBTextureToD3DBackBuffer(const EFBRectangle& sourceRc)
 
 	D3D::ChangeSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);		
 	D3D::ChangeSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+	
 	D3D::drawShadedTexQuad(read_texture,&sourcerect,Renderer::GetFullTargetWidth(),Renderer::GetFullTargetHeight(),&destinationrect,PixelShaderCache::GetColorCopyProgram(),VertexShaderCache::GetSimpleVertexShader());	
 	D3D::RefreshSamplerState(0, D3DSAMP_MINFILTER);		
 	D3D::RefreshSamplerState(0, D3DSAMP_MAGFILTER);
@@ -468,6 +591,60 @@ static void EFBTextureToD3DBackBuffer(const EFBRectangle& sourceRc)
 	vp.MinZ = 0.0f;
 	vp.MaxZ = 1.0f;
 	D3D::dev->SetViewport(&vp);
+	if(s_bScreenshot || g_ActiveConfig.bDumpFrames)
+	{	
+		HRESULT hr = D3D::dev->StretchRect(FBManager::GetEFBColorRTSurface(),&sourcerect,ScreenShootSurface,&destinationrect,D3DTEXF_LINEAR);
+		hr = D3D::dev->GetRenderTargetData(ScreenShootSurface,ScreenShootMEMSurface);
+		if(s_bScreenshot)
+		{
+			s_criticalScreenshot.Enter();
+			hr = D3DXSaveSurfaceToFileA(s_sScreenshotName, D3DXIFF_JPG, ScreenShootMEMSurface, NULL, &destinationrect);
+			s_bScreenshot = false;
+			s_criticalScreenshot.Leave();
+		}
+		if (g_ActiveConfig.bDumpFrames) 
+		{
+			if (!s_LastFrameDumped) 
+			{
+				s_recordWidth = destinationrect.right - destinationrect.left;
+				s_recordHeight = destinationrect.bottom - destinationrect.top;
+				s_AVIDumping = AVIDump::Start(EmuWindow::GetParentWnd(), s_recordWidth, s_recordHeight);
+				if (!s_AVIDumping) 
+				{
+					PanicAlert("Error dumping frames to AVI.");
+				} 
+				else 
+				{
+					char msg [255];
+					sprintf(msg, "Dumping Frames to \"%s/framedump0.avi\" (%dx%d RGB24)", FULL_FRAMES_DIR, s_recordWidth, s_recordHeight);
+					OSD::AddMessage(msg, 2000);
+				}
+			}
+			if (s_AVIDumping) 
+			{
+				D3DLOCKED_RECT rect;
+				if (SUCCEEDED(ScreenShootMEMSurface->LockRect(&rect, &destinationrect, D3DLOCK_NO_DIRTY_UPDATE | D3DLOCK_NOSYSLOCK | D3DLOCK_READONLY))) 
+				{
+					char *data = (char *)malloc(3 * s_recordWidth * s_recordHeight);
+					formatBufferDump((const char *)rect.pBits, data, s_recordWidth, s_recordHeight, rect.Pitch);
+					AVIDump::AddFrame(data);
+					free(data);
+					ScreenShootMEMSurface->UnlockRect();
+				}
+			}
+			s_LastFrameDumped = true;			
+		}		 
+		else 
+		{
+			if (s_LastFrameDumped && s_AVIDumping) 
+			{
+				AVIDump::Stop();
+				s_AVIDumping = false;
+			}
+			s_LastFrameDumped = false;
+		}
+	}
+
 	// Finish up the current frame, print some stats
 	if (g_ActiveConfig.bShowFPS)
 	{
@@ -475,6 +652,8 @@ static void EFBTextureToD3DBackBuffer(const EFBRectangle& sourceRc)
 		StringCchPrintfA(fps, 20, "FPS: %d\n", s_fps);
 		D3D::font.DrawTextScaled(0,30,20,20,0.0f,0xFF00FFFF,fps,false);
 	}
+	Renderer::DrawDebugText();
+
 	if (g_ActiveConfig.bOverlayStats)
 	{
 		Statistics::ToString(st);
@@ -490,70 +669,6 @@ static void EFBTextureToD3DBackBuffer(const EFBRectangle& sourceRc)
 }
 
 
-static void D3DDumpFrame()
-{
-	if (EmuWindow::GetParentWnd())
-	{
-		// Re-stretch window to parent window size again, if it has a parent window.
-		RECT rcWindow;
-		GetWindowRect(EmuWindow::GetParentWnd(), &rcWindow);
-
-		int width = rcWindow.right - rcWindow.left;
-		int height = rcWindow.bottom - rcWindow.top;
-
-		::MoveWindow(EmuWindow::GetWnd(), 0, 0, width, height, FALSE);
-	}
-
-	// Frame dumping routine - seems buggy and wrong, esp. regarding buffer sizes
-	if (g_ActiveConfig.bDumpFrames) {
-		D3DDISPLAYMODE DisplayMode;
-		if (SUCCEEDED(D3D::dev->GetDisplayMode(0, &DisplayMode))) {
-			LPDIRECT3DSURFACE9 surf;
-			if (SUCCEEDED(D3D::dev->CreateOffscreenPlainSurface(DisplayMode.Width, DisplayMode.Height, D3DFMT_A8R8G8B8, D3DPOOL_SCRATCH, &surf, NULL))) {
-				if (!s_LastFrameDumped) {
-					RECT windowRect;
-					GetClientRect(EmuWindow::GetWnd(), &windowRect);
-					s_recordWidth = windowRect.right - windowRect.left;
-					s_recordHeight = windowRect.bottom - windowRect.top;
-					s_AVIDumping = AVIDump::Start(EmuWindow::GetParentWnd(), s_recordWidth, s_recordHeight);
-					if (!s_AVIDumping) {
-						PanicAlert("Error dumping frames to AVI.");
-					} else {
-						char msg [255];
-						sprintf(msg, "Dumping Frames to \"%s/framedump0.avi\" (%dx%d RGB24)", FULL_FRAMES_DIR, s_recordWidth, s_recordHeight);
-						OSD::AddMessage(msg, 2000);
-					}
-				}
-				if (s_AVIDumping) {
-					if (SUCCEEDED(D3D::dev->GetFrontBufferData(0, surf))) {
-						RECT windowRect;
-						GetWindowRect(EmuWindow::GetWnd(), &windowRect);
-						D3DLOCKED_RECT rect;
-						if (SUCCEEDED(surf->LockRect(&rect, &windowRect, D3DLOCK_NO_DIRTY_UPDATE | D3DLOCK_NOSYSLOCK | D3DLOCK_READONLY))) {
-							char *data = (char *)malloc(3 * s_recordWidth * s_recordHeight);
-							formatBufferDump((const char *)rect.pBits, data, s_recordWidth, s_recordHeight, rect.Pitch);
-							AVIDump::AddFrame(data);
-							free(data);
-							surf->UnlockRect();
-						}
-					}
-				}
-				s_LastFrameDumped = true;
-				surf->Release();
-			}
-		}
-	} 
-	else 
-	{
-		if (s_LastFrameDumped && s_AVIDumping) {
-			AVIDump::Stop();
-			s_AVIDumping = false;
-		}
-
-		s_LastFrameDumped = false;
-	}
-}
-
 
 void Renderer::RenderToXFB(u32 xfbAddr, u32 fbWidth, u32 fbHeight, const EFBRectangle& sourceRc)
 {
@@ -568,9 +683,9 @@ void Renderer::RenderToXFB(u32 xfbAddr, u32 fbWidth, u32 fbHeight, const EFBRect
 	// Set the backbuffer as the rendering target
 	D3D::dev->SetDepthStencilSurface(NULL);
 	D3D::dev->SetRenderTarget(0, D3D::GetBackBufferSurface());	
-
-	D3DDumpFrame();
+	
 	EFBTextureToD3DBackBuffer(sourceRc);
+	
 	D3D::EndFrame();
 
 	DEBUGGER_LOG_AT((NEXT_XFB_CMD|NEXT_EFB_CMD|NEXT_FRAME),
@@ -1016,7 +1131,6 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight)
 
 	g_VideoInitialize.pCopiedToXFB(false);
 
-	//TODO: Resize backbuffer if window size has changed. This code crashes, debug it.
 	CheckForResize();
 
 	// ---------------------------------------------------------------------
@@ -1152,4 +1266,13 @@ void Renderer::SetSamplerState(int stage, int texindex)
 void Renderer::SetInterlacingMode()
 {
 	// TODO
+}
+
+// Save screenshot
+void Renderer::SetScreenshot(const char *filename)
+{
+	s_criticalScreenshot.Enter();
+	strcpy(s_sScreenshotName,filename);
+	s_bScreenshot = true;
+	s_criticalScreenshot.Leave();
 }

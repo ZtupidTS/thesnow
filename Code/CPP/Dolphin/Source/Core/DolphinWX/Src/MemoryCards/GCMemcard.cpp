@@ -71,7 +71,7 @@ GCMemcard::GCMemcard(const char *filename)
 	fail = false;
 	if (!mcd)
 	{
-		if (!AskYesNo("\"%s\" does not exist.\n Create a new 16MB Memcard?", filename))
+		if (!AskYesNo("\"%s\" 不存在.\n 创建一个新的 16MB 内存卡?", filename))
 		{
 			fail = true;
 			return;

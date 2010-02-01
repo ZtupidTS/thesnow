@@ -27,11 +27,8 @@
 #include <iostream>
 
 
-
-
 namespace XInput
 {
-
 
 // Declarations
 // ----------

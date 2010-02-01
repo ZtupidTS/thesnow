@@ -36,15 +36,10 @@
 // -------------------
 #include <windows.h>
 #include <XInput.h> // XInput API
-
-#include "SDL.h" // Local
-
-
+#include "InputCommon.h"
 
 namespace XInput
 {
-
-
 
 // Declarations
 // -------------------
@@ -57,8 +52,6 @@ struct CONTROLER_STATE
     bool bConnected;
 };
 CONTROLER_STATE g_Controllers[MAX_CONTROLLERS];
-
-
 
 
 // Init
@@ -89,8 +82,6 @@ void Init()
 }	
 
 
-
-
 // Get the trigger status
 // -------------------
 int GetXI(int Controller, int Button)
@@ -115,8 +106,6 @@ int GetXI(int Controller, int Button)
 }
 
 
-
-
 // Check if a certain controller is connected
 // -------------------
 bool IsConnected(int Controller)
@@ -129,7 +118,6 @@ bool IsConnected(int Controller)
 	else
 		return false;
 }
-
 
 } // XInput
 

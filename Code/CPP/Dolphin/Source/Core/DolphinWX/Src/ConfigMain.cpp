@@ -32,14 +32,14 @@
 extern CFrame* main_frame;
 
 // Strings for Device Selections
-#define DEV_NONE_STR		"<Nothing>"
+#define DEV_NONE_STR		"<没有>"
 #define DEV_DUMMY_STR		"Dummy"
 
-#define SIDEV_STDCONT_STR	"Standard Controller"
+#define SIDEV_STDCONT_STR	"标准控制器"
 #define SIDEV_GBA_STR		"GBA"
 #define SIDEV_AM_BB_STR		"AM-Baseboard"
 
-#define EXIDEV_MEMCARD_STR	"Memory Card"
+#define EXIDEV_MEMCARD_STR	"记忆卡"
 #define EXIDEV_MIC_STR		"Mic"
 #define EXIDEV_BBA_STR		"BBA"
 #define EXIDEV_AM_BB_STR	"AM-Baseboard"
@@ -219,9 +219,9 @@ void CConfigMain::CreateGUIControls()
 	//
 	AlwaysHLE_BS2 = new wxCheckBox(GeneralPage, ID_ALWAYS_HLE_BS2, wxT("HLE the IPL (推荐)"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 	AlwaysHLE_BS2->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bHLE_BS2);
-	m_RadioJIT = new wxRadioButton(GeneralPage, ID_RADIOJIT, wxT("JIT Recompiler (推荐)"));
-	m_RadioJITIL = new wxRadioButton(GeneralPage, ID_RADIOJITIL, wxT("JitIL experimental recompiler"));
-	m_RadioInt = new wxRadioButton(GeneralPage, ID_RADIOINT, wxT("Interpreter (非常慢)"));
+	m_RadioJIT = new wxRadioButton(GeneralPage, ID_RADIOJIT, wxT("JIT 重编译器 (推荐)"));
+	m_RadioJITIL = new wxRadioButton(GeneralPage, ID_RADIOJITIL, wxT("JitIL 实验性重编译器"));
+	m_RadioInt = new wxRadioButton(GeneralPage, ID_RADIOINT, wxT("语法解释器 (非常慢)"));
 	switch (SConfig::GetInstance().m_LocalCoreStartupParameter.iCPUCore) {
 		case 0: m_RadioInt->SetValue(true); break;
 		case 1: m_RadioJIT->SetValue(true); break;
@@ -464,14 +464,14 @@ void CConfigMain::CreateGUIControls()
 	// Wii page
 	sbWiimoteSettings = new wxStaticBoxSizer(wxVERTICAL, WiiPage, wxT("Wiimote 设置"));
 	arrayStringFor_WiiSensBarPos.Add(wxT("底部")); arrayStringFor_WiiSensBarPos.Add(wxT("顶部"));
-	WiiSensBarPosText = new wxStaticText(WiiPage, ID_WII_BT_BAR_TEXT, wxT("Sensor Bar Position:"), wxDefaultPosition, wxDefaultSize);
+	WiiSensBarPosText = new wxStaticText(WiiPage, ID_WII_BT_BAR_TEXT, wxT("Sensor Bar 位置:"), wxDefaultPosition, wxDefaultSize);
 	WiiSensBarPos = new wxChoice(WiiPage, ID_WII_BT_BAR, wxDefaultPosition, wxDefaultSize, arrayStringFor_WiiSensBarPos, 0, wxDefaultValidator);
 	WiiSensBarPos->SetSelection(SConfig::GetInstance().m_SYSCONF->GetData<u8>("BT.BAR"));
 
 	sbWiiIPLSettings = new wxStaticBoxSizer(wxVERTICAL, WiiPage, wxT("其它设置"));
 	WiiScreenSaver = new wxCheckBox(WiiPage, ID_WII_IPL_SSV, wxT("启用屏幕保护 (burn-in reduction)"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 	WiiScreenSaver->SetValue(!!SConfig::GetInstance().m_SYSCONF->GetData<u8>("IPL.SSV"));
-	WiiProgressiveScan = new wxCheckBox(WiiPage, ID_WII_IPL_PGS, wxT("启用 Progressive Scan"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	WiiProgressiveScan = new wxCheckBox(WiiPage, ID_WII_IPL_PGS, wxT("启用逐行扫描"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 	WiiProgressiveScan->SetValue(!!SConfig::GetInstance().m_SYSCONF->GetData<u8>("IPL.PGS"));
 	WiiEuRGB60 = new wxCheckBox(WiiPage, ID_WII_IPL_E60, wxT("使用 EuRGB60 模式 (PAL60)"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 	WiiEuRGB60->SetValue(!!SConfig::GetInstance().m_SYSCONF->GetData<u8>("IPL.E60"));
@@ -484,11 +484,11 @@ void CConfigMain::CreateGUIControls()
 	WiiSystemLang->SetSelection(SConfig::GetInstance().m_SYSCONF->GetData<u8>("IPL.LNG"));
 
 	// Devices
-	sbWiiDeviceSettings = new wxStaticBoxSizer(wxVERTICAL, WiiPage, wxT("Device Settings"));
+	sbWiiDeviceSettings = new wxStaticBoxSizer(wxVERTICAL, WiiPage, wxT("设备设置"));
 
-	WiiSDCard = new wxCheckBox(WiiPage, ID_WII_SD_CARD, wxT("Insert SD Card"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	WiiSDCard = new wxCheckBox(WiiPage, ID_WII_SD_CARD, wxT("插入 SD 卡"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 	WiiSDCard->SetValue(SConfig::GetInstance().m_WiiSDCard);
-	WiiKeyboard = new wxCheckBox(WiiPage, ID_WII_KEYBOARD, wxT("Connect USB Keyboard"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	WiiKeyboard = new wxCheckBox(WiiPage, ID_WII_KEYBOARD, wxT("连接 USB 键盘"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 	WiiKeyboard->SetToolTip(wxT("This could cause slow down in Wii Menu and some games."));
 	WiiKeyboard->SetValue(SConfig::GetInstance().m_WiiKeyboard);
 
