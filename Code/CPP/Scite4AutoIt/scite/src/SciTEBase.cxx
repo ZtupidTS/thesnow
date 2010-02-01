@@ -4106,7 +4106,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 			 "命令: svn co http://autoit-cn.googlecode.com/svn/trunk/ AutoIt3\n"
 			 "最新的帮助文件,也可以在SVN下载.\n\n"
 			 "如果您愿意捐助thesnoW的汉化(硬盘或者RMB),请联系:\n"
-			 "rundll32#126.com,thesnow#QQ.com\n\n"
+			 "thegfw#Gmail.com,thesnow#QQ.com\n\n"
 			 "┌───────────────────────────────────┐	\n"
 			 "  捐助thesnoW名单(汉化):				\n"
 			 "  KiwiCsj			30.00RMB			\n"
@@ -4134,7 +4134,13 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		WindowMessageBox(wSciTE, msg, MB_OK | MB_ICONWARNING);
 		break;	
 		}
-	
+	case IDM_README:{
+		FilePath x="README.TXT";
+		SciTEBase::Open(x);
+		WindowSetFocus(wEditor);
+		break;
+		}
+
 	case IDM_HELP_SCITE: {							//scite帮助
 			SelectionIntoProperties();
 			AddCommand(props.Get("command.scite.help"), "",

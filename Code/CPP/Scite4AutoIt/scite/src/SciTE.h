@@ -54,7 +54,7 @@
 #define IDM_COPY			204
 #define IDM_PASTE			205
 #define IDM_CLEAR			206
-#define IDM_CLEARLINE		209		//added
+#define IDM_CLEARLINE		209		//added	删除行
 #define IDM_SELECTALL		207
 #define IDM_PASTEANDDOWN	208
 #define IDM_FIND			210
@@ -194,7 +194,9 @@
 #define IDM_FULLSCREEN		961		//全屏
 #define IDC_TABCLOSE		962
 #define IDC_SHIFTTAB		963
+//
 #define IDM_OLDTOOLBAR		964		//汉化添加-----老式工具栏
+#define IDM_README			965		//added
 
 // 对话框控件 IDs
 #define IDGOLINE			220
@@ -252,19 +254,19 @@
 #define IDD_REPLACE_ADV		404
 
 // 资源 IDs
-#define IDR_NEWFILE			100			//mod
-#define IDR_OPENFILE		101			//added
-#define IDR_SAVEFILE		102			//added
-#define IDR_CLOSEFILE		103			//added
-#define IDR_PRINTFILE		104			//added
-#define IDR_CUT				105			//added
-#define IDR_COPY			106			//added
-#define IDR_PASTE			107			//added
-#define IDR_DELETE			108			//added
-#define IDR_UNDO			109			//added
-#define IDR_REDO			110			//added
-#define IDR_FIND			111			//added
-#define IDR_REPLACE			112			//added
-#define IDR_HELP			113			//added
+#define IDR_NEWFILE			100			//mod		新建文件
+#define IDR_OPENFILE		101			//added		打开文件
+#define IDR_SAVEFILE		102			//added		保存文件
+#define IDR_CLOSEFILE		103			//added		关闭文件
+#define IDR_PRINTFILE		104			//added		打印文件
+#define IDR_CUT				105			//added		剪切
+#define IDR_COPY			106			//added		复制
+#define IDR_PASTE			107			//added		粘贴
+#define IDR_DELETE			108			//added		删除
+#define IDR_UNDO			109			//added		撤销
+#define IDR_REDO			110			//added		恢复
+#define IDR_FIND			111			//added		查找
+#define IDR_REPLACE			112			//added		替换
+#define IDR_HELP			113			//added		帮助
 #define IDC_DRAGDROP        401
 #endif
