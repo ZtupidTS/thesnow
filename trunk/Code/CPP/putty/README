@@ -1,5 +1,5 @@
-This is the README for the source archive of PuTTY, a free Win32
-and Unix Telnet and SSH client.
+这是一个 PuTTY 源代码包的说明文件, 一个免费 Win32 与 Unix 下的
+Telnet 与 SSH 客户端.
 
 If you want to rebuild PuTTY from source, we provide a variety of
 Makefiles and equivalents. (If you have fetched the source from
@@ -11,7 +11,7 @@ disable or modify certain features; it may be necessary to do this
 in some environments. They are documented in `Recipe', and in
 comments in many of the generated Makefiles.
 
-For building on Windows:
+在 Windows 上编译:
 
  - windows/Makefile.vc is for command-line builds on MS Visual C++
    systems. Change into the `windows' subdirectory and type `nmake
@@ -103,9 +103,11 @@ subdirectory using `doc/Makefile'. If you aren't using one of our
 source snapshots, you'll need to do this yourself. Halibut can be
 found at <http://www.chiark.greenend.org.uk/~sgtatham/halibut/>.
 
-The PuTTY home web site is
+PuTTY 官方的主页为:
 
     http://www.chiark.greenend.org.uk/~sgtatham/putty/
+PuTTY CHS 的主页为:
+    http://thesnow.googlecode.com
 
 If you want to send bug reports or feature requests, please read the
 Feedback section of the web site before doing so. Sending one-line
