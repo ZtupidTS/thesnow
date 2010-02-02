@@ -74,7 +74,7 @@
 
 /* We can't reliably get the same date and time as version.c, so
  * we won't bother trying. */
-#define VERSION_TEXT "Unidentified build"
+#define VERSION_TEXT "Localization build"
 #define BINARY_VERSION 0,0,0,0
 
 #endif
@@ -106,7 +106,7 @@ BEGIN
     BLOCK "StringFileInfo"
     BEGIN
 	/* "lang-charset" LLLLCCCC = (UK English, Unicode) */
-	BLOCK "080904B0"
+	BLOCK "080404B0"
 	BEGIN
 	    VALUE "CompanyName",	"Simon Tatham"  /* required :/ */
 	    VALUE "ProductName",	"PuTTY suite"
@@ -115,7 +115,7 @@ BEGIN
 	    VALUE "OriginalFilename",	APPNAME
 	    VALUE "FileVersion",	VERSION_TEXT
 	    VALUE "ProductVersion",	VERSION_TEXT
-	    VALUE "LegalCopyright",	"Copyright \251 1997-2009 Simon Tatham."
+	    VALUE "LegalCopyright",	"Copyright \251 1997-2010 Simon Tatham."
 #if (!defined SNAPSHOT) && (!defined RELEASE)
 	    /* Only if VS_FF_PRIVATEBUILD. */
 	    VALUE "PrivateBuild",	VERSION_TEXT /* NBI */
@@ -125,7 +125,7 @@ BEGIN
     BLOCK "VarFileInfo"
     BEGIN
 	/* Once again -- same meanings -- apparently necessary */
-	VALUE "Translation", 0x809, 1200
+	VALUE "Translation", 0x804, 1200
     END
 END
 

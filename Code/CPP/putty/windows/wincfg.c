@@ -42,11 +42,11 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
 	 * Add the About and Help buttons to the standard panel.
 	 */
 	s = ctrl_getset(b, "", "", "");
-	c = ctrl_pushbutton(s, "About", 'a', HELPCTX(no_help),
+	c = ctrl_pushbutton(s, "关于(A)", 'a', HELPCTX(no_help),
 			    about_handler, P(hwndp));
 	c->generic.column = 0;
 	if (has_help) {
-	    c = ctrl_pushbutton(s, "Help", 'h', HELPCTX(no_help),
+	    c = ctrl_pushbutton(s, "帮助(H)", 'h', HELPCTX(no_help),
 				help_handler, P(hwndp));
 	    c->generic.column = 1;
 	}
@@ -56,9 +56,9 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
      * Full-screen mode is a Windows peculiarity; hence
      * scrollbar_in_fullscreen is as well.
      */
-    s = ctrl_getset(b, "Window", "scrollback",
+    s = ctrl_getset(b, "窗口", "scrollback",
 		    "Control the scrollback in the window");
-    ctrl_checkbox(s, "Display scrollbar in full screen mode", 'i',
+    ctrl_checkbox(s, "显示滚动条于全屏模式(I)", 'i',
 		  HELPCTX(window_scrollback),
 		  dlg_stdcheckbox_handler,
 		  I(offsetof(Config,scrollbar_in_fullscreen)));
@@ -91,8 +91,8 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
      * Windows has the AltGr key, which has various Windows-
      * specific options.
      */
-    s = ctrl_getset(b, "Terminal/Keyboard", "features",
-		    "Enable extra keyboard features:");
+    s = ctrl_getset(b, "终端/键盘", "特性",
+		    "启用扩展键盘特性:");
     ctrl_checkbox(s, "AltGr acts as Compose key", 't',
 		  HELPCTX(keyboard_compose),
 		  dlg_stdcheckbox_handler, I(offsetof(Config,compose_key)));
@@ -117,7 +117,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
      * the interface, and template creation code is under no actual
      * obligation to use them.
      */
-    s = ctrl_getset(b, "Terminal/Bell", "style", "Set the style of bell");
+    s = ctrl_getset(b, "终端/Bell", "style", "Set the style of bell");
     {
 	int i;
 	for (i = 0; i < s->ncontrols; i++) {
@@ -155,7 +155,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
      * While we've got this box open, taskbar flashing on a bell is
      * also Windows-specific.
      */
-    ctrl_radiobuttons(s, "Taskbar/caption indication on bell:", 'i', 3,
+    ctrl_radiobuttons(s, "任务栏/caption indication on bell:", 'i', 3,
 		      HELPCTX(bell_taskbar),
 		      dlg_stdradiobutton_handler,
 		      I(offsetof(Config, beep_ind)),
@@ -166,7 +166,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
     /*
      * The sunken-edge border is a Windows GUI feature.
      */
-    s = ctrl_getset(b, "Window/Appearance", "border",
+    s = ctrl_getset(b, "窗口/Appearance", "border",
 		    "Adjust the window border");
     ctrl_checkbox(s, "Sunken-edge border (slightly thicker)", 's',
 		  HELPCTX(appearance_border),
@@ -175,7 +175,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
     /*
      * Configurable font quality settings for Windows.
      */
-    s = ctrl_getset(b, "Window/Appearance", "font",
+    s = ctrl_getset(b, "窗口/Appearance", "font",
 		    "Font settings");
     ctrl_radiobuttons(s, "Font quality:", 'q', 2,
 		      HELPCTX(appearance_font),
@@ -191,7 +191,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
      * the least we can do is ensure it never makes it to any other
      * platform (at least unless someone fixes it!).
      */
-    s = ctrl_getset(b, "Window/Translation", "tweaks", NULL);
+    s = ctrl_getset(b, "窗口/Translation", "tweaks", NULL);
     ctrl_checkbox(s, "Caps Lock acts as Cyrillic switch", 's',
 		  HELPCTX(translation_cyrillic),
 		  dlg_stdcheckbox_handler,
@@ -201,7 +201,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
      * On Windows we can use but not enumerate translation tables
      * from the operating system. Briefly document this.
      */
-    s = ctrl_getset(b, "Window/Translation", "trans",
+    s = ctrl_getset(b, "窗口/Translation", "trans",
 		    "Character set translation on received data");
     ctrl_text(s, "(Codepages supported by Windows but not listed here, "
 	      "such as CP866 on many systems, can be entered manually)",
@@ -213,7 +213,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
      * characters.
      */
     str = dupprintf("Adjust how %s displays line drawing characters", appname);
-    s = ctrl_getset(b, "Window/Translation", "linedraw", str);
+    s = ctrl_getset(b, "窗口/Translation", "linedraw", str);
     sfree(str);
     {
 	int i;
@@ -256,7 +256,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
     /*
      * RTF paste is Windows-specific.
      */
-    s = ctrl_getset(b, "Window/Selection", "format",
+    s = ctrl_getset(b, "窗口/Selection", "format",
 		    "Formatting of pasted characters");
     ctrl_checkbox(s, "Paste to clipboard in RTF as well as plain text", 'f',
 		  HELPCTX(selection_rtf),
@@ -267,7 +267,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
      * mode in which the more critical Paste action is available on
      * the right button instead.
      */
-    s = ctrl_getset(b, "Window/Selection", "mouse",
+    s = ctrl_getset(b, "窗口/Selection", "mouse",
 		    "Control use of mouse");
     ctrl_radiobuttons(s, "Action of mouse buttons:", 'm', 1,
 		      HELPCTX(selection_buttons),
@@ -288,7 +288,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
     /*
      * Logical palettes don't even make sense anywhere except Windows.
      */
-    s = ctrl_getset(b, "Window/Colours", "general",
+    s = ctrl_getset(b, "窗口/Colours", "general",
 		    "General options for colour usage");
     ctrl_checkbox(s, "Attempt to use logical palettes", 'l',
 		  HELPCTX(colours_logpal),
@@ -301,7 +301,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
     /*
      * Resize-by-changing-font is a Windows insanity.
      */
-    s = ctrl_getset(b, "Window", "size", "Set the size of the window");
+    s = ctrl_getset(b, "窗口", "size", "Set the size of the window");
     ctrl_radiobuttons(s, "When window is resized:", 'z', 1,
 		      HELPCTX(window_resize),
 		      dlg_stdradiobutton_handler,
@@ -316,7 +316,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
      * conventions which PuTTY can optionally disregard. Hence,
      * most of these options are Windows-specific.
      */
-    s = ctrl_getset(b, "Window/Behaviour", "main", NULL);
+    s = ctrl_getset(b, "窗口/Behaviour", "main", NULL);
     ctrl_checkbox(s, "Window closes on ALT-F4", '4',
 		  HELPCTX(behaviour_altf4),
 		  dlg_stdcheckbox_handler, I(offsetof(Config,alt_f4)));
@@ -340,7 +340,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
      */
     if (!midsession) {
 	int i;
-        s = ctrl_getset(b, "Connection/Proxy", "basics", NULL);
+        s = ctrl_getset(b, "连接/代理", "basics", NULL);
 	for (i = 0; i < s->ncontrols; i++) {
 	    c = s->ctrls[i];
 	    if (c->generic.type == CTRL_RADIO &&
@@ -383,7 +383,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
      * means to override it.
      */
     if (!midsession && backend_from_proto(PROT_SSH)) {
-	s = ctrl_getset(b, "Connection/SSH/X11", "x11", "X11 forwarding");
+	s = ctrl_getset(b, "连接/SSH/X11", "x11", "X11 forwarding");
 	ctrl_filesel(s, "X authority file for local display", 't',
 		     NULL, FALSE, "Select X authority file",
 		     HELPCTX(ssh_tunnels_xauthority),

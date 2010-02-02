@@ -131,7 +131,7 @@ void ser_setup_config_box(struct controlbox *b, int midsession,
 	 * Add the serial back end to the protocols list at the
 	 * top of the config box.
 	 */
-	s = ctrl_getset(b, "Session", "hostport",
+	s = ctrl_getset(b, "会话", "hostport",
 			"Specify the destination you want to connect to");
 
         for (i = 0; i < s->ncontrols; i++) {
@@ -160,7 +160,7 @@ void ser_setup_config_box(struct controlbox *b, int midsession,
      * Entirely new Connection/Serial panel for serial port
      * configuration.
      */
-    ctrl_settitle(b, "Connection/Serial",
+    ctrl_settitle(b, "连接/Serial",
 		  "Options controlling local serial lines");
 
     if (!midsession) {
@@ -169,7 +169,7 @@ void ser_setup_config_box(struct controlbox *b, int midsession,
 	 * midflight, although we do allow all other
 	 * reconfiguration.
 	 */
-	s = ctrl_getset(b, "Connection/Serial", "serline",
+	s = ctrl_getset(b, "连接/Serial", "serline",
 			"Select a serial line");
 	ctrl_editbox(s, "Serial line to connect to", 'l', 40,
 		     HELPCTX(serial_line),
@@ -177,7 +177,7 @@ void ser_setup_config_box(struct controlbox *b, int midsession,
 		     I(sizeof(((Config *)0)->serline)));
     }
 
-    s = ctrl_getset(b, "Connection/Serial", "sercfg", "Configure the serial line");
+    s = ctrl_getset(b, "连接/Serial", "sercfg", "Configure the serial line");
     ctrl_editbox(s, "Speed (baud)", 's', 40,
 		 HELPCTX(serial_speed),
 		 dlg_stdeditbox_handler, I(offsetof(Config,serspeed)), I(-1));
