@@ -93,11 +93,11 @@ void IncomingConnectionsControls::Apply()
 
 	// Warn about passwords longer than eight characters
 	if (!isShort || !isShortViewOnly) {
-		MessageBox(NULL, 
-				   L"WARNING: You have entered passwords of length exceeding\n"
-				   L"eight characters, but the standard VNC authentication scheme\n"
-				   L"does not support such long passwords.\n\n"
-				   L"Your passwords will be truncated to just eight characters.",
+		MessageBoxA(NULL, 
+				   "WARNING: You have entered passwords of length exceeding\n"
+				   "eight characters, but the standard VNC authentication scheme\n"
+				   "does not support such long passwords.\n\n"
+				   "Your passwords will be truncated to just eight characters.",
 				   szAppName, MB_ICONEXCLAMATION | MB_OK);
 	}
 
@@ -122,9 +122,9 @@ void IncomingConnectionsControls::Apply()
 				if (ok1 && ok2)
 					m_server->SetPorts(port_rfb, port_http);
 			} else {
-				MessageBox(NULL, 
-						   L"WARNING: You have entered equal RFB and HTTP port numbers.\n\n"
-						   L"Your changes to port numbers will not be saved.",
+				MessageBoxA(NULL, 
+						   "WARNING: You have entered equal RFB and HTTP port numbers.\n\n"
+						   "Your changes to port numbers will not be saved.",
 						   szAppName, MB_ICONEXCLAMATION | MB_OK);
 			}
 		}
