@@ -46,6 +46,9 @@ BEGIN_EVENT_TABLE(GCPadConfigDialog,wxDialog)
 	EVT_COMBOBOX(IDC_STICK_SOURCE, GCPadConfigDialog::ChangeSettings)
 	EVT_COMBOBOX(IDC_CSTICK_SOURCE, GCPadConfigDialog::ChangeSettings)
 	EVT_COMBOBOX(IDC_TRIGGER_SOURCE, GCPadConfigDialog::ChangeSettings)
+	EVT_SLIDER(IDS_STICK_PRESS, GCPadConfigDialog::ChangeSettings)
+	EVT_SLIDER(IDS_CSTICK_PRESS, GCPadConfigDialog::ChangeSettings)
+	EVT_SLIDER(IDS_TRIGGER_PRESS, GCPadConfigDialog::ChangeSettings)
 
 	EVT_BUTTON(IDB_ANALOG_LEFT_X, GCPadConfigDialog::OnAxisClick)
 	EVT_BUTTON(IDB_ANALOG_LEFT_Y, GCPadConfigDialog::OnAxisClick)
@@ -68,10 +71,12 @@ BEGIN_EVENT_TABLE(GCPadConfigDialog,wxDialog)
 	EVT_BUTTON(IDB_MAIN_DOWN, GCPadConfigDialog::OnButtonClick)
 	EVT_BUTTON(IDB_MAIN_LEFT, GCPadConfigDialog::OnButtonClick)
 	EVT_BUTTON(IDB_MAIN_RIGHT, GCPadConfigDialog::OnButtonClick)
+	EVT_BUTTON(IDB_MAIN_SEMI, GCPadConfigDialog::OnButtonClick)
 	EVT_BUTTON(IDB_SUB_UP, GCPadConfigDialog::OnButtonClick)
 	EVT_BUTTON(IDB_SUB_DOWN, GCPadConfigDialog::OnButtonClick)
 	EVT_BUTTON(IDB_SUB_LEFT, GCPadConfigDialog::OnButtonClick)
 	EVT_BUTTON(IDB_SUB_RIGHT, GCPadConfigDialog::OnButtonClick)
+	EVT_BUTTON(IDB_SUB_SEMI, GCPadConfigDialog::OnButtonClick)
 	EVT_BUTTON(IDB_SHDR_L, GCPadConfigDialog::OnButtonClick)
 	EVT_BUTTON(IDB_SHDR_R, GCPadConfigDialog::OnButtonClick)
 	EVT_BUTTON(IDB_SHDR_SEMI_L, GCPadConfigDialog::OnButtonClick)
@@ -251,7 +256,7 @@ void GCPadConfigDialog::OnButtonClick(wxCommandEvent& event)
 	// Save old label so we can revert back
 	OldLabel = ClickedButton->GetLabel();
 	ClickedButton->SetWindowStyle(wxWANTS_CHARS);
-	ClickedButton->SetLabel(wxT("<Press Key>"));
+	ClickedButton->SetLabel(wxT("<请按键>"));
 	DoGetButtons(ClickedButton->GetId());
 }
 
@@ -310,6 +315,15 @@ void GCPadConfigDialog::ChangeSettings(wxCommandEvent& event)
 	case IDC_TRIGGER_SOURCE:
 		GCMapping[m_Page].Stick.Shoulder = m_Combo_TriggerSrc[m_Page]->GetSelection();
 		break;
+	case IDS_STICK_PRESS:
+		GCMapping[m_Page].Pressure.Main = m_Slider_Stick[m_Page]->GetValue();
+		break;
+	case IDS_CSTICK_PRESS:
+		GCMapping[m_Page].Pressure.Sub = m_Slider_CStick[m_Page]->GetValue();
+		break;
+	case IDS_TRIGGER_PRESS:
+		GCMapping[m_Page].Pressure.Shoulder = m_Slider_Trigger[m_Page]->GetValue();
+		break;
 	}
 
 	UpdateGUI();
@@ -348,6 +362,9 @@ void GCPadConfigDialog::UpdateGUI()
 	m_Combo_StickSrc[m_Page]->SetSelection(GCMapping[m_Page].Stick.Main);
 	m_Combo_CStickSrc[m_Page]->SetSelection(GCMapping[m_Page].Stick.Sub);
 	m_Combo_TriggerSrc[m_Page]->SetSelection(GCMapping[m_Page].Stick.Shoulder);
+	m_Slider_Stick[m_Page]->SetValue(GCMapping[m_Page].Pressure.Main);
+	m_Slider_CStick[m_Page]->SetValue(GCMapping[m_Page].Pressure.Sub);
+	m_Slider_Trigger[m_Page]->SetValue(GCMapping[m_Page].Pressure.Shoulder);
 
 	for (int i = 0; i <= IDB_TRIGGER_R - IDB_ANALOG_LEFT_X; i++)
 	{
@@ -385,7 +402,7 @@ void GCPadConfigDialog::CreateGUIControls()
 	}
 	else
 	{
-		StrJoyname.Add(wxT("<No Gamepad Detected>"));
+		StrJoyname.Add(wxT("<未检测到手柄>"));
 	}
 
 	wxArrayString TextDeadZone;
@@ -401,9 +418,9 @@ void GCPadConfigDialog::CreateGUIControls()
 		StrRumble.Add(wxString::Format(wxT("%i%%"), i * 10));
 
 	wxArrayString StrSource;
-	StrSource.Add(wxT("Keyboard"));
-	StrSource.Add(wxT("Analog 1"));
-	StrSource.Add(wxT("Analog 2"));
+	StrSource.Add(wxT("键盘"));
+	StrSource.Add(wxT("摇杆 1"));
+	StrSource.Add(wxT("摇杆 2"));
 	StrSource.Add(wxT("Triggers"));
 
 	// The Trigger type list
@@ -439,11 +456,13 @@ void GCPadConfigDialog::CreateGUIControls()
 		wxT("Down"),
 		wxT("Left"),
 		wxT("Right"),
+		wxT("Semi"),
 
 		wxT("Up"),	// C-Stick
 		wxT("Down"),
 		wxT("Left"),
 		wxT("Right"),
+		wxT("Semi"),
 
 		wxT("L"),	// Triggers
 		wxT("R"),
@@ -461,13 +480,13 @@ void GCPadConfigDialog::CreateGUIControls()
 	for (int i = 0; i < 4; i++)
 	{
 		m_Controller[i] = new wxPanel(m_Notebook, ID_CONTROLLERPAGE1 + i, wxDefaultPosition, wxDefaultSize);
-		m_Notebook->AddPage(m_Controller[i], wxString::Format(wxT("Gamecube Pad %d"), i+1));
+		m_Notebook->AddPage(m_Controller[i], wxString::Format(wxT("Gamecube 手柄 %d"), i+1));
 
 		// Controller
 		m_Joyname[i] = new wxComboBox(m_Controller[i], IDC_JOYNAME, StrJoyname[0], wxDefaultPosition, wxSize(400, -1), StrJoyname, wxCB_READONLY);
 
 		// Dead zone
-		m_ComboDeadZoneLabel[i] = new wxStaticText(m_Controller[i], wxID_ANY, wxT("Dead Zone"));
+		m_ComboDeadZoneLabel[i] = new wxStaticText(m_Controller[i], wxID_ANY, wxT("死区"));
 		m_ComboDeadZoneLeft[i] = new wxComboBox(m_Controller[i], IDC_DEAD_ZONE_LEFT, TextDeadZone[0], wxDefaultPosition,  wxSize(50, -1), TextDeadZone, wxCB_READONLY);
 		m_ComboDeadZoneRight[i] = new wxComboBox(m_Controller[i], IDC_DEAD_ZONE_RIGHT, TextDeadZone[0], wxDefaultPosition,  wxSize(50, -1), TextDeadZone, wxCB_READONLY);
 
@@ -529,10 +548,10 @@ void GCPadConfigDialog::CreateGUIControls()
 
 
 		// Stick Status Panels
-		m_tStatusLeftIn[i] = new wxStaticText(m_Controller[i], wxID_ANY, wxT("Not connected"));
-		m_tStatusLeftOut[i] = new wxStaticText(m_Controller[i], wxID_ANY, wxT("Not connected"));
-		m_tStatusRightIn[i] = new wxStaticText(m_Controller[i], wxID_ANY, wxT("Not connected"));
-		m_tStatusRightOut[i] = new wxStaticText(m_Controller[i], wxID_ANY, wxT("Not connected"));
+		m_tStatusLeftIn[i] = new wxStaticText(m_Controller[i], wxID_ANY, wxT("未连接"));
+		m_tStatusLeftOut[i] = new wxStaticText(m_Controller[i], wxID_ANY, wxT("未连接"));
+		m_tStatusRightIn[i] = new wxStaticText(m_Controller[i], wxID_ANY, wxT("未连接"));
+		m_tStatusRightOut[i] = new wxStaticText(m_Controller[i], wxID_ANY, wxT("未连接"));
 
 		m_pLeftInStatus[i] = new wxPanel(m_Controller[i], wxID_ANY, wxDefaultPosition, wxDefaultSize);
 		m_bmpSquareLeftIn[i] = new wxStaticBitmap(m_pLeftInStatus[i], wxID_ANY, CreateBitmap(), wxDefaultPosition, wxDefaultSize);
@@ -565,10 +584,10 @@ void GCPadConfigDialog::CreateGUIControls()
 		m_sGridStickRight[i]->Add(m_tStatusRightIn[i], wxGBPosition(1, 0), wxGBSpan(1, 1), wxALL, 0);
 		m_sGridStickRight[i]->Add(m_tStatusRightOut[i], wxGBPosition(1, 1), wxGBSpan(1, 1), wxLEFT, 10);
 
-		m_gStickLeft[i] = new wxStaticBoxSizer (wxHORIZONTAL, m_Controller[i], wxT("Analog 1 Status (In) (Out)"));
+		m_gStickLeft[i] = new wxStaticBoxSizer (wxHORIZONTAL, m_Controller[i], wxT("摇杆 1 Status (In) (Out)"));
 		m_gStickLeft[i]->Add(m_sGridStickLeft[i], 0, (wxLEFT | wxRIGHT), 5);
 
-		m_gStickRight[i] = new wxStaticBoxSizer (wxHORIZONTAL, m_Controller[i], wxT("Analog 2 Status (In) (Out)"));
+		m_gStickRight[i] = new wxStaticBoxSizer (wxHORIZONTAL, m_Controller[i], wxT("摇杆 2 Status (In) (Out)"));
 		m_gStickRight[i]->Add(m_sGridStickRight[i], 0, (wxLEFT | wxRIGHT), 5);
 
 		// Trigger Status Panels
@@ -671,13 +690,20 @@ void GCPadConfigDialog::CreateGUIControls()
 				m_gButton[i]->Add(m_Sizer_Pad[x - IDB_BTN_A][i], 0, wxALIGN_RIGHT | (wxLEFT | wxRIGHT | wxDOWN), 1);
 			else if (x <= IDB_DPAD_RIGHT)
 				m_gDPad[i]->Add(m_Sizer_Pad[x - IDB_BTN_A][i], 0, wxALIGN_RIGHT | (wxLEFT | wxRIGHT | wxDOWN), 1);
-			else if (x <= IDB_MAIN_RIGHT)
+			else if (x <= IDB_MAIN_SEMI)
 				m_gStick[i]->Add(m_Sizer_Pad[x - IDB_BTN_A][i], 0, wxALIGN_RIGHT | (wxLEFT | wxRIGHT | wxDOWN), 1);
-			else if (x <= IDB_SUB_RIGHT)
+			else if (x <= IDB_SUB_SEMI)
 				m_gCStick[i]->Add(m_Sizer_Pad[x - IDB_BTN_A][i], 0, wxALIGN_RIGHT | (wxLEFT | wxRIGHT | wxDOWN), 1);
 			else
 				m_gTrigger[i]->Add(m_Sizer_Pad[x - IDB_BTN_A][i], 0, wxALIGN_RIGHT | (wxLEFT | wxRIGHT | wxDOWN), 1);
 		}
+
+		m_Slider_Stick[i] = new wxSlider(m_Controller[i], IDS_STICK_PRESS, DEF_STICK_HALF, 0, DEF_STICK_FULL, wxDefaultPosition, wxSize(100,-1), wxSL_LABELS | wxSL_TOP);
+		m_gStick[i]->Add(m_Slider_Stick[i], 0, wxALIGN_RIGHT | (wxLEFT | wxRIGHT | wxDOWN), 1);
+		m_Slider_CStick[i] = new wxSlider(m_Controller[i], IDS_CSTICK_PRESS, DEF_STICK_HALF, 0, DEF_STICK_FULL, wxDefaultPosition, wxSize(100,-1), wxSL_LABELS | wxSL_TOP);
+		m_gCStick[i]->Add(m_Slider_CStick[i], 0, wxALIGN_RIGHT | (wxLEFT | wxRIGHT | wxDOWN), 1);
+		m_Slider_Trigger[i] = new wxSlider(m_Controller[i], IDS_TRIGGER_PRESS, DEF_TRIGGER_HALF, 0, DEF_TRIGGER_FULL, wxDefaultPosition, wxSize(100,-1), wxSL_LABELS | wxSL_TOP);
+		m_gTrigger[i]->Add(m_Slider_Trigger[i], 0, wxALIGN_RIGHT | (wxLEFT | wxRIGHT | wxDOWN), 1);
 
 		// Row 4 Sizers: Button Mapping
 		m_sHorizMapping[i] = new wxBoxSizer(wxHORIZONTAL);
@@ -700,10 +726,10 @@ void GCPadConfigDialog::CreateGUIControls()
 		m_Controller[i]->SetSizer(m_sMain[i]);
 	}
 
-	m_OK = new wxButton(this, ID_OK, wxT("OK"));
-	m_OK->SetToolTip(wxT("Save changes and close"));
-	m_Cancel = new wxButton(this, ID_CANCEL, wxT("Cancel"));
-	m_Cancel->SetToolTip(wxT("Discard changes and close"));
+	m_OK = new wxButton(this, ID_OK, wxT("确定"));
+	m_OK->SetToolTip(wxT("保存修改并关闭"));
+	m_Cancel = new wxButton(this, ID_CANCEL, wxT("取消"));
+	m_Cancel->SetToolTip(wxT("放弃修改并关闭"));
 	wxBoxSizer* m_DlgButton = new wxBoxSizer(wxHORIZONTAL);
 	m_DlgButton->AddStretchSpacer();
 	m_DlgButton->Add(m_OK, 0, (wxLEFT), 5);	
