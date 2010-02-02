@@ -100,8 +100,8 @@ protected:
 	HMENU			m_hmenu;
 	NOTIFYICONDATA		m_nid;
 
-//	char			m_username[UNLEN+1];
-	wchar_t			m_username[UNLEN+1];
+	char			m_username[UNLEN+1];
+//	wchar_t			m_username[UNLEN+1];
 
 	// The icon handles
 	HICON			m_winvnc_normal_icon;

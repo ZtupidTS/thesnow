@@ -50,7 +50,7 @@ extern "C" {
 
 // Application instance and name
 HINSTANCE	hAppInstance;
-const wchar_t	*szAppName = L"WinVNC";
+const char	*szAppName = "WinVNC";
 
 DWORD		mainthreadId;
 
@@ -79,7 +79,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine,
 	VSocketSystem socksys;
 	if (!socksys.Initialised())
 	{
-		MessageBox(NULL, L"Failed to initialise the socket system", szAppName, MB_OK);
+		MessageBoxA(NULL, "Failed to initialise the socket system", szAppName, MB_OK);
 		return 0;
 	}
 	vnclog.Print(LL_STATE, VNCLOG("sockets initialised\n"));
@@ -106,8 +106,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine,
 		size_t arglen = strcspn(&szCmdLine[i], " \t\r\n\v\f");
 
 		// Now check for command-line arguments
-		if (strncmp(&szCmdLine[i], (LPCSTR)winvncRunServiceHelper, arglen) == 0 &&
-			arglen == wcslen(winvncRunServiceHelper))
+		if (strncmp(&szCmdLine[i], winvncRunServiceHelper, arglen) == 0 &&
+			arglen == strlen(winvncRunServiceHelper))
 		{
 			// NB : This flag MUST be parsed BEFORE "-service", otherwise it will match
 			// the wrong option!  (This code should really be replaced with a simple
@@ -117,76 +117,76 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine,
 			vncService::PostUserHelperMessage();
 			return 0;
 		}
-		if (strncmp(&szCmdLine[i], (LPCSTR)winvncRunService, arglen) == 0 &&
-			arglen == wcslen(winvncRunService))
+		if (strncmp(&szCmdLine[i], winvncRunService, arglen) == 0 &&
+			arglen == strlen(winvncRunService))
 		{
 			// Run WinVNC as a service
 			return vncService::WinVNCServiceMain();
 		}
-		if (strncmp(&szCmdLine[i], (LPCSTR)winvncRunAsUserApp, arglen) == 0 &&
-			arglen == wcslen(winvncRunAsUserApp))
+		if (strncmp(&szCmdLine[i], winvncRunAsUserApp, arglen) == 0 &&
+			arglen == strlen(winvncRunAsUserApp))
 		{
 			// WinVNC is being run as a user-level program
 			return WinVNCAppMain();
 		}
-		if (strncmp(&szCmdLine[i], (LPCSTR)winvncInstallService, arglen) == 0 &&
-			arglen == wcslen(winvncInstallService))
+		if (strncmp(&szCmdLine[i], winvncInstallService, arglen) == 0 &&
+			arglen == strlen(winvncInstallService))
 		{
 			// Install WinVNC as a service
 			vncService::InstallService();
 			i += arglen;
 			continue;
 		}
-		if (strncmp(&szCmdLine[i], (LPCSTR)winvncReinstallService, arglen) == 0 &&
-			arglen == wcslen(winvncReinstallService))
+		if (strncmp(&szCmdLine[i], winvncReinstallService, arglen) == 0 &&
+			arglen == strlen(winvncReinstallService))
 		{
 			// Silently remove WinVNC, then re-install it
 			vncService::ReinstallService();
 			i += arglen;
 			continue;
 		}
-		if (strncmp(&szCmdLine[i], (LPCSTR)winvncRemoveService, arglen) == 0 &&
-			arglen == wcslen(winvncRemoveService))
+		if (strncmp(&szCmdLine[i], winvncRemoveService, arglen) == 0 &&
+			arglen == strlen(winvncRemoveService))
 		{
 			// Remove the WinVNC service
 			vncService::RemoveService();
 			i += arglen;
 			continue;
 		}
-		if (strncmp(&szCmdLine[i], (LPCSTR)winvncReload, arglen) == 0 &&
-			arglen == wcslen(winvncReload))
+		if (strncmp(&szCmdLine[i], winvncReload, arglen) == 0 &&
+			arglen == strlen(winvncReload))
 		{
 			// Reload Properties from the registry
 			vncService::PostReloadMessage();
 			i += arglen;
 			continue;
 		}
-		if (strncmp(&szCmdLine[i], (LPCSTR)winvncShowProperties, arglen) == 0 &&
-			arglen == wcslen(winvncShowProperties))
+		if (strncmp(&szCmdLine[i], winvncShowProperties, arglen) == 0 &&
+			arglen == strlen(winvncShowProperties))
 		{
 			// Show the Properties dialog of an existing instance of WinVNC
 			vncService::ShowProperties();
 			i += arglen;
 			continue;
 		}
-		if (strncmp(&szCmdLine[i], (LPCSTR)winvncShowDefaultProperties, arglen) == 0 &&
-			arglen == wcslen(winvncShowDefaultProperties))
+		if (strncmp(&szCmdLine[i], winvncShowDefaultProperties, arglen) == 0 &&
+			arglen == strlen(winvncShowDefaultProperties))
 		{
 			// Show the Properties dialog of an existing instance of WinVNC
 			vncService::ShowDefaultProperties();
 			i += arglen;
 			continue;
 		}
-		if (strncmp(&szCmdLine[i], (LPCSTR)winvncShowAbout, arglen) == 0 &&
-			arglen == wcslen(winvncShowAbout))
+		if (strncmp(&szCmdLine[i], winvncShowAbout, arglen) == 0 &&
+			arglen == strlen(winvncShowAbout))
 		{
 			// Show the About dialog of an existing instance of WinVNC
 			vncService::ShowAboutBox();
 			i += arglen;
 			continue;
 		}
-		if (strncmp(&szCmdLine[i], (LPCSTR)winvncKillAllClients, arglen) == 0 &&
-			arglen == wcslen(winvncKillAllClients))
+		if (strncmp(&szCmdLine[i], winvncKillAllClients, arglen) == 0 &&
+			arglen == strlen(winvncKillAllClients))
 		{
 			// NB : This flag MUST be parsed BEFORE "-kill", otherwise it will match
 			// the wrong option!
@@ -196,32 +196,32 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine,
 			i += arglen;
 			continue;
 		}
-		if (strncmp(&szCmdLine[i], (LPCSTR)winvncKillRunningCopy, arglen) == 0 &&
-			arglen == wcslen(winvncKillRunningCopy))
+		if (strncmp(&szCmdLine[i], winvncKillRunningCopy, arglen) == 0 &&
+			arglen == strlen(winvncKillRunningCopy))
 		{
 			// Kill any already running copy of WinVNC
 			vncService::KillRunningCopy();
 			i += arglen;
 			continue;
 		}
-		if (strncmp(&szCmdLine[i], (LPCSTR)winvncShareAll, arglen) == 0 &&
-			arglen == wcslen(winvncShareAll))
+		if (strncmp(&szCmdLine[i], winvncShareAll, arglen) == 0 &&
+			arglen == strlen(winvncShareAll))
 		{
 			// Show full desktop to VNC clients
 			vncService::PostShareAll();
 			i += arglen;
 			continue;
 		}
-		if (strncmp(&szCmdLine[i], (LPCSTR)winvncSharePrimary, arglen) == 0 &&
-			arglen == wcslen(winvncSharePrimary))
+		if (strncmp(&szCmdLine[i], winvncSharePrimary, arglen) == 0 &&
+			arglen == strlen(winvncSharePrimary))
 		{
 			// Show only the primary display to VNC clients
 			vncService::PostSharePrimary();
 			i += arglen;
 			continue;
 		}
-		if (strncmp(&szCmdLine[i], (LPCSTR)winvncShareArea, arglen) == 0 &&
-			arglen == wcslen(winvncShareArea))
+		if (strncmp(&szCmdLine[i], winvncShareArea, arglen) == 0 &&
+			arglen == strlen(winvncShareArea))
 		{
 			// Show a specified rectangular area to VNC clients
 			i += arglen;
@@ -244,8 +244,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine,
 
 			continue;
 		}
-		if (strncmp(&szCmdLine[i], (LPCSTR)winvncShareWindow, arglen) == 0 &&
-			arglen == wcslen(winvncShareWindow))
+		if (strncmp(&szCmdLine[i], winvncShareWindow, arglen) == 0 &&
+			arglen == strlen(winvncShareWindow))
 		{
 			// Find a window to share, by its title
 			i += arglen;
@@ -284,8 +284,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine,
 			}
 			continue;
 		}
-		if (strncmp(&szCmdLine[i], (LPCSTR)winvncVideoClass, arglen) == 0 &&
-			arglen == wcslen(winvncVideoClass))
+		if (strncmp(&szCmdLine[i], winvncVideoClass, arglen) == 0 &&
+			arglen == strlen(winvncVideoClass))
 		{
 			// Find a window to share, by its title
 			i += arglen;
@@ -317,8 +317,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine,
 			}
 			continue;
 		}
-		if (strncmp(&szCmdLine[i], (LPCSTR)winvncAddNewClient, arglen) == 0 &&
-			arglen == wcslen(winvncAddNewClient) && connectName == NULL)
+		if (strncmp(&szCmdLine[i], winvncAddNewClient, arglen) == 0 &&
+			arglen == strlen(winvncAddNewClient) && connectName == NULL)
 		{
 			// Add a new client to an existing copy of winvnc
 			i += arglen;
@@ -350,7 +350,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine,
 		// Either the user gave the -help option or there is something odd on the cmd-line!
 
 		// Show the usage dialog
-		MessageBox(NULL, winvncUsageText, L"WinVNC Usage", MB_OK | MB_ICONINFORMATION);
+		MessageBoxA(NULL, winvncUsageText, "WinVNC Usage", MB_OK | MB_ICONINFORMATION);
 		break;
 	}
 
@@ -392,7 +392,7 @@ int WinVNCAppMain()
 	if (!instancehan.Init())
 	{
 		// We don't allow multiple instances!
-		MessageBox(NULL, L"Another instance of WinVNC is already running", szAppName, MB_OK);
+		MessageBoxA(NULL, "Another instance of WinVNC is already running", szAppName, MB_OK);
 		return 0;
 	}
 
@@ -400,7 +400,7 @@ int WinVNCAppMain()
 	vncServer server;
 
 	// Set the name and port number
-	server.SetName((LPCSTR)szAppName);
+	server.SetName(szAppName);
 	vnclog.Print(LL_STATE, VNCLOG("server created ok\n"));
 
 	// Create tray icon & menu if we're running as an app

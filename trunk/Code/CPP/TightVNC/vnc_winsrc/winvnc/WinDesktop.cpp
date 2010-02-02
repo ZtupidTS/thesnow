@@ -147,7 +147,7 @@ void WinDesktop::RequestUpdate()
 
 void WinDesktop::setClipText(LPSTR text)
 {
-  m_clipboard.writeToClipBoard((LPWSTR)text);
+  m_clipboard.writeToClipBoard((TCHAR*)text);
 }
 
 void WinDesktop::TryActivateHooks()

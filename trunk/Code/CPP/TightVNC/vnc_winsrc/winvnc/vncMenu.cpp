@@ -69,7 +69,7 @@ vncMenu::vncMenu(vncServer *server)
 	m_server = server;
 
 	// Set the initial user name to something sensible...
-	vncService::CurrentUser((wchar_t *)&m_username, sizeof(m_username));
+	vncService::CurrentUser(m_username, sizeof(m_username));
 
 	// Create a dummy window to handle tray icon messages
 	WNDCLASSEX wndclass;
@@ -155,7 +155,7 @@ void
 vncMenu::AddTrayIcon()
 {
 	// If the user name is empty, then we consider no user is logged in.
-	if (wcscmp(m_username, L"") != 0) {
+	if (strcmp(m_username, "") != 0) {
 		// Make sure the server has not been configured to
 		// suppress the tray icon.
 		if (!m_server->GetDisableTrayIcon())
@@ -493,22 +493,22 @@ LRESULT CALLBACK vncMenu::WndProc(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM lP
 	case WM_USERCHANGED:
 		// The current user may have changed.
 		{
-			wchar_t newuser[UNLEN+1];
+			char newuser[UNLEN+1];
 
-			if (vncService::CurrentUser((wchar_t *) &newuser, sizeof(newuser)))
+			if (vncService::CurrentUser( newuser, sizeof(newuser)))
 			{
 				vnclog.Print(LL_INTINFO,
 					VNCLOG("usernames : old=\"%s\", new=\"%s\"\n"),
 					_this->m_username, newuser);
 
 				// Check whether the user name has changed!
-				if (wcscmp(newuser, _this->m_username) != 0)
+				if (strcmp(newuser, _this->m_username) != 0)
 				{
 					vnclog.Print(LL_INTINFO,
 						VNCLOG("user name has changed\n"));
 
 					// User has changed!
-					wcscpy(_this->m_username, newuser);
+					strcpy(_this->m_username, newuser);
 
 					// Redraw the tray icon and set it's state
 					_this->DelTrayIcon();

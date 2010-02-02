@@ -48,52 +48,52 @@
 #define WM_SRV_CLIENT_DISCONNECT	WM_USER+4
 #define WM_SRV_CLIENT_HIDEWALLPAPER	WM_USER+5
 
-#define WINVNC_REGISTRY_KEY L"Software\\ORL\\WinVNC3"
+#define WINVNC_REGISTRY_KEY "Software\\ORL\\WinVNC3"
 
 // Export the application details
 extern HINSTANCE	hAppInstance;
-extern const wchar_t	*szAppName;
+extern const char	*szAppName;
 extern DWORD		mainthreadId;
 extern VNCHelp		help;
 // Main VNC server routine
 extern int WinVNCAppMain();
 
 // Standard command-line flag definitions
-const wchar_t winvncRunService[]		= L"-service";
-const wchar_t winvncRunServiceHelper[]	= L"-servicehelper";
-const wchar_t winvncRunAsUserApp[]		= L"-run";
+const char winvncRunService[]		= "-service";
+const char winvncRunServiceHelper[]	= "-servicehelper";
+const char winvncRunAsUserApp[]		= "-run";
 
-const wchar_t winvncInstallService[]	= L"-install";
-const wchar_t winvncRemoveService[]	= L"-remove";
-const wchar_t winvncReinstallService[]	= L"-reinstall";
+const char winvncInstallService[]	= "-install";
+const char winvncRemoveService[]	= "-remove";
+const char winvncReinstallService[]	= "-reinstall";
 
-const wchar_t winvncReload[]			= L"-reload";
-const wchar_t winvncShowProperties[]	= L"-settings";
-const wchar_t winvncShowDefaultProperties[]	= L"-defaultsettings";
-const wchar_t winvncShowAbout[]		= L"-about";
-const wchar_t winvncKillRunningCopy[]	= L"-kill";
+const char winvncReload[]			= "-reload";
+const char winvncShowProperties[]	= "-settings";
+const char winvncShowDefaultProperties[]	= "-defaultsettings";
+const char winvncShowAbout[]		= "-about";
+const char winvncKillRunningCopy[]	= "-kill";
 
-const wchar_t winvncShareAll[]			= L"-shareall";
-const wchar_t winvncSharePrimary[]		= L"-shareprimary";
-const wchar_t winvncShareArea[]		= L"-sharearea";
-const wchar_t winvncShareWindow[]		= L"-sharewindow";
+const char winvncShareAll[]			= "-shareall";
+const char winvncSharePrimary[]		= "-shareprimary";
+const char winvncShareArea[]		= "-sharearea";
+const char winvncShareWindow[]		= "-sharewindow";
 
-const wchar_t winvncVideoClass[]		= L"-videoclass";
+const char winvncVideoClass[]		= "-videoclass";
 
-const wchar_t winvncAddNewClient[]		= L"-connect";
-const wchar_t winvncKillAllClients[]	= L"-killallclients";
+const char winvncAddNewClient[]		= "-connect";
+const char winvncKillAllClients[]	= "-killallclients";
 
-const wchar_t winvncShowHelp[]			= L"-help";
+const char winvncShowHelp[]			= "-help";
 
 // Usage string
-const wchar_t winvncUsageText[] =
-	L"winvnc [-run] [-kill] [-service] [-servicehelper]\n"
-	L" [-connect [host[:display]]] [-connect [host[::port]]]\n"
-	L" [-install] [-remove] [-reinstall] [-reload]\n"
-	L" [-settings] [-defaultsettings] [-killallclients]\n"
-	L" [-shareall] [-shareprimary] [-sharearea WxH+X+Y]\n"
-	L" [-sharewindow \"title\"] [-videoclass \"windowclass\"]\n"
-    L" [-about] [-help]\n";
+const char winvncUsageText[] =
+	"winvnc [-run] [-kill] [-service] [-servicehelper]\n"
+	" [-connect [host[:display]]] [-connect [host[::port]]]\n"
+	" [-install] [-remove] [-reinstall] [-reload]\n"
+	" [-settings] [-defaultsettings] [-killallclients]\n"
+	" [-shareall] [-shareprimary] [-sharearea WxH+X+Y]\n"
+	" [-sharewindow \"title\"] [-videoclass \"windowclass\"]\n"
+    " [-about] [-help]\n";
 
 #endif // __WINVNC_H
 

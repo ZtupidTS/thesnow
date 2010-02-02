@@ -108,10 +108,10 @@ vncProperties::Init(vncServer *server)
 						MB_OK | MB_ICONSTOP);
 			PostQuitMessage(0);
 		} else {
-			wchar_t username[UNLEN+1];
+			char username[UNLEN+1];
 			if (!vncService::CurrentUser(username, sizeof(username)))
 				return FALSE;
-			if (wcscmp(username, L"") == 0) {
+			if (strcmp(username, "") == 0) {
 				MessageBox(NULL, NO_PASSWD_NO_LOGON_WARN,
 							L"WinVNC Error",
 							MB_OK | MB_ICONEXCLAMATION);
@@ -140,10 +140,10 @@ vncProperties::Show(BOOL show, BOOL usersettings, BOOL passwordfocused)
 
 		// Verify that we know who is logged on
 		if (usersettings) {
-			wchar_t username[UNLEN+1];
+			char username[UNLEN+1];
 			if (!vncService::CurrentUser(username, sizeof(username)))
 				return;
-			if (wcscmp(username, L"") == 0) {
+			if (strcmp(username, "") == 0) {
 				MessageBox(NULL, NO_CURRENT_USER_ERR, L"WinVNC Error", MB_OK | MB_ICONEXCLAMATION);
 				return;
 			}
@@ -152,7 +152,7 @@ vncProperties::Show(BOOL show, BOOL usersettings, BOOL passwordfocused)
 			HKEY hkLocal, hkDefault;
 			BOOL canEditDefaultPrefs = 1;
 			DWORD dw;
-			if (RegCreateKeyEx(HKEY_LOCAL_MACHINE,
+			if (RegCreateKeyExA(HKEY_LOCAL_MACHINE,
 				WINVNC_REGISTRY_KEY,
 				0, REG_NONE, REG_OPTION_NON_VOLATILE,
 				KEY_READ, NULL, &hkLocal, &dw) != ERROR_SUCCESS)
@@ -870,7 +870,7 @@ vncProperties::Load(BOOL usersettings)
 		strcpy((char *)&username, "SYSTEM");
 
 	// Try to get the machine registry key for WinVNC
-	if (RegCreateKeyEx(HKEY_LOCAL_MACHINE,
+	if (RegCreateKeyExA(HKEY_LOCAL_MACHINE,
 		WINVNC_REGISTRY_KEY,
 		0, REG_NONE, REG_OPTION_NON_VOLATILE,
 		KEY_READ, NULL, &hkLocal, &dw) != ERROR_SUCCESS)
@@ -995,7 +995,7 @@ vncProperties::Load(BOOL usersettings)
 		if (m_allowproperties && (strcmp(username, "SYSTEM") != 0))
 		{
 			HKEY hkGlobalUser;
-			if (RegCreateKeyEx(HKEY_CURRENT_USER,
+			if (RegCreateKeyExA(HKEY_CURRENT_USER,
 				WINVNC_REGISTRY_KEY,
 				0, REG_NONE, REG_OPTION_NON_VOLATILE,
 				KEY_READ, NULL, &hkGlobalUser, &dw) == ERROR_SUCCESS)
@@ -1165,7 +1165,7 @@ vncProperties::Save()
 			return;
 
 		// Try to get the per-user, global registry key for WinVNC
-		if (RegCreateKeyEx(HKEY_CURRENT_USER,
+		if (RegCreateKeyExA(HKEY_CURRENT_USER,
 			WINVNC_REGISTRY_KEY,
 			0, REG_NONE, REG_OPTION_NON_VOLATILE,
 			KEY_WRITE | KEY_READ, NULL, &appkey, &dw) != ERROR_SUCCESS)
@@ -1173,7 +1173,7 @@ vncProperties::Save()
 	} else {
 		// Try to get the default local registry key for WinVNC
 		HKEY hkLocal;
-		if (RegCreateKeyEx(HKEY_LOCAL_MACHINE,
+		if (RegCreateKeyExA(HKEY_LOCAL_MACHINE,
 			WINVNC_REGISTRY_KEY,
 			0, REG_NONE, REG_OPTION_NON_VOLATILE,
 			KEY_READ, NULL, &hkLocal, &dw) != ERROR_SUCCESS) {
@@ -1198,7 +1198,7 @@ vncProperties::Save()
 	// Machine Preferences
 	// Try to get the machine registry key for WinVNC
 	HKEY hkLocal;
-	if (RegCreateKeyEx(HKEY_LOCAL_MACHINE,
+	if (RegCreateKeyExA(HKEY_LOCAL_MACHINE,
 		WINVNC_REGISTRY_KEY,
 		0, REG_NONE, REG_OPTION_NON_VOLATILE,
 		KEY_WRITE | KEY_READ, NULL, &hkLocal, &dw) != ERROR_SUCCESS)

@@ -66,7 +66,7 @@ public:
 	static BOOL GetCurrentUser(char *buffer, UINT size);
 	static BOOL GetCurrentUser(wchar_t *buffer, UINT size);		//added
 	static BOOL CurrentUser(char *buffer, UINT size);
-	static BOOL CurrentUser(wchar_t *buffer, UINT size);		//added
+//	static BOOL CurrentUser(wchar_t *buffer, UINT size);		//added
 	// Routine to post a message to the currently running WinVNC server
 	// to pass it a handle to the current user
 	static BOOL PostUserHelperMessage();
