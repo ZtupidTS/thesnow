@@ -254,9 +254,14 @@ void CallTip::MouseClick(Point pt) {
 }
 //调用提示开始
 //CallTipStart(是否坐标,坐标,定义,外观名称,大小,代码页,字符集,父窗口)
-PRectangle CallTip::CallTipStart(int pos, Point pt, const char *defn,
-                                 const char *faceName, int size,
-                                 int codePage_, int characterSet, Window &wParent) {
+PRectangle CallTip::CallTipStart(int pos,
+								 Point pt,
+								 const char *defn,
+                                 const char *faceName,
+								 int size,
+                                 int codePage_,
+								 int characterSet,
+								 Window &wParent) {
 	clickPlace = 0;												//点击位置
 	delete []val;
 	val = 0;
@@ -268,10 +273,10 @@ PRectangle CallTip::CallTipStart(int pos, Point pt, const char *defn,
 		return PRectangle();
 	surfaceMeasure->Init(wParent.GetID());						//初始化
 	surfaceMeasure->SetUnicodeMode(SC_CP_UTF8 == codePage);		//设置代码页
-	surfaceMeasure->SetDBCSMode(codePage);
+	surfaceMeasure->SetDBCSMode(codePage);						//设置双字节字符集模式
 	startHighlight = 0;											//开始高亮坐标
 	endHighlight = 0;											//结束高亮坐标
-	inCallTipMode = true;										//
+	inCallTipMode = true;										//调用提示模式中
 	posStartCallTip = pos;										//调用提示显示的坐标
 	int deviceHeight = surfaceMeasure->DeviceHeightFont(size);	//创建设备
 	font.Create(faceName, characterSet, deviceHeight, false, false);//创建字体
@@ -282,7 +287,7 @@ PRectangle CallTip::CallTipStart(int pos, Point pt, const char *defn,
 	const char *look = val;										//外观
 	rectUp = PRectangle(0,0,0,0);								//上箭头位置
 	rectDown = PRectangle(0,0,0,0);								//下箭头位置
-	offsetMain = insetX;            // changed to right edge of any arrows
+	offsetMain = insetX;										// changed to right edge of any arrows
 	int width = PaintContents(surfaceMeasure, false) + insetX;
 	while ((newline = strchr(look, '\n')) != NULL) {			//当有换行符"\n"时,新行+1
 		look = newline + 1;

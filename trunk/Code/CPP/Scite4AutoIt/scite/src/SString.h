@@ -205,6 +205,10 @@ public:
 	const char *c_str() const {
 		return s ? s : "";
 	}
+	//added
+	const wchar_t * w_str();
+	//added
+
 	/** Give ownership of buffer to caller which must use delete[] to free buffer. */
 	char *detach() {
 		char *sRet = s;

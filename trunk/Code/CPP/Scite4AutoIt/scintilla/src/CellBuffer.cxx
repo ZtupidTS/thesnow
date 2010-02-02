@@ -129,7 +129,7 @@ void Action::Grab(Action *source) {
 
 UndoHistory::UndoHistory() {
 
-	lenActions = 100;
+	lenActions = 200;				//历史撤销数量
 	actions = new Action[lenActions];
 	maxAction = 0;
 	currentAction = 0;

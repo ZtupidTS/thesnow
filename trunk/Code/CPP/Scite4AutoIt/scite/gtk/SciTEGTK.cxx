@@ -1,8 +1,8 @@
-// SciTE - Scintilla based Text Editor
+ï»¿// SciTE - Scintilla based Text Editor
 // SciTEGTK.cxx - main code for the GTK+ version of the editor
 // Copyright 1998-2004 by Neil Hodgson <neilh@scintilla.org>
 // The License.txt file describes the conditions under which this software may be distributed.
-// ÕâÊÇ¸øLINUX×¼±¸µÄ.WINÉÏ×îºÃ²»ÒªĞŞ¸Ä´úÂë.
+// è¿™æ˜¯ç»™LINUXå‡†å¤‡çš„.WINä¸Šæœ€å¥½ä¸è¦ä¿®æ”¹ä»£ç .
 
 #include <stdlib.h>
 #include <string.h>
@@ -77,10 +77,10 @@ size_t iconv_adaptor(size_t(*f_iconv)(iconv_t, T, size_t *, char **, size_t *),
 
 #define MB_ABOUTBOX	0x100000L
 
-const char appName[] = "SciTE"; 			//Ó¦ÓÃ³ÌĞòÃû³Æ
+const char appName[] = "SciTE"; 			//åº”ç”¨ç¨‹åºåç§°
 
 #ifdef __vms
-char g_modulePath[MAX_PATH];				//Ä£¿éÂ·¾¶
+char g_modulePath[MAX_PATH];				//æ¨¡å—è·¯å¾„
 #endif
 
 static GtkWidget *PWidget(Window &w) {
@@ -106,7 +106,7 @@ static GtkWidget *MakeCommand(const char *text, GtkAccelGroup *accel_group,
 	gtk_signal_connect(GTK_OBJECT(command), "clicked", func, data);
 	return command;
 }
-//´´½¨Ò»¸öÀà
+//åˆ›å»ºä¸€ä¸ªç±»
 class SciTEGTK;
 
 typedef void (*SigFunction)(GtkWidget *w, SciTEGTK *app);
@@ -119,7 +119,7 @@ public:
 		(app->*method)();
 	}
 };
-//Àà¶Ô»°¿ò  ¹«¹²´°¿Ú
+//ç±»å¯¹è¯æ¡†  å…¬å…±çª—å£
 class Dialog : public Window {
 public:
 	Dialog() : app(0), dialogCanceled(true), accel_group(0), localiser(0) {}
@@ -148,14 +148,14 @@ public:
 				gtk_main_iteration();
 			}
 		}
-		return dialogCanceled;			//¶Ô»°¿òÈ¡Ïû
+		return dialogCanceled;			//å¯¹è¯æ¡†å–æ¶ˆ
 	}
 	void OK() {
-		dialogCanceled = false;		//¶Ô»°¿ò²»È¡Ïû
+		dialogCanceled = false;			//å¯¹è¯æ¡†ä¸å–æ¶ˆ
 		Destroy();
 	}
 	void Cancel() {
-		dialogCanceled = true;			//¶Ô»°¿òÈ¡Ïû
+		dialogCanceled = true;			//å¯¹è¯æ¡†å–æ¶ˆ
 		Destroy();
 	}
 	static void SignalCancel(GtkWidget *, Dialog *d) {
@@ -1843,6 +1843,7 @@ void SciTEGTK::Execute() {
 		pidShell = xsystem(jobQueue.jobQueue[icmd].command.c_str(), pipefds[1]);
 		triedKill = false;
 		fdFIFO = pipefds[0];
+		fcntl(fdFIFO, F_SETFL, fcntl(fdFIFO, F_GETFL) | O_NONBLOCK);
 		inputHandle = gdk_input_add(pipefds[0], GDK_INPUT_READ,
 		                            (GdkInputFunction) IOSignal, this);
 		// Also add a background task in case there is no output from the tool
@@ -2630,65 +2631,65 @@ GtkWidget *SciTEGTK::AddToolButton(const char *text, int cmd, GtkWidget *toolbar
 void SciTEGTK::AddToolBar() {
 #if GTK_MAJOR_VERSION >= 2
 	if (props.GetInt("toolbar.usestockicons") == 1) {
-		AddToolButton("ĞÂ½¨", IDM_NEW, gtk_image_new_from_stock("gtk-new", GTK_ICON_SIZE_LARGE_TOOLBAR));
-		AddToolButton("´ò¿ª", IDM_OPEN, gtk_image_new_from_stock("gtk-open", GTK_ICON_SIZE_LARGE_TOOLBAR));
-		AddToolButton("±£´æ", IDM_SAVE, gtk_image_new_from_stock("gtk-save", GTK_ICON_SIZE_LARGE_TOOLBAR));
-		AddToolButton("¹Ø±Õ", IDM_CLOSE, gtk_image_new_from_stock("gtk-close", GTK_ICON_SIZE_LARGE_TOOLBAR));
+		AddToolButton("æ–°å»º", IDM_NEW, gtk_image_new_from_stock("gtk-new", GTK_ICON_SIZE_LARGE_TOOLBAR));
+		AddToolButton("æ‰“å¼€", IDM_OPEN, gtk_image_new_from_stock("gtk-open", GTK_ICON_SIZE_LARGE_TOOLBAR));
+		AddToolButton("ä¿å­˜", IDM_SAVE, gtk_image_new_from_stock("gtk-save", GTK_ICON_SIZE_LARGE_TOOLBAR));
+		AddToolButton("å…³é—­", IDM_CLOSE, gtk_image_new_from_stock("gtk-close", GTK_ICON_SIZE_LARGE_TOOLBAR));
 
 		gtk_toolbar_append_space(GTK_TOOLBAR(PWidget(wToolBar)));
-		AddToolButton("³·Ïú", IDM_UNDO, gtk_image_new_from_stock("gtk-undo", GTK_ICON_SIZE_LARGE_TOOLBAR));
-		AddToolButton("»Ö¸´", IDM_REDO, gtk_image_new_from_stock("gtk-redo", GTK_ICON_SIZE_LARGE_TOOLBAR));
+		AddToolButton("æ’¤é”€", IDM_UNDO, gtk_image_new_from_stock("gtk-undo", GTK_ICON_SIZE_LARGE_TOOLBAR));
+		AddToolButton("æ¢å¤", IDM_REDO, gtk_image_new_from_stock("gtk-redo", GTK_ICON_SIZE_LARGE_TOOLBAR));
 
 		gtk_toolbar_append_space(GTK_TOOLBAR(PWidget(wToolBar)));
-		AddToolButton("¼ôÇĞ", IDM_CUT, gtk_image_new_from_stock("gtk-cut", GTK_ICON_SIZE_LARGE_TOOLBAR));
-		AddToolButton("¸´ÖÆ", IDM_COPY, gtk_image_new_from_stock("gtk-copy", GTK_ICON_SIZE_LARGE_TOOLBAR));
-		AddToolButton("Õ³Ìù", IDM_PASTE, gtk_image_new_from_stock("gtk-paste", GTK_ICON_SIZE_LARGE_TOOLBAR));
+		AddToolButton("å‰ªåˆ‡", IDM_CUT, gtk_image_new_from_stock("gtk-cut", GTK_ICON_SIZE_LARGE_TOOLBAR));
+		AddToolButton("å¤åˆ¶", IDM_COPY, gtk_image_new_from_stock("gtk-copy", GTK_ICON_SIZE_LARGE_TOOLBAR));
+		AddToolButton("ç²˜è´´", IDM_PASTE, gtk_image_new_from_stock("gtk-paste", GTK_ICON_SIZE_LARGE_TOOLBAR));
 
 		gtk_toolbar_append_space(GTK_TOOLBAR(PWidget(wToolBar)));
-		AddToolButton("ÎÄ¼şÖĞ²éÕÒ", IDM_FINDINFILES, gtk_image_new_from_stock("gtk-find", GTK_ICON_SIZE_LARGE_TOOLBAR));
-		AddToolButton("²éÕÒ", IDM_FIND, gtk_image_new_from_stock("gtk-zoom-fit", GTK_ICON_SIZE_LARGE_TOOLBAR));
-		AddToolButton("²éÕÒÏÂÒ»¸ö", IDM_FINDNEXT, gtk_image_new_from_stock("gtk-jump-to", GTK_ICON_SIZE_LARGE_TOOLBAR));
-		AddToolButton("Ìæ»»", IDM_REPLACE, gtk_image_new_from_stock("gtk-find-and-replace", GTK_ICON_SIZE_LARGE_TOOLBAR));
+		AddToolButton("æ–‡ä»¶ä¸­æŸ¥æ‰¾", IDM_FINDINFILES, gtk_image_new_from_stock("gtk-find", GTK_ICON_SIZE_LARGE_TOOLBAR));
+		AddToolButton("æŸ¥æ‰¾", IDM_FIND, gtk_image_new_from_stock("gtk-zoom-fit", GTK_ICON_SIZE_LARGE_TOOLBAR));
+		AddToolButton("æŸ¥æ‰¾ä¸‹ä¸€ä¸ª", IDM_FINDNEXT, gtk_image_new_from_stock("gtk-jump-to", GTK_ICON_SIZE_LARGE_TOOLBAR));
+		AddToolButton("æ›¿æ¢", IDM_REPLACE, gtk_image_new_from_stock("gtk-find-and-replace", GTK_ICON_SIZE_LARGE_TOOLBAR));
 
 		gtk_toolbar_append_space(GTK_TOOLBAR(PWidget(wToolBar)));
-		btnCompile = AddToolButton("±àÒë", IDM_COMPILE, gtk_image_new_from_stock("gtk-execute", GTK_ICON_SIZE_LARGE_TOOLBAR));
-		btnBuild = AddToolButton("¹¹½¨", IDM_BUILD, gtk_image_new_from_stock("gtk-convert", GTK_ICON_SIZE_LARGE_TOOLBAR));
-		btnStop = AddToolButton("Í£Ö¹", IDM_STOPEXECUTE, gtk_image_new_from_stock("gtk-stop", GTK_ICON_SIZE_LARGE_TOOLBAR));
+		btnCompile = AddToolButton("ç¼–è¯‘", IDM_COMPILE, gtk_image_new_from_stock("gtk-execute", GTK_ICON_SIZE_LARGE_TOOLBAR));
+		btnBuild = AddToolButton("æ„å»º", IDM_BUILD, gtk_image_new_from_stock("gtk-convert", GTK_ICON_SIZE_LARGE_TOOLBAR));
+		btnStop = AddToolButton("åœæ­¢", IDM_STOPEXECUTE, gtk_image_new_from_stock("gtk-stop", GTK_ICON_SIZE_LARGE_TOOLBAR));
 
 		gtk_toolbar_append_space(GTK_TOOLBAR(PWidget(wToolBar)));
-		AddToolButton("ÉÏÒ»¸ö", IDM_PREVFILE, gtk_image_new_from_stock("gtk-go-back", GTK_ICON_SIZE_LARGE_TOOLBAR));
-		AddToolButton("ÏÂÒ»¸ö", IDM_NEXTFILE, gtk_image_new_from_stock("gtk-go-forward", GTK_ICON_SIZE_LARGE_TOOLBAR));
+		AddToolButton("ä¸Šä¸€ä¸ª", IDM_PREVFILE, gtk_image_new_from_stock("gtk-go-back", GTK_ICON_SIZE_LARGE_TOOLBAR));
+		AddToolButton("ä¸‹ä¸€ä¸ª", IDM_NEXTFILE, gtk_image_new_from_stock("gtk-go-forward", GTK_ICON_SIZE_LARGE_TOOLBAR));
 		return;
 	}
 #endif
-	AddToolButton("ĞÂ½¨", IDM_NEW, pixmap_new(PWidget(wSciTE), (gchar**)filenew_xpm));
-	AddToolButton("´ò¿ª", IDM_OPEN, pixmap_new(PWidget(wSciTE), (gchar**)fileopen_xpm));
-	AddToolButton("±£´æ", IDM_SAVE, pixmap_new(PWidget(wSciTE), (gchar**)filesave_xpm));
-	AddToolButton("¹Ø±Õ", IDM_CLOSE, pixmap_new(PWidget(wSciTE), (gchar**)close_xpm));
+	AddToolButton("æ–°å»º", IDM_NEW, pixmap_new(PWidget(wSciTE), (gchar**)filenew_xpm));
+	AddToolButton("æ‰“å¼€", IDM_OPEN, pixmap_new(PWidget(wSciTE), (gchar**)fileopen_xpm));
+	AddToolButton("ä¿å­˜", IDM_SAVE, pixmap_new(PWidget(wSciTE), (gchar**)filesave_xpm));
+	AddToolButton("å…³é—­", IDM_CLOSE, pixmap_new(PWidget(wSciTE), (gchar**)close_xpm));
 
 	gtk_toolbar_append_space(GTK_TOOLBAR(PWidget(wToolBar)));
-	AddToolButton("³·Ïú", IDM_UNDO, pixmap_new(PWidget(wSciTE), (gchar**)undo_xpm));
-	AddToolButton("»Ö¸´", IDM_REDO, pixmap_new(PWidget(wSciTE), (gchar**)redo_xpm));
+	AddToolButton("æ’¤é”€", IDM_UNDO, pixmap_new(PWidget(wSciTE), (gchar**)undo_xpm));
+	AddToolButton("æ¢å¤", IDM_REDO, pixmap_new(PWidget(wSciTE), (gchar**)redo_xpm));
 
 	gtk_toolbar_append_space(GTK_TOOLBAR(PWidget(wToolBar)));
-	AddToolButton("¼ôÇĞ", IDM_CUT, pixmap_new(PWidget(wSciTE), (gchar**)editcut_xpm));
-	AddToolButton("¸´ÖÆ", IDM_COPY, pixmap_new(PWidget(wSciTE), (gchar**)editcopy_xpm));
-	AddToolButton("Õ³Ìù", IDM_PASTE, pixmap_new(PWidget(wSciTE), (gchar**)editpaste_xpm));
+	AddToolButton("å‰ªåˆ‡", IDM_CUT, pixmap_new(PWidget(wSciTE), (gchar**)editcut_xpm));
+	AddToolButton("å¤åˆ¶", IDM_COPY, pixmap_new(PWidget(wSciTE), (gchar**)editcopy_xpm));
+	AddToolButton("ç²˜è´´", IDM_PASTE, pixmap_new(PWidget(wSciTE), (gchar**)editpaste_xpm));
 
 	gtk_toolbar_append_space(GTK_TOOLBAR(PWidget(wToolBar)));
-	AddToolButton("ÎÄ¼şÖĞ²éÕÒ", IDM_FINDINFILES, pixmap_new(PWidget(wSciTE), (gchar**)findinfiles_xpm));
-	AddToolButton("²éÕÒ", IDM_FIND, pixmap_new(PWidget(wSciTE), (gchar**)search_xpm));
-	AddToolButton("²éÕÒÏÂÒ»¸ö", IDM_FINDNEXT, pixmap_new(PWidget(wSciTE), (gchar**)findnext_xpm));
-	AddToolButton("Ìæ»»", IDM_REPLACE, pixmap_new(PWidget(wSciTE), (gchar**)replace_xpm));
+	AddToolButton("æ–‡ä»¶ä¸­æŸ¥æ‰¾", IDM_FINDINFILES, pixmap_new(PWidget(wSciTE), (gchar**)findinfiles_xpm));
+	AddToolButton("æŸ¥æ‰¾", IDM_FIND, pixmap_new(PWidget(wSciTE), (gchar**)search_xpm));
+	AddToolButton("æŸ¥æ‰¾ä¸‹ä¸€ä¸ª", IDM_FINDNEXT, pixmap_new(PWidget(wSciTE), (gchar**)findnext_xpm));
+	AddToolButton("æ›¿æ¢", IDM_REPLACE, pixmap_new(PWidget(wSciTE), (gchar**)replace_xpm));
 
 	gtk_toolbar_append_space(GTK_TOOLBAR(PWidget(wToolBar)));
-	btnCompile = AddToolButton("±àÒë", IDM_COMPILE, pixmap_new(PWidget(wSciTE), (gchar**)compile_xpm));
-	btnBuild = AddToolButton("¹¹½¨", IDM_BUILD, pixmap_new(PWidget(wSciTE), (gchar**)build_xpm));
-	btnStop = AddToolButton("Í£Ö¹", IDM_STOPEXECUTE, pixmap_new(PWidget(wSciTE), (gchar**)stop_xpm));
+	btnCompile = AddToolButton("ç¼–è¯‘", IDM_COMPILE, pixmap_new(PWidget(wSciTE), (gchar**)compile_xpm));
+	btnBuild = AddToolButton("æ„å»º", IDM_BUILD, pixmap_new(PWidget(wSciTE), (gchar**)build_xpm));
+	btnStop = AddToolButton("åœæ­¢", IDM_STOPEXECUTE, pixmap_new(PWidget(wSciTE), (gchar**)stop_xpm));
 
 	gtk_toolbar_append_space(GTK_TOOLBAR(PWidget(wToolBar)));
-	AddToolButton("ÉÏÒ»¸ö", IDM_PREVFILE, pixmap_new(PWidget(wSciTE), (gchar**)prev_xpm));
-	AddToolButton("ÏÂÒ»¸ö", IDM_NEXTFILE, pixmap_new(PWidget(wSciTE), (gchar**)next_xpm));
+	AddToolButton("ä¸Šä¸€ä¸ª", IDM_PREVFILE, pixmap_new(PWidget(wSciTE), (gchar**)prev_xpm));
+	AddToolButton("ä¸‹ä¸€ä¸ª", IDM_NEXTFILE, pixmap_new(PWidget(wSciTE), (gchar**)next_xpm));
 }
 
 SString SciTEGTK::TranslatePath(const char *path) {
@@ -3480,25 +3481,25 @@ int SciTEGTK::PollTool(SciTEGTK *scitew) {
 	return TRUE;
 }
 
-int main(int argc, char *argv[]) {				//³ÌĞò¿ªÊ¼,·Å×îºóÊÇÒòÎª¿ÉÒÔÖ±½Óµ÷ÓÃÇ°ÃæµÄº¯Êı¶øÎŞĞèÉùÃ÷
-#ifdef NO_EXTENSIONS							//Èç¹û¶¨ÒåÁËNO_EXTENSIONS
+int main(int argc, char *argv[]) {				//ç¨‹åºå¼€å§‹,æ”¾æœ€åæ˜¯å› ä¸ºå¯ä»¥ç›´æ¥è°ƒç”¨å‰é¢çš„å‡½æ•°è€Œæ— éœ€å£°æ˜
+#ifdef NO_EXTENSIONS						//å¦‚æœå®šä¹‰äº†NO_EXTENSIONS
 	Extension *extender = 0;
-#else											//·´Ö®
+#else								//åä¹‹
 	MultiplexExtension multiExtender;
 	Extension *extender = &multiExtender;
 
-#ifndef NO_LUA									//Èç¹ûÃ»ÓĞÔ¤¶¨Òå NO_LUA
+#ifndef NO_LUA							//å¦‚æœæ²¡æœ‰é¢„å®šä¹‰ NO_LUA
 	multiExtender.RegisterExtension(LuaExtension::Instance());
 #endif
-#ifndef NO_FILER								//Èç¹ûÃ»ÓĞÔ¤¶¨Òå NO_FILER
+#ifndef NO_FILER						//å¦‚æœæ²¡æœ‰é¢„å®šä¹‰ NO_FILER
 	multiExtender.RegisterExtension(DirectorExtension::Instance());
 #endif
 #endif
 
-	signal(SIGCHLD, SciTEGTK::ChildSignal);		//º¯Êı,´ıÑĞ¾¿
+	signal(SIGCHLD, SciTEGTK::ChildSignal);			//å‡½æ•°,å¾…ç ”ç©¶
 
-#ifdef __vms									//Èç¹û¶¨ÒåÁË__vms
-	// ´¢´æÄ£¿éÃûµÄ²¿·ÖÂ·¾¶
+#ifdef __vms							//å¦‚æœå®šä¹‰äº†__vms
+	// å‚¨å­˜æ¨¡å—åçš„éƒ¨åˆ†è·¯å¾„
 	strcpy(g_modulePath, argv[0]);
 	char *p = strstr(g_modulePath, "][");
 	if (p != NULL) {
@@ -3515,7 +3516,7 @@ int main(int argc, char *argv[]) {				//³ÌĞò¿ªÊ¼,·Å×îºóÊÇÒòÎª¿ÉÒÔÖ±½Óµ÷ÓÃÇ°ÃæµÄº
 		*(p + 1) = '\0';
 	}
 	strcpy(g_modulePath, VMSToUnixStyle(g_modulePath));
-	g_modulePath[strlen(g_modulePath) - 1] = '\0';  // ÒÆ³ıÎ²²¿µÄ "/"
+	g_modulePath[strlen(g_modulePath) - 1] = '\0';		// ç§»é™¤å°¾éƒ¨çš„ "/"
 #endif
 
 	// Get this now because gtk_init() clears it
@@ -3524,16 +3525,16 @@ int main(int argc, char *argv[]) {				//³ÌĞò¿ªÊ¼,·Å×îºóÊÇÒòÎª¿ÉÒÔÖ±½Óµ÷ÓÃÇ°ÃæµÄº
 	if (startup_id != NULL) {
 		char *pos = g_strrstr(startup_id, "_TIME");
 		if (pos != NULL) {
-			timestamp = pos + 5; 					// Ìø¹ı "_TIME"
+			timestamp = pos + 5; 			// è·³è¿‡ "_TIME"
 		}
 	}
 
-	gtk_set_locale();								//Ó¦¸ÃÊÇÉèÖÃ±¾µØ»¯ÓïÑÔ
-	gtk_init(&argc, &argv);							//GTK³õÊ¼»¯
+	gtk_set_locale();					//åº”è¯¥æ˜¯è®¾ç½®æœ¬åœ°åŒ–è¯­è¨€
+	gtk_init(&argc, &argv);					//GTKåˆå§‹åŒ–
 
 	SciTEGTK scite(extender);
-	scite.SetStartupTime(timestamp);				//ÉèÖÃÆô¶¯Ê±¼ä
-	scite.Run(argc, argv);							//¿ªÊ¼ÔËĞĞ
+	scite.SetStartupTime(timestamp);			//è®¾ç½®å¯åŠ¨æ—¶é—´
+	scite.Run(argc, argv);					//å¼€å§‹è¿è¡Œ
 
-	return 0;										//Õı³£Ö´ĞĞ,·µ»Ø0
+	return 0;						//æ­£å¸¸æ‰§è¡Œ,è¿”å›0
 }

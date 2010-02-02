@@ -22,7 +22,7 @@
 #include <map>
 
 #include "Platform.h"
-
+#include <Windows.h> //added
 #if PLAT_GTK
 
 #include <unistd.h>
@@ -497,7 +497,21 @@ bool PropSetFile::GetNext(const char *&key, const char *&val) {
 static inline bool IsLetter(char ch) {
 	return ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z'));
 }
-
+//added
+const wchar_t * SString::w_str(){
+	DWORD dwNum = ::MultiByteToWideChar (CP_ACP, 0, s, -1, NULL, 0);
+	wchar_t *pwText;
+	pwText = new wchar_t[dwNum];
+	if(!pwText)
+	{
+		delete []pwText;
+		return L"";
+	}
+	::MultiByteToWideChar (CP_ACP, 0, s, -1, pwText, dwNum);
+	//delete []pwText;
+	return pwText;
+};
+//added
 int CompareNoCase(const char *a, const char *b) {
 	while (*a && *b) {
 		if (*a != *b) {
