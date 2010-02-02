@@ -202,6 +202,7 @@ int ScintillaBase::KeyCommand(unsigned int iMessage) {
 	return Editor::KeyCommand(iMessage);
 }
 
+//自动完成被双击
 void ScintillaBase::AutoCompleteDoubleClick(void* p) {
 	ScintillaBase* sci = reinterpret_cast<ScintillaBase*>(p);
 	sci->AutoCompleteCompleted();
