@@ -12,8 +12,9 @@
 #include <stdio.h>
 #include <time.h>
 
-#define _WIN32_WINNT  0x0400
+#define _WIN32_WINNT  0x0500
 #include <windows.h>
+
 #include <commctrl.h>
 #include <richedit.h>
 #include <windowsx.h>
@@ -996,6 +997,8 @@ Window::~Window() {
 
 void Window::Destroy() {
 	if (wid)
+
+		//::AnimateWindow(reinterpret_cast<HWND>(wid),1000,AW_SLIDE|AW_ACTIVATE|AW_HIDE|AW_HOR_POSITIVE|AW_BLEND);
 		::DestroyWindow(reinterpret_cast<HWND>(wid));
 	wid = 0;
 }
@@ -1049,10 +1052,14 @@ PRectangle Window::GetClientPosition() {
 }
 
 void Window::Show(bool show) {
-	if (show)
+	if (show){
 		::ShowWindow(reinterpret_cast<HWND>(wid), SW_SHOWNOACTIVATE);
+		}
+		//
 	else
+	{
 		::ShowWindow(reinterpret_cast<HWND>(wid), SW_HIDE);
+	}
 }
 
 void Window::InvalidateAll() {

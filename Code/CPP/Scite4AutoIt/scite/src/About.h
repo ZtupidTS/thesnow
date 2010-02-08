@@ -1,0 +1,1 @@
+void DONATE_MSG();
