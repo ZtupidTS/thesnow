@@ -308,6 +308,10 @@
 			Filter="cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 			>
 			<File
+				RelativePath="..\src\About.cxx"
+				>
+			</File>
+			<File
 				RelativePath="..\..\scintilla\src\AutoComplete.cxx"
 				>
 			</File>
@@ -936,6 +940,10 @@
 			Name="Header Files"
 			Filter="h;hpp;hxx;hm;inl"
 			>
+			<File
+				RelativePath="..\src\About.h"
+				>
+			</File>
 			<File
 				RelativePath="..\..\scintilla\Include\Accessor.h"
 				>

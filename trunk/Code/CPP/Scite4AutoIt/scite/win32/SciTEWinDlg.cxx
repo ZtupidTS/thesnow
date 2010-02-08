@@ -1470,6 +1470,7 @@ void SciTEWin::FindReplace(bool replace) {
 //销毁搜索替换
 void SciTEWin::DestroyFindReplace() {
 	if (wFindReplace.Created()) {
+	//	::AnimateWindow(reinterpret_cast<HWND>(wFindReplace.GetID()),500,AW_HIDE|AW_BLEND|AW_CENTER|AW_HOR_POSITIVE|AW_VER_NEGATIVE);
 		::EndDialog(reinterpret_cast<HWND>(wFindReplace.GetID()), IDCANCEL);
 		wFindReplace.Destroy();
 	}

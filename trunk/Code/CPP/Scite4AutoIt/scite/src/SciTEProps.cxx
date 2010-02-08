@@ -40,7 +40,7 @@ const char menuAccessIndicator[] = "_";
 #endif
 #endif
 
-#define _WIN32_WINNT  0x0400
+#define _WIN32_WINNT  0x0500
 #ifdef _MSC_VER
 // windows.h, et al, use a lot of nameless struct/unions - can't fix it, so allow it
 #pragma warning(disable: 4201)
@@ -582,6 +582,7 @@ static const char *propertiesToForward[] = {
 	"lexer.props.allow.initial.spaces",
 	"lexer.python.literals.binary",
 	"lexer.python.strings.b",
+	"lexer.python.strings.over.newline",
 	"lexer.python.strings.u",
 	"lexer.sql.backticks.identifier",
 	"lexer.tex.auto.if",

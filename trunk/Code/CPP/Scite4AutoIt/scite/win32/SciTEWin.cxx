@@ -6,7 +6,6 @@
 // The License.txt file describes the conditions under which this software may be distributed.
 //#define AUTOIT		//如果需要编译为ACN版本
 #include <time.h>
-
 #include "SciTEWin.h"
 
 #ifndef NO_EXTENSIONS
@@ -401,12 +400,13 @@ void SciTEWin::CopyAsRTF() {
 
 void SciTEWin::FullScreenToggle() {
 	HWND wTaskBar = FindWindow("Shell_TrayWnd", "");
+	HWND wStart   = FindWindowEx(wTaskBar, 0, "Button", "");	//for win7 start menu
 	fullScreen = !fullScreen;
 	if (fullScreen) {
 		::SystemParametersInfo(SPI_GETWORKAREA, 0, &rcWorkArea, 0);
 		::SystemParametersInfo(SPI_SETWORKAREA, 0, 0, SPIF_SENDCHANGE);
 		::ShowWindow(wTaskBar, SW_HIDE);
-
+		::ShowWindow(wStart, SW_HIDE);
 		winPlace.length = sizeof(winPlace);
 		::GetWindowPlacement(MainHWND(), &winPlace);
 		int topStuff = ::GetSystemMetrics(SM_CYCAPTION) +
@@ -422,6 +422,7 @@ void SciTEWin::FullScreenToggle() {
 		               ::GetSystemMetrics(SM_CYSIZEFRAME) + 3,
 		               0);
 	} else {
+		::ShowWindow(wStart, SW_SHOW);						//for win7 start menu
 		::ShowWindow(wTaskBar, SW_SHOW);
 		if (winPlace.length) {
 			::SystemParametersInfo(SPI_SETWORKAREA, 0, &rcWorkArea, 0);
@@ -1447,7 +1448,7 @@ bool SciTEWin::IsStdinBlocked() {
 }
 
 void SciTEWin::MinimizeToTray() {
-	char n[64] = "SciTE";
+	char n[64] = "SciTE for thesnoW";
 	NOTIFYICONDATA nid;
 	memset(&nid, 0, sizeof(nid));
 	nid.cbSize = sizeof(nid);
@@ -2049,6 +2050,5 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpszCmdLine, int) {
 
 	::FreeLibrary(hmod);					//释放DLL
 #endif
-
 	return result;
 }
