@@ -59,10 +59,6 @@
 #include "State.h"
 #include "OnFrame.h"
  
-#ifndef _WIN32
-#define WINAPI
-#endif
-
 namespace Core
 {
  
@@ -153,46 +149,45 @@ bool isRunning()
 }
 
 
-// This is called from the GUI thread. See the booting call schedule in BootManager.cpp
-
+// This is called from the GUI thread. See the booting call schedule in
+// BootManager.cpp
 bool Init()
 {
 	if (g_EmuThread != NULL)
 	{
-		PanicAlert("ERROR: Emu Thread already running. Report this bug.");
+		PanicAlert("Emu Thread already running");
 		return false;
 	}
-
-	Common::InitThreading();
 
 	// Get a handle to the current instance of the plugin manager
 	CPluginManager &pManager = CPluginManager::GetInstance();
 	SCoreStartupParameter &_CoreParameter = SConfig::GetInstance().m_LocalCoreStartupParameter;
 
+	Common::InitThreading();
+
 	g_CoreStartupParameter = _CoreParameter;
 	// FIXME DEBUG_LOG(BOOT, dump_params());
 	Host_SetWaitCursor(true);
 
-	// Start the thread again
-	_dbg_assert_(HLE, g_EmuThread == NULL);
-
-	// Check that all plugins exist, potentially call LoadLibrary() for unloaded plugins
+	// Load all needed plugins 
 	if (!pManager.InitPlugins())
 		return false;
 
 	emuThreadGoing.Init();
-	// This will execute EmuThread() further down in this file
+
+	// Start the emu thread 
 	g_EmuThread = new Common::Thread(EmuThread, NULL);
-	
+
+	// Wait until the emu thread is running
 	emuThreadGoing.MsgWait();
 	emuThreadGoing.Shutdown();
 
-	// All right, the event is set and killed. We are now running.
 	Host_SetWaitCursor(false);
 	return true;
 }
 
-// Called from GUI thread or VI thread (why VI??? That must be bad. Window close? TODO: Investigate.)
+// Called from GUI thread or VI thread (why VI??? That must be bad. Window
+// close? TODO: Investigate.)
 void Stop()  // - Hammertime!
 {
 	const SCoreStartupParameter& _CoreParameter = SConfig::GetInstance().m_LocalCoreStartupParameter;
@@ -201,7 +196,8 @@ void Stop()  // - Hammertime!
 
 	WARN_LOG(CONSOLE, "Stop [Main Thread]\t\t---- Shutting down ----");	
 
-	// This must be done a while before freeing the dll to not crash wx around MSWWindowProc and DefWindowProc, will investigate further
+	// This must be done a while before freeing the dll to not crash wx around
+	// MSWWindowProc and DefWindowProc, will investigate further
 	Host_Message(AUDIO_DESTROY);
 	Host_Message(VIDEO_DESTROY);
 
@@ -216,8 +212,9 @@ void Stop()  // - Hammertime!
 
 	if (_CoreParameter.bCPUThread)
 	{
-		// Video_EnterLoop() should now exit so that EmuThread() will continue concurrently with the rest
-		// of the commands in this function. We no longer rely on Postmessage. 
+		// Video_EnterLoop() should now exit so that EmuThread() will continue
+		// concurrently with the rest of the commands in this function. We no
+		// longer rely on Postmessage.
 		NOTICE_LOG(CONSOLE, "%s", StopMessage(true, "Wait for Video Loop to exit ...").c_str());
 		CPluginManager::GetInstance().GetVideo()->Video_ExitLoop();
 
@@ -532,19 +529,19 @@ static inline std::string GenerateScreenshotName()
 {
 	int index = 1;
 	std::string tempname, name;
-	std::string gameId = GetStartupParameter().GetUniqueID();
-	tempname = FULL_SCREENSHOTS_DIR + gameId + DIR_SEP_CHR;
+	std::string gameId = SConfig::GetInstance().m_LocalCoreStartupParameter.GetUniqueID();
+	tempname = std::string(File::GetUserPath(D_SCREENSHOTS_IDX)) + gameId + DIR_SEP_CHR;
 
 	if (!File::CreateFullPath(tempname.c_str())) {
 		//fallback to old-style screenshots, without folder.
-		tempname = FULL_SCREENSHOTS_DIR;
+		tempname = std::string(File::GetUserPath(D_SCREENSHOTS_IDX));
 	}
 	//append gameId, tempname only contains the folder here.
 	tempname += gameId;
 
-	name = StringFromFormat("%s-%d.png", tempname.c_str(), index);
+	name = StringFromFormat("%s-%d.bmp", tempname.c_str(), index);
 	while(File::Exists(name.c_str()))
-		name = StringFromFormat("%s-%d.png", tempname.c_str(), ++index);
+		name = StringFromFormat("%s-%d.bmp", tempname.c_str(), ++index);
 
 	return name;
 }
@@ -742,6 +739,13 @@ void Callback_KeyPress(int key, bool shift, bool control)
 		else
 			State_UndoLoadState();	
 	}
+#if defined(HAVE_X11) && HAVE_X11
+	// 0x1b == VK_ESCAPE
+	if (key == 0x1b) 
+	{
+		Host_Message(WM_USER_STOP);
+	}
+#endif
 }
  
 // Callback_WiimoteLog
@@ -751,10 +755,4 @@ void Callback_WiimoteLog(const TCHAR* _szMessage, int _v)
 	GENERIC_LOG(LogTypes::WIIMOTE, (LogTypes::LOG_LEVELS)_v, _szMessage);
 }
  
-// TODO: Get rid of at some point
-const SCoreStartupParameter& GetStartupParameter()
-{
-    return SConfig::GetInstance().m_LocalCoreStartupParameter;
-}
-
 } // Core

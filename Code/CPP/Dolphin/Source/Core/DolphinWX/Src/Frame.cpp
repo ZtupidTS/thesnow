@@ -50,7 +50,6 @@
 
 #include <wx/datetime.h> // wxWidgets
 
-// ----------
 // Resources
 
 extern "C" {
@@ -74,9 +73,9 @@ extern "C" {
 };
 
 
-// ---------------
-// Windows functions. Setting the cursor with wxSetCursor() did not work in this instance.
-// Probably because it's somehow reset from the WndProc() in the child window 
+// Windows functions. Setting the cursor with wxSetCursor() did not work in
+// this instance.  Probably because it's somehow reset from the WndProc() in
+// the child window
 #ifdef _WIN32
 // Declare a blank icon and one that will be the normal cursor
 HCURSOR hCursor = NULL, hCursorBlank = NULL;
@@ -146,10 +145,15 @@ CPanel::CPanel(
 		case WM_USER:
 			switch(wParam)
 			{
+			// Pause
+			case WM_USER_PAUSE:
+				main_frame->DoPause();
+				break;
+			
 			// Stop
 			case WM_USER_STOP:
 				main_frame->DoStop();
-				return 0;
+				break;
 			
 			case WM_USER_CREATE:
 				// We don't have a local setting for bRenderToMain but we can detect it this way instead
@@ -158,7 +162,7 @@ CPanel::CPanel(
 					main_frame->bRenderToMain = false;
 				else
 					main_frame->bRenderToMain = true;
-				return 0;
+				break;
 
 			case WIIMOTE_DISCONNECT:
 				if (SConfig::GetInstance().m_LocalCoreStartupParameter.bWii)
@@ -184,17 +188,16 @@ CPanel::CPanel(
 						dlg->Destroy();
 					}
 				}
-				return 0;
 			}
 			break;
+		default:
+			// By default let wxWidgets do what it normally does with this event
+			return wxPanel::MSWWindowProc(nMsg, wParam, lParam);
 		}
-		
-		// By default let wxWidgets do what it normally does with this event
-		return wxPanel::MSWWindowProc(nMsg, wParam, lParam);
+		return 0;
 	}
 #endif
 
-//-----------------
 // event tables
 // Notice that wxID_HELP will be processed for the 'About' menu and the toolbar
 // help button.
@@ -325,9 +328,11 @@ CFrame::CFrame(wxFrame* parent,
 	, UseDebugger(_UseDebugger), m_bEdit(false), m_bTabSplit(false), m_bNoDocking(false)
 	, bRenderToMain(false), bFloatLogWindow(false), bFloatConsoleWindow(false)
 	, HaveLeds(false), HaveSpeakers(false)
-	, m_fLastClickTime(0), m_iLastMotionTime(0), LastMouseX(0), LastMouseY(0)
-	, m_bControlsCreated(false), bNoWiimoteMsg(false), m_StopDlg(NULL)
+	, m_bControlsCreated(false), m_bModalDialogOpen(false), bNoWiimoteMsg(false), m_StopDlg(NULL)
 	#if wxUSE_TIMER
+	#ifdef _WIN32
+		, m_fLastClickTime(0), m_iLastMotionTime(0), LastMouseX(0), LastMouseY(0)
+	#endif
 		, m_timer(this)
 	#endif
           
@@ -416,7 +421,7 @@ CFrame::CFrame(wxFrame* parent,
 	else
 	{
 		IniFile ini; int pos;
-		ini.Load(LOGGER_CONFIG_FILE);
+		ini.Load(File::GetUserPath(F_LOGGERCONFIG_IDX));
 		ini.Get("LogWindow", "pos", &pos, 2);
 
 		m_Mgr->GetPane(wxT("Pane 0")).Show().PaneBorder(false).CaptionVisible(false).Layer(0).Center();
@@ -478,9 +483,11 @@ CFrame::CFrame(wxFrame* parent,
 	wxTheApp->Connect(wxID_ANY, wxEVT_LEFT_DCLICK,
 		wxMouseEventHandler(CFrame::OnDoubleClick),
 		(wxObject*)0, this);
+#ifdef _WIN32
 	wxTheApp->Connect(wxID_ANY, wxEVT_MOTION,
 		wxMouseEventHandler(CFrame::OnMotion),
 		(wxObject*)0, this);
+#endif
 	// ----------
 
 	// Update controls
@@ -612,6 +619,18 @@ WXLRESULT CFrame::MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, WXLPARAM lParam)
 }
 #endif
 
+void CFrame::OnTimer(wxTimerEvent& WXUNUSED(event))
+{
+#ifdef _WIN32
+	Update();
+#else
+	// Process events in linux.  Primarily to update the statusbar text.
+	// This should be unnecessary if we ever get WXGL and render to main working
+	if (wxGetApp().Pending())
+		wxGetApp().ProcessPendingEvents();
+#endif
+}
+
 void CFrame::OnHostMessage(wxCommandEvent& event)
 {
 	switch (event.GetId())
@@ -623,12 +642,14 @@ void CFrame::OnHostMessage(wxCommandEvent& event)
 	case IDM_UPDATESTATUSBAR:
 		if (m_pStatusBar != NULL)
 		{
-		// Linux doesn't like it since the message isn't coming from the GUI thread. We need to change this to post a message to the Frame.
-#ifdef _WIN32
 			m_pStatusBar->SetStatusText(event.GetString(), event.GetInt());
-#endif
 		}
 		break;
+#if defined(HAVE_X11) && HAVE_X11
+	case WM_USER_STOP:
+		main_frame->DoStop();
+		break;
+#endif
 	}
 }
 
@@ -714,12 +735,16 @@ void CFrame::OnGameListCtrl_ItemActivated(wxListEvent& WXUNUSED (event))
 void CFrame::OnKeyDown(wxKeyEvent& event)
 {
 	// Toggle fullscreen
-	if (event.GetKeyCode() == WXK_ESCAPE || (event.GetKeyCode() == WXK_RETURN && event.GetModifiers() == wxMOD_ALT))
+	if (event.GetKeyCode() == WXK_RETURN && event.GetModifiers() == wxMOD_ALT)
 	{
 		DoFullscreen(!IsFullScreen());
 
 		// We do that to avoid the event to be double processed (which would cause the window to be stuck in fullscreen) 
 		event.StopPropagation();
+	}
+	else if(event.GetKeyCode() == WXK_ESCAPE)
+	{
+		main_frame->DoPause();
 	}
 	// event.Skip() allows the event to propagate to the gamelist for example
 	else if (! (Core::GetState() == Core::CORE_RUN && bRenderToMain && event.GetEventObject() == this))
@@ -765,6 +790,7 @@ void CFrame::OnDoubleClick(wxMouseEvent& event)
 
 // Check for mouse motion. Here we process the bHideCursor setting.
 
+#if wxUSE_TIMER && defined _WIN32
 void CFrame::OnMotion(wxMouseEvent& event)
 {
 	event.Skip();
@@ -788,15 +814,12 @@ void CFrame::OnMotion(wxMouseEvent& event)
 	if(IsFullScreen() && SConfig::GetInstance().m_LocalCoreStartupParameter.bAutoHideCursor)
 	{
 		m_iLastMotionTime = Common::Timer::GetDoubleTime();
-		#ifdef _WIN32
 				MSWSetCursor(true);
-		#endif
 		return;
 	}
 
 	if(SConfig::GetInstance().m_LocalCoreStartupParameter.bHideCursor && event.GetId() == IDM_MPANEL)
 	{
-		#ifdef _WIN32
 			if(bRenderToMain) MSWSetCursor(false);
 
 			/* We only need to use this if we are rendering to a separate window. It does work
@@ -804,22 +827,20 @@ void CFrame::OnMotion(wxMouseEvent& event)
 			   so we can use that instead. If we one day determine that the separate window
 			   rendering is superfluous we could do without this */
 			else PostMessage((HWND)Core::GetWindowHandle(), WM_USER, 10, 0);
-		#endif
 	}
 
 	// For some reason we need this to, otherwise the cursor can get stuck with the resizing arrows
 	else
 	{
-		#ifdef _WIN32
 			if(bRenderToMain) MSWSetCursor(true);
 			else PostMessage((HWND)Core::GetWindowHandle(), WM_USER, 10, 1);
-		#endif
 	}
 
 }
+#endif
 
 // Check for mouse status a couple of times per second for the auto hide option
-#if wxUSE_TIMER
+#if wxUSE_TIMER && defined _WIN32
 void CFrame::Update()
 {
 	// Check if auto hide is on, or if we are already hiding the cursor all the time
@@ -832,10 +853,8 @@ void CFrame::Update()
 		double TmpSeconds = Common::Timer::GetDoubleTime(); // Get timestamp
 		double CompareTime = TmpSeconds - HideDelay; // Compare it
 
-		#ifdef _WIN32
 			if(m_iLastMotionTime < CompareTime) // Update cursor
 				MSWSetCursor(false);
-		#endif
 	}
 }
 #endif
@@ -917,7 +936,10 @@ void CFrame::DoFullscreen(bool bF)
 	}
 #ifdef _WIN32
 	else // Post the message to the separate rendering window which will then handle it.
+	{
+		BringWindowToTop((HWND)Core::GetWindowHandle());
 		PostMessage((HWND)Core::GetWindowHandle(), WM_USER, TOGGLE_FULLSCREEN, 0);
+	}
 #endif
 }
 

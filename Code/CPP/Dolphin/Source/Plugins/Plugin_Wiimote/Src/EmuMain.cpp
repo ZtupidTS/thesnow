@@ -93,7 +93,7 @@ void LoadRecordedMovements()
 	INFO_LOG(WIIMOTE, "LoadRecordedMovements()");
 
 	IniFile file;
-	file.Load(FULL_CONFIG_DIR "WiimoteMovement.ini");
+	file.Load((std::string(File::GetUserPath(D_CONFIG_IDX)) + "WiimoteMovement.ini").c_str());
 
 	for(int i = 0; i < RECORDING_ROWS; i++)
 	{
@@ -318,12 +318,17 @@ void Shutdown()
 	INFO_LOG(WIIMOTE, "ShutDown");
 
 	ResetVariables();
+// We can't close it here or it might crash
+// because the joystick could have been closed already in GCPad
+// But there is no easy way to know the situation of another DLL
+// So we just skip the close procedure here
+/*
 	// Close joypads
 	Close_Devices();
 	// Finally close SDL
 	if (SDL_WasInit(0))
 		SDL_Quit();
-
+*/
 	g_SearchDeviceDone = false;
 }
 
@@ -677,7 +682,7 @@ void ReadLinuxKeyboard()
 			
 			if ((key >= XK_F1 && key <= XK_F9) ||
 			   key == XK_Shift_L || key == XK_Shift_R ||
-			   key == XK_Control_L || key == XK_Control_R)
+			   key == XK_Control_L || key == XK_Control_R || key == XK_Escape)
 			{
 				XPutBackEvent(WMdisplay, &E);
 				break;
@@ -696,7 +701,7 @@ void ReadLinuxKeyboard()
 			
 			if ((key >= XK_F1 && key <= XK_F9) ||
 			   key == XK_Shift_L || key == XK_Shift_R ||
-			   key == XK_Control_L || key == XK_Control_R) {
+			   key == XK_Control_L || key == XK_Control_R || key == XK_Escape) {
 				XPutBackEvent(WMdisplay, &E);
 				break;
 			}

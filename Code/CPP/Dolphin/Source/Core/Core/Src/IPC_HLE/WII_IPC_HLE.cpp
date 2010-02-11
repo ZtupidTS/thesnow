@@ -59,7 +59,7 @@
 #include "WII_IPC_HLE_Device_sdio_slot0.h"
 
 #include "FileUtil.h" // For Copy
-#include "../Core.h"
+#include "../ConfigManager.h"
 #include "../HW/CPU.h"
 #include "../HW/Memmap.h"
 #include "../HW/WII_IPC.h"
@@ -188,12 +188,12 @@ IWII_IPC_HLE_Device* CreateFileIO(u32 _DeviceID, const std::string& _rDeviceName
 void CopySettingsFile(std::string& DeviceName)
 {
 	std::string Source = File::GetSysDirectory() + WII_SYS_DIR + DIR_SEP;
-	if(Core::GetStartupParameter().bNTSC)
+	if(SConfig::GetInstance().m_LocalCoreStartupParameter.bNTSC)
 		Source += "setting-usa.txt";
 	else
 		Source += "setting-eur.txt";
 
-	std::string Target = FULL_WII_ROOT_DIR + DeviceName;
+	std::string Target = std::string(File::GetUserPath(D_WIIUSER_IDX)) + DeviceName;
 
 	// Check if the target dir exists, otherwise create it
 	std::string TargetDir = Target.substr(0, Target.find_last_of(DIR_SEP));
@@ -469,7 +469,7 @@ void Update()
 		INFO_LOG(WII_IPC_HLE, "||-- Acknowledge Command Address: 0x%08x", _Address);
 
 		ExecuteCommand(_Address);
-
+/*
 		// AyuanX: Since current HLE time slot is empty, we can piggyback a reply
 		// Besides, this trick makes a Ping-Pong Reply FIFO never get full
 		// I don't know whether original hardware supports this feature or not
@@ -481,7 +481,7 @@ void Update()
 			WII_IPCInterface::GenerateReply(_Reply);
 			INFO_LOG(WII_IPC_HLE, "<<-- Reply to Command Address: 0x%08x", _Reply);
 		}
-
+*/
 		#if MAX_LOG_LEVEL >= DEBUG_LEVEL
 			Debugger::PrintCallstack(LogTypes::WII_IPC_HLE, LogTypes::LDEBUG);
 		#endif

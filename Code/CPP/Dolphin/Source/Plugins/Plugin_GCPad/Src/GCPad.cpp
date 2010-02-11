@@ -1,3 +1,14 @@
+// Project description
+// -------------------
+// Name: nJoy
+// Description: A Dolphin Compatible Input Plugin
+//
+// Author: Falcon4ever (nJoy@falcon4ever.com)
+// Site: www.multigesture.net
+// Copyright (C) 2003 Dolphin Project.
+//
+
+
 // Copyright (C) 2003 Dolphin Project.
 
 // This program is free software: you can redistribute it and/or modify
@@ -639,7 +650,7 @@ void ReadLinuxKeyboard()
 			
 			if ((key >= XK_F1 && key <= XK_F9) ||
 			   key == XK_Shift_L || key == XK_Shift_R ||
-			   key == XK_Control_L || key == XK_Control_R)
+			   key == XK_Control_L || key == XK_Control_R || key == XK_Escape)
 			{
 				XPutBackEvent(WMdisplay, &E);
 				break;
@@ -658,7 +669,7 @@ void ReadLinuxKeyboard()
 			
 			if ((key >= XK_F1 && key <= XK_F9) ||
 			   key == XK_Shift_L || key == XK_Shift_R ||
-			   key == XK_Control_L || key == XK_Control_R) {
+			   key == XK_Control_L || key == XK_Control_R || key == XK_Escape) {
 				XPutBackEvent(WMdisplay, &E);
 				break;
 			}

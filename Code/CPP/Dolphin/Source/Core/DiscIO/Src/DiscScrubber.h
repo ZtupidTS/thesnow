@@ -37,9 +37,9 @@ namespace DiscIO
 namespace DiscScrubber
 {
 
-u32 IsScrubbed(const char* filename);
-
-bool Scrub(const char* filename, CompressCB callback = 0, void* arg = 0);
+bool SetupScrub(const char* filename, int block_size);
+void GetNextBlock(FILE* in, u8* buffer);
+void Cleanup();
 
 } // namespace DiscScrubber
 

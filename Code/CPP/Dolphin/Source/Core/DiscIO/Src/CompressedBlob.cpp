@@ -158,6 +158,8 @@ void CompressedBlobReader::GetBlock(u64 block_num, u8 *out_ptr)
 bool CompressFileToBlob(const char* infile, const char* outfile, u32 sub_type,
 						int block_size, CompressCB callback, void* arg)
 {
+	bool scrubbing = false;
+
 	if (IsCompressedBlob(infile))
 	{
 		PanicAlert("%s is already compressed! Cannot compress it further.", infile);
@@ -166,11 +168,13 @@ bool CompressFileToBlob(const char* infile, const char* outfile, u32 sub_type,
 
 	if (sub_type == 1)
 	{
-		if (!DiscScrubber::Scrub(infile, callback, arg))
+		if (!DiscScrubber::SetupScrub(infile, block_size))
 		{
 			PanicAlert("%s failed to be scrubbed. Probably the image is corrupt.", infile);
 			return false;
 		}
+
+		scrubbing = true;
 	}
 
 	FILE* inf = fopen(infile, "rb");
@@ -179,7 +183,10 @@ bool CompressFileToBlob(const char* infile, const char* outfile, u32 sub_type,
 
 	FILE* f = fopen(outfile, "wb");
 	if (!f)
+	{
+		fclose(inf);
 		return false;
+	}
 
 	callback("Files opened, ready to compress.", 0, arg);
 
@@ -209,6 +216,7 @@ bool CompressFileToBlob(const char* infile, const char* outfile, u32 sub_type,
 	u64 position = 0;
 	int num_compressed = 0;
 	int num_stored = 0;
+
 	for (u32 i = 0; i < header.num_blocks; i++)
 	{
 		if (i % (header.num_blocks / 1000) == 0)
@@ -226,7 +234,10 @@ bool CompressFileToBlob(const char* infile, const char* outfile, u32 sub_type,
 		// u64 start = i * header.block_size;
 		// u64 size = header.block_size;
 		std::fill(in_buf, in_buf + header.block_size, 0);
-		fread(in_buf, header.block_size, 1, inf);
+		if (scrubbing)
+			DiscScrubber::GetNextBlock(inf, in_buf);
+		else
+			fread(in_buf, header.block_size, 1, inf);
 		z_stream z;
 		memset(&z, 0, sizeof(z));
 		z.zalloc = Z_NULL;
@@ -285,6 +296,7 @@ cleanup:
 	delete[] hashes;
 	fclose(f);
 	fclose(inf);
+	DiscScrubber::Cleanup();
 	callback("Done compressing disc image.", 1.0f, arg);
 	return true;
 }

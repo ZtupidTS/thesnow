@@ -274,7 +274,7 @@ bool OpenGL_Create(SVideoInitialize &_VideoInitialize, int _iwidth, int _iheight
     int dpyWidth, dpyHeight;
     int glxMajorVersion, glxMinorVersion;
     int vidModeMajorVersion, vidModeMinorVersion;
-    Atom wmDelete;
+    Atom wmProtocols[3];
 
     // attributes for a single buffered visual in RGBA format with at least
     // 8 bits per color and a 24 bit depth buffer
@@ -393,16 +393,61 @@ bool OpenGL_Create(SVideoInitialize &_VideoInitialize, int _iwidth, int _iheight
         GLWin.win = XCreateWindow(GLWin.dpy, RootWindow(GLWin.dpy, vi->screen),
                                   0, 0, _twidth, _theight, 0, vi->depth, InputOutput, vi->visual,
                                   CWBorderPixel | CWColormap | CWEventMask, &GLWin.attr);
-        // only set window title and handle wm_delete_events if in windowed mode
-        wmDelete = XInternAtom(GLWin.dpy, "WM_DELETE_WINDOW", True);
-        XSetWMProtocols(GLWin.dpy, GLWin.win, &wmDelete, 1);
+        // only set window title and handle WM_PROTOCOLS if in windowed mode
+        wmProtocols[0] = XInternAtom(GLWin.dpy, "WM_DELETE_WINDOW", True);
+        wmProtocols[1] = XInternAtom(GLWin.dpy, "_NET_WM_STATE", False);
+        wmProtocols[2] = XInternAtom(GLWin.dpy, "_NET_WM_STATE_FULLSCREEN", False);
+        XSetWMProtocols(GLWin.dpy, GLWin.win, wmProtocols, 3);
         XSetStandardProperties(GLWin.dpy, GLWin.win, "GPU",
                                    "GPU", None, NULL, 0, NULL);
         XMapRaised(GLWin.dpy, GLWin.win);
     }
+    if (g_Config.bHideCursor)
+    {
+      // make a blank cursor
+      Pixmap Blank;
+      XColor DummyColor;
+      char ZeroData[1] = {0};
+      Cursor MouseCursor;
+      Blank = XCreateBitmapFromData (GLWin.dpy, GLWin.win, ZeroData, 1, 1);
+      MouseCursor = XCreatePixmapCursor(GLWin.dpy, Blank, Blank, &DummyColor, &DummyColor, 0, 0);
+      XFreePixmap (GLWin.dpy, Blank);
+      XDefineCursor (GLWin.dpy, GLWin.win, MouseCursor);
+    }
 #endif
 	return true;
 }
+
+#if defined(HAVE_X11) && HAVE_X11
+void X11_EWMH_Fullscreen(int action)
+{
+    assert(action == _NET_WM_STATE_REMOVE ||
+           action == _NET_WM_STATE_ADD || action == _NET_WM_STATE_TOGGLE);
+
+	XEvent xev;
+
+	// Init X event structure for _NET_WM_STATE_FULLSCREEN client message
+	xev.xclient.type = ClientMessage;
+	xev.xclient.serial = 0;
+	xev.xclient.send_event = True;
+	xev.xclient.message_type = XInternAtom(GLWin.dpy, "_NET_WM_STATE", False);
+	xev.xclient.window = GLWin.win;
+	xev.xclient.format = 32;
+	xev.xclient.data.l[0] = action;
+	xev.xclient.data.l[1] = XInternAtom(GLWin.dpy, "_NET_WM_STATE_FULLSCREEN", False);
+	xev.xclient.data.l[2] = 0;
+	xev.xclient.data.l[3] = 0;
+	xev.xclient.data.l[4] = 0;
+
+    // Send the event
+	if (!XSendEvent(GLWin.dpy, DefaultRootWindow(GLWin.dpy), False,
+				SubstructureRedirectMask | SubstructureNotifyMask,
+				&xev))
+	{
+		ERROR_LOG(VIDEO, "Failed to switch fullscreen/windowed mode.\n");
+	}
+}
+#endif
 
 bool OpenGL_MakeCurrent()
 {
@@ -494,7 +539,7 @@ void OpenGL_Update()
         switch(event.type) {
             case KeyRelease:
                 key = XLookupKeysym((XKeyEvent*)&event, 0);
-                if(key >= XK_F1 && key <= XK_F9) {
+                if((key >= XK_F1 && key <= XK_F9) || (key == XK_Escape)) {
                         g_VideoInitialize.pKeyPress(FKeyPressed, ShiftPressed, ControlPressed);
                         FKeyPressed = -1;
                 } else {
@@ -509,7 +554,23 @@ void OpenGL_Update()
             case KeyPress:
                 key = XLookupKeysym((XKeyEvent*)&event, 0);
                 if(key >= XK_F1 && key <= XK_F9)
+                {
+                  if(key == XK_F4 && ((event.xkey.state & Mod1Mask) == Mod1Mask))
+                    FKeyPressed = 0x1b;
+                  else
                     FKeyPressed = key - 0xff4e;
+                }
+                else if (key == XK_Escape)
+                {
+                  if (!GLWin.fs)
+                  {
+                    X11_EWMH_Fullscreen(_NET_WM_STATE_TOGGLE); 
+                    XWithdrawWindow(GLWin.dpy,GLWin.win,GLWin.screen);
+                    XMapRaised(GLWin.dpy,GLWin.win);
+                    XRaiseWindow(GLWin.dpy,GLWin.win);
+                    XFlush(GLWin.dpy);
+                  }
+                }
                 else {
                     if(key == XK_Shift_L || key == XK_Shift_R)
                         ShiftPressed = true;
@@ -535,8 +596,9 @@ void OpenGL_Update()
                 rcWindow.right = GLWin.width;
                 rcWindow.bottom = GLWin.height;
                 break;
-            case ClientMessage: //TODO: We aren't reading this correctly, It could be anything, highest chance is that it's a close event though
-		Shutdown(); // Calling from here since returning false does nothing
+            case ClientMessage:
+                if ((ulong) event.xclient.data.l[0] == XInternAtom(GLWin.dpy, "WM_DELETE_WINDOW", False))
+                  g_VideoInitialize.pKeyPress(0x1b, False, False);
                 return;
                 break;
             default:
@@ -585,6 +647,16 @@ void OpenGL_Shutdown()
 		hDC = NULL;                                       // Set DC To NULL
 	}
 #elif defined(HAVE_X11) && HAVE_X11
+#if defined(HAVE_XXF86VM) && HAVE_XXF86VM
+	/* switch back to original desktop resolution if we were in fs */
+	if ((GLWin.dpy != NULL) && GLWin.fs) {
+		XUngrabKeyboard (GLWin.dpy, CurrentTime);
+		XUngrabButton (GLWin.dpy, AnyButton, AnyModifier, GLWin.win);
+		XF86VidModeSwitchToMode(GLWin.dpy, GLWin.screen, &GLWin.deskMode);
+		XF86VidModeSetViewPort(GLWin.dpy, GLWin.screen, 0, 0);
+	}
+#endif
+	if (g_Config.bHideCursor) XUndefineCursor(GLWin.dpy, GLWin.win);
 	if (GLWin.ctx)
 	{
 		if (!glXMakeCurrent(GLWin.dpy, None, NULL))
@@ -596,15 +668,6 @@ void OpenGL_Shutdown()
 		XCloseDisplay(GLWin.dpy);
 		GLWin.ctx = NULL;
 	}
-#if defined(HAVE_XXF86VM) && HAVE_XXF86VM
-	/* switch back to original desktop resolution if we were in fs */
-	if (GLWin.dpy != NULL) {
-		if (GLWin.fs) {
-			XF86VidModeSwitchToMode(GLWin.dpy, GLWin.screen, &GLWin.deskMode);
-			XF86VidModeSetViewPort(GLWin.dpy, GLWin.screen, 0, 0);
-		}
-	}
-#endif
 #endif
 }
 

@@ -29,6 +29,8 @@
 #include <Cg/cg.h>
 #include <Cg/cgGL.h>
 
+#include "FileUtil.h"
+
 #ifdef _WIN32
 #include <mmsystem.h>
 #endif
@@ -170,7 +172,7 @@ void SetDefaultRectTexParams()
     if (glGetError() != GL_NO_ERROR) {
         glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_WRAP_S, GL_CLAMP);
         glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_WRAP_T, GL_CLAMP);
-        GL_REPORT_ERROR();
+        GL_REPORT_ERRORD();
     }
     glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -942,7 +944,7 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight)
 				else 
 				{
 					OSD::AddMessage(StringFromFormat(
-						"Dumping Frames to \"%s/framedump0.avi\" (%dx%d RGB24)", FULL_FRAMES_DIR, w, h).c_str(), 2000);
+						"Dumping Frames to \"%sframedump0.avi\" (%dx%d RGB24)", File::GetUserPath(D_DUMPFRAMES_IDX), w, h).c_str(), 2000);
 				}
 			}
 			if (s_bAVIDumping) 
@@ -981,7 +983,7 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight)
 		glReadPixels(0, Renderer::GetTargetHeight() - h, w, h, GL_RGB, GL_UNSIGNED_BYTE, data);
 		if (glGetError() == GL_NO_ERROR) {
 			if (!s_bLastFrameDumped) {
-				sprintf(movie_file_name, "%s/framedump.raw", FULL_FRAMES_DIR);
+				sprintf(movie_file_name, "%sframedump.raw", File::GetUserPath(D_DUMPFRAMES_IDX));
 				f_pFrameDump = fopen(movie_file_name, "wb");
 				if (f_pFrameDump == NULL) {
 					PanicAlert("Error opening framedump.raw for writing.");
@@ -1079,9 +1081,9 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight)
 	GL_REPORT_ERRORD();
     g_Config.iSaveTargetId = 0;
 
-	bool last_copy_efb_to_ram = !g_ActiveConfig.bCopyEFBToTexture;
+	bool last_copy_efb_to_Texture = g_ActiveConfig.bCopyEFBToTexture;
 	UpdateActiveConfig();
-	if (last_copy_efb_to_ram != g_ActiveConfig.bCopyEFBToTexture)
+	if (last_copy_efb_to_Texture != g_ActiveConfig.bCopyEFBToTexture)
 		TextureMngr::ClearRenderTargets();
 
 	// For testing zbuffer targets.
@@ -1299,7 +1301,7 @@ THREAD_RETURN TakeScreenshot(void *pArgs)
 
 	// Save the screenshot and finally kill the wxImage object
 	// This is really expensive when saving to PNG, but not at all when using BMP
-	threadStruct->img->SaveFile(wxString::FromAscii(threadStruct->filename.c_str()), wxBITMAP_TYPE_PNG);
+	threadStruct->img->SaveFile(wxString::FromAscii(threadStruct->filename.c_str()), wxBITMAP_TYPE_BMP);
 	threadStruct->img->Destroy();
 	
 	// Show success messages
