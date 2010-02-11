@@ -147,15 +147,16 @@ TextureCache::TCacheEntry *TextureCache::Load(int stage, u32 address, int width,
 	int expandedWidth  = (width + bsw)  & (~bsw);
 	int expandedHeight = (height + bsh) & (~bsh);
 
-	u32 hash_value;
+	u64 hash_value;
 	u32 texID = address;
-	u32 texHash;
+	u64 texHash;
+	u32 FullFormat = tex_format;
+	if ((tex_format == GX_TF_C4) || (tex_format == GX_TF_C8) || (tex_format == GX_TF_C14X2))
+		u32 FullFormat = (tex_format | (tlutfmt << 16));
 
 	if (g_ActiveConfig.bSafeTextureCache || g_ActiveConfig.bHiresTextures || g_ActiveConfig.bDumpTextures)
 	{
-		texHash = TexDecoder_GetSafeTextureHash(ptr, expandedWidth, expandedHeight, tex_format, 0);
-		if (g_ActiveConfig.bSafeTextureCache)
-			hash_value = texHash;
+		
 		if ((tex_format == GX_TF_C4) || (tex_format == GX_TF_C8) || (tex_format == GX_TF_C14X2))
 		{
 			// WARNING! texID != address now => may break CopyRenderTargetToTexture (cf. TODO up)
@@ -165,11 +166,21 @@ TextureCache::TCacheEntry *TextureCache::Load(int stage, u32 address, int width,
 			// each other stored in a single texture, and uses the palette to make different characters
 			// visible or invisible. Thus, unless we want to recreate the textures for every drawn character,
 			// we must make sure that texture with different tluts get different IDs.
- 			u32 tlutHash = TexDecoder_GetTlutHash(&texMem[tlutaddr], (tex_format == GX_TF_C4) ? 32 : 128);
-			texHash ^= tlutHash;
+			texHash =  TexDecoder_GetFullHash(ptr,TexDecoder_GetTextureSizeInBytes(expandedWidth, expandedHeight, tex_format));
+ 			u32 tlutHash = TexDecoder_GetFullHash32(&texMem[tlutaddr], TexDecoder_GetPaletteSize(tex_format));
+			//texHash ^= tlutHash; //this line was the problem, as the hash changes with the tlut hash
+			//the textures where alway recreated
 			if (g_ActiveConfig.bSafeTextureCache)
-				texID ^= tlutHash;
+			{
+				texID = texID ^ tlutHash;
+			}
 		}
+		else
+		{
+			texHash =  TexDecoder_GetFastHash(ptr, TexDecoder_GetTextureSizeInBytes(expandedWidth, expandedHeight, tex_format));
+		}
+		if (g_ActiveConfig.bSafeTextureCache)
+			hash_value = texHash;
 	}
 
 	bool skip_texture_create = false;
@@ -182,7 +193,7 @@ TextureCache::TCacheEntry *TextureCache::Load(int stage, u32 address, int width,
 		if (!g_ActiveConfig.bSafeTextureCache)
 			hash_value = ((u32 *)ptr)[0];
 
-		if (entry.isRenderTarget || ((address == entry.addr) && (hash_value == entry.hash)))
+		if (entry.isRenderTarget || ((address == entry.addr) && (hash_value == entry.hash) && FullFormat == entry.fmt))
 		{
 			entry.frameCount = frameCount;
 			D3D::SetTexture(stage, entry.texture);
@@ -194,7 +205,7 @@ TextureCache::TCacheEntry *TextureCache::Load(int stage, u32 address, int width,
 			// instead of destroying it and having to create a new one.
 			// Might speed up movie playback very, very slightly.
 
-			if (width == entry.w && height==entry.h &&(tex_format | (tlutfmt << 16)) == entry.fmt)
+			if (width == entry.w && height==entry.h && FullFormat == entry.fmt)
 			{
 				skip_texture_create = true;
 			}
@@ -283,7 +294,7 @@ TextureCache::TCacheEntry *TextureCache::Load(int stage, u32 address, int width,
 	entry.frameCount = frameCount;
 	entry.w = width;
 	entry.h = height;
-	entry.fmt = tex_format | (tlutfmt << 16);
+	entry.fmt = FullFormat;
 	
 	if (g_ActiveConfig.bDumpTextures)
 	{
@@ -293,7 +304,7 @@ TextureCache::TCacheEntry *TextureCache::Load(int stage, u32 address, int width,
 		const char* uniqueId = globals->unique_id;
 		bool bCheckedDumpDir = false;
 
-		sprintf(szDir, "%s/%s", FULL_DUMP_TEXTURES_DIR, uniqueId);
+		sprintf(szDir, "%s%s", File::GetUserPath(D_DUMPTEXTURES_IDX), uniqueId);
 
 		if (!bCheckedDumpDir)
 		{
@@ -325,9 +336,28 @@ void TextureCache::CopyRenderTargetToTexture(u32 address, bool bFromZBuffer, boo
 
 	int tex_w = (abs(source_rect.GetWidth()) >> bScaleByHalf);
 	int tex_h = (abs(source_rect.GetHeight()) >> bScaleByHalf);
-
-	int Scaledtex_w = (g_ActiveConfig.bCopyEFBScaled)?((int)(Renderer::GetTargetScaleX() * tex_w)):tex_w;
-	int Scaledtex_h = (g_ActiveConfig.bCopyEFBScaled)?((int)(Renderer::GetTargetScaleY() * tex_h)):tex_h;
+	//compensate the texture grow if multisample is enabled to conserve memory usage
+	float MultiSampleCompensation = 1.0f;
+	if(g_ActiveConfig.iMultisampleMode > 0 && g_ActiveConfig.iMultisampleMode < 4)
+	{
+		switch (g_ActiveConfig.iMultisampleMode)
+		{
+			case 1:
+				MultiSampleCompensation = 2.0f/3.0f;				
+				break;
+			case 2:
+				MultiSampleCompensation = 0.5f;
+				break;
+			case 3:
+				MultiSampleCompensation = 1.0f/3.0f;
+				break;
+			default:
+				break;
+		};
+	}	
+	int Scaledtex_w = (g_ActiveConfig.bCopyEFBScaled)?((int)(Renderer::GetTargetScaleX() * MultiSampleCompensation * tex_w)):tex_w;
+	int Scaledtex_h = (g_ActiveConfig.bCopyEFBScaled)?((int)(Renderer::GetTargetScaleY() * MultiSampleCompensation * tex_h)):tex_h;
+	
 	TexCache::iterator iter;
 	LPDIRECT3DTEXTURE9 tex;
 	iter = textures.find(address);
@@ -522,10 +552,19 @@ have_texture:
 		
 
 	D3DFORMAT bformat = FBManager::GetEFBDepthRTSurfaceFormat();
-	D3D::drawShadedTexQuad(read_texture,&sourcerect, Renderer::GetFullTargetWidth() , Renderer::GetFullTargetHeight(),&destrect,((bformat != FOURCC_RAWZ && bformat != D3DFMT_D24X8) && bFromZBuffer)?  PixelShaderCache::GetDepthMatrixProgram(): PixelShaderCache::GetColorMatrixProgram(),VertexShaderCache::GetSimpleVertexShader());	
+	int SSAAMode = ( g_ActiveConfig.iMultisampleMode > 3 )? 0 : g_ActiveConfig.iMultisampleMode;
+	D3D::drawShadedTexQuad(
+		read_texture,
+		&sourcerect, 
+		Renderer::GetFullTargetWidth() , 
+		Renderer::GetFullTargetHeight(),
+		((bformat != FOURCC_RAWZ && bformat != D3DFMT_D24X8) && bFromZBuffer)?  PixelShaderCache::GetDepthMatrixProgram(SSAAMode): PixelShaderCache::GetColorMatrixProgram(SSAAMode),
+		(SSAAMode != 0)? VertexShaderCache::GetFSAAVertexShader() : VertexShaderCache::GetSimpleVertexShader());			
+	
+	
 	D3D::RefreshSamplerState(0, D3DSAMP_MINFILTER);
 	D3D::RefreshSamplerState(0, D3DSAMP_MAGFILTER);
-
+	D3D::SetTexture(0,NULL);
 	D3D::dev->SetRenderTarget(0, FBManager::GetEFBColorRTSurface());
 	D3D::dev->SetDepthStencilSurface(FBManager::GetEFBDepthRTSurface());	
 	Renderer::RestoreAPIState();	

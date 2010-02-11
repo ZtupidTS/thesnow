@@ -1,3 +1,14 @@
+// Project description
+// -------------------
+// Name: nJoy
+// Description: A Dolphin Compatible Input Plugin
+//
+// Author: Falcon4ever (nJoy@falcon4ever.com)
+// Site: www.multigesture.net
+// Copyright (C) 2003 Dolphin Project.
+//
+
+
 // Copyright (C) 2003 Dolphin Project.
 
 // This program is free software: you can redistribute it and/or modify
@@ -22,6 +33,7 @@
 #include "IniFile.h"
 #include "Config.h"
 #include "GCPad.h"
+#include "FileUtil.h"
 
 static const char* gcControlNames[] =
 { 
@@ -156,7 +168,7 @@ void Config::Save()
 {
 	// Load ini file
 	IniFile file;
-	file.Load(FULL_CONFIG_DIR "GCPad.ini");
+	file.Load((std::string(File::GetUserPath(D_CONFIG_IDX)) + "GCPad.ini").c_str());
 
 	// ==================================================================
 	// Global settings
@@ -199,7 +211,7 @@ void Config::Save()
 			file.Set(SectionName.c_str(), gcControlNames[x], GCMapping[i].Button[x]);
 	}
 
-	file.Save(FULL_CONFIG_DIR "GCPad.ini");
+	file.Save((std::string(File::GetUserPath(D_CONFIG_IDX)) + "GCPad.ini").c_str());
 }
 
 // Load settings from file
@@ -208,7 +220,7 @@ void Config::Load()
 {
 	// Load file
 	IniFile file;
-	file.Load(FULL_CONFIG_DIR "GCPad.ini");
+	file.Load((std::string(File::GetUserPath(D_CONFIG_IDX)) + "GCPad.ini").c_str());
 
 	// ==================================================================
 	// Global settings

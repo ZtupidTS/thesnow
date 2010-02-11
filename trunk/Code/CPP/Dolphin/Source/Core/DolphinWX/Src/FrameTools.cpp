@@ -196,7 +196,7 @@ void CFrame::CreateMenu()
 	toolsMenu->Append(IDM_NETPLAY, _T("开始网络游戏(&N)"));
 #endif
 
-	if (DiscIO::CNANDContentManager::Access().GetNANDLoader(FULL_WII_MENU_DIR).IsValid())
+	if (DiscIO::CNANDContentManager::Access().GetNANDLoader(std::string (File::GetUserPath(D_WIIMENU_IDX))).IsValid())
 	{
 		toolsMenu->Append(IDM_LOAD_WII_MENU, _T("载入 Wii 菜单"));
 	}
@@ -688,6 +688,13 @@ void CFrame::OnScreenshot(wxCommandEvent& WXUNUSED (event))
 	Core::ScreenShot();
 }
 
+// Pause the emulation
+void CFrame::DoPause()
+{
+	Core::SetState(Core::CORE_PAUSE);
+	UpdateGUI();
+}
+
 // Stop the emulation
 void CFrame::DoStop()
 {
@@ -874,12 +881,12 @@ void CFrame::OnShow_CheatsWindow(wxCommandEvent& WXUNUSED (event))
 
 void CFrame::OnLoadWiiMenu(wxCommandEvent& WXUNUSED (event))
 {
-	StartGame(FULL_WII_MENU_DIR);
+	StartGame(std::string (File::GetUserPath(D_WIIMENU_IDX)));
 }
 
 void CFrame::OnConnectWiimote(wxCommandEvent& event)
 {
-	if (Core::isRunning() && Core::GetStartupParameter().bWii)
+	if (Core::isRunning() && SConfig::GetInstance().m_LocalCoreStartupParameter.bWii)
 	{
 		int Id = event.GetId() - IDM_CONNECT_WIIMOTE1;
 		bNoWiimoteMsg = !event.IsChecked();
@@ -1027,14 +1034,14 @@ void CFrame::UpdateGUI()
 
 	// Misc
 	GetMenuBar()->FindItem(IDM_CHANGEDISC)->Enable(Initialized);
-	if (DiscIO::CNANDContentManager::Access().GetNANDLoader(FULL_WII_MENU_DIR).IsValid())
+	if (DiscIO::CNANDContentManager::Access().GetNANDLoader(std::string(File::GetUserPath(D_WIIMENU_IDX))).IsValid())
 		GetMenuBar()->FindItem(IDM_LOAD_WII_MENU)->Enable(!Initialized);
 
-	GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE1)->Enable(Initialized  && Core::GetStartupParameter().bWii);
-	GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE2)->Enable(Initialized  && Core::GetStartupParameter().bWii);
-	GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE3)->Enable(Initialized  && Core::GetStartupParameter().bWii);
-	GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE4)->Enable(Initialized  && Core::GetStartupParameter().bWii);
-	if (Initialized && Core::GetStartupParameter().bWii)
+	GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE1)->Enable(Initialized  && SConfig::GetInstance().m_LocalCoreStartupParameter.bWii);
+	GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE2)->Enable(Initialized  && SConfig::GetInstance().m_LocalCoreStartupParameter.bWii);
+	GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE3)->Enable(Initialized  && SConfig::GetInstance().m_LocalCoreStartupParameter.bWii);
+	GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE4)->Enable(Initialized  && SConfig::GetInstance().m_LocalCoreStartupParameter.bWii);
+	if (Initialized && SConfig::GetInstance().m_LocalCoreStartupParameter.bWii)
 	{
 		GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE1)->Check(GetUsbPointer()->AccessWiiMote(0x0100)->IsConnected() == 3);
 		GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE2)->Check(GetUsbPointer()->AccessWiiMote(0x0101)->IsConnected() == 3);
@@ -1068,7 +1075,7 @@ void CFrame::UpdateGUI()
 		if (m_GameListCtrl->IsEnabled())
 		{
 			// Prepare to load Default ISO, enable play button
-			if (!Core::GetStartupParameter().m_strDefaultGCM.empty())
+			if (!SConfig::GetInstance().m_LocalCoreStartupParameter.m_strDefaultGCM.empty())
 			{
 				if (m_ToolBar)
 					m_ToolBar->EnableTool(IDM_PLAY, true);					
@@ -1170,7 +1177,7 @@ void CFrame::GameListChanged(wxCommandEvent& event)
 		break;
 	case IDM_PURGECACHE:
 		CFileSearch::XStringVector Directories;
-		Directories.push_back(FULL_CACHE_DIR);
+		Directories.push_back(File::GetUserPath(D_CACHE_IDX));
 		CFileSearch::XStringVector Extensions;
 		Extensions.push_back("*.cache");
 		

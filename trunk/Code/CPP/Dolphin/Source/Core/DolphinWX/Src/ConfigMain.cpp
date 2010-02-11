@@ -51,8 +51,10 @@ EVT_BUTTON(wxID_CLOSE, CConfigMain::CloseClick)
 
 EVT_CHECKBOX(ID_INTERFACE_CONFIRMSTOP, CConfigMain::CoreSettingsChanged)
 EVT_CHECKBOX(ID_INTERFACE_USEPANICHANDLERS, CConfigMain::CoreSettingsChanged)
+#if wxUSE_TIMER && defined _WIN32
 EVT_CHECKBOX(ID_INTERFACE_HIDECURSOR, CConfigMain::CoreSettingsChanged)
 EVT_CHECKBOX(ID_INTERFACE_AUTOHIDECURSOR, CConfigMain::CoreSettingsChanged)
+#endif
 EVT_RADIOBOX(ID_INTERFACE_THEME, CConfigMain::CoreSettingsChanged)
 EVT_CHECKBOX(ID_INTERFACE_WIIMOTE_LEDS, CConfigMain::CoreSettingsChanged)
 EVT_CHECKBOX(ID_INTERFACE_WIIMOTE_SPEAKERS, CConfigMain::CoreSettingsChanged)
@@ -161,7 +163,7 @@ void CConfigMain::UpdateGUI()
 	}
 }
 
-void CConfigMain::CreateGUIControls()
+void CConfigMain::InitializeGUILists()
 {
 	// Deal with all the language arrayStrings here
 	// GC
@@ -179,11 +181,130 @@ void CConfigMain::CreateGUIControls()
 	arrayStringFor_WiiSystemLang.Add(wxT("韩语"));
 	// GUI
 	arrayStringFor_InterfaceLang = arrayStringFor_GCSystemLang;
+	
 	// Framelimit
 	arrayStringFor_Framelimit.Add(wxT("关闭"));
 	arrayStringFor_Framelimit.Add(wxT("自动"));
 	for (int i = 20; i <= 120; i += 10)	// from 20 to 120
 		arrayStringFor_Framelimit.Add(wxString::Format(wxT("%i"), i));
+
+	// Themes
+	arrayStringFor_Themes.Add(wxT("Boomy"));
+	arrayStringFor_Themes.Add(wxT("Vista"));
+	arrayStringFor_Themes.Add(wxT("X-Plastik"));
+	arrayStringFor_Themes.Add(wxT("KDE"));
+
+	// Wii
+	// Sensorbar Position
+	arrayStringFor_WiiSensBarPos.Add(wxT("Bottom"));
+	arrayStringFor_WiiSensBarPos.Add(wxT("Top"));
+	// Aspect ratio
+	arrayStringFor_WiiAspectRatio.Add(wxT("4:3")); 
+	arrayStringFor_WiiAspectRatio.Add(wxT("16:9"));
+
+}
+void CConfigMain::InitializeGUIValues()
+{
+	// General - Basic
+	CPUThread->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bCPUThread);
+	SkipIdle->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bSkipIdle);
+	EnableCheats->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bEnableCheats);
+	Framelimit->SetSelection(SConfig::GetInstance().m_Framelimit);
+
+	// General - Advanced
+	AlwaysHLE_BS2->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bHLE_BS2);
+	switch (SConfig::GetInstance().m_LocalCoreStartupParameter.iCPUCore) 
+	{
+		case 0: m_RadioInt->SetValue(true); break;
+		case 1: m_RadioJIT->SetValue(true); break;
+		case 2: m_RadioJITIL->SetValue(true); break;
+	}
+	LockThreads->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bLockThreads);
+	DSPThread->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bDSPThread);
+
+	// General - Interface
+	ConfirmStop->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bConfirmStop);
+	UsePanicHandlers->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bUsePanicHandlers);
+#if wxUSE_TIMER && defined _WIN32
+	AutoHideCursor->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bAutoHideCursor);
+	HideCursor->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bHideCursor);
+#endif
+	WiimoteStatusLEDs->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bWiiLeds);
+	WiimoteStatusSpeakers->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bWiiSpeakers);
+	Theme->SetSelection(SConfig::GetInstance().m_LocalCoreStartupParameter.iTheme);
+	// need redesign
+	InterfaceLang->SetSelection(SConfig::GetInstance().m_InterfaceLanguage);
+
+	// Gamecube - IPL
+	GCSystemLang->SetSelection(SConfig::GetInstance().m_LocalCoreStartupParameter.SelectedLanguage);
+
+	// Gamecube - Devices
+	// Not here. They use some locals over in CreateGUIControls for initialization,
+	// which is why they are still there.
+
+	// Wii
+	WiiSensBarPos->SetSelection(SConfig::GetInstance().m_SYSCONF->GetData<u8>("BT.BAR"));
+	
+	WiiScreenSaver->SetValue(!!SConfig::GetInstance().m_SYSCONF->GetData<u8>("IPL.SSV"));
+	WiiProgressiveScan->SetValue(!!SConfig::GetInstance().m_SYSCONF->GetData<u8>("IPL.PGS"));
+	WiiEuRGB60->SetValue(!!SConfig::GetInstance().m_SYSCONF->GetData<u8>("IPL.E60"));
+	WiiAspectRatio->SetSelection(SConfig::GetInstance().m_SYSCONF->GetData<u8>("IPL.AR"));
+	WiiSystemLang->SetSelection(SConfig::GetInstance().m_SYSCONF->GetData<u8>("IPL.LNG"));
+	
+	WiiSDCard->SetValue(SConfig::GetInstance().m_WiiSDCard);
+	WiiKeyboard->SetValue(SConfig::GetInstance().m_WiiKeyboard);
+
+	// Paths
+	RecersiveISOPath->SetValue(SConfig::GetInstance().m_RecursiveISOFolder);
+	DefaultISO->SetPath(wxString(SConfig::GetInstance().m_LocalCoreStartupParameter.m_strDefaultGCM.c_str(), *wxConvCurrent));
+	DVDRoot->SetPath(wxString(SConfig::GetInstance().m_LocalCoreStartupParameter.m_strDVDRoot.c_str(), *wxConvCurrent));
+	ApploaderPath->SetPath(wxString(SConfig::GetInstance().m_LocalCoreStartupParameter.m_strApploader.c_str(), *wxConvCurrent));
+
+	// Plugins
+	FillChoiceBox(GraphicSelection, PLUGIN_TYPE_VIDEO, SConfig::GetInstance().m_LocalCoreStartupParameter.m_strVideoPlugin);
+	FillChoiceBox(DSPSelection, PLUGIN_TYPE_DSP, SConfig::GetInstance().m_LocalCoreStartupParameter.m_strDSPPlugin);
+	for (int i = 0; i < MAXPADS; i++)
+	    FillChoiceBox(PADSelection, PLUGIN_TYPE_PAD, SConfig::GetInstance().m_LocalCoreStartupParameter.m_strPadPlugin[i]);
+	for (int i=0; i < MAXWIIMOTES; i++)
+	    FillChoiceBox(WiimoteSelection, PLUGIN_TYPE_WIIMOTE, SConfig::GetInstance().m_LocalCoreStartupParameter.m_strWiimotePlugin[i]);
+}
+void CConfigMain::InitializeGUITooltips()
+{
+	// General - Basic
+	CPUThread->SetToolTip(wxT("This splits the Video and CPU threads, so they can be run on separate cores.")
+		wxT("\nCauses major speed improvements on PCs with more than one core,")
+		wxT("\nbut can also cause occasional crashes/glitches."));
+	Framelimit->SetToolTip(wxT("If you set Framelimit higher than game full speed (NTSC:60, PAL:50),\nyou also have to disable Audio Throttle in DSP to make it effective."));
+
+	// General - Advanced
+	DSPThread->SetToolTip(wxT("Run DSPLLE on a dedicated thread (not recommended)."));
+
+	// General - Interface
+	ConfirmStop->SetToolTip(wxT("Show a confirmation box before stopping a game."));
+	UsePanicHandlers->SetToolTip(wxT("Show a message box when a potentially serious error has occured.")
+		wxT(" Disabling this may avoid annoying and non-fatal messages, but it may also mean that Dolphin")
+		wxT(" suddenly crashes without any explanation at all."));
+#if wxUSE_TIMER && defined _WIN32
+	AutoHideCursor->SetToolTip(wxT("This will auto hide the cursor in fullscreen mode."));
+	HideCursor->SetToolTip(wxT("This will always hide the cursor when it's over the rendering window.")
+		wxT("\nIt can be convenient in a Wii game that already has a cursor."));
+#endif
+	WiimoteStatusLEDs->SetToolTip(wxT("Show which wiimotes are connected in the statusbar."));
+	WiimoteStatusSpeakers->SetToolTip(wxT("Show wiimote speaker status in the statusbar."));
+	InterfaceLang->SetToolTip(wxT("For the time being this will only change the text shown in")
+		wxT("\nthe game list of PAL GC games."));
+	// Themes: Copyright notice
+	Theme->SetItemToolTip(0, wxT("Created by Milosz Wlazlo [miloszwl@miloszwl.com, miloszwl.deviantart.com]"));
+	Theme->SetItemToolTip(1, wxT("Created by VistaIcons.com"));
+	Theme->SetItemToolTip(2, wxT("Created by black_rider and published on ForumW.org > Web Developments"));
+	Theme->SetItemToolTip(3, wxT("Created by KDE-Look.org"));
+
+	// Wii
+	WiiKeyboard->SetToolTip(wxT("This could cause slow down in Wii Menu and some games."));
+}
+void CConfigMain::CreateGUIControls()
+{
+	InitializeGUILists();
 		
 	// Create the notebook and pages
 	Notebook = new wxNotebook(this, ID_NOTEBOOK, wxDefaultPosition, wxDefaultSize);
@@ -200,106 +321,53 @@ void CConfigMain::CreateGUIControls()
 	Notebook->AddPage(PluginPage, wxT("插件"));
 
 	// General page
-
+	sbBasic = new wxStaticBoxSizer(wxVERTICAL, GeneralPage, wxT("Basic Settings"));
+	sbAdvanced = new wxStaticBoxSizer(wxVERTICAL, GeneralPage, wxT("Advanced Settings"));
+	sbInterface = new wxStaticBoxSizer(wxVERTICAL, GeneralPage, wxT("Interface Settings"));
 	// Core Settings - Basic
 	CPUThread = new wxCheckBox(GeneralPage, ID_CPUTHREAD, wxT("启用多核 (加速)"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	CPUThread->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bCPUThread);
 	SkipIdle = new wxCheckBox(GeneralPage, ID_IDLESKIP, wxT("启用延迟步进 (加速)"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	SkipIdle->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bSkipIdle);
 	EnableCheats = new wxCheckBox(GeneralPage, ID_ENABLECHEATS, wxT("启用作弊"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	EnableCheats->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bEnableCheats);
 	
 	// Framelimit
 	wxStaticText *FramelimitText = new wxStaticText(GeneralPage, ID_FRAMELIMIT_TEXT, wxT("帧数限制 :"), wxDefaultPosition, wxDefaultSize);
 	Framelimit = new wxChoice(GeneralPage, ID_FRAMELIMIT, wxDefaultPosition, wxDefaultSize, arrayStringFor_Framelimit, 0, wxDefaultValidator);
-	Framelimit->SetToolTip(wxT("If you set Framelimit higher than game full speed (NTSC:60, PAL:50),\nyou also have to disable Audio Throttle in DSP to make it effective."));
-	Framelimit->SetSelection(SConfig::GetInstance().m_Framelimit);
 
 	// Core Settings - Advanced
-	//
+	wxStaticBoxSizer* sizerCoreType = new wxStaticBoxSizer(wxVERTICAL, GeneralPage, wxT("CPU Emulator Engine"));
 	AlwaysHLE_BS2 = new wxCheckBox(GeneralPage, ID_ALWAYS_HLE_BS2, wxT("HLE the IPL (推荐)"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	AlwaysHLE_BS2->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bHLE_BS2);
 	m_RadioJIT = new wxRadioButton(GeneralPage, ID_RADIOJIT, wxT("JIT 重编译器 (推荐)"));
 	m_RadioJITIL = new wxRadioButton(GeneralPage, ID_RADIOJITIL, wxT("JitIL 实验性重编译器"));
 	m_RadioInt = new wxRadioButton(GeneralPage, ID_RADIOINT, wxT("语法解释器 (非常慢)"));
-	switch (SConfig::GetInstance().m_LocalCoreStartupParameter.iCPUCore) {
-		case 0: m_RadioInt->SetValue(true); break;
-		case 1: m_RadioJIT->SetValue(true); break;
-		case 2: m_RadioJITIL->SetValue(true); break;
-	}
 	LockThreads = new wxCheckBox(GeneralPage, ID_LOCKTHREADS, wxT("锁定线程到核心"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	LockThreads->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bLockThreads);
 	DSPThread = new wxCheckBox(GeneralPage, ID_DSPTHREAD, wxT("DSPLLE 独立线程"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	DSPThread->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bDSPThread);
 
 	// Interface settings
-
-	// Confirm on stop
 	ConfirmStop = new wxCheckBox(GeneralPage, ID_INTERFACE_CONFIRMSTOP, wxT("停止时确认"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	ConfirmStop->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bConfirmStop);
-
-	// Use Panic Handlers
 	UsePanicHandlers = new wxCheckBox(GeneralPage, ID_INTERFACE_USEPANICHANDLERS, wxT("使用 Panic Handlers"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	UsePanicHandlers->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bUsePanicHandlers);
 
+#if wxUSE_TIMER && defined _WIN32
 	// Hide Cursor
 	wxStaticText *HideCursorText = new wxStaticText(GeneralPage, ID_INTERFACE_HIDECURSOR_TEXT, wxT("隐藏光标:"), wxDefaultPosition, wxDefaultSize);
 	AutoHideCursor = new wxCheckBox(GeneralPage, ID_INTERFACE_AUTOHIDECURSOR, wxT("自动"));
-	AutoHideCursor->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bAutoHideCursor);
 	HideCursor = new wxCheckBox(GeneralPage, ID_INTERFACE_HIDECURSOR, wxT("总是"));
-	HideCursor->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bHideCursor);
+#endif
 	// Wiimote status in statusbar
 	wxStaticText *WiimoteStatusText = new wxStaticText(GeneralPage, ID_INTERFACE_WIIMOTE_TEXT, wxT("显示 wiimote 状态:"), wxDefaultPosition, wxDefaultSize);
 	WiimoteStatusLEDs = new wxCheckBox(GeneralPage, ID_INTERFACE_WIIMOTE_LEDS, wxT("LEDs"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	WiimoteStatusLEDs->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bWiiLeds);
 	WiimoteStatusSpeakers = new wxCheckBox(GeneralPage, ID_INTERFACE_WIIMOTE_SPEAKERS, wxT("扬声器"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	WiimoteStatusSpeakers->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bWiiSpeakers);
 
 	// Interface Language
 	// At the moment this only changes the language displayed in m_gamelistctrl
 	// If someone wants to control the whole GUI's language, it should be set here too
 	wxStaticText *InterfaceLangText = new wxStaticText(GeneralPage, ID_INTERFACE_LANG_TEXT, wxT("游戏列表语言:"), wxDefaultPosition, wxDefaultSize);
 	InterfaceLang = new wxChoice(GeneralPage, ID_INTERFACE_LANG, wxDefaultPosition, wxDefaultSize, arrayStringFor_InterfaceLang, 0, wxDefaultValidator);
-	// need redesign
-	InterfaceLang->SetSelection(SConfig::GetInstance().m_InterfaceLanguage);
 
 	// Themes - this should really be a wxChoice...
-	wxArrayString ThemeChoices;
-	ThemeChoices.Add(wxT("Boomy"));
-	ThemeChoices.Add(wxT("Vista"));
-	ThemeChoices.Add(wxT("X-Plastik"));
-	ThemeChoices.Add(wxT("KDE"));
-	Theme = new wxRadioBox(GeneralPage, ID_INTERFACE_THEME, wxT("主题"),wxDefaultPosition, wxDefaultSize, ThemeChoices, 1, wxRA_SPECIFY_ROWS);
-	// Set selected
-	Theme->SetSelection(SConfig::GetInstance().m_LocalCoreStartupParameter.iTheme);
-
-	// ToolTips
-	ConfirmStop->SetToolTip(wxT("Show a confirmation box before stopping a game."));
-	UsePanicHandlers->SetToolTip(wxT("Show a message box when a potentially serious error has occured.")
-		wxT(" Disabling this may avoid annoying and non-fatal messages, but it may also mean that Dolphin")
-		wxT(" suddenly crashes without any explanation at all."));
-	AutoHideCursor->SetToolTip(wxT("This will auto hide the cursor in fullscreen mode."));
-	HideCursor->SetToolTip(wxT("This will always hide the cursor when it's over the rendering window.")
-		wxT("\nIt can be convenient in a Wii game that already has a cursor."));
-	WiimoteStatusLEDs->SetToolTip(wxT("Show which wiimotes are connected in the statusbar."));
-	WiimoteStatusSpeakers->SetToolTip(wxT("Show wiimote speaker status in the statusbar."));
-	DSPThread->SetToolTip(wxT("Run DSPLLE on a dedicated thread (not recommended)."));
-	CPUThread->SetToolTip(wxT("This splits the Video and CPU threads, so they can be run on separate cores.")
-		wxT("\nCauses major speed improvements on PCs with more than one core,")
-		wxT("\nbut can also cause occasional crashes/glitches."));
-
-	InterfaceLang->SetToolTip(wxT("For the time being this will only change the text shown in")
-		wxT("\nthe game list of PAL GC games."));
-
-	// Copyright notice
-	Theme->SetItemToolTip(0, wxT("创建于 Milosz Wlazlo [miloszwl@miloszwl.com, miloszwl.deviantart.com]"));
-	Theme->SetItemToolTip(1, wxT("创建于 VistaIcons.com"));
-	Theme->SetItemToolTip(2, wxT("Created by black_rider and published on ForumW.org > Web Developments"));
-	Theme->SetItemToolTip(3, wxT("创建于 KDE-Look.org"));
+	Theme = new wxRadioBox(GeneralPage, ID_INTERFACE_THEME, wxT("主题"),wxDefaultPosition, wxDefaultSize, arrayStringFor_Themes, 1, wxRA_SPECIFY_ROWS);
 
 	// Populate the settings
 	sCore = new wxBoxSizer(wxHORIZONTAL);
-	sbBasic = new wxStaticBoxSizer(wxVERTICAL, GeneralPage, wxT("基本设置"));
 	sbBasic->Add(CPUThread, 0, wxALL, 5);
 	sbBasic->Add(SkipIdle, 0, wxALL, 5);
 	sbBasic->Add(EnableCheats, 0, wxALL, 5);
@@ -308,9 +376,7 @@ void CConfigMain::CreateGUIControls()
 	sFramelimit->Add(Framelimit, 0, wxALL | wxEXPAND, 5);
 	sbBasic->Add(sFramelimit, 0, wxALL | wxEXPAND, 5);
 
-	sbAdvanced = new wxStaticBoxSizer(wxVERTICAL, GeneralPage, wxT("高级设置"));
 	sbAdvanced->Add(AlwaysHLE_BS2, 0, wxALL, 5);
-	wxStaticBoxSizer* sizerCoreType = new wxStaticBoxSizer(wxVERTICAL, GeneralPage, wxT("CPU 模拟引擎"));
 	sizerCoreType->Add(m_RadioJIT, 0, wxALL | wxEXPAND, 5);
 	sizerCoreType->Add(m_RadioJITIL, 0, wxALL | wxEXPAND, 5);
 	sizerCoreType->Add(m_RadioInt, 0, wxALL | wxEXPAND, 5);
@@ -321,14 +387,15 @@ void CConfigMain::CreateGUIControls()
 	sCore->AddStretchSpacer();
 	sCore->Add(sbAdvanced, 0, wxEXPAND);
 
-	sbInterface = new wxStaticBoxSizer(wxVERTICAL, GeneralPage, wxT("界面设置"));
 	sbInterface->Add(ConfirmStop, 0, wxALL, 5);
 	sbInterface->Add(UsePanicHandlers, 0, wxALL, 5);
+#if wxUSE_TIMER && defined _WIN32
 	wxBoxSizer *sHideCursor = new wxBoxSizer(wxHORIZONTAL);
 	sHideCursor->Add(HideCursorText);
 	sHideCursor->Add(AutoHideCursor, 0, wxLEFT, 5);
 	sHideCursor->Add(HideCursor, 0, wxLEFT, 5);
 	sbInterface->Add(sHideCursor, 0, wxALL, 5);
+#endif
 	wxBoxSizer *sWiimoteStatus = new wxBoxSizer(wxHORIZONTAL);
 	sWiimoteStatus->Add(WiimoteStatusText);
 	sWiimoteStatus->Add(WiimoteStatusLEDs, 0, wxLEFT, 5);
@@ -351,11 +418,10 @@ void CConfigMain::CreateGUIControls()
 
 	
 	// Gamecube page
+	sbGamecubeIPLSettings = new wxStaticBoxSizer(wxVERTICAL, GamecubePage, wxT("IPL Settings"));
 	// IPL settings
-	sbGamecubeIPLSettings = new wxStaticBoxSizer(wxVERTICAL, GamecubePage, wxT("IPL 设置"));
-	GCSystemLangText = new wxStaticText(GamecubePage, ID_GC_SRAM_LNG_TEXT, wxT("系统语言:"), wxDefaultPosition, wxDefaultSize);
+	GCSystemLangText = new wxStaticText(GamecubePage, ID_GC_SRAM_LNG_TEXT, wxT("System Language:"), wxDefaultPosition, wxDefaultSize);
 	GCSystemLang = new wxChoice(GamecubePage, ID_GC_SRAM_LNG, wxDefaultPosition, wxDefaultSize, arrayStringFor_GCSystemLang, 0, wxDefaultValidator);
-	GCSystemLang->SetSelection(SConfig::GetInstance().m_LocalCoreStartupParameter.SelectedLanguage);
 	// Devices
 	wxStaticBoxSizer *sbGamecubeDeviceSettings = new wxStaticBoxSizer(wxVERTICAL, GamecubePage, wxT("设备设置"));
 	// EXI Devices
@@ -373,6 +439,7 @@ void CConfigMain::CreateGUIControls()
 	GCEXIDevice[2] = new wxChoice(GamecubePage, ID_GC_EXIDEVICE_SP1, wxDefaultPosition, wxDefaultSize, numSP1Devices, SP1Devices, 0, wxDefaultValidator);
 	GCMemcardPath[0] = new wxButton(GamecubePage, ID_GC_EXIDEVICE_SLOTA_PATH, wxT("..."), wxDefaultPosition, wxDefaultSize, wxBU_EXACTFIT, wxDefaultValidator);
 	GCMemcardPath[1] = new wxButton(GamecubePage, ID_GC_EXIDEVICE_SLOTB_PATH, wxT("..."), wxDefaultPosition, wxDefaultSize, wxBU_EXACTFIT, wxDefaultValidator);
+	// Can't move this one without making the 4 const's etc. above class members/fields,
 	for (int i = 0; i < 3; ++i)
 	{
 		bool isMemcard = false;
@@ -414,6 +481,7 @@ void CConfigMain::CreateGUIControls()
 	GCSIDevice[1] = new wxChoice(GamecubePage, ID_GC_SIDEVICE1, wxDefaultPosition, wxDefaultSize, numSIDevices, SIDevices, 0, wxDefaultValidator);
 	GCSIDevice[2] = new wxChoice(GamecubePage, ID_GC_SIDEVICE2, wxDefaultPosition, wxDefaultSize, numSIDevices, SIDevices, 0, wxDefaultValidator);
 	GCSIDevice[3] = new wxChoice(GamecubePage, ID_GC_SIDEVICE3, wxDefaultPosition, wxDefaultSize, numSIDevices, SIDevices, 0, wxDefaultValidator);
+	// Can't move this one without making the 2 const's etc. above class members/fields.
 	for (int i = 0; i < 4; ++i)
 	{
 		switch (SConfig::GetInstance().m_SIDevice[i])
@@ -432,7 +500,6 @@ void CConfigMain::CreateGUIControls()
 			break;
 		}
 	}
-
 	sGamecube = new wxBoxSizer(wxVERTICAL);
 	sGamecubeIPLSettings = new wxGridBagSizer(0, 0);
 	sGamecubeIPLSettings->Add(GCSystemLangText, wxGBPosition(0, 0), wxGBSpan(1, 1), wxALIGN_CENTER_VERTICAL|wxALL, 5);
@@ -463,34 +530,23 @@ void CConfigMain::CreateGUIControls()
 
 	// Wii page
 	sbWiimoteSettings = new wxStaticBoxSizer(wxVERTICAL, WiiPage, wxT("Wiimote 设置"));
-	arrayStringFor_WiiSensBarPos.Add(wxT("底部")); arrayStringFor_WiiSensBarPos.Add(wxT("顶部"));
 	WiiSensBarPosText = new wxStaticText(WiiPage, ID_WII_BT_BAR_TEXT, wxT("Sensor Bar 位置:"), wxDefaultPosition, wxDefaultSize);
 	WiiSensBarPos = new wxChoice(WiiPage, ID_WII_BT_BAR, wxDefaultPosition, wxDefaultSize, arrayStringFor_WiiSensBarPos, 0, wxDefaultValidator);
-	WiiSensBarPos->SetSelection(SConfig::GetInstance().m_SYSCONF->GetData<u8>("BT.BAR"));
 
 	sbWiiIPLSettings = new wxStaticBoxSizer(wxVERTICAL, WiiPage, wxT("其它设置"));
 	WiiScreenSaver = new wxCheckBox(WiiPage, ID_WII_IPL_SSV, wxT("启用屏幕保护 (burn-in reduction)"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	WiiScreenSaver->SetValue(!!SConfig::GetInstance().m_SYSCONF->GetData<u8>("IPL.SSV"));
 	WiiProgressiveScan = new wxCheckBox(WiiPage, ID_WII_IPL_PGS, wxT("启用逐行扫描"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	WiiProgressiveScan->SetValue(!!SConfig::GetInstance().m_SYSCONF->GetData<u8>("IPL.PGS"));
 	WiiEuRGB60 = new wxCheckBox(WiiPage, ID_WII_IPL_E60, wxT("使用 EuRGB60 模式 (PAL60)"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	WiiEuRGB60->SetValue(!!SConfig::GetInstance().m_SYSCONF->GetData<u8>("IPL.E60"));
-	arrayStringFor_WiiAspectRatio.Add(wxT("4:3")); arrayStringFor_WiiAspectRatio.Add(wxT("16:9"));
 	WiiAspectRatioText = new wxStaticText(WiiPage, ID_WII_IPL_AR_TEXT, wxT("高宽比:"), wxDefaultPosition, wxDefaultSize);
 	WiiAspectRatio = new wxChoice(WiiPage, ID_WII_IPL_AR, wxDefaultPosition, wxDefaultSize, arrayStringFor_WiiAspectRatio, 0, wxDefaultValidator);
-	WiiAspectRatio->SetSelection(SConfig::GetInstance().m_SYSCONF->GetData<u8>("IPL.AR"));
 	WiiSystemLangText = new wxStaticText(WiiPage, ID_WII_IPL_LNG_TEXT, wxT("系统语言:"), wxDefaultPosition, wxDefaultSize);
 	WiiSystemLang = new wxChoice(WiiPage, ID_WII_IPL_LNG, wxDefaultPosition, wxDefaultSize, arrayStringFor_WiiSystemLang, 0, wxDefaultValidator);
-	WiiSystemLang->SetSelection(SConfig::GetInstance().m_SYSCONF->GetData<u8>("IPL.LNG"));
 
 	// Devices
 	sbWiiDeviceSettings = new wxStaticBoxSizer(wxVERTICAL, WiiPage, wxT("设备设置"));
 
 	WiiSDCard = new wxCheckBox(WiiPage, ID_WII_SD_CARD, wxT("插入 SD 卡"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	WiiSDCard->SetValue(SConfig::GetInstance().m_WiiSDCard);
 	WiiKeyboard = new wxCheckBox(WiiPage, ID_WII_KEYBOARD, wxT("连接 USB 键盘"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	WiiKeyboard->SetToolTip(wxT("This could cause slow down in Wii Menu and some games."));
-	WiiKeyboard->SetValue(SConfig::GetInstance().m_WiiKeyboard);
 
 	// Populate sbWiimoteSettings
 	sWii = new wxBoxSizer(wxVERTICAL);
@@ -526,21 +582,17 @@ void CConfigMain::CreateGUIControls()
 	RemoveISOPath = new wxButton(PathsPage, ID_REMOVEISOPATH, wxT("移除"), wxDefaultPosition, wxDefaultSize, 0);
 	RemoveISOPath->Enable(false);
 	RecersiveISOPath = new wxCheckBox(PathsPage, ID_RECERSIVEISOPATH, wxT("搜索子目录"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	RecersiveISOPath->SetValue(SConfig::GetInstance().m_RecursiveISOFolder);
 	DefaultISOText = new wxStaticText(PathsPage, ID_DEFAULTISO_TEXT, wxT("默认 ISO:"), wxDefaultPosition, wxDefaultSize);
 	DefaultISO = new wxFilePickerCtrl(PathsPage, ID_DEFAULTISO, wxEmptyString, wxT("选择一个默认 ISO:"),
 		wxString::Format(wxT("所有 GC/Wii 镜像 (gcm, iso, gcz)|*.gcm;*.iso;*.gcz|所有文件 (%s)|%s"), wxFileSelectorDefaultWildcardStr, wxFileSelectorDefaultWildcardStr),
 		wxDefaultPosition, wxDefaultSize, wxFLP_USE_TEXTCTRL|wxFLP_OPEN);
-	DefaultISO->SetPath(wxString(SConfig::GetInstance().m_LocalCoreStartupParameter.m_strDefaultGCM.c_str(), *wxConvCurrent));
 
 	DVDRootText = new wxStaticText(PathsPage, ID_DVDROOT_TEXT, wxT("DVD 根目录:"), wxDefaultPosition, wxDefaultSize);
 	DVDRoot = new wxDirPickerCtrl(PathsPage, ID_DVDROOT, wxEmptyString, wxT("选择一个 DVD 根目录:"), wxDefaultPosition, wxDefaultSize, wxDIRP_USE_TEXTCTRL);
-	DVDRoot->SetPath(wxString(SConfig::GetInstance().m_LocalCoreStartupParameter.m_strDVDRoot.c_str(), *wxConvCurrent));
 	ApploaderPathText = new wxStaticText(PathsPage, ID_APPLOADERPATH_TEXT, wxT("Apploader:"), wxDefaultPosition, wxDefaultSize);
 	ApploaderPath = new wxFilePickerCtrl(PathsPage, ID_APPLOADERPATH, wxEmptyString, wxT("Choose file to use as apploader: (applies to discs constructed from directories only)"),
 		wxString::Format(wxT("apploader (.img)|*.img|所有文件 (%s)|%s"), wxFileSelectorDefaultWildcardStr, wxFileSelectorDefaultWildcardStr),
 		wxDefaultPosition, wxDefaultSize, wxFLP_USE_TEXTCTRL|wxFLP_OPEN);
-	ApploaderPath->SetPath(wxString(SConfig::GetInstance().m_LocalCoreStartupParameter.m_strApploader.c_str(), *wxConvCurrent));
 
 	sPaths = new wxBoxSizer(wxVERTICAL);
 
@@ -584,13 +636,6 @@ void CConfigMain::CreateGUIControls()
 	WiimoteSelection = new wxChoice(PluginPage, ID_WIIMOTE_CB, wxDefaultPosition, wxDefaultSize, NULL, 0, wxDefaultValidator);
 	WiimoteConfig = new wxButton(PluginPage, ID_WIIMOTE_CONFIG, wxT("配置..."), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 
-	FillChoiceBox(GraphicSelection, PLUGIN_TYPE_VIDEO, SConfig::GetInstance().m_LocalCoreStartupParameter.m_strVideoPlugin);
-	FillChoiceBox(DSPSelection, PLUGIN_TYPE_DSP, SConfig::GetInstance().m_LocalCoreStartupParameter.m_strDSPPlugin);
-	for (int i = 0; i < MAXPADS; i++)
-	    FillChoiceBox(PADSelection, PLUGIN_TYPE_PAD, SConfig::GetInstance().m_LocalCoreStartupParameter.m_strPadPlugin[i]);
-
-	for (int i=0; i < MAXWIIMOTES; i++)
-	    FillChoiceBox(WiimoteSelection, PLUGIN_TYPE_WIIMOTE, SConfig::GetInstance().m_LocalCoreStartupParameter.m_strWiimotePlugin[i]);
 
 	sPlugins = new wxBoxSizer(wxVERTICAL);
 	sbGraphicsPlugin->Add(GraphicSelection, 1, wxEXPAND|wxALL, 5);
@@ -622,6 +667,9 @@ void CConfigMain::CreateGUIControls()
 	wxBoxSizer* sMain = new wxBoxSizer(wxVERTICAL);
 	sMain->Add(Notebook, 1, wxEXPAND|wxALL, 5);
 	sMain->Add(sButtons, 0, wxEXPAND, 5);
+
+	InitializeGUIValues();
+	InitializeGUITooltips();
 
 	UpdateGUI();
 
@@ -661,6 +709,7 @@ void CConfigMain::CoreSettingsChanged(wxCommandEvent& event)
 		SConfig::GetInstance().m_LocalCoreStartupParameter.bUsePanicHandlers = UsePanicHandlers->IsChecked();
 		SetEnableAlert(UsePanicHandlers->IsChecked());
 		break;
+#if wxUSE_TIMER && defined _WIN32
 	case ID_INTERFACE_AUTOHIDECURSOR:
 		if (AutoHideCursor->IsChecked()) HideCursor->SetValue(!AutoHideCursor->IsChecked()); // Update the other one
 		SConfig::GetInstance().m_LocalCoreStartupParameter.bAutoHideCursor = AutoHideCursor->IsChecked();		
@@ -671,6 +720,7 @@ void CConfigMain::CoreSettingsChanged(wxCommandEvent& event)
 		SConfig::GetInstance().m_LocalCoreStartupParameter.bAutoHideCursor = AutoHideCursor->IsChecked();		
 		SConfig::GetInstance().m_LocalCoreStartupParameter.bHideCursor = HideCursor->IsChecked();
 		break;
+#endif
 	case ID_INTERFACE_THEME:
 		SConfig::GetInstance().m_LocalCoreStartupParameter.iTheme = Theme->GetSelection();
 		main_frame->InitBitmaps();
@@ -764,7 +814,7 @@ void CConfigMain::ChooseMemcardPath(std::string& strMemcard, bool isSlotA)
 {
 	std::string filename = std::string(wxFileSelector(
 		wxT("选择需要打开的文件"),
-		T_FULL_GC_USER_DIR,
+		wxString::FromAscii(File::GetUserPath(D_GCUSER_IDX)),
 		isSlotA ? wxT(GC_MEMCARDA) : wxT(GC_MEMCARDB), 
 		wxEmptyString,
 		wxT("Gamecube 内存卡 (*.raw,*.gcp)|*.raw;*.gcp")).mb_str());

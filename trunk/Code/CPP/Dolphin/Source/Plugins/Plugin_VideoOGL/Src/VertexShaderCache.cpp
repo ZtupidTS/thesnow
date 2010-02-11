@@ -35,6 +35,7 @@
 #include "VertexLoader.h"
 #include "XFMemory.h"
 #include "ImageWrite.h"
+#include "FileUtil.h"
 
 VertexShaderCache::VSCache VertexShaderCache::vshaders;
 bool VertexShaderCache::s_displayCompileAlert;
@@ -169,7 +170,7 @@ VERTEXSHADER* VertexShaderCache::GetShader(u32 components)
 	if (g_ActiveConfig.iLog & CONF_SAVESHADERS && code) {
 		static int counter = 0;
 		char szTemp[MAX_PATH];
-		sprintf(szTemp, "%s/vs_%04i.txt", FULL_DUMP_DIR, counter++);
+		sprintf(szTemp, "%svs_%04i.txt", File::GetUserPath(D_DUMP_IDX), counter++);
 
 		SaveData(szTemp, code);
 	}
@@ -245,7 +246,7 @@ bool VertexShaderCache::CompileVertexShader(VERTEXSHADER& vs, const char* pstrpr
 
 void VertexShaderCache::DisableShader()
 {
-	//if (ShaderEnabled)
+	if (ShaderEnabled)
 	{
 		CurrentShader = 0;
 		glBindProgramARB(GL_VERTEX_PROGRAM_ARB, CurrentShader);
@@ -254,11 +255,10 @@ void VertexShaderCache::DisableShader()
 	}
 }
 
-// TODO: Why are these if statements commented out?
 
 void VertexShaderCache::SetCurrentShader(GLuint Shader)
 {
-	//if (ShaderEnabled && CurrentShader != Shader)
+	if (ShaderEnabled && CurrentShader != Shader)
 	{
 		CurrentShader = Shader;
 		glBindProgramARB(GL_VERTEX_PROGRAM_ARB, CurrentShader);
@@ -267,13 +267,13 @@ void VertexShaderCache::SetCurrentShader(GLuint Shader)
 
 void VertexShaderCache::EnableShader(GLuint Shader)
 {
-	//if (!ShaderEnabled)
+	if (!ShaderEnabled)
 	{
 		glEnable(GL_VERTEX_PROGRAM_ARB);
 		ShaderEnabled= true;
 		CurrentShader = 0;
 	}
-	//if (CurrentShader != Shader)
+	if (CurrentShader != Shader)
 	{
 		CurrentShader = Shader;
 		glBindProgramARB(GL_VERTEX_PROGRAM_ARB, CurrentShader);

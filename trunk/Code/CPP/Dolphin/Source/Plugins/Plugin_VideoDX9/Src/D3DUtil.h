@@ -62,12 +62,9 @@ namespace D3D
 					   const RECT *rSource,
 					   int SourceWidth,
 					   int SourceHeight,
-					   const RECT *rDest,
 					   IDirect3DPixelShader9 *PShader,
 					   IDirect3DVertexShader9 *Vshader);
-	void drawClearQuad(const RECT *rDest, u32 Color,float z,
-				   IDirect3DPixelShader9 *PShader,
-				   IDirect3DVertexShader9 *Vshader);
+	void drawClearQuad(u32 Color,float z,IDirect3DPixelShader9 *PShader,IDirect3DVertexShader9 *Vshader);
 	void SaveRenderStates();
 	void RestoreRenderStates();
 }

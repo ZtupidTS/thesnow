@@ -67,6 +67,11 @@ void SCoreStartupParameter::LoadDefaults()
 	// Newer revs (~4890) require both turned off
 	bJITLoadStoreOff = true;
 	bJITLoadStorePairedOff = true;
+#elif defined(__linux__)
+	// Similar to OSX, something with LoadStorePaired seems to cause
+	// crashes on linux. Only Win32 seems to be forgiving enough to 
+	// not do anything funny...(FIXME)
+	bJITLoadStorePairedOff = true;
 #endif
 
 	m_strName = "NONE";
@@ -226,7 +231,7 @@ bool SCoreStartupParameter::AutoSetup(EBootBS2 _BootBS2)
 	// Setup paths
 	CheckMemcardPath(SConfig::GetInstance().m_strMemoryCardA, Region, true);
 	CheckMemcardPath(SConfig::GetInstance().m_strMemoryCardB, Region, false);
-	m_strSRAM = GC_SRAM_FILE;
+	m_strSRAM = File::GetUserPath(F_GCSRAM_IDX);
 	if (!bWii)
 	{
 		m_strBootROM = File::GetSysDirectory() + GC_SYS_DIR + DIR_SEP + Region + DIR_SEP GC_IPL;
@@ -255,7 +260,7 @@ void SCoreStartupParameter::CheckMemcardPath(std::string& memcardPath, std::stri
 	{
 		// Use default memcard path if there is no user defined name
 		std::string defaultFilename = isSlotA ? GC_MEMCARDA : GC_MEMCARDB;
-		memcardPath = FULL_GC_USER_DIR + defaultFilename + ext;
+		memcardPath = std::string(File::GetUserPath(D_GCUSER_IDX)) + defaultFilename + ext;
 	}
 	else
 	{

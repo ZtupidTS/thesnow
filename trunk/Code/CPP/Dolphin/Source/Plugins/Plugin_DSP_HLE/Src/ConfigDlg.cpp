@@ -20,12 +20,13 @@
 #include "ConfigDlg.h"
 
 BEGIN_EVENT_TABLE(DSPConfigDialogHLE, wxDialog)
-EVT_BUTTON(wxID_OK, DSPConfigDialogHLE::SettingsChanged)
-EVT_CHECKBOX(ID_ENABLE_HLE_AUDIO, DSPConfigDialogHLE::SettingsChanged)
-EVT_CHECKBOX(ID_ENABLE_DTK_MUSIC, DSPConfigDialogHLE::SettingsChanged)
-EVT_CHECKBOX(ID_ENABLE_THROTTLE, DSPConfigDialogHLE::SettingsChanged)
-EVT_CHECKBOX(ID_ENABLE_RE0_FIX, DSPConfigDialogHLE::SettingsChanged)
-EVT_COMMAND_SCROLL(ID_VOLUME, DSPConfigDialogHLE::VolumeChanged)
+	EVT_BUTTON(wxID_OK, DSPConfigDialogHLE::SettingsChanged)
+	EVT_CHECKBOX(ID_ENABLE_HLE_AUDIO, DSPConfigDialogHLE::SettingsChanged)
+	EVT_CHECKBOX(ID_ENABLE_DTK_MUSIC, DSPConfigDialogHLE::SettingsChanged)
+	EVT_CHECKBOX(ID_ENABLE_THROTTLE, DSPConfigDialogHLE::SettingsChanged)
+	EVT_CHECKBOX(ID_ENABLE_RE0_FIX, DSPConfigDialogHLE::SettingsChanged)
+	EVT_COMBOBOX(wxID_ANY, DSPConfigDialogHLE::BackendChanged)
+	EVT_COMMAND_SCROLL(ID_VOLUME, DSPConfigDialogHLE::VolumeChanged)
 END_EVENT_TABLE()
 
 DSPConfigDialogHLE::DSPConfigDialogHLE(wxWindow *parent, wxWindowID id, const wxString &title, const wxPoint &position, const wxSize& size, long style)
@@ -35,6 +36,9 @@ DSPConfigDialogHLE::DSPConfigDialogHLE(wxWindow *parent, wxWindowID id, const wx
 	CenterOnParent();
 
 	m_OK = new wxButton(this, wxID_OK, wxT("确定"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	
+	wxStaticBoxSizer *sbSettings = new wxStaticBoxSizer(wxVERTICAL, this, wxT("Sound Settings"));
+	wxStaticBoxSizer *sbSettingsV = new wxStaticBoxSizer(wxVERTICAL, this, wxT("Volume"));
 
 	// Create items
 	m_buttonEnableHLEAudio = new wxCheckBox(this, ID_ENABLE_HLE_AUDIO, wxT("启用 HLE 音频"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
@@ -45,6 +49,7 @@ DSPConfigDialogHLE::DSPConfigDialogHLE(wxWindow *parent, wxWindowID id, const wx
 	m_BackendSelection = new wxComboBox(this, ID_BACKEND, wxEmptyString, wxDefaultPosition, wxSize(90, 20), wxArrayBackends, wxCB_READONLY, wxDefaultValidator);
 
 	m_volumeSlider = new wxSlider(this, ID_VOLUME, ac_Config.m_Volume, 1, 100, wxDefaultPosition, wxDefaultSize, wxSL_VERTICAL|wxSL_INVERSE);
+	m_volumeSlider->Enable(SupportsVolumeChanges(ac_Config.sBackend));
 	m_volumeText = new wxStaticText(this, wxID_ANY, wxString::Format(wxT("%d %%"), ac_Config.m_Volume), wxDefaultPosition, wxDefaultSize, 0);
 
 	// Update values
@@ -62,6 +67,7 @@ DSPConfigDialogHLE::DSPConfigDialogHLE(wxWindow *parent, wxWindowID id, const wx
 		wxT("\nKeyboard Shortcut <TAB>:  Hold down to instantly disable Throttle."));
 	m_buttonEnableRE0Fix->SetToolTip(wxT("This fixes audio in Resident Evil Zero and maybe some other games."));
 	m_BackendSelection->SetToolTip(wxT("Changing this will have no effect while the emulator is running!"));
+	m_volumeSlider->SetToolTip(wxT("This setting only affects DSound and OpenAL."));
 
 	// Create sizer and add items to dialog
 	wxBoxSizer *sMain = new wxBoxSizer(wxVERTICAL);
@@ -69,7 +75,6 @@ DSPConfigDialogHLE::DSPConfigDialogHLE(wxWindow *parent, wxWindowID id, const wx
 	wxBoxSizer *sBackend = new wxBoxSizer(wxHORIZONTAL);
 	wxBoxSizer *sButtons = new wxBoxSizer(wxHORIZONTAL);
 
-	wxStaticBoxSizer *sbSettings = new wxStaticBoxSizer(wxVERTICAL, this, wxT("声音设置"));
 	sbSettings->Add(m_buttonEnableHLEAudio, 0, wxALL, 5);
 	sbSettings->Add(m_buttonEnableDTKMusic, 0, wxALL, 5);
 	sbSettings->Add(m_buttonEnableThrottle, 0, wxALL, 5);
@@ -78,7 +83,6 @@ DSPConfigDialogHLE::DSPConfigDialogHLE(wxWindow *parent, wxWindowID id, const wx
 	sBackend->Add(m_BackendSelection, 0, wxALL, 1);
 	sbSettings->Add(sBackend, 0, wxALL, 2);
 
-	wxStaticBoxSizer *sbSettingsV = new wxStaticBoxSizer(wxVERTICAL, this, wxT("音量"));
 	sbSettingsV->Add(m_volumeSlider, 0, wxLEFT|wxRIGHT|wxALIGN_CENTER, 6);
 	sbSettingsV->Add(m_volumeText, 0, wxALL|wxALIGN_LEFT, 4);
 
@@ -101,12 +105,6 @@ void DSPConfigDialogHLE::AddBackend(const char* backend)
 	m_BackendSelection->SetValue(wxString::FromAscii(ac_Config.sBackend));
 #else
 	m_BackendSelection->SetValue(wxString::FromAscii(ac_Config.sBackend.c_str()));
-#endif
-
-	// Unfortunately, DSound is the only API having a volume setting...
-#ifndef _WIN32
-	m_volumeSlider->Disable();
-	m_volumeText->Disable();
 #endif
 }
 
@@ -144,4 +142,18 @@ void DSPConfigDialogHLE::SettingsChanged(wxCommandEvent& event)
 
 	if (event.GetId() == wxID_OK)
 		EndModal(wxID_OK);
+}
+
+bool DSPConfigDialogHLE::SupportsVolumeChanges(std::string backend)
+{
+	//FIXME: this one should ask the backend whether it supports it.
+	//       but getting the backend from string etc. is probably
+	//       too much just to enable/disable a stupid slider...
+	return (backend == BACKEND_DIRECTSOUND ||
+		    backend == BACKEND_OPENAL);
+}
+
+void DSPConfigDialogHLE::BackendChanged(wxCommandEvent& event)
+{
+	m_volumeSlider->Enable(SupportsVolumeChanges(std::string(m_BackendSelection->GetValue().mb_str())));
 }

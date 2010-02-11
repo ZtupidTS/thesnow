@@ -120,7 +120,7 @@ LPDIRECT3DTEXTURE9 CreateTexture2D(const u8* buffer, const int width, const int 
 		}
 		break;
 	case D3DFMT_DXT1:
-		memcpy(Lock.pBits,buffer,(width/4)*(height/4)*8);
+		memcpy(Lock.pBits,buffer,((width+3)/4)*((height+3)/4)*8);
 		break;
 	default:
 		PanicAlert("D3D: Invalid texture format %i", fmt);
@@ -239,7 +239,7 @@ void ReplaceTexture2D(LPDIRECT3DTEXTURE9 pTexture, const u8* buffer, const int w
 		}
 		break;
 	case D3DFMT_DXT1:
-		memcpy(Lock.pBits, buffer, (width/4) * (height/4) * 8);
+		memcpy(Lock.pBits,buffer,((width+3)/4)*((height+3)/4)*8);
 		break;
 	}
 	pTexture->UnlockRect(level); 

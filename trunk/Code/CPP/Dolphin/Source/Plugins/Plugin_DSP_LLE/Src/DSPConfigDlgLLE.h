@@ -60,6 +60,8 @@ private:
     void OnOK(wxCommandEvent& event);
     void SettingsChanged(wxCommandEvent& event);
 	void VolumeChanged(wxScrollEvent& event);
+	bool SupportsVolumeChanges(std::string backend);
+	void BackendChanged(wxCommandEvent& event);
 };
 
 #endif //__DSP_LLE_CONFIGDIALOG_h__

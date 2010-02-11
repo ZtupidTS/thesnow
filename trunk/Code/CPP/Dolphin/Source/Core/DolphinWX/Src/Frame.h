@@ -78,6 +78,7 @@ class CFrame : public wxFrame
 		wxMenuBar* m_MenuBar;
 		wxBitmap aNormalFile;
 		void InitBitmaps();
+		void DoPause();
 		void DoStop();
 		bool bRenderToMain;
 		bool bNoWiimoteMsg;
@@ -341,14 +342,17 @@ class CFrame : public wxFrame
 		void BootGame(const std::string& filename);
 
 		// Double click and mouse move options
+#if wxUSE_TIMER
+	#ifdef _WIN32
 		double m_fLastClickTime, m_iLastMotionTime;
 		int LastMouseX, LastMouseY;
 
-		#if wxUSE_TIMER
-			void Update();
-			void OnTimer(wxTimerEvent& WXUNUSED(event)) { Update(); }
-			wxTimer m_timer;
-		#endif
+		void Update();
+	#endif
+		// Used in linux to process command events
+		void OnTimer(wxTimerEvent& WXUNUSED(event));
+		wxTimer m_timer;
+#endif
 
 		// Event table
 		DECLARE_EVENT_TABLE();

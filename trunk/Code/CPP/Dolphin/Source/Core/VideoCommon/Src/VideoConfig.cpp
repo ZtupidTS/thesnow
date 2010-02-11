@@ -21,6 +21,7 @@
 #include "IniFile.h"
 #include "VideoConfig.h"
 #include "VideoCommon.h"
+#include "FileUtil.h"
 
 VideoConfig g_Config;
 VideoConfig g_ActiveConfig;
@@ -100,7 +101,7 @@ void VideoConfig::Load(const char *ini_file)
 	iniFile.Get("Hardware", "SimpleFB", &bSimpleFB, false);
 
 	// Load common settings
-	iniFile.Load(CONFIG_FILE);
+	iniFile.Load(File::GetUserPath(F_DOLPHINCONFIG_IDX));
 	bool bTmp;
 	iniFile.Get("Interface", "UsePanicHandlers", &bTmp, true);
 	SetEnableAlert(bTmp);
@@ -257,8 +258,12 @@ void ComputeDrawRectangle(int backbuffer_width, int backbuffer_height, bool flip
 
 	int XOffset = (int)(FloatXOffset + 0.5f);
 	int YOffset = (int)(FloatYOffset + 0.5f);
+	int iWhidth = (int)ceil(FloatGLWidth);
+	int iHeight = (int)ceil(FloatGLHeight);
+	iWhidth -= iWhidth % 4; // ensure divisibility by 4 to make it compatible with all the video encoders
+	iHeight -= iHeight % 4;
 	rc->left = XOffset;
-	rc->top = flip ? (int)(YOffset + ceil(FloatGLHeight)) : YOffset;
-	rc->right = XOffset + (int)ceil(FloatGLWidth);
-	rc->bottom = flip ? YOffset : (int)(YOffset + ceil(FloatGLHeight));
+	rc->top = flip ? (int)(YOffset + iHeight) : YOffset;
+	rc->right = XOffset + iWhidth;
+	rc->bottom = flip ? YOffset : (int)(YOffset + iHeight);
 }

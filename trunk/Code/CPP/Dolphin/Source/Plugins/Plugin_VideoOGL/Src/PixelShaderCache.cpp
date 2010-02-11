@@ -33,6 +33,7 @@
 #include "VertexShaderGen.h"
 #include "PixelShaderCache.h"
 #include "PixelShaderManager.h"
+#include "FileUtil.h"
 
 static int s_nMaxPixelInstructions;
 static GLuint s_ColorMatrixProgram = 0;
@@ -204,7 +205,7 @@ FRAGMENTSHADER* PixelShaderCache::GetShader(bool dstAlphaEnable)
 	if (g_ActiveConfig.iLog & CONF_SAVESHADERS && code) {	
 		static int counter = 0;
 		char szTemp[MAX_PATH];
-		sprintf(szTemp, "%s/ps_%04i.txt", FULL_DUMP_DIR, counter++);
+		sprintf(szTemp, "%sps_%04i.txt", File::GetUserPath(D_DUMP_IDX), counter++);
 		
 		SaveData(szTemp, code);
 	}
@@ -297,7 +298,7 @@ bool PixelShaderCache::CompilePixelShader(FRAGMENTSHADER& ps, const char* pstrpr
 void PixelShaderCache::DisableShader()
 {
 	CurrentShader = 0;
-	//if(ShaderEnabled)
+	if(ShaderEnabled)
 	{		
 		glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, CurrentShader);
 		glDisable(GL_FRAGMENT_PROGRAM_ARB);
@@ -310,7 +311,7 @@ void PixelShaderCache::DisableShader()
 void PixelShaderCache::SetCurrentShader(GLuint Shader)
 {
 	//The caching here breakes Super Mario Sunshine i'm still trying to figure out wy
-	//if(ShaderEnabled /*&& CurrentShader != Shader*/)
+	if(ShaderEnabled /*&& CurrentShader != Shader*/)
 	{
 		CurrentShader = Shader;
 		glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, CurrentShader);
@@ -320,13 +321,13 @@ void PixelShaderCache::SetCurrentShader(GLuint Shader)
 //Enable Fragment program and bind initial program
 void PixelShaderCache::EnableShader(GLuint Shader)
 {
-	//if(!ShaderEnabled)
+	if(!ShaderEnabled)
 	{
 		glEnable(GL_FRAGMENT_PROGRAM_ARB);
 		ShaderEnabled = true;
 		CurrentShader =  0;
 	}
-	//if(CurrentShader != Shader)
+	if(CurrentShader != Shader)
 	{
 		CurrentShader = Shader;
 		glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, CurrentShader);
