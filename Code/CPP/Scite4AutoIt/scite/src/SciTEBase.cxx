@@ -3421,7 +3421,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 //		//SendOutput(SCI_GETCODEPAGE);
 //		::MessageBox(0,icodePage,"当前代码页",0);
 
-		//delete codePage;
+//		//delete codePage;
 //		};
 //		break;
 	//added

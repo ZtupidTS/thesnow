@@ -397,6 +397,7 @@ public:
 	WindowID GetID() const { return wid; }
 	bool Created() const { return wid != 0; }
 	void Destroy();
+	void DestroySciTe();
 	bool HasFocus();
 	PRectangle GetPosition();
 	void SetPosition(PRectangle rc);

@@ -1003,6 +1003,13 @@ void Window::Destroy() {
 	wid = 0;
 }
 
+void Window::DestroySciTe() {
+	if (wid)
+		::AnimateWindow(reinterpret_cast<HWND>(wid),1000,AW_SLIDE|AW_ACTIVATE|AW_HIDE|AW_HOR_POSITIVE|AW_BLEND);
+		::DestroyWindow(reinterpret_cast<HWND>(wid));
+	wid = 0;
+}
+
 bool Window::HasFocus() {
 	return ::GetFocus() == wid;
 }

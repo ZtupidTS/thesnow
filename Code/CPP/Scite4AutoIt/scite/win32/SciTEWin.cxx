@@ -1070,7 +1070,7 @@ void SciTEWin::QuitProgram() {
 		if (fullScreen)	// Ensure tray visible on exit
 			FullScreenToggle();
 		::PostQuitMessage(0);
-		wSciTE.Destroy();
+		wSciTE.DestroySciTe();
 	}
 }
 
