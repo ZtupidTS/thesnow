@@ -3,7 +3,7 @@
 # The License.txt file describes the conditions under which this software may be distributed.
 # This makefile assumes GCC 2.95.2 is used and changes will be needed to use other compilers.
 # GNU make does not like \r\n line endings so should be saved to CVS in binary form.
-# 这个是LINUX或者兼容系统的makefile
+
 .SUFFIXES: .cxx .o .h .a .c
 CC = g++
 AR = ar
