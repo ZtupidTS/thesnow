@@ -1,4 +1,4 @@
-// Scintilla source code edit control
+ï»¿// Scintilla source code edit control
 /** @file CallTip.cxx
  ** Code for displaying call tips.
  **/
@@ -19,42 +19,42 @@ using namespace Scintilla;
 #endif
 
 static const int insetX = 5;		// text inset in x from calltip border
-static const int widthArrow = 14;	// ¼ıÍ·¿í¶È
+static const int widthArrow = 14;	// ç®­å¤´å®½åº¦
 
 CallTip::CallTip() {
-	wCallTip = 0;					//´°¿Ú¾ä±ú
-	inCallTipMode = false;			//ÏÖÔÚÊÇµ÷ÓÃÌáÊ¾Ä£Ê½?
-	posStartCallTip = 0;			//¿ªÊ¼µ÷ÓÃÌáÊ¾×ø±ê
+	wCallTip = 0;					//çª—å£å¥æŸ„
+	inCallTipMode = false;			//ç°åœ¨æ˜¯è°ƒç”¨æç¤ºæ¨¡å¼?
+	posStartCallTip = 0;			//å¼€å§‹è°ƒç”¨æç¤ºåæ ‡
 	val = 0;
-	rectUp = PRectangle(0,0,0,0);	//ÉÏ¼ıÍ·
-	rectDown = PRectangle(0,0,0,0);	//ÏÂ¼ıÍ·
-	lineHeight = 1;					//ĞĞ¸ß
-	startHighlight = 0;				//¿ªÊ¼¸ßÁÁÎ»ÖÃ
-	endHighlight = 0;				//½áÊø¸ßÁÁÎ»ÖÃ
-	tabSize = 0;					//tab´óĞ¡
-	useStyleCallTip = false;		//ÏòÏÂ¼æÈİ
+	rectUp = PRectangle(0,0,0,0);	//ä¸Šç®­å¤´
+	rectDown = PRectangle(0,0,0,0);	//ä¸‹ç®­å¤´
+	lineHeight = 1;					//è¡Œé«˜
+	startHighlight = 0;				//å¼€å§‹é«˜äº®ä½ç½®
+	endHighlight = 0;				//ç»“æŸé«˜äº®ä½ç½®
+	tabSize = 0;					//tabå¤§å°
+	useStyleCallTip = false;		//å‘ä¸‹å…¼å®¹
 
 #ifdef __APPLE__
-	//¸øApple×¼±¸µÄ
+	//ç»™Appleå‡†å¤‡çš„
 	// proper apple colours for the default
 	colourBG.desired = ColourDesired(0xff, 0xff, 0xc6);
 	colourUnSel.desired = ColourDesired(0, 0, 0);
 #else
-	colourBG.desired = ColourDesired(0xff, 0xff, 0xff);		//±³¾°É«
-	colourUnSel.desired = ColourDesired(0x80, 0x80, 0x80);	//Î´Ñ¡
+	colourBG.desired = ColourDesired(0xff, 0xff, 0xff);		//èƒŒæ™¯è‰²
+	colourUnSel.desired = ColourDesired(0x80, 0x80, 0x80);	//æœªé€‰
 #endif
-	colourSel.desired = ColourDesired(0, 0, 0x80);			//ËùÑ¡
-	colourShade.desired = ColourDesired(0, 0, 0);			//ÒõÓ°
-	colourLight.desired = ColourDesired(0xc0, 0xc0, 0xc0);	//¸ßÁÁÉ«
+	colourSel.desired = ColourDesired(0, 0, 0x80);			//æ‰€é€‰
+	colourShade.desired = ColourDesired(0, 0, 0);			//é˜´å½±
+	colourLight.desired = ColourDesired(0xc0, 0xc0, 0xc0);	//é«˜äº®è‰²
 }
 
 CallTip::~CallTip() {
-	font.Release();											//ÊÍ·Å×ÖÌå
-	wCallTip.Destroy();										//Ïú»Ù´°Ìå
-	delete []val;											//É¾³ı±äÁ¿
+	font.Release();											//é‡Šæ”¾å­—ä½“
+	wCallTip.Destroy();										//é”€æ¯çª—ä½“
+	delete []val;											//åˆ é™¤å˜é‡
 	val = 0;												
 }
-//Ë¢ĞÂ×ÅÉ«µ÷É«°å
+//åˆ·æ–°ç€è‰²è°ƒè‰²æ¿
 void CallTip::RefreshColourPalette(Palette &pal, bool want) {
 	pal.WantFind(colourBG, want);
 	pal.WantFind(colourUnSel, want);
@@ -64,17 +64,17 @@ void CallTip::RefreshColourPalette(Palette &pal, bool want) {
 }
 
 // Although this test includes 0, we should never see a \0 character.
-//ÊÇ²»ÊÇ¼ıÍ·×Ö·û
+//æ˜¯ä¸æ˜¯ç®­å¤´å­—ç¬¦
 static bool IsArrowCharacter(char ch) {
 	return (ch == 0) || (ch == '\001') || (ch == '\002');
 }
 
 // We ignore tabs unless a tab width has been set.
-//ÊÇ²»ÊÇtab×Ö·û
+//æ˜¯ä¸æ˜¯tabå­—ç¬¦
 bool CallTip::IsTabCharacter(char ch) {
 	return (tabSize > 0) && (ch == '\t');
 }
-//ÏÂÒ»¸ötab×ø±ê
+//ä¸‹ä¸€ä¸ªtabåæ ‡
 int CallTip::NextTabPos(int x) {
 	if (tabSize > 0) {              // paranoia... not called unless this is true
 		x -= insetX;                // position relative to text
@@ -98,7 +98,7 @@ void CallTip::DrawChunk(Surface *surface, int &x, const char *s,
 	int maxEnd = 0;
 	const int numEnds = 10;
 	int ends[numEnds + 2];
-	for (int i=0;i<len;i++) {
+	for (int i=0; i<len; i++) {
 		if ((maxEnd < numEnds) &&
 		        (IsArrowCharacter(s[i]) || IsTabCharacter(s[i])) ) {
 			if (i > 0)
@@ -125,7 +125,7 @@ void CallTip::DrawChunk(Surface *surface, int &x, const char *s,
 					                         rcClient.right - 2, rcClient.bottom - 1);
 					surface->FillRectangle(rcClientInner, colourUnSel.allocated);
 
-					if (upArrow) {      // ÉÏ¼ıÍ·
+					if (upArrow) {      // ä¸Šç®­å¤´
 						Point pts[] = {
     						Point(centreX - halfWidth, centreY + halfWidth / 2),
     						Point(centreX + halfWidth, centreY + halfWidth / 2),
@@ -133,7 +133,7 @@ void CallTip::DrawChunk(Surface *surface, int &x, const char *s,
 						};
 						surface->Polygon(pts, sizeof(pts) / sizeof(pts[0]),
                  						colourBG.allocated, colourBG.allocated);
-					} else {            // ÏÂ¼ıÍ·
+					} else {            // ä¸‹ç®­å¤´
 						Point pts[] = {
     						Point(centreX - halfWidth, centreY - halfWidth / 2),
     						Point(centreX + halfWidth, centreY - halfWidth / 2),
@@ -167,7 +167,7 @@ void CallTip::DrawChunk(Surface *surface, int &x, const char *s,
 		}
 	}
 }
-//ÄÚÈİ»æÍ¼
+//å†…å®¹ç»˜å›¾
 int CallTip::PaintContents(Surface *surfaceWindow, bool draw) {
 	PRectangle rcClientPos = wCallTip.GetClientPosition();
 	PRectangle rcClientSize(0, 0, rcClientPos.right - rcClientPos.left,
@@ -244,16 +244,16 @@ void CallTip::PaintCT(Surface *surfaceWindow) {
 	surfaceWindow->LineTo(0, rcClientSize.bottom - 1);
 #endif
 }
-//Êó±êµã»÷
+//é¼ æ ‡ç‚¹å‡»
 void CallTip::MouseClick(Point pt) {
 	clickPlace = 0;
-	if (rectUp.Contains(pt))		//Èç¹ûÊÇÉÏ¼ıÍ·
+	if (rectUp.Contains(pt))		//å¦‚æœæ˜¯ä¸Šç®­å¤´
 		clickPlace = 1;
-	if (rectDown.Contains(pt))		//Èç¹ûÊÇÏÂ¼ıÍ·
+	if (rectDown.Contains(pt))		//å¦‚æœæ˜¯ä¸‹ç®­å¤´
 		clickPlace = 2;
 }
-//µ÷ÓÃÌáÊ¾¿ªÊ¼
-//CallTipStart(ÊÇ·ñ×ø±ê,×ø±ê,¶¨Òå,Íâ¹ÛÃû³Æ,´óĞ¡,´úÂëÒ³,×Ö·û¼¯,¸¸´°¿Ú)
+//è°ƒç”¨æç¤ºå¼€å§‹
+//CallTipStart(æ˜¯å¦åæ ‡,åæ ‡,å®šä¹‰,å¤–è§‚åç§°,å¤§å°,ä»£ç é¡µ,å­—ç¬¦é›†,çˆ¶çª—å£)
 PRectangle CallTip::CallTipStart(int pos,
 								 Point pt,
 								 const char *defn,
@@ -262,38 +262,38 @@ PRectangle CallTip::CallTipStart(int pos,
                                  int codePage_,
 								 int characterSet,
 								 Window &wParent) {
-	clickPlace = 0;												//µã»÷Î»ÖÃ
+	clickPlace = 0;												//ç‚¹å‡»ä½ç½®
 	delete []val;
 	val = 0;
-	val = new char[strlen(defn) + 1];							//¶¨Òå×Ö·û´®
+	val = new char[strlen(defn) + 1];							//å®šä¹‰å­—ç¬¦ä¸²
 	strcpy(val, defn);
-	codePage = codePage_;										//´úÂëÒ³
-	Surface *surfaceMeasure = Surface::Allocate();				//½çÃæ·ÖÅäÄÚ´æ
+	codePage = codePage_;										//ä»£ç é¡µ
+	Surface *surfaceMeasure = Surface::Allocate();				//ç•Œé¢åˆ†é…å†…å­˜
 	if (!surfaceMeasure)
 		return PRectangle();
-	surfaceMeasure->Init(wParent.GetID());						//³õÊ¼»¯
-	surfaceMeasure->SetUnicodeMode(SC_CP_UTF8 == codePage);		//ÉèÖÃ´úÂëÒ³
-	surfaceMeasure->SetDBCSMode(codePage);						//ÉèÖÃË«×Ö½Ú×Ö·û¼¯Ä£Ê½
-	startHighlight = 0;											//¿ªÊ¼¸ßÁÁ×ø±ê
-	endHighlight = 0;											//½áÊø¸ßÁÁ×ø±ê
-	inCallTipMode = true;										//µ÷ÓÃÌáÊ¾Ä£Ê½ÖĞ
-	posStartCallTip = pos;										//µ÷ÓÃÌáÊ¾ÏÔÊ¾µÄ×ø±ê
-	int deviceHeight = surfaceMeasure->DeviceHeightFont(size);	//´´½¨Éè±¸
-	font.Create(faceName, characterSet, deviceHeight, false, false);//´´½¨×ÖÌå
+	surfaceMeasure->Init(wParent.GetID());						//åˆå§‹åŒ–
+	surfaceMeasure->SetUnicodeMode(SC_CP_UTF8 == codePage);		//è®¾ç½®ä»£ç é¡µ
+	surfaceMeasure->SetDBCSMode(codePage);						//è®¾ç½®åŒå­—èŠ‚å­—ç¬¦é›†æ¨¡å¼
+	startHighlight = 0;											//å¼€å§‹é«˜äº®åæ ‡
+	endHighlight = 0;											//ç»“æŸé«˜äº®åæ ‡
+	inCallTipMode = true;										//è°ƒç”¨æç¤ºæ¨¡å¼ä¸­
+	posStartCallTip = pos;										//è°ƒç”¨æç¤ºæ˜¾ç¤ºçš„åæ ‡
+	int deviceHeight = surfaceMeasure->DeviceHeightFont(size);	//åˆ›å»ºè®¾å¤‡
+	font.Create(faceName, characterSet, deviceHeight, false, false);//åˆ›å»ºå­—ä½“
 	// Look for multiple lines in the text
 	// Only support \n here - simply means container must avoid \r!
-	int numLines = 1;											//Ä¬ÈÏĞĞÊı
-	const char *newline;										//ĞÂĞĞ
-	const char *look = val;										//Íâ¹Û
-	rectUp = PRectangle(0,0,0,0);								//ÉÏ¼ıÍ·Î»ÖÃ
-	rectDown = PRectangle(0,0,0,0);								//ÏÂ¼ıÍ·Î»ÖÃ
+	int numLines = 1;											//é»˜è®¤è¡Œæ•°
+	const char *newline;										//æ–°è¡Œ
+	const char *look = val;										//å¤–è§‚
+	rectUp = PRectangle(0,0,0,0);								//ä¸Šç®­å¤´ä½ç½®
+	rectDown = PRectangle(0,0,0,0);								//ä¸‹ç®­å¤´ä½ç½®
 	offsetMain = insetX;										// changed to right edge of any arrows
 	int width = PaintContents(surfaceMeasure, false) + insetX;
-	while ((newline = strchr(look, '\n')) != NULL) {			//µ±ÓĞ»»ĞĞ·û"\n"Ê±,ĞÂĞĞ+1
+	while ((newline = strchr(look, '\n')) != NULL) {			//å½“æœ‰æ¢è¡Œç¬¦"\n"æ—¶,æ–°è¡Œ+1
 		look = newline + 1;
-		numLines++;												//ĞĞÊı+1
+		numLines++;												//è¡Œæ•°+1
 	}
-	lineHeight = surfaceMeasure->Height(font);					//ĞĞ¸ß
+	lineHeight = surfaceMeasure->Height(font);					//è¡Œé«˜
 
 	// Extra line for border and an empty line at top and bottom. The returned
 	// rectangle is aligned to the right edge of the last arrow encountered in
@@ -302,14 +302,14 @@ PRectangle CallTip::CallTipStart(int pos,
 	delete surfaceMeasure;
 	return PRectangle(pt.x - offsetMain, pt.y + 1, pt.x + width - offsetMain, pt.y + 1 + height);
 }
-//È¡Ïûµ÷ÓÃÌáÊ¾
+//å–æ¶ˆè°ƒç”¨æç¤º
 void CallTip::CallTipCancel() {
 	inCallTipMode = false;
 	if (wCallTip.Created()) {
 		wCallTip.Destroy();
 	}
 }
-//ÉèÖÃ¸ßÁÁ
+//è®¾ç½®é«˜äº®
 void CallTip::SetHighlight(int start, int end) {
 	// Avoid flashing by checking something has really changed
 	if ((start != startHighlight) || (end != endHighlight)) {
@@ -323,7 +323,7 @@ void CallTip::SetHighlight(int start, int end) {
 
 // Set the tab size (sizes > 0 enable the use of tabs). This also enables the
 // use of the STYLE_CALLTIP.
-// ÉèÖÃTab´óĞ¡
+// è®¾ç½®Tabå¤§å°
 void CallTip::SetTabSize(int tabSz) {
 	tabSize = tabSz;
 	useStyleCallTip = true;
@@ -331,7 +331,7 @@ void CallTip::SetTabSize(int tabSz) {
 
 // It might be better to have two access functions for this and to use
 // them for all settings of colours.
-// ÉèÖÃÇ°¾°±³¾°É«
+// è®¾ç½®å‰æ™¯èƒŒæ™¯è‰²
 void CallTip::SetForeBack(const ColourPair &fore, const ColourPair &back) {
 	colourBG = back;
 	colourUnSel = fore;

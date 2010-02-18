@@ -3415,19 +3415,9 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		ParametersDialog(false);
 		CheckMenus();
 		break;
-	//added							//当前代码页
-//	case IDM_CODEPAGE:{
-//		CHAR icodePage[] = (CHAR)SendEditor(SCI_GETLINECOUNT);
-//		//SendOutput(SCI_GETCODEPAGE);
-//		::MessageBox(0,icodePage,"当前代码页",0);
-
-//		//delete codePage;
-//		};
-//		break;
-	//added
 	case IDM_EDITORCONFIG:					//打开配置工具
 		::MessageBoxW(0,L"注意:此功能可能导致设置文件混乱,请小心使用.",L"警告!",0);
-		::ShellExecuteW(0,L"open",L"sciteconfig.exe",L"acn",L"",SW_SHOW);
+		::ShellExecuteW(0,L"open",L"SciTEConfig\sciteconfig.exe",L"acn",L"",SW_SHOW);
 		break;
 	case IDM_WRAP:
 		wrap = !wrap;
@@ -3657,35 +3647,44 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 			}
 		}
 		break;
-	case IDM_OLDTOOLBAR:					//added 老式工具栏说明
-		{
-		SString msg = LocaliseMessage("因为最新的Scite使用32位色的工具栏图标,如果您的系统不支持,可能显示错误\n"
-			 "请调整您的计算机为32位色.\n\n"
-			 "\t\t\t\t\t--thesnow\n"
-			);
-		WindowMessageBox(wSciTE, msg, MB_OK | MB_ICONWARNING);
-		break;	
-		}
 	case IDM_DONATE:					//捐助
 		{
 		DONATE_MSG();
-		break;
-		}
-	case IDM_README:{
-		FilePath x="SCITE.TXT";
-		SciTEBase::Open(x);
-		WindowSetFocus(wEditor);
-		break;
-		}						//added end
-
-	case IDM_HELP_SCITE: {					//scite帮助
-			SelectionIntoProperties();
-			AddCommand(props.Get("command.scite.help"), "",
-			        SubsystemType(props.Get("command.scite.help.subsystem")[0]));
+		SelectionIntoProperties();
+		if (props.Get("command.scite.donate")=="") {
+			::MessageBoxW((HWND)wSciTE.GetID(),L"艹,哪个龟儿子把这个项目的定义删除了.",L"我擦,出错了.",MB_OK|MB_ICONERROR);
+		}else {
+			AddCommand(props.Get("command.scite.donate"), "",
+				SubsystemType(props.Get("command.scite.help.subsystem")[0]));
 			if (jobQueue.commandCurrent > 0) {
 				jobQueue.isBuilding = true;
 				Execute();
 			}
+		};		
+		break;
+		}
+	case IDM_README:{
+		SelectionIntoProperties();
+		if (props.Get("command.scite.readme")=="") {
+		::MessageBoxW((HWND)wSciTE.GetID(),L"艹,哪个龟儿子把这个说明的定义删除了.",L"我擦,出错了.",MB_OK|MB_ICONERROR);
+		}else {
+		AddCommand(props.Get("command.scite.readme"), "",
+		SubsystemType(props.Get("command.scite.help.subsystem")[0]));
+		if (jobQueue.commandCurrent > 0) {
+			jobQueue.isBuilding = true;
+			Execute();
+			}
+		};		
+		break;
+		}								//added end
+	case IDM_HELP_SCITE: {					//scite帮助
+		SelectionIntoProperties();
+		AddCommand(props.Get("command.scite.help"), "",
+      		SubsystemType(props.Get("command.scite.help.subsystem")[0]));
+		if (jobQueue.commandCurrent > 0) {
+			jobQueue.isBuilding = true;
+			Execute();
+		}
 		}
 		break;
 
