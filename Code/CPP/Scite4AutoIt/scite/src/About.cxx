@@ -459,7 +459,7 @@ void SciTEBase::SetAboutMessage(WindowID wsci, const char *appTitle) {
 #endif
 		AddStyledText(wsci, GetTranslationToAbout("汉化增强版本").c_str(), trsSty);
 		AddStyledText(wsci, " 2.03\n", 1);
-		AddStyledText(wsci, " Build: " __DATE__ " " __TIME__ "\n", 1);
+		AddStyledText(wsci, " Build On: " __DATE__ " " __TIME__ "\n", 1);
 		SetAboutStyle(wsci, 2, ColourDesired(0, 0, 0));
 		Platform::SendScintilla(wsci, SCI_STYLESETITALIC, 2, 1);
 		AddStyledText(wsci, GetTranslationToAbout("by").c_str(), trsSty);
@@ -473,7 +473,7 @@ void SciTEBase::SetAboutMessage(WindowID wsci, const char *appTitle) {
 		SetAboutStyle(wsci, 5, ColourDesired(0, 0, 0));
 		AddStyledText(wsci, "This Chinese version by thesnoW\n", 3);
 #ifdef AUTOIT
-		AddStyledText(wsci, "    http://www.autoitX.com\n", 4);
+		AddStyledText(wsci, "    http://www.AutoitX.com\n", 4);
 #else
 		AddStyledText(wsci, "    thesnoW@QQ.com\n", 4);
 #endif
@@ -503,30 +503,8 @@ void SciTEBase::SetAboutMessage(WindowID wsci, const char *appTitle) {
 
 void DONATE_MSG(){
 		wchar_t *msg = 
-			 L"如果您愿意捐助thesnoW的汉化/论坛(硬盘或者RMB),请联系:\n"
-			 L"thegfw#Gmail.com,thesnow#QQ.com\n\n"
-			 L"┌───────────────────────────────────┐	\n"
-			 L"  捐助thesnoW名单(汉化):				\n"
-			 L"  KiwiCsj			30.00RMB			\n"
-			 L"  大绯狼			30.00RMB			\n"
-			 L"  卜一样的青年		30.00RMB			\n"
-			 L"  什么也不懂		50.00RMB			\n"
-			 L"  路人甲(匿名)		50.00RMB			\n"		
-			 L"  nxbigdaddy		55.5RMB			\n"
-			 L"  silentdream		100.00RMB			\n"
-			 L"  &老刀			200.00RMB			\n"			
-			 L"  o︻$▅▆▇◤		40GB+80GB HD	\n"
-			 L"  fengwei646		100.00RMB	\n"
-			 L"  最後の夢		200.00RMB	\n"
-			 L"└───────────────────────────────────┘	\n\n"
-			 L"┌───────────────────────────────────┐	\n"
-			 L"  捐助ACN网站名单(服务器):			\n"
-			 L"  gooker			100.00RMB			\n"
-			 L"  Crafter			100.00RMB			\n"
-			 L"  小可			100.00RMB			\n"
-			 L"  o瀟灑..酷唲		100.00RMB			\n"
-			 L"  Sanhen			500.00RMB			\n"
-			 L"  特别鸣谢:		KYO/jack金枪鱼		\n"	
-			 L"└───────────────────────────────────┘	\n";
-		::MessageBoxW(0, msg,L"感谢你们!", MB_OK | MB_ICONWARNING);
+			L"如果您愿意捐助thesnoW的汉化/论坛(硬盘或者RMB),请联系:\n"
+			L"thegfw#Gmail.com,thesnoW#QQ.com\n\n"
+			L"当然,互联网是免费的.我知道您没看到这个对话框里面的内容.嘿嘿.\n";
+		::MessageBoxW(0, msg,L"我点到什么东西了?", MB_OK | MB_ICONWARNING);
 };

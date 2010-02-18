@@ -4,7 +4,7 @@
  **/
 // Copyright 1998-2003 by Neil Hodgson <neilh@scintilla.org>
 // The License.txt file describes the conditions under which this software may be distributed.
-#define AUTOIT			//注释掉则为thesnoW版本
+#define AUTOIT			//如果需要编译为ACN版本,注释掉则为thesnoW版本
 #ifndef SCITE_H
 #define SCITE_H
 
@@ -14,12 +14,12 @@
 #define IDM_TOOLS			1100
 #define IDM_BUFFER			1200
 #define IDM_IMPORT			1300
-#define IDM_LANGUAGE			1400
+#define IDM_LANGUAGE		1400
 
 // 文件
-#define IDM_NEW			101
+#define IDM_NEW				101
 #define IDM_OPEN			102
-#define IDM_OPENSELECTED		103
+#define IDM_OPENSELECTED	103
 #define IDM_REVERT			104
 #define IDM_CLOSE			105
 #define IDM_SAVE			106
@@ -89,9 +89,9 @@
 #define IDM_COPYASRTF		245
 #define IDM_BOX_COMMENT		246
 #define IDM_INS_ABBREV		247
-#define IDM_JOIN		248
-#define IDM_SPLIT		249
-#define IDM_DUPLICATE	250
+#define IDM_JOIN			248
+#define IDM_SPLIT			249
+#define IDM_DUPLICATE		250
 #define IDM_INCSEARCH 		252
 #define IDM_ENTERSELECTION  256
 //#define IDM_CODEPAGE		257		//added
@@ -123,7 +123,7 @@
 #define IDM_MACROPLAY		313
 #define IDM_MACROLIST		314
 
-#define IDM_ACTIVATE			320
+#define IDM_ACTIVATE		320
 
 #define IDM_SRCWIN			350
 #define IDM_RUNWIN			351
@@ -132,7 +132,7 @@
 #define IDM_TABWIN			354
 
 // 选项
-#define IDM_SPLITVERTICAL		401
+#define IDM_SPLITVERTICAL	401
 #define IDM_VIEWSPACE		402
 #define IDM_VIEWEOL			403
 #define IDM_VIEWGUIDES		404
@@ -140,19 +140,19 @@
 #define IDM_FOLDMARGIN		406
 #define IDM_LINENUMBERMARGIN	407
 #define IDM_VIEWTOOLBAR		408
-#define IDM_TOGGLEOUTPUT		409
+#define IDM_TOGGLEOUTPUT	409
 #define IDM_VIEWTABBAR		410
 #define IDM_VIEWSTATUSBAR	411
 #define IDM_TOGGLEPARAMETERS	412
-#define IDM_OPENFILESHERE		413
+#define IDM_OPENFILESHERE	413
 #define IDM_WRAP			414
 #define IDM_WRAPOUTPUT		415
-#define IDM_READONLY			416
+#define IDM_READONLY		416
 
 #define IDM_CLEAROUTPUT		420
-#define IDM_SWITCHPANE			421
+#define IDM_SWITCHPANE		421
 
-#define IDM_EOL_CRLF			430
+#define IDM_EOL_CRLF		430
 #define IDM_EOL_CR			431
 #define IDM_EOL_LF			432
 #define IDM_EOL_CONVERT		433
@@ -174,15 +174,15 @@
 //#define IDM_USEPALETTE		492
 
 // 缓冲区(面板窗口)
-#define IDM_PREVFILE			501
-#define IDM_NEXTFILE			502
-#define IDM_CLOSEALL			503
+#define IDM_PREVFILE		501
+#define IDM_NEXTFILE		502
+#define IDM_CLOSEALL		503
 #define IDM_SAVEALL			504
 #define IDM_BUFFERSEP		505
-#define IDM_PREVFILESTACK			506
-#define IDM_NEXTFILESTACK			507
-#define IDM_MOVETABRIGHT			508
-#define IDM_MOVETABLEFT			509
+#define IDM_PREVFILESTACK	506
+#define IDM_NEXTFILESTACK	507
+#define IDM_MOVETABRIGHT	508
+#define IDM_MOVETABLEFT		509
 
 // 帮助
 #define IDM_HELP			901
@@ -195,8 +195,7 @@
 #define IDC_TABCLOSE		962
 #define IDC_SHIFTTAB		963
 //
-#define IDM_OLDTOOLBAR		964		//汉化添加-----老式工具栏
-#define IDM_README			965		//added
+#define IDM_README			964		//added
 
 // 对话框控件 IDs
 #define IDGOLINE			220
@@ -220,13 +219,13 @@
 #define IDREPLACEALL		237
 #define IDREPLACEINSEL		238
 #define IDREGEXP			239
-#define IDWRAP			240
+#define IDWRAP				240
 
 #define IDUNSLASH			241
-#define IDCMD			242
+#define IDCMD				242
 
 // id for the browse button in the grep dialog
-#define IDBROWSE 243
+#define IDBROWSE			243
 
 #define IDABBREV			244
 

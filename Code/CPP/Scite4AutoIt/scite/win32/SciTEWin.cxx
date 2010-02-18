@@ -4,7 +4,7 @@
  **/
 // Copyright 1998-2003 by Neil Hodgson <neilh@scintilla.org>
 // The License.txt file describes the conditions under which this software may be distributed.
-//#define AUTOIT		//如果需要编译为ACN版本
+
 #include <time.h>
 #include "SciTEWin.h"
 
@@ -26,9 +26,6 @@
 const char appName[] = "Sc1";			//应用程序名称
 const wchar_t appNameW[] = L"SciTE(ACN)";
 #else
-//#if $(PlatformName)=="Win32"
-//#include "USkin.h"
-//#endif
 #ifdef AUTOIT
 const char appName[] = "SciTE(ACN)";
 const wchar_t appNameW[] = L"SciTE(ACN)";
@@ -1303,7 +1300,7 @@ void SciTEWin::AboutDialog() {
 }
 
 /**
- * Open files dropped on the SciTE window.
+ * 拖放文件到 SciTE 窗口.
  */
 void SciTEWin::DropFiles(HDROP hdrop) {
 	// If drag'n'drop inside the SciTE window but outside
@@ -1449,8 +1446,8 @@ bool SciTEWin::IsStdinBlocked() {
 }
 
 void SciTEWin::MinimizeToTray() {
-	char n[64] = "SciTE for thesnoW";
-	NOTIFYICONDATA nid;
+	wchar_t n[64] = L"SciTE for thesnoW";
+	NOTIFYICONDATAW nid;
 	memset(&nid, 0, sizeof(nid));
 	nid.cbSize = sizeof(nid);
 	nid.hWnd = MainHWND();
@@ -1458,23 +1455,23 @@ void SciTEWin::MinimizeToTray() {
 	nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
 	nid.uCallbackMessage = SCITE_TRAY;
 	nid.hIcon = static_cast<HICON>(
-	                ::LoadImage(hInstance, "SCITE", IMAGE_ICON, 16, 16, LR_DEFAULTSIZE));
-	strcpy(nid.szTip, n);
+	                ::LoadImageW(hInstance, L"SCITE", IMAGE_ICON, 16, 16, LR_DEFAULTSIZE));
+	wcscpy(nid.szTip, n);
 	::ShowWindow(MainHWND(), SW_MINIMIZE);
-	if (::Shell_NotifyIcon(NIM_ADD, &nid)) {
+	if (::Shell_NotifyIconW(NIM_ADD, &nid)) {
 		::ShowWindow(MainHWND(), SW_HIDE);
 	}
 }
 
 void SciTEWin::RestoreFromTray() {
-	NOTIFYICONDATA nid;
+	NOTIFYICONDATAW nid;
 	memset(&nid, 0, sizeof(nid));
 	nid.cbSize = sizeof(nid);
 	nid.hWnd = MainHWND();
 	nid.uID = 1;
 	::ShowWindow(MainHWND(), SW_SHOW);
 	::Sleep(100);
-	::Shell_NotifyIcon(NIM_DELETE, &nid);
+	::Shell_NotifyIconW(NIM_DELETE, &nid);
 }
 
 #ifndef VK_OEM_2
@@ -2025,7 +2022,7 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpszCmdLine, int) {
 	//Platform::DebugPrintf("Command line is \n%s\n<<", lpszCmdLine);
 
 	SciTEWin::Register(hInstance);			//注册hInstance
-	//::ShellExecute(0,0,"..\\AU3TOOL.exe","","..\\",SW_NORMAL);
+
 #ifdef STATIC_BUILD
 
 	Scintilla_LinkLexers();					//连接表达式

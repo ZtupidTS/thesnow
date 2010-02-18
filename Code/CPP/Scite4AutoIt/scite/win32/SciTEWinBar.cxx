@@ -10,8 +10,7 @@
 /**
  * 设置文件时间,文件日期,当前时间,当前日期,文件属性.
  */
-void SciTEWin::SetFileProperties(
-    PropSetFile &ps) {			///< Property set to update.
+void SciTEWin::SetFileProperties(PropSetFile &ps) {			///< Property set to update.
 
 	const int TEMP_LEN = 100;
 	char temp[TEMP_LEN];
@@ -334,7 +333,7 @@ void SciTEWin::SizeContentWindows() {
 }
 
 /**
- * Resize the sub-windows, ie. the toolbar, tab bar, status bar. And call @a SizeContentWindows.
+ * 调整子窗口大小,例如:工具栏,标签栏,状态栏.并调用 SizeContentWindows.
  */
 void SciTEWin::SizeSubWindows() {
 	PRectangle rcClient = wSciTE.GetClientPosition();
@@ -345,8 +344,7 @@ void SciTEWin::SizeSubWindows() {
 
 	if (tabVisible) {	// ? hide one tab only
 		showTab = tabHideOne ?
-		          ::SendMessage(reinterpret_cast<HWND>(wTabBar.GetID()), TCM_GETITEMCOUNT, 0, 0) > 1 :
-		          true;
+		          ::SendMessage(reinterpret_cast<HWND>(wTabBar.GetID()), TCM_GETITEMCOUNT, 0, 0) > 1 : true;
 	}
 
 	if (showTab) {
@@ -404,8 +402,6 @@ void SciTEWin::SizeSubWindows() {
 	                         rcClient.right,
 	                         rcClient.top + visHeightTab + visHeightTools + visHeightEditor));
 	SizeContentWindows();
-	//::SendMessage(MainHWND(), WM_SETREDRAW, true, 0);
-	//::RedrawWindow(MainHWND(), NULL, NULL, RDW_INVALIDATE | RDW_ALLCHILDREN);
 }
 
 
@@ -952,14 +948,12 @@ void SciTEWin::Creation() {
 	              reinterpret_cast<HMENU>(IDM_SRCWIN),
 	              hInstance,
 	              0);
-	if (!wEditor.Created())
-		exit(FALSE);
+	if (!wEditor.Created()) exit(FALSE);
 	fnEditor = reinterpret_cast<SciFnDirect>(::SendMessage(
 	               reinterpret_cast<HWND>(wEditor.GetID()), SCI_GETDIRECTFUNCTION, 0, 0));
 	ptrEditor = ::SendMessage(reinterpret_cast<HWND>(wEditor.GetID()),
 	                          SCI_GETDIRECTPOINTER, 0, 0);
-	if (!fnEditor || !ptrEditor)
-		exit(FALSE);
+	if (!fnEditor || !ptrEditor) exit(FALSE);
 	wEditor.Show();
 	SendEditor(SCI_USEPOPUP, 0);
 	WindowSetFocus(wEditor);
@@ -1003,7 +997,7 @@ void SciTEWin::Creation() {
 	               hInstance,
 	               0);
 	wToolBar = hwndToolBar;
-
+	
 	::SendMessage(hwndToolBar, TB_BUTTONSTRUCTSIZE, sizeof(TBBUTTON), 0);
 /*
 	::SendMessage(hwndToolBar, TB_LOADIMAGES, IDB_STD_SMALL_COLOR,
@@ -1031,7 +1025,17 @@ void SciTEWin::Creation() {
 //add start
 	TBBUTTON tbb[ELEMENTS(bbs)];
 	for (unsigned int i = 0;i < ELEMENTS(bbs);i++) {
-		TBADDBITMAP addbmp = { hInstance, bbs[i].id+100 };				//添加按钮图像
+		//TBADDBITMAP addbmp = { hInstance, bbs[i].id+100 };				//添加按钮图像
+		//map bmp start >>
+		DWORD backgroundColor = GetSysColor(COLOR_BTNFACE);
+		COLORMAP colorMap;
+		colorMap.from = RGB(0, 0, 0);
+		colorMap.to = backgroundColor;
+		HBITMAP hbm = CreateMappedBitmap(hInstance, bbs[i].id+100, 0, &colorMap, 1);
+		TBADDBITMAP addbmp;
+		addbmp.hInst = NULL;
+		addbmp.nID = (UINT_PTR)hbm;
+		//map bmp end <<
 		::SendMessage(hwndToolBar, TB_ADDBITMAP, 1, (LPARAM)&addbmp);
 		tbb[i].iBitmap = bbs[i].id;
 		tbb[i].idCommand = bbs[i].cmd;
@@ -1043,7 +1047,6 @@ void SciTEWin::Creation() {
 		tbb[i].dwData = 0;
 		tbb[i].iString = 0;
 	}
-
 //add end
 	//添加按钮
 	::SendMessage(hwndToolBar, TB_ADDBUTTONS, ELEMENTS(bbs), reinterpret_cast<LPARAM>(tbb));
