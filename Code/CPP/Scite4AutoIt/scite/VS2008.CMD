@@ -2,7 +2,7 @@
 @echo.
 @echo ==============================
 @SET REG=SOFTWARE
-@if %PROCESSOR_ARCHITECTURE%=="AMD64" SET REG=SOFTWARE\Wow6432Node
+@if "%PROCESSOR_ARCHITECTURE%"=="AMD64" SET REG=SOFTWARE\Wow6432Node
 @call :GetVSDir HKLM
 @echo VS2008 DIR:%VSINSTALLDIR%
 @call :GetVCDir HKLM

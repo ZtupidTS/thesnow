@@ -93,11 +93,7 @@ extern bool IsNT();
 extern void Platform_Initialise(void *hInstance);
 extern void Platform_Finalise();
 
-/** TOTAL_CONTROL ifdef surrounds code that will only work when ScintillaWin
- * is derived from ScintillaBase (all features) rather than directly from Editor
- * (lightweight editor).
- */
-#define TOTAL_CONTROL
+typedef BOOL (WINAPI *TrackMouseEventSig)(LPTRACKMOUSEEVENT);
 
 // GCC has trouble with the standard COM ABI so do it the old C way with explicit vtables.
 
@@ -110,11 +106,13 @@ using namespace Scintilla;
 
 class ScintillaWin; 	// Forward declaration for COM interface subobjects
 
+typedef void VFunction(void);
+
 /**
  */
 class FormatEnumerator {
 public:
-	void **vtbl;
+	VFunction **vtbl;
 	int ref;
 	int pos;
 	CLIPFORMAT formats[2];
@@ -126,7 +124,7 @@ public:
  */
 class DropSource {
 public:
-	void **vtbl;
+	VFunction **vtbl;
 	ScintillaWin *sci;
 	DropSource();
 };
@@ -135,7 +133,7 @@ public:
  */
 class DataObject {
 public:
-	void **vtbl;
+	VFunction **vtbl;
 	ScintillaWin *sci;
 	DataObject();
 };
@@ -144,7 +142,7 @@ public:
  */
 class DropTarget {
 public:
-	void **vtbl;
+	VFunction **vtbl;
 	ScintillaWin *sci;
 	DropTarget();
 };
@@ -157,6 +155,8 @@ class ScintillaWin :
 	bool lastKeyDownConsumed;
 
 	bool capturedMouse;
+	bool trackedMouseLeave;
+	TrackMouseEventSig TrackMouseEventFn;
 
 	unsigned int linesPerScroll;	///< Intellimouse support
 	int wheelDelta; ///< Wheel delta from roll
@@ -203,6 +203,7 @@ class ScintillaWin :
 	virtual void SetTicking(bool on);
 	virtual void SetMouseCapture(bool on);
 	virtual bool HaveMouseCapture();
+	virtual void SetTrackMouseLeaveEvent(bool on);
 	virtual bool PaintContains(PRectangle rc);
 	virtual void ScrollText(int linesToMove);
 	virtual void UpdateSystemCaret();
@@ -298,6 +299,9 @@ ScintillaWin::ScintillaWin(HWND hwnd) {
 	lastKeyDownConsumed = false;
 
 	capturedMouse = false;
+	trackedMouseLeave = false;
+	TrackMouseEventFn = 0;
+
 	linesPerScroll = 0;
 	wheelDelta = 0;   // Wheel delta from roll
 
@@ -338,6 +342,18 @@ void ScintillaWin::Initialise() {
 	// no effect.  If the app hasnt, we really shouldnt ask them to call
 	// it just so this internal feature works.
 	hrOle = ::OleInitialize(NULL);
+
+	// Find TrackMouseEvent which is available on Windows > 95
+	HMODULE user32 = ::GetModuleHandle("user32.dll");
+	TrackMouseEventFn = (TrackMouseEventSig)::GetProcAddress(user32, "TrackMouseEvent");
+	if (TrackMouseEventFn == NULL) {
+		// Windows 95 has an emulation in comctl32.dll:_TrackMouseEvent
+		HMODULE commctrl32 = ::LoadLibrary("comctl32.dll");
+		if (commctrl32 != NULL) {
+			TrackMouseEventFn = (TrackMouseEventSig)
+				::GetProcAddress(commctrl32, "_TrackMouseEvent");
+		}
+	}
 }
 
 void ScintillaWin::Finalise() {
@@ -602,9 +618,7 @@ sptr_t ScintillaWin::WndProc(unsigned int iMessage, uptr_t wParam, sptr_t lParam
 			break;
 
 		case WM_COMMAND:
-#ifdef TOTAL_CONTROL
 			Command(LoWord(wParam));
-#endif
 			break;
 
 		case WM_PAINT:
@@ -731,8 +745,14 @@ sptr_t ScintillaWin::WndProc(unsigned int iMessage, uptr_t wParam, sptr_t lParam
 			break;
 
 		case WM_MOUSEMOVE:
+			SetTrackMouseLeaveEvent(true);
 			ButtonMove(Point::FromLong(lParam));
 			break;
+
+		case WM_MOUSELEAVE:
+			SetTrackMouseLeaveEvent(false);
+			MouseLeave();
+			return ::DefWindowProc(MainHWND(), iMessage, wParam, lParam);
 
 		case WM_LBUTTONUP:
 			ButtonUp(Point::FromLong(lParam),
@@ -901,7 +921,6 @@ sptr_t ScintillaWin::WndProc(unsigned int iMessage, uptr_t wParam, sptr_t lParam
 			}
 
 		case WM_CONTEXTMENU:
-#ifdef TOTAL_CONTROL
 			if (displayPopupMenu) {
 				Point pt = Point::FromLong(lParam);
 				if ((pt.x == -1) && (pt.y == -1)) {
@@ -914,7 +933,6 @@ sptr_t ScintillaWin::WndProc(unsigned int iMessage, uptr_t wParam, sptr_t lParam
 				ContextMenu(pt);
 				return 0;
 			}
-#endif
 			return ::DefWindowProc(MainHWND(), iMessage, wParam, lParam);
 
 		case WM_INPUTLANGCHANGE:
@@ -1099,6 +1117,17 @@ bool ScintillaWin::HaveMouseCapture() {
 	// Cannot just see if GetCapture is this window as the scroll bar also sets capture for the window
 	return capturedMouse;
 	//return capturedMouse && (::GetCapture() == MainHWND());
+}
+
+void ScintillaWin::SetTrackMouseLeaveEvent(bool on) {
+	if (on && TrackMouseEventFn && !trackedMouseLeave) {
+		TRACKMOUSEEVENT tme;
+		tme.cbSize = sizeof(tme);
+		tme.dwFlags = TME_LEAVE;
+		tme.hwndTrack = MainHWND();
+		TrackMouseEventFn(&tme);
+	}
+	trackedMouseLeave = on;
 }
 
 bool ScintillaWin::PaintContains(PRectangle rc) {
@@ -1441,7 +1470,6 @@ void ScintillaWin::Paste() {
 }
 
 void ScintillaWin::CreateCallTipWindow(PRectangle) {
-#ifdef TOTAL_CONTROL
 	if (!ct.wCallTip.Created()) {
 		ct.wCallTip = ::CreateWindow(callClassName, TEXT("ACallTip"),
 					     WS_POPUP, 100, 100, 150, 20,
@@ -1450,11 +1478,9 @@ void ScintillaWin::CreateCallTipWindow(PRectangle) {
 					     this);
 		ct.wDraw = ct.wCallTip;
 	}
-#endif
 }
 
 void ScintillaWin::AddToPopUp(const char *label, int cmd, bool enabled) {
-#ifdef TOTAL_CONTROL
 	HMENU hmenuPopup = reinterpret_cast<HMENU>(popup.GetID());
 	if (!label[0])
 		::AppendMenuA(hmenuPopup, MF_SEPARATOR, 0, "");
@@ -1462,7 +1488,6 @@ void ScintillaWin::AddToPopUp(const char *label, int cmd, bool enabled) {
 		::AppendMenuA(hmenuPopup, MF_STRING, cmd, label);
 	else
 		::AppendMenuA(hmenuPopup, MF_STRING | MF_DISABLED | MF_GRAYED, cmd, label);
-#endif
 }
 
 void ScintillaWin::ClaimSelection() {
@@ -1561,14 +1586,14 @@ STDMETHODIMP FormatEnumerator_Clone(FormatEnumerator *fe, IEnumFORMATETC **ppenu
 	                                       reinterpret_cast<void **>(ppenum));
 }
 
-static void *vtFormatEnumerator[] = {
-	(void *)(FormatEnumerator_QueryInterface),
-	(void *)(FormatEnumerator_AddRef),
-	(void *)(FormatEnumerator_Release),
-	(void *)(FormatEnumerator_Next),
-	(void *)(FormatEnumerator_Skip),
-	(void *)(FormatEnumerator_Reset),
-	(void *)(FormatEnumerator_Clone)
+static VFunction *vtFormatEnumerator[] = {
+	(VFunction *)(FormatEnumerator_QueryInterface),
+	(VFunction *)(FormatEnumerator_AddRef),
+	(VFunction *)(FormatEnumerator_Release),
+	(VFunction *)(FormatEnumerator_Next),
+	(VFunction *)(FormatEnumerator_Skip),
+	(VFunction *)(FormatEnumerator_Reset),
+	(VFunction *)(FormatEnumerator_Clone)
 };
 
 FormatEnumerator::FormatEnumerator(int pos_, CLIPFORMAT formats_[], int formatsLen_) {
@@ -1604,12 +1629,12 @@ STDMETHODIMP DropSource_GiveFeedback(DropSource *, DWORD) {
 	return DRAGDROP_S_USEDEFAULTCURSORS;
 }
 
-static void *vtDropSource[] = {
-	(void *)(DropSource_QueryInterface),
-	(void *)(DropSource_AddRef),
-	(void *)(DropSource_Release),
-	(void *)(DropSource_QueryContinueDrag),
-	(void *)(DropSource_GiveFeedback)
+static VFunction *vtDropSource[] = {
+	(VFunction *)(DropSource_QueryInterface),
+	(VFunction *)(DropSource_AddRef),
+	(VFunction *)(DropSource_Release),
+	(VFunction *)(DropSource_QueryContinueDrag),
+	(VFunction *)(DropSource_GiveFeedback)
 };
 
 DropSource::DropSource() {
@@ -1723,19 +1748,19 @@ STDMETHODIMP DataObject_EnumDAdvise(DataObject *, IEnumSTATDATA **) {
 	return E_FAIL;
 }
 
-static void *vtDataObject[] = {
-	(void *)(DataObject_QueryInterface),
-	(void *)(DataObject_AddRef),
-	(void *)(DataObject_Release),
-	(void *)(DataObject_GetData),
-	(void *)(DataObject_GetDataHere),
-	(void *)(DataObject_QueryGetData),
-	(void *)(DataObject_GetCanonicalFormatEtc),
-	(void *)(DataObject_SetData),
-	(void *)(DataObject_EnumFormatEtc),
-	(void *)(DataObject_DAdvise),
-	(void *)(DataObject_DUnadvise),
-	(void *)(DataObject_EnumDAdvise)
+static VFunction *vtDataObject[] = {
+	(VFunction *)(DataObject_QueryInterface),
+	(VFunction *)(DataObject_AddRef),
+	(VFunction *)(DataObject_Release),
+	(VFunction *)(DataObject_GetData),
+	(VFunction *)(DataObject_GetDataHere),
+	(VFunction *)(DataObject_QueryGetData),
+	(VFunction *)(DataObject_GetCanonicalFormatEtc),
+	(VFunction *)(DataObject_SetData),
+	(VFunction *)(DataObject_EnumFormatEtc),
+	(VFunction *)(DataObject_DAdvise),
+	(VFunction *)(DataObject_DUnadvise),
+	(VFunction *)(DataObject_EnumDAdvise)
 };
 
 DataObject::DataObject() {
@@ -1791,14 +1816,14 @@ STDMETHODIMP DropTarget_Drop(DropTarget *dt, LPDATAOBJECT pIDataSource, DWORD gr
 	return E_FAIL;
 }
 
-static void *vtDropTarget[] = {
-	(void *)(DropTarget_QueryInterface),
-	(void *)(DropTarget_AddRef),
-	(void *)(DropTarget_Release),
-	(void *)(DropTarget_DragEnter),
-	(void *)(DropTarget_DragOver),
-	(void *)(DropTarget_DragLeave),
-	(void *)(DropTarget_Drop)
+static VFunction *vtDropTarget[] = {
+	(VFunction *)(DropTarget_QueryInterface),
+	(VFunction *)(DropTarget_AddRef),
+	(VFunction *)(DropTarget_Release),
+	(VFunction *)(DropTarget_DragEnter),
+	(VFunction *)(DropTarget_DragOver),
+	(VFunction *)(DropTarget_DragLeave),
+	(VFunction *)(DropTarget_Drop)
 };
 
 DropTarget::DropTarget() {
@@ -2374,7 +2399,7 @@ bool ScintillaWin::Unregister() {
 bool ScintillaWin::HasCaretSizeChanged() {
 	if (
 		( (0 != vs.caretWidth) && (sysCaretWidth != vs.caretWidth) )
-		|| (0 != vs.lineHeight) && (sysCaretHeight != vs.lineHeight)
+		|| ((0 != vs.lineHeight) && (sysCaretHeight != vs.lineHeight))
 		) {
 		return true;
 	}

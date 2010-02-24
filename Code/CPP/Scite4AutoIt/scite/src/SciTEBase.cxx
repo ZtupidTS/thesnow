@@ -1315,7 +1315,7 @@ int SciTEBase::DoReplaceAll(bool inSelection) {
 			replacements++;
 		}
 		if (inSelection) {
-			if (countSelections == 1) 
+			if (countSelections == 1)
 				SetSelection(startPosition, endPosition);
 		} else {
 			SetSelection(lastMatch, lastMatch);
@@ -1502,11 +1502,11 @@ void SciTEBase::BookmarkToggle(int lineno) {
 void SciTEBase::BookmarkNext(bool forwardScan, bool select) {
 	int lineno = GetCurrentLineNumber();
 	int sci_marker = SCI_MARKERNEXT;
-	int lineStart = lineno + 1;		//从下一行开始扫描(Scan starting from next line)
+	int lineStart = lineno + 1;			//从下一行开始扫描(Scan starting from next line)
 	int lineRetry = 0;				//如果没有找到,尝试从文件开始查找.
 	int anchor = SendEditor(SCI_GETANCHOR);
 	if (!forwardScan) {
-		lineStart = lineno - 1;		//从上一行开始扫描Scan starting from previous line
+		lineStart = lineno - 1;			//从上一行开始扫描Scan starting from previous line
 		lineRetry = SendEditor(SCI_GETLINECOUNT, 0, 0L);	//If not found, try from the end
 		sci_marker = SCI_MARKERPREVIOUS;
 	}
@@ -3215,11 +3215,11 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 	case IDM_CLEAR:						//清除
 		SendPane(source, SCI_CLEAR);
 		break;
-	//added-------------
+	//added by thesnoW -------------
 	case IDM_CLEARLINE:					//删除行
 		SendPane(source, SCI_LINEDELETE);
 		break;
-	//added-------------
+	//added by thesnoW -------------
 	case IDM_SELECTALL:					//全选
 		SendPane(source, SCI_SELECTALL);
 		break;
@@ -3415,10 +3415,12 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		ParametersDialog(false);
 		CheckMenus();
 		break;
+	//add start
 	case IDM_EDITORCONFIG:					//打开配置工具
 		::MessageBoxW(0,L"注意:此功能可能导致设置文件混乱,请小心使用.",L"警告!",0);
 		::ShellExecuteW(0,L"open",L"SciTEConfig\sciteconfig.exe",L"acn",L"",SW_SHOW);
 		break;
+	//added by thesnoW
 	case IDM_WRAP:
 		wrap = !wrap;
 		SendEditor(SCI_SETWRAPMODE, wrap ? wrapStyle : SC_WRAP_NONE);
