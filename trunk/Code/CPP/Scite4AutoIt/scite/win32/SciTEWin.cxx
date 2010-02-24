@@ -1,4 +1,4 @@
-// SciTE - Scintilla based Text Editor
+ï»¿// SciTE - Scintilla based Text Editor
 /** @file SciTEWin.cxx
  ** Main code for the Windows version of the editor.
  **/
@@ -6,6 +6,7 @@
 // The License.txt file describes the conditions under which this software may be distributed.
 
 #include <time.h>
+
 #include "SciTEWin.h"
 
 #ifndef NO_EXTENSIONS
@@ -15,7 +16,7 @@
 #include "DirectorExtension.h"
 #endif
 
-#ifndef NO_LUA			//È¥µôLUAÖ§³Ö
+#ifndef NO_LUA			//å»æ‰LUAæ”¯æŒ
 #include "SingleThreadExtension.h"
 #include "LuaExtension.h"
 #endif
@@ -23,7 +24,7 @@
 #endif
 
 #ifdef STATIC_BUILD
-const char appName[] = "Sc1";			//Ó¦ÓÃ³ÌĞòÃû³Æ
+const char appName[] = "Sc1";			//åº”ç”¨ç¨‹åºåç§°
 const wchar_t appNameW[] = L"SciTE(ACN)";
 #else
 #ifdef AUTOIT
@@ -39,7 +40,7 @@ long SciTEKeys::ParseKeyCode(const char *mnemonic) {
 	int modsInKey = 0;
 	int keyval = -1;
 
-	if (mnemonic && *mnemonic) {		//	&& ÎªÂß¼­"Óë"·ûºÅ
+	if (mnemonic && *mnemonic) {		//	&& ä¸ºé€»è¾‘"ä¸"ç¬¦å·
 		SString sKey = mnemonic;
 
 		if (sKey.contains("Ctrl+")) {
@@ -134,8 +135,8 @@ bool SciTEKeys::MatchKeyCode(long parsedKeyCode, int keyval, int modifiers) {
 }
 
 HINSTANCE SciTEWin::hInstance = 0;
-char *SciTEWin::className = NULL;
-char *SciTEWin::classNameInternal = NULL;
+const char *SciTEWin::className = NULL;
+const char *SciTEWin::classNameInternal = NULL;
 SciTEWin *SciTEWin::app = NULL;
 
 SciTEWin::SciTEWin(Extension *ext) : SciTEBase(ext) {
@@ -185,15 +186,15 @@ SciTEWin::SciTEWin(Extension *ext) : SciTEBase(ext) {
 				    reinterpret_cast<const char *>(pv), size, FilePath());
 			}
 		}
-		::FreeResource(handProps);						//ÊÍ·Å×ÊÔ´
+		::FreeResource(handProps);						//é‡Šæ”¾èµ„æº
 	}
 
-	pathAbbreviations = GetAbbrevPropertiesFileName();	//µÃµ½Óï·¨ËõĞ´ÎÄ¼şÃû
+	pathAbbreviations = GetAbbrevPropertiesFileName();	//å¾—åˆ°è¯­æ³•ç¼©å†™æ–‡ä»¶å
 
-	ReadGlobalPropFile();								//¶ÁÈ¡È«¾ÖÑ¡ÏîÎÄ¼ş
+	ReadGlobalPropFile();								//è¯»å–å…¨å±€é€‰é¡¹æ–‡ä»¶
 	/// Need to copy properties to variables before setting up window
-	SetPropertiesInitial();								//ÉèÖÃÊôĞÔ³õÊ¼»¯
-	ReadAbbrevPropFile();								//¶ÁÈ¡Óï·¨ËõĞ´ÎÄ¼ş
+	SetPropertiesInitial();								//è®¾ç½®å±æ€§åˆå§‹åŒ–
+	ReadAbbrevPropFile();								//è¯»å–è¯­æ³•ç¼©å†™æ–‡ä»¶
 
 	hDevMode = 0;
 	hDevNames = 0;
@@ -203,7 +204,7 @@ SciTEWin::SciTEWin(Extension *ext) : SciTEBase(ext) {
 	hMM = 0;
 	uniqueInstance.Init(this);
 
-	hAccTable = ::LoadAccelerators(hInstance, "ACCELS"); // ¿ì½İ¼ü±í
+	hAccTable = ::LoadAccelerators(hInstance, "ACCELS"); // å¿«æ·é”®è¡¨
 }
 
 SciTEWin::~SciTEWin() {
@@ -784,7 +785,7 @@ DWORD SciTEWin::ExecuteOne(const Job &jobToRun, bool &seenOutput) {
 					// don't answer to a normal termination command.
 					// This function is dangerous: dependant DLLs don't know the process
 					// is terminated, and memory isn't released.
-					OutputAppendStringSynchronised("\n>½ø³ÌÃ»ÓĞÏìÓ¦; Ç¿ÖÆÖÕÖ¹½ø³Ì...\n");
+					OutputAppendStringSynchronised("\n>è¿›ç¨‹æ²¡æœ‰å“åº”; å¼ºåˆ¶ç»ˆæ­¢è¿›ç¨‹...\n");
 					::TerminateProcess(pi.hProcess, 1);
 				}
 				running = false;
@@ -793,14 +794,14 @@ DWORD SciTEWin::ExecuteOne(const Job &jobToRun, bool &seenOutput) {
 		}
 
 		if (WAIT_OBJECT_0 != ::WaitForSingleObject(pi.hProcess, 1000)) {
-			OutputAppendStringSynchronised("\n>½ø³ÌÃ»ÓĞÏìÓ¦; Ç¿ÖÆÖÕÖ¹½ø³Ì...");
+			OutputAppendStringSynchronised("\n>è¿›ç¨‹æ²¡æœ‰å“åº”; å¼ºåˆ¶ç»ˆæ­¢è¿›ç¨‹...");
 			::TerminateProcess(pi.hProcess, 2);
 		}
 		::GetExitCodeProcess(pi.hProcess, &exitcode);
 		SString sExitMessage(exitcode);
-		sExitMessage.insert(0, ">ÍË³ö´úÂë: ");
+		sExitMessage.insert(0, ">é€€å‡ºä»£ç : ");
 		if (jobQueue.TimeCommands()) {
-			sExitMessage += "    Ê±¼ä: ";
+			sExitMessage += "    æ—¶é—´: ";
 			sExitMessage += SString(commandTime.Duration(), 3);
 		}
 		sExitMessage += "\n";
@@ -834,7 +835,7 @@ DWORD SciTEWin::ExecuteOne(const Job &jobToRun, bool &seenOutput) {
 		    FORMAT_MESSAGE_IGNORE_INSERTS,
 		    NULL,
 		    nRet,
-		    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),   // Ä¬ÈÏÓïÑÔ
+		    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),   // é»˜è®¤è¯­è¨€
 		    reinterpret_cast<LPTSTR>(&lpMsgBuf),
 		    0,
 		    NULL
@@ -968,20 +969,20 @@ void SciTEWin::ShellExec(const SString &cmd, const char *dir) {
 
 	const int numErrcodes = 15;
 	static const ShellErr field[numErrcodes] = {
-	            { 0, "²Ù×÷ÏµÍ³Òç³öÄÚ´æ»òÕß×ÊÔ´." },
-	            { ERROR_FILE_NOT_FOUND, "Ö¸¶¨ÎÄ¼şÃ»ÓĞÕÒµ½." },
-	            { ERROR_PATH_NOT_FOUND, "Ö¸¶¨Â·¾¶Ã»ÓĞÕÒµ½." },
-	            { ERROR_BAD_FORMAT, " .exe ÊÇÎŞĞ§µÄ (²»ÊÇÒ»¸öWin32\256 .exe »òÕß.exeÎÄ¼şÖĞº¬ÓĞ´íÎó)." },
-	            { SE_ERR_ACCESSDENIED, "²Ù×÷ÏµÍ³¾Ü¾øÊ¹ÓÃÕâ¸öÎÄ¼ş." },
-	            { SE_ERR_ASSOCINCOMPLETE, "ÎÄ¼şÀ©Õ¹Ãû²»ÍêÕû»òÕßÎŞĞ§." },
-	            { SE_ERR_DDEBUSY, "DDE Í¨Ñ¶²»ÄÜÍê³É,ÒòÎªÆäËüDDEÍ¨ĞÅÕıÔÚ½øĞĞ." },
-	            { SE_ERR_DDEFAIL, "DDE Í¨Ñ¶Ê§°Ü." },
-	            { SE_ERR_DDETIMEOUT, "DDE Í¨ĞÅÊ§°Ü,ÒòÎªÇëÇó³¬Ê±." },
-	            { SE_ERR_DLLNOTFOUND, "Ö¸¶¨µÄ¶¯Ì¬Á´½Ó¿âÃ»ÓĞÕÒµ½." },
-	            { SE_ERR_FNF, "Ö¸¶¨µÄÎÄ¼ş²»´æÔÚ." },
+	            { 0, "æ“ä½œç³»ç»Ÿæº¢å‡ºå†…å­˜æˆ–è€…èµ„æº." },
+	            { ERROR_FILE_NOT_FOUND, "æŒ‡å®šæ–‡ä»¶æ²¡æœ‰æ‰¾åˆ°." },
+	            { ERROR_PATH_NOT_FOUND, "æŒ‡å®šè·¯å¾„æ²¡æœ‰æ‰¾åˆ°." },
+	            { ERROR_BAD_FORMAT, " .exe æ˜¯æ— æ•ˆçš„ (ä¸æ˜¯ä¸€ä¸ªWin32\256 .exe æˆ–è€….exeæ–‡ä»¶ä¸­å«æœ‰é”™è¯¯)." },
+	            { SE_ERR_ACCESSDENIED, "æ“ä½œç³»ç»Ÿæ‹’ç»ä½¿ç”¨è¿™ä¸ªæ–‡ä»¶." },
+	            { SE_ERR_ASSOCINCOMPLETE, "æ–‡ä»¶æ‰©å±•åä¸å®Œæ•´æˆ–è€…æ— æ•ˆ." },
+	            { SE_ERR_DDEBUSY, "DDE é€šè®¯ä¸èƒ½å®Œæˆ,å› ä¸ºå…¶å®ƒDDEé€šä¿¡æ­£åœ¨è¿›è¡Œ." },
+	            { SE_ERR_DDEFAIL, "DDE é€šè®¯å¤±è´¥." },
+	            { SE_ERR_DDETIMEOUT, "DDE é€šä¿¡å¤±è´¥,å› ä¸ºè¯·æ±‚è¶…æ—¶." },
+	            { SE_ERR_DLLNOTFOUND, "æŒ‡å®šçš„åŠ¨æ€é“¾æ¥åº“æ²¡æœ‰æ‰¾åˆ°." },
+	            { SE_ERR_FNF, "æŒ‡å®šçš„æ–‡ä»¶ä¸å­˜åœ¨." },
 	            { SE_ERR_NOASSOC, "There is no application associated with the given file name extension." },
-	            { SE_ERR_OOM, "Ã»ÓĞ×ã¹»µÄÄÚ´æÍê³É´Ë²Ù×÷." },
-	            { SE_ERR_PNF, "Ö¸¶¨µÄÂ·¾¶²»´æÔÚ." },
+	            { SE_ERR_OOM, "æ²¡æœ‰è¶³å¤Ÿçš„å†…å­˜å®Œæˆæ­¤æ“ä½œ." },
+	            { SE_ERR_PNF, "æŒ‡å®šçš„è·¯å¾„ä¸å­˜åœ¨." },
 	            { SE_ERR_SHARE, "A sharing violation occurred." },
 	        };
 
@@ -991,7 +992,7 @@ void SciTEWin::ShellExec(const SString &cmd, const char *dir) {
 			break;
 	}
 
-	SString errormsg("³öÏÖ´íÎóÓÚÆô¶¯:\n\"");
+	SString errormsg("å‡ºç°é”™è¯¯äºå¯åŠ¨:\n\"");
 	errormsg += mycmdcopy;
 	if (myparams != NULL) {
 		errormsg += "\" with Params:\n\"";
@@ -1001,7 +1002,7 @@ void SciTEWin::ShellExec(const SString &cmd, const char *dir) {
 	if (i < numErrcodes) {
 		errormsg += field[i].descr;
 	} else {
-		errormsg += "Î´Öª´íÎó´úÂë: ";
+		errormsg += "æœªçŸ¥é”™è¯¯ä»£ç : ";
 		errormsg += SString(rc);
 	}
 	WindowMessageBox(wSciTE, errormsg, MB_OK);
@@ -1026,11 +1027,11 @@ void SciTEWin::StopExecute() {
 #ifdef USE_CONSOLE_EVENT
 	if (subProcessGroupId) {
 		// this also doesn't work
-		OutputAppendStringSynchronised("\n>³¢ÊÔÈ¡Ïû´¦Àí...");
+		OutputAppendStringSynchronised("\n>å°è¯•å–æ¶ˆå¤„ç†...");
 
 		if (!GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, subProcessGroupId)) {
 			LONG errCode = GetLastError();
-			OutputAppendStringSynchronised("\n>ÖÕÖ¹Ê§°Ü.ÔÎ...");
+			OutputAppendStringSynchronised("\n>ç»ˆæ­¢å¤±è´¥.æ™•...");
 			OutputAppendStringSynchronised(SString(errCode).c_str());
 			OutputAppendStringSynchronised("\n");
 		}
@@ -1068,7 +1069,7 @@ void SciTEWin::QuitProgram() {
 		if (fullScreen)	// Ensure tray visible on exit
 			FullScreenToggle();
 		::PostQuitMessage(0);
-		wSciTE.DestroySciTe();
+		wSciTE.DestroySciTe();	//moded by thesnoW
 	}
 }
 
@@ -1192,26 +1193,19 @@ SString SciTEWin::ProcessArgs(const char *cmdLine) {
  * to other instance and exit or just show the window and open files.
  */
 void SciTEWin::Run(const char *cmdLine) {
-	// ÔØÈëÄ¬ÈÏ»á»°ÎÄ¼ş
+	// è½½å…¥é»˜è®¤ä¼šè¯æ–‡ä»¶
 	if (props.GetInt("save.session") || props.GetInt("save.position") || props.GetInt("save.recent")) {
 		LoadSessionFile("");
 	}
-	#ifndef STATIC_BUILD
-//   #if $(PlatformName)=="Win32"
-//	if ((props.GetInt("load.skin") != 0)) {
-//		USkinInit(NULL,NULL,"skin.msstyles");
-//	}
-//	#endif
-	#endif
-	
+
 	// Break up the command line into individual arguments
-	SString args = ProcessArgs(cmdLine);					//´¦ÀíÃüÁîĞĞ²ÎÊı(µÃµ½ÎÄ±¾)
+	SString args = ProcessArgs(cmdLine);					//å¤„ç†å‘½ä»¤è¡Œå‚æ•°(å¾—åˆ°æ–‡æœ¬)
 	// Read the command line parameters:
 	// In case the check.if.already.open property has been set or reset on the command line,
 	// we still get a last chance to force checking or to open a separate instance;
 	// Check if the user just want to print the file(s).
 	// Don't process files yet.
-	bool bBatchProcessing = ProcessCommandLine(args, 0);	//´¦ÀíÃüÁîĞĞ²ÎÊı
+	bool bBatchProcessing = ProcessCommandLine(args, 0);	//å¤„ç†å‘½ä»¤è¡Œå‚æ•°
 
 	// No need to check for other instances when doing a batch job:
 	// perform some tasks and exit immediately.
@@ -1223,15 +1217,15 @@ void SciTEWin::Run(const char *cmdLine) {
 	// and the Scintilla control is thus created, allowing to print the file(s).
 	// We don't show it yet, so if it is destroyed (duplicate instance), it will
 	// not flash on the taskbar or on the display.
-	CreateUI();												//´´½¨½çÃæ
+	CreateUI();												//åˆ›å»ºç•Œé¢
 
 	if (bBatchProcessing) {
-		// ÖØĞÂ´¦ÀíÃüÁîĞĞ²¢¶ÁÈ¡ÎÄ¼ş
+		// é‡æ–°å¤„ç†å‘½ä»¤è¡Œå¹¶è¯»å–æ–‡ä»¶
 		ProcessCommandLine(args, 1);
 		Print(false);	// Don't ask user for print parameters
-		// Íê³É, ÍË³ö³ÌĞò
+		// å®Œæˆ, é€€å‡ºç¨‹åº
 		::PostQuitMessage(0);
-		wSciTE.Destroy();	//Ïú»Ù
+		wSciTE.Destroy();	//é”€æ¯
 		return;
 	}
 
@@ -1244,10 +1238,10 @@ void SciTEWin::Run(const char *cmdLine) {
 		return;	// Don't do anything else
 	}
 
-	// OK, ÊµÀı½«±»ÏÔÊ¾
+	// OK, å®ä¾‹å°†è¢«æ˜¾ç¤º
 	SizeSubWindows();
 	wSciTE.Show();
-	if (cmdShow) {	// ¼ÙÉèÓĞ SW_MAXIMIZE (ÃüÁîĞĞ²ÎÊı)
+	if (cmdShow) {	// å‡è®¾æœ‰ SW_MAXIMIZE (å‘½ä»¤è¡Œå‚æ•°)
 		::ShowWindow(MainHWND(), cmdShow);
 	}
 
@@ -1256,7 +1250,7 @@ void SciTEWin::Run(const char *cmdLine) {
 	// In case of not using buffers they get closed immediately except
 	// the last one, but they move to the MRU file list
 	ProcessCommandLine(args, 1);
-	Redraw();		//ÖØ»æ
+	Redraw();		//é‡ç»˜
 }
 
 /**
@@ -1300,7 +1294,7 @@ void SciTEWin::AboutDialog() {
 }
 
 /**
- * ÍÏ·ÅÎÄ¼şµ½ SciTE ´°¿Ú.
+ * æ‹–æ”¾æ–‡ä»¶åˆ° SciTE çª—å£.
  */
 void SciTEWin::DropFiles(HDROP hdrop) {
 	// If drag'n'drop inside the SciTE window but outside
@@ -1366,7 +1360,7 @@ bool SciTEWin::PreOpenCheck(const char *arg) {
 		const char *lastdot = strrchr(arg, '.');
 
 		// if the filename is only an extension, open the dialog box with it as the extension filter
-		if (lastslash && lastdot && lastslash == lastdot - 1 || !lastslash && lastdot == arg) {
+		if ((lastslash && lastdot && lastslash == lastdot - 1) || (!lastslash && lastdot == arg)) {
 			isHandled = true;
 
 			char dir[MAX_PATH];
@@ -1383,7 +1377,7 @@ bool SciTEWin::PreOpenCheck(const char *arg) {
 			strcat(filename, "*");
 			strcat(filename, lastdot);
 			OpenDialog(FilePath(dir), filename);
-		} else if (!lastdot || lastslash && lastdot < lastslash) {
+		} else if (!lastdot || (lastslash && lastdot < lastslash)) {
 			// if the filename has no extension, try to match a file with list of standard extensions
 			SString extensions = props.GetExpanded("source.default.extensions");
 			if (extensions.length()) {
@@ -2000,11 +1994,11 @@ int SciTEWin::EventLoop() {
 	return msg.wParam;
 }
 
-//³ÌĞò¿ªÊ¼
+//ç¨‹åºå¼€å§‹
 int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpszCmdLine, int) {
 
 #ifdef NO_EXTENSIONS
-	//²Î¿¼MultiplexExtension.h
+	//å‚è€ƒMultiplexExtension.h
 	Extension *extender = 0;
 #else
 	MultiplexExtension multiExtender;
@@ -2021,32 +2015,32 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpszCmdLine, int) {
 #endif
 	//Platform::DebugPrintf("Command line is \n%s\n<<", lpszCmdLine);
 
-	SciTEWin::Register(hInstance);			//×¢²áhInstance
+	SciTEWin::Register(hInstance);			//æ³¨å†ŒhInstance
 
 #ifdef STATIC_BUILD
 
-	Scintilla_LinkLexers();					//Á¬½Ó±í´ïÊ½
-	Scintilla_RegisterClasses(hInstance);	//×¢²áÀà
+	Scintilla_LinkLexers();					//è¿æ¥è¡¨è¾¾å¼
+	Scintilla_RegisterClasses(hInstance);	//æ³¨å†Œç±»
 #else
 
 	HMODULE hmod = ::LoadLibrary("SciLexer.DLL");
 	if (hmod == NULL)
-		::MessageBox(NULL, "Scintilla µÄÓï·¨±í´ïÊ½¶¯Ì¬Á´½Ó¿âÎÄ¼ş(SciLexer.dll)²»ÄÜÔØÈë.  SciTE ½«»áÍË³ö",
-		"ÔØÈë Scintilla ´íÎó", MB_OK | MB_ICONERROR);
+		::MessageBox(NULL, "Scintilla çš„è¯­æ³•è¡¨è¾¾å¼åŠ¨æ€é“¾æ¥åº“æ–‡ä»¶(SciLexer.dll)ä¸èƒ½è½½å…¥.  SciTE å°†ä¼šé€€å‡º",
+		"è½½å…¥ Scintilla é”™è¯¯", MB_OK | MB_ICONERROR);
 #endif
 
 	int result;
 	{
-		SciTEWin MainWind(extender);		//ÊôĞÔÎÄ¼ş´¦Àí
-		MainWind.Run(lpszCmdLine);			//ÔËĞĞ
-		result = MainWind.EventLoop();		//ÊÂ¼şÑ­»·
+		SciTEWin MainWind(extender);		//å±æ€§æ–‡ä»¶å¤„ç†
+		MainWind.Run(lpszCmdLine);			//è¿è¡Œ
+		result = MainWind.EventLoop();		//äº‹ä»¶å¾ªç¯
 	}
 
 #ifdef STATIC_BUILD
-	Scintilla_ReleaseResources();			//ÊÍ·Å×ÊÔ´
+	Scintilla_ReleaseResources();			//é‡Šæ”¾èµ„æº
 #else
 
-	::FreeLibrary(hmod);					//ÊÍ·ÅDLL
+	::FreeLibrary(hmod);					//é‡Šæ”¾DLL
 #endif
 
 	return result;
