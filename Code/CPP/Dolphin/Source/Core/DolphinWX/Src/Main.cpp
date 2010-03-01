@@ -23,11 +23,12 @@
 #include <sys/param.h>
 #endif
 
-#ifdef __linux__
+#include "Common.h" // Common
+
+#if defined HAVE_X11 && HAVE_X11
 #include <X11/Xlib.h>
 #endif
 
-#include "Common.h" // Common
 #include "CPUDetect.h"
 #include "IniFile.h"
 #include "FileUtil.h"
@@ -57,7 +58,6 @@ IMPLEMENT_APP(DolphinApp)
 #endif
 
 CFrame* main_frame = NULL;
-LogManager *logManager = NULL;
 
 #ifdef WIN32
 //Has no error handling.
@@ -106,15 +106,16 @@ bool DolphinApp::OnInit()
 	wxString padPluginFilename;
 	wxString wiimotePluginFilename;
 
-
-	// Detect CPU info and write it to the cpu_info struct
-	cpu_info.Detect();
-
 	#if defined _DEBUG && defined _WIN32
 		int tmpflag = _CrtSetDbgFlag(_CRTDBG_REPORT_FLAG);
 		tmpflag |= _CRTDBG_DELAY_FREE_MEM_DF;
 		_CrtSetDbgFlag(tmpflag);
 	#endif
+
+	LogManager::Init();
+	EventHandler::Init();
+	SConfig::Init();
+	CPluginManager::Init();
 
 	// Register message box handler
 #if ! defined(_WIN32) && defined(HAVE_WX) && HAVE_WX
@@ -296,7 +297,6 @@ bool DolphinApp::OnInit()
 			chdir(AppSupportDir);
 
 			//create all necessary dir in user directory
-			char user_path[500];
 			if (!File::Exists(File::GetUserPath(D_CONFIG_IDX))) File::CreateDir(File::GetUserPath(D_CONFIG_IDX));
 			if (!File::Exists(File::GetUserPath(D_GCUSER_IDX))) File::CreateFullPath(File::GetUserPath(D_GCUSER_IDX));
 			if (!File::Exists(File::GetUserPath(D_WIISYSCONF_IDX))) File::CreateFullPath(File::GetUserPath(D_WIISYSCONF_IDX));
@@ -479,7 +479,7 @@ bool DolphinApp::OnInit()
 
 	// Set main parent window
 	SetTopWindow(main_frame);
-#if defined __linux__
+#if defined HAVE_X11 && HAVE_X11
 		XInitThreads();
 #endif 
 	return true;
@@ -489,6 +489,16 @@ bool DolphinApp::OnInit()
 void DolphinApp::OnEndSession()
 {
 	SConfig::GetInstance().SaveSettings();
+}
+
+int DolphinApp::OnExit()
+{
+	CPluginManager::Shutdown();
+	SConfig::Shutdown();
+	EventHandler::Shutdown();
+	LogManager::Shutdown();
+
+	return wxApp::OnExit();
 }
 
 
@@ -531,8 +541,9 @@ void Host_Message(int Id)
 	switch(Id)
 	{
 		case WM_USER_STOP:
+		case WM_USER_PAUSE:
 			{
-				wxCommandEvent event(wxEVT_HOST_COMMAND, WM_USER_STOP);
+				wxCommandEvent event(wxEVT_HOST_COMMAND, Id);
 				main_frame->GetEventHandler()->AddPendingEvent(event);
 				break;
 			}

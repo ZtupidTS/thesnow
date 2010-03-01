@@ -15,13 +15,10 @@
 // Official SVN repository and contact information can be found at
 // http://code.google.com/p/dolphin-emu/
 
-#ifndef VERTEXLOADER_TEXCOORD_H
-#define VERTEXLOADER_TEXCOORD_H
-
 #include "Common.h"
 #include "VideoCommon.h"
 #include "VertexLoader.h"
-#include "VertexLoader_Position.h"
+#include "VertexLoader_TextCoord.h"
 #include "NativeVertexWriter.h"
 
 #define LOG_TEX1() // PRIM_LOG("tex: %f, ", ((float*)VertexManager::s_pCurBufferPointer)[0]);
@@ -319,4 +316,64 @@ void LOADERDECL TexCoord_ReadIndex16_Float2()
 	tcIndex++;
 }
 
-#endif
+ReadTexCoord tableReadTexCoord[4][8][2] = {
+	{
+		{NULL, NULL,},
+		{NULL, NULL,},
+		{NULL, NULL,},
+		{NULL, NULL,},
+		{NULL, NULL,},
+	},
+	{
+		{TexCoord_ReadDirect_UByte1,  TexCoord_ReadDirect_UByte2,},
+		{TexCoord_ReadDirect_Byte1,   TexCoord_ReadDirect_Byte2,},
+		{TexCoord_ReadDirect_UShort1, TexCoord_ReadDirect_UShort2,},
+		{TexCoord_ReadDirect_Short1,  TexCoord_ReadDirect_Short2,},
+		{TexCoord_ReadDirect_Float1,  TexCoord_ReadDirect_Float2,},
+	},
+	{
+		{TexCoord_ReadIndex8_UByte1,  TexCoord_ReadIndex8_UByte2,},
+		{TexCoord_ReadIndex8_Byte1,   TexCoord_ReadIndex8_Byte2,},
+		{TexCoord_ReadIndex8_UShort1, TexCoord_ReadIndex8_UShort2,},
+		{TexCoord_ReadIndex8_Short1,  TexCoord_ReadIndex8_Short2,},
+		{TexCoord_ReadIndex8_Float1,  TexCoord_ReadIndex8_Float2,},
+	},
+	{
+		{TexCoord_ReadIndex16_UByte1,  TexCoord_ReadIndex16_UByte2,},
+		{TexCoord_ReadIndex16_Byte1,   TexCoord_ReadIndex16_Byte2,},
+		{TexCoord_ReadIndex16_UShort1, TexCoord_ReadIndex16_UShort2,},
+		{TexCoord_ReadIndex16_Short1,  TexCoord_ReadIndex16_Short2,},
+		{TexCoord_ReadIndex16_Float1,  TexCoord_ReadIndex16_Float2,},
+	},
+};
+
+int tableReadTexCoordVertexSize[4][8][2] = {
+	{
+		{0, 0,},
+		{0, 0,},
+		{0, 0,},
+		{0, 0,},
+		{0, 0,},
+	},
+	{
+		{1, 2,},
+		{1, 2,},
+		{2, 4,},
+		{2, 4,},
+		{4, 8,},
+	},
+	{
+		{1, 1,},
+		{1, 1,},
+		{1, 1,},
+		{1, 1,},
+		{1, 1,},
+	},
+	{
+		{2, 2,},
+		{2, 2,},
+		{2, 2,},
+		{2, 2,},
+		{2, 2,},
+	},
+};

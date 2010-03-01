@@ -28,17 +28,9 @@ Core::GetWindowHandle().
 */
 
 
-// Why doesn't it work on windows?
-#ifndef _WIN32
-#include "Common.h"
-#endif
-
 #include "Setup.h" // Common
 
-#if defined(HAVE_SFML) && HAVE_SFML || defined(_WIN32)
 #include "NetWindow.h"
-#endif
-
 #include "Common.h" // Common
 #include "FileUtil.h"
 #include "FileSearch.h"
@@ -115,8 +107,9 @@ void CFrame::CreateMenu()
 	m_pSubMenuDrive = fileMenu->AppendSubMenu(externalDrive, _T("从驱动器启动(&B)..."));
 	
 	drives = cdio_get_devices();
-	for (int i = 0; drives[i] != NULL && i < 24; i++) {
-		externalDrive->Append(IDM_DRIVE1 + i, wxString::FromAscii(drives[i]));
+	// Windows Limitation of 24 character drives
+	for (unsigned int i = 0; i < drives.size() && i < 24; i++) {
+		externalDrive->Append(IDM_DRIVE1 + i, wxString::FromAscii(drives[i].c_str()));
 	}
 
 	fileMenu->AppendSeparator();
@@ -193,7 +186,8 @@ void CFrame::CreateMenu()
 	toolsMenu->Append(IDM_CHEATS, _T("动作回放管理器(&R)"));
 
 #if defined(HAVE_SFML) && HAVE_SFML
-	toolsMenu->Append(IDM_NETPLAY, _T("开始网络游戏(&N)"));
+	// Disabled for now, netplay doesn't quite work currently
+	// toolsMenu->Append(IDM_NETPLAY, _T("开始网络游戏(&N)"));
 #endif
 
 	if (DiscIO::CNANDContentManager::Access().GetNANDLoader(std::string (File::GetUserPath(D_WIIMENU_IDX))).IsValid())
@@ -553,6 +547,12 @@ void CFrame::DoOpen(bool Boot)
 		if (!fileChosen)
 			return;
 		BootManager::BootCore(std::string(path.mb_str()));
+		// Game has been started, hide the game list
+		if (m_GameListCtrl->IsShown())
+		{
+			m_GameListCtrl->Disable();
+			m_GameListCtrl->Hide();
+		}
 	}
 	else
 	{
@@ -666,7 +666,7 @@ void CFrame::StartGame(const std::string& filename)
 
 void CFrame::OnBootDrive(wxCommandEvent& event)
 {
-	BootManager::BootCore(drives[event.GetId()-IDM_DRIVE1]);
+	BootManager::BootCore(drives[event.GetId()-IDM_DRIVE1].c_str());
 }
 
 
@@ -748,11 +748,9 @@ void CFrame::OnReset(wxCommandEvent& WXUNUSED (event))
 
 void CFrame::OnConfigMain(wxCommandEvent& WXUNUSED (event))
 {
-	m_bModalDialogOpen = true;
 	CConfigMain ConfigMain(this);
 	if (ConfigMain.ShowModal() == wxID_OK)
 		m_GameListCtrl->Update();
-	m_bModalDialogOpen = false;
 }
 
 void CFrame::OnPluginGFX(wxCommandEvent& WXUNUSED (event))
@@ -763,7 +761,6 @@ void CFrame::OnPluginGFX(wxCommandEvent& WXUNUSED (event))
 			PLUGIN_TYPE_VIDEO
 			);
 }
-
 
 void CFrame::OnPluginDSP(wxCommandEvent& WXUNUSED (event))
 {
@@ -777,7 +774,7 @@ void CFrame::OnPluginDSP(wxCommandEvent& WXUNUSED (event))
 void CFrame::OnPluginPAD(wxCommandEvent& WXUNUSED (event))
 {
 	CPluginManager::GetInstance().OpenConfig(
-			m_Panel->GetHandle(),
+			GetHandle(),
 			SConfig::GetInstance().m_LocalCoreStartupParameter.m_strPadPlugin[0].c_str(),
 			PLUGIN_TYPE_PAD
 			);
@@ -797,12 +794,10 @@ void CFrame::OnHelp(wxCommandEvent& event)
 	{
 	case IDM_HELPABOUT:
 		{
-		m_bModalDialogOpen = true;
 			AboutDolphin frame(this);
 			frame.ShowModal();
-		m_bModalDialogOpen = false;
-		break;
 		}
+		break;
 	case IDM_HELPWEBSITE:
 		WxUtils::Launch("http://www.dolphin-emu.com/");
 		break;
@@ -843,10 +838,8 @@ void CFrame::OnNetPlay(wxCommandEvent& WXUNUSED (event))
 
 void CFrame::OnMemcard(wxCommandEvent& WXUNUSED (event))
 {
-	m_bModalDialogOpen = true;
 	CMemcardManager MemcardManager(this);
 	MemcardManager.ShowModal();
-	m_bModalDialogOpen = false;
 }
 
 void CFrame::OnImportSave(wxCommandEvent& WXUNUSED (event)) 

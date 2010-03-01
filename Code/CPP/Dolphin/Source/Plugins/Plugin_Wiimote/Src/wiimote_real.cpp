@@ -49,6 +49,9 @@ extern SWiimoteInitialize g_WiimoteInitialize;
 namespace WiiMoteReal
 {
 
+bool g_RealWiiMoteInitialized = false;
+bool g_RealWiiMoteAllocated = false;
+
 // Forwarding
 
 class CWiiMote;
@@ -349,7 +352,8 @@ int Initialize()
 	// WiiUse initializes the Wiimotes in Windows right from the wiiuse_find function
 	// The Functionality should REALLY be changed
 	#ifndef _WIN32
-		int Connect = wiiuse_connect(g_WiiMotesFromWiiUse, MAX_WIIMOTES);
+		int Connect;
+		Connect = wiiuse_connect(g_WiiMotesFromWiiUse, MAX_WIIMOTES);
 		DEBUG_LOG(WIIMOTE, "Connected: %i", Connect);
 	#endif
 
@@ -387,6 +391,8 @@ int Initialize()
 // Allocate each Real WiiMote found to a WiiMote slot with Source set to "WiiMote Real"
 void Allocate()
 {
+	if (g_RealWiiMoteAllocated)
+		return;
 	if (!g_RealWiiMoteInitialized)
 		Initialize();
 
@@ -469,6 +475,8 @@ void DoState(PointerWrap &p)
 
 void Shutdown(void)
 {
+	if (!g_RealWiiMoteInitialized)
+		return;
 	// Stop the loop in the thread
 	g_Shutdown = true; // not safe .. might crash when still @ReadWiimote
 
@@ -553,6 +561,20 @@ THREAD_RETURN ReadWiimote_ThreadFunc(void* arg)
 	}
 	return 0;
 }
+
+// Returns whether SafeClose_ThreadFunc will take over closing of Recording dialog.
+// FIXME: this whole threading stuff is bad, and should be removed.
+//        OSX is having problems with the threading anyways, since WiiUse is used
+//        from multiple threads, and not just the one where it was created on.
+bool SafeClose()
+{
+	if (!g_RealWiiMoteInitialized)
+		return false;
+
+	g_StopThreadTemporary.Set();
+	return true;
+}
+
 // Thread to avoid racing conditions by directly closing of ReadWiimote_ThreadFunc() resp. ReadWiimote() 
 // shutting down the Dlg while still beeing @ReadWiimote will result in a crash;
 THREAD_RETURN SafeCloseReadWiimote_ThreadFunc(void* arg)

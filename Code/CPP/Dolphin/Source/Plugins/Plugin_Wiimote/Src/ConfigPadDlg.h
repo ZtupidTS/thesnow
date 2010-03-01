@@ -45,7 +45,7 @@ class WiimotePadConfigDialog : public wxDialog
 {
 	public:
 		WiimotePadConfigDialog(wxWindow *parent,
-			wxWindowID id = 1,
+			wxWindowID id = wxID_ANY,
 			const wxString &title = wxT("Wii Remote Plugin Configuration"),
 			const wxPoint& pos = wxDefaultPosition,
 			const wxSize& size = wxDefaultSize,
@@ -120,9 +120,7 @@ class WiimotePadConfigDialog : public wxDialog
 			IDB_ANALOG_RIGHT_X, IDB_ANALOG_RIGHT_Y,
 			IDB_TRIGGER_L, IDB_TRIGGER_R,
 
-			ID_CLOSE = 1000,
-			ID_APPLY,
-			IDTM_BUTTON, // Timer
+			IDTM_BUTTON = 1000, // Timer
 			IDTM_UPDATE_PAD, // Timer
 
 			ID_NOTEBOOK,
@@ -178,7 +176,7 @@ class WiimotePadConfigDialog : public wxDialog
 			*m_Button_Classic[IDB_CC_RD - IDB_CC_A + 1][MAX_WIIMOTES],
 			*m_Button_GH3[IDB_GH3_STRUM_DOWN - IDB_GH3_GREEN + 1][MAX_WIIMOTES];
 
-		wxComboBox *m_Joyname[MAX_WIIMOTES],
+		wxChoice *m_Joyname[MAX_WIIMOTES],
 			*m_ComboDeadZoneLeft[MAX_WIIMOTES],
 			*m_ComboDeadZoneRight[MAX_WIIMOTES],
 			*m_ComboDiagonal[MAX_WIIMOTES],

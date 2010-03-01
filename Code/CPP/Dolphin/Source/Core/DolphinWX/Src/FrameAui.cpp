@@ -18,9 +18,7 @@
 
 #include "Setup.h" // Common
 
-#if defined(HAVE_SFML) && HAVE_SFML || defined(_WIN32)
 #include "NetWindow.h"
-#endif
 
 #include "Common.h" // Common
 #include "FileUtil.h"
@@ -369,9 +367,9 @@ void CFrame::DoRemovePageString(wxString Str, bool /*_Hide*/, bool _Destroy)
 					if (!_Destroy)
 					{
 						// Reparent to avoid destruction if the notebook is closed and destroyed
-						wxWindow * Win = NB->GetPage(j);
+						wxWindow * NBPageWin = NB->GetPage(j);
 						NB->RemovePage(j);
-						Win->Reparent(this);
+						NBPageWin->Reparent(this);
 					}
 					else
 					{

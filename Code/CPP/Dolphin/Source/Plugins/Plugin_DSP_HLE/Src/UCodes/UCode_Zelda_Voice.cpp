@@ -60,9 +60,9 @@ void CUCode_Zelda::WritebackVoicePB(u32 _Addr, ZeldaVoicePB& PB)
 
 int CUCode_Zelda::ConvertRatio(int pb_ratio)
 {
-	float ratioFactor = 32000.0f / (float)soundStream->GetMixer()->GetSampleRate();
+	float _ratioFactor = 32000.0f / (float)soundStream->GetMixer()->GetSampleRate();
 	u32 _ratio = (pb_ratio << 16);
-	return (u64)((_ratio * ratioFactor) * 16) >> 16;
+	return (u64)((_ratio * _ratioFactor) * 16) >> 16;
 }
 
 int CUCode_Zelda::SizeForResampling(ZeldaVoicePB &PB, int size, int ratio) {
@@ -426,7 +426,7 @@ void CUCode_Zelda::RenderVoice_Raw(ZeldaVoicePB &PB, s16 *_Buffer, int _Size)
 		ERROR_LOG(DSPHLE, "Raw loop: ReadAudio size = %04x 34:%04x %08x", PB.Unk36[0], PB.raw[0x34 ^ 1], (int)ACC0);
 		Decoder21_ReadAudio(PB, PB.Unk36[0], _Buffer);
 
-		u32 ACC0 = _Size << 16;
+		ACC0 = _Size << 16;
 		ACC0 -= PB.Unk36[0] << 16;
 
 		PB.raw[0x34 ^ 1] = 0;
@@ -648,7 +648,7 @@ ContinueWithBlock:
 			// The 8 buffers to mix to: 0d00, 0d60, 0f40 0ca0 0e80 0ee0 0c00 0c50
 			// We just mix to the first two and call it stereo :p
 			int value = b00[0x4 + count];
-			int delta = b00[0xC + count] << 11;
+			//int delta = b00[0xC + count] << 11; // Unused?
 			
 			int ramp = value << 16;
 			for (int i = 0; i < _Size; i++)

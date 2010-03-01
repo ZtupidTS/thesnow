@@ -16,14 +16,12 @@
 // http://code.google.com/p/dolphin-emu/
 
 
-// CFrame is the main parent window. Inside CFrame there is an m_Panel that is the parent for
-// the rendering window (when we render to the main window). In Windows the rendering window is
-// created by giving CreateWindow() m_Panel->GetHandle() as parent window and creating a new
-// child window to m_Panel. The new child window handle that is returned by CreateWindow() can
+// CFrame is the main parent window. Inside CFrame there is an m_Panel that is
+// the parent for the rendering window (when we render to the main window). In
+// Windows the rendering window is created by giving CreateWindow()
+// m_Panel->GetHandle() as parent window and creating a new child window to
+// m_Panel. The new child window handle that is returned by CreateWindow() can
 // be accessed from Core::GetWindowHandle().
-
-// ----------
-// Includes
 
 #include "Common.h" // Common
 #include "FileUtil.h"
@@ -49,6 +47,10 @@
 #include "VolumeHandler.h"
 
 #include <wx/datetime.h> // wxWidgets
+
+#if defined HAVE_X11 && HAVE_X11
+#include <X11/Xlib.h>
+#endif
 
 // Resources
 
@@ -248,11 +250,7 @@ EVT_MENU(IDM_FLOAT_JITWINDOW, CFrame::OnFloatWindow)
 EVT_MENU(IDM_FLOAT_SOUNDWINDOW, CFrame::OnFloatWindow)
 EVT_MENU(IDM_FLOAT_VIDEOWINDOW, CFrame::OnFloatWindow)
 
-
-#if defined(HAVE_SFML) && HAVE_SFML
 EVT_MENU(IDM_NETPLAY, CFrame::OnNetPlay)
-#endif
-
 EVT_MENU(IDM_BROWSE, CFrame::OnBrowse)
 EVT_MENU(IDM_MEMCARD, CFrame::OnMemcard)
 EVT_MENU(IDM_IMPORTSAVE, CFrame::OnImportSave)
@@ -322,13 +320,14 @@ CFrame::CFrame(wxFrame* parent,
 	: wxFrame(parent, id, title, pos, size, style)
 	, g_pCodeWindow(NULL)		
 	, m_MenuBar(NULL)
-	, m_LogWindow(NULL)
-	, m_ToolBar(NULL), m_ToolBarDebug(NULL), m_ToolBarAui(NULL)
-	, m_pStatusBar(NULL), m_GameListCtrl(NULL), m_Panel(NULL)
-	, UseDebugger(_UseDebugger), m_bEdit(false), m_bTabSplit(false), m_bNoDocking(false)
-	, bRenderToMain(false), bFloatLogWindow(false), bFloatConsoleWindow(false)
+	, bRenderToMain(false), bNoWiimoteMsg(false)
 	, HaveLeds(false), HaveSpeakers(false)
-	, m_bControlsCreated(false), m_bModalDialogOpen(false), bNoWiimoteMsg(false), m_StopDlg(NULL)
+	, m_ToolBar(NULL), m_ToolBarDebug(NULL), m_ToolBarAui(NULL)
+	, bFloatLogWindow(false), bFloatConsoleWindow(false)
+	, m_pStatusBar(NULL), m_GameListCtrl(NULL), m_Panel(NULL)
+	, m_LogWindow(NULL)
+	, UseDebugger(_UseDebugger), m_bEdit(false), m_bTabSplit(false), m_bNoDocking(false)
+	, m_bControlsCreated(false), m_StopDlg(NULL)
 	#if wxUSE_TIMER
 	#ifdef _WIN32
 		, m_fLastClickTime(0), m_iLastMotionTime(0), LastMouseX(0), LastMouseY(0)
@@ -391,15 +390,12 @@ CFrame::CFrame(wxFrame* parent,
 	// ---------------
 
 	// Manager
-#ifdef _WIN32
+	// wxAUI_MGR_LIVE_RESIZE does not exist in the wxWidgets 2.8.9 that comes with Ubuntu 9.04
+	// Could just check for wxWidgets version if it becomes a problem.
 	m_Mgr = new wxAuiManager(this, wxAUI_MGR_DEFAULT | wxAUI_MGR_LIVE_RESIZE);
-#else
-	// wxAUI_MGR_LIVE_RESIZE does not exist in the wxWidgets 2.8 that comes with the latest ubuntu.
-	m_Mgr = new wxAuiManager(this, wxAUI_MGR_DEFAULT);
-#endif
 	NOTEBOOK_STYLE = wxAUI_NB_TOP | wxAUI_NB_TAB_SPLIT | wxAUI_NB_TAB_EXTERNAL_MOVE | wxAUI_NB_SCROLL_BUTTONS | wxAUI_NB_WINDOWLIST_BUTTON | wxNO_BORDER;
 	TOOLBAR_STYLE = wxAUI_TB_DEFAULT_STYLE | wxAUI_TB_TEXT  /*wxAUI_TB_OVERFLOW overflow visible*/;
-	wxBitmap aNormalFile = wxArtProvider::GetBitmap(wxART_NORMAL_FILE, wxART_OTHER, wxSize(16,16));
+	aNormalFile = wxArtProvider::GetBitmap(wxART_NORMAL_FILE, wxART_OTHER, wxSize(16,16));
 
 	if (g_pCodeWindow)
 	{
@@ -420,13 +416,13 @@ CFrame::CFrame(wxFrame* parent,
 	}
 	else
 	{
-		IniFile ini; int pos;
+		IniFile ini; int winpos;
 		ini.Load(File::GetUserPath(F_LOGGERCONFIG_IDX));
-		ini.Get("LogWindow", "pos", &pos, 2);
+		ini.Get("LogWindow", "pos", &winpos, 2);
 
 		m_Mgr->GetPane(wxT("Pane 0")).Show().PaneBorder(false).CaptionVisible(false).Layer(0).Center();
 		m_Mgr->GetPane(wxT("Pane 1")).Hide().PaneBorder(false).CaptionVisible(true).Layer(0)
-			.FloatingSize(wxSize(600, 350)).CloseButton(false).Direction(pos);
+			.FloatingSize(wxSize(600, 350)).CloseButton(false).Direction(winpos);
 		AuiFullscreen = m_Mgr->SavePerspective();
 	}
 
@@ -510,7 +506,7 @@ CFrame::~CFrame()
 {
 	m_bControlsCreated = false;
 
-	cdio_free_device_list(drives);
+	drives.clear();
 	/* The statbar sample has this so I add this to, but I guess timer will be deleted after
 	   this anyway */
 	#if wxUSE_TIMER
@@ -518,6 +514,8 @@ CFrame::~CFrame()
 	#endif
 
 	ClosePages();
+
+	delete m_Mgr;
 }
 
 void CFrame::OnQuit(wxCommandEvent& WXUNUSED (event))
@@ -612,10 +610,15 @@ WXLRESULT CFrame::MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, WXLPARAM lParam)
 		{
 		case SC_SCREENSAVE:
 		case SC_MONITORPOWER:
-			return 0;
+			break;
+		default:
+			return wxFrame::MSWWindowProc(nMsg, wParam, lParam);
 		}
+		break;
+	default:
+		return wxFrame::MSWWindowProc(nMsg, wParam, lParam);
 	}
-	return wxFrame::MSWWindowProc(nMsg, wParam, lParam);
+	return 0;
 }
 #endif
 
@@ -648,6 +651,9 @@ void CFrame::OnHostMessage(wxCommandEvent& event)
 #if defined(HAVE_X11) && HAVE_X11
 	case WM_USER_STOP:
 		main_frame->DoStop();
+		break;
+	case WM_USER_PAUSE:
+		main_frame->OnPlay(event);
 		break;
 #endif
 	}
@@ -904,13 +910,36 @@ wxAuiNotebook* CFrame::CreateEmptyNotebook()
    return NB;
 }
 
+#if defined HAVE_X11 && HAVE_X11
+void X11_ShowFullScreen(bool bF)
+{
+	XEvent event;
+	Display *dpy = (Display *)Core::GetWindowHandle();
+	Window win = *(Window *)Core::GetXWindow();
+
+	// Init X event structure for TOGGLE_FULLSCREEN client message
+	event.xclient.type = ClientMessage;
+	event.xclient.format = 32;
+	event.xclient.data.l[0] = XInternAtom(dpy, "TOGGLE_FULLSCREEN", False);;
+
+	// Send the event
+	if (!XSendEvent(dpy, win, False, False, &event))
+	{
+		ERROR_LOG(VIDEO, "Failed to switch fullscreen/windowed mode.\n");
+	}
+}
+#endif
 
 void CFrame::DoFullscreen(bool bF)
 {
+#if defined HAVE_X11 && HAVE_X11
+	if ((Core::GetState() == Core::CORE_RUN))
+		X11_ShowFullScreen(bF);
+#endif
 	// Only switch this to fullscreen if we're rendering to main AND if we're running a game
 	// plus if a modal dialog is open, this will still process the keyboard events, and may cause
 	// the main window to become unresponsive, so we have to avoid that.
-	if ((bRenderToMain && Core::GetState() == Core::CORE_RUN) && !m_bModalDialogOpen)
+	if ((bRenderToMain && Core::GetState() == Core::CORE_RUN))
 	{
 		ShowFullScreen(bF);
 

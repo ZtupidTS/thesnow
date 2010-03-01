@@ -23,8 +23,7 @@
 #include "PluginManager.h"
 #include "FileUtil.h"
 
-SConfig SConfig::m_Instance;
-
+SConfig* SConfig::m_Instance;
 
 SConfig::SConfig()
 {
@@ -34,6 +33,16 @@ SConfig::SConfig()
 	LoadSettingsHLE();
 }
 
+void SConfig::Init()
+{
+	m_Instance = new SConfig;
+}
+
+void SConfig::Shutdown()
+{
+	delete m_Instance;
+	m_Instance = NULL;
+}
 
 SConfig::~SConfig()
 {

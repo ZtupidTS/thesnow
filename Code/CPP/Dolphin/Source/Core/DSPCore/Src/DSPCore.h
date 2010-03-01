@@ -112,6 +112,7 @@
 #define DSP_DSMAL		0xcf // DSP DMA Address Low (External)
 
 #define DSP_FORMAT		0xd1 // Sample format
+#define DSP_ACUNK		0xd2 // Set to 3 on my dumps
 #define DSP_ACDATA1		0xd3 // used only by Zelda ucodes
 #define DSP_ACSAH		0xd4 // Start of loop
 #define DSP_ACSAL		0xd5
@@ -124,8 +125,9 @@
 #define DSP_YN2			0xdc
 #define DSP_ACCELERATOR	0xdd // ADPCM accelerator read. Used by AX.
 #define DSP_GAIN		0xde
+#define DSP_ACUNK2		0xdf // Set to 0xc on my dumps
 
-#define DSP_DREQ_MASK	0xef // ARAM DMA Request Mask
+#define DSP_AMDM		0xef // ARAM DMA Request Mask 0: DMA with ARAM unmasked 1: masked
 
 #define DSP_DIRQ		0xfb // DSP Irq Rest
 #define DSP_DMBH		0xfc // DSP Mailbox H
@@ -152,10 +154,10 @@
 #define SR_OVERFLOW		0x0002
 #define SR_ARITH_ZERO	0x0004
 #define SR_SIGN			0x0008
-#define SR_10			0x0010 // seem to be set by tst
-#define SR_TOP2BITS		0x0020 // if the upper 2 bits are equal
+#define SR_OVER_S32		0x0010 // set when there there was mod/tst/cmp on accu and result is over s32
+#define SR_TOP2BITS		0x0020 // if the upper (ac?.m/ax?.h) 2 bits are equal
 #define SR_LOGIC_ZERO	0x0040
-#define SR_80			0x0080 // Unknown, set by add
+#define SR_80			0x0080 // Unknown, set by add, sub
 #define SR_INT_ENABLE	0x0200 // Not 100% sure but duddie says so. This should replace the hack, if so.
 #define SR_EXT_INT_ENABLE	0x0800 // Appears in zelda - seems to disable external interupts
 #define SR_MUL_MODIFY	0x2000 // 1 = normal. 0 = x2   (M0, M2)

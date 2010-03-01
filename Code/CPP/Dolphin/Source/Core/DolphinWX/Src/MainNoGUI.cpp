@@ -44,15 +44,12 @@
 #include "cmdline.h"
 #include "Thread.h"
 #include "PowerPC/PowerPC.h"
+
 #include "PluginManager.h"
-
-
+#include "ConfigManager.h"
+#include "LogManager.h"
 #include "BootManager.h"
-void* g_pCodeWindow = NULL;
-void* main_frame = NULL;
 
-// OK, this thread boundary is DANGEROUS on linux
-// wxPostEvent / wxAddPendingEvent is the solution.
 void Host_NotifyMapLoaded(){}
 
 void Host_ShowJitResults(unsigned int address){}
@@ -99,7 +96,7 @@ void Host_SysMessage(const char *fmt, ...)
 		msg[len - 1] = '\n';
 		msg[len] = '\0';
 	}
-	fprintf(stderr, msg);
+	fprintf(stderr, "%s", msg);
 }
 
 void Host_UpdateLeds(int led_bits)
@@ -120,10 +117,12 @@ void Host_SetWiiMoteConnectionState(int _State) {}
 
 @interface CocoaThread : NSObject
 {
+	NSThread *Thread;
 }
 - (void)cocoaThreadStart;
 - (void)cocoaThreadRun:(id)sender;
 - (void)cocoaThreadQuit:(NSNotification*)note;
+- (bool)cocoaThreadRunning;
 @end
 
 static NSString *CocoaThreadHaveFinish = @"CocoaThreadHaveFinish";
@@ -146,7 +145,7 @@ int appleMain(int argc, char *argv[]);
 {
 
 	NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
-
+	Thread = [NSThread currentThread];
 	//launch main
 	appleMain(cocoaArgc,cocoaArgv);
 	
@@ -163,9 +162,15 @@ int appleMain(int argc, char *argv[]);
 
 }
 
+- (bool)cocoaThreadRunning
+{
+	if([Thread isFinished])
+		return false;
+	else 
+		return true;
+}
 
 @end
-
 
 
 int main(int argc, char *argv[])
@@ -182,9 +187,9 @@ int main(int argc, char *argv[])
 	NSEvent *event = [[NSEvent alloc] init];	
 	
 	[thread cocoaThreadStart];
-	
+
 	//cocoa event loop
-	while(true)
+	while(1)
 	{
 		event = [NSApp nextEventMatchingMask:NSAnyEventMask untilDate:[NSDate distantPast] inMode:NSDefaultRunLoopMode dequeue:YES ];
 		if(cocoaSendEvent(event))
@@ -192,6 +197,8 @@ int main(int argc, char *argv[])
 			Core::Stop();
 			break;
 		}
+		if(![thread cocoaThreadRunning])
+			break;
 	}	
 
 
@@ -212,7 +219,7 @@ int main(int argc, char* argv[])
 {
 	gengetopt_args_info args_info;
 
-	if (cmdline_parser (argc, argv, &args_info) != 0)
+	if (cmdline_parser(argc, argv, &args_info) != 0)
 		return(1);
 
 	if (args_info.inputs_num < 1)
@@ -224,30 +231,26 @@ int main(int argc, char* argv[])
 
 	updateMainFrameEvent.Init();
 	cpu_info.Detect();
+
+	LogManager::Init();
+	EventHandler::Init();
+	SConfig::Init();
+	CPluginManager::Init();
+
 	CPluginManager::GetInstance().ScanForPlugins();
 
-			// check to see if ~/Library/Application Support/Dolphin exists; if not, create it
-			char AppSupportDir[MAXPATHLEN];
-			snprintf(AppSupportDir, sizeof(AppSupportDir), "%s/Library/Application Support", getenv("HOME"));
-			if (!File::Exists(AppSupportDir) || !File::IsDirectory(AppSupportDir)) 
-				PanicAlert("Could not open ~/Library/Application Support");
-
-			strncat(AppSupportDir, "/Dolphin", sizeof(AppSupportDir));
-			
-			if (!File::Exists(AppSupportDir))
-				File::CreateDir(AppSupportDir);
-			
-			if (!File::IsDirectory(AppSupportDir))
-				PanicAlert("~/Library/Application Support/Dolphin exists, but is not a directory");
-			
-			chdir(AppSupportDir);
-
-
-	BootManager::BootCore(bootFile);
-	while (PowerPC::GetState() != PowerPC::CPU_POWERDOWN)
+	if (BootManager::BootCore(bootFile)) //no use running the loop when booting fails
 	{
-		updateMainFrameEvent.Wait();
+		while (PowerPC::GetState() != PowerPC::CPU_POWERDOWN)
+		{
+			updateMainFrameEvent.Wait();
+		}
 	}
+
+	CPluginManager::Shutdown();
+	SConfig::Shutdown();
+	EventHandler::Shutdown();
+	LogManager::Shutdown();
 
 	cmdline_parser_free (&args_info);
 	return(0);

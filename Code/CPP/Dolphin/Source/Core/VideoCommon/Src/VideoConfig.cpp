@@ -62,6 +62,9 @@ void VideoConfig::Load(const char *ini_file)
     iniFile.Get("Settings", "AutoScale", &bAutoScale, true);
     
     iniFile.Get("Settings", "SafeTextureCache", &bSafeTextureCache, false); // Settings
+	//Safe texture cache params
+	iniFile.Get("Settings", "SafeTextureCacheColorSamples", &iSafeTextureCache_ColorSamples,512);		
+
     iniFile.Get("Settings", "ShowFPS", &bShowFPS, false); // Settings
     iniFile.Get("Settings", "OverlayStats", &bOverlayStats, false);
 	iniFile.Get("Settings", "OverlayProjStats", &bOverlayProjStats, false);
@@ -126,6 +129,10 @@ void VideoConfig::GameIniLoad(const char *ini_file)
 		iniFile.Get("Video", "EFBScaledCopy", &bCopyEFBScaled, 0);
 	if (iniFile.Exists("Video", "SafeTextureCache"))
 		iniFile.Get("Video", "SafeTextureCache", &bSafeTextureCache, false);	
+	//Safe texture cache params
+	if (iniFile.Exists("Video", "SafeTextureCacheColorSamples"))
+		iniFile.Get("Video", "SafeTextureCacheColorSamples", &iSafeTextureCache_ColorSamples,512);	
+
 	if (iniFile.Exists("Video", "MSAA"))
 		iniFile.Get("Video", "MSAA", &iMultisampleMode, 0);
 	if (iniFile.Exists("Video", "DstAlphaPass"))
@@ -157,6 +164,9 @@ void VideoConfig::Save(const char *ini_file)
     iniFile.Set("Settings", "AutoScale", bAutoScale);
 
     iniFile.Set("Settings", "SafeTextureCache", bSafeTextureCache);
+	//safe texture cache params
+	iniFile.Set("Settings", "SafeTextureCacheColorSamples", iSafeTextureCache_ColorSamples);
+
     iniFile.Set("Settings", "ShowFPS", bShowFPS);
     iniFile.Set("Settings", "OverlayStats", bOverlayStats);
 	iniFile.Set("Settings", "OverlayProjStats", bOverlayProjStats);

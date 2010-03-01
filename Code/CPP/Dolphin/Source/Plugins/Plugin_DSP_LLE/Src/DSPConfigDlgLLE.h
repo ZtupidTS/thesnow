@@ -28,7 +28,7 @@ class DSPConfigDialogLLE : public wxDialog
 {
 public:
 	DSPConfigDialogLLE(wxWindow *parent,
-		     wxWindowID id = 1,
+		     wxWindowID id = wxID_ANY,
 		     const wxString &title = wxT("Dolphin DSP-LLE ≤Âº˛…Ë÷√"),
 		     const wxPoint& pos = wxDefaultPosition,
 		     const wxSize& size = wxDefaultSize,
@@ -46,11 +46,10 @@ private:
     wxCheckBox *m_buttonEnableDTKMusic;
     wxCheckBox *m_buttonEnableThrottle;
     wxArrayString wxArrayBackends;
-    wxComboBox  *m_BackendSelection;
+    wxChoice  *m_BackendSelection;
 
     enum
 	{
-	    wxID_OK,
 		ID_ENABLE_DTK_MUSIC,
 	    ID_ENABLE_THROTTLE,
 	    ID_BACKEND,

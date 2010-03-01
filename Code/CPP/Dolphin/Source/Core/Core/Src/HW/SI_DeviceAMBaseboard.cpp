@@ -44,11 +44,11 @@ public:
 		m_csum = 0;
 		addData(hdr, 3, 1);
 	}
-	void addData(void *data, size_t len)
+	void addData(const void *data, size_t len)
 	{
-		addData((unsigned char*)data, len);
+		addData((const unsigned char*)data, len);
 	}
-	void addData(char *data)
+	void addData(const char *data)
 	{
 		addData(data, strlen(data));
 	}
@@ -65,7 +65,7 @@ public:
 		addData(m_csum + len - 2);
 	}
 
-	void addData(unsigned char *dst, size_t len, int sync = 0)
+	void addData(const unsigned char *dst, size_t len, int sync = 0)
 	{
 		while (len--)
 		{
@@ -242,7 +242,6 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* _pBuffer, int _iLength)
 						{
 							DEBUG_LOG(AMBASEBOARDDEBUG, "GC-AM: CMD %02x, %02x %02x %02x %02x %02x %02x %02x (JVS IO)", 
 								ptr(0), ptr(1), ptr(2), ptr(3), ptr(4), ptr(5), ptr(6), ptr(7));
-							int total_length = ptr(1);
 							int pptr = 2;
 							JVSIOMessage msg;
 
@@ -254,7 +253,6 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* _pBuffer, int _iLength)
 							int jvs_io_length = 0;
 							for (i=0; i<nr_bytes + 3; ++i)
 								jvs_io_buffer[jvs_io_length++] = ptr(pptr + i);
-							int ptr = 0;
 							int node = jvs_io_buffer[1];
 
 							unsigned char *jvs_io = jvs_io_buffer + 3;
@@ -305,7 +303,7 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* _pBuffer, int _iLength)
 									{
 										int nr_players = *jvs_io++;
 										int bytes_per_player = *jvs_io++; /* ??? */
-										int i, j;
+										int j;
 										msg.addData(1);
 
 										msg.addData(0); // tilt

@@ -27,10 +27,10 @@ SysConf::SysConf()
 
 void SysConf::Reload()
 {
-  if (m_IsValid)
-    return;
-  if (LoadFromFile(File::GetUserPath(F_WIISYSCONF_IDX)))
-    m_IsValid = true;
+	if (m_IsValid)
+		return;
+	if (LoadFromFile(File::GetUserPath(F_WIISYSCONF_IDX)))
+		m_IsValid = true;
 }
 
 SysConf::~SysConf()
@@ -171,5 +171,7 @@ bool SysConf::SaveToFile(const char *filename)
 
 bool SysConf::Save()
 {
+	if (!m_IsValid)
+		return false;
 	return SaveToFile(m_Filename.c_str());
 }

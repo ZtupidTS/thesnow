@@ -23,7 +23,7 @@ BEGIN_EVENT_TABLE(DSPConfigDialogLLE, wxDialog)
 	EVT_BUTTON(wxID_OK, DSPConfigDialogLLE::SettingsChanged)
 	EVT_CHECKBOX(ID_ENABLE_DTK_MUSIC, DSPConfigDialogLLE::SettingsChanged)
 	EVT_CHECKBOX(ID_ENABLE_THROTTLE, DSPConfigDialogLLE::SettingsChanged)
-	EVT_COMBOBOX(wxID_ANY, DSPConfigDialogLLE::BackendChanged)
+	EVT_CHOICE(ID_BACKEND, DSPConfigDialogLLE::BackendChanged)
 	EVT_COMMAND_SCROLL(ID_VOLUME, DSPConfigDialogLLE::VolumeChanged)
 END_EVENT_TABLE()
 
@@ -32,9 +32,6 @@ DSPConfigDialogLLE::DSPConfigDialogLLE(wxWindow *parent, wxWindowID id, const wx
 {
 	// Load config settings
 	g_Config.Load();
-
-	// Center window
-	CenterOnParent();
 
 	m_OK = new wxButton(this, wxID_OK, wxT("确定"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 	
@@ -45,7 +42,7 @@ DSPConfigDialogLLE::DSPConfigDialogLLE(wxWindow *parent, wxWindowID id, const wx
 	m_buttonEnableDTKMusic = new wxCheckBox(this, ID_ENABLE_DTK_MUSIC, wxT("启用 DTK 音乐"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 	m_buttonEnableThrottle = new wxCheckBox(this, ID_ENABLE_THROTTLE, wxT("启用其它音频 (Throttle)"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 	wxStaticText *BackendText = new wxStaticText(this, wxID_ANY, wxT("音频 Backend"), wxDefaultPosition, wxDefaultSize, 0);
-	m_BackendSelection = new wxComboBox(this, ID_BACKEND, wxEmptyString, wxDefaultPosition, wxSize(90, 20), wxArrayBackends, wxCB_READONLY, wxDefaultValidator);
+	m_BackendSelection = new wxChoice(this, ID_BACKEND, wxDefaultPosition, wxSize(90, 20), wxArrayBackends, 0, wxDefaultValidator, wxEmptyString);
 
 	m_volumeSlider = new wxSlider(this, ID_VOLUME, ac_Config.m_Volume, 1, 100, wxDefaultPosition, wxDefaultSize, wxSL_VERTICAL|wxSL_INVERSE);
 	m_volumeSlider->Enable(SupportsVolumeChanges(ac_Config.sBackend));
@@ -89,6 +86,8 @@ DSPConfigDialogLLE::DSPConfigDialogLLE(wxWindow *parent, wxWindowID id, const wx
 	sMain->Add(sButtons, 0, wxALL|wxEXPAND, 4);
 	SetSizerAndFit(sMain);
 
+	// Center window
+	CenterOnParent();
 }
 
 // Add audio output options
@@ -98,10 +97,11 @@ void DSPConfigDialogLLE::AddBackend(const char* backend)
     m_BackendSelection->Append(wxString::FromAscii(backend));
 
 #ifdef __APPLE__
-	m_BackendSelection->SetValue(wxString::FromAscii(ac_Config.sBackend));
+	int num = m_BackendSelection->FindString(wxString::FromAscii(ac_Config.sBackend));
 #else
-	m_BackendSelection->SetValue(wxString::FromAscii(ac_Config.sBackend.c_str()));
+	int num = m_BackendSelection->FindString(wxString::FromAscii(ac_Config.sBackend.c_str()));
 #endif
+	m_BackendSelection->SetSelection(num);
 }
 
 void DSPConfigDialogLLE::ClearBackends()
@@ -127,9 +127,9 @@ void DSPConfigDialogLLE::SettingsChanged(wxCommandEvent& event)
 	ac_Config.m_EnableThrottle = m_buttonEnableThrottle->GetValue();
 
 #ifdef __APPLE__
-	strncpy(ac_Config.sBackend, m_BackendSelection->GetValue().mb_str(), 128);
+	strncpy(ac_Config.sBackend, m_BackendSelection->GetStringSelection().mb_str(), 128);
 #else
-	ac_Config.sBackend = m_BackendSelection->GetValue().mb_str();
+	ac_Config.sBackend = m_BackendSelection->GetStringSelection().mb_str();
 #endif
 	ac_Config.Update();
 	g_Config.Save();
@@ -149,5 +149,5 @@ bool DSPConfigDialogLLE::SupportsVolumeChanges(std::string backend)
 
 void DSPConfigDialogLLE::BackendChanged(wxCommandEvent& event)
 {
-	m_volumeSlider->Enable(SupportsVolumeChanges(std::string(m_BackendSelection->GetValue().mb_str())));
+	m_volumeSlider->Enable(SupportsVolumeChanges(std::string(m_BackendSelection->GetStringSelection().mb_str())));
 }

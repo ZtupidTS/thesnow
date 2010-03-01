@@ -15,10 +15,9 @@
 // Official SVN repository and contact information can be found at
 // http://code.google.com/p/dolphin-emu/
 
-#include "Common.h"
+#include "FileUtil.h"
 #include "IniFile.h"
 #include "VideoConfig.h"
-#include "../../../Core/Core/Src/ConfigManager.h" // FIXME
 
 Config g_Config;
 

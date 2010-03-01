@@ -70,44 +70,44 @@
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
 
-// EWMH state actions, see
-// http://freedesktop.org/wiki/Specifications/wm-spec?action=show&redirect=Standards%2Fwm-spec
-#define _NET_WM_STATE_REMOVE        0    /* remove/unset property */
-#define _NET_WM_STATE_ADD           1    /* add/set property */
-#define _NET_WM_STATE_TOGGLE        2    /* toggle property  */
-
-#if defined(HAVE_XXF86VM) && HAVE_XXF86VM
-#include <X11/extensions/xf86vmode.h>
-#endif // XXF86VM
+#if defined(HAVE_XRANDR) && HAVE_XRANDR
+#include <X11/extensions/Xrandr.h>
+#endif // XRANDR
 #endif // X11
 
 #include <sys/stat.h>
 #include <sys/types.h>
 
 typedef struct {
-    int screen;
+	int screen;
 #if defined(HAVE_COCOA) && HAVE_COCOA
-    NSWindow *cocoaWin;
-    NSOpenGLContext *cocoaCtx;
+	NSWindow *cocoaWin;
+	NSOpenGLContext *cocoaCtx;
 #elif defined(HAVE_X11) && HAVE_X11
-    Window win;
-    Display *dpy;
-    GLXContext ctx;
-    XSetWindowAttributes attr;
-    Bool fs;
-    Bool doubleBuffered;
-#if defined(HAVE_XXF86VM) && HAVE_XXF86VM
-    XF86VidModeModeInfo deskMode;
-#endif // XXF86VM
+	Window win;
+	Display *dpy;
+	XVisualInfo *vi;
+	GLXContext ctx;
+	Cursor blankCursor;
+	XSetWindowAttributes attr;
+	Bool fs;
+	Bool doubleBuffered;
+	int fullWidth, fullHeight;
+	int winWidth, winHeight;
+#if defined(HAVE_XRANDR) && HAVE_XRANDR
+	XRRScreenConfiguration *screenConfig;
+	Rotation screenRotation;
+	int deskSize, fullSize;
+#endif // XRANDR
 #endif // X11
 #if defined(USE_WX) && USE_WX
-    wxGLCanvas *glCanvas;
-    wxFrame *frame;
-    wxGLContext *glCtxt;
+	wxGLCanvas *glCanvas;
+	wxFrame *frame;
+	wxGLContext *glCtxt;
 #endif 
-    int x, y;
-    unsigned int width, height;
-    unsigned int depth;    
+	int x, y;
+	unsigned int width, height;
+	unsigned int depth;    
 } GLWindow;
 
 extern GLWindow GLWin;
