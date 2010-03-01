@@ -297,7 +297,7 @@ int RecordingCheckKeys(int WmNuIr)
 // Multi System Input Status Check
 bool IsKey(int Key)
 {
-	int Ret = NULL;
+	int Ret = false;
 
 	if (WiiMapping[g_ID].Source == 1)
 	{
@@ -307,13 +307,21 @@ bool IsKey(int Key)
 		if (MapKey < 256)
 		{
 			Ret = GetAsyncKeyState(MapKey);		// Keyboard (Windows)
-#else
-		if (MapKey < 256 || MapKey >= 0xf000)
-		{
-			Ret = KeyStatus[Key];			// Keyboard (Linux)
-#endif
 		}
 		else if (MapKey < 0x1100)
+#elif defined(HAVE_X11) && HAVE_X11
+		if (MapKey < 256 || MapKey >= 0xf000)
+		{
+			char keys[32];
+			KeyCode keyCode;
+			XQueryKeymap(WMdisplay, keys);
+			keyCode = XKeysymToKeycode(WMdisplay, MapKey);
+			Ret = (keys[keyCode/8] & (1 << (keyCode%8)));	// Keyboard (Linux)
+		}
+		else if (MapKey < 0x1100)
+#else
+		if (MapKey < 0x1100)
+#endif
 		{
 			Ret = SDL_JoystickGetButton(WiiMapping[g_ID].joy, MapKey - 0x1000);	// Pad button
 		}
@@ -337,8 +345,25 @@ bool IsKey(int Key)
 			Ret = !(x < 0 || x > 1 || y < 0 || y > 1);
 		}
 #endif
-
-	}
+#if defined(HAVE_X11) && HAVE_X11
+		if (Key == EWM_SHAKE || Key == EWM_A || Key == EWM_B)
+		{
+			Window GLWin = *(Window *)g_WiimoteInitialize.pXWindow;
+			int root_x, root_y, win_x, win_y;
+			Window rootDummy, childWin;
+			unsigned int mask;
+			XQueryPointer(WMdisplay, GLWin, &rootDummy, &childWin, &root_x, &root_y, &win_x, &win_y, &mask);
+			if (((Key == EWM_A) && (mask & Button1Mask))
+					|| ((Key == EWM_B) && (mask & Button3Mask))
+					|| ((Key == EWM_SHAKE) && (mask & Button3Mask)))
+			{
+				float x, y;
+				GetMousePos(x, y);
+				Ret = !(x < 0 || x > 1 || y < 0 || y > 1);
+			}
+		}
+#endif
+		}
 
 	return (Ret) ? true : false;
 }

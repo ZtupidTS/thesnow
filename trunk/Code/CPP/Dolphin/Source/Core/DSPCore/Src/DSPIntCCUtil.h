@@ -30,7 +30,7 @@ bool CheckCondition(u8 _Condition);
 
 int GetMultiplyModifier();
 
-void Update_SR_Register16(s16 _Value, bool carry = false, bool overflow = false);
+void Update_SR_Register16(s16 _Value, bool carry = false, bool overflow = false, bool overS32 = false);
 void Update_SR_Register64(s64 _Value, bool carry = false, bool overflow = false);
 void Update_SR_LZ(bool value);
 
@@ -44,6 +44,10 @@ inline bool isSubCarry(u64 val, u64 result) {
 
 inline bool isOverflow(s64 val1, s64 val2, s64 res) {
 	return ((val1 ^ res) & (val2 ^ res)) < 0;
+}
+
+inline bool isOverS32(s64 acc) {
+	return (acc != (s32)acc) ? true : false;
 }
 
 }  // namespace

@@ -91,11 +91,22 @@ void TexDecoder_OpenCL_Initialize() {
 
 void TexDecoder_OpenCL_Shutdown() {
 #if defined(HAVE_OPENCL) && HAVE_OPENCL && !defined(DEBUG_OPENCL)
+	
+	clReleaseProgram(g_program);
+	int i = 0;
+	while(strlen(Decoders[i].name) > 0) 
+	{
+		clReleaseKernel(Decoders[i].kernel);
+		i++;
+	}
+	
 	if(g_clsrc)
 		clReleaseMemObject(g_clsrc);
 
 	if(g_cldst)
 		clReleaseMemObject(g_cldst);
+	
+	g_Inited = false;
 #endif
 }
 
@@ -162,6 +173,8 @@ PC_TexFormat TexDecoder_Decode_OpenCL(u8 *dst, const u8 *src, int width, int hei
 			formatResult = PC_TEX_FMT_BGRA32;
 			break;
 		case GX_TF_CMPR:
+			// Doesn't decode correctly
+			return PC_TEX_FMT_NONE;
 			kernelToRun = Decoders[7].kernel;
 			sizeOfSrc = sizeof(u8) / 2.0f;
             sizeOfDst = sizeof(u32);

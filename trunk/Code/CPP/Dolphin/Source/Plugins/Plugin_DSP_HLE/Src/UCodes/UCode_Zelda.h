@@ -166,16 +166,6 @@ public:
 	}
 
 private:
-	enum EDSP_Codes
-	{
-		DSP_INIT        = 0xDCD10000,
-		DSP_RESUME      = 0xDCD10001,
-		DSP_YIELD       = 0xDCD10002,
-		DSP_DONE        = 0xDCD10003,
-		DSP_SYNC        = 0xDCD10004,
-		DSP_FRAME_END   = 0xDCD10005,
-	};
-
 	// These map CRC to behaviour.
 
 	// DMA version
@@ -201,10 +191,10 @@ private:
 	{
 		switch (m_CRC)
 		{
+			case 0x6ba3b3ea: // IPL - PAL
+			case 0x24b22038: // IPL - NTSC/NTSC-JAP
 			case 0x42f64ac4: // Luigi
 			case 0x4be6a5cb: // AC, Pikmin NTSC
-			case 0x088e38a5: // IPL - JAP
-			case 0xd73338cf: // IPL
 				return true;
 			default:
 				return false;

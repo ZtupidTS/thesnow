@@ -52,7 +52,6 @@ files = ["ActionReplay.cpp",
          "HW/SI_Device.cpp",
          "HW/SI_DeviceAMBaseboard.cpp",
          "HW/SI_DeviceGBA.cpp",
-         "HW/GBAPipe.cpp", # TEMPORARY
          "HW/SI_DeviceGCController.cpp",
          "HW/StreamADPCM.cpp",
          "HW/SystemTimers.cpp",
@@ -138,7 +137,8 @@ else:
 libs = [
 	'bdisasm',
         'inputcommon',
-	'lua'
+	'lua',
+        'sfml'
 	]
 
 env_core = env.Clone();

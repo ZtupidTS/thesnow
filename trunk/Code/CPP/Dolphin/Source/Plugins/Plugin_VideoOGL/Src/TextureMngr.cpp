@@ -262,9 +262,10 @@ TextureMngr::TCacheEntry* TextureMngr::Load(int texstage, u32 address, int width
 	u64 texHash;
 	u32 FullFormat = tex_format;
 	if ((tex_format == GX_TF_C4) || (tex_format == GX_TF_C8) || (tex_format == GX_TF_C14X2))
-		u32 FullFormat = (tex_format | (tlutfmt << 16));
+		FullFormat = (tex_format | (tlutfmt << 16));
 	if (g_ActiveConfig.bSafeTextureCache || g_ActiveConfig.bHiresTextures || g_ActiveConfig.bDumpTextures)
 	{
+		texHash =  TexDecoder_GetHash64(ptr,TexDecoder_GetTextureSizeInBytes(expandedWidth, expandedHeight, tex_format),g_ActiveConfig.iSafeTextureCache_ColorSamples);
 		if ((tex_format == GX_TF_C4) || (tex_format == GX_TF_C8) || (tex_format == GX_TF_C14X2))
 		{
 			// WARNING! texID != address now => may break CopyRenderTargetToTexture (cf. TODO up)
@@ -274,16 +275,12 @@ TextureMngr::TCacheEntry* TextureMngr::Load(int texstage, u32 address, int width
 			// each other stored in a single texture, and uses the palette to make different characters
 			// visible or invisible. Thus, unless we want to recreate the textures for every drawn character,
 			// we must make sure that texture with different tluts get different IDs.
-			texHash =  TexDecoder_GetFullHash(ptr,TexDecoder_GetTextureSizeInBytes(expandedWidth, expandedHeight, tex_format));
- 			u32 tlutHash = TexDecoder_GetFullHash32(&texMem[tlutaddr], TexDecoder_GetPaletteSize(tex_format));
-			//texHash ^= tlutHash;
+			u64 tlutHash = TexDecoder_GetHash64(&texMem[tlutaddr], TexDecoder_GetPaletteSize(tex_format),g_ActiveConfig.iSafeTextureCache_ColorSamples);
+			texHash ^= tlutHash;
 			if (g_ActiveConfig.bSafeTextureCache)
-				texID = texID ^ tlutHash;
-			//DebugLog("addr: %08x | texID: %08x | texHash: %08x", address, texID, hash_value);
-		}
-		else
-		{
-			texHash =  TexDecoder_GetFastHash(ptr, TexDecoder_GetTextureSizeInBytes(expandedWidth, expandedHeight, tex_format));
+			{
+				texID = texID ^ ((u32)(tlutHash & 0xFFFFFFFF)) ^ ((u32)((tlutHash >> 32) & 0xFFFFFFFF));
+			}
 		}
 		if (g_ActiveConfig.bSafeTextureCache)
 			hash_value = texHash;
@@ -299,7 +296,7 @@ TextureMngr::TCacheEntry* TextureMngr::Load(int texstage, u32 address, int width
 		if (!g_ActiveConfig.bSafeTextureCache)
 			hash_value = ((u32 *)ptr)[0];
 
-        if (entry.isRenderTarget || ((address == entry.addr) && (hash_value == entry.hash) && FullFormat == entry.fmt))
+        if (entry.isRenderTarget || ((address == entry.addr) && (hash_value == entry.hash) && (int) FullFormat == entry.fmt))
 		{
             entry.frameCount = frameCount;
 			glEnable(entry.isRectangle ? GL_TEXTURE_RECTANGLE_ARB : GL_TEXTURE_2D);
@@ -317,7 +314,7 @@ TextureMngr::TCacheEntry* TextureMngr::Load(int texstage, u32 address, int width
             // Let's reload the new texture data into the same texture,
 			// instead of destroying it and having to create a new one.
 			// Might speed up movie playback very, very slightly.
-			if (width == entry.w && height == entry.h && FullFormat == entry.fmt)
+			if (width == entry.w && height == entry.h && (int) FullFormat == entry.fmt)
             {
 				glBindTexture(entry.isRectangle ? GL_TEXTURE_RECTANGLE_ARB : GL_TEXTURE_2D, entry.texture);
 				GL_REPORT_ERRORD();
@@ -344,7 +341,7 @@ TextureMngr::TCacheEntry* TextureMngr::Load(int texstage, u32 address, int width
 		int oldWidth = width;
 		int oldHeight = height;
 
-		sprintf(texPathTemp, "%s_%08x_%i", globals->unique_id, texHash, tex_format);
+		sprintf(texPathTemp, "%s_%08x_%i", globals->unique_id, (unsigned int) texHash, tex_format);
 		dfmt = HiresTextures::GetHiresTex(texPathTemp, &width, &height, tex_format, temp);
 
 		if (dfmt != PC_TEX_FMT_NONE)
@@ -492,7 +489,7 @@ TextureMngr::TCacheEntry* TextureMngr::Load(int texstage, u32 address, int width
 			bCheckedDumpDir = true;
 		}
 
-		sprintf(szTemp, "%s/%s_%08x_%i.tga",szDir, uniqueId, texHash, tex_format);
+		sprintf(szTemp, "%s/%s_%08x_%i.tga",szDir, uniqueId, (unsigned int) texHash, tex_format);
 		if (!File::Exists(szTemp))
 		{
 			SaveTexture(szTemp, target, entry.texture, expandedWidth, expandedHeight);
@@ -648,7 +645,7 @@ void TextureMngr::CopyRenderTargetToTexture(u32 address, bool bFromZBuffer, bool
 	{
 		_assert_(entry.texture);
 		GL_REPORT_ERRORD();
-		if (entry.w == w && entry.h == h && entry.isRectangle && entry.fmt == copyfmt) 
+		if (entry.w == w && entry.h == h && entry.isRectangle && entry.fmt == (int) copyfmt) 
 		{
 			glBindTexture(GL_TEXTURE_RECTANGLE_ARB, entry.texture);
 			// for some reason mario sunshine errors here...

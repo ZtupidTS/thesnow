@@ -21,8 +21,8 @@
 #include <vector>
 #include <string>
 
-#include "pluginspecs_wiimote.h"
 #include "Common.h"
+#include "pluginspecs_wiimote.h"
 #include "wiimote_hid.h"
 #include "EmuDefinitions.h"
 #include "Encryption.h"
@@ -60,9 +60,6 @@ bool g_Encryption; // Encryption on or off
 int NumPads = 0, NumGoodPads = 0; // Number of goods pads
 std::vector<InputCommon::CONTROLLER_INFO> joyinfo;
 CONTROLLER_MAPPING_WII WiiMapping[MAX_WIIMOTES];
-
-// Keyboard input
-bool KeyStatus[LAST_CONSTANT];
 
 } // namespace
 

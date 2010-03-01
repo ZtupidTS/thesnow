@@ -22,9 +22,6 @@
 #if defined(HAVE_WX) && HAVE_WX
 #include "ConfigDlg.h"
 DSPConfigDialogHLE* m_ConfigFrame = NULL;
-#include "Debugger/File.h" // For file logging
-#include "Debugger/Debugger.h"
-DSPDebuggerHLE* m_DebuggerFrame = NULL;
 #endif
 
 #include "ChunkFile.h"
@@ -89,21 +86,15 @@ BOOL APIENTRY DllMain(HINSTANCE hinstDLL,	// DLL module handle
 		{
 #if defined(HAVE_WX) && HAVE_WX
 			wxSetInstance((HINSTANCE)hinstDLL);
-			int argc = 0;
-			char **argv = NULL;
-			wxEntryStart(argc, argv);
-			if (!wxTheApp || !wxTheApp->CallOnInit())
-				return FALSE;
+			wxInitialize();
 #endif
 		}
 		break; 
 
 	case DLL_PROCESS_DETACH:
 #if defined(HAVE_WX) && HAVE_WX
-		wxEntryCleanup();
+		wxUninitialize();
 #endif
-		break;
-	default:
 		break;
 	}
 
@@ -130,19 +121,6 @@ wxWindow* GetParentedWxWindow(HWND Parent)
 
 void DllDebugger(HWND _hParent, bool Show)
 {
-#if defined(HAVE_WX) && HAVE_WX
-	if (Show)
-	{
-		if (!m_DebuggerFrame)
-			m_DebuggerFrame = new DSPDebuggerHLE(NULL);	
-			//m_DebuggerFrame = new DSPDebuggerHLE(GetParentedWxWindow(_hParent));
-		m_DebuggerFrame->Show();
-	}
-	else
-	{
-		if (m_DebuggerFrame) m_DebuggerFrame->Close();
-	}
-#endif
 }
 
 
@@ -156,7 +134,7 @@ void GetDllInfo(PLUGIN_INFO* _PluginInfo)
 #ifndef _DEBUG
 	sprintf(_PluginInfo->Name, "Dolphin DSP-HLE Plugin ");
 #else
-	sprintf(_PluginInfo	->Name, "Dolphin DSP-HLE Plugin (Debug) ");
+	sprintf(_PluginInfo->Name, "Dolphin DSP-HLE Plugin (Debug) ");
 #endif
 #endif
 }
@@ -173,27 +151,32 @@ void DllConfig(HWND _hParent)
 #if defined(HAVE_WX) && HAVE_WX
 	// Load config settings
 	g_Config.Load();
-	g_Config.GameIniLoad(globals->game_ini);
 
-	if (!m_ConfigFrame)
+	wxWindow *frame = GetParentedWxWindow(_hParent);
+	m_ConfigFrame = new DSPConfigDialogHLE(frame);
+
+	// add backends
+	std::vector<std::string> backends = AudioCommon::GetSoundBackends();
+	
+	for (std::vector<std::string>::const_iterator iter = backends.begin(); 
+		 iter != backends.end(); ++iter)
 	{
-		m_ConfigFrame = new DSPConfigDialogHLE(GetParentedWxWindow(_hParent));
-
-		// add backends
-		std::vector<std::string> backends = AudioCommon::GetSoundBackends();
-
-		for (std::vector<std::string>::const_iterator iter = backends.begin(); 
-			 iter != backends.end(); ++iter)
-		{
-			m_ConfigFrame->AddBackend((*iter).c_str());
-		}
-
-		// Only allow one open at a time
-		m_ConfigFrame->ShowModal();
-
-		delete m_ConfigFrame;
-		m_ConfigFrame = 0;
+		m_ConfigFrame->AddBackend((*iter).c_str());
 	}
+
+	// Only allow one open at a time
+	frame->Disable();
+	m_ConfigFrame->ShowModal();
+	frame->Enable();
+
+#ifdef _WIN32
+	frame->SetFocus();
+	frame->SetHWND(NULL);
+#endif
+
+	m_ConfigFrame->Destroy();
+	m_ConfigFrame = NULL;
+	frame->Destroy();
 #endif
 }
 
@@ -221,19 +204,6 @@ void Shutdown()
 
 	// Delete the UCodes
 	CDSPHandler::Destroy();
-
-#if defined(HAVE_WX) && HAVE_WX
-	// Reset mails
-	/*
-	if (m_DebuggerFrame)
-	{
-		sMailLog.clear();
-		sMailTime.clear();
-		m_DebuggerFrame->sMail.clear();
-		m_DebuggerFrame->sMailEnd.clear();
-	}
-	*/
-#endif	
 }
 
 void DoState(unsigned char **ptr, int mode)
@@ -331,11 +301,9 @@ void DSP_Update(int cycles)
 	CDSPHandler::GetInstance().Update(cycles);
 }
 
-/* Other Audio will pass through here. The kind of audio that sometimes are
-   used together with pre-drawn movies. This audio can be disabled further
-   inside Mixer_PushSamples(), the reason that we don't disable this entire
-   function when Other Audio is disabled is that then we can't turn it back on
-   again once the game has started. */
+// The reason that we don't disable this entire
+// function when Other Audio is disabled is that then we can't turn it back on
+// again once the game has started.
 void DSP_SendAIBuffer(unsigned int address, unsigned int num_samples)
 {
 	if (!soundStream)

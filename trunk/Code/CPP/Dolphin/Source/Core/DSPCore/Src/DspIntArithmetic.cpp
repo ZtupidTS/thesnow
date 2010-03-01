@@ -58,15 +58,15 @@ void addaxl(const UDSPInstruction& opc)
 	u8 sreg = (opc.hex >> 9) & 0x1;
 	u8 dreg = (opc.hex >> 8) & 0x1;
 
-	s64 acc = dsp_get_long_acc(dreg);
-	s64 acx = dsp_get_ax_l(sreg);
+	u64 acc = (u64)dsp_get_long_acc(dreg);
+	u16 acx = (u16)dsp_get_ax_l(sreg);
 
 	acc += acx;
 
 	zeroWriteBackLog();
 
-	dsp_set_long_acc(dreg, acc);
-	Update_SR_Register64(acc);
+	dsp_set_long_acc(dreg, (s64)acc);
+	Update_SR_Register64((s64)acc);
 }
 
 // TSTAXH $axR.h
@@ -334,12 +334,12 @@ void andi(const UDSPInstruction& opc)
 // Logic OR of accumulator mid part $acD.m with immediate value I.
 void ori(const UDSPInstruction& opc)
 {
-	u8 reg  = DSP_REG_ACM0 + ((opc.hex >> 8) & 0x1);
+	u8 reg  = (opc.hex >> 8) & 0x1;
 	u16 imm = dsp_fetch_code();
 
-	g_dsp.r[reg] |= imm;
+	g_dsp.r[DSP_REG_ACM0 + reg] |= imm;
 
-	Update_SR_Register16((s16)g_dsp.r[reg]);
+	Update_SR_Register16((s16)g_dsp.r[DSP_REG_ACM0 + reg], false, false, isOverS32(dsp_get_long_acc(reg)));
 }
 
 //-------------------------------------------------------------
@@ -350,16 +350,18 @@ void ori(const UDSPInstruction& opc)
 //  Adds accumulator $ac(1-D) to accumulator register $acD.
 void add(const UDSPInstruction& opc)
 {
-	u8 areg  = (opc.hex >> 8) & 0x1;
-	s64 acc0 = dsp_get_long_acc(0);
-	s64 acc1 = dsp_get_long_acc(1);
+	u8 dreg  = (opc.hex >> 8) & 0x1;
 
+	s64 acc0 = dsp_get_long_acc(dreg);
+	s64 acc1 = dsp_get_long_acc(1 - dreg);
 	s64 res = acc0 + acc1;
 
 	zeroWriteBackLog();
-	dsp_set_long_acc(areg, res);
 
-	Update_SR_Register64(res);
+	dsp_set_long_acc(dreg, res);
+	res = dsp_get_long_acc(dreg);
+
+	Update_SR_Register64(res, isAddCarry(acc0, res), isOverflow(acc0, acc1, res));
 }
 
 // ADDP $acD
@@ -547,6 +549,7 @@ void addr(const UDSPInstruction& opc)
 // SUBR $acD.M, $axS.L
 // 0101 0ssd xxxx xxxx
 // Subtracts register $axS.L from accumulator $acD.M register.
+// NOTE: It is seen in DSP_UCODE_ZELDA that AXs.H can also be subtracted
 void subr(const UDSPInstruction& opc)
 {
 	u8 areg = (opc.hex >> 8) & 0x1;
@@ -639,7 +642,7 @@ void lsr16(const UDSPInstruction& opc)
 	u8 areg = (opc.hex >> 8) & 0x1;
 
 	u64 acc = dsp_get_long_acc(areg);
-
+	acc &= 0x000000FFFFFFFFFFULL; 
 	acc >>= 16;
 
 	zeroWriteBackLog();

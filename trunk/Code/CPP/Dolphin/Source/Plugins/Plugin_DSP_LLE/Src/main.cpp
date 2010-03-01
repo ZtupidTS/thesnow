@@ -76,21 +76,15 @@ BOOL APIENTRY DllMain(HINSTANCE hinstDLL,	// DLL module handle
 		{
 #if defined(HAVE_WX) && HAVE_WX
 			wxSetInstance((HINSTANCE)hinstDLL);
-			int argc = 0;
-			char **argv = NULL;
-			wxEntryStart(argc, argv);
-			if (!wxTheApp || !wxTheApp->CallOnInit())
-				return FALSE;
+			wxInitialize();
 #endif
 		}
 		break; 
 
 	case DLL_PROCESS_DETACH:
 #if defined(HAVE_WX) && HAVE_WX
-		wxEntryCleanup();
+		wxUninitialize();
 #endif
-		break;
-	default:
 		break;
 	}
 
@@ -140,25 +134,31 @@ void SetDllGlobals(PLUGIN_GLOBALS* _pPluginGlobals)
 void DllConfig(HWND _hParent)
 {
 #if defined(HAVE_WX) && HAVE_WX
-	if (!m_ConfigFrame)
+	wxWindow *frame = GetParentedWxWindow(_hParent);
+	m_ConfigFrame = new DSPConfigDialogLLE(frame);
+
+	// add backends
+	std::vector<std::string> backends = AudioCommon::GetSoundBackends();
+
+	for (std::vector<std::string>::const_iterator iter = backends.begin(); 
+		 iter != backends.end(); ++iter)
 	{
-		m_ConfigFrame = new DSPConfigDialogLLE(GetParentedWxWindow(_hParent));
-
-		// add backends
-		std::vector<std::string> backends = AudioCommon::GetSoundBackends();
-
-		for (std::vector<std::string>::const_iterator iter = backends.begin(); 
-			 iter != backends.end(); ++iter)
-		{
-			m_ConfigFrame->AddBackend((*iter).c_str());
-		}
-
-		// Only allow one open at a time
-		m_ConfigFrame->ShowModal();
-
-		delete m_ConfigFrame;
-		m_ConfigFrame = 0;
+		m_ConfigFrame->AddBackend((*iter).c_str());
 	}
+
+	// Only allow one open at a time
+	frame->Disable();
+	m_ConfigFrame->ShowModal();
+	frame->Enable();
+
+#ifdef _WIN32
+	frame->SetFocus();
+	frame->SetHWND(NULL);
+#endif
+
+	m_ConfigFrame->Destroy();
+	m_ConfigFrame = NULL;
+	frame->Destroy();
 #endif
 }
 

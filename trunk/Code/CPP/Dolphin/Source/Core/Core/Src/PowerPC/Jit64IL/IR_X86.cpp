@@ -48,6 +48,8 @@ The register allocation is just a simple forward greedy allocator.
 #include "../../ConfigManager.h"
 #include "x64Emitter.h"
 
+static ThunkManager thunks;
+
 using namespace IREmitter;
 using namespace Gen;
 
@@ -172,7 +174,7 @@ static const int FRegAllocSize = sizeof(FRegAllocOrder) / sizeof(X64Reg);
 #endif
 
 static X64Reg regFindFreeReg(RegInfo& RI) {
-	for (unsigned i = 0; i < RegAllocSize; i++)
+	for (int i = 0; i < RegAllocSize; i++)
 		if (RI.regs[RegAllocOrder[i]] == 0)
 			return RegAllocOrder[i];
 
@@ -183,7 +185,7 @@ static X64Reg regFindFreeReg(RegInfo& RI) {
 }
 
 static X64Reg fregFindFreeReg(RegInfo& RI) {
-	for (unsigned i = 0; i < FRegAllocSize; i++)
+	for (int i = 0; i < FRegAllocSize; i++)
 		if (RI.fregs[FRegAllocOrder[i]] == 0)
 			return FRegAllocOrder[i];
 	static unsigned nextReg = 0;
@@ -193,7 +195,7 @@ static X64Reg fregFindFreeReg(RegInfo& RI) {
 }
 
 static OpArg regLocForInst(RegInfo& RI, InstLoc I) {
-	for (unsigned i = 0; i < RegAllocSize; i++)
+	for (int i = 0; i < RegAllocSize; i++)
 		if (RI.regs[RegAllocOrder[i]] == I)
 			return R(RegAllocOrder[i]);
 
@@ -203,7 +205,7 @@ static OpArg regLocForInst(RegInfo& RI, InstLoc I) {
 }
 
 static OpArg fregLocForInst(RegInfo& RI, InstLoc I) {
-	for (unsigned i = 0; i < FRegAllocSize; i++)
+	for (int i = 0; i < FRegAllocSize; i++)
 		if (RI.fregs[FRegAllocOrder[i]] == I)
 			return R(FRegAllocOrder[i]);
 
@@ -213,13 +215,13 @@ static OpArg fregLocForInst(RegInfo& RI, InstLoc I) {
 }
 
 static void regClearInst(RegInfo& RI, InstLoc I) {
-	for (unsigned i = 0; i < RegAllocSize; i++)
+	for (int i = 0; i < RegAllocSize; i++)
 		if (RI.regs[RegAllocOrder[i]] == I)
 			RI.regs[RegAllocOrder[i]] = 0;
 }
 
 static void fregClearInst(RegInfo& RI, InstLoc I) {
-	for (unsigned i = 0; i < FRegAllocSize; i++)
+	for (int i = 0; i < FRegAllocSize; i++)
 		if (RI.fregs[FRegAllocOrder[i]] == I)
 			RI.fregs[FRegAllocOrder[i]] = 0;
 }
@@ -1183,7 +1185,21 @@ static void DoWriteCode(IRBuilder* ibuild, JitIL* Jit, bool UseProfile, bool Mak
 			Jit->SHL(32, R(EDX), Imm8(3));
 #endif
 			Jit->MOV(32, R(ECX), regLocForInst(RI, getOp1(I)));
+#ifdef _M_X64
+#if _WIN32
+			Jit->SUB(64, R(RSP), Imm8(0x28));
+#else
+			Jit->SUB(64, R(RSP), Imm8(0x8));
+#endif
+#endif
 			Jit->CALLptr(MDisp(EDX, (u32)(u64)(((JitIL *)jit)->asm_routines.pairedLoadQuantized)));
+#ifdef _M_X64
+#if _WIN32
+			Jit->ADD(64, R(RSP), Imm8(0x28));
+#else
+			Jit->ADD(64, R(RSP), Imm8(0x8));
+#endif
+#endif
 			Jit->MOVAPD(reg, R(XMM0));
 			RI.fregs[reg] = I;
 			regNormalRegClear(RI, I);
@@ -1242,7 +1258,21 @@ static void DoWriteCode(IRBuilder* ibuild, JitIL* Jit, bool UseProfile, bool Mak
 #endif
 			Jit->MOV(32, R(ECX), regLocForInst(RI, getOp2(I)));
 			Jit->MOVAPD(XMM0, fregLocForInst(RI, getOp1(I)));
+#ifdef _M_X64
+#if _WIN32
+			Jit->SUB(64, R(RSP), Imm8(0x28));
+#else
+			Jit->SUB(64, R(RSP), Imm8(0x8));
+#endif
+#endif
 			Jit->CALLptr(MDisp(EDX, (u32)(u64)(((JitIL *)jit)->asm_routines.pairedStoreQuantized)));
+#ifdef _M_X64
+#if _WIN32
+			Jit->ADD(64, R(RSP), Imm8(0x28));
+#else
+			Jit->ADD(64, R(RSP), Imm8(0x8));
+#endif
+#endif
 			if (RI.IInfo[I - RI.FirstI] & 4)
 				fregClearInst(RI, getOp1(I));
 			if (RI.IInfo[I - RI.FirstI] & 8)

@@ -29,8 +29,8 @@
 
 BEGIN_EVENT_TABLE(WiimoteBasicConfigDialog,wxDialog)
 	EVT_CLOSE(WiimoteBasicConfigDialog::OnClose)
-	EVT_BUTTON(ID_OK, WiimoteBasicConfigDialog::ButtonClick)
-	EVT_BUTTON(ID_CANCEL, WiimoteBasicConfigDialog::ButtonClick)
+	EVT_BUTTON(wxID_OK, WiimoteBasicConfigDialog::ButtonClick)
+	EVT_BUTTON(wxID_CANCEL, WiimoteBasicConfigDialog::ButtonClick)
 	EVT_BUTTON(ID_BUTTONMAPPING, WiimoteBasicConfigDialog::ButtonClick)
 	EVT_BUTTON(ID_BUTTONRECORDING, WiimoteBasicConfigDialog::ButtonClick)
 	EVT_NOTEBOOK_PAGE_CHANGED(ID_NOTEBOOK, WiimoteBasicConfigDialog::NotebookPageChanged)
@@ -65,10 +65,8 @@ WiimoteBasicConfigDialog::WiimoteBasicConfigDialog(wxWindow *parent, wxWindowID 
 	ControlsCreated = false;
 	m_Page = 0;
 
-	m_bEnableUseRealWiimote = true;
 	// Initialize the Real WiiMotes here, so we get a count of how many were found and set everything properly
-	if (!g_RealWiiMoteInitialized)
-		WiiMoteReal::Initialize();
+	WiiMoteReal::Initialize();
 
 	CreateGUIControls();
 	UpdateGUI();
@@ -83,12 +81,12 @@ void WiimoteBasicConfigDialog::ButtonClick(wxCommandEvent& event)
 {
 	switch(event.GetId())
 	{
-	case ID_OK:
+	case wxID_OK:
 		WiiMoteReal::Allocate();
 		g_Config.Save();
 		Close();
 		break;
-	case ID_CANCEL:
+	case wxID_CANCEL:
 		g_Config.Load();
 		Close();
 		break;
@@ -258,9 +256,9 @@ void WiimoteBasicConfigDialog::CreateGUIControls()
 	m_ButtonMapping = new wxButton(this, ID_BUTTONMAPPING, wxT("Button Mapping"));
 	m_Recording		= new wxButton(this, ID_BUTTONRECORDING, wxT("Recording"));
 
-	m_OK = new wxButton(this, ID_OK, wxT("OK"));
+	m_OK = new wxButton(this, wxID_OK, wxT("OK"));
 	m_OK->SetToolTip(wxT("Save changes and close"));
-	m_Cancel = new wxButton(this, ID_CANCEL, wxT("Cancel"));
+	m_Cancel = new wxButton(this, wxID_CANCEL, wxT("Cancel"));
 	m_Cancel->SetToolTip(wxT("Discard changes and close"));
 
 	wxBoxSizer* sButtons = new wxBoxSizer(wxHORIZONTAL);
@@ -293,19 +291,17 @@ void WiimoteBasicConfigDialog::UpdateOnce(wxTimerEvent& event)
 	{
 	case IDTM_UPDATE_ONCE:
 		// Reenable the checkbox
-		m_bEnableUseRealWiimote = true;
 		SetCursor(wxCursor(wxCURSOR_ARROW));
 		UpdateGUI();
 		break;
 	}
 }
 
+#if HAVE_WIIUSE
 void WiimoteBasicConfigDialog::DoRefreshReal()
 {
-	if (g_RealWiiMoteInitialized)
-		WiiMoteReal::Shutdown();
-	if (!g_RealWiiMoteInitialized)
-		WiiMoteReal::Initialize();
+	WiiMoteReal::Shutdown();
+	WiiMoteReal::Initialize();
 }
 
 void WiimoteBasicConfigDialog::DoUseReal()
@@ -332,7 +328,6 @@ void WiimoteBasicConfigDialog::DoUseReal()
 	{
 		// Disable the checkbox for a moment
 		SetCursor(wxCursor(wxCURSOR_WAIT));
-		m_bEnableUseRealWiimote = false;
 		// We may not need this if there is already a message queue that allows the nessesary timeout
 		//sleep(100);
 
@@ -342,6 +337,7 @@ void WiimoteBasicConfigDialog::DoUseReal()
 		m_TimeoutOnce->Start(1000, true);
 	}
 }
+#endif
 
 // Generate connect/disconnect status event
 void WiimoteBasicConfigDialog::DoExtensionConnectedDisconnected(int Extension)

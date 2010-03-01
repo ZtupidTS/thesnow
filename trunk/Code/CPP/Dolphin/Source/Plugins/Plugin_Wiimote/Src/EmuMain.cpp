@@ -36,6 +36,14 @@ extern SWiimoteInitialize g_WiimoteInitialize;
 namespace WiiMoteEmu
 {
 
+// Settings
+accel_cal g_wm;
+nu_cal g_nu;
+cc_cal g_ClassicContCalibration;
+gh3_cal g_GH3Calibration;
+
+bool g_EmulatedWiiMoteInitialized = false;
+
 /* Homebrew encryption for 16 byte zero keys. */
 void CryptBuffer(u8* _buffer, u8 _size)
 {
@@ -196,10 +204,6 @@ void LoadRecordedMovements()
 	}
 }
 
-#if defined(HAVE_X11) && HAVE_X11
-MousePosition MousePos;
-#endif
-
 /* Calibrate the mouse position to the emulation window. g_WiimoteInitialize.hWnd is the rendering window handle. */
 void GetMousePos(float& x, float& y)
 {
@@ -220,9 +224,20 @@ void GetMousePos(float& x, float& y)
 	float PictureWidth = WinWidth, PictureHeight = WinHeight;
 #else
 #if defined(HAVE_X11) && HAVE_X11
-	float WinWidth = (float)MousePos.WinWidth;
-	float WinHeight = (float)MousePos.WinHeight;
+	float WinWidth = 0, WinHeight = 0;
 	float XOffset = 0, YOffset = 0;
+	int root_x, root_y, win_x, win_y;
+	if (IsFocus())
+	{
+		Window GLWin = *(Window *)g_WiimoteInitialize.pXWindow;
+		XWindowAttributes WinAttribs;
+		XGetWindowAttributes (WMdisplay, GLWin, &WinAttribs);
+		WinWidth = (float)WinAttribs.width;
+		WinHeight = (float)WinAttribs.height;
+		Window rootDummy, childWin;
+		unsigned int mask;
+		XQueryPointer(WMdisplay, GLWin, &rootDummy, &childWin, &root_x, &root_y, &win_x, &win_y, &mask);
+	}
 	float PictureWidth = WinWidth, PictureHeight = WinHeight;
 #endif
 #endif
@@ -305,8 +320,8 @@ void GetMousePos(float& x, float& y)
 	*/
 #else
 #if defined(HAVE_X11) && HAVE_X11
-	x = ((float)MousePos.x - XOffset) / PictureWidth;
-	y = ((float)MousePos.y - YOffset) / PictureHeight;
+	x = ((float)win_x - XOffset) / PictureWidth;
+	y = ((float)win_y - YOffset) / PictureHeight;
 #endif
 #endif
 }
@@ -633,8 +648,6 @@ void Update(int _number)
 	// Read input or not
 	if (WiiMapping[g_ID].Source == 1)
 	{
-		ReadLinuxKeyboard();
-
 		// Check if the pad state should be updated
 		if (NumGoodPads > 0 && joyinfo.size() > (u32)WiiMapping[g_ID].ID)
 			UpdatePadState(WiiMapping[g_ID]);
@@ -660,100 +673,6 @@ void Update(int _number)
 		SendReportCoreAccelIr10Ext(g_ReportingChannel[g_ID]);
 		break;
 	}
-}
-
-
-void ReadLinuxKeyboard()
-{
-#if defined(HAVE_X11) && HAVE_X11
-	XEvent E;
-	KeySym key;
-
-	// keyboard input
-	int num_events;
-	for (num_events = XPending(WMdisplay); num_events > 0; num_events--)
-	{
-		XNextEvent(WMdisplay, &E);
-		switch (E.type)
-		{
-		case KeyPress:
-		{
-			key = XLookupKeysym((XKeyEvent*)&E, 0);
-			
-			if ((key >= XK_F1 && key <= XK_F9) ||
-			   key == XK_Shift_L || key == XK_Shift_R ||
-			   key == XK_Control_L || key == XK_Control_R || key == XK_Escape)
-			{
-				XPutBackEvent(WMdisplay, &E);
-				break;
-			}
-
-			for (int i = 0; i < LAST_CONSTANT; i++)
-			{
-				if (((int) key) == WiiMapping[g_ID].Button[i])
-					KeyStatus[i] = true;
-			}
-			break;
-		}
-		case KeyRelease:
-		{
-			key = XLookupKeysym((XKeyEvent*)&E, 0);
-			
-			if ((key >= XK_F1 && key <= XK_F9) ||
-			   key == XK_Shift_L || key == XK_Shift_R ||
-			   key == XK_Control_L || key == XK_Control_R || key == XK_Escape) {
-				XPutBackEvent(WMdisplay, &E);
-				break;
-			}
-
-			for (int i = 0; i < LAST_CONSTANT; i++)
-			{
-				if (((int) key) == WiiMapping[g_ID].Button[i])
-					KeyStatus[i] = false;
-			}
-			break;
-		}
-		case ButtonPress:
-		{
-			int button = ((XButtonEvent*)&E)->button;
-			if (button == 1)
-				KeyStatus[EWM_A] = true;
-			else if (button == 3)
-				KeyStatus[EWM_B] = true;
-			else
-				XPutBackEvent(WMdisplay, &E);
-			break;
-		}
-		case ButtonRelease:
-		{
-			int button = ((XButtonEvent*)&E)->button;
-			if (button == 1)
-				KeyStatus[EWM_A] = false;
-			else if (button == 3)
-				KeyStatus[EWM_B] = false;
-			else
-				XPutBackEvent(WMdisplay, &E);
-			break;
-		}
-		case MotionNotify:
-		{
-			MousePos.x = E.xmotion.x;
-			MousePos.y = E.xmotion.y;
-			XWindowAttributes WinAttribs;
-			XGetWindowAttributes (E.xmotion.display, E.xmotion.window, &WinAttribs);
-			MousePos.WinWidth = WinAttribs.width;
-			MousePos.WinHeight = WinAttribs.height;
-			break;
-		}
-		case ConfigureNotify:
-		case ClientMessage:
-			XPutBackEvent(WMdisplay, &E);
-			break;
-		default:
-			break;
-		}
-	}
-#endif
 }
 
 } // end of namespace

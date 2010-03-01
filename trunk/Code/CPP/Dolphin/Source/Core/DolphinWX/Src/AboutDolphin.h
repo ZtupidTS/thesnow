@@ -29,7 +29,7 @@ class AboutDolphin : public wxDialog
 {
 	public:
 		AboutDolphin(wxWindow *parent,
-			wxWindowID id = 1,
+			wxWindowID id = wxID_ANY,
 #ifndef NO_MOD
 			const wxString &title = wxT("¹ØÓÚ Dolphin"),
 #else
@@ -56,8 +56,7 @@ class AboutDolphin : public wxDialog
 
 		enum
 		{
-			ID_CLOSE = 1000,
-			ID_LOGO,
+			ID_LOGO = 1000,
 			ID_MESSAGE
 		};
 

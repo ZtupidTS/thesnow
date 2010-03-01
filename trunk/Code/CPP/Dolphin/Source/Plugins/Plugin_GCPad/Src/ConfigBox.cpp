@@ -42,21 +42,21 @@
 // The wxWidgets class
 BEGIN_EVENT_TABLE(GCPadConfigDialog,wxDialog)
 	EVT_CLOSE(GCPadConfigDialog::OnClose)
-	EVT_BUTTON(ID_OK, GCPadConfigDialog::OnCloseClick)
-	EVT_BUTTON(ID_CANCEL, GCPadConfigDialog::OnCloseClick)
+	EVT_BUTTON(wxID_OK, GCPadConfigDialog::OnCloseClick)
+	EVT_BUTTON(wxID_CANCEL, GCPadConfigDialog::OnCloseClick)
 	EVT_NOTEBOOK_PAGE_CHANGED(ID_NOTEBOOK, GCPadConfigDialog::NotebookPageChanged)
 
-	EVT_COMBOBOX(IDC_JOYNAME, GCPadConfigDialog::ChangeSettings)	
+	EVT_CHOICE(IDC_JOYNAME, GCPadConfigDialog::ChangeSettings)	
 	EVT_CHECKBOX(IDC_RUMBLE, GCPadConfigDialog::ChangeSettings)
-	EVT_COMBOBOX(IDC_RUMBLE_STRENGTH, GCPadConfigDialog::ChangeSettings)
-	EVT_COMBOBOX(IDC_DEAD_ZONE_LEFT, GCPadConfigDialog::ChangeSettings)
-	EVT_COMBOBOX(IDC_DEAD_ZONE_RIGHT, GCPadConfigDialog::ChangeSettings)
-	EVT_COMBOBOX(IDC_STICK_DIAGONAL, GCPadConfigDialog::ChangeSettings)
+	EVT_CHOICE(IDC_RUMBLE_STRENGTH, GCPadConfigDialog::ChangeSettings)
+	EVT_CHOICE(IDC_DEAD_ZONE_LEFT, GCPadConfigDialog::ChangeSettings)
+	EVT_CHOICE(IDC_DEAD_ZONE_RIGHT, GCPadConfigDialog::ChangeSettings)
+	EVT_CHOICE(IDC_STICK_DIAGONAL, GCPadConfigDialog::ChangeSettings)
 	EVT_CHECKBOX(IDC_STICK_S2C, GCPadConfigDialog::ChangeSettings)
-	EVT_COMBOBOX(IDC_TRIGGER_TYPE, GCPadConfigDialog::ChangeSettings)
-	EVT_COMBOBOX(IDC_STICK_SOURCE, GCPadConfigDialog::ChangeSettings)
-	EVT_COMBOBOX(IDC_CSTICK_SOURCE, GCPadConfigDialog::ChangeSettings)
-	EVT_COMBOBOX(IDC_TRIGGER_SOURCE, GCPadConfigDialog::ChangeSettings)
+	EVT_CHOICE(IDC_TRIGGER_TYPE, GCPadConfigDialog::ChangeSettings)
+	EVT_CHOICE(IDC_STICK_SOURCE, GCPadConfigDialog::ChangeSettings)
+	EVT_CHOICE(IDC_CSTICK_SOURCE, GCPadConfigDialog::ChangeSettings)
+	EVT_CHOICE(IDC_TRIGGER_SOURCE, GCPadConfigDialog::ChangeSettings)
 	EVT_SLIDER(IDS_STICK_PRESS, GCPadConfigDialog::ChangeSettings)
 	EVT_SLIDER(IDS_CSTICK_PRESS, GCPadConfigDialog::ChangeSettings)
 	EVT_SLIDER(IDS_TRIGGER_PRESS, GCPadConfigDialog::ChangeSettings)
@@ -178,11 +178,11 @@ void GCPadConfigDialog::OnCloseClick(wxCommandEvent& event)
 {
 	switch (event.GetId())
 	{
-	case ID_OK:
+	case wxID_OK:
 		g_Config.Save();
 		Close(); // Call OnClose()
 		break;
-	case ID_CANCEL:
+	case wxID_CANCEL:
 		g_Config.Load();
 		Close(); // Call OnClose()
 		break;
@@ -494,12 +494,12 @@ void GCPadConfigDialog::CreateGUIControls()
 		m_Notebook->AddPage(m_Controller[i], wxString::Format(wxT("Gamecube 手柄 %d"), i+1));
 
 		// Controller
-		m_Joyname[i] = new wxComboBox(m_Controller[i], IDC_JOYNAME, StrJoyname[0], wxDefaultPosition, wxSize(400, -1), StrJoyname, wxCB_READONLY);
+		m_Joyname[i] = new wxChoice(m_Controller[i], IDC_JOYNAME, wxDefaultPosition, wxSize(400, -1), StrJoyname, 0, wxDefaultValidator, StrJoyname[0]);
 
 		// Dead zone
 		m_ComboDeadZoneLabel[i] = new wxStaticText(m_Controller[i], wxID_ANY, wxT("死区"));
-		m_ComboDeadZoneLeft[i] = new wxComboBox(m_Controller[i], IDC_DEAD_ZONE_LEFT, TextDeadZone[0], wxDefaultPosition,  wxSize(50, -1), TextDeadZone, wxCB_READONLY);
-		m_ComboDeadZoneRight[i] = new wxComboBox(m_Controller[i], IDC_DEAD_ZONE_RIGHT, TextDeadZone[0], wxDefaultPosition,  wxSize(50, -1), TextDeadZone, wxCB_READONLY);
+		m_ComboDeadZoneLeft[i] = new wxChoice(m_Controller[i], IDC_DEAD_ZONE_LEFT, wxDefaultPosition,  wxSize(50, -1), TextDeadZone,  0, wxDefaultValidator, TextDeadZone[0]);
+		m_ComboDeadZoneRight[i] = new wxChoice(m_Controller[i], IDC_DEAD_ZONE_RIGHT, wxDefaultPosition,  wxSize(50, -1), TextDeadZone,  0, wxDefaultValidator, TextDeadZone[0]);
 
 		// Circle to square
 		m_CheckS2C[i] = new wxCheckBox(m_Controller[i], IDC_STICK_S2C, wxT("Square To Circle"));
@@ -510,13 +510,12 @@ void GCPadConfigDialog::CreateGUIControls()
 		m_DiagonalLabel[i] = new wxStaticText(m_Controller[i], wxID_ANY, wxT("Diagonal"));
 		m_DiagonalLabel[i]->SetToolTip(wxT("To produce a perfect circle in the 'Out' window you have to manually set\n")
 			wxT("your diagonal values here from what is shown in the 'In' window."));
-		m_ComboDiagonal[i] = new wxComboBox(m_Controller[i], IDC_STICK_DIAGONAL, StrDiagonal[0], wxDefaultPosition, wxSize(50, -1), StrDiagonal, wxCB_READONLY);
+		m_ComboDiagonal[i] = new wxChoice(m_Controller[i], IDC_STICK_DIAGONAL, wxDefaultPosition, wxSize(50, -1), StrDiagonal,  0, wxDefaultValidator, StrDiagonal[0]);
 
 		// Rumble
 		m_CheckRumble[i] = new wxCheckBox(m_Controller[i], IDC_RUMBLE, wxT("Rumble"));
 		m_RumbleStrengthLabel[i] = new wxStaticText(m_Controller[i], wxID_ANY, wxT("Strength"));
-		m_RumbleStrength[i] = new wxComboBox(m_Controller[i], IDC_RUMBLE_STRENGTH, StrRumble[0], wxDefaultPosition, wxSize(50, -1), StrRumble, wxCB_READONLY);
-
+		m_RumbleStrength[i] = new wxChoice(m_Controller[i], IDC_RUMBLE_STRENGTH, wxDefaultPosition, wxSize(50, -1), StrRumble, 0, wxDefaultValidator, StrRumble[0]);
 		// Sizers
 		m_sDeadZoneHoriz[i] = new wxBoxSizer(wxHORIZONTAL);
 		m_sDeadZoneHoriz[i]->Add(m_ComboDeadZoneLeft[i], 0, (wxUP), 0);
@@ -607,7 +606,7 @@ void GCPadConfigDialog::CreateGUIControls()
 		m_TriggerStatusL[i]= new wxStaticText(m_Controller[i], wxID_ANY, wxT("000"), wxDefaultPosition, wxDefaultSize, wxALIGN_RIGHT);
 		m_TriggerStatusR[i]= new wxStaticText(m_Controller[i], wxID_ANY, wxT("000"), wxDefaultPosition, wxDefaultSize, wxALIGN_RIGHT);
 		m_tTriggerSource[i]= new wxStaticText(m_Controller[i], wxID_ANY, wxT("Trigger Source"));
-		m_TriggerType[i] = new wxComboBox(m_Controller[i], IDC_TRIGGER_TYPE, StrTriggerType[0], wxDefaultPosition,  wxSize(70, -1), StrTriggerType, wxCB_READONLY);
+		m_TriggerType[i] = new wxChoice(m_Controller[i], IDC_TRIGGER_TYPE, wxDefaultPosition,  wxSize(70, -1), StrTriggerType, 0, wxDefaultValidator, StrTriggerType[0]);
 
 		// Sizers
 		m_sGridTrigger[i] = new wxGridBagSizer(0, 0);
@@ -666,7 +665,7 @@ void GCPadConfigDialog::CreateGUIControls()
 		m_gDPad[i] = new wxStaticBoxSizer(wxVERTICAL, m_Controller[i], wxT("D-Pad"));
 		m_gStick[i] = new wxStaticBoxSizer(wxVERTICAL, m_Controller[i], wxT("Main Stick"));
 		m_Text_StickSrc[i] = new wxStaticText(m_Controller[i], wxID_ANY, wxT("Source"));
-		m_Combo_StickSrc[i] = new wxComboBox(m_Controller[i], IDC_STICK_SOURCE, StrSource[0], wxDefaultPosition, wxSize(70, -1), StrSource, wxCB_READONLY);
+		m_Combo_StickSrc[i] = new wxChoice(m_Controller[i], IDC_STICK_SOURCE, wxDefaultPosition, wxSize(70, -1), StrSource,  0, wxDefaultValidator, StrSource[0]);
 		m_sStickSrc[i] = new wxBoxSizer(wxHORIZONTAL);
 		m_sStickSrc[i]->Add(m_Text_StickSrc[i], 0, (wxUP), 4);
 		m_sStickSrc[i]->Add(m_Combo_StickSrc[i], 0, (wxLEFT), 2);
@@ -674,7 +673,7 @@ void GCPadConfigDialog::CreateGUIControls()
 		m_gStick[i]->AddSpacer(2);
 		m_gCStick[i] = new wxStaticBoxSizer(wxVERTICAL, m_Controller[i], wxT("C-Stick"));
 		m_Text_CStickSrc[i] = new wxStaticText(m_Controller[i], wxID_ANY, wxT("Source"));
-		m_Combo_CStickSrc[i] = new wxComboBox(m_Controller[i], IDC_CSTICK_SOURCE, StrSource[0], wxDefaultPosition, wxSize(70, -1), StrSource, wxCB_READONLY);
+		m_Combo_CStickSrc[i] = new wxChoice(m_Controller[i], IDC_CSTICK_SOURCE, wxDefaultPosition, wxSize(70, -1), StrSource,  0, wxDefaultValidator, StrSource[0]);
 		m_sCStickSrc[i] = new wxBoxSizer(wxHORIZONTAL);
 		m_sCStickSrc[i]->Add(m_Text_CStickSrc[i], 0, (wxUP), 4);
 		m_sCStickSrc[i]->Add(m_Combo_CStickSrc[i], 0, (wxLEFT), 2);
@@ -682,7 +681,7 @@ void GCPadConfigDialog::CreateGUIControls()
 		m_gCStick[i]->AddSpacer(2);
 		m_gTrigger[i] = new wxStaticBoxSizer(wxVERTICAL, m_Controller[i], wxT("Triggers"));
 		m_Text_TriggerSrc[i] = new wxStaticText(m_Controller[i], wxID_ANY, wxT("Source"));
-		m_Combo_TriggerSrc[i] = new wxComboBox(m_Controller[i], IDC_TRIGGER_SOURCE, StrSource[0], wxDefaultPosition, wxSize(70, -1), StrSource, wxCB_READONLY);
+		m_Combo_TriggerSrc[i] = new wxChoice(m_Controller[i], IDC_TRIGGER_SOURCE, wxDefaultPosition, wxSize(70, -1), StrSource,  0, wxDefaultValidator, StrSource[0]);
 		m_sTriggerSrc[i] = new wxBoxSizer(wxHORIZONTAL);
 		m_sTriggerSrc[i]->Add(m_Text_TriggerSrc[i], 0, (wxUP), 4);
 		m_sTriggerSrc[i]->Add(m_Combo_TriggerSrc[i], 0, (wxLEFT), 2);
@@ -737,10 +736,10 @@ void GCPadConfigDialog::CreateGUIControls()
 		m_Controller[i]->SetSizer(m_sMain[i]);
 	}
 
-	m_OK = new wxButton(this, ID_OK, wxT("确定"));
-	m_OK->SetToolTip(wxT("保存修改并关闭"));
-	m_Cancel = new wxButton(this, ID_CANCEL, wxT("取消"));
-	m_Cancel->SetToolTip(wxT("放弃修改并关闭"));
+	m_OK = new wxButton(this, wxID_OK, wxT("OK"));
+	m_OK->SetToolTip(wxT("Save changes and close"));
+	m_Cancel = new wxButton(this, wxID_CANCEL, wxT("Cancel"));
+	m_Cancel->SetToolTip(wxT("Discard changes and close"));
 	wxBoxSizer* m_DlgButton = new wxBoxSizer(wxHORIZONTAL);
 	m_DlgButton->AddStretchSpacer();
 	m_DlgButton->Add(m_OK, 0, (wxLEFT), 5);	
