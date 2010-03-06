@@ -1,7 +1,7 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-AC_PREREQ([2.57])
+AC_PREREQ([2.56])
 AC_INIT([libjpeg], [6.b])
 
 AM_INIT_AUTOMAKE([-Wall foreign dist-bzip2])
@@ -12,12 +12,33 @@ AC_DEFINE([HAVE_PROTOTYPES], 1, [Define if your compiler supports prototypes])
 AC_DEFINE([INCOMPLETE_TYPES_BROKEN], 1, [Define if you want use complete types])
 
 # Checks for programs.
+SAVED_CFLAGS=${CFLAGS}
+SAVED_CXXFLAGS=${CXXFLAGS}
 AC_PROG_CPP
 AC_PROG_CC
 AC_PROG_CXX
 AC_PROG_INSTALL
 AC_PROG_LIBTOOL
 AC_PROG_LN_S
+
+if test "x${GCC}" = "xyes"; then
+  if test "x${SAVED_CFLAGS}" = "x"; then
+    CFLAGS=-O3
+  fi
+  if test "x${SAVED_CXXFLAGS}" = "x"; then
+    CXXFLAGS=-O3
+  fi
+fi
+
+AC_CHECK_DECL([__SUNPRO_C], [SUNCC="yes"], [SUNCC="no"])
+if test "x${SUNCC}" = "xyes"; then
+  if test "x${SAVED_CFLAGS}" = "x"; then
+    CFLAGS=-xO5
+  fi
+  if test "x${SAVED_CXXFLAGS}" = "x"; then
+    CXXFLAGS=-xO5
+  fi
+fi
 
 # Checks for libraries.
 
@@ -91,8 +112,17 @@ if test "x${with_simd}" != "xno"; then
   case "$host_cpu" in
     x86_64)
       AC_MSG_RESULT([yes (x86_64)])
-      AC_PROG_NASM
-      simd_arch=x86_64
+
+      case "$host_os" in
+        cygwin* | mingw* | pw32* | interix*)
+          AC_MSG_WARN([Win64 not yet supported. Disabling SIMD routines.])
+          with_simd=no
+          ;;
+        *)
+          AC_PROG_NASM
+          simd_arch=x86_64
+          ;;
+      esac
     ;;
     i*86 | x86 | ia32)
       AC_MSG_RESULT([yes (i386)])

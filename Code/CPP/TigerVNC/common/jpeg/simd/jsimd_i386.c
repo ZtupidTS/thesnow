@@ -51,10 +51,10 @@ init_simd (void)
     simd_support &= JSIMD_MMX;
   env = getenv("JSIMD_FORCE3DNOW");
   if ((env != NULL) && (strcmp(env, "1") == 0))
-    simd_support &= JSIMD_3DNOW;
+    simd_support &= JSIMD_3DNOW|JSIMD_MMX;
   env = getenv("JSIMD_FORCESSE");
   if ((env != NULL) && (strcmp(env, "1") == 0))
-    simd_support &= JSIMD_SSE;
+    simd_support &= JSIMD_SSE|JSIMD_MMX;
   env = getenv("JSIMD_FORCESSE2");
   if ((env != NULL) && (strcmp(env, "1") == 0))
     simd_support &= JSIMD_SSE2;

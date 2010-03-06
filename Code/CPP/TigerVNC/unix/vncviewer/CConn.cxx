@@ -33,6 +33,7 @@
 #include <rfb/Password.h>
 #include <rfb/screenTypes.h>
 #include <network/TcpSocket.h>
+#include <cassert>
 
 #include "TXViewport.h"
 #include "DesktopWindow.h"
@@ -62,7 +63,7 @@ CConn::CConn(Display* dpy_, int argc_, char** argv_, network::Socket* sock_,
     encodingChange(false), sameMachine(false), fullScreen(::fullScreen),
     ctrlDown(false), altDown(false),
     menuKeysym(0), menu(dpy, this), options(dpy, this), about(dpy), info(dpy),
-    reverseConnection(reverse), firstUpdate(true)
+    reverseConnection(reverse), firstUpdate(true), pendingUpdate(false)
 {
   CharArray menuKeyStr(menuKey.getData());
   menuKeysym = XStringToKeysym(menuKeyStr.buf);
@@ -306,8 +307,11 @@ void CConn::setName(const char* name) {
 // one. We cannot do this if we're in the middle of a format change
 // though.
 void CConn::framebufferUpdateStart() {
-  if (!formatChange)
+  if (!formatChange) {
+    pendingUpdate = true;
     requestNewUpdate();
+  } else
+    pendingUpdate = false;
 }
 
 // framebufferUpdateEnd() is called at the end of an update.
@@ -367,7 +371,7 @@ void CConn::framebufferUpdateEnd() {
 
   // A format change prevented us from sending this before the update,
   // so make sure to send it now.
-  if (formatChange)
+  if (formatChange && !pendingUpdate)
     requestNewUpdate();
 
   // Compute new settings based on updated bandwidth values
@@ -396,7 +400,7 @@ void CConn::serverCutText(const char* str, rdr::U32 len) {
 // We start timing on beginRect and stop timing on endRect, to
 // avoid skewing the bandwidth estimation as a result of the server
 // being slow or the network having high latency
-void CConn::beginRect(const Rect& r, unsigned int encoding)
+void CConn::beginRect(const Rect& r, int encoding)
 {
   sock->inStream().startTiming();
   if (encoding != encodingCopyRect) {
@@ -404,7 +408,7 @@ void CConn::beginRect(const Rect& r, unsigned int encoding)
   }
 }
 
-void CConn::endRect(const Rect& r, unsigned int encoding)
+void CConn::endRect(const Rect& r, int encoding)
 {
   sock->inStream().stopTiming();
   if (debugDelay != 0) {
@@ -536,8 +540,11 @@ void CConn::menuSelect(long id, TXMenu* m) {
     break;
   case ID_REFRESH:
     menu.unmap();
-    writer()->writeFramebufferUpdateRequest(Rect(0, 0, cp.width, cp.height),
-                                            false);
+    if (!formatChange) {
+      writer()->writeFramebufferUpdateRequest(Rect(0, 0, cp.width, cp.height),
+                                              false);
+      pendingUpdate = true;
+    }
     break;
   case ID_F8:
     menu.unmap();
@@ -636,7 +643,7 @@ void CConn::getOptions() {
       formatChange = true;
     }
   }
-  unsigned int newEncoding = (options.tight.checked() ? encodingTight :
+  int newEncoding = (options.tight.checked() ? encodingTight :
 			      options.zrle.checked() ? encodingZRLE :
                               options.hextile.checked() ? encodingHextile :
                               encodingRaw);
@@ -778,7 +785,10 @@ void CConn::autoSelectFormatAndEncoding()
   int newQualityLevel = qualityLevel;
 
   // Always use Tight
-  currentEncoding = encodingTight;
+  if (currentEncoding != encodingTight) {
+    currentEncoding = encodingTight;
+    encodingChange = true;
+  }
 
   // Check that we have a decent bandwidth measurement
   if ((kbitsPerSecond == 0) || (timeWaited < 10000))
@@ -837,6 +847,10 @@ void CConn::checkEncodings()
 void CConn::requestNewUpdate()
 {
   if (formatChange) {
+
+    /* Catch incorrect requestNewUpdate calls */
+    assert(pendingUpdate == false);
+
     if (fullColour) {
       desktop->setPF(fullColourPF);
     } else {
