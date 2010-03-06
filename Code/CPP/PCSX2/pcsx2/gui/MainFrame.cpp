@@ -1,0 +1,623 @@
+/*  PCSX2 - PS2 Emulator for PCs
+ *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *
+ *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
+ *  of the GNU Lesser General Public License as published by the Free Software Found-
+ *  ation, either version 3 of the License, or (at your option) any later version.
+ *
+ *  PCSX2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ *  without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+ *  PURPOSE.  See the GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License along with PCSX2.
+ *  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "PrecompiledHeader.h"
+#include "MainFrame.h"
+#include "AppSaveStates.h"
+#include "ConsoleLogger.h"
+#include "MSWstuff.h"
+
+#include "Dialogs/ModalPopups.h"
+#include "IsoDropTarget.h"
+
+#include <wx/iconbndl.h>
+
+#if _MSC_VER
+#	include "svnrev.h"
+#endif
+
+// ------------------------------------------------------------------------
+wxMenu* MainEmuFrame::MakeStatesSubMenu( int baseid ) const
+{
+	wxMenu* mnuSubstates = new wxMenu();
+
+    for (int i = 0; i < 10; i++)
+    {
+        mnuSubstates->Append( baseid+i+1, wxsFormat(L"插槽 %d", i) );
+    }
+	mnuSubstates->AppendSeparator();
+	mnuSubstates->Append( baseid - 1,	_("其它...") );
+	return mnuSubstates;
+}
+
+void MainEmuFrame::UpdateIsoSrcSelection()
+{
+	MenuIdentifiers cdsrc = MenuId_Src_Iso;
+
+	switch( g_Conf->CdvdSource )
+	{
+		case CDVDsrc_Iso:		cdsrc = MenuId_Src_Iso;		break;
+		case CDVDsrc_Plugin:	cdsrc = MenuId_Src_Plugin;	break;
+		case CDVDsrc_NoDisc:	cdsrc = MenuId_Src_NoDisc;	break;
+
+		jNO_DEFAULT
+	}
+	sMenuBar.Check( cdsrc, true );
+	m_statusbar.SetStatusText( CDVD_SourceLabels[g_Conf->CdvdSource], 1 );
+
+	//sMenuBar.SetLabel( MenuId_Src_Iso, wxsFormat( L"%s -> %s", _("Iso"),
+	//	exists ? Path::GetFilename(g_Conf->CurrentIso).c_str() : _("Empty") ) );
+}
+
+// ------------------------------------------------------------------------
+//     MainFrame OnEvent Handlers
+// ------------------------------------------------------------------------
+
+// Close out the console log windows along with the main emu window.
+// Note: This event only happens after a close event has occurred and was *not* veto'd.  Ie,
+// it means it's time to provide an unconditional closure of said window.
+//
+void MainEmuFrame::OnCloseWindow(wxCloseEvent& evt)
+{
+	if( IsBeingDeleted() ) return;
+
+	CoreThread.Suspend();
+
+	bool isClosing = false;
+
+	if( !evt.CanVeto() )
+	{
+		// Mandatory destruction...
+		isClosing = true;
+	}
+	else
+	{
+		// TODO : Add confirmation prior to exit here!
+		// Problem: Suspend is often slow because it needs to wait until the current EE frame
+		// has finished processing (if the GS or logging has incurred severe overhead this makes
+		// closing PCSX2 difficult).  A non-blocking suspend with modal dialog might suffice
+		// however. --air
+
+		//evt.Veto( true );
+
+		if( StateCopy_InvokeOnSaveComplete( new InvokeAction_MenuCommand( MenuId_Exit ) ) ) return;
+	}
+
+	m_menuCDVD.Remove( MenuId_IsoSelector );
+	//m_menuCDVD.Delete( MenuId_IsoSelector );
+
+	wxGetApp().PrepForExit();
+	sApp.OnMainFrameClosed( GetId() );
+
+	evt.Skip();
+}
+
+void MainEmuFrame::OnDestroyWindow( wxWindowDestroyEvent& evt )
+{
+	evt.Skip();
+}
+
+void MainEmuFrame::OnMoveAround( wxMoveEvent& evt )
+{
+	// Uncomment this when doing logger stress testing (and then move the window around
+	// while the logger spams itself)
+	// ... makes for a good test of the message pump's responsiveness.
+	if( EnableThreadedLoggingTest )
+		Console.Warning( "Threaded Logging Test!  (a window move event)" );
+
+	// evt.GetPosition() returns the client area position, not the window frame position.
+	// So read the window's screen-relative position directly.
+	g_Conf->MainGuiPosition = GetScreenPosition();
+
+	// wxGTK note: X sends gratuitous amounts of OnMove messages for various crap actions
+	// like selecting or deselecting a window, which muck up docking logic.  We filter them
+	// out using 'lastpos' here. :)
+
+	static wxPoint lastpos( wxDefaultCoord, wxDefaultCoord );
+	if( lastpos == evt.GetPosition() ) return;
+	lastpos = evt.GetPosition();
+
+	if( g_Conf->ProgLogBox.AutoDock )
+	{
+		g_Conf->ProgLogBox.DisplayPosition = GetRect().GetTopRight();
+		if( ConsoleLogFrame* proglog = wxGetApp().GetProgramLog() )
+			proglog->SetPosition( g_Conf->ProgLogBox.DisplayPosition );
+	}
+
+	//evt.Skip();
+}
+
+void MainEmuFrame::OnLogBoxHidden()
+{
+	g_Conf->ProgLogBox.Visible = false;
+	m_MenuItem_Console.Check( false );
+}
+
+// ------------------------------------------------------------------------
+void MainEmuFrame::ConnectMenus()
+{
+	#define ConnectMenu( id, handler ) \
+		Connect( id, wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MainEmuFrame::handler) )
+
+	#define ConnectMenuRange( id_start, inc, handler ) \
+		Connect( id_start, id_start + inc, wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MainEmuFrame::handler) )
+
+	ConnectMenu( MenuId_Config_SysSettings,	Menu_ConfigSettings_Click );
+	ConnectMenu( MenuId_Config_AppSettings,	Menu_AppSettings_Click );
+	ConnectMenu( MenuId_Config_BIOS,		Menu_SelectBios_Click );
+	ConnectMenu( MenuId_Config_ResetAll,	Menu_ResetAllSettings_Click );
+
+	ConnectMenu( MenuId_Config_Multitap0Toggle,	Menu_MultitapToggle_Click );
+	ConnectMenu( MenuId_Config_Multitap1Toggle,	Menu_MultitapToggle_Click );
+
+	ConnectMenuRange(MenuId_Config_GS, PluginId_Count, Menu_ConfigPlugin_Click);
+	ConnectMenuRange(MenuId_Src_Iso, 3, Menu_CdvdSource_Click);
+
+	for( int i=0; i<PluginId_Count; ++i )
+		ConnectMenu( MenuId_PluginBase_Settings + (i*PluginMenuId_Interval), Menu_ConfigPlugin_Click);
+
+	ConnectMenu( MenuId_Boot_CDVD,			Menu_BootCdvd_Click );
+	ConnectMenu( MenuId_Boot_ELF,			Menu_OpenELF_Click );
+	ConnectMenu( MenuId_IsoBrowse,			Menu_IsoBrowse_Click );
+	ConnectMenu( MenuId_SkipBiosToggle,		Menu_SkipBiosToggle_Click );
+	ConnectMenu( MenuId_EnablePatches,      Menu_EnablePatches_Click );
+	ConnectMenu( MenuId_Exit,				Menu_Exit_Click );
+
+	ConnectMenu( MenuId_Sys_SuspendResume,	Menu_SuspendResume_Click );
+	ConnectMenu( MenuId_Sys_Reset,			Menu_SysReset_Click );
+	ConnectMenu( MenuId_Sys_Shutdown,		Menu_SysShutdown_Click );
+
+	ConnectMenu( MenuId_State_LoadOther,	Menu_LoadStateOther_Click );
+
+    ConnectMenuRange(MenuId_State_Load01+1, 10, Menu_LoadStates_Click);
+
+	ConnectMenu( MenuId_State_SaveOther,	Menu_SaveStateOther_Click );
+
+    ConnectMenuRange(MenuId_State_Save01+1, 10, Menu_SaveStates_Click);
+
+	ConnectMenu( MenuId_Debug_Open,			Menu_Debug_Open_Click );
+	ConnectMenu( MenuId_Debug_MemoryDump,	Menu_Debug_MemoryDump_Click );
+	ConnectMenu( MenuId_Debug_Logging,		Menu_Debug_Logging_Click );
+
+	ConnectMenu( MenuId_Console,			Menu_ShowConsole );
+	ConnectMenu( MenuId_Console_Stdio,		Menu_ShowConsole_Stdio );
+	ConnectMenu( MenuId_CDVD_Info,			Menu_PrintCDVD_Info );
+
+	ConnectMenu( MenuId_About,				Menu_ShowAboutBox );
+}
+
+void MainEmuFrame::InitLogBoxPosition( AppConfig::ConsoleLogOptions& conf )
+{
+	conf.DisplaySize.Set(
+		std::min( std::max( conf.DisplaySize.GetWidth(), 160 ), wxGetDisplayArea().GetWidth() ),
+		std::min( std::max( conf.DisplaySize.GetHeight(), 160 ), wxGetDisplayArea().GetHeight() )
+	);
+
+	if( conf.AutoDock )
+	{
+		conf.DisplayPosition = GetScreenPosition() + wxSize( GetSize().x, 0 );
+	}
+	else if( conf.DisplayPosition != wxDefaultPosition )
+	{
+		if( !wxGetDisplayArea().Contains( wxRect( conf.DisplayPosition, conf.DisplaySize ) ) )
+			conf.DisplayPosition = wxDefaultPosition;
+	}
+}
+
+void MainEmuFrame::DispatchEvent( const PluginEventType& plugin_evt )
+{
+	if( !pxAssertMsg( GetMenuBar()!=NULL, "Mainframe menu bar is NULL!" ) ) return;
+
+	//ApplyCoreStatus();
+
+	if( plugin_evt == CorePlugins_Unloaded )
+	{
+		for( int i=0; i<PluginId_Count; ++i )
+			m_PluginMenuPacks[i].OnUnloaded();
+	}
+	else if( plugin_evt == CorePlugins_Loaded )
+	{
+		if( !pxAssertDev( g_plugins!=NULL, wxNullChar ) ) return;
+
+		for( int i=0; i<PluginId_Count; ++i )
+			m_PluginMenuPacks[i].OnLoaded();
+
+		// bleh this makes the menu too cluttered. --air
+		//m_menuCDVD.SetLabel( MenuId_Src_Plugin, wxsFormat( L"%s (%s)", _("Plugin"),
+		//	g_plugins->GetName( PluginId_CDVD ).c_str() ) );
+	}
+}
+
+void MainEmuFrame::DispatchEvent( const CoreThreadStatus& status )
+{
+	if( !pxAssertMsg( GetMenuBar()!=NULL, "Mainframe menu bar is NULL!" ) ) return;
+	ApplyCoreStatus();
+}
+
+void MainEmuFrame::AppStatusEvent_OnSettingsLoadSave()
+{
+	// nothing to do here right now.
+}
+
+void MainEmuFrame::AppStatusEvent_OnSettingsApplied()
+{
+	ApplySettings();
+}
+
+static int GetPluginMenuId_Settings( PluginsEnum_t pid )
+{
+	return MenuId_PluginBase_Settings + ((int)pid * PluginMenuId_Interval);
+}
+
+static int GetPluginMenuId_Name( PluginsEnum_t pid )
+{
+	return MenuId_PluginBase_Name + ((int)pid * PluginMenuId_Interval);
+}
+
+// ------------------------------------------------------------------------
+MainEmuFrame::MainEmuFrame(wxWindow* parent, const wxString& title)
+    : wxFrame(parent, wxID_ANY, title, wxDefaultPosition, wxDefaultSize, wxDEFAULT_FRAME_STYLE & ~(wxMAXIMIZE_BOX | wxRESIZE_BORDER) )
+
+// 	, m_listener_plugins	( this )
+// 	, m_listener_corethread	( this )
+// 	, m_listener_appstatus	( this )
+
+	, m_statusbar( *CreateStatusBar(2, 0) )
+	, m_background( this, wxID_ANY, wxGetApp().GetLogoBitmap() )
+
+	// All menu components must be created on the heap!
+
+	, m_menubar( *new wxMenuBar() )
+
+	, m_menuBoot	( *new wxMenu() )
+	, m_menuCDVD	( *new wxMenu() )
+	, m_menuSys		( *new wxMenu() )
+	, m_menuConfig	( *new wxMenu() )
+	, m_menuMisc	( *new wxMenu() )
+	, m_menuDebug	( *new wxMenu() )
+
+	, m_LoadStatesSubmenu( *MakeStatesSubMenu( MenuId_State_Load01 ) )
+	, m_SaveStatesSubmenu( *MakeStatesSubMenu( MenuId_State_Save01 ) )
+
+	, m_MenuItem_Console( *new wxMenuItem( &m_menuMisc, MenuId_Console, L"显示控制台窗口", wxEmptyString, wxITEM_CHECK ) )
+	, m_MenuItem_Console_Stdio( *new wxMenuItem( &m_menuMisc, MenuId_Console_Stdio, L"Console to Stdio", wxEmptyString, wxITEM_CHECK ) )
+
+{
+	m_RestartEmuOnDelete = false;
+
+	for( int i=0; i<PluginId_Count; ++i )
+		m_PluginMenuPacks[i].Populate( (PluginsEnum_t)i );
+
+	// ------------------------------------------------------------------------
+	// Initial menubar setup.  This needs to be done first so that the menu bar's visible size
+	// can be factored into the window size (which ends up being background+status+menus)
+
+	m_menubar.Append( &m_menuBoot,		_("开始(&B)") );
+	m_menubar.Append( &m_menuCDVD,		_("游戏(&V)") );
+	m_menubar.Append( &m_menuSys,		_("系统(&S)") );
+	m_menubar.Append( &m_menuConfig,	_("设置(&C)") );
+	m_menubar.Append( &m_menuMisc,		_("其它(&M)") );
+#ifdef PCSX2_DEVBUILD
+	m_menubar.Append( &m_menuDebug,		_("调试(&D)") );
+#endif
+	SetMenuBar( &m_menubar );
+
+	// ------------------------------------------------------------------------
+
+	wxSize backsize( m_background.GetSize() );
+
+	wxString wintitle;
+	if( PCSX2_VersionLo & 1 )
+	{
+		// Odd versions: beta / development editions, which feature revision number and compile date.
+		wintitle.Printf( _("PCSX2  %d.%d.%d.%d%s [SVN]  %s"), PCSX2_VersionHi, PCSX2_VersionMid, PCSX2_VersionLo,
+			SVN_REV, SVN_MODS ? L"m" : wxEmptyString, fromUTF8(__DATE__).c_str() );
+	}
+	else
+	{
+		// evens: stable releases, with a simpler title.
+		wintitle.Printf( _("PCSX2  %d.%d.%d %s"), PCSX2_VersionHi, PCSX2_VersionMid, PCSX2_VersionLo,
+			SVN_MODS ? _("(modded)") : wxEmptyString
+		);
+	}
+
+	SetTitle( wintitle );
+
+	// Ideally the __WXMSW__ port should use the embedded IDI_ICON2 icon, because wxWidgets sucks and
+	// loses the transparency information when loading bitmaps into icons.  But for some reason
+	// I cannot get it to work despite following various examples to the letter.
+
+
+	SetIcons( wxGetApp().GetIconBundle() );
+
+	int m_statusbar_widths[] = { (int)(backsize.GetWidth()*0.73), (int)(backsize.GetWidth()*0.25) };
+	m_statusbar.SetStatusWidths(2, m_statusbar_widths);
+	m_statusbar.SetStatusText( L"目前状态很好!", 0);
+	m_statusbar.SetStatusText( wxEmptyString, 1);
+
+	wxBoxSizer& joe( *new wxBoxSizer( wxVERTICAL ) );
+	joe.Add( &m_background );
+	SetSizerAndFit( &joe );
+
+	// Use default window position if the configured windowpos is invalid (partially offscreen)
+	if( g_Conf->MainGuiPosition == wxDefaultPosition || !pxIsValidWindowPosition( *this, g_Conf->MainGuiPosition) )
+		g_Conf->MainGuiPosition = GetScreenPosition();
+	else
+		SetPosition( g_Conf->MainGuiPosition );
+
+	// Updating console log positions after the main window has been fitted to its sizer ensures
+	// proper docked positioning, since the main window's size is invalid until after the sizer
+	// has been set/fit.
+
+	InitLogBoxPosition( g_Conf->ProgLogBox );
+
+	// ------------------------------------------------------------------------
+
+	m_menuBoot.Append(MenuId_Boot_CDVD,		_("运行 PS2 游戏"),
+		_("For booting DVD discs or Isos, depending on the configured CDVD source."));
+
+	m_menuBoot.Append(MenuId_Boot_ELF,		_("运行 ELF 文件..."),
+		_("直接运行 raw 二进制ELF文件"));
+
+	m_menuBoot.AppendSeparator();
+	m_menuBoot.Append(MenuId_Exit,			_("退出 PS2 模拟器"),
+		_("Closing PCSX2 may be hazardous to your health"));
+
+	// ------------------------------------------------------------------------
+	wxMenu& isoRecents( wxGetApp().GetRecentIsoMenu() );
+
+	//m_menuCDVD.AppendSeparator();
+	m_menuCDVD.Append( MenuId_IsoSelector,	_("ISO选择"), &isoRecents );
+	m_menuCDVD.Append( GetPluginMenuId_Settings(PluginId_CDVD), _("插件菜单"), m_PluginMenuPacks[PluginId_CDVD] );
+
+	m_menuCDVD.AppendSeparator();
+	m_menuCDVD.Append( MenuId_Src_Iso,		_("使用ISO"),		_("让指定ISO镜像作为CDVD源."), wxITEM_RADIO );
+	m_menuCDVD.Append( MenuId_Src_Plugin,	_("使用插件"),		_("使用一个外部插件作为CDVD源."), wxITEM_RADIO );
+	m_menuCDVD.Append( MenuId_Src_NoDisc,	_("没有光碟"),	_("使用这个进入您虚拟的 PS2 BIOS 设置."), wxITEM_RADIO );
+
+	m_menuCDVD.AppendSeparator();
+	m_menuCDVD.Append( MenuId_SkipBiosToggle,_("启用跳过 BIOS 破解"),
+		_("当从ISO或者CDVD启动时跳过 PS2 载入画面."), wxITEM_CHECK );
+
+	// ------------------------------------------------------------------------
+	m_menuSys.Append(MenuId_Sys_SuspendResume,_("休眠主机") )->Enable( SysHasValidState() );
+
+	m_menuSys.AppendSeparator();
+
+	//m_menuSys.Append(MenuId_Sys_Close,		_("Close"),
+	//	_("Stops emulation and closes the GS window."));
+
+	m_menuSys.Append(MenuId_Sys_LoadStates,	_("载入状态"), &m_LoadStatesSubmenu);
+	m_menuSys.Append(MenuId_Sys_SaveStates,	_("保存状态"), &m_SaveStatesSubmenu);
+
+	m_menuSys.AppendSeparator();
+
+	m_menuSys.Append(MenuId_EnablePatches,	_("启用补丁"),
+		wxEmptyString, wxITEM_CHECK);
+
+	m_menuSys.AppendSeparator();
+	m_menuSys.Append(MenuId_Sys_Reset,		_("重置主机"),
+		_("重置模拟器状态并重新运行当前镜像."));
+
+	m_menuSys.Append(MenuId_Sys_Shutdown,	_("关闭主机"),
+		_("Wipes all internal VM states and shuts down plugins."));
+
+    // ------------------------------------------------------------------------
+
+	m_menuConfig.Append(MenuId_Config_SysSettings,	_("模拟设置(&S)") );
+	m_menuConfig.Append(MenuId_Config_AppSettings,	_("程序设置(&P)") );
+	m_menuConfig.AppendSeparator();
+
+
+	m_menuConfig.Append(MenuId_Config_GS,		_("视频插件 (GS)"),		m_PluginMenuPacks[PluginId_GS]);
+	m_menuConfig.Append(MenuId_Config_SPU2,		_("音频插件 (SPU2)"),		m_PluginMenuPacks[PluginId_SPU2]);
+	m_menuConfig.Append(MenuId_Config_PAD,		_("控制插件 (PAD)"),	m_PluginMenuPacks[PluginId_PAD]);
+	m_menuConfig.Append(MenuId_Config_DEV9,		_("Dev9"),				m_PluginMenuPacks[PluginId_DEV9]);
+	m_menuConfig.Append(MenuId_Config_USB,		_("USB插件"),				m_PluginMenuPacks[PluginId_USB]);
+	m_menuConfig.Append(MenuId_Config_FireWire,	_("火线插件"),			m_PluginMenuPacks[PluginId_FW]);
+
+	m_menuConfig.AppendSeparator();
+	m_menuConfig.Append(MenuId_Config_Patches,	_("补丁设置"),	wxEmptyString);
+	m_menuConfig.Append(MenuId_Config_BIOS,		_("BIOS设置") );
+
+	m_menuConfig.AppendSeparator();
+	m_menuConfig.Append(MenuId_Config_Multitap0Toggle,	_("Multitap 1"),	wxEmptyString, wxITEM_CHECK );
+	m_menuConfig.Append(MenuId_Config_Multitap1Toggle,	_("Multitap 2"),	wxEmptyString, wxITEM_CHECK );
+
+	m_menuConfig.AppendSeparator();
+	m_menuConfig.Append(MenuId_Config_ResetAll,	_("重置所有..."),
+		_("清除所有 PCSX2 设置并重新运行启动向导."));
+
+	// ------------------------------------------------------------------------
+
+	m_menuMisc.Append( &m_MenuItem_Console );
+#ifdef __LINUX__
+	m_menuMisc.Append( &m_MenuItem_Console_Stdio );
+#endif
+	//Todo: Though not many people need this one :p
+	//m_menuMisc.Append(MenuId_Profiler,			_("Show Profiler"),	wxEmptyString, wxITEM_CHECK);
+	//m_menuMisc.AppendSeparator();
+
+	// No dialogs implemented for these yet...
+	//m_menuMisc.Append(41, "Patch Browser...", wxEmptyString, wxITEM_NORMAL);
+	//m_menuMisc.Append(42, "Patch Finder...", wxEmptyString, wxITEM_NORMAL);
+
+	m_menuMisc.Append(MenuId_CDVD_Info, _T("输出CDVD信息"), wxEmptyString, wxITEM_CHECK);
+//	m_menuMisc.AppendSeparator();				//removed
+
+	//Todo:
+	//There's a great working "open website" in the about panel. Less clutter by just using that.
+	//m_menuMisc.Append(MenuId_Website,			_("Visit Website..."),
+	//	_("Opens your web-browser to our favorite website."));
+//	m_menuMisc.Append(MenuId_About,				_("关于...") );			//removed
+#ifdef PCSX2_DEVBUILD
+	m_menuDebug.Append(MenuId_Debug_Open,		_("打开调试窗口..."),	wxEmptyString);
+	m_menuDebug.Append(MenuId_Debug_MemoryDump,	_("内存转储..."),		wxEmptyString);
+	m_menuDebug.Append(MenuId_Debug_Logging,	_("日志..."),			wxEmptyString);
+#endif
+	m_MenuItem_Console.Check( g_Conf->ProgLogBox.Visible );
+
+	ConnectMenus();
+	Connect( wxEVT_MOVE,			wxMoveEventHandler			(MainEmuFrame::OnMoveAround) );
+	Connect( wxEVT_CLOSE_WINDOW,	wxCloseEventHandler			(MainEmuFrame::OnCloseWindow) );
+	Connect( wxEVT_DESTROY,			wxWindowDestroyEventHandler	(MainEmuFrame::OnDestroyWindow) );
+
+	Connect( wxEVT_SET_FOCUS,		wxFocusEventHandler			(MainEmuFrame::OnFocus) );
+
+	Connect( wxEVT_ACTIVATE,		wxActivateEventHandler		(MainEmuFrame::OnActivate) );
+
+	SetDropTarget( new IsoDropTarget( this ) );
+}
+
+MainEmuFrame::~MainEmuFrame() throw()
+{
+	if( m_RestartEmuOnDelete )
+	{
+		sApp.SetExitOnFrameDelete( false );
+		sApp.PostMethod( &Pcsx2App::DetectCpuAndUserMode );
+		sApp.WipeUserModeSettings();
+	}
+}
+
+// ----------------------------------------------------------------------------
+// OnFocus / OnActivate : Special implementation to "connect" the console log window
+// with the main frame window.  When one is clicked, the other is assured to be brought
+// to the foreground with it.  (Currently only MSW only, as wxWidgets appears to have no
+// equivalent to this).  Both OnFocus and OnActivate are handled because Focus events do
+// not propagate up the window hierarchy, and on Activate events don't always get sent
+// on the first focusing event after PCSX2 starts.
+
+void MainEmuFrame::OnFocus( wxFocusEvent& evt )
+{
+	if( ConsoleLogFrame* logframe = wxGetApp().GetProgramLog() )
+		MSW_SetWindowAfter( logframe->GetHandle(), GetHandle() );
+
+	evt.Skip();
+}
+
+void MainEmuFrame::OnActivate( wxActivateEvent& evt )
+{
+	if( ConsoleLogFrame* logframe = wxGetApp().GetProgramLog() )
+		MSW_SetWindowAfter( logframe->GetHandle(), GetHandle() );
+	
+	evt.Skip();
+}
+// ----------------------------------------------------------------------------
+
+void MainEmuFrame::ApplyCoreStatus()
+{
+	wxMenuBar& menubar( *GetMenuBar() );
+
+	wxMenuItem& susres( *menubar.FindItem( MenuId_Sys_SuspendResume ) );
+	if( !pxAssertMsg( &susres!=NULL, "Suspend/Resume Menubar Item is NULL!" ) ) return;
+
+	if( SysHasValidState() )
+	{
+		susres.Enable();
+		if( CoreThread.IsOpen() )
+		{
+			susres.SetHelp( _("安全暂停模拟器并保留PS2状态.") );
+			susres.SetText( _("休眠主机") );
+		}
+		else
+		{
+			susres.SetHelp( _("恢复休眠的模拟器状态.") );
+			susres.SetText( _("恢复主机") );
+		}
+	}
+	else
+	{
+		susres.Enable( false );
+		susres.SetHelp( _("No emulation state is active; cannot suspend or resume.") );
+	}
+
+	menubar.Enable( MenuId_Sys_Reset, true );
+	menubar.Enable( MenuId_Sys_Shutdown, SysHasValidState() || (g_plugins!=NULL) );
+}
+
+void MainEmuFrame::ApplySettings()
+{
+	wxMenuBar& menubar( *GetMenuBar() );
+
+	menubar.Check( MenuId_SkipBiosToggle, g_Conf->EmuOptions.SkipBiosSplash );
+	menubar.Check( MenuId_EnablePatches, g_Conf->EmuOptions.EnablePatches );
+	menubar.Check( MenuId_CDVD_Info, g_Conf->EmuOptions.CdvdVerboseReads );
+#ifdef __LINUX__
+	menubar.Check( MenuId_Console_Stdio, g_Conf->EmuOptions.ConsoleToStdio );
+#endif
+
+	menubar.Check( MenuId_Config_Multitap0Toggle, g_Conf->EmuOptions.MultitapPort0_Enabled );
+	menubar.Check( MenuId_Config_Multitap1Toggle, g_Conf->EmuOptions.MultitapPort1_Enabled );
+
+	UpdateIsoSrcSelection();
+}
+
+// ------------------------------------------------------------------------
+//   "Extensible" Plugin Menus
+// ------------------------------------------------------------------------
+
+PerPluginMenuInfo::~PerPluginMenuInfo() throw()
+{
+}
+
+void PerPluginMenuInfo::Populate( PluginsEnum_t pid )
+{
+	if( !pxAssert(pid < PluginId_Count) ) return;
+
+	PluginId = pid;
+
+	MyMenu.Append( GetPluginMenuId_Name(PluginId), _("没有载入插件") )->Enable( false );
+	MyMenu.AppendSeparator();
+
+	if( PluginId == PluginId_GS )
+	{
+		MyMenu.Append( MenuId_Video_CoreSettings, _("核心设置..."),
+			_("Modify video emulation settings regulated by the PCSX2 core virtual machine."), wxITEM_CHECK );
+		MyMenu.AppendSeparator();
+	}
+
+	// Populate options from the plugin here.
+
+	MyMenu.Append( GetPluginMenuId_Settings(PluginId), _("插件设置..."),
+		wxsFormat( _("打开 %s 插件高级设置对话框."), tbl_PluginInfo[pid].GetShortname().c_str() )
+	);
+}
+
+// deletes menu items belonging to (created by) the plugin.  Leaves menu items created
+// by the PCSX2 core intact.
+void PerPluginMenuInfo::OnUnloaded()
+{
+	// Delete any menu options added by plugins (typically a plugin will have already
+	// done its own proper cleanup when the plugin was shutdown or unloaded, but lets
+	// not trust them, shall we?)
+
+	MenuItemAddonList& curlist( m_PluginMenuItems );
+	for( uint mx=0; mx<curlist.size(); ++mx )
+		MyMenu.Delete( curlist[mx].Item );
+
+	curlist.clear();
+
+	MyMenu.SetLabel( GetPluginMenuId_Name(PluginId), _("没有载入插件") );
+	MyMenu.Enable( GetPluginMenuId_Settings(PluginId), false );
+}
+
+void PerPluginMenuInfo::OnLoaded()
+{
+	MyMenu.SetLabel( GetPluginMenuId_Name(PluginId),
+		g_plugins->GetName( PluginId ) + L" " + g_plugins->GetVersion( PluginId )
+	);
+	MyMenu.Enable( GetPluginMenuId_Settings(PluginId), true );
+}
+
