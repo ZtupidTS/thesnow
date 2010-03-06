@@ -21,6 +21,7 @@
 // Top vertex loaders
 // Metroid Prime: P I16-flt N I16-s16 T0 I16-u16 T1 i16-flt
 
+#include <algorithm>
 #include <string>
 
 #include "Common.h"
@@ -34,6 +35,7 @@
 class VertexLoaderUID
 {
 	u32 vid[5];
+	size_t hashValue;
 public:
 	VertexLoaderUID() {}
 	void InitFromCurrentState(int vtx_attr_group) {
@@ -42,8 +44,10 @@ public:
 		vid[2] = g_VtxAttr[vtx_attr_group].g0.Hex & ~VAT_0_FRACBITS;
 		vid[3] = g_VtxAttr[vtx_attr_group].g1.Hex & ~VAT_1_FRACBITS;
 		vid[4] = g_VtxAttr[vtx_attr_group].g2.Hex & ~VAT_2_FRACBITS;
+		hashValue = hash(*this);
 	}
 	bool operator < (const VertexLoaderUID &other) const {
+		// This is complex because of speed.
 		if (vid[0] < other.vid[0])
 			return true;
 		else if (vid[0] > other.vid[0])
@@ -55,6 +59,16 @@ public:
 				return false;
 		}
 		return false;
+	}
+	static size_t hash(const VertexLoaderUID& rh) {
+		size_t h = -1;
+		for (int i = 0; i < sizeof(rh.vid) / sizeof(rh.vid[0]); ++i) {
+			h = h * 137 + rh.vid[i];
+		}
+		return h;
+	}
+	operator size_t() const {
+		return hashValue;
 	}
 };
 
