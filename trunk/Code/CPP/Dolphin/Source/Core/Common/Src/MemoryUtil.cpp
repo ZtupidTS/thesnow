@@ -61,7 +61,7 @@ void* AllocateExecutableMemory(size_t size, bool low)
 #endif
          , -1, 0);  // | MAP_FIXED
 	// printf("Mapped executable memory at %p (size %i)\n", retval, size);
-
+	
 	if (!retval)
 	{
 		PanicAlert("Failed to allocate executable memory, errno=%i", errno);
