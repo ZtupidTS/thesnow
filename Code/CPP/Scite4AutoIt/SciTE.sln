@@ -1,5 +1,4 @@
-﻿
-Microsoft Visual Studio Solution File, Format Version 10.00
+﻿Microsoft Visual Studio Solution File, Format Version 10.00
 # Visual Studio 2008
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SciTE", "scite\boundscheck\SciTE.vcproj", "{620BEA1D-631C-43F3-9C57-E3855682D13D}"
 EndProject
@@ -9,21 +8,16 @@ Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
 		Release|Win32 = Release|Win32
-		ReleaseT|Win32 = ReleaseT|Win32
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{620BEA1D-631C-43F3-9C57-E3855682D13D}.Debug|Win32.ActiveCfg = Debug|Win32
 		{620BEA1D-631C-43F3-9C57-E3855682D13D}.Debug|Win32.Build.0 = Debug|Win32
 		{620BEA1D-631C-43F3-9C57-E3855682D13D}.Release|Win32.ActiveCfg = Release|Win32
 		{620BEA1D-631C-43F3-9C57-E3855682D13D}.Release|Win32.Build.0 = Release|Win32
-		{620BEA1D-631C-43F3-9C57-E3855682D13D}.ReleaseT|Win32.ActiveCfg = Release|Win32
-		{620BEA1D-631C-43F3-9C57-E3855682D13D}.ReleaseT|Win32.Build.0 = Release|Win32
 		{03E4E095-956E-44E2-993C-E5BC2675CF97}.Debug|Win32.ActiveCfg = Debug|Win32
 		{03E4E095-956E-44E2-993C-E5BC2675CF97}.Debug|Win32.Build.0 = Debug|Win32
 		{03E4E095-956E-44E2-993C-E5BC2675CF97}.Release|Win32.ActiveCfg = Release|Win32
 		{03E4E095-956E-44E2-993C-E5BC2675CF97}.Release|Win32.Build.0 = Release|Win32
-		{03E4E095-956E-44E2-993C-E5BC2675CF97}.ReleaseT|Win32.ActiveCfg = Release|Win32
-		{03E4E095-956E-44E2-993C-E5BC2675CF97}.ReleaseT|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

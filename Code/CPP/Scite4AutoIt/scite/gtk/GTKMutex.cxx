@@ -1,13 +1,13 @@
-// SciTE - Scintilla based Text Editor
+ï»¿// SciTE - Scintilla based Text Editor
 /** @file GTKMutex.cxx
- ** Define mutex
+ ** å®šä¹‰äº’æ–¥ä½“
  **/
 // SciTE & Scintilla copyright 1998-2003 by Neil Hodgson <neilh@scintilla.org>
 // Copyright 2007 by Neil Hodgson <neilh@scintilla.org>, from April White <april_white@sympatico.ca>
 // The License.txt file describes the conditions under which this software may be distributed.
 
 // http://www.microsoft.com/msj/0797/win320797.aspx
-//»¥³âÌåµÄ´´½¨,ÓÃÓÚÊµÏÖ¶àÏß³Ì.
+//äº’æ–¥ä½“çš„åˆ›å»º,ç”¨äºŽå®žçŽ°å¤šçº¿ç¨‹.
 #include "Mutex.h"
 
 class GTKMutex : public Mutex {
