@@ -9,7 +9,14 @@ test -z "$NASM" && AC_MSG_ERROR([no nasm (Netwide Assembler) found])
 AC_MSG_CHECKING([for object file format of host system])
 case "$host_os" in
   cygwin* | mingw* | pw32* | interix*)
-    objfmt='Win32-COFF'
+    case "$host_cpu" in
+      x86_64)
+        objfmt='Win64-COFF'
+        ;;
+      *)
+        objfmt='Win32-COFF'
+        ;;
+    esac
   ;;
   msdosdjgpp* | go32*)
     objfmt='COFF'
@@ -41,7 +48,14 @@ case "$host_os" in
     fi
   ;;
   solaris* | sunos* | sysv* | sco*)
-    objfmt='ELF'
+    case "$host_cpu" in
+      x86_64)
+        objfmt='ELF64'
+        ;;
+      *)
+        objfmt='ELF'
+        ;;
+    esac
   ;;
   darwin* | rhapsody* | nextstep* | openstep* | macos*)
     case "$host_cpu" in
@@ -68,6 +82,7 @@ AC_MSG_CHECKING([for object file format specifier (NAFLAGS) ])
 case "$objfmt" in
   MSOMF)      NAFLAGS='-fobj -DOBJ32';;
   Win32-COFF) NAFLAGS='-fwin32 -DWIN32';;
+  Win64-COFF) NAFLAGS='-fwin64 -DWIN64 -D__x86_64__';;
   COFF)       NAFLAGS='-fcoff -DCOFF';;
   a.out)      NAFLAGS='-faout -DAOUT';;
   BSD-a.out)  NAFLAGS='-faoutb -DAOUT';;

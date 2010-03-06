@@ -5,14 +5,14 @@ o_opt=no
 pic=no
 while [ $# -gt 0 ]; do
     case "$1" in
-        -DPIC|-fPIC|-fpic)
+        -DPIC|-fPIC|-fpic|-Kpic|-KPIC)
             if [ "$pic" != "yes" ] ; then
                 command="$command -DPIC"
                 pic=yes
             fi
             ;;
         -f|-fbin|-faout|-faoutb|-fcoff|-felf|-felf64|-fas86| \
-        -fobj|-fwin32|-frdf|-fieee|-fmacho|-fmacho64)
+        -fobj|-fwin32|-fwin64|-frdf|-fieee|-fmacho|-fmacho64)
             # it's a file format specifier for nasm.
             command="$command $1"
             ;;
