@@ -175,19 +175,7 @@ int SciTEWin::DoDialog(HINSTANCE hInst, const char *resName, HWND hWnd, DLGPROC 
 
 	return result;
 }
-#ifdef UNICODETEST
-int SciTEWin::DoDialog(HINSTANCE hInst, const wchar_t *resName, HWND hWnd, DLGPROC lpProc) {
-	int result = ::DialogBoxParamW(hInst, resName, hWnd, lpProc, reinterpret_cast<LPARAM>(this));
 
-	if (result == -1) {
-		SString errorNum(::GetLastError());
-		SString msg = LocaliseMessage("创建对话框失败: ^0.", errorNum.c_str());
-		::MessageBox(hWnd, msg.c_str(), appName, MB_OK | MB_SETFOREGROUND);
-	}
-
-	return result;
-}
-#endif
 bool SciTEWin::OpenDialog(FilePath directory, const char *filter) {
 	enum {maxBufferSize=2048};
 
@@ -284,7 +272,7 @@ FilePath SciTEWin::ChooseSaveName(FilePath directory, const char *title, const c
 		ofn.nMaxFile = sizeof(saveName);
 		SString translatedTitle = localiser.Text(title);
 		ofn.lpstrTitle = translatedTitle.c_str();
-		ofn.Flags = OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT;
+		ofn.Flags = OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT | OFN_ENABLESIZING|OFN_EXPLORER;
 		ofn.lpstrFilter = filter;
 		ofn.lpstrInitialDir = directory.AsFileSystem();
 
@@ -1541,11 +1529,7 @@ BOOL CALLBACK SciTEWin::GoLineDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM
 }
 
 void SciTEWin::GoLineDialog() {
-#ifdef UNICODETEST
-	DoDialog(hInstance, L"GoLine", MainHWND(), reinterpret_cast<DLGPROC>(GoLineDlg));
-#else
 	DoDialog(hInstance,  "GoLine", MainHWND(), reinterpret_cast<DLGPROC>(GoLineDlg));
-#endif
 	WindowSetFocus(wEditor);
 }
 
@@ -1581,11 +1565,7 @@ BOOL CALLBACK SciTEWin::AbbrevDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM
 }
 //缩写对话框
 bool SciTEWin::AbbrevDialog() {
-#ifdef UNICODETEST
-	bool success = (DoDialog(hInstance, L"InsAbbrev", MainHWND(), reinterpret_cast<DLGPROC>(AbbrevDlg)) == IDOK);
-#else
 	bool success = (DoDialog(hInstance,  "InsAbbrev", MainHWND(), reinterpret_cast<DLGPROC>(AbbrevDlg)) == IDOK);
-#endif
 	WindowSetFocus(wEditor);
 	return success;
 }
@@ -1649,11 +1629,7 @@ BOOL CALLBACK SciTEWin::TabSizeDlg(HWND hDlg, UINT message, WPARAM wParam, LPARA
 }
 
 void SciTEWin::TabSizeDialog() {
-#ifdef UNICODETEST
-	DoDialog(hInstance, L"TabSize", MainHWND(), reinterpret_cast<DLGPROC>(TabSizeDlg));
-#else
 	DoDialog(hInstance,  "TabSize", MainHWND(), reinterpret_cast<DLGPROC>(TabSizeDlg));
-#endif
 	WindowSetFocus(wEditor);
 }
 
@@ -1731,17 +1707,10 @@ bool SciTEWin::ParametersDialog(bool modal) {
 	bool success = false;
 	modalParameters = modal;
 	if (modal) {
-#ifdef UNICODETEST
-		success = DoDialog(hInstance,
-		                   L"PARAMETERS",
-		                   MainHWND(),
-		                   reinterpret_cast<DLGPROC>(ParametersDlg)) == IDOK;
-#else
 		success = DoDialog(hInstance,
 		                    "PARAMETERS",
 		                   MainHWND(),
 		                   reinterpret_cast<DLGPROC>(ParametersDlg)) == IDOK;
-#endif
 		wParameters = 0;
 		WindowSetFocus(wEditor);
 	} else {
