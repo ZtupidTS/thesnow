@@ -1,0 +1,233 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resrc1.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "resource.h"
+#include "afxresmw.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// Chinese (P.R.C) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE LANG_NEUTRAL, SUBLANG_SYS_DEFAULT
+#pragma code_page(936)
+#endif //_WIN32
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Bitmap
+//
+
+IDB_ZEROGSLOGO          BITMAP                  "zerogs.bmp"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// RCDATA
+//
+
+IDR_SHADERS             RCDATA                  "ps2fx.dat"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_CONFIG DIALOGEX 0, 0, 480, 385
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+FONT 8, "MS Sans Serif", 0, 0, 0x0
+BEGIN
+    CONTROL         "启用交错 (F5切换)\n 这里有两个模式 + 禁用交错",IDC_CONFIG_INTERLACE,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,7,7,140,18
+    CONTROL         "线性过滤 (Shift+F5)\n 更好的相似质量, 关闭可以加快速度.",IDC_CONFIG_BILINEAR,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,7,31,140,18
+    CONTROL         "禁用",IDC_CONFIG_AANONE,"Button",BS_AUTORADIOBUTTON | WS_GROUP,19,92,34,11
+    CONTROL         "2X",IDC_CONFIG_AA2,"Button",BS_AUTORADIOBUTTON,69,92,26,11
+    CONTROL         "4X",IDC_CONFIG_AA4,"Button",BS_AUTORADIOBUTTON,111,92,28,11
+    CONTROL         "8X",IDC_CONFIG_AA8,"Button",BS_AUTORADIOBUTTON,69,108,26,11
+    CONTROL         "16X",IDC_CONFIG_AA16,"Button",BS_AUTORADIOBUTTON,111,108,28,11
+    CONTROL         "线框渲染 (F7)",IDC_CONFIG_WIREFRAME,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,129,93,10
+    CONTROL         "捕捉 Avi (zerogs.avi) (F12)",IDC_CONFIG_CAPTUREAVI,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,145,109,10
+    CONTROL         "保存截图为 BMP (默认为 JPG)",IDC_CONFIG_BMPSS,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,162,147,10
+    CONTROL         "全屏 (Alt+Enter)\n可以直接按下 Alt+Enter",IDC_CONFIG_FULLSCREEN,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,7,178,146,17
+    CONTROL         "640 x 480",IDC_CONF_WIN640,"Button",BS_AUTORADIOBUTTON | WS_GROUP,15,233,59,8
+    CONTROL         "800 x 600",IDC_CONF_WIN800,"Button",BS_AUTORADIOBUTTON,78,233,59,8
+    CONTROL         "1024 x 768",IDC_CONF_WIN1024,"Button",BS_AUTORADIOBUTTON,15,246,59,8
+    CONTROL         "1280 x 960",IDC_CONF_WIN1280,"Button",BS_AUTORADIOBUTTON,78,246,59,8
+    CONTROL         "960 x 540",IDC_CONF_WIN960W,"Button",BS_AUTORADIOBUTTON,14,270,53,8
+    CONTROL         "1280 x 720",IDC_CONF_WIN1280W,"Button",BS_AUTORADIOBUTTON,77,270,53,8
+    CONTROL         "1920 x 1080",IDC_CONF_WIN1920W,"Button",BS_AUTORADIOBUTTON,14,283,53,8
+    DEFPUSHBUTTON   "确定",IDOK,7,364,50,14
+    PUSHBUTTON      "取消",IDCANCEL,94,364,50,14
+    GROUPBOX        "反锯齿让图像更清晰",IDC_STATIC,7,57,136,66
+    GROUPBOX        "默认窗口大小(不影响速度)",IDC_STATIC,7,223,141,76
+    LTEXT           "显示每秒帧率[FPS](Shift+F7)",IDC_STATIC,7,314,140,10
+    GROUPBOX        "高级选项",IDC_STATIC,152,7,315,371
+    LTEXT           "Each option is presented with a unique ID in hex. In order to preserve options across games, go into the game's patch (.pnach) file and type\n  zerogs=IDS\nwhere IDS is the OR all of the values in hex for every option you want enabled. ",IDC_STATIC,161,16,252,33
+    PUSHBUTTON      "使用默认 (推荐)",IDC_CONF_DEFAULT,159,76,151,14
+    CONTROL         "禁用透明测试 - 00080000",IDC_CONFOPT_00080000,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,159,104,119,10
+    CONTROL         "禁用模板缓冲 - 00002000\n 通常可以安全的使用于简单场景",IDC_CONFOPT_00002000,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,159,114,125,22
+    CONTROL         "无目标颜色表 - 00001000\n (使用于 RE4, 或者多雾场景)",IDC_CONFOPT_00001000,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,158,169,120,22
+    CONTROL         "禁用深度更新 - 00000200",IDC_CONFOPT_00000200,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,158,161,125,10
+    CONTROL         "FFX 破解 - 00000080\n显示丢失几何图形",IDC_CONFOPT_00000080,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,158,190,130,17
+    CONTROL         "严格色彩测试 - 00000020\n修正过亮或者阴影/白块 (crash n burn)",IDC_CONFOPT_00000020,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,158,209,140,25
+    CONTROL         "文本对象检查 - 00000001\n乐高赛车",IDC_CONFOPT_00000001,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,158,233,123,22
+    CONTROL         "交错 2X - 00000004\n修正 2x 交错屏幕 (沙罗曼蛇3)",IDC_CONFOPT_00000004,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,158,254,119,20
+    CONTROL         "32位渲染对象 - 00200000",IDC_CONFOPT_00200000,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,320,93,117,10
+    CONTROL         "无垂直条纹 - 00004000\n try when there's a lot of garbage on screen",IDC_CONFOPT_00004000,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,320,138,111,28
+    CONTROL         "无深度解决 - 00008000\n 可能给Z缓冲区错误数据",IDC_CONFOPT_00008000,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,320,164,121,19
+    CONTROL         "完全16位解析度 - 00010000\n使用后一半屏幕会丢失, 等等",IDC_CONFOPT_00010000,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,320,185,125,23
+    CONTROL         "自动重置对象 - 00000002\n 影之心,战国无双\n (use when game is slow and toggling AA fixes it)",IDC_CONFOPT_00000002,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,320,212,140,32
+    CONTROL         "文本透明破解 - 00000008\n 圣诞夜惊魂",IDC_CONFOPT_00000008,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,320,252,125,17
+    EDITTEXT        IDC_CONFOPT_IDS,390,364,48,14,ES_AUTOHSCROLL | ES_READONLY
+    CONTROL         "修正游戏问题 #1 - 00000400\n 提高一些游戏速度(王国之心)",IDC_CONFOPT_00000400,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,320,270,135,19
+    CONTROL         "修正游戏问题 #2 - 00000800\n 影之心",IDC_CONFOPT_00000800,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,158,276,117,17
+    CONTROL         "修正游戏问题 #3 - 00020000\n 尼奥宠物",IDC_CONFOPT_00020000,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,320,292,125,17
+    CONTROL         "快速更新 - 00040000\n 部分游戏加速 (女将)",IDC_CONFOPT_00040000,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,158,297,125,17
+    PUSHBUTTON      "计算""或""运算ID",IDC_CONFOPT_COMPUTEOR,310,364,73,14
+    LTEXT           "重要的选项列在最前面.注意,这里设置的选项会被添加到游戏pnach设置文件中.",IDC_STATIC,159,50,252,23
+    CONTROL         "无对象解析 - 00000010\n停止所有对象解析\n (如果游戏非常慢,请先尝试这个)",IDC_CONFOPT_00000010,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,320,104,140,33
+    CONTROL         "禁用多线程 - 00100000",IDC_CONFOPT_00100000,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,159,91,119,10
+    CONTROL         "无色彩平衡 - 00000040\n 提升游戏速度,但可能是太亮或太暗",IDC_CONFOPT_00000040,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,157,137,140,22
+    CONTROL         "镜面の高亮 - 01000000\n 让异度传说图形更快消除亮点",IDC_CONFOPT_01000000,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,320,313,125,25
+    CONTROL         "部分の对象 - 02000000\n 减少对象并加速游戏速度(合金装备3)",IDC_CONFOPT_02000000,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,158,319,145,24
+    CONTROL         "部分の深度 - 04000000\n 尝试保存可能的最高深度(合金装备3)",IDC_CONFOPT_04000000,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,159,347,145,24
+    LTEXT           "快捷键: F6 -增加, Shift+F6 -减小",IDC_STATIC,24,71,116,11
+    CONTROL         "16:9 宽屏 (Shift+F9)",IDC_CONFIG_WIDESCREEN,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,7,199,146,17
+    LTEXT           "宽屏:",IDC_STATIC,14,257,89,11
+    CONTROL         "减少の深度 - 08000000\n 可能显示隐藏の精灵 (异度传说文本)",IDC_CONFOPT_08000000,
+                    "Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,320,338,140,25
+END
+
+IDD_ABOUT DIALOGEX 0, 0, 182, 78
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "关于 ZeroGS KSOMOS...."
+FONT 8, "MS Sans Serif", 0, 0, 0x0
+BEGIN
+    DEFPUSHBUTTON   "确定",IDOK,65,57,50,14
+    LTEXT           "ZeroGS v0.97.1",IDC_STATIC,7,7,160,11
+    LTEXT           "感谢 Gabest(MPC作者)的一些 SSE 指令优化",IDC_ABOUTTEXT,7,39,152,12
+    LTEXT           "作者: zerofrog(@gmail.com)",IDC_STATIC,8,23,144,14
+END
+
+IDD_LOGGING DIALOG  0, 0, 152, 55
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Dialog"
+FONT 8, "MS Sans Serif"
+BEGIN
+    DEFPUSHBUTTON   "确定",IDOK,40,35,50,14
+    PUSHBUTTON      "取消",IDCANCEL,95,35,50,14
+    CONTROL         "日志",IDC_LOG,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,60,15,28,10
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO 
+BEGIN
+    IDD_CONFIG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 420
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 378
+    END
+
+    IDD_ABOUT, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 175
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 71
+    END
+
+    IDD_LOGGING, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 145
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 48
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resrc1.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include ""resource.h""\r\n"
+    "#include ""afxresmw.h""\r\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "\r\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+#endif    // Chinese (P.R.C) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+
