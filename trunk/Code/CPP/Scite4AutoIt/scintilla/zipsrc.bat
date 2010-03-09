@@ -3,5 +3,5 @@
 @echo off
 cd ..
 del/q scintilla.zip
-scite\zip scintilla.zip scintilla\*.* scintilla\*\*.* scintilla\*\*\*.* scintilla\*\*\*\*.* scintilla\*\*\*\*\*.* -x *.o -x *.obj -x *.dll -x *.lib -x *.res -x *.exp
+scite\zip.bin scintilla.zip scintilla\*.* scintilla\*\*.* scintilla\*\*\*.* scintilla\*\*\*\*.* scintilla\*\*\*\*\*.* -x *.o -x *.obj -x *.dll -x *.lib -x *.res -x *.exp
 cd scintilla

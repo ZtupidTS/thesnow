@@ -1063,6 +1063,16 @@ void SciTEWin::AddCommand(const SString &cmd, const SString &dir, JobSubsystem j
 		}
 	}
 }
+/*
+void SciTEWin::QuitProgram() {
+	if (SaveIfUnsureAll() != IDCANCEL) {
+		if (fullScreen)	// Ensure tray visible on exit
+			FullScreenToggle();
+		::PostQuitMessage(0);
+		wSciTE.Destroy();
+	}
+}
+*/
 
 void SciTEWin::QuitProgram() {
 	int NoAnimateWindow = props.GetInt("Exit.NoAnimateWindow",0);
@@ -1071,7 +1081,7 @@ void SciTEWin::QuitProgram() {
 			FullScreenToggle();
 		::PostQuitMessage(0);
 		if (NoAnimateWindow == 0) {
-			wSciTE.DestroySciTe();	//moded by thesnoW
+			wSciTE.DestroySciTe();
 			}
 		else
 			{

@@ -1366,7 +1366,7 @@ static bool InitGlobalScope(bool checkProperties, bool forceReload = false) {
 
 		luaL_loadfile(luaState, startupScript);
 		if (!call_function(luaState, 0, true)) {
-			host->Trace(">Lua: 当载入启动脚本时发送错误,灰常郁闷..\n");
+			host->Trace(">Lua: 当载入启动脚本时发生错误,灰常郁闷..\n");
 		}
 	}
 
@@ -1564,7 +1564,7 @@ bool LuaExtension::OnExecute(const char *s) {
 				}
 			}
 		} else {
-			host->Trace("> Lua: 字符串脚本库未载入\n");
+			host->Trace("> Lua: 字符串库未载入\n");
 		}
 
 		lua_settop(luaState, stackBase);

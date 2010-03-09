@@ -18,8 +18,8 @@
 using namespace Scintilla;
 #endif
 
-static const int insetX = 5;		// text inset in x from calltip border
-static const int widthArrow = 14;	// 箭头宽度
+static const int insetX = 10;		// 设置工具提示文本X坐标边框位置
+static const int widthArrow = 21;	// 箭头宽度
 
 CallTip::CallTip() {
 	wCallTip = 0;					//窗口句柄
@@ -218,7 +218,7 @@ int CallTip::PaintContents(Surface *surfaceWindow, bool draw) {
 	}
 	return maxWidth;
 }
-
+//绘图客户区
 void CallTip::PaintCT(Surface *surfaceWindow) {
 	if (!val)
 		return;

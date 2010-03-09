@@ -3654,7 +3654,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		DONATE_MSG();
 		SelectionIntoProperties();
 		if (props.Get("command.scite.donate")=="") {
-			::MessageBoxW((HWND)wSciTE.GetID(),L"艹,哪个龟儿子把这个项目的定义删除了.",L"我擦,出错了.",MB_OK|MB_ICONERROR);
+			::MessageBoxW((HWND)wSciTE.GetID(),L"艹,谁把这个项目的定义删除了.",L"我擦,出错了.",MB_OK|MB_ICONERROR);
 		}else {
 			AddCommand(props.Get("command.scite.donate"), "",
 				SubsystemType(props.Get("command.scite.help.subsystem")[0]));
@@ -3668,7 +3668,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 	case IDM_README:{
 		SelectionIntoProperties();
 		if (props.Get("command.scite.readme")=="") {
-		::MessageBoxW((HWND)wSciTE.GetID(),L"艹,哪个龟儿子把这个说明的定义删除了.",L"我擦,出错了.",MB_OK|MB_ICONERROR);
+		::MessageBoxW((HWND)wSciTE.GetID(),L"艹,谁把这个说明的定义删除了.",L"我擦,出错了.",MB_OK|MB_ICONERROR);
 		}else {
 		AddCommand(props.Get("command.scite.readme"), "",
 		SubsystemType(props.Get("command.scite.help.subsystem")[0]));

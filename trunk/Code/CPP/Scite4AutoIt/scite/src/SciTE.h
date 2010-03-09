@@ -94,7 +94,6 @@
 #define IDM_DUPLICATE		250
 #define IDM_INCSEARCH 		252
 #define IDM_ENTERSELECTION  256
-//#define IDM_CODEPAGE		257		//added
 
 #define IDC_INCFINDTEXT     253
 #define IDC_INCFINDBTNOK	254
@@ -194,7 +193,6 @@
 #define IDM_FULLSCREEN		961		//全屏
 #define IDC_TABCLOSE		962
 #define IDC_SHIFTTAB		963
-//
 #define IDM_README			964		//added
 
 // 对话框控件 IDs

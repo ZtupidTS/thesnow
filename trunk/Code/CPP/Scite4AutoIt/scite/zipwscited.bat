@@ -13,7 +13,7 @@ copy scite\doc\*.html wscite
 copy scite\doc\*.png wscite
 copy scite\doc\*.jpg wscite
 copy scite\doc\*.1 wscite
-scite\zip wscite.zip wscite\*.*
+scite\zip.bin wscite.zip wscite\*.*
 del/q wscite\*.*
 rmdir wscite
 cd scite

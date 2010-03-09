@@ -3912,9 +3912,9 @@ bool Editor::CanPaste() {
 }
 
 void Editor::Clear() {
-	UndoGroup ug(pdoc);
 	// If multiple selections, don't delete EOLS
 	if (sel.Empty()) {
+		UndoGroup ug(pdoc, sel.Count() > 1);
 		for (size_t r=0; r<sel.Count(); r++) {
 			if (!RangeContainsProtected(sel.Range(r).caret.Position(), sel.Range(r).caret.Position() + 1)) {
 				if (sel.Range(r).Start().VirtualSpace()) {
@@ -5215,7 +5215,7 @@ void Editor::Indent(bool forwards) {
 					int indentation = pdoc->GetLineIndentation(lineCurrentPos);
 					int indentationStep = pdoc->IndentSize();
 					pdoc->SetLineIndentation(lineCurrentPos, indentation - indentationStep);
-					SetEmptySelection(pdoc->GetLineIndentPosition(lineCurrentPos));
+					sel.Range(r) = SelectionRange(pdoc->GetLineIndentPosition(lineCurrentPos));
 				} else {
 					int newColumn = ((pdoc->GetColumn(caretPosition) - 1) / pdoc->tabInChars) *
 							pdoc->tabInChars;
@@ -7142,9 +7142,11 @@ sptr_t Editor::WndProc(unsigned int iMessage, uptr_t wParam, sptr_t lParam) {
 		return wrapState;
 
 	case SCI_SETWRAPVISUALFLAGS:
-		wrapVisualFlags = wParam;
-		InvalidateStyleRedraw();
-		ReconfigureScrollBars();
+		if (wrapVisualFlags != static_cast<int>(wParam)) {
+			wrapVisualFlags = wParam;
+			InvalidateStyleRedraw();
+			ReconfigureScrollBars();
+		}
 		break;
 
 	case SCI_GETWRAPVISUALFLAGS:
@@ -7159,18 +7161,22 @@ sptr_t Editor::WndProc(unsigned int iMessage, uptr_t wParam, sptr_t lParam) {
 		return wrapVisualFlagsLocation;
 
 	case SCI_SETWRAPSTARTINDENT:
-		wrapVisualStartIndent = wParam;
-		InvalidateStyleRedraw();
-		ReconfigureScrollBars();
+		if (wrapVisualStartIndent != static_cast<int>(wParam)) {
+			wrapVisualStartIndent = wParam;
+			InvalidateStyleRedraw();
+			ReconfigureScrollBars();
+		}
 		break;
 
 	case SCI_GETWRAPSTARTINDENT:
 		return wrapVisualStartIndent;
 
 	case SCI_SETWRAPINDENTMODE:
-		wrapIndentMode = wParam;
-		InvalidateStyleRedraw();
-		ReconfigureScrollBars();
+		if (wrapIndentMode != static_cast<int>(wParam)) {
+			wrapIndentMode = wParam;
+			InvalidateStyleRedraw();
+			ReconfigureScrollBars();
+		}
 		break;
 
 	case SCI_GETWRAPINDENTMODE:
