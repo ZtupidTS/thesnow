@@ -1,0 +1,308 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "afxres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// Chinese (P.R.C) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE LANG_NEUTRAL, SUBLANG_SYS_DEFAULT
+#pragma code_page(936)
+#endif //_WIN32
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// RCDATA
+//
+
+IDR_CONVERT_FX          RCDATA                  "res\\convert.fx"
+IDR_TFX_FX              RCDATA                  "res\\tfx.fx"
+IDR_MERGE_FX            RCDATA                  "res\\merge.fx"
+IDR_INTERLACE_FX        RCDATA                  "res\\interlace.fx"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Bitmap
+//
+
+IDB_LOGO9               BITMAP                  "res\\logo9.bmp"
+IDB_LOGO10              BITMAP                  "res\\logo10.bmp"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_CONFIG DIALOGEX 0, 0, 189, 343
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "设置..."
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    CONTROL         2022,IDC_LOGO10,"Static",SS_BITMAP,7,7,175,42
+    CONTROL         2021,IDC_LOGO9,"Static",SS_BITMAP,7,7,175,44
+    LTEXT           "分辨率:",IDC_STATIC,7,58,37,8
+    COMBOBOX        IDC_RESOLUTION,71,56,111,125,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "渲染:",IDC_STATIC,7,73,34,8
+    COMBOBOX        IDC_RENDERER,71,71,111,118,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "隔行 (F5):",IDC_STATIC,7,89,53,8
+    COMBOBOX        IDC_INTERLACE,71,86,111,98,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "高宽比 (F6):",IDC_STATIC,7,104,60,8
+    COMBOBOX        IDC_ASPECTRATIO,71,101,111,98,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    DEFPUSHBUTTON   "确定",IDOK,43,312,50,14
+    PUSHBUTTON      "取消",IDCANCEL,96,312,50,14
+    CONTROL         "窗口化",IDC_WINDOWED,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,89,250,93,10
+    LTEXT           "D3D 内部资源:",IDC_STATIC,18,135,55,8
+    EDITTEXT        IDC_RESX_EDIT,82,132,35,13,ES_AUTOHSCROLL | ES_NUMBER
+    CONTROL         "",IDC_RESX,"msctls_updown32",UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_NOTHOUSANDS,110,135,11,14
+    EDITTEXT        IDC_RESY_EDIT,120,132,35,13,ES_AUTOHSCROLL | ES_NUMBER
+    CONTROL         "",IDC_RESY,"msctls_updown32",UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_NOTHOUSANDS,144,135,11,14
+    CONTROL         "原始",IDC_NATIVERES,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,123,165,33,10
+    COMBOBOX        IDC_UPSCALE_MULTIPLIER,82,147,74,98,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Or use Scaling:",IDC_STATIC,18,150,49,8
+    LTEXT           "或者使用原始 PS2 分辨率:",IDC_STATIC,18,165,99,8
+    EDITTEXT        IDC_MSAAEDIT,123,182,35,13,ES_AUTOHSCROLL | ES_NUMBER
+    CONTROL         "",IDC_MSAA,"msctls_updown32",UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_NOTHOUSANDS,157,185,11,14
+    LTEXT           "Experimental HW 反锯齿",IDC_STATIC,18,185,96,8
+    GROUPBOX        "D3D 增强(can cause glitches)",IDC_STATIC,7,117,175,86
+    LTEXT           "SW rend. threads:",IDC_STATIC,7,208,60,8
+    EDITTEXT        IDC_SWTHREADS_EDIT,71,206,35,13,ES_AUTOHSCROLL | ES_NUMBER
+    CONTROL         "",IDC_SWTHREADS,"msctls_updown32",UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_NOTHOUSANDS,99,209,11,14
+    CONTROL         "材质过滤",IDC_FILTER,"Button",BS_AUTO3STATE | WS_TABSTOP,7,222,67,10
+    CONTROL         "对数 Z",IDC_LOGZ,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,89,223,58,10
+    CONTROL         "允许 8-位材质",IDC_PALTEX,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,236,82,10
+    CONTROL         "透明修正 (FBA)",IDC_FBA,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,89,236,93,10
+    CONTROL         "边缘反锯齿",IDC_AA1,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,250,72,10
+    CONTROL         "透明破解",IDC_ALPHAHACK,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,20,275,51,10
+    CONTROL         "偏移量破解",IDC_OFFSETHACK,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,85,275,51,10
+    GROUPBOX        "破解 (尝试修复错误图像)",IDC_USERHACKS,13,264,161,43,BS_CENTER
+    EDITTEXT        IDC_SKIPDRAWHACKEDIT,55,287,40,14,ES_AUTOHSCROLL | ES_NUMBER
+    CONTROL         "",IDC_SKIPDRAWHACK,"msctls_updown32",UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_NOTHOUSANDS,94,289,11,14
+    LTEXT           "跳过绘图:",IDC_STATIC,20,289,33,8
+END
+
+IDD_CAPTURE DIALOGEX 0, 0, 279, 71
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "捕捉设置"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    EDITTEXT        IDC_FILENAME,7,7,207,14,ES_AUTOHSCROLL
+    PUSHBUTTON      "浏览...",IDC_BROWSE,222,7,50,14
+    COMBOBOX        IDC_CODECS,7,27,207,122,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "设置...",IDC_CONFIGURE,222,26,50,14
+    LTEXT           "大小:",IDC_STATIC,6,50,16,8
+    EDITTEXT        IDC_WIDTH,30,47,31,14,ES_RIGHT | ES_AUTOHSCROLL | ES_NUMBER
+    EDITTEXT        IDC_HEIGHT,64,47,31,14,ES_RIGHT | ES_AUTOHSCROLL | ES_NUMBER
+    PUSHBUTTON      "取消",IDCANCEL,169,47,50,14
+    DEFPUSHBUTTON   "确定",IDOK,221,47,50,14
+END
+
+IDD_GPUCONFIG DIALOGEX 0, 0, 189, 199
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "设置..."
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    CONTROL         2021,IDC_LOGO9,"Static",SS_BITMAP,7,7,175,44
+    LTEXT           "分辨率:",IDC_STATIC,7,59,37,8
+    COMBOBOX        IDC_RESOLUTION,78,57,104,125,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "渲染:",IDC_STATIC,7,74,34,8
+    COMBOBOX        IDC_RENDERER,78,72,104,118,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "材质过滤 (Del):",IDC_STATIC,7,90,64,8
+    COMBOBOX        IDC_FILTER,78,87,104,98,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "抖动 (End):",IDC_STATIC,7,105,52,8
+    COMBOBOX        IDC_DITHERING,78,102,104,98,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "高宽比 (PgDn):",IDC_STATIC,7,120,68,8
+    COMBOBOX        IDC_ASPECTRATIO,78,117,104,98,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "渲染线程:",IDC_STATIC,7,157,64,8
+    EDITTEXT        IDC_SWTHREADS_EDIT,78,155,35,13,ES_AUTOHSCROLL | ES_NUMBER
+    CONTROL         "",IDC_SWTHREADS,"msctls_updown32",UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_NOTHOUSANDS,99,161,11,14
+    DEFPUSHBUTTON   "确定",IDOK,43,178,50,14
+    PUSHBUTTON      "取消",IDCANCEL,96,178,50,14
+    CONTROL         2022,IDC_LOGO10,"Static",SS_BITMAP,7,7,173,42
+    LTEXT           "内部分辨率:",IDC_STATIC,7,135,64,8
+    COMBOBOX        IDC_SCALE,78,132,104,98,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "窗口化",IDC_WINDOWED,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,129,157,49,10
+END
+
+IDD_CONFIG2 DIALOGEX 0, 0, 187, 314
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "设置..."
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    CONTROL         2022,IDC_LOGO10,"Static",SS_BITMAP,6,6,173,42
+    DEFPUSHBUTTON   "确定",IDOK,41,289,50,14
+    LTEXT           "渲染:",IDC_STATIC,6,57,34,8
+    COMBOBOX        IDC_RENDERER,70,55,111,118,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "隔行 (F5):",IDC_STATIC,6,73,53,8
+    COMBOBOX        IDC_INTERLACE,70,70,111,98,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "D3D 内部资源:",IDC_STATIC,17,105,55,8
+    EDITTEXT        IDC_RESX_EDIT,81,102,35,13,ES_AUTOHSCROLL | ES_NUMBER
+    CONTROL         "",IDC_RESX,"msctls_updown32",UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_NOTHOUSANDS,109,105,11,14
+    EDITTEXT        IDC_RESY_EDIT,119,102,35,13,ES_AUTOHSCROLL | ES_NUMBER
+    CONTROL         "",IDC_RESY,"msctls_updown32",UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_NOTHOUSANDS,143,105,11,14
+    CONTROL         "内部",IDC_NATIVERES,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,122,135,33,10
+    LTEXT           "SW rend. threads:",IDC_STATIC,6,179,60,8
+    EDITTEXT        IDC_SWTHREADS_EDIT,70,177,35,13,ES_AUTOHSCROLL | ES_NUMBER
+    CONTROL         "",IDC_SWTHREADS,"msctls_updown32",UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_NOTHOUSANDS,98,180,11,14
+    COMBOBOX        IDC_UPSCALE_MULTIPLIER,81,117,74,98,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Or use Scaling:",IDC_STATIC,17,120,49,8
+    LTEXT           "或者使用原始 PS2 分辨率:",IDC_STATIC,17,135,99,8
+    CONTROL         "材质过滤",IDC_FILTER,"Button",BS_AUTO3STATE | WS_TABSTOP,6,193,67,10
+    CONTROL         "Logarithmic Z",IDC_LOGZ,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,88,194,58,10
+    CONTROL         "允许 8-位材质",IDC_PALTEX,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,6,207,82,10
+    CONTROL         "Alpha correction (FBA)",IDC_FBA,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,88,207,93,10
+    CONTROL         "边缘反锯齿 (AA1, sw-mode only)",IDC_AA1,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,6,221,141,10
+    PUSHBUTTON      "取消",IDCANCEL,95,289,50,14
+    CONTROL         2021,IDC_LOGO9,"Static",SS_BITMAP,6,6,175,44
+    CONTROL         "透明破解",IDC_ALPHAHACK,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,20,251,51,10
+    CONTROL         "偏移量破解",IDC_OFFSETHACK,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,85,251,51,10
+    GROUPBOX        "破解 (尝试修复错误图像)",IDC_USERHACKS,13,240,161,40,BS_CENTER
+    EDITTEXT        IDC_SKIPDRAWHACKEDIT,55,263,40,14,ES_AUTOHSCROLL | ES_NUMBER
+    CONTROL         "",IDC_SKIPDRAWHACK,"msctls_updown32",UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_NOTHOUSANDS,94,265,11,14
+    LTEXT           "跳过绘图:",IDC_STATIC,20,265,33,8
+    EDITTEXT        IDC_MSAAEDIT,122,152,35,13,ES_AUTOHSCROLL | ES_NUMBER
+    CONTROL         "",IDC_MSAA,"msctls_updown32",UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_NOTHOUSANDS,156,155,11,14
+    LTEXT           "Experimental HW 反锯齿",IDC_STATIC,17,155,96,8
+    GROUPBOX        "D3D 增强 (can cause glitches)",IDC_STATIC,6,87,175,86
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO 
+BEGIN
+    IDD_CONFIG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 182
+        VERTGUIDE, 71
+        VERTGUIDE, 89
+        VERTGUIDE, 182
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 336
+        HORZGUIDE, 49
+    END
+
+    IDD_CAPTURE, DIALOG
+    BEGIN
+        VERTGUIDE, 6
+        VERTGUIDE, 30
+        VERTGUIDE, 271
+        HORZGUIDE, 54
+    END
+
+    IDD_GPUCONFIG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 182
+        VERTGUIDE, 78
+        VERTGUIDE, 182
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 192
+    END
+
+    IDD_CONFIG2, DIALOG
+    BEGIN
+        LEFTMARGIN, 6
+        RIGHTMARGIN, 181
+        TOPMARGIN, 6
+        BOTTOMMARGIN, 307
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 1,0,1,9
+ PRODUCTVERSION 1,0,1,9
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x4L
+ FILETYPE 0x2L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "080404b0"
+        BEGIN
+            VALUE "Comments", "http://guliverkli.sf.net/"
+            VALUE "CompanyName", "Gabest"
+            VALUE "FileDescription", "GS plugin for ps2 emulators"
+            VALUE "FileVersion", "1, 0, 1, 9"
+            VALUE "InternalName", "GSdx.dll"
+            VALUE "LegalCopyright", "Copyright (c) 2007-2008 Gabest.  All rights reserved."
+            VALUE "OriginalFilename", "GSdx.dll"
+            VALUE "ProductName", "GSdx"
+            VALUE "ProductVersion", "1, 0, 1, 9"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x804, 1200
+    END
+END
+
+#endif    // Chinese (P.R.C) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+
