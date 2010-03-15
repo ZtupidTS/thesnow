@@ -1,0 +1,668 @@
+﻿static char *tmisc_id = 
+	"@(#)Copyright (C) H.Shirouzu 1996-2009   tmisc.cpp	Ver0.99";
+/* ========================================================================
+	Project  Name			: Win32 Lightweight  Class Library Test
+	Module Name				: Application Frame Class
+	Create					: 1996-06-01(Sat)
+	Update					: 2009-03-09(Mon)
+	Copyright				: H.Shirouzu
+	Reference				: 
+	======================================================================== */
+
+#include "tlib.h"
+
+#include <stdio.h>
+#include <mbstring.h>
+#include <stdlib.h>
+#include <stddef.h>
+
+DWORD TWinVersion = ::GetVersion();
+
+HINSTANCE defaultStrInstance;
+
+
+BOOL THashObj::LinkHash(THashObj *top)
+{
+	if (priorHash)
+		return FALSE;
+	this->nextHash = top->nextHash;
+	this->priorHash = top;
+	top->nextHash->priorHash = this;
+	top->nextHash = this;
+	return TRUE;
+}
+
+BOOL THashObj::UnlinkHash()
+{
+	if (!priorHash)
+		return FALSE;
+	priorHash->nextHash = nextHash;
+	nextHash->priorHash = priorHash;
+	priorHash = nextHash = NULL;
+	return TRUE;
+}
+
+
+THashTbl::THashTbl(int _hashNum, BOOL _isDeleteObj)
+{
+	hashTbl = NULL;
+	registerNum = 0;
+	isDeleteObj = _isDeleteObj;
+
+	if ((hashNum = _hashNum) > 0) {
+		Init(hashNum);
+	}
+}
+
+THashTbl::~THashTbl()
+{
+	UnInit();
+}
+
+BOOL THashTbl::Init(int _hashNum)
+{
+	if ((hashTbl = new THashObj [hashNum = _hashNum]) == NULL) {
+		return	FALSE;	// VC4's new don't occur exception
+	}
+
+	for (int i=0; i < hashNum; i++) {
+		THashObj	*obj = hashTbl + i;
+		obj->priorHash = obj->nextHash = obj;
+	}
+	registerNum = 0;
+	return	TRUE;
+}
+
+void THashTbl::UnInit()
+{
+	if (hashTbl) {
+		if (isDeleteObj) {
+			for (int i=0; i < hashNum && registerNum > 0; i++) {
+				THashObj	*start = hashTbl + i;
+				for (THashObj *obj=start->nextHash; obj != start; ) {
+					THashObj *next = obj->nextHash;
+					delete obj;
+					obj = next;
+					registerNum--;
+				}
+			}
+		}
+		delete [] hashTbl;
+		hashTbl = NULL;
+		registerNum = 0;
+	}
+}
+
+void THashTbl::Register(THashObj *obj, u_int hash_id)
+{
+	obj->hashId = hash_id;
+
+	if (obj->LinkHash(hashTbl + (hash_id % hashNum))) {
+		registerNum++;
+	}
+}
+
+void THashTbl::UnRegister(THashObj *obj)
+{
+	if (obj->UnlinkHash()) {
+		registerNum--;
+	}
+}
+
+THashObj *THashTbl::Search(const void *data, u_int hash_id)
+{
+	THashObj *top = hashTbl + (hash_id % hashNum);
+
+	for (THashObj *obj=top->nextHash; obj != top; obj=obj->nextHash) {
+		if (obj->hashId == hash_id && IsSameVal(obj, data)) {
+			return obj;
+		}
+	}
+	return	NULL;
+}
+
+
+void InitInstanceForLoadStr(HINSTANCE hI)
+{
+	defaultStrInstance = hI;
+}
+
+LPSTR GetLoadStrA(UINT resId, HINSTANCE hI)
+{
+	static TResHash	*hash;
+
+	if (hash == NULL) {
+		hash = new TResHash(100);
+	}
+
+	char		buf[1024];
+	TResHashObj	*obj;
+
+	if ((obj = hash->Search(resId)) == NULL) {
+		if (::LoadStringA(hI ? hI : defaultStrInstance, resId, buf, sizeof(buf)) >= 0) {
+			obj = new TResHashObj(resId, strdup(buf));
+			hash->Register(obj);
+		}
+	}
+	return	obj ? (char *)obj->val : NULL;
+}
+
+LPWSTR GetLoadStrW(UINT resId, HINSTANCE hI)
+{
+	static TResHash	*hash;
+
+	if (hash == NULL) {
+		hash = new TResHash(100);
+	}
+
+	WCHAR		buf[1024];
+	TResHashObj	*obj;
+
+	if ((obj = hash->Search(resId)) == NULL) {
+		if (::LoadStringW(hI ? hI : defaultStrInstance, resId, buf,
+				sizeof(buf) / sizeof(WCHAR)) >= 0) {
+			obj = new TResHashObj(resId, wcsdup(buf));
+			hash->Register(obj);
+		}
+	}
+	return	obj ? (LPWSTR)obj->val : NULL;
+}
+
+static LCID defaultLCID;
+
+void TSetDefaultLCID(LCID lcid)
+{
+	defaultLCID = lcid ? lcid : ::GetSystemDefaultLCID();
+
+	TSetThreadLocale(defaultLCID);
+}
+
+HMODULE TLoadLibrary(LPSTR dllname)
+{
+	HMODULE	hModule = ::LoadLibrary(dllname);
+
+	if (defaultLCID) {
+		TSetThreadLocale(defaultLCID);
+	}
+
+	return	hModule;
+}
+
+/*=========================================================================
+	パス合成（ANSI 版）
+=========================================================================*/
+int MakePath(char *dest, const char *dir, const char *file)
+{
+	BOOL	separetor = TRUE;
+	size_t	len;
+
+	if ((len = strlen(dir)) == 0)
+		return	wsprintf(dest, "%s", file);
+
+	if (dir[len -1] == '\\')	// 表など、2byte目が'\\'で終る文字列対策
+	{
+		if (len >= 2 && IsDBCSLeadByte(dir[len -2]) == FALSE)
+			separetor = FALSE;
+		else {
+			u_char *p=(u_char *)dir;
+			for (; *p && p[1]; IsDBCSLeadByte(*p) ? p+=2 : p++)
+				;
+			if (*p == '\\')
+				separetor = FALSE;
+		}
+	}
+	return	wsprintf(dest, "%s%s%s", dir, separetor ? "\\" : "", file);
+}
+
+/*=========================================================================
+	パス合成（UNICODE 版）
+=========================================================================*/
+int MakePathW(WCHAR *dest, const WCHAR *dir, const WCHAR *file)
+{
+	size_t	len;
+
+	if ((len = wcslen(dir)) == 0)
+		return	wsprintfW(dest, L"%s", file);
+
+	return	wsprintfW(dest, L"%s%s%s", dir, dir[len -1] == L'\\' ? L"" : L"\\" , file);
+}
+
+WCHAR lGetCharIncW(const WCHAR **str)
+{
+	return	*(*str)++;
+}
+
+WCHAR lGetCharIncA(const char **str)
+{
+	WCHAR	ch = *(*str)++;
+
+	if (IsDBCSLeadByte((BYTE)ch)) {
+		ch <<= BITS_OF_BYTE;
+		ch |= *(*str)++;	// null 判定は手抜き
+	}
+	return	ch;
+}
+
+WCHAR lGetCharW(const WCHAR *str, int offset)
+{
+	return	str[offset];
+}
+
+WCHAR lGetCharA(const char *str, int offset)
+{
+	while (offset-- > 0)
+		lGetCharIncA(&str);
+
+	return	lGetCharIncA(&str);
+}
+
+void lSetCharW(WCHAR *str, int offset, WCHAR ch)
+{
+	str[offset] = ch;
+}
+
+void lSetCharA(char *str, int offset, WCHAR ch)
+{
+	while (offset-- > 0) {
+		if (IsDBCSLeadByte(*str++))
+			*str++;
+	}
+
+	BYTE	high_ch = ch >> BITS_OF_BYTE;
+
+	if (high_ch)
+		*str++ = high_ch;
+	*str = (BYTE)ch;
+}
+
+/*=========================================================================
+	Debug
+=========================================================================*/
+void Debug(char *fmt,...)
+{
+	char buf[8192];
+
+	va_list	ap;
+	va_start(ap, fmt);
+	_vsnprintf(buf, sizeof(buf), fmt, ap);
+	va_end(ap);
+	::OutputDebugString(buf);
+}
+
+void DebugW(WCHAR *fmt,...)
+{
+	WCHAR buf[8192];
+
+	va_list	ap;
+	va_start(ap, fmt);
+	_vsnwprintf(buf, sizeof(buf), fmt, ap);
+	va_end(ap);
+	::OutputDebugStringW(buf);
+}
+
+#ifdef DEBUG_U8
+void DebugU8(char *fmt,...)
+{
+	char buf[8192];
+
+	va_list	ap;
+	va_start(ap, fmt);
+	_vsnprintf(buf, sizeof(buf), fmt, ap);
+	va_end(ap);
+
+	WCHAR *wbuf = U8toW(buf, TRUE);
+	::OutputDebugStringW(wbuf);
+	delete [] wbuf;
+}
+#endif
+
+#ifndef _WIN64
+/*=========================================================================
+	例外情報取得
+=========================================================================*/
+static char *ExceptionTitle;
+static char *ExceptionLogFile;
+static char *ExceptionLogInfo;
+#define STACKDUMP_SIZE		256
+#define MAX_STACKDUMP_SIZE	8192
+
+LONG WINAPI Local_UnhandledExceptionFilter(struct _EXCEPTION_POINTERS *info)
+{
+	static char			buf[(STACKDUMP_SIZE/sizeof(DWORD)) * 10 + 100];	// 10 ... %08x + \r\n
+	static HANDLE		hFile;
+	static SYSTEMTIME	tm;
+	static CONTEXT		*context;
+	static DWORD		len, i, j;
+	static char			*stack;
+
+	hFile = ::CreateFile(ExceptionLogFile, GENERIC_WRITE, 0, 0, OPEN_ALWAYS, 0, 0);
+	::SetFilePointer(hFile, 0, 0, FILE_END);
+	::GetLocalTime(&tm);
+	context = info->ContextRecord;
+
+	len = sprintf(buf,
+		"------ %s -----\r\n"
+		" Date        : %d/%02d/%02d %02d:%02d:%02d\r\n"
+		" Code/Addr   : %X / %p\r\n"
+		" AX/BX/CX/DX : %08x / %08x / %08x / %08x\r\n"
+		" SI/DI/BP/SP : %08x / %08x / %08x / %08x\r\n"
+		"------- stack info -----\r\n"
+		, ExceptionTitle
+		, tm.wYear, tm.wMonth, tm.wDay, tm.wHour, tm.wMinute, tm.wSecond
+		, info->ExceptionRecord->ExceptionCode, info->ExceptionRecord->ExceptionAddress
+		, context->Eax, context->Ebx, context->Ecx, context->Edx
+		, context->Esi, context->Edi, context->Ebp, context->Esp
+		);
+	::WriteFile(hFile, buf, len, &len, 0);
+
+	for (i=0; i < MAX_STACKDUMP_SIZE / STACKDUMP_SIZE; i++) {
+		stack = (char *)context->Esp + (i * STACKDUMP_SIZE);
+		if (::IsBadReadPtr(stack, STACKDUMP_SIZE))
+			break;
+		len = 0;
+		for (j=0; j < STACKDUMP_SIZE / sizeof(DWORD); j++)
+			len += sprintf(buf + len, "%08x%s", ((DWORD *)stack)[j], ((j+1)%8) ? " " : "\r\n");
+		::WriteFile(hFile, buf, len, &len, 0);
+	}
+
+	len = sprintf(buf, "------------------------\r\n\r\n");
+	::WriteFile(hFile, buf, len, &len, 0);
+	::CloseHandle(hFile);
+
+	sprintf(buf, ExceptionLogInfo, ExceptionLogFile);
+	::MessageBox(0, buf, ExceptionTitle, MB_OK);
+
+	return	EXCEPTION_EXECUTE_HANDLER;
+}
+
+BOOL InstallExceptionFilter(char *title, char *info)
+{
+	char	buf[MAX_PATH];
+
+	::GetModuleFileName(NULL, buf, sizeof(buf));
+	strcpy(strrchr(buf, '.'), "_exception.log");
+	ExceptionLogFile = strdup(buf);
+	ExceptionTitle = strdup(title);
+	ExceptionLogInfo = info;
+
+	::SetUnhandledExceptionFilter(&Local_UnhandledExceptionFilter);
+	return	TRUE;
+}
+#endif
+
+
+/*
+	nul文字を必ず付与する strncpy
+*/
+char *strncpyz(char *dest, const char *src, int num)
+{
+	char	*sv = dest;
+
+	while (num-- > 0)
+		if ((*dest++ = *src++) == '\0')
+			return	sv;
+
+	if (sv != dest)		// num > 0
+		*(dest -1) = 0;
+	return	sv;
+}
+
+/*
+	大文字小文字を無視する strncmp
+*/
+int strncmpi(const char *str1, const char *str2, int num)
+{
+	for (int cnt=0; cnt < num; cnt++)
+	{
+		char	c1 = toupper(str1[cnt]), c2 = toupper(str2[cnt]);
+
+		if (c1 == c2)
+		{
+			if (c1)
+				continue;
+			else
+				return	0;
+		}
+		if (c1 > c2)
+			return	1;
+		else
+			return	-1;
+	}
+	return	0;
+}
+
+
+/*=========================================================================
+	UCS2(W) - ANSI(A) 相互変換
+=========================================================================*/
+WCHAR *AtoW(const char *src, BOOL noStatic) {
+	static	WCHAR	*_wbuf = NULL;
+
+	WCHAR	*wtmp = NULL;
+	WCHAR	*&wbuf = noStatic ? wtmp : _wbuf;
+
+	if (wbuf) {
+		delete [] wbuf;
+		wbuf = NULL;
+	}
+
+	int		len;
+	if ((len = AtoW(src, NULL, 0)) > 0) {
+		wbuf = new WCHAR [len];
+		AtoW(src, wbuf, len);
+	}
+	return	wbuf;
+}
+
+char *strdupNew(const char *_s)
+{
+	int		len = strlen(_s) + 1;
+	char	*s = new char [len];
+	memcpy(s, _s, len);
+	return	s;
+}
+
+WCHAR *wcsdupNew(const WCHAR *_s)
+{
+	int		len = wcslen(_s) + 1;
+	WCHAR	*s = new WCHAR [len];
+	memcpy(s, _s, len * sizeof(WCHAR));
+	return	s;
+}
+
+
+BOOL TIsWow64()
+{
+	static BOOL	once = FALSE;
+	static BOOL	ret = FALSE;
+
+	if (!once) {
+		BOOL (WINAPI *pIsWow64Process)(HANDLE, BOOL *) = (BOOL (WINAPI *)(HANDLE, BOOL *))
+				GetProcAddress(::GetModuleHandle("kernel32"), "IsWow64Process");
+		if (pIsWow64Process) {
+			pIsWow64Process(::GetCurrentProcess(), &ret);
+		}
+		once = TRUE;
+	}
+    return ret;
+}
+
+BOOL TRegDisableReflectionKey(HKEY hBase)
+{
+	static BOOL	once = FALSE;
+	static LONG (WINAPI *pRegDisableReflectionKey)(HKEY);
+
+	if (!once) {
+		pRegDisableReflectionKey = (LONG (WINAPI *)(HKEY))
+			GetProcAddress(::GetModuleHandle("advapi32"), "RegDisableReflectionKey");
+		once = TRUE;
+	}
+	if (pRegDisableReflectionKey && pRegDisableReflectionKey(hBase) == ERROR_SUCCESS)
+		return	TRUE;
+	return	FALSE;
+}
+
+BOOL TRegEnableReflectionKey(HKEY hBase)
+{
+	static BOOL	once = FALSE;
+	static LONG (WINAPI *pRegEnableReflectionKey)(HKEY);
+
+	if (!once) {
+		pRegEnableReflectionKey = (LONG (WINAPI *)(HKEY))
+			GetProcAddress(::GetModuleHandle("advapi32"), "RegEnableReflectionKey");
+		once = TRUE;
+	}
+	if (pRegEnableReflectionKey && pRegEnableReflectionKey(hBase) == ERROR_SUCCESS)
+		return	TRUE;
+	return	FALSE;
+}
+
+BOOL TWow64DisableWow64FsRedirection(void *oldval)
+{
+	static BOOL	once = FALSE;
+	static BOOL (WINAPI *pWow64DisableWow64FsRedirection)(void *);
+
+	if (!once) {
+		pWow64DisableWow64FsRedirection = (BOOL (WINAPI *)(void *))
+			GetProcAddress(::GetModuleHandle("kernel32"), "Wow64DisableWow64FsRedirection");
+		once = TRUE;
+	}
+	return	pWow64DisableWow64FsRedirection ? pWow64DisableWow64FsRedirection(oldval) : FALSE;
+}
+
+BOOL TWow64RevertWow64FsRedirection(void *oldval)
+{
+	static BOOL	once = FALSE;
+	static BOOL (WINAPI *pWow64RevertWow64FsRedirection)(void *);
+
+	if (!once) {
+		pWow64RevertWow64FsRedirection = (BOOL (WINAPI *)(void *))
+			GetProcAddress(::GetModuleHandle("kernel32"), "Wow64RevertWow64FsRedirection");
+		once = TRUE;
+	}
+	return	pWow64RevertWow64FsRedirection ? pWow64RevertWow64FsRedirection(oldval) : FALSE;
+}
+
+BOOL TIsUserAnAdmin()
+{
+	static BOOL	once = FALSE;
+	static BOOL	(WINAPI *pIsUserAnAdmin)(void);
+	static BOOL	ret = FALSE;
+
+	if (!once) {
+		pIsUserAnAdmin = (BOOL (WINAPI *)(void))
+			GetProcAddress(::GetModuleHandle("shell32"), "IsUserAnAdmin");
+		if (pIsUserAnAdmin) {
+			ret = pIsUserAnAdmin();
+		}
+		once = TRUE;
+	}
+	return	ret;
+}
+
+BOOL TIsEnableUAC()
+{
+	static BOOL once = FALSE;
+	static BOOL ret = FALSE;
+
+	if (!once) {
+		if (IsWinVista()) {
+			TRegistry reg(HKEY_LOCAL_MACHINE);
+			ret = TRUE;
+			if (reg.OpenKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System")) {
+				int	val = 1;
+				if (reg.GetInt("EnableLUA", &val) && val == 0) {
+					ret = FALSE;
+				}
+			}
+		}
+		once = TRUE;
+	}
+	return	ret;
+}
+
+BOOL TSHGetSpecialFolderPath(HWND hWnd, LPSTR str, int flg, BOOL is_create)
+{
+	static BOOL (WINAPI *pSHGetSpecialFolderPath)(HWND, LPSTR, int, BOOL);
+
+	if (!pSHGetSpecialFolderPath) {
+		pSHGetSpecialFolderPath = (BOOL (WINAPI *)(HWND, LPSTR, int, BOOL))
+			::GetProcAddress(::GetModuleHandle("shell32"), "SHGetSpecialFolderPathA");
+	}
+
+	return	pSHGetSpecialFolderPath ? pSHGetSpecialFolderPath(hWnd, str, flg, is_create) : FALSE;
+}
+
+BOOL TIsVirtualizedDir(char *path)
+{
+	char	buf[MAX_PATH];
+	DWORD	csidl[] = { CSIDL_PROGRAM_FILES, CSIDL_WINDOWS, 0xffffffff };
+
+	for (int i=0; csidl[i] != 0xffffffff; i++) {
+		if (TSHGetSpecialFolderPath(NULL, buf, csidl[i], FALSE)
+		&& strnicmp(buf, path, strlen(buf)) == 0) {
+			return	TRUE;
+		}
+	}
+	return	FALSE;
+}
+
+BOOL TMakeVirtualStorePath(char *org_path, char *buf)
+{
+	if (!TIsVirtualizedDir(org_path)
+	|| !TSHGetSpecialFolderPath(NULL, buf, CSIDL_LOCAL_APPDATA, FALSE)
+	||	!org_path[0] || org_path[1] != ':' || org_path[2] != '\\') {
+		strcpy(buf, org_path);
+		return	FALSE;
+	}
+
+	sprintf(buf + strlen(buf), "\\VirtualStore%s", org_path + 2);
+	return	TRUE;
+}
+
+BOOL TSetPrivilege(LPSTR pszPrivilege, BOOL bEnable)
+{
+    HANDLE           hToken;
+    TOKEN_PRIVILEGES tp;
+
+    if (!::OpenProcessToken(::GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES|TOKEN_QUERY, &hToken))
+        return FALSE;
+
+    if (!::LookupPrivilegeValue(NULL, pszPrivilege, &tp.Privileges[0].Luid))
+        return FALSE;
+
+    tp.PrivilegeCount = 1;
+
+    if (bEnable)
+         tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+    else
+         tp.Privileges[0].Attributes = 0;
+
+    if (!::AdjustTokenPrivileges(hToken, FALSE, &tp, 0, (PTOKEN_PRIVILEGES)NULL, 0))
+         return FALSE;
+
+    if (!::CloseHandle(hToken))
+         return FALSE;
+
+    return TRUE;
+}
+
+BOOL TSetThreadLocale(int lcid)
+{
+	static BOOL	once = FALSE;
+	static LANGID (WINAPI *pSetThreadUILanguage)(LANGID LangId);
+
+	if (!once) {
+		if (IsWinVista()) {	// ignore if XP
+			pSetThreadUILanguage = (LANGID (WINAPI *)(LANGID LangId))
+				GetProcAddress(::GetModuleHandle("kernel32"), "SetThreadUILanguage");
+		}
+		once = TRUE;
+	}
+
+	if (pSetThreadUILanguage) {
+		pSetThreadUILanguage(LANGIDFROMLCID(lcid));
+	}
+	return ::SetThreadLocale(lcid);
+}
+
