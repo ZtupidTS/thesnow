@@ -10,7 +10,8 @@
 /**
  * 设置文件时间,文件日期,当前时间,当前日期,文件属性.
  */
-void SciTEWin::SetFileProperties(PropSetFile &ps) {			///< Property set to update.
+void SciTEWin::SetFileProperties(
+    PropSetFile &ps) {			///< Property set to update.
 
 	const int TEMP_LEN = 100;
 	char temp[TEMP_LEN];
@@ -71,10 +72,10 @@ void SciTEWin::SetStatusBarText(const char *s) {
 	              SB_SETTEXT, 0, reinterpret_cast<LPARAM>(s));
 }
 //兼容unicode
-void SciTEWin::SetStatusBarText(const wchar_t *s) {
-	::SendMessage(reinterpret_cast<HWND>(wStatusBar.GetID()),
-	              SB_SETTEXTW, 0, reinterpret_cast<LPARAM>(s));
-}
+//void SciTEWin::SetStatusBarText(const wchar_t *s) {
+//	::SendMessage(reinterpret_cast<HWND>(wStatusBar.GetID()),
+//	              SB_SETTEXTW, 0, reinterpret_cast<LPARAM>(s));
+//}
 
 //标签插入
 void SciTEWin::TabInsert(int index, char *title) {
@@ -101,7 +102,7 @@ void SciTEWin::Notify(SCNotification *notification) {
 	case TCN_SELCHANGE:
 		// 修改标签
 		if (notification->nmhdr.idFrom == IDM_TABWIN) {
-			int index = Platform::SendScintilla(wTabBar.GetID(), TCM_GETCURSEL, (WPARAM)0, (LPARAM)0);
+			int index = ::SendMessage(static_cast<HWND>(wTabBar.GetID()), TCM_GETCURSEL, (WPARAM)0, (LPARAM)0);
 			SetDocumentAt(index);
 			CheckReload();
 		}
@@ -111,9 +112,9 @@ void SciTEWin::Notify(SCNotification *notification) {
 		// 右击控件(非Scintilla,标签栏)
 		if (notification->nmhdr.idFrom == IDM_TABWIN) {
 
-			Point ptCursor;
+			GUI::Point ptCursor;
 			::GetCursorPos(reinterpret_cast<POINT *>(&ptCursor));
-			Point ptClient = ptCursor;
+			GUI::Point ptClient = ptCursor;
 			::ScreenToClient(reinterpret_cast<HWND>(wTabBar.GetID()),
 			                 reinterpret_cast<POINT *>(&ptClient));
 			TCHITTESTINFO info;
@@ -243,15 +244,15 @@ void SciTEWin::Notify(SCNotification *notification) {
 				break;
 			default: {
 					// notification->nmhdr.idFrom appears to be the buffer number for tabbar tooltips
-					Point ptCursor;
+					GUI::Point ptCursor;
 					::GetCursorPos(reinterpret_cast<POINT *>(&ptCursor));
-					Point ptClient = ptCursor;
+					GUI::Point ptClient = ptCursor;
 					::ScreenToClient(reinterpret_cast<HWND>(wTabBar.GetID()),
 					                 reinterpret_cast<POINT *>(&ptClient));
 					TCHITTESTINFO info;
 					info.pt.x = ptClient.x;
 					info.pt.y = ptClient.y;
-					int index = Platform::SendScintilla(wTabBar.GetID(), TCM_HITTEST, (WPARAM)0, (LPARAM) & info);
+					int index = ::SendMessage(static_cast<HWND>(wTabBar.GetID()), TCM_HITTEST, (WPARAM)0, (LPARAM) & info);
 					if (index >= 0) {
 						SString path = buffers.buffers[index].AsInternal();
 						// Handle '&' characters in path, since they are interpreted in
@@ -316,18 +317,18 @@ void SciTEWin::ActivateWindow(const char *) {
  * Resize the content windows, embedding the editor and output windows.
  */
 void SciTEWin::SizeContentWindows() {
-	PRectangle rcInternal = wContent.GetClientPosition();
+	GUI::Rectangle rcInternal = wContent.GetClientPosition();
 
 	int w = rcInternal.Width();
 	int h = rcInternal.Height();
 	heightOutput = NormaliseSplit(heightOutput);
 
 	if (splitVertical) {
-		wEditor.SetPosition(PRectangle(0, 0, w - heightOutput - heightBar, h));
-		wOutput.SetPosition(PRectangle(w - heightOutput, 0, w, h));
+		wEditor.SetPosition(GUI::Rectangle(0, 0, w - heightOutput - heightBar, h));
+		wOutput.SetPosition(GUI::Rectangle(w - heightOutput, 0, w, h));
 	} else {
-		wEditor.SetPosition(PRectangle(0, 0, w, h - heightOutput - heightBar));
-		wOutput.SetPosition(PRectangle(0, h - heightOutput, w, h));
+		wEditor.SetPosition(GUI::Rectangle(0, 0, w, h - heightOutput - heightBar));
+		wOutput.SetPosition(GUI::Rectangle(0, h - heightOutput, w, h));
 	}
 	wContent.InvalidateAll();
 }
@@ -336,7 +337,7 @@ void SciTEWin::SizeContentWindows() {
  * 调整子窗口大小,例如:工具栏,标签栏,状态栏.并调用 SizeContentWindows.
  */
 void SciTEWin::SizeSubWindows() {
-	PRectangle rcClient = wSciTE.GetClientPosition();
+	GUI::Rectangle rcClient = wSciTE.GetClientPosition();
 	bool showTab = false;
 
 	//::SendMessage(MainHWND(), WM_SETREDRAW, false, 0); // suppress flashing
@@ -344,11 +345,12 @@ void SciTEWin::SizeSubWindows() {
 
 	if (tabVisible) {	// ? hide one tab only
 		showTab = tabHideOne ?
-		          ::SendMessage(reinterpret_cast<HWND>(wTabBar.GetID()), TCM_GETITEMCOUNT, 0, 0) > 1 : true;
+		          ::SendMessage(reinterpret_cast<HWND>(wTabBar.GetID()), TCM_GETITEMCOUNT, 0, 0) > 1 :
+		          true;
 	}
 
 	if (showTab) {
-		wTabBar.SetPosition(PRectangle(
+		wTabBar.SetPosition(GUI::Rectangle(
 			rcClient.left, rcClient.top + visHeightTools,
 			rcClient.right, rcClient.top + heightTab + visHeightTools));
 		int tabNb = ::SendMessage(reinterpret_cast<HWND>(
@@ -366,42 +368,44 @@ void SciTEWin::SizeSubWindows() {
 		visHeightEditor = rcClient.Height() - visHeightTools - visHeightStatus - visHeightTab;
 	}
 	if (tbVisible) {
-		wToolBar.SetPosition(PRectangle(
+		wToolBar.SetPosition(GUI::Rectangle(
 		                         rcClient.left, rcClient.top, rcClient.right, visHeightTools));
 		wToolBar.Show(true);
 	} else {
 		wToolBar.Show(false);
-		wToolBar.SetPosition(PRectangle(
+		wToolBar.SetPosition(GUI::Rectangle(
 		                         rcClient.left, rcClient.top - 2, rcClient.Width(), 1));
 	}
 	if (showTab) {
-		wTabBar.SetPosition(PRectangle(
+		wTabBar.SetPosition(GUI::Rectangle(
 		                        rcClient.left, rcClient.top + visHeightTools,
 		                        rcClient.right, rcClient.top + visHeightTab + visHeightTools));
 		wTabBar.Show(true);
 	} else {
 		wTabBar.Show(false);
-		wTabBar.SetPosition(PRectangle(
+		wTabBar.SetPosition(GUI::Rectangle(
 		                        rcClient.left, rcClient.top - 2,
 		                        rcClient.Width(), 1));
 	}
 	if (sbVisible) {
-		wStatusBar.SetPosition(PRectangle(
+		wStatusBar.SetPosition(GUI::Rectangle(
 		                           rcClient.left, rcClient.top + visHeightTools + visHeightTab + visHeightEditor,
 		                           rcClient.right,
 		                           rcClient.top + visHeightTools + visHeightTab + visHeightEditor + visHeightStatus));
 		wStatusBar.Show(true);
 	} else {
 		wStatusBar.Show(false);
-		wStatusBar.SetPosition(PRectangle(
+		wStatusBar.SetPosition(GUI::Rectangle(
 		                           rcClient.left, rcClient.top - 2, rcClient.Width(), 1));
 	}
 
-	wContent.SetPosition(PRectangle(
+	wContent.SetPosition(GUI::Rectangle(
 	                         rcClient.left, rcClient.top + visHeightTab + visHeightTools,
 	                         rcClient.right,
 	                         rcClient.top + visHeightTab + visHeightTools + visHeightEditor));
 	SizeContentWindows();
+	//::SendMessage(MainHWND(), WM_SETREDRAW, true, 0);
+	//::RedrawWindow(MainHWND(), NULL, NULL, RDW_INVALIDATE | RDW_ALLCHILDREN);
 }
 
 
@@ -475,7 +479,7 @@ void SciTEWin::CheckAMenuItem(int wIDCheckItem, bool val) {
 void EnableButton(HWND wTools, int id, bool enable) {
 	if (wTools) {
 		::SendMessage(wTools, TB_ENABLEBUTTON, id,
-	              Platform::LongFromTwoShorts(static_cast<short>(enable ? TRUE : FALSE), 0));
+	              LongFromTwoShorts(static_cast<short>(enable ? TRUE : FALSE), 0));
 	}
 }
 //应用按钮项目
@@ -490,7 +494,7 @@ void SciTEWin::EnableAMenuItem(int wIDCheckItem, bool val) {
 void SciTEWin::CheckMenus() {
 	SciTEBase::CheckMenus();
 	CheckMenuRadioItem(::GetMenu(MainHWND()), IDM_EOL_CRLF, IDM_EOL_LF,
-	                   SendEditor(SCI_GETEOLMODE) - SC_EOL_CRLF + IDM_EOL_CRLF, 0);
+	                   wEditor.Call(SCI_GETEOLMODE) - SC_EOL_CRLF + IDM_EOL_CRLF, 0);
 	CheckMenuRadioItem(::GetMenu(MainHWND()), IDM_ENCODING_DEFAULT, IDM_ENCODING_UCOOKIE,
 	                   CurrentBuffer()->unicodeMode + IDM_ENCODING_DEFAULT, 0);
 }
@@ -710,7 +714,7 @@ static BarButton bbs[] = {
     { -1,           0 },
     { STD_FIND,     IDM_FIND },
     { STD_REPLACE,  IDM_REPLACE },
-	{ STD_HELP,		IDM_HELP}
+    { STD_HELP,		IDM_HELP}
 };
 */
 static BarButton bbs[] = {
@@ -733,7 +737,7 @@ static BarButton bbs[] = {
     { 11, 		IDM_FIND },
     { 12,		IDM_REPLACE },
     { -1,		0 },	
-	{ 13,		IDM_HELP}
+    { 13,		IDM_HELP}
 };
 
 static WNDPROC stDefaultTabProc = NULL;
@@ -747,7 +751,7 @@ static LRESULT PASCAL TabWndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM
 	switch (iMessage) {
 
 	case WM_LBUTTONDOWN: {
-			Point pt = Point::FromLong(lParam);
+			GUI::Point pt = PointFromLong(lParam);
 			TCHITTESTINFO thti;
 			thti.pt.x = pt.x;
 			thti.pt.y = pt.y;
@@ -768,7 +772,7 @@ static LRESULT PASCAL TabWndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM
 
 	case WM_MBUTTONDOWN: {
 			// Check if on tab bar
-			Point pt = Point::FromLong(lParam);
+			GUI::Point pt = PointFromLong(lParam);
 			TCHITTESTINFO thti;
 			thti.pt.x = pt.x;
 			thti.pt.y = pt.y;
@@ -787,7 +791,7 @@ static LRESULT PASCAL TabWndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM
 				::ReleaseCapture();
 				::SetCursor(::LoadCursor(NULL, IDC_ARROW));
 				st_bDragBegin = FALSE;
-				Point pt = Point::FromLong(lParam);
+				GUI::Point pt = PointFromLong(lParam);
 				TCHITTESTINFO thti;
 				thti.pt.x = pt.x;
 				thti.pt.y = pt.y;
@@ -821,7 +825,7 @@ static LRESULT PASCAL TabWndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM
 
 	case WM_MOUSEMOVE: {
 
-			Point pt = Point::FromLong(lParam);
+			GUI::Point pt = PointFromLong(lParam);
 			TCHITTESTINFO thti;
 			thti.pt.x = pt.x;
 			thti.pt.y = pt.y;
@@ -858,9 +862,9 @@ static LRESULT PASCAL TabWndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM
 	case WM_PAINT: {
 			if (st_bDragBegin == TRUE && st_iDraggingTab != -1) {
 
-				Point ptCursor;
+				GUI::Point ptCursor;
 				::GetCursorPos(reinterpret_cast<POINT*>(&ptCursor));
-				Point ptClient = ptCursor;
+				GUI::Point ptClient = ptCursor;
 				::ScreenToClient(hWnd, reinterpret_cast<POINT*>(&ptClient));
 				TCHITTESTINFO thti;
 				thti.pt.x = ptClient.x;
@@ -874,40 +878,42 @@ static LRESULT PASCAL TabWndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM
 				        TabCtrl_GetItemRect(hWnd, tab, &tabrc)) {
 
 					HDC hDC = ::GetDC(hWnd);
-					Surface *surfaceWindow = Surface::Allocate();
-					if (surfaceWindow) {
-						surfaceWindow->Init(hDC, hWnd);
+					if (hDC) {
 
 						int xLeft = tabrc.left + 8;
 						int yLeft = tabrc.top + (tabrc.bottom - tabrc.top) / 2;
-						Point ptsLeftArrow[] = {
-							Point(xLeft, yLeft - 2),
-							Point(xLeft - 2, yLeft - 2),
-							Point(xLeft - 2, yLeft - 5),
-							Point(xLeft - 7, yLeft),
-							Point(xLeft - 2, yLeft + 5),
-							Point(xLeft - 2, yLeft + 2),
-							Point(xLeft, yLeft + 2)
+						POINT ptsLeftArrow[] = {
+							{xLeft, yLeft - 2},
+							{xLeft - 2, yLeft - 2},
+							{xLeft - 2, yLeft - 5},
+							{xLeft - 7, yLeft},
+							{xLeft - 2, yLeft + 5},
+							{xLeft - 2, yLeft + 2},
+							{xLeft, yLeft + 2}
 						};
 
 						int xRight = tabrc.right - 10;
 						int yRight = tabrc.top + (tabrc.bottom - tabrc.top) / 2;
-						Point ptsRightArrow[] = {
-							Point(xRight, yRight - 2),
-							Point(xRight + 2, yRight - 2),
-							Point(xRight + 2, yRight - 5),
-							Point(xRight + 7, yRight),
-							Point(xRight + 2, yRight + 5),
-							Point(xRight + 2, yRight + 2),
-							Point(xRight, yRight + 2)
+						POINT ptsRightArrow[] = {
+							{xRight, yRight - 2},
+							{xRight + 2, yRight - 2},
+							{xRight + 2, yRight - 5},
+							{xRight + 7, yRight},
+							{xRight + 2, yRight + 5},
+							{xRight + 2, yRight + 2},
+							{xRight, yRight + 2}
 						};
 
-						surfaceWindow->Polygon(tab < st_iDraggingTab ? ptsLeftArrow : ptsRightArrow,
-						        7,
-						        ColourAllocated(RGB(255, 0, 0)),
-						        ColourAllocated(RGB(255, 0, 0)));
-						surfaceWindow->Release();
-						delete surfaceWindow;
+						HPEN pen = ::CreatePen(0,1,RGB(255, 0, 0));
+						HPEN penOld = static_cast<HPEN>(::SelectObject(hDC, pen));
+						COLORREF colourNearest = ::GetNearestColor(hDC, RGB(255, 0, 0));
+						HBRUSH brush = ::CreateSolidBrush(colourNearest);
+						HBRUSH brushOld = static_cast<HBRUSH>(::SelectObject(hDC, brush));
+						::Polygon(hDC, tab < st_iDraggingTab ? ptsLeftArrow : ptsRightArrow, 7);
+						::SelectObject(hDC, brushOld);
+						::DeleteObject(brush);
+						::SelectObject(hDC, penOld);
+						::DeleteObject(pen);
 					}
 					::ReleaseDC(hWnd, hDC);
 				}
@@ -937,7 +943,7 @@ void SciTEWin::Creation() {
 	               reinterpret_cast<LPSTR>(this));
 	wContent.Show();
 	//创建编辑区
-	wEditor = ::CreateWindowEx(
+	wEditor.SetID(::CreateWindowEx(
 	              0,
 	              "Scintilla",
 	              "Source",
@@ -947,18 +953,14 @@ void SciTEWin::Creation() {
 	              reinterpret_cast<HWND>(wContent.GetID()),
 	              reinterpret_cast<HMENU>(IDM_SRCWIN),
 	              hInstance,
-	              0);
-	if (!wEditor.Created()) exit(FALSE);
-	fnEditor = reinterpret_cast<SciFnDirect>(::SendMessage(
-	               reinterpret_cast<HWND>(wEditor.GetID()), SCI_GETDIRECTFUNCTION, 0, 0));
-	ptrEditor = ::SendMessage(reinterpret_cast<HWND>(wEditor.GetID()),
-	                          SCI_GETDIRECTPOINTER, 0, 0);
-	if (!fnEditor || !ptrEditor) exit(FALSE);
+	              0));
+	if (!wEditor.CanCall())
+		exit(FALSE);
 	wEditor.Show();
-	SendEditor(SCI_USEPOPUP, 0);
+	wEditor.Call(SCI_USEPOPUP, 0);
 	WindowSetFocus(wEditor);
 	//创建输出区
-	wOutput = ::CreateWindowEx(
+	wOutput.SetID(::CreateWindowEx(
 	              0,
 	              "Scintilla",
 	              "Run",
@@ -968,20 +970,14 @@ void SciTEWin::Creation() {
 	              reinterpret_cast<HWND>(wContent.GetID()),
 	              reinterpret_cast<HMENU>(IDM_RUNWIN),
 	              hInstance,
-	              0);
-	if (!wOutput.Created())
-		exit(FALSE);
-	fnOutput = reinterpret_cast<SciFnDirect>(::SendMessage(
-	               reinterpret_cast<HWND>(wOutput.GetID()), SCI_GETDIRECTFUNCTION, 0, 0));
-	ptrOutput = ::SendMessage(reinterpret_cast<HWND>(wOutput.GetID()),
-	                          SCI_GETDIRECTPOINTER, 0, 0);
-	if (!fnOutput || !ptrOutput)
+	              0));
+	if (!wOutput.CanCall())
 		exit(FALSE);
 	wOutput.Show();
 	// No selection margin on output window
-	SendOutput(SCI_SETMARGINWIDTHN, 1, 0);
-	//SendOutput(SCI_SETCARETPERIOD, 0);
-	SendOutput(SCI_USEPOPUP, 0);
+	wOutput.Call(SCI_SETMARGINWIDTHN, 1, 0);
+	//wOutput.Call(SCI_SETCARETPERIOD, 0);
+	wOutput.Call(SCI_USEPOPUP, 0);
 	::DragAcceptFiles(MainHWND(), true);
 	//创建工具栏
 	HWND hwndToolBar = ::CreateWindowEx(
@@ -997,7 +993,7 @@ void SciTEWin::Creation() {
 	               hInstance,
 	               0);
 	wToolBar = hwndToolBar;
-	
+
 	::SendMessage(hwndToolBar, TB_BUTTONSTRUCTSIZE, sizeof(TBBUTTON), 0);
 /*
 	::SendMessage(hwndToolBar, TB_LOADIMAGES, IDB_STD_SMALL_COLOR,
@@ -1020,15 +1016,16 @@ void SciTEWin::Creation() {
 			tbb[i].fsStyle = TBSTYLE_BUTTON;
 		tbb[i].dwData = 0;
 		tbb[i].iString = 0;
-	}
+	};
 */
 //add start
 	TBBUTTON tbb[ELEMENTS(bbs)];
+	DWORD backgroundColor = GetSysColor(COLOR_BTNFACE);
+	COLORMAP colorMap;
 	for (unsigned int i = 0;i < ELEMENTS(bbs);i++) {
-		//TBADDBITMAP addbmp = { hInstance, bbs[i].id+100 };				//添加按钮图像
+		//添加按钮图像
+//		TBADDBITMAP addbmp = { hInstance, bbs[i].id+100 };
 		//map bmp start >>
-		DWORD backgroundColor = GetSysColor(COLOR_BTNFACE);
-		COLORMAP colorMap;
 		colorMap.from = RGB(0, 0, 0);
 		colorMap.to = backgroundColor;
 		HBITMAP hbm = CreateMappedBitmap(hInstance, bbs[i].id+100, 0, &colorMap, 1);
@@ -1046,8 +1043,9 @@ void SciTEWin::Creation() {
 			tbb[i].fsStyle = TBSTYLE_BUTTON;
 		tbb[i].dwData = 0;
 		tbb[i].iString = 0;
-	}
+	};
 //add end
+
 	//添加按钮
 	::SendMessage(hwndToolBar, TB_ADDBUTTONS, ELEMENTS(bbs), reinterpret_cast<LPARAM>(tbb));
 	//显示工具栏
@@ -1057,7 +1055,7 @@ void SciTEWin::Creation() {
 	icce.dwSize = sizeof(icce);
 	icce.dwICC = ICC_TAB_CLASSES;
 	InitCommonControlsEx(&icce);
-	//创建tab控件
+	//创建标签控件
 	WNDCLASS wndClass = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 	GetClassInfo(NULL, WC_TABCONTROL, &wndClass);
 	stDefaultTabProc = wndClass.lpfnWndProc;
@@ -1090,8 +1088,8 @@ void SciTEWin::Creation() {
 	fontTabs = ::CreateFontIndirect(&lfIconTitle);
 	::SendMessage(reinterpret_cast<HWND>(wTabBar.GetID()),
 	              WM_SETFONT,
-	              reinterpret_cast<WPARAM>(fontTabs),		// 字体句柄
-	              0);										// 重绘选项
+	              reinterpret_cast<WPARAM>(fontTabs),	// 字体句柄
+	              0);									// 重绘选项
 
 	wTabBar.Show();
 	//创建状态栏
@@ -1113,7 +1111,8 @@ void SciTEWin::Creation() {
 	::SendMessage(reinterpret_cast<HWND>(wStatusBar.GetID()),
 	              SB_SETPARTS, 1,
 	              reinterpret_cast<LPARAM>(widths));
-
+//-----------------------------------------------------------
+//-----------------------------------------------------------
 #ifndef NO_LUA
 		if (props.GetExpanded("ext.lua.startup.script").length() == 0)
 			DestroyMenuItem(menuOptions,IDM_OPENLUAEXTERNALFILE);

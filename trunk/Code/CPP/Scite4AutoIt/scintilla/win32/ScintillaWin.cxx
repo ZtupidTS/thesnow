@@ -1376,10 +1376,7 @@ void ScintillaWin::InsertPasteText(const char *text, int len, SelectionPosition 
 				SetEmptySelection(sel.MainCaret() + len);
 			}
 		} else {
-			selStart = SelectionPosition(InsertSpace(selStart.Position(), selStart.VirtualSpace()));
-			if (pdoc->InsertString(selStart.Position(), text, len)) {
-				SetEmptySelection(selStart.Position() + len);
-			}
+			InsertPaste(selStart, text, len);
 		}
 		delete []convertedText;
 	}
@@ -1414,10 +1411,10 @@ void ScintillaWin::Paste() {
 				// Convert from Unicode to current Scintilla code page
 				UINT cpDest = CodePageFromCharSet(
 					vs.styles[STYLE_DEFAULT].characterSet, pdoc->dbcsCodePage);
-				len = ::WideCharToMultiByte(cpDest, 0, uptr, -1,
+				len = ::WideCharToMultiByte(cpDest, 0, uptr, memUSelection.Size() / 2,
 				                            NULL, 0, NULL, NULL) - 1; // subtract 0 terminator
 				putf = new char[len + 1];
-				::WideCharToMultiByte(cpDest, 0, uptr, -1,
+				::WideCharToMultiByte(cpDest, 0, uptr, memUSelection.Size() / 2,
 					                      putf, len + 1, NULL, NULL);
 			}
 
@@ -1942,10 +1939,11 @@ void ScintillaWin::CopyToClipboard(const SelectionText &selectedText) {
 		// Convert to Unicode using the current Scintilla code page
 		UINT cpSrc = CodePageFromCharSet(
 					selectedText.characterSet, selectedText.codePage);
-		uniText.Allocate(2 * selectedText.len);
+		int uLen = ::MultiByteToWideChar(cpSrc, 0, selectedText.s, selectedText.len, 0, 0);
+		uniText.Allocate(2 * uLen);
 		if (uniText) {
 			::MultiByteToWideChar(cpSrc, 0, selectedText.s, selectedText.len,
-				static_cast<wchar_t *>(uniText.ptr), selectedText.len);
+				static_cast<wchar_t *>(uniText.ptr), uLen);
 		}
 	}
 
