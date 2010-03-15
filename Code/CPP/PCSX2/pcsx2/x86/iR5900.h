@@ -100,8 +100,8 @@ extern void recDoBranchImm_Likely( u32* jmpSkip );
 ////////////////////////////////////////////////////////////////////
 // Constant Propagation - From here to the end of the header!
 
-#define GPR_IS_CONST1(reg) ((reg)<32 && (g_cpuHasConstReg&(1<<(reg))))
-#define GPR_IS_CONST2(reg1, reg2) ((g_cpuHasConstReg&(1<<(reg1)))&&(g_cpuHasConstReg&(1<<(reg2))))
+#define GPR_IS_CONST1(reg) (EE_CONST_PROP && (reg)<32 && (g_cpuHasConstReg&(1<<(reg))))
+#define GPR_IS_CONST2(reg1, reg2) (EE_CONST_PROP && (g_cpuHasConstReg&(1<<(reg1)))&&(g_cpuHasConstReg&(1<<(reg2))))
 #define GPR_SET_CONST(reg) { \
 	if( (reg) < 32 ) { \
 		g_cpuHasConstReg |= (1<<(reg)); \
@@ -123,6 +123,7 @@ u32* _eeGetConstReg(int reg);
 void _eeMoveGPRtoR(x86IntRegType to, int fromgpr);
 void _eeMoveGPRtoM(u32 to, int fromgpr);
 void _eeMoveGPRtoRm(x86IntRegType to, int fromgpr);
+void eeSignExtendTo(int gpr, bool onlyupper=false);
 
 void _eeFlushAllUnused();
 void _eeOnWriteReg(int reg, int signext);
@@ -234,52 +235,5 @@ void rec##fn(void) \
 // rd = rs op rt (all regs need to be in xmm)
 int eeRecompileCodeXMM(int xmminfo);
 void eeFPURecompileCode(R5900FNPTR_INFO xmmcode, R5900FNPTR fpucode, int xmminfo);
-
-
-// For propagation of BSC stuff.
-// Code implementations in ir5900tables.c
-class BSCPropagate
-{
-protected:
-	EEINST& prev;
-	EEINST& pinst;
-
-public:
-	BSCPropagate( EEINST& previous, EEINST& pinstance );
-
-	void rprop();
-
-protected:
-	void rpropSPECIAL();
-	void rpropREGIMM();
-	void rpropCP0();
-	void rpropCP1();
-	void rpropCP2();
-	void rpropMMI();
-	void rpropMMI0();
-	void rpropMMI1();
-	void rpropMMI2();
-	void rpropMMI3();
-
-	void rpropSetRead( int reg, int mask );
-	void rpropSetFPURead( int reg, int mask );
-	void rpropSetWrite( int reg, int mask );
-	void rpropSetFPUWrite( int reg, int mask );
-
-	template< int mask >
-	void rpropSetRead( int reg );
-
-	template< int live >
-	void rpropSetWrite0( int reg, int mask );
-
-	void rpropSetFast( int write1, int read1, int read2, int mask );
-
-	template< int low, int hi >
-	void rpropSetLOHI( int write1, int read1, int read2, int mask );
-
-	template< int live >
-	void rpropSetFPUWrite0( int reg, int mask );
-
-};
 
 #endif // __IR5900_H__

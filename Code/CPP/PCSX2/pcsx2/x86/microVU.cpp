@@ -17,10 +17,6 @@
 
 #include "PrecompiledHeader.h"
 #include "Common.h"
-#include "VU.h"
-#include "GS.h"
-#include "iR5900.h"
-#include "R5900OpcodeTables.h"
 #include "microVU.h"
 
 //------------------------------------------------------------------
@@ -136,6 +132,11 @@ _f void mVUreset(mV) {
 	mVU->prog.x86end	= (u8*)((uptr)z + (uptr)(mVU->cacheSize - (_1mb * 3))); // 3mb "Safe Zone"
 
 	for (u32 i = 0; i < (mVU->progSize / 2); i++) {
+		deque<microProgram*>::iterator it = mVU->prog.prog[i].list->begin();
+		for ( ; it != mVU->prog.prog[i].list->end(); it++) {
+			if (!isVU1) mVUdeleteProg<0>(it[0]);
+			else	    mVUdeleteProg<1>(it[0]);
+		}
 		mVU->prog.prog[i].list->clear();
 		mVU->prog.quick[i].block = NULL;
 		mVU->prog.quick[i].prog  = NULL;
@@ -151,7 +152,8 @@ _f void mVUclose(mV) {
 	for (u32 i = 0; i < (mVU->progSize / 2); i++) {
 		deque<microProgram*>::iterator it = mVU->prog.prog[i].list->begin();
 		for ( ; it != mVU->prog.prog[i].list->end(); it++) {
-			safe_aligned_free(it[0]);
+			if (!isVU1) mVUdeleteProg<0>(it[0]);
+			else	    mVUdeleteProg<1>(it[0]);
 		}
 		safe_delete(mVU->prog.prog[i].list);
 	}
@@ -175,21 +177,19 @@ _f void mVUclear(mV, u32 addr, u32 size) {
 // Micro VU - Private Functions
 //------------------------------------------------------------------
 
-// Clears program data
-_mVUt _f void mVUclearProg(microProgram& program, bool deleteBlocks) {
+// Finds and Ages/Kills Programs if they haven't been used in a while.
+_f void mVUvsyncUpdate(mV) {
+	//mVU->prog.curFrame++;
+}
+
+// Deletes a program
+_mVUt _f void mVUdeleteProg(microProgram*& prog) {
 	microVU* mVU = mVUx;
-	program.used		= 0;
-	program.age			= isDead;
-	program.frame		= mVU->prog.curFrame;
-	program.startPC		= 0x7fffffff;
-	for (int j = 0; j <= program.ranges.max; j++) {
-		program.ranges.range[j][0]	= -1; // Set range to 
-		program.ranges.range[j][1]	= -1; // indeterminable status
-		program.ranges.total		= -1;
-	}
 	for (u32 i = 0; i < (mVU->progSize / 2); i++) {
-		if (deleteBlocks) safe_delete(program.block[i]);
+		safe_delete(prog->block[i]);
 	}
+	safe_delete(prog->ranges);
+	safe_aligned_free(prog);
 }
 
 // Creates a new Micro Program
@@ -197,17 +197,15 @@ _mVUt _f microProgram* mVUcreateProg(int startPC) {
 	microVU* mVU = mVUx;
 	microProgram* prog = (microProgram*)_aligned_malloc(sizeof(microProgram), 64);
 	memzero_ptr<sizeof(microProgram)>(prog);
-	mVUclearProg<vuIndex>(*prog);
-	prog->age	  = isYoung;
-	prog->used	  = 1;
-	prog->idx	  = mVU->prog.total++;
+	prog->idx     = mVU->prog.total++;
+	prog->ranges  = new deque<microRange>();
 	prog->startPC = startPC;
 	mVUcacheProg<vuIndex>(*prog); // Cache Micro Program
-	float cacheSize = (float)(u32)((u32)mVU->prog.x86end - (u32)mVU->prog.x86start);
-	float cacheStat =((float)(u32)((u32)mVU->prog.x86ptr - (u32)mVU->prog.x86start)) / cacheSize * 100;
+	float cacheSize = (float)((u32)mVU->prog.x86end - (u32)mVU->prog.x86start);
+	float cacheUsed =((float)((u32)mVU->prog.x86ptr - (u32)mVU->prog.x86start)) / cacheSize * 100;
 	ConsoleColors c = vuIndex ? Color_Orange : Color_Magenta;
 	Console.WriteLn(c, "microVU%d: Cached MicroPrograms = [%03d] [PC=%04x] [List=%02d] (Cache = %f%%)", 
-					vuIndex, mVU->prog.total, startPC, mVU->prog.prog[startPC].list->size()+1, cacheStat);
+					vuIndex, mVU->prog.total, startPC, mVU->prog.prog[startPC].list->size()+1, cacheUsed);
 	return prog;
 }
 
@@ -219,36 +217,13 @@ _mVUt _f void mVUcacheProg(microProgram& prog) {
 	mVUdumpProg(prog);
 }
 
-// Finds and Ages/Kills Programs if they haven't been used in a while.
-_f void mVUvsyncUpdate(mV) {
-	/*for (int i = 0; i <= mVU->prog.max; i++) {
-		if (mVU->prog.prog[i].age == isDead) continue;
-		if (mVU->prog.prog[i].used) {
-			mVU->prog.prog[i].used  = 0;
-			mVU->prog.prog[i].frame = mVU->prog.curFrame;
-		}
-		else { // Age Micro Program that wasn't used
-			s32  diff  = mVU->prog.curFrame - mVU->prog.prog[i].frame;
-			if	(diff >= (60 * 1)) {
-				if (i == mVU->prog.cur) continue; // Don't Age/Kill last used program
-				mVU->prog.total--;
-				if (!mVU->index) mVUclearProg<0>(i);
-				else			 mVUclearProg<1>(i);
-				DevCon.WriteLn("microVU%d: Killing Dead Program [%03d]", mVU->index, i+1);
-			}
-			//elif(diff >= (60  *  1)) { mVU->prog.prog[i].age = isOld;  }
-			//elif(diff >= (20  *  1)) { mVU->prog.prog[i].age = isAged; }
-		}
-	}
-	mVU->prog.curFrame++;*/
-}
-
+// Compare partial program by only checking compiled ranges...
 _mVUt _f bool mVUcmpPartial(microProgram& prog) {
 	microVU* mVU = mVUx;
-	for (int i = 0; i <= prog.ranges.total; i++) {
-		if((prog.ranges.range[i][0] < 0)
-		|| (prog.ranges.range[i][1] < 0))  { DevCon.Error("microVU%d: Negative Range![%d][%d]", mVU->index, i, prog.ranges.total); }
-		if (memcmp_mmx(cmpOffset(prog.data), cmpOffset(mVU->regs->Micro), ((prog.ranges.range[i][1] + 8) - prog.ranges.range[i][0]))) {
+	deque<microRange>::const_iterator it = prog.ranges->begin();
+	for ( ; it != prog.ranges->end(); it++) {
+		if((it[0].start<0)||(it[0].end<0))  { DevCon.Error("microVU%d: Negative Range![%d][%d]", mVU->index, it[0].start, it[0].end); }
+		if (memcmp_mmx(cmpOffset(prog.data), cmpOffset(mVU->regs->Micro), ((it[0].end + 8)  -  it[0].start))) {
 			return 0;
 		}
 	}
@@ -258,14 +233,11 @@ _mVUt _f bool mVUcmpPartial(microProgram& prog) {
 // Compare Cached microProgram to mVU->regs->Micro
 _mVUt _f bool mVUcmpProg(microProgram& prog, const bool cmpWholeProg) {
 	microVU* mVU = mVUx;
-	if (prog.age == isDead) return 0;
 	if ((cmpWholeProg && !memcmp_mmx((u8*)prog.data, mVU->regs->Micro, mVU->microMemSize))
 	|| (!cmpWholeProg && mVUcmpPartial<vuIndex>(prog))) {
-		mVU->prog.cleared = 0;
-		mVU->prog.cur	  =&prog;
-		mVU->prog.isSame  = cmpWholeProg ? 1 : -1;
-		prog.used = 1;
-		prog.age  = isYoung;
+		mVU->prog.cleared =  0;
+		mVU->prog.cur	  = &prog;
+		mVU->prog.isSame  =  cmpWholeProg ? 1 : -1;
 		return 1;
 	}
 	return 0;
@@ -287,21 +259,20 @@ _mVUt _f void* mVUsearchProg(u32 startPC, uptr pState) {
 				return mVUentryGet(mVU, quick.block, startPC, pState);
 			}
 		}
-		mVU->prog.cur = mVUcreateProg<vuIndex>(startPC/8); // If cleared and program not found, make a new program instance
-		mVU->prog.cleared	=  0;
-		mVU->prog.isSame	=  1;
-		mVUcurProg.startPC  =  startPC / 8;
-		void* entryPoint	=  mVUblockFetch(mVU, startPC, pState);
-		quick.block			=  mVUcurProg.block[startPC/8];
-		quick.prog			= &mVUcurProg;
-		list.list->push_front(&mVUcurProg);
+		// If cleared and program not found, make a new program instance
+		mVU->prog.cleared	= 0;
+		mVU->prog.isSame	= 1;
+		mVU->prog.cur		= mVUcreateProg<vuIndex>(startPC/8);
+		void* entryPoint	= mVUblockFetch(mVU, startPC, pState);
+		quick.block			= mVU->prog.cur->block[startPC/8];
+		quick.prog			= mVU->prog.cur;
+		list.list->push_front(mVU->prog.cur);
 		return entryPoint;
 	}
+	// If list.quick, then we've already found and recompiled the program ;)
 	mVU->prog.isSame	 = -1;
 	mVU->prog.cur		 =  quick.prog;
-	//mVU->prog.cur->used  =  1;
-	//mVU->prog.cur->age   =  isYoung;
-	return mVUentryGet(mVU, quick.block, startPC, pState); // If list.quick, then we've already found and recompiled the program ;)
+	return mVUentryGet(mVU, quick.block, startPC, pState);
 }
 
 //------------------------------------------------------------------

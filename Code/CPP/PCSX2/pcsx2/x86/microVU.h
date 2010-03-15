@@ -17,11 +17,14 @@
 //#define mVUlogProg // Dumps MicroPrograms to \logs\*.html
 
 class AsciiFile;
-
-#include <deque>
-#include "x86emitter/x86emitter.h"
-using namespace x86Emitter;
 using namespace std;
+using namespace x86Emitter;
+
+#include "VU.h"
+#include "GS.h"
+#include "iR5900.h"
+#include "R5900OpcodeTables.h"
+#include "x86emitter/x86emitter.h"
 #include "microVU_IR.h"
 #include "microVU_Misc.h"
 
@@ -106,30 +109,18 @@ public:
 	}
 };
 
-#define mMaxRanges 128
 struct microRange { 
-	static const int max = mMaxRanges - 1;
-	int total;
-	s32 range[mMaxRanges][2];
-};
-
-enum microProgramAge {
-	isYoung = 0,
-	isAged  = 1,
-	isOld   = 2,
-	isDead  = 3
+	s32 start; // Start PC (The opcode the block starts at)
+	s32 end;   // End PC   (The opcode the block ends with)
 };
 
 #define mProgSize (0x4000/4)
 struct microProgram {
 	u32				   data [mProgSize];   // Holds a copy of the VU microProgram
 	microBlockManager* block[mProgSize/2]; // Array of Block Managers
-	microRange		   ranges;			   // The ranges of the microProgram that have already been recompiled
-	u32  frame;		// Frame # the program was last used on
-	u32  used;		// Program was used this frame?
-	int  age;		// Program age... Young, Aged, Old, or Dead...
-	int  idx;		// Program idx in array[mMaxProg]
-	u32  startPC;	// Start PC of this program
+	deque<microRange>* ranges;			   // The ranges of the microProgram that have already been recompiled
+	u32 startPC; // Start PC of this program
+	int idx;	 // Program index
 };
 
 struct microProgramList { 
@@ -214,8 +205,8 @@ mVUop(mVUopU);
 mVUop(mVUopL);
 
 // Private Functions
-_mVUt _f void  mVUclearProg(microProgram& prog, bool deleteBlocks = 1);
-_mVUt _f void  mVUcacheProg(microProgram& prog);
+_mVUt _f void  mVUcacheProg (microProgram&  prog);
+_mVUt _f void  mVUdeleteProg(microProgram*& prog);
 _mVUt _f void* mVUsearchProg(u32 startPC, uptr pState);
 _mVUt _f microProgram* mVUfindLeastUsedProg();
 void* __fastcall mVUexecuteVU0(u32 startPC, u32 cycles);

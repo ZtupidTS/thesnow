@@ -45,13 +45,16 @@ namespace soundtouch
 using std::string;
 using std::wstring;
 
+// This will be brought in later anyways, but if we bring it in now, it'll avoid
+// warnings about redefining __LINUX__.
+#include "Utilities/Dependencies.h"
 #include "Pcsx2Defs.h"
 #include "Pcsx2Types.h"
 
 namespace VersionInfo
 {
 	static const u8 Release  = 1;
-	static const u8 Revision = 3;	// increase that with each version
+	static const u8 Revision = 4;	// increase that with each version
 }
 
 //////////////////////////////////////////////////////////////////////////

@@ -27,12 +27,15 @@ using namespace R5900;
 // dark cloud2 uses 8 bit DMAs register writes
 static __forceinline void DmaExec8( void (*func)(), u32 mem, u8 value )
 {
+	Registers::Freeze();
 	u32 qwcRegister = (mem | 0x20) & ~0x1;  //Need to remove the lower bit else we end up clearing TADR
 
 	//It's invalid for the hardware to write a DMA while it is active, not without Suspending the DMAC
-	if ((value & 0x1) && ((psHu8(mem) & 0x1) == 0x1) && dmacRegs->ctrl.DMAE)
-	{
-		DevCon.Warning( L"DMAExec8 Attempt to run DMA while one is already active in %s(%x)", ChcrName(mem), mem );
+	if ((value & 0x1) && ((psHu8(mem) & 0x1) == 0x1) && dmacRegs->ctrl.DMAE) {
+		DevCon.Warning(L"DMAExec8 Attempt to run DMA while one is already active in %s(%x)", ChcrName(mem), mem);
+		func();
+		Registers::Thaw();
+		return;
 	}
 
 	// Upper 16bits of QWC should not be written since QWC is 16bits in size.
@@ -48,17 +51,22 @@ static __forceinline void DmaExec8( void (*func)(), u32 mem, u8 value )
 		/*Console.WriteLn("Running DMA 8 %x", psHu32(mem & ~0x1));*/
 		func();
 	}
+	Registers::Thaw();
 }
 
 static __forceinline void DmaExec16( void (*func)(), u32 mem, u16 value )
 {
+	Registers::Freeze();
+
     DMACh *reg = &psH_DMACh(mem);
     tDMA_CHCR chcr(value);
 
 	//It's invalid for the hardware to write a DMA while it is active, not without Suspending the DMAC
-	if (chcr.STR && reg->chcr.STR && dmacRegs->ctrl.DMAE)
-	{
-		DevCon.Warning( L"DMAExec16 Attempt to run DMA while one is already active in %s(%x)", ChcrName(mem), mem );
+	if (chcr.STR && reg->chcr.STR && dmacRegs->ctrl.DMAE) {
+		DevCon.Warning(L"DMAExec16 Attempt to run DMA while one is already active in %s(%x)", ChcrName(mem), mem );
+		func();
+		Registers::Thaw();	
+		return;
 	}
 
 	// Note: pad is the padding right above qwc, so we're testing whether qwc
@@ -76,21 +84,24 @@ static __forceinline void DmaExec16( void (*func)(), u32 mem, u16 value )
 		//Console.WriteLn("16bit DMA Start");
 		func();
 	}
+	Registers::Thaw();
 }
 
 static void DmaExec( void (*func)(), u32 mem, u32 value )
 {
+	Registers::Freeze();
+
     DMACh *reg = &psH_DMACh(mem);
     tDMA_CHCR chcr(value);
 	
 	//It's invalid for the hardware to write a DMA while it is active, not without Suspending the DMAC
-	if (chcr.STR && reg->chcr.STR && dmacRegs->ctrl.DMAE)
-	{
-		DevCon.Warning( L"DMAExec32 Attempt to run DMA while one is already active in %s(%x)", ChcrName(mem), mem );
-		//DevCon.Warning( L"DMAExec32: chcr value = 0x%x", value);
-		// Returning here breaks every single Gust game written. :(
-		// Not returning here breaks Fatal Frame. Gamefix time.
-		if (CHECK_DMAEXECHACK) return;
+	if (chcr.STR && reg->chcr.STR && dmacRegs->ctrl.DMAE) {
+		DevCon.Warning(L"DMAExec32 Attempt to run DMA while one is already active in %s(%x)", ChcrName(mem), mem);
+		// When DMA is active only STR field is writable, so we just
+		// call the dma transfer function w/o modifying CHCR contents...
+		func();
+		Registers::Thaw();
+		return; // Test with Gust games and fatal frame
 	}
 
 	// Note: pad is the padding right above qwc, so we're testing whether qwc
@@ -110,6 +121,8 @@ static void DmaExec( void (*func)(), u32 mem, u32 value )
 		reg->chcr.set(value);
 		
 	if (reg->chcr.STR && dmacRegs->ctrl.DMAE) func();
+	
+	Registers::Thaw();
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -942,7 +955,7 @@ void __fastcall hwWrite32_generic( u32 mem, u32 value )
 			} 
 			else 
 			{
-			    cpuRegs.interrupt &= ~(1<<10) | ~(1<<1); //Tekken tag seems to stop vif and start it again in normal, so we will cancel the mfifo loop
+			    cpuRegs.interrupt &= ~((1 << 1) | (1 << 10)); //Tekken tag seems to stop vif and start it again in normal, so we will cancel the mfifo loop
 			}
 			
 			DmaExec(dmaVIF1, mem, value);
@@ -1041,14 +1054,14 @@ void __fastcall hwWrite32_generic( u32 mem, u32 value )
 void __fastcall hwWrite64_page_00( u32 mem, const mem64_t* srcval )
 {
 	hwWrite32_page_00( mem, (u32)*srcval );		// just ignore upper 32 bits.
-	*((u64*)&PS2MEM_HW[mem]) = *srcval;
+	psHu64(mem) = *srcval;
 }
 
 // Page 1 of HW memory houses registers for Counters 2 and 3
 void __fastcall hwWrite64_page_01( u32 mem, const mem64_t* srcval )
 {
 	hwWrite32_page_01( mem, (u32)*srcval );		// just ignore upper 32 bits.
-	*((u64*)&PS2MEM_HW[mem]) = *srcval;
+	psHu64(mem) = *srcval;
 }
 
 void __fastcall hwWrite64_page_02( u32 mem, const mem64_t* srcval )

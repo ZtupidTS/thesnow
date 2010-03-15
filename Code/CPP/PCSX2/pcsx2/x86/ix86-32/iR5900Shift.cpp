@@ -51,7 +51,7 @@ REC_FUNC_DEL(DSLLV, _Rd_);
 REC_FUNC_DEL(DSRLV, _Rd_);
 REC_FUNC_DEL(DSRAV, _Rd_);
 
-#elif defined(EE_CONST_PROP)
+#else
 
 //// SLL
 void recSLL_const()
@@ -69,21 +69,14 @@ void recSLLs_(int info, int sa)
 		SHL32ItoR( EAX, sa );
 	}
 
-	if( EEINST_ISLIVE1(_Rd_) ) {
-		CDQ( );
-		MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], EAX );
-		MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 1 ], EDX );
-	}
-	else {
-		EEINST_RESETHASLIVE1(_Rd_);
-		MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], EAX );
-	}
+	CDQ( );
+	MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], EAX );
+	MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 1 ], EDX );
 }
 
 void recSLL_(int info)
 {
 	recSLLs_(info, _Sa_);
-	EEINST_SETSIGNEXT(_Rd_);
 }
 
 EERECOMPILE_CODEX(eeRecompileCode2, SLL);
@@ -101,21 +94,14 @@ void recSRLs_(int info, int sa)
 	MOV32MtoR( EAX, (int)&cpuRegs.GPR.r[ _Rt_ ].UL[ 0 ] );
 	if ( sa != 0 ) SHR32ItoR( EAX, sa);
 
-	if( EEINST_ISLIVE1(_Rd_) ) {
-		CDQ( );
-		MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], EAX );
-		MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 1 ], EDX );
-	}
-	else {
-		EEINST_RESETHASLIVE1(_Rd_);
-		MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], EAX );
-	}
+	CDQ( );
+	MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], EAX );
+	MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 1 ], EDX );
 }
 
 void recSRL_(int info) 
 {
 	recSRLs_(info, _Sa_);
-	EEINST_SETSIGNEXT(_Rd_);
 }
 
 EERECOMPILE_CODEX(eeRecompileCode2, SRL);
@@ -133,21 +119,14 @@ void recSRAs_(int info, int sa)
 	MOV32MtoR( EAX, (int)&cpuRegs.GPR.r[ _Rt_ ].UL[ 0 ] );
 	if ( sa != 0 ) SAR32ItoR( EAX, sa);
 
-	if( EEINST_ISLIVE1(_Rd_) ) {
-		CDQ();
-		MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], EAX );
-		MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 1 ], EDX );
-	}
-	else {
-		EEINST_RESETHASLIVE1(_Rd_);
-		MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], EAX );
-	}
+	CDQ();
+	MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], EAX );
+	MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 1 ], EDX );
 }
 
 void recSRA_(int info) 
 {
 	recSRAs_(info, _Sa_);
-	EEINST_SETSIGNEXT(_Rd_);
 }
 
 EERECOMPILE_CODEX(eeRecompileCode2, SRA);
@@ -227,17 +206,6 @@ void recDSRAs_(int info, int sa)
 	
 	if( rtreg != rdreg ) MOVQRtoR(rdreg, rtreg);
 
-	if( EEINST_ISSIGNEXT(_Rt_) && EEINST_HASLIVE1(_Rt_) ) {
-		PSRADItoR(rdreg, sa);
-		return;
-	}
-
-	if( !EEINST_ISLIVE1(_Rd_) ) {
-		EEINST_RESETHASLIVE1(_Rd_);
-		PSRLQItoR(rdreg, sa);
-		return;
-	}
-
     if ( sa != 0 ) {
 		t0reg = _allocMMXreg(-1, MMX_TEMP, 0);	
 		MOVQRtoR(t0reg, rtreg);
@@ -302,8 +270,7 @@ void recDSRL32s_(int info, int sa)
 	if ( sa != 0 ) SHR32ItoR( EAX, sa );
 
 	MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], EAX );
-	if( EEINST_ISLIVE1(_Rd_) ) MOV32ItoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 1 ], 0 );  
-	else EEINST_RESETHASLIVE1(_Rd_);	
+	MOV32ItoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 1 ], 0 );
 }
 
 void recDSRL32_(int info)
@@ -328,8 +295,7 @@ void recDSRA32s_(int info, int sa)
 	if ( sa != 0 ) SAR32ItoR( EAX, sa );
 
 	MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], EAX );
-	if( EEINST_ISLIVE1(_Rd_) ) MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 1 ], EDX );  
-	else EEINST_RESETHASLIVE1(_Rd_);
+	MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 1 ], EDX );
 		
 }
 
@@ -347,26 +313,21 @@ EERECOMPILE_CODEX(eeRecompileCode2, DSRA32);
 
 __aligned16 u32 s_sa[4] = {0x1f, 0, 0x3f, 0};
 
-int recSetShiftV(int info, int* rsreg, int* rtreg, int* rdreg, int* rstemp, int forcemmx, int shift64)
+int recSetShiftV(int info, int* rsreg, int* rtreg, int* rdreg, int* rstemp, int shift64)
 {
 	pxAssert( !(info & PROCESS_EE_XMM) );
 
-	if( forcemmx ) {
-		_addNeededMMXreg(MMX_GPR+_Rt_);
-		_addNeededMMXreg(MMX_GPR+_Rd_);
-		*rtreg = _allocMMXreg(-1, MMX_GPR+_Rt_, MODE_READ);
-		*rdreg = _allocMMXreg(-1, MMX_GPR+_Rd_, MODE_WRITE);
-		SetMMXstate();
+	_addNeededMMXreg(MMX_GPR+_Rt_);
+	_addNeededMMXreg(MMX_GPR+_Rd_);
+	*rtreg = _allocMMXreg(-1, MMX_GPR+_Rt_, MODE_READ);
+	*rdreg = _allocMMXreg(-1, MMX_GPR+_Rd_, MODE_WRITE);
+	SetMMXstate();
 
-		*rstemp = _allocMMXreg(-1, MMX_TEMP, 0);
-		MOV32MtoR(EAX, (u32)&cpuRegs.GPR.r[_Rs_].UL[0]);
-		AND32ItoR(EAX, shift64?0x3f:0x1f);
-		MOVD32RtoMMX(*rstemp, EAX);
-		*rsreg = *rstemp;
-	}
-	else {
-		return 0;
-	}
+	*rstemp = _allocMMXreg(-1, MMX_TEMP, 0);
+	MOV32MtoR(EAX, (u32)&cpuRegs.GPR.r[_Rs_].UL[0]);
+	AND32ItoR(EAX, shift64?0x3f:0x1f);
+	MOVD32RtoMMX(*rstemp, EAX);
+	*rsreg = *rstemp;
 
 	if( *rtreg != *rdreg ) MOVQRtoR(*rdreg, *rtreg);
 	return 1;
@@ -387,19 +348,6 @@ void recSetConstShiftV(int info, int* rsreg, int* rdreg, int* rstemp, int shift6
 	_flushConstReg(_Rt_);
 }
 
-void recMoveSignToRd(int info)
-{
-	if( EEINST_ISLIVE1(_Rd_) ) {
-		CDQ();
-		MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], EAX );
-		MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 1 ], EDX );
-	}
-	else {
-		EEINST_RESETHASLIVE1(_Rd_);
-		MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], EAX );
-	}
-}
-
 //// SLLV
 void recSLLV_const()
 {
@@ -409,7 +357,6 @@ void recSLLV_const()
 void recSLLV_consts(int info)
 {
 	recSLLs_(info, g_cpuConstRegs[_Rs_].UL[0]&0x1f);
-	EEINST_SETSIGNEXT(_Rd_);
 }
 
 void recSLLV_constt(int info)
@@ -420,47 +367,21 @@ void recSLLV_constt(int info)
 	AND32ItoR( ECX, 0x1f );
 	SHL32CLtoR( EAX );
 
-	recMoveSignToRd(info);
-	EEINST_SETSIGNEXT(_Rd_);
+	eeSignExtendTo(_Rd_);
 }
 
 void recSLLV_(int info)
 {
-	int rsreg, rtreg, rdreg, rstemp = -1, t0reg;
-	EEINST_SETSIGNEXT(_Rd_);
-
-	if( recSetShiftV(info, &rsreg, &rtreg, &rdreg, &rstemp, 0, 0) == 0 ) {
-		MOV32MtoR( EAX, (int)&cpuRegs.GPR.r[ _Rt_ ].UL[ 0 ] );
-		if ( _Rs_ != 0 )	
-		{
-			MOV32MtoR( ECX, (int)&cpuRegs.GPR.r[ _Rs_ ].UL[ 0 ] );
-			AND32ItoR( ECX, 0x1f );
-			SHL32CLtoR( EAX );
-		}
-		CDQ();
-		MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], EAX );
-		MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 1 ], EDX );
-		return;
+	MOV32MtoR( EAX, (int)&cpuRegs.GPR.r[ _Rt_ ].UL[ 0 ] );
+	if ( _Rs_ != 0 )	
+	{
+		MOV32MtoR( ECX, (int)&cpuRegs.GPR.r[ _Rs_ ].UL[ 0 ] );
+		AND32ItoR( ECX, 0x1f );
+		SHL32CLtoR( EAX );
 	}
-
-	if( !EEINST_ISLIVE1(_Rd_) ) {
-		EEINST_RESETHASLIVE1(_Rd_);
-		PSLLDRtoR(rdreg, rsreg);
-		if( rstemp != -1 ) _freeMMXreg(rstemp);
-		return;
-	}
-
-    t0reg = _allocMMXreg(-1, MMX_TEMP, 0);	
-
-	// it is a signed shift
-	PSLLDRtoR(rdreg, rsreg);
-	MOVQRtoR(t0reg, rdreg);
-	PSRADItoR(t0reg, 31);
-
-	// take lower dword of rdreg and lower dword of t0reg		
-	PUNPCKLDQRtoR(rdreg, t0reg);
-	_freeMMXreg(t0reg);
-	if( rstemp != -1 ) _freeMMXreg(rstemp);
+	CDQ();
+	MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], EAX );
+	MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 1 ], EDX );
 }
 
 EERECOMPILE_CODE0(SLLV, XMMINFO_READS|XMMINFO_READT|XMMINFO_WRITED);
@@ -474,7 +395,6 @@ void recSRLV_const()
 void recSRLV_consts(int info)
 { 
 	recSRLs_(info, g_cpuConstRegs[_Rs_].UL[0]&0x1f);
-	EEINST_SETSIGNEXT(_Rd_);
 }
 
 void recSRLV_constt(int info)
@@ -485,47 +405,21 @@ void recSRLV_constt(int info)
 	AND32ItoR( ECX, 0x1f );
 	SHR32CLtoR( EAX );
 
-	recMoveSignToRd(info);
-	EEINST_SETSIGNEXT(_Rd_);
+	eeSignExtendTo(_Rd_);
 }
 
 void recSRLV_(int info)
 { 
-	int rsreg, rtreg, rdreg, rstemp = -1, t0reg;
-	EEINST_SETSIGNEXT(_Rd_);
-
-	if( recSetShiftV(info, &rsreg, &rtreg, &rdreg, &rstemp, 0, 0) == 0 ) {
-		MOV32MtoR( EAX, (int)&cpuRegs.GPR.r[ _Rt_ ].UL[ 0 ] );
-		if ( _Rs_ != 0 )	
-		{
-			MOV32MtoR( ECX, (int)&cpuRegs.GPR.r[ _Rs_ ].UL[ 0 ] );
-			AND32ItoR( ECX, 0x1f );
-			SHR32CLtoR( EAX );
-		}
-		CDQ( );
-		MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], EAX );
-		MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 1 ], EDX );
-		return;
+	MOV32MtoR( EAX, (int)&cpuRegs.GPR.r[ _Rt_ ].UL[ 0 ] );
+	if ( _Rs_ != 0 )	
+	{
+		MOV32MtoR( ECX, (int)&cpuRegs.GPR.r[ _Rs_ ].UL[ 0 ] );
+		AND32ItoR( ECX, 0x1f );
+		SHR32CLtoR( EAX );
 	}
-
-	if( !EEINST_ISLIVE1(_Rd_) ) {
-		EEINST_RESETHASLIVE1(_Rd_);
-		PSRLDRtoR(rdreg, rsreg);
-		if( rstemp != -1 ) _freeMMXreg(rstemp);
-		return;
-	}
-
-    t0reg = _allocMMXreg(-1, MMX_TEMP, 0);	
-
-	// it is a signed shift
-	PSRLDRtoR(rdreg, rsreg);
-	MOVQRtoR(t0reg, rdreg);
-	PSRADItoR(t0reg, 31);
-
-	// take lower dword of rdreg and lower dword of t0reg		
-	PUNPCKLDQRtoR(rdreg, t0reg);
-	_freeMMXreg(t0reg);
-	if( rstemp != -1 ) _freeMMXreg(rstemp);
+	CDQ( );
+	MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], EAX );
+	MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 1 ], EDX );
 }
 
 EERECOMPILE_CODE0(SRLV, XMMINFO_READS|XMMINFO_READT|XMMINFO_WRITED);
@@ -539,7 +433,6 @@ void recSRAV_const()
 void recSRAV_consts(int info)
 {
 	recSRAs_(info, g_cpuConstRegs[_Rs_].UL[0]&0x1f);
-	EEINST_SETSIGNEXT(_Rd_);
 }
 
 void recSRAV_constt(int info)
@@ -550,47 +443,21 @@ void recSRAV_constt(int info)
 	AND32ItoR( ECX, 0x1f );
 	SAR32CLtoR( EAX );
 	
-	recMoveSignToRd(info);
-	EEINST_SETSIGNEXT(_Rd_);
+	eeSignExtendTo(_Rd_);
 }
 
 void recSRAV_(int info)
 {
-	int rsreg, rtreg, rdreg, rstemp = -1, t0reg;
-	EEINST_SETSIGNEXT(_Rd_);
-
-	if( recSetShiftV(info, &rsreg, &rtreg, &rdreg, &rstemp, 0, 0) == 0 ) {
-		MOV32MtoR( EAX, (int)&cpuRegs.GPR.r[ _Rt_ ].UL[ 0 ] );
-		if ( _Rs_ != 0 )
-		{
-			MOV32MtoR( ECX, (int)&cpuRegs.GPR.r[ _Rs_ ].UL[ 0 ] );
-			AND32ItoR( ECX, 0x1f );
-			SAR32CLtoR( EAX );
-		}
-		CDQ( );
-		MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], EAX );
-		MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 1 ], EDX );
-		return;
+	MOV32MtoR( EAX, (int)&cpuRegs.GPR.r[ _Rt_ ].UL[ 0 ] );
+	if ( _Rs_ != 0 )
+	{
+		MOV32MtoR( ECX, (int)&cpuRegs.GPR.r[ _Rs_ ].UL[ 0 ] );
+		AND32ItoR( ECX, 0x1f );
+		SAR32CLtoR( EAX );
 	}
-
-	if( !EEINST_ISLIVE1(_Rd_) ) {
-		EEINST_RESETHASLIVE1(_Rd_);
-		PSRADRtoR(rdreg, rsreg);
-		if( rstemp != -1 ) _freeMMXreg(rstemp);
-		return;
-	}
-
-    t0reg = _allocMMXreg(-1, MMX_TEMP, 0);	
-
-	// it is a signed shift
-	PSRADRtoR(rdreg, rsreg);
-	MOVQRtoR(t0reg, rdreg);
-	PSRADItoR(t0reg, 31);
-
-	// take lower dword of rdreg and lower dword of t0reg		
-	PUNPCKLDQRtoR(rdreg, t0reg);
-	_freeMMXreg(t0reg);
-	if( rstemp != -1 ) _freeMMXreg(rstemp);
+	CDQ( );
+	MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], EAX );
+	MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 1 ], EDX );
 }
 
 EERECOMPILE_CODE0(SRAV, XMMINFO_READS|XMMINFO_READT|XMMINFO_WRITED);
@@ -621,7 +488,7 @@ void recDSLLV_constt(int info)
 void recDSLLV_(int info)
 {
 	int rsreg, rtreg, rdreg, rstemp = -1;
-	recSetShiftV(info, &rsreg, &rtreg, &rdreg, &rstemp, 1, 1);
+	recSetShiftV(info, &rsreg, &rtreg, &rdreg, &rstemp, 1);
 
 	PSLLQRtoR(rdreg, rsreg);
 	if( rstemp != -1 ) _freeMMXreg(rstemp);
@@ -655,7 +522,7 @@ void recDSRLV_constt(int info)
 void recDSRLV_(int info)
 {
 	int rsreg, rtreg, rdreg, rstemp = -1;
-	recSetShiftV(info, &rsreg, &rtreg, &rdreg, &rstemp, 1, 1);
+	recSetShiftV(info, &rsreg, &rtreg, &rdreg, &rstemp, 1);
 
 	PSRLQRtoR(rdreg, rsreg);
 	if( rstemp != -1 ) _freeMMXreg(rstemp);
@@ -713,7 +580,7 @@ void recDSRAV_(int info)
 	int rsreg, rtreg, rdreg, rstemp = -1, t0reg, t1reg;
 	t0reg = _allocMMXreg(-1, MMX_TEMP, 0);
 	t1reg = _allocMMXreg(-1, MMX_TEMP, 0);
-	recSetShiftV(info, &rsreg, &rtreg, &rdreg, &rstemp, 1, 1);
+	recSetShiftV(info, &rsreg, &rtreg, &rdreg, &rstemp, 1);
 
 	PXORRtoR(t0reg, t0reg);
 
@@ -740,319 +607,6 @@ void recDSRAV_(int info)
 
 EERECOMPILE_CODE0(DSRAV, XMMINFO_READS|XMMINFO_READT|XMMINFO_WRITED);
 
-#else
-
-////////////////////////////////////////////////////
-void recDSRA( void )
-{
-	if( !_Rd_ ) return; //?
-
-	if ( _Sa_ != 0 ) {
-		// it is a signed shift
-		MOVQMtoR(MM0, (int)&cpuRegs.GPR.r[ _Rt_ ].UL[ 0 ] );
-		MOVQRtoR(MM1, MM0);
-		PSRADItoR(MM0, _Sa_);
-		PSRLQItoR(MM1, _Sa_);
-
-		PUNPCKHDQRtoR(MM0, MM0); // shift to lower
-		// take lower dword of MM1 and lower dword of MM0
-		
-		PUNPCKLDQRtoR(MM1, MM0);
-
-		MOVQRtoM((int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], MM1);
-	}
-	else {
-		MOVQMtoR(MM0, (int)&cpuRegs.GPR.r[ _Rt_ ].UL[ 0 ] );
-		MOVQRtoM((int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], MM0);
-	}
-
-	SetMMXstate();
-}
-
-////////////////////////////////////////////////////
-void recDSRA32(void)
-{
-	if( !_Rd_ ) return; //?
-
-	MOV32MtoR(EAX, (int)&cpuRegs.GPR.r[ _Rt_ ].UL[ 1 ] );
-	CDQ();
-
-	if ( _Sa_ != 0 )
-	{
-		SAR32ItoR( EAX, _Sa_ );
-	}
-	MOV32RtoM((int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], EAX);
-	MOV32RtoM((int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 1 ], EDX);
-}
-
-////////////////////////////////////////////////////
-void recSLL( void )
-{
-	if ( ! _Rd_ )
-		return;
-
-	MOV32MtoR( EAX, (int)&cpuRegs.GPR.r[ _Rt_ ].UL[ 0 ] );
-	if ( _Sa_ != 0 )
-	{
-		SHL32ItoR( EAX, _Sa_ );
-	}
-	CDQ( );
-	MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], EAX );
-	MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 1 ], EDX );   
-}
-
-////////////////////////////////////////////////////
-void recSRL( void ) 
-{
-	if ( ! _Rd_ )
-   {
-      return;
-   }
-
-	   MOV32MtoR( EAX, (int)&cpuRegs.GPR.r[ _Rt_ ].UL[ 0 ] );
-	   if ( _Sa_ != 0 )
-	   {
-		   SHR32ItoR( EAX, _Sa_);
-	   }
-	   CDQ( );
-	   MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], EAX );
-	   MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 1 ], EDX );
-  
-}
-
-////////////////////////////////////////////////////
-void recSRA( void ) 
-{
-	if ( ! _Rd_ )
-   {
-      return;
-   }
-
-	   MOV32MtoR( EAX, (int)&cpuRegs.GPR.r[ _Rt_ ].UL[ 0 ] );
-	   if ( _Sa_ != 0 )
-	   {
-		   SAR32ItoR( EAX, _Sa_);
-	   }
-	   CDQ();
-	   MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], EAX );
-	   MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 1 ], EDX );
-   
-}
-
-////////////////////////////////////////////////////
-void recDSLL( void )
-{
-	if ( ! _Rd_ )
-   {
-      return;
-   }
-	   MOVQMtoR( MM0, (int)&cpuRegs.GPR.r[ _Rt_ ] );
-	   if ( _Sa_ != 0 )
-	   {
-		   PSLLQItoR( MM0, _Sa_ );
-	   }
-	   MOVQRtoM( (int)&cpuRegs.GPR.r[ _Rd_ ], MM0 );
-	   SetMMXstate();
-
-}
-
-////////////////////////////////////////////////////
-void recDSRL( void ) 
-{
-	if ( ! _Rd_ )
-   {
-      return;
-   }
-	   MOVQMtoR( MM0, (int)&cpuRegs.GPR.r[ _Rt_ ] );
-	   if ( _Sa_ != 0 )
-	   {
-		   PSRLQItoR( MM0, _Sa_ );
-	   }
-	   MOVQRtoM( (int)&cpuRegs.GPR.r[ _Rd_ ], MM0 );
-	   SetMMXstate();
-}
-
-////////////////////////////////////////////////////
-void recDSLL32( void ) 
-{
-   if ( ! _Rd_ )
-   {
-      return;
-   }
-
-	   if ( _Sa_ == 0 )
-	   {
-		   MOV32MtoR( EAX, (int)&cpuRegs.GPR.r[ _Rt_ ].UL[ 0 ] );
-		   MOV32ItoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], 0 );
-		   MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 1 ], EAX );
-		   return;
-	   }
-	   MOVQMtoR( MM0, (int)&cpuRegs.GPR.r[ _Rt_ ] );
-	   PSLLQItoR( MM0, _Sa_ + 32 );
-	   MOVQRtoM( (int)&cpuRegs.GPR.r[ _Rd_ ], MM0 );
-	   SetMMXstate();
-
-}
-
-////////////////////////////////////////////////////
-void recDSRL32( void ) 
-{
-	if ( ! _Rd_ )
-   {
-      return;
-   }
-
-
-	   if ( _Sa_ == 0 )
-	   {
-		   MOV32MtoR( EAX,(int)&cpuRegs.GPR.r[ _Rt_ ].UL[ 1 ] );
-		   MOV32ItoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 1 ], 0 );
-		   MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], EAX );
-		   return;
-	   }
-
-	   MOVQMtoR( MM0, (int)&cpuRegs.GPR.r[ _Rt_ ] );
-	   PSRLQItoR( MM0, _Sa_ + 32 );
-	   MOVQRtoM( (int)&cpuRegs.GPR.r[ _Rd_ ], MM0 );
-	   SetMMXstate();
- 
-}
-
-
-/*********************************************************
-* Shift arithmetic with variant register shift           *
-* Format:  OP rd, rt, rs                                 *
-*********************************************************/
-
-////////////////////////////////////////////////////
-
-
-////////////////////////////////////////////////////
-void recSLLV( void ) 
-{
-
-      if ( ! _Rd_ ) return;
-
-	   MOV32MtoR( EAX, (int)&cpuRegs.GPR.r[ _Rt_ ].UL[ 0 ] );
-	   if ( _Rs_ != 0 )	
-	   {
-		   MOV32MtoR( ECX, (int)&cpuRegs.GPR.r[ _Rs_ ].UL[ 0 ] );
-		   AND32ItoR( ECX, 0x1f );
-		   SHL32CLtoR( EAX );
-	   }
-	   CDQ();
-	   MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], EAX );
-	   MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 1 ], EDX );
-   
-}
-
-////////////////////////////////////////////////////
-void recSRLV( void ) 
-{
- 
-      if ( ! _Rd_ ) return;
-
-	   MOV32MtoR( EAX, (int)&cpuRegs.GPR.r[ _Rt_ ].UL[ 0 ] );
-	   if ( _Rs_ != 0 )	
-	   {
-		   MOV32MtoR( ECX, (int)&cpuRegs.GPR.r[ _Rs_ ].UL[ 0 ] );
-		   AND32ItoR( ECX, 0x1f );
-		   SHR32CLtoR( EAX );
-	   }
-	   CDQ( );
-	   MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], EAX );
-	   MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 1 ], EDX );
-   
-}
-
-////////////////////////////////////////////////////
-void recSRAV( void ) 
-{
-      if ( ! _Rd_ ) return;
-	   MOV32MtoR( EAX, (int)&cpuRegs.GPR.r[ _Rt_ ].UL[ 0 ] );
-	   if ( _Rs_ != 0 )
-	   {
-		   MOV32MtoR( ECX, (int)&cpuRegs.GPR.r[ _Rs_ ].UL[ 0 ] );
-		   AND32ItoR( ECX, 0x1f );
-		   SAR32CLtoR( EAX );
-	   }
-	   CDQ( );
-	   MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], EAX );
-	   MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 1 ], EDX );
-   
-}
-
-////////////////////////////////////////////////////
-static u64 _sa = 0;
-void recDSLLV( void ) 
-{
-      if ( ! _Rd_ ) return;
-
-	   MOVQMtoR( MM0, (int)&cpuRegs.GPR.r[ _Rt_ ] );
-	   if ( _Rs_ != 0 )
-	   {
-		   MOV32MtoR( EAX, (int)&cpuRegs.GPR.r[ _Rs_ ] );
-		   AND32ItoR( EAX, 0x3f);
-		   MOV32RtoM( (int)&_sa, EAX );
-		   PSLLQMtoR( MM0, (int)&_sa );
-	   }
-	   MOVQRtoM( (int)&cpuRegs.GPR.r[ _Rd_ ], MM0 );
-	   SetMMXstate();
-  
-}
-
-////////////////////////////////////////////////////
-void recDSRLV( void ) 
-{
-      if ( ! _Rd_ ) return;
-      MOVQMtoR( MM0, (int)&cpuRegs.GPR.r[ _Rt_ ] );
-	   if ( _Rs_ != 0 )
-	   {
-		   MOV32MtoR( EAX, (int)&cpuRegs.GPR.r[ _Rs_ ] );
-		   AND32ItoR( EAX, 0x3f);
-		   MOV32RtoM( (int)&_sa, EAX );
-		   PSRLQMtoR( MM0, (int)&_sa );
-	   }
-	   MOVQRtoM( (int)&cpuRegs.GPR.r[ _Rd_ ], MM0 );
-	   SetMMXstate();
-
-}
-////////////////////////////////////////////////////////////////
-void recDSRAV( void ) 
-{
-	MOVQMtoR(MM0, (int)&cpuRegs.GPR.r[ _Rt_ ].UL[ 0 ] );
-
-	if ( _Rs_ != 0 ) {
-		PXORRtoR(MM1, MM1);
-
-		// calc high bit
-		MOVQRtoR(MM2, MM0);
-		PUNPCKHDQRtoR(MM2, MM2); // shift to lower
-		PCMPGTDRtoR(MM1, MM2);
-
-		// it is a signed shift
-		MOV32MtoR( EAX, (int)&cpuRegs.GPR.r[ _Rs_ ] );
-		AND32ItoR( EAX, 0x3f);
-		MOVD32RtoMMX(MM2, EAX); // amount to shift
-		NOT32R(EAX);
-		ADD32ItoR(EAX, 65);
-
-		// right logical shift 
-		PSRLQRtoR(MM0, MM2);
-
-		// shift highest bit, 64 - eax
-		MOVD32RtoMMX(MM2, EAX);
-		PSLLQRtoR(MM1, MM2); // highest bits
-
-		PORRtoR(MM0, MM1);
-		MOVQRtoM((int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], MM0);
-	}
-	else {
-		MOVQRtoM((int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], MM0);
-	}
-
-	SetMMXstate();
-}
 #endif
 
 } } }
