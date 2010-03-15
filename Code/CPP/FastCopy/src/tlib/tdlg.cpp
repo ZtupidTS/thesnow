@@ -91,7 +91,11 @@ LRESULT TDlg::WinProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 	case WM_QUERYENDSESSION:
 		result = EvQueryEndSession((BOOL)wParam, (BOOL)lParam);
+#ifndef X64
 		SetWindowLong(DWL_MSGRESULT, result);
+#else
+		SetWindowLong(0, result);
+#endif
 		return	0;
 
 	case WM_ENDSESSION:
@@ -100,7 +104,11 @@ LRESULT TDlg::WinProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 	case WM_QUERYOPEN:
 		result = EvQueryOpen();
+#ifndef X64
 		SetWindowLong(DWL_MSGRESULT, result);
+#else
+		SetWindowLong(0, result);
+#endif
 		return	result;
 
 	case WM_PAINT:
@@ -125,7 +133,11 @@ LRESULT TDlg::WinProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 	case WM_SETCURSOR:
 		result = EvSetCursor((HWND)wParam, LOWORD(lParam), HIWORD(lParam));
+#ifndef X64
 		SetWindowLong(DWL_MSGRESULT, result);
+#else
+		SetWindowLong(0, result);
+#endif
 		return	result;
 
 	case WM_MOUSEMOVE:
@@ -133,32 +145,56 @@ LRESULT TDlg::WinProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 	case WM_NCHITTEST:
 		EvNcHitTest(MAKEPOINTS(lParam), &result);
+#ifndef X64
 		SetWindowLong(DWL_MSGRESULT, result);
+#else
+		SetWindowLong(0, result);
+#endif
 		return	result;
 
 	case WM_MEASUREITEM:
 		result = EvMeasureItem((UINT)wParam, (LPMEASUREITEMSTRUCT)lParam);
+#ifndef X64
 		SetWindowLong(DWL_MSGRESULT, result);
+#else
+		SetWindowLong(0, result);
+#endif
 		return	result;
 
 	case WM_DRAWITEM:
 		result = EvDrawItem((UINT)wParam, (LPDRAWITEMSTRUCT)lParam);
+#ifndef X64
 		SetWindowLong(DWL_MSGRESULT, result);
+#else
+		SetWindowLong(0, result);
+#endif
 		return	result;
 
 	case WM_NOTIFY:
 		result = EvNotify((UINT)wParam, (LPNMHDR)lParam);
+#ifndef X64
 		SetWindowLong(DWL_MSGRESULT, result);
+#else
+		SetWindowLong(0, result);
+#endif
 		return	result;
 
 	case WM_CONTEXTMENU:
 		result = EvContextMenu((HWND)wParam, MAKEPOINTS(lParam));
+#ifndef X64
 		SetWindowLong(DWL_MSGRESULT, result);
+#else
+		SetWindowLong(0, result);
+#endif
 		return	result;
 
 	case WM_HOTKEY:
 		result = EvHotKey((int)wParam);
+#ifndef X64
 		SetWindowLong(DWL_MSGRESULT, result);
+#else
+		SetWindowLong(0, result);
+#endif
 		return	result;
 
 	case WM_LBUTTONUP:
@@ -207,7 +243,11 @@ LRESULT TDlg::WinProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 	case WM_CTLCOLORSCROLLBAR:
 	case WM_CTLCOLORSTATIC:
 		EventCtlColor(uMsg, (HDC)wParam, (HWND)lParam, (HBRUSH *)&result);
+#ifndef X64
 		SetWindowLong(DWL_MSGRESULT, result);
+#else
+		SetWindowLong(0, result);
+#endif
 		return	result;
 
 	case WM_KILLFOCUS:
@@ -220,7 +260,11 @@ LRESULT TDlg::WinProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 			result = EventUser(uMsg, wParam, lParam);
 		else
 			result = EventSystem(uMsg, wParam, lParam);
+#ifndef X64
 		SetWindowLong(DWL_MSGRESULT, result);
+#else
+		SetWindowLong(0, result);
+#endif
 		return	result;
 	}
 

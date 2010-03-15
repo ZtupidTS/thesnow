@@ -527,7 +527,7 @@ LRESULT TWin::SendMessageV(UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	return	::SendMessageV(hWnd, uMsg, wParam, lParam);
 }
-
+#ifndef X64
 LRESULT TWin::SendDlgItemMessage(int idCtl, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	return	::SendDlgItemMessage(hWnd, idCtl, uMsg, wParam, lParam);
@@ -537,7 +537,7 @@ LRESULT TWin::SendDlgItemMessageV(int idCtl, UINT uMsg, WPARAM wParam, LPARAM lP
 {
 	return	::SendDlgItemMessageV(hWnd, idCtl, uMsg, wParam, lParam);
 }
-
+#endif
 BOOL TWin::GetWindowRect(RECT *_rect)
 {
 	return	::GetWindowRect(hWnd, _rect ? _rect : &rect);
@@ -719,7 +719,11 @@ TSubClass::TSubClass(TWin *_parent) : TWin(_parent)
 BOOL TSubClass::CreateByWnd(HWND _hWnd)
 {
 	TApp::GetApp()->AddWinByWnd(this, _hWnd);
+#ifndef X64
 	return	(oldProc = (WNDPROC)::SetWindowLong(_hWnd, GWL_WNDPROC, (LONG)TApp::WinProc)) != 0;
+#else
+	return	(oldProc = (WNDPROC)::SetWindowLong(_hWnd, 0, (LONG)TApp::WinProc)) != 0;
+#endif
 }
 
 LRESULT TSubClass::DefWindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)

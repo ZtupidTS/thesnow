@@ -280,8 +280,10 @@ public:
 	virtual BOOL	PostMessageV(UINT uMsg, WPARAM wParam, LPARAM lParam);
 	virtual LRESULT	SendMessage(UINT uMsg, WPARAM wParam, LPARAM lParam);
 	virtual LRESULT	SendMessageV(UINT uMsg, WPARAM wParam, LPARAM lParam);
+#ifndef X64
 	virtual LONG	SendDlgItemMessage(int ctlId, UINT uMsg, WPARAM wParam, LPARAM lParam);
 	virtual LONG	SendDlgItemMessageV(int ctlId, UINT uMsg, WPARAM wParam, LPARAM lParam);
+#endif
 	virtual BOOL	GetWindowRect(RECT *_rect=NULL);
 	virtual BOOL	SetWindowPos(HWND hInsAfter, int x, int y, int cx, int cy, UINT fuFlags);
 	virtual HWND	SetActiveWindow(void);
