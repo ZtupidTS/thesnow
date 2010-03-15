@@ -53,7 +53,7 @@ REC_FUNC( MTLO1 );
 REC_FUNC_DEL(MOVZ, _Rd_);
 REC_FUNC_DEL(MOVN, _Rd_);
 
-#elif defined(EE_CONST_PROP)
+#else
 
 /*********************************************************
 * Load higher 16 bits of the first word in GPR with imm  *
@@ -165,13 +165,9 @@ void recMFHILO(int hi)
 				else {
 					_deleteEEreg(_Rd_, 0);
 					MOV32MtoR( EAX, hi ? (int)&cpuRegs.HI.UL[ 0 ] : (int)&cpuRegs.LO.UL[ 0 ]);
-					if( EEINST_ISLIVE1(_Rd_) )
-						MOV32MtoR( EDX, hi ? (int)&cpuRegs.HI.UL[ 1 ] : (int)&cpuRegs.LO.UL[ 1 ]);
+					MOV32MtoR( EDX, hi ? (int)&cpuRegs.HI.UL[ 1 ] : (int)&cpuRegs.LO.UL[ 1 ]);
 					MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], EAX );
-					if( EEINST_ISLIVE1(_Rd_) )
-						MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 1 ], EDX );
-					else
-						EEINST_RESETHASLIVE1(_Rd_);
+					MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 1 ], EDX );
 				}
 			}
 		}
@@ -442,7 +438,8 @@ void recMOVZtemp_consts(int info)
 
 void recMOVZtemp_constt(int info)
 {
-	if( _hasFreeXMMreg() ) {
+	// Fixme: MMX problem
+	if(0/* _hasFreeXMMreg() */) {
 		int t0reg = _allocMMXreg(-1, MMX_TEMP, 0);
 		MOVQMtoR(t0reg, (int)&cpuRegs.GPR.r[ _Rs_ ].UL[ 0 ]);
 		MOVQRtoM((int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], t0reg);
@@ -460,7 +457,8 @@ void recMOVZtemp_(int info)
 {
 	int t0reg = -1;
 
-	if( _hasFreeXMMreg() )
+	// Fixme: MMX problem
+	if(0/* _hasFreeXMMreg() */)
 		t0reg = _allocMMXreg(-1, MMX_TEMP, 0);
 
 	MOV32MtoR( EAX, (int)&cpuRegs.GPR.r[ _Rt_ ].UL[ 0 ] );
@@ -519,7 +517,8 @@ void recMOVNtemp_consts(int info)
 
 void recMOVNtemp_constt(int info)
 {
-	if( _hasFreeXMMreg() ) {
+	// Fixme: MMX problem
+	if(0/* _hasFreeXMMreg() */) {
 		int t0reg = _allocMMXreg(-1, MMX_TEMP, 0);
 		MOVQMtoR(t0reg, (int)&cpuRegs.GPR.r[ _Rs_ ].UL[ 0 ]);
 		MOVQRtoM((int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], t0reg);
@@ -537,7 +536,8 @@ void recMOVNtemp_(int info)
 {
 	int t0reg=-1;
 
-	if( _hasFreeXMMreg() )
+	// Fixme: MMX problem
+	if(0/* _hasFreeXMMreg() */)
 		t0reg = _allocMMXreg(-1, MMX_TEMP, 0);
 
 	MOV32MtoR( EAX, (int)&cpuRegs.GPR.r[ _Rt_ ].UL[ 0 ] );
@@ -576,120 +576,6 @@ void recMOVN()
 
 	recMOVNtemp();
 }
-
-#else
-
-////////////////////////////////////////////////////
-void recLUI( void )
-{
-	if(!_Rt_) return;
-      if ( _Imm_ < 0 )
-	   {
-		   MOV32ItoM( (int)&cpuRegs.GPR.r[ _Rt_ ].UL[ 0 ], (u32)_Imm_ << 16 );	//U
-		   MOV32ItoM( (int)&cpuRegs.GPR.r[ _Rt_ ].UL[ 1 ], 0xffffffff );	//V
-	   }
-	   else
-	   {
-		   MOV32ItoM( (int)&cpuRegs.GPR.r[ _Rt_ ].UL[ 0 ], (u32)_Imm_ << 16 );	//U
-		   MOV32ItoM( (int)&cpuRegs.GPR.r[ _Rt_ ].UL[ 1 ], 0 );			//V
-	   } 
-}
-
-////////////////////////////////////////////////////
-void recMFHI( void ) 
-{
-
-   if ( ! _Rd_ )
-   {
-      return;
-   }
-
-	   MOVQMtoR( MM0, (int)&cpuRegs.HI.UD[ 0 ] );
-	   MOVQRtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UD[ 0 ], MM0 );
-	   SetMMXstate();
-
-}
-
-////////////////////////////////////////////////////
-void recMFLO( void ) 
-{
-
-   if ( ! _Rd_ ) 
-   {
-      return;
-   }
-
-	   MOVQMtoR( MM0, (int)&cpuRegs.LO.UD[ 0 ] );
-	   MOVQRtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UD[ 0 ], MM0 );
-	   SetMMXstate();
- 
-}
-
-////////////////////////////////////////////////////
-void recMTHI( void ) 
-{
-
-	   MOVQMtoR( MM0, (int)&cpuRegs.GPR.r[ _Rs_ ].UD[ 0 ] );
-	   MOVQRtoM( (int)&cpuRegs.HI.UD[ 0 ], MM0 );
-	   SetMMXstate();
- 
-}
-
-////////////////////////////////////////////////////
-void recMTLO( void )
-{
-
-	   MOVQMtoR( MM0, (int)&cpuRegs.GPR.r[ _Rs_ ].UD[ 0 ] );
-	   MOVQRtoM( (int)&cpuRegs.LO.UD[ 0 ], MM0 );
-	   SetMMXstate();
- 
-}
-
-////////////////////////////////////////////////////
-void recMOVZ( void )
-{
-   if ( ! _Rd_ ) 
-   {
-      return;
-   }
-	   MOV32MtoR( EAX, (int)&cpuRegs.GPR.r[ _Rt_ ].UL[ 0 ] );
-	   OR32MtoR( EAX, (int)&cpuRegs.GPR.r[ _Rt_ ].UL[ 1 ] );
-	   j8Ptr[ 0 ] = JNZ8( 0 );
-
-	   MOV32MtoR( EAX, (int)&cpuRegs.GPR.r[ _Rs_ ].UL[ 0 ] );
-	   MOV32MtoR( EDX, (int)&cpuRegs.GPR.r[ _Rs_ ].UL[ 1 ] );
-	   MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], EAX );
-	   MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 1 ], EDX );
-
-	   x86SetJ8( j8Ptr[ 0 ] ); 
- 
-}
-
-////////////////////////////////////////////////////
-void recMOVN( void ) 
-{
-   if ( ! _Rd_ ) 
-   {
-      return;
-   }
-
-	   MOV32MtoR( EAX, (int)&cpuRegs.GPR.r[ _Rt_ ].UL[ 0 ] );
-	   OR32MtoR( EAX, (int)&cpuRegs.GPR.r[ _Rt_ ].UL[ 1 ] );
-	   j8Ptr[ 0 ] = JZ8( 0 );
-
-	   MOV32MtoR( EAX, (int)&cpuRegs.GPR.r[ _Rs_ ].UL[ 0 ] );
-	   MOV32MtoR( ECX, (int)&cpuRegs.GPR.r[ _Rs_ ].UL[ 1 ] );
-	   MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], EAX );
-	   MOV32RtoM( (int)&cpuRegs.GPR.r[ _Rd_ ].UL[ 1 ], ECX );
-
-	   x86SetJ8( j8Ptr[ 0 ] );
-
-}
-
-REC_FUNC( MFHI1 );
-REC_FUNC( MFLO1 );
-REC_FUNC( MTHI1 );
-REC_FUNC( MTLO1 );
 
 #endif
 

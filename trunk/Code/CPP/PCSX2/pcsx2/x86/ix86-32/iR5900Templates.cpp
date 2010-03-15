@@ -34,25 +34,9 @@
 // Code Templates //
 ////////////////////
 
-void _eeProcessHasLive(int reg, int signext)
-{
-	g_cpuPrevRegHasLive1 = g_cpuRegHasLive1;
-	g_cpuRegHasLive1 |= 1<<reg;
-
-	g_cpuPrevRegHasSignExt = g_cpuRegHasSignExt;
-
-	if( signext ) {
-		EEINST_SETSIGNEXT(reg);
-	}
-	else {
-		EEINST_RESETSIGNEXT(reg);
-	}
-}
-
 void _eeOnWriteReg(int reg, int signext)
 {
 	GPR_DEL_CONST(reg);
-	_eeProcessHasLive(reg, signext);
 }
 
 void _deleteEEreg(int reg, int flush)
@@ -70,9 +54,10 @@ void _deleteEEreg(int reg, int flush)
 // if not mmx, then xmm
 int eeProcessHILO(int reg, int mode, int mmx)
 {
-    int usemmx = mmx && _hasFreeMMXreg();
+	// Fixme: MMX problem
+    int usemmx = 0/*mmx && _hasFreeMMXreg()*/;
 	if( (usemmx || _hasFreeXMMreg()) || !(g_pCurInstInfo->regs[reg]&EEINST_LASTUSE) ) {
-		if( usemmx ) return _allocMMXreg(-1, MMX_GPR+reg, mode);
+		//if( usemmx ) return _allocMMXreg(-1, MMX_GPR+reg, mode);
 		return _allocGPRtoXMMreg(-1, reg, mode);
 	}
 
@@ -89,11 +74,6 @@ void eeRecompileCode0(R5900FNPTR constcode, R5900FNPTR_INFO constscode, R5900FNP
 	int mmreg1, mmreg2, mmreg3, mmtemp, moded;
 
 	if ( ! _Rd_ && (xmminfo&XMMINFO_WRITED) ) return;
-
-	if( xmminfo&XMMINFO_WRITED) {
-		_eeProcessHasLive(_Rd_, 0);
-		EEINST_RESETSIGNEXT(_Rd_);
-	}
 
 	if( GPR_IS_CONST2(_Rs_, _Rt_) ) {
 		if( xmminfo & XMMINFO_WRITED ) {
@@ -272,9 +252,6 @@ void eeRecompileCode1(R5900FNPTR constcode, R5900FNPTR_INFO noconstcode)
 	int mmreg1, mmreg2;
 	if ( ! _Rt_ ) return;
 
-	_eeProcessHasLive(_Rt_, 0);
-	EEINST_RESETSIGNEXT(_Rt_);
-
 	if( GPR_IS_CONST1(_Rs_) ) {
 		_deleteMMXreg(MMX_GPR+_Rt_, 2);
 		_deleteGPRtoXMMreg(_Rt_, 2);
@@ -333,9 +310,6 @@ void eeRecompileCode2(R5900FNPTR constcode, R5900FNPTR_INFO noconstcode)
 {
 	int mmreg1, mmreg2;
 	if ( ! _Rd_ ) return;
-
-	_eeProcessHasLive(_Rd_, 0);
-	EEINST_RESETSIGNEXT(_Rd_);
 
 	if( GPR_IS_CONST1(_Rt_) ) {
 		_deleteMMXreg(MMX_GPR+_Rd_, 2);
@@ -535,12 +509,6 @@ void eeRecompileCodeConstSPECIAL(R5900FNPTR constcode, R5900FNPTR_INFO multicode
 int eeRecompileCodeXMM(int xmminfo)
 {
 	int info = PROCESS_EE_XMM;
-
-	// save state
-	if( xmminfo & XMMINFO_WRITED ) {
-		_eeProcessHasLive(_Rd_, 0);
-		EEINST_RESETSIGNEXT(_Rd_);
-	}
 
 	// flush consts
 	if( xmminfo & XMMINFO_READT ) {

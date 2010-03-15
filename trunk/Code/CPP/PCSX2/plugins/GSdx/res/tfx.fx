@@ -33,6 +33,7 @@
 #define PS_FBA 0
 #define PS_AOUT 0
 #define PS_LTF 1
+#define PS_COLCLIP 0
 #endif
 
 struct VS_INPUT
@@ -121,6 +122,7 @@ float4 sample_p(float u)
 #define PS_CLR1 0
 #define PS_RT 0
 #define PS_LTF 0
+#define PS_COLCLIP 0
 #endif
 
 struct VS_INPUT
@@ -155,7 +157,7 @@ float4 vs_params[3];
 #define VertexOffset vs_params[1]
 #define TextureScale vs_params[2].xy
 
-float4 ps_params[5];
+float4 ps_params[7];
 
 #define FogColor	ps_params[0].bgr
 #define AREF		ps_params[0].a
@@ -504,6 +506,15 @@ float4 ps_color(PS_INPUT input)
 	atst(c);
 
 	c = fog(c, input.t.z);
+
+	if (PS_COLCLIP == 2)
+	{
+		c.rgb = 256./255. - c.rgb;
+	}
+	if (PS_COLCLIP > 0)
+	{
+		c.rgb *= c.rgb < 128./255;
+	}
 
 	if(PS_CLR1) // needed for Cd * (As/Ad/F + 1) blending modes
 	{

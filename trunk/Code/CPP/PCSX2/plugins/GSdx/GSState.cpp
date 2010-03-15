@@ -792,6 +792,9 @@ void GSState::GIFRegHandlerCOLCLAMP(GIFReg* r)
 	}
 
 	m_env.COLCLAMP = (GSVector4i)r->COLCLAMP;
+#ifdef DISABLE_COLCLAMP
+	m_env.COLCLAMP.CLAMP = 1;
+#endif
 }
 
 template<int i> void GSState::GIFRegHandlerTEST(GIFReg* r)
@@ -839,6 +842,9 @@ template<int i> void GSState::GIFRegHandlerFRAME(GIFReg* r)
 	}
 
 	m_env.CTXT[i].FRAME = (GSVector4i)r->FRAME;
+#ifdef DISABLE_BITMASKING
+	m_env.CTXT[i].FRAME.FBMSK = GSVector4i::store(GSVector4i::load((int)m_env.CTXT[i].FRAME.FBMSK).eq8(GSVector4i::xffffffff()));
+#endif
 }
 
 template<int i> void GSState::GIFRegHandlerZBUF(GIFReg* r)
@@ -2307,22 +2313,16 @@ bool GSC_GodOfWar2(const GSFrameInfo& fi, int& skip)
 		if(fi.TME)
 		{
 			if(fi.FBP == 0x00100 && fi.FPSM == PSM_PSMCT16 && fi.TBP0 == 0x00100 && fi.TPSM == PSM_PSMCT16 // ntsc
-			|| fi.FBP == 0x02100 && fi.FPSM == PSM_PSMCT16 && fi.TBP0 == 0x02100 && fi.TPSM == PSM_PSMCT16) // pal
+				|| fi.FBP == 0x02100 && fi.FPSM == PSM_PSMCT16 && fi.TBP0 == 0x02100 && fi.TPSM == PSM_PSMCT16) // pal
 			{
 				skip = 29; // shadows
 			}
-			else if(fi.FBP == 0x00500 && fi.FPSM == PSM_PSMCT24 && fi.TBP0 == 0x02100 && fi.TPSM == PSM_PSMCT32) // pal
-			{
-				// skip = 17; // only looks correct at native resolution
-			}
-			else if(fi.FBP == 0x01300 && fi.FPSM == PSM_PSMCT24 && fi.TBP0 == 0x00100 && fi.TPSM == PSM_PSMCT32) // ntsc
-			{
-				// skip = 15; // only looks correct at native resolution
+			if(fi.FBP == 0x00100 && fi.FPSM == PSM_PSMCT32 && (fi.TBP0 & 0x03000) == 0x03000 
+				&& (fi.TPSM == PSM_PSMT8 || fi.TPSM == PSM_PSMT4) 
+				&& ((fi.TZTST == 2 && fi.FBMSK == 0x00FFFFFF) || (fi.TZTST == 1 && fi.FBMSK == 0x00FFFFFF) || (fi.TZTST == 3 && fi.FBMSK == 0xFF000000))){
+					skip = 1; // wall of fog
 			}
 		}
-	}
-	else
-	{
 	}
 
 	return true;

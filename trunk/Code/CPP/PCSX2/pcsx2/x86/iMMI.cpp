@@ -54,7 +54,7 @@ REC_FUNC_DEL( PSLLW, _Rd_ );
 
 void recPLZCW()
 {
-	int regd = -1;
+	//int regd = -1;
 	int regs = 0;
 
 	if ( ! _Rd_ ) return;
@@ -100,12 +100,7 @@ void recPLZCW()
 		regs = 0;
 	}
 
-	if( EEINST_ISLIVE1(_Rd_) )
-		_deleteEEreg(_Rd_, 0);
-	else {
-		if( (regd = _checkMMXreg(MMX_GPR+_Rd_, MODE_WRITE)) < 0 ) 
-			_deleteEEreg(_Rd_, 0);
-	}
+	_deleteEEreg(_Rd_, 0);
 
 	// Count the number of leading bits (MSB) that match the sign bit, excluding the sign
 	// bit itself.
@@ -129,47 +124,36 @@ void recPLZCW()
 	DEC32R(ECX);			// PS2 doesn't count the first bit
 
 	x86SetJ8(label_Zeroed);
-	if( EEINST_ISLIVE1(_Rd_) || regd < 0 ) {
-		MOV32RtoM((uptr)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], ECX);
-	}
-	else {
-		SetMMXstate();
-		MOVD32RtoMMX(regd, ECX);
-	}
+	MOV32RtoM((uptr)&cpuRegs.GPR.r[ _Rd_ ].UL[ 0 ], ECX);
 
 	// second word
 
-	if( EEINST_ISLIVE1(_Rd_) ) {
-		if( regs >= 0 && (regs & MEM_XMMTAG) ) {
-			SSE2_PSHUFD_XMM_to_XMM(regs&0xf, regs&0xf, 0x4e);
-			SSE2_MOVD_XMM_to_R(EAX, regs&0xf);
-			SSE2_PSHUFD_XMM_to_XMM(regs&0xf, regs&0xf, 0x4e);
-		}
-		else if( regs >= 0 && (regs & MEM_MMXTAG) ) {
-			PSHUFWRtoR(regs&0xf, regs&0xf, 0x4e);
-			MOVD32MMXtoR(EAX, regs&0xf);
-			PSHUFWRtoR(regs&0xf, regs&0xf, 0x4e);
-			SetMMXstate();
-		}
-		else MOV32MtoR(EAX, (uptr)&cpuRegs.GPR.r[ _Rs_ ].UL[ 1 ]);
-
-		MOV32ItoR(ECX, 31);
-		TEST32RtoR(EAX, EAX);		// TEST sets the sign flag accordingly.
-		label_notSigned = JNS8(0);
-		NOT32R(EAX);
-		x86SetJ8(label_notSigned);
-
-		BSRRtoR(EAX, EAX);
-		u8* label_Zeroed = JZ8(0);	// If BSR sets the ZF, eax is "trash"
-		SUB32RtoR(ECX, EAX);
-		DEC32R(ECX);			// PS2 doesn't count the first bit
-
-		x86SetJ8(label_Zeroed);
-		MOV32RtoM((uptr)&cpuRegs.GPR.r[ _Rd_ ].UL[ 1 ], ECX);
+	if( regs >= 0 && (regs & MEM_XMMTAG) ) {
+		SSE2_PSHUFD_XMM_to_XMM(regs&0xf, regs&0xf, 0x4e);
+		SSE2_MOVD_XMM_to_R(EAX, regs&0xf);
+		SSE2_PSHUFD_XMM_to_XMM(regs&0xf, regs&0xf, 0x4e);
 	}
-	else {
-		EEINST_RESETHASLIVE1(_Rd_);
+	else if( regs >= 0 && (regs & MEM_MMXTAG) ) {
+		PSHUFWRtoR(regs&0xf, regs&0xf, 0x4e);
+		MOVD32MMXtoR(EAX, regs&0xf);
+		PSHUFWRtoR(regs&0xf, regs&0xf, 0x4e);
+		SetMMXstate();
 	}
+	else MOV32MtoR(EAX, (uptr)&cpuRegs.GPR.r[ _Rs_ ].UL[ 1 ]);
+
+	MOV32ItoR(ECX, 31);
+	TEST32RtoR(EAX, EAX);		// TEST sets the sign flag accordingly.
+	label_notSigned = JNS8(0);
+	NOT32R(EAX);
+	x86SetJ8(label_notSigned);
+
+	BSRRtoR(EAX, EAX);
+	label_Zeroed = JZ8(0);	// If BSR sets the ZF, eax is "trash"
+	SUB32RtoR(ECX, EAX);
+	DEC32R(ECX);			// PS2 doesn't count the first bit
+
+	x86SetJ8(label_Zeroed);
+	MOV32RtoM((uptr)&cpuRegs.GPR.r[ _Rd_ ].UL[ 1 ], ECX);
 
 	GPR_DEL_CONST(_Rd_);
 }
@@ -203,7 +187,6 @@ void recPMFHL()
 
 		case 0x02: // SLW
 			// fall to interp
-			EEINST_SETSIGNEXT(_Rd_);
 			MOV32ItoM( (uptr)&cpuRegs.code, cpuRegs.code );
 			MOV32ItoM( (uptr)&cpuRegs.pc, pc );
 			_flushCachedRegs();
@@ -1726,9 +1709,6 @@ REC_FUNC_DEL( PROT3W, _Rd_ );
 ////////////////////////////////////////////////////
 void recPMADDW()
 {
-	EEINST_SETSIGNEXT(_Rs_);
-	EEINST_SETSIGNEXT(_Rt_);
-	if( _Rd_ ) EEINST_SETSIGNEXT(_Rd_);
 	if( !x86caps.hasStreamingSIMD4Extensions ) {
 		recCall( Interp::PMADDW, _Rd_ );
 		return;
@@ -1777,7 +1757,6 @@ void recPSLLVW()
 {
 	if ( ! _Rd_ ) return;
 
-	EEINST_SETSIGNEXT(_Rd_);
 	int info = eeRecompileCodeXMM( (_Rs_?XMMINFO_READS:0)|(_Rt_?XMMINFO_READT:0)|XMMINFO_WRITED );
 	if( _Rs_ == 0 ) {
 		if( _Rt_ == 0 ) {
@@ -1844,7 +1823,6 @@ void recPSRLVW()
 {
 	if ( ! _Rd_ ) return;
 
-	EEINST_SETSIGNEXT(_Rd_);
 	int info = eeRecompileCodeXMM( (_Rs_?XMMINFO_READS:0)|(_Rt_?XMMINFO_READT:0)|XMMINFO_WRITED );
 	if( _Rs_ == 0 ) {
 		if( _Rt_ == 0 ) {
@@ -1909,9 +1887,6 @@ void recPSRLVW()
 ////////////////////////////////////////////////////
 void recPMSUBW()
 {
-	EEINST_SETSIGNEXT(_Rs_);
-	EEINST_SETSIGNEXT(_Rt_);
-	if( _Rd_ ) EEINST_SETSIGNEXT(_Rd_);
 	if( !x86caps.hasStreamingSIMD4Extensions ) {
 		recCall( Interp::PMSUBW, _Rd_ );
 		return;
@@ -1963,9 +1938,6 @@ void recPMSUBW()
 ////////////////////////////////////////////////////
 void recPMULTW()
 {
-	EEINST_SETSIGNEXT(_Rs_);
-	EEINST_SETSIGNEXT(_Rt_);
-	if( _Rd_ ) EEINST_SETSIGNEXT(_Rd_);
 	if( !x86caps.hasStreamingSIMD4Extensions ) {
 		recCall( Interp::PMULTW, _Rd_ );
 		return;
@@ -2007,8 +1979,6 @@ void recPMULTW()
 ////////////////////////////////////////////////////
 void recPDIVW()
 {
-	EEINST_SETSIGNEXT(_Rs_);
-	EEINST_SETSIGNEXT(_Rt_);
 	recCall( Interp::PDIVW, _Rd_ );
 }
 
@@ -2422,7 +2392,6 @@ void recPSRAVW()
 {
 	if ( ! _Rd_ ) return;
 
-	EEINST_SETSIGNEXT(_Rd_);
 	int info = eeRecompileCodeXMM( (_Rs_?XMMINFO_READS:0)|(_Rt_?XMMINFO_READT:0)|XMMINFO_WRITED );
 	if( _Rs_ == 0 ) {
 		if( _Rt_ == 0 ) {
@@ -2542,9 +2511,6 @@ void recPINTEH()
 ////////////////////////////////////////////////////
 void recPMULTUW()
 {
-	if( _Rd_ ) EEINST_SETSIGNEXT(_Rd_);
-	EEINST_SETSIGNEXT(_Rs_);
-	EEINST_SETSIGNEXT(_Rt_);
 	int info = eeRecompileCodeXMM( (((_Rs_)&&(_Rt_))?XMMINFO_READS:0)|(((_Rs_)&&(_Rt_))?XMMINFO_READT:0)|(_Rd_?XMMINFO_WRITED:0)|XMMINFO_WRITELO|XMMINFO_WRITEHI );
 	if( !_Rs_ || !_Rt_ ) {
 		if( _Rd_ ) SSE2_PXOR_XMM_to_XMM(EEREC_D, EEREC_D);
@@ -2591,9 +2557,6 @@ void recPMULTUW()
 ////////////////////////////////////////////////////
 void recPMADDUW()
 {
-	if( _Rd_ ) EEINST_SETSIGNEXT(_Rd_);
-	EEINST_SETSIGNEXT(_Rs_);
-	EEINST_SETSIGNEXT(_Rt_);
 	int info = eeRecompileCodeXMM( (((_Rs_)&&(_Rt_))?XMMINFO_READS:0)|(((_Rs_)&&(_Rt_))?XMMINFO_READT:0)|(_Rd_?XMMINFO_WRITED:0)|XMMINFO_WRITELO|XMMINFO_WRITEHI|XMMINFO_READLO|XMMINFO_READHI );
 	SSE_SHUFPS_XMM_to_XMM(EEREC_LO, EEREC_HI, 0x88);
 	SSE2_PSHUFD_XMM_to_XMM(EEREC_LO, EEREC_LO, 0xd8); // LO = {LO[0], HI[0], LO[2], HI[2]}
@@ -2643,11 +2606,8 @@ void recPMADDUW()
 }
 
 ////////////////////////////////////////////////////
-//do EEINST_SETSIGNEXT
 void recPDIVUW()
 {
-	EEINST_SETSIGNEXT(_Rs_);
-	EEINST_SETSIGNEXT(_Rt_);
 	recCall( Interp::PDIVUW, _Rd_ );
 }
 

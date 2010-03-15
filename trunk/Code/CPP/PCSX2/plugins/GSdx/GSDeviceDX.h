@@ -170,12 +170,13 @@ public:
 				uint32 aout:1;
 				uint32 rt:1;
 				uint32 ltf:1;
+				uint32 colclip:2;
 			};
 
 			uint32 key;
 		};
 
-		operator uint32() {return key & 0x3fffff;}
+		operator uint32() {return key & 0xffffff;}
 
 		PSSelector() : key(0) {}
 	};
@@ -234,6 +235,7 @@ public:
 				uint32 wg:1;
 				uint32 wb:1;
 				uint32 wa:1;
+				uint32 negative:1;
 			};
 
 			struct
@@ -246,7 +248,7 @@ public:
 			uint32 key;
 		};
 
-		operator uint32() {return key & 0x1fff;}
+		operator uint32() {return key & 0x3fff;}
 
 		OMBlendSelector() : key(0) {}
 

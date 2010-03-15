@@ -26,10 +26,13 @@
 
 #pragma once
 
-#define PLUGIN_VERSION 15
+#define PLUGIN_VERSION 16
 
 #define MAX_PAGES 512
 #define MAX_BLOCKS 16384
+
+//#define DISABLE_BITMASKING
+//#define DISABLE_COLCLAMP
 
 #include "GSVector.h"
 

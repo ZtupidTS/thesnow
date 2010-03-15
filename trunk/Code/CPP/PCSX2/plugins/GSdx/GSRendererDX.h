@@ -29,7 +29,7 @@ class GSRendererDX : public GSRendererHW<Vertex>
 	GSVector2 m_pixelcenter;
 	bool m_logz;
 	bool m_fba;
-	bool UserHacks_HalfPixelOffset;
+	//bool UserHacks_HalfPixelOffset;
 	bool UserHacks_AlphaHack;
 
 protected:
@@ -45,7 +45,7 @@ public:
 	{
 		m_logz = !!theApp.GetConfig("logz", 0);
 		m_fba = !!theApp.GetConfig("fba", 1);
-		UserHacks_HalfPixelOffset = !!theApp.GetConfig("UserHacks_HalfPixelOffset", 0);
+		//UserHacks_HalfPixelOffset = !!theApp.GetConfig("UserHacks_HalfPixelOffset", 0);
 		UserHacks_AlphaHack = !!theApp.GetConfig("UserHacks_AlphaHack", 0);
 	}
 
@@ -202,14 +202,16 @@ public:
 		//
 		//The resulting shifted output aligns better with common blending / corona / blurring effects,
 		//but introduces a few bad pixels on the edges.
-		if (UserHacks_HalfPixelOffset == true)
-		{
-			//DX9 has pixelcenter set to 0.0, so give it some value here
-			if (m_pixelcenter.x == 0 && m_pixelcenter.y == 0) { ox2 = oy2 = -0.00035f; } 
-			
-			if (ox != 0) { ox2 *= upscale_Multiplier(); }
-			if (oy != 0) { oy2 *= upscale_Multiplier(); } 
-		}
+		
+		// Edit: Moved to CreateSource() in GSTextureCache.cpp
+		//if (UserHacks_HalfPixelOffset == true)
+		//{
+		//	//DX9 has pixelcenter set to 0.0, so give it some value here
+		//	if (m_pixelcenter.x == 0 && m_pixelcenter.y == 0) { ox2 = oy2 = -0.00035f; } 
+		//	
+		//	if (ox != 0) { ox2 *= upscale_Multiplier(); }
+		//	if (oy != 0) { oy2 *= upscale_Multiplier(); } 
+		//}
 		
 		vs_cb.VertexScale  = GSVector4(sx, -sy, 1.0f / UINT_MAX, 0.0f);
 		vs_cb.VertexOffset = GSVector4(ox * sx + ox2 + 1, -(oy * sy + oy2 + 1), 0.0f, -1.0f);
@@ -225,6 +227,10 @@ public:
 		GSDeviceDX::PSSelector ps_sel;
 		GSDeviceDX::PSSamplerSelector ps_ssel;
 		GSDeviceDX::PSConstantBuffer ps_cb;
+
+		if (env.COLCLAMP.CLAMP == 0) {
+			ps_sel.colclip = 1;
+		}
 
 		ps_sel.clr1 = om_bsel.IsCLR1();
 		ps_sel.fba = context->FBA.FBA;
@@ -325,6 +331,20 @@ public:
 		if(context->TEST.DoFirstPass())
 		{
 			dev.DrawPrimitive();
+
+			if (env.COLCLAMP.CLAMP == 0)
+			{
+				GSDeviceDX::OMBlendSelector om_bselneg(om_bsel);
+				GSDeviceDX::PSSelector ps_selneg(ps_sel);
+
+				om_bselneg.negative = 1;
+				ps_selneg.colclip = 2;
+
+				dev.SetupOM(om_dssel, om_bselneg, afix);
+				dev.SetupPS(ps_selneg, &ps_cb, ps_ssel);
+
+				dev.DrawPrimitive();
+			}
 		}
 
 		if(context->TEST.DoSecondPass())
@@ -376,6 +396,20 @@ public:
 				dev.SetupOM(om_dssel, om_bsel, afix);
 
 				dev.DrawPrimitive();
+
+				if (env.COLCLAMP.CLAMP == 0)
+				{
+					GSDeviceDX::OMBlendSelector om_bselneg(om_bsel);
+					GSDeviceDX::PSSelector ps_selneg(ps_sel);
+
+					om_bselneg.negative = 1;
+					ps_selneg.colclip = 2;
+
+					dev.SetupOM(om_dssel, om_bselneg, afix);
+					dev.SetupPS(ps_selneg, &ps_cb, ps_ssel);
+
+					dev.DrawPrimitive();
+				}
 			}
 		}
 
