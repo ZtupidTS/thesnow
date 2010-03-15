@@ -1,0 +1,32 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual Studio 2008
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FastCopy", "FastCopy\FastCopy.vcproj", "{CA51FCE1-ADF4-4B85-9611-832FC13D12EF}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ShellExt", "ShellExt\ShellExt.vcproj", "{90515D79-B774-42CA-831E-DCDB43F007E8}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Install", "Install\Install.vcproj", "{76030811-83B9-4F09-8E21-98F2E04D4CB8}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{CA51FCE1-ADF4-4B85-9611-832FC13D12EF}.Debug|Win32.ActiveCfg = Debug|Win32
+		{CA51FCE1-ADF4-4B85-9611-832FC13D12EF}.Debug|Win32.Build.0 = Debug|Win32
+		{CA51FCE1-ADF4-4B85-9611-832FC13D12EF}.Release|Win32.ActiveCfg = Release|Win32
+		{CA51FCE1-ADF4-4B85-9611-832FC13D12EF}.Release|Win32.Build.0 = Release|Win32
+		{90515D79-B774-42CA-831E-DCDB43F007E8}.Debug|Win32.ActiveCfg = Debug|Win32
+		{90515D79-B774-42CA-831E-DCDB43F007E8}.Debug|Win32.Build.0 = Debug|Win32
+		{90515D79-B774-42CA-831E-DCDB43F007E8}.Release|Win32.ActiveCfg = Release|Win32
+		{90515D79-B774-42CA-831E-DCDB43F007E8}.Release|Win32.Build.0 = Release|Win32
+		{76030811-83B9-4F09-8E21-98F2E04D4CB8}.Debug|Win32.ActiveCfg = Debug|Win32
+		{76030811-83B9-4F09-8E21-98F2E04D4CB8}.Debug|Win32.Build.0 = Debug|Win32
+		{76030811-83B9-4F09-8E21-98F2E04D4CB8}.Release|Win32.ActiveCfg = Release|Win32
+		{76030811-83B9-4F09-8E21-98F2E04D4CB8}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
