@@ -71,7 +71,7 @@ static bool IsArrowCharacter(char ch) {
 
 // We ignore tabs unless a tab width has been set.
 //是不是tab字符
-bool CallTip::IsTabCharacter(char ch) {
+bool CallTip::IsTabCharacter(char ch) const {
 	return (tabSize > 0) && (ch == '\t');
 }
 //下一个tab坐标

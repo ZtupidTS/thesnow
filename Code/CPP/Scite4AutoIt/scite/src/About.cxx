@@ -1,6 +1,3 @@
-
-#include "About.h"
-
 // SciTE - Scintilla based Text Editor
 /** @file SciTEBase.cxx
  ** Platform independent base class of editor.
@@ -16,7 +13,7 @@
 #include <stdarg.h>
 #include <sys/stat.h>
 #include <time.h>
-
+#include "About.h"
 #ifdef _MSC_VER
 #pragma warning(disable: 4786)
 #endif
@@ -24,9 +21,9 @@
 #include <string>
 #include <map>
 
-#include "Platform.h"
 
-#if PLAT_WIN
+#if !defined(GTK)
+#define _WIN32_WINNT  0x0500
 #ifdef _MSC_VER
 // windows.h, et al, use a lot of nameless struct/unions - can't fix it, so allow it
 #pragma warning(disable: 4201)
@@ -43,22 +40,20 @@
 #endif
 #endif
 
-#include "SciTE.h"
-#include "PropSet.h"
+#include "Scintilla.h"
+#include "SciLexer.h"
+
+#include "GUI.h"
 #include "SString.h"
 #include "StringList.h"
-//#include "Accessor.h"
-//#include "WindowAccessor.h"
-#include "Scintilla.h"
-#include "ScintillaWidget.h"
-#include "SciLexer.h"
-#include "Extender.h"
 #include "FilePath.h"
 #include "PropSetFile.h"
+#include "StyleWriter.h"
+#include "Extender.h"
+#include "SciTE.h"
 #include "Mutex.h"
 #include "JobQueue.h"
 #include "SciTEBase.h"
-
 
 // 捐助者名称(UTF-8编码)
 const char *contributors[] = {
@@ -84,7 +79,7 @@ const char *contributors[] = {
             "Ahmad Baitalmal",
             "Paul Winwood",
             "Maxim Baranov",
-#if PLAT_GTK
+#if defined(GTK)
             "Icons Copyright(C) 1998 by Dean S. Jones",
             "    http://jfa.javalobby.org/projects/icons/",
 #endif
@@ -306,34 +301,38 @@ const char *contributors[] = {
             "Jon Strait",
             "Oliver Kiddle",
             "Etienne Girondel",
+            "Haimag Ren",
         };
 
 // AddStyledText only called from About so static size buffer is OK
-void AddStyledText(WindowID hwnd, const char *s, int attr) {
+void AddStyledText(GUI::ScintillaWindow &wsci, const char *s, int attr) {
 	char buf[1000];
 	size_t len = strlen(s);
 	for (size_t i = 0; i < len; i++) {
 		buf[i*2] = s[i];
 		buf[i*2 + 1] = static_cast<char>(attr);
 	}
-	Platform::SendScintillaPointer(hwnd, SCI_ADDSTYLEDTEXT,
+	wsci.SendPointer(SCI_ADDSTYLEDTEXT,
 	        static_cast<int>(len*2), const_cast<char *>(buf));
 }
 
 // AddStyledText only called from About so static size buffer is OK
-void AddStyledText(WindowID hwnd, const wchar_t *s, int attr) {		//added
+void AddStyledText(GUI::ScintillaWindow &wsci, const wchar_t *s, int attr) {		//added
 	wchar_t buf[1000];
 	size_t len = wcslen(s);
 	for (size_t i = 0; i < len; i++) {
 		buf[i*2] = s[i];
 		buf[i*2 + 1] = static_cast<wchar_t>(attr);
 	}
-	Platform::SendScintillaPointer(hwnd, SCI_ADDSTYLEDTEXT,
+	wsci.SendPointer(SCI_ADDSTYLEDTEXT,
 	        static_cast<int>(len*2), const_cast<wchar_t *>(buf));
 }
 
+void SetAboutStyle(GUI::ScintillaWindow &wsci, int style, Colour fore) {
+	wsci.Send(SCI_STYLESETFORE, style, fore);
+}
 
-#if PLAT_WIN
+#if !defined(GTK)
 static unsigned int UTF8Length(const wchar_t *uptr, unsigned int tlen) {
 	unsigned int len = 0;
 	for (unsigned int i = 0; i < tlen && uptr[i]; i++) {
@@ -367,12 +366,8 @@ static void UTF8FromUCS2(const wchar_t *uptr, unsigned int tlen, char *putf, uns
 }
 #endif
 
-void SetAboutStyle(WindowID wsci, int style, ColourDesired fore) {
-	Platform::SendScintilla(wsci, SCI_STYLESETFORE, style, fore.AsLong());
-}
-
 SString SciTEBase::GetTranslationToAbout(const char * const propname, bool retainIfNotFound) {
-#if PLAT_WIN
+#if !defined(GTK)
 	// By code below, all translators can write their name in their own
 	// language in locale.properties on Windows.
 	SString result = localiser.Text(propname, retainIfNotFound);
@@ -411,66 +406,60 @@ static void HackColour(int &n) {
 		n = 0x80;
 }
 
-void SciTEBase::SetAboutMessage(WindowID wsci, const char *appTitle) {
-	if (wsci) {
-		Platform::SendScintilla(wsci, SCI_SETSTYLEBITS, 7, 0);
-		Platform::SendScintilla(wsci, SCI_STYLERESETDEFAULT, 0, 0);
+void SciTEBase::SetAboutMessage(GUI::ScintillaWindow &wsci, const char *appTitle) {
+	if (wsci.Created()) {
+		wsci.Send(SCI_SETSTYLEBITS, 7, 0);
+		wsci.Send(SCI_STYLERESETDEFAULT, 0, 0);
 		int fontSize = 15;
-#if PLAT_GTK
-#if GTK_MAJOR_VERSION == 1
-		// On GTK+ 1.x, try a font set that may allow unicode display
-		Platform::SendScintilla(wsci, SCI_STYLESETFONT, STYLE_DEFAULT,
-		        reinterpret_cast<uptr_t>("misc-fixed-iso10646-1,*"));
-#else
-		Platform::SendScintilla(wsci, SCI_STYLESETFONT, STYLE_DEFAULT,
+#if defined(GTK)
+		wsci.Send(SCI_STYLESETFONT, STYLE_DEFAULT,
 		        reinterpret_cast<uptr_t>("!Serif"));
-#endif
 		fontSize = 14;
 #endif
 
-		Platform::SendScintilla(wsci, SCI_SETCODEPAGE, SC_CP_UTF8, 0);
+		wsci.Send(SCI_SETCODEPAGE, SC_CP_UTF8, 0);
 
-		Platform::SendScintilla(wsci, SCI_STYLESETSIZE, STYLE_DEFAULT, fontSize);
-		Platform::SendScintilla(wsci, SCI_STYLESETBACK, STYLE_DEFAULT, ColourDesired(0xff, 0xff, 0xff).AsLong());
-		Platform::SendScintilla(wsci, SCI_STYLECLEARALL, 0, 0);
+		wsci.Send(SCI_STYLESETSIZE, STYLE_DEFAULT, fontSize);
+		wsci.Send(SCI_STYLESETBACK, STYLE_DEFAULT, ColourRGB(0xff, 0xff, 0xff));
+		wsci.Send(SCI_STYLECLEARALL, 0, 0);
 
-		SetAboutStyle(wsci, 0, ColourDesired(0xff, 0xff, 0xff));
-		Platform::SendScintilla(wsci, SCI_STYLESETSIZE, 0, fontSize);
-		Platform::SendScintilla(wsci, SCI_STYLESETBACK, 0, ColourDesired(0, 0, 0x80).AsLong());
+		SetAboutStyle(wsci, 0, ColourRGB(0xff, 0xff, 0xff));
+		wsci.Send(SCI_STYLESETSIZE, 0, fontSize);
+		wsci.Send(SCI_STYLESETBACK, 0, ColourRGB(0, 0, 0x80));
 		AddStyledText(wsci, appTitle, 0);
 		AddStyledText(wsci, "\n", 0);
-		SetAboutStyle(wsci, 1, ColourDesired(0, 0, 0));
+		SetAboutStyle(wsci, 1, ColourRGB(0, 0, 0));
 		int trsSty = 5; // define the stylenumber to assign font for translators.
 		SString translator = GetTranslationToAbout("TranslationCredit", false);
-		SetAboutStyle(wsci, trsSty, ColourDesired(0, 0, 0));
-#if PLAT_WIN
+		SetAboutStyle(wsci, trsSty, ColourRGB(0, 0, 0));
+#if !defined(GTK)
 		// On Windows Me (maybe 9x also), we must assign another font to display translation.
 		if (translator.length()) {
 			SString fontBase = props.GetExpanded("font.translators");
 			StyleDefinition sd(fontBase.c_str());
 			if (sd.specified & StyleDefinition::sdFont) {
-				Platform::SendScintilla(wsci, SCI_STYLESETFONT, trsSty,
+				wsci.Send(SCI_STYLESETFONT, trsSty,
 				        reinterpret_cast<uptr_t>(sd.font.c_str()));
 			}
 			if (sd.specified & StyleDefinition::sdSize) {
-				Platform::SendScintilla(wsci, SCI_STYLESETSIZE, trsSty, sd.size);
+				wsci.Send(SCI_STYLESETSIZE, trsSty, sd.size);
 			}
 		}
 #endif
 		AddStyledText(wsci, GetTranslationToAbout("汉化增强版本").c_str(), trsSty);
 		AddStyledText(wsci, " 2.03\n", 1);
 		AddStyledText(wsci, " Build On: " __DATE__ " " __TIME__ "\n", 1);
-		SetAboutStyle(wsci, 2, ColourDesired(0, 0, 0));
-		Platform::SendScintilla(wsci, SCI_STYLESETITALIC, 2, 1);
+		SetAboutStyle(wsci, 2, ColourRGB(0, 0, 0));
+		wsci.Send(SCI_STYLESETITALIC, 2, 1);
 		AddStyledText(wsci, GetTranslationToAbout("by").c_str(), trsSty);
 		AddStyledText(wsci, " Neil Hodgson.\n", 2);
-		SetAboutStyle(wsci, 3, ColourDesired(0, 0, 0));
+		SetAboutStyle(wsci, 3, ColourRGB(0, 0, 0));
 		AddStyledText(wsci, "December 1998-February 2010.\n", 3);
-		SetAboutStyle(wsci, 4, ColourDesired(0, 0x7f, 0x7f));
+		SetAboutStyle(wsci, 4, ColourRGB(0, 0x7f, 0x7f));
 		AddStyledText(wsci, "http://www.scintilla.org\n", 4);
 		AddStyledText(wsci, "Lua scripting language by TeCGraf, PUC-Rio\n", 3);
 		AddStyledText(wsci, "    http://www.lua.org\n", 4);
-		SetAboutStyle(wsci, 5, ColourDesired(0, 0, 0));
+		SetAboutStyle(wsci, 5, ColourRGB(0, 0, 0));
 		AddStyledText(wsci, "This Chinese version by thesnoW\n", 3);
 #ifdef AUTOIT
 		AddStyledText(wsci, "    http://www.AutoitX.com\n", 4);
@@ -495,9 +484,9 @@ void SciTEBase::SetAboutMessage(WindowID wsci, const char *appTitle) {
 			HackColour(r);
 			HackColour(g);
 			HackColour(b);
-			SetAboutStyle(wsci, sty + 50, ColourDesired(r, g, b));
+			SetAboutStyle(wsci, sty + 50, ColourRGB(r, g, b));
 		}
-		Platform::SendScintilla(wsci, SCI_SETREADONLY, 1, 0);
+		wsci.Send(SCI_SETREADONLY, 1, 0);
 	}
 }
 

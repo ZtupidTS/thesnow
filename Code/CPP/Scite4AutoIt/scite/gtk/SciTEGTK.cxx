@@ -20,8 +20,6 @@
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
 
-#include "Platform.h"
-
 #include <unistd.h>
 #include <glib.h>
 #include <signal.h>
@@ -29,39 +27,39 @@
 #include <sys/types.h>
 #include <errno.h>
 
-#include "SciTE.h"
-#include "PropSet.h"
-#include "SString.h"
-#include "StringList.h"
-#include "Accessor.h"
 #include "Scintilla.h"
 #include "ScintillaWidget.h"
-#include "Extender.h"
+
+#include "GUI.h"
+#include "SString.h"
+#include "StringList.h"
 #include "FilePath.h"
 #include "PropSetFile.h"
-#include "Mutex.h"
-#include "JobQueue.h"
-#include "SciTEBase.h"
-#include "SciTEKeys.h"
+
+#include "Extender.h"
 
 #ifndef NO_EXTENSIONS
 #include "MultiplexExtension.h"
-
-#ifndef NO_LUA
-#include "LuaExtension.h"
-#endif
 
 #ifndef NO_FILER
 #include "DirectorExtension.h"
 #endif
 
+#ifndef NO_LUA
+#include "LuaExtension.h"
 #endif
 
+#endif
+
+#include "SciTE.h"
+#include "Mutex.h"
+#include "JobQueue.h"
 #include "pixmapsGNOME.h"
 #include "SciIcon.h"
+#include "SciTEBase.h"
+#include "SciTEKeys.h"
 
 #if GTK_MAJOR_VERSION >= 2
-#if !PLAT_GTK_WIN32
 #define ENCODE_TRANSLATION
 #include <iconv.h>
 // Since various versions of iconv can not agree on whether the src argument
@@ -73,7 +71,6 @@ size_t iconv_adaptor(size_t(*f_iconv)(iconv_t, T, size_t *, char **, size_t *),
 	return f_iconv(cd, (T)src, srcleft, dst, dstleft);
 }
 #endif
-#endif
 
 #define MB_ABOUTBOX	0x100000L
 
@@ -83,7 +80,7 @@ const char appName[] = "SciTE"; 			//应用程序名称
 char g_modulePath[MAX_PATH];				//模块路径
 #endif
 
-static GtkWidget *PWidget(Window &w) {
+static GtkWidget *PWidget(GUI::Window &w) {
 	return reinterpret_cast<GtkWidget *>(w.GetID());
 }
 
@@ -120,7 +117,7 @@ public:
 	}
 };
 //类对话框  公共窗口
-class Dialog : public Window {
+class Dialog : public GUI::Window {
 public:
 	Dialog() : app(0), dialogCanceled(true), accel_group(0), localiser(0) {}
 	void Create(SciTEGTK *app_, const char *title, Localization *localiser_, bool resizable=true) {
@@ -317,14 +314,14 @@ class SciTEGTK : public SciTEBase {
 
 protected:
 
-	Window wDivider;
-	Point ptOld;
+	GUI::Window wDivider;
+	GUI::Point ptOld;
 	GdkGC *xor_gc;
 	bool focusEditor;
 	bool focusOutput;
 
 	guint sbContextID;
-	Window wToolBarBox;
+	GUI::Window wToolBarBox;
 	int toolbarDetachable;
 	int menuSource;
 
@@ -338,7 +335,7 @@ protected:
 	int exitStatus;
 	guint pollID;
 	int inputHandle;
-	ElapsedTime commandTime;
+	GUI::ElapsedTime commandTime;
 
 	// For single instance
 	guint32 startupTimestamp;
@@ -423,9 +420,9 @@ protected:
 	virtual void Print(bool);
 	virtual void PrintSetup();
 
-	virtual SString GetRangeInUIEncoding(Window &wCurrent, int selStart, int selEnd);
+	virtual SString GetRangeInUIEncoding(GUI::ScintillaWindow &wCurrent, int selStart, int selEnd);
 
-	virtual int WindowMessageBox(Window &w, const SString &msg, int style);
+	virtual int WindowMessageBox(GUI::Window &w, const SString &msg, int style);
 	virtual void FindMessageBox(const SString &msg, const SString *findItem=0);
 	virtual void AboutDialog();
 	virtual void QuitProgram();
@@ -513,7 +510,7 @@ protected:
 	static gint MousePress(GtkWidget *widget, GdkEventButton *event, SciTEGTK *scitew);
 	gint Mouse(GdkEventButton *event);
 
-	void DividerXOR(Point pt);
+	void DividerXOR(GUI::Point pt);
 	static gint DividerExpose(GtkWidget *widget, GdkEventExpose *ose, SciTEGTK *scitew);
 	static gint DividerMotion(GtkWidget *widget, GdkEventMotion *event, SciTEGTK *scitew);
 	static gint DividerPress(GtkWidget *widget, GdkEventButton *event, SciTEGTK *scitew);
@@ -588,7 +585,7 @@ SciTEGTK::SciTEGTK(Extension *ext) : SciTEBase(ext) {
 	ReadGlobalPropFile();
 	ReadAbbrevPropFile();
 
-	ptOld = Point(0, 0);
+	ptOld = GUI::Point(0, 0);
 	xor_gc = 0;
 	saveFormat = sfSource;
 	comboFiles = 0;
@@ -625,7 +622,7 @@ SciTEGTK::~SciTEGTK() {}
 
 static void destroyDialog(GtkWidget *, gpointer *window) {
 	if (window) {
-		Window *pwin = reinterpret_cast<Window *>(window);
+		GUI::Window *pwin = reinterpret_cast<GUI::Window *>(window);
 		*(pwin) = 0;
 	}
 }
@@ -947,7 +944,7 @@ void SciTEGTK::ReadPropertiesInitial() {
 void SciTEGTK::ReadProperties() {
 	SciTEBase::ReadProperties();
 
-	SendChildren(SCI_SETRECTANGULARSELECTIONMODIFIER, 
+	CallChildren(SCI_SETRECTANGULARSELECTIONMODIFIER,
 		props.GetInt("rectangular.selection.modifier", SCMOD_CTRL));
 
 	CheckMenus();
@@ -963,7 +960,7 @@ void SciTEGTK::GetWindowPosition(int *left, int *top, int *width, int *height, i
 }
 
 void SciTEGTK::SizeContentWindows() {
-	PRectangle rcClient = GetClientRectangle();
+	GUI::Rectangle rcClient = GetClientRectangle();
 #if GTK_MAJOR_VERSION < 2
 	int left = 0;
 	int top = 0;
@@ -975,13 +972,13 @@ void SciTEGTK::SizeContentWindows() {
 	int h = rcClient.bottom - rcClient.top;
 	heightOutput = NormaliseSplit(heightOutput);
 	if (splitVertical) {
-		wEditor.SetPosition(PRectangle(left, top, w - heightOutput - heightBar + left, h + top));
-		wDivider.SetPosition(PRectangle(w - heightOutput - heightBar + left, top, w - heightOutput + left, h + top));
-		wOutput.SetPosition(PRectangle(w - heightOutput + left, top, w + left, h + top));
+		wEditor.SetPosition(GUI::Rectangle(left, top, w - heightOutput - heightBar + left, h + top));
+		wDivider.SetPosition(GUI::Rectangle(w - heightOutput - heightBar + left, top, w - heightOutput + left, h + top));
+		wOutput.SetPosition(GUI::Rectangle(w - heightOutput + left, top, w + left, h + top));
 	} else {
-		wEditor.SetPosition(PRectangle(left, top, w + left, h - heightOutput - heightBar + top));
-		wDivider.SetPosition(PRectangle(left, h - heightOutput - heightBar + top, w + left, h - heightOutput + top));
-		wOutput.SetPosition(PRectangle(left, h - heightOutput + top, w + left, h + top));
+		wEditor.SetPosition(GUI::Rectangle(left, top, w + left, h - heightOutput - heightBar + top));
+		wDivider.SetPosition(GUI::Rectangle(left, h - heightOutput - heightBar + top, w + left, h - heightOutput + top));
+		wOutput.SetPosition(GUI::Rectangle(left, h - heightOutput + top, w + left, h + top));
 	}
 }
 
@@ -1056,15 +1053,12 @@ void SciTEGTK::CheckAMenuItem(int wIDCheckItem, bool val) {
 	allowMenuActions = false;
 	if (item)
 		gtk_check_menu_item_set_state(GTK_CHECK_MENU_ITEM(item), val ? TRUE : FALSE);
-	//else
-	//	Platform::DebugPrintf("Could not find %x\n", wIDCheckItem);
 	allowMenuActions = true;
 }
 
 void SciTEGTK::EnableAMenuItem(int wIDCheckItem, bool val) {
 	GtkWidget *item = gtk_item_factory_get_widget_by_action(itemFactory, wIDCheckItem);
 	if (item) {
-		//Platform::DebugPrintf("Set %d to %d\n", wIDCheckItem, val);
 		if (GTK_IS_WIDGET(item))
 			gtk_widget_set_sensitive(item, val);
 	}
@@ -1073,9 +1067,9 @@ void SciTEGTK::EnableAMenuItem(int wIDCheckItem, bool val) {
 void SciTEGTK::CheckMenus() {
 	SciTEBase::CheckMenus();
 
-	CheckAMenuItem(IDM_EOL_CRLF, SendEditor(SCI_GETEOLMODE) == SC_EOL_CRLF);
-	CheckAMenuItem(IDM_EOL_CR, SendEditor(SCI_GETEOLMODE) == SC_EOL_CR);
-	CheckAMenuItem(IDM_EOL_LF, SendEditor(SCI_GETEOLMODE) == SC_EOL_LF);
+	CheckAMenuItem(IDM_EOL_CRLF, wEditor.Call(SCI_GETEOLMODE) == SC_EOL_CRLF);
+	CheckAMenuItem(IDM_EOL_CR, wEditor.Call(SCI_GETEOLMODE) == SC_EOL_CR);
+	CheckAMenuItem(IDM_EOL_LF, wEditor.Call(SCI_GETEOLMODE) == SC_EOL_LF);
 
 	CheckAMenuItem(IDM_ENCODING_DEFAULT, CurrentBuffer()->unicodeMode == uni8Bit);
 	CheckAMenuItem(IDM_ENCODING_UCS2BE, CurrentBuffer()->unicodeMode == uni16BE);
@@ -1384,13 +1378,12 @@ void SciTEGTK::PrintSetup() {
 	// Printing not yet supported on GTK+
 }
 
-SString SciTEGTK::GetRangeInUIEncoding(Window &win, int selStart, int selEnd) {
+SString SciTEGTK::GetRangeInUIEncoding(GUI::ScintillaWindow &win, int selStart, int selEnd) {
 	int len = selEnd - selStart;
 	SBuffer allocation(len * 3);
-	Platform::SendScintilla(win.GetID(), SCI_SETTARGETSTART, selStart);
-	Platform::SendScintilla(win.GetID(), SCI_SETTARGETEND, selEnd);
-	int byteLength = Platform::SendScintillaPointer(
-		win.GetID(), SCI_TARGETASUTF8, 0, allocation.ptr());
+	win.Call(SCI_SETTARGETSTART, selStart);
+	win.Call(SCI_SETTARGETEND, selEnd);
+	int byteLength = win.Call(SCI_TARGETASUTF8, 0, reinterpret_cast<sptr_t>(allocation.ptr()));
 	SString sel(allocation);
 	sel.remove(byteLength, 0);
 	return sel;
@@ -1436,11 +1429,11 @@ static void FillComboFromMemory(GtkWidget *combo, const ComboMemory &mem, bool u
 }
 
 SString SciTEGTK::EncodeString(const SString &s) {
-	Platform::SendScintilla(PWidget(wEditor), SCI_SETLENGTHFORENCODE, s.length(), 0);
-	int len = Platform::SendScintillaPointer(PWidget(wEditor), SCI_ENCODEDFROMUTF8,
+	wEditor.Call(SCI_SETLENGTHFORENCODE, s.length());
+	int len = wEditor.Call(SCI_ENCODEDFROMUTF8,
 		reinterpret_cast<uptr_t>(s.c_str()), 0);
 	SBuffer ret(len);
-	Platform::SendScintillaPointer(PWidget(wEditor), SCI_ENCODEDFROMUTF8,
+	wEditor.CallString(SCI_ENCODEDFROMUTF8,
 		reinterpret_cast<uptr_t>(s.c_str()), ret.ptr());
 	return SString(ret);
 }
@@ -1762,7 +1755,7 @@ void SciTEGTK::ContinueExecute(int fromPoll) {
 		// Move selection back to beginning of this run so that F4 will go
 		// to first error of this run.
 		if ((scrollOutput == 1) && returnOutputToCommand)
-			SendOutput(SCI_GOTOPOS, originalEnd);
+			wOutput.Send(SCI_GOTOPOS, originalEnd);
 		returnOutputToCommand = true;
 		gdk_input_remove(inputHandle);
 		inputHandle = 0;
@@ -1809,8 +1802,8 @@ void SciTEGTK::Execute() {
 
 	commandTime.Duration(true);
 	if (scrollOutput)
-		SendOutput(SCI_GOTOPOS, SendOutput(SCI_GETTEXTLENGTH));
-	originalEnd = SendOutput(SCI_GETCURRENTPOS);
+		wOutput.Send(SCI_GOTOPOS, wOutput.Send(SCI_GETTEXTLENGTH));
+	originalEnd = wOutput.Send(SCI_GETCURRENTPOS);
 
 	if (jobQueue.jobQueue[icmd].jobType != jobExtension) {
 		OutputAppendString(">");
@@ -1897,12 +1890,12 @@ bool SciTEGTK::AbbrevDialog() { return false; }
 void SciTEGTK::TabSizeSet(int &tabSize, bool &useTabs) {
 	tabSize = EntryValue(entryTabSize);
 	if (tabSize > 0)
-		SendEditor(SCI_SETTABWIDTH, tabSize);
+		wEditor.Call(SCI_SETTABWIDTH, tabSize);
 	int indentSize = EntryValue(entryIndentSize);
 	if (indentSize > 0)
-		SendEditor(SCI_SETINDENT, indentSize);
+		wEditor.Call(SCI_SETINDENT, indentSize);
 	useTabs = GTK_TOGGLE_BUTTON(toggleUseTabs)->active;
-	SendEditor(SCI_SETUSETABS, useTabs);
+	wEditor.Call(SCI_SETUSETABS, useTabs);
 }
 
 void SciTEGTK::TabSizeCmd() {
@@ -1935,17 +1928,17 @@ void SciTEGTK::TabSizeDialog() {
 	static Signal<&SciTEGTK::TabSizeCmd> sigTabSize;
 	dlgTabSize.OnActivate(entryTabSize, sigTabSize.Function);
 	gtk_widget_grab_focus(GTK_WIDGET(entryTabSize));
-	SString tabSize(SendEditor(SCI_GETTABWIDTH));
+	SString tabSize(wEditor.Call(SCI_GETTABWIDTH));
 	gtk_entry_set_text(GTK_ENTRY(entryTabSize), tabSize.c_str());
 
 	table.Label(TranslatedLabel("_Indent Size:"));
 	entryIndentSize = gtk_entry_new();
 	table.Add(entryIndentSize);
 	dlgTabSize.OnActivate(entryIndentSize, sigTabSize.Function);
-	SString indentSize(SendEditor(SCI_GETINDENT));
+	SString indentSize(wEditor.Call(SCI_GETINDENT));
 	gtk_entry_set_text(GTK_ENTRY(entryIndentSize), indentSize.c_str());
 
-	bool useTabs = SendEditor(SCI_GETUSETABS);
+	bool useTabs = wEditor.Call(SCI_GETUSETABS);
 	toggleUseTabs = dlgTabSize.Toggle("_Use Tabs", useTabs);
 	table.Add();
 	table.Add(toggleUseTabs);
@@ -2149,7 +2142,7 @@ void SciTEGTK::DestroyFindReplace() {
 	dlgFindReplace.Destroy();
 }
 
-int SciTEGTK::WindowMessageBox(Window &w, const SString &msg, int style) {
+int SciTEGTK::WindowMessageBox(GUI::Window &w, const SString &msg, int style) {
 	if (!messageBoxDialog) {
 		dialogsOnScreen++;
 		GtkAccelGroup *accel_group = gtk_accel_group_new();
@@ -2180,12 +2173,14 @@ int SciTEGTK::WindowMessageBox(Window &w, const SString &msg, int style) {
 
 		if (style & MB_ABOUTBOX) {
 			GtkWidget *explanation = scintilla_new();
+			GUI::ScintillaWindow scExplanation;
+			scExplanation.SetID(explanation);
 			scintilla_set_id(SCINTILLA(explanation), 0);
 			gtk_box_pack_start(GTK_BOX(GTK_DIALOG(messageBoxDialog)->vbox),
 			                   explanation, TRUE, TRUE, 0);
 			gtk_widget_set_usize(GTK_WIDGET(explanation), 480, 380);
 			gtk_widget_show_all(explanation);
-			SetAboutMessage(explanation, "SciTE");
+			SetAboutMessage(scExplanation, "SciTE");
 		} else {
 			GtkWidget *label = gtk_label_new(msg.c_str());
 			gtk_misc_set_padding(GTK_MISC(label), 10, 10);
@@ -2231,7 +2226,6 @@ void SciTEGTK::QuitProgram() {
 }
 
 gint SciTEGTK::MoveResize(GtkWidget *, GtkAllocation * /*allocation*/, SciTEGTK *scitew) {
-	//Platform::DebugPrintf("SciTEGTK move resize %d %d\n", allocation->width, allocation->height);
 	scitew->SizeSubWindows();
 	return TRUE;
 }
@@ -2246,19 +2240,16 @@ void SciTEGTK::ButtonSignal(GtkWidget *, gpointer data) {
 }
 
 void SciTEGTK::MenuSignal(SciTEGTK *scitew, guint action, GtkWidget *) {
-	//Platform::DebugPrintf("action %d %x \n", action, w);
 	if (scitew->allowMenuActions)
 		scitew->Command(action);
 }
 
 void SciTEGTK::CommandSignal(GtkWidget *, gint wParam, gpointer lParam, SciTEGTK *scitew) {
 
-	//Platform::DebugPrintf("Command: %x %x %x\n", w, wParam, lParam);
 	scitew->Command(wParam, reinterpret_cast<long>(lParam));
 }
 
 void SciTEGTK::NotifySignal(GtkWidget *, gint /*wParam*/, gpointer lParam, SciTEGTK *scitew) {
-	//Platform::DebugPrintf("Notify: %x %x %x\n", w, wParam, lParam);
 	scitew->Notify(reinterpret_cast<SCNotification *>(lParam));
 }
 
@@ -2360,7 +2351,7 @@ gint SciTEGTK::Key(GdkEventKey *event) {
 				if (commandNum < 2000) {
 					SciTEBase::MenuCommand(commandNum);
 				} else {
-					SciTEBase::SendFocused(commandNum);
+					SciTEBase::CallFocused(commandNum);
 				}
 				gtk_signal_emit_stop_by_name(
 				    GTK_OBJECT(PWidget(wSciTE)), "key_press_event");
@@ -2396,12 +2387,12 @@ void SciTEGTK::AddToPopUp(const char *label, int cmd, bool enabled) {
 gint SciTEGTK::Mouse(GdkEventButton *event) {
 	if (event->button == 3) {
 		// PopUp menu
-		Window w = wEditor;
+		GUI::ScintillaWindow *w = &wEditor;
 		menuSource = IDM_SRCWIN;
-		if (PWidget(w)->window != event->window) {
+		if (PWidget(*w)->window != event->window) {
 			if (PWidget(wOutput)->window == event->window) {
 				menuSource = IDM_RUNWIN;
-				w = wOutput;
+				w = &wOutput;
 			} else {
 				menuSource = 0;
 				//fprintf(stderr, "Menu source focus\n");
@@ -2411,8 +2402,8 @@ gint SciTEGTK::Mouse(GdkEventButton *event) {
 		// Convert to screen
 		int ox = 0;
 		int oy = 0;
-		gdk_window_get_origin(PWidget(w)->window, &ox, &oy);
-		ContextMenu(w, Point(static_cast<int>(event->x) + ox,
+		gdk_window_get_origin(PWidget(*w)->window, &ox, &oy);
+		ContextMenu(*w, GUI::Point(static_cast<int>(event->x) + ox,
 		                     static_cast<int>(event->y) + oy), wSciTE);
 		//fprintf(stderr, "Menu source %s\n",
 		//	(menuSource == IDM_SRCWIN) ? "IDM_SRCWIN" : "IDM_RUNWIN");
@@ -2424,7 +2415,7 @@ gint SciTEGTK::Mouse(GdkEventButton *event) {
 	return FALSE;
 }
 
-void SciTEGTK::DividerXOR(Point pt) {
+void SciTEGTK::DividerXOR(GUI::Point pt) {
 	if (!xor_gc) {
 		GdkGCValues values;
 		values.foreground = PWidget(wSciTE)->style->white;
@@ -2497,7 +2488,7 @@ gint SciTEGTK::DividerMotion(GtkWidget *, GdkEventMotion *event, SciTEGTK *scite
 			gdk_window_get_pointer(PWidget(scitew->wSciTE)->window, &x, &y, &state);
 			if (state & GDK_BUTTON1_MASK) {
 				scitew->DividerXOR(scitew->ptOld);
-				scitew->DividerXOR(Point(x, y));
+				scitew->DividerXOR(GUI::Point(x, y));
 			}
 		}
 	}
@@ -2510,16 +2501,16 @@ gint SciTEGTK::DividerPress(GtkWidget *, GdkEventButton *event, SciTEGTK *scitew
 		int y = 0;
 		GdkModifierType state;
 		gdk_window_get_pointer(PWidget(scitew->wSciTE)->window, &x, &y, &state);
-		scitew->ptStartDrag = Point(x, y);
+		scitew->ptStartDrag = GUI::Point(x, y);
 		scitew->capturedMouse = true;
 		scitew->heightOutputStartDrag = scitew->heightOutput;
-		scitew->focusEditor = scitew->SendEditor(SCI_GETFOCUS) != 0;
+		scitew->focusEditor = scitew->wEditor.Call(SCI_GETFOCUS) != 0;
 		if (scitew->focusEditor) {
-			scitew->SendEditor(SCI_SETFOCUS, 0);
+			scitew->wEditor.Call(SCI_SETFOCUS, 0);
 		}
-		scitew->focusOutput = scitew->SendOutput(SCI_GETFOCUS) != 0;
+		scitew->focusOutput = scitew->wOutput.Call(SCI_GETFOCUS) != 0;
 		if (scitew->focusOutput) {
-			scitew->SendOutput(SCI_SETFOCUS, 0);
+			scitew->wOutput.Call(SCI_SETFOCUS, 0);
 		}
 		gtk_widget_grab_focus(GTK_WIDGET(PWidget(scitew->wDivider)));
 		gtk_grab_add(GTK_WIDGET(PWidget(scitew->wDivider)));
@@ -2538,11 +2529,11 @@ gint SciTEGTK::DividerRelease(GtkWidget *, GdkEventButton *, SciTEGTK *scitew) {
 		int y = 0;
 		GdkModifierType state;
 		gdk_window_get_pointer(PWidget(scitew->wSciTE)->window, &x, &y, &state);
-		scitew->MoveSplit(Point(x, y));
+		scitew->MoveSplit(GUI::Point(x, y));
 		if (scitew->focusEditor)
-			scitew->SendEditor(SCI_SETFOCUS, 1);
+			scitew->wEditor.Call(SCI_SETFOCUS, 1);
 		if (scitew->focusOutput)
-			scitew->SendOutput(SCI_SETFOCUS, 1);
+			scitew->wOutput.Call(SCI_SETFOCUS, 1);
 	}
 	return TRUE;
 }
@@ -2553,8 +2544,8 @@ void SciTEGTK::DragDataReceived(GtkWidget *, GdkDragContext *context,
 	gtk_drag_finish(context, TRUE, FALSE, time);
 }
 
-void SetFocus(GtkWidget *hwnd) {
-	Platform::SendScintilla(hwnd, SCI_GRABFOCUS, 0, 0);
+void SetFocus(GUI::ScintillaWindow &w) {
+	w.Call(SCI_GRABFOCUS);
 }
 
 gint SciTEGTK::TabBarRelease(GtkNotebook *notebook, GdkEventButton *event) {
@@ -3150,13 +3141,9 @@ void SciTEGTK::CreateUI() {
 	gtk_signal_connect(GTK_OBJECT(PWidget(wContent)), "size_allocate",
 	                   GTK_SIGNAL_FUNC(MoveResize), gthis);
 
-	wEditor = scintilla_new();
+	wEditor.SetID(scintilla_new());
 	scintilla_set_id(SCINTILLA(PWidget(wEditor)), IDM_SRCWIN);
-	fnEditor = reinterpret_cast<SciFnDirect>(Platform::SendScintilla(
-	               PWidget(wEditor), SCI_GETDIRECTFUNCTION, 0, 0));
-	ptrEditor = Platform::SendScintilla(PWidget(wEditor),
-	                                    SCI_GETDIRECTPOINTER, 0, 0);
-	SendEditor(SCI_USEPOPUP, 0);
+	wEditor.Call(SCI_USEPOPUP, 0);
 	gtk_fixed_put(GTK_FIXED(PWidget(wContent)), PWidget(wEditor), 0, 0);
 
 	gtk_signal_connect(GTK_OBJECT(PWidget(wEditor)), "command",
@@ -3184,13 +3171,9 @@ void SciTEGTK::CreateUI() {
 	gtk_drawing_area_size(GTK_DRAWING_AREA(PWidget(wDivider)), (width == useDefault) ? 100 : width, 10);
 	gtk_fixed_put(GTK_FIXED(PWidget(wContent)), PWidget(wDivider), 0, 600);
 
-	wOutput = scintilla_new();
+	wOutput.SetID(scintilla_new());
 	scintilla_set_id(SCINTILLA(PWidget(wOutput)), IDM_RUNWIN);
-	fnOutput = reinterpret_cast<SciFnDirect>(Platform::SendScintilla(
-	               PWidget(wOutput), SCI_GETDIRECTFUNCTION, 0, 0));
-	ptrOutput = Platform::SendScintilla(PWidget(wOutput),
-	                                    SCI_GETDIRECTPOINTER, 0, 0);
-	SendOutput(SCI_USEPOPUP, 0);
+	wOutput.Call(SCI_USEPOPUP, 0);
 	gtk_fixed_put(GTK_FIXED(PWidget(wContent)), PWidget(wOutput), (width == useDefault) ? 100 : width, 0);
 	gtk_signal_connect(GTK_OBJECT(PWidget(wOutput)), "command",
 	                   GtkSignalFunc(CommandSignal), this);
@@ -3212,7 +3195,7 @@ void SciTEGTK::CreateUI() {
 	gtk_signal_connect(GTK_OBJECT(IncSearchEntry),"focus-out-event", GtkSignalFunc(FindIncrementFocusOutSignal), NULL);
 	gtk_widget_show(IncSearchEntry);
 
-	SendOutput(SCI_SETMARGINWIDTHN, 1, 0);
+	wOutput.Call(SCI_SETMARGINWIDTHN, 1, 0);
 
 	wStatusBar = gtk_statusbar_new();
 	sbContextID = gtk_statusbar_get_context_id(
@@ -3229,7 +3212,7 @@ void SciTEGTK::CreateUI() {
 	(void)gtk_signal_connect(GTK_OBJECT(PWidget(wSciTE)), "drag_data_received",
 	                         GTK_SIGNAL_FUNC(DragDataReceived), this);
 
-	SetFocus(PWidget(wOutput));
+	SetFocus(wOutput);
 
 	if ((left != useDefault) && (top != useDefault))
 		gtk_widget_set_uposition(GTK_WIDGET(PWidget(wSciTE)), left, top);
@@ -3268,14 +3251,14 @@ gboolean SciTEGTK::FindIncrementEscapeSignal(GtkWidget *w, GdkEventKey *event, S
 	if (event->keyval == GDK_Escape) {
 		gtk_signal_emit_stop_by_name(GTK_OBJECT(w), "key-press-event");
 		gtk_widget_hide(scitew->wIncrementPanel);
-		SetFocus(PWidget(scitew->wEditor));
+		SetFocus(scitew->wEditor);
 	}
 	return FALSE;
 }
 
 void SciTEGTK::FindIncrementCompleteCmd() {
 	gtk_widget_hide(wIncrementPanel);
-	SetFocus(PWidget(wEditor));
+	SetFocus(wEditor);
 }
 
 gboolean SciTEGTK::FindIncrementFocusOutSignal(GtkWidget *w) {
@@ -3457,7 +3440,7 @@ void SciTEGTK::Run(int argc, char *argv[]) {
 
 	CheckMenus();
 	SizeSubWindows();
-	SetFocus(PWidget(wEditor));
+	SetFocus(wEditor);
 	gtk_widget_grab_focus(GTK_WIDGET(PWidget(wSciTE)));
 	gtk_main();
 }
