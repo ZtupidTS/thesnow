@@ -71,11 +71,6 @@ void SciTEWin::SetStatusBarText(const char *s) {
 	::SendMessageW(reinterpret_cast<HWND>(wStatusBar.GetID()),
 	              SB_SETTEXT, 0, reinterpret_cast<LPARAM>(s));
 }
-//兼容unicode
-//void SciTEWin::SetStatusBarText(const wchar_t *s) {
-//	::SendMessage(reinterpret_cast<HWND>(wStatusBar.GetID()),
-//	              SB_SETTEXTW, 0, reinterpret_cast<LPARAM>(s));
-//}
 
 //标签插入
 void SciTEWin::TabInsert(int index, char *title) {
@@ -933,7 +928,7 @@ void SciTEWin::Creation() {
 	wContent = ::CreateWindowEx(
 	               WS_EX_CLIENTEDGE,
 	               classNameInternal,
-	               "Source",
+	               TEXT("Source"),
 	               WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
 	               0, 0,
 	               100, 100,
@@ -945,8 +940,8 @@ void SciTEWin::Creation() {
 	//创建编辑区
 	wEditor.SetID(::CreateWindowEx(
 	              0,
-	              "Scintilla",
-	              "Source",
+	              TEXT("Scintilla"),
+	              TEXT("Source"),
 	              WS_CHILD | WS_VSCROLL | WS_HSCROLL | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
 	              0, 0,
 	              100, 100,
@@ -962,8 +957,8 @@ void SciTEWin::Creation() {
 	//创建输出区
 	wOutput.SetID(::CreateWindowEx(
 	              0,
-	              "Scintilla",
-	              "Run",
+	              TEXT("Scintilla"),
+	              TEXT("Run"),
 	              WS_CHILD | WS_VSCROLL | WS_HSCROLL | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
 	              0, 0,
 	              100, 100,
@@ -983,7 +978,7 @@ void SciTEWin::Creation() {
 	HWND hwndToolBar = ::CreateWindowEx(
 	               0,
 	               TOOLBARCLASSNAME,
-	               "",
+	               TEXT(""),
 	               WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS |
 	               TBSTYLE_FLAT | TBSTYLE_TOOLTIPS | CCS_NORESIZE,
 	               0, 0,
@@ -1022,6 +1017,7 @@ void SciTEWin::Creation() {
 	TBBUTTON tbb[ELEMENTS(bbs)];
 	DWORD backgroundColor = GetSysColor(COLOR_BTNFACE);
 	COLORMAP colorMap;
+
 	for (unsigned int i = 0;i < ELEMENTS(bbs);i++) {
 		//添加按钮图像
 //		TBADDBITMAP addbmp = { hInstance, bbs[i].id+100 };
@@ -1061,15 +1057,15 @@ void SciTEWin::Creation() {
 	stDefaultTabProc = wndClass.lpfnWndProc;
 	wndClass.lpfnWndProc = TabWndProc;
 	wndClass.style = wndClass.style | CS_DBLCLKS;
-	wndClass.lpszClassName = "SciTeTabCtrl";
+	wndClass.lpszClassName = TEXT("SciTeTabCtrl");
 	wndClass.hInstance = hInstance;
 	if (RegisterClass(&wndClass) == 0)
 		exit(FALSE);
 
 	wTabBar = ::CreateWindowEx(
 	              0,
-	              "SciTeTabCtrl",
-	              "Tab",
+	              TEXT("SciTeTabCtrl"),
+	              TEXT("Tab"),
 	              WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS |
 	              TCS_FOCUSNEVER | TCS_TOOLTIPS,
 	              0, 0,
@@ -1096,7 +1092,7 @@ void SciTEWin::Creation() {
 	wStatusBar = ::CreateWindowEx(
 	                 0,
 	                 STATUSCLASSNAME,
-	                 "",
+	                 TEXT(""),
 	                 WS_CHILD | WS_CLIPSIBLINGS,
 	                 0, 0,
 	                 100, heightStatus,
@@ -1111,8 +1107,7 @@ void SciTEWin::Creation() {
 	::SendMessage(reinterpret_cast<HWND>(wStatusBar.GetID()),
 	              SB_SETPARTS, 1,
 	              reinterpret_cast<LPARAM>(widths));
-//-----------------------------------------------------------
-//-----------------------------------------------------------
+
 #ifndef NO_LUA
 		if (props.GetExpanded("ext.lua.startup.script").length() == 0)
 			DestroyMenuItem(menuOptions,IDM_OPENLUAEXTERNALFILE);

@@ -87,12 +87,11 @@ protected:
 
 	int cmdShow;
 	static HINSTANCE hInstance;
-	static const char *className;
-	static const char *classNameInternal;
+	static const TCHAR *className;
+	static const TCHAR *classNameInternal;
 	static SciTEWin *app;
 	WINDOWPLACEMENT winPlace;
 	RECT rcWorkArea;
-	FINDREPLACE fr;
 	char openWhat[200];
 	bool modalParameters;
 	int filterDefault;
@@ -152,7 +151,7 @@ protected:
 	void LocaliseControl(HWND w);
 	void LocaliseDialog(HWND wDialog);
 
-	int DoDialog(HINSTANCE hInst, const char *resName, HWND hWnd, DLGPROC lpProc);
+	int DoDialog(HINSTANCE hInst, const TCHAR *resName, HWND hWnd, DLGPROC lpProc);
 	virtual bool OpenDialog(FilePath directory, const char *filter);
 	FilePath ChooseSaveName(FilePath directory, const char *title, const char *filter=0, const char *ext=0);
 	virtual bool SaveAsDialog();

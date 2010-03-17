@@ -40,7 +40,7 @@ long SciTEKeys::ParseKeyCode(const char *mnemonic) {
 	int modsInKey = 0;
 	int keyval = -1;
 
-	if (mnemonic && *mnemonic) {		//	&& 为逻辑"与"符号
+	if (mnemonic && *mnemonic) {
 		SString sKey = mnemonic;
 
 		if (sKey.contains("Ctrl+")) {
@@ -134,8 +134,8 @@ bool SciTEKeys::MatchKeyCode(long parsedKeyCode, int keyval, int modifiers) {
 }
 
 HINSTANCE SciTEWin::hInstance = 0;
-const char *SciTEWin::className = NULL;
-const char *SciTEWin::classNameInternal = NULL;
+const TCHAR *SciTEWin::className = NULL;
+const TCHAR *SciTEWin::classNameInternal = NULL;
 SciTEWin *SciTEWin::app = NULL;
 
 SciTEWin::SciTEWin(Extension *ext) : SciTEBase(ext) {
@@ -148,7 +148,6 @@ SciTEWin::SciTEWin(Extension *ext) : SciTEBase(ext) {
 	winPlace.length = 0;
 
 	openWhat[0] = '\0';
-	memset(&fr, 0, sizeof(fr));
 	modalParameters = false;
 	filterDefault = 1;
 	menuSource = 0;
@@ -165,7 +164,7 @@ SciTEWin::SciTEWin(Extension *ext) : SciTEBase(ext) {
 	propsEmbed.Clear();
 	// System type properties are also stored in the embedded properties.
 	propsEmbed.Set("PLAT_WIN", "1");
-	OSVERSIONINFO osv = {sizeof(OSVERSIONINFO), 0, 0, 0, 0, ""};
+	OSVERSIONINFO osv = {sizeof(OSVERSIONINFO), 0, 0, 0, 0, TEXT("")};
 	::GetVersionEx(&osv);
 	isWindowsNT = osv.dwPlatformId == VER_PLATFORM_WIN32_NT;
 	allowAlpha = isWindowsNT;
@@ -174,7 +173,7 @@ SciTEWin::SciTEWin(Extension *ext) : SciTEBase(ext) {
 	else if (osv.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS)
 		propsEmbed.Set("PLAT_WIN95", "1");
 
-	HRSRC handProps = ::FindResource(hInstance, "Embedded", "Properties");
+	HRSRC handProps = ::FindResource(hInstance, TEXT("Embedded"), TEXT("Properties"));
 	if (handProps) {
 		DWORD size = ::SizeofResource(hInstance, handProps);
 		HGLOBAL hmem = ::LoadResource(hInstance, handProps);
@@ -203,7 +202,7 @@ SciTEWin::SciTEWin(Extension *ext) : SciTEBase(ext) {
 	hMM = 0;
 	uniqueInstance.Init(this);
 
-	hAccTable = ::LoadAccelerators(hInstance, "ACCELS"); // 快捷键表
+	hAccTable = ::LoadAccelerators(hInstance, TEXT("ACCELS")); // 快捷键表
 }
 
 SciTEWin::~SciTEWin() {
@@ -224,14 +223,14 @@ uptr_t SciTEWin::GetInstance() {
 }
 
 void SciTEWin::Register(HINSTANCE hInstance_) {
-	const char resourceName[] = "SciTE";
+	const TCHAR resourceName[] = TEXT("SciTE");
 
 	hInstance = hInstance_;
 
 	WNDCLASS wndclass;
 
 	// Register the frame window
-	className = "SciTEWindow";
+	className = TEXT("SciTEWindow");
 	wndclass.style = 0;
 	wndclass.lpfnWndProc = SciTEWin::TWndProc;
 	wndclass.cbClsExtra = 0;
@@ -246,7 +245,7 @@ void SciTEWin::Register(HINSTANCE hInstance_) {
 		exit(FALSE);
 
 	// Register the window that holds the two Scintilla edit windows and the separator
-	classNameInternal = "SciTEWindowContent";
+	classNameInternal = TEXT("SciTEWindowContent");
 	wndclass.lpfnWndProc = SciTEWin::IWndProc;
 	wndclass.lpszMenuName = 0;
 	wndclass.lpszClassName = classNameInternal;
@@ -337,7 +336,7 @@ struct XHH_AKLINK {
 // Help command lines contain topic!path
 void SciTEWin::ExecuteHelp(const char *cmd) {
 	if (!hHH)
-		hHH = ::LoadLibrary("HHCTRL.OCX");
+		hHH = ::LoadLibrary(TEXT("HHCTRL.OCX"));
 
 	if (hHH) {
 		char *topic = StringDup(cmd);
@@ -397,14 +396,13 @@ void SciTEWin::CopyAsRTF() {
 }
 
 void SciTEWin::FullScreenToggle() {
-	HWND wTaskBar = FindWindow("Shell_TrayWnd", "");
-	HWND wStart   = FindWindowEx(wTaskBar, 0, "Button", "");	//for win7 start menu
+	HWND wTaskBar = FindWindow(TEXT("Shell_TrayWnd"), TEXT(""));
 	fullScreen = !fullScreen;
 	if (fullScreen) {
 		::SystemParametersInfo(SPI_GETWORKAREA, 0, &rcWorkArea, 0);
 		::SystemParametersInfo(SPI_SETWORKAREA, 0, 0, SPIF_SENDCHANGE);
 		::ShowWindow(wTaskBar, SW_HIDE);
-		::ShowWindow(wStart, SW_HIDE);
+
 		winPlace.length = sizeof(winPlace);
 		::GetWindowPlacement(MainHWND(), &winPlace);
 		int topStuff = ::GetSystemMetrics(SM_CYCAPTION) +
@@ -420,7 +418,6 @@ void SciTEWin::FullScreenToggle() {
 		               ::GetSystemMetrics(SM_CYSIZEFRAME) + 3,
 		               0);
 	} else {
-		::ShowWindow(wStart, SW_SHOW);						//for win7 start menu
 		::ShowWindow(wTaskBar, SW_SHOW);
 		if (winPlace.length) {
 			::SystemParametersInfo(SPI_SETWORKAREA, 0, &rcWorkArea, 0);
@@ -578,7 +575,7 @@ DWORD SciTEWin::ExecuteOne(const Job &jobToRun, bool &seenOutput) {
 		return exitcode;
 	}
 
-	OSVERSIONINFO osv = {sizeof(OSVERSIONINFO), 0, 0, 0, 0, ""};
+	OSVERSIONINFO osv = {sizeof(OSVERSIONINFO), 0, 0, 0, 0, TEXT("")};
 	::GetVersionEx(&osv);
 	bool windows95 = osv.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS;
 
@@ -1059,7 +1056,7 @@ void SciTEWin::AddCommand(const SString &cmd, const SString &dir, JobSubsystem j
 		}
 	}
 }
-/*
+/*!!! removed
 void SciTEWin::QuitProgram() {
 	if (SaveIfUnsureAll() != IDCANCEL) {
 		if (fullScreen)	// Ensure tray visible on exit
@@ -1069,7 +1066,7 @@ void SciTEWin::QuitProgram() {
 	}
 }
 */
-
+//!!! add AnimateWindow
 void SciTEWin::QuitProgram() {
 	int NoAnimateWindow = props.GetInt("Exit.NoAnimateWindow",0);
 	if (SaveIfUnsureAll() != IDCANCEL) {
@@ -1085,7 +1082,7 @@ void SciTEWin::QuitProgram() {
 		};
 	}
 }
-
+// !!! added
 void SciTEWin::RestorePosition() {
 	int left = propsSession.GetInt("position.left", CW_USEDEFAULT);
 	int top = propsSession.GetInt("position.top", CW_USEDEFAULT);
@@ -1564,7 +1561,7 @@ void SciTEWin::AddToPopUp(const char *label, int cmd, bool enabled) {
 	SString localised = localiser.Text(label);
 	HMENU menu = reinterpret_cast<HMENU>(popup.GetID());
 	if (0 == localised.length())
-		::AppendMenu(menu, MF_SEPARATOR, 0, "");
+		::AppendMenu(menu, MF_SEPARATOR, 0, TEXT(""));
 	else if (enabled)
 		::AppendMenu(menu, MF_STRING, cmd, localised.c_str());
 	else
@@ -1753,7 +1750,7 @@ LRESULT SciTEWin::WndProc(UINT iMessage, WPARAM wParam, LPARAM lParam) {
 			sprintf(buff, "Scintilla failed with status %d.", statusFailure);
 		}
 		strcat(buff, " SciTE will now close.");
-		::MessageBox(MainHWND(), buff, "Failure in Scintilla", MB_OK | MB_ICONERROR | MB_APPLMODAL);
+		::MessageBox(MainHWND(), buff, TEXT("Failure in Scintilla"), MB_OK | MB_ICONERROR | MB_APPLMODAL);
 		exit(FALSE);
 	}
 	return 0l;
@@ -1993,7 +1990,6 @@ int SciTEWin::EventLoop() {
 int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpszCmdLine, int) {
 
 #ifdef NO_EXTENSIONS
-	//参考MultiplexExtension.h
 	Extension *extender = 0;
 #else
 	MultiplexExtension multiExtender;
@@ -2016,10 +2012,10 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpszCmdLine, int) {
 	Scintilla_RegisterClasses(hInstance);	//注册类
 #else
 
-	HMODULE hmod = ::LoadLibrary("SciLexer.DLL");
+	HMODULE hmod = ::LoadLibrary(TEXT("SciLexer.DLL"));
 	if (hmod == NULL)
-		::MessageBox(NULL, "Scintilla 的语法表达式动态链接库文件(SciLexer.dll)不能载入.  SciTE 将会退出",
-		"载入 Scintilla 错误", MB_OK | MB_ICONERROR);
+		::MessageBox(NULL, TEXT("Scintilla 的语法表达式动态链接库文件(SciLexer.dll)不能载入.  SciTE 将会退出"),
+			TEXT("载入 Scintilla 错误"), MB_OK | MB_ICONERROR);
 #endif
 
 	int result;

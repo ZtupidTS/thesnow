@@ -4626,7 +4626,7 @@ void SciTEBase::Remove(Pane p, int start, int end) {
 		wOutput.Call(SCI_CLEAR);
 	}
 }
-
+//插入
 void SciTEBase::Insert(Pane p, int pos, const char *s) {
 	if (p == paneEditor)
 		wEditor.CallString(SCI_INSERTTEXT, pos, s);
@@ -4645,7 +4645,7 @@ char *SciTEBase::Property(const char *key) {
 	strcpy(retval, value.c_str());
 	return retval;
 }
-
+//设置属性
 void SciTEBase::SetProperty(const char *key, const char *val) {
 	SString value = props.GetExpanded(key);
 	if (value != val) {
