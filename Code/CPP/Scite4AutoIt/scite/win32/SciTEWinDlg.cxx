@@ -164,7 +164,7 @@ bool SciTEWin::ModelessHandler(MSG *pmsg) {
 }
 
 //  DoDialog is a bit like something in PC Magazine May 28, 1991, page 357
-int SciTEWin::DoDialog(HINSTANCE hInst, const char *resName, HWND hWnd, DLGPROC lpProc) {
+int SciTEWin::DoDialog(HINSTANCE hInst, const TCHAR *resName, HWND hWnd, DLGPROC lpProc) {
 	int result = ::DialogBoxParam(hInst, resName, hWnd, lpProc, reinterpret_cast<LPARAM>(this));
 
 	if (result == -1) {
@@ -1162,16 +1162,7 @@ void SciTEWin::FindIncrement() {
 		return;
 	}
 
-	memset(&fr, 0, sizeof(fr));
-	fr.lStructSize = sizeof(fr);
-	fr.hwndOwner = MainHWND();
-	fr.hInstance = hInstance;
-	fr.Flags = 0;
-	if (!reverseFind)
-		fr.Flags |= FR_DOWN;
 	findWhat.clear();
-	fr.lpstrFindWhat = const_cast<char *>(findWhat.c_str());
-	fr.wFindWhatLen = static_cast<WORD>(findWhat.length() + 1);
 
 	replacing = false;
 	if (isWindowsNT) {
@@ -1201,15 +1192,6 @@ void SciTEWin::Find() {
 		return;
 	SelectionIntoFind();
 
-	memset(&fr, 0, sizeof(fr));
-	fr.lStructSize = sizeof(fr);
-	fr.hwndOwner = MainHWND();
-	fr.hInstance = hInstance;
-	fr.Flags = 0;
-	if (!reverseFind)
-		fr.Flags |= FR_DOWN;
-	fr.lpstrFindWhat = const_cast<char *>(findWhat.c_str());
-	fr.wFindWhatLen = static_cast<WORD>(findWhat.length() + 1);
 	int dialog_id = FindReplaceAdvanced() ? IDD_FIND_ADV : IDD_FIND;
 
 	if (isWindowsNT) {
@@ -1407,7 +1389,7 @@ void SciTEWin::FindInFiles() {
 	props.Set("find.what", findWhat.c_str());
 	FilePath findInDir = filePath.Directory();
 	props.Set("find.directory", findInDir.AsFileSystem());
-	wFindInFiles = ::CreateDialogParam(hInstance, "Grep", MainHWND(),
+	wFindInFiles = ::CreateDialogParam(hInstance, TEXT("Grep"), MainHWND(),
 		reinterpret_cast<DLGPROC>(GrepDlg), reinterpret_cast<sptr_t>(this));
 	wFindInFiles.Show();
 }
@@ -1417,15 +1399,6 @@ void SciTEWin::Replace() {
 		return;
 	SelectionIntoFind(false); // don't strip EOL at end of selection
 
-	memset(&fr, 0, sizeof(fr));
-	fr.lStructSize = sizeof(fr);
-	fr.hwndOwner = MainHWND();
-	fr.hInstance = hInstance;
-	fr.Flags = FR_REPLACE;
-	fr.lpstrFindWhat = const_cast<char *>(findWhat.c_str());
-	fr.lpstrReplaceWith = const_cast<char *>(replaceWhat.c_str());
-	fr.wFindWhatLen = static_cast<WORD>(findWhat.length() + 1);
-	fr.wReplaceWithLen = static_cast<WORD>(replaceWhat.length() + 1);
 	int dialog_id = (!props.GetInt("find.replace.advanced") ? IDD_REPLACE : IDD_REPLACE_ADV);
 
 	if (isWindowsNT) {
@@ -1527,7 +1500,7 @@ BOOL CALLBACK SciTEWin::GoLineDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM
 }
 
 void SciTEWin::GoLineDialog() {
-	DoDialog(hInstance, "GoLine", MainHWND(), reinterpret_cast<DLGPROC>(GoLineDlg));
+	DoDialog(hInstance, TEXT("GoLine"), MainHWND(), reinterpret_cast<DLGPROC>(GoLineDlg));
 	WindowSetFocus(wEditor);
 }
 
@@ -1563,7 +1536,8 @@ BOOL CALLBACK SciTEWin::AbbrevDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM
 }
 //缩写对话框
 bool SciTEWin::AbbrevDialog() {
-	bool success = (DoDialog(hInstance, "InsAbbrev", MainHWND(), reinterpret_cast<DLGPROC>(AbbrevDlg)) == IDOK);
+	bool success = (DoDialog(hInstance, TEXT("InsAbbrev"), MainHWND(),
+		reinterpret_cast<DLGPROC>(AbbrevDlg)) == IDOK);
 	WindowSetFocus(wEditor);
 	return success;
 }
@@ -1627,7 +1601,7 @@ BOOL CALLBACK SciTEWin::TabSizeDlg(HWND hDlg, UINT message, WPARAM wParam, LPARA
 }
 
 void SciTEWin::TabSizeDialog() {
-	DoDialog(hInstance, "TabSize", MainHWND(), reinterpret_cast<DLGPROC>(TabSizeDlg));
+	DoDialog(hInstance, TEXT("TabSize"), MainHWND(), reinterpret_cast<DLGPROC>(TabSizeDlg));
 	WindowSetFocus(wEditor);
 }
 
@@ -1706,14 +1680,14 @@ bool SciTEWin::ParametersDialog(bool modal) {
 	modalParameters = modal;
 	if (modal) {
 		success = DoDialog(hInstance,
-		                   "PARAMETERS",
+		                   TEXT("PARAMETERS"),
 		                   MainHWND(),
 		                   reinterpret_cast<DLGPROC>(ParametersDlg)) == IDOK;
 		wParameters = 0;
 		WindowSetFocus(wEditor);
 	} else {
 		::CreateDialogParam(hInstance,
-		                    "PARAMETERSNONMODAL",
+		                    TEXT("PARAMETERSNONMODAL"),
 		                    MainHWND(),
 		                    reinterpret_cast<DLGPROC>(ParametersDlg),
 		                    reinterpret_cast<LPARAM>(this));
@@ -1805,7 +1779,7 @@ BOOL CALLBACK SciTEWin::AboutDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM 
 
 void SciTEWin::AboutDialogWithBuild(int staticBuild_) {
 	staticBuild = staticBuild_;
-	DoDialog(hInstance, "About", MainHWND(),
+	DoDialog(hInstance, TEXT("About"), MainHWND(),
 	         reinterpret_cast<DLGPROC>(AboutDlg));
 	WindowSetFocus(wEditor);
 }

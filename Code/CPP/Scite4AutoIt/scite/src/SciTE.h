@@ -8,6 +8,9 @@
 #ifndef SCITE_H
 #define SCITE_H
 
+// ICON
+#define OIC_SciTE			1800
+
 // ²Ëµ¥ ID.
 // These are located 100 apart. No one will want more than 100 in each menu ;)
 #define IDM_MRUFILE			1000
