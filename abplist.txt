@@ -1,4 +1,12 @@
-﻿!-- nod32 key 站点
+﻿[Adblock Plus 1.1]
+!  Checksum: 
+!  Adblock Plus List with Main Focus on Chinese Sites.
+!  Last Modified:
+!         ----http://thesnow.googlecode.com/
+!coding: utf-8, expires: 3 days
+!----GNU LGPL Licensed, NO WARRANTY but Best Wishes----
+
+!-- nod32 key 站点
 naoz.cn##TABLE.adszone
 naoz.cn##A[href="http://ucweb6.net.cn/"]
 
