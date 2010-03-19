@@ -1,0 +1,32 @@
+﻿!-- nod32 key 站点
+naoz.cn##TABLE.adszone
+naoz.cn##A[href="http://ucweb6.net.cn/"]
+
+!-- CSDN
+csdn.net##*#AD21789
+csdn.net##TABLE[style="font-size: 12px; line-height: 18px; width: 165px; height: 117px; background-color: rgb(205, 211, 218);"]
+|http://community.csdn.net/t/*
+|http://zi.csdn.net/*
+
+!-- sf.jp
+sourceforge.jp##DIV#ad-leaderboard
+sourceforge.jp##DIV.ad300
+|http://as.dc.impact-ad.jp/*$domain=sourceforge.jp
+|http://ads.osdn.jp/*$domain=sourceforge.jp
+
+!-- 射手网
+|http://pagead2.googlesyndication.com/*$domain=shooter.cn
+
+!-- 关键词广告商
+||*.infolinks.com^
+|http://*.doubleclick.net/*
+
+!--softarchive.net
+|http://softarchive.net/js/getBanner.php?*
+
+!--rl-team.net
+|http://post.rmbn.ru/cgi-bin/*$domain=rl-team.net
+|http://s1.pop-bazar.net/*$domain=rl-team.net
+
+!-- 其它
+||miibeian.gov.cn^
