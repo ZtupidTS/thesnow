@@ -74,11 +74,7 @@ size_t iconv_adaptor(size_t(*f_iconv)(iconv_t, T, size_t *, char **, size_t *),
 
 #define MB_ABOUTBOX	0x100000L
 
-const char appName[] = "SciTE"; 			//应用程序名称
-
-#ifdef __vms
-char g_modulePath[MAX_PATH];				//模块路径
-#endif
+const char appName[] = "SciTE";
 
 static GtkWidget *PWidget(GUI::Window &w) {
 	return reinterpret_cast<GtkWidget *>(w.GetID());
@@ -145,14 +141,14 @@ public:
 				gtk_main_iteration();
 			}
 		}
-		return dialogCanceled;			//对话框取消
+		return dialogCanceled;
 	}
 	void OK() {
-		dialogCanceled = false;			//对话框不取消
+		dialogCanceled = false;
 		Destroy();
 	}
 	void Cancel() {
-		dialogCanceled = true;			//对话框取消
+		dialogCanceled = true;
 		Destroy();
 	}
 	static void SignalCancel(GtkWidget *, Dialog *d) {
@@ -697,11 +693,7 @@ FilePath SciTEGTK::GetDefaultDirectory() {
 	}
 #endif
 	if (where) {
-#ifdef __vms
-		return FilePath(VMSToUnixStyle(where));
-#else
 		return FilePath(where);
-#endif
 	}
 
 	return FilePath("");
@@ -709,11 +701,6 @@ FilePath SciTEGTK::GetDefaultDirectory() {
 
 FilePath SciTEGTK::GetSciteDefaultHome() {
 	const char *where = getenv("SciTE_HOME");
-#ifdef __vms
-	if (where == NULL) {
-		where = g_modulePath;
-	}
-#endif
 #ifdef SYSCONF_PATH
 	if (!where) {
 		where = SYSCONF_PATH;
@@ -724,11 +711,7 @@ FilePath SciTEGTK::GetSciteDefaultHome() {
 	}
 #endif
 	if (where) {
-#ifdef __vms
-		return FilePath(VMSToUnixStyle(where));
-#else
 		return FilePath(where);
-#endif
 
 	}
 	return FilePath("");
@@ -1247,9 +1230,6 @@ void SciTEGTK::HandleSaveAs(const char *savePath) {
 	default: {
 			/* Checking that no other buffer refers to the same filename */
 			FilePath destFile(savePath);
-#ifdef __vms
-			destFile = destFile.VMSToUnixStyle();
-#endif
 			SaveIfNotOpen(destFile, true);
 		}
 	}
@@ -3480,27 +3460,6 @@ int main(int argc, char *argv[]) {				//程序开始,放最后是因为可以直
 #endif
 
 	signal(SIGCHLD, SciTEGTK::ChildSignal);			//函数,待研究
-
-#ifdef __vms							//如果定义了__vms
-	// 储存模块名的部分路径
-	strcpy(g_modulePath, argv[0]);
-	char *p = strstr(g_modulePath, "][");
-	if (p != NULL) {
-		strcpy (p, p + 2);
-	}
-	p = strchr(g_modulePath, ']');
-	if (p == NULL) {
-		p = strchr(g_modulePath, '>');
-	}
-	if (p == NULL) {
-		p = strchr(g_modulePath, ':');
-	}
-	if (p != NULL) {
-		*(p + 1) = '\0';
-	}
-	strcpy(g_modulePath, VMSToUnixStyle(g_modulePath));
-	g_modulePath[strlen(g_modulePath) - 1] = '\0';		// 移除尾部的 "/"
-#endif
 
 	// Get this now because gtk_init() clears it
 	const gchar *startup_id = g_getenv("DESKTOP_STARTUP_ID");

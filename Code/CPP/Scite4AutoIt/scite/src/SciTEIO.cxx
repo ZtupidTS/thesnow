@@ -74,7 +74,7 @@
 #ifdef unix
 const char propUserFileName[] = "用户设置.properties";
 #else
-// Windows or VMS
+// Windows
 const char propUserFileName[] = "用户设置.properties";
 #endif
 const char propGlobalFileName[] = "全局设置.properties";
@@ -415,9 +415,6 @@ bool SciTEBase::PreOpenCheck(const char *) {
 bool SciTEBase::Open(FilePath file, OpenFlags of) {
 	InitialiseBuffers();
 
-#ifdef __vms
-	file = file.VMSToUnixStyle();
-#endif
 	FilePath absPath = file.AbsolutePath();
 	int index = buffers.GetDocumentByName(absPath);
 	if (index >= 0) {
