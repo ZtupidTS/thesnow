@@ -6,7 +6,7 @@
 #AutoIt3Wrapper_UseUpx=y 									;使用压缩
 #AutoIt3Wrapper_Res_Comment= 								;注释
 #AutoIt3Wrapper_Res_Description=							;详细信息
-#AutoIt3Wrapper_Res_Fileversion=3.3.1.6
+#AutoIt3Wrapper_Res_Fileversion=							;文件版本
 #AutoIt3Wrapper_Res_FileVersion_AutoIncrement=p				;自动更新版本  
 #AutoIt3Wrapper_Res_LegalCopyright= 						;版权
 #AutoIt3Wrapper_Change2CUI=N                   				;修改输出的程序为CUI(控制台程序)
@@ -27,26 +27,21 @@
  脚本功能: 
 
 #ce ＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿脚本开始＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿
-	#include <IE.au3>
-$file = FileOpen("WEBSITE.txt", 0)
 
-; 检查打开的文件是否可读
-If $file = -1 Then
-    MsgBox(0, "错误", "不能打开文件.")
-    Exit
-EndIf
-
-; 每次读取一行文本,直到文件结束.
+Global $WM_LBUTTONDOWN	= 0x0201
+Global $WM_LBUTTONUP 	= 0x0202
+Global $hWnd = ControlGetHandle("[class:TTPlayer_PlayerWnd]","","SkinButton11")
 While 1
-    $line = FileReadLine($file)
-    If @error = -1 Then ExitLoop
-	$ie = _IECreate($line, 1, 1, 1, 1) ;MTV
-    ;MsgBox(0, "读取的行:", $line)
-	$url=InputBox("填入注册地址","填入注册地址",'')
-	_IEQuit($ie)
-	FileWriteLine("注册地址.TXT",$url)
-Wend
+;~ 	_SendMessage($hWnd,$WM_LBUTTONDOWN)
+;~ 	_SendMessage($hWnd,$WM_LBUTTONUP)
+	If Not IsHWnd($hwnd) Then Exit
+	ControlClick($hWnd,'','')
+	Sleep(10000)
+WEnd
 
-
-
-FileClose($file)
+Func _SendMessage($hWnd, $iMsg, $wParam = 0, $lParam = 0, $iReturn = 0, $wParamType = "wparam", $lParamType = "lparam", $sReturnType = "lresult")
+	Local $aResult = DllCall("user32.dll", $sReturnType, "SendMessageW", "hwnd", $hWnd, "uint", $iMsg, $wParamType, $wParam, $lParamType, $lParam)
+	If @error Then Return SetError(@error, @extended, "")
+	If $iReturn >= 0 And $iReturn <= 4 Then Return $aResult[$iReturn]
+	Return $aResult
+EndFunc   ;==>_SendMessage
