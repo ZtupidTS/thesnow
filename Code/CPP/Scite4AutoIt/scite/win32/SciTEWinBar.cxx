@@ -10,7 +10,8 @@
 /**
  * 设置文件时间,文件日期,当前时间,当前日期,文件属性.
  */
-void SciTEWin::SetFileProperties(
+//void SciTEWin::SetFileProperties(		//renamed ↓
+void SciTEWin::SetFileAttrib(
     PropSetFile &ps) {			///< Property set to update.
 
 	const int TEMP_LEN = 100;
@@ -490,8 +491,10 @@ void SciTEWin::CheckMenus() {
 	SciTEBase::CheckMenus();
 	CheckMenuRadioItem(::GetMenu(MainHWND()), IDM_EOL_CRLF, IDM_EOL_LF,
 	                   wEditor.Call(SCI_GETEOLMODE) - SC_EOL_CRLF + IDM_EOL_CRLF, 0);
-	CheckMenuRadioItem(::GetMenu(MainHWND()), IDM_ENCODING_DEFAULT, IDM_ENCODING_UCOOKIE,
-	                   CurrentBuffer()->unicodeMode + IDM_ENCODING_DEFAULT, 0);
+//	CheckMenuRadioItem(::GetMenu(MainHWND()), IDM_ENCODING_DEFAULT, IDM_ENCODING_UCOOKIE,
+//	                   CurrentBuffer()->unicodeMode + IDM_ENCODING_DEFAULT, 0);
+	CheckMenuRadioItem(::GetMenu(MainHWND()), IDM_ENCODING_DEFAULT, IDM_ENCODING_GBK,		
+		CurrentBuffer()->unicodeMode + IDM_ENCODING_DEFAULT, 0);
 }
 //制作快捷键
 void SciTEWin::MakeAccelerator(SString sAccelerator, ACCEL &Accel) {

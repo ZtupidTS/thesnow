@@ -435,7 +435,7 @@ bool SciTEBase::Open(FilePath file, OpenFlags of) {
 		int maxSize = props.GetInt("max.file.size");
 		if (maxSize > 0 && size > maxSize) {
 			SString sSize(size), sMaxSize(maxSize);
-			SString msg = LocaliseMessage("文件[ '^0' ] 有 [ ^1 ]字节,\n"
+			SString msg = LocaliseMessage("文件[ '^0' ]有[ ^1 ]字节,\n"
 			        "超过了设置文件中的[ ^2 ]字节的最大限制.\n"
 			        "您确定要打开它吗?",
 			        absPath.AsFileSystem(), sSize.c_str(), sMaxSize.c_str());

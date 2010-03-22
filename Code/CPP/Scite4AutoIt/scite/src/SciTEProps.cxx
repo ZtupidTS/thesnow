@@ -1383,17 +1383,6 @@ SString SciTEBase::LocaliseMessage(const char *s, const char *param0, const char
 	return translation;
 }
 
-SStringW SciTEBase::LocaliseMessage(const wchar_t *s, const wchar_t *param0, const wchar_t *param1, const wchar_t *param2) {//added
-	SStringW translation = s;//localiser.Text(s).c_str();
-	if (param0)
-		translation.substitute(L"^0", param0);
-	if (param1)
-		translation.substitute(L"^1", param1);
-	if (param2)
-		translation.substitute(L"^2", param2);
-	return translation;
-}
-
 //读取本地化文件
 void SciTEBase::ReadLocalization() {
 	localiser.Clear();

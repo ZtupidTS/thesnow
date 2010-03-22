@@ -1,4 +1,4 @@
-// Scintilla source code edit control
+ï»¿// Scintilla source code edit control
 /** @file AutoComplete.cxx
  ** Defines the auto completion list box.
  **/
@@ -19,19 +19,19 @@ using namespace Scintilla;
 #endif
 
 AutoComplete::AutoComplete() :
-	active(false),				//»î¶¯
-	separator(' '),				//·Ö¸ô·û
+	active(false),				//æ´»åŠ¨
+	separator(' '),				//åˆ†éš”ç¬¦
 	typesep('?'),				
-	ignoreCase(false),			//ºöÂÔ´óĞ¡Ğ´
-	chooseSingle(false),		//Ö»ÄÜÑ¡Ò»¸ö
+	ignoreCase(false),			//å¿½ç•¥å¤§å°å†™
+	chooseSingle(false),		//åªèƒ½é€‰ä¸€ä¸ª
 	lb(0),						//ListBox
-	posStart(0),				//¿ªÊ¼×ø±ê
-	startLen(0),				//¿ªÊ¼³¤¶È
+	posStart(0),				//å¼€å§‹åæ ‡
+	startLen(0),				//å¼€å§‹é•¿åº¦
 	cancelAtStartPos(true),		
-	autoHide(true),				//×Ô¶¯Òş²Ø
+	autoHide(true),				//è‡ªåŠ¨éšè—
 	dropRestOfWord(false)	{	
-	lb = ListBox::Allocate();	//·ÖÅäListBox
-	stopChars[0] = '\0';		//Í£Ö¹×Ö·û
+	lb = ListBox::Allocate();	//åˆ†é…ListBox
+	stopChars[0] = '\0';		//åœæ­¢å­—ç¬¦
 	fillUpChars[0] = '\0';
 }
 

@@ -2357,7 +2357,8 @@ void SciTEBase::SetTextProperties(
 void SciTEBase::UpdateStatusBar(bool bUpdateSlowData) {
 	if (sbVisible) {
 		if (bUpdateSlowData) {
-			SetFileProperties(propsStatus);
+			//SetFileProperties(propsStatus); //renamed ↓
+			SetFileAttrib(propsStatus);
 		}
 		SetTextProperties(propsStatus);
 		int caretPos = wEditor.Call(SCI_GETCURRENTPOS);
@@ -3063,7 +3064,10 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		}
 		wEditor.Call(SCI_SETCODEPAGE, codePage);
 		break;
-
+	case IDM_ENCODING_GBK:					//added
+		codePage = 936;
+		wEditor.Call(SCI_SETCODEPAGE, codePage);
+		break;
 	case IDM_NEXTFILESTACK:					//下一文件堆栈
 		if (buffers.size > 1 && props.GetInt("buffers.zorder.switching")) {
 			NextInStack(); // next most recently selected buffer
