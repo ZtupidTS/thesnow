@@ -186,7 +186,8 @@ protected:
 	virtual FilePath GetSciteDefaultHome();
 	virtual FilePath GetSciteUserHome();
 
-	virtual void SetFileProperties(PropSetFile &ps);
+//	virtual void SetFileProperties(PropSetFile &ps);	//renamed ¡ý
+	virtual void SetFileAttrib(PropSetFile &ps);
 	virtual void SetStatusBarText(const char *s);
 
 	virtual void TabInsert(int index, char *title);

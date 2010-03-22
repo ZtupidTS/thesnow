@@ -8,12 +8,12 @@
 #include "SciTEWin.h"
 // need this header for SHBrowseForFolder
 #include <Shlobj.h>
-
+#include "Extra.h"
 /**
  * Flash the given window for the asked @a duration to visually warn the user.
  */
 static void FlashThisWindow(
-    HWND hWnd,    		///< 要闪烁的窗口句柄.
+    HWND hWnd,    		///< Window to flash handle.
     int duration) {	///< Duration of the flash state.
 
 	HDC hDC = ::GetDC(hWnd);
@@ -272,7 +272,7 @@ FilePath SciTEWin::ChooseSaveName(FilePath directory, const char *title, const c
 		ofn.nMaxFile = sizeof(saveName);
 		SString translatedTitle = localiser.Text(title);
 		ofn.lpstrTitle = translatedTitle.c_str();
-		ofn.Flags = OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT | OFN_ENABLESIZING|OFN_EXPLORER;
+		ofn.Flags = OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT;
 		ofn.lpstrFilter = filter;
 		ofn.lpstrInitialDir = directory.AsFileSystem();
 
@@ -308,7 +308,7 @@ bool SciTEWin::SaveAsDialog() {
 		}
 	}	
 	//add end
-	//FilePath path = ChooseSaveName(filePath.Directory(), "保存文件");
+	//FilePath path = ChooseSaveName(filePath.Directory(), "Save File");
 	FilePath path = ChooseSaveName(filePath.Directory(), "保存文件",saveFilter.c_str());
 	if (path.IsSet()) {
 		SaveIfNotOpen(path, false);
@@ -635,8 +635,8 @@ void SciTEWin::Print(
 	bool printPage;
 	PropSetFile propsPrint;
 	propsPrint.superPS = &props;
-	SetFileProperties(propsPrint);
-
+//	SetFileProperties(propsPrint);	//renamed ↓
+	SetFileAttrib(propsPrint);
 	while (lengthPrinted < lengthDoc) {
 		printPage = (!(pdlg.Flags & PD_PAGENUMS) ||
 		             ((pageNum >= pdlg.nFromPage) && (pageNum <= pdlg.nToPage)));
@@ -863,6 +863,7 @@ static void FillComboFromProps(HWND combo, PropSetFile &props) {
 }
 
 BOOL SciTEWin::FindMessage(HWND hDlg, UINT message, WPARAM wParam) {
+	HWND hTT[9];	//added
 	// Avoid getting dialog items before set up or during tear down.
 	if (WM_SETFONT == message || WM_NCDESTROY == message)
 		return FALSE;
@@ -886,6 +887,16 @@ BOOL SciTEWin::FindMessage(HWND hDlg, UINT message, WPARAM wParam) {
 			dlg.Enable(IDFINDSTYLE, findInStyle);
 			::SendMessage(dlg.Item(IDFINDSTYLE), EM_LIMITTEXT, 3, 1);
 			::SetDlgItemInt(hDlg, IDFINDSTYLE, wEditor.Call(SCI_GETSTYLEAT, wEditor.Call(SCI_GETCURRENTPOS)), FALSE);
+//add ToolTip ↓
+			ToolTip tt;
+			hTT[1]=tt.Create(dlg.Item(IDGOOGLE),"使用Google进行搜索");
+			hTT[2]=tt.Create(dlg.Item(IDMSDN),"搜索MSDN中的项目");
+			hTT[3]=tt.Create(dlg.Item(IDFINDWHAT),"你要搜索什么呢?");
+			hTT[4]=tt.Create(dlg.Item(IDREGEXP),"使用Perl兼容的正则表达式进行查找");
+			hTT[5]=tt.Create(dlg.Item(IDCANCEL),"哥我不需要查找就知道");
+			hTT[6]=tt.Create(dlg.Item(IDICIBA),"用金山词霸查查单词");
+			hTT[7]=tt.Create(dlg.Item(IDOK),"OK,让我找找.");
+//add ToolTip ↑
 		}
 		return TRUE;
 
@@ -895,6 +906,12 @@ BOOL SciTEWin::FindMessage(HWND hDlg, UINT message, WPARAM wParam) {
 
 	case WM_COMMAND:
 		if (ControlIDOfCommand(wParam) == IDCANCEL) {
+//add ToolTip ↓		
+			for (int i=0;i<=9;i++)
+			{
+				CloseWindow(hTT[i]);
+			}
+//add ToolTip ↑			
 			::EndDialog(hDlg, IDCANCEL);
 			wFindReplace.Destroy();
 			return FALSE;
@@ -1381,7 +1398,7 @@ BOOL SciTEWin::GrepMessage(HWND hDlg, UINT message, WPARAM wParam) {
 BOOL CALLBACK SciTEWin::GrepDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
 	return Caller(hDlg, message, lParam)->GrepMessage(hDlg, message, wParam);
 }
-//文件中查找
+
 void SciTEWin::FindInFiles() {
 	if (wFindInFiles.Created())
 		return;
@@ -1393,7 +1410,7 @@ void SciTEWin::FindInFiles() {
 		reinterpret_cast<DLGPROC>(GrepDlg), reinterpret_cast<sptr_t>(this));
 	wFindInFiles.Show();
 }
-//替换
+
 void SciTEWin::Replace() {
 	if (wFindReplace.Created())
 		return;
@@ -1419,11 +1436,11 @@ void SciTEWin::Replace() {
 	replacing = true;
 	havefound = false;
 }
-//查找替换
+
 void SciTEWin::FindReplace(bool replace) {
 	replacing = replace;
 }
-//销毁搜索替换
+
 void SciTEWin::DestroyFindReplace() {
 	if (wFindReplace.Created()) {
 		::EndDialog(reinterpret_cast<HWND>(wFindReplace.GetID()), IDCANCEL);
@@ -1530,11 +1547,11 @@ BOOL SciTEWin::AbbrevMessage(HWND hDlg, UINT message, WPARAM wParam) {
 
 	return FALSE;
 }
-//缩写对话框回调
+
 BOOL CALLBACK SciTEWin::AbbrevDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
 	return Caller(hDlg, message, lParam)->AbbrevMessage(hDlg, message, wParam);
 }
-//缩写对话框
+
 bool SciTEWin::AbbrevDialog() {
 	bool success = (DoDialog(hInstance, TEXT("InsAbbrev"), MainHWND(),
 		reinterpret_cast<DLGPROC>(AbbrevDlg)) == IDOK);
@@ -1744,7 +1761,7 @@ void SciTEWin::FindMessageBox(const SString &msg, const SString *findItem) {
 		}
 	}
 }
-//关于对话框
+
 BOOL SciTEWin::AboutMessage(HWND hDlg, UINT message, WPARAM wParam) {
 	switch (message) {
 
@@ -1772,7 +1789,7 @@ BOOL SciTEWin::AboutMessage(HWND hDlg, UINT message, WPARAM wParam) {
 
 	return FALSE;
 }
-//回调
+
 BOOL CALLBACK SciTEWin::AboutDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
 	return Caller(hDlg, message, lParam)->AboutMessage(hDlg, message, wParam);
 }

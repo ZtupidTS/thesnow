@@ -737,7 +737,8 @@ protected:
 	void CharAdded(char ch);
 	void CharAddedOutput(int ch);
 	void SetTextProperties(PropSetFile &ps);
-	virtual void SetFileProperties(PropSetFile &ps) = 0;
+//	virtual void SetFileProperties(PropSetFile &ps) = 0;//renamed ↓
+	virtual void SetFileAttrib(PropSetFile &ps) = 0;
 	virtual void UpdateStatusBar(bool bUpdateSlowData);
 	int GetLineLength(int line);
 	int GetCurrentLineNumber();
@@ -823,8 +824,6 @@ protected:
 	void SetPropertiesInitial();
 	SString LocaliseMessage(const char *s, const char *param0 = 0,
 	        const char *param1 = 0, const char *param2 = 0);
-	SStringW LocaliseMessage(const wchar_t *s, const wchar_t *param0 = 0,//added
-	        const wchar_t *param1 = 0, const wchar_t *param2 = 0);
 	virtual void ReadLocalization();
 	SString GetFileNameProperty(const char *name);
 	virtual void ReadPropertiesInitial();

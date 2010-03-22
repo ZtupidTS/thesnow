@@ -1,9 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 10.00
 # Visual Studio 2008
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SciTE", "scite\boundscheck\SciTE.vcproj", "{620BEA1D-631C-43F3-9C57-E3855682D13D}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SciTE", "SciTe\boundscheck\SciTE.vcproj", "{620BEA1D-631C-43F3-9C57-E3855682D13D}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SciLexer", "scintilla\vcbuild\SciLexer.vcproj", "{03E4E095-956E-44E2-993C-E5BC2675CF97}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SciLexer", "Scintilla\vcbuild\SciLexer.vcproj", "{03E4E095-956E-44E2-993C-E5BC2675CF97}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

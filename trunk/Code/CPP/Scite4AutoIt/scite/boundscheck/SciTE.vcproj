@@ -287,123 +287,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\lua\src\lapi.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lib\lauxlib.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lib\lbaselib.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lcode.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lib\ldblib.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\ldebug.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\ldo.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\ldump.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lfunc.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lgc.c"
-				>
-			</File>
-			<File
 				RelativePath="..\..\scintilla\src\LineMarker.cxx"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lib\linit.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lib\liolib.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\llex.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lib\lmathlib.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lmem.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lib\loadlib.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lobject.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lopcodes.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lib\loslib.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lparser.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lstate.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lstring.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lib\lstrlib.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\ltable.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lib\ltablib.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\ltm.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lundump.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lvm.c"
-				>
-			</File>
-			<File
-				RelativePath="..\lua\src\lzio.c"
 				>
 			</File>
 			<File
@@ -842,6 +726,142 @@
 					>
 				</File>
 			</Filter>
+			<Filter
+				Name="LUA"
+				>
+				<File
+					RelativePath="..\lua\src\lapi.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lcode.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\ldebug.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\ldo.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\ldump.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lfunc.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lgc.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\llex.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lmem.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lobject.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lopcodes.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lparser.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lstate.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lstring.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\ltable.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\ltm.c"
+					>
+				</File>
+				<File
+					RelativePath="..\src\LuaExtension.cxx"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lundump.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lvm.c"
+					>
+				</File>
+				<File
+					RelativePath="..\lua\src\lzio.c"
+					>
+				</File>
+				<Filter
+					Name="LIB"
+					>
+					<File
+						RelativePath="..\lua\src\lib\lauxlib.c"
+						>
+					</File>
+					<File
+						RelativePath="..\lua\src\lib\lbaselib.c"
+						>
+					</File>
+					<File
+						RelativePath="..\lua\src\lib\ldblib.c"
+						>
+					</File>
+					<File
+						RelativePath="..\lua\src\lib\linit.c"
+						>
+					</File>
+					<File
+						RelativePath="..\lua\src\lib\liolib.c"
+						>
+					</File>
+					<File
+						RelativePath="..\lua\src\lib\lmathlib.c"
+						>
+					</File>
+					<File
+						RelativePath="..\lua\src\lib\loadlib.c"
+						>
+					</File>
+					<File
+						RelativePath="..\lua\src\lib\loslib.c"
+						>
+					</File>
+					<File
+						RelativePath="..\lua\src\lib\lstrlib.c"
+						>
+					</File>
+					<File
+						RelativePath="..\lua\src\lib\ltablib.c"
+						>
+					</File>
+				</Filter>
+			</Filter>
+			<Filter
+				Name="Extras"
+				>
+				<File
+					RelativePath="..\src\Extra.cxx"
+					>
+				</File>
+			</Filter>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -917,14 +937,6 @@
 			</File>
 			<File
 				RelativePath="..\..\scintilla\src\LineMarker.h"
-				>
-			</File>
-			<File
-				RelativePath="..\src\LuaExtension.cxx"
-				>
-			</File>
-			<File
-				RelativePath="..\src\LuaExtension.h"
 				>
 			</File>
 			<File
@@ -1012,10 +1024,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\scintilla\Include\WinDefs.h"
-				>
-			</File>
-			<File
 				RelativePath="..\..\scintilla\Include\WindowAccessor.h"
 				>
 			</File>
@@ -1023,6 +1031,22 @@
 				RelativePath="..\..\scintilla\src\XPM.h"
 				>
 			</File>
+			<Filter
+				Name="LUA"
+				>
+				<File
+					RelativePath="..\src\LuaExtension.h"
+					>
+				</File>
+			</Filter>
+			<Filter
+				Name="Extras"
+				>
+				<File
+					RelativePath="..\src\Extra.h"
+					>
+				</File>
+			</Filter>
 		</Filter>
 		<Filter
 			Name="Resource Files"

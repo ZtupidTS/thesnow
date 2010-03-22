@@ -1491,6 +1491,8 @@ void ScintillaGTK::GetGtkSelectionText(GtkSelectionData *selectionData, Selectio
 	isRectangular = ::IsClipboardFormatAvailable(cfColumnSelect) != 0;
 #else
 	isRectangular = ((len > 2) && (data[len - 1] == 0 && data[len - 2] == '\n'));
+	if (isRectangular)
+		len--;	// Forget the extra '\0'
 #endif
 
 	char *dest;
@@ -1547,10 +1549,7 @@ void ScintillaGTK::ReceivedSelection(GtkSelectionData *selection_data) {
 				if (selText.rectangular) {
 					PasteRectangular(selStart, selText.s, selText.len);
 				} else {
-					selStart = SelectionPosition(InsertSpace(selStart.Position(), selStart.VirtualSpace()));
-					if (pdoc->InsertString(selStart.Position(),selText.s, selText.len)) {
-						SetEmptySelection(selStart.Position() + selText.len);
-					}
+					InsertPaste(selStart, selText.s, selText.len);
 				}
 				EnsureCaretVisible();
 			}
@@ -1851,7 +1850,7 @@ gint ScintillaGTK::PressThis(GdkEventButton *event) {
 			        (event->state & modifierTranslated(rectangularSelectionModifier)) != 0);
 		} else if (event->button == 2) {
 			// Grab the primary selection if it exists
-			SelectionPosition pos = SPositionFromLocation(pt);
+			SelectionPosition pos = SPositionFromLocation(pt, false, false, UserVirtualSpace());
 			if (OwnPrimarySelection() && primary.s == NULL)
 				CopySelectionRange(&primary);
 
