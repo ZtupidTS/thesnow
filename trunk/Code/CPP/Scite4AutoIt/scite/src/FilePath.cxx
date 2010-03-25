@@ -1,6 +1,6 @@
 ﻿// SciTE - Scintilla based Text Editor
 /** @file FilePath.cxx
- ** Encapsulate 文件路径.
+ ** Encapsulate a file path.
  **/
 // Copyright 1998-2005 by Neil Hodgson <neilh@scintilla.org>
 // The License.txt file describes the conditions under which this software may be distributed.
@@ -146,7 +146,7 @@ bool FilePath::IsAbsolute() const {
 		return true;
 #endif
 #ifdef WIN32
-	if (fileName[0] == pathSepChar || fileName[1] == ':')	// UNC 路径或者驱动器分隔符
+	if (fileName[0] == pathSepChar || fileName[1] == ':')	// UNC path or drive separator
 		return true;
 #endif
 

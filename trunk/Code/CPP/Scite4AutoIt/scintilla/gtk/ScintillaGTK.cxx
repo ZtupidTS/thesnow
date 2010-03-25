@@ -195,6 +195,8 @@ private:
 	void NotifyKey(int key, int modifiers);
 	void NotifyURIDropped(const char *list);
 	const char *CharacterSetID() const;
+	virtual CaseFolder *CaseFolderForEncoding();
+	virtual std::string CaseMapString(const std::string &s, int caseMapping);
 	virtual int KeyDefault(int key, int modifiers);
 	virtual void CopyToClipboard(const SelectionText &selectedText);
 	virtual void Copy();
@@ -892,6 +894,7 @@ void ScintillaGTK::StartDrag() {
 #ifdef USE_CONVERTER
 static char *ConvertText(int *lenResult, char *s, size_t len, const char *charSetDest,
 	const char *charSetSource, bool transliterations) {
+	// s is not const because of different versions of iconv disagreeing about const
 	*lenResult = 0;
 	char *destForm = 0;
 	Converter conv(charSetDest, charSetSource, transliterations);
@@ -1334,6 +1337,114 @@ const char *CharacterSetID(int characterSet);
 
 const char *ScintillaGTK::CharacterSetID() const {
 	return ::CharacterSetID(vs.styles[STYLE_DEFAULT].characterSet);
+}
+
+class CaseFolderUTF8 : public CaseFolderTable {
+public:
+	CaseFolderUTF8() {
+		StandardASCII();
+	}
+	virtual size_t Fold(char *folded, size_t sizeFolded, const char *mixed, size_t lenMixed) {
+		if ((lenMixed == 1) && (sizeFolded > 0)) {
+			folded[0] = mapping[static_cast<unsigned char>(mixed[0])];
+			return 1;
+		} else {
+			gchar *mapped = g_utf8_casefold(mixed, lenMixed);
+			size_t lenMapped = strlen(mapped);
+			if (lenMapped < sizeFolded) {
+				memcpy(folded, mapped,  lenMapped);
+			} else {
+				lenMapped = 0;
+			}
+			g_free(mapped);
+			return lenMapped;
+		}
+	}
+};
+
+CaseFolder *ScintillaGTK::CaseFolderForEncoding() {
+	if (pdoc->dbcsCodePage == SC_CP_UTF8) {
+		return new CaseFolderUTF8();
+	} else {
+		CaseFolderTable *pcf = new CaseFolderTable();
+		const char *charSetBuffer = CharacterSetID();
+		if ((pdoc->dbcsCodePage == 0) && charSetBuffer) {
+			pcf->StandardASCII();
+			// Only for single byte encodings
+			for (int i=0x80; i<0x100; i++) {
+				char sCharacter[2] = "A";
+				sCharacter[0] = i;
+				int convertedLength = 1;
+				const char *sUTF8 = ConvertText(&convertedLength, sCharacter, 1,
+					"UTF-8", charSetBuffer, false);
+				if (sUTF8) {
+					gchar *mapped = g_utf8_casefold(sUTF8, strlen(sUTF8));
+					if (mapped) {
+						int mappedLength = strlen(mapped);
+						const char *mappedBack = ConvertText(&mappedLength, mapped,
+							mappedLength, charSetBuffer, "UTF-8", false);
+						if (mappedBack && (strlen(mappedBack) == 1) && (mappedBack[0] != sCharacter[0])) {
+							pcf->SetTranslation(sCharacter[0], mappedBack[0]);
+						}
+						delete []mappedBack;
+						g_free(mapped);
+					}
+				}
+				delete []sUTF8;
+			}
+		}
+		return pcf;
+	}
+}
+
+std::string ScintillaGTK::CaseMapString(const std::string &s, int caseMapping) {
+#if GTK_MAJOR_VERSION < 2
+	return Editor::CaseMapString(s, caseMapping);
+#else
+	if (s.size() == 0)
+		return std::string();
+
+	if (caseMapping == cmSame)
+		return s;
+
+	const char *needsFree1 = 0;	// Must be freed with delete []
+	const char *charSetBuffer = CharacterSetID();
+	const char *sUTF8 = s.c_str();
+	int rangeBytes = s.size();
+
+	int convertedLength = rangeBytes;
+	// Change text to UTF-8
+	if (!IsUnicodeMode()) {
+		// Need to convert
+		if (*charSetBuffer) {
+			sUTF8 = ConvertText(&convertedLength, const_cast<char *>(s.c_str()), rangeBytes,
+				"UTF-8", charSetBuffer, false);
+			needsFree1 = sUTF8;
+		}
+	}
+	gchar *mapped;	// Must be freed with g_free
+	if (caseMapping == cmUpper) {
+		mapped = g_utf8_strup(sUTF8, convertedLength);
+	} else {
+		mapped = g_utf8_strdown(sUTF8, convertedLength);
+	}
+	int mappedLength = strlen(mapped);
+	char *mappedBack = mapped;
+
+	char *needsFree2 = 0;	// Must be freed with delete []
+	if (!IsUnicodeMode()) {
+		if (*charSetBuffer) {
+			mappedBack = ConvertText(&mappedLength, mapped, mappedLength, charSetBuffer, "UTF-8", false);
+			needsFree2 = mappedBack;
+		}
+	}
+
+	std::string ret(mappedBack, mappedLength);
+	g_free(mapped);
+	delete []needsFree1;
+	delete []needsFree2;
+	return ret;
+#endif
 }
 
 int ScintillaGTK::KeyDefault(int key, int modifiers) {
