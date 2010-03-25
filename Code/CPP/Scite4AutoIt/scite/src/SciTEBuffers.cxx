@@ -1,6 +1,6 @@
 ﻿// SciTE - Scintilla based Text Editor
 /** @file SciTEBuffers.cxx
- ** 缓冲器与任务管理.
+ ** Buffers and jobs management.
  **/
 // Copyright 1998-2010 by Neil Hodgson <neilh@scintilla.org>
 // The License.txt file describes the conditions under which this software may be distributed.
@@ -326,7 +326,7 @@ bool SciTEBase::CanMakeRoom(bool maySaveIfDirty) {
 	}
 	return false;
 }
-//清除文档
+
 void SciTEBase::ClearDocument() {
 	wEditor.Call(SCI_SETREADONLY, 0);
 	wEditor.Call(SCI_CLEARALL);
@@ -334,7 +334,7 @@ void SciTEBase::ClearDocument() {
 	wEditor.Call(SCI_SETSAVEPOINT);
 	wEditor.Call(SCI_SETREADONLY, isReadOnly);
 }
-//创建缓冲区
+
 void SciTEBase::CreateBuffers() {
 	int buffersWanted = props.GetInt("buffers");
 	if (buffersWanted > bufferMax) {
@@ -345,7 +345,7 @@ void SciTEBase::CreateBuffers() {
 	}
 	buffers.Allocate(buffersWanted);
 }
-//初始化缓冲区
+
 void SciTEBase::InitialiseBuffers() {
 	if (!buffers.initialised) {
 		buffers.initialised = true;
@@ -379,7 +379,7 @@ static SString IndexPropKey(const char *bufPrefix, int bufIndex, const char *buf
 	}
 	return pKey;
 }
-//载入会话文件
+
 void SciTEBase::LoadSessionFile(const char *sessionName) {
 	FilePath sessionPathName;
 	if (sessionName[0] == '\0') {
@@ -395,7 +395,7 @@ void SciTEBase::LoadSessionFile(const char *sessionName) {
 	// Add/update SessionPath environment variable
 	props.Set("SessionPath", sessionFilePath.AsFileSystem());
 }
-//还原历史菜单
+
 void SciTEBase::RestoreRecentMenu() {
 	Sci_CharacterRange cr;
 	cr.cpMin = cr.cpMax = 0;
@@ -410,7 +410,7 @@ void SciTEBase::RestoreRecentMenu() {
 		AddFileToStack(propStr.c_str(), cr, 0);
 	}
 }
-//还原会话
+
 void SciTEBase::RestoreSession() {
 	// Comment next line if you don't want to close all buffers before restoring session
 	CloseAllBuffers(true);
@@ -472,7 +472,7 @@ void SciTEBase::RestoreSession() {
 	if (curr != -1)
 		SetDocumentAt(curr);
 }
-//保存会话文件
+
 void SciTEBase::SaveSessionFile(const char *sessionName) {
 	bool defaultSession;
 	FilePath sessionPathName;
@@ -507,7 +507,7 @@ void SciTEBase::SaveSessionFile(const char *sessionName) {
 
 		fprintf(sessionFile, "\n");
 
-		// 保存历史文件列表
+		// Save recent files list
 		for (int i = fileStackMax - 1; i >= 0; i--) {
 			if (recentFileStack[i].IsSet()) {
 				propKey = IndexPropKey("mru", j++, "path");
@@ -578,7 +578,7 @@ void SciTEBase::SaveSessionFile(const char *sessionName) {
 	// Add/update SessionPath environment variable
 	props.Set("SessionPath", sessionFilePath.AsFileSystem());
 }
-//设置缩进设置
+
 void SciTEBase::SetIndentSettings() {
 	// Get default values
 	int useTabs = props.GetInt("use.tabs", 1);
@@ -608,7 +608,7 @@ void SciTEBase::SetIndentSettings() {
 		wEditor.Call(SCI_SETINDENT, indentSize);
 	}
 }
-//设置行末字符
+
 void SciTEBase::SetEol() {
 	SString eol_mode = props.Get("eol.mode");
 	if (eol_mode == "LF") {
@@ -619,7 +619,7 @@ void SciTEBase::SetEol() {
 		wEditor.Call(SCI_SETEOLMODE, SC_EOL_CRLF);
 	}
 }
-//新建文件
+
 void SciTEBase::New() {
 	InitialiseBuffers();
 	UpdateBuffersCurrent();
@@ -659,7 +659,7 @@ void SciTEBase::New() {
 	if (extender)
 		extender->InitBuffer(buffers.Current());
 }
-//还原状态
+
 void SciTEBase::RestoreState(const Buffer &buffer) {
 	SetWindowName();
 	ReadProperties();
@@ -675,7 +675,7 @@ void SciTEBase::RestoreState(const Buffer &buffer) {
 		wEditor.Call(SCI_TOGGLEFOLD, buffer.foldState.Line(fold));
 	}
 }
-//关闭
+
 void SciTEBase::Close(bool updateUI, bool loadingSession, bool makingRoomForNew) {
 	bool closingLast = false;
 
@@ -739,7 +739,7 @@ void SciTEBase::Close(bool updateUI, bool loadingSession, bool makingRoomForNew)
 		QuitProgram();
 	}
 }
-//关闭标签
+
 void SciTEBase::CloseTab(int tab) {
 	int tabCurrent = buffers.Current();
 	if (tab == tabCurrent) {
@@ -757,7 +757,7 @@ void SciTEBase::CloseTab(int tab) {
 		}
 	}
 }
-//关闭所有缓冲器
+
 void SciTEBase::CloseAllBuffers(bool loadingSession) {
 	if (SaveAllBuffers(false) != IDCANCEL) {
 		while (buffers.length > 1)
@@ -766,7 +766,7 @@ void SciTEBase::CloseAllBuffers(bool loadingSession) {
 		Close(true, loadingSession);
 	}
 }
-//保存所有缓冲器
+
 int SciTEBase::SaveAllBuffers(bool forceQuestion, bool alwaysYes) {
 	int choice = IDYES;
 	UpdateBuffersCurrent();
@@ -798,7 +798,7 @@ void SciTEBase::SaveTitledBuffers() {
 	}
 	SetDocumentAt(currentBuffer);
 }
-//下一缓冲器
+
 void SciTEBase::Next() {
 	int next = buffers.Current();
 	if (++next >= buffers.length)
@@ -806,7 +806,7 @@ void SciTEBase::Next() {
 	SetDocumentAt(next);
 	CheckReload();
 }
-//上一缓冲器
+
 void SciTEBase::Prev() {
 	int prev = buffers.Current();
 	if (--prev < 0)
@@ -815,7 +815,7 @@ void SciTEBase::Prev() {
 	SetDocumentAt(prev);
 	CheckReload();
 }
-//切换标签
+
 void SciTEBase::ShiftTab(int indexFrom, int indexTo) {
 	buffers.ShiftTo(indexFrom, indexTo);
 	buffers.SetCurrent(indexTo);
@@ -825,7 +825,7 @@ void SciTEBase::ShiftTab(int indexFrom, int indexTo) {
 
 	DisplayAround(buffers.buffers[buffers.Current()]);
 }
-//右移标签
+
 void SciTEBase::MoveTabRight() {
 	if (buffers.length < 2) return;
 	int indexFrom = buffers.Current();
@@ -833,7 +833,7 @@ void SciTEBase::MoveTabRight() {
 	if (indexTo >= buffers.length) indexTo = 0;
 	ShiftTab(indexFrom, indexTo);
 }
-//左移标签
+
 void SciTEBase::MoveTabLeft() {
 	if (buffers.length < 2) return;
 	int indexFrom = buffers.Current();
@@ -855,7 +855,7 @@ void SciTEBase::PrevInStack() {
 void SciTEBase::EndStackedTabbing() {
 	buffers.CommitStackSelection();
 }
-//缓冲器菜单
+
 void SciTEBase::BuffersMenu() {
 	UpdateBuffersCurrent();
 	DestroyMenuItem(menuBuffers, IDM_BUFFERSEP);
@@ -964,7 +964,7 @@ void SciTEBase::DropFileStackTop() {
 	recentFileStack[fileStackMax - 1].Init();
 	SetFileStackMenu();
 }
-//添加文件到缓冲器
+
 bool SciTEBase::AddFileToBuffer(FilePath file, int pos) {
 	// Return whether file loads successfully
 	if (file.Exists() && Open(file, ofForceLoad)) {
@@ -974,7 +974,7 @@ bool SciTEBase::AddFileToBuffer(FilePath file, int pos) {
 		return false;
 	}
 }
-//添加文件到堆栈
+
 void SciTEBase::AddFileToStack(FilePath file, Sci_CharacterRange selection, int scrollPos) {
 	if (!file.IsSet())
 		return;
@@ -994,7 +994,7 @@ void SciTEBase::AddFileToStack(FilePath file, Sci_CharacterRange selection, int 
 	}
 	SetFileStackMenu();
 }
-//从堆栈移除文件
+
 void SciTEBase::RemoveFileFromStack(FilePath file) {
 	if (!file.IsSet())
 		return;
@@ -1010,7 +1010,7 @@ void SciTEBase::RemoveFileFromStack(FilePath file) {
 	}
 	SetFileStackMenu();
 }
-//得到文件坐标
+
 RecentFile SciTEBase::GetFilePosition() {
 	RecentFile rf;
 	rf.selection = GetSelection();
@@ -1099,19 +1099,19 @@ void SciTEBase::StackMenu(int pos) {
 		}
 	}
 }
-//移除工具菜单
+
 void SciTEBase::RemoveToolsMenu() {
 	for (int pos = 0; pos < toolMax; pos++) {
 		DestroyMenuItem(menuTools, IDM_TOOLS + pos);
 	}
 }
-//设置工具本地化
+
 void SciTEBase::SetMenuItemLocalised(int menuNumber, int position, int itemID,
         const char *text, const char *mnemonic) {
 	SString localised = localiser.Text(text);
 	SetMenuItem(menuNumber, position, itemID, localised.c_str(), mnemonic);
 }
-//设置工具菜单
+
 void SciTEBase::SetToolsMenu() {
 	//command.name.0.*.py=Edit in PythonWin
 	//command.0.*.py="c:\program files\python\pythonwin\pythonwin" /edit c:\coloreditor.py
@@ -1138,14 +1138,13 @@ void SciTEBase::SetToolsMenu() {
 			menuPos++;
 		}
 	}
-	//销毁宏相关菜单
+
 	DestroyMenuItem(menuTools, IDM_MACRO_SEP);
 	DestroyMenuItem(menuTools, IDM_MACROLIST);
 	DestroyMenuItem(menuTools, IDM_MACROPLAY);
 	DestroyMenuItem(menuTools, IDM_MACRORECORD);
 	DestroyMenuItem(menuTools, IDM_MACROSTOPRECORD);
 	menuPos++;
-	//启用宏
 	if (macrosEnabled) {
 		SetMenuItem(menuTools, menuPos++, IDM_MACRO_SEP, "");
 		SetMenuItemLocalised(menuTools, menuPos++, IDM_MACROLIST,
@@ -1172,7 +1171,7 @@ JobSubsystem SciTEBase::SubsystemType(char c) {
 		return jobOtherHelp;		//其他帮助
 	return jobCLI;
 }
-//子系统类型(重载)
+
 JobSubsystem SciTEBase::SubsystemType(const char *cmd, int item) {
 	SString subsysprefix = cmd;
 	if (item >= 0) {
@@ -1182,7 +1181,7 @@ JobSubsystem SciTEBase::SubsystemType(const char *cmd, int item) {
 	SString subsystem = props.GetNewExpand(subsysprefix.c_str(), FileNameExt().AsInternal());
 	return SubsystemType(subsystem[0]);
 }
-//工具菜单
+
 void SciTEBase::ToolsMenu(int item) {
 	SelectionIntoProperties();
 
@@ -1226,9 +1225,9 @@ void SciTEBase::ToolsMenu(int item) {
 				}
 
 				if (0 == strcmp(opt, "subsystem") && colon) {
-					if (colon[0] == '0' || 0 == strcmp(colon, "console"))			//控制台
+					if (colon[0] == '0' || 0 == strcmp(colon, "console"))
 						jobType = jobCLI;
-					else if (colon[0] == '1' || 0 == strcmp(colon, "windows"))		//GUI
+					else if (colon[0] == '1' || 0 == strcmp(colon, "windows"))
 						jobType = jobGUI;
 					else if (colon[0] == '2' || 0 == strcmp(colon, "shellexec"))
 						jobType = jobShell;
@@ -1236,18 +1235,18 @@ void SciTEBase::ToolsMenu(int item) {
 						jobType = jobExtension;
 					else if (colon[0] == '4' || 0 == strcmp(colon, "htmlhelp"))
 						jobType = jobHelp;
-					else if (colon[0] == '5' || 0 == strcmp(colon, "winhelp"))		//其他帮助
+					else if (colon[0] == '5' || 0 == strcmp(colon, "winhelp"))
 						jobType = jobOtherHelp;
 				}
 
-				if (0 == strcmp(opt, "quiet")) {									//静默
+				if (0 == strcmp(opt, "quiet")) {
 					if (!colon || colon[0] == '1' || 0 == strcmp(colon, "yes"))
 						quiet = true;
 					else if (colon[0] == '0' || 0 == strcmp(colon, "no"))
 						quiet = false;
 				}
 
-				if (0 == strcmp(opt, "savebefore")) {								//须先保存
+				if (0 == strcmp(opt, "savebefore")) {
 					if (!colon || colon[0] == '1' || 0 == strcmp(colon, "yes"))
 						saveBefore = 1;
 					else if (colon[0] == '0' || 0 == strcmp(colon, "no"))
@@ -1263,7 +1262,7 @@ void SciTEBase::ToolsMenu(int item) {
 						filter = false;
 				}
 
-				if (0 == strcmp(opt, "replaceselection")) {							//替换所选
+				if (0 == strcmp(opt, "replaceselection")) {
 					if (!colon || colon[0] == '1' || 0 == strcmp(colon, "yes"))
 						repSel = 1;
 					else if (colon[0] == '0' || 0 == strcmp(colon, "no"))
@@ -1346,11 +1345,11 @@ void SciTEBase::ToolsMenu(int item) {
 		}
 	}
 }
-//是不是数字字符
+
 inline bool isdigitchar(int ch) {
 	return (ch >= '0') && (ch <= '9');
 }
-//解码消息
+
 int DecodeMessage(const char *cdoc, char *sourcePath, int format, int &column) {
 	sourcePath[0] = '\0';
 	column = -1; // default to not detected

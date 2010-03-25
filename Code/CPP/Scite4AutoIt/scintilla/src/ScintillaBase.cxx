@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <ctype.h>
 
+#include <string>
 #include <vector>
 
 #include "Platform.h"
@@ -202,9 +203,8 @@ int ScintillaBase::KeyCommand(unsigned int iMessage) {
 	return Editor::KeyCommand(iMessage);
 }
 
-//自动完成被双击
-void ScintillaBase::AutoCompleteDoubleClick(void* p) {
-	ScintillaBase* sci = reinterpret_cast<ScintillaBase*>(p);
+void ScintillaBase::AutoCompleteDoubleClick(void *p) {
+	ScintillaBase *sci = reinterpret_cast<ScintillaBase *>(p);
 	sci->AutoCompleteCompleted();
 }
 

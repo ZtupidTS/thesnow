@@ -1,6 +1,6 @@
 ﻿// SciTE - Scintilla based Text Editor
 /** @file SciTEProps.cxx
- ** Properties 文件管理.
+ ** Properties management.
  **/
 // Copyright 1998-2004 by Neil Hodgson <neilh@scintilla.org>
 // The License.txt file describes the conditions under which this software may be distributed.
@@ -69,7 +69,6 @@ const char menuAccessIndicator[] = "&";
 #include "JobQueue.h"
 #include "SciTEBase.h"
 
-//设置导入菜单
 void SciTEBase::SetImportMenu() {
 	for (int i = 0; i < importMax; i++) {
 		DestroyMenuItem(menuOptions, importCmdID + i);
@@ -87,7 +86,7 @@ void SciTEBase::SetImportMenu() {
 		}
 	}
 }
-//导入菜单
+
 void SciTEBase::ImportMenu(int pos) {
 	if (pos >= 0) {
 		if (importFiles[pos].IsSet()) {
@@ -95,7 +94,7 @@ void SciTEBase::ImportMenu(int pos) {
 		}
 	}
 }
-//设置语言菜单
+
 void SciTEBase::SetLanguageMenu() {
 	for (int i = 0; i < 100; i++) {
 		DestroyMenuItem(menuLanguage, languageCmdID + i);
@@ -121,7 +120,7 @@ const char propLocalFileName[] = "SciTE.properties";
 const char propDirectoryFileName[] = "SciTEDirectory.properties";
 
 /**
-	读取全局与本地属性文件.
+Read global and user properties files.
 */
 void SciTEBase::ReadGlobalPropFile() {
 #ifdef unix
@@ -157,7 +156,7 @@ void SciTEBase::ReadGlobalPropFile() {
 		ReadLocalization();
 	}
 }
-//读取缩写属性文件
+
 void SciTEBase::ReadAbbrevPropFile() {
 	propsAbbrev.Clear();
 	propsAbbrev.Read(pathAbbreviations, pathAbbreviations.Directory(), importFiles, importMax);
@@ -169,7 +168,6 @@ Reads the directory properties file depending on the variable
 where this property file is found. If it is not found $(SciteDirectoryHome) will
 be set to $(FilePath).
 */
-//读取目录属性文件
 void SciTEBase::ReadDirectoryPropFile() {
 	propsDirectory.Clear();
 
@@ -262,7 +260,7 @@ const char *SciTEBase::GetNextPropItem(
 	pPropItem[size] = '\0';
 	return pNext;
 }
-//样式定义
+
 StyleDefinition::StyleDefinition(const char *definition) :
 		size(0), fore("#000000"), back("#FFFFFF"),
 		bold(false), italics(false), eolfilled(false), underlined(false),
@@ -271,7 +269,7 @@ StyleDefinition::StyleDefinition(const char *definition) :
 		specified(sdNone) {
 	ParseStyleDefinition(definition);
 }
-//表达式样式定义
+
 bool StyleDefinition::ParseStyleDefinition(const char *definition) {
 	if (definition == 0 || *definition == '\0') {
 		return false;
@@ -279,13 +277,13 @@ bool StyleDefinition::ParseStyleDefinition(const char *definition) {
 	char *val = StringDup(definition);
 	char *opt = val;
 	while (opt) {
-		// 查找属性分割
+		// Find attribute separator
 		char *cpComma = strchr(opt, ',');
 		if (cpComma) {
 			// If found, we terminate the current attribute (opt) string
 			*cpComma = '\0';
 		}
-		// 查找属性名称/值分割
+		// Find attribute name/value separator
 		char *colon = strchr(opt, ':');
 		if (colon) {
 			// If found, we terminate the current attribute name and point on the value
@@ -422,7 +420,7 @@ void SciTEBase::SetStyleFor(GUI::ScintillaWindow &win, const char *lang) {
 		}
 	}
 }
-//小写字符串
+
 void LowerCaseString(char *s) {
 	while (*s) {
 		if ((*s >= 'A') && (*s <= 'Z')) {
@@ -475,7 +473,7 @@ void SciTEBase::DefineMarker(int marker, int markerType, Colour fore, Colour bac
 	wEditor.Call(SCI_MARKERSETFORE, marker, fore);
 	wEditor.Call(SCI_MARKERSETBACK, marker, back);
 }
-//文件长度
+
 static int FileLength(const char *path) {
 	int len = 0;
 	FILE *fp = fopen(path, fileRead);
@@ -486,7 +484,7 @@ static int FileLength(const char *path) {
 	}
 	return len;
 }
-//读取API接口
+
 void SciTEBase::ReadAPI(const SString &fileNameForExtension) {
 	SString apisFileNames = props.GetNewExpand("api.",
 	                        fileNameForExtension.c_str());
@@ -527,7 +525,7 @@ void SciTEBase::ReadAPI(const SString &fileNameForExtension) {
 		}
 	}
 }
-//查找语言属性
+
 SString SciTEBase::FindLanguageProperty(const char *pattern, const char *defaultValue) {
 	SString key = pattern;
 	key.substitute("*", language.c_str());
@@ -570,6 +568,7 @@ static const char *propertiesToForward[] = {
 	"lexer.cpp.allow.dollars",
 	"lexer.d.fold.at.else",
 	"lexer.errorlist.value.separate",
+	"lexer.html.django",
 	"lexer.html.mako",
 	"lexer.metapost.comment.process",
 	"lexer.metapost.interface.default",
@@ -696,7 +695,7 @@ SString SciTEBase::GetFileNameProperty(const char *name) {
 		return props.Get(name);
 	}
 }
-//读取属性
+
 void SciTEBase::ReadProperties() {
 	if (extender)
 		extender->Clear();
@@ -768,7 +767,7 @@ void SciTEBase::ReadProperties() {
 
 	codePage = props.GetInt("code.page");
 	if (CurrentBuffer()->unicodeMode != uni8Bit) {
-		// 覆盖属性文件确保Unicode显示正常.	Override properties file to ensure Unicode displayed.
+		// Override properties file to ensure Unicode displayed.
 		codePage = SC_CP_UTF8;
 	}
 	wEditor.Call(SCI_SETCODEPAGE, codePage);
@@ -1217,7 +1216,7 @@ void SciTEBase::ReadProperties() {
 	firstPropertiesRead = false;
 	needReadProperties = false;
 }
-//读取字体属性
+
 void SciTEBase::ReadFontProperties() {
 	char key[200];
 	SString sval;
@@ -1298,7 +1297,7 @@ void SciTEBase::SetPropertiesInitial() {
 	unSlash = props.GetInt("find.replace.escapes");
 	wrapFind = props.GetInt("find.replace.wrap", 1);
 }
-//本地化文本
+
 SString Localization::Text(const char *s, bool retainIfNotFound) {
 	SString translation = s;
 	int ellipseIndicator = translation.remove("...");
@@ -1383,10 +1382,9 @@ SString SciTEBase::LocaliseMessage(const char *s, const char *param0, const char
 	return translation;
 }
 
-//读取本地化文件
 void SciTEBase::ReadLocalization() {
 	localiser.Clear();
-	const char *title = "locale.properties";	//本地化文件
+	const char *title = "locale.properties";
 	SString localeProps = props.GetExpanded(title);
 	if (localeProps.length()) {
 		title = localeProps.c_str();
@@ -1478,23 +1476,23 @@ void SciTEBase::ReadPropertiesInitial() {
 	homepath = GetSciteUserHome();
 	props.Set("SciteUserHome", homepath.AsFileSystem());
 }
-//得到默认属性文件名
+
 FilePath SciTEBase::GetDefaultPropertiesFileName() {
 	return FilePath(GetSciteDefaultHome(), propGlobalFileName);
 }
-//得到缩写属性文件名
+
 FilePath SciTEBase::GetAbbrevPropertiesFileName() {
 	return FilePath(GetSciteUserHome(), propAbbrevFileName);
 }
-//得到用户属性文件名
+
 FilePath SciTEBase::GetUserPropertiesFileName() {
 	return FilePath(GetSciteUserHome(), propUserFileName);
 }
-//得到本地化属性文件名
+
 FilePath SciTEBase::GetLocalPropertiesFileName() {
 	return FilePath(filePath.Directory(), propLocalFileName);
 }
-//得到目录属性文件名
+
 FilePath SciTEBase::GetDirectoryPropertiesFileName() {
 	FilePath propfile;
 
@@ -1513,7 +1511,7 @@ FilePath SciTEBase::GetDirectoryPropertiesFileName() {
 	}
 	return propfile;
 }
-//打开属性文件
+
 void SciTEBase::OpenProperties(int propsFile) {
 	FilePath propfile;
 	switch (propsFile) {

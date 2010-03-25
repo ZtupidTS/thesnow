@@ -197,6 +197,7 @@ class ScintillaWin :
 	virtual void StartDrag();
 	sptr_t WndPaint(uptr_t wParam);
 	sptr_t HandleComposition(uptr_t wParam, sptr_t lParam);
+	UINT CodePageOfDocument();
 	virtual bool ValidCodePage(int codePage) const;
 	virtual sptr_t DefWndProc(unsigned int iMessage, uptr_t wParam, sptr_t lParam);
 	virtual bool SetIdle(bool on);
@@ -215,6 +216,8 @@ class ScintillaWin :
 	virtual int GetCtrlID();
 	virtual void NotifyParent(SCNotification scn);
 	virtual void NotifyDoubleClick(Point pt, bool shift, bool ctrl, bool alt);
+	virtual CaseFolder *CaseFolderForEncoding();
+	virtual std::string CaseMapString(const std::string &s, int caseMapping);
 	virtual void Copy();
 	virtual void CopyAllowLine();
 	virtual bool CanPaste();
@@ -587,6 +590,10 @@ static unsigned int SciMessageFromEM(unsigned int iMessage) {
 }
 
 static UINT CodePageFromCharSet(DWORD characterSet, UINT documentCodePage) {
+	if (documentCodePage == SC_CP_UTF8) {
+		// The system calls here are a little slow so avoid if known case.
+		return SC_CP_UTF8;
+	}
 	CHARSETINFO ci = { 0, 0, { { 0, 0, 0, 0 }, { 0, 0 } } };
 	BOOL bci = ::TranslateCharsetInfo((DWORD*)characterSet,
 		&ci, TCI_SRCCHARSET);
@@ -602,6 +609,10 @@ static UINT CodePageFromCharSet(DWORD characterSet, UINT documentCodePage) {
 		cp = CP_ACP;
 
 	return cp;
+}
+
+UINT ScintillaWin::CodePageOfDocument() {
+	return CodePageFromCharSet(vs.styles[STYLE_DEFAULT].characterSet, pdoc->dbcsCodePage);
 }
 
 sptr_t ScintillaWin::WndProc(unsigned int iMessage, uptr_t wParam, sptr_t lParam) {
@@ -800,8 +811,7 @@ sptr_t ScintillaWin::WndProc(unsigned int iMessage, uptr_t wParam, sptr_t lParam
 						UTF8FromUTF16(wcs, 1, utfval, len);
 						AddCharUTF(utfval, len);
 					} else {
-						UINT cpDest = CodePageFromCharSet(
-							vs.styles[STYLE_DEFAULT].characterSet, pdoc->dbcsCodePage);
+						UINT cpDest = CodePageOfDocument();
 						char inBufferCP[20];
 						int size = ::WideCharToMultiByte(cpDest,
 							0, wcs, 1, inBufferCP, sizeof(inBufferCP) - 1, 0, 0);
@@ -1289,6 +1299,153 @@ void ScintillaWin::NotifyDoubleClick(Point pt, bool shift, bool ctrl, bool alt) 
 			  MAKELPARAM(pt.x, pt.y));
 }
 
+class CaseFolderUTF8  : public CaseFolderTable {
+	// Allocate the expandable storage here so that it does not need to be reallocated
+	// for each call to Fold.
+	std::vector<wchar_t> utf16Mixed;
+	std::vector<wchar_t> utf16Folded;
+public:
+	CaseFolderUTF8() {
+		StandardASCII();
+	}
+	virtual size_t Fold(char *folded, size_t sizeFolded, const char *mixed, size_t lenMixed) {
+		if ((lenMixed == 1) && (sizeFolded > 0)) {
+			folded[0] = mapping[static_cast<unsigned char>(mixed[0])];
+			return 1;
+		} else {
+			if (lenMixed > utf16Mixed.size()) {
+				utf16Mixed.resize(lenMixed + 8);
+			}
+			size_t nUtf16Mixed = ::MultiByteToWideChar(65001, 0, mixed, lenMixed,
+				&utf16Mixed[0], utf16Mixed.size());
+
+			if (nUtf16Mixed * 4 > utf16Folded.size()) {	// Maximum folding expansion factor of 4
+				utf16Folded.resize(nUtf16Mixed * 4 + 8);
+			}
+			int lenFlat = ::LCMapStringW(LOCALE_SYSTEM_DEFAULT,
+				LCMAP_LINGUISTIC_CASING | LCMAP_LOWERCASE,
+				&utf16Mixed[0], nUtf16Mixed, &utf16Folded[0], utf16Folded.size());
+
+			size_t lenOut = UTF8Length(&utf16Folded[0], lenFlat);
+			if (lenOut < sizeFolded) {
+				UTF8FromUTF16(&utf16Folded[0], lenFlat, folded, lenOut);
+				return lenOut;
+			} else {
+				return 0;
+			}
+		}
+	}
+};
+
+CaseFolder *ScintillaWin::CaseFolderForEncoding() {
+	UINT cpDest = CodePageOfDocument();
+	if (cpDest == SC_CP_UTF8) {
+		return new CaseFolderUTF8();
+	} else {
+		CaseFolderTable *pcf = new CaseFolderTable();
+		if (pdoc->dbcsCodePage == 0) {
+			pcf->StandardASCII();
+			// Only for single byte encodings
+			UINT cpDoc = CodePageOfDocument();
+			for (int i=0x80; i<0x100; i++) {
+				char sCharacter[2] = "A";
+				sCharacter[0] = static_cast<char>(i);
+				wchar_t wCharacter[20];
+				unsigned int lengthUTF16 = ::MultiByteToWideChar(cpDoc, 0, sCharacter, 1,
+					wCharacter, sizeof(wCharacter)/sizeof(wCharacter[0]));
+				if (lengthUTF16 == 1) {
+					wchar_t wLower[20];
+					int charsConverted = ::LCMapStringW(LOCALE_SYSTEM_DEFAULT,
+						LCMAP_LINGUISTIC_CASING | LCMAP_LOWERCASE,
+						wCharacter, lengthUTF16, wLower, sizeof(wLower)/sizeof(wLower[0]));
+					char sCharacterLowered[20];
+					unsigned int lengthConverted = ::WideCharToMultiByte(cpDoc, 0,
+						wLower, charsConverted,
+						sCharacterLowered, sizeof(sCharacterLowered), NULL, 0);
+					if ((lengthConverted == 1) && (sCharacter[0] != sCharacterLowered[0])) {
+						pcf->SetTranslation(sCharacter[0], sCharacterLowered[0]);
+					}
+				}
+			}
+		}
+		return pcf;
+	}
+}
+
+std::string ScintillaWin::CaseMapString(const std::string &s, int caseMapping) {
+	if (s.size() == 0)
+		return std::string();
+
+	if (caseMapping == cmSame)
+		return s;
+
+	UINT cpDoc = CodePageOfDocument();
+
+	unsigned int lengthUTF16 = ::MultiByteToWideChar(cpDoc, 0, s.c_str(), s.size(), NULL, NULL);
+	if (lengthUTF16 == 0)	// Failed to convert
+		return s;
+
+	DWORD mapFlags = LCMAP_LINGUISTIC_CASING | 
+		((caseMapping == cmUpper) ? LCMAP_UPPERCASE : LCMAP_LOWERCASE);
+
+	// Many conversions performed by search function are short so optimize this case.
+	enum { shortSize=20 };
+
+	if (s.size() > shortSize) {
+		// Use dynamic allocations for long strings
+
+		// Change text to UTF-16
+		std::vector<wchar_t> vwcText(lengthUTF16);
+		::MultiByteToWideChar(cpDoc, 0, s.c_str(), s.size(), &vwcText[0], lengthUTF16);
+
+		// Change case
+		int charsConverted = ::LCMapStringW(LOCALE_SYSTEM_DEFAULT, mapFlags,
+			&vwcText[0], lengthUTF16, NULL, 0);
+		std::vector<wchar_t> vwcConverted(charsConverted);
+		::LCMapStringW(LOCALE_SYSTEM_DEFAULT, mapFlags, 
+			&vwcText[0], lengthUTF16, &vwcConverted[0], charsConverted);
+
+		// Change back to document encoding
+		unsigned int lengthConverted = ::WideCharToMultiByte(cpDoc, 0,
+			&vwcConverted[0], vwcConverted.size(), 
+			NULL, 0, NULL, 0);
+		std::vector<char> vcConverted(lengthConverted);
+		::WideCharToMultiByte(cpDoc, 0, 
+			&vwcConverted[0], vwcConverted.size(), 
+			&vcConverted[0], vcConverted.size(), NULL, 0);
+
+		return std::string(&vcConverted[0], vcConverted.size());
+
+	} else {
+		// Use static allocations for short strings as much faster
+		// A factor of 15 for single character strings
+
+		// Change text to UTF-16
+		wchar_t vwcText[shortSize];
+		::MultiByteToWideChar(cpDoc, 0, s.c_str(), s.size(), vwcText, lengthUTF16);
+
+		// Change case
+		int charsConverted = ::LCMapStringW(LOCALE_SYSTEM_DEFAULT, mapFlags,
+			vwcText, lengthUTF16, NULL, 0);
+		// Full mapping may produce up to 3 characters per input character
+		wchar_t vwcConverted[shortSize*3];
+		::LCMapStringW(LOCALE_SYSTEM_DEFAULT, mapFlags, vwcText, lengthUTF16,
+			vwcConverted, charsConverted);
+
+		// Change back to document encoding
+		unsigned int lengthConverted = ::WideCharToMultiByte(cpDoc, 0,
+			vwcConverted, charsConverted, 
+			NULL, 0, NULL, 0);
+		// Each UTF-16 code unit may need up to 3 bytes in UTF-8
+		char vcConverted[shortSize * 3 * 3];
+		::WideCharToMultiByte(cpDoc, 0, 
+			vwcConverted, charsConverted, 
+			vcConverted, lengthConverted, NULL, 0);
+
+		return std::string(vcConverted, lengthConverted);
+	}
+}
+
 void ScintillaWin::Copy() {
 	//Platform::DebugPrintf("Copy\n");
 	if (!sel.Empty()) {
@@ -1409,8 +1566,7 @@ void ScintillaWin::Paste() {
 			} else {
 				// CF_UNICODETEXT available, but not in Unicode mode
 				// Convert from Unicode to current Scintilla code page
-				UINT cpDest = CodePageFromCharSet(
-					vs.styles[STYLE_DEFAULT].characterSet, pdoc->dbcsCodePage);
+				UINT cpDest = CodePageOfDocument();
 				len = ::WideCharToMultiByte(cpDest, 0, uptr, memUSelection.Size() / 2,
 				                            NULL, 0, NULL, NULL) - 1; // subtract 0 terminator
 				putf = new char[len + 1];
@@ -2237,8 +2393,7 @@ STDMETHODIMP ScintillaWin::Drop(LPDATAOBJECT pIDataSource, DWORD grfKeyState,
 				// Default Scintilla behavior in Unicode mode
 				// CF_UNICODETEXT available, but not in Unicode mode
 				// Convert from Unicode to current Scintilla code page
-				UINT cpDest = CodePageFromCharSet(
-					vs.styles[STYLE_DEFAULT].characterSet, pdoc->dbcsCodePage);
+				UINT cpDest = CodePageOfDocument();
 				int tlen = ::WideCharToMultiByte(cpDest, 0, udata, -1,
 					NULL, 0, NULL, NULL) - 1; // subtract 0 terminator
 				data = new char[tlen + 1];
