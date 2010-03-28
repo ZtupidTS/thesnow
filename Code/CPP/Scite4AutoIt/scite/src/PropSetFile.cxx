@@ -1,7 +1,7 @@
-// SciTE - Scintilla based Text Editor
+ï»¿// SciTE - Scintilla based Text Editor
 /** @file PropSetFile.cxx
  ** Property set implementation.
- ** ÊôĞÔÎÄ¼şÉèÖÃÖ´ĞĞ
+ ** å±æ€§æ–‡ä»¶è®¾ç½®æ‰§è¡Œ
  **/
 // Copyright 1998-2007 by Neil Hodgson <neilh@scintilla.org>
 // The License.txt file describes the conditions under which this software may be distributed.
@@ -276,7 +276,7 @@ bool PropSetFile::ReadLine(const char *lineBuffer, bool ifIsTrue, FilePath direc
 	} else if (isPrefix(lineBuffer, "import ") && directoryForImports.IsSet()) {
 		SString importName(lineBuffer + strlen("import") + 1);
 		importName += ".properties";
-		FilePath importPath(directoryForImports, FilePath(importName.c_str()));
+		FilePath importPath(directoryForImports, FilePath(GUI::StringFromUTF8(importName.c_str())));
 		if (Read(importPath, directoryForImports, imports, sizeImports)) {
 			if (imports) {
 				for (int i = 0; i < sizeImports; i++) {
@@ -296,7 +296,7 @@ bool PropSetFile::ReadLine(const char *lineBuffer, bool ifIsTrue, FilePath direc
 void PropSetFile::ReadFromMemory(const char *data, int len, FilePath directoryForImports,
                                  FilePath imports[], int sizeImports) {
 	const char *pd = data;
-	char lineBuffer[120000];		//ÉèÖÃÎÄ¼ş¶ÁÈ¡×Ö·ûÊıÁ¿
+	char lineBuffer[120000];		//è®¾ç½®æ–‡ä»¶è¯»å–å­—ç¬¦æ•°é‡
 	bool ifIsTrue = true;
 	while (len > 0) {
 		GetFullLine(pd, len, lineBuffer, sizeof(lineBuffer));
@@ -315,7 +315,7 @@ bool PropSetFile::Read(FilePath filename, FilePath directoryForImports,
                        FilePath imports[], int sizeImports) {
 	FILE *rcfile = filename.Open(fileRead);
 	if (rcfile) {
-		char propsData[120000];		//ÉèÖÃÎÄ¼ş¶ÁÈ¡×Ö·ûÊıÁ¿
+		char propsData[120000];		//è®¾ç½®æ–‡ä»¶è¯»å–å­—ç¬¦æ•°é‡
 		int lenFile = static_cast<int>(fread(propsData, 1, sizeof(propsData), rcfile));
 		fclose(rcfile);
 		const char *data = propsData;
@@ -593,7 +593,6 @@ SString &SString::assign(const char *sOther, lenpos_t sSize_) {
 	return *this;
 }
 
-
 bool SString::operator==(const SString &sOther) const {
 	if ((s == 0) && (sOther.s == 0))
 		return true;
@@ -773,7 +772,6 @@ char *SContainer::StringAllocate(lenpos_t len) {
 		return 0;
 	}
 }
-
 
 char *SContainer::StringAllocate(const char *s, lenpos_t len) {
 	if (s == 0) {

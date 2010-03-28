@@ -29,13 +29,15 @@ VENDOR=BORLAND
 !ENDIF
 !ENDIF
 
+WIDEFLAGS=-DUNICODE -D_UNICODE
+
 !IF "$(VENDOR)"=="MICROSOFT"
 
 CC=cl
 RC=rc
 LD=link
 
-CXXFLAGS=-Zi -TP -W4 -EHsc -Zc:forScope -Zc:wchar_t -D_CRT_SECURE_NO_DEPRECATE=1 -D_CRT_NONSTDC_NO_DEPRECATE
+CXXFLAGS=-Zi -TP -W4 -EHsc -Zc:forScope -Zc:wchar_t -D_CRT_SECURE_NO_DEPRECATE=1 -D_CRT_NONSTDC_NO_DEPRECATE $(WIDEFLAGS)
 CCFLAGS=-TC -W3 -wd4244 -D_CRT_SECURE_NO_DEPRECATE=1
 
 # For something scary:-Wp64
@@ -55,7 +57,7 @@ CC=bcc32
 RC=brcc32 -r
 LD=ilink32
 
-CXXFLAGS=-P -tWM -w -w-prc -w-inl -RT-
+CXXFLAGS=-P -tWM -w -w-prc -w-inl -RT- $(WIDEFLAGS)
 CCFLAGS=-tWM -w -RT- -x- -v- -w-aus -w-sig
 
 # Above turns off warnings for clarfying parentheses and inlines with for not expanded
@@ -89,6 +91,7 @@ INCLUDEDIRS=-I../../scintilla/include -I../../scintilla/win32 -I../src
 
 OBJS=\
 	About.obj \
+	Extra.obj \
 	SciTEBase.obj \
 	FilePath.obj \
 	SciTEBuffers.obj \
@@ -195,6 +198,7 @@ LEXOBJS=\
 
 OBJSSTATIC=\
 	About.obj \
+	Extra.obj \
 	SciTEBase.obj \
 	FilePath.obj \
 	SciTEBuffers.obj \
@@ -707,6 +711,9 @@ About.obj: \
 	../src/Mutex.h \
 	../src/JobQueue.h \
 	../src/SciTEBase.h
+Extra.obj: \
+	../src/Extra.h\
+	../src/Extra.cxx
 SciTEBase.obj: \
 	../src/SciTEBase.cxx \
 	../../scintilla/include/Scintilla.h \

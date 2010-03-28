@@ -19,19 +19,19 @@ using namespace Scintilla;
 #endif
 
 AutoComplete::AutoComplete() :
-	active(false),				//活动
-	separator(' '),				//分隔符
-	typesep('?'),				
-	ignoreCase(false),			//忽略大小写
-	chooseSingle(false),		//只能选一个
-	lb(0),						//ListBox
-	posStart(0),				//开始坐标
-	startLen(0),				//开始长度
-	cancelAtStartPos(true),		
-	autoHide(true),				//自动隐藏
-	dropRestOfWord(false)	{	
-	lb = ListBox::Allocate();	//分配ListBox
-	stopChars[0] = '\0';		//停止字符
+	active(false),
+	separator(' '),
+	typesep('?'),
+	ignoreCase(false),
+	chooseSingle(false),
+	lb(0),
+	posStart(0),
+	startLen(0),
+	cancelAtStartPos(true),
+	autoHide(true),
+	dropRestOfWord(false)	{
+	lb = ListBox::Allocate();
+	stopChars[0] = '\0';
 	fillUpChars[0] = '\0';
 }
 

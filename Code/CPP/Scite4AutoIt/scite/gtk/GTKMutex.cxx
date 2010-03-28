@@ -7,7 +7,7 @@
 // The License.txt file describes the conditions under which this software may be distributed.
 
 // http://www.microsoft.com/msj/0797/win320797.aspx
-//互斥体的创建,用于实现多线程.
+
 #include "Mutex.h"
 
 class GTKMutex : public Mutex {

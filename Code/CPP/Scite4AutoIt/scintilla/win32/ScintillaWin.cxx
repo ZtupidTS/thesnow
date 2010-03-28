@@ -224,6 +224,7 @@ class ScintillaWin :
 	virtual void Paste();
 	virtual void CreateCallTipWindow(PRectangle rc);
 	virtual void AddToPopUp(const char *label, int cmd = 0, bool enabled = true);
+	virtual void AddToPopUp(const wchar_t *label, int cmd = 0, bool enabled = true);//added
 	virtual void ClaimSelection();
 
 	// DBCS
@@ -1642,6 +1643,18 @@ void ScintillaWin::AddToPopUp(const char *label, int cmd, bool enabled) {
 	else
 		::AppendMenuA(hmenuPopup, MF_STRING | MF_DISABLED | MF_GRAYED, cmd, label);
 }
+
+//added ¡ý
+void ScintillaWin::AddToPopUp(const wchar_t *label, int cmd, bool enabled) {
+	HMENU hmenuPopup = reinterpret_cast<HMENU>(popup.GetID());
+	if (!label[0])
+		::AppendMenuW(hmenuPopup, MF_SEPARATOR, 0, L"");
+	else if (enabled)
+		::AppendMenuW(hmenuPopup, MF_STRING, cmd, label);
+	else
+		::AppendMenuW(hmenuPopup, MF_STRING | MF_DISABLED | MF_GRAYED, cmd, label);
+}
+//added ¡ü
 
 void ScintillaWin::ClaimSelection() {
 	// Windows does not have a primary selection

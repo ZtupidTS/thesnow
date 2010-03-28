@@ -1,4 +1,4 @@
-// Scintilla source code edit control
+ï»¿// Scintilla source code edit control
 /** @file CellBuffer.cxx
  ** Manages a buffer of cells.
  **/
@@ -129,7 +129,7 @@ void Action::Grab(Action *source) {
 
 UndoHistory::UndoHistory() {
 
-	lenActions = 200;				//ÀúÊ·³·ÏúÊıÁ¿
+	lenActions = 200;				//å†å²æ’¤é”€æ•°é‡
 	actions = new Action[lenActions];
 	maxAction = 0;
 	currentAction = 0;

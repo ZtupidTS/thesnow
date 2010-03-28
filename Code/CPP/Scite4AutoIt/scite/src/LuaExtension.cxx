@@ -7,6 +7,8 @@
 #include <string.h>
 #include <ctype.h>
 
+#include <string>
+
 #include "Scintilla.h"
 
 #include "GUI.h"
@@ -1759,7 +1761,7 @@ struct StylingContext {
 		memcpy(cursor[0], "\0\0\0\0\0\0\0\0", 8);
 		memcpy(cursor[1], "\0\0\0\0\0\0\0\0", 8);
 		memcpy(cursor[2], "\0\0\0\0\0\0\0\0", 8);
-		styler->StartAt(startPos, static_cast<char>(0xffu));//????????????
+		styler->StartAt(startPos, static_cast<char>(0xffu));
 		styler->StartSegment(startPos);
 
 		GetNextChar();

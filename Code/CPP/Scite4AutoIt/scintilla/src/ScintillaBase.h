@@ -83,6 +83,7 @@ protected:
 	virtual void CreateCallTipWindow(PRectangle rc) = 0;
 
 	virtual void AddToPopUp(const char *label, int cmd=0, bool enabled=true) = 0;
+	virtual void AddToPopUp(const wchar_t *label, int cmd=0, bool enabled=true) = 0;	//added
 	void ContextMenu(Point pt);
 
 	virtual void ButtonDown(Point pt, unsigned int curTime, bool shift, bool ctrl, bool alt);

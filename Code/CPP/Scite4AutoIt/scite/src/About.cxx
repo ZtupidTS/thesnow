@@ -1,4 +1,4 @@
-// SciTE - Scintilla based Text Editor
+Ôªø// SciTE - Scintilla based Text Editor
 /** @file SciTEBase.cxx
  ** Platform independent base class of editor.
  **/
@@ -20,7 +20,7 @@
 
 #include <string>
 #include <map>
-
+#include <algorithm>
 
 #if !defined(GTK)
 #define _WIN32_WINNT  0x0500
@@ -55,7 +55,7 @@
 #include "JobQueue.h"
 #include "SciTEBase.h"
 
-// æË÷˙’ﬂ√˚≥∆(UTF-8±‡¬Î)
+// ÊçêÂä©ËÄÖÂêçÁß∞(UTF-8ÁºñÁ†Å)
 const char *contributors[] = {
             "Atsuo Ishimoto",
             "Mark Hammond",
@@ -316,20 +316,16 @@ void AddStyledText(GUI::ScintillaWindow &wsci, const char *s, int attr) {
 	        static_cast<int>(len*2), const_cast<char *>(buf));
 }
 
-// AddStyledText only called from About so static size buffer is OK
-void AddStyledText(GUI::ScintillaWindow &wsci, const wchar_t *s, int attr) {		//added
-	wchar_t buf[1000];
-	size_t len = wcslen(s);
-	for (size_t i = 0; i < len; i++) {
-		buf[i*2] = s[i];
-		buf[i*2 + 1] = static_cast<wchar_t>(attr);
-	}
-	wsci.SendPointer(SCI_ADDSTYLEDTEXT,
-	        static_cast<int>(len*2), const_cast<wchar_t *>(buf));
-}
-
 void SetAboutStyle(GUI::ScintillaWindow &wsci, int style, Colour fore) {
 	wsci.Send(SCI_STYLESETFORE, style, fore);
+}
+
+static void HackColour(int &n) {
+	n += (rand() % 100) - 50;
+	if (n > 0xE7)
+		n = 0x60;
+	if (n < 0)
+		n = 0x80;
 }
 
 #if !defined(GTK)
@@ -370,7 +366,7 @@ SString SciTEBase::GetTranslationToAbout(const char * const propname, bool retai
 #if !defined(GTK)
 	// By code below, all translators can write their name in their own
 	// language in locale.properties on Windows.
-	SString result = localiser.Text(propname, retainIfNotFound);
+	SString result = GUI::UTF8FromString(localiser.Text(propname, retainIfNotFound)).c_str();
 	if (!result.length())
 		return result;
 	int translationCodePage = props.GetInt("code.page", CP_ACP);
@@ -393,17 +389,9 @@ SString SciTEBase::GetTranslationToAbout(const char * const propname, bool retai
 	delete []bufc;
 	return result;
 #else
-	// ‘⁄ GTK+ …œ, localiser.Text ◊‹ «◊™ªªŒ™ UTF-8.
-	return localiser.Text(propname, retainIfNotFound);
+	// Âú® GTK+ ‰∏ä, localiser.Text ÊÄªÊòØËΩ¨Êç¢‰∏∫ UTF-8.
+	return SString(localiser.Text(propname, retainIfNotFound).c_str());
 #endif
-}
-
-static void HackColour(int &n) {
-	n += (rand() % 100) - 50;
-	if (n > 0xE7)
-		n = 0x60;
-	if (n < 0)
-		n = 0x80;
 }
 
 void SciTEBase::SetAboutMessage(GUI::ScintillaWindow &wsci, const char *appTitle) {
@@ -446,7 +434,7 @@ void SciTEBase::SetAboutMessage(GUI::ScintillaWindow &wsci, const char *appTitle
 			}
 		}
 #endif
-		AddStyledText(wsci, GetTranslationToAbout("∫∫ªØ‘ˆ«ø∞Ê±æ").c_str(), trsSty);
+		AddStyledText(wsci, GetTranslationToAbout("Version").c_str(), trsSty);
 		AddStyledText(wsci, " 2.03\n", 1);
 		AddStyledText(wsci, " Build On: " __DATE__ " " __TIME__ "\n", 1);
 		SetAboutStyle(wsci, 2, ColourRGB(0, 0, 0));
@@ -470,7 +458,7 @@ void SciTEBase::SetAboutMessage(GUI::ScintillaWindow &wsci, const char *appTitle
 			AddStyledText(wsci, translator.c_str(), trsSty);
 			AddStyledText(wsci, "\n", 5);
 		}
-		AddStyledText(wsci, GetTranslationToAbout("π±œ◊’ﬂ:").c_str(), trsSty);
+		AddStyledText(wsci, GetTranslationToAbout("Contributors:").c_str(), trsSty);
 		srand(static_cast<unsigned>(time(0)));
 		for (unsigned int co = 0;co < ELEMENTS(contributors);co++) {
 			int colourIndex = 50 + (co % 78);
@@ -492,8 +480,8 @@ void SciTEBase::SetAboutMessage(GUI::ScintillaWindow &wsci, const char *appTitle
 
 void DONATE_MSG(){
 		wchar_t *msg = 
-			L"»Áπ˚ƒ˙‘∏“‚æË÷˙thesnoWµƒ∫∫ªØ/¬€Ã≥(”≤≈ÃªÚ’ﬂRMB),«Î¡™œµ:\n"
+			L"Â¶ÇÊûúÊÇ®ÊÑøÊÑèÊçêÂä©thesnoWÁöÑÊ±âÂåñ/ËÆ∫Âùõ(Á°¨ÁõòÊàñËÄÖRMB),ËØ∑ËÅîÁ≥ª:\n"
 			L"thegfw#Gmail.com,thesnoW#QQ.com\n\n"
-			L"µ±»ª,ª•¡™Õ¯ «√‚∑—µƒ.Œ“÷™µ¿ƒ˙√ªø¥µΩ’‚∏ˆ∂‘ª∞øÚ¿Ô√Êµƒƒ⁄»›.∫Ÿ∫Ÿ.\n";
-		::MessageBoxW(0, msg,L"Œ“µ„µΩ ≤√¥∂´Œ˜¡À?", MB_OK | MB_ICONWARNING);
+			L"ÂΩìÁÑ∂,‰∫íËÅîÁΩëÊòØÂÖçË¥πÁöÑ.ÊàëÁü•ÈÅìÊÇ®Ê≤°ÁúãÂà∞Ëøô‰∏™ÂØπËØùÊ°ÜÈáåÈù¢ÁöÑÂÜÖÂÆπ.ÂòøÂòø.\n";
+		::MessageBoxW(0, msg,L"ÊàëÁÇπÂà∞‰ªÄ‰πà‰∏úË•ø‰∫Ü?", MB_OK | MB_ICONWARNING);
 };

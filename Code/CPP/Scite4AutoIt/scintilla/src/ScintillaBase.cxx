@@ -452,15 +452,15 @@ void ScintillaBase::ContextMenu(Point pt) {
 	if (displayPopupMenu) {
 		bool writable = !WndProc(SCI_GETREADONLY, 0, 0);
 		popup.CreatePopUp();
-		AddToPopUp("撤销", idcmdUndo, writable && pdoc->CanUndo());
-		AddToPopUp("恢复", idcmdRedo, writable && pdoc->CanRedo());
-		AddToPopUp("");
-		AddToPopUp("剪切", idcmdCut, writable && !sel.Empty());
-		AddToPopUp("复制", idcmdCopy, !sel.Empty());
-		AddToPopUp("粘贴", idcmdPaste, writable && WndProc(SCI_CANPASTE, 0, 0));
-		AddToPopUp("删除", idcmdDelete, writable && !sel.Empty());
-		AddToPopUp("");
-		AddToPopUp("全选", idcmdSelectAll);
+		AddToPopUp(L"撤销", idcmdUndo, writable && pdoc->CanUndo());
+		AddToPopUp(L"恢复", idcmdRedo, writable && pdoc->CanRedo());
+		AddToPopUp(L"");
+		AddToPopUp(L"剪切", idcmdCut, writable && !sel.Empty());
+		AddToPopUp(L"复制", idcmdCopy, !sel.Empty());
+		AddToPopUp(L"粘贴", idcmdPaste, writable && WndProc(SCI_CANPASTE, 0, 0));
+		AddToPopUp(L"删除", idcmdDelete, writable && !sel.Empty());
+		AddToPopUp(L"");
+		AddToPopUp(L"全选", idcmdSelectAll);
 		popup.Show(pt, wMain);
 	}
 }

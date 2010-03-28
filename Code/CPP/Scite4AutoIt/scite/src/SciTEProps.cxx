@@ -20,12 +20,17 @@
 #include <string>
 #include <map>
 
+#include "Scintilla.h"
+#include "SciLexer.h"
+
+#include "GUI.h"
+
 #if defined(GTK)
 
 #include <unistd.h>
 #include <gtk/gtk.h>
 
-const char menuAccessIndicator[] = "_";
+const GUI::gui_char menuAccessIndicator[] = GUI_TEXT("_");
 
 #else
 
@@ -36,7 +41,7 @@ const char menuAccessIndicator[] = "_";
 #endif
 #endif
 
-#define _WIN32_WINNT  0x0500
+#define _WIN32_WINNT  0x0500	//moded
 #ifdef _MSC_VER
 // windows.h, et al, use a lot of nameless struct/unions - can't fix it, so allow it
 #pragma warning(disable: 4201)
@@ -48,14 +53,9 @@ const char menuAccessIndicator[] = "_";
 #endif
 #include <commctrl.h>
 
-const char menuAccessIndicator[] = "&";
+const GUI::gui_char menuAccessIndicator[] = GUI_TEXT("&");
 
 #endif
-
-#include "Scintilla.h"
-#include "SciLexer.h"
-
-#include "GUI.h"
 
 #include "SString.h"
 #include "StringList.h"
@@ -77,10 +77,11 @@ void SciTEBase::SetImportMenu() {
 		for (int stackPos = 0; stackPos < importMax; stackPos++) {
 			int itemID = importCmdID + stackPos;
 			if (importFiles[stackPos].IsSet()) {
-				SString entry = localiser.Text("打开");
-				entry += " ";
+			//	GUI::gui_string entry = localiser.Text("打开");		//mod
+				GUI::gui_string entry = GUI_TEXT("打开");
+				entry += GUI_TEXT(" ");
 				entry += importFiles[stackPos].Name().AsInternal();
-				entry += " 文件";
+				entry += GUI_TEXT(" 文件");
 				SetMenuItem(menuOptions, IMPORT_START + stackPos, itemID, entry.c_str());
 			}
 		}
@@ -101,14 +102,15 @@ void SciTEBase::SetLanguageMenu() {
 	}
 	for (int item = 0; item < languageItems; item++) {
 		int itemID = languageCmdID + item;
-		SString entry = localiser.Text(languageMenu[item].menuItem.c_str());
+		GUI::gui_string entry = localiser.Text(languageMenu[item].menuItem.c_str());
+		
 		if (languageMenu[item].menuKey.length()) {
 #if defined(GTK)
-			entry += " ";
+			entry += GUI_TEXT(" ");
 #else
-			entry += "\t";
+			entry += GUI_TEXT("\t");
 #endif
-			entry += languageMenu[item].menuKey;
+			entry += GUI::StringFromUTF8(languageMenu[item].menuKey.c_str());
 		}
 		if (entry[0] != '#') {
 			SetMenuItem(menuLanguage, item, itemID, entry.c_str());
@@ -116,8 +118,8 @@ void SciTEBase::SetLanguageMenu() {
 	}
 }
 
-const char propLocalFileName[] = "SciTE.properties";
-const char propDirectoryFileName[] = "SciTEDirectory.properties";
+const GUI::gui_char propLocalFileName[] = GUI_TEXT("SciTE.properties");
+const GUI::gui_char propDirectoryFileName[] = GUI_TEXT("SciTEDirectory.properties");
 
 /**
 Read global and user properties files.
@@ -141,7 +143,7 @@ void SciTEBase::ReadGlobalPropFile() {
 	}
 
 	for (int stackPos = 0; stackPos < importMax; stackPos++) {
-		importFiles[stackPos] = "";
+		importFiles[stackPos] = GUI_TEXT("");
 	}
 
 	propsBase.Clear();
@@ -173,7 +175,7 @@ void SciTEBase::ReadDirectoryPropFile() {
 
 	if (props.GetInt("properties.directory.enable") != 0) {
 		FilePath propfile = GetDirectoryPropertiesFileName();
-		props.Set("SciteDirectoryHome", propfile.Directory().AsFileSystem());
+		props.Set("SciteDirectoryHome", propfile.Directory().AsUTF8().c_str());
 
 		propsDirectory.Read(propfile, propfile.Directory());
 	}
@@ -429,15 +431,7 @@ void LowerCaseString(char *s) {
 		s++;
 	}
 }
-//小写字符串
-void LowerCaseString(wchar_t *s) {						//added
-	while (*s) {
-		if ((*s >= L'A') && (*s <= L'Z')) {
-			*s = static_cast<wchar_t>(*s - L'A' + L'a');
-		}
-		s++;
-	}
-}
+
 SString SciTEBase::ExtensionFileName() {
 	if (CurrentBuffer()->overrideExtension.length()) {
 		return CurrentBuffer()->overrideExtension;
@@ -446,7 +440,7 @@ SString SciTEBase::ExtensionFileName() {
 		if (name.IsSet()) {
 			// Force extension to lower case
 			char fileNameWithLowerCaseExtension[MAX_PATH];
-			strcpy(fileNameWithLowerCaseExtension, name.AsInternal());
+			strcpy(fileNameWithLowerCaseExtension, name.AsUTF8().c_str());
 #if !defined(GTK)
 			char *extension = strrchr(fileNameWithLowerCaseExtension, '.');
 			if (extension) {
@@ -476,7 +470,7 @@ void SciTEBase::DefineMarker(int marker, int markerType, Colour fore, Colour bac
 
 static int FileLength(const char *path) {
 	int len = 0;
-	FILE *fp = fopen(path, fileRead);
+	FILE *fp = fopen(path, "rb");
 	if (fp) {
 		fseek(fp, 0, SEEK_END);
 		len = ftell(fp);
@@ -509,7 +503,7 @@ void SciTEBase::ReadAPI(const SString &fileNameForExtension) {
 				apiFileName = apisFileNames.c_str();
 				tlen = 0;
 				while (apiFileName < nameEnd) {
-					FILE *fp = fopen(apiFileName, fileRead);
+					FILE *fp = fopen(apiFileName, "rb");
 					if (fp) {
 						fseek(fp, 0, SEEK_END);
 						int len = ftell(fp);
@@ -737,9 +731,9 @@ void SciTEBase::ReadProperties() {
 	}
 
 	FilePath homepath = GetSciteDefaultHome();
-	props.Set("SciteDefaultHome", homepath.AsFileSystem());
+	props.Set("SciteDefaultHome", homepath.AsUTF8().c_str());
 	homepath = GetSciteUserHome();
-	props.Set("SciteUserHome", homepath.AsFileSystem());
+	props.Set("SciteUserHome", homepath.AsUTF8().c_str());
 
 	for (size_t i=0; propertiesToForward[i]; i++) {
 		ForwardPropertyToEditor(propertiesToForward[i]);
@@ -753,7 +747,7 @@ void SciTEBase::ReadProperties() {
 
 	props.Set("APIPath", apisFileNames.c_str());
 
-	FilePath fileAbbrev = props.GetNewExpand("abbreviations.", fileNameForExtension.c_str()).c_str();
+	FilePath fileAbbrev = GUI::StringFromUTF8(props.GetNewExpand("abbreviations.", fileNameForExtension.c_str()).c_str());
 	if (!fileAbbrev.IsSet())
 		fileAbbrev = GetAbbrevPropertiesFileName();
 	if (!pathAbbreviations.SameNameAs(fileAbbrev)) {
@@ -763,7 +757,7 @@ void SciTEBase::ReadProperties() {
 
 	DiscoverEOLSetting();
 
-	props.Set("AbbrevPath", pathAbbreviations.AsFileSystem());
+	props.Set("AbbrevPath", pathAbbreviations.AsUTF8().c_str());
 
 	codePage = props.GetInt("code.page");
 	if (CurrentBuffer()->unicodeMode != uni8Bit) {
@@ -1197,19 +1191,20 @@ void SciTEBase::ReadProperties() {
 		FilePath scriptPath;
 
 		// Check for an extension script
-		SString extensionFile = props.GetNewExpand("extension.", fileNameForExtension.c_str());
+		GUI::gui_string extensionFile = GUI::StringFromUTF8(
+			props.GetNewExpand("extension.", fileNameForExtension.c_str()).c_str());
 		if (extensionFile.length()) {
 			// find file in local directory
 			FilePath docDir = filePath.Directory();
 			if (Exists(docDir.AsInternal(), extensionFile.c_str(), &scriptPath)) {
 				// Found file in document directory
-				extender->Load(scriptPath.AsFileSystem());
+				extender->Load(scriptPath.AsUTF8().c_str());
 			} else if (Exists(defaultDir.AsInternal(), extensionFile.c_str(), &scriptPath)) {
 				// Found file in global directory
-				extender->Load(scriptPath.AsFileSystem());
-			} else if (Exists("", extensionFile.c_str(), &scriptPath)) {
+				extender->Load(scriptPath.AsUTF8().c_str());
+			} else if (Exists(GUI_TEXT(""), extensionFile.c_str(), &scriptPath)) {
 				// Found as completely specified file name
-				extender->Load(scriptPath.AsFileSystem());
+				extender->Load(scriptPath.AsUTF8().c_str());
 			}
 		}
 	}
@@ -1298,10 +1293,12 @@ void SciTEBase::SetPropertiesInitial() {
 	wrapFind = props.GetInt("find.replace.wrap", 1);
 }
 
-SString Localization::Text(const char *s, bool retainIfNotFound) {
+GUI::gui_string Localization::Text(const char *s, bool retainIfNotFound) {
 	SString translation = s;
 	int ellipseIndicator = translation.remove("...");
-	int accessKeyPresent = translation.remove(menuAccessIndicator);
+	char menuAccessIndicatorChar[2] = "!";
+	menuAccessIndicatorChar[0] = static_cast<char>(menuAccessIndicator[0]);
+	int accessKeyPresent = translation.remove(menuAccessIndicatorChar);
 	translation.lowercase();
 	translation.substitute("\n", "\\n");
 	translation = Get(translation.c_str());
@@ -1323,71 +1320,61 @@ SString Localization::Text(const char *s, bool retainIfNotFound) {
 			translation.remove("&");
 #endif
 		}
-		translation.substitute("&", menuAccessIndicator);
+		translation.substitute("&", menuAccessIndicatorChar);
 		translation.substitute("\\n", "\n");
 	} else {
 		translation = missing;
 	}
 	if ((translation.length() > 0) || !retainIfNotFound) {
-		return translation;
+		return GUI::StringFromUTF8(translation.c_str());
 	}
-	return s;
+//	if (!retainIfNotFound) {
+//		return ss.w_str();
+//	};
+	return GUI::StringFromUTF8(s);
 }
 
-SString Localization::Text(const wchar_t *s, bool retainIfNotFound) {		//added
-	SString translation = (char)s;
-	int ellipseIndicator = translation.remove("...");
-	int accessKeyPresent = translation.remove(menuAccessIndicator);
-	translation.lowercase();
-	translation.substitute("\n", "\\n");
-	translation = Get(translation.c_str());
-	if (translation.length()) {
-		if (ellipseIndicator)
-			translation += "...";
-		if (0 == accessKeyPresent) {
-#if !defined(GTK)
-			// Following codes are required because accelerator is not always
-			// part of alphabetical word in several language. In these cases,
-			// accelerator is written like "(&O)".
-			int posOpenParenAnd = translation.search("(&");
-			if (posOpenParenAnd > 0 && translation.search(")", posOpenParenAnd) == posOpenParenAnd+3) {
-				translation.remove(posOpenParenAnd, 4);
-			} else {
-				translation.remove("&");
-			}
-#else
-			translation.remove("&");
-#endif
-		}
-		translation.substitute("&", menuAccessIndicator);
-		translation.substitute("\\n", "\n");
-	} else {
-		translation = missing;
+bool StartsWith(GUI::gui_string const &s, GUI::gui_string const &start) {
+	return (s.size() >= start.size()) &&
+		(std::equal(s.begin(), s.begin() + start.size(), start.begin()));
+}
+
+bool EndsWith(GUI::gui_string const &s, GUI::gui_string const &end) {
+	return (s.size() >= end.size()) &&
+		(std::equal(s.begin() + s.size() - end.size(), s.end(), end.begin()));
+}
+
+int Substitute(GUI::gui_string &s, const GUI::gui_string &sFind, const GUI::gui_string &sReplace) {
+	int c = 0;
+	size_t lenFind = sFind.size();
+	size_t lenReplace = sReplace.size();
+	size_t posFound = s.find(sFind);
+	while (posFound != GUI::gui_string::npos) {
+		s.replace(posFound, lenFind, sReplace);
+		posFound = s.find(sFind, posFound + lenReplace);
+		c++;
 	}
-	if ((translation.length() > 0) || !retainIfNotFound) {
-		return translation;
-	}
-	return (char)s;
+	return c;
 }
 
 //本地化消息
-SString SciTEBase::LocaliseMessage(const char *s, const char *param0, const char *param1, const char *param2) {
-	SString translation = localiser.Text(s);
+GUI::gui_string SciTEBase::LocaliseMessage(const char *s, const GUI::gui_char *param0, const GUI::gui_char *param1, const GUI::gui_char *param2) {
+	GUI::gui_string translation = localiser.Text(s);
 	if (param0)
-		translation.substitute("^0", param0);
+		Substitute(translation, GUI_TEXT("^0"), param0);
 	if (param1)
-		translation.substitute("^1", param1);
+		Substitute(translation, GUI_TEXT("^1"), param1);
 	if (param2)
-		translation.substitute("^2", param2);
+		Substitute(translation, GUI_TEXT("^2"), param2);
 	return translation;
 }
 
 void SciTEBase::ReadLocalization() {
 	localiser.Clear();
-	const char *title = "locale.properties";
-	SString localeProps = props.GetExpanded(title);
+	GUI::gui_string title = GUI_TEXT("locale.properties");
+	SString localeProps = props.GetExpanded("locale.properties");
 	if (localeProps.length()) {
-		title = localeProps.c_str();
+		title = GUI::StringFromUTF8(localeProps.c_str());
 	}
 	FilePath propdir = GetSciteDefaultHome();
 	FilePath localePath(propdir, title);
@@ -1472,9 +1459,9 @@ void SciTEBase::ReadPropertiesInitial() {
 #endif
 
 	FilePath homepath = GetSciteDefaultHome();
-	props.Set("SciteDefaultHome", homepath.AsFileSystem());
+	props.Set("SciteDefaultHome", homepath.AsUTF8().c_str());
 	homepath = GetSciteUserHome();
-	props.Set("SciteUserHome", homepath.AsFileSystem());
+	props.Set("SciteUserHome", homepath.AsUTF8().c_str());
 }
 
 FilePath SciTEBase::GetDefaultPropertiesFileName() {
@@ -1532,7 +1519,7 @@ void SciTEBase::OpenProperties(int propsFile) {
 		Open(propfile, ofQuiet);
 		break;
 	case IDM_OPENLUAEXTERNALFILE: {
-			SString extlua = props.GetExpanded("ext.lua.startup.script");
+			GUI::gui_string extlua = GUI::StringFromUTF8(props.GetExpanded("ext.lua.startup.script").c_str());
 			if (extlua.length()) {
 				Open(extlua.c_str(), ofQuiet);
 			}
