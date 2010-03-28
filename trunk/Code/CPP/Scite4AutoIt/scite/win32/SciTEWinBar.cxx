@@ -16,7 +16,7 @@ void SciTEWin::SetFileAttrib(
 
 	const int TEMP_LEN = 100;
 	char temp[TEMP_LEN];
-	HANDLE hf = ::CreateFile(filePath.AsFileSystem(), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	HANDLE hf = ::CreateFileW(filePath.AsInternal(), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (hf != INVALID_HANDLE_VALUE) {
 		FILETIME ft;
 		::GetFileTime(hf, NULL, NULL, &ft);
@@ -25,17 +25,17 @@ void SciTEWin::SetFileAttrib(
 		::FileTimeToLocalFileTime(&ft, &lft);
 		SYSTEMTIME st;
 		::FileTimeToSystemTime(&lft, &st);
-		::GetTimeFormat(LOCALE_USER_DEFAULT,
+		::GetTimeFormatA(LOCALE_USER_DEFAULT,
 		                0, &st,
 		                NULL, temp, TEMP_LEN);
 		ps.Set("FileTime", temp);
 
-		::GetDateFormat(LOCALE_USER_DEFAULT,
+		::GetDateFormatA(LOCALE_USER_DEFAULT,
 		                DATE_SHORTDATE, &st,
 		                NULL, temp, TEMP_LEN);
 		ps.Set("FileDate", temp);
 
-		DWORD attr = ::GetFileAttributes(filePath.AsFileSystem());
+		DWORD attr = ::GetFileAttributesW(filePath.AsInternal());
 		SString fa;
 		if (attr & FILE_ATTRIBUTE_READONLY) {
 			fa += "R";
@@ -54,12 +54,12 @@ void SciTEWin::SetFileAttrib(
 		ps.Set("FileAttr", "");
 	}
 
-	::GetDateFormat(LOCALE_USER_DEFAULT,
+	::GetDateFormatA(LOCALE_USER_DEFAULT,
 	                DATE_SHORTDATE, NULL,     	// Current date
 	                NULL, temp, TEMP_LEN);
 	ps.Set("CurrentDate", temp);
 
-	::GetTimeFormat(LOCALE_USER_DEFAULT,
+	::GetTimeFormatA(LOCALE_USER_DEFAULT,
 	                0, NULL,     	// Current time
 	                NULL, temp, TEMP_LEN);
 	ps.Set("CurrentTime", temp);
@@ -69,16 +69,17 @@ void SciTEWin::SetFileAttrib(
  * Update the status bar text.
  */
 void SciTEWin::SetStatusBarText(const char *s) {
-	::SendMessageW(reinterpret_cast<HWND>(wStatusBar.GetID()),
-	              SB_SETTEXT, 0, reinterpret_cast<LPARAM>(s));
+	GUI::gui_string barText = GUI::StringFromUTF8(s);
+	::SendMessage(reinterpret_cast<HWND>(wStatusBar.GetID()),
+	              SB_SETTEXT, 0, reinterpret_cast<LPARAM>(barText.c_str()));
 }
 
-void SciTEWin::TabInsert(int index, char *title) {
-	TCITEM tie;
+void SciTEWin::TabInsert(int index, const GUI::gui_char *title) {
+	TCITEMW tie;
 	tie.mask = TCIF_TEXT | TCIF_IMAGE;
 	tie.iImage = -1;
-	tie.pszText = title;
-	::SendMessage(reinterpret_cast<HWND>(wTabBar.GetID()), TCM_INSERTITEM, (WPARAM)index, (LPARAM)&tie);
+	tie.pszText = const_cast<GUI::gui_char *>(title);
+	::SendMessage(reinterpret_cast<HWND>(wTabBar.GetID()), TCM_INSERTITEMW, (WPARAM)index, (LPARAM)&tie);
 }
 
 void SciTEWin::TabSelect(int index) {
@@ -125,13 +126,13 @@ void SciTEWin::Notify(SCNotification *notification) {
 
 			// Pop up menu here:
 			popup.CreatePopUp();
-			AddToPopUp("新建文件", IDM_NEW, true);
+			AddToPopUp(L"新建文件", IDM_NEW, true);
+			AddToPopUp(L"");
+			AddToPopUp(L"关闭文件", IDM_CLOSE, true);
+			AddToPopUp(L"关闭所有", IDM_CLOSEALL, true);
 			AddToPopUp("");
-			AddToPopUp("关闭文件", IDM_CLOSE, true);
-			AddToPopUp("关闭所有", IDM_CLOSEALL, true);
-			AddToPopUp("");
-			AddToPopUp("保存文件", IDM_SAVE, true);
-			AddToPopUp("另存文件", IDM_SAVEAS, true);
+			AddToPopUp(L"保存文件", IDM_SAVE, true);
+			AddToPopUp(L"另存文件", IDM_SAVEAS, true);
 			AddToPopUp("");
 
 			bool bAddSeparator = false;
@@ -140,7 +141,7 @@ void SciTEWin::Notify(SCNotification *notification) {
 				SString prefix = "command.name.";
 				prefix += SString(item);
 				prefix += ".";
-				SString commandName = props.GetNewExpand(prefix.c_str(), filePath.AsInternal());
+				SString commandName = props.GetNewExpand(prefix.c_str(), filePath.AsUTF8().c_str());
 				if (commandName.length()) {
 					SString sMenuItem = commandName;
 					SString sMnemonic = "Ctrl+";
@@ -153,7 +154,7 @@ void SciTEWin::Notify(SCNotification *notification) {
 			if (bAddSeparator)
 				AddToPopUp("");
 
-			AddToPopUp("打印文件", IDM_PRINT, true);
+			AddToPopUp(L"打印文件", IDM_PRINT, true);
 			popup.Show(ptCursor, wSciTE);
 		}
 		break;
@@ -180,62 +181,62 @@ void SciTEWin::Notify(SCNotification *notification) {
 	case TTN_GETDISPINFO:
 		// Ask for tooltip text
 		{
-			static char ttt[MAX_PATH*2 + 1];
-			const char *ttext = 0;
-			NMTTDISPINFO *pDispInfo = (NMTTDISPINFO *)notification;
+			static GUI::gui_char ttt[MAX_PATH*2 + 1];
+			const GUI::gui_char *ttext = 0;
+			NMTTDISPINFOW *pDispInfo = (NMTTDISPINFOW *)notification;
 			// Toolbar tooltips
 			switch (notification->nmhdr.idFrom) {
 			case IDM_NEW:
-				ttext = "新建";
+				ttext = GUI_TEXT("新建");
 				break;
 			case IDM_OPEN:
-				ttext = "打开";
+				ttext = GUI_TEXT("打开");
 				break;
 			case IDM_SAVE:
-				ttext = "保存";
+				ttext = GUI_TEXT("保存");
 				break;
 			case IDM_CLOSE:
-				ttext = "关闭";
+				ttext = GUI_TEXT("关闭");
 				break;
 			case IDM_PRINT:
-				ttext = "打印";
+				ttext = GUI_TEXT("打印");
 				break;
 			case IDM_CUT:
-				ttext = "剪切";
+				ttext = GUI_TEXT("剪切");
 				break;
 			case IDM_COPY:
-				ttext = "复制";
+				ttext = GUI_TEXT("复制");
 				break;
 			case IDM_PASTE:
-				ttext = "粘贴";
+				ttext = GUI_TEXT("粘贴");
 				break;
 			case IDM_CLEAR:
-				ttext = "删除";
+				ttext = GUI_TEXT("删除");
 				break;
 			case IDM_UNDO:
-				ttext = "撤销";
+				ttext = GUI_TEXT("撤销");
 				break;
 			case IDM_REDO:
-				ttext = "恢复";
+				ttext = GUI_TEXT("恢复");
 				break;
 			case IDM_FIND:
-				ttext = "查找";
+				ttext = GUI_TEXT("查找");
 				break;
 			case IDM_REPLACE:
-				ttext = "替换";
+				ttext = GUI_TEXT("替换");
 				break;
 			case IDM_MACRORECORD:
-				ttext = "录制宏";
+				ttext = GUI_TEXT("录制宏");
 				break;
 			case IDM_MACROSTOPRECORD:
-				ttext = "停止录制";
+				ttext = GUI_TEXT("停止录制");
 				break;
 			case IDM_MACROPLAY:
-				ttext = "运行宏";
+				ttext = GUI_TEXT("运行宏");
 				break;
 				//added
 			case IDM_HELP:
-				ttext = "打开帮助";
+				ttext = GUI_TEXT("打开帮助");
 				break;
 			default: {
 					// notification->nmhdr.idFrom appears to be the buffer number for tabbar tooltips
@@ -249,23 +250,23 @@ void SciTEWin::Notify(SCNotification *notification) {
 					info.pt.y = ptClient.y;
 					int index = ::SendMessage(static_cast<HWND>(wTabBar.GetID()), TCM_HITTEST, (WPARAM)0, (LPARAM) & info);
 					if (index >= 0) {
-						SString path = buffers.buffers[index].AsInternal();
+						GUI::gui_string path = buffers.buffers[index].AsInternal();
 						// Handle '&' characters in path, since they are interpreted in
 						// tooltips.
-						int amp = 0;
-						while ((amp = path.search("&", amp)) >= 0) {
-							path.insert(amp, "&");
+						size_t amp = 0;
+						while ((amp = path.find(GUI_TEXT("&"), amp)) != GUI::gui_string::npos) {
+							path.insert(amp, GUI_TEXT("&"));
 							amp += 2;
 						}
-						strcpy(ttt, path.c_str());
-						pDispInfo->lpszText = const_cast<char *>(ttt);
+						wcscpy(ttt, path.c_str());
+						pDispInfo->lpszText = const_cast<GUI::gui_char *>(ttt);
 					}
 				}
 				break;
 			}
 			if (ttext) {
-				SString localised = localiser.Text(ttext);
-				strcpy(ttt, localised.c_str());
+				GUI::gui_string localised = localiser.Text(GUI::UTF8FromString(ttext).c_str());
+				wcscpy(ttt, localised.c_str());
 				pDispInfo->lpszText = ttt;
 			}
 			break;
@@ -411,15 +412,15 @@ void SciTEWin::SizeSubWindows() {
 
 
 void SciTEWin::SetMenuItem(int menuNumber, int position, int itemID,
-                           const char *text, const char *mnemonic) {
+                           const GUI::gui_char *text, const GUI::gui_char *mnemonic) {
 	// On Windows the menu items are modified if they already exist or are created
 	HMENU hmenu = ::GetSubMenu(::GetMenu(MainHWND()), menuNumber);
-	SString sTextMnemonic = text;
+	GUI::gui_string sTextMnemonic = text;
 	long keycode = 0;
 	if (mnemonic && *mnemonic) {
-		keycode = SciTEKeys::ParseKeyCode(mnemonic);
+		keycode = SciTEKeys::ParseKeyCode(GUI::UTF8FromString(mnemonic).c_str());
 		if (keycode) {
-			sTextMnemonic += "\t";
+			sTextMnemonic += GUI_TEXT("\t");
 			sTextMnemonic += LocaliseAccelerator(mnemonic, itemID);
 		}
 		// the keycode could be used to make a custom accelerator table
@@ -429,11 +430,11 @@ void SciTEWin::SetMenuItem(int menuNumber, int position, int itemID,
 
 	if (::GetMenuState(hmenu, itemID, MF_BYCOMMAND) == 0xffffffff) {
 		if (text[0])
-			::InsertMenu(hmenu, position, MF_BYPOSITION, itemID, sTextMnemonic.c_str());
+			::InsertMenuW(hmenu, position, MF_BYPOSITION, itemID, sTextMnemonic.c_str());
 		else
-			::InsertMenu(hmenu, position, MF_BYPOSITION | MF_SEPARATOR, itemID, sTextMnemonic.c_str());
+			::InsertMenuW(hmenu, position, MF_BYPOSITION | MF_SEPARATOR, itemID, sTextMnemonic.c_str());
 	} else {
-		::ModifyMenu(hmenu, position, MF_BYCOMMAND, itemID, sTextMnemonic.c_str());
+		::ModifyMenuW(hmenu, position, MF_BYCOMMAND, itemID, sTextMnemonic.c_str());
 	}
 
 	if (itemID >= IDM_TOOLS && itemID < IDM_TOOLS + toolMax) {
@@ -492,7 +493,7 @@ void SciTEWin::CheckMenus() {
 //	CheckMenuRadioItem(::GetMenu(MainHWND()), IDM_ENCODING_DEFAULT, IDM_ENCODING_UCOOKIE,
 //	                   CurrentBuffer()->unicodeMode + IDM_ENCODING_DEFAULT, 0);
 	CheckMenuRadioItem(::GetMenu(MainHWND()), IDM_ENCODING_DEFAULT, IDM_ENCODING_GBK,		
-		CurrentBuffer()->unicodeMode + IDM_ENCODING_DEFAULT, 0);
+	                   CurrentBuffer()->unicodeMode + IDM_ENCODING_DEFAULT, 0);
 }
 
 void SciTEWin::MakeAccelerator(SString sAccelerator, ACCEL &Accel) {
@@ -567,7 +568,7 @@ void SciTEWin::MakeAccelerator(SString sAccelerator, ACCEL &Accel) {
 }
 
 //SString SciTEWin::LocaliseAccelerator(const char *pAccelerator, int cmd) {
-SString SciTEWin::LocaliseAccelerator(const char *pAccelerator, int) {
+GUI::gui_string SciTEWin::LocaliseAccelerator(const GUI::gui_char *pAccelerator, int) {
 #ifdef LOCALISE_ACCELERATORS_WORKED
 	SString translation = localiser.Text(pAccelerator, true);
 	int AccelCount = ::CopyAcceleratorTable(hAccTable, NULL, 0);
@@ -595,9 +596,9 @@ SString SciTEWin::LocaliseAccelerator(const char *pAccelerator, int) {
 
 void SciTEWin::LocaliseMenu(HMENU hmenu) {
 	for (int i = 0; i <= ::GetMenuItemCount(hmenu); i++) {
-		char buff[200];
+		GUI::gui_char buff[200];
 		buff[0] = '\0';
-		MENUITEMINFO mii;
+		MENUITEMINFOW mii;
 		memset(&mii, 0, sizeof(mii));
 		// Explicitly use the struct size for NT 4 as otherwise
 		// GetMenuItemInfo will fail on NT 4.
@@ -607,30 +608,30 @@ void SciTEWin::LocaliseMenu(HMENU hmenu) {
 		            MIIM_STATE | MIIM_SUBMENU | MIIM_TYPE;
 		mii.dwTypeData = buff;
 		mii.cch = sizeof(buff) - 1;
-		if (::GetMenuItemInfo(hmenu, i, TRUE, &mii)) {
+		if (::GetMenuItemInfoW(hmenu, i, TRUE, &mii)) {
 			if (mii.hSubMenu) {
 				LocaliseMenu(mii.hSubMenu);
 			}
 			if (mii.fType == MFT_STRING || mii.fType == MFT_RADIOCHECK) {
 				if (mii.dwTypeData) {
-					SString text(mii.dwTypeData);
-					SString accel(mii.dwTypeData);
+					GUI::gui_string text(mii.dwTypeData);
+					GUI::gui_string accel(mii.dwTypeData);
 					size_t len = text.length();
-					int tab = text.search("\t");
-					if (tab != -1) {
-						text.remove(tab, len - tab);
-						accel.remove(0, tab + 1);
+					size_t tab = text.find(GUI_TEXT("\t"));
+					if (tab != GUI::gui_string::npos) {
+						text.erase(tab, len - tab);
+						accel.erase(0, tab + 1);
 					} else {
-						accel = "";
+						accel = GUI_TEXT("");
 					}
-					text = localiser.Text(text.c_str(), true);
+					text = localiser.Text(GUI::UTF8FromString(text.c_str()).c_str(), true);
 					if (text.length()) {
-						if (accel != "") {
-							text += "\t";
+						if (accel != GUI_TEXT("")) {
+							text += GUI_TEXT("\t");
 							text += LocaliseAccelerator(accel.c_str(), mii.wID);
 						}
-						mii.dwTypeData = const_cast<char *>(text.c_str());
-						::SetMenuItemInfo(hmenu, i, TRUE, &mii);
+						mii.dwTypeData = const_cast<GUI::gui_char *>(text.c_str());
+						::SetMenuItemInfoW(hmenu, i, TRUE, &mii);
 					}
 				}
 			}
@@ -644,16 +645,16 @@ void SciTEWin::LocaliseMenus() {
 }
 
 void SciTEWin::LocaliseAccelerators() {
-	LocaliseAccelerator("Alt+1", IDM_BUFFER + 0);
-	LocaliseAccelerator("Alt+2", IDM_BUFFER + 1);
-	LocaliseAccelerator("Alt+3", IDM_BUFFER + 2);
-	LocaliseAccelerator("Alt+4", IDM_BUFFER + 3);
-	LocaliseAccelerator("Alt+5", IDM_BUFFER + 4);
-	LocaliseAccelerator("Alt+6", IDM_BUFFER + 5);
-	LocaliseAccelerator("Alt+7", IDM_BUFFER + 6);
-	LocaliseAccelerator("Alt+8", IDM_BUFFER + 7);
-	LocaliseAccelerator("Alt+9", IDM_BUFFER + 8);
-	LocaliseAccelerator("Alt+0", IDM_BUFFER + 9);
+	LocaliseAccelerator(GUI_TEXT("Alt+1"), IDM_BUFFER + 0);
+	LocaliseAccelerator(GUI_TEXT("Alt+2"), IDM_BUFFER + 1);
+	LocaliseAccelerator(GUI_TEXT("Alt+3"), IDM_BUFFER + 2);
+	LocaliseAccelerator(GUI_TEXT("Alt+4"), IDM_BUFFER + 3);
+	LocaliseAccelerator(GUI_TEXT("Alt+5"), IDM_BUFFER + 4);
+	LocaliseAccelerator(GUI_TEXT("Alt+6"), IDM_BUFFER + 5);
+	LocaliseAccelerator(GUI_TEXT("Alt+7"), IDM_BUFFER + 6);
+	LocaliseAccelerator(GUI_TEXT("Alt+8"), IDM_BUFFER + 7);
+	LocaliseAccelerator(GUI_TEXT("Alt+9"), IDM_BUFFER + 8);
+	LocaliseAccelerator(GUI_TEXT("Alt+0"), IDM_BUFFER + 9);
 
 	// todo read keymap from cfg
 	// AssignKey('Y', SCMOD_CTRL, SCI_LINECUT);
@@ -661,10 +662,10 @@ void SciTEWin::LocaliseAccelerators() {
 
 void SciTEWin::LocaliseControl(HWND w) {
 	char wtext[200];
-	if (::GetWindowText(w, wtext, sizeof(wtext))) {
-		SString text = localiser.Text(wtext, false);
+	if (::GetWindowTextA(w, wtext, sizeof(wtext))) {
+		GUI::gui_string text = localiser.Text(wtext, false);
 		if (text.length())
-			::SetWindowText(w, text.c_str());
+			::SetWindowTextW(w, text.c_str());
 	}
 }
 
@@ -1116,4 +1117,3 @@ void SciTEWin::Creation() {
 		DestroyMenuItem(menuOptions,IDM_OPENLUAEXTERNALFILE);
 #endif
 }
-

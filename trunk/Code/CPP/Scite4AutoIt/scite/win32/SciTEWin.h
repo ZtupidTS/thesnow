@@ -1,4 +1,4 @@
-// SciTE - Scintilla based Text Editor
+﻿// SciTE - Scintilla based Text Editor
 /** @file SciTEWin.h
  ** Header of main code for the Windows version of the editor.
  **/
@@ -18,7 +18,9 @@
 #endif
 
 #include <string>
+#include <vector>
 #include <map>
+#include <algorithm>
 
 #ifdef __MINGW_H
 #define _WIN32_IE	0x0400
@@ -31,7 +33,7 @@
 #endif
 #endif
 
-#define _WIN32_WINNT  0x0500
+#define _WIN32_WINNT  0x0500	//moded
 #ifdef _MSC_VER
 // windows.h, et al, use a lot of nameless struct/unions - can't fix it, so allow it
 #pragma warning(disable: 4201)
@@ -92,7 +94,7 @@ protected:
 	static SciTEWin *app;
 	WINDOWPLACEMENT winPlace;
 	RECT rcWorkArea;
-	char openWhat[200];
+	GUI::gui_char openWhat[200];
 	bool modalParameters;
 	int filterDefault;
 	bool staticBuild;
@@ -129,6 +131,7 @@ protected:
 	GUI::Window wFindReplace;
 	GUI::Window wParameters;
 
+	virtual void ReadLocalization();
 	virtual void GetWindowPosition(int *left, int *top, int *width, int *height, int *maximize);
 
 	virtual void ReadProperties();
@@ -137,7 +140,7 @@ protected:
 	virtual void SizeSubWindows();
 
 	virtual void SetMenuItem(int menuNumber, int position, int itemID,
-	                         const char *text, const char *mnemonic = 0);
+	                         const GUI::gui_char *text, const GUI::gui_char *mnemonic = 0);
 	virtual void RedrawMenu();
 	virtual void DestroyMenuItem(int menuNumber, int itemID);
 	virtual void CheckAMenuItem(int wIDCheckItem, bool val);
@@ -145,15 +148,19 @@ protected:
 	virtual void CheckMenus();
 
 	void LocaliseAccelerators();
-	SString LocaliseAccelerator(const char *Accelerator, int cmd);
+	GUI::gui_string LocaliseAccelerator(const GUI::gui_char *Accelerator, int cmd);
 	void LocaliseMenu(HMENU hmenu);
 	void LocaliseMenus();
 	void LocaliseControl(HWND w);
 	void LocaliseDialog(HWND wDialog);
 
 	int DoDialog(HINSTANCE hInst, const TCHAR *resName, HWND hWnd, DLGPROC lpProc);
-	virtual bool OpenDialog(FilePath directory, const char *filter);
-	FilePath ChooseSaveName(FilePath directory, const char *title, const char *filter=0, const char *ext=0);
+	GUI::gui_string DialogFilterFromProperty(const GUI::gui_char *filterProperty);
+	virtual bool OpenDialog(FilePath directory, const GUI::gui_char *filter);
+	FilePath ChooseSaveName(FilePath directory, const char *title, const GUI::gui_char *filter=0, const char *ext=0);
+	//add ↓
+	FilePath ChooseSaveName(FilePath directory, const wchar_t *title, const GUI::gui_char *filter=0, const char *ext=0);
+	//add ↑
 	virtual bool SaveAsDialog();
 	virtual void SaveACopy();
 	virtual void SaveAsHTML();
@@ -163,7 +170,7 @@ protected:
 	virtual void SaveAsXML();
 	virtual void LoadSessionDialog();
 	virtual void SaveSessionDialog();
-	virtual bool PreOpenCheck(const char *file);
+	virtual bool PreOpenCheck(const GUI::gui_char *file);
 	virtual bool IsStdinBlocked();
 
 	/// Print the current buffer.
@@ -173,24 +180,24 @@ protected:
 
 	BOOL HandleReplaceCommand(int cmd);
 
-	virtual int WindowMessageBox(GUI::Window &w, const SString &msg, int style);
+	virtual int WindowMessageBox(GUI::Window &w, const GUI::gui_string &msg, int style);
 	virtual void FindMessageBox(const SString &msg, const SString *findItem=0);
 	virtual void AboutDialog();
 	void DropFiles(HDROP hdrop);
 	void MinimizeToTray();
 	void RestoreFromTray();
-	SString ProcessArgs(const char *cmdLine);
+	GUI::gui_string ProcessArgs(const GUI::gui_char *cmdLine);
 	virtual void QuitProgram();
 
 	virtual FilePath GetDefaultDirectory();
 	virtual FilePath GetSciteDefaultHome();
 	virtual FilePath GetSciteUserHome();
 
-//	virtual void SetFileProperties(PropSetFile &ps);	//renamed ��
+//	virtual void SetFileProperties(PropSetFile &ps);	//renamed ↓
 	virtual void SetFileAttrib(PropSetFile &ps);
 	virtual void SetStatusBarText(const char *s);
 
-	virtual void TabInsert(int index, char *title);
+	virtual void TabInsert(int index, const GUI::gui_char *title);
 	virtual void TabSelect(int index);
 	virtual void RemoveAllTabs();
 
@@ -263,8 +270,9 @@ public:
 
 	void CreateUI();
 	/// Management of the command line parameters.
-	void Run(const char *cmdLine);
+	void Run(const GUI::gui_char *cmdLine);
     int EventLoop();
+	void OutputAppendEncodedStringSynchronised(GUI::gui_string s, int codePage);
 	DWORD ExecuteOne(const Job &jobToRun, bool &seenOutput);
 	void ProcessExecute();
 	void ShellExec(const SString &cmd, const char *dir);
@@ -277,6 +285,9 @@ public:
 	LRESULT KeyDown(WPARAM wParam);
 	LRESULT KeyUp(WPARAM wParam);
 	virtual void AddToPopUp(const char *label, int cmd=0, bool enabled=true);
+//added ↓
+	virtual void AddToPopUp(const wchar_t *label, int cmd=0, bool enabled=true);
+//added ↑
 	LRESULT ContextMenuMessage(UINT iMessage, WPARAM wParam, LPARAM lParam);
 	LRESULT WndProc(UINT iMessage, WPARAM wParam, LPARAM lParam);
 	LRESULT WndProcI(UINT iMessage, WPARAM wParam, LPARAM lParam);

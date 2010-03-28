@@ -22,37 +22,36 @@ static const int insetX = 10;		// 设置工具提示文本X坐标边框位置
 static const int widthArrow = 21;	// 箭头宽度
 
 CallTip::CallTip() {
-	wCallTip = 0;					//窗口句柄
-	inCallTipMode = false;			//现在是调用提示模式?
-	posStartCallTip = 0;			//开始调用提示坐标
+	wCallTip = 0;
+	inCallTipMode = false;
+	posStartCallTip = 0;
 	val = 0;
-	rectUp = PRectangle(0,0,0,0);	//上箭头
-	rectDown = PRectangle(0,0,0,0);	//下箭头
-	lineHeight = 1;					//行高
-	startHighlight = 0;				//开始高亮位置
-	endHighlight = 0;				//结束高亮位置
-	tabSize = 0;					//tab大小
-	useStyleCallTip = false;		//向下兼容
+	rectUp = PRectangle(0,0,0,0);
+	rectDown = PRectangle(0,0,0,0);
+	lineHeight = 1;
+	startHighlight = 0;
+	endHighlight = 0;
+	tabSize = 0;
+	useStyleCallTip = false;    // for backwards compatibility
 
 #ifdef __APPLE__
-	//给Apple准备的
 	// proper apple colours for the default
 	colourBG.desired = ColourDesired(0xff, 0xff, 0xc6);
 	colourUnSel.desired = ColourDesired(0, 0, 0);
 #else
-	colourBG.desired = ColourDesired(0xff, 0xff, 0xff);		//背景色
-	colourUnSel.desired = ColourDesired(0x80, 0x80, 0x80);	//未选
+	colourBG.desired = ColourDesired(0xff, 0xff, 0xff);
+	colourUnSel.desired = ColourDesired(0x80, 0x80, 0x80);
 #endif
-	colourSel.desired = ColourDesired(0, 0, 0x80);			//所选
-	colourShade.desired = ColourDesired(0, 0, 0);			//阴影
-	colourLight.desired = ColourDesired(0xc0, 0xc0, 0xc0);	//高亮色
+	colourSel.desired = ColourDesired(0, 0, 0x80);
+	colourShade.desired = ColourDesired(0, 0, 0);
+	colourLight.desired = ColourDesired(0xc0, 0xc0, 0xc0);
 }
 
 CallTip::~CallTip() {
-	font.Release();											//释放字体
-	wCallTip.Destroy();										//销毁窗体
-	delete []val;											//删除变量
-	val = 0;												
+	font.Release();
+	wCallTip.Destroy();
+	delete []val;
+	val = 0;
 }
 //刷新着色调色板
 void CallTip::RefreshColourPalette(Palette &pal, bool want) {
@@ -125,7 +124,7 @@ void CallTip::DrawChunk(Surface *surface, int &x, const char *s,
 					                         rcClient.right - 2, rcClient.bottom - 1);
 					surface->FillRectangle(rcClientInner, colourUnSel.allocated);
 
-					if (upArrow) {      // 上箭头
+					if (upArrow) {      // Up arrow
 						Point pts[] = {
     						Point(centreX - halfWidth, centreY + halfWidth / 2),
     						Point(centreX + halfWidth, centreY + halfWidth / 2),
@@ -133,7 +132,7 @@ void CallTip::DrawChunk(Surface *surface, int &x, const char *s,
 						};
 						surface->Polygon(pts, sizeof(pts) / sizeof(pts[0]),
                  						colourBG.allocated, colourBG.allocated);
-					} else {            // 下箭头
+					} else {            // Down arrow
 						Point pts[] = {
     						Point(centreX - halfWidth, centreY - halfWidth / 2),
     						Point(centreX + halfWidth, centreY - halfWidth / 2),

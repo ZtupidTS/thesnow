@@ -19,7 +19,9 @@
 #endif
 
 #include <string>
+#include <vector>
 #include <map>
+#include <algorithm>
 
 #if defined(GTK)
 
@@ -35,7 +37,7 @@
 #endif
 #endif
 
-#define _WIN32_WINNT  0x0500
+#define _WIN32_WINNT  0x0500		//moded
 #ifdef _MSC_VER
 // windows.h, et al, use a lot of nameless struct/unions - can't fix it, so allow it
 #pragma warning(disable: 4201)
@@ -562,12 +564,13 @@ void SciTEBase::BraceMatch(bool editor) {
 
 void SciTEBase::SetWindowName() {
 	if (filePath.IsUntitled()) {					//如果是未命名的文档
-		windowName = localiser.Text("未命名文档");		//设置为"Untitled"
-		windowName.insert(0, "(");				//前面插入"("
-		windowName += ")";					//后面插入")"
+//		windowName = localiser.Text("未命名文档");		//设置为"Untitled"
+		windowName = L"未命名文档";		//设置为"Untitled"
+		windowName.insert(0, GUI_TEXT("("));				//前面插入"("
+		windowName += GUI_TEXT(")");					//后面插入")"
 	} else if (props.GetInt("title.full.path") == 2) {
 		windowName = FileNameExt().AsInternal();
-		windowName += " in ";
+		windowName += GUI_TEXT(" in ");
 		windowName += filePath.Directory().AsInternal();
 	} else if (props.GetInt("title.full.path") == 1) {
 		windowName = filePath.AsInternal();
@@ -575,17 +578,17 @@ void SciTEBase::SetWindowName() {
 		windowName = FileNameExt().AsInternal();
 	}
 	if (CurrentBuffer()->isDirty)
-		windowName += " * ";
+		windowName += GUI_TEXT(" * ");
 	else
-		windowName += " - ";
+		windowName += GUI_TEXT(" - ");
 	windowName += appName;
 
 	if (buffers.length > 1 && props.GetInt("title.show.buffers")) {
-		windowName += " [";
-		windowName += SString(buffers.Current() + 1);
-		windowName += " of ";
-		windowName += SString(buffers.length);
-		windowName += "]";
+		windowName += GUI_TEXT(" [");
+		windowName += GUI::StringFromInteger(buffers.Current() + 1);
+		windowName += GUI_TEXT(" of ");
+		windowName += GUI::StringFromInteger(buffers.length);
+		windowName += GUI_TEXT("]");
 	}
 
 	wSciTE.SetTitle(windowName.c_str());
@@ -1724,19 +1727,6 @@ bool SciTEBase::StartAutoCompleteWord(bool onlyOneWord) {
 	}
 	size_t length = wordsNear.length();
 	if ((length > 2) && (!onlyOneWord || (minWordLength > root.length()))) {
-/*
-//		警告!不要同步此处(导致语法提示错误!!!!)
-		StringList wl;
-		wl.Set(wordsNear.c_str());
-		char *words = wl.GetNearestWords("", 0, autoCompleteIgnoreCase);
-//
-//
-//		警告!不要同步此处(导致语法提示错误!!!!)
-//
-//
-//
-		wEditor.CallString(SCI_AUTOCSHOW, root.length(), words);
-*/
 		// Protect spaces by temporrily transforming to \001
 		wordsNear.substitute(' ', '\001');
 		StringList wl(true);
@@ -1749,7 +1739,6 @@ bool SciTEBase::StartAutoCompleteWord(bool onlyOneWord) {
 		acText.substitute('\001', ' ');
 		wEditor.Call(SCI_AUTOCSETSEPARATOR, '\n');
 		wEditor.CallString(SCI_AUTOCSHOW, root.length(), acText.c_str());
-//---
 		delete []words;
 	} else {
 		wEditor.Call(SCI_AUTOCCANCEL);
@@ -2002,8 +1991,9 @@ bool SciTEBase::StartBlockComment() {
 
 	SString comment = props.Get(base.c_str());
 	if (comment == "") { // user friendly error message box
-		SString error = LocaliseMessage(
-		            "区域注释变量 '^0' 没有在 SciTE *.properties 中定义!", base.c_str());
+		GUI::gui_string sBase = GUI::StringFromUTF8(base.c_str());
+		GUI::gui_string error = LocaliseMessage(
+		            "区域注释变量 '^0' 没有在 SciTE *.properties 中定义!", sBase.c_str());
 		WindowMessageBox(wSciTE, error, MB_OK | MB_ICONWARNING);
 		return true;
 	}
@@ -2099,9 +2089,12 @@ bool SciTEBase::StartBoxComment() {
 	SString middle_comment = props.Get(middle_base.c_str());
 	SString end_comment = props.Get(end_base.c_str());
 	if (start_comment == "" || middle_comment == "" || end_comment == "") {
-		SString error = LocaliseMessage(
+		GUI::gui_string sStart = GUI::StringFromUTF8(start_base.c_str());
+		GUI::gui_string sMiddle = GUI::StringFromUTF8(middle_base.c_str());
+		GUI::gui_string sEnd = GUI::StringFromUTF8(end_base.c_str());
+		GUI::gui_string error = LocaliseMessage(
 		            "区域注释变量 '^0', '^1' 和 '^2' 没有在 SciTE *.properties 中定义!",
-		            start_base.c_str(), middle_base.c_str(), end_base.c_str());
+		            sStart.c_str(), sMiddle.c_str(), sEnd.c_str());
 		WindowMessageBox(wSciTE, error, MB_OK | MB_ICONWARNING);
 		return true;
 	}
@@ -2224,9 +2217,11 @@ bool SciTEBase::StartStreamComment() {
 	SString start_comment = props.Get(start_base.c_str());
 	SString end_comment = props.Get(end_base.c_str());
 	if (start_comment == "" || end_comment == "") {
-		SString error = LocaliseMessage(
+		GUI::gui_string sStart = GUI::StringFromUTF8(start_base.c_str());
+		GUI::gui_string sEnd = GUI::StringFromUTF8(end_base.c_str());
+		GUI::gui_string error = LocaliseMessage(
 		            "流式注释变量 '^0' 和 '^1' 未在 SciTE *.properties 中定义!",
-		            start_base.c_str(), end_base.c_str());
+		            sStart.c_str(), sEnd.c_str());
 		WindowMessageBox(wSciTE, error, MB_OK | MB_ICONWARNING);
 		return true;
 	}
@@ -2312,7 +2307,7 @@ void SciTEBase::SetTextProperties(
 	const int TEMP_LEN = 100;
 	char temp[TEMP_LEN];
 
-	SString ro = localiser.Text("READ");
+	std::string ro = GUI::UTF8FromString(localiser.Text("READ"));
 	ps.Set("ReadOnly", isReadOnly ? ro.c_str() : "");
 
 	int eolMode = wEditor.Call(SCI_GETEOLMODE);
@@ -2906,7 +2901,7 @@ void SciTEBase::AddCommand(const SString &cmd, const SString &dir, JobSubsystem 
 		jobQueue.jobUsesOutputPane = false;
 	if (cmd.length()) {
 		jobQueue.jobQueue[jobQueue.commandCurrent].command = cmd;
-		jobQueue.jobQueue[jobQueue.commandCurrent].directory.Set(dir.c_str());
+		jobQueue.jobQueue[jobQueue.commandCurrent].directory.Set(GUI::StringFromUTF8(dir.c_str()));
 		jobQueue.jobQueue[jobQueue.commandCurrent].jobType = jobType;
 		jobQueue.jobQueue[jobQueue.commandCurrent].input = input;
 		jobQueue.jobQueue[jobQueue.commandCurrent].flags = flags;
@@ -2974,7 +2969,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		// when doing the opening. Must be done there as user
 		// may decide to open multiple files so do not know yet
 		// how much room needed.
-		OpenDialog(filePath.Directory(), props.GetExpanded("open.filter").c_str());
+		OpenDialog(filePath.Directory(), GUI::StringFromUTF8(props.GetExpanded("open.filter").c_str()).c_str());
 		WindowSetFocus(wEditor);
 		break;
 	case IDM_OPENSELECTED:
@@ -3349,12 +3344,12 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		ParametersDialog(false);
 		CheckMenus();
 		break;
-	//add start
+	//add start ↓
 	case IDM_EDITORCONFIG:					//打开配置工具
 		::MessageBoxW(0,L"注意:此功能可能导致设置文件混乱,请小心使用.",L"警告!",0);
-		::ShellExecuteW(0,L"open",L"SciTEConfig\sciteconfig.exe",L"acn",L"",SW_SHOW);
+		::ShellExecute(0,L"open",L"SciTEConfig\sciteconfig.exe",L"acn",L"",SW_SHOW);
 		break;
-	//added by thesnoW
+	//add end ↑
 	case IDM_WRAP:
 		wrap = !wrap;
 		wEditor.Call(SCI_SETWRAPMODE, wrap ? wrapStyle : SC_WRAP_NONE);
@@ -3435,7 +3430,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 	case IDM_COMPILE: {
 			if (SaveIfUnsureForBuilt() != IDCANCEL) {
 				SelectionIntoProperties();
-				AddCommand(props.GetWild("command.compile.", FileNameExt().AsInternal()), "",
+				AddCommand(props.GetWild("command.compile.", FileNameExt().AsUTF8().c_str()), "",
 				        SubsystemType("command.compile.subsystem."));
 				if (jobQueue.commandCurrent > 0)
 					Execute();
@@ -3447,8 +3442,8 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 			if (SaveIfUnsureForBuilt() != IDCANCEL) {
 				SelectionIntoProperties();
 				AddCommand(
-				    props.GetWild("command.build.", FileNameExt().AsInternal()),
-				    props.GetNewExpand("command.build.directory.", FileNameExt().AsInternal()),
+				    props.GetWild("command.build.", FileNameExt().AsUTF8().c_str()),
+				    props.GetNewExpand("command.build.directory.", FileNameExt().AsUTF8().c_str()),
 				    SubsystemType("command.build.subsystem."));
 				if (jobQueue.commandCurrent > 0) {
 					jobQueue.isBuilding = true;
@@ -3464,7 +3459,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 				long flags = 0;
 
 				if (!jobQueue.isBuilt) {
-					SString buildcmd = props.GetNewExpand("command.go.needs.", FileNameExt().AsInternal());
+					SString buildcmd = props.GetNewExpand("command.go.needs.", FileNameExt().AsUTF8().c_str());
 					AddCommand(buildcmd, "",
 					        SubsystemType("command.go.needs.subsystem."));
 					if (buildcmd.length() > 0) {
@@ -3472,7 +3467,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 						flags |= jobForceQueue;
 					}
 				}
-				AddCommand(props.GetWild("command.go.", FileNameExt().AsInternal()), "",
+				AddCommand(props.GetWild("command.go.", FileNameExt().AsUTF8().c_str()), "",
 				        SubsystemType("command.go.subsystem."), "", flags);
 				if (jobQueue.commandCurrent > 0)
 					Execute();
@@ -3575,7 +3570,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 
 	case IDM_HELP: {
 			SelectionIntoProperties();
-			AddCommand(props.GetWild("command.help.", FileNameExt().AsInternal()), "",
+			AddCommand(props.GetWild("command.help.", FileNameExt().AsUTF8().c_str()), "",
 			        SubsystemType("command.help.subsystem."));
 			if (jobQueue.commandCurrent > 0) {
 				jobQueue.isBuilding = true;
@@ -3583,6 +3578,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 			}
 		}
 		break;
+//add start ↓
 	case IDM_DONATE:					//捐助
 		{
 		DONATE_MSG();
@@ -3613,6 +3609,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		};		
 		break;
 		}								//added end
+//add end ↑
 	case IDM_HELP_SCITE: {
 			SelectionIntoProperties();
 			AddCommand(props.Get("command.scite.help"), "",
@@ -4031,11 +4028,11 @@ void SciTEBase::CheckMenus() {
 	CheckAMenuItem(IDM_TOGGLEPARAMETERS, ParametersOpen());
 	CheckAMenuItem(IDM_MONOFONT, CurrentBuffer()->useMonoFont);
 	EnableAMenuItem(IDM_COMPILE, !jobQueue.IsExecuting() &&
-	        props.GetWild("command.compile.", FileNameExt().AsInternal()).size() != 0);
+	        props.GetWild("command.compile.", FileNameExt().AsUTF8().c_str()).size() != 0);
 	EnableAMenuItem(IDM_BUILD, !jobQueue.IsExecuting() &&
-	        props.GetWild("command.build.", FileNameExt().AsInternal()).size() != 0);
+	        props.GetWild("command.build.", FileNameExt().AsUTF8().c_str()).size() != 0);
 	EnableAMenuItem(IDM_GO, !jobQueue.IsExecuting() &&
-	        props.GetWild("command.go.", FileNameExt().AsInternal()).size() != 0);
+	        props.GetWild("command.go.", FileNameExt().AsUTF8().c_str()).size() != 0);
 	EnableAMenuItem(IDM_OPENDIRECTORYPROPERTIES, props.GetInt("properties.directory.enable") != 0);
 	for (int toolItem = 0; toolItem < toolMax; toolItem++)
 		EnableAMenuItem(IDM_TOOLS + toolItem, !jobQueue.IsExecuting());
@@ -4071,20 +4068,20 @@ void SciTEBase::ContextMenu(GUI::ScintillaWindow &wSource, GUI::Point pt, GUI::W
 	int anchor = wSource.Call(SCI_GETANCHOR);
 	popup.CreatePopUp();
 	bool writable = !wSource.Call(SCI_GETREADONLY);
-	AddToPopUp("撤销", IDM_UNDO, writable && wSource.Call(SCI_CANUNDO));
-	AddToPopUp("恢复", IDM_REDO, writable && wSource.Call(SCI_CANREDO));
+	AddToPopUp(L"撤销", IDM_UNDO, writable && wSource.Call(SCI_CANUNDO));
+	AddToPopUp(L"恢复", IDM_REDO, writable && wSource.Call(SCI_CANREDO));
 	AddToPopUp("");
-	AddToPopUp("剪切", IDM_CUT, writable && currentPos != anchor);
-	AddToPopUp("复制", IDM_COPY, currentPos != anchor);
-	AddToPopUp("粘贴", IDM_PASTE, writable && wSource.Call(SCI_CANPASTE));
-	AddToPopUp("删除", IDM_CLEAR, writable && currentPos != anchor);
+	AddToPopUp(L"剪切", IDM_CUT, writable && currentPos != anchor);
+	AddToPopUp(L"复制", IDM_COPY, currentPos != anchor);
+	AddToPopUp(L"粘贴", IDM_PASTE, writable && wSource.Call(SCI_CANPASTE));
+	AddToPopUp(L"删除", IDM_CLEAR, writable && currentPos != anchor);
 	AddToPopUp("");
-	AddToPopUp("全选", IDM_SELECTALL);
+	AddToPopUp(L"全选", IDM_SELECTALL);
 	AddToPopUp("");
 	if (wSource.GetID() == wOutput.GetID()) {
-		AddToPopUp("隐藏", IDM_TOGGLEOUTPUT, true);
+		AddToPopUp(L"隐藏", IDM_TOGGLEOUTPUT, true);
 	} else {
-		AddToPopUp("关闭", IDM_CLOSE, true);
+		AddToPopUp(L"关闭", IDM_CLOSE, true);
 	}
 	SString userContextMenu = props.GetNewExpand("user.context.menu");
 	userContextMenu.substitute('|', '\0');
@@ -4139,9 +4136,9 @@ void SciTEBase::UIAvailable() {
 	SetImportMenu();
 	if (extender) {
 		FilePath homepath = GetSciteDefaultHome();
-		props.Set("SciteDefaultHome", homepath.AsFileSystem());
+		props.Set("SciteDefaultHome", homepath.AsUTF8().c_str());
 		homepath = GetSciteUserHome();
-		props.Set("SciteUserHome", homepath.AsFileSystem());
+		props.Set("SciteUserHome", homepath.AsUTF8().c_str());
 		extender->Initialise(this);
 	}
 }
@@ -4150,7 +4147,7 @@ void SciTEBase::UIAvailable() {
  * Find the character following a name which is made up of characters from
  * the set [a-zA-Z.]
  */
-static char AfterName(const char *s) {
+static GUI::gui_char AfterName(const GUI::gui_char *s) {
 	while (*s && ((*s == '.') ||
 	        (*s >= 'a' && *s <= 'z') ||
 	        (*s >= 'A' && *s <= 'Z')))
@@ -4164,7 +4161,7 @@ void SciTEBase::PerformOne(char *action) {
 	if (arg) {
 		arg++;
 		if (isprefix(action, "askfilename:")) {
-			extender->OnMacro("filename", filePath.AsFileSystem());
+			extender->OnMacro("filename", filePath.AsUTF8().c_str());
 		} else if (isprefix(action, "askproperty:")) {
 			PropertyToDirector(arg);
 		} else if (isprefix(action, "close:")) {
@@ -4174,21 +4171,22 @@ void SciTEBase::PerformOne(char *action) {
 			currentMacro = arg;
 		} else if (isprefix(action, "cwd:")) {
 			if (chdir(arg) != 0) {
-				SString msg = LocaliseMessage("无效的目录: '^0'.", arg);
+				GUI::gui_string sArg = GUI::StringFromUTF8(arg);
+				GUI::gui_string msg = LocaliseMessage("无效的目录 '^0'.", sArg.c_str());
 				WindowMessageBox(wSciTE, msg, MB_OK | MB_ICONWARNING);
 			}
 		} else if (isprefix(action, "enumproperties:")) {
 			EnumProperties(arg);
 		} else if (isprefix(action, "exportashtml:")) {
-			SaveToHTML(arg);
+			SaveToHTML(GUI::StringFromUTF8(arg));
 		} else if (isprefix(action, "exportasrtf:")) {
-			SaveToRTF(arg);
+			SaveToRTF(GUI::StringFromUTF8(arg));
 		} else if (isprefix(action, "exportaspdf:")) {
-			SaveToPDF(arg);
+			SaveToPDF(GUI::StringFromUTF8(arg));
 		} else if (isprefix(action, "exportaslatex:")) {
-			SaveToTEX(arg);
+			SaveToTEX(GUI::StringFromUTF8(arg));
 		} else if (isprefix(action, "exportasxml:")) {
-			SaveToXML(arg);
+			SaveToXML(GUI::StringFromUTF8(arg));
 		} else if (isprefix(action, "find:") && wEditor.Created()) {
 			findWhat = arg;
 			FindNext(false, false);
@@ -4211,7 +4209,7 @@ void SciTEBase::PerformOne(char *action) {
 			wEditor.CallString(SCI_REPLACESEL, 0, arg);
 		} else if (isprefix(action, "loadsession:")) {
 			if (*arg) {
-				LoadSessionFile(arg);
+				LoadSessionFile(GUI::StringFromUTF8(arg).c_str());
 				RestoreSession();
 			}
 		} else if (isprefix(action, "macrocommand:")) {
@@ -4224,7 +4222,7 @@ void SciTEBase::PerformOne(char *action) {
 		} else if (isprefix(action, "menucommand:")) {
 			MenuCommand(atoi(arg));
 		} else if (isprefix(action, "open:")) {
-			Open(arg);
+			Open(GUI::StringFromUTF8(arg));
 		} else if (isprefix(action, "output:") && wOutput.Created()) {
 			wOutput.Call(SCI_REPLACESEL, 0, reinterpret_cast<sptr_t>(arg));
 		} else if (isprefix(action, "property:")) {
@@ -4242,13 +4240,13 @@ void SciTEBase::PerformOne(char *action) {
 			}
 		} else if (isprefix(action, "saveas:")) {
 			if (*arg) {
-				SaveAs(arg, true);
+				SaveAs(GUI::StringFromUTF8(arg).c_str(), true);
 			} else {
 				SaveAsDialog();
 			}
 		} else if (isprefix(action, "savesession:")) {
 			if (*arg) {
-				SaveSessionFile(arg);
+				SaveSessionFile(GUI::StringFromUTF8(arg).c_str());
 			}
 		} else if (isprefix(action, "extender:")) {
 			extender->OnExecute(arg);
@@ -4258,7 +4256,7 @@ void SciTEBase::PerformOne(char *action) {
 	}
 }
 
-static bool IsSwitchCharacter(char ch) {
+static bool IsSwitchCharacter(GUI::gui_char ch) {
 #ifdef unix
 	return ch == '-';
 #else
@@ -4508,6 +4506,24 @@ void SciTEBase::ExecuteMacroCommand(const char *command) {
 	delete []tbuff;
 }
 
+std::vector<GUI::gui_string> ListFromString(const GUI::gui_string &args) {
+	// Split on \n
+	std::vector<GUI::gui_string> vs;
+	GUI::gui_string s;
+	for (size_t i=0; i<args.size(); i++) {
+		if (args[i] == '\n') {
+			vs.push_back(s);
+			s = GUI::gui_string();
+		} else {
+			s += args[i];
+		}
+	}
+	if (s.size() > 0) {
+		vs.push_back(s);
+	}
+	return vs;
+}
+
 /**
  * Process all the command line arguments.
  * Arguments that start with '-' (also '/' on Windows) are switches or commands with
@@ -4518,13 +4534,13 @@ void SciTEBase::ExecuteMacroCommand(const char *command) {
  * to be evaluated before creating the UI.
  * Call twice, first with phase=0, then with phase=1 after creating UI.
  */
-bool SciTEBase::ProcessCommandLine(SString &args, int phase) {
+bool SciTEBase::ProcessCommandLine(GUI::gui_string &args, int phase) {
 	bool performPrint = false;
 	bool evaluate = phase == 0;
-	StringList wlArgs(true);
-	wlArgs.Set(args.c_str());
-	for (int i = 0; i < wlArgs.len; i++) {
-		char *arg = wlArgs[i];
+	std::vector<GUI::gui_string> wlArgs = ListFromString(args);
+	// Convert args to vector
+	for (size_t i = 0; i < wlArgs.size(); i++) {
+		const GUI::gui_char *arg = wlArgs[i].c_str();
 		if (IsSwitchCharacter(arg[0])) {
 			arg++;
 			if (arg[0] == '\0' || (arg[0] == '-' && arg[1] == '\0')) {
@@ -4535,9 +4551,9 @@ bool SciTEBase::ProcessCommandLine(SString &args, int phase) {
 				if (phase == 1) {
 					OpenFilesFromStdin();
 				}
-			} else if ((tolower(arg[0]) == 'p') && (strlen(arg) == 1)) {
+			} else if ((tolower(arg[0]) == 'p') && (arg[1] == 0)) {
 				performPrint = true;
-			} else if (strcmp(arg, "grep") == 0) {
+			} else if (GUI::gui_string(arg) == GUI_TEXT("grep")) {
 				// wlArgs[i+1] will be options in future
 				GrepFlags gf = grepStdOut;
 				if (wlArgs[i+1][0] == 'w')
@@ -4549,23 +4565,27 @@ bool SciTEBase::ProcessCommandLine(SString &args, int phase) {
 				if (wlArgs[i+1][3] == 'b')
 					gf = static_cast<GrepFlags>(gf | grepBinary);
 				char unquoted[1000];
-				strcpy(unquoted, wlArgs[i+3]);
+				strcpy(unquoted, GUI::UTF8FromString(wlArgs[i+3].c_str()).c_str());
 				UnSlash(unquoted);
-				InternalGrep(gf, FilePath::GetWorkingDirectory().AsInternal(), wlArgs[i+2], unquoted);
+				InternalGrep(gf, FilePath::GetWorkingDirectory().AsInternal(), wlArgs[i+2].c_str(), unquoted);
 				exit(0);
 			} else {
 				if (AfterName(arg) == ':') {
-					if (isprefix(arg, "open:") || isprefix(arg, "loadsession:")) {
+					if (StartsWith(arg, GUI_TEXT("open:")) || StartsWith(arg, GUI_TEXT("loadsession:"))) {
 						if (phase == 0)
 							return performPrint;
 						else
 							evaluate = true;
 					}
-					if (evaluate)
-						PerformOne(arg);
+					if (evaluate) {
+						const std::string sArg = GUI::UTF8FromString(arg);
+						std::vector<char> vcArg(sArg.size() + 1);
+						std::copy(sArg.begin(), sArg.end(), vcArg.begin());
+						PerformOne(&vcArg[0]);
+					}
 				} else {
 					if (evaluate) {
-						props.ReadLine(arg, true, FilePath::GetWorkingDirectory());
+						props.ReadLine(GUI::UTF8FromString(arg).c_str(), true, FilePath::GetWorkingDirectory());
 					}
 				}
 			}
@@ -4595,7 +4615,7 @@ bool SciTEBase::ProcessCommandLine(SString &args, int phase) {
 		}
 		// No open file after session load so create empty document.
 		if (filePath.IsUntitled() && buffers.length == 1 && !buffers.buffers[0].isDirty) {
-			Open("");
+			Open(GUI_TEXT(""));
 		}
 	}
 	return performPrint;

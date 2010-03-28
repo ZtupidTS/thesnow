@@ -33,7 +33,7 @@
 #endif
 #endif
 
-#define _WIN32_WINNT  0x0500
+#define _WIN32_WINNT  0x0500		//moded
 #ifdef _MSC_VER
 // windows.h, et al, use a lot of nameless struct/unions - can't fix it, so allow it
 #pragma warning(disable: 4201)
@@ -72,19 +72,19 @@
 #include "Utf8_16.h"
 
 #ifdef unix
-const char propUserFileName[] = "用户设置.properties";
+const GUI::gui_char propUserFileName[] = GUI_TEXT(".SciTEUser.properties");
 #else
 // Windows
-const char propUserFileName[] = "用户设置.properties";
+const GUI::gui_char propUserFileName[] = GUI_TEXT("用户设置.properties");	//moded
 #endif
-const char propGlobalFileName[] = "全局设置.properties";
-const char propAbbrevFileName[] = "全局缩写.properties";
+const GUI::gui_char propGlobalFileName[] = GUI_TEXT("全局设置.properties");	//moded
+const GUI::gui_char propAbbrevFileName[] = GUI_TEXT("全局缩写.properties");	//moded
 
 #define PROPERTIES_EXTENSION	".properties"
 
 static bool IsPropertiesFile(const FilePath &filename) {
 	FilePath ext = filename.Extension();
-	if (EqualCaseInsensitive(ext.AsInternal(), PROPERTIES_EXTENSION + 1))
+	if (EqualCaseInsensitive(ext.AsUTF8().c_str(), PROPERTIES_EXTENSION + 1))
 		return true;
 	return false;
 }
@@ -92,12 +92,8 @@ static bool IsPropertiesFile(const FilePath &filename) {
 void SciTEBase::SetFileName(FilePath openName, bool fixCase) {
 	if (openName.AsInternal()[0] == '\"') {
 		// openName is surrounded by double quotes
-		char pathCopy[MAX_PATH + 1];
-		strncpy(pathCopy, openName.AsInternal() + 1, MAX_PATH);
-		pathCopy[MAX_PATH] = '\0';
-		if (pathCopy[strlen(pathCopy) - 1] == '\"') {
-			pathCopy[strlen(pathCopy) - 1] = '\0';
-		}
+		GUI::gui_string pathCopy = openName.AsInternal();
+		pathCopy = pathCopy.substr(1, pathCopy.size() - 2);
 		filePath.Set(pathCopy);
 	} else {
 		filePath.Set(openName);
@@ -115,11 +111,11 @@ void SciTEBase::SetFileName(FilePath openName, bool fixCase) {
 
 	ReadLocalPropFile();
 
-	props.Set("FilePath", filePath.AsFileSystem());
-	props.Set("FileDir", filePath.Directory().AsFileSystem());
-	props.Set("FileName", filePath.BaseName().AsFileSystem());
-	props.Set("FileExt", filePath.Extension().AsFileSystem());
-	props.Set("FileNameExt", FileNameExt().AsFileSystem());
+	props.Set("FilePath", filePath.AsUTF8().c_str());
+	props.Set("FileDir", filePath.Directory().AsUTF8().c_str());
+	props.Set("FileName", filePath.BaseName().AsUTF8().c_str());
+	props.Set("FileExt", filePath.Extension().AsUTF8().c_str());
+	props.Set("FileNameExt", FileNameExt().AsUTF8().c_str());
 
 	SetWindowName();
 	if (buffers.buffers)
@@ -130,7 +126,7 @@ void SciTEBase::SetFileName(FilePath openName, bool fixCase) {
 // See if path exists.
 // If path is not absolute, it is combined with dir.
 // If resultPath is not NULL, it receives the absolute path if it exists.
-bool SciTEBase::Exists(const char *dir, const char *path, FilePath *resultPath) {
+bool SciTEBase::Exists(const GUI::gui_char *dir, const GUI::gui_char *path, FilePath *resultPath) {
 	FilePath copy(path);
 	if (!copy.IsAbsolute() && dir) {
 		copy.SetDirectory(dir);
@@ -390,7 +386,7 @@ void SciTEBase::OpenFile(int fileSize, bool suppressMessage) {
 		}
 
 	} else if (!suppressMessage) {
-		SString msg = LocaliseMessage("不能打开文件'^0'.", filePath.AsFileSystem());
+		GUI::gui_string msg = LocaliseMessage("不能打开文件 '^0'.", filePath.AsInternal());
 		WindowMessageBox(wSciTE, msg, MB_OK | MB_ICONWARNING);
 	}
 	if (!wEditor.Call(SCI_GETUNDOCOLLECTION)) {
@@ -408,7 +404,7 @@ void SciTEBase::OpenFile(int fileSize, bool suppressMessage) {
 	Redraw();
 }
 
-bool SciTEBase::PreOpenCheck(const char *) {
+bool SciTEBase::PreOpenCheck(const GUI::gui_char *) {
 	return false;
 }
 
@@ -434,11 +430,12 @@ bool SciTEBase::Open(FilePath file, OpenFlags of) {
 		// Real file, not empty buffer
 		int maxSize = props.GetInt("max.file.size");
 		if (maxSize > 0 && size > maxSize) {
-			SString sSize(size), sMaxSize(maxSize);
-			SString msg = LocaliseMessage("文件[ '^0' ]有[ ^1 ]字节,\n"
+			GUI::gui_string sSize = GUI::StringFromInteger(size);
+			GUI::gui_string sMaxSize = GUI::StringFromInteger(maxSize);
+			GUI::gui_string msg = LocaliseMessage("文件[ '^0' ]有[ ^1 ]字节,\n"
 			        "超过了设置文件中的[ ^2 ]字节的最大限制.\n"
 			        "您确定要打开它吗?",
-			        absPath.AsFileSystem(), sSize.c_str(), sMaxSize.c_str());
+			        absPath.AsInternal(), sSize.c_str(), sMaxSize.c_str());
 			int answer = WindowMessageBox(wSciTE, msg, MB_YESNO | MB_ICONWARNING);
 			if (answer != IDYES) {
 				return false;
@@ -491,7 +488,7 @@ bool SciTEBase::Open(FilePath file, OpenFlags of) {
 		SetLineNumberWidth();
 	UpdateStatusBar(true);
 	if (extender)
-		extender->OnOpen(filePath.AsFileSystem());
+		extender->OnOpen(filePath.AsUTF8().c_str());
 	return true;
 }
 
@@ -512,7 +509,7 @@ bool SciTEBase::OpenSelected() {
 	SString openSuffix = props.GetNewExpand("open.suffix.", fileNameForExtension.c_str());
 	strcat(selectedFilename, openSuffix.c_str());
 
-	if (EqualCaseInsensitive(selectedFilename, FileNameExt().AsInternal()) || EqualCaseInsensitive(selectedFilename, filePath.AsInternal())) {
+	if (EqualCaseInsensitive(selectedFilename, FileNameExt().AsUTF8().c_str()) || EqualCaseInsensitive(selectedFilename, filePath.AsUTF8().c_str())) {
 		WarnUser(warnWrongFile);
 		return true;	// Do not open if it is the current file!
 	}
@@ -567,22 +564,23 @@ bool SciTEBase::OpenSelected() {
 	FilePath path;
 	// Don't load the path of the current file if the selected
 	// filename is an absolute pathname
-	if (!FilePath(selectedFilename).IsAbsolute()) {
+	GUI::gui_string selFN = GUI::StringFromUTF8(selectedFilename);
+	if (!FilePath(selFN).IsAbsolute()) {
 		path = filePath.Directory();
 		// If not there, look in openpath
-		if (!Exists(path.AsInternal(), selectedFilename, NULL)) {
-			SString openPath = props.GetNewExpand(
-			            "openpath.", fileNameForExtension.c_str());
+		if (!Exists(path.AsInternal(), selFN.c_str(), NULL)) {
+			GUI::gui_string openPath = GUI::StringFromUTF8(props.GetNewExpand(
+			            "openpath.", fileNameForExtension.c_str()).c_str());
 			while (openPath.length()) {
-				SString tryPath(openPath);
-				int sepIndex = tryPath.search(listSepString);
-				if (sepIndex > 0) {
-					tryPath.remove(sepIndex, 0);
-					openPath.remove(0, sepIndex + 1);
+				GUI::gui_string tryPath(openPath);
+				size_t sepIndex = tryPath.find(listSepString);
+				if ((sepIndex != GUI::gui_string::npos) && (sepIndex != 0)) {
+					tryPath.erase(sepIndex, 0);
+					openPath.erase(0, sepIndex + 1);
 				} else {
-					openPath.clear();
+					openPath.erase();
 				}
-				if (Exists(tryPath.c_str(), selectedFilename, NULL)) {
+				if (Exists(tryPath.c_str(), selFN.c_str(), NULL)) {
 					path.Set(tryPath.c_str());
 					break;
 				}
@@ -590,7 +588,7 @@ bool SciTEBase::OpenSelected() {
 		}
 	}
 	FilePath pathReturned;
-	if (Exists(path.AsInternal(), selectedFilename, &pathReturned)) {
+	if (Exists(path.AsInternal(), selFN.c_str(), &pathReturned)) {
 		if (Open(pathReturned)) {
 			if (lineNumber > 0) {
 				wEditor.Call(SCI_GOTOLINE, lineNumber - 1);
@@ -625,15 +623,15 @@ void SciTEBase::CheckReload() {
 			OpenFlags of = props.GetInt("reload.preserves.undo") ? ofPreserveUndo : ofNone;
 			if (CurrentBuffer()->isDirty || props.GetInt("are.you.sure.on.reload") != 0) {
 				if ((0 == dialogsOnScreen) && (newModTime != CurrentBuffer()->fileModLastAsk)) {
-					SString msg;
+					GUI::gui_string msg;
 					if (CurrentBuffer()->isDirty) {
 						msg = LocaliseMessage(
 						          "文件 '^0' 已经被修改,是否重新载入?",
-						          filePath.AsFileSystem());
+						          filePath.AsInternal());
 					} else {
 						msg = LocaliseMessage(
 						          "文件 '^0' 已经被其它编辑器修改,是否重新载入?",
-						          FileNameExt().AsFileSystem());
+						          FileNameExt().AsInternal());
 					}
 					int decision = WindowMessageBox(wSciTE, msg, MB_YESNO);
 					if (decision == IDYES) {
@@ -661,7 +659,7 @@ void SciTEBase::Activate(bool activeApp) {
 }
 
 FilePath SciTEBase::SaveName(const char *ext) {
-	SString savePath = filePath.AsInternal();
+	GUI::gui_string savePath = filePath.AsInternal();
 	if (ext) {
 		int dot = savePath.length() - 1;
 		while ((dot >= 0) && (savePath[dot] != '.')) {
@@ -670,12 +668,12 @@ FilePath SciTEBase::SaveName(const char *ext) {
 		if (dot >= 0) {
 			int keepExt = props.GetInt("export.keep.ext");
 			if (keepExt == 0) {
-				savePath.remove(dot, 0);
+				savePath.erase(dot, 0);
 			} else if (keepExt == 2) {
-				savePath.change(dot, '_');
+				savePath[dot] = '_';
 			}
 		}
-		savePath.append(ext);
+		savePath += GUI::StringFromUTF8(ext);
 	}
 	//~ fprintf(stderr, "SaveName <%s> <%s> <%s>\n", filePath.AsInternal(), savePath.c_str(), ext);
 	return FilePath(savePath.c_str());
@@ -686,9 +684,9 @@ int SciTEBase::SaveIfUnsure(bool forceQuestion) {
 		if (props.GetInt("are.you.sure", 1) ||
 		        filePath.IsUntitled() ||
 		        forceQuestion) {
-			SString msg;
+					GUI::gui_string msg;
 			if (!filePath.IsUntitled()) {
-				msg = LocaliseMessage("保存修改过的文件到[ '^0' ]吗?", filePath.AsFileSystem());
+				msg = LocaliseMessage("保存修改过的文件到[ '^0' ]吗?", filePath.AsInternal());
 			} else {
 				msg = LocaliseMessage("保存修改过的文件为[ '未命名文档' ]吗?");
 			}
@@ -717,7 +715,7 @@ int SciTEBase::SaveIfUnsureAll(bool forceQuestion) {
 		}
 	}
 	if (props.GetInt("save.session") || props.GetInt("save.position") || props.GetInt("save.recent")) {
-		SaveSessionFile("");
+		SaveSessionFile(GUI_TEXT(""));
 	}
 
 	// Definitely going to exit now, so delete all documents
@@ -800,7 +798,7 @@ bool SciTEBase::SaveBuffer(FilePath saveName) {
 		wEditor.Call(SCI_CONVERTEOLS, wEditor.Call(SCI_GETEOLMODE));
 
 	if (extender)
-		retVal = extender->OnBeforeSave(saveName.AsFileSystem());
+		retVal = extender->OnBeforeSave(saveName.AsUTF8().c_str());
 
 	wEditor.Call(SCI_ENDUNDOACTION);
 
@@ -836,7 +834,7 @@ bool SciTEBase::SaveBuffer(FilePath saveName) {
 	}
 
 	if (retVal && extender) {
-		extender->OnSave(saveName.AsFileSystem());
+		extender->OnSave(saveName.AsUTF8().c_str());
 	}
 	UpdateStatusBar(true);
 	return retVal;
@@ -867,8 +865,8 @@ bool SciTEBase::Save() {
 				ReloadProperties();
 			}
 		} else {
-			SString msg = LocaliseMessage(
-			            "不能保存文件[ '^0' ]. 需要使用一个不同的文件名来保存吗?", filePath.AsFileSystem());
+			GUI::gui_string msg = LocaliseMessage(
+			            "不能保存文件[ '^0' ]. 需要使用一个不同的文件名来保存吗?", filePath.AsInternal());
 			int decision = WindowMessageBox(wSciTE, msg, MB_YESNO | MB_ICONWARNING);
 			if (decision == IDYES) {
 				return SaveAsDialog();
@@ -881,7 +879,7 @@ bool SciTEBase::Save() {
 	}
 }
 
-void SciTEBase::SaveAs(const char *file, bool fixCase) {
+void SciTEBase::SaveAs(const GUI::gui_char *file, bool fixCase) {
 	SetFileName(file, fixCase);
 	Save();
 	ReadProperties();
@@ -891,18 +889,18 @@ void SciTEBase::SaveAs(const char *file, bool fixCase) {
 	SetWindowName();
 	BuffersMenu();
 	if (extender)
-		extender->OnSave(filePath.AsFileSystem());
+		extender->OnSave(filePath.AsUTF8().c_str());
 }
 
 void SciTEBase::SaveIfNotOpen(const FilePath &destFile, bool fixCase) {
 	FilePath absPath = destFile.AbsolutePath();
 	int index = buffers.GetDocumentByName(absPath, true /* excludeCurrent */);
 	if (index >= 0) {
-		SString msg = LocaliseMessage(
-			    "'^0' 文件已经在其它面板中打开.", destFile.AsFileSystem());
+		GUI::gui_string msg = LocaliseMessage(
+			    "'^0' 文件已经在其它面板中打开.", destFile.AsInternal());
 		WindowMessageBox(wSciTE, msg, MB_OK | MB_ICONWARNING);
 	} else {
-		SaveAs(absPath.AsFileSystem(), fixCase);
+		SaveAs(absPath.AsInternal(), fixCase);
 	}
 }
 
@@ -918,7 +916,7 @@ void SciTEBase::OpenFromStdin(bool UseOutputPane) {
 	if (IsStdinBlocked())
 		return;
 
-	Open("");
+	Open(GUI_TEXT(""));
 	if (UseOutputPane) {
 		wOutput.Call(SCI_CLEARALL);
 	} else {
@@ -987,10 +985,10 @@ void SciTEBase::OpenFilesFromStdin() {
 	while (fgets(data, sizeof(data) - 1, stdin)) {
 		if ((pNL = strchr(data, '\n')) != NULL)
 			* pNL = '\0';
-		Open(data, ofQuiet);
+		Open(GUI::StringFromUTF8(data).c_str(), ofQuiet);
 	}
 	if (buffers.length == 0)
-		Open("");
+		Open(GUI_TEXT(""));
 }
 
 class BufferedFile {
@@ -1112,7 +1110,7 @@ static bool IsWordCharacter(int ch) {
 	return (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z')  || (ch >= '0' && ch <= '9')  || (ch == '_');
 }
 
-void SciTEBase::GrepRecursive(GrepFlags gf, FilePath baseDir, const char *searchString, const char *fileTypes) {
+void SciTEBase::GrepRecursive(GrepFlags gf, FilePath baseDir, const char *searchString, const GUI::gui_char *fileTypes) {
 	FilePathSet directories;
 	FilePathSet files;
 	baseDir.List(directories, files);
@@ -1121,7 +1119,7 @@ void SciTEBase::GrepRecursive(GrepFlags gf, FilePath baseDir, const char *search
 	for (size_t i = 0; i < files.Length(); i ++) {
 		FilePath fPath = files.At(i);
 		if (fPath.Matches(fileTypes)) {
-			//OutputAppendStringSynchronised(i->AsFileSystem());
+			//OutputAppendStringSynchronised(i->AsInternal());
 			//OutputAppendStringSynchronised("\n");
 			FileReader fr(fPath, gf & grepMatchCase);
 			if ((gf & grepBinary) || !fr.BufferContainsNull()) {
@@ -1139,7 +1137,7 @@ void SciTEBase::GrepRecursive(GrepFlags gf, FilePath baseDir, const char *search
 							}
 						}
 						if (match) {
-							os.append(fPath.AsFileSystem());
+							os.append(fPath.AsUTF8().c_str());
 							os.append(":");
 							SString lNumber(fr.LineNumber());
 							os.append(lNumber.c_str());
@@ -1167,7 +1165,7 @@ void SciTEBase::GrepRecursive(GrepFlags gf, FilePath baseDir, const char *search
 	}
 }
 
-void SciTEBase::InternalGrep(GrepFlags gf, const char *directory, const char *fileTypes, const char *search) {
+void SciTEBase::InternalGrep(GrepFlags gf, const GUI::gui_char *directory, const GUI::gui_char *fileTypes, const char *search) {
 	int originalEnd = 0;
 	GUI::ElapsedTime commandTime;
 	if (!(gf & grepStdOut)) {
@@ -1175,7 +1173,7 @@ void SciTEBase::InternalGrep(GrepFlags gf, const char *directory, const char *fi
 		os.append(">Internal search for \"");
 		os.append(search);
 		os.append("\" in \"");
-		os.append(fileTypes);
+		os.append(GUI::UTF8FromString(fileTypes).c_str());
 		os.append("\"\n");
 		OutputAppendStringSynchronised(os.c_str());
 		MakeOutputVisible();

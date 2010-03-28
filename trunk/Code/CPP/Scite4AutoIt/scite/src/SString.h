@@ -205,10 +205,9 @@ public:
 	const char *c_str() const {
 		return s ? s : "";
 	}
-	//added
+	//added		conv char to wchar_t
 	const wchar_t * w_str();
 	//added
-
 	/** Give ownership of buffer to caller which must use delete[] to free buffer. */
 	char *detach() {
 		char *sRet = s;

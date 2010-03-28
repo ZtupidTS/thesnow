@@ -8,9 +8,6 @@
 #ifndef SCITE_H
 #define SCITE_H
 
-// ICON
-#define OIC_SciTE			1800
-
 // 菜单 ID.
 // These are located 100 apart. No one will want more than 100 in each menu ;)
 #define IDM_MRUFILE			1000
@@ -70,7 +67,7 @@
 #define IDM_FINDNEXTBACKSEL	214
 #define IDM_FINDINFILES		215
 #define IDM_REPLACE			216
-#define IDM_EDITORCONFIG	217
+#define IDM_EDITORCONFIG	217		//added 编辑器设置
 #define IDM_GOTO			220
 #define IDM_BOOKMARK_NEXT	221
 #define IDM_BOOKMARK_TOGGLE	222
@@ -195,8 +192,8 @@
 #define IDM_HELP_SCITE		903
 #define IDM_DONATE			904		//汉化添加-----捐助的ID
 // Windows 特殊窗口选项
-#define IDM_ONTOP			960		//置顶
-#define IDM_FULLSCREEN		961		//全屏
+#define IDM_ONTOP			960
+#define IDM_FULLSCREEN		961
 #define IDC_TABCLOSE		962
 #define IDC_SHIFTTAB		963
 #define IDM_README			964		//added
