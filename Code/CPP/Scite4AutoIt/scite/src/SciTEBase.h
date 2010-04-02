@@ -464,7 +464,6 @@ protected:
 	enum { toolMax = 50 };
 	Extension *extender;
 	bool needReadProperties;
-	bool allowAlpha;
 
 	int heightOutput;
 	int heightOutputStartDrag;
