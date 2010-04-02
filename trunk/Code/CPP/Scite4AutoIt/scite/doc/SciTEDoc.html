@@ -825,8 +825,8 @@ NameError: mistake
     <p>
       SciTE will automatically detect the encoding scheme used for Unicode files that
       start with a Byte Order Mark (BOM).
-      The UTF-8 and UCS-2 encodings are recognized including both Little Endian and
-      Big Endian variants of UCS-2.
+      The UTF-8 and UTF-16 encodings are recognized including both Little Endian and
+      Big Endian variants of UTF-16.
     </p>
     <p>
       UTF-8 files will also be recognised when they contain a coding cookie on one of the
@@ -2374,8 +2374,8 @@ c:\cygwin\bin\xargs -0 fgrep -G -n "$(find.what)"
           programming languages such as Python, Java, C/C++, JavaScript and VB. Often several file
           extensions (.cpp, .cc, .h) can map to one language (C++) and hence one lexer. These
           settings associate a file name with a lexer.<br />
-	The lexers included in SciTE are written in C++ and compiled into the SciTE executable.
-	Lexers can also be written as a <a href="ScriptLexer.html">Lua script</a>.
+          The lexers included in SciTE are written in C++ and compiled into the SciTE executable.
+          Lexers can also be written as a <a href="ScriptLexer.html">Lua script</a>.
         </td>
       </tr>
       <tr>
@@ -2694,16 +2694,6 @@ groupundo - yes or no
         </td>
         <td>
         Defines a command to be executed when print is invoked on GTK+.
-        </td>
-      </tr>
-      <tr class="windowsonly">
-        <td>
-          win95.death.delay
-        </td>
-        <td>
-          On Windows 95, there can be a delay between a process completing and all of its piped
-          output being available. By waiting this number of milliseconds, we can be sure to see all
-          the output. Defaults to 500 but may need to be higher for slower machines.
         </td>
       </tr>
       <tr>
