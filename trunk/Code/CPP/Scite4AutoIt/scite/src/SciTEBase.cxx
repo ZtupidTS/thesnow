@@ -89,10 +89,10 @@ SciTEBase::SciTEBase(Extension *ext) : apis(true), extender(ext) {
 	statementLookback = 10;
 	preprocessorSymbol = '\0';
 
-	tbVisible = false;
-	sbVisible = false;
+	tbVisible = true;
+	sbVisible = true;
 	tabVisible = true;						//标签可见
-	tabHideOne = false;
+	tabHideOne = true;
 	tabMultiLine = false;
 	sbNum = 1;
 	visHeightTools = 0;
@@ -3350,7 +3350,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 	//add start ↓
 	case IDM_EDITORCONFIG:					//打开配置工具
 		::MessageBoxW(0,L"注意:此功能可能导致设置文件混乱,请小心使用.",L"警告!",0);
-		::ShellExecute(0,L"open",L"SciTEConfig\sciteconfig.exe",L"acn",L"",SW_SHOW);
+		::ShellExecute(0,L"open",L"SciTEConfig\\sciteconfig.exe",L"acn",L"",SW_SHOW);
 		break;
 	//add end ↑
 	case IDM_WRAP:

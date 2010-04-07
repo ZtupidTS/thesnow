@@ -328,66 +328,10 @@ static void HackColour(int &n) {
 		n = 0x80;
 }
 
-#if !defined(GTK)
-static unsigned int UTF8Length(const wchar_t *uptr, unsigned int tlen) {
-	unsigned int len = 0;
-	for (unsigned int i = 0; i < tlen && uptr[i]; i++) {
-		unsigned int uch = uptr[i];
-		if (uch < 0x80)
-			len++;
-		else if (uch < 0x800)
-			len += 2;
-		else
-			len += 3;
-	}
-	return len;
-}
-
-static void UTF8FromUCS2(const wchar_t *uptr, unsigned int tlen, char *putf, unsigned int len) {
-	int k = 0;
-	for (unsigned int i = 0; i < tlen && uptr[i]; i++) {
-		unsigned int uch = uptr[i];
-		if (uch < 0x80) {
-			putf[k++] = static_cast<char>(uch);
-		} else if (uch < 0x800) {
-			putf[k++] = static_cast<char>(0xC0 | (uch >> 6));
-			putf[k++] = static_cast<char>(0x80 | (uch & 0x3f));
-		} else {
-			putf[k++] = static_cast<char>(0xE0 | (uch >> 12));
-			putf[k++] = static_cast<char>(0x80 | ((uch >> 6) & 0x3f));
-			putf[k++] = static_cast<char>(0x80 | (uch & 0x3f));
-		}
-	}
-	putf[len] = '\0';
-}
-#endif
 
 SString SciTEBase::GetTranslationToAbout(const char * const propname, bool retainIfNotFound) {
 #if !defined(GTK)
-	// By code below, all translators can write their name in their own
-	// language in locale.properties on Windows.
-	SString result = GUI::UTF8FromString(localiser.Text(propname, retainIfNotFound)).c_str();
-	if (!result.length())
-		return result;
-	int translationCodePage = props.GetInt("code.page", CP_ACP);
-	int bufwSize = ::MultiByteToWideChar(translationCodePage, MB_PRECOMPOSED, result.c_str(), -1, NULL, 0);
-	if (!bufwSize)
-		return result;
-	wchar_t *bufw = new wchar_t[bufwSize+1];
-	bufwSize = ::MultiByteToWideChar(translationCodePage, MB_PRECOMPOSED, result.c_str(), -1, bufw, bufwSize);
-	if (!bufwSize) {
-		delete []bufw;
-		return result;
-	}
-	int bufcSize = UTF8Length(bufw, bufwSize);
-	if (!bufcSize)
-		return result;
-	char *bufc = new char[bufcSize+1];
-	UTF8FromUCS2(bufw, bufwSize, bufc, bufcSize);
-	delete []bufw;
-	result = bufcSize ? bufc : "";
-	delete []bufc;
-	return result;
+	return SString(GUI::UTF8FromString(localiser.Text(propname, retainIfNotFound)).c_str());
 #else
 	// 在 GTK+ 上, localiser.Text 总是转换为 UTF-8.
 	return SString(localiser.Text(propname, retainIfNotFound).c_str());
@@ -442,7 +386,7 @@ void SciTEBase::SetAboutMessage(GUI::ScintillaWindow &wsci, const char *appTitle
 		AddStyledText(wsci, GetTranslationToAbout("by").c_str(), trsSty);
 		AddStyledText(wsci, " Neil Hodgson.\n", 2);
 		SetAboutStyle(wsci, 3, ColourRGB(0, 0, 0));
-		AddStyledText(wsci, "December 1998-February 2010.\n", 3);
+		AddStyledText(wsci, "December 1998-April 2010.\n", 3);
 		SetAboutStyle(wsci, 4, ColourRGB(0, 0x7f, 0x7f));
 		AddStyledText(wsci, "http://www.scintilla.org\n", 4);
 		AddStyledText(wsci, "Lua scripting language by TeCGraf, PUC-Rio\n", 3);
@@ -477,6 +421,41 @@ void SciTEBase::SetAboutMessage(GUI::ScintillaWindow &wsci, const char *appTitle
 		wsci.Send(SCI_SETREADONLY, 1, 0);
 	}
 }
+
+#if !defined(GTK)
+static unsigned int UTF8Length(const wchar_t *uptr, unsigned int tlen) {
+	unsigned int len = 0;
+	for (unsigned int i = 0; i < tlen && uptr[i]; i++) {
+		unsigned int uch = uptr[i];
+		if (uch < 0x80)
+			len++;
+		else if (uch < 0x800)
+			len += 2;
+		else
+			len += 3;
+	}
+	return len;
+}
+
+static void UTF8FromUCS2(const wchar_t *uptr, unsigned int tlen, char *putf, unsigned int len) {
+	int k = 0;
+	for (unsigned int i = 0; i < tlen && uptr[i]; i++) {
+		unsigned int uch = uptr[i];
+		if (uch < 0x80) {
+			putf[k++] = static_cast<char>(uch);
+		} else if (uch < 0x800) {
+			putf[k++] = static_cast<char>(0xC0 | (uch >> 6));
+			putf[k++] = static_cast<char>(0x80 | (uch & 0x3f));
+		} else {
+			putf[k++] = static_cast<char>(0xE0 | (uch >> 12));
+			putf[k++] = static_cast<char>(0x80 | ((uch >> 6) & 0x3f));
+			putf[k++] = static_cast<char>(0x80 | (uch & 0x3f));
+		}
+	}
+	putf[len] = '\0';
+}
+#endif
+
 
 void DONATE_MSG(){
 		wchar_t *msg = 

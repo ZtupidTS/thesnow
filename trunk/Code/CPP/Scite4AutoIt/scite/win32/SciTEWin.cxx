@@ -255,9 +255,8 @@ static int CodePageFromName(const SString &encodingName) {
 		{ "big5", 950 },
 		{ "gbk", 936 },
 		{ "shift_jis", 932 },
-		// euc-kr does not work as 949
-		// "euc-kr", 949,
-		// "cyrillic", Possibly means KOI-8
+		{ "euc-kr", 949 },
+		{ "cyrillic", 1251 },
 		{ "iso-8859-5", 28595 },
 		{ "iso8859-11", 874 },
 		{ "1250", 1250 },
@@ -1715,7 +1714,7 @@ LRESULT SciTEWin::WndProc(UINT iMessage, WPARAM wParam, LPARAM lParam) {
 			return ::DefWindowProc(MainHWND(), iMessage, wParam, lParam);
 
 		case SCITE_TRAY:
-			if (lParam == WM_LBUTTONDBLCLK) {
+			if (lParam == WM_LBUTTONDOWN) {
 				RestoreFromTray();
 				::ShowWindow(MainHWND(), SW_RESTORE);
 				::FlashWindow(MainHWND(), FALSE);
