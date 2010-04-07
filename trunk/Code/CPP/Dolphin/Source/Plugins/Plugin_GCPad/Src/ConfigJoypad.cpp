@@ -208,10 +208,7 @@ void GCPadConfigDialog::DoGetButtons(int _GetId)
 	{
 		DEBUG_LOG(PAD, "Timer Stopped for Pad:%i _GetId:%i", GCMapping[m_Page].ID, _GetId);
 
-		m_ButtonMappingTimer->Stop();
-		GetButtonWaitingTimer = 0;
-		GetButtonWaitingID = 0;
-		ClickedButton = NULL;
+		EndGetButtons();
 	}
 
 	// If we got a bad button
@@ -227,11 +224,22 @@ void GCPadConfigDialog::DoGetButtons(int _GetId)
 	}
 }
 
+void GCPadConfigDialog::EndGetButtons(void)
+{
+	wxTheApp->Disconnect(wxID_ANY, wxEVT_KEY_DOWN, // Keyboard
+			wxKeyEventHandler(GCPadConfigDialog::OnKeyDown),
+			(wxObject*)0, this);
+	m_ButtonMappingTimer->Stop();
+	GetButtonWaitingTimer = 0;
+	GetButtonWaitingID = 0;
+	ClickedButton = NULL;
+}
+
 // Convert the 0x8000 range values to BoxW and BoxH for the plot
 void GCPadConfigDialog::Convert2Box(int &x)
 {
 	// Border adjustment
-	int BoxW_ = BoxW - 2; int BoxH_ = BoxH - 2;
+	int BoxW_ = BoxW - 2;
 	// Convert values
 	x = (BoxW_ / 2) + (x * BoxW_ / (32767 * 2));
 }

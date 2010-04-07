@@ -129,10 +129,6 @@ GCPadConfigDialog::GCPadConfigDialog(wxWindow *parent, wxWindowID id, const wxSt
 #endif
 
 	UpdateGUI();
-
-	wxTheApp->Connect(wxID_ANY, wxEVT_KEY_DOWN, // Keyboard
-		wxKeyEventHandler(GCPadConfigDialog::OnKeyDown),
-		(wxObject*)0, this);
 }
 
 GCPadConfigDialog::~GCPadConfigDialog()
@@ -245,10 +241,7 @@ void GCPadConfigDialog::OnKeyDown(wxKeyEvent& event)
 			SaveButtonMapping(ClickedButton->GetId(), XKey);
 		#endif
 		}
-		m_ButtonMappingTimer->Stop();
-		GetButtonWaitingTimer = 0;
-		GetButtonWaitingID = 0;
-		ClickedButton = NULL;
+		EndGetButtons();
 	}
 }
 
@@ -261,6 +254,10 @@ void GCPadConfigDialog::OnButtonClick(wxCommandEvent& event)
 	if (g_Pressed == WXK_SPACE) { g_Pressed = 0; return; }
 
 	if (m_ButtonMappingTimer->IsRunning()) return;
+
+	wxTheApp->Connect(wxID_ANY, wxEVT_KEY_DOWN, // Keyboard
+			wxKeyEventHandler(GCPadConfigDialog::OnKeyDown),
+			(wxObject*)0, this);
 
 	// Create the button object
 	ClickedButton = (wxButton *)event.GetEventObject();
@@ -482,7 +479,7 @@ void GCPadConfigDialog::CreateGUIControls()
 	};
 
 	// Configuration controls sizes
-	static const int TxtW = 50, TxtH = 20, BtW = 70, BtH = 20;
+	static const int BtW = 70, BtH = 20;
 	// A small type font
 	wxFont m_SmallFont(7, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
 

@@ -28,7 +28,6 @@ namespace DSPInterpreter {
 
 void Update_SR_Register64(s64 _Value, bool carry, bool overflow)
 {
-	// TODO: recheck 0x1,0x2,even 0x80... implement...
 	g_dsp.r[DSP_REG_SR] &= ~SR_CMP_MASK;
 
 	// 0x01
@@ -37,10 +36,11 @@ void Update_SR_Register64(s64 _Value, bool carry, bool overflow)
 		g_dsp.r[DSP_REG_SR] |= SR_CARRY;
 	}
 
-	// 0x02
+	// 0x02 and 0x80
 	if (overflow)
 	{
 		g_dsp.r[DSP_REG_SR] |= SR_OVERFLOW;
+		g_dsp.r[DSP_REG_SR]  |= SR_OVERFLOW_STICKY; 
 	}
 
 	// 0x04
@@ -61,21 +61,16 @@ void Update_SR_Register64(s64 _Value, bool carry, bool overflow)
 		g_dsp.r[DSP_REG_SR] |= SR_OVER_S32;
 	}
 
-	// 0x20 - Checks if top bits of m are equal, what is it good for?
+	// 0x20 - Checks if top bits of m are equal
 	if (((_Value & 0xc0000000) == 0) || ((_Value & 0xc0000000) == 0xc0000000))
 	{
 		g_dsp.r[DSP_REG_SR] |= SR_TOP2BITS;
-	}
-
-	// 0x80
-	{
 	}
 }
 
 
 void Update_SR_Register16(s16 _Value, bool carry, bool overflow, bool overS32)
 {
-	// TODO: recheck 0x1,0x2,even 0x80... implement...
 	g_dsp.r[DSP_REG_SR] &= ~SR_CMP_MASK;
 
 	// 0x01
@@ -84,12 +79,13 @@ void Update_SR_Register16(s16 _Value, bool carry, bool overflow, bool overS32)
 		g_dsp.r[DSP_REG_SR] |= SR_CARRY;
 	}
 
-	// 0x02
+	// 0x02 and 0x80
 	if (overflow)
 	{
 		g_dsp.r[DSP_REG_SR] |= SR_OVERFLOW;
+		g_dsp.r[DSP_REG_SR]  |= SR_OVERFLOW_STICKY; 
 	}
-	
+
 	// 0x04
 	if (_Value == 0)
 	{
@@ -108,14 +104,10 @@ void Update_SR_Register16(s16 _Value, bool carry, bool overflow, bool overS32)
 		g_dsp.r[DSP_REG_SR] |= SR_OVER_S32;
 	}
 
-	// 0x20 - Checks if top bits of m are equal, what is it good for?
+	// 0x20 - Checks if top bits of m are equal
 	if ((((u16)_Value >> 14) == 0) || (((u16)_Value >> 14) == 3))
 	{
 		g_dsp.r[DSP_REG_SR] |= SR_TOP2BITS;
-	}
-
-	// 0x80
-	{
 	}
 }
 
@@ -136,8 +128,16 @@ inline bool isCarry() {
 	return (g_dsp.r[DSP_REG_SR] & SR_CARRY) ? true : false;
 }
 
+inline bool isOverflow() {
+	return (g_dsp.r[DSP_REG_SR] & SR_OVERFLOW) ? true : false;
+}
+
+inline bool isOverS32() {
+	return (g_dsp.r[DSP_REG_SR] & SR_OVER_S32) ? true : false;
+}
+
 inline bool isLess() {
-	return ((g_dsp.r[DSP_REG_SR] & SR_OVERFLOW) != (g_dsp.r[DSP_REG_SR] & SR_SIGN));
+	return ((bool)(g_dsp.r[DSP_REG_SR] & SR_OVERFLOW) != (bool)(g_dsp.r[DSP_REG_SR] & SR_SIGN));
 }
 
 inline bool isZero() {
@@ -148,7 +148,11 @@ inline bool isLogicZero() {
 	return (g_dsp.r[DSP_REG_SR] & SR_LOGIC_ZERO) ? true : false;
 }
 
-//see gdsp_registers.h for flags
+inline bool isConditionA() {
+	return (((g_dsp.r[DSP_REG_SR] & SR_OVER_S32) || (g_dsp.r[DSP_REG_SR] & SR_TOP2BITS)) && !(g_dsp.r[DSP_REG_SR] & SR_ARITH_ZERO)) ? true : false;
+}
+
+//see DSPCore.h for flags
 bool CheckCondition(u8 _Condition)
 {
 	switch (_Condition & 0xf)
@@ -169,16 +173,24 @@ bool CheckCondition(u8 _Condition)
 		return !isCarry();
 	case 0x7: // C - Carry 
 		return isCarry();
+	case 0x8: // ? - Not over s32
+		return !isOverS32();
+	case 0x9: // ? - Over s32
+		return isOverS32();
+	case 0xa: // ?
+		return isConditionA();
+	case 0xb: // ?
+		return !isConditionA();
 	case 0xc: // LNZ  - Logic Not Zero
 		return !isLogicZero();
 	case 0xd: // LZ - Logic Zero
 		return isLogicZero();
-
+	case 0xe: // 0 - Overflow
+		return isOverflow();
 	case 0xf: // Empty - always true.
 		return true;
 	default:
-		ERROR_LOG(DSPLLE, "Unknown condition check: 0x%04x", _Condition & 0xf);
-		return false;
+		return true;
 	}
 }
 

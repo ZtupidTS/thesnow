@@ -72,13 +72,13 @@ u16 dsp_read_aram_d3()
 	u32 Address = (g_dsp.ifx_regs[DSP_ACCAH] << 16) | g_dsp.ifx_regs[DSP_ACCAL];
 	u16 val = 0;
 	switch (g_dsp.ifx_regs[DSP_FORMAT]) {
-		case 0x5:   // unsigned 8-bit reads .. I think.
+		case 0x5:   // u8 reads
 			val = DSPHost_ReadHostMemory(Address);
 			Address++;
 			break;
-		case 0x6:   // unsigned 16-bit reads .. I think.
-		    val = (DSPHost_ReadHostMemory(Address) << 8) | DSPHost_ReadHostMemory(Address + 1);
-			Address += 2;
+		case 0x6:   // u16 reads
+		    val = (DSPHost_ReadHostMemory(Address*2) << 8) | DSPHost_ReadHostMemory(Address*2 + 1);
+			Address++;
 			break;
 		default:
 			ERROR_LOG(DSPLLE, "dsp_read_aram_d3: Unseen Format %i", g_dsp.ifx_regs[DSP_FORMAT]);
@@ -101,10 +101,10 @@ void dsp_write_aram_d3(u16 value)
 	// const u32 EndAddress = (g_dsp.ifx_regs[DSP_ACEAH] << 16) | g_dsp.ifx_regs[DSP_ACEAL]; // Unused?
 	u32 Address = (g_dsp.ifx_regs[DSP_ACCAH] << 16) | g_dsp.ifx_regs[DSP_ACCAL];
 	switch (g_dsp.ifx_regs[DSP_FORMAT]) {
-		case 0xA:   // 16-bit writes
-			DSPHost_WriteHostMemory(value >> 8, Address);
-			DSPHost_WriteHostMemory(value & 0xFF, Address + 1);
-			Address += 2;
+		case 0xA:   // u16 writes
+			DSPHost_WriteHostMemory(value >> 8, Address*2);
+			DSPHost_WriteHostMemory(value & 0xFF, Address*2 + 1);
+			Address++;
 			break;
 		default:
 			ERROR_LOG(DSPLLE, "dsp_write_aram_d3: Unseen Format %i", g_dsp.ifx_regs[DSP_FORMAT]);
@@ -132,24 +132,30 @@ u16 dsp_read_accelerator()
 	    case 0x00:  // ADPCM audio
 		    val = ADPCM_Step(Address);
 		    break;
-
 	    case 0x0A:  // 16-bit PCM audio
-		    val = (DSPHost_ReadHostMemory(Address) << 8) | DSPHost_ReadHostMemory(Address + 1);
-
+		    val = (DSPHost_ReadHostMemory(Address*2) << 8) | DSPHost_ReadHostMemory(Address*2 + 1);
 		    g_dsp.ifx_regs[DSP_YN2] = g_dsp.ifx_regs[DSP_YN1];
 		    g_dsp.ifx_regs[DSP_YN1] = val;
-
-		    Address += 2;
+		    Address++;
 		    break;
-
+	    case 0x19:  // 8-bit PCM audio
+		    val = DSPHost_ReadHostMemory(Address) << 8; // probably wrong
+		    g_dsp.ifx_regs[DSP_YN2] = g_dsp.ifx_regs[DSP_YN1];
+		    g_dsp.ifx_regs[DSP_YN1] = val;
+		    Address++;
+			break;
 	    default:
-		    val = (DSPHost_ReadHostMemory(Address) << 8) | DSPHost_ReadHostMemory(Address + 1);
-		    Address += 2;
-		    ERROR_LOG(DSPLLE, "Unknown DSP Format %i", g_dsp.ifx_regs[DSP_FORMAT]);
+		    ERROR_LOG(DSPLLE, "Unknown DSP Format %x", g_dsp.ifx_regs[DSP_FORMAT]);
 		    break;
 	}
 
 	// TODO: Take GAIN into account, whatever it is.
+	// adpcm = 0, pcm8 = 0x100, pcm16 = 0x800
+	// games using pcm8 : Phoenix Wright Ace Attorney (Wiiware), Megaman 9-10 (WiiWare)
+	if (g_dsp.ifx_regs[DSP_GAIN] > 0)
+	{
+		//NOTICE_LOG(DSPLLE,"format: 0x%04x - val: 0x%04x - gain: 0x%04x", g_dsp.ifx_regs[DSP_FORMAT], val, g_dsp.ifx_regs[DSP_GAIN]);
+	}
 
 	// Check for loop.
 	if (Address >= EndAddress)
@@ -167,8 +173,10 @@ u16 dsp_read_accelerator()
 		// so yeah, it seems likely that we should raise an exception to let
 		// the DSP program do that, at least if DSP_FORMAT == 0x0A.
 	}
+	//else
+	//	DSPCore_SetException(EXP_6); // test! (bunch of NOPs there - helps "SMB S&R (wii)")
 
 	g_dsp.ifx_regs[DSP_ACCAH] = Address >> 16;
 	g_dsp.ifx_regs[DSP_ACCAL] = Address & 0xffff;
-	return(val);
+	return val;
 }

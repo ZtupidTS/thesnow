@@ -299,6 +299,13 @@ void CISOProperties::CreateGUIControls(bool IsWad)
  		EnableProgressiveScan->Hide();
  		EnableWideScreen->Hide();
 	}
+	else
+	{
+		//Progressive Scan is not used by Dolphin itself,
+		//and changing it on a per-game basis would have the side-effect of changing the SysConf, 
+		//making this setting rather useless.
+		EnableProgressiveScan->Disable();
+	}
 	// Video
 	sbVideoOverrides = new wxStaticBoxSizer(wxVERTICAL, m_GameConfig, _("视频"));
 	ForceFiltering = new wxCheckBox(m_GameConfig, ID_FORCEFILTERING, _("强制筛选"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
@@ -314,11 +321,6 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	arrayStringFor_Hack.Add(_("塞尔达黄昏(黎明)公主布卢姆"));
 	arrayStringFor_Hack.Add(_("索尼克与黑骑士"));
 	arrayStringFor_Hack.Add(_("Bleach Versus Crusade"));
-	arrayStringFor_Hack.Add(_("Final Fantasy CC Echo of Time"));
-	arrayStringFor_Hack.Add(_("Harvest Moon Magical Melody"));
-	arrayStringFor_Hack.Add(_("Baten Kaitos"));
-	arrayStringFor_Hack.Add(_("Baten Kaitos Origin"));
-	arrayStringFor_Hack.Add(_("Skies of Arcadia"));
 	Hack = new wxChoice(m_GameConfig, ID_HACK, wxDefaultPosition, wxDefaultSize, arrayStringFor_Hack, 0, wxDefaultValidator);
 
 	
@@ -522,7 +524,7 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 void CISOProperties::OnClose(wxCloseEvent& WXUNUSED (event))
 {
 	if (!SaveGameConfig())
-		PanicYesNo("Could not save %s", GameIniFile.c_str());
+		PanicAlert("Could not save %s", GameIniFile.c_str());
 
 	EndModal(bRefreshList ? wxID_OK : wxID_CANCEL);
 }
@@ -942,7 +944,7 @@ bool CISOProperties::SaveGameConfig()
 	else
 		GameIni.Set("Video", "FIFOBPHack", BPHack->Get3StateValue());
 
-	if (EmuState->GetSelection() == -1)
+	if (Hack->GetSelection() == -1)
 		GameIni.DeleteKey("Video", "ProjectionHack");
 	else
 		GameIni.Set("Video", "ProjectionHack", Hack->GetSelection());

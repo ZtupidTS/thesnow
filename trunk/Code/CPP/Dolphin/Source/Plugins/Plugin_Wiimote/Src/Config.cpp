@@ -295,7 +295,7 @@ void Config::Load()
 		iniFile.Get(SectionName, "TiltPitchSwing", &WiiMoteEmu::WiiMapping[i].Tilt.PitchSwing, false);
 		iniFile.Get(SectionName, "TiltPitchInvert", &WiiMoteEmu::WiiMapping[i].Tilt.PitchInvert, false);
 		WiiMoteEmu::WiiMapping[i].Tilt.PitchRange = (WiiMoteEmu::WiiMapping[i].Tilt.PitchSwing) ? 0 : WiiMoteEmu::WiiMapping[i].Tilt.PitchDegree;
-
+		
 		// StickMapping
 		iniFile.Get(SectionName, "NCStick", &WiiMoteEmu::WiiMapping[i].Stick.NC, WiiMoteEmu::FROM_KEYBOARD);
 		iniFile.Get(SectionName, "CCStickLeft", &WiiMoteEmu::WiiMapping[i].Stick.CCL, WiiMoteEmu::FROM_KEYBOARD);
@@ -326,6 +326,14 @@ void Config::Load()
 		iniFile.Get(SectionName, "TriggerType", &WiiMoteEmu::WiiMapping[i].TriggerType, 0);
 	}
 
+	iniFile.Load((std::string(File::GetUserPath(D_CONFIG_IDX)) + "Dolphin.ini").c_str());
+	for (int i = 0; i < MAX_WIIMOTES; i++)
+	{
+		char SectionName[32];
+		sprintf(SectionName, "Wiimote%i", i + 1);
+		iniFile.Get(SectionName, "AutoReconnectRealWiimote", &WiiMoteEmu::WiiMapping[i].bWiiAutoReconnect, false);
+	}
+
 	Config::LoadIR();
 
 	// Load a few screen settings to. If these are added to the DirectX plugin it's probably
@@ -352,6 +360,8 @@ void Config::LoadIR()
 	iniFile.Get("Default", "IRTop", &defaultTop, TOP);
 	iniFile.Get("Default", "IRWidth", &defaultWidth, RIGHT - LEFT);
 	iniFile.Get("Default", "IRHeight", &defaultHeight, BOTTOM - TOP);
+	iniFile.Get("Default", "IRLevel", &iIRLevel, 3);
+
 	//...and fall back to them if the GameId is not found.
 	//It shouldn't matter if we read Default twice, its in memory anyways.
 	iniFile.Get(TmpSection, "IRLeft", &iIRLeft, defaultLeft);
@@ -384,7 +394,6 @@ void Config::Save()
 		iniFile.Set(SectionName, "Upright", WiiMoteEmu::WiiMapping[i].bUpright);
 		iniFile.Set(SectionName, "ExtensionConnected", WiiMoteEmu::WiiMapping[i].iExtensionConnected);
 		iniFile.Set(SectionName, "MotionPlusConnected", WiiMoteEmu::WiiMapping[i].bMotionPlusConnected);
-
 		iniFile.Set(SectionName, "TiltInputWM", WiiMoteEmu::WiiMapping[i].Tilt.InputWM);
 		iniFile.Set(SectionName, "TiltInputNC", WiiMoteEmu::WiiMapping[i].Tilt.InputNC);
 		iniFile.Set(SectionName, "TiltRollDegree", WiiMoteEmu::WiiMapping[i].Tilt.RollDegree);
@@ -433,7 +442,18 @@ void Config::Save()
 	iniFile.Set(TmpSection, "IRTop", iIRTop);
 	iniFile.Set(TmpSection, "IRWidth", iIRWidth);
 	iniFile.Set(TmpSection, "IRHeight", iIRHeight);
+	iniFile.Set(TmpSection, "IRLevel", iIRLevel);
 	iniFile.Save((std::string(File::GetUserPath(D_CONFIG_IDX)) + "IR Pointer.ini").c_str());
+
+	//Save any options that need to be accessed in Dolphin
+	iniFile.Load((std::string(File::GetUserPath(D_CONFIG_IDX)) + "Dolphin.ini").c_str());
+	for (int i = 0; i < MAX_WIIMOTES; i++)
+	{
+		char SectionName[32];
+		sprintf(SectionName, "Wiimote%i", i + 1);
+		iniFile.Set(SectionName, "AutoReconnectRealWiimote", WiiMoteEmu::WiiMapping[i].bWiiAutoReconnect);
+	}
+	iniFile.Save((std::string(File::GetUserPath(D_CONFIG_IDX)) + "Dolphin.ini").c_str());
 
 	//DEBUG_LOG(WIIMOTE, "Save()");
 }

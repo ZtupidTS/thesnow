@@ -56,8 +56,6 @@ EVT_CHECKBOX(ID_INTERFACE_HIDECURSOR, CConfigMain::CoreSettingsChanged)
 EVT_CHECKBOX(ID_INTERFACE_AUTOHIDECURSOR, CConfigMain::CoreSettingsChanged)
 #endif
 EVT_RADIOBOX(ID_INTERFACE_THEME, CConfigMain::CoreSettingsChanged)
-EVT_CHECKBOX(ID_INTERFACE_WIIMOTE_LEDS, CConfigMain::CoreSettingsChanged)
-EVT_CHECKBOX(ID_INTERFACE_WIIMOTE_SPEAKERS, CConfigMain::CoreSettingsChanged)
 EVT_CHOICE(ID_INTERFACE_LANG, CConfigMain::CoreSettingsChanged)
 
 EVT_CHECKBOX(ID_ALWAYS_HLE_BS2, CConfigMain::CoreSettingsChanged)
@@ -196,8 +194,8 @@ void CConfigMain::InitializeGUILists()
 
 	// Wii
 	// Sensorbar Position
-	arrayStringFor_WiiSensBarPos.Add(wxT("Bottom"));
-	arrayStringFor_WiiSensBarPos.Add(wxT("Top"));
+	arrayStringFor_WiiSensBarPos.Add(wxT("底部"));
+	arrayStringFor_WiiSensBarPos.Add(wxT("顶部"));
 	// Aspect ratio
 	arrayStringFor_WiiAspectRatio.Add(wxT("4:3")); 
 	arrayStringFor_WiiAspectRatio.Add(wxT("16:9"));
@@ -229,8 +227,6 @@ void CConfigMain::InitializeGUIValues()
 	AutoHideCursor->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bAutoHideCursor);
 	HideCursor->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bHideCursor);
 #endif
-	WiimoteStatusLEDs->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bWiiLeds);
-	WiimoteStatusSpeakers->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bWiiSpeakers);
 	Theme->SetSelection(SConfig::GetInstance().m_LocalCoreStartupParameter.iTheme);
 	// need redesign
 	InterfaceLang->SetSelection(SConfig::GetInstance().m_InterfaceLanguage);
@@ -289,8 +285,6 @@ void CConfigMain::InitializeGUITooltips()
 	HideCursor->SetToolTip(wxT("This will always hide the cursor when it's over the rendering window.")
 		wxT("\nIt can be convenient in a Wii game that already has a cursor."));
 #endif
-	WiimoteStatusLEDs->SetToolTip(wxT("Show which wiimotes are connected in the statusbar."));
-	WiimoteStatusSpeakers->SetToolTip(wxT("Show wiimote speaker status in the statusbar."));
 	InterfaceLang->SetToolTip(wxT("For the time being this will only change the text shown in")
 		wxT("\nthe game list of PAL GC games."));
 	// Themes: Copyright notice
@@ -321,9 +315,9 @@ void CConfigMain::CreateGUIControls()
 	Notebook->AddPage(PluginPage, wxT("插件"));
 
 	// General page
-	sbBasic = new wxStaticBoxSizer(wxVERTICAL, GeneralPage, wxT("Basic Settings"));
-	sbAdvanced = new wxStaticBoxSizer(wxVERTICAL, GeneralPage, wxT("Advanced Settings"));
-	sbInterface = new wxStaticBoxSizer(wxVERTICAL, GeneralPage, wxT("Interface Settings"));
+	sbBasic = new wxStaticBoxSizer(wxVERTICAL, GeneralPage, wxT("基本设置"));
+	sbAdvanced = new wxStaticBoxSizer(wxVERTICAL, GeneralPage, wxT("高级设置"));
+	sbInterface = new wxStaticBoxSizer(wxVERTICAL, GeneralPage, wxT("界面设置"));
 	// Core Settings - Basic
 	CPUThread = new wxCheckBox(GeneralPage, ID_CPUTHREAD, wxT("启用多核 (加速)"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 	SkipIdle = new wxCheckBox(GeneralPage, ID_IDLESKIP, wxT("启用延迟步进 (加速)"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
@@ -334,7 +328,7 @@ void CConfigMain::CreateGUIControls()
 	Framelimit = new wxChoice(GeneralPage, ID_FRAMELIMIT, wxDefaultPosition, wxDefaultSize, arrayStringFor_Framelimit, 0, wxDefaultValidator);
 
 	// Core Settings - Advanced
-	wxStaticBoxSizer* sizerCoreType = new wxStaticBoxSizer(wxVERTICAL, GeneralPage, wxT("CPU Emulator Engine"));
+	wxStaticBoxSizer* sizerCoreType = new wxStaticBoxSizer(wxVERTICAL, GeneralPage, wxT("CPU 模拟引擎"));
 	AlwaysHLE_BS2 = new wxCheckBox(GeneralPage, ID_ALWAYS_HLE_BS2, wxT("HLE the IPL (推荐)"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 	m_RadioJIT = new wxRadioButton(GeneralPage, ID_RADIOJIT, wxT("JIT 重编译器 (推荐)"));
 	m_RadioJITIL = new wxRadioButton(GeneralPage, ID_RADIOJITIL, wxT("JitIL 实验性重编译器"));
@@ -352,11 +346,6 @@ void CConfigMain::CreateGUIControls()
 	AutoHideCursor = new wxCheckBox(GeneralPage, ID_INTERFACE_AUTOHIDECURSOR, wxT("自动"));
 	HideCursor = new wxCheckBox(GeneralPage, ID_INTERFACE_HIDECURSOR, wxT("总是"));
 #endif
-	// Wiimote status in statusbar
-	wxStaticText *WiimoteStatusText = new wxStaticText(GeneralPage, ID_INTERFACE_WIIMOTE_TEXT, wxT("显示 wiimote 状态:"), wxDefaultPosition, wxDefaultSize);
-	WiimoteStatusLEDs = new wxCheckBox(GeneralPage, ID_INTERFACE_WIIMOTE_LEDS, wxT("LEDs"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	WiimoteStatusSpeakers = new wxCheckBox(GeneralPage, ID_INTERFACE_WIIMOTE_SPEAKERS, wxT("扬声器"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-
 	// Interface Language
 	// At the moment this only changes the language displayed in m_gamelistctrl
 	// If someone wants to control the whole GUI's language, it should be set here too
@@ -396,11 +385,6 @@ void CConfigMain::CreateGUIControls()
 	sHideCursor->Add(HideCursor, 0, wxLEFT, 5);
 	sbInterface->Add(sHideCursor, 0, wxALL, 5);
 #endif
-	wxBoxSizer *sWiimoteStatus = new wxBoxSizer(wxHORIZONTAL);
-	sWiimoteStatus->Add(WiimoteStatusText);
-	sWiimoteStatus->Add(WiimoteStatusLEDs, 0, wxLEFT, 5);
-	sWiimoteStatus->Add(WiimoteStatusSpeakers, 0, wxLEFT, 5);
-	sbInterface->Add(sWiimoteStatus, 0, wxALL, 5);
 	sbInterface->Add(Theme, 0, wxEXPAND | wxALL, 5);
 	wxBoxSizer *sInterfaceLanguage = new wxBoxSizer(wxHORIZONTAL);
 	sInterfaceLanguage->Add(InterfaceLangText, 0, wxALIGN_CENTER_VERTICAL | wxALL, 5);
@@ -418,9 +402,9 @@ void CConfigMain::CreateGUIControls()
 
 	
 	// Gamecube page
-	sbGamecubeIPLSettings = new wxStaticBoxSizer(wxVERTICAL, GamecubePage, wxT("IPL Settings"));
+	sbGamecubeIPLSettings = new wxStaticBoxSizer(wxVERTICAL, GamecubePage, wxT("IPL 设置"));
 	// IPL settings
-	GCSystemLangText = new wxStaticText(GamecubePage, ID_GC_SRAM_LNG_TEXT, wxT("System Language:"), wxDefaultPosition, wxDefaultSize);
+	GCSystemLangText = new wxStaticText(GamecubePage, ID_GC_SRAM_LNG_TEXT, wxT("系统语言:"), wxDefaultPosition, wxDefaultSize);
 	GCSystemLang = new wxChoice(GamecubePage, ID_GC_SRAM_LNG, wxDefaultPosition, wxDefaultSize, arrayStringFor_GCSystemLang, 0, wxDefaultValidator);
 	// Devices
 	wxStaticBoxSizer *sbGamecubeDeviceSettings = new wxStaticBoxSizer(wxVERTICAL, GamecubePage, wxT("设备设置"));
@@ -430,7 +414,11 @@ void CConfigMain::CreateGUIControls()
 	GCEXIDeviceText[1] = new wxStaticText(GamecubePage, ID_GC_EXIDEVICE_SLOTB_TEXT, wxT("插槽 B"), wxDefaultPosition, wxDefaultSize);
 	GCEXIDeviceText[2] = new wxStaticText(GamecubePage, ID_GC_EXIDEVICE_SP1_TEXT,	wxT("SP1   "), wxDefaultPosition, wxDefaultSize);
 	GCEXIDeviceText[2]->SetToolTip(wxT("Serial Port 1 - This is the port which devices such as the net adapter use"));
-	const wxString SlotDevices[] = {wxT(DEV_NONE_STR),wxT(DEV_DUMMY_STR),wxT(EXIDEV_MEMCARD_STR), wxT(EXIDEV_MIC_STR)};
+	const wxString SlotDevices[] = {wxT(DEV_NONE_STR),wxT(DEV_DUMMY_STR),wxT(EXIDEV_MEMCARD_STR)
+	#if HAVE_PORTAUDIO
+		, wxT(EXIDEV_MIC_STR)
+	#endif
+	};
 	static const int numSlotDevices = sizeof(SlotDevices)/sizeof(wxString);
 	const wxString SP1Devices[] = {wxT(DEV_NONE_STR),wxT(DEV_DUMMY_STR),wxT(EXIDEV_BBA_STR),wxT(EXIDEV_AM_BB_STR)};
 	static const int numSP1Devices = sizeof(SP1Devices)/sizeof(wxString);
@@ -475,9 +463,11 @@ void CConfigMain::CreateGUIControls()
 	GCSIDeviceText[1] = new wxStaticText(GamecubePage, ID_GC_SIDEVICE_TEXT, wxT("端口 2"), wxDefaultPosition, wxDefaultSize);
 	GCSIDeviceText[2] = new wxStaticText(GamecubePage, ID_GC_SIDEVICE_TEXT, wxT("端口 3"), wxDefaultPosition, wxDefaultSize);
 	GCSIDeviceText[3] = new wxStaticText(GamecubePage, ID_GC_SIDEVICE_TEXT, wxT("端口 4"), wxDefaultPosition, wxDefaultSize);
-	const wxString SIDevices[] = {wxT(DEV_NONE_STR),wxT(SIDEV_STDCONT_STR),wxT(SIDEV_GBA_STR),wxT(SIDEV_AM_BB_STR)};
+	const wxString SIPort1Devices[] = {wxT(DEV_NONE_STR),wxT(SIDEV_STDCONT_STR),wxT(SIDEV_GBA_STR),wxT(SIDEV_AM_BB_STR)};
+	static const int numSIPort1Devices = sizeof(SIPort1Devices)/sizeof(wxString);
+	const wxString SIDevices[] = {wxT(DEV_NONE_STR),wxT(SIDEV_STDCONT_STR),wxT(SIDEV_GBA_STR)};
 	static const int numSIDevices = sizeof(SIDevices)/sizeof(wxString);
-	GCSIDevice[0] = new wxChoice(GamecubePage, ID_GC_SIDEVICE0, wxDefaultPosition, wxDefaultSize, numSIDevices, SIDevices, 0, wxDefaultValidator);
+	GCSIDevice[0] = new wxChoice(GamecubePage, ID_GC_SIDEVICE0, wxDefaultPosition, wxDefaultSize, numSIPort1Devices, SIPort1Devices, 0, wxDefaultValidator);
 	GCSIDevice[1] = new wxChoice(GamecubePage, ID_GC_SIDEVICE1, wxDefaultPosition, wxDefaultSize, numSIDevices, SIDevices, 0, wxDefaultValidator);
 	GCSIDevice[2] = new wxChoice(GamecubePage, ID_GC_SIDEVICE2, wxDefaultPosition, wxDefaultSize, numSIDevices, SIDevices, 0, wxDefaultValidator);
 	GCSIDevice[3] = new wxChoice(GamecubePage, ID_GC_SIDEVICE3, wxDefaultPosition, wxDefaultSize, numSIDevices, SIDevices, 0, wxDefaultValidator);
@@ -724,12 +714,6 @@ void CConfigMain::CoreSettingsChanged(wxCommandEvent& event)
 	case ID_INTERFACE_THEME:
 		SConfig::GetInstance().m_LocalCoreStartupParameter.iTheme = Theme->GetSelection();
 		main_frame->InitBitmaps();
-		break;
-	case ID_INTERFACE_WIIMOTE_LEDS:
-		SConfig::GetInstance().m_LocalCoreStartupParameter.bWiiLeds = WiimoteStatusLEDs->IsChecked();
-		break;
-	case ID_INTERFACE_WIIMOTE_SPEAKERS:
-		SConfig::GetInstance().m_LocalCoreStartupParameter.bWiiSpeakers = WiimoteStatusSpeakers->IsChecked();
 		break;
 	case ID_INTERFACE_LANG:
 		SConfig::GetInstance().m_InterfaceLanguage = (INTERFACE_LANGUAGE)InterfaceLang->GetSelection();

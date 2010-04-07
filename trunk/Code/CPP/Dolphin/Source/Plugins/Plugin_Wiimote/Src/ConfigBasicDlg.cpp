@@ -41,13 +41,16 @@ BEGIN_EVENT_TABLE(WiimoteBasicConfigDialog,wxDialog)
 	EVT_CHOICE(IDC_INPUT_SOURCE, WiimoteBasicConfigDialog::GeneralSettingsChanged)
 	EVT_CHECKBOX(IDC_SIDEWAYSWIIMOTE, WiimoteBasicConfigDialog::GeneralSettingsChanged)
 	EVT_CHECKBOX(IDC_UPRIGHTWIIMOTE, WiimoteBasicConfigDialog::GeneralSettingsChanged)
-	EVT_CHECKBOX(IDC_MOTIONPLUSCONNECTED, WiimoteBasicConfigDialog::GeneralSettingsChanged)	
+	EVT_CHECKBOX(IDC_MOTIONPLUSCONNECTED, WiimoteBasicConfigDialog::GeneralSettingsChanged)
+	EVT_CHECKBOX(IDC_WIIAUTORECONNECT, WiimoteBasicConfigDialog::GeneralSettingsChanged)
 	EVT_CHOICE(IDC_EXTCONNECTED, WiimoteBasicConfigDialog::GeneralSettingsChanged)
+
 	// IR cursor
 	EVT_COMMAND_SCROLL(IDS_WIDTH, WiimoteBasicConfigDialog::IRCursorChanged)
 	EVT_COMMAND_SCROLL(IDS_HEIGHT, WiimoteBasicConfigDialog::IRCursorChanged)
 	EVT_COMMAND_SCROLL(IDS_LEFT, WiimoteBasicConfigDialog::IRCursorChanged)
 	EVT_COMMAND_SCROLL(IDS_TOP, WiimoteBasicConfigDialog::IRCursorChanged)
+	EVT_COMMAND_SCROLL(IDS_LEVEL, WiimoteBasicConfigDialog::IRCursorChanged)
 
 	EVT_TIMER(IDTM_UPDATE_ONCE, WiimoteBasicConfigDialog::UpdateOnce)
 END_EVENT_TABLE()
@@ -137,7 +140,7 @@ void WiimoteBasicConfigDialog::CreateGUIControls()
 	wxArrayString arrayStringFor_source;
 	arrayStringFor_source.Add(wxT("Inactive"));
 	arrayStringFor_source.Add(wxT("Emulated Wiimote"));
-	arrayStringFor_source.Add(wxT("Real Wiimote"));
+	arrayStringFor_source.Add(wxT("Real Wiimote"));	
 
 	wxArrayString arrayStringFor_extension;
 	arrayStringFor_extension.Add(wxT("None"));
@@ -176,16 +179,21 @@ void WiimoteBasicConfigDialog::CreateGUIControls()
 		m_ConnectRealWiimote[i] = new wxButton(m_Controller[i], IDB_REFRESH_REAL, wxT("Refresh Real Wiimotes"));
 		m_ConnectRealWiimote[i]->SetToolTip(wxT("This can only be done when the emulator is paused or stopped."));
 
+		m_WiiAutoReconnect[i] = new wxCheckBox(m_Controller[i], IDC_WIIAUTORECONNECT, wxT("Auto reconnect wiimote"));
+		m_WiiAutoReconnect[i]->SetToolTip(wxT("This makes dolphin automatically reconnect a wiimote when it has being disconnected.\nThis will cause problems when 2 controllers are connected for a 1 player game."));
+
 		//IR Pointer
 		m_TextScreenWidth[i] = new wxStaticText(m_Controller[i], wxID_ANY, wxT("Width: 000"));
 		m_TextScreenHeight[i] = new wxStaticText(m_Controller[i], wxID_ANY, wxT("Height: 000"));
 		m_TextScreenLeft[i] = new wxStaticText(m_Controller[i], wxID_ANY, wxT("Left: 000"));
 		m_TextScreenTop[i] = new wxStaticText(m_Controller[i], wxID_ANY, wxT("Top: 000"));
+		m_TextScreenIrLevel[i] = new wxStaticText(m_Controller[i], wxID_ANY, wxT("Sensivity: 000"));
 
 		m_SliderWidth[i] = new wxSlider(m_Controller[i], IDS_WIDTH, 0, 100, 923, wxDefaultPosition, wxSize(75, -1));
 		m_SliderHeight[i] = new wxSlider(m_Controller[i], IDS_HEIGHT, 0, 0, 727, wxDefaultPosition, wxSize(75, -1));
 		m_SliderLeft[i] = new wxSlider(m_Controller[i], IDS_LEFT, 0, 100, 500, wxDefaultPosition, wxSize(75, -1));
 		m_SliderTop[i] = new wxSlider(m_Controller[i], IDS_TOP, 0, 0, 500, wxDefaultPosition, wxSize(75, -1));
+		m_SliderIrLevel[i] = new wxSlider(m_Controller[i], IDS_LEVEL, 0, 1, 5, wxDefaultPosition, wxSize(75, -1));
 
 		// These are changed from the graphics plugin settings, so they are just here to show the loaded status
 		m_TextAR[i] = new wxStaticText(m_Controller[i], wxID_ANY, wxT("Aspect Ratio"));
@@ -208,10 +216,12 @@ void WiimoteBasicConfigDialog::CreateGUIControls()
 		m_SizeExtensions[i]->Add(m_WiiMotionPlusConnected[i], 0, wxEXPAND | wxALL, 5);
 		m_SizeExtensions[i]->Add(m_Extension[i], 0, wxEXPAND | wxALL, 5);
 
+
 		m_SizeReal[i] = new wxStaticBoxSizer(wxVERTICAL, m_Controller[i], wxT("Real Wiimote"));
 		m_SizeReal[i]->Add(m_PairUpRealWiimote[i], 0, wxEXPAND | wxALL, 5);
 		m_SizeReal[i]->Add(m_TextFoundRealWiimote[i], 0, wxEXPAND | wxALL, 5);
 		m_SizeReal[i]->Add(m_ConnectRealWiimote[i], 0, wxEXPAND | wxALL, 5);
+		m_SizeReal[i]->Add(m_WiiAutoReconnect[i], 0, wxEXPAND | wxALL, 5);
 
 		m_SizerIRPointerWidth[i] = new wxBoxSizer(wxHORIZONTAL);
 		m_SizerIRPointerWidth[i]->Add(m_TextScreenLeft[i], 0, wxEXPAND | (wxTOP), 3);
@@ -231,9 +241,14 @@ void WiimoteBasicConfigDialog::CreateGUIControls()
 		m_SizerIRPointerScreen[i]->Add(m_CheckAR169[i], 0, wxEXPAND | (wxLEFT), 5);
 		m_SizerIRPointerScreen[i]->Add(m_Crop[i], 0, wxEXPAND | (wxLEFT), 5);
 
+		m_SizerIRPointerSensitivity[i] = new wxBoxSizer(wxHORIZONTAL);
+		m_SizerIRPointerSensitivity[i]->Add(m_TextScreenIrLevel[i], 0, wxEXPAND | (wxTOP), 3);
+		m_SizerIRPointerSensitivity[i]->Add(m_SliderIrLevel[i], 0, wxEXPAND | (wxRIGHT), 0);
+
 		m_SizerIRPointer[i] = new wxStaticBoxSizer(wxVERTICAL, m_Controller[i], wxT("IR Pointer"));
 		m_SizerIRPointer[i]->Add(m_SizerIRPointerWidth[i], 0, wxEXPAND | (wxLEFT | wxDOWN | wxRIGHT), 5);
 		m_SizerIRPointer[i]->Add(m_SizerIRPointerHeight[i], 0, wxEXPAND | (wxLEFT | wxDOWN | wxRIGHT), 5);
+		m_SizerIRPointer[i]->Add(m_SizerIRPointerSensitivity[i], 0, wxEXPAND | (wxLEFT | wxDOWN | wxRIGHT), 5);
 		m_SizerIRPointer[i]->Add(m_SizerIRPointerScreen[i], 0, wxALIGN_CENTER | (wxUP | wxDOWN), 10);
 
 		m_SizeBasicGeneralLeft[i] = new wxBoxSizer(wxVERTICAL);
@@ -399,6 +414,9 @@ void WiimoteBasicConfigDialog::GeneralSettingsChanged(wxCommandEvent& event)
 		case IDC_MOTIONPLUSCONNECTED:
 			WiiMoteEmu::WiiMapping[m_Page].bMotionPlusConnected = m_WiiMotionPlusConnected[m_Page]->IsChecked();
 			break;
+		case IDC_WIIAUTORECONNECT:
+			WiiMoteEmu::WiiMapping[m_Page].bWiiAutoReconnect = m_WiiAutoReconnect[m_Page]->IsChecked();
+			break;
 		case IDC_EXTCONNECTED:
 			// Disconnect the extension so that the game recognize the change
 			DoExtensionConnectedDisconnected(WiiMoteEmu::EXT_NONE);
@@ -433,6 +451,13 @@ void WiimoteBasicConfigDialog::IRCursorChanged(wxScrollEvent& event)
 	case IDS_TOP:
 		g_Config.iIRTop = m_SliderTop[m_Page]->GetValue();
 		break;
+	case IDS_LEVEL:
+		g_Config.iIRLevel = m_SliderIrLevel[m_Page]->GetValue();
+		if (g_RealWiiMotePresent) {
+			for (int i = 0; i < WiiMoteReal::g_NumberOfWiiMotes; i++)
+				wiiuse_set_ir_sensitivity(WiiMoteReal::g_WiiMotesFromWiiUse[i], g_Config.iIRLevel);
+		}
+		break;
 	}
 	UpdateGUI();
 }
@@ -455,17 +480,20 @@ void WiimoteBasicConfigDialog::UpdateGUI()
 		m_SidewaysWiimote[m_Page]->Enable(false);
 		m_UprightWiimote[m_Page]->Enable(false);
 		m_Extension[m_Page]->Enable(false);
+		m_SliderIrLevel[m_Page]->Enable(true);
 	}
 	else
 	{
 		m_SidewaysWiimote[m_Page]->Enable(true);
 		m_UprightWiimote[m_Page]->Enable(true);
 		m_Extension[m_Page]->Enable(true);
+		m_SliderIrLevel[m_Page]->Enable(false);
 	}
 
 	m_SidewaysWiimote[m_Page]->SetValue(WiiMoteEmu::WiiMapping[m_Page].bSideways);
 	m_UprightWiimote[m_Page]->SetValue(WiiMoteEmu::WiiMapping[m_Page].bUpright);
 	m_WiiMotionPlusConnected[m_Page]->SetValue(WiiMoteEmu::WiiMapping[m_Page].bMotionPlusConnected);
+	m_WiiAutoReconnect[m_Page]->SetValue(WiiMoteEmu::WiiMapping[m_Page].bWiiAutoReconnect);
 	m_Extension[m_Page]->SetSelection(WiiMoteEmu::WiiMapping[m_Page].iExtensionConnected);
 
 	// Update the Wiimote IR pointer calibration
@@ -473,11 +501,13 @@ void WiimoteBasicConfigDialog::UpdateGUI()
 	m_TextScreenHeight[m_Page]->SetLabel(wxString::Format(wxT("Height: %i"), g_Config.iIRHeight));
 	m_TextScreenLeft[m_Page]->SetLabel(wxString::Format(wxT("Left: %i"), g_Config.iIRLeft));
 	m_TextScreenTop[m_Page]->SetLabel(wxString::Format(wxT("Top: %i"), g_Config.iIRTop));
+	m_TextScreenIrLevel[m_Page]->SetLabel(wxString::Format(wxT("Sensitivity: %i"), g_Config.iIRLevel));
 	// Update the slider position if a configuration has been loaded
 	m_SliderWidth[m_Page]->SetValue(g_Config.iIRWidth);
 	m_SliderHeight[m_Page]->SetValue(g_Config.iIRHeight);
 	m_SliderLeft[m_Page]->SetValue(g_Config.iIRLeft);
 	m_SliderTop[m_Page]->SetValue(g_Config.iIRTop);
+	m_SliderIrLevel[m_Page]->SetValue(g_Config.iIRLevel);
 
 	m_CheckAR43[m_Page]->SetValue(g_Config.bKeepAR43);
 	m_CheckAR169[m_Page]->SetValue(g_Config.bKeepAR169);

@@ -90,6 +90,7 @@ void UpdateProjectionHack(int iPhackvalue)
 		bPhackvalue1 = 0;
 		bProjHack1 = 0;
 		break;
+/*	// Unused - kept for reference
 	case PROJECTION_HACK_FINAL_FANTASY_CC_ECHO_OF_TIME:
 		bPhackvalue1 = 1;
 		fhackvalue1 = 0.8f;
@@ -123,6 +124,7 @@ void UpdateProjectionHack(int iPhackvalue)
 		bPhackvalue2 = 0;
 		bProjHack1 = 0;
 		break;
+*/
 	}
 
 	// Set the projections hacks
@@ -287,13 +289,13 @@ void VertexShaderManager::SetConstants()
 		{   
 			// Perspective
 			
-			g_fProjectionMatrix[0] = xfregs.rawProjection[0] * (g_ActiveConfig.bWidescreenHack ? 0.75f : 1.0f);
+			g_fProjectionMatrix[0] = xfregs.rawProjection[0] * g_ActiveConfig.fAspectRatioHackW;
 			g_fProjectionMatrix[1] = 0.0f;
             g_fProjectionMatrix[2] = xfregs.rawProjection[1];
             g_fProjectionMatrix[3] = 0.0f;
 
             g_fProjectionMatrix[4] = 0.0f;
-            g_fProjectionMatrix[5] = xfregs.rawProjection[2];
+            g_fProjectionMatrix[5] = xfregs.rawProjection[2] * g_ActiveConfig.fAspectRatioHackH;
             g_fProjectionMatrix[6] = xfregs.rawProjection[3];
             g_fProjectionMatrix[7] = 0.0f;
 
