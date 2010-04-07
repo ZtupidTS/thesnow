@@ -64,35 +64,12 @@ enum partype_t
 	//	P_AX_D		= P_REG | 0x2280,
 };
 
-#define P_EXT   0x80
-
 #define OPTABLE_SIZE 0xffff + 1
 #define EXT_OPTABLE_SIZE 0xff + 1
 
-union UDSPInstruction
-{
-	u16 hex;
+typedef u16 UDSPInstruction;
 
-	UDSPInstruction(u16 _hex)	{ hex = _hex; }
-	UDSPInstruction()	        { hex = 0; }
-
-	struct
-	{
-		signed shift        : 6;
-		unsigned negating   : 1;
-		unsigned arithmetic : 1;
-		unsigned areg       : 1;
-		unsigned op         : 7;
-	};
-	struct
-	{
-		unsigned ushift     : 6;
-	};
-
-	// TODO: Figure out more instruction structures (add structs here)
-};
-
-typedef void (*dspInstFunc)(const UDSPInstruction&);
+typedef void (*dspInstFunc)(const UDSPInstruction);
 
 struct param2_t
 {
@@ -116,6 +93,7 @@ typedef struct
 	u8 param_count;
 	param2_t params[8];
 	bool extended;
+	bool branch;
 } DSPOPCTemplate;
 
 typedef DSPOPCTemplate opc_t;
@@ -125,14 +103,12 @@ extern const DSPOPCTemplate opcodes[];
 extern const int opcodes_size;
 extern const DSPOPCTemplate opcodes_ext[];
 extern const int opcodes_ext_size;
-extern u8 opSize[OPTABLE_SIZE];
 extern const DSPOPCTemplate cw;
 
 #define WRITEBACKLOGSIZE 7
 
-extern dspInstFunc opTable[];
-extern bool opTableUseExt[OPTABLE_SIZE];
-extern dspInstFunc extOpTable[EXT_OPTABLE_SIZE];
+extern const DSPOPCTemplate *opTable[OPTABLE_SIZE];
+extern const DSPOPCTemplate *extOpTable[EXT_OPTABLE_SIZE];
 extern u16 writeBackLog[WRITEBACKLOGSIZE];
 extern int writeBackLogIdx[WRITEBACKLOGSIZE];
 
@@ -155,23 +131,24 @@ const char *pdregnamelong(int val);
 void InitInstructionTable();
 void applyWriteBackLog();
 void zeroWriteBackLog();
+void zeroWriteBackLogPreserveAcc(u8 acc);
 
-inline void ExecuteInstruction(const UDSPInstruction& inst)
+const DSPOPCTemplate *GetOpTemplate(const UDSPInstruction &inst);
+
+inline void ExecuteInstruction(const UDSPInstruction inst)
 {
-	if (opTableUseExt[inst.hex]) {
-		if ((inst.hex >> 12) == 0x3)
-			extOpTable[inst.hex & 0x7F](inst);
+	const DSPOPCTemplate *tinst = GetOpTemplate(inst);
+
+	if (tinst->extended) {
+		if ((inst >> 12) == 0x3)
+			extOpTable[inst & 0x7F]->interpFunc(inst);
 		else
-			extOpTable[inst.hex & 0xFF](inst);
+			extOpTable[inst & 0xFF]->interpFunc(inst);
 	}
-	opTable[inst.hex](inst);
-	if (opTableUseExt[inst.hex]) {
+	tinst->interpFunc(inst);
+	if (tinst->extended) {
 		applyWriteBackLog();
 	}
 }
-
-// This one's pretty slow, try to use it only at init or seldomly.
-// returns NULL if no matching instruction.
-const DSPOPCTemplate *GetOpTemplate(const UDSPInstruction &inst);
 
 #endif // _DSPTABLES_H

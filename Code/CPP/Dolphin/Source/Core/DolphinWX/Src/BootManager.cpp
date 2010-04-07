@@ -120,7 +120,7 @@ bool BootCore(const std::string& _rFilename)
 	if (unique_id.size() == 6 && game_ini.Load(StartUp.m_strGameIni.c_str()))
 	{
 		// General settings
-		game_ini.Get("Core", "CPUOnThread",			&StartUp.bCPUThread, StartUp.bCPUThread);
+		game_ini.Get("Core", "CPUThread",			&StartUp.bCPUThread, StartUp.bCPUThread);
 		game_ini.Get("Core", "SkipIdle",			&StartUp.bSkipIdle, StartUp.bSkipIdle);
 		game_ini.Get("Core", "EnableFPRF",			&StartUp.bEnableFPRF, StartUp.bEnableFPRF);
 		game_ini.Get("Core", "TLBHack",				&StartUp.iTLBHack, StartUp.iTLBHack);
@@ -139,9 +139,6 @@ bool BootCore(const std::string& _rFilename)
 	{
 		// Save the window handle of the eventual parent to the rendering window
 		StartUp.hMainWindow = main_frame->GetRenderHandle();
-
-		// Now that we know if we have a Wii game we can run this
-		main_frame->ModifyStatusBar();
 	}
 #endif
 	// Init the core

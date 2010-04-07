@@ -30,7 +30,7 @@ u8 code_flags[ISPACE];
 // as well give up its time slice immediately, after executing once.
 
 // Max signature length is 6. A 0 in a signature is ignored.
-#define NUM_IDLE_SIGS 5
+#define NUM_IDLE_SIGS 8
 #define MAX_IDLE_SIG_SIZE 6
 
 // 0xFFFF means ignore.
@@ -53,12 +53,24 @@ const u16 idle_skip_sigs[NUM_IDLE_SIGS][MAX_IDLE_SIG_SIZE + 1] =
 	  0x03c0, 0x8000,  // ANDCF $31, #0x8000
 	  0x029c, 0xFFFF,  // JLNZ 0x0280
 	  0, 0 },     // RET
-
+	{ 0x26fc,			// lrs         $AC0.M, @DMBH
+	  0x02a0, 0x8000,	// andf        $AC0.M, #0x8000
+	  0x029c, 0xFFFF,	// jlnz        0x????
+	  0, 0 }, 
+	{ 0x27fc,			// lrs         $AC1.M, @DMBH
+	  0x03a0, 0x8000,	// andf        $AC1.M, #0x8000
+	  0x029c, 0xFFFF,	// jlnz        0x????
+	  0, 0 }, 
 	// From Zelda:
 	{ 0x00de, 0xFFFE,  // LR $AC0.M, @CMBH
 	  0x02c0, 0x8000,  // ANDCF $AC0.M, #0x8000 
 	  0x029c, 0xFFFF,  // JLNZ 0x05cf
-	  0 }
+	  0 },
+	// From Zelda - experimental
+	{ 0x00da, 0x0352, // lr          $AX0.H, @0x0352
+	  0x8600,         // tstaxh      $AX0.H
+	  0x0295, 0xFFFF, // jz          0x???? 
+	  0, 0 }
 };
 
 void Reset()
@@ -83,17 +95,18 @@ void AnalyzeRange(int start_addr, int end_addr)
 			continue;
 		}
 		code_flags[addr] |= CODE_START_OF_INST;
-		addr += opcode->size;
-
-		// Look for loops.
-		if ((inst.hex & 0xffe0) == 0x0060 || (inst.hex & 0xff00) == 0x1100) {
+		// Look for loops. (this is not used atm)
+		if ((inst & 0xffe0) == 0x0060 || (inst & 0xff00) == 0x1100) {
 			// BLOOP, BLOOPI
 			u16 loop_end = dsp_imem_read(addr + 1);
+			code_flags[addr] |= CODE_LOOP_START;
 			code_flags[loop_end] |= CODE_LOOP_END;
-		} else if ((inst.hex & 0xffe0) == 0x0040 || (inst.hex & 0xff00) == 0x1000) {
+		} else if ((inst & 0xffe0) == 0x0040 || (inst & 0xff00) == 0x1000) {
 			// LOOP, LOOPI
+			code_flags[addr] |= CODE_LOOP_START;
 			code_flags[addr + 1] |= CODE_LOOP_END;
 		}
+		addr += opcode->size;
 	}
 
 	// Next, we'll scan for potential idle skips.
@@ -113,9 +126,8 @@ void AnalyzeRange(int start_addr, int end_addr)
 			}
 			if (found)
 			{
-				NOTICE_LOG(DSPLLE, "Idle skip location found at %02x", addr);
+				NOTICE_LOG(DSPLLE, "Idle skip location found at %02x (sigNum:%d)", addr, s+1);
 				code_flags[addr] |= CODE_IDLE_SKIP;
-				// TODO: actually use this flag somewhere.
 			}
 		}
 	}

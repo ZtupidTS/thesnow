@@ -208,12 +208,18 @@ void Win32AddResolutions()
 }	
 #elif defined(HAVE_X11) && HAVE_X11 && defined(HAVE_XRANDR) && HAVE_XRANDR
 void X11AddResolutions() {
-	GLWin.dpy = XOpenDisplay(0);
+	// Don't modify GLWin.dpy here.
+	// If the emulator is running that is bad.
+	Display *dpy;
+	int screen;
+	dpy = XOpenDisplay(0);
+	screen = DefaultScreen(dpy);
 	//Get all full screen resos for the config dialog
 	XRRScreenSize *sizes = NULL;
 	int modeNum = 0;
 
-	sizes = XRRSizes(GLWin.dpy, GLWin.screen, &modeNum);
+	sizes = XRRSizes(dpy, screen, &modeNum);
+	XCloseDisplay(dpy);
 	if (modeNum > 0 && sizes != NULL)
 	{
 		for (int i = 0; i < modeNum; i++)
@@ -349,8 +355,7 @@ void Initialize(void *init)
 }
 
 void DoState(unsigned char **ptr, int mode) {
-#ifndef _WIN32
-	// WHY is this here??
+#if defined(HAVE_X11) && HAVE_X11
 	OpenGL_MakeCurrent();
 #endif
 	// Clear all caches that touch RAM
@@ -376,7 +381,7 @@ void EmuStateChange(PLUGIN_EMUSTATE newState)
 // This is called after Video_Initialize() from the Core
 void Video_Prepare(void)
 {
-	OpenGL_MakeCurrent();
+	OpenGL_Initialize();
 	if (!Renderer::Init()) {
 		g_VideoInitialize.pLog("Renderer::Create failed\n", TRUE);
 		PanicAlert("Can't create opengl renderer. You might be missing some required opengl extensions, check the logs for more info");
@@ -484,10 +489,8 @@ void VideoFifo_CheckSwapRequest()
 		{
 			Renderer::Swap(s_beginFieldArgs.xfbAddr, s_beginFieldArgs.field, s_beginFieldArgs.fbWidth, s_beginFieldArgs.fbHeight);
 		}
-		else
-		{
-			Common::AtomicStoreRelease(s_swapRequested, FALSE);
-		}
+
+		Common::AtomicStoreRelease(s_swapRequested, FALSE);
 	}
 }
 
@@ -516,24 +519,22 @@ void VideoFifo_CheckSwapRequestAt(u32 xfbAddr, u32 fbWidth, u32 fbHeight)
 // Run from the CPU thread (from VideoInterface.cpp)
 void Video_BeginField(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight)
 {
-	if (s_PluginInitialized)
+	if (s_PluginInitialized && g_ActiveConfig.bUseXFB)
 	{
-		// Make sure previous swap request has made it to the screen
-		if (g_VideoInitialize.bOnThread)
-		{
-			while (Common::AtomicLoadAcquire(s_swapRequested) && !s_FifoShuttingDown)
-				Common::SleepCurrentThread(1);
-				//Common::YieldCPU();
-		}
-		else
-			VideoFifo_CheckSwapRequest();
-
 		s_beginFieldArgs.xfbAddr = xfbAddr;
 		s_beginFieldArgs.field = field;
 		s_beginFieldArgs.fbWidth = fbWidth;
 		s_beginFieldArgs.fbHeight = fbHeight;
 
 		Common::AtomicStoreRelease(s_swapRequested, TRUE);
+		if (g_VideoInitialize.bOnThread)
+		{
+			while (Common::AtomicLoadAcquire(s_swapRequested) && !s_FifoShuttingDown)
+				//Common::SleepCurrentThread(1);
+				Common::YieldCPU();
+		}
+		else
+			VideoFifo_CheckSwapRequest();				
 	}
 }
 
@@ -574,8 +575,8 @@ u32 Video_AccessEFB(EFBAccessType type, u32 x, u32 y)
 		if (g_VideoInitialize.bOnThread)
 		{
 			while (Common::AtomicLoadAcquire(s_efbAccessRequested) && !s_FifoShuttingDown)
-				Common::SleepCurrentThread(1);
-				//Common::YieldCPU();
+				//Common::SleepCurrentThread(1);
+				Common::YieldCPU();
 		}
 		else
 			VideoFifo_CheckEFBAccess();

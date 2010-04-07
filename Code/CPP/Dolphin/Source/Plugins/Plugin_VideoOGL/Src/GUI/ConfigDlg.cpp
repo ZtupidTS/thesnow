@@ -46,6 +46,7 @@ BEGIN_EVENT_TABLE(GFXConfigDialogOGL,wxDialog)
 	EVT_CHECKBOX(ID_NATIVERESOLUTION, GFXConfigDialogOGL::GeneralSettingsChanged)
 	EVT_CHECKBOX(ID_2X_RESOLUTION, GFXConfigDialogOGL::GeneralSettingsChanged)
 	EVT_CHECKBOX(ID_USEXFB, GFXConfigDialogOGL::GeneralSettingsChanged)
+	EVT_CHECKBOX(ID_USEREALXFB, GFXConfigDialogOGL::GeneralSettingsChanged)
 	EVT_CHECKBOX(ID_FORCEFILTERING, GFXConfigDialogOGL::GeneralSettingsChanged)
 	EVT_CHECKBOX(ID_AUTOSCALE, GFXConfigDialogOGL::GeneralSettingsChanged)
 	EVT_CHECKBOX(ID_WIDESCREENHACK, GFXConfigDialogOGL::GeneralSettingsChanged)
@@ -205,11 +206,6 @@ void GFXConfigDialogOGL::InitializeGUILists()
 	arrayStringFor_PhackvalueCB.Add(wxT("Zelda Twilight Princess Bloom hack"));
 	arrayStringFor_PhackvalueCB.Add(wxT("Sonic and the Black Knight"));
 	arrayStringFor_PhackvalueCB.Add(wxT("Bleach Versus Crusade"));
-	arrayStringFor_PhackvalueCB.Add(wxT("Final Fantasy CC Echo of Time"));
-	arrayStringFor_PhackvalueCB.Add(wxT("Harvest Moon Magical Melody"));
-	arrayStringFor_PhackvalueCB.Add(wxT("Baten Kaitos"));
-	arrayStringFor_PhackvalueCB.Add(wxT("Baten Kaitos Origin"));
-	arrayStringFor_PhackvalueCB.Add(wxT("Skies of Arcadia"));
 }
 
 void GFXConfigDialogOGL::InitializeGUIValues()
@@ -236,6 +232,7 @@ void GFXConfigDialogOGL::InitializeGUIValues()
 	m_OSDHotKey->SetValue(g_Config.bOSDHotKey);
 	m_VSync->SetValue(g_Config.bVSync);
 	m_UseXFB->SetValue(g_Config.bUseXFB);
+	m_UseRealXFB->SetValue(g_Config.bUseRealXFB);
 	m_AutoScale->SetValue(g_Config.bAutoScale);
 	m_WidescreenHack->SetValue(g_Config.bWidescreenHack);
 
@@ -371,13 +368,13 @@ void GFXConfigDialogOGL::CreateGUIControls()
 	// Notebook
 	m_Notebook = new wxNotebook(this, ID_NOTEBOOK, wxDefaultPosition, wxDefaultSize);
 	m_PageGeneral = new wxPanel(m_Notebook, ID_PAGEGENERAL, wxDefaultPosition, wxDefaultSize);
-	m_Notebook->AddPage(m_PageGeneral, wxT("General"));
+	m_Notebook->AddPage(m_PageGeneral, wxT("常规"));
 	m_PageAdvanced = new wxPanel(m_Notebook, ID_PAGEADVANCED, wxDefaultPosition, wxDefaultSize);
-	m_Notebook->AddPage(m_PageAdvanced, wxT("Advanced"));
+	m_Notebook->AddPage(m_PageAdvanced, wxT("高级"));
 
 	// Buttons
-	m_About = new wxButton(this, wxID_ABOUT, wxT("About"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	m_Close = new wxButton(this, wxID_CLOSE, wxT("Close"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	m_About = new wxButton(this, wxID_ABOUT, wxT("关于"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	m_Close = new wxButton(this, wxID_CLOSE, wxT("关闭"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 
 	// Put notebook and buttons in sizers
 	wxBoxSizer* sButtons;
@@ -395,13 +392,13 @@ void GFXConfigDialogOGL::CreateGUIControls()
 	this->Layout();
 
 	// General Display Settings
-	sbBasic = new wxStaticBoxSizer(wxVERTICAL, m_PageGeneral, wxT("Basic Display Settings"));
+	sbBasic = new wxStaticBoxSizer(wxVERTICAL, m_PageGeneral, wxT("基本显示设置"));
 	wxStaticText *IRText = new wxStaticText(m_PageGeneral, ID_IRTEXT, wxT("Resolution:"), wxDefaultPosition, wxDefaultSize, 0);
 	m_NativeResolution = new wxCheckBox(m_PageGeneral, ID_NATIVERESOLUTION, wxT("Native"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 	m_2xResolution = new wxCheckBox(m_PageGeneral, ID_2X_RESOLUTION, wxT("2x"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 	wxStaticText *RText = new wxStaticText(m_PageGeneral, ID_RTEXT, wxT("Custom resolution:"), wxDefaultPosition, wxDefaultSize, 0);
-	wxStaticText *WMText = new wxStaticText(m_PageGeneral, ID_WMTEXT, wxT("Windowed:"), wxDefaultPosition, wxDefaultSize , 0 );
-	m_Fullscreen = new wxCheckBox(m_PageGeneral, ID_FULLSCREEN, wxT("Fullscreen:"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	wxStaticText *WMText = new wxStaticText(m_PageGeneral, ID_WMTEXT, wxT("窗口化:"), wxDefaultPosition, wxDefaultSize , 0 );
+	m_Fullscreen = new wxCheckBox(m_PageGeneral, ID_FULLSCREEN, wxT("全屏:"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 	m_WindowResolutionCB = new wxChoice(m_PageGeneral, ID_WINDOWRESOLUTIONCB, wxDefaultPosition, wxDefaultSize, arrayStringFor_WindowResolutionCB, 0, wxDefaultValidator, arrayStringFor_WindowResolutionCB[0]);
 	m_WindowFSResolutionCB = new wxChoice(m_PageGeneral, ID_WINDOWFSRESOLUTIONCB, wxDefaultPosition, wxDefaultSize, arrayStringFor_FullscreenCB, 0, wxDefaultValidator, arrayStringFor_FullscreenCB[0]);
 #ifndef _WIN32
@@ -413,16 +410,17 @@ void GFXConfigDialogOGL::CreateGUIControls()
 	m_Crop = new wxCheckBox(m_PageGeneral, ID_CROP, wxT("Crop"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 
 	// Advanced Display Settings
-	sbBasicAdvanced = new wxStaticBoxSizer(wxVERTICAL, m_PageGeneral, wxT("Advanced Display Settings"));
+	sbBasicAdvanced = new wxStaticBoxSizer(wxVERTICAL, m_PageGeneral, wxT("高级显示设置"));
 	m_RenderToMainWindow = new wxCheckBox(m_PageGeneral, ID_RENDERTOMAINWINDOW, wxT("Render to Main window"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	m_OSDHotKey = new wxCheckBox(m_PageGeneral, ID_OSDHOTKEY, wxT("Enable Hotkeys"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	m_OSDHotKey = new wxCheckBox(m_PageGeneral, ID_OSDHOTKEY, wxT("启用热键"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 #if !defined(_WIN32) && (!defined(HAVE_X11) || !HAVE_X11)
 	// JPeterson set the hot key to be Win32-specific
 	// Now linux has this (with X11)
 	m_OSDHotKey->Enable(false);
 #endif
 	m_VSync = new wxCheckBox(m_PageGeneral, ID_VSYNC, wxT("VSync (req. restart)"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	m_UseXFB = new wxCheckBox(m_PageGeneral, ID_USEXFB, wxT("Use Real XFB"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	m_UseXFB = new wxCheckBox(m_PageGeneral, ID_USEXFB, wxT("Use XFB"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	m_UseRealXFB = new wxCheckBox(m_PageGeneral, ID_USEREALXFB, wxT("Use Real XFB"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 	m_AutoScale = new wxCheckBox(m_PageGeneral, ID_AUTOSCALE, wxT("Auto scale (try to remove borders)"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 	m_WidescreenHack = new wxCheckBox(m_PageGeneral, ID_WIDESCREENHACK, wxT("Wide screen hack"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 
@@ -470,8 +468,9 @@ void GFXConfigDialogOGL::CreateGUIControls()
 	sBasicAdvanced->Add(m_OSDHotKey,			wxGBPosition(1, 0), wxGBSpan(1, 2), wxALL, 5);
 	sBasicAdvanced->Add(m_VSync,				wxGBPosition(2, 0), wxGBSpan(1, 2), wxALL, 5);
 	sBasicAdvanced->Add(m_UseXFB,				wxGBPosition(3, 0), wxGBSpan(1, 2), wxALL, 5);
-	sBasicAdvanced->Add(m_AutoScale,			wxGBPosition(4, 0), wxGBSpan(1, 2), wxALL, 5);
-	sBasicAdvanced->Add(m_WidescreenHack,		wxGBPosition(5, 0), wxGBSpan(1, 2), wxALL, 5);
+	sBasicAdvanced->Add(m_UseRealXFB,			wxGBPosition(4, 0), wxGBSpan(1, 2), wxALL, 5);
+	sBasicAdvanced->Add(m_AutoScale,			wxGBPosition(5, 0), wxGBSpan(1, 2), wxALL, 5);
+	sBasicAdvanced->Add(m_WidescreenHack,		wxGBPosition(6, 0), wxGBSpan(1, 2), wxALL, 5);
 
 	sbBasicAdvanced->Add(sBasicAdvanced);
 	sGeneral->Add(sbBasicAdvanced, 0, wxEXPAND|wxALL, 5);
@@ -662,6 +661,9 @@ void GFXConfigDialogOGL::GeneralSettingsChanged(wxCommandEvent& event)
 	case ID_USEXFB:
 		g_Config.bUseXFB = m_UseXFB->IsChecked();
 		break;
+	case ID_USEREALXFB:
+		g_Config.bUseRealXFB = m_UseRealXFB->IsChecked();
+		break;
 	case ID_AUTOSCALE:
 		g_Config.bAutoScale = m_AutoScale->IsChecked();
 		break;
@@ -821,8 +823,12 @@ void GFXConfigDialogOGL::UpdateGUI()
 {
 	// This is only used together with the aspect ratio options
 	m_Crop->Enable(g_Config.iAspectRatio != ASPECT_STRETCH);
-	if (g_Config.bUseXFB)
+	if (g_Config.bUseRealXFB)
 	{
+		// must use XFB to use real XFB
+		g_Config.bUseXFB = true;
+		m_UseXFB->SetValue(true);
+
 		// XFB looks much better if the copy comes from native resolution.
 		g_Config.bNativeResolution = true;
 		m_NativeResolution->SetValue(true);
@@ -830,19 +836,26 @@ void GFXConfigDialogOGL::UpdateGUI()
 		g_Config.b2xResolution = false; 
 		m_2xResolution->SetValue(false);
 	}
-	m_AutoScale->Enable(!g_Config.bUseXFB);
+	m_AutoScale->Enable(!g_Config.bUseRealXFB);
+	m_UseXFB->Enable(!g_Config.bUseRealXFB);
 
 	// These options are for the separate rendering window
+#if !defined(HAVE_GTK2) || !HAVE_GTK2 || !defined(wxGTK)
 	m_Fullscreen->Enable(!g_Config.RenderToMainframe);
 	if (g_Config.RenderToMainframe) m_Fullscreen->SetValue(false);
+#endif
 
 	// Resolution settings
 	//disable native/2x choice when real xfb is on. native simply looks best, as ector noted above.
 	//besides, it would look odd if one disabled native, and it came back on again.
-	m_NativeResolution->Enable(!g_Config.bUseXFB);
-	m_2xResolution->Enable(!g_Config.bUseXFB && (!g_Config.bRunning || Renderer::Allow2x()));
+	m_NativeResolution->Enable(!g_Config.bUseRealXFB);
+	m_2xResolution->Enable(!g_Config.bUseRealXFB && (!g_Config.bRunning || Renderer::Allow2x()));
 	m_WindowResolutionCB->Enable(!g_Config.bRunning);
+#if defined(HAVE_GTK2) && HAVE_GTK2 && defined(wxGTK)
+	m_WindowFSResolutionCB->Enable(!g_Config.bRunning);
+#else
 	m_WindowFSResolutionCB->Enable(!g_Config.bRunning && !g_Config.RenderToMainframe);
+#endif
 
 	// Disable the Copy to options when EFBCopy is disabled
 	m_Radio_CopyEFBToRAM->Enable(!(g_Config.bEFBCopyDisable));

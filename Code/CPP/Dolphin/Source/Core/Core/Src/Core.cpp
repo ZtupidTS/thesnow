@@ -29,11 +29,6 @@
 #include "MathUtil.h"
 #include "MemoryUtil.h"
 
-#if defined(HAVE_X11) && HAVE_X11
-#include <X11/Xlib.h>
-#include <X11/keysym.h>
-#endif
-
 #include "Console.h"
 #include "Core.h"
 #include "CPUDetect.h"
@@ -252,45 +247,6 @@ void Stop()  // - Hammertime!
 	g_EmuThread = 0;
 }
 
-#if defined(HAVE_X11) && HAVE_X11
-void ProcessXEvents(void)
-{
-	if (GetState() == CORE_PAUSE)
-	{
-		Display *dpy = (Display *)g_pWindowHandle;
-		XEvent event;
-		KeySym key;
-		int num_events;
-		for (num_events = XPending(dpy);num_events > 0;num_events--)
-		{
-			XNextEvent(dpy, &event);
-			switch(event.type) {
-				case KeyPress:
-					key = XLookupKeysym((XKeyEvent*)&event, 0);
-					if (key == XK_Escape)
-						Host_Message(WM_USER_PAUSE);
-				case ClientMessage:
-					if ((ulong) event.xclient.data.l[0] == XInternAtom(dpy, "WM_DELETE_WINDOW", False))
-						Host_Message(WM_USER_STOP);
-					break;
-				default:
-					break;
-			}
-		}
-	}
-}
-
-THREAD_RETURN XEventThread(void *pArg)
-{
-	while (PowerPC::GetState() != PowerPC::CPU_POWERDOWN)
-	{
-		ProcessXEvents();
-		Common::SleepCurrentThread(200);
-	}
-	return 0;
-}
-#endif
-
 // Create the CPU thread. which would be a CPU + Video thread in Single Core mode.
 
 THREAD_RETURN CpuThread(void *pArg)
@@ -366,6 +322,9 @@ THREAD_RETURN EmuThread(void *pArg)
 	VideoInitialize.pScheduleEvent_Threadsafe   = CoreTiming::ScheduleEvent_Threadsafe;
 	// This is first the m_Panel handle, then it is updated to have the new window handle
 	VideoInitialize.pWindowHandle		        = _CoreParameter.hMainWindow;
+#if defined(HAVE_X11) && HAVE_X11 && defined(HAVE_GTK2) && HAVE_GTK2
+	VideoInitialize.pPanel				        = _CoreParameter.hMainWindow;
+#endif
 	VideoInitialize.pLog				        = Callback_VideoLog;
 	VideoInitialize.pSysMessage			        = Host_SysMessage;
 	VideoInitialize.pRequestWindowSize	        = NULL; //Callback_VideoRequestWindowSize;
@@ -379,14 +338,21 @@ THREAD_RETURN EmuThread(void *pArg)
 	VideoInitialize.Fifo_CPUBase                = &ProcessorInterface::Fifo_CPUBase;
 	VideoInitialize.Fifo_CPUEnd                 = &ProcessorInterface::Fifo_CPUEnd;
 	VideoInitialize.Fifo_CPUWritePointer        = &ProcessorInterface::Fifo_CPUWritePointer;
-	VideoInitialize.bAutoAspectIs16_9           = _CoreParameter.bWii ? (SConfig::GetInstance().m_SYSCONF->GetData<u8>("IPL.AR") ? true : false) : false;
+	bool aspectWide = _CoreParameter.bWii;
+	if (aspectWide) 
+	{
+		IniFile gameIni;
+		gameIni.Load(_CoreParameter.m_strGameIni.c_str());
+		gameIni.Get("Wii", "Widescreen", &aspectWide, !!SConfig::GetInstance().m_SYSCONF->GetData<u8>("IPL.AR"));
+	}
+	VideoInitialize.bAutoAspectIs16_9           = aspectWide;
 
 	Plugins.GetVideo()->Initialize(&VideoInitialize); // Call the dll
 
 	// Under linux, this is an X11 Display, not a HWND!
 	g_pWindowHandle			= (HWND)VideoInitialize.pWindowHandle;
 #if defined(HAVE_X11) && HAVE_X11
-	g_pXWindow					= (Window *)VideoInitialize.pXWindow;
+	g_pXWindow					= (void *)VideoInitialize.pXWindow;
 #endif
 	Callback_PeekMessages	= VideoInitialize.pPeekMessages;
 	g_pUpdateFPSDisplay		= VideoInitialize.pUpdateFPSDisplay;
@@ -415,6 +381,9 @@ THREAD_RETURN EmuThread(void *pArg)
 	PADInitialize.hWnd		= g_pWindowHandle;
 #if defined(HAVE_X11) && HAVE_X11
 	PADInitialize.pXWindow	= g_pXWindow;
+#if defined(HAVE_GTK2) && HAVE_GTK2
+	PADInitialize.pPanel	= VideoInitialize.pPanel;
+#endif
 #endif
 	PADInitialize.pLog		= Callback_PADLog;
 	// This is may be needed to avoid a SDL problem
@@ -427,6 +396,9 @@ THREAD_RETURN EmuThread(void *pArg)
 		SWiimoteInitialize WiimoteInitialize;
 		WiimoteInitialize.hWnd			= g_pWindowHandle;
 #if defined(HAVE_X11) && HAVE_X11
+#if defined(HAVE_GTK2) && HAVE_GTK2
+		WiimoteInitialize.pPanel	= VideoInitialize.pPanel;
+#endif
 		WiimoteInitialize.pXWindow	= g_pXWindow;
 #endif
 		WiimoteInitialize.ISOId			= Ascii2Hex(_CoreParameter.m_strUniqueID);
@@ -457,10 +429,6 @@ THREAD_RETURN EmuThread(void *pArg)
 
 	// Spawn the CPU thread
 	Common::Thread *cpuThread = NULL;
-#if defined(HAVE_X11) && HAVE_X11
-	Common::Thread *xEventThread = NULL;
-#endif
-
 	// ENTER THE VIDEO THREAD LOOP
 	if (_CoreParameter.bCPUThread)
 	{
@@ -469,9 +437,6 @@ THREAD_RETURN EmuThread(void *pArg)
 
 		Plugins.GetVideo()->Video_Prepare(); // wglMakeCurrent
 		cpuThread = new Common::Thread(CpuThread, pArg);
-#if defined(HAVE_X11) && HAVE_X11
-		xEventThread = new Common::Thread(XEventThread, pArg);
-#endif
 		Common::SetCurrentThreadName("Video thread");
 
 		if (g_pUpdateFPSDisplay != NULL)
@@ -506,9 +471,6 @@ THREAD_RETURN EmuThread(void *pArg)
 		{
 			if (Callback_PeekMessages)
 				Callback_PeekMessages();
-#if defined(HAVE_X11) && HAVE_X11
-			ProcessXEvents();
-#endif
 			Common::SleepCurrentThread(20);
 		}
 
@@ -744,7 +706,8 @@ void Callback_VideoLog(const TCHAR *_szMessage, int _bDoBreak)
 // Should be called from GPU thread when a frame is drawn
 void Callback_VideoCopiedToXFB(bool video_update)
 {
-	Common::AtomicIncrement(DrawnFrame);
+	if(video_update)
+		Common::AtomicIncrement(DrawnFrame);
 	Frame::FrameUpdate();
 }
 
@@ -815,11 +778,15 @@ void Callback_KeyPress(int key, bool shift, bool control)
 			State_UndoLoadState();	
 	}
 #if defined(HAVE_X11) && HAVE_X11
+	if (key == 0) 
+		Host_Message(WM_USER_CREATE);
 	// 0x1b == VK_ESCAPE
 	if (key == 0x1b) 
 		Host_Message(WM_USER_STOP);
 	if (key == 0x1c)
 		Host_Message(WM_USER_PAUSE);
+	if (key == 0x1d)
+		Host_Message(TOGGLE_FULLSCREEN);
 #endif
 }
 

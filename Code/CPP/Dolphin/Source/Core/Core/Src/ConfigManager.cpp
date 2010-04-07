@@ -31,6 +31,8 @@ SConfig::SConfig()
 	LoadSettings();
 	//Make sure we load settings
 	LoadSettingsHLE();
+	LoadSettingsWii();
+
 }
 
 void SConfig::Init()
@@ -85,8 +87,6 @@ void SConfig::SaveSettings()
 		ini.Set("Interface", "MainWindowPosY",		m_LocalCoreStartupParameter.iPosY);
 		ini.Set("Interface", "MainWindowWidth",		m_LocalCoreStartupParameter.iWidth);
 		ini.Set("Interface", "MainWindowHeight",	m_LocalCoreStartupParameter.iHeight);
-		ini.Set("Interface", "ShowWiimoteLeds",		m_LocalCoreStartupParameter.bWiiLeds);
-		ini.Set("Interface", "ShowWiimoteSpeakers",	m_LocalCoreStartupParameter.bWiiSpeakers);
 		ini.Set("Interface", "Language",			m_InterfaceLanguage);
 		ini.Set("Interface", "ShowToolbar",			m_InterfaceToolbar);
 		ini.Set("Interface", "ShowStatusbar",		m_InterfaceStatusbar);
@@ -197,8 +197,6 @@ void SConfig::LoadSettings()
 		ini.Get("Interface", "MainWindowPosY",		&m_LocalCoreStartupParameter.iPosY,				100);
 		ini.Get("Interface", "MainWindowWidth",		&m_LocalCoreStartupParameter.iWidth,			800);
 		ini.Get("Interface", "MainWindowHeight",	&m_LocalCoreStartupParameter.iHeight,			600);
-		ini.Get("Interface", "ShowWiimoteLeds",		&m_LocalCoreStartupParameter.bWiiLeds,			false);
-		ini.Get("Interface", "ShowWiimoteSpeakers",	&m_LocalCoreStartupParameter.bWiiSpeakers,		false);
 		ini.Get("Interface", "Language",			(int*)&m_InterfaceLanguage,						0);
 		ini.Get("Interface", "ShowToolbar",			&m_InterfaceToolbar,							true);
 		ini.Get("Interface", "ShowStatusbar",		&m_InterfaceStatusbar,							true);
@@ -257,11 +255,26 @@ void SConfig::LoadSettings()
 		ini.Get("Core", "DSPPlugin",  &m_LocalCoreStartupParameter.m_strDSPPlugin,		m_DefaultDSPPlugin.c_str());
 		ini.Get("Core", "PadPlugin", &m_LocalCoreStartupParameter.m_strPadPlugin[0], m_DefaultPADPlugin.c_str());
 		ini.Get("Core", "WiiMotePlugin", &m_LocalCoreStartupParameter.m_strWiimotePlugin[0], m_DefaultWiiMotePlugin.c_str());
+
+
 	}
 
 	m_SYSCONF = new SysConf();
 }
+void SConfig::LoadSettingsWii()
+{
+	IniFile ini;
+	//Wiimote configs
+	ini.Load((std::string(File::GetUserPath(D_CONFIG_IDX)) + "Dolphin.ini").c_str());
+	for (int i = 0; i < 4; i++)
+	{
+		char SectionName[32];
+		sprintf(SectionName, "Wiimote%i", i + 1);
+		ini.Get(SectionName, "AutoReconnectRealWiimote", &m_WiiAutoReconnect[i], false);
+	}
+}
 
+// Is this still even needed????
 void SConfig::LoadSettingsHLE()
 {
 	IniFile ini;
