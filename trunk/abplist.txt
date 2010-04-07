@@ -20,6 +20,9 @@ sourceforge.jp##DIV.ad300
 |http://as.dc.impact-ad.jp/*$domain=sourceforge.jp
 |http://ads.osdn.jp/*$domain=sourceforge.jp
 
+!-- sf.net
+|http://s0.2mdn.net/*$domain=sourceforge.net
+
 !-- 射手网
 |http://pagead2.googlesyndication.com/*$domain=shooter.cn
 
@@ -27,12 +30,31 @@ sourceforge.jp##DIV.ad300
 ||*.infolinks.com^
 |http://*.doubleclick.net/*
 
-!--softarchive.net
+!-- 广告商
+|http://pagead2.googlesyndication.com/pagead/*
+|http://*.fanhuan.com/*
+|http://*.adbrite.com/*
+||*.smartadserver.com^
+|http://*.adperium.com/*
+||ads.ero-advertising.com^
+|http://union.moonbasa.com/*
+
+!-- softarchive.net
 |http://softarchive.net/js/getBanner.php?*
 
-!--rl-team.net
+!-- rl-team.net
 |http://post.rmbn.ru/cgi-bin/*$domain=rl-team.net
 |http://s1.pop-bazar.net/*$domain=rl-team.net
+
+!-- rlslog.net and newwebstar.com 元素隐藏
+newwebstar.com##DIV[style="padding-bottom: 10px;"]
+rlslog.net##DIV#commentblock
+rlslog.net##DIV#sidebar
+
+!-- E都市广告
+|http://cpic2.edushi.com/*/AImageDs/*
+http://cpic2.edushi.com/cn/*.swf
+
 
 !-- 其它
 ||miibeian.gov.cn^
