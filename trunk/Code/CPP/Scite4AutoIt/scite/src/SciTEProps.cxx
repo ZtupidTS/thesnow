@@ -77,8 +77,8 @@ void SciTEBase::SetImportMenu() {
 		for (int stackPos = 0; stackPos < importMax; stackPos++) {
 			int itemID = importCmdID + stackPos;
 			if (importFiles[stackPos].IsSet()) {
-				GUI::gui_string entry = localiser.Text("Open");		//mod
-//				GUI::gui_string entry = GUI_TEXT("打开");
+//				GUI::gui_string entry = localiser.Text("Open");		//mod
+				GUI::gui_string entry = L"打开";
 				entry += GUI_TEXT(" ");
 				entry += importFiles[stackPos].Name().AsInternal();
 //				entry += GUI_TEXT(" 文件");
@@ -102,14 +102,16 @@ void SciTEBase::SetLanguageMenu() {
 	}
 	for (int item = 0; item < languageItems; item++) {
 		int itemID = languageCmdID + item;
-		GUI::gui_string entry = localiser.Text(languageMenu[item].menuItem.c_str());
+//		GUI::gui_string entry = localiser.Text(languageMenu[item].menuItem.c_str());
+		GUI::gui_string entry = languageMenu[item].menuItem.w_str();
 		if (languageMenu[item].menuKey.length()) {
 #if defined(GTK)
 			entry += GUI_TEXT(" ");
 #else
 			entry += GUI_TEXT("\t");
 #endif
-			entry += GUI::StringFromUTF8(languageMenu[item].menuKey.c_str());
+//			entry += GUI::StringFromUTF8(languageMenu[item].menuKey.c_str());
+			entry += languageMenu[item].menuKey.w_str();
 		}
 		if (entry[0] != '#') {
 			SetMenuItem(menuLanguage, item, itemID, entry.c_str());
@@ -1356,6 +1358,17 @@ int Substitute(GUI::gui_string &s, const GUI::gui_string &sFind, const GUI::gui_
 //本地化消息
 GUI::gui_string SciTEBase::LocaliseMessage(const char *s, const GUI::gui_char *param0, const GUI::gui_char *param1, const GUI::gui_char *param2) {
 	GUI::gui_string translation = localiser.Text(s);
+	if (param0)
+		Substitute(translation, GUI_TEXT("^0"), param0);
+	if (param1)
+		Substitute(translation, GUI_TEXT("^1"), param1);
+	if (param2)
+		Substitute(translation, GUI_TEXT("^2"), param2);
+	return translation;
+}
+
+GUI::gui_string SciTEBase::LocaliseMessage(const wchar_t *s, const GUI::gui_char *param0, const GUI::gui_char *param1, const GUI::gui_char *param2) {
+	GUI::gui_string translation = s;
 	if (param0)
 		Substitute(translation, GUI_TEXT("^0"), param0);
 	if (param1)

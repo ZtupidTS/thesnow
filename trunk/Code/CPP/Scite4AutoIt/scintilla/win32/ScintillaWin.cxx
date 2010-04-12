@@ -1,4 +1,4 @@
-// Scintilla source code edit control
+ï»¿// Scintilla source code edit control
 /** @file ScintillaWin.cxx
  ** Windows specific subclass of ScintillaBase.
  **/
@@ -1638,7 +1638,7 @@ void ScintillaWin::AddToPopUp(const char *label, int cmd, bool enabled) {
 		::AppendMenuA(hmenuPopup, MF_STRING | MF_DISABLED | MF_GRAYED, cmd, label);
 }
 
-//added ¡ý
+//added â†“
 void ScintillaWin::AddToPopUp(const wchar_t *label, int cmd, bool enabled) {
 	HMENU hmenuPopup = reinterpret_cast<HMENU>(popup.GetID());
 	if (!label[0])
@@ -1648,7 +1648,7 @@ void ScintillaWin::AddToPopUp(const wchar_t *label, int cmd, bool enabled) {
 	else
 		::AppendMenuW(hmenuPopup, MF_STRING | MF_DISABLED | MF_GRAYED, cmd, label);
 }
-//added ¡ü
+//added â†‘
 
 void ScintillaWin::ClaimSelection() {
 	// Windows does not have a primary selection
@@ -2695,7 +2695,7 @@ sptr_t PASCAL ScintillaWin::SWndProc(
 
 // This function is externally visible so it can be called from container when building statically.
 // Must be called once only.
-bool Scintilla_RegisterClasses(void *hInstance) {
+int Scintilla_RegisterClasses(void *hInstance) {
 	Platform_Initialise(hInstance);
 	bool result = ScintillaWin::Register(reinterpret_cast<HINSTANCE>(hInstance));
 #ifdef SCI_LEXER
@@ -2705,7 +2705,7 @@ bool Scintilla_RegisterClasses(void *hInstance) {
 }
 
 // This function is externally visible so it can be called from container when building statically.
-bool Scintilla_ReleaseResources() {
+int Scintilla_ReleaseResources() {
 	bool result = ScintillaWin::Unregister();
 	Platform_Finalise();
 	return result;

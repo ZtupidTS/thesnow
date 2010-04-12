@@ -167,7 +167,7 @@ int SciTEWin::DoDialog(HINSTANCE hInst, const TCHAR *resName, HWND hWnd, DLGPROC
 
 	if (result == -1) {
 		GUI::gui_string errorNum = GUI::StringFromInteger(::GetLastError());
-		GUI::gui_string msg = LocaliseMessage("创建对话框失败: ^0.", errorNum.c_str());
+		GUI::gui_string msg = LocaliseMessage(L"创建对话框失败: ^0.", errorNum.c_str());
 		::MessageBoxW(hWnd, msg.c_str(), appName, MB_OK | MB_SETFOREGROUND);
 	}
 
@@ -202,12 +202,10 @@ GUI::gui_string SciTEWin::DialogFilterFromProperty(const GUI::gui_char *filterPr
 
 bool SciTEWin::OpenDialog(FilePath directory, const GUI::gui_char *filter) {
 	enum {maxBufferSize=2048};
-	LanguageIni lang;
 	GUI::gui_string openFilter = DialogFilterFromProperty(filter);
-
 	if (!openWhat[0]) {
 		//wcscpy(openWhat, localiser.Text("自定义类型").c_str());
-		wcscpy(openWhat,lang.GetValue(L"OpenDialog",L"FileType",L"自定义类型"));
+		wcscpy(openWhat,TEXT("自定义类型"));
 		openWhat[wcslen(openWhat) + 1] = '\0';
 	}
 
@@ -228,7 +226,7 @@ bool SciTEWin::OpenDialog(FilePath directory, const GUI::gui_char *filter) {
 	ofn.nFilterIndex = filterDefault;
 //	GUI::gui_string translatedTitle = localiser.Text("打开文件");	//mod
 //	ofn.lpstrTitle = translatedTitle.c_str();
-	ofn.lpstrTitle =lang.GetValue(L"OpenDialog",L"OpenFile",L"打开文件");
+	ofn.lpstrTitle =L"打开文件";
 	if (props.GetInt("open.dialog.in.file.directory")) {
 		ofn.lpstrInitialDir = directory.AsInternal();
 	}
@@ -603,7 +601,7 @@ void SciTEWin::Print(
 		::DeleteDC(hdc);
 		DeleteFontObject(fontHeader);
 		DeleteFontObject(fontFooter);
-		GUI::gui_string msg = LocaliseMessage("不能开始打印文档.");
+		GUI::gui_string msg = L"不能开始打印文档.";
 		WindowMessageBox(wSciTE, msg, MB_OK);
 		return;
 	}
@@ -1330,8 +1328,7 @@ BOOL SciTEWin::GrepMessage(HWND hDlg, UINT message, WPARAM wParam) {
 				info.pidlRoot = NULL;
 				TCHAR szDisplayName[MAX_PATH];
 				info.pszDisplayName = szDisplayName;
-				GUI::gui_string title = localiser.Text("您要搜索哪一个目录?");
-				info.lpszTitle = title.c_str();
+				info.lpszTitle = TEXT("您要搜索哪一个目录?");
 				info.ulFlags = 0;
 				info.lpfn = BrowseCallbackProc;
 				GUI::gui_string directory = dlg.ItemTextG(IDDIRECTORY);

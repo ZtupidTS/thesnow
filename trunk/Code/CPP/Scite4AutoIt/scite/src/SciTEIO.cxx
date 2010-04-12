@@ -33,7 +33,7 @@
 #endif
 #endif
 
-#define _WIN32_WINNT  0x0500		//moded
+#define _WIN32_WINNT  0x0500
 #ifdef _MSC_VER
 // windows.h, et al, use a lot of nameless struct/unions - can't fix it, so allow it
 #pragma warning(disable: 4201)
@@ -386,8 +386,8 @@ void SciTEBase::OpenFile(int fileSize, bool suppressMessage) {
 		}
 
 	} else if (!suppressMessage) {
-		GUI::gui_string msg = LocaliseMessage("Could not open file '^0'.", filePath.AsInternal());
-//		GUI::gui_string msg = LocaliseMessage("不能打开文件 '^0'.", filePath.AsInternal());
+//		GUI::gui_string msg = LocaliseMessage("Could not open file '^0'.", filePath.AsInternal());
+		GUI::gui_string msg = LocaliseMessage(L"不能打开文件 '^0'.", filePath.AsInternal());
 		WindowMessageBox(wSciTE, msg, MB_OK | MB_ICONWARNING);
 	}
 	if (!wEditor.Call(SCI_GETUNDOCOLLECTION)) {
@@ -433,13 +433,12 @@ bool SciTEBase::Open(FilePath file, OpenFlags of) {
 		if (maxSize > 0 && size > maxSize) {
 			GUI::gui_string sSize = GUI::StringFromInteger(size);
 			GUI::gui_string sMaxSize = GUI::StringFromInteger(maxSize);
-			GUI::gui_string msg = LocaliseMessage("File '^0' is ^1 bytes long,\n"
-			        "larger than the ^2 bytes limit set in the properties.\n"
-			        "Do you still want to open it?",
-
-//			GUI::gui_string msg = LocaliseMessage("文件[ '^0' ]有[ ^1 ]字节,\n"
-//			        "超过了设置文件中的[ ^2 ]字节的最大限制.\n"
-//			        "您确定要打开它吗?",
+//			GUI::gui_string msg = LocaliseMessage("File '^0' is ^1 bytes long,\n"
+//			        "larger than the ^2 bytes limit set in the properties.\n"
+//			        "Do you still want to open it?",
+			GUI::gui_string msg = LocaliseMessage(L"文件[ '^0' ]有[ ^1 ]字节,\n"
+			        L"超过了设置文件中的[ ^2 ]字节的最大限制.\n"
+			        L"您确定要打开它吗?",
 			        absPath.AsInternal(), sSize.c_str(), sMaxSize.c_str());
 			int answer = WindowMessageBox(wSciTE, msg, MB_YESNO | MB_ICONWARNING);
 			if (answer != IDYES) {
@@ -631,13 +630,13 @@ void SciTEBase::CheckReload() {
 					GUI::gui_string msg;
 					if (CurrentBuffer()->isDirty) {
 						msg = LocaliseMessage(
-						          "The file '^0' has been modified. Should it be reloaded?",
-//						          "文件 '^0' 已经被修改,是否重新载入?",
+//						          "The file '^0' has been modified. Should it be reloaded?",
+						          L"文件 '^0' 已经被修改,是否重新载入?",
 						          filePath.AsInternal());
 					} else {
 						msg = LocaliseMessage(
-						          "The file '^0' has been modified outside SciTE. Should it be reloaded?",
-//						          "文件 '^0' 已经被其它编辑器修改,是否重新载入?",
+//						          "The file '^0' has been modified outside SciTE. Should it be reloaded?",
+						          L"文件 '^0' 已经被其它编辑器修改,是否重新载入?",
 						          FileNameExt().AsInternal());
 					}
 					int decision = WindowMessageBox(wSciTE, msg, MB_YESNO);
@@ -693,11 +692,11 @@ int SciTEBase::SaveIfUnsure(bool forceQuestion) {
 		        forceQuestion) {
 					GUI::gui_string msg;
 			if (!filePath.IsUntitled()) {
-				msg = LocaliseMessage("Save changes to '^0'?", filePath.AsInternal());
-//				msg = LocaliseMessage("保存修改过的文件到[ '^0' ]吗?", filePath.AsInternal());
+//				msg = LocaliseMessage("Save changes to '^0'?", filePath.AsInternal());
+				msg = LocaliseMessage(L"保存修改过的文件到[ '^0' ]吗?", filePath.AsInternal());
 			} else {
-				msg = LocaliseMessage("Save changes to (Untitled)?");
-//				msg = LocaliseMessage("保存修改过的文件为[ '未命名文档' ]吗?");
+//				msg = LocaliseMessage("Save changes to (Untitled)?");
+				msg = LocaliseMessage(L"保存修改过的文件为[ '未命名文档' ]吗?");
 			}
 			int decision = WindowMessageBox(wSciTE, msg, MB_YESNOCANCEL | MB_ICONQUESTION);
 			if (decision == IDYES) {
@@ -863,8 +862,22 @@ void SciTEBase::ReloadProperties() {
 // Returns false if cancelled or failed to save
 bool SciTEBase::Save() {
 	if (!filePath.IsUntitled()) {
+		GUI::gui_string msg;
+		int decision;
+
 		if (props.GetInt("save.deletes.first")) {
 			filePath.Remove();
+		} else if (props.GetInt("save.check.modified.time")) {
+			time_t newModTime = filePath.ModifiedTime();
+			if ((newModTime != 0) && (CurrentBuffer()->fileModTime != 0) &&
+				(newModTime != CurrentBuffer()->fileModTime)) {
+				msg = LocaliseMessage("The file '^0' has been modified outside SciTE. Should it be saved?",
+					filePath.AsInternal());
+				decision = WindowMessageBox(wSciTE, msg, MB_YESNO | MB_ICONWARNING);
+				if (decision == IDNO) {
+					return false;
+				}
+			}
 		}
 
 		if (SaveBuffer(filePath)) {
@@ -874,10 +887,10 @@ bool SciTEBase::Save() {
 				ReloadProperties();
 			}
 		} else {
-			GUI::gui_string msg = LocaliseMessage(
-			            "Could not save file '^0'. Save under a different name?", filePath.AsInternal());
-//			            "不能保存文件[ '^0' ]. 需要使用一个不同的文件名来保存吗?", filePath.AsInternal());
-			int decision = WindowMessageBox(wSciTE, msg, MB_YESNO | MB_ICONWARNING);
+			msg = LocaliseMessage(
+//			            "Could not save file '^0'. Save under a different name?", filePath.AsInternal());
+			            L"不能保存文件[ '^0' ]. 需要使用一个不同的文件名来保存吗?", filePath.AsInternal());
+			decision = WindowMessageBox(wSciTE, msg, MB_YESNO | MB_ICONWARNING);
 			if (decision == IDYES) {
 				return SaveAsDialog();
 			}
@@ -907,8 +920,8 @@ void SciTEBase::SaveIfNotOpen(const FilePath &destFile, bool fixCase) {
 	int index = buffers.GetDocumentByName(absPath, true /* excludeCurrent */);
 	if (index >= 0) {
 		GUI::gui_string msg = LocaliseMessage(
-			    "File '^0' is already open in another buffer.", destFile.AsInternal());
-//			    "'^0' 文件已经在其它面板中打开.", destFile.AsInternal());
+//			    "File '^0' is already open in another buffer.", destFile.AsInternal());
+			    L"'^0' 文件已经在其它面板中打开.", destFile.AsInternal());
 		WindowMessageBox(wSciTE, msg, MB_OK | MB_ICONWARNING);
 	} else {
 		SaveAs(absPath.AsInternal(), fixCase);
