@@ -12,17 +12,20 @@
 
 #if defined(HAVE_X11) && HAVE_X11
 #include <X11/Xlib.h>
-Display* GCdisplay;
 #endif
 
-#define CIFACE_PLUGIN_VERSION		0x0100
+#define PLUGIN_VERSION		0x0100
 
-#define CIFACE_PLUGIN_BRANDING		/*"Billiard's"//*/"Dolphin"
-#define CIFACE_PLUGIN_TYPE			"GCPad"
-#define CIFACE_PLUGIN_NAME			"New"
-//#define CIFACE_PLUGIN_VERSTR		"v1.0"
+#ifdef DEBUGFAST
+#define PLUGIN_FULL_NAME	"Dolphin GCPad New (DebugFast)"
+#else
+#ifdef _DEBUG
+#define PLUGIN_FULL_NAME	"Dolphin GCPad New (Debug)"
+#else
+#define PLUGIN_FULL_NAME	"Dolphin GCPad New"
+#endif
+#endif
 
-#define CIFACE_PLUGIN_FULL_NAME	CIFACE_PLUGIN_BRANDING" "CIFACE_PLUGIN_TYPE" "CIFACE_PLUGIN_NAME//" "CIFACE_PLUGIN_VERSTR
 
 #ifdef _WIN32
 class wxDLLApp : public wxApp
@@ -51,13 +54,16 @@ bool IsFocus()
 	else
 		return false;
 #elif defined HAVE_X11 && HAVE_X11
+	Display* GCdisplay = (Display*)g_PADInitialize->hWnd;
 	Window GLWin = *(Window *)g_PADInitialize->pXWindow;
+	bool bFocus = False;
+#if defined(HAVE_GTK2) && HAVE_GTK2 && defined(wxGTK)
+	bFocus = (wxPanel *)g_PADInitialize->pPanel == wxWindow::FindFocus();
+#endif
 	Window FocusWin;
 	int Revert;
-	XGetInputFocus((Display*)g_PADInitialize->hWnd, &FocusWin, &Revert);
-	XWindowAttributes WinAttribs;
-	XGetWindowAttributes (GCdisplay, GLWin, &WinAttribs);
-	return (GLWin != 0 && (GLWin == FocusWin || WinAttribs.override_redirect));
+	XGetInputFocus(GCdisplay, &FocusWin, &Revert);
+	return (GLWin == FocusWin || bFocus);
 #else
 	return true;
 #endif
@@ -107,10 +113,6 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved )
 #endif
 
 
-// wut ??
-#define EXPORT
-#define CALL
-
 int _last_numPAD = 4;
 
 
@@ -149,7 +151,7 @@ void InitPlugin( void* const hwnd )
 // input:   
 // output:   
 //
-EXPORT void CALL PAD_GetStatus(u8 _numPAD, SPADStatus* _pPADStatus)
+void PAD_GetStatus(u8 _numPAD, SPADStatus* _pPADStatus)
 {
 	// why not, i guess
 	if ( NULL == _pPADStatus )
@@ -159,16 +161,6 @@ EXPORT void CALL PAD_GetStatus(u8 _numPAD, SPADStatus* _pPADStatus)
 	_pPADStatus->err = PAD_ERR_NONE;
 	// wtf is this?	
 	_pPADStatus->button |= PAD_USE_ORIGIN;
-
-	// TODO: this will need changing
-	// need focus ?
-	// i'm not inside CritSec when I access this bool
-	//if ( false == (g_plugin.pads[_numPAD].options.allow_background_input || IsFocus()) )
-	//{
-	//	// center axes and return
-	//	memset( &_pPADStatus->stickX, 0x80, 4 );
-	//	return;
-	//}
 
 	// try lock
 	if ( false == g_plugin.controls_crit.TryEnter() )
@@ -189,8 +181,19 @@ EXPORT void CALL PAD_GetStatus(u8 _numPAD, SPADStatus* _pPADStatus)
 	}
 	_last_numPAD = _numPAD;
 	
-	// get input
-	((GCPad*)g_plugin.controllers[ _numPAD ])->GetInput( _pPADStatus );
+	// if we want background input or have focus
+	if ( g_plugin.controllers[_numPAD]->options[0].settings[0]->value || IsFocus() )
+	{
+		// get input
+		((GCPad*)g_plugin.controllers[ _numPAD ])->GetInput( _pPADStatus );
+	}
+	else
+	{
+		// center sticks
+		memset( &_pPADStatus->stickX, 0x80, 4 );
+		// stop rumble
+		((GCPad*)g_plugin.controllers[ _numPAD ])->SetOutput( false );
+	}
 
 	// leave
 	g_plugin.controls_crit.Leave();
@@ -203,7 +206,7 @@ EXPORT void CALL PAD_GetStatus(u8 _numPAD, SPADStatus* _pPADStatus)
 // input:   The key and if it's pressed or released
 // output:  None
 //
-EXPORT void CALL PAD_Input(u16 _Key, u8 _UpDown)
+void PAD_Input(u16 _Key, u8 _UpDown)
 {
 	// nofin
 }
@@ -214,13 +217,14 @@ EXPORT void CALL PAD_Input(u16 _Key, u8 _UpDown)
 // input:	 PAD number, Command type (Stop=0, Rumble=1, Stop Hard=2) and strength of Rumble
 // output:   none
 //
-EXPORT void CALL PAD_Rumble(u8 _numPAD, unsigned int _uType, unsigned int _uStrength)
+void PAD_Rumble(u8 _numPAD, unsigned int _uType, unsigned int _uStrength)
 {
 	// enter
 	if ( g_plugin.controls_crit.TryEnter() )
 	{
-		// only on/off rumble
-		((GCPad*)g_plugin.controllers[ _numPAD ])->SetOutput( 1 == _uType && _uStrength > 2 );
+		// only on/off rumble, if we have focus or background input on
+		if ( g_plugin.controllers[_numPAD]->options[0].settings[0]->value || IsFocus() )
+			((GCPad*)g_plugin.controllers[ _numPAD ])->SetOutput( 1 == _uType && _uStrength > 2 );
 
 		// leave
 		g_plugin.controls_crit.Leave();
@@ -236,14 +240,14 @@ EXPORT void CALL PAD_Rumble(u8 _numPAD, unsigned int _uType, unsigned int _uStre
 //           filled by the function. (see def above)
 // output:   none
 //
-EXPORT void CALL GetDllInfo(PLUGIN_INFO* _pPluginInfo)
+void GetDllInfo(PLUGIN_INFO* _pPluginInfo)
 {
 	// don't feel like messing around with all those strcpy functions and warnings
 	//char *s1 = CIFACE_PLUGIN_FULL_NAME, *s2 = _pPluginInfo->Name;
 	//while ( *s2++ = *s1++ );
-	memcpy( _pPluginInfo->Name, CIFACE_PLUGIN_FULL_NAME, sizeof(CIFACE_PLUGIN_FULL_NAME) );
+	memcpy( _pPluginInfo->Name, PLUGIN_FULL_NAME, sizeof(PLUGIN_FULL_NAME) );
 	_pPluginInfo->Type = PLUGIN_TYPE_PAD;
-	_pPluginInfo->Version = CIFACE_PLUGIN_VERSION;
+	_pPluginInfo->Version = PLUGIN_VERSION;
 }
 
 // ___________________________________________________________________________
@@ -253,18 +257,28 @@ EXPORT void CALL GetDllInfo(PLUGIN_INFO* _pPluginInfo)
 // input:    A handle to the window that calls this function
 // output:   none
 //
-EXPORT void CALL DllConfig(HWND _hParent)
+void DllConfig(HWND _hParent)
 {
 	bool was_init = false;
+#if defined(HAVE_X11) && HAVE_X11
+	Display *dpy = NULL;
+#endif
 	if ( g_plugin.controller_interface.IsInit() )	// hack for showing dialog when game isnt running
 		was_init = true;
 	else
-		InitPlugin( _hParent );
+	{
+#if defined(HAVE_X11) && HAVE_X11
+		dpy = XOpenDisplay(0);
+		InitPlugin(dpy);
+#else
+		InitPlugin(_hParent);
+#endif
+	}
 
 	// copied from GCPad
 #if defined(HAVE_WX) && HAVE_WX
 	wxWindow *frame = GetParentedWxWindow(_hParent);
-	ConfigDialog* m_ConfigFrame = new ConfigDialog( frame, g_plugin, CIFACE_PLUGIN_FULL_NAME, was_init );
+	ConfigDialog* m_ConfigFrame = new ConfigDialog( frame, g_plugin, PLUGIN_FULL_NAME, was_init );
 
 #ifdef _WIN32
 	frame->Disable();
@@ -286,8 +300,13 @@ EXPORT void CALL DllConfig(HWND _hParent)
 #endif
 	// /
 
-	if ( false == was_init )				// hack for showing dialog when game isnt running
+	if ( !was_init )				// hack for showing dialog when game isnt running
+	{
+#if defined(HAVE_X11) && HAVE_X11
+		XCloseDisplay(dpy);
+#endif
 		g_plugin.controller_interface.DeInit();
+	}
 }
 
 // ___________________________________________________________________________
@@ -296,7 +315,7 @@ EXPORT void CALL DllConfig(HWND _hParent)
 // input:    a handle to the window that calls this function
 // output:   none
 //
-EXPORT void CALL DllDebugger(HWND _hParent, bool Show)
+void DllDebugger(HWND _hParent, bool Show)
 {
 	// wut?
 }
@@ -307,7 +326,7 @@ EXPORT void CALL DllDebugger(HWND _hParent, bool Show)
 // input:    a pointer to the global struct
 // output:   none
 //
-EXPORT void CALL SetDllGlobals(PLUGIN_GLOBALS* _pPluginGlobals)
+void SetDllGlobals(PLUGIN_GLOBALS* _pPluginGlobals)
 {
 	// wut?
 }
@@ -318,8 +337,9 @@ EXPORT void CALL SetDllGlobals(PLUGIN_GLOBALS* _pPluginGlobals)
 // input:    Init
 // output:   none
 //
-EXPORT void CALL Initialize(void *init)
+void Initialize(void *init)
 {
+	g_PADInitialize = (SPADInitialize*)init;
 	if ( false == g_plugin.controller_interface.IsInit() )
 		InitPlugin( ((SPADInitialize*)init)->hWnd );
 }
@@ -331,7 +351,7 @@ EXPORT void CALL Initialize(void *init)
 // input:    none
 // output:   none
 //
-EXPORT void CALL Shutdown(void)
+void Shutdown(void)
 {
 	//plugin.controls_crit.Enter();	// enter
 	if ( g_plugin.controller_interface.IsInit() )
@@ -345,7 +365,7 @@ EXPORT void CALL Shutdown(void)
 // input/output: ptr
 // input: mode
 //
-EXPORT void CALL DoState(unsigned char **ptr, int mode)
+void DoState(unsigned char **ptr, int mode)
 {
 	// prolly won't need this
 }
@@ -356,7 +376,7 @@ EXPORT void CALL DoState(unsigned char **ptr, int mode)
 // input:    newState
 // output:   none
 //
-EXPORT void CALL EmuStateChange(PLUGIN_EMUSTATE newState)
+void EmuStateChange(PLUGIN_EMUSTATE newState)
 {
 	// maybe use this later
 }

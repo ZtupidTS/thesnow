@@ -368,7 +368,7 @@ FixupBranch XEmitter::J_CC(CCFlags conditionCode, bool force5bytes)
 {
 	FixupBranch branch;
 	branch.type = force5bytes ? 1 : 0;
-	branch.ptr = code + (force5bytes ? 5 : 2);
+	branch.ptr = code + (force5bytes ? 6 : 2);
 	if (!force5bytes)
 	{
 		//8 bits will do
@@ -985,7 +985,7 @@ void XEmitter::IMUL(int bits, X64Reg regOp, OpArg a)
 	if (a.IsImm())
 	{
 		IMUL(bits, regOp, R(regOp), a) ;
-		return ;
+		return;
 	}
 
 	if (bits == 16)

@@ -20,6 +20,13 @@
 #include "VertexLoader.h"
 #include "VertexLoader_TextCoord.h"
 #include "NativeVertexWriter.h"
+#include "CPUDetect.h"
+
+#if _M_SSE >= 0x401
+#include <smmintrin.h>
+#elif _M_SSE >= 0x301
+#include <tmmintrin.h>
+#endif
 
 #define LOG_TEX1() // PRIM_LOG("tex: %f, ", ((float*)VertexManager::s_pCurBufferPointer)[0]);
 #define LOG_TEX2() // PRIM_LOG("tex: %f %f, ", ((float*)VertexManager::s_pCurBufferPointer)[0], ((float*)VertexManager::s_pCurBufferPointer)[1]);
@@ -284,10 +291,11 @@ void LOADERDECL TexCoord_ReadIndex16_Short1()
 	VertexManager::s_pCurBufferPointer += 4;
 	tcIndex++;
 }
+
 void LOADERDECL TexCoord_ReadIndex16_Short2()	
 {
 	// Heavy in ZWW
-	u16 Index = DataReadU16(); 
+	u16 Index = DataReadU16();
 	const u16 *pData = (const u16 *)(cached_arraybases[ARRAY_TEXCOORD0+tcIndex] + (Index * arraystrides[ARRAY_TEXCOORD0+tcIndex]));
 	((float*)VertexManager::s_pCurBufferPointer)[0] = (float)(s16)Common::swap16(pData[0]) * tcScale[tcIndex];
 	((float*)VertexManager::s_pCurBufferPointer)[1] = (float)(s16)Common::swap16(pData[1]) * tcScale[tcIndex];
@@ -295,6 +303,27 @@ void LOADERDECL TexCoord_ReadIndex16_Short2()
 	VertexManager::s_pCurBufferPointer += 8;
 	tcIndex++;
 }
+
+#if _M_SSE >= 0x401
+static const __m128i kMaskSwap16_2 = _mm_set_epi32(0xFFFFFFFFL, 0xFFFFFFFFL, 0xFFFFFFFFL, 0x02030001L);
+
+void LOADERDECL TexCoord_ReadIndex16_Short2_SSE4()	
+{
+	// Heavy in ZWW
+	u16 Index = DataReadU16();
+	const s32 *pData = (const s32*)(cached_arraybases[ARRAY_TEXCOORD0+tcIndex] + (Index * arraystrides[ARRAY_TEXCOORD0+tcIndex]));
+	const __m128i a = _mm_cvtsi32_si128(*pData);
+	const __m128i b = _mm_shuffle_epi8(a, kMaskSwap16_2);
+	const __m128i c = _mm_cvtepi16_epi32(b);
+	const __m128 d = _mm_cvtepi32_ps(c);
+	const __m128 e = _mm_load1_ps(&tcScale[tcIndex]);
+	const __m128 f = _mm_mul_ps(d, e);
+	_mm_storeu_ps((float*)VertexManager::s_pCurBufferPointer, f);
+	LOG_TEX2();
+	VertexManager::s_pCurBufferPointer += 8;
+	tcIndex++;
+}
+#endif
 
 void LOADERDECL TexCoord_ReadIndex16_Float1()	
 {
@@ -305,7 +334,8 @@ void LOADERDECL TexCoord_ReadIndex16_Float1()
 	VertexManager::s_pCurBufferPointer += 4;
 	tcIndex++;
 }
-void LOADERDECL TexCoord_ReadIndex16_Float2()	
+
+void LOADERDECL TexCoord_ReadIndex16_Float2()
 {
 	u16 Index = DataReadU16(); 
 	const u32 *pData = (const u32 *)(cached_arraybases[ARRAY_TEXCOORD0+tcIndex] + (Index * arraystrides[ARRAY_TEXCOORD0+tcIndex]));
@@ -316,7 +346,25 @@ void LOADERDECL TexCoord_ReadIndex16_Float2()
 	tcIndex++;
 }
 
-ReadTexCoord tableReadTexCoord[4][8][2] = {
+#if _M_SSE >= 0x301
+static const __m128i kMaskSwap32 = _mm_set_epi32(0xFFFFFFFFL, 0xFFFFFFFFL, 0x04050607L, 0x00010203L);
+
+void LOADERDECL TexCoord_ReadIndex16_Float2_SSSE3()
+{
+	u16 Index = DataReadU16(); 
+	const u32 *pData = (const u32 *)(cached_arraybases[ARRAY_TEXCOORD0+tcIndex] + (Index * arraystrides[ARRAY_TEXCOORD0+tcIndex]));
+	const __m128i a = _mm_loadl_epi64((__m128i*)pData);
+	const __m128i b = _mm_shuffle_epi8(a, kMaskSwap32);
+	u8* p = VertexManager::s_pCurBufferPointer;
+	_mm_storel_epi64((__m128i*)p, b);
+	LOG_TEX2();
+	p += 8;
+	VertexManager::s_pCurBufferPointer = p;
+	tcIndex++;
+}
+#endif
+
+static TPipelineFunction tableReadTexCoord[4][8][2] = {
 	{
 		{NULL, NULL,},
 		{NULL, NULL,},
@@ -347,7 +395,7 @@ ReadTexCoord tableReadTexCoord[4][8][2] = {
 	},
 };
 
-int tableReadTexCoordVertexSize[4][8][2] = {
+static int tableReadTexCoordVertexSize[4][8][2] = {
 	{
 		{0, 0,},
 		{0, 0,},
@@ -377,3 +425,35 @@ int tableReadTexCoordVertexSize[4][8][2] = {
 		{2, 2,},
 	},
 };
+
+void VertexLoader_TextCoord::Init(void) {
+
+#if _M_SSE >= 0x301
+
+	if (cpu_info.bSSSE3) {
+		tableReadTexCoord[3][4][1] = TexCoord_ReadIndex16_Float2_SSSE3;
+	}
+
+#endif
+
+#if _M_SSE >= 0x401
+
+	if (cpu_info.bSSE4_1) {
+		tableReadTexCoord[3][3][1] = TexCoord_ReadIndex16_Short2_SSE4;
+	}
+
+#endif
+
+}
+
+unsigned int VertexLoader_TextCoord::GetSize(unsigned int _type, unsigned int _format, unsigned int _elements) {
+	return tableReadTexCoordVertexSize[_type][_format][_elements];
+}
+
+TPipelineFunction VertexLoader_TextCoord::GetFunction(unsigned int _type, unsigned int _format, unsigned int _elements) {
+	return tableReadTexCoord[_type][_format][_elements];
+}
+
+TPipelineFunction VertexLoader_TextCoord::GetDummyFunction() {
+	return TexCoord_Read_Dummy;
+}
