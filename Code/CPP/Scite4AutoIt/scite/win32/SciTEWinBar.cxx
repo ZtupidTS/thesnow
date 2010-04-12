@@ -69,7 +69,8 @@ void SciTEWin::SetFileAttrib(
  * Update the status bar text.
  */
 void SciTEWin::SetStatusBarText(const char *s) {
-	GUI::gui_string barText = GUI::StringFromUTF8(s);
+	GUI::gui_string barText = SString(s).w_str();
+//	GUI::gui_string barText = GUI::StringFromUTF8(s);
 	::SendMessage(reinterpret_cast<HWND>(wStatusBar.GetID()),
 	              SB_SETTEXT, 0, reinterpret_cast<LPARAM>(barText.c_str()));
 }
@@ -265,7 +266,8 @@ void SciTEWin::Notify(SCNotification *notification) {
 				break;
 			}
 			if (ttext) {
-				GUI::gui_string localised = localiser.Text(GUI::UTF8FromString(ttext).c_str());
+//				GUI::gui_string localised = localiser.Text(GUI::UTF8FromString(ttext).c_str());
+				GUI::gui_string localised = ttext;
 				wcscpy(ttt, localised.c_str());
 				pDispInfo->lpszText = ttt;
 			}
@@ -624,7 +626,7 @@ void SciTEWin::LocaliseMenu(HMENU hmenu) {
 					} else {
 						accel = GUI_TEXT("");
 					}
-					text = localiser.Text(GUI::UTF8FromString(text.c_str()).c_str(), true);
+//					text = localiser.Text(GUI::UTF8FromString(text.c_str()).c_str(), true);
 					if (text.length()) {
 						if (accel != GUI_TEXT("")) {
 							text += GUI_TEXT("\t");

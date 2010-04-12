@@ -302,6 +302,7 @@ const char *contributors[] = {
             "Oliver Kiddle",
             "Etienne Girondel",
             "Haimag Ren",
+            "Andrey Moskalyov",
         };
 
 // AddStyledText only called from About so static size buffer is OK
@@ -379,7 +380,7 @@ void SciTEBase::SetAboutMessage(GUI::ScintillaWindow &wsci, const char *appTitle
 		}
 #endif
 		AddStyledText(wsci, GetTranslationToAbout("Version").c_str(), trsSty);
-		AddStyledText(wsci, " 2.10\n", 1);
+		AddStyledText(wsci, " 2.11\n", 1);
 		AddStyledText(wsci, " Build On: " __DATE__ " " __TIME__ "\n", 1);
 		SetAboutStyle(wsci, 2, ColourRGB(0, 0, 0));
 		wsci.Send(SCI_STYLESETITALIC, 2, 1);
@@ -421,7 +422,7 @@ void SciTEBase::SetAboutMessage(GUI::ScintillaWindow &wsci, const char *appTitle
 		wsci.Send(SCI_SETREADONLY, 1, 0);
 	}
 }
-
+/*
 #if !defined(GTK)
 static unsigned int UTF8Length(const wchar_t *uptr, unsigned int tlen) {
 	unsigned int len = 0;
@@ -455,7 +456,7 @@ static void UTF8FromUCS2(const wchar_t *uptr, unsigned int tlen, char *putf, uns
 	putf[len] = '\0';
 }
 #endif
-
+*/
 
 void DONATE_MSG(){
 		wchar_t *msg = 
