@@ -446,6 +446,22 @@
 				>
 			</File>
 		</Filter>
+		<Filter
+		   Name="JIT"
+		   >
+		  <File
+			 RelativePath=".\Src\Jit\DSPJitExtOps.cpp"
+			  >
+			</File>
+		  <File
+			 RelativePath=".\Src\Jit\DSPJitUtil.cpp"
+			  >
+			</File>
+	      <File
+			 RelativePath=".\Src\Jit\DSPJitMisc.cpp"
+			  >
+			</File>
+		  </Filter>
 		<File
 			RelativePath=".\Src\assemble.cpp"
 			>
@@ -499,6 +515,10 @@
 			>
 		</File>
 		<File
+		    RelativePath=".\Src\DSPCommon.h"
+		    >
+		</File>
+		<File
 			RelativePath=".\Src\DSPCore.h"
 			>
 		</File>
@@ -523,11 +543,11 @@
 			>
 		</File>
 		<File
-			RelativePath=".\Src\DSPJit.cpp"
+			RelativePath=".\Src\DSPEmitter.cpp"
 			>
 		</File>
 		<File
-			RelativePath=".\Src\DSPJit.h"
+			RelativePath=".\Src\DSPEmitter.h"
 			>
 		</File>
 		<File
