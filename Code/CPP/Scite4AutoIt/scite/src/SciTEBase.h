@@ -754,6 +754,7 @@ protected:
 	int SaveAllBuffers(bool forceQuestion, bool alwaysYes = false);
 	void SaveTitledBuffers();
 	virtual void CopyAsRTF() {};
+	virtual void CopyPath() {};
 	void SetLineNumberWidth();
 	void MenuCommand(int cmdID, int source = 0);
 	void FoldChanged(int line, int levelNow, int levelPrev);
@@ -828,8 +829,10 @@ protected:
 	void SetPropertiesInitial();
 	GUI::gui_string LocaliseMessage(const char *s,
 		const GUI::gui_char *param0 = 0, const GUI::gui_char *param1 = 0, const GUI::gui_char *param2 = 0);
+//added
 	GUI::gui_string LocaliseMessage(const wchar_t *s,
 		const GUI::gui_char *param0 = 0, const GUI::gui_char *param1 = 0, const GUI::gui_char *param2 = 0);
+//added
 	virtual void ReadLocalization();
 	SString GetFileNameProperty(const char *name);
 	virtual void ReadPropertiesInitial();

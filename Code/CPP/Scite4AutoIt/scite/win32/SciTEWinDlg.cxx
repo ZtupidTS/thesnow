@@ -202,7 +202,9 @@ GUI::gui_string SciTEWin::DialogFilterFromProperty(const GUI::gui_char *filterPr
 
 bool SciTEWin::OpenDialog(FilePath directory, const GUI::gui_char *filter) {
 	enum {maxBufferSize=2048};
+
 	GUI::gui_string openFilter = DialogFilterFromProperty(filter);
+
 	if (!openWhat[0]) {
 		//wcscpy(openWhat, localiser.Text("自定义类型").c_str());
 		wcscpy(openWhat,TEXT("自定义类型"));
@@ -400,7 +402,7 @@ void SciTEWin::SaveSessionDialog() {
 	GUI::gui_char saveName[MAX_PATH] = GUI_TEXT("\0");
 	wcscpy(saveName, GUI_TEXT("SciTE.session"));
 	OPENFILENAMEW ofn = {
-			       sizeof(ofn), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+			       sizeof(ofn), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 			   };
 	ofn.hwndOwner = MainHWND();
 	ofn.hInstance = hInstance;
@@ -1694,13 +1696,27 @@ void SciTEWin::FindMessageBox(const SString &msg, const SString *findItem) {
 	}
 }
 
+LRESULT CALLBACK CreditsWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+	if (uMsg == WM_GETDLGCODE)
+		return DLGC_STATIC | DLGC_WANTARROWS | DLGC_WANTCHARS;
+
+	WNDPROC lpPrevWndProc = reinterpret_cast<WNDPROC>(::GetWindowLong(hwnd, GWL_USERDATA));
+	if (lpPrevWndProc)
+		return ::CallWindowProc(lpPrevWndProc, hwnd, uMsg, wParam, lParam);
+
+	return ::DefWindowProc(hwnd, uMsg, wParam, lParam);
+}
+
 BOOL SciTEWin::AboutMessage(HWND hDlg, UINT message, WPARAM wParam) {
 	switch (message) {
 
 	case WM_INITDIALOG: {
 		LocaliseDialog(hDlg);
 		GUI::ScintillaWindow ss;
-		ss.SetID(::GetDlgItem(hDlg, IDABOUTSCINTILLA));
+		HWND hwndCredits = ::GetDlgItem(hDlg, IDABOUTSCINTILLA);
+		LONG subclassedProc = ::SetWindowLong(hwndCredits, GWL_WNDPROC, reinterpret_cast<LONG>(CreditsWndProc));
+		::SetWindowLong(hwndCredits, GWL_USERDATA, subclassedProc);
+		ss.SetID(hwndCredits);
 		SetAboutMessage(ss, staticBuild ? "Sc1  " : "SciTE");
 		}
 		return TRUE;

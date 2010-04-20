@@ -1,11 +1,12 @@
 @echo Setting environment for using Microsoft Visual Studio 2008 x86 tools.
+@cd /d "%~dp0"
 @echo.
 @echo ==============================
 @SET REG=SOFTWARE
 @if "%PROCESSOR_ARCHITECTURE%"=="AMD64" SET REG=SOFTWARE\Wow6432Node
-@call :GetVSDir HKLM
+@call :GetVSDir
 @echo VS2008 DIR:%VSINSTALLDIR%
-@call :GetVCDir HKLM
+@call :GetVCDir
 @echo VC2008 DIR:%VCINSTALLDIR%
 @echo ==============================
 @if "%VSINSTALLDIR%"=="" goto error_no_VSINSTALLDIR
@@ -29,7 +30,7 @@
 @set LIB=%VCINSTALLDIR%\ATLMFC\LIB;%VCINSTALLDIR%\LIB;%LIB%
 @set LIBPATH=%VCINSTALLDIR%\ATLMFC\LIB;%VCINSTALLDIR%\LIB;%LIBPATH%
 
-@goto end
+@goto EnvOK
 
 :GetWindowsSdkDir
 @call :GetWindowsSdkDirHelper HKLM > nul 2>&1
@@ -89,7 +90,7 @@ EXIT
 @PAUSE
 EXIT
 
-:end
+:EnvOK
 @echo SciTe Compling ...
 @title SciTe Compling ...
 @cd win32

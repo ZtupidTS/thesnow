@@ -33,6 +33,24 @@ const GUI::gui_char appName[] = GUI_TEXT("SciTE(thesnoW)");
 #endif
 #endif
 
+static GUI::gui_string GetErrorMessage(DWORD nRet) {
+	LPWSTR lpMsgBuf = NULL;
+	::FormatMessage(
+	    FORMAT_MESSAGE_ALLOCATE_BUFFER |
+	    FORMAT_MESSAGE_FROM_SYSTEM |
+	    FORMAT_MESSAGE_IGNORE_INSERTS,
+	    NULL,
+	    nRet,
+	    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),   // Default language
+	    reinterpret_cast<LPWSTR>(&lpMsgBuf),
+	    0,
+	    NULL
+	);
+	GUI::gui_string s= lpMsgBuf;
+	::LocalFree(lpMsgBuf);
+	return s;
+}
+
 long SciTEKeys::ParseKeyCode(const char *mnemonic) {
 	int modsInKey = 0;
 	int keyval = -1;
@@ -444,6 +462,23 @@ void SciTEWin::CopyAsRTF() {
 		}
 		unlink(fileNameTemp);
 		free(fileNameTemp);
+	}
+}
+
+void SciTEWin::CopyPath() {
+	if (filePath.IsUntitled())
+		return;
+
+	GUI::gui_string clipText(filePath.AsInternal());
+	size_t blobSize = sizeof(GUI::gui_char)*(clipText.length()+1);
+	HGLOBAL hand = ::GlobalAlloc(GMEM_MOVEABLE | GMEM_ZEROINIT, blobSize);
+	if (hand && ::OpenClipboard(MainHWND())) {
+		::EmptyClipboard();
+		GUI::gui_char *ptr = static_cast<GUI::gui_char*>(::GlobalLock(hand));
+		memcpy(ptr, clipText.c_str(), blobSize);
+		::GlobalUnlock(hand);
+		::SetClipboardData(CF_UNICODETEXT, hand);
+		::CloseClipboard();
 	}
 }
 
@@ -882,21 +917,8 @@ DWORD SciTEWin::ExecuteOne(const Job &jobToRun, bool &seenOutput) {
 
 	} else {
 		DWORD nRet = ::GetLastError();
-		LPTSTR lpMsgBuf = NULL;
-		::FormatMessage(
-		    FORMAT_MESSAGE_ALLOCATE_BUFFER |
-		    FORMAT_MESSAGE_FROM_SYSTEM |
-		    FORMAT_MESSAGE_IGNORE_INSERTS,
-		    NULL,
-		    nRet,
-		    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),   // Default language
-		    reinterpret_cast<LPTSTR>(&lpMsgBuf),
-		    0,
-		    NULL
-		);
 		OutputAppendStringSynchronised(">");
-		OutputAppendEncodedStringSynchronised(lpMsgBuf, codePage);
-		::LocalFree(lpMsgBuf);
+		OutputAppendEncodedStringSynchronised(GetErrorMessage(nRet), codePage);
 		WarnUser(warnExecuteKO);
 	}
 	::CloseHandle(hPipeRead);
@@ -1009,61 +1031,31 @@ void SciTEWin::ShellExec(const SString &cmd, const char *dir) {
 	GUI::gui_string sMycmd = GUI::StringFromUTF8(mycmd);
 	GUI::gui_string sMyparams = GUI::StringFromUTF8(myparams);
 	GUI::gui_string sDir = GUI::StringFromUTF8(dir);
-	uptr_t rc = reinterpret_cast<uptr_t>(
-	                ::ShellExecute(
-	                    MainHWND(),          // parent wnd for msgboxes during app start
-	                    NULL,           // cmd is open
-	                    sMycmd.c_str(),          // file to open
-	                    sMyparams.c_str(),          // parameters
-	                    sDir.c_str(),          // launch directory
-	                    SW_SHOWNORMAL)); //default show cmd
 
+	SHELLEXECUTEINFO exec= { sizeof (exec), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	exec.fMask= SEE_MASK_FLAG_NO_UI; // own msg box on return
+	exec.hwnd= MainHWND();
+	exec.lpVerb= L"open";  // better for executables to use "open" instead of NULL
+	exec.lpFile= sMycmd.c_str();   // file to open
+	exec.lpParameters= sMyparams.c_str(); // parameters
+	exec.lpDirectory= sDir.c_str(); // launch directory
+	exec.nShow= SW_SHOWNORMAL; //default show cmd
 
-	if (rc > 32) {
+	if (::ShellExecuteEx(&exec)) {
 		// it worked!
 		delete []mycmdcopy;
 		return;
 	}
+	DWORD rc = GetLastError();
 
-	const int numErrcodes = 15;
-	static const ShellErr field[numErrcodes] = {
-	            { 0, "操作系统溢出内存或者资源." },
-	            { ERROR_FILE_NOT_FOUND, "指定文件没有找到." },
-	            { ERROR_PATH_NOT_FOUND, "指定路径没有找到." },
-	            { ERROR_BAD_FORMAT, " .exe 是无效的 (不是一个Win32\256 .exe 或者.exe文件中含有错误)." },
-	            { SE_ERR_ACCESSDENIED, "操作系统拒绝使用这个文件." },
-	            { SE_ERR_ASSOCINCOMPLETE, "文件扩展名不完整或者无效." },
-	            { SE_ERR_DDEBUSY, "DDE 通讯不能完成,因为其它DDE通信正在进行." },
-	            { SE_ERR_DDEFAIL, "DDE 通讯失败." },
-	            { SE_ERR_DDETIMEOUT, "DDE 通信失败,因为请求超时." },
-	            { SE_ERR_DLLNOTFOUND, "指定的动态链接库没有找到." },
-	            { SE_ERR_FNF, "指定的文件不存在." },
-	            { SE_ERR_NOASSOC, "There is no application associated with the given file name extension." },
-	            { SE_ERR_OOM, "没有足够的内存完成此操作." },
-	            { SE_ERR_PNF, "指定的路径不存在." },
-	            { SE_ERR_SHARE, "A sharing violation occurred." },
-	        };
-
-	int i;
-	for (i = 0; i < numErrcodes; ++i) {
-		if (field[i].code == rc)
-			break;
-	}
-
-	SString errormsg("出现错误于启动:\n\"");
+	SString errormsg("Error while launching:\n\"");
 	errormsg += mycmdcopy;
 	if (myparams != NULL) {
 		errormsg += "\" with Params:\n\"";
 		errormsg += myparams;
 	}
 	errormsg += "\"\n";
-	if (i < numErrcodes) {
-		errormsg += field[i].descr;
-	} else {
-		errormsg += "未知错误代码: ";
-		errormsg += SString(rc);
-	}
-	GUI::gui_string sErrorMsg = GUI::StringFromUTF8(errormsg.c_str());
+	GUI::gui_string sErrorMsg = GUI::StringFromUTF8(errormsg.c_str()) + GetErrorMessage(rc);
 	WindowMessageBox(wSciTE, sErrorMsg, MB_OK);
 
 	delete []mycmdcopy;
@@ -1384,12 +1376,11 @@ void SciTEWin::DropFiles(HDROP hdrop) {
 	// Scintilla, hdrop is null, and an exception is generated!
 	if (hdrop) {
 		int filesDropped = ::DragQueryFile(hdrop, 0xffffffff, NULL, 0);
+		// Append paths to dropFilesQueue, to finish drag operation soon
 		for (int i = 0; i < filesDropped; ++i) {
 			GUI::gui_char pathDropped[MAX_PATH];
 			::DragQueryFileW(hdrop, i, pathDropped, ELEMENTS(pathDropped));
-			if (!Open(pathDropped)) {
-				break;
-			}
+			dropFilesQueue.push_back(pathDropped);
 		}
 		::DragFinish(hdrop);
 		// Put SciTE to forefront
@@ -1400,6 +1391,11 @@ void SciTEWin::DropFiles(HDROP hdrop) {
 			::ShowWindow(MainHWND(), SW_RESTORE);
 		}
 		::SetForegroundWindow(MainHWND());
+		// Post message to ourself for opening the files so we can finish the drop message and
+		// the drop source will respond when open operation takes long time (opening big files...)
+		if (filesDropped > 0) {
+			::PostMessage(MainHWND(), SCITE_DROP, 0, 0);
+		}
 	}
 }
 
@@ -1532,7 +1528,7 @@ void SciTEWin::MinimizeToTray() {
 	nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
 	nid.uCallbackMessage = SCITE_TRAY;
 	nid.hIcon = static_cast<HICON>(
-	                ::LoadImageW(hInstance, L"SCITE", IMAGE_ICON, 16, 16, LR_DEFAULTSIZE));
+	                ::LoadImage(hInstance, L"SCITE", IMAGE_ICON, 16, 16, LR_DEFAULTSIZE));
 	wcscpy(nid.szTip, n);
 	::ShowWindow(MainHWND(), SW_MINIMIZE);
 	if (::Shell_NotifyIcon(NIM_ADD, &nid)) {
@@ -1718,6 +1714,20 @@ LRESULT SciTEWin::WndProc(UINT iMessage, WPARAM wParam, LPARAM lParam) {
 				RestoreFromTray();
 				::ShowWindow(MainHWND(), SW_RESTORE);
 				::FlashWindow(MainHWND(), FALSE);
+			}
+			break;
+
+		case SCITE_DROP:
+			// Open the files
+			while (!dropFilesQueue.empty()) {
+				FilePath file(dropFilesQueue.front());
+				dropFilesQueue.pop_front();
+				if (file.Exists()) {
+					Open(file.AsInternal());
+				} else {
+					GUI::gui_string msg = LocaliseMessage("Could not open file '^0'.", file.AsInternal());
+					WindowMessageBox(wSciTE, msg, MB_OK | MB_ICONWARNING);
+				}
 			}
 			break;
 
@@ -2060,11 +2070,11 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 #endif
 #endif
 
-	SciTEWin::Register(hInstance);			//注册hInstance
+	SciTEWin::Register(hInstance);
 #ifdef STATIC_BUILD
 
-	Scintilla_LinkLexers();					//连接表达式
-	Scintilla_RegisterClasses(hInstance);	//注册类
+	Scintilla_LinkLexers();
+	Scintilla_RegisterClasses(hInstance);
 #else
 
 	HMODULE hmod = ::LoadLibrary(TEXT("SciLexer.DLL"));
@@ -2075,7 +2085,7 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 
 	int result;
 	{
-		SciTEWin MainWind(extender);		//属性文件处理
+		SciTEWin MainWind(extender);
 		LPTSTR lptszCmdLine = GetCommandLine();
 		if (*lptszCmdLine == '\"') {
 			lptszCmdLine++;
@@ -2090,14 +2100,14 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 		while (*lptszCmdLine == ' ')
 			lptszCmdLine++;
 		MainWind.Run(lptszCmdLine);
-		result = MainWind.EventLoop();		//事件循环
+		result = MainWind.EventLoop();
 	}
 
 #ifdef STATIC_BUILD
-	Scintilla_ReleaseResources();			//释放资源
+	Scintilla_ReleaseResources();
 #else
 
-	::FreeLibrary(hmod);				//释放DLL
+	::FreeLibrary(hmod);
 #endif
 
 	return result;

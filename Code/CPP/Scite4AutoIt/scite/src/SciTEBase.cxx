@@ -2979,6 +2979,10 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		if (OpenSelected())
 			WindowSetFocus(wEditor);
 		break;
+	case IDM_REVERT:
+		Revert();
+		WindowSetFocus(wEditor);
+		break;
 	case IDM_CLOSE:
 		if (SaveIfUnsure() != IDCANCEL) {
 			Close();
@@ -3003,6 +3007,9 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		SaveACopy();
 		WindowSetFocus(wEditor);
 		break;
+	case IDM_COPYPATH:
+		CopyPath();
+		break;
 	case IDM_SAVEASHTML:
 		SaveAsHTML();
 		WindowSetFocus(wEditor);
@@ -3021,10 +3028,6 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		break;
 	case IDM_SAVEASXML:
 		SaveAsXML();
-		WindowSetFocus(wEditor);
-		break;
-	case IDM_REVERT:
-		Revert();
 		WindowSetFocus(wEditor);
 		break;
 	case IDM_PRINT:
