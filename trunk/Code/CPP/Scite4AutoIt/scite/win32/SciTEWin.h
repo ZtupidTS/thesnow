@@ -19,6 +19,7 @@
 
 #include <string>
 #include <vector>
+#include <deque>
 #include <map>
 #include <algorithm>
 
@@ -33,7 +34,7 @@
 #endif
 #endif
 
-#define _WIN32_WINNT  0x0500	//moded
+#define _WIN32_WINNT  0x0500
 #ifdef _MSC_VER
 // windows.h, et al, use a lot of nameless struct/unions - can't fix it, so allow it
 #pragma warning(disable: 4201)
@@ -78,6 +79,7 @@
 #include "UniqueInstance.h"
 
 const int SCITE_TRAY = WM_APP + 0;
+const int SCITE_DROP = WM_APP + 1;
 
 class Dialog;
 
@@ -99,6 +101,7 @@ protected:
 	int filterDefault;
 	bool staticBuild;
 	int menuSource;
+	std::deque<GUI::gui_string> dropFilesQueue;
 
 	// Fields also used in tool execution thread
 	HANDLE hWriteSubProcess;
@@ -211,6 +214,7 @@ protected:
 	void ExecuteHelp(const char *cmd);
 	void ExecuteOtherHelp(const char *cmd);
 	void CopyAsRTF();
+	void CopyPath();
 	void FullScreenToggle();
 	void Command(WPARAM wParam, LPARAM lParam);
 	HWND MainHWND();

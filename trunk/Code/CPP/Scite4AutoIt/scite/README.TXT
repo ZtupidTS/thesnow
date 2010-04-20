@@ -6,7 +6,7 @@ Scintilla 可以编译自己.
 
 *** GTK+/Linux 版本 ***
 不再支持
-You must first have GTK+ 2.0 or later and GCC (3.1 or better) installed.
+You must first have GTK+ 2.0 or later and GCC (4.1 or better) installed.
 GTK+ 1.x will not work.
 Other C++ compilers may work but may require tweaking the make file.
 
@@ -41,7 +41,7 @@ The current make file only supports static linking between SciTE and Scintilla.
 *** Windows 版本 ***
 
 你需要一个 C++ 编译器. Visual Studio 2008 为本软件的开发环境.
-同样支持 Mingw32 3.1.但未经过测试.
+同样支持 Mingw32 4.4.1.但未经过测试.
 For older versions of Borland C++ such as version 5.02, add the -l option.
 
 要编译 Scintilla, make in the scintilla/win32 directory
