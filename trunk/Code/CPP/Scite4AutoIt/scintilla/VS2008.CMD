@@ -1,4 +1,5 @@
 @echo Setting environment for using Microsoft Visual Studio 2008 x86 tools.
+@cd /d "%~dp0"
 @echo.
 @echo ==============================
 @SET REG=SOFTWARE
@@ -29,7 +30,7 @@
 @set LIB=%VCINSTALLDIR%\ATLMFC\LIB;%VCINSTALLDIR%\LIB;%LIB%
 @set LIBPATH=%VCINSTALLDIR%\ATLMFC\LIB;%VCINSTALLDIR%\LIB;%LIBPATH%
 
-@goto end
+@goto EnvOK
 
 :GetWindowsSdkDir
 @call :GetWindowsSdkDirHelper HKLM > nul 2>&1
@@ -89,7 +90,7 @@ EXIT
 @PAUSE
 EXIT
 
-:end
+:EnvOK
 @echo Scintilla Compling ...
 @title Scintilla Compling ...
 @cd win32

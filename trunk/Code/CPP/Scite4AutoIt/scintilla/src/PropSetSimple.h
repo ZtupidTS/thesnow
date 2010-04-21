@@ -19,9 +19,7 @@ public:
 	PropSetSimple();
 	virtual ~PropSetSimple();
 	void Set(const char *key, const char *val, int lenKey=-1, int lenVal=-1);
-//	void Set(const wchar_t *key, const wchar_t *val, int lenKey=-1, int lenVal=-1);		//added
 	void SetMultiple(const char *);
-//	void SetMultiple(const wchar_t *);													//added
 	const char *Get(const char *key) const;
 	char *Expanded(const char *key) const;
 	char *ToString() const;

@@ -882,8 +882,8 @@ static void FoldAU3Doc(unsigned int startPos, int length, int, WordList *[], Acc
 				ThenFoundLast = false;
 			}
 		}
-		// 储存最后处理的字符
-		if (!isspacechar(ch)) {	//如果不是空白符
+		// save the last processed character
+		if (!isspacechar(ch)) {
 			chPrev = ch;
 			visibleChars++;
 		}
@@ -891,7 +891,7 @@ static void FoldAU3Doc(unsigned int startPos, int length, int, WordList *[], Acc
 }
 
 
-// AU3 单词 列表
+//
 
 static const char * const AU3WordLists[] = {
     "#autoit keywords",
