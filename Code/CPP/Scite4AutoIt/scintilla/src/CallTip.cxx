@@ -53,7 +53,7 @@ CallTip::~CallTip() {
 	delete []val;
 	val = 0;
 }
-//刷新着色调色板
+
 void CallTip::RefreshColourPalette(Palette &pal, bool want) {
 	pal.WantFind(colourBG, want);
 	pal.WantFind(colourUnSel, want);
@@ -63,17 +63,15 @@ void CallTip::RefreshColourPalette(Palette &pal, bool want) {
 }
 
 // Although this test includes 0, we should never see a \0 character.
-//是不是箭头字符
 static bool IsArrowCharacter(char ch) {
 	return (ch == 0) || (ch == '\001') || (ch == '\002');
 }
 
 // We ignore tabs unless a tab width has been set.
-//是不是tab字符
 bool CallTip::IsTabCharacter(char ch) const {
 	return (tabSize > 0) && (ch == '\t');
 }
-//下一个tab坐标
+
 int CallTip::NextTabPos(int x) {
 	if (tabSize > 0) {              // paranoia... not called unless this is true
 		x -= insetX;                // position relative to text
@@ -166,7 +164,7 @@ void CallTip::DrawChunk(Surface *surface, int &x, const char *s,
 		}
 	}
 }
-//内容绘图
+
 int CallTip::PaintContents(Surface *surfaceWindow, bool draw) {
 	PRectangle rcClientPos = wCallTip.GetClientPosition();
 	PRectangle rcClientSize(0, 0, rcClientPos.right - rcClientPos.left,
@@ -217,7 +215,7 @@ int CallTip::PaintContents(Surface *surfaceWindow, bool draw) {
 	}
 	return maxWidth;
 }
-//绘图客户区
+
 void CallTip::PaintCT(Surface *surfaceWindow) {
 	if (!val)
 		return;
@@ -243,56 +241,50 @@ void CallTip::PaintCT(Surface *surfaceWindow) {
 	surfaceWindow->LineTo(0, rcClientSize.bottom - 1);
 #endif
 }
-//鼠标点击
+
 void CallTip::MouseClick(Point pt) {
 	clickPlace = 0;
-	if (rectUp.Contains(pt))		//如果是上箭头
+	if (rectUp.Contains(pt))
 		clickPlace = 1;
-	if (rectDown.Contains(pt))		//如果是下箭头
+	if (rectDown.Contains(pt))
 		clickPlace = 2;
 }
-//调用提示开始
-//CallTipStart(是否坐标,坐标,定义,外观名称,大小,代码页,字符集,父窗口)
-PRectangle CallTip::CallTipStart(int pos,
-								 Point pt,
-								 const char *defn,
-                                 const char *faceName,
-								 int size,
-                                 int codePage_,
-								 int characterSet,
-								 Window &wParent) {
-	clickPlace = 0;												//点击位置
+
+PRectangle CallTip::CallTipStart(int pos, Point pt, const char *defn,
+                                 const char *faceName, int size,
+                                 int codePage_, int characterSet, Window &wParent) {
+	clickPlace = 0;
 	delete []val;
 	val = 0;
-	val = new char[strlen(defn) + 1];							//定义字符串
+	val = new char[strlen(defn) + 1];
 	strcpy(val, defn);
-	codePage = codePage_;										//代码页
-	Surface *surfaceMeasure = Surface::Allocate();				//界面分配内存
+	codePage = codePage_;
+	Surface *surfaceMeasure = Surface::Allocate();
 	if (!surfaceMeasure)
 		return PRectangle();
-	surfaceMeasure->Init(wParent.GetID());						//初始化
-	surfaceMeasure->SetUnicodeMode(SC_CP_UTF8 == codePage);		//设置代码页
-	surfaceMeasure->SetDBCSMode(codePage);						//设置双字节字符集模式
-	startHighlight = 0;											//开始高亮坐标
-	endHighlight = 0;											//结束高亮坐标
-	inCallTipMode = true;										//调用提示模式中
-	posStartCallTip = pos;										//调用提示显示的坐标
-	int deviceHeight = surfaceMeasure->DeviceHeightFont(size);	//创建设备
-	font.Create(faceName, characterSet, deviceHeight, false, false);//创建字体
+	surfaceMeasure->Init(wParent.GetID());
+	surfaceMeasure->SetUnicodeMode(SC_CP_UTF8 == codePage);
+	surfaceMeasure->SetDBCSMode(codePage);
+	startHighlight = 0;
+	endHighlight = 0;
+	inCallTipMode = true;
+	posStartCallTip = pos;
+	int deviceHeight = surfaceMeasure->DeviceHeightFont(size);
+	font.Create(faceName, characterSet, deviceHeight, false, false);
 	// Look for multiple lines in the text
 	// Only support \n here - simply means container must avoid \r!
-	int numLines = 1;											//默认行数
-	const char *newline;										//新行
-	const char *look = val;										//外观
-	rectUp = PRectangle(0,0,0,0);								//上箭头位置
-	rectDown = PRectangle(0,0,0,0);								//下箭头位置
-	offsetMain = insetX;										// changed to right edge of any arrows
+	int numLines = 1;
+	const char *newline;
+	const char *look = val;
+	rectUp = PRectangle(0,0,0,0);
+	rectDown = PRectangle(0,0,0,0);
+	offsetMain = insetX;            // changed to right edge of any arrows
 	int width = PaintContents(surfaceMeasure, false) + insetX;
-	while ((newline = strchr(look, '\n')) != NULL) {			//当有换行符"\n"时,新行+1
+	while ((newline = strchr(look, '\n')) != NULL) {
 		look = newline + 1;
-		numLines++;												//行数+1
+		numLines++;
 	}
-	lineHeight = surfaceMeasure->Height(font);					//行高
+	lineHeight = surfaceMeasure->Height(font);
 
 	// Extra line for border and an empty line at top and bottom. The returned
 	// rectangle is aligned to the right edge of the last arrow encountered in
@@ -301,14 +293,14 @@ PRectangle CallTip::CallTipStart(int pos,
 	delete surfaceMeasure;
 	return PRectangle(pt.x - offsetMain, pt.y + 1, pt.x + width - offsetMain, pt.y + 1 + height);
 }
-//取消调用提示
+
 void CallTip::CallTipCancel() {
 	inCallTipMode = false;
 	if (wCallTip.Created()) {
 		wCallTip.Destroy();
 	}
 }
-//设置高亮
+
 void CallTip::SetHighlight(int start, int end) {
 	// Avoid flashing by checking something has really changed
 	if ((start != startHighlight) || (end != endHighlight)) {
@@ -322,7 +314,6 @@ void CallTip::SetHighlight(int start, int end) {
 
 // Set the tab size (sizes > 0 enable the use of tabs). This also enables the
 // use of the STYLE_CALLTIP.
-// 设置Tab大小
 void CallTip::SetTabSize(int tabSz) {
 	tabSize = tabSz;
 	useStyleCallTip = true;
@@ -330,7 +321,6 @@ void CallTip::SetTabSize(int tabSz) {
 
 // It might be better to have two access functions for this and to use
 // them for all settings of colours.
-// 设置前景背景色
 void CallTip::SetForeBack(const ColourPair &fore, const ColourPair &back) {
 	colourBG = back;
 	colourUnSel = fore;
