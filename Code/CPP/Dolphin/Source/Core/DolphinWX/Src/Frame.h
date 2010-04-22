@@ -36,8 +36,7 @@
 #include "CodeWindow.h"
 #include "LogWindow.h"
 #if defined(HAVE_X11) && HAVE_X11
-#include <gtk/gtk.h>
-#include <gdk/gdkx.h>
+#include "X11Utils.h"
 #endif
 
 // A shortcut to access the bitmaps
@@ -70,7 +69,24 @@ class CPanel : public wxPanel
 		#endif
 };
 
-class CFrame : public wxFrame
+class CRenderFrame : public wxFrame
+{
+	public:
+		CRenderFrame(wxFrame* parent,
+			wxWindowID id = wxID_ANY,
+			const wxString& title = wxT("Dolphin"),
+			const wxPoint& pos = wxDefaultPosition,
+			const wxSize& size = wxDefaultSize,
+			long style = wxDEFAULT_FRAME_STYLE | wxNO_FULL_REPAINT_ON_RESIZE);
+
+	private:
+		#ifdef _WIN32
+			// Receive WndProc messages
+			WXLRESULT MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, WXLPARAM lParam);
+		#endif
+};
+
+class CFrame : public CRenderFrame
 {
 	public:
 		CFrame(wxFrame* parent,
@@ -86,18 +102,18 @@ class CFrame : public wxFrame
 			bool ShowLogWindow = false,
 			long style = wxDEFAULT_FRAME_STYLE | wxNO_FULL_REPAINT_ON_RESIZE);
 
+		virtual ~CFrame();
+
 		void* GetRenderHandle()
 		{
 			#ifdef _WIN32
 				return (void *)m_RenderParent->GetHandle();
 			#elif defined(HAVE_X11) && HAVE_X11
-				return (void *)GDK_WINDOW_XID(GTK_WIDGET(m_RenderParent->GetHandle())->window);
+				return (void *)X11Utils::XWindowFromHandle(m_RenderParent->GetHandle());
 			#else
 				return m_RenderParent;
 			#endif
 		}
-
-		virtual ~CFrame();
 
 		// These have to be public		
 		CCodeWindow* g_pCodeWindow;
@@ -107,9 +123,6 @@ class CFrame : public wxFrame
 		void DoPause();
 		void DoStop();
 		bool bRenderToMain;
-#ifdef _WIN32
-		bool bRendererHasFocus;
-#endif
 		bool bNoWiimoteMsg;
 		void UpdateGUI();
 		void ToggleLogWindow(bool, int i = -1);
@@ -121,11 +134,16 @@ class CFrame : public wxFrame
 		void ClearStatusBar();
 		void OnCustomHostMessage(int Id);
 		void OnSizeRequest(int& x, int& y, int& width, int& height);
-		void StartGame(const std::string& filename);
+		void BootGame(const std::string& filename);
 		void OnRenderParentClose(wxCloseEvent& event);
 		void OnRenderParentMove(wxMoveEvent& event);
 		bool RendererHasFocus();
-		void DoFullscreen(bool _F);
+		void DoFullscreen(bool bF);
+		void ToggleDisplayMode (bool bFullscreen);
+
+		#if defined(HAVE_XRANDR) && HAVE_XRANDR
+		X11Utils::XRRConfiguration *m_XRRConfig;
+		#endif
 
 		// AUI
 		wxAuiManager *m_Mgr;
@@ -152,7 +170,7 @@ class CFrame : public wxFrame
 		int PixelsToPercentage(int,int);
 		void ListChildren();
 		void ListTopWindows();
-		const wxChar * GetMenuLabel(int Id);
+		wxString GetMenuLabel(int Id);
 
 		// Perspectives
 		void AddRemoveBlankPage();
@@ -213,7 +231,7 @@ class CFrame : public wxFrame
 		wxBoxSizer* sizerFrame;
 		CGameListCtrl* m_GameListCtrl;
 		wxPanel* m_Panel;
-		wxFrame* m_RenderFrame;
+		CRenderFrame* m_RenderFrame;
 		wxPanel* m_RenderParent;
 		wxToolBarToolBase* m_ToolPlay;
 		CLogWindow* m_LogWindow;
@@ -222,6 +240,7 @@ class CFrame : public wxFrame
 		bool m_bTabSplit;
 		bool m_bNoDocking;
 		bool m_bControlsCreated;
+		bool m_bGameLoading;
 		char newDiscpath[2048];
 		wxMessageDialog *m_StopDlg;
 
@@ -339,10 +358,7 @@ class CFrame : public wxFrame
 		void OnGameListCtrl_ItemActivated(wxListEvent& event);
 		void OnRenderParentResize(wxSizeEvent& event);
 		bool RendererIsFullscreen();
-#if defined HAVE_X11 && HAVE_X11
-		void X11_SendClientEvent(const char *message,
-				int data1 = 0, int data2 = 0, int data3 = 0, int data4 = 0);
-#endif
+		void StartGame(const std::string& filename);
 
 		// MenuBar
 		// File - Drive
@@ -352,8 +368,6 @@ class CFrame : public wxFrame
 		wxMenuItem* m_pSubMenuLoad;
 		wxMenuItem* m_pSubMenuSave;
 		wxMenuItem* m_pSubMenuFrameSkipping;
-
-		void BootGame(const std::string& filename);
 
 #if wxUSE_TIMER
 		// Used to process command events

@@ -408,6 +408,74 @@
 	<References>
 	</References>
 	<Files>
+		<Filter
+			Name="ControllerInterface"
+			>
+			<File
+				RelativePath=".\Src\ControllerInterface\ControllerInterface.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\Src\ControllerInterface\ControllerInterface.h"
+				>
+			</File>
+			<Filter
+				Name="DirectInput"
+				>
+				<File
+					RelativePath=".\Src\ControllerInterface\DirectInput\DirectInput.cpp"
+					>
+				</File>
+				<File
+					RelativePath=".\Src\ControllerInterface\DirectInput\DirectInput.h"
+					>
+				</File>
+				<File
+					RelativePath=".\Src\ControllerInterface\DirectInput\DirectInputJoystick.cpp"
+					>
+				</File>
+				<File
+					RelativePath=".\Src\ControllerInterface\DirectInput\DirectInputJoystick.h"
+					>
+				</File>
+				<File
+					RelativePath=".\Src\ControllerInterface\DirectInput\DirectInputKeyboardMouse.cpp"
+					>
+				</File>
+				<File
+					RelativePath=".\Src\ControllerInterface\DirectInput\DirectInputKeyboardMouse.h"
+					>
+				</File>
+				<File
+					RelativePath=".\Src\ControllerInterface\DirectInput\NamedKeys.h"
+					>
+				</File>
+			</Filter>
+			<Filter
+				Name="SDL"
+				>
+				<File
+					RelativePath=".\Src\ControllerInterface\SDL\SDL.cpp"
+					>
+				</File>
+				<File
+					RelativePath=".\Src\ControllerInterface\SDL\SDL.h"
+					>
+				</File>
+			</Filter>
+			<Filter
+				Name="XInput"
+				>
+				<File
+					RelativePath=".\Src\ControllerInterface\XInput\XInput.cpp"
+					>
+				</File>
+				<File
+					RelativePath=".\Src\ControllerInterface\XInput\XInput.h"
+					>
+				</File>
+			</Filter>
+		</Filter>
 		<File
 			RelativePath=".\Src\Configuration.cpp"
 			>

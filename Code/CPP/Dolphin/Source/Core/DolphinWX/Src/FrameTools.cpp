@@ -270,7 +270,7 @@ void CFrame::CreateMenu()
 	SetMenuBar(m_MenuBar);
 }
 
-const wxChar * CFrame::GetMenuLabel(int Id)
+wxString CFrame::GetMenuLabel(int Id)
 {
 	wxString Label;
 	switch (Id)
@@ -483,9 +483,6 @@ void CFrame::InitBitmaps()
 	aNormalFile = wxArtProvider::GetBitmap(wxART_NORMAL_FILE, wxART_OTHER, wxSize(16,16));
 }
 
-// Game loading state
-bool game_loading = false;
-
 // Menu items
 
 // Start the game or change the disc.
@@ -495,7 +492,7 @@ bool game_loading = false;
 // 3. Boot last selected game
 void CFrame::BootGame(const std::string& filename)
 {
-	bool success = false;
+	std::string bootfile = filename;
 	SCoreStartupParameter& StartUp = SConfig::GetInstance().m_LocalCoreStartupParameter;
 
 	if (Core::GetState() != Core::CORE_UNINITIALIZED)
@@ -504,44 +501,30 @@ void CFrame::BootGame(const std::string& filename)
 	// Start filename if non empty.
 	// Start the selected ISO, or try one of the saved paths.
 	// If all that fails, ask to add a dir and don't boot
-	if (!filename.empty())
-		success = BootManager::BootCore(filename);
-	else if (m_GameListCtrl->GetSelectedISO() != NULL)
+	if (bootfile.empty())
 	{
-		if (m_GameListCtrl->GetSelectedISO()->IsValid())
-			success = BootManager::BootCore(m_GameListCtrl->GetSelectedISO()->GetFileName());
-	}
-	else if (!StartUp.m_strDefaultGCM.empty()
-		&&	wxFileExists(wxString(StartUp.m_strDefaultGCM.c_str(), wxConvUTF8)))
-	{
-		success = BootManager::BootCore(StartUp.m_strDefaultGCM);
-	}
-	else
-	{
-		if (!SConfig::GetInstance().m_LastFilename.empty()
-			&& wxFileExists(wxString(SConfig::GetInstance().m_LastFilename.c_str(), wxConvUTF8)))
+		if (m_GameListCtrl->GetSelectedISO() != NULL)
 		{
-			success = BootManager::BootCore(SConfig::GetInstance().m_LastFilename);
+			if (m_GameListCtrl->GetSelectedISO()->IsValid())
+				bootfile = m_GameListCtrl->GetSelectedISO()->GetFileName();
 		}
+		else if (!StartUp.m_strDefaultGCM.empty()
+				&&	wxFileExists(wxString(StartUp.m_strDefaultGCM.c_str(), wxConvUTF8)))
+			bootfile = StartUp.m_strDefaultGCM;
 		else
 		{
-			if (!SConfig::GetInstance().m_LocalCoreStartupParameter.bRenderToMain)
-				m_RenderFrame->Destroy();
-			m_GameListCtrl->BrowseForDirectory();
-			game_loading = false;
-			m_GameListCtrl->Enable();
-			m_GameListCtrl->Show();
-			return;
+			if (!SConfig::GetInstance().m_LastFilename.empty()
+					&& wxFileExists(wxString(SConfig::GetInstance().m_LastFilename.c_str(), wxConvUTF8)))
+				bootfile = SConfig::GetInstance().m_LastFilename;
+			else
+			{
+				m_GameListCtrl->BrowseForDirectory();
+				return;
+			}
 		}
 	}
-	if (!success)
-	{
-		if (!SConfig::GetInstance().m_LocalCoreStartupParameter.bRenderToMain)
-			m_RenderFrame->Destroy();
-		game_loading = false;
-		m_GameListCtrl->Enable();
-		m_GameListCtrl->Show();
-	}
+	if (!bootfile.empty())
+		StartGame(bootfile);
 }
 
 // Open file to boot
@@ -582,7 +565,7 @@ void CFrame::DoOpen(bool Boot)
 	{
 		if (!fileChosen)
 			return;
-		StartGame(std::string(path.mb_str()));
+		BootGame(std::string(path.mb_str()));
 	}
 	else
 	{
@@ -667,19 +650,19 @@ void CFrame::OnPlay(wxCommandEvent& WXUNUSED (event))
 	}
 	else
 		// Core is uninitialized, start the game
-		StartGame(std::string(""));
+		BootGame(std::string(""));
 }
 
 void CFrame::OnRenderParentClose(wxCloseEvent& event)
 {
-	if ((Core::GetState() == Core::CORE_RUN) || (Core::GetState() == Core::CORE_PAUSE))
-		DoStop();
+	DoStop();
 	event.Skip();
 }
 
 void CFrame::OnRenderParentMove(wxMoveEvent& event)
 {
-	if (!RendererIsFullscreen() && !m_RenderFrame->IsMaximized())
+	if (Core::GetState() != Core::CORE_UNINITIALIZED &&
+			!RendererIsFullscreen() && !m_RenderFrame->IsMaximized())
 	{
 		SConfig::GetInstance().m_LocalCoreStartupParameter.iRenderWindowXPos = m_RenderFrame->GetPosition().x;
 		SConfig::GetInstance().m_LocalCoreStartupParameter.iRenderWindowYPos = m_RenderFrame->GetPosition().y;
@@ -689,28 +672,56 @@ void CFrame::OnRenderParentMove(wxMoveEvent& event)
 
 void CFrame::OnRenderParentResize(wxSizeEvent& event)
 {
-	event.Skip();
-	if (Core::GetState() == Core::CORE_RUN || Core::GetState() == Core::CORE_PAUSE)
+	if (Core::GetState() != Core::CORE_UNINITIALIZED)
 	{
-		int x, y, width, height;
-		m_RenderParent->GetSize(&width, &height);
-		m_RenderParent->GetPosition(&x, &y);
+		int width, height;
 		if (!SConfig::GetInstance().m_LocalCoreStartupParameter.bRenderToMain &&
 				!RendererIsFullscreen() && !m_RenderFrame->IsMaximized())
 		{
+			m_RenderFrame->GetSize(&width, &height);
 			SConfig::GetInstance().m_LocalCoreStartupParameter.iRenderWindowWidth = width;
 			SConfig::GetInstance().m_LocalCoreStartupParameter.iRenderWindowHeight = height;
 		}
 #if defined(HAVE_X11) && HAVE_X11
-		X11_SendClientEvent("RESIZE", x, y, width, height);
+		int x, y;
+		m_RenderParent->GetSize(&width, &height);
+		m_RenderParent->GetPosition(&x, &y);
+		X11Utils::SendClientEvent("RESIZE", x, y, width, height);
 #endif
 	}
+	event.Skip();
+}
+
+void CFrame::ToggleDisplayMode (bool bFullscreen)
+{
+#ifdef _WIN32
+	if (bFullscreen)
+	{
+		DEVMODE dmScreenSettings;
+		memset(&dmScreenSettings,0,sizeof(dmScreenSettings));
+		dmScreenSettings.dmSize = sizeof(dmScreenSettings);
+		sscanf(SConfig::GetInstance().m_LocalCoreStartupParameter.strFullscreenResolution.c_str(),
+			   	"%dx%d", &dmScreenSettings.dmPelsWidth, &dmScreenSettings.dmPelsHeight);
+		dmScreenSettings.dmBitsPerPel = 32;
+		dmScreenSettings.dmFields = DM_BITSPERPEL|DM_PELSWIDTH|DM_PELSHEIGHT;
+
+		// Try To Set Selected Mode And Get Results.  NOTE: CDS_FULLSCREEN Gets Rid Of Start Bar.
+		ChangeDisplaySettings(&dmScreenSettings, CDS_FULLSCREEN);
+	}
+	else
+	{
+		// Change to default resolution
+		ChangeDisplaySettings(NULL, CDS_FULLSCREEN);
+	}
+#elif defined(HAVE_XRANDR) && HAVE_XRANDR
+	m_XRRConfig->ToggleDisplayMode(bFullscreen);
+#endif
 }
 
 // Prepare the GUI to start the game.
 void CFrame::StartGame(const std::string& filename)
 {
-	game_loading = true;
+	m_bGameLoading = true;
 
 	if (m_ToolBar)
 		m_ToolBar->EnableTool(IDM_PLAY, false);
@@ -734,7 +745,7 @@ void CFrame::StartGame(const std::string& filename)
 				SConfig::GetInstance().m_LocalCoreStartupParameter.iRenderWindowYPos);
 		wxSize size(SConfig::GetInstance().m_LocalCoreStartupParameter.iRenderWindowWidth,
 				SConfig::GetInstance().m_LocalCoreStartupParameter.iRenderWindowHeight);
-		m_RenderFrame = new wxFrame((wxWindow *)NULL, wxID_ANY, _("Dolphin"), position, size);
+		m_RenderFrame = new CRenderFrame((wxFrame*)this, wxID_ANY, _("Dolphin"), position, size);
 		m_RenderFrame->Connect(wxID_ANY, wxEVT_CLOSE_WINDOW,
 				wxCloseEventHandler(CFrame::OnRenderParentClose),
 				(wxObject*)0, this);
@@ -744,27 +755,44 @@ void CFrame::StartGame(const std::string& filename)
 		m_RenderFrame->Connect(wxID_ANY, wxEVT_MOVE,
 				wxMoveEventHandler(CFrame::OnRenderParentMove),
 				(wxObject*)0, this);
-		m_RenderFrame->Connect(wxID_ANY, wxEVT_KEY_DOWN, // Keyboard
-				wxKeyEventHandler(CFrame::OnKeyDown),
-				(wxObject*)0, this);
 		m_RenderParent = new CPanel(m_RenderFrame, wxID_ANY);
 		m_RenderFrame->Show();
 	}
-	m_RenderFrame->Connect(wxID_ANY, wxEVT_SIZE,
-			wxSizeEventHandler(CFrame::OnRenderParentResize),
-			(wxObject*)0, this);
+
+	if (!BootManager::BootCore(filename))
+	{
+		// Destroy the renderer frame when not rendering to main
+		if (!SConfig::GetInstance().m_LocalCoreStartupParameter.bRenderToMain)
+			m_RenderFrame->Destroy();
+		m_RenderParent = NULL;
+		m_bGameLoading = false;
+		UpdateGUI();
+	}
+	else
+	{
+		DoFullscreen(SConfig::GetInstance().m_LocalCoreStartupParameter.bFullscreen);
+
 #ifdef _WIN32
-	::SetFocus((HWND)m_RenderParent->GetHandle());
+		::SetFocus((HWND)m_RenderParent->GetHandle());
 #else
-	m_RenderParent->SetFocus();
+		m_RenderParent->SetFocus();
 #endif
 
-	BootGame(filename);
+		wxTheApp->Connect(wxID_ANY, wxEVT_KEY_DOWN, // Keyboard
+				wxKeyEventHandler(CFrame::OnKeyDown),
+				(wxObject*)0, this);
+		wxTheApp->Connect(wxID_ANY, wxEVT_KEY_UP,
+				wxKeyEventHandler(CFrame::OnKeyUp),
+				(wxObject*)0, this);
+		m_RenderFrame->Connect(wxID_ANY, wxEVT_SIZE,
+				wxSizeEventHandler(CFrame::OnRenderParentResize),
+				(wxObject*)0, this);
+	}
 }
 
 void CFrame::OnBootDrive(wxCommandEvent& event)
 {
-	StartGame(drives[event.GetId()-IDM_DRIVE1]);
+	BootGame(drives[event.GetId()-IDM_DRIVE1]);
 }
 
 
@@ -841,10 +869,21 @@ void CFrame::DoStop()
 		UpdateGUI();
 
 		// Destroy the renderer frame when not rendering to main
+		m_RenderFrame->Disconnect(wxID_ANY, wxEVT_SIZE,
+				wxSizeEventHandler(CFrame::OnRenderParentResize),
+				(wxObject*)0, this);
+		wxTheApp->Disconnect(wxID_ANY, wxEVT_KEY_DOWN, // Keyboard
+				wxKeyEventHandler(CFrame::OnKeyDown),
+				(wxObject*)0, this);
+		wxTheApp->Disconnect(wxID_ANY, wxEVT_KEY_UP,
+				wxKeyEventHandler(CFrame::OnKeyUp),
+				(wxObject*)0, this);
 		if (SConfig::GetInstance().m_LocalCoreStartupParameter.bHideCursor)
 			m_RenderParent->SetCursor(wxCURSOR_ARROW);
+		DoFullscreen(FALSE);
 		if (!SConfig::GetInstance().m_LocalCoreStartupParameter.bRenderToMain)
 			m_RenderFrame->Destroy();
+		m_RenderParent = NULL;
 
 		// Clean framerate indications from the status bar.
 		m_pStatusBar->SetStatusText(wxT(" "), 0);
@@ -853,7 +892,7 @@ void CFrame::DoStop()
 
 void CFrame::OnStop(wxCommandEvent& WXUNUSED (event))
 {
-	game_loading = false;
+	m_bGameLoading = false;
 	DoStop();
 }
 
@@ -990,7 +1029,7 @@ void CFrame::OnShow_CheatsWindow(wxCommandEvent& WXUNUSED (event))
 
 void CFrame::OnLoadWiiMenu(wxCommandEvent& WXUNUSED (event))
 {
-	StartGame(std::string (File::GetUserPath(D_WIIMENU_IDX)));
+	BootGame(std::string (File::GetUserPath(D_WIIMENU_IDX)));
 }
 
 void CFrame::OnConnectWiimote(wxCommandEvent& event)
@@ -1212,7 +1251,7 @@ void CFrame::UpdateGUI()
 			}
 		}
 
-		if (m_GameListCtrl && !game_loading)
+		if (m_GameListCtrl && !m_bGameLoading)
 		{
 			// Game has not started, show game list
 			if (!m_GameListCtrl->IsShown())
@@ -1223,7 +1262,7 @@ void CFrame::UpdateGUI()
 				sizerPanel->FitInside(m_Panel);
 			}
 			// Game has been selected but not started, enable play button
-			if (m_GameListCtrl->GetSelectedISO() != NULL && m_GameListCtrl->IsEnabled() && !game_loading)
+			if (m_GameListCtrl->GetSelectedISO() != NULL && m_GameListCtrl->IsEnabled() && !m_bGameLoading)
 			{
 				if (m_ToolBar)
 					m_ToolBar->EnableTool(IDM_PLAY, true);
@@ -1239,7 +1278,7 @@ void CFrame::UpdateGUI()
 		GetMenuBar()->FindItem(IDM_PLAY)->Enable(true);
 
 		// Reset game loading flag
-		game_loading = false;
+		m_bGameLoading = false;
 	}
 
 	if (m_ToolBar) m_ToolBar->Refresh();

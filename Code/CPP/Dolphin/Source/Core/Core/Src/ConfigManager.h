@@ -46,9 +46,6 @@ struct SConfig
 	bool m_WiiKeyboard;
 	bool m_WiiAutoReconnect[4];
 
-	// DSP HLE Audio fix
-	bool m_EnableRE0Fix;
-
 	// hard coded default plugins ...
 	std::string m_DefaultGFXPlugin;
 	std::string m_DefaultDSPPlugin;
@@ -73,6 +70,7 @@ struct SConfig
 	INTERFACE_LANGUAGE m_InterfaceLanguage;
 	// framelimit choose
 	int m_Framelimit;
+	bool b_UseFPS;
 	// other interface settings
 	bool m_InterfaceToolbar;
 	bool m_InterfaceStatusbar;
@@ -101,7 +99,6 @@ struct SConfig
 	void LoadSettings();
 
 	//Special load settings
-	void LoadSettingsHLE();
 	void LoadSettingsWii();
 
 	// Return the permanent and somewhat globally used instance of this struct

@@ -101,11 +101,15 @@ void *g_pXWindow = NULL;
 #endif
 Common::Thread* g_EmuThread = NULL;
 
+static Common::Thread* cpuThread = NULL;
+
 SCoreStartupParameter g_CoreStartupParameter;
 
 // This event is set when the emuthread starts.
 Common::Event emuThreadGoing;
 Common::Event cpuRunloopQuit;
+
+
 
 // Display messages and return values
 
@@ -162,6 +166,10 @@ bool isRunning()
 	return (GetState() != CORE_UNINITIALIZED) || g_bHwInit;
 }
 
+bool IsRunningInCurrentThread()
+{
+	return isRunning() && ((cpuThread == NULL) || cpuThread->IsCurrentThread());
+}
 
 // This is called from the GUI thread. See the booting call schedule in
 // BootManager.cpp
@@ -414,6 +422,7 @@ THREAD_RETURN EmuThread(void *pArg)
 
 	if (g_pUpdateFPSDisplay != NULL)
 		g_pUpdateFPSDisplay(("Loading " + _CoreParameter.m_strFilename).c_str());
+	Host_UpdateTitle(("Loading " + _CoreParameter.m_strFilename).c_str());
 
 	// Setup our core, but can't use dynarec if we are compare server
 	if (_CoreParameter.iCPUCore && (!_CoreParameter.bRunCompareServer || _CoreParameter.bRunCompareClient))
@@ -422,7 +431,7 @@ THREAD_RETURN EmuThread(void *pArg)
 		PowerPC::SetMode(PowerPC::MODE_INTERPRETER);
 
 	// Spawn the CPU thread
-	Common::Thread *cpuThread = NULL;
+	_dbg_assert_(HLE, cpuThread == NULL);
 	// ENTER THE VIDEO THREAD LOOP
 	if (_CoreParameter.bCPUThread)
 	{
@@ -435,6 +444,7 @@ THREAD_RETURN EmuThread(void *pArg)
 
 		if (g_pUpdateFPSDisplay != NULL)
 			g_pUpdateFPSDisplay(("Loaded " + _CoreParameter.m_strFilename).c_str());
+		Host_UpdateTitle(("Loaded " + _CoreParameter.m_strFilename).c_str());
 
 		// Update the window again because all stuff is initialized
 		Host_UpdateDisasmDialog();
@@ -454,6 +464,7 @@ THREAD_RETURN EmuThread(void *pArg)
 
 		if (g_pUpdateFPSDisplay != NULL)
 			g_pUpdateFPSDisplay(("Loaded " + _CoreParameter.m_strFilename).c_str());
+		Host_UpdateTitle(("Loaded " + _CoreParameter.m_strFilename).c_str());
 
 		// Update the window again because all stuff is initialized
 		Host_UpdateDisasmDialog();
@@ -597,13 +608,13 @@ void ScreenShot()
 void VideoThrottle()
 {
 	u32 TargetVPS = (SConfig::GetInstance().m_Framelimit > 1) ?
-		SConfig::GetInstance().m_Framelimit * 10 : VideoInterface::TargetRefreshRate;
+		SConfig::GetInstance().m_Framelimit * 5 : VideoInterface::TargetRefreshRate;
 
 	// When frame limit is NOT off
 	if (SConfig::GetInstance().m_Framelimit)
 	{
 		// Make the limiter a bit loose
-		u32 frametime = DrawnVideo * 1000 / ++TargetVPS;
+		u32 frametime = ((SConfig::GetInstance().b_UseFPS)? Common::AtomicLoad(DrawnFrame) : DrawnVideo) * 1000 / ++TargetVPS;
 		while ((u32)Timer.GetTimeDifference() < frametime)
 			Common::YieldCPU();
 			//Common::SleepCurrentThread(1);
@@ -663,6 +674,7 @@ void VideoThrottle()
 		// Show message
 		if (g_pUpdateFPSDisplay != NULL)
 			g_pUpdateFPSDisplay(SMessage.c_str()); 
+		Host_UpdateTitle(SMessage.c_str());
 
 		Host_UpdateStatusBar(SMessage.c_str());
 
@@ -680,7 +692,7 @@ void VideoThrottle()
 // depending on the framelimit set
 bool report_slow(int skipped)
 {
-	u32 TargetFPS = (SConfig::GetInstance().m_Framelimit > 1) ? SConfig::GetInstance().m_Framelimit * 10
+	u32 TargetFPS = (SConfig::GetInstance().m_Framelimit > 1) ? SConfig::GetInstance().m_Framelimit * 5
 		: VideoInterface::TargetRefreshRate;
 	u32 frames = Common::AtomicLoad(DrawnFrame);
 	bool fps_slow = (Timer.GetTimeDifference() < (frames + skipped) * 1000 / TargetFPS) ? false : true;
