@@ -581,6 +581,14 @@
 				>
 			</File>
 			<File
+				RelativePath=".\Src\UDPWiimote.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\Src\UDPWiimote.h"
+				>
+			</File>
+			<File
 				RelativePath=".\Src\wiimote_hid.h"
 				>
 			</File>
@@ -642,6 +650,18 @@
 			</File>
 			<File
 				RelativePath=".\Src\ConfigRecordingDlg.h"
+				>
+			</File>
+		</Filter>
+		<Filter
+			Name="UDP Wiimote"
+			>
+			<File
+				RelativePath=".\Src\UDPWiimote.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\Src\UDPWiimote.h"
 				>
 			</File>
 		</Filter>

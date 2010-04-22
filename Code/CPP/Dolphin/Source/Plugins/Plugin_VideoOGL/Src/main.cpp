@@ -95,6 +95,10 @@ GFXDebuggerOGL *m_DebuggerFrame = NULL;
 
 #include "VideoState.h"
 
+#if defined(HAVE_COCOA) && HAVE_COCOA
+#include <Cocoa/Cocoa.h>
+#endif
+
 SVideoInitialize g_VideoInitialize;
 PLUGIN_GLOBALS* globals = NULL;
 
@@ -166,113 +170,6 @@ void DllDebugger(HWND _hParent, bool Show)
 #endif
 }
 
-#ifdef _WIN32
-void AddResolutions()
-{
-	// Search for avaliable resolutions
-	
-	DWORD iModeNum = 0;
-	DEVMODE dmi;
-	ZeroMemory(&dmi, sizeof(dmi));
-	dmi.dmSize = sizeof(dmi);
-	std::vector<std::string> resos;
-	resos.reserve(20);
-	int i = 0;
-
-	while (EnumDisplaySettings(NULL, iModeNum++, &dmi) != 0)
-	{
-		char szBuffer[100];
-		sprintf(szBuffer, "%dx%d", dmi.dmPelsWidth, dmi.dmPelsHeight);
-		std::string strBuffer(szBuffer);
-		// Create a check loop to check every pointer of resolutions to see if
-		// the res is added or not
-		int b = 0;
-		bool resFound = false;
-		while (b < i && !resFound)
-		{
-			// Is the res already added?
-			resFound = (resos[b] == strBuffer);
-			b++;
-		}
-		// Add the resolution
-		if (!resFound && i < 100)  // don't want to overflow resos array. not
-								   // likely to happen, but you never know.
-		{
-			resos.push_back(strBuffer);
-			i++;
-			m_ConfigFrame->AddFSReso(szBuffer);
-		}
-		ZeroMemory(&dmi, sizeof(dmi));
-	}
-}	
-#elif defined(HAVE_X11) && HAVE_X11 && defined(HAVE_XRANDR) && HAVE_XRANDR
-void AddResolutions() {
-	// Don't modify GLWin.dpy here.
-	// If the emulator is running that is bad.
-	Display *dpy;
-	int screen;
-	dpy = XOpenDisplay(0);
-	screen = DefaultScreen(dpy);
-	//Get all full screen resos for the config dialog
-	XRRScreenSize *sizes = NULL;
-	int modeNum = 0;
-
-	sizes = XRRSizes(dpy, screen, &modeNum);
-	XCloseDisplay(dpy);
-	if (modeNum > 0 && sizes != NULL)
-	{
-		for (int i = 0; i < modeNum; i++)
-		{
-			char temp[32];
-			sprintf(temp,"%dx%d", sizes[i].width, sizes[i].height);
-
-#if defined(HAVE_WX) && HAVE_WX
-			m_ConfigFrame->AddFSReso(temp);
-#endif
-		}
-	}
-}
-#elif defined(HAVE_COCOA) && HAVE_COCOA
-void AddResolutions() {
-
-	CFArrayRef modes;
-	CFRange range;
-	CFDictionaryRef modesDict;
-	CFNumberRef modeValue;
-	
-	int modeWidth;
-	int modeHeight;
-	int modeBpp;
-	int modeIndex;
-	int px = 0, py = 0;
-	
-	modes = CGDisplayAvailableModes(CGMainDisplayID());
-	
-	range.location = 0;
-	range.length = CFArrayGetCount(modes);
-	
-	for (modeIndex=0; modeIndex<range.length; modeIndex++) {
-		modesDict = (CFDictionaryRef)CFArrayGetValueAtIndex(modes, modeIndex);
-		modeValue = (CFNumberRef) CFDictionaryGetValue(modesDict, kCGDisplayWidth);
-		CFNumberGetValue(modeValue, kCFNumberLongType, &modeWidth);
-		modeValue = (CFNumberRef) CFDictionaryGetValue(modesDict, kCGDisplayHeight);
-		CFNumberGetValue(modeValue, kCFNumberLongType, &modeHeight);
-		modeValue = (CFNumberRef) CFDictionaryGetValue(modesDict, kCGDisplayBitsPerPixel);
-		CFNumberGetValue(modeValue, kCFNumberLongType, &modeBpp);
-		
-		if (px != modeWidth && py != modeHeight) {
-			char temp[32];
-			sprintf(temp,"%dx%d", modeWidth, modeHeight);
-			#if defined(HAVE_WX) && HAVE_WX
-			m_ConfigFrame->AddFSReso(temp);
-			#endif
-			px = modeWidth;
-			py = modeHeight;
-		}
-	}
-}
-#endif
-
 void DllConfig(HWND _hParent)
 {
 	g_Config.Load((std::string(File::GetUserPath(D_CONFIG_IDX)) + "gfx_opengl.ini").c_str());
@@ -282,8 +179,6 @@ void DllConfig(HWND _hParent)
 #if defined(HAVE_WX) && HAVE_WX
 	wxWindow *frame = GetParentedWxWindow(_hParent);
 	m_ConfigFrame = new GFXConfigDialogOGL(frame);
-
-	AddResolutions();
 
 	// Prevent user to show more than 1 config window at same time
 #ifdef _WIN32
@@ -370,7 +265,7 @@ void EmuStateChange(PLUGIN_EMUSTATE newState)
 // This is called after Video_Initialize() from the Core
 void Video_Prepare(void)
 {
-	OpenGL_Initialize();
+	OpenGL_MakeCurrent();
 	if (!Renderer::Init()) {
 		g_VideoInitialize.pLog("Renderer::Create failed\n", TRUE);
 		PanicAlert("Can't create opengl renderer. You might be missing some required opengl extensions, check the logs for more info");
@@ -399,6 +294,9 @@ void Video_Prepare(void)
 	VertexLoaderManager::Init();
 	TextureConverter::Init();
 	DLCache::Init();
+
+	// Notify the core that the video plugin is ready
+	g_VideoInitialize.pCoreMessage(WM_USER_CREATE);
 
 	s_PluginInitialized = true;
 	INFO_LOG(VIDEO, "Video plugin initialized.");

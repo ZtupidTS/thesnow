@@ -266,6 +266,9 @@ void Video_Prepare()
 	PixelShaderManager::Init();
     CommandProcessor::Init();
     PixelEngine::Init();
+
+	// Tell the host the window is ready
+	g_VideoInitialize.pCoreMessage(WM_USER_CREATE);
 }
 
 void Shutdown()
@@ -284,14 +287,15 @@ void Shutdown()
 	OpcodeDecoder_Shutdown();
 	Renderer::Shutdown();
 	D3D::Shutdown();
-	EmuWindow::ToggleDisplayMode(false);
 	EmuWindow::Close();
 	s_PluginInitialized = false;
 }
 
 void DoState(unsigned char **ptr, int mode) {
 	// Clear texture cache because it might have written to RAM
+	CommandProcessor::FifoCriticalEnter();
 	TextureCache::Invalidate(false);
+	CommandProcessor::FifoCriticalLeave();
 	// No need to clear shader caches.
 	PointerWrap p(ptr, mode);
 	VideoCommon_DoState(p);

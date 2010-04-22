@@ -37,11 +37,7 @@ enum
 	OGL_HACK_ZELDA_TP_BLOOM_HACK = 1,
 	OGL_HACK_SONIC_AND_THE_BLACK_KNIGHT = 2,
 	OGL_HACK_BLEACH_VERSUS_CRUSADE = 3,
-	OGL_HACK_FINAL_FANTASY_CC_ECHO_OF_TIME = 4,
-	OGL_HACK_HARVESTMOON_MM = 5,
-	OGL_HACK_BATEN_KAITOS = 6,
-	OGL_HACK_BATEN_KAITOS_ORIGIN = 7,
-	OGL_HACK_SKIES_OF_ARCADIA = 8
+	OGL_HACK_SKIES_OF_ARCADIA = 4
 };
 
 
@@ -64,7 +60,6 @@ class GFXConfigDialogOGL : public wxDialog
 		virtual ~GFXConfigDialogOGL();
 		void CloseClick(wxCommandEvent& event);
 
-		void AddFSReso(const char *reso);
 		void CreateGUIControls();
 		void GameIniLoad();
 
@@ -102,7 +97,6 @@ class GFXConfigDialogOGL : public wxDialog
 		wxCheckBox *m_UseXFB;
 		wxCheckBox *m_UseRealXFB;
 		wxCheckBox *m_AutoScale;
-		wxChoice *m_WindowFSResolutionCB;
 		wxChoice *m_MaxAnisotropyCB;
 		wxChoice *m_MSAAModeCB, *m_PhackvalueCB, *m_PostShaderCB, *m_KeepAR;
 
@@ -159,7 +153,6 @@ class GFXConfigDialogOGL : public wxDialog
 			ID_AUTOSCALE,
 			ID_WIDESCREENHACK,
 
-			ID_FULLSCREENRESOLUTION,
 			ID_FORCEFILTERING,
 			ID_MAXANISOTROPY,
 			ID_MAXANISOTROPYTEXT,
