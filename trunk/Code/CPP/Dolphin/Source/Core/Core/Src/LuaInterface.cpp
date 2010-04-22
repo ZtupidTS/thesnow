@@ -30,7 +30,8 @@
 #include "PluginManager.h"
 #include "HW/Memmap.h"
 #include "Host.h"
-
+#include "PowerPC/PowerPC.h"
+#include "CoreTiming.h"
 
 extern "C" {
 #include "lua.h"
@@ -78,9 +79,9 @@ struct LuaContextInfo {
 	bool ranExit; // used to prevent a registered exit callback from ever getting called more than once
 	bool guiFuncsNeedDeferring; // true whenever GUI drawing would be cleared by the next emulation update before it would be visible, and thus needs to be deferred until after the next emulation update
 	int numDeferredGUIFuncs; // number of deferred function calls accumulated, used to impose an arbitrary limit to avoid running out of memory
-	bool ranFrameAdvance; // false if emulua.frameadvance() hasn't been called yet
+	bool ranFrameAdvance; // false if emu.frameadvance() hasn't been called yet
 	int transparencyModifier; // values less than 255 will scale down the opacity of whatever the GUI renders, values greater than 255 will increase the opacity of anything transparent the GUI renders
-	SpeedMode speedMode; // determines how emulua.frameadvance() acts
+	SpeedMode speedMode; // determines how emu.frameadvance() acts
 	char panicMessage [72]; // a message to print if the script terminates due to panic being set
 	std::string lastFilename; // path to where the script last ran from so that restart can work (note: storing the script in memory instead would not be useful because we always want the most up-to-date script from file)
 	std::string nextFilename; // path to where the script should run from next, mainly used in case the restart flag is true
@@ -500,7 +501,7 @@ static char* ConstructScriptSaveDataPath(char* output, int bufferSize, LuaContex
 	return rv;
 }
 
-// emulua.persistglobalvariables({
+// emu.persistglobalvariables({
 //   variable1 = defaultvalue1,
 //   variable2 = defaultvalue2,
 //   etc
@@ -580,7 +581,7 @@ DEFINE_LUA_FUNCTION(emulua_persistglobalvariables, "variabletable")
 			}
 			else
 			{
-				luaL_error(L, "'%s' = '%s' entries are not allowed in the table passed to emulua.persistglobalvariables()", lua_typename(L,keyType), lua_typename(L,valueType));
+				luaL_error(L, "'%s' = '%s' entries are not allowed in the table passed to emu.persistglobalvariables()", lua_typename(L,keyType), lua_typename(L,valueType));
 			}
 
 			int varNameIndex = valueIndex;
@@ -1101,26 +1102,17 @@ DEFINE_LUA_FUNCTION(bitbit, "whichbit")
 	return 1;
 }
 
-// tells emulua to wait while the script is doing calculations
-// can call this periodically instead of emulua.frameadvance
+// tells dolphin to wait while the script is doing calculations
+// can call this periodically instead of emu.frameadvance
 // note that the user can use hotkeys at this time
-// (e.g. a savestate could possibly get loaded before emulua.wait() returns)
+// (e.g. a savestate could possibly get loaded before emu.wait() returns)
 DEFINE_LUA_FUNCTION(emulua_wait, "")
 {
-	/*LuaContextInfo& info = GetCurrentInfo();
+	//LuaContextInfo& info = GetCurrentInfo();
 
-	switch(info.speedMode)
-	{
-		default:
-		case SPEEDMODE_NORMAL:
-			Step_emulua_MainLoop(true, false);
-			break;
-		case SPEEDMODE_NOTHROTTLE:
-		case SPEEDMODE_TURBO:
-		case SPEEDMODE_MAXIMUM:
-			Step_emulua_MainLoop(Core::GetState() == Core::CORE_PAUSE, false);
-			break;
-	}*/
+	// we're only calling this to run user events. (a windows-only example of what that means is the canonical Peek/Translate/Dispatch loop)
+	// hopefully this won't actually advance the emulation state in any non-user-input-driven way when called in this context...
+	CoreTiming::Advance();
 
 	return 0;
 }
@@ -1176,6 +1168,7 @@ void LuaRescueHook(lua_State* L, lua_Debug *dbg)
 		{
 			//lua_sethook(L, NULL, 0, 0);
 			assert(L->errfunc || L->errorJmp);
+			luaL_error(L, info.panic ? info.panicMessage : "terminated by user");
 		}
 
 		info.panic = false;
@@ -1211,9 +1204,33 @@ void printfToOutput(const char* fmt, ...)
 	delete[] str;
 }
 
-// What is THAT?
 bool FailVerifyAtFrameBoundary(lua_State* L, const char* funcName, int unstartedSeverity=2, int inframeSeverity=2)
 {
+	if (!Core::isRunning() || Core::GetState() == Core::CORE_STOPPING)
+	{
+		static const char* msg = "cannot call %s() when emulation has not started.";
+		switch(unstartedSeverity)
+		{
+		case 0: break;
+		case 1: printfToOutput(msg, funcName); break;
+		default: case 2: luaL_error(L, msg, funcName); break;
+		}
+		return true;
+	}
+	//  "if the current thread is not the cpu thread or if our caller is the cpu emulation itself"
+	// TODO: implement the second part of the condition here.
+	// it might boil down to "is CallRegisteredLuaMemHook on the callstack" in the case of Dolphin.
+	if(!Core::IsRunningInCurrentThread() /*|| CallerIsCpuEmulation()*/)
+	{
+		static const char* msg = "cannot call %s() inside an emulation frame.";
+		switch(inframeSeverity)
+		{
+		case 0: break;
+		case 1: printfToOutput(msg, funcName); break;
+		default: case 2: luaL_error(L, msg, funcName); break;
+		}
+		return true;
+	}
 	return false;
 }
 
@@ -1223,7 +1240,7 @@ bool FailVerifyAtFrameBoundary(lua_State* L, const char* funcName, int unstarted
 // except without the user being able to activate emulator commands
 DEFINE_LUA_FUNCTION(emulua_emulateframe, "")
 {
-	if(FailVerifyAtFrameBoundary(L, "emulua.emulateframe", 0,1))
+	if(FailVerifyAtFrameBoundary(L, "emu.emulateframe", 0,1))
 		return 0;
 	
 	Update_Emulation_One((HWND)Core::g_CoreStartupParameter.hMainWindow);
@@ -1237,7 +1254,7 @@ DEFINE_LUA_FUNCTION(emulua_emulateframe, "")
 // and the user is unable to activate emulator commands during it
 DEFINE_LUA_FUNCTION(emulua_emulateframefastnoskipping, "")
 {
-	if(FailVerifyAtFrameBoundary(L, "emulua.emulateframefastnoskipping", 0,1))
+	if(FailVerifyAtFrameBoundary(L, "emu.emulateframefastnoskipping", 0,1))
 		return 0;
 
 	Update_Emulation_One_Before((HWND)Core::g_CoreStartupParameter.hMainWindow);
@@ -1253,7 +1270,7 @@ DEFINE_LUA_FUNCTION(emulua_emulateframefastnoskipping, "")
 // where the user is unable to activate emulator commands
 DEFINE_LUA_FUNCTION(emulua_emulateframefast, "")
 {
-	if(FailVerifyAtFrameBoundary(L, "emulua.emulateframefast", 0,1))
+	if(FailVerifyAtFrameBoundary(L, "emu.emulateframefast", 0,1))
 		return 0;
 
 	disableVideoLatencyCompensationCount = VideoLatencyCompensation + 1;
@@ -1288,7 +1305,7 @@ DEFINE_LUA_FUNCTION(emulua_emulateframefast, "")
 // while the user continues to see and hear normal emulation
 DEFINE_LUA_FUNCTION(emulua_emulateframeinvisible, "")
 {
-	if(FailVerifyAtFrameBoundary(L, "emulua.emulateframeinvisible", 0,1))
+	if(FailVerifyAtFrameBoundary(L, "emu.emulateframeinvisible", 0,1))
 		return 0;
 
 	int oldDisableSound2 = disableSound2;
@@ -1337,25 +1354,36 @@ DEFINE_LUA_FUNCTION(emulua_speedmode, "mode")
 }*/
 
 
+// I didn't make it clear enough what this function needs to do, so I'll spell it out this time:
+// 1: This function needs to cause emulation to run for 1 full frame, until the next frame boundary
+//    (more importantly, the duration it runs for must correspond with 1 frame of input recording movies).
+// 2: This function needs to return AFTER the frame of emulation has completely finished running.
+// 3: This function needs to work when it is called from the SAME thread as the emulation (CPU thread).
+// 4: This function needs to leave the emulation in a normal, UNPAUSED state.
 
 DEFINE_LUA_FUNCTION(emulua_frameadvance, "")
 {
-	if(FailVerifyAtFrameBoundary(L, "emulua.frameadvance", 0,1))
+	if(FailVerifyAtFrameBoundary(L, "emu.frameadvance", 0,1))
 		return emulua_wait(L);
 
-	if(Core::GetState() == Core::CORE_UNINITIALIZED || Core::GetState() == Core::CORE_STOPPING)
-		return emulua_wait(L);
-
-	int uid = luaStateToUIDMap[L];
 	LuaContextInfo& info = GetCurrentInfo();
-
 	info.ranFrameAdvance = true;
-	Frame::SetFrameStepping(true);
 
-	// Should step exactly one frame
-	Core::SetState(Core::CORE_RUN);
+	// set to stop the run loop after 1 frame
+	Frame::SetFrameStopping(true);
 
-	//while(Core::GetState() != Core::CORE_PAUSE && !info.panic);
+	// run 1 frame
+	if(info.speedMode == SPEEDMODE_MAXIMUM)
+		CPluginManager::GetInstance().GetVideo()->Video_SetRendering(false);
+	if(Core::GetState() == Core::CORE_PAUSE)
+		Core::SetState(Core::CORE_RUN);
+	PowerPC::RunLoop();
+
+	// continue as normal
+	if(info.speedMode == SPEEDMODE_MAXIMUM)
+		CPluginManager::GetInstance().GetVideo()->Video_SetRendering(true);
+	Frame::SetFrameStopping(false);
+	*PowerPC::GetStatePtr() = PowerPC::CPU_RUNNING;
 
 	return 0;
 }
@@ -1383,7 +1411,7 @@ DEFINE_LUA_FUNCTION(emulua_redraw, "")
 
 DEFINE_LUA_FUNCTION(memory_readbyte, "address")
 {
-	unsigned long address = (unsigned long)luaL_checknumber(L,1);
+	unsigned long address = luaL_checkinteger(L,1);
 	unsigned char value = Memory::Read_U8(address);
 	lua_settop(L,0);
 	lua_pushinteger(L, value);
@@ -1391,7 +1419,7 @@ DEFINE_LUA_FUNCTION(memory_readbyte, "address")
 }
 DEFINE_LUA_FUNCTION(memory_readbytesigned, "address")
 {
-	unsigned long address = (unsigned long)luaL_checknumber(L,1);
+	unsigned long address = luaL_checkinteger(L,1);
 	signed char value = (signed char)(Memory::Read_U8(address));
 	lua_settop(L,0);
 	lua_pushinteger(L, value);
@@ -1399,7 +1427,7 @@ DEFINE_LUA_FUNCTION(memory_readbytesigned, "address")
 }
 DEFINE_LUA_FUNCTION(memory_readword, "address")
 {
-	unsigned long address = (unsigned long)luaL_checknumber(L,1);
+	unsigned long address = luaL_checkinteger(L,1);
 	unsigned short value = Memory::Read_U16(address);
 	lua_settop(L,0);
 	lua_pushinteger(L, value);
@@ -1407,7 +1435,7 @@ DEFINE_LUA_FUNCTION(memory_readword, "address")
 }
 DEFINE_LUA_FUNCTION(memory_readwordsigned, "address")
 {
-	unsigned long address = (unsigned long)luaL_checknumber(L,1);
+	unsigned long address = luaL_checkinteger(L,1);
 	signed short value = (signed short)(Memory::Read_U16(address));
 	lua_settop(L,0);
 	lua_pushinteger(L, value);
@@ -1415,7 +1443,7 @@ DEFINE_LUA_FUNCTION(memory_readwordsigned, "address")
 }
 DEFINE_LUA_FUNCTION(memory_readdword, "address")
 {
-	unsigned long address = (unsigned long)luaL_checknumber(L,1);
+	unsigned long address = luaL_checkinteger(L,1);
 	unsigned long value = Memory::Read_U32(address);
 	lua_settop(L,0);
 	lua_pushinteger(L, value);
@@ -1423,7 +1451,7 @@ DEFINE_LUA_FUNCTION(memory_readdword, "address")
 }
 DEFINE_LUA_FUNCTION(memory_readdwordsigned, "address")
 {
-	unsigned long address = (unsigned long)luaL_checknumber(L,1);
+	unsigned long address = luaL_checkinteger(L,1);
 	signed long value = (signed long)(Memory::Read_U32(address));
 	lua_settop(L,0);
 	lua_pushinteger(L, value);
@@ -1431,7 +1459,7 @@ DEFINE_LUA_FUNCTION(memory_readdwordsigned, "address")
 }
 DEFINE_LUA_FUNCTION(memory_readqword, "address")
 {
-	unsigned long address = (unsigned long)luaL_checknumber(L,1);
+	unsigned long address = luaL_checkinteger(L,1);
 	unsigned long long value = Memory::Read_U64(address);
 	lua_settop(L,0);
 	lua_pushinteger(L, (lua_Integer)value);
@@ -1439,7 +1467,7 @@ DEFINE_LUA_FUNCTION(memory_readqword, "address")
 }
 DEFINE_LUA_FUNCTION(memory_readqwordsigned, "address")
 {
-	unsigned long address = (unsigned long)luaL_checknumber(L,1);
+	unsigned long address = luaL_checkinteger(L,1);
 	signed long long value = (signed long long)(Memory::Read_U64(address));
 	lua_settop(L,0);
 	lua_pushinteger(L, (lua_Integer)value);
@@ -1448,28 +1476,28 @@ DEFINE_LUA_FUNCTION(memory_readqwordsigned, "address")
 
 DEFINE_LUA_FUNCTION(memory_writebyte, "address,value")
 {
-	unsigned long address = (unsigned long)luaL_checknumber(L,1);
+	unsigned long address = luaL_checkinteger(L,1);
 	unsigned char value = (unsigned char)(luaL_checkinteger(L,2) & 0xFF);
 	Memory::Write_U8(value, address);
 	return 0;
 }
 DEFINE_LUA_FUNCTION(memory_writeword, "address,value")
 {
-	unsigned long address = (unsigned long)luaL_checknumber(L,1);
+	unsigned long address = luaL_checkinteger(L,1);
 	unsigned short value = (unsigned short)(luaL_checkinteger(L,2) & 0xFFFF);
 	Memory::Write_U16(value, address);
 	return 0;
 }
 DEFINE_LUA_FUNCTION(memory_writedword, "address,value")
 {
-	unsigned long address = (unsigned long)luaL_checknumber(L,1);
+	unsigned long address = luaL_checkinteger(L,1);
 	unsigned long value = (unsigned long)(luaL_checkinteger(L,2));
 	Memory::Write_U32(value, address);
 	return 0;
 }
 DEFINE_LUA_FUNCTION(memory_writeqword, "address,value")
 {
-	unsigned long address = (unsigned long)luaL_checknumber(L,1);
+	unsigned long address = luaL_checkinteger(L,1);
 	unsigned long value = (unsigned long)(luaL_checkinteger(L,2));
 	Memory::Write_U64(value, address);
 	return 0;
@@ -1477,7 +1505,7 @@ DEFINE_LUA_FUNCTION(memory_writeqword, "address,value")
 
 DEFINE_LUA_FUNCTION(memory_readbyterange, "address,length")
 {
-	unsigned long address = (unsigned long)luaL_checknumber(L,1);
+	unsigned long address = luaL_checkinteger(L,1);
 	int length = (int)luaL_checkinteger(L,2);
 
 	if(length < 0)
@@ -1506,7 +1534,7 @@ DEFINE_LUA_FUNCTION(memory_readbyterange, "address,length")
 
 DEFINE_LUA_FUNCTION(memory_isvalid, "address")
 {
-	unsigned long address = (unsigned long)luaL_checknumber(L,1);
+	unsigned long address = luaL_checkinteger(L,1);
 	lua_settop(L,0);
 	lua_pushboolean(L, Memory::IsRAMAddress(address));
 	return 1;
@@ -1655,6 +1683,9 @@ DEFINE_LUA_FUNCTION(state_create, "[location]")
 		return 1;
 	}
 
+	if(!Core::isRunning())
+		luaL_error(L, "savestate.create cannot be called before emulation has started.");
+
 	size_t len = State_GetSize();
 
 	// allocate the in-memory/anonymous savestate
@@ -1672,7 +1703,7 @@ DEFINE_LUA_FUNCTION(state_create, "[location]")
 // if option is "scriptdataonly" then the state will not actually be saved, but any save callbacks will still get called and their results will be saved (see savestate.registerload()/savestate.registersave())
 DEFINE_LUA_FUNCTION(state_save, "location[,option]")
 {
-	const char* option = (lua_type(L,2) == LUA_TSTRING) ? lua_tostring(L,2) : NULL;
+ 	const char* option = (lua_type(L,2) == LUA_TSTRING) ? lua_tostring(L,2) : NULL;
 	if(option)
 	{
 		if(!strcasecmp(option, "quiet")) // I'm not sure if saving can generate warning messages, but we might as well support suppressing them should they turn out to exist
@@ -1691,6 +1722,7 @@ DEFINE_LUA_FUNCTION(state_save, "location[,option]")
 		case LUA_TNUMBER: // numbered save file
 		default:
 		{
+			State_Flush();
 			State_Save((int)luaL_checkinteger(L,1));
 			return 0;
 		}	
@@ -1701,6 +1733,7 @@ DEFINE_LUA_FUNCTION(state_save, "location[,option]")
 			if(stateBuffer)
 			{
 				stateBuffer += ((16 - (u64)stateBuffer) & 15); // for performance alignment reasons
+				State_Flush();
 				State_SaveToBuffer(&stateBuffer);
 			}
 			return 0;
@@ -1740,6 +1773,7 @@ DEFINE_LUA_FUNCTION(state_load, "location[,option]")
 			LuaContextInfo& info = GetCurrentInfo();
 			if(info.rerecordCountingDisabled)
 				SkipNextRerecordIncrement = true;
+			State_Flush();
 			State_Load((int)luaL_checkinteger(L,1));
 		
 			return 0;
@@ -1751,10 +1785,45 @@ DEFINE_LUA_FUNCTION(state_load, "location[,option]")
 			if(stateBuffer)
 			{
 				stateBuffer += ((16 - (u64)stateBuffer) & 15); // for performance alignment reasons
+				State_Flush();
 				if(stateBuffer[0])
 					State_LoadFromBuffer(&stateBuffer);
 				else // the first byte of a valid savestate is never 0
 					luaL_error(L, "attempted to load an anonymous savestate before saving it");
+			}
+			return 0;
+		}	
+	}
+}
+
+// savestate.verify(location)
+// verifies that the current emulation state matches the savestate that's already at the given location
+// you can pass in either a savestate file number (an integer),
+// OR you can pass in a savestate object that was returned by savestate.create() and has already saved to with savestate.save()
+DEFINE_LUA_FUNCTION(state_verify, "location")
+{
+	int type = lua_type(L,1);
+	switch(type)
+	{
+		case LUA_TNUMBER: // numbered save file
+		default:
+		{
+			State_Flush();
+			State_Verify((int)luaL_checkinteger(L,1));
+			return 0;
+		}
+
+		case LUA_TUSERDATA: // in-memory save slot
+		{
+			unsigned char* stateBuffer = (unsigned char*)lua_touserdata(L,1);
+			if(stateBuffer)
+			{
+				stateBuffer += ((16 - (u64)stateBuffer) & 15); // for performance alignment reasons
+				State_Flush();
+				if(stateBuffer[0])
+					State_VerifyBuffer(&stateBuffer);
+				else // the first byte of a valid savestate is never 0
+					luaL_error(L, "attempted to verify an anonymous savestate before saving it");
 			}
 			return 0;
 		}	
@@ -2170,8 +2239,8 @@ DEFINE_LUA_FUNCTION(gui_parsecolor, "color")
 DEFINE_LUA_FUNCTION(gui_text, "x,y,str[,color=\"white\"[,outline=\"black\"]]")
 {
 	if(DeferGUIFuncIfNeeded(L))
-		return 0; // we have to wait until later to call this function because emulua hasn't emulated the next frame yet
-		          // (the only way to avoid this deferring is to be in a gui.register or emulua.registerafter callback)
+		return 0; // we have to wait until later to call this function because dolphin hasn't emulated the next frame yet
+		          // (the only way to avoid this deferring is to be in a gui.register or emu.registerafter callback)
 
 	int x = (int)luaL_checkinteger(L,1) & 0xFFFF;
 	int y = (int)luaL_checkinteger(L,2) & 0xFFFF;
@@ -2898,7 +2967,7 @@ DEFINE_LUA_FUNCTION(input_getcurrentinputstatus, "")
 {
 	lua_newtable(L);
 
-	// TODO: Use pad plugin's input
+	// TODO: implement this (NOT using the pad plugin's input, because that's useless for this purpose)
 /*
 	// keyboard and mouse button status
 	{
@@ -3045,6 +3114,7 @@ static const struct luaL_reg statelib [] =
 	{"create", state_create},
 	{"save", state_save},
 	{"load", state_load},
+	{"verify", state_verify},
 	{"loadscriptdata", state_loadscriptdata},
 	{"savescriptdata", state_savescriptdata},
 	{"registersave", state_registersave},
@@ -3566,6 +3636,8 @@ void RequestAbortLuaScript(int uid, const char* message)
 		info.L->hookcount = 1; // run hook function as soon as possible
 		info.panic = true; // and call luaL_error once we're inside the hook function
 
+		info.restart = false; // also cancel prior restart requests
+
 		if(message)
 		{
 			strncpy(info.panicMessage, message, sizeof(info.panicMessage));
@@ -3726,9 +3798,6 @@ void StopLuaScript(int uid)
 		return;
 
 	LuaContextInfo& info = *infoPtr;
-
-	if(info.ranFrameAdvance)
-		Frame::SetFrameStepping(false);
 
 	if(info.running)
 	{

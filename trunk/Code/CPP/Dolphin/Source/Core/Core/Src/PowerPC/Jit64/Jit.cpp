@@ -239,14 +239,6 @@ void Jit64::WriteCallInterpreter(UGeckoInstruction inst)
 	}
 	Interpreter::_interpreterInstruction instr = GetInterpreterOp(inst);
 	ABI_CallFunctionC((void*)instr, inst.hex);
-
-	if (js.isLastInstruction && SConfig::GetInstance().m_EnableRE0Fix )
-	{
-		
-		SConfig::GetInstance().LoadSettingsHLE();//Make sure the settings are up to date
-		MOV(32, R(EAX), M(&NPC));
-		WriteRfiExitDestInEAX();
-	}
 }
 
 void Jit64::unknown_instruction(UGeckoInstruction inst)
@@ -575,8 +567,15 @@ const u8* Jit64::DoJit(u32 em_address, PPCAnalyst::CodeBuffer *code_buf, JitBloc
 		if (!ops[i].skip)
 			Jit64Tables::CompileInstruction(ops[i].inst);
 
-		gpr.SanityCheck();
-		fpr.SanityCheck();
+#if defined(_DEBUG) || defined(DEBUGFAST)
+		if (gpr.SanityCheck() || fpr.SanityCheck())
+		{
+			char ppcInst[256];
+			DisassembleGekko(ops[i].inst.hex, em_address, ppcInst, 256);
+			NOTICE_LOG(DYNA_REC, "Unflushed reg: %s", ppcInst);
+		}
+#endif
+
 		if (js.cancel)
 			break;
 	}

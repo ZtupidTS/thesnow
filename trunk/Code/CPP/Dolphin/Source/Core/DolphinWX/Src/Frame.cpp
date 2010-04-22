@@ -48,10 +48,6 @@
 
 #include <wx/datetime.h> // wxWidgets
 
-#if defined HAVE_X11 && HAVE_X11
-#include <X11/Xlib.h>
-#endif
-
 // Resources
 
 extern "C" {
@@ -142,7 +138,6 @@ CPanel::CPanel(
 				break;
 			
 			case WM_USER_CREATE:
-				main_frame->DoFullscreen(SConfig::GetInstance().m_LocalCoreStartupParameter.bFullscreen);
 				break;
 
 			case WM_USER_SETCURSOR:
@@ -200,13 +195,43 @@ CPanel::CPanel(
 	}
 #endif
 
+CRenderFrame::CRenderFrame(wxFrame* parent, wxWindowID id, const wxString& title,
+		const wxPoint& pos, const wxSize& size,	long style)
+	: wxFrame(parent, id, title, pos, size, style)
+{
+}
+
+#ifdef _WIN32
+WXLRESULT CRenderFrame::MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, WXLPARAM lParam)
+{
+	switch (nMsg)
+	{
+		case WM_SYSCOMMAND:
+			switch (wParam)
+			{
+				case SC_SCREENSAVE:
+				case SC_MONITORPOWER:
+					if (Core::GetState() == Core::CORE_RUN)
+						break;
+				default:
+					return wxFrame::MSWWindowProc(nMsg, wParam, lParam);
+			}
+			break;
+		default:
+			// By default let wxWidgets do what it normally does with this event
+			return wxFrame::MSWWindowProc(nMsg, wParam, lParam);
+	}
+	return 0;
+}
+#endif
+
 // event tables
 // Notice that wxID_HELP will be processed for the 'About' menu and the toolbar
 // help button.
 
 const wxEventType wxEVT_HOST_COMMAND = wxNewEventType();
 
-BEGIN_EVENT_TABLE(CFrame, wxFrame)
+BEGIN_EVENT_TABLE(CFrame, CRenderFrame)
 
 // Menu bar
 EVT_MENU(wxID_OPEN, CFrame::OnOpen)
@@ -317,16 +342,17 @@ CFrame::CFrame(wxFrame* parent,
 		bool _UseDebugger,
 		bool ShowLogWindow,
 		long style)
-	: wxFrame(parent, id, title, pos, size, style)
+	: CRenderFrame(parent, id, title, pos, size, style)
 	, g_pCodeWindow(NULL)		
 	, m_MenuBar(NULL)
 	, bRenderToMain(false), bNoWiimoteMsg(false)
 	, m_ToolBar(NULL), m_ToolBarDebug(NULL), m_ToolBarAui(NULL)
 	, bFloatLogWindow(false), bFloatConsoleWindow(false)
 	, m_pStatusBar(NULL), m_GameListCtrl(NULL), m_Panel(NULL)
+	, m_RenderFrame(NULL), m_RenderParent(NULL)
 	, m_LogWindow(NULL)
 	, UseDebugger(_UseDebugger), m_bEdit(false), m_bTabSplit(false), m_bNoDocking(false)
-	, m_bControlsCreated(false), m_StopDlg(NULL)
+	, m_bControlsCreated(false), m_bGameLoading(false), m_StopDlg(NULL)
 	#if wxUSE_TIMER
 		, m_timer(this)
 	#endif
@@ -454,15 +480,13 @@ CFrame::CFrame(wxFrame* parent,
 		CreateCursor();
 	#endif
 
+	#if defined(HAVE_XRANDR) && HAVE_XRANDR
+		m_XRRConfig = new X11Utils::XRRConfiguration(X11Utils::XDisplayFromHandle(GetHandle()),
+			   	X11Utils::XWindowFromHandle(GetHandle()));
+	#endif
+
 	// -------------------------
 	// Connect event handlers
-
-	wxTheApp->Connect(wxID_ANY, wxEVT_KEY_DOWN, // Keyboard
-		wxKeyEventHandler(CFrame::OnKeyDown),
-		(wxObject*)0, this);
-	wxTheApp->Connect(wxID_ANY, wxEVT_KEY_UP,
-		wxKeyEventHandler(CFrame::OnKeyUp),
-		(wxObject*)0, this);
 
 	m_Mgr->Connect(wxID_ANY, wxEVT_AUI_RENDER, // Resize
 		wxAuiManagerEventHandler(CFrame::OnManagerResize),
@@ -500,6 +524,10 @@ CFrame::~CFrame()
 		if (m_timer.IsRunning()) m_timer.Stop();
 	#endif
 
+	#if defined(HAVE_XRANDR) && HAVE_XRANDR
+		delete m_XRRConfig;
+	#endif
+
 	ClosePages();
 
 	delete m_Mgr;
@@ -518,46 +546,6 @@ void CFrame::OnQuit(wxCommandEvent& WXUNUSED (event))
 {
 	Close(true);
 }
-
-#if defined HAVE_X11 && HAVE_X11
-void CFrame::X11_SendClientEvent(const char *message,
-	   	int data1, int data2, int data3, int data4)
-{
-	XEvent event;
-	Display *dpy = (Display *)Core::GetWindowHandle();
-	Window win = *(Window *)Core::GetXWindow();
-
-	// Init X event structure for client message
-	event.xclient.type = ClientMessage;
-	event.xclient.format = 32;
-	event.xclient.data.l[0] = XInternAtom(dpy, message, False);
-	event.xclient.data.l[1] = data1;
-	event.xclient.data.l[2] = data2;
-	event.xclient.data.l[3] = data3;
-	event.xclient.data.l[4] = data4;
-
-	// Send the event
-	if (!XSendEvent(dpy, win, False, False, &event))
-		ERROR_LOG(VIDEO, "Failed to send message %s to the emulator window.\n", message);
-}
-
-void X11_SendKeyEvent(int key)
-{
-	XEvent event;
-	Display *dpy = (Display *)Core::GetWindowHandle();
-	Window win = *(Window *)Core::GetXWindow();
-
-	// Init X event structure for key press event
-	event.xkey.type = KeyPress;
-	// WARNING:  This works for ASCII keys.  If in the future other keys are needed
-	// convert with InputCommon::wxCharCodeWXToX from X11InputBase.cpp.
-	event.xkey.keycode = XKeysymToKeycode(dpy, key);
-
-	// Send the event
-	if (!XSendEvent(dpy, win, False, False, &event))
-		ERROR_LOG(VIDEO, "Failed to send key press event to the emulator window.\n");
-}
-#endif
 
 // --------
 // Events
@@ -701,8 +689,12 @@ void CFrame::OnHostMessage(wxCommandEvent& event)
 		}
 		break;
 
+	case IDM_UPDATETITLE:
+		if (!SConfig::GetInstance().m_LocalCoreStartupParameter.bRenderToMain && m_RenderFrame)
+			m_RenderFrame->SetTitle(event.GetString());
+		break;
+
 	case WM_USER_CREATE:
-		DoFullscreen(SConfig::GetInstance().m_LocalCoreStartupParameter.bFullscreen);
 		if (SConfig::GetInstance().m_LocalCoreStartupParameter.bHideCursor)
 			m_RenderParent->SetCursor(wxCURSOR_BLANK);
 		break;
@@ -747,8 +739,10 @@ void CFrame::OnCustomHostMessage(int Id)
 
 void CFrame::OnSizeRequest(int& x, int& y, int& width, int& height)
 {
+	wxMutexGuiEnter();
 	m_RenderParent->GetSize(&width, &height);
 	m_RenderParent->GetPosition(&x, &y);
+	wxMutexGuiLeave();
 }
 
 bool CFrame::RendererHasFocus()
@@ -756,10 +750,12 @@ bool CFrame::RendererHasFocus()
 #ifdef _WIN32
 	// Why doesn't the "else" method below work in windows when called from
 	// Host_RendererHasFocus()?
-	bRendererHasFocus = (m_RenderParent == wxWindow::FindFocus());
-	return bRendererHasFocus;
+	if (m_RenderParent)
+		if (m_RenderParent->GetParent()->GetHWND() == GetForegroundWindow())
+            return true;
+	return false;
 #else
-	return m_RenderParent == wxWindow::FindFocus();
+	return m_RenderParent && (m_RenderParent == wxWindow::FindFocus());
 #endif
 }
 
@@ -808,7 +804,7 @@ void CFrame::OnGameListCtrl_ItemActivated(wxListEvent& WXUNUSED (event))
 	}			
 	else
 		// Game started by double click
-		StartGame(std::string(""));
+		BootGame(std::string(""));
 }
 
 bool IsHotkey(wxKeyEvent &event, int Id)
@@ -830,6 +826,30 @@ void CFrame::OnKeyDown(wxKeyEvent& event)
 		// Stop
 		else if (IsHotkey(event, HK_STOP))
 			DoStop();
+		// state save and state load hotkeys
+		else if (event.GetKeyCode() >= WXK_F1 && event.GetKeyCode() <= WXK_F8)
+		{
+			int slot_number = event.GetKeyCode() - WXK_F1 + 1;
+			if (event.GetModifiers() == wxMOD_NONE)
+				State_Load(slot_number);
+			else if (event.GetModifiers() == wxMOD_SHIFT)
+				State_Save(slot_number);
+			else event.Skip();
+		}
+		else if (event.GetKeyCode() == WXK_F11 && event.GetModifiers() == wxMOD_NONE)
+			State_LoadLastSaved();
+		else if (event.GetKeyCode() == WXK_F12)
+		{
+			if (event.GetModifiers() == wxMOD_NONE)
+				State_UndoSaveState();
+			else if (event.GetModifiers() == wxMOD_SHIFT)
+				State_UndoLoadState();	
+			else event.Skip();
+		}
+		// screenshot hotkeys
+		else if (event.GetKeyCode() == WXK_F9 && event.GetModifiers() == wxMOD_NONE)
+			Core::ScreenShot();
+		else event.Skip();
 
 		// Send the OSD hotkeys to the video plugin
 		if (event.GetKeyCode() >= '3' && event.GetKeyCode() <= '7' && event.GetModifiers() == wxMOD_NONE)
@@ -837,7 +857,7 @@ void CFrame::OnKeyDown(wxKeyEvent& event)
 #ifdef _WIN32
 			PostMessage((HWND)Core::GetWindowHandle(), WM_USER, WM_USER_KEYDOWN, event.GetKeyCode());
 #elif defined(HAVE_X11) && HAVE_X11
-			X11_SendKeyEvent(event.GetKeyCode());
+			X11Utils::SendKeyEvent(event.GetKeyCode());
 #endif
 		}
 #ifdef _WIN32
@@ -846,27 +866,6 @@ void CFrame::OnKeyDown(wxKeyEvent& event)
 				&& event.GetModifiers() == wxMOD_SHIFT)
 			PostMessage((HWND)Core::GetWindowHandle(), WM_USER, WM_USER_KEYDOWN, event.GetKeyCode());
 #endif
-		// state save and state load hotkeys
-		if (event.GetKeyCode() >= WXK_F1 && event.GetKeyCode() <= WXK_F8)
-		{
-			int slot_number = event.GetKeyCode() - WXK_F1 + 1;
-			if (event.GetModifiers() == wxMOD_NONE)
-				State_Load(slot_number);
-			else if (event.GetModifiers() == wxMOD_SHIFT)
-				State_Save(slot_number);
-		}
-		if (event.GetKeyCode() == WXK_F11 && event.GetModifiers() == wxMOD_NONE)
-			State_LoadLastSaved();
-		if (event.GetKeyCode() == WXK_F12)
-		{
-			if (event.GetModifiers() == wxMOD_NONE)
-				State_UndoSaveState();
-			else if (event.GetModifiers() == wxMOD_SHIFT)
-				State_UndoLoadState();	
-		}
-		// screenshot hotkeys
-		if (event.GetKeyCode() == WXK_F9 && event.GetModifiers() == wxMOD_NONE)
-			Core::ScreenShot();
 
 		// Send the keyboard status to the Input plugin
 		CPluginManager::GetInstance().GetPad(0)->PAD_Input(event.GetKeyCode(), 1); // 1 = Down
@@ -947,34 +946,25 @@ wxAuiNotebook* CFrame::CreateEmptyNotebook()
 
 void CFrame::DoFullscreen(bool bF)
 {
-	// Only switch this to fullscreen if we're rendering to main AND if we're running a game
-	// plus if a modal dialog is open, this will still process the keyboard events, and may cause
-	// the main window to become unresponsive, so we have to avoid that.
-	if ((Core::GetState() == Core::CORE_RUN) || (Core::GetState() == Core::CORE_PAUSE))
+	ToggleDisplayMode(bF);
+
+	m_RenderFrame->ShowFullScreen(bF);
+	if (SConfig::GetInstance().m_LocalCoreStartupParameter.bRenderToMain)
 	{
-#if defined(HAVE_X11) && HAVE_X11
-		X11_SendClientEvent("TOGGLE_DISPLAYMODE", bF);
-#elif defined(_WIN32)
-		PostMessage((HWND)Core::GetWindowHandle(), WM_USER, TOGGLE_DISPLAYMODE, bF);
-#endif
-		m_RenderFrame->ShowFullScreen(bF);
-		if (SConfig::GetInstance().m_LocalCoreStartupParameter.bRenderToMain)
+		if (bF)
 		{
-			if (bF)
-			{
-				// Save the current mode before going to fullscreen
-				AuiCurrent = m_Mgr->SavePerspective();
-				m_Mgr->LoadPerspective(AuiFullscreen, true);
-			}
-			else
-			{
-				// Restore saved perspective
-				m_Mgr->LoadPerspective(AuiCurrent, true);
-			}
+			// Save the current mode before going to fullscreen
+			AuiCurrent = m_Mgr->SavePerspective();
+			m_Mgr->LoadPerspective(AuiFullscreen, true);
 		}
 		else
-			m_RenderFrame->Raise();
+		{
+			// Restore saved perspective
+			m_Mgr->LoadPerspective(AuiCurrent, true);
+		}
 	}
+	else
+		m_RenderFrame->Raise();
 }
 
 // Debugging, show loose windows

@@ -29,8 +29,7 @@ SConfig::SConfig()
 {
 	// Make sure we have log manager
 	LoadSettings();
-	//Make sure we load settings
-	LoadSettingsHLE();
+	//Make sure we load any extra settings
 	LoadSettingsWii();
 
 }
@@ -99,6 +98,7 @@ void SConfig::SaveSettings()
 	ini.Set("Hotkeys", "StopModifier",  			m_LocalCoreStartupParameter.iHotkeyModifier[HK_STOP]);
 
 	// Display
+	ini.Set("Display", "FullscreenResolution",	m_LocalCoreStartupParameter.strFullscreenResolution);
 	ini.Set("Display", "Fullscreen",			m_LocalCoreStartupParameter.bFullscreen);
 	ini.Set("Display", "RenderToMain",			m_LocalCoreStartupParameter.bRenderToMain);
 	ini.Set("Display", "RenderWindowXPos",		m_LocalCoreStartupParameter.iRenderWindowXPos);
@@ -149,6 +149,7 @@ void SConfig::SaveSettings()
 	ini.Set("Core", "RunCompareServer",	m_LocalCoreStartupParameter.bRunCompareServer);
 	ini.Set("Core", "RunCompareClient",	m_LocalCoreStartupParameter.bRunCompareClient);
 	ini.Set("Core", "FrameLimit",		m_Framelimit);
+	ini.Set("Core", "UseFPS",		b_UseFPS);
 
 	// Plugins
 	ini.Set("Core", "GFXPlugin",	m_LocalCoreStartupParameter.m_strVideoPlugin);
@@ -224,8 +225,8 @@ void SConfig::LoadSettings()
 
 		// Display
 		ini.Get("Display", "Fullscreen",			&m_LocalCoreStartupParameter.bFullscreen,		false);
+		ini.Get("Display", "FullscreenResolution",	&m_LocalCoreStartupParameter.strFullscreenResolution, "640x480");
 		ini.Get("Display", "RenderToMain",			&m_LocalCoreStartupParameter.bRenderToMain,		false);
-		std::string temp;
 		ini.Get("Display", "RenderWindowXPos",		&m_LocalCoreStartupParameter.iRenderWindowXPos,	0);
 		ini.Get("Display", "RenderWindowYPos",		&m_LocalCoreStartupParameter.iRenderWindowYPos,	0);
 		ini.Get("Display", "RenderWindowWidth",		&m_LocalCoreStartupParameter.iRenderWindowWidth, 640);
@@ -277,6 +278,7 @@ void SConfig::LoadSettings()
 		ini.Get("Core", "RunCompareClient",	&m_LocalCoreStartupParameter.bRunCompareClient,	false);
 		ini.Get("Core", "TLBHack",			&m_LocalCoreStartupParameter.iTLBHack,			0);
 		ini.Get("Core", "FrameLimit",		&m_Framelimit,									1); // auto frame limit by default
+		ini.Get("Core", "UseFPS",		&b_UseFPS,									false); // use vps as default
 
 		// Plugins
 		ini.Get("Core", "GFXPlugin",  &m_LocalCoreStartupParameter.m_strVideoPlugin,	m_DefaultGFXPlugin.c_str());
@@ -300,12 +302,4 @@ void SConfig::LoadSettingsWii()
 		sprintf(SectionName, "Wiimote%i", i + 1);
 		ini.Get(SectionName, "AutoReconnectRealWiimote", &m_WiiAutoReconnect[i], false);
 	}
-}
-
-// Is this still even needed????
-void SConfig::LoadSettingsHLE()
-{
-	IniFile ini;
-	ini.Load((std::string(File::GetUserPath(D_CONFIG_IDX)) + "DSP.ini").c_str());
-	ini.Get("Config", "EnableRE0AudioFix", &m_EnableRE0Fix, false); // RE0 Hack
 }
