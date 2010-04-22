@@ -16,6 +16,7 @@
 // http://code.google.com/p/dolphin-emu/
 
 #include <vector>
+#include <cmath>
 
 #include "Globals.h"
 #include "CommonPaths.h"
@@ -103,9 +104,10 @@ bool TextureMngr::TCacheEntry::IntersectsMemoryRange(u32 range_address, u32 rang
 	return true;
 }
 
-void TextureMngr::TCacheEntry::SetTextureParameters(TexMode0 &newmode)
+void TextureMngr::TCacheEntry::SetTextureParameters(TexMode0 &newmode,TexMode1 &newmode1)
 {
     mode = newmode;
+	mode1 = newmode1;
     if (isRectangle) 
 	{
         // very limited!
@@ -125,11 +127,16 @@ void TextureMngr::TCacheEntry::SetTextureParameters(TexMode0 &newmode)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
 			            (newmode.mag_filter || g_Config.bForceFiltering) ? GL_LINEAR : GL_NEAREST);
 
-        if (bHaveMipMaps) {
-            int filt = newmode.min_filter;
-            if (g_ActiveConfig.bForceFiltering && newmode.min_filter < 4)
-                newmode.min_filter += 4; // take equivalent forced linear
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, c_MinLinearFilter[filt]);
+        if (bHaveMipMaps) 
+		{
+			if (g_ActiveConfig.bForceFiltering && newmode.min_filter < 4)
+                mode.min_filter += 4; // take equivalent forced linear
+            int filt = newmode.min_filter;            
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, c_MinLinearFilter[filt & (((newmode1.max_lod >> 4) > 0)?7:4)]);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, newmode1.min_lod >> 4);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, newmode1.max_lod >> 4);
+			//glTexEnvf(GL_TEXTURE_FILTER_CONTROL, GL_TEXTURE_LOD_BIAS, (newmode.lod_bias/2.0f));
+
         }
         else
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
@@ -250,16 +257,22 @@ TextureMngr::TCacheEntry* TextureMngr::Load(int texstage, u32 address, int width
     if (address == 0)
         return NULL;
 
-    TexMode0 &tm0 = bpmem.tex[texstage > 3].texMode0[texstage & 3];
+    TexMode0 &tm0 = bpmem.tex[texstage >> 2].texMode0[texstage & 3];
+	TexMode1 &tm1 = bpmem.tex[texstage >> 2].texMode1[texstage & 3];
+	
+	bool UseNativeMips = (tm0.min_filter & 3) && (tm0.min_filter != 8);				 
+	int maxlevel = ((tm1.max_lod >> 4));
+
     u8 *ptr = g_VideoInitialize.pGetMemoryPointer(address);
 	int bsw = TexDecoder_GetBlockWidthInTexels(tex_format) - 1;
 	int bsh = TexDecoder_GetBlockHeightInTexels(tex_format) - 1;
+	int bsdepth = TexDecoder_GetTexelSizeInNibbles(tex_format);
     int expandedWidth = (width + bsw) & (~bsw);
 	int expandedHeight = (height + bsh) & (~bsh);
 
-	u64 hash_value;
+	u64 hash_value = 0;
     u32 texID = address;
-	u64 texHash;
+	u64 texHash = 0;
 	u32 FullFormat = tex_format;
 	if ((tex_format == GX_TF_C4) || (tex_format == GX_TF_C8) || (tex_format == GX_TF_C14X2))
 		FullFormat = (tex_format | (tlutfmt << 16));
@@ -303,8 +316,8 @@ TextureMngr::TCacheEntry* TextureMngr::Load(int texstage, u32 address, int width
 //			entry.isRectangle ? TextureMngr::EnableTex2D(texstage) : TextureMngr::EnableTexRECT(texstage);
             glBindTexture(entry.isRectangle ? GL_TEXTURE_RECTANGLE_ARB : GL_TEXTURE_2D, entry.texture);
 			GL_REPORT_ERRORD();
-            if (entry.mode.hex != tm0.hex)
-                entry.SetTextureParameters(tm0);
+            if (entry.mode.hex != tm0.hex || entry.mode1.hex != tm1.hex)
+                entry.SetTextureParameters(tm0,tm1);
 			//DebugLog("%cC addr: %08x | fmt: %i | e.hash: %08x | w:%04i h:%04i", g_ActiveConfig.bSafeTextureCache ? 'S' : 'U'
  			//		, address, tex_format, entry.hash, width, height);
 			return &entry;
@@ -318,8 +331,8 @@ TextureMngr::TCacheEntry* TextureMngr::Load(int texstage, u32 address, int width
             {
 				glBindTexture(entry.isRectangle ? GL_TEXTURE_RECTANGLE_ARB : GL_TEXTURE_2D, entry.texture);
 				GL_REPORT_ERRORD();
-				if (entry.mode.hex != tm0.hex)
-					entry.SetTextureParameters(tm0);
+				if (entry.mode.hex != tm0.hex || entry.mode1.hex != tm1.hex)
+					entry.SetTextureParameters(tm0,tm1);
 				skip_texture_create = true;
             }
             else
@@ -367,7 +380,7 @@ TextureMngr::TCacheEntry* TextureMngr::Load(int texstage, u32 address, int width
 	}
 
     entry.addr = address;
-	entry.size_in_bytes = TexDecoder_GetTextureSizeInBytes(width, height, tex_format);
+	entry.size_in_bytes = TexDecoder_GetTextureSizeInBytes(expandedWidth, expandedHeight, tex_format);
     entry.isRenderTarget = false;
 
 	// For static textures, we use NPOT.
@@ -380,14 +393,17 @@ TextureMngr::TCacheEntry* TextureMngr::Load(int texstage, u32 address, int width
 		glBindTexture(target, entry.texture);
 	}
 
+	bool isPow2 = !((width & (width - 1)) || (height & (height - 1)));
+	int TexLevels = (width > height)?width:height;
+	TexLevels =  (isPow2 && UseNativeMips && (maxlevel > 0)) ? (int)(log((double)TexLevels)/log((double)2)) + 1 : 1;
+	if(TexLevels > maxlevel && maxlevel > 0)
+		TexLevels = maxlevel;
+	int gl_format = 0;
+	int gl_iformat = 0;
+	int gl_type = 0;
+	entry.bHaveMipMaps = UseNativeMips;
 	if (dfmt != PC_TEX_FMT_DXT1)
 	{
-		if (expandedWidth != width)
-			glPixelStorei(GL_UNPACK_ROW_LENGTH, expandedWidth);
-
-		int gl_format;
-		int gl_iformat;
-		int gl_type;
 		switch (dfmt)
 		{
 		default:
@@ -429,27 +445,29 @@ TextureMngr::TCacheEntry* TextureMngr::Load(int texstage, u32 address, int width
 			gl_type = GL_UNSIGNED_SHORT_5_6_5;
 			break;
 		}
-		bool GenerateMipmaps = !entry.isRectangle && ((tm0.min_filter & 3) == 1 || (tm0.min_filter & 3) == 2);
-		if (GenerateMipmaps) 
-		{
-			glTexParameteri(target, GL_GENERATE_MIPMAP, GL_TRUE);
-		}
+		if (expandedWidth != width)
+			glPixelStorei(GL_UNPACK_ROW_LENGTH, expandedWidth);
+		//generate mipmaps even if we use native mips to suport textures with less levels
+		bool GenerateMipmaps = isPow2 && UseNativeMips && (maxlevel > 0);
+		entry.bHaveMipMaps = GenerateMipmaps;
 		if(skip_texture_create)
 		{
 			glTexSubImage2D(target, 0,0,0,width, height, gl_format, gl_type, temp);
 		}
 		else
 		{
-			glTexImage2D(target, 0, gl_iformat, width, height, 0, gl_format, gl_type, temp);
-		}
-		if (GenerateMipmaps) 
-		{
-			glTexParameteri(target, GL_GENERATE_MIPMAP, GL_FALSE);
-			entry.bHaveMipMaps = true;
+			if (GenerateMipmaps) 
+			{
+				gluBuild2DMipmaps(target, gl_iformat, width, height, gl_format, gl_type, temp);
+			}
+			else
+			{
+				glTexImage2D(target, 0, gl_iformat, width, height, 0, gl_format, gl_type, temp);			
+			}
 		}
 
 		if (expandedWidth != width) // reset
-			glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+			glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);		
 	}
 	else
 	{
@@ -464,13 +482,53 @@ TextureMngr::TCacheEntry* TextureMngr::Load(int texstage, u32 address, int width
 				width, height, 0, expandedWidth*expandedHeight/2, temp);
 		}		
 	}
-
+	if(TexLevels > 1 && dfmt != PC_TEX_FMT_NONE)
+	{
+		int level = 1;
+		int mipWidth = width >> 1;
+		int mipHeight = height >> 1;
+		ptr +=  entry.size_in_bytes;
+		while((mipHeight || mipWidth) && (level < TexLevels))
+		{
+			u32 currentWidth = (mipWidth > 0)? mipWidth : 1;
+			u32 currentHeight = (mipHeight > 0)? mipHeight : 1;
+			expandedWidth  = (currentWidth + bsw)  & (~bsw);
+			expandedHeight = (currentHeight + bsh) & (~bsh);
+			TexDecoder_Decode(temp, ptr, expandedWidth, expandedHeight, tex_format, tlutaddr, tlutfmt);							
+			if (dfmt != PC_TEX_FMT_DXT1)
+			{
+				if (expandedWidth != (int)currentWidth)
+					glPixelStorei(GL_UNPACK_ROW_LENGTH, expandedWidth);
+				
+				glTexSubImage2D(target, level,0,0,currentWidth, currentHeight, gl_format, gl_type, temp);								
+				
+				if (expandedWidth != (int)currentWidth)
+					glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+			}
+			else
+			{
+				if(skip_texture_create)
+				{
+					glCompressedTexSubImage2D(target, level,0,0,currentWidth, currentHeight, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT,expandedWidth*expandedHeight/2, temp);				
+				}
+				else
+				{
+					glCompressedTexImage2D(target, level, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT,	currentWidth, currentHeight, 0, expandedWidth*expandedHeight/2, temp);
+				}
+			}
+			GL_REPORT_ERRORD();
+			u32 size = (max(mipWidth, bsw) * max(mipHeight, bsh) * bsdepth) >> 1;
+			ptr +=  size;
+			mipWidth >>= 1;
+			mipHeight >>= 1;
+			level++;
+		}
+	}	
     entry.frameCount = frameCount;
     entry.w = width;
     entry.h = height;
     entry.fmt = FullFormat;
-    entry.SetTextureParameters(tm0);
-
+    entry.SetTextureParameters(tm0,tm1);
     if (g_ActiveConfig.bDumpTextures) // dump texture to file
 	{ 
 
