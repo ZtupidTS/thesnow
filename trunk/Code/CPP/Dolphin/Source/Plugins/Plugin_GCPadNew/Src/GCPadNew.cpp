@@ -1,14 +1,14 @@
 
-#include <math.h>
 #include "Common.h"
 #include "pluginspecs_pad.h"
-#include "pluginspecs_wiimote.h"
 
 #include "ControllerInterface/ControllerInterface.h"
+#include "GCPadEmu.h"
+
 #if defined(HAVE_WX) && HAVE_WX
 #include "ConfigDiag.h"
 #endif
-#include "Config.h"
+#include "../../InputPluginCommon/Src/Config.h"
 
 #if defined(HAVE_X11) && HAVE_X11
 #include <X11/Xlib.h>
@@ -16,16 +16,20 @@
 
 #define PLUGIN_VERSION		0x0100
 
+#define PLUGIN_NAME		"Dolphin GCPad New"
 #ifdef DEBUGFAST
-#define PLUGIN_FULL_NAME	"Dolphin GCPad New (DebugFast)"
+#define PLUGIN_FULL_NAME	PLUGIN_NAME" (DebugFast)"
 #else
 #ifdef _DEBUG
-#define PLUGIN_FULL_NAME	"Dolphin GCPad New (Debug)"
+#define PLUGIN_FULL_NAME	PLUGIN_NAME" (Debug)"
 #else
-#define PLUGIN_FULL_NAME	"Dolphin GCPad New"
+#define PLUGIN_FULL_NAME	PLUGIN_NAME
 #endif
 #endif
 
+// plugin globals
+static Plugin g_plugin( "GCPadNew", "Pad", "GCPad" );
+SPADInitialize *g_PADInitialize = NULL;
 
 #ifdef _WIN32
 class wxDLLApp : public wxApp
@@ -38,14 +42,6 @@ class wxDLLApp : public wxApp
 IMPLEMENT_APP_NO_MAIN(wxDLLApp)
 WXDLLIMPEXP_BASE void wxSetInstance(HINSTANCE hInst);
 #endif
-// copied from GCPad
-SPADInitialize *g_PADInitialize = NULL;
-// Check if Dolphin is in focus
-// ----------------
-bool IsFocus()
-{
-	return g_PADInitialize->pRendererHasFocus();
-}
 
 // copied from GCPad
 HINSTANCE g_hInstance;
@@ -67,8 +63,6 @@ wxWindow* GetParentedWxWindow(HWND Parent)
 #endif
 // /
 
-// the plugin
-Plugin g_plugin;
 #ifdef _WIN32
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved )
 {
@@ -90,18 +84,32 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved )
 }
 #endif
 
+void DeInitPlugin()
+{
+	// i realize i am checking IsInit() twice, just too lazy to change it
+	if ( g_plugin.controller_interface.IsInit() )
+	{
+		std::vector<ControllerEmu*>::const_iterator
+			i = g_plugin.controllers.begin(),
+			e = g_plugin.controllers.end();
+		for ( ; i!=e; ++i )
+			delete *i;
+		g_plugin.controllers.clear();
 
-int _last_numPAD = 4;
-
+		g_plugin.controller_interface.DeInit();
+	}
+}
 
 // if plugin isn't initialized, init and load config
 void InitPlugin( void* const hwnd )
 {
-	//g_plugin.controls_crit.Enter();		// enter
-	//g_plugin.interface_crit.Enter();
-
+	// i realize i am checking IsInit() twice, just too lazy to change it
 	if ( false == g_plugin.controller_interface.IsInit() )
 	{
+		// add 4 gcpads
+		for ( unsigned int i = 0; i<4; ++i )
+			g_plugin.controllers.push_back( new GCPad( i ) );
+
 		// load the saved controller config
 		g_plugin.LoadConfig();
 		
@@ -116,9 +124,6 @@ void InitPlugin( void* const hwnd )
 			(*i)->UpdateReferences( g_plugin.controller_interface );
 
 	}
-
-	//g_plugin.interface_crit.Leave();
-	//g_plugin.controls_crit.Leave();		// leave
 }
 
 // I N T E R F A C E 
@@ -131,10 +136,6 @@ void InitPlugin( void* const hwnd )
 //
 void PAD_GetStatus(u8 _numPAD, SPADStatus* _pPADStatus)
 {
-	// why not, i guess
-	if ( NULL == _pPADStatus )
-		return;
-
 	memset( _pPADStatus, 0, sizeof(*_pPADStatus) );
 	_pPADStatus->err = PAD_ERR_NONE;
 	// wtf is this?	
@@ -151,6 +152,7 @@ void PAD_GetStatus(u8 _numPAD, SPADStatus* _pPADStatus)
 
 	// if we are on the next input cycle, update output and input
 	// if we can get a lock
+	static int _last_numPAD = 4;
 	if ( _numPAD <= _last_numPAD && g_plugin.interface_crit.TryEnter() )
 	{
 		g_plugin.controller_interface.UpdateOutput();
@@ -160,7 +162,7 @@ void PAD_GetStatus(u8 _numPAD, SPADStatus* _pPADStatus)
 	_last_numPAD = _numPAD;
 	
 	// if we want background input or have focus
-	if ( g_plugin.controllers[_numPAD]->options[0].settings[0]->value || IsFocus() )
+	if ( g_plugin.controllers[_numPAD]->options[0].settings[0]->value || g_PADInitialize->pRendererHasFocus() )
 	{
 		// get input
 		((GCPad*)g_plugin.controllers[ _numPAD ])->GetInput( _pPADStatus );
@@ -201,7 +203,7 @@ void PAD_Rumble(u8 _numPAD, unsigned int _uType, unsigned int _uStrength)
 	if ( g_plugin.controls_crit.TryEnter() )
 	{
 		// only on/off rumble, if we have focus or background input on
-		if ( g_plugin.controllers[_numPAD]->options[0].settings[0]->value || IsFocus() )
+		if ( g_plugin.controllers[_numPAD]->options[0].settings[0]->value || g_PADInitialize->pRendererHasFocus() )
 			((GCPad*)g_plugin.controllers[ _numPAD ])->SetOutput( 1 == _uType && _uStrength > 2 );
 
 		// leave
@@ -241,7 +243,7 @@ void DllConfig(HWND _hParent)
 #if defined(HAVE_X11) && HAVE_X11
 	Display *dpy = NULL;
 #endif
-	if ( g_plugin.controller_interface.IsInit() )	// hack for showing dialog when game isnt running
+	if ( g_plugin.controller_interface.IsInit() )	// check if game is running
 		was_init = true;
 	else
 	{
@@ -278,12 +280,12 @@ void DllConfig(HWND _hParent)
 #endif
 	// /
 
-	if ( !was_init )				// hack for showing dialog when game isnt running
+	if ( !was_init )				// if game is running
 	{
 #if defined(HAVE_X11) && HAVE_X11
 		XCloseDisplay(dpy);
 #endif
-		g_plugin.controller_interface.DeInit();
+		DeInitPlugin();
 	}
 }
 
@@ -331,10 +333,8 @@ void Initialize(void *init)
 //
 void Shutdown(void)
 {
-	//plugin.controls_crit.Enter();	// enter
 	if ( g_plugin.controller_interface.IsInit() )
-		g_plugin.controller_interface.DeInit();
-	//plugin.controls_crit.Leave();	// leave
+		DeInitPlugin();
 }
 
 // ___________________________________________________________________________
