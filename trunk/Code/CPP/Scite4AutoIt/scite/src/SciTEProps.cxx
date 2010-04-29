@@ -102,16 +102,16 @@ void SciTEBase::SetLanguageMenu() {
 	}
 	for (int item = 0; item < languageItems; item++) {
 		int itemID = languageCmdID + item;
-//		GUI::gui_string entry = localiser.Text(languageMenu[item].menuItem.c_str());
-		GUI::gui_string entry = languageMenu[item].menuItem.w_str();
+		GUI::gui_string entry = localiser.Text(languageMenu[item].menuItem.c_str());
+//		GUI::gui_string entry = languageMenu[item].menuItem.w_str();
 		if (languageMenu[item].menuKey.length()) {
 #if defined(GTK)
 			entry += GUI_TEXT(" ");
 #else
 			entry += GUI_TEXT("\t");
 #endif
-//			entry += GUI::StringFromUTF8(languageMenu[item].menuKey.c_str());
-			entry += languageMenu[item].menuKey.w_str();
+			entry += GUI::StringFromUTF8(languageMenu[item].menuKey.c_str());
+//			entry += languageMenu[item].menuKey.w_str();
 		}
 		if (entry[0] != '#') {
 			SetMenuItem(menuLanguage, item, itemID, entry.c_str());
