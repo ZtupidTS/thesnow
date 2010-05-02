@@ -41,7 +41,7 @@ const GUI::gui_char menuAccessIndicator[] = GUI_TEXT("_");
 #endif
 #endif
 
-#define _WIN32_WINNT  0x0500	//moded
+#define _WIN32_WINNT  0x0500
 #ifdef _MSC_VER
 // windows.h, et al, use a lot of nameless struct/unions - can't fix it, so allow it
 #pragma warning(disable: 4201)
@@ -274,7 +274,7 @@ StyleDefinition::StyleDefinition(const char *definition) :
 }
 
 bool StyleDefinition::ParseStyleDefinition(const char *definition) {
-	if (definition == 0 || *definition == '\0') {
+	if (definition == NULL || *definition == '\0') {
 		return false;
 	}
 	char *val = StringDup(definition);
