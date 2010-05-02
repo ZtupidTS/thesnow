@@ -55,6 +55,24 @@ rlslog.net##DIV#sidebar
 |http://cpic2.edushi.com/*/AImageDs/*
 http://cpic2.edushi.com/cn/*.swf
 
+!-- JANDAN
+jandan.net##DIV#sidebar
+
+!-- ICIBA
+iciba.com##DIV#rec_data
+iciba.com##DIV#hot-link
+iciba.com##DIV.index_link
+iciba.com##DIV#rec_info
+iciba.com##DIV#header.header_layout
+iciba.com##DIV#spdc
+
+!-- doopes
+doopes.com##DIV#googleads
+
+!-- CB
+|http://img.cnbeta.com/bitanswer.swf
+|http://img.cnbeta.com/youdao576.gif
+
 
 !-- 其它
 ||miibeian.gov.cn^
