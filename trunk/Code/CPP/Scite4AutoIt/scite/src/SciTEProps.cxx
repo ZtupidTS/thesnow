@@ -113,7 +113,7 @@ void SciTEBase::SetLanguageMenu() {
 			entry += GUI::StringFromUTF8(languageMenu[item].menuKey.c_str());
 //			entry += languageMenu[item].menuKey.w_str();
 		}
-		if (entry[0] != '#') {
+		if (entry.size() && entry[0] != '#') {
 			SetMenuItem(menuLanguage, item, itemID, entry.c_str());
 		}
 	}
@@ -132,7 +132,7 @@ void SciTEBase::ReadGlobalPropFile() {
 #else
 	char **e=_environ;
 #endif
-	for (; *e; e++) {
+	for (; e && *e; e++) {
 		char key[1024];
 		char *k=*e;
 		char *v=strchr(k,'=');
