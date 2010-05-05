@@ -161,7 +161,7 @@ Func ClockLoop()
 	$exititem       = TrayCreateItem("ÍË³ö")
 
 	TraySetState()
-	AdlibEnable("Draw")
+	AdlibRegister("Draw")
 	While 1
 		$msg = TrayGetMsg()
 		Select
