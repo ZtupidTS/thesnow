@@ -321,6 +321,7 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	arrayStringFor_Hack.Add(_("塞尔达黄昏(黎明)公主布卢姆"));
 	arrayStringFor_Hack.Add(_("索尼克与黑骑士"));
 	arrayStringFor_Hack.Add(_("Bleach Versus Crusade"));
+	arrayStringFor_Hack.Add(_("Skies of Arcadia"));
 	Hack = new wxChoice(m_GameConfig, ID_HACK, wxDefaultPosition, wxDefaultSize, arrayStringFor_Hack, 0, wxDefaultValidator);
 
 	// Emulation State
