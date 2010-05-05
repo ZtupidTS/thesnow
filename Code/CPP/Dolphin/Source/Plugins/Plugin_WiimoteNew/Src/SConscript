@@ -11,8 +11,11 @@ files = [
 	  'WiimoteEmu/Attachment/Classic.cpp',
 	  'WiimoteEmu/Attachment/Attachment.cpp',
 	  'WiimoteEmu/Attachment/Nunchuk.cpp',
+	  'WiimoteEmu/Attachment/Drums.cpp',
+	  'WiimoteEmu/Attachment/Guitar.cpp',
 	  'WiimoteEmu/EmuSubroutines.cpp',
 	  'WiimoteEmu/Encryption.cpp',
+	  'WiimoteEmu/Speaker.cpp',
 	  'WiimoteNew.cpp',
 	]
 
@@ -21,6 +24,6 @@ wiinewenv.Append(
 	)
 
 if sys.platform == 'darwin':
-	wiinewenv['FRAMEWORKS'] = ['CoreFoundation', 'System', 'Cocoa' ]
+	wiinewenv['FRAMEWORKS'] = ['CoreFoundation', 'System', 'Cocoa', 'IOKit' ]
 
 wiinewenv.SharedLibrary(env['plugin_dir']+name, files)

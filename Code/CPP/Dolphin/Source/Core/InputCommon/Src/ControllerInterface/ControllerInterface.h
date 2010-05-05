@@ -16,7 +16,6 @@
 	#define CIFACE_USE_DIRECTINPUT
 #endif
 #if defined(HAVE_X11) && HAVE_X11
-// Xlib is not tested at all currently, it is like 80% complete at least though
 	#define CIFACE_USE_XLIB
 #endif
 #ifndef CIFACE_USE_DIRECTINPUT_JOYSTICK
@@ -57,6 +56,7 @@ public:
 		{
 		public:
 			virtual std::string GetName() const = 0;
+			virtual ~Control() {}
 		};
 
 		//
@@ -73,7 +73,7 @@ public:
 		//
 		//		Output
 		//
-		// guess wut it is, yup and output
+		// an output on a device
 		//
 		class Output : public Control
 		{
@@ -138,6 +138,8 @@ public:
 	public:
 		ControlQualifier() {};
 		ControlQualifier( const std::string& _name ) : name(_name) {}
+		virtual ~ControlQualifier() {}
+
 		virtual bool operator==(const Device::Control* const in) const;
 		void FromControl(const Device::Control* const in);
 
@@ -172,7 +174,7 @@ public:
 	//		ControlReference
 	//
 	// these are what you create to actually use the inputs, InputReference or OutputReference
-	// they have a vector < struct { device , vector < controls > } >
+	// they have a DeviceQualifier and ControlQualifier used to match 1 or more inputs
 	//
 	// after being binded to devices and controls with ControllerInterface::UpdateReference,
 	//		each one can binded to a devices, and 0+ controls the device
@@ -184,6 +186,7 @@ public:
 	{
 	public:
 		ControlReference( const bool _is_input ) : range(1), is_input(_is_input), device(NULL) {}
+		virtual ~ControlReference() {}
 
 		virtual ControlState State( const ControlState state = 0 ) = 0;
 		virtual bool Detect( const unsigned int ms, const unsigned int count = 1 ) = 0;

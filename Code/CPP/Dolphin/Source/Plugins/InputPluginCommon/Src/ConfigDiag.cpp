@@ -19,9 +19,9 @@ void GamepadPage::ConfigExtension( wxCommandEvent& event )
 		const std::size_t orig_size = control_groups.size();
 
 		ControlGroupsSizer* const szr = new ControlGroupsSizer( ex->attachments[ex->switch_extension], pnl, this, &control_groups );
-		pnl->SetSizerAndFit( szr );
+		pnl->SetSizerAndFit( szr );	// needed
 		pnl_szr->Add( pnl, 0, wxLEFT, 5 );
-		dlg->SetSizerAndFit( pnl_szr );
+		dlg->SetSizerAndFit( pnl_szr );	// needed
 
 		dlg->Center();
 
@@ -131,7 +131,7 @@ ControlDialog::ControlDialog( wxWindow* const parent, ControllerInterface::Contr
 	szr->Add( d_szr, 0, wxEXPAND|wxLEFT|wxRIGHT|wxTOP, 5 );
 	szr->Add( control_chooser, 0, wxEXPAND|wxALL, 5 );
 
-	SetSizerAndFit( szr );
+	SetSizerAndFit( szr );	// needed
 
 }
 
@@ -661,6 +661,7 @@ ControlGroupBox::ControlGroupBox( ControllerEmu::ControlGroup* const group, wxWi
 	case GROUP_TYPE_STICK :
 	case GROUP_TYPE_TILT :
 	case GROUP_TYPE_CURSOR :
+	case GROUP_TYPE_FORCE :
 		{
 			wxBitmap bitmap(64, 64);
 			wxMemoryDC dc;
@@ -714,24 +715,36 @@ ControlGroupBox::ControlGroupBox( ControllerEmu::ControlGroup* const group, wxWi
 		}
 		break;
 	case GROUP_TYPE_MIXED_TRIGGERS :
+	case GROUP_TYPE_TRIGGERS :
 		{
-			wxBitmap bitmap(64+12+1, int(6*group->controls.size())+1);
+			int height = (int)(6 * group->controls.size());
+			int width = 64+12+1;
+			if (GROUP_TYPE_TRIGGERS == group->type)
+			{
+				height *= 2;
+				width = 64;
+			}
+			wxBitmap bitmap(width, height+1);
 			wxMemoryDC dc;
 			dc.SelectObject(bitmap);
 			dc.Clear();
 			dc.SelectObject(wxNullBitmap);
 			static_bitmap = new wxStaticBitmap( parent, -1, bitmap, wxDefaultPosition, wxDefaultSize, wxBITMAP_TYPE_BMP );
 
-			PadSettingChoice* threshold_cbox = new PadSettingChoice( parent, group->settings[0] );
-			_connect_macro_( threshold_cbox, GamepadPage::AdjustSetting, wxEVT_COMMAND_CHOICE_SELECTED, eventsink );
+			std::vector<ControllerEmu::ControlGroup::Setting*>::const_iterator
+				i = group->settings.begin(),
+				e = group->settings.end();
+			for ( ; i!=e; ++i )
+			{
+				PadSettingChoice* cbox = new PadSettingChoice( parent, *i );
+				_connect_macro_( cbox, GamepadPage::AdjustSetting, wxEVT_COMMAND_CHOICE_SELECTED, eventsink );
+				options.push_back( cbox );
+				wxBoxSizer* const szr = new wxBoxSizer( wxHORIZONTAL );
+				szr->Add( new wxStaticText( parent, -1, wxString::FromAscii( (*i)->name ) ), 0, wxCENTER|wxRIGHT, 5 );
+				szr->Add( cbox, 0, wxRIGHT, 5 );
+				Add( szr, 0, wxALL|wxCENTER, 5 );
+			}
 
-			options.push_back( threshold_cbox );
-
-			wxBoxSizer* const szr = new wxBoxSizer( wxHORIZONTAL );
-			szr->Add( new wxStaticText( parent, -1, wxString::FromAscii( group->settings[0]->name ) ), 0, wxCENTER|wxRIGHT, 5 );
-			szr->Add( threshold_cbox, 0, wxRIGHT, 5 );
-
-			Add( szr, 0, wxALL|wxCENTER, 5 );
 			Add( static_bitmap, 0, wxALL|wxCENTER, 5 );
 		}
 		break;
@@ -859,7 +872,7 @@ GamepadPage::GamepadPage( wxWindow* parent, const unsigned int pad_num, ConfigDi
 
 	UpdateGUI();
 
-	SetSizerAndFit( mapping );
+	SetSizerAndFit( mapping );	// needed
 	Layout();
 };
 
@@ -899,7 +912,8 @@ ConfigDialog::ConfigDialog( wxWindow* const parent, Plugin& plugin, const std::s
 	szr->Add( m_pad_notebook, 0, wxEXPAND|wxTOP|wxLEFT|wxRIGHT, 5 );
 	szr->Add( btns, 0, wxEXPAND|wxALL, 5 );
 
-	SetSizerAndFit( szr );
+	SetSizerAndFit( szr );	// needed
+
 	// not needed here it seems, but it cant hurt
 	//Layout();
 

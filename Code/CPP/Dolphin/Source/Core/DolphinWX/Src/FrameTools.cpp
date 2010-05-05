@@ -186,20 +186,17 @@ void CFrame::CreateMenu()
 	toolsMenu->Append(IDM_IMPORTSAVE, _T("Wii 存档导入 (不稳定)"));
 	toolsMenu->Append(IDM_CHEATS, _T("动作回放管理器(&R)"));
 
-#if defined(HAVE_SFML) && HAVE_SFML
-	// Disabled for now, netplay doesn't quite work currently
-	// toolsMenu->Append(IDM_NETPLAY, _T("开始网络游戏(&N)"));
-#endif
+	toolsMenu->Append(IDM_NETPLAY, _T("开始网络游戏(&N)"));
 
 	if (DiscIO::CNANDContentManager::Access().GetNANDLoader(std::string (File::GetUserPath(D_WIIMENU_IDX))).IsValid())
 	{
 		toolsMenu->Append(IDM_LOAD_WII_MENU, _T("载入 Wii 菜单"));
 	}
 	toolsMenu->AppendSeparator();
-	toolsMenu->AppendCheckItem(IDM_CONNECT_WIIMOTE1, _T("连接 Wiimote 1\tAlt+F5"));
-	toolsMenu->AppendCheckItem(IDM_CONNECT_WIIMOTE2, _T("连接 Wiimote 2\tAlt+F6"));
-	toolsMenu->AppendCheckItem(IDM_CONNECT_WIIMOTE3, _T("连接 Wiimote 3\tAlt+F7"));
-	toolsMenu->AppendCheckItem(IDM_CONNECT_WIIMOTE4, _T("连接 Wiimote 4\tAlt+F8"));
+	toolsMenu->AppendCheckItem(IDM_CONNECT_WIIMOTE1, GetMenuLabel(HK_WIIMOTE1_CONNECT));
+	toolsMenu->AppendCheckItem(IDM_CONNECT_WIIMOTE2, GetMenuLabel(HK_WIIMOTE2_CONNECT));
+	toolsMenu->AppendCheckItem(IDM_CONNECT_WIIMOTE3, GetMenuLabel(HK_WIIMOTE3_CONNECT));
+	toolsMenu->AppendCheckItem(IDM_CONNECT_WIIMOTE4, GetMenuLabel(HK_WIIMOTE4_CONNECT));
 
 	m_MenuBar->Append(toolsMenu, _T("工具(&T)"));
 
@@ -279,13 +276,26 @@ wxString CFrame::GetMenuLabel(int Id)
 			Label = _T("&Fullscreen\t");
 			break;
 		case HK_PLAY_PAUSE:
-			if (Core::GetState() == Core::CORE_UNINITIALIZED)
-				Label = _T("&Play\t");
+			if (Core::GetState() == Core::CORE_RUN)
+				Label = _T("&Pause\t");
 			else
 				Label = _T("&Play\t");
 			break;
 		case HK_STOP:
 			Label = _T("&Stop\t");
+			break;
+		case HK_WIIMOTE1_CONNECT:
+			Label = _T("Connect Wiimote 1\t");
+			break;
+		case HK_WIIMOTE2_CONNECT:
+			Label = _T("Connect Wiimote 2\t");
+			break;
+		case HK_WIIMOTE3_CONNECT:
+			Label = _T("Connect Wiimote 3\t");
+			break;
+		case HK_WIIMOTE4_CONNECT:
+			Label = _T("Connect Wiimote 4\t");
+			break;
 	}
 
 	wxString Modifier = InputCommon::WXKeymodToString
@@ -986,9 +996,7 @@ void CFrame::StatusBarMessage(const char * Text, ...)
 // NetPlay stuff
 void CFrame::OnNetPlay(wxCommandEvent& WXUNUSED (event))
 {
-#if defined(HAVE_SFML) && HAVE_SFML
-	new NetPlay(this, m_GameListCtrl->GetGamePaths(), m_GameListCtrl->GetGameNames());
-#endif
+	new NetPlaySetupDiag(this, m_GameListCtrl);
 }
 
 void CFrame::OnMemcard(wxCommandEvent& WXUNUSED (event))
@@ -1183,6 +1191,10 @@ void CFrame::UpdateGUI()
 	GetMenuBar()->FindItem(IDM_TOGGLE_FULLSCREEN)->SetItemLabel(GetMenuLabel(HK_FULLSCREEN));
 	GetMenuBar()->FindItem(IDM_PLAY)->SetItemLabel(GetMenuLabel(HK_PLAY_PAUSE));
 	GetMenuBar()->FindItem(IDM_STOP)->SetItemLabel(GetMenuLabel(HK_STOP));
+	GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE1)->SetItemLabel(GetMenuLabel(HK_WIIMOTE1_CONNECT));
+	GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE2)->SetItemLabel(GetMenuLabel(HK_WIIMOTE2_CONNECT));
+	GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE3)->SetItemLabel(GetMenuLabel(HK_WIIMOTE3_CONNECT));
+	GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE4)->SetItemLabel(GetMenuLabel(HK_WIIMOTE4_CONNECT));
 
 	m_pSubMenuLoad->Enable(Initialized);
 	m_pSubMenuSave->Enable(Initialized);

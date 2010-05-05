@@ -12,6 +12,10 @@
 
 #if defined(HAVE_X11) && HAVE_X11
 #include <X11/Xlib.h>
+#if defined(HAVE_WX) && HAVE_WX
+#include <gtk/gtk.h>
+#include <gdk/gdkx.h>
+#endif
 #endif
 
 #define PLUGIN_VERSION		0x0100
@@ -136,13 +140,7 @@ void InitPlugin( void* const hwnd )
 void Wiimote_ControlChannel(int _number, u16 _channelID, const void* _pData, u32 _Size)
 {
 	//PanicAlert( "Wiimote_ControlChannel" );
-
-	// TODO: change this to a TryEnter, and make it give empty input on failure
-	g_plugin.controls_crit.Enter();
-
 	((WiimoteEmu::Wiimote*)g_plugin.controllers[ _number ])->ControlChannel( _channelID, _pData, _Size );
-
-	g_plugin.controls_crit.Leave();
 }
 
 // __________________________________________________________________________________________________
@@ -155,13 +153,7 @@ void Wiimote_ControlChannel(int _number, u16 _channelID, const void* _pData, u32
 void Wiimote_InterruptChannel(int _number, u16 _channelID, const void* _pData, u32 _Size)
 {
 	//PanicAlert( "Wiimote_InterruptChannel" );
-
-	// TODO: change this to a TryEnter, and make it give empty input on failure
-	g_plugin.controls_crit.Enter();
-
 	((WiimoteEmu::Wiimote*)g_plugin.controllers[ _number ])->InterruptChannel( _channelID, _pData, _Size );
-
-	g_plugin.controls_crit.Leave();
 }
 
 // __________________________________________________________________________________________________
@@ -232,14 +224,24 @@ void GetDllInfo(PLUGIN_INFO* _pPluginInfo)
 //
 void DllConfig(HWND _hParent)
 {
+#if defined(HAVE_WX) && HAVE_WX
 	bool was_init = false;
+
 	if ( g_plugin.controller_interface.IsInit() )	// hack for showing dialog when game isnt running
 		was_init = true;
 	else
-		InitPlugin( _hParent );
+	{
+#if defined(HAVE_X11) && HAVE_X11
+		Window win = GDK_WINDOW_XID(GTK_WIDGET(_hParent)->window);
+		g_WiimoteInitialize.hWnd = GDK_WINDOW_XDISPLAY(GTK_WIDGET(_hParent)->window);
+		g_WiimoteInitialize.pXWindow = &win;
+		InitPlugin(g_WiimoteInitialize.hWnd);
+#else
+		InitPlugin(_hParent);
+#endif
+	}
 
 	// copied from GCPad
-#if defined(HAVE_WX) && HAVE_WX
 	wxWindow *frame = GetParentedWxWindow(_hParent);
 	ConfigDialog* m_ConfigFrame = new ConfigDialog( frame, g_plugin, PLUGIN_FULL_NAME, was_init );
 
@@ -260,11 +262,11 @@ void DllConfig(HWND _hParent)
 	m_ConfigFrame->Destroy();
 	m_ConfigFrame = NULL;
 	frame->Destroy();
-#endif
 	// /
 
 	if ( false == was_init )				// hack for showing dialog when game isnt running
 		DeInitPlugin();
+#endif
 }
 
 // ___________________________________________________________________________
@@ -299,7 +301,7 @@ void Initialize(void *init)
 {
 	g_WiimoteInitialize = *(SWiimoteInitialize*)init;
 	if ( false == g_plugin.controller_interface.IsInit() )
-		InitPlugin( ((SPADInitialize*)init)->hWnd );
+		InitPlugin( g_WiimoteInitialize.hWnd );
 }
 
 // ___________________________________________________________________________
@@ -323,7 +325,7 @@ void Shutdown(void)
 //
 void DoState(unsigned char **ptr, int mode)
 {
-	// prolly won't need this
+	// do this later
 }
 
 // ___________________________________________________________________________
