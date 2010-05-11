@@ -368,7 +368,7 @@ FilePath SciTEWin::GetSciteUserHome() {
 	GUI::gui_char *home = _wgetenv(GUI_TEXT("SciTE_HOME"));
 	if (!home)
 		//home = _wgetenv(GUI_TEXT("USERPROFILE"));
-		home = _wgetenv(GUI_TEXT("APPDATA"));
+		  home = _wgetenv(L"APPDATA");
 		//
 	return GetSciTEPath(home);
 }
@@ -966,11 +966,6 @@ void ExecThread(void *ptw) {
 	SciTEWin *tw = reinterpret_cast<SciTEWin *>(ptw);
 	tw->ProcessExecute();
 }
-
-struct ShellErr {
-	DWORD code;
-	const char *descr;
-};
 
 void SciTEWin::ShellExec(const SString &cmd, const char *dir) {
 	char *mycmd;
