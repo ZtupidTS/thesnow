@@ -50,7 +50,7 @@
 				InlineFunctionExpansion="2"
 				OmitFramePointers="true"
 				AdditionalIncludeDirectories="..\src;..\lua\include;..\..\scintilla\include;..\..\scintilla\src"
-				PreprocessorDefinitions="NDEBUG;WIN32;_WINDOWS;STATIC_BUILD;SCI_LEXER;LINK_LEXERS;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE"
+				PreprocessorDefinitions="NDEBUG;WIN32;_WINDOWS;__STATIC_BUILD;SCI_LEXER;LINK_LEXERS;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="false"
 				PrecompiledHeaderFile=".\Release/SciTE.pch"
