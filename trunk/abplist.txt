@@ -31,7 +31,7 @@ sourceforge.jp##DIV.ad300
 |http://*.doubleclick.net/*
 
 !-- 广告商
-|http://pagead2.googlesyndication.com/pagead/*
+|*pagead2.googlesyndication.com/pagead/*
 |http://*.fanhuan.com/*
 |http://*.adbrite.com/*
 ||*.smartadserver.com^
@@ -75,4 +75,7 @@ doopes.com##DIV#googleads
 
 
 !-- 其它
+||intellitxt.com^
+
+!-- 收集隐私
 ||miibeian.gov.cn^
