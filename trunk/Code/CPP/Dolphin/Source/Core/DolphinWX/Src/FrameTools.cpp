@@ -166,7 +166,7 @@ void CFrame::CreateMenu()
 
 	// Options menu
 	wxMenu* pOptionsMenu = new wxMenu;
-	pOptionsMenu->Append(IDM_CONFIG_MAIN, _T("程序设置(&N)..."));
+	pOptionsMenu->Append(wxID_PREFERENCES, _T("程序设置(&N)..."));
 	pOptionsMenu->AppendSeparator();
 	pOptionsMenu->Append(IDM_CONFIG_GFX_PLUGIN, _T("图形设置(&G)"));
 	pOptionsMenu->Append(IDM_CONFIG_DSP_PLUGIN, _T("音频设置(&D)"));
@@ -259,12 +259,12 @@ void CFrame::CreateMenu()
 
 	// Help menu
 	wxMenu* helpMenu = new wxMenu;
-	/*helpMenu->Append(wxID_HELP, _T("&Help"));
-	re-enable when there's something useful to display*/
+	// Re-enable when there's something useful to display */
+	// helpMenu->Append(wxID_HELP, _T("&Help"));
 	helpMenu->Append(IDM_HELPWEBSITE, _T("Dolphin (Mod) 网站(&W)"));
 	helpMenu->Append(IDM_HELPGOOGLECODE, _T("Dolphin (Mod) &Google 代码"));
 	helpMenu->AppendSeparator();
-	helpMenu->Append(IDM_HELPABOUT, _T("关于(&A)..."));
+	helpMenu->Append(wxID_ABOUT, _T("关于(&A)..."));
 	m_MenuBar->Append(helpMenu, _T("帮助(&H)"));
 
 	// Associate the menu bar with the frame
@@ -329,7 +329,7 @@ void CFrame::PopulateToolbar(wxAuiToolBar* ToolBar)
 	ToolBar->AddTool(IDM_TOGGLE_FULLSCREEN, _T("全屏"),  m_Bitmaps[Toolbar_FullScreen], _T("切换全屏"));
 	ToolBar->AddTool(IDM_SCREENSHOT, _T("截图"),   m_Bitmaps[Toolbar_FullScreen], _T("屏幕截图"));
 	ToolBar->AddSeparator();
-	ToolBar->AddTool(IDM_CONFIG_MAIN, _T("设置"), m_Bitmaps[Toolbar_PluginOptions], _T("设置..."));
+	ToolBar->AddTool(wxID_PREFERENCES, _T("设置"), m_Bitmaps[Toolbar_PluginOptions], _T("设置..."));
 	ToolBar->AddTool(IDM_CONFIG_GFX_PLUGIN, _T("图形"),  m_Bitmaps[Toolbar_PluginGFX], _T("图形设置"));
 	ToolBar->AddTool(IDM_CONFIG_DSP_PLUGIN, _T("音频"),  m_Bitmaps[Toolbar_PluginDSP], _T("音频设置"));
 	ToolBar->AddTool(IDM_CONFIG_PAD_PLUGIN, _T("手柄"),  m_Bitmaps[Toolbar_PluginPAD], _T("手柄设置"));
@@ -961,7 +961,7 @@ void CFrame::OnHelp(wxCommandEvent& event)
 {
 	switch (event.GetId())
 	{
-	case IDM_HELPABOUT:
+	case wxID_ABOUT:
 		{
 			AboutDolphin frame(this);
 			frame.ShowModal();
@@ -1325,6 +1325,11 @@ void CFrame::UpdateGUI()
 
 	// Commit changes to manager
 	m_Mgr->Update();
+}
+
+void CFrame::UpdateGameList()
+{
+	m_GameListCtrl->Update();
 }
 
 void CFrame::GameListChanged(wxCommandEvent& event)
