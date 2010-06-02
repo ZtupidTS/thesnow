@@ -69,6 +69,9 @@ static int s_XFB_height;
 static float xScale;
 static float yScale;
 
+static int EFBxScale;
+static int EFByScale;
+
 static int s_recordWidth;
 static int s_recordHeight;
 
@@ -303,28 +306,17 @@ bool Renderer::Init()
 		yScale = (float)(dst_rect.bottom - dst_rect.top) / (float)s_XFB_height;
 	}
 	
-
-	s_target_width  = EFB_WIDTH * xScale;
-	s_target_height = EFB_HEIGHT * yScale;
-	
 	s_LastAA = (g_ActiveConfig.iMultisampleMode > 3)?0:g_ActiveConfig.iMultisampleMode;
 	
 	float SupersampleCoeficient = 1.0f;	
 	switch (s_LastAA)
 	{
 		case 1:
-			s_target_width  = (s_target_width  * 3) / 2;
-			s_target_height = (s_target_height * 3) / 2;
-			SupersampleCoeficient = 3.0f/2.0f;			
 			break;
 		case 2:
-			s_target_width  *= 2;
-			s_target_height *= 2;
 			SupersampleCoeficient = 2.0f;			
 			break;
 		case 3:
-			s_target_width  *= 3;
-			s_target_height *= 3;
 			SupersampleCoeficient = 3.0f;
 			break;
 		default:
@@ -334,6 +326,12 @@ bool Renderer::Init()
 	xScale *= SupersampleCoeficient;
 	yScale *= SupersampleCoeficient;
 	
+	EFBxScale = ceilf(xScale);
+	EFByScale = ceilf(yScale);
+
+	s_target_width  = EFB_WIDTH * EFBxScale;
+	s_target_height = EFB_HEIGHT * EFByScale;
+
 	s_Fulltarget_width  = s_target_width;
 	s_Fulltarget_height = s_target_height;
 	
@@ -393,8 +391,12 @@ int Renderer::GetTargetWidth() { return s_target_width; }
 int Renderer::GetTargetHeight() { return s_target_height; }
 int Renderer::GetFullTargetWidth() { return s_Fulltarget_width; }
 int Renderer::GetFullTargetHeight() { return s_Fulltarget_height; }
-float Renderer::GetTargetScaleX() { return xScale; }
-float Renderer::GetTargetScaleY() { return yScale; }
+float Renderer::GetTargetScaleX() { return EFBxScale; }
+float Renderer::GetTargetScaleY() { return EFByScale; }
+
+float Renderer::GetXFBScaleX() { return xScale; }
+float Renderer::GetXFBScaleY() { return yScale; }
+
 
 int Renderer::GetFrameBufferWidth()
 {
@@ -507,10 +509,10 @@ TargetRectangle Renderer::ConvertEFBRectangle(const EFBRectangle& rc)
 	int Xstride = (s_Fulltarget_width - s_target_width) / 2;
 	int Ystride = (s_Fulltarget_height - s_target_height) / 2;
 	TargetRectangle result;
-	result.left   = (int)(rc.left   * xScale) + Xstride;
-	result.top    = (int)(rc.top    * yScale) + Ystride;
-	result.right  = (int)(rc.right  * xScale) + Xstride;
-	result.bottom = (int)(rc.bottom * yScale) + Ystride;
+	result.left   = (int)(rc.left   * EFBxScale) + Xstride;
+	result.top    = (int)(rc.top    * EFByScale) + Ystride;
+	result.right  = (int)(rc.right  * EFBxScale) + Xstride;
+	result.bottom = (int)(rc.bottom * EFByScale) + Ystride;
 	return result;
 }
 
@@ -573,12 +575,13 @@ void Renderer::RenderToXFB(u32 xfbAddr, u32 fbWidth, u32 fbHeight, const EFBRect
 	if(!fbWidth || !fbHeight)
 		return;
 	VideoFifo_CheckEFBAccess();
+	VideoFifo_CheckSwapRequestAt(xfbAddr, fbWidth, fbHeight);
 	FBManager.CopyToXFB(xfbAddr, fbWidth, fbHeight, sourceRc);
-	XFBWrited = true;	
+	XFBWrited = true;
+	// XXX: Without the VI, how would we know what kind of field this is? So
+	// just use progressive.
 	if (!g_ActiveConfig.bUseXFB)
 	{
-		// XXX: Without the VI, how would we know what kind of field this is? So
-		// just use progressive.
 		Renderer::Swap(xfbAddr, FIELD_PROGRESSIVE, fbWidth, fbHeight);
 		Common::AtomicStoreRelease(s_swapRequested, FALSE);
 	}
@@ -597,10 +600,10 @@ bool Renderer::SetScissorRect()
 	int Xstride =  (s_Fulltarget_width - s_target_width) / 2;
 	int Ystride =  (s_Fulltarget_height - s_target_height) / 2;
 
-	rc.left   = (int)(rc.left   * xScale);
-	rc.top    = (int)(rc.top    * yScale);
-	rc.right  = (int)(rc.right  * xScale);
-	rc.bottom = (int)(rc.bottom * yScale);
+	rc.left   = (int)(rc.left   * EFBxScale);
+	rc.top    = (int)(rc.top    * EFByScale);
+	rc.right  = (int)(rc.right  * EFBxScale);
+	rc.bottom = (int)(rc.bottom * EFByScale);
 
 	if (rc.left < 0) rc.left = 0;
 	if (rc.right < 0) rc.right = 0;
@@ -756,6 +759,7 @@ u32 Renderer::AccessEFB(EFBAccessType type, int x, int y)
 			&RectToLock, 
 			Renderer::GetFullTargetWidth() , 
 			Renderer::GetFullTargetHeight(),
+			4,4,
 			(BufferFormat == FOURCC_RAWZ)?PixelShaderCache::GetColorMatrixProgram(0):PixelShaderCache::GetDepthMatrixProgram(0),
 			VertexShaderCache::GetSimpleVertexShader());
 
@@ -1006,9 +1010,9 @@ void Renderer::SetBlendMode(bool forceUpdate)
 
 void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight)
 {
-	if (g_bSkipCurrentFrame || !XFBWrited || !fbWidth || !fbHeight)
+	if (g_bSkipCurrentFrame || (!XFBWrited && !g_ActiveConfig.bUseRealXFB) || !fbWidth || !fbHeight)
 	{
-		g_VideoInitialize.pCopiedToXFB(false);		
+		g_VideoInitialize.pCopiedToXFB(false);
 		return;
 	}
 	// this function is called after the XFB field is changed, not after
@@ -1092,7 +1096,7 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight)
 			drawRc.top = 1.0f - 2.0f * ((hOffset + xfbHeight) / (float)fbHeight);
 			drawRc.left = -(xfbWidth / (float)fbWidth);
 			drawRc.right = (xfbWidth / (float)fbWidth);
-
+			
 
 			if (!g_ActiveConfig.bAutoScale)
 			{
@@ -1114,7 +1118,7 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight)
 			drawRc.right = 1;
 		}
 
-		D3D::drawShadedTexSubQuad(xfbSource->texture,&sourceRc,xfbSource->texWidth,xfbSource->texHeight,&drawRc,PixelShaderCache::GetColorCopyProgram(0),VertexShaderCache::GetSimpleVertexShader());
+		D3D::drawShadedTexSubQuad(xfbSource->texture,&sourceRc,xfbSource->texWidth,xfbSource->texHeight,&drawRc,Width,Height,PixelShaderCache::GetColorCopyProgram(0),VertexShaderCache::GetSimpleVertexShader());
 	}
 
 	D3D::RefreshSamplerState(0, D3DSAMP_MINFILTER);
@@ -1129,7 +1133,19 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight)
 	if(s_bScreenshot)
 	{
 		s_criticalScreenshot.Enter();
-		D3DXSaveSurfaceToFileA(s_sScreenshotName, D3DXIFF_BMP, D3D::GetBackBufferSurface(), NULL, NULL);
+
+		// create a R8G8B8 surface for the screenshot (no alpha channel)
+		// otherwise funky screenshots get saved
+		LPDIRECT3DSURFACE9 screenshot_surface;
+		if (D3D_OK == D3D::dev->CreateOffscreenPlainSurface(s_backbuffer_width, s_backbuffer_height, D3DFMT_R8G8B8, D3DPOOL_SCRATCH, &screenshot_surface, NULL))
+		{
+			D3DXLoadSurfaceFromSurface(screenshot_surface, NULL, NULL, D3D::GetBackBufferSurface(), NULL, NULL, D3DX_DEFAULT, 0);
+			D3DXSaveSurfaceToFileA(s_sScreenshotName, D3DXIFF_PNG, screenshot_surface, NULL, NULL);
+			screenshot_surface->Release();
+		}
+		else
+			PanicAlert("Failed to create surface for screenshot!");
+
 		s_bScreenshot = false;
 		s_criticalScreenshot.Leave();
 	}
@@ -1238,29 +1254,17 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight)
 		{
 			xScale = (float)(dst_rect.right - dst_rect.left) / (float)s_XFB_width;
 			yScale = (float)(dst_rect.bottom - dst_rect.top) / (float)s_XFB_height;
-		}		
-
-		s_target_width  = EFB_WIDTH * xScale;
-		s_target_height = EFB_HEIGHT * yScale;
+		}
 		
-		s_LastAA = (g_ActiveConfig.iMultisampleMode > 3)?0:g_ActiveConfig.iMultisampleMode;
-		
-		float SupersampleCoeficient = 1.0f;
+		float SupersampleCoeficient = 1.0f;	
 		switch (s_LastAA)
 		{
 			case 1:
-				s_target_width  = (s_target_width  * 3) / 2;
-				s_target_height = (s_target_height * 3) / 2;
-				SupersampleCoeficient = 3.0f/2.0f;
 				break;
 			case 2:
-				s_target_width  *= 2;
-				s_target_height *= 2;
-				SupersampleCoeficient = 2.0f;
+				SupersampleCoeficient = 2.0f;			
 				break;
 			case 3:
-				s_target_width  *= 3;
-				s_target_height *= 3;
 				SupersampleCoeficient = 3.0f;
 				break;
 			default:
@@ -1269,6 +1273,12 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight)
 
 		xScale *= SupersampleCoeficient;
 		yScale *= SupersampleCoeficient;
+
+		EFBxScale = ceilf(xScale);
+		EFByScale = ceilf(yScale);
+		
+		s_target_width  = EFB_WIDTH * ceilf(EFBxScale);
+		s_target_height = EFB_HEIGHT * ceilf(EFByScale);
 		D3D::dev->SetRenderTarget(0, D3D::GetBackBufferSurface());
 		D3D::dev->SetDepthStencilSurface(D3D::GetBackBufferDepthSurface());
 		if(WindowResized)
@@ -1288,14 +1298,15 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight)
 	// ---------------------------------------------------------------------
 	// Count FPS.
 	// -------------
-	static int fpscount = 0;
+	static int fpscount = 1;
 	static unsigned long lasttime;
-	++fpscount;
+	if(XFBWrited)
+		++fpscount;
 	if (Common::Timer::GetTimeMs() - lasttime > 1000) 
 	{
 		lasttime = Common::Timer::GetTimeMs();
 		s_fps = fpscount - 1;
-		fpscount = 0;
+		fpscount = 1;
 	}
 
 	// Begin new frame
@@ -1310,7 +1321,7 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight)
 	D3D::dev->SetDepthStencilSurface(FBManager.GetEFBDepthRTSurface());
 	UpdateViewport();
 	VertexShaderManager::SetViewportChanged();
-	g_VideoInitialize.pCopiedToXFB(true);
+	g_VideoInitialize.pCopiedToXFB(XFBWrited);
 	XFBWrited = false;
 }
 
@@ -1419,8 +1430,9 @@ void Renderer::SetSamplerState(int stage, int texindex)
 	D3D::SetSamplerState(stage, D3DSAMP_ADDRESSU, d3dClamps[tm0.wrap_s]);
 	D3D::SetSamplerState(stage, D3DSAMP_ADDRESSV, d3dClamps[tm0.wrap_t]);
 	//just a test but it seems to work
-	D3D::SetSamplerState(stage,D3DSAMP_MIPMAPLODBIAS,tm0.lod_bias/2.0f);
-	D3D::SetSamplerState(stage,D3DSAMP_MAXMIPLEVEL,tm1.min_lod>>4);	
+	float lodbias = tm0.lod_bias / 32.0f;
+	D3D::SetSamplerState(stage,D3DSAMP_MIPMAPLODBIAS,*(DWORD*)&lodbias);
+	D3D::SetSamplerState(stage,D3DSAMP_MAXMIPLEVEL,tm1.min_lod>>5);	
 }
 
 void Renderer::SetInterlacingMode()

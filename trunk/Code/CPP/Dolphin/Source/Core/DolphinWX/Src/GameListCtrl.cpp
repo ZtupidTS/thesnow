@@ -1079,8 +1079,7 @@ void CGameListCtrl::OnInstallWAD(wxCommandEvent& WXUNUSED (event))
 void CGameListCtrl::MultiCompressCB(const char* text, float percent, void* arg)
 {
 	percent = (((float)m_currentItem) + percent) / (float)m_numberItem;
-
-	wxString textString(wxString::Format(wxT("%s (%i/%i) - %s"), m_currentFilename.c_str(), (int)m_currentItem+1, (int)m_numberItem, text));
+	wxString textString(StringFromFormat("%s (%i/%i) - %s", m_currentFilename.c_str(), (int)m_currentItem+1, (int)m_numberItem, text).c_str(), *wxConvCurrent);
 
     ((wxProgressDialog*)arg)->Update((int)(percent*1000), textString);
 }
@@ -1142,7 +1141,14 @@ void CGameListCtrl::CompressSelection(bool _compress)
 				std::string FileName;
 				SplitPath(iso->GetFileName(), NULL, &FileName, NULL);
 				m_currentFilename = FileName;
-				FileName.append(".gcm");
+				if (iso->GetPlatform() == GameListItem::WII_DISC)
+				{
+					FileName.append(".iso");
+				}
+				else
+				{
+					FileName.append(".gcm");
+				}
 
 				std::string OutputFileName;
 				BuildCompleteFilename(OutputFileName, (const char *)browseDialog.GetPath().mb_str(wxConvUTF8), FileName);
@@ -1165,19 +1171,29 @@ void CGameListCtrl::OnCompressGCM(wxCommandEvent& WXUNUSED (event))
 	if (!iso)
 		return;
 
-	wxString path;
+	wxString path, Ext;
 
 	std::string FileName;
 	SplitPath(iso->GetFileName(), NULL, &FileName, NULL);
 
 	if (iso->IsCompressed())
 	{
+		if (iso->GetPlatform() == GameListItem::WII_DISC)
+		{
+			Ext = wxT("*.iso");
+		}
+		else
+		{
+			Ext = wxT("*.gcm");
+		}
 		 path = wxFileSelector(
 			_T("保存已解压缩的 ISO"),
 			wxEmptyString, wxString(FileName.c_str(), *wxConvCurrent), wxEmptyString,
 			wxString::Format
 			(
-			_T("所有 GC/Wii ISO 文件 (gcm)|*.gcm|所有文件 (%s)|%s"),
+			_T("All GC/Wii ISO files (%s)|%s|All files (%s)|%s"),
+			(char *)Ext.After('.').char_str(wxConvUTF8), 
+			(char *)Ext.char_str(wxConvUTF8),
 			wxFileSelectorDefaultWildcardStr,
 			wxFileSelectorDefaultWildcardStr
 			),

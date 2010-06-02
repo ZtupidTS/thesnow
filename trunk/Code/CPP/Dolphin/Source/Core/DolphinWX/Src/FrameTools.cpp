@@ -192,6 +192,10 @@ void CFrame::CreateMenu()
 	{
 		toolsMenu->Append(IDM_LOAD_WII_MENU, _T("载入 Wii 菜单"));
 	}
+	else
+	{
+		toolsMenu->Append(IDM_INSTALL_WII_MENU, _T("Install Wii Menu"));
+	}
 	toolsMenu->AppendSeparator();
 	toolsMenu->AppendCheckItem(IDM_CONNECT_WIIMOTE1, GetMenuLabel(HK_WIIMOTE1_CONNECT));
 	toolsMenu->AppendCheckItem(IDM_CONNECT_WIIMOTE2, GetMenuLabel(HK_WIIMOTE2_CONNECT));
@@ -273,28 +277,28 @@ wxString CFrame::GetMenuLabel(int Id)
 	switch (Id)
 	{
 		case HK_FULLSCREEN:
-			Label = _T("&Fullscreen\t");
+			Label = _T("全屏显示(&F)\t");
 			break;
 		case HK_PLAY_PAUSE:
 			if (Core::GetState() == Core::CORE_RUN)
-				Label = _T("&Pause\t");
+				Label = _T("暂停游戏(&P)\t");
 			else
-				Label = _T("&Play\t");
+				Label = _T("开始游戏(&P)\t");
 			break;
 		case HK_STOP:
-			Label = _T("&Stop\t");
+			Label = _T("停止游戏(&S)\t");
 			break;
 		case HK_WIIMOTE1_CONNECT:
-			Label = _T("Connect Wiimote 1\t");
+			Label = _T("连接 Wiimote 1\t");
 			break;
 		case HK_WIIMOTE2_CONNECT:
-			Label = _T("Connect Wiimote 2\t");
+			Label = _T("连接 Wiimote 2\t");
 			break;
 		case HK_WIIMOTE3_CONNECT:
-			Label = _T("Connect Wiimote 3\t");
+			Label = _T("连接 Wiimote 3\t");
 			break;
 		case HK_WIIMOTE4_CONNECT:
-			Label = _T("Connect Wiimote 4\t");
+			Label = _T("连接 Wiimote 4\t");
 			break;
 	}
 
@@ -342,8 +346,8 @@ void CFrame::PopulateToolbarAui(wxAuiToolBar* ToolBar)
 	    h = m_Bitmaps[Toolbar_FileOpen].GetHeight();
 	ToolBar->SetToolBitmapSize(wxSize(w, h));
 
-	ToolBar->AddTool(IDM_SAVE_PERSPECTIVE,	wxT("保存"),	g_pCodeWindow->m_Bitmaps[Toolbar_GotoPC], wxT("Save current perspective"));
-	ToolBar->AddTool(IDM_EDIT_PERSPECTIVES,	wxT("编辑"),	g_pCodeWindow->m_Bitmaps[Toolbar_GotoPC], wxT("Edit current perspective"));
+	ToolBar->AddTool(IDM_SAVE_PERSPECTIVE,	wxT("保存"),	g_pCodeWindow->m_Bitmaps[Toolbar_GotoPC], wxT("保存当前 perspective"));
+	ToolBar->AddTool(IDM_EDIT_PERSPECTIVES,	wxT("编辑"),	g_pCodeWindow->m_Bitmaps[Toolbar_GotoPC], wxT("编辑当前 perspective"));
 
 	ToolBar->SetToolDropDown(IDM_SAVE_PERSPECTIVE, true);
 	ToolBar->SetToolDropDown(IDM_EDIT_PERSPECTIVES, true);	
@@ -1035,9 +1039,32 @@ void CFrame::OnShow_CheatsWindow(wxCommandEvent& WXUNUSED (event))
 	CheatsWindow = new wxCheatsWindow(this, wxDefaultPosition, wxSize(600, 390));
 }
 
-void CFrame::OnLoadWiiMenu(wxCommandEvent& WXUNUSED (event))
+void CFrame::OnLoadWiiMenu(wxCommandEvent& event)
 {
-	BootGame(std::string (File::GetUserPath(D_WIIMENU_IDX)));
+	if (event.GetId() == IDM_LOAD_WII_MENU)
+	{
+		BootGame(std::string (File::GetUserPath(D_WIIMENU_IDX)));
+	}
+	else
+	{
+		
+		wxString path = wxFileSelector(
+			_T("Select the System Menu wad extracted from the update partition of a disc"),
+			wxEmptyString, wxEmptyString, wxEmptyString,
+			wxString::Format
+			(
+					_T("System Menu wad|*.wad"),
+					wxFileSelectorDefaultWildcardStr,
+					wxFileSelectorDefaultWildcardStr
+			),
+			wxFD_OPEN | wxFD_PREVIEW | wxFD_FILE_MUST_EXIST,
+			this);
+
+		if (CBoot::Install_WiiWAD(path.mb_str()))
+		{
+			GetMenuBar()->FindItem(IDM_INSTALL_WII_MENU)->Enable(false);
+		}
+	}
 }
 
 void CFrame::OnConnectWiimote(wxCommandEvent& event)

@@ -581,9 +581,9 @@ static inline std::string GenerateScreenshotName()
 	//append gameId, tempname only contains the folder here.
 	tempname += gameId;
 
-	name = StringFromFormat("%s-%d.bmp", tempname.c_str(), index);
-	while(File::Exists(name.c_str()))
-		name = StringFromFormat("%s-%d.bmp", tempname.c_str(), ++index);
+	do
+		name = StringFromFormat("%s-%d.png", tempname.c_str(), index++);
+	while (File::Exists(name.c_str()));
 
 	return name;
 }
@@ -622,7 +622,7 @@ void VideoThrottle()
 
 	// Update info per second
 	u32 ElapseTime = (u32)Timer.GetTimeDifference();
-	if (ElapseTime >= 1000)
+	if (ElapseTime >= 1000 && DrawnVideo > 0)
 	{
 		SCoreStartupParameter& _CoreParameter = SConfig::GetInstance().m_LocalCoreStartupParameter;
 

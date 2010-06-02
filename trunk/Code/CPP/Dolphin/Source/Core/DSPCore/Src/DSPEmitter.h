@@ -29,30 +29,22 @@ typedef void (*CompiledCode)();
 
 class DSPEmitter : public Gen::XCodeBlock
 {
-	CompiledCode *blocks;
-	u16 blockSize[0x10000];
-	bool *endBlock;
-	u16 compileSR;
-
-	// The index of the last stored ext value (compile time).
-	int storeIndex;
-	
-	DISALLOW_COPY_AND_ASSIGN(DSPEmitter);
-
-	void ToMask(Gen::X64Reg value_reg = Gen::EDI, Gen::X64Reg temp_reg = Gen::ESI);
 public:
 	DSPEmitter();
 	~DSPEmitter();
 
 	const u8 *m_compiledCode;
 
-	void WriteCallInterpreter(UDSPInstruction inst);
+	void EmitInstruction(UDSPInstruction inst);
 	void unknown_instruction(UDSPInstruction inst);
 	void Default(UDSPInstruction _inst);
 	void ClearIRAM();
+
+	void CompileDispatcher();
+
 	const u8 *Compile(int start_addr);
 
-	void STACKALIGN RunBlock(int cycles);
+	int STACKALIGN RunForCycles(int cycles);
 
 	// Register helpers
 	void setCompileSR(u16 bit);
@@ -103,6 +95,28 @@ public:
 	void sbclr(const UDSPInstruction opc);
 	void sbset(const UDSPInstruction opc);
 	void srbith(const UDSPInstruction opc);
+
+private:
+	CompiledCode *blocks;
+	u16 *blockSize;
+	u16 compileSR;
+
+	// CALL this to start the dispatcher
+	u8 *enterDispatcher;
+
+	// JMP here when a block should be dispatches. make sure you're in a block
+	// or at the same stack level already.
+	u8 *dispatcher;
+
+	// The index of the last stored ext value (compile time).
+	int storeIndex;
+	
+	// Counts down.
+	// int cycles;
+
+	DISALLOW_COPY_AND_ASSIGN(DSPEmitter);
+
+	void ToMask(Gen::X64Reg value_reg = Gen::EDI, Gen::X64Reg temp_reg = Gen::ESI);
 };									  
 
 

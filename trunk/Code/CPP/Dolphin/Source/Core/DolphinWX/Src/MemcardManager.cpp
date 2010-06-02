@@ -231,8 +231,8 @@ void CMemcardManager::CreateGUIControls()
 			wxString::Format(wxT("%sDelete%s"), ARROWS), DEFAULTS);
 
 
-		m_PrevPage[slot] = new wxButton(this, ID_PREVPAGE_A + slot, wxT("Prev Page"), DEFAULTS);
-		m_NextPage[slot] = new wxButton(this, ID_NEXTPAGE_A + slot, wxT("Next Page"), DEFAULTS);
+		m_PrevPage[slot] = new wxButton(this, ID_PREVPAGE_A + slot, wxT("上一页"), DEFAULTS);
+		m_NextPage[slot] = new wxButton(this, ID_NEXTPAGE_A + slot, wxT("下一页"), DEFAULTS);
 
 		t_Status[slot] = new wxStaticText(this, 0, wxEmptyString, wxDefaultPosition,wxDefaultSize, 0, wxEmptyString);
 
@@ -243,7 +243,7 @@ void CMemcardManager::CreateGUIControls()
 		sPages[slot]->Add(m_NextPage[slot], 0, wxEXPAND|wxALL, 1);
 
 		m_MemcardPath[slot] = new wxFilePickerCtrl(this, ID_MEMCARDPATH_A + slot,
-			 wxString::FromAscii(File::GetUserPath(D_GCUSER_IDX)), wxT("Choose a memory card:"),
+			 wxString::FromAscii(File::GetUserPath(D_GCUSER_IDX)), wxT("选择内存卡:"),
 		wxT("Gamecube Memory Cards (*.raw,*.gcp)|*.raw;*.gcp"), wxDefaultPosition, wxDefaultSize, wxFLP_USE_TEXTCTRL|wxFLP_OPEN);
 	
 		m_MemcardList[slot] = new CMemcardListCtrl(this, ID_MEMCARDLIST_A + slot, wxDefaultPosition, wxSize(350,400),
@@ -251,7 +251,7 @@ void CMemcardManager::CreateGUIControls()
 	
 		m_MemcardList[slot]->AssignImageList(new wxImageList(96,32),wxIMAGE_LIST_SMALL);
 
-		sMemcard[slot] = new wxStaticBoxSizer(wxVERTICAL, this, wxString::Format(wxT("Memory Card %c"), 'A' + slot));
+		sMemcard[slot] = new wxStaticBoxSizer(wxVERTICAL, this, wxString::Format(wxT("内存卡 %c"), 'A' + slot));
 		sMemcard[slot]->Add(m_MemcardPath[slot], 0, wxEXPAND|wxALL, 5);
 		sMemcard[slot]->Add(m_MemcardList[slot], 1, wxEXPAND|wxALL, 5);
 		sMemcard[slot]->Add(sPages[slot], 0, wxEXPAND|wxALL, 1);
@@ -891,10 +891,10 @@ void CMemcardManager::CMemcardListCtrl::OnRightClick(wxMouseEvent& event)
 
 		int slot = event.GetId() - ID_MEMCARDLIST_A;
 		popupMenu->Append(ID_COPYFROM_A + slot, wxString::Format(wxT("复制到内存卡 %c"), 'B' - slot));
-		popupMenu->Append(ID_DELETE_A + slot, wxT("Delete Save"));
-		popupMenu->Append(ID_SAVEIMPORT_A + slot, wxT("Import Save"));
-		popupMenu->Append(ID_SAVEEXPORT_A + slot, wxT("Export Save"));
-		popupMenu->Append(ID_EXPORTALL_A + slot, wxT("Export all saves"));
+		popupMenu->Append(ID_DELETE_A + slot, wxT("删除存档"));
+		popupMenu->Append(ID_SAVEIMPORT_A + slot, wxT("导入存档"));
+		popupMenu->Append(ID_SAVEEXPORT_A + slot, wxT("导出存档"));
+		popupMenu->Append(ID_EXPORTALL_A + slot, wxT("导出所有存档"));
 				
 		if (!twoCardsLoaded) 
 			popupMenu->FindItem(ID_COPYFROM_A + slot)->Enable(false);
@@ -904,7 +904,7 @@ void CMemcardManager::CMemcardListCtrl::OnRightClick(wxMouseEvent& event)
 		popupMenu->Append(ID_FIXCHECKSUM_A + slot, wxT("修正校检和"));
 		popupMenu->Append(ID_PREVPAGE_A + slot, wxT("上一页"));
 		popupMenu->Append(ID_NEXTPAGE_A + slot, wxT("下一页"));
-		popupMenu->Append(ID_MEMCARDPATH_A + slot, wxString::Format(wxT("Set as default Memcard %c"), 'A' + slot));
+		popupMenu->Append(ID_MEMCARDPATH_A + slot, wxString::Format(wxT("设置为默认内存卡 %c"), 'A' + slot));
 		popupMenu->AppendCheckItem(ID_USEPAGES, wxT("Enable pages"));
 	
 		if (!prevPage || !usePages)

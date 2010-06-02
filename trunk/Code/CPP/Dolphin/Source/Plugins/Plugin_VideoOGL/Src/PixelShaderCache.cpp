@@ -53,24 +53,32 @@ void SetPSConstant4f(int const_number, float f1, float f2, float f3, float f4)
 	if (lastPSconstants[const_number][0] != f1 || lastPSconstants[const_number][1] != f2 ||
 		lastPSconstants[const_number][2] != f3 || lastPSconstants[const_number][3] != f4)
 	{
-		glProgramEnvParameter4fARB(GL_FRAGMENT_PROGRAM_ARB, const_number, f1, f2, f3, f4);
 		lastPSconstants[const_number][0] = f1;
 		lastPSconstants[const_number][1] = f2;
 		lastPSconstants[const_number][2] = f3;
 		lastPSconstants[const_number][3] = f4;
+		glProgramEnvParameter4fvARB(GL_FRAGMENT_PROGRAM_ARB, const_number, lastPSconstants[const_number]);
+		
 	}
 }
 
 void SetPSConstant4fv(int const_number, const float *f)
 {
-	if (lastPSconstants[const_number][0] != f[0] || lastPSconstants[const_number][1] != f[1] ||
-		lastPSconstants[const_number][2] != f[2] || lastPSconstants[const_number][3] != f[3])
-	{
+	if (memcmp(&lastPSconstants[const_number], f, sizeof(float) * 4)) {
+		memcpy(&lastPSconstants[const_number], f, sizeof(float) * 4);
 		glProgramEnvParameter4fvARB(GL_FRAGMENT_PROGRAM_ARB, const_number, f);
-		lastPSconstants[const_number][0] = f[0];
-		lastPSconstants[const_number][1] = f[1];
-		lastPSconstants[const_number][2] = f[2];
-		lastPSconstants[const_number][3] = f[3];
+	}	
+}
+
+void SetMultiPSConstant4fv(int const_number, int count, const float *f)
+{
+	const float *f0 = f;
+	for (int i = 0; i < count ;i++,f0+=4)
+	{
+		if (memcmp(&lastPSconstants[const_number + i], f0, sizeof(float) * 4)) {
+			memcpy(&lastPSconstants[const_number + i], f0, sizeof(float) * 4);		
+				glProgramEnvParameter4fvARB(GL_FRAGMENT_PROGRAM_ARB, const_number + i, lastPSconstants[const_number + i]);
+		}
 	}
 }
 
@@ -152,7 +160,7 @@ void PixelShaderCache::Shutdown()
     glDeleteProgramsARB(1, &s_DepthMatrixProgram);
 	s_DepthMatrixProgram = 0;
 	PSCache::iterator iter = pshaders.begin();
-	for (; iter != pshaders.end(); iter++)
+	for (; iter != pshaders.end(); ++iter)
 		iter->second.Destroy();
 	pshaders.clear();
 }
@@ -213,6 +221,10 @@ FRAGMENTSHADER* PixelShaderCache::GetShader(bool dstAlphaEnable)
 	//	printf("Compiling pixel shader. size = %i\n", strlen(code));
 	if (!code || !CompilePixelShader(newentry.shader, code)) {
 		ERROR_LOG(VIDEO, "failed to create pixel shader");
+		static int counter = 0;
+		char szTemp[MAX_PATH];
+		sprintf(szTemp, "%sBADps_%04i.txt", File::GetUserPath(D_DUMP_IDX), counter++);			
+		SaveData(szTemp, code);
 		return NULL;
 	}
 	

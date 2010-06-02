@@ -79,6 +79,16 @@ bool CWII_IPC_HLE_Device_es::Open(u32 _CommandAddress, u32 _Mode)
     if (m_pContentLoader->IsValid())
     {
         m_TitleID = m_pContentLoader->GetTitleID();
+		// System menu versions about 0xE0 will indicate that system files are corrupted if there is more than one title
+		// TODO: fix System menu versions above this and remove this check
+		if (m_pContentLoader->GetTitleVersion() <= 0xE0)
+		{
+			DiscIO::cUIDsys::AccessInstance().GetTitleIDs(m_TitleIDs);
+		}
+		else
+		{
+			m_TitleIDs.push_back(0x0000000100000002ULL);
+		}
     }
     else if (VolumeHandler::IsValid())
     {
@@ -91,16 +101,6 @@ bool CWII_IPC_HLE_Device_es::Open(u32 _CommandAddress, u32 _Mode)
     {
         m_TitleID = ((u64)0x00010000 << 32) | 0xF00DBEEF;
     }   
-
-
-    // scan for the title ids listed in TMDs within /title/
-	m_TitleIDs.push_back(0x0000000100000002ULL);
-    //m_TitleIDs.push_back(0x0001000248414741ULL); 
-    //m_TitleIDs.push_back(0x0001000248414341ULL);
-    //m_TitleIDs.push_back(0x0001000248414241ULL);
-    //m_TitleIDs.push_back(0x0001000248414141ULL);
-    
-	//FindValidTitleIDs();
 
     INFO_LOG(WII_IPC_ES, "Set default title to %08x/%08x", (u32)(m_TitleID>>32), (u32)m_TitleID);
 
@@ -205,7 +205,6 @@ bool CWII_IPC_HLE_Device_es::IOCtlV(u32 _CommandAddress)
             _dbg_assert_msg_(WII_IPC_ES, Buffer.NumberPayloadBuffer == 1, "IOCTL_ES_GETTITLECONTENTS bad out buffer");
 
 			u64 TitleID = Memory::Read_U64(Buffer.InBuffer[0].m_Address);
-			u32 MaxSize = Memory::Read_U32(Buffer.InBuffer[1].m_Address); // unused?
 
 			const DiscIO::INANDContentLoader& rNANDCOntent = AccessContentDevice(TitleID);
 			if (rNANDCOntent.IsValid()) // Not sure if dolphin will ever fail this check
@@ -234,7 +233,6 @@ bool CWII_IPC_HLE_Device_es::IOCtlV(u32 _CommandAddress)
             _dbg_assert_(WII_IPC_ES, Buffer.NumberPayloadBuffer == 0);
             
             u64 TitleID = Memory::Read_U64(Buffer.InBuffer[0].m_Address);
-            u8* pTicket = Memory::GetPointer(Buffer.InBuffer[1].m_Address); 
             u32 Index = Memory::Read_U32(Buffer.InBuffer[2].m_Address);
 
             u32 CFD = AccessIdentID++;
@@ -367,7 +365,6 @@ bool CWII_IPC_HLE_Device_es::IOCtlV(u32 _CommandAddress)
 
             u64 TitleID = Memory::Read_U64(Buffer.InBuffer[0].m_Address);
 
-            char* pTitleID = (char*)&TitleID;
             char* Path = (char*)Memory::GetPointer(Buffer.PayloadBuffer[0].m_Address);
             sprintf(Path, "/%08x/%08x/data", (u32)(TitleID >> 32), (u32)TitleID);
 
@@ -478,7 +475,6 @@ bool CWII_IPC_HLE_Device_es::IOCtlV(u32 _CommandAddress)
             _dbg_assert_msg_(WII_IPC_ES, Buffer.NumberPayloadBuffer == 1, "IOCTL_ES_GETVIEWS no out buffer");
 
             u64 TitleID = Memory::Read_U64(Buffer.InBuffer[0].m_Address);
-            u32 Count = Memory::Read_U32(Buffer.InBuffer[1].m_Address);
 
             std::string TicketFilename = CreateTicketFileName(TitleID);
             if (File::Exists(TicketFilename.c_str()))
@@ -550,8 +546,6 @@ bool CWII_IPC_HLE_Device_es::IOCtlV(u32 _CommandAddress)
 
             INFO_LOG(WII_IPC_ES, "IOCTL_ES_GETTMDVIEWCNT: title: %08x/%08x   buffersize: %i", (u32)(TitleID >> 32), (u32)TitleID, MaxCount);
 
-            u32 Count = 0;
-            u8* p = Memory::GetPointer(Buffer.PayloadBuffer[0].m_Address);
             if (Loader.IsValid())
             {
                 u32 Address = Buffer.PayloadBuffer[0].m_Address;
@@ -599,7 +593,6 @@ bool CWII_IPC_HLE_Device_es::IOCtlV(u32 _CommandAddress)
 
             INFO_LOG(WII_IPC_ES, "IOCTL_ES_GETSTOREDTMD: title: %08x/%08x   buffersize: %i", (u32)(TitleID >> 32), (u32)TitleID, MaxCount);
 
-            u32 Count = 0;
             if (Loader.IsValid())
             {
                 u32 Address = Buffer.PayloadBuffer[0].m_Address;
@@ -777,36 +770,3 @@ std::string CWII_IPC_HLE_Device_es::CreateTitleContentPath(u64 _TitleID) const
     return TicketFilename;
 }
 
-void CWII_IPC_HLE_Device_es::FindValidTitleIDs()
-{
-    m_TitleIDs.clear();
-    char TitlePath[1024];
-
-    sprintf(TitlePath, "%stitle", File::GetUserPath(D_WIIUSER_IDX));
-    File::FSTEntry ParentEntry;
-    u32 NumEntries = ScanDirectoryTree(TitlePath, ParentEntry);  
-    for(std::vector<File::FSTEntry>::iterator Level1 = ParentEntry.children.begin(); Level1 != ParentEntry.children.end(); ++Level1)
-    {
-        if (Level1->isDirectory)
-        {
-            for(std::vector<File::FSTEntry>::iterator Level2 = Level1->children.begin(); Level2 != Level1->children.end(); ++Level2)
-            {
-                if (Level2->isDirectory)
-                {
-                    // finally at /title/*/*/
-                    // ...get titleID from content/title.tmd
-                    std::string CurrentTMD(Level2->physicalName + DIR_SEP + "content" + DIR_SEP + "title.tmd");
-                    if (File::Exists(CurrentTMD.c_str()))
-                    {
-                        FILE* pTMDFile = fopen(CurrentTMD.c_str(), "rb");
-                        u64 TitleID = 0xDEADBEEFDEADBEEFULL;
-                        fseek(pTMDFile, 0x18C, SEEK_SET);
-                        fread(&TitleID, 8, 1, pTMDFile);
-                        m_TitleIDs.push_back(Common::swap64(TitleID));
-                        fclose(pTMDFile);
-                    }
-                }
-            }
-        }
-    }
-}

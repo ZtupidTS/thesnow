@@ -261,7 +261,7 @@ void FramebufferManager::replaceVirtualXFB()
 	s32 srcUpper = it->xfbAddr + 2 * it->xfbWidth * it->xfbHeight;
 	s32 lineSize = 2 * it->xfbWidth;
 
-	it++;
+	++it;
 
 	while (it != m_virtualXFBList.end())
 	{
@@ -291,7 +291,7 @@ void FramebufferManager::replaceVirtualXFB()
 			}
 		}
 
-		it++;
+		++it;
 	}
 }
 
@@ -319,30 +319,31 @@ void FramebufferManager::copyToVirtualXFB(u32 xfbAddr, u32 fbWidth, u32 fbHeight
 	if (it == m_virtualXFBList.end() && (int)m_virtualXFBList.size() >= MAX_VIRTUAL_XFB)
 	{
 		// replace the last virtual XFB
-		it--;
+		--it;
 	}
 
-	float MultiSampleCompensation = 1.0f;
+	float SuperSampleCompensation = 1.0f;
+	float scaleX = Renderer::GetXFBScaleX();
+	float scaleY = Renderer::GetXFBScaleY();
 	if(g_ActiveConfig.iMultisampleMode > 0 && g_ActiveConfig.iMultisampleMode < 4)
 	{
 		switch (g_ActiveConfig.iMultisampleMode)
 		{
 			case 1:
-				MultiSampleCompensation = 2.0f/3.0f;				
 				break;
 			case 2:
-				MultiSampleCompensation = 0.5f;
+				SuperSampleCompensation = 0.5f;
 				break;
 			case 3:
-				MultiSampleCompensation = 1.0f/3.0f;
+				SuperSampleCompensation = 1.0f/3.0f;
 				break;
 			default:
 				break;
 		};
 	}
 
-	float scaleX = Renderer::GetTargetScaleX() * MultiSampleCompensation ;
-	float scaleY = Renderer::GetTargetScaleY() * MultiSampleCompensation;
+	scaleX *= SuperSampleCompensation ;
+	scaleY *= SuperSampleCompensation;
 	TargetRectangle targetSource,efbSource;
 	efbSource = Renderer::ConvertEFBRectangle(sourceRc);
 	targetSource.top = (sourceRc.top *scaleY);
@@ -450,6 +451,8 @@ void FramebufferManager::copyToVirtualXFB(u32 xfbAddr, u32 fbWidth, u32 fbHeight
 		&sourcerect, 
 		Renderer::GetFullTargetWidth() , 
 		Renderer::GetFullTargetHeight(),
+		target_width,
+		target_height,
 		PixelShaderCache::GetColorCopyProgram(SSAAMode),
 		(SSAAMode != 0)? VertexShaderCache::GetFSAAVertexShader() : VertexShaderCache::GetSimpleVertexShader());			
 	
@@ -502,11 +505,9 @@ const XFBSource** FramebufferManager::getVirtualXFBSource(u32 xfbAddr, u32 fbWid
 	u32 srcLower = xfbAddr;
 	u32 srcUpper = xfbAddr + 2 * fbWidth * fbHeight;
 
-	VirtualXFBListType::iterator it;
-	for (it = m_virtualXFBList.end(); it != m_virtualXFBList.begin();)
+	VirtualXFBListType::reverse_iterator it;
+	for (it = m_virtualXFBList.rbegin(); it != m_virtualXFBList.rend(); ++it)
 	{
-		--it;
-
 		u32 dstLower = it->xfbAddr;
 		u32 dstUpper = it->xfbAddr + 2 * it->xfbWidth * it->xfbHeight;
 

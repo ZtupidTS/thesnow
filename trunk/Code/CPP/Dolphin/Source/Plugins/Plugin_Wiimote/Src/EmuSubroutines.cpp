@@ -45,7 +45,6 @@ extern SWiimoteInitialize g_WiimoteInitialize;
 
 namespace WiiMoteEmu
 {
-
 extern void PAD_Rumble(u8 _numPAD, unsigned int _uType);
 
 /* Here we process the Output Reports that the Wii sends. Our response will be
@@ -166,8 +165,9 @@ void WmSendAck(u16 _channelID, u8 _reportID)
 	u8 DataFrame[1024];
 	// Write DataFrame header
 	u32 Offset = WriteWmReportHdr(DataFrame, WM_ACK_DATA);
-
 	wm_acknowledge* pData = (wm_acknowledge*)(DataFrame + Offset);
+	memset(pData, 0, sizeof(wm_acknowledge));
+
 #if defined(HAVE_WX) && HAVE_WX
 	FillReportInfo(pData->buttons);
 #endif
@@ -190,7 +190,7 @@ void WmReadData(u16 _channelID, wm_read_data* rd)
 {
 	u32 address = convert24bit(rd->address);
 	u16 size = convert16bit(rd->size);
-
+    u8 addressHI = (address >> 16) & 0xFE;
 	INFO_LOG(WIIMOTE,  "Read data");
 	DEBUG_LOG(WIIMOTE, "  Read data Space: %x", rd->space);
 	DEBUG_LOG(WIIMOTE, "  Read data Address: 0x%06x", address);
@@ -205,7 +205,7 @@ void WmReadData(u16 _channelID, wm_read_data* rd)
 			PanicAlert("WmReadData: address + size out of bounds");
 			return;
 		}
-		SendReadDataReply(_channelID, g_Eeprom[g_ID] + address, address, (int)size);
+		SendReadDataReply(_channelID, g_Eeprom[g_ID] + address, address, addressHI, (int)size);
 		/*DEBUG_LOG(WIIMOTE, "Read RegEeprom: Size: %i, Address: %08x,  Offset: %08x",
 				size, address, (address & 0xffff));*/
 	} 
@@ -213,7 +213,7 @@ void WmReadData(u16 _channelID, wm_read_data* rd)
 	{
 		u8* block;
 		u32 blockSize;
-		switch((address >> 16) & 0xFE) 
+		switch(addressHI) 
 		{
 		case 0xA2:
 			block = g_RegSpeaker[g_ID];
@@ -227,13 +227,8 @@ void WmReadData(u16 _channelID, wm_read_data* rd)
 			DEBUG_LOG(WIIMOTE, "  Case 0xa4: ExtReg");
 			break;
 
-			// MotionPlus is pretty much just a dummy atm :p
 		case 0xA6:
 			block = g_RegMotionPlus[g_ID];
-			block[0xFC] = 0xA6;
-			block[0xFD] = 0x20;
-			block[0xFE] = 0x00;
-			block[0xFF] = 0x05;
 			blockSize = WIIMOTE_REG_EXT_SIZE;
 			DEBUG_LOG(WIIMOTE, "  Case 0xa6: MotionPlusReg [%x]", address);
 			break;
@@ -251,7 +246,7 @@ void WmReadData(u16 _channelID, wm_read_data* rd)
 		}
 
 		// Encrypt data that is read from the Wiimote Extension Register
-		if(((address >> 16) & 0xfe) == 0xa4)
+		if(addressHI == 0xa4)
 		{
 			// Check if encrypted reads is on
 			if(g_RegExt[g_ID][0xf0] == 0xaa)
@@ -274,9 +269,10 @@ void WmReadData(u16 _channelID, wm_read_data* rd)
 			PanicAlert("WmReadData: address + size out of bounds! [%d %d %d]", address, size, blockSize);
 			return;
 		}
-
+		
 		// Let this function process the message and send it to the Wii
-		SendReadDataReply(_channelID, block + address, address, (u8)size);
+		SendReadDataReply(_channelID, block + address, address, addressHI, (u8)size);
+		
 	} 
 	else
 	{
@@ -295,7 +291,7 @@ void WmReadData(u16 _channelID, wm_read_data* rd)
    _Address: The starting address inside the registry, this is used to check for out of bounds reading
    _Size: The total size to send
 */
-void SendReadDataReply(u16 _channelID, void* _Base, u16 _Address, int _Size)
+void SendReadDataReply(u16 _channelID, void* _Base, u16 _Address, u8 _AddressHI, int _Size)
 {
 	int dataOffset = 0;
 	const u8* data = (const u8*)_Base;
@@ -310,7 +306,8 @@ void SendReadDataReply(u16 _channelID, void* _Base, u16 _Address, int _Size)
 		int copySize = (_Size > 16) ? 16 : _Size;
 		// AyuanX: the MTU is 640B though... what a waste!
 
-		wm_read_data_reply* pReply = (wm_read_data_reply*)(DataFrame + Offset);	
+		wm_read_data_reply* pReply = (wm_read_data_reply*)(DataFrame + Offset);
+		memset(pReply,0,sizeof(wm_read_data_reply));
 		Offset += sizeof(wm_read_data_reply);
 
 #if defined(HAVE_WX) && HAVE_WX
@@ -341,6 +338,18 @@ void SendReadDataReply(u16 _channelID, void* _Base, u16 _Address, int _Size)
 			pReply->error = 0x08;
 		}
 
+		if (WiiMapping[g_ID].bMotionPlusConnected)
+		{
+			//MP+ will try to read from this Registeraddress, expecting an error if a previous WM+ activation has been succesful
+			//It will also return an error if there was no WM+ present at all
+			if (((_Address == 0x00FE ) || (_Address == 0x00FF )) && (_AddressHI == 0xA6) && (g_RegExt[g_ID][0xFF] == 0x05))  
+			{
+					pReply->size = 0x0f;
+					pReply->error = 0x07; //error: write-only area when activated/or not present
+			}
+		}
+	
+
 		// Logging
 		DEBUG_LOG(WIIMOTE, "SendReadDataReply");
 		DEBUG_LOG(WIIMOTE, "  Buttons: 0x%04x", pReply->buttons);
@@ -369,12 +378,11 @@ void SendReadDataReply(u16 _channelID, void* _Base, u16 _Address, int _Size)
 void WmWriteData(u16 _channelID, wm_write_data* wd) 
 {
 	u32 address = convert24bit(wd->address);
-
+	u8	addressHI = (address >> 16) & 0xFE;
 	INFO_LOG(WIIMOTE,  "Write data");
 	DEBUG_LOG(WIIMOTE, "  Space: %x", wd->space);
 	DEBUG_LOG(WIIMOTE, "  Address: 0x%06x", address);
 	DEBUG_LOG(WIIMOTE, "  Size: 0x%02x", wd->size);
-
 	// Write to EEPROM
 	if(wd->size <= 16 && wd->space == WM_SPACE_EEPROM)
 	{
@@ -390,7 +398,7 @@ void WmWriteData(u16 _channelID, wm_write_data* wd)
 	{
 		u8* block;
 		u32 blockSize;
-		switch((address >> 16) & 0xFE)
+		switch(addressHI)
 		{
 			case 0xA2:
 				block = g_RegSpeaker[g_ID];
@@ -422,7 +430,6 @@ void WmWriteData(u16 _channelID, wm_write_data* wd)
 				return;
 		}
 
-		// Remove for example 0xa40000 from the address
 		address &= 0xFFFF;
 
 		// Check if the address is within bounds
@@ -430,7 +437,7 @@ void WmWriteData(u16 _channelID, wm_write_data* wd)
 			PanicAlert("WmWriteData: address + size out of bounds!");
 			return;
 		}
-
+		
 		// Finally write the registers to the right structure
 		memcpy(block + address, wd->data, wd->size);
 
@@ -441,8 +448,37 @@ void WmWriteData(u16 _channelID, wm_write_data* wd)
 			// that we send it parts of a key, only the last full key will have an effect
 			if(address >= 0x40 && address <= 0x4c)
 				wiimote_gen_key(&g_ExtKey[g_ID], &g_RegExt[g_ID][0x40]);
-		}
 
+		}
+		if (WiiMapping[g_ID].bMotionPlusConnected) {
+			//If the MP+ gets activated, it's important to send one or two status reports depending on the presence of a pass-through extension
+			int sendreport = HandlingMotionPlusWrites(wd->data, addressHI, address);
+			g_MotionPlusLastWriteReg[g_ID] = address; 
+
+			switch (sendreport)
+			{
+				//pass-through extension disconnected and wm+ connected
+				case 1: 
+					WmRequestStatus(_channelID, (wm_request_status*) wd, 0); 
+					WmRequestStatus(_channelID, (wm_request_status*) wd, 1); 
+					break;
+
+				//wm+ unplugged(on deactivation)
+				case 2:
+					WmRequestStatus(_channelID, (wm_request_status*) wd, 0); 
+					break;
+
+				//wm+ plugged in(on activation)
+				case 3:
+					WmRequestStatus(_channelID, (wm_request_status*) wd, 1);
+					break;
+
+				default:
+					break;
+			}
+
+		}
+		
 	}
 	else
 	{
@@ -486,8 +522,11 @@ void WmRequestStatus(u16 _channelID, wm_request_status* rs, int Extension)
 	// Check if we have a specific order about the extension status
 	if (Extension == -1)
 	{
+		if (WiiMapping[g_ID].bMotionPlusConnected)
+			pStatus->extension = ((g_MotionPlus[g_ID]) || (WiiMapping[g_ID].iExtensionConnected != EXT_NONE)) ? 1 : 0;
+		else
+			pStatus->extension = (WiiMapping[g_ID].iExtensionConnected == EXT_NONE) ? 0 : 1;
 		// Read config value for the first time
-		pStatus->extension = (WiiMapping[g_ID].iExtensionConnected == EXT_NONE) ? 0 : 1;
 	}
 	else
 	{
@@ -501,10 +540,187 @@ void WmRequestStatus(u16 _channelID, wm_request_status* rs, int Extension)
 	DEBUG_LOG(WIIMOTE, "  IR: %x", pStatus->ir);
 	DEBUG_LOG(WIIMOTE, "  LEDs: %x", pStatus->leds);
 
+
 	g_WiimoteInitialize.pWiimoteInput(g_ID, _channelID, DataFrame, Offset);
 
 	// Debugging
 	//ReadDebugging(true, DataFrame, Offset);
+}
+
+//http://snzgoo.blogspot.com for more details on what this is doing
+int HandlingMotionPlusWrites(u8* data, u8 addressHI, u32 address)
+{
+	bool MPlusActiveExt = (g_RegExt[g_ID][0xFF] == 0x05) ? 1 : 0;
+
+	switch (addressHI)
+	{
+	case 0xA4:
+		switch (address)
+		{
+		case 0x00FE:
+			if (data[0] == 0x00)
+			{ 
+				if (MPlusActiveExt)
+				{
+					if (WiiMapping[g_ID].iExtensionConnected)
+					{
+						DEBUG_LOG(WIIMOTE, "Writing [0x%02x] to [0x%02x:%04x]:  Disabling WM+ and swapping registers back", data[0], addressHI, address);
+						g_RegExt[g_ID][0xFE] = 0x00;
+						SwapExtRegisters();
+						return 1; // we need to issue a 0x20 report, if there's an extension connected to the MP+!
+					}	
+				}
+				else
+				{
+					DEBUG_LOG(WIIMOTE, "Writing [0x%02x] to [0x%02x:%04x]:  WM+ already inactive", data[0], addressHI, address);
+				}
+				g_MotionPlus[g_ID] = 1;
+			}
+			break;
+
+		//1. Disables an active wiimote; 0x20 report sent when iExtensionConnected != NONE : ext disconnect.
+		//2. Initializing the pass-through extension: writing 0x55 ->0xA400F0 and then 0x00 to 0xA400FB.
+		//3. Single write 0x00 to 0x00FB when MP got activated, part of the MP activation.
+		case 0x00FB:	
+			if ((data[0] == 0x00) && (g_MotionPlusLastWriteReg[g_ID] == 0xF0))
+			{
+				switch (g_MotionPlusLastWriteReg[g_ID])
+				{
+				case 0xF0:
+					//1. disabling wiimote,
+					if (MPlusActiveExt) //mp already deactivated, no register swap needed
+					{
+						DEBUG_LOG(WIIMOTE, "Writing [0x%02x] to [0x%02x:%04x]: Disabling WM+ and swapping registers back", data[0], addressHI, address)
+						g_MotionPlus[g_ID] = WiiMapping[g_ID].iExtensionConnected ? 1 : 0;
+						g_RegExt[g_ID][0xFE] = 0x05;
+						SwapExtRegisters();
+
+						if (!WiiMapping[g_ID].iExtensionConnected)
+							return 2; 
+					} //2. Default extension init, disable mp if actitaved, else do nothing
+					else
+					{
+						DEBUG_LOG(WIIMOTE, "Writing [0x%02x] to [0x%02x:%04x]: WM+ already disabled [ext:%i] - no swapping", data[0], addressHI, address, WiiMapping[g_ID].iExtensionConnected);
+						g_RegMotionPlus[g_ID][0xFE] = 0x05;
+						g_RegMotionPlus[g_ID][0xF7] = 0x08;
+					}
+					break;
+				//3. part of wm activation.
+				default:
+					if (MPlusActiveExt)
+					{
+						g_RegExt[g_ID][0xF1] = 0x01;
+						g_RegExt[g_ID][0xF7] = 0x08; //init/calibration state flag
+	
+						if (WiiMapping[g_ID].iExtensionConnected)
+						{
+							//I don't know what these are for: F6h,F8h, F9h. They seem necessary to be set to 0x00 instead of 0xFF(default),
+							//when there's an extension connected to the MP
+							g_RegExt[g_ID][0xF6] = 0x00;
+							g_RegExt[g_ID][0xF8] = 0x00;
+							g_RegExt[g_ID][0xF9] = 0x00;
+						}
+					}
+					break;
+				}
+			}
+			break;
+
+		//switch for invalid/valid data calibration (0x00/0x01)
+		case 0x00F1: 
+			if (MPlusActiveExt)
+			{
+				g_RegExt[g_ID][0xF7] = 0x1A; //syncing finished
+			}
+			break;
+
+		//switch for triggering the calibration/syncing between wiimote and MP (corresponding data will be at 50h)			
+		case 0x00F2: 
+			if(MPlusActiveExt && (g_RegExt[g_ID][0xF7] < 0x0E))
+			{
+				g_RegExt[g_ID][0xF7] = 0x0E;
+			}
+			break;
+
+		}
+		break;
+
+	//MotionPlus Register
+	case 0xA6:
+		switch (address)
+		{
+		//Enabling WM+: swapping extension registers
+		case 0x00FE:	
+			if ((data[0] == 0x04) || (data[0] == 0x05))
+			{ 
+				if (!MPlusActiveExt)
+				{
+					DEBUG_LOG(WIIMOTE, "Writing [0x%02x] to [0x%02x:%04x]: Enabling WM+ and swapping registers", data[0], addressHI, address);
+
+					//The WII will try to read from the A6 WM+ register directly after activation,
+					//and we need to reply with an error each time as long the mp is still activate.
+					//In addition, we need to sent 1-2 0x20 statusreports depending on if theres an extension connected to the MP or not.
+					g_MotionPlus[g_ID] = 1;
+					SwapExtRegisters();
+
+					g_RegExt[g_ID][0xF7] = 0x08; //Reset flag
+					g_RegExt[g_ID][0xFE] = data[0];
+
+					if (WiiMapping[g_ID].iExtensionConnected != EXT_NONE)
+					{
+						g_RegExt[g_ID][0xF1] = 0x01;
+						g_RegExt[g_ID][0xF6] = 0x00;
+						g_RegExt[g_ID][0xF8] = 0x00;
+						g_RegExt[g_ID][0xF9] = 0x00;
+						return 1; // we need to issue 2 0x20 reports, if there's an extension connected to the MP
+					}
+					return 3; // we need to issue 1 0x20 report, if there's no extension connected to the MP
+				}
+				else
+				{
+					DEBUG_LOG(WIIMOTE, "Writing [0x%02x] to [0x%02x:%04x]: WM already enabled no register swapping", data[0], addressHI, address);
+				}
+			}
+			break;
+		//Part of the WM+ init()
+		case 0x00F0:
+			if (data[0] == 0x55) { 
+				//If the wiimote is already active, we will init() the WM+ directly in the ExtReg, shouldn't happen usually
+				if (MPlusActiveExt)
+				{
+					g_RegExt[g_ID][0xFE] = 0x05;
+					g_RegExt[g_ID][0xF7] = 0x08;
+				}
+				if (WiiMapping[g_ID].iExtensionConnected == EXT_NONE)
+					g_MotionPlus[g_ID] = 0;
+			}
+			break;
+
+		default:
+			DEBUG_LOG(WIIMOTE, "Writing [0x%02x] to [0x%02x:%04x]: unknown reason", data[0], addressHI, address);
+			break;
+		}
+		break;
+	}
+	return false;
+}
+
+//Swapping Ext/WM+-registers
+void SwapExtRegisters()
+{
+	memset(g_RegExtTmp, 0, sizeof(g_RegExtTmp));
+	memcpy(g_RegExtTmp, g_RegExt[g_ID], sizeof(g_RegExt[0]));
+	memset(g_RegExt[0], 0, sizeof(g_RegExt[0]));
+	memcpy(g_RegExt[g_ID], g_RegMotionPlus[g_ID], sizeof(g_RegMotionPlus[0]));
+	memset(g_RegMotionPlus[0], 0, sizeof(g_RegMotionPlus[0]));
+	memcpy(g_RegMotionPlus[g_ID], g_RegExtTmp, sizeof(g_RegExtTmp));
+
+	if (g_RegMotionPlus[g_ID][0xFC]) {
+		g_RegMotionPlus[g_ID][0xFC] = 0xa6;
+	}
+	if (g_RegExt[g_ID][0xFC]) {
+		g_RegExt[g_ID][0xFC] = 0xa4;
+	}
 }
 
 } // WiiMoteEmu

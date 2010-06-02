@@ -18,7 +18,11 @@
 #include "LinearDiskCache.h"
 
 static const char ID[4] = {'D', 'C', 'A', 'C'};
-const int version = 4888;  // TODO: Get from SVN_REV
+
+// Update this to the current SVN revision every time you change shader generation code.
+// We don't automatically get this from SVN_REV because that would mean regenerating the
+// shader cache for every revision, graphics-related or not, which is simply annoying.
+const int version = 5520;
 
 LinearDiskCache::LinearDiskCache() 
 	: file_(NULL), num_entries_(0) {

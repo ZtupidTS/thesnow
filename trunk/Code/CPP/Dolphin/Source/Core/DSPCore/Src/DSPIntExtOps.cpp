@@ -19,22 +19,14 @@
 #include "DSPIntExtOps.h"
 
 // Extended opcodes do not exist on their own. These opcodes can only be
-// attached to opcodes that allow extending (8 lower bits of opcode not used by
+// attached to opcodes that allow extending (8 (or 7) lower bits of opcode not used by
 // opcode). Extended opcodes do not modify program counter $pc register.
 
 // Most of the suffixes increment or decrement one or more addressing registers
 // (the first four, ARx). The increment/decrement is either 1, or the
 // corresponding "index" register (the second four, IXx). The addressing
 // registers will wrap in odd ways, dictated by the corresponding wrapping
-// register, WP0-3.
-
-// The following should be applied as a decrement (and is applied by
-// dsp_decrement_addr_reg):
-// ar[i] = (ar[i] & wp[i]) == 0 ? ar[i] | wp[i] : ar[i] - 1;
-// I have not found the corresponding algorithms for increments yet.
-// It's gotta be fairly simple though. See R3123, R3125 in Google Code.
-// (May have something to do with (ar[i] ^ wp[i]) == 0)
-
+// register, WR0-3.
 
 namespace DSPInterpreter
 {
@@ -214,7 +206,7 @@ void lsm(const UDSPInstruction opc)
 	dsp_dmem_write(g_dsp.r[DSP_REG_AR3], g_dsp.r[sreg]);
 
 	writeToBackLog(0, dreg,	dsp_dmem_read(g_dsp.r[DSP_REG_AR0]));
-	writeToBackLog(1, DSP_REG_AR3, dsp_increase_addr_reg(DSP_REG_AR3, (s16)g_dsp.r[DSP_REG_IX0 + DSP_REG_AR3]));
+	writeToBackLog(1, DSP_REG_AR3, dsp_increase_addr_reg(DSP_REG_AR3, (s16)g_dsp.r[DSP_REG_IX3]));
 	writeToBackLog(2, DSP_REG_AR0, dsp_increment_addr_reg(DSP_REG_AR0));
 }
 
@@ -233,7 +225,7 @@ void lsnm(const UDSPInstruction opc)
 	dsp_dmem_write(g_dsp.r[DSP_REG_AR3], g_dsp.r[sreg]);
 
 	writeToBackLog(0, dreg,	dsp_dmem_read(g_dsp.r[DSP_REG_AR0]));
-	writeToBackLog(1, DSP_REG_AR3, dsp_increase_addr_reg(DSP_REG_AR3, (s16)g_dsp.r[DSP_REG_IX0 + DSP_REG_AR3]));
+	writeToBackLog(1, DSP_REG_AR3, dsp_increase_addr_reg(DSP_REG_AR3, (s16)g_dsp.r[DSP_REG_IX3]));
 	writeToBackLog(2, DSP_REG_AR0, dsp_increase_addr_reg(DSP_REG_AR0, (s16)g_dsp.r[DSP_REG_IX0]));
 }
 
@@ -286,7 +278,7 @@ void slm(const UDSPInstruction opc)
 	dsp_dmem_write(g_dsp.r[DSP_REG_AR0], g_dsp.r[sreg]);
 
 	writeToBackLog(0, dreg,	dsp_dmem_read(g_dsp.r[DSP_REG_AR3]));
-	writeToBackLog(1, DSP_REG_AR3, dsp_increase_addr_reg(DSP_REG_AR3, (s16)g_dsp.r[DSP_REG_IX0 + DSP_REG_AR3]));
+	writeToBackLog(1, DSP_REG_AR3, dsp_increase_addr_reg(DSP_REG_AR3, (s16)g_dsp.r[DSP_REG_IX3]));
 	writeToBackLog(2, DSP_REG_AR0, dsp_increment_addr_reg(DSP_REG_AR0));
 }
 
@@ -304,7 +296,7 @@ void slnm(const UDSPInstruction opc)
 	dsp_dmem_write(g_dsp.r[DSP_REG_AR0], g_dsp.r[sreg]);
 
 	writeToBackLog(0, dreg,	dsp_dmem_read(g_dsp.r[DSP_REG_AR3]));
-	writeToBackLog(1, DSP_REG_AR3, dsp_increase_addr_reg(DSP_REG_AR3, (s16)g_dsp.r[DSP_REG_IX0 + DSP_REG_AR3]));
+	writeToBackLog(1, DSP_REG_AR3, dsp_increase_addr_reg(DSP_REG_AR3, (s16)g_dsp.r[DSP_REG_IX3]));
 	writeToBackLog(2, DSP_REG_AR0, dsp_increase_addr_reg(DSP_REG_AR0, (s16)g_dsp.r[DSP_REG_IX0]));
 }
 
@@ -406,7 +398,7 @@ void ldm(const UDSPInstruction opc)
 	}
 
 	writeToBackLog(3, DSP_REG_AR3,
-				   dsp_increase_addr_reg(DSP_REG_AR3, (s16)g_dsp.r[DSP_REG_IX0 + DSP_REG_AR3]));
+				   dsp_increase_addr_reg(DSP_REG_AR3, (s16)g_dsp.r[DSP_REG_IX3]));
 }
 
 // LDNM $ax0.d, $ax1.r, @$arS
@@ -438,7 +430,7 @@ void ldnm(const UDSPInstruction opc)
 	}
 
 	writeToBackLog(3, DSP_REG_AR3,
-				   dsp_increase_addr_reg(DSP_REG_AR3, (s16)g_dsp.r[DSP_REG_IX0 + DSP_REG_AR3]));
+				   dsp_increase_addr_reg(DSP_REG_AR3, (s16)g_dsp.r[DSP_REG_IX3]));
 }
 
 
@@ -483,7 +475,7 @@ void zeroWriteBackLog()
 	}
 }
 
-//needed for 0x3... (at least)..., + clrl
+//needed for 0x3... 
 //ex. corner case -> 0x3060: main opcode modifies .m, and extended .l -> .l shoudnt be zeroed because of .m write...
 void zeroWriteBackLogPreserveAcc(u8 acc) 
 {

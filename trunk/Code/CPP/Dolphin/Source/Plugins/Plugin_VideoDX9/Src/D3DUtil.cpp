@@ -16,6 +16,7 @@
 // http://code.google.com/p/dolphin-emu/
 
 #include "Common.h"
+#include "StringUtil.h"
 
 #include "D3DBase.h"
 #include "D3DUtil.h"
@@ -186,6 +187,19 @@ const int TS[6][2] =
 	{D3DTSS_ALPHAARG1, D3DTA_TEXTURE },
 	{D3DTSS_ALPHAARG2, D3DTA_DIFFUSE },
 };
+
+bool DXCheck( std::wstring& msg )
+{
+	HINSTANCE hDll = LoadLibrary(StringFromFormat( _T("d3dx9_%d.dll"), D3DX_SDK_VERSION).c_str());
+	if( !hDll )
+	{
+		msg = _T("Please make sure that you have the latest version of DirectX 9.0c correctly installed.");
+		return false;
+	} else
+		msg = _T("DirectX9 is up to date and ready to be used!");
+	FreeLibrary( hDll );
+	return true;
+}
 
 static LPDIRECT3DPIXELSHADER9 ps_old = NULL;
 static LPDIRECT3DVERTEXSHADER9 vs_old = NULL;
@@ -360,27 +374,31 @@ void drawShadedTexQuad(IDirect3DTexture9 *texture,
 					   const RECT *rSource,
 					   int SourceWidth,
 					   int SourceHeight,
+					   int DestWidth,
+					   int DestHeight,
 					   IDirect3DPixelShader9 *PShader,
 					   IDirect3DVertexShader9 *Vshader)
 {
 	float sw = 1.0f /(float) SourceWidth;
 	float sh = 1.0f /(float) SourceHeight;
-	float u1=((float)rSource->left + 0.5f) * sw;
-	float u2=((float)rSource->right + 0.5f) * sw;
-	float v1=((float)rSource->top + 0.5f) * sh;
-	float v2=((float)rSource->bottom + 0.5f) * sh;
+	float dw = 1.0f /(float) DestWidth;
+	float dh = 1.0f /(float) DestHeight;
+	float u1=((float)rSource->left) * sw;
+	float u2=((float)rSource->right) * sw;
+	float v1=((float)rSource->top) * sh;
+	float v2=((float)rSource->bottom) * sh;
 
 	struct Q2DVertex { float x,y,z,rhw,u,v,w,h,L,T,R,B; } coords[4] = {
-		{-1.0f, 1.0f, 0.0f,1.0f, u1, v1, sw, sh,u1,v1,u2,v2},
-		{ 1.0f, 1.0f, 0.0f,1.0f, u2, v1, sw, sh,u1,v1,u2,v2},
-		{ 1.0f,-1.0f, 0.0f,1.0f, u2, v2, sw, sh,u1,v1,u2,v2},
-		{-1.0f,-1.0f, 0.0f,1.0f, u1, v2, sw, sh,u1,v1,u2,v2}
+		{-1.0f - dw,-1.0f + dh, 0.0f,1.0f, u1, v2, sw, sh,u1,v1,u2,v2},
+		{-1.0f - dw, 1.0f + dh, 0.0f,1.0f, u1, v1, sw, sh,u1,v1,u2,v2},
+		{ 1.0f - dw,-1.0f + dh, 0.0f,1.0f, u2, v2, sw, sh,u1,v1,u2,v2},
+		{ 1.0f - dw, 1.0f + dh, 0.0f,1.0f, u2, v1, sw, sh,u1,v1,u2,v2}
 	};
 	dev->SetVertexShader(Vshader);
 	dev->SetPixelShader(PShader);	
 	D3D::SetTexture(0, texture);
 	dev->SetFVF(D3DFVF_XYZW | D3DFVF_TEX3 | D3DFVF_TEXCOORDSIZE4(2));
-	dev->DrawPrimitiveUP(D3DPT_TRIANGLEFAN, 2, coords, sizeof(Q2DVertex));	
+	dev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, coords, sizeof(Q2DVertex));	
 	RestoreShaders();
 }
 
@@ -389,27 +407,31 @@ void drawShadedTexSubQuad(IDirect3DTexture9 *texture,
 							int SourceWidth,
 							int SourceHeight,
 							const MathUtil::Rectangle<float> *rDest,
+							int DestWidth,
+							int DestHeight,
 							IDirect3DPixelShader9 *PShader,
 							IDirect3DVertexShader9 *Vshader)
 {
 	float sw = 1.0f /(float) SourceWidth;
 	float sh = 1.0f /(float) SourceHeight;
-	float u1= (rSource->left   + 0.5f) * sw;
-	float u2= (rSource->right  + 0.5f) * sw;
-	float v1= (rSource->top    + 0.5f) * sh;
-	float v2= (rSource->bottom + 0.5f) * sh;
+	float dw = 1.0f /(float) DestWidth;
+	float dh = 1.0f /(float) DestHeight;
+	float u1= rSource->left * sw;
+	float u2= rSource->right * sw;
+	float v1= rSource->top * sh;
+	float v2= rSource->bottom * sh;
 
 	struct Q2DVertex { float x,y,z,rhw,u,v,w,h,L,T,R,B; } coords[4] = {
-		{ rDest->left , rDest->bottom, 0.0f,1.0f, u1, v1, sw, sh,u1,v1,u2,v2},
-		{ rDest->right, rDest->bottom, 0.0f,1.0f, u2, v1, sw, sh,u1,v1,u2,v2},
-		{ rDest->right, rDest->top   , 0.0f,1.0f, u2, v2, sw, sh,u1,v1,u2,v2},
-		{ rDest->left , rDest->top   , 0.0f,1.0f, u1, v2, sw, sh,u1,v1,u2,v2}
+		{ rDest->left  - dw , rDest->top    + dh, 1.0f,1.0f, u1, v2, sw, sh,u1,v1,u2,v2},
+		{ rDest->left  - dw , rDest->bottom + dh, 1.0f,1.0f, u1, v1, sw, sh,u1,v1,u2,v2},
+		{ rDest->right - dw , rDest->top    + dh, 1.0f,1.0f, u2, v2, sw, sh,u1,v1,u2,v2},
+		{ rDest->right - dw , rDest->bottom + dh, 1.0f,1.0f, u2, v1, sw, sh,u1,v1,u2,v2}
 	};
 	dev->SetVertexShader(Vshader);
 	dev->SetPixelShader(PShader);	
 	D3D::SetTexture(0, texture);
 	dev->SetFVF(D3DFVF_XYZW | D3DFVF_TEX3 | D3DFVF_TEXCOORDSIZE4(2));
-	dev->DrawPrimitiveUP(D3DPT_TRIANGLEFAN, 2, coords, sizeof(Q2DVertex));	
+	dev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, coords, sizeof(Q2DVertex));	
 	RestoreShaders();
 }
 

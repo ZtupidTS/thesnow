@@ -383,7 +383,7 @@ void CCodeWindow::NotifyMapLoaded()
 	//symbols->Show(false); // hide it for faster filling
 	symbols->Freeze();	// HyperIris: wx style fast filling
 	symbols->Clear();
-	for (PPCSymbolDB::XFuncMap::iterator iter = g_symbolDB.GetIterator(); iter != g_symbolDB.End(); iter++)
+	for (PPCSymbolDB::XFuncMap::iterator iter = g_symbolDB.GetIterator(); iter != g_symbolDB.End(); ++iter)
 	{
 		int idx = symbols->Append(wxString::FromAscii(iter->second.name.c_str()));
 		symbols->SetClientData(idx, (void*)&iter->second);
@@ -538,6 +538,9 @@ void CCodeWindow::OnToggleDLLWindow(int Id, bool _Show, int i)
 			PLUGINTYPE = PLUGIN_TYPE_VIDEO;
 			Title = wxT("Video");
 			break;
+		default:
+			PanicAlert("CCodeWindow::OnToggleDLLWindow");
+			return;
 	}
 
 	if (_Show)

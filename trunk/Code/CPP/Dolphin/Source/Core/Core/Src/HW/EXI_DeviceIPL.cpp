@@ -144,6 +144,8 @@ CEXIIPL::CEXIIPL() :
 	m_count(0),
 	m_FontsLoaded(false)
 {
+	memset(m_szBuffer,0,sizeof(m_szBuffer));
+
 	// Determine region
 	m_bNTSC = SConfig::GetInstance().m_LocalCoreStartupParameter.bNTSC;
 
@@ -175,7 +177,10 @@ CEXIIPL::CEXIIPL() :
 	FILE *file = fopen(SConfig::GetInstance().m_LocalCoreStartupParameter.m_strSRAM.c_str(), "rb");
     if (file != NULL)
     {
-        fread(&m_SRAM, 1, 64, file);
+        if (fread(&m_SRAM, 1, 64, file) < 64) {
+	    ERROR_LOG(EXPANSIONINTERFACE,  "EXI IPL-DEV: Could not read all of SRAM");
+	    m_SRAM = sram_dump;
+	}
         fclose(file);
     }
     else
@@ -397,27 +402,14 @@ void CEXIIPL::TransferByte(u8& _uByte)
 
 u32 CEXIIPL::GetGCTime()
 {
-    const u32 cJanuary2000 = 0x386D42C0;  // Seconds between 1.1.1970 and 1.1.2000
+	u64 ltime = 0;
+	const u32 cJanuary2000 = 0x386D42C0;  // Seconds between 1.1.1970 and 1.1.2000
 	const u32 cWiiBias     = 0x0F111566;  // Seconds between 1.1.2000 and 5.1.2008 (Wii epoch)
 
-	// (mb2): I think we can get rid of the IPL bias.
-	// I know, it's another hack so I let the previous code for a while.
-#if 0
-    // Get SRAM bias
-    u32 Bias;
-
-    for (int i=0; i<4; i++)
-    {
-        ((u8*)&Bias)[i] = sram_dump[0xc + (i^3)];
-    }
-
-    // Get the time ...
-    u64 ltime = Common::Timer::GetTimeSinceJan1970();
-    return ((u32)ltime - cJanuary2000 - Bias);
-#else
-
+#if defined(HAVE_WX) && HAVE_WX
 	// hack in some netplay stuff
-	u64 ltime = NetPlay_GetGCTime();
+	ltime = NetPlay_GetGCTime();
+#endif
 	if (0 == ltime)
 		ltime = Common::Timer::GetLocalTimeSinceJan1970();
 
@@ -425,6 +417,21 @@ u32 CEXIIPL::GetGCTime()
 		return ((u32)ltime - cJanuary2000 - cWiiBias/* + 32434790*/);
 	else
 		return ((u32)ltime - cJanuary2000);
+
+#if 0
+	// (mb2): I think we can get rid of the IPL bias.
+	// I know, it's another hack so I let the previous code for a while.
+
+	// Get SRAM bias
+	u32 Bias;
+
+	for (int i=0; i<4; i++)
+	{
+		((u8*)&Bias)[i] = sram_dump[0xc + (i^3)];
+	}
+
+	// Get the time ...
+	u64 ltime = Common::Timer::GetTimeSinceJan1970();
+	return ((u32)ltime - cJanuary2000 - Bias);
 #endif
 }
-
