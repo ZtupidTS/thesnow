@@ -72,8 +72,8 @@ def CheckLib(context, name):
     ret = context.TryLink("""
               int main(int argc, char **argv) {
                 return 0;
-              }
-              """,'.c')
+              }         
+              """, '.c')
     if not ret:
         context.env.Replace(LIBS = lastLIBS)
 

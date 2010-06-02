@@ -125,6 +125,7 @@ class CFrame : public CRenderFrame
 		bool bRenderToMain;
 		bool bNoWiimoteMsg;
 		void UpdateGUI();
+		void UpdateGameList();
 		void ToggleLogWindow(bool, int i = -1);
 		void ToggleConsole(bool, int i = -1);		
 		void PostEvent(wxCommandEvent& event);
@@ -340,7 +341,6 @@ class CFrame : public CRenderFrame
 		void OnToggleConsole(wxCommandEvent& event);
 		void OnKeyDown(wxKeyEvent& event);
 		void OnKeyUp(wxKeyEvent& event);
-		void OnDoubleClick(wxMouseEvent& event);
 		
 		void OnHostMessage(wxCommandEvent& event);
 

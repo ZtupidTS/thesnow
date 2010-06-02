@@ -19,10 +19,11 @@
 #include "Thread.h"
 #include "AlsaSoundStream.h"
 
-#define BUFFER_SIZE 4096
-#define BUFFER_SIZE_BYTES (BUFFER_SIZE*2*2)
+#define FRAME_COUNT_MIN 256
+#define BUFFER_SIZE_MAX 8192
+#define BUFFER_SIZE_BYTES (BUFFER_SIZE_MAX*2*2)
 
-AlsaSound::AlsaSound(CMixer *mixer) : SoundStream(mixer), thread_data(0), handle(NULL)
+AlsaSound::AlsaSound(CMixer *mixer) : SoundStream(mixer), thread_data(0), handle(NULL), frames_to_deliver(FRAME_COUNT_MIN)
 {
 	mix_buffer = new u8[BUFFER_SIZE_BYTES];
 }
@@ -60,9 +61,10 @@ void AlsaSound::Update()
 // Called on audio thread.
 void AlsaSound::SoundLoop()
 {
-	AlsaInit();
-	// nakee: What is the optimal value?
-	int frames_to_deliver = BUFFER_SIZE;
+	if (!AlsaInit()) {
+		thread_data = 2;
+		return;
+	}
 	while (!thread_data)
 	{
 		m_mixer->Mix(reinterpret_cast<short *>(mix_buffer), frames_to_deliver);
@@ -88,6 +90,8 @@ bool AlsaSound::AlsaInit()
 	int dir;
 	snd_pcm_sw_params_t *swparams;
 	snd_pcm_hw_params_t *hwparams;
+	snd_pcm_uframes_t buffer_size,buffer_size_max;
+	unsigned int periods;
 	
 	err = snd_pcm_open(&handle, "default", SND_PCM_STREAM_PLAYBACK, 0);
 	if (err < 0) 
@@ -132,6 +136,22 @@ bool AlsaSound::AlsaInit()
 		ERROR_LOG(AUDIO, "Channels count not available: %s\n", snd_strerror(err));
 		return false;
 	}
+	
+	periods = BUFFER_SIZE_MAX / FRAME_COUNT_MIN;
+	err = snd_pcm_hw_params_set_periods_max(handle, hwparams, &periods, &dir);
+	if (err < 0) 
+	{
+		ERROR_LOG(AUDIO, "Cannot set Minimum periods: %s\n", snd_strerror(err));
+		return false;
+	}
+
+	buffer_size_max = BUFFER_SIZE_MAX;
+	err = snd_pcm_hw_params_set_buffer_size_max(handle, hwparams, &buffer_size_max);
+	if (err < 0) 
+	{
+		ERROR_LOG(AUDIO, "Cannot set minimum buffer size: %s\n", snd_strerror(err));
+		return false;
+	}
 
 	err = snd_pcm_hw_params(handle, hwparams);
 	if (err < 0) 
@@ -140,19 +160,37 @@ bool AlsaSound::AlsaInit()
 		return false;
 	}
     
+	err = snd_pcm_hw_params_get_buffer_size(hwparams, &buffer_size);
+	if (err < 0) 
+	{
+		ERROR_LOG(AUDIO, "Cannot get buffer size: %s\n", snd_strerror(err));
+		return false;
+	}
+
+	err = snd_pcm_hw_params_get_periods_max(hwparams, &periods, &dir);
+	if (err < 0) 
+	{
+		ERROR_LOG(AUDIO, "Cannot get periods: %s\n", snd_strerror(err));
+		return false;
+	}
+
+	//periods is the number of fragments alsa can wait for during one 
+	//buffer_size
+	frames_to_deliver = buffer_size / periods;
+	//limit the minimum size. pulseaudio advertises a minimum of 32 samples.
+	if (frames_to_deliver < FRAME_COUNT_MIN)
+	    frames_to_deliver = FRAME_COUNT_MIN;
+	//it is probably a bad idea to try to send more than one buffer of data
+	if ((unsigned int)frames_to_deliver > buffer_size)
+	    frames_to_deliver = buffer_size;
+	NOTICE_LOG(AUDIO, "ALSA gave us a %d sample \"hardware\" buffer with %d periods. Will send %d samples per fragments.\n", buffer_size, periods, frames_to_deliver);
+
 	snd_pcm_sw_params_alloca(&swparams);
 
 	err = snd_pcm_sw_params_current(handle, swparams);
 	if (err < 0) 
 	{
 	    ERROR_LOG(AUDIO, "cannot init sw params: %s\n", snd_strerror(err));
-		return false;
-	}
-	
-	err = snd_pcm_sw_params_set_avail_min(handle, swparams, BUFFER_SIZE);
-	if (err < 0) 
-	{
-	    ERROR_LOG(AUDIO, "cannot set avail min: %s\n", snd_strerror(err));
 		return false;
 	}
 	

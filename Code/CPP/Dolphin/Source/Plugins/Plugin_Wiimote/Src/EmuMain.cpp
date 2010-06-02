@@ -39,6 +39,7 @@ namespace WiiMoteEmu
 // Settings
 accel_cal g_wm;
 nu_cal g_nu;
+mp_cal g_mp[2]; //fast[0] and slow[01]-motion
 cc_cal g_ClassicContCalibration;
 gh3_cal g_GH3Calibration;
 
@@ -416,6 +417,8 @@ void ResetVariables()
 	for (int i = 0; i < MAX_WIIMOTES; i++)
 	{
 		g_ReportingAuto[i] = false;
+		g_MotionPlusLastWriteReg[i] = 0;
+		g_InterleavedData[i] = false;
 		g_ReportingMode[i] = 0;
 		g_ReportingChannel[i] = 0;
 		WiiMapping[i].Motion.TiltWM.Shake = 0;
@@ -456,6 +459,13 @@ void InitCalibration()
 	g_nu.cal_g.y = nunchuck_calibration[0x05] - nunchuck_calibration[0x01];
 	g_nu.cal_g.z = nunchuck_calibration[0x06] - nunchuck_calibration[0x02];
 
+	g_mp[0].cal_zero.x = ((motion_plus_calibration[0x00]<<6) + (motion_plus_calibration[0x01]>>2));
+	g_mp[0].cal_zero.y = ((motion_plus_calibration[0x02]<<6) + (motion_plus_calibration[0x03]>>2));
+	g_mp[0].cal_zero.z = ((motion_plus_calibration[0x04]<<6) + (motion_plus_calibration[0x05]>>2));
+	g_mp[1].cal_zero.x = ((motion_plus_calibration[0x10]<<6) + (motion_plus_calibration[0x11]>>2));
+	g_mp[1].cal_zero.y = ((motion_plus_calibration[0x12]<<6) + (motion_plus_calibration[0x13]>>2));
+	g_mp[1].cal_zero.z = ((motion_plus_calibration[0x14]<<6) + (motion_plus_calibration[0x15]>>2));
+
 	g_nu.jx.max = nunchuck_calibration[0x08];
 	g_nu.jx.min = nunchuck_calibration[0x09];
 	g_nu.jx.center = nunchuck_calibration[0x0a];
@@ -492,25 +502,63 @@ void InitCalibration()
 // Update the extension calibration values with our default values
 void UpdateExtRegisterBlocks(int Slot)
 {
-	// Copy extension id and calibration to its register	
-	if(WiiMapping[Slot].iExtensionConnected == EXT_NUNCHUCK)
+	if (WiiMapping[Slot].bMotionPlusConnected)
 	{
-		memcpy(g_RegExt[Slot] + 0x20, nunchuck_calibration, sizeof(nunchuck_calibration));
-		memcpy(g_RegExt[Slot] + 0x30, nunchuck_calibration, sizeof(nunchuck_calibration));
-		memcpy(g_RegExt[Slot] + 0xfa, nunchuck_id, sizeof(nunchuck_id));
-	}
-	else if(WiiMapping[Slot].iExtensionConnected == EXT_CLASSIC_CONTROLLER)
+				// Copy extension id and calibration to its register
+		if (WiiMapping[Slot].iExtensionConnected == EXT_NONE)
+		{	
+			memset(g_RegExt[Slot],0,sizeof(g_RegExt[0]));
+			memcpy(g_RegExt[Slot] + 0x20, motion_plus_calibration, sizeof(motion_plus_calibration));
+			memset(g_RegExt[Slot] + 0x40, 0xFF, sizeof(nunchuck_calibration));
+			memcpy(g_RegExt[Slot] + 0x50, motionplus_accel_gyro_syncing, sizeof(motionplus_accel_gyro_syncing));
+			memcpy(g_RegExt[Slot] + 0xf0, motionplus_activeflags, sizeof(motionplus_activeflags));
+			memcpy(g_RegExt[Slot] + 0xfa, motionplus_id, sizeof(motionplus_id));
+
+		}
+		else if(WiiMapping[Slot].iExtensionConnected == EXT_NUNCHUK)
+		{
+
+			memset(g_RegExt[Slot],0,sizeof(g_RegExt[0]));
+			memset(g_RegMotionPlus[Slot],0,sizeof(g_RegMotionPlus[0]));
+			memcpy(g_RegExt[Slot] + 0x20, nunchuck_calibration, sizeof(nunchuck_calibration));
+			memcpy(g_RegExt[Slot] + 0x30, nunchuck_calibration, sizeof(nunchuck_calibration));
+			memcpy(g_RegExt[Slot] + 0xfa, nunchuck_id, sizeof(nunchuck_id));
+			memcpy(g_RegMotionPlus[Slot] + 0x20, motion_plus_calibration, sizeof(motion_plus_calibration));
+			memcpy(g_RegMotionPlus[Slot] + 0x40, nunchuck_calibration, sizeof(nunchuck_calibration));
+			memcpy(g_RegMotionPlus[Slot] + 0x50, motionplus_accel_gyro_syncing, sizeof(motionplus_accel_gyro_syncing));
+			memcpy(g_RegMotionPlus[Slot] + 0xf0, motionplus_activeflags, sizeof(motionplus_activeflags));
+			memcpy(g_RegMotionPlus[Slot] + 0xfa, motionplusnunchuk_id, sizeof(motionplusnunchuk_id));
+
+		}
+		g_MotionPlus[Slot] = (WiiMapping[Slot].iExtensionConnected) ? 0 : 1;
+
+	} else
 	{
-		memcpy(g_RegExt[Slot] + 0x20, classic_calibration, sizeof(classic_calibration));
-		memcpy(g_RegExt[Slot] + 0x30, classic_calibration, sizeof(classic_calibration));
-		memcpy(g_RegExt[Slot] + 0xfa, classic_id, sizeof(classic_id));
-	}
-	else if(WiiMapping[Slot].iExtensionConnected == EXT_GUITARHERO)
-	{
-		// TODO get the correct values here
-		memcpy(g_RegExt[Slot] + 0x20, classic_calibration, sizeof(classic_calibration));
-		memcpy(g_RegExt[Slot] + 0x30, classic_calibration, sizeof(classic_calibration));
-		memcpy(g_RegExt[Slot] + 0xfa, gh3glp_id, sizeof(gh3glp_id));
+
+		// Copy extension id and calibration to its register	
+		if(WiiMapping[Slot].iExtensionConnected == EXT_NUNCHUK)
+		{
+			memcpy(g_RegExt[Slot] + 0x20, nunchuck_calibration, sizeof(nunchuck_calibration));
+			memcpy(g_RegExt[Slot] + 0x30, nunchuck_calibration, sizeof(nunchuck_calibration));
+			memcpy(g_RegExt[Slot] + 0xfa, nunchuck_id, sizeof(nunchuck_id));
+		}
+		else if(WiiMapping[Slot].iExtensionConnected == EXT_CLASSIC_CONTROLLER)
+		{
+			memcpy(g_RegExt[Slot] + 0x20, classic_calibration, sizeof(classic_calibration));
+			memcpy(g_RegExt[Slot] + 0x30, classic_calibration, sizeof(classic_calibration));
+			memcpy(g_RegExt[Slot] + 0xfa, classic_id, sizeof(classic_id));
+		}
+		else if(WiiMapping[Slot].iExtensionConnected == EXT_GUITARHERO)
+		{
+			// TODO get the correct values here
+			memcpy(g_RegExt[Slot] + 0x20, classic_calibration, sizeof(classic_calibration));
+			memcpy(g_RegExt[Slot] + 0x30, classic_calibration, sizeof(classic_calibration));
+			memcpy(g_RegExt[Slot] + 0xfa, gh3glp_id, sizeof(gh3glp_id));
+		}
+		else if(WiiMapping[Slot].iExtensionConnected == EXT_WBB) 
+		{
+			// TODO
+		}
 	}
 
 	INFO_LOG(WIIMOTE, "UpdateExtRegisterBlocks()");
@@ -546,6 +594,7 @@ void DoState(PointerWrap &p)
 		p.Do(g_IR[i]);
 		p.Do(g_Leds[i]);
 		p.Do(g_Speaker[i]);
+		//p.Do(g_MotionPlus[i]);
 		//p.Do(g_SpeakerMute[i]);
 		p.Do(g_ExtKey[i]);
 	}

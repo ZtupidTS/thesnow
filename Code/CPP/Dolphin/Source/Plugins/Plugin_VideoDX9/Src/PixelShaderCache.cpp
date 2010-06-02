@@ -72,27 +72,30 @@ LPDIRECT3DPIXELSHADER9 PixelShaderCache::GetClearProgram()
 void SetPSConstant4f(int const_number, float f1, float f2, float f3, float f4)
 {
 	if (lastPSconstants[const_number][0] != f1 || lastPSconstants[const_number][1] != f2 ||
-		lastPSconstants[const_number][2] != f3 || lastPSconstants[const_number][3] != f4 )
+		lastPSconstants[const_number][2] != f3 || lastPSconstants[const_number][3] != f4)
 	{
-		const float f[4] = {f1, f2, f3, f4};
-		D3D::dev->SetPixelShaderConstantF(const_number, f, 1);
 		lastPSconstants[const_number][0] = f1;
 		lastPSconstants[const_number][1] = f2;
 		lastPSconstants[const_number][2] = f3;
 		lastPSconstants[const_number][3] = f4;
-	}
+		D3D::dev->SetPixelShaderConstantF(const_number, lastPSconstants[const_number], 1);
+		
+	}	
 }
 
 void SetPSConstant4fv(int const_number, const float *f)
 {
-	if (lastPSconstants[const_number][0] != f[0] || lastPSconstants[const_number][1] != f[1] ||
-		lastPSconstants[const_number][2] != f[2] || lastPSconstants[const_number][3] != f[3] )
-	{
+	if (memcmp(&lastPSconstants[const_number], f, sizeof(float) * 4)) {
+		memcpy(&lastPSconstants[const_number], f, sizeof(float) * 4);
 		D3D::dev->SetPixelShaderConstantF(const_number, f, 1);
-		lastPSconstants[const_number][0] = f[0];
-		lastPSconstants[const_number][1] = f[1];
-		lastPSconstants[const_number][2] = f[2];
-		lastPSconstants[const_number][3] = f[3];
+	}	
+}
+
+void SetMultiPSConstant4fv(int const_number, int count, const float *f)
+{
+	if (memcmp(&lastPSconstants[const_number], f, count * sizeof(float) * 4)) {
+		memcpy(&lastPSconstants[const_number], f, count * sizeof(float) * 4);
+		D3D::dev->SetPixelShaderConstantF(const_number, f, count);
 	}
 }
 
@@ -311,7 +314,7 @@ void PixelShaderCache::Init()
 void PixelShaderCache::Clear()
 {
 	PSCache::iterator iter = PixelShaders.begin();
-	for (; iter != PixelShaders.end(); iter++)
+	for (; iter != PixelShaders.end(); ++iter)
 		iter->second.Destroy();
 	PixelShaders.clear(); 
 
@@ -394,6 +397,10 @@ bool PixelShaderCache::SetShader(bool dstAlpha)
 		if (g_ActiveConfig.bShowShaderErrors)
 		{
 			PanicAlert("Failed to compile Pixel Shader:\n\n%s", code);
+			static int counter = 0;
+			char szTemp[MAX_PATH];
+			sprintf(szTemp, "%sBADps_%04i.txt", File::GetUserPath(D_DUMP_IDX), counter++);			
+			SaveData(szTemp, code);
 		}
 		return false;
 	}

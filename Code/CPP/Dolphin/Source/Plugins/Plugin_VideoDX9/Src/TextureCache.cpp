@@ -72,7 +72,7 @@ void TextureCache::Init()
 
 void TextureCache::Invalidate(bool shutdown)
 {
-	for (TexCache::iterator iter = textures.begin(); iter != textures.end(); iter++)
+	for (TexCache::iterator iter = textures.begin(); iter != textures.end(); ++iter)
 		iter->second.Destroy(shutdown);
 	textures.clear();
 	HiresTextures::Shutdown();
@@ -86,7 +86,7 @@ void TextureCache::InvalidateRange(u32 start_address, u32 size)
 		if (iter->second.IntersectsMemoryRange(start_address, size))
 		{
 			iter->second.Destroy(false);
-			ERASE_THROUGH_ITERATOR(textures, iter);
+			textures.erase(iter++);
 		}
 		else {
 			++iter;
@@ -131,7 +131,7 @@ void TextureCache::Cleanup()
 		}
 		else
 		{
-            iter++;
+            ++iter;
         }
 	}
 }
@@ -361,26 +361,27 @@ void TextureCache::CopyRenderTargetToTexture(u32 address, bool bFromZBuffer, boo
 	int tex_w = (abs(source_rect.GetWidth()) >> bScaleByHalf);
 	int tex_h = (abs(source_rect.GetHeight()) >> bScaleByHalf);
 	//compensate the texture grow if supersampling is enabled to conserve memory usage
-	float MultiSampleCompensation = 1.0f;
+	float SuperSampleCompensation = 1.0f;
+	float xScale = Renderer::GetTargetScaleX();
+	float yScale = Renderer::GetTargetScaleY();
 	if(g_ActiveConfig.iMultisampleMode > 0 && g_ActiveConfig.iMultisampleMode < 4)
 	{
 		switch (g_ActiveConfig.iMultisampleMode)
 		{
 			case 1:
-				MultiSampleCompensation = 2.0f/3.0f;				
 				break;
 			case 2:
-				MultiSampleCompensation = 0.5f;
+				SuperSampleCompensation = 0.5f;
 				break;
 			case 3:
-				MultiSampleCompensation = 1.0f/3.0f;
+				SuperSampleCompensation = 1.0f/3.0f;
 				break;
 			default:
 				break;
 		};
 	}	
-	int Scaledtex_w = (g_ActiveConfig.bCopyEFBScaled)?((int)(Renderer::GetTargetScaleX() * MultiSampleCompensation * tex_w)):tex_w;
-	int Scaledtex_h = (g_ActiveConfig.bCopyEFBScaled)?((int)(Renderer::GetTargetScaleY() * MultiSampleCompensation * tex_h)):tex_h;
+	int Scaledtex_w = (g_ActiveConfig.bCopyEFBScaled)?((int)(xScale * SuperSampleCompensation *  tex_w)):tex_w;
+	int Scaledtex_h = (g_ActiveConfig.bCopyEFBScaled)?((int)(yScale * SuperSampleCompensation * tex_h)):tex_h;
 	
 	TexCache::iterator iter;
 	LPDIRECT3DTEXTURE9 tex = NULL;
@@ -581,6 +582,8 @@ void TextureCache::CopyRenderTargetToTexture(u32 address, bool bFromZBuffer, boo
 		&sourcerect, 
 		Renderer::GetFullTargetWidth() , 
 		Renderer::GetFullTargetHeight(),
+		Scaledtex_w,
+		Scaledtex_h,
 		((bformat != FOURCC_RAWZ && bformat != D3DFMT_D24X8) && bFromZBuffer)?  PixelShaderCache::GetDepthMatrixProgram(SSAAMode): PixelShaderCache::GetColorMatrixProgram(SSAAMode),
 		(SSAAMode != 0)? VertexShaderCache::GetFSAAVertexShader() : VertexShaderCache::GetSimpleVertexShader());			
 	

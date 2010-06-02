@@ -295,7 +295,9 @@ ControllerEmu::Cursor::Cursor( const char* const _name, const SWiimoteInitialize
 
 void GetMousePos(float& x, float& y, const SWiimoteInitialize* const wiimote_initialize)
 {
+#if ( defined(_WIN32) || (defined(HAVE_X11) && HAVE_X11))
 	unsigned int win_width = 2, win_height = 2;
+#endif
 
 #ifdef _WIN32
 	// Get the cursor position for the entire screen

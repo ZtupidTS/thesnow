@@ -17,34 +17,25 @@
 
 #include "CoreAudioSoundStream.h"
 
-typedef struct internal
+OSStatus callback(void *inRefCon, AudioUnitRenderActionFlags *ioActionFlags,
+			const AudioTimeStamp *inTimeStamp, UInt32 inBusNumber,
+			UInt32 inNumberFrames, AudioBufferList *ioData)
 {
-	AudioUnit audioUnit;
-	short realtimeBuffer[1024 * 1024];	
-};
-
-
-OSStatus callback(void *inRefCon, AudioUnitRenderActionFlags *ioActionFlags, const AudioTimeStamp *inTimeStamp, UInt32 inBusNumber, UInt32 inNumberFrames, AudioBufferList *ioData) {
-
-	internal *soundStruct = (internal *)inRefCon;
-
-
-	for (int i=0; i < (int)ioData->mNumberBuffers; i++)
+	for (UInt32 i = 0; i < ioData->mNumberBuffers; i++)
 	{
-        	memcpy(ioData->mBuffers[i].mData, &soundStruct->realtimeBuffer, ioData->mBuffers[i].mDataByteSize);
-	
+		((CoreAudioSound *)inRefCon)-> \
+			RenderSamples(ioData->mBuffers[i].mData,
+					ioData->mBuffers[i].mDataByteSize);
 	}
-	return 0;
+
+	return noErr;
 }
 
-
-
-
-void CoreAudioSound::SoundLoop()
+void CoreAudioSound::RenderSamples(void *target, UInt32 size)
 {
-	CoreAudioInit();
-	
+	m_mixer->Mix((short *)target, size / 4);
 }
+
 CoreAudioSound::CoreAudioSound(CMixer *mixer) : SoundStream(mixer)
 {
 }
@@ -52,126 +43,102 @@ CoreAudioSound::CoreAudioSound(CMixer *mixer) : SoundStream(mixer)
 CoreAudioSound::~CoreAudioSound()
 {
 }
-bool CoreAudioSound::CoreAudioInit()
+
+bool CoreAudioSound::Start()
 {
-	ComponentDescription desc;
 	OSStatus err;
 	UInt32 enableIO;
 	AURenderCallbackStruct callback_struct;
 	AudioStreamBasicDescription format;
-	UInt32 numBytesToRender = 512;
-	
-	internal *soundStruct = (internal *)malloc(sizeof(internal));
-	memset(soundStruct->realtimeBuffer, 0, sizeof(soundStruct->realtimeBuffer));
-	
+
 	desc.componentType = kAudioUnitType_Output;
-	desc.componentSubType = kAudioUnitSubType_HALOutput;
-  	desc.componentFlags = 0;
-  	desc.componentFlagsMask = 0;
+	desc.componentSubType = kAudioUnitSubType_DefaultOutput;
+	desc.componentFlags = 0;
+	desc.componentFlagsMask = 0;
 	desc.componentManufacturer = kAudioUnitManufacturer_Apple;
 
 	Component component = FindNextComponent(NULL, &desc);
-	if (component == NULL)
-		printf("error finding component\n");	
-	
-	err = OpenAComponent(component, &soundStruct->audioUnit);
-	if (err)
-		printf("error opening audio component\n");
+	if (component == NULL) {
+		ERROR_LOG(AUDIO, "error finding audio component");
+		return false;
+	}
 
-	//enable output device
+	err = OpenAComponent(component, &audioUnit);
+	if (err != noErr) {
+		ERROR_LOG(AUDIO, "error opening audio component");
+		return false;
+	}
+
 	enableIO = 1;
-	AudioUnitSetProperty(soundStruct->audioUnit,
-						 kAudioOutputUnitProperty_EnableIO,
-						 kAudioUnitScope_Output,
-						 0,
-						 &enableIO,
-						 sizeof(enableIO));
-	
-	
-	format.mBitsPerChannel = 16;
-	format.mChannelsPerFrame = 2;
-	format.mBytesPerPacket = 4;
-	format.mBytesPerFrame = 4;
-	format.mFormatFlags = kAudioFormatFlagIsSignedInteger | kAudioFormatFlagIsPacked;
-	format.mFormatID = kAudioFormatLinearPCM;
-	format.mFramesPerPacket = 1;
-	format.mSampleRate = m_mixer->GetSampleRate();
-	
-	//set format to output scope
-    	err = AudioUnitSetProperty(soundStruct->audioUnit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Input, 0, &format, sizeof(AudioStreamBasicDescription));
-	if (err)
-		printf("error when setting output format\n");
+	AudioUnitSetProperty(audioUnit,
+				kAudioOutputUnitProperty_EnableIO,
+				kAudioUnitScope_Output, 0, &enableIO,
+				sizeof enableIO);
 
-	
+	FillOutASBDForLPCM(format, m_mixer->GetSampleRate(),
+				2, 16, 16, false, false, false);
+	err = AudioUnitSetProperty(audioUnit,
+				kAudioUnitProperty_StreamFormat,
+				kAudioUnitScope_Input, 0, &format,
+				sizeof(AudioStreamBasicDescription));
+	if (err != noErr) {
+		ERROR_LOG(AUDIO, "error setting audio format");
+		return false;
+	}
+
 	callback_struct.inputProc = callback;
-	callback_struct.inputProcRefCon = soundStruct;
-	
-	err = AudioUnitSetProperty(soundStruct->audioUnit, kAudioUnitProperty_SetRenderCallback, kAudioUnitScope_Global, 0, &callback_struct, sizeof(callback_struct));
-	if (err)
-		printf("error when setting input callback\n");
+	callback_struct.inputProcRefCon = this;
+	err = AudioUnitSetProperty(audioUnit,
+				kAudioUnitProperty_SetRenderCallback,
+				kAudioUnitScope_Input, 0, &callback_struct,
+				sizeof callback_struct);
+	if (err != noErr) {
+		ERROR_LOG(AUDIO, "error setting audio callback");
+		return false;
+	}
 
-	err = AudioUnitInitialize(soundStruct->audioUnit);
-	if (err)
-		printf("error when initiaising audiounit\n");
-	
-	err = AudioOutputUnitStart(soundStruct->audioUnit);
-	if (err)
-		printf("error when starting audiounit\n");
+	err = AudioUnitInitialize(audioUnit);
+	if (err != noErr) {
+		ERROR_LOG(AUDIO, "error initializing audiounit");
+		return false;
+	}
 
-	do
-	{
-		soundCriticalSection.Enter();	
-		m_mixer->Mix(soundStruct->realtimeBuffer, numBytesToRender);
-		soundCriticalSection.Leave();
-		soundSyncEvent.Wait();
-	}while(!threadData);
+	err = AudioOutputUnitStart(audioUnit);
+	if (err != noErr) {
+		ERROR_LOG(AUDIO, "error starting audiounit");
+		return false;
+	}
 
-	err = AudioOutputUnitStop(soundStruct->audioUnit);
-	if(err)
-		printf("error when sopping audiounit\n");
-	
-	err = AudioUnitUninitialize(soundStruct->audioUnit);
-	if(err)
-		printf("Error uninitializing audiounit\n");
-	
-	err = CloseComponent(soundStruct->audioUnit);
-	if(err)
-		printf("Error while closing component\n");
-	
-	free(soundStruct);
-	return true;
-	
-}
-
-void *coreAudioThread(void *args)
-{
-
-        ((CoreAudioSound *)args)->SoundLoop();
-        return NULL;
-}
-
-
-bool CoreAudioSound::Start()
-{
-
-        soundSyncEvent.Init();
-        thread = new Common::Thread(coreAudioThread, (void *)this);
 	return true;
 }
 
+void CoreAudioSound::SoundLoop()
+{
+}
 
 void CoreAudioSound::Stop()
 {
-	threadData = 1;
-	soundSyncEvent.Set();
-    	delete thread;
-    	thread = NULL;
+	OSStatus err;
 
-	return;
-	
+	err = AudioOutputUnitStop(audioUnit);
+	if (err != noErr) {
+		ERROR_LOG(AUDIO, "error stopping audiounit");
+		return;
+	}
+
+	err = AudioUnitUninitialize(audioUnit);
+	if (err != noErr) {
+		ERROR_LOG(AUDIO, "error uninitializing audiounit");
+		return;
+	}
+
+	err = CloseComponent(audioUnit);
+	if (err != noErr) {
+		ERROR_LOG(AUDIO, "error closing audio component");
+		return;
+	}
 }
+
 void CoreAudioSound::Update()
 {
-	soundSyncEvent.Set();
-	
 }

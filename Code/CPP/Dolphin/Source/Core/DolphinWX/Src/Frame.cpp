@@ -238,7 +238,7 @@ EVT_MENU(wxID_OPEN, CFrame::OnOpen)
 EVT_MENU(wxID_EXIT, CFrame::OnQuit)
 EVT_MENU(IDM_HELPWEBSITE, CFrame::OnHelp)
 EVT_MENU(IDM_HELPGOOGLECODE, CFrame::OnHelp)
-EVT_MENU(IDM_HELPABOUT, CFrame::OnHelp)
+EVT_MENU(wxID_ABOUT, CFrame::OnHelp)
 EVT_MENU(wxID_REFRESH, CFrame::OnRefresh)
 EVT_MENU(IDM_PLAY, CFrame::OnPlay)
 EVT_MENU(IDM_STOP, CFrame::OnStop)
@@ -248,7 +248,7 @@ EVT_MENU(IDM_PLAYRECORD, CFrame::OnPlayRecording)
 EVT_MENU(IDM_FRAMESTEP, CFrame::OnFrameStep)
 EVT_MENU(IDM_LUA, CFrame::OnOpenLuaWindow)
 EVT_MENU(IDM_SCREENSHOT, CFrame::OnScreenshot)
-EVT_MENU(IDM_CONFIG_MAIN, CFrame::OnConfigMain)
+EVT_MENU(wxID_PREFERENCES, CFrame::OnConfigMain)
 EVT_MENU(IDM_CONFIG_GFX_PLUGIN, CFrame::OnPluginGFX)
 EVT_MENU(IDM_CONFIG_DSP_PLUGIN, CFrame::OnPluginDSP)
 EVT_MENU(IDM_CONFIG_PAD_PLUGIN, CFrame::OnPluginPAD)
@@ -281,6 +281,7 @@ EVT_MENU(IDM_MEMCARD, CFrame::OnMemcard)
 EVT_MENU(IDM_IMPORTSAVE, CFrame::OnImportSave)
 EVT_MENU(IDM_CHEATS, CFrame::OnShow_CheatsWindow)
 EVT_MENU(IDM_CHANGEDISC, CFrame::OnChangeDisc)
+EVT_MENU(IDM_INSTALL_WII_MENU, CFrame::OnLoadWiiMenu)
 EVT_MENU(IDM_LOAD_WII_MENU, CFrame::OnLoadWiiMenu)
 
 EVT_MENU(IDM_TOGGLE_FULLSCREEN, CFrame::OnToggleFullscreen)
@@ -390,7 +391,7 @@ CFrame::CFrame(wxFrame* parent,
 	SetIcon(IconTemp);
 
 	// Give it a status bar
-	m_pStatusBar = CreateStatusBar(1, wxST_SIZEGRIP, ID_STATUSBAR);
+	m_pStatusBar = CreateStatusBar(2, wxST_SIZEGRIP, ID_STATUSBAR);
 	if (!SConfig::GetInstance().m_InterfaceStatusbar)
 		m_pStatusBar->Hide();
 
@@ -490,20 +491,12 @@ CFrame::CFrame(wxFrame* parent,
 
 	m_Mgr->Connect(wxID_ANY, wxEVT_AUI_RENDER, // Resize
 		wxAuiManagerEventHandler(CFrame::OnManagerResize),
-		(wxObject*)0, this);	
-
-	wxTheApp->Connect(wxID_ANY, wxEVT_LEFT_DCLICK,
-		wxMouseEventHandler(CFrame::OnDoubleClick),
 		(wxObject*)0, this);
 	// ----------
 
 	// Update controls
 	m_bControlsCreated = true;
 	UpdateGUI();
-
-	//if we are ever going back to optional iso caching:
-	//m_GameListCtrl->Update(SConfig::GetInstance().m_LocalCoreStartupParameter.bEnableIsoCache);
-	if (m_GameListCtrl) m_GameListCtrl->Update();
 
 	// If we are rerecording create the status bar now instead of later when a game starts
 	#ifdef RERECORDING
@@ -903,24 +896,6 @@ void CFrame::OnKeyUp(wxKeyEvent& event)
 	if(Core::GetState() != Core::CORE_UNINITIALIZED)
 		CPluginManager::GetInstance().GetPad(0)->PAD_Input(event.GetKeyCode(), 0); // 0 = Up
 }
-
-// ---------------
-// Detect double click
-
-void CFrame::OnDoubleClick(wxMouseEvent& event)
-{
-	 // Don't block the mouse click
-	event.Skip();
-
-	// Don't use this in Wii mode since we use the mouse as input to the game there
-	if (SConfig::GetInstance().m_LocalCoreStartupParameter.bWii) return;
-
-	// Only detect double clicks in the rendering window, and only use this when a game is running
-	if (! (Core::GetState() == Core::CORE_RUN && event.GetEventObject() == m_RenderParent)) return;
-
-	DoFullscreen(!RendererIsFullscreen());
-}
-
 
 // --------
 // Functions

@@ -18,23 +18,17 @@
 #ifndef _COREAUDIO_SOUND_STREAM_H
 #define _COREAUDIO_SOUND_STREAM_H
 
-#include "Common.h"
-#include "SoundStream.h"
-#if defined(__APPLE__)
 #include <CoreAudio/AudioHardware.h>
 #include <AudioUnit/AudioUnit.h>
 #include <CoreServices/CoreServices.h>
-#endif
 
-#include "Thread.h"
+#include "Common.h"
+#include "SoundStream.h"
 
 class CoreAudioSound : public SoundStream
 {
-#if defined(__APPLE__)
-
-        Common::Thread *thread;
-        Common::CriticalSection soundCriticalSection;
-        Common::Event soundSyncEvent;
+        ComponentDescription desc;
+        AudioUnit audioUnit;
 
 public:
 	CoreAudioSound(CMixer *mixer);
@@ -42,24 +36,18 @@ public:
 	
 	virtual bool Start();
 	virtual void SoundLoop();
-	virtual void Stop(); 
+	virtual void Stop();
 	
 	static bool isValid() {
 		return true;
 	}
-	virtual bool usesMixer() const { 
-		return true; 
+	virtual bool usesMixer() const {
+		return true;
 	}
 	
 	virtual void Update();
-	
-private:
-	bool CoreAudioInit();
-#else
-public:
-	CoreAudioSound(CMixer *mixer) : SoundStream(mixer) {}
-#endif
+
+	void RenderSamples(void *target, UInt32 size);
 };
 
 #endif
-

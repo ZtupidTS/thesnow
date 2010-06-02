@@ -25,11 +25,9 @@
 #include "ConfigManager.h"
 #include "StringUtil.h"
 
-#if USE_XPM_BITMAPS
-	#include "../resources/isoprop_file.xpm"
-	#include "../resources/isoprop_folder.xpm"
-	#include "../resources/isoprop_disc.xpm"
-#endif // USE_XPM_BITMAPS
+#include "../resources/isoprop_file.xpm"
+#include "../resources/isoprop_folder.xpm"
+#include "../resources/isoprop_disc.xpm"
 
 struct WiiPartition
 {
@@ -414,7 +412,7 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	// ISO Details
 	sbISODetails = new wxStaticBoxSizer(wxVERTICAL, m_Information, _("ISO 详细信息"));
 	sISODetails = new wxGridBagSizer(0, 0);
-	sISODetails->AddGrowableCol(1);
+	// XXX sISODetails->AddGrowableCol(0);
 	m_NameText = new wxStaticText(m_Information, ID_NAME_TEXT, _("名称:"), wxDefaultPosition, wxDefaultSize);
 	m_Name = new wxTextCtrl(m_Information, ID_NAME, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
 	m_GameIDText = new wxStaticText(m_Information, ID_GAMEID_TEXT, _("游戏 ID:"), wxDefaultPosition, wxDefaultSize);
@@ -431,7 +429,7 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	// Banner Details
 	sbBannerDetails = new wxStaticBoxSizer(wxVERTICAL, m_Information, _("标题横幅详细信息"));
 	sBannerDetails = new wxGridBagSizer(0, 0);
-	sBannerDetails->AddGrowableCol(1); sBannerDetails->AddGrowableCol(2); sBannerDetails->AddGrowableCol(3);
+	// XXX sBannerDetails->AddGrowableCol(1); sBannerDetails->AddGrowableCol(2); sBannerDetails->AddGrowableCol(3);
 	m_LangText = new wxStaticText(m_Information, ID_LANG_TEXT, _("显示语言:"), wxDefaultPosition, wxDefaultSize);
 	arrayStringFor_Lang.Add(_("英语"));
 	arrayStringFor_Lang.Add(_("德语"));
@@ -617,7 +615,7 @@ void CISOProperties::OnExtractFile(wxCommandEvent& WXUNUSED (event))
 void CISOProperties::ExportDir(const char* _rFullPath, const char* _rExportFolder, const int partitionNum)
 {
 	char exportName[512];
-	u32 index[2], offsetShift = 0;
+	u32 index[2] = {0, 0}, offsetShift = 0;
 	std::vector<const DiscIO::SFileInfo *> fst;
 	DiscIO::IFileSystem *FS = 0;
 
@@ -676,7 +674,7 @@ void CISOProperties::ExportDir(const char* _rFullPath, const char* _rExportFolde
 
 		if (fst[i]->IsDirectory())
 		{
-			sprintf(exportName, "%s/%s/", _rExportFolder, fst[i]->m_FullPath);
+			snprintf(exportName, sizeof(exportName), "%s/%s/", _rExportFolder, fst[i]->m_FullPath);
 			DEBUG_LOG(DISCIO, "%s", exportName);		
 
 			if (!File::Exists(exportName) && !File::CreateFullPath(exportName))
@@ -693,7 +691,7 @@ void CISOProperties::ExportDir(const char* _rFullPath, const char* _rExportFolde
 		}
 		else
 		{
-			sprintf(exportName, "%s/%s", _rExportFolder, fst[i]->m_FullPath);
+			snprintf(exportName, sizeof(exportName), "%s/%s", _rExportFolder, fst[i]->m_FullPath);
 			DEBUG_LOG(DISCIO, "%s", exportName);
 
 			if (!File::Exists(exportName) && !FS->ExportFile(fst[i]->m_FullPath, exportName))
