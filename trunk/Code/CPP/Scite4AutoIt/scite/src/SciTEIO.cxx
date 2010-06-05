@@ -917,7 +917,7 @@ void SciTEBase::SaveAs(const GUI::gui_char *file, bool fixCase) {
 		extender->OnSave(filePath.AsUTF8().c_str());
 }
 
-void SciTEBase::SaveIfNotOpen(const FilePath &destFile, bool fixCase) {
+bool SciTEBase::SaveIfNotOpen(const FilePath &destFile, bool fixCase) {
 	FilePath absPath = destFile.AbsolutePath();
 	int index = buffers.GetDocumentByName(absPath, true /* excludeCurrent */);
 	if (index >= 0) {
@@ -925,8 +925,10 @@ void SciTEBase::SaveIfNotOpen(const FilePath &destFile, bool fixCase) {
 //			    "File '^0' is already open in another buffer.", destFile.AsInternal());
 			    L"'^0' 文件已经在其它面板中打开.", destFile.AsInternal());
 		WindowMessageBox(wSciTE, msg, MB_OK | MB_ICONWARNING);
+		return false;
 	} else {
 		SaveAs(absPath.AsInternal(), fixCase);
+		return true;
 	}
 }
 

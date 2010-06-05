@@ -381,7 +381,7 @@ void SciTEWin::SaveAsXML() {
 void SciTEWin::LoadSessionDialog() {
 	GUI::gui_char openName[MAX_PATH] = GUI_TEXT("");
 	OPENFILENAMEW ofn = {
-	                       sizeof(ofn), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+	                       sizeof(ofn), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 	                   };
 	ofn.hwndOwner = MainHWND();
 	ofn.hInstance = hInstance;
