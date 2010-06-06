@@ -4186,10 +4186,12 @@ void SciTEBase::PerformOne(char *action) {
 		} else if (isprefix(action, "currentmacro:")) {
 			currentMacro = arg;
 		} else if (isprefix(action, "cwd:")) {
-			if (chdir(arg) != 0) {
-				GUI::gui_string sArg = GUI::StringFromUTF8(arg);
-				GUI::gui_string msg = LocaliseMessage("Invalid directory '^0'.", sArg.c_str());
-//				GUI::gui_string msg = LocaliseMessage("无效的目录 '^0'.", sArg.c_str());
+			GUI::gui_string sArg = GUI::StringFromUTF8(arg);
+//			if (chdir(arg) != 0) {
+			if (!SetCurrentDirectory(sArg.c_str())) {
+//				GUI::gui_string sArg = GUI::StringFromUTF8(arg);
+//				GUI::gui_string msg = LocaliseMessage("Invalid directory___ '^0'.", sArg.c_str());
+				GUI::gui_string msg = LocaliseMessage(L"无效的目录 '^0'.", sArg.c_str());
 				WindowMessageBox(wSciTE, msg, MB_OK | MB_ICONWARNING);
 			}
 		} else if (isprefix(action, "enumproperties:")) {
