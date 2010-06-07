@@ -26,6 +26,17 @@ sourceforge.jp##DIV.ad300
 !-- 射手网
 |http://pagead2.googlesyndication.com/*$domain=shooter.cn
 
+!-- filestube.com
+filestube.com##DIV.linkbox
+filestube.com##DIV.resultadv2
+filestube.com##DIV[style="float: left; width: 979px;"]
+filestube.com##UL.nova
+
+!-- freshwap.net
+freshwap.net##DIV.header
+freshwap.net##TD#right
+freshwap.net##DIV[style="margin: 15px 0pt;"]
+
 !-- 关键词广告商
 ||*.infolinks.com^
 |http://*.doubleclick.net/*
@@ -38,6 +49,7 @@ sourceforge.jp##DIV.ad300
 |http://*.adperium.com/*
 ||ads.ero-advertising.com^
 |http://union.moonbasa.com/*
+http://ad.xtendmedia.com/*
 
 !-- softarchive.net
 |http://softarchive.net/js/getBanner.php?*
@@ -73,9 +85,25 @@ doopes.com##DIV#googleads
 |http://img.cnbeta.com/bitanswer.swf
 |http://img.cnbeta.com/youdao576.gif
 
+!-- 163.com
+163.com##DIV.colR
 
 !-- 其它
 ||intellitxt.com^
 
+!-- dapenti.com
+dapenti.com##TD.oblog_t_4
+dapenti.com##TD[width="300"]
+
+
+!-- google 
+google.com##DIV#fll
+
+!-- codeproject
+|http://www.codeproject.com/script/AdServe/*
+
 !-- 收集隐私
 ||miibeian.gov.cn^
+
+!-- 临时屏蔽
+|http://www.xp510.com/adfile/UploadPic/*
