@@ -132,6 +132,7 @@ void SciTEWin::Notify(SCNotification *notification) {
 			AddToPopUp(L"");
 			AddToPopUp(L"关闭文件", IDM_CLOSE, true);
 			AddToPopUp(L"关闭所有", IDM_CLOSEALL, true);
+			AddToPopUp(L"打开目录", IDM_OPENDIR, true);
 			AddToPopUp("");
 			AddToPopUp(L"保存文件", IDM_SAVE, true);
 			AddToPopUp(L"另存文件", IDM_SAVEAS, true);
@@ -1029,11 +1030,13 @@ void SciTEWin::Creation() {
 		//map bmp start >>
 		colorMap.from = RGB(0, 0, 0);
 		colorMap.to = backgroundColor;
-		HBITMAP hbm = CreateMappedBitmap(hInstance, bbs[i].id+100, 0, &colorMap, 1);
+		HBITMAP hbm =(HBITMAP)::LoadImage(hInstance,MAKEINTRESOURCE(bbs[i].id+100),IMAGE_BITMAP,0,0,LR_CREATEDIBSECTION|LR_VGACOLOR|LR_LOADTRANSPARENT|LR_LOADMAP3DCOLORS);
+		// CreateMappedBitmap(hInstance, bbs[i].id+100, 0, &colorMap, 1);
 		TBADDBITMAP addbmp;
 		addbmp.hInst = NULL;
 		addbmp.nID = (UINT_PTR)hbm;
 		//map bmp end <<
+		
 		::SendMessage(hwndToolBar, TB_ADDBITMAP, 1, (LPARAM)&addbmp);
 		tbb[i].iBitmap = bbs[i].id;
 		tbb[i].idCommand = bbs[i].cmd;
