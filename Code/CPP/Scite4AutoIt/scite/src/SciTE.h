@@ -44,7 +44,8 @@
 #define IDM_ENCODING_UTF8	153
 #define IDM_ENCODING_UCOOKIE	154
 //add--¡ý
-#define IDM_ENCODING_GBK	155	
+#define IDM_ENCODING_GBK	155
+#define IDM_OPENDIR			156
 //add--¡ü
 
 #define MRU_START	17

@@ -2964,6 +2964,7 @@ void SciTEBase::SetLineNumberWidth() {
 }
 
 void SciTEBase::MenuCommand(int cmdID, int source) {
+	std::string dir;
 	switch (cmdID) {
 	case IDM_NEW:
 		// For the New command, the "are you sure" question is always asked as this gives
@@ -3001,6 +3002,13 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		break;
 	case IDM_CLOSEALL:
 		CloseAllBuffers();
+		break;
+	case IDM_OPENDIR:
+		dir=CurrentBuffer()->Directory().AsUTF8();
+		if (strlen(dir.c_str())>1 && !filePath.IsUntitled())
+		{
+			ShellExecuteA(NULL,"open","explorer.exe",dir.c_str(),"",SW_SHOW);
+		}
 		break;
 	case IDM_SAVE:
 		Save();
