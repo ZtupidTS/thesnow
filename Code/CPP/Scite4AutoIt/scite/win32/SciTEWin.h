@@ -183,6 +183,9 @@ protected:
 
 	virtual int WindowMessageBox(GUI::Window &w, const GUI::gui_string &msg, int style);
 	virtual void FindMessageBox(const SString &msg, const SString *findItem=0);
+	//add ↓
+	virtual void FindMessageBox(const GUI::gui_string &msg, const SString *findItem = 0);
+	//add ↑
 	virtual void AboutDialog();
 	void DropFiles(HDROP hdrop);
 	void MinimizeToTray();

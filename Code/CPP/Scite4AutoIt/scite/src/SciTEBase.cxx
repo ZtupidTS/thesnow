@@ -1115,9 +1115,8 @@ int SciTEBase::FindNext(bool reverseDirection, bool showWarnings) {
 		havefound = false;
 		if (showWarnings) {
 			WarnUser(warnNotFound);
-			FindMessageBox("Can not find the string '^0'.",
-//			FindMessageBox("不能找到字符串 '^0'.",
-			        &findWhat);
+//			FindMessageBox("Can not find the string '^0'.",
+			FindMessageBox(L"不能找到字符串 '^0'.",&findWhat);
 		}
 	} else {
 		havefound = true;
@@ -1278,14 +1277,14 @@ int SciTEBase::ReplaceAll(bool inSelection) {
 	if (replacements == -1) {
 		FindMessageBox(
 		    inSelection ?
-		    "使用'替换所选'命令时查找的字符串不能为空." :
-		    "使用'替换所有'命令时查找的字符串不能为空.");
+		    L"使用'替换所选'命令时查找的字符串不能为空." :
+		    L"使用'替换所有'命令时查找的字符串不能为空.");
 	} else if (replacements == -2) {
 		FindMessageBox(
-		    "使用'替换所选'命令时所选的字符串不能为空.");
+		    L"使用'替换所选'命令时所选的字符串不能为空.");
 	} else if (replacements == 0) {
 		FindMessageBox(
-		    "不能执行替换,因为字符串 '^0' 没有出现.", &findWhat);
+		    L"不能执行替换,因为字符串 '^0' 没有出现.", &findWhat);
 	}
 	return replacements;
 }
@@ -1298,7 +1297,7 @@ int SciTEBase::ReplaceInBuffers() {
 		replacements += DoReplaceAll(false);
 		if (i == 0 && replacements < 0) {
 			FindMessageBox(
-			    "执行 '替换缓冲区' 命令时查找的字符串不能为空.");
+			    L"执行 '替换缓冲区' 命令时查找的字符串不能为空.");
 			break;
 		}
 	}
@@ -1307,7 +1306,7 @@ int SciTEBase::ReplaceInBuffers() {
 	UpdateStatusBar(false);
 	if (replacements == 0) {
 		FindMessageBox(
-		    "不能执行替换,因为字符串 '^0' 没有出现.", &findWhat);
+		    L"不能执行替换,因为字符串 '^0' 没有出现.", &findWhat);
 	}
 	return replacements;
 }
@@ -2003,8 +2002,8 @@ bool SciTEBase::StartBlockComment() {
 	if (comment == "") { // user friendly error message box
 		GUI::gui_string sBase = GUI::StringFromUTF8(base.c_str());
 		GUI::gui_string error = LocaliseMessage(
-		            "Block comment variable '^0' is not defined in SciTE *.properties!", sBase.c_str());
-//		            "区域注释变量 '^0' 没有在 SciTE *.properties 中定义!", sBase.c_str());
+//		            "Block comment variable '^0' is not defined in SciTE *.properties!", sBase.c_str());
+		            L"区域注释变量 '^0' 没有在 SciTE *.properties 中定义!", sBase.c_str());
 		WindowMessageBox(wSciTE, error, MB_OK | MB_ICONWARNING);
 		return true;
 	}
@@ -2104,8 +2103,8 @@ bool SciTEBase::StartBoxComment() {
 		GUI::gui_string sMiddle = GUI::StringFromUTF8(middle_base.c_str());
 		GUI::gui_string sEnd = GUI::StringFromUTF8(end_base.c_str());
 		GUI::gui_string error = LocaliseMessage(
-		            "Box comment variables '^0', '^1' and '^2' are not defined in SciTE *.properties!",
-//		            "区域注释变量 '^0', '^1' 和 '^2' 没有在 SciTE *.properties 中定义!",
+//		            "Box comment variables '^0', '^1' and '^2' are not defined in SciTE *.properties!",
+		            L"区域注释变量 '^0', '^1' 和 '^2' 没有在 SciTE *.properties 中定义!",
 		            sStart.c_str(), sMiddle.c_str(), sEnd.c_str());
 		WindowMessageBox(wSciTE, error, MB_OK | MB_ICONWARNING);
 		return true;
@@ -2232,8 +2231,8 @@ bool SciTEBase::StartStreamComment() {
 		GUI::gui_string sStart = GUI::StringFromUTF8(start_base.c_str());
 		GUI::gui_string sEnd = GUI::StringFromUTF8(end_base.c_str());
 		GUI::gui_string error = LocaliseMessage(
-		            "Stream comment variables '^0' and '^1' are not defined in SciTE *.properties!",
-//		            "流式注释变量 '^0' 和 '^1' 未在 SciTE *.properties 中定义!",
+//		            "Stream comment variables '^0' and '^1' are not defined in SciTE *.properties!",
+		            L"流式注释变量 '^0' 和 '^1' 未在 SciTE *.properties 中定义!",
 		            sStart.c_str(), sEnd.c_str());
 		WindowMessageBox(wSciTE, error, MB_OK | MB_ICONWARNING);
 		return true;
@@ -4194,12 +4193,10 @@ void SciTEBase::PerformOne(char *action) {
 		} else if (isprefix(action, "currentmacro:")) {
 			currentMacro = arg;
 		} else if (isprefix(action, "cwd:")) {
-			GUI::gui_string sArg = GUI::StringFromUTF8(arg);
-//			if (chdir(arg) != 0) {
-			if (!SetCurrentDirectory(sArg.c_str())) {
-//				GUI::gui_string sArg = GUI::StringFromUTF8(arg);
-//				GUI::gui_string msg = LocaliseMessage("Invalid directory___ '^0'.", sArg.c_str());
-				GUI::gui_string msg = LocaliseMessage(L"无效的目录 '^0'.", sArg.c_str());
+			FilePath dirTarget(GUI::StringFromUTF8(arg));
+			if (!dirTarget.SetWorkingDirectory()) {
+//				GUI::gui_string msg = LocaliseMessage("Invalid directory '^0'.", dirTarget.AsInternal());
+				GUI::gui_string msg = LocaliseMessage(L"无效的目录 '^0'.", dirTarget.AsInternal());
 				WindowMessageBox(wSciTE, msg, MB_OK | MB_ICONWARNING);
 			}
 		} else if (isprefix(action, "enumproperties:")) {
