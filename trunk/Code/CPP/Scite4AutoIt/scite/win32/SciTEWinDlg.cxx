@@ -325,8 +325,7 @@ bool SciTEWin::SaveAsDialog() {
 		GUI::StringFromUTF8(props.GetExpanded("save.filter").c_str()).c_str());
 	FilePath path = ChooseSaveName(filePath.Directory(),L"保存文件", saveFilter.c_str());
 	if (path.IsSet()) {
-		SaveIfNotOpen(path, false);
-		return true;
+		return SaveIfNotOpen(path, false);
 	}
 	return false;
 }
@@ -842,10 +841,15 @@ public:
 static void FillComboFromProps(HWND combo, PropSetFile &props) {
 	const char *key;
 	const char *val;
+	GUI::gui_string wkey;	//added
 	if (props.GetFirst(key, val)) {
-		::SendMessage(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(key));
+		wkey= GUI::StringFromUTF8(key);	//added
+		//::SendMessage(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(key));
+		::SendMessage(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(wkey.c_str()));
 		while (props.GetNext(key, val)) {
-			::SendMessage(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(key));
+			wkey= GUI::StringFromUTF8(key);//added
+			//::SendMessage(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(key));
+			::SendMessage(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(wkey.c_str()));
 		}
 	}
 }
@@ -1695,7 +1699,18 @@ void SciTEWin::FindMessageBox(const SString &msg, const SString *findItem) {
 		WindowMessageBox(wFindReplace.Created() ? wFindReplace : wSciTE, msgBuf, MB_OK | MB_ICONWARNING);
 	}
 }
-
+//add ↓
+void SciTEWin::FindMessageBox(const GUI::gui_string &msg, const SString *findItem) {
+	if (findItem == 0) {
+		GUI::gui_string msgBuf = LocaliseMessage(msg.c_str());
+		WindowMessageBox(wFindReplace.Created() ? wFindReplace : wSciTE, msgBuf, MB_OK | MB_ICONWARNING);
+	} else {
+		GUI::gui_string findThing = GUI::StringFromUTF8(findItem->c_str());
+		GUI::gui_string msgBuf = LocaliseMessage(msg.c_str(), findThing.c_str());
+		WindowMessageBox(wFindReplace.Created() ? wFindReplace : wSciTE, msgBuf, MB_OK | MB_ICONWARNING);
+	}
+}
+//add ↑
 LRESULT CALLBACK CreditsWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 	if (uMsg == WM_GETDLGCODE)
 		return DLGC_STATIC | DLGC_WANTARROWS | DLGC_WANTCHARS;

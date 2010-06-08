@@ -681,6 +681,9 @@ protected:
 	virtual void Find() = 0;
 	virtual int WindowMessageBox(GUI::Window &w, const GUI::gui_string &msg, int style) = 0;
 	virtual void FindMessageBox(const SString &msg, const SString *findItem = 0) = 0;
+//add start ↓
+	virtual void FindMessageBox(const GUI::gui_string &msg, const SString *findItem = 0) = 0;
+//add ended ↑
 	int FindInTarget(const char *findWhat, int lenFind, int startPosition, int endPosition);
 	int FindNext(bool reverseDirection, bool showWarnings = true);
 	virtual void FindIncrement() = 0;
