@@ -1240,7 +1240,8 @@ long Document::FindText(int minPos, int maxPos, const char *search,
 					char ch = CharAt(pos + indexSearch);
 					char folded[2];
 					pcf->Fold(folded, sizeof(folded), &ch, 1);
-					found = folded[0] == searchThing[indexSearch];
+//					found = folded[0] == searchThing[indexSearch];
+					found = MakeUpperCase(folded[0]) == MakeUpperCase(searchThing[indexSearch]);
 				}
 				if (found && MatchesWordOptions(word, wordStart, pos, lengthFind)) {
 					return pos;
