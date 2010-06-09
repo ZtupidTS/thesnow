@@ -841,14 +841,11 @@ public:
 static void FillComboFromProps(HWND combo, PropSetFile &props) {
 	const char *key;
 	const char *val;
-	GUI::gui_string wkey;	//added
 	if (props.GetFirst(key, val)) {
-		wkey= GUI::StringFromUTF8(key);	//added
-		//::SendMessage(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(key));
+		GUI::gui_string wkey = GUI::StringFromUTF8(key);
 		::SendMessage(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(wkey.c_str()));
 		while (props.GetNext(key, val)) {
-			wkey= GUI::StringFromUTF8(key);//added
-			//::SendMessage(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(key));
+			wkey = GUI::StringFromUTF8(key);
 			::SendMessage(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(wkey.c_str()));
 		}
 	}
@@ -946,7 +943,7 @@ BOOL SciTEWin::FindMessage(HWND hDlg, UINT message, WPARAM wParam) {
 		 }
 		 else if (ControlIDOfCommand(wParam) == IDMSDN) {
 			findWhat = dlg.ItemTextU(IDFINDWHAT).c_str();
-			wchar_t msdn[2048]= L"http://search.msdn.microsoft.com/search/Default.aspx?brand=msdn&query=";
+			wchar_t msdn[2048]= L"http://social.msdn.microsoft.com/Search/en-US/?Refinement=86&Query=";
 			::ShellExecute(NULL,NULL, wcscat(msdn,findWhat.w_str()),NULL,NULL,SW_SHOW);
 			::EndDialog(hDlg, IDCANCEL);
 			wFindReplace.Destroy();
