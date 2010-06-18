@@ -27,7 +27,7 @@ IDI_ST_8      ICON "Icons/st_8.ico"
 IDI_ST_9      ICON "Icons/st_9.ico"
 IDI_CHECK     ICON "Icons/check.ico"
 
-IDD_PROPPAGE_GENERAL DIALOG 0, 0, 210, 250
+IDD_PROPPAGE_GENERAL DIALOG 0, 0, 210, 261
 STYLE DS_3DLOOK | WS_CHILD | WS_DISABLED | WS_BORDER
 FONT 8, "MS Shell Dlg"
 BEGIN
@@ -57,7 +57,8 @@ BEGIN
     AUTOCHECKBOX    "Use desktop title lines in window list", IDC_WLUSETTLLN, 10, 133, 150, 10
     AUTOCHECKBOX    "Mouse opens compact window list", IDC_COMPACTWLIST, 10, 144, 130, 10
     AUTOCHECKBOX    "Mouse opens compact window menu", IDC_COMPACTWMENU, 10, 155, 130, 10
-    AUTOCHECKBOX    "Hotkey opens menu or list at fixed location", IDC_HOTKEYMENULOC, 10, 166, 160, 10
+    AUTOCHECKBOX    "Mouse opens compact control menu", IDC_COMPACTCMENU, 10, 166, 130, 10
+    AUTOCHECKBOX    "Hotkey opens menu or list at fixed location", IDC_HOTKEYMENULOC, 10, 177, 160, 10
 END
 
 IDD_PROPPAGE_HOTKEYS DIALOG 0, 0, 210, 250
@@ -69,7 +70,8 @@ BEGIN
     LTEXT           "Command:", IDC_STATIC,  10, 172, 40, 10
     COMBOBOX        IDC_HOTKEY_CMD, 50, 170, 150, 150, WS_VSCROLL | CBS_DROPDOWNLIST | WS_TABSTOP
     LTEXT           "Desktop:", IDC_STATIC,  10, 187, 40, 10
-    COMBOBOX        IDC_HOTKEY_DSK, 50, 185, 40, 200, CBS_AUTOHSCROLL | CBS_DROPDOWNLIST | WS_TABSTOP
+    COMBOBOX        IDC_HOTKEY_DSK, 50, 185, 25, 200, CBS_AUTOHSCROLL | CBS_DROPDOWNLIST | WS_TABSTOP
+    AUTOCHECKBOX    "Operate on window under mouse", IDC_HOTKEY_WUM, 85, 187, 120, 10
     LTEXT           "Hotkey:", IDC_STATIC, 10, 202, 40, 10
     CONTROL         "Hotkey", IDC_HOTKEY_ENT, "msctls_hotkey32", 0x0 | WS_BORDER | WS_TABSTOP, 50, 200, 102, 12
     AUTOCHECKBOX    "+ WIN", IDC_HOTKEY_WIN, 155, 202, 35, 9, 0x0020
@@ -82,28 +84,30 @@ IDD_PROPPAGE_MOUSE DIALOGEX 0, 0, 210, 250
 STYLE DS_3DLOOK | WS_CHILD | WS_DISABLED | WS_BORDER
 FONT 8, "MS Shell Dlg"
 BEGIN
-    GROUPBOX        "Mouse Support", IDC_STATIC, 4, 5, 202, 161
+    GROUPBOX        "Mouse Support", IDC_STATIC, 4, 5, 202, 172
     AUTOCHECKBOX    "Enable mouse desktop changing", IDC_ENABLEMOUSE, 10, 16, 120, 10
-    LTEXT           "Delay before changing desktop:", IDC_STATIC, 22, 27, 120, 8
+    AUTOCHECKBOX    "Only change when dragging a window", IDC_MOUSEDRAG, 22, 27, 150, 10
+    LTEXT           "Delay before changing desktop:", IDC_STATIC, 22, 38, 120, 8
     CONTROL         "Slider1", IDC_SLIDER, "msctls_trackbar32", 0x19 |
-                    WS_TABSTOP, 34, 38, 80, 15
-    EDITTEXT        IDC_TIME, 125, 40, 20, 12, ES_RIGHT | ES_AUTOHSCROLL |
+                    WS_TABSTOP, 34, 49, 80, 15
+    EDITTEXT        IDC_TIME, 125, 51, 20, 12, ES_RIGHT | ES_AUTOHSCROLL |
                     ES_READONLY | NOT WS_BORDER | NOT WS_TABSTOP
-    LTEXT           "ms", IDC_STATIC, 145, 40, 35, 10
-    AUTOCHECKBOX    "Enable modifier key control", IDC_KEYCONTROL, 22, 54, 110, 10
-    LTEXT           "Modifier:", IDC_STATIC, 34, 65, 30, 8
-    AUTOCHECKBOX    "Shift", IDC_MSHIFT, 67, 65, 34, 10
-    AUTOCHECKBOX    "Ctrl", IDC_MCTRL, 102, 65, 30, 10
-    AUTOCHECKBOX    "Alt", IDC_MALT, 132, 65, 29, 10
-    AUTOCHECKBOX    "Enable desktop edge knocking", IDC_KNOCKMODE1, 22, 78, 125, 10
-    AUTOCHECKBOX    "Always required", IDC_KNOCKMODE2, 34, 89, 90, 10
+    LTEXT           "ms", IDC_STATIC, 145, 51, 35, 10
+    AUTOCHECKBOX    "Enable modifier key control", IDC_KEYCONTROL, 22, 65, 110, 10
+    LTEXT           "Modifier:", IDC_STATIC, 34, 76, 30, 8
+    AUTOCHECKBOX    "Shift", IDC_MSHIFT, 67, 76, 34, 10
+    AUTOCHECKBOX    "Ctrl", IDC_MCTRL, 102, 76, 30, 10
+    AUTOCHECKBOX    "Alt", IDC_MALT, 132, 76, 29, 10
+    AUTOCHECKBOX    "Win", IDC_MWIN, 162, 76, 29, 10
+    AUTOCHECKBOX    "Enable desktop edge knocking", IDC_KNOCKMODE1, 22, 89, 125, 10
+    AUTOCHECKBOX    "Always required", IDC_KNOCKMODE2, 34, 100, 90, 10
 
-    LTEXT           "Mouse jump length", IDC_STATIC, 22, 105, 60, 8, 0
-    EDITTEXT        IDC_JUMP, 87, 103, 20, 12, ES_AUTOHSCROLL
-    AUTOCHECKBOX    "Enable mouse warping", IDC_MOUSEWARP, 22, 119, 90, 10
-    AUTOCHECKBOX    "Enable middle button desktop changing", IDC_MOUSEMDCHNG, 10, 130, 160, 10
-    AUTOCHECKBOX    "Enable middle button window list activation", IDC_MOUSEWLIST, 10, 141, 160, 10
-    AUTOCHECKBOX    "Enable middle button window menu activation", IDC_MOUSEWMENU, 10, 152, 160, 10
+    LTEXT           "Mouse jump length", IDC_STATIC, 22, 116, 60, 8, 0
+    EDITTEXT        IDC_JUMP, 87, 114, 20, 12, ES_AUTOHSCROLL
+    AUTOCHECKBOX    "Enable mouse warping", IDC_MOUSEWARP, 22, 130, 90, 10
+    AUTOCHECKBOX    "Enable middle button desktop changing", IDC_MOUSEMDCHNG, 10, 141, 160, 10
+    AUTOCHECKBOX    "Enable middle button window list activation", IDC_MOUSEWLIST, 10, 152, 160, 10
+    AUTOCHECKBOX    "Enable middle button window menu activation", IDC_MOUSEWMENU, 10, 163, 160, 10
 END
 
 IDD_PROPPAGE_MODULES DIALOG 0, 0, 210, 250
@@ -123,23 +127,25 @@ IDD_PROPPAGE_EXPERT DIALOG 0, 0, 210, 250
 STYLE DS_3DLOOK | WS_CHILD | WS_DISABLED | WS_BORDER
 FONT 8, "MS Shell Dlg"
 BEGIN
-    GROUPBOX        "Advanced Options", IDC_STATIC, 4, 5, 202, 98
+    GROUPBOX        "Advanced Options", IDC_STATIC, 4, 5, 202, 109
     LTEXT           "On desktop change preserve:", IDC_STATIC,  10, 16, 120, 10
     COMBOBOX        IDC_PRESORDER, 22, 26, 130, 75, CBS_AUTOHSCROLL | CBS_DROPDOWNLIST | WS_TABSTOP
     LTEXT           "On hidden window activation:", IDC_STATIC, 10, 41, 120, 10
     COMBOBOX        IDC_HIDWINACT, 22, 51, 130, 56, CBS_AUTOHSCROLL | CBS_DROPDOWNLIST | WS_TABSTOP
     AUTOCHECKBOX    "Restore focus on desktop change", IDC_FOCUS,                10,  66, 125, 10
-    AUTOCHECKBOX    "Invert Up/Down", IDC_INVERTY,                               10,  77,  70, 10
-    AUTOCHECKBOX    "Hide system tray icon", IDC_DISPLAYICON,                    10,  88,  80, 10
+    AUTOCHECKBOX    "Hide minimized windows on desktop change", IDC_HIDEMINWIN,  10,  77, 155, 10
+    AUTOCHECKBOX    "Invert Up/Down", IDC_INVERTY,                               10,  88,  70, 10
+    AUTOCHECKBOX    "Hide system tray icon", IDC_DISPLAYICON,                    10,  99,  80, 10
 
-    GROUPBOX        "Workarounds", IDC_STATIC, 4, 106, 202, 91
-    AUTOCHECKBOX    "Enable taskbar detection", IDC_TASKBARDETECT,               10, 117, 100, 10
-    AUTOCHECKBOX    "Enable Windows hook", IDC_USEVWHOOK,                        10, 128, 100, 10
-    AUTOCHECKBOX    "Enable window specific rules", IDC_USEWINRULES,             10, 139, 130, 10
-    AUTOCHECKBOX    "Enable dynamic taskbar button removal", IDC_DYNBUTTONRM,    10, 150, 150, 10
-    AUTOCHECKBOX    "Force release of modifier keys on desktop change", IDC_USEDCMODREL,   10, 161, 180, 10
-    AUTOCHECKBOX    "Force refresh after desktop change", IDC_REFRESH,           10, 172, 130, 10
-    AUTOCHECKBOX    "Write events to virtuawin.log", IDC_DEBUGLOGGING,           10, 183, 130, 10
+    GROUPBOX        "Workarounds", IDC_STATIC, 4, 117, 202, 102
+    AUTOCHECKBOX    "Enable taskbar detection", IDC_TASKBARDETECT,               10, 128, 100, 10
+    AUTOCHECKBOX    "Enable Windows hook", IDC_USEVWHOOK,                        10, 139, 100, 10
+    AUTOCHECKBOX    "Enable window specific rules", IDC_USEWINRULES,             10, 150, 130, 10
+    AUTOCHECKBOX    "Enable dynamic taskbar button removal", IDC_DYNBUTTONRM,    10, 161, 150, 10
+    AUTOCHECKBOX    "Force release of modifier keys on desktop change", IDC_USEDCMODREL,   10, 172, 180, 10
+    AUTOCHECKBOX    "Force refresh after desktop change", IDC_REFRESH,           10, 183, 130, 10
+    AUTOCHECKBOX    "Only hide taskbar button of minimized windows", IDC_NOHIDEMINWIN,     10, 194, 180, 10
+    AUTOCHECKBOX    "Write events to virtuawin.log", IDC_DEBUGLOGGING,           10, 205, 130, 10
 
     PUSHBUTTON      "Log Windows",     IDC_LOGWINDOWS,   70, 230, 60, 14
     PUSHBUTTON      "Explore Config",  IDC_EXPLORECNFG, 140, 230, 60, 14
@@ -152,7 +158,7 @@ BEGIN
     GROUPBOX        vwVIRTUAWIN_NAME_VERSION, IDC_STATIC, 4, 5, 202, 91, 0x0300
     ICON            IDI_VIRTUAWIN, IDC_STATIC, 95, 16, 20, 20
     LTEXT           "Copyright (c) 1999-2005 Johan Piculell", IDC_STATIC, 35, 40, 150, 8
-    LTEXT           "Copyright (c) 2006-2009 VirtuaWin", IDC_STATIC, 35, 50, 150, 8
+    LTEXT           "Copyright (c) 2006-2010 VirtuaWin", IDC_STATIC, 35, 50, 150, 8
     LTEXT           vwVIRTUAWIN_EMAIL, IDC_MAILTO, 50, 60, 190, 8, 0x0100
     LTEXT           "Latest version, info, source, etc. visit:", IDC_STATIC, 35, 72, 150, 8
     LTEXT           vwVIRTUAWIN_WEBSITE, IDC_HTTP, 50, 82, 190, 10, 0x0100
@@ -170,7 +176,7 @@ BEGIN
     DEFPUSHBUTTON   "OK", IDCANCEL,  105, 190, 40, 14
 END
 
-IDD_WINDOWRULEDIALOG DIALOG 79, 25, 292, 340
+IDD_WINDOWRULEDIALOG DIALOG 79, 25, 292, 351
 STYLE DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "VirtuaWin - Window Rules"
 FONT 8, "MS Shell Dlg"
@@ -189,27 +195,28 @@ BEGIN
     LTEXT           "Process name:", IDC_STATIC,   6, 160, 50, 8, 0
     EDITTEXT        IDC_WTYPE_PNAME,              60, 158, 135, 12, ES_LEFT | ES_AUTOHSCROLL
 
-    AUTOCHECKBOX    "Window rule enabled", IDC_WTYPE_ENABLE,  6, 172, 100, 10
-    AUTORADIOBUTTON "Never manage windows of this type", IDC_WTYPE_NMANAGE, 18, 183, 130, 10
-    AUTORADIOBUTTON "Always manage windows of this type", IDC_WTYPE_AMANAGE, 18, 194, 140, 10
-    AUTORADIOBUTTON "Let VirtuaWin decide whether to manage windows", IDC_WTYPE_VMANAGE, 18, 205, 170, 10
-    AUTOCHECKBOX    "Main window of multiple taskbar buttons", IDC_WTYPE_MAINWIN,  18, 216, 160, 10
-    AUTOCHECKBOX    "Show windows of this type on all desktops", IDC_WTYPE_STICKY,  18, 227, 160, 10
-    AUTOCHECKBOX    "Keep all windows of this application together", IDC_WTYPE_GRPAPP,  18, 238, 160, 10
-    AUTOCHECKBOX    "Automatically move windows of this type to Desktop:", IDC_WTYPE_AMOVE, 18, 251, 180, 10
-    COMBOBOX        IDC_WTYPE_AMDSK, 200, 249, 40, 200, CBS_AUTOHSCROLL | CBS_DROPDOWNLIST | WS_TABSTOP
-    AUTOCHECKBOX    "Move windows immediately", IDC_WTYPE_AMIMM, 30, 263, 100, 10
-    LTEXT           "On hidden window activation:", IDC_STATIC,   18, 276, 110, 10
-    COMBOBOX        IDC_WTYPE_HWACT, 130, 274, 130, 56, CBS_AUTOHSCROLL | CBS_DROPDOWNLIST | WS_TABSTOP
-    LTEXT           "Method for hiding the window:", IDC_STATIC,  18, 290, 110, 10
-    COMBOBOX        IDC_WTYPE_WHIDE, 130, 288, 130, 150, WS_VSCROLL | CBS_DROPDOWNLIST | WS_TABSTOP
-    LTEXT           "Method for hiding taskbar button:", IDC_STATIC,  18, 304, 110, 10
-    COMBOBOX        IDC_WTYPE_THIDE, 130, 302, 130, 150, WS_VSCROLL | CBS_DROPDOWNLIST | WS_TABSTOP
+    AUTOCHECKBOX    "Window rule enabled", IDC_WTYPE_ENABLE, 6, 172, 100, 10
+    AUTOCHECKBOX    "Make windows of this type always on top", IDC_WTYPE_ALONTOP, 18, 183, 160, 10
+    AUTORADIOBUTTON "Never manage windows of this type", IDC_WTYPE_NMANAGE, 18, 194, 130, 10
+    AUTORADIOBUTTON "Always manage windows of this type", IDC_WTYPE_AMANAGE, 18, 205, 140, 10
+    AUTORADIOBUTTON "Let VirtuaWin decide whether to manage windows", IDC_WTYPE_VMANAGE, 18, 216, 170, 10
+    AUTOCHECKBOX    "Main window of multiple taskbar buttons", IDC_WTYPE_MAINWIN,  18, 227, 160, 10
+    AUTOCHECKBOX    "Show windows of this type on all desktops", IDC_WTYPE_STICKY,  18, 238, 160, 10
+    AUTOCHECKBOX    "Keep all windows of this application together", IDC_WTYPE_GRPAPP,  18, 249, 160, 10
+    AUTOCHECKBOX    "Automatically move windows of this type to Desktop:", IDC_WTYPE_AMOVE, 18, 262, 180, 10
+    COMBOBOX        IDC_WTYPE_AMDSK, 200, 260, 40, 200, CBS_AUTOHSCROLL | CBS_DROPDOWNLIST | WS_TABSTOP
+    AUTOCHECKBOX    "Move windows immediately", IDC_WTYPE_AMIMM, 30, 274, 100, 10
+    LTEXT           "On hidden window activation:", IDC_STATIC,   18, 287, 110, 10
+    COMBOBOX        IDC_WTYPE_HWACT, 130, 285, 130, 56, CBS_AUTOHSCROLL | CBS_DROPDOWNLIST | WS_TABSTOP
+    LTEXT           "Method for hiding the window:", IDC_STATIC,  18, 301, 110, 10
+    COMBOBOX        IDC_WTYPE_WHIDE, 130, 299, 130, 150, WS_VSCROLL | CBS_DROPDOWNLIST | WS_TABSTOP
+    LTEXT           "Method for hiding taskbar button:", IDC_STATIC,  18, 315, 110, 10
+    COMBOBOX        IDC_WTYPE_THIDE, 130, 313, 130, 150, WS_VSCROLL | CBS_DROPDOWNLIST | WS_TABSTOP
 
-    PUSHBUTTON      "OK",      IDC_WTYPE_OK,     111, 320, 40, 14
-    DEFPUSHBUTTON   "Cancel",  IDCANCEL,         156, 320, 40, 14
-    PUSHBUTTON      "Apply",   IDC_WTYPE_APPLY,  201, 320, 40, 14
-    PUSHBUTTON      "Help",    IDC_WTYPE_HELP,   246, 320, 40, 14
+    PUSHBUTTON      "OK",      IDC_WTYPE_OK,     111, 331, 40, 14
+    DEFPUSHBUTTON   "Cancel",  IDCANCEL,         156, 331, 40, 14
+    PUSHBUTTON      "Apply",   IDC_WTYPE_APPLY,  201, 331, 40, 14
+    PUSHBUTTON      "Help",    IDC_WTYPE_HELP,   246, 331, 40, 14
 END
 
 #ifndef _MAC
@@ -219,8 +226,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 4,1,0,7
- PRODUCTVERSION 4,1,0,7
+ FILEVERSION 4,2,0,12
+ PRODUCTVERSION 4,2,0,12
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -238,12 +245,12 @@ BEGIN
             VALUE "Comments", vwVIRTUAWIN_WEBSITE "\0"
             VALUE "CompanyName", vwVIRTUAWIN_NAME "\0"
             VALUE "FileDescription", vwVIRTUAWIN_NAME_VERSION "\0"
-            VALUE "FileVersion", "4.1.0.7\0"
+            VALUE "FileVersion", "4.2.0.12\0"
             VALUE "InternalName", vwVIRTUAWIN_NAME "\0"
-            VALUE "LegalCopyright", "Copyright © 1999-2009\0"
+            VALUE "LegalCopyright", "Copyright © 1999-2010\0"
             VALUE "OriginalFilename", vwVIRTUAWIN_NAME ".exe\0"
             VALUE "ProductName", vwVIRTUAWIN_NAME "\0"
-            VALUE "ProductVersion", "4.1.0.7\0"
+            VALUE "ProductVersion", "4.2.0.12\0"
         END
     END
     BLOCK "VarFileInfo"

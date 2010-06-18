@@ -3,7 +3,7 @@
 //  VirtuaWin.c - Core VirtuaWin routines.
 // 
 //  Copyright (c) 1999-2005 Johan Piculell
-//  Copyright (c) 2006-2009 VirtuaWin (VirtuaWin@home.se)
+//  Copyright (c) 2006-2010 VirtuaWin (VirtuaWin@home.se)
 // 
 //  This program is free software; you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License as published by
@@ -60,6 +60,10 @@ enum {
 #define SM_CYVIRTUALSCREEN      79
 #define SM_CMONITORS            80
 #endif
+#ifndef SPI_GETFOREGROUNDLOCKTIMEOUT
+#define SPI_GETFOREGROUNDLOCKTIMEOUT 0x2000
+#define SPI_SETFOREGROUNDLOCKTIMEOUT 0x2001
+#endif
 
 #define calculateDesk(x,y) (((y) * nDesksX) - (nDesksX - (x)))
 
@@ -104,15 +108,16 @@ vwUByte vwEnabled=1;	                     // if VirtuaWin enabled or not
 
 int desktopWorkArea[2][4] ;
 
-vwHotkey   hotkeyList[vwHOTKEY_MAX];         // list for holding hotkeys
+vwHotkey      hotkeyList[vwHOTKEY_MAX];      // list for holding hotkeys
 vwWindowBase *windowHash[vwWINHASH_SIZE];    // hash table for all windows
 vwWindowBase *windowBaseList;                // list of all windows
 vwWindow     *windowList;                    // list of managed windows
 vwWindow     *windowFreeList;                // list of free, ready for reuse
 vwWindowBase *windowBaseFreeList;            // list of free, ready for reuse
 vwWindowRule *windowRuleList;                // list for holding window rules
-moduleType moduleList[MAXMODULES];           // list that holds modules
-disModules disabledModules[MAXMODULES*2];    // list with disabled modules
+vwMenuItem   *ctlMenuItemList;               // List of module inserted control menu items
+vwModule      moduleList[MAXMODULES];        // list that holds modules
+vwDisModule   disabledModules[MAXMODULES*2]; // list with disabled modules
 
 UINT RM_Shellhook;
 UINT RM_TaskbarCreated;         // Message used to broadcast taskbar restart 
@@ -120,8 +125,8 @@ UINT RM_TaskbarCreated;         // Message used to broadcast taskbar restart
 HINSTANCE hInst;		// current instance
 HWND taskHWnd;                  // handle to taskbar
 HWND desktopHWnd;		// handle to the desktop window
+DWORD desktopThread;            // thread ID of desktop window
 HWND deskIconHWnd;		// handle to the desktop window holding the icons
-DWORD deskThread;               // thread ID of desktop handler (exploerer)
 HWND lastFGHWnd;		// handle to the last foreground window
 HWND dialogHWnd;       		// handle to the setup dialog, NULL if not open
 int dialogPos[2];
@@ -147,10 +152,11 @@ int moduleCount = 0;
 int currentDeskX = 1;
 int currentDeskY = 1;
 int currentDesk = 1; 
-int lastDesk = 1; 
 int nDesks = 4;     
 int nDesksX = 2;     
 int nDesksY = 2;     
+int lastDesk = 1; 
+vwUByte lastDeskNoDelay = 0 ;          
 vwUByte mouseKnock = 2 ;
 vwUByte hiddenWindowAct = 2 ;
 vwUByte taskButtonAct = 0 ;		
@@ -164,6 +170,7 @@ vwUByte hotkeyMenuLoc = 0 ;
 vwUByte winListContent = (vwWINLIST_ACCESS | vwWINLIST_ASSIGN | vwWINLIST_STICKY) ;
 vwUByte winListCompact = 0 ;
 vwUByte winMenuCompact = 1 ;
+vwUByte ctlMenuCompact = 1 ;
 vwUByte displayTaskbarIcon = 1 ;
 vwUByte taskbarIconShown = 0 ;
 vwUByte noTaskbarCheck = 0 ;
@@ -172,6 +179,7 @@ vwUByte useDynButtonRm = 0 ;
 vwUByte useDskChgModRelease = 0 ;
 vwUByte taskbarFixRequired = 0 ;
 vwUByte preserveZOrder = 2 ;      
+vwUByte minWinHide = 1 ;
 vwUByte taskbarBCType;          // taskbar button container type - one of vwTASKBAR_BC_*
 HWND    taskbarBCHWnd;
 HANDLE  taskbarProcHdl;
@@ -202,17 +210,19 @@ vwUInt timerCounter=0 ;
 
 /* desk image generation variables */
 int         deskImageCount=-1 ;
+int         deskImageEnabled=0 ;
 HBITMAP     deskImageBitmap=NULL ;
 BITMAPINFO  deskImageInfo ;
 void       *deskImageData=NULL ;
 
 enum {
     OSVERSION_UNKNOWN=0,
-    OSVERSION_31,
-    OSVERSION_9X,
-    OSVERSION_NT,
-    OSVERSION_2000,
-    OSVERSION_XP
+    OSVERSION_64BIT=1,
+    OSVERSION_31=2,
+    OSVERSION_9X=4,
+    OSVERSION_NT=6,
+    OSVERSION_2000=8,
+    OSVERSION_XP=10
 } ;
 int osVersion ;
 
@@ -283,6 +293,8 @@ vwKeyboardTestModifier(vwUByte modif)
     if((modif & vwHOTKEY_CONTROL) && !HIWORD(GetAsyncKeyState(VK_CONTROL)))
         return FALSE ;
     if((modif & vwHOTKEY_SHIFT) && !HIWORD(GetAsyncKeyState(VK_SHIFT)))
+        return FALSE ;
+    if((modif & vwHOTKEY_WIN) && !HIWORD(GetAsyncKeyState(VK_LWIN)) && !HIWORD(GetAsyncKeyState(VK_RWIN)))
         return FALSE ;
     return TRUE ;
 }
@@ -447,7 +459,7 @@ vwMouseProc(LPVOID lpParameter)
                 wmenuState = 0 ;
             }
         }
-        if((mouseEnable & 1) && ((mode == 0) || (mode == 1)) &&
+        if((mouseEnable & 1) && ((mode == 1) || ((mode == 0) && ((mouseEnable & 0x10) == 0))) &&
            (!mouseModifierUsed || vwKeyboardTestModifier(mouseModifier)))
         {
             GetCursorPos(&pt);
@@ -643,7 +655,7 @@ vwIconLoad(void)
     }
     else
     {
-        if(osVersion > OSVERSION_2000)
+        if(osVersion >= OSVERSION_XP)
             iconId = IDI_ST_DIS_2 ;
         else
             iconId = IDI_ST_DIS_1 ;
@@ -743,7 +755,7 @@ vwHotkeyRegister(int warnAll)
             }
             if(hotkeyList[ii].atom == 0)
                 MessageBox(hWnd,_T("Failed to create global atom"),vwVIRTUAWIN_NAME _T(" Error"), MB_ICONWARNING);
-            else if((RegisterHotKey(hWnd,hotkeyList[ii].atom,(hotkeyList[ii].modifier & ~vwHOTKEY_EXT),hotkeyList[ii].key) == FALSE) &&
+            else if((RegisterHotKey(hWnd,hotkeyList[ii].atom,(hotkeyList[ii].modifier & vwHOTKEY_MOD_MASK),hotkeyList[ii].key) == FALSE) &&
                     (warnAll || (hotkeyList[ii].command != vwCMD_UI_ENABLESTATE)))
             {
                 _stprintf(buff,_T("Failed to register hotkey %d, check hotkeys."),ii+1) ;
@@ -840,13 +852,14 @@ void
 vwTaskbarHandleGet(void)
 {
     /* set the window to give focus to when releasing focus on switch also used to refresh */
-    desktopHWnd = GetDesktopWindow();
-    deskIconHWnd = FindWindow(_T("Progman"), _T("Program Manager")) ;
-    deskIconHWnd = FindWindowEx(deskIconHWnd, NULL, _T("SHELLDLL_DefView"),NULL) ;
-    deskIconHWnd = FindWindowEx(deskIconHWnd, NULL, _T("SysListView32"), _T("FolderView")) ;
-    deskThread = GetWindowThreadProcessId(deskIconHWnd,NULL) ;
+    if((desktopHWnd = GetDesktopWindow()) != NULL)
+        desktopThread = GetWindowThreadProcessId(desktopHWnd,NULL) ;
+    if(((deskIconHWnd = FindWindow(_T("Progman"), _T("Program Manager"))) != NULL) &&
+       ((deskIconHWnd = FindWindowEx(deskIconHWnd, NULL, _T("SHELLDLL_DefView"),NULL)) != NULL))
+       deskIconHWnd = FindWindowEx(deskIconHWnd, NULL, _T("SysListView32"), _T("FolderView")) ;
+    
     taskbarBCType = vwTASKBAR_BC_NONE ;
-    if(!noTaskbarCheck)
+    if((noTaskbarCheck & 0x01) == 0)
     {
         HWND hwndTray = FindWindowEx(NULL, NULL,_T("Shell_TrayWnd"), NULL);
         HWND hwndBar = FindWindowEx(hwndTray, NULL,_T("ReBarWindow32"), NULL );
@@ -857,9 +870,7 @@ vwTaskbarHandleGet(void)
         
         taskHWnd = FindWindowEx(hwndBar, NULL,_T("MSTaskSwWClass"), NULL);
         
-        if(taskHWnd == NULL)
-            MessageBox(hWnd,_T("Could not locate handle to the taskbar.\n This will disable the ability to hide troublesome windows correctly."),vwVIRTUAWIN_NAME _T(" Error"), 0); 
-        else if(preserveZOrder > 2)
+        if((taskHWnd != NULL) && (preserveZOrder > 2))
         {
             if((hwndBar = FindWindowEx(taskHWnd,0,_T("SysTabControl32"),0)) != NULL)
             {
@@ -871,6 +882,8 @@ vwTaskbarHandleGet(void)
                 taskbarBCHWnd = hwndBar ;
                 taskbarBCType = vwTASKBAR_BC_TOOLBAR;
             }
+            else if(FindWindowEx(taskHWnd,0,_T("MSTaskListWClass"),0) != NULL)
+                MessageBox(hWnd,_T("Dynamic taskbar is not supported on Win7 - dynamic taskbar order disabled."),vwVIRTUAWIN_NAME _T(" Error"),0) ;
             else
                 MessageBox(hWnd,_T("Failed to identify taskbar button container - dynamic taskbar order disabled."),vwVIRTUAWIN_NAME _T(" Error"),0) ;
             if(taskbarBCType)
@@ -879,7 +892,7 @@ vwTaskbarHandleGet(void)
                 
                 if(taskbarShrdMem)
                 {
-                    if(osVersion <= OSVERSION_9X)
+                    if(osVersion < OSVERSION_NT)
                         VirtualFree(taskbarShrdMem,0,MEM_RELEASE) ;
                     else
                         VirtualFreeEx(taskbarProcHdl,taskbarShrdMem,0,MEM_RELEASE);
@@ -908,14 +921,14 @@ vwTaskbarHandleGet(void)
     }
     // if on win9x the tricky windows need to be continually hidden
     taskbarFixRequired = ((osVersion <= OSVERSION_9X) && (taskHWnd != NULL)) ;
-    vwLogBasic((_T("Got desktopWin %x, iconWin %x thread %d, taskbar %d win %x, type %d, fix %d\n"),
-                (int) desktopHWnd,(int) deskIconHWnd,(int) deskThread,noTaskbarCheck,(int) taskHWnd,taskbarBCType,taskbarFixRequired)) ;
+    vwLogBasic((_T("Got desktopWin %x T%d, iconWin %x, taskbar %d win %x, type %d, fix %d\n"),
+                (int) desktopHWnd,(int) desktopThread,(int) deskIconHWnd,noTaskbarCheck,(int) taskHWnd,taskbarBCType,taskbarFixRequired)) ;
 }
 
 /************************************************
  * desk image generation functions
  */
-static int
+int
 createDeskImage(int deskNo, int createDefault)
 {
     HDC deskDC ;
@@ -925,14 +938,14 @@ createDeskImage(int deskNo, int createDefault)
     FILE *fp ;
     int ret ;
     
-    if((deskImageCount == 0) ||
+    if((deskImageEnabled == 0) || (deskNo > nDesks) ||
        ((deskDC = GetDC(desktopHWnd)) == NULL) ||
        ((bitmapDC = CreateCompatibleDC(deskDC)) == NULL))
         return 0 ;
     
     oldmap = (HBITMAP) SelectObject(bitmapDC,deskImageBitmap);
     
-    if(createDefault || (deskNo > nDesks))
+    if(createDefault)
     {
         /* create a default image */
         RECT rect;
@@ -1000,6 +1013,7 @@ disableDeskImage(int count)
         }
         deskImageInfo.bmiHeader.biHeight = 0 ;
         deskImageCount = 0 ;
+        deskImageEnabled = 0 ;
     }
     return 1 ;
 }
@@ -1046,6 +1060,7 @@ enableDeskImage(int height)
         ReleaseDC(desktopHWnd,deskDC);
         if(deskImageData == NULL)
             return 0 ;
+        deskImageEnabled = 1 ;
     }
     if(count < 0)
     {
@@ -1437,21 +1452,35 @@ setForegroundWin(HWND theWin, int makeTop)
 {
     HWND cwHwnd, setHwnd=theWin ;
     vwWindow *win ;
-    DWORD ThreadID1;
-    DWORD ThreadID2;
+    DWORD ThreadID1, ThreadID2, timeout;
     int ii, err1, err2 ;
     
-    vwLogBasic((_T("setForegroundWin: %x %d (%x %x)\n"),(int) theWin,makeTop,(int) hWnd,(int) desktopHWnd)) ;
+    cwHwnd = GetForegroundWindow() ;
+    vwLogBasic((_T("setForegroundWin: %x -> %x %d (%x %x)\n"),(int) cwHwnd, (int) theWin,makeTop,(int) hWnd,(int) desktopHWnd)) ;
     if(theWin == NULL)
     {
-        /* releasing the focus, the current foreground window MUST be
-         * released otherwise VW can think its a popup. Assigning the focus
-         * to a window when no window has the focus is prone to failure so
-         * give the focus to VW's hidden window rather than to the Desktop */
         setHwnd = desktopHWnd ;
-        ThreadID2 = deskThread ;
         makeTop = 0 ;
     }
+    if(cwHwnd != theWin)
+    {
+        /* try cheap and easy way first */
+        if(cwHwnd == NULL)
+            BringWindowToTop(setHwnd) ;
+        err1 = SetForegroundWindow(setHwnd) ; 
+        cwHwnd = GetForegroundWindow() ;
+        vwLogBasic((_T("SetForegroundWindow: %x %x - %d\n"),(int) theWin,(int) cwHwnd, err1)) ;
+    }
+    if(cwHwnd == theWin)
+    {
+        /* bring to the front if requested as swapping desks can muddle the order */
+        if(makeTop)
+            BringWindowToTop(setHwnd);
+        return ;
+    }
+    
+    if(theWin == NULL)
+        ThreadID2 = desktopThread ;
     else if((theWin == hWnd) || (theWin == dialogHWnd))
         ThreadID2 = vwThread ;
     else if(((win = vwWindowFind(theWin)) == NULL) || vwWindowIsNotShow(win) || vwWindowIsNotShown(win) ||
@@ -1464,15 +1493,23 @@ setForegroundWin(HWND theWin, int makeTop)
     else
         ThreadID2 = GetWindowThreadProcessId(theWin,NULL) ;
     
-    ii = 2 ;
-    for(;;)
+    ii = 1 ;
+    for(;;ii--)
     {
         /* do not bother making it the foreground if it already is */
         if((cwHwnd = GetForegroundWindow()) == theWin)
             break ;
+        if(ii < 0)
+        {
+            SystemParametersInfo(SPI_GETFOREGROUNDLOCKTIMEOUT,0,(LPVOID) &timeout,0);
+            SystemParametersInfo(SPI_SETFOREGROUNDLOCKTIMEOUT,0,(LPVOID) 0,SPIF_SENDCHANGE);
+        }
         /* get the Id of the current foreground process */
         if(cwHwnd == NULL)
-            ThreadID1 = deskThread ;
+        {
+            BringWindowToTop(setHwnd) ;
+            ThreadID1 = desktopThread ;
+        }
         else if(windowIsHung(cwHwnd,50) && (Sleep(1),windowIsHung(cwHwnd,100)))
             ThreadID1 = 0 ;
         else
@@ -1510,9 +1547,15 @@ setForegroundWin(HWND theWin, int makeTop)
          * is left as the foreground window but hidden (common when moving the app or desk) VW will confuse
          * it with a popup */
         cwHwnd = GetForegroundWindow() ;
-        vwLogBasic((_T("Set foreground window: %d, %x -> %x\n"),(theWin == cwHwnd),(int) theWin,(int) cwHwnd)) ;
-        if((cwHwnd == theWin) || (--ii < 0))
+        vwLogBasic((_T("Set foreground window %d: %d, %x -> %x\n"),ii,(theWin == cwHwnd),(int) theWin,(int) cwHwnd)) ;
+        if(ii < 0)
+        {
+            SystemParametersInfo(SPI_SETFOREGROUNDLOCKTIMEOUT,0,(LPVOID) timeout,SPIF_SENDCHANGE);
             break ;
+        }
+        else if(cwHwnd == theWin)
+            break ;
+        
         /* A short sleep allows the rest of the system to catch up */
         vwLogVerbose((_T("About to FG sleep\n"))) ;
         Sleep(1) ;
@@ -1530,7 +1573,7 @@ showSetup(void)
 {
     if(!dialogOpen)
     {
-        // reload load current config
+        // reload current config
         loadVirtuawinConfig();
         vwLogVerbose((_T("About to call createSetupDialog\n"))) ;
         createSetupDialog(hInst,hWnd);
@@ -1577,6 +1620,20 @@ showWindowRule(HWND theWin, int add)
         SetWindowPos(dialogHWnd,HWND_NOTOPMOST,0,0,0,0,
                      SWP_DEFERERASE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOSENDCHANGING | SWP_NOMOVE) ;
     }
+}
+
+static int
+windowSetAlwaysOnTop(HWND theWin)
+{
+    int ExStyle ;
+    
+    vwLogBasic((_T("AlwaysOnTop window: %x\n"),(int) theWin)) ;
+    if((theWin == NULL) && ((theWin = GetForegroundWindow()) == NULL))
+        return 0 ;
+    ExStyle = GetWindowLong(theWin,GWL_EXSTYLE) ;
+    SetWindowPos(theWin,(ExStyle & WS_EX_TOPMOST) ? HWND_NOTOPMOST:HWND_TOPMOST,0,0,0,0,
+                 SWP_DEFERERASE|SWP_NOSIZE|SWP_NOACTIVATE|SWP_NOSENDCHANGING|SWP_NOMOVE) ;
+    return 1 ;
 }
 
 /************************************************
@@ -1760,6 +1817,8 @@ enumWindowsProc(HWND hwnd, LPARAM lParam)
                 vwLogBasic((_T("Got new unmanaged window %8x Proc %d Flg %x %x (%08x) %x\n"),
                             (int)win->handle,(int)win->processId,(int)win->flags,(int) exstyle,(int)style,win->zOrder[0])) ;
         }
+        if((wt != NULL) && (wt->flags & vwWTFLAGS_ALWAYSONTOP) && ((exstyle & WS_EX_TOPMOST) == 0))
+            windowSetAlwaysOnTop(hwnd) ;
         return TRUE;
     }
     wb->flags |= vwWINFLAGS_FOUND ;
@@ -2073,7 +2132,7 @@ windowListUpdate(void)
                 GetWindowRect(win->handle,&pos) ;
                 GetClassName(win->handle,cname,vwCLASSNAME_MAX);
                 if(!GetWindowText(win->handle,wname,vwWINDOWNAME_MAX))
-                    _tcscpy(wname,_T("<None>"));
+                    _tcscpy(wname,vwWTNAME_NONE);
                 vwLogBasic((_T("Got new window %8x %08x %08x Flg %x Desk %d Proc %d %x Link %x Pos %d %d\n  Class \"%s\" Title \"%s\"\n"),
                             (int)win->handle,(int)GetWindowLong(win->handle, GWL_STYLE),(int)win->exStyle,
                             (int)win->flags,(int)win->desk,(int)win->processId,(int)((win->processNext == NULL) ? 0:win->processNext->handle),
@@ -2291,10 +2350,21 @@ vwTaskbarButtonListUpdate(void)
         for(ii = 0 ; ii < itemCount ; ++ii)
         {
             if(SendMessage(taskbarBCHWnd,TB_GETBUTTON,ii,(LPARAM)taskbarShrdMem) &&
-               ReadProcessMemory(taskbarProcHdl,taskbarShrdMem,&tbItem,sizeof(TBBUTTON),NULL) &&
-               ReadProcessMemory(taskbarProcHdl,(LPCVOID) tbItem.dwData,&tbHWnd,sizeof(HWND),NULL) &&
-               (tbHWnd != NULL))
-                taskbarButtonList[tbCount++] = tbHWnd ;
+               ReadProcessMemory(taskbarProcHdl,taskbarShrdMem,&tbItem,sizeof(TBBUTTON),NULL))
+            {
+                if(osVersion & OSVERSION_64BIT)
+                {
+                    /* On 64bit OS there is an extra 4 bytes padding so the dwData shifts into the iString member,
+                     * but this may not work all the time as the pointer should be 64bit and this assumes the higher
+                     * 32 bits are 0 */
+                    if(ReadProcessMemory(taskbarProcHdl,(LPCVOID) tbItem.iString,&tbHWnd,sizeof(HWND),NULL) &&
+                       (tbHWnd != NULL))
+                        taskbarButtonList[tbCount++] = tbHWnd ;
+                }
+                else if(ReadProcessMemory(taskbarProcHdl,(LPCVOID) tbItem.dwData,&tbHWnd,sizeof(HWND),NULL) &&
+                        (tbHWnd != NULL))
+                    taskbarButtonList[tbCount++] = tbHWnd ;
+            }
         }
     }
     taskbarButtonList[tbCount] = NULL ;
@@ -2310,8 +2380,19 @@ monitorTimerProc(HWND hwnd, UINT uMsg, UINT idEvent, DWORD dwTime)
     vwWindow *win ;
     int ii, hungCount ;
     
-    vwMutexLock();
     timerCounter++ ;
+    if((taskHWnd == NULL) && (noTaskbarCheck == 0) && ((timerCounter & 0x3) == 0))
+    {
+        vwTaskbarHandleGet() ;
+        if(taskHWnd != NULL)
+            vwIconSet(currentDesk,0) ;
+        else if(timerCounter >= 20)
+        {
+            MessageBox(hWnd,_T("Could not locate handle to the taskbar.\n This will disable the ability to hide troublesome windows correctly."),vwVIRTUAWIN_NAME _T(" Error"), 0); 
+            noTaskbarCheck = 2 ;
+        }
+    }
+    vwMutexLock();
     if((timerCounter == 2) && taskbarBCType && useDynButtonRm)
     {
         /* check the taskbar buttons in the taskbar are correct */
@@ -2423,9 +2504,11 @@ changeDesk(int newDesk, WPARAM msgWParam)
     {
         if(lastDesk != currentDesk)
             lastDesk = currentDesk ;
-        if(deskImageCount > 0)
+        if(deskImageEnabled > 0)
             createDeskImage(currentDesk,0) ;
     }
+    else if(lastDeskNoDelay && (lastDesk != currentDesk))
+        lastDesk = currentDesk ;
     vwLogBasic((_T("Step Desk Start: %d -> %d (%d,%x)\n"),currentDesk,newDesk,isDragging,(int)dragHWnd)) ;
     
     vwMutexLock();
@@ -2900,10 +2983,10 @@ stepUp(void)
 #define vwWINLIST_MAX    vwPMENU_ID_MASK
 
 static int
-winListCreateItemList(int flags, vwMenuItem **items,int *numitems)
+winListCreateItemList(int flags, vwListItem **items,int *numitems)
 {
     vwWindow *win, *ww ;
-    vwMenuItem *item;
+    vwListItem *item;
     TCHAR *buff, title[vwWINDOWNAME_MAX+18] ;
     int i, len, x, y, listContent=(winListContent & ~(vwWINLIST_ASSIGN|vwWINLIST_TITLELN)) ;
     
@@ -2961,7 +3044,7 @@ winListCreateItemList(int flags, vwMenuItem **items,int *numitems)
             }
             GetWindowText(win->handle, buff, len);
             
-            if(((item = malloc(sizeof(vwMenuItem))) == NULL) ||
+            if(((item = malloc(sizeof(vwListItem))) == NULL) ||
                ((item->name = _tcsdup(title)) == NULL))
             {
                 while(--i >= 0)
@@ -3101,7 +3184,7 @@ winListCreateMenuTitleLine(HMENU hMenu, MENUITEMINFO *minfo, int offset, int des
 }
 
 static HMENU
-winListCreateMenu(int flags, int itemCount, vwMenuItem **items)
+winListCreateMenu(int flags, int itemCount, vwListItem **items)
 {
     MENUITEMINFO minfo ;
     HMENU hMenu ;
@@ -3255,7 +3338,18 @@ vwWindowShowHide(vwWindow* aWindow, vwUInt flags)
         {
             vwLogVerbose((_T("vwWindowShow %8x %x %x %x %d %d\n"),(int) aWindow->handle,flags,(int)aWindow->flags,(int)aWindow->exStyle,aWindow->desk,currentDesk)) ;
             aWindow->flags |= (vwWINFLAGS_SHOWN|vwWINFLAGS_SHOW) ;
-            if(vwWindowIsHideByHide(aWindow))
+            if(vwWindowIsMinimized(aWindow) && minWinHide)
+            {
+                /* window is already minimised - do nothing if set to show mi8nimized window taskbar buttons,
+                 * otherwise just remove the taskbar icon - this preserves the Win7 thumbnail */
+                if(((minWinHide & 0x02) == 0) && ((aWindow->flags & vwWINFLAGS_HIDETSK_MASK) != vwWTFLAGS_HIDETSK_DONT))
+                {
+                    SetWindowLong(aWindow->handle, GWL_EXSTYLE, aWindow->exStyle) ;  
+                    if((taskHWnd != NULL) && ((aWindow->flags & vwWINFLAGS_NO_TASKBAR_BUT) == 0))
+                        PostMessage(taskHWnd, RM_Shellhook, HSHELL_WINDOWCREATED, (LPARAM) aWindow->handle) ;
+                }
+            }
+            else if(vwWindowIsHideByHide(aWindow))
             {
                 if((aWindow->flags & (vwWINFLAGS_HIDETSK_MASK|vwWINFLAGS_NO_TASKBAR_BUT)) == vwWINFLAGS_HIDETSK_TOOLWN)
                 {
@@ -3316,7 +3410,18 @@ vwWindowShowHide(vwWindow* aWindow, vwUInt flags)
         {
             vwLogVerbose((_T("vwWindowHide %8x %x %x %x %d %d\n"),(int) aWindow->handle,flags,(int)aWindow->flags,(int)aWindow->exStyle,aWindow->desk,currentDesk)) ;
             aWindow->flags &= ~(vwWINFLAGS_SHOWN|vwWINFLAGS_SHOW) ;
-            if(vwWindowIsHideByHide(aWindow))
+            if(vwWindowIsMinimized(aWindow) && minWinHide)
+            {
+                /* window is already minimised - do nothing if set to show mi8nimized window taskbar buttons,
+                 * otherwise just remove the taskbar icon - this preserves the Win7 thumbnail */
+                if(((minWinHide & 0x02) == 0) && ((aWindow->flags & vwWINFLAGS_HIDETSK_MASK) != vwWTFLAGS_HIDETSK_DONT))
+                {
+                    SetWindowLong(aWindow->handle, GWL_EXSTYLE,(aWindow->exStyle & (~WS_EX_APPWINDOW)) | WS_EX_TOOLWINDOW);
+                    if((taskHWnd != NULL) && ((aWindow->flags & vwWINFLAGS_NO_TASKBAR_BUT) == 0))
+                        PostMessage(taskHWnd, RM_Shellhook, HSHELL_WINDOWDESTROYED, (LPARAM) aWindow->handle);
+                }
+            }
+            else if(vwWindowIsHideByHide(aWindow))
             {
                 if((aWindow->flags & (vwWINFLAGS_HIDETSK_MASK|vwWINFLAGS_NO_TASKBAR_BUT)) == vwWINFLAGS_HIDETSK_TOOLWN)
                 {
@@ -3333,7 +3438,7 @@ vwWindowShowHide(vwWindow* aWindow, vwUInt flags)
             else if(vwWindowIsHideByMinim(aWindow))
             {
                 if(vwWindowIsNotMinimized(aWindow))
-                    CloseWindow(aWindow->handle) ;
+                    ShowWindow(aWindow->handle,SW_MINIMIZE) ;
                 /* This removes window from taskbar and alt+tab list, must notify taskbar of the change */
                 if((aWindow->flags & vwWINFLAGS_HIDETSK_MASK) == vwWINFLAGS_HIDETSK_TOOLWN)
                 {
@@ -3375,7 +3480,7 @@ vwWindowShowHide(vwWindow* aWindow, vwUInt flags)
 /************************************************
  * Toggles the disabled state of VirtuaWin
  */
-static void
+static int
 vwToggleEnabled(void)
 {
     vwEnabled ^= 1;
@@ -3393,6 +3498,7 @@ vwToggleEnabled(void)
         enableMouse(FALSE);
         vwHotkeyUnregister(0);
     }
+    return vwEnabled ;
 }
 
 /************************************************
@@ -3688,7 +3794,7 @@ windowDismiss(HWND theWin)
         ret = vwWindowSetDesk(win,win->desk,1,FALSE) ;
     else
     {
-        ret = CloseWindow(theWin) ;
+        ShowWindow(theWin,SW_MINIMIZE) ;
         /* need to change the focus to another window */
         hwnd = NULL;
         activeZOrder = 0 ;
@@ -3705,31 +3811,22 @@ windowDismiss(HWND theWin)
             win = vwWindowGetNext(win) ;
         }
         setForegroundWin(hwnd,TRUE) ;
+        ret = 1 ;
     }
     vwMutexRelease();
     return ret ;
 }
 
-static void
-windowSetAlwaysOnTop(HWND theWin)
-{
-    int ExStyle ;
-    
-    vwLogBasic((_T("AlwaysOnTop window: %x\n"),(int) theWin)) ;
-    if(theWin != NULL)
-    {
-        ExStyle = GetWindowLong(theWin,GWL_EXSTYLE) ;
-        SetWindowPos(theWin,(ExStyle & WS_EX_TOPMOST) ? HWND_NOTOPMOST:HWND_TOPMOST,0,0,0,0,
-                     SWP_DEFERERASE|SWP_NOSIZE|SWP_NOACTIVATE|SWP_NOSENDCHANGING|SWP_NOMOVE) ;
-    }
-}
-
-static void
+static int
 windowPushToBottom(HWND theWin)
 {
     vwWindow *win, *wint=NULL ;
     vwUInt minZOrder=0xffffffff, maxZOrder=0 ;
     HWND pWin=NULL ;
+    
+    vwLogBasic((_T("Pushing window to bottom: %x\n"),(int) theWin)) ;
+    if((theWin == NULL) && ((theWin = GetForegroundWindow()) == NULL))
+        return 0 ;
     
     vwMutexLock();
     windowListUpdate() ;
@@ -3757,6 +3854,7 @@ windowPushToBottom(HWND theWin)
     vwMutexRelease();
     SetWindowPos(theWin,HWND_BOTTOM,0,0,0,0,
                  SWP_DEFERERASE|SWP_NOSIZE|SWP_NOACTIVATE|SWP_NOSENDCHANGING|SWP_NOMOVE) ;
+    return 1 ;
 }
 
 static HWND infoWin ;
@@ -3790,7 +3888,7 @@ WindowInfoDialogFunc(HWND hwndDlg, UINT msg, WPARAM wParam, LPARAM lParam)
                 _tcscpy(ss,_T("\r\nWindow Name:\t")) ;
                 ss += _tcslen(ss) ;
                 if(!GetWindowText(infoWin,ss,vwWINDOWNAME_MAX))
-                    _tcscpy(ss,_T("<None>"));
+                    _tcscpy(ss,vwWTNAME_NONE);
                 ss += _tcslen(ss) ;
                 _tcscpy(ss,_T("\r\nProcess Name:\t")) ;
                 ss += _tcslen(ss) ;
@@ -3890,8 +3988,8 @@ popupWindowMenu(HWND theWin, int wmFlags)
         Sticky = vwWindowIsSticky(win) ;
         AppendMenu(hpopup,(Sticky) ? (MF_STRING|MF_CHECKED):MF_STRING,ID_WM_STICKY,_T("&Always Show"));
         AppendMenu(hpopup,(win->processNext == NULL) ? (MF_STRING|MF_GRAYED):MF_STRING,ID_WM_GATHER,_T("&Gather"));
-        AppendMenu(hpopup,(deskWrap || (currentDesk < nDesks)) ? MF_STRING:(MF_STRING|MF_GRAYED),ID_WM_NEXT,_T("Move to &Next"));
-        AppendMenu(hpopup,(deskWrap || (currentDesk > 1)) ? MF_STRING:(MF_STRING|MF_GRAYED),ID_WM_PREV,_T("Move to &Previous"));
+        AppendMenu(hpopup,(deskWrap || (currentDesk < nDesks)) ? MF_STRING:(MF_STRING|MF_GRAYED),ID_DESK_NEXT,_T("Move to &Next"));
+        AppendMenu(hpopup,(deskWrap || (currentDesk > 1)) ? MF_STRING:(MF_STRING|MF_GRAYED),ID_DESK_PREV,_T("Move to &Previous"));
         if((wmFlags & 0x01) == 0)
         {
             AppendMenu(hpopup,MF_SEPARATOR,0,NULL) ;
@@ -3919,7 +4017,7 @@ popupWindowMenu(HWND theWin, int wmFlags)
             }
             else
                 buff[18] = '\0' ;
-            AppendMenu(moveMenu,(ii == currentDesk) ? (MF_STRING|MF_GRAYED):MF_STRING,ID_WM_DESK+ii,buff) ;
+            AppendMenu(moveMenu,(ii == currentDesk) ? (MF_STRING|MF_GRAYED):MF_STRING,ID_DESK_N+ii,buff) ;
         }
         wt = vwWindowRuleFind(theWin,(vwWindowRule *) win->zOrder[0]) ;
     }
@@ -3992,12 +4090,12 @@ popupWindowMenu(HWND theWin, int wmFlags)
         windowSetManage(theWin,(win == NULL)) ;
         break;
     default:
-        if(ii == ID_WM_NEXT)
+        if(ii == ID_DESK_NEXT)
             ii = VW_STEPNEXT ;
-        else if(ii == ID_WM_PREV)
+        else if(ii == ID_DESK_PREV)
             ii = VW_STEPPREV ;
-        else if((ii > ID_WM_DESK) && (ii <= (ID_WM_DESK + nDesks)))
-            ii = ii - ID_WM_DESK ;
+        else if((ii > ID_DESK_N) && (ii <= (ID_DESK_N + nDesks)))
+            ii = ii - ID_DESK_N ;
         else
             return ;
         
@@ -4037,11 +4135,11 @@ measureMenuItem(HWND hwnd,MEASUREITEMSTRUCT* mitem)
 {
     HDC testdc;
     HFONT menufont,oldfont;
-    vwMenuItem* item;
+    vwListItem* item;
     SIZE size;
     TCHAR *measuretext;
 
-    item = (vwMenuItem*) mitem->itemData;
+    item = (vwListItem*) mitem->itemData;
 
     measuretext = (item != NULL) ? item->name : _T("D") ;
 
@@ -4070,7 +4168,7 @@ measureMenuItem(HWND hwnd,MEASUREITEMSTRUCT* mitem)
 static void
 renderMenuItem(DRAWITEMSTRUCT* ditem)
 {
-    vwMenuItem* item;
+    vwListItem* item;
     HFONT menufont,oldfont;
     HICON icon;
     UINT oldalign;
@@ -4079,7 +4177,7 @@ renderMenuItem(DRAWITEMSTRUCT* ditem)
     SIZE size;
     int backgroundcolor,textcolor, ll;
 
-    item = (vwMenuItem *) ditem->itemData;
+    item = (vwListItem *) ditem->itemData;
 
     if((item != NULL) && (ditem->itemState & ODS_SELECTED))
     {
@@ -4134,7 +4232,7 @@ static void
 popupWinListMenu(HWND aHWnd, int wlFlags)
 {
     static int singleColumn=0;
-    vwMenuItem *items[vwWINLIST_MAX] ;
+    vwListItem *items[vwWINLIST_MAX] ;
     int itemCount;
     HMENU hpopup ;
     POINT pt ;
@@ -4243,10 +4341,12 @@ popupWinListMenu(HWND aHWnd, int wlFlags)
             }
         }
     }
+    else if(((retItem & vwPMENU_ID_MASK) != 0) && ((ii=(retItem % vwDESKTOP_SIZE)) != currentDesk))
+        gotoDesk(ii,FALSE);
     else if(fgWin != NULL)
         setForegroundWin(fgWin,0) ;
     
-    // delete vwMenuItem list
+    // delete vwListItem list
     for (ii=0 ; ii<itemCount ; ii++)
     {
         free(items[ii]->name);
@@ -4282,6 +4382,48 @@ vwWindowRuleReapply(void)
     vwMutexRelease() ;
 }
 
+static void
+insertMenuItems(HMENU hpopup, vwUShort posMax, vwMenuItem **cmiPtr, int *cmidPtr)
+{
+    vwMenuItem *mi = *cmiPtr, *ni ;
+    int mid = *cmidPtr ;
+    HMENU mn = hpopup ;
+    vwUShort smpos=0 ;
+    HWND smmod = NULL ;
+    
+    while((mi != NULL) && (mi->position <= posMax))
+    {
+        if((mi->module != smmod) || (mi->position != smpos))
+            mn = hpopup ;
+        if(mi->label[0] == '\0')
+        {
+            mi->id = 0 ;
+            AppendMenu(mn,MF_SEPARATOR,0,NULL) ;
+        }
+        else if(mi->message == 0)
+        {
+            smmod = mi->module ;
+            smpos = mi->position ;
+            if((mn = CreatePopupMenu()) == NULL)
+            {
+                /* skip the sub menu */
+                while(((ni = mi->next) != NULL) && (smmod == ni->module) && (smpos == ni->position))
+                    mi = ni ;
+            }
+            else
+                AppendMenu(hpopup,MF_POPUP,(UINT_PTR) mn,mi->label) ;
+        }
+        else
+        {
+            mi->id = (vwUShort) ++mid ;
+            AppendMenu(mn,MF_STRING,mid,mi->label) ;
+        }
+        mi = mi->next ;
+    }
+    *cmiPtr = mi ;
+    *cmidPtr = mid ;
+}
+
 /*****************************************************************************
  * Pops up and handles the control menu. cmFlags is a bitmask:
  *   0x10 : Opened via a hotkey
@@ -4289,8 +4431,11 @@ vwWindowRuleReapply(void)
 static LRESULT
 popupControlMenu(HWND aHWnd, int cmFlags)
 {
-    HMENU hpopup;
-    POINT pt;
+    vwMenuItem *mi ;
+    HMENU hpopup, moveMenu=NULL ;
+    TCHAR buff[40] ;
+    POINT pt ;
+    int ii, mid=0 ;
     
     if(dialogOpen)
     {
@@ -4308,6 +4453,8 @@ popupControlMenu(HWND aHWnd, int cmFlags)
     {
         MENUITEMINFO minfo ;
         
+        mi = ctlMenuItemList ;
+        insertMenuItems(hpopup,100,&mi,&mid) ;
         AppendMenu(hpopup,MF_STRING,ID_SETUP,_T("&Setup"));
         minfo.cbSize = sizeof(MENUITEMINFO) ;
         minfo.fMask = MIIM_STATE ;
@@ -4315,20 +4462,63 @@ popupControlMenu(HWND aHWnd, int cmFlags)
         SetMenuItemInfo(hpopup,ID_SETUP,FALSE,&minfo) ;
         if(useWindowRules)
         {
+            insertMenuItems(hpopup,200,&mi,&mid) ;
             AppendMenu(hpopup,MF_STRING,ID_WTYPE,_T("&Window Rules")) ;
+            insertMenuItems(hpopup,300,&mi,&mid) ;
             AppendMenu(hpopup,MF_STRING,ID_REAPPLY_RULES,_T("&Re-apply Rules")) ;
         }
     }
+    else
+        mi = NULL ;
+
+    insertMenuItems(hpopup,400,&mi,&mid) ;
     AppendMenu(hpopup,MF_STRING,ID_GATHER,_T("&Gather All"));
+    insertMenuItems(hpopup,500,&mi,&mid) ;
     AppendMenu(hpopup,MF_STRING,ID_HELP,_T("&Help"));
+    insertMenuItems(hpopup,600,&mi,&mid) ;
     AppendMenu(hpopup,MF_STRING,ID_DISABLE,(vwEnabled) ? _T("&Disable") : _T("&Enable"));
+    insertMenuItems(hpopup,1000,&mi,&mid) ;
     AppendMenu(hpopup,MF_SEPARATOR,0,NULL) ;
-    AppendMenu(hpopup,MF_STRING,ID_EXIT,_T("E&xit"));
+    insertMenuItems(hpopup,1100,&mi,&mid) ;
+    AppendMenu(hpopup,MF_STRING,ID_EXIT,_T("E&xit VirtuaWin"));
     if(vwEnabled)
     {
+        insertMenuItems(hpopup,2000,&mi,&mid) ;
         AppendMenu(hpopup,MF_SEPARATOR,0,NULL) ;
-        AppendMenu(hpopup,(deskWrap || (currentDesk < nDesks)) ? MF_STRING:(MF_STRING|MF_GRAYED),ID_FORWARD,_T("&Next"));
-        AppendMenu(hpopup,(deskWrap || (currentDesk > 1)) ? MF_STRING:(MF_STRING|MF_GRAYED),ID_BACKWARD,_T("&Previous"));
+        insertMenuItems(hpopup,2100,&mi,&mid) ;
+        if((cmFlags & 0x01) == 0)
+            moveMenu = hpopup ;
+        else if((moveMenu = CreatePopupMenu()) == NULL)
+        {
+            DestroyMenu(hpopup) ;
+            return FALSE ;
+        }
+        else
+            AppendMenu(hpopup,MF_POPUP,(UINT_PTR) moveMenu,_T("Mo&ve to Desktop"));
+        
+        insertMenuItems(hpopup,2200,&mi,&mid) ;
+        _tcscpy(buff,_T("Move to Desktop & ")) ;
+        for(ii = 1 ; ii <= nDesks ; ii++)
+        {
+            if(ii >= 10)
+                buff[16] = (ii/10)+'0' ;
+            buff[17] = (ii%10)+'0' ;
+            if(desktopName[ii] != NULL)
+            {
+                buff[18] = ':' ;
+                buff[19] = ' ' ;
+                _tcsncpy(buff+20,desktopName[ii],20) ;
+                buff[39] = '\0' ;
+            }
+            else
+                buff[18] = '\0' ;
+            AppendMenu(moveMenu,(ii == currentDesk) ? (MF_STRING|MF_GRAYED):MF_STRING,ID_DESK_N+ii,buff) ;
+        }
+        insertMenuItems(hpopup,3000,&mi,&mid) ;
+        AppendMenu(hpopup,(deskWrap || (currentDesk < nDesks)) ? MF_STRING:(MF_STRING|MF_GRAYED),ID_DESK_NEXT,_T("Move to &Next"));
+        insertMenuItems(hpopup,3100,&mi,&mid) ;
+        AppendMenu(hpopup,(deskWrap || (currentDesk > 1)) ? MF_STRING:(MF_STRING|MF_GRAYED),ID_DESK_PREV,_T("Move to &Previous"));
+        insertMenuItems(hpopup,0xffff,&mi,&mid) ;
     }
     if((cmFlags & 0x010) && hotkeyMenuLoc)
     {
@@ -4338,8 +4528,22 @@ popupControlMenu(HWND aHWnd, int cmFlags)
     else
         GetCursorPos(&pt);
     SetForegroundWindow(aHWnd);
-    switch(TrackPopupMenu(hpopup, TPM_RETURNCMD | TPM_RIGHTBUTTON,
-                          pt.x, pt.y, 0, aHWnd, NULL))
+    ii = TrackPopupMenu(hpopup,TPM_RETURNCMD | TPM_RIGHTBUTTON,pt.x,pt.y,0,aHWnd,NULL) ;
+    PostMessage(aHWnd, 0, 0, 0);	
+    DestroyMenu(hpopup);
+    if((moveMenu != NULL) && (moveMenu != hpopup))
+        DestroyMenu(moveMenu) ;
+    mi = ctlMenuItemList ;
+    while(mi != NULL)
+    {
+        if(mi->submenu != NULL)
+        {
+            DestroyMenu(mi->submenu) ;
+            mi->submenu = NULL ;
+        }
+        mi = mi->next ;
+    }
+    switch(ii)
     {
     case ID_SETUP:		// show setup box
         showSetup();
@@ -4362,17 +4566,152 @@ popupControlMenu(HWND aHWnd, int cmFlags)
     case ID_EXIT:		// exit application
         DestroyWindow(aHWnd);
         break;
-    case ID_FORWARD:	// move to the next desktop
+    case ID_DESK_NEXT:	// move to the next desktop
         stepDelta(1) ;
         break;
-    case ID_BACKWARD:	// move to the previous desktop
+    case ID_DESK_PREV:	// move to the previous desktop
         stepDelta(-1) ;
         break;
+    default:
+        if((ii > ID_DESK_N) && (ii <= (ID_DESK_N + nDesks)))
+            gotoDesk(ii - ID_DESK_N,FALSE) ;
+        else if(vwEnabled)
+        {
+            mi = ctlMenuItemList ;
+            while((mi != NULL) && (mi->id != ii))
+                mi = mi->next ;
+            if(mi != NULL)
+            {
+                vwLogBasic((_T("Module CMenu item %x %d\n"),(int) mi->module,(int) mi->message)) ;
+                PostMessage(mi->module,VW_CMENUITEM,mi->message,0) ;
+            }
+        }
+        break ;
     }
-    PostMessage(aHWnd, 0, 0, 0);	
-    DestroyMenu(hpopup);
-    
     return TRUE ;
+}
+
+static int
+vwHotkeyExecute(vwUByte command, vwUByte desk, vwUByte modifier)
+{
+    HWND hwnd, theWin = NULL ;
+    
+    if(modifier & vwHOTKEY_WIN_MOUSE)
+    {
+        POINT pt;
+        GetCursorPos(&pt);
+        if((theWin = WindowFromPoint(pt)) == NULL)
+            return 0 ;
+        while((GetWindowLong(theWin, GWL_STYLE) & WS_CHILD) && 
+              ((hwnd = GetParent(theWin)) != NULL) && (hwnd != desktopHWnd))
+            theWin = hwnd ;
+    }
+    switch(command)
+    {
+    case vwCMD_NAV_MOVE_LEFT:
+        return stepLeft();
+    case vwCMD_NAV_MOVE_RIGHT:
+        return stepRight();
+    case vwCMD_NAV_MOVE_UP:
+    case vwCMD_NAV_MOVE_DOWN:
+        if((command == vwCMD_NAV_MOVE_UP) ^ (invertY != 0))
+            return stepUp();
+        return stepDown();
+    case vwCMD_NAV_MOVE_PREV:
+        return stepDelta(-1) ;
+    case vwCMD_NAV_MOVE_NEXT:
+        return stepDelta(1) ;
+    case vwCMD_NAV_MOVE_DESKTOP:
+        return gotoDesk(desk,TRUE);
+    case vwCMD_WIN_STICKY:
+        return windowSetSticky(theWin,-1);
+    case vwCMD_WIN_DISMISS:
+        return windowDismiss(theWin);
+    case vwCMD_WIN_MOVE_DESKTOP:
+    case vwCMD_WIN_MOVE_DESK_FOL:
+        return assignWindow(theWin,desk,(vwUByte) (command == vwCMD_WIN_MOVE_DESK_FOL),TRUE,FALSE);
+    case vwCMD_WIN_MOVE_PREV:
+    case vwCMD_WIN_MOVE_PREV_FOL:
+        return assignWindow(theWin,VW_STEPPREV,(vwUByte) (command == vwCMD_WIN_MOVE_PREV_FOL),TRUE,FALSE);
+    case vwCMD_WIN_MOVE_NEXT:
+    case vwCMD_WIN_MOVE_NEXT_FOL:
+        return assignWindow(theWin,VW_STEPNEXT,(vwUByte) (command == vwCMD_WIN_MOVE_NEXT_FOL),TRUE,FALSE);
+    case vwCMD_UI_WINMENU_STD:
+        popupWindowMenu(GetForegroundWindow(),0x10);
+        break ;
+    case vwCMD_UI_WINMENU_CMP:
+        popupWindowMenu(GetForegroundWindow(),0x11);
+        break ;
+    case vwCMD_UI_WINLIST_STD:
+        popupWinListMenu(hWnd,0x14) ;
+        break ;
+    case vwCMD_UI_WINLIST_CMP:
+        popupWinListMenu(hWnd,0x15) ;
+        break ;
+    case vwCMD_UI_WINLIST_MRU:
+        popupWinListMenu(hWnd,0x16) ;
+        break ;
+    case vwCMD_UI_SETUP:
+        showSetup();
+        break ;
+    case vwCMD_WIN_PUSHTOBOTTOM:
+        return windowPushToBottom(theWin) ;
+    case vwCMD_WIN_ALWAYSONTOP:
+        return windowSetAlwaysOnTop(theWin) ;
+    case vwCMD_WIN_GATHER_ALL:
+        vwWindowShowAll(0);
+        break ;
+    case vwCMD_UI_WTYPE_SETUP:
+        showWindowRule(theWin,0) ;
+        break ;
+    case vwCMD_UI_CTLMENU_CMP:
+        return popupControlMenu(hWnd,0x11) ;
+    case vwCMD_WIN_GATHER:
+        windowGather(theWin);
+        break ;
+    case vwCMD_WIN_MOVE_LEFT:
+    case vwCMD_WIN_MOVE_LEFT_FOL:
+        return assignWindow(theWin,VW_STEPLEFT,(vwUByte) (command & 0x01),TRUE,FALSE);
+    case vwCMD_WIN_MOVE_RIGHT:
+    case vwCMD_WIN_MOVE_RIGHT_FOL:
+        return assignWindow(theWin,VW_STEPRIGHT,(vwUByte) (command & 0x01),TRUE,FALSE);
+    case vwCMD_WIN_MOVE_UP:
+    case vwCMD_WIN_MOVE_UP_FOL:
+    case vwCMD_WIN_MOVE_DOWN:
+    case vwCMD_WIN_MOVE_DOWN_FOL:
+        if((command >= vwCMD_WIN_MOVE_DOWN) ^ (invertY == 0))
+            return assignWindow(theWin,VW_STEPUP,(vwUByte) (command & 0x01),TRUE,FALSE);
+        return assignWindow(theWin,VW_STEPDOWN,(vwUByte) (command & 0x01),TRUE,FALSE);
+    case vwCMD_UI_ENABLESTATE:
+        return vwToggleEnabled() ;
+    case vwCMD_NAV_MOVE_LAST:
+        {
+            int nld ; 
+            if(lastDesk == currentDesk)
+                return 0 ;
+            nld = currentDesk ;
+            gotoDesk(lastDesk,FALSE);
+            lastDesk = nld ;
+            break ;
+        }
+    case vwCMD_UI_SYSTRAYICON:
+        taskbarIconShown ^= 0x02 ;
+        vwIconSet(currentDesk,0) ;
+        return (taskbarIconShown & 0x01) ;
+    case vwCMD_UI_EXIT:
+        shutDown() ;
+        break ;
+    case vwCMD_WIN_BRINGTOTOP:
+        if(theWin == NULL)
+            return 0 ;
+        setForegroundWin(theWin,1) ;
+        break ;
+    case vwCMD_UI_CTLMENU_STD:
+        return popupControlMenu(hWnd,0x10) ;
+    default:
+        return 0 ;
+    }
+    return 1 ;
 }
 
 /*************************************************
@@ -4381,15 +4720,13 @@ popupControlMenu(HWND aHWnd, int cmFlags)
 static LRESULT CALLBACK
 wndProc(HWND aHWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    POINT pt;
-    int ii ;
-    
     switch (message)
     {
     case VW_MOUSEWARP:
         // Is virtuawin enabled
         if(vwEnabled)
         {
+            POINT pt;
             GetCursorPos(&pt);
             
             isDragging = (LOWORD(lParam) & 0x1) ;
@@ -4468,127 +4805,16 @@ wndProc(HWND aHWnd, UINT message, WPARAM wParam, LPARAM lParam)
         return TRUE;
         
     case WM_HOTKEY:				// A hot key was pressed
-        ii = hotkeyCount ;
-        while(--ii >= 0)
-            if(hotkeyList[ii].atom == wParam)
-                break ;
-        if(ii < 0)
-            return FALSE ;
-        switch(hotkeyList[ii].command)
         {
-        case vwCMD_NAV_MOVE_LEFT:
-            stepLeft();
-            break ;
-        case vwCMD_NAV_MOVE_RIGHT:
-            stepRight();
-            break ;
-        case vwCMD_NAV_MOVE_UP:
-        case vwCMD_NAV_MOVE_DOWN:
-            if((hotkeyList[ii].command == vwCMD_NAV_MOVE_UP) ^ (invertY != 0))
-                stepUp();
-            else
-                stepDown();
-            break ;
-        case vwCMD_NAV_MOVE_PREV:
-            stepDelta(-1) ;
-            break ;
-        case vwCMD_NAV_MOVE_NEXT:
-            stepDelta(1) ;
-            break ;
-        case vwCMD_NAV_MOVE_DESKTOP:
-            gotoDesk(hotkeyList[ii].desk,TRUE);
-            break ;
-        case vwCMD_WIN_STICKY:
-            windowSetSticky(0,-1);
-            break ;
-        case vwCMD_WIN_DISMISS:
-            windowDismiss(NULL);
-            break ;
-        case vwCMD_WIN_MOVE_DESKTOP:
-        case vwCMD_WIN_MOVE_DESK_FOL:
-            assignWindow(NULL,hotkeyList[ii].desk,(vwUByte) (hotkeyList[ii].command == vwCMD_WIN_MOVE_DESK_FOL),TRUE,FALSE);
-            break ;
-        case vwCMD_WIN_MOVE_PREV:
-        case vwCMD_WIN_MOVE_PREV_FOL:
-            assignWindow(NULL,VW_STEPPREV,(vwUByte) (hotkeyList[ii].command == vwCMD_WIN_MOVE_PREV_FOL),TRUE,FALSE);
-            break ;
-        case vwCMD_WIN_MOVE_NEXT:
-        case vwCMD_WIN_MOVE_NEXT_FOL:
-            assignWindow(NULL,VW_STEPNEXT,(vwUByte) (hotkeyList[ii].command == vwCMD_WIN_MOVE_NEXT_FOL),TRUE,FALSE);
-            break ;
-        case vwCMD_UI_WINMENU_STD:
-            popupWindowMenu(GetForegroundWindow(),0x10);
-            break ;
-        case vwCMD_UI_WINMENU_CMP:
-            popupWindowMenu(GetForegroundWindow(),0x11);
-            break ;
-        case vwCMD_UI_WINLIST_STD:
-            popupWinListMenu(aHWnd,0x14) ;
-            break ;
-        case vwCMD_UI_WINLIST_CMP:
-            popupWinListMenu(aHWnd,0x15) ;
-            break ;
-        case vwCMD_UI_WINLIST_MRU:
-            popupWinListMenu(aHWnd,0x16) ;
-            break ;
-        case vwCMD_UI_SETUP:
-            showSetup();
-            break ;
-        case vwCMD_WIN_PUSHTOBOTTOM:
-            windowPushToBottom(GetForegroundWindow());
-            break ;
-        case vwCMD_WIN_ALWAYSONTOP:
-            windowSetAlwaysOnTop(GetForegroundWindow());
-            break ;
-        case vwCMD_WIN_GATHER_ALL:
-            vwWindowShowAll(0);
-            break ;
-        case vwCMD_UI_WTYPE_SETUP:
-            showWindowRule(NULL,0) ;
-            break ;
-        case vwCMD_UI_CONTROLMENU:
-            return popupControlMenu(aHWnd,0x10) ;
-        case vwCMD_WIN_GATHER:
-            windowGather(NULL);
-            break ;
-        case vwCMD_WIN_MOVE_LEFT:
-        case vwCMD_WIN_MOVE_LEFT_FOL:
-            assignWindow(NULL,VW_STEPLEFT,(vwUByte) (hotkeyList[ii].command & 0x01),TRUE,FALSE);
-            break ;
-        case vwCMD_WIN_MOVE_RIGHT:
-        case vwCMD_WIN_MOVE_RIGHT_FOL:
-            assignWindow(NULL,VW_STEPRIGHT,(vwUByte) (hotkeyList[ii].command & 0x01),TRUE,FALSE);
-            break ;
-        case vwCMD_WIN_MOVE_UP:
-        case vwCMD_WIN_MOVE_UP_FOL:
-        case vwCMD_WIN_MOVE_DOWN:
-        case vwCMD_WIN_MOVE_DOWN_FOL:
-            if((hotkeyList[ii].command >= vwCMD_WIN_MOVE_DOWN) ^ (invertY == 0))
-                assignWindow(NULL,VW_STEPUP,(vwUByte) (hotkeyList[ii].command & 0x01),TRUE,FALSE);
-            else
-                assignWindow(NULL,VW_STEPDOWN,(vwUByte) (hotkeyList[ii].command & 0x01),TRUE,FALSE);
-            break ;
-        case vwCMD_UI_ENABLESTATE:
-            vwToggleEnabled() ;
-            break ;
-        case vwCMD_NAV_MOVE_LAST:
-            if(lastDesk != currentDesk)
-            {
-                ii = currentDesk ;
-                gotoDesk(lastDesk,FALSE);
-                lastDesk = ii ;
-            }
-            break ;
-        case vwCMD_UI_SYSTRAYICON:
-            taskbarIconShown ^= 0x02 ;
-            vwIconSet(currentDesk,0) ;
-            break ;
-        case vwCMD_UI_EXIT:
-            shutDown() ;
-            break ;
+            int ii = hotkeyCount ;
+            while(--ii >= 0)
+                if(hotkeyList[ii].atom == wParam)
+                    break ;
+            if(ii < 0)
+                return FALSE ;
+            vwHotkeyExecute(hotkeyList[ii].command,hotkeyList[ii].desk,hotkeyList[ii].modifier) ;
+            return TRUE ;
         }
-        return TRUE;
-        
         // Plugin messages
     case VW_CHANGEDESK: 
         if(!vwEnabled)
@@ -4668,6 +4894,7 @@ wndProc(HWND aHWnd, UINT message, WPARAM wParam, LPARAM lParam)
         
     case VW_WINGETINFO:
         {
+            int ii ;
             vwWindowBase *win ;
             vwMutexLock();
             if((win = vwWindowBaseFind((HWND)wParam)) == NULL)
@@ -4684,6 +4911,7 @@ wndProc(HWND aHWnd, UINT message, WPARAM wParam, LPARAM lParam)
         
     case VW_FOREGDWIN:
         {
+            int ii ;
             vwWindow *win ;
             vwMutexLock();
             if((win = vwWindowFind((HWND)wParam)) != NULL)
@@ -4737,6 +4965,10 @@ wndProc(HWND aHWnd, UINT message, WPARAM wParam, LPARAM lParam)
             return deskImageCount ;
         else if(wParam == 1)
             return enableDeskImage(lParam) ;
+        else if(wParam == 6)
+            return desktopWorkArea[0][3]-desktopWorkArea[0][1]+1 ;
+        else if(wParam == 7)
+            return desktopWorkArea[0][2]-desktopWorkArea[0][0]+1 ;
         else if(deskImageCount == 0)
             return 0 ;
         else if(wParam == 2)
@@ -4747,6 +4979,8 @@ wndProc(HWND aHWnd, UINT message, WPARAM wParam, LPARAM lParam)
             return deskImageInfo.bmiHeader.biHeight ;
         else if(wParam == 5)
             return deskImageInfo.bmiHeader.biWidth ;
+        else if(wParam == 8)
+            deskImageEnabled = lParam ;
         else
             return 0 ;
         
@@ -4807,6 +5041,35 @@ wndProc(HWND aHWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case VW_WINMANAGE:
         return windowSetManage((HWND)wParam,(int) lParam);
         
+    case VW_HOTKEY:
+        return vwHotkeyExecute((vwUByte) wParam,(vwUByte) LOWORD(lParam),(vwUByte) HIWORD(lParam)) ;
+        
+    case VW_CMENUITEM:
+        {
+            vwMenuItem *mi, *pi, *ni ;
+            vwUShort pos = (vwUShort) lParam ;
+            HWND module = (HWND) wParam ;            
+            
+            pi = NULL ;
+            mi = ctlMenuItemList ;
+            while(mi != NULL)
+            {
+                ni = mi->next ;
+                if((mi->module == module) && ((pos == 0) || (mi->position == pos)))
+                {
+                    if(pi == NULL)
+                        ctlMenuItemList = ni ;
+                    else
+                        pi->next = ni ;
+                    free(mi) ;
+                }
+                else
+                    pi = mi ;
+                mi = ni ;
+            }
+            return TRUE ;
+        }
+        
         // End plugin messages
         
     case WM_CREATE:		       // when main window is created
@@ -4851,7 +5114,7 @@ wndProc(HWND aHWnd, UINT message, WPARAM wParam, LPARAM lParam)
             break;
             
         case WM_RBUTTONUP:		   // Open the control menu
-            return popupControlMenu(aHWnd,0) ;
+            return popupControlMenu(aHWnd,ctlMenuCompact) ;
         }
         return TRUE;
         
@@ -4876,6 +5139,58 @@ wndProc(HWND aHWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_DRAWITEM:
         renderMenuItem((DRAWITEMSTRUCT*)lParam);        
         break;
+    
+    case WM_COPYDATA:
+        if(lParam != 0)
+        {
+            COPYDATASTRUCT *cds = (COPYDATASTRUCT *) lParam ;
+            if(cds->dwData == VW_CMENUITEM)
+            {
+                vwMenuItemMsg *mim ;
+                vwMenuItem *mi, *pi, *ni ;
+                int ii ;
+                
+                if((cds->cbData > 4) && ((mim=cds->lpData) != NULL) &&
+                   ((mi = malloc(sizeof(vwMenuItem))) != NULL))
+                {
+                    mi->module = (HWND) wParam ;
+                    mi->submenu = NULL ;
+                    mi->position = mim->position ;
+                    mi->message = mim->message ;
+                    mi->id = 0 ;
+#ifdef _UNICODE
+                    MultiByteToWideChar(CP_ACP,0,mim->label,-1,mi->label,vwMENU_LABEL_MAX) ;
+#else
+                    strncpy(mi->label,mim->label,vwMENU_LABEL_MAX) ;
+#endif
+                    mi->label[vwMENU_LABEL_MAX-1] = '\0' ;
+                    ii = 0 ;
+                    pi = NULL ;
+                    ni = ctlMenuItemList ;
+                    while(ni != NULL)
+                    {
+                        if(ni->position == mi->position)
+                        {
+                            if(ni->module == mi->module)
+                                ii = 1 ;
+                            else if(ii)
+                                break ;
+                        }
+                        else if(ni->position > mi->position)
+                            break ;
+                        pi = ni ;
+                        ni = ni->next ;
+                    }
+                    mi->next = ni ;
+                    if(pi == NULL)
+                        ctlMenuItemList = mi ;
+                    else
+                        pi->next = mi ;
+                }
+                return TRUE ;
+            }
+        }
+        break ;
     default:
         // If taskbar restarted
         if(message == RM_TaskbarCreated)
@@ -4922,6 +5237,28 @@ vwCrashHandler(int sig)
 }
 
     
+#define WIN64_KEY "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0"
+int
+vwWindowsIs64Bit(void)
+{
+    TCHAR buff[128] ;
+    DWORD size, type;
+    HKEY base_key;
+    int ret=0 ;
+    
+    if(RegOpenKey(HKEY_LOCAL_MACHINE,_T(WIN64_KEY),&base_key) == ERROR_SUCCESS)
+    {
+        size = 128 ;
+        if(RegQueryValueEx(base_key,_T("Identifier"),(LPDWORD) 0,&type,(LPBYTE)&buff,&size) == ERROR_SUCCESS)
+        {
+            if(!_tcsncmp(buff,_T("AMD64"),5) || !_tcsncmp(buff,_T("EM64T"),5) || !_tcsncmp(buff,_T("Intel64"),7))
+                ret = OSVERSION_64BIT ;
+        }
+        RegCloseKey(base_key);
+    }
+    return ret ;
+}
+
 static VOID CALLBACK
 VirtuaWinInitContinue(HWND hwnd, UINT uMsg, UINT idEvent, DWORD dwTime)
 {
@@ -4930,16 +5267,17 @@ VirtuaWinInitContinue(HWND hwnd, UINT uMsg, UINT idEvent, DWORD dwTime)
     
     /* make sure this is not called twice! */
     KillTimer(hWnd,0x29a);
-    vwHookSetup();
-    vwHotkeyRegister(1);
-    vwIconSet(currentDesk,0) ;
-    getScreenSize();
-    getWorkArea();
-    vwTaskbarHandleGet();
     
     /* register message for explorer/systray crash restart (>=IE4) & taskbar window button manipulation */
     RM_TaskbarCreated = RegisterWindowMessage(_T("TaskbarCreated"));
     RM_Shellhook = RegisterWindowMessage(_T("SHELLHOOK"));
+    
+    vwHookSetup();
+    vwHotkeyRegister(1);
+    getScreenSize();
+    getWorkArea();
+    vwTaskbarHandleGet();
+    vwIconSet(currentDesk,0) ;
     
     /* Create the thread responsible for mouse monitoring */   
     mouseThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE) vwMouseProc, NULL, 0, &threadID); 	
@@ -5020,6 +5358,7 @@ VirtuaWinInit(HINSTANCE hInstance, LPSTR cmdLine)
         else
             osVersion = OSVERSION_XP ;
     }
+    osVersion |= vwWindowsIs64Bit() ;
     
     if((libHandle = LoadLibrary(_T("psapi"))) != NULL)
 #ifdef _UNICODE

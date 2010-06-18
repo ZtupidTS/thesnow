@@ -47,7 +47,8 @@
 #define IDC_MALT          1020
 #define IDC_MSHIFT        1021
 #define IDC_MCTRL         1022
-#define IDC_JUMP          1023
+#define IDC_MWIN          1023
+#define IDC_JUMP          1024
 #define IDC_HOTKEY_LIST   1031
 #define IDC_HOTKEY_CMD    1032
 #define IDC_HOTKEY_DSK    1033
@@ -58,7 +59,11 @@
 #define IDC_HOTKEY_DEL    1038
 #define IDC_SLIDERX       1040
 #define IDC_SLIDERY       1041
+#define IDC_MOUSEDRAG     1043
 #define IDC_KEYCONTROL    1044
+#define IDC_NOHIDEMINWIN  1045
+#define IDC_HIDEMINWIN    1046
+#define IDC_HOTKEY_WUM    1047
 #define IDC_MODLIST       1050
 #define IDC_MODCONFIG     1051
 #define IDC_MODRELOAD     1052
@@ -78,9 +83,10 @@
 #define IDC_HOTKEYMENULOC 1066
 #define IDC_COMPACTWLIST  1067
 #define IDC_COMPACTWMENU  1068
-#define IDC_MODDISABLE    1069
-#define IDC_WLUSETTLLN    1070
-#define IDC_LICENSE       1071
+#define IDC_COMPACTCMENU  1069
+#define IDC_MODDISABLE    1070
+#define IDC_WLUSETTLLN    1071
+#define IDC_LICENSE       1072
 #define IDC_DISPLAYICON   1079
 #define IDC_TASKBARDETECT 1080
 #define IDC_USEVWHOOK     1081
@@ -119,6 +125,7 @@
 #define IDC_WTYPE_OK      1222
 #define IDC_WTYPE_APPLY   1223
 #define IDC_WTYPE_HELP    1224
+#define IDC_WTYPE_ALONTOP 1225
 
 
 #define ID_SETUP         32771   
@@ -128,8 +135,6 @@
 #define ID_HELP          32775
 #define ID_DISABLE       32776
 #define ID_EXIT          32777
-#define ID_FORWARD       32778
-#define ID_BACKWARD      32779
 
 #define ID_WM_DISMISS    32780
 #define ID_WM_ONTOP      32781
@@ -140,8 +145,9 @@
 #define ID_WM_AWTYPE     32786
 #define ID_WM_EWTYPE     32787
 #define ID_WM_INFO       32788
-#define ID_WM_PREV       32789
-#define ID_WM_NEXT       32790
-#define ID_WM_DESK       32791
+
+#define ID_DESK_PREV     32789
+#define ID_DESK_NEXT     32790
+#define ID_DESK_N        32791
 
 #endif

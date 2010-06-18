@@ -2,7 +2,7 @@
 //  VirtuaWin - Virtual Desktop Manager (virtuawin.sourceforge.net)
 //  WinRuleDialog.c - Window Rule Dialog routines.
 // 
-//  Copyright (c) 2007-2009 VirtuaWin (VirtuaWin@home.se)
+//  Copyright (c) 2007-2010 VirtuaWin (VirtuaWin@home.se)
 // 
 //  This program is free software; you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License as published by
@@ -142,12 +142,15 @@ windowRuleDialogInitItem(HWND hDlg)
                         _tcscpy(buff,wt->name[ii]) ;
                     if(wt->flags & (2 << (ii << 1)))
                         _tcscat(buff,_T("*")) ;
+                    if(buff[0] == '\0')
+                        _tcscpy(buff,vwWTNAME_NONE);
                 }
                 SetDlgItemText(hDlg,wtypeNameEntry[ii],buff) ;
             } while(--ii >= 0) ;
             EnableWindow(GetDlgItem(hDlg,IDC_WTYPE_MOD),TRUE) ;
             EnableWindow(GetDlgItem(hDlg,IDC_WTYPE_DEL),TRUE) ;
             SendDlgItemMessage(hDlg,IDC_WTYPE_ENABLE,BM_SETCHECK,((wt->flags & vwWTFLAGS_ENABLED) != 0), 0);
+            SendDlgItemMessage(hDlg,IDC_WTYPE_ALONTOP,BM_SETCHECK,((wt->flags & vwWTFLAGS_ALWAYSONTOP) != 0), 0);
             SendDlgItemMessage(hDlg,IDC_WTYPE_NMANAGE,BM_SETCHECK,((wt->flags & vwWTFLAGS_DONT_MANAGE) != 0), 0);
             SendDlgItemMessage(hDlg,IDC_WTYPE_AMANAGE,BM_SETCHECK,((wt->flags & vwWTFLAGS_MANAGE) != 0), 0);
             SendDlgItemMessage(hDlg,IDC_WTYPE_VMANAGE,BM_SETCHECK,((wt->flags & (vwWTFLAGS_DONT_MANAGE|vwWTFLAGS_MANAGE)) == 0), 0);
@@ -227,6 +230,8 @@ windowRuleDialogInit(HWND hDlg, int firstTime)
         SetDlgItemText(hDlg,wtypeNameEntry[0],buff) ;
         buff[0] = 0 ;
         GetWindowText(initWin,buff,MAX_PATH);
+        if(buff[0] == 0)
+            _tcscpy(buff,vwWTNAME_NONE);
         SetDlgItemText(hDlg,wtypeNameEntry[1],buff) ;
         buff[0] = 0 ;
         if((vwGetModuleFileNameEx != NULL) &&
@@ -386,6 +391,8 @@ windowRuleDialogAddMod(HWND hDlg, int add)
             ss = buff ;
             if(ss[0] != '\0')
             {
+                if(!_tcscmp(buff,vwWTNAME_NONE))
+                    ss[0] = '\0' ;
                 if(ss[0] == '*')
                 {
                     flags |= 1 << (ii << 1) ;
@@ -420,6 +427,8 @@ windowRuleDialogAddMod(HWND hDlg, int add)
         } while(--ii >= 0) ;
         if(SendDlgItemMessage(hDlg,IDC_WTYPE_ENABLE,BM_GETCHECK,0,0) == BST_CHECKED)
             flags |= vwWTFLAGS_ENABLED ;
+        if(SendDlgItemMessage(hDlg,IDC_WTYPE_ALONTOP,BM_GETCHECK,0,0) == BST_CHECKED)
+            flags |= vwWTFLAGS_ALWAYSONTOP ;
         if(SendDlgItemMessage(hDlg,IDC_WTYPE_NMANAGE,BM_GETCHECK,0,0) == BST_CHECKED)
             flags |= vwWTFLAGS_DONT_MANAGE ;
         else if(SendDlgItemMessage(hDlg,IDC_WTYPE_AMANAGE,BM_GETCHECK,0,0) == BST_CHECKED)

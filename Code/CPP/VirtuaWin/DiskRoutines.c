@@ -3,7 +3,7 @@
 //  DiskRoutines.c - File reading an writing routines.
 //
 //  Copyright (c) 1999-2005 Johan Piculell
-//  Copyright (c) 2006-2009 VirtuaWin (VirtuaWin@home.se)
+//  Copyright (c) 2006-2010 VirtuaWin (VirtuaWin@home.se)
 //
 //  This program is free software; you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License as published by
@@ -208,7 +208,7 @@ GetFilename(eFileNames filetype, int location, TCHAR *outStr)
  * Loads module names that should be disabled
  */
 int
-loadDisabledModules(disModules *theDisList)
+loadDisabledModules(vwDisModule *theDisList)
 {
     TCHAR buff[MAX_PATH];
     int len, nOfDisMod = 0;
@@ -240,7 +240,7 @@ loadDisabledModules(disModules *theDisList)
  * Write out the disabled modules
  */
 void
-saveDisabledList(int theNOfModules, moduleType* theModList)
+saveDisabledList(int theNOfModules, vwModule *theModList)
 {
     TCHAR DisabledFileList[MAX_PATH];
     FILE* fp;
@@ -741,6 +741,9 @@ loadVirtuawinConfig(void)
         vwConfigReadInt(fp,buff,ii,vwHookUse);
         vwConfigReadInt(fp,buff,ii,useDskChgModRelease);
         vwConfigReadInt(fp,buff,ii,initialDesktop);
+        vwConfigReadInt(fp,buff,ii,lastDeskNoDelay);
+        vwConfigReadInt(fp,buff,ii,minWinHide);
+        vwConfigReadInt(fp,buff,ii,ctlMenuCompact);
     }
     else
     {
@@ -799,7 +802,7 @@ saveVirtuawinConfig(void)
         fprintf(fp, "releaseFocus# %d\n", releaseFocus);
         fprintf(fp, "refreshOnWarp# %d\n", refreshOnWarp);
         fprintf(fp, "invertY# %d\n", invertY);
-        fprintf(fp, "noTaskbarCheck# %d\n", noTaskbarCheck);
+        fprintf(fp, "noTaskbarCheck# %d\n", noTaskbarCheck & 0x01);
         fprintf(fp, "displayTaskbarIcon# %d\n", displayTaskbarIcon);
         fprintf(fp, "logFlag# %d\n", vwLogFlag);
         fprintf(fp, "winMenuCompact# %d\n", winMenuCompact);
@@ -808,6 +811,9 @@ saveVirtuawinConfig(void)
         fprintf(fp, "vwHookUse# %d\n", vwHookUse);
         fprintf(fp, "useDskChgModRelease# %d\n", useDskChgModRelease);
         fprintf(fp, "initialDesktop# %d\n", initialDesktop);
+        fprintf(fp, "lastDeskNoDelay# %d\n", lastDeskNoDelay);
+        fprintf(fp, "minWinHide# %d\n", minWinHide);
+        fprintf(fp, "ctlMenuCompact# %d\n", ctlMenuCompact);
         fclose(fp);
     }
 }

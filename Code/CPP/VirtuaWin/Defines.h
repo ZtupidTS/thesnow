@@ -3,7 +3,7 @@
 //  ConfigParameters.h - Constant definitions used.
 // 
 //  Copyright (c) 1999-2005 Johan Piculell
-//  Copyright (c) 2006-2009 VirtuaWin (VirtuaWin@home.se)
+//  Copyright (c) 2006-2010 VirtuaWin (VirtuaWin@home.se)
 // 
 //  This program is free software; you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@
 #define vwVIRTUAWIN_NAME         _T("VirtuaWin")
 #define vwVIRTUAWIN_CLASSNAME    _T("VirtuaWinMainClass")
 #define vwVIRTUAWIN_EMAIL        _T("VirtuaWin@home.se")
-#define vwVIRTUAWIN_NAME_VERSION _T("VirtuaWin v4.1")
+#define vwVIRTUAWIN_NAME_VERSION _T("VirtuaWin v4.2")
 #define vwVIRTUAWIN_WEBSITE      _T("http://virtuawin.sourceforge.net/")
 #define vwVIRTUAWIN_MODULES_URL  vwVIRTUAWIN_WEBSITE _T("modules.php")
 
@@ -54,6 +54,7 @@ typedef unsigned int   vwUInt ;
 typedef unsigned short vwUShort ;
 typedef unsigned char  vwUByte ;
 
+#define vwWTNAME_NONE              _T("<None>")
 #define vwWTNAME_COUNT             3
 #define vwWTFLAGS_CN_SVAR          0x00000001
 #define vwWTFLAGS_CN_EVAR          0x00000002
@@ -61,6 +62,7 @@ typedef unsigned char  vwUByte ;
 #define vwWTFLAGS_WN_EVAR          0x00000008
 #define vwWTFLAGS_PN_SVAR          0x00000010
 #define vwWTFLAGS_PN_EVAR          0x00000020
+#define vwWTFLAGS_ALWAYSONTOP      0x00000100
 #define vwWTFLAGS_MANAGE           0x00000200
 #define vwWTFLAGS_DONT_MANAGE      0x00000400
 #define vwWTFLAGS_ENABLED          0x00000800
@@ -152,14 +154,14 @@ typedef struct {
     HWND      handle;
     TCHAR     description[vwMODULENAME_MAX+1];
     vwUByte   disabled;
-} moduleType;
+} vwModule ;
 
 /* Holds disabled modules */
 typedef struct {
     TCHAR     moduleName[vwMODULENAME_MAX+1];
-} disModules;
+} vwDisModule ;
 
-/* vwMenuItem - Structure used by the window list menu */
+/* vwListItem - Structure used by the window list menu */
 typedef struct {
     TCHAR    *name;
     HICON     icon; 
@@ -167,14 +169,16 @@ typedef struct {
     vwUShort  id;
     vwUByte   desk;
     vwUByte   sticky;
-} vwMenuItem ;
+} vwListItem ;
 
 /* vwHotkey - Structure to store a hotkey binding */
-#define vwHOTKEY_ALT     MOD_ALT
-#define vwHOTKEY_CONTROL MOD_CONTROL
-#define vwHOTKEY_SHIFT   MOD_SHIFT
-#define vwHOTKEY_WIN     MOD_WIN
-#define vwHOTKEY_EXT     0x10
+#define vwHOTKEY_ALT       MOD_ALT
+#define vwHOTKEY_CONTROL   MOD_CONTROL
+#define vwHOTKEY_SHIFT     MOD_SHIFT
+#define vwHOTKEY_WIN       MOD_WIN
+#define vwHOTKEY_MOD_MASK  (MOD_ALT|MOD_CONTROL|MOD_SHIFT|MOD_WIN)
+#define vwHOTKEY_EXT       0x10
+#define vwHOTKEY_WIN_MOUSE 0x20
 
 typedef struct {
     ATOM     atom ;
@@ -183,5 +187,23 @@ typedef struct {
     vwUByte  command ;
     vwUByte  desk ;
 } vwHotkey ;
+
+#define vwMENU_LABEL_MAX 40
+
+typedef struct vwMenuItem {
+    struct vwMenuItem *next ;
+    HWND               module ;
+    HMENU              submenu ;          
+    vwUShort           position ;
+    vwUShort           message ;
+    vwUShort           id ;
+    TCHAR              label[vwMENU_LABEL_MAX] ;
+} vwMenuItem ;
+
+typedef struct {
+    vwUShort position ;
+    vwUShort message ;
+    char     label[vwMENU_LABEL_MAX] ;
+} vwMenuItemMsg ;
 
 #endif

@@ -1,4 +1,4 @@
-VWDesktopIcons v1.1 - Steven Phillips
+VWDesktopIcons v1.3 - Steven Phillips
 
 Description:
 
@@ -56,10 +56,14 @@ Copyright:
 VWDesktopIcons is a freely distributed program and is licensed under the GNU
 General Public License.
 
-Copyright (c) 2007-2009 VirtuaWin (virtuawin@home.se)
+Copyright (c) 2006-2010 VirtuaWin (virtuawin@home.se)
 
 
 HISTORY
+
+Ver 1.3 - 2010/03/15
+
+* Implemented windows 64bit support
 
 Ver 1.2 - 2008/06/03
 

@@ -3,7 +3,7 @@
 //  ConfigParameters.h - Declaration of configured variables
 // 
 //  Copyright (c) 1999-2005 Johan Piculell
-//  Copyright (c) 2006-2009 VirtuaWin (VirtuaWin@home.se)
+//  Copyright (c) 2006-2010 VirtuaWin (VirtuaWin@home.se)
 // 
 //  This program is free software; you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License as published by
@@ -53,6 +53,7 @@ extern vwUByte taskButtonAct;	   // Hidden window but visible task button activa
 extern vwUByte releaseFocus;       // release focus on switch
 extern vwUByte refreshOnWarp;      // if we should refresh desktop after switch
 extern vwUByte initialDesktop;     // The desktop to start on, usually 1
+extern vwUByte lastDeskNoDelay;    // Don't wait a second before updating lastDesk
 extern vwUByte deskWrap;           // If we want to have desktop cycling
 extern vwUByte invertY;            // if up/down should be inverted
 extern vwUByte displayTaskbarIcon; // Should we display the systray icon
@@ -63,7 +64,9 @@ extern vwUByte useDskChgModRelease;// Use automatic desktop change modifier rele
 extern vwUByte winListContent;     // Required content of the winodw list menu
 extern vwUByte winListCompact;     // if window list menu should be compact
 extern vwUByte winMenuCompact;     // if current window menu should be compact
+extern vwUByte ctlMenuCompact;     // if control menu should be compact
 extern vwUByte hotkeyMenuLoc;      // Location to use if menu/list is opened via a hotkey
+extern vwUByte minWinHide;         // Flag to determine how to hide minimized windows
 extern vwUByte vwHookUse;          // Use vwHook to resolve activate issues
 
 extern TCHAR *desktopName[vwDESKTOP_SIZE];

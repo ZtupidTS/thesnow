@@ -1,5 +1,5 @@
 &[c -!- jst -!-]
-&[c Copyright: 2008-2009 VirtuaWin]
+&[c Copyright: 2008-2010 VirtuaWin]
 &[c Created:   2008-04-10 18:34:39]
 &[vns author "Steven Phillips"]
 
@@ -9,7 +9,7 @@ The Window Rules dialog can be opened by:
 
 *.  Selecting **//Window Rules//** in the &[l VirtuaWin_ControlMenu.htm]Control Menu&[/l].
 
-.   Binding the **//UI: Open window rule setup//** command to a Hotkey and pressing this Hotkey.
+.   Binding the **//UI: Open window rule setup//** command to a hotkey and pressing this hotkey.
 
 .   Selecting **//Add Window Rule//** or **//Edit Window Rule//** in the &[l VirtuaWin_WindowMenu.htm]Window Menu&[/l].
 
@@ -90,8 +90,14 @@ identification, particularly the Window Name.
 side effects; VirtuaWin handles most windows correctly so only change settings
 which directly address a problem.
 
+*.  &[a WRD_MWAOT]**//Make windows of this type always on top//**: If checked
+    any window of this type will have their Window's 'Always on top' property
+    set which keeps the window above other windows.
+    
+    **Note:** This option is applied regardless of whether VirtuaWin is
+    configured to manage the window - see next option.
 
-*.  &[a WRD_MWOTT]**//Manage windows of this type//**: Three radio buttons give the options to Never
+.   &[a WRD_MWOTT]**//Manage windows of this type//**: Three radio buttons give the options to Never
     manage, Always manage or Let VirtuaWin decide (default).
 
 .   &[a WRD_MWOMTB]**//Main window of multiple taskbar buttons//**: If checked the window is flagged
