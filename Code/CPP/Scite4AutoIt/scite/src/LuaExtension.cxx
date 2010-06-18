@@ -264,7 +264,7 @@ static int cf_scite_constname(lua_State *L) {
 
 static int cf_scite_open(lua_State *L) {
 	const char *s = luaL_checkstring(L, 1);
-	if (s) {
+	if (s){
 		SString cmd = "open:";
 		cmd += s;
 		cmd.substitute("\\", "\\\\");
@@ -308,7 +308,7 @@ static ExtensionAPI::Pane check_pane_object(lua_State *L, int index) {
 	if (index == 1)
 		lua_pushliteral(L, "Self object is missing in pane method or property access.");
 	else if (index == lua_upvalueindex(1))
-		lua_pushliteral(L, "Internal error: pane object expected in closure.");
+		lua_pushliteral(L, "内部错误: pane object expected in closure.");
 	else
 		lua_pushliteral(L, "Pane object expected.");
 

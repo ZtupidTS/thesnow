@@ -30,13 +30,7 @@
 
 #else
 
-#ifdef __BORLANDC__
-// Borland includes Windows.h for STL and defaults to different API number
-#ifdef _WIN32_WINNT
 #undef _WIN32_WINNT
-#endif
-#endif
-
 #define _WIN32_WINNT  0x0500
 #ifdef _MSC_VER
 // windows.h, et al, use a lot of nameless struct/unions - can't fix it, so allow it
@@ -4197,7 +4191,7 @@ void SciTEBase::PerformOne(char *action) {
 			FilePath dirTarget(GUI::StringFromUTF8(arg));
 			if (!dirTarget.SetWorkingDirectory()) {
 //				GUI::gui_string msg = LocaliseMessage("Invalid directory '^0'.", dirTarget.AsInternal());
-				GUI::gui_string msg = LocaliseMessage(L"无效的目录 '^0'.", dirTarget.AsInternal());
+				GUI::gui_string msg = LocaliseMessage(L"无效目录 '^0'.", dirTarget.AsInternal());
 				WindowMessageBox(wSciTE, msg, MB_OK | MB_ICONWARNING);
 			}
 		} else if (isprefix(action, "enumproperties:")) {
