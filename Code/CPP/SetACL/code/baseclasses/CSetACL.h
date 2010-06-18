@@ -156,6 +156,7 @@
 #define RTN_ERR_IGNORED						44			//	An error occured, but it was ignored
 #define RTN_ERR_CREATE_SD					45			//	The creation of an SD failed
 #define RTN_ERR_OUT_OF_MEMORY				46			//	Memory allocation failed
+#define RTN_ERR_NO_ACTN_SPECIFIED		47			// No action specified - nothing to do
 
 // For inheritance from the parent
 #define INHPARNOCHANGE						0			// Do not change settings

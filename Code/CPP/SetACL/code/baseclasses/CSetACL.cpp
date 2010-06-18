@@ -768,6 +768,12 @@ DWORD CSetACL::Run ()
 		//
 		// Perform requested action(s)
 		//
+		// But first check if there IS an action
+		if (m_nAction == 0)
+		{
+			throw (DWORD) RTN_ERR_NO_ACTN_SPECIFIED;
+		}
+
 		if (m_nAction & ACTN_RESTORE)
 		{
 			// Do the work

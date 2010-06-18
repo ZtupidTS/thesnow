@@ -49,6 +49,9 @@
 #define RTN_ERR_GETSDCONTROL            45
 #define RTN_ERR_CREATE_SD               45
 #define IDS_STRINGRTN_ERR_OUT_OF_MEMORY 46
+#define RTN_ERR_OUT_OF_MEMORY           46
+#define IDS_STRING47                    47
+#define RTN_ERR_NO_ACTN_SPECIFIED       47
 
 // Next default values for new objects
 // 
