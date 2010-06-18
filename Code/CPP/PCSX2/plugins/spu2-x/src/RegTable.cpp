@@ -1,6 +1,6 @@
 /* SPU2-X, A plugin for Emulating the Sound Processing Unit of the Playstation 2
  * Developed and maintained by the Pcsx2 Development Team.
- * 
+ *
  * Original portions from SPU2ghz are (c) 2008 by David Quintana [gigaherz]
  *
  * SPU2-X is free software: you can redistribute it and/or modify it under the terms
@@ -48,7 +48,9 @@
 	PCORE(c,Revb.n)+1, \
 	PCORE(c,Revb.n)
 
-u16* regtable[0x401] =
+u16* regtable[0x401];
+
+u16 const* const regtable_original[0x401] =
 {
 	// Voice Params: 8 params, 24 voices = 0x180 bytes
 	PVC(0, 0),PVC(0, 1),PVC(0, 2),PVC(0, 3),PVC(0, 4),PVC(0, 5),
@@ -81,7 +83,7 @@ u16* regtable[0x401] =
 	PCORE(0,TSA)+1,
 	PCORE(0,TSA),
 
-	PRAW(REG__1AC), PRAW(REG__1AE), 
+	PRAW(REG__1AC), PRAW(REG__1AE),
 
 	PCORE(0,AutoDMACtrl),
 
@@ -100,8 +102,8 @@ u16* regtable[0x401] =
 	PREVB_REG(0,FB_SRC_B),
 	PREVB_REG(0,IIR_SRC_A0),
 	PREVB_REG(0,IIR_SRC_A1),
-	PREVB_REG(0,IIR_SRC_B1),
 	PREVB_REG(0,IIR_SRC_B0),
+	PREVB_REG(0,IIR_SRC_B1),
 	PREVB_REG(0,IIR_DEST_A0),
 	PREVB_REG(0,IIR_DEST_A1),
 	PREVB_REG(0,IIR_DEST_B0),
@@ -184,7 +186,7 @@ u16* regtable[0x401] =
 	PCORE(1,TSA)+1,
 	PCORE(1,TSA),
 
-	PRAW(0x5ac), PRAW(0x5ae), 
+	PRAW(0x5ac), PRAW(0x5ae),
 
 	PCORE(1,AutoDMACtrl),
 
@@ -203,8 +205,8 @@ u16* regtable[0x401] =
 	PREVB_REG(1,FB_SRC_B),
 	PREVB_REG(1,IIR_SRC_A0),
 	PREVB_REG(1,IIR_SRC_A1),
-	PREVB_REG(1,IIR_SRC_B1),
 	PREVB_REG(1,IIR_SRC_B0),
+	PREVB_REG(1,IIR_SRC_B1),
 	PREVB_REG(1,IIR_DEST_A0),
 	PREVB_REG(1,IIR_DEST_A1),
 	PREVB_REG(1,IIR_DEST_B0),

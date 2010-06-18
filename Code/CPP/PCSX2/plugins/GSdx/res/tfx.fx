@@ -1,3 +1,4 @@
+#ifdef SHADER_MODEL // make safe to include in resource file to enforce dependency
 #define FMT_32 0
 #define FMT_24 1
 #define FMT_16 2
@@ -34,6 +35,7 @@
 #define PS_AOUT 0
 #define PS_LTF 1
 #define PS_COLCLIP 0
+#define PS_DATE 0
 #endif
 
 struct VS_INPUT
@@ -50,6 +52,9 @@ struct VS_OUTPUT
 {
 	float4 p : SV_Position;
 	float4 t : TEXCOORD0;
+#if VS_RTCOPY
+	float4 tp : TEXCOORD1;
+#endif
 	float4 c : COLOR0;
 };
 
@@ -57,6 +62,9 @@ struct PS_INPUT
 {
 	float4 p : SV_Position;
 	float4 t : TEXCOORD0;
+#if PS_DATE > 0
+	float4 tp : TEXCOORD1;
+#endif
 	float4 c : COLOR0;
 };
 
@@ -68,8 +76,10 @@ struct PS_OUTPUT
 
 Texture2D<float4> Texture : register(t0);
 Texture2D<float4> Palette : register(t1);
+Texture2D<float4> RTCopy : register(t2);
 SamplerState TextureSampler : register(s0);
 SamplerState PaletteSampler : register(s1);
+SamplerState RTCopySampler : register(s2);
 
 cbuffer cb0
 {
@@ -100,6 +110,11 @@ float4 sample_p(float u)
 	return Palette.Sample(PaletteSampler, u);
 }
 
+float4 sample_rt(float2 uv)
+{
+	return RTCopy.Sample(RTCopySampler, uv);
+}
+
 #elif SHADER_MODEL <= 0x300
 
 #ifndef VS_BPPZ
@@ -123,6 +138,7 @@ float4 sample_p(float u)
 #define PS_RT 0
 #define PS_LTF 0
 #define PS_COLCLIP 0
+#define PS_DATE 0
 #endif
 
 struct VS_INPUT
@@ -137,19 +153,26 @@ struct VS_OUTPUT
 {
 	float4 p : POSITION;
 	float4 t : TEXCOORD0;
+#if VS_RTCOPY
+	float4 tp : TEXCOORD1;
+#endif
 	float4 c : COLOR0;
 };
 
 struct PS_INPUT
 {
 	float4 t : TEXCOORD0;
+#if PS_DATE > 0
+	float4 tp : TEXCOORD1;
+#endif
 	float4 c : COLOR0;
 };
 
 sampler Texture : register(s0);
 sampler Palette : register(s1);
-sampler1D UMSKFIX : register(s2);
-sampler1D VMSKFIX : register(s3);
+sampler RTCopy : register(s2);
+sampler1D UMSKFIX : register(s3);
+sampler1D VMSKFIX : register(s4);
 
 float4 vs_params[3];
 
@@ -175,6 +198,11 @@ float4 sample_c(float2 uv)
 float4 sample_p(float u)
 {
 	return tex2D(Palette, u);
+}
+
+float4 sample_rt(float2 uv)
+{
+	return tex2D(RTCopy, uv);
 }
 
 #endif
@@ -457,6 +485,23 @@ float4 tfx(float4 t, float4 c)
 	return saturate(c);
 }
 
+void datst(PS_INPUT input)
+{
+#if PS_DATE > 0
+	float alpha = sample_rt(input.tp.xy).a;
+#if SHADER_MODEL >= 0x400
+	float alpha0x80 = 128. / 255;
+#else
+	float alpha0x80 = 1;
+#endif
+
+	if (PS_DATE == 1 && alpha >= alpha0x80)
+		discard;
+	else if (PS_DATE == 2 && alpha < alpha0x80)
+		discard;
+#endif
+}
+
 void atst(float4 c)
 {
 	float a = trunc(c.a * 255);
@@ -499,10 +544,12 @@ float4 fog(float4 c, float f)
 
 float4 ps_color(PS_INPUT input)
 {
+	datst(input);
+
 	float4 t = sample(input.t.xy, input.t.w);
 
 	float4 c = tfx(t, input.c);
-	
+
 	atst(c);
 
 	c = fog(c, input.t.z);
@@ -547,7 +594,10 @@ VS_OUTPUT vs_main(VS_INPUT input)
 	float4 p = float4(input.p, input.z, 0) - float4(0.05f, 0.05f, 0, 0); 
 
 	output.p = p * VertexScale - VertexOffset;
-	
+#if VS_RTCOPY
+	output.tp = (p * VertexScale - VertexOffset) * float4(0.5, -0.5, 0, 0) + 0.5;
+#endif
+
 	if(VS_TME)
 	{
 		if(VS_FST)
@@ -686,6 +736,9 @@ VS_OUTPUT vs_main(VS_INPUT input)
 	float4 p = input.p - float4(0.05f, 0.05f, 0, 0);
 
 	output.p = p * VertexScale - VertexOffset;
+#if VS_RTCOPY
+	output.tp = (p * VertexScale - VertexOffset) * float4(0.5, -0.5, 0, 0) + 0.5;
+#endif
 
 	if(VS_LOGZ)
 	{
@@ -726,4 +779,5 @@ float4 ps_main(PS_INPUT input) : COLOR
 	return c;
 }
 
+#endif
 #endif

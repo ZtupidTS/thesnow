@@ -15,11 +15,11 @@ void SysMessage(char *fmt, ...) {
 	va_start(list,fmt);
 	vsprintf(tmp,fmt,list);
 	va_end(list);
-	MessageBox(GetActiveWindow(), tmp, "FW ²å¼þÏûÏ¢", MB_SETFOREGROUND | MB_OK);
+	MessageBox(GetActiveWindow(), tmp, "FW Plugin Msg", MB_SETFOREGROUND | MB_OK);
 }
 
 BOOL CALLBACK ConfigureDlgProc(HWND hW, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-    
+
 	switch(uMsg) {
 		case WM_INITDIALOG:
 			LoadConfig();
@@ -61,19 +61,19 @@ BOOL CALLBACK AboutDlgProc(HWND hW, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 void CALLBACK FWconfigure() {
     DialogBox(hInst,
               MAKEINTRESOURCE(IDD_CONFIG),
-              GetActiveWindow(),  
-              (DLGPROC)ConfigureDlgProc); 
+              GetActiveWindow(),
+              (DLGPROC)ConfigureDlgProc);
 }
 
 void CALLBACK FWabout() {
     DialogBox(hInst,
               MAKEINTRESOURCE(IDD_ABOUT),
-              GetActiveWindow(),  
+              GetActiveWindow(),
               (DLGPROC)AboutDlgProc);
 }
 
 BOOL APIENTRY DllMain(HANDLE hModule,                  // DLL INIT
-                      DWORD  dwReason, 
+                      DWORD  dwReason,
                       LPVOID lpReserved) {
 	hInst = (HINSTANCE)hModule;
 	return TRUE;                                          // very quick :)

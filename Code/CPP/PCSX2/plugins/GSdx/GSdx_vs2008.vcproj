@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="windows-1250"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="9.00"
+	Version="9,00"
 	Name="GSdx"
 	ProjectGUID="{18E42F6F-3A62-41EE-B42F-79366C4F1E95}"
 	RootNamespace="GSdx"
@@ -85,6 +85,8 @@
 		</Configuration>
 		<Configuration
 			Name="Debug SSE2|x64"
+			OutputDirectory="$(SolutionDir)$(PlatformName)\$(ConfigurationName)"
+			IntermediateDirectory="$(PlatformName)\$(ConfigurationName)"
 			ConfigurationType="2"
 			InheritedPropertySheets=".\vsprops\common.vsprops;.\vsprops\debug.vsprops;..\..\common\vsprops\pthreads.vsprops"
 			UseOfMFC="1"
@@ -185,7 +187,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalLibraryDirectories="&quot;$(SvnRootDir)\deps\$(PlatformName)\Release&quot;;&quot;$(SvnRootDir)\3rdparty\Lib\&quot;"
+				AdditionalLibraryDirectories="&quot;$(SvnRootDir)\deps\$(PlatformName)\Release&quot;"
 				ModuleDefinitionFile=".\GSdx.def"
 				TargetMachine="1"
 			/>
@@ -213,6 +215,8 @@
 		</Configuration>
 		<Configuration
 			Name="Release SSE2|x64"
+			OutputDirectory="$(SolutionDir)$(PlatformName)\$(ConfigurationName)"
+			IntermediateDirectory="$(PlatformName)\$(ConfigurationName)"
 			ConfigurationType="2"
 			InheritedPropertySheets=".\vsprops\common.vsprops;.\vsprops\release.vsprops;..\..\common\vsprops\pthreads.vsprops"
 			UseOfMFC="1"
@@ -249,7 +253,6 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalLibraryDirectories="&quot;$(SvnRootDir)\3rdparty\Lib.x64\&quot;"
 				DataExecutionPrevention="0"
 				TargetMachine="17"
 			/>
@@ -313,7 +316,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalLibraryDirectories="&quot;$(SvnRootDir)\deps\$(PlatformName)\Release&quot;;&quot;$(SvnRootDir)\3rdparty\Lib\&quot;"
+				AdditionalLibraryDirectories="&quot;$(SvnRootDir)\deps\$(PlatformName)\Release&quot;"
 				ModuleDefinitionFile=".\GSdx.def"
 				TargetMachine="1"
 			/>
@@ -341,6 +344,8 @@
 		</Configuration>
 		<Configuration
 			Name="Release SSSE3|x64"
+			OutputDirectory="$(SolutionDir)$(PlatformName)\$(ConfigurationName)"
+			IntermediateDirectory="$(PlatformName)\$(ConfigurationName)"
 			ConfigurationType="2"
 			InheritedPropertySheets=".\vsprops\common.vsprops;.\vsprops\release.vsprops;.\vsprops\ssse3.vsprops;..\..\common\vsprops\pthreads.vsprops"
 			UseOfMFC="1"
@@ -468,6 +473,8 @@
 		</Configuration>
 		<Configuration
 			Name="Debug SSSE3|x64"
+			OutputDirectory="$(SolutionDir)$(PlatformName)\$(ConfigurationName)"
+			IntermediateDirectory="$(PlatformName)\$(ConfigurationName)"
 			ConfigurationType="2"
 			InheritedPropertySheets=".\vsprops\common.vsprops;.\vsprops\debug.vsprops;.\vsprops\ssse3.vsprops;..\..\common\vsprops\pthreads.vsprops"
 			UseOfMFC="1"
@@ -594,6 +601,8 @@
 		</Configuration>
 		<Configuration
 			Name="Debug SSE4|x64"
+			OutputDirectory="$(SolutionDir)$(PlatformName)\$(ConfigurationName)"
+			IntermediateDirectory="$(PlatformName)\$(ConfigurationName)"
 			ConfigurationType="2"
 			InheritedPropertySheets=".\vsprops\common.vsprops;.\vsprops\debug.vsprops;.\vsprops\sse4.vsprops;..\..\common\vsprops\pthreads.vsprops"
 			UseOfMFC="1"
@@ -693,7 +702,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalLibraryDirectories="&quot;$(SvnRootDir)\deps\$(PlatformName)\Release&quot;;&quot;$(SvnRootDir)\3rdparty\Lib\&quot;"
+				AdditionalLibraryDirectories="&quot;$(SvnRootDir)\deps\$(PlatformName)\Release&quot;"
 				ModuleDefinitionFile=".\GSdx.def"
 				TargetMachine="1"
 			/>
@@ -721,6 +730,8 @@
 		</Configuration>
 		<Configuration
 			Name="Release SSE4|x64"
+			OutputDirectory="$(SolutionDir)$(PlatformName)\$(ConfigurationName)"
+			IntermediateDirectory="$(PlatformName)\$(ConfigurationName)"
 			ConfigurationType="2"
 			InheritedPropertySheets=".\vsprops\common.vsprops;.\vsprops\release.vsprops;.\vsprops\sse4.vsprops;..\..\common\vsprops\pthreads.vsprops"
 			UseOfMFC="1"
@@ -844,6 +855,8 @@
 		</Configuration>
 		<Configuration
 			Name="Debug|x64"
+			OutputDirectory="$(SolutionDir)$(PlatformName)\$(ConfigurationName)"
+			IntermediateDirectory="$(PlatformName)\$(ConfigurationName)"
 			ConfigurationType="2"
 			InheritedPropertySheets=".\vsprops\common.vsprops;.\vsprops\debug.vsprops"
 			UseOfMFC="1"
@@ -968,6 +981,8 @@
 		</Configuration>
 		<Configuration
 			Name="Release|x64"
+			OutputDirectory="$(SolutionDir)$(PlatformName)\$(ConfigurationName)"
+			IntermediateDirectory="$(PlatformName)\$(ConfigurationName)"
 			ConfigurationType="2"
 			InheritedPropertySheets=".\vsprops\common.vsprops;.\vsprops\release.vsprops;..\..\common\vsprops\pthreads.vsprops"
 			UseOfMFC="1"
@@ -1041,42 +1056,6 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath=".\GPU.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\GPUDrawScanline.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\GPUDrawScanlineCodeGenerator.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\GPULocalMemory.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\GPURenderer.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\GPURendererSW.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\GPUSettingsDlg.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\GPUSetupPrimCodeGenerator.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\GPUState.cpp"
-				>
-			</File>
-			<File
 				RelativePath=".\GS.cpp"
 				>
 				<FileConfiguration
@@ -1137,15 +1116,7 @@
 				>
 			</File>
 			<File
-				RelativePath=".\GSDevice10.cpp"
-				>
-			</File>
-			<File
 				RelativePath=".\GSDevice11.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\GSDevice7.cpp"
 				>
 			</File>
 			<File
@@ -1155,74 +1126,6 @@
 			<File
 				RelativePath=".\GSDeviceNull.cpp"
 				>
-			</File>
-			<File
-				RelativePath=".\GSDeviceOGL.cpp"
-				>
-				<FileConfiguration
-					Name="Debug SSE2|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release SSE2|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release SSSE3|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug SSSE3|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug SSE4|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release SSE4|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
 			</File>
 			<File
 				RelativePath=".\GSDialog.cpp"
@@ -1353,26 +1256,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\GSRendererDX10.cpp"
-				>
-				<FileConfiguration
-					Name="Release SSE2|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AssemblerOutput="4"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release SSSE3|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AssemblerOutput="4"
-					/>
-				</FileConfiguration>
-			</File>
-			<File
 				RelativePath=".\GSRendererDX11.cpp"
 				>
 			</File>
@@ -1403,74 +1286,6 @@
 			<File
 				RelativePath=".\GSRendererNull.cpp"
 				>
-			</File>
-			<File
-				RelativePath=".\GSRendererOGL.cpp"
-				>
-				<FileConfiguration
-					Name="Debug SSE2|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release SSE2|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release SSSE3|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug SSSE3|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug SSE4|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release SSE4|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
 			</File>
 			<File
 				RelativePath=".\GSRendererSW.cpp"
@@ -1533,15 +1348,7 @@
 				>
 			</File>
 			<File
-				RelativePath=".\GSTexture10.cpp"
-				>
-			</File>
-			<File
 				RelativePath=".\GSTexture11.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\GSTexture7.cpp"
 				>
 			</File>
 			<File
@@ -1561,10 +1368,6 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath=".\GSTextureCache10.cpp"
-				>
-			</File>
-			<File
 				RelativePath=".\GSTextureCache11.cpp"
 				>
 			</File>
@@ -1573,87 +1376,7 @@
 				>
 			</File>
 			<File
-				RelativePath=".\GSTextureCacheOGL.cpp"
-				>
-				<FileConfiguration
-					Name="Debug SSE2|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release SSE2|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release SSSE3|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug SSSE3|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug SSE4|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release SSE4|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-			</File>
-			<File
 				RelativePath=".\GSTextureCacheSW.cpp"
-				>
-				<FileConfiguration
-					Name="Release SSE4|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AssemblerOutput="4"
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath=".\GSTextureFX10.cpp"
 				>
 				<FileConfiguration
 					Name="Release SSE4|Win32"
@@ -1675,74 +1398,6 @@
 			<File
 				RelativePath=".\GSTextureNull.cpp"
 				>
-			</File>
-			<File
-				RelativePath=".\GSTextureOGL.cpp"
-				>
-				<FileConfiguration
-					Name="Debug SSE2|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release SSE2|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release SSSE3|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug SSSE3|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug SSE4|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release SSE4|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
 			</File>
 			<File
 				RelativePath=".\GSThread.cpp"
@@ -1903,54 +1558,6 @@
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
 			<File
-				RelativePath=".\GPU.h"
-				>
-			</File>
-			<File
-				RelativePath=".\GPUDrawingEnvironment.h"
-				>
-			</File>
-			<File
-				RelativePath=".\GPUDrawScanline.h"
-				>
-			</File>
-			<File
-				RelativePath=".\GPUDrawScanlineCodeGenerator.h"
-				>
-			</File>
-			<File
-				RelativePath=".\GPULocalMemory.h"
-				>
-			</File>
-			<File
-				RelativePath=".\GPURenderer.h"
-				>
-			</File>
-			<File
-				RelativePath=".\GPURendererSW.h"
-				>
-			</File>
-			<File
-				RelativePath=".\GPUScanlineEnvironment.h"
-				>
-			</File>
-			<File
-				RelativePath=".\GPUSettingsDlg.h"
-				>
-			</File>
-			<File
-				RelativePath=".\GPUSetupPrimCodeGenerator.h"
-				>
-			</File>
-			<File
-				RelativePath=".\GPUState.h"
-				>
-			</File>
-			<File
-				RelativePath=".\GPUVertex.h"
-				>
-			</File>
-			<File
 				RelativePath=".\GS.h"
 				>
 			</File>
@@ -1987,15 +1594,7 @@
 				>
 			</File>
 			<File
-				RelativePath=".\GSDevice10.h"
-				>
-			</File>
-			<File
 				RelativePath=".\GSDevice11.h"
-				>
-			</File>
-			<File
-				RelativePath=".\GSDevice7.h"
 				>
 			</File>
 			<File
@@ -2008,10 +1607,6 @@
 			</File>
 			<File
 				RelativePath=".\GSDeviceNull.h"
-				>
-			</File>
-			<File
-				RelativePath=".\GSDeviceOGL.h"
 				>
 			</File>
 			<File
@@ -2071,10 +1666,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\GSRendererDX10.h"
-				>
-			</File>
-			<File
 				RelativePath=".\GSRendererDX11.h"
 				>
 			</File>
@@ -2088,10 +1679,6 @@
 			</File>
 			<File
 				RelativePath=".\GSRendererNull.h"
-				>
-			</File>
-			<File
-				RelativePath=".\GSRendererOGL.h"
 				>
 			</File>
 			<File
@@ -2127,11 +1714,7 @@
 				>
 			</File>
 			<File
-				RelativePath=".\GSTexture10.h"
-				>
-			</File>
-			<File
-				RelativePath=".\GSTexture7.h"
+				RelativePath=".\GSTexture11.h"
 				>
 			</File>
 			<File
@@ -2143,19 +1726,11 @@
 				>
 			</File>
 			<File
-				RelativePath=".\GSTextureCache10.h"
-				>
-			</File>
-			<File
 				RelativePath=".\GSTextureCache11.h"
 				>
 			</File>
 			<File
 				RelativePath=".\GSTextureCache9.h"
-				>
-			</File>
-			<File
-				RelativePath=".\GSTextureCacheOGL.h"
 				>
 			</File>
 			<File
@@ -2168,10 +1743,6 @@
 			</File>
 			<File
 				RelativePath=".\GSTextureNull.h"
-				>
-			</File>
-			<File
-				RelativePath=".\GSTextureOGL.h"
 				>
 			</File>
 			<File
@@ -2230,10 +1801,6 @@
 			</File>
 			<File
 				RelativePath=".\GSdx.rc"
-				>
-			</File>
-			<File
-				RelativePath=".\res\GSdx.rc2"
 				>
 			</File>
 			<File

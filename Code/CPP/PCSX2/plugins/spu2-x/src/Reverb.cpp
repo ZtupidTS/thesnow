@@ -1,6 +1,6 @@
 /* SPU2-X, A plugin for Emulating the Sound Processing Unit of the Playstation 2
  * Developed and maintained by the Pcsx2 Development Team.
- * 
+ *
  * Original portions from SPU2ghz are (c) 2008 by David Quintana [gigaherz]
  *
  * SPU2-X is free software: you can redistribute it and/or modify it under the terms
@@ -26,7 +26,7 @@
 
 __forceinline s32 V_Core::RevbGetIndexer( s32 offset )
 {
-	u32 pos = ReverbX + offset; //*4);
+	u32 pos = ReverbX + offset;
 
 	// Fast and simple single step wrapping, made possible by the preparation of the
 	// effects buffer addresses.
@@ -37,7 +37,7 @@ __forceinline s32 V_Core::RevbGetIndexer( s32 offset )
 		pos += EffectsStartA;
 	}
 	return pos;
-} 
+}
 
 void V_Core::Reverb_AdvanceBuffer()
 {
@@ -84,7 +84,7 @@ StereoOut32 V_Core::DoReverb( const StereoOut32& Input )
 
 		// Advance the current reverb buffer pointer, and cache the read/write addresses we'll be
 		// needing for this session of reverb.
-		
+
 		const u32 src_a0 = RevbGetIndexer( RevBuffers.IIR_SRC_A0 );
 		const u32 src_a1 = RevbGetIndexer( RevBuffers.IIR_SRC_A1 );
 		const u32 src_b0 = RevbGetIndexer( RevBuffers.IIR_SRC_B0 );
@@ -94,12 +94,12 @@ StereoOut32 V_Core::DoReverb( const StereoOut32& Input )
 		const u32 dest_a1 = RevbGetIndexer( RevBuffers.IIR_DEST_A1 );
 		const u32 dest_b0 = RevbGetIndexer( RevBuffers.IIR_DEST_B0 );
 		const u32 dest_b1 = RevbGetIndexer( RevBuffers.IIR_DEST_B1 );
-		
-		const u32 dest2_a0 = RevbGetIndexer( RevBuffers.IIR_DEST_A0 + 2 );
-		const u32 dest2_a1 = RevbGetIndexer( RevBuffers.IIR_DEST_A1 + 2 );
-		const u32 dest2_b0 = RevbGetIndexer( RevBuffers.IIR_DEST_B0 + 2 );
-		const u32 dest2_b1 = RevbGetIndexer( RevBuffers.IIR_DEST_B1 + 2 );
-		
+
+		const u32 dest2_a0 = RevbGetIndexer( RevBuffers.IIR_DEST_A0 + 1 );
+		const u32 dest2_a1 = RevbGetIndexer( RevBuffers.IIR_DEST_A1 + 1 );
+		const u32 dest2_b0 = RevbGetIndexer( RevBuffers.IIR_DEST_B0 + 1 );
+		const u32 dest2_b1 = RevbGetIndexer( RevBuffers.IIR_DEST_B1 + 1 );
+
 		const u32 acc_src_a0 = RevbGetIndexer( RevBuffers.ACC_SRC_A0 );
 		const u32 acc_src_b0 = RevbGetIndexer( RevBuffers.ACC_SRC_B0 );
 		const u32 acc_src_c0 = RevbGetIndexer( RevBuffers.ACC_SRC_C0 );
@@ -121,6 +121,46 @@ StereoOut32 V_Core::DoReverb( const StereoOut32& Input )
 		const u32 mix_dest_b1 = RevbGetIndexer( RevBuffers.MIX_DEST_B1 );
 
 		// -----------------------------------------
+		//          Optimized IRQ Testing !
+		// -----------------------------------------
+
+		// This test is enhanced by using the reverb effects area begin/end test as a
+		// shortcut, since all buffer addresses are within that area.  If the IRQA isn't
+		// within that zone then the "bulk" of the test is skipped, so this should only
+		// be a slowdown on a few evil games.
+
+		for( uint i=0; i<2; i++ )
+		{
+			if( Cores[i].IRQEnable && ((Cores[i].IRQA >= EffectsStartA) && (Cores[i].IRQA <= EffectsEndA)) )
+			{
+				if(	(Cores[i].IRQA == src_a0)		||	(Cores[i].IRQA == src_a1)		||
+					(Cores[i].IRQA == src_b0)		||	(Cores[i].IRQA == src_b1)		||
+
+					(Cores[i].IRQA == dest_a0)		||	(Cores[i].IRQA == dest_a1)		||
+					(Cores[i].IRQA == dest_b0)		||	(Cores[i].IRQA == dest_b1)		||
+
+					(Cores[i].IRQA == dest2_a0)		||	(Cores[i].IRQA == dest2_a1)		||
+					(Cores[i].IRQA == dest2_b0)		||	(Cores[i].IRQA == dest2_b1)		||
+
+					(Cores[i].IRQA == acc_src_a0)	||	(Cores[i].IRQA == acc_src_a1)	||
+					(Cores[i].IRQA == acc_src_b0)	||	(Cores[i].IRQA == acc_src_b1)	||
+					(Cores[i].IRQA == acc_src_c0)	||	(Cores[i].IRQA == acc_src_c1)	||
+					(Cores[i].IRQA == acc_src_d0)	||	(Cores[i].IRQA == acc_src_d1)	||
+
+					(Cores[i].IRQA == fb_src_a0)	||	(Cores[i].IRQA == fb_src_a1)	||
+					(Cores[i].IRQA == fb_src_b0)	||	(Cores[i].IRQA == fb_src_b1)	||
+
+					(Cores[i].IRQA == mix_dest_a0)	||	(Cores[i].IRQA == mix_dest_a1)	||
+					(Cores[i].IRQA == mix_dest_b0)	||	(Cores[i].IRQA == mix_dest_b1) )
+				{
+					//printf("Core %d IRQ Called (Reverb). IRQA = %x\n",i,addr);
+					Spdif.Info |= 4 << i;
+					SetIrqCall();
+				}
+			}
+		}
+
+		// -----------------------------------------
 		//         Begin Reverb Processing !
 		// -----------------------------------------
 
@@ -135,10 +175,13 @@ StereoOut32 V_Core::DoReverb( const StereoOut32& Input )
 		INPUT_SAMPLE.Left  >>= 16;
 		INPUT_SAMPLE.Right >>= 16;
 
-		const s32 IIR_INPUT_A0 = ((_spu2mem[src_a0] * Revb.IIR_COEF) + (INPUT_SAMPLE.Left * Revb.IN_COEF_L))>>16;
-		const s32 IIR_INPUT_A1 = ((_spu2mem[src_a1] * Revb.IIR_COEF) + (INPUT_SAMPLE.Right * Revb.IN_COEF_R))>>16;
-		const s32 IIR_INPUT_B0 = ((_spu2mem[src_b0] * Revb.IIR_COEF) + (INPUT_SAMPLE.Left * Revb.IN_COEF_L))>>16;
-		const s32 IIR_INPUT_B1 = ((_spu2mem[src_b1] * Revb.IIR_COEF) + (INPUT_SAMPLE.Right * Revb.IN_COEF_R))>>16;
+		s32 input_L = (INPUT_SAMPLE.Left * Revb.IN_COEF_L);
+		s32 input_R = (INPUT_SAMPLE.Right * Revb.IN_COEF_R);
+
+		const s32 IIR_INPUT_A0 = ((_spu2mem[src_a0] * Revb.IIR_COEF) + input_L)>>16;
+		const s32 IIR_INPUT_A1 = ((_spu2mem[src_a1] * Revb.IIR_COEF) + input_L)>>16;
+		const s32 IIR_INPUT_B0 = ((_spu2mem[src_b0] * Revb.IIR_COEF) + input_R)>>16;
+		const s32 IIR_INPUT_B1 = ((_spu2mem[src_b1] * Revb.IIR_COEF) + input_R)>>16;
 
 		// This section differs from Neill's doc as it uses single-mul interpolation instead
 		// of 0x8000-val inversion.  (same result, faster)
@@ -168,14 +211,23 @@ StereoOut32 V_Core::DoReverb( const StereoOut32& Input )
 		// The following code differs from Neill's doc as it uses the more natural single-mul
 		// interpolative, instead of the funky ^0x8000 stuff.  (better result, faster)
 
+#define A_HACK
+#ifndef A_HACK
 		const s32 FB_A0 = _spu2mem[fb_src_a0] * Revb.FB_ALPHA;
 		const s32 FB_A1 = _spu2mem[fb_src_a1] * Revb.FB_ALPHA;
 
 		_spu2mem[mix_dest_a0] = clamp_mix( (ACC0 - FB_A0) >> 16 );
 		_spu2mem[mix_dest_a1] = clamp_mix( (ACC1 - FB_A1) >> 16 );
+#endif
 
 		const s32 acc_fb_mix_a = ACC0 + ( (_spu2mem[fb_src_a0] - (ACC0>>16)) * Revb.FB_ALPHA );
 		const s32 acc_fb_mix_b = ACC1 + ( (_spu2mem[fb_src_a1] - (ACC1>>16)) * Revb.FB_ALPHA );
+
+#ifdef A_HACK
+		_spu2mem[mix_dest_a0] = clamp_mix( acc_fb_mix_a >> 16 );
+		_spu2mem[mix_dest_a1] = clamp_mix( acc_fb_mix_b >> 16 );
+#endif
+
 		_spu2mem[mix_dest_b0] = clamp_mix( ( acc_fb_mix_a - (_spu2mem[fb_src_b0] * Revb.FB_X) ) >> 16 );
 		_spu2mem[mix_dest_b1] = clamp_mix( ( acc_fb_mix_b - (_spu2mem[fb_src_b1] * Revb.FB_X) ) >> 16 );
 
@@ -183,28 +235,39 @@ StereoOut32 V_Core::DoReverb( const StereoOut32& Input )
 			(_spu2mem[mix_dest_a0] + _spu2mem[mix_dest_b0]),	// left
 			(_spu2mem[mix_dest_a1] + _spu2mem[mix_dest_b1])		// right
 		) );
-	} 
+	}
 
 	StereoOut32 retval;
 
-	for( int x=0; x<8; ++x )
+	//for( int x=0; x<8; ++x )
+	//{
+	//	retval.Left  += (upbuf[(ubpos+x)&7].Left*downcoeffs[x]);
+	//	retval.Right += (upbuf[(ubpos+x)&7].Right*downcoeffs[x]);
+	//}
+
+	if( (Cycles&1) == 0 )
 	{
-		retval.Left  += (upbuf[(ubpos+x)&7].Left*downcoeffs[x]);
-		retval.Right += (upbuf[(ubpos+x)&7].Right*downcoeffs[x]);
+		retval.Left = (upbuf[(ubpos+5)&7].Left + upbuf[(ubpos+7)&7].Left)>>1;
+		retval.Right = (upbuf[(ubpos+5)&7].Right + upbuf[(ubpos+7)&7].Right)>>1;
+	}
+	else
+	{
+		retval.Left = upbuf[(ubpos+6)&7].Left;
+		retval.Right = upbuf[(ubpos+6)&7].Right;
 	}
 
 	// Notes:
 	//  the first -1 is to adjust for the null padding in every other upbuf sample (which
 	//  halves the overall volume).
-	//  The second -1 divides by two, which is part of Neill's suggestion to divide by 3.
+	//  The second +1 divides by two, which is part of Neill's suggestion to divide by 3.
 	//
 	// According Neill the final result should be divided by 3, but currently the output
 	// is way too quiet for that to fly.  In fact no division at all might be better.
 	// In any case the problem always seems to be that the reverb isn't resonating enough
 	// (indicating short buffers or bad coefficient math?), not that it isn't loud enough.
 
-	retval.Left  >>= (16-1 + 1);
-	retval.Right >>= (16-1 + 1);
+	//retval.Left  >>= (16-1 + 1);
+	//retval.Right >>= (16-1 + 1);
 
 	ubpos = (ubpos+1) & 7;
 

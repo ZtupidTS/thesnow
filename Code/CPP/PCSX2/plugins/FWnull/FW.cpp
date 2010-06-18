@@ -1,5 +1,5 @@
 /*  FWnull
- *  Copyright (C) 2004-2009 PCSX2 Team
+ *  Copyright (C) 2004-2010  PCSX2 Dev Team
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -29,93 +29,111 @@ const u8 build    = 6;    // increase that with each version
 static char *libraryName = "FWnull Driver";
 
 string s_strIniPath="inis/";
-
+string s_strLogPath = "logs/";
+	
 s8 *fwregs;
 Config conf;
 PluginLog FWLog;
 
 void (*FWirq)();
 
-EXPORT_C_(u32) PS2EgetLibType() 
+void LogInit()
+{
+	const std::string LogFile(s_strLogPath + "/FWnull.log");
+	setLoggingState();
+	FWLog.Open(LogFile);
+}
+
+EXPORT_C_(void)  FWsetLogDir(const char* dir)
+{
+	// Get the path to the log directory.
+	s_strLogPath = (dir==NULL) ? "logs/" : dir;
+	
+	// Reload the log file after updated the path
+	FWLog.Close();
+	LogInit();
+}
+
+EXPORT_C_(u32) PS2EgetLibType()
 {
 	return PS2E_LT_FW;
 }
 
-EXPORT_C_(char*) PS2EgetLibName() 
+EXPORT_C_(char*) PS2EgetLibName()
 {
 	return libraryName;
 }
 
-EXPORT_C_(u32) PS2EgetLibVersion2(u32 type) 
+EXPORT_C_(u32) PS2EgetLibVersion2(u32 type)
 {
 	return (version<<16) | (revision<<8) | build;
 }
 
-EXPORT_C_(s32) FWinit() 
+EXPORT_C_(s32) FWinit()
 {
 	LoadConfig();
-	setLoggingState();
-	FWLog.Open("logs/FWnull.log");
+	LogInit();
 	FWLog.WriteLn("FWnull plugin version %d,%d", revision, build);
 	FWLog.WriteLn("Initializing FWnull");
 
 	// Initializing our registers.
-	fwregs = (s8*)malloc(0x10000);
-	if (fwregs == NULL) 
+	fwregs = (s8*)calloc(0x10000,1);
+	if (fwregs == NULL)
 	{
-		FWLog.Message("Error allocating Memory"); 
+		FWLog.Message("Error allocating Memory");
 		return -1;
 	}
-	memset(fwregs, 0, 0x10000);
 	return 0;
 }
 
-EXPORT_C_(void) FWshutdown() 
+EXPORT_C_(void) FWshutdown()
 {
 	// Freeing the registers.
 	free(fwregs);
+	fwregs = NULL;
+
 	FWLog.Close();
 }
 
-EXPORT_C_(s32) FWopen(void *pDsp) 
+EXPORT_C_(s32) FWopen(void *pDsp)
 {
 	FWLog.WriteLn("Opening FWnull.");
 
 	return 0;
 }
 
-EXPORT_C_(void) FWclose() 
+EXPORT_C_(void) FWclose()
 {
 	// Close the plugin.
 	FWLog.WriteLn("Closing FWnull.");
 }
 
-EXPORT_C_(u32) FWread32(u32 addr) 
+EXPORT_C_(u32) FWread32(u32 addr)
 {
 	u32 ret = 0;
 
-	switch (addr) 
+	switch (addr)
 	{
 		// We should document what this location is.
 		case 0x1f808410:
 			ret = 0x8;
 			break;
-		
+
 		// Include other relevant 32 bit addresses we need to catch here.
 		default:
 			// By default, read fwregs.
 			ret = fwRu32(addr);
 			break;
 	}
-	
+
 	FWLog.WriteLn("FW read mem 0x%x: 0x%x", addr, ret);
 
 	return ret;
 }
 
-EXPORT_C_(void) FWwrite32(u32 addr, u32 value) 
+EXPORT_C_(void) FWwrite32(u32 addr, u32 value)
 {
-	switch (addr) 
+	switch (addr)
 	{
 //		Include other memory locations we want to catch here.
 //		For example:
@@ -125,7 +143,7 @@ EXPORT_C_(void) FWwrite32(u32 addr, u32 value)
 //		case 0x1f808420:
 //		case 0x1f808428:
 //		case 0x1f808430:
-//		 
+//
 //		Are addresses to look at.
 		case 0x1f808410: fwRu32(addr) = value; break;
 		default:
@@ -136,7 +154,7 @@ EXPORT_C_(void) FWwrite32(u32 addr, u32 value)
 	FWLog.WriteLn("FW write mem 0x%x: 0x%x", addr, value);
 }
 
-EXPORT_C_(void) FWirqCallback(void (*callback)()) 
+EXPORT_C_(void) FWirqCallback(void (*callback)())
 {
 	// Register FWirq, so we can trigger an interrupt with it later.
 	FWirq = callback;
@@ -148,9 +166,9 @@ EXPORT_C_(void) FWsetSettingsDir(const char* dir)
     s_strIniPath = (dir == NULL) ? "inis/" : dir;
 }
 
-EXPORT_C_(s32) FWfreeze(int mode, freezeData *data) 
+EXPORT_C_(s32) FWfreeze(int mode, freezeData *data)
 {
-	// This should store or retrieve any information, for if emulation 
+	// This should store or retrieve any information, for if emulation
 	// gets suspended, or for savestates.
 	switch(mode)
 	{
@@ -167,7 +185,7 @@ EXPORT_C_(s32) FWfreeze(int mode, freezeData *data)
 	return 0;
 }
 
-EXPORT_C_(s32) FWtest() 
+EXPORT_C_(s32) FWtest()
 {
 	// 0 if the plugin works, non-0 if it doesn't.
 	return 0;

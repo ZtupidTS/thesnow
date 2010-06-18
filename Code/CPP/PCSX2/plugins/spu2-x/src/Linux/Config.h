@@ -1,6 +1,6 @@
 /* SPU2-X, A plugin for Emulating the Sound Processing Unit of the Playstation 2
  * Developed and maintained by the Pcsx2 Development Team.
- * 
+ *
  * Original portions from SPU2ghz are (c) 2008 by David Quintana [gigaherz]
  *
  * SPU2-X is free software: you can redistribute it and/or modify it under the terms
@@ -20,6 +20,7 @@
 
 #include <gtk/gtk.h>
 #include <string>
+#include <wx/fileconf.h>
 
 extern bool DebugEnabled;
 
@@ -57,13 +58,13 @@ static __forceinline bool MemDump() { return _MemDump & DebugEnabled; }
 static __forceinline bool RegDump() { return _RegDump & DebugEnabled; }*/
 
 
-extern wchar_t AccessLogFileName[255];
-extern wchar_t WaveLogFileName[255];
-extern wchar_t DMA4LogFileName[255];
-extern wchar_t DMA7LogFileName[255];
-extern wchar_t CoresDumpFileName[255];
-extern wchar_t MemDumpFileName[255];
-extern wchar_t RegDumpFileName[255];
+//extern wchar_t AccessLogFileName[255];
+//extern wchar_t WaveLogFileName[255];
+//extern wchar_t DMA4LogFileName[255];
+//extern wchar_t DMA7LogFileName[255];
+//extern wchar_t CoresDumpFileName[255];
+//extern wchar_t MemDumpFileName[255];
+//extern wchar_t RegDumpFileName[255];
 
 extern int Interpolation;
 extern int ReverbBoost;
@@ -78,8 +79,7 @@ extern wchar_t dspPlugin[];
 extern int  dspPluginModule;
 
 extern bool	dspPluginEnabled;
-extern bool timeStretchDisabled;
-extern bool StereoExpansionEnabled;
+extern int SynchMode;
 
 namespace SoundtouchCfg
 {
@@ -93,15 +93,15 @@ namespace SoundtouchCfg
 	static const int Overlap_Min = 3;
 	static const int Overlap_Max = 15;
 
-	static int SequenceLenMS = 63;
-	static int SeekWindowMS = 16;
-	static int OverlapMS = 7;
+	static int SequenceLenMS = 50;
+	static int SeekWindowMS = 15;
+	static int OverlapMS = 25;
 
 	void ReadSettings();
 	void WriteSettings();
 	void DisplayDialog();
 
-	
+
 	static void ClampValues();
 };
 
@@ -109,5 +109,7 @@ void ReadSettings();
 void WriteSettings();
 void configure();
 void AboutBox();
-
+extern wxFileConfig *spuConfig;
+extern bool pathSet;
+extern void initIni();
 #endif // CONFIG_H_INCLUDED

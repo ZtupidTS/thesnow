@@ -22,7 +22,7 @@
 #include <stdlib.h>
 #include <string>
 using namespace std;
- 
+
 const u8 version  = PS2E_SPU2_VERSION;
 const u8 revision = 0;
 const u8 build    = 8;    // increase that with each version
@@ -40,7 +40,8 @@ char *libraryName      = "SPU2null (Debug)";
 #else
 char *libraryName      = "SPU2null ";
 #endif
-string s_strIniPath="inis/SPU2null.ini";
+string s_strIniPath="inis/";
+string s_strLogPath="logs/";
 
 FILE *spu2Log;
 Config conf;
@@ -70,7 +71,7 @@ void (*irqCallbackSPU2)();                  // func of main emu, called on spu i
 void (*irqCallbackDMA4)() = 0;                // func of main emu, called on spu irq
 void (*irqCallbackDMA7)() = 0;                // func of main emu, called on spu irq
 
-const s32 f[5][2] = {   
+const s32 f[5][2] = {
 	{    0,  0  },
 	{   60,  0  },
 	{  115, -52 },
@@ -109,14 +110,45 @@ void __Log(char *fmt, ...)
 	va_end(list);
 }
 
-EXPORT_C_(s32) SPU2init()
+EXPORT_C_(void) SPU2setSettingsDir(const char* dir)
 {
+	s_strIniPath = (dir == NULL) ? "inis/" : dir;
+}
+
+bool OpenLog() {
+    bool result = true;
 #ifdef SPU2_LOG
-	spu2Log = fopen("logs/spu2.txt", "w");
-	if (spu2Log) setvbuf(spu2Log, NULL,  _IONBF, 0);
+    if(spu2Log) return result;
+
+    const std::string LogFile(s_strLogPath + "/spu2null.log");
+
+    spu2Log = fopen(LogFile.c_str(), "w");
+    if (spu2Log != NULL)
+        setvbuf(spu2Log, NULL,  _IONBF, 0);
+    else {
+        SysMessage("Can't create log file %s\n", LogFile.c_str());
+        result = false;
+    }
 	SPU2_LOG("Spu2 null version %d,%d\n", revision, build);
 	SPU2_LOG("SPU2init\n");
 #endif
+    return result;
+}
+
+EXPORT_C_(void)  SPU2setLogDir(const char* dir)
+{
+	// Get the path to the log directory.
+	s_strLogPath = (dir==NULL) ? "logs/" : dir;
+
+	// Reload the log file after updated the path
+	if (spu2Log) fclose(spu2Log);
+    OpenLog();
+}
+
+EXPORT_C_(s32) SPU2init()
+{
+    OpenLog();
+
 	spu2regs = (s8*)malloc(0x10000);
 	if (spu2regs == NULL)
 	{
@@ -727,7 +759,7 @@ EXPORT_C_(void) SPU2writeDMA4Mem(u16* pMem, int size)
 	u32 spuaddr;
 
 	SPU2_LOG("SPU2 writeDMA4Mem size %x, addr: %x\n", size, pMem);
-	
+
 	if ((spu2Ru16(REG_C0_ADMAS) & 0x1) && (spu2Ru16(REG_C0_CTRL) & 0x30) == 0 && size)
 	{
 		//fwrite(pMem,iSize<<1,1,LogFile);
@@ -766,7 +798,7 @@ EXPORT_C_(void) SPU2writeDMA7Mem(u16* pMem, int size)
 	u32 spuaddr;
 
 	SPU2_LOG("SPU2 writeDMA7Mem size %x, addr: %x\n", size, pMem);
-	
+
 	if ((spu2Ru16(REG_C1_ADMAS) & 0x2) && (spu2Ru16(REG_C1_CTRL) & 0x30) == 0 && size)
 	{
 		//fwrite(pMem,iSize<<1,1,LogFile);
@@ -803,7 +835,7 @@ EXPORT_C_(void) SPU2writeDMA7Mem(u16* pMem, int size)
 EXPORT_C_(void) SPU2interruptDMA4()
 {
 	SPU2_LOG("SPU2 interruptDMA4\n");
-	
+
 	spu2Rs16(REG_C0_CTRL) &= ~0x30;
 	spu2Ru16(REG_C0_SPUSTAT) |= 0x80;
 }
@@ -811,7 +843,7 @@ EXPORT_C_(void) SPU2interruptDMA4()
 EXPORT_C_(void) SPU2interruptDMA7()
 {
 	SPU2_LOG("SPU2 interruptDMA7\n");
-	
+
 //	spu2Rs16(REG_C1_CTRL)&= ~0x30;
 //	//spu2Rs16(REG__5B0) = 0;
 //	spu2Rs16(SPU2_STATX_DREQ)|= 0x80;
@@ -864,7 +896,7 @@ void FModOn(s32 start, s32 end, u16 val)    // FMOD ON PSX COMMAND
 EXPORT_C_(void) SPU2write(u32 mem, u16 value)
 {
 	u32 spuaddr;
-	
+
 	SPU2_LOG("SPU2 write mem %x value %x\n", mem, value);
 
 	assert(C0_SPUADDR < 0x100000);
@@ -891,9 +923,9 @@ EXPORT_C_(void) SPU2write(u32 mem, u16 value)
 			case 4:
 				{
 					int NP;
-					if (value > 0x3fff) 
+					if (value > 0x3fff)
 						NP = 0x3fff;                        // get pitch val
-					else          
+					else
 						NP = value;
 
 					pvoice->pvoice->pitch = NP;
@@ -985,7 +1017,7 @@ EXPORT_C_(void) SPU2write(u32 mem, u16 value)
 				irqCallbackSPU2();
 			}
 			if (spuaddr > 0xFFFFE) spuaddr = 0x2800;
-			
+
 			C0_SPUADDR_SET(spuaddr);
 			spu2Ru16(REG_C0_SPUSTAT) &= ~0x80;
 			spu2Ru16(REG_C0_CTRL) &= ~0x30;
@@ -1001,7 +1033,7 @@ EXPORT_C_(void) SPU2write(u32 mem, u16 value)
 				irqCallbackSPU2();
 			}
 			if (spuaddr > 0xFFFFE) spuaddr = 0x2800;
-			
+
 			C1_SPUADDR_SET(spuaddr);
 			spu2Ru16(REG_C1_SPUSTAT) &= ~0x80;
 			spu2Ru16(REG_C1_CTRL) &= ~0x30;
@@ -1085,10 +1117,10 @@ EXPORT_C_(u16) SPU2read(u32 mem)
 	if ((r >= 0x0000 && r <= 0x0180) || (r >= 0x0400 && r <= 0x0580))  // some channel info?
 	{
 		s32 ch = 0;
-		
-		if (r >= 0x400) 
+
+		if (r >= 0x400)
 			ch = ((r - 0x400) >> 4) + 24;
-		else 
+		else
 			ch = (r >> 4);
 
 		VOICE_PROCESSED* pvoice = &voices[ch];
@@ -1104,7 +1136,7 @@ EXPORT_C_(u16) SPU2read(u32 mem)
 	{
 		s32 ch = 0;
 		u32 rx = r;
-		
+
 		if (rx >= 0x400)
 		{
 			ch = 24;
@@ -1141,7 +1173,7 @@ EXPORT_C_(u16) SPU2read(u32 mem)
 			if (spuaddr > 0xfffff) spuaddr = 0;
 			C0_SPUADDR_SET(spuaddr);
 			break;
-		
+
 		case REG_C1_SPUDATA:
 			spuaddr = C1_SPUADDR;
 			ret = spu2mem[spuaddr];
@@ -1166,7 +1198,7 @@ EXPORT_C_(u16) SPU2read(u32 mem)
 		default:
 			ret = spu2Ru16(mem);
 	}
-	
+
 	SPU2_LOG("SPU2 read mem %x: %x\n", mem, ret);
 
 	return ret;
@@ -1275,7 +1307,7 @@ EXPORT_C_(s32) SPU2freeze(int mode, freezeData *data)
 		{
 			memcpy(spu2regs, spud->spu2regs, 0x10000);
 		}
-		else 
+		else
 		{
 			printf("SPU2null wrong format\n");
 		}

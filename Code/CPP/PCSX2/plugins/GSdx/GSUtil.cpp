@@ -1,4 +1,4 @@
-/* 
+/*
  *	Copyright (C) 2007-2009 Gabest
  *	http://www.gabest.org
  *
@@ -6,15 +6,15 @@
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  This Program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  *  GNU General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU General Public License
  *  along with GNU Make; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *  http://www.gnu.org/copyleft/gpl.html
  *
  */
@@ -103,18 +103,18 @@ bool GSUtil::CheckDirectX()
 	OSVERSIONINFOEX version;
 	memset(&version, 0, sizeof(version));
 	version.dwOSVersionInfoSize = sizeof(version);
-	
+
 	if(GetVersionEx((OSVERSIONINFO*)&version))
 	{
 		printf("Windows %d.%d.%d",
-			version.dwMajorVersion, 
-			version.dwMinorVersion, 
+			version.dwMajorVersion,
+			version.dwMinorVersion,
 			version.dwBuildNumber);
 
 		if(version.wServicePackMajor > 0)
 		{
 			printf(" (%s %d.%d)",
-				version.szCSDVersion, 
+				version.szCSDVersion,
 				version.wServicePackMajor,
 				version.wServicePackMinor);
 		}
@@ -129,10 +129,10 @@ bool GSUtil::CheckDirectX()
 		if(S_OK == d3d->GetAdapterIdentifier(D3DADAPTER_DEFAULT, 0, &id))
 		{
 			printf("%s (%d.%d.%d.%d)\n",
-				id.Description, 
-				id.DriverVersion.HighPart >> 16, 
-				id.DriverVersion.HighPart & 0xffff, 
-				id.DriverVersion.LowPart >> 16, 
+				id.Description,
+				id.DriverVersion.HighPart >> 16,
+				id.DriverVersion.HighPart & 0xffff,
+				id.DriverVersion.LowPart >> 16,
 				id.DriverVersion.LowPart & 0xffff);
 		}
 
@@ -180,7 +180,7 @@ bool GSUtil::CheckSSE()
 	if(!cpu.has(type))
 	{
 		string s = format("This CPU does not support SSE %d.%02d", _M_SSE >> 8, _M_SSE & 0xff);
-		
+
 		MessageBox(GetActiveWindow(), s.c_str(), "GSdx", MB_OK);
 
 		return false;
@@ -189,41 +189,16 @@ bool GSUtil::CheckSSE()
 	return true;
 }
 
-bool GSUtil::IsDirect3D10Available()
-{
-	if(HMODULE hModule = LoadLibrary(_T("d3d10_1.dll")))
-	{
-		FreeLibrary(hModule);
+typedef IDirect3D9* (WINAPI * LPDIRECT3DCREATE9) (UINT);
 
-		return true;
-	}
+static HMODULE				s_hModD3D9 = NULL;
+static LPDIRECT3DCREATE9	s_DynamicDirect3DCreate9 = NULL;
 
-	return false;
-}
-
-bool GSUtil::IsDirect3D11Available()
-{
-	if(HMODULE hModule = LoadLibrary(_T("d3d11.dll")))
-	{
-		FreeLibrary(hModule);
-
-		return true;
-	}
-
-	if(HMODULE hModule = LoadLibrary(_T("d3d11_beta.dll")))
-	{
-		FreeLibrary(hModule);
-
-		return true;
-	}
-
-	return false;
-}
 
 char* GSUtil::GetLibName()
 {
 	static string str;
-	
+
 	str = format("GSdx %d", SVN_REV);
 
 	if(SVN_MODS) str += "m";
@@ -241,7 +216,7 @@ char* GSUtil::GetLibName()
 	#elif _MSC_VER
 	sl.push_back(format("MSVC %d.%02d", _MSC_VER / 100, _MSC_VER % 100));
 	#endif
-	
+
 	#if _M_SSE >= 0x402
 	sl.push_back("SSE42");
 	#elif _M_SSE >= 0x401

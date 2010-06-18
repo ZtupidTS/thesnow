@@ -13,25 +13,29 @@
 				<Option compiler="gcc" />
 				<Compiler>
 					<Add option="-g" />
+					<Add option="-DPCSX2_DEVBUILD" />
 				</Compiler>
 				<Linker>
 					<Add library="../../../../deps/debug/libsoundtouch-dbg.a" />
-					<Add library="../../../../deps/debug/libUtilities.a" />
 					<Add library="../../../../deps/debug/libx86emitter.a" />
+					<Add library="../../../../deps/debug/libUtilities.a" />
+					<Add library="../../../../deps/debug/liba52.a" />
 				</Linker>
 			</Target>
 			<Target title="Release">
 				<Option output="../../../../bin/plugins/libspu2-x.so" prefix_auto="0" extension_auto="0" />
-				<Option object_output="obj/Debug/" />
+				<Option object_output="obj/Release/" />
 				<Option type="3" />
 				<Option compiler="gcc" />
 				<Compiler>
-					<Add option="-g" />
+					<Add option="-O2" />
+					<Add option="-DNDEBUG" />
 				</Compiler>
 				<Linker>
 					<Add library="../../../../deps/libsoundtouch.a" />
-					<Add library="../../../../deps/debug/libUtilities.a" />
-					<Add library="../../../../deps/debug/libx86emitter.a" />
+					<Add library="../../../../deps/release/libx86emitter.a" />
+					<Add library="../../../../deps/release/libUtilities.a" />
+					<Add library="../../../../deps/release/liba52.a" />
 				</Linker>
 			</Target>
 		</Build>
@@ -45,15 +49,14 @@
 			<Add option="-msse2" />
 			<Add directory="../Linux" />
 			<Add directory="../../src" />
-			<Add directory="../3rdparty" />
-			<Add directory="../3rdparty/liba52" />
 			<Add directory="../../../../common/include" />
-			<Add directory="../../../../3rdparty/SoundTouch" />
 			<Add directory="../../../../3rdparty" />
 			<Add directory="../../../../common/src/x86emitter" />
 			<Add directory="../../../../common/include/Utilities" />
 			<Add directory="../../../../common/src" />
 			<Add directory="../../../../common/src/Utilities" />
+			<Add directory="../../../../3rdparty/liba52" />
+			<Add directory="../../../../3rdparty/soundtouch_linux_include" />
 		</Compiler>
 		<Linker>
 			<Add option="`wx-config  --version=2.8 --static=no --unicode=yes --libs`" />
@@ -89,8 +92,6 @@
 		<Unit filename="../3rdparty/liba52/tendra.h" />
 		<Unit filename="../ADSR.cpp" />
 		<Unit filename="../Config.h" />
-		<Unit filename="../ConvertUTF.cpp" />
-		<Unit filename="../ConvertUTF.h" />
 		<Unit filename="../DPLII.h" />
 		<Unit filename="../Debug.cpp" />
 		<Unit filename="../Debug.h" />

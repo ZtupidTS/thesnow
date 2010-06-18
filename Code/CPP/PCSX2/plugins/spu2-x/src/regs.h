@@ -1,6 +1,6 @@
 /* SPU2-X, A plugin for Emulating the Sound Processing Unit of the Playstation 2
  * Developed and maintained by the Pcsx2 Development Team.
- * 
+ *
  * Original portions from SPU2ghz are (c) 2008 by David Quintana [gigaherz]
  *
  * SPU2-X is free software: you can redistribute it and/or modify it under the terms
@@ -50,7 +50,7 @@
 
 #define REG_A_TSA        0x01A8		// Transfer starting address
 #define REG__1AC         0x01AC 	// Transfer data
-#define REG__1AE         0x01AE 
+#define REG__1AE         0x01AE
 #define REG_S_ADMAS      0x01B0 	// AutoDMA Status
 
 // 1b2, 1b4, 1b6, 1b8, 1ba, 1bc, 1be are unknown
@@ -78,8 +78,8 @@
 #define R_ACC_SRC_C1     0x0318
 #define R_ACC_SRC_D0     0x031C
 #define R_ACC_SRC_D1     0x0320
-#define R_IIR_SRC_B1     0x0324
-#define R_IIR_SRC_B0     0x0328
+#define R_IIR_SRC_B0     0x0324
+#define R_IIR_SRC_B1     0x0328
 #define R_MIX_DEST_A0    0x032C
 #define R_MIX_DEST_A1    0x0330
 #define R_MIX_DEST_B0    0x0334
@@ -117,7 +117,7 @@
 #define R_ACC_COEF_D     0x077C
 #define R_IIR_COEF       0x077E
 #define R_FB_ALPHA       0x0780		//feedback alpha (% used)
-#define R_FB_X           0x0782		//feedback 
+#define R_FB_X           0x0782		//feedback
 #define R_IN_COEF_L      0x0784
 #define R_IN_COEF_R      0x0786
 
@@ -127,9 +127,9 @@
 
 // SPDIF interface
 #define SPDIF_OUT        0x07C0		// SPDIF Out: OFF/'PCM'/Bitstream/Bypass
-#define SPDIF_IRQINFO    0x07C2	
-#define SPDIF_MODE       0x07C6			
-#define SPDIF_MEDIA      0x07C8		// SPDIF Media: 'CD'/DVD	
+#define SPDIF_IRQINFO    0x07C2
+#define SPDIF_MODE       0x07C6
+#define SPDIF_MEDIA      0x07C8		// SPDIF Media: 'CD'/DVD
 #define SPDIF_PROTECT	 0x07CC		// SPDIF Copy Protection
 
 
@@ -192,4 +192,5 @@ Core attributes (SD_C)
 #define U16P_HI(x)	( ((u16*)&(x))+1 )
 
 extern u16* regtable[0x401];
+extern u16 const* const regtable_original[0x401];
 

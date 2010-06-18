@@ -9,8 +9,8 @@
 #ifdef _WINDOWS
 
 // The following macros define the minimum required platform.  The minimum required platform
-// is the earliest version of Windows, Internet Explorer etc. that has the necessary features to run 
-// your application.  The macros work by enabling all features available on platform versions up to and 
+// is the earliest version of Windows, Internet Explorer etc. that has the necessary features to run
+// your application.  The macros work by enabling all features available on platform versions up to and
 // including the version specified.
 
 // Modify the following defines if you have to target a platform prior to the ones specified below.
@@ -122,8 +122,6 @@ typedef signed long long int64;
 #include <ddraw.h>
 #include <d3d11.h>
 #include <d3dx11.h>
-#include <d3d10.h>
-#include <d3dx10.h>
 #include <d3d9.h>
 #include <d3dx9.h>
 
@@ -135,17 +133,6 @@ typedef signed long long int64;
 #define D3D11_SHADER_MACRO D3D10_SHADER_MACRO
 #define ID3D11Blob ID3D10Blob
 
-#endif 
-
-// opengl
-
-#include <GL/glew.h>
-#include <GL/glut.h>
-#include <Cg/cg.h>
-#include <Cg/cgGL.h>
-
-#ifdef _WINDOWS
-#include <GL/wglew.h>
 #endif
 
 // sse

@@ -32,7 +32,7 @@ typedef struct _toc_entry {
     UCHAR Msf[3];
 } toc_entry;
 
-typedef struct _toc_data 
+typedef struct _toc_data
 {
     UCHAR Length[2];
     UCHAR FirstCompleteSession;
@@ -45,7 +45,10 @@ extern toc_data cdtoc;
 
 class Source //abstract class as base for source modules
 {
+	Source(Source&);
 public:
+	Source(){};
+
 	//virtual destructor
 	virtual ~Source()
 	{
@@ -68,7 +71,8 @@ public:
 
 class IOCtlSrc: public Source
 {
-private:
+	IOCtlSrc(IOCtlSrc&);
+
 	HANDLE device;
 
 	bool OpenOK;

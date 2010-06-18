@@ -1,19 +1,16 @@
 /*  PadNull
- *  Copyright (C) 2004-2009 PCSX2 Team
+ *  Copyright (C) 2004-2010  PCSX2 Dev Team
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
+ *  of the GNU Lesser General Public License as published by the Free Software Found-
+ *  ation, either version 3 of the License, or (at your option) any later version.
  *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *  PCSX2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ *  without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+ *  PURPOSE.  See the GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  You should have received a copy of the GNU General Public License along with PCSX2.
+ *  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <stdio.h>
@@ -37,7 +34,7 @@ void SysMessage(char *fmt, ...) {
 }
 
 BOOL CALLBACK ConfigureDlgProc(HWND hW, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-    
+
 	switch(uMsg) {
 		case WM_INITDIALOG:
 			LoadConfig();
@@ -52,7 +49,7 @@ BOOL CALLBACK ConfigureDlgProc(HWND hW, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				case IDOK:
 					if (IsDlgButtonChecked(hW, IDC_LOGGING))
 						 conf.Log = 1;
-					else 
+					else
 						conf.Log = 0;
 					SaveConfig();
 					EndDialog(hW, FALSE);
@@ -80,19 +77,19 @@ BOOL CALLBACK AboutDlgProc(HWND hW, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 EXPORT_C_(void) PADconfigure() {
     DialogBox(hInst,
               MAKEINTRESOURCE(IDD_CONFIG),
-              GetActiveWindow(),  
-              (DLGPROC)ConfigureDlgProc); 
+              GetActiveWindow(),
+              (DLGPROC)ConfigureDlgProc);
 }
 
 EXPORT_C_(void) PADabout() {
     DialogBox(hInst,
               MAKEINTRESOURCE(IDD_ABOUT),
-              GetActiveWindow(),  
+              GetActiveWindow(),
               (DLGPROC)AboutDlgProc);
 }
 
 BOOL APIENTRY DllMain(HANDLE hModule,                  // DLL INIT
-                      DWORD  dwReason, 
+                      DWORD  dwReason,
                       LPVOID lpReserved) {
 	hInst = (HINSTANCE)hModule;
 	return TRUE;                                          // very quick :)

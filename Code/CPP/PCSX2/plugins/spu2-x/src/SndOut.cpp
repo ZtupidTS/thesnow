@@ -1,6 +1,6 @@
 /* SPU2-X, A plugin for Emulating the Sound Processing Unit of the Playstation 2
  * Developed and maintained by the Pcsx2 Development Team.
- * 
+ *
  * Original portions from SPU2ghz are (c) 2008 by David Quintana [gigaherz]
  *
  * SPU2-X is free software: you can redistribute it and/or modify it under the terms
@@ -59,7 +59,7 @@ public:
 	void Configure(uptr parent)  { }
 	bool Is51Out() const { return false; }
 	int GetEmptySampleCount()  { return 0; }
-	
+
 	const wchar_t* GetIdent() const
 	{
 		return L"nullout";
@@ -126,8 +126,8 @@ bool SndBuffer::CheckUnderrunStatus( int& nSamples, int& quietSampleCount )
 {
 	quietSampleCount = 0;
 	if( m_underrun_freeze )
-	{			
-		int toFill = (int)(m_size * ( timeStretchDisabled ? 0.50f : 0.1f ) );
+	{
+		int toFill = m_size / ( (SynchMode == 2) ? 32 : 400); // TimeStretch and Async off?
 		toFill = GetAlignedBufferSize( toFill );
 
 		// toFill is now aligned to a SndOutPacket
@@ -149,7 +149,7 @@ bool SndBuffer::CheckUnderrunStatus( int& nSamples, int& quietSampleCount )
 		quietSampleCount = SndOutPacketSize - m_data;
 		m_underrun_freeze = true;
 
-		if( !timeStretchDisabled )
+		if( SynchMode == 0 ) // TimeStrech on
 			timeStretchUnderrun();
 
 		return nSamples != 0;
@@ -192,14 +192,14 @@ void SndBuffer::_WriteSamples(StereoOut32 *bData, int nSamples)
 
 		s32 comp;
 
-		if( !timeStretchDisabled )
+		if( SynchMode == 0 ) // TimeStrech on
 		{
 			comp = timeStretchOverrun();
 		}
 		else
 		{
 			// Toss half the buffer plus whatever's being written anew:
-			comp = GetAlignedBufferSize( (m_size + nSamples ) / 2 );
+			comp = GetAlignedBufferSize( (m_size + nSamples ) / 16 );
 			if( comp > (m_size-SndOutPacketSize) ) comp = m_size-SndOutPacketSize;
 		}
 
@@ -229,6 +229,14 @@ void SndBuffer::_WriteSamples(StereoOut32 *bData, int nSamples)
 		m_wpos += nSamples;
 
 	memcpy( wposbuffer, bData, nSamples * sizeof( *bData ) );
+
+	// Use to monitor buffer levels in real time
+	/*int drvempty = mods[OutputModule]->GetEmptySampleCount();
+	float result = (float)(m_data + m_predictData - drvempty) - (m_size/16);
+	result /= (m_size/16);
+	if (result > 0.6 || result < -0.5)
+		printf("buffer: %f\n",result);
+	}*/
 }
 
 void SndBuffer::Init()
@@ -250,13 +258,13 @@ void SndBuffer::Init()
 
 	try
 	{
-		const float latencyMS = SndOutLatencyMS * (timeStretchDisabled ? 1.5f : 2.0f );
+		const float latencyMS = SndOutLatencyMS * 16;
 		m_size = GetAlignedBufferSize( (int)(latencyMS * SampleRate / 1000.0f ) );
 		m_buffer = new StereoOut32[m_size];
 		m_underrun_freeze = false;
 
 		sndTempBuffer = new StereoOut32[SndOutPacketSize];
-		sndTempBuffer16 = new StereoOut16[SndOutPacketSize];
+		sndTempBuffer16 = new StereoOut16[SndOutPacketSize * 2]; // in case of leftovers.
 	}
 	catch( std::bad_alloc& )
 	{
@@ -302,7 +310,7 @@ int SndBuffer::ssFreeze = 0;
 void SndBuffer::ClearContents()
 {
 	SndBuffer::soundtouchClearContents();
-	SndBuffer::ssFreeze = 30; //Delays sound output for about half a second.
+	SndBuffer::ssFreeze = 256; //Delays sound output for about 1 second.
 }
 
 void SndBuffer::Write( const StereoOut32& Sample )
@@ -323,36 +331,37 @@ void SndBuffer::Write( const StereoOut32& Sample )
 
 	//Don't play anything directly after loading a savestate, avoids static killing your speakers.
 	if ( ssFreeze > 0 )
-	{	
+	{
 		ssFreeze--;
-		return;
+		memset( sndTempBuffer, 0, sizeof(StereoOut32) * SndOutPacketSize ); // Play silence
 	}
 #ifndef __LINUX__
-	else if( dspPluginEnabled )
+	if( dspPluginEnabled )
 	{
 		// Convert in, send to winamp DSP, and convert out.
 
-		for( int i=0; i<SndOutPacketSize; ++i ) { sndTempBuffer16[i] = sndTempBuffer[i].DownSample(); }
-		m_dsp_progress += DspProcess( (s16*)sndTempBuffer16, SndOutPacketSize );
+		int ei= m_dsp_progress;
+		for( int i=0; i<SndOutPacketSize; ++i, ++ei ) { sndTempBuffer16[ei] = sndTempBuffer[i].DownSample(); }
+		m_dsp_progress += DspProcess( (s16*)sndTempBuffer16 + m_dsp_progress, SndOutPacketSize );
 
 		// Some ugly code to ensure full packet handling:
-		int ei = 0;
+		ei = 0;
 		while( m_dsp_progress >= SndOutPacketSize )
 		{
 			for( int i=0; i<SndOutPacketSize; ++i, ++ei ) { sndTempBuffer[i] = sndTempBuffer16[ei].UpSample(); }
 
-			if( !timeStretchDisabled )
+			if( SynchMode == 0 ) // TimeStrech on
 				timeStretchWrite();
 			else
-				_WriteSamples(sndTempBuffer, sndTempProgress);
+				_WriteSamples(sndTempBuffer, SndOutPacketSize);
 
 			m_dsp_progress -= SndOutPacketSize;
 		}
-		
+
 		// copy any leftovers to the front of the dsp buffer.
 		if( m_dsp_progress > 0 )
 		{
-			memcpy( &sndTempBuffer16[ei], sndTempBuffer16,
+			memcpy( sndTempBuffer16, &sndTempBuffer16[ei],
 				sizeof(sndTempBuffer16[0]) * m_dsp_progress
 			);
 		}
@@ -360,7 +369,7 @@ void SndBuffer::Write( const StereoOut32& Sample )
 #endif
 	else
 	{
-		if( !timeStretchDisabled )
+		if( SynchMode == 0 ) // TimeStrech on
 			timeStretchWrite();
 		else
 			_WriteSamples(sndTempBuffer, SndOutPacketSize);

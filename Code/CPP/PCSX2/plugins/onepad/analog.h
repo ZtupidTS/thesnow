@@ -18,9 +18,9 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
- 
+
  #define NUM_OF_PADS 2
- 
+
  #include "onepad.h"
  namespace Analog
 {
@@ -28,7 +28,7 @@
 	extern u8 Pad(int pad, u8 index);
 	extern void SetPad(u8 pad, int index, u8 value);
 	extern void InvertPad(u8 pad, int key);
-	extern bool RevertPad(u8 index);
+	extern bool ReversePad(u8 index);
 	extern void ResetPad( u8 pad, int key);
 	extern void ConfigurePad( u8 pad, int index, int value);
 	extern int KeypadToPad(u8 keypress);

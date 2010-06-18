@@ -1,6 +1,6 @@
 /* SPU2-X, A plugin for Emulating the Sound Processing Unit of the Playstation 2
  * Developed and maintained by the Pcsx2 Development Team.
- * 
+ *
  * Original portions from SPU2ghz are (c) 2008 by David Quintana [gigaherz]
  *
  * SPU2-X is free software: you can redistribute it and/or modify it under the terms
@@ -20,7 +20,7 @@
 const char *ParamNames[8]={"VOLL","VOLR","PITCH","ADSR1","ADSR2","ENVX","VOLXL","VOLXR"};
 const char *AddressNames[6]={"SSAH","SSAL","LSAH","LSAL","NAXH","NAXL"};
 
-__forceinline void _RegLog_( const char* action, int level, const char *RName, u32 mem, u32 core, u16 value ) 
+__forceinline void _RegLog_( const char* action, int level, const char *RName, u32 mem, u32 core, u16 value )
 {
 	if( level > 1 )
 		FileLog("[%10d] SPU2 %s mem %08x (core %d, register %s) value %04x\n",
@@ -29,10 +29,10 @@ __forceinline void _RegLog_( const char* action, int level, const char *RName, u
 
 #define RegLog( lev, rname, mem, core, val ) _RegLog_( action, lev, rname, mem, core, val )
 
-void SPU2writeLog( const char* action, u32 rmem, u16 value ) 
+void SPU2writeLog( const char* action, u32 rmem, u16 value )
 {
 	if( !IsDevBuild ) return;
-	
+
 	//u32 vx=0, vc=0;
 	u32 core=0, omem, mem;
 	omem=mem=rmem & 0x7FF; //FFFF;
@@ -93,23 +93,23 @@ void SPU2writeLog( const char* action, u32 rmem, u16 value )
 				RegLog(2,"SPDIF_IRQINFO",rmem,-1,value);
 				break;
 			case 0x7c4:
-				if(Spdif.Unknown1 != value) ConLog(" * SPU2: SPDIF Unknown Register 1 set to %04x\n",value);
+				if(Spdif.Unknown1 != value) ConLog("* SPU2-X: SPDIF Unknown Register 1 set to %04x\n",value);
 				RegLog(2,"SPDIF_UNKNOWN1",rmem,-1,value);
 				break;
 			case SPDIF_MODE:
-				if(Spdif.Mode != value) ConLog(" * SPU2: SPDIF Mode set to %04x\n",value);
+				if(Spdif.Mode != value) ConLog("* SPU2-X: SPDIF Mode set to %04x\n",value);
 				RegLog(2,"SPDIF_MODE",rmem,-1,value);
 				break;
 			case SPDIF_MEDIA:
-				if(Spdif.Media != value) ConLog(" * SPU2: SPDIF Media set to %04x\n",value);
+				if(Spdif.Media != value) ConLog("* SPU2-X: SPDIF Media set to %04x\n",value);
 				RegLog(2,"SPDIF_MEDIA",rmem,-1,value);
 				break;
 			case 0x7ca:
-				if(Spdif.Unknown2 != value) ConLog(" * SPU2: SPDIF Unknown Register 2 set to %04x\n",value);
+				if(Spdif.Unknown2 != value) ConLog("* SPU2-X: SPDIF Unknown Register 2 set to %04x\n",value);
 				RegLog(2,"SPDIF_UNKNOWN2",rmem,-1,value);
 				break;
 			case SPDIF_PROTECT:
-				if(Spdif.Protection != value) ConLog(" * SPU2: SPDIF Copy set to %04x\n",value);
+				if(Spdif.Protection != value) ConLog("* SPU2-X: SPDIF Copy set to %04x\n",value);
 				RegLog(2,"SPDIF_PROTECT",rmem,-1,value);
 				break;
 		}
@@ -185,11 +185,11 @@ void SPU2writeLog( const char* action, u32 rmem, u16 value )
 				RegLog(2,"TSAL",rmem,core,value);
 				break;
 			case REG_S_ENDX:
-				//ConLog(" * SPU2: Core %d ENDX cleared!\n",core);
+				//ConLog("* SPU2-X: Core %d ENDX cleared!\n",core);
 				RegLog(2,"ENDX0",rmem,core,value);
 				break;
-			case (REG_S_ENDX + 2):	
-				//ConLog(" * SPU2: Core %d ENDX cleared!\n",core);
+			case (REG_S_ENDX + 2):
+				//ConLog("* SPU2-X: Core %d ENDX cleared!\n",core);
 				RegLog(2,"ENDX1",rmem,core,value);
 				break;
 			case REG_P_MVOLL:
@@ -200,7 +200,7 @@ void SPU2writeLog( const char* action, u32 rmem, u16 value )
 				break;
 			case REG_S_ADMAS:
 				RegLog(3,"ADMAS",rmem,core,value);
-				//ConLog(" * SPU2: Core %d AutoDMAControl set to %d\n",core,value);
+				//ConLog("* SPU2-X: Core %d AutoDMAControl set to %d\n",core,value);
 				break;
 			case REG_P_STATX:
 				RegLog(3,"STATX",rmem,core,value);

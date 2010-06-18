@@ -1,6 +1,6 @@
 /* SPU2-X, A plugin for Emulating the Sound Processing Unit of the Playstation 2
  * Developed and maintained by the Pcsx2 Development Team.
- * 
+ *
  * Original portions from SPU2ghz are (c) 2008 by David Quintana [gigaherz]
  *
  * SPU2-X is free software: you can redistribute it and/or modify it under the terms
@@ -26,21 +26,20 @@ static FILE *DMA4LogFile		= NULL;
 static FILE *DMA7LogFile		= NULL;
 static FILE *ADMA4LogFile		= NULL;
 static FILE *ADMA7LogFile		= NULL;
-static FILE *ADMAOutLogFile	= NULL;
+static FILE *ADMAOutLogFile		= NULL;
 
 static FILE *REGWRTLogFile[2] = {0,0};
 
 void DMALogOpen()
 {
 	if(!DMALog()) return;
-	DMA4LogFile    = fopen( Unicode::Convert( DMA4LogFileName ).c_str(), "wb");
-	DMA7LogFile    = fopen( Unicode::Convert( DMA7LogFileName ).c_str(), "wb");
-	ADMA4LogFile   = fopen( "logs/adma4.raw", "wb" );
-	ADMA7LogFile   = fopen( "logs/adma7.raw", "wb" );
-	ADMAOutLogFile = fopen( "logs/admaOut.raw", "wb" );
-	//REGWRTLogFile[0]=fopen("logs/RegWrite0.raw","wb");
-	//REGWRTLogFile[1]=fopen("logs/RegWrite1.raw","wb");
+	DMA4LogFile    = OpenBinaryLog( DMA4LogFileName );
+	DMA7LogFile    = OpenBinaryLog( DMA7LogFileName );
+	ADMA4LogFile   = OpenBinaryLog( L"adma4.raw" );
+	ADMA7LogFile   = OpenBinaryLog( L"adma7.raw" );
+	ADMAOutLogFile = OpenBinaryLog( L"admaOut.raw" );
 }
+
 void DMA4LogWrite(void *lpData, u32 ulSize) {
 	if(!DMALog()) return;
 	if (!DMA4LogFile) return;
@@ -95,9 +94,10 @@ void V_Core::AutoDMAReadBuffer(int mode) //mode: 0= split stereo; 1 = do not spl
 	// addressing, but new PCSX2s have dynamic memory addressing).
 
 	if(mode)
-	{		
+	{
 		if( DMAPtr != NULL )
-			memcpy((ADMATempBuffer+(spos<<1)),DMAPtr+InputDataProgress,0x400);
+			//memcpy((ADMATempBuffer+(spos<<1)),DMAPtr+InputDataProgress,0x400);
+			memcpy(GetMemPtr(0x2000+(Index<<10)+spos),DMAPtr+InputDataProgress,0x400);
 		MADR+=0x400;
 		InputDataLeft-=0x200;
 		InputDataProgress+=0x200;
@@ -105,15 +105,15 @@ void V_Core::AutoDMAReadBuffer(int mode) //mode: 0= split stereo; 1 = do not spl
 	else
 	{
 		if( DMAPtr != NULL )
-			memcpy((ADMATempBuffer+spos),DMAPtr+InputDataProgress,0x200);
-			//memcpy((spu2mem+0x2000+(core<<10)+spos),DMAPtr+InputDataProgress,0x200);
+			//memcpy((ADMATempBuffer+spos),DMAPtr+InputDataProgress,0x200);
+			memcpy(GetMemPtr(0x2000+(Index<<10)+spos),DMAPtr+InputDataProgress,0x200);
 		MADR+=0x200;
 		InputDataLeft-=0x100;
 		InputDataProgress+=0x100;
 
 		if( DMAPtr != NULL )
-			memcpy((ADMATempBuffer+spos+0x200),DMAPtr+InputDataProgress,0x200);
-			//memcpy((spu2mem+0x2200+(core<<10)+spos),DMAPtr+InputDataProgress,0x200);
+			//memcpy((ADMATempBuffer+spos+0x200),DMAPtr+InputDataProgress,0x200);
+			memcpy(GetMemPtr(0x2200+(Index<<10)+spos),DMAPtr+InputDataProgress,0x200);
 		MADR+=0x200;
 		InputDataLeft-=0x100;
 		InputDataProgress+=0x100;
@@ -128,7 +128,7 @@ void V_Core::StartADMAWrite(u16 *pMem, u32 sz)
 #ifndef ENABLE_NEW_IOPDMA_SPU2
 	int size = (sz)&(~511);
 
-	if(MsgAutoDMA()) ConLog(" * SPU2: DMA%c AutoDMA Transfer of %d bytes to %x (%02x %x %04x).\n",
+	if(MsgAutoDMA()) ConLog("* SPU2-X: DMA%c AutoDMA Transfer of %d bytes to %x (%02x %x %04x).\n",
 		GetDmaIndexChar(), size<<1, TSA, DMABits, AutoDMACtrl, (~Regs.ATTR)&0x7fff);
 
 	InputDataProgress = 0;
@@ -231,13 +231,13 @@ void V_Core::PlainDMAWrite(u16 *pMem, u32 size)
 	PcmCacheEntry* cacheLine = &pcm_cache_data[cacheIdxStart];
 	PcmCacheEntry& cacheEnd = pcm_cache_data[cacheIdxEnd];
 
-	do 
+	do
 	{
 		cacheLine->Validated = false;
 		cacheLine++;
 	} while ( cacheLine != &cacheEnd );
 
-	//ConLog( " * SPU2 : Cache Clear Range!  TSA=0x%x, TDA=0x%x (low8=0x%x, high8=0x%x, len=0x%x)\n",
+	//ConLog( "* SPU2-X: Cache Clear Range!  TSA=0x%x, TDA=0x%x (low8=0x%x, high8=0x%x, len=0x%x)\n",
 	//	TSA, buff1end, flagTSA, flagTDA, clearLen );
 
 
@@ -252,7 +252,7 @@ void V_Core::PlainDMAWrite(u16 *pMem, u32 size)
 		// second branch needs copied:
 		// It starts at the beginning of memory and moves forward to buff2end
 
-		// endpoint cache should be irrelevant, since it's almost certainly dynamic 
+		// endpoint cache should be irrelevant, since it's almost certainly dynamic
 		// memory below 0x2800 (registers and such)
 		//const u32 endpt2 = (buff2end + roundUp) / indexer_scalar;
 		//memset( pcm_cache_flags, 0, endpt2 );
@@ -274,6 +274,7 @@ void V_Core::PlainDMAWrite(u16 *pMem, u32 size)
 
 			if ((Cores[i].IRQEnable && (Cores[i].IRQA >= TSA)) || (Cores[i].IRQA < TDA))
 			{
+				ConLog("DMAwrite Core %d: IRQ Called (IRQ passed). IRQA = %x Cycles = %d\n", i, Cores[i].IRQA, Cycles );
 				Spdif.Info |= 4 << i;
 				SetIrqCall();
 			}
@@ -290,7 +291,7 @@ void V_Core::PlainDMAWrite(u16 *pMem, u32 size)
 	{
 		// Buffer doesn't wrap/overflow!
 		// Just set the TDA and check for an IRQ...
-		
+
 		TDA = buff1end;
 
 		// Flag interrupt?  If IRQA occurs between start and dest, flag it.
@@ -303,6 +304,7 @@ void V_Core::PlainDMAWrite(u16 *pMem, u32 size)
 
 			if( Cores[i].IRQEnable && (Cores[i].IRQA >= TSA) && (Cores[i].IRQA < TDA) )
 			{
+				ConLog("DMAwrite Core %d: IRQ Called (IRQ passed). IRQA = %x Cycles = %d\n", i, Cores[i].IRQA, Cycles );
 				Spdif.Info |= 4 << i;
 				SetIrqCall();
 			}
@@ -321,7 +323,7 @@ void V_Core::PlainDMAWrite(u16 *pMem, u32 size)
 	TADR		= MADR + (size<<1);
 }
 
-void V_Core::DoDMAread(u16* pMem, u32 size) 
+void V_Core::DoDMAread(u16* pMem, u32 size)
 {
 #ifndef ENABLE_NEW_IOPDMA_SPU2
 	TSA &= 0xffff8;
@@ -392,7 +394,7 @@ void V_Core::DoDMAread(u16* pMem, u32 size)
 #endif
 }
 
-void V_Core::DoDMAwrite(u16* pMem, u32 size) 
+void V_Core::DoDMAwrite(u16* pMem, u32 size)
 {
 #ifndef ENABLE_NEW_IOPDMA_SPU2
 	DMAPtr = pMem;
@@ -420,8 +422,9 @@ void V_Core::DoDMAwrite(u16* pMem, u32 size)
 	}
 	else
 	{
-		if(MsgDMA()) ConLog(" * SPU2: DMA%c Transfer of %d bytes to %x (%02x %x %04x).\n",
-			GetDmaIndexChar(),size<<1,TSA,DMABits,AutoDMACtrl,(~Regs.ATTR)&0x7fff);
+		if(MsgDMA()) ConLog("* SPU2-X: DMA%c Transfer of %d bytes to %x (%02x %x %04x). IRQE = %d IRQA = %x \n",
+			GetDmaIndexChar(),size<<1,TSA,DMABits,AutoDMACtrl,(~Regs.ATTR)&0x7fff,
+			Cores[0].IRQEnable, Cores[0].IRQA);
 
 		PlainDMAWrite(pMem,size);
 	}
@@ -513,7 +516,7 @@ s32 V_Core::NewDmaWrite(u32* data, u32 bytesLeft, u32* bytesProcessed)
 	bool DmaStarting = !DmaStarted;
 	DmaStarted = true;
 
-	if(bytesLeft<2) 
+	if(bytesLeft<2)
 	{
 		// execute interrupt code early
 		NewDmaInterrupt();
@@ -532,9 +535,9 @@ s32 V_Core::NewDmaWrite(u32* data, u32 bytesLeft, u32* bytesProcessed)
 	if(adma_enable)
 	{
 		TSA&=0x1fff;
-		//Console.Error(" * SPU2: AutoDMA transfers not supported yet! (core %d)\n", Index);
+		//Console.Error("* SPU2-X: AutoDMA transfers not supported yet! (core %d)\n", Index);
 
-		if(MsgAutoDMA() && DmaStarting) ConLog(" * SPU2: DMA%c AutoDMA Transfer of %d bytes to %x (%02x %x %04x).\n",
+		if(MsgAutoDMA() && DmaStarting) ConLog("* SPU2-X: DMA%c AutoDMA Transfer of %d bytes to %x (%02x %x %04x).\n",
 			GetDmaIndexChar(), bytesLeft<<1, TSA, DMABits, AutoDMACtrl, (~Regs.ATTR)&0x7fff);
 
 		u32 processed = 0;
@@ -551,8 +554,9 @@ s32 V_Core::NewDmaWrite(u32* data, u32 bytesLeft, u32* bytesProcessed)
 			s16* mptr = (s16*)data;
 
 			if(false)//(mode)
-			{		
-				memcpy((ADMATempBuffer+(InputPosWrite<<1)),mptr,0x400);
+			{
+				//memcpy((ADMATempBuffer+(InputPosWrite<<1)),mptr,0x400);
+				memcpy(GetMemPtr(0x2000+(Index<<10)+InputPosWrite),mptr,0x400);
 				mptr+=0x200;
 
 				// Flag interrupt?  If IRQA occurs between start and dest, flag it.
@@ -572,8 +576,8 @@ s32 V_Core::NewDmaWrite(u32* data, u32 bytesLeft, u32* bytesProcessed)
 			}
 			else
 			{
-				memcpy((ADMATempBuffer+InputPosWrite),mptr,0x200);
-				//memcpy((spu2mem+0x2000+(Index<<10)+InputPosWrite),mptr,0x200);
+				//memcpy((ADMATempBuffer+InputPosWrite),mptr,0x200);
+				memcpy(GetMemPtr(0x2000+(Index<<10)+InputPosWrite),mptr,0x200);
 				mptr+=0x100;
 
 				// Flag interrupt?  If IRQA occurs between start and dest, flag it.
@@ -591,8 +595,8 @@ s32 V_Core::NewDmaWrite(u32* data, u32 bytesLeft, u32* bytesProcessed)
 					}
 				}
 
-				memcpy((ADMATempBuffer+InputPosWrite+0x200),mptr,0x200);
-				//memcpy((spu2mem+0x2200+(Index<<10)+InputPosWrite),mptr,0x200);
+				//memcpy((ADMATempBuffer+InputPosWrite+0x200),mptr,0x200);
+				memcpy(GetMemPtr(0x2200+(Index<<10)+InputPosWrite),mptr,0x200);
 				mptr+=0x100;
 
 				// Flag interrupt?  If IRQA occurs between start and dest, flag it.
@@ -633,7 +637,7 @@ s32 V_Core::NewDmaWrite(u32* data, u32 bytesLeft, u32* bytesProcessed)
 	}
 	else
 	{
-		if(MsgDMA() && DmaStarting) ConLog(" * SPU2: DMA%c Transfer of %d bytes to %x (%02x %x %04x).\n",
+		if(MsgDMA() && DmaStarting) ConLog("* SPU2-X: DMA%c Transfer of %d bytes to %x (%02x %x %04x).\n",
 			GetDmaIndexChar(),bytesLeft,TSA,DMABits,AutoDMACtrl,(~Regs.ATTR)&0x7fff);
 
 		if(bytesLeft> 2048)

@@ -1,6 +1,6 @@
 /* SPU2-X, A plugin for Emulating the Sound Processing Unit of the Playstation 2
 * Developed and maintained by the Pcsx2 Development Team.
-* 
+*
 * Original portions from SPU2ghz are (c) 2008 by David Quintana [gigaherz]
 *
 * SPU2-X is free software: you can redistribute it and/or modify it under the terms
@@ -16,8 +16,7 @@
 */
 
 #include "Global.h"
-#include "SoundTouch/SoundTouch.h"
-#include "SoundTouch/WavFile.h"
+#include "soundtouch/SoundTouch.h"
 
 
 static soundtouch::SoundTouch* pSoundTouch = NULL;
@@ -36,7 +35,6 @@ float SndBuffer::lastEmergencyAdj;
 
 float SndBuffer::cTempo = 1;
 float SndBuffer::eTempo = 1;
-int SndBuffer::freezeTempo = 0;
 
 void SndBuffer::PredictDataWrite( int samples )
 {
@@ -55,20 +53,15 @@ float SndBuffer::GetStatusPct()
 
 	int drvempty = mods[OutputModule]->GetEmptySampleCount(); // / 2;
 
-	//ConLog( "Data %d >>> driver: %d   predict: %d\n", data, drvempty, predictData );
+	//ConLog( "Data %d >>> driver: %d   predict: %d\n", m_data, drvempty, m_predictData );
 
-	float result = (float)(m_data + m_predictData - drvempty) - (m_size/2);
-	result /= (m_size/2);
+	float result = (float)(m_data + m_predictData - drvempty) - (m_size/16);
+	result /= (m_size/16);
 	return result;
 }
 
-void SndBuffer::UpdateTempoChange()
+void SndBuffer::UpdateTempoChangeSoundTouch()
 {
-	if( --freezeTempo > 0 )
-	{
-		return;
-	}
-
 	float statusPct = GetStatusPct();
 	float pctChange = statusPct - lastPct;
 
@@ -129,7 +122,7 @@ void SndBuffer::UpdateTempoChange()
 
 	if( cTempo < 0.965f || cTempo > 1.060f ||
 		pctChange < -0.38f || pctChange > 0.54f ||
-		statusPct < -0.42f || statusPct > 0.49f ||
+		statusPct < -0.42f || statusPct > 0.70f ||
 		eTempo < 0.89f || eTempo > 1.19f )
 	{
 		//printf("Emergency stretch: cTempo = %f eTempo = %f pctChange = %f statusPct = %f\n",cTempo,eTempo,pctChange,statusPct);
@@ -177,7 +170,7 @@ void SndBuffer::UpdateTempoChange()
 		pSoundTouch->setTempo( eTempo = (float)newTempo );
 		ts_stats_stretchblocks++;
 
-		/*ConLog(" * SPU2: [Nominal %d%%] [Emergency: %d%%] (baseTempo: %d%% ) (newTempo: %d%%) (buffer: %d%%)\n",
+		/*ConLog("* SPU2-X: [Nominal %d%%] [Emergency: %d%%] (baseTempo: %d%% ) (newTempo: %d%%) (buffer: %d%%)\n",
 			//(relation < 0.0) ? "Normalize" : "",
 			(int)(tempoChange * 100.0 * 0.03),
 			(int)(emergencyAdj * 100.0),
@@ -204,6 +197,27 @@ void SndBuffer::UpdateTempoChange()
 			ts_stats_normalblocks++;
 		}
 	}
+}
+
+extern uint TickInterval;
+void SndBuffer::UpdateTempoChangeAsyncMixing()
+{
+	float statusPct = GetStatusPct();
+
+	lastPct = statusPct;
+	if( statusPct < -0.4f )
+	{
+		TickInterval -= 4;
+		if( TickInterval <= 200 ) TickInterval = 200;
+		//printf("-- %d, %f\n",TickInterval,statusPct);
+	}
+	else if( statusPct > 0.5f )
+	{
+		TickInterval += 1;
+		if( TickInterval >= 7000 ) TickInterval = 7000;
+		//printf("++ %d, %f\n",TickInterval,statusPct);
+	}
+	else TickInterval = 768;
 }
 
 void SndBuffer::timeStretchUnderrun()
@@ -243,7 +257,7 @@ static void CvtPacketToFloat( StereoOut32* srcdest )
 static void CvtPacketToInt( StereoOut32* srcdest, uint size )
 {
 	//jASSUME( (size & 127) == 0 );
-	
+
 	const StereoOutFloat* src = (StereoOutFloat*)srcdest;
 	StereoOut32* dest = srcdest;
 
@@ -272,23 +286,24 @@ void SndBuffer::timeStretchWrite()
 	{
 		// Hint: It's assumed that pSoundTouch will return chunks of 128 bytes (it always does as
 		// long as the SSE optimizations are enabled), which means we can do our own SSE opts here.
-		
+
 		CvtPacketToInt( sndTempBuffer, tempProgress );
 		_WriteSamples( sndTempBuffer, tempProgress );
 		progress = true;
 	}
 
-	UpdateTempoChange();
+	UpdateTempoChangeSoundTouch();
 
 	if( MsgOverruns() )
 	{
 		if( progress )
 		{
-			if( ++ts_stats_logcounter > 300 )
+			if( ++ts_stats_logcounter > 150 )
 			{
 				ts_stats_logcounter = 0;
-				ConLog( " * SPU2 > Timestretch Stats > %d%% of packets stretched.\n",
-					( ts_stats_stretchblocks * 100 ) / ( ts_stats_normalblocks + ts_stats_stretchblocks ) );
+				ConLog( " * SPU2 > Timestretch Stats > %d percent stretched. Total stretchblocks = %d.\n",
+					( ts_stats_stretchblocks * 100 ) / ( ts_stats_normalblocks + ts_stats_stretchblocks ),
+					ts_stats_stretchblocks);
 				ts_stats_normalblocks = 0;
 				ts_stats_stretchblocks = 0;
 			}
@@ -316,9 +331,6 @@ void SndBuffer::soundtouchInit()
 	lastPct = 0;
 	lastEmergencyAdj = 0;
 
-	// just freeze tempo changes for a while at startup.
-	// the driver buffers are bogus anyway.
-	freezeTempo = 16;
 	m_predictData = 0;
 }
 
@@ -335,7 +347,6 @@ void SndBuffer::soundtouchClearContents()
 	lastPct = 0;
 	lastEmergencyAdj = 0;
 
-	freezeTempo = 16;
 	m_predictData = 0;
 }
 

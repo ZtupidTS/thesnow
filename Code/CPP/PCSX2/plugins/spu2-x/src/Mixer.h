@@ -54,7 +54,7 @@ struct StereoOut32
 		Right *= factor;
 		return *this;
 	}
-	
+
 	StereoOut32 operator+( const StereoOut32& right ) const
 	{
 		return StereoOut32(
@@ -79,6 +79,5 @@ struct StereoOut32
 
 extern void	Mix();
 extern s32	clamp_mix( s32 x, u8 bitshift=0 );
-extern s32	MulShr32( s32 srcval, s32 mulval );
 
 extern StereoOut32 clamp_mix( const StereoOut32& sample, u8 bitshift=0 );

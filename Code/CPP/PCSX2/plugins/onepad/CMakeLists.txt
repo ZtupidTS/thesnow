@@ -3,22 +3,33 @@
 # plugin name
 set(onepadName onepad)
 
+set(CommonFlags
+    -Wall
+    -m32
+    -fPIC
+    )
+
+set(OptimizationFlags
+    -O2
+    -DNDEBUG
+    )
+
 # Debug - Build
 if(CMAKE_BUILD_TYPE STREQUAL Debug)
 	# add defines
-	add_definitions(-Wall -fPIC -m32 -g)
+    add_definitions(${CommonFlags} -g)
 endif(CMAKE_BUILD_TYPE STREQUAL Debug)
 
 # Devel - Build
 if(CMAKE_BUILD_TYPE STREQUAL Devel)
 	# add defines
-	add_definitions(-Wall -fPIC -m32 -O2)
+	add_definitions(${CommonFlags} ${OptimizationFlags})
 endif(CMAKE_BUILD_TYPE STREQUAL Devel)
 
 # Release - Build
 if(CMAKE_BUILD_TYPE STREQUAL Release)
 	# add defines
-	add_definitions(-Wall -fPIC -m32 -O2 -s)
+	add_definitions(${CommonFlags} ${OptimizationFlags})
 endif(CMAKE_BUILD_TYPE STREQUAL Release)
 
 # onepad sources
@@ -28,7 +39,7 @@ set(onepadSources
 	joystick.cpp
 	keyboard.cpp
 	onepad.cpp)
-	
+
 # onepad headers
 set(onepadHeaders
 	analog.h
@@ -40,18 +51,13 @@ set(onepadHeaders
 
 # onepad Linux sources
 set(onepadLinuxSources
-#	Linux/callbacks.c
-	Linux/gui.cpp
 	Linux/ini.cpp
-	Linux/interface.c
-	Linux/linux.cpp
-	Linux/support.c)
+	Linux/dialog.cpp
+	Linux/linux.cpp)
 
 # onepad Linux headers
 set(onepadLinuxHeaders
-	Linux/callbacks.h
-	Linux/interface.h
-	Linux/support.h)
+	Linux/linux.h)
 
 # onepad Windows sources
 set(onepadWindowsSources
@@ -65,11 +71,19 @@ set(onepadWindowsHeaders
 include_directories(.)
 
 # add library
-add_library(${onepadName} SHARED 
+add_library(${onepadName} SHARED
 			${onepadSources}
 			${onepadHeaders}
 			${onepadLinuxSources}
 			${onepadLinuxHeaders})
+
+# Force the linker into 32 bits mode
+target_link_libraries(${onepadName} -m32)
+
+# Linker strip option
+if (CMAKE_BUILD_STRIP)
+    target_link_libraries(${onepadName} -s)
+endif (CMAKE_BUILD_STRIP)
 
 # set output directory
 set_target_properties(${onepadName} PROPERTIES

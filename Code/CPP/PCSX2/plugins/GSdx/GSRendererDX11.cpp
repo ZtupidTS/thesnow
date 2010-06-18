@@ -1,4 +1,4 @@
-/* 
+/*
  *	Copyright (C) 2007-2009 Gabest
  *	http://www.gabest.org
  *
@@ -6,15 +6,15 @@
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  This Program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  *  GNU General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU General Public License
  *  along with GNU Make; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *  http://www.gnu.org/copyleft/gpl.html
  *
  */
@@ -38,7 +38,7 @@ bool GSRendererDX11::CreateDevice(GSDevice* dev)
 	return true;
 }
 
-template<uint32 prim, uint32 tme, uint32 fst> 
+template<uint32 prim, uint32 tme, uint32 fst>
 void GSRendererDX11::VertexKick(bool skip)
 {
 	GSVertexHW11& dst = m_vl.AddTail();
@@ -46,13 +46,71 @@ void GSRendererDX11::VertexKick(bool skip)
 	dst.vi[0] = m_v.vi[0];
 	dst.vi[1] = m_v.vi[1];
 
+#ifdef USE_UPSCALE_HACKS
+	if(tme && fst)
+	{
+		//GSVector4::storel(&dst.ST, m_v.GetUV());
+		int Udiff = 0;
+		int Vdiff = 0;
+		int Uadjust = 0;
+		int Vadjust = 0;
+		int multiplier = upscale_Multiplier();
+
+		if (multiplier > 1) {
+
+			Udiff = m_v.UV.U & 4095;
+			Vdiff = m_v.UV.V & 4095;
+			if (Udiff != 0){
+				if		(Udiff >= 4080)	{/*printf("U+ %d %d\n", Udiff, m_v.UV.U);*/  Uadjust = -1; }
+				else if (Udiff <= 16)	{/*printf("U- %d %d\n", Udiff, m_v.UV.U);*/  Uadjust = 1; }
+			}
+			if (Vdiff != 0){
+				if		(Vdiff >= 4080)	{/*printf("V+ %d %d\n", Vdiff, m_v.UV.V);*/  Vadjust = -1; }
+				else if	(Vdiff <= 16)	{/*printf("V- %d %d\n", Vdiff, m_v.UV.V);*/  Vadjust = 1; }
+			}
+
+			Udiff = m_v.UV.U & 255;
+			Vdiff = m_v.UV.V & 255;
+			if (Udiff != 0){
+				if		(Udiff >= 248)	{ Uadjust = -1;	}
+				else if (Udiff <= 8)	{ Uadjust = 1; }
+			}
+
+			if (Vdiff != 0){
+				if		(Vdiff >= 248)	{ Vadjust = -1;	}
+				else if	(Vdiff <= 8)	{ Vadjust = 1; }
+			}
+
+			Udiff = m_v.UV.U & 15;
+			Vdiff = m_v.UV.V & 15;
+			if (Udiff != 0){
+				if		(Udiff >= 15)	{ Uadjust = -1; }
+				else if (Udiff <= 1)	{ Uadjust = 1; }
+			}
+
+			if (Vdiff != 0){
+				if		(Vdiff >= 15)	{ Vadjust = -1; }
+				else if	(Vdiff <= 1)	{ Vadjust = 1; }
+			}
+		}
+		dst.ST.S = (float)m_v.UV.U - Uadjust;
+		dst.ST.T = (float)m_v.UV.V - Vadjust;
+	}
+	else if (tme)
+	{
+		// Wip :p
+		//dst.XYZ.X += 5;
+		//dst.XYZ.Y += 5;
+	}
+#else
 	if(tme && fst)
 	{
 		GSVector4::storel(&dst.ST, m_v.GetUV());
 	}
+#endif
 
 	int count = 0;
-	
+
 	if(GSVertexHW11* v = DrawingKick<prim>(skip, count))
 	{
 		GSVector4i scissor = m_context->scissor.dx10;
@@ -148,7 +206,7 @@ void GSRendererDX11::Draw(GSTexture* rt, GSTexture* ds, GSTextureCache::Source* 
 		m_topology = D3D11_PRIMITIVE_TOPOLOGY_POINTLIST;
 		m_perfmon.Put(GSPerfMon::Prim, m_count);
 		break;
-	case GS_LINE_CLASS: 
+	case GS_LINE_CLASS:
 	case GS_SPRITE_CLASS:
 		m_topology = D3D11_PRIMITIVE_TOPOLOGY_LINELIST;
 		m_perfmon.Put(GSPerfMon::Prim, m_count / 2);

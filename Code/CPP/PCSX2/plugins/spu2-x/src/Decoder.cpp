@@ -18,10 +18,23 @@
 
 #include "Global.h"
 
+// Commenting this will disable all the code in Decoder.cpp (which is the only code that uses liba52 in spu2-x.)
+#ifndef ENABLE_DECODER
+#	define ENABLE_DECODER 1
+#endif
+
+#if ENABLE_DECODER
+
 extern "C" {
-#include "liba52/inttypes.h"
-#include "liba52/a52.h"
-#include "liba52/mm_accel.h"
+#ifdef _MSC_VER
+#	include "liba52/inttypes.h"
+#	include "liba52/a52.h"
+#	include "liba52/mm_accel.h"
+#else
+#	include <inttypes.h>
+#	include "a52dec/a52.h"
+#	include "a52dec/mm_accel.h"
+#endif
 }
 
 extern u32 spdif_read_data(u8 *buff, u32 max_data);
@@ -130,14 +143,14 @@ s32 stoi(sample_t n) //input: [-1..1]
 
 void spdif_update()
 {
-	
+
 
 	for(int i=0;i<data_rate;i++)
 	{
 		// Source is Core 0
 		// .. and Right side data should be zero / ignored
 		StereoOut32 Data( Cores[0].ReadInput_HiFi() );
-		
+
 		if(fSpdifDump)
 		{
 			fwrite(&Data.Left,4,1,fSpdifDump);
@@ -194,7 +207,7 @@ void spdif_update()
 				int output_cursor=j;
 
 				int n=0;
-				if(flags&A52_LFE) 
+				if(flags&A52_LFE)
 				{
 					sample_flags|=CHANNEL_LFE;
 
@@ -381,3 +394,11 @@ void spdif_get_samples(s32*samples)
 		}
 	}
 }
+#else
+
+u32 spdif_init() { return 1; }
+void spdif_update() {}
+void spdif_shutdown() {}
+void spdif_set51(u32 is_5_1_out) {}
+
+#endif

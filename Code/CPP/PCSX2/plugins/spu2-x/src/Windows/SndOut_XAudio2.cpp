@@ -1,6 +1,6 @@
 /* SPU2-X, A plugin for Emulating the Sound Processing Unit of the Playstation 2
  * Developed and maintained by the Pcsx2 Development Team.
- * 
+ *
  * Original portions from SPU2ghz are (c) 2008 by David Quintana [gigaherz]
  *
  * SPU2-X is free software: you can redistribute it and/or modify it under the terms
@@ -43,7 +43,7 @@ namespace Exception
 
 	public:
 		const HRESULT ErrorCode;
-		string m_Message;
+		std::string m_Message;
 
 		const char* CMessage() const
 		{
@@ -68,7 +68,7 @@ static const double SndOutNormalizer = (double)(1UL<<(SndOutVolumeShift+16));
 class XAudio2Mod: public SndOutModule
 {
 private:
-	static const int PacketsPerBuffer = 1;
+	static const int PacketsPerBuffer = 8;
 	static const int MAX_BUFFER_COUNT = 3;
 
 	class BaseStreamingVoice : public IXAudio2VoiceCallback
@@ -85,7 +85,7 @@ private:
 		CRITICAL_SECTION cs;
 
 	public:
-		int GetEmptySampleCount() 
+		int GetEmptySampleCount()
 		{
 			XAUDIO2_VOICE_STATE state;
 			pSourceVoice->GetState( &state );
@@ -103,14 +103,14 @@ private:
 			m_BufferSizeBytes( m_BufferSize * sizeof(s16) )
 		{
 		}
-		
+
 		virtual void Init( IXAudio2* pXAudio2 ) = 0;
-		
+
 	protected:
 		// Several things must be initialized separate of the constructor, due to the fact that
 		// virtual calls can't be made from the constructor's context.
 		void _init( IXAudio2* pXAudio2, uint chanConfig )
-		{			
+		{
 			WAVEFORMATEXTENSIBLE wfx;
 
 			memset(&wfx, 0, sizeof(WAVEFORMATEXTENSIBLE));
@@ -163,10 +163,10 @@ private:
 		STDMETHOD_(void, OnVoiceProcessingPassEnd) () {}
 		STDMETHOD_(void, OnStreamEnd) () {}
 		STDMETHOD_(void, OnBufferStart) ( void* ) {}
-		STDMETHOD_(void, OnLoopEnd) ( void* ) {}   
+		STDMETHOD_(void, OnLoopEnd) ( void* ) {}
 		STDMETHOD_(void, OnVoiceError) (THIS_ void* pBufferContext, HRESULT Error) { };
 	};
-	
+
 	template< typename T >
 	class StreamingVoice : public BaseStreamingVoice
 	{
@@ -175,7 +175,7 @@ private:
 			BaseStreamingVoice( sizeof(T) / sizeof( s16 ) )
 		{
 		}
-		
+
 		virtual ~StreamingVoice()
 		{
 			IXAudio2SourceVoice* killMe = pSourceVoice;
@@ -265,8 +265,19 @@ public:
 			XAUDIO2_DEVICE_DETAILS deviceDetails;
 			pXAudio2->GetDeviceDetails( 0, &deviceDetails );
 
-			if( StereoExpansionEnabled )
-				deviceDetails.OutputFormat.Format.nChannels	= 6;
+			// Stereo Expansion was planned to grab the currently configured number of
+			// Speakers from Windows's audio config.
+			// This doesn't always work though, so let it be a user configurable option.
+
+			int speakers;		
+			switch(numSpeakers) // speakers = (numSpeakers + 1) *2; ?
+			{
+				case 0: speakers = 2; break; // Stereo
+				case 1: speakers = 4; break; // Quadrafonic
+				case 2: speakers = 6; break; // Surround 5.1
+				case 3: speakers = 8; break; // Surround 7.1
+				default: speakers = 2;
+			}
 
 			// Any windows driver should support stereo at the software level, I should think!
 			jASSUME( deviceDetails.OutputFormat.Format.nChannels > 1 );
@@ -274,14 +285,14 @@ public:
 			//
 			// Create a mastering voice
 			//
-			if ( FAILED(hr = pXAudio2->CreateMasteringVoice( &pMasteringVoice, deviceDetails.OutputFormat.Format.nChannels, SampleRate ) ) )
+			if ( FAILED(hr = pXAudio2->CreateMasteringVoice( &pMasteringVoice, speakers, SampleRate ) ) )
 			{
 				SysMessage( "Failed creating mastering voice: %#X\n", hr );
 				CoUninitialize();
 				return -1;
 			}
 
-			switch( deviceDetails.OutputFormat.Format.nChannels )
+			switch( speakers )
 			{
 				case 2:
 					ConLog( "* SPU2 > Using normal 2 speaker stereo output.\n" );
@@ -297,7 +308,7 @@ public:
 					ConLog( "* SPU2 > 4 speaker expansion enabled [quadraphenia]\n" );
 					voiceContext = new StreamingVoice<StereoQuadOut16>( pXAudio2 );
 				break;
-							
+
 				case 5:
 					ConLog( "* SPU2 > 4.1 speaker expansion enabled.\n" );
 					voiceContext = new StreamingVoice<Stereo41Out16>( pXAudio2 );
@@ -315,7 +326,7 @@ public:
 					voiceContext = new StreamingVoice<Stereo51Out16>( pXAudio2 );
 				break;
 			}
-			
+
 			voiceContext->Init( pXAudio2 );
 		}
 		catch( Exception::XAudio2Error& ex )
@@ -364,7 +375,7 @@ public:
 		return 0;
 	}
 
-	int GetEmptySampleCount() 
+	int GetEmptySampleCount()
 	{
 		if( voiceContext == NULL ) return 0;
 		return voiceContext->GetEmptySampleCount();
@@ -383,7 +394,7 @@ public:
 	void ReadSettings()
 	{
 	}
-	
+
 	void WriteSettings() const
 	{
 	}

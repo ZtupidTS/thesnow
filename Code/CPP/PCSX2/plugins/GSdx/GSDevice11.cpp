@@ -1,4 +1,4 @@
-/* 
+/*
  *	Copyright (C) 2007-2009 Gabest
  *	http://www.gabest.org
  *
@@ -6,15 +6,15 @@
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  This Program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  *  GNU General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU General Public License
  *  along with GNU Make; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *  http://www.gnu.org/copyleft/gpl.html
  *
  */
@@ -22,7 +22,92 @@
 #include "stdafx.h"
 #include "GSdx.h"
 #include "GSDevice11.h"
+#include "GSUtil.h"
 #include "resource.h"
+
+// ---------------------------------------------------------------------------------
+//  DX11 Detection (includes DXGI detection and dynamic library method bindings)
+// ---------------------------------------------------------------------------------
+//  Code 'Borrowed' from Microsoft's DXGI sources -- Modified to suit our needs. --air
+
+static IDXGIFactory*			m_DXGIFactory = NULL;
+static bool						m_D3D11Available = false;
+
+static HMODULE					s_hModD3D11 = NULL;
+static FnPtr_D3D11CreateDevice	s_DynamicD3D11CreateDevice = NULL;
+
+static HMODULE					s_hModDXGI = NULL;
+static FnPtr_CreateDXGIFactory	s_DynamicCreateDXGIFactory = NULL;
+
+
+static bool DXUT_EnsureD3D11APIs( void )
+{
+	// If any function pointer is non-NULL, this function has already been called.
+	if( s_DynamicD3D11CreateDevice )
+		return true;
+
+	s_hModDXGI = LoadLibrary( _T("dxgi.dll") );
+	if( s_hModDXGI )
+	{
+		s_DynamicCreateDXGIFactory = (FnPtr_CreateDXGIFactory)GetProcAddress( s_hModDXGI, "CreateDXGIFactory" );
+	}
+
+	// If DXGI isn't installed then this system isn't even capable of DX11 support; so no point
+	// in checking for DX11 DLLs.
+	if( s_DynamicCreateDXGIFactory == NULL ) return false;
+
+	// Check for DX11 DLLs.
+
+	s_hModD3D11 = LoadLibrary( _T("d3d11.dll") );
+	if( s_hModD3D11 == NULL ) LoadLibrary( _T("d3d11_beta.dll") );
+
+	if( s_hModD3D11 != NULL )
+	{
+		s_DynamicD3D11CreateDevice	= (FnPtr_D3D11CreateDevice)GetProcAddress( s_hModD3D11, "D3D11CreateDevice" );
+	}
+
+	return ( s_DynamicD3D11CreateDevice != NULL );
+}
+
+static bool WINAPI DXUT_Dynamic_CreateDXGIFactory( REFIID rInterface, void ** ppOut )
+{
+	if( !DXUT_EnsureD3D11APIs() ) return false;
+
+	return s_DynamicCreateDXGIFactory( rInterface, ppOut ) == S_OK;
+}
+
+static bool DXUTDelayLoadDXGI()
+{
+	if( m_DXGIFactory == NULL )
+	{
+		DXUT_Dynamic_CreateDXGIFactory( __uuidof( IDXGIFactory ), (LPVOID*)&m_DXGIFactory );
+		m_D3D11Available = ( m_DXGIFactory != NULL );
+	}
+
+	return m_D3D11Available;
+}
+
+static void* GetDX11Proc( const char* methodname )
+{
+	if( !DXUT_EnsureD3D11APIs() ) return NULL;
+	return GetProcAddress( s_hModD3D11, methodname );
+}
+
+bool GSUtil::IsDirect3D11Available()
+{
+	return DXUTDelayLoadDXGI();
+	//return m_D3D11Available;
+}
+
+void GSUtil::UnloadDynamicLibraries()
+{
+	if( s_hModD3D11 ) FreeLibrary(s_hModD3D11);
+	if( s_hModDXGI ) FreeLibrary(s_hModDXGI);
+
+	s_hModD3D11 = NULL;
+	s_hModDXGI = NULL;
+}
+
 
 GSDevice11::GSDevice11()
 {
@@ -67,7 +152,16 @@ bool GSDevice11::Create(GSWnd* wnd)
 	scd.SampleDesc.Count = 1;
 	scd.SampleDesc.Quality = 0;
 
+	// Always start in Windowed mode.  According to MS, DXGI just "prefers" this, and it's more or less
+	// required if we want to add support for dual displays later on.  The fullscreen/exclusive flip
+	// will be issued after all other initializations are complete.
+
 	scd.Windowed = TRUE;
+
+	// NOTE : D3D11_CREATE_DEVICE_SINGLETHREADED
+	//   This flag is safe as long as the DXGI's internal message pump is disabled or is on the
+	//   same thread as the GS window (which the emulator makes sure of, if it utilizes a
+	//   multithreaded GS).  Setting the flag is a nice and easy 5% speedup on GS-intensive scenes.
 
 	uint32 flags = D3D11_CREATE_DEVICE_SINGLETHREADED;
 
@@ -75,7 +169,7 @@ bool GSDevice11::Create(GSWnd* wnd)
 	flags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
 
-	D3D_FEATURE_LEVEL levels[] = 
+	D3D_FEATURE_LEVEL levels[] =
 	{
 		D3D_FEATURE_LEVEL_11_0,
 		D3D_FEATURE_LEVEL_10_1,
@@ -87,6 +181,8 @@ bool GSDevice11::Create(GSWnd* wnd)
 	hr = D3D11CreateDeviceAndSwapChain(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, flags, levels, countof(levels), D3D11_SDK_VERSION, &scd, &m_swapchain, &m_dev, &level, &m_ctx);
 	// hr = D3D11CreateDeviceAndSwapChain(NULL, D3D_DRIVER_TYPE_REFERENCE, NULL, flags, NULL, 0, D3D11_SDK_VERSION, &scd, &m_swapchain, &m_dev, &level, &m_ctx);
 
+	//return false;
+
 	if(FAILED(hr)) return false;
 
 	if(!SetFeatureLevel(level, true))
@@ -95,7 +191,7 @@ bool GSDevice11::Create(GSWnd* wnd)
 	}
 
 	D3D11_FEATURE_DATA_D3D10_X_HARDWARE_OPTIONS options;
-	
+
 	hr = m_dev->CheckFeatureSupport(D3D11_FEATURE_D3D10_X_HARDWARE_OPTIONS, &options, sizeof(D3D11_FEATURE_D3D10_X_HARDWARE_OPTIONS));
 
 	// msaa
@@ -213,7 +309,7 @@ bool GSDevice11::Create(GSWnd* wnd)
 	sd.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
 	sd.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
 	sd.MaxLOD = FLT_MAX;
-	sd.MaxAnisotropy = 16; 
+	sd.MaxAnisotropy = 16;
 	sd.ComparisonFunc = D3D11_COMPARISON_NEVER;
 
 	hr = m_dev->CreateSamplerState(&sd, &m_convert.ln);
@@ -229,7 +325,7 @@ bool GSDevice11::Create(GSWnd* wnd)
 	//
 
 	CreateTextureFX();
-	
+
 	//
 
 	memset(&dsd, 0, sizeof(dsd));
@@ -255,7 +351,8 @@ bool GSDevice11::Create(GSWnd* wnd)
 
 	m_dev->CreateBlendState(&blend, &m_date.bs);
 
-	//
+	// Exclusive/Fullscreen flip, issued for legacy (managed) windows only.  GSopen2 style
+	// emulators will issue the flip themselves later on.
 
 	if(m_wnd->IsManaged())
 	{
@@ -276,7 +373,7 @@ bool GSDevice11::Reset(int w, int h)
 		memset(&scd, 0, sizeof(scd));
 		m_swapchain->GetDesc(&scd);
 		m_swapchain->ResizeBuffers(scd.BufferCount, w, h, scd.BufferDesc.Format, 0);
-		
+
 		CComPtr<ID3D11Texture2D> backbuffer;
 		if(FAILED(m_swapchain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backbuffer)))
 		{
@@ -292,7 +389,7 @@ bool GSDevice11::Reset(int w, int h)
 void GSDevice11::SetExclusive(bool isExcl)
 {
 	if(!m_swapchain) return;
-	
+
 	// TODO : Support for alternative display modes, by finishing this code below:
 	//  Video mode info should be pulled form config/ini.
 
@@ -302,11 +399,11 @@ void GSDevice11::SetExclusive(bool isExcl)
 
 	m_swapchain->ResizeTarget(&desc);
 	*/
-	
+
 	HRESULT hr = m_swapchain->SetFullscreenState( isExcl, NULL );
 	if(hr == DXGI_ERROR_NOT_CURRENTLY_AVAILABLE)
 		fprintf(stderr, "(GSdx10) SetExclusive(%s) failed; request unavailable.", isExcl ? "true" : "false");
-} 
+}
 
 void GSDevice11::Flip()
 {
@@ -357,7 +454,7 @@ GSTexture* GSDevice11::Create(int type, int w, int h, bool msaa, int format)
 	desc.SampleDesc.Quality = 0;
 	desc.Usage = D3D11_USAGE_DEFAULT;
 
-	if(msaa) 
+	if(msaa)
 	{
 		desc.SampleDesc = m_msaa_desc;
 	}
@@ -410,7 +507,7 @@ GSTexture* GSDevice11::CreateRenderTarget(int w, int h, bool msaa, int format)
 
 GSTexture* GSDevice11::CreateDepthStencil(int w, int h, bool msaa, int format)
 {
-	return __super::CreateDepthStencil(w, h, msaa, format ? format : DXGI_FORMAT_D32_FLOAT_S8X24_UINT);
+	return __super::CreateDepthStencil(w, h, msaa, format ? format : DXGI_FORMAT_D32_FLOAT_S8X24_UINT); // DXGI_FORMAT_R32G8X24_TYPELESS
 }
 
 GSTexture* GSDevice11::CreateTexture(int w, int h, int format)
@@ -483,7 +580,7 @@ void GSDevice11::CopyRect(GSTexture* st, GSTexture* dt, const GSVector4i& r)
 {
 	D3D11_BOX box = {r.left, r.top, 0, r.right, r.bottom, 1};
 
-	m_ctx->CopySubresourceRegion(*(GSTexture11*)dt, 0, r.left, r.top, 0, *(GSTexture11*)st, 0, &box);
+	m_ctx->CopySubresourceRegion(*(GSTexture11*)dt, 0, 0, 0, 0, *(GSTexture11*)st, 0, &box);
 }
 
 void GSDevice11::StretchRect(GSTexture* st, const GSVector4& sr, GSTexture* dt, const GSVector4& dr, int shader, bool linear)
@@ -537,9 +634,9 @@ void GSDevice11::StretchRect(GSTexture* st, const GSVector4& sr, GSTexture* dt, 
 
 	// ps
 
-	PSSetShader(ps, ps_cb);
-	PSSetSamplerState(linear ? m_convert.ln : m_convert.pt, NULL);
 	PSSetShaderResources(st, NULL);
+	PSSetSamplerState(linear ? m_convert.ln : m_convert.pt, NULL);
+	PSSetShader(ps, ps_cb);
 
 	//
 
@@ -623,10 +720,10 @@ void GSDevice11::SetupDATE(GSTexture* rt, GSTexture* ds, const GSVertexPT1 (&iaV
 		GSTexture* rt2 = rt->IsMSAA() ? Resolve(rt) : rt;
 
 		PSSetShaderResources(rt2, NULL);
-		PSSetShader(m_convert.ps[datm ? 2 : 3], NULL);
 		PSSetSamplerState(m_convert.pt, NULL);
+		PSSetShader(m_convert.ps[datm ? 2 : 3], NULL);
 
-		// 
+		//
 
 		DrawPrimitive();
 
@@ -651,7 +748,7 @@ void GSDevice11::IASetVertexBuffer(const void* vertices, size_t stride, size_t c
 
 		m_vertices.start = 0;
 		m_vertices.count = 0;
-		m_vertices.limit = std::max<int>(count * 3 / 2, 10000);
+		m_vertices.limit = std::max<int>(count * 3 / 2, 11000);
 	}
 
 	if(m_vb == NULL)
@@ -666,7 +763,7 @@ void GSDevice11::IASetVertexBuffer(const void* vertices, size_t stride, size_t c
 		bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
 		HRESULT hr;
-		
+
 		hr = m_dev->CreateBuffer(&bd, NULL, &m_vb);
 
 		if(FAILED(hr)) return;
@@ -737,7 +834,7 @@ void GSDevice11::VSSetShader(ID3D11VertexShader* vs, ID3D11Buffer* vs_cb)
 
 		m_ctx->VSSetShader(vs, NULL, 0);
 	}
-	
+
 	if(m_state.vs_cb != vs_cb)
 	{
 		m_state.vs_cb = vs_cb;
@@ -758,20 +855,31 @@ void GSDevice11::GSSetShader(ID3D11GeometryShader* gs)
 
 void GSDevice11::PSSetShaderResources(GSTexture* sr0, GSTexture* sr1)
 {
-	ID3D11ShaderResourceView* srv0 = NULL;
-	ID3D11ShaderResourceView* srv1 = NULL;
-	
-	if(sr0) srv0 = *(GSTexture11*)sr0;
-	if(sr1) srv1 = *(GSTexture11*)sr1;
+	PSSetShaderResource(0, sr0);
+	PSSetShaderResource(1, sr1);
+	PSSetShaderResource(2, NULL);
+}
 
-	if(m_state.ps_srv[0] != srv0 || m_state.ps_srv[1] != srv1)
+void GSDevice11::PSSetShaderResource(int i, GSTexture* sr)
+{
+	ID3D11ShaderResourceView* srv = NULL;
+	if (sr) srv = *(GSTexture11*)sr;
+
+	if (m_state.ps_srv[i] != srv) {
+		m_state.ps_srv[i] = srv;
+		m_srv_changed = true;
+	}
+}
+
+void GSDevice11::PSSetSamplerState(ID3D11SamplerState* ss0, ID3D11SamplerState* ss1, ID3D11SamplerState* ss2)
+{
+	if(m_state.ps_ss[0] != ss0 || m_state.ps_ss[1] != ss1 || m_state.ps_ss[2] != ss2)
 	{
-		m_state.ps_srv[0] = srv0;
-		m_state.ps_srv[1] = srv1;
+		m_state.ps_ss[0] = ss0;
+		m_state.ps_ss[1] = ss1;
+		m_state.ps_ss[2] = ss2;
 
-		ID3D11ShaderResourceView* srvs[] = {srv0, srv1};
-	
-		m_ctx->PSSetShaderResources(0, 2, srvs);
+		m_ss_changed = true;
 	}
 }
 
@@ -783,25 +891,22 @@ void GSDevice11::PSSetShader(ID3D11PixelShader* ps, ID3D11Buffer* ps_cb)
 
 		m_ctx->PSSetShader(ps, NULL, 0);
 	}
-	
+
+	if (m_srv_changed) {
+		m_ctx->PSSetShaderResources(0, 3, m_state.ps_srv);
+		m_srv_changed = false;
+	}
+
+	if (m_ss_changed) {
+		m_ctx->PSSetSamplers(0, 3, m_state.ps_ss);
+		m_ss_changed = false;
+	}
+
 	if(m_state.ps_cb != ps_cb)
 	{
 		m_state.ps_cb = ps_cb;
 
 		m_ctx->PSSetConstantBuffers(0, 1, &ps_cb);
-	}
-}
-
-void GSDevice11::PSSetSamplerState(ID3D11SamplerState* ss0, ID3D11SamplerState* ss1)
-{
-	if(m_state.ps_ss[0] != ss0 || m_state.ps_ss[1] != ss1)
-	{
-		m_state.ps_ss[0] = ss0;
-		m_state.ps_ss[1] = ss1;
-
-		ID3D11SamplerState* sss[] = {ss0, ss1};
-
-		m_ctx->PSSetSamplers(0, 2, sss);
 	}
 }
 
@@ -852,11 +957,11 @@ void GSDevice11::OMSetRenderTargets(GSTexture* rt, GSTexture* ds, const GSVector
 		D3D11_VIEWPORT vp;
 
 		memset(&vp, 0, sizeof(vp));
-		
+
 		vp.TopLeftX = 0;
 		vp.TopLeftY = 0;
-		vp.Width = rt->GetWidth();
-		vp.Height = rt->GetHeight();
+		vp.Width = (FLOAT)rt->GetWidth();
+		vp.Height = (FLOAT)rt->GetHeight();
 		vp.MinDepth = 0.0f;
 		vp.MaxDepth = 1.0f;
 
@@ -884,7 +989,7 @@ HRESULT GSDevice11::CompileShader(uint32 id, const string& entry, D3D11_SHADER_M
 	CComPtr<ID3D11Blob> shader, error;
 
     hr = D3DX11CompileFromResource(theApp.GetModuleHandle(), MAKEINTRESOURCE(id), NULL, &m[0], NULL, entry.c_str(), m_shader.vs.c_str(), 0, 0, NULL, &shader, &error, NULL);
-	
+
 	if(error)
 	{
 		printf("%s\n", (const char*)error->GetBufferPointer());
@@ -923,7 +1028,7 @@ HRESULT GSDevice11::CompileShader(uint32 id, const string& entry, D3D11_SHADER_M
 	CComPtr<ID3D11Blob> shader, error;
 
     hr = D3DX11CompileFromResource(theApp.GetModuleHandle(), MAKEINTRESOURCE(id), NULL, &m[0], NULL, entry.c_str(), m_shader.gs.c_str(), 0, 0, NULL, &shader, &error, NULL);
-	
+
 	if(error)
 	{
 		printf("%s\n", (const char*)error->GetBufferPointer());
@@ -952,7 +1057,7 @@ HRESULT GSDevice11::CompileShader(uint32 id, const string& entry, D3D11_SHADER_M
 
 	PrepareShaderMacro(m, macro);
 
-	CComPtr<ID3D10Blob> shader, error;
+	CComPtr<ID3D11Blob> shader, error;
 
     hr = D3DX11CompileFromResource(theApp.GetModuleHandle(), MAKEINTRESOURCE(id), NULL, &m[0], NULL, entry.c_str(), m_shader.ps.c_str(), 0, 0, NULL, &shader, &error, NULL);
 	

@@ -1,4 +1,4 @@
-/* 
+/*
  *	Copyright (C) 2007-2009 Gabest
  *	http://www.gabest.org
  *
@@ -6,15 +6,15 @@
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  This Program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  *  GNU General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU General Public License
  *  along with GNU Make; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *  http://www.gnu.org/copyleft/gpl.html
  *
  */
@@ -59,6 +59,12 @@ struct Direct3DBlendState9
     UINT8 RenderTargetWriteMask;
 };
 
+struct GSVertexShader9
+{
+	CComPtr<IDirect3DVertexShader9> vs;
+	CComPtr<IDirect3DVertexDeclaration9> il;
+};
+
 class GSDevice9 : public GSDeviceDX
 {
 	GSTexture* Create(int type, int w, int h, bool msaa, int format);
@@ -77,6 +83,7 @@ class GSDevice9 : public GSDeviceDX
 	CComPtr<IDirect3DVertexBuffer9> m_vb;
 	CComPtr<IDirect3DVertexBuffer9> m_vb_old;
 	bool m_lost;
+	D3DFORMAT m_depth_format;
 
 	struct
 	{
@@ -87,7 +94,7 @@ class GSDevice9 : public GSDeviceDX
 		IDirect3DVertexShader9* vs;
 		float* vs_cb;
 		int vs_cb_len;
-		IDirect3DTexture9* ps_srvs[2];
+		IDirect3DTexture9* ps_srvs[3];
 		IDirect3DPixelShader9* ps;
 		float* ps_cb;
 		int ps_cb_len;
@@ -134,17 +141,16 @@ public: // TODO
 
 	// Shaders...
 
-	CComPtr<IDirect3DVertexDeclaration9> m_il;
-	hash_map<uint32, CComPtr<IDirect3DVertexShader9> > m_vs;
+	hash_map<uint32, GSVertexShader9 > m_vs;
 	D3DXHANDLE m_vs_params;
 	hash_map<uint32, CComPtr<IDirect3DPixelShader9> > m_ps;
 	hash_map<uint32, Direct3DSamplerState9* > m_ps_ss;
-	hash_map<uint32, Direct3DDepthStencilState9* > m_om_dss;	
-	hash_map<uint32, Direct3DBlendState9* > m_om_bs;	
+	hash_map<uint32, Direct3DDepthStencilState9* > m_om_dss;
+	hash_map<uint32, Direct3DBlendState9* > m_om_bs;
 	hash_map<uint32, GSTexture*> m_mskfix;
 
 	GSTexture* CreateMskFix(uint32 size, uint32 msk, uint32 fix);
-	
+
 public:
 	GSDevice9();
 	virtual ~GSDevice9();
@@ -153,7 +159,7 @@ public:
 	bool Reset(int w, int h);
 	bool IsLost(bool update);
 	void Flip();
-	
+
 	void SetVsync(bool enable);
 
 	void BeginScene();
@@ -186,6 +192,7 @@ public:
 	void IASetPrimitiveTopology(D3DPRIMITIVETYPE topology);
 	void VSSetShader(IDirect3DVertexShader9* vs, const float* vs_cb, int vs_cb_len);
 	void PSSetShaderResources(GSTexture* sr0, GSTexture* sr1);
+	void PSSetShaderResource(int i, GSTexture* sr);
 	void PSSetShader(IDirect3DPixelShader9* ps, const float* ps_cb, int ps_cb_len);
 	void PSSetSamplerState(Direct3DSamplerState9* ss);
 	void OMSetDepthStencilState(Direct3DDepthStencilState9* dss);
@@ -203,4 +210,7 @@ public:
 	void SetupGS(GSSelector sel) {}
 	void SetupPS(PSSelector sel, const PSConstantBuffer* cb, PSSamplerSelector ssel);
 	void SetupOM(OMDepthStencilSelector dssel, OMBlendSelector bsel, uint8 afix);
+
+	bool HasStencil() { return m_depth_format == D3DFMT_D24S8; }
+	bool HasDepth32() { return m_depth_format != D3DFMT_D24S8; }
 };

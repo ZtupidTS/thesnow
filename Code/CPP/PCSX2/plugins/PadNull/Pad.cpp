@@ -1,19 +1,16 @@
-/*  FWnull
- *  Copyright (C) 2004-2009 PCSX2 Team
+/*  PadNull
+ *  Copyright (C) 2004-2010  PCSX2 Dev Team
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
+ *  of the GNU Lesser General Public License as published by the Free Software Found-
+ *  ation, either version 3 of the License, or (at your option) any later version.
  *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *  PCSX2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ *  without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+ *  PURPOSE.  See the GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  You should have received a copy of the GNU General Public License along with PCSX2.
+ *  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <stdlib.h>
@@ -29,29 +26,30 @@ const u8 revision = 0;
 const u8 build    = 1;    // increase that with each version
 
 static char *libraryName = "Padnull Driver";
-string s_strIniPath="inis/Padnull.ini";
+string s_strIniPath="inis/";
+string s_strLogPath="logs/";
 
 FILE *padLog;
 Config conf;
 keyEvent event;
 static keyEvent s_event;
 
-EXPORT_C_(u32) PS2EgetLibType() 
+EXPORT_C_(u32) PS2EgetLibType()
 {
 	return PS2E_LT_PAD;
 }
 
-EXPORT_C_(char*) PS2EgetLibName() 
+EXPORT_C_(char*) PS2EgetLibName()
 {
 	return libraryName;
 }
 
-EXPORT_C_(u32) PS2EgetLibVersion2(u32 type) 
+EXPORT_C_(u32) PS2EgetLibVersion2(u32 type)
 {
 	return (version<<16) | (revision<<8) | build;
 }
 
-void __Log(const char *fmt, ...) 
+void __Log(const char *fmt, ...)
 {
 	va_list list;
 
@@ -61,7 +59,7 @@ void __Log(const char *fmt, ...)
 	va_end(list);
 }
 
-void __LogToConsole(const char *fmt, ...) 
+void __LogToConsole(const char *fmt, ...)
 {
 	va_list list;
 
@@ -74,23 +72,50 @@ void __LogToConsole(const char *fmt, ...)
 	va_end(list);
 }
 
-EXPORT_C_(s32) PADinit(u32 flags) 
+EXPORT_C_(void) PADsetSettingsDir(const char* dir)
 {
-	LoadConfig();
-	
+	s_strIniPath = (dir == NULL) ? "inis/" : dir;
+}
+
+bool OpenLog() {
+    bool result = true;
 #ifdef PAD_LOG
-	if (padLog == NULL)
-	{
-		padLog = fopen("logs/padLog.txt", "w");
-		if (padLog) setvbuf(padLog, NULL,  _IONBF, 0);
-	}
+    if(padLog) return result;
+
+    const std::string LogFile(s_strLogPath + "/padnull.log");
+
+    padLog = fopen(LogFile.c_str(), "w");
+    if (padLog != NULL)
+        setvbuf(padLog, NULL,  _IONBF, 0);
+    else {
+        SysMessage("Can't create log file %s\n", LogFile.c_str());
+        result = false;
+    }
 	PAD_LOG("PADinit\n");
 #endif
+    return result;
+}
+
+EXPORT_C_(void) PADsetLogDir(const char* dir)
+{
+	// Get the path to the log directory.
+	s_strLogPath = (dir==NULL) ? "logs/" : dir;
+
+	// Reload the log file after updated the path
+	if (padLog) fclose(padLog);
+    OpenLog();
+}
+
+EXPORT_C_(s32) PADinit(u32 flags)
+{
+	LoadConfig();
+
+    OpenLog();
 
 	return 0;
 }
 
-EXPORT_C_(void) PADshutdown() 
+EXPORT_C_(void) PADshutdown()
 {
 #ifdef PAD_LOG
 	if (padLog != NULL)
@@ -101,14 +126,14 @@ EXPORT_C_(void) PADshutdown()
 #endif
 }
 
-EXPORT_C_(s32) PADopen(void *pDsp) 
+EXPORT_C_(s32) PADopen(void *pDsp)
 {
 	memset(&event, 0, sizeof(event));
 
 	return _PADOpen(pDsp);
 }
 
-EXPORT_C_(void) PADclose() 
+EXPORT_C_(void) PADclose()
 {
 	_PADClose();
 }
@@ -116,10 +141,10 @@ EXPORT_C_(void) PADclose()
 // PADkeyEvent is called every vsync (return NULL if no event)
 EXPORT_C_(keyEvent*) PADkeyEvent()
 {
-	
+
 	s_event = event;
 	event.evt = 0;
-	
+
 	return &s_event;
 }
 
@@ -157,12 +182,12 @@ EXPORT_C_(void) PADgsDriverInfo(GSdriverInfo *info)
 {
 }
 
-EXPORT_C_(s32) PADfreeze(int mode, freezeData *data) 
+EXPORT_C_(s32) PADfreeze(int mode, freezeData *data)
 {
 	return 0;
 }
 
-EXPORT_C_(s32) PADtest() 
+EXPORT_C_(s32) PADtest()
 {
 	return 0;
 }

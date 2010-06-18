@@ -1,6 +1,6 @@
 /* SPU2-X, A plugin for Emulating the Sound Processing Unit of the Playstation 2
  * Developed and maintained by the Pcsx2 Development Team.
- * 
+ *
  * Original portions from SPU2ghz are (c) 2008 by David Quintana [gigaherz]
  *
  * SPU2-X is free software: you can redistribute it and/or modify it under the terms
@@ -41,9 +41,6 @@ namespace soundtouch
 #include <stdexcept>
 #include <string>
 #include <algorithm>
-
-using std::string;
-using std::wstring;
 
 // This will be brought in later anyways, but if we bring it in now, it'll avoid
 // warnings about redefining __LINUX__.
@@ -104,8 +101,6 @@ extern void SysMessage(const wchar_t *fmt, ...);
 
 #include "Utilities/Exceptions.h"
 #include "Utilities/SafeArray.h"
-
-#include "ConvertUTF.h"
 
 #include "defs.h"
 #include "regs.h"

@@ -1,19 +1,16 @@
 /*  USBnull
- *  Copyright (C) 2002-2009  PCSX2 Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
+ *  of the GNU Lesser General Public License as published by the Free Software Found-
+ *  ation, either version 3 of the License, or (at your option) any later version.
  *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *  PCSX2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ *  without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+ *  PURPOSE.  See the GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  You should have received a copy of the GNU General Public License along with PCSX2.
+ *  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <stdlib.h>
@@ -22,6 +19,7 @@ using namespace std;
 
 #include "USB.h"
 string s_strIniPath="inis/";
+string s_strLogPath="logs/";
 
 const unsigned char version  = PS2E_USB_VERSION;
 const unsigned char revision = 0;
@@ -34,6 +32,23 @@ Config conf;
 PluginLog USBLog;
 
 s8 *usbregs, *ram;
+
+void LogInit()
+{
+	const std::string LogFile(s_strLogPath + "/USBnull.log");
+	setLoggingState();
+	USBLog.Open(LogFile);
+}
+
+EXPORT_C_(void)  USBsetLogDir(const char* dir)
+{
+	// Get the path to the log directory.
+	s_strLogPath = (dir==NULL) ? "logs/" : dir;
+	
+	// Reload the log file after updated the path
+	USBLog.Close();
+	LogInit();
+}
 
 EXPORT_C_(u32) PS2EgetLibType()
 {
@@ -53,21 +68,19 @@ EXPORT_C_(u32) PS2EgetLibVersion2(u32 type)
 EXPORT_C_(s32) USBinit()
 {
 	LoadConfig();
-	setLoggingState();
-	USBLog.Open("logs/USBnull.log");
+	LogInit();
 	USBLog.WriteLn("USBnull plugin version %d,%d", revision, build);
 	USBLog.WriteLn("Initializing USBnull");
 
 	// Initialize memory structures here.
-	usbregs = (s8*)malloc(0x10000);
-	
-	if (usbregs == NULL) 
+	usbregs = (s8*)calloc(0x10000, 1);
+
+	if (usbregs == NULL)
 	{
-		USBLog.Message("Error allocating memory"); 
+		USBLog.Message("Error allocating memory");
 		return -1;
 	}
-	
-	memset(usbregs, 0, 0x10000);
+
 	return 0;
 }
 
@@ -76,12 +89,15 @@ EXPORT_C_(void) USBshutdown()
 	// Yes, we close things in the Shutdown routine, and
 	// don't do anything in the close routine.
 	USBLog.Close();
+	
+	free(usbregs);
+	usbregs = NULL;
 }
 
 EXPORT_C_(s32) USBopen(void *pDsp)
 {
 	USBLog.WriteLn("Opening USBnull.");
-	
+
 	// Take care of anything else we need on opening, other then initialization.
 	return 0;
 }
@@ -96,7 +112,7 @@ EXPORT_C_(void) USBclose()
 EXPORT_C_(u8) USBread8(u32 addr)
 {
 	u8 value = 0;
-	
+
 	switch(addr)
 	{
 		// Handle any appropriate addresses here.
@@ -115,7 +131,7 @@ EXPORT_C_(u8) USBread8(u32 addr)
 EXPORT_C_(u16) USBread16(u32 addr)
 {
 	u16 value = 0;
-	
+
 	switch(addr)
 	{
 		// Handle any appropriate addresses here.
@@ -133,7 +149,7 @@ EXPORT_C_(u16) USBread16(u32 addr)
 EXPORT_C_(u32) USBread32(u32 addr)
 {
 	u32 value = 0;
-	
+
 	switch(addr)
 	{
 		// Handle any appropriate addresses here.
@@ -193,7 +209,7 @@ EXPORT_C_(void) USBwrite32(u32 addr, u32 value)
 	}
 }
 
-EXPORT_C_(void) USBirqCallback(USBcallback callback) 
+EXPORT_C_(void) USBirqCallback(USBcallback callback)
 {
 	// Register USBirq, so we can trigger an interrupt with it later.
 	// It will be called as USBirq(cycles); where cycles is the number
@@ -203,7 +219,7 @@ EXPORT_C_(void) USBirqCallback(USBcallback callback)
 
 EXPORT_C_(int) _USBirqHandler(void)
 {
-	// This is our USB irq handler, so if an interrupt gets triggered, 
+	// This is our USB irq handler, so if an interrupt gets triggered,
 	// deal with it here.
 	return 0;
 }
@@ -225,12 +241,12 @@ EXPORT_C_(void) USBsetSettingsDir(const char* dir)
 	// Get the path to the ini directory.
     s_strIniPath = (dir==NULL) ? "inis/" : dir;
 }
- 	
+
 // extended funcs
 
 EXPORT_C_(s32) USBfreeze(int mode, freezeData *data)
 {
-	// This should store or retrieve any information, for if emulation 
+	// This should store or retrieve any information, for if emulation
 	// gets suspended, or for savestates.
 	switch(mode)
 	{
