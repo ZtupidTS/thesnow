@@ -294,6 +294,23 @@ void EmuStateChange(PLUGIN_EMUSTATE newState)
 	g_EmulatorState = newState;
 }
 
+#if defined(HAVE_WX) && HAVE_WX
+// Hack to use wx key events
+volatile bool wxkeystate[WXK_SPECIAL20];
+#endif
+
+// Set buttons status from keyboard input. Currently this is done from
+// wxWidgets in the main application.   
+// --------------
+void Wiimote_Input(u16 _Key, u8 _UpDown)
+{
+#if defined(__APPLE__) && defined(USE_WX) && USE_WX
+        if (_Key < WXK_SPECIAL20)
+        {
+                wxkeystate[_Key] = _UpDown;
+        }
+#endif
+}
 
 /* This function produce Wiimote Input (reports from the Wiimote) in response
    to Output from the Wii. It's called from WII_IPC_HLE_WiiMote.cpp.
@@ -415,6 +432,9 @@ unsigned int Wiimote_GetAttachedControllers()
 
 bool IsFocus()
 {
+#if defined(__APPLE__) && defined(USE_WX) && USE_WX
+	return true;	/* XXX */
+#endif
 	return g_WiimoteInitialize.pRendererHasFocus();
 }
 
