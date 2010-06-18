@@ -1,17 +1,19 @@
 SetACL by Helge Klein
 
 Homepage:        http://setacl.sourceforge.net
-Version:         2.0.3.0
+Version:         2.0.4.0
 Copyright:       Helge Klein
 License:         GPL
 
--V-E-R-S-I-O-N--2.x.y.0-----------------------------------------------------------------------
+-V-E-R-S-I-O-N--2.0.4.0-----------------------------------------------------------------------
 
 a)	New features:
 
 b) Bugfixes:
 
 -	Fixed small memory and handle leaks
+
+-	Fixed bug 3010702: SetACL reported successful execution even with missing -ACTN command line option. Now, if SetACL has nothing to do, it will tell you.
 	
 -V-E-R-S-I-O-N--2.0.3.0-----------------------------------------------------------------------
 

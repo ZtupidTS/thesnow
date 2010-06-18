@@ -13,7 +13,7 @@
 #undef APSTUDIO_READONLY_SYMBOLS
 
 /////////////////////////////////////////////////////////////////////////////
-// Deutsch (Deutschland) resources
+// German (Germany) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_DEU)
 #ifdef _WIN32
@@ -53,8 +53,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 2,0,3,0
- PRODUCTVERSION 2,0,3,0
+ FILEVERSION 2,0,4,0
+ PRODUCTVERSION 2,0,4,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -72,12 +72,12 @@ BEGIN
             VALUE "Comments", "SetACL command line version"
             VALUE "CompanyName", " "
             VALUE "FileDescription", "SetACL 2"
-            VALUE "FileVersion", "2, 0, 3, 0"
+            VALUE "FileVersion", "2, 0, 4, 0"
             VALUE "InternalName", "SetACL"
             VALUE "LegalCopyright", "Copyright © Helge Klein"
             VALUE "OriginalFilename", "SetACL.exe"
             VALUE "ProductName", "  SetACL"
-            VALUE "ProductVersion", "2, 0, 3, 0"
+            VALUE "ProductVersion", "2, 0, 4, 0"
         END
     END
     BLOCK "VarFileInfo"
@@ -86,12 +86,12 @@ BEGIN
     END
 END
 
-#endif    // Deutsch (Deutschland) resources
+#endif    // German (Germany) resources
 /////////////////////////////////////////////////////////////////////////////
 
 
 /////////////////////////////////////////////////////////////////////////////
-// Englisch (USA) resources
+// English (U.S.) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
 #ifdef _WIN32
@@ -159,10 +159,11 @@ BEGIN
     RTN_ERR_INV_DOMAIN      "The domain specified is invalid"
     RTN_ERR_IGNORED         "An error occured, but it was ignored"
     RTN_ERR_CREATE_SD       "The creation of an SD failed"
-    IDS_STRINGRTN_ERR_OUT_OF_MEMORY "Memory allocation failed"
+    RTN_ERR_OUT_OF_MEMORY   "Memory allocation failed"
+    RTN_ERR_NO_ACTN_SPECIFIED "No action specified - nothing to do"
 END
 
-#endif    // Englisch (USA) resources
+#endif    // English (U.S.) resources
 /////////////////////////////////////////////////////////////////////////////
 
 
