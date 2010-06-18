@@ -1,9 +1,9 @@
-﻿/* @(#)Copyright (C) H.Shirouzu 1996-2009   tlib.h	Ver0.99 */
+﻿/* @(#)Copyright (C) 1996-2010 H.Shirouzu		tlib.h	Ver0.99 */
 /* ========================================================================
 	Project  Name			: Win32 Lightweight  Class Library Test
 	Module Name				: Main Header
 	Create					: 1996-06-01(Sat)
-	Update					: 2009-03-09(Mon)
+	Update					: 2010-05-09(Mon)
 	Copyright				: H.Shirouzu
 	Reference				: 
 	======================================================================== */
@@ -91,6 +91,18 @@ extern DWORD TWinVersion;	// define in tmisc.cpp
 #define CSIDL_LOCAL_APPDATA		0x001c
 #define CSIDL_WINDOWS			0x0024
 #define CSIDL_PROGRAM_FILES		0x0026
+#endif
+
+#ifndef CSIDL_APPDATA
+#define CSIDL_APPDATA  0x1a
+#endif
+
+#ifndef CSIDL_COMMON_APPDATA
+#define CSIDL_COMMON_APPDATA  0x23
+#endif
+
+#ifndef SHCNF_PATHW
+#define SHCNF_PATHW 0x0005
 #endif
 
 #ifndef BCM_FIRST
@@ -245,6 +257,8 @@ public:
 	virtual BOOL	EvContextMenu(HWND childWnd, POINTS pos);
 	virtual BOOL	EvHotKey(int hotKey);
 
+	virtual BOOL	EventActivateApp(BOOL fActivate, DWORD dwThreadID);
+	virtual BOOL	EventActivate(BOOL fActivate, DWORD fMinimized, HWND hActiveWnd);
 	virtual BOOL	EventScroll(UINT uMsg, int nCode, int nPos, HWND scrollBar);
 
 	virtual BOOL	EventButton(UINT uMsg, int nHitTest, POINTS pos);
@@ -280,10 +294,8 @@ public:
 	virtual BOOL	PostMessageV(UINT uMsg, WPARAM wParam, LPARAM lParam);
 	virtual LRESULT	SendMessage(UINT uMsg, WPARAM wParam, LPARAM lParam);
 	virtual LRESULT	SendMessageV(UINT uMsg, WPARAM wParam, LPARAM lParam);
-#ifndef X64
 	virtual LONG	SendDlgItemMessage(int ctlId, UINT uMsg, WPARAM wParam, LPARAM lParam);
 	virtual LONG	SendDlgItemMessageV(int ctlId, UINT uMsg, WPARAM wParam, LPARAM lParam);
-#endif
 	virtual BOOL	GetWindowRect(RECT *_rect=NULL);
 	virtual BOOL	SetWindowPos(HWND hInsAfter, int x, int y, int cx, int cy, UINT fuFlags);
 	virtual HWND	SetActiveWindow(void);
@@ -405,6 +417,7 @@ public:
 	virtual ~TApp();
 	virtual void	InitWindow() = 0;
 	virtual int		Run();
+	virtual BOOL	PreProcMsg(MSG *msg);
 
 	LPCSTR	GetDefaultClass() { return defaultClass; }
 	LPCVOID	GetDefaultClassV() { return (void *)defaultClassV; }
@@ -413,7 +426,6 @@ public:
 			win->hWnd = hWnd; hash->Register(win, hash->MakeHashId(hWnd));
 	}
 	void	DelWin(TWin *win) { hash->UnRegister(win); }
-	BOOL	PreProcMsg(MSG *msg);
 
 	static TApp *GetApp() { return tapp; }
 	static HINSTANCE GetInstance() { return tapp->hI; }
@@ -593,6 +605,7 @@ protected:
 	TIniSection	*root_sec;
 	FILETIME	ini_ft;
 	int			ini_size;
+	HANDLE		hMutex;
 
 	BOOL Strip(const char *s, char *d=NULL, const char *strip_chars=" \t\r\n",
 		const char *quote_chars="\"\"");
@@ -600,6 +613,8 @@ protected:
 	BOOL GetFileInfo(const char *fname, FILETIME *ft, int *size);
 	TIniSection *SearchSection(const char *section);
 	BOOL WriteIni();
+	BOOL Lock();
+	void UnLock();
 
 public:
 	TInifile(const char *ini_name=NULL);
@@ -647,9 +662,9 @@ BOOL TWow64DisableWow64FsRedirection(void *oldval);
 BOOL TWow64RevertWow64FsRedirection(void *oldval);
 BOOL TIsUserAnAdmin();
 BOOL TIsEnableUAC();
-BOOL TSHGetSpecialFolderPath(HWND, LPSTR, int, BOOL);
-BOOL TIsVirtualizedDir(char *path);
-BOOL TMakeVirtualStorePath(char *org_path, char *buf);
+BOOL TSHGetSpecialFolderPathV(HWND, void *, int, BOOL);
+BOOL TIsVirtualizedDirV(void *path);
+BOOL TMakeVirtualStorePathV(void *org_path, void *buf);
 BOOL TSetPrivilege(LPSTR pszPrivilege, BOOL bEnable);
 BOOL TSetThreadLocale(int lcid);
 
@@ -657,6 +672,11 @@ BOOL InstallExceptionFilter(char *title, char *info);
 void Debug(char *fmt,...);
 void DebugW(WCHAR *fmt,...);
 void DebugU8(char *fmt,...);
+
+BOOL SymLinkV(void *src, void *dest, void *arg=L"");
+BOOL ReadLinkV(void *src, void *dest, void *arg=NULL);
+BOOL DeleteLinkV(void *path);
+BOOL GetParentDirV(const void *srcfile, void *dir);
 
 #include "tapi32u8.h"
 

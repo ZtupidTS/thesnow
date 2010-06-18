@@ -1,18 +1,18 @@
-﻿/* @(#)Copyright (C) H.Shirouzu 1996-2009   tapi32v.cpp	Ver0.99 */
+﻿/* @(#)Copyright (C) 1996-2010 H.Shirouzu		tapi32v.cpp	Ver0.99 */
 /* ========================================================================
 	Project  Name			: Win32 Lightweight  Class Library Test
 	Module Name				: Main Header
 	Create					: 2005-04-10(Sun)
-	Update					: 2009-03-09(Mon)
+	Update					: 2010-05-09(Sun)
 	Copyright				: H.Shirouzu
 	Reference				: 
 	======================================================================== */
 
 #include "tlib.h"
+#include <stdio.h>
+#include <mbstring.h>
 #include "tapi32ex.h"
 #include "tapi32v.h"
-#include "stdio.h"
-#include "mbstring.h"
 
 int (WINAPI *GetWindowTextV)(HWND, void *, int);
 int (WINAPI *SetWindowTextV)(HWND, const void *);
@@ -62,6 +62,7 @@ BOOL	(WINAPI *RemoveDirectoryV)(const void *path);
 DWORD	(WINAPI *GetCurrentDirectoryV)(DWORD size, void *path);
 BOOL	(WINAPI *SetCurrentDirectoryV)(const void *path);
 BOOL	(WINAPI *DeleteFileV)(const void *path);
+DWORD	(WINAPI *GetModuleFileNameV)(HMODULE hMod, void *path, DWORD len);
 DWORD	(WINAPI *GetFullPathNameV)(const void *path, DWORD len, void *buf, void **fname);
 BOOL	(WINAPI *GetDiskFreeSpaceV)(const void *path, DWORD *spc, DWORD *bps, DWORD *fc,
 	DWORD *cl);
@@ -126,6 +127,7 @@ void *FALSE_V;			// "false"
 int CHAR_LEN_V;			// 2(WCHAR) or 1(char)
 int MAX_PATHLEN_V;		// MAX_WCHAR or 
 BOOL IS_WINNT_V;		// MAX_WCHAR or 
+DWORD SHCNF_PATHV = SHCNF_PATHW;
 
 DEFINE_GUID(IID_IShellLinkW, 0x000214F9, 0x0000, 0000, 0xC0, 0x00, 0x00, 0x00, 0x00, \
 	0x00, 0x00, 0x46);
@@ -200,6 +202,8 @@ BOOL TLibInit_Win32V()
 		DeleteFileV = (BOOL (WINAPI *)(const void *))::DeleteFileW;
 		GetCurrentDirectoryV = (DWORD (WINAPI *)(DWORD, void *))::GetCurrentDirectoryW;
 		SetCurrentDirectoryV = (BOOL (WINAPI *)(const void *))::SetCurrentDirectoryW;
+		GetModuleFileNameV = (DWORD (WINAPI *)(HMODULE, void *, DWORD))
+			GetModuleFileNameW;
 		GetFullPathNameV = (DWORD (WINAPI *)(const void *, DWORD, void *, void **))
 			GetFullPathNameW;
 		GetDiskFreeSpaceV = (BOOL (WINAPI *)(const void *, DWORD *, DWORD *, DWORD *, DWORD *))
@@ -260,6 +264,7 @@ BOOL TLibInit_Win32V()
 
 		CHAR_LEN_V = sizeof(WCHAR);
 		MAX_PATHLEN_V = MAX_WPATH;
+		SHCNF_PATHV = SHCNF_PATHW;
 
 		ASTERISK_V = L"*";
 		FMT_CAT_ASTER_V = L"%s\\*";
@@ -335,6 +340,8 @@ BOOL TLibInit_Win32V()
 		DeleteFileV = (BOOL (WINAPI *)(const void *))::DeleteFileA;
 		GetCurrentDirectoryV = (DWORD (WINAPI *)(DWORD, void *))::GetCurrentDirectoryA;
 		SetCurrentDirectoryV = (BOOL (WINAPI *)(const void *))::SetCurrentDirectoryA;
+		GetModuleFileNameV = (DWORD (WINAPI *)(HMODULE, void *, DWORD))
+			GetModuleFileNameA;
 		GetFullPathNameV = (DWORD (WINAPI *)(const void *, DWORD, void *, void **))
 			::GetFullPathNameA;
 		GetDiskFreeSpaceV = (BOOL (WINAPI *)(const void *, DWORD *, DWORD *, DWORD *, DWORD *))
@@ -387,6 +394,7 @@ BOOL TLibInit_Win32V()
 
 		MAX_PATHLEN_V = MAX_PATH_EX;
 		CHAR_LEN_V = sizeof(char);
+		SHCNF_PATHV = SHCNF_PATH;
 
 		ASTERISK_V = "*";
 		FMT_CAT_ASTER_V = "%s\\*";

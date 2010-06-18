@@ -1,9 +1,9 @@
-﻿/* @(#)Copyright (C) H.Shirouzu 1996-2009   tapi32ex.h	Ver0.99 */
+﻿/* @(#)Copyright (C) 1996-2010 H.Shirouzu		tapi32ex.h	Ver0.99 */
 /* ========================================================================
 	Project  Name			: Win32 Lightweight  Class Library Test
 	Module Name				: Main Header
 	Create					: 2005-04-10(Sun)
-	Update					: 2009-03-09(Mon)
+	Update					: 2010-05-09(Sun)
 	Copyright				: H.Shirouzu
 	Reference				: 
 	======================================================================== */

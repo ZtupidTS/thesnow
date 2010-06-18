@@ -1,9 +1,9 @@
-﻿/* @(#)Copyright (C) H.Shirouzu 1996-2009   tapi32v.h	Ver0.99 */
+﻿/* @(#)Copyright (C) 1996-2010 H.Shirouzu		tapi32v.h	Ver0.99 */
 /* ========================================================================
 	Project  Name			: Win32 Lightweight  Class Library Test
 	Module Name				: Main Header
 	Create					: 2005-04-10(Sun)
-	Update					: 2009-03-09(Mon)
+	Update					: 2010-05-09(Sun)
 	Copyright				: H.Shirouzu
 	Reference				: 
 	======================================================================== */
@@ -63,6 +63,7 @@ extern BOOL (WINAPI *RemoveDirectoryV)(const void *path);
 extern DWORD (WINAPI *GetCurrentDirectoryV)(DWORD size, void *path);
 extern BOOL (WINAPI *SetCurrentDirectoryV)(const void *path);
 extern BOOL (WINAPI *DeleteFileV)(const void *path);
+extern DWORD (WINAPI *GetModuleFileNameV)(HMODULE hMod, void *path, DWORD len);
 extern DWORD (WINAPI *GetFullPathNameV)(const void *path, DWORD len, void *buf, void **fname);
 extern BOOL (WINAPI *GetDiskFreeSpaceV)(const void *path, DWORD *spc, DWORD *bps, DWORD *fc,
 	DWORD *cl);
@@ -143,13 +144,14 @@ extern void *FALSE_V;			// "false"
 extern int CHAR_LEN_V;			// 2(WCHAR) or 1(char)
 extern int MAX_PATHLEN_V;
 extern BOOL IS_WINNT_V;
+extern DWORD SHCNF_PATHV;
 
 inline void *MakeAddr(const void *addr, int len) { return (BYTE *)addr + len * CHAR_LEN_V; }
 inline void SetChar(void *addr, int offset, int val) {
 	IS_WINNT_V ? (*(WCHAR *)MakeAddr(addr, offset) = val)
 			   : (*(char *)MakeAddr(addr, offset) = val);
 }
-inline DWORD GetChar(const void *addr, int offset) {
+inline WCHAR GetChar(const void *addr, int offset) {
 	return IS_WINNT_V ? *(WCHAR *)MakeAddr(addr, offset) : *(char *)MakeAddr(addr, offset);
 }
 inline int DiffLen(const void *high, const void *low) {
@@ -232,7 +234,7 @@ typedef struct _REPARSE_DATA_BUFFER {
 #define IsReparseTagSymlink(r) \
 		(((REPARSE_DATA_BUFFER *)r)->ReparseTag == IO_REPARSE_TAG_SYMLINK)
 
-//!-- #define SE_CREATE_SYMBOLIC_LINK_NAME  "SeCreateSymbolicLinkPrivilege"
+#define SE_CREATE_SYMBOLIC_LINK_NAME  "SeCreateSymbolicLinkPrivilege"
 
 BOOL TLibInit_Win32V();
 

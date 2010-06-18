@@ -1,10 +1,10 @@
 ﻿static char *tmisc_id = 
-	"@(#)Copyright (C) H.Shirouzu 1996-2009   tmisc.cpp	Ver0.99";
+	"@(#)Copyright (C) 1996-2010 H.Shirouzu		tmisc.cpp	Ver0.99";
 /* ========================================================================
 	Project  Name			: Win32 Lightweight  Class Library Test
 	Module Name				: Application Frame Class
 	Create					: 1996-06-01(Sat)
-	Update					: 2009-03-09(Mon)
+	Update					: 2010-05-09(Sun)
 	Copyright				: H.Shirouzu
 	Reference				: 
 	======================================================================== */
@@ -581,42 +581,58 @@ BOOL TIsEnableUAC()
 	return	ret;
 }
 
-BOOL TSHGetSpecialFolderPath(HWND hWnd, LPSTR str, int flg, BOOL is_create)
+BOOL TSHGetSpecialFolderPathV(HWND hWnd, void *str, int flg, BOOL is_create)
 {
-	static BOOL (WINAPI *pSHGetSpecialFolderPath)(HWND, LPSTR, int, BOOL);
+	static BOOL (WINAPI *pSHGetSpecialFolderPath)(HWND, void *, int, BOOL);
 
 	if (!pSHGetSpecialFolderPath) {
-		pSHGetSpecialFolderPath = (BOOL (WINAPI *)(HWND, LPSTR, int, BOOL))
-			::GetProcAddress(::GetModuleHandle("shell32"), "SHGetSpecialFolderPathA");
+		pSHGetSpecialFolderPath = (BOOL (WINAPI *)(HWND, void *, int, BOOL))
+			::GetProcAddress(::GetModuleHandle("shell32"),
+				IS_WINNT_V ? "SHGetSpecialFolderPathW" : "SHGetSpecialFolderPathA");
 	}
 
 	return	pSHGetSpecialFolderPath ? pSHGetSpecialFolderPath(hWnd, str, flg, is_create) : FALSE;
 }
 
-BOOL TIsVirtualizedDir(char *path)
+BOOL TIsVirtualizedDirV(void *path)
 {
-	char	buf[MAX_PATH];
-	DWORD	csidl[] = { CSIDL_PROGRAM_FILES, CSIDL_WINDOWS, 0xffffffff };
+	if (!IsWinVista()) return FALSE;
+
+	WCHAR	buf[MAX_PATH];
+	DWORD	csidl[] = { CSIDL_WINDOWS, CSIDL_PROGRAM_FILES, CSIDL_COMMON_APPDATA, 0xffffffff };
 
 	for (int i=0; csidl[i] != 0xffffffff; i++) {
-		if (TSHGetSpecialFolderPath(NULL, buf, csidl[i], FALSE)
-		&& strnicmp(buf, path, strlen(buf)) == 0) {
-			return	TRUE;
+		if (TSHGetSpecialFolderPathV(NULL, buf, csidl[i], FALSE)) {
+			int	len = strlenV(buf);
+			if (strnicmpV(buf, path, len) == 0) {
+				WCHAR	ch = GetChar(path, len);
+				if (ch == 0 || ch == '\\' || ch == '/') {
+					return	TRUE;
+				}
+			}
+			if (i == 0 && GetChar(buf, 1) == ':') { /* check system root directory */
+				if (strnicmpV(path, buf, 3) == 0 && strchrV(MakeAddr(path, 4), '\\') == NULL) {
+					return	TRUE;
+				}
+			}
 		}
 	}
+
 	return	FALSE;
 }
 
-BOOL TMakeVirtualStorePath(char *org_path, char *buf)
+BOOL TMakeVirtualStorePathV(void *org_path, void *buf)
 {
-	if (!TIsVirtualizedDir(org_path)
-	|| !TSHGetSpecialFolderPath(NULL, buf, CSIDL_LOCAL_APPDATA, FALSE)
-	||	!org_path[0] || org_path[1] != ':' || org_path[2] != '\\') {
-		strcpy(buf, org_path);
+	if (!IsWinVista()) return FALSE;
+
+	if (!TIsVirtualizedDirV(org_path)
+	|| !TSHGetSpecialFolderPathV(NULL, buf, CSIDL_LOCAL_APPDATA, FALSE)
+	||	GetChar(org_path, 1) != ':' || GetChar(org_path, 2) != '\\') {
+		strcpyV(buf, org_path);
 		return	FALSE;
 	}
 
-	sprintf(buf + strlen(buf), "\\VirtualStore%s", org_path + 2);
+	sprintfV(MakeAddr(buf, strlenV(buf)), L"\\VirtualStore%s", MakeAddr(org_path, 2));
 	return	TRUE;
 }
 
@@ -665,4 +681,107 @@ BOOL TSetThreadLocale(int lcid)
 	}
 	return ::SetThreadLocale(lcid);
 }
+
+/*
+	リンク
+	あらかじめ、CoInitialize(NULL); を実行しておくこと
+	src  ... old_path
+	dest ... new_path
+*/
+BOOL SymLinkV(void *src, void *dest, void *arg)
+{
+	IShellLink		*shellLink;
+	IPersistFile	*persistFile;
+	WCHAR			wbuf[MAX_PATH], *ps_dest = (WCHAR *)dest;
+	BOOL			ret = FALSE;
+	WCHAR			buf[MAX_PATH];
+
+	if (SUCCEEDED(CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLinkV,
+			(void **)&shellLink))) {
+		shellLink->SetPath((char *)src);
+		shellLink->SetArguments((char *)arg);
+		GetParentDirV(src, buf);
+		shellLink->SetWorkingDirectory((char *)buf);
+		if (SUCCEEDED(shellLink->QueryInterface(IID_IPersistFile, (void **)&persistFile))) {
+			if (!IS_WINNT_V) {
+				MultiByteToWideChar(CP_ACP, 0, (char *)dest, -1, wbuf, MAX_PATH);
+				ps_dest = wbuf;
+			}
+			if (SUCCEEDED(persistFile->Save(ps_dest, TRUE))) {
+				ret = TRUE;
+				GetParentDirV(dest, buf);
+				::SHChangeNotify(SHCNE_UPDATEDIR, SHCNF_PATHV|SHCNF_FLUSH, buf, NULL);
+			}
+			persistFile->Release();
+		}
+		shellLink->Release();
+	}
+	return	ret;
+}
+
+BOOL ReadLinkV(void *src, void *dest, void *arg)
+{
+	IShellLink		*shellLink;		// 実際は IShellLinkA or IShellLinkW
+	IPersistFile	*persistFile;
+	WCHAR			wbuf[MAX_PATH];
+	BOOL			ret = FALSE;
+
+	if (SUCCEEDED(CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLinkV,
+			(void **)&shellLink))) {
+		if (SUCCEEDED(shellLink->QueryInterface(IID_IPersistFile, (void **)&persistFile))) {
+			if (!IS_WINNT_V) {
+				::MultiByteToWideChar(CP_ACP, 0, (char *)src, -1, wbuf, MAX_PATH);
+				src = wbuf;
+			}
+			if (SUCCEEDED(persistFile->Load((WCHAR *)src, STGM_READ))) {
+				if (SUCCEEDED(shellLink->GetPath((char *)dest, MAX_PATH, NULL, 0))) {
+					if (arg) {
+						shellLink->GetArguments((char *)arg, MAX_PATH);
+					}
+					ret = TRUE;
+				}
+			}
+			persistFile->Release();
+		}
+		shellLink->Release();
+	}
+	return	ret;
+}
+
+/*
+	リンクファイル削除
+*/
+BOOL DeleteLinkV(void *path)
+{
+	WCHAR	dir[MAX_PATH];
+
+	if (DeleteFileV(path) == FALSE)
+		return	FALSE;
+
+	GetParentDirV(path, dir);
+	::SHChangeNotify(SHCNE_UPDATEDIR, SHCNF_PATHV|SHCNF_FLUSH, dir, NULL);
+
+	return	TRUE;
+}
+
+/*
+	親ディレクトリ取得（必ずフルパスであること。UNC対応）
+*/
+BOOL GetParentDirV(const void *srcfile, void *dir)
+{
+	WCHAR	path[MAX_PATH], *fname=NULL;
+
+	if (GetFullPathNameV(srcfile, MAX_PATH, path, (void **)&fname) == 0 || fname == NULL)
+		return	strcpyV(dir, srcfile), FALSE;
+
+	if (((char *)fname - (char *)path) > 3 * CHAR_LEN_V || GetChar(path, 1) != ':')
+		SetChar(fname, -1, 0);
+	else
+		SetChar(fname, 0, 0);		// C:\ の場合
+
+	strcpyV(dir, path);
+	return	TRUE;
+}
+
+
 

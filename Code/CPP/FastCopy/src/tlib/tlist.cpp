@@ -1,5 +1,5 @@
 static char *tlist_id = 
-	"@(#)Copyright (C) H.Shirouzu 1996-2009   tlist.cpp	Ver0.97";
+	"@(#)Copyright (C) 1996-2009 H.Shirouzu		tlist.cpp	Ver0.97";
 /* ========================================================================
 	Project  Name			: Win32 Lightweight  Class Library Test
 	Module Name				: List Class

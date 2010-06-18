@@ -1,5 +1,5 @@
 ﻿static char *regexp_id = 
-	"@(#)Copyright (C) H.Shirouzu 2005-2006   regexp.cpp	ver1.84";
+	"@(#)Copyright (C) 2005-2006 H.Shirouzu		regexp.cpp	ver1.84";
 /* ========================================================================
 	Project  Name			: Regular Expression / Wild Card Match Library
 	Create					: 2005-11-03(The)
