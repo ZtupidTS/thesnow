@@ -129,7 +129,7 @@ void GetDllInfo (PLUGIN_INFO* _PluginInfo)
 void SetDllGlobals(PLUGIN_GLOBALS* _pPluginGlobals)
 {
 	globals = _pPluginGlobals;
-	LogManager::SetInstance((LogManager *)globals->logManager);
+	LogManager::SetInstance((LogManager*)globals->logManager);
 }
 
 // This is used for the functions right below here which use wxwidgets
@@ -211,7 +211,7 @@ void Initialize(void *init)
 
 	g_Config.UpdateProjectionHack();
 #if defined(HAVE_WX) && HAVE_WX
-	//Enable support for PNG screenshots.
+	// Enable support for PNG screenshots.
 	wxImage::AddHandler( new wxPNGHandler );
 #endif
 	UpdateActiveConfig();
@@ -231,10 +231,11 @@ void Initialize(void *init)
 	_pVideoInitialize->pXWindow = g_VideoInitialize.pXWindow;
 #endif
 
-	OSD::AddMessage("Dolphin OpenGL Video Plugin" ,5000);
+	OSD::AddMessage("Dolphin OpenGL Video Plugin", 5000);
 }
 
-void DoState(unsigned char **ptr, int mode) {
+void DoState(unsigned char **ptr, int mode)
+{
 #if defined(HAVE_X11) && HAVE_X11
 	OpenGL_MakeCurrent();
 #endif
@@ -351,7 +352,8 @@ void Video_AddMessage(const char* pstr, u32 milliseconds)
 	OSD::AddMessage(pstr, milliseconds);
 }
 
-void Video_SetRendering(bool bEnabled) {
+void Video_SetRendering(bool bEnabled)
+{
 	Fifo_SetRendering(bEnabled);
 }
 
@@ -431,6 +433,7 @@ static struct
 	EFBAccessType type;
 	u32 x;
 	u32 y;
+	u32 Data;
 } s_accessEFBArgs;
 
 static u32 s_AccessEFBResult = 0;
@@ -445,14 +448,14 @@ void VideoFifo_CheckEFBAccess()
 	}
 }
 
-u32 Video_AccessEFB(EFBAccessType type, u32 x, u32 y)
+u32 Video_AccessEFB(EFBAccessType type, u32 x, u32 y, u32 InputData)
 {
 	if (s_PluginInitialized)
 	{
 		s_accessEFBArgs.type = type;
 		s_accessEFBArgs.x = x;
 		s_accessEFBArgs.y = y;
-
+		s_accessEFBArgs.Data = InputData;
 		Common::AtomicStoreRelease(s_efbAccessRequested, TRUE);
 
 		if (g_VideoInitialize.bOnThread)

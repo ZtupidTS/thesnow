@@ -1,0 +1,15 @@
+# -*- python -*-
+
+Import('env')
+import sys
+
+if not env['HAVE_WX']:
+	Return()
+
+files = [
+	'ConfigDiag.cpp',
+	'ConfigDiagBitmaps.cpp',
+	'WXInputBase.cpp',
+	]
+
+env.StaticLibrary(env['local_libs'] + 'inputuicommon', files)

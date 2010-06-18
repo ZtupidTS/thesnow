@@ -26,4 +26,3 @@ void cocoaGLSwap(NSOpenGLContext *ctx,NSWindow *window);
 #ifdef __cplusplus
 }
 #endif
-

@@ -48,7 +48,7 @@ static FRAGMENTSHADER* pShaderLast = NULL;
 static float lastPSconstants[C_COLORMATRIX+16][4];
 
 
-void SetPSConstant4f(int const_number, float f1, float f2, float f3, float f4)
+void SetPSConstant4f(unsigned int const_number, float f1, float f2, float f3, float f4)
 {
 	if (lastPSconstants[const_number][0] != f1 || lastPSconstants[const_number][1] != f2 ||
 		lastPSconstants[const_number][2] != f3 || lastPSconstants[const_number][3] != f4)
@@ -62,7 +62,7 @@ void SetPSConstant4f(int const_number, float f1, float f2, float f3, float f4)
 	}
 }
 
-void SetPSConstant4fv(int const_number, const float *f)
+void SetPSConstant4fv(unsigned int const_number, const float *f)
 {
 	if (memcmp(&lastPSconstants[const_number], f, sizeof(float) * 4)) {
 		memcpy(&lastPSconstants[const_number], f, sizeof(float) * 4);
@@ -70,10 +70,10 @@ void SetPSConstant4fv(int const_number, const float *f)
 	}	
 }
 
-void SetMultiPSConstant4fv(int const_number, int count, const float *f)
+void SetMultiPSConstant4fv(unsigned int const_number, unsigned int count, const float *f)
 {
 	const float *f0 = f;
-	for (int i = 0; i < count ;i++,f0+=4)
+	for (unsigned int i = 0; i < count ;i++,f0+=4)
 	{
 		if (memcmp(&lastPSconstants[const_number + i], f0, sizeof(float) * 4)) {
 			memcpy(&lastPSconstants[const_number + i], f0, sizeof(float) * 4);		
@@ -84,9 +84,12 @@ void SetMultiPSConstant4fv(int const_number, int count, const float *f)
 
 void PixelShaderCache::Init()
 {
+	glEnable(GL_FRAGMENT_PROGRAM_ARB);
+	ShaderEnabled = true;
+	CurrentShader = 0;
 	GL_REPORT_ERRORD();
 
-	for (int i = 0; i < (C_COLORMATRIX+16) * 4; i++)
+	for (unsigned int i = 0; i < (C_COLORMATRIX+16) * 4; i++)
 		lastPSconstants[i/4][i%4] = -100000000.0f;
 	memset(&last_pixel_shader_uid, 0xFF, sizeof(last_pixel_shader_uid));
 
@@ -111,7 +114,7 @@ void PixelShaderCache::Init()
 						"ADD result.color, R1, program.env[%d];\n"
 						"END\n", C_COLORMATRIX+3, C_COLORMATRIX+2, C_COLORMATRIX, C_COLORMATRIX+1, C_COLORMATRIX+4);
 	glGenProgramsARB(1, &s_ColorMatrixProgram);
-	glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, s_ColorMatrixProgram);
+	SetCurrentShader(s_ColorMatrixProgram);
 	glProgramStringARB(GL_FRAGMENT_PROGRAM_ARB, GL_PROGRAM_FORMAT_ASCII_ARB, (GLsizei)strlen(pmatrixprog), pmatrixprog);
 
 	GLenum err = GL_REPORT_ERROR();
@@ -139,7 +142,7 @@ void PixelShaderCache::Init()
 						"ADD result.color, R1, program.env[%d];\n"
 						"END\n", C_COLORMATRIX, C_COLORMATRIX+1, C_COLORMATRIX+2, C_COLORMATRIX+3, C_COLORMATRIX+4);
 	glGenProgramsARB(1, &s_DepthMatrixProgram);
-	glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, s_DepthMatrixProgram);
+	SetCurrentShader(s_DepthMatrixProgram);
 	glProgramStringARB(GL_FRAGMENT_PROGRAM_ARB, GL_PROGRAM_FORMAT_ASCII_ARB, (GLsizei)strlen(pmatrixprog), pmatrixprog);
 
 	err = GL_REPORT_ERROR();
@@ -148,9 +151,7 @@ void PixelShaderCache::Init()
 		glDeleteProgramsARB(1, &s_DepthMatrixProgram);
 		s_DepthMatrixProgram = 0;
 	}
-	CurrentShader=0;
-	ShaderEnabled = false;
-	EnableShader(s_DepthMatrixProgram);	
+	
 }
 
 void PixelShaderCache::Shutdown()
@@ -160,7 +161,7 @@ void PixelShaderCache::Shutdown()
     glDeleteProgramsARB(1, &s_DepthMatrixProgram);
 	s_DepthMatrixProgram = 0;
 	PSCache::iterator iter = pshaders.begin();
-	for (; iter != pshaders.end(); ++iter)
+	for (; iter != pshaders.end(); iter++)
 		iter->second.Destroy();
 	pshaders.clear();
 }
@@ -206,7 +207,7 @@ FRAGMENTSHADER* PixelShaderCache::GetShader(bool dstAlphaEnable)
 	newentry.frameCount = frameCount;
 	pShaderLast = &newentry.shader;
 	const char *code = GeneratePixelShaderCode(PixelShaderManager::GetTextureMask(),
-                                               dstAlphaEnable);
+                                               dstAlphaEnable,API_OPENGL);
 
 #if defined(_DEBUG) || defined(DEBUGFAST)
 	if (g_ActiveConfig.iLog & CONF_SAVESHADERS && code) {	
@@ -272,7 +273,7 @@ bool PixelShaderCache::CompilePixelShader(FRAGMENTSHADER& ps, const char* pstrpr
 	}
 
 	glGenProgramsARB(1, &ps.glprogid);
-	EnableShader(ps.glprogid);	
+	SetCurrentShader(ps.glprogid);	
 	glProgramStringARB(GL_FRAGMENT_PROGRAM_ARB, GL_PROGRAM_FORMAT_ASCII_ARB, (GLsizei)strlen(pcompiledprog), pcompiledprog);
 
 	err = GL_REPORT_ERROR();
@@ -311,7 +312,6 @@ void PixelShaderCache::DisableShader()
 	CurrentShader = 0;
 	if(ShaderEnabled)
 	{		
-		glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, CurrentShader);
 		glDisable(GL_FRAGMENT_PROGRAM_ARB);
 		ShaderEnabled = false;
 	}	
@@ -320,17 +320,6 @@ void PixelShaderCache::DisableShader()
 
 //bind a program if is diferent from the binded oone
 void PixelShaderCache::SetCurrentShader(GLuint Shader)
-{
-	//The caching here breakes Super Mario Sunshine i'm still trying to figure out wy
-	if(ShaderEnabled /*&& CurrentShader != Shader*/)
-	{
-		CurrentShader = Shader;
-		glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, CurrentShader);
-	}
-}
-
-//Enable Fragment program and bind initial program
-void PixelShaderCache::EnableShader(GLuint Shader)
 {
 	if(!ShaderEnabled)
 	{

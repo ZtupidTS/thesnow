@@ -46,7 +46,7 @@ static VERTEXSHADER *pShaderLast = NULL;
 static int s_nMaxVertexInstructions;
 static float GC_ALIGNED16(lastVSconstants[C_FOGPARAMS+8][4]);
 
-void SetVSConstant4f(int const_number, float f1, float f2, float f3, float f4)
+void SetVSConstant4f(unsigned int const_number, float f1, float f2, float f3, float f4)
 {
 	if ( lastVSconstants[const_number][0] != f1 || 
 		lastVSconstants[const_number][1] != f2 ||
@@ -61,7 +61,7 @@ void SetVSConstant4f(int const_number, float f1, float f2, float f3, float f4)
 	}
 }
 
-void SetVSConstant4fv(int const_number, const float *f)
+void SetVSConstant4fv(unsigned int const_number, const float *f)
 {
 	if (memcmp(&lastVSconstants[const_number], f, sizeof(float) * 4)) {
 		memcpy(&lastVSconstants[const_number], f, sizeof(float) * 4);
@@ -69,10 +69,10 @@ void SetVSConstant4fv(int const_number, const float *f)
 	}	
 }
 
-void SetMultiVSConstant4fv(int const_number, int count, const float *f)
+void SetMultiVSConstant4fv(unsigned int const_number, unsigned int count, const float *f)
 {
 	const float *f0 = f;
-	for (int i = 0; i < count; i++,f0+=4)
+	for (unsigned int i = 0; i < count; i++,f0+=4)
 	{
 		if (memcmp(&lastVSconstants[const_number + i], f0, sizeof(float) * 4)) {
 			memcpy(&lastVSconstants[const_number + i], f0, sizeof(float) * 4);
@@ -81,9 +81,9 @@ void SetMultiVSConstant4fv(int const_number, int count, const float *f)
 	}
 }
 
-void SetMultiVSConstant3fv(int const_number, int count, const float *f)
+void SetMultiVSConstant3fv(unsigned int const_number, unsigned int count, const float *f)
 {
-	for (int i = 0; i < count; i++)
+	for (unsigned int i = 0; i < count; i++)
 	{
 		if (lastVSconstants[const_number + i][0] != f[0 + i*3] || 
 			lastVSconstants[const_number + i][1] != f[1 + i*3] ||
@@ -102,21 +102,21 @@ void SetMultiVSConstant3fv(int const_number, int count, const float *f)
 
 void VertexShaderCache::Init()
 {
+	glEnable(GL_VERTEX_PROGRAM_ARB);
+	ShaderEnabled = true;
+	CurrentShader = 0;
 	for (int i = 0; i < (C_FOGPARAMS + 8) * 4; i++)
 		lastVSconstants[i / 4][i % 4] = -100000000.0f;
 	memset(&last_vertex_shader_uid, 0xFF, sizeof(last_vertex_shader_uid));
 
 	s_displayCompileAlert = true;
 
-    glGetProgramivARB(GL_VERTEX_PROGRAM_ARB, GL_MAX_PROGRAM_NATIVE_INSTRUCTIONS_ARB, (GLint *)&s_nMaxVertexInstructions);
-	ShaderEnabled = false;
-	CurrentShader = 0;
-	EnableShader(0);
+    glGetProgramivARB(GL_VERTEX_PROGRAM_ARB, GL_MAX_PROGRAM_NATIVE_INSTRUCTIONS_ARB, (GLint *)&s_nMaxVertexInstructions);		
 }
 
 void VertexShaderCache::Shutdown()
 {
-	for (VSCache::iterator iter = vshaders.begin(); iter != vshaders.end(); ++iter)
+	for (VSCache::iterator iter = vshaders.begin(); iter != vshaders.end(); iter++)
 		iter->second.Destroy();
 	vshaders.clear();
 }
@@ -151,7 +151,7 @@ VERTEXSHADER* VertexShaderCache::GetShader(u32 components)
 	VSCacheEntry& entry = vshaders[uid];
 	entry.frameCount = frameCount;
 	pShaderLast = &entry.shader;
-	const char *code = GenerateVertexShaderCode(components, false);
+	const char *code = GenerateVertexShaderCode(components, API_OPENGL);
 
 #if defined(_DEBUG) || defined(DEBUGFAST)
 	if (g_ActiveConfig.iLog & CONF_SAVESHADERS && code) {
@@ -213,7 +213,7 @@ bool VertexShaderCache::CompileVertexShader(VERTEXSHADER& vs, const char* pstrpr
 		plocal = strstr(plocal + 13, "program.local");
 	}
 	glGenProgramsARB(1, &vs.glprogid);
-	EnableShader(vs.glprogid);
+	SetCurrentShader(vs.glprogid);
 
 	glProgramStringARB(GL_VERTEX_PROGRAM_ARB, GL_PROGRAM_FORMAT_ASCII_ARB, (GLsizei)strlen(pcompiledprog), pcompiledprog);	
 	err = GL_REPORT_ERROR();
@@ -233,10 +233,9 @@ bool VertexShaderCache::CompileVertexShader(VERTEXSHADER& vs, const char* pstrpr
 
 void VertexShaderCache::DisableShader()
 {
+	CurrentShader = 0;
 	if (ShaderEnabled)
 	{
-		CurrentShader = 0;
-		glBindProgramARB(GL_VERTEX_PROGRAM_ARB, CurrentShader);
 		glDisable(GL_VERTEX_PROGRAM_ARB);
 		ShaderEnabled = false;
 	}
@@ -244,15 +243,6 @@ void VertexShaderCache::DisableShader()
 
 
 void VertexShaderCache::SetCurrentShader(GLuint Shader)
-{
-	if (ShaderEnabled && CurrentShader != Shader)
-	{
-		CurrentShader = Shader;
-		glBindProgramARB(GL_VERTEX_PROGRAM_ARB, CurrentShader);
-	}
-}
-
-void VertexShaderCache::EnableShader(GLuint Shader)
 {
 	if (!ShaderEnabled)
 	{
@@ -266,4 +256,3 @@ void VertexShaderCache::EnableShader(GLuint Shader)
 		glBindProgramARB(GL_VERTEX_PROGRAM_ARB, CurrentShader);
 	}
 }
-
