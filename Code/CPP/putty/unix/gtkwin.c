@@ -34,6 +34,16 @@
 #define CAT(x,y) CAT2(x,y)
 #define ASSERT(x) enum {CAT(assertion_,__LINE__) = 1 / (x)}
 
+#if GTK_CHECK_VERSION(2,0,0)
+ASSERT(sizeof(long) <= sizeof(gsize));
+#define LONG_TO_GPOINTER(l) GSIZE_TO_POINTER(l)
+#define GPOINTER_TO_LONG(p) GPOINTER_TO_SIZE(p)
+#else /* Gtk 1.2 */
+ASSERT(sizeof(long) <= sizeof(gpointer));
+#define LONG_TO_GPOINTER(l) ((gpointer)(long)(l))
+#define GPOINTER_TO_LONG(p) ((long)(p))
+#endif
+
 /* Colours come in two flavours: configurable, and xterm-extended. */
 #define NCFGCOLOURS (lenof(((Config *)0)->colours))
 #define NEXTCOLOURS 240 /* 216 colour-cube plus 24 shades of grey */
@@ -1052,19 +1062,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	      case GDK_Begin: case GDK_KP_Begin: xkey = 'G'; break;
 	    }
 	    if (xkey) {
-		/*
-		 * The arrow keys normally do ESC [ A and so on. In
-		 * app cursor keys mode they do ESC O A instead.
-		 * Ctrl toggles the two modes.
-		 */
-		if (inst->term->vt52_mode) {
-		    end = 1 + sprintf(output+1, "\033%c", xkey);
-		} else if (!inst->term->app_cursor_keys ^
-			   !(event->state & GDK_CONTROL_MASK)) {
-		    end = 1 + sprintf(output+1, "\033O%c", xkey);
-		} else {		    
-		    end = 1 + sprintf(output+1, "\033[%c", xkey);
-		}
+		end = 1 + format_arrow_key(output+1, inst->term, xkey,
+					   event->state & GDK_CONTROL_MASK);
 		use_ucsoutput = FALSE;
 		goto done;
 	    }
@@ -1291,14 +1290,14 @@ void notify_remote_exit(void *frontend)
 
 static gint timer_trigger(gpointer data)
 {
-    long now = GPOINTER_TO_SIZE(data);
+    long now = GPOINTER_TO_LONG(data);
     long next;
     long ticks;
 
     if (run_timers(now, &next)) {
 	ticks = next - GETTICKCOUNT();
 	timer_id = gtk_timeout_add(ticks > 0 ? ticks : 1, timer_trigger,
-				   GSIZE_TO_POINTER(next));
+				   LONG_TO_GPOINTER(next));
     }
 
     /*
@@ -1320,7 +1319,7 @@ void timer_change_notify(long next)
 	ticks = 1;		       /* just in case */
 
     timer_id = gtk_timeout_add(ticks, timer_trigger,
-			       GSIZE_TO_POINTER(next));
+			       LONG_TO_GPOINTER(next));
 }
 
 void fd_input_func(gpointer data, gint sourcefd, GdkInputCondition condition)

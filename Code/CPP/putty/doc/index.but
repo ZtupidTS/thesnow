@@ -1,4 +1,4 @@
-\define{versionidindex} \versionid $Id: index.but 8617 2009-08-10 20:55:19Z simon $
+\define{versionidindex} \versionid $Id: index.but 8897 2010-03-13 14:47:14Z jacob $
 
 \IM{Unix version} Unix version of PuTTY tools
 \IM{Unix version} Linux version of PuTTY tools
@@ -843,3 +843,5 @@ saved sessions from
 \IM{logical host name} logical host name
 \IM{logical host name} host name, logical
 \IM{logical host name} host key, caching policy
+
+\IM{web browsers} web browser
