@@ -148,8 +148,6 @@ std::list<CPermissions *> CPermissions::m_sInstanceList;
 CPermissions::CPermissions()
 {
 	Init();
-
-	m_pPermissionsHelperWindow = new CPermissionsHelperWindow(this);
 }
 
 CPermissions::~CPermissions()
@@ -1258,6 +1256,7 @@ BOOL CPermissions::ParseUsersCommand(unsigned char *pData, DWORD dwDataLength)
 bool CPermissions::Init()
 {
 	EnterCritSection(m_sync);
+	m_pPermissionsHelperWindow = new CPermissionsHelperWindow(this);
 	if (m_sInstanceList.empty() && m_sUsersList.empty() && m_sGroupsList.empty())
 	{
 		// It's the first time Init gets called after application start, read

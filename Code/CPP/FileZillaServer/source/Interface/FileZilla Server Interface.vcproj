@@ -148,7 +148,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="1"
 				InlineFunctionExpansion="1"
-				AdditionalIncludeDirectories="&quot;$(ProjectDir)..\includes&quot;"
+				AdditionalIncludeDirectories="&quot;$(ProjectDir)..\includes&quot;;&quot;$(ProjectDir)..\..\..\boost&quot;"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS"
 				StringPooling="true"
 				RuntimeLibrary="0"
@@ -181,6 +181,7 @@
 				OutputFile="..\Release\BIN\FileZilla Server Interface.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
+				AdditionalLibraryDirectories="$(ProjectDir)..\..\..\boost\stage\lib"
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile=".\Release/FileZilla Server Interface.pdb"
 				GenerateMapFile="true"
@@ -535,10 +536,6 @@
 						BasicRuntimeChecks="3"
 					/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="FileZilla server.rc"
-				>
 			</File>
 			<File
 				RelativePath=".\GenerateCertificateDlg.cpp"
@@ -2184,6 +2181,10 @@
 			</File>
 			<File
 				RelativePath="res\FileZilla server.ico"
+				>
+			</File>
+			<File
+				RelativePath="FileZilla server.rc"
 				>
 			</File>
 			<File

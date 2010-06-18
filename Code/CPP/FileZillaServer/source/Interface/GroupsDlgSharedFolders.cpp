@@ -113,8 +113,8 @@ BOOL CGroupsDlgSharedFolders::OnInitDialog()
 {
 	CSAPrefsSubDlg::OnInitDialog();
 	
-	m_cDirs.InsertColumn(0, "Directories", LVCFMT_LEFT, 120);
-	m_cDirs.InsertColumn(1, "Aliases", LVCFMT_LEFT, 200);
+	m_cDirs.InsertColumn(0, "目录", LVCFMT_LEFT, 120);
+	m_cDirs.InsertColumn(1, "别名", LVCFMT_LEFT, 200);
 	UpdateData(FALSE);
 	
 	m_imagelist.Create(16, 16, ILC_MASK, 3, 3);
@@ -419,7 +419,7 @@ void CGroupsDlgSharedFolders::OnEndlabeleditDirs(NMHDR* pNMHDR, LRESULT* pResult
 	{
 		if (pDispInfo->item.pszText[0]==0)
 		{
-			AfxMessageBox("Please select a folder!");
+			AfxMessageBox("请选择一个文件夹!");
 			*pResult=FALSE;
 		}
 		else

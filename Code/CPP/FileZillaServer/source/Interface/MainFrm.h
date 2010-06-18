@@ -31,7 +31,6 @@
 #include "misc\led.h"
 #include "Options.h"	// Hinzugefügt von der Klassenansicht
 #include "splitex.h"
-
 class CStatusView;
 class CUsersView;
 class CAdminSocket;
