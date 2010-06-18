@@ -1,14 +1,6 @@
 import os
 import platform
 
-# methods that should be added to env
-def filterWarnings(self, flags):
-    return ' '.join(
-        flag
-        for flag in flags
-        if not flag.startswith('-W')
-        )
-
 # taken from scons wiki
 def CheckPKGConfig(context, version):
     context.Message( 'Checking for pkg-config version > %s... ' % version)
@@ -28,41 +20,9 @@ def CheckFramework(context, name):
               }
               """, '.c')
         if not ret:
-            context.env.Replace(FRAMEWORKS = lastFRAMEWORKS
-)
+            context.env.Replace(FRAMEWORKS = lastFRAMEWORKS)
 
     return ret
-
-
-def CheckFink(context):
-    context.Message( 'Looking for fink... ')
-    prog = context.env.WhereIs('fink')
-    if prog:
-        ret = 1
-        prefix = prog.rsplit(os.sep, 2)[0]
-        context.env.Append(LIBPATH = [prefix + os.sep +'lib'],
-                           CPPPATH = [prefix + os.sep +'include'])
-        context.Message( 'Adding fink lib and include path')
-    else:
-        ret = 0
-        
-    context.Result(ret)    
-    return int(ret)
-
-def CheckMacports(context):
-    context.Message( 'Looking for macports... ')
-    prog = context.env.WhereIs('port')
-    if prog:
-        ret = 1
-        prefix = prog.rsplit(os.sep, 2)[0]
-        context.env.Append(LIBPATH = [prefix + os.sep + 'lib'],
-                           CPPPATH = [prefix + os.sep + 'include'])
-        context.Message( 'Adding port lib and include path')
-    else:
-        ret = 0
-        
-    context.Result(ret)    
-    return int(ret)
 
 # TODO: We should use the scons one instead
 def CheckLib(context, name):
@@ -99,10 +59,8 @@ def CheckPKG(context, name):
     context.Result(ret)
     return int(ret)
 
-
-
 def CheckSDL(context, version):
-    context.Message( 'Checking for sdl lib version > %s... ' % version)
+    context.Message( 'Checking for SDL lib version > %s... ' % version)
     if platform.system().lower() == 'windows':
         return 1
     sdl_config = context.env.WhereIs('sdl-config')
@@ -117,6 +75,7 @@ def CheckSDL(context, version):
         context.Result(ret)
         if ret:
             context.env.ParseConfig('sdl-config --cflags --libs')
+            ret = CheckLib(context, 'SDL')
         return int(ret)
     
 def CheckPortaudio(context, version):
@@ -139,8 +98,6 @@ def CheckPortaudio(context, version):
 
     context.Result(ret)
     return int(ret)
-
-
     
 def GenerateRevFile(flavour, template, output):
 
