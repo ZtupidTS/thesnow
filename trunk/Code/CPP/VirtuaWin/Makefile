@@ -1,7 +1,7 @@
 # VirtuaWin (virtuawin.sourceforge.net)
 # Makefile - VirtuaWin make file for MinGW & Cygwin GNU GCC.
 #
-# Copyright (c) 2006-2009 VirtuaWin (VirtuaWin@home.se)
+# Copyright (c) 2006-2010 VirtuaWin (VirtuaWin@home.se)
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the Free
@@ -66,7 +66,7 @@ HEADERS = VirtuaWin.h Resource.h Messages.h \
 	  DiskRoutines.h Defines.h ConfigParameters.h vwCommands.def
 COFFS   = VirtuaWin.coff
 OBJRES  = VirtuaWin.res
-LIBS	= -lshell32 -luser32 -lgdi32 -lcomctl32
+LIBS	= -lshell32 -luser32 -lgdi32 -ladvapi32 -lcomctl32
 
 TARGET	= VirtuaWin.exe
 OBJS    = $(SRC:.c=.o)

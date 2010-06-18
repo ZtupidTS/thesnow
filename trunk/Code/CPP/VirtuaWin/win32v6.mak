@@ -1,7 +1,7 @@
 # VirtuaWin (virtuawin.sourceforge.net)
 # win32v6.mak - VirtuaWin make file for Microsoft MSVC v6.0
 #
-# Copyright (c) 2006-2009 VirtuaWin (VirtuaWin@home.se)
+# Copyright (c) 2006-2010 VirtuaWin (VirtuaWin@home.se)
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the Free
@@ -27,7 +27,7 @@ CFLAGS	= -nologo -G5 -YX -GX -O2 -DNDEBUG "-I$(TOOLSDIR)\include"
 CFLAGSD = -nologo -G5 -W3 -GX -Z7 -YX -Yd -Od -MLd "-I$(TOOLSDIR)\include"
 LDFLAGS	= /SUBSYSTEM:windows /NOLOGO /INCREMENTAL:no /MACHINE:IX86 /PDB:NONE "/LIBPATH:$(TOOLSDIR)\lib"
 LDFLAGSD= /DEBUG /SUBSYSTEM:windows /NOLOGO /INCREMENTAL:no /MACHINE:IX86 /PDB:NONE "/LIBPATH:$(TOOLSDIR)\lib"
-LIBS	= shell32.lib user32.lib gdi32.lib comctl32.lib
+LIBS	= shell32.lib user32.lib advapi32.lib gdi32.lib comctl32.lib
 
 !IFDEF vwUNICODE
 CUCDEFS = -DUNICODE -D_UNICODE

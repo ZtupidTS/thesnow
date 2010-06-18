@@ -3,7 +3,7 @@
 //  DiskRoutines.h - Disk routine function definitions.
 // 
 //  Copyright (c) 1999-2005 Johan Piculell
-//  Copyright (c) 2006-2009 VirtuaWin (VirtuaWin@home.se)
+//  Copyright (c) 2006-2010 VirtuaWin (VirtuaWin@home.se)
 // 
 //  This program is free software; you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License as published by
@@ -39,8 +39,8 @@ extern char *UserAppPathStr ;
 #endif
 
 void GetFilename(eFileNames filetype, int location, TCHAR *outStr);
-int  loadDisabledModules(disModules *theDisList);
-void saveDisabledList(int theNOfModules, moduleType* theModList);
+int  loadDisabledModules(vwDisModule *theDisList);
+void saveDisabledList(int theNOfModules, vwModule *theModList);
 void loadWindowConfig(void);
 void saveWindowConfig(void);
 void loadVirtuawinConfig(void);

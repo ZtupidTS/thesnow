@@ -3,7 +3,7 @@
 //  SetupDialog.c - Setup Dialog routines.
 // 
 //  Copyright (c) 1999-2005 Johan Piculell
-//  Copyright (c) 2006-2009 VirtuaWin (VirtuaWin@home.se)
+//  Copyright (c) 2006-2010 VirtuaWin (VirtuaWin@home.se)
 // 
 //  This program is free software; you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License as published by
@@ -182,6 +182,8 @@ setupGeneral(HWND hDlg, UINT message, UINT wParam, LONG lParam)
                 SendDlgItemMessage(hDlg, IDC_COMPACTWLIST, BM_SETCHECK, 1, 0);
             if(winMenuCompact)
                 SendDlgItemMessage(hDlg, IDC_COMPACTWMENU, BM_SETCHECK, 1, 0);
+            if(ctlMenuCompact)
+                SendDlgItemMessage(hDlg, IDC_COMPACTCMENU, BM_SETCHECK, 1, 0);
             if(winListContent & vwWINLIST_ACCESS)
                 SendDlgItemMessage(hDlg, IDC_MENUACCESS, BM_SETCHECK, 1, 0);
             if(winListContent & vwWINLIST_ASSIGN)
@@ -235,6 +237,13 @@ setupGeneral(HWND hDlg, UINT message, UINT wParam, LONG lParam)
                 }
                 vwMutexRelease();
             }
+            else if((maxDesk > nDesks) && (deskImageCount >= 0))
+            {
+                do {
+                    nDesks++ ;
+                    createDeskImage(nDesks,1) ;
+                } while(nDesks < maxDesk) ;
+            }
             nDesksY = tmpDesksY;
             nDesksX = tmpDesksX;
             nDesks = maxDesk ;
@@ -243,6 +252,7 @@ setupGeneral(HWND hDlg, UINT message, UINT wParam, LONG lParam)
             hotkeyMenuLoc = (SendDlgItemMessage(hDlg, IDC_HOTKEYMENULOC, BM_GETCHECK, 0, 0) == BST_CHECKED) ;
             winListCompact = (SendDlgItemMessage(hDlg, IDC_COMPACTWLIST, BM_GETCHECK, 0, 0) == BST_CHECKED) ;
             winMenuCompact = (SendDlgItemMessage(hDlg, IDC_COMPACTWMENU, BM_GETCHECK, 0, 0) == BST_CHECKED) ;
+            ctlMenuCompact = (SendDlgItemMessage(hDlg, IDC_COMPACTCMENU, BM_GETCHECK, 0, 0) == BST_CHECKED) ;
             winListContent = 0 ;
             if(SendDlgItemMessage(hDlg, IDC_MENUACCESS, BM_GETCHECK, 0, 0) == BST_CHECKED)
                 winListContent |= vwWINLIST_ACCESS ;
@@ -305,9 +315,9 @@ setupGeneral(HWND hDlg, UINT message, UINT wParam, LONG lParam)
         else if((pageChangeMask >= 0) &&
                 ((wPar == IDC_DESKCYCLE)   || (wPar == IDC_COMPACTWLIST)  ||
                  (wPar == IDC_MENUMOVE)    || (wPar == IDC_COMPACTWMENU)  ||
-                 (wPar == IDC_MENUSHOW)    || (wPar == IDC_MENUSTICKY)    ||
+                 (wPar == IDC_MENUSHOW)    || (wPar == IDC_COMPACTCMENU)  ||
                  (wPar == IDC_MENUACCESS)  || (wPar == IDC_HOTKEYMENULOC) ||
-                 (wPar == IDC_WLUSETTLLN)  ||
+                 (wPar == IDC_WLUSETTLLN)  || (wPar == IDC_MENUSTICKY)    ||
                  (wPar == IDC_DESKTOPNAME  && HIWORD(wParam) == EN_CHANGE)))
         {
             pageChangeMask |= 0x01 ;
@@ -412,12 +422,12 @@ vwSetupHotKeysInit(HWND hDlg, int firstTime)
     if(firstTime)
     {
         for(ii=0 ; vwCommandEnum[ii] != 0 ; ii++)
-            SendDlgItemMessage(hDlg, IDC_HOTKEY_CMD, CB_ADDSTRING, 0, (LONG) vwCommandName[ii]) ;
-        SendDlgItemMessage(hDlg, IDC_HOTKEY_CMD, CB_SETCURSEL, 0, 0) ;
+            SendDlgItemMessage(hDlg,IDC_HOTKEY_CMD,CB_ADDSTRING,0,(LONG) vwCommandName[ii]) ;
+        SendDlgItemMessage(hDlg,IDC_HOTKEY_CMD,CB_SETCURSEL,0,0) ;
     }
     else
     {
-        SendDlgItemMessage(hDlg,IDC_HOTKEY_DSK,CB_RESETCONTENT,0, 0);
+        SendDlgItemMessage(hDlg,IDC_HOTKEY_DSK,CB_RESETCONTENT,0,0);
     }
     if((jj = nDesks) < currentDesk)
         jj = currentDesk ;
@@ -443,6 +453,13 @@ vwSetupHotKeysSetCommand(HWND hDlg)
     if((ii=SendDlgItemMessage(hDlg,IDC_HOTKEY_CMD,CB_GETCURSEL,0,0)) != CB_ERR)
     {
         EnableWindow(GetDlgItem(hDlg,IDC_HOTKEY_DSK),(vwCommandFlag[ii] & 0x01)) ;
+        if(vwCommandFlag[ii] & 0x02)
+            EnableWindow(GetDlgItem(hDlg,IDC_HOTKEY_WUM),1) ;
+        else
+        {
+            EnableWindow(GetDlgItem(hDlg,IDC_HOTKEY_WUM),0) ;
+            SendDlgItemMessage(hDlg,IDC_HOTKEY_WUM,BM_SETCHECK,((vwCommandFlag[ii] & 0x04) != 0), 0);
+        }
         if((vwSetupHotkeyCur >= 0) && vwSetupHotkeyGotKey &&
            (vwCommandEnum[ii] != hotkeyList[vwSetupHotkeyCur].command))
         {
@@ -513,6 +530,8 @@ vwSetupHotKeysSetItem(HWND hDlg)
         EnableWindow(GetDlgItem(hDlg,IDC_HOTKEY_DSK),(hotkeyList[vwSetupHotkeyCur].desk > 0)) ;
         if(hotkeyList[vwSetupHotkeyCur].desk > 0)
             SendDlgItemMessage(hDlg,IDC_HOTKEY_DSK,CB_SETCURSEL,hotkeyList[vwSetupHotkeyCur].desk - 1,0) ;
+        EnableWindow(GetDlgItem(hDlg,IDC_HOTKEY_WUM),((vwCommandFlag[ii] & 0x2) != 0)) ;
+        SendDlgItemMessage(hDlg,IDC_HOTKEY_WUM,BM_SETCHECK,((hotkeyList[vwSetupHotkeyCur].modifier & vwHOTKEY_WIN_MOUSE) != 0), 0);
         
         vwSetupHotkeyGotKey = 1 ;
         ii = 0 ;
@@ -558,14 +577,13 @@ vwSetupHotKeysAddMod(HWND hDlg, int add)
         ii = hotkeyCount ;
         while(--ii >= 0)
         {
-            if((hotkeyList[ii].key == key) && (hotkeyList[ii].modifier == mod) &&
+            if((hotkeyList[ii].key == key) && ((hotkeyList[ii].modifier & (vwHOTKEY_MOD_MASK|vwHOTKEY_EXT)) == mod) &&
                (add || (ii != vwSetupHotkeyCur)))
             {
                 MessageBox(hWnd,_T("Another command is already bound to this hotkey."),vwVIRTUAWIN_NAME _T(" Error"), MB_ICONERROR);
                 return ;
             }
         }
-
         if(add)
         {
             if(hotkeyCount == vwHOTKEY_MAX)
@@ -575,12 +593,15 @@ vwSetupHotKeysAddMod(HWND hDlg, int add)
             }
             vwSetupHotkeyCur = hotkeyCount++ ;
         }
+        if((vwCommandFlag[cmd] & 0x04) || ((vwCommandFlag[cmd] & 0x02) && (SendDlgItemMessage(hDlg, IDC_HOTKEY_WUM, BM_GETCHECK, 0, 0) == BST_CHECKED)))
+            mod |= vwHOTKEY_WIN_MOUSE ;
         hotkeyList[vwSetupHotkeyCur].key = key ;
         hotkeyList[vwSetupHotkeyCur].modifier = mod ;
         hotkeyList[vwSetupHotkeyCur].command = vwCommandEnum[cmd] ;
         hotkeyList[vwSetupHotkeyCur].desk = (vwCommandFlag[cmd] & 0x01) ? dsk+1:0 ;
         EnableWindow(GetDlgItem(hDlg,IDC_HOTKEY_ADD),FALSE) ;
         EnableWindow(GetDlgItem(hDlg,IDC_HOTKEY_MOD),FALSE) ;
+        EnableWindow(GetDlgItem(hDlg,IDC_HOTKEY_DEL),TRUE) ;
         vwSetupHotKeysInitList(hDlg) ;
         pageChangeMask |= 0x02 ;
         SendMessage(GetParent(hDlg), PSM_CHANGED, (WPARAM)hDlg, 0L);
@@ -603,7 +624,7 @@ vwSetupHotKeysDelete(HWND hDlg)
     }
     hotkeyCount-- ;
     vwSetupHotkeyCur = -1 ;
-    EnableWindow(GetDlgItem(hDlg,IDC_HOTKEY_ADD),FALSE) ;
+    EnableWindow(GetDlgItem(hDlg,IDC_HOTKEY_ADD),TRUE) ;
     EnableWindow(GetDlgItem(hDlg,IDC_HOTKEY_MOD),FALSE) ;
     EnableWindow(GetDlgItem(hDlg,IDC_HOTKEY_DEL),FALSE) ;
     vwSetupHotKeysInitList(hDlg) ;
@@ -664,6 +685,7 @@ BOOL APIENTRY setupHotkeys(HWND hDlg, UINT message, UINT wParam, LONG lParam)
             break;
         
         case IDC_HOTKEY_WIN:
+        case IDC_HOTKEY_WUM:
             if(vwSetupHotkeyGotKey)
             {
                 EnableWindow(GetDlgItem(hDlg,IDC_HOTKEY_ADD),TRUE) ;
@@ -705,6 +727,8 @@ setupMouse(HWND hDlg, UINT message, UINT wParam, LONG lParam)
         
         if(mouseEnable & 1)
             SendDlgItemMessage(hDlg, IDC_ENABLEMOUSE, BM_SETCHECK, 1,0);
+        if(mouseEnable & 0x10)
+            SendDlgItemMessage(hDlg, IDC_MOUSEDRAG, BM_SETCHECK, 1,0);
         if(mouseModifierUsed)
             SendDlgItemMessage(hDlg, IDC_KEYCONTROL, BM_SETCHECK, 1,0);
         if(mouseModifier & vwHOTKEY_ALT)
@@ -713,6 +737,8 @@ setupMouse(HWND hDlg, UINT message, UINT wParam, LONG lParam)
             SendDlgItemMessage(hDlg, IDC_MCTRL, BM_SETCHECK, 1,0);
         if(mouseModifier & vwHOTKEY_SHIFT)
             SendDlgItemMessage(hDlg, IDC_MSHIFT, BM_SETCHECK, 1,0);
+        if(mouseModifier & vwHOTKEY_WIN)
+            SendDlgItemMessage(hDlg, IDC_MWIN, BM_SETCHECK, 1,0);
         if(mouseKnock & 1) 
             SendDlgItemMessage(hDlg, IDC_KNOCKMODE1, BM_SETCHECK, 1,0);
         if(mouseKnock & 2) 
@@ -736,6 +762,8 @@ setupMouse(HWND hDlg, UINT message, UINT wParam, LONG lParam)
             
         case PSN_APPLY:
             mouseEnable = (SendDlgItemMessage(hDlg, IDC_ENABLEMOUSE, BM_GETCHECK, 0, 0) == BST_CHECKED) ;
+            if(SendDlgItemMessage(hDlg, IDC_MOUSEDRAG, BM_GETCHECK, 0, 0) == BST_CHECKED)
+                mouseEnable |= 0x10 ;
             if(SendDlgItemMessage(hDlg, IDC_MOUSEWMENU, BM_GETCHECK, 0, 0) == BST_CHECKED)
                 mouseEnable |= 2 ;
             if(SendDlgItemMessage(hDlg, IDC_MOUSEWLIST, BM_GETCHECK, 0, 0) == BST_CHECKED)
@@ -764,6 +792,8 @@ setupMouse(HWND hDlg, UINT message, UINT wParam, LONG lParam)
                 mouseModifier |= vwHOTKEY_CONTROL ;
             if(SendDlgItemMessage(hDlg, IDC_MSHIFT, BM_GETCHECK, 0, 0) == BST_CHECKED)
                 mouseModifier |= vwHOTKEY_SHIFT ;
+            if(SendDlgItemMessage(hDlg, IDC_MWIN, BM_GETCHECK, 0, 0) == BST_CHECKED)
+                mouseModifier |= vwHOTKEY_WIN ;
             
             vwSetupApply(hDlg,0x04) ;
             SetWindowLong(hDlg, DWL_MSGRESULT, TRUE);
@@ -786,8 +816,9 @@ setupMouse(HWND hDlg, UINT message, UINT wParam, LONG lParam)
            LOWORD(wParam) == IDC_MALT       || LOWORD(wParam) == IDC_KEYCONTROL  ||
            LOWORD(wParam) == IDC_MCTRL      || LOWORD(wParam) == IDC_KNOCKMODE1  ||
            LOWORD(wParam) == IDC_MSHIFT     || LOWORD(wParam) == IDC_KNOCKMODE2  ||
+           LOWORD(wParam) == IDC_MWIN       || LOWORD(wParam) == IDC_MOUSEWMENU  ||
            LOWORD(wParam) == IDC_MOUSEWARP  || LOWORD(wParam) == IDC_MOUSEWLIST  ||
-           LOWORD(wParam) == IDC_MOUSEWMENU || LOWORD(wParam) == IDC_MOUSEMDCHNG )
+           LOWORD(wParam) == IDC_MOUSEDRAG  || LOWORD(wParam) == IDC_MOUSEMDCHNG )
         {
             pageChangeMask |= 0x04 ;
             SendMessage(GetParent(hDlg), PSM_CHANGED, (WPARAM)hDlg, 0L); // Enable apply
@@ -865,6 +896,7 @@ setupModules(HWND hDlg, UINT message, UINT wParam, LONG lParam)
         else if(LOWORD((wParam) == IDC_MODRELOAD))
         {   
             /* Unload all modules currently running */
+            vwMenuItem *mi ;
             sendModuleMessage(MOD_QUIT, 0, 0);
             for(index = 0; index < MAXMODULES; index++)
             {
@@ -872,6 +904,12 @@ setupModules(HWND hDlg, UINT message, UINT wParam, LONG lParam)
                 moduleList[index].description[0] = '\0';
             }
             moduleCount = 0;
+            /* free off all module inserted menu items */
+            while((mi = ctlMenuItemList) != NULL)
+            {
+                ctlMenuItemList = mi->next ;
+                free(mi) ;
+            }
             /* sleep for a second to allow the modules to exit cleanly */
             Sleep(1000) ;
             curDisabledMod = loadDisabledModules(disabledModules);
@@ -940,7 +978,7 @@ setupExpert(HWND hDlg, UINT message, UINT wParam, LONG lParam)
             SendDlgItemMessage(hDlg, IDC_INVERTY, BM_SETCHECK, 1,0);
         if(!displayTaskbarIcon)
             SendDlgItemMessage(hDlg, IDC_DISPLAYICON, BM_SETCHECK, 1,0);
-        if(!noTaskbarCheck)
+        if((noTaskbarCheck & 0x01) == 0)
             SendDlgItemMessage(hDlg, IDC_TASKBARDETECT, BM_SETCHECK, 1,0);
         if(vwHookUse)
             SendDlgItemMessage(hDlg, IDC_USEVWHOOK, BM_SETCHECK, 1,0);
@@ -950,6 +988,10 @@ setupExpert(HWND hDlg, UINT message, UINT wParam, LONG lParam)
             SendDlgItemMessage(hDlg, IDC_DYNBUTTONRM, BM_SETCHECK, 1,0);
         if(useDskChgModRelease)
             SendDlgItemMessage(hDlg, IDC_USEDCMODREL, BM_SETCHECK, 1,0);
+        if(minWinHide & 0x01)
+            SendDlgItemMessage(hDlg, IDC_NOHIDEMINWIN, BM_SETCHECK, 1,0);
+        if((minWinHide & 0x02) == 0)
+            SendDlgItemMessage(hDlg, IDC_HIDEMINWIN, BM_SETCHECK, 1,0);
         if(vwLogFlag)
             SendDlgItemMessage(hDlg, IDC_DEBUGLOGGING, BM_SETCHECK, 1,0);
         return TRUE;
@@ -972,6 +1014,11 @@ setupExpert(HWND hDlg, UINT message, UINT wParam, LONG lParam)
             useWindowRules = (SendDlgItemMessage(hDlg, IDC_USEWINRULES, BM_GETCHECK, 0, 0) == BST_CHECKED) ;
             useDynButtonRm = (SendDlgItemMessage(hDlg, IDC_DYNBUTTONRM, BM_GETCHECK, 0, 0) == BST_CHECKED) ;
             useDskChgModRelease = (SendDlgItemMessage(hDlg, IDC_USEDCMODREL, BM_GETCHECK, 0, 0) == BST_CHECKED) ;
+            minWinHide &= ~0x03 ;
+            if(SendDlgItemMessage(hDlg, IDC_NOHIDEMINWIN, BM_GETCHECK, 0, 0) == BST_CHECKED)
+                minWinHide |= 0x01 ;
+            if(SendDlgItemMessage(hDlg, IDC_HIDEMINWIN, BM_GETCHECK, 0, 0) != BST_CHECKED)
+                minWinHide |= 0x02 ;
             vwLogFlag = (SendDlgItemMessage(hDlg,IDC_DEBUGLOGGING,BM_GETCHECK, 0, 0) == BST_CHECKED) ;
             displayTaskbarIcon = (SendDlgItemMessage(hDlg, IDC_DISPLAYICON, BM_GETCHECK, 0, 0) != BST_CHECKED) ;
             
@@ -1043,7 +1090,7 @@ setupExpert(HWND hDlg, UINT message, UINT wParam, LONG lParam)
                 GetWindowRect(wb->handle,&pos) ;
                 GetClassName(wb->handle,cname,vwCLASSNAME_MAX);
                 if(!GetWindowText(wb->handle,wname,vwWINDOWNAME_MAX))
-                    _tcscpy(wname,_T("<None>"));
+                    _tcscpy(wname,vwWTNAME_NONE);
                 if(wb->flags & vwWINFLAGS_MANAGED)
                 {
                     win = (vwWindow *) wb ;
@@ -1065,7 +1112,8 @@ setupExpert(HWND hDlg, UINT message, UINT wParam, LONG lParam)
                 LOWORD(wParam) == IDC_DISPLAYICON || LOWORD(wParam) == IDC_DEBUGLOGGING ||
                 LOWORD(wParam) == IDC_INVERTY     || LOWORD(wParam) == IDC_TASKBARDETECT ||
                 LOWORD(wParam) == IDC_REFRESH     || LOWORD(wParam) == IDC_DYNBUTTONRM ||
-                LOWORD(wParam) == IDC_USEVWHOOK   || LOWORD(wParam) == IDC_USEDCMODREL ||
+                LOWORD(wParam) == IDC_USEVWHOOK   || LOWORD(wParam) == IDC_NOHIDEMINWIN ||
+                LOWORD(wParam) == IDC_USEDCMODREL || LOWORD(wParam) == IDC_HIDEMINWIN ||
                 (LOWORD(wParam) == IDC_HIDWINACT  && HIWORD(wParam) == CBN_SELCHANGE) ||
                 (LOWORD(wParam) == IDC_PRESORDER  && HIWORD(wParam) == CBN_SELCHANGE) )
         {

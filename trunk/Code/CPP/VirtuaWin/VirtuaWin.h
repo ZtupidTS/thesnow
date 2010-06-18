@@ -3,7 +3,7 @@
 //  VirtuaWin.h - Main variable and function definitions.
 // 
 //  Copyright (c) 1999-2005 Johan Piculell
-//  Copyright (c) 2006-2009 VirtuaWin (VirtuaWin@home.se)
+//  Copyright (c) 2006-2010 VirtuaWin (VirtuaWin@home.se)
 // 
 //  This program is free software; you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License as published by
@@ -36,15 +36,17 @@ extern int screenLeft;	                          // the screen dimensions, from 
 extern int screenRight;	  
 extern int screenTop;	  
 extern int screenBottom;
+extern int deskImageCount;
 
 extern vwWindow *windowList;                      // list of managed windows
 extern vwWindowBase *windowBaseList;              // list of all windows
 extern vwWindowRule *windowRuleList;              // list for holding window rules
+extern vwMenuItem *ctlMenuItemList;               // List of module inserted control menu items
 extern vwHotkey hotkeyList[vwHOTKEY_MAX];         // list for holding hotkeys
 
 extern int curDisabledMod;                        // how many disabled modules we have
-extern moduleType moduleList[MAXMODULES];         // list that holds modules
-extern disModules disabledModules[MAXMODULES*2];  // list with disabled modules
+extern vwModule moduleList[MAXMODULES];           // list that holds modules
+extern vwDisModule disabledModules[MAXMODULES*2]; // list with disabled modules
 
 /* logging defines & macros */
 extern vwUByte vwLogFlag ;
@@ -74,6 +76,7 @@ void vwHotkeyUnregister(int unregAll) ;
 void getWorkArea(void) ;
 int  windowListUpdate(void) ;
 void vwWindowRuleReapply(void) ;
+int  createDeskImage(int deskNo, int createDefault) ;
 void setForegroundWin(HWND theWin, int makeTop) ;
 int  assignWindow(HWND theWin, int theDesk, vwUByte follow, vwUByte force, vwUByte setActive);
 int  gotoDesk(int theDesk, vwUByte force);
