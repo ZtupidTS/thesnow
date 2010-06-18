@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -22,49 +22,57 @@
 #include "AppCommon.h"
 #include "ApplyState.h"
 
+namespace Panels
+{
+	class BaseSelectorPanel;
+	class McdConfigPanel_Toggles;
+	class BaseMcdListPanel;
+}
+
+BEGIN_DECLARE_EVENT_TYPES()
+	DECLARE_EVENT_TYPE( pxEvt_SetSettingsPage, -1 )
+END_DECLARE_EVENT_TYPES()
+
 namespace Dialogs
 {
-	class BaseApplicableDialog : public wxDialogWithHelpers, public IApplyState
-	{
-		DECLARE_DYNAMIC_CLASS_NO_COPY(BaseApplicableDialog)
-
-	public:
-		BaseApplicableDialog() {}
-
-	protected:
-		BaseApplicableDialog(wxWindow* parent, const wxString& title );
-		BaseApplicableDialog(wxWindow* parent, const wxString& title, wxOrientation sizerOrient );
-
-	public:
-		virtual ~BaseApplicableDialog() throw();
-		//ApplyStateStruct& GetApplyState() { return m_ApplyState; }
-	};
-
 	// --------------------------------------------------------------------------------------
 	//  BaseConfigurationDialog
 	// --------------------------------------------------------------------------------------
 	class BaseConfigurationDialog : public BaseApplicableDialog
 	{
+		typedef BaseApplicableDialog _parent;
+	
 	protected:
-		wxListbook&			m_listbook;
+		wxListbook*			m_listbook;
 		wxArrayString		m_labels;
 
 	public:
 		virtual ~BaseConfigurationDialog() throw();
-		BaseConfigurationDialog(wxWindow* parent, const wxString& title, wxImageList& bookicons, int idealWidth);
+		BaseConfigurationDialog(wxWindow* parent, const wxString& title, int idealWidth);
 
-	protected:
+	public:
+		void AddOkCancel( wxSizer* sizer=NULL );
+		void AddListbook( wxSizer* sizer=NULL );
+		void CreateListbook( wxImageList& bookicons );
+
+		virtual void SomethingChanged();
+
 		template< typename T >
 		void AddPage( const char* label, int iconid );
 		template< typename T >
 		void AddPage( const wchar_t* label, int iconid );
+	protected:
+		void OnSettingsApplied( wxCommandEvent& evt );
+
 		void OnOk_Click( wxCommandEvent& evt );
 		void OnCancel_Click( wxCommandEvent& evt );
 		void OnApply_Click( wxCommandEvent& evt );
 		void OnScreenshot_Click( wxCommandEvent& evt );
 		void OnCloseWindow( wxCloseEvent& evt );
 
-		virtual void OnSomethingChanged( wxCommandEvent& evt );
+		void OnSetSettingsPage( wxCommandEvent& evt );
+		void OnSomethingChanged( wxCommandEvent& evt );
+
 		virtual wxString& GetConfSettingsTabName() const=0;
 	};
 
@@ -73,28 +81,52 @@ namespace Dialogs
 	// --------------------------------------------------------------------------------------
 	class SysConfigDialog : public BaseConfigurationDialog
 	{
-	protected:
-	
 	public:
 		virtual ~SysConfigDialog() throw() {}
 		SysConfigDialog(wxWindow* parent=NULL);
-		static const wxChar* GetNameStatic() { return L"Dialog:CoreSettings"; }
+		static wxString GetNameStatic() { return L"CoreSettings"; }
+		wxString GetDialogName() const { return GetNameStatic(); }
 
 	protected:
 		virtual wxString& GetConfSettingsTabName() const { return g_Conf->SysSettingsTabName; }
 	};
 
 	// --------------------------------------------------------------------------------------
-	//  AppConfigDialog
+	//  McdConfigDialog
 	// --------------------------------------------------------------------------------------
-	class AppConfigDialog : public BaseConfigurationDialog
+	class McdConfigDialog : public BaseConfigurationDialog
+	{
+		typedef BaseConfigurationDialog _parent;
+
+	protected:
+		Panels::BaseMcdListPanel*	m_panel_mcdlist;
+
+	public:
+		virtual ~McdConfigDialog() throw() {}
+		McdConfigDialog(wxWindow* parent=NULL);
+		static wxString GetNameStatic() { return L"McdConfig"; }
+		wxString GetDialogName() const { return GetNameStatic(); }
+
+		virtual bool Show( bool show=true );
+		virtual int ShowModal();
+
+	protected:
+		virtual wxString& GetConfSettingsTabName() const { return g_Conf->McdSettingsTabName; }
+		void OnMultitapClicked( wxCommandEvent& evt );
+	};
+
+	// --------------------------------------------------------------------------------------
+	//  ComponentsConfigDialog
+	// --------------------------------------------------------------------------------------
+	class ComponentsConfigDialog : public BaseConfigurationDialog
 	{
 	protected:
 
 	public:
-		virtual ~AppConfigDialog() throw() {}
-		AppConfigDialog(wxWindow* parent=NULL);
-		static const wxChar* GetNameStatic() { return L"Dialog:AppSettings"; }
+		virtual ~ComponentsConfigDialog() throw() {}
+		ComponentsConfigDialog(wxWindow* parent=NULL);
+		static wxString GetNameStatic() { return L"AppSettings"; }
+		wxString GetDialogName() const { return GetNameStatic(); }
 
 	protected:
 		virtual wxString& GetConfSettingsTabName() const { return g_Conf->AppSettingsTabName; }
@@ -105,40 +137,52 @@ namespace Dialogs
 	// --------------------------------------------------------------------------------------
 	class BiosSelectorDialog : public BaseApplicableDialog
 	{
+		typedef BaseApplicableDialog _parent;
+
 	protected:
+		Panels::BaseSelectorPanel*	m_selpan;
 
 	public:
 		virtual ~BiosSelectorDialog()  throw() {}
 		BiosSelectorDialog( wxWindow* parent=NULL );
 
-		static const wxChar* GetNameStatic() { return L"Dialog:BiosSelector"; }
+		static wxString GetNameStatic() { return L"BiosSelector"; }
+		wxString GetDialogName() const { return GetNameStatic(); }
+
+		virtual bool Show( bool show=true );
+		virtual int ShowModal();
 
 	protected:
 		void OnOk_Click( wxCommandEvent& evt );
 		void OnDoubleClicked( wxCommandEvent& evt );
 	};
-	
+
 	// --------------------------------------------------------------------------------------
 	//  CreateMemoryCardDialog
 	// --------------------------------------------------------------------------------------
-	class CreateMemoryCardDialog : public BaseApplicableDialog
+	class CreateMemoryCardDialog : public wxDialogWithHelpers
 	{
 	protected:
+		uint		m_slot;
+		wxDirName	m_mcdpath;
+		wxString	m_mcdfile;
+
 		wxFilePickerCtrl*	m_filepicker;
 		pxRadioPanel*		m_radio_CardSize;
 
 	#ifdef __WXMSW__
 		pxCheckBox*			m_check_CompressNTFS;
-	#endif		
-		
+	#endif
+
 	public:
 		virtual ~CreateMemoryCardDialog()  throw() {}
-		CreateMemoryCardDialog( wxWindow* parent, uint port, uint slot, const wxString& filepath=wxEmptyString );
+		//CreateMemoryCardDialog( wxWindow* parent, uint port, uint slot, const wxString& filepath=wxEmptyString );
+		CreateMemoryCardDialog( wxWindow* parent, uint slot, const wxDirName& mcdpath, const wxString& mcdfile=wxEmptyString );
 
-		static const wxChar* GetNameStatic() { return L"Dialog:CreateMemoryCard"; }
+		wxDirName GetPathToMcds() const;
 
 	protected:
+		void CreateControls();
 		void OnOk_Click( wxCommandEvent& evt );
-		void OnDoubleClicked( wxCommandEvent& evt );
 	};
 }

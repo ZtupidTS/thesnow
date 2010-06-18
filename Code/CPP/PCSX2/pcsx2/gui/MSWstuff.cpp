@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -14,7 +14,8 @@
  */
 
 #include "PrecompiledHeader.h"
-#include "MainFrame.h"
+#include "GSFrame.h"
+
 #include "MSWstuff.h"
 #include <wx/listbook.h>
 #include <wx/listctrl.h>
@@ -54,10 +55,17 @@ void MSW_ListView_SetIconSpacing( wxListbook& listbook, int width )
 	// to the size of the frame's ideal width.
 
 	ListView_SetIconSpacing( (HWND)listbook.GetListView()->GetHWND(),
-		(width / listbook.GetPageCount()) - 6, g_Conf->Listbook_ImageSize+32		// y component appears to be ignored
+		(width / listbook.GetPageCount()) - 4, g_Conf->Listbook_ImageSize+32		// y component appears to be ignored
 	);
 #endif
 }
+
+void MSW_ListView_SetIconSpacing( wxListbook* listbook, int width )
+{
+	if( listbook == NULL ) return;
+	MSW_ListView_SetIconSpacing( *listbook, width );
+}
+
 
 #ifdef __WXMSW__
 WXLRESULT GSPanel::MSWWindowProc(WXUINT message, WXWPARAM wParam, WXLPARAM lParam)

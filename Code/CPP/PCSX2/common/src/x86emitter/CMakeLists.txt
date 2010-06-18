@@ -3,8 +3,19 @@
 # library name
 set(x86emitterName x86emitter)
 
+# Clear default flags
+set(CMAKE_C_FLAGS "")
+set(CMAKE_CXX_FLAGS "")
+set(CMAKE_C_FLAGS_DEBUG "")
+set(CMAKE_CXX_FLAGS_DEBUG "")
+set(CMAKE_C_FLAGS_DEVEL "")
+set(CMAKE_CXX_FLAGS_DEVEL "")
+set(CMAKE_C_FLAGS_RELEASE "")
+set(CMAKE_CXX_FLAGS_RELEASE "")
+
 # set common flags
 set(CommonFlags 
+	-pthread
 	-fno-guess-branch-probability
 	-fno-dse
 	-fno-tree-dse
@@ -23,10 +34,6 @@ set(CommonFlags
 set(DebugFlags
 	-W
 	-g)
-
-# set linker flags
-set(LinkerFlags
-	-s)
 
 # set optimization flags
 set(OptimizationFlags
@@ -69,12 +76,8 @@ set(OptimizationFlags
 	-ftree-vrp
 	-funit-at-a-time)
 
-
 # Debug - Build
 if(CMAKE_BUILD_TYPE STREQUAL Debug)
-	# clear flags
-	set(CMAKE_C_FLAGS_DEBUG)
-	set(CMAKE_CXX_FLAGS_DEBUG)
 
 	# add defines
 	add_definitions(${CommonFlags} ${DebugFlags} -DPCSX2_DEVBUILD -DPCSX2_DEBUG)
@@ -82,22 +85,16 @@ endif(CMAKE_BUILD_TYPE STREQUAL Debug)
 
 # Devel - Build
 if(CMAKE_BUILD_TYPE STREQUAL Devel)
-	# clear flags
-	set(CMAKE_C_FLAGS_DEVEL)
-	set(CMAKE_CXX_FLAGS_DEVEL)
 
 	# add defines
-	add_definitions(${CommonFlags} ${OptimizationFlags} -DPCSX2_DEVBUILD -DPCSX2_DEVEL)
+	add_definitions(${CommonFlags} ${OptimizationFlags} -DPCSX2_DEVBUILD)
 endif(CMAKE_BUILD_TYPE STREQUAL Devel)
 
 # Release - Build
 if(CMAKE_BUILD_TYPE STREQUAL Release)
-	# clear flags
-	set(CMAKE_C_FLAGS_RELEASE)
-	set(CMAKE_CXX_FLAGS_RELEASE)
 	
 	# add defines
-	add_definitions(${CommonFlags} ${OptimizationFlags} ${LinkerFlags})
+	add_definitions(${CommonFlags} ${OptimizationFlags})
 endif(CMAKE_BUILD_TYPE STREQUAL Release)
 
 # variable with all sources of this library
@@ -153,3 +150,10 @@ add_library(${x86emitterName} STATIC ${x86emitterSources} ${x86emitterHeaders})
 # link target with wx
 target_link_libraries(${x86emitterName} ${wxWidgets_LIBRARIES})
 
+# Force the linker into 32 bits mode
+target_link_libraries(${x86emitterName} -m32)
+
+# Linker strip option
+if (CMAKE_BUILD_STRIP)
+    target_link_libraries(${x86emitterName} -s)
+endif (CMAKE_BUILD_STRIP)

@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -31,8 +31,6 @@
 
 #include <xmmintrin.h>
 
-static DeclareTls(SysCoreThread*) tls_coreThread( NULL );
-
 // --------------------------------------------------------------------------------------
 //  SysCoreThread *External Thread* Implementations
 //    (Called from outside the context of this thread)
@@ -45,7 +43,8 @@ SysCoreThread::SysCoreThread()
 	m_resetProfilers		= true;
 	m_resetVsyncTimers		= true;
 	m_resetVirtualMachine	= true;
-	m_hasValidState			= false;
+
+	m_hasActiveMachine		= false;
 }
 
 SysCoreThread::~SysCoreThread() throw()
@@ -55,27 +54,28 @@ SysCoreThread::~SysCoreThread() throw()
 
 void SysCoreThread::Cancel( bool isBlocking )
 {
-	m_CoreCancelDamnit = true;
+	m_hasActiveMachine = false;
 	_parent::Cancel();
-	ReleaseResumeLock();
 }
 
 bool SysCoreThread::Cancel( const wxTimeSpan& span )
 {
-	m_CoreCancelDamnit = true;
+	m_hasActiveMachine = false;
 	if( _parent::Cancel( span ) )
-	{
-		ReleaseResumeLock();
 		return true;
-	}
+
 	return false;
+}
+
+void SysCoreThread::OnStart()
+{
+	_parent::OnStart();
 }
 
 void SysCoreThread::Start()
 {
-	if( g_plugins == NULL ) return;
-	g_plugins->Init();
-	m_CoreCancelDamnit = false;		// belongs in OnStart actually, but I'm tired :P
+	if( !GetCorePlugins().AreLoaded() ) return;
+	GetCorePlugins().Init();
 	_parent::Start();
 }
 
@@ -91,26 +91,10 @@ void SysCoreThread::Start()
 void SysCoreThread::OnResumeReady()
 {
 	if( m_resetVirtualMachine )
-		m_hasValidState = false;
-	
-	if( !m_hasValidState )
+		m_hasActiveMachine = false;
+
+	if( !m_hasActiveMachine )
 		m_resetRecompilers = true;
-}
-
-// Tells the thread to recover from the in-memory state copy when it resumes.  (thread must be
-// resumed manually).
-void SysCoreThread::RecoverState()
-{
-	Pause();
-	m_resetVirtualMachine	= true;
-	m_hasValidState			= false;
-}
-
-void SysCoreThread::Reset()
-{
-	Suspend();
-	m_resetVirtualMachine	= true;
-	m_hasValidState			= false;
 }
 
 // This function *will* reset the emulator in order to allow the specified elf file to
@@ -118,54 +102,16 @@ void SysCoreThread::Reset()
 // the context of a reset/restart.
 void SysCoreThread::SetElfOverride( const wxString& elf )
 {
-	pxAssertDev( !m_hasValidState, "Thread synchronization error while assigning ELF override." );
+	//pxAssertDev( !m_hasValidMachine, "Thread synchronization error while assigning ELF override." );
 	m_elf_override = elf;
 }
 
-ScopedCoreThreadSuspend::ScopedCoreThreadSuspend()
+void SysCoreThread::Reset()
 {
-	m_ResumeWhenDone = GetCoreThread().Suspend();
+	Suspend();
+	m_resetVirtualMachine	= true;
+	m_hasActiveMachine		= false;
 }
-
-ScopedCoreThreadSuspend::~ScopedCoreThreadSuspend() throw()
-{
-	if( m_ResumeWhenDone )
-	{
-		Console.WriteLn( Color_Gray, "Scoped CoreThread suspend was not allowed to resume." );
-	}
-}
-
-// Resumes CoreThread execution, but *only* if it was in a running state when this object
-// was instanized.  Subsequent calls to Resume() will be ignored.
-void ScopedCoreThreadSuspend::Resume()
-{
-	if( m_ResumeWhenDone )
-		GetCoreThread().Resume();
-	m_ResumeWhenDone = false;
-}
-
-ScopedCoreThreadPause::ScopedCoreThreadPause()
-{
-	m_ResumeWhenDone = GetCoreThread().Pause();
-}
-
-ScopedCoreThreadPause::~ScopedCoreThreadPause() throw()
-{
-	if( m_ResumeWhenDone )
-	{
-		Console.WriteLn( Color_Gray, "Scoped CoreThread pause was not allowed to resume." );
-	}
-}
-
-// Resumes CoreThread execution, but *only* if it was in a running state when this object
-// was instanized.  Subsequent calls to Resume() will be ignored.
-void ScopedCoreThreadPause::Resume()
-{
-	if( m_ResumeWhenDone )
-		GetCoreThread().Resume();
-	m_ResumeWhenDone = false;
-}
-
 
 // Applies a full suite of new settings, which will automatically facilitate the necessary
 // resets of the core and components (including plugins, if needed).  The scope of resetting
@@ -175,62 +121,33 @@ void SysCoreThread::ApplySettings( const Pcsx2Config& src )
 {
 	if( src == EmuConfig ) return;
 
-	ScopedCoreThreadPause sys_paused;
-
+	if( !pxAssertDev( IsPaused(), "CoreThread is not paused; settings cannot be applied." ) ) return;
+	
 	m_resetRecompilers		= ( src.Cpu != EmuConfig.Cpu ) || ( src.Recompiler != EmuConfig.Recompiler ) ||
 							  ( src.Gamefixes != EmuConfig.Gamefixes ) || ( src.Speedhacks != EmuConfig.Speedhacks );
 	m_resetProfilers		= ( src.Profiler != EmuConfig.Profiler );
 	m_resetVsyncTimers		= ( src.GS != EmuConfig.GS );
-	
+
 	const_cast<Pcsx2Config&>(EmuConfig) = src;
-	sys_paused.Resume();
 }
 
-void SysCoreThread::ChangeCdvdSource( CDVD_SourceType type )
+void SysCoreThread::UploadStateCopy( const VmStateBuffer& copy )
 {
-	if( type == CDVDsys_GetSourceType() ) return;
+	if( !pxAssertDev( IsPaused(), "CoreThread is not paused; new VM state cannot be uploaded." ) ) return;
 
-	// Fast change of the CDVD source only -- a Pause will suffice.
-
-	bool resumeWhenDone = Pause();
-	GetPluginManager().Close( PluginId_CDVD );
-	CDVDsys_ChangeSource( type );
-	if( resumeWhenDone ) Resume();
+	SysClearExecutionCache();
+	memLoadingState( copy ).FreezeAll();
+	m_resetVirtualMachine = false;
 }
 
 // --------------------------------------------------------------------------------------
 //  SysCoreThread *Worker* Implementations
 //    (Called from the context of this thread only)
 // --------------------------------------------------------------------------------------
-SysCoreThread& SysCoreThread::Get()
-{
-	pxAssertMsg( tls_coreThread != NULL, L"This function must be called from the context of a running SysCoreThread." );
-	return *tls_coreThread;
-}
-
 bool SysCoreThread::HasPendingStateChangeRequest() const
 {
-	return m_CoreCancelDamnit || GetMTGS().HasPendingException() || _parent::HasPendingStateChangeRequest();
+	return !m_hasActiveMachine || GetMTGS().HasPendingException() || _parent::HasPendingStateChangeRequest();
 }
-
-struct ScopedBool_ClearOnError
-{
-	bool&	m_target;
-	bool	m_success;
-	
-	ScopedBool_ClearOnError( bool& target ) :
-		m_target( target ), m_success( false )
-	{
-		m_target = true;
-	}
-
-	virtual ~ScopedBool_ClearOnError()
-	{
-		m_target = m_success;
-	}
-	
-	void Success() { m_success = true; }
-};
 
 void SysCoreThread::_reset_stuff_as_needed()
 {
@@ -253,9 +170,9 @@ void SysCoreThread::_reset_stuff_as_needed()
 	{
 		UpdateVSyncRate();
 		frameLimitReset();
-		m_resetVsyncTimers = false;
+		m_resetVsyncTimers		= false;
 	}
-	
+
 	SetCPUState( EmuConfig.Cpu.sseMXCSR, EmuConfig.Cpu.sseVUMXCSR );
 }
 
@@ -263,68 +180,6 @@ void SysCoreThread::DoCpuReset()
 {
 	AffinityAssert_AllowFromSelf( pxDiagSpot );
 	cpuReset();
-}
-
-void SysCoreThread::CpuInitializeMess()
-{
-	if( m_hasValidState ) return;
-
-	_reset_stuff_as_needed();
-
-	ScopedBool_ClearOnError sbcoe( m_hasValidState );
-
-	wxString elf_file( m_elf_override );
-	if( elf_file.IsEmpty() && EmuConfig.SkipBiosSplash && (CDVDsys_GetSourceType() != CDVDsrc_NoDisc))
-	{
-		// Fetch the ELF filename and CD type from the CDVD provider.
-		wxString ename;
-		int result = GetPS2ElfName( ename );
-		switch( result )
-		{
-			case 0:
-				throw Exception::RuntimeError( wxLt("Fast Boot failed: CDVD image is not a PS1 or PS2 game.") );
-
-			case 1:
-				if (!ENABLE_LOADING_PS1_GAMES)
-                    throw Exception::RuntimeError( wxLt("Fast Boot failed: PCSX2 does not support emulation of PS1 games.") );
-
-			case 2:
-				// PS2 game.  Valid!
-				elf_file = ename;
-			break;
-
-			jNO_DEFAULT
-		}
-	}
-
-	if( !elf_file.IsEmpty() )
-	{
-		// Skip Bios Hack *or* Manual ELF override:
-		//   Runs the PS2 BIOS stub, and then manually loads the ELF executable data, and
-		//   injects the cpuRegs.pc with the address of the execution start point.
-		//
-		// This hack is necessary for non-CD ELF files, and is optional for game CDs as a
-		// fast boot up option. (though not recommended for games because of rare ill side
-		// effects).
-
-		SetCPUState( EmuConfig.Cpu.sseMXCSR, EmuConfig.Cpu.sseVUMXCSR );
-
-		Console.WriteLn( Color_StrongGreen, "(PCSX2 Core) Executing Bios Stub..." );
-
-		do {
-			// Even the BiosStub invokes vsyncs, so we need to be weary of state
-			// changes and premature loop exits, and re-enter the stub executer until
-			// the critera is met.
-
-			StateCheckInThread();
-			Cpu->ExecuteBiosStub();
-		} while( cpuRegs.pc != 0x00200008 && cpuRegs.pc != 0x00100008 );
-
-		Console.WriteLn( Color_StrongGreen, "(PCSX2 Core) Execute Bios Stub Complete");
-		loadElfFile( elf_file );
-	}
-	
-	sbcoe.Success();
 }
 
 void SysCoreThread::PostVsyncToUI()
@@ -344,6 +199,7 @@ void SysCoreThread::VsyncInThread()
 {
 	PostVsyncToUI();
 	if (EmuConfig.EnablePatches) ApplyPatch();
+	if (EmuConfig.EnableCheats)  ApplyCheat();
 }
 
 void SysCoreThread::StateCheckInThread()
@@ -351,56 +207,54 @@ void SysCoreThread::StateCheckInThread()
 	GetMTGS().RethrowException();
 	_parent::StateCheckInThread();
 
-	if( !m_hasValidState )
-		throw Exception::RuntimeError( "Invalid emulation state detected; Virtual machine threads have been cancelled." );
-
 	_reset_stuff_as_needed();		// kinda redundant but could catch unexpected threaded state changes...
+}
+
+// Runs CPU cycles indefinitely, until the user or another thread requests execution to break.
+// Rationale: This very short function allows an override point and solves an SEH
+// "exception-type boundary" problem (can't mix SEH and C++ exceptions in the same function).
+void SysCoreThread::DoCpuExecute()
+{
+	m_hasActiveMachine = true;
+	Cpu->Execute();
 }
 
 void SysCoreThread::ExecuteTaskInThread()
 {
 	Threading::EnableHiresScheduler();
-	tls_coreThread = this;
 	m_sem_event.WaitWithoutYield();
-	
+
 	m_mxcsr_saved.bitmask = _mm_getcsr();
-	
+
 	PCSX2_PAGEFAULT_PROTECT {
-		do {
+		while(true) {
 			StateCheckInThread();
-			Cpu->Execute();
-		} while( true );
+			DoCpuExecute();
+		}
 	} PCSX2_PAGEFAULT_EXCEPT;
 }
 
 void SysCoreThread::OnSuspendInThread()
 {
-	if( g_plugins != NULL )
-		g_plugins->Close();
+	GetCorePlugins().Close();
 }
 
 void SysCoreThread::OnResumeInThread( bool isSuspended )
 {
-	if( g_plugins != NULL )
-		g_plugins->Open();
-
-	CpuInitializeMess();
+	GetCorePlugins().Open();
 }
 
 
 // Invoked by the pthread_exit or pthread_cancel.
 void SysCoreThread::OnCleanupInThread()
 {
-	m_hasValidState = false;
+	m_hasActiveMachine = false;
+
+	GetCorePlugins().Close();
+	GetCorePlugins().Shutdown();
 
 	_mm_setcsr( m_mxcsr_saved.bitmask );
-
 	Threading::DisableHiresScheduler();
-
-	if( g_plugins != NULL )
-		g_plugins->Close();
-
-	tls_coreThread = NULL;
 	_parent::OnCleanupInThread();
 }
 

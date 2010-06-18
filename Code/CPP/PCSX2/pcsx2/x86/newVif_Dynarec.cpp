@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -22,12 +22,26 @@
 
 static __aligned16 nVifBlock _vBlock = {0};
 
-void dVifInit(int idx) {
+void dVifReset(int idx) {
+	// If the VIF cache is greater than 12mb, then it's due for a complete reset back
+	// down to a reasonable starting point of 4mb.
+	if( nVif[idx].vifCache && (nVif[idx].vifCache->getAllocSize() > _1mb*12) )
+		safe_delete(nVif[idx].vifCache);
+
+	if( !nVif[idx].vifCache )
+		nVif[idx].vifCache = new BlockBuffer(_1mb*4);
+	else
+		nVif[idx].vifCache->clear();
+
+	if( !nVif[idx].vifBlocks )
+		nVif[idx].vifBlocks = new HashBucket<_tParams>();
+	else
+		nVif[idx].vifBlocks->clear();
+
 	nVif[idx].numBlocks =  0;
-	nVif[idx].vifCache	=  new BlockBuffer(_1mb*4); // 4mb Rec Cache
-	nVif[idx].vifBlocks =  new HashBucket<_tParams>();
+
 	nVif[idx].recPtr	=  nVif[idx].vifCache->getBlock();
-	nVif[idx].recEnd	= &nVif[idx].recPtr[nVif[idx].vifCache->getSize()-(_1mb/4)]; // .25mb Safe Zone
+	nVif[idx].recEnd	= &nVif[idx].recPtr[nVif[idx].vifCache->getAllocSize()-(_1mb/4)]; // .25mb Safe Zone
 }
 
 void dVifClose(int idx) {
@@ -57,9 +71,9 @@ _f void VifUnpackSSE_Dynarec::SetMasks(int cS) const {
 	u32 m3 = (m1>>1) & ~m0;
 	u32* row = (v.idx) ? g_vifmask.Row1 : g_vifmask.Row0;
 	u32* col = (v.idx) ? g_vifmask.Col1 : g_vifmask.Col0;
-	if((m2&&doMask) || doMode) { xMOVAPS(xmmRow, ptr32[row]); }
-	if (m3&&doMask) {
-		xMOVAPS(xmmCol0, ptr32[col]); 
+	if((m2&&(doMask||isFill))||doMode) { xMOVAPS(xmmRow, ptr32[row]); }
+	if (m3&&(doMask||isFill)) {
+		xMOVAPS(xmmCol0, ptr32[col]);
 		if ((cS>=2) && (m3&0x0000ff00)) xPSHUF.D(xmmCol1, xmmCol0, _v1);
 		if ((cS>=3) && (m3&0x00ff0000)) xPSHUF.D(xmmCol2, xmmCol0, _v2);
 		if ((cS>=4) && (m3&0xff000000)) xPSHUF.D(xmmCol3, xmmCol0, _v3);
@@ -99,7 +113,7 @@ void VifUnpackSSE_Dynarec::doMaskWrite(const xRegisterSSE& regX) const {
 			if (doMode==2) xMOVAPS(xmmRow, regX);
 		}
 	}
-	xMOVAPS(ptr32[dstIndirect], regX);	
+	xMOVAPS(ptr32[dstIndirect], regX);
 }
 
 void VifUnpackSSE_Dynarec::writeBackRow() const {
@@ -135,14 +149,15 @@ void VifUnpackSSE_Dynarec::CompileRoutine() {
 	vCL		 = v.vif->cl;
 	doMode	 = upkNum == 0xf ? 0 : doMode;
 
-	SetMasks(cycleSize);
+	// Value passed determines # of col regs we need to load
+	SetMasks(isFill ? blockSize : cycleSize);
 
 	while (vNum) {
 
 		ShiftDisplacementWindow( srcIndirect, edx );
 		ShiftDisplacementWindow( dstIndirect, ecx );
 
-		if (vCL < cycleSize) { 
+		if (vCL < cycleSize) {
 			xUnpack(upkNum);
 			xMovDest();
 
@@ -153,7 +168,7 @@ void VifUnpackSSE_Dynarec::CompileRoutine() {
 				++destReg;
 				++workReg;
 			}
-			
+
 			vNum--;
 			if (++vCL == blockSize) vCL = 0;
 		}
@@ -186,25 +201,33 @@ static _f u8* dVifsetVUptr(const nVifStruct& v, int cl, int wl, bool isFill) {
 		int skipSize  = cl - wl;
 		int blocks    = _vBlock.num / wl;
 		int skips	  = (blocks * skipSize + _vBlock.num) * 16;
+
+		//We must do skips - 1 here else skip calculation adds an extra skip which can overflow
+		//causing the emu to drop back to the interpreter (do not need to skip on last block write) - Refraction
+		if(skipSize > 0) skips -= skipSize * 16;
 		endPtr = ptr + skips;
 	}
 	else endPtr = ptr + (_vBlock.num * 16);
 	if ( endPtr > v.vuMemEnd ) {
-		DevCon.WriteLn("nVif - VU Mem Ptr Overflow; falling back to interpreter.");
+		DevCon.WriteLn("nVif%x - VU Mem Ptr Overflow; falling back to interpreter. Start = %x End = %x num = %x, wl = %x, cl = %x", v.idx, v.vif->tag.addr, v.vif->tag.addr + (_vBlock.num * 16), _vBlock.num, wl, cl);
 		ptr = NULL; // Fall Back to Interpreters which have wrap-around logic
 	}
 	return ptr;
 }
 
+// [TODO] :  Finish implementing support for VIF's growable recBlocks buffer.  Currently
+//    it clears the buffer only.
 static _f void dVifRecLimit(int idx) {
 	if (nVif[idx].recPtr > nVif[idx].recEnd) {
 		DevCon.WriteLn("nVif Rec - Out of Rec Cache! [%x > %x]", nVif[idx].recPtr, nVif[idx].recEnd);
 		nVif[idx].vifBlocks->clear();
 		nVif[idx].recPtr = nVif[idx].vifCache->getBlock();
+		nVif[idx].recEnd = &nVif[idx].recPtr[nVif[idx].vifCache->getAllocSize()-(_1mb/4)]; // .25mb Safe Zone
 	}
 }
 
-_f void dVifUnpack(int idx, u8 *data, u32 size, bool isFill) {
+// Gcc complains about recursive functions being inlined.
+void dVifUnpack(int idx, u8 *data, u32 size, bool isFill) {
 
 	const nVifStruct& v		= nVif[idx];
 	const u8	upkType		= v.vif->cmd & 0x1f | ((!!v.vif->usn) << 5);
@@ -249,8 +272,10 @@ _f void dVifUnpack(int idx, u8 *data, u32 size, bool isFill) {
 	VifUnpackSSE_Dynarec( v, _vBlock ).CompileRoutine();
 	nVif[idx].recPtr = xGetPtr();
 
+	// [TODO] : Ideally we should test recompile buffer limits prior to each instruction,
+	//   which would be safer and more memory efficient than using an 0.25 meg recEnd marker.
 	dVifRecLimit(idx);
-	
+
 	// Run the block we just compiled.  Various conditions may force us to still use
 	// the interpreter unpacker though, so a recursive call is the safest way here...
 	dVifUnpack(idx, data, size, isFill);

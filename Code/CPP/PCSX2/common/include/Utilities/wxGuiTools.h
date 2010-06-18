@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -15,6 +15,16 @@
 
 #pragma once
 
+// ----------------------------------------------------------------------------
+// wxGuiTools.h
+//
+// This file is meant to contain utility classes for users of the wxWidgets library.
+// All classes in this file are dependent on wxBase and wxCore libraries!  Meaning
+// you will have to use wxCore header files and link against wxCore (GUI) to build
+// them.  For tools which require only wxBase, see wxBaseTools.h
+// ----------------------------------------------------------------------------
+
+
 #if wxUSE_GUI
 
 #include "Dependencies.h"
@@ -27,6 +37,19 @@ class pxStaticText;
 class pxStaticHeading;
 class pxCheckBox;
 class wxSpinCtrl;
+
+namespace pxSizerFlags
+{
+	static const int StdPadding = 4;
+
+	extern wxSizerFlags StdSpace();
+	extern wxSizerFlags StdCenter();
+	extern wxSizerFlags StdExpand();
+	extern wxSizerFlags TopLevelBox();
+	extern wxSizerFlags SubGroup();
+	extern wxSizerFlags StdButton();
+	extern wxSizerFlags Checkbox();
+};
 
 #define wxSF		wxSizerFlags()
 
@@ -52,10 +75,15 @@ struct pxAlignmentType
 	int intval;
 
 	wxSizerFlags Apply( wxSizerFlags flags=wxSizerFlags() ) const;
-	
+
 	wxSizerFlags operator& ( const wxSizerFlags& _flgs ) const
 	{
 		return Apply( _flgs );
+	}
+
+	wxSizerFlags Expand() const
+	{
+		return Apply().Expand();
 	}
 
 	wxSizerFlags Border( int dir, int padding ) const
@@ -84,7 +112,7 @@ struct pxStretchType
 		ReserveHidden,
 		FixedMinimum
 	};
-	
+
 	int intval;
 
 	wxSizerFlags Apply( wxSizerFlags flags=wxSizerFlags() ) const;
@@ -115,7 +143,7 @@ static __forceinline wxSizerFlags pxProportion( int prop )
 	return wxSizerFlags( prop );
 }
 
-static __forceinline wxSizerFlags pxBorder( int dir, int pad )
+static __forceinline wxSizerFlags pxBorder( int dir=wxALL, int pad=pxSizerFlags::StdPadding )
 {
 	return wxSizerFlags().Border( dir, pad );
 }
@@ -124,7 +152,7 @@ class pxStretchSpacer
 {
 public:
 	int proportion;
-	
+
 	pxStretchSpacer( int prop=0 )
 	{
 		proportion = prop;
@@ -269,26 +297,224 @@ void operator+=( wxSizer* target, const pxWindowAndFlags<WinType>& src )
 	target->Add( src.window, src.flags );
 }
 
-// ----------------------------------------------------------------------------
-// wxGuiTools.h
-//
-// This file is meant to contain utility classes for users of the wxWidgets library.
-// All classes in this file are dependent on wxBase and wxCore libraries!  Meaning
-// you will have to use wxCore header files and link against wxCore (GUI) to build
-// them.  For tools which require only wxBase, see wxBaseTools.h
-// ----------------------------------------------------------------------------
 
-namespace pxSizerFlags
+BEGIN_DECLARE_EVENT_TYPES()
+	// Added to the event queue by pxDialogWithHelpers
+	DECLARE_EVENT_TYPE( pxEvt_OnDialogCreated, -1 )
+END_DECLARE_EVENT_TYPES()
+
+
+// --------------------------------------------------------------------------------------
+//  pxDialogCreationFlags
+// --------------------------------------------------------------------------------------
+class pxDialogCreationFlags
 {
-	static const int StdPadding = 5;
+public:
+	wxSize			MinimumSize;
+	wxOrientation	BoxSizerOrient;
+
+	bool			isResizable;
+	bool			hasContextHelp;
+	bool			hasCaption;
+	bool			hasMinimizeBox;
+	bool			hasMaximizeBox;
+	bool			hasSystemMenu;
+	bool			hasCloseBox;
+
+public:
+	virtual ~pxDialogCreationFlags() throw() {}
 	
-	extern wxSizerFlags StdSpace();
-	extern wxSizerFlags StdCenter();
-	extern wxSizerFlags StdExpand();
-	extern wxSizerFlags TopLevelBox();
-	extern wxSizerFlags SubGroup();
-	extern wxSizerFlags StdButton();
-	extern wxSizerFlags Checkbox();
+	pxDialogCreationFlags()
+	{
+		MinimumSize		= wxDefaultSize;
+		BoxSizerOrient	= wxVERTICAL;
+		isResizable		= false;
+		hasContextHelp	= false;
+
+		hasCloseBox		= true;
+		hasSystemMenu	= true;
+		hasMinimizeBox	= false;
+		hasMaximizeBox	= false;
+		hasCaption		= true;
+	}
+
+	pxDialogCreationFlags& SetSizerOrient( wxOrientation orient )
+	{
+		BoxSizerOrient = orient;
+		return *this;
+	}
+
+	pxDialogCreationFlags& SetResize( bool enable=true )
+	{
+		isResizable = enable;
+		return *this;
+	}
+
+	pxDialogCreationFlags& SetMinimize( bool enable=true )
+	{
+		hasMinimizeBox = enable;
+		return *this;
+	}
+
+	pxDialogCreationFlags& SetMaximize( bool enable=true )
+	{
+		hasMaximizeBox = enable;
+		return *this;
+	}
+
+	// NOTE: Enabling system menu on dialogs usually doesn't work, and might cause
+	// other unwanted behavior, such as a missing close button.
+	pxDialogCreationFlags& SetSystemMenu( bool enable=true )
+	{
+		hasSystemMenu = enable;
+		return *this;
+	}
+
+	pxDialogCreationFlags& SetCaption( bool enable=true )
+	{
+		hasCaption = enable;
+		return *this;
+	}
+
+	pxDialogCreationFlags& SetCloseBox( bool enable=true )
+	{
+		hasCloseBox = enable;
+		return *this;
+	}
+
+	pxDialogCreationFlags SetContextHelp( bool enabled=true )
+	{
+		hasContextHelp = enabled;
+		return *this;
+	}
+
+	pxDialogCreationFlags& SetMinWidth( int width )
+	{
+		if( width > MinimumSize.x ) MinimumSize.SetWidth( width );
+		return *this;
+	}
+
+	pxDialogCreationFlags& SetMinHeight( int height )
+	{
+		if( height > MinimumSize.y ) MinimumSize.SetHeight( height );
+		return *this;
+	}
+
+	pxDialogCreationFlags& SetMinSize( const wxSize& size )
+	{
+		return SetMinWidth(size.x).SetMinHeight(size.y);
+	}
+
+
+	pxDialogCreationFlags Horizontal() const
+	{
+		return pxDialogCreationFlags(*this).SetSizerOrient( wxHORIZONTAL );
+	}
+
+	pxDialogCreationFlags Vertical() const
+	{
+		return pxDialogCreationFlags(*this).SetSizerOrient( wxVERTICAL );
+	}
+	
+	pxDialogCreationFlags NoSizer() const
+	{
+		return pxDialogCreationFlags(*this).SetSizerOrient( (wxOrientation)0 );
+	}
+
+	pxDialogCreationFlags Resize( bool enable=true ) const
+	{
+		return pxDialogCreationFlags(*this).SetResize( enable );
+	}
+
+	pxDialogCreationFlags Minimize( bool enable=true ) const
+	{
+		return pxDialogCreationFlags(*this).SetMinimize( enable );
+	}
+
+	pxDialogCreationFlags Maximize( bool enable=true ) const
+	{
+		return pxDialogCreationFlags(*this).SetMaximize( enable );
+	}
+
+	// NOTE: Enabling system menu on dialogs usually doesn't work, and might cause
+	// other unwanted behavior, such as a missing close button.
+	pxDialogCreationFlags SystemMenu( bool enable=true ) const
+	{
+		return pxDialogCreationFlags(*this).SetSystemMenu( false );
+	}
+
+	pxDialogCreationFlags Caption( bool enable=true ) const
+	{
+		return pxDialogCreationFlags(*this).SetCaption( enable );
+	}
+
+	pxDialogCreationFlags CloseBox( bool enable=true ) const
+	{
+		return pxDialogCreationFlags(*this).SetCloseBox( enable );
+	}
+
+	pxDialogCreationFlags NoResize() const
+	{
+		return pxDialogCreationFlags(*this).SetResize( false );
+	}
+
+	pxDialogCreationFlags NoMinimize() const
+	{
+		return pxDialogCreationFlags(*this).SetMinimize( false );
+	}
+
+	pxDialogCreationFlags NoMaximize() const
+	{
+		return pxDialogCreationFlags(*this).SetMaximize( false );
+	}
+
+	pxDialogCreationFlags NoSystemMenu() const
+	{
+		return pxDialogCreationFlags(*this).SetSystemMenu( false );
+	}
+
+	pxDialogCreationFlags NoCaption() const
+	{
+		return pxDialogCreationFlags(*this).SetCaption( false );
+	}
+
+	pxDialogCreationFlags NoCloseBox() const
+	{
+		return pxDialogCreationFlags(*this).SetCloseBox( false );
+	}
+
+	pxDialogCreationFlags MinWidth( int width ) const
+	{
+		return pxDialogCreationFlags(*this).SetMinWidth( width );
+	}
+
+	pxDialogCreationFlags MinHeight( int height ) const
+	{
+		return pxDialogCreationFlags(*this).SetMinHeight( height );
+	}
+
+	pxDialogCreationFlags MinSize( const wxSize& size ) const
+	{
+		return pxDialogCreationFlags(*this).SetMinSize( size );
+	}
+
+	pxDialogCreationFlags MinSize( int width, int height ) const
+	{
+		return pxDialogCreationFlags(*this).SetMinWidth( width ).SetMinHeight( height );
+	}
+	
+	int GetWxWindowFlags() const
+	{
+		int retval = 0;
+		if( isResizable )		retval |= wxRESIZE_BORDER;
+		if( hasCaption )		retval |= wxCAPTION;
+		if( hasMaximizeBox )	retval |= wxMAXIMIZE_BOX;
+		if( hasMinimizeBox )	retval |= wxMINIMIZE_BOX;
+		if( hasSystemMenu )		retval |= wxSYSTEM_MENU;
+		if( hasCloseBox )		retval |= wxCLOSE_BOX;
+		
+		return retval;
+	}
 };
 
 // --------------------------------------------------------------------------------------
@@ -300,34 +526,45 @@ class wxDialogWithHelpers : public wxDialog
 
 protected:
 	bool				m_hasContextHelp;
-	int					m_idealWidth;
 	wxBoxSizer*			m_extraButtonSizer;
+	wxRect				m_CreatedRect;
 
 public:
 	wxDialogWithHelpers();
-	wxDialogWithHelpers(wxWindow* parent, const wxString& title, bool hasContextHelp=false, bool resizable=false );
-	wxDialogWithHelpers(wxWindow* parent, const wxString& title, wxOrientation orient);
+	wxDialogWithHelpers(wxWindow* parent, const wxString& title, const pxDialogCreationFlags& cflags = pxDialogCreationFlags() );
 	virtual ~wxDialogWithHelpers() throw();
 
-    void Init();
+    void Init( const pxDialogCreationFlags& cflags );
 	void AddOkCancel( wxSizer& sizer, bool hasApply=false );
+	void AddOkCancel( wxSizer* sizer=NULL, bool hasApply=false );
 
 	virtual void SmartCenterFit();
 	virtual int ShowModal();
 	virtual bool Show( bool show=true );
 
-	virtual pxStaticText*		Text( const wxString& label );
-	virtual pxStaticHeading*	Heading( const wxString& label );
+	// Must return the same thing as GetNameStatic; a name ideal for use in uniquely
+	// identifying dialogs.  (this version is the 'instance' version, which is called
+	// by BaseConfigurationDialog to assign the wxWidgets dialog name, and for saving
+	// screenshots to disk)
+	virtual wxString GetDialogName() const;
 
-	virtual wxDialogWithHelpers& SetIdealWidth( int newWidth ) { m_idealWidth = newWidth; return *this; }
+	virtual wxStaticText&	Label( const wxString& label );
+	virtual pxStaticText&	Text( const wxString& label );
+	virtual pxStaticText&	Heading( const wxString& label );
 
-	int GetIdealWidth() const { return m_idealWidth; }
-	bool HasIdealWidth() const { return m_idealWidth != wxDefaultCoord; }
+	wxDialogWithHelpers& SetMinWidth( int newWidth );
+	wxDialogWithHelpers& SetMinHeight( int newHeight );
+	
+	int GetCharHeight() const;
 
 protected:
-	void OnActivate(wxActivateEvent& evt);
+	void OnDialogCreated( wxCommandEvent& evt );
 	void OnOkCancel(wxCommandEvent& evt);
 	void OnCloseWindow(wxCloseEvent& event);
+
+	bool ShouldPreventAppExit() const { return false; }
+
+	void DoAutoCenter();
 };
 
 // --------------------------------------------------------------------------------------
@@ -351,25 +588,20 @@ class wxPanelWithHelpers : public wxPanel
 {
 	DECLARE_DYNAMIC_CLASS_NO_COPY(wxPanelWithHelpers)
 
-protected:
-	int		m_idealWidth;
-
 public:
 	wxPanelWithHelpers( wxWindow* parent, wxOrientation orient, const wxString& staticBoxLabel );
 	wxPanelWithHelpers( wxWindow* parent, wxOrientation orient );
 	wxPanelWithHelpers( wxWindow* parent, const wxPoint& pos, const wxSize& size=wxDefaultSize );
 	explicit wxPanelWithHelpers( wxWindow* parent=NULL );
-	
+
 	wxPanelWithHelpers* AddFrame( const wxString& label, wxOrientation orient=wxVERTICAL );
 
-	pxStaticText*		Text( const wxString& label );
-	pxStaticHeading*	Heading( const wxString& label );
+	wxStaticText&	Label( const wxString& label );
+	pxStaticText&	Text( const wxString& label );
+	pxStaticText&	Heading( const wxString& label );
 
-	// TODO : Propagate to children?
-	wxPanelWithHelpers& SetIdealWidth( int width ) { m_idealWidth = width;  return *this; }
-	int GetIdealWidth() const { return m_idealWidth; }
-	bool HasIdealWidth() const { return m_idealWidth != wxDefaultCoord; }
-	
+	virtual wxPanelWithHelpers& SetMinWidth( int newWidth );
+
 protected:
 	void Init();
 };
@@ -430,7 +662,7 @@ protected:
 class pxTextWrapper : public pxTextWrapperBase
 {
 	typedef pxTextWrapperBase _parent;
-	
+
 protected:
 	wxString m_text;
 
@@ -444,10 +676,75 @@ public:
     }
 
 	pxTextWrapper& Wrap( const wxWindow& win, const wxString& text, int widthMax );
+	pxTextWrapper& Wrap( const wxWindow* win, const wxString& text, int widthMax );
 
 protected:
     virtual void OnOutputLine(const wxString& line);
     virtual void OnNewLine();
+};
+
+// --------------------------------------------------------------------------------------
+//  pxWindowTextWriter
+// --------------------------------------------------------------------------------------
+class pxWindowTextWriter
+{
+protected:
+	wxDC&		m_dc;
+
+	wxAlignment	m_align;
+	wxPoint		m_curpos;
+	int			m_leading;
+
+	virtual void _DoWriteLn( const wxChar* msg );
+	void _DoWrite( const wxChar* msg );
+
+public:
+	pxWindowTextWriter( wxDC& dc );
+	virtual ~pxWindowTextWriter() throw() { }
+	
+	virtual void OnFontChanged();
+
+	pxWindowTextWriter& WriteLn();
+	pxWindowTextWriter& FormatLn( const wxChar* fmt, ... );
+	pxWindowTextWriter& WriteLn( const wxChar* fmt );
+	pxWindowTextWriter& SetFont( const wxFont& font );
+	pxWindowTextWriter& Align( const wxAlignment& align );
+		
+	pxWindowTextWriter& SetLeading( int lead )
+	{
+		m_leading = lead;
+		return *this;
+	}
+
+	pxWindowTextWriter& SetWeight( int weight );
+	pxWindowTextWriter& SetStyle( int style );
+	pxWindowTextWriter& Normal();
+
+	pxWindowTextWriter& Bold()
+	{
+		return SetWeight(wxBOLD);
+	}
+
+	pxWindowTextWriter& Italic()
+	{
+		return SetStyle(wxITALIC);
+	}
+
+	pxWindowTextWriter& SetPos( const wxPoint& pos );
+	pxWindowTextWriter& MovePos( const wxSize& delta );
+
+	pxWindowTextWriter& SetPos( int xpos, int ypos )
+	{
+		return SetPos( wxPoint(xpos,ypos) );
+	}
+
+	pxWindowTextWriter& MovePos( int xdelta, int ydelta )
+	{
+		return MovePos( wxSize(xdelta, ydelta) );
+	}
+
+	pxWindowTextWriter& SetY( int ypos );
+	pxWindowTextWriter& MoveY( int ydelta );
 };
 
 // --------------------------------------------------------------------------------------
@@ -478,7 +775,7 @@ extern MoreStockCursors StockCursors;
 // --------------------------------------------------------------------------------------
 //  ScopedBusyCursor
 // --------------------------------------------------------------------------------------
-// ... because wxWidgets wxBusyCursor doesn't really do proper nesting (doesn't let me 
+// ... because wxWidgets wxBusyCursor doesn't really do proper nesting (doesn't let me
 // override a partially-busy cursor with a really busy one)
 
 class ScopedBusyCursor
@@ -490,7 +787,7 @@ protected:
 public:
 	ScopedBusyCursor( BusyCursorType busytype );
 	virtual ~ScopedBusyCursor() throw();
-	
+
 	static void SetDefault( BusyCursorType busytype );
 	static void SetManualBusyCursor( BusyCursorType busytype );
 };
@@ -503,7 +800,7 @@ public:
 
 extern void pxFitToDigits( wxWindow* win, int digits );
 extern void pxFitToDigits( wxSpinCtrl* win, int digits );
-extern wxTextCtrl* CreateNumericalTextCtrl( wxWindow* parent, int digits );
+extern wxTextCtrl* CreateNumericalTextCtrl( wxWindow* parent, int digits, long flags = wxTE_RIGHT );
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -512,10 +809,14 @@ extern bool pxDialogExists( const wxString& name );
 extern bool pxIsValidWindowPosition( const wxWindow& window, const wxPoint& windowPos );
 extern wxRect wxGetDisplayArea();
 
+extern int pxGetCharHeight( const wxWindow* wind, int rows=1 );
+extern int pxGetCharHeight( const wxWindow& wind, int rows=1 );
+
 extern wxString pxFormatToolTipText( wxWindow* wind, const wxString& src );
 extern void pxSetToolTip( wxWindow* wind, const wxString& src );
 extern void pxSetToolTip( wxWindow& wind, const wxString& src );
 extern wxFont pxGetFixedFont( int ptsize=8, int weight=wxNORMAL );
 
+extern pxDialogCreationFlags pxDialogFlags();
 
 #endif

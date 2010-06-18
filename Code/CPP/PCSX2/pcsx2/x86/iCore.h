@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -277,17 +277,17 @@ void SetFPUstate();
 #define MMX_COP0 96
 #define MMX_TEMP 0x7f
 
-static __forceinline bool MMX_IS32BITS(s32 x) 
+static __forceinline bool MMX_IS32BITS(s32 x)
 {
 	return (((x >= MMX_FPU) && (x < MMX_COP0 + 32)) || (x == MMX_FPUACC));
 }
 
-static __forceinline bool MMX_ISGPR(s32 x) 
+static __forceinline bool MMX_ISGPR(s32 x)
 {
-	return ((x >= MMX_GPR) && (x < MMX_GPR + 34)); 
+	return ((x >= MMX_GPR) && (x < MMX_GPR + 34));
 }
 
-static __forceinline bool MMX_ISGPR(u32 x) 
+static __forceinline bool MMX_ISGPR(u32 x)
 {
 	return (x < MMX_GPR + 34);
 }
@@ -342,7 +342,7 @@ extern u16 x86FpuState;
 // as needed.  (similar to a "FreezeXMMRegs")
 
 // "Flushing" means that in addition to the standard free (which is actually a flush)
-// the register allocations are additionally wiped.  This should only be necessary if 
+// the register allocations are additionally wiped.  This should only be necessary if
 // the code being called is going to modify register allocations -- ie, be doing
 // some kind of recompiling of its own.
 
@@ -355,8 +355,14 @@ extern u16 x86FpuState;
 #define FLUSH_FREE_TEMPX86 64 // flush and free temporary x86 regs
 #define FLUSH_FREE_ALLX86 128 // free all x86 regs
 #define FLUSH_FREE_VU0 0x100  // free all vu0 related regs
+#define FLUSH_PC	0x200 // program counter
+#define FLUSH_CAUSE	0x400 // cause register, only the branch delay bit
+#define FLUSH_CODE	0x800 // opcode for interpreter
 
-#define FLUSH_EVERYTHING 0xfff
+#define FLUSH_EVERYTHING 0x1ff
+#define FLUSH_EXCEPTION 0x7ff
+#define FLUSH_INTERPRETER 0xfff
+
 // no freeing, used when callee won't destroy mmx/xmm regs
 #define FLUSH_NODESTROY (FLUSH_CACHED_REGS|FLUSH_FLUSH_XMM|FLUSH_FLUSH_MMX|FLUSH_FLUSH_ALLX86)
 // used when regs aren't going to be changed be callee

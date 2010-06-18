@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -16,8 +16,6 @@
 #ifndef __GIF_H__
 #define __GIF_H__
 
-const int gifsplit = 0x10000;
-
 enum gifstate_t
 {
 	GIF_STATE_READY = 0,
@@ -26,13 +24,29 @@ enum gifstate_t
 	GIF_STATE_EMPTY = 0x10
 };
 
-enum Path3Modes //0 = Image Mode (DirectHL), 1 = transferring, 2 = Stopped at End of Packet
+enum GSTransferModes //0 = Image Mode (DirectHL), 1 = transferring, 2 = Stopped at End of Packet
 {
 	IMAGE_MODE = 0,
 	TRANSFER_MODE = 1,
 	STOPPED_MODE = 2
 };
 
+union tGSTransferStatus {
+	struct {
+		u32 PTH1 : 2; // Resets Vif(0/1) when written.
+		u32 PTH2 : 2; // Causes a Forcebreak to Vif((0/1) when true. (Stall)
+		u32 PTH3 : 2; // Stops after the end of the Vifcode in progress when true. (Stall)
+		u32 reserved : 26;
+	};
+	u32 _u32;
+
+	tGSTransferStatus(u32 val)			{ _u32 = val; }
+	bool test		(u32 flags) const	{ return !!(_u32 & flags); }
+	void set_flags	(u32 flags)			{ _u32 |=  flags; }
+	void clear_flags(u32 flags)			{ _u32 &= ~flags; }
+	void reset()						{ _u32 = 0; }
+	wxString desc() const				{ return wxsFormat(L"GSTransferStatus.PTH3: 0x%x", _u32); }
+};
 //GIF_STAT
 enum gif_stat_flags
 {
@@ -68,9 +82,9 @@ union tGIF_CTRL
 		u32 reserved2 : 28;
 	};
 	u32 _u32;
-	
+
 	tGIF_CTRL(u32 val) { _u32 = val; }
-	
+
 	bool test(u32 flags) { return !!(_u32 & flags); }
 	void set_flags(u32 flags) { _u32 |= flags; }
 	void clear_flags(u32 flags) { _u32 &= ~flags; }
@@ -88,9 +102,9 @@ union tGIF_MODE
 		u32 reserved2 : 29;
 	};
 	u32 _u32;
-	
+
 	tGIF_MODE(u32 val) { _u32 = val; }
-	
+
 	void write(u32 val) { _u32 = val; }
 	bool test(u32 flags) { return !!(_u32 & flags); }
 	void set_flags(u32 flags) { _u32 |= flags; }
@@ -130,7 +144,7 @@ union tGIF_STAT
 	u32 _u32;
 
 	tGIF_STAT(u32 val) { _u32 = val; }
-	
+
 	bool test(u32 flags) { return !!(_u32 & flags); }
 	void set_flags(u32 flags) { _u32 |= flags; }
 	void clear_flags(u32 flags) { _u32 &= ~flags; }
@@ -147,9 +161,9 @@ union tGIF_TAG0
 		u32 TAG : 16;
 	};
 	u32 _u32;
-	
+
 	tGIF_TAG0(u32 val) { _u32 = val; }
-	
+
 	bool test(u32 flags) { return !!(_u32 & flags); }
 	void set_flags(u32 flags) { _u32 |= flags; }
 	void clear_flags(u32 flags) { _u32 &= ~flags; }
@@ -168,9 +182,9 @@ union tGIF_TAG1
 		u32 NREG : 4;
 	};
 	u32 _u32;
-	
+
 	tGIF_TAG1(u32 val) { _u32 = val; }
-	
+
 	bool test(u32 flags) { return !!(_u32 & flags); }
 	void set_flags(u32 flags) { _u32 |= flags; }
 	void clear_flags(u32 flags) { _u32 &= ~flags; }
@@ -190,9 +204,9 @@ union tGIF_CNT
 
 	};
 	u32 _u32;
-	
+
 	tGIF_CNT(u32 val) { _u32 = val; }
-	
+
 	bool test(u32 flags) { return !!(_u32 & flags); }
 	void set_flags(u32 flags) { _u32 |= flags; }
 	void clear_flags(u32 flags) { _u32 &= ~flags; }
@@ -208,9 +222,9 @@ union tGIF_P3CNT
 		u32 reserved1 : 17;
 	};
 	u32 _u32;
-	
+
 	tGIF_P3CNT(u32 val) { _u32 = val; }
-	
+
 	void reset() { _u32 = 0; }
 	wxString desc() { return wxsFormat(L"P3CNT: 0x%x", _u32); }
 };
@@ -224,9 +238,9 @@ union tGIF_P3TAG
 		u32 reserved1 : 16;
 	};
 	u32 _u32;
-	
+
 	tGIF_P3TAG(u32 val) { _u32 = val; }
-	
+
 	bool test(u32 flags) { return !!(_u32 & flags); }
 	void set_flags(u32 flags) { _u32 |= flags; }
 	void clear_flags(u32 flags) { _u32 &= ~flags; }
@@ -262,7 +276,7 @@ struct GIFregisters
 
 #define gifRegs ((GIFregisters*)(PS2MEM_HW+0x3000))
 
-extern Path3Modes Path3progress;
+extern tGSTransferStatus GSTransferStatus;
 
 extern void gsInterrupt();
 extern int _GIFchain();

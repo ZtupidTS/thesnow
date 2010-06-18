@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -141,17 +141,20 @@ static bool OpenLogFile(wxFile& file, wxString& filename, wxWindow *parent)
 	return file.Create(filename);
 }
 
-// ------------------------------------------------------------------------
+// --------------------------------------------------------------------------------------
+//  ConsoleLogFrame::ColorArray  (implementations)
+// --------------------------------------------------------------------------------------
+
 // fontsize - size of the font specified in points.
 //   (actual font used is the system-selected fixed-width font)
 //
-ConsoleLogFrame::ColorArray::ColorArray( int fontsize ) :
-	m_table( ConsoleColors_Count )
+ConsoleLogFrame::ColorArray::ColorArray( int fontsize )
+	: m_table( ConsoleColors_Count )
 {
 	Create( fontsize );
 }
 
-ConsoleLogFrame::ColorArray::~ColorArray()
+ConsoleLogFrame::ColorArray::~ColorArray() throw()
 {
 	Cleanup();
 }
@@ -164,7 +167,7 @@ void ConsoleLogFrame::ColorArray::Create( int fontsize )
 
 	const wxFont fixed( pxGetFixedFont( fontsize ) );
 	const wxFont fixedB( pxGetFixedFont( fontsize+1, wxBOLD ) );
-	
+
 	//const wxFont fixed( fontsize, wxMODERN, wxNORMAL, wxNORMAL );
 	//const wxFont fixedB( fontsize, wxMODERN, wxNORMAL, wxBOLD );
 
@@ -225,32 +228,55 @@ enum MenuIDs_t
 	MenuID_FontSize_Huge,
 };
 
-// ------------------------------------------------------------------------
+// --------------------------------------------------------------------------------------
+//  ScopedLogLock  (implementations)
+// --------------------------------------------------------------------------------------
+class ScopedLogLock : ScopedLock
+{
+public:
+	ConsoleLogFrame*	WindowPtr;
+
+public:
+	ScopedLogLock()
+		: ScopedLock( ((Pcsx2App&)*wxTheApp).GetProgramLogLock() )
+	{
+		WindowPtr = ((Pcsx2App&)*wxTheApp).m_ptr_ProgramLog;
+	}
+
+	virtual ~ScopedLogLock() throw() {}
+
+	bool HasWindow() const
+	{
+		return WindowPtr != NULL;
+	}
+
+	ConsoleLogFrame& GetWindow() const
+	{
+		return *WindowPtr;
+	}
+};
+
+// --------------------------------------------------------------------------------------
+//  ConsoleLogFrame  (implementations)
+// --------------------------------------------------------------------------------------
 ConsoleLogFrame::ConsoleLogFrame( MainEmuFrame *parent, const wxString& title, AppConfig::ConsoleLogOptions& options )
 	: wxFrame(parent, wxID_ANY, title)
 	, m_conf( options )
 	, m_TextCtrl( *new pxLogTextCtrl(this) )
-	, m_timer_FlushLimiter( this )
+	, m_timer_FlushUnlocker( this )
 	, m_ColorTable( options.FontSize )
 
 	, m_QueueColorSection( L"ConsoleLog::QueueColorSection" )
 	, m_QueueBuffer( L"ConsoleLog::QueueBuffer" )
 	, m_threadlogger( EnableThreadedLoggingTest ? new ConsoleTestThread() : NULL )
 {
-	m_flushevent_counter		= 0;
-
 	m_CurQueuePos				= 0;
-	m_pendingFlushes			= 0;
 	m_WaitingThreadsForFlush	= 0;
-	m_ThreadedLogInQueue		= false;
 	m_pendingFlushMsg			= false;
-
-	m_ThawThrottle				= 0;
-	m_ThawNeeded				= false;
-	m_ThawPending				= false;
+	m_FlushRefreshLocked		= false;
 
 	SetIcons( wxGetApp().GetIconBundle() );
-		
+
 	m_TextCtrl.SetBackgroundColour( wxColor( 230, 235, 242 ) );
 	m_TextCtrl.SetDefaultStyle( m_ColorTable[DefaultConsoleColor] );
 
@@ -287,16 +313,16 @@ ConsoleLogFrame::ConsoleLogFrame( MainEmuFrame *parent, const wxString& title, A
 	menuLog.Append(wxID_CLEAR, _("清除(&L)"),			_("清除日志窗口内容"));
 	menuLog.AppendSeparator();
 	menuLog.AppendSubMenu( &menuAppear, _("外观") );
-	menuLog.Append(wxID_ANY,	_("显示图例"),	_("显示控制台颜色图例.") );
+	menuLog.Append(wxID_ANY,	_("显示图例 (unimplemented)"),	_("显示控制台颜色图例.") );
 	menuLog.AppendSeparator();
 	menuLog.Append(wxID_CLOSE, _("关闭(&C)"),			_("关闭日志窗口; 内容将保留"));
-	
+
 	// Source Selection/Toggle menu
-	
+
 	m_item_Deci2	= menuSources.AppendCheckItem( wxID_ANY, _("EE Deci2"),		_("Enables debug output from the EEcore.") );
 	m_item_StdoutEE	= menuSources.AppendCheckItem( wxID_ANY, _("EE StdOut"),	_("Enables STDOUT from the EEcore.") );
 	m_item_StdoutIOP= menuSources.AppendCheckItem( wxID_ANY, _("IOP StdOut"),	_("Enables STDOUT from the IOP.") );
-	
+
 	pMenuBar->Append(&menuLog,		_("记录(&L)"));
 	pMenuBar->Append(&menuSources,	_("来源(&S)"));
 
@@ -320,7 +346,6 @@ ConsoleLogFrame::ConsoleLogFrame( MainEmuFrame *parent, const wxString& title, A
 	Connect( m_item_StdoutIOP->GetId(),	wxEVT_COMMAND_MENU_SELECTED,	wxCommandEventHandler( ConsoleLogFrame::OnLogSourceChanged ) );
 
 	Connect( wxEVT_CLOSE_WINDOW,	wxCloseEventHandler			(ConsoleLogFrame::OnCloseWindow) );
-	Connect( wxEVT_DESTROY,			wxWindowDestroyEventHandler	(ConsoleLogFrame::OnDestroyWindow) );
 	Connect( wxEVT_MOVE,			wxMoveEventHandler			(ConsoleLogFrame::OnMoveAround) );
 	Connect( wxEVT_SIZE,			wxSizeEventHandler			(ConsoleLogFrame::OnResize) );
 	Connect( wxEVT_ACTIVATE,		wxActivateEventHandler		(ConsoleLogFrame::OnActivate) );
@@ -329,9 +354,8 @@ ConsoleLogFrame::ConsoleLogFrame( MainEmuFrame *parent, const wxString& title, A
 	Connect( pxEvt_DockConsole,		wxCommandEventHandler	(ConsoleLogFrame::OnDockedMove) );
 	Connect( pxEvt_FlushQueue,		wxCommandEventHandler	(ConsoleLogFrame::OnFlushEvent) );
 
-	Connect( wxEVT_IDLE,			wxIdleEventHandler		(ConsoleLogFrame::OnIdleEvent) );
-	Connect( wxEVT_TIMER,			wxTimerEventHandler		(ConsoleLogFrame::OnFlushLimiterTimer) );
-	
+	Connect( m_timer_FlushUnlocker.GetId(),	wxEVT_TIMER,	wxTimerEventHandler	(ConsoleLogFrame::OnFlushUnlockerTimer) );
+
 	m_item_Deci2		->Check( g_Conf->EmuOptions.Log.Deci2 );
 	m_item_StdoutEE		->Check( g_Conf->EmuOptions.Log.StdoutEE );
 	m_item_StdoutIOP	->Check( g_Conf->EmuOptions.Log.StdoutIOP );
@@ -342,6 +366,7 @@ ConsoleLogFrame::ConsoleLogFrame( MainEmuFrame *parent, const wxString& title, A
 
 ConsoleLogFrame::~ConsoleLogFrame()
 {
+	ScopedLogLock locker;
 	wxGetApp().OnProgramLogClosed( GetId() );
 }
 
@@ -351,7 +376,7 @@ void ConsoleLogFrame::Write( ConsoleColors color, const wxString& text )
 {
 	pthread_testcancel();
 
-	ScopedLock lock( m_QueueLock );
+	ScopedLock lock( m_mtx_Queue );
 
 	if( m_QueueColorSection.GetLength() == 0 )
 	{
@@ -378,24 +403,37 @@ void ConsoleLogFrame::Write( ConsoleColors color, const wxString& text )
 
 	if( !m_pendingFlushMsg )
 	{
+		m_pendingFlushMsg = true;
+
+		// wxWidgets may have aggressive locks on event processing, so best to release
+		// our own mutex lest wx get hung for an extended period of time and cause all
+		// of our own stuff to get sluggish.
+		lock.Release();
+
 		wxCommandEvent evt( pxEvt_FlushQueue );
 		evt.SetInt( 0 );
-		GetEventHandler()->AddPendingEvent( evt );
-		m_pendingFlushMsg = true;
+		if( wxThread::IsMain() )
+		{
+			OnFlushEvent( evt );
+			return;
+		}
+		else
+			GetEventHandler()->AddPendingEvent( evt );
+
+		lock.Acquire();
 	}
 
-	++m_pendingFlushes;
-	
 	if( !wxThread::IsMain() )
 	{
-		m_ThreadedLogInQueue = true;
-
-		if( m_pendingFlushes > 48 )
+		// Too many color changes causes huge slowdowns when decorating the rich textview, so
+		// include a secodary check to avoid having a colorful log spam from killing gui responsiveness.
+		
+		if( m_CurQueuePos > 0x100000 || m_QueueColorSection.GetLength() > 256 )
 		{
 			++m_WaitingThreadsForFlush;
 			lock.Release();
 
-			if( !m_sem_QueueFlushed.Wait( wxTimeSpan( 0,0,0,500 ) ) )
+			if( !m_sem_QueueFlushed.Wait( wxTimeSpan( 0,0,0,250 ) ) )
 			{
 				// Necessary since the main thread could grab the lock and process before
 				// the above function actually returns (gotta love threading!)
@@ -406,7 +444,6 @@ void ConsoleLogFrame::Write( ConsoleColors color, const wxString& text )
 			{
 				// give gui thread time to repaint and handle other pending messages.
 
-				//pxYield( 1 );
 				wxGetApp().Ping();
 			}
 		}
@@ -416,14 +453,6 @@ void ConsoleLogFrame::Write( ConsoleColors color, const wxString& text )
 void ConsoleLogFrame::Newline()
 {
 	Write( Color_Current, L"\n" );
-}
-
-void ConsoleLogFrame::DoClose()
-{
-    // instead of closing just hide the window to be able to Show() it later
-    Show(false);
-	if( wxWindow* main = GetParent() )
-		wxStaticCast( main, MainEmuFrame )->OnLogBoxHidden();
 }
 
 void ConsoleLogFrame::DockedMove()
@@ -446,6 +475,8 @@ void ConsoleLogFrame::OnDockedMove( wxCommandEvent& event )
 
 void ConsoleLogFrame::OnMoveAround( wxMoveEvent& evt )
 {
+	if( IsBeingDeleted() || IsIconized() ) return;
+
 	// Docking check!  If the window position is within some amount
 	// of the main window, enable docking.
 
@@ -501,19 +532,22 @@ void ConsoleLogFrame::OnActivate( wxActivateEvent& evt )
 void ConsoleLogFrame::OnCloseWindow(wxCloseEvent& event)
 {
 	if( event.CanVeto() )
-		DoClose();
+	{
+		// instead of closing just hide the window to be able to Show() it later
+		Show( false );
+
+		// Can't do this via a Connect() on the MainFrame because Close events are not commands,
+		// and thus do not propagate up/down the event chain.
+		if( wxWindow* main = GetParent() )
+			wxStaticCast( main, MainEmuFrame )->OnLogBoxHidden();
+	}
 	else
 	{
+		// This is sent when the app is exiting typically, so do a full close.
 		m_threadlogger = NULL;
 		wxGetApp().OnProgramLogClosed( GetId() );
 		event.Skip();
 	}
-}
-
-void ConsoleLogFrame::OnDestroyWindow(wxWindowDestroyEvent& event)
-{
-	m_threadlogger = NULL;
-	wxGetApp().OnProgramLogClosed( GetId() );
 }
 
 void ConsoleLogFrame::OnOpen(wxCommandEvent& WXUNUSED(event))
@@ -523,7 +557,7 @@ void ConsoleLogFrame::OnOpen(wxCommandEvent& WXUNUSED(event))
 
 void ConsoleLogFrame::OnClose( wxCommandEvent& event )
 {
-	DoClose();
+	Close( false );
 }
 
 void ConsoleLogFrame::OnSave(wxCommandEvent& WXUNUSED(event))
@@ -548,8 +582,6 @@ void ConsoleLogFrame::OnSave(wxCommandEvent& WXUNUSED(event))
 			return;
 		}
 	}
-
-	wxLogStatus(this, L"日志被保存到文件 '%s'.", filename.c_str());
 }
 
 void ConsoleLogFrame::OnClear(wxCommandEvent& WXUNUSED(event))
@@ -562,7 +594,7 @@ void ConsoleLogFrame::OnLogSourceChanged( wxCommandEvent& evt )
 	g_Conf->EmuOptions.Log.Deci2	= m_item_Deci2		->IsChecked();
 	g_Conf->EmuOptions.Log.StdoutEE	= m_item_StdoutEE	->IsChecked();
 	g_Conf->EmuOptions.Log.StdoutIOP= m_item_StdoutIOP	->IsChecked();
-	
+
 	CoreThread.ApplySettings( g_Conf->EmuOptions );
 }
 
@@ -597,36 +629,8 @@ void ConsoleLogFrame::OnSetTitle( wxCommandEvent& event )
 	SetTitle( event.GetString() );
 }
 
-void ConsoleLogFrame::OnIdleEvent( wxIdleEvent& )
+void ConsoleLogFrame::DoFlushEvent( bool isPending )
 {
-	// When the GUI is idle then it's a safe bet we can resume suspended console log
-	// flushing, on the theory that the user's had a good chance to field user input.
-	
-	if( m_flushevent_counter > 0 )
-	{
-		m_flushevent_counter = 0;
-		m_timer_FlushLimiter.Stop();
-
-		wxCommandEvent sendevt( pxEvt_FlushQueue );
-		GetEventHandler()->AddPendingEvent( sendevt );
-	}
-}
-
-void ConsoleLogFrame::OnFlushLimiterTimer( wxTimerEvent& )
-{
-	if( m_flushevent_counter == 0 ) return;
-
-	m_flushevent_counter = 0;
-
-	wxCommandEvent sendevt( pxEvt_FlushQueue );
-	GetEventHandler()->AddPendingEvent( sendevt );
-}
-
-void ConsoleLogFrame::OnFlushEvent( wxCommandEvent& )
-{
-	ScopedLock locker( m_QueueLock );
-	m_pendingFlushMsg = false;
-
 	// recursion guard needed due to Mutex lock/acquire code below, which can end up yielding
 	// to the gui and attempting to process more messages (which in turn would result in re-
 	// entering this handler).
@@ -635,38 +639,11 @@ void ConsoleLogFrame::OnFlushEvent( wxCommandEvent& )
 	RecursionGuard recguard( recursion_counter );
 	if( recguard.IsReentrant() ) return;
 
+	ScopedLock locker( m_mtx_Queue );
+
 	if( m_CurQueuePos != 0 )
 	{
-		if( !m_timer_FlushLimiter.IsRunning() )
-		{
-			m_timer_FlushLimiter.Start( 500, true );
-			m_flushevent_counter = 0;
-		}
-		else
-		{
-			if( m_flushevent_counter >= 1000 )
-				return;
-			++m_flushevent_counter;
-		}
-
-		if( m_ThreadedLogInQueue && (m_pendingFlushes < 20) )
-		{
-			// Hacky Speedup -->
-			// Occasionally the EEcore thread can send ups some serious amounts of spam, and
-			// if we don't sleep the main thread some, the stupid text control refresh will
-			// drive framerates toward zero as it tries to refresh for every single log.
-			// This hack checks if a thread has been posting logs and, if so, we "rest" the
-			// main thread so that other threads can accumulate a more sizable log chunk.
-
-			locker.Release();
-			Sleep( 2 );
-			locker.Acquire();
-		}
-
-		if( m_CurQueuePos != 0 )
-			DoFlushQueue();
-
-		//m_TextCtrl.Thaw();
+		DoFlushQueue();
 	}
 
 	// Implementation note: I tried desperately to move this into wxEVT_IDLE, on the theory that
@@ -683,6 +660,24 @@ void ConsoleLogFrame::OnFlushEvent( wxCommandEvent& )
 		int count = m_sem_QueueFlushed.Count();
 		while( count < 0 ) m_sem_QueueFlushed.Post();
 	}
+
+	m_pendingFlushMsg = isPending;
+}
+
+void ConsoleLogFrame::OnFlushUnlockerTimer( wxTimerEvent& )
+{
+	m_FlushRefreshLocked = false;
+	DoFlushEvent( false );
+}
+
+void ConsoleLogFrame::OnFlushEvent( wxCommandEvent& )
+{
+	if( m_FlushRefreshLocked ) return;
+
+	DoFlushEvent( true );
+
+	m_FlushRefreshLocked = true;
+	m_timer_FlushUnlocker.Start( 100, true );
 }
 
 void ConsoleLogFrame::DoFlushQueue()
@@ -698,12 +693,14 @@ void ConsoleLogFrame::DoFlushQueue()
 	// Manual InsertionPoint tracking avoids a lot of overhead in SetInsertionPointEnd()
 	wxTextPos insertPoint = m_TextCtrl.GetLastPosition();
 
-	// cap at 256k for now...
-	// fixme - 256k runs well on win32 but appears to be very sluggish on linux (but that could
+	// cap at 512k for now...
+	// fixme - 512k runs well on win32 but appears to be very sluggish on linux (but that could
 	// be a result of my using Xming + CoLinux).  Might need platform dependent defaults here. --air
-	if( (insertPoint + m_CurQueuePos) > 0x40000 )
+	
+	static const int BufferSize = 0x80000;
+	if( (insertPoint + m_CurQueuePos) > BufferSize )
 	{
-		int toKeep = 0x40000 - m_CurQueuePos;
+		int toKeep = BufferSize - m_CurQueuePos;
 		if( toKeep <= 10 )
 		{
 			m_TextCtrl.Clear();
@@ -711,14 +708,21 @@ void ConsoleLogFrame::DoFlushQueue()
 		}
 		else
 		{
-			int toRemove = 0x40000 - toKeep;
-			if( toRemove < 0x10000 ) toRemove = 0x10000;
+			int toRemove = BufferSize - toKeep;
+			if( toRemove < BufferSize / 4 ) toRemove = BufferSize;
 			m_TextCtrl.Remove( 0, toRemove );
 			insertPoint -= toRemove;
 		}
 	}
 
 	m_TextCtrl.SetInsertionPoint( insertPoint );
+
+	// fixme : Writing a lot of colored logs to the console can be quite slow when "spamming"
+	// is happening, due to the overhead of SetDefaultStyle and WriteText calls.  I'm not sure
+	// if there's a better way to go about this?  Using Freeze/Thaw helps a little bit, but it's
+	// still magnitudes slower than dumping a straight run. --air
+
+	if( len > 64 ) m_TextCtrl.Freeze();
 
 	for( int i=0; i<len; ++i )
 	{
@@ -728,12 +732,12 @@ void ConsoleLogFrame::DoFlushQueue()
 		m_TextCtrl.WriteText( &m_QueueBuffer[m_QueueColorSection[i].startpoint] );
 	}
 
-	m_TextCtrl.ConcludeIssue( m_pendingFlushes );
+	if( len > 64 ) m_TextCtrl.Thaw();
+
+	m_TextCtrl.ConcludeIssue();
 
 	m_QueueColorSection.Clear();
 	m_CurQueuePos		= 0;
-	m_pendingFlushes	= 0;
-	m_ThreadedLogInQueue= false;
 }
 
 ConsoleLogFrame* Pcsx2App::GetProgramLog()
@@ -808,6 +812,11 @@ const IConsoleWriter    ConsoleWriter_File =
 	ConsoleToFile_SetTitle,
 };
 
+Mutex& Pcsx2App::GetProgramLogLock()
+{
+	return m_mtx_ProgramLog;
+}
+
 // --------------------------------------------------------------------------------------
 //  ConsoleToWindow Implementations
 // --------------------------------------------------------------------------------------
@@ -830,7 +839,8 @@ template< const IConsoleWriter& secondary >
 static void __concall ConsoleToWindow_Newline()
 {
 	secondary.Newline();
-	((Pcsx2App&)*wxTheApp).GetProgramLog()->Newline();
+	ScopedLogLock locker;
+	if( locker.WindowPtr ) locker.WindowPtr->Newline();
 }
 
 template< const IConsoleWriter& secondary >
@@ -838,7 +848,9 @@ static void __concall ConsoleToWindow_DoWrite( const wxString& fmt )
 {
 	if( secondary.DoWrite != NULL )
 		secondary.DoWrite( fmt );
-	((Pcsx2App&)*wxTheApp).GetProgramLog()->Write( Console.GetColor(), fmt );
+
+	ScopedLogLock locker;
+	if( locker.WindowPtr ) locker.WindowPtr->Write( Console.GetColor(), fmt );
 }
 
 template< const IConsoleWriter& secondary >
@@ -846,21 +858,23 @@ static void __concall ConsoleToWindow_DoWriteLn( const wxString& fmt )
 {
 	if( secondary.DoWriteLn != NULL )
 		secondary.DoWriteLn( fmt );
-	((Pcsx2App&)*wxTheApp).GetProgramLog()->Write( Console.GetColor(), fmt + L"\n" );
+
+	ScopedLogLock locker;
+	if( locker.WindowPtr ) locker.WindowPtr->Write( Console.GetColor(), fmt + L'\n' );
 }
 
 typedef void __concall DoWriteFn(const wxString&);
 
 static const IConsoleWriter	ConsoleWriter_Window =
 {
-	ConsoleToWindow_DoWrite<ConsoleWriter_Null>,
-	ConsoleToWindow_DoWriteLn<ConsoleWriter_Null>,
-	ConsoleToWindow_DoSetColor<ConsoleWriter_Null>,
+	ConsoleToWindow_DoWrite<ConsoleWriter_Stdout>,
+	ConsoleToWindow_DoWriteLn<ConsoleWriter_Stdout>,
+	ConsoleToWindow_DoSetColor<ConsoleWriter_Stdout>,
 
-	ConsoleToWindow_DoWrite<ConsoleWriter_Null>,
-	ConsoleToWindow_Newline<ConsoleWriter_Null>,
-	ConsoleToWindow_SetTitle<ConsoleWriter_Null>,
-};	
+	ConsoleToWindow_DoWrite<ConsoleWriter_Stdout>,
+	ConsoleToWindow_Newline<ConsoleWriter_Stdout>,
+	ConsoleToWindow_SetTitle<ConsoleWriter_Stdout>,
+};
 
 static const IConsoleWriter	ConsoleWriter_WindowAndFile =
 {
@@ -873,14 +887,31 @@ static const IConsoleWriter	ConsoleWriter_WindowAndFile =
 	ConsoleToWindow_SetTitle<ConsoleWriter_File>,
 };
 
-void Pcsx2App::EnableAllLogging() const
+void Pcsx2App::EnableAllLogging()
 {
-	const bool logBoxOpen = (GetProgramLog() != NULL);
+	ScopedLock lock( m_mtx_ProgramLog );
+
+	const bool logBoxOpen = (m_ptr_ProgramLog != NULL);
+	const IConsoleWriter* newHandler = NULL;
 
 	if( emuLog )
-		Console_SetActiveHandler( logBoxOpen ? (IConsoleWriter&)ConsoleWriter_WindowAndFile : (IConsoleWriter&)ConsoleWriter_File );
+	{
+		if( !m_StdoutRedirHandle ) m_StdoutRedirHandle = NewPipeRedir(stdout);
+		if( !m_StderrRedirHandle ) m_StderrRedirHandle = NewPipeRedir(stderr);
+		newHandler = logBoxOpen ? (IConsoleWriter*)&ConsoleWriter_WindowAndFile : (IConsoleWriter*)&ConsoleWriter_File;
+	}
 	else
-		Console_SetActiveHandler( logBoxOpen ? (IConsoleWriter&)ConsoleWriter_Window : (IConsoleWriter&)ConsoleWriter_Stdout );
+	{
+		if( logBoxOpen )
+		{
+			if( !m_StdoutRedirHandle ) m_StdoutRedirHandle = NewPipeRedir(stdout);
+			if( !m_StderrRedirHandle ) m_StderrRedirHandle = NewPipeRedir(stderr);
+			newHandler = &ConsoleWriter_Window;
+		}
+		else
+			newHandler = &ConsoleWriter_Stdout;
+	}
+	Console_SetActiveHandler( *newHandler );
 }
 
 // Used to disable the emuLog disk logger, typically used when disabling or re-initializing the
@@ -905,6 +936,7 @@ void Pcsx2App::DisableDiskLogging() const
 
 void Pcsx2App::DisableWindowLogging() const
 {
+	ScopedLock lock( m_mtx_ProgramLog );
 	Console_SetActiveHandler( (emuLog!=NULL) ? (IConsoleWriter&)ConsoleWriter_File : (IConsoleWriter&)ConsoleWriter_Stdout );
-	Threading::Sleep( 5 );
+	//Threading::Sleep( 5 );
 }

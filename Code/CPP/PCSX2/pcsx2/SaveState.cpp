@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -47,8 +47,18 @@ wxString SaveStateBase::GetFilename( int slot )
 }
 
 SaveStateBase::SaveStateBase( SafeArray<u8>& memblock )
-	: m_memory( memblock )
 {
+	Init( &memblock );
+}
+
+SaveStateBase::SaveStateBase( SafeArray<u8>* memblock )
+{
+	Init( memblock );
+}
+
+void SaveStateBase::Init( SafeArray<u8>* memblock )
+{
+	m_memory	= memblock;
 	m_version	= g_SaveVersion;
 	m_idx		= 0;
 	m_sectid	= FreezeId_Unknown;
@@ -58,12 +68,14 @@ SaveStateBase::SaveStateBase( SafeArray<u8>& memblock )
 
 void SaveStateBase::PrepBlock( int size )
 {
+	pxAssumeDev( m_memory, "Savestate memory/buffer pointer is null!" );
+
 	const int end = m_idx+size;
 	if( IsSaving() )
-		m_memory.MakeRoomFor( end );
+		m_memory->MakeRoomFor( end );
 	else
 	{
-		if( m_memory.GetSizeInBytes() < end )
+		if( m_memory->GetSizeInBytes() < end )
 			throw Exception::SaveStateLoadError();
 	}
 }
@@ -99,8 +111,9 @@ void SaveStateBase::FreezeBios()
 	memzero( descin );
 	memzero( desccmp );
 
-	memcpy_fast( descin, descout.ToUTF8().data(), descout.Length() );
-	memcpy_fast( desccmp, descout.ToUTF8().data(), descout.Length() );
+	pxToUTF8 utf8(descout);
+	memcpy_fast( descin, utf8, utf8.Length() );
+	memcpy_fast( desccmp, utf8, utf8.Length() );
 
 	// ... and only freeze bios info once per state, since the user msg could
 	// become really annoying on a corrupted state or something.  (have to always
@@ -118,7 +131,7 @@ void SaveStateBase::FreezeBios()
 			Console.Indent(2).Error(
 				"Current Version:   %s\n"
 				"Savestate Version: %s\n",
-				descout.ToUTF8().data(), descin
+				utf8.data(), descin
 			);
 		}
 	}
@@ -192,6 +205,10 @@ void SaveStateBase::FreezeRegisters()
 	sio2Freeze();
 	cdrFreeze();
 	cdvdFreeze();
+	
+	// technically this is HLE BIOS territory, but we don't have enough such stuff
+	// to merit an HLE Bios sub-section... yet.
+	deci2Freeze();
 
 	if( IsLoading() )
 		PostLoadPrep();
@@ -203,7 +220,7 @@ void SaveStateBase::WritebackSectionLength( int seekpos, int sectlen, const wxCh
 	if( IsSaving() )
 	{
 		// write back the section length...
-		*((u32*)m_memory.GetPtr(seekpos-4)) = realsectsize;
+		*((u32*)m_memory->GetPtr(seekpos-4)) = realsectsize;
 	}
 	else	// IsLoading!!
 	{
@@ -304,7 +321,7 @@ bool SaveStateBase::FreezeSection( int seek_section )
 			if( isSeeking )
 				m_idx += sectlen;
 			else
-				g_plugins->Freeze( (PluginsEnum_t)m_pid, *this );
+				GetCorePlugins().Freeze( (PluginsEnum_t)m_pid, *this );
 
 			WritebackSectionLength( seekpos, sectlen, L"Plugins" );
 
@@ -364,19 +381,26 @@ memSavingState::memSavingState( SafeArray<u8>& save_to )
 {
 }
 
+memSavingState::memSavingState( SafeArray<u8>* save_to )
+	: SaveStateBase( save_to )
+{
+}
+
 // Saving of state data
 void memSavingState::FreezeMem( void* data, int size )
 {
-	m_memory.MakeRoomFor( m_idx+size );
-	memcpy_fast( m_memory.GetPtr(m_idx), data, size );
+	m_memory->MakeRoomFor( m_idx+size );
+	memcpy_fast( m_memory->GetPtr(m_idx), data, size );
 	m_idx += size;
 }
 
 void memSavingState::FreezeAll()
 {
+	pxAssumeDev( m_memory, "Savestate memory/buffer pointer is null!" );
+
 	// 90% of all savestates fit in under 45 megs (and require more than 43 megs, so might as well...)
-	m_memory.ChunkSize = ReallocThreshold;
-	m_memory.MakeRoomFor( MemoryBaseAllocSize );
+	m_memory->ChunkSize = ReallocThreshold;
+	m_memory->MakeRoomFor( MemoryBaseAllocSize );
 
 	_parent::FreezeAll();
 }
@@ -386,12 +410,17 @@ memLoadingState::memLoadingState( const SafeArray<u8>& load_from )
 {
 }
 
+memLoadingState::memLoadingState( const SafeArray<u8>* load_from )
+	: SaveStateBase( const_cast<SafeArray<u8>*>(load_from) )
+{
+}
+
 memLoadingState::~memLoadingState() throw() { }
 
 // Loading of state data
 void memLoadingState::FreezeMem( void* data, int size )
 {
-	const u8* const src = m_memory.GetPtr(m_idx);
+	const u8* const src = m_memory->GetPtr(m_idx);
 	m_idx += size;
 	memcpy_fast( data, src, size );
 }

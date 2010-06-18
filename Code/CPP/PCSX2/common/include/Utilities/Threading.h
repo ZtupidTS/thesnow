@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -24,7 +24,7 @@
 
 #undef Yield		// release the burden of windows.h global namespace spam.
 
-#define AffinityAssert_AllowFromMain() \
+#define AffinityAssert_AllowFrom_MainUI() \
 	pxAssertMsg( wxThread::IsMain(), "Thread affinity violation: Call allowed from main thread only." )
 
 // --------------------------------------------------------------------------------------
@@ -48,7 +48,9 @@ class wxTimeSpan;
 namespace Threading
 {
 	class PersistentThread;
+	class RwMutex;
 
+	extern void pxTestCancel();
 	extern PersistentThread* pxGetCurrentThread();
 	extern wxString pxGetCurrentThreadName();
 	extern u64 GetThreadCpuTime();
@@ -79,7 +81,7 @@ namespace Exception
 			m_thread = &_thread;
 			BaseException::InitBaseEx( "Unspecified thread error" );
 		}
-		
+
 		virtual wxString FormatDiagnosticMessage() const;
 		virtual wxString FormatDisplayMessage() const;
 
@@ -110,43 +112,6 @@ namespace Exception
 			BaseException::InitBaseEx( msg_diag, msg_user );
 		}
 	};
-
-#if wxUSE_GUI
-
-// --------------------------------------------------------------------------------------
-//  ThreadDeadlock Exception
-// --------------------------------------------------------------------------------------
-// This exception is thrown by Semaphore and Mutex Wait/Acquire functions if a blocking wait is
-// needed due to gui Yield recursion, and the timeout period for deadlocking (usually 3 seconds)
-// is reached before the lock becomes available. This exception cannot occur in the following
-// conditions:
-//  * If the user-specified timeout is less than the deadlock timeout.
-//  * If the method is run from a thread *other* than the MainGui thread.
-//
-	class ThreadDeadlock : public virtual BaseThreadError
-	{
-	public:
-		DEFINE_EXCEPTION_COPYTORS( ThreadDeadlock )
-
-		explicit ThreadDeadlock( Threading::PersistentThread* _thread=NULL, const char* msg="Blocking action timed out waiting for '%s' (potential thread deadlock)." )
-		{
-			m_thread = _thread;
-			BaseException::InitBaseEx( msg );
-		}
-
-		ThreadDeadlock( Threading::PersistentThread& _thread, const char* msg="Blocking action timed out waiting for '%s' (potential thread deadlock)." )
-		{
-			m_thread = &_thread;
-			BaseException::InitBaseEx( msg );
-		}
-
-		ThreadDeadlock( Threading::PersistentThread& _thread, const wxString& msg_diag, const wxString& msg_user )
-		{
-			m_thread = &_thread;
-			BaseException::InitBaseEx( msg_diag, msg_user );
-		}
-	};
-#endif
 }
 
 
@@ -191,15 +156,11 @@ namespace Threading
 
 	extern bool AtomicBitTestAndReset( volatile u32& bitset, u8 bit );
 
-	extern void* _AtomicExchangePointer( void * volatile * const target, void* const value );
-	extern void* _AtomicCompareExchangePointer( void * volatile * const target, void* const value, void* const comparand );
+	extern void* _AtomicExchangePointer( volatile uptr& target, uptr value );
+	extern void* _AtomicCompareExchangePointer( volatile uptr& target, uptr value, uptr comparand );
 
-#define AtomicExchangePointer( target, value ) \
-	_InterlockedExchangePointer( &target, value )
-
-#define AtomicCompareExchangePointer( target, value, comparand ) \
-	_InterlockedCompareExchangePointer( &target, value, comparand )
-
+#define AtomicExchangePointer( dest, src )				_AtomicExchangePointer( (uptr&)dest, (uptr)src )
+#define AtomicCompareExchangePointer( dest, comp, src )	_AtomicExchangePointer( (uptr&)dest, (uptr)comp, (uptr)src )
 
 	// pthread Cond is an evil api that is not suited for Pcsx2 needs.
 	// Let's not use it. Use mutexes and semaphores instead to create waits. (Air)
@@ -298,17 +259,19 @@ namespace Threading
 
 		void Wait();
 		bool Wait( const wxTimeSpan& timeout );
+		void WaitWithoutYield();
+		bool WaitWithoutYield( const wxTimeSpan& timeout );
 
 	protected:
 		// empty constructor used by MutexLockRecursive
 		Mutex( bool ) {}
 	};
 
-	class MutexLockRecursive : public Mutex
+	class MutexRecursive : public Mutex
 	{
 	public:
-		MutexLockRecursive();
-		virtual ~MutexLockRecursive() throw();
+		MutexRecursive();
+		virtual ~MutexRecursive() throw();
 		virtual bool IsRecursive() const { return true; }
 	};
 
@@ -319,60 +282,50 @@ namespace Threading
 	// generally clean) method of locking code inside a function or conditional block.  The lock
 	// will be automatically released on any return or exit from the function.
 	//
+	// Const qualification note:
+	//  ScopedLock takes const instances of the mutex, even though the mutex is modified 
+	//  by locking and unlocking.  Two rationales:
+	//
+	//  1) when designing classes with accessors (GetString, GetValue, etc) that need mutexes,
+	//     this class needs a const hack to allow those accessors to be const (which is typically
+	//     *very* important).
+	//
+	//  2) The state of the Mutex is guaranteed to be unchanged when the calling function or
+	//     scope exits, by any means.  Only via manual calls to Release or Acquire does that
+	//     change, and typically those are only used in very special circumstances of their own.
+	//
 	class ScopedLock
 	{
 		DeclareNoncopyableObject(ScopedLock);
 
 	protected:
-		Mutex&	m_lock;
+		Mutex*	m_lock;
 		bool	m_IsLocked;
 
 	public:
-		virtual ~ScopedLock() throw()
-		{
-			if( m_IsLocked )
-				m_lock.Release();
-		}
+		virtual ~ScopedLock() throw();
+		explicit ScopedLock( const Mutex* locker=NULL );
+		explicit ScopedLock( const Mutex& locker );
+		void AssignAndLock( const Mutex& locker );
+		void AssignAndLock( const Mutex* locker );
 
-		ScopedLock( Mutex& locker ) :
-			m_lock( locker )
-		{
-			m_IsLocked = true;
-			m_lock.Acquire();
-		}
+		void Assign( const Mutex& locker );
+		void Assign( const Mutex* locker );
 
-		// Provides manual unlocking of a scoped lock prior to object destruction.
-		void Release()
-		{
-			if( !m_IsLocked ) return;
-			m_IsLocked = false;
-			m_lock.Release();
-		}
-
-		// provides manual locking of a scoped lock, to re-lock after a manual unlocking.
-		void Acquire()
-		{
-			if( m_IsLocked ) return;
-			m_lock.Acquire();
-			m_IsLocked = true;
-		}
+		void Release();
+		void Acquire();
 
 		bool IsLocked() const { return m_IsLocked; }
 
 	protected:
 		// Special constructor used by ScopedTryLock
-		ScopedLock( Mutex& locker, bool isTryLock ) :
-			m_lock( locker )
-		{
-			m_IsLocked = isTryLock ? m_lock.TryAcquire() : false;
-		}
-
+		ScopedLock( const Mutex& locker, bool isTryLock );
 	};
 
 	class ScopedTryLock : public ScopedLock
 	{
 	public:
-		ScopedTryLock( Mutex& locker ) : ScopedLock( locker, true ) { }
+		ScopedTryLock( const Mutex& locker ) : ScopedLock( locker, true ) { }
 		virtual ~ScopedTryLock() throw() {}
 		bool Failed() const { return !m_IsLocked; }
 	};

@@ -6,6 +6,7 @@
 		<Option platforms="Windows;Unix;" />
 		<Option pch_mode="2" />
 		<Option compiler="gcc" />
+		<Option virtualFolders="Memory Card/;" />
 		<Build>
 			<Target title="Debug">
 				<Option platforms="Windows;Unix;" />
@@ -25,7 +26,6 @@
 					<Add directory="$(ProjectRootDir)/gui" />
 				</ResourceCompiler>
 				<Linker>
-					<Add library="$(SvnRootDir)/deps/debug/zlib.a" />
 					<Add library="$(SvnRootDir)/deps/debug/libx86emitter.a" />
 					<Add library="$(SvnRootDir)/deps/debug/libUtilities.a" />
 				</Linker>
@@ -74,12 +74,12 @@
 					<Add option="-ftree-pre" />
 					<Add option="-DPCSX2_DEVBUILD" />
 					<Add option="-DPCSX2_DEVEL" />
+					<Add option="-DNDEBUG" />
 				</Compiler>
 				<ResourceCompiler>
 					<Add directory="$(ProjectRootDir)/gui" />
 				</ResourceCompiler>
 				<Linker>
-					<Add library="$(SvnRootDir)/deps/devel/zlib.a" />
 					<Add library="$(SvnRootDir)/deps/devel/libx86emitter.a" />
 					<Add library="$(SvnRootDir)/deps/devel/libUtilities.a" />
 				</Linker>
@@ -126,13 +126,13 @@
 					<Add option="-falign-loops  -falign-labels" />
 					<Add option="-ftree-vrp" />
 					<Add option="-ftree-pre" />
+					<Add option="-DNDEBUG" />
 				</Compiler>
 				<ResourceCompiler>
 					<Add directory="$(ProjectRootDir)/gui" />
 				</ResourceCompiler>
 				<Linker>
 					<Add option="-s" />
-					<Add library="$(SvnRootDir)/deps/release/zlib.a" />
 					<Add library="$(SvnRootDir)/deps/release/libx86emitter.a" />
 					<Add library="$(SvnRootDir)/deps/release/libUtilities.a" />
 				</Linker>
@@ -165,6 +165,7 @@
 		</Compiler>
 		<Linker>
 			<Add option="`wx-config  --version=2.8 --static=no --unicode=yes --libs`" />
+			<Add library="z" />
 		</Linker>
 		<Unit filename="../../common/include/PS2Edefs.h" />
 		<Unit filename="../../common/include/PS2Etypes.h" />
@@ -203,6 +204,8 @@
 		<Unit filename="../Config.h" />
 		<Unit filename="../Counters.cpp" />
 		<Unit filename="../Counters.h" />
+		<Unit filename="../DataBase_Loader.cpp" />
+		<Unit filename="../DataBase_Loader.h" />
 		<Unit filename="../DebugTools/Debug.h" />
 		<Unit filename="../DebugTools/DisASM.h" />
 		<Unit filename="../DebugTools/DisR3000A.cpp" />
@@ -222,6 +225,7 @@
 		<Unit filename="../Elfheader.h" />
 		<Unit filename="../FPU.cpp" />
 		<Unit filename="../FiFo.cpp" />
+		<Unit filename="../File_Reader.h" />
 		<Unit filename="../GS.cpp" />
 		<Unit filename="../GS.h" />
 		<Unit filename="../GSState.cpp" />
@@ -272,6 +276,8 @@
 		<Unit filename="../NakedAsm.h" />
 		<Unit filename="../Patch.cpp" />
 		<Unit filename="../Patch.h" />
+		<Unit filename="../Patch_Memory.cpp" />
+		<Unit filename="../Patch_Obsolete.h" />
 		<Unit filename="../PathDefs.h" />
 		<Unit filename="../Pcsx2Config.cpp" />
 		<Unit filename="../PluginManager.cpp" />
@@ -287,7 +293,6 @@
 		<Unit filename="../R5900OpcodeImpl.cpp" />
 		<Unit filename="../R5900OpcodeTables.cpp" />
 		<Unit filename="../R5900OpcodeTables.h" />
-		<Unit filename="../RecoverySystem.cpp" />
 		<Unit filename="../SPR.cpp" />
 		<Unit filename="../SPR.h" />
 		<Unit filename="../SamplProf.h" />
@@ -338,13 +343,19 @@
 		<Unit filename="../Vif_Unpack.cpp" />
 		<Unit filename="../Vif_Unpack.h" />
 		<Unit filename="../Vif_Unpack.inl" />
+		<Unit filename="../ZipTools/ThreadedZipTools.h" />
+		<Unit filename="../ZipTools/thread_gzip.cpp" />
+		<Unit filename="../ZipTools/thread_lzma.cpp" />
 		<Unit filename="../gui/AdvancedDialog.cpp" />
 		<Unit filename="../gui/AdvancedDialog.h" />
 		<Unit filename="../gui/App.h" />
 		<Unit filename="../gui/AppAssert.cpp" />
 		<Unit filename="../gui/AppConfig.cpp" />
 		<Unit filename="../gui/AppConfig.h" />
+		<Unit filename="../gui/AppCorePlugins.cpp" />
+		<Unit filename="../gui/AppCorePlugins.h" />
 		<Unit filename="../gui/AppCoreThread.cpp" />
+		<Unit filename="../gui/AppCoreThread.h" />
 		<Unit filename="../gui/AppEventListeners.h" />
 		<Unit filename="../gui/AppEventSources.cpp" />
 		<Unit filename="../gui/AppForwardDefs.h" />
@@ -372,14 +383,17 @@
 		<Unit filename="../gui/Dialogs/ImportSettingsDialog.cpp" />
 		<Unit filename="../gui/Dialogs/LogOptionsDialog.cpp" />
 		<Unit filename="../gui/Dialogs/LogOptionsDialog.h" />
+		<Unit filename="../gui/Dialogs/McdConfigDialog.cpp">
+			<Option virtualFolder="Memory Card/" />
+		</Unit>
 		<Unit filename="../gui/Dialogs/ModalPopups.h" />
 		<Unit filename="../gui/Dialogs/PickUserModeDialog.cpp" />
 		<Unit filename="../gui/Dialogs/StuckThreadDialog.cpp" />
 		<Unit filename="../gui/Dialogs/SysConfigDialog.cpp" />
+		<Unit filename="../gui/ExecutorThread.cpp" />
+		<Unit filename="../gui/ExecutorThread.h" />
 		<Unit filename="../gui/FrameForGS.cpp" />
 		<Unit filename="../gui/GlobalCommands.cpp" />
-		<Unit filename="../gui/IniInterface.cpp" />
-		<Unit filename="../gui/IniInterface.h" />
 		<Unit filename="../gui/IsoDropTarget.cpp" />
 		<Unit filename="../gui/IsoDropTarget.h" />
 		<Unit filename="../gui/MSWstuff.cpp" />
@@ -387,7 +401,10 @@
 		<Unit filename="../gui/MainFrame.cpp" />
 		<Unit filename="../gui/MainFrame.h" />
 		<Unit filename="../gui/MainMenuClicks.cpp" />
-		<Unit filename="../gui/MemoryCardFile.cpp" />
+		<Unit filename="../gui/MemoryCardFile.cpp">
+			<Option virtualFolder="Memory Card/" />
+		</Unit>
+		<Unit filename="../gui/MemoryCardFile.h" />
 		<Unit filename="../gui/MessageBoxes.cpp" />
 		<Unit filename="../gui/Panels/AudioPanel.cpp" />
 		<Unit filename="../gui/Panels/BaseApplicableConfigPanel.cpp" />
@@ -397,18 +414,22 @@
 		<Unit filename="../gui/Panels/CpuPanel.cpp" />
 		<Unit filename="../gui/Panels/DirPickerPanel.cpp" />
 		<Unit filename="../gui/Panels/GSWindowPanel.cpp" />
+		<Unit filename="../gui/Panels/GameDatabasePanel.cpp" />
 		<Unit filename="../gui/Panels/GameFixesPanel.cpp" />
 		<Unit filename="../gui/Panels/LogOptionsPanels.cpp" />
 		<Unit filename="../gui/Panels/LogOptionsPanels.h" />
-		<Unit filename="../gui/Panels/MemoryCardListPanel.cpp" />
-		<Unit filename="../gui/Panels/MemoryCardListView.h" />
-		<Unit filename="../gui/Panels/MemoryCardsPanel.cpp" />
+		<Unit filename="../gui/Panels/MemoryCardListPanel.cpp">
+			<Option virtualFolder="Memory Card/" />
+		</Unit>
+		<Unit filename="../gui/Panels/MemoryCardListView.cpp">
+			<Option virtualFolder="Memory Card/" />
+		</Unit>
+		<Unit filename="../gui/Panels/MemoryCardPanels.h" />
 		<Unit filename="../gui/Panels/MiscPanelStuff.cpp" />
 		<Unit filename="../gui/Panels/PathsPanel.cpp" />
 		<Unit filename="../gui/Panels/PluginSelectorPanel.cpp" />
 		<Unit filename="../gui/Panels/SpeedhacksPanel.cpp" />
 		<Unit filename="../gui/Panels/VideoPanel.cpp" />
-		<Unit filename="../gui/Plugins.cpp" />
 		<Unit filename="../gui/RecentIsoList.cpp" />
 		<Unit filename="../gui/RecentIsoList.h" />
 		<Unit filename="../gui/Resources/AppIcon16.h" />
@@ -491,10 +512,13 @@
 		</Unit>
 		<Unit filename="../gui/Resources/EmbeddedImage.h" />
 		<Unit filename="../gui/Saveslots.cpp" />
+		<Unit filename="../gui/SysState.cpp" />
+		<Unit filename="../gui/UpdateUI.cpp" />
+		<Unit filename="../gui/gsFrame.h" />
 		<Unit filename="../gui/i18n.cpp" />
 		<Unit filename="../gui/i18n.h" />
+		<Unit filename="../gui/pxEvtThread.h" />
 		<Unit filename="../gui/pxLogTextCtrl.cpp" />
-		<Unit filename="../pcsx2hostfs.cpp" />
 		<Unit filename="../ps2/BiosTools.cpp" />
 		<Unit filename="../ps2/BiosTools.h" />
 		<Unit filename="../ps2/GIFpath.cpp" />

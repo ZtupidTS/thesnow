@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -15,63 +15,48 @@
 
 #pragma once
 
+#include "App.h"
 #include "SaveState.h"
 
-enum SaveStateActionType
-{
-	SaveStateAction_CreateFinished,
-	SaveStateAction_RestoreFinished,
-	SaveStateAction_ZipToDiskFinished,
-	SaveStateAction_UnzipFromDiskFinished,
-};
-
 // --------------------------------------------------------------------------------------
-//  IEventListener_SaveStateThread
+//  SysExecEvent_SaveSinglePlugin
 // --------------------------------------------------------------------------------------
-class IEventListener_SaveStateThread : public IEventDispatcher<SaveStateActionType>
+// fixme : Ideally this should use either Close or Pause depending on if the system is in
+// Fullscreen Exclusive mode or regular mode.  But since we don't yet support Fullscreen
+// Exclusive mode, and since I'm too lazy to make some third suspend class for that, we're
+// just using CoreThreadPause.  --air
+//
+class SysExecEvent_SaveSinglePlugin : public BaseSysExecEvent_ScopedCore
 {
-public:
-	typedef SaveStateActionType EvtParams;
+	typedef BaseSysExecEvent_ScopedCore _parent;
+
+protected:
+	PluginsEnum_t			m_pid;
 
 public:
-	IEventListener_SaveStateThread() {}
-	virtual ~IEventListener_SaveStateThread() throw() {}
+	wxString GetEventName() const { return L"SaveSinglePlugin"; }
 
-	virtual void DispatchEvent( const SaveStateActionType& status )
+	virtual ~SysExecEvent_SaveSinglePlugin() throw() {}
+	SysExecEvent_SaveSinglePlugin* Clone() const { return new SysExecEvent_SaveSinglePlugin( *this ); }
+
+	SysExecEvent_SaveSinglePlugin( PluginsEnum_t pid=PluginId_GS )
 	{
-		switch( status )
-		{
-			case SaveStateAction_CreateFinished:		SaveStateAction_OnCreateFinished();			break;
-			case SaveStateAction_RestoreFinished:		SaveStateAction_OnRestoreFinished();		break;
-			case SaveStateAction_ZipToDiskFinished:		SaveStateAction_OnZipToDiskFinished();		break;
-			case SaveStateAction_UnzipFromDiskFinished:	SaveStateAction_OnUnzipFromDiskFinished();	break;
-
-			jNO_DEFAULT;
-		}
+		m_pid = pid;
+	}
+	
+	SysExecEvent_SaveSinglePlugin& SetPluginId( PluginsEnum_t pid )
+	{
+		m_pid = pid;
+		return *this;
 	}
 
 protected:
-	virtual void SaveStateAction_OnCreateFinished() {}
-	virtual void SaveStateAction_OnRestoreFinished() {}
-	virtual void SaveStateAction_OnZipToDiskFinished() {}
-	virtual void SaveStateAction_OnUnzipFromDiskFinished() {}
+	void InvokeEvent();
+	void CleanupEvent();
 };
 
-
-extern bool StateCopy_InvokeOnSaveComplete( IActionInvocation* sst );
-extern bool StateCopy_InvokeOnCopyComplete( IActionInvocation* sst );
-extern bool StateCopy_IsValid();
-
-extern void StateCopy_FreezeToMem();
-extern void StateCopy_FreezeToMem_Blocking();
-extern void StateCopy_ThawFromMem_Blocking();
 
 extern void StateCopy_SaveToFile( const wxString& file );
 extern void StateCopy_LoadFromFile( const wxString& file );
 extern void StateCopy_SaveToSlot( uint num );
 extern void StateCopy_LoadFromSlot( uint slot );
-extern void StateCopy_Clear();
-extern bool StateCopy_IsBusy();
-
-
-extern const SafeArray<u8>* StateCopy_GetBuffer();

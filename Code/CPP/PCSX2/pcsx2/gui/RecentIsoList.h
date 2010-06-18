@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -26,7 +26,7 @@ protected:
 	{
 		wxString	Filename;
 		wxMenuItem*	ItemPtr;
-		
+
 		RecentItem() { ItemPtr = NULL; }
 
 		RecentItem( const wxString& src )
@@ -41,7 +41,7 @@ protected:
 	wxMenu*		m_Menu;
 	uint		m_MaxLength;
 	int			m_cursel;
-	
+
 	wxMenuItem* m_Separator;
 
 public:
@@ -52,7 +52,7 @@ public:
 	void Repopulate();
 	void Clear();
 	void Add( const wxString& src );
-	
+
 protected:
 	void InsertIntoMenu( int id );
 	void OnChangedSelection( wxCommandEvent& evt );

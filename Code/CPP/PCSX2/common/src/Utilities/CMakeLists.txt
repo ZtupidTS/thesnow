@@ -3,8 +3,19 @@
 # library name
 set(UtilitiesName Utilities)
 
+# Clear default flags
+set(CMAKE_C_FLAGS "")
+set(CMAKE_CXX_FLAGS "")
+set(CMAKE_C_FLAGS_DEBUG "")
+set(CMAKE_CXX_FLAGS_DEBUG "")
+set(CMAKE_C_FLAGS_DEVEL "")
+set(CMAKE_CXX_FLAGS_DEVEL "")
+set(CMAKE_C_FLAGS_RELEASE "")
+set(CMAKE_CXX_FLAGS_RELEASE "")
+
 # set common flags
 set(CommonFlags 
+	-pthread
 	-m32
 	-march=i486
 	-msse
@@ -23,10 +34,6 @@ set(CommonFlags
 set(DebugFlags
 	-g
 	-W)
-
-# set linker flags
-set(LinkerFlags
-	-s)
 
 # set optimization flags
 set(OptimizationFlags
@@ -71,9 +78,6 @@ set(OptimizationFlags
 
 # Debug - Build
 if(CMAKE_BUILD_TYPE STREQUAL Debug)
-	# clear flags
-	set(CMAKE_C_FLAGS_DEBUG)
-	set(CMAKE_CXX_FLAGS_DEBUG)
 	
 	# add defines
 	add_definitions(${CommonFlags} ${DebugFlags} -DPCSX2_DEBUG -DPCSX2_DEVBUILD)
@@ -81,22 +85,16 @@ endif(CMAKE_BUILD_TYPE STREQUAL Debug)
 
 # Devel - Build
 if(CMAKE_BUILD_TYPE STREQUAL Devel)
-	# clear flags
-	set(CMAKE_C_FLAGS_DEVEL)
-	set(CMAKE_CXX_FLAGS_DEVEL)
 	
 	# add defines
-	add_definitions(${CommonFlags} ${OptimizationFlags} -DPCSX2_DEVBUILD -DPCSX2_DEVEL)
+	add_definitions(${CommonFlags} ${OptimizationFlags} -DPCSX2_DEVBUILD)
 endif(CMAKE_BUILD_TYPE STREQUAL Devel)
 
 # Release - Build
 if(CMAKE_BUILD_TYPE STREQUAL Release)
-	# clear flags
-	set(CMAKE_C_FLAGS_RELEASE)
-	set(CMAKE_CXX_FLAGS_RELEASE)
 	
 	# add defines
-	add_definitions(${CommonFlags} ${OptimizationFlags} ${LinkerFlags})
+	add_definitions(${CommonFlags} ${OptimizationFlags})
 endif(CMAKE_BUILD_TYPE STREQUAL Release)
 
 # variable with all sources of this library
@@ -107,7 +105,9 @@ set(UtilitiesSources
 	Console.cpp
 	EventSource.cpp
 	Exceptions.cpp
+	FastFormatString.cpp
 	HashTools.cpp
+	IniInterface.cpp
 	Linux/LnxHostSys.cpp
 	Linux/LnxMisc.cpp
 	Linux/LnxThreads.cpp
@@ -117,8 +117,11 @@ set(UtilitiesSources
 	pxCheckBox.cpp
 	pxRadioPanel.cpp
 	pxStaticText.cpp
+	pxTextStream.cpp
+	pxWindowTextWriter.cpp
 	Semaphore.cpp
 	StringHelpers.cpp
+	ThreadingDialogs.cpp
 	ThreadTools.cpp
 	vssprintf.cpp
 	wxAppWithHelpers.cpp
@@ -151,8 +154,10 @@ set(UtilitiesHeaders
 	../../include/Utilities/RedtapeWindows.h
 	../../include/Utilities/SafeArray.h
 	../../include/Utilities/ScopedPtr.h
+	../../include/Utilities/ScopedPtrMT.h
 	../../include/Utilities/StringHelpers.h
 	../../include/Utilities/Threading.h
+	../../include/Utilities/ThreadingDialogs.h
 	../../include/Utilities/wxAppWithHelpers.h
 	../../include/Utilities/wxBaseTools.h
 	../../include/Utilities/wxGuiTools.h
@@ -166,4 +171,11 @@ add_library(${UtilitiesName} STATIC ${UtilitiesSources} ${UtilitiesHeaders} ${Ut
 
 # link target with wx
 target_link_libraries(${UtilitiesName} ${wxWidgets_LIBRARIES})
+ 
+# Force the linker into 32 bits mode
+target_link_libraries(${UtilitiesName} -m32)
 
+# Linker strip option
+if (CMAKE_BUILD_STRIP)
+    target_link_libraries(${UtilitiesName} -s)
+endif (CMAKE_BUILD_STRIP)

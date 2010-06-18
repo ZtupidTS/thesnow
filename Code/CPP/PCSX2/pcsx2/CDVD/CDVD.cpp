@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -27,6 +27,9 @@
 #include "GS.h"			// for gsRegionMode
 #include "Elfheader.h"
 #include "ps2/BiosTools.h"
+#include "DataBase_Loader.h"
+
+wxString DiscID;
 
 static cdvdStruct cdvd;
 
@@ -91,7 +94,7 @@ FILE *_cdvdOpenMechaVer()
 		if (fd == NULL)
 		{
 			Console.Error( "MEC File Creation failed!" );
-			throw Exception::CreateStream( file );
+			throw Exception::CannotCreateStream( file );
 			//Msgbox::Alert( "_cdvdOpenMechaVer: Error creating %s", file);
 			//exit(1);
 		}
@@ -131,7 +134,7 @@ FILE *_cdvdOpenNVM()
 		if (fd == NULL)
 		{
 			Console.Error( "NVM File Creation failed!" );
-			throw Exception::CreateStream( file );
+			throw Exception::CannotCreateStream( file );
 		}
 		for (int i=0; i<1024; i++) fputc(0, fd);
 	}
@@ -303,51 +306,88 @@ s32 cdvdWriteConfig(const u8* config)
 	}
 }
 
-static MutexLockRecursive Mutex_NewDiskCB;
+static MutexRecursive Mutex_NewDiskCB;
 
 // Sets ElfCRC to the CRC of the game bound to the CDVD plugin.
-static __forceinline ElfObject *loadElfCRC( const wxString filename )
+static __forceinline ElfObject *loadElf( const wxString filename )
 {
-	// Note: calling loadElfFile here causes bad things to happen.
+	if (filename.StartsWith(L"host"))
+		return new ElfObject(filename.After(':'), Path::GetFileSize(filename.After(':')));
+
 	IsoFSCDVD isofs;
 	IsoFile file(isofs, filename);
 	ElfObject *elfptr;
-	
+
 	elfptr = new ElfObject(filename, file);
-	elfptr->getCRC();
-	
-	Console.WriteLn(wxsFormat(L"loadElfCRC(" + filename + L") = %8.8X", ElfCRC));
 	return elfptr;
 }
 
-static __forceinline void _reloadElfInfo(wxString str)
+static __forceinline void _reloadElfInfo(wxString elfpath)
 {
 	ScopedPtr<ElfObject> elfptr;
-	
+
 	// Now's a good time to reload the ELF info...
     ScopedLock locker( Mutex_NewDiskCB );
-        
-    elfptr = loadElfCRC(str);
-	elfptr->applyPatches();
+
+	if (elfpath == LastELF)
+		return;
+
+	LastELF = elfpath;
+
+	wxString fname = elfpath.AfterLast('\\');
+	if (!fname)
+		fname = elfpath.AfterLast('/');
+	if (!fname)
+		fname = elfpath.AfterLast(':');
+	if (fname.Matches(L"????_???.??*"))
+		DiscID = fname(0,4) + L"-" + fname(5,3) + fname(9,2);
+
+	Console.WriteLn("Disc ID = %s", DiscID.ToUTF8().data());
+	elfptr = loadElf(elfpath);
+
+	ElfCRC = elfptr->getCRC();
+	Console.WriteLn("ELF (%s) CRC = %8.8X", elfpath.ToUTF8().data(), ElfCRC);
+
+	ElfEntry = elfptr->header.e_entry;
+	Console.WriteLn("Entry point = 0x%08x", ElfEntry);
+
 	elfptr.Delete();
+
+	// Set the Game DataBase to the correct game based on Game Serial Code...
+	if (DataBase_Loader* GameDB = AppHost_GetGameDatabase()) {
+		wxString gameSerial = DiscID;
+		if (DiscID.IsEmpty()) { // Search for crc if no Serial Code
+			gameSerial = wxString(wxsFormat( L"%8.8x", ElfCRC ));
+		}
+		if (GameDB->setGame(gameSerial)) { // Game Found
+			Console.WriteLn ("Game = %s (%s)", GameDB->getString("Name").c_str(), GameDB->getString("Region").c_str());
+		}
+		else Console.Warning(L"Game not found in database [%s]", gameSerial.c_str());
+	}
 }
 
-static __forceinline void reloadElfInfo(u32 discType, wxString str)
+void cdvdReloadElfInfo(wxString elfoverride)
 {
-    if (ElfCRC == 0)
+	if (!elfoverride.IsEmpty())
+	{
+		_reloadElfInfo(elfoverride);
+		return;
+	}
+
+	wxString elfpath;
+	u32 discType = GetPS2ElfName(elfpath);
+
+	switch (discType)
     {
-        switch (discType)
-        {
-            case 2: // Is a PS2 disc.
-                _reloadElfInfo(str);
-                break;
-            case 1: // Is a PS1 disc.
-                if (ENABLE_LOADING_PS1_GAMES) _reloadElfInfo(str);
-                break;
-            default: // Isn't a disc we recognise.
-                break;
-        }
-    }
+		case 2: // Is a PS2 disc.
+			_reloadElfInfo(elfpath);
+			break;
+		case 1: // Is a PS1 disc.
+			if (ENABLE_LOADING_PS1_GAMES) _reloadElfInfo(elfpath);
+			break;
+		default: // Isn't a disc we recognise.
+			break;
+	}
 }
 
 static __forceinline s32 StrToS32(const wxString& str, int base = 10)
@@ -357,29 +397,23 @@ static __forceinline s32 StrToS32(const wxString& str, int base = 10)
     return l;
 }
 
-void cdvdReadKey(u8 arg0, u16 arg1, u32 arg2, u8* key) 
+void cdvdReadKey(u8 arg0, u16 arg1, u32 arg2, u8* key)
 {
 	s32 numbers, letters;
 	u32 key_0_3;
 	u8 key_4, key_14;
 
-	wxString fname, exeName;
-	
-	// Get the main elf name.
-	u32 discType = GetPS2ElfName(fname);
-	
-	exeName = fname(8, 11);
-	DevCon.Warning(L"exeName = " + exeName);
+    cdvdReloadElfInfo();
 
 	// convert the number characters to a real 32 bit number
-	numbers = StrToS32(exeName(5,3) + exeName(9,2));
-	
+	numbers = StrToS32(DiscID(5,5));
+
 	// combine the lower 7 bits of each char
 	// to make the 4 letters fit into a single u32
-	letters =	(s32)((exeName[3]&0x7F)<< 0) |
-				(s32)((exeName[2]&0x7F)<< 7) |
-				(s32)((exeName[1]&0x7F)<<14) |
-				(s32)((exeName[0]&0x7F)<<21);
+	letters =	(s32)((DiscID[3]&0x7F)<< 0) |
+				(s32)((DiscID[2]&0x7F)<< 7) |
+				(s32)((DiscID[1]&0x7F)<<14) |
+				(s32)((DiscID[0]&0x7F)<<21);
 
 	// calculate magic numbers
 	key_0_3 = ((numbers & 0x1FC00) >> 10) | ((0x01FFFFFF & letters) <<  7);	// numbers = 7F  letters = FFFFFF80
@@ -402,11 +436,11 @@ void cdvdReadKey(u8 arg0, u16 arg1, u32 arg2, u8* key)
             key[14] = key_14;
             key[15] = 0x05;
             break;
-            
+
 //      case 3075:
 //          key[15] = 0x01;
 //          break;
-            
+
         case 4246:
             // 0x0001F2F707 = sector 0x0001F2F7  dec 0x07
             key[ 0] = 0x07;
@@ -416,16 +450,14 @@ void cdvdReadKey(u8 arg0, u16 arg1, u32 arg2, u8* key)
             key[ 4] = 0x00;
             key[15] = 0x01;
             break;
-            
+
         default:
             key[15] = 0x01;
             break;
     }
 
-	Console.WriteLn( "CDVD.KEY = %02X,%02X,%02X,%02X,%02X,%02X,%02X", 
+	Console.WriteLn( "CDVD.KEY = %02X,%02X,%02X,%02X,%02X,%02X,%02X",
 		cdvd.Key[0],cdvd.Key[1],cdvd.Key[2],cdvd.Key[3],cdvd.Key[4],cdvd.Key[14],cdvd.Key[15] );
-
-    reloadElfInfo(discType, fname);
 }
 
 s32 cdvdGetToc(void* toc)
@@ -512,13 +544,15 @@ void cdvdReset()
 	cdvd.Action = cdvdAction_None;
 	cdvd.ReadTime = cdvdBlockReadTime( MODE_DVDROM );
 
+	// CDVD internally uses GMT+9.  If you think the time's wrong, you're wrong.
+	// Set up your time zone and winter/summer in the BIOS.  No PS2 BIOS I know of features automatic DST.
 	wxDateTime curtime( wxDateTime::GetTimeNow() );
 	cdvd.RTC.second = (u8)curtime.GetSecond();
 	cdvd.RTC.minute = (u8)curtime.GetMinute();
-	cdvd.RTC.hour = (u8)(curtime.GetHour()+1) % 24;
-	cdvd.RTC.day = (u8)curtime.GetDay();
-	cdvd.RTC.month = (u8)curtime.GetMonth();
-	cdvd.RTC.year = (u8)(curtime.GetYear() - 2000);
+	cdvd.RTC.hour = (u8)curtime.GetHour(wxDateTime::GMT9);
+	cdvd.RTC.day = (u8)curtime.GetDay(wxDateTime::GMT9);
+ 	cdvd.RTC.month = (u8)curtime.GetMonth(wxDateTime::GMT9) + 1; // WX returns Jan as "0"
+ 	cdvd.RTC.year = (u8)(curtime.GetYear(wxDateTime::GMT9) - 2000);
 }
 
 struct Freeze_v10Compat
@@ -549,17 +583,16 @@ static void cdvdDetectDisk()
 {
 	wxString str;
 	cdvd.Type = DoCDVDdetectDiskType();
-	
-    reloadElfInfo(GetPS2ElfName(str), str);
+    cdvdReloadElfInfo();
 }
 
 void cdvdNewDiskCB()
 {
-	if( !Mutex_NewDiskCB.TryAcquire() ) return;
+	ScopedTryLock lock( Mutex_NewDiskCB );
+	if( lock.Failed() ) return;
+	
 	DoCDVDresetDiskTypeCache();
-
-	try { cdvdDetectDisk(); }
-	catch(...) { Mutex_NewDiskCB.Release(); }		// ensure mutex gets unlocked.
+	cdvdDetectDisk();
 }
 
 static void mechaDecryptBytes( u32 madr, int size )
@@ -764,7 +797,7 @@ __forceinline void cdvdReadInterrupt()
 		}
 
 		cdvd.Reading = false;
-		
+
 		// Any other value besides 0 should be considered invalid here (wtf is that wacky
 		// plugin trying to do?)
 		jASSUME( cdvd.RErr == 0 );
@@ -772,7 +805,7 @@ __forceinline void cdvdReadInterrupt()
 
 	if (cdvdReadSector() == -1)
 	{
-		// This means that the BCR/DMA hasn't finished yet, and rather than fire off the 
+		// This means that the BCR/DMA hasn't finished yet, and rather than fire off the
 		// sector-finished notice too early (which might overwrite game data) we delay a
 		// bit and try to read the sector again later.
 		// An arbitrary delay of some number of cycles probably makes more sense here,
@@ -886,7 +919,7 @@ void cdvdVsync() {
 	cdvd.RTC.hour = 0;
 
 	cdvd.RTC.day++;
-	if (cdvd.RTC.day <= monthmap[cdvd.RTC.month-1]) return;
+	if (cdvd.RTC.day <= (cdvd.RTC.month == 2 && cdvd.RTC.year % 4 == 0 ? 29 : monthmap[cdvd.RTC.month-1])) return;
 	cdvd.RTC.day = 1;
 
 	cdvd.RTC.month++;
@@ -1412,11 +1445,10 @@ static void cdvdWrite16(u8 rt)		 // SCOMMAND
 			cdvd.Result[0] = 0;
 			cdvd.Result[1] = itob(cdvd.RTC.second); //Seconds
 			cdvd.Result[2] = itob(cdvd.RTC.minute); //Minutes
-			cdvd.Result[3] = itob((cdvd.RTC.hour+8) %24); //Hours
+			cdvd.Result[3] = itob(cdvd.RTC.hour); //Hours
 			cdvd.Result[4] = 0; //Nothing
 			cdvd.Result[5] = itob(cdvd.RTC.day); //Day
-			if(cdvd.Result[3] <= 7) cdvd.Result[5] += 1;
-			cdvd.Result[6] = itob(cdvd.RTC.month)+0x80; //Month
+			cdvd.Result[6] = itob(cdvd.RTC.month); //Month
 			cdvd.Result[7] = itob(cdvd.RTC.year); //Year
 			/*Console.WriteLn("RTC Read Sec %x Min %x Hr %x Day %x Month %x Year %x", cdvd.Result[1], cdvd.Result[2],
 				cdvd.Result[3], cdvd.Result[5], cdvd.Result[6], cdvd.Result[7]);
@@ -1431,10 +1463,9 @@ static void cdvdWrite16(u8 rt)		 // SCOMMAND
 
 			cdvd.RTC.second = btoi(cdvd.Param[cdvd.ParamP-7]);
 			cdvd.RTC.minute = btoi(cdvd.Param[cdvd.ParamP-6]) % 60;
-			cdvd.RTC.hour = (btoi(cdvd.Param[cdvd.ParamP-5])+16) % 24;
+			cdvd.RTC.hour = btoi(cdvd.Param[cdvd.ParamP-5]) % 24;
 			cdvd.RTC.day = btoi(cdvd.Param[cdvd.ParamP-3]);
-			if(cdvd.Param[cdvd.ParamP-5] <= 7) cdvd.RTC.day -= 1;
-			cdvd.RTC.month = btoi(cdvd.Param[cdvd.ParamP-2]-0x80);
+			cdvd.RTC.month = btoi(cdvd.Param[cdvd.ParamP-2] & 0x7f);
 			cdvd.RTC.year = btoi(cdvd.Param[cdvd.ParamP-1]);
 			/*Console.WriteLn("RTC write incomming Sec %x Min %x Hr %x Day %x Month %x Year %x", cdvd.Param[cdvd.ParamP-7], cdvd.Param[cdvd.ParamP-6],
 				cdvd.Param[cdvd.ParamP-5], cdvd.Param[cdvd.ParamP-3], cdvd.Param[cdvd.ParamP-2], cdvd.Param[cdvd.ParamP-1]);
@@ -1844,7 +1875,7 @@ static void cdvdWrite16(u8 rt)		 // SCOMMAND
 			SetResultSize(1);//in:5
 			cdvd.mg_size = 0;
 			cdvd.mg_datatype = 1;//header data
-			Console.WriteLn("[MG] hcode=%d cnum=%d a2=%d length=0x%X", 
+			Console.WriteLn("[MG] hcode=%d cnum=%d a2=%d length=0x%X",
 				cdvd.Param[0], cdvd.Param[3], cdvd.Param[4], cdvd.mg_maxsize = cdvd.Param[1] | (((int)cdvd.Param[2])<<8));
 
 			cdvd.Result[0] = 0; // 0 complete ; 1 busy ; 0x80 error

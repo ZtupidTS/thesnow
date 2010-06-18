@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  * 
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -26,7 +26,6 @@
 // Note: If modXYZW is true, then it adjusts XYZW for Single Scalar operations
 static void mVUupdateFlags(mV, int reg, int regT1 = -1, int regT2 = -1, bool modXYZW = 1) {
 	int sReg, mReg = gprT1, regT1b = 0, regT2b = 0;
-	//int xyzw = _X_Y_Z_W;	// unused local, still needed? -- air
 	static const u16 flipMask[16] = {0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15};
 
 	//SysPrintf("Status = %d; Mac = %d\n", sFLAG.doFlag, mFLAG.doFlag);
@@ -45,12 +44,10 @@ static void mVUupdateFlags(mV, int reg, int regT1 = -1, int regT2 = -1, bool mod
 
 	//-------------------------Check for Signed flags------------------------------
 
-	// The following code makes sure the Signed Bit isn't set with Negative Zero
-	SSE_XORPS_XMM_to_XMM   (regT1, regT1); // Clear regT2
+	SSE_MOVMSKPS_XMM_to_R32(mReg,  regT2); // Move the Sign Bits of the t2reg
+	SSE_XORPS_XMM_to_XMM   (regT1, regT1); // Clear regT1
 	SSE_CMPEQPS_XMM_to_XMM (regT1, regT2); // Set all F's if each vector is zero
 	SSE_MOVMSKPS_XMM_to_R32(gprT2, regT1); // Used for Zero Flag Calculation
-	SSE_ANDNPS_XMM_to_XMM  (regT1, regT2); // Used for Sign Flag Calculation
-	SSE_MOVMSKPS_XMM_to_R32(mReg,  regT1); // Move the Sign Bits of the t1reg
 
 	AND32ItoR(mReg, AND_XYZW);	// Grab "Is Signed" bits from the previous calculation
 	SHL32ItoR(mReg, 4 + ADD_XYZW);

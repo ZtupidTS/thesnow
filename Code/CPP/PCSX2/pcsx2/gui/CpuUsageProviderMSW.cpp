@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -61,7 +61,7 @@ public:
 CpuUsageProviderMSW::CpuUsageProviderMSW()
 {
 	m_IsImplemented = false;
-	
+
 	{
 		// Test if the OS supports cooked thread performance info...
 
@@ -73,7 +73,7 @@ CpuUsageProviderMSW::CpuUsageProviderMSW()
 			if( !cooker.IsLoaded() ) return;
 		}
 	}
-	
+
 	m_IsImplemented = true;
 
 	HRESULT hr;
@@ -88,13 +88,13 @@ CpuUsageProviderMSW::CpuUsageProviderMSW()
 		switch( hr )
 		{
 			case RPC_E_TOO_LATE: break;		// harmless failure, expected with wxWidgets.
-			
+
 			case RPC_E_NO_GOOD_SECURITY_PACKAGES:
 				throw Exception::RuntimeError( "(CpuUsageProviderMSW) CoInitializeSecurity failed: No good security packages! .. whatever tht means." );
 
 			case E_OUTOFMEMORY:
 				throw Exception::OutOfMemory( "(CpuUsageProviderMSW) Out of Memory error returned during call to CoInitializeSecurity." );
-			
+
 			default:
 				throw Exception::RuntimeError( wxsFormat( L"(CpuUsageProviderMSW) CoInitializeSecurity failed with an unknown error code: %d", hr ), wxEmptyString );
 		}
@@ -127,7 +127,7 @@ CpuUsageProviderMSW::CpuUsageProviderMSW()
 		CLSID_WbemRefresher,
 		NULL,
 		CLSCTX_INPROC_SERVER,
-		IID_IWbemRefresher, 
+		IID_IWbemRefresher,
 		(void**) &m_Refresher)))
 	{
 		return;
@@ -139,16 +139,16 @@ CpuUsageProviderMSW::CpuUsageProviderMSW()
 	{
 		return;
 	}
-	
+
 	long lID = 0;		// why?
 
 	// Add an enumerator to the refresher.
 	if (FAILED (hr = m_Config->AddEnum(
-		m_WbemServices, 
-		L"Win32_PerfRawData_PerfProc_Process", 
-		0, 
+		m_WbemServices,
+		L"Win32_PerfRawData_PerfProc_Process",
+		0,
 		NULL,
-		&m_Enum, 
+		&m_Enum,
 		&lID)))
 	{
 		return;
@@ -157,7 +157,7 @@ CpuUsageProviderMSW::CpuUsageProviderMSW()
 
 CpuUsageProviderMSW::~CpuUsageProviderMSW() throw()
 {
-	//CoUninitialize(); 
+	//CoUninitialize();
 }
 
 bool CpuUsageProviderMSW::IsImplemented() const

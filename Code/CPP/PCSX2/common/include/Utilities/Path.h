@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -60,10 +60,11 @@ public:
 	bool IsWritable() const { return IsDirWritable(); }
 	bool IsReadable() const { return IsDirReadable(); }
 	bool Exists() const { return DirExists(); }
+	bool FileExists() const { return wxFileName::FileExists(); }
 	bool IsOk() const { return wxFileName::IsOk(); }
 	bool IsRelative() const { return wxFileName::IsRelative(); }
 	bool IsAbsolute() const { return wxFileName::IsAbsolute(); }
-	
+
 	bool SameAs( const wxDirName& filepath ) const
 	{
 		return wxFileName::SameAs( filepath );
@@ -116,7 +117,7 @@ public:
 };
 
 // --------------------------------------------------------------------------------------
-//  Path Namespace 
+//  Path Namespace
 // --------------------------------------------------------------------------------------
 // Cross-platform utilities for manipulation of paths and filenames.  Mostly these fall
 // back on wxWidgets APIs internally, but are still helpful because some of wx's file stuff
@@ -128,7 +129,7 @@ namespace Path
 	extern s64		GetFileSize( const wxString& path );
 
 	extern wxString Normalize( const wxString& srcpath );
-	extern wxString Normalize( wxDirName srcpath );
+	extern wxString Normalize( const wxDirName& srcpath );
 
 	extern wxString	Combine( const wxString& srcPath, const wxString& srcFile );
 	extern wxString	Combine( const wxDirName& srcPath, const wxFileName& srcFile );

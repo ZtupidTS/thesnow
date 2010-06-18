@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -63,11 +63,11 @@ void psxReset()
 	g_psxNextBranchCycle = psxRegs.cycle + 4;
 
 	psxHwReset();
-	psxBiosInit();
+
+	ioman::reset();
 }
 
 void psxShutdown() {
-	psxBiosShutdown();
 	//psxCpu->Shutdown();
 }
 
@@ -102,38 +102,6 @@ void __fastcall psxException(u32 code, u32 bd)
 		// "hokuto no ken" / "Crash Bandicot 2" ... fix
 		PSXMu32(psxRegs.CP0.n.EPC)&= ~0x02000000;
 	}*/
-
-	if (!CHECK_IOPREC)
-	{
-		// HLE Bios Handlers, enabled for interpreters only.
-
-		u32 call = psxRegs.GPR.n.t1 & 0xff;
-		switch (psxRegs.pc & 0x1fffff) {
-			case 0xa0:
-
-				if (call != 0x28 && call != 0xe)
-					PSXBIOS_LOG("Bios call a0: %s (%x) %x,%x,%x,%x", biosA0n[call], call, psxRegs.GPR.n.a0, psxRegs.GPR.n.a1, psxRegs.GPR.n.a2, psxRegs.GPR.n.a3);
-
-				if (biosA0[call])
-			   		biosA0[call]();
-				break;
-
-			case 0xb0:
-				if (call != 0x17 && call != 0xb)
-					PSXBIOS_LOG("Bios call b0: %s (%x) %x,%x,%x,%x", biosB0n[call], call, psxRegs.GPR.n.a0, psxRegs.GPR.n.a1, psxRegs.GPR.n.a2, psxRegs.GPR.n.a3);
-
-				if (biosB0[call])
-			   		biosB0[call]();
-				break;
-
-			case 0xc0:
-				PSXBIOS_LOG("Bios call c0: %s (%x) %x,%x,%x,%x", biosC0n[call], call, psxRegs.GPR.n.a0, psxRegs.GPR.n.a1, psxRegs.GPR.n.a2, psxRegs.GPR.n.a3);
-			
-				if (biosC0[call])
-			   		biosC0[call]();
-				break;
-		}
-	}
 
 	/*if (psxRegs.CP0.n.Cause == 0x400 && (!(psxHu32(0x1450) & 0x8))) {
 		hwIntcIrq(INTC_SBUS);
@@ -171,11 +139,11 @@ __forceinline void PSX_INT( IopEventId n, s32 ecycle )
 	// Exception: IRQ16 - SIO - it drops ints like crazy when handling PAD stuff.
 	if( /*n!=16 &&*/ psxRegs.interrupt & (1<<n) )
 		DevCon.Warning( "***** IOP > Twice-thrown int on IRQ %d", n );
-	
+
 	// 19 is CDVD read int, it's supposed to be high.
-	//if (ecycle > 8192 && n != 19) 
+	//if (ecycle > 8192 && n != 19)
 	//	DevCon.Warning( "IOP cycles high: %d, n %d", ecycle, n );
-	
+
 	psxRegs.interrupt |= 1 << n;
 
 	psxRegs.sCycle[n] = psxRegs.cycle;
@@ -227,10 +195,6 @@ static __forceinline void _psxTestInterrupts()
 #endif
 	IopTestEvent(IopEvt_CdvdRead,	cdvdReadInterrupt);
 
-#if IOP_ENABLE_SIF_HACK
-	IopTestEvent(IopEvt_SIFhack,	sifHackInterrupt);
-#endif
-
 	// Profile-guided Optimization (sorta)
 	// The following ints are rarely called.  Encasing them in a conditional
 	// as follows helps speed up most games.
@@ -260,8 +224,8 @@ __releaseinline void psxBranchTest()
 	// the interrupt code below will assign nearer branches if needed.
 		g_psxNextBranchCycle = psxNextsCounter+psxNextCounter;
 	}
-	
-	
+
+
 	if (psxRegs.interrupt)
 	{
 		iopEventTestIsActive = true;
@@ -281,20 +245,6 @@ __releaseinline void psxBranchTest()
 			// thread sleep hangs and allow the IOP to "come back to life."
 			psxRegs.interrupt &= ~IopEvt_SIFhack;
 		}
-	}
-
-	if( IOP_ENABLE_SIF_HACK && !iopBranchAction && !(psxRegs.interrupt & IopEvt_SIFhack) )
-	{
-		// Safeguard: since we're not executing an exception vector, we should schedule a SIF wakeup
-		// just in case.  (and don't reschedule it if it's already scheduled, since that would just
-		// delay the previously scheduled one, and we don't want that)
-
-		// (TODO: The endless loop in question is a branch instruction that branches to itself endlessly,
-		//  waiting for SIF to wake it up via any cpuException.  We could check for that instruction
-		//  location and only schedule a SIF fix when it's detected...  But for now this is easy and gives
-		//  us good control over testing parameters...)
-
-		PSX_INT( IopEvt_SIFhack, 96 );
 	}
 }
 

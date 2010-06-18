@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -24,6 +24,34 @@ struct vifCode {
    u16 cl;
 };
 
+union tBITBLTBUF {
+	u64 _u64;
+	struct {
+		u32 SBP : 14;
+		u32 pad14 : 2;
+		u32 SBW : 6;
+		u32 pad22 : 2;
+		u32 SPSM : 6;
+		u32 pad30 : 2;
+		u32 DBP : 14;
+		u32 pad46 : 2;
+		u32 DBW : 6;
+		u32 pad54 : 2;
+		u32 DPSM : 6;
+		u32 pad62 : 2;
+	};
+};
+
+union tTRXREG {
+	u64 _u64;
+	struct {
+		u32 RRW : 12;
+		u32 pad12 : 20;
+		u32 RRH : 12;
+		u32 pad44 : 20;
+	};
+};
+
 // NOTE, if debugging vif stalls, use sega classics, spyro, gt4, and taito
 struct vifStruct {
 	vifCode tag;
@@ -32,11 +60,17 @@ struct vifStruct {
 	int cl;
 	int qwcalign;
 	u8 usn;
-	
+
 	bool done;
 	bool vifstalled;
 	bool stallontag;
-	
+
+	// GS registers used for calculating the size of the last local->host transfer initiated on the GS
+	// Transfer size calculation should be restricted to GS emulation in the future
+	tBITBLTBUF BITBLTBUF;
+	tTRXREG TRXREG;
+	u32 GSLastDownloadSize;
+
 	u8 irqoffset; // 32bit offset where next vif code is
 	u32 savedtag; // need this for backwards compat with save states
 	u32 vifpacketsize;
@@ -47,15 +81,12 @@ struct vifStruct {
 extern vifStruct* vif;
 extern vifStruct  vif0, vif1;
 extern u8		  schedulepath3msk;
-static const int  VifCycleVoodoo = 4;
 
-extern void vif0Init();
 extern void vif0Interrupt();
 extern void vif0Write32(u32 mem, u32 value);
 extern void vif0Reset();
 
 extern void vif1Interrupt();
-extern void vif1Init();
 extern void Vif1MskPath3();
 extern void vif1Write32(u32 mem, u32 value);
 extern void vif1Reset();

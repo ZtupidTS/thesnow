@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -26,7 +26,7 @@ using namespace pxSizerFlags;
 //
 static int pxMessageDialog( const wxString& caption, const wxString& content, const MsgButtons& buttons )
 {
-	if( !AffinityAssert_AllowFromMain() ) return wxID_CANCEL;
+	if( !AffinityAssert_AllowFrom_MainUI() ) return wxID_CANCEL;
 
 	// fixme: If the emulator is currently active and is running in exclusive mode (forced
 	// fullscreen), then we need to either:
@@ -35,62 +35,40 @@ static int pxMessageDialog( const wxString& caption, const wxString& content, co
 	//
 	// And in either case the emulation should be paused/suspended for the user.
 
-	wxDialogWithHelpers dialog( NULL, caption, wxVERTICAL );
-	dialog += dialog.Heading( content );
+	wxDialogWithHelpers dialog( NULL, caption );
+	dialog.SetMinWidth( (content.Length() > 256) ? 525 : 460 );
+	dialog += dialog.Heading( content )	| StdExpand();
 	return pxIssueConfirmation( dialog, buttons );
 }
 
 // --------------------------------------------------------------------------------------
 //  BaseMessageBoxEvent Implementation
 // --------------------------------------------------------------------------------------
-IMPLEMENT_DYNAMIC_CLASS( BaseMessageBoxEvent, wxEvent )
+IMPLEMENT_DYNAMIC_CLASS( BaseMessageBoxEvent, pxInvokeActionEvent )
 
-BaseMessageBoxEvent::BaseMessageBoxEvent( int msgtype, const wxString& content )
-	: wxEvent( 0, msgtype )
-	, m_Content( content )
+BaseMessageBoxEvent::BaseMessageBoxEvent( const wxString& content, SynchronousActionState& instdata )
+	: m_Content( content )
 {
-	m_Instdata = NULL;
+	m_state = &instdata;
 }
 
-BaseMessageBoxEvent::BaseMessageBoxEvent( MsgboxEventResult& instdata, const wxString& content )
-	: wxEvent( 0, pxEvt_MessageBox )
-	, m_Instdata( &instdata )
-	, m_Content( content )
+BaseMessageBoxEvent::BaseMessageBoxEvent( const wxString& content, SynchronousActionState* instdata )
+	: m_Content( content )
 {
-}
-
-BaseMessageBoxEvent::BaseMessageBoxEvent( const wxString& content )
-	: wxEvent( 0, pxEvt_MessageBox )
-	, m_Instdata( NULL )
-	, m_Content( content )
-{
+	m_state = instdata;
 }
 
 BaseMessageBoxEvent::BaseMessageBoxEvent( const BaseMessageBoxEvent& event )
-	: wxEvent( event )
-	, m_Instdata( event.m_Instdata )
-	, m_Content( event.m_Content )
+	: m_Content( event.m_Content )
 {
-}
-
-BaseMessageBoxEvent& BaseMessageBoxEvent::SetInstData( MsgboxEventResult& instdata )
-{
-	m_Instdata = &instdata;
-	return *this;
+	m_state = event.m_state;
 }
 
 // Thread Safety: Must be called from the GUI thread ONLY.
-void BaseMessageBoxEvent::IssueDialog()
+void BaseMessageBoxEvent::InvokeEvent()
 {
-	AffinityAssert_AllowFromMain();
-
 	int result = _DoDialog();
-
-	if( m_Instdata != NULL )
-	{
-		m_Instdata->result = result;
-		m_Instdata->WaitForMe.Post();
-	}
+	if( m_state ) m_state->PostResult( result );
 }
 
 int BaseMessageBoxEvent::_DoDialog() const
@@ -104,20 +82,15 @@ int BaseMessageBoxEvent::_DoDialog() const
 // --------------------------------------------------------------------------------------
 IMPLEMENT_DYNAMIC_CLASS( pxMessageBoxEvent, BaseMessageBoxEvent )
 
-pxMessageBoxEvent::pxMessageBoxEvent( int msgtype )
-	: BaseMessageBoxEvent( msgtype )
-{
-}
-
-pxMessageBoxEvent::pxMessageBoxEvent( MsgboxEventResult& instdata, const wxString& title, const wxString& content, const MsgButtons& buttons )
-	: BaseMessageBoxEvent( instdata, content )
+pxMessageBoxEvent::pxMessageBoxEvent( const wxString& title, const wxString& content, const MsgButtons& buttons, SynchronousActionState& instdata )
+	: BaseMessageBoxEvent( content, instdata )
 	, m_Title( title )
 	, m_Buttons( buttons )
 {
 }
 
-pxMessageBoxEvent::pxMessageBoxEvent( const wxString& title, const wxString& content, const MsgButtons& buttons )
-	: BaseMessageBoxEvent( content )
+pxMessageBoxEvent::pxMessageBoxEvent( const wxString& title, const wxString& content, const MsgButtons& buttons, SynchronousActionState* instdata )
+	: BaseMessageBoxEvent( content, instdata )
 	, m_Title( title )
 	, m_Buttons( buttons )
 {
@@ -130,15 +103,9 @@ pxMessageBoxEvent::pxMessageBoxEvent( const pxMessageBoxEvent& event )
 {
 }
 
-pxMessageBoxEvent& pxMessageBoxEvent::SetInstData( MsgboxEventResult& instdata )
-{
-	_parent::SetInstData( instdata );
-	return *this;
-}
-
 int pxMessageBoxEvent::_DoDialog() const
 {
-	return pxMessageDialog( m_Content, m_Title, m_Buttons );
+	return pxMessageDialog( m_Title, m_Content, m_Buttons );
 }
 
 // --------------------------------------------------------------------------------------
@@ -146,19 +113,14 @@ int pxMessageBoxEvent::_DoDialog() const
 // --------------------------------------------------------------------------------------
 IMPLEMENT_DYNAMIC_CLASS( pxAssertionEvent, BaseMessageBoxEvent )
 
-pxAssertionEvent::pxAssertionEvent()
-	: BaseMessageBoxEvent( )
-{
-}
-
-pxAssertionEvent::pxAssertionEvent( MsgboxEventResult& instdata, const wxString& content, const wxString& trace )
-	: BaseMessageBoxEvent( instdata, content )
+pxAssertionEvent::pxAssertionEvent( const wxString& content, const wxString& trace, SynchronousActionState& instdata )
+	: BaseMessageBoxEvent( content, instdata )
 	, m_Stacktrace( trace )
 {
 }
 
-pxAssertionEvent::pxAssertionEvent( const wxString& content, const wxString& trace )
-	: BaseMessageBoxEvent( content )
+pxAssertionEvent::pxAssertionEvent( const wxString& content, const wxString& trace, SynchronousActionState* instdata )
+	: BaseMessageBoxEvent( content, instdata )
 	, m_Stacktrace( trace )
 {
 }
@@ -167,12 +129,6 @@ pxAssertionEvent::pxAssertionEvent( const pxAssertionEvent& event )
 	: BaseMessageBoxEvent( event )
 	, m_Stacktrace( event.m_Stacktrace )
 {
-}
-
-pxAssertionEvent& pxAssertionEvent::SetInstData( MsgboxEventResult& instdata )
-{
-	_parent::SetInstData( instdata );
-	return *this;
 }
 
 pxAssertionEvent& pxAssertionEvent::SetStacktrace( const wxString& trace )
@@ -190,45 +146,34 @@ namespace Msgbox
 {
 	int ShowModal( BaseMessageBoxEvent& evt )
 	{
-		MsgboxEventResult instdat;
-		evt.SetInstData( instdat );
+		SynchronousActionState instdat;
+		evt.SetSyncState( instdat );
 
 		if( wxThread::IsMain() )
 		{
 			// main thread can handle the message immediately.
 			wxGetApp().ProcessEvent( evt );
+			return instdat.return_value;
 		}
 		else
 		{
 			// Not on main thread, must post the message there for handling instead:
 			wxGetApp().AddPendingEvent( evt );
-			instdat.WaitForMe.WaitNoCancel();		// Important! disable cancellation since we're using local stack vars.
+			return instdat.WaitForResult();		// Important! disable cancellation since we're using local stack vars.
 		}
-		return instdat.result;
 	}
 
 	static int ShowModal( const wxString& title, const wxString& content, const MsgButtons& buttons )
 	{
-		// must pass the message to the main gui thread, and then stall this thread, to avoid
-		// threaded chaos where our thread keeps running while the popup is awaiting input.
-
-		MsgboxEventResult instdat;
-		pxMessageBoxEvent tevt( instdat, title, content, buttons );
-		wxGetApp().AddPendingEvent( tevt );
-		instdat.WaitForMe.WaitNoCancel();		// Important! disable cancellation since we're using local stack vars.
-		return instdat.result;
+		pxMessageBoxEvent tevt( title, content, buttons );
+		return ShowModal( tevt );
 	}
 
 	// Pops up an alert Dialog Box with a singular "OK" button.
 	// Always returns false.
 	bool Alert( const wxString& text, const wxString& caption, int icon )
 	{
-		MsgButtons buttons( MsgButtons().OK() );
-
-		if( wxThread::IsMain() )
-			pxMessageDialog( caption, text, buttons );
-		else
-			ShowModal( caption, text, buttons );
+		ShowModal( caption, text, MsgButtons().OK() );
 		return false;
 	}
 

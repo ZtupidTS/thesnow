@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -15,6 +15,7 @@
 
 #include "PrecompiledHeader.h"
 #include "App.h"
+#include "MainFrame.h"
 #include "IsoDropTarget.h"
 
 #include "Dialogs/ModalPopups.h"
@@ -34,11 +35,11 @@ wxString GetMsg_ConfirmSysReset()
 
 bool IsoDropTarget::OnDropFiles(wxCoord x, wxCoord y, const wxArrayString& filenames)
 {
-	ScopedCoreThreadSuspend stopped_core;
+	ScopedCoreThreadPopup stopped_core;
 
 	if( filenames.GetCount() > 1 )
 	{
-		wxDialogWithHelpers dialog( m_WindowBound, _("Drag and Drop Error"), wxVERTICAL );
+		wxDialogWithHelpers dialog( m_WindowBound, _("Drag and Drop Error") );
 		dialog += dialog.Heading( _("It is an error to drop multiple files onto a PCSX2 window.  One at a time please, thank you.") );
 		pxIssueConfirmation( dialog, MsgButtons().Cancel() );
 		return false;
@@ -53,7 +54,7 @@ bool IsoDropTarget::OnDropFiles(wxCoord x, wxCoord y, const wxArrayString& filen
 	wxFileInputStream filechk( filenames[0] );
 
 	if( !filechk.IsOk() )
-		throw Exception::CreateStream( filenames[0] );
+		throw Exception::CannotCreateStream( filenames[0] );
 
 	u8 ident[16];
 	filechk.Read( ident, 16 );
@@ -68,8 +69,8 @@ bool IsoDropTarget::OnDropFiles(wxCoord x, wxCoord y, const wxArrayString& filen
 		bool confirmed = true;
 		if( SysHasValidState() )
 		{
-			wxDialogWithHelpers dialog( m_WindowBound, _("确认 PS2 重置"), wxVERTICAL );
-			
+			wxDialogWithHelpers dialog( m_WindowBound, _("确认 PS2 重置") );
+
 			dialog += dialog.Heading(
 				_("You have dropped the following ELF binary into PCSX2:\n\n") +
 				filenames[0] + L"\n\n" + GetMsg_ConfirmSysReset()
@@ -80,10 +81,12 @@ bool IsoDropTarget::OnDropFiles(wxCoord x, wxCoord y, const wxArrayString& filen
 
 		if( confirmed )
 		{
+			g_Conf->EmuOptions.UseBOOT2Injection = true;
 			sApp.SysExecute( g_Conf->CdvdSource, g_Conf->CurrentELF );
 		}
+		else
+			stopped_core.AllowResume();
 
-		stopped_core.Resume();
 		return true;
 	}
 	}
@@ -97,45 +100,18 @@ bool IsoDropTarget::OnDropFiles(wxCoord x, wxCoord y, const wxArrayString& filen
 	//   hack ;)
 
 	isoFile iso;
-	memzero( iso );
-	iso.handle = _openfile( filenames[0].ToUTF8(), O_RDONLY);
+	memzero(iso);
+	iso.handle = _openfile(filenames[0].ToUTF8(), O_RDONLY);
 
 	if( iso.handle == NULL )
-		throw Exception::CreateStream( filenames[0] );
+		throw Exception::CannotCreateStream( filenames[0] );
 
 	if (isoDetect(&iso))
 	{
 		Console.WriteLn( L"(Drag&Drop) 找到有效 ISO 文件类型!" );
-
-		wxWindowID result = wxID_RESET;
-
-		if( SysHasValidState() )
-		{
-			wxDialogWithHelpers dialog( m_WindowBound, _("确认 PS2 重置"), wxVERTICAL );
-						
-			dialog += dialog.Heading(_("You have dropped the following ISO image into PCSX2:\n\n") +
-				filenames[0] + L"\n\n" +
-				_("Do you want to swap discs or boot the new image (via system reset)?")
-			);
-
-			result = pxIssueConfirmation( dialog, MsgButtons().Reset().Cancel().Custom(_("Swap Disc")), L"DragDrop:BootIso" );
-		}
-
-		if( result != wxID_CANCEL )
-		{
-			SysUpdateIsoSrcFile( filenames[0] );
-			if( result != wxID_RESET )
-			{
-				CoreThread.ChangeCdvdSource( CDVDsrc_Iso );
-			}
-			else
-			{
-				sApp.SysExecute( CDVDsrc_Iso );
-			}
-		}
+		SwapOrReset_Iso(m_WindowBound, stopped_core, filenames[0], _("You have dropped the following ISO image into PCSX2:"));
 	}
 
 	_closefile( iso.handle );
-	stopped_core.Resume();
 	return true;
 }

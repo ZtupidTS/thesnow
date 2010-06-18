@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  * 
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -79,10 +79,7 @@ void endMacroOp(int mode) {
 
 #define INTERPRETATE_COP2_FUNC(f)							\
 	void recV##f() {										\
-		MOV32ItoM((uptr)&cpuRegs.code, cpuRegs.code);		\
-		MOV32ItoM((uptr)&cpuRegs.pc, pc);					\
-		iFlushCall(FLUSH_EVERYTHING);						\
-		CALLFunc((uptr)V##f);								\
+		recCall(V##f);										\
 		_freeX86regs();										\
 	}
 

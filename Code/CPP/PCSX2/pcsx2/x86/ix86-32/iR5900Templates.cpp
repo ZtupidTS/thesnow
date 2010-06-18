@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -12,7 +12,7 @@
  *  You should have received a copy of the GNU General Public License along with PCSX2.
  *  If not, see <http://www.gnu.org/licenses/>.
  */
- 
+
 #include "PrecompiledHeader.h"
 
 #include "Common.h"
@@ -49,6 +49,17 @@ void _deleteEEreg(int reg, int flush)
 	GPR_DEL_CONST(reg);
 	_deleteGPRtoXMMreg(reg, flush ? 0 : 2);
 	_deleteMMXreg(MMX_GPR+reg, flush ? 0 : 2);
+}
+
+void _flushEEreg(int reg)
+{
+	if (!reg) return;
+	if (GPR_IS_CONST1(reg)) {
+		_flushConstReg(reg);
+		return;
+	}
+	_deleteGPRtoXMMreg(reg, 1);
+	_deleteMMXreg(MMX_GPR + reg, 1);
 }
 
 // if not mmx, then xmm
@@ -364,11 +375,11 @@ void eeRecompileCode2(R5900FNPTR constcode, R5900FNPTR_INFO noconstcode)
 	GPR_DEL_CONST(_Rd_);
 }
 
-// rt op rs 
+// rt op rs
 void eeRecompileCode3(R5900FNPTR constcode, R5900FNPTR_INFO multicode)
 {
 	pxFail( "Unfinished code reached." );
-	
+
 	// for now, don't support xmm
 	_deleteEEreg(_Rs_, 1);
 	_deleteEEreg(_Rt_, 1);
@@ -635,7 +646,7 @@ void eeFPURecompileCode(R5900FNPTR_INFO xmmcode, R5900FNPTR fpucode, int xmminfo
 	}
 
 	if( xmminfo & XMMINFO_WRITEACC ) {
-			
+
 		// check for last used, if so don't alloc a new XMM reg
 		int readacc = MODE_WRITE|((xmminfo&XMMINFO_READACC)?MODE_READ:0);
 
@@ -722,7 +733,7 @@ void eeFPURecompileCode(R5900FNPTR_INFO xmmcode, R5900FNPTR fpucode, int xmminfo
 	}
 	if( xmminfo & (XMMINFO_WRITEACC|XMMINFO_READACC) ) {
 		if( mmregacc >= 0 ) info |= PROCESS_EE_SET_ACC(mmregacc)|PROCESS_EE_ACC;
-		else pxAssert( !(xmminfo&XMMINFO_WRITEACC));		
+		else pxAssert( !(xmminfo&XMMINFO_WRITEACC));
 	}
 
 	if( xmminfo & XMMINFO_READS ) {
@@ -731,7 +742,7 @@ void eeFPURecompileCode(R5900FNPTR_INFO xmmcode, R5900FNPTR fpucode, int xmminfo
 	if( xmminfo & XMMINFO_READT ) {
 		if( mmregt >= 0 ) info |= PROCESS_EE_SET_T(mmregt)|PROCESS_EE_T;
 	}
-		
+
 	// at least one must be in xmm
 	if( (xmminfo & (XMMINFO_READS|XMMINFO_READT)) == (XMMINFO_READS|XMMINFO_READT) ) {
 		pxAssert( mmregs >= 0 || mmregt >= 0 );

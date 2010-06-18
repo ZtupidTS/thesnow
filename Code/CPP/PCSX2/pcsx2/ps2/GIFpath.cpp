@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -18,6 +18,7 @@
 #include "GS.h"
 #include "Gif.h"
 #include "Vif_Dma.h"
+#include "Vif.h"
 
 // --------------------------------------------------------------------------------------
 //  GIFpath -- the GIFtag Parser
@@ -76,7 +77,7 @@ struct GIFTAG
 };
 
 // --------------------------------------------------------------------------------------
-//  GIFPath -- PS2 GIFtag info (one for each path). 
+//  GIFPath -- PS2 GIFtag info (one for each path).
 // --------------------------------------------------------------------------------------
 // fixme: The real PS2 has a single internal PATH and 3 logical sources, not 3 entirely
 // separate paths.  But for that to work properly we need also interlocked path sources.
@@ -98,7 +99,7 @@ struct GIFPath
 	void SetTag(const void* mem);
 	bool StepReg();
 	u8 GetReg();
-	
+
 	int ParseTag(GIF_PATH pathidx, const u8* pMem, u32 size);
 };
 
@@ -108,7 +109,7 @@ struct GifPathStruct
 {
 	const GIFRegHandler	Handlers[0x100-0x60];		// handlers for 0x60->0x100
 	GIFPath				path[3];
-	
+
 	__forceinline GIFPath& operator[]( int idx ) { return path[idx]; }
 };
 
@@ -178,7 +179,7 @@ static void __fastcall RegHandlerLABEL(const u32* data)
 static void __fastcall RegHandlerUNMAPPED(const u32* data)
 {
 	const int regidx = ((u8*)data)[8];
-	
+
 	// Known "unknowns":
 	//  It's possible that anything above 0x63 should just be silently ignored, but in the
 	//  offhand chance not, I'm documenting known cases of unknown register use here.
@@ -207,10 +208,10 @@ static void __fastcall RegHandlerUNMAPPED(const u32* data)
 #define INSERT_UNMAPPED_16	INSERT_UNMAPPED_4 INSERT_UNMAPPED_4 INSERT_UNMAPPED_4 INSERT_UNMAPPED_4
 #define INSERT_UNMAPPED_64	INSERT_UNMAPPED_16 INSERT_UNMAPPED_16 INSERT_UNMAPPED_16 INSERT_UNMAPPED_16
 
-static __aligned16 GifPathStruct s_gifPath = 
+static __aligned16 GifPathStruct s_gifPath =
 {
 	RegHandlerSIGNAL, RegHandlerFINISH, RegHandlerLABEL, RegHandlerUNMAPPED,
-	
+
 	// Rest are mapped to Unmapped
 	INSERT_UNMAPPED_4  INSERT_UNMAPPED_4  INSERT_UNMAPPED_4
 	INSERT_UNMAPPED_64 INSERT_UNMAPPED_64 INSERT_UNMAPPED_16
@@ -276,14 +277,56 @@ void SaveStateBase::gifPathFreeze()
 
 static __forceinline void gsHandler(const u8* pMem)
 {
-	const int handler = pMem[8];
-	if (handler >= 0x60)
+	const int reg = pMem[8];
+
+	if (reg == 0x50)
+		vif1.BITBLTBUF._u64 = *(u64*)pMem;
+	else if (reg == 0x52)
+		vif1.TRXREG._u64 = *(u64*)pMem;
+	else if (reg == 0x53)
+	{
+		// local -> host
+		if ((pMem[0] & 3) == 1)
+		{
+			//Onimusha does TRXREG without BLTDIVIDE first, so we "assume" 32bit for this equation, probably isnt important.
+			// ^ WTF, seriously? This is really important (pseudonym)
+			u8 bpp = 32;
+
+			switch(vif1.BITBLTBUF.SPSM & 7)
+			{
+			case 0:
+				bpp = 32;
+				break;
+			case 1:
+				bpp = 24;
+				break;
+			case 2:
+				bpp = 16;
+				break;
+			case 3:
+				bpp = 8;
+				break;
+			// 4 is 4 bit but this is forbidden
+			default:
+				Console.Error("Illegal format for GS upload: SPSM=0%02o", vif1.BITBLTBUF.SPSM);
+			}
+
+			VIF_LOG("GS Download %dx%d SPSM=%x bpp=%d", vif1.TRXREG.RRW, vif1.TRXREG.RRH, vif1.BITBLTBUF.SPSM, bpp);
+
+			// qwords, rounded down; any extra bits are lost
+			// games must take care to ensure transfer rectangles are exact multiples of a qword
+			vif1.GSLastDownloadSize = vif1.TRXREG.RRW * vif1.TRXREG.RRH * bpp >> 7;
+			VIF_LOG("GS Download size %x", vif1.GSLastDownloadSize);
+			gifRegs->stat.OPH = true;
+		}
+	}
+	if (reg >= 0x60)
 	{
 		// Question: What happens if an app writes to uncharted register space on real PS2
 		// hardware (handler 0x63 and higher)?  Probably a silent ignorance, but not tested
 		// so just guessing... --air
 
-		s_gifPath.Handlers[handler-0x60]((const u32*)pMem);
+		s_gifPath.Handlers[reg-0x60]((const u32*)pMem);
 	}
 }
 
@@ -302,7 +345,7 @@ __forceinline int GIFPath::ParseTag(GIF_PATH pathidx, const u8* pMem, u32 size)
 {
 	const u8*	vuMemEnd  =  pMem + (size<<4);	// End of VU1 Mem
 	if (pathidx==GIF_PATH_1) size = 0x400;		// VU1 mem size
-	const u32	startSize =  size;				// Start Size
+	u32	startSize =  size;						// Start Size
 
 	while (size > 0) {
 		if (!nloop) {
@@ -310,14 +353,29 @@ __forceinline int GIFPath::ParseTag(GIF_PATH pathidx, const u8* pMem, u32 size)
 			SetTag(pMem);
 			incTag(16, 1);
 
-			if (pathidx == GIF_PATH_3) {
-				if (tag.FLG&2)	Path3progress = IMAGE_MODE;
-				else			Path3progress = TRANSFER_MODE;
+			//if (pathidx == GIF_PATH_3) {
+			switch(pathidx)
+			{
+				case GIF_PATH_1:
+					if (tag.FLG&2)	GSTransferStatus.PTH1 = IMAGE_MODE;
+					else			GSTransferStatus.PTH1 = TRANSFER_MODE;
+					break;
+				case GIF_PATH_2:
+					if (tag.FLG&2)	GSTransferStatus.PTH2 = IMAGE_MODE;
+					else			GSTransferStatus.PTH2 = TRANSFER_MODE;
+					break;
+				case GIF_PATH_3:
+					if (tag.FLG&2)	GSTransferStatus.PTH3 = IMAGE_MODE;
+					else			GSTransferStatus.PTH3 = TRANSFER_MODE;
+					break;
 			}
+			//}
 		}
-		else {
+		else
+		{
 			switch(tag.FLG) {
 				case GIF_FLG_PACKED:
+					GIF_LOG("Packed Mode");
 					PrepPackedRegs();
 					do {
 						if (GetReg() == 0xe) {
@@ -328,6 +386,7 @@ __forceinline int GIFPath::ParseTag(GIF_PATH pathidx, const u8* pMem, u32 size)
 				break;
 				case GIF_FLG_REGLIST:
 				{
+					GIF_LOG("Reglist Mode");
 					size *= 2;
 
 					do { incTag(8, 1); }
@@ -340,6 +399,7 @@ __forceinline int GIFPath::ParseTag(GIF_PATH pathidx, const u8* pMem, u32 size)
 				case GIF_FLG_IMAGE:
 				case GIF_FLG_IMAGE2:
 				{
+					GIF_LOG("IMAGE Mode");
 					int len = aMin(size, nloop);
 					incTag(( len * 16 ), len);
 					nloop -= len;
@@ -347,22 +407,65 @@ __forceinline int GIFPath::ParseTag(GIF_PATH pathidx, const u8* pMem, u32 size)
 				break;
 			}
 		}
+		if(pathidx == GIF_PATH_1)
+		{
+			if(nloop > 0 && size == 0 && !tag.EOP) //Need to check all of this, some cases VU will send info (like the BIOS) but be incomplete
+			{
+				switch(tag.FLG)
+				{
+					case GIF_FLG_PACKED:
+						size = nloop * numregs;
+					break;
 
+					case GIF_FLG_REGLIST:
+						size = (nloop * numregs) / 2;
+					break;
+
+					default:
+						size = nloop;
+					break;
+				}
+				startSize += size;
+				if(startSize >= 0x3fff)
+				{
+					size = 0;
+					Console.Warning("GIFTAG error, size exceeded VU memory size");
+				}
+			}
+		}
 		if (tag.EOP && !nloop) {
 			if (pathidx != GIF_PATH_2) {
 				break;
 			}
 		}
 	}
+	/*if(((GSTransferStatus.PTH1 & 0x2) + (GSTransferStatus.PTH2 & 0x2) + ((GSTransferStatus.PTH3 & 0x2) && !vif1Regs->mskpath3)) < 0x4 )
+		Console.Warning("CHK PTH1 %x, PTH2 %x, PTH3 %x", GSTransferStatus.PTH1, GSTransferStatus.PTH2, GSTransferStatus.PTH3);*/
 
 	size = (startSize - size);
 
-	if (pathidx == GIF_PATH_3) {
+
 		if (tag.EOP && !nloop) {
-			Path3progress = STOPPED_MODE;
+			//Console.Warning("Finishing path %x", pathidx);
+			switch(pathidx)
+			{
+				case GIF_PATH_1:
+					GSTransferStatus.PTH1 = STOPPED_MODE;
+					break;
+				case GIF_PATH_2:
+					GSTransferStatus.PTH2 = STOPPED_MODE;
+					break;
+				case GIF_PATH_3:
+					GSTransferStatus.PTH3 = STOPPED_MODE;
+					break;
+			}
 		}
+	if (pathidx == GIF_PATH_3 && gif->chcr.STR) { //Make sure we are really doing a DMA and not using FIFO
+		//GIF_LOG("Path3 end EOP %x NLOOP %x Status %x", tag.EOP, nloop, GSTransferStatus.PTH3);
 		gif->madr += size * 16;
 		gif->qwc  -= size;
+	} else if (pathidx == GIF_PATH_2 && !nloop) { //Path2 is odd, but always provides the correct size
+		GSTransferStatus.PTH2 = STOPPED_MODE;
 	}
 
 	return size;

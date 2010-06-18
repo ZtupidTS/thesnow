@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -21,7 +21,7 @@
 #include "VUmicro.h"
 #include "newVif.h"
 
-__forceinline void vif1FLUSH() 
+__forceinline void vif1FLUSH()
 {
 	if (!(VU0.VI[REG_VPU_STAT].UL & 0x100)) return;
 	int _cycles = VU1.cycle;
@@ -29,10 +29,10 @@ __forceinline void vif1FLUSH()
 	g_vifCycles += (VU1.cycle - _cycles) * BIAS;
 }
 
-void vif1TransferFromMemory()
+void vif1TransferToMemory()
 {
-	int size;
-	u64* pMem = (u64*)dmaGetAddr(vif1ch->madr);
+	u32 size;
+	u64* pMem = (u64*)dmaGetAddr(vif1ch->madr, false);
 
 	// VIF from gsMemory
 	if (pMem == NULL)  						//Is vif0ptag empty?
@@ -50,37 +50,74 @@ void vif1TransferFromMemory()
 	// MTGS concerns:  The MTGS is inherently disagreeable with the idea of downloading
 	// stuff from the GS.  The *only* way to handle this case safely is to flush the GS
 	// completely and execute the transfer there-after.
-
+	//Console.Warning("Real QWC %x", vif1ch->qwc);
     XMMRegisters::Freeze();
+
+	size = min((u32)vif1ch->qwc, vif1.GSLastDownloadSize);
 
 	if (GSreadFIFO2 == NULL)
 	{
-		for (size = vif1ch->qwc; size > 0; --size)
+		for (;size > 0; --size)
 		{
-			if (size > 1)
-			{
-				GetMTGS().WaitGS();
-				GSreadFIFO(&psHu64(VIF1_FIFO));
-			}
+			GetMTGS().WaitGS();
+			GSreadFIFO(&psHu64(VIF1_FIFO));
+
 			pMem[0] = psHu64(VIF1_FIFO);
 			pMem[1] = psHu64(VIF1_FIFO + 8);
 			pMem += 2;
+		}
+		if(vif1ch->qwc > vif1.GSLastDownloadSize)
+		{
+			DevCon.Warning("GS Transfer < VIF QWC, Clearing end of space");
+			for (size = vif1ch->qwc - vif1.GSLastDownloadSize; size > 0; --size)
+			{
+				psHu64(VIF1_FIFO) = 0;
+				psHu64(VIF1_FIFO + 8) = 0;
+				pMem[0] = psHu64(VIF1_FIFO);
+				pMem[1] = psHu64(VIF1_FIFO + 8);
+				pMem += 2;
+			}
 		}
 	}
 	else
 	{
 		GetMTGS().WaitGS();
-		GSreadFIFO2(pMem, vif1ch->qwc);
+		GSreadFIFO2(pMem, size);
 
 		// set incase read
-		psHu64(VIF1_FIFO) = pMem[2*vif1ch->qwc-2];
-		psHu64(VIF1_FIFO + 8) = pMem[2*vif1ch->qwc-1];
+		psHu64(VIF1_FIFO) = pMem[2*size-2];
+		psHu64(VIF1_FIFO + 8) = pMem[2*size-1];
+		pMem += size * 2;
+		if(vif1ch->qwc > vif1.GSLastDownloadSize)
+		{
+			DevCon.Warning("GS Transfer < VIF QWC, Clearing end of space");
+			for (size = vif1ch->qwc - vif1.GSLastDownloadSize; size > 0; --size)
+			{
+				psHu64(VIF1_FIFO) = 0;
+				psHu64(VIF1_FIFO + 8) = 0;
+				pMem[0] = psHu64(VIF1_FIFO);
+				pMem[1] = psHu64(VIF1_FIFO + 8);
+				pMem += 2;
+			}
+		}
 	}
+
 
     XMMRegisters::Thaw();
 
 	g_vifCycles += vif1ch->qwc * 2;
 	vif1ch->madr += vif1ch->qwc * 16; // mgs3 scene changes
+	if(vif1.GSLastDownloadSize >= vif1ch->qwc)
+	{
+		vif1.GSLastDownloadSize -= vif1ch->qwc;
+		vif1Regs->stat.FQC = min((u32)16, vif1.GSLastDownloadSize);
+	}
+	else
+	{
+		vif1Regs->stat.FQC = 0;
+		vif1.GSLastDownloadSize = 0;
+	}
+
 	vif1ch->qwc = 0;
 }
 
@@ -94,14 +131,15 @@ bool _VIF1chain()
 		return true;
 	}
 
-	if (vif1.dmamode == VIF_NORMAL_FROM_MEM_MODE)
+	// Clarification - this is TO memory mode, for some reason i used the other way round >.<
+	if (vif1.dmamode == VIF_NORMAL_TO_MEM_MODE)
 	{
-		vif1TransferFromMemory();
+		vif1TransferToMemory();
 		vif1.inprogress = 0;
 		return true;
 	}
 
-	pMem = (u32*)dmaGetAddr(vif1ch->madr);
+	pMem = (u32*)dmaGetAddr(vif1ch->madr, !vif1ch->chcr.DIR);
 	if (pMem == NULL)
 	{
 		vif1.cmd = 0;
@@ -122,7 +160,7 @@ bool _VIF1chain()
 __forceinline void vif1SetupTransfer()
 {
     tDMA_TAG *ptag;
-    
+
 	switch (vif1.dmamode)
 	{
 		case VIF_NORMAL_TO_MEM_MODE:
@@ -133,7 +171,7 @@ __forceinline void vif1SetupTransfer()
 			break;
 
 		case VIF_CHAIN_MODE:
-			ptag = dmaGetAddr(vif1ch->tadr); //Set memory pointer to TADR
+			ptag = dmaGetAddr(vif1ch->tadr, false); //Set memory pointer to TADR
 
 			if (!(vif1ch->transfer("Vif1 Tag", ptag))) return;
 
@@ -196,13 +234,32 @@ __forceinline void vif1Interrupt()
 
 	g_vifCycles = 0;
 
-	if (schedulepath3msk) Vif1MskPath3();
+	//Some games (Fahrenheit being one) start vif first, let it loop through blankness while it sets MFIFO mode, so we need to check it here.
+	if (dmacRegs->ctrl.MFD == MFD_VIF1)   // VIF MFIFO
+	{
+		//Console.WriteLn("VIFMFIFO\n");
+		// Test changed because the Final Fantasy 12 opening somehow has the tag in *Undefined* mode, which is not in the documentation that I saw.
+		if (vif1ch->chcr.MOD == NORMAL_MODE) Console.WriteLn("MFIFO mode is normal (which isn't normal here)! %x", vif1ch->chcr._u32);
+		vif1Regs->stat.FQC = min((u16)0x10, vif1ch->qwc);
+		vifMFIFOInterrupt();
+		return;
+	}
+
+	//We need to check the direction, if it is downloading from the GS, we handle that seperately (KH2 for testing)
+	if (vif1ch->chcr.DIR)vif1Regs->stat.FQC = min(vif1ch->qwc, (u16)16);
+	//Simulated GS transfer time done, clear the flags
+	if(gifRegs->stat.APATH == GIF_APATH2 && (vif1.cmd & 0x70) != 0x50)
+	{
+		gifRegs->stat.APATH = GIF_APATH_IDLE;
+	}
+
+	if (schedulepath3msk & 0x10) Vif1MskPath3();
 
 	if ((vif1Regs->stat.VGW))
 	{
-		if (gif->chcr.STR)
+		if (GSTransferStatus.PTH3 < STOPPED_MODE || GSTransferStatus.PTH1 != STOPPED_MODE)
 		{
-			CPU_INT(DMAC_VIF1, gif->qwc * BIAS);
+			CPU_INT(DMAC_VIF1, 4);
 			return;
 		}
 		else
@@ -220,7 +277,7 @@ __forceinline void vif1Interrupt()
 		--vif1.irq;
 		if (vif1Regs->stat.test(VIF1_STAT_VSS | VIF1_STAT_VIS | VIF1_STAT_VFS))
 		{
-			vif1Regs->stat.FQC = 0;
+			//vif1Regs->stat.FQC = 0;
 
 			// One game doesn't like vif stalling at end, can't remember what. Spiderman isn't keen on it tho
 			vif1ch->chcr.STR = false;
@@ -238,10 +295,12 @@ __forceinline void vif1Interrupt()
 	if (vif1.inprogress & 0x1)
 	{
 		_VIF1chain();
-		// VIF_NORMAL_FROM_MEM_MODE is a very slow operation. 
+		// VIF_NORMAL_FROM_MEM_MODE is a very slow operation.
 		// Timesplitters 2 depends on this beeing a bit higher than 128.
-		if (vif1.dmamode == VIF_NORMAL_FROM_MEM_MODE ) CPU_INT(DMAC_VIF1, 1024);
-		else CPU_INT(DMAC_VIF1, /*g_vifCycles*/ VifCycleVoodoo);
+		if (vif1ch->chcr.DIR) vif1Regs->stat.FQC = min(vif1ch->qwc, (u16)16);
+		// Refraction - Removing voodoo timings for now, completely messes a lot of Path3 masked games.
+		/*if (vif1.dmamode == VIF_NORMAL_FROM_MEM_MODE ) CPU_INT(DMAC_VIF1, 1024);
+		else */CPU_INT(DMAC_VIF1, g_vifCycles /*VifCycleVoodoo*/);
 		return;
 	}
 
@@ -255,13 +314,14 @@ __forceinline void vif1Interrupt()
 		}
 
 		if ((vif1.inprogress & 0x1) == 0) vif1SetupTransfer();
-
-		CPU_INT(DMAC_VIF1, /*g_vifCycles*/ VifCycleVoodoo);
+		if (vif1ch->chcr.DIR) vif1Regs->stat.FQC = min(vif1ch->qwc, (u16)16);
+		CPU_INT(DMAC_VIF1, g_vifCycles);
 		return;
 	}
 
 	if (vif1.vifstalled && vif1.irq)
 	{
+		DevCon.WriteLn("VIF1 looping on stall\n");
 		CPU_INT(DMAC_VIF1, 0);
 		return; //Dont want to end if vif is stalled.
 	}
@@ -271,15 +331,15 @@ __forceinline void vif1Interrupt()
 #endif
 
 	vif1Regs->stat.VPS = VPS_IDLE; //Vif goes idle as the stall happened between commands;
+	if((vif1ch->chcr.DIR == VIF_NORMAL_TO_MEM_MODE) && vif1.GSLastDownloadSize <= 16) 
+	{   //Reverse fifo has finished and nothing is left, so lets clear the outputting flag
+		gifRegs->stat.OPH = false;
+	}
 	vif1ch->chcr.STR = false;
 	g_vifCycles = 0;
+	VIF_LOG("VIF1 End");
 	hwDmacIrq(DMAC_VIF1);
 
-	//Im not totally sure why Path3 Masking makes it want to see stuff in the fifo
-	//Games effected by setting, Fatal Frame, KH2, Shox, Crash N Burn, GT3/4 possibly
-	//Im guessing due to the full gs fifo before the reverse? (Refraction)
-	//Note also this is only the condition for reverse fifo mode, normal direction clears it as normal
-	if (!vif1Regs->mskpath3 || vif1ch->chcr.DIR) vif1Regs->stat.FQC = 0;
 }
 
 void dmaVIF1()
@@ -289,17 +349,9 @@ void dmaVIF1()
 	        vif1ch->chcr._u32, vif1ch->madr, vif1ch->qwc,
 	        vif1ch->tadr, vif1ch->asr0, vif1ch->asr1);
 
+	vif1.done = false;
 	g_vifCycles = 0;
 	vif1.inprogress = 0;
-
-	if (dmacRegs->ctrl.MFD == MFD_VIF1)   // VIF MFIFO
-	{
-		//Console.WriteLn("VIFMFIFO\n");
-		// Test changed because the Final Fantasy 12 opening somehow has the tag in *Undefined* mode, which is not in the documentation that I saw.
-		if (vif1ch->chcr.MOD == NORMAL_MODE) Console.WriteLn("MFIFO mode is normal (which isn't normal here)! %x", vif1ch->chcr._u32);
-		vifMFIFOInterrupt();
-		return;
-	}
 
 #ifdef PCSX2_DEVBUILD
 	if (dmacRegs->ctrl.STD == STD_VIF1)
@@ -315,21 +367,19 @@ void dmaVIF1()
 			Console.WriteLn("DMA Stall Control on VIF1 normal");
 
 		if (vif1ch->chcr.DIR)  // to Memory
-			vif1.dmamode = VIF_NORMAL_TO_MEM_MODE;
-		else
 			vif1.dmamode = VIF_NORMAL_FROM_MEM_MODE;
+		else
+			vif1.dmamode = VIF_NORMAL_TO_MEM_MODE;
+
+		if(vif1ch->chcr.MOD == CHAIN_MODE && vif1ch->qwc > 0) DevCon.Warning(L"VIF1 QWC on Chain CHCR " + vif1ch->chcr.desc());
 	}
 	else
 	{
 		vif1.dmamode = VIF_CHAIN_MODE;
 	}
 
-	if (vif1.dmamode != VIF_NORMAL_FROM_MEM_MODE)
-		vif1Regs->stat.FQC = 0x10;
-	else
-		vif1Regs->stat.FQC = min((u16)0x10, vif1ch->qwc);
+	if (vif1ch->chcr.DIR) vif1Regs->stat.FQC = min((u16)0x10, vif1ch->qwc);
 
 	// Chain Mode
-	vif1.done = false;
 	vif1Interrupt();
 }

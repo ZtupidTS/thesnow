@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -29,6 +29,10 @@ extern u8  *psR1; //256kb rom1 area (actually 196kb, but can't mask this)
 extern u8  *psR2; // 0x00080000
 extern u8  *psER; // 0x001C0000
 extern u8  *psS; //0.015 mb, scratch pad
+
+// separate buffers implementing write only high memory for DMA
+extern u8  *psMHR;
+extern u8  *psMHW;
 
 #define PS2MEM_BASE		psM
 #define PS2MEM_HW		psH

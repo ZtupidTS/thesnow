@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -12,7 +12,7 @@
  *  You should have received a copy of the GNU General Public License along with PCSX2.
  *  If not, see <http://www.gnu.org/licenses/>.
  */
-	
+
 #ifndef __ELF_H__
 #define __ELF_H__
 
@@ -135,7 +135,7 @@ class ElfObject
 		void readIso(IsoFile file);
 		void readFile();
 		void checkElfSize(s64 elfsize);
-		
+
 	public:
 		bool isCdvd;
 		ELF_HEADER& header;
@@ -143,20 +143,19 @@ class ElfObject
 		// Destructor!
 		// C++ does all the cleanup automagically for us.
 		virtual ~ElfObject() throw() { }
-		
+
 		ElfObject(const wxString& srcfile, IsoFile isofile);
 		ElfObject( const wxString& srcfile, uint hdrsize );
-		
+
 		void loadProgramHeaders();
 		void loadSectionHeaders();
 		void loadHeaders();
-		
+
 		bool hasProgramHeaders();
 		bool hasSectionHeaders();
 		bool hasHeaders();
-		
-		void getCRC();
-		void applyPatches();
+
+		u32 getCRC();
 };
 
 //-------------------
@@ -165,5 +164,7 @@ extern int  GetPS2ElfName( wxString& dest );
 
 
 extern u32 ElfCRC;
+extern u32 ElfEntry;
+extern wxString LastELF;
 
 #endif

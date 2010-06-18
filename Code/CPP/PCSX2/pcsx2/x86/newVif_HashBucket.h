@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -51,13 +51,13 @@ protected:
 	SizeChain<T> mBucket[hSize];
 
 public:
-	HashBucket() { 
+	HashBucket() {
 		for (int i = 0; i < hSize; i++) {
 			mBucket[i].Chain	= NULL;
 			mBucket[i].Size		= 0;
 		}
 	}
-	~HashBucket() { clear(); }
+	virtual ~HashBucket() throw() { clear(); }
 	int quickFind(u32 data) {
 		return mBucket[data % hSize].Size;
 	}
@@ -80,7 +80,7 @@ public:
 	__forceinline void add(const T& dataPtr) {
 		u32 d = (u32&)dataPtr;
 		SizeChain<T>& bucket( mBucket[d % hSize] );
-		
+
 		if( bucket.Chain = (T*)_aligned_realloc( bucket.Chain, sizeof(T)*(bucket.Size+1), 16), bucket.Chain==NULL ) {
 			throw Exception::OutOfMemory(
 				wxsFormat(L"Out of memory re-allocating hash bucket (bucket size=%d)", bucket.Size+1),

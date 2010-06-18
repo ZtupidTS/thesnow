@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -27,7 +27,7 @@ __aligned16 nVifStruct	nVif[2];
 __aligned16 nVifCall	nVifUpk[(2*2*16)  *4];		// ([USN][Masking][Unpack Type]) [curCycle]
 __aligned16 u32			nVifMask[3][4][4] = {0};	// [MaskNumber][CycleNumber][Vector]
 
-__aligned16 const u8 nVifT[16] = { 
+__aligned16 const u8 nVifT[16] = {
 	4, // S-32
 	2, // S-16
 	1, // S-8
@@ -69,23 +69,26 @@ static const __aligned16 Fnptr_VifUnpackLoop UnpackSingleTable[2][2][2] = {
 };
 // ----------------------------------------------------------------------------
 
-void initNewVif(int idx) {
+void resetNewVif(int idx)
+{
+	// Safety Reset : Reassign all VIF structure info, just in case the VU1 pointers have
+	// changed for some reason.
+
 	nVif[idx].idx			= idx;
 	nVif[idx].VU			= idx ? &VU1     : &VU0;
 	nVif[idx].vif			= idx ? &vif1    : &vif0;
 	nVif[idx].vifRegs		= idx ? vif1Regs : vif0Regs;
 	nVif[idx].vuMemEnd		= idx ? ((u8*)(VU1.Mem + 0x4000)) : ((u8*)(VU0.Mem + 0x1000));
 	nVif[idx].vuMemLimit	= idx ? 0x3ff0 : 0xff0;
-	nVif[idx].vifCache		= NULL;
 	nVif[idx].bSize			= 0;
 	memzero(nVif[idx].buffer);
 
-	VifUnpackSSE_Init();
-	if (newVifDynaRec) dVifInit(idx);
+	if (newVifDynaRec) dVifReset(idx);
 }
 
-void closeNewVif(int idx) { if (newVifDynaRec) dVifClose(idx); }
-void resetNewVif(int idx) { closeNewVif(idx); initNewVif(idx); }
+void closeNewVif(int idx) {
+	if (newVifDynaRec) dVifClose(idx);
+}
 
 static _f u8* setVUptr(int vuidx, const u8* vuMemBase, int offset) {
 	return (u8*)(vuMemBase + ( offset & (vuidx ? 0x3ff0 : 0xff0) ));
@@ -127,10 +130,10 @@ int nVifUnpack(int idx, u8* data) {
 			data = v.buffer;
 			size = v.bSize;
 		}
-		if (size > 0) {
+		if (size > 0 || isFill) {
 			if (newVifDynaRec)  dVifUnpack(idx, data, size, isFill);
 			else			   _nVifUnpack(idx, data, size, isFill);
-		}	else if (isFill)   _nVifUnpack(idx, data, size, isFill);
+		}
 		vif->tag.size = 0;
 		vif->cmd = 0;
 		v.bSize  = 0;
@@ -207,17 +210,17 @@ __releaseinline void __fastcall _nVifUnpackLoop(u8 *data, u32 size) {
 	const int	usn		= !!(vif->usn);
 	const int	upkNum	= vif->cmd & 0x1f;
 	//const s8&	vift	= nVifT[upkNum]; // might be useful later when other SSE paths are finished.
-	
+
 	const nVifCall*	fnbase			= &nVifUpk[ ((usn*2*16) + upkNum) * (4*1) ];
 	const VIFUnpackFuncTable& ft	= VIFfuncTable[upkNum];
 	UNPACKFUNCTYPE func				= usn ? ft.funcU : ft.funcS;
-	
+
 	const u8* vuMemBase	= (idx ? VU1 : VU0).Mem;
 	u8* dest			= setVUptr(idx, vuMemBase, vif->tag.addr);
 	if (vif->cl >= blockSize)  vif->cl = 0;
-	
+
 	while (vifRegs->num) {
-		if (vif->cl < cycleSize) { 
+		if (vif->cl < cycleSize) {
 			if (size < ft.gsize) break;
 			if (doMode) {
 				//DevCon.WriteLn("Non SSE; unpackNum = %d", upkNum);

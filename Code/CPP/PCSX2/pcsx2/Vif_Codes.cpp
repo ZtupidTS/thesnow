@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -75,14 +75,16 @@ void Vif1MskPath3() {
 
 	vif1Regs->mskpath3 = schedulepath3msk & 0x1;
 	//Console.WriteLn("VIF MSKPATH3 %x", vif1Regs->mskpath3);
-
+	gifRegs->stat.M3P = vif1Regs->mskpath3;
 	if (!vif1Regs->mskpath3) {
 		//Let the Gif know it can transfer again (making sure any vif stall isnt unset prematurely)
-		Path3progress = TRANSFER_MODE;
-		gifRegs->stat.IMT  = false;
-		CPU_INT(DMAC_GIF, 4);
+		if(gif->chcr.STR == true)
+		{
+			GSTransferStatus.PTH3 = 3;
+			CPU_INT(DMAC_GIF, 4);
+		}
+
 	}
-	else gifRegs->stat.M3P = true;
 
 	schedulepath3msk = 0;
 }
@@ -108,20 +110,27 @@ template<int idx> _f int _vifCode_Direct(int pass, u8* data, bool isDirectHL) {
 	pass2 {
 		vif1Only();
 		//return vifTrans_DirectHL<idx>((u32*)data);
-
-		if (isDirectHL) {
-			if (gif->chcr.STR && (!vif1Regs->mskpath3 && (Path3progress == IMAGE_MODE))) {
-				DevCon.WriteLn("DirectHL: Waiting for Path3 to finish!");
-				vif1Regs->stat.VGW = true; // PATH3 is in image mode, so wait for end of transfer
-				vif1.vifstalled    = true;
-				return 0;
-			}
+		gifRegs->stat.P2Q = true;
+		//Should probably do this for both types of transfer seen as the GS hates taking 2 seperate chunks
+		//if (isDirectHL) {
+		if (GSTransferStatus.PTH3 < STOPPED_MODE || GSTransferStatus.PTH1 != STOPPED_MODE)
+		{
+			/*if(!isDirectHL) DevCon.WriteLn("Direct: Waiting for Path3 to finish!");
+			else DevCon.WriteLn("DirectHL: Waiting for Path3 to finish!");*/
+			//VIF_LOG("Mask %x, GIF STR %x, PTH1 %x, PTH2 %x, PTH3 %x", vif1Regs->mskpath3, gif->chcr.STR, GSTransferStatus.PTH1, GSTransferStatus.PTH2, GSTransferStatus.PTH3);
+			vif1Regs->stat.VGW = true; // PATH3 is in image mode, so wait for end of transfer
+			vif1.vifstalled    = true;
+			return 0;
 		}
+		//}
+		gifRegs->stat.clear_flags(GIF_STAT_P2Q);
 
 		Registers::Freeze();
 		nVifStruct&	v	 = nVif[1];
 		const int	ret	 = aMin(vif1.vifpacketsize, vif1.tag.size);
-		s32			size = ret << 2;
+		u32			size = ret << 2;
+
+		gifRegs->stat.APATH = GIF_APATH2; //Flag is cleared in vif1interrupt to simulate it being in progress.
 
 		if (ret == v.vif->tag.size) { // Full Transfer
 			if (v.bSize) { // Last transfer was partial
@@ -137,11 +146,9 @@ template<int idx> _f int _vifCode_Direct(int pass, u8* data, bool isDirectHL) {
 			vif1.tag.size = 0;
 			vif1.cmd = 0;
 			v.bSize  = 0;
-			gifRegs->stat.clear_flags(GIF_STAT_APATH2 | GIF_STAT_OPH);
 		}
 		else { // Partial Transfer
-			//DevCon.WriteLn("DirectHL: Partial Transfer [%d]", size);
-			gifRegs->stat.set_flags(GIF_STAT_APATH2 | GIF_STAT_OPH);
+			//DevCon.WriteLn("DirectHL: Partial Transfer [%d]", size);			
 			memcpy_fast(&v.buffer[v.bSize], data, size);
 			v.bSize		  += size;
 			vif1.tag.size -= ret;
@@ -176,11 +183,10 @@ vifOp(vifCode_FlushA) {
 	vif1Only();
 	pass1 {
 		// Gif is already transferring so wait for it.
-		if (((Path3progress != STOPPED_MODE) || !vif1Regs->mskpath3) && gif->chcr.STR) { 
-			//DevCon.WriteLn("FlushA path3 Wait!");
+		if (GSTransferStatus.PTH3 < STOPPED_MODE) {
+			//DevCon.WriteLn("FlushA path3 Wait! PTH3 MD %x STR %x", GSTransferStatus.PTH3, gif->chcr.STR);
 			vif1Regs->stat.VGW = true;
 			vifX.vifstalled    = true;
-			CPU_INT(DMAC_GIF, 4);
 		}
 		vifFlush(idx);
 		vifX.cmd = 0;
@@ -413,7 +419,7 @@ vifOp(vifCode_STMod) {
 }
 
 vifOp(vifCode_Unpack) {
-	pass1 { 
+	pass1 {
 		if (!idx) vif0UnpackSetup(data);
 		else	  vif1UnpackSetup(data);
 		return 1;

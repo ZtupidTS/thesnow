@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -16,6 +16,7 @@
 #include "PrecompiledHeader.h"
 #include "Common.h"
 #include "Vif.h"
+#include "Gif.h"
 #include "Vif_Dma.h"
 
 VIFregisters *vifRegs;
@@ -80,7 +81,7 @@ static __forceinline bool mfifoVIF1rbTransfer()
 static __forceinline bool mfifo_VIF1chain()
 {
     bool ret;
-    
+
 	/* Is QWC = 0? if so there is nothing to transfer */
 	if ((vif1ch->qwc == 0) && (!vif1.vifstalled))
 	{
@@ -97,7 +98,7 @@ static __forceinline bool mfifo_VIF1chain()
 	}
 	else
 	{
-		tDMA_TAG *pMem = dmaGetAddr(vif1ch->madr);
+		tDMA_TAG *pMem = dmaGetAddr(vif1ch->madr, !vif1ch->chcr.DIR);
 		SPR_LOG("Non-MFIFO Location");
 
 		if (pMem == NULL) return false;
@@ -141,7 +142,7 @@ void mfifoVIF1transfer(int qwc)
 
 	if (vif1ch->qwc == 0 && vifqwc > 0)
 	{
-		ptag = dmaGetAddr(vif1ch->tadr);
+		ptag = dmaGetAddr(vif1ch->tadr, false);
 
 		if (vif1ch->chcr.TTE)
 		{
@@ -210,7 +211,7 @@ void mfifoVIF1transfer(int qwc)
 			vif1.done = true;
 		}
 	}
-
+	vif1Regs->stat.FQC = min(vif1ch->qwc, (u16)16);
 	vif1.inprogress |= 1;
 
 	SPR_LOG("mfifoVIF1transfer end %x madr %x, tadr %x vifqwc %x", vif1ch->chcr._u32, vif1ch->madr, vif1ch->tadr, vifqwc);
@@ -219,14 +220,20 @@ void mfifoVIF1transfer(int qwc)
 void vifMFIFOInterrupt()
 {
 	g_vifCycles = 0;
+	VIF_LOG("vif mfifo interrupt");
 
-	if (schedulepath3msk) Vif1MskPath3();
+	if (schedulepath3msk & 0x10) Vif1MskPath3();
+
+	if(gifRegs->stat.APATH == GIF_APATH2 && (vif1.cmd & 0x70) != 0x50)
+	{
+		gifRegs->stat.APATH = GIF_APATH_IDLE;
+	}
 
 	if ((vif1Regs->stat.VGW))
 	{
-		if (gif->chcr.STR)
+		if (GSTransferStatus.PTH3 < STOPPED_MODE || GSTransferStatus.PTH1 != STOPPED_MODE)
 		{
-			CPU_INT(10, 16);
+			CPU_INT(10, 4);
 			return;
 		}
 		else

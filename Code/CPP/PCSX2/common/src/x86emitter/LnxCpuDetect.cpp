@@ -1,5 +1,5 @@
 /*  Cpudetection lib
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -19,20 +19,20 @@
 
 // Note: Apparently this solution is Linux/Solaris only.
 // FreeBSD/OsX need something far more complicated (apparently)
-void CountLogicalCores( int LogicalCoresPerPhysicalCPU, int PhysicalCoresPerPhysicalCPU )
+void x86capabilities::CountLogicalCores()
 {
 	const uint numCPU = sysconf( _SC_NPROCESSORS_ONLN );
 	if( numCPU > 0 )
 	{
 		//isMultiCore = numCPU > 1;
-		x86caps.LogicalCores = numCPU;
-		x86caps.PhysicalCores = ( numCPU / LogicalCoresPerPhysicalCPU ) * PhysicalCoresPerPhysicalCPU;
+		LogicalCores = numCPU;
+		PhysicalCores = ( numCPU / LogicalCoresPerPhysicalCPU ) * PhysicalCoresPerPhysicalCPU;
 	}
 	else
 	{
 		// Indeterminate?
-		x86caps.LogicalCores = 1;
-		x86caps.PhysicalCores = 1;
+		LogicalCores = 1;
+		PhysicalCores = 1;
 	}
 }
 

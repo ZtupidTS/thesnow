@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -16,8 +16,6 @@
 
 #include "PrecompiledHeader.h"
 #include "IopCommon.h"
-
-extern void zeroEx();
 
 // Note: Branch instructions of the Interpreter are defined externally because
 // the recompiler shouldn't be using them (it isn't entirely safe, due to the
@@ -44,10 +42,7 @@ void psxJALR();
 void psxADDI() 	{ if (!_Rt_) return; _rRt_ = _u32(_rRs_) + _Imm_ ; }		// Rt = Rs + Im 	(Exception on Integer Overflow)
 void psxADDIU() {															// Rt = Rs + Im
 	if (!_Rt_)
-	{
-		zeroEx();
 		return;
-	}
 	_rRt_ = _u32(_rRs_) + _Imm_ ;
 }
 void psxANDI() 	{ if (!_Rt_) return; _rRt_ = _u32(_rRs_) & _ImmU_; }		// Rt = Rs And Im
@@ -171,9 +166,9 @@ void psxRFE() {
 
 void psxLB() {
 	if (_Rt_) {
-		_rRt_ = (s8 )iopMemRead8(_oB_); 
+		_rRt_ = (s8 )iopMemRead8(_oB_);
 	} else {
-		iopMemRead8(_oB_); 
+		iopMemRead8(_oB_);
 	}
 }
 
@@ -181,7 +176,7 @@ void psxLBU() {
 	if (_Rt_) {
 		_rRt_ = iopMemRead8(_oB_);
 	} else {
-		iopMemRead8(_oB_); 
+		iopMemRead8(_oB_);
 	}
 }
 
@@ -214,7 +209,7 @@ void psxLWL() {
 	u32 mem = iopMemRead32(_oB_ & 0xfffffffc);
 
 	if (!_Rt_) return;
-	_rRt_ =	( _u32(_rRt_) & (0x00ffffff >> shift) ) | 
+	_rRt_ =	( _u32(_rRt_) & (0x00ffffff >> shift) ) |
 				( mem << (24 - shift) );
 
 	/*
@@ -299,7 +294,7 @@ void psxCTC0() { _rFs_ = _u32(_rRt_); }
 * Unknown instruction (would generate an exception)       *
 * Format:  ?                                             *
 *********************************************************/
-void psxNULL() { 
+void psxNULL() {
 Console.Warning("psx: Unimplemented op %x", psxRegs.code);
 }
 
@@ -329,9 +324,9 @@ void (*psxBSC[64])() = {
 	psxCOP0   , psxNULL  , psxCOP2, psxNULL , psxNULL, psxNULL, psxNULL, psxNULL,
 	psxNULL   , psxNULL  , psxNULL, psxNULL , psxNULL, psxNULL, psxNULL, psxNULL,
 	psxLB     , psxLH    , psxLWL , psxLW   , psxLBU , psxLHU , psxLWR , psxNULL,
-	psxSB     , psxSH    , psxSWL , psxSW   , psxNULL, psxNULL, psxSWR , psxNULL, 
+	psxSB     , psxSH    , psxSWL , psxSW   , psxNULL, psxNULL, psxSWR , psxNULL,
 	psxNULL   , psxNULL  , psxNULL, psxNULL , psxNULL, psxNULL, psxNULL, psxNULL,
-	psxNULL   , psxNULL  , psxNULL, psxNULL  , psxNULL, psxNULL, psxNULL, psxNULL 
+	psxNULL   , psxNULL  , psxNULL, psxNULL  , psxNULL, psxNULL, psxNULL, psxNULL
 };
 
 
@@ -366,7 +361,7 @@ void (*psxCP2[64])() = {
 	psxNULL , psxNULL, psxNULL, psxNULL, psxNULL , psxNULL , psxNULL , psxNULL, // 10
 	psxNULL , psxNULL , psxNULL , psxNULL, psxNULL  , psxNULL , psxNULL  , psxNULL, // 18
 	psxNULL  , psxNULL , psxNULL , psxNULL, psxNULL, psxNULL , psxNULL , psxNULL, // 20
-	psxNULL  , psxNULL , psxNULL , psxNULL, psxNULL, psxNULL, psxNULL, psxNULL, // 28 
+	psxNULL  , psxNULL , psxNULL , psxNULL, psxNULL, psxNULL, psxNULL, psxNULL, // 28
 	psxNULL , psxNULL , psxNULL , psxNULL, psxNULL, psxNULL , psxNULL , psxNULL, // 30
 	psxNULL , psxNULL , psxNULL , psxNULL, psxNULL, psxNULL  , psxNULL  , psxNULL  // 38
 };

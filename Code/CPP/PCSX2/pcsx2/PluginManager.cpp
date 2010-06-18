@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -34,6 +34,12 @@ SysPluginBindings SysPlugins;
 bool SysPluginBindings::McdIsPresent( uint port, uint slot )
 {
 	return !!Mcd->McdIsPresent( (PS2E_THISPTR) Mcd, port, slot );
+}
+
+void SysPluginBindings::McdGetSizeInfo( uint port, uint slot, PS2E_McdSizeInfo& outways )
+{
+	if( Mcd->McdGetSizeInfo )
+		Mcd->McdGetSizeInfo( (PS2E_THISPTR) Mcd, port, slot, &outways );
 }
 
 void SysPluginBindings::McdRead( uint port, uint slot, u8 *dest, u32 adr, int size )
@@ -131,6 +137,7 @@ static s32  CALLBACK fallback_freeze(int mode, freezeData *data)
 
 static void CALLBACK fallback_keyEvent(keyEvent *ev) {}
 static void CALLBACK fallback_setSettingsDir(const char* dir) {}
+static void CALLBACK fallback_setLogDir(const char* dir) {}
 static void CALLBACK fallback_configure() {}
 static void CALLBACK fallback_about() {}
 static s32  CALLBACK fallback_test() { return 0; }
@@ -285,6 +292,7 @@ static const LegacyApi_CommonMethod s_MethMessCommon[] =
 
 	{	"keyEvent",			(vMeth*)fallback_keyEvent },
 	{	"setSettingsDir",	(vMeth*)fallback_setSettingsDir },
+	{	"setLogDir",	    (vMeth*)fallback_setLogDir },
 
 	{	"freeze",			(vMeth*)fallback_freeze	},
 	{	"test",				(vMeth*)fallback_test },
@@ -708,88 +716,191 @@ static void PS2E_CALLBACK pcsx2_OSD_WriteLn( int icon, const char* msg )
 }
 
 // ---------------------------------------------------------------------------------
-//          Plugin Manager Implementation
+//  PluginStatus_t Implementations
 // ---------------------------------------------------------------------------------
-
-PluginManager::PluginManager( const wxString (&folders)[PluginId_Count] )
+PluginManager::PluginStatus_t::PluginStatus_t( PluginsEnum_t _pid, const wxString& srcfile )
+	: Filename( srcfile )
 {
-	wxDoNotLogInThisScope please;
+	pid = _pid;
+
+	IsInitialized	= false;
+	IsOpened		= false;
+
+	if( Filename.IsEmpty() )
+		throw Exception::PluginInitError( pid, "Empty plugin filename." );
+
+	if( !wxFile::Exists( Filename ) )
+		throw Exception::PluginLoadError( pid, srcfile,
+		wxLt("The configured %s plugin file was not found")
+	);
+
+	if( !Lib.Load( Filename ) )
+		throw Exception::PluginLoadError( pid, Filename,
+		wxLt("The configured %s plugin file is not a valid dynamic library")
+	);
+
+
+	// Try to enumerate the new v2.0 plugin interface first.
+	// If that fails, fall back on the old style interface.
+
+	//m_libs[i].GetSymbol( L"PS2E_InitAPI" );		// on the TODO list!
+
 	
-	Console.WriteLn( Color_StrongBlue, "Loading plugins..." );
+	// 2.0 API Failed; Enumerate the Old Stuff! -->
 
-	const PluginInfo* pi = tbl_PluginInfo; do
+	_PS2EgetLibName		GetLibName		= (_PS2EgetLibName)		Lib.GetSymbol( L"PS2EgetLibName" );
+	_PS2EgetLibVersion2	GetLibVersion2	= (_PS2EgetLibVersion2)	Lib.GetSymbol( L"PS2EgetLibVersion2" );
+	_PS2EsetEmuVersion	SetEmuVersion	= (_PS2EsetEmuVersion)	Lib.GetSymbol( L"PS2EsetEmuVersion" );
+
+	if( GetLibName == NULL || GetLibVersion2 == NULL )
+		throw Exception::PluginLoadError( pid, Filename,
+			L"\nMethod binding failure on GetLibName or GetLibVersion2.\n",
+			_( "Configured plugin is not a PCSX2 plugin, or is for an older unsupported version of PCSX2." )
+		);
+
+	if( SetEmuVersion != NULL )
+		SetEmuVersion( "PCSX2", (0ul << 24) | (9ul<<16) | (7ul<<8) | 0 );
+
+	Name = fromUTF8( GetLibName() );
+	int version = GetLibVersion2( tbl_PluginInfo[pid].typemask );
+	Version.Printf( L"%d.%d.%d", (version>>8)&0xff, version&0xff, (version>>24)&0xff );
+
+
+	// Bind Required Functions
+	// (generate critical error if binding fails)
+
+	BindCommon( pid );
+	BindRequired( pid );
+	BindOptional( pid );
+
+	// Run Plugin's Functionality Test.
+	// A lot of plugins don't bother to implement this function and return 0 (success)
+	// regardless, but some do so let's go ahead and check it. I mean, we're supposed to. :)
+
+	int testres = CommonBindings.Test();
+	if( testres != 0 )
+		throw Exception::PluginLoadError( pid, Filename,
+			wxsFormat( L"Plugin Test failure, return code: %d", testres ),
+			_( "The plugin reports that your hardware or software/drivers are not supported." )
+		);
+}
+
+void PluginManager::PluginStatus_t::BindCommon( PluginsEnum_t pid )
+{
+	const LegacyApi_CommonMethod* current = s_MethMessCommon;
+	VoidMethod** target = (VoidMethod**)&CommonBindings;
+
+	wxDoNotLogInThisScope please;
+
+	while( current->MethodName != NULL )
 	{
-		ConsoleIndentScope indent;
-		const PluginsEnum_t pid = pi->id;
+		*target = (VoidMethod*)Lib.GetSymbol( current->GetMethodName( pid ) );
 
-		Console.WriteLn( L"Binding %s\t: %s ", tbl_PluginInfo[pid].GetShortname().c_str(), folders[pid].c_str() );
+		if( *target == NULL )
+			*target = current->Fallback;
 
-		if( folders[pid].IsEmpty() )
-			throw Exception::PluginInitError( pi->id, "Empty plugin filename." );
-
-		m_info[pid].Filename = folders[pid];
-
-		if( !wxFile::Exists( folders[pid] ) )
-			throw Exception::PluginLoadError( pid, folders[pid],
-				wxLt("The configured %s plugin file was not found")
-			);
-
-		if( !m_info[pid].Lib.Load( folders[pid] ) )
-			throw Exception::PluginLoadError( pid, folders[pid],
-				wxLt("The configured %s plugin file is not a valid dynamic library")
-			);
-
-		// Try to enumerate the new v2.0 plugin interface first.
-		// If that fails, fall back on the old style interface.
-
-		//m_libs[i].GetSymbol( L"PS2E_InitAPI" );
-
-		// Fetch plugin name and version information
-		
-		_PS2EgetLibName		GetLibName		= (_PS2EgetLibName)		m_info[pid].Lib.GetSymbol( L"PS2EgetLibName" );
-		_PS2EgetLibVersion2	GetLibVersion2	= (_PS2EgetLibVersion2)	m_info[pid].Lib.GetSymbol( L"PS2EgetLibVersion2" );
-		_PS2EsetEmuVersion	SetEmuVersion	= (_PS2EsetEmuVersion)	m_info[pid].Lib.GetSymbol( L"PS2EsetEmuVersion" );
-
-		if( GetLibName == NULL || GetLibVersion2 == NULL )
-			throw Exception::PluginLoadError( pid, m_info[pid].Filename,
-				L"\nMethod binding failure on GetLibName or GetLibVersion2.\n",
+		if( *target == NULL )
+		{
+			throw Exception::PluginLoadError( pid, Filename,
+				wxsFormat( L"\nMethod binding failure on: %s\n", current->GetMethodName( pid ).c_str() ),
 				_( "Configured plugin is not a PCSX2 plugin, or is for an older unsupported version of PCSX2." )
 			);
+		}
 
-		if( SetEmuVersion != NULL )
-			SetEmuVersion( "PCSX2", (0ul << 24) | (9ul<<16) | (7ul<<8) | 0 );
+		target++;
+		current++;
+	}
+}
 
-		m_info[pid].Name = fromUTF8( GetLibName() );
-		int version = GetLibVersion2( tbl_PluginInfo[pid].typemask );
-		m_info[pid].Version.Printf( L"%d.%d.%d", (version>>8)&0xff, version&0xff, (version>>24)&0xff );
+void PluginManager::PluginStatus_t::BindRequired( PluginsEnum_t pid )
+{
+	const LegacyApi_ReqMethod* current = s_MethMessReq[pid];
+	const wxDynamicLibrary& lib = Lib;
 
-		// Bind Required Functions
-		// (generate critical error if binding fails)
+	wxDoNotLogInThisScope please;
 
-		BindCommon( pid );
-		BindRequired( pid );
-		BindOptional( pid );
+	while( current->MethodName != NULL )
+	{
+		*(current->Dest) = (VoidMethod*)lib.GetSymbol( current->GetMethodName() );
 
-		// Run Plugin's Functionality Test.
-		// A lot of plugins don't bother to implement this function and return 0 (success)
-		// regardless, but some do so let's go ahead and check it. I mean, we're supposed to. :)
+		if( *(current->Dest) == NULL )
+			*(current->Dest) = current->Fallback;
 
-		int testres = m_info[pi->id].CommonBindings.Test();
-		if( testres != 0 )
-			throw Exception::PluginLoadError( pid, m_info[pid].Filename,
-				wxsFormat( L"Plugin Test failure, return code: %d", testres ),
-				_( "The plugin reports that your hardware or software/drivers are not supported." )
+		if( *(current->Dest) == NULL )
+		{
+			throw Exception::PluginLoadError( pid, Filename,
+				wxsFormat( L"\nMethod binding failure on: %s\n", current->GetMethodName().c_str() ),
+				_( "Configured plugin is not a valid PCSX2 plugin, or is for an older unsupported version of PCSX2." )
 			);
+		}
 
+		current++;
+	}
+}
+
+void PluginManager::PluginStatus_t::BindOptional( PluginsEnum_t pid )
+{
+	const LegacyApi_OptMethod* current = s_MethMessOpt[pid];
+	const wxDynamicLibrary& lib = Lib;
+
+	wxDoNotLogInThisScope please;
+
+	while( current->MethodName != NULL )
+	{
+		*(current->Dest) = (VoidMethod*)lib.GetSymbol( current->GetMethodName() );
+		current++;
+	}
+}
+
+// =====================================================================================
+//  PluginManager Implementations
+// =====================================================================================
+
+PluginManager::PluginManager()
+{
+}
+
+PluginManager::~PluginManager() throw()
+{
+	try
+	{
+		Unload();
+	}
+	DESTRUCTOR_CATCHALL
+
+	// All library unloading done automatically by wx.
+}
+
+void PluginManager::Load( PluginsEnum_t pid, const wxString& srcfile )
+{
+	ScopedLock lock( m_mtx_PluginStatus );
+	pxAssume( (uint)pid < PluginId_Count );
+	Console.Indent().WriteLn( L"Binding %s\t: %s ", tbl_PluginInfo[pid].GetShortname().c_str(), srcfile.c_str() );
+	m_info[pid] = new PluginStatus_t( pid, srcfile );
+}
+
+void PluginManager::Load( const wxString (&folders)[PluginId_Count] )
+{
+	if( !NeedsLoad() ) return;
+
+	wxDoNotLogInThisScope please;
+	
+	Console.WriteLn( Color_StrongBlue, "\nLoading plugins..." );
+
+	ConsoleIndentScope indent;
+	const PluginInfo* pi = tbl_PluginInfo; do
+	{
+		Load( pi->id, folders[pi->id] );
 		pxYield( 2 );
 
 	} while( ++pi, pi->shortname != NULL );
+	indent.EndScope();
 
 	CDVDapi_Plugin.newDiskCB( cdvdNewDiskCB );
 
 	// Hack for PAD's stupid parameter passed on Init
-	PADinit = (_PADinit)m_info[PluginId_PAD].CommonBindings.Init;
-	m_info[PluginId_PAD].CommonBindings.Init = _hack_PADinit;
+	PADinit = (_PADinit)m_info[PluginId_PAD]->CommonBindings.Init;
+	m_info[PluginId_PAD]->CommonBindings.Init = _hack_PADinit;
 
 	Console.WriteLn( Color_StrongBlue, "Plugins loaded successfully.\n" );
 
@@ -822,90 +933,32 @@ PluginManager::PluginManager( const wxString (&folders)[PluginId_Count] )
 		throw Exception::PluginLoadError( PluginId_Mcd, wxEmptyString, "Internal Memorycard Plugin failed to load." );
 	}
 
-	g_plugins = this;
-	
+	SendLogFolder();
 	SendSettingsFolder();
 }
 
-PluginManager::~PluginManager() throw()
+void PluginManager::Unload(PluginsEnum_t pid)
 {
-	try
-	{
-		Close();
-		Shutdown();
-	}
-	DESTRUCTOR_CATCHALL
-	// All library unloading done automatically.
-
-	if( g_plugins == this )
-		g_plugins = NULL;
+	ScopedLock lock( m_mtx_PluginStatus );
+	pxAssume( (uint)pid < PluginId_Count );
+	m_info[pid].Delete();
 }
 
-void PluginManager::BindCommon( PluginsEnum_t pid )
+void PluginManager::Unload()
 {
-	const LegacyApi_CommonMethod* current = s_MethMessCommon;
-	VoidMethod** target = (VoidMethod**)&m_info[pid].CommonBindings;
+	if( NeedsShutdown() )
+		Console.Warning( "(SysCorePlugins) Warning: Unloading plugins prior to shutdown!" );
 
-	wxDoNotLogInThisScope please;
+	//Shutdown();
 
-	while( current->MethodName != NULL )
-	{
-		*target = (VoidMethod*)m_info[pid].Lib.GetSymbol( current->GetMethodName( pid ) );
+	if( !NeedsUnload() ) return;
 
-		if( *target == NULL )
-			*target = current->Fallback;
+	DbgCon.WriteLn( Color_StrongBlue, "Unloading plugins..." );
 
-		if( *target == NULL )
-		{
-			throw Exception::PluginLoadError( pid, m_info[pid].Filename,
-				wxsFormat( L"\nMethod binding failure on: %s\n", current->GetMethodName( pid ).c_str() ),
-				_( "Configured plugin is not a PCSX2 plugin, or is for an older unsupported version of PCSX2." )
-			);
-		}
+	for( int i=PluginId_Count-1; i>=0; --i )
+		Unload( tbl_PluginInfo[i].id );
 
-		target++;
-		current++;
-	}
-}
-
-void PluginManager::BindRequired( PluginsEnum_t pid )
-{
-	const LegacyApi_ReqMethod* current = s_MethMessReq[pid];
-	const wxDynamicLibrary& lib = m_info[pid].Lib;
-
-	wxDoNotLogInThisScope please;
-
-	while( current->MethodName != NULL )
-	{
-		*(current->Dest) = (VoidMethod*)lib.GetSymbol( current->GetMethodName() );
-
-		if( *(current->Dest) == NULL )
-			*(current->Dest) = current->Fallback;
-
-		if( *(current->Dest) == NULL )
-		{
-			throw Exception::PluginLoadError( pid, m_info[pid].Filename,
-				wxsFormat( L"\nMethod binding failure on: %s\n", current->GetMethodName().c_str() ),
-				_( "Configured plugin is not a valid PCSX2 plugin, or is for an older unsupported version of PCSX2." )
-			);
-		}
-
-		current++;
-	}
-}
-
-void PluginManager::BindOptional( PluginsEnum_t pid )
-{
-	const LegacyApi_OptMethod* current = s_MethMessOpt[pid];
-	const wxDynamicLibrary& lib = m_info[pid].Lib;
-
-	wxDoNotLogInThisScope please;
-
-	while( current->MethodName != NULL )
-	{
-		*(current->Dest) = (VoidMethod*)lib.GetSymbol( current->GetMethodName() );
-		current++;
-	}
+	DbgCon.WriteLn( Color_StrongBlue, "Plugins unloaded successfully." );
 }
 
 // Exceptions:
@@ -976,9 +1029,21 @@ bool PluginManager::OpenPlugin_FW()
 	return true;
 }
 
+bool PluginManager::OpenPlugin_Mcd()
+{
+	ScopedLock lock( m_mtx_PluginStatus );
+
+	// [TODO] Fix up and implement PS2E_SessionInfo here!!  (the currently NULL parameter)
+	if( SysPlugins.Mcd )
+		SysPlugins.Mcd->Base.EmuOpen( (PS2E_THISPTR) SysPlugins.Mcd, NULL );
+
+	return true;
+}
+
 void PluginManager::Open( PluginsEnum_t pid )
 {
-	if( m_info[pid].IsOpened ) return;
+	pxAssume( (uint)pid < PluginId_Count );
+	if( IsOpen(pid) ) return;
 
 	Console.Indent().WriteLn( "Opening %s", tbl_PluginInfo[pid].shortname );
 
@@ -994,34 +1059,20 @@ void PluginManager::Open( PluginsEnum_t pid )
 		case PluginId_USB:	result = OpenPlugin_USB();	break;
 		case PluginId_FW:	result = OpenPlugin_FW();	break;
 		case PluginId_DEV9:	result = OpenPlugin_DEV9();	break;
+
 		jNO_DEFAULT;
 	}
 	if( !result )
 		throw Exception::PluginOpenError( pid );
 
-	m_info[pid].IsOpened = true;
-}
-
-bool PluginManager::NeedsOpen() const
-{
-	const PluginInfo* pi = tbl_PluginInfo; do {
-		if( !m_info[pi->id].IsOpened ) break;
-	} while( ++pi, pi->shortname != NULL );
-
-	return pi->shortname != NULL;
-}
-
-bool PluginManager::NeedsClose() const
-{
-	const PluginInfo* pi = tbl_PluginInfo; do {
-		if( m_info[pi->id].IsOpened ) break;
-	} while( ++pi, pi->shortname != NULL );
-
-	return pi->shortname != NULL;
+	ScopedLock lock( m_mtx_PluginStatus );
+	if( m_info[pid] ) m_info[pid]->IsOpened = true;
 }
 
 void PluginManager::Open()
 {
+	Init();
+
 	if( !NeedsOpen() ) return;		// Spam stopper:  returns before writing any logs. >_<
 
 	Console.WriteLn( Color_StrongBlue, "Opening plugins..." );
@@ -1038,15 +1089,32 @@ void PluginManager::Open()
 
 	if (GSopen2) GetMTGS().WaitForOpen();
 
+	if( !AtomicExchange( m_mcdOpen, true ) )
+	{
+		DbgCon.Indent().WriteLn( "Opening Memorycards");
+		OpenPlugin_Mcd();
+	}
+
 	Console.WriteLn( Color_StrongBlue, "Plugins opened successfully." );
+}
+
+void PluginManager::_generalclose( PluginsEnum_t pid )
+{
+	ScopedLock lock( m_mtx_PluginStatus );
+	if( m_info[pid] ) m_info[pid]->CommonBindings.Close();
 }
 
 void PluginManager::ClosePlugin_GS()
 {
-	// force-close PAD before GS, because the PAD depends on the GS window.
+	// old-skool: force-close PAD before GS, because the PAD depends on the GS window.
 
-	Close( PluginId_PAD );
-	GetMTGS().Suspend();
+	if( GetMTGS().IsSelf() )
+		_generalclose( PluginId_GS );
+	else
+	{
+		if( !GSopen2 ) Close( PluginId_PAD );
+		GetMTGS().Suspend();
+	}
 }
 
 void PluginManager::ClosePlugin_CDVD()
@@ -1056,34 +1124,43 @@ void PluginManager::ClosePlugin_CDVD()
 
 void PluginManager::ClosePlugin_PAD()
 {
-	m_info[PluginId_PAD].CommonBindings.Close();
+	_generalclose( PluginId_PAD );
 }
 
 void PluginManager::ClosePlugin_SPU2()
 {
-	m_info[PluginId_SPU2].CommonBindings.Close();
+	_generalclose( PluginId_SPU2 );
 }
 
 void PluginManager::ClosePlugin_DEV9()
 {
-	m_info[PluginId_DEV9].CommonBindings.Close();
+	_generalclose( PluginId_DEV9 );
 }
 
 void PluginManager::ClosePlugin_USB()
 {
-	m_info[PluginId_USB].CommonBindings.Close();
+	_generalclose( PluginId_USB );
 }
 
 void PluginManager::ClosePlugin_FW()
 {
-	m_info[PluginId_FW].CommonBindings.Close();
+	_generalclose( PluginId_FW );
 }
 
+void PluginManager::ClosePlugin_Mcd()
+{
+	ScopedLock lock( m_mtx_PluginStatus );
+	if( SysPlugins.Mcd ) SysPlugins.Mcd->Base.EmuClose( (PS2E_THISPTR) SysPlugins.Mcd );
+}
 
 void PluginManager::Close( PluginsEnum_t pid )
 {
-	if( !m_info[pid].IsOpened ) return;
-	Console.Indent().WriteLn( "Closing %s", tbl_PluginInfo[pid].shortname );
+	pxAssume( (uint)pid < PluginId_Count );
+
+	if( !IsOpen(pid) ) return;
+	
+	if( !GetMTGS().IsSelf() )		// stop the spam!
+		Console.Indent().WriteLn( "Closing %s", tbl_PluginInfo[pid].shortname );
 
 	switch( pid )
 	{
@@ -1094,11 +1171,13 @@ void PluginManager::Close( PluginsEnum_t pid )
 		case PluginId_USB:	ClosePlugin_USB();	break;
 		case PluginId_FW:	ClosePlugin_FW();	break;
 		case PluginId_DEV9:	ClosePlugin_DEV9();	break;
+		case PluginId_Mcd:	ClosePlugin_Mcd();	break;
 		
 		jNO_DEFAULT;
 	}
 
-	m_info[pid].IsOpened = false;
+	ScopedLock lock( m_mtx_PluginStatus );
+	if( m_info[pid] ) m_info[pid]->IsOpened = false;
 }
 
 void PluginManager::Close()
@@ -1110,10 +1189,39 @@ void PluginManager::Close()
 
 	DbgCon.WriteLn( Color_StrongBlue, "Closing plugins..." );
 
+	if( AtomicExchange( m_mcdOpen, false ) )
+	{
+		DbgCon.Indent().WriteLn( "Closing Memorycards");
+		ClosePlugin_Mcd();
+	}
+
 	for( int i=PluginId_Count-1; i>=0; --i )
 		Close( tbl_PluginInfo[i].id );
-
+	
 	DbgCon.WriteLn( Color_StrongBlue, "Plugins closed successfully." );
+}
+
+void PluginManager::Init( PluginsEnum_t pid )
+{
+	ScopedLock lock( m_mtx_PluginStatus );
+
+	if( !m_info[pid] || m_info[pid]->IsInitialized ) return;
+
+	Console.Indent().WriteLn( "Init %s", tbl_PluginInfo[pid].shortname );
+	if( NULL != m_info[pid]->CommonBindings.Init() )
+		throw Exception::PluginInitError( pid );
+
+	m_info[pid]->IsInitialized = true;
+}
+
+void PluginManager::Shutdown( PluginsEnum_t pid )
+{
+	ScopedLock lock( m_mtx_PluginStatus );
+
+	if( !m_info[pid] || !m_info[pid]->IsInitialized ) return;
+	DevCon.Indent().WriteLn( "Shutdown %s", tbl_PluginInfo[pid].shortname );
+	m_info[pid]->IsInitialized = false;
+	m_info[pid]->CommonBindings.Shutdown();
 }
 
 // Initializes all plugins.  Plugin initialization should be done once for every new emulation
@@ -1126,22 +1234,11 @@ void PluginManager::Close()
 //
 void PluginManager::Init()
 {
-	bool printlog = false;
-	const PluginInfo* pi = tbl_PluginInfo; do
-	{
-		const PluginsEnum_t pid = pi->id;
+	if( !NeedsInit() ) return;
 
-		if( m_info[pid].IsInitialized ) continue;
-		if( !printlog )
-		{
-			Console.WriteLn( Color_StrongBlue, "Initializing plugins..." );
-			printlog = true;
-		}
-		Console.Indent().WriteLn( "Init %s", tbl_PluginInfo[pid].shortname );
-		if( 0 != m_info[pid].CommonBindings.Init() )
-			throw Exception::PluginInitError( pid );
-
-		m_info[pid].IsInitialized = true;
+	Console.WriteLn( Color_StrongBlue, "\nInitializing plugins..." );
+	const PluginInfo* pi = tbl_PluginInfo; do {
+		Init( pi->id );
 	} while( ++pi, pi->shortname != NULL );
 
 	if( SysPlugins.Mcd == NULL )
@@ -1154,9 +1251,9 @@ void PluginManager::Init()
 		}
 	}
 
-	if( printlog )
-		Console.WriteLn( Color_StrongBlue, "Plugins initialized successfully.\n" );
+	Console.WriteLn( Color_StrongBlue, "Plugins initialized successfully.\n" );
 }
+
 
 // Shuts down all plugins.  Plugins are closed first, if necessary.
 //
@@ -1166,9 +1263,12 @@ void PluginManager::Init()
 //
 void PluginManager::Shutdown()
 {
-	GetMTGS().Cancel();	// cancel it for speedier shutdown!
+	if( !NeedsShutdown() ) return;
 
-	Close();
+	pxAssumeDev( !NeedsClose(), "Cannot shut down plugins prior to Close()" );
+	
+	GetMTGS().Cancel();	// cancel it for speedier shutdown!
+	
 	DbgCon.WriteLn( Color_StrongGreen, "Shutting down plugins..." );
 
 	// Shutdown plugins in reverse order (probably doesn't matter...
@@ -1176,11 +1276,7 @@ void PluginManager::Shutdown()
 
 	for( int i=PluginId_Count-1; i>=0; --i )
 	{
-		const PluginsEnum_t pid = tbl_PluginInfo[i].id;
-		if( !m_info[pid].IsInitialized ) continue;
-		DevCon.Indent().WriteLn( "Shutdown %s", tbl_PluginInfo[pid].shortname );
-		m_info[pid].IsInitialized = false;
-		m_info[pid].CommonBindings.Shutdown();
+		Shutdown( tbl_PluginInfo[i].id );
 	}
 
 	// More memorycard hacks!!
@@ -1208,7 +1304,8 @@ bool PluginManager::DoFreeze( PluginsEnum_t pid, int mode, freezeData* data )
 	}
 	else
 	{
-		return m_info[pid].CommonBindings.Freeze( mode, data ) != -1;
+		ScopedLock lock( m_mtx_PluginStatus );
+		return !m_info[pid] || m_info[pid]->CommonBindings.Freeze( mode, data ) != -1;
 	}
 }
 
@@ -1219,6 +1316,9 @@ bool PluginManager::DoFreeze( PluginsEnum_t pid, int mode, freezeData* data )
 //
 void PluginManager::Freeze( PluginsEnum_t pid, SaveStateBase& state )
 {
+	// No locking leeded -- DoFreeze locks as needed, and this avoids MTGS deadlock.
+	//ScopedLock lock( m_mtx_PluginStatus );
+
 	Console.Indent().WriteLn( "%s %s", state.IsSaving() ? "Saving" : "Loading",
 		tbl_PluginInfo[pid].shortname );
 
@@ -1265,14 +1365,16 @@ void PluginManager::Freeze( PluginsEnum_t pid, SaveStateBase& state )
 
 bool PluginManager::KeyEvent( const keyEvent& evt )
 {
+	ScopedLock lock( m_mtx_PluginStatus );
+
 	// [TODO] : The plan here is to give plugins "first chance" handling of keys.
 	// Handling order will be fixed (GS, SPU2, PAD, etc), and the first plugin to
 	// pick up the key and return "true" (for handled) will cause the loop to break.
 	// The current version of PS2E doesn't support it yet, though.
 
 	const PluginInfo* pi = tbl_PluginInfo; do {
-		if( pi->id != PluginId_PAD )
-			m_info[pi->id].CommonBindings.KeyEvent( const_cast<keyEvent*>(&evt) );
+		if( pi->id != PluginId_PAD && m_info[pi->id] )
+			m_info[pi->id]->CommonBindings.KeyEvent( const_cast<keyEvent*>(&evt) );
 	} while( ++pi, pi->shortname != NULL );
 
 	return false;
@@ -1280,17 +1382,20 @@ bool PluginManager::KeyEvent( const keyEvent& evt )
 
 void PluginManager::SendSettingsFolder()
 {
+	ScopedLock lock( m_mtx_PluginStatus );
 	if( m_SettingsFolder.IsEmpty() ) return;
 
-	wxCharBuffer utf8buffer( m_SettingsFolder.ToUTF8() );
+	pxToUTF8 utf8buffer( m_SettingsFolder );
 
 	const PluginInfo* pi = tbl_PluginInfo; do {
-		m_info[pi->id].CommonBindings.SetSettingsDir( utf8buffer );
+		if( m_info[pi->id] ) m_info[pi->id]->CommonBindings.SetSettingsDir( utf8buffer );
 	} while( ++pi, pi->shortname != NULL );
 }
 
 void PluginManager::SetSettingsFolder( const wxString& folder )
 {
+	ScopedLock lock( m_mtx_PluginStatus );
+
 	wxString fixedfolder( folder );
 	if( !fixedfolder.IsEmpty() && (fixedfolder[fixedfolder.length()-1] != wxFileName::GetPathSeparator() ) )
 	{
@@ -1302,28 +1407,159 @@ void PluginManager::SetSettingsFolder( const wxString& folder )
 	SendSettingsFolder();
 }
 
-void PluginManager::Configure( PluginsEnum_t pid )
+void PluginManager::SendLogFolder()
 {
-	m_info[pid].CommonBindings.Configure();
-}
+	ScopedLock lock( m_mtx_PluginStatus );
+	if( m_LogFolder.IsEmpty() ) return;
 
-PluginManager* PluginManager_Create( const wxChar* (&folders)[PluginId_Count] )
-{
-	wxString passins[PluginId_Count];
+	pxToUTF8 utf8buffer( m_LogFolder );
 
 	const PluginInfo* pi = tbl_PluginInfo; do {
-		passins[pi->id] = folders[pi->id];
+		if( m_info[pi->id] ) m_info[pi->id]->CommonBindings.SetLogFolder( utf8buffer );
 	} while( ++pi, pi->shortname != NULL );
-
-	return new PluginManager( passins );
 }
 
-static PluginManagerBase s_pluginman_placebo;
-
-// retrieves a handle to the current plugin manager.  Plugin manager is assumed to be valid,
-// and debug-level assertions are performed on the validity of the handle.
-PluginManagerBase& GetPluginManager()
+void PluginManager::SetLogFolder( const wxString& folder )
 {
-	if( g_plugins == NULL ) return s_pluginman_placebo;
-	return *g_plugins;
+	ScopedLock lock( m_mtx_PluginStatus );
+
+	wxString fixedfolder( folder );
+	if( !fixedfolder.IsEmpty() && (fixedfolder[fixedfolder.length()-1] != wxFileName::GetPathSeparator() ) )
+	{
+		fixedfolder += wxFileName::GetPathSeparator();
+	}
+
+	if( m_LogFolder == fixedfolder ) return;
+	m_LogFolder = fixedfolder;
+	SendLogFolder();
+}
+
+void PluginManager::Configure( PluginsEnum_t pid )
+{
+	ScopedLock lock( m_mtx_PluginStatus );
+	if( m_info[pid] ) m_info[pid]->CommonBindings.Configure();
+}
+
+bool PluginManager::AreLoaded() const
+{
+	ScopedLock lock( m_mtx_PluginStatus );
+	for( int i=0; i<PluginId_Count; ++i )
+	{
+		if( !m_info[i] ) return false;
+	}
+
+	return true;
+}
+
+bool PluginManager::AreAnyLoaded() const
+{
+	ScopedLock lock( m_mtx_PluginStatus );
+	for( int i=0; i<PluginId_Count; ++i )
+	{
+		if( m_info[i] ) return true;
+	}
+
+	return false;
+}
+
+bool PluginManager::AreAnyInitialized() const
+{
+	ScopedLock lock( m_mtx_PluginStatus );
+	const PluginInfo* pi = tbl_PluginInfo; do {
+		if( IsInitialized(pi->id) ) return true;
+	} while( ++pi, pi->shortname != NULL );
+
+	return false;
+}
+
+bool PluginManager::IsOpen( PluginsEnum_t pid ) const
+{
+	pxAssume( (uint)pid < PluginId_Count );
+	ScopedLock lock( m_mtx_PluginStatus );
+	return m_info[pid] && m_info[pid]->IsOpened;
+}
+
+bool PluginManager::IsInitialized( PluginsEnum_t pid ) const
+{
+	pxAssume( (uint)pid < PluginId_Count );
+	ScopedLock lock( m_mtx_PluginStatus );
+	return m_info[pid] && m_info[pid]->IsInitialized;
+}
+
+bool PluginManager::IsLoaded( PluginsEnum_t pid ) const
+{
+	pxAssume( (uint)pid < PluginId_Count );
+	return !!m_info[pid];
+}
+
+bool PluginManager::NeedsLoad() const
+{
+	const PluginInfo* pi = tbl_PluginInfo; do {
+		if( !IsLoaded(pi->id) ) return true;
+	} while( ++pi, pi->shortname != NULL );
+	
+	return false;
+}		
+
+bool PluginManager::NeedsUnload() const
+{
+	const PluginInfo* pi = tbl_PluginInfo; do {
+		if( IsLoaded(pi->id) ) return true;
+	} while( ++pi, pi->shortname != NULL );
+
+	return false;
+}		
+
+bool PluginManager::NeedsInit() const
+{
+	ScopedLock lock( m_mtx_PluginStatus );
+
+	const PluginInfo* pi = tbl_PluginInfo; do {
+		if( !IsInitialized(pi->id) ) return true;
+	} while( ++pi, pi->shortname != NULL );
+
+	return false;
+}
+
+bool PluginManager::NeedsShutdown() const
+{
+	ScopedLock lock( m_mtx_PluginStatus );
+
+	const PluginInfo* pi = tbl_PluginInfo; do {
+		if( IsInitialized(pi->id) ) return true;
+	} while( ++pi, pi->shortname != NULL );
+
+	return false;
+}
+
+bool PluginManager::NeedsOpen() const
+{
+	const PluginInfo* pi = tbl_PluginInfo; do {
+		if( !IsOpen(pi->id) ) return true;
+	} while( ++pi, pi->shortname != NULL );
+
+	return false;
+}
+
+bool PluginManager::NeedsClose() const
+{
+	const PluginInfo* pi = tbl_PluginInfo; do {
+		if( IsOpen(pi->id) ) return true;
+	} while( ++pi, pi->shortname != NULL );
+
+	return false;
+}
+
+const wxString PluginManager::GetName( PluginsEnum_t pid ) const
+{
+	ScopedLock lock( m_mtx_PluginStatus );
+	pxAssume( (uint)pid < PluginId_Count );
+	return m_info[pid] ? m_info[pid]->Name : (wxString)_("Unloaded Plugin");
+}
+
+const wxString PluginManager::GetVersion( PluginsEnum_t pid ) const
+{
+	ScopedLock lock( m_mtx_PluginStatus );
+	pxAssume( (uint)pid < PluginId_Count );
+	return m_info[pid] ? m_info[pid]->Version : L"0.0";
 }

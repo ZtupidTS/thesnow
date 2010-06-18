@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -20,12 +20,10 @@
 #include "Elfheader.h"
 
 using namespace std;
-extern void InitPatch(const wxString& crc);
 
 u32 ElfCRC;
-
-// uncomment this to enable pcsx2hostfs loading when using "load elf"
-#define USE_HOSTFS
+u32 ElfEntry;
+wxString LastELF;
 
 #if 0
 // fixme: ELF command line option system.
@@ -140,11 +138,11 @@ static uint parseCommandLine( const wxString& filename )
 }
 #endif
 //---------------
-	
+
 // All of ElfObjects functions.
 ElfObject::ElfObject(const wxString& srcfile, IsoFile isofile)
 	: filename( srcfile )
-		
+
 	, data( wxULongLong(isofile.getLength()).GetLo(), L"ELF headers" )
 	, header( *(ELF_HEADER*)data.GetPtr() )
 	, proghead( NULL )
@@ -155,7 +153,7 @@ ElfObject::ElfObject(const wxString& srcfile, IsoFile isofile)
 	readIso(isofile);
 	initElfHeaders();
 }
-	
+
 ElfObject::ElfObject( const wxString& srcfile, uint hdrsize )
 	: filename( srcfile )
 	, data( wxULongLong(hdrsize).GetLo(), L"ELF headers" )
@@ -168,7 +166,7 @@ ElfObject::ElfObject( const wxString& srcfile, uint hdrsize )
 	readFile();
 	initElfHeaders();
 }
-	
+
 void ElfObject::initElfHeaders()
 {
 	Console.WriteLn( L"Initializing Elf: %d bytes", data.GetSizeInBytes());
@@ -184,9 +182,9 @@ void ElfObject::initElfHeaders()
 
 	if ( ( header.e_phnum > 0 ) && ( header.e_phentsize != sizeof(ELF_PHR) ) )
 		Console.Error( "(ELF) Size of program headers is not standard" );
-	
+
 	//getCRC();
-	
+
 	const char* elftype = NULL;
 	switch( header.e_type )
 	{
@@ -198,11 +196,11 @@ void ElfObject::initElfHeaders()
 		case 0x1: elftype = "relocatable";	break;
 		case 0x2: elftype = "executable";	break;
 	}
-	
+
 	if (elftype != NULL) ELF_LOG( "type:      %s", elftype );
 
 	const char* machine = NULL;
-	
+
 	switch(header.e_machine)
 	{
 		case 1: machine = "AT&T WE 32100";	break;
@@ -233,28 +231,28 @@ void ElfObject::initElfHeaders()
 	ELF_LOG("sh strndx: %08x",header.e_shstrndx);
 
 	ELF_LOG("\n");
-	
+
 	//applyPatches();
 }
-	
+
 bool ElfObject::hasProgramHeaders() { return (proghead != NULL); }
 bool ElfObject::hasSectionHeaders() { return (secthead != NULL); }
 bool ElfObject::hasHeaders() { return (hasProgramHeaders() && hasSectionHeaders()); }
-	
+
 void ElfObject::readIso(IsoFile file)
 {
 	int rsize = file.read(data.GetPtr(), data.GetSizeInBytes());
 	if (rsize < data.GetSizeInBytes()) throw Exception::EndOfStream( filename );
 }
-	
+
 void ElfObject::readFile()
 {
 	int rsize = 0;
 	FILE *f;
-			
+
 	f = fopen( filename.ToUTF8(), "rb" );
 	if (f == NULL) Exception::FileNotFound( filename );
-		
+
 	fseek(f, 0, SEEK_SET);
 	rsize = fread(data.GetPtr(), 1, data.GetSizeInBytes(), f);
 	fclose( f );
@@ -273,8 +271,8 @@ void ElfObject::checkElfSize(s64 elfsize)
 	if (elfsize == 0)
 		throw Exception::BadStream( filename, wxLt("Unexpected end of ELF file: ") );
 }
-	
-void ElfObject::getCRC()
+
+u32 ElfObject::getCRC()
 {
 	u32 CRC = 0;
 
@@ -282,7 +280,7 @@ void ElfObject::getCRC()
 	for(u32 i=data.GetSizeInBytes()/4; i; --i, ++srcdata)
 		CRC ^= *srcdata;
 
-	ElfCRC = CRC;
+	return CRC;
 }
 
 void ElfObject::loadProgramHeaders()
@@ -294,7 +292,7 @@ void ElfObject::loadProgramHeaders()
 		ELF_LOG( "Elf32 Program Header" );
 		ELF_LOG( "type:      " );
 
-		switch(proghead[ i ].p_type) 
+		switch(proghead[ i ].p_type)
 		{
 			default:
 				ELF_LOG( "unknown %x", (int)proghead[ i ].p_type );
@@ -305,7 +303,7 @@ void ElfObject::loadProgramHeaders()
 				ELF_LOG("load");
 				const uint elfsize = data.GetLength();
 
-				if (proghead[ i ].p_offset < elfsize) 
+				if (proghead[ i ].p_offset < elfsize)
 				{
 					int size;
 
@@ -404,7 +402,7 @@ void ElfObject::loadSectionHeaders()
 		Console.WriteLn("found %d symbols", secthead[i_st].sh_size / sizeof(Elf32_Sym));
 
 		for(uint i = 1; i < (secthead[i_st].sh_size / sizeof(Elf32_Sym)); i++) {
-			if ((eS[i].st_value != 0) && (ELF32_ST_TYPE(eS[i].st_info) == 2)) 
+			if ((eS[i].st_value != 0) && (ELF32_ST_TYPE(eS[i].st_info) == 2))
 			{
 				R5900::disR5900AddSym(eS[i].st_value, &SymNames[eS[i].st_name]);
 			}
@@ -418,139 +416,6 @@ void ElfObject::loadHeaders()
 	loadSectionHeaders();
 }
 
-void ElfObject::applyPatches()
-{
-	wxString filename( wxsFormat( L"%8.8x", ElfCRC ) );
-
-	// if patches found the following status msg will be overwritten
-	Console.SetTitle(L"Game running [CRC=" + filename +L"]");
-
-	if (EmuConfig.EnablePatches) InitPatch(filename);
-    GetMTGS().SendGameCRC(ElfCRC);
-}
-
-// Loads the elf binary data from the specified file into PS2 memory, and injects the ELF's
-// starting execution point into cpuRegs.pc.  If the filename is a cdrom URI in the form
-// of "cdrom0:" or "cdrom1:" then the CDVD is used as the source; otherwise the ELF is loaded
-// from the host filesystem.
-//
-// If it starts with "cdrom:", an exception is thrown, unless PS1 emulation is being attempted.
-//
-// If the specified filename is empty then no action is taken (PS2 will continue booting
-// normally as if it has no CD.
-//
-// Throws exceptions on errors. Not called if not skipping the bios.
-//
-#ifdef USE_HOSTFS
-void loadElfFile(const wxString& _filename)
-#else
-void loadElfFile(const wxString& filename)
-#endif
-{
-	ScopedPtr<ElfObject> elfptr;
-	bool iscdvd;
-
-#ifdef USE_HOSTFS
-	wxString filename = _filename;
-	wxString parameters = _filename; // 
-#endif
-
-	if (filename.IsEmpty()) return;
-
-	Console.WriteLn( L"loadElfFile: " + filename );
-
-	if (filename.StartsWith(L"cdrom:") && !ENABLE_LOADING_PS1_GAMES)
-		throw Exception::RuntimeError( wxLt("This is not a Ps2 disc. (And we don't currently emulate PS1 games)") );
-	
-	iscdvd = (filename.StartsWith(L"cdrom:") || filename.StartsWith(L"cdrom0:") || filename.StartsWith(L"cdrom1:"));
-	if (iscdvd)
-	{
-		// It's a game disc.
-		DevCon.WriteLn(L"Loading from a CD rom or CD image.");
-		
-		IsoFSCDVD isofs;
-		IsoFile file(isofs, filename);
-		
-		elfptr = new ElfObject(filename, file);
-	}
-	else
-	{
-		// It's an elf file.
-		DevCon.WriteLn("Loading from a file (or non-cd image).");
-#ifdef USE_HOSTFS
-		parameters = filename;
-		filename = wxT("pcsx2hostfs_ldr.elf");
-#endif
-		elfptr = new ElfObject(filename, Path::GetFileSize(filename));
-#ifdef USE_HOSTFS
-		filename = wxT("host:pcsx2hostfs_ldr.elf");
-#endif
-	}
-
-	if (!elfptr->hasProgramHeaders())
-	{
-		throw Exception::BadStream( filename, elfptr->isCdvd ?
-			wxLt("Invalid ELF file header.  The CD-Rom may be damaged, or the ISO image corrupted.") :
-			wxLt("Invalid ELF file.")
-		);
-	}
-
-	//2002-09-19 (Florin)
-	//args_ptr = 0xFFFFFFFF;	//big value, searching for minimum [used by parseCommandLine]
-
-	elfptr->loadHeaders();
-
-	cpuRegs.pc = elfptr->header.e_entry; //set pc to proper place
-	ELF_LOG( "PC set to: %8.8lx", cpuRegs.pc );
-
-	cpuRegs.GPR.n.sp.UL[0] = 0x81f00000;
-	cpuRegs.GPR.n.gp.UL[0] = 0x81f80000; // might not be 100% ok
-	//cpuRegs.GPR.n.a0.UL[0] = parseCommandLine( filename );		// see #ifdef'd out parseCommendLine for details.
-#ifdef USE_HOSTFS
-
-	//HACK!!!!!!!!!!!!!
-	uptr params_addr = 0x1FFFC00; // elf loader will check this address for params
-	s8*  params_ptr  = (s8*)PSM(params_addr);
-	s8*  params_magic = params_ptr + 0;
-	s8*  params_argc = params_ptr + 4;
-	s8*  params_argv = params_ptr + 8;
-	*(u32*)params_magic = 'PS2E';
-	*(u32*)params_argc = 2;
-	strcpy(params_argv,filename.ToAscii());
-	params_argv += strlen(params_argv)+1;
-	strcpy(params_argv,parameters.ToAscii());
-	params_argv += strlen(params_argv)+1;
-	strcpy(params_argv,"");
-
-#endif
-
-	for( uint i = 0; i < 0x100000; i++ )
-	{
-		if( memcmp( "rom0:OSDSYS", (char*)PSM( i ), 11 ) == 0 )
-		{
-			// All right, this is not likely to be right. It's fine if it is a cd, but
-			// We really do not want to pass the elf file with full path and drive letter
-			// into pcsx2 memory, like this.
-			strcpy((char*)PSM(i), filename.ToUTF8());
-			
-			// We could test and only do it if (iscdvd) is true, or we could do something 
-			// like this if it isn't a cdvd:
-			// strcpy((char*)PSM(i), wxsFormat(L"rom0:"+Path::GetFilename(filename)).ToUTF8());
-			
-			// Though the question is what device name to pass if we do that...
-			// Not sure, so I'm leaving it the known incorrect way for now. --arcum42
-			
-			DevCon.WriteLn( wxsFormat(L"loadElfFile: addr %x \"rom0:OSDSYS\" -> \"" + filename + L"\"", i));
-		}
-	}
-	elfptr->getCRC();
-	Console.WriteLn( L"loadElfFile: %s; CRC = %8.8X", filename.c_str(), ElfCRC );
-	elfptr->applyPatches();
-	elfptr.Delete();
-	
-	return;
-}
-
 // return value:
 //   0 - Invalid or unknown disc.
 //   1 - PS1 CD
@@ -558,7 +423,7 @@ void loadElfFile(const wxString& filename)
 int GetPS2ElfName( wxString& name )
 {
 	int retype = 0;
-	
+
 	try {
 		IsoFSCDVD isofs;
 		IsoFile file( isofs, L"SYSTEM.CNF;1");
@@ -608,6 +473,10 @@ int GetPS2ElfName( wxString& name )
 			return 0;
 		}
 	}
+	catch (Exception::BadStream&)
+	{
+		return 0;		// ISO error
+	}
 	catch( Exception::FileNotFound& )
 	{
 		return 0;		// no SYSTEM.CNF, not a PS1/PS2 disc.
@@ -641,6 +510,6 @@ int GetPS2ElfName( wxString& name )
 	}
 	fclose(fp);
 #endif
-	
+
 	return retype;
 }

@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -20,38 +20,47 @@
 #include "coroutine.h"
 #include "IPU_Fifo.h"
 
-// IPU_INLINE_IRQS
-// Scheduling ints into the future is a purist approach to emulation, and
-// is mostly cosmetic since the emulator itself performs all actions instantly
-// (as far as the emulated CPU is concerned).  In some cases this can actually
-// cause more sync problems than it supposedly solves, due to accumulated
-// delays incurred by the recompiler's low cycle update rate and also Pcsx2
-// failing to properly handle pre-emptive DMA/IRQs or cpu exceptions.
-
-// Uncomment the following line to enable inline IRQs for the IPU.  Tests show
-// that it doesn't have any effect on compatibility or audio/video sync, and it
-// speeds up movie playback by some 6-8%. But it lacks the purist touch, so it's
-// not enabled by default.
-
-//#define IPU_INLINE_IRQS
-
 #ifdef _MSC_VER
 #pragma pack(1)
 #endif
 
-
 #define ipumsk( src ) ( (src) & 0xff )
 #define ipucase( src ) case ipumsk(src)
+
+#define IPU_INT_TO( cycles )  if(!(cpuRegs.interrupt & (1<<4))) CPU_INT( DMAC_TO_IPU, cycles )
+#define IPU_INT_FROM( cycles )  CPU_INT( DMAC_FROM_IPU, cycles )
+
+#define IPU_FORCEINLINE __forceinline
+
+struct IPUStatus {
+	bool InProgress;
+	u8 DMAMode;
+	bool DMAFinished;
+	bool IRQTriggered;
+	u8 TagFollow;
+	u32 TagAddr;
+	bool stalled;
+	u8 ChainMode;
+	u32 NextMem;
+};
+
+#define DMA_MODE_NORMAL 0
+#define DMA_MODE_CHAIN 1
+
+#define IPU1_TAG_FOLLOW 0
+#define IPU1_TAG_QWC 1
+#define IPU1_TAG_ADDR 2
+#define IPU1_TAG_NONE 3
 
 //
 // Bitfield Structures
 //
 
-struct tIPU_CMD 
+struct tIPU_CMD
 {
-	union 
+	union
 	{
-		struct 
+		struct
 		{
 			u32 OPTION : 28;	// VDEC decoded value
 			u32 CMD : 4;	// last command
@@ -60,7 +69,7 @@ struct tIPU_CMD
 	};
 	u32 BUSY;
 };
-			
+
 union tIPU_CTRL {
 	struct {
 		u32 IFC : 4;	// Input FIFO counter
@@ -82,7 +91,7 @@ union tIPU_CTRL {
 	u32 _u32;
 
 	tIPU_CTRL( u32 val ) { _u32 = val; }
-	
+
     // CTRL = the first 16 bits of ctrl [0x8000ffff], + value for the next 16 bits,
     // minus the reserved bits. (18-19; 27-29) [0x47f30000]
 	void write(u32 value) { _u32 = (value & 0x47f30000) | (_u32 & 0x8000ffff); }
@@ -126,7 +135,7 @@ union tIPU_CMD_IDEC
 	u32 _u32;
 
 	tIPU_CMD_IDEC( u32 val ) { _u32 = val; }
-	
+
 	bool test(u32 flags) const { return !!(_u32 & flags); }
 	void set_flags(u32 flags) { _u32 |= flags; }
 	void clear_flags(u32 flags) { _u32 &= ~flags; }
@@ -174,7 +183,7 @@ union tIPU_CMD_BDEC
 	u32 _u32;
 
 	tIPU_CMD_BDEC( u32 val ) { _u32 = val; }
-	
+
 	bool test(u32 flags) const { return !!(_u32 & flags); }
 	void set_flags(u32 flags) { _u32 |= flags; }
 	void clear_flags(u32 flags) { _u32 &= ~flags; }
@@ -216,7 +225,7 @@ union tIPU_CMD_CSC
 	u32 _u32;
 
 	tIPU_CMD_CSC( u32 val ){ _u32 = val; }
-	
+
 	bool test(u32 flags) const { return !!(_u32 & flags); }
 	void set_flags(u32 flags) { _u32 |= flags; }
 	void clear_flags(u32 flags) { _u32 &= ~flags; }
@@ -261,9 +270,9 @@ union tIPU_DMA
 		bool SIFSTALL : 1;
 	};
 	u32 _u32;
-	
+
 	tIPU_DMA( u32 val ){ _u32 = val; }
-	
+
 	bool test(u32 flags) const { return !!(_u32 & flags); }
 	void set_flags(u32 flags) { _u32 |= flags; }
 	void clear_flags(u32 flags) { _u32 &= ~flags; }
@@ -271,7 +280,7 @@ union tIPU_DMA
 	wxString desc() const
 	{
 		wxString temp(L"g_nDMATransfer[");
-		
+
 		if (GIFSTALL) temp += L" GIFSTALL ";
 		if (TIE0) temp += L" TIE0 ";
 		if (TIE1) temp += L" TIE1 ";
@@ -281,7 +290,7 @@ union tIPU_DMA
 		if (FIREINT1) temp += L" FIREINT1 ";
 		if (VIFSTALL) temp += L" VIFSTALL ";
 		if (SIFSTALL) temp += L" SIFSTALL ";
-		
+
 		temp += L"]";
 		return temp;
 	}

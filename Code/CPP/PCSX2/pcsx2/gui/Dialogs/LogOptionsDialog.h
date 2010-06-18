@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -31,8 +31,9 @@ class LogOptionsDialog : public BaseApplicableDialog
 public:
 	LogOptionsDialog( wxWindow* parent=NULL );
 	virtual ~LogOptionsDialog() throw() { }
-	
-	static const wxChar* GetNameStatic() { return L"Dialog:TraceLogSettings"; }
+
+	static wxString GetNameStatic() { return L"TraceLogSettings"; }
+	wxString GetDialogName() const { return GetNameStatic(); }
 
 protected:
 	void OnOk_Click( wxCommandEvent& evt );

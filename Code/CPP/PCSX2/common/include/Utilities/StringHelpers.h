@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -19,6 +19,47 @@
 
 #include <wx/tokenzr.h>
 #include <wx/gdicmn.h>		// for wxPoint/wxRect stuff
+
+
+// --------------------------------------------------------------------------------------
+//  pxToUTF8
+// --------------------------------------------------------------------------------------
+// Converts a string to UTF8 and provides an interface for getting its length.
+class pxToUTF8
+{
+	DeclareNoncopyableObject( pxToUTF8 );
+
+protected:
+	wxCharBuffer	m_result;
+	int				m_length;
+
+public:
+	explicit pxToUTF8(const wxString& src)
+		: m_result( src.ToUTF8() )
+	{
+		m_length = -1;
+	}
+
+	size_t Length()
+	{
+		if( -1 == m_length )
+			m_length = strlen( m_result );
+		return m_length;
+	}
+
+	void Convert( const wxString& src )
+	{
+		m_result = src.ToUTF8();
+		m_length = -1;
+	}
+	
+	const char* data() const { return m_result; }
+	
+	operator const char*() const
+	{
+		return m_result.data();
+	}
+};
 
 extern void px_fputs( FILE* fp, const char* src );
 
@@ -64,6 +105,11 @@ struct ParsedAssignmentString
 
 	ParsedAssignmentString( const wxString& src );
 };
+
+extern bool pxParseAssignmentString( const wxString& src, wxString& ldest, wxString& rdest );
+
+extern wxString FastFormatString_Ascii(const char* fmt, va_list argptr);
+extern wxString FastFormatString_Unicode(const wxChar* fmt, va_list argptr);
 
 
 //////////////////////////////////////////////////////////////////////////////////////////

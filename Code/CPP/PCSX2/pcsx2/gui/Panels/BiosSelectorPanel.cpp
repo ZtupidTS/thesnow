@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -24,6 +24,8 @@
 #include <wx/filepicker.h>
 #include <wx/listbox.h>
 
+using namespace pxSizerFlags;
+
 // =====================================================================================================
 //  BaseSelectorPanel
 // =====================================================================================================
@@ -31,19 +33,11 @@ Panels::BaseSelectorPanel::BaseSelectorPanel( wxWindow* parent )
 	: BaseApplicableConfigPanel( parent, wxVERTICAL )
 {
 	Connect( wxEVT_COMMAND_DIRPICKER_CHANGED,	wxFileDirPickerEventHandler	(BaseSelectorPanel::OnFolderChanged) );
-	//Connect( wxEVT_ACTIVATE,					wxActivateEventHandler		(BaseSelectorPanel::OnActivate) );
 	Connect( wxEVT_SHOW,						wxShowEventHandler			(BaseSelectorPanel::OnShow) );
 }
 
 Panels::BaseSelectorPanel::~BaseSelectorPanel() throw()
 {
-}
-
-void Panels::BaseSelectorPanel::OnActivate(wxActivateEvent& evt)
-{
-	evt.Skip();
-	if( !evt.GetActive() ) return;
-	OnShown();
 }
 
 void Panels::BaseSelectorPanel::OnShow(wxShowEvent& evt)
@@ -67,10 +61,16 @@ bool Panels::BaseSelectorPanel::Show( bool visible )
 	return BaseApplicableConfigPanel::Show( visible );
 }
 
-void Panels::BaseSelectorPanel::OnRefresh( wxCommandEvent& evt )
+void Panels::BaseSelectorPanel::RefreshSelections()
 {
 	ValidateEnumerationStatus();
 	DoRefresh();
+}
+
+void Panels::BaseSelectorPanel::OnRefreshSelections( wxCommandEvent& evt )
+{
+	evt.Skip();
+	RefreshSelections();
 }
 
 void Panels::BaseSelectorPanel::OnFolderChanged( wxFileDirPickerEvent& evt )
@@ -82,25 +82,31 @@ void Panels::BaseSelectorPanel::OnFolderChanged( wxFileDirPickerEvent& evt )
 // =====================================================================================================
 //  BiosSelectorPanel
 // =====================================================================================================
-Panels::BiosSelectorPanel::BiosSelectorPanel( wxWindow* parent, int idealWidth )
+Panels::BiosSelectorPanel::BiosSelectorPanel( wxWindow* parent )
 	: BaseSelectorPanel( parent )
-	, m_ComboBox( *new wxListBox( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, 0, NULL, wxLB_SINGLE | wxLB_SORT | wxLB_NEEDED_SB ) )
-	, m_FolderPicker( *new DirPickerPanel( this, FolderId_Bios,
+{
+	SetMinWidth( 480 );
+
+	m_ComboBox		= new wxListBox( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, 0, NULL, wxLB_SINGLE | wxLB_SORT | wxLB_NEEDED_SB );
+	m_FolderPicker	= new DirPickerPanel( this, FolderId_Bios,
 		_("BIOS 搜索路径:"),						// static box label
 		_("选择 PS2 BIOS ROM所在的文件夹")		// dir picker popup label
-	) )
-{
-	if( idealWidth != wxDefaultCoord ) m_idealWidth = idealWidth;
+	);
 
-	m_ComboBox.SetFont( wxFont( m_ComboBox.GetFont().GetPointSize()+1, wxFONTFAMILY_MODERN, wxNORMAL, wxNORMAL, false, L"Lucida Console" ) );
-	m_ComboBox.SetMinSize( wxSize( wxDefaultCoord, std::max( m_ComboBox.GetMinSize().GetHeight(), 96 ) ) );
+	m_ComboBox->SetFont( wxFont( m_ComboBox->GetFont().GetPointSize()+1, wxFONTFAMILY_MODERN, wxNORMAL, wxNORMAL, false, L"Lucida Console" ) );
+	m_ComboBox->SetMinSize( wxSize( wxDefaultCoord, std::max( m_ComboBox->GetMinSize().GetHeight(), 96 ) ) );
+	
+	m_FolderPicker->SetStaticDesc( _("Click the Browse button to select a different folder where PCSX2 will look for PS2 BIOS roms.") );
 
-	m_FolderPicker.SetStaticDesc( _("点击浏览按钮选择 PS2 BIOS ROM所在的路径.") );
+	wxButton* refreshButton = new wxButton( this, wxID_ANY, _("刷新列表") );
 
-	*this	+= Text(_("选择一个 BIOS ROM:"));
-	*this	+= m_ComboBox		| pxSizerFlags::StdExpand();
-	*this	+= 6;
-	*this	+= m_FolderPicker	| pxSizerFlags::StdExpand();
+	*this	+= Label(_("选择一个 BIOS ROM:"));
+	*this	+= m_ComboBox		| StdExpand();
+	*this	+= refreshButton	| pxBorder(wxLEFT, StdPadding);
+	*this	+= 8;
+	*this	+= m_FolderPicker	| StdExpand();
+
+	Connect( refreshButton->GetId(), wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(BiosSelectorPanel::OnRefreshSelections) );
 }
 
 Panels::BiosSelectorPanel::~BiosSelectorPanel() throw ()
@@ -109,7 +115,10 @@ Panels::BiosSelectorPanel::~BiosSelectorPanel() throw ()
 
 void Panels::BiosSelectorPanel::Apply()
 {
-	int sel = m_ComboBox.GetSelection();
+	// User never visited this tab, so there's nothing to apply.
+	if( !m_BiosList ) return;
+
+	int sel = m_ComboBox->GetSelection();
 	if( sel == wxNOT_FOUND )
 	{
 		throw Exception::CannotApplySettings( this,
@@ -117,14 +126,14 @@ void Panels::BiosSelectorPanel::Apply()
 			L"用户不能指定一个有效 BIOS 选择.",
 
 			// Translated
-			pxE( ".Popup Error:Invalid BIOS Selection",
+			pxE( ".Error:BIOS:InvalidSelection",
 				L"请选择一个有效 BIOS. 如果您不能选择一个有效的BIOS,"
 				L"请按取消关闭这个设置面板."
 			)
 		);
 	}
 
-	g_Conf->BaseFilenames.Bios = (*m_BiosList)[(int)m_ComboBox.GetClientData(sel)];
+	g_Conf->BaseFilenames.Bios = (*m_BiosList)[(int)m_ComboBox->GetClientData(sel)];
 }
 
 void Panels::BiosSelectorPanel::AppStatusEvent_OnSettingsApplied()
@@ -139,8 +148,8 @@ bool Panels::BiosSelectorPanel::ValidateEnumerationStatus()
 	// occurs during file enumeration.
 	ScopedPtr<wxArrayString> bioslist( new wxArrayString() );
 
-	if( m_FolderPicker.GetPath().Exists() )
-		wxDir::GetAllFiles( m_FolderPicker.GetPath().ToString(), bioslist, L"*.*", wxDIR_FILES );
+	if( m_FolderPicker->GetPath().Exists() )
+		wxDir::GetAllFiles( m_FolderPicker->GetPath().ToString(), bioslist, L"*.*", wxDIR_FILES );
 
 	if( !m_BiosList || (*bioslist != *m_BiosList) )
 		validated = false;
@@ -154,21 +163,17 @@ void Panels::BiosSelectorPanel::DoRefresh()
 {
 	if( !m_BiosList ) return;
 
-	m_ComboBox.Clear();
+	m_ComboBox->Clear();
 
-	wxFileName right( g_Conf->FullpathToBios() );
-	right.MakeAbsolute();
+	const wxFileName right( g_Conf->FullpathToBios() );
 
 	for( size_t i=0; i<m_BiosList->GetCount(); ++i )
 	{
 		wxString description;
 		if( !IsBIOS((*m_BiosList)[i], description) ) continue;
-		int sel = m_ComboBox.Append( description, (void*)i );
+		int sel = m_ComboBox->Append( description, (void*)i );
 
-		wxFileName left( (*m_BiosList)[i] );
-		left.MakeAbsolute();
-
-		if( left == right )
-			m_ComboBox.SetSelection( sel );
+		if( wxFileName((*m_BiosList)[i] ) == right )
+			m_ComboBox->SetSelection( sel );
 	}
 }

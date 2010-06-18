@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -12,7 +12,7 @@
  *  You should have received a copy of the GNU General Public License along with PCSX2.
  *  If not, see <http://www.gnu.org/licenses/>.
  */
- 
+
 #ifndef __PS2EDEFS_H__
 #define __PS2EDEFS_H__
 
@@ -245,6 +245,7 @@ s32  CALLBACK GSopen(void *pDsp, char *Title, int multithread);
 void CALLBACK GSclose();
 void CALLBACK GSshutdown();
 void CALLBACK GSsetSettingsDir( const char* dir );
+void CALLBACK GSsetLogDir( const char* dir );
 
 void CALLBACK GSvsync(int field);
 void CALLBACK GSgifTransfer1(u32 *pMem, u32 addr);
@@ -298,6 +299,7 @@ s32  CALLBACK PADopen(void *pDsp);
 void CALLBACK PADclose();
 void CALLBACK PADshutdown();
 void CALLBACK PADsetSettingsDir( const char* dir );
+void CALLBACK PADsetLogDir( const char* dir );
 
 // PADkeyEvent is called every vsync (return NULL if no event)
 keyEvent* CALLBACK PADkeyEvent();
@@ -339,6 +341,7 @@ s32  CALLBACK SPU2open(void *pDsp);
 void CALLBACK SPU2close();
 void CALLBACK SPU2shutdown();
 void CALLBACK SPU2setSettingsDir( const char* dir );
+void CALLBACK SPU2setLogDir( const char* dir );
 
 void CALLBACK SPU2write(u32 mem, u16 value);
 u16  CALLBACK SPU2read(u32 mem);
@@ -399,6 +402,7 @@ s32  CALLBACK CDVDopen(const char* pTitleFilename);
 void CALLBACK CDVDclose();
 void CALLBACK CDVDshutdown();
 void CALLBACK CDVDsetSettingsDir( const char* dir );
+void CALLBACK CDVDsetLogDir( const char* dir );
 
 s32  CALLBACK CDVDreadTrack(u32 lsn, int mode);
 
@@ -421,7 +425,7 @@ void CALLBACK CDVDabout();
 s32  CALLBACK CDVDtest();
 void CALLBACK CDVDnewDiskCB(void (*callback)());
 
-// new funcs 
+// new funcs
 
 // read a track directly
 s32  CALLBACK CDVDreadSector(u8* buffer, s32 lsn, int mode);
@@ -449,6 +453,7 @@ s32  CALLBACK DEV9open(void *pDsp);
 void CALLBACK DEV9close();
 void CALLBACK DEV9shutdown();
 void CALLBACK DEV9setSettingsDir( const char* dir );
+void CALLBACK DEV9setLogDir( const char* dir );
 
 u8   CALLBACK DEV9read8(u32 addr);
 u16  CALLBACK DEV9read16(u32 addr);
@@ -491,6 +496,7 @@ s32  CALLBACK USBopen(void *pDsp);
 void CALLBACK USBclose();
 void CALLBACK USBshutdown();
 void CALLBACK USBsetSettingsDir( const char* dir );
+void CALLBACK USBsetLogDir( const char* dir );
 
 u8   CALLBACK USBread8(u32 addr);
 u16  CALLBACK USBread16(u32 addr);
@@ -529,6 +535,7 @@ s32  CALLBACK FWopen(void *pDsp);
 void CALLBACK FWclose();
 void CALLBACK FWshutdown();
 void CALLBACK FWsetSettingsDir( const char* dir );
+void CALLBACK FWsetLogDir( const char* dir );
 
 u32  CALLBACK FWread32(u32 addr);
 void CALLBACK FWwrite32(u32 addr, u32 value);

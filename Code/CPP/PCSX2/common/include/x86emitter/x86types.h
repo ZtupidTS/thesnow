@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -40,7 +40,7 @@ enum XMMSSEType
 #else
 #	if !PCSX2_THREAD_LOCAL
 		// No TLS support?  Force-clear the MT flag:
-#		pragma message("x86emitter: TLS not available, multithreaded emitter disabled.")		
+#		pragma message("x86emitter: TLS not available, multithreaded emitter disabled.")
 #		undef x86EMIT_MULTITHREADED
 #		define x86EMIT_MULTITHREADED	0
 #	endif
@@ -363,7 +363,7 @@ template< typename T > void xWrite( T val );
 
 		bool operator==( const xRegisterSSE& src ) const	{ return this->Id == src.Id; }
 		bool operator!=( const xRegisterSSE& src ) const	{ return this->Id != src.Id; }
-		
+
 		xRegisterSSE& operator++()
 		{
 			++Id &= (iREGCNT_XMM-1);
@@ -616,54 +616,14 @@ template< typename T > void xWrite( T val );
 		s32				Displacement;	// offset applied to the Base/Index registers.
 
 	public:
-		explicit ModSibBase( const xAddressInfo& src )
-		{
-			Base		= src.Base;
-			Index		= src.Index;
-			Scale		= src.Factor;
-			Displacement= src.Displacement;
+		explicit ModSibBase( const xAddressInfo& src );
+		explicit ModSibBase( s32 disp );
+		ModSibBase( xAddressReg base, xAddressReg index, int scale=0, s32 displacement=0 );
 
-			Reduce();
-		}
+		virtual uint GetOperandSize() const;
+		ModSibBase& Add( s32 imm );
 
-		ModSibBase( xAddressReg base, xAddressReg index, int scale=0, s32 displacement=0 )
-		{
-			Base		= base;
-			Index		= index;
-			Scale		= scale;
-			Displacement= displacement;
-
-			Reduce();
-		}
-
-		explicit ModSibBase( s32 disp )
-		{
-			Base		= xEmptyReg;
-			Index		= xEmptyReg;
-			Scale		= 0;
-			Displacement= disp;
-
-			// no reduction necessary :D
-		}
-
-		ModSibBase( const void* target )
-		{
-			Base		= xEmptyReg;
-			Index		= xEmptyReg;
-			Scale		= 0;
-			Displacement= (s32)target;
-
-			// no reduction necessary :D
-		}
-
-		virtual uint GetOperandSize() const { pxFail( "Invalid operation on ModSibBase" ); return 0; }
 		bool IsByteSizeDisp() const { return is_s8( Displacement ); }
-
-		ModSibBase& Add( s32 imm )
-		{
-			Displacement += imm;
-			return *this;
-		}
 
 		__forceinline ModSibBase operator+( const s32 imm ) const { return ModSibBase( *this ).Add( imm ); }
 		__forceinline ModSibBase operator-( const s32 imm ) const { return ModSibBase( *this ).Add( -imm ); }
@@ -682,7 +642,6 @@ template< typename T > void xWrite( T val );
 	protected:
 		explicit ModSib32orLess( const xAddressInfo& src ) : _parent( src ) {}
 		explicit ModSib32orLess( s32 disp ) : _parent( disp ) {}
-		ModSib32orLess( const void* target ) : _parent( target ) {}
 		ModSib32orLess( xAddressReg base, xAddressReg index, int scale=0, s32 displacement=0 ) :
 			_parent( base, index, scale, displacement ) {}
 	};
@@ -701,9 +660,8 @@ template< typename T > void xWrite( T val );
 	public: \
 		explicit ModSib##bits( const xAddressInfo& src ) : _parent( src ) {} \
 		explicit ModSib##bits( s32 disp ) : _parent( disp ) {} \
-		ModSib##bits( const u##bits* target ) : _parent( target ) {} \
-		ModSib##bits( xAddressReg base, xAddressReg index, int scale=0, s32 displacement=0 ) : \
-			_parent( base, index, scale, displacement ) {} \
+		ModSib##bits( xAddressReg base, xAddressReg index, int scale=0, s32 displacement=0 ) \
+			: _parent( base, index, scale, displacement ) {} \
  \
 		virtual uint GetOperandSize() const { return bits / 8; } \
  \
@@ -742,8 +700,9 @@ template< typename T > void xWrite( T val );
 	// xAddressReg types go in, and ModSibBase derived types come out.
 	//
 	template< typename xModSibType >
-	struct xAddressIndexer
+	class xAddressIndexer
 	{
+	public:
 		// passthrough instruction, allows ModSib to pass silently through ptr translation
 		// without doing anything and without compiler error.
 		const xModSibType& operator[]( const xModSibType& src ) const { return src; }
@@ -754,11 +713,6 @@ template< typename T > void xWrite( T val );
 		}
 
 		xModSibType operator[]( const xAddressInfo& src ) const
-		{
-			return xModSibType( src );
-		}
-
-		xModSibType operator[]( uptr src ) const
 		{
 			return xModSibType( src );
 		}

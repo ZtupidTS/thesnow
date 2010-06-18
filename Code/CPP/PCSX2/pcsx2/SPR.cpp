@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -52,51 +52,51 @@ int  _SPR0chain()
 	tDMA_TAG *pMem;
 
 	if (spr0->qwc == 0) return 0;
-	pMem = dmaGetAddr(spr0->madr);
+	pMem = SPRdmaGetAddr(spr0->madr, true);
 	if (pMem == NULL) return -1;
 
 	switch (dmacRegs->ctrl.MFD)
 	{
 		case MFD_VIF1:
 		case MFD_GIF:
-			if ((spr0->madr & ~dmacRegs->rbsr.RMSK) != dmacRegs->rbor.ADDR) 
+			if ((spr0->madr & ~dmacRegs->rbsr.RMSK) != dmacRegs->rbor.ADDR)
 				Console.WriteLn("SPR MFIFO Write outside MFIFO area");
-			else 
+			else
 				mfifotransferred += spr0->qwc;
-			
+
 			hwMFIFOWrite(spr0->madr, &psSu8(spr0->sadr), spr0->qwc << 4);
 			spr0->madr += spr0->qwc << 4;
 			spr0->madr = dmacRegs->rbor.ADDR + (spr0->madr & dmacRegs->rbsr.RMSK);
 			break;
-			
+
 		case NO_MFD:
 		case MFD_RESERVED:
 			memcpy_fast((u8*)pMem, &psSu8(spr0->sadr), spr0->qwc << 4);
-			
+
 			// clear VU mem also!
 			TestClearVUs(spr0->madr, spr0->qwc << 2); // Wtf is going on here? AFAIK, only VIF should affect VU micromem (cottonvibes)
 			spr0->madr += spr0->qwc << 4;
 			break;
 	}
-	
+
 	spr0->sadr += spr0->qwc << 4;
 
 	return (spr0->qwc) * BIAS; // bus is 1/2 the ee speed
 }
 
-__forceinline void SPR0chain() 
+__forceinline void SPR0chain()
 {
-	_SPR0chain(); 
+	_SPR0chain();
 	spr0->qwc = 0;
 }
 
 void _SPR0interleave()
 {
 	int qwc = spr0->qwc;
-	int sqwc = dmacRegs->sqwc.SQWC; 
-	int tqwc = dmacRegs->sqwc.TQWC; 
+	int sqwc = dmacRegs->sqwc.SQWC;
+	int tqwc = dmacRegs->sqwc.TQWC;
 	tDMA_TAG *pMem;
-	
+
 	if (tqwc == 0) tqwc = qwc;
 	//Console.WriteLn("dmaSPR0 interleave");
 	SPR_LOG("SPR0 interleave size=%d, tqwc=%d, sqwc=%d, addr=%lx sadr=%lx",
@@ -106,8 +106,8 @@ void _SPR0interleave()
 	{
 		spr0->qwc = std::min(tqwc, qwc);
 		qwc -= spr0->qwc;
-		pMem = dmaGetAddr(spr0->madr);
-		
+		pMem = SPRdmaGetAddr(spr0->madr, true);
+
 		switch (dmacRegs->ctrl.MFD)
  		{
 			case MFD_VIF1:
@@ -115,7 +115,7 @@ void _SPR0interleave()
 				hwMFIFOWrite(spr0->madr, &psSu8(spr0->sadr), spr0->qwc << 4);
 				mfifotransferred += spr0->qwc;
 				break;
-			
+
 			case NO_MFD:
 			case MFD_RESERVED:
 				// clear VU mem also!
@@ -161,9 +161,9 @@ static __forceinline void _dmaSPR0()
 			// Destination Chain Mode
 			ptag = (tDMA_TAG*)&psSu32(spr0->sadr);
 			spr0->sadr += 16;
-			
+
 			spr0->unsafeTransfer(ptag);
-			
+
 			spr0->madr = ptag[1]._u32;					//MADR = ADDR field + SPR
 
 			SPR_LOG("spr0 dmaChain %8.8x_%8.8x size=%d, id=%d, addr=%lx spr=%lx",
@@ -188,17 +188,17 @@ static __forceinline void _dmaSPR0()
 					done = true;
 					break;
 			}
-			
+
 			SPR0chain();
-			
+
 			if (spr0->chcr.TIE && ptag->IRQ)  			 //Check TIE bit of CHCR and IRQ bit of tag
 			{
 				//Console.WriteLn("SPR0 TIE");
 				done = true;
 			}
-				
+
 			spr0finished = done;
-			
+
 			if (!done)
 			{
 				ptag = (tDMA_TAG*)&psSu32(spr0->sadr);		//Set memory pointer to SADR
@@ -251,6 +251,8 @@ void SPRFROMinterrupt()
 		}
 	}
 	if (!spr0finished) return;
+
+
 	spr0->chcr.STR = false;
 	hwDmacIrq(DMAC_FROM_SPR);
 }
@@ -267,6 +269,7 @@ void dmaSPR0()   // fromSPR
 		CPU_INT(DMAC_FROM_SPR, /*ptag[0].QWC / BIAS*/ 4 );
 		return;
 	}
+	if(spr0->chcr.MOD == CHAIN_MODE && spr0->qwc > 0) DevCon.Warning(L"SPR0 QWC on Chain " + spr0->chcr.desc());
 	// COMPLETE HACK!!! For now at least..  FFX Videos dont rely on interrupts or reading DMA values
 	// It merely assumes that the last one has finished then starts another one (broke with the DMA fix)
 	// This "shouldn't" cause any problems as SPR is generally faster than the other DMAS anyway. (Refraction)
@@ -286,7 +289,7 @@ int  _SPR1chain()
 
 	if (spr1->qwc == 0) return 0;
 
-	pMem = dmaGetAddr(spr1->madr);
+	pMem = SPRdmaGetAddr(spr1->madr, false);
 	if (pMem == NULL) return -1;
 
 	SPR1transfer((u32*)pMem, spr1->qwc << 2);
@@ -295,19 +298,19 @@ int  _SPR1chain()
 	return (spr1->qwc) * BIAS;
 }
 
-__forceinline void SPR1chain() 
+__forceinline void SPR1chain()
 {
-	_SPR1chain(); 
+	_SPR1chain();
 	spr1->qwc = 0;
 }
 
 void _SPR1interleave()
 {
 	int qwc = spr1->qwc;
-	int sqwc = dmacRegs->sqwc.SQWC; 
-	int tqwc =  dmacRegs->sqwc.TQWC; 
+	int sqwc = dmacRegs->sqwc.SQWC;
+	int tqwc =  dmacRegs->sqwc.TQWC;
 	tDMA_TAG *pMem;
-	
+
 	if (tqwc == 0) tqwc = qwc;
 	SPR_LOG("SPR1 interleave size=%d, tqwc=%d, sqwc=%d, addr=%lx sadr=%lx",
 	        spr1->qwc, tqwc, sqwc, spr1->madr, spr1->sadr);
@@ -316,10 +319,10 @@ void _SPR1interleave()
 	{
 		spr1->qwc = std::min(tqwc, qwc);
 		qwc -= spr1->qwc;
-		pMem = dmaGetAddr(spr1->madr);
+		pMem = SPRdmaGetAddr(spr1->madr, false);
 		memcpy_fast(&psSu8(spr1->sadr), (u8*)pMem, spr1->qwc << 4);
 		spr1->sadr += spr1->qwc * 16;
-		spr1->madr += (sqwc + spr1->qwc) * 16; 
+		spr1->madr += (sqwc + spr1->qwc) * 16;
 	}
 
 	spr1->qwc = 0;
@@ -352,8 +355,8 @@ void _dmaSPR1()   // toSPR work function
 			}
 			// Chain Mode
 
-			ptag = dmaGetAddr(spr1->tadr);		//Set memory pointer to TADR
-			
+			ptag = SPRdmaGetAddr(spr1->tadr, false);		//Set memory pointer to TADR
+
 			if (!spr1->transfer("SPR1 Tag", ptag))
 			{
 				done = true;
@@ -382,11 +385,11 @@ void _dmaSPR1()   // toSPR work function
 				//Console.WriteLn("SPR1 TIE");
 				done = true;
 			}
-			
+
 			spr1finished = done;
 			if (!done)
 			{
-				ptag = dmaGetAddr(spr1->tadr);		//Set memory pointer to TADR
+				ptag = SPRdmaGetAddr(spr1->tadr, false);		//Set memory pointer to TADR
 				CPU_INT(DMAC_TO_SPR, /*(ptag[0].QWC / BIAS)*/ 4 );// the lower 16 bits of the tag / BIAS);
 			}
 			break;
@@ -410,10 +413,11 @@ void dmaSPR1()   // toSPR
 	if ((spr1->chcr.MOD == CHAIN_MODE) && (spr1->qwc == 0))
 	{
 		tDMA_TAG *ptag;
-		ptag = dmaGetAddr(spr1->tadr);		//Set memory pointer to TADR
+		ptag = SPRdmaGetAddr(spr1->tadr, false);		//Set memory pointer to TADR
 		CPU_INT(DMAC_TO_SPR, /*ptag[0].QWC / BIAS*/ 4 );
 		return;
 	}
+	if(spr1->chcr.MOD == CHAIN_MODE && spr1->qwc > 0) DevCon.Warning(L"SPR1 QWC on Chain " + spr1->chcr.desc());
 	// COMPLETE HACK!!! For now at least..  FFX Videos dont rely on interrupts or reading DMA values
 	// It merely assumes that the last one has finished then starts another one (broke with the DMA fix)
 	// This "shouldn't" cause any problems as SPR is generally faster than the other DMAS anyway. (Refraction)
@@ -424,6 +428,7 @@ void SPRTOinterrupt()
 {
 	_dmaSPR1();
 	if (!spr1finished) return;
+
 	spr1->chcr.STR = false;
 	hwDmacIrq(DMAC_TO_SPR);
 }

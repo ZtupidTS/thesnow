@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -16,6 +16,7 @@
 #pragma once
 
 #include "Threading.h"
+#include "ScopedPtrMT.h"
 #include "EventSource.h"
 
 namespace Threading
@@ -44,7 +45,7 @@ namespace Threading
 		virtual void Block() {}
 		virtual bool Detach() { return false; }
 	};
-	
+
 // --------------------------------------------------------------------------------------
 //  ThreadDeleteEvent
 // --------------------------------------------------------------------------------------
@@ -123,17 +124,17 @@ namespace Threading
 		Semaphore	m_sem_event;		// general wait event that's needed by most threads
 		Semaphore	m_sem_startup;		// startup sync tool
 		Mutex		m_lock_InThread;		// used for canceling and closing threads in a deadlock-safe manner
-		MutexLockRecursive	m_lock_start;	// used to lock the Start() code from starting simultaneous threads accidentally.
+		MutexRecursive	m_lock_start;	// used to lock the Start() code from starting simultaneous threads accidentally.
 
 		volatile long m_detached;		// a boolean value which indicates if the m_thread handle is valid
 		volatile long m_running;		// set true by Start(), and set false by Cancel(), Block(), etc.
 
 		// exception handle, set non-NULL if the thread terminated with an exception
 		// Use RethrowException() to re-throw the exception using its original exception type.
-		ScopedPtr<Exception::BaseException> m_except;
+		ScopedPtrMT<BaseException> m_except;
 
 		EventSource<EventListener_Thread> m_evtsrc_OnDelete;
-		
+
 
 	public:
 		virtual ~PersistentThread() throw();
@@ -148,8 +149,9 @@ namespace Threading
 		virtual bool Cancel( const wxTimeSpan& timeout );
 		virtual bool Detach();
 		virtual void Block();
+		virtual bool Block( const wxTimeSpan& timeout );
 		virtual void RethrowException() const;
-		
+
 		void AddListener( EventListener_Thread& evt );
 		void AddListener( EventListener_Thread* evt )
 		{
@@ -199,7 +201,7 @@ namespace Threading
 			Threading::Sleep( ms );
 			TestCancel();
 		}
-		
+
 		void FrankenMutex( Mutex& mutex );
 
 		bool AffinityAssert_AllowFromSelf( const DiagnosticOrigin& origin ) const;
@@ -224,7 +226,7 @@ namespace Threading
 
 
 // --------------------------------------------------------------------------------------
-//  BaseTaskThread 
+//  BaseTaskThread
 // --------------------------------------------------------------------------------------
 // an abstract base class which provides simple parallel execution of single tasks.
 //

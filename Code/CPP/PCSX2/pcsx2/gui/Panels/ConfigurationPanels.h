@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -39,6 +39,8 @@ namespace Panels
 	//
 	class DirPickerPanel : public BaseApplicableConfigPanel
 	{
+		typedef BaseApplicableConfigPanel _parent;
+
 	protected:
 		FoldersEnum_t		m_FolderId;
 		wxDirPickerCtrl*	m_pickerCtrl;
@@ -49,44 +51,49 @@ namespace Panels
 		DirPickerPanel( wxWindow* parent, FoldersEnum_t folderid, const wxString& dialogLabel );
 		virtual ~DirPickerPanel() throw() { }
 
-		void Apply();
-		void AppStatusEvent_OnSettingsApplied();
-
 		void Reset();
 		wxDirName GetPath() const;
 		void SetPath( const wxString& src );
 
 		DirPickerPanel& SetStaticDesc( const wxString& msg );
 		DirPickerPanel& SetToolTip( const wxString& tip );
-		
+
 		wxWindowID GetId() const;
 		wxWindowID GetPanelId() const { return m_windowId; }
 
+		// Overrides!
+		
+		void Apply();
+		void AppStatusEvent_OnSettingsApplied();
+		bool Enable( bool enable=true );
+
 	protected:
 		void Init( FoldersEnum_t folderid, const wxString& dialogLabel, bool isCompact );
-		
+
 		void UseDefaultPath_Click( wxCommandEvent &event );
 		void Explore_Click( wxCommandEvent &event );
 		void UpdateCheckStatus( bool someNoteworthyBoolean );
 	};
- 
+
 	// --------------------------------------------------------------------------------------
-	//  UsermodeSelectionPanel / LanguageSelectionPanel
+	//  DocsFolderPickerPanel / LanguageSelectionPanel
 	// --------------------------------------------------------------------------------------
-	class UsermodeSelectionPanel : public BaseApplicableConfigPanel
+	class DocsFolderPickerPanel : public BaseApplicableConfigPanel
 	{
 	protected:
 		pxRadioPanel*	m_radio_UserMode;
 		DirPickerPanel*	m_dirpicker_custom;
 
 	public:
-		virtual ~UsermodeSelectionPanel() throw() { }
-		UsermodeSelectionPanel( wxWindow* parent, bool isFirstTime = true );
+		virtual ~DocsFolderPickerPanel() throw() { }
+		DocsFolderPickerPanel( wxWindow* parent, bool isFirstTime = true );
 
 		void Apply();
 		void AppStatusEvent_OnSettingsApplied();
-		wxWindowID GetDirPickerId() const { return m_dirpicker_custom ? m_dirpicker_custom->GetId() : 0; }
 		
+		DocsModeType GetDocsMode() const;
+		wxWindowID GetDirPickerId() const { return m_dirpicker_custom ? m_dirpicker_custom->GetId() : 0; }
+
 	protected:
 		void OnRadioChanged( wxCommandEvent& evt );
 	};
@@ -196,17 +203,17 @@ namespace Panels
 		wxSpinCtrl*		m_spin_FramesToDraw;
 		//pxCheckBox*		m_check_EnableSkip;
 		//pxCheckBox*		m_check_EnableSkipOnTurbo;
-		
+
 		pxRadioPanel*	m_radio_SkipMode;
 
 	public:
 		FrameSkipPanel( wxWindow* parent );
 		virtual	~FrameSkipPanel() throw() {}
-		
+
 		void Apply();
 		void AppStatusEvent_OnSettingsApplied();
 	};
-	
+
 	// --------------------------------------------------------------------------------------
 	//  FramelimiterPanel
 	// --------------------------------------------------------------------------------------
@@ -232,7 +239,7 @@ namespace Panels
 		void Apply();
 		void AppStatusEvent_OnSettingsApplied();
 	};
-	
+
 	// --------------------------------------------------------------------------------------
 	//  GSWindowSettingsPanel
 	// --------------------------------------------------------------------------------------
@@ -250,7 +257,7 @@ namespace Panels
 
 		wxTextCtrl*		m_text_WindowWidth;
 		wxTextCtrl*		m_text_WindowHeight;
-		
+
 	public:
 		GSWindowSettingsPanel( wxWindow* parent );
 		virtual ~GSWindowSettingsPanel() throw() {}
@@ -263,8 +270,6 @@ namespace Panels
 	protected:
 		pxCheckBox*		m_check_SynchronousGS;
 		pxCheckBox*		m_check_DisableOutput;
-
-		wxButton*		m_button_OpenWindowSettings;
 
 	public:
 		VideoPanel( wxWindow* parent );
@@ -293,7 +298,7 @@ namespace Panels
 		pxStaticText*	m_msg_vustealer;
 
 		pxCheckBox*		m_check_intc;
-		pxCheckBox*		m_check_b1fc0;
+		pxCheckBox*		m_check_waitloop;
 		pxCheckBox*		m_check_IOPx2;
 		pxCheckBox*		m_check_vuFlagHack;
 		pxCheckBox*		m_check_vuMinMax;
@@ -325,7 +330,7 @@ namespace Panels
 	class GameFixesPanel : public BaseApplicableConfigPanel
 	{
 	protected:
-		pxCheckBox*			m_checkbox[NUM_OF_GAME_FIXES];
+		pxCheckBox*			m_checkbox[GamefixId_COUNT];
 		pxCheckBox*			m_check_Enable;
 
 	public:
@@ -335,6 +340,36 @@ namespace Panels
 		void OnEnable_Toggled( wxCommandEvent& evt );
 		void Apply();
 		void AppStatusEvent_OnSettingsApplied();
+	};
+
+	// --------------------------------------------------------------------------------------
+	//  GameDatabasePanel
+	// --------------------------------------------------------------------------------------
+	class GameDatabasePanel : public BaseApplicableConfigPanel
+	{
+	protected:
+		//wxTextCtrl*	searchBox;
+		//wxComboBox*	searchType;
+		//wxListBox*	searchList;
+		wxButton*	searchBtn;
+		wxTextCtrl*	serialBox;
+		wxTextCtrl*	nameBox;
+		wxTextCtrl*	regionBox;
+		wxTextCtrl*	compatBox;
+		wxTextCtrl*	commentBox;
+		wxTextCtrl*	patchesBox;
+		pxCheckBox*	gameFixes[GamefixId_COUNT];
+
+	public:
+		GameDatabasePanel( wxWindow* parent );
+		virtual ~GameDatabasePanel() throw() { }
+		void Apply();
+		void AppStatusEvent_OnSettingsApplied();
+
+	protected:
+		void PopulateFields();
+		bool WriteFieldsToDB();
+		void Search_Click( wxCommandEvent& evt );
 	};
 
 	class SettingsDirPickerPanel : public DirPickerPanel
@@ -371,15 +406,17 @@ namespace Panels
 		virtual ~BaseSelectorPanel() throw();
 		BaseSelectorPanel( wxWindow* parent );
 
+		virtual void RefreshSelections();
+
 		virtual bool Show( bool visible=true );
-		virtual void OnRefresh( wxCommandEvent& evt );
 		virtual void OnShown();
 		virtual void OnFolderChanged( wxFileDirPickerEvent& evt );
 
 	protected:
+		void OnRefreshSelections( wxCommandEvent& evt );
+
 		virtual void DoRefresh()=0;
 		virtual bool ValidateEnumerationStatus()=0;
-		void OnActivate(wxActivateEvent& evt);
 		void OnShow(wxShowEvent& evt);
 	};
 
@@ -390,11 +427,11 @@ namespace Panels
 	{
 	protected:
 		ScopedPtr<wxArrayString>	m_BiosList;
-		wxListBox&					m_ComboBox;
-		DirPickerPanel&				m_FolderPicker;
+		wxListBox*					m_ComboBox;
+		DirPickerPanel*				m_FolderPicker;
 
 	public:
-		BiosSelectorPanel( wxWindow* parent, int idealWidth=wxDefaultCoord );
+		BiosSelectorPanel( wxWindow* parent );
 		virtual ~BiosSelectorPanel() throw();
 
 	protected:
@@ -402,32 +439,6 @@ namespace Panels
 		virtual void AppStatusEvent_OnSettingsApplied();
 		virtual void DoRefresh();
 		virtual bool ValidateEnumerationStatus();
-	};
-
-	class MemoryCardListPanel;
-	class MemoryCardInfoPanel;
-
-	// --------------------------------------------------------------------------------------
-	//  MemoryCardsPanel
-	// --------------------------------------------------------------------------------------
-	class MemoryCardsPanel : public BaseApplicableConfigPanel
-	{
-	protected:
-		MemoryCardListPanel*	m_panel_AllKnownCards;
-		MemoryCardInfoPanel*	m_panel_cardinfo[2][4];
-		pxCheckBox*				m_check_Ejection;
-		pxCheckBox*				m_check_Multitap[2];
-
-		uint					m_Bindings[2][4];
-
-	public:
-		MemoryCardsPanel( wxWindow* parent );
-		virtual ~MemoryCardsPanel() throw() { }
-		void Apply();
-
-	protected:
-		void OnMultitapChecked( wxCommandEvent& evt );
-		void AppStatusEvent_OnSettingsApplied();
 	};
 
 	// --------------------------------------------------------------------------------------
@@ -492,7 +503,7 @@ namespace Panels
 			wxDirName GetPluginsPath() const { return m_FolderPicker.GetPath(); }
 			DirPickerPanel& GetDirPicker() { return m_FolderPicker; }
 			void Reset();
-			
+
 		};
 
 		// ----------------------------------------------------------------------------
@@ -524,14 +535,14 @@ namespace Panels
 
 	public:
 		virtual ~PluginSelectorPanel() throw();
-		PluginSelectorPanel( wxWindow* parent, int idealWidth=wxDefaultCoord );
+		PluginSelectorPanel( wxWindow* parent );
 
 		void CancelRefresh();		// used from destructor, stays non-virtual
 		void Apply();
 
 	protected:
 		void DispatchEvent( const PluginEventType& evt );
-		
+
 		void OnConfigure_Clicked( wxCommandEvent& evt );
 		void OnShowStatusBar( wxCommandEvent& evt );
 		void OnPluginSelected( wxCommandEvent& evt );

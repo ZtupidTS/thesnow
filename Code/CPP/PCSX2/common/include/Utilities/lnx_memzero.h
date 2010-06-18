@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -112,7 +112,7 @@ static __forceinline void memset_8( void *dest )
 				"stosd\n"
 				"stosd\n"
 				".att_syntax\n"
-				:
+				: "=D"(dest)
 				// Input specifiers: D - edi, a -- eax, c ecx
 				: [dest]"D"(dest), [data32]"a"(data32)
 				: "memory"
@@ -131,7 +131,7 @@ static __forceinline void memset_8( void *dest )
 				"stosd\n"
 				"stosd\n"
 				".att_syntax\n"
-				:
+				:  "=D"(dest)
 				:  [dest]"D"(dest), [data32]"a"(data32)
 				:  "memory"
 
@@ -151,7 +151,7 @@ static __forceinline void memset_8( void *dest )
 				"stosd\n"
 				"stosd\n"
 				".att_syntax\n"
-				:
+				: "=D"(dest)
 				: [dest]"D"(dest), [data32]"a"(data32)
 				: "memory"
 
@@ -168,7 +168,7 @@ static __forceinline void memset_8( void *dest )
 //				"mov eax, %\[data32]n"
 				"rep stosd\n"
 				".att_syntax\n"
-				:
+				: "=D"(dest)
 				: [remdat]"c"(remdat), [dest]"D"(dest), [data32]"a"(data32)
 				: "memory"
 			);

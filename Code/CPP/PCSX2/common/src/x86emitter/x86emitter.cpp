@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -402,7 +402,7 @@ __emitinline void xAlignCallTarget()
 {
 	// Core2/i7 CPUs prefer unaligned addresses.  Checking for SSSE3 is a decent filter.
 	// (also align in debug modes for disasm convenience)
-	
+
 	if( IsDebugBuild || !x86caps.hasSupplementalStreamingSIMD3Extensions )
 	{
 		// - P4's and earlier prefer 16 byte alignment.
@@ -491,8 +491,36 @@ xAddressInfo& xAddressInfo::Add( const xAddressInfo& src )
 	return *this;
 }
 
+ModSibBase::ModSibBase( const xAddressInfo& src )
+{
+	Base		= src.Base;
+	Index		= src.Index;
+	Scale		= src.Factor;
+	Displacement= src.Displacement;
 
-// ------------------------------------------------------------------------
+	Reduce();
+}
+
+ModSibBase::ModSibBase( s32 disp )
+{
+	Base		= xEmptyReg;
+	Index		= xEmptyReg;
+	Scale		= 0;
+	Displacement= disp;
+
+	// no reduction necessary :D
+}
+
+ModSibBase::ModSibBase( xAddressReg base, xAddressReg index, int scale, s32 displacement )
+{
+	Base		= base;
+	Index		= index;
+	Scale		= scale;
+	Displacement= displacement;
+
+	Reduce();
+}
+
 // Generates a 'reduced' ModSib form, which has valid Base, Index, and Scale values.
 // Necessary because by default ModSib compounds registers into Index when possible.
 //
@@ -570,6 +598,17 @@ void ModSibBase::Reduce()
 	}
 }
 
+uint ModSibBase::GetOperandSize() const
+{
+	pxFail( "Invalid operation on ModSibBase" );
+	return 0;
+}
+
+ModSibBase& ModSibBase::Add( s32 imm )
+{
+	Displacement += imm;
+	return *this;
+}
 
 // ------------------------------------------------------------------------
 // Internal implementation of EmitSibMagic which has been custom tailored
@@ -861,6 +900,19 @@ __forceinline void xCLC()	{ xWrite8( 0xF8 ); }
 // NOP 1-byte
 __forceinline void xNOP()	{ xWrite8(0x90); }
 
+__forceinline void xINT( u8 imm )
+{
+	if (imm == 3)
+		xWrite8(0xcc);
+	else
+	{
+		xWrite8(0xcd);
+		xWrite8(imm);
+	}
+}
+
+__forceinline void xINTO()	{ xWrite8(0xce); }
+
 __emitinline void xBSWAP( const xRegister32& to )
 {
 	xWrite8( 0x0F );
@@ -869,12 +921,12 @@ __emitinline void xBSWAP( const xRegister32& to )
 
 __emitinline void xStoreReg( const xRegisterSSE& src )
 {
-	xMOVDQA( &XMMRegisters::data[src.Id*2], src );
+	xMOVDQA( ptr[&XMMRegisters::data[src.Id*2]], src );
 }
 
 __emitinline void xRestoreReg( const xRegisterSSE& dest )
 {
-	xMOVDQA( dest, &XMMRegisters::data[dest.Id*2] );
+	xMOVDQA( dest, ptr[&XMMRegisters::data[dest.Id*2]] );
 }
 
 }

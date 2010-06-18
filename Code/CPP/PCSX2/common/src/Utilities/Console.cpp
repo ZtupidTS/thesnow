@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -16,6 +16,8 @@
 #include "PrecompiledHeader.h"
 #include "Threading.h"
 #include "TlsVariable.inl"
+
+#include "RedtapeWindows.h"
 
 using namespace Threading;
 
@@ -135,18 +137,30 @@ static __forceinline const wxChar* GetLinuxConsoleColor(ConsoleColors color)
 // One possible default write action at startup and shutdown is to use the stdout.
 static void __concall ConsoleStdout_DoWrite( const wxString& fmt )
 {
+#ifdef __WXMSW__
+	OutputDebugString( fmt );	
+#else
 	wxPrintf( fmt );
+#endif
 }
 
 // Default write action at startup and shutdown is to use the stdout.
 static void __concall ConsoleStdout_DoWriteLn( const wxString& fmt )
 {
+#ifdef __WXMSW__
+	OutputDebugString( fmt + L"\n" );
+#else
 	wxPrintf( fmt + L"\n" );
+#endif
 }
 
 static void __concall ConsoleStdout_Newline()
 {
+#ifdef __WXMSW__
+	OutputDebugString( L"\n" );
+#else
 	wxPrintf( L"\n" );
+#endif
 }
 
 static void __concall ConsoleStdout_DoSetColor( ConsoleColors color )
@@ -170,10 +184,9 @@ const IConsoleWriter ConsoleWriter_Stdout =
 	ConsoleStdout_DoWriteLn,
 	ConsoleStdout_DoSetColor,
 
-	ConsoleNull_DoWrite,			// writes from stdout are ignored here, lest we create infinite loop hell >_<
+	ConsoleNull_DoWrite,			// writes from re-piped stdout are ignored here, lest we create infinite loop hell >_<
 	ConsoleStdout_Newline,
 	ConsoleStdout_SetTitle,
-
 	0,		// instance-level indentation (should always be 0)
 };
 
@@ -216,7 +229,7 @@ const wxString& ConsoleBuffer_Get()
 void ConsoleBuffer_Clear()
 {
 	ScopedLock lock( m_bufferlock );
-	m_buffer.Clear();
+	m_buffer.clear();
 }
 
 // Flushes the contents of the ConsoleBuffer to the specified destination file stream, and
@@ -226,7 +239,7 @@ void ConsoleBuffer_FlushToFile( FILE *fp )
 	ScopedLock lock( m_bufferlock );
 	if( fp == NULL || m_buffer.IsEmpty() ) return;
 	px_fputs( fp, m_buffer.ToUTF8() );
-	m_buffer.Clear();
+	m_buffer.clear();
 }
 
 static void __concall ConsoleBuffer_DoWrite( const wxString& fmt )
@@ -263,7 +276,7 @@ static void __concall Console_wxLogError_DoWriteLn( const wxString& fmt )
 	if( !m_buffer.IsEmpty() )
 	{
 		wxLogError( m_buffer );
-		m_buffer.Clear();
+		m_buffer.clear();
 	}
 	wxLogError( fmt );
 }
@@ -281,130 +294,6 @@ const IConsoleWriter ConsoleWriter_wxError =
 	0,		// instance-level indentation (should always be 0)
 };
 
-// Sanity check: truncate strings if they exceed 512k in length.  Anything like that
-// is either a bug or really horrible code that needs to be stopped before it causes
-// system deadlock.
-static const int MaxFormattedStringLength = 0x80000;
-
-template< typename CharType >
-class FormatBuffer : public Mutex
-{
-public:
-	bool&				clearbit;
-	SafeArray<CharType>	buffer;
-
-	FormatBuffer( bool& bit_to_clear_on_destruction ) :
-		clearbit( bit_to_clear_on_destruction )
-	,	buffer( 4096, wxsFormat( L"%s Format Buffer", (sizeof(CharType)==1) ? "Ascii" : "Unicode" ) )
-	{
-	}
-
-	virtual ~FormatBuffer() throw()
-	{
-		clearbit = true;
-		Wait();		// lock the mutex, just in case.
-	}
-
-};
-
-static bool ascii_buffer_is_deleted = false;
-static bool unicode_buffer_is_deleted = false;
-
-static FormatBuffer<char>	ascii_buffer( ascii_buffer_is_deleted );
-static FormatBuffer<wxChar>	unicode_buffer( unicode_buffer_is_deleted );
-
-static void format_that_ascii_mess( SafeArray<char>& buffer, const char* fmt, va_list argptr )
-{
-
-	while( true )
-	{
-		int size = buffer.GetLength();
-		int len = vsnprintf(buffer.GetPtr(), size, fmt, argptr);
-
-		// some implementations of vsnprintf() don't NUL terminate
-		// the string if there is not enough space for it so
-		// always do it manually
-		buffer[size-1] = '\0';
-
-		if( size >= MaxFormattedStringLength ) break;
-
-		// vsnprintf() may return either -1 (traditional Unix behavior) or the
-		// total number of characters which would have been written if the
-		// buffer were large enough (newer standards such as Unix98)
-
-		if ( len < 0 )
-			len = size + (size/4);
-
-		if ( len < size ) break;
-		buffer.ExactAlloc( len + 1 );
-	};
-
-	// performing an assertion or log of a truncated string is unsafe, so let's not; even
-	// though it'd be kinda nice if we did.
-}
-
-static void format_that_unicode_mess( SafeArray<wxChar>& buffer, const wxChar* fmt, va_list argptr)
-{
-	while( true )
-	{
-		int size = buffer.GetLength();
-		int len = wxVsnprintf(buffer.GetPtr(), size, fmt, argptr);
-
-		// some implementations of vsnprintf() don't NUL terminate
-		// the string if there is not enough space for it so
-		// always do it manually
-		buffer[size-1] = L'\0';
-
-		if( size >= MaxFormattedStringLength ) break;
-
-		// vsnprintf() may return either -1 (traditional Unix behavior) or the
-		// total number of characters which would have been written if the
-		// buffer were large enough (newer standards such as Unix98)
-
-		if ( len < 0 )
-			len = size + (size/4);
-
-		if ( len < size ) break;
-		buffer.ExactAlloc( len + 1 );
-	};
-
-	// performing an assertion or log of a truncated string is unsafe, so let's not; even
-	// though it'd be kinda nice if we did.
-}
-
-static wxString ascii_format_string(const char* fmt, va_list argptr)
-{
-	if( ascii_buffer_is_deleted )
-	{
-		SafeArray<char>	localbuf( 4096, L"Temporary Ascii Formatting Buffer" );
-		format_that_ascii_mess( localbuf, fmt, argptr );
-		return fromUTF8( localbuf.GetPtr() );
-	}
-	else
-	{
-		ScopedLock locker( ascii_buffer );
-		format_that_ascii_mess( ascii_buffer.buffer, fmt, argptr );
-		return fromUTF8( ascii_buffer.buffer.GetPtr() );
-	}
-}
-
-
-static wxString unicode_format_string(const wxChar* fmt, va_list argptr)
-{
-	if( unicode_buffer_is_deleted )
-	{
-		SafeArray<wxChar> localbuf( 4096, L"Temporary Unicode Formatting Buffer" );
-		format_that_unicode_mess( localbuf, fmt, argptr );
-		return localbuf.GetPtr();
-	}
-	else
-	{
-		ScopedLock locker( unicode_buffer );
-		format_that_unicode_mess( unicode_buffer.buffer, fmt, argptr );
-		return unicode_buffer.buffer.GetPtr();
-	}
-}
-
 // =====================================================================================================
 //  IConsole Interfaces
 // =====================================================================================================
@@ -420,12 +309,9 @@ wxString IConsoleWriter::_addIndentation( const wxString& src, int glob_indent=0
 	const int indent = glob_indent + _imm_indentation;
 	if( indent == 0 ) return src;
 
-	wxArrayString pieces;
-	SplitString( pieces, src, L'\n' );
+	wxString result( src );
 	const wxString indentStr( L'\t', indent );
-	wxString result;
-	result.reserve( src.Length() + 24 );
-	JoinString( result, pieces, L'\n' + indentStr );
+	result.Replace( L"\n", L"\n" + indentStr );
 	return indentStr + result;
 }
 
@@ -483,7 +369,7 @@ bool IConsoleWriter::Write( const char* fmt, ... ) const
 
 	va_list args;
 	va_start(args,fmt);
-	DoWrite( ascii_format_string(fmt, args) );
+	DoWrite( FastFormatString_Ascii(fmt, args) );
 	va_end(args);
 
 	return false;
@@ -496,7 +382,7 @@ bool IConsoleWriter::Write( ConsoleColors color, const char* fmt, ... ) const
 	va_list args;
 	va_start(args,fmt);
 	ConsoleColorScope cs( color );
-	DoWrite( ascii_format_string(fmt, args) );
+	DoWrite( FastFormatString_Ascii(fmt, args) );
 	va_end(args);
 
 	return false;
@@ -508,7 +394,7 @@ bool IConsoleWriter::WriteLn( const char* fmt, ... ) const
 
 	va_list args;
 	va_start(args,fmt);
-	DoWriteLn( _addIndentation( ascii_format_string(fmt, args), conlog_Indent ) );
+	DoWriteLn( _addIndentation( FastFormatString_Ascii(fmt, args), conlog_Indent ) );
 	va_end(args);
 
 	return false;
@@ -520,7 +406,7 @@ bool IConsoleWriter::WriteLn( ConsoleColors color, const char* fmt, ... ) const
 	va_list args;
 	va_start(args,fmt);
 	ConsoleColorScope cs( color );
-	DoWriteLn( _addIndentation( ascii_format_string(fmt, args), conlog_Indent ) );
+	DoWriteLn( _addIndentation( FastFormatString_Ascii(fmt, args), conlog_Indent ) );
 	va_end(args);
 
 	return false;
@@ -533,7 +419,7 @@ bool IConsoleWriter::Error( const char* fmt, ... ) const
 	va_list args;
 	va_start(args,fmt);
 	ConsoleColorScope cs( Color_StrongRed );
-	DoWriteLn( _addIndentation( ascii_format_string(fmt, args) ) );
+	DoWriteLn( _addIndentation( FastFormatString_Ascii(fmt, args) ) );
 	va_end(args);
 
 	return false;
@@ -546,7 +432,7 @@ bool IConsoleWriter::Warning( const char* fmt, ... ) const
 	va_list args;
 	va_start(args,fmt);
 	ConsoleColorScope cs( Color_StrongOrange );
-	DoWriteLn( _addIndentation( ascii_format_string(fmt, args) ) );
+	DoWriteLn( _addIndentation( FastFormatString_Ascii(fmt, args) ) );
 	va_end(args);
 
 	return false;
@@ -562,7 +448,7 @@ bool IConsoleWriter::Write( const wxChar* fmt, ... ) const
 
 	va_list args;
 	va_start(args,fmt);
-	DoWrite( unicode_format_string( fmt, args ) );
+	DoWrite( FastFormatString_Unicode( fmt, args ) );
 	va_end(args);
 
 	return false;
@@ -575,7 +461,7 @@ bool IConsoleWriter::Write( ConsoleColors color, const wxChar* fmt, ... ) const
 	va_list args;
 	va_start(args,fmt);
 	ConsoleColorScope cs( color );
-	DoWrite( unicode_format_string( fmt, args ) );
+	DoWrite( FastFormatString_Unicode( fmt, args ) );
 	va_end(args);
 
 	return false;
@@ -587,7 +473,7 @@ bool IConsoleWriter::WriteLn( const wxChar* fmt, ... ) const
 
 	va_list args;
 	va_start(args,fmt);
-	DoWriteLn( _addIndentation( unicode_format_string( fmt, args ), conlog_Indent ) );
+	DoWriteLn( _addIndentation( FastFormatString_Unicode( fmt, args ), conlog_Indent ) );
 	va_end(args);
 
 	return false;
@@ -600,7 +486,7 @@ bool IConsoleWriter::WriteLn( ConsoleColors color, const wxChar* fmt, ... ) cons
 	va_list args;
 	va_start(args,fmt);
 	ConsoleColorScope cs( color );
-	DoWriteLn( _addIndentation( unicode_format_string( fmt, args ), conlog_Indent ) );
+	DoWriteLn( _addIndentation( FastFormatString_Unicode( fmt, args ), conlog_Indent ) );
 	va_end(args);
 
 	return false;
@@ -613,7 +499,7 @@ bool IConsoleWriter::Error( const wxChar* fmt, ... ) const
 	va_list args;
 	va_start(args,fmt);
 	ConsoleColorScope cs( Color_StrongRed );
-	DoWriteLn( _addIndentation( unicode_format_string( fmt, args ) ) );
+	DoWriteLn( _addIndentation( FastFormatString_Unicode( fmt, args ) ) );
 	va_end(args);
 
 	return false;
@@ -626,14 +512,14 @@ bool IConsoleWriter::Warning( const wxChar* fmt, ... ) const
 	va_list args;
 	va_start(args,fmt);
 	ConsoleColorScope cs( Color_StrongOrange );
-	DoWriteLn( _addIndentation( unicode_format_string( fmt, args ) ) );
+	DoWriteLn( _addIndentation( FastFormatString_Unicode( fmt, args ) ) );
 	va_end(args);
 
 	return false;
 }
 
 // --------------------------------------------------------------------------------------
-//  
+//
 // --------------------------------------------------------------------------------------
 
 bool IConsoleWriter::WriteFromStdout( const char* fmt, ... ) const
@@ -642,7 +528,7 @@ bool IConsoleWriter::WriteFromStdout( const char* fmt, ... ) const
 
 	va_list args;
 	va_start(args,fmt);
-	DoWrite( ascii_format_string(fmt, args) );
+	DoWrite( FastFormatString_Ascii(fmt, args) );
 	va_end(args);
 
 	return false;
@@ -655,7 +541,7 @@ bool IConsoleWriter::WriteFromStdout( ConsoleColors color, const char* fmt, ... 
 	va_list args;
 	va_start(args,fmt);
 	ConsoleColorScope cs( color );
-	DoWrite( ascii_format_string(fmt, args) );
+	DoWriteFromStdout( FastFormatString_Ascii(fmt, args) );
 	va_end(args);
 
 	return false;
@@ -665,16 +551,8 @@ bool IConsoleWriter::WriteFromStdout( ConsoleColors color, const char* fmt, ... 
 // --------------------------------------------------------------------------------------
 //  Default Writer for C++ init / startup:
 // --------------------------------------------------------------------------------------
-// In GUI modes under Windows I default to Assert, because windows lacks a qualified universal
-// program console.  In console mode I use Stdio instead, since the program is pretty well
-// promised a valid console in any platform (except maybe Macs, which probably consider consoles
-// a fundamental design flaw or something).
 
-#if wxUSE_GUI && defined(__WXMSW__)
-#	define _DefaultWriter_	ConsoleWriter_Assert
-#else
-#	define _DefaultWriter_	ConsoleWriter_Stdout
-#endif
+#define _DefaultWriter_	ConsoleWriter_Stdout
 
 // Important!  Only Assert and Null console loggers are allowed for initial console targeting.
 // Other log targets rely on the static buffer and a threaded mutex lock, which are only valid

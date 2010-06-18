@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -17,10 +17,13 @@
 #include "Common.h"
 #include "HostGui.h"
 
-#include "sVU_zerorec.h"		// for SuperVUDestroy
-
 #include "System/PageFaultSource.h"
 #include "Utilities/EventSource.inl"
+
+// Includes needed for cleanup, since we don't have a good system (yet) for
+// cleaning up these things.
+#include "sVU_zerorec.h"
+#include "DataBase_Loader.h"
 
 extern void closeNewVif(int idx);
 extern void resetNewVif(int idx);
@@ -64,21 +67,39 @@ const Pcsx2Config EmuConfig;
 Pcsx2Config::GSOptions& SetGSConfig()
 {
 	//DbgCon.WriteLn( "Direct modification of EmuConfig.GS detected" );
-	AffinityAssert_AllowFromMain();
+	AffinityAssert_AllowFrom_MainUI();
 	return const_cast<Pcsx2Config::GSOptions&>(EmuConfig.GS);
+}
+
+// Provides an accessor for quick modification of Recompiler options.
+// Used by loadGameSettings() to set clamp modes via database at game startup.
+Pcsx2Config::RecompilerOptions& SetRecompilerConfig()
+{
+	//DbgCon.WriteLn( "Direct modification of EmuConfig.Gamefixes detected" );
+	AffinityAssert_AllowFrom_MainUI();
+	return const_cast<Pcsx2Config::RecompilerOptions&>(EmuConfig.Cpu.Recompiler);
+}
+
+// Provides an accessor for quick modification of Gamefix options.
+// Used by loadGameSettings() to set gamefixes via database at game startup.
+Pcsx2Config::GamefixOptions& SetGameFixConfig()
+{
+	//DbgCon.WriteLn( "Direct modification of EmuConfig.Gamefixes detected" );
+	AffinityAssert_AllowFrom_MainUI();
+	return const_cast<Pcsx2Config::GamefixOptions&>(EmuConfig.Gamefixes);
 }
 
 ConsoleLogFilters& SetConsoleConfig()
 {
 	//DbgCon.WriteLn( "Direct modification of EmuConfig.Log detected" );
-	AffinityAssert_AllowFromMain();
+	AffinityAssert_AllowFrom_MainUI();
 	return const_cast<ConsoleLogFilters&>(EmuConfig.Log);
 }
 
 TraceLogFilters& SetTraceConfig()
 {
 	//DbgCon.WriteLn( "Direct modification of EmuConfig.TraceLog detected" );
-	AffinityAssert_AllowFromMain();
+	AffinityAssert_AllowFrom_MainUI();
 	return const_cast<TraceLogFilters&>(EmuConfig.Trace);
 }
 
@@ -86,7 +107,7 @@ TraceLogFilters& SetTraceConfig()
 // This function should be called once during program execution.
 void SysLogMachineCaps()
 {
-	Console.WriteLn( Color_StrongGreen, "PCSX2 %d.%d.%d.r%d %s - compiled on " __DATE__, PCSX2_VersionHi, PCSX2_VersionMid, PCSX2_VersionLo,
+	Console.WriteLn( Color_StrongGreen, "PCSX2 %u.%u.%u.r%d %s - compiled on " __DATE__, PCSX2_VersionHi, PCSX2_VersionMid, PCSX2_VersionLo,
 		SVN_REV, SVN_MODS ? "(modded)" : ""
 	);
 
@@ -94,7 +115,9 @@ void SysLogMachineCaps()
 	Console.Newline();
 
 	Console.WriteLn( Color_StrongBlack, "x86-32 Init:" );
-	
+
+	u32 speed = x86caps.CalculateMHz();
+
 	Console.Indent().WriteLn(
 		L"CPU vendor name  =  %s\n"
 		L"FamilyID         =  %x\n"
@@ -106,13 +129,13 @@ void SysLogMachineCaps()
 		L"x86EFlags        =  %8.8x",
 			fromUTF8( x86caps.VendorName ).c_str(), x86caps.StepID,
 			fromUTF8( x86caps.FamilyName ).Trim().Trim(false).c_str(),
-			x86caps.Speed / 1000, x86caps.Speed % 1000,
+			speed / 1000, speed % 1000,
 			x86caps.PhysicalCores, x86caps.LogicalCores,
-			fromUTF8( x86caps.TypeName ).c_str(),
+			x86caps.GetTypeName().c_str(),
 			x86caps.Flags, x86caps.Flags2,
 			x86caps.EFlags
 	);
-	
+
 	Console.Newline();
 
 	wxArrayString features[2];	// 2 lines, for readability!
@@ -206,7 +229,7 @@ public:
 
 	CpuInitializer<InterpVU0>		interpVU0;
 	CpuInitializer<InterpVU1>		interpVU1;
-	
+
 public:
 	CpuInitializerSet() {}
 	virtual ~CpuInitializerSet() throw() {}
@@ -217,7 +240,7 @@ public:
 // returns the translated error message for the Virtual Machine failing to allocate!
 static wxString GetMemoryErrorVM()
 {
-	return pxE( ".Popup Error:EmuCore::MemoryForVM",
+	return pxE( ".Error:EmuCore::MemoryForVM",
 		L"PCSX2 is unable to allocate memory needed for the PS2 virtual machine. "
 		L"Close out some memory hogging background tasks and try again."
 	);
@@ -305,6 +328,9 @@ void SysCoreAllocations::CleanupMess() throw()
 {
 	try
 	{
+		closeNewVif(0);
+		closeNewVif(1);
+
 		// Special SuperVU "complete" terminator (stupid hacky recompiler)
 		SuperVUDestroy( -1 );
 
@@ -312,8 +338,6 @@ void SysCoreAllocations::CleanupMess() throw()
 		recCpu.Shutdown();
 
 		vuMicroMemShutdown();
-		closeNewVif(0);
-		closeNewVif(1);
 		psxMemShutdown();
 		memShutdown();
 		vtlb_Core_Shutdown();
@@ -371,12 +395,11 @@ void SysClearExecutionCache()
 
 	Cpu->Reset();
 	psxCpu->Reset();
-	
-	resetNewVif(0);
-	resetNewVif(1);
-
 	CpuVU0->Reset();
 	CpuVU1->Reset();
+
+	resetNewVif(0);
+	resetNewVif(1);
 }
 
 // Maps a block of memory for use as a recompiled code buffer, and ensures that the

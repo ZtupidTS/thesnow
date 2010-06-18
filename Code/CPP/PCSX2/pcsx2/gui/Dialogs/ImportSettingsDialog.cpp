@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -21,11 +21,11 @@
 using namespace pxSizerFlags;
 
 Dialogs::ImportSettingsDialog::ImportSettingsDialog( wxWindow* parent )
-	: wxDialogWithHelpers( parent, _("导入已有设置?"), wxVERTICAL )
+	: wxDialogWithHelpers( parent, _("导入已有设置?") )
 {
-	m_idealWidth = 440;
+	SetMinWidth( 440 );
 
-	pxStaticText* heading = new pxStaticHeading( this, pxE( ".Popup:ImportExistingSettings",
+	pxStaticText& heading = Text( pxE( ".Popup:ImportExistingSettings",
 		L"模拟器发现了已经存在的设置文件r.  "
 		L"您是想导入这是设置还是使用默认设置覆盖掉它们?"
 		L"\n\n(或者点击取消选择一个不同的设置文件夹)" )
@@ -45,7 +45,7 @@ Dialogs::ImportSettingsDialog::ImportSettingsDialog( wxWindow* parent )
 	s_buttons += new wxButton( this, wxID_CANCEL ) | StdButton();
 
 	*this += 4;
-	*this += heading;
+	*this += heading		| StdExpand();
 	*this += 12;
 	*this += &s_buttons		| StdCenter();
 

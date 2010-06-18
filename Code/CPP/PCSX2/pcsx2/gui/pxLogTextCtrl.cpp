@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -70,7 +70,7 @@ void pxLogTextCtrl::OnResize( wxSizeEvent& evt )
 	// Windows has retarded console window update patterns.  This helps smarten them up.
 	int ctrly = GetSize().y;
 	int fonty;
-	GetTextExtent( L"blaH yeah", NULL, &fonty );
+	GetTextExtent( L"blH yh", NULL, &fonty );
 	m_win32_LinesPerPage	= (ctrly / fonty) + 1;
 	m_win32_LinesPerScroll	= m_win32_LinesPerPage * 0.40;
 #endif
@@ -83,7 +83,7 @@ void pxLogTextCtrl::OnThumbTrack(wxScrollWinEvent& evt)
 	//Console.Warning( "Thumb Tracking!!!" );
 	m_FreezeWrites = true;
 	if( !m_IsPaused )
-		m_IsPaused = CoreThread.Pause();
+		m_IsPaused = new ScopedCoreThreadPause();
 
 	evt.Skip();
 }
@@ -94,8 +94,8 @@ void pxLogTextCtrl::OnThumbRelease(wxScrollWinEvent& evt)
 	m_FreezeWrites = false;
 	if( m_IsPaused )
 	{
-		CoreThread.Resume();
-		m_IsPaused = false;
+		m_IsPaused->AllowResume();
+		m_IsPaused.Delete();
 	}
 	evt.Skip();
 }
@@ -104,7 +104,7 @@ pxLogTextCtrl::~pxLogTextCtrl() throw()
 {
 }
 
-void pxLogTextCtrl::ConcludeIssue( int lines )
+void pxLogTextCtrl::ConcludeIssue()
 {
 	if( HasWriteLock() ) return;
 	SetInsertionPointEnd();

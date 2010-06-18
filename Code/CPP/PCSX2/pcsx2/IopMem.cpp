@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -32,10 +32,6 @@ static const uint m_psxMemSize =
 	0x00010000 +		// psxP
 	0x00000100 ;		// psxS
 
-// TODO: move to a header
-void Pcsx2HostFSwrite32(u32 addr, u32 value);
-u32 Pcsx2HostFSread32(u32 addr);
-
 void psxMemAlloc()
 {
 	if( m_psxAllMem == NULL )
@@ -46,7 +42,7 @@ void psxMemAlloc()
 
 	u8* curpos = m_psxAllMem;
 	psxM = curpos; curpos += Ps2MemSize::IopRam;
-	psxP = curpos; curpos += 0x00010000; 
+	psxP = curpos; curpos += 0x00010000;
 	psxH = curpos; curpos += Ps2MemSize::IopHardware;
 	psxS = curpos; //curpos += 0x00010000;
 
@@ -68,7 +64,7 @@ void psxMemReset()
 
 	// Trick!  We're accessing RLUT here through WLUT, since it's the non-const pointer.
 	// So the ones with a 0x2000 prefixed are RLUT tables.
-	
+
 	// Map IOP main memory, which is Read/Write, and mirrored three times
 	// at 0x0, 0x8000, and 0xa000:
 	for (int i=0; i<0x0080; i++)
@@ -179,7 +175,7 @@ u16 __fastcall iopMemRead16(u32 mem)
 		const u8* p = (const u8*)(psxMemRLUT[mem >> 16]);
 		if (p != NULL)
 		{
-			if (t == 0x1d00) 
+			if (t == 0x1d00)
 			{
 				u16 ret;
 				switch(mem & 0xF0)
@@ -262,8 +258,6 @@ u32 __fastcall iopMemRead32(u32 mem)
 				case 0x60:
 					ret = 0;
 					break;
-				case 0x800:
-					return Pcsx2HostFSread32(mem);
 
 				default:
 					ret = psxHu32(mem);
@@ -275,7 +269,7 @@ u32 __fastcall iopMemRead32(u32 mem)
 			return *(const u32 *)(p + (mem & 0xffff));
 		}
 		else
-		{		
+		{
 			if (t == 0x1000)
 				return DEV9read32(mem);
 			return 0;
@@ -287,7 +281,7 @@ void __fastcall iopMemWrite8(u32 mem, u8 value)
 {
 	mem &= 0x1fffffff;
 	u32 t = mem >> 16;
-	
+
 	if (t == 0x1f80)
 	{
 		switch( mem & 0xf000 )
@@ -315,13 +309,13 @@ void __fastcall iopMemWrite8(u32 mem, u8 value)
 		}
 		else
 		{
-			if (t == 0x1d00) 
+			if (t == 0x1d00)
 			{
 				Console.WriteLn("sw8 [0x%08X]=0x%08X", mem, value);
-				psxSu8(mem) = value; 
+				psxSu8(mem) = value;
 				return;
 			}
-			if (t == 0x1000) 
+			if (t == 0x1000)
 			{
 				DEV9write8(mem, value); return;
 			}
@@ -376,10 +370,10 @@ void __fastcall iopMemWrite16(u32 mem, u16 value)
 							psHu16(SBUS_F240) |= 0x2000;
 						}
 
-						
-						if(psHu16(SBUS_F240) & temp) 
+
+						if(psHu16(SBUS_F240) & temp)
 							psHu16(SBUS_F240) &= ~temp;
-						else 
+						else
 							psHu16(SBUS_F240) |= temp;
 						return;
 					}
@@ -404,7 +398,7 @@ void __fastcall iopMemWrite32(u32 mem, u32 value)
 {
 	mem &= 0x1fffffff;
 	u32 t = mem >> 16;
-	
+
 	if (t == 0x1f80)
 	{
 		switch( mem & 0xf000 )
@@ -412,7 +406,7 @@ void __fastcall iopMemWrite32(u32 mem, u32 value)
 			case 0x1000: IopMemory::iopHwWrite32_Page1(mem,value); break;
 			case 0x3000: IopMemory::iopHwWrite32_Page3(mem,value); break;
 			case 0x8000: IopMemory::iopHwWrite32_Page8(mem,value); break;
-			
+
 			default:
 				psxHu32(mem) = value;
 			break;
@@ -426,7 +420,7 @@ void __fastcall iopMemWrite32(u32 mem, u32 value)
 			*(u32 *)(p + (mem & 0xffff)) = value;
 			psxCpu->Clear(mem&~3, 1);
 		}
-		else 
+		else
 		{
 			if (t == 0x1d00)
 			{
@@ -457,7 +451,7 @@ void __fastcall iopMemWrite32(u32 mem, u32 value)
 							psHu32(SBUS_F240) |= 0x2000;
 						}
 
-						
+
 						if (psHu32(SBUS_F240) & temp)
 							psHu32(SBUS_F240) &= ~temp;
 						else
@@ -469,17 +463,13 @@ void __fastcall iopMemWrite32(u32 mem, u32 value)
 						psHu32(SBUS_F260) = 0;
 					return;
 
-					case 0x800:
-						Pcsx2HostFSwrite32(mem, value);
-						return;
-
 				}
-				psxSu32(mem) = value; 
+				psxSu32(mem) = value;
 
 				// wtf?  why were we writing to the EE's sif space?  Commenting this out doesn't
 				// break any of my games, and should be more correct, but I guess we'll see.  --air
 				//*(u32*)(PS2MEM_HW+0xf200+(mem&0xf0)) = value;
-				return; 
+				return;
 			}
 			else if (t == 0x1000)
 			{

@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -222,8 +222,7 @@ static void vSyncInfoCalc( vSyncTimingInfo* info, Fixed100 framesPerSecond, u32 
 
 u32 UpdateVSyncRate()
 {
-	XMMRegisters::Freeze();
-	MMXRegisters::Freeze();
+	Registers::Freeze();
 
 	// Notice:  (and I probably repeat this elsewhere, but it's worth repeating)
 	//  The PS2's vsync timer is an *independent* crystal that is fixed to either 59.94 (NTSC)
@@ -232,10 +231,10 @@ u32 UpdateVSyncRate()
 	//  or progressive scan content.  Indications are that it is also a simple 50/50 timer and
 	//  that it does not actually measure Vblank/Vdraw zones accurately (which would be like
 	//  1/5 and 4/5 ratios).
-	
+
 	Fixed100	framerate;
-	u32		scanlines;
-	bool	isCustom;
+	u32			scanlines;
+	bool		isCustom;
 
 	if( gsRegionMode == Region_PAL )
 	{
@@ -249,7 +248,7 @@ u32 UpdateVSyncRate()
 		framerate = EmuConfig.GS.FramerateNTSC / 2;
 		scanlines = SCANLINES_TOTAL_NTSC;
 	}
-	
+
 	if( vSyncInfo.Framerate != framerate )
 	{
 		vSyncInfoCalc( &vSyncInfo, framerate, scanlines );
@@ -278,8 +277,7 @@ u32 UpdateVSyncRate()
 
 	m_iStart = GetCPUTicks();
 
-	XMMRegisters::Thaw();
-	MMXRegisters::Thaw();
+	Registers::Thaw();
 
 	return (u32)m_iTicks;
 }

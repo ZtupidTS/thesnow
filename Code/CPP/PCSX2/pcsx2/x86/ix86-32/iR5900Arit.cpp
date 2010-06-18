@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -174,7 +174,7 @@ void recDADD_(int info)
 		xADD(eax, ptr32[&cpuRegs.GPR.r[rs].SL[0]]);
 		xADC(edx, ptr32[&cpuRegs.GPR.r[rs].SL[1]]);
 	}
-	
+
 	xMOV(ptr32[&cpuRegs.GPR.r[_Rd_].SL[0]], eax);
 	xMOV(ptr32[&cpuRegs.GPR.r[_Rd_].SL[1]], edx);
 }

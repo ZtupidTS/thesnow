@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -40,16 +40,54 @@ bool States_isSlotUsed(int num)
 		return wxFileExists( SaveStateBase::GetFilename( num ) );
 }
 
+static volatile u32 IsSavingOrLoading = false;
+
+class SysExecEvent_ClearSavingLoadingFlag : public SysExecEvent
+{
+public:
+	wxString GetEventName() const { return L"ClearSavingLoadingFlag"; }
+
+	virtual ~SysExecEvent_ClearSavingLoadingFlag() throw() { }
+	SysExecEvent_ClearSavingLoadingFlag()
+	{
+	}
+	
+	SysExecEvent_ClearSavingLoadingFlag* Clone() const { return new SysExecEvent_ClearSavingLoadingFlag(); }
+	
+protected:
+	void InvokeEvent()
+	{
+		AtomicExchange(IsSavingOrLoading, false);
+	}
+};
+
 void States_FreezeCurrentSlot()
 {
+	if( AtomicExchange(IsSavingOrLoading, true) )
+	{
+		Console.WriteLn( "Load or save action is already pending." );
+		return;
+	}
+
 	GSchangeSaveState( StatesC, SaveStateBase::GetFilename( StatesC ).ToUTF8() );
 	StateCopy_SaveToSlot( StatesC );
+	
+	GetSysExecutorThread().PostIdleEvent( SysExecEvent_ClearSavingLoadingFlag() );
 }
 
 void States_DefrostCurrentSlot()
 {
+	if( AtomicExchange(IsSavingOrLoading, true) )
+	{
+		Console.WriteLn( "Load or save action is already pending." );
+		return;
+	}
+
 	GSchangeSaveState( StatesC, SaveStateBase::GetFilename( StatesC ).ToUTF8() );
 	StateCopy_LoadFromSlot( StatesC );
+
+	GetSysExecutorThread().PostIdleEvent( SysExecEvent_ClearSavingLoadingFlag() );
+
 	//SysStatus( wxsFormat( _("Loaded State (slot %d)"), StatesC ) );
 }
 

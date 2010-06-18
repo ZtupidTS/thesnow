@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -23,16 +23,17 @@ void Dialogs::BaseConfigurationDialog::AddPage( const char* label, int iconid )
 	const wxString labelstr( fromUTF8( label ) );
 	const int curidx = m_labels.Add( labelstr );
 	m_ApplyState.SetCurrentPage( curidx );
-	m_listbook.AddPage( new T( &m_listbook ), wxGetTranslation( labelstr ),
+	m_listbook->AddPage( new T( m_listbook ), wxGetTranslation( labelstr ),
 		( labelstr == GetConfSettingsTabName() ), iconid );
 }
-
+//added ¡ý
 template< typename T >
 void Dialogs::BaseConfigurationDialog::AddPage( const wchar_t* label, int iconid )
 {
-	const wxString labelstr(  label  );
+	const wxString labelstr(  label );
 	const int curidx = m_labels.Add( labelstr );
 	m_ApplyState.SetCurrentPage( curidx );
-	m_listbook.AddPage( new T( &m_listbook ), wxGetTranslation( labelstr ),
+	m_listbook->AddPage( new T( m_listbook ), wxGetTranslation( labelstr ),
 		( labelstr == GetConfSettingsTabName() ), iconid );
 }
+//added ¡ü

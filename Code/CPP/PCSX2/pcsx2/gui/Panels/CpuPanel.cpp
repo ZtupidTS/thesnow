@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -27,15 +27,15 @@ Panels::BaseAdvancedCpuOptions::BaseAdvancedCpuOptions( wxWindow* parent )
 	m_Option_FTZ		= new pxCheckBox( this, _("刷新到零") );
 	m_Option_DAZ		= new pxCheckBox( this, _("不正常为零") );
 
-	const RadioPanelItem RoundModeChoices[] = 
+	const RadioPanelItem RoundModeChoices[] =
 	{
 		RadioPanelItem(_("最近")),
 		RadioPanelItem(_("负数")),
 		RadioPanelItem(_("正数")),
 		RadioPanelItem(_("Chop / Zero"))
 	};
-	
-	const RadioPanelItem ClampModeChoices[] = 
+
+	const RadioPanelItem ClampModeChoices[] =
 	{
 		RadioPanelItem(_("没有")),
 		RadioPanelItem(_("正常")),
@@ -45,7 +45,7 @@ Panels::BaseAdvancedCpuOptions::BaseAdvancedCpuOptions( wxWindow* parent )
 	m_ClampModePanel = new pxRadioPanel( this, ClampModeChoices );
 
 	// Highlight Default Options:
-	
+
 	m_RoundModePanel->SetDefaultItem( 3 );
 	m_ClampModePanel->SetDefaultItem( 1 );
 
@@ -129,11 +129,11 @@ Panels::CpuPanelEE::CpuPanelEE( wxWindow* parent )
 	{
 		RadioPanelItem(_("解释程序"))
 		.SetToolTip(_("Quite possibly the slowest thing in the universe.")),
-			
+
 		RadioPanelItem(_("重新编译"))
 		.SetToolTip(_("执行即时二进制转换 64 位 MIPS-IV 机器码为 x86机器码."))
 	};
-	
+
 	const RadioPanelItem tbl_CpuTypes_IOP[] =
 	{
 		RadioPanelItem(_("解释程序"))
@@ -143,7 +143,7 @@ Panels::CpuPanelEE::CpuPanelEE( wxWindow* parent )
 		.SetToolTip(_("执行即时二进制转换32位 MIPS-I 机器码为 x86 机器码."))
 	};
 
-	
+
 	m_panel_RecEE	= &(new pxRadioPanel( this, tbl_CpuTypes_EE ))->SetDefaultItem( 1 );
 	m_panel_RecIOP	= &(new pxRadioPanel( this, tbl_CpuTypes_IOP ))->SetDefaultItem( 1 );
 
@@ -189,7 +189,7 @@ Panels::CpuPanelVU::CpuPanelVU( wxWindow* parent )
 
 		RadioPanelItem(_("microVU 重编译器"))
 		.SetToolTip(_("New Vector Unit recompiler with much improved compatibility. Recommended.")),
-		
+
 		RadioPanelItem(_("superVU 重编译器 [传统]"))
 		.SetToolTip(_("Useful for diagnosing bugs or clamping issues in the new mVU recompiler."))
 	};

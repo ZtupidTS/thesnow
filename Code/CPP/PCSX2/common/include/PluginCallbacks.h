@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -231,7 +231,7 @@ typedef void PS2E_CALLBACK PS2E_OnMenuItemClicked( PS2E_THISPTR* thisptr, void* 
 //  PS2E_ConsoleWriterAPI
 // --------------------------------------------------------------------------------------
 // APIs for writing text to the console.  Typically the emulator will write the text to
-// both a console window and to a disk file, however actual implementation is up to the 
+// both a console window and to a disk file, however actual implementation is up to the
 // emulator.  All text must be either 7-bit ASCII or UTF8 encoded.  Other codepages or
 // MBCS encodings will not be displayed properly.
 //
@@ -321,7 +321,7 @@ typedef struct _PS2E_MenuItemInfo
 
 	// Optional image displayed with the menu option.  The emulator may not support
 	// this option, or may choose to ignore or resize the image if the size parameters
-	// are outside a valid threshold.  
+	// are outside a valid threshold.
 	const PS2E_Image*	Image;
 
 	// Specifies the style of the menu, either Normal, Checked, Radio, or Separator.
@@ -333,7 +333,7 @@ typedef struct _PS2E_MenuItemInfo
 	// created normally.  If non-NULL, the menu item will use sub-menu mode and will
 	// ignore the Style field.
 	PS2E_MenuHandle		SubMenu;
-	
+
 	// Menu that this item is attached to.  When this struct is passed into AddMenuItem,
 	// the menu item will be automatically appended to the menu specified in this field
 	// if the field is non-NULL (if the field is NULL, then no action is taken).
@@ -381,7 +381,7 @@ typedef struct _PS2E_MenuItemAPI
 	void (PS2E_CALLBACK* MenuItem_SetImage)( PS2E_MenuItemHandle mitem, const PS2E_Image* image );
 
 	// Gives the menu item an accompanying image (orientation of the image may depend
-	// on the operating system platform).  
+	// on the operating system platform).
 	//
 	// Returns:
 	//   TRUE if the image was loaded successfully, or FALSE if the image was not found,
@@ -450,7 +450,7 @@ typedef struct _PS2E_VersionInfo
 //  PS2E_SessionInfo
 // --------------------------------------------------------------------------------------
 // This struct is populated by the emulator prior to starting emulation, and is passed to
-// each plugin via a call to PS2E_PluginLibAPI::EmuStart().
+// each plugin via a call to PS2E_PluginLibAPI::EmuOpen().
 //
 typedef struct _PS2E_SessionInfo
 {
@@ -514,7 +514,7 @@ typedef struct _PS2E_EmulatorInfo
 	// defined type that can range from 8 bits to 32 bits (realistically, although there is
 	// no actual limit on size), and can vary between compilers for the same platform.
 	int		Sizeof_wchar_t;
-	
+
 
 	// Reserved area for future expansion of the structure (avoids having to upgrade the
 	// plugin api for amending new extensions).
@@ -649,7 +649,7 @@ typedef struct _PS2E_FreezeData
 //
 typedef struct _PS2E_ComponentAPI
 {
-	// EmuStart
+	// EmuOpen
 	// This function is called by the emulator when an emulation session is started.  The
 	// plugin should take this opportunity to bind itself to the given window handle, open
 	// necessary audio/video/input devices, etc.
@@ -658,14 +658,14 @@ typedef struct _PS2E_ComponentAPI
 	//   session - provides relevant emulation session information.  Provided pointer is
 	//      valid until after the subsequent call to EmuClose()
 	//
-	// Threading: EmuStart is called from the GUI thread. All other emulation threads are
+	// Threading: EmuOpen is called from the GUI thread. All other emulation threads are
 	//   guaranteed to be suspended or closed at the time of this call (no locks required).
 	//
-	void (PS2E_CALLBACK* EmuStart)( PS2E_THISPTR thisptr, const PS2E_SessionInfo *session );
+	void (PS2E_CALLBACK* EmuOpen)( PS2E_THISPTR thisptr, const PS2E_SessionInfo *session );
 
 	// EmuClose
 	// This function is called by the emulator prior to stopping emulation.  The window
-	// handle specified in EmuStart is guaranteed to be valid at the time EmuClose is called,
+	// handle specified in EmuOpen is guaranteed to be valid at the time EmuClose is called,
 	// and the plugin should unload/unbind all window dependencies at this time.
 	//
 	// Threading: EmuClose is called from the GUI thread.  All other emulation threads are
@@ -691,7 +691,7 @@ typedef struct _PS2E_ComponentAPI
 	// This function should make a complete copy of the plugin's emulation state into the
 	// provided dest->Data pointer.  The plugin is allowed to reduce the dest->Size value
 	// but is not allowed to make it larger.  The plugin will only receive calls to Freeze
-	// and Thaw while a plugin is in an EmuStart() state.
+	// and Thaw while a plugin is in an EmuOpen() state.
 	//
 	// Parameters:
 	//   dest - a pointer to the Data/Size destination buffer (never NULL).
@@ -704,7 +704,7 @@ typedef struct _PS2E_ComponentAPI
 
 	// Thaw
 	// Plugin should restore a complete emulation state from the given FreezeData.  The
-	// plugin will only receive calls to Freeze and Thaw while a plugin is in an EmuStart()
+	// plugin will only receive calls to Freeze and Thaw while a plugin is in an EmuOpen()
 	// state.
 	//
 	// Thread Safety:
@@ -719,10 +719,10 @@ typedef struct _PS2E_ComponentAPI
 	// this plugin is grayed out.
 	//
 	// All emulation is suspended and the plugin's state is saved to memory prior to this
-	// function being called.  Configure is only called outside the context of EmuStart()
+	// function being called.  Configure is only called outside the context of EmuOpen()
 	// (after a call to EmuClose()).
 	//
-	// Plugin authors should ensure to re-read and re-apply all settings on EmuStart(),
+	// Plugin authors should ensure to re-read and re-apply all settings on EmuOpen(),
 	// which will ensure that any user changes will be applied immediately.  For changes
 	// that can be applied without emulation suspension, see/use the GUI extensions for
 	// menu and toolbar shortcuts.
@@ -966,7 +966,7 @@ typedef struct _PS2E_ComponentAPI_GS
 	//
 	// Note that SIGNAL, FINISH, and LABEL tags are handled internally by the emulator in a
 	// thread-safe manner -- the GS plugin should ignore those tags when processing.
-	// 
+	//
 	// Returns FALSE if the plugin encountered a critical error while setting texture;
 	// indicating a device failure.
 	//
@@ -1013,6 +1013,17 @@ typedef struct _PS2E_ComponentAPI_GS
 
 } PS2E_ComponentAPI_GS;
 
+
+// --------------------------------------------------------------------------------------
+//  PS2E_McdSizeInfo
+// --------------------------------------------------------------------------------------
+struct PS2E_McdSizeInfo
+{
+	u16	SectorSize;					// Size of each sector, in bytes.  (only 512 and 1024 are valid)
+	u16 EraseBlockSizeInSectors;	// Size of the erase block, in sectors (max is 16)
+	u32	McdSizeInSectors;			// Total size of the card, in sectors (no upper limit)
+};
+
 // --------------------------------------------------------------------------------------
 //  PS2E_ComponentAPI_Mcd
 // --------------------------------------------------------------------------------------
@@ -1036,6 +1047,16 @@ typedef struct _PS2E_ComponentAPI_Mcd
 	//   False if the card is not available, or True if it is available.
 	//
 	BOOL (PS2E_CALLBACK* McdIsPresent)( PS2E_THISPTR thisptr, uint port, uint slot );
+
+	// McdGetSectorSize  (can be NULL)
+	// Requests memorycard formatting information from the Mcd provider.  See the description of
+	// PS2E_McdSizeInfo for details on each field.  If the Mcd provider supports only standard 8MB
+	// carts, then this function can be NULL.
+	// 
+	// Returns:
+	//   Assigned values for memorycard sector size and sector count in 'outways.' 
+	//
+	void (PS2E_CALLBACK* McdGetSizeInfo)( PS2E_THISPTR thisptr, uint port, uint slot, PS2E_McdSizeInfo* outways );
 
 	// McdRead
 	// Requests that a block of data be loaded from the memorycard into the specified dest
@@ -1111,7 +1132,7 @@ typedef struct _PS2E_KeyEvent
 	// Combination of PS2E_SHIFT, PS2E_CONTROL, and/or PS2E_ALT, indicating which
 	// modifier keys were also down when the key was pressed.
 	uint flags;
-	
+
 } PS2E_KeyEvent;
 
 

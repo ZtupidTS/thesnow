@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -20,15 +20,17 @@
 using namespace pxSizerFlags;
 using namespace Threading;
 
-Dialogs::StuckThreadDialog::StuckThreadDialog( wxWindow* parent, StuckThreadActionType action, PersistentThread& stuck_thread )
-	: wxDialogWithHelpers( parent, _("PCSX2 Thread is not responding"), wxVERTICAL )
-{
-	//m_idealWidth = 720;
+// NOTE: Currently unused module.  Stuck Threads are not detected or handled at this time,
+// though I would like to have something in place in the distant future. --air
 
+
+Dialogs::StuckThreadDialog::StuckThreadDialog( wxWindow* parent, StuckThreadActionType action, PersistentThread& stuck_thread )
+	: wxDialogWithHelpers( parent, _("PCSX2 Thread is not responding") )
+{
 	stuck_thread.AddListener( this );
 
 	*this += Heading( wxsFormat(
-		pxE( ".Dialog:StuckThread:Heading",
+		pxE( ".Panel:StuckThread:Heading",
 			L"The thread '%s' is not responding.  It could be deadlocked, or it might "
 			L"just be running *really* slowly."
 		),

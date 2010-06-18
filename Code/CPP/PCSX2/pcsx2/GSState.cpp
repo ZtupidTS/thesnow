@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -95,10 +95,10 @@ void LoadGSState(const wxString& file)
 
 	//if( !wxFileName::FileExists( src ) )
 	//	src = Path::Combine( g_Conf->Folders.Savestates, src );
-		
+
 	if( !wxFileName::FileExists( src ) )
 		return;
-	
+
 	SafeArray<u8> buf;
 	memLoadingState f( buf );
 
@@ -118,8 +118,8 @@ void LoadGSState(const wxString& file)
 
 	RunGSState( f );
 
-	g_plugins->Close( PluginId_GS );
-	g_plugins->Close( PluginId_PAD );
+	GetCorePlugins().Close( PluginId_GS );
+	GetCorePlugins().Close( PluginId_PAD );
 }
 
 struct GSStatePacket

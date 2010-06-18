@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -24,7 +24,7 @@
 //  the lower 16 bit value.  IF the change is breaking of all compatibility with old
 //  states, increment the upper 16 bit value, and clear the lower 16 bits to 0.
 
-static const u32 g_SaveVersion = 0x8b420000;
+static const u32 g_SaveVersion = 0x8b430000;
 
 // this function is meant to be used in the place of GSfreeze, and provides a safe layer
 // between the GS saving function and the MTGS's needs. :)
@@ -110,7 +110,7 @@ namespace Exception
 class SaveStateBase
 {
 protected:
-	SafeArray<u8>& m_memory;
+	VmStateBuffer* m_memory;
 	char m_tagspace[32];
 
 	u32 m_version;		// version of the savestate being loaded.
@@ -118,11 +118,12 @@ protected:
 	int m_idx;		// current read/write index of the allocation
 	int m_sectid;
 	int m_pid;
-	
+
 	bool m_DidBios;
 
 public:
-	SaveStateBase( SafeArray<u8>& memblock );
+	SaveStateBase( VmStateBuffer& memblock );
+	SaveStateBase( VmStateBuffer* memblock );
 	virtual ~SaveStateBase() { }
 
 	static wxString GetFilename( int slot );
@@ -139,7 +140,7 @@ public:
 	// (loading) a state!
 	virtual void FreezeAll();
 
-	// Loads or saves an arbitrary data type.  Usable on atomic types, structs, and arrays.  
+	// Loads or saves an arbitrary data type.  Usable on atomic types, structs, and arrays.
 	// For dynamically allocated pointers use FreezeMem instead.
 	template<typename T>
 	void Freeze( T& data )
@@ -159,7 +160,7 @@ public:
 
 	u8* GetBlockPtr()
 	{
-		return &m_memory[m_idx];
+		return m_memory->GetPtr(m_idx);
 	}
 
 	void CommitBlock( int size )
@@ -190,6 +191,7 @@ public:
 	void gsFreeze();
 
 protected:
+	void Init( VmStateBuffer* memblock );
 
 	// Load/Save functions for the various components of our glorious emulator!
 
@@ -201,7 +203,7 @@ protected:
 	void vuMicroFreeze();
 	void vif0Freeze();
 	void vif1Freeze();
-#ifdef ENABLE_NEW_IOPDMA	
+#ifdef ENABLE_NEW_IOPDMA
 	void iopDmacFreeze();
 #endif
 	void sifFreeze();
@@ -216,6 +218,8 @@ protected:
 	void sio2Freeze();
 
 	void gifPathFreeze();		// called by gsFreeze
+	
+	void deci2Freeze();
 };
 
 // --------------------------------------------------------------------------------------
@@ -232,7 +236,8 @@ protected:
 
 public:
 	virtual ~memSavingState() throw() { }
-	memSavingState( SafeArray<u8>& save_to );
+	memSavingState( VmStateBuffer& save_to );
+	memSavingState( VmStateBuffer* save_to );
 
 	// Saving of state data to a memory buffer
 	void FreezeMem( void* data, int size );
@@ -245,13 +250,15 @@ class memLoadingState : public SaveStateBase
 {
 public:
 	virtual ~memLoadingState() throw();
-	memLoadingState( const SafeArray<u8>& load_from );
+
+	memLoadingState( const VmStateBuffer& load_from );
+	memLoadingState( const VmStateBuffer* load_from );
 
 	// Loading of state data from a memory buffer...
 	void FreezeMem( void* data, int size );
 	bool SeekToSection( PluginsEnum_t pid );
-	
+
 	bool IsSaving() const { return false; }
-	bool IsFinished() const { return m_idx >= m_memory.GetSizeInBytes(); }
+	bool IsFinished() const { return m_idx >= m_memory->GetSizeInBytes(); }
 };
 

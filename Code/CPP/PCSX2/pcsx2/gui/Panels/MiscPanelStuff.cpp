@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  * 
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -27,18 +27,18 @@ using namespace Dialogs;
 using namespace pxSizerFlags;
 
 // --------------------------------------------------------------------------------------
-//  UsermodeSelectionPanel
+//  DocsFolderPickerPanel
 // --------------------------------------------------------------------------------------
-Panels::UsermodeSelectionPanel::UsermodeSelectionPanel( wxWindow* parent, bool isFirstTime )
+Panels::DocsFolderPickerPanel::DocsFolderPickerPanel( wxWindow* parent, bool isFirstTime )
 	: BaseApplicableConfigPanel( parent, wxVERTICAL, _("用户模式选择") )
 {
-	const wxString usermodeExplained( pxE( ".Panels:Usermode:Explained",
+	const wxString usermodeExplained( pxE( ".Panel:Usermode:Explained",
 		L"Please select your preferred default location for PCSX2 user-level documents below "
 		L"(includes memory cards, screenshots, settings, and savestates).  "
 		L"These folder locations can be overridden at any time using the Core Settings panel."
 	) );
 
-	const wxString usermodeWarning( pxE( ".Panels:Usermode:Warning",
+	const wxString usermodeWarning( pxE( ".Panel:Usermode:Warning",
 		L"You can change the preferred default location for PCSX2 user-level documents here "
 		L"(includes memory cards, screenshots, settings, and savestates).  "
 		L"This option only affects Standard Paths which are set to use the installation default value."
@@ -52,12 +52,6 @@ Panels::UsermodeSelectionPanel::UsermodeSelectionPanel( wxWindow* parent, bool i
 		),
 
 		RadioPanelItem(
-			_("当前工作文件夹 (更适合高级用户)"),
-			_("位置: ") + wxGetCwd(),
-			_("This setting requires administration privileges from your operating system.")
-		),
-
-		RadioPanelItem(
 			_("Custom folder:"),
 			wxEmptyString,
 			_("This setting may require administration privileges from your operating system, depending on how your system is configured.")
@@ -67,40 +61,46 @@ Panels::UsermodeSelectionPanel::UsermodeSelectionPanel( wxWindow* parent, bool i
 	m_radio_UserMode = new pxRadioPanel( this, UsermodeOptions );
 	m_radio_UserMode->SetPaddingHoriz( m_radio_UserMode->GetPaddingVert() + 4 );
 	m_radio_UserMode->Realize();
+	if( pxStaticText* woot = m_radio_UserMode->GetSubText(0) ) woot->Unwrapped();		// wrapping sucks for path names!
 	
 	m_dirpicker_custom = new DirPickerPanel( this, FolderId_Documents, _("Select a document root for PCSX2") );
 
-	*this	+= Text( isFirstTime ? usermodeExplained : usermodeWarning );
+	*this	+= Heading( isFirstTime ? usermodeExplained : usermodeWarning );
 	*this	+= m_radio_UserMode		| StdExpand();
 	*this	+= m_dirpicker_custom	| pxExpand.Border( wxLEFT, StdPadding + m_radio_UserMode->GetIndentation() );
 	*this	+= 4;
 
-	AppStatusEvent_OnSettingsApplied();
-	
-	Connect( wxEVT_COMMAND_RADIOBUTTON_SELECTED, wxCommandEventHandler(UsermodeSelectionPanel::OnRadioChanged) );
+	Connect( wxEVT_COMMAND_RADIOBUTTON_SELECTED, wxCommandEventHandler(DocsFolderPickerPanel::OnRadioChanged) );
 }
 
-void Panels::UsermodeSelectionPanel::Apply()
+DocsModeType Panels::DocsFolderPickerPanel::GetDocsMode() const
+{
+	return (DocsModeType) m_radio_UserMode->GetSelection();
+}
+
+void Panels::DocsFolderPickerPanel::Apply()
 {
 	DocsFolderMode			= (DocsModeType) m_radio_UserMode->GetSelection();
 	CustomDocumentsFolder	= m_dirpicker_custom->GetPath();
 }
 
-void Panels::UsermodeSelectionPanel::AppStatusEvent_OnSettingsApplied()
+void Panels::DocsFolderPickerPanel::AppStatusEvent_OnSettingsApplied()
 {
 	if( m_radio_UserMode ) m_radio_UserMode->SetSelection( DocsFolderMode );
-
 	if( m_dirpicker_custom ) m_dirpicker_custom->Enable( DocsFolderMode == DocsFolder_Custom );
 }
 
-void Panels::UsermodeSelectionPanel::OnRadioChanged( wxCommandEvent& evt )
+void Panels::DocsFolderPickerPanel::OnRadioChanged( wxCommandEvent& evt )
 {
 	evt.Skip();
 
 	if( !m_radio_UserMode ) return;
 
 	if( m_dirpicker_custom )
-		m_dirpicker_custom->Enable( m_radio_UserMode->GetSelection() == (int)DocsFolder_Custom );	
+		m_dirpicker_custom->Enable( m_radio_UserMode->GetSelection() == (int)DocsFolder_Custom );
+
+	if( pxStaticText* woot = m_radio_UserMode->GetSubText(0) )
+		woot->Enable( m_radio_UserMode->GetSelection() == (int)DocsFolder_User );
 }
 
 // --------------------------------------------------------------------------------------
@@ -127,7 +127,7 @@ Panels::LanguageSelectionPanel::LanguageSelectionPanel( wxWindow* parent )
 	m_picker = new wxComboBox( this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize,
 		size, compiled.GetPtr(), wxCB_READONLY | wxCB_SORT );
 
-	*this	+= Text(_("选择一个语言: ")) | pxMiddle;
+	*this	+= Label(_("选择一个语言: (unimplemented)")) | pxMiddle;
 	*this	+= 5;
 	*this	+= m_picker | pxSizerFlags::StdSpace();
 

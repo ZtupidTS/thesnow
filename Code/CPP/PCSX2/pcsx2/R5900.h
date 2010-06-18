@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -25,7 +25,8 @@
 // right now, so we're sticking them here for now until a better solution comes along.
 
 extern bool g_EEFreezeRegs;
-extern bool g_ExecBiosHack;
+extern bool g_SkipBiosHack;
+extern bool g_GameStarted;
 
 namespace Exception
 {
@@ -255,6 +256,15 @@ void intSetBranch();
 // parts of the Recs (namely COP0's branch codes and stuff).
 void __fastcall intDoBranch(u32 target);
 
+// modules loaded at hardcoded addresses by the kernel
+const u32 EEKERNEL_START = 0;
+const u32 EENULL_START = 0x81FC0;
+const u32 EELOAD_START = 0x82000;
+const u32 EELOAD_SIZE = 0x20000; // overestimate for searching
+
+void __fastcall eeGameStarting();
+void __fastcall eeloadReplaceOSDSYS();
+
 ////////////////////////////////////////////////////////////////////
 // R5900 Public Interface / API
 //
@@ -277,9 +287,9 @@ struct R5900cpu
 	//                 reserved.
 	//
 	void (*Allocate)();
-	
+
 	// Deallocates ram allocated by Allocate and/or by runtime code execution.
-	// 
+	//
 	// Thread Affinity:
 	//   Can be called from any thread.  Execute status must be suspended or stopped
 	//   to prevent multi-thread race conditions.
@@ -319,27 +329,13 @@ struct R5900cpu
 	//
 	void (*Execute)();
 
-	// This function performs a "hackish" execution of the BIOS stub, which initializes
-	// EE memory and hardware.  It forcefully breaks execution when the stub is finished,
-	// prior to the PS2 logos being displayed.  This allows us to "shortcut" right into
-	// a game without having to wait through the logos or endure game/bios localization
-	// checks.
-	//
-	// Use of this function must be followed by the proper injection of the elf header's
-	// code execution entry point into cpuRegs.pc.  Failure to modify cpuRegs.pc will
-	// result in the bios continuing its normal unimpeded splash screen execution.
-	//
-	// Exception Throws:  [TODO]  (possible execution-related throws to be added)
-	//
-	void (*ExecuteBiosStub)();
-
-	// Checks for execution suspension or cancellation.  In pthreads terms this provides 
+	// Checks for execution suspension or cancellation.  In pthreads terms this provides
 	// a "cancellation point."  Execution state checks are typically performed at Vsyncs
 	// by the generic VM event handlers in R5900.cpp/Counters.cpp (applies to both recs
 	// and ints).
 	//
 	// Implementation note: Because of the nuances of recompiled code execution, setjmp
-	// may be used in place of thread cancellation or C++ exceptions (non-SEH exceptions 
+	// may be used in place of thread cancellation or C++ exceptions (non-SEH exceptions
 	// cannot unwind through the recompiled code stackframes).
 	//
 	// Thread Affinity:
@@ -360,7 +356,7 @@ struct R5900cpu
 	// resets, since TLB remaps affect more than just the code they contain (code that
 	// may reference the remaped blocks via memory loads/stores, for example).
 	//
-	// Thread Affinity Rule: 
+	// Thread Affinity Rule:
 	//   Can be called from any thread (namely for being called from debugging threads)
 	//
 	// Exception Throws: [TODO] Emulator defined?  (probably shouldn't throw, probably
@@ -379,6 +375,7 @@ extern void cpuException(u32 code, u32 bd);
 extern void cpuTlbMissR(u32 addr, u32 bd);
 extern void cpuTlbMissW(u32 addr, u32 bd);
 extern void cpuTestHwInts();
+extern void cpuClearInt(uint n);
 
 extern void cpuSetNextBranch( u32 startCycle, s32 delta );
 extern void cpuSetNextBranchDelta( s32 delta );

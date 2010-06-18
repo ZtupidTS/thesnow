@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -38,12 +38,11 @@ extern void pcsx2_aligned_free(void* pmem);
 #define safe_delete_array( ptr ) \
 	((void) (delete[] (ptr)), (ptr) = NULL)
 
-// fixme: I'm pretty sure modern libc implementations under gcc and msvc check null status
-// inside free(), meaning we shouldn't have to do it ourselves.  But legacy implementations
-// didn't always check, so best to be cautious unless absolutely certain it's being covered on
-// all ported platforms.
+// No checks for NULL -- wxWidgets says it's safe to skip NULL checks and it runs on 
+// just about every compiler and libc implementation of any recentness.
 #define safe_free( ptr ) \
-	((void) (( ( (ptr) != NULL ) && (free( ptr ), !!0) ), (ptr) = NULL))
+	( (void) (free( ptr ), !!0), (ptr) = NULL )
+	//((void) (( ( (ptr) != NULL ) && (free( ptr ), !!0) ), (ptr) = NULL))
 
 #define safe_fclose( ptr ) \
 	((void) (( ( (ptr) != NULL ) && (fclose( ptr ), !!0) ), (ptr) = NULL))
@@ -86,19 +85,20 @@ protected:
 	// use its own memory allocation (with an aligned memory, for example).
 	// Throws:
 	//   Exception::OutOfMemory if the allocated_mem pointer is NULL.
-	explicit SafeArray( const wxChar* name, T* allocated_mem, int initSize ) : 
-	  Name( name )
-	, ChunkSize( DefaultChunkSize )
-	, m_ptr( allocated_mem )
-	, m_size( initSize )
+	explicit SafeArray( const wxChar* name, T* allocated_mem, int initSize )
+		: Name( name )
 	{
+		ChunkSize	= DefaultChunkSize;
+		m_ptr		= allocated_mem;
+		m_size		= initSize;
+
 		if( m_ptr == NULL )
 			throw Exception::OutOfMemory();
 	}
 
 	virtual T* _virtual_realloc( int newsize )
 	{
-		return (T*)((m_ptr == NULL) ? 
+		return (T*)((m_ptr == NULL) ?
 			malloc( newsize * sizeof(T) ) :
 			realloc( m_ptr, newsize * sizeof(T) )
 		);
@@ -110,24 +110,25 @@ public:
 		safe_free( m_ptr );
 	}
 
-	explicit SafeArray( const wxChar* name=L"Unnamed" ) : 
-	  Name( name )
-	, ChunkSize( DefaultChunkSize )
-	, m_ptr( NULL )
-	, m_size( 0 )
+	explicit SafeArray( const wxChar* name=L"Unnamed" )
+		: Name( name )
 	{
+		ChunkSize	= DefaultChunkSize;
+		m_ptr		= NULL;
+		m_size		= 0;
 	}
 
-	explicit SafeArray( int initialSize, const wxChar* name=L"Unnamed" ) : 
-	  Name( name )
-	, ChunkSize( DefaultChunkSize )
-	, m_ptr( (initialSize==0) ? NULL : (T*)malloc( initialSize * sizeof(T) ) )
-	, m_size( initialSize )
+	explicit SafeArray( int initialSize, const wxChar* name=L"Unnamed" )
+		: Name( name )
 	{
+		ChunkSize	= DefaultChunkSize;
+		m_ptr		= (initialSize==0) ? NULL : (T*)malloc( initialSize * sizeof(T) );
+		m_size		= initialSize;
+
 		if( (initialSize != 0) && (m_ptr == NULL) )
 			throw Exception::OutOfMemory();
 	}
-	
+
 	// Clears the contents of the array to zero, and frees all memory allocations.
 	void Dispose()
 	{
@@ -143,7 +144,7 @@ public:
 	int GetSizeInBytes() const { return m_size * sizeof(T); }
 
 	// reallocates the array to the explicit size.  Can be used to shrink or grow an
-	// array, and bypasses the internal threshold growth indicators.	
+	// array, and bypasses the internal threshold growth indicators.
 	void ExactAlloc( int newsize )
 	{
 		if( newsize == m_size ) return;
@@ -171,7 +172,7 @@ public:
 		if( newsize > m_size )
 			ExactAlloc( newsize );
 	}
-	
+
 	// Extends the containment area of the array.  Extensions are performed
 	// in chunks.
 	void GrowBy( int items )
@@ -224,11 +225,11 @@ template< typename T >
 class SafeList
 {
 	DeclareNoncopyableObject(SafeList);
-	
+
 public:
 	static const int DefaultChunkSize = 0x80 * sizeof(T);
 
-public: 
+public:
 	wxString	Name;			// user-assigned block name
 	int			ChunkSize;		// assigned DefaultChunkSize on init, reconfigurable at any time.
 
@@ -242,14 +243,14 @@ protected:
 	{
 		return (T*)realloc( m_ptr, newsize * sizeof(T) );
 	}
-	
+
 public:
 	virtual ~SafeList() throw()
 	{
 		safe_free( m_ptr );
 	}
 
-	explicit SafeList( const wxChar* name=L"Unnamed" ) : 
+	explicit SafeList( const wxChar* name=L"Unnamed" ) :
 		Name( name )
 	,	ChunkSize( DefaultChunkSize )
 	,	m_ptr( NULL )
@@ -258,7 +259,7 @@ public:
 	{
 	}
 
-	explicit SafeList( int initialSize, const wxChar* name=L"Unnamed" ) : 
+	explicit SafeList( int initialSize, const wxChar* name=L"Unnamed" ) :
 		Name( name )
 	,	ChunkSize( DefaultChunkSize )
 	,	m_ptr( (T*)malloc( initialSize * sizeof(T) ) )
@@ -305,7 +306,7 @@ public:
 						L"Name: %s, Old size: %d bytes, New size: %d bytes",
 						Name.c_str(), m_allocsize, newalloc
 					),
-					
+
 					wxsFormat( _("Out of memory, trying to allocate %d bytes."), newalloc )
 				);
 			}
@@ -327,7 +328,7 @@ public:
 	{
 		m_length = 0;
 	}
-	
+
 	// Appends an item to the end of the list and returns a handle to it.
 	T& New()
 	{
@@ -360,7 +361,7 @@ public:
 		m_ptr[m_length] = src;
 		return m_ptr[m_length];
 	}
-	
+
 	// Performs a standard array-copy removal of the given item.  All items past the
 	// given item are copied over.
 	// DevBuilds : Generates assertion if the index is invalid.
@@ -429,12 +430,12 @@ public:
 		// mptr is set to null, so the parent class's destructor won't re-free it.
 	}
 
-	explicit SafeAlignedArray( const wxChar* name=L"Unnamed" ) : 
+	explicit SafeAlignedArray( const wxChar* name=L"Unnamed" ) :
 		SafeArray<T>::SafeArray( name )
 	{
 	}
 
-	explicit SafeAlignedArray( int initialSize, const wxChar* name=L"Unnamed" ) : 
+	explicit SafeAlignedArray( int initialSize, const wxChar* name=L"Unnamed" ) :
 		SafeArray<T>::SafeArray(
 			name,
 			(T*)_aligned_malloc( initialSize * sizeof(T), Alignment ),

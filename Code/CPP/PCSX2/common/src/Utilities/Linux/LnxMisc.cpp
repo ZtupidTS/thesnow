@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -18,7 +18,7 @@
 #include <ctype.h>
 #include <time.h>
 #include <sys/time.h>
-#include <wx/utils.h> 
+#include <wx/utils.h>
 
 extern "C" __aligned16 u8 _xmm_backup[16*2];
 extern "C" __aligned16 u8 _mmx_backup[8*4];

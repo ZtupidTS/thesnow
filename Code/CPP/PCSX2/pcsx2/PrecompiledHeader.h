@@ -48,6 +48,8 @@
 #include <cstdio>		// stdio.h under c++
 #include <cstdlib>
 #include <iostream>
+#include <sstream>
+#include <fstream>
 
 // ... and include some ANSI/POSIX C libs that are useful too, just for good measure.
 // (these compile lightning fast with or without PCH, but they never change so
@@ -74,7 +76,7 @@ typedef int BOOL;
 // unchanged for long periods of time, or happen to be used by almost everything, so they
 // need a full recompile anyway, when modified (etc)
 
-#include "zlib/zlib.h"
+#include "zlib.h"
 #include "Pcsx2Defs.h"
 #include "i18n.h"
 

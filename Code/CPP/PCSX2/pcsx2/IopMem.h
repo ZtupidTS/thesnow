@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -29,11 +29,11 @@ extern const uptr *psxMemRLUT;
 // If the address maps to read-only memory, NULL is returned.
 // Hacky!  This should really never be used, ever, since it bypasses the iop's Hardware
 // Register handler and SPU/DEV/USB maps.
-/*template<typename T>
+template<typename T>
 static __forceinline T* iopVirtMemW( u32 mem )
 {
 	return (psxMemWLUT[(mem) >> 16] == 0) ? NULL : (T*)(psxMemWLUT[(mem) >> 16] + ((mem) & 0xffff));
-}*/
+}
 
 // Obtains a read-safe pointer into the IOP's physical memory, with TLB address translation.
 // Returns NULL if the address maps to an invalid/unmapped physical address.

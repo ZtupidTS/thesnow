@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -25,6 +25,8 @@ using namespace pxSizerFlags;
 Panels::eeLogOptionsPanel::eeLogOptionsPanel( LogOptionsPanel* parent )
 	: CheckedStaticBox( parent, wxVERTICAL, L"EE 日志" )
 {
+	SetMinWidth( 260 );
+
 	m_disasmPanel	= new CheckedStaticBox( this, wxVERTICAL, L"反汇编" );
 	m_hwPanel		= new CheckedStaticBox( this, wxVERTICAL, L"硬件" );
 	m_evtPanel		= new CheckedStaticBox( this, wxVERTICAL, L"事件" );
@@ -40,7 +42,7 @@ Panels::eeLogOptionsPanel::eeLogOptionsPanel( LogOptionsPanel* parent )
 	s_misc.Add( m_Memory	= new pxCheckBox( m_miscPanel, L"内存" ) );
 	s_misc.Add( m_Cache		= new pxCheckBox( m_miscPanel, L"缓存" ));
 	s_misc.Add( m_SysCtrl	= new pxCheckBox( m_miscPanel, L"SysCtrl / MMU" ) );
-		
+
 	s_disasm.Add( m_R5900		= new pxCheckBox( m_disasmPanel, L"R5900" ));
 	s_disasm.Add( m_COP0		= new pxCheckBox( m_disasmPanel, L"COP0 (MMU/SysCtrl)" ));
 	s_disasm.Add( m_COP1		= new pxCheckBox( m_disasmPanel, L"COP1 (FPU)" ));
@@ -61,14 +63,17 @@ Panels::eeLogOptionsPanel::eeLogOptionsPanel( LogOptionsPanel* parent )
 	m_Cache->SetToolTip(_("(not implemented yet)"));
 
 	wxFlexGridSizer& eeTable( *new wxFlexGridSizer( 2, 5 ) );
-	
-	eeTable.Add( &s_misc, SubGroup() );
-	eeTable.Add( m_hwPanel, SubGroup() );
-	eeTable.Add( m_evtPanel, SubGroup() );
-	eeTable.Add( m_disasmPanel, SubGroup() );
 
-	ThisSizer.AddSpacer( 4 );
-	ThisSizer.Add( &eeTable );
+	eeTable.AddGrowableCol(0);
+	eeTable.AddGrowableCol(1);
+
+	eeTable	+= s_misc			| SubGroup();
+	eeTable += m_hwPanel		| SubGroup();
+	eeTable += m_evtPanel		| SubGroup();
+	eeTable += m_disasmPanel	| SubGroup();
+
+	ThisSizer	+= 4;
+	ThisSizer	+= eeTable | pxExpand;
 
 	SetValue( true );
 }
@@ -76,6 +81,8 @@ Panels::eeLogOptionsPanel::eeLogOptionsPanel( LogOptionsPanel* parent )
 Panels::iopLogOptionsPanel::iopLogOptionsPanel( LogOptionsPanel* parent )
 	: CheckedStaticBox( parent, wxVERTICAL, L"IOP 日志" )
 {
+	SetMinWidth( 260 );
+	
 	m_disasmPanel	= new CheckedStaticBox( this, wxVERTICAL, L"反汇编" );
 	m_hwPanel		= new CheckedStaticBox( this, wxVERTICAL, L"硬件" );
 	m_evtPanel		= new CheckedStaticBox( this, wxVERTICAL, L"事件" );
@@ -87,34 +94,37 @@ Panels::iopLogOptionsPanel::iopLogOptionsPanel( LogOptionsPanel* parent )
 	wxStaticBoxSizer& s_misc = *new wxStaticBoxSizer( wxVERTICAL, this, L"常规" );
 	wxPanelWithHelpers* m_miscPanel = this;		// helper for our newCheckBox macro.
 
-	s_misc.Add( m_Bios		= new pxCheckBox( m_miscPanel, L"Bios" ));
-	s_misc.Add( m_Memory	= new pxCheckBox( m_miscPanel, L"内存" ));
-	s_misc.Add( m_GPU		= new pxCheckBox( m_miscPanel, L"GPU (PS1 only)", L"(Not implemented yet)" ));
+	s_misc		+= m_Bios		= new pxCheckBox( m_miscPanel, L"Bios" );
+	s_misc		+= m_Memory		= new pxCheckBox( m_miscPanel, L"内存" );
+	s_misc		+= m_GPU		= new pxCheckBox( m_miscPanel, L"GPU (PS1 only)", L"(Not implemented yet)" );
 
-	s_disasm.Add( m_R3000A	= new pxCheckBox( m_disasmPanel, L"R3000A" ));
-	s_disasm.Add( m_COP2	= new pxCheckBox( m_disasmPanel, L"COP2 (Geometry)" ));
+	s_disasm	+= m_R3000A		= new pxCheckBox( m_disasmPanel, L"R3000A" );
+	s_disasm	+= m_COP2		= new pxCheckBox( m_disasmPanel, L"COP2 (Geometry)" );
 
-	s_hw.Add( m_KnownHw		= new pxCheckBox( m_hwPanel, L"寄存器" ));
-	s_hw.Add( m_UnknownHw	= new pxCheckBox( m_hwPanel, L"UnknownRegs" ));
-	s_hw.Add( m_DMA			= new pxCheckBox( m_hwPanel, L"DMA" ));
+	s_hw		+= m_KnownHw	= new pxCheckBox( m_hwPanel, L"寄存器" );
+	s_hw		+= m_UnknownHw	= new pxCheckBox( m_hwPanel, L"UnknownRegs" );
+	s_hw		+= m_DMA		= new pxCheckBox( m_hwPanel, L"DMA" );
 
-	s_evt.Add( m_Counters	= new pxCheckBox( m_evtPanel, L"Counters" ));
-	s_evt.Add( m_Memcards	= new pxCheckBox( m_evtPanel, L"内存卡" ));
-	s_evt.Add( m_PAD		= new pxCheckBox( m_evtPanel, L"手柄" ));
-	s_evt.Add( m_SPU2		= new pxCheckBox( m_evtPanel, L"SPU2" ));
-	s_evt.Add( m_CDVD		= new pxCheckBox( m_evtPanel, L"CDVD" ));
-	s_evt.Add( m_USB		= new pxCheckBox( m_evtPanel, L"USB" ));
-	s_evt.Add( m_FW			= new pxCheckBox( m_evtPanel, L"FW" ));
+	s_evt		+= m_Counters	= new pxCheckBox( m_evtPanel, L"Counters" );
+	s_evt		+= m_Memcards	= new pxCheckBox( m_evtPanel, L"内存卡" );
+	s_evt		+= m_PAD		= new pxCheckBox( m_evtPanel, L"手柄" );
+	s_evt		+= m_SPU2		= new pxCheckBox( m_evtPanel, L"SPU2" );
+	s_evt		+= m_CDVD		= new pxCheckBox( m_evtPanel, L"CDVD" );
+	s_evt		+= m_USB		= new pxCheckBox( m_evtPanel, L"USB" );
+	s_evt		+= m_FW			= new pxCheckBox( m_evtPanel, L"FW" );
 
 	wxFlexGridSizer& iopTable( *new wxFlexGridSizer( 2, 5 ) );
 
-	iopTable.Add( &s_misc, SubGroup() );
-	iopTable.Add( m_hwPanel, SubGroup() );
-	iopTable.Add( m_evtPanel, SubGroup() );
-	iopTable.Add( m_disasmPanel, SubGroup() );
+	iopTable.AddGrowableCol(0);
+	iopTable.AddGrowableCol(1);
 
-	ThisSizer.AddSpacer( 4 );
-	ThisSizer.Add( &iopTable );
+	iopTable	+= s_misc			| SubGroup();
+	iopTable	+= m_hwPanel		| SubGroup();
+	iopTable	+= m_evtPanel		| SubGroup();
+	iopTable	+= m_disasmPanel	| SubGroup();
+
+	ThisSizer	+= 4;
+	ThisSizer	+= iopTable	| pxExpand;
 
 	SetValue( true );
 }
@@ -194,8 +204,8 @@ Panels::LogOptionsPanel::LogOptionsPanel(wxWindow* parent )
 	, m_iopSection	( *new iopLogOptionsPanel( this ) )
 {
 	m_masterEnabler = new pxCheckBox( this, _("Enable Trace Logging"),
-		_("Trace logs are all written to emulog.txt.  Warning: Enabling trace logs is typically very slow, and is a leading cause of 'What happened to my FPS?' problems. :)") );
-	m_masterEnabler->SetToolTip( _("On-the-fly hotkey support: Toggle trace logging at any time using F10.") );
+		_("Trace logs are all written to emulog.txt.  Toggle trace logging at any time using F10.") );
+	m_masterEnabler->SetToolTip( _("Warning: Enabling trace logs is typically very slow, and is a leading cause of 'What happened to my FPS?' problems. :)") );
 
 	m_SIF		= new pxCheckBox( this, L"SIF (EE<->IOP)" );
 	m_VIFunpack	= new pxCheckBox( this, L"VIFunpack" );
@@ -208,25 +218,28 @@ Panels::LogOptionsPanel::LogOptionsPanel(wxWindow* parent )
 	m_Elf		->SetToolTip(_("Logging of Elf headers."));
 
 
-	wxBoxSizer& topSizer			= *new wxBoxSizer( wxHORIZONTAL );
+	wxFlexGridSizer&	topSizer	= *new wxFlexGridSizer( 2 );
 	wxStaticBoxSizer&	s_misc		= *new wxStaticBoxSizer( wxHORIZONTAL, this, L"Misc" );
 
-	topSizer	+= m_eeSection		| StdSpace();
-	topSizer	+= m_iopSection		| StdSpace();
+	topSizer.AddGrowableCol(0);
+	topSizer.AddGrowableCol(1);
+
+	topSizer	+= m_eeSection		| StdExpand();
+	topSizer	+= m_iopSection		| StdExpand();
 
 	s_misc		+= m_SIF;
 	s_misc		+= m_VIFunpack;
 	s_misc		+= m_GIFtag;
 	s_misc		+= m_Elf;
 
-	*this		+= m_masterEnabler						| StdSpace();
-	*this		+= new wxStaticLine( this, wxID_ANY )	| StdExpand().Border(wxLEFT | wxRIGHT, 20);
+	*this		+= m_masterEnabler				| StdExpand();
+	*this		+= new wxStaticLine( this )		| StdExpand().Border(wxLEFT | wxRIGHT, 20);
 	*this		+= 5;
-	*this		+= topSizer;
-	*this		+= s_misc								| StdSpace().Centre();
+	*this		+= topSizer						| StdExpand();
+	*this		+= s_misc						| StdSpace().Centre();
 
 	Connect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler(LogOptionsPanel::OnCheckBoxClicked) );
-	
+
 	AppStatusEvent_OnSettingsApplied();
 }
 
@@ -237,13 +250,13 @@ void Panels::LogOptionsPanel::AppStatusEvent_OnSettingsApplied()
 	m_masterEnabler->SetValue( conf.Enabled );
 	m_SIF->SetValue( conf.SIF );
 	m_Elf->SetValue( g_Conf->EmuOptions.Log.ELF );
-	
+
 	SetCheckValue( EE, VIFunpack );
 	SetCheckValue( EE, GIFtag );
 
-	m_eeSection.OnSettingsChanged();	
+	m_eeSection.OnSettingsChanged();
 	m_iopSection.OnSettingsChanged();
-	
+
 	OnUpdateEnableAll();
 }
 
@@ -270,7 +283,7 @@ void Panels::LogOptionsPanel::OnCheckBoxClicked(wxCommandEvent &evt)
 void Panels::LogOptionsPanel::Apply()
 {
 	if( !m_IsDirty ) return;
-	
+
 	g_Conf->EmuOptions.Trace.Enabled	= m_masterEnabler->GetValue();
 	g_Conf->EmuOptions.Trace.SIF		= m_SIF->GetValue();
 	g_Conf->EmuOptions.Log.ELF			= m_Elf->GetValue();
@@ -306,7 +319,7 @@ void Panels::eeLogOptionsPanel::Apply()
 	GetSet(m_COP2);
 	GetSet(m_VU0micro);
 	GetSet(m_VU1micro);
-	
+
 	GetSet(m_KnownHw);
 	GetSet(m_UnknownHw);
 	GetSet(m_DMA);
@@ -317,7 +330,7 @@ void Panels::eeLogOptionsPanel::Apply()
 	GetSet(m_SPR);
 	GetSet(m_IPU);
 }
-	
+
 void Panels::iopLogOptionsPanel::Apply()
 {
 	TraceFiltersIOP& conf( g_Conf->EmuOptions.Trace.IOP );

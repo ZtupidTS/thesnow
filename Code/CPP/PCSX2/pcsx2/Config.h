@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -36,6 +36,25 @@ enum PluginsEnum_t
 
 	PluginId_Mcd
 };
+
+enum GamefixId
+{
+	GamefixId_FIRST = 0,
+
+	Fix_VuAddSub = GamefixId_FIRST,
+	Fix_VuClipFlag,
+	Fix_FpuCompare,
+	Fix_FpuMultiply,
+	Fix_FpuNegDiv,
+	Fix_XGKick,
+	Fix_IpuWait,
+	Fix_EETiming,
+	Fix_SkipMpeg,
+
+	GamefixId_COUNT
+};
+
+ImplementEnumOperators( GamefixId );
 
 //------------ DEFAULT sseMXCSR VALUES ---------------
 #define DEFAULT_sseMXCSR	0xffc0 //FPU rounding > DaZ, FtZ, "chop"
@@ -322,7 +341,7 @@ struct Pcsx2Config
 				fpuOverflow		:1,
 				fpuExtraOverflow:1,
 				fpuFullMode		:1;
-				
+
 			bool
 				StackFrameChecks:1;
 		BITFIELD_END
@@ -378,7 +397,7 @@ struct Pcsx2Config
 		bool	FrameLimitEnable;
 		bool	FrameSkipEnable;
 		bool	VsyncEnable;
-		
+
 		// The region mode controls the default Maximum/Minimum FPS settings and also
 		// regulates the vsync rates (which in turn control the IOP's SPU2 tick sync and ensure
 		// proper audio playback speed).
@@ -430,13 +449,22 @@ struct Pcsx2Config
 				FpuCompareHack	:1,		// Digimon Rumble Arena 2, fixes spinning/hanging on intro-menu.
 				FpuMulHack		:1,		// Tales of Destiny hangs.
 				FpuNegDivHack	:1,		// Gundam games messed up camera-view.
-				DMAExeHack		:1,		// Fatal Frame; breaks Gust and Tri-Ace games.
-				XgKickHack		:1;		// Erementar Gerad, adds more delay to VU XGkick instructions. Corrects the color of some graphics, but breaks Tri-ace games and others.
+				XgKickHack		:1,		// Erementar Gerad, adds more delay to VU XGkick instructions. Corrects the color of some graphics, but breaks Tri-ace games and others.
+				IPUWaitHack     :1,		// FFX FMV, makes GIF flush before doing IPU work. Fixes bad graphics overlay.
+				EETimingHack	:1,		// General purpose timing hack.
+				SkipMPEGHack	:1;		// Skips MPEG videos (Katamari and other games need this)
 		BITFIELD_END
 
 		// all gamefixes are disabled by default.
 		GamefixOptions() : bitset( 0 ) {}
 		void LoadSave( IniInterface& conf );
+
+		void Set( const wxString& list, bool enabled=true );
+		bool Clear( const wxString& list ) { Set( list, false ); }
+
+		bool Get( GamefixId id ) const;
+		void Set( GamefixId id, bool enabled=true );
+		bool Clear( GamefixId id ) { Set( id, false ); }
 
 		bool operator ==( const GamefixOptions& right ) const
 		{
@@ -456,7 +484,7 @@ struct Pcsx2Config
 			bool
 				IopCycleRate_X2	:1,		// enables the x2 multiplier of the IOP cyclerate
 				IntcStat		:1,		// tells Pcsx2 to fast-forward through intc_stat waits.
-				BIFC0			:1,		// enables BIFC0 detection and fast-forwarding
+				WaitLoop		:1,		// enables constant loop detection and fast-forwarding
 				vuFlagHack		:1,		// microVU specific flag hack; Can cause Infinite loops, SPS, etc...
 				vuMinMax		:1;		// microVU specific MinMax hack; Can cause SPS, Black Screens,  etc...
 		BITFIELD_END
@@ -483,9 +511,10 @@ struct Pcsx2Config
 			CdvdVerboseReads	:1,		// enables cdvd read activity verbosely dumped to the console
 			CdvdDumpBlocks		:1,		// enables cdvd block dumping
 			EnablePatches		:1,		// enables patch detection and application
+			EnableCheats		:1,		// enables cheat detection and application
 
-		// when enabled performs bios stub execution, skipping full sony bios + splash screens
-			SkipBiosSplash		:1,
+		// when enabled uses BOOT2 injection, skipping sony bios splashes
+			UseBOOT2Injection	:1,
 
 		// enables simulated ejection of memory cards when loading savestates
 			McdEnableEjection	:1,
@@ -493,7 +522,8 @@ struct Pcsx2Config
 			MultitapPort0_Enabled:1,
 			MultitapPort1_Enabled:1,
 
-			ConsoleToStdio:1;
+			ConsoleToStdio		:1,
+			HostFs				:1;
 	BITFIELD_END
 
 	CpuOptions			Cpu;
@@ -539,9 +569,11 @@ struct Pcsx2Config
 
 extern const Pcsx2Config EmuConfig;
 
-Pcsx2Config::GSOptions&	SetGSConfig();
-ConsoleLogFilters&			SetConsoleConfig();
-TraceLogFilters&			SetTraceConfig();
+Pcsx2Config::GSOptions&			SetGSConfig();
+Pcsx2Config::RecompilerOptions& SetRecompilerConfig();
+Pcsx2Config::GamefixOptions&	SetGameFixConfig();
+ConsoleLogFilters&				SetConsoleConfig();
+TraceLogFilters&				SetTraceConfig();
 
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -556,15 +588,15 @@ TraceLogFilters&			SetTraceConfig();
 #define CHECK_IOPREC				(EmuConfig.Cpu.Recompiler.EnableIOP && GetSysCoreAlloc().IsRecAvailable_IOP())
 
 //------------ SPECIAL GAME FIXES!!! ---------------
-#define NUM_OF_GAME_FIXES 7
-
-#define CHECK_VUADDSUBHACK			(EmuConfig.Gamefixes.VuAddSubHack) // Special Fix for Tri-ace games, they use an encryption algorithm that requires VU addi opcode to be bit-accurate.
+#define CHECK_VUADDSUBHACK			(EmuConfig.Gamefixes.VuAddSubHack)	 // Special Fix for Tri-ace games, they use an encryption algorithm that requires VU addi opcode to be bit-accurate.
 #define CHECK_FPUCOMPAREHACK		(EmuConfig.Gamefixes.FpuCompareHack) // Special Fix for Digimon Rumble Arena 2, fixes spinning/hanging on intro-menu.
 #define CHECK_VUCLIPFLAGHACK		(EmuConfig.Gamefixes.VuClipFlagHack) // Special Fix for Persona games, maybe others. It's to do with the VU clip flag (again).
-#define CHECK_FPUMULHACK			(EmuConfig.Gamefixes.FpuMulHack) // Special Fix for Tales of Destiny hangs.
-#define CHECK_FPUNEGDIVHACK			(EmuConfig.Gamefixes.FpuNegDivHack) // Special Fix for Gundam games messed up camera-view.
-#define CHECK_DMAEXECHACK			(EmuConfig.Gamefixes.DMAExeHack)  // Special Fix for Fatal Frame; breaks Gust and Tri-Ace games.
-#define CHECK_XGKICKHACK			(EmuConfig.Gamefixes.XgKickHack) // Special Fix for Erementar Gerad, adds more delay to VU XGkick instructions. Corrects the color of some graphics.
+#define CHECK_FPUMULHACK			(EmuConfig.Gamefixes.FpuMulHack)	 // Special Fix for Tales of Destiny hangs.
+#define CHECK_FPUNEGDIVHACK			(EmuConfig.Gamefixes.FpuNegDivHack)	 // Special Fix for Gundam games messed up camera-view.
+#define CHECK_XGKICKHACK			(EmuConfig.Gamefixes.XgKickHack)	 // Special Fix for Erementar Gerad, adds more delay to VU XGkick instructions. Corrects the color of some graphics.
+#define CHECK_IPUWAITHACK			(EmuConfig.Gamefixes.IPUWaitHack)	 // Special Fix For FFX
+#define CHECK_EETIMINGHACK			(EmuConfig.Gamefixes.EETimingHack)	 // Fix all scheduled events to happen in 1 cycle.
+#define CHECK_SKIPMPEGHACK			(EmuConfig.Gamefixes.SkipMPEGHack)	 // Finds sceMpegIsEnd pattern to tell the game the mpeg is finished (Katamari and a lot of games need this)
 
 //------------ Advanced Options!!! ---------------
 #define CHECK_VU_OVERFLOW			(EmuConfig.Cpu.Recompiler.vuOverflow)
@@ -612,9 +644,6 @@ TraceLogFilters&			SetTraceConfig();
 // games. Note: currently PS1 games will error out even without this
 // commented, so this is for development purposes only.
 #define ENABLE_LOADING_PS1_GAMES 0
-
-// Change to 1 to enable SIF wakeup hack:
-#define IOP_ENABLE_SIF_HACK 0
 
 // Change to 1 to cause all logs to be written to the console. (Very slow)
 #define LOG_TO_CONSOLE 0
