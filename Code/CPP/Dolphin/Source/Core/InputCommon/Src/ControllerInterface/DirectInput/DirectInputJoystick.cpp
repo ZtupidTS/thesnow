@@ -3,6 +3,7 @@
 #ifdef CIFACE_USE_DIRECTINPUT_JOYSTICK
 
 #include "DirectInputJoystick.h"
+#include <StringUtil.h>
 
 inline bool operator<(const GUID & lhs, const GUID & rhs)
 {
@@ -13,6 +14,8 @@ namespace ciface
 {
 namespace DirectInput
 {
+
+#define DATA_BUFFER_SIZE	32
 
 #ifdef NO_DUPLICATE_DINPUT_XINPUT
 //-----------------------------------------------------------------------------
@@ -122,13 +125,13 @@ LCleanup:
 
 std::string TStringToString( const std::basic_string<TCHAR>& in )
 {
-	const int size = WideCharToMultiByte( CP_UTF8, 0, in.data(), int(in.length()), NULL, 0, NULL, NULL );
+	const int size = WideCharToMultiByte(CP_ACP, 0, in.data(), int(in.length()), NULL, 0, NULL, NULL);
 	
 	if ( 0 == size )
 		return "";
 
 	char* const data = new char[size];
-	WideCharToMultiByte( CP_UTF8, 0, in.data(), int(in.length()), data, size, NULL, NULL );
+	WideCharToMultiByte(CP_ACP, 0, in.data(), int(in.length()), data, size, NULL, NULL);
 	const std::string out( data, size );
 	delete[] data;
 	return out;
@@ -157,11 +160,9 @@ void InitJoystick( IDirectInput8* const idi8, std::vector<ControllerInterface::D
 	std::vector<DIDEVICEINSTANCE> joysticks;
 	idi8->EnumDevices( DI8DEVCLASS_GAMECTRL, DIEnumDevicesCallback, (LPVOID)&joysticks, DIEDFL_ATTACHEDONLY );
 
-	// just a struct with an int that is set to ZERO by default
-	struct ZeroedInt{ZeroedInt():value(0){}unsigned int value;};
 	// this is used to number the joysticks
 	// multiple joysticks with the same name shall get unique ids starting at 0
-	std::map< std::basic_string<TCHAR>, ZeroedInt >	name_counts;
+	std::map< std::basic_string<TCHAR>, int>	name_counts;
 
 #ifdef NO_DUPLICATE_DINPUT_XINPUT
 	std::vector<DWORD> xinput_guids;
@@ -177,32 +178,37 @@ void InitJoystick( IDirectInput8* const idi8, std::vector<ControllerInterface::D
 		if ( std::find( xinput_guids.begin(), xinput_guids.end(), i->guidProduct.Data1 ) != xinput_guids.end() )
 			continue;
 #endif
-		// TODO: this has potential to mess up on createdev or setdatafmt failure
 		LPDIRECTINPUTDEVICE8 js_device;
-		if ( DI_OK == idi8->CreateDevice( i->guidInstance, &js_device, NULL ) )
-		if ( DI_OK == js_device->SetDataFormat( &c_dfDIJoystick ) )
-		// using foregroundwindow seems like a hack
-		if ( DI_OK != js_device->SetCooperativeLevel( GetForegroundWindow(), DISCL_BACKGROUND | DISCL_EXCLUSIVE ) )
+		if (SUCCEEDED(idi8->CreateDevice(i->guidInstance, &js_device, NULL)))
 		{
-			// fall back to non-exclusive mode, with no rumble
-			if ( DI_OK != js_device->SetCooperativeLevel( NULL, DISCL_BACKGROUND | DISCL_NONEXCLUSIVE ) )
+			if (SUCCEEDED(js_device->SetDataFormat(&c_dfDIJoystick)))
 			{
+				// using foregroundwindow seems like a hack
+				if (FAILED(js_device->SetCooperativeLevel(GetForegroundWindow(), DISCL_BACKGROUND | DISCL_EXCLUSIVE)))
+				{
+					//PanicAlert("SetCooperativeLevel(DISCL_EXCLUSIVE) failed!");
+					// fall back to non-exclusive mode, with no rumble
+					if (FAILED(js_device->SetCooperativeLevel(NULL, DISCL_BACKGROUND | DISCL_NONEXCLUSIVE)))
+					{
+						//PanicAlert("SetCooperativeLevel failed!");
+						js_device->Release();
+						continue;
+					}
+				}
+
+				Joystick* js = new Joystick(/*&*i, */js_device, name_counts[i->tszInstanceName]++);
+				// only add if it has some inputs/outpus
+				if (js->Inputs().size() || js->Outputs().size())
+					devices.push_back(js);
+				else
+					delete js;
+			}
+			else
+			{
+				//PanicAlert("SetDataFormat failed!");
 				js_device->Release();
-				continue;
 			}
 		}
-		
-		if ( DI_OK == js_device->Acquire() )
-		{
-			Joystick* js = new Joystick( /*&*i, */js_device, name_counts[i->tszInstanceName].value++ );
-			// only add if it has some inputs/outpus
-			if ( js->Inputs().size() || js->Outputs().size() )
-				devices.push_back( js );
-			else
-				delete js;
-		}
-		else
-			js_device->Release();
 		
 	}
 }
@@ -222,7 +228,22 @@ Joystick::Joystick( /*const LPCDIDEVICEINSTANCE lpddi, */const LPDIRECTINPUTDEVI
 	js_caps.dwButtons = std::min((DWORD)32, js_caps.dwButtons);
 	js_caps.dwPOVs = std::min((DWORD)4, js_caps.dwPOVs);
 
-	m_must_poll = ( ( js_caps.dwFlags & DIDC_POLLEDDATAFORMAT ) > 0 );
+	// polled or buffered data
+	{
+	DIPROPDWORD dipdw;
+	dipdw.diph.dwSize = sizeof(DIPROPDWORD);
+	dipdw.diph.dwHeaderSize = sizeof(DIPROPHEADER);
+	dipdw.diph.dwObj = 0;
+	dipdw.diph.dwHow = DIPH_DEVICE;
+	dipdw.dwData = DATA_BUFFER_SIZE;
+
+    // set the buffer size,
+	// if we can't set the property, we can't use buffered data,
+	// must use polling, which apparently doesn't work as well
+	m_must_poll = (DI_OK != m_device->SetProperty(DIPROP_BUFFERSIZE, &dipdw.diph));
+	}
+
+	m_device->Acquire();
 
 	// buttons
 	for ( unsigned int i = 0; i < js_caps.dwButtons; ++i )
@@ -266,7 +287,7 @@ Joystick::Joystick( /*const LPCDIDEVICEINSTANCE lpddi, */const LPDIRECTINPUTDEVI
 		// but i guess not all devices support setting range
 		m_device->SetProperty( DIPROP_RANGE, &range.diph );
 		// so i getproperty right afterward incase it didn't set :P
-		if ( DI_OK == m_device->GetProperty( DIPROP_RANGE, &range.diph ) )
+		if (SUCCEEDED(m_device->GetProperty( DIPROP_RANGE, &range.diph)))
 		{
 			int offset = -1;
 
@@ -310,8 +331,8 @@ Joystick::Joystick( /*const LPCDIDEVICEINSTANCE lpddi, */const LPDIRECTINPUTDEVI
 		LONG rglDirection[] = { 0, 0 };
 		DICONSTANTFORCE cf = { 0 };
 		DIEFFECT eff;
-		ZeroMemory( &eff, sizeof( DIEFFECT ) );
-		eff.dwSize = sizeof( DIEFFECT );
+		ZeroMemory(&eff, sizeof(DIEFFECT));
+		eff.dwSize = sizeof(DIEFFECT);
 		eff.dwFlags = DIEFF_CARTESIAN | DIEFF_OBJECTOFFSETS;
 		eff.dwDuration = INFINITE;
 		eff.dwGain = DI_FFNOMINALMAX;
@@ -319,11 +340,11 @@ Joystick::Joystick( /*const LPCDIDEVICEINSTANCE lpddi, */const LPDIRECTINPUTDEVI
 		eff.cAxes = std::min( (DWORD)2, (DWORD)objects.size() );
 		eff.rgdwAxes = rgdwAxes;
 		eff.rglDirection = rglDirection;
-		eff.cbTypeSpecificParams = sizeof( DICONSTANTFORCE );
+		eff.cbTypeSpecificParams = sizeof(DICONSTANTFORCE);
 		eff.lpvTypeSpecificParams = &cf;
 
 		LPDIRECTINPUTEFFECT pEffect;
-		if ( DI_OK == m_device->CreateEffect( GUID_ConstantForce, &eff, &pEffect, NULL ) )
+		if (SUCCEEDED(m_device->CreateEffect(GUID_ConstantForce, &eff, &pEffect, NULL)))
 		{
 			// temp
 			outputs.push_back( new Force( 0 ) );
@@ -339,7 +360,7 @@ Joystick::Joystick( /*const LPCDIDEVICEINSTANCE lpddi, */const LPDIRECTINPUTDEVI
 		dipdw.diph.dwHeaderSize = sizeof( DIPROPHEADER );
 		dipdw.diph.dwObj = 0;
 		dipdw.diph.dwHow = DIPH_DEVICE;
-		dipdw.dwData = FALSE;
+		dipdw.dwData = DIPROPAUTOCENTER_OFF;
 		m_device->SetProperty( DIPROP_AUTOCENTER, &dipdw.diph );
 	}
 
@@ -377,7 +398,7 @@ std::string Joystick::GetName() const
 	str.diph.dwHeaderSize = sizeof(str.diph);
 	str.diph.dwHow = DIPH_DEVICE;
 	m_device->GetProperty( DIPROP_PRODUCTNAME, &str.diph );
-	return TStringToString( str.wsz );
+	return StripSpaces(TStringToString(str.wsz));
 	//return m_name;
 }
 
@@ -395,16 +416,45 @@ std::string Joystick::GetSource() const
 
 bool Joystick::UpdateInput()
 {
-	if ( m_must_poll )
-		m_device->Poll();
+	HRESULT hr = 0;
 
-	HRESULT hr = m_device->GetDeviceState( sizeof(m_state_in), &m_state_in );
+	if (m_must_poll)
+	{
+		m_device->Poll();
+		hr = m_device->GetDeviceState(sizeof(m_state_in), &m_state_in);
+	}
+	else
+	{
+		DIDEVICEOBJECTDATA evtbuf[DATA_BUFFER_SIZE];
+		DWORD numevents;
+
+GETDEVDATA :
+		numevents = DATA_BUFFER_SIZE;
+		hr = m_device->GetDeviceData(sizeof(*evtbuf), evtbuf, &numevents, 0);
+
+		if (SUCCEEDED(hr))
+		{
+			for (LPDIDEVICEOBJECTDATA evt = evtbuf; evt != (evtbuf + numevents); ++evt)
+			{
+				// all the buttons are at the end of the data format
+				// they are bytes rather than longs
+				if (evt->dwOfs < DIJOFS_BUTTON(0))
+					*(DWORD*)(((BYTE*)&m_state_in) + evt->dwOfs) = evt->dwData;
+				else
+					((BYTE*)&m_state_in)[evt->dwOfs] = (BYTE)evt->dwData;
+			}
+
+			// if there is more data to be received
+			if (DI_BUFFEROVERFLOW == hr)
+				goto GETDEVDATA;
+		}
+	}
 
 	// try reacquire if input lost
-	if ( DIERR_INPUTLOST == hr )
+	if (DIERR_INPUTLOST == hr || DIERR_NOTACQUIRED == hr)
 		hr = m_device->Acquire();
 
-	return ( DI_OK == hr );
+	return SUCCEEDED(hr);
 }
 
 bool Joystick::UpdateOutput()
@@ -430,10 +480,10 @@ bool Joystick::UpdateOutput()
 				eff.cbTypeSpecificParams = sizeof( cf );
 				eff.lpvTypeSpecificParams = &cf;
 				// set params and start effect
-				ok_count += ( DI_OK == i->iface->SetParameters( &eff, DIEP_TYPESPECIFICPARAMS | DIEP_START ) );
+				ok_count += SUCCEEDED(i->iface->SetParameters(&eff, DIEP_TYPESPECIFICPARAMS | DIEP_START));
 			}
 			else
-				ok_count += ( DI_OK == i->iface->Stop() );
+				ok_count += SUCCEEDED(i->iface->Stop());
 		}
 		else
 			++ok_count;
@@ -455,7 +505,7 @@ std::string Joystick::Axis::GetName() const
 {
 	std::ostringstream ss;
 	// axis
-	if ( m_index < 6 )			
+	if ( m_index < 6 )
 	{
 		ss << "Axis " << "XYZ"[m_index%3];
 		if ( m_index > 2 )

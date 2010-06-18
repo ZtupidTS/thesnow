@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="9.00"
+	Version="9,00"
 	Name="Dolphin"
 	ProjectGUID="{A72606EF-C5C1-4954-90AD-F0F93A8D97D9}"
 	RootNamespace="DolphinWX"
@@ -30,7 +30,7 @@
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
-				CommandLine="&quot;$(ProjectDir)..\Common\SubWCRev.exe&quot; &quot;$(SolutionDir)\.&quot; &quot;$(ProjectDir)..\Common\src\svnrev_template.h&quot; &quot;$(ProjectDir)..\Common\src\svnrev.h&quot;"
+				CommandLine="set outfile=&quot;$(ProjectDir)..\Common\Src\svnrev.h&quot;&#x0D;&#x0A;&quot;$(ProjectDir)..\Common\SubWCRev.exe&quot; &quot;$(SolutionDir)\.&quot; &quot;$(ProjectDir)..\Common\Src\svnrev_template.h&quot; %outfile%&#x0D;&#x0A;if errorlevel 1 (goto checkhg) else (goto VCEnd)&#x0D;&#x0A;:checkhg&#x0D;&#x0A;for /f &quot;usebackq tokens=1,* skip=3&quot; %%i in (`hg svn info`) do (&#x0D;&#x0A;echo Hg: Working copy at SVN revision %%j&#x0D;&#x0A;echo #define SVN_REV %%j &gt; %outfile%&#x0D;&#x0A;echo #define SVN_REV_STR &quot;%%j&quot; &gt;&gt; %outfile%&#x0D;&#x0A;goto VCEnd&#x0D;&#x0A;)&#x0D;&#x0A;"
 				ExcludedFromBuild="false"
 			/>
 			<Tool
@@ -56,7 +56,7 @@
 				Optimization="3"
 				InlineFunctionExpansion="0"
 				FavorSizeOrSpeed="1"
-				AdditionalIncludeDirectories="..\Common\Src;..\Core\Src;..\DebuggerWX\src;..\DebuggerUICommon\src;..\DiscIO\Src;..\InputCommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc;..\..\..\Externals\SFML\include"
+				AdditionalIncludeDirectories="..\Common\Src;..\Core\Src;..\DebuggerWX\src;..\DebuggerUICommon\Src;..\InputUICommon\Src;..\DiscIO\Src;..\InputCommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc;..\..\..\Externals\SFML\include"
 				PreprocessorDefinitions="WIN32;__WXMSW__;_WINDOWS;NOPCH;_SECURE_SCL=0;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE"
 				StringPooling="false"
 				RuntimeLibrary="0"
@@ -90,11 +90,11 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="Iphlpapi.lib comctl32.lib rpcrt4.lib winmm.lib wxbase28u.lib wxmsw28u_core.lib wxmsw28u_adv.lib wxmsw28u_aui.lib Bochs_disasm.lib LZO.lib SFML_Network.lib zlib.lib"
+				AdditionalDependencies="SDL.lib xinput.lib Iphlpapi.lib comctl32.lib rpcrt4.lib winmm.lib wxbase28u.lib wxmsw28u_core.lib wxmsw28u_adv.lib wxmsw28u_aui.lib"
 				OutputFile="../../../Binary/Win32/Dolphin.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
-				AdditionalLibraryDirectories="$(SolutionDir)\$(ConfigurationName)\$(PlatformName);..\..\..\Externals\wxWidgets\lib\vc_lib\$(PlatformName)"
+				AdditionalLibraryDirectories="..\..\..\Externals\SDL\win32;..\..\..\Externals\wxWidgets\lib\vc_lib\Win32;../../../Externals/OpenAL/Win32/"
 				IgnoreAllDefaultLibraries="false"
 				IgnoreDefaultLibraryNames=""
 				GenerateDebugInformation="true"
@@ -146,7 +146,7 @@
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
-				CommandLine="&quot;$(ProjectDir)..\Common\SubWCRev.exe&quot; &quot;$(SolutionDir)\.&quot; &quot;$(ProjectDir)..\Common\src\svnrev_template.h&quot; &quot;$(ProjectDir)..\Common\src\svnrev.h&quot;"
+				CommandLine="set outfile=&quot;$(ProjectDir)..\Common\Src\svnrev.h&quot;&#x0D;&#x0A;&quot;$(ProjectDir)..\Common\SubWCRev.exe&quot; &quot;$(SolutionDir)\.&quot; &quot;$(ProjectDir)..\Common\Src\svnrev_template.h&quot; %outfile%&#x0D;&#x0A;if errorlevel 1 (goto checkhg) else (goto VCEnd)&#x0D;&#x0A;:checkhg&#x0D;&#x0A;for /f &quot;usebackq tokens=1,* skip=3&quot; %%i in (`hg svn info`) do (&#x0D;&#x0A;echo Hg: Working copy at SVN revision %%j&#x0D;&#x0A;echo #define SVN_REV %%j &gt; %outfile%&#x0D;&#x0A;echo #define SVN_REV_STR &quot;%%j&quot; &gt;&gt; %outfile%&#x0D;&#x0A;goto VCEnd&#x0D;&#x0A;)&#x0D;&#x0A;"
 				ExcludedFromBuild="false"
 			/>
 			<Tool
@@ -174,7 +174,7 @@
 				EnableIntrinsicFunctions="true"
 				FavorSizeOrSpeed="1"
 				OmitFramePointers="false"
-				AdditionalIncludeDirectories="..\Common\Src;..\Core\Src;..\DebuggerWX\src;..\DebuggerUICommon\src;..\DiscIO\Src;..\InputCommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc;..\..\..\Externals\SFML\include"
+				AdditionalIncludeDirectories="..\Common\Src;..\Core\Src;..\DebuggerWX\src;..\DebuggerUICommon\Src;..\InputUICommon\Src;..\DiscIO\Src;..\InputCommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc;..\..\..\Externals\SFML\include"
 				PreprocessorDefinitions="WIN32;__WXMSW__;_WINDOWS;NOPCH;_SECURE_SCL=0;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE"
 				StringPooling="true"
 				RuntimeLibrary="0"
@@ -207,11 +207,11 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="Iphlpapi.lib comctl32.lib rpcrt4.lib wxbase28u.lib wxmsw28u_core.lib wxmsw28u_adv.lib wxmsw28u_aui.lib"
+				AdditionalDependencies="SDL.lib xinput.lib Iphlpapi.lib comctl32.lib rpcrt4.lib wxbase28u.lib wxmsw28u_core.lib wxmsw28u_adv.lib wxmsw28u_aui.lib"
 				OutputFile="../../../Binary/x64/Dolphin.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
-				AdditionalLibraryDirectories="$(SolutionDir)\$(ConfigurationName)\$(PlatformName);..\..\..\Externals\wxWidgets\lib\vc_lib\$(PlatformName)"
+				AdditionalLibraryDirectories="..\..\..\Externals\SDL\x64;..\..\..\Externals\wxWidgets\lib\vc_lib\x64;../../../Externals/OpenAL/Win64/"
 				IgnoreAllDefaultLibraries="false"
 				IgnoreDefaultLibraryNames=""
 				GenerateDebugInformation="true"
@@ -262,7 +262,7 @@
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
-				CommandLine="&quot;$(ProjectDir)..\Common\SubWCRev.exe&quot; &quot;$(SolutionDir)\.&quot; &quot;$(ProjectDir)..\Common\src\svnrev_template.h&quot; &quot;$(ProjectDir)..\Common\src\svnrev.h&quot;"
+				CommandLine="set outfile=&quot;$(ProjectDir)..\Common\Src\svnrev.h&quot;&#x0D;&#x0A;&quot;$(ProjectDir)..\Common\SubWCRev.exe&quot; &quot;$(SolutionDir)\.&quot; &quot;$(ProjectDir)..\Common\Src\svnrev_template.h&quot; %outfile%&#x0D;&#x0A;if errorlevel 1 (goto checkhg) else (goto VCEnd)&#x0D;&#x0A;:checkhg&#x0D;&#x0A;for /f &quot;usebackq tokens=1,* skip=3&quot; %%i in (`hg svn info`) do (&#x0D;&#x0A;echo Hg: Working copy at SVN revision %%j&#x0D;&#x0A;echo #define SVN_REV %%j &gt; %outfile%&#x0D;&#x0A;echo #define SVN_REV_STR &quot;%%j&quot; &gt;&gt; %outfile%&#x0D;&#x0A;goto VCEnd&#x0D;&#x0A;)&#x0D;&#x0A;"
 				ExcludedFromBuild="false"
 			/>
 			<Tool
@@ -286,7 +286,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\Common\Src;..\Core\Src;..\DebuggerWX\src;..\DebuggerUICommon\src;..\DiscIO\Src;..\InputCommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc;..\..\..\Externals\SFML\include"
+				AdditionalIncludeDirectories="..\Common\Src;..\Core\Src;..\DebuggerWX\src;..\DebuggerUICommon\Src;..\InputUICommon\Src;..\DiscIO\Src;..\InputCommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc;..\..\..\Externals\SFML\include"
 				PreprocessorDefinitions="WIN32;_DEBUG;__WXMSW__;__WXDEBUG__;_WINDOWS;NOPCH;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;_SECURE_SCL=0"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -320,11 +320,11 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalOptions="/TLBID:1"
-				AdditionalDependencies="Iphlpapi.lib comctl32.lib rpcrt4.lib winmm.lib wxbase28ud.lib wxmsw28ud_core.lib wxmsw28ud_adv.lib wxmsw28ud_aui.lib Bochs_disasm.lib LZO.lib SFML_Network.lib zlib.lib"
+				AdditionalDependencies="SDL.lib xinput.lib Iphlpapi.lib comctl32.lib rpcrt4.lib winmm.lib wxbase28ud.lib wxmsw28ud_core.lib wxmsw28ud_adv.lib wxmsw28ud_aui.lib"
 				OutputFile="../../../Binary/Win32/DolphinD.exe"
 				LinkIncremental="2"
 				SuppressStartupBanner="true"
-				AdditionalLibraryDirectories="$(SolutionDir)\$(ConfigurationName)\$(PlatformName);..\..\..\Externals\wxWidgets\lib\vc_lib\$(PlatformName)"
+				AdditionalLibraryDirectories="..\..\..\Externals\SDL\win32;..\..\..\Externals\wxWidgets\lib\vc_lib\Win32;../../../Externals/OpenAL/Win32/"
 				IgnoreDefaultLibraryNames=""
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile="$(PlatformName)\$(ConfigurationName)\$(TargetName).pdb"
@@ -373,7 +373,7 @@
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
-				CommandLine="&quot;$(ProjectDir)..\Common\SubWCRev.exe&quot; &quot;$(SolutionDir)\.&quot; &quot;$(ProjectDir)..\Common\src\svnrev_template.h&quot; &quot;$(ProjectDir)..\Common\src\svnrev.h&quot;"
+				CommandLine="set outfile=&quot;$(ProjectDir)..\Common\Src\svnrev.h&quot;&#x0D;&#x0A;&quot;$(ProjectDir)..\Common\SubWCRev.exe&quot; &quot;$(SolutionDir)\.&quot; &quot;$(ProjectDir)..\Common\Src\svnrev_template.h&quot; %outfile%&#x0D;&#x0A;if errorlevel 1 (goto checkhg) else (goto VCEnd)&#x0D;&#x0A;:checkhg&#x0D;&#x0A;for /f &quot;usebackq tokens=1,* skip=3&quot; %%i in (`hg svn info`) do (&#x0D;&#x0A;echo Hg: Working copy at SVN revision %%j&#x0D;&#x0A;echo #define SVN_REV %%j &gt; %outfile%&#x0D;&#x0A;echo #define SVN_REV_STR &quot;%%j&quot; &gt;&gt; %outfile%&#x0D;&#x0A;goto VCEnd&#x0D;&#x0A;)&#x0D;&#x0A;"
 				ExcludedFromBuild="false"
 			/>
 			<Tool
@@ -397,7 +397,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\Common\Src;..\Core\Src;..\DebuggerWX\src;..\DebuggerUICommon\src;..\DiscIO\Src;..\InputCommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc;..\..\..\Externals\SFML\include"
+				AdditionalIncludeDirectories="..\Common\Src;..\Core\Src;..\DebuggerWX\src;..\DebuggerUICommon\Src;..\InputUICommon\Src;..\DiscIO\Src;..\InputCommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc;..\..\..\Externals\SFML\include"
 				PreprocessorDefinitions="WIN32;_DEBUG;__WXMSW__;__WXDEBUG__;_WINDOWS;NOPCH;_SECURE_SCL=0;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -431,11 +431,11 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalOptions="/TLBID:1"
-				AdditionalDependencies="Iphlpapi.lib comctl32.lib rpcrt4.lib winmm.lib wxbase28ud.lib wxmsw28ud_core.lib wxmsw28ud_adv.lib wxmsw28ud_aui.lib"
+				AdditionalDependencies="SDL.lib xinput.lib Iphlpapi.lib comctl32.lib rpcrt4.lib winmm.lib wxbase28ud.lib wxmsw28ud_core.lib wxmsw28ud_adv.lib wxmsw28ud_aui.lib"
 				OutputFile="../../../Binary/x64/DolphinD.exe"
 				LinkIncremental="2"
 				SuppressStartupBanner="true"
-				AdditionalLibraryDirectories="$(SolutionDir)\$(ConfigurationName)\$(PlatformName);..\..\..\Externals\wxWidgets\lib\vc_lib\$(PlatformName)"
+				AdditionalLibraryDirectories="..\..\..\Externals\SDL\x64;..\..\..\Externals\wxWidgets\lib\vc_lib\x64;../../../Externals/OpenAL/Win64/"
 				IgnoreDefaultLibraryNames=""
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile="$(PlatformName)\$(ConfigurationName)\$(TargetName).pdb"
@@ -484,7 +484,7 @@
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
-				CommandLine="&quot;$(ProjectDir)..\Common\SubWCRev.exe&quot; &quot;$(SolutionDir)\.&quot; &quot;$(ProjectDir)..\Common\src\svnrev_template.h&quot; &quot;$(ProjectDir)..\Common\src\svnrev.h&quot;"
+				CommandLine="set outfile=&quot;$(ProjectDir)..\Common\Src\svnrev.h&quot;&#x0D;&#x0A;&quot;$(ProjectDir)..\Common\SubWCRev.exe&quot; &quot;$(SolutionDir)\.&quot; &quot;$(ProjectDir)..\Common\Src\svnrev_template.h&quot; %outfile%&#x0D;&#x0A;if errorlevel 1 (goto checkhg) else (goto VCEnd)&#x0D;&#x0A;:checkhg&#x0D;&#x0A;for /f &quot;usebackq tokens=1,* skip=3&quot; %%i in (`hg svn info`) do (&#x0D;&#x0A;echo Hg: Working copy at SVN revision %%j&#x0D;&#x0A;echo #define SVN_REV %%j &gt; %outfile%&#x0D;&#x0A;echo #define SVN_REV_STR &quot;%%j&quot; &gt;&gt; %outfile%&#x0D;&#x0A;goto VCEnd&#x0D;&#x0A;)&#x0D;&#x0A;"
 				ExcludedFromBuild="false"
 			/>
 			<Tool
@@ -510,7 +510,7 @@
 				Optimization="2"
 				InlineFunctionExpansion="1"
 				FavorSizeOrSpeed="1"
-				AdditionalIncludeDirectories="..\Common\Src;..\Core\Src;..\DebuggerWX\src;..\DebuggerUICommon\src;..\DiscIO\Src;..\InputCommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc;..\..\..\Externals\SFML\include"
+				AdditionalIncludeDirectories="..\Common\Src;..\Core\Src;..\DebuggerWX\src;..\DebuggerUICommon\Src;..\InputUICommon\Src;..\DiscIO\Src;..\InputCommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc;..\..\..\Externals\SFML\include"
 				PreprocessorDefinitions="DEBUGFAST;WIN32;__WXMSW__;_WINDOWS;NOPCH;_SECURE_SCL=0;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE"
 				StringPooling="true"
 				RuntimeLibrary="0"
@@ -545,11 +545,11 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalOptions="/NODEFAULTLIB:msvcrt.lib&#x0D;&#x0A;/NODEFAULTLIB:libcmtd.lib"
-				AdditionalDependencies="Iphlpapi.lib comctl32.lib rpcrt4.lib winmm.lib wxbase28u.lib wxmsw28u_core.lib wxmsw28u_adv.lib wxmsw28u_aui.lib Bochs_disasm.lib LZO.lib SFML_Network.lib zlib.lib"
+				AdditionalDependencies="SDL.lib xinput.lib Iphlpapi.lib comctl32.lib rpcrt4.lib winmm.lib wxbase28u.lib wxmsw28u_core.lib wxmsw28u_adv.lib wxmsw28u_aui.lib"
 				OutputFile="../../../Binary/Win32/DolphinDF.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
-				AdditionalLibraryDirectories="&quot;$(SolutionDir)\Release\$(PlatformName)&quot;;&quot;..\..\..\Externals\wxWidgets\lib\vc_lib\$(PlatformName)&quot;"
+				AdditionalLibraryDirectories="..\..\..\Externals\SDL\win32;..\..\..\Externals\wxWidgets\lib\vc_lib\Win32;../../../Externals/OpenAL/Win32/"
 				IgnoreDefaultLibraryNames=""
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile="$(PlatformName)\$(ConfigurationName)\$(TargetName).pdb"
@@ -599,7 +599,7 @@
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
-				CommandLine="&quot;$(ProjectDir)..\Common\SubWCRev.exe&quot; &quot;$(SolutionDir)\.&quot; &quot;$(ProjectDir)..\Common\src\svnrev_template.h&quot; &quot;$(ProjectDir)..\Common\src\svnrev.h&quot;"
+				CommandLine="set outfile=&quot;$(ProjectDir)..\Common\Src\svnrev.h&quot;&#x0D;&#x0A;&quot;$(ProjectDir)..\Common\SubWCRev.exe&quot; &quot;$(SolutionDir)\.&quot; &quot;$(ProjectDir)..\Common\Src\svnrev_template.h&quot; %outfile%&#x0D;&#x0A;if errorlevel 1 (goto checkhg) else (goto VCEnd)&#x0D;&#x0A;:checkhg&#x0D;&#x0A;for /f &quot;usebackq tokens=1,* skip=3&quot; %%i in (`hg svn info`) do (&#x0D;&#x0A;echo Hg: Working copy at SVN revision %%j&#x0D;&#x0A;echo #define SVN_REV %%j &gt; %outfile%&#x0D;&#x0A;echo #define SVN_REV_STR &quot;%%j&quot; &gt;&gt; %outfile%&#x0D;&#x0A;goto VCEnd&#x0D;&#x0A;)&#x0D;&#x0A;"
 				ExcludedFromBuild="false"
 			/>
 			<Tool
@@ -626,7 +626,7 @@
 				InlineFunctionExpansion="1"
 				EnableIntrinsicFunctions="true"
 				FavorSizeOrSpeed="1"
-				AdditionalIncludeDirectories="..\Common\Src;..\Core\Src;..\DebuggerWX\src;..\DebuggerUICommon\src;..\DiscIO\Src;..\InputCommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc;..\..\..\Externals\SFML\include"
+				AdditionalIncludeDirectories="..\Common\Src;..\Core\Src;..\DebuggerWX\src;..\DebuggerUICommon\Src;..\InputUICommon\Src;..\DiscIO\Src;..\InputCommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc;..\..\..\Externals\SFML\include"
 				PreprocessorDefinitions="DEBUGFAST;WIN32;__WXMSW__;_WINDOWS;NOPCH;_SECURE_SCL=0;_CRT_SECURE_NO_WARNINGS"
 				StringPooling="true"
 				RuntimeLibrary="0"
@@ -658,11 +658,11 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="Iphlpapi.lib comctl32.lib rpcrt4.lib winmm.lib wxbase28u.lib wxmsw28u_core.lib wxmsw28u_adv.lib wxmsw28u_aui.lib Bochs_disasm.lib LZO.lib SFML_Network.lib zlib.lib"
+				AdditionalDependencies="SDL.lib xinput.lib Iphlpapi.lib comctl32.lib rpcrt4.lib winmm.lib wxbase28u.lib wxmsw28u_core.lib wxmsw28u_adv.lib wxmsw28u_aui.lib"
 				OutputFile="../../../Binary/x64/DolphinDF.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
-				AdditionalLibraryDirectories="&quot;$(SolutionDir)\Release\$(PlatformName)&quot;;&quot;..\..\..\Externals\wxWidgets\lib\vc_lib\$(PlatformName)&quot;"
+				AdditionalLibraryDirectories="..\..\..\Externals\SDL\x64;..\..\..\Externals\wxWidgets\lib\vc_lib\x64;../../../Externals/OpenAL/Win64/"
 				IgnoreDefaultLibraryNames=""
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile="$(PlatformName)\$(ConfigurationName)\$(TargetName).pdb"

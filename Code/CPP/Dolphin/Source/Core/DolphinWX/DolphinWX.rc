@@ -1,4 +1,4 @@
 // Microsoft Visual C++ generated resource script.
 //
 #include "resource.h"
-IDI_ICON1               ICON                    "..\\..\\..\\Installer\\DolphinX.ico"
+IDI_ICON1               ICON                    "..\\..\\..\\Installer\\Dolphin.ico"

@@ -14,10 +14,6 @@ libs = [
     'common',
 ]
 
-
-dtenv.Append(CXXFLAGS = [ '-fPIC' ],
-             LIBS = libs)
-if sys.platform == 'darwin':
-    dtenv['FRAMEWORKS'] = ['CoreFoundation', 'Cocoa', 'System']
+dtenv.Append(LIBS = libs)
 
 dtenv.Program(dtenv['binary_dir'] + 'dsptool', files)

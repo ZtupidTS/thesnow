@@ -136,10 +136,10 @@ u32 EFB_Read(const u32 addr)
 	int y = (addr >> 12) & 0x3ff;
 
 	if (addr & 0x00400000) {
-		var = CPluginManager::GetInstance().GetVideo()->Video_AccessEFB(PEEK_Z, x, y);
+		var = CPluginManager::GetInstance().GetVideo()->Video_AccessEFB(PEEK_Z, x, y, 0);
 		DEBUG_LOG(MEMMAP, "EFB Z Read @ %i, %i\t= 0x%08x", x, y, var);
 	} else {
-		var = CPluginManager::GetInstance().GetVideo()->Video_AccessEFB(PEEK_COLOR, x, y);
+		var = CPluginManager::GetInstance().GetVideo()->Video_AccessEFB(PEEK_COLOR, x, y, 0);
 		DEBUG_LOG(MEMMAP, "EFB Color Read @ %i, %i\t= 0x%08x", x, y, var);
 	}
 
@@ -235,10 +235,10 @@ inline void WriteToHardware(u32 em_address, const T data, u32 effective_address,
 			int y = (em_address >> 12) & 0x3ff;
 			// TODO figure out a way to send data without falling into the template trap
 			if (em_address & 0x00400000) {
-				CPluginManager::GetInstance().GetVideo()->Video_AccessEFB(POKE_Z, x, y);
+				CPluginManager::GetInstance().GetVideo()->Video_AccessEFB(POKE_Z, x, y, (u32)data);
 				DEBUG_LOG(MEMMAP, "EFB Z Write %08x @ %i, %i", data, x, y);
 			} else {
-				CPluginManager::GetInstance().GetVideo()->Video_AccessEFB(POKE_COLOR, x, y);
+				CPluginManager::GetInstance().GetVideo()->Video_AccessEFB(POKE_COLOR, x, y,(u32)data);
 				DEBUG_LOG(MEMMAP, "EFB Color Write %08x @ %i, %i", data, x, y);
 			}
 			return;
@@ -783,7 +783,9 @@ u32 TranslateBlockAddress(u32 addr)
 	u32 result = 0;
 	UReg_MSR& m_MSR = ((UReg_MSR&)PowerPC::ppcState.msr);
 
-	for (int i=0; i<4; i++) {
+	int bats = Core::g_CoreStartupParameter.bWii?8:4;
+
+	for (int i = 0; i < bats; i++) {
 		u32 bl17 = ~(BATU_BL(PowerPC::ppcState.spr[SPR_DBAT0U + i * 2])<<17);
 		u32 addr2 = addr & (bl17 | 0xf001ffff);
 		u32 batu = (m_MSR.PR ? BATU_Vp : BATU_Vs);

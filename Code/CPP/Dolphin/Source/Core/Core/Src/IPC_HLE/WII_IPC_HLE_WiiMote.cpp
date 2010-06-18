@@ -182,7 +182,7 @@ void CWII_IPC_HLE_WiiMote::EventDisconnect()
 {
 	// Send disconnect message to plugin
 	u8 Message = WIIMOTE_DISCONNECT;
-	CPluginManager::GetInstance().GetWiimote(0)->Wiimote_ControlChannel(m_ConnectionHandle & 0xFF, 99, &Message, 0);
+	CPluginManager::GetInstance().GetWiimote()->Wiimote_ControlChannel(m_ConnectionHandle & 0xFF, 99, &Message, 0);
 
 	m_Connected = -1;
 	// Clear channel flags
@@ -264,7 +264,7 @@ void CWII_IPC_HLE_WiiMote::ExecuteL2capCmd(u8* _pData, u32 _Size)
 			const int number = 0;
 #endif
 
-			Common::PluginWiimote* mote = CPluginManager::GetInstance().GetWiimote(0);
+			Common::PluginWiimote* mote = CPluginManager::GetInstance().GetWiimote();
 			if (itr != m_Channel.end())
 			{
 				SChannel& rChannel = itr->second;
@@ -906,12 +906,12 @@ namespace Core
 {
 	/* This is called continuously from the Wiimote plugin as soon as it has received
 	   a reporting mode. _Size is the byte size of the report. */
-	void Callback_WiimoteInput(int _number, u16 _channelID, const void* _pData, u32 _Size)
+	void Callback_WiimoteInterruptChannel(int _number, u16 _channelID, const void* _pData, u32 _Size)
 	{
 		const u8* pData = (const u8*)_pData;
 
 		INFO_LOG(WIIMOTE, "====================");
-		INFO_LOG(WIIMOTE, "Callback_WiimoteInput: (Wiimote: #%i)", _number);
+		INFO_LOG(WIIMOTE, "Callback_WiimoteInterruptChannel: (Wiimote: #%i)", _number);
 		DEBUG_LOG(WIIMOTE, "   Data: %s", ArrayToString(pData, _Size, 0, 50).c_str());
 		DEBUG_LOG(WIIMOTE, "   Channel: %u", _channelID);
 

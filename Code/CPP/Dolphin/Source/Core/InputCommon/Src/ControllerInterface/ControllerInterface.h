@@ -18,9 +18,11 @@
 #if defined(HAVE_X11) && HAVE_X11
 	#define CIFACE_USE_XLIB
 #endif
-#ifndef CIFACE_USE_DIRECTINPUT_JOYSTICK
+//#ifndef CIFACE_USE_DIRECTINPUT_JOYSTICK
+// enable SDL 1.2 in addition to DirectInput on windows,
+// to support a few gamepads that aren't behaving with DInput
 	#define CIFACE_USE_SDL
-#endif
+//#endif
 #if defined(__APPLE__)
 	#define CIFACE_USE_OSX
 #endif
@@ -212,7 +214,7 @@ public:
 	class InputReference : public ControlReference
 	{
 	public:
-		InputReference() : ControlReference( true ) {}
+		InputReference() : ControlReference(true), mode(0) {}
 		ControlState State( const ControlState state );
 		bool Detect( const unsigned int ms, const unsigned int count );
 		void UpdateControls();
@@ -238,7 +240,8 @@ public:
 	
 	void SetHwnd( void* const hwnd );
 	void Init();
-	void DeInit();
+	// TODO: remove this hack param
+	void DeInit(const bool hacks_no_sdl_quit = false);
 	bool IsInit();
 
 	void UpdateReference( ControlReference* control );

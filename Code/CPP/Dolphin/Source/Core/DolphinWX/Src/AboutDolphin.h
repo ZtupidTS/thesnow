@@ -51,7 +51,6 @@ class AboutDolphin : public wxDialog
 
 		wxButton *m_Close;
 		wxStaticText *Message;
-		wxBitmap *DolphinLogo;
 		wxStaticBitmap *sbDolphinLogo;
 
 		enum

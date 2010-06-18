@@ -64,17 +64,13 @@ CPluginManager::CPluginManager()
 
 	// Start LogManager
 	m_PluginGlobals->logManager = LogManager::GetInstance();
-	m_PluginGlobals->eventHandler = EventHandler::GetInstance();
 
 	m_params = &(SConfig::GetInstance().m_LocalCoreStartupParameter);
 
 	// Set initial values to NULL.
 	m_video = NULL;
 	m_dsp = NULL;
-	for (int i = 0; i < MAXPADS; i++)
-		m_pad[i] = NULL;
-	for (int i = 0; i < MAXWIIMOTES; i++)
-		m_wiimote[i] = NULL;
+	m_wiimote = NULL;
 }
 
 // This will call FreeLibrary() for all plugins
@@ -85,29 +81,15 @@ CPluginManager::~CPluginManager()
 	delete m_PluginGlobals;
 	delete m_dsp;
 
-	for (int i = 0; i < MAXPADS; i++)
+	if (m_wiimote)
 	{
-		if (m_pad[i])
-		{
-			delete m_pad[i];
-			m_pad[i] = NULL;
-		}
-	}
-
-	for (int i = 0; i < MAXWIIMOTES; i++)
-	{
-		if (m_wiimote[i])
-		{
-			m_wiimote[i]->Shutdown();
-			delete m_wiimote[i];
-			m_wiimote[i] = NULL;
-		}
+		m_wiimote->Shutdown();
+		delete m_wiimote;
+		m_wiimote = NULL;
 	}
 
 	delete m_video;
 }
-
-
 
 
 // Init and Shutdown Plugins 
@@ -122,10 +104,6 @@ bool CPluginManager::InitPlugins()
 	}
 	strcpy(m_PluginGlobals->game_ini, SConfig::GetInstance().m_LocalCoreStartupParameter.m_strGameIni.c_str());
 	strcpy(m_PluginGlobals->unique_id, SConfig::GetInstance().m_LocalCoreStartupParameter.GetUniqueID().c_str());
-	if (!GetDSP()) {
-		PanicAlert("Can't init DSP Plugin");
-		return false;
-	}
 	INFO_LOG(CONSOLE, "Before GetVideo\n");
 
 	if (!GetVideo()) {
@@ -134,40 +112,19 @@ bool CPluginManager::InitPlugins()
 	}
 	INFO_LOG(CONSOLE, "After GetVideo\n");
 
-	// Check if we get at least one pad or wiimote
-	bool pad = false;
-	bool wiimote = false;
-
-	// Init pad
-	for (int i = 0; i < MAXPADS; i++)
-	{
-		// Check that the plugin has a name
-		if (!m_params->m_strPadPlugin[i].empty())
-			GetPad(i);
-		// Check that GetPad succeeded
-		if (m_pad[i] != NULL)
-			pad = true;
-	}
-	if (!pad)
-	{
-		PanicAlert("Can't init any PAD Plugins");
+	if (!GetDSP()) {
+		PanicAlert("Can't init DSP Plugin");
 		return false;
 	}
 
 	// Init wiimote
 	if (m_params->bWii)
 	{
-		for (int i = 0; i < MAXWIIMOTES; i++)
+		if (!m_params->m_strWiimotePlugin.empty())
+			GetWiimote();
+		if (!m_wiimote)
 		{
-			if (!m_params->m_strWiimotePlugin[i].empty())
-				GetWiimote(i);
-
-			if (m_wiimote[i] != NULL)
-				wiimote = true;
-		}
-		if (!wiimote)
-		{
-			PanicAlert("Can't init any Wiimote Plugins");
+			PanicAlert("Can't init Wiimote Plugin");
 			return false;
 		}
 	}
@@ -180,22 +137,10 @@ bool CPluginManager::InitPlugins()
 // for an explanation about the current LoadLibrary() and FreeLibrary() behavior.
 void CPluginManager::ShutdownPlugins()
 {
-	for (int i = 0; i < MAXPADS; i++)
+	if (m_wiimote)
 	{
-		if (m_pad[i])
-		{
-			m_pad[i]->Shutdown();
-			FreePad(i);
-		}
-	}
-
-	for (int i = 0; i < MAXWIIMOTES; i++)
-	{
-		if (m_wiimote[i])
-		{
-			m_wiimote[i]->Shutdown();
-			FreeWiimote(i);
-		}
+		m_wiimote->Shutdown();
+		FreeWiimote();
 	}
 
 	if (m_dsp)
@@ -226,7 +171,7 @@ CPluginInfo::CPluginInfo(const char *_rFilename)
 	: m_Filename(_rFilename)
 	, m_Valid(false)
 {
-	if (!File::Exists(_rFilename))
+	if (!File::Exists((File::GetPluginsDirectory() + _rFilename).c_str()))
 	{
 		PanicAlert("Can't find plugin %s", _rFilename);
 		return;
@@ -275,23 +220,20 @@ void CPluginManager::GetPluginInfo(CPluginInfo *&info, std::string Filename)
    below. */
 void *CPluginManager::LoadPlugin(const char *_rFilename)
 {
-	// Create a string of the filename
-	std::string Filename = _rFilename;
-
-	if (!File::Exists(_rFilename)) {
-		PanicAlert("Error loading %s: can't find file", _rFilename);
+	if (!File::Exists((File::GetPluginsDirectory() + _rFilename).c_str())) {
+		PanicAlert("Error loading plugin %s: can't find file. Please re-select your plugins.", _rFilename);
 		return NULL;
 	}
 	/* Avoid calling LoadLibrary() again and instead point to the plugin info that we found when
 	   Dolphin was started */
 	CPluginInfo *info = NULL;
-	GetPluginInfo(info, Filename);
+	GetPluginInfo(info, _rFilename);
 	if (!info) {
 		PanicAlert("Error loading %s: can't read info", _rFilename);
 		return NULL;
 	}
 	
-	PLUGIN_TYPE type = info->GetPluginInfo().Type;	
+	PLUGIN_TYPE type = info->GetPluginInfo().Type;
 	Common::CPlugin *plugin = NULL;
 
 	switch (type)
@@ -302,10 +244,6 @@ void *CPluginManager::LoadPlugin(const char *_rFilename)
 	
 	case PLUGIN_TYPE_DSP:
 		plugin = new Common::PluginDSP(_rFilename);
-		break;
-	
-	case PLUGIN_TYPE_PAD:
-		plugin = new Common::PluginPAD(_rFilename);
 		break;
 	
 	case PLUGIN_TYPE_WIIMOTE:
@@ -344,11 +282,7 @@ void CPluginManager::ScanForPlugins()
 	// Get plugins dir
 	CFileSearch::XStringVector Directories;
 
-#if defined(__APPLE__)
 	Directories.push_back(File::GetPluginsDirectory());
-#else
-	Directories.push_back(std::string(PLUGINS_DIR));
-#endif
 
 	CFileSearch::XStringVector Extensions;
 	Extensions.push_back("*" PLUGIN_SUFFIX);
@@ -361,17 +295,21 @@ void CPluginManager::ScanForPlugins()
 		for (size_t i = 0; i < rFilenames.size(); i++)
 		{
 			std::string orig_name = rFilenames[i];
-			std::string Filename;
+			std::string Filename, Extension;
 			
-			if (!SplitPath(rFilenames[i], NULL, &Filename, NULL)) {
+			if (!SplitPath(rFilenames[i], NULL, &Filename, &Extension)) {
 				printf("Bad Path %s\n", rFilenames[i].c_str());
 				return;
 			}
 
-			CPluginInfo PluginInfo(orig_name.c_str());
+			// Leave off the directory component
+			std::string StoredName = Filename;
+			StoredName += Extension;
+
+			CPluginInfo PluginInfo(StoredName.c_str());
 			if (PluginInfo.IsValid())
 			{
-				// Save the PluginInfo
+				// Save the Plugin
 				m_PluginInfos.push_back(PluginInfo);
 			}
 		}
@@ -379,44 +317,26 @@ void CPluginManager::ScanForPlugins()
 }
 
 
-
-
 /* Create or return the already created plugin pointers. This will be called
-   often for the Pad and Wiimote from the SI_.cpp files. And often for the DSP
-   from the DSP files.
+   often for Wiimote. And often for the DSP from the DSP files.
    
    We don't need to check if [Plugin]->IsValid() here because it will not be set by LoadPlugin()
    if it's not valid.
    */
-// ------------
-Common::PluginPAD *CPluginManager::GetPad(int controller)
-{
-	if (m_pad[controller] != NULL)
-	{
-		if (m_pad[controller]->GetFilename() == m_params->m_strPadPlugin[controller])
-			return m_pad[controller];
-		else
-			FreePad(controller);
-	}
-	
-	// Else load a new plugin
-	m_pad[controller] = (Common::PluginPAD*)LoadPlugin(m_params->m_strPadPlugin[controller].c_str());
-	return m_pad[controller];
-}
 
-Common::PluginWiimote *CPluginManager::GetWiimote(int controller)
+Common::PluginWiimote *CPluginManager::GetWiimote()
 {
-	if (m_wiimote[controller] != NULL)
+	if (m_wiimote != NULL)
 	{
-		if (m_wiimote[controller]->GetFilename() == m_params->m_strWiimotePlugin[controller])
-			return m_wiimote[controller];
+		if (m_wiimote->GetFilename() == m_params->m_strWiimotePlugin)
+			return m_wiimote;
 		else
-			FreeWiimote(controller);
+			FreeWiimote();
 	}
 	
 	// Else load a new plugin
-	m_wiimote[controller] = (Common::PluginWiimote*)LoadPlugin(m_params->m_strWiimotePlugin[controller].c_str());
-	return m_wiimote[controller];
+	m_wiimote = (Common::PluginWiimote*)LoadPlugin(m_params->m_strWiimotePlugin.c_str());
+	return m_wiimote;
 }
 
 Common::PluginDSP *CPluginManager::GetDSP()
@@ -442,7 +362,7 @@ Common::PluginVideo *CPluginManager::GetVideo()
 		// Check if the video plugin has been changed
 		if (m_video->GetFilename() == m_params->m_strVideoPlugin)
 			return m_video;
-		// Then free the current video plugin, 
+		// Then free the current video plugin
 		else
 			FreeVideo();
 	}
@@ -470,34 +390,17 @@ void CPluginManager::FreeDSP()
 	m_dsp = NULL;
 }
 
-void CPluginManager::FreePad(u32 Pad)
+void CPluginManager::FreeWiimote()
 {
-	if (Pad < MAXPADS)
-	{
-		delete m_pad[Pad];
-		m_pad[Pad] = NULL;	
-	}
-}
-
-void CPluginManager::FreeWiimote(u32 Wiimote)
-{
-	if (Wiimote < MAXWIIMOTES)
-	{
-		delete m_wiimote[Wiimote];
-		m_wiimote[Wiimote] = NULL;	
-	}
+	delete m_wiimote;
+	m_wiimote = NULL;
 }
 
 void CPluginManager::EmuStateChange(PLUGIN_EMUSTATE newState)
 {
 	GetVideo()->EmuStateChange(newState);
 	GetDSP()->EmuStateChange(newState);
-	//TODO: OpenConfig below only uses GetXxx(0) aswell
-	//      Would we need to call all plugins?
-	//      If yes, how would one check if the plugin was not 
-	//      just created by GetXxx(idx) because there was none?
-	GetPad(0)->EmuStateChange(newState);
-	GetWiimote(0)->EmuStateChange(newState);
+	GetWiimote()->EmuStateChange(newState);
 }
 
 
@@ -508,7 +411,8 @@ void CPluginManager::EmuStateChange(PLUGIN_EMUSTATE newState)
 // Open config window. Input: _rFilename = Plugin filename , Type = Plugin type
 void CPluginManager::OpenConfig(void* _Parent, const char *_rFilename, PLUGIN_TYPE Type)
 {
-	if (! File::Exists(_rFilename)) {
+	if (! File::Exists((File::GetPluginsDirectory() + _rFilename).c_str()))
+	{
 		PanicAlert("Can't find plugin %s", _rFilename);
 		return;
 	}
@@ -521,27 +425,24 @@ void CPluginManager::OpenConfig(void* _Parent, const char *_rFilename, PLUGIN_TY
 	case PLUGIN_TYPE_DSP:
 		GetDSP()->Config((HWND)_Parent);
 		break;
-	case PLUGIN_TYPE_PAD:
-		GetPad(0)->Config((HWND)_Parent);
-		break;
 	case PLUGIN_TYPE_WIIMOTE:
-		GetWiimote(0)->Config((HWND)_Parent);
+		GetWiimote()->Config((HWND)_Parent);
 		break;
 	default:
-		PanicAlert("Type %d config not supported in plugin %s", Type, _rFilename); 
+		PanicAlert("Type %d config not supported in plugin %s", Type, _rFilename);
 	}
 }
 
 // Open debugging window. Type = Video or DSP. Show = Show or hide window.
 void CPluginManager::OpenDebug(void* _Parent, const char *_rFilename, PLUGIN_TYPE Type, bool Show)
 {
-	if (!File::Exists(_rFilename))
+	if (! File::Exists((File::GetPluginsDirectory() + _rFilename).c_str()))
 	{
 		PanicAlert("Can't find plugin %s", _rFilename);
 		return;
 	}
 
-	switch(Type) 
+	switch(Type)
 	{
 	case PLUGIN_TYPE_VIDEO:
 		GetVideo()->Debug((HWND)_Parent, Show);
@@ -550,7 +451,6 @@ void CPluginManager::OpenDebug(void* _Parent, const char *_rFilename, PLUGIN_TYP
 		GetDSP()->Debug((HWND)_Parent, Show);
 		break;
 	default:
-		PanicAlert("Type %d debug not supported in plugin %s", Type, _rFilename); 
+		PanicAlert("Type %d debug not supported in plugin %s", Type, _rFilename);
 	}
 }
-

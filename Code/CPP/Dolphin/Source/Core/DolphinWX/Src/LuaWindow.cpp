@@ -116,7 +116,7 @@ void wxLuaWindow::InitGUIControls()
 	m_Button_LoadScript = new wxButton(this, ID_BUTTON_LOAD, _T("载入脚本..."), wxDefaultPosition, wxDefaultSize);
 	m_Button_Run = new wxButton(this, ID_BUTTON_RUN, _T("运行"), wxDefaultPosition, wxDefaultSize);
 	m_Button_Stop = new wxButton(this, ID_BUTTON_STOP, _T("停止"), wxDefaultPosition, wxDefaultSize);
-	m_Button_Clear = new wxButton(this, ID_BUTTON_CLEAR, _T("Clear"), wxDefaultPosition, wxDefaultSize);
+	m_Button_Clear = new wxButton(this, ID_BUTTON_CLEAR, _T("清除"), wxDefaultPosition, wxDefaultSize);
 	wxBoxSizer* sButtons = new wxBoxSizer(wxHORIZONTAL);
 
 	m_Button_Run->Disable();

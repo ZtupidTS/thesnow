@@ -6,7 +6,6 @@ files = [
     "assemble.cpp",
     "disassemble.cpp",
     "DSPAccelerator.cpp",
-    "DSPBreakpoints.cpp",
     "DSPIntCCUtil.cpp",
     "DSPIntExtOps.cpp",
     "DSPHWInterface.cpp",
@@ -26,10 +25,7 @@ files = [
     "DSPTables.cpp",
     "Jit/DSPJitExtOps.cpp",
     "Jit/DSPJitUtil.cpp",
-	"Jit/DSPJitMisc.cpp",
+    "Jit/DSPJitMisc.cpp",
     ]
 
-acenv = env.Clone()
-acenv.Append(CXXFLAGS = [ '-fPIC' ])
-
-acenv.StaticLibrary(env['local_libs'] + 'dspcore', files, LIBS = [ 'common'] )
+env.StaticLibrary(env['local_libs'] + 'dspcore', files)

@@ -20,10 +20,8 @@
 
 #include "Plugin.h"
 #include "PluginDSP.h"
-#include "PluginPAD.h"
 #include "PluginVideo.h"
 #include "PluginWiimote.h"
-#include "EventHandler.h"
 #include "CoreParameter.h"
 
 class CPluginInfo
@@ -47,18 +45,17 @@ class CPluginManager
 {
 public:
 	static CPluginManager& GetInstance() {return(*m_Instance);}
+
 	static void Init();
 	static void Shutdown();
 
 	Common::PluginVideo *GetVideo();
 	Common::PluginDSP *GetDSP();
-	Common::PluginPAD *GetPad(int controller);
-	Common::PluginWiimote *GetWiimote(int controller);
+	Common::PluginWiimote *GetWiimote();
 
 	void FreeVideo();
 	void FreeDSP();
-	void FreePad(u32 Pad);
-	void FreeWiimote(u32 Wiimote);
+	void FreeWiimote();
 
 	void EmuStateChange(PLUGIN_EMUSTATE newState);
 
@@ -70,15 +67,15 @@ public:
 	void OpenDebug(void* _Parent, const char *_rFilename, PLUGIN_TYPE Type, bool Show);
 	const CPluginInfos& GetPluginInfos() {return(m_PluginInfos);}
 	PLUGIN_GLOBALS* GetGlobals();
+
 private:
 	static CPluginManager* m_Instance;
 
 	CPluginInfos m_PluginInfos;
 	PLUGIN_GLOBALS *m_PluginGlobals;
-	Common::PluginPAD *m_pad[4];
 	Common::PluginVideo *m_video;
-	Common::PluginWiimote *m_wiimote[4];
 	Common::PluginDSP *m_dsp;
+	Common::PluginWiimote *m_wiimote;
 
 	SCoreStartupParameter * m_params;
 	CPluginManager();

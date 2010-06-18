@@ -19,10 +19,6 @@
 #include <string>
 #include "svnrev.h"
 
-#ifdef __APPLE__
-#include <sys/param.h>
-#endif
-
 #include "Common.h" // Common
 
 #if defined HAVE_X11 && HAVE_X11
@@ -99,13 +95,11 @@ bool DolphinApp::OnInit()
 	bool LoadElf = false;
 	bool selectVideoPlugin = false;
 	bool selectAudioPlugin = false;
-	bool selectPadPlugin = false;
 	bool selectWiimotePlugin = false;
 
 	wxString ElfFile;
 	wxString videoPluginFilename;
 	wxString audioPluginFilename;
-	wxString padPluginFilename;
 	wxString wiimotePluginFilename;
 
 #if wxUSE_CMDLINE_PARSER // Parse command lines
@@ -197,21 +191,19 @@ bool DolphinApp::OnInit()
 	UseLogger = parser.Found("logger");
 	LoadElf = parser.Found("elf", &ElfFile);
 #else
-	UseDebugger = parser.Found(_("debugger"));
-	UseLogger = parser.Found(_("logger"));
-	LoadElf = parser.Found(_("elf"), &ElfFile);
+	UseDebugger = parser.Found(wxT("debugger"));
+	UseLogger = parser.Found(wxT("logger"));
+	LoadElf = parser.Found(wxT("elf"), &ElfFile);
 #endif
 
 #if wxCHECK_VERSION(2, 9, 0)
 	selectVideoPlugin = parser.Found("video_plugin", &videoPluginFilename);
 	selectAudioPlugin = parser.Found("audio_plugin", &audioPluginFilename);
-	selectPadPlugin = parser.Found("pad_plugin", &padPluginFilename);
 	selectWiimotePlugin = parser.Found("wiimote_plugin", &wiimotePluginFilename);
 #else
-	selectVideoPlugin = parser.Found(_T("video_plugin"), &videoPluginFilename);
-	selectAudioPlugin = parser.Found(_T("audio_plugin"), &audioPluginFilename);
-	selectPadPlugin = parser.Found(_T("pad_plugin"), &padPluginFilename);
-	selectWiimotePlugin = parser.Found(_T("wiimote_plugin"), &wiimotePluginFilename);
+	selectVideoPlugin = parser.Found(wxT("video_plugin"), &videoPluginFilename);
+	selectAudioPlugin = parser.Found(wxT("audio_plugin"), &audioPluginFilename);
+	selectWiimotePlugin = parser.Found(wxT("wiimote_plugin"), &wiimotePluginFilename);
 #endif
 #endif // wxUSE_CMDLINE_PARSER
 
@@ -297,7 +289,7 @@ bool DolphinApp::OnInit()
 			tmpChar = new char[len];
 			fread(tmpChar, len, 1, workingDir);
 			fclose(workingDir);
-			if (!wxSetWorkingDirectory(wxString::FromAscii(tmpChar)))
+			if (!wxSetWorkingDirectory(wxString::From8BitData(tmpChar)))
 			{
 				INFO_LOG(CONSOLE, "set working directory failed");
 			}
@@ -316,15 +308,6 @@ bool DolphinApp::OnInit()
 	}
 	else if (!File::IsDirectory(AppSupportDir))
 		PanicAlert("~/Library/Application Support/Dolphin exists, but is not a directory");
-
-#if !wxCHECK_VERSION(2, 9, 0)
-	// HACK: Get rid of bogus osx param
-	if (argc > 1 && wxString(argv[argc - 1]).StartsWith(_("-psn_"))) {
-		delete argv[argc-1];
-		argv[argc-1] = NULL;
-		argc--;
-	}
-#endif
 #endif
 
 #ifdef __linux__
@@ -337,25 +320,24 @@ bool DolphinApp::OnInit()
 	File::CopyDir(SHARED_USER_DIR WII_USER_DIR DIR_SEP, File::GetUserPath(D_WIIUSER_IDX));
 
 	if (!File::Exists(File::GetUserPath(D_GCUSER_IDX)))
-	   	File::CreateFullPath(File::GetUserPath(D_GCUSER_IDX));
+		File::CreateFullPath(File::GetUserPath(D_GCUSER_IDX));
 	if (!File::Exists(File::GetUserPath(D_CACHE_IDX)))
-	   	File::CreateFullPath(File::GetUserPath(D_CACHE_IDX));
+		File::CreateFullPath(File::GetUserPath(D_CACHE_IDX));
 	if (!File::Exists(File::GetUserPath(D_DUMPDSP_IDX)))
-	   	File::CreateFullPath(File::GetUserPath(D_DUMPDSP_IDX));
+		File::CreateFullPath(File::GetUserPath(D_DUMPDSP_IDX));
 	if (!File::Exists(File::GetUserPath(D_DUMPTEXTURES_IDX)))
-	   	File::CreateFullPath(File::GetUserPath(D_DUMPTEXTURES_IDX));
+		File::CreateFullPath(File::GetUserPath(D_DUMPTEXTURES_IDX));
 	if (!File::Exists(File::GetUserPath(D_HIRESTEXTURES_IDX)))
-	   	File::CreateFullPath(File::GetUserPath(D_HIRESTEXTURES_IDX));
+		File::CreateFullPath(File::GetUserPath(D_HIRESTEXTURES_IDX));
 	if (!File::Exists(File::GetUserPath(D_SCREENSHOTS_IDX)))
-	   	File::CreateFullPath(File::GetUserPath(D_SCREENSHOTS_IDX));
+		File::CreateFullPath(File::GetUserPath(D_SCREENSHOTS_IDX));
 	if (!File::Exists(File::GetUserPath(D_STATESAVES_IDX)))
-	   	File::CreateFullPath(File::GetUserPath(D_STATESAVES_IDX));
+		File::CreateFullPath(File::GetUserPath(D_STATESAVES_IDX));
 	if (!File::Exists(File::GetUserPath(D_MAILLOGS_IDX)))
-	   	File::CreateFullPath(File::GetUserPath(D_MAILLOGS_IDX));
+		File::CreateFullPath(File::GetUserPath(D_MAILLOGS_IDX));
 #endif
 
 	LogManager::Init();
-	EventHandler::Init();
 	SConfig::Init();
 	CPluginManager::Init();
 
@@ -365,23 +347,11 @@ bool DolphinApp::OnInit()
 
 	if (selectAudioPlugin && audioPluginFilename != wxEmptyString)
 		SConfig::GetInstance().m_LocalCoreStartupParameter.m_strDSPPlugin =
-		   	std::string(audioPluginFilename.mb_str());
-
-	if (selectPadPlugin && padPluginFilename != wxEmptyString)
-	{
-		int k;
-		for(k=0;k<MAXPADS;k++)
-			SConfig::GetInstance().m_LocalCoreStartupParameter.m_strPadPlugin[k] =
-				std::string(padPluginFilename.mb_str());
-	}
+			std::string(audioPluginFilename.mb_str());
 
 	if (selectWiimotePlugin && wiimotePluginFilename != wxEmptyString)
-	{
-		int k;
-		for(k=0;k<MAXWIIMOTES;k++)
-			SConfig::GetInstance().m_LocalCoreStartupParameter.m_strWiimotePlugin[k] =
-			   	std::string(wiimotePluginFilename.mb_str());
-	}
+		SConfig::GetInstance().m_LocalCoreStartupParameter.m_strWiimotePlugin =
+			std::string(wiimotePluginFilename.mb_str());
 
 	// Enable the PNG image handler
 	wxInitAllImageHandlers(); 
@@ -423,9 +393,9 @@ bool DolphinApp::OnInit()
 			wxPoint(x, y), wxSize(w, h), UseDebugger, UseLogger);
 
 	// ------------
-	// Check the autoboot options. 
+	// Check the autoboot options.
 
-	// First check if we have an elf command line. 
+	// First check if we have an elf command line.
 	if (LoadElf && ElfFile != wxEmptyString)
 	{
 		main_frame->BootGame(std::string(ElfFile.mb_str()));
@@ -482,7 +452,6 @@ int DolphinApp::OnExit()
 {
 	CPluginManager::Shutdown();
 	SConfig::Shutdown();
-	EventHandler::Shutdown();
 	LogManager::Shutdown();
 
 	return wxApp::OnExit();
@@ -510,7 +479,7 @@ void Host_SysMessage(const char *fmt, ...)
 
 bool wxMsgAlert(const char* caption, const char* text, bool yes_no, int /*Style*/)
 {
-    return wxYES == wxMessageBox(wxString::FromAscii(text), 
+	return wxYES == wxMessageBox(wxString::FromAscii(text), 
 				 wxString::FromAscii(caption),
 				 (yes_no)?wxYES_NO:wxOK);
 }

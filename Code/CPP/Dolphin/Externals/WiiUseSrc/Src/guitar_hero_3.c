@@ -57,8 +57,6 @@ static void guitar_hero_3_pressed_buttons(struct guitar_hero_3_t* gh3, short now
  *	@return	Returns 1 if handshake was successful, 0 if not.
  */
 int guitar_hero_3_handshake(struct wiimote_t* wm, struct guitar_hero_3_t* gh3, byte* data, unsigned short len) {
-	int offset = 0;
-
 	/*
 	 *	The good fellows that made the Guitar Hero 3 controller
 	 *	failed to factory calibrate the devices.  There is no
@@ -83,7 +81,7 @@ int guitar_hero_3_handshake(struct wiimote_t* wm, struct guitar_hero_3_t* gh3, b
 
 	/* handshake done */
 	wm->event = WIIUSE_GUITAR_HERO_3_CTRL_INSERTED;
-	wm->exp.type = EXP_GUITAR_HERO_3;
+	wm->expansion.type = EXP_GUITAR_HERO_3;
 
 	wm->timeout = WIIMOTE_DEFAULT_TIMEOUT;
 
