@@ -19,7 +19,7 @@
 #define __FRAME_H
 
 #include "Common.h"
-#include "pluginspecs_pad.h"
+#include "GCPadStatus.h"
 
 #include <string>
 
@@ -80,7 +80,6 @@ typedef struct {
     u8  videoPlugin[16];    // UTF-8 representation of the video plugin
     u8  audioPlugin[16];    // UTF-8 representation of the audio plugin
     u8  padPlugin[16];      // UTF-8 representation of the input plugin
-    
 
     bool padding[102];      // Padding to align the header to 1024 bits
 

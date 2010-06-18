@@ -21,16 +21,10 @@
 
 #ifndef _WIN32
 #include <sys/param.h>
-#else
-
 #endif
 
 #include "Common.h"
 #include "FileUtil.h"
-
-#ifdef __APPLE__
-#include <sys/param.h>
-#endif
 
 #if defined HAVE_X11 && HAVE_X11
 #include <X11/keysym.h>
@@ -38,7 +32,7 @@
 #include "X11Utils.h"
 #endif
 
-#if defined(HAVE_COCOA) && HAVE_COCOA
+#ifdef __APPLE__
 #import "cocoaApp.h"
 #endif
 
@@ -266,7 +260,7 @@ void X11_MainLoop()
 #endif
 
 //for cocoa we need to hijack the main to get event
-#if defined(HAVE_COCOA) && HAVE_COCOA
+#ifdef __APPLE__
 
 @interface CocoaThread : NSObject
 {

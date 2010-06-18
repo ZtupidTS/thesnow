@@ -20,7 +20,9 @@
     slouken@libsdl.org
 */
 
-/* Try to get a standard set of platform defines */
+/** @file SDL_platform.h
+ *  Try to get a standard set of platform defines
+ */
 
 #ifndef _SDL_platform_h
 #define _SDL_platform_h
@@ -33,6 +35,10 @@
 #undef __BEOS__
 #define __BEOS__	1
 #endif
+#if defined(__HAIKU__)
+#undef __HAIKU__
+#define __HAIKU__ 1
+#endif
 #if defined(bsdi) || defined(__bsdi) || defined(__bsdi__)
 #undef __BSDI__
 #define __BSDI__	1
@@ -41,9 +47,13 @@
 #undef __DREAMCAST__
 #define __DREAMCAST__	1
 #endif
-#if defined(__FreeBSD__) || defined(__DragonFly__)
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
 #undef __FREEBSD__
 #define __FREEBSD__	1
+#endif
+#if defined(__HAIKU__)
+#undef __HAIKU__
+#define __HAIKU__	1
 #endif
 #if defined(hpux) || defined(__hpux) || defined(__hpux__)
 #undef __HPUX__
@@ -57,30 +67,13 @@
 #undef __LINUX__
 #define __LINUX__	1
 #endif
-
 #if defined(__APPLE__)
-/* lets us know what version of Mac OS X we're compiling on */
-#include "AvailabilityMacros.h"
-#ifdef MAC_OS_X_VERSION_10_3
-#include "TargetConditionals.h" /* this header is in 10.3 or later */
-#if TARGET_OS_IPHONE
-/* if compiling for iPhone */
-#undef __IPHONEOS__
-#define __IPHONEOS__ 1
-#undef __MACOSX__
-#else
-/* if not compiling for iPhone */
 #undef __MACOSX__
 #define __MACOSX__	1
-#endif /* TARGET_OS_IPHONE */
-#else
-/* if earlier verion of Mac OS X than version 10.3 */
-#undef __MACOSX__
-#define __MACOSX__	1
+#elif defined(macintosh)
+#undef __MACOS__
+#define __MACOS__	1
 #endif
-
-#endif /* defined(__APPLE__) */
-
 #if defined(__NetBSD__)
 #undef __NETBSD__
 #define __NETBSD__	1
@@ -112,11 +105,6 @@
 #if defined(WIN32) || defined(_WIN32)
 #undef __WIN32__
 #define __WIN32__	1
-#endif
-
-#if defined(__NDS__)
-#undef __NINTENDODS__
-#define __NINTENDODS__	1
 #endif
 
 #endif /* _SDL_platform_h */

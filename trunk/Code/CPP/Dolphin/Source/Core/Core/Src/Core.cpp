@@ -39,6 +39,7 @@
 #include "HW/ProcessorInterface.h"
 #include "HW/GPFifo.h"
 #include "HW/CPU.h"
+#include "HW/GCPad.h"
 #include "HW/HW.h"
 #include "HW/DSP.h"
 #include "HW/GPFifo.h"
@@ -79,7 +80,7 @@ const char *Callback_ISOName(void);
 void Callback_DSPInterrupt();
 void Callback_PADLog(const TCHAR* _szMessage);
 void Callback_WiimoteLog(const TCHAR* _szMessage, int _v);
-void Callback_WiimoteInput(int _number, u16 _channelID, const void* _pData, u32 _Size);
+void Callback_WiimoteInterruptChannel(int _number, u16 _channelID, const void* _pData, u32 _Size);
 bool Callback_RendererHasFocus(void);
 
 // For keyboard shortcuts.
@@ -130,13 +131,13 @@ bool PanicAlertToVideo(const char* text, bool yes_no)
 void DisplayMessage(const std::string &message, int time_in_ms)
 {
 	CPluginManager::GetInstance().GetVideo()->Video_AddMessage(message.c_str(),
-							       time_in_ms);
+															   time_in_ms);
 }
 
 void DisplayMessage(const char *message, int time_in_ms)
 {
 	CPluginManager::GetInstance().GetVideo()->Video_AddMessage(message, 
-							    time_in_ms);
+															   time_in_ms);
 }
 
 void Callback_DebuggerBreak()
@@ -325,25 +326,25 @@ THREAD_RETURN EmuThread(void *pArg)
 
 	// Load the VideoPlugin
 	SVideoInitialize VideoInitialize;
-	VideoInitialize.pGetMemoryPointer	        = Memory::GetPointer;
-	VideoInitialize.pSetInterrupt               = ProcessorInterface::SetInterrupt;
-	VideoInitialize.pRegisterEvent              = CoreTiming::RegisterEvent;
-	VideoInitialize.pScheduleEvent_Threadsafe   = CoreTiming::ScheduleEvent_Threadsafe;
+	VideoInitialize.pGetMemoryPointer			= Memory::GetPointer;
+	VideoInitialize.pSetInterrupt				= ProcessorInterface::SetInterrupt;
+	VideoInitialize.pRegisterEvent				= CoreTiming::RegisterEvent;
+	VideoInitialize.pScheduleEvent_Threadsafe	= CoreTiming::ScheduleEvent_Threadsafe;
 	// This is first the m_Panel handle, then it is updated to have the new window handle
-	VideoInitialize.pWindowHandle		        = _CoreParameter.hMainWindow;
-	VideoInitialize.pLog				        = Callback_VideoLog;
-	VideoInitialize.pSysMessage			        = Host_SysMessage;
-	VideoInitialize.pRequestWindowSize	        = Callback_VideoRequestWindowSize;
-	VideoInitialize.pCopiedToXFB		        = Callback_VideoCopiedToXFB;
-	VideoInitialize.pPeekMessages               = NULL;
-	VideoInitialize.pUpdateFPSDisplay           = NULL;
-	VideoInitialize.pMemoryBase                 = Memory::base;
-	VideoInitialize.pCoreMessage                = Callback_CoreMessage;
-	VideoInitialize.bWii                        = _CoreParameter.bWii;
+	VideoInitialize.pWindowHandle				= _CoreParameter.hMainWindow;
+	VideoInitialize.pLog						= Callback_VideoLog;
+	VideoInitialize.pSysMessage					= Host_SysMessage;
+	VideoInitialize.pRequestWindowSize			= Callback_VideoRequestWindowSize;
+	VideoInitialize.pCopiedToXFB				= Callback_VideoCopiedToXFB;
+	VideoInitialize.pPeekMessages				= NULL;
+	VideoInitialize.pUpdateFPSDisplay			= NULL;
+	VideoInitialize.pMemoryBase					= Memory::base;
+	VideoInitialize.pCoreMessage				= Callback_CoreMessage;
+	VideoInitialize.bWii						= _CoreParameter.bWii;
 	VideoInitialize.bOnThread					= _CoreParameter.bCPUThread;
-	VideoInitialize.Fifo_CPUBase                = &ProcessorInterface::Fifo_CPUBase;
-	VideoInitialize.Fifo_CPUEnd                 = &ProcessorInterface::Fifo_CPUEnd;
-	VideoInitialize.Fifo_CPUWritePointer        = &ProcessorInterface::Fifo_CPUWritePointer;
+	VideoInitialize.Fifo_CPUBase				= &ProcessorInterface::Fifo_CPUBase;
+	VideoInitialize.Fifo_CPUEnd					= &ProcessorInterface::Fifo_CPUEnd;
+	VideoInitialize.Fifo_CPUWritePointer		= &ProcessorInterface::Fifo_CPUWritePointer;
 	bool aspectWide = _CoreParameter.bWii;
 	if (aspectWide) 
 	{
@@ -351,7 +352,7 @@ THREAD_RETURN EmuThread(void *pArg)
 		gameIni.Load(_CoreParameter.m_strGameIni.c_str());
 		gameIni.Get("Wii", "Widescreen", &aspectWide, !!SConfig::GetInstance().m_SYSCONF->GetData<u8>("IPL.AR"));
 	}
-	VideoInitialize.bAutoAspectIs16_9           = aspectWide;
+	VideoInitialize.bAutoAspectIs16_9			= aspectWide;
 
 	Plugins.GetVideo()->Initialize(&VideoInitialize); // Call the dll
 
@@ -382,17 +383,7 @@ THREAD_RETURN EmuThread(void *pArg)
 
 	Plugins.GetDSP()->Initialize((void *)&dspInit);
 	
-	// Load and init GCPadPlugin
-	SPADInitialize PADInitialize;
-	PADInitialize.hWnd		= g_pWindowHandle;
-#if defined(HAVE_X11) && HAVE_X11
-	PADInitialize.pXWindow	= g_pXWindow;
-#endif
-	PADInitialize.pLog		= Callback_PADLog;
-	PADInitialize.pRendererHasFocus	= Callback_RendererHasFocus;
-	// This is may be needed to avoid a SDL problem
-	//Plugins.FreeWiimote();
-	Plugins.GetPad(0)->Initialize(&PADInitialize);
+	GCPad_Init(g_pWindowHandle);
 
 	// Load and Init WiimotePlugin - only if we are booting in wii mode	
 	if (_CoreParameter.bWii)
@@ -404,10 +395,10 @@ THREAD_RETURN EmuThread(void *pArg)
 #endif
 		WiimoteInitialize.ISOId			= Ascii2Hex(_CoreParameter.m_strUniqueID);
 		WiimoteInitialize.pLog			= Callback_WiimoteLog;
-		WiimoteInitialize.pWiimoteInput	= Callback_WiimoteInput;
+		WiimoteInitialize.pWiimoteInterruptChannel = Callback_WiimoteInterruptChannel;
 		WiimoteInitialize.pRendererHasFocus	= Callback_RendererHasFocus;
 		// Wait for Wiiuse to find the number of connected Wiimotes
-		Plugins.GetWiimote(0)->Initialize((void *)&WiimoteInitialize);
+		Plugins.GetWiimote()->Initialize((void *)&WiimoteInitialize);
 	}
 
 	// The hardware is initialized.
@@ -521,7 +512,9 @@ THREAD_RETURN EmuThread(void *pArg)
 	if (_CoreParameter.bCPUThread)
 		Plugins.ShutdownVideoPlugin();
 
+	GCPad_Deinit();
 	Plugins.ShutdownPlugins();
+
 	NOTICE_LOG(CONSOLE, "%s", StopMessage(false, "Plugins shutdown").c_str());
 
 	NOTICE_LOG(CONSOLE, "%s", StopMessage(true, "Main thread stopped").c_str());
@@ -614,7 +607,7 @@ void VideoThrottle()
 	if (SConfig::GetInstance().m_Framelimit)
 	{
 		// Make the limiter a bit loose
-		u32 frametime = ((SConfig::GetInstance().b_UseFPS)? Common::AtomicLoad(DrawnFrame) : DrawnVideo) * 1000 / ++TargetVPS;
+		u32 frametime = ((SConfig::GetInstance().b_UseFPS)? Common::AtomicLoad(DrawnFrame) : DrawnVideo) * 1000 / TargetVPS;
 		while ((u32)Timer.GetTimeDifference() < frametime)
 			Common::YieldCPU();
 			//Common::SleepCurrentThread(1);
@@ -627,7 +620,7 @@ void VideoThrottle()
 		SCoreStartupParameter& _CoreParameter = SConfig::GetInstance().m_LocalCoreStartupParameter;
 
 		u32 FPS = Common::AtomicLoad(DrawnFrame) * 1000 / ElapseTime;
-		u32 VPS = --DrawnVideo * 1000 / ElapseTime;
+		u32 VPS = DrawnVideo * 1000 / ElapseTime;
 		u32 Speed = VPS * 100 / VideoInterface::TargetRefreshRate;
 		
 		// Settings are shown the same for both extended and summary info

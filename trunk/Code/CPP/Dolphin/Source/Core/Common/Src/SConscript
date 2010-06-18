@@ -7,12 +7,10 @@ files = [
 	"ABI.cpp",
 	"BreakPoints.cpp",
 	"CDUtils.cpp",
-	"ChunkFile.cpp",
 	"ColorUtil.cpp",
 	"ConsoleListener.cpp",
 	"CPUDetect.cpp",
 	"DynamicLibrary.cpp",
-	"ExtendedTrace.cpp",
 	"FileSearch.cpp",
 	"FileUtil.cpp",
 	"Hash.cpp",
@@ -28,7 +26,6 @@ files = [
 	"PluginDSP.cpp",
 	"PluginWiimote.cpp",
 	"PluginVideo.cpp",
-	"PluginPAD.cpp",
 	"SDCardUtil.cpp",
 	"StringUtil.cpp",
 	"SymbolDB.cpp",
@@ -46,8 +43,7 @@ files = [
 	]
 
 if sys.platform == 'win32':
+	files += [ "ExtendedTrace.cpp" ]
 	files += [ "stdafx.cpp" ]
 
-env_common = env.Clone()
-env_common.Append(CXXFLAGS = [ '-fPIC' ])
-env_common.StaticLibrary(env['local_libs'] + "common", files)
+env.StaticLibrary(env['local_libs'] + "common", files)

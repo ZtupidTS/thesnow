@@ -56,11 +56,13 @@ Core::GetWindowHandle().
 #include "PowerPC/PowerPC.h"
 #include "HW/DVDInterface.h"
 #include "HW/ProcessorInterface.h"
+#include "HW/GCPad.h"
 #include "IPC_HLE/WII_IPC_HLE_Device_usb.h"
 #include "State.h"
 #include "VolumeHandler.h"
 #include "NANDContentLoader.h"
 #include "WXInputBase.h"
+#include "../../InputUICommon/Src/ConfigDiag.h"
 
 #include <wx/datetime.h> // wxWidgets
 
@@ -316,7 +318,7 @@ wxString CFrame::GetMenuLabel(int Id)
 void CFrame::PopulateToolbar(wxAuiToolBar* ToolBar)
 {
 	int w = m_Bitmaps[Toolbar_FileOpen].GetWidth(),
-	    h = m_Bitmaps[Toolbar_FileOpen].GetHeight();
+		h = m_Bitmaps[Toolbar_FileOpen].GetHeight();
 		ToolBar->SetToolBitmapSize(wxSize(w, h));
 		
 
@@ -423,7 +425,7 @@ void CFrame::InitBitmaps()
 		m_Bitmaps[Toolbar_Help]			= wxGetBitmapFromMemory(toolbar_help_png);
 
 		// Scale the 48x48 bitmaps to 24x24
-		for (size_t n = Toolbar_FileOpen; n <= Toolbar_Help; n++)
+		for (size_t n = Toolbar_FileOpen; n < EToolbar_Max; n++)
 		{
 			m_Bitmaps[n] = wxBitmap(m_Bitmaps[n].ConvertToImage().Scale(24, 24));
 		}
@@ -565,13 +567,13 @@ void CFrame::DoOpen(bool Boot)
 
 	bool fileChosen = !path.IsEmpty();
 
-    std::string currentDir2 = File::GetCurrentDir();
+	std::string currentDir2 = File::GetCurrentDir();
 
-    if (currentDir != currentDir2)
-    {
-        PanicAlert("Current dir changed from %s to %s after wxFileSelector!",currentDir.c_str(),currentDir2.c_str());
-        File::SetCurrentDir(currentDir.c_str());
-    }
+	if (currentDir != currentDir2)
+	{
+		PanicAlert("Current dir changed from %s to %s after wxFileSelector!",currentDir.c_str(),currentDir2.c_str());
+		File::SetCurrentDir(currentDir.c_str());
+	}
 
 
 	// Should we boot a new game or just change the disc?
@@ -942,17 +944,32 @@ void CFrame::OnPluginDSP(wxCommandEvent& WXUNUSED (event))
 
 void CFrame::OnPluginPAD(wxCommandEvent& WXUNUSED (event))
 {
-	CPluginManager::GetInstance().OpenConfig(
-			GetHandle(),
-			SConfig::GetInstance().m_LocalCoreStartupParameter.m_strPadPlugin[0].c_str(),
-			PLUGIN_TYPE_PAD
-			);
+	InputPlugin *pad_plugin = PAD_GetPlugin();
+	bool was_init = false;
+	if ( pad_plugin->controller_interface.IsInit() )	// check if game is running
+		was_init = true;
+	else
+	{
+#if defined(HAVE_X11) && HAVE_X11
+		GCPad_Init(X11Utils::XDisplayFromHandle(GetHandle()));
+#else
+		GCPad_Init(GetHandle());
+#endif
+	}
+	InputConfigDialog* m_ConfigFrame = new InputConfigDialog(this, *pad_plugin, "Dolphin GCPad Configuration");
+	m_ConfigFrame->ShowModal();
+	m_ConfigFrame->Destroy();
+	if (!was_init)				// if game isn't running
+	{
+		GCPad_Deinit();
+	}
 }
+
 void CFrame::OnPluginWiimote(wxCommandEvent& WXUNUSED (event))
 {
 	CPluginManager::GetInstance().OpenConfig(
 			GetHandle(),
-			SConfig::GetInstance().m_LocalCoreStartupParameter.m_strWiimotePlugin[0].c_str(),
+			SConfig::GetInstance().m_LocalCoreStartupParameter.m_strWiimotePlugin.c_str(),
 			PLUGIN_TYPE_WIIMOTE
 			);
 }
@@ -1311,7 +1328,7 @@ void CFrame::UpdateGUI()
 	}
 	else
 	{
-		// Game has been loaded, enable the play button
+		// Game has been loaded, enable the pause button
 		if (m_ToolBar)
 			m_ToolBar->EnableTool(IDM_PLAY, true);
 		GetMenuBar()->FindItem(IDM_PLAY)->Enable(true);
@@ -1424,4 +1441,3 @@ void CFrame::OnToggleStatusbar(wxCommandEvent& event)
 
 	this->SendSizeEvent();
 }
-

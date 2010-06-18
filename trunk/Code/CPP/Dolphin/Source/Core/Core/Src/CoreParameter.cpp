@@ -50,9 +50,9 @@ SCoreStartupParameter::SCoreStartupParameter()
   bWii(false),
   bConfirmStop(false), bHideCursor(false), 
   bAutoHideCursor(false), bUsePanicHandlers(true),
-  bFullscreen(false), bRenderToMain(false),
   iRenderWindowXPos(0), iRenderWindowYPos(0),
   iRenderWindowWidth(640), iRenderWindowHeight(480),
+  bFullscreen(false), bRenderToMain(false),
   iTheme(0),
   iPosX(100), iPosY(100), iWidth(800), iHeight(600)
 {
@@ -110,7 +110,7 @@ void SCoreStartupParameter::LoadDefaults()
 bool SCoreStartupParameter::AutoSetup(EBootBS2 _BootBS2) 
 {
 	std::string Region(EUR_DIR);
-
+	
 	switch (_BootBS2)
 	{
 	case BOOT_DEFAULT:
@@ -123,7 +123,7 @@ bool SCoreStartupParameter::AutoSetup(EBootBS2 _BootBS2)
 				PanicAlert("The file you specified (%s) does not exists", m_strFilename.c_str());
 				return false;
 			}
-
+			
 			std::string Extension;
 			SplitPath(m_strFilename, NULL, NULL, &Extension);
 			if (!strcasecmp(Extension.c_str(), ".gcm") || 
@@ -144,7 +144,7 @@ bool SCoreStartupParameter::AutoSetup(EBootBS2 _BootBS2)
 				}
 				m_strName = pVolume->GetName();
 				m_strUniqueID = pVolume->GetUniqueID();
-
+				
 				// Check if we have a Wii disc
 				bWii = DiscIO::IsVolumeWiiDisc(pVolume);
 				switch (pVolume->GetCountry())
@@ -153,7 +153,7 @@ bool SCoreStartupParameter::AutoSetup(EBootBS2 _BootBS2)
 					bNTSC = true;
 					Region = USA_DIR; 
 					break;
-
+				
 				case DiscIO::IVolume::COUNTRY_TAIWAN:
 				case DiscIO::IVolume::COUNTRY_KOREA:
 					// TODO: Should these have their own Region Dir?
@@ -161,14 +161,14 @@ bool SCoreStartupParameter::AutoSetup(EBootBS2 _BootBS2)
 					bNTSC = true;
 					Region = JAP_DIR; 
 					break;
-
+				
 				case DiscIO::IVolume::COUNTRY_EUROPE:
 				case DiscIO::IVolume::COUNTRY_FRANCE:
 				case DiscIO::IVolume::COUNTRY_ITALY:
 					bNTSC = false;
 					Region = EUR_DIR; 
 					break;
-
+				
 				default:
 					if (PanicYesNo("Your GCM/ISO file seems to be invalid (invalid country)."
 								   "\nContinue with PAL region?"))
@@ -178,7 +178,7 @@ bool SCoreStartupParameter::AutoSetup(EBootBS2 _BootBS2)
 						break;
 					}else return false;
 				}
-
+				
 				delete pVolume;
 			}
 			else if (!strcasecmp(Extension.c_str(), ".elf"))
@@ -195,7 +195,7 @@ bool SCoreStartupParameter::AutoSetup(EBootBS2 _BootBS2)
 				m_BootType = BOOT_DOL;
 				bNTSC = true;
 			}
-            else if (DiscIO::CNANDContentManager::Access().GetNANDLoader(m_strFilename).IsValid())
+			else if (DiscIO::CNANDContentManager::Access().GetNANDLoader(m_strFilename).IsValid())
 			{
 				const DiscIO::IVolume* pVolume = DiscIO::CreateVolumeFromFilename(m_strFilename.c_str());
 				const DiscIO::INANDContentLoader& ContentLoader = DiscIO::CNANDContentManager::Access().GetNANDLoader(m_strFilename);

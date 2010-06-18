@@ -19,6 +19,7 @@
 #define GCOGL_VERTEXSHADER_H
 
 #include "XFMemory.h"
+#include "VideoCommon.h"
 
 #define SHADER_POSMTX_ATTRIB 1
 #define SHADER_NORM1_ATTRIB  6
@@ -99,8 +100,10 @@ public:
 	}
 };
 
+
+
 // components is included in the uid.
-const char *GenerateVertexShaderCode(u32 components, bool D3D);
+const char *GenerateVertexShaderCode(u32 components, API_TYPE api_type);
 void GetVertexShaderId(VERTEXSHADERUID *uid, u32 components);
 
 extern VERTEXSHADERUID  last_vertex_shader_uid;

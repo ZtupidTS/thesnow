@@ -93,7 +93,7 @@ public:
 				x.clear();
 				while (number > 0)
 				{
-					unsigned int first;
+					unsigned int first = 0;
 					Do(first);
 					std::string second;
 					Do(second);
@@ -183,7 +183,6 @@ public:
 	template<class T>
 	static bool Load(const std::string& _rFilename, int _Revision, T& _class) 
 	{
-		
 		INFO_LOG(COMMON, "ChunkReader: Loading %s" , _rFilename.c_str());
 
 		if (! File::Exists(_rFilename.c_str()))

@@ -1,0 +1,33 @@
+# -*- python -*-
+
+Import('env')
+import sys
+
+if not env['HAVE_WX']:
+	Return()
+
+wxenv = env.Clone()
+
+files = [
+	]
+
+libs = [
+	'memcard',
+	'common',
+	]
+
+if wxenv['HAVE_WX']:
+	files += [
+		'src/mcmMain.cpp',
+		'src/MCMdebug.cpp',
+		]
+
+LIBS = libs
+
+wxenv.Append(
+	LIBS = libs
+	)
+
+exeGUI = env['binary_dir'] + 'MemcardManager'
+
+wxenv.Program(exeGUI, files)

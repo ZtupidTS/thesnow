@@ -85,7 +85,7 @@ void SConfig::SaveSettings()
 		ini.Set("General", tmp, m_ISOFolder[i]);
 	}
 
-	ini.Set("General", "RecersiveGCMPaths", m_RecursiveISOFolder);
+	ini.Set("General", "RecursiveGCMPaths", m_RecursiveISOFolder);
 
 	// Interface		
 	ini.Set("Interface", "ConfirmStop",			m_LocalCoreStartupParameter.bConfirmStop);
@@ -168,8 +168,7 @@ void SConfig::SaveSettings()
 	// Plugins
 	ini.Set("Core", "GFXPlugin",	m_LocalCoreStartupParameter.m_strVideoPlugin);
 	ini.Set("Core", "DSPPlugin",	m_LocalCoreStartupParameter.m_strDSPPlugin);
-	ini.Set("Core", "PadPlugin",	m_LocalCoreStartupParameter.m_strPadPlugin[0]);
-	ini.Set("Core", "WiiMotePlugin",m_LocalCoreStartupParameter.m_strWiimotePlugin[0]);
+	ini.Set("Core", "WiiMotePlugin",m_LocalCoreStartupParameter.m_strWiimotePlugin);
 
 	ini.Save(File::GetUserPath(F_DOLPHINCONFIG_IDX));
 	m_SYSCONF->Save();
@@ -182,13 +181,10 @@ void SConfig::LoadSettings()
 	IniFile ini;
 	ini.Load(File::GetUserPath(F_DOLPHINCONFIG_IDX));
 
-	std::string PluginsDir = File::GetPluginsDirectory();
-	
-	// Hard coded default
-	m_DefaultGFXPlugin = PluginsDir + DEFAULT_GFX_PLUGIN;
-	m_DefaultDSPPlugin = PluginsDir + DEFAULT_DSP_PLUGIN;
-	m_DefaultPADPlugin = PluginsDir + DEFAULT_PAD_PLUGIN;
-	m_DefaultWiiMotePlugin = PluginsDir + DEFAULT_WIIMOTE_PLUGIN;
+	// Hard coded defaults
+	m_DefaultGFXPlugin = DEFAULT_GFX_PLUGIN;
+	m_DefaultDSPPlugin = DEFAULT_DSP_PLUGIN;
+	m_DefaultWiiMotePlugin = DEFAULT_WIIMOTE_PLUGIN;
 
 	// General
 	{
@@ -209,7 +205,7 @@ void SConfig::LoadSettings()
 			}
 		}
 
-		ini.Get("General", "RecersiveGCMPaths",		&m_RecursiveISOFolder,							false);
+		ini.Get("General", "RecursiveGCMPaths",		&m_RecursiveISOFolder,							false);
 	}
 
 	{
@@ -287,21 +283,18 @@ void SConfig::LoadSettings()
 			ini.Get("Core", sidevicenum,	(u32*)&m_SIDevice[i], i==0 ? SI_GC_CONTROLLER:SI_NONE);
 		}
 
-		ini.Get("Core", "WiiSDCard", &m_WiiSDCard, false);
-		ini.Get("Core", "WiiKeyboard", &m_WiiKeyboard, false);
+		ini.Get("Core", "WiiSDCard",		&m_WiiSDCard,									false);
+		ini.Get("Core", "WiiKeyboard",		&m_WiiKeyboard,									false);
 		ini.Get("Core", "RunCompareServer",	&m_LocalCoreStartupParameter.bRunCompareServer,	false);
 		ini.Get("Core", "RunCompareClient",	&m_LocalCoreStartupParameter.bRunCompareClient,	false);
 		ini.Get("Core", "TLBHack",			&m_LocalCoreStartupParameter.iTLBHack,			0);
 		ini.Get("Core", "FrameLimit",		&m_Framelimit,									1); // auto frame limit by default
-		ini.Get("Core", "UseFPS",		&b_UseFPS,									false); // use vps as default
+		ini.Get("Core", "UseFPS",			&b_UseFPS,										false); // use vps as default
 
 		// Plugins
 		ini.Get("Core", "GFXPlugin",  &m_LocalCoreStartupParameter.m_strVideoPlugin,	m_DefaultGFXPlugin.c_str());
 		ini.Get("Core", "DSPPlugin",  &m_LocalCoreStartupParameter.m_strDSPPlugin,		m_DefaultDSPPlugin.c_str());
-		ini.Get("Core", "PadPlugin", &m_LocalCoreStartupParameter.m_strPadPlugin[0], m_DefaultPADPlugin.c_str());
-		ini.Get("Core", "WiiMotePlugin", &m_LocalCoreStartupParameter.m_strWiimotePlugin[0], m_DefaultWiiMotePlugin.c_str());
-
-
+		ini.Get("Core", "WiiMotePlugin", &m_LocalCoreStartupParameter.m_strWiimotePlugin, m_DefaultWiiMotePlugin.c_str());
 	}
 
 	m_SYSCONF = new SysConf();
