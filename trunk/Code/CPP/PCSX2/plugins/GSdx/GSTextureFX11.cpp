@@ -1,4 +1,4 @@
-/* 
+/*
  *	Copyright (C) 2007-2009 Gabest
  *	http://www.gabest.org
  *
@@ -6,15 +6,15 @@
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  This Program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  *  GNU General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU General Public License
  *  along with GNU Make; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *  http://www.gnu.org/copyleft/gpl.html
  *
  */
@@ -59,10 +59,14 @@ bool GSDevice11::CreateTextureFX()
 	sd.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
 	sd.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
 	sd.MaxLOD = FLT_MAX;
-	sd.MaxAnisotropy = 16; 
+	sd.MaxAnisotropy = 16;
 	sd.ComparisonFunc = D3D11_COMPARISON_NEVER;
 
 	hr = m_dev->CreateSamplerState(&sd, &m_palette_ss);
+
+	if(FAILED(hr)) return false;
+
+	hr = m_dev->CreateSamplerState(&sd, &m_rt_ss);
 
 	if(FAILED(hr)) return false;
 
@@ -81,27 +85,28 @@ bool GSDevice11::CreateTextureFX()
 void GSDevice11::SetupIA(const void* vertices, int count, int prim)
 {
 	IASetVertexBuffer(vertices, sizeof(GSVertexHW11), count);
-	IASetInputLayout(m_il);
 	IASetPrimitiveTopology((D3D11_PRIMITIVE_TOPOLOGY)prim);
 }
 
 void GSDevice11::SetupVS(VSSelector sel, const VSConstantBuffer* cb)
 {
-	hash_map<uint32, CComPtr<ID3D11VertexShader> >::const_iterator i = m_vs.find(sel);
+	hash_map<uint32, GSVertexShader11 >::const_iterator i = m_vs.find(sel);
 
 	if(i == m_vs.end())
 	{
-		string str[3];
+		string str[4];
 
 		str[0] = format("%d", sel.bppz);
 		str[1] = format("%d", sel.tme);
 		str[2] = format("%d", sel.fst);
+		str[3] = format("%d", sel.rtcopy);
 
 		D3D11_SHADER_MACRO macro[] =
 		{
 			{"VS_BPPZ", str[0].c_str()},
 			{"VS_TME", str[1].c_str()},
 			{"VS_FST", str[2].c_str()},
+			{"VS_RTCOPY", str[3].c_str()},
 			{NULL, NULL},
 		};
 
@@ -115,15 +120,9 @@ void GSDevice11::SetupVS(VSSelector sel, const VSConstantBuffer* cb)
 			{"COLOR", 1, DXGI_FORMAT_R8G8B8A8_UNORM, 0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0},
 		};
 
-		CComPtr<ID3D11InputLayout> il;
-		CComPtr<ID3D11VertexShader> vs;
+		GSVertexShader11 vs;
 
-		CompileShader(IDR_TFX_FX, "vs_main", macro, &vs, layout, countof(layout), &il);
-
-		if(m_il == NULL)
-		{
-			m_il = il;
-		}
+		CompileShader(IDR_TFX_FX, "vs_main", macro, &vs.vs, layout, countof(layout), &vs.il);
 
 		m_vs[sel] = vs;
 
@@ -137,12 +136,13 @@ void GSDevice11::SetupVS(VSSelector sel, const VSConstantBuffer* cb)
 		ctx->UpdateSubresource(m_vs_cb, 0, NULL, cb, 0, 0);
 	}
 
-	VSSetShader(i->second, m_vs_cb);
+	VSSetShader(i->second.vs, m_vs_cb);
+	IASetInputLayout(i->second.il);
 }
 
 void GSDevice11::SetupGS(GSSelector sel)
 {
-	ID3D11GeometryShader* gs = NULL;
+	CComPtr<ID3D11GeometryShader> gs;
 
 	if(sel.prim > 0 && (sel.iip == 0 || sel.prim == 3)) // geometry shader works in every case, but not needed
 	{
@@ -181,7 +181,7 @@ void GSDevice11::SetupPS(PSSelector sel, const PSConstantBuffer* cb, PSSamplerSe
 
 	if(i == m_ps.end())
 	{
-		string str[14];
+		string str[15];
 
 		str[0] = format("%d", sel.fst);
 		str[1] = format("%d", sel.wms);
@@ -197,6 +197,7 @@ void GSDevice11::SetupPS(PSSelector sel, const PSConstantBuffer* cb, PSSamplerSe
 		str[11] = format("%d", sel.aout);
 		str[12] = format("%d", sel.ltf);
 		str[13] = format("%d", sel.colclip);
+		str[14] = format("%d", sel.date);
 
 		D3D11_SHADER_MACRO macro[] =
 		{
@@ -214,11 +215,12 @@ void GSDevice11::SetupPS(PSSelector sel, const PSConstantBuffer* cb, PSSamplerSe
 			{"PS_AOUT", str[11].c_str()},
 			{"PS_LTF", str[12].c_str()},
 			{"PS_COLCLIP", str[13].c_str()},
+			{"PS_DATE", str[14].c_str()},
 			{NULL, NULL},
 		};
 
 		CComPtr<ID3D11PixelShader> ps;
-		
+
 		CompileShader(IDR_TFX_FX, "ps_main", macro, &ps);
 
 		m_ps[sel] = ps;
@@ -233,10 +235,7 @@ void GSDevice11::SetupPS(PSSelector sel, const PSConstantBuffer* cb, PSSamplerSe
 		ctx->UpdateSubresource(m_ps_cb, 0, NULL, cb, 0, 0);
 	}
 
-	PSSetShader(i->second, m_ps_cb);
-
-	ID3D11SamplerState* ss0 = NULL;
-	ID3D11SamplerState* ss1 = NULL;
+	CComPtr<ID3D11SamplerState> ss0, ss1;
 
 	if(sel.tfx != 4)
 	{
@@ -264,7 +263,7 @@ void GSDevice11::SetupPS(PSSelector sel, const PSConstantBuffer* cb, PSSamplerSe
 			sd.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
 
 			sd.MaxLOD = FLT_MAX;
-			sd.MaxAnisotropy = 16; 
+			sd.MaxAnisotropy = 16;
 			sd.ComparisonFunc = D3D11_COMPARISON_NEVER;
 
 			m_dev->CreateSamplerState(&sd, &ss0);
@@ -278,7 +277,9 @@ void GSDevice11::SetupPS(PSSelector sel, const PSConstantBuffer* cb, PSSamplerSe
 		}
 	}
 
-	PSSetSamplerState(ss0, ss1);
+	PSSetSamplerState(ss0, ss1, sel.date ? m_rt_ss : NULL);
+
+	PSSetShader(i->second, m_ps_cb);
 }
 
 void GSDevice11::SetupOM(OMDepthStencilSelector dssel, OMBlendSelector bsel, uint8 afix)
@@ -308,11 +309,11 @@ void GSDevice11::SetupOM(OMDepthStencilSelector dssel, OMBlendSelector bsel, uin
 
 		if(dssel.ztst != ZTST_ALWAYS || dssel.zwe)
 		{
-			static const D3D11_COMPARISON_FUNC ztst[] = 
+			static const D3D11_COMPARISON_FUNC ztst[] =
 			{
-				D3D11_COMPARISON_NEVER, 
-				D3D11_COMPARISON_ALWAYS, 
-				D3D11_COMPARISON_GREATER_EQUAL, 
+				D3D11_COMPARISON_NEVER,
+				D3D11_COMPARISON_ALWAYS,
+				D3D11_COMPARISON_GREATER_EQUAL,
 				D3D11_COMPARISON_GREATER
 			};
 
@@ -372,9 +373,13 @@ void GSDevice11::SetupOM(OMDepthStencilSelector dssel, OMBlendSelector bsel, uin
 
 			if(blendMapD3D9[i].bogus == 1)
 			{
-				ASSERT(0);
-
 				(bsel.a == 0 ? bd.RenderTarget[0].SrcBlend : bd.RenderTarget[0].DestBlend) = D3D11_BLEND_ONE;
+
+				const string afixstr = format("%d >> 7", afix);
+				const char *col[3] = {"Cs", "Cd", "0"};
+				const char *alpha[3] = {"As", "Ad", afixstr.c_str()};
+				printf("Impossible blend for D3D: (%s - %s) * %s + %s\n",
+					col[bsel.a], col[bsel.b], alpha[bsel.c], col[bsel.d]);
 			}
 		}
 

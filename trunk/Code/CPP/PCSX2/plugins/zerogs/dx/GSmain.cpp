@@ -211,7 +211,7 @@ void CALLBACK GSsetFrameSkip(int frameskip)
 {
 	s_frameskipping |= frameskip;
 	if( frameskip && g_nFrameRender > 1 ) {
-		
+
 		for(int i = 0; i < 16; ++i) {
 			g_GIFPackedRegHandlers[i] = GIFPackedRegHandlerNOP;
 		}
@@ -259,7 +259,7 @@ void CALLBACK GSreset() {
 	memset(&gs, 0, sizeof(gs));
 
 	ZeroGS::GSStateReset();
-	
+
 	gs.prac = 1;
 	prim = &gs._prim[0];
 	gs.nTriFanVert = -1;
@@ -286,11 +286,15 @@ s32 CALLBACK GSinit()
 	if (gsLog == NULL) {
 		gsLog = fopen("gsLog.txt", "w");
 		if (gsLog == NULL) {
-			SysMessage("Can't create gsLog.txt"); return -1;
+			printf("ZeroGS: Can't create gsLog.txt. (Not an emulation error).\n"); 
+			//return -1;
 		}
 	}
-	setvbuf(gsLog, NULL,  _IONBF, 0);
-	GS_LOG("GSinit\n");
+
+	if (gsLog != NULL) {
+		setvbuf(gsLog, NULL,  _IONBF, 0);
+		GS_LOG("GSinit\n");
+	}
 #endif
 
 	GSreset();
@@ -369,12 +373,12 @@ s32 CALLBACK GSopen(void *pDsp, char *Title, int multithread) {
 	g_GameSettings = 0;
 
 	strcpy(GStitle, Title);
-	
+
 	RECT rc, rcdesktop;
 	rc.left = 0; rc.top = 0;
 	rc.right = conf.width; rc.bottom = conf.height;
 
-	WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, MsgProc, 0L, 0L, 
+	WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, MsgProc, 0L, 0L,
 					GetModuleHandle(NULL), NULL, NULL, NULL, NULL,
 					"PS2EMU_ZEROGS", NULL };
 	RegisterClassEx( &wc );
@@ -422,7 +426,7 @@ s32 CALLBACK GSopen(void *pDsp, char *Title, int multithread) {
 
 	// set just in case
 	SetWindowLongPtr(GShwnd, GWLP_WNDPROC, (LPARAM)(WNDPROC)MsgProc);
-	
+
 	ShowWindow( GShwnd, SW_SHOWDEFAULT );
 	UpdateWindow( GShwnd );
 	SetFocus(GShwnd);
@@ -442,7 +446,7 @@ s32 CALLBACK GSopen(void *pDsp, char *Title, int multithread) {
 	gs.path2.mode = 0;
 	gs.path3.mode = 0;
 
-	return 0;	
+	return 0;
 }
 
 void CALLBACK GSclose() {
@@ -474,9 +478,9 @@ void CALLBACK GSchangeSaveState(int newstate, const char* filename)
 void CALLBACK GSmakeSnapshot(char *path)
 {
 	FILE *bmpfile;
-	char filename[256];	
+	char filename[256];
 	u32 snapshotnr = 0;
-	
+
 	// increment snapshot value & try to get filename
 	for (;;) {
 		snapshotnr++;
@@ -518,10 +522,10 @@ void CALLBACK GSvsync(int interlace)
 	static int nToNextUpdate = 1;
 
 	char strtitle[512];
-	
+
 	g_nRealFrame++;
 
-	MSG msg; 
+	MSG msg;
 	ZeroMemory( &msg, sizeof(msg) );
 	while( 1 ) {
 		if( PeekMessage( &msg, NULL, 0U, 0U, PM_REMOVE ) )
@@ -551,7 +555,7 @@ void CALLBACK GSvsync(int interlace)
 						SaveConfig();
 					}
 					else if( msg.wParam == VK_F6 ) {
-						
+
 						if( (GetKeyState(VK_SHIFT)&0x8000) ) {
 							conf.aa--; // -1
 							if( conf.aa > 4) conf.aa = 4;
@@ -602,7 +606,7 @@ void CALLBACK GSvsync(int interlace)
 					else if( msg.wParam == VK_ESCAPE ) {
 
 						if( conf.options & GSOPTION_FULLSCREEN ) {
-							// destroy that msg					
+							// destroy that msg
 							conf.options &= ~GSOPTION_FULLSCREEN;
 							conf.winstyle = GetWindowLong( GShwnd, GWL_STYLE );
 							conf.winstyle &= ~WS_MAXIMIZE & ~WS_MINIMIZE; // remove minimize/maximize style
@@ -616,7 +620,7 @@ void CALLBACK GSvsync(int interlace)
 							return;
 						}
 					}
-			
+
 					break;
 			}
 
@@ -667,7 +671,7 @@ void CALLBACK GSvsync(int interlace)
 			(g_GameSettings&GAME_FFXHACK) ? "ffxhack | " : "",
 			g_pShaders[g_nPixelShaderVer], (ppf&0xfffff)/(float)UPDATE_FRAMES);
 #else
-		_snprintf(strtitle, 512, "%d | %.1f fps (sk:%d%%) | g: %.1f, t: %.1f, a: %.1f, r: %.1f | p: %.1f | tex: %d %d (%d kbpf)", g_nFrame, fFPS, 
+		_snprintf(strtitle, 512, "%d | %.1f fps (sk:%d%%) | g: %.1f, t: %.1f, a: %.1f, r: %.1f | p: %.1f | tex: %d %d (%d kbpf)", g_nFrame, fFPS,
 			100*g_nFramesSkipped/g_nFrame,
 			g_nGenVars/(float)UPDATE_FRAMES, g_nTexVars/(float)UPDATE_FRAMES, g_nAlphaVars/(float)UPDATE_FRAMES,
 			g_nResolve/(float)UPDATE_FRAMES, (ppf&0xfffff)/(float)UPDATE_FRAMES,
@@ -696,14 +700,14 @@ void CALLBACK GSvsync(int interlace)
 }
 
 void GIFtag(pathInfo *path, u32 *data) {
-	
+
 	path->tag.nloop	= data[0] & 0x7fff;
 	path->tag.eop	= (data[0] >> 15) & 0x1;
 	u32 tagpre		= (data[1] >> 14) & 0x1;
 	u32 tagprim		= (data[1] >> 15) & 0x7ff;
 	u32 tagflg		= (data[1] >> 26) & 0x3;
 	path->tag.nreg	= (data[1] >> 28)<<2;
-	
+
 	if (path->tag.nreg == 0) path->tag.nreg = 64;
 
 	gs.q = 1;
@@ -783,7 +787,7 @@ void _GSgifTransfer(pathInfo *path, u32 *pMem, u32 size)
 	while(size > 0)
 	{
 		//LOG(_T("Transfer(%08x, %d) START\n"), pMem, size);
-		if (path->tag.nloop == 0) 
+		if (path->tag.nloop == 0)
 		{
  			GIFtag(path, pMem);
 			pMem+= 4;
@@ -791,14 +795,14 @@ void _GSgifTransfer(pathInfo *path, u32 *pMem, u32 size)
 
 			if ((g_GameSettings & GAME_PATH3HACK) && path == &gs.path3 && gs.path3.tag.eop)
 				nPath3Hack = 1;
-				
-			if (path == &gs.path1) 
+
+			if (path == &gs.path1)
 			{
 				// if too much data, just ignore
-				if (path->tag.nloop * (path->tag.nreg / 4) > (int)size * (path->mode==2?2:1)) 
+				if (path->tag.nloop * (path->tag.nreg / 4) > (int)size * (path->mode==2?2:1))
 				{
 					static int lasttime = 0;
-					if( timeGetTime() - lasttime > 5000 ) 
+					if( timeGetTime() - lasttime > 5000 )
 					{
 						ERROR_LOG("VU1 too much data, ignore if gfx are fine\n");
 						lasttime = timeGetTime();
@@ -807,15 +811,15 @@ void _GSgifTransfer(pathInfo *path, u32 *pMem, u32 size)
 					return;
 				}
 
-				if (path->mode == 1) 
+				if (path->mode == 1)
 				{
 					// check if 0xb is in any reg, if yes, exit (kh2)
-					for(int i = 0; i < path->tag.nreg; i += 4) 
+					for(int i = 0; i < path->tag.nreg; i += 4)
 					{
-						if (((path->regs >> i)&0xf) == 11) 
+						if (((path->regs >> i)&0xf) == 11)
 						{
 							static int lasttime = 0;
-							if( timeGetTime() - lasttime > 5000 ) 
+							if( timeGetTime() - lasttime > 5000 )
 							{
 								ERROR_LOG("Invalid unpack type\n");
 								lasttime = timeGetTime();
@@ -827,12 +831,12 @@ void _GSgifTransfer(pathInfo *path, u32 *pMem, u32 size)
 				}
 			}
 
-			if(path->tag.nloop == 0 ) 
+			if(path->tag.nloop == 0 )
 			{
-				if( path == &gs.path1 ) 
+				if( path == &gs.path1 )
 				{
 					// ffx hack
-					if( g_GameSettings & GAME_FFXHACK ) 
+					if( g_GameSettings & GAME_FFXHACK )
 					{
 						if( path->tag.eop )
 							return;
@@ -841,13 +845,13 @@ void _GSgifTransfer(pathInfo *path, u32 *pMem, u32 size)
 
 					return;
 				}
-				
-				if( !path->tag.eop ) 
+
+				if( !path->tag.eop )
 				{
 					//DEBUG_LOG("continuing from eop\n");
 					continue;
 				}
-				
+
 				continue;
 			}
 		}
@@ -863,10 +867,10 @@ void _GSgifTransfer(pathInfo *path, u32 *pMem, u32 size)
 				g_GIFPackedRegHandlers[reg](pMem);
 
 				path->regn += 4;
-				if (path->tag.nreg == path->regn) 
+				if (path->tag.nreg == path->regn)
 				{
 					path->regn = 0;
-					if( path->tag.nloop-- <= 1 ) 
+					if( path->tag.nloop-- <= 1 )
 					{
 						size--;
 						pMem += 4;
@@ -886,10 +890,10 @@ void _GSgifTransfer(pathInfo *path, u32 *pMem, u32 size)
 				int reg = (int)((path->regs >> path->regn) & 0xf);
 				g_GIFRegHandlers[reg](pMem);
 				path->regn += 4;
-				if (path->tag.nreg == path->regn) 
+				if (path->tag.nreg == path->regn)
 				{
 					path->regn = 0;
-					if( path->tag.nloop-- <= 1 ) 
+					if( path->tag.nloop-- <= 1 )
 					{
 						size--;
 						pMem += 2;
@@ -909,11 +913,11 @@ void _GSgifTransfer(pathInfo *path, u32 *pMem, u32 size)
 			{
 				int process = min((int)size, path->tag.nloop);
 
-				if( process > 0 ) 
+				if( process > 0 )
 				{
-					if (gs.imageTransfer) 
+					if (gs.imageTransfer)
 						ZeroGS::TransferLocalHost(pMem, process);
-					else 
+					else
 						ZeroGS::TransferHostLocal(pMem, process*4);
 
 					path->tag.nloop -= process;
@@ -923,7 +927,7 @@ void _GSgifTransfer(pathInfo *path, u32 *pMem, u32 size)
 				}
 				break;
 			}
-			else 
+			else
 			{
 				// simulate
 				int process = min((int)size, path->tag.nloop);
@@ -932,7 +936,7 @@ void _GSgifTransfer(pathInfo *path, u32 *pMem, u32 size)
 			}
 
 			break;
-		}	
+		}
 		default: // GIF_IMAGE
 			GS_LOG("*** WARNING **** Unexpected GIFTag flag\n");
 			assert(0);
@@ -1022,7 +1026,7 @@ int CALLBACK GSsetupRecording(int start, void* pData)
 	return 1;
 }
 
-s32 CALLBACK GSfreeze(int mode, freezeData *data) 
+s32 CALLBACK GSfreeze(int mode, freezeData *data)
 {
 	switch (mode)
 	{
@@ -1047,7 +1051,7 @@ extern HINSTANCE hInst;
 void CALLBACK GSconfigure() {
 	DialogBox(hInst,
 				MAKEINTRESOURCE(IDD_CONFIG),
-				GetActiveWindow(),  
+				GetActiveWindow(),
 				(DLGPROC)ConfigureDlgProc);
 
 	if( g_nPixelShaderVer == SHADER_20 )

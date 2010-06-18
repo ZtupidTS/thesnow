@@ -1,4 +1,4 @@
-/* 
+/*
  *	Copyright (C) 2007-2009 Gabest
  *	http://www.gabest.org
  *
@@ -6,15 +6,15 @@
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  This Program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  *  GNU General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU General Public License
  *  along with GNU Make; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *  http://www.gnu.org/copyleft/gpl.html
  *
  */
@@ -36,7 +36,7 @@ public:
 		GSVector4 VertexOffset;
 		GSVector4 TextureScale;
 
-		struct VSConstantBuffer() 
+		struct VSConstantBuffer()
 		{
 			VertexScale = GSVector4::zero();
 			VertexOffset = GSVector4::zero();
@@ -75,12 +75,13 @@ public:
 				uint32 tme:1;
 				uint32 fst:1;
 				uint32 logz:1;
+				uint32 rtcopy:1;
 			};
 
 			uint32 key;
 		};
 
-		operator uint32() {return key & 0x1f;}
+		operator uint32() {return key & 0x3f;}
 
 		VSSelector() : key(0) {}
 	};
@@ -94,7 +95,7 @@ public:
 		GSVector4 MinF_TA;
 		GSVector4i MskFix;
 
-		struct PSConstantBuffer() 
+		struct PSConstantBuffer()
 		{
 			FogColor_AREF = GSVector4::zero();
 			HalfTexel = GSVector4::zero();
@@ -171,12 +172,13 @@ public:
 				uint32 rt:1;
 				uint32 ltf:1;
 				uint32 colclip:2;
+				uint32 date:2;
 			};
 
 			uint32 key;
 		};
 
-		operator uint32() {return key & 0xffffff;}
+		operator uint32() {return key & 0x3ffffff;}
 
 		PSSelector() : key(0) {}
 	};
@@ -268,15 +270,15 @@ public:
 	{
 		return __super::Create( wnd );
 	}
-	
+
 	virtual bool Reset(int w, int h)
 	{
 		return __super::Reset( w, h );
 	}
-	
+
 	//virtual void Present(const GSVector4i& r, int shader);
 	//virtual void Flip() {}
-	
+
 	virtual void SetupIA(const void* vertices, int count, int prim) = 0;
 	virtual void SetupVS(VSSelector sel, const VSConstantBuffer* cb) = 0;
 	virtual void SetupGS(GSSelector sel) = 0;
@@ -284,4 +286,7 @@ public:
 	virtual void SetupOM(OMDepthStencilSelector dssel, OMBlendSelector bsel, uint8 afix) = 0;
 
 	virtual void SetupDATE(GSTexture* rt, GSTexture* ds, const GSVertexPT1 (&iaVertices)[4], bool datm)=0;
+
+	virtual bool HasStencil() = 0;
+	virtual bool HasDepth32() = 0;
 };

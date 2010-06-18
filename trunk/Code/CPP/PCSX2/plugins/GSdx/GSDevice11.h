@@ -1,4 +1,4 @@
-/* 
+/*
  *	Copyright (C) 2007-2009 Gabest
  *	http://www.gabest.org
  *
@@ -6,15 +6,15 @@
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  This Program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  *  GNU General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU General Public License
  *  along with GNU Make; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *  http://www.gnu.org/copyleft/gpl.html
  *
  */
@@ -23,6 +23,31 @@
 
 #include "GSDeviceDX.h"
 #include "GSTexture11.h"
+
+typedef HRESULT     (WINAPI * FnPtr_CreateDXGIFactory)(REFIID, void ** );
+typedef HRESULT     (WINAPI * FnPtr_D3D11CreateDevice)( IDXGIAdapter*, D3D_DRIVER_TYPE, HMODULE, UINT, CONST D3D_FEATURE_LEVEL*, UINT, UINT, ID3D11Device**, D3D_FEATURE_LEVEL *, ID3D11DeviceContext**);
+
+typedef HRESULT  (WINAPI * FnPtr_D3D11CreateDeviceAndSwapChain) (
+	__in   IDXGIAdapter *pAdapter,
+	__in   D3D_DRIVER_TYPE DriverType,
+	__in   HMODULE Software,
+	__in   UINT Flags,
+	__in   const D3D_FEATURE_LEVEL *pFeatureLevels,
+	__in   UINT FeatureLevels,
+	__in   UINT SDKVersion,
+	__in   const DXGI_SWAP_CHAIN_DESC *pSwapChainDesc,
+	__out  IDXGISwapChain **ppSwapChain,
+	__out  ID3D11Device **ppDevice,
+	__out  D3D_FEATURE_LEVEL *pFeatureLevel,
+	__out  ID3D11DeviceContext **ppImmediateContext
+);
+
+
+struct GSVertexShader11
+{
+	CComPtr<ID3D11VertexShader> vs;
+	CComPtr<ID3D11InputLayout> il;
+};
 
 class GSDevice11 : public GSDeviceDX
 {
@@ -39,6 +64,8 @@ class GSDevice11 : public GSDeviceDX
 	CComPtr<ID3D11Buffer> m_vb;
 	CComPtr<ID3D11Buffer> m_vb_old;
 
+	bool m_srv_changed, m_ss_changed;
+
 	struct
 	{
 		ID3D11Buffer* vb;
@@ -48,10 +75,10 @@ class GSDevice11 : public GSDeviceDX
 		ID3D11VertexShader* vs;
 		ID3D11Buffer* vs_cb;
 		ID3D11GeometryShader* gs;
-		ID3D11ShaderResourceView* ps_srv[2];
+		ID3D11ShaderResourceView* ps_srv[3];
 		ID3D11PixelShader* ps;
 		ID3D11Buffer* ps_cb;
-		ID3D11SamplerState* ps_ss[2];
+		ID3D11SamplerState* ps_ss[3];
 		GSVector2i viewport;
 		GSVector4i scissor;
 		ID3D11DepthStencilState* dss;
@@ -99,16 +126,16 @@ public: // TODO
 
 	// Shaders...
 
-	CComPtr<ID3D11InputLayout> m_il;
-	hash_map<uint32, CComPtr<ID3D11VertexShader> > m_vs;
+	hash_map<uint32, GSVertexShader11 > m_vs;
 	CComPtr<ID3D11Buffer> m_vs_cb;
 	hash_map<uint32, CComPtr<ID3D11GeometryShader> > m_gs;
 	hash_map<uint32, CComPtr<ID3D11PixelShader> > m_ps;
 	CComPtr<ID3D11Buffer> m_ps_cb;
 	hash_map<uint32, CComPtr<ID3D11SamplerState> > m_ps_ss;
 	CComPtr<ID3D11SamplerState> m_palette_ss;
-	hash_map<uint32, CComPtr<ID3D11DepthStencilState> > m_om_dss;	
-	hash_map<uint32, CComPtr<ID3D11BlendState> > m_om_bs;	
+	CComPtr<ID3D11SamplerState> m_rt_ss;
+	hash_map<uint32, CComPtr<ID3D11DepthStencilState> > m_om_dss;
+	hash_map<uint32, CComPtr<ID3D11BlendState> > m_om_bs;
 
 	VSConstantBuffer m_vs_cb_cache;
 	PSConstantBuffer m_ps_cb_cache;
@@ -153,8 +180,9 @@ public:
 	void VSSetShader(ID3D11VertexShader* vs, ID3D11Buffer* vs_cb);
 	void GSSetShader(ID3D11GeometryShader* gs);
 	void PSSetShaderResources(GSTexture* sr0, GSTexture* sr1);
+	void PSSetShaderResource(int i, GSTexture* sr);
 	void PSSetShader(ID3D11PixelShader* ps, ID3D11Buffer* ps_cb);
-	void PSSetSamplerState(ID3D11SamplerState* ss0, ID3D11SamplerState* ss1);
+	void PSSetSamplerState(ID3D11SamplerState* ss0, ID3D11SamplerState* ss1, ID3D11SamplerState* ss2 = NULL);
 	void OMSetDepthStencilState(ID3D11DepthStencilState* dss, uint8 sref);
 	void OMSetBlendState(ID3D11BlendState* bs, float bf);
 	void OMSetRenderTargets(GSTexture* rt, GSTexture* ds, const GSVector4i* scissor = NULL);
@@ -164,6 +192,9 @@ public:
 	void SetupGS(GSSelector sel);
 	void SetupPS(PSSelector sel, const PSConstantBuffer* cb, PSSamplerSelector ssel);
 	void SetupOM(OMDepthStencilSelector dssel, OMBlendSelector bsel, uint8 afix);
+
+	bool HasStencil() { return true; }
+	bool HasDepth32() { return true; }
 
 	ID3D11Device* operator->() {return m_dev;}
 	operator ID3D11Device*() {return m_dev;}

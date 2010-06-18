@@ -1,6 +1,6 @@
 /* SPU2-X, A plugin for Emulating the Sound Processing Unit of the Playstation 2
  * Developed and maintained by the Pcsx2 Development Team.
- * 
+ *
  * Original portions from SPU2ghz are (c) 2008 by David Quintana [gigaherz]
  *
  * SPU2-X is free software: you can redistribute it and/or modify it under the terms
@@ -40,7 +40,7 @@ static __forceinline bool MsgToConsole()	{ return _MsgToConsole & DebugEnabled; 
 static __forceinline bool MsgKeyOnOff()		{ return _MsgKeyOnOff & MsgToConsole(); }
 static __forceinline bool MsgVoiceOff()		{ return _MsgVoiceOff & MsgToConsole(); }
 static __forceinline bool MsgDMA()			{ return _MsgDMA & MsgToConsole(); }
-static __forceinline bool MsgAutoDMA()		{ return _MsgAutoDMA & MsgDMA(); }
+static __forceinline bool MsgAutoDMA()		{ return _MsgAutoDMA & MsgToConsole(); }
 static __forceinline bool MsgOverruns()		{ return _MsgOverruns & MsgToConsole(); }
 static __forceinline bool MsgCache()		{ return _MsgCache & MsgToConsole(); }
 
@@ -52,29 +52,27 @@ static __forceinline bool CoresDump()		{ return _CoresDump & DebugEnabled; }
 static __forceinline bool MemDump()			{ return _MemDump & DebugEnabled; }
 static __forceinline bool RegDump()			{ return _RegDump & DebugEnabled; }
 
-
-extern wchar_t AccessLogFileName[255];
-extern wchar_t WaveLogFileName[255];
-extern wchar_t DMA4LogFileName[255];
-extern wchar_t DMA7LogFileName[255];
-extern wchar_t CoresDumpFileName[255];
-extern wchar_t MemDumpFileName[255];
-extern wchar_t RegDumpFileName[255];
+extern wxString AccessLogFileName;
+extern wxString DMA4LogFileName;
+extern wxString DMA7LogFileName;
+extern wxString CoresDumpFileName;
+extern wxString MemDumpFileName;
+extern wxString RegDumpFileName;
 
 extern int Interpolation;
 extern int ReverbBoost;
+extern int numSpeakers;
 extern bool EffectsDisabled;
 
 extern u32 OutputModule;
 extern int SndOutLatencyMS;
-extern bool timeStretchDisabled;
+extern int SynchMode;
 
 #ifndef __LINUX__
 extern wchar_t dspPlugin[];
 extern int  dspPluginModule;
 
 extern bool	dspPluginEnabled;
-extern bool StereoExpansionEnabled;
 #endif
 
 namespace SoundtouchCfg

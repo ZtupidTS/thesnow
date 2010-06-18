@@ -1,4 +1,4 @@
-/* 
+/*
  *	Copyright (C) 2007-2009 Gabest
  *	http://www.gabest.org
  *
@@ -6,15 +6,15 @@
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  This Program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  *  GNU General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU General Public License
  *  along with GNU Make; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *  http://www.gnu.org/copyleft/gpl.html
  *
  */
@@ -64,22 +64,22 @@ GSTexture* GSDevice9::CreateMskFix(uint32 size, uint32 msk, uint32 fix)
 void GSDevice9::SetupIA(const void* vertices, int count, int prim)
 {
 	IASetVertexBuffer(vertices, sizeof(GSVertexHW9), count);
-	IASetInputLayout(m_il);
 	IASetPrimitiveTopology((D3DPRIMITIVETYPE)prim);
 }
 
 void GSDevice9::SetupVS(VSSelector sel, const VSConstantBuffer* cb)
 {
-	hash_map< uint32, CComPtr<IDirect3DVertexShader9> >::const_iterator i = m_vs.find(sel);
+	hash_map< uint32, GSVertexShader9 >::const_iterator i = m_vs.find(sel);
 
 	if(i == m_vs.end())
 	{
-		string str[4];
+		string str[5];
 
 		str[0] = format("%d", sel.bppz);
 		str[1] = format("%d", sel.tme);
 		str[2] = format("%d", sel.fst);
 		str[3] = format("%d", sel.logz);
+		str[4] = format("%d", sel.rtcopy);
 
 		D3DXMACRO macro[] =
 		{
@@ -87,6 +87,7 @@ void GSDevice9::SetupVS(VSSelector sel, const VSConstantBuffer* cb)
 			{"VS_TME", str[1].c_str()},
 			{"VS_FST", str[2].c_str()},
 			{"VS_LOGZ", str[3].c_str()},
+			{"VS_RTCOPY", str[4].c_str()},
 			{NULL, NULL},
 		};
 
@@ -99,22 +100,17 @@ void GSDevice9::SetupVS(VSSelector sel, const VSConstantBuffer* cb)
 			D3DDECL_END()
 		};
 
-		CComPtr<IDirect3DVertexDeclaration9> il;
-		CComPtr<IDirect3DVertexShader9> vs;
+		GSVertexShader9 vs;
 
-		CompileShader(IDR_TFX_FX, "vs_main", macro, &vs, layout, countof(layout), &il);
-
-		if(m_il == NULL)
-		{
-			m_il = il;
-		}
+		CompileShader(IDR_TFX_FX, "vs_main", macro, &vs.vs, layout, countof(layout), &vs.il);
 
 		m_vs[sel] = vs;
 
 		i = m_vs.find(sel);
 	}
 
-	VSSetShader(i->second, (const float*)cb, sizeof(*cb) / sizeof(GSVector4));
+	VSSetShader(i->second.vs, (const float*)cb, sizeof(*cb) / sizeof(GSVector4));
+	IASetInputLayout(i->second.il);
 }
 
 void GSDevice9::SetupPS(PSSelector sel, const PSConstantBuffer* cb, PSSamplerSelector ssel)
@@ -127,7 +123,7 @@ void GSDevice9::SetupPS(PSSelector sel, const PSConstantBuffer* cb, PSSamplerSel
 		{
 			if(GSTexture* t = CreateMskFix(size.z, cb->MskFix.x, cb->MskFix.z))
 			{
-				m_dev->SetTexture(2, *(GSTexture9*)t);
+				m_dev->SetTexture(3, *(GSTexture9*)t);
 			}
 		}
 
@@ -135,7 +131,7 @@ void GSDevice9::SetupPS(PSSelector sel, const PSConstantBuffer* cb, PSSamplerSel
 		{
 			if(GSTexture* t = CreateMskFix(size.w, cb->MskFix.y, cb->MskFix.w))
 			{
-				m_dev->SetTexture(3, *(GSTexture9*)t);
+				m_dev->SetTexture(4, *(GSTexture9*)t);
 			}
 		}
 	}
@@ -144,7 +140,7 @@ void GSDevice9::SetupPS(PSSelector sel, const PSConstantBuffer* cb, PSSamplerSel
 
 	if(i == m_ps.end())
 	{
-		string str[13];
+		string str[14];
 
 		str[0] = format("%d", sel.fst);
 		str[1] = format("%d", sel.wms);
@@ -159,6 +155,7 @@ void GSDevice9::SetupPS(PSSelector sel, const PSConstantBuffer* cb, PSSamplerSel
 		str[10] = format("%d", sel.rt);
 		str[11] = format("%d", sel.ltf);
 		str[12] = format("%d", sel.colclip);
+		str[13] = format("%d", sel.date);
 
 		D3DXMACRO macro[] =
 		{
@@ -175,6 +172,7 @@ void GSDevice9::SetupPS(PSSelector sel, const PSConstantBuffer* cb, PSSamplerSel
 			{"PS_RT", str[10].c_str()},
 			{"PS_LTF", str[11].c_str()},
 			{"PS_COLCLIP", str[12].c_str()},
+			{"PS_DATE", str[13].c_str()},
 			{NULL, NULL},
 		};
 
@@ -251,11 +249,11 @@ void GSDevice9::SetupOM(OMDepthStencilSelector dssel, OMBlendSelector bsel, uint
 
 		if(dssel.ztst != ZTST_ALWAYS || dssel.zwe)
 		{
-			static const D3DCMPFUNC ztst[] = 
+			static const D3DCMPFUNC ztst[] =
 			{
-				D3DCMP_NEVER, 
-				D3DCMP_ALWAYS, 
-				D3DCMP_GREATEREQUAL, 
+				D3DCMP_NEVER,
+				D3DCMP_ALWAYS,
+				D3DCMP_GREATEREQUAL,
 				D3DCMP_GREATER
 			};
 
@@ -304,9 +302,13 @@ void GSDevice9::SetupOM(OMDepthStencilSelector dssel, OMBlendSelector bsel, uint
 
 			if(blendMapD3D9[i].bogus == 1)
 			{
-				ASSERT(0);
-
 				(bsel.a == 0 ? bs->SrcBlend : bs->DestBlend) = D3DBLEND_ONE;
+
+				const string afixstr = format("%d >> 7", afix);
+				const char *col[3] = {"Cs", "Cd", "0"};
+				const char *alpha[3] = {"As", "Ad", afixstr.c_str()};
+				printf("Impossible blend for D3D: (%s - %s) * %s + %s\n",
+					col[bsel.a], col[bsel.b], alpha[bsel.c], col[bsel.d]);
 			}
 		}
 

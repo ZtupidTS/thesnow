@@ -1,4 +1,4 @@
-/* 
+/*
  *	Copyright (C) 2007-2009 Gabest
  *	http://www.gabest.org
  *
@@ -6,15 +6,15 @@
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  This Program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  *  GNU General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU General Public License
  *  along with GNU Make; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *  http://www.gnu.org/copyleft/gpl.html
  *
  */
@@ -66,24 +66,24 @@ __aligned16 class GSVertexTrace
 		CGHW9* Create(uint32 key, void* ptr, size_t maxsize) {return new CGHW9(key, ptr, maxsize);}
 	};
 
-	class CGHW10 : public Xbyak::CodeGenerator
+	class CGHW11 : public Xbyak::CodeGenerator
 	{
 		Xbyak::util::Cpu m_cpu;
 
 	public:
-		CGHW10(uint32 key, void* ptr, size_t maxsize);
+		CGHW11(uint32 key, void* ptr, size_t maxsize);
 	};
 
-	class GSVertexTraceMapHW10 : public GSCodeGeneratorFunctionMap<CGHW10, uint32, VertexTracePtr>
+	class GSVertexTraceMapHW11 : public GSCodeGeneratorFunctionMap<CGHW11, uint32, VertexTracePtr>
 	{
 	public:
-		GSVertexTraceMapHW10() : GSCodeGeneratorFunctionMap("VertexTraceHW10") {}
-		CGHW10* Create(uint32 key, void* ptr, size_t maxsize) {return new CGHW10(key, ptr, maxsize);}
+		GSVertexTraceMapHW11() : GSCodeGeneratorFunctionMap("VertexTraceHW11") {}
+		CGHW11* Create(uint32 key, void* ptr, size_t maxsize) {return new CGHW11(key, ptr, maxsize);}
 	};
 
 	GSVertexTraceMapSW m_map_sw;
 	GSVertexTraceMapHW9 m_map_hw9;
-	GSVertexTraceMapHW10 m_map_hw10;
+	GSVertexTraceMapHW11 m_map_hw11;
 
 	uint32 Hash(GS_PRIM_CLASS primclass);
 
@@ -96,7 +96,7 @@ public:
 
 	union
 	{
-		uint32 value; 
+		uint32 value;
 		struct {uint32 r:4, g:4, b:4, a:4, x:1, y:1, z:1, f:1, s:1, t:1, q:1, _pad:1;};
 		struct {uint32 rgba:16, xyzf:4, stq:4;};
 	} m_eq;
@@ -105,6 +105,6 @@ public:
 
 	void Update(const GSVertexSW* v, int count, GS_PRIM_CLASS primclass);
 	void Update(const GSVertexHW9* v, int count, GS_PRIM_CLASS primclass);
-	void Update(const GSVertexHW10* v, int count, GS_PRIM_CLASS primclass);
+	void Update(const GSVertexHW11* v, int count, GS_PRIM_CLASS primclass);
 	void Update(const GSVertexNull* v, int count, GS_PRIM_CLASS primclass) {}
 };

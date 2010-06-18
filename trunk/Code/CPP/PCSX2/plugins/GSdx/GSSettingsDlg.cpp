@@ -1,4 +1,4 @@
-/* 
+/*
  *	Copyright (C) 2007-2009 Gabest
  *	http://www.gabest.org
  *
@@ -6,15 +6,15 @@
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  This Program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  *  GNU General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU General Public License
  *  along with GNU Make; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *  http://www.gnu.org/copyleft/gpl.html
  *
  */
@@ -30,17 +30,9 @@ GSSetting GSSettingsDlg::g_renderers[] =
 	{0, "Direct3D9 (硬件)", NULL},
 	{1, "Direct3D9 (软件)", NULL},
 	{2, "Direct3D9 (Null)", NULL},
-	{3, "Direct3D10 (硬件)", NULL},
-	{4, "Direct3D10 (软件)", NULL},
-	{5, "Direct3D10 (Null)", NULL},
-	#if 0
-	{6, "Direct3D11 (硬件)", NULL},
-	{7, "Direct3D11 (软件)", NULL},
-	{8, "Direct3D11 (Null)", NULL},
-	{9, "OpenGL (硬件)", NULL},
-	{10, "OpenGL (软件)", NULL},
-	{11, "OpenGL (Null)", NULL},
-	#endif
+	{3, "Direct3D10/11 (硬件)", NULL},
+	{4, "Direct3D10/11 (软件)", NULL},
+	{5, "Direct3D10/11 (Null)", NULL},
 	{12, "Null (软件)", NULL},
 	{13, "Null (Null)", NULL},
 };
@@ -115,15 +107,13 @@ void GSSettingsDlg::OnInit()
 		}
 	}
 
-	bool isdx10avail = GSUtil::IsDirect3D10Available();
-	bool isdx11avail = false; //GSUtil::IsDirect3D11Available();
+	bool isdx11avail = GSUtil::IsDirect3D11Available();
 
 	vector<GSSetting> renderers;
 
 	for(size_t i = 0; i < countof(g_renderers); i++)
 	{
-		if(i >= 3 && i <= 5 && !isdx10avail) continue;
-		if(i >= 6 && i <= 8 && !isdx11avail) continue;
+		if(i >= 3 && i <= 5 && !isdx11avail) continue;
 
 		renderers.push_back(g_renderers[i]);
 	}
@@ -146,7 +136,7 @@ void GSSettingsDlg::OnInit()
 	CheckDlgButton(m_hWnd, IDC_OFFSETHACK, theApp.GetConfig("UserHacks_HalfPixelOffset", 0));
 	SendMessage(GetDlgItem(m_hWnd, IDC_SKIPDRAWHACK), UDM_SETRANGE, 0, MAKELPARAM(1000, 0));
 	SendMessage(GetDlgItem(m_hWnd, IDC_SKIPDRAWHACK), UDM_SETPOS, 0, MAKELPARAM(theApp.GetConfig("UserHacks_SkipDraw", 0), 0));
-	
+
 	SendMessage(GetDlgItem(m_hWnd, IDC_RESX), UDM_SETRANGE, 0, MAKELPARAM(8192, 256));
 	SendMessage(GetDlgItem(m_hWnd, IDC_RESX), UDM_SETPOS, 0, MAKELPARAM(theApp.GetConfig("resx", 1024), 0));
 
@@ -199,7 +189,7 @@ bool GSSettingsDlg::OnCommand(HWND hWnd, UINT id, UINT code)
 		{
 			theApp.SetConfig("AspectRatio", (int)data);
 		}
-		
+
 		if(ComboBoxGetSelData(IDC_UPSCALE_MULTIPLIER, data))
 		{
 			theApp.SetConfig("upscale_multiplier", (int)data);
@@ -208,7 +198,7 @@ bool GSSettingsDlg::OnCommand(HWND hWnd, UINT id, UINT code)
 		{
 			theApp.SetConfig("upscale_multiplier", 1);
 		}
-		
+
 		theApp.SetConfig("windowed", (int)IsDlgButtonChecked(m_hWnd, IDC_WINDOWED));
 		theApp.SetConfig("filter", (int)IsDlgButtonChecked(m_hWnd, IDC_FILTER));
 		theApp.SetConfig("paltex", (int)IsDlgButtonChecked(m_hWnd, IDC_PALTEX));
@@ -222,7 +212,7 @@ bool GSSettingsDlg::OnCommand(HWND hWnd, UINT id, UINT code)
 		theApp.SetConfig("swthreads", (int)SendMessage(GetDlgItem(m_hWnd, IDC_SWTHREADS), UDM_GETPOS, 0, 0));
 		theApp.SetConfig("msaa", (int)SendMessage(GetDlgItem(m_hWnd, IDC_MSAA), UDM_GETPOS, 0, 0));
 		// Hacks
-		theApp.SetConfig("UserHacks_AlphaHack", (int)IsDlgButtonChecked(m_hWnd, IDC_ALPHAHACK));	
+		theApp.SetConfig("UserHacks_AlphaHack", (int)IsDlgButtonChecked(m_hWnd, IDC_ALPHAHACK));
 		theApp.SetConfig("UserHacks_HalfPixelOffset", (int)IsDlgButtonChecked(m_hWnd, IDC_OFFSETHACK));
 		theApp.SetConfig("UserHacks_SkipDraw", (int)SendMessage(GetDlgItem(m_hWnd, IDC_SKIPDRAWHACK), UDM_GETPOS, 0, 0));
 	}
@@ -259,7 +249,7 @@ void GSSettingsDlg::UpdateControls()
 		EnableWindow(GetDlgItem(m_hWnd, IDC_RESY_EDIT), hw && !native);
 		EnableWindow(GetDlgItem(m_hWnd, IDC_UPSCALE_MULTIPLIER), hw && !native);
 		EnableWindow(GetDlgItem(m_hWnd, IDC_NATIVERES), hw);
-		EnableWindow(GetDlgItem(m_hWnd, IDC_FILTER), hw && !native);		
+		EnableWindow(GetDlgItem(m_hWnd, IDC_FILTER), hw && !native);
 		EnableWindow(GetDlgItem(m_hWnd, IDC_PALTEX), hw);
 		EnableWindow(GetDlgItem(m_hWnd, IDC_LOGZ), dx9 && hw);
 		EnableWindow(GetDlgItem(m_hWnd, IDC_FBA), dx9 && hw);
@@ -272,9 +262,9 @@ void GSSettingsDlg::UpdateControls()
 		ShowWindow(GetDlgItem(m_hWnd, IDC_USERHACKS), allowHacks && hw)?SW_SHOW:SW_HIDE;
 		ShowWindow(GetDlgItem(m_hWnd, IDC_ALPHAHACK), allowHacks && hw)?SW_SHOW:SW_HIDE;
 		ShowWindow(GetDlgItem(m_hWnd, IDC_OFFSETHACK), allowHacks && hw)?SW_SHOW:SW_HIDE;
-		ShowWindow(GetDlgItem(m_hWnd, IDC_SKIPDRAWHACKEDIT), allowHacks && hw)?SW_SHOW:SW_HIDE;	
-		ShowWindow(GetDlgItem(m_hWnd, IDC_STATIC10), allowHacks && hw)?SW_SHOW:SW_HIDE;	
-		ShowWindow(GetDlgItem(m_hWnd, IDC_SKIPDRAWHACK), allowHacks && hw)?SW_SHOW:SW_HIDE;	
+		ShowWindow(GetDlgItem(m_hWnd, IDC_SKIPDRAWHACKEDIT), allowHacks && hw)?SW_SHOW:SW_HIDE;
+		ShowWindow(GetDlgItem(m_hWnd, IDC_STATIC10), allowHacks && hw)?SW_SHOW:SW_HIDE;
+		ShowWindow(GetDlgItem(m_hWnd, IDC_SKIPDRAWHACK), allowHacks && hw)?SW_SHOW:SW_HIDE;
 
 	}
 }

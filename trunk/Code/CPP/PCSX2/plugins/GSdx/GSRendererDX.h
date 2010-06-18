@@ -1,4 +1,4 @@
-/* 
+/*
  *	Copyright (C) 2007-2009 Gabest
  *	http://www.gabest.org
  *
@@ -6,15 +6,15 @@
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  This Program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  *  GNU General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU General Public License
  *  along with GNU Make; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *  http://www.gnu.org/copyleft/gpl.html
  *
  */
@@ -23,7 +23,7 @@
 
 #include "GSRendererHW.h"
 
-template<class Vertex> 
+template<class Vertex>
 class GSRendererDX : public GSRendererHW<Vertex>
 {
 	GSVector2 m_pixelcenter;
@@ -66,30 +66,39 @@ public:
 		GSDrawingEnvironment& env = m_env;
 		GSDrawingContext* context = m_context;
 
+		const GSVector2i& rtsize = rt->GetSize();
+		const GSVector2& rtscale = rt->GetScale();
+		bool DATE = m_context->TEST.DATE && context->FRAME.PSM != PSM_PSMCT24;
+
+		GSTexture *rtcopy = NULL;
+
 		assert(m_dev != NULL);
 
 		GSDeviceDX& dev = (GSDeviceDX&)*m_dev;
 
-		//
-		if(m_context->TEST.DATE)
+		if(DATE)
 		{
-			const GSVector2i& size = rt->GetSize();
+			if (dev.HasStencil()) {
+				GSVector4 s = GSVector4(rtscale.x / rtsize.x, rtscale.y / rtsize.y);
+				GSVector4 o = GSVector4(-1.0f, 1.0f);
 
-			GSVector4 s = GSVector4(rt->GetScale().x / size.x, rt->GetScale().y / size.y);
-			GSVector4 o = GSVector4(-1.0f, 1.0f);
+				GSVector4 src = ((m_vt.m_min.p.xyxy(m_vt.m_max.p) + o.xxyy()) * s.xyxy()).sat(o.zzyy());
+				GSVector4 dst = src * 2.0f + o.xxxx();
 
-			GSVector4 src = ((m_vt.m_min.p.xyxy(m_vt.m_max.p) + o.xxyy()) * s.xyxy()).sat(o.zzyy());
-			GSVector4 dst = src * 2.0f + o.xxxx();
+				GSVertexPT1 vertices[] =
+				{
+					{GSVector4(dst.x, -dst.y, 0.5f, 1.0f), GSVector2(src.x, src.y)},
+					{GSVector4(dst.z, -dst.y, 0.5f, 1.0f), GSVector2(src.z, src.y)},
+					{GSVector4(dst.x, -dst.w, 0.5f, 1.0f), GSVector2(src.x, src.w)},
+					{GSVector4(dst.z, -dst.w, 0.5f, 1.0f), GSVector2(src.z, src.w)},
+				};
 
-			GSVertexPT1 vertices[] =
-			{
-				{GSVector4(dst.x, -dst.y, 0.5f, 1.0f), GSVector2(src.x, src.y)},
-				{GSVector4(dst.z, -dst.y, 0.5f, 1.0f), GSVector2(src.z, src.y)},
-				{GSVector4(dst.x, -dst.w, 0.5f, 1.0f), GSVector2(src.x, src.w)},
-				{GSVector4(dst.z, -dst.w, 0.5f, 1.0f), GSVector2(src.z, src.w)},
-			};
-
-			dev.SetupDATE(rt, ds, vertices, m_context->TEST.DATM );
+				dev.SetupDATE(rt, ds, vertices, m_context->TEST.DATM);
+			} else {
+				rtcopy = m_dev->CreateRenderTarget(rtsize.x, rtsize.y, false, rt->GetFormat());
+				// I'll use VertexTrace when I consider it more trustworthy
+				m_dev->CopyRect(rt, rtcopy, GSVector4i(rtsize).zwxy());
+			}
 		}
 
 		//
@@ -108,11 +117,6 @@ public:
 		else
 		{
 			om_dssel.ztst = ZTST_ALWAYS;
-		}
-
-		if(context->FRAME.PSM != PSM_PSMCT24)
-		{
-			om_dssel.date = context->TEST.DATE;
 		}
 
 		if(m_fba)
@@ -135,10 +139,10 @@ public:
 			{
 				if(om_bsel.a == 0 && om_bsel.b == 1 && om_bsel.c == 0 && om_bsel.d == 1)
 				{
-					// this works because with PABE alpha blending is on when alpha >= 0x80, but since the pixel shader 
+					// this works because with PABE alpha blending is on when alpha >= 0x80, but since the pixel shader
 					// cannot output anything over 0x80 (== 1.0) blending with 0x80 or turning it off gives the same result
 
-					om_bsel.abe = 0; 
+					om_bsel.abe = 0;
 				}
 				else
 				{
@@ -156,8 +160,12 @@ public:
 
 		vs_sel.tme = PRIM->TME;
 		vs_sel.fst = PRIM->FST;
-		vs_sel.logz = m_logz ? 1 : 0;
+		vs_sel.logz = dev.HasDepth32() ? 0 : m_logz ? 1 : 0;
+		vs_sel.rtcopy = !!rtcopy;
 
+		// The real GS appears to do no masking based on the Z buffer format and writing larger Z values
+		// than the buffer supports seems to be an error condition on the real GS, causing it to crash.
+		// We are probably receiving bad coordinates from VU1 in these cases.
 		if(om_dssel.ztst >= ZTST_ALWAYS && om_dssel.zwe)
 		{
 			if(context->ZBUF.PSM == PSM_PSMZ24)
@@ -180,7 +188,7 @@ public:
 					ASSERT(m_vt.m_min.p.z > 0xffff); // sfex capcom logo
 					// Fixme : Same as above, I guess.
 					if (m_vt.m_min.p.z > 0xffff)
-					{	
+					{
 						vs_sel.bppz = 2;
 						om_dssel.ztst = ZTST_ALWAYS;
 					}
@@ -190,30 +198,28 @@ public:
 
 		GSDeviceDX::VSConstantBuffer vs_cb;
 
-		float sx = 2.0f * rt->GetScale().x / (rt->GetWidth() << 4);
-		float sy = 2.0f * rt->GetScale().y / (rt->GetHeight() << 4);
+		float sx = 2.0f * rtscale.x / (rtsize.x << 4);
+		float sy = 2.0f * rtscale.y / (rtsize.y << 4);
 		float ox = (float)(int)context->XYOFFSET.OFX;
 		float oy = (float)(int)context->XYOFFSET.OFY;
-		float ox2 = 2.0f * m_pixelcenter.x / rt->GetWidth();
-		float oy2 = 2.0f * m_pixelcenter.y / rt->GetHeight();
-		
+		float ox2 = 2.0f * m_pixelcenter.x / rtsize.x;
+		float oy2 = 2.0f * m_pixelcenter.y / rtsize.y;
+
 		//This hack subtracts around half a pixel from OFX and OFY. (Cannot do this directly,
 		//because DX10 and DX9 have a different pixel center.)
 		//
 		//The resulting shifted output aligns better with common blending / corona / blurring effects,
 		//but introduces a few bad pixels on the edges.
+		if (rt->LikelyOffset == true)
+		{
+			//DX9 has pixelcenter set to 0.0, so give it some value here
+			if (m_pixelcenter.x == 0 && m_pixelcenter.y == 0) { ox2 = -0.0003f; oy2 = -0.0003f; }
 		
-		// Edit: Moved to CreateSource() in GSTextureCache.cpp
-		//if (UserHacks_HalfPixelOffset == true)
-		//{
-		//	//DX9 has pixelcenter set to 0.0, so give it some value here
-		//	if (m_pixelcenter.x == 0 && m_pixelcenter.y == 0) { ox2 = oy2 = -0.00035f; } 
-		//	
-		//	if (ox != 0) { ox2 *= upscale_Multiplier(); }
-		//	if (oy != 0) { oy2 *= upscale_Multiplier(); } 
-		//}
-		
-		vs_cb.VertexScale  = GSVector4(sx, -sy, 1.0f / UINT_MAX, 0.0f);
+			ox2 *= rt->OffsetHack_modx;
+			oy2 *= rt->OffsetHack_mody;
+		}
+
+		vs_cb.VertexScale  = GSVector4(sx, -sy, ldexpf(1, -32), 0.0f);
 		vs_cb.VertexOffset = GSVector4(ox * sx + ox2 + 1, -(oy * sy + oy2 + 1), 0.0f, -1.0f);
 		// gs
 
@@ -227,6 +233,14 @@ public:
 		GSDeviceDX::PSSelector ps_sel;
 		GSDeviceDX::PSSamplerSelector ps_ssel;
 		GSDeviceDX::PSConstantBuffer ps_cb;
+
+		if(DATE)
+		{
+			if (dev.HasStencil())
+				om_dssel.date = 1;
+			else
+				ps_sel.date = 1 + context->TEST.DATM;
+		}
 
 		if (env.COLCLAMP.CLAMP == 0) {
 			ps_sel.colclip = 1;
@@ -264,7 +278,7 @@ public:
 		{
 			ps_sel.atst = ATST_ALWAYS;
 		}
-		
+
 		if(tex)
 		{
 			ps_sel.wms = context->CLAMP.WMS;
@@ -313,10 +327,12 @@ public:
 
 		// rs
 
-		GSVector4i scissor = GSVector4i(GSVector4(rt->GetScale()).xyxy() * context->scissor.in).rintersect(GSVector4i(rt->GetSize()).zwxy());
+		GSVector4i scissor = GSVector4i(GSVector4(rtscale).xyxy() * context->scissor.in).rintersect(GSVector4i(rtsize).zwxy());
 
 		dev.OMSetRenderTargets(rt, ds, &scissor);
-		dev.PSSetShaderResources(tex ? tex->m_texture : NULL, tex ? tex->m_palette : NULL);
+		dev.PSSetShaderResource(0, tex ? tex->m_texture : NULL);
+		dev.PSSetShaderResource(1, tex ? tex->m_palette : NULL);
+		dev.PSSetShaderResource(2, rtcopy);
 
 		uint8 afix = context->ALPHA.FIX;
 
@@ -414,6 +430,8 @@ public:
 		}
 
 		dev.EndScene();
+
+		m_dev->Recycle(rtcopy);
 
 		if(om_dssel.fba) UpdateFBA(rt);
 	}

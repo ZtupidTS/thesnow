@@ -3,22 +3,34 @@
 # plugin name
 set(zerospu2Name zerospu2)
 
+set(CommonFlags
+    -Wall
+    -m32
+    -fPIC
+    -msse2
+    )
+
+set(OptimizationFlags
+    -O2
+    -DNDEBUG
+    )
+
 # Debug - Build
 if(CMAKE_BUILD_TYPE STREQUAL Debug)
 	# add defines
-	add_definitions(-Wall -fPIC -m32 -msse2 -g)
+    add_definitions(${CommonFlags} -g)
 endif(CMAKE_BUILD_TYPE STREQUAL Debug)
 
 # Devel - Build
 if(CMAKE_BUILD_TYPE STREQUAL Devel)
 	# add defines
-	add_definitions(-Wall -fPIC -m32 -msse2 -O2)
+	add_definitions(${CommonFlags} ${OptimizationFlags})
 endif(CMAKE_BUILD_TYPE STREQUAL Devel)
 
 # Release - Build
 if(CMAKE_BUILD_TYPE STREQUAL Release)
 	# add defines
-	add_definitions(-Wall -fPIC -m32 -msse2 -O2 -s)
+	add_definitions(${CommonFlags} ${OptimizationFlags})
 endif(CMAKE_BUILD_TYPE STREQUAL Release)
 
 # zerospu2 sources
@@ -27,7 +39,7 @@ set(zerospu2Sources
 	zerodma.cpp
 	zerospu2.cpp
 	zeroworker.cpp)
-	
+
 # zerospu2 headers
 set(zerospu2Headers
 	misc.h
@@ -38,10 +50,7 @@ set(zerospu2Headers
 
 # zerospu2 Linux sources
 set(zerospu2LinuxSources
-#	Linux/callbacks.c
-	Linux/interface.c
 	Linux/Linux.cpp
-	Linux/support.c
 	Targets/Alsa.cpp
 	Targets/OSS.cpp
 #	Targets/PortAudio.cpp
@@ -49,10 +58,7 @@ set(zerospu2LinuxSources
 
 # zerospu2 Linux headers
 set(zerospu2LinuxHeaders
-	Linux/callbacks.h
-	Linux/interface.h
 	Linux/Linux.h
-	Linux/support.h
 	Targets/Alsa.h
 	Targets/OSS.h
 #	Targets/PortAudio.h
@@ -76,7 +82,7 @@ include_directories(.
 					Targets)
 
 # add library
-add_library(${zerospu2Name} SHARED 
+add_library(${zerospu2Name} SHARED
 			${zerospu2Sources}
 			${zerospu2Headers}
 			${zerospu2LinuxSources}
@@ -95,9 +101,12 @@ if(PORTAUDIO_FOUND)
 endif(PORTAUDIO_FOUND)
 
 # link target with SoundTouch
-if(projectSoundTouch)
-	target_link_libraries(${zerospu2Name} SoundTouch)
-else(projectSoundTouch)
-	target_link_libraries(${zerospu2Name} ${SOUNDTOUCH_LIBRARIES})
-endif(projectSoundTouch)
+target_link_libraries(${zerospu2Name} ${SOUNDTOUCH_LIBRARIES})
 
+# Force the linker into 32 bits mode
+target_link_libraries(${zerospu2Name} -m32)
+
+# Linker strip option
+if (CMAKE_BUILD_STRIP)
+    target_link_libraries(${zerospu2Name} -s)
+endif (CMAKE_BUILD_STRIP)

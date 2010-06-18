@@ -1,6 +1,6 @@
 /* SPU2-X, A plugin for Emulating the Sound Processing Unit of the Playstation 2
  * Developed and maintained by the Pcsx2 Development Team.
- * 
+ *
  * Original portions from SPU2ghz are (c) 2008 by David Quintana [gigaherz]
  *
  * SPU2-X is free software: you can redistribute it and/or modify it under the terms
@@ -20,7 +20,7 @@
 // Number of stereo samples per SndOut block.
 // All drivers must work in units of this size when communicating with
 // SndOut.
-static const int SndOutPacketSize = 512;
+static const int SndOutPacketSize = 64;
 
 // Overall master volume shift.
 // Converts the mixer's 32 bit value into a 16 bit value.
@@ -364,7 +364,6 @@ private:
 	static float lastEmergencyAdj;
 	static float cTempo;
 	static float eTempo;
-	static int freezeTempo;
 	static int ssFreeze;
 
 	static void _InitFail();
@@ -380,9 +379,10 @@ private:
 
 	static void PredictDataWrite( int samples );
 	static float GetStatusPct();
-	static void UpdateTempoChange();
+	static void UpdateTempoChangeSoundTouch();
 
 public:
+	static void UpdateTempoChangeAsyncMixing();
 	static void Init();
 	static void Cleanup();
 	static void Write( const StereoOut32& Sample );

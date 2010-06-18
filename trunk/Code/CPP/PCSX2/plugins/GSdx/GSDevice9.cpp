@@ -1,4 +1,4 @@
-/* 
+/*
  *	Copyright (C) 2007-2009 Gabest
  *	http://www.gabest.org
  *
@@ -6,15 +6,15 @@
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  This Program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  *  GNU General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU General Public License
  *  along with GNU Make; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *  http://www.gnu.org/copyleft/gpl.html
  *
  */
@@ -24,7 +24,7 @@
 #include "GSDevice9.h"
 #include "resource.h"
 
-GSDevice9::GSDevice9() 
+GSDevice9::GSDevice9()
 	: m_lost(false)
 {
 	m_rbswapped = true;
@@ -41,13 +41,22 @@ GSDevice9::GSDevice9()
 GSDevice9::~GSDevice9()
 {
 	for_each(m_mskfix.begin(), m_mskfix.end(), delete_second());
-	
+
 	for_each(m_om_bs.begin(), m_om_bs.end(), delete_second());
 	for_each(m_om_dss.begin(), m_om_dss.end(), delete_second());
 	for_each(m_ps_ss.begin(), m_ps_ss.end(), delete_second());
 
 	if(m_state.vs_cb) _aligned_free(m_state.vs_cb);
 	if(m_state.ps_cb) _aligned_free(m_state.ps_cb);
+}
+
+static bool TestDepthFormat(CComPtr<IDirect3D9> &d3d, D3DFORMAT format)
+{
+	if (FAILED(d3d->CheckDeviceFormat(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, D3DFMT_X8R8G8B8, D3DUSAGE_DEPTHSTENCIL, D3DRTYPE_SURFACE, format)))
+		return false;
+	if (FAILED(d3d->CheckDepthStencilMatch(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, D3DFMT_X8R8G8B8, D3DFMT_X8R8G8B8, format)))
+		return false;
+	return true;
 }
 
 bool GSDevice9::Create(GSWnd* wnd)
@@ -57,12 +66,10 @@ bool GSDevice9::Create(GSWnd* wnd)
 		return false;
 	}
 
-	HRESULT hr;
-
 	// dd
 
 	// Unreferenced
-	/*CComPtr<IDirectDraw7> dd; 
+	/*CComPtr<IDirectDraw7> dd;
 
 	hr = DirectDrawCreateEx(0, (void**)&dd, IID_IDirectDraw7, 0);
 
@@ -70,7 +77,7 @@ bool GSDevice9::Create(GSWnd* wnd)
 
 	memset(&m_ddcaps, 0, sizeof(m_ddcaps));
 
-	m_ddcaps.dwSize = sizeof(DDCAPS); 
+	m_ddcaps.dwSize = sizeof(DDCAPS);
 
 	hr = dd->GetCaps(&m_ddcaps, NULL);
 
@@ -84,13 +91,14 @@ bool GSDevice9::Create(GSWnd* wnd)
 
 	if(!m_d3d) return false;
 
-	hr = m_d3d->CheckDeviceFormat(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, D3DFMT_X8R8G8B8, D3DUSAGE_DEPTHSTENCIL, D3DRTYPE_SURFACE, D3DFMT_D24S8);
-
-	if(FAILED(hr)) return false;
-
-	hr = m_d3d->CheckDepthStencilMatch(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, D3DFMT_X8R8G8B8, D3DFMT_X8R8G8B8, D3DFMT_D24S8);
-
-	if(FAILED(hr)) return false;
+	if (TestDepthFormat(m_d3d, D3DFMT_D32F_LOCKABLE))
+		m_depth_format = D3DFMT_D32F_LOCKABLE;
+	else if (TestDepthFormat(m_d3d, D3DFMT_D32))
+		m_depth_format = D3DFMT_D32;
+	else if (TestDepthFormat(m_d3d, D3DFMT_D24S8))
+		m_depth_format = D3DFMT_D24S8;
+	else
+		return false;
 
 	memset(&m_d3dcaps, 0, sizeof(m_d3dcaps));
 
@@ -138,7 +146,7 @@ bool GSDevice9::Create(GSWnd* wnd)
 		DWORD quality[2] = {0, 0};
 
 		if(SUCCEEDED(m_d3d->CheckDeviceMultiSampleType(m_d3dcaps.AdapterOrdinal, m_d3dcaps.DeviceType, D3DFMT_A8R8G8B8, TRUE, (D3DMULTISAMPLE_TYPE)i, &quality[0])) && quality[0] > 0
-		&& SUCCEEDED(m_d3d->CheckDeviceMultiSampleType(m_d3dcaps.AdapterOrdinal, m_d3dcaps.DeviceType, D3DFMT_D24S8, TRUE, (D3DMULTISAMPLE_TYPE)i, &quality[1])) && quality[1] > 0)
+		&& SUCCEEDED(m_d3d->CheckDeviceMultiSampleType(m_d3dcaps.AdapterOrdinal, m_d3dcaps.DeviceType, m_depth_format, TRUE, (D3DMULTISAMPLE_TYPE)i, &quality[1])) && quality[1] > 0)
 		{
 			m_msaa_desc.Count = i;
 			m_msaa_desc.Quality = std::min<DWORD>(quality[0] - 1, quality[1] - 1);
@@ -149,7 +157,7 @@ bool GSDevice9::Create(GSWnd* wnd)
 
 	//
 
-	if(!Reset(1, 1)) 
+	if(!Reset(1, 1))
 	{
 		return false;
 	}
@@ -337,7 +345,7 @@ bool GSDevice9::Reset(int w, int h)
 		{
 			flags |= D3DCREATE_PUREDEVICE;
 		}
- 
+
 		hr = m_d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, (HWND)m_wnd->GetHandle(), flags, &m_pp, &m_dev);
 
 		if(FAILED(hr)) return false;
@@ -556,7 +564,7 @@ GSTexture* GSDevice9::CreateRenderTarget(int w, int h, bool msaa, int format)
 
 GSTexture* GSDevice9::CreateDepthStencil(int w, int h, bool msaa, int format)
 {
-	return __super::CreateDepthStencil(w, h, msaa, format ? format : D3DFMT_D24S8);
+	return __super::CreateDepthStencil(w, h, msaa, format ? format : m_depth_format);
 }
 
 GSTexture* GSDevice9::CreateTexture(int w, int h, int format)
@@ -674,18 +682,18 @@ void GSDevice9::StretchRect(GSTexture* st, const GSVector4& sr, GSTexture* dt, c
 	}
 
 	IASetVertexBuffer(vertices, sizeof(vertices[0]), countof(vertices));
-	IASetInputLayout(m_convert.il);
 	IASetPrimitiveTopology(D3DPT_TRIANGLESTRIP);
 
 	// vs
 
 	VSSetShader(m_convert.vs, NULL, 0);
+	IASetInputLayout(m_convert.il);
 
 	// ps
 
-	PSSetShader(ps, ps_cb, ps_cb_len);
 	PSSetSamplerState(linear ? &m_convert.ln : &m_convert.pt);
 	PSSetShaderResources(st, NULL);
+	PSSetShader(ps, ps_cb, ps_cb_len);
 
 	//
 
@@ -751,12 +759,12 @@ void GSDevice9::SetupDATE(GSTexture* rt, GSTexture* ds, const GSVertexPT1 (&iaVe
 		// ia
 
 		IASetVertexBuffer(iaVertices, sizeof(iaVertices[0]), countof(iaVertices));
-		IASetInputLayout(m_convert.il);
 		IASetPrimitiveTopology(D3DPT_TRIANGLESTRIP);
 
 		// vs
 
 		VSSetShader(m_convert.vs, NULL, 0);
+		IASetInputLayout(m_convert.il);
 
 		// ps
 
@@ -797,7 +805,7 @@ void GSDevice9::IASetVertexBuffer(const void* vertices, size_t stride, size_t co
 	if(m_vb == NULL)
 	{
 		HRESULT hr;
-		
+
 		hr = m_dev->CreateVertexBuffer(m_vertices.limit * stride, D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT, &m_vb, NULL);
 
 		if(FAILED(hr)) return;
@@ -865,7 +873,7 @@ void GSDevice9::VSSetShader(IDirect3DVertexShader9* vs, const float* vs_cb, int 
 	if(vs_cb && vs_cb_len > 0)
 	{
 		int size = vs_cb_len * sizeof(float) * 4;
-		
+
 		if(m_state.vs_cb_len != vs_cb_len || m_state.vs_cb == NULL || memcmp(m_state.vs_cb, vs_cb, size))
 		{
 			if(m_state.vs_cb == NULL || m_state.vs_cb_len < vs_cb_len)
@@ -886,24 +894,19 @@ void GSDevice9::VSSetShader(IDirect3DVertexShader9* vs, const float* vs_cb, int 
 
 void GSDevice9::PSSetShaderResources(GSTexture* sr0, GSTexture* sr1)
 {
-	IDirect3DTexture9* srv0 = NULL;
-	IDirect3DTexture9* srv1 = NULL;
-	
-	if(sr0) srv0 = *(GSTexture9*)sr0;
-	if(sr1) srv1 = *(GSTexture9*)sr1;
+	PSSetShaderResource(0, sr0);
+	PSSetShaderResource(1, sr1);
+	PSSetShaderResource(2, NULL);
+}
 
-	if(m_state.ps_srvs[0] != srv0)
-	{
-		m_state.ps_srvs[0] = srv0;
+void GSDevice9::PSSetShaderResource(int i, GSTexture* sr)
+{
+	IDirect3DTexture9* srv = NULL;
+	if (sr) srv = *(GSTexture9*)sr;
 
-		m_dev->SetTexture(0, srv0);
-	}
-
-	if(m_state.ps_srvs[1] != srv1)
-	{
-		m_state.ps_srvs[1] = srv1;
-
-		m_dev->SetTexture(1, srv1);
+	if (m_state.ps_srvs[i] != srv) {
+		m_state.ps_srvs[i] = srv;
+		m_dev->SetTexture(i, srv);
 	}
 }
 
@@ -915,11 +918,11 @@ void GSDevice9::PSSetShader(IDirect3DPixelShader9* ps, const float* ps_cb, int p
 
 		m_dev->SetPixelShader(ps);
 	}
-	
+
 	if(ps_cb && ps_cb_len > 0)
 	{
 		int size = ps_cb_len * sizeof(float) * 4;
-		
+
 		if(m_state.ps_cb_len != ps_cb_len || m_state.ps_cb == NULL || memcmp(m_state.ps_cb, ps_cb, size))
 		{
 			if(m_state.ps_cb == NULL || m_state.ps_cb_len < ps_cb_len)
@@ -948,10 +951,12 @@ void GSDevice9::PSSetSamplerState(Direct3DSamplerState9* ss)
 		m_dev->SetSamplerState(0, D3DSAMP_ADDRESSV, ss->AddressV);
 		m_dev->SetSamplerState(1, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
 		m_dev->SetSamplerState(1, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
-		m_dev->SetSamplerState(2, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
-		m_dev->SetSamplerState(2, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
+		m_dev->SetSamplerState(2, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+		m_dev->SetSamplerState(2, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
 		m_dev->SetSamplerState(3, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
 		m_dev->SetSamplerState(3, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
+		m_dev->SetSamplerState(4, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
+		m_dev->SetSamplerState(4, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
 		m_dev->SetSamplerState(0, D3DSAMP_MINFILTER, ss->FilterMin[0]);
 		m_dev->SetSamplerState(0, D3DSAMP_MAGFILTER, ss->FilterMag[0]);
 		m_dev->SetSamplerState(1, D3DSAMP_MINFILTER, D3DTEXF_POINT);
@@ -960,6 +965,8 @@ void GSDevice9::PSSetSamplerState(Direct3DSamplerState9* ss)
 		m_dev->SetSamplerState(2, D3DSAMP_MAGFILTER, D3DTEXF_POINT);
 		m_dev->SetSamplerState(3, D3DSAMP_MINFILTER, D3DTEXF_POINT);
 		m_dev->SetSamplerState(3, D3DSAMP_MAGFILTER, D3DTEXF_POINT);
+		m_dev->SetSamplerState(4, D3DSAMP_MINFILTER, D3DTEXF_POINT);
+		m_dev->SetSamplerState(4, D3DSAMP_MAGFILTER, D3DTEXF_POINT);
 	}
 }
 
@@ -971,7 +978,7 @@ void GSDevice9::OMSetDepthStencilState(Direct3DDepthStencilState9* dss)
 
 		m_dev->SetRenderState(D3DRS_ZENABLE, dss->DepthEnable);
 		m_dev->SetRenderState(D3DRS_ZWRITEENABLE, dss->DepthWriteMask);
-		
+
 		if(dss->DepthEnable)
 		{
 			m_dev->SetRenderState(D3DRS_ZFUNC, dss->DepthFunc);
@@ -982,7 +989,7 @@ void GSDevice9::OMSetDepthStencilState(Direct3DDepthStencilState9* dss)
 		if(dss->StencilEnable)
 		{
 			m_dev->SetRenderState(D3DRS_STENCILMASK, dss->StencilReadMask);
-			m_dev->SetRenderState(D3DRS_STENCILWRITEMASK, dss->StencilWriteMask);	
+			m_dev->SetRenderState(D3DRS_STENCILWRITEMASK, dss->StencilWriteMask);
 			m_dev->SetRenderState(D3DRS_STENCILFUNC, dss->StencilFunc);
 			m_dev->SetRenderState(D3DRS_STENCILPASS, dss->StencilPassOp);
 			m_dev->SetRenderState(D3DRS_STENCILFAIL, dss->StencilFailOp);

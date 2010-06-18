@@ -1,6 +1,6 @@
 /* SPU2-X, A plugin for Emulating the Sound Processing Unit of the Playstation 2
  * Developed and maintained by the Pcsx2 Development Team.
- * 
+ *
  * Original portions from SPU2ghz are (c) 2008 by David Quintana [gigaherz]
  *
  * SPU2-X is free software: you can redistribute it and/or modify it under the terms
@@ -26,10 +26,10 @@
 #define spu2Rs16(mmem)	(*(s16 *)((s8 *)spu2regs + ((mmem) & 0x1fff)))
 #define spu2Ru16(mmem)	(*(u16 *)((s8 *)spu2regs + ((mmem) & 0x1fff)))
 
-extern s16*	__fastcall GetMemPtr(u32 addr);
-extern s16	__fastcall spu2M_Read( u32 addr );
-extern void	__fastcall spu2M_Write( u32 addr, s16 value );
-extern void	__fastcall spu2M_Write( u32 addr, u16 value );
+extern s16*	GetMemPtr(u32 addr);
+extern s16	spu2M_Read( u32 addr );
+extern void	spu2M_Write( u32 addr, s16 value );
+extern void	spu2M_Write( u32 addr, u16 value );
 
 
 struct V_VolumeLR
@@ -45,7 +45,7 @@ struct V_VolumeLR
 		Right( both )
 	{
 	}
-	
+
 	void DebugDump( FILE* dump, const char* title );
 };
 
@@ -53,12 +53,12 @@ struct V_VolumeSlide
 {
 	// Holds the "original" value of the volume for this voice, prior to slides.
 	// (ie, the volume as written to the register)
-	
+
 	s16		Reg_VOL;
 	s32		Value;
 	s8		Increment;
 	s8		Mode;
-	
+
 public:
 	V_VolumeSlide() {}
 	V_VolumeSlide( s16 regval, s32 fullvol ) :
@@ -83,7 +83,7 @@ struct V_VolumeSlideLR
 
 public:
 	V_VolumeSlideLR() {}
-		
+
 	V_VolumeSlideLR( s16 regval, s32 bothval ) :
 		Left( regval, bothval ),
 		Right( regval, bothval )
@@ -95,7 +95,7 @@ public:
 		Left.Update();
 		Right.Update();
 	}
-	
+
 	void DebugDump( FILE* dump, const char* title );
 };
 
@@ -104,14 +104,14 @@ struct V_ADSR
 	union
 	{
 		u32	reg32;
-		
-		struct  
+
+		struct
 		{
 			u16 regADSR1;
 			u16 regADSR2;
 		};
-		
-		struct 
+
+		struct
 		{
 			u32	SustainLevel:4,
 				DecayRate:4,
@@ -143,9 +143,9 @@ struct V_Voice
 // Envelope
 	V_ADSR ADSR;
 // Pitch (also Reg_PITCH)
-	s16 Pitch; 
+	s16 Pitch;
 // Loop Start address (also Reg_LSAH/L)
-	u32 LoopStartA; 
+	u32 LoopStartA;
 // Sound Start address (also Reg_SSAH/L)
 	u32 StartA;
 // Next Read Data address (also Reg_NAXH/L)
@@ -224,7 +224,7 @@ struct V_Reverb
 
 	s16 FB_ALPHA;
 	s16 FB_X;
-	
+
 	u32 IIR_SRC_A0;
 	u32 IIR_SRC_A1;
 	u32 IIR_SRC_B1;
@@ -286,7 +286,7 @@ struct V_ReverbBuffers
 	s32 MIX_DEST_A1;
 	s32 MIX_DEST_B0;
 	s32 MIX_DEST_B1;
-	
+
 	bool NeedsUpdated;
 };
 
@@ -331,7 +331,7 @@ struct V_CoreGates
 	{
 		u128 v128;
 
-		struct  
+		struct
 		{
 			s16 InpL;	// Sound Data Input to Direct Output (Left)
 			s16 InpR;	// Sound Data Input to Direct Output (Right)
@@ -341,7 +341,7 @@ struct V_CoreGates
 			s16 ExtR;	// External Input to Direct Output (Right)
 		};
 	};
-	
+
 };
 
 struct VoiceMixSet
@@ -373,10 +373,10 @@ struct V_Core
 	V_VolumeSlideLR	MasterVol;		// Master Volume
 	V_VolumeLR		ExtVol;			// Volume for External Data Input
 	V_VolumeLR		InpVol;			// Volume for Sound Data Input
-	V_VolumeLR		FxVol;			// Volume for Output from Effects 
+	V_VolumeLR		FxVol;			// Volume for Output from Effects
 
 	V_Voice			Voices[NumVoices];
-	
+
 	u32				IRQA;			// Interrupt Address
 	u32				TSA;			// DMA Transfer Start Address
 	u32				TDA;			// DMA Transfer Data Address (Internal...)
@@ -400,12 +400,12 @@ struct V_Core
 	u32				EffectsStartA;
 	u32				EffectsEndA;
 	u32				ReverbX;
-	
+
 	// Current size of the effects buffer.  Pre-caculated when the effects start
 	// or end position registers are written.  CAN BE NEGATIVE OR ZERO, in which
 	// case reverb should be disabled.
 	s32				EffectsBufferSize;
-	
+
 	V_CoreRegs		Regs;			// Registers
 
 	// Last samples to pass through the effects processor.
@@ -435,7 +435,7 @@ struct V_Core
 	// HACK -- This is a temp buffer which is (or isn't?) used to circumvent some memory
 	// corruption that originates elsewhere in the plugin. >_<  The actual ADMA buffer
 	// is an area mapped to SPU2 main memory.
-	s16				ADMATempBuffer[0x1000];
+	//s16				ADMATempBuffer[0x1000];
 
 // ----------------------------------------------------------------------------------
 //  V_Core Methods
@@ -455,7 +455,7 @@ struct V_Core
 
 	void	WriteRegPS1( u32 mem, u16 value );
 	u16		ReadRegPS1( u32 mem );
-	
+
 // --------------------------------------------------------------------------------------
 //  Mixer Section
 // --------------------------------------------------------------------------------------
@@ -467,7 +467,7 @@ struct V_Core
 
 	StereoOut32 ReadInput();
 	StereoOut32 ReadInput_HiFi();
-	
+
 // --------------------------------------------------------------------------
 //  DMA Section
 // --------------------------------------------------------------------------
@@ -522,8 +522,8 @@ extern s16		InputPos;
 // SPU Mixing Cycles ("Ticks mixed" counter)
 extern u32		Cycles;
 
-extern short*	spu2regs;
-extern short*	_spu2mem;
+extern s16*		spu2regs;
+extern s16*		_spu2mem;
 extern int		PlayMode;
 
 extern void SetIrqCall();

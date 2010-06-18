@@ -18,28 +18,14 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
- 
-#include "joystick.h"
-#include "keyboard.h"
-#include "onepad.h"
+//
+//#include "joystick.h"
+//#include "keyboard.h"
+//#include "onepad.h"
+//
+//#include <string.h>
+//#include <gtk/gtk.h>
+//#include <gdk/gdkkeysyms.h>
+//#include <pthread.h>
 
-#include <string.h>
-#include <gtk/gtk.h>
-#include <gdk/gdkkeysyms.h>
-#include <pthread.h>
-
-
-extern "C"
-{
-#include "interface.h"
-#include "support.h"
-#include "callbacks.h"
-}
-
-extern GtkWidget *Conf, *s_devicecombo;
-extern string s_strIniPath;
-extern void init_tree_view();
-extern void destroy_tree_view();
-
-#define is_checked(main_widget, widget_name) (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(lookup_widget(main_widget, widget_name))))
-#define set_checked(main_widget,widget_name, state) gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(lookup_widget(main_widget, widget_name)), state)
+extern void DisplayDialog();

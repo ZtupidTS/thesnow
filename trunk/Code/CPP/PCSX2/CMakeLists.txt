@@ -1,43 +1,58 @@
-
 # Project Name
 project(Pcsx2)
 
 # need cmake version >=2.6
 cmake_minimum_required(VERSION 2.6)
 
-# include modules
-include(${PROJECT_SOURCE_DIR}/cmake/Pcsx2Utils.cmake)
-include(${PROJECT_SOURCE_DIR}/cmake/SearchForStuff.cmake)
+# set module path
+set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+
+# include some generic functions
+include(Pcsx2Utils)
+
+# Detect current OS
+detectOperatingSystem()
+
+# These lines remove some defaults options that can cause some failure later.
+# In particular, it remove the build option -rdynamic on pcsx2
+SET(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS " ")
+SET(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS " ")
 
 #-------------------------------------------------------------------------------
-# if no build type is set, use Debug as default
-#-------------------------------------------------------------------------------
-if(CMAKE_BUILD_TYPE STREQUAL "")
-	set(CMAKE_BUILD_TYPE Debug)
-	message(STATUS "BuildType set to Debug!!! by default")
-endif(CMAKE_BUILD_TYPE STREQUAL "")
-#-------------------------------------------------------------------------------
+# Include specific module
+# BuildParameters Must be done before SearchForStuff
+include(BuildParameters)
+# SearchForStuff be done before SelectPcsx2Plugins
+include(SearchForStuff)
+include(SelectPcsx2Plugins)
 
 # add additional project-wide include directories
-include_directories(${PROJECT_SOURCE_DIR}/3rdparty
-					${PROJECT_SOURCE_DIR}/common/include
+include_directories(${PROJECT_SOURCE_DIR}/common/include
 					${PROJECT_SOURCE_DIR}/common/include/Utilities
 					${PROJECT_SOURCE_DIR}/common/include/x86emitter)
 
 # make 3rdParty
-add_subdirectory(3rdparty)
+if(EXISTS "${PROJECT_SOURCE_DIR}/3rdparty")
+    add_subdirectory(3rdparty)
+endif(EXISTS "${PROJECT_SOURCE_DIR}/3rdparty")
 
 # make common
-add_subdirectory(common)
+if(common_libs)
+    add_subdirectory(common)
+endif(common_libs)
 
 # make tools
 add_subdirectory(tools)
 
 # make pcsx2
-add_subdirectory(pcsx2)
+if(EXISTS "${PROJECT_SOURCE_DIR}/pcsx2" AND pcsx2_core)
+    add_subdirectory(pcsx2)
+endif(EXISTS "${PROJECT_SOURCE_DIR}/pcsx2" AND pcsx2_core)
 
 # make plugins
-add_subdirectory(plugins)
+if(EXISTS "${PROJECT_SOURCE_DIR}/plugins")
+    add_subdirectory(plugins)
+endif(EXISTS "${PROJECT_SOURCE_DIR}/plugins")
 
 #-------------------------------------------------------------------------------
 #								Resources
@@ -59,7 +74,7 @@ set(resourceList AppIcon16.png
 				 ConfigIcon_Speedhacks.png
 				 ConfigIcon_Video.png
 				 Dualshock.jpg)
-				 
+
 createResourceTarget(${resourceList})
 #-------------------------------------------------------------------------------
 

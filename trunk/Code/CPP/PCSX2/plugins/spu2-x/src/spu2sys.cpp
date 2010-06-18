@@ -27,8 +27,8 @@
 
 #include "PS2E-spu2.h"		// needed until I figure out a nice solution for irqcallback dependencies.
 
-short *spu2regs;
-short *_spu2mem;
+s16* spu2regs = NULL;
+s16* _spu2mem = NULL;
 
 V_CoreDebug	DebugCores[2];
 V_Core		Cores[2];
@@ -47,7 +47,7 @@ void SetIrqCall()
 	has_to_call_irq=true;
 }
 
-__forceinline s16 * __fastcall GetMemPtr(u32 addr)
+__forceinline s16* GetMemPtr(u32 addr)
 {
 #ifndef DEBUG_FAST
 	// In case you're wondering, this assert is the reason SPU2-X
@@ -57,14 +57,14 @@ __forceinline s16 * __fastcall GetMemPtr(u32 addr)
 	return (_spu2mem+addr);
 }
 
-__forceinline s16 __fastcall spu2M_Read( u32 addr )
+__forceinline s16 spu2M_Read( u32 addr )
 {
 	return *GetMemPtr( addr & 0xfffff );
 }
 
 // writes a signed value to the SPU2 ram
 // Invalidates the ADPCM cache in the process.
-__forceinline void __fastcall spu2M_Write( u32 addr, s16 value )
+__forceinline void spu2M_Write( u32 addr, s16 value )
 {
 	// Make sure the cache is invalidated:
 	// (note to self : addr address WORDs, not bytes)
@@ -75,13 +75,13 @@ __forceinline void __fastcall spu2M_Write( u32 addr, s16 value )
 		const int cacheIdx = addr / pcm_WordsPerBlock;
 		pcm_cache_data[cacheIdx].Validated = false;
 
-		ConLog( " * SPU2 : PcmCache Block Clear at 0x%x (cacheIdx=0x%x)\n", addr, cacheIdx);
+		ConLog( "* SPU2-X: PcmCache Block Clear at 0x%x (cacheIdx=0x%x)\n", addr, cacheIdx);
 	}
 	*GetMemPtr( addr ) = value;
 }
 
 // writes an unsigned value to the SPU2 ram
-__inline void __fastcall spu2M_Write( u32 addr, u16 value )
+__forceinline void spu2M_Write( u32 addr, u16 value )
 {
 	spu2M_Write( addr, (s16)value );
 }
@@ -109,9 +109,9 @@ V_Core::~V_Core() throw()
 
 void V_Core::Reset( int index )
 {
-	ConLog( " * SPU2: RESET SPU2 core%d \n", index );
+	ConLog( "* SPU2-X: RESET SPU2 core%d \n", index );
 	memset( this, 0, sizeof(V_Core) );
-	
+
 	const int c = Index = index;
 
 	Regs.STATX		= 0;
@@ -130,12 +130,12 @@ void V_Core::Reset( int index )
 	Regs.VMIXR		= 0xFFFFFF;
 	Regs.VMIXEL		= 0xFFFFFF;
 	Regs.VMIXER		= 0xFFFFFF;
-	EffectsStartA	= 0xEFFF8 + (0x10000*c);
+	EffectsStartA	= 0xE0000 + (0x10000*c);
 	EffectsEndA		= 0xEFFFF + (0x10000*c);
 
 	FxEnable		= 0;
 	IRQA			= 0xFFFF0;
-	IRQEnable		= 1;
+	IRQEnable		= 0;
 
 	for( uint v=0; v<NumVoices; ++v )
 	{
@@ -145,13 +145,14 @@ void V_Core::Reset( int index )
 		VoiceGates[v].WetR = -1;
 
 		Voices[v].Volume		= V_VolumeSlideLR::Max;
+		Voices[v].SCurrent		= 28;
 
 		Voices[v].ADSR.Value	= 0;
 		Voices[v].ADSR.Phase	= 0;
 		Voices[v].Pitch			= 0x3FFF;
-		Voices[v].NextA			= 2800;
-		Voices[v].StartA		= 2800;
-		Voices[v].LoopStartA	= 2800;
+		Voices[v].NextA			= 0x2800;
+		Voices[v].StartA		= 0x2800;
+		Voices[v].LoopStartA	= 0x2800;
 	}
 
 	DMAICounter		= 0;
@@ -162,6 +163,8 @@ void V_Core::Reset( int index )
 
 s32 V_Core::EffectsBufferIndexer( s32 offset ) const
 {
+	offset *= 4;
+
 	u32 pos = EffectsStartA + offset;
 
 	// Need to use modulus here, because games can and will drop the buffer size
@@ -268,12 +271,9 @@ void V_Voice::Stop()
 	ADSR.Phase = 0;
 }
 
-static const int TickInterval = 768;
+uint TickInterval = 768;
 static const int SanityInterval = 4800;
-
-u32 TicksCore = 0;
-u32 TicksThread = 0;
-
+extern void UpdateDebugDialog();
 
 __forceinline void TimeUpdate(u32 cClocks)
 {
@@ -284,32 +284,37 @@ __forceinline void TimeUpdate(u32 cClocks)
 	//  such cases we just want to ignore the TimeUpdate call.
 
 	if( dClocks > (u32)-15 ) return;
-	
+
 	//  But if for some reason our clock value seems way off base (typically due to bad dma
 	//  timings from PCSX2), just mix out a little bit, skip the rest, and hope the ship
 	//  "rights" itself later on.
 
-	if( dClocks > TickInterval*SanityInterval )
+	if( dClocks > (u32)(TickInterval*SanityInterval) )
 	{
 		ConLog( " * SPU2 > TimeUpdate Sanity Check (Tick Delta: %d) (PS2 Ticks: %d)\n", dClocks/TickInterval, cClocks/TickInterval );
 		dClocks = TickInterval * SanityInterval;
 		lClocks = cClocks - dClocks;
 	}
 
+	// Uncomment for a visual debug display showing all core's activity!
+	// Also need to uncomment a few lines in SPU2open
 	//UpdateDebugDialog();
+
+	if( SynchMode == 1 ) // AsyncMix on
+		SndBuffer::UpdateTempoChangeAsyncMixing();
+	else TickInterval = 768; // Reset to default, in case the user hotswitched from async to something else.
 
 	//Update Mixing Progress
 	while(dClocks>=TickInterval)
 	{
 		if(has_to_call_irq)
 		{
-			ConLog(" * SPU2: Irq Called (%04x).\n",Spdif.Info);
+			ConLog("* SPU2-X: Irq Called (%04x) at cycle %d.\n", Spdif.Info, Cycles);
 			has_to_call_irq=false;
 			if(_irqcallback) _irqcallback();
 		}
 
-		// Part of the no core resets hack. See fixme in RegWrite_Core.
-		/*if(Cores[0].InitDelay>0)
+		if(Cores[0].InitDelay>0)
 		{
 			Cores[0].InitDelay--;
 			if(Cores[0].InitDelay==0)
@@ -325,7 +330,7 @@ __forceinline void TimeUpdate(u32 cClocks)
 			{
 				Cores[1].Reset(1);
 			}
-		}*/
+		}
 
 #ifndef ENABLE_NEW_IOPDMA_SPU2
 		//Update DMA4 interrupt delay counter
@@ -387,7 +392,7 @@ __forceinline void UpdateSpdifMode()
 	if(Spdif.Out&0x4) // use 24/32bit PCM data streaming
 	{
 		PlayMode=8;
-		ConLog(" * SPU2: WARNING: Possibly CDDA mode set!\n");
+		ConLog("* SPU2-X: WARNING: Possibly CDDA mode set!\n");
 		return;
 	}
 
@@ -407,7 +412,7 @@ __forceinline void UpdateSpdifMode()
 	}
 	if(OPM!=PlayMode)
 	{
-		ConLog(" * SPU2: Play Mode Set to %s (%d).\n",
+		ConLog("* SPU2-X: Play Mode Set to %s (%d).\n",
 			(PlayMode==0) ? "Normal" : ((PlayMode==1) ? "PCM Clone" : ((PlayMode==2) ? "PCM Bypass" : "BitStream Bypass")),PlayMode);
 	}
 }
@@ -830,9 +835,9 @@ static void __fastcall RegWrite_Core( u16 value )
 			// optimized block copy fashion elsewhere, but some games will write this register
 			// directly, so handle those here:
 
-			// Performance Note: The PS2 Bios uses this extensively right before booting games, 
+			// Performance Note: The PS2 Bios uses this extensively right before booting games,
 			// causing massive slowdown if we don't shortcut it here.
-			
+
 			for( int i=0; i<2; i++ )
 			{
 				if(Cores[i].IRQEnable && (Cores[i].IRQA == thiscore.TSA))
@@ -843,7 +848,7 @@ static void __fastcall RegWrite_Core( u16 value )
 			}
 			thiscore.DmaWrite( value );
 		break;
-		
+
 		case REG_C_ATTR:
 		{
 			bool irqe = thiscore.IRQEnable;
@@ -854,12 +859,11 @@ static void __fastcall RegWrite_Core( u16 value )
 			{
 				// When we have exact cycle update info from the Pcsx2 IOP unit, then use
 				// the more accurate delayed initialization system.
-				ConLog( " * SPU2: Runtime core%d reset requested, (but ignored. Hack.). \n", core );
-				// Fixme:
-				// Not initializing a core reset here fixes SH Shattered Memories and Silver Surfer audio.
-				// This is a hack, but better than clearing the wrong bits.
-				// Also check the commented out code in TimeUpdate() above.
-				/*if(cyclePtr != NULL)
+				ConLog( "* SPU2-X: Runtime core%d reset\n", core );
+
+				// Async mixing can cause a scheduled reset to happen untimely, ff12 hates it and dies.
+				// So do the next best thing and reset the core directly.
+				if(cyclePtr != NULL && SynchMode != 1) // !AsyncMix
 				{
 					thiscore.InitDelay  = 1;
 					thiscore.Regs.STATX = 0;
@@ -867,7 +871,7 @@ static void __fastcall RegWrite_Core( u16 value )
 				else
 				{
 					thiscore.Reset(thiscore.Index);
-				}*/
+				}
 			}
 
 			thiscore.AttrBit0   =(value>> 0) & 0x01; //1 bit
@@ -889,16 +893,16 @@ static void __fastcall RegWrite_Core( u16 value )
 
 			if(value&0x000E)
 			{
-				ConLog(" * SPU2: Core %d ATTR unknown bits SET! value=%04x\n",core,value);
+				ConLog("* SPU2-X: Core %d ATTR unknown bits SET! value=%04x\n",core,value);
 			}
 
 			if(thiscore.AttrBit0!=bit0)
 			{
-				ConLog(" * SPU2: ATTR bit 0 set to %d\n",thiscore.AttrBit0);
+				ConLog("* SPU2-X: ATTR bit 0 set to %d\n",thiscore.AttrBit0);
 			}
 			if(thiscore.IRQEnable!=irqe)
 			{
-				ConLog(" * SPU2: IRQ %s\n",((thiscore.IRQEnable==0)?"disabled":"enabled"));
+				ConLog("* SPU2-X: IRQ %s at cycle %d\n",((thiscore.IRQEnable==0)?"disabled":"enabled"), Cycles);
 				if(!thiscore.IRQEnable)
 					Spdif.Info &= ~(4 << thiscore.Index);
 			}
@@ -1051,7 +1055,7 @@ static void __fastcall RegWrite_Core( u16 value )
 		break;
 
 		case REG_S_ADMAS:
-			//ConLog(" * SPU2: Core %d AutoDMAControl set to %d (%d)\n",core,value, Cycles);
+			//ConLog("* SPU2-X: Core %d AutoDMAControl set to %d (%d)\n",core,value, Cycles);
 			thiscore.AutoDMACtrl=value;
 
 			if(value==0)
@@ -1059,7 +1063,7 @@ static void __fastcall RegWrite_Core( u16 value )
 				thiscore.AdmaInProgress=0;
 			}
 		break;
-		
+
 		default:
 		{
 			const int addr = omem | ( (core == 1) ? 0x400 : 0 );
@@ -1198,7 +1202,7 @@ static void __fastcall RegWrite_Raw( u16 value )
 // --------------------------------------------------------------------------------------
 
 typedef void __fastcall RegWriteHandler( u16 value );
-static RegWriteHandler * const tbl_reg_writes[0x401] = 
+static RegWriteHandler * const tbl_reg_writes[0x401] =
 {
 	VoiceParamsCore(0),	// 0x000 -> 0x180
 	CoreParamsPair(0,REG_S_PMON),
@@ -1216,16 +1220,16 @@ static RegWriteHandler * const tbl_reg_writes[0x401] =
 	CoreParamsPair(0,REG_S_KOFF),
 	CoreParamsPair(0,REG_A_TSA),
 	CoreParamsPair(0,REG__1AC),
-	
+
 	RegWrite_Core<0,REG_S_ADMAS>,
 	REGRAW(0x1b2),
-	
+
 	REGRAW(0x1b4), REGRAW(0x1b6),
 	REGRAW(0x1b8), REGRAW(0x1ba),
 	REGRAW(0x1bc), REGRAW(0x1be),
-	
+
 	// 0x1c0!
-	
+
 	VoiceAddrSet(0, 0),VoiceAddrSet(0, 1),VoiceAddrSet(0, 2),VoiceAddrSet(0, 3),VoiceAddrSet(0, 4),VoiceAddrSet(0, 5),
 	VoiceAddrSet(0, 6),VoiceAddrSet(0, 7),VoiceAddrSet(0, 8),VoiceAddrSet(0, 9),VoiceAddrSet(0,10),VoiceAddrSet(0,11),
 	VoiceAddrSet(0,12),VoiceAddrSet(0,13),VoiceAddrSet(0,14),VoiceAddrSet(0,15),VoiceAddrSet(0,16),VoiceAddrSet(0,17),
@@ -1249,8 +1253,8 @@ static RegWriteHandler * const tbl_reg_writes[0x401] =
 	ReverbPair(0,R_ACC_SRC_C1), //     0x0318
 	ReverbPair(0,R_ACC_SRC_D0), //     0x031C
 	ReverbPair(0,R_ACC_SRC_D1), //     0x0320
-	ReverbPair(0,R_IIR_SRC_B1), //     0x0324
-	ReverbPair(0,R_IIR_SRC_B0), //     0x0328
+	ReverbPair(0,R_IIR_SRC_B0), //     0x0324
+	ReverbPair(0,R_IIR_SRC_B1), //     0x0328
 	ReverbPair(0,R_MIX_DEST_A0), //    0x032C
 	ReverbPair(0,R_MIX_DEST_A1), //    0x0330
 	ReverbPair(0,R_MIX_DEST_B0), //    0x0334
@@ -1286,7 +1290,7 @@ static RegWriteHandler * const tbl_reg_writes[0x401] =
 	REGRAW(0x3E8),REGRAW(0x3EA),REGRAW(0x3EC),REGRAW(0x3EE),
 	REGRAW(0x3F0),REGRAW(0x3F2),REGRAW(0x3F4),REGRAW(0x3F6),
 	REGRAW(0x3F8),REGRAW(0x3FA),REGRAW(0x3FC),REGRAW(0x3FE),
-	
+
 	// AND... we reached 0x400!
 	// Last verse, same as the first:
 
@@ -1306,16 +1310,16 @@ static RegWriteHandler * const tbl_reg_writes[0x401] =
 	CoreParamsPair(1,REG_S_KOFF),
 	CoreParamsPair(1,REG_A_TSA),
 	CoreParamsPair(1,REG__1AC),
-	
+
 	RegWrite_Core<1,REG_S_ADMAS>,
 	REGRAW(0x5b2),
-	
+
 	REGRAW(0x5b4), REGRAW(0x5b6),
 	REGRAW(0x5b8), REGRAW(0x5ba),
 	REGRAW(0x5bc), REGRAW(0x5be),
-	
+
 	// 0x1c0!
-	
+
 	VoiceAddrSet(1, 0),VoiceAddrSet(1, 1),VoiceAddrSet(1, 2),VoiceAddrSet(1, 3),VoiceAddrSet(1, 4),VoiceAddrSet(1, 5),
 	VoiceAddrSet(1, 6),VoiceAddrSet(1, 7),VoiceAddrSet(1, 8),VoiceAddrSet(1, 9),VoiceAddrSet(1,10),VoiceAddrSet(1,11),
 	VoiceAddrSet(1,12),VoiceAddrSet(1,13),VoiceAddrSet(1,14),VoiceAddrSet(1,15),VoiceAddrSet(1,16),VoiceAddrSet(1,17),
@@ -1339,8 +1343,8 @@ static RegWriteHandler * const tbl_reg_writes[0x401] =
 	ReverbPair(1,R_ACC_SRC_C1), //     0x0318
 	ReverbPair(1,R_ACC_SRC_D0), //     0x031C
 	ReverbPair(1,R_ACC_SRC_D1), //     0x0320
-	ReverbPair(1,R_IIR_SRC_B1), //     0x0324
-	ReverbPair(1,R_IIR_SRC_B0), //     0x0328
+	ReverbPair(1,R_IIR_SRC_B0), //     0x0324
+	ReverbPair(1,R_IIR_SRC_B1), //     0x0328
 	ReverbPair(1,R_MIX_DEST_A0), //    0x032C
 	ReverbPair(1,R_MIX_DEST_A1), //    0x0330
 	ReverbPair(1,R_MIX_DEST_B0), //    0x0334
@@ -1357,7 +1361,7 @@ static RegWriteHandler * const tbl_reg_writes[0x401] =
 	REGRAW(0x758),REGRAW(0x75A),REGRAW(0x75C),REGRAW(0x75E),
 
 	// ------ -------
-	
+
 	RegWrite_CoreExt<0,REG_P_MVOLL>,	//     0x0760		// Master Volume Left
 	RegWrite_CoreExt<0,REG_P_MVOLR>,	//     0x0762		// Master Volume Right
 	RegWrite_CoreExt<0,REG_P_EVOLL>,	//     0x0764		// Effect Volume Left
@@ -1376,7 +1380,7 @@ static RegWriteHandler * const tbl_reg_writes[0x401] =
 	RegWrite_CoreExt<0,R_ACC_COEF_D>,	//     0x077C
 	RegWrite_CoreExt<0,R_IIR_COEF>,		//     0x077E
 	RegWrite_CoreExt<0,R_FB_ALPHA>,		//     0x0780		//feedback alpha (% used)
-	RegWrite_CoreExt<0,R_FB_X>,			//     0x0782		//feedback 
+	RegWrite_CoreExt<0,R_FB_X>,			//     0x0782		//feedback
 	RegWrite_CoreExt<0,R_IN_COEF_L>,	//     0x0784
 	RegWrite_CoreExt<0,R_IN_COEF_R>,	//     0x0786
 
@@ -1400,7 +1404,7 @@ static RegWriteHandler * const tbl_reg_writes[0x401] =
 	RegWrite_CoreExt<1,R_ACC_COEF_D>,	//     0x077C
 	RegWrite_CoreExt<1,R_IIR_COEF>,		//     0x077E
 	RegWrite_CoreExt<1,R_FB_ALPHA>,		//     0x0780		//feedback alpha (% used)
-	RegWrite_CoreExt<1,R_FB_X>,			//     0x0782		//feedback 
+	RegWrite_CoreExt<1,R_FB_X>,			//     0x0782		//feedback
 	RegWrite_CoreExt<1,R_IN_COEF_L>,	//     0x0784
 	RegWrite_CoreExt<1,R_IN_COEF_R>,	//     0x0786
 
@@ -1410,10 +1414,10 @@ static RegWriteHandler * const tbl_reg_writes[0x401] =
 	//  SPDIF interface
 
 	RegWrite_SPDIF<SPDIF_OUT>,		//    0x07C0		// SPDIF Out: OFF/'PCM'/Bitstream/Bypass
-	RegWrite_SPDIF<SPDIF_IRQINFO>,	//    0x07C2	
+	RegWrite_SPDIF<SPDIF_IRQINFO>,	//    0x07C2
 	REGRAW(0x7C4),
-	RegWrite_SPDIF<SPDIF_MODE>,		//    0x07C6			
-	RegWrite_SPDIF<SPDIF_MEDIA>,	//    0x07C8		// SPDIF Media: 'CD'/DVD	
+	RegWrite_SPDIF<SPDIF_MODE>,		//    0x07C6
+	RegWrite_SPDIF<SPDIF_MEDIA>,	//    0x07C8		// SPDIF Media: 'CD'/DVD
 	REGRAW(0x7CA),
 	RegWrite_SPDIF<SPDIF_PROTECT>,	//	 0x07CC		// SPDIF Copy Protection
 
@@ -1429,22 +1433,8 @@ static RegWriteHandler * const tbl_reg_writes[0x401] =
 };
 
 
-__forceinline void SPU2_FastWrite( u32 rmem, u16 value )
+void SPU2_FastWrite( u32 rmem, u16 value )
 {
-	// Check for these 2 adresses and schedule an interrupt when they get written with 0x3fff.
-	// This is what peops spu2 does, and it helps silent hill origins start a bit more stuff.
-	
-	// Update: 0x1f900400 is core0's volume register. Interrupting here is wrong.
-	// So SH:O just set the volume to max, which is a pretty normal operation anyway.
-	// Keeping this in for reference :p
-
-	//if (value == 0x3fff && (rmem == 0x1f900500 || rmem == 0x1f900400) ) {
-	//	// no idea which core ><
-	//	Spdif.Info |= 4 << 0; 
-	//	SetIrqCall();
-	//	ConLog( "SPU2-X: Schedule IRQ for odd register write. rmem = %x , value = %x \n", rmem, value);
-	//}
-
 	tbl_reg_writes[(rmem&0x7ff)/2]( value );
 }
 
@@ -1460,23 +1450,22 @@ void StartVoices(int core, u32 value)
 
 	for( u8 vc=0; vc<V_Core::NumVoices; vc++ )
 	{
-		if ((value>>vc) & 1)
+		if( !((value>>vc) & 1) ) continue;
+
+		Cores[core].Voices[vc].Start();
+
+		if( IsDevBuild )
 		{
-			Cores[core].Voices[vc].Start();
+			V_Voice& thisvc( Cores[core].Voices[vc] );
 
-			if( IsDevBuild )
-			{
-				V_Voice& thisvc( Cores[core].Voices[vc] );
-
-				if(MsgKeyOnOff()) ConLog(" * SPU2: KeyOn: C%dV%02d: SSA: %8x; M: %s%s%s%s; H: %02x%02x; P: %04x V: %04x/%04x; ADSR: %04x%04x\n",
-					core,vc,thisvc.StartA,
-					(Cores[core].VoiceGates[vc].DryL)?"+":"-",(Cores[core].VoiceGates[vc].DryR)?"+":"-",
-					(Cores[core].VoiceGates[vc].WetL)?"+":"-",(Cores[core].VoiceGates[vc].WetR)?"+":"-",
-					*(u8*)GetMemPtr(thisvc.StartA),*(u8 *)GetMemPtr((thisvc.StartA)+1),
-					thisvc.Pitch,
-					thisvc.Volume.Left.Value>>16,thisvc.Volume.Right.Value>>16,
-					thisvc.ADSR.regADSR1,thisvc.ADSR.regADSR2);
-			}
+			if(MsgKeyOnOff()) ConLog("* SPU2-X: KeyOn: C%dV%02d: SSA: %8x; M: %s%s%s%s; H: %02x%02x; P: %04x V: %04x/%04x; ADSR: %04x%04x\n",
+				core,vc,thisvc.StartA,
+				(Cores[core].VoiceGates[vc].DryL)?"+":"-",(Cores[core].VoiceGates[vc].DryR)?"+":"-",
+				(Cores[core].VoiceGates[vc].WetL)?"+":"-",(Cores[core].VoiceGates[vc].WetR)?"+":"-",
+				*(u8*)GetMemPtr(thisvc.StartA),*(u8 *)GetMemPtr((thisvc.StartA)+1),
+				thisvc.Pitch,
+				thisvc.Volume.Left.Value>>16,thisvc.Volume.Right.Value>>16,
+				thisvc.ADSR.regADSR1,thisvc.ADSR.regADSR2);
 		}
 	}
 }
@@ -1486,11 +1475,10 @@ void StopVoices(int core, u32 value)
 	if( value == 0 ) return;
 	for( u8 vc=0; vc<V_Core::NumVoices; vc++ )
 	{
-		if ((value>>vc) & 1)
-		{
-			Cores[core].Voices[vc].ADSR.Releasing = true;
-			//if(MsgKeyOnOff()) ConLog(" * SPU2: KeyOff: Core %d; Voice %d.\n",core,vc);
-		}
+		if( !((value>>vc) & 1) ) continue;
+
+		Cores[core].Voices[vc].ADSR.Releasing = true;
+		//if(MsgKeyOnOff()) ConLog("* SPU2-X: KeyOff: Core %d; Voice %d.\n",core,vc);
 	}
 }
 

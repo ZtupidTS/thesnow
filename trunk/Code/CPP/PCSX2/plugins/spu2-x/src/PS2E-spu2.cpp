@@ -1,6 +1,6 @@
 /* SPU2-X, A plugin for Emulating the Sound Processing Unit of the Playstation 2
  * Developed and maintained by the Pcsx2 Development Team.
- * 
+ *
  * Original portions from SPU2ghz are (c) 2008 by David Quintana [gigaherz]
  *
  * SPU2-X is free software: you can redistribute it and/or modify it under the terms
@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with SPU2-X.  If not, see <http://www.gnu.org/licenses/>.
  */
- 
+
 #include "Global.h"
 #include "PS2E-spu2.h"
 #include "Dma.h"
@@ -25,6 +25,9 @@
 #ifdef _MSC_VER
 #	include "svnrev.h"
 #endif
+
+// Uncomment to enable debug keys
+//#define DEBUG_KEYS
 
 // PCSX2 expects ASNI, not unicode, so this MUST always be char...
 static char libraryName[256];
@@ -45,7 +48,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD dwReason, LPVOID lpvReserved)
 	if( dwReason == DLL_PROCESS_ATTACH )
 	{
 		hInstance = hinstDLL;
-	}	
+	}
 	else if( dwReason == DLL_PROCESS_DETACH )
 	{
 		// TODO : perform shutdown procedure, just in case PCSX2 itself failed
@@ -110,8 +113,9 @@ static bool cpu_detected = false;
 
 static bool CheckSSE()
 {
-// I'll worry about checking sse2 in Linux later.
-#ifndef __LINUX__
+	return true;
+
+	#if 0
 	if( !cpu_detected )
 	{
 		cpudetectInit();
@@ -122,22 +126,22 @@ static bool CheckSSE()
 		SysMessage( "Your CPU does not support SSE2 instructions.\nThe SPU2-X plugin requires SSE2 to run." );
 		return false;
 	}
-#endif
 	return true;
+	#endif
 }
 
-EXPORT_C_(u32) PS2EgetLibType() 
+EXPORT_C_(u32) PS2EgetLibType()
 {
 	return PS2E_LT_SPU2;
 }
 
-EXPORT_C_(char*) PS2EgetLibName() 
+EXPORT_C_(char*) PS2EgetLibName()
 {
 	InitLibraryName();
 	return libraryName;
 }
 
-EXPORT_C_(u32) PS2EgetLibVersion2(u32 type) 
+EXPORT_C_(u32) PS2EgetLibVersion2(u32 type)
 {
 	return (PS2E_SPU2_VERSION<<16) | (VersionInfo::Release<<8) | VersionInfo::Revision;
 }
@@ -195,6 +199,11 @@ EXPORT_C_(void) CALLBACK SPU2setDMABaseAddr(uptr baseaddr)
 EXPORT_C_(void) CALLBACK SPU2setSettingsDir(const char* dir)
 {
 	CfgSetSettingsDir( dir );
+}
+
+EXPORT_C_(void) CALLBACK SPU2setLogDir(const char* dir)
+{
+	CfgSetLogDir( dir );
 }
 
 EXPORT_C_(s32)  SPU2dmaRead(s32 channel, u32* data, u32 bytesLeft, u32* bytesProcessed)
@@ -289,33 +298,32 @@ EXPORT_C_(void) CALLBACK SPU2writeDMA7Mem(u16* pMem, u32 size)
 	Cores[1].DoDMAwrite(pMem,size);
 }
 
-EXPORT_C_(s32) SPU2init() 
+EXPORT_C_(s32) SPU2init()
 {
 	assert( regtable[0x400] == NULL );
 
-	//s32 c=0,v=0;
+	if (IsInitialized)
+	{
+		printf( " * SPU2-X: Already initialized - Ignoring SPU2init signal." );
+		return 0;
+	}
+
+	IsInitialized = true;
+
 	ReadSettings();
 
 #ifdef SPU2_LOG
-	if(AccessLog()) 
+	if(AccessLog())
 	{
-		spu2Log = fopen( Unicode::Convert( AccessLogFileName ).c_str(), "w" );
+		spu2Log = OpenLog( AccessLogFileName );
 		setvbuf(spu2Log, NULL,  _IONBF, 0);
 		FileLog("SPU2init\n");
 	}
 #endif
 	srand((unsigned)time(NULL));
 
-	if (IsInitialized)
-	{
-		ConLog( " * SPU2: Already initialized - Ignoring SPU2init signal." );
-		return 0;
-	}
-
-	IsInitialized = true;
-
-	spu2regs  = (short*)malloc(0x010000);
-	_spu2mem  = (short*)malloc(0x200000);
+	spu2regs  = (s16*)malloc(0x010000);
+	_spu2mem  = (s16*)malloc(0x200000);
 
 	// adpcm decoder cache:
 	//  the cache data size is determined by taking the number of adpcm blocks
@@ -326,15 +334,18 @@ EXPORT_C_(s32) SPU2init()
 
 	pcm_cache_data = (PcmCacheEntry*)calloc( pcm_BlockCount, sizeof(PcmCacheEntry) );
 
-	if( (spu2regs == NULL) || (_spu2mem == NULL) ||
-		(pcm_cache_data == NULL) )
+	if( (spu2regs == NULL) || (_spu2mem == NULL) || (pcm_cache_data == NULL) )
 	{
-		SysMessage("SPU2: Error allocating Memory\n"); return -1;
+		SysMessage("SPU2-X: Error allocating Memory\n"); return -1;
 	}
+	
+	// Patch up a copy of regtable that directly maps "NULLs" to SPU2 memory.
+	
+	memcpy(regtable, regtable_original, sizeof(regtable));
 
-	for(int mem=0;mem<0x800;mem++)
+	for(uint mem=0;mem<0x800;mem++)
 	{
-		u16 *ptr=regtable[mem>>1];
+		u16 *ptr = regtable[mem>>1];
 		if(!ptr) {
 			regtable[mem>>1] = &(spu2Ru16(mem));
 		}
@@ -346,32 +357,53 @@ EXPORT_C_(s32) SPU2init()
 	Cores[1].Reset(1);
 
 	DMALogOpen();
-
-	/*for(v=0;v<16384;v++)
-	{
-		logvolume[v]=(s32)(s32)floor(log((double)(v+1))*3376.7);
-	}*/
-
-	// Initializes lowpass filter for reverb in mixer.cpp
-	//LowPassFilterInit();
 	InitADSR();
-
-#ifdef STREAM_DUMP
-	il0=fopen("logs/spu2input0.pcm","wb");
-	il1=fopen("logs/spu2input1.pcm","wb");
-#endif
-
-#ifdef EFFECTS_DUMP
-	el0=fopen("logs/spu2fx0.pcm","wb");
-	el1=fopen("logs/spu2fx1.pcm","wb");
-#endif
-
 
 #ifdef S2R_ENABLE
 	if(!replay_mode)
 		s2r_open("replay_dump.s2r");
 #endif
 	return 0;
+}
+
+// Bit ugly to have this here instead of in RealttimeDebugger.cpp, but meh :p
+extern bool debugDialogOpen;
+extern HWND hDebugDialog;
+
+static BOOL CALLBACK DebugProc(HWND hWnd,UINT uMsg,WPARAM wParam,LPARAM lParam)
+{
+	int wmId,wmEvent;
+
+	switch(uMsg)
+	{
+		case WM_PAINT:
+			return FALSE;
+		case WM_INITDIALOG:
+			{
+				debugDialogOpen=true;
+			}
+		break;
+
+		case WM_COMMAND:
+			wmId    = LOWORD(wParam);
+			wmEvent = HIWORD(wParam);
+			// Parse the menu selections:
+			switch (wmId)
+			{
+				case IDOK:
+				case IDCANCEL:
+					debugDialogOpen=false;
+					EndDialog(hWnd,0);
+					break;
+				default:
+					return FALSE;
+			}
+		break;
+
+		default:
+			return FALSE;
+	}
+	return TRUE;
 }
 
 uptr gsWindowHandle = 0;
@@ -381,18 +413,18 @@ EXPORT_C_(s32) SPU2open(void *pDsp)
 	if( IsOpened ) return 0;
 
 	FileLog("[%10d] SPU2 Open\n",Cycles);
-	
+
 	if( pDsp != NULL )
 		gsWindowHandle = *(uptr*)pDsp;
 	else
 		gsWindowHandle = 0;
 
-	/*
-	if(debugDialogOpen==0)
+	// uncomment for a visual debug display showing all core's activity!
+	/*if(debugDialogOpen==0)
 	{
-	hDebugDialog = CreateDialogParam(hInstance,MAKEINTRESOURCE(IDD_DEBUG),0,DebugProc,0);
-	ShowWindow(hDebugDialog,SW_SHOWNORMAL);
-	debugDialogOpen=1;
+		hDebugDialog = CreateDialogParam(hInstance,MAKEINTRESOURCE(IDD_DEBUG),0,DebugProc,0);
+		ShowWindow(hDebugDialog,SW_SHOWNORMAL);
+		debugDialogOpen=1;
 	}*/
 
 	IsOpened = true;
@@ -416,7 +448,7 @@ EXPORT_C_(s32) SPU2open(void *pDsp)
 	return 0;
 }
 
-EXPORT_C_(void) SPU2close() 
+EXPORT_C_(void) SPU2close()
 {
 	if( !IsOpened ) return;
 	IsOpened = false;
@@ -430,12 +462,12 @@ EXPORT_C_(void) SPU2close()
 	SndBuffer::Cleanup();
 }
 
-EXPORT_C_(void) SPU2shutdown() 
+EXPORT_C_(void) SPU2shutdown()
 {
 	if(!IsInitialized) return;
 	IsInitialized = false;
 
-	ConLog( " * SPU2: Shutting down.\n" );
+	ConLog( "* SPU2-X: Shutting down.\n" );
 
 	SPU2close();
 
@@ -461,10 +493,6 @@ EXPORT_C_(void) SPU2shutdown()
 	safe_free(_spu2mem);
 	safe_free( pcm_cache_data );
 
-	spu2regs = NULL;
-	_spu2mem = NULL;
-	pcm_cache_data = NULL;
-
 #ifdef SPU2_LOG
 	if(!AccessLog()) return;
 	FileLog("[%10d] SPU2shutdown\n",Cycles);
@@ -477,9 +505,14 @@ EXPORT_C_(void) SPU2setClockPtr(u32 *ptr)
 	cyclePtr = ptr;
 }
 
-bool numpad_plus = false, numpad_plus_old = false;
+static bool numpad_plus = false, numpad_plus_old = false;
 
-EXPORT_C_(void) SPU2async(u32 cycles) 
+#ifdef DEBUG_KEYS
+static u32 lastTicks;
+static bool lState[5];
+#endif
+
+EXPORT_C_(void) SPU2async(u32 cycles)
 {
 	DspUpdate();
 
@@ -492,9 +525,43 @@ EXPORT_C_(void) SPU2async(u32 cycles)
 		pClocks += cycles;
 		TimeUpdate( pClocks );
 	}
+
+#ifdef DEBUG_KEYS
+	u32 curTicks = GetTickCount();
+	if((curTicks - lastTicks) >= 100)
+	{
+		int oldI = Interpolation;
+		bool cState[5];
+		for(int i=0;i<5;i++)
+		{
+			cState[i] = !!(GetAsyncKeyState(VK_NUMPAD0+i)&0x8000);
+
+			if(cState[i] && !lState[i])
+				Interpolation = i;
+
+			lState[i] = cState[i];
+		}
+
+		if(Interpolation != oldI)
+		{
+			printf("Interpolation set to %d", Interpolation);
+			switch(Interpolation)
+			{
+			case 0: printf(" - Nearest.\n"); break;
+			case 1: printf(" - Linear.\n"); break;
+			case 2: printf(" - Cubic.\n"); break;
+			case 3: printf(" - Hermite.\n"); break;
+			case 4: printf(" - Catmull-Rom.\n"); break;
+			default: printf(" (unknown).\n"); break;
+			}
+		}
+
+		lastTicks = curTicks;
+	}
+#endif
 }
 
-EXPORT_C_(u16) SPU2read(u32 rmem) 
+EXPORT_C_(u16) SPU2read(u32 rmem)
 {
 	//	if(!replay_mode)
 	//		s2r_readreg(Cycles,rmem);
@@ -518,20 +585,20 @@ EXPORT_C_(u16) SPU2read(u32 rmem)
 		else if( (mem&0xFFFF) >= 0x800 )
 		{
 			ret = spu2Ru16(mem);
-			ConLog(" * SPU2: Read from reg>=0x800: %x value %x\n",mem,ret);
+			ConLog("* SPU2-X: Read from reg>=0x800: %x value %x\n",mem,ret);
 		}
-		else 
+		else
 		{
 			ret = *(regtable[(mem>>1)]);
 			//FileLog("[%10d] SPU2 read mem %x (core %d, register %x): %x\n",Cycles, mem, core, (omem & 0x7ff), ret);
 			SPU2writeLog( "read", rmem, ret );
 		}
 	}
-	
+
 	return ret;
 }
 
-EXPORT_C_(void) SPU2write(u32 rmem, u16 value) 
+EXPORT_C_(void) SPU2write(u32 rmem, u16 value)
 {
 #ifdef S2R_ENABLE
 	if(!replay_mode)
@@ -585,10 +652,10 @@ EXPORT_C_(s32) SPU2freeze(int mode, freezeData *data)
 	{
 		case FREEZE_LOAD: return Savestate::ThawIt( spud );
 		case FREEZE_SAVE: return Savestate::FreezeIt( spud );
-		
+
 		jNO_DEFAULT;
 	}
-	
+
 	// technically unreachable, but kills a warning:
 	return 0;
 }

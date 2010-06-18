@@ -113,7 +113,7 @@
 			<Add directory="../Linux" />
 			<Add directory="../../zerospu2" />
 			<Add directory="../../../common/include" />
-			<Add directory="../../../3rdparty/SoundTouch" />
+			<Add directory="../../../3rdparty/soundtouch_linux_include" />
 			<Add directory="../../../3rdparty" />
 		</Compiler>
 		<Linker>
@@ -126,15 +126,6 @@
 		</Linker>
 		<Unit filename="Linux.cpp" />
 		<Unit filename="Linux.h" />
-		<Unit filename="callbacks.h" />
-		<Unit filename="interface.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="interface.h" />
-		<Unit filename="support.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="support.h" />
 		<Unit filename="../Targets/Alsa.cpp" />
 		<Unit filename="../Targets/Alsa.h" />
 		<Unit filename="../Targets/OSS.cpp" />

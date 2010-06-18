@@ -1,6 +1,6 @@
 /* SPU2-X, A plugin for Emulating the Sound Processing Unit of the Playstation 2
  * Developed and maintained by the Pcsx2 Development Team.
- * 
+ *
  * Original portions from SPU2ghz are (c) 2008 by David Quintana [gigaherz]
  *
  * SPU2-X is free software: you can redistribute it and/or modify it under the terms
@@ -25,7 +25,7 @@ namespace Savestate
 
 	// versioning for saves.
 	// Increment this when changes to the savestate system are made.
-	static const u32 SAVE_VERSION = 0x0006;
+	static const u32 SAVE_VERSION = 0x0007;
 
 	static void wipe_the_cache()
 	{
@@ -54,8 +54,11 @@ s32 __fastcall Savestate::FreezeIt( DataBlock& spud )
 	spud.spu2id		= SAVE_ID;
 	spud.version	= SAVE_VERSION;
 
-	memcpy(spud.unkregs,	spu2regs,	sizeof(spud.unkregs));
-	memcpy(spud.mem,		_spu2mem,	sizeof(spud.mem));
+	pxAssumeMsg( spu2regs && _spu2mem, "Looks like PCSX2 is trying to savestate while pluigns are shut down.  That's a no-no! It shouldn't crash, but the savestate will probably be corrupted." );
+
+	if( spu2regs != NULL )	memcpy(spud.unkregs,	spu2regs,	sizeof(spud.unkregs));
+	if( _spu2mem != NULL )	memcpy(spud.mem,		_spu2mem,	sizeof(spud.mem));
+
 	memcpy(spud.Cores,		Cores,		sizeof(Cores));
 	memcpy(&spud.Spdif,		&Spdif,		sizeof(Spdif));
 
@@ -83,7 +86,7 @@ s32 __fastcall Savestate::ThawIt( DataBlock& spud )
 		else
 			fprintf(stderr, "\tThe savestate you are trying to load was not made with this plugin.\n");
 
-		fprintf(stderr, 
+		fprintf(stderr,
 			"\tAudio may not recover correctly.  Save your game to memorycard, reset,\n\n"
 			"\tand then continue from there.\n\n"
 		);
@@ -101,9 +104,11 @@ s32 __fastcall Savestate::ThawIt( DataBlock& spud )
 	{
 		SndBuffer::ClearContents();
 
+		pxAssumeMsg( spu2regs && _spu2mem, "Looks like PCSX2 is trying to loadstate while pluigns are shut down.  That's a no-no!  It shouldn't crash, but the savestate will probably be corrupted." );
+
 		// base stuff
-		memcpy(spu2regs, spud.unkregs,	sizeof(spud.unkregs));
-		memcpy(_spu2mem, spud.mem,		sizeof(spud.mem));
+		if( spu2regs )	memcpy(spu2regs, spud.unkregs,	sizeof(spud.unkregs));
+		if( _spu2mem )	memcpy(_spu2mem, spud.mem,		sizeof(spud.mem));
 
 		memcpy(Cores,	spud.Cores,		sizeof(Cores));
 		memcpy(&Spdif,	&spud.Spdif,	sizeof(Spdif));

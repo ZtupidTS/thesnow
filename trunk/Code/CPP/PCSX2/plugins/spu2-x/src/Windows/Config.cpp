@@ -1,6 +1,6 @@
 /* SPU2-X, A plugin for Emulating the Sound Processing Unit of the Playstation 2
  * Developed and maintained by the Pcsx2 Development Team.
- * 
+ *
  * Original portions from SPU2ghz are (c) 2008 by David Quintana [gigaherz]
  *
  * SPU2-X is free software: you can redistribute it and/or modify it under the terms
@@ -32,13 +32,15 @@ int Interpolation = 1;
 		0: no interpolation (use nearest)
 		1. linear interpolation
 		2. cubic interpolation
+		3. hermite interpolation
+		4. catmull-rom interpolation
 */
 int ReverbBoost = 0;
 bool EffectsDisabled = false;
 
 // OUTPUT
 int SndOutLatencyMS = 150;
-bool timeStretchDisabled = false;
+int SynchMode = 0; // Time Stretch, Async or Disabled
 
 u32 OutputModule = 0;
 
@@ -50,7 +52,7 @@ bool dspPluginEnabled = false;
 int  dspPluginModule = 0;
 wchar_t dspPlugin[256];
 
-bool StereoExpansionEnabled = false;
+int numSpeakers = 0;
 
 /*****************************************************************************/
 
@@ -59,10 +61,10 @@ void ReadSettings()
 	Interpolation = CfgReadInt( L"MIXING",L"Interpolation", 1 );
 	ReverbBoost = CfgReadInt( L"MIXING",L"Reverb_Boost", 0 );
 
-	timeStretchDisabled = CfgReadBool( L"OUTPUT", L"Disable_Timestretch", false );
+	SynchMode = CfgReadInt( L"OUTPUT", L"Synch_Mode", 0);
 	EffectsDisabled = CfgReadBool( L"MIXING", L"Disable_Effects", false );
 
-	StereoExpansionEnabled = CfgReadBool( L"OUTPUT", L"Enable_StereoExpansion", false );
+	numSpeakers = CfgReadInt( L"OUTPUT", L"XAudio2_SpeakerConfiguration", 0);
 	SndOutLatencyMS = CfgReadInt(L"OUTPUT",L"Latency", 150);
 
 	wchar_t omodid[128];
@@ -76,7 +78,7 @@ void ReadSettings()
 	dspPluginEnabled= CfgReadBool(L"DSP PLUGIN",L"Enabled",false);
 
 	// Read DSOUNDOUT and WAVEOUT configs:
-	CfgReadStr( L"WAVEOUT", L"Device", Config_WaveOut.Device, 254, L"default" );
+	CfgReadStr( L"WAVEOUT", L"Device", Config_WaveOut.Device, L"default" );
 	Config_WaveOut.NumBuffers = CfgReadInt( L"WAVEOUT", L"Buffer_Count", 4 );
 
 	DSoundOut->ReadSettings();
@@ -88,12 +90,12 @@ void ReadSettings()
 	// -------------
 
 	Clampify( SndOutLatencyMS, LATENCY_MIN, LATENCY_MAX );
-	
+
 	if( mods[OutputModule] == NULL )
 	{
 		// Unsupported or legacy module.
-		fprintf( stderr, " * SPU2: Unknown output module '%s' specified in configuration file.\n", omodid );
-		fprintf( stderr, " * SPU2: Defaulting to DirectSound (%S).\n", DSoundOut->GetIdent() );
+		fprintf( stderr, "* SPU2-X: Unknown output module '%s' specified in configuration file.\n", omodid );
+		fprintf( stderr, "* SPU2-X: Defaulting to DirectSound (%S).\n", DSoundOut->GetIdent() );
 		OutputModule = FindOutputModuleById( DSoundOut->GetIdent() );
 	}
 }
@@ -109,8 +111,8 @@ void WriteSettings()
 
 	CfgWriteStr(L"OUTPUT",L"Output_Module", mods[OutputModule]->GetIdent() );
 	CfgWriteInt(L"OUTPUT",L"Latency", SndOutLatencyMS);
-	CfgWriteBool(L"OUTPUT",L"Disable_Timestretch", timeStretchDisabled);
-	CfgWriteBool(L"OUTPUT",L"Enable_StereoExpansion", StereoExpansionEnabled);
+	CfgWriteInt(L"OUTPUT",L"Synch_Mode", SynchMode);
+	CfgWriteInt(L"OUTPUT",L"XAudio2_SpeakerConfiguration", numSpeakers);
 
 	if( Config_WaveOut.Device.empty() ) Config_WaveOut.Device = L"default";
 	CfgWriteStr(L"WAVEOUT",L"Device",Config_WaveOut.Device);
@@ -120,7 +122,7 @@ void WriteSettings()
 	CfgWriteInt(L"DSP PLUGIN",L"ModuleNum",dspPluginModule);
 	CfgWriteBool(L"DSP PLUGIN",L"Enabled",dspPluginEnabled);
 
-	DSoundOut->WriteSettings();	
+	DSoundOut->WriteSettings();
 	SoundtouchCfg::WriteSettings();
 	DebugConfig::WriteSettings();
 
@@ -138,21 +140,36 @@ BOOL CALLBACK ConfigProc(HWND hWnd,UINT uMsg,WPARAM wParam,LPARAM lParam)
 
 		case WM_INITDIALOG:
 		{
-			SendDialogMsg( hWnd, IDC_INTERPOLATE, CB_RESETCONTENT,0,0 ); 
-			SendDialogMsg( hWnd, IDC_INTERPOLATE, CB_ADDSTRING,0,(LPARAM) L"0 - Nearest (none/fast)" );
-			SendDialogMsg( hWnd, IDC_INTERPOLATE, CB_ADDSTRING,0,(LPARAM) L"1 - Linear (recommended)" );
-			SendDialogMsg( hWnd, IDC_INTERPOLATE, CB_ADDSTRING,0,(LPARAM) L"2 - Cubic (slower/maybe better)" );
-			SendDialogMsg( hWnd, IDC_INTERPOLATE, CB_SETCURSEL,Interpolation,0 ); 
-			
-			SendDialogMsg( hWnd, IDC_REVERB_BOOST, CB_RESETCONTENT,0,0 ); 
+			SendDialogMsg( hWnd, IDC_INTERPOLATE, CB_RESETCONTENT,0,0 );
+			SendDialogMsg( hWnd, IDC_INTERPOLATE, CB_ADDSTRING,0,(LPARAM) L"0 - Nearest (fastest/bad quality)" );
+			SendDialogMsg( hWnd, IDC_INTERPOLATE, CB_ADDSTRING,0,(LPARAM) L"1 - Linear (simple/nice)" );
+			SendDialogMsg( hWnd, IDC_INTERPOLATE, CB_ADDSTRING,0,(LPARAM) L"2 - Cubic (slower/good highs)" );
+			SendDialogMsg( hWnd, IDC_INTERPOLATE, CB_ADDSTRING,0,(LPARAM) L"3 - Hermite (slower/better highs)" );
+			SendDialogMsg( hWnd, IDC_INTERPOLATE, CB_ADDSTRING,0,(LPARAM) L"4 - Catmull-Rom (slow/hq)" );
+			SendDialogMsg( hWnd, IDC_INTERPOLATE, CB_SETCURSEL,Interpolation,0 );
+
+			SendDialogMsg( hWnd, IDC_REVERB_BOOST, CB_RESETCONTENT,0,0 );
 			SendDialogMsg( hWnd, IDC_REVERB_BOOST, CB_ADDSTRING,0,(LPARAM) L"1X - Normal Reverb Volume" );
 			SendDialogMsg( hWnd, IDC_REVERB_BOOST, CB_ADDSTRING,0,(LPARAM) L"2X - Reverb Volume * 2" );
 			SendDialogMsg( hWnd, IDC_REVERB_BOOST, CB_ADDSTRING,0,(LPARAM) L"4X - Reverb Volume * 4" );
 			SendDialogMsg( hWnd, IDC_REVERB_BOOST, CB_ADDSTRING,0,(LPARAM) L"8X - Reverb Volume * 8" );
-			SendDialogMsg( hWnd, IDC_REVERB_BOOST, CB_SETCURSEL,ReverbBoost,0 ); 
+			SendDialogMsg( hWnd, IDC_REVERB_BOOST, CB_SETCURSEL,ReverbBoost,0 );
+
+			SendDialogMsg( hWnd, IDC_SYNCHMODE, CB_RESETCONTENT,0,0 );
+			SendDialogMsg( hWnd, IDC_SYNCHMODE, CB_ADDSTRING,0,(LPARAM) L"TimeStretch (Recommended)" );
+			SendDialogMsg( hWnd, IDC_SYNCHMODE, CB_ADDSTRING,0,(LPARAM) L"Async Mix (Breaks some games!)" );
+			SendDialogMsg( hWnd, IDC_SYNCHMODE, CB_ADDSTRING,0,(LPARAM) L"None (Audio can skip.)" );
+			SendDialogMsg( hWnd, IDC_SYNCHMODE, CB_SETCURSEL,SynchMode,0 );
+			
+			SendDialogMsg( hWnd, IDC_SPEAKERS, CB_RESETCONTENT,0,0 );
+			SendDialogMsg( hWnd, IDC_SPEAKERS, CB_ADDSTRING,0,(LPARAM) L"Stereo (none, default)" );
+			SendDialogMsg( hWnd, IDC_SPEAKERS, CB_ADDSTRING,0,(LPARAM) L"Quadrafonic" );
+			SendDialogMsg( hWnd, IDC_SPEAKERS, CB_ADDSTRING,0,(LPARAM) L"Surround 5.1" );
+			SendDialogMsg( hWnd, IDC_SPEAKERS, CB_ADDSTRING,0,(LPARAM) L"Surround 7.1" );			
+			SendDialogMsg( hWnd, IDC_SPEAKERS, CB_SETCURSEL,numSpeakers,0 );
 
 			SendDialogMsg( hWnd, IDC_OUTPUT, CB_RESETCONTENT,0,0 );
-			
+
 			int modidx = 0;
 			while( mods[modidx] != NULL )
 			{
@@ -166,24 +183,22 @@ BOOL CALLBACK ConfigProc(HWND hWnd,UINT uMsg,WPARAM wParam,LPARAM lParam)
 			int maxexp = (int)(pow( (double)LATENCY_MAX+2, 1.0/3.0 ) * 128.0);
 			INIT_SLIDER( IDC_LATENCY_SLIDER, minexp, maxexp, 200, 42, 1 );
 
-			SendDialogMsg( hWnd, IDC_LATENCY_SLIDER, TBM_SETPOS, TRUE, (int)((pow( (double)SndOutLatencyMS, 1.0/3.0 ) * 128.0) + 1) ); 
+			SendDialogMsg( hWnd, IDC_LATENCY_SLIDER, TBM_SETPOS, TRUE, (int)((pow( (double)SndOutLatencyMS, 1.0/3.0 ) * 128.0) + 1) );
 			swprintf_s(temp,L"%d ms (avg)",SndOutLatencyMS);
 			SetWindowText(GetDlgItem(hWnd,IDC_LATENCY_LABEL),temp);
-			
-			EnableWindow( GetDlgItem( hWnd, IDC_OPEN_CONFIG_SOUNDTOUCH ), !timeStretchDisabled );
+
+			EnableWindow( GetDlgItem( hWnd, IDC_OPEN_CONFIG_SOUNDTOUCH ), (SynchMode == 0) );
 			EnableWindow( GetDlgItem( hWnd, IDC_OPEN_CONFIG_DEBUG ), DebugEnabled );
-			
+
 			SET_CHECK(IDC_EFFECTS_DISABLE,	EffectsDisabled);
-			SET_CHECK(IDC_EXPANSION_ENABLE,StereoExpansionEnabled);
-			SET_CHECK(IDC_TS_DISABLE,		timeStretchDisabled);
 			SET_CHECK(IDC_DEBUG_ENABLE,		DebugEnabled);
 			SET_CHECK(IDC_DSP_ENABLE,		dspPluginEnabled);
 		}
 		break;
 
 		case WM_COMMAND:
-			wmId    = LOWORD(wParam); 
-			wmEvent = HIWORD(wParam); 
+			wmId    = LOWORD(wParam);
+			wmEvent = HIWORD(wParam);
 			// Parse the menu selections:
 			switch (wmId)
 			{
@@ -195,7 +210,9 @@ BOOL CALLBACK ConfigProc(HWND hWnd,UINT uMsg,WPARAM wParam,LPARAM lParam)
 
 					Interpolation = (int)SendDialogMsg( hWnd, IDC_INTERPOLATE, CB_GETCURSEL,0,0 );
 					ReverbBoost = (int)SendDialogMsg( hWnd, IDC_REVERB_BOOST, CB_GETCURSEL,0,0 );
-					OutputModule  = (int)SendDialogMsg( hWnd, IDC_OUTPUT, CB_GETCURSEL,0,0 );
+					OutputModule = (int)SendDialogMsg( hWnd, IDC_OUTPUT, CB_GETCURSEL,0,0 );
+					SynchMode = (int)SendDialogMsg( hWnd, IDC_SYNCHMODE, CB_GETCURSEL,0,0 );
+					numSpeakers = (int)SendDialogMsg( hWnd, IDC_SPEAKERS, CB_GETCURSEL,0,0 );
 
 					WriteSettings();
 					EndDialog(hWnd,0);
@@ -213,7 +230,7 @@ BOOL CALLBACK ConfigProc(HWND hWnd,UINT uMsg,WPARAM wParam,LPARAM lParam)
 					mods[module]->Configure((uptr)hWnd);
 				}
 				break;
-				
+
 				case IDC_OPEN_CONFIG_DEBUG:
 				{
 					// Quick Hack -- DebugEnabled is re-loaded with the DebugConfig's API,
@@ -231,11 +248,14 @@ BOOL CALLBACK ConfigProc(HWND hWnd,UINT uMsg,WPARAM wParam,LPARAM lParam)
 
 				HANDLE_CHECK(IDC_EFFECTS_DISABLE,EffectsDisabled);
 				HANDLE_CHECK(IDC_DSP_ENABLE,dspPluginEnabled);
-				HANDLE_CHECK(IDC_EXPANSION_ENABLE,StereoExpansionEnabled);
-				HANDLE_CHECKNB(IDC_TS_DISABLE,timeStretchDisabled);
-					EnableWindow( GetDlgItem( hWnd, IDC_OPEN_CONFIG_SOUNDTOUCH ), !timeStretchDisabled );
-				break;
 				
+				// Fixme : Eh, how to update this based on drop list selections? :p
+				// IDC_TS_ENABLE already deleted!
+
+				//HANDLE_CHECKNB(IDC_TS_ENABLE,timeStretchEnabled);
+				//	EnableWindow( GetDlgItem( hWnd, IDC_OPEN_CONFIG_SOUNDTOUCH ), timeStretchEnabled );
+				break;
+
 				HANDLE_CHECKNB(IDC_DEBUG_ENABLE,DebugEnabled);
 					DebugConfig::EnableControls( hWnd );
 					EnableWindow( GetDlgItem( hWnd, IDC_OPEN_CONFIG_DEBUG ), DebugEnabled );
@@ -245,12 +265,12 @@ BOOL CALLBACK ConfigProc(HWND hWnd,UINT uMsg,WPARAM wParam,LPARAM lParam)
 					return FALSE;
 			}
 		break;
-		
+
 		case WM_HSCROLL:
 		{
-			wmEvent = LOWORD(wParam); 
+			wmEvent = LOWORD(wParam);
 			HWND hwndDlg = (HWND)lParam;
-			
+
 			// TB_THUMBTRACK passes the curpos in wParam.  Other messages
 			// have to use TBM_GETPOS, so they will override this assignment (see below)
 
@@ -288,13 +308,13 @@ BOOL CALLBACK ConfigProc(HWND hWnd,UINT uMsg,WPARAM wParam,LPARAM lParam)
 			}
 		}
 		break;
-		
+
 		default:
 			return FALSE;
 	}
 	return TRUE;
 }
- 
+
 void configure()
 {
 	INT_PTR ret;

@@ -15,7 +15,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
- 
+
  #include <string.h>
 #include <gtk/gtk.h>
 #include <pthread.h>
@@ -41,10 +41,9 @@ void SaveConfig()
 {
 	int i, j;
 	FILE *f;
-	char cfg[255];
-
-	strcpy(cfg, s_strIniPath.c_str());
-	f = fopen(cfg, "w");
+	
+	const std::string iniFile(s_strIniPath + "zeropad.ini");
+	f = fopen(iniFile.c_str(), "w");
 	if (f == NULL)
 	{
 		printf("ZeroPAD: failed to save ini %s\n", s_strIniPath.c_str());
@@ -67,7 +66,6 @@ void LoadConfig()
 {
 	FILE *f;
 	char str[256];
-	char cfg[255];
 	int i, j;
 
 	memset(&conf, 0, sizeof(conf));
@@ -87,8 +85,8 @@ void LoadConfig()
 	conf.keys[0][15] = XK_s;			// LEFT
 	conf.log = 0;
 
-	strcpy(cfg, s_strIniPath.c_str());
-	f = fopen(cfg, "r");
+	const std::string iniFile(s_strIniPath + "zeropad.ini");
+	f = fopen(iniFile.c_str(), "r");
 	if (f == NULL)
 	{
 		printf("ZeroPAD: failed to load ini %s\n", s_strIniPath.c_str());
@@ -134,55 +132,55 @@ void on_joydevicescombo_changed(GtkComboBox *combobox, gpointer user_data)
 void on_checkbutton_reverselx_toggled(GtkToggleButton *togglebutton, gpointer user_data)
 {
 	int mask = PADOPTION_REVERTLX << (16 * s_selectedpad);
-	
+
 	if (gtk_toggle_button_get_active(togglebutton))
 		conf.options |= mask;
-	else 
+	else
 		conf.options &= ~mask;
 }
 
 void on_checkbutton_reversely_toggled(GtkToggleButton *togglebutton, gpointer user_data)
 {
 	int mask = PADOPTION_REVERTLY << (16 * s_selectedpad);
-	
+
 	if (gtk_toggle_button_get_active(togglebutton))
 		conf.options |= mask;
-	else 
+	else
 		conf.options &= ~mask;
 }
 
 void on_checkbutton_reverserx_toggled(GtkToggleButton *togglebutton, gpointer user_data)
 {
 	int mask = PADOPTION_REVERTRX << (16 * s_selectedpad);
-	if (gtk_toggle_button_get_active(togglebutton)) 
+	if (gtk_toggle_button_get_active(togglebutton))
 		conf.options |= mask;
-	else 
+	else
 		conf.options &= ~mask;
 }
 
 void on_checkbutton_reversery_toggled(GtkToggleButton *togglebutton, gpointer user_data)
 {
 	int mask = PADOPTION_REVERTRY << (16 * s_selectedpad);
-	
-	if (gtk_toggle_button_get_active(togglebutton)) 
+
+	if (gtk_toggle_button_get_active(togglebutton))
 		conf.options |= mask;
-	else 
+	else
 		conf.options &= ~mask;
 }
 
 void on_forcefeedback_toggled(GtkToggleButton *togglebutton, gpointer user_data)
 {
 	int mask = PADOPTION_REVERTLX << (16 * s_selectedpad);
-	
+
 	if (gtk_toggle_button_get_active(togglebutton))
 	{
 		conf.options |= mask;
 
 		int joyid = gtk_combo_box_get_active(GTK_COMBO_BOX(s_devicecombo));
-		
+
 		if (joyid >= 0 && joyid < (int)s_vjoysticks.size()) s_vjoysticks[joyid]->TestForce();
 	}
-	else 
+	else
 	{
 		conf.options &= ~mask;
 	}
