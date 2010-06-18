@@ -29,13 +29,13 @@
  */
 
 /*
- * The text above constitutes the entire PortAudio license; however, 
+ * The text above constitutes the entire PortAudio license; however,
  * the PortAudio community also makes the following non-binding requests:
  *
  * Any person wishing to distribute modifications to the Software is
  * requested to send the modifications to the original developer so that
- * they can be incorporated into the canonical version. It is also 
- * requested that these non-binding requests be included along with the 
+ * they can be incorporated into the canonical version. It is also
+ * requested that these non-binding requests be included along with the
  * license above.
  */
 
@@ -56,9 +56,13 @@
 #endif
 
 /*
-  We are only using DX3 in here, no need to polute the namespace - davidv
+  Use the earliest version of DX required, no need to polute the namespace
 */
+#ifdef PAWIN_USE_DIRECTSOUNDFULLDUPLEXCREATE
+#define DIRECTSOUND_VERSION 0x0800
+#else
 #define DIRECTSOUND_VERSION 0x0300
+#endif
 #include <dsound.h>
 
 #ifdef __cplusplus
@@ -70,7 +74,7 @@ extern "C"
 typedef struct
 {
     HINSTANCE hInstance_;
-    
+
     HRESULT (WINAPI *DllGetClassObject)(REFCLSID , REFIID , LPVOID *);
 
     HRESULT (WINAPI *DirectSoundCreate)(LPGUID, LPDIRECTSOUND *, LPUNKNOWN);
@@ -80,6 +84,13 @@ typedef struct
     HRESULT (WINAPI *DirectSoundCaptureCreate)(LPGUID, LPDIRECTSOUNDCAPTURE *, LPUNKNOWN);
     HRESULT (WINAPI *DirectSoundCaptureEnumerateW)(LPDSENUMCALLBACKW, LPVOID);
     HRESULT (WINAPI *DirectSoundCaptureEnumerateA)(LPDSENUMCALLBACKA, LPVOID);
+
+#ifdef PAWIN_USE_DIRECTSOUNDFULLDUPLEXCREATE
+    HRESULT (WINAPI *DirectSoundFullDuplexCreate8)(
+                LPCGUID, LPCGUID, LPCDSCBUFFERDESC, LPCDSBUFFERDESC,
+                HWND, DWORD, LPDIRECTSOUNDFULLDUPLEX *, LPDIRECTSOUNDCAPTUREBUFFER8 *,
+                LPDIRECTSOUNDBUFFER8 *, LPUNKNOWN );
+#endif
 }PaWinDsDSoundEntryPoints;
 
 extern PaWinDsDSoundEntryPoints paWinDsDSoundEntryPoints;
