@@ -1,5 +1,5 @@
 /*  Cpudetection lib
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -17,17 +17,17 @@
 #include "PrecompiledHeader.h"
 #include "cpudetect_internal.h"
 
-void CountLogicalCores( int LogicalCoresPerPhysicalCPU, int PhysicalCoresPerPhysicalCPU )
+void x86capabilities::CountLogicalCores()
 {
 	DWORD vProcessCPUs;
 	DWORD vSystemCPUs;
 
-	x86caps.LogicalCores = 1;
+	LogicalCores = 1;
 
 	if( !GetProcessAffinityMask (GetCurrentProcess (),
 		&vProcessCPUs, &vSystemCPUs) ) return;
 
-	int CPUs = 0;
+	uint CPUs = 0;
 	DWORD bit;
 
 	for (bit = 1; bit != 0; bit <<= 1)
@@ -36,11 +36,11 @@ void CountLogicalCores( int LogicalCoresPerPhysicalCPU, int PhysicalCoresPerPhys
 			CPUs++;
 	}
 
-	x86caps.LogicalCores = CPUs;
+	LogicalCores = CPUs;
 	if( LogicalCoresPerPhysicalCPU > CPUs) // for 1-socket HTT-disabled machines
 		LogicalCoresPerPhysicalCPU = CPUs;
 
-	x86caps.PhysicalCores = ( CPUs / LogicalCoresPerPhysicalCPU ) * PhysicalCoresPerPhysicalCPU;
+	PhysicalCores = ( CPUs / LogicalCoresPerPhysicalCPU ) * PhysicalCoresPerPhysicalCPU;
 }
 
 bool _test_instruction( void* pfnCall )
@@ -58,7 +58,7 @@ bool CanEmitShit()
 {
 	// Under Windows, pre 0.9.6 versions of PCSX2 may not initialize the TLS
 	// register (FS register), so plugins (DLLs) using our x86emitter in multithreaded
-	// mode will just crash/fail if it tries to do the instruction set tests. 
+	// mode will just crash/fail if it tries to do the instruction set tests.
 
 #if x86EMIT_MULTITHREADED
 	static __threadlocal int tls_failcheck;
@@ -101,7 +101,7 @@ SingleCoreAffinity::SingleCoreAffinity()
 			availProcCpus, availSysCpus, i
 		);
 	}
-	
+
 	Sleep( 2 );
 
 	// Sleep Explained: I arbitrarily pick Core 0 to lock to for running the CPU test.  This

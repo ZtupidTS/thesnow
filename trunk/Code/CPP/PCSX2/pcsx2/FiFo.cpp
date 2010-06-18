@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -17,8 +17,10 @@
 #include "PrecompiledHeader.h"
 #include "Common.h"
 
+#include "Gif.h"
 #include "GS.h"
 #include "Vif.h"
+#include "Vif_Dma.h"
 #include "IPU/IPU.h"
 #include "IPU/IPU_Fifo.h"
 
@@ -60,10 +62,22 @@ void __fastcall ReadFIFO_page_5(u32 mem, u64 *out)
 	if (vif1Regs->stat.test(VIF1_STAT_INT | VIF1_STAT_VSS | VIF1_STAT_VIS | VIF1_STAT_VFS) )
 		DevCon.Warning( "Reading from vif1 fifo when stalled" );
 
+	if(vif1Regs->stat.FQC == 0) Console.Warning("FQC = 0 on VIF FIFO READ!");
 	if (vif1Regs->stat.FDR)
 	{
-		if (--psHu32(D1_QWC) == 0)
-			vif1Regs->stat.FQC = 0;
+		if(vif1Regs->stat.FQC > vif1.GSLastDownloadSize)
+		{
+			DevCon.Warning("Warning! GS Download size < FIFO count!");
+		}
+		if (vif1Regs->stat.FQC > 0)
+		{
+			GetMTGS().WaitGS();
+			GSreadFIFO(&psHu64(VIF1_FIFO));
+			vif1.GSLastDownloadSize--;
+			if (vif1.GSLastDownloadSize <= 16)
+				gifRegs->stat.OPH = false;
+			vif1Regs->stat.FQC = min((u32)16, vif1.GSLastDownloadSize);
+		}
 	}
 
 	out[0] = psHu64(VIF1_FIFO);

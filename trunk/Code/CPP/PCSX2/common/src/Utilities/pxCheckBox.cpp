@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -17,37 +17,58 @@
 #include "pxCheckBox.h"
 #include "pxStaticText.h"
 
+using namespace pxSizerFlags;
+
 // --------------------------------------------------------------------------------------
 //  pxCheckBox Implementations
 // --------------------------------------------------------------------------------------
 
-pxCheckBox::pxCheckBox(wxWindow* parent, const wxString& label, const wxString& subtext)
+pxCheckBox::pxCheckBox(wxWindow* parent, const wxString& label, const wxString& subtext, int flags)
 	: wxPanelWithHelpers( parent, wxVERTICAL )
 {
-	Init( label, subtext );
+	Init( label, subtext, flags );
 }
 
-void pxCheckBox::Init(const wxString& label, const wxString& subtext)
+pxCheckBox::pxCheckBox(wxWindow* parent, const wxString& label, int flags)
+	: wxPanelWithHelpers( parent, wxVERTICAL )
+{
+	Init( label, wxEmptyString, flags );
+}
+
+void pxCheckBox::Init(const wxString& label, const wxString& subtext, int flags)
 {
 	m_subtext	= NULL;
-	m_checkbox	= new wxCheckBox( this, wxID_ANY, label );
-	
+	m_subPadding= StdPadding*2;
+	m_checkbox	= new wxCheckBox( this, wxID_ANY, label, wxDefaultPosition, wxDefaultSize, flags );
+
 	*this += m_checkbox | pxSizerFlags::StdExpand();
 
 	static const int Indentation = 23;
 	if( !subtext.IsEmpty() )
 	{
-		m_subtext = new pxStaticText( this, subtext );
-		if( HasIdealWidth() )
-			m_subtext->SetWrapWidth( m_idealWidth - Indentation );
+		m_subtext = new pxStaticText( this, subtext, wxALIGN_LEFT );
 
-		wxBoxSizer& spaced( *new wxBoxSizer( wxHORIZONTAL ) );
+		wxFlexGridSizer& spaced( *new wxFlexGridSizer(3) );
+		spaced.AddGrowableCol( 1 );
 		spaced += Indentation;
-		spaced += m_subtext | pxBorder( wxBOTTOM, 9 );
-		spaced += pxSizerFlags::StdPadding;
+		m_sizerItem_subtext = spaced.Add( m_subtext, pxBorder( wxBOTTOM, m_subPadding ).Expand() );
+		//spaced += pxSizerFlags::StdPadding;
 
-		*this += &spaced;
+		*this += &spaced | pxExpand;
 	}
+	
+	Connect( m_checkbox->GetId(), wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler(pxCheckBox::OnCheckpartCommand) );
+}
+
+pxCheckBox& pxCheckBox::SetSubPadding( int pad )
+{
+	m_subPadding = pad;
+	if( m_sizerItem_subtext )
+	{
+		m_sizerItem_subtext->SetBorder( m_subPadding );
+		Fit();
+	}
+	return *this;
 }
 
 // applies the tooltip to both both the checkbox and it's static subtext (if present), and
@@ -62,19 +83,49 @@ pxCheckBox& pxCheckBox::SetToolTip( const wxString& tip )
 
 pxCheckBox& pxCheckBox::SetValue( bool val )
 {
+	pxAssume( m_checkbox );
 	m_checkbox->SetValue( val );
 	return *this;
 }
 
-bool pxCheckBox::GetValue() const
+pxCheckBox& pxCheckBox::SetIndeterminate()
 {
-	return m_checkbox->GetValue();
+	pxAssume( m_checkbox );
+	m_checkbox->Set3StateValue( wxCHK_UNDETERMINED );
+	return *this;
+}
+
+
+pxCheckBox& pxCheckBox::SetState( wxCheckBoxState state )
+{
+	pxAssume( m_checkbox );
+	m_checkbox->Set3StateValue( state );
+	return *this;
+}
+
+// Forwards checkbox actions on the internal checkbox (called 'checkpart') to listeners
+// bound to the pxCheckBox "parent" panel. This helps the pxCheckBox behave more like a
+// traditional checkbox.
+void pxCheckBox::OnCheckpartCommand( wxCommandEvent& evt )
+{
+	evt.Skip();
+	
+	wxCommandEvent newevt( evt );
+	newevt.SetEventObject( this );
+	newevt.SetId( GetId() );
+	GetEventHandler()->ProcessEvent( newevt );
+}
+
+void pxCheckBox::OnSubtextClicked( wxCommandEvent& evt )
+{
+	// TODO?
+	// We can enable the ability to allow clicks on the subtext desc/label to toggle
+	// the checkmark.  Not sure if that's desirable.
 }
 
 void operator+=( wxSizer& target, pxCheckBox* src )
 {
-	if( !pxAssert( src != NULL ) ) return;
-	target.Add( src, pxExpand );
+	if( src ) target.Add( src, pxExpand );
 }
 
 void operator+=( wxSizer& target, pxCheckBox& src )

@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -24,8 +24,8 @@
 // Implemented at the bottom of the module:
 void SetFastMemory(int bSetFast);
 
-namespace R5900 { 
-namespace Dynarec { 
+namespace R5900 {
+namespace Dynarec {
 namespace OpcodeImpl {
 
 /*********************************************************
@@ -123,6 +123,7 @@ void recLoad64( u32 bits, bool sign )
 	}
 	else
 	{
+		iFlushCall(FLUSH_EXCEPTION);
 		// Load ECX with the source memory address that we're reading from.
 		_eeMoveGPRtoR(ECX, _Rs_);
 		if ( _Imm_ != 0 )
@@ -158,6 +159,7 @@ void recLoad32( u32 bits, bool sign )
 	}
 	else
 	{
+		iFlushCall(FLUSH_EXCEPTION);
 		// Load ECX with the source memory address that we're reading from.
 		_eeMoveGPRtoR(ECX, _Rs_);
 		if ( _Imm_ != 0 )
@@ -219,6 +221,7 @@ void recStore(u32 sz, bool edxAlreadyAssigned=false)
 	}
 	else
 	{
+		iFlushCall(FLUSH_EXCEPTION);
 		_eeMoveGPRtoR(ECX, _Rs_);
 
 		if ( _Imm_ != 0 )
@@ -252,27 +255,25 @@ void recSD( void )  { recStore(64); }
 // (LWL/SWL, LWR/SWR, etc)
 
 ////////////////////////////////////////////////////
-void recLWL( void ) 
+void recLWL( void )
 {
+	iFlushCall(FLUSH_EXCEPTION);
 	_deleteEEreg(_Rs_, 1);
 	_eeOnLoadWrite(_Rt_);
 	_deleteEEreg(_Rt_, 1);
 
-	MOV32ItoM( (int)&cpuRegs.code, cpuRegs.code );
-	//MOV32ItoM( (int)&cpuRegs.pc, pc );
-	CALLFunc( (int)LWL );
+	recCall(LWL);
 }
 
 ////////////////////////////////////////////////////
-void recLWR( void ) 
+void recLWR( void )
 {
+	iFlushCall(FLUSH_EXCEPTION);
 	_deleteEEreg(_Rs_, 1);
 	_eeOnLoadWrite(_Rt_);
 	_deleteEEreg(_Rt_, 1);
 
-	MOV32ItoM( (int)&cpuRegs.code, cpuRegs.code );
-	//MOV32ItoM( (int)&cpuRegs.pc, pc );
-	CALLFunc( (int)LWR );   
+	recCall(LWR);
 }
 
 static const u32 SWL_MASK[4] = { 0xffffff00, 0xffff0000, 0xff000000, 0x00000000 };
@@ -282,11 +283,11 @@ static const u8 SWR_SHIFT[4] = { 0, 8, 16, 24 };
 static const u8 SWL_SHIFT[4] = { 24, 16, 8, 0 };
 
 ////////////////////////////////////////////////////
-void recSWL( void ) 
+void recSWL( void )
 {
 	// Perform a translated memory read, followed by a translated memory write
 	// of the "merged" result.
-	
+
 	// NOTE: Code incomplete. I'll fix/finish it soon. --air
 	if( 0 ) //GPR_IS_CONST1( _Rs_ ) )
 	{
@@ -312,64 +313,58 @@ void recSWL( void )
 	}
 	else
 	{
+		iFlushCall(FLUSH_EXCEPTION);
 		_deleteEEreg(_Rs_, 1);
 		_deleteEEreg(_Rt_, 1);
-		MOV32ItoM( (int)&cpuRegs.code, cpuRegs.code );
-		//MOV32ItoM( (int)&cpuRegs.pc, pc );	// pc's not needed by SWL
-		CALLFunc( (int)SWL );
+		recCall(SWL);
 	}
 }
 
 ////////////////////////////////////////////////////
-void recSWR( void ) 
+void recSWR( void )
 {
+	iFlushCall(FLUSH_EXCEPTION);
 	_deleteEEreg(_Rs_, 1);
 	_deleteEEreg(_Rt_, 1);
-	MOV32ItoM( (int)&cpuRegs.code, cpuRegs.code );
-	//MOV32ItoM( (int)&cpuRegs.pc, pc );
-	CALLFunc( (int)SWR );
+	recCall(SWR);
 }
 
 ////////////////////////////////////////////////////
-void recLDL( void ) 
+void recLDL( void )
 {
+	iFlushCall(FLUSH_EXCEPTION);
 	_deleteEEreg(_Rs_, 1);
 	_eeOnLoadWrite(_Rt_);
 	_deleteEEreg(_Rt_, 1);
-	MOV32ItoM( (int)&cpuRegs.code, cpuRegs.code );
-	//MOV32ItoM( (int)&cpuRegs.pc, pc );
-	CALLFunc( (int)LDL );
+	recCall(LDL);
 }
 
 ////////////////////////////////////////////////////
-void recLDR( void ) 
+void recLDR( void )
 {
+	iFlushCall(FLUSH_EXCEPTION);
 	_deleteEEreg(_Rs_, 1);
 	_eeOnLoadWrite(_Rt_);
 	_deleteEEreg(_Rt_, 1);
-	MOV32ItoM( (int)&cpuRegs.code, cpuRegs.code );
-	//MOV32ItoM( (int)&cpuRegs.pc, pc );
-	CALLFunc( (int)LDR );
+	recCall(LDR);
 }
 
 ////////////////////////////////////////////////////
-void recSDL( void ) 
+void recSDL( void )
 {
+	iFlushCall(FLUSH_EXCEPTION);
 	_deleteEEreg(_Rs_, 1);
 	_deleteEEreg(_Rt_, 1);
-	MOV32ItoM( (int)&cpuRegs.code, cpuRegs.code );
-	//MOV32ItoM( (int)&cpuRegs.pc, pc );
-	CALLFunc( (int)SDL );
+	recCall(SDL);
 }
 
 ////////////////////////////////////////////////////
-void recSDR( void ) 
+void recSDR( void )
 {
+	iFlushCall(FLUSH_EXCEPTION);
 	_deleteEEreg(_Rs_, 1);
 	_deleteEEreg(_Rt_, 1);
-	MOV32ItoM( (int)&cpuRegs.code, cpuRegs.code );
-	//MOV32ItoM( (int)&cpuRegs.pc, pc );
-	CALLFunc( (int)SDR );
+	recCall(SDR);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -381,11 +376,12 @@ void recSDR( void )
 ////////////////////////////////////////////////////
 void recLWC1( void )
 {
+	iFlushCall(FLUSH_EXCEPTION);
 	_deleteEEreg(_Rs_, 1);
 	_deleteFPtoXMMreg(_Rt_, 2);
 
 	MOV32MtoR( ECX, (int)&cpuRegs.GPR.r[ _Rs_ ].UL[ 0 ] );
-	if ( _Imm_ != 0 )	
+	if ( _Imm_ != 0 )
 		ADD32ItoR( ECX, _Imm_ );
 
 	vtlb_DynGenRead32(32, false);
@@ -395,11 +391,12 @@ void recLWC1( void )
 ////////////////////////////////////////////////////
 void recSWC1( void )
 {
+	iFlushCall(FLUSH_EXCEPTION);
 	_deleteEEreg(_Rs_, 1);
 	_deleteFPtoXMMreg(_Rt_, 0);
 
 	MOV32MtoR( ECX, (int)&cpuRegs.GPR.r[ _Rs_ ].UL[ 0 ] );
-	if ( _Imm_ != 0 )	
+	if ( _Imm_ != 0 )
 		ADD32ItoR( ECX, _Imm_ );
 
 	MOV32MtoR(EDX, (int)&fpuRegs.fpr[ _Rt_ ].UL );
@@ -417,8 +414,9 @@ void recSWC1( void )
 #define _Fs_ _Rd_
 #define _Fd_ _Sa_
 
-void recLQC2( void ) 
+void recLQC2( void )
 {
+	iFlushCall(FLUSH_EXCEPTION);
 	_deleteEEreg(_Rs_, 1);
 	_deleteVFtoXMMreg(_Ft_, 0, 2);
 
@@ -435,8 +433,9 @@ void recLQC2( void )
 }
 
 ////////////////////////////////////////////////////
-void recSQC2( void ) 
+void recSQC2( void )
 {
+	iFlushCall(FLUSH_EXCEPTION);
 	_deleteEEreg(_Rs_, 1);
 	_deleteVFtoXMMreg(_Ft_, 0, 0);
 

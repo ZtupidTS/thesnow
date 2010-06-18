@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -37,41 +37,27 @@ extern u32 s_nBlockCycles;		// cycles of current block recompiling
 #define REC_FUNC( f ) \
    void rec##f( void ) \
    { \
-	   MOV32ItoM( (uptr)&cpuRegs.code, (u32)cpuRegs.code ); \
-	   MOV32ItoM( (uptr)&cpuRegs.pc, (u32)pc ); \
-	   iFlushCall(FLUSH_EVERYTHING); \
-	   CALLFunc( (uptr)Interp::f ); \
+	   recCall(Interp::f); \
    }
 
 #define REC_FUNC_DEL( f, delreg ) \
 	void rec##f( void ) \
 { \
-	MOV32ItoM( (uptr)&cpuRegs.code, (u32)cpuRegs.code ); \
-	MOV32ItoM( (uptr)&cpuRegs.pc, (u32)pc ); \
-	iFlushCall(FLUSH_EVERYTHING); \
 	if( (delreg) > 0 ) _deleteEEreg(delreg, 0); \
-	CALLFunc( (uptr)Interp::f ); \
+	recCall(Interp::f); \
 }
 
 #define REC_SYS( f ) \
    void rec##f( void ) \
    { \
-	   MOV32ItoM( (uptr)&cpuRegs.code, (u32)cpuRegs.code ); \
-	   MOV32ItoM( (uptr)&cpuRegs.pc, (u32)pc ); \
-	   iFlushCall(FLUSH_EVERYTHING); \
-	   CALLFunc( (uptr)Interp::f ); \
-	   branch = 2; \
+	   recBranchCall(Interp::f); \
    }
 
 #define REC_SYS_DEL( f, delreg ) \
    void rec##f( void ) \
    { \
-	   MOV32ItoM( (uptr)&cpuRegs.code, (u32)cpuRegs.code ); \
-	   MOV32ItoM( (uptr)&cpuRegs.pc, (u32)pc ); \
-	   iFlushCall(FLUSH_EVERYTHING); \
 	   if( (delreg) > 0 ) _deleteEEreg(delreg, 0); \
-	   CALLFunc( (uptr)Interp::f ); \
-	   branch = 2; \
+	   recBranchCall(Interp::f); \
    }
 
 
@@ -89,7 +75,7 @@ void SetBranchImm( u32 imm );
 
 void iFlushCall(int flushtype);
 void recBranchCall( void (*func)() );
-void recCall( void (*func)(), int delreg );
+void recCall( void (*func)() );
 
 namespace R5900{
 namespace Dynarec {
@@ -132,6 +118,8 @@ void _eeOnWriteReg(int reg, int signext);
 // if flush is 1, also flushes to memory
 // if 0, only flushes if not an xmm reg (used when overwriting lower 64bits of reg)
 void _deleteEEreg(int reg, int flush);
+
+void _flushEEreg(int reg);
 
 // allocates memory on the instruction size and returns the pointer
 u32* recGetImm64(u32 hi, u32 lo);

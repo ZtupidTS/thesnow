@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -21,8 +21,12 @@
 #include <wx/imaglist.h>
 #include <wx/apptrait.h>
 
+#include "pxEventThread.h"
+
 #include "AppCommon.h"
+#include "AppCoreThread.h"
 #include "RecentIsoList.h"
+#include "DataBase_Loader.h"
 
 #include "System.h"
 #include "System/SysThreads.h"
@@ -32,22 +36,12 @@
 class Pcsx2App;
 
 typedef void FnType_OnThreadComplete(const wxCommandEvent& evt);
-typedef void (Pcsx2App::*FnPtr_AppMethod)();
+typedef void (Pcsx2App::*FnPtr_Pcsx2App)();
 
 BEGIN_DECLARE_EVENT_TYPES()
-	/*DECLARE_EVENT_TYPE( pxEVT_ReloadPlugins, -1 )
-	DECLARE_EVENT_TYPE( pxEVT_OpenGsPanel, -1 )*/
-
-	DECLARE_EVENT_TYPE( pxEvt_FreezeThreadFinished, -1 )
-	DECLARE_EVENT_TYPE( pxEvt_CoreThreadStatus, -1 )
 	DECLARE_EVENT_TYPE( pxEvt_LoadPluginsComplete, -1 )
-	DECLARE_EVENT_TYPE( pxEvt_PluginStatus, -1 )
-	DECLARE_EVENT_TYPE( pxEvt_SysExecute, -1 )
-	DECLARE_EVENT_TYPE( pxEvt_InvokeMethod, -1 )
 	DECLARE_EVENT_TYPE( pxEvt_LogicalVsync, -1 )
-
-	DECLARE_EVENT_TYPE( pxEvt_OpenModalDialog, -1 )
-	//DECLARE_EVENT_TYPE( pxEvt_StuckThread, -1 )
+	DECLARE_EVENT_TYPE( pxEvt_ThreadTaskTimeout_SysExec, -1 )
 END_DECLARE_EVENT_TYPES()
 
 // This is used when the GS plugin is handling its own window.  Messages from the PAD
@@ -91,19 +85,20 @@ enum MenuIdentifiers
 	MenuId_Boot_Iso,			// Opens submenu with Iso browser, and recent isos.
 	MenuId_IsoSelector,			// Contains a submenu of selectable "favorite" isos
 	MenuId_IsoBrowse,			// Open dialog, runs selected iso.
-	MenuId_Boot_CDVD,			// opens a submenu filled by CDVD plugin (usually list of drives)
+	MenuId_Boot_CDVD,
+	MenuId_Boot_CDVD2,
 	MenuId_Boot_ELF,
 	MenuId_Boot_Recent,			// Menu populated with recent source bootings
-	MenuId_SkipBiosToggle,		// enables the Bios Skip speedhack
 
 
 	MenuId_Sys_SuspendResume,	// suspends/resumes active emulation, retains plugin states
-	MenuId_Sys_Close,			// Closes the emulator (states are preserved)
-	MenuId_Sys_Reset,			// Issues a complete VM reset (wipes preserved states)
+	MenuId_Sys_Restart,			// Issues a complete VM reset (wipes preserved states)
 	MenuId_Sys_Shutdown,		// Closes virtual machine, shuts down plugins, wipes states.
 	MenuId_Sys_LoadStates,		// Opens load states submenu
 	MenuId_Sys_SaveStates,		// Opens save states submenu
 	MenuId_EnablePatches,
+	MenuId_EnableCheats,
+	MenuId_EnableHostFs,
 
 	MenuId_State_Load,
 	MenuId_State_LoadOther,
@@ -116,6 +111,7 @@ enum MenuIdentifiers
 
 	// Config Subsection
 	MenuId_Config_SysSettings,
+	MenuId_Config_McdSettings,
 	MenuId_Config_AppSettings,
 	MenuId_Config_BIOS,
 
@@ -142,7 +138,7 @@ enum MenuIdentifiers
 	MenuId_PluginBase_Settings = 0x101,
 
 	MenuId_Video_CoreSettings = 0x200,// includes frame timings and skippings settings
-
+	MenuId_Video_WindowSettings,
 
 	// Miscellaneous Menu!  (Misc)
 	MenuId_Website,				// Visit our awesome website!
@@ -322,6 +318,7 @@ struct pxAppResources
 	ScopedPtr<wxImageList>		ToolbarImages;
 	ScopedPtr<wxIconBundle>		IconBundle;
 	ScopedPtr<wxBitmap>			Bitmap_Logo;
+	ScopedPtr<DataBase_Loader>	GameDB;
 
 	pxAppResources();
 	virtual ~pxAppResources() throw() { }
@@ -364,6 +361,78 @@ public:
 	double GetFramerate() const;
 };
 
+class StartupOptions
+{
+public:
+	bool			ForceWizard;
+	bool			ForceConsole;
+
+	// Disables the fast boot option when auto-running games.  This option only applies
+	// if SysAutoRun is also true.
+	bool			NoFastBoot;
+
+	// Specifies the Iso file to boot; used only if SysAutoRun is enabled and CdvdSource
+	// is set to ISO.
+	wxString		IsoFile;
+
+	// Specifies the CDVD source type to use when AutoRunning
+	CDVD_SourceType CdvdSource;
+
+	// Indicates if PCSX2 should autorun the configured CDVD source and/or ISO file.
+	bool			SysAutoRun;
+
+	StartupOptions()
+	{
+		ForceWizard				= false;
+		NoFastBoot				= false;
+		ForceConsole			= false;
+		SysAutoRun				= false;
+		CdvdSource				= CDVDsrc_NoDisc;
+	}
+};
+
+
+class CommandlineOverrides
+{
+public:
+	AppConfig::FilenameOptions	Filenames;
+	wxDirName		SettingsFolder;
+	wxFileName		SettingsFile;
+
+	bool			DisableSpeedhacks;
+
+	// Note that gamefixes in this array should only be honored if the
+	// "HasCustomGamefixes" boolean is also enabled.
+	bool			UseGamefix[GamefixId_COUNT];
+	bool			ApplyCustomGamefixes;
+
+public:
+	CommandlineOverrides()
+	{
+		DisableSpeedhacks		= false;
+		ApplyCustomGamefixes	= false;
+	}
+	
+	// Returns TRUE if either speedhacks or gamefixes are being overridden.
+	bool HasCustomHacks() const
+	{
+		return DisableSpeedhacks || ApplyCustomGamefixes;
+	}
+
+	bool HasSettingsOverride() const
+	{
+		return SettingsFolder.IsOk() || SettingsFile.IsOk();
+	}
+
+	bool HasPluginsOverride() const
+	{
+		for( int i=0; i<PluginId_Count; ++i )
+			if( Filenames.Plugins[i].IsOk() ) return true;
+
+		return false;
+	}
+};
+
 // =====================================================================================================
 //  Pcsx2App  -  main wxApp class
 // =====================================================================================================
@@ -380,7 +449,7 @@ protected:
 	EventSource<IEventListener_Plugins>		m_evtsrc_CorePluginStatus;
 	EventSource<IEventListener_CoreThread>	m_evtsrc_CoreThreadStatus;
 	EventSource<IEventListener_AppStatus>	m_evtsrc_AppStatus;
-	
+
 public:
 	void AddListener( IEventListener_Plugins& listener )
 	{
@@ -442,30 +511,26 @@ public:
 		m_evtsrc_AppStatus.Remove( listener );
 	}
 	
-	void DispatchEvent( PluginEventType evt )
-	{
-		if( !AffinityAssert_AllowFromMain() ) return;
-		m_evtsrc_CorePluginStatus.Dispatch( evt );
-	}
-
-	void DispatchEvent( AppEventType evt )
-	{
-		if( !AffinityAssert_AllowFromMain() ) return;
-		m_evtsrc_AppStatus.Dispatch( AppEventInfo( evt ) );
-	}
-
-	void DispatchEvent( IniInterface& ini )
-	{
-		if( !AffinityAssert_AllowFromMain() ) return;
-		m_evtsrc_AppStatus.Dispatch( AppSettingsEventInfo( ini ) );
-	}
+	void DispatchEvent( PluginEventType evt );
+	void DispatchEvent( AppEventType evt );
+	void DispatchEvent( CoreThreadStatus evt );
+	void DispatchEvent( IniInterface& ini );
 
 	// ----------------------------------------------------------------------------
+protected:
+	int								m_PendingSaves;
+	bool							m_ScheduledTermination;
+	bool							m_UseGUI;
 	
 public:
 	FramerateManager				FpsManager;
 	CommandDictionary				GlobalCommands;
 	AcceleratorDictionary			GlobalAccels;
+
+	StartupOptions					Startup;
+	CommandlineOverrides			Overrides;
+
+	ScopedPtr<wxTimer>				m_timer_Termination;
 
 protected:
 	ScopedPtr<PipeRedirectionBase>	m_StdoutRedirHandle;
@@ -474,9 +539,15 @@ protected:
 	ScopedPtr<RecentIsoList>		m_RecentIsoList;
 	ScopedPtr<pxAppResources>		m_Resources;
 
+	Threading::Mutex				m_mtx_Resources;
+	Threading::Mutex				m_mtx_LoadingGameDB;
+
 public:
+	// Executor Thread for complex VM/System tasks.  This thread is used to execute such tasks
+	// in parallel to the main message pump, to allow the main pump to run without fear of
+	// blocked threads stalling the GUI.
+	ExecutorThread					SysExecutorThread;
 	ScopedPtr<SysCoreAllocations>	m_CoreAllocs;
-	ScopedPtr<PluginManager>		m_CorePlugins;
 
 protected:
 	wxWindowID			m_id_MainFrame;
@@ -489,17 +560,13 @@ public:
 	Pcsx2App();
 	virtual ~Pcsx2App();
 
-	void PostPluginStatus( PluginEventType pevt );
 	void PostMenuAction( MenuIdentifiers menu_id ) const;
-	int  IssueDialogAsModal( const wxString& dlgName );
-	void PostMethod( FnPtr_AppMethod method );
-	void PostIdleMethod( FnPtr_AppMethod method );
-	int  DoStuckThread( PersistentThread& stuck_thread );
+	void PostAppMethod( FnPtr_Pcsx2App method );
+	void PostIdleAppMethod( FnPtr_Pcsx2App method );
 
 	void SysExecute();
 	void SysExecute( CDVD_SourceType cdvdsrc, const wxString& elf_override=wxEmptyString );
-	void SysReset();
-	void ReloadPlugins();
+	void SysShutdown();
 	void LogicalVsync();
 
 	GSFrame&		GetGsFrame() const;
@@ -512,7 +579,7 @@ public:
 
 	void OpenGsPanel();
 	void CloseGsPanel();
-	void OnGsFrameClosed();
+	void OnGsFrameClosed( wxWindowID id );
 	void OnMainFrameClosed( wxWindowID id );
 
 	// --------------------------------------------------------------------------
@@ -520,7 +587,7 @@ public:
 	// --------------------------------------------------------------------------
 
 	void DetectCpuAndUserMode();
-	void OpenConsoleLog();
+	void OpenProgramLog();
 	void OpenMainFrame();
 	void PrepForExit();
 	void CleanupRestartable();
@@ -528,6 +595,8 @@ public:
 	void WipeUserModeSettings();
 	void ReadUserModeSettings();
 
+	void StartPendingSave();
+	void ClearPendingSave();
 
 	// --------------------------------------------------------------------------
 	//  App-wide Resources
@@ -548,6 +617,8 @@ public:
 	{
 		return m_Resources->ImageId;
 	}
+	
+	DataBase_Loader* GetGameDatabase();
 
 	// --------------------------------------------------------------------------
 	//  Overrides of wxApp virtuals:
@@ -559,10 +630,14 @@ public:
 	void OnInitCmdLine( wxCmdLineParser& parser );
 	bool OnCmdLineParsed( wxCmdLineParser& parser );
 	bool OnCmdLineError( wxCmdLineParser& parser );
+	bool ParseOverrides( wxCmdLineParser& parser );
 
 #ifdef __WXDEBUG__
 	void OnAssertFailure( const wxChar *file, int line, const wxChar *func, const wxChar *cond, const wxChar *msg );
 #endif
+
+	Threading::MutexRecursive	m_mtx_ProgramLog;
+	ConsoleLogFrame*			m_ptr_ProgramLog;
 
 	// ----------------------------------------------------------------------------
 	//   Console / Program Logging Helpers
@@ -570,14 +645,16 @@ public:
 	ConsoleLogFrame* GetProgramLog();
 	const ConsoleLogFrame* GetProgramLog() const;
 	void ProgramLog_PostEvent( wxEvent& evt );
-	void EnableAllLogging() const;
+	Threading::Mutex& GetProgramLogLock();
+
+	void EnableAllLogging();
 	void DisableWindowLogging() const;
 	void DisableDiskLogging() const;
 	void OnProgramLogClosed( wxWindowID id );
 
 protected:
-	bool InvokeMethodOnMainThread( FnPtr_AppMethod method );
-	bool PostMethodToMainThread( FnPtr_AppMethod method );
+	bool InvokeOnMainThread( FnPtr_Pcsx2App method );
+	bool PostAppMethodMyself( FnPtr_Pcsx2App method );
 
 	void AllocateCoreStuffs();
 	void InitDefaultGlobalAccelerators();
@@ -586,23 +663,14 @@ protected:
 	void CleanupOnExit();
 	void OpenWizardConsole();
 	void PadKeyDispatch( const keyEvent& ev );
-	void CancelLoadingPlugins();
 	
 	void HandleEvent(wxEvtHandler* handler, wxEventFunction func, wxEvent& event) const;
 	void HandleEvent(wxEvtHandler* handler, wxEventFunction func, wxEvent& event);
 
-	void OnSysExecute( wxCommandEvent& evt );
-	void OnLoadPluginsComplete( wxCommandEvent& evt );
-	void OnPluginStatus( wxCommandEvent& evt );
-	void OnCoreThreadStatus( wxCommandEvent& evt );
-	void OnFreezeThreadFinished( wxCommandEvent& evt );
-
-	void OnOpenModalDialog( wxCommandEvent& evt );
-	void OnOpenDialog_StuckThread( wxCommandEvent& evt );
-
+	void OnScheduledTermination( wxTimerEvent& evt );
 	void OnEmuKeyDown( wxKeyEvent& evt );
-
-	void OnInvokeMethod( pxInvokeAppMethodEvent& evt );
+	void OnSysExecutorTaskTimeout( wxTimerEvent& evt );
+	void OnDestroyWindow( wxWindowDestroyEvent& evt );
 
 	// ----------------------------------------------------------------------------
 	//      Override wx default exception handling behavior
@@ -619,40 +687,6 @@ protected:
 	void OnUnhandledException() { throw; }
 };
 
-
-// --------------------------------------------------------------------------------------
-//  AppCoreThread class
-// --------------------------------------------------------------------------------------
-class AppCoreThread : public SysCoreThread
-{
-	typedef SysCoreThread _parent;
-
-public:
-	AppCoreThread();
-	virtual ~AppCoreThread() throw();
-
-	virtual bool Suspend( bool isBlocking=true );
-	virtual void Resume();
-	virtual void Reset();
-	virtual void Cancel( bool isBlocking=true );
-	virtual void StateCheckInThread();
-	virtual void ApplySettings( const Pcsx2Config& src );
-	virtual void ChangeCdvdSource( CDVD_SourceType type );
-
-protected:
-	virtual void OnResumeReady();
-	virtual void OnResumeInThread( bool IsSuspended );
-	virtual void OnSuspendInThread();
-	virtual void OnCleanupInThread();
-	//virtual void VsyncInThread();
-	virtual void PostVsyncToUI();
-	virtual void ExecuteTaskInThread();
-	virtual void DoCpuReset();
-
-	virtual void DoThreadDeadlocked();
-	
-	virtual void CpuInitializeMess();
-};
 
 DECLARE_APP(Pcsx2App)
 
@@ -686,9 +720,6 @@ DECLARE_APP(Pcsx2App)
 #define sMainFrame \
 	if( MainEmuFrame* __frame_ = GetMainFramePtr() ) (*__frame_)
 
-#define sGSFrame \
-	if( GSFrame* __gsframe_ = wxGetApp().GetGsFramePtr() ) (*__gsframe_)
-
 // Use this within the scope of a wxWindow (wxDialog or wxFrame).  If the window has a valid menu
 // bar, the command will run, otherwise it will be silently ignored. :)
 #define sMenuBar \
@@ -697,38 +728,19 @@ DECLARE_APP(Pcsx2App)
 // --------------------------------------------------------------------------------------
 //  AppOpenDialog
 // --------------------------------------------------------------------------------------
-template<typename DialogType>
-void AppOpenDialog( wxWindow* parent )
-{
-	if( wxWindow* window = wxFindWindowByName( DialogType::GetNameStatic() ) )
-		window->SetFocus();
-	else
-		(new DialogType( parent ))->Show();
-}
-
-// --------------------------------------------------------------------------------------
-//  SaveSinglePluginHelper
-// --------------------------------------------------------------------------------------
-// A scoped convenience class for closing a single plugin and saving its state to memory.
-// Emulation is suspended as needed, and is restored when the object leaves scope.  Within
-// the scope of the object, code is free to call plugin re-configurations or even unload
-// a plugin entirely and re-load a different plugin in its place.
+// Returns a wxWindow handle to the opened window.
 //
-class SaveSinglePluginHelper
+template<typename DialogType>
+wxWindow* AppOpenDialog( wxWindow* parent=NULL )
 {
-protected:
-	SafeArray<u8>			m_plugstore;
-	const SafeArray<u8>*	m_whereitsat;
+	wxWindow* window = wxFindWindowByName( L"Dialog:" + DialogType::GetNameStatic() );
+	
+	if( !window ) window = new DialogType( parent );
 
-	bool					m_resume;
-	bool					m_validstate;
-	PluginsEnum_t			m_pid;
-
-public:
-	SaveSinglePluginHelper( PluginsEnum_t pid );
-	virtual ~SaveSinglePluginHelper() throw();
-};
-
+	window->Show();
+	window->SetFocus();
+	return window;
+}
 
 extern pxDoAssertFnType AppDoAssert;
 
@@ -737,9 +749,10 @@ extern pxDoAssertFnType AppDoAssert;
 // --------------------------------------------------------------------------------------
 
 extern int  EnumeratePluginsInFolder( const wxDirName& searchPath, wxArrayString* dest );
-extern void LoadPluginsPassive( FnType_OnThreadComplete* onComplete );
+extern void LoadPluginsPassive();
 extern void LoadPluginsImmediate();
 extern void UnloadPlugins();
+extern void ShutdownPlugins();
 
 extern void AppLoadSettings();
 extern void AppSaveSettings();
@@ -755,5 +768,25 @@ extern MainEmuFrame*	GetMainFramePtr();
 
 extern __aligned16 AppCoreThread CoreThread;
 extern __aligned16 SysMtgsThread mtgsThread;
+extern __aligned16 AppPluginManager CorePlugins;
 
 
+extern void UI_UpdateSysControls();
+
+extern void UI_DisableStateActions();
+extern void UI_EnableStateActions();
+
+extern void UI_DisableSysActions();
+extern void UI_EnableSysActions();
+
+extern void UI_DisableSysReset();
+extern void UI_DisableSysShutdown();
+
+
+#define AffinityAssert_AllowFrom_SysExecutor() \
+	pxAssertMsg( wxGetApp().SysExecutorThread.IsSelf(), "Thread affinity violation: Call allowed from SysExecutor thread only." )
+
+#define AffinityAssert_DisallowFrom_SysExecutor() \
+	pxAssertMsg( !wxGetApp().SysExecutorThread.IsSelf(), "Thread affinity violation: Call is *not* allowed from SysExecutor thread." )
+
+extern ExecutorThread& GetSysExecutorThread();

@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -214,7 +214,7 @@ static int FindDiskType(int mType)
 		switch (iCDType)
 		{
 			case CDVD_TYPE_PS2CD:
-				iCDType=CDVD_TYPE_PS2CDDA; 
+				iCDType=CDVD_TYPE_PS2CDDA;
 				break;
 			case CDVD_TYPE_PSCD:
 				iCDType=CDVD_TYPE_PSCDDA;
@@ -244,6 +244,7 @@ static void DetectDiskType()
 
 	switch(baseMediaType)
 	{
+#if 0
 		case CDVD_TYPE_CDDA:
 		case CDVD_TYPE_PSCD:
 		case CDVD_TYPE_PS2CD:
@@ -262,6 +263,7 @@ static void DetectDiskType()
 		case CDVD_TYPE_DETCTCD:
 			mType = baseMediaType;
 			break;
+#endif
 
 		case CDVD_TYPE_NODISC:
 			diskTypeCached = CDVD_TYPE_NODISC;
@@ -279,6 +281,11 @@ void CDVDsys_SetFile( CDVD_SourceType srctype, const wxString& newfile )
 	m_SourceFilename[srctype] = newfile;
 }
 
+const wxString& CDVDsys_GetFile( CDVD_SourceType srctype )
+{
+	return m_SourceFilename[srctype];
+}
+
 CDVD_SourceType CDVDsys_GetSourceType()
 {
 	return m_CurrentSourceType;
@@ -286,7 +293,7 @@ CDVD_SourceType CDVDsys_GetSourceType()
 
 void CDVDsys_ChangeSource( CDVD_SourceType type )
 {
-	GetPluginManager().Close( PluginId_CDVD );
+	GetCorePlugins().Close( PluginId_CDVD );
 
 	switch( m_CurrentSourceType = type )
 	{

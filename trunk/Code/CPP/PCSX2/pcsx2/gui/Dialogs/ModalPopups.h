@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -26,27 +26,31 @@ static const wxWindowID pxID_CUSTOM = wxID_LOWEST - 1;
 
 class FirstTimeWizard : public wxWizard
 {
+	typedef wxWizard _parent;
+
 protected:
 	class UsermodePage : public ApplicableWizardPage
 	{
 	protected:
 		Panels::DirPickerPanel*			m_dirpick_settings;
 		Panels::LanguageSelectionPanel*	m_panel_LangSel;
-		Panels::UsermodeSelectionPanel*	m_panel_UserSel;
+		Panels::DocsFolderPickerPanel*	m_panel_UserSel;
 
 	public:
 		UsermodePage( wxWizard* parent );
+		virtual ~UsermodePage() throw() { }
+		bool PrepForApply();
 
 	protected:
 		void OnUsermodeChanged( wxCommandEvent& evt );
 		void OnCustomDirChanged( wxCommandEvent& evt );
 	};
-	
+
 protected:
 	UsermodePage&		m_page_usermode;
 	wxWizardPageSimple& m_page_plugins;
 	wxWizardPageSimple& m_page_bios;
-	
+
 	Panels::PluginSelectorPanel&	m_panel_PluginSel;
 	Panels::BiosSelectorPanel&		m_panel_BiosSel;
 
@@ -61,6 +65,8 @@ public:
 	{
 		m_panel_PluginSel.OnShown();
 	}
+	
+	int ShowModal();
 
 protected:
 	virtual void OnPageChanging( wxWizardEvent& evt );
@@ -81,14 +87,15 @@ namespace Dialogs
 		AboutBoxDialog( wxWindow* parent=NULL );
 		virtual ~AboutBoxDialog() throw() {}
 
-		static const wxChar* GetNameStatic() { return L"Dialog:AboutBox"; }
+		static wxString GetNameStatic() { return L"AboutBox"; }
+		wxString GetDialogName() const { return GetNameStatic(); }
 	};
 
-	
+
 	class PickUserModeDialog : public BaseApplicableDialog
 	{
 	protected:
-		Panels::UsermodeSelectionPanel* m_panel_usersel;
+		Panels::DocsFolderPickerPanel* m_panel_usersel;
 		Panels::LanguageSelectionPanel* m_panel_langsel;
 
 	public:
@@ -105,7 +112,7 @@ namespace Dialogs
 	public:
 		ImportSettingsDialog( wxWindow* parent );
 		virtual ~ImportSettingsDialog() throw() {}
-		
+
 	protected:
 		void OnImport_Click( wxCommandEvent& evt );
 		void OnOverwrite_Click( wxCommandEvent& evt );
@@ -125,7 +132,7 @@ namespace Dialogs
 	// The former means we can provide a "cancel" action for the user, which would itself
 	// open a new dialog in the latter category.  The latter means that there's really nothing
 	// we can do, since pthreads API provides no good way for killing threads.  The only
-	// valid options for the user in that case is to either wait (boring!) or kill the 
+	// valid options for the user in that case is to either wait (boring!) or kill the
 	// process (awesome!).
 
 	enum StuckThreadActionType
@@ -148,7 +155,7 @@ namespace Dialogs
 	public:
 		StuckThreadDialog( wxWindow* parent, StuckThreadActionType action, Threading::PersistentThread& stuck_thread );
 		virtual ~StuckThreadDialog() throw() {}
-		
+
 	protected:
 		void OnThreadCleanup();
 	};

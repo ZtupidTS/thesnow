@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -16,6 +16,7 @@
 #include "PrecompiledHeader.h"
 #include "System.h"
 #include "App.h"
+#include "MSWstuff.h"
 
 #include "ConfigurationDialog.h"
 #include "ModalPopups.h"
@@ -28,6 +29,9 @@
 #include <wx/filepicker.h>
 #include <wx/listbook.h>
 
+DEFINE_EVENT_TYPE( pxEvt_ApplySettings )
+DEFINE_EVENT_TYPE( pxEvt_SetSettingsPage )
+
 using namespace Panels;
 
 // configure the orientation of the listbox based on the platform
@@ -38,47 +42,60 @@ using namespace Panels;
 	static const int s_orient = wxBK_LEFT;
 #endif
 
-IMPLEMENT_DYNAMIC_CLASS(Dialogs::BaseApplicableDialog, wxDialogWithHelpers)
+IMPLEMENT_DYNAMIC_CLASS(BaseApplicableDialog, wxDialogWithHelpers)
 
-Dialogs::BaseApplicableDialog::BaseApplicableDialog( wxWindow* parent, const wxString& title )
-	: wxDialogWithHelpers( parent, title, false )
+BaseApplicableDialog::BaseApplicableDialog( wxWindow* parent, const wxString& title, const pxDialogCreationFlags& cflags )
+	: wxDialogWithHelpers( parent, title, cflags.MinWidth(425).Minimize() )
 {
+	Init();
 }
 
-Dialogs::BaseApplicableDialog::BaseApplicableDialog( wxWindow* parent, const wxString& title, wxOrientation sizerOrient )
-	: wxDialogWithHelpers( parent, title, sizerOrient )
-{
-}
-
-Dialogs::BaseApplicableDialog::~BaseApplicableDialog() throw()
+BaseApplicableDialog::~BaseApplicableDialog() throw()
 {
 	m_ApplyState.DoCleanup();
 }
 
-Dialogs::BaseConfigurationDialog::BaseConfigurationDialog( wxWindow* parent, const wxString& title, wxImageList& bookicons, int idealWidth )
-	: BaseApplicableDialog( parent, title, wxVERTICAL )
-	, m_listbook( *new wxListbook( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, s_orient ) )
+wxString BaseApplicableDialog::GetDialogName() const
 {
-	m_idealWidth = idealWidth;
+	pxFailDev( "This class must implement GetDialogName!" );
+	return L"Unnamed";
+}
 
-	m_listbook.SetImageList( &bookicons );
-	m_ApplyState.StartBook( &m_listbook );
 
-	wxBitmapButton& screenshotButton( *new wxBitmapButton( this, wxID_SAVE, EmbeddedImage<res_ButtonIcon_Camera>().Get() ) );
-	screenshotButton.SetToolTip( _("保存这个设置面板的截图为一个 PNG 文件.") );
+void BaseApplicableDialog::Init()
+{
+	Connect( pxEvt_ApplySettings,	wxCommandEventHandler	(BaseApplicableDialog::OnSettingsApplied) );
 
-	*this += m_listbook;
-	AddOkCancel( *GetSizer(), true );
+	wxCommandEvent applyEvent( pxEvt_ApplySettings );
+	applyEvent.SetId( GetId() );
+	AddPendingEvent( applyEvent );
+}
 
-	*m_extraButtonSizer += screenshotButton;
+void BaseApplicableDialog::OnSettingsApplied( wxCommandEvent& evt )
+{
+	evt.Skip();
+	if( evt.GetId() == GetId() ) AppStatusEvent_OnSettingsApplied();
+}
 
+
+// --------------------------------------------------------------------------------------
+//  BaseConfigurationDialog  Implementations
+// --------------------------------------------------------------------------------------
+Dialogs::BaseConfigurationDialog::BaseConfigurationDialog( wxWindow* parent, const wxString& title, int idealWidth )
+	: _parent( parent, title )
+{
+	SetMinWidth( idealWidth );
+	m_listbook		= NULL;
+	
 	Connect( wxID_OK,		wxEVT_COMMAND_BUTTON_CLICKED,	wxCommandEventHandler( BaseConfigurationDialog::OnOk_Click ) );
 	Connect( wxID_CANCEL,	wxEVT_COMMAND_BUTTON_CLICKED,	wxCommandEventHandler( BaseConfigurationDialog::OnCancel_Click ) );
 	Connect( wxID_APPLY,	wxEVT_COMMAND_BUTTON_CLICKED,	wxCommandEventHandler( BaseConfigurationDialog::OnApply_Click ) );
 	Connect( wxID_SAVE,		wxEVT_COMMAND_BUTTON_CLICKED,	wxCommandEventHandler( BaseConfigurationDialog::OnScreenshot_Click ) );
 
 	Connect(				wxEVT_CLOSE_WINDOW,				wxCloseEventHandler(BaseConfigurationDialog::OnCloseWindow) );
-	
+
+	Connect( pxEvt_SetSettingsPage, wxCommandEventHandler( BaseConfigurationDialog::OnSetSettingsPage ) );
+
 	// ----------------------------------------------------------------------------
 	// Bind a variety of standard "something probably changed" events.  If the user invokes
 	// any of these, we'll automatically de-gray the Apply button for this dialog box. :)
@@ -98,22 +115,62 @@ Dialogs::BaseConfigurationDialog::BaseConfigurationDialog( wxWindow* parent, con
 	ConnectSomethingChanged( SPINCTRL_UPDATED );
 	ConnectSomethingChanged( SLIDER_UPDATED );
 	ConnectSomethingChanged( DIRPICKER_CHANGED );
+}
 
-	FindWindow( wxID_APPLY )->Disable();
+void Dialogs::BaseConfigurationDialog::AddListbook( wxSizer* sizer )
+{
+	if( !sizer ) sizer = GetSizer();
+	sizer += m_listbook	| pxExpand.Border( wxLEFT | wxRIGHT, 2 );
+}
+
+void Dialogs::BaseConfigurationDialog::CreateListbook( wxImageList& bookicons )
+{
+	m_listbook = new wxListbook( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, s_orient );
+	m_listbook->SetImageList( &bookicons );
+	m_ApplyState.StartBook( m_listbook );
+}
+
+void Dialogs::BaseConfigurationDialog::AddOkCancel( wxSizer* sizer )
+{
+	_parent::AddOkCancel( sizer, true );
+	if( wxWindow* apply = FindWindow( wxID_APPLY ) ) apply->Disable();
+
+	wxBitmapButton& screenshotButton( *new wxBitmapButton( this, wxID_SAVE, EmbeddedImage<res_ButtonIcon_Camera>().Get() ) );
+	screenshotButton.SetToolTip( _("Saves a snapshot of this settings panel to a PNG file.") );
+
+	*m_extraButtonSizer += screenshotButton;
 }
 
 Dialogs::BaseConfigurationDialog::~BaseConfigurationDialog() throw()
 {
 }
 
+void Dialogs::BaseConfigurationDialog::OnSetSettingsPage( wxCommandEvent& evt )
+{
+	if( !m_listbook ) return;
+	
+	size_t pages = m_labels.GetCount();
+	
+	for( size_t i=0; i<pages; ++i )
+	{
+		if( evt.GetString() == m_labels[i] )
+		{
+			m_listbook->SetSelection( i );
+			break;
+		}
+	}
+}
+
+void Dialogs::BaseConfigurationDialog::SomethingChanged()
+{
+	if( wxWindow* apply = FindWindow( wxID_APPLY ) ) apply->Enable();
+}
 
 void Dialogs::BaseConfigurationDialog::OnSomethingChanged( wxCommandEvent& evt )
 {
 	evt.Skip();
 	if( (evt.GetId() != wxID_OK) && (evt.GetId() != wxID_CANCEL) && (evt.GetId() != wxID_APPLY) )
-	{
-		FindWindow( wxID_APPLY )->Enable();
-	}
+		SomethingChanged();
 }
 
 
@@ -127,8 +184,8 @@ void Dialogs::BaseConfigurationDialog::OnOk_Click( wxCommandEvent& evt )
 {
 	if( m_ApplyState.ApplyAll() )
 	{
-		FindWindow( wxID_APPLY )->Disable();
-		GetConfSettingsTabName() = m_labels[m_listbook.GetSelection()];
+		if( wxWindow* apply = FindWindow( wxID_APPLY ) ) apply->Disable();
+		if( m_listbook ) GetConfSettingsTabName() = m_labels[m_listbook->GetSelection()];
 		AppSaveSettings();
 		evt.Skip();
 	}
@@ -137,7 +194,7 @@ void Dialogs::BaseConfigurationDialog::OnOk_Click( wxCommandEvent& evt )
 void Dialogs::BaseConfigurationDialog::OnCancel_Click( wxCommandEvent& evt )
 {
 	evt.Skip();
-	GetConfSettingsTabName() = m_labels[m_listbook.GetSelection()];
+	if( m_listbook ) GetConfSettingsTabName() = m_labels[m_listbook->GetSelection()];
 }
 
 void Dialogs::BaseConfigurationDialog::OnApply_Click( wxCommandEvent& evt )
@@ -145,7 +202,7 @@ void Dialogs::BaseConfigurationDialog::OnApply_Click( wxCommandEvent& evt )
 	if( m_ApplyState.ApplyAll() )
 		FindWindow( wxID_APPLY )->Disable();
 
-	GetConfSettingsTabName() = m_labels[m_listbook.GetSelection()];
+	if( m_listbook ) GetConfSettingsTabName() = m_labels[m_listbook->GetSelection()];
 	AppSaveSettings();
 }
 
@@ -161,8 +218,9 @@ void Dialogs::BaseConfigurationDialog::OnScreenshot_Click( wxCommandEvent& evt )
 	memDC.Blit( wxPoint(), dcsize, &dc, wxPoint() );
 	}
 
+	wxString pagename( m_listbook ? (L"_" + m_listbook->GetPageText( m_listbook->GetSelection() )) : wxString() );
 	wxString filenameDefault;
-	filenameDefault.Printf( L"pcsx2_settings_%s.png", m_listbook.GetPageText( m_listbook.GetSelection() ).c_str() );
+	filenameDefault.Printf( L"pcsx2_%s%s.png", GetDialogName().c_str(), pagename.c_str() );
 	filenameDefault.Replace( L"/", L"-" );
 
 	wxString filename( wxFileSelector( _("保存对话框截图到..."), g_Conf->Folders.Snapshots.ToString(),
@@ -173,4 +231,10 @@ void Dialogs::BaseConfigurationDialog::OnScreenshot_Click( wxCommandEvent& evt )
 		ScopedBusyCursor busy( Cursor_ReallyBusy );
 		memBmp.SaveFile( filename, wxBITMAP_TYPE_PNG );
 	}
+}
+
+void Dialogs::BaseConfigurationDialog::OnSettingsApplied( wxCommandEvent& evt )
+{
+	evt.Skip();
+	MSW_ListView_SetIconSpacing( m_listbook, GetClientSize().GetWidth() );
 }

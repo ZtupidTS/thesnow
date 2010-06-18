@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -15,6 +15,8 @@
 
 #include "PrecompiledHeader.h"
 #include "MainFrame.h"
+#include "GSFrame.h"
+
 #include "GS.h"
 #include "MSWstuff.h"
 
@@ -31,15 +33,15 @@ void GSPanel::InitDefaultAccelerators()
 	m_Accels.Map( AAC( WXK_F3 ),				"States_DefrostCurrentSlot");
 	m_Accels.Map( AAC( WXK_F2 ),				"States_CycleSlotForward" );
 	m_Accels.Map( AAC( WXK_F2 ).Shift(),		"States_CycleSlotBackward" );
-	
+
 	m_Accels.Map( AAC( WXK_F4 ),				"Frameskip_Toggle" );
 	m_Accels.Map( AAC( WXK_TAB ),				"Framelimiter_TurboToggle" );
 	m_Accels.Map( AAC( WXK_TAB ).Shift(),		"Framelimiter_MasterToggle" );
-	
+
 	m_Accels.Map( AAC( WXK_ESCAPE ),			"Sys_Suspend" );
 	m_Accels.Map( AAC( WXK_F8 ),				"Sys_TakeSnapshot" );
 	m_Accels.Map( AAC( WXK_F9 ),				"Sys_RenderswitchToggle" );
-	
+
 	//m_Accels.Map( AAC( WXK_F10 ),				"Sys_LoggingToggle" );
 	m_Accels.Map( AAC( WXK_F11 ),				"Sys_FreezeGS" );
 	m_Accels.Map( AAC( WXK_F12 ),				"Sys_RecordingToggle" );
@@ -53,7 +55,7 @@ GSPanel::GSPanel( wxWindow* parent )
 {
 	m_CursorShown	= true;
 	m_HasFocus		= false;
-	
+
 	if ( !wxWindow::Create(parent, wxID_ANY) )
 		throw Exception::RuntimeError( "GSPanel constructor esplode!!" );
 
@@ -119,9 +121,8 @@ void GSPanel::DoResize()
 			// Default to matching client size.
 			// Add a few pixels here, so the outermost pixels of the GS plugin output are "hidden".
 			// This avoids issues with flashing pixels on the edges, especially when Anti Aliasing is used.
-			// Note: Tests in FFX showed we need at least 5 pixels. So using 6 for good measure :p
-			viewport.x+=6;
-			viewport.y+=6;
+			viewport.x+=4;
+			viewport.y+=4;
 		break;
 
 		case AspectRatio_4_3:
@@ -189,7 +190,7 @@ void GSPanel::OnKeyDown( wxKeyEvent& evt )
 		evt.Skip();		// Let the global APP handle it if it wants
 		return;
 	}
-	
+
 	if( cmd != NULL )
 	{
 		DbgCon.WriteLn( "(gsFrame) Invoking command: %s", cmd->Id );
@@ -201,7 +202,7 @@ void GSPanel::OnFocus( wxFocusEvent& evt )
 {
 	evt.Skip();
 	m_HasFocus = true;
-	
+
 	if( g_Conf->GSWindow.AlwaysHideMouse )
 	{
 		SetCursor( wxCursor(wxCURSOR_BLANK) );
@@ -209,6 +210,8 @@ void GSPanel::OnFocus( wxFocusEvent& evt )
 	}
 	else
 		DoShowMouse();
+
+	//Console.Warning("GS frame > focus set");
 }
 
 void GSPanel::OnFocusLost( wxFocusEvent& evt )
@@ -216,6 +219,7 @@ void GSPanel::OnFocusLost( wxFocusEvent& evt )
 	evt.Skip();
 	m_HasFocus = false;
 	DoShowMouse();
+	//Console.Warning("GS frame > focus lost");
 }
 
 void GSPanel::AppStatusEvent_OnSettingsApplied()
@@ -234,7 +238,7 @@ static const uint TitleBarUpdateMs = 333;
 
 GSFrame::GSFrame(wxWindow* parent, const wxString& title)
 	: wxFrame(parent, wxID_ANY, title,
-		g_Conf->GSWindow.WindowPos, wxSize( 640, 480 ), 
+		g_Conf->GSWindow.WindowPos, wxSize( 640, 480 ),
 		(g_Conf->GSWindow.DisableResizeBorders ? 0 : wxRESIZE_BORDER) | wxCAPTION | wxCLIP_CHILDREN |
 			wxSYSTEM_MENU | wxMINIMIZE_BOX | wxMAXIMIZE_BOX | wxCLOSE_BOX
 	)
@@ -247,14 +251,14 @@ GSFrame::GSFrame(wxWindow* parent, const wxString& title)
 
 	wxStaticText* label = new wxStaticText( this, wxID_ANY, _("GS Êä³öÒÑ½ûÓÃ!") );
 	m_id_OutputDisabled = label->GetId();
-	label->SetFont( *new wxFont( 20, wxDEFAULT, wxNORMAL, wxBOLD ) );
+	label->SetFont( wxFont( 20, wxDEFAULT, wxNORMAL, wxBOLD ) );
 	label->SetForegroundColour( *wxWHITE );
 	label->Show( EmuConfig.GS.DisableOutput );
 
 	GSPanel* gsPanel = new GSPanel( this );
 	gsPanel->Show( !EmuConfig.GS.DisableOutput );
 	m_id_gspanel = gsPanel->GetId();
-	
+
 	// TODO -- Implement this GS window status window!  Whee.
 	// (main concern is retaining proper client window sizes when closing/re-opening the window).
 	//m_statusbar = CreateStatusBar( 2 );
@@ -273,7 +277,7 @@ GSFrame::~GSFrame() throw()
 
 void GSFrame::OnCloseWindow(wxCloseEvent& evt)
 {
-	sApp.OnGsFrameClosed();
+	sApp.OnGsFrameClosed( GetId() );
 	evt.Skip();		// and close it.
 }
 
@@ -293,6 +297,8 @@ void GSFrame::CoreThread_OnSuspended()
 	// Could stop the timer outright here, tho no harm in having an occasional
 	// update here or there, just in case some state info changes while emu is suspended.
 	m_timer_UpdateTitle.Start( TitleBarUpdateMs );
+
+	if( g_Conf->GSWindow.CloseOnEsc ) Hide();
 }
 
 // overrides base Show behavior.
@@ -314,7 +320,7 @@ bool GSFrame::Show( bool shown )
 
 		if( wxStaticText* label = GetLabel_OutputDisabled() )
 			label->Show( EmuConfig.GS.DisableOutput );
-		
+
 		m_timer_UpdateTitle.Start( TitleBarUpdateMs );
 	}
 	else
@@ -328,11 +334,15 @@ bool GSFrame::Show( bool shown )
 void GSFrame::AppStatusEvent_OnSettingsApplied()
 {
 	if( IsBeingDeleted() ) return;
-	ShowFullScreen( g_Conf->GSWindow.DefaultToFullscreen );
-	Show( !g_Conf->GSWindow.CloseOnEsc || ((g_plugins==NULL) || !SysHasValidState()) );
+
+	if( g_Conf->GSWindow.CloseOnEsc )
+	{
+		if( IsShown() && !CorePlugins.IsOpen(PluginId_GS) )
+			Show( false );
+	}
 
 	if( wxStaticText* label = GetLabel_OutputDisabled() )
-		label->Show( !EmuConfig.GS.DisableOutput );
+		label->Show( EmuConfig.GS.DisableOutput );
 }
 
 GSPanel* GSFrame::GetViewport()
@@ -344,11 +354,11 @@ GSPanel* GSFrame::GetViewport()
 void GSFrame::OnUpdateTitle( wxTimerEvent& evt )
 {
 	double fps = wxGetApp().FpsManager.GetFramerate();
-	
+
 	char gsDest[128];
 	GSgetTitleInfo( gsDest );
 
-	
+
 	const wxChar* limiterStr = L"None";
 
 	if( g_Conf->EmuOptions.GS.FrameLimitEnable )
@@ -367,7 +377,7 @@ void GSFrame::OnUpdateTitle( wxTimerEvent& evt )
 		m_CpuUsage.UpdateStats();
 		cpuUsage = wxsFormat( L" | EE: %3d%% | GS: %3d%% | UI: %3d%%", m_CpuUsage.GetEEcorePct(), m_CpuUsage.GetGsPct(), m_CpuUsage.GetGuiPct() );
 	}
-	
+
 	const u64& smode2 = *(u64*)PS2GS_BASE(GS_SMODE2);
 
 	SetTitle( wxsFormat( L"%s | %s (%s) | Limiter: %s | fps: %6.02f%s",
@@ -405,6 +415,13 @@ void GSFrame::OnMove( wxMoveEvent& evt )
 	//static wxPoint lastpos( wxDefaultCoord, wxDefaultCoord );
 	//if( lastpos == evt.GetPosition() ) return;
 	//lastpos = evt.GetPosition();
+}
+
+void GSFrame::SetFocus()
+{
+	_parent::SetFocus();
+	if( GSPanel* gsPanel = GetViewport() )
+		gsPanel->SetFocusFromKbd();
 }
 
 void GSFrame::OnResize( wxSizeEvent& evt )

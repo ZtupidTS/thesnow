@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -16,8 +16,11 @@
 #include "PrecompiledHeader.h"
 #include "App.h"
 #include "MainFrame.h"
-#include "IniInterface.h"
 #include "Plugins.h"
+
+#include "MemoryCardFile.h"
+
+#include "Utilities/IniInterface.h"
 
 #include <wx/stdpaths.h>
 #include "DebugTools/Debug.h"
@@ -93,18 +96,23 @@ namespace PathDefs
 
 	// Fetches the path location for user-consumable documents -- stuff users are likely to want to
 	// share with other programs: screenshots, memory cards, and savestates.
-	wxDirName GetDocuments()
+	wxDirName GetDocuments( DocsModeType mode )
 	{
-		switch( DocsFolderMode )
+		switch( mode )
 		{
 			case DocsFolder_User:	return (wxDirName)Path::Combine( wxStandardPaths::Get().GetDocumentsDir(), wxGetApp().GetAppName() );
-			case DocsFolder_CWD:	return (wxDirName)wxGetCwd();
+			//case DocsFolder_CWD:	return (wxDirName)wxGetCwd();
 			case DocsFolder_Custom: return CustomDocumentsFolder;
-			
+
 			jNO_DEFAULT
 		}
-		
+
 		return wxDirName();
+	}
+
+	wxDirName GetDocuments()
+	{
+		return GetDocuments( DocsFolderMode );
 	}
 
 	wxDirName GetSnapshots()
@@ -158,7 +166,7 @@ namespace PathDefs
 			case FolderId_Savestates:	return GetSavestates();
 			case FolderId_MemoryCards:	return GetMemoryCards();
 			case FolderId_Logs:			return GetLogs();
-			
+
 			case FolderId_Documents:	return CustomDocumentsFolder;
 
 			jNO_DEFAULT
@@ -178,7 +186,7 @@ wxDirName& AppConfig::FolderOptions::operator[]( FoldersEnum_t folderidx )
 		case FolderId_Savestates:	return Savestates;
 		case FolderId_MemoryCards:	return MemoryCards;
 		case FolderId_Logs:			return Logs;
-		
+
 		case FolderId_Documents:	return CustomDocumentsFolder;
 
 		jNO_DEFAULT
@@ -248,7 +256,7 @@ void AppConfig::FolderOptions::Set( FoldersEnum_t folderidx, const wxString& src
 			Logs = src;
 			UseDefaultLogs = useDefault;
 		break;
-		
+
 		case FolderId_Documents:
 			CustomDocumentsFolder = src;
 		break;
@@ -310,36 +318,43 @@ wxString AppConfig::FullpathTo( PluginsEnum_t pluginidx ) const
 // rather than any other type of more direct string comparison!
 bool AppConfig::FullpathMatchTest( PluginsEnum_t pluginId, const wxString& cmpto ) const
 {
-	wxFileName right( cmpto );
-	wxFileName left( FullpathTo(pluginId) );
+	// Implementation note: wxFileName automatically normalizes things as needed in it's
+	// equality comparison implementations, so we can do a simple comparison as follows:
 
-	left.MakeAbsolute();
-	right.MakeAbsolute();
+	return wxFileName(cmpto).SameAs( FullpathTo(pluginId) );
+}
 
-	return left == right;
+wxDirName GetLogFolder()
+{
+	return UseDefaultLogs ? PathDefs::GetLogs() : Logs;
 }
 
 wxDirName GetSettingsFolder()
 {
+	if( wxGetApp().Overrides.SettingsFolder.IsOk() )
+		return wxGetApp().Overrides.SettingsFolder;
+
 	return UseDefaultSettingsFolder ? PathDefs::GetSettings() : SettingsFolder;
 }
 
 wxString GetSettingsFilename()
 {
-	return GetSettingsFolder().Combine( FilenameDefs::GetConfig() ).GetFullPath();
+	wxFileName fname( wxGetApp().Overrides.SettingsFile.IsOk() ? wxGetApp().Overrides.SettingsFile : FilenameDefs::GetConfig() );
+	return GetSettingsFolder().Combine( fname ).GetFullPath();
 }
 
 
 wxString AppConfig::FullpathToBios() const				{ return Path::Combine( Folders.Bios, BaseFilenames.Bios ); }
-wxString AppConfig::FullpathToMcd( uint port, uint slot ) const
+wxString AppConfig::FullpathToMcd( uint slot ) const
 {
-	return Path::Combine( Folders.MemoryCards, Mcd[port][slot].Filename );
+	return Path::Combine( Folders.MemoryCards, Mcd[slot].Filename );
 }
 
 AppConfig::AppConfig()
 	: MainGuiPosition( wxDefaultPosition )
 	, SysSettingsTabName( L"Cpu" )
-	, AppSettingsTabName( L"GS Window" )
+	, McdSettingsTabName( L"Standard" )
+	, AppSettingsTabName( L"Plugins" )
 	, DeskTheme( L"default" )
 {
 	LanguageId			= wxLANGUAGE_DEFAULT;
@@ -348,19 +363,19 @@ AppConfig::AppConfig()
 	Toolbar_ImageSize	= 24;
 	Toolbar_ShowLabels	= true;
 
-	McdEnableNTFS		= true;
+	#ifdef __WXMSW__
+	McdCompressNTFS		= true;
+	#endif
 	EnableSpeedHacks	= false;
 	EnableGameFixes		= false;
 
 	CdvdSource			= CDVDsrc_Iso;
 
-	for( uint port=0; port<2; ++port )
+	// To be moved to FileMemoryCard pluign (someday)
+	for( uint slot=0; slot<8; ++slot )
 	{
-		for( uint slot=0; slot<4; ++slot )
-		{
-			Mcd[port][slot].Enabled		= (slot==0);	// enables main 2 slots
-			Mcd[port][slot].Filename	= FilenameDefs::Memcard( port, slot );
-		}
+		Mcd[slot].Enabled	= !FileMcd_IsMultitapSlot(slot);	// enables main 2 slots
+		Mcd[slot].Filename	= FileMcd_GetDefaultName( slot );
 	}
 }
 
@@ -381,14 +396,30 @@ void AppConfig::LoadSaveUserMode( IniInterface& ini, const wxString& cwdhash )
 	static const wxChar* DocsFolderModeNames[] =
 	{
 		L"User",
-		L"CWD",
 		L"Custom",
 	};
+
+	if( ini.IsLoading() )
+	{
+		// HACK!  When I removed the CWD option, the option became the cause of bad
+		// crashes.  This detects presence of CWD, and replaces it with a custom mode
+		// that points to the CWD.
+		//
+		// The ini contents are rewritten and the CWD is removed.  So after 0.9.7 is released,
+		// this code is ok to be deleted/removed. :)  --air
+		
+		wxString oldmode( ini.GetConfig().Read( L"DocumentsFolderMode", L"User" ) );
+		if( oldmode == L"CWD")
+		{
+			ini.GetConfig().Write( L"DocumentsFolderMode", L"Custom" );
+			ini.GetConfig().Write( L"CustomDocumentsFolder", Path::Normalize(wxGetCwd()) );
+		}
+	}
 
 	ini.EnumEntry( L"DocumentsFolderMode",	DocsFolderMode,	DocsFolderModeNames, DocsFolder_User );
 
 	ini.Entry( L"UseDefaultSettingsFolder", UseDefaultSettingsFolder,	true );
-	ini.Entry( L"CustomDocumentsFolder",	CustomDocumentsFolder,		wxDirName() );
+	ini.Entry( L"CustomDocumentsFolder",	CustomDocumentsFolder,		(wxDirName)Path::Normalize(wxGetCwd()) );
 	ini.Entry( L"SettingsFolder",			SettingsFolder,				PathDefs::GetSettings() );
 
 	ini.Flush();
@@ -400,15 +431,23 @@ void AppConfig::LoadSaveMemcards( IniInterface& ini )
 	AppConfig defaults;
 	IniScopedGroup path( ini, L"MemoryCards" );
 
-	for( uint port=0; port<2; ++port )
+	for( uint slot=0; slot<2; ++slot )
 	{
-		for( int slot=0; slot<4; ++slot )
-		{
-			ini.Entry( wxsFormat( L"Port%d_Slot%d_Enable", port, slot ),
-				Mcd[port][slot].Enabled, defaults.Mcd[port][slot].Enabled );
-			ini.Entry( wxsFormat( L"Port%d_Slot%d_Filename", port, slot ),
-				Mcd[port][slot].Filename, defaults.Mcd[port][slot].Filename );
-		}
+		ini.Entry( wxsFormat( L"Slot%u_Enable", slot+1 ),
+			Mcd[slot].Enabled, defaults.Mcd[slot].Enabled );
+		ini.Entry( wxsFormat( L"Slot%u_Filename", slot+1 ),
+			Mcd[slot].Filename, defaults.Mcd[slot].Filename );
+	}
+
+	for( uint slot=2; slot<8; ++slot )
+	{
+		int mtport = FileMcd_GetMtapPort(slot)+1;
+		int mtslot = FileMcd_GetMtapSlot(slot)+1;
+
+		ini.Entry( wxsFormat( L"Multitap%u_Slot%u_Enable", mtport, mtslot ),
+			Mcd[slot].Enabled, defaults.Mcd[slot].Enabled );
+		ini.Entry( wxsFormat( L"Multitap%u_Slot%u_Filename", mtport, mtslot ),
+			Mcd[slot].Filename, defaults.Mcd[slot].Filename );
 	}
 }
 
@@ -418,6 +457,7 @@ void AppConfig::LoadSaveRootItems( IniInterface& ini )
 
 	IniEntry( MainGuiPosition );
 	IniEntry( SysSettingsTabName );
+	IniEntry( McdSettingsTabName );
 	IniEntry( AppSettingsTabName );
 	ini.EnumEntry( L"LanguageId", LanguageId, NULL, defaults.LanguageId );
 	IniEntry( RecentIsoCount );
@@ -431,6 +471,10 @@ void AppConfig::LoadSaveRootItems( IniInterface& ini )
 
 	IniEntry( EnableSpeedHacks );
 	IniEntry( EnableGameFixes );
+	
+	#ifdef __WXMSW__
+	IniEntry( McdCompressNTFS );
+	#endif
 
 	ini.EnumEntry( L"CdvdSource", CdvdSource, CDVD_SourceLabels, defaults.CdvdSource );
 }
@@ -448,7 +492,7 @@ void AppConfig::LoadSave( IniInterface& ini )
 	BaseFilenames	.LoadSave( ini );
 	GSWindow		.LoadSave( ini );
 	Framerate		.LoadSave( ini );
-	
+
 	// Load Emulation options and apply some defaults overtop saved items, which are regulated
 	// by the PCSX2 UI.
 
@@ -464,7 +508,7 @@ AppConfig::ConsoleLogOptions::ConsoleLogOptions()
 	: DisplayPosition( wxDefaultPosition )
 	, DisplaySize( wxSize( 680, 560 ) )
 {
-	Visible		= false;
+	Visible		= true;
 	AutoDock	= true;
 	FontSize	= 8;
 }
@@ -538,7 +582,7 @@ void AppConfig::FolderOptions::LoadSave( IniInterface& ini )
 	{
 		ApplyDefaults();
 
-		if( DocsFolderMode != DocsFolder_CWD )
+		//if( DocsFolderMode != DocsFolder_CWD )
 		{
 			for( int i=0; i<FolderId_COUNT; ++i )
 				operator[]( (FoldersEnum_t)i ).Normalize();
@@ -575,7 +619,7 @@ AppConfig::GSWindowOptions::GSWindowOptions()
 	DisableScreenSaver		= true;
 
 	AspectRatio				= AspectRatio_4_3;
-	
+
 	WindowSize				= wxSize( 640, 480 );
 	WindowPos				= wxDefaultPosition;
 	IsMaximized				= false;
@@ -610,10 +654,10 @@ void AppConfig::GSWindowOptions::LoadSave( IniInterface& ini )
 	IniEntry( AlwaysHideMouse );
 	IniEntry( DisableResizeBorders );
 	IniEntry( DisableScreenSaver );
-	
+
 	IniEntry( WindowSize );
 	IniEntry( WindowPos );
-	
+
 	static const wxChar* AspectRatioNames[] =
 	{
 		L"Stretch",
@@ -630,9 +674,9 @@ void AppConfig::GSWindowOptions::LoadSave( IniInterface& ini )
 AppConfig::FramerateOptions::FramerateOptions()
 {
 	NominalScalar			= 1.0;
-	TurboScalar				= 3.0;
-	SlomoScalar				= 0.33;
-	
+	TurboScalar				= 2.0;
+	SlomoScalar				= 0.50;
+
 	SkipOnLimit				= false;
 	SkipOnTurbo				= false;
 }
@@ -655,7 +699,7 @@ void AppConfig::FramerateOptions::LoadSave( IniInterface& ini )
 	IniEntry( NominalScalar );
 	IniEntry( TurboScalar );
 	IniEntry( SlomoScalar );
-	
+
 	IniEntry( SkipOnLimit );
 	IniEntry( SkipOnTurbo );
 }
@@ -696,7 +740,7 @@ void RelocateLogfile()
 //
 void AppConfig_OnChangedSettingsFolder( bool overwrite )
 {
-	if( DocsFolderMode != DocsFolder_CWD )
+	//if( DocsFolderMode != DocsFolder_CWD )
 		PathDefs::GetDocuments().Mkdir();
 
 	GetSettingsFolder().Mkdir();

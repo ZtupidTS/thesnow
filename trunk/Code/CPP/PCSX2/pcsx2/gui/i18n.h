@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
  *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -12,7 +12,7 @@
  *  You should have received a copy of the GNU General Public License along with PCSX2.
  *  If not, see <http://www.gnu.org/licenses/>.
  */
- 
+
 #pragma once
 
 #include <wx/wx.h>
@@ -24,7 +24,7 @@ public:
 	wxLanguage wxLangId;
 	wxString englishName;
 	wxString xlatedName;
-	
+
 public:
 	LangPackEnumeration( wxLanguage langId );
 	LangPackEnumeration();
@@ -45,5 +45,27 @@ extern const wxChar* __fastcall pxGetTranslation( const wxChar* message );
 // source code identifiers, and then reference the source code to see what the current
 // english version is.
 //
-#define pxE(key,english)		pxExpandMsg( wxT(key), english )
+// Valid prefix types:
+//
+// .Panel:   Key-based translation of a panel or dialog text; usually either a header or
+//           checkbox description, by may also include some controls with long labels.
+//           These have the highest translation priority.
+//
+// .Popup:   Key-based translation of a popup dialog box; either a notice, confirmation,
+//           or error.  These typically have very high translation priority (roughly equal
+//           or slightly less than pxE_Panel).
+//
+// .Error    Key-based translation of error messages, typically used when throwing exceptions
+//           that have end-user errors.  These are normally (but not always) displayed as popups
+//           to the user.  Translation priority is medium.
+//
+// .Wizard   Key-based translation of a heading, checkbox item, description, or other text
+//           associated with the First-time wizard.  Translation of these items is considered
+//           lower-priority to most other messages; but equal or higher priority to tooltips.
+//
+// .Tooltip: Key-based translation of a tooltip for a control on a dialog/panel.  Translation
+//           of these items is typically considered "lowest priority" as they usually provide
+//           the most tertiary of info to the user.
+//
 
+#define pxE(key, english)			pxExpandMsg( wxT(key),						english )

@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -25,19 +25,32 @@ enum DocsModeType
 	DocsFolder_User,
 	
 	// uses the current working directory for program data
-	DocsFolder_CWD,
+	//DocsFolder_CWD,
 	
 	// uses a custom location for program data
 	DocsFolder_Custom,
 };
 
+namespace PathDefs
+{
+	// complete pathnames are returned by these functions
+	// For 99% of all code, you should use these.
+
+	extern wxDirName GetDocuments();
+	extern wxDirName GetDocuments( DocsModeType mode );
+	extern wxDirName GetThemes();
+}
+
 extern DocsModeType		DocsFolderMode;				// 
 extern wxDirName		SettingsFolder;				// dictates where the settings folder comes from, *if* UseDefaultSettingsFolder is FALSE.
 extern wxDirName		CustomDocumentsFolder;		// allows the specification of a custom home folder for PCSX2 documents files.
 extern bool				UseDefaultSettingsFolder;	// when TRUE, pcsx2 derives the settings folder from the UseAdminMode
+extern wxDirName		Logs;
+extern bool			    UseDefaultLogs;
 
 wxDirName GetSettingsFolder();
 wxString  GetSettingsFilename();
+wxDirName GetLogFolder();
 
 enum AspectRatioType
 {
@@ -172,6 +185,7 @@ public:
 	// Because remembering the last used tab on the settings panel is cool (tab is remembered
 	// by it's UTF/ASCII name).
 	wxString	SysSettingsTabName;
+	wxString	McdSettingsTabName;
 	wxString	AppSettingsTabName;
 
 	// Current language in use (correlates to a wxWidgets wxLANGUAGE specifier)
@@ -194,8 +208,10 @@ public:
 	// Enables display of toolbar text labels.
 	bool		Toolbar_ShowLabels;
 
-	// enables automatic ntfs compression of memory cards (Win32 only)
-	bool		McdEnableNTFS;
+	// uses automatic ntfs compression when creating new memory cards (Win32 only)
+#ifdef __WXMSW__
+	bool		McdCompressNTFS;
+#endif
 
 	// Master toggle for enabling or disabling all speedhacks in one fail-free swoop.
 	// (the toggle is applied when a new EmuConfig is sent through AppCoreThread::ApplySettings)
@@ -206,7 +222,10 @@ public:
 	wxString				CurrentELF;
 	CDVD_SourceType			CdvdSource;
 
-	McdOptions				Mcd[2][4];
+	// Memorycard options - first 2 are default slots, last 6 are multitap 1 and 2
+	// slots (3 each)
+	McdOptions				Mcd[8];
+	
 	ConsoleLogOptions		ProgLogBox;
 	FolderOptions			Folders;
 	FilenameOptions			BaseFilenames;
@@ -223,7 +242,7 @@ public:
 	AppConfig();
 
 	wxString FullpathToBios() const;
-	wxString FullpathToMcd( uint port, uint slot ) const;
+	wxString FullpathToMcd( uint slot ) const;
 	wxString FullpathTo( PluginsEnum_t pluginId ) const;
 
 	bool FullpathMatchTest( PluginsEnum_t pluginId, const wxString& cmpto ) const;
@@ -234,14 +253,6 @@ public:
 	void LoadSaveRootItems( IniInterface& ini );
 	void LoadSaveMemcards( IniInterface& ini );
 };
-
-struct ConfigOverrides
-{
-	AppConfig::FilenameOptions	Filenames;
-	wxString		SettingsFolder;
-};
-
-extern ConfigOverrides OverrideOptions;
 
 extern wxFileConfig* OpenFileConfig( const wxString& filename );
 extern void RelocateLogfile();

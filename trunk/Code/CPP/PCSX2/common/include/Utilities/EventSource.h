@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -40,7 +40,7 @@ protected:
 	// Translation: The dispatcher uses this copy instead, to avoid iterator invalidation.
 	ListenerList	m_cache_copy;
 	bool			m_cache_valid;
-	
+
 	Threading::Mutex m_listeners_lock;
 
 public:
@@ -54,13 +54,13 @@ public:
 	virtual ListenerIterator Add( ListenerType& listener );
 	virtual void Remove( ListenerType& listener );
 	virtual void Remove( const ListenerIterator& listenerHandle );
-	
+
 	void Add( ListenerType* listener )
 	{
 		if( listener == NULL ) return;
 		Add( *listener );
 	}
-	
+
 	void Remove( ListenerType* listener )
 	{
 		if( listener == NULL ) return;

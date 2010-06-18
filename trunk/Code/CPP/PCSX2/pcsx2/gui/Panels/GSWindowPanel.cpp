@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -47,48 +47,48 @@ Panels::GSWindowSettingsPanel::GSWindowSettingsPanel( wxWindow* parent )
 	m_check_Fullscreen	= new pxCheckBox( this, _("打开时默认全屏模式") );
 	m_check_VsyncEnable	= new pxCheckBox( this, _("刷新时等待场同步") );
 	m_check_ExclusiveFS = new pxCheckBox( this, _("使用独占全屏模式(如果可用)") );
-	
-	m_check_VsyncEnable->SetToolTip( pxE( ".Tooltips:Video:Vsync",
+
+	m_check_VsyncEnable->SetToolTip( pxE( ".Tooltip:Window:Vsync",
 		L"Vsync eliminates screen tearing but typically has a big performance hit. "
 		L"It usually only applies to fullscreen mode, and may not work with all GS plugins."
 	) );
-	
-	m_check_HideMouse->SetToolTip( pxE( ".Tooltips:Video:HideMouse",
+
+	m_check_HideMouse->SetToolTip( pxE( ".Tooltip:Window:HideMouse",
 		L"Check this to force the mouse cursor invisible inside the GS window; useful if using "
 		L"the mouse as a primary control device for gaming.  By default the mouse auto-hides after "
 		L"2 seconds of inactivity."
 	) );
 
-	m_check_Fullscreen->SetToolTip( pxE( ".Tooltips:Video:Fullscreen",
+	m_check_Fullscreen->SetToolTip( pxE( ".Tooltip:Window:Fullscreen",
 		L"Enables automatic mode switch to fullscreen when starting or resuming emulation. "
 		L"You can still toggle fullscreen display at any time using alt-enter."
 	) );
 
-	m_check_ExclusiveFS->SetToolTip( pxE( ".Video:FullscreenExclusive",
+	m_check_ExclusiveFS->SetToolTip( pxE( ".Tooltip:Window:FullscreenExclusive",
 		L"Fullscreen Exclusive Mode may look better on older CRTs and might be a little faster on older video cards, "
 		L"but typically can lead to memory leaks or random crashes when entering/leaving fullscreen mode."
 	) );
 
-	m_check_CloseGS->SetToolTip( pxE( ".Tooltips:Video:HideGS",
+	m_check_CloseGS->SetToolTip( pxE( ".Tooltip:Window:HideGS",
 		L"Completely closes the often large and bulky GS window when pressing "
 		L"ESC or suspending the emulator."
 	) );
-	
+
 	// ----------------------------------------------------------------------------
 	//  Layout and Positioning
 
 	wxBoxSizer& s_customsize( *new wxBoxSizer( wxHORIZONTAL ) );
 	s_customsize	+= m_text_WindowWidth;
-	s_customsize	+= Text( L"x" );
+	s_customsize	+= Label( L"x" )	| StdExpand();
 	s_customsize	+= m_text_WindowHeight;
 
 	wxFlexGridSizer& s_AspectRatio( *new wxFlexGridSizer( 2, StdPadding, StdPadding ) );
 	//s_AspectRatio.AddGrowableCol( 0 );
 	s_AspectRatio.AddGrowableCol( 1 );
 
-	s_AspectRatio += Text(_("高宽比:"))		| pxMiddle;
+	s_AspectRatio += Label(_("高宽比:"))		| pxMiddle;
 	s_AspectRatio += m_combo_AspectRatio			| pxExpand;
-	s_AspectRatio += Text(_("自定义窗口大小:"))	| pxMiddle;
+	s_AspectRatio += Label(_("自定义窗口大小:"))| pxMiddle;
 	s_AspectRatio += s_customsize					| pxAlignRight;
 
 	*this += s_AspectRatio				| StdExpand();
@@ -100,7 +100,7 @@ Panels::GSWindowSettingsPanel::GSWindowSettingsPanel( wxWindow* parent )
 	*this += m_check_Fullscreen;
 	*this += m_check_ExclusiveFS;
 	*this += m_check_VsyncEnable;
-	
+
 	wxBoxSizer* centerSizer = new wxBoxSizer( wxVERTICAL );
 	*centerSizer += GetSizer()	| pxCenter;
 	SetSizer( centerSizer, false );
@@ -123,7 +123,6 @@ void Panels::GSWindowSettingsPanel::AppStatusEvent_OnSettingsApplied()
 
 	m_text_WindowWidth	->SetValue( wxsFormat( L"%d", conf.WindowSize.GetWidth() ) );
 	m_text_WindowHeight	->SetValue( wxsFormat( L"%d", conf.WindowSize.GetHeight() ) );
-
 }
 
 void Panels::GSWindowSettingsPanel::Apply()

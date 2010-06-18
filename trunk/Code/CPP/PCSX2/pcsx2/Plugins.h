@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -20,6 +20,8 @@
 
 #include "PS2Edefs.h"
 #include "PluginCallbacks.h"
+
+#include "Utilities/Threading.h"
 
 #include <wx/dynlib.h>
 
@@ -84,7 +86,7 @@ namespace Exception
 	class PluginLoadError : public virtual PluginError, public virtual BadStream
 	{
 	public:
-		DEFINE_EXCEPTION_COPYTORS( PluginLoadError )
+		DEFINE_EXCEPTION_COPYTORS_COVARIANT( PluginLoadError )
 
 		PluginLoadError( PluginsEnum_t pid, const wxString& objname, const char* eng );
 
@@ -101,7 +103,7 @@ namespace Exception
 	class PluginInitError : public virtual PluginError
 	{
 	public:
-		DEFINE_EXCEPTION_COPYTORS( PluginInitError )
+		DEFINE_EXCEPTION_COPYTORS_COVARIANT( PluginInitError )
 
 		explicit PluginInitError( PluginsEnum_t pid,
 			const char* msg=wxLt("%s plugin failed to initialize.  Your system may have insufficient memory or resources needed.") )
@@ -116,7 +118,7 @@ namespace Exception
 	class PluginOpenError : public virtual PluginError
 	{
 	public:
-		DEFINE_EXCEPTION_COPYTORS( PluginOpenError )
+		DEFINE_EXCEPTION_COPYTORS_COVARIANT( PluginOpenError )
 
 		explicit PluginOpenError( PluginsEnum_t pid,
 			const char* msg=wxLt("%s plugin failed to open.  Your computer may have insufficient resources, or incompatible hardware/drivers.") )
@@ -179,6 +181,8 @@ struct LegacyPluginAPI_Common
 
 	void (CALLBACK* KeyEvent)( keyEvent* evt );
 	void (CALLBACK* SetSettingsDir)( const char* dir );
+	void (CALLBACK* SetLogFolder)( const char* dir );
+
 	s32  (CALLBACK* Freeze)(int mode, freezeData *data);
 	s32  (CALLBACK* Test)();
 	void (CALLBACK* Configure)();
@@ -212,67 +216,31 @@ public:
 	}
 
 	bool McdIsPresent( uint port, uint slot );
+	void McdGetSizeInfo( uint port, uint slot, PS2E_McdSizeInfo& outways );
 	void McdRead( uint port, uint slot, u8 *dest, u32 adr, int size );
 	void McdSave( uint port, uint slot, const u8 *src, u32 adr, int size );
 	void McdEraseBlock( uint port, uint slot, u32 adr );
-	u64 McdGetCRC( uint port, uint slot );
+	u64  McdGetCRC( uint port, uint slot );
 
 	friend class PluginManager;
 };
 
 extern SysPluginBindings SysPlugins;
 
-
-// --------------------------------------------------------------------------------------
-//  PluginManagerBase Class
-// --------------------------------------------------------------------------------------
-// Provides a basic placebo "do-nothing" interface for plugin management.  This is used
-// to avoid NULL pointer exceptions/segfaults when referencing the plugin manager global
-// handle.
-//
-// Note: The Init and Freeze methods of this class will cause debug assertions, but Close
-// methods fail silently, on the premise that Close and Shutdown are typically run from
-// exception handlers or cleanup code, and null pointers should be silently ignored in
-// favor of continuing cleanup.
-//
-class PluginManagerBase
-{
-	DeclareNoncopyableObject( PluginManagerBase );
-
-public:
-	PluginManagerBase() {}
-	virtual ~PluginManagerBase() {}
-
-	virtual void Init() { pxFail( "Null PluginManager!" ); }
-	virtual void Shutdown() {}
-	virtual void Open() { }
-	virtual void Open( PluginsEnum_t pid ) { pxFail( "Null PluginManager!" ); }
-	virtual void Close( PluginsEnum_t pid ) {}
-	virtual void Close() {}
-	
-	virtual bool IsOpen( PluginsEnum_t pid ) const { return false; }
-
-	virtual void Freeze( PluginsEnum_t pid, SaveStateBase& state ) { pxFail( "Null PluginManager!" ); }
-	virtual bool DoFreeze( PluginsEnum_t pid, int mode, freezeData* data )
-	{
-		pxFail( "Null PluginManager!" );
-		return false;
-	}
-
-	virtual bool KeyEvent( const keyEvent& evt ) { return false; }
-};
-
 // --------------------------------------------------------------------------------------
 //  PluginManager Class
 // --------------------------------------------------------------------------------------
 //
-class PluginManager : public PluginManagerBase
+class PluginManager
 {
 	DeclareNoncopyableObject( PluginManager );
 
 protected:
-	struct PluginStatus_t
+	class PluginStatus_t
 	{
+	public:
+		PluginsEnum_t pid;
+
 		bool		IsInitialized;
 		bool		IsOpened;
 
@@ -283,34 +251,60 @@ protected:
 		LegacyPluginAPI_Common	CommonBindings;
 		wxDynamicLibrary		Lib;
 
+	public:
 		PluginStatus_t()
 		{
 			IsInitialized	= false;
 			IsOpened		= false;
 		}
+
+		PluginStatus_t( PluginsEnum_t _pid, const wxString& srcfile );
+		virtual ~PluginStatus_t() throw() { }
+		
+	protected:
+		void BindCommon( PluginsEnum_t pid );
+		void BindRequired( PluginsEnum_t pid );
+		void BindOptional( PluginsEnum_t pid );
 	};
 
-	const PS2E_LibraryAPI*	m_mcdPlugin;
-	wxString m_SettingsFolder;
+	const PS2E_LibraryAPI*		m_mcdPlugin;
+	wxString					m_SettingsFolder;
+	wxString					m_LogFolder;
+	Threading::MutexRecursive	m_mtx_PluginStatus;
+
+	// Lovely hack until the new PS2E API is completed.
+	volatile u32				m_mcdOpen;
 
 public:		// hack until we unsuck plugins...
-	PluginStatus_t			m_info[PluginId_Count];
+	ScopedPtr<PluginStatus_t>	m_info[PluginId_Count];
 
 public:
-	PluginManager( const wxString (&folders)[PluginId_Count] );
+	PluginManager();
 	virtual ~PluginManager() throw();
 
+	virtual void Load( PluginsEnum_t pid, const wxString& srcfile );
+	virtual void Load( const wxString (&folders)[PluginId_Count] );
+	virtual void Unload();
+	virtual void Unload( PluginsEnum_t pid );
+
+	bool AreLoaded() const;
+	bool AreAnyLoaded() const;
+	bool AreAnyInitialized() const;
+	
+	Threading::Mutex& GetMutex() { return m_mtx_PluginStatus; }
+
 	virtual void Init();
+	virtual void Init( PluginsEnum_t pid );
+	virtual void Shutdown( PluginsEnum_t pid );
 	virtual void Shutdown();
 	virtual void Open();
 	virtual void Open( PluginsEnum_t pid );
 	virtual void Close( PluginsEnum_t pid );
 	virtual void Close();
 
-	virtual bool IsOpen( PluginsEnum_t pid ) const { return m_info[pid].IsOpened; }
-	
-	virtual bool NeedsClose() const;
-	virtual bool NeedsOpen() const;
+	virtual bool IsOpen( PluginsEnum_t pid ) const;
+	virtual bool IsInitialized( PluginsEnum_t pid ) const;
+	virtual bool IsLoaded( PluginsEnum_t pid ) const;
 	
 	virtual void Freeze( PluginsEnum_t pid, SaveStateBase& state );
 	virtual bool DoFreeze( PluginsEnum_t pid, int mode, freezeData* data );
@@ -319,17 +313,23 @@ public:
 	virtual void Configure( PluginsEnum_t pid );
 	virtual void SetSettingsFolder( const wxString& folder );
 	virtual void SendSettingsFolder();
+    virtual void SetLogFolder( const wxString& folder );
+	virtual void SendLogFolder();
 
-	const wxString& GetName( PluginsEnum_t pid ) const { return m_info[pid].Name; }
-	const wxString& GetVersion( PluginsEnum_t pid ) const { return m_info[pid].Version; }
 
-	friend PluginManager* PluginManager_Create( const wxChar* (&folders)[PluginId_Count] );
+	const wxString GetName( PluginsEnum_t pid ) const;
+	const wxString GetVersion( PluginsEnum_t pid ) const;
 
 protected:
-	void BindCommon( PluginsEnum_t pid );
-	void BindRequired( PluginsEnum_t pid );
-	void BindOptional( PluginsEnum_t pid );
+	virtual bool NeedsClose() const;
+	virtual bool NeedsOpen() const;
+
+	virtual bool NeedsShutdown() const;
+	virtual bool NeedsInit() const;
 	
+	virtual bool NeedsLoad() const;
+	virtual bool NeedsUnload() const;
+
 	virtual bool OpenPlugin_GS();
 	virtual bool OpenPlugin_CDVD();
 	virtual bool OpenPlugin_PAD();
@@ -337,7 +337,10 @@ protected:
 	virtual bool OpenPlugin_DEV9();
 	virtual bool OpenPlugin_USB();
 	virtual bool OpenPlugin_FW();
-	
+	virtual bool OpenPlugin_Mcd();
+
+	void _generalclose( PluginsEnum_t pid );
+
 	virtual void ClosePlugin_GS();
 	virtual void ClosePlugin_CDVD();
 	virtual void ClosePlugin_PAD();
@@ -345,16 +348,19 @@ protected:
 	virtual void ClosePlugin_DEV9();
 	virtual void ClosePlugin_USB();
 	virtual void ClosePlugin_FW();
+	virtual void ClosePlugin_Mcd();
 
 	friend class SysMtgsThread;
 };
 
 extern const PluginInfo tbl_PluginInfo[];
-extern PluginManager* g_plugins;
 
-extern PluginManager* PluginManager_Create( const wxChar* (&folders)[PluginId_Count] );
+// GetPluginManager() is a required external implementation. This function is *NOT*
+// provided by the PCSX2 core library.  It provides an interface for the linking User
+// Interface apps or DLLs to reference their own instance of PluginManager (also allowing
+// them to extend the class and override virtual methods).
 
-extern PluginManagerBase& GetPluginManager();
+extern PluginManager& GetCorePlugins();
 
 // Hack to expose internal MemoryCard plugin:
 

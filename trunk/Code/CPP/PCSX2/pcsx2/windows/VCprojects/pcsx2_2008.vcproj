@@ -261,14 +261,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\Patch.cpp"
-				>
-			</File>
-			<File
-				RelativePath="..\..\Patch.h"
-				>
-			</File>
-			<File
 				RelativePath="..\..\PrecompiledHeader.cpp"
 				>
 				<FileConfiguration
@@ -317,6 +309,42 @@
 				</File>
 				<File
 					RelativePath="..\..\StringUtils.h"
+					>
+				</File>
+			</Filter>
+			<Filter
+				Name="Game DataBase"
+				>
+				<File
+					RelativePath="..\..\DataBase_Loader.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\..\DataBase_Loader.h"
+					>
+				</File>
+				<File
+					RelativePath="..\..\File_Reader.h"
+					>
+				</File>
+			</Filter>
+			<Filter
+				Name="Patch"
+				>
+				<File
+					RelativePath="..\..\Patch.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\..\Patch.h"
+					>
+				</File>
+				<File
+					RelativePath="..\..\Patch_Memory.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\..\Patch_Obsolete.h"
 					>
 				</File>
 			</Filter>
@@ -466,54 +494,6 @@
 				<File
 					RelativePath="..\..\System\SysThreads.h"
 					>
-				</File>
-			</Filter>
-			<Filter
-				Name="Linux"
-				>
-				<File
-					RelativePath="..\..\x86\aMicroVU.S"
-					>
-				</File>
-				<File
-					RelativePath="..\..\x86\ix86-32\aR5900-32.S"
-					>
-				</File>
-				<File
-					RelativePath="..\..\x86\aVif.S"
-					>
-				</File>
-				<File
-					RelativePath="..\..\x86\aVUzerorec.S"
-					>
-				</File>
-				<File
-					RelativePath="..\..\Linux\LnxHostSys.cpp"
-					>
-					<FileConfiguration
-						Name="Debug|Win32"
-						ExcludedFromBuild="true"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-						/>
-					</FileConfiguration>
-					<FileConfiguration
-						Name="Devel|Win32"
-						ExcludedFromBuild="true"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-						/>
-					</FileConfiguration>
-					<FileConfiguration
-						Name="Release|Win32"
-						ExcludedFromBuild="true"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-						/>
-					</FileConfiguration>
 				</File>
 			</Filter>
 			<Filter
@@ -777,10 +757,6 @@
 					<Filter
 						Name="DMAC"
 						>
-						<File
-							RelativePath="..\..\Gif.cpp"
-							>
-						</File>
 						<Filter
 							Name="Sif"
 							>
@@ -902,6 +878,18 @@
 							</File>
 							<File
 								RelativePath="..\..\SPR.h"
+								>
+							</File>
+						</Filter>
+						<Filter
+							Name="Gif"
+							>
+							<File
+								RelativePath="..\..\Gif.cpp"
+								>
+							</File>
+							<File
+								RelativePath="..\..\Gif.h"
 								>
 							</File>
 						</Filter>
@@ -1119,15 +1107,43 @@
 						>
 					</File>
 					<File
+						RelativePath="..\..\IopModuleNames.cpp"
+						>
+						<FileConfiguration
+							Name="Debug|Win32"
+							ExcludedFromBuild="true"
+							>
+							<Tool
+								Name="VCCLCompilerTool"
+							/>
+						</FileConfiguration>
+						<FileConfiguration
+							Name="Devel|Win32"
+							ExcludedFromBuild="true"
+							>
+							<Tool
+								Name="VCCLCompilerTool"
+							/>
+						</FileConfiguration>
+						<FileConfiguration
+							Name="Release|Win32"
+							ExcludedFromBuild="true"
+							>
+							<Tool
+								Name="VCCLCompilerTool"
+							/>
+						</FileConfiguration>
+					</File>
+					<File
+						RelativePath=".\IopSif.cpp"
+						>
+					</File>
+					<File
 						RelativePath="..\..\IopSio2.cpp"
 						>
 					</File>
 					<File
 						RelativePath="..\..\IopSio2.h"
-						>
-					</File>
-					<File
-						RelativePath="..\..\pcsx2hostfs.cpp"
 						>
 					</File>
 					<File
@@ -1255,10 +1271,6 @@
 						>
 					</File>
 					<File
-						RelativePath="..\..\Ipu\idct_mmx.obj"
-						>
-					</File>
-					<File
 						RelativePath="..\..\Ipu\IPU.cpp"
 						>
 						<FileConfiguration
@@ -1282,7 +1294,7 @@
 							>
 							<Tool
 								Name="VCCLCompilerTool"
-								UsePrecompiledHeader="0"
+								UsePrecompiledHeader="2"
 							/>
 						</FileConfiguration>
 					</File>
@@ -1873,6 +1885,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\gui\AppCorePlugins.cpp"
+				>
+			</File>
+			<File
 				RelativePath="..\..\gui\AppCoreThread.cpp"
 				>
 			</File>
@@ -1933,6 +1949,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\gui\ExecutorThread.cpp"
+				>
+			</File>
+			<File
 				RelativePath="..\..\gui\FrameForGS.cpp"
 				>
 			</File>
@@ -1942,10 +1962,6 @@
 			</File>
 			<File
 				RelativePath="..\..\gui\i18n.cpp"
-				>
-			</File>
-			<File
-				RelativePath="..\..\gui\IniInterface.cpp"
 				>
 			</File>
 			<File
@@ -1961,19 +1977,11 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\gui\MemoryCardFile.cpp"
-				>
-			</File>
-			<File
 				RelativePath="..\..\gui\MessageBoxes.cpp"
 				>
 			</File>
 			<File
 				RelativePath="..\..\gui\MSWstuff.cpp"
-				>
-			</File>
-			<File
-				RelativePath="..\..\gui\Plugins.cpp"
 				>
 			</File>
 			<File
@@ -1985,11 +1993,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\RecoverySystem.cpp"
-				>
-			</File>
-			<File
-				RelativePath="..\..\gui\Saveslots.cpp"
+				RelativePath="..\..\gui\UpdateUI.cpp"
 				>
 			</File>
 			<Filter
@@ -2582,6 +2586,10 @@
 					>
 				</File>
 				<File
+					RelativePath="..\..\gui\Panels\GameDatabasePanel.cpp"
+					>
+				</File>
+				<File
 					RelativePath="..\..\gui\Panels\GameFixesPanel.cpp"
 					>
 				</File>
@@ -2595,18 +2603,6 @@
 				</File>
 				<File
 					RelativePath="..\..\gui\Panels\LogOptionsPanels.h"
-					>
-				</File>
-				<File
-					RelativePath="..\..\gui\Panels\MemoryCardListPanel.cpp"
-					>
-				</File>
-				<File
-					RelativePath="..\..\gui\Panels\MemoryCardListView.h"
-					>
-				</File>
-				<File
-					RelativePath="..\..\gui\Panels\MemoryCardsPanel.cpp"
 					>
 				</File>
 				<File
@@ -2646,6 +2642,14 @@
 					>
 				</File>
 				<File
+					RelativePath="..\..\gui\AppCorePlugins.h"
+					>
+				</File>
+				<File
+					RelativePath="..\..\gui\AppCoreThread.h"
+					>
+				</File>
+				<File
 					RelativePath="..\..\gui\AppEventListeners.h"
 					>
 				</File>
@@ -2674,11 +2678,11 @@
 					>
 				</File>
 				<File
-					RelativePath="..\..\HostGui.h"
+					RelativePath="..\..\gui\GSFrame.h"
 					>
 				</File>
 				<File
-					RelativePath="..\..\gui\IniInterface.h"
+					RelativePath="..\..\HostGui.h"
 					>
 				</File>
 				<File
@@ -2687,6 +2691,14 @@
 				</File>
 				<File
 					RelativePath="..\..\gui\MainFrame.h"
+					>
+				</File>
+				<File
+					RelativePath="..\..\gui\MemoryCardFile.h"
+					>
+				</File>
+				<File
+					RelativePath="..\..\gui\pxEventThread.h"
 					>
 				</File>
 				<File
@@ -2813,6 +2825,70 @@
 					RelativePath="..\cheats\cheats.h"
 					>
 				</File>
+			</Filter>
+			<Filter
+				Name="VM States"
+				>
+				<File
+					RelativePath="..\..\gui\Saveslots.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\..\gui\SysState.cpp"
+					>
+				</File>
+			</Filter>
+			<Filter
+				Name="ZipTools"
+				>
+				<File
+					RelativePath="..\..\ZipTools\FolderDesc.txt"
+					>
+				</File>
+				<File
+					RelativePath="..\..\ZipTools\thread_gzip.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\..\ZipTools\thread_lzma.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\..\ZipTools\ThreadedZipTools.h"
+					>
+				</File>
+			</Filter>
+			<Filter
+				Name="MemoryCardFile"
+				>
+				<File
+					RelativePath="..\..\gui\MemoryCardFile.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\..\gui\Readme-MemoryCardFile.txt"
+					>
+				</File>
+				<Filter
+					Name="gui"
+					>
+					<File
+						RelativePath="..\..\gui\Dialogs\McdConfigDialog.cpp"
+						>
+					</File>
+					<File
+						RelativePath="..\..\gui\Panels\MemoryCardListPanel.cpp"
+						>
+					</File>
+					<File
+						RelativePath="..\..\gui\Panels\MemoryCardListView.cpp"
+						>
+					</File>
+					<File
+						RelativePath="..\..\gui\Panels\MemoryCardPanels.h"
+						>
+					</File>
+				</Filter>
 			</Filter>
 		</Filter>
 	</Files>

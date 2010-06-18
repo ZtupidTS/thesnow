@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -25,6 +25,8 @@
 #include "R5900OpcodeTables.h"
 #include "iR5900.h"
 #include "iMMI.h"
+
+using namespace x86Emitter;
 
 namespace Interp = R5900::Interpreter::OpcodeImpl::MMI;
 
@@ -129,9 +131,9 @@ void recPLZCW()
 	// second word
 
 	if( regs >= 0 && (regs & MEM_XMMTAG) ) {
-		SSE2_PSHUFD_XMM_to_XMM(regs&0xf, regs&0xf, 0x4e);
+		SSE2_PSHUFD_XMM_to_XMM(regs&0xf, regs&0xf, 0xe1);
 		SSE2_MOVD_XMM_to_R(EAX, regs&0xf);
-		SSE2_PSHUFD_XMM_to_XMM(regs&0xf, regs&0xf, 0x4e);
+		SSE2_PSHUFD_XMM_to_XMM(regs&0xf, regs&0xf, 0xe1);
 	}
 	else if( regs >= 0 && (regs & MEM_MMXTAG) ) {
 		PSHUFWRtoR(regs&0xf, regs&0xf, 0x4e);
@@ -171,9 +173,9 @@ void recPMFHL()
 
 			t0reg = _allocTempXMMreg(XMMT_INT, -1);
 			SSE2_PSHUFD_XMM_to_XMM(t0reg, EEREC_HI, 0x88);
-			SSE2_PSHUFD_XMM_to_XMM(EEREC_D, EEREC_LO, 0x88);			
+			SSE2_PSHUFD_XMM_to_XMM(EEREC_D, EEREC_LO, 0x88);
 			SSE2_PUNPCKLDQ_XMM_to_XMM(EEREC_D, t0reg);
-			
+
 			_freeXMMreg(t0reg);
 			break;
 
@@ -187,13 +189,8 @@ void recPMFHL()
 
 		case 0x02: // SLW
 			// fall to interp
-			MOV32ItoM( (uptr)&cpuRegs.code, cpuRegs.code );
-			MOV32ItoM( (uptr)&cpuRegs.pc, pc );
-			_flushCachedRegs();
 			_deleteEEreg(_Rd_, 0);
-			_deleteEEreg(XMMGPR_LO, 1);
-			_deleteEEreg(XMMGPR_HI, 1);
-			iFlushCall(FLUSH_CACHED_REGS); // since calling CALLFunc
+			iFlushCall(FLUSH_INTERPRETER); // since calling CALLFunc
 			CALLFunc( (uptr)R5900::Interpreter::OpcodeImpl::MMI::PMFHL );
 			break;
 
@@ -217,7 +214,7 @@ void recPMFHL()
 			else {
 				SSEX_MOVDQA_XMM_to_XMM(EEREC_D, EEREC_LO);
 				SSE2_PACKSSDW_XMM_to_XMM(EEREC_D, EEREC_HI);
-				
+
 				// shuffle so a1a0b1b0->a1b1a0b0
 				SSE2_PSHUFD_XMM_to_XMM(EEREC_D, EEREC_D, 0xd8);
 			}
@@ -296,7 +293,7 @@ void recPMTHL()
 void recPSRLH( void )
 {
 	if ( !_Rd_ ) return;
-	
+
 	int info = eeRecompileCodeXMM( XMMINFO_READT|XMMINFO_WRITED );
 	if( (_Sa_&0xf) == 0 ) {
 		SSEX_MOVDQA_XMM_to_XMM(EEREC_D, EEREC_T);
@@ -360,7 +357,7 @@ void recPSRAW( void )
 void recPSLLH( void )
 {
 	if ( !_Rd_ ) return;
-	
+
 	int info = eeRecompileCodeXMM( XMMINFO_READT|XMMINFO_WRITED );
 	if( (_Sa_&0xf) == 0 ) {
 		SSEX_MOVDQA_XMM_to_XMM(EEREC_D, EEREC_T);
@@ -389,18 +386,18 @@ void recPSLLW( void )
 }
 
 /*
-void recMADD( void ) 
+void recMADD( void )
 {
 }
 
-void recMADDU( void ) 
+void recMADDU( void )
 {
 }
 
-void recPLZCW( void ) 
+void recPLZCW( void )
 {
 }
-*/  
+*/
 
 #endif
 
@@ -424,7 +421,7 @@ REC_FUNC_DEL( PSUBSH, _Rd_);
 REC_FUNC_DEL( PSUBSW, _Rd_);
 
 REC_FUNC_DEL( PMAXW, _Rd_);
-REC_FUNC_DEL( PMAXH, _Rd_);        
+REC_FUNC_DEL( PMAXH, _Rd_);
 
 REC_FUNC_DEL( PCGTW, _Rd_);
 REC_FUNC_DEL( PCGTH, _Rd_);
@@ -432,9 +429,9 @@ REC_FUNC_DEL( PCGTB, _Rd_);
 
 REC_FUNC_DEL( PEXTLW, _Rd_);
 
-REC_FUNC_DEL( PPACW, _Rd_);        
+REC_FUNC_DEL( PPACW, _Rd_);
 REC_FUNC_DEL( PEXTLH, _Rd_);
-REC_FUNC_DEL( PPACH, _Rd_);        
+REC_FUNC_DEL( PPACH, _Rd_);
 REC_FUNC_DEL( PEXTLB, _Rd_);
 REC_FUNC_DEL( PPACB, _Rd_);
 REC_FUNC_DEL( PEXT5, _Rd_);
@@ -485,7 +482,7 @@ void recPMAXW()
 				SSEX_PAND_XMM_to_XMM(EEREC_D, t0reg);
 				SSEX_PANDN_XMM_to_XMM(t0reg, EEREC_T);
 			}
-			
+
 			SSEX_POR_XMM_to_XMM(EEREC_D, t0reg);
 			_freeXMMreg(t0reg);
 		}
@@ -668,7 +665,7 @@ void recPPAC5()
 }
 
 ////////////////////////////////////////////////////
-void recPMAXH( void ) 
+void recPMAXH( void )
 {
 	if ( ! _Rd_ ) return;
 
@@ -744,10 +741,10 @@ void recPCGTW( void )
 }
 
 ////////////////////////////////////////////////////
-void recPADDSB( void ) 
+void recPADDSB( void )
 {
 	if ( ! _Rd_ ) return;
-	
+
 	int info = eeRecompileCodeXMM( XMMINFO_READS|XMMINFO_READT|XMMINFO_WRITED );
 	if( EEREC_D == EEREC_S ) SSE2_PADDSB_XMM_to_XMM(EEREC_D, EEREC_T);
 	else if( EEREC_D == EEREC_T ) SSE2_PADDSB_XMM_to_XMM(EEREC_D, EEREC_S);
@@ -759,7 +756,7 @@ void recPADDSB( void )
 }
 
 ////////////////////////////////////////////////////
-void recPADDSH( void ) 
+void recPADDSH( void )
 {
 	if ( ! _Rd_ ) return;
 
@@ -775,7 +772,7 @@ void recPADDSH( void )
 
 ////////////////////////////////////////////////////
 //NOTE: check kh2 movies if changing this
-void recPADDSW( void ) 
+void recPADDSW( void )
 {
 	if ( ! _Rd_ ) return;
 
@@ -792,8 +789,6 @@ void recPADDSW( void )
 	// get sign bit
 	SSEX_MOVDQA_XMM_to_XMM(t0reg, EEREC_S);
 	SSEX_MOVDQA_XMM_to_XMM(t1reg, EEREC_T);
-	SSE2_PSRLD_I8_to_XMM(t0reg, 31);
-	SSE2_PSRLD_I8_to_XMM(t1reg, 31);
 
 	// normal addition
 	if( EEREC_D == EEREC_S ) SSE2_PADDD_XMM_to_XMM(EEREC_D, EEREC_T);
@@ -803,22 +798,22 @@ void recPADDSW( void )
 		SSE2_PADDD_XMM_to_XMM(EEREC_D, EEREC_T);
 	}
 
-	// overflow check
-	// t2reg = 0xffffffff if overflow, else 0
-	SSEX_MOVDQA_XMM_to_XMM(t2reg, EEREC_D);
-	SSE2_PSRLD_I8_to_XMM(t2reg, 31);
-	SSE2_PCMPEQD_XMM_to_XMM(t1reg, t0reg); // Sign(Rs) == Sign(Rt)
-	SSE2_PCMPEQD_XMM_to_XMM(t2reg, t0reg); // Sign(Rs) == Sign(Rd)
-	SSE2_PANDN_XMM_to_XMM(t2reg, t1reg); // (Sign(Rs) == Sign(Rt)) & ~(Sign(Rs) == Sign(Rd))
-	SSE2_PCMPEQD_XMM_to_XMM(t1reg, t1reg);
-	SSE2_PSRLD_I8_to_XMM(t1reg, 1); // 0x7fffffff
-	SSE2_PADDD_XMM_to_XMM(t1reg, t0reg); // t1reg = (Rs < 0) ? 0x80000000 : 0x7fffffff
+	SSE2_PXOR_XMM_to_XMM(t0reg, t1reg); // Sign(Rs) != Sign(Rt)
+	SSE2_PXOR_XMM_to_XMM(t1reg, EEREC_D); // Sign(Rs) != Sign(Rd)
+	SSE2_PANDN_XMM_to_XMM(t0reg, t1reg); // (Sign(Rs) == Sign(Rt)) & (Sign(Rs) != Sign(Rd))
+	SSE2_PSRAD_I8_to_XMM(t0reg, 31);
 
-	// saturation
-	SSE2_PAND_XMM_to_XMM(t1reg, t2reg);
-	SSE2_PANDN_XMM_to_XMM(t2reg, EEREC_D);
-	SSE2_POR_XMM_to_XMM(t1reg, t2reg);
-	SSEX_MOVDQA_XMM_to_XMM(EEREC_D, t1reg);
+	SSE2_PCMPEQD_XMM_to_XMM(t1reg, t1reg);
+	SSE2_PXOR_XMM_to_XMM(t0reg, t1reg); // could've been avoided if Intel wasn't too prudish for a PORN instruction
+	SSE2_PSLLD_I8_to_XMM(t1reg, 31); // 0x80000000
+
+	SSEX_MOVDQA_XMM_to_XMM(t2reg, EEREC_D);
+	SSE2_PSRAD_I8_to_XMM(t2reg, 31);
+	SSE2_PXOR_XMM_to_XMM(t1reg, t2reg); // t2reg = (Rd < 0) ? 0x7fffffff : 0x80000000
+
+	SSE2_PAND_XMM_to_XMM(EEREC_D, t0reg);
+	SSE2_PANDN_XMM_to_XMM(t0reg, t1reg);
+	SSE2_POR_XMM_to_XMM(EEREC_D, t0reg);
 
 	_freeXMMreg(t0reg);
 	_freeXMMreg(t1reg);
@@ -827,7 +822,7 @@ void recPADDSW( void )
 }
 
 ////////////////////////////////////////////////////
-void recPSUBSB( void ) 
+void recPSUBSB( void )
 {
    if ( ! _Rd_ ) return;
 
@@ -848,10 +843,10 @@ void recPSUBSB( void )
 }
 
 ////////////////////////////////////////////////////
-void recPSUBSH( void ) 
+void recPSUBSH( void )
 {
 	if ( ! _Rd_ ) return;
-   
+
 	int info = eeRecompileCodeXMM( XMMINFO_READS|XMMINFO_READT|XMMINFO_WRITED );
 	if( EEREC_D == EEREC_S ) SSE2_PSUBSW_XMM_to_XMM(EEREC_D, EEREC_T);
 	else if( EEREC_D == EEREC_T ) {
@@ -870,7 +865,7 @@ void recPSUBSH( void )
 
 ////////////////////////////////////////////////////
 //NOTE: check kh2 movies if changing this
-void recPSUBSW( void ) 
+void recPSUBSW( void )
 {
 	if ( ! _Rd_ ) return;
 
@@ -964,7 +959,7 @@ void recPADDH( void )
 }
 
 ////////////////////////////////////////////////////
-void recPADDW( void ) 
+void recPADDW( void )
 {
 	if ( ! _Rd_ ) return;
 
@@ -988,7 +983,7 @@ void recPADDW( void )
 }
 
 ////////////////////////////////////////////////////
-void recPSUBB( void ) 
+void recPSUBB( void )
 {
 	if ( ! _Rd_ ) return;
 
@@ -1009,7 +1004,7 @@ void recPSUBB( void )
 }
 
 ////////////////////////////////////////////////////
-void recPSUBH( void ) 
+void recPSUBH( void )
 {
 	if ( ! _Rd_ ) return;
 
@@ -1030,7 +1025,7 @@ void recPSUBH( void )
 }
 
 ////////////////////////////////////////////////////
-void recPSUBW( void ) 
+void recPSUBW( void )
 {
 	if ( ! _Rd_ ) return;
 
@@ -1051,7 +1046,7 @@ void recPSUBW( void )
 }
 
 ////////////////////////////////////////////////////
-void recPEXTLW( void ) 
+void recPEXTLW( void )
 {
 	if ( ! _Rd_ ) return;
 
@@ -1077,7 +1072,7 @@ void recPEXTLW( void )
 	_clearNeededXMMregs();
 }
 
-void recPEXTLB( void ) 
+void recPEXTLB( void )
 {
 	if (!_Rd_) return;
 
@@ -1140,10 +1135,10 @@ void recPEXTLH( void )
 REC_FUNC_DEL( PABSW, _Rd_);
 REC_FUNC_DEL( PABSH, _Rd_);
 
-REC_FUNC_DEL( PMINW, _Rd_); 
+REC_FUNC_DEL( PMINW, _Rd_);
 REC_FUNC_DEL( PADSBH, _Rd_);
 REC_FUNC_DEL( PMINH, _Rd_);
-REC_FUNC_DEL( PCEQB, _Rd_);   
+REC_FUNC_DEL( PCEQB, _Rd_);
 REC_FUNC_DEL( PCEQH, _Rd_);
 REC_FUNC_DEL( PCEQW, _Rd_);
 
@@ -1155,10 +1150,10 @@ REC_FUNC_DEL( PSUBUB, _Rd_);
 REC_FUNC_DEL( PSUBUH, _Rd_);
 REC_FUNC_DEL( PSUBUW, _Rd_);
 
-REC_FUNC_DEL( PEXTUW, _Rd_);   
+REC_FUNC_DEL( PEXTUW, _Rd_);
 REC_FUNC_DEL( PEXTUH, _Rd_);
 REC_FUNC_DEL( PEXTUB, _Rd_);
-REC_FUNC_DEL( QFSRV, _Rd_); 
+REC_FUNC_DEL( QFSRV, _Rd_);
 
 #else
 
@@ -1177,7 +1172,7 @@ void recPABSW() //needs clamping
 		SSSE3_PABSD_XMM_to_XMM(EEREC_D, EEREC_T); //0x80000000 -> 0x80000000
 	}
 	else {
-		int t1reg = _allocTempXMMreg(XMMT_INT, -1); 
+		int t1reg = _allocTempXMMreg(XMMT_INT, -1);
 		SSEX_MOVDQA_XMM_to_XMM(t1reg, EEREC_T);
 		SSEX_MOVDQA_XMM_to_XMM(EEREC_D, EEREC_T);
 		SSE2_PSRAD_I8_to_XMM(t1reg, 31);
@@ -1192,7 +1187,7 @@ void recPABSW() //needs clamping
 
 
 ////////////////////////////////////////////////////
-void recPABSH() 
+void recPABSH()
 {
 	if( !_Rd_ ) return;
 
@@ -1261,7 +1256,7 @@ void recPMINW()
 				SSEX_PAND_XMM_to_XMM(EEREC_D, t0reg);
 				SSEX_PANDN_XMM_to_XMM(t0reg, EEREC_T);
 			}
-			
+
 			SSEX_POR_XMM_to_XMM(EEREC_D, t0reg);
 			_freeXMMreg(t0reg);
 		}
@@ -1436,7 +1431,7 @@ void recPSUBUW()
 
 	// saturate
 	SSE2_PAND_XMM_to_XMM(EEREC_D, t0reg); // clear word with zero if (Rs <= Rt)
-	
+
 	_freeXMMreg(t0reg);
 	_freeXMMreg(t1reg);
 	_clearNeededXMMregs();
@@ -1469,58 +1464,29 @@ void recPEXTUH()
 	_clearNeededXMMregs();
 }
 
-////////////////////////////////////////////////////
-// Both Macros are 16 bytes so we can use a shift instead of a Mul instruction
-#define QFSRVhelper0() {  \
-	ajmp[0] = JMP32(0);  \
-	x86Ptr += 11;  \
-}
-
-#define QFSRVhelper(shift1, shift2) {  \
-	SSE2_PSRLDQ_I8_to_XMM(EEREC_D, shift1);  \
-	SSE2_PSLLDQ_I8_to_XMM(t0reg, shift2);  \
-	ajmp[shift1] = JMP32(0);  \
-	x86Ptr += 1;  \
-}
+static __aligned16 u32 tempqw[8];
 
 void recQFSRV()
 {
 	if ( !_Rd_ ) return;
 	//Console.WriteLn("recQFSRV()");
 
+	if (_Rs_ == _Rt_ + 1) {
+		_flushEEreg(_Rs_);
+		_flushEEreg(_Rt_);
+		int info = eeRecompileCodeXMM(XMMINFO_WRITED);
+
+		xMOV(eax, ptr32[&cpuRegs.sa]);
+		xMOVDQU(xRegisterSSE(EEREC_D), ptr32[eax + &cpuRegs.GPR.r[_Rt_]]);
+		return;
+	}
+		
 	int info = eeRecompileCodeXMM( XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED );
 
-	u32 *ajmp[16];
-	int i, j;
-	int t0reg = _allocTempXMMreg(XMMT_INT, -1);
-
-	SSE2_MOVDQA_XMM_to_XMM(t0reg, EEREC_S);
-	SSE2_MOVDQA_XMM_to_XMM(EEREC_D, EEREC_T);
-
-	MOV32MtoR(EAX, (uptr)&cpuRegs.sa);
-	SHL32ItoR(EAX, 4); // Multiply SA bytes by 16 bytes (the amount of bytes in QFSRVhelper() macros)
-	AND32ItoR(EAX, 0xf0); // This can possibly be removed but keeping it incase theres garbage in SA (cottonvibes)
-	ADD32ItoR(EAX, (uptr)x86Ptr + 7); // ADD32 = 5 bytes, JMPR = 2 bytes
-	JMPR(EAX); // Jumps to a QFSRVhelper() case below (a total of 16 different cases)
-
-	// Case 0:
-	QFSRVhelper0();
-
-	// Cases 1 to 15:
-	for (i = 1, j = 15; i < 16; i++, j--) {
-		QFSRVhelper(i, j);
-	}
-
-	// Set jump addresses for the JMP32's in QFSRVhelper()
-	for (i = 1; i < 16; i++) {
-		x86SetJ32(ajmp[i]);
-	}
-
-	// Concatenate the regs after appropriate shifts have been made
-	SSE2_POR_XMM_to_XMM(EEREC_D, t0reg);
-	
-	x86SetJ32(ajmp[0]); // Case 0 jumps to here (to skip the POR)
-	_freeXMMreg(t0reg);
+	xMOV(eax, ptr32[&cpuRegs.sa]);
+	xMOVDQA(ptr32[&tempqw[0]], xRegisterSSE(EEREC_T));
+	xMOVDQA(ptr32[&tempqw[4]], xRegisterSSE(EEREC_S));
+	xMOVDQU(xRegisterSSE(EEREC_D), ptr32[eax + &tempqw]);
 
 	_clearNeededXMMregs();
 }
@@ -1554,7 +1520,7 @@ void recPEXTUB( void )
 }
 
 ////////////////////////////////////////////////////
-void recPEXTUW( void ) 
+void recPEXTUW( void )
 {
 	if ( ! _Rd_ ) return;
 
@@ -1581,7 +1547,7 @@ void recPEXTUW( void )
 }
 
 ////////////////////////////////////////////////////
-void recPMINH( void ) 
+void recPMINH( void )
 {
 	if ( ! _Rd_ ) return;
 
@@ -1600,7 +1566,7 @@ void recPCEQB( void )
 {
 	if ( ! _Rd_ ) return;
 
-	int info = eeRecompileCodeXMM( XMMINFO_READS|XMMINFO_READT|XMMINFO_WRITED ); 
+	int info = eeRecompileCodeXMM( XMMINFO_READS|XMMINFO_READT|XMMINFO_WRITED );
 	if( EEREC_D == EEREC_S ) SSE2_PCMPEQB_XMM_to_XMM(EEREC_D, EEREC_T);
 	else if( EEREC_D == EEREC_T ) SSE2_PCMPEQB_XMM_to_XMM(EEREC_D, EEREC_S);
 	else {
@@ -1641,7 +1607,7 @@ void recPCEQW( void )
 }
 
 ////////////////////////////////////////////////////
-void recPADDUB( void ) 
+void recPADDUB( void )
 {
 	if ( ! _Rd_ ) return;
 
@@ -1659,7 +1625,7 @@ void recPADDUB( void )
 }
 
 ////////////////////////////////////////////////////
-void recPADDUH( void ) 
+void recPADDUH( void )
 {
 	if ( ! _Rd_ ) return;
 
@@ -1684,11 +1650,11 @@ REC_FUNC_DEL( PMFHI, _Rd_);
 REC_FUNC_DEL( PMFLO, _Rd_);
 REC_FUNC_DEL( PCPYLD, _Rd_);
 REC_FUNC_DEL( PAND, _Rd_);
-REC_FUNC_DEL( PXOR, _Rd_); 
+REC_FUNC_DEL( PXOR, _Rd_);
 
 REC_FUNC_DEL( PMADDW, _Rd_);
 REC_FUNC_DEL( PSLLVW, _Rd_);
-REC_FUNC_DEL( PSRLVW, _Rd_); 
+REC_FUNC_DEL( PSRLVW, _Rd_);
 REC_FUNC_DEL( PMSUBW, _Rd_);
 REC_FUNC_DEL( PINTH, _Rd_);
 REC_FUNC_DEL( PMULTW, _Rd_);
@@ -1698,11 +1664,11 @@ REC_FUNC_DEL( PHMADH, _Rd_);
 REC_FUNC_DEL( PMSUBH, _Rd_);
 REC_FUNC_DEL( PHMSBH, _Rd_);
 REC_FUNC_DEL( PEXEH, _Rd_);
-REC_FUNC_DEL( PREVH, _Rd_); 
+REC_FUNC_DEL( PREVH, _Rd_);
 REC_FUNC_DEL( PMULTH, _Rd_);
 REC_FUNC_DEL( PDIVBW, _Rd_);
 REC_FUNC_DEL( PEXEW, _Rd_);
-REC_FUNC_DEL( PROT3W, _Rd_ ); 
+REC_FUNC_DEL( PROT3W, _Rd_ );
 
 #else
 
@@ -1710,7 +1676,8 @@ REC_FUNC_DEL( PROT3W, _Rd_ );
 void recPMADDW()
 {
 	if( !x86caps.hasStreamingSIMD4Extensions ) {
-		recCall( Interp::PMADDW, _Rd_ );
+		_deleteEEreg(_Rd_, 0);
+		recCall(Interp::PMADDW);
 		return;
 	}
 
@@ -1888,7 +1855,8 @@ void recPSRLVW()
 void recPMSUBW()
 {
 	if( !x86caps.hasStreamingSIMD4Extensions ) {
-		recCall( Interp::PMSUBW, _Rd_ );
+		_deleteEEreg(_Rd_, 0);
+		recCall(Interp::PMSUBW);
 		return;
 	}
 	int info = eeRecompileCodeXMM( (((_Rs_)&&(_Rt_))?XMMINFO_READS:0)|(((_Rs_)&&(_Rt_))?XMMINFO_READT:0)|(_Rd_?XMMINFO_WRITED:0)|XMMINFO_WRITELO|XMMINFO_WRITEHI|XMMINFO_READLO|XMMINFO_READHI );
@@ -1939,7 +1907,8 @@ void recPMSUBW()
 void recPMULTW()
 {
 	if( !x86caps.hasStreamingSIMD4Extensions ) {
-		recCall( Interp::PMULTW, _Rd_ );
+		_deleteEEreg(_Rd_, 0);
+		recCall(Interp::PMULTW);
 		return;
 	}
 	int info = eeRecompileCodeXMM( (((_Rs_)&&(_Rt_))?XMMINFO_READS:0)|(((_Rs_)&&(_Rt_))?XMMINFO_READT:0)|(_Rd_?XMMINFO_WRITED:0)|XMMINFO_WRITELO|XMMINFO_WRITEHI );
@@ -1979,13 +1948,15 @@ void recPMULTW()
 ////////////////////////////////////////////////////
 void recPDIVW()
 {
-	recCall( Interp::PDIVW, _Rd_ );
+	_deleteEEreg(_Rd_, 0);
+	recCall(Interp::PDIVW);
 }
 
 ////////////////////////////////////////////////////
 void recPDIVBW()
 {
-	recCall( Interp::PDIVBW, _Rd_ ); //--
+	_deleteEEreg(_Rd_, 0);
+	recCall(Interp::PDIVBW); //--
 }
 
 ////////////////////////////////////////////////////
@@ -2019,7 +1990,7 @@ void recPHMADH()
 		SSEX_MOVDQA_XMM_to_XMM(EEREC_LO, EEREC_T);
 		SSE2_PMADDWD_XMM_to_XMM(EEREC_LO, EEREC_S);
 	}
-	
+
 	SSEX_MOVDQA_XMM_to_XMM(EEREC_HI, EEREC_LO);
 
 	SSE_SHUFPS_XMM_to_XMM(EEREC_LO, t0reg, 0x88);
@@ -2037,7 +2008,7 @@ void recPMSUBH()
 	int info = eeRecompileCodeXMM( (_Rd_?XMMINFO_WRITED:0)|XMMINFO_READS|XMMINFO_READT|XMMINFO_READLO|XMMINFO_READHI|XMMINFO_WRITELO|XMMINFO_WRITEHI );
 	int t0reg = _allocTempXMMreg(XMMT_INT, -1);
 	int t1reg = _allocTempXMMreg(XMMT_INT, -1);
- 
+
 	if( !_Rd_ ) {
 		SSE2_PXOR_XMM_to_XMM(t0reg, t0reg);
 		SSE2_PSHUFD_XMM_to_XMM(t1reg, EEREC_S, 0xd8); //S0, S1, S4, S5, S2, S3, S6, S7
@@ -2045,49 +2016,49 @@ void recPMSUBH()
 		SSE2_PSHUFD_XMM_to_XMM(t0reg, EEREC_T, 0xd8); //T0, T1, T4, T5, T2, T3, T6, T7
 		SSE2_PUNPCKLWD_XMM_to_XMM(t0reg, t0reg); //T0, T0, T1, T1, T4, T4, T5, T5
 		SSE2_PMADDWD_XMM_to_XMM(t0reg, t1reg); //S0*T0+0*T0, S1*T1+0*T1, S4*T4+0*T4, S5*T5+0*T5
- 
+
 		SSE2_PSUBD_XMM_to_XMM(EEREC_LO, t0reg);
- 
+
 		SSE2_PXOR_XMM_to_XMM(t0reg, t0reg);
 		SSE2_PSHUFD_XMM_to_XMM(t1reg, EEREC_S, 0xd8); //S0, S1, S4, S5, S2, S3, S6, S7
 		SSE2_PUNPCKHWD_XMM_to_XMM(t1reg, t0reg); //S2, 0, S3, 0, S6, 0, S7, 0
 		SSE2_PSHUFD_XMM_to_XMM(t0reg, EEREC_T, 0xd8); //T0, T1, T4, T5, T2, T3, T6, T7
 		SSE2_PUNPCKHWD_XMM_to_XMM(t0reg, t0reg); //T2, T2, T3, T3, T6, T6, T7, T7
 		SSE2_PMADDWD_XMM_to_XMM(t0reg, t1reg); //S2*T2+0*T2, S3*T3+0*T3, S6*T6+0*T6, S7*T7+0*T7
- 
+
 		SSE2_PSUBD_XMM_to_XMM(EEREC_HI, t0reg);
 	}
 	else {
 		SSEX_MOVDQA_XMM_to_XMM(t0reg, EEREC_S);
 		SSEX_MOVDQA_XMM_to_XMM(t1reg, EEREC_S);
- 
+
 		SSE2_PMULLW_XMM_to_XMM(t0reg, EEREC_T);
 		SSE2_PMULHW_XMM_to_XMM(t1reg, EEREC_T);
 		SSEX_MOVDQA_XMM_to_XMM(EEREC_D, t0reg);
- 
+
 		// 0-3
 		SSE2_PUNPCKLWD_XMM_to_XMM(t0reg, t1reg);
 		// 4-7
 		SSE2_PUNPCKHWD_XMM_to_XMM(EEREC_D, t1reg);
 		SSEX_MOVDQA_XMM_to_XMM(t1reg, t0reg);
- 
+
 		// 0,1,4,5, L->H
 		SSE2_PUNPCKLQDQ_XMM_to_XMM(t0reg, EEREC_D);
 		// 2,3,6,7, L->H
 		SSE2_PUNPCKHQDQ_XMM_to_XMM(t1reg, EEREC_D);
- 
+
 		SSE2_PSUBD_XMM_to_XMM(EEREC_LO, t0reg);
 		SSE2_PSUBD_XMM_to_XMM(EEREC_HI, t1reg);
- 
+
 		// 0,2,4,6, L->H
 		SSE2_PSHUFD_XMM_to_XMM(EEREC_D, EEREC_LO, 0x88);
 		SSE2_PSHUFD_XMM_to_XMM(t0reg, EEREC_HI, 0x88);
 		SSE2_PUNPCKLDQ_XMM_to_XMM(EEREC_D, t0reg);
 	}
- 
+
 	_freeXMMreg(t0reg);
 	_freeXMMreg(t1reg);
- 
+
 	_clearNeededXMMregs();
 }
 
@@ -2112,10 +2083,10 @@ void recPHMSBH()
 	if( _Rd_ ) SSEX_MOVDQA_XMM_to_XMM(EEREC_D, EEREC_LO);
 
 	SSE2_PCMPEQD_XMM_to_XMM(EEREC_HI, EEREC_HI);
-	SSE2_PXOR_XMM_to_XMM(t0reg, EEREC_HI); 
+	SSE2_PXOR_XMM_to_XMM(t0reg, EEREC_HI);
 
 	SSEX_MOVDQA_XMM_to_XMM(EEREC_HI, EEREC_LO);
-	
+
 	SSE_SHUFPS_XMM_to_XMM(EEREC_LO, t0reg, 0x88);
 	SSE_SHUFPS_XMM_to_XMM(EEREC_LO, EEREC_LO, 0xd8);
 
@@ -2142,7 +2113,7 @@ void recPREVH( void )
 {
 	if (!_Rd_) return;
 
-	
+
 	int info = eeRecompileCodeXMM( XMMINFO_READT|XMMINFO_WRITED );
 	SSE2_PSHUFLW_XMM_to_XMM(EEREC_D, EEREC_T, 0x1B);
 	SSE2_PSHUFHW_XMM_to_XMM(EEREC_D, EEREC_D, 0x1B);
@@ -2242,7 +2213,7 @@ void recPMFLO( void )
 }
 
 ////////////////////////////////////////////////////
-void recPAND( void ) 
+void recPAND( void )
 {
 	if ( ! _Rd_ ) return;
 
@@ -2261,7 +2232,7 @@ void recPAND( void )
 }
 
 ////////////////////////////////////////////////////
-void recPXOR( void ) 
+void recPXOR( void )
 {
 	if ( ! _Rd_ ) return;
 
@@ -2280,7 +2251,7 @@ void recPXOR( void )
 }
 
 ////////////////////////////////////////////////////
-void recPCPYLD( void ) 
+void recPCPYLD( void )
 {
 	if ( ! _Rd_ ) return;
 
@@ -2303,12 +2274,12 @@ void recPCPYLD( void )
 	_clearNeededXMMregs();
 }
 
-void recPMADDH( void ) 
+void recPMADDH( void )
 {
 	int info = eeRecompileCodeXMM( (_Rd_?XMMINFO_WRITED:0)|XMMINFO_READS|XMMINFO_READT|XMMINFO_READLO|XMMINFO_READHI|XMMINFO_WRITELO|XMMINFO_WRITEHI );
 	int t0reg = _allocTempXMMreg(XMMT_INT, -1);
 	int t1reg = _allocTempXMMreg(XMMT_INT, -1);
- 
+
 	if( !_Rd_ ) {
 		SSE2_PXOR_XMM_to_XMM(t0reg, t0reg);
 		SSE2_PSHUFD_XMM_to_XMM(t1reg, EEREC_S, 0xd8); //S0, S1, S4, S5, S2, S3, S6, S7
@@ -2316,49 +2287,49 @@ void recPMADDH( void )
 		SSE2_PSHUFD_XMM_to_XMM(t0reg, EEREC_T, 0xd8); //T0, T1, T4, T5, T2, T3, T6, T7
 		SSE2_PUNPCKLWD_XMM_to_XMM(t0reg, t0reg); //T0, T0, T1, T1, T4, T4, T5, T5
 		SSE2_PMADDWD_XMM_to_XMM(t0reg, t1reg); //S0*T0+0*T0, S1*T1+0*T1, S4*T4+0*T4, S5*T5+0*T5
- 
+
 		SSE2_PADDD_XMM_to_XMM(EEREC_LO, t0reg);
- 
+
 		SSE2_PXOR_XMM_to_XMM(t0reg, t0reg);
 		SSE2_PSHUFD_XMM_to_XMM(t1reg, EEREC_S, 0xd8); //S0, S1, S4, S5, S2, S3, S6, S7
 		SSE2_PUNPCKHWD_XMM_to_XMM(t1reg, t0reg); //S2, 0, S3, 0, S6, 0, S7, 0
 		SSE2_PSHUFD_XMM_to_XMM(t0reg, EEREC_T, 0xd8); //T0, T1, T4, T5, T2, T3, T6, T7
 		SSE2_PUNPCKHWD_XMM_to_XMM(t0reg, t0reg); //T2, T2, T3, T3, T6, T6, T7, T7
 		SSE2_PMADDWD_XMM_to_XMM(t0reg, t1reg); //S2*T2+0*T2, S3*T3+0*T3, S6*T6+0*T6, S7*T7+0*T7
- 
+
 		SSE2_PADDD_XMM_to_XMM(EEREC_HI, t0reg);
 	}
 	else {
 		SSEX_MOVDQA_XMM_to_XMM(t0reg, EEREC_S);
 		SSEX_MOVDQA_XMM_to_XMM(t1reg, EEREC_S);
- 
+
 		SSE2_PMULLW_XMM_to_XMM(t0reg, EEREC_T);
 		SSE2_PMULHW_XMM_to_XMM(t1reg, EEREC_T);
 		SSEX_MOVDQA_XMM_to_XMM(EEREC_D, t0reg);
- 
+
 		// 0-3
 		SSE2_PUNPCKLWD_XMM_to_XMM(t0reg, t1reg);
 		// 4-7
 		SSE2_PUNPCKHWD_XMM_to_XMM(EEREC_D, t1reg);
 		SSEX_MOVDQA_XMM_to_XMM(t1reg, t0reg);
- 
+
 		// 0,1,4,5, L->H
 		SSE2_PUNPCKLQDQ_XMM_to_XMM(t0reg, EEREC_D);
 		// 2,3,6,7, L->H
 		SSE2_PUNPCKHQDQ_XMM_to_XMM(t1reg, EEREC_D);
- 
+
 		SSE2_PADDD_XMM_to_XMM(EEREC_LO, t0reg);
 		SSE2_PADDD_XMM_to_XMM(EEREC_HI, t1reg);
- 
+
 		// 0,2,4,6, L->H
 		SSE2_PSHUFD_XMM_to_XMM(EEREC_D, EEREC_LO, 0x88);
 		SSE2_PSHUFD_XMM_to_XMM(t0reg, EEREC_HI, 0x88);
 		SSE2_PUNPCKLDQ_XMM_to_XMM(EEREC_D, t0reg);
 	}
- 
+
 	_freeXMMreg(t0reg);
 	_freeXMMreg(t1reg);
- 
+
 	_clearNeededXMMregs();
 }
 
@@ -2370,7 +2341,7 @@ void recPMADDH( void )
 #ifndef MMI3_RECOMPILE
 
 REC_FUNC_DEL( PMADDUW, _Rd_);
-REC_FUNC_DEL( PSRAVW, _Rd_); 
+REC_FUNC_DEL( PSRAVW, _Rd_);
 REC_FUNC_DEL( PMTHI, _Rd_);
 REC_FUNC_DEL( PMTLO, _Rd_);
 REC_FUNC_DEL( PINTEH, _Rd_);
@@ -2378,15 +2349,15 @@ REC_FUNC_DEL( PMULTUW, _Rd_);
 REC_FUNC_DEL( PDIVUW, _Rd_);
 REC_FUNC_DEL( PCPYUD, _Rd_);
 REC_FUNC_DEL( POR, _Rd_);
-REC_FUNC_DEL( PNOR, _Rd_);  
-REC_FUNC_DEL( PCPYH, _Rd_); 
+REC_FUNC_DEL( PNOR, _Rd_);
+REC_FUNC_DEL( PCPYH, _Rd_);
 REC_FUNC_DEL( PEXCW, _Rd_);
 REC_FUNC_DEL( PEXCH, _Rd_);
 
 #else
 
 ////////////////////////////////////////////////////
-//REC_FUNC( PSRAVW, _Rd_ ); 
+//REC_FUNC( PSRAVW, _Rd_ );
 
 void recPSRAVW()
 {
@@ -2608,7 +2579,8 @@ void recPMADDUW()
 ////////////////////////////////////////////////////
 void recPDIVUW()
 {
-	recCall( Interp::PDIVUW, _Rd_ );
+	_deleteEEreg(_Rd_, 0);
+	recCall(Interp::PDIVUW);
 }
 
 ////////////////////////////////////////////////////
@@ -2633,7 +2605,7 @@ void recPEXCH( void )
 }
 
 ////////////////////////////////////////////////////
-void recPNOR( void ) 
+void recPNOR( void )
 {
 	if ( ! _Rd_ ) return;
 
@@ -2686,7 +2658,7 @@ void recPNOR( void )
 }
 
 ////////////////////////////////////////////////////
-void recPMTHI( void ) 
+void recPMTHI( void )
 {
 	int info = eeRecompileCodeXMM( XMMINFO_READS|XMMINFO_WRITEHI );
 	SSEX_MOVDQA_XMM_to_XMM(EEREC_HI, EEREC_S);
@@ -2694,7 +2666,7 @@ void recPMTHI( void )
 }
 
 ////////////////////////////////////////////////////
-void recPMTLO( void ) 
+void recPMTLO( void )
 {
 	int info = eeRecompileCodeXMM( XMMINFO_READS|XMMINFO_WRITELO );
 	SSEX_MOVDQA_XMM_to_XMM(EEREC_LO, EEREC_S);
@@ -2702,7 +2674,7 @@ void recPMTLO( void )
 }
 
 ////////////////////////////////////////////////////
-void recPCPYUD( void ) 
+void recPCPYUD( void )
 {
 	if ( ! _Rd_ ) return;
 
@@ -2739,7 +2711,7 @@ void recPCPYUD( void )
 }
 
 ////////////////////////////////////////////////////
-void recPOR( void ) 
+void recPOR( void )
 {
 	if ( ! _Rd_ ) return;
 
@@ -2762,13 +2734,9 @@ void recPOR( void )
 			SSEX_POR_XMM_to_XMM(EEREC_D, EEREC_S);
 		}
 		else {
-			if( _Rs_ == 0 ) SSEX_MOVDQA_XMM_to_XMM(EEREC_D, EEREC_T);
-			else if( _Rt_ == 0 ) SSEX_MOVDQA_XMM_to_XMM(EEREC_D, EEREC_S);
-			else {
-				SSEX_MOVDQA_XMM_to_XMM(EEREC_D, EEREC_T);
-				if( EEREC_S != EEREC_T ) {
-					SSEX_POR_XMM_to_XMM(EEREC_D, EEREC_S);
-				}
+			SSEX_MOVDQA_XMM_to_XMM(EEREC_D, EEREC_T);
+			if( EEREC_S != EEREC_T ) {
+				SSEX_POR_XMM_to_XMM(EEREC_D, EEREC_S);
 			}
 		}
 	}
@@ -2776,7 +2744,7 @@ void recPOR( void )
 }
 
 ////////////////////////////////////////////////////
-void recPCPYH( void ) 
+void recPCPYH( void )
 {
 	if ( ! _Rd_ ) return;
 

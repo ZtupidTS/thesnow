@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -16,50 +16,46 @@
 #include "PrecompiledHeader.h"
 #include "System.h"
 #include "App.h"
-#include "MSWstuff.h"
 
 #include "ConfigurationDialog.h"
 #include "BaseConfigurationDialog.inl"
 #include "ModalPopups.h"
 #include "Panels/ConfigurationPanels.h"
 
-#include <wx/filepicker.h>
-
 using namespace Panels;
 
 Dialogs::SysConfigDialog::SysConfigDialog(wxWindow* parent)
-	: BaseConfigurationDialog( parent, _("PS2 设置 - PCSX2"), wxGetApp().GetImgList_Config(), 600 )	
+	: BaseConfigurationDialog( parent, _("PS2 设置 - PCSX2"), 580 )
 {
-	SetName( GetNameStatic() );
+	ScopedBusyCursor busy( Cursor_ReallyBusy );
 
+	CreateListbook( wxGetApp().GetImgList_Config() );
 	const AppImageIds::ConfigIds& cfgid( wxGetApp().GetImgId().Config );
 
-	AddPage<MemoryCardsPanel>	( wxT("内存卡"),	cfgid.MemoryCard );
-	AddPage<CpuPanelEE>			( wxT("EE/IOP"),		cfgid.Cpu );
-	AddPage<CpuPanelVU>			( wxT("VUs"),			cfgid.Cpu );
-	AddPage<VideoPanel>			( wxT("视频图像"),		cfgid.Video );
-	AddPage<SpeedHacksPanel>	( wxT("游戏加速"),	cfgid.Speedhacks );
-	AddPage<GameFixesPanel>		( wxT("游戏修正"),	cfgid.Gamefixes );
-	AddPage<PluginSelectorPanel>( wxT("功能插件"),		cfgid.Plugins );
+	AddPage<CpuPanelEE>				( wxT("EE/IOP"),		cfgid.Cpu );
+	AddPage<CpuPanelVU>				( wxT("VUs"),			cfgid.Cpu );
+	AddPage<VideoPanel>				( wxT("视频图像"),		cfgid.Cpu );
+	AddPage<GSWindowSettingsPanel>	( wxT("视频窗口"),			cfgid.Video );
+	AddPage<SpeedHacksPanel>		( wxT("游戏加速"),		cfgid.Speedhacks );
+	AddPage<GameFixesPanel>			( wxT("游戏修正"),		cfgid.Gamefixes );
+	AddPage<GameDatabasePanel>		( wxT("游戏数据库"),cfgid.Plugins );
 
-	MSW_ListView_SetIconSpacing( m_listbook, m_idealWidth );
-	
-	// For some reason adding pages un-does the Apply button, so we need to re-disable it here.
-	FindWindow( wxID_APPLY )->Disable();
+	AddListbook();
+	AddOkCancel();
 }
 
-Dialogs::AppConfigDialog::AppConfigDialog(wxWindow* parent)
-	: BaseConfigurationDialog( parent, _("应用程序设置 - PCSX2"), wxGetApp().GetImgList_Config(), 600 )
+Dialogs::ComponentsConfigDialog::ComponentsConfigDialog(wxWindow* parent)
+	: BaseConfigurationDialog( parent, _("应用程序设置 - PCSX2"),  600 )
 {
-	SetName( GetNameStatic() );
+	ScopedBusyCursor busy( Cursor_ReallyBusy );
 
+	CreateListbook( wxGetApp().GetImgList_Config() );
 	const AppImageIds::ConfigIds& cfgid( wxGetApp().GetImgId().Config );
 
-	AddPage<GSWindowSettingsPanel>	( wxT("GS 窗口"),	cfgid.Paths );
+	AddPage<PluginSelectorPanel>	( wxT("插件"),		cfgid.Plugins );
+	AddPage<BiosSelectorPanel>		( wxT("BIOS"),			cfgid.Cpu );
 	AddPage<StandardPathsPanel>		( wxT("文件夹"),		cfgid.Paths );
 
-	MSW_ListView_SetIconSpacing( m_listbook, GetClientSize().GetWidth() );
-
-	// For some reason adding pages un-does the Apply button, so we need to re-disable it here.
-	FindWindow( wxID_APPLY )->Disable();
+	AddListbook();
+	AddOkCancel();
 }

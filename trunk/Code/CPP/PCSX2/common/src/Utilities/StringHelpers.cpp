@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -20,7 +20,16 @@ const wxRect wxDefaultRect( wxDefaultCoord, wxDefaultCoord, wxDefaultCoord, wxDe
 
 __forceinline wxString fromUTF8( const char* src )
 {
-	return wxString::FromUTF8( src );
+	// IMPORTANT:  We cannot use wxString::FromUTF8 because it *stupidly* relies on a C++ global instance of
+	// wxMBConvUTF8().  C++ initializes and destroys these globals at random, so any object constructor or
+	// destructor that attempts to do logging may crash the app (either during startup or during exit) unless
+	// we use a LOCAL instance of wxMBConvUTF8(). --air
+
+	// Performance?  No worries.  wxMBConvUTF8() is virtually free.  Initializing a stack copy of the class
+	// is just as efficient as passing a pointer to a pre-instanced global. (which makes me wonder wh wxWidgets
+	// uses the stupid globals in the first place!)  --air
+
+	return wxString( src, wxMBConvUTF8() );
 }
 
 __forceinline wxString fromAscii( const char* src )
@@ -172,17 +181,21 @@ bool TryParse( wxRect& dest, const wxString& src, const wxRect& defval, const wx
 	return true;
 }
 
+// returns TRUE if the parse is valid, or FALSE if it's a comment.
+bool pxParseAssignmentString( const wxString& src, wxString& ldest, wxString& rdest )
+{
+	if( src.StartsWith(L"--") || src.StartsWith( L"//" ) || src.StartsWith( L";" ) )
+		return false;
+
+	ldest = src.BeforeFirst(L'=').Trim(true).Trim(false);
+	rdest = src.AfterFirst(L'=').Trim(true).Trim(false);
+	
+	return true;
+}
+
 ParsedAssignmentString::ParsedAssignmentString( const wxString& src )
 {
-	IsComment = false;
-	if( src.StartsWith( L"//" ) || src.StartsWith( L";" ) )
-	{
-		IsComment = true;
-		return;
-	}
-
-	lvalue = src.BeforeFirst(L'=').Trim(true).Trim(false);
-	rvalue = src.AfterFirst(L'=').Trim(true).Trim(false);
+	IsComment = pxParseAssignmentString( src, lvalue, rvalue );
 }
 
 // Performs a cross-platform puts operation, which adds CRs to naked LFs on Win32 platforms,

@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -60,10 +60,10 @@ static wxString pxGetStackTrace( const FnChar_t* calledFrom )
 				// stacktrace info in individual wxStrings, and does a two-pass check -- first pass
 				// for the function name and, if not found, a second pass that just skips the first
 				// few stack entries.
-				
+
 				// It's important we only walk the stack once because Linux (argh, always linux!) has
 				// a really god aweful slow stack walker.
-				
+
 				// I'm not doing it right now because I've worked on this mess enough for one week. --air
 
 				m_ignoreDone = true;
@@ -77,7 +77,7 @@ static wxString pxGetStackTrace( const FnChar_t* calledFrom )
 
 			//wxString briefName;
 			wxString essenName;
-			
+
 			if( frame.HasSourceLocation() )
 			{
 				wxFileName wxfn(frame.GetFileName());
@@ -106,14 +106,13 @@ static wxString pxGetStackTrace( const FnChar_t* calledFrom )
 
 #ifdef __WXDEBUG__
 
-static TlsVariable< int > _reentrant_lock( 0 );
-
-// This override of wx's implementation provides thread safe assertion message reporting.  If we aren't
-// on the main gui thread then the assertion message box needs to be passed off to the main gui thread
-// via messages.
+// This override of wx's implementation provides thread safe assertion message reporting.
+// If we aren't on the main gui thread then the assertion message box needs to be passed
+// off to the main gui thread via messages.
 void Pcsx2App::OnAssertFailure( const wxChar *file, int line, const wxChar *func, const wxChar *cond, const wxChar *msg )
 {
 	// Re-entrant assertions are bad mojo -- trap immediately.
+	static DeclareTls(int) _reentrant_lock( 0 );
 	RecursionGuard guard( _reentrant_lock );
 	if( guard.IsReentrant() ) wxTrap();
 
@@ -147,9 +146,9 @@ bool AppDoAssert( const DiagnosticOrigin& origin, const wxChar *msg )
 		windowmsg += origin.condition;
 
 	int retval = Msgbox::Assertion( windowmsg, dbgmsg + L"\nStacktrace:\n" + trace );
-	
+
 	if( retval == wxID_YES ) return true;
 	if( retval == wxID_IGNORE ) disableAsserts = true;
-	
+
 	return false;
 }

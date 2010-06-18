@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -232,7 +232,7 @@ static void __fastcall fUNPACK_V4_5(u32 *dest, u32 *data)
 }
 
 // --------------------------------------------------------------------------------------
-//  Main table for function unpacking. 
+//  Main table for function unpacking.
 // --------------------------------------------------------------------------------------
 // The extra data bsize/dsize/etc are all duplicated between the doMask enabled and
 // disabled versions.  This is probably simpler and more efficient than bothering
@@ -302,7 +302,7 @@ _vifT void vifUnpackSetup(u32 *data) {
 
 	if ((vifXRegs->cycle.wl == 0) && (vifXRegs->cycle.wl < vifXRegs->cycle.cl)) {
         Console.WriteLn("Vif%d CL %d, WL %d", idx, vifXRegs->cycle.cl, vifXRegs->cycle.wl);
-		vifX.cmd &= ~0x7f;
+		vifX.cmd = 0;
         return; // Skipping write and 0 write-cycles, so do nothing!
 	}
 
@@ -310,7 +310,7 @@ _vifT void vifUnpackSetup(u32 *data) {
 
 	vifX.usn   = (vifXRegs->code >> 14) & 0x01;
 	int vifNum = (vifXRegs->code >> 16) & 0xff;
-	
+
 	if (vifNum == 0) vifNum = 256;
 	vifXRegs->num =  vifNum;
 

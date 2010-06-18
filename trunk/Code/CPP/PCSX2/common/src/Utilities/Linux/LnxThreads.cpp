@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -16,7 +16,10 @@
 
 #include "../PrecompiledHeader.h"
 #include "PersistentThread.h"
-#include "x86emitter/tools.h"
+
+// We wont need this until we actually have this more then just stubbed out, so I'm commenting this out
+// to remove an unneeded dependency.
+//#include "x86emitter/tools.h"
 
 #if !defined(__LINUX__) && !defined(__WXMAC__)
 
@@ -62,7 +65,7 @@ u64 Threading::GetThreadCpuTime()
 	// Get the cpu time for the current thread.  Should be a measure of total time the
 	// thread has used on the CPU (scaled by the value returned by GetThreadTicksPerSecond(),
 	// which typically would be an OS-provided scalar or some sort).
-	
+
 	return 0;
 }
 

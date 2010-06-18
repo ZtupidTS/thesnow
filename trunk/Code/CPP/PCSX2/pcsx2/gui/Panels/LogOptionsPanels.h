@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -28,7 +28,7 @@ namespace Panels
 		CheckedStaticBox*	m_disasmPanel;
 		CheckedStaticBox*	m_hwPanel;
 		CheckedStaticBox*	m_evtPanel;
-		
+
 		pxCheckBox*			m_Memory;
 		pxCheckBox*			m_Bios;
 		pxCheckBox*			m_Cache;
@@ -54,7 +54,7 @@ namespace Panels
 	public:
 		eeLogOptionsPanel( LogOptionsPanel* parent );
 		virtual ~eeLogOptionsPanel() throw() {}
-		
+
 		void OnSettingsChanged();
 		void Apply();
 	};

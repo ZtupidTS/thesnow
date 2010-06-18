@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -32,10 +32,10 @@ void StreamException_ThrowFromErrno( const wxString& streamname, errno_t errcode
 			throw Exception::AccessDenied( streamname );
 
 		case EMFILE:	// Too many open files!
-			throw Exception::CreateStream( streamname, "Too many open files" );	// File handle allocation failure
+			throw Exception::CannotCreateStream( streamname, "Too many open files" );	// File handle allocation failure
 
 		case EEXIST:
-			throw Exception::CreateStream( streamname, "File already exists" );
+			throw Exception::CannotCreateStream( streamname, "File already exists" );
 
 		case ENOENT:	// File not found!
 			throw Exception::FileNotFound( streamname );
@@ -60,18 +60,18 @@ void StreamException_ThrowLastError( const wxString& streamname, HANDLE result )
 	if( result != INVALID_HANDLE_VALUE ) return;
 
 	int error = GetLastError();
-	
+
 	switch( error )
 	{
 		case ERROR_FILE_NOT_FOUND:
 			throw Exception::FileNotFound( streamname );
-		
+
 		case ERROR_PATH_NOT_FOUND:
 			throw Exception::FileNotFound( streamname );
-		
+
 		case ERROR_TOO_MANY_OPEN_FILES:
-			throw Exception::CreateStream( streamname, "Too many open files" );
-		
+			throw Exception::CannotCreateStream( streamname, "Too many open files" );
+
 		case ERROR_ACCESS_DENIED:
 			throw Exception::AccessDenied( streamname );
 
@@ -132,6 +132,7 @@ void NTFS_CompressFile( const wxString& file, bool compressStatus )
 	bool isFile = !wxDirExists( file );
 
 	if( isFile && !wxFileExists( file ) ) return;
+	if( GetFileAttributes(file) & FILE_ATTRIBUTE_COMPRESSED ) return;
 	if( !wxIsWritable( file ) ) return;
 
 	const DWORD flags = isFile ? FILE_ATTRIBUTE_NORMAL : (FILE_FLAG_BACKUP_SEMANTICS | FILE_ATTRIBUTE_DIRECTORY);
@@ -151,13 +152,13 @@ void NTFS_CompressFile( const wxString& file, bool compressStatus )
 	{
 		DWORD bytesReturned = 0;
 		DWORD compressMode = compressStatus ? COMPRESSION_FORMAT_DEFAULT : COMPRESSION_FORMAT_NONE;
-		
+
 		BOOL result = DeviceIoControl(
 			bloated_crap, FSCTL_SET_COMPRESSION,
 			&compressMode, 2, NULL, 0,
 			&bytesReturned, NULL
 		);
-		
+
 		if( !result )
 			StreamException_LogLastError( file, L"NTFS —πÀıÃ· æ" );
 

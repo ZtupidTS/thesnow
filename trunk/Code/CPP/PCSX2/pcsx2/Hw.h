@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -186,7 +186,7 @@ enum EERegisterAddresses
 	D8_MADR			=	0x1000D010,
 	D8_QWC			=	0x1000D020,
 	D8_SADR			=	0x1000D080,
-	SPR1_CHCR		=	0x1000D400,
+	D9_CHCR		=	0x1000D400,
 
 	DMAC_CTRL		=	0x1000E000,
 	DMAC_STAT		=	0x1000E010,
@@ -249,7 +249,7 @@ enum GSRegisterAddresses
 // bleh, I'm graindead -- air
 union tGS_SMODE2
 {
-	struct  
+	struct
 	{
 		u32 INT:1;
 		u32 FFMD:1;

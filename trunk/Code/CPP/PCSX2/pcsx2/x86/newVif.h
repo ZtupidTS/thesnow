@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -21,7 +21,12 @@
 #include "x86emitter/x86emitter.h"
 using namespace x86Emitter;
 
-// newVif_HashBucket.h uses this typedef, so it has to be decared first.
+static const s64 _1mb = 0x100000;
+#define aMax(x, y) std::max(x,y)
+#define aMin(x, y) std::min(x,y)
+#define _f __forceinline
+
+// newVif_HashBucket.h uses this typedef, so it has to be declared first.
 typedef u32  (__fastcall *nVifCall)(void*, void*);
 typedef void (__fastcall *nVifrecCall)(uptr dest, uptr src);
 
@@ -31,19 +36,15 @@ typedef void (__fastcall *nVifrecCall)(uptr dest, uptr src);
 extern void  mVUmergeRegs(int dest, int src,  int xyzw, bool modXYZW = 0);
 extern void _nVifUnpack  (int idx,  u8 *data, u32 size, bool isFill);
 extern void  dVifUnpack  (int idx,  u8 *data, u32 size, bool isFill);
-extern void  dVifInit    (int idx);
+extern void  dVifReset   (int idx);
 extern void  dVifClose   (int idx);
 extern void  VifUnpackSSE_Init();
 
 #define VUFT VIFUnpackFuncTable
-#define _1mb (0x100000)
 #define	_v0 0
 #define	_v1 0x55
 #define	_v2 0xaa
 #define	_v3 0xff
-#define aMax(x, y) std::max(x,y)
-#define aMin(x, y) std::min(x,y)
-#define _f __forceinline
 #define xmmCol0 xmm2
 #define xmmCol1 xmm3
 #define xmmCol2 xmm4
@@ -88,10 +89,19 @@ struct nVifStruct {
 	u32						bSize;			// Size of 'buffer'
 	u8						buffer[_1mb];	// Buffer for partial transfers
 	u8*						recPtr;			// Cur Pos to recompile to
-	u8*						recEnd;			// End of Rec Cache
+	u8*						recEnd;			// 'Safe' End of Rec Cache
 	BlockBuffer*			vifCache;		// Block Buffer
 	HashBucket<_tParams>*	vifBlocks;		// Vif Blocks
 	int						numBlocks;		// # of Blocks Recompiled
+	
+	nVifStruct()
+	{
+		vifCache	=  NULL;
+		vifBlocks	=  NULL;
+		numBlocks	=  0;
+		recPtr		=  NULL;
+		recEnd		=  NULL;
+	}
 };
 
 extern __aligned16 nVifStruct nVif[2];

@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -15,7 +15,10 @@
 
 #include "PrecompiledHeader.h"
 #include "MainFrame.h"
-#include "IniInterface.h"
+#include "IsoDropTarget.h"
+#include "Utilities/IniInterface.h"
+
+extern wxString GetMsg_IsoImageChanged();
 
 // FIXME : This needs to handle removed/missing ISOs somehow, although I'm not sure the
 // best approach.  I think I'd prefer for missing entries to only be removed when they
@@ -54,10 +57,19 @@ void RecentIsoManager::OnChangedSelection( wxCommandEvent& evt )
 	}
 
 	m_cursel = i;
-	
-	bool resume = CoreThread.Suspend();
-	SysUpdateIsoSrcFile( m_Items[i].Filename );
-	if( resume ) CoreThread.Resume();
+
+	// TODO: Dialog asking for hotswap or reset!!!!
+
+	ScopedCoreThreadPopup stopped_core;
+	//SysUpdateIsoSrcFile( m_Items[i].Filename );
+#ifdef __LINUX__
+	// Likely not what was intended, but it compiles for the moment...
+	SwapOrReset_Iso( NULL, stopped_core, m_Items[i].Filename, GetMsg_IsoImageChanged());
+#else
+	// Getting a window from the menu?
+	SwapOrReset_Iso( m_Menu->GetWindow(), stopped_core, m_Items[i].Filename, GetMsg_IsoImageChanged());
+#endif
+	stopped_core.AllowResume();
 }
 
 void RecentIsoManager::RemoveAllFromMenu()

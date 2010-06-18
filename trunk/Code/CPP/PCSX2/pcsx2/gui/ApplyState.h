@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -21,6 +21,11 @@
 #include "AppCommon.h"
 
 class BaseApplicableConfigPanel;
+class BaseApplicableDialog;
+
+BEGIN_DECLARE_EVENT_TYPES()
+	DECLARE_EVENT_TYPE( pxEvt_ApplySettings, -1 )
+END_DECLARE_EVENT_TYPES()
 
 namespace Exception
 {
@@ -109,6 +114,37 @@ public:
 	virtual ApplyStateStruct& GetApplyState() { return m_ApplyState; }
 };
 
+class BaseApplicableDialog
+	: public wxDialogWithHelpers
+	, public IApplyState
+{
+	DECLARE_DYNAMIC_CLASS_NO_COPY(BaseApplicableDialog)
+
+public:
+	BaseApplicableDialog() {}
+	virtual ~BaseApplicableDialog() throw();
+
+	// Must return the same thing as GetNameStatic; a name ideal for use in uniquely
+	// identifying dialogs.  (this version is the 'instance' version, which is called
+	// by BaseConfigurationDialog to assign the wxWidgets dialog name, and for saving
+	// screenshots to disk)
+	virtual wxString GetDialogName() const;
+
+protected:
+	void Init();
+
+	BaseApplicableDialog(wxWindow* parent, const wxString& title, const pxDialogCreationFlags& cflags = pxDialogCreationFlags() );
+
+	virtual void OnSettingsApplied( wxCommandEvent& evt );
+
+	// Note: This method *will* be called automatically after a successful Apply, but will not
+	// be called after a failed Apply (canceled due to error).
+	virtual void AppStatusEvent_OnSettingsApplied() {}
+
+	virtual void AppStatusEvent_OnSettingsLoadSave( const AppSettingsEventInfo& ) {}
+	virtual void AppStatusEvent_OnExit() {}
+};
+
 // --------------------------------------------------------------------------------------
 //  BaseApplicableConfigPanel
 // --------------------------------------------------------------------------------------
@@ -119,7 +155,8 @@ public:
 //   static vars and assumes that only one ApplicableConfig system is available to the
 //   user at any time (ie, a singular modal dialog).
 //
-class BaseApplicableConfigPanel : public wxPanelWithHelpers
+class BaseApplicableConfigPanel
+	: public wxPanelWithHelpers
 {
 protected:
 	int				m_OwnerPage;
@@ -150,7 +187,7 @@ public:
 	virtual void Apply()=0;
 
 	void Init();
-	
+
 	// Mandatory override: As a rule for proper interface design, all deriving classes need
 	// to implement this function.  There's no implementation of an options/settings panel
 	// that does not heed the changes of application status/settings changes. ;)
@@ -179,5 +216,7 @@ public:
 	);
 
 	virtual ~ApplicableWizardPage() throw() { m_ApplyState.DoCleanup(); }
+	
+	virtual bool PrepForApply();
 };
 

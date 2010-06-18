@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -18,6 +18,7 @@
 #include "wxGuiTools.h"
 #include "pxStaticText.h"
 #include "Threading.h"
+#include "IniInterface.h"
 
 #include <wx/cshelp.h>
 #include <wx/tooltip.h>
@@ -25,37 +26,43 @@
 
 using namespace pxSizerFlags;
 
+pxDialogCreationFlags pxDialogFlags()
+{
+	return pxDialogCreationFlags().CloseBox().Caption().Vertical();
+}
+
+
 // --------------------------------------------------------------------------------------
-//  IDeletableObject Implementation
+//  BaseDeletableObject Implementation
 // --------------------------------------------------------------------------------------
 // This code probably deserves a better home.  It's general purpose non-GUI code (the single
 // wxApp/Gui dependency is in wxGuiTools.cpp for now).
 //
-bool IDeletableObject::MarkForDeletion()
+bool BaseDeletableObject::MarkForDeletion()
 {
 	return !_InterlockedExchange( &m_IsBeingDeleted, true );
 }
 
-void IDeletableObject::DeleteSelf()
+void BaseDeletableObject::DeleteSelf()
 {
 	if( MarkForDeletion() )
 		DoDeletion();
 }
 
-IDeletableObject::IDeletableObject()
+BaseDeletableObject::BaseDeletableObject()
 {
 	#ifdef _MSC_VER
 	// Bleh, this fails because _CrtIsValidHeapPointer calls HeapValidate on the
 	// pointer, but the pointer is a virtual base class, so it's not a valid block. >_<
-	//pxAssertDev( _CrtIsValidHeapPointer( this ), "IDeletableObject types cannot be created on the stack or as temporaries!" );
+	//pxAssertDev( _CrtIsValidHeapPointer( this ), "BaseDeletableObject types cannot be created on the stack or as temporaries!" );
 	#endif
 
 	m_IsBeingDeleted = false;
 }
 
-IDeletableObject::~IDeletableObject() throw()
+BaseDeletableObject::~BaseDeletableObject() throw()
 {
-	AffinityAssert_AllowFromMain();
+	AffinityAssert_AllowFrom_MainUI();
 }
 
 
@@ -64,10 +71,10 @@ IDeletableObject::~IDeletableObject() throw()
 
 // Creates a text control which is right-justified and has it's minimum width configured to suit
 // the number of digits requested.
-wxTextCtrl* CreateNumericalTextCtrl( wxWindow* parent, int digits )
+wxTextCtrl* CreateNumericalTextCtrl( wxWindow* parent, int digits, long flags )
 {
 	wxTextCtrl* ctrl = new wxTextCtrl( parent, wxID_ANY );
-	ctrl->SetWindowStyleFlag( wxTE_RIGHT );
+	ctrl->SetWindowStyleFlag( flags );
 	pxFitToDigits( ctrl, digits );
 	return ctrl;
 }
@@ -101,43 +108,43 @@ bool pxDialogExists( const wxString& name )
 //  wxDialogWithHelpers Class Implementations
 // =====================================================================================================
 
+DEFINE_EVENT_TYPE( pxEvt_OnDialogCreated )
+
 IMPLEMENT_DYNAMIC_CLASS(wxDialogWithHelpers, wxDialog)
 
 wxDialogWithHelpers::wxDialogWithHelpers()
 {
 	m_hasContextHelp	= false;
 	m_extraButtonSizer	= NULL;
-	
-	Init();
+
+	Init( pxDialogFlags() );
 }
 
-wxDialogWithHelpers::wxDialogWithHelpers( wxWindow* parent, const wxString& title, bool hasContextHelp, bool resizable )
-	: wxDialog( parent, wxID_ANY, title, wxDefaultPosition, wxDefaultSize,
-		wxDEFAULT_DIALOG_STYLE | (resizable ? wxRESIZE_BORDER : 0)
-	)
+wxDialogWithHelpers::wxDialogWithHelpers( wxWindow* parent, const wxString& title, const pxDialogCreationFlags& cflags )
+	: wxDialog( parent, wxID_ANY, title, wxDefaultPosition, wxDefaultSize, cflags.GetWxWindowFlags() )
 {
-	m_hasContextHelp	= hasContextHelp;
-	Init();
-}
+	m_hasContextHelp	= cflags.hasContextHelp;
+	if( (int)cflags.BoxSizerOrient != 0 )
+	{
+		SetSizer( new wxBoxSizer( cflags.BoxSizerOrient ) );
+		*this += StdPadding;
+	}
 
-wxDialogWithHelpers::wxDialogWithHelpers(wxWindow* parent, const wxString& title, wxOrientation orient)
-	: wxDialog( parent, wxID_ANY, title )
-{
-	m_hasContextHelp	= false;
-	SetSizer( new wxBoxSizer( orient ) );
-	Init();
-
-	m_idealWidth = 500;
-	*this += StdPadding;
+	Init( cflags );
+	SetMinSize( cflags.MinimumSize );
 }
 
 wxDialogWithHelpers::~wxDialogWithHelpers() throw()
 {
 }
 
-void wxDialogWithHelpers::Init()
+void wxDialogWithHelpers::Init( const pxDialogCreationFlags& cflags )
 {
-	m_idealWidth		= wxDefaultCoord;
+	// This fixes it so that the dialogs show up in the task bar in Vista:
+	// (otherwise they go stupid iconized mode if the user minimizes them)
+	if( cflags.hasMinimizeBox )
+		SetExtraStyle(GetExtraStyle() & ~wxTOPLEVEL_EX_DIALOG);
+
 	m_extraButtonSizer	= NULL;
 
 	if( m_hasContextHelp )
@@ -148,17 +155,31 @@ void wxDialogWithHelpers::Init()
 	// an updated version will fix it later.  I tried to fix it using a manual Connect but it
 	// didn't do any good.  (problem could also be my Co-Linux / x-window manager)
 
-	//Connect( wxEVT_ACTIVATE, wxActivateEventHandler(wxDialogWithHelpers::OnActivate) );
+	Connect( pxEvt_OnDialogCreated,	wxCommandEventHandler	(wxDialogWithHelpers::OnDialogCreated) );
 
 	Connect( wxID_OK,		wxEVT_COMMAND_BUTTON_CLICKED,	wxCommandEventHandler	(wxDialogWithHelpers::OnOkCancel) );
 	Connect( wxID_CANCEL,	wxEVT_COMMAND_BUTTON_CLICKED,	wxCommandEventHandler	(wxDialogWithHelpers::OnOkCancel) );
 	Connect(				wxEVT_CLOSE_WINDOW,				wxCloseEventHandler		(wxDialogWithHelpers::OnCloseWindow) );
+
+	wxCommandEvent createEvent( pxEvt_OnDialogCreated );
+	createEvent.SetId( GetId() );
+	AddPendingEvent( createEvent );
 }
 
-void wxDialogWithHelpers::SmartCenterFit()
+void wxDialogWithHelpers::OnDialogCreated( wxCommandEvent& evt )
 {
-	Fit();
+	evt.Skip();
+	if( (evt.GetId() == GetId()) && !GetDialogName().IsEmpty() )
+		SetName( L"Dialog:" + GetDialogName() );
+}
 
+wxString wxDialogWithHelpers::GetDialogName() const
+{
+	return wxEmptyString;
+}
+
+void wxDialogWithHelpers::DoAutoCenter()
+{
 	// Smart positioning logic!  If our parent window is larger than our window by some
 	// good amount, then we center on that.  If not, center relative to the screen.  This
 	// avoids the popup automatically eclipsing the parent window (which happens in PCSX2
@@ -179,12 +200,50 @@ void wxDialogWithHelpers::SmartCenterFit()
 	if( centerfail ) CenterOnScreen();
 }
 
+void wxDialogWithHelpers::SmartCenterFit()
+{
+	Fit();
+
+	const wxString dlgName( GetDialogName() );
+	if( dlgName.IsEmpty() )
+	{
+		DoAutoCenter(); return;
+	}
+
+	if( wxConfigBase* cfg = wxConfigBase::Get( false ) )
+	{
+		wxRect screenRect( GetScreenRect() );
+
+		IniLoader loader( cfg );
+		IniScopedGroup group( loader, L"DialogPositions" );
+		cfg->SetRecordDefaults( false );
+
+		if( GetWindowStyle() & wxRESIZE_BORDER )
+		{
+			wxSize size;
+			loader.Entry( dlgName + L"_Size", size, screenRect.GetSize() );
+			SetSize( size );
+		}
+
+		if( !cfg->Exists( dlgName + L"_Pos" ) )
+			DoAutoCenter();
+		else
+		{
+			wxPoint pos;
+			loader.Entry( dlgName + L"_Pos", pos, screenRect.GetPosition() );
+			SetPosition( pos );
+		}
+		cfg->SetRecordDefaults( true );
+	}
+}
+
 // Overrides wxDialog behavior to include automatic Fit() and CenterOnParent/Screen.  The centering
 // is based on a heuristic the centers against the parent window if the parent window is at least
 // 75% larger than the fitted dialog.
 int wxDialogWithHelpers::ShowModal()
 {
 	SmartCenterFit();
+	m_CreatedRect = GetScreenRect();
 	return wxDialog::ShowModal();
 }
 
@@ -193,22 +252,55 @@ int wxDialogWithHelpers::ShowModal()
 // 75% larger than the fitted dialog.
 bool wxDialogWithHelpers::Show( bool show )
 {
-	if( show ) SmartCenterFit();
+	if( show )
+	{
+		SmartCenterFit();
+		m_CreatedRect = GetScreenRect();
+	}
 	return wxDialog::Show( show );
 }
 
-pxStaticText* wxDialogWithHelpers::Text( const wxString& label )
+wxStaticText& wxDialogWithHelpers::Label( const wxString& label )
 {
-	return new pxStaticText( this, label );
+	return *new wxStaticText( this, wxID_ANY, label, wxDefaultPosition, wxDefaultSize, wxALIGN_CENTER_VERTICAL );
 }
 
-pxStaticHeading* wxDialogWithHelpers::Heading( const wxString& label )
+pxStaticText& wxDialogWithHelpers::Text( const wxString& label )
 {
-	return new pxStaticHeading( this, label );
+	return *new pxStaticText( this, label );
+}
+
+pxStaticText& wxDialogWithHelpers::Heading( const wxString& label )
+{
+	return *new pxStaticHeading( this, label );
 }
 
 void wxDialogWithHelpers::OnCloseWindow( wxCloseEvent& evt )
 {
+	// Save the dialog position if the dialog is named...
+	// FIXME : This doesn't get called if the app is exited by alt-f4'ing the main app window.
+	//   ... not sure how to fix that yet.  I could register a list of open windows into wxAppWithHelpers
+	//   that systematically get closed.  Seems like work, maybe later.  --air
+	
+	if( wxConfigBase* cfg = IsIconized() ? NULL : wxConfigBase::Get( false ) )
+	{
+		const wxString dlgName( GetDialogName() );
+		const wxRect screenRect( GetScreenRect() );
+		if( !dlgName.IsEmpty() && ( m_CreatedRect != screenRect) )
+		{
+			wxPoint pos( screenRect.GetPosition() );
+			IniSaver saver( cfg );
+			IniScopedGroup group( saver, L"DialogPositions" );
+
+			if( GetWindowStyle() & wxRESIZE_BORDER )
+			{
+				wxSize size( screenRect.GetSize() );
+				saver.Entry( dlgName + L"_Size", size, screenRect.GetSize() );
+			}
+			saver.Entry( dlgName + L"_Pos", pos, screenRect.GetPosition() );
+		}
+	}
+
 	if( !IsModal() ) Destroy();
 	evt.Skip();
 }
@@ -217,12 +309,6 @@ void wxDialogWithHelpers::OnOkCancel( wxCommandEvent& evt )
 {
 	Close();
 	evt.Skip();
-}
-
-
-void wxDialogWithHelpers::OnActivate(wxActivateEvent& evt)
-{
-	//evt.Skip();
 }
 
 void wxDialogWithHelpers::AddOkCancel( wxSizer &sizer, bool hasApply )
@@ -261,6 +347,34 @@ void wxDialogWithHelpers::AddOkCancel( wxSizer &sizer, bool hasApply )
 	s_buttons.Realize();
 }
 
+void wxDialogWithHelpers::AddOkCancel( wxSizer *sizer, bool hasApply )
+{
+	if( sizer == NULL ) sizer = GetSizer();
+	pxAssume( sizer );
+	AddOkCancel( *sizer, hasApply );
+}
+
+wxDialogWithHelpers& wxDialogWithHelpers::SetMinWidth( int newWidth )
+{
+	SetMinSize( wxSize( newWidth, GetMinHeight() ) );
+	if( wxSizer* sizer = GetSizer() )
+		sizer->SetMinSize( wxSize( newWidth, sizer->GetMinSize().GetHeight() ) );
+	return *this;
+}
+
+wxDialogWithHelpers& wxDialogWithHelpers::SetMinHeight( int newHeight )
+{
+	SetMinSize( wxSize( GetMinWidth(), newHeight ) );
+	if( wxSizer* sizer = GetSizer() )
+		sizer->SetMinSize( wxSize( sizer->GetMinSize().GetWidth(), newHeight ) );
+	return *this;
+}
+
+int wxDialogWithHelpers::GetCharHeight() const
+{
+	return pxGetCharHeight( this, 1 );
+}
+
 // --------------------------------------------------------------------------------------
 //  wxPanelWithHelpers Implementations
 // --------------------------------------------------------------------------------------
@@ -269,42 +383,6 @@ IMPLEMENT_DYNAMIC_CLASS(wxPanelWithHelpers, wxPanel)
 
 void wxPanelWithHelpers::Init()
 {
-	m_idealWidth = wxDefaultCoord;
-
-	// Find the first parent with a fixed width:
-	wxWindow* millrun = this->GetParent();
-	while( (m_idealWidth == wxDefaultCoord) && millrun != NULL )
-	{
-		if( wxIsKindOf( millrun, wxPanelWithHelpers ) )
-			m_idealWidth = ((wxPanelWithHelpers*)millrun)->GetIdealWidth();
-
-		else if( wxIsKindOf( millrun, wxDialogWithHelpers ) )
-			m_idealWidth = ((wxDialogWithHelpers*)millrun)->GetIdealWidth();
-
-		millrun = millrun->GetParent();
-	}
-
-	if( m_idealWidth == wxDefaultCoord || GetParent() == NULL )
-		return;
-
-	// Check for a StaticBox -- if we belong to one then we'll want to "downgrade" the
-	// inherited textbox width automatically.
-
-	wxSizer* guess = GetSizer();
-	if( guess == NULL ) guess = GetParent()->GetSizer();
-	if( guess == NULL ) guess = GetParent()->GetContainingSizer();
-	
-	if( guess != NULL )
-	{
-		if( wxIsKindOf( guess, wxStaticBoxSizer ) )
-		{
-			int top=0, others=0;
-			((wxStaticBoxSizer*)guess)->GetStaticBox()->GetBordersForSizer( &top, &others );
-			m_idealWidth -= others*2;
-		}
-		else
-			m_idealWidth -= 2;				// generic padding compensation (no exact sciences to be found here)
-	}
 }
 
 // Creates a Static Box container for this panel.  the static box sizer becomes the default
@@ -320,20 +398,24 @@ wxPanelWithHelpers* wxPanelWithHelpers::AddFrame( const wxString& label, wxOrien
 
 	if( oldSizer )
 		*this += oldSizer | pxExpand;
-	
+
 	return this;
 }
 
-pxStaticText* wxPanelWithHelpers::Text( const wxString& label )
+wxStaticText& wxPanelWithHelpers::Label( const wxString& label )
 {
-	return new pxStaticText( this, label );
+	return *new wxStaticText( this, wxID_ANY, label );
 }
 
-pxStaticHeading* wxPanelWithHelpers::Heading( const wxString& label )
+pxStaticText& wxPanelWithHelpers::Text( const wxString& label )
 {
-	return new pxStaticHeading( this, label );
+	return *new pxStaticText( this, label );
 }
 
+pxStaticText& wxPanelWithHelpers::Heading( const wxString& label )
+{
+	return *new pxStaticHeading( this, label );
+}
 
 wxPanelWithHelpers::wxPanelWithHelpers( wxWindow* parent, wxOrientation orient, const wxString& staticBoxLabel )
 	: wxPanel( parent )
@@ -359,4 +441,25 @@ wxPanelWithHelpers::wxPanelWithHelpers( wxWindow* parent, const wxPoint& pos, co
 	: wxPanel( parent, wxID_ANY, pos, size )
 {
 	Init();
+}
+
+wxPanelWithHelpers& wxPanelWithHelpers::SetMinWidth( int newWidth )
+{
+	SetMinSize( wxSize( newWidth, GetMinHeight() ) );
+	if( wxSizer* sizer = GetSizer() )
+		sizer->SetMinSize( wxSize( newWidth, sizer->GetMinSize().GetHeight() ) );
+	return *this;
+}
+
+int pxGetCharHeight( const wxWindow* wind, int rows )
+{
+	if( !wind ) return 0;
+	wxClientDC dc(wx_const_cast(wxWindow*, wind));
+	dc.SetFont( wind->GetFont() );
+	return (dc.GetCharHeight() + 1 ) * rows;
+}
+
+int pxGetCharHeight( const wxWindow& wind, int rows )
+{
+	return pxGetCharHeight( &wind, rows );
 }

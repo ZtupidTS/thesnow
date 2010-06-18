@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -15,7 +15,7 @@
 
 #include "PrecompiledHeader.h"
 #include "pxRadioPanel.h"
-
+#include "pxStaticText.h"
 
 // ===========================================================================================
 //  pxRadioPanel Implementations
@@ -80,9 +80,7 @@ void pxRadioPanel::Realize()
 	{
 		m_objects[i].SubTextObj = NULL;
 		if( m_buttonStrings[i].SubText.IsEmpty() ) continue;
-		m_objects[i].SubTextObj = new wxStaticText( this, wxID_ANY, m_buttonStrings[i].SubText );
-		if( (m_idealWidth > 0) && pxAssertMsg( m_idealWidth > 40, "Unusably short text wrapping specified!" ) )
-			m_objects[i].SubTextObj->Wrap( m_idealWidth - m_Indentation );
+		m_objects[i].SubTextObj = new pxStaticText( this, m_buttonStrings[i].SubText, wxALIGN_LEFT );
 	}
 
 	pxAssert( GetSizer() != NULL );
@@ -90,10 +88,10 @@ void pxRadioPanel::Realize()
 	for( int i=0; i<numbuttons; ++i )
 	{
 		*this += m_objects[i].LabelObj	| pxSizerFlags::StdExpand();
-	
-		if( wxStaticText* subobj = m_objects[i].SubTextObj )
+
+		if( pxStaticText* subobj = m_objects[i].SubTextObj )
 		{
-			*this += subobj	| pxBorder( wxLEFT, m_Indentation );
+			*this += subobj	| pxBorder( wxLEFT, m_Indentation ).Expand();
 			*this += 9 + m_padding.GetHeight();
 		}
 		if( !m_buttonStrings[i].ToolTip.IsEmpty() )
@@ -109,7 +107,7 @@ void pxRadioPanel::_setToolTipImmediate( int idx, const wxString &tip )
 	if( wxRadioButton* woot = m_objects[idx].LabelObj )
 		woot->SetToolTip( wrapped );
 
-	if( wxStaticText* woot = m_objects[idx].SubTextObj )
+	if( pxStaticText* woot = m_objects[idx].SubTextObj )
 		woot->SetToolTip( wrapped );
 }
 
@@ -167,7 +165,7 @@ pxRadioPanel& pxRadioPanel::SetDefaultItem( int idx )
 pxRadioPanel& pxRadioPanel::EnableItem( int idx, bool enable )
 {
 	pxAssertDev( m_IsRealized, "RadioPanel must be realized first, prior to enabling or disabling individual items." );
-	
+
 	if( m_objects[idx].LabelObj )
 		m_objects[idx].LabelObj->Enable( enable );
 
@@ -177,6 +175,15 @@ pxRadioPanel& pxRadioPanel::EnableItem( int idx, bool enable )
 	return *this;
 }
 
+const RadioPanelItem& pxRadioPanel::Item(int idx) const
+{
+	return m_buttonStrings[idx];
+}
+
+RadioPanelItem& pxRadioPanel::Item(int idx)
+{
+	return m_buttonStrings[idx];
+}
 
 int pxRadioPanel::GetSelection() const
 {
@@ -193,7 +200,7 @@ int pxRadioPanel::GetSelection() const
 	// select one of the members of the group (which is, as far as I'm concerned, a
 	// programmer error!). so Assert here in such cases, and return 0 as the assumed
 	// default, so that calling code has a "valid" return code in release builds.
-	
+
 	pxFailDev( "No valid selection was found in this group!" );
 	return 0;
 }
@@ -213,13 +220,13 @@ bool pxRadioPanel::IsSelected( int idx ) const
 	return m_objects[idx].LabelObj->GetValue();
 }
 
-wxStaticText* pxRadioPanel::GetSubText( int idx )
+pxStaticText* pxRadioPanel::GetSubText( int idx )
 {
 	if( !VerifyRealizedState() ) return NULL;
 	return m_objects[idx].SubTextObj;
 }
 
-const wxStaticText* pxRadioPanel::GetSubText( int idx ) const
+const pxStaticText* pxRadioPanel::GetSubText( int idx ) const
 {
 	if( !VerifyRealizedState() ) return NULL;
 	return m_objects[idx].SubTextObj;

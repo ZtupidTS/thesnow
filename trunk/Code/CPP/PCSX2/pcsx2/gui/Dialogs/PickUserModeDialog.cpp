@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -21,9 +21,9 @@
 using namespace Panels;
 
 Dialogs::PickUserModeDialog::PickUserModeDialog( wxWindow* parent )
-	: BaseApplicableDialog( parent, _("PCSX2 第一次使用设置"), wxVERTICAL )
+	: BaseApplicableDialog( parent, _("PCSX2 第一次使用设置") )
 {
-	m_panel_usersel = new UsermodeSelectionPanel( this, false );
+	m_panel_usersel = new DocsFolderPickerPanel( this, false );
 	m_panel_langsel = new LanguageSelectionPanel( this );
 
 	*this	+= new pxStaticHeading( this, _("PCSX2 启动于一个新的或者未知的文件夹下面,需要进行重新设置.") );

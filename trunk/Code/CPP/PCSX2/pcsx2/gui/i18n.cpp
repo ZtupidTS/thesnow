@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -24,17 +24,17 @@ static bool IsEnglish( int id )
 	return ( id == wxLANGUAGE_ENGLISH || id == wxLANGUAGE_ENGLISH_US );
 }
 
-LangPackEnumeration::LangPackEnumeration( wxLanguage langId ) :
-	wxLangId( langId )
-,	englishName( wxLocale::GetLanguageName( wxLangId ) )
-,	xlatedName( IsEnglish( wxLangId ) ? wxEmptyString : wxGetTranslation( L"NativeName" ) )
+LangPackEnumeration::LangPackEnumeration( wxLanguage langId )
+	: wxLangId( langId )
+	, englishName( wxLocale::GetLanguageName( wxLangId ) )
+	, xlatedName( IsEnglish( wxLangId ) ? wxEmptyString : wxGetTranslation( L"NativeName" ) )
 {
 }
 
-LangPackEnumeration::LangPackEnumeration() :
-	wxLangId( wxLANGUAGE_DEFAULT )
-,	englishName( L" System Default" )		// left-side space forces it to sort to the front of the lists
-,	xlatedName()
+LangPackEnumeration::LangPackEnumeration()
+	: wxLangId( wxLANGUAGE_DEFAULT )
+	, englishName( L" System Default" )		// left-side space forces it to sort to the front of the lists
+	, xlatedName()
 {
 	int sysLang( wxLocale::GetSystemLanguage() );
 	if( sysLang != wxLANGUAGE_UNKNOWN )
@@ -85,7 +85,7 @@ void i18n_EnumeratePackages( LangPackList& langs )
 {
 	wxDoNotLogInThisScope here;		// wx generates verbose errors if languages don't exist, so disable them here.
 	langs.push_back( LangPackEnumeration() );
-	
+
 	for( int li=wxLANGUAGE_UNKNOWN+1; li<wxLANGUAGE_USER_DEFINED; ++li )
 	{
 		i18n_DoPackageCheck( (wxLanguage)li, langs );
@@ -117,8 +117,31 @@ void i18n_EnumeratePackages( LangPackList& langs )
 //
 const wxChar* __fastcall pxExpandMsg( const wxChar* key, const wxChar* englishContent )
 {
+#ifdef PCSX2_DEVBUILD
+	static const wxChar* tbl_pxE_Prefixes[] =
+	{
+		L".Panel:",
+		L".Popup:",
+		L".Error:",
+		L".Wizard:",
+		L".Tooltip:",
+		NULL
+	};
+
+	// test the prefix of the key for consistency to valid/known prefix types.
+	const wxChar** prefix = tbl_pxE_Prefixes;
+	while( *prefix != NULL )
+	{
+		if( wxString(key).StartsWith(*prefix) ) break;
+		++prefix;
+	}
+	pxAssertDev( *prefix != NULL,
+		wxsFormat( L"Invalid pxE key prefix in key '%s'.  Prefix must be one of the valid prefixes listed in pxExpandMsg.", key )
+	);
+#endif
+
 	const wxLanguageInfo* info = wxLocale::GetLanguageInfo( g_Conf->LanguageId );
-	
+
 	if( ( info == NULL ) || IsEnglish( info->Language ) )
 		return englishContent;
 

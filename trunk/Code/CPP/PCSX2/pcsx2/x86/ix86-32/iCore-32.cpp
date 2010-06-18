@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -898,7 +898,7 @@ int _signExtendGPRMMXtoMMX(x86MMXRegType to, u32 gprreg, x86MMXRegType from, u32
 	PSRADItoR(from, 31);
 	MOVDMMXtoM((u32)&cpuRegs.GPR.r[gprreg].UL[1], from);
 	mmxregs[to].inuse = 0;
-	
+
 	return -1;
 }
 
@@ -913,7 +913,7 @@ int _signExtendGPRtoMMX(x86MMXRegType to, u32 gprreg, int shift)
 	PSRADItoR(to, 31);
 	MOVDMMXtoM((u32)&cpuRegs.GPR.r[gprreg].UL[1], to);
 	mmxregs[to].inuse = 0;
-	
+
 	return -1;
 }
 

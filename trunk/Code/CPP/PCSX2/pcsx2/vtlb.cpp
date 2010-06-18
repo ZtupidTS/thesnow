@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -231,11 +231,13 @@ static const char* _getModeStr( u32 mode )
 }
 
 // Generates a tlbMiss Exception
+// Note: Don't throw exceptions yet, they cause a crash when otherwise
+// there would be a (slight) chance the game continues (rama).
 static __forceinline void vtlb_Miss(u32 addr,u32 mode)
 {
 	Console.Error( "vtlb miss : addr 0x%X, mode %d [%s]", addr, mode, _getModeStr(mode) );
 	//verify(false);
-	throw R5900Exception::TLBMiss( addr, !!mode );
+	//throw R5900Exception::TLBMiss( addr, !!mode );
 }
 
 // Just dies a horrible death for now.
@@ -316,7 +318,7 @@ void __fastcall vtlbDefaultPhyWrite128(u32 addr,const mem128_t* data) { Console.
 //
 // Note: All handlers persist across calls to vtlb_Reset(), but are wiped/invalidated by calls to vtlb_Init()
 //
-void vtlb_ReassignHandler( vtlbHandler rv, 
+void vtlb_ReassignHandler( vtlbHandler rv,
 		 vtlbMemR8FP* r8,vtlbMemR16FP* r16,vtlbMemR32FP* r32,vtlbMemR64FP* r64,vtlbMemR128FP* r128,
 		 vtlbMemW8FP* w8,vtlbMemW16FP* w16,vtlbMemW32FP* w32,vtlbMemW64FP* w64,vtlbMemW128FP* w128 )
 {
@@ -547,7 +549,7 @@ void vtlb_Init()
 	vtlb_VMapUnmap(0,(VTLB_VMAP_ITEMS-1)*VTLB_PAGE_SIZE);
 	//yeah i know, its stupid .. but this code has to be here for now ;p
 	vtlb_VMapUnmap((VTLB_VMAP_ITEMS-1)*VTLB_PAGE_SIZE,VTLB_PAGE_SIZE);
-	
+
 	extern void vtlb_dynarec_init();
 	vtlb_dynarec_init();
 }
@@ -624,6 +626,6 @@ void vtlb_free( void* pmem, uint size )
 	// Does nothing anymore!  Alloc/dealloc is now handled by vtlb_Core_Alloc /
 	// vtlb_Core_Shutdown.  Placebo is left in place in case it becomes useful again
 	// at a later date.
-	
+
 	return;
 }

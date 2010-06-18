@@ -63,6 +63,7 @@
 					<Add option="-ftree-pre" />
 					<Add option="-DPCSX2_DEVBUILD" />
 					<Add option="-DPCSX2_DEVEL" />
+					<Add option="-DNDEBUG" />
 					<Add directory="../../include" />
 					<Add directory="../../include/Utilities" />
 				</Compiler>
@@ -108,6 +109,7 @@
 					<Add option="-falign-loops  -falign-labels" />
 					<Add option="-ftree-vrp" />
 					<Add option="-ftree-pre" />
+					<Add option="-DNDEBUG" />
 					<Add directory="../../include" />
 					<Add directory="../../include/Utilities" />
 				</Compiler>
@@ -152,16 +154,21 @@
 		<Unit filename="../../include/Utilities/FixedPointTypes.h" />
 		<Unit filename="../../include/Utilities/General.h" />
 		<Unit filename="../../include/Utilities/HashMap.h" />
+		<Unit filename="../../include/Utilities/IniInterface.h" />
 		<Unit filename="../../include/Utilities/MemcpyFast.h" />
 		<Unit filename="../../include/Utilities/Path.h" />
 		<Unit filename="../../include/Utilities/PersistentThread.h" />
 		<Unit filename="../../include/Utilities/RedtapeWindows.h" />
+		<Unit filename="../../include/Utilities/RwMutex.h" />
 		<Unit filename="../../include/Utilities/SafeArray.h" />
 		<Unit filename="../../include/Utilities/ScopedPtr.h" />
+		<Unit filename="../../include/Utilities/ScopedPtrMT.h" />
 		<Unit filename="../../include/Utilities/StringHelpers.h" />
 		<Unit filename="../../include/Utilities/Threading.h" />
+		<Unit filename="../../include/Utilities/ThreadingDialogs.h" />
 		<Unit filename="../../include/Utilities/lnx_memzero.h" />
 		<Unit filename="../../include/Utilities/pxCheckBox.h" />
+		<Unit filename="../../include/Utilities/pxEvents.h" />
 		<Unit filename="../../include/Utilities/pxRadioPanel.h" />
 		<Unit filename="../../include/Utilities/pxStaticText.h" />
 		<Unit filename="../../include/Utilities/win_memzero.h" />
@@ -174,7 +181,9 @@
 		<Unit filename="../../src/Utilities/Console.cpp" />
 		<Unit filename="../../src/Utilities/EventSource.cpp" />
 		<Unit filename="../../src/Utilities/Exceptions.cpp" />
+		<Unit filename="../../src/Utilities/FastFormatString.cpp" />
 		<Unit filename="../../src/Utilities/HashTools.cpp" />
+		<Unit filename="../../src/Utilities/IniInterface.cpp" />
 		<Unit filename="../../src/Utilities/Linux/LnxHostSys.cpp" />
 		<Unit filename="../../src/Utilities/Linux/LnxMisc.cpp" />
 		<Unit filename="../../src/Utilities/Linux/LnxThreads.cpp" />
@@ -182,13 +191,17 @@
 		<Unit filename="../../src/Utilities/PathUtils.cpp" />
 		<Unit filename="../../src/Utilities/PrecompiledHeader.cpp" />
 		<Unit filename="../../src/Utilities/PrecompiledHeader.h" />
+		<Unit filename="../../src/Utilities/RwMutex.cpp" />
 		<Unit filename="../../src/Utilities/Semaphore.cpp" />
 		<Unit filename="../../src/Utilities/StringHelpers.cpp" />
 		<Unit filename="../../src/Utilities/ThreadTools.cpp" />
+		<Unit filename="../../src/Utilities/ThreadingDialogs.cpp" />
 		<Unit filename="../../src/Utilities/ThreadingInternal.h" />
 		<Unit filename="../../src/Utilities/pxCheckBox.cpp" />
 		<Unit filename="../../src/Utilities/pxRadioPanel.cpp" />
 		<Unit filename="../../src/Utilities/pxStaticText.cpp" />
+		<Unit filename="../../src/Utilities/pxTextStream.cpp" />
+		<Unit filename="../../src/Utilities/pxWindowTextWriter.cpp" />
 		<Unit filename="../../src/Utilities/vssprintf.cpp" />
 		<Unit filename="../../src/Utilities/wxAppWithHelpers.cpp" />
 		<Unit filename="../../src/Utilities/wxGuiTools.cpp" />

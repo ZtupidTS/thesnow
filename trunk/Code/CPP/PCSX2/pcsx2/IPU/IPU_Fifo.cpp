@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -114,10 +114,16 @@ int IPU_Fifo_Output::write(const u32 *value, int size)
 int IPU_Fifo_Input::read(void *value)
 {
 	// wait until enough data
-	if (g_BP.IFC == 0)
+	if (g_BP.IFC < 8)
 	{
-		// This is the only spot that wants a return value for IPU1dma.
-		if (IPU1dma() == 0) return 0;
+		// IPU FIFO is empty and DMA is waiting so lets tell the DMA we are ready to put data in the FIFO
+		if(cpuRegs.eCycle[4] == 0x9999)
+		{
+			//DevCon.Warning("Setting ECycle");
+			CPU_INT( DMAC_TO_IPU, 4 );
+		}
+		
+		if (g_BP.IFC == 0) return 0;
 		pxAssert(g_BP.IFC > 0);
 	}
 

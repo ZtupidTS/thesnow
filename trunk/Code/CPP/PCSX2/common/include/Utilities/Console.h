@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -120,7 +120,7 @@ struct IConsoleWriter
 
 	// internal value for indentation of individual lines.  Use the Indent() member to invoke.
 	int _imm_indentation;
-	
+
 	// For internal use only.
 	wxString _addIndentation( const wxString& src, int glob_indent ) const;
 };
@@ -155,7 +155,13 @@ public:
 
 	virtual ~ConsoleIndentScope() throw()
 	{
+		if( m_amount != 0 ) Console.SetIndent( -m_amount );
+	}
+	
+	void EndScope()
+	{
 		Console.SetIndent( -m_amount );
+		m_amount = 0;
 	}
 };
 

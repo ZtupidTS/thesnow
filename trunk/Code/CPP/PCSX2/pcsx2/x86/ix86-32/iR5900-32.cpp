@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -28,6 +28,9 @@
 #include "System/SysThreads.h"
 #include "GS.h"
 
+#include "CDVD/CDVD.h"
+#include "Elfheader.h"
+
 #if !PCSX2_SEH
 #	include <csetjmp>
 #endif
@@ -50,6 +53,7 @@ int branch;		         // set for branch
 
 __aligned16 GPR_reg64 g_cpuConstRegs[32] = {0};
 u32 g_cpuHasConstReg = 0, g_cpuFlushedConstReg = 0;
+bool g_cpuFlushedPC, g_recompilingDelaySlot, g_maySignalException;
 
 ////////////////////////////////////////////////////////////////
 // Static Private Variables - R5900 Dynarec
@@ -72,6 +76,7 @@ static u32 s_nInstCacheSize = 0;
 static BASEBLOCK* s_pCurBlock = NULL;
 static BASEBLOCKEX* s_pCurBlockEx = NULL;
 u32 s_nEndBlock = 0; // what pc the current block ends
+u32 s_branchTo;
 static bool s_nBlockFF;
 
 // save states for branches
@@ -308,26 +313,17 @@ void recBranchCall( void (*func)() )
 	// In order to make sure a branch test is performed, the nextBranchCycle is set
 	// to the current cpu cycle.
 
-	MOV32ItoM( (uptr)&cpuRegs.code, cpuRegs.code );
 	MOV32MtoR( EAX, (uptr)&cpuRegs.cycle );
-	MOV32ItoM( (uptr)&cpuRegs.pc, pc );
 	MOV32RtoM( (uptr)&g_nextBranchCycle, EAX );
 
-	// Might as well flush everything -- it'll all get flushed when the
-	// recompiler inserts the branchtest anyway.
-	iFlushCall(FLUSH_EVERYTHING);
-	CALLFunc( (uptr)func );
+	recCall(func);
 	branch = 2;
 }
 
-void recCall( void (*func)(), int delreg )
+void recCall( void (*func)() )
 {
-	MOV32ItoM( (uptr)&cpuRegs.code, cpuRegs.code );
-	MOV32ItoM( (uptr)&cpuRegs.pc, pc );
-
-	iFlushCall(FLUSH_EVERYTHING);
-	if( delreg > 0 ) _deleteEEreg(delreg, 0);
-	CALLFunc( (uptr)func );
+	iFlushCall(FLUSH_INTERPRETER);
+	xCALL(func);
 }
 
 // =====================================================================================================
@@ -379,25 +375,25 @@ static void _DynGen_StackFrameCheck()
 
 	// --------- EBP Here -----------
 
-	xCMP( ebp, &s_store_ebp );
+	xCMP( ebp, ptr[&s_store_ebp] );
 	xForwardJE8 skipassert_ebp;
 
 	xMOV( ecx, 1 );					// 1 specifies EBP
 	xMOV( edx, ebp );
 	xCALL( StackFrameCheckFailed );
-	xMOV( ebp, &s_store_ebp );		// half-hearted frame recovery attempt!
+	xMOV( ebp, ptr[&s_store_ebp] );		// half-hearted frame recovery attempt!
 
 	skipassert_ebp.SetTarget();
 
 	// --------- ESP There -----------
 
-	xCMP( esp, &s_store_esp );
+	xCMP( esp, ptr[&s_store_esp] );
 	xForwardJE8 skipassert_esp;
 
 	xXOR( ecx, ecx );				// 0 specifies ESP
 	xMOV( edx, esp );
 	xCALL( StackFrameCheckFailed );
-	xMOV( esp, &s_store_esp );		// half-hearted frame recovery attempt!
+	xMOV( esp, ptr[&s_store_esp] );		// half-hearted frame recovery attempt!
 
 	skipassert_esp.SetTarget();
 }
@@ -411,10 +407,10 @@ static DynGenFunc* _DynGen_JITCompile()
 	u8* retval = xGetAlignedCallTarget();
 	_DynGen_StackFrameCheck();
 
-	xMOV( ecx, &cpuRegs.pc );
+	xMOV( ecx, ptr[&cpuRegs.pc] );
 	xCALL( recRecompile );
 
-	xMOV( eax, &cpuRegs.pc );
+	xMOV( eax, ptr[&cpuRegs.pc] );
 	xMOV( ebx, eax );
 	xSHR( eax, 16 );
 	xMOV( ecx, ptr[recLUT + (eax*4)] );
@@ -436,7 +432,7 @@ static DynGenFunc* _DynGen_DispatcherReg()
 	u8* retval = xGetPtr();		// fallthrough target, can't align it!
 	_DynGen_StackFrameCheck();
 
-	xMOV( eax, &cpuRegs.pc );
+	xMOV( eax, ptr[&cpuRegs.pc] );
 	xMOV( ebx, eax );
 	xSHR( eax, 16 );
 	xMOV( ecx, ptr[recLUT + (eax*4)] );
@@ -479,11 +475,11 @@ static DynGenFunc* _DynGen_EnterRecompiledCode()
 	xMOV( ptr32[esp+0x18], ebp );
 	xLEA( ebp, ptr32[esp+0x18] );
 
-	xMOV( &s_store_esp, esp );
-	xMOV( &s_store_ebp, ebp );
+	xMOV( ptr[&s_store_esp], esp );
+	xMOV( ptr[&s_store_ebp], ebp );
 
 	xJMP( ptr32[&DispatcherReg] );
-	
+
 	xAlignCallTarget();
 	imm = (uptr)xGetPtr();
 	ExitRecompiledCode = (DynGenFunc*)xGetPtr();
@@ -605,7 +601,7 @@ static void recAlloc()
 
 	// No errors.. Proceed with initialization:
 
-	ProfilerRegisterSource( "EERec", recMem, REC_CACHEMEM+0x1000 );
+	ProfilerRegisterSource( "EE Rec", recMem, REC_CACHEMEM+0x1000 );
 	_DynGen_Dispatchers();
 
 	x86FpuState = FPU_STATE;
@@ -760,7 +756,7 @@ static void recExecute()
 
 		pthread_setcancelstate( PTHREAD_CANCEL_DISABLE, &oldstate );
 		EnterRecompiledCode();
-		
+
 		// Generally unreachable code here ...
 	}
 	else
@@ -770,26 +766,10 @@ static void recExecute()
 #endif
 }
 
-static void recExecuteBiosStub()
-{
-	g_ExecBiosHack = true;
-	recExecute();
-	g_ExecBiosHack = false;
-
-	// Reset the EErecs here, because the bios generates "slow" blocks that have
-	// g_ExecBiosHack checks in them.  This deletes them so that the recs replace them
-	// with new faster versions:
-	recResetEE();
-}
-
-
 ////////////////////////////////////////////////////
 void R5900::Dynarec::OpcodeImpl::recSYSCALL( void )
 {
-	MOV32ItoM( (uptr)&cpuRegs.code, cpuRegs.code );
-	MOV32ItoM( (uptr)&cpuRegs.pc, pc );
-	iFlushCall(FLUSH_NODESTROY);
-	CALLFunc( (uptr)R5900::Interpreter::OpcodeImpl::SYSCALL );
+	recCall(R5900::Interpreter::OpcodeImpl::SYSCALL);
 
 	CMP32ItoM((uptr)&cpuRegs.pc, pc);
 	j8Ptr[0] = JE8(0);
@@ -802,10 +782,7 @@ void R5900::Dynarec::OpcodeImpl::recSYSCALL( void )
 ////////////////////////////////////////////////////
 void R5900::Dynarec::OpcodeImpl::recBREAK( void )
 {
-	MOV32ItoM( (uptr)&cpuRegs.code, cpuRegs.code );
-	MOV32ItoM( (uptr)&cpuRegs.pc, pc );
-	iFlushCall(FLUSH_EVERYTHING);
-	CALLFunc( (uptr)R5900::Interpreter::OpcodeImpl::BREAK );
+	recCall(R5900::Interpreter::OpcodeImpl::BREAK);
 
 	CMP32ItoM((uptr)&cpuRegs.pc, pc);
 	j8Ptr[0] = JE8(0);
@@ -899,36 +876,6 @@ static void recExitExecution()
 #endif
 }
 
-// check for end of bios
-void CheckForBIOSEnd()
-{
-	xMOV( eax, &cpuRegs.pc );
-
-	if( IsDevBuild )
-	{
-		// Using CALL retains stacktrace info, useful for debugging.
-
-		xCMP( eax, 0x00200008 );
-		xForwardJE8 CallExitRec;
-
-		xCMP( eax, 0x00100008 );
-		xForwardJNE8 SkipExitRec;
-
-		CallExitRec.SetTarget();
-		xCALL( recExitExecution );
-
-		SkipExitRec.SetTarget();
-	}
-	else
-	{
-		xCMP( eax, 0x00200008 );
-		xJE(recExitExecution);
-
-		xCMP( eax, 0x00100008 );
-		xJE(recExitExecution);
-	}
-}
-
 static int *s_pCode;
 
 void SetBranchReg( u32 reg )
@@ -987,6 +934,7 @@ void SetBranchImm( u32 imm )
 
 	// end the current block
 	iFlushCall(FLUSH_EVERYTHING);
+	xMOV(ptr32[&cpuRegs.pc], imm);
 	iBranchTest(imm);
 }
 
@@ -1025,6 +973,18 @@ void iFlushCall(int flushtype)
 	_freeX86reg(EAX);
 	_freeX86reg(ECX);
 	_freeX86reg(EDX);
+
+	if (flushtype & FLUSH_PC && !g_cpuFlushedPC) {
+		xMOV(ptr32[&cpuRegs.pc], pc);
+		g_cpuFlushedPC = true;
+	}
+	if (flushtype & FLUSH_CODE)
+		xMOV(ptr32[&cpuRegs.code], cpuRegs.code);
+	if (flushtype & FLUSH_CAUSE) {
+		if (g_recompilingDelaySlot)
+			xOR(ptr32[&cpuRegs.CP0.n.Cause], 1 << 31); // BD
+		g_maySignalException = true;
+	}
 
 	if( flushtype & FLUSH_FREE_XMM )
 		_freeXMMregs();
@@ -1127,72 +1087,35 @@ static void iBranchTest(u32 newpc)
 {
 	_DynGen_StackFrameCheck();
 
-	if( g_ExecBiosHack ) CheckForBIOSEnd();
-
 	// Check the Event scheduler if our "cycle target" has been reached.
 	// Equiv code to:
 	//    cpuRegs.cycle += blockcycles;
 	//    if( cpuRegs.cycle > g_nextBranchCycle ) { DoEvents(); }
 
-	if (EmuConfig.Speedhacks.BIFC0 && s_nBlockFF)
+	if (EmuConfig.Speedhacks.WaitLoop && s_nBlockFF && newpc == s_branchTo)
 	{
 		xMOV(eax, ptr32[&g_nextBranchCycle]);
 		xADD(ptr32[&cpuRegs.cycle], eeScaleBlockCycles());
 		xCMP(eax, ptr32[&cpuRegs.cycle]);
-		xCMOVL(eax, ptr32[&cpuRegs.cycle]);
+		xCMOVS(eax, ptr32[&cpuRegs.cycle]);
 		xMOV(ptr32[&cpuRegs.cycle], eax);
 
 		xJMP( DispatcherEvent );
 	}
 	else
 	{
-		// Optimization -- we need to load cpuRegs.pc on static block links, but doing it inside
-		// the if() block below (it would be paired with recBlocks.Link) breaks the sub/jcc
-		// pairing that modern CPUs optimize (applies to all P4+ and AMD X2+ CPUs).  So let's do
-		// it up here instead. :D
-
-		if( newpc != 0xffffffff )
-			xMOV( ptr32[&cpuRegs.pc], newpc );
-
-		xMOV(eax, &cpuRegs.cycle);
+		xMOV(eax, ptr[&cpuRegs.cycle]);
 		xADD(eax, eeScaleBlockCycles());
-		xMOV(&cpuRegs.cycle, eax); // update cycles
-		xSUB(eax, &g_nextBranchCycle);
+		xMOV(ptr[&cpuRegs.cycle], eax); // update cycles
+		xSUB(eax, ptr[&g_nextBranchCycle]);
 
 		if (newpc == 0xffffffff)
-		{
-			xJNS( DispatcherEvent );
-			xJMP( DispatcherReg );
-		}
+			xJS( DispatcherReg );
 		else
-		{
-			recBlocks.Link( HWADDR(newpc), xJcc32( Jcc_Signed ) );
-			xJMP( DispatcherEvent );
-		}
-	}
+			recBlocks.Link(HWADDR(newpc), xJcc32(Jcc_Signed));
 
-	/*
-	else
-	{
-		xMOV(eax, &cpuRegs.cycle);
-		xADD(eax, eeScaleBlockCycles());
-		xMOV(&cpuRegs.cycle, eax); // update cycles
-		xSUB(eax, &g_nextBranchCycle);
-		if (!noDispatch)
-		{
-			if (newpc == 0xffffffff)
-				xJS( DispatcherReg );
-			else
-			{
-				xMOV( ptr32[&cpuRegs.pc], newpc );
-				recBlocks.Link( HWADDR(newpc), xJcc32( Jcc_Signed ) );
-			}
-		}
+		xJMP( DispatcherEvent );
 	}
-	xCALL( recEventTest );
-	xJMP( DispatcherReg );
-
-	*/
 }
 
 void recompileNextInstruction(int delayslot)
@@ -1207,7 +1130,13 @@ void recompileNextInstruction(int delayslot)
 		MOV32ItoR(EAX, pc);		// acts as a tag for delimiting recompiled instructions when viewing x86 disasm.
 
 	cpuRegs.code = *(int *)s_pCode;
-	pc += 4;
+	if (!delayslot) {
+		pc += 4;
+		g_cpuFlushedPC = false;
+	} else {
+		// increment after recompiling so that pc points to the branch during recompilation
+		g_recompilingDelaySlot = true;
+	}
 
 	g_pCurInstInfo++;
 
@@ -1255,7 +1184,7 @@ void recompileNextInstruction(int delayslot)
 		}
 	}
 	// Check for NOP
-	if (cpuRegs.code == 0x00000000) { 
+	if (cpuRegs.code == 0x00000000) {
 		// Note: Tests on a ps2 suggested more like 5 cycles for a NOP. But there's many factors in this..
 		s_nBlockCycles +=9 * (2 - ((cpuRegs.CP0.n.Config >> 18) & 0x1));
 	}
@@ -1288,6 +1217,16 @@ void recompileNextInstruction(int delayslot)
 //	_freeMMXregs();
 //	_flushCachedRegs();
 //	g_cpuHasConstReg = 1;
+
+	if (delayslot) {
+		pc += 4;
+		g_cpuFlushedPC = false;
+		if (g_maySignalException)
+			xAND(ptr32[&cpuRegs.CP0.n.Cause], ~(1 << 31)); // BD
+		g_recompilingDelaySlot = false;
+	}
+
+	g_maySignalException = false;
 
 	if (!delayslot && (xGetPtr() - recPtr > 0x1000) )
 		s_nEndBlock = pc;
@@ -1350,10 +1289,34 @@ void __fastcall dyna_page_reset(u32 start,u32 sz)
 #endif
 }
 
+// Skip MPEG Game-Fix
+bool skipMPEG_By_Pattern(u32 sPC) {
+
+	if (!CHECK_SKIPMPEGHACK) return 0;
+
+	// sceMpegIsEnd: lw reg, 0x40(a0); jr ra; lw v0, 0(reg)
+	if ((s_nEndBlock == sPC + 12) && (vtlb_memRead32(sPC + 4) == 0x03e00008)) {
+		u32 code = vtlb_memRead32(sPC);
+		u32 p1   = 0x8c800040;
+		u32 p2	 = 0x8c020000 | (code & 0x1f0000) << 5;
+		if ((code & 0xffe0ffff)   != p1) return 0;
+		if (vtlb_memRead32(sPC+8) != p2) return 0;
+		xMOV(ptr32[&cpuRegs.GPR.n.v0.UL[0]], 1);
+		xMOV(ptr32[&cpuRegs.GPR.n.v0.UL[1]], 0);
+		xMOV(eax, ptr32[&cpuRegs.GPR.n.ra.UL[0]]);
+		xMOV(ptr32[&cpuRegs.pc], eax);
+		iBranchTest();
+		branch = 1;
+		pc = s_nEndBlock;
+		Console.WriteLn(Color_StrongGreen, "sceMpegIsEnd pattern found! Recompiling skip video fix...");
+		return 1;
+	}
+	return 0;
+}
+
 static void __fastcall recRecompile( const u32 startpc )
 {
 	u32 i = 0;
-	u32 branchTo;
 	u32 willbranch3 = 0;
 	u32 usecop2;
 
@@ -1375,10 +1338,6 @@ static void __fastcall recRecompile( const u32 startpc )
 	xSetPtr( recPtr );
 	recPtr = xGetAlignedCallTarget();
 
-	s_nBlockFF = false;
-	if (HWADDR(startpc) == 0x81fc0)
-		s_nBlockFF = true;
-
 	s_pCurBlock = PC_GETBLOCK(startpc);
 
 	pxAssert(s_pCurBlock->GetFnptr() == (uptr)JITCompile
@@ -1390,6 +1349,16 @@ static void __fastcall recRecompile( const u32 startpc )
 	s_pCurBlockEx = recBlocks.New(HWADDR(startpc), (uptr)recPtr);
 
 	pxAssume(s_pCurBlockEx);
+
+	if (g_SkipBiosHack && HWADDR(startpc) == EELOAD_START) {
+		xCALL(eeloadReplaceOSDSYS);
+		xCMP(ptr32[&cpuRegs.pc], startpc);
+		xJNE(DispatcherReg);
+	}
+
+	// this is the only way patches get applied, doesn't depend on a hack
+	if (HWADDR(startpc) == ElfEntry)
+		xCALL(eeGameStarting);
 
 	branch = 0;
 
@@ -1418,6 +1387,7 @@ static void __fastcall recRecompile( const u32 startpc )
 	// go until the next branch
 	i = startpc;
 	s_nEndBlock = 0xffffffff;
+	s_branchTo = -1;
 
 	while(1) {
 		BASEBLOCK* pblock = PC_GETBLOCK(i);
@@ -1456,8 +1426,8 @@ static void __fastcall recRecompile( const u32 startpc )
 
 				if( _Rt_ < 4 || (_Rt_ >= 16 && _Rt_ < 20) ) {
 					// branches
-					branchTo = _Imm_ * 4 + i + 4;
-					if( branchTo > startpc && branchTo < i ) s_nEndBlock = branchTo;
+					s_branchTo = _Imm_ * 4 + i + 4;
+					if( s_branchTo > startpc && s_branchTo < i ) s_nEndBlock = s_branchTo;
 					else  s_nEndBlock = i+8;
 
 					goto StartRecomp;
@@ -1466,14 +1436,15 @@ static void __fastcall recRecompile( const u32 startpc )
 
 			case 2: // J
 			case 3: // JAL
+				s_branchTo = _Target_ << 2 | (i + 4) & 0xf0000000;
 				s_nEndBlock = i + 8;
 				goto StartRecomp;
 
 			// branches
 			case 4: case 5: case 6: case 7:
 			case 20: case 21: case 22: case 23:
-				branchTo = _Imm_ * 4 + i + 4;
-				if( branchTo > startpc && branchTo < i ) s_nEndBlock = branchTo;
+				s_branchTo = _Imm_ * 4 + i + 4;
+				if( s_branchTo > startpc && s_branchTo < i ) s_nEndBlock = s_branchTo;
 				else  s_nEndBlock = i+8;
 
 				goto StartRecomp;
@@ -1493,8 +1464,8 @@ static void __fastcall recRecompile( const u32 startpc )
 				if( _Rs_ == 8 ) {
 					// BC1F, BC1T, BC1FL, BC1TL
 					// BC2F, BC2T, BC2FL, BC2TL
-					branchTo = _Imm_ * 4 + i + 4;
-					if( branchTo > startpc && branchTo < i ) s_nEndBlock = branchTo;
+					s_branchTo = _Imm_ * 4 + i + 4;
+					if( s_branchTo > startpc && s_branchTo < i ) s_nEndBlock = s_branchTo;
 					else  s_nEndBlock = i+8;
 
 					goto StartRecomp;
@@ -1506,6 +1477,86 @@ static void __fastcall recRecompile( const u32 startpc )
 	}
 
 StartRecomp:
+
+	// The idea here is that as long as a loop doesn't write to a register it's already read
+	// (excepting registers initialised with constants or memory loads) or use any instructions
+	// which alter the machine state apart from registers, it will do the same thing on every
+	// iteration.
+	// TODO: special handling for counting loops.  God of war wastes time in a loop which just
+	// counts to some large number and does nothing else, many other games use a counter as a
+	// timeout on a register read.  AFAICS the only way to optimise this for non-const cases
+	// without a significant loss in cycle accuracy is with a division, but games would probably
+	// be happy with time wasting loops completing in 0 cycles and timeouts waiting forever.
+	s_nBlockFF = false;
+	if (s_branchTo == startpc) {
+		s_nBlockFF = true;
+
+		u32 reads = 0, loads = 1;
+
+		for (i = startpc; i < s_nEndBlock; i += 4) {
+			if (i == s_nEndBlock - 8)
+				continue;
+			cpuRegs.code = *(u32*)PSM(i);
+			// nop
+			if (cpuRegs.code == 0)
+				continue;
+			// cache, sync
+			else if (_Opcode_ == 057 || _Opcode_ == 0 && _Funct_ == 013)
+				continue;
+			// imm arithmetic
+			else if ((_Opcode_ & 070) == 010 || (_Opcode_ & 076) == 030)
+			{
+				if (loads & 1 << _Rs_) {
+					loads |= 1 << _Rt_;
+					continue;
+				}
+				else
+					reads |= 1 << _Rs_;
+				if (reads & 1 << _Rt_) {
+					s_nBlockFF = false;
+					break;
+				}
+			}
+			// common register arithmetic instructions
+			else if (_Opcode_ == 0 && (_Funct_ & 060) == 040 && (_Funct_ & 076) != 050)
+			{
+				if (loads & 1 << _Rs_ && loads & 1 << _Rt_) {
+					loads |= 1 << _Rd_;
+					continue;
+				}
+				else
+					reads |= 1 << _Rs_ | 1 << _Rt_;
+				if (reads & 1 << _Rd_) {
+					s_nBlockFF = false;
+					break;
+				}
+			}
+			// loads
+			else if ((_Opcode_ & 070) == 040 || (_Opcode_ & 076) == 032 || _Opcode_ == 067)
+			{
+				if (loads & 1 << _Rs_) {
+					loads |= 1 << _Rt_;
+					continue;
+				}
+				else
+					reads |= 1 << _Rs_;
+				if (reads & 1 << _Rt_) {
+					s_nBlockFF = false;
+					break;
+				}
+			}
+			// mfc*, cfc*
+			else if ((_Opcode_ & 074) == 020 && _Rs_ < 4)
+			{
+				loads |= 1 << _Rt_;
+			}
+			else
+			{
+				s_nBlockFF = false;
+				break;
+			}
+		}
+	}
 
 	// rec info //
 	{
@@ -1664,10 +1715,15 @@ StartRecomp:
             break;
 	}
 
-	// Finally: Generate x86 recompiled code!
-	g_pCurInstInfo = s_pInstCache;
-	while (!branch && pc < s_nEndBlock) {
-		recompileNextInstruction(0);		// For the love of recursion, batman!
+	// Skip Recompilation if sceMpegIsEnd Pattern detected
+	bool doRecompilation = !skipMPEG_By_Pattern(startpc);
+
+	if (doRecompilation) {
+		// Finally: Generate x86 recompiled code!
+		g_pCurInstInfo = s_pInstCache;
+		while (!branch && pc < s_nEndBlock) {
+			recompileNextInstruction(0);		// For the love of recursion, batman!
+		}
 	}
 
 #ifdef PCSX2_DEBUG
@@ -1739,7 +1795,7 @@ StartRecomp:
 
 			int numinsts = (pc - startpc) / 4;
 			if( numinsts > 6 )
-				iBranchTest(pc);
+				SetBranchImm(pc);
 			else
 			{
 				xMOV( ptr32[&cpuRegs.pc], pc );
@@ -1772,8 +1828,7 @@ R5900cpu recCpu =
 	recResetEE,
 	recStep,
 	recExecute,
-	recExecuteBiosStub,
-	
+
 	recCheckExecutionState,
 	recClear,
 };

@@ -208,15 +208,19 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\Utilities\EventSource.cpp"
-				>
-			</File>
-			<File
 				RelativePath="..\..\src\Utilities\Exceptions.cpp"
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\Utilities\FastFormatString.cpp"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\Utilities\HashTools.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\Utilities\IniInterface.cpp"
 				>
 			</File>
 			<File
@@ -268,6 +272,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\Utilities\pxTextStream.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\Utilities\pxWindowTextWriter.cpp"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\Utilities\StringHelpers.cpp"
 				>
 			</File>
@@ -287,122 +299,6 @@
 				RelativePath="..\..\src\Utilities\wxHelpers.cpp"
 				>
 			</File>
-			<Filter
-				Name="Linux"
-				>
-				<File
-					RelativePath="..\..\src\Utilities\Linux\LnxHostSys.cpp"
-					>
-					<FileConfiguration
-						Name="Debug|Win32"
-						ExcludedFromBuild="true"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-						/>
-					</FileConfiguration>
-					<FileConfiguration
-						Name="Release|Win32"
-						ExcludedFromBuild="true"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-						/>
-					</FileConfiguration>
-					<FileConfiguration
-						Name="Devel|Win32"
-						ExcludedFromBuild="true"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-						/>
-					</FileConfiguration>
-				</File>
-				<File
-					RelativePath="..\..\src\Utilities\Linux\LnxMisc.cpp"
-					>
-					<FileConfiguration
-						Name="Debug|Win32"
-						ExcludedFromBuild="true"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-						/>
-					</FileConfiguration>
-					<FileConfiguration
-						Name="Release|Win32"
-						ExcludedFromBuild="true"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-						/>
-					</FileConfiguration>
-					<FileConfiguration
-						Name="Devel|Win32"
-						ExcludedFromBuild="true"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-						/>
-					</FileConfiguration>
-				</File>
-				<File
-					RelativePath="..\..\src\Utilities\Linux\LnxThreads.cpp"
-					>
-					<FileConfiguration
-						Name="Debug|Win32"
-						ExcludedFromBuild="true"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-						/>
-					</FileConfiguration>
-					<FileConfiguration
-						Name="Release|Win32"
-						ExcludedFromBuild="true"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-						/>
-					</FileConfiguration>
-					<FileConfiguration
-						Name="Devel|Win32"
-						ExcludedFromBuild="true"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-						/>
-					</FileConfiguration>
-				</File>
-				<File
-					RelativePath="..\..\src\Utilities\x86\MemcpyFast.S"
-					>
-					<FileConfiguration
-						Name="Debug|Win32"
-						ExcludedFromBuild="true"
-						>
-						<Tool
-							Name="VCCustomBuildTool"
-						/>
-					</FileConfiguration>
-					<FileConfiguration
-						Name="Release|Win32"
-						ExcludedFromBuild="true"
-						>
-						<Tool
-							Name="VCCustomBuildTool"
-						/>
-					</FileConfiguration>
-					<FileConfiguration
-						Name="Devel|Win32"
-						ExcludedFromBuild="true"
-						>
-						<Tool
-							Name="VCCustomBuildTool"
-						/>
-					</FileConfiguration>
-				</File>
-			</Filter>
 			<Filter
 				Name="Windows"
 				>
@@ -427,7 +323,15 @@
 					>
 				</File>
 				<File
+					RelativePath="..\..\src\Utilities\RwMutex.cpp"
+					>
+				</File>
+				<File
 					RelativePath="..\..\src\Utilities\Semaphore.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\..\src\Utilities\ThreadingDialogs.cpp"
 					>
 				</File>
 				<File
@@ -486,6 +390,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\include\Utilities\IniInterface.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\include\intrin_x86.h"
 				>
 			</File>
@@ -502,15 +410,15 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\include\Utilities\PersistentThread.h"
-				>
-			</File>
-			<File
 				RelativePath="..\..\src\Utilities\PrecompiledHeader.h"
 				>
 			</File>
 			<File
 				RelativePath="..\..\include\Utilities\pxCheckBox.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\include\Utilities\pxEvents.h"
 				>
 			</File>
 			<File
@@ -531,6 +439,10 @@
 			</File>
 			<File
 				RelativePath="..\..\include\Utilities\ScopedPtr.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\include\Utilities\ScopedPtrMT.h"
 				>
 			</File>
 			<File
@@ -557,7 +469,19 @@
 				Name="Threading"
 				>
 				<File
+					RelativePath="..\..\include\Utilities\PersistentThread.h"
+					>
+				</File>
+				<File
+					RelativePath="..\..\include\Utilities\RwMutex.h"
+					>
+				</File>
+				<File
 					RelativePath="..\..\include\Utilities\Threading.h"
+					>
+				</File>
+				<File
+					RelativePath="..\..\include\Utilities\ThreadingDialogs.h"
 					>
 				</File>
 				<File

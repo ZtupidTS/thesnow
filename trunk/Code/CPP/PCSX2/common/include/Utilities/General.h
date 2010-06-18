@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -35,7 +35,7 @@
 // Thread safety note: If used in a threaded environment, you shoud use a handle to a __threadlocal
 // storage variable (protects aaginst race conditions and, in *most* cases, is more desirable
 // behavior as well.
-// 
+//
 // Rationale: wxWidgets has its own wxRecursionGuard, but it has a sloppy implementation with
 // entirely unnecessary assertion checks.
 //
@@ -53,6 +53,9 @@ public:
 	bool IsReentrant() const { return Counter > 1; }
 };
 
+// --------------------------------------------------------------------------------------
+//  ICloneable / IActionInvocation / IDeletableObject
+// --------------------------------------------------------------------------------------
 class IActionInvocation
 {
 public:
@@ -60,8 +63,30 @@ public:
 	virtual void InvokeAction()=0;
 };
 
+class ICloneable
+{
+public:
+	virtual ICloneable* Clone() const=0;
+};
+
+class IDeletableObject
+{
+public:
+	virtual ~IDeletableObject() throw() {}
+
+	virtual void DeleteSelf()=0;
+	virtual bool IsBeingDeleted()=0;
+
+protected:
+	// This function is GUI implementation dependent!  It's implemented by PCSX2's AppHost,
+	// but if the SysCore is being linked to another front end, you'll need to implement this
+	// yourself.  Most GUIs have built in message pumps.  If a platform lacks one then you'll
+	// need to implement one yourself (yay?).
+	virtual void DoDeletion()=0;
+};
+
 // --------------------------------------------------------------------------------------
-//  IDeletableObject
+//  BaseDeletableObject
 // --------------------------------------------------------------------------------------
 // Oh the fruits and joys of multithreaded C++ coding conundrums!  This class provides a way
 // to be deleted from arbitraty threads, or to delete themselves (which is considered unsafe
@@ -83,14 +108,14 @@ public:
 //   (sigh).  And, finally, it requires quite a bit of red tape to implement wxObjects because
 //   of the wx-custom runtime type information.  So I made my own.
 //
-class IDeletableObject
+class BaseDeletableObject : public virtual IDeletableObject
 {
 protected:
 	volatile long	m_IsBeingDeleted;
 
 public:
-	IDeletableObject();
-	virtual ~IDeletableObject() throw();
+	BaseDeletableObject();
+	virtual ~BaseDeletableObject() throw();
 
 	void DeleteSelf();
 	bool IsBeingDeleted() { return !!m_IsBeingDeleted; }
@@ -134,7 +159,7 @@ namespace HostSys
 	extern void MemProtect( void* baseaddr, size_t size, PageProtectionMode mode, bool allowExecution=false );
 
 	extern void Munmap( void* base, u32 size );
-	
+
 	template< uint size >
 	void MemProtectStatic( u8 (&arr)[size], PageProtectionMode mode, bool allowExecution=false )
 	{

@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -59,68 +59,177 @@ static __forceinline s64 _add32_Overflow( s32 x, s32 y )
 }
 
 
-namespace R5900
+const R5900::OPCODE& R5900::GetCurrentInstruction()
 {
-	const OPCODE& GetCurrentInstruction()
+	const OPCODE* opcode = &R5900::OpcodeTables::tbl_Standard[_Opcode_];
+
+	while( opcode->getsubclass != NULL )
+		opcode = &opcode->getsubclass();
+
+	return *opcode;
+}
+
+const char * const R5900::bios[256]=
+{
+//0x00
+	"RFU000_FullReset", "ResetEE",				"SetGsCrt",				"RFU003",
+	"Exit",				"RFU005",				"LoadExecPS2",			"ExecPS2",
+	"RFU008",			"RFU009",				"AddSbusIntcHandler",	"RemoveSbusIntcHandler",
+	"Interrupt2Iop",	"SetVTLBRefillHandler", "SetVCommonHandler",	"SetVInterruptHandler",
+//0x10
+	"AddIntcHandler",	"RemoveIntcHandler",	"AddDmacHandler",		"RemoveDmacHandler",
+	"_EnableIntc",		"_DisableIntc",			"_EnableDmac",			"_DisableDmac",
+	"_SetAlarm",		"_ReleaseAlarm",		"_iEnableIntc",			"_iDisableIntc",
+	"_iEnableDmac",		"_iDisableDmac",		"_iSetAlarm",			"_iReleaseAlarm",
+//0x20
+	"CreateThread",			"DeleteThread",		"StartThread",			"ExitThread",
+	"ExitDeleteThread",		"TerminateThread",	"iTerminateThread",		"DisableDispatchThread",
+	"EnableDispatchThread",		"ChangeThreadPriority", "iChangeThreadPriority",	"RotateThreadReadyQueue",
+	"iRotateThreadReadyQueue",	"ReleaseWaitThread",	"iReleaseWaitThread",		"GetThreadId",
+//0x30
+	"ReferThreadStatus","iReferThreadStatus",	"SleepThread",		"WakeupThread",
+	"_iWakeupThread",   "CancelWakeupThread",	"iCancelWakeupThread",	"SuspendThread",
+	"iSuspendThread",   "ResumeThread",		"iResumeThread",	"JoinThread",
+	"RFU060",	    "RFU061",			"EndOfHeap",		 "RFU063",
+//0x40
+	"CreateSema",	    "DeleteSema",	"SignalSema",		"iSignalSema",
+	"WaitSema",	    "PollSema",		"iPollSema",		"ReferSemaStatus",
+	"iReferSemaStatus", "RFU073",		"SetOsdConfigParam", 	"GetOsdConfigParam",
+	"GetGsHParam",	    "GetGsVParam",	"SetGsHParam",		"SetGsVParam",
+//0x50
+	"RFU080_CreateEventFlag",	"RFU081_DeleteEventFlag",
+	"RFU082_SetEventFlag",		"RFU083_iSetEventFlag",
+	"RFU084_ClearEventFlag",	"RFU085_iClearEventFlag",
+	"RFU086_WaitEventFlag",		"RFU087_PollEventFlag",
+	"RFU088_iPollEventFlag",	"RFU089_ReferEventFlagStatus",
+	"RFU090_iReferEventFlagStatus", "RFU091_GetEntryAddress",
+	"EnableIntcHandler_iEnableIntcHandler",
+	"DisableIntcHandler_iDisableIntcHandler",
+	"EnableDmacHandler_iEnableDmacHandler",
+	"DisableDmacHandler_iDisableDmacHandler",
+//0x60
+	"KSeg0",				"EnableCache",	"DisableCache",			"GetCop0",
+	"FlushCache",			"RFU101",		"CpuConfig",			"iGetCop0",
+	"iFlushCache",			"RFU105",		"iCpuConfig", 			"sceSifStopDma",
+	"SetCPUTimerHandler",	"SetCPUTimer",	"SetOsdConfigParam2",	"SetOsdConfigParam2",
+//0x70
+	"GsGetIMR_iGsGetIMR",				"GsGetIMR_iGsPutIMR",	"SetPgifHandler", 				"SetVSyncFlag",
+	"RFU116",							"print", 				"sceSifDmaStat_isceSifDmaStat", "sceSifSetDma_isceSifSetDma",
+	"sceSifSetDChain_isceSifSetDChain", "sceSifSetReg",			"sceSifGetReg",					"ExecOSD",
+	"Deci2Call",						"PSMode",				"MachineType",					"GetMemorySize",
+};
+
+static u32 deci2addr = 0;
+static u32 deci2handler = 0;
+static char deci2buffer[256];
+
+void Deci2Reset()
+{
+	deci2handler	= 0;
+	deci2addr		= 0;
+	memzero( deci2buffer );
+}
+
+void SaveStateBase::deci2Freeze()
+{
+	FreezeTag( "deci2" );
+
+	Freeze( deci2addr );
+	Freeze( deci2handler );
+	Freeze( deci2buffer );
+}
+
+/*
+ *	int Deci2Call(int, u_int *);
+ *
+ *  HLE implementation of the Deci2 interface.
+ */
+
+static int __Deci2Call(int call, u32 *addr)
+{
+	if (call > 0x10)
+		return -1;
+
+	switch (call)
 	{
-		const OPCODE* opcode = &R5900::OpcodeTables::tbl_Standard[_Opcode_];
+		case 1: // open
+			if( addr != NULL )
+			{
+				deci2addr = addr[1];
+				BIOS_LOG("deci2open: %x,%x,%x,%x",
+						 addr[3], addr[2], addr[1], addr[0]);
+				deci2handler = addr[2];
+			}
+			else
+			{
+				deci2handler = 0;
+				DevCon.Warning( "Deci2Call.Open > NULL address ignored." );
+			}
+			return 1;
 
-		while( opcode->getsubclass != NULL )
-			opcode = &opcode->getsubclass();
+		case 2: // close
+			deci2addr = 0;
+			deci2handler = 0;
+			return 1;
 
-		return *opcode;
+		case 3: // reqsend
+		{
+			char reqaddr[128];
+			if( addr != NULL )
+				sprintf( reqaddr, "%x %x %x %x", addr[3], addr[2], addr[1], addr[0] );
+
+			if (!deci2addr) return 1;
+			
+			const u32* d2ptr = (u32*)PSM(deci2addr);
+
+			BIOS_LOG("deci2reqsend: %s: deci2addr: %x,%x,%x,buf=%x %x,%x,len=%x,%x",
+				(( addr == NULL ) ? "NULL" : reqaddr),
+				d2ptr[7], d2ptr[6], d2ptr[5], d2ptr[4],
+				d2ptr[3], d2ptr[2], d2ptr[1], d2ptr[0]);
+
+//			cpuRegs.pc = deci2handler;
+//			Console.WriteLn("deci2msg: %s",  (char*)PSM(d2ptr[4]+0xc));
+
+			if (d2ptr[1]>0xc){
+				// this looks horribly wrong, justification please?
+				u8* pdeciaddr = (u8*)dmaGetAddr(d2ptr[4]+0xc, false);
+				if( pdeciaddr == NULL )
+					pdeciaddr = (u8*)PSM(d2ptr[4]+0xc);
+				else
+					pdeciaddr += (d2ptr[4]+0xc) % 16;
+
+				const int copylen = std::min<uint>(255, d2ptr[1]-0xc);
+				memcpy(deci2buffer, pdeciaddr, copylen );
+				deci2buffer[copylen] = '\0';
+
+				if( EmuConfig.Log.Deci2 )
+					Console.Write( ConColor_EE, L"%s", ShiftJIS_ConvertString(deci2buffer).c_str() );
+			}
+			((u32*)PSM(deci2addr))[3] = 0;
+			return 1;
+		}
+
+		case 4: // poll
+			if( addr != NULL )
+				BIOS_LOG("deci2poll: %x,%x,%x,%x\n", addr[3], addr[2], addr[1], addr[0]);
+			return 1;
+
+		case 5: // exrecv
+			return 1;
+
+		case 6: // exsend
+			return 1;
+
+		case 0x10://kputs
+			if( addr != NULL && EmuConfig.Log.Deci2 )
+				Console.Write( ConColor_EE, L"%s", ShiftJIS_ConvertString((char*)PSM(*addr)).c_str() );
+			return 1;
 	}
 
-	const char * const bios[256]=
-	{
-	//0x00
-		"RFU000_FullReset", "ResetEE",				"SetGsCrt",				"RFU003",
-		"Exit",				"RFU005",				"LoadExecPS2",			"ExecPS2",
-		"RFU008",			"RFU009",				"AddSbusIntcHandler",	"RemoveSbusIntcHandler", 
-		"Interrupt2Iop",	"SetVTLBRefillHandler", "SetVCommonHandler",	"SetVInterruptHandler", 
-	//0x10
-		"AddIntcHandler",	"RemoveIntcHandler",	"AddDmacHandler",		"RemoveDmacHandler",
-		"_EnableIntc",		"_DisableIntc",			"_EnableDmac",			"_DisableDmac",
-		"_SetAlarm",		"_ReleaseAlarm",		"_iEnableIntc",			"_iDisableIntc",
-		"_iEnableDmac",		"_iDisableDmac",		"_iSetAlarm",			"_iReleaseAlarm", 
-	//0x20
-		"CreateThread",			"DeleteThread",		"StartThread",			"ExitThread", 
-		"ExitDeleteThread",		"TerminateThread",	"iTerminateThread",		"DisableDispatchThread",
-		"EnableDispatchThread",		"ChangeThreadPriority", "iChangeThreadPriority",	"RotateThreadReadyQueue",
-		"iRotateThreadReadyQueue",	"ReleaseWaitThread",	"iReleaseWaitThread",		"GetThreadId", 
-	//0x30
-		"ReferThreadStatus","iReferThreadStatus",	"SleepThread",		"WakeupThread",
-		"_iWakeupThread",   "CancelWakeupThread",	"iCancelWakeupThread",	"SuspendThread",
-		"iSuspendThread",   "ResumeThread",		"iResumeThread",	"JoinThread",
-		"RFU060",	    "RFU061",			"EndOfHeap",		 "RFU063", 
-	//0x40
-		"CreateSema",	    "DeleteSema",	"SignalSema",		"iSignalSema", 
-		"WaitSema",	    "PollSema",		"iPollSema",		"ReferSemaStatus", 
-		"iReferSemaStatus", "RFU073",		"SetOsdConfigParam", 	"GetOsdConfigParam",
-		"GetGsHParam",	    "GetGsVParam",	"SetGsHParam",		"SetGsVParam",
-	//0x50
-		"RFU080_CreateEventFlag",	"RFU081_DeleteEventFlag", 
-		"RFU082_SetEventFlag",		"RFU083_iSetEventFlag", 
-		"RFU084_ClearEventFlag",	"RFU085_iClearEventFlag", 
-		"RFU086_WaitEventFlag",		"RFU087_PollEventFlag", 
-		"RFU088_iPollEventFlag",	"RFU089_ReferEventFlagStatus", 
-		"RFU090_iReferEventFlagStatus", "RFU091_GetEntryAddress", 
-		"EnableIntcHandler_iEnableIntcHandler", 
-		"DisableIntcHandler_iDisableIntcHandler", 
-		"EnableDmacHandler_iEnableDmacHandler", 
-		"DisableDmacHandler_iDisableDmacHandler", 
-	//0x60
-		"KSeg0",				"EnableCache",	"DisableCache",			"GetCop0",
-		"FlushCache",			"RFU101",		"CpuConfig",			"iGetCop0",
-		"iFlushCache",			"RFU105",		"iCpuConfig", 			"sceSifStopDma",
-		"SetCPUTimerHandler",	"SetCPUTimer",	"SetOsdConfigParam2",	"SetOsdConfigParam2",
-	//0x70
-		"GsGetIMR_iGsGetIMR",				"GsGetIMR_iGsPutIMR",	"SetPgifHandler", 				"SetVSyncFlag",
-		"RFU116",							"print", 				"sceSifDmaStat_isceSifDmaStat", "sceSifSetDma_isceSifSetDma", 
-		"sceSifSetDChain_isceSifSetDChain", "sceSifSetReg",			"sceSifGetReg",					"ExecOSD", 
-		"Deci2Call",						"PSMode",				"MachineType",					"GetMemorySize", 
-	};
+	return 0;
+}
 
+namespace R5900 {
 namespace Interpreter {
 namespace OpcodeImpl {
 
@@ -247,7 +356,7 @@ void SLTU()		{ if (!_Rd_) return; cpuRegs.GPR.r[_Rd_].UD[0] = (cpuRegs.GPR.r[_Rs
 *********************************************************/
 
 // Signed division "overflows" on (0x80000000 / -1), here (LO = 0x80000000, HI = 0) is returned by MIPS
-// in division by zero on MIPS, it appears that: 
+// in division by zero on MIPS, it appears that:
 // LO gets 1 if rs is negative (and the division is signed) and -1 otherwise.
 // HI gets the value of rs.
 
@@ -274,7 +383,7 @@ void DIV()
 // Result is stored in HI/LO [no arithmetic exceptions]
 void DIVU()
 {
-	if (cpuRegs.GPR.r[_Rt_].UL[0] != 0) 
+	if (cpuRegs.GPR.r[_Rt_].UL[0] != 0)
 	{
 		// note: DIVU has no sign extension when assigning back to 64 bits
 		// note 2: reference material strongly disagrees. (air)
@@ -316,8 +425,8 @@ void MULTU()
 * Load higher 16 bits of the first word in GPR with imm  *
 * Format:  OP rt, immediate                              *
 *********************************************************/
-void LUI() { 
-	if (!_Rt_) return; 
+void LUI() {
+	if (!_Rt_) return;
 	cpuRegs.GPR.r[_Rt_].UD[0] = (s32)(cpuRegs.code << 16);
 }
 
@@ -357,7 +466,7 @@ void DSRL32(){ if (!_Rd_) return; cpuRegs.GPR.r[_Rd_].UD[0] = cpuRegs.GPR.r[_Rt_
 void SLLV() { if (!_Rd_) return; cpuRegs.GPR.r[_Rd_].SD[0] = (s32)(cpuRegs.GPR.r[_Rt_].UL[0] << (cpuRegs.GPR.r[_Rs_].UL[0] &0x1f));} // Rd = Rt << rs
 void SRAV() { if (!_Rd_) return; cpuRegs.GPR.r[_Rd_].SD[0] = (s32)(cpuRegs.GPR.r[_Rt_].SL[0] >> (cpuRegs.GPR.r[_Rs_].UL[0] &0x1f));} // Rd = Rt >> rs (arithmetic)
 void SRLV() { if (!_Rd_) return; cpuRegs.GPR.r[_Rd_].SD[0] = (s32)(cpuRegs.GPR.r[_Rt_].UL[0] >> (cpuRegs.GPR.r[_Rs_].UL[0] &0x1f));} // Rd = Rt >> rs (logical)
-void DSLLV(){ if (!_Rd_) return; cpuRegs.GPR.r[_Rd_].UD[0] = (u64)(cpuRegs.GPR.r[_Rt_].UD[0] << (cpuRegs.GPR.r[_Rs_].UL[0] &0x3f));}  
+void DSLLV(){ if (!_Rd_) return; cpuRegs.GPR.r[_Rd_].UD[0] = (u64)(cpuRegs.GPR.r[_Rt_].UD[0] << (cpuRegs.GPR.r[_Rs_].UL[0] &0x3f));}
 void DSRAV(){ if (!_Rd_) return; cpuRegs.GPR.r[_Rd_].SD[0] = (s64)(cpuRegs.GPR.r[_Rt_].SD[0] >> (cpuRegs.GPR.r[_Rs_].UL[0] &0x3f));}
 void DSRLV(){ if (!_Rd_) return; cpuRegs.GPR.r[_Rd_].UD[0] = (u64)(cpuRegs.GPR.r[_Rt_].UD[0] >> (cpuRegs.GPR.r[_Rs_].UL[0] &0x3f));}
 
@@ -409,7 +518,7 @@ void LH()
 }
 
 void LHU()
-{ 
+{
 	u32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 
 	if( addr & 1 )
@@ -435,14 +544,14 @@ void LW()
 }
 
 void LWU()
-{ 
+{
 	u32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 
 	if( addr & 3 )
 		throw R5900Exception::AddressError( addr, false );
 
 	u32 temp = memRead32(addr);
-	
+
 	if (!_Rt_) return;
 	cpuRegs.GPR.r[_Rt_].UD[0] = temp;
 }
@@ -462,7 +571,7 @@ void LWL()
 
 	if (!_Rt_) return;
 
-	cpuRegs.GPR.r[_Rt_].SD[0] =	(cpuRegs.GPR.r[_Rt_].SL[0] & LWL_MASK[shift]) | 
+	cpuRegs.GPR.r[_Rt_].SD[0] =	(cpuRegs.GPR.r[_Rt_].SL[0] & LWL_MASK[shift]) |
 								(mem << LWL_SHIFT[shift]);
 
 	/*
@@ -525,7 +634,7 @@ static u64* gpr_GetWritePtr( uint gpr )
 void LD()
 {
     s32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
-    
+
 	if( addr & 7 )
 		throw R5900Exception::AddressError( addr, false );
 
@@ -533,7 +642,7 @@ void LD()
 }
 
 static const u64 LDL_MASK[8] =
-{	0x00ffffffffffffffLL, 0x0000ffffffffffffLL, 0x000000ffffffffffLL, 0x00000000ffffffffLL, 
+{	0x00ffffffffffffffLL, 0x0000ffffffffffffLL, 0x000000ffffffffffLL, 0x00000000ffffffffLL,
 	0x0000000000ffffffLL, 0x000000000000ffffLL, 0x00000000000000ffLL, 0x0000000000000000LL
 };
 static const u64 LDR_MASK[8] =
@@ -554,7 +663,7 @@ void LDL()
 	memRead64(addr & ~7, &mem);
 
 	if( !_Rt_ ) return;
-	cpuRegs.GPR.r[_Rt_].UD[0] =	(cpuRegs.GPR.r[_Rt_].UD[0] & LDL_MASK[shift]) | 
+	cpuRegs.GPR.r[_Rt_].UD[0] =	(cpuRegs.GPR.r[_Rt_].UD[0] & LDL_MASK[shift]) |
 								(mem << LDL_SHIFT[shift]);
 }
 
@@ -567,7 +676,7 @@ void LDR()
 	memRead64(addr & ~7, &mem);
 
 	if (!_Rt_) return;
-	cpuRegs.GPR.r[_Rt_].UD[0] =	(cpuRegs.GPR.r[_Rt_].UD[0] & LDR_MASK[shift]) | 
+	cpuRegs.GPR.r[_Rt_].UD[0] =	(cpuRegs.GPR.r[_Rt_].UD[0] & LDR_MASK[shift]) |
 								(mem >> LDR_SHIFT[shift]);
 }
 
@@ -575,25 +684,25 @@ void LQ()
 {
 	// MIPS Note: LQ and SQ are special and "silently" align memory addresses, thus
 	// an address error due to unaligned access isn't possible like it is on other loads/stores.
-	
+
 	u32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 	memRead128(addr & ~0xf, gpr_GetWritePtr(_Rt_));
 }
 
 void SB()
-{ 
+{
 	u32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
-	memWrite8(addr, cpuRegs.GPR.r[_Rt_].UC[0]); 
+	memWrite8(addr, cpuRegs.GPR.r[_Rt_].UC[0]);
 }
 
 void SH()
-{ 
+{
 	u32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 
 	if( addr & 1 )
 		throw R5900Exception::AddressError( addr, true );
 
-	memWrite16(addr, cpuRegs.GPR.r[_Rt_].US[0]); 
+	memWrite16(addr, cpuRegs.GPR.r[_Rt_].US[0]);
 }
 
 void SW()
@@ -603,7 +712,7 @@ void SW()
 	if( addr & 3 )
 		throw R5900Exception::AddressError( addr, true );
 
-    memWrite32(addr, cpuRegs.GPR.r[_Rt_].UL[0]); 
+    memWrite32(addr, cpuRegs.GPR.r[_Rt_].UL[0]);
 }
 
 static const u32 SWL_MASK[4] = { 0xffffff00, 0xffff0000, 0xff000000, 0x00000000 };
@@ -660,11 +769,11 @@ void SD()
 	if( addr & 7 )
 		throw R5900Exception::AddressError( addr, true );
 
-    memWrite64(addr,&cpuRegs.GPR.r[_Rt_].UD[0]); 
+    memWrite64(addr,&cpuRegs.GPR.r[_Rt_].UD[0]);
 }
 
 static const u64 SDL_MASK[8] =
-{	0xffffffffffffff00LL, 0xffffffffffff0000LL, 0xffffffffff000000LL, 0xffffffff00000000LL, 
+{	0xffffffffffffff00LL, 0xffffffffffff0000LL, 0xffffffffff000000LL, 0xffffffff00000000LL,
 	0xffffff0000000000LL, 0xffff000000000000LL, 0xff00000000000000LL, 0x0000000000000000LL
 };
 static const u64 SDR_MASK[8] =
@@ -732,93 +841,6 @@ void MOVN() {
 * Format:  OP                                            *
 *********************************************************/
 
-/*
-int __Deci2Call(int call, u32 *addr);
-*/
-u32 *deci2addr = NULL;
-u32 deci2handler;
-char deci2buffer[256];
-
-/*
- *	int Deci2Call(int, u_int *);
- *
- *  HLE implementation of the Deci2 interface.
- */
-
-int __Deci2Call(int call, u32 *addr)
-{
-	if (call > 0x10)
-		return -1;
-
-	switch (call)
-	{
-		case 1: // open
-			if( addr != NULL )
-			{
-				deci2addr = (u32*)PSM(addr[1]);
-				BIOS_LOG("deci2open: %x,%x,%x,%x",
-						 addr[3], addr[2], addr[1], addr[0]);
-				deci2handler = addr[2];
-			}
-			else
-			{
-				deci2handler = NULL;
-				DevCon.Warning( "Deci2Call.Open > NULL address ignored." );
-			}
-			return 1;
-
-		case 2: // close
-			return 1;
-
-		case 3: // reqsend
-		{
-			char reqaddr[128];
-			if( addr != NULL )
-				sprintf( reqaddr, "%x %x %x %x", addr[3], addr[2], addr[1], addr[0] );
-
-			BIOS_LOG("deci2reqsend: %s: deci2addr: %x,%x,%x,buf=%x %x,%x,len=%x,%x",
-				(( addr == NULL ) ? "NULL" : reqaddr),
-				deci2addr[7], deci2addr[6], deci2addr[5], deci2addr[4],
-				deci2addr[3], deci2addr[2], deci2addr[1], deci2addr[0]);
-
-//			cpuRegs.pc = deci2handler;
-//			Console.WriteLn("deci2msg: %s",  (char*)PSM(deci2addr[4]+0xc));
-			if (deci2addr == NULL) return 1;
-			if (deci2addr[1]>0xc){
-				u8* pdeciaddr = (u8*)dmaGetAddr(deci2addr[4]+0xc);
-				if( pdeciaddr == NULL )
-					pdeciaddr = (u8*)PSM(deci2addr[4]+0xc);
-				else
-					pdeciaddr += (deci2addr[4]+0xc) % 16;
-				memcpy(deci2buffer, pdeciaddr, deci2addr[1]-0xc);
-				deci2buffer[(deci2addr[1]-0xc>=255) ? 255 : (deci2addr[1]-0xc)] = '\0';
-
-				if( EmuConfig.Log.Deci2 )
-					Console.Write( ConColor_EE, L"%s", ShiftJIS_ConvertString(deci2buffer).c_str() );
-			}
-			deci2addr[3] = 0;
-			return 1;
-		}
-
-		case 4: // poll
-			if( addr != NULL )
-				BIOS_LOG("deci2poll: %x,%x,%x,%x\n", addr[3], addr[2], addr[1], addr[0]);
-			return 1;
-
-		case 5: // exrecv
-			return 1;
-
-		case 6: // exsend
-			return 1;
-
-		case 0x10://kputs
-			if( addr != NULL && EmuConfig.Log.Deci2 )
-				Console.Write( ConColor_EE, L"%s", ShiftJIS_ConvertString((char*)PSM(*addr)).c_str() );
-			return 1;
-	}
-
-	return 0;
-}
 
 // This function is the only one that uses Sifcmd.h in Pcsx2.
 #include "Sifcmd.h"
@@ -832,7 +854,7 @@ void SYSCALL()
 	else
 		call = cpuRegs.GPR.n.v1.UC[0];
 
-	BIOS_LOG("Bios call: %s (%x)", bios[call], call);
+	BIOS_LOG("Bios call: %s (%x)", R5900::bios[call], call);
 
 	if (call == 0x7c)
 	{
@@ -861,7 +883,7 @@ void SYSCALL()
 			dmat = (t_sif_dma_transfer*)PSM(addr);
 
 			BIOS_LOG("bios_%s: n_transfer=%d, size=%x, attr=%x, dest=%x, src=%x",
-				bios[cpuRegs.GPR.n.v1.UC[0]], n_transfer,
+				R5900::bios[cpuRegs.GPR.n.v1.UC[0]], n_transfer,
 				dmat->size, dmat->attr,
 				dmat->dest, dmat->src);
 		}
@@ -886,7 +908,7 @@ void MTSA( void ) {
 	cpuRegs.sa = (s32)cpuRegs.GPR.r[_Rs_].SD[0] & 0xf;
 }
 
-// SNY supports three basic modes, two which synchronize memory accesses (related 
+// SNY supports three basic modes, two which synchronize memory accesses (related
 // to the cache) and one which synchronizes the instruction pipeline (effectively
 // a stall in either case).  Our emulation model does not track EE-side pipeline
 // status or stalls, nor does it implement the CACHE.  Thus SYNC need do nothing.
@@ -897,50 +919,41 @@ void SYNC( void )
 // Used to prefetch data into the EE's cache, or schedule a dirty write-back.
 // CACHE is not emulated at this time (nor is there any need to emulate it), so
 // this function does nothing in the context of our emulator.
-void PREF( void ) 
+void PREF( void )
 {
 }
 
-// Fixme: The game "Mademan" triggers a trap here, and crashes when we actually handle it.
+static void trap(u16 code=0)
+{
+	// unimplemented?
+	// throw R5900Exception::Trap(code);
+
+	cpuRegs.pc -= 4;
+	Console.Warning("Trap exception at 0x%08x", cpuRegs.pc);
+	cpuException(0x34, cpuRegs.branch);
+}
+
 /*********************************************************
 * Register trap                                          *
 * Format:  OP rs, rt                                     *
 *********************************************************/
-#ifdef PCSX2_DEVBUILD
-void TGE()  { Console.Warning("TGE Trap"); if (cpuRegs.GPR.r[_Rs_].SD[0] >= cpuRegs.GPR.r[_Rt_].SD[0]) throw R5900Exception::Trap(_TrapCode_); }
-void TGEU() { Console.Warning("TGEU Trap"); if (cpuRegs.GPR.r[_Rs_].UD[0] >= cpuRegs.GPR.r[_Rt_].UD[0]) throw R5900Exception::Trap(_TrapCode_); }
-void TLT()  { Console.Warning("TLT Trap"); if (cpuRegs.GPR.r[_Rs_].SD[0] <  cpuRegs.GPR.r[_Rt_].SD[0]) throw R5900Exception::Trap(_TrapCode_); }
-void TLTU() { Console.Warning("TLTU Trap"); if (cpuRegs.GPR.r[_Rs_].UD[0] <  cpuRegs.GPR.r[_Rt_].UD[0]) throw R5900Exception::Trap(_TrapCode_); }
-void TEQ()  { Console.Warning("TEQ Trap"); if (cpuRegs.GPR.r[_Rs_].SD[0] == cpuRegs.GPR.r[_Rt_].SD[0]) throw R5900Exception::Trap(_TrapCode_); }
-void TNE()  { Console.Warning("TNE Trap"); if (cpuRegs.GPR.r[_Rs_].SD[0] != cpuRegs.GPR.r[_Rt_].SD[0]) throw R5900Exception::Trap(_TrapCode_); }
-#else
-void TGE()  { }
-void TGEU() { }
-void TLT()  { }
-void TLTU() { }
-void TEQ()  { }
-void TNE()  { }
-#endif
+void TGE()  { if (cpuRegs.GPR.r[_Rs_].SD[0] >= cpuRegs.GPR.r[_Rt_].SD[0]) trap(_TrapCode_); }
+void TGEU() { if (cpuRegs.GPR.r[_Rs_].UD[0] >= cpuRegs.GPR.r[_Rt_].UD[0]) trap(_TrapCode_); }
+void TLT()  { if (cpuRegs.GPR.r[_Rs_].SD[0] <  cpuRegs.GPR.r[_Rt_].SD[0]) trap(_TrapCode_); }
+void TLTU() { if (cpuRegs.GPR.r[_Rs_].UD[0] <  cpuRegs.GPR.r[_Rt_].UD[0]) trap(_TrapCode_); }
+void TEQ()  { if (cpuRegs.GPR.r[_Rs_].SD[0] == cpuRegs.GPR.r[_Rt_].SD[0]) trap(_TrapCode_); }
+void TNE()  { if (cpuRegs.GPR.r[_Rs_].SD[0] != cpuRegs.GPR.r[_Rt_].SD[0]) trap(_TrapCode_); }
 
 /*********************************************************
 * Trap with immediate operand                            *
 * Format:  OP rs, rt                                     *
 *********************************************************/
-#ifdef PCSX2_DEVBUILD
-void TGEI()  { Console.Warning("TGEI Trap"); if (cpuRegs.GPR.r[_Rs_].SD[0] >= _Imm_) throw R5900Exception::Trap(); }
-void TLTI()  { Console.Warning("TLTI Trap"); if (cpuRegs.GPR.r[_Rs_].SD[0] <  _Imm_) throw R5900Exception::Trap(); }
-void TEQI()  { Console.Warning("TEQI Trap"); if (cpuRegs.GPR.r[_Rs_].SD[0] == _Imm_) throw R5900Exception::Trap(); }
-void TNEI()  { Console.Warning("TNEI Trap"); if (cpuRegs.GPR.r[_Rs_].SD[0] != _Imm_) throw R5900Exception::Trap(); }
-void TGEIU() { Console.Warning("TGEIU Trap"); if (cpuRegs.GPR.r[_Rs_].UD[0] >= (u64)_Imm_) throw R5900Exception::Trap(); }
-void TLTIU() { Console.Warning("TLTIU Trap"); if (cpuRegs.GPR.r[_Rs_].UD[0] <  (u64)_Imm_) throw R5900Exception::Trap(); }
-#else
-void TGEI()  { }
-void TLTI()  { }
-void TEQI()  { }
-void TNEI()  { }
-void TGEIU() { }
-void TLTIU() { }
-#endif
+void TGEI()  { if (cpuRegs.GPR.r[_Rs_].SD[0] >= _Imm_) trap(); }
+void TLTI()  { if (cpuRegs.GPR.r[_Rs_].SD[0] <  _Imm_) trap(); }
+void TEQI()  { if (cpuRegs.GPR.r[_Rs_].SD[0] == _Imm_) trap(); }
+void TNEI()  { if (cpuRegs.GPR.r[_Rs_].SD[0] != _Imm_) trap(); }
+void TGEIU() { if (cpuRegs.GPR.r[_Rs_].UD[0] >= (u64)_Imm_) trap(); }
+void TLTIU() { if (cpuRegs.GPR.r[_Rs_].UD[0] <  (u64)_Imm_) trap(); }
 
 /*********************************************************
 * Sa intructions                                         *

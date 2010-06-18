@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -27,7 +27,7 @@
 // friendly error log in their wake.
 //
 #define __DESTRUCTOR_CATCHALL( funcname ) \
-	catch( Exception::BaseException& ex ) \
+	catch( BaseException& ex ) \
 	{ \
 		Console.Error( "Unhandled BaseException in %s (ignored!):", funcname ); \
 		Console.Error( ex.FormatDiagnosticMessage() ); \
@@ -128,10 +128,23 @@ namespace Exception
 //     The text string will be passed through the translator, so if it's int he gettext database
 //     it will be optionally translated.
 //
+// BUGZ??  I'd rather use 'classname' on the Clone() prototype, but for some reason it generates
+// ambiguity errors on virtual inheritence (it really shouldn't!).  So I have to force it to the
+// BaseException base class.  Not sure if this is Stupid Standard Tricks or Stupid MSVC Tricks. --air
+//
+// (update: web searches indicate it's MSVC specific -- happens in 2008, not sure about 2010).
+//
 #define DEFINE_EXCEPTION_COPYTORS( classname ) \
 	virtual ~classname() throw() {} \
 	virtual void Rethrow() const { throw *this; } \
 	virtual BaseException* Clone() const { return new classname( *this ); }
+
+// This is here because MSVC's support for covariant return types on Clone() is broken, and will
+// not work with virtual class inheritance (see DEFINE_EXCEPTION_COPYTORS for details)
+#define DEFINE_EXCEPTION_COPYTORS_COVARIANT( classname ) \
+	virtual ~classname() throw() {} \
+	virtual void Rethrow() const { throw *this; } \
+	virtual classname* Clone() const { return new classname( *this ); }
 
 #define DEFINE_RUNTIME_EXCEPTION( classname, defmsg ) \
 	DEFINE_EXCEPTION_COPYTORS( classname ) \
@@ -155,6 +168,9 @@ namespace Exception
 		bool	IsSilent;
 	public:
 		DEFINE_RUNTIME_EXCEPTION( RuntimeError, wxLt("An unhandled runtime error has occurred, somewhere in the depths of Pcsx2's cluttered brain-matter.") )
+
+		RuntimeError( const std::runtime_error& ex, const wxString& prefix=wxEmptyString );
+		RuntimeError( const std::exception& ex, const wxString& prefix=wxEmptyString );
 	};
 
 	// --------------------------------------------------------------------------------------
@@ -243,7 +259,7 @@ namespace Exception
 
 	// ---------------------------------------------------------------------------------------
 	// Streaming (file) Exceptions:
-	//   Stream / BadStream / CreateStream / FileNotFound / AccessDenied / EndOfStream
+	//   Stream / BadStream / CannotCreateStream / FileNotFound / AccessDenied / EndOfStream
 	// ---------------------------------------------------------------------------------------
 
 #define DEFINE_STREAM_EXCEPTION( classname, defmsg ) \
@@ -308,22 +324,22 @@ namespace Exception
 
 	// A generic exception for odd-ball stream creation errors.
 	//
-	class CreateStream : public virtual Stream
+	class CannotCreateStream : public virtual Stream
 	{
 	public:
-		DEFINE_STREAM_EXCEPTION( CreateStream, wxLt("File could not be created or opened.") )
+		DEFINE_STREAM_EXCEPTION( CannotCreateStream, wxLt("File could not be created or opened.") )
 	};
 
 	// Exception thrown when an attempt to open a non-existent file is made.
 	// (this exception can also mean file permissions are invalid)
 	//
-	class FileNotFound : public virtual CreateStream
+	class FileNotFound : public virtual CannotCreateStream
 	{
 	public:
 		DEFINE_STREAM_EXCEPTION( FileNotFound, wxLt("File not found.") )
 	};
 
-	class AccessDenied : public virtual CreateStream
+	class AccessDenied : public virtual CannotCreateStream
 	{
 	public:
 		DEFINE_STREAM_EXCEPTION( AccessDenied, wxLt("Permission denied to file.") )
@@ -358,3 +374,5 @@ namespace Exception
 	};
 #endif
 }
+
+using Exception::BaseException;

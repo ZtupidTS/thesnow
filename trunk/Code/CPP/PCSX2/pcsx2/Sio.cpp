@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -23,10 +23,13 @@ _sio sio;
 
 static const u8 cardh[4] = { 0xFF, 0xFF, 0x5a, 0x5d };
 
-// Memory Card Specs : Sector size etc.
-static const mc_command_0x26_tag mc_command_0x26= {'+', 512, 16, 0x4000, 0x52, 0x5A};
+// Memory Card Specs for standard Sony 8mb carts:
+//    Flags (magic sio '+' thingie!), Sector size, eraseBlockSize (in pages), card size (in pages), xor checksum (superblock?), terminator (unused?).
+static const mc_command_0x26_tag mc_sizeinfo_8mb= {'+', 512, 16, 0x4000, 0x52, 0x5A};
 
-static int m_PostSavestateCards[2] = { 0, 0 };
+// Ejection timeout management belongs in the MemoryCardFile plugin, except the plugin
+// interface is not yet complete.
+static int m_ForceEjectionTimeout[2];
 
 // SIO Inline'd IRQs : Calls the SIO interrupt handlers directly instead of
 // feeding them through the IOP's branch test. (see SIO.H for details)
@@ -76,19 +79,21 @@ static void _EraseMCDBlock(u32 adr)
 static u8 sio_xor( const u8 *buf, uint length )
 {
 	u8 i, x;
+	for (x=0, i=0; i<length; i++) x ^= buf[i];
+	return x;
+}
 
-	for (x=0, i=0; i<length; i++)	x ^= buf[i];
-	return x & 0xFF;
-
-	/*u8 x = 0;
-	for( uint i=0; i<length; ++i) { x ^= buf[i]; }
-	return x;*/
+template< typename T >
+static void apply_xor( u8& dest, const T& src )
+{
+	u8* buf = (u8*)&src;
+	for (uint x=0; x<sizeof(src); x++) dest ^= buf[x];
 }
 
 void sioInit()
 {
 	memzero(sio);
-	memzero(m_PostSavestateCards);
+	memzero(m_ForceEjectionTimeout);
 
 	// Transfer(?) Ready and the Buffer is Empty
 	sio.StatReg = TX_RDY | TX_EMPTY;
@@ -218,13 +223,47 @@ void SIO_CommandWrite(u8 value,int way) {
 			case 0x25:
 				MEMCARDS_LOG("MC(%d) command 0x%02X", sio.GetMemcardIndex()+1, value);
 				break;
+
 			case 0x26:
+			{
+				const uint port = sio.GetMemcardIndex();
+				const uint slot = sio.activeMemcardSlot[port];
+
+				mc_command_0x26_tag cmd = mc_sizeinfo_8mb;
+				PS2E_McdSizeInfo info;
+				
+				info.SectorSize			= cmd.sectorSize;
+				info.EraseBlockSizeInSectors			= cmd.eraseBlocks;
+				info.McdSizeInSectors	= cmd.mcdSizeInSectors;
+				
+				SysPlugins.McdGetSizeInfo( port, slot, info );
+				pxAssumeDev( cmd.mcdSizeInSectors >= mc_sizeinfo_8mb.mcdSizeInSectors,
+					"Mcd plugin returned an invalid memorycard size: Cards smaller than 8MB are not supported." );
+				
+				cmd.sectorSize			= info.SectorSize;
+				cmd.eraseBlocks			= info.EraseBlockSizeInSectors;
+				cmd.mcdSizeInSectors	= info.McdSizeInSectors;
+				
+				// Recalculate the xor summation
+				// This uses a trick of removing the known xor values for a default 8mb memorycard (for which the XOR
+				// was calculated), and replacing it with our new values.
+				
+				apply_xor( cmd.mc_xor, mc_sizeinfo_8mb.sectorSize );
+				apply_xor( cmd.mc_xor, mc_sizeinfo_8mb.eraseBlocks );
+				apply_xor( cmd.mc_xor, mc_sizeinfo_8mb.mcdSizeInSectors );
+
+				apply_xor( cmd.mc_xor, cmd.sectorSize );
+				apply_xor( cmd.mc_xor, cmd.eraseBlocks );
+				apply_xor( cmd.mc_xor, cmd.mcdSizeInSectors );
+				
 				sio.bufcount = 12; sio.mcdst = 99; sio2.packet.recvVal3 = 0x83;
 				memset8<0xff>(sio.buf);
-				memcpy(&sio.buf[2], &mc_command_0x26, sizeof(mc_command_0x26));
+				memcpy_fast(&sio.buf[2], &cmd, sizeof(cmd));
 				sio.buf[12]=sio.terminator;
 				MEMCARDS_LOG("MC(%d) command 0x%02X", sio.GetMemcardIndex()+1, value);
-				break;
+			}
+			break;
+
 			case 0x27:
 			case 0x28:
 			case 0xBF:
@@ -237,8 +276,6 @@ void SIO_CommandWrite(u8 value,int way) {
 			case 0x42: // WRITE
 			case 0x43: // READ
 			case 0x82:
-				// fixme: THEORY!  Clearing either sio.sector or sio.lastsector when loading from
-				//    savestate may safely invalidate games' memorycard caches!  -- air
 				if(value==0x82 && sio.lastsector==sio.sector) sio.mode = 2;
 				if(value==0x42) sio.mode = 0;
 				if(value==0x43) sio.lastsector = sio.sector; // Reading
@@ -602,7 +639,18 @@ void InitializeSIO(u8 value)
 			const uint port = sio.GetMemcardIndex();
 			const uint slot = sio.activeMemcardSlot[port];
 
-			if( SysPlugins.McdIsPresent( port, slot ) )
+			// forced ejection logic.  Technically belongs in the McdIsPresent handler for
+			// the plugin, once the memorycard plugin system is completed.
+			//  (ejection is only supported for the default non-multitap cards at this time)
+
+			bool forceEject = false;
+			if( slot == 0 && m_ForceEjectionTimeout[port] )
+			{
+				--m_ForceEjectionTimeout[port];
+				forceEject = true;
+			}
+			
+			if( !forceEject && SysPlugins.McdIsPresent( port, slot ) )
 			{
 				sio2.packet.recvVal1 = 0x1100;
 				PAD_LOG("START MEMCARD [port:%d, slot:%d] - Present", port, slot );
@@ -654,19 +702,29 @@ void SaveStateBase::sioFreeze()
 	FreezeTag( "sio" );
     Freeze( sio );
 
+	// TODO : This stuff should all be moved to the memorycard plugin eventually,
+	// but that requires adding memorycard plugin to the savestate, and I'm not in
+	// the mood to do that (let's plan it for 0.9.8) --air
+
+	// Note: The Ejection system only works for the default non-multitap MemoryCards
+	// only.  This is because it could become very (very!) slow to do a full CRC check
+	// on multiple 32 or 64 meg carts.  I have chosen to save 
+
 	if( IsSaving() )
 	{
-		for( int port=0; port<2; ++port )
+		for( uint port=0; port<2; ++port )
+		//for( uint slot=0; slot<4; ++slot )
 		{
-			for( int slot=0; slot<4; ++slot )
-				m_mcdCRCs[port][slot] = SysPlugins.McdGetCRC( port, slot );
+			const uint slot = 0;		// see above comment about multitap slowness
+			m_mcdCRCs[port][slot] = SysPlugins.McdGetCRC( port, slot );
 		}
 	}
+
 	Freeze( m_mcdCRCs );
 
 	if( IsLoading() && EmuConfig.McdEnableEjection )
 	{
-		// Notes:
+		// Notes on the ForceEjectionTimeout:
 		//  * TOTA works with values as low as 20 here.
 		//    It "times out" with values around 1800 (forces user to check the memcard
 		//    twice to find it).  Other games could be different. :|
@@ -679,15 +737,15 @@ void SaveStateBase::sioFreeze()
 		//    it has a "rule" that the memcard should never be ejected during a song.  So by
 		//    ejecting it, the game freezes (which is actually good emulation, but annoying!)
 
-		for( int port=0; port<2; ++port )
+		for( uint port=0; port<2; ++port )
+		//for( int slot=0; slot<4; ++slot )
 		{
-			for( int slot=0; slot<4; ++slot )
+			const uint slot = 0;		// see above comment about multitap slowness
+			u64 newCRC = SysPlugins.McdGetCRC( port, slot );
+			if( newCRC != m_mcdCRCs[port][slot] )
 			{
-				u64 newCRC = SysPlugins.McdGetCRC( port, slot );
-				if( newCRC != m_mcdCRCs[port][slot] )
-				{
-					m_mcdCRCs[port][slot] = newCRC;
-				}
+				//m_mcdCRCs[port][slot] = newCRC;
+				m_ForceEjectionTimeout[port] = 128;
 			}
 		}
 	}

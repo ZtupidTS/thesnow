@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -32,40 +32,44 @@ ApplicableWizardPage::ApplicableWizardPage( wxWizard* parent, wxWizardPage* prev
 {
 }
 
-// ----------------------------------------------------------------------------
-Panels::SettingsDirPickerPanel::SettingsDirPickerPanel( wxWindow* parent ) :
-	DirPickerPanel( parent, FolderId_Settings, _("Settings"), _("选择 PCSX2 设置所在的文件夹") )
+// This is a hack feature substitute for prioritized apply events.  This callback is issued prior
+// to the apply chain being run, allowing a panel to do some pre-apply prepwork.  PAnels implementing
+// this function should not modify the g_conf state.
+bool ApplicableWizardPage::PrepForApply()
 {
-	pxSetToolTip( this, pxE( ".Tooltips:Folders:Settings",
+	return true;
+}
+
+
+// ----------------------------------------------------------------------------
+Panels::SettingsDirPickerPanel::SettingsDirPickerPanel( wxWindow* parent )
+	: DirPickerPanel( parent, FolderId_Settings, _("Settings"), _("选择 PCSX2 设置所在的文件夹") )
+{
+	pxSetToolTip( this, pxE( ".Tooltip:Folders:Settings",
 		L"This is the folder where PCSX2 saves your settings, including settings generated "
 		L"by most plugins (some older plugins may not respect this value)."
 	) );
 
-	// Insert this into the top of the staticboxsizer created by the constructor.
-	GetSizer()->Insert( 0,
-		new wxStaticText( this, wxID_ANY,
-			pxE( ".Dialogs:SettingsDirPicker",
-				L"You may optionally specify a location for your PCSX2 settings here.  If the location \n"
-				L"contains existing PCSX2 settings, you will be given the option to import or overwrite them."
-			), wxDefaultPosition, wxDefaultSize, wxALIGN_CENTRE
-		), wxSizerFlags().Expand().Border( wxBOTTOM, 6 )
-	);
+	SetStaticDesc( pxE( ".Panel:Folders:Settings",
+		L"You may optionally specify a location for your PCSX2 settings here.  If the location "
+		L"contains existing PCSX2 settings, you will be given the option to import or overwrite them."
+	) );
 }
 
 // ----------------------------------------------------------------------------
 FirstTimeWizard::UsermodePage::UsermodePage( wxWizard* parent ) :
 	ApplicableWizardPage( parent )
 {
+	SetMinSize( wxSize(640, GetMinHeight()) );
 	SetSizer( new wxBoxSizer( wxVERTICAL ) );
 
-	wxPanelWithHelpers& panel( *new wxPanelWithHelpers( this, wxVERTICAL ) );
-	panel.SetIdealWidth( 640 );
+	wxPanelWithHelpers& panel( *new wxPanelWithHelpers( this, wxVERTICAL ) );	
 
 	m_dirpick_settings	= new SettingsDirPickerPanel( &panel );
 	m_panel_LangSel		= new LanguageSelectionPanel( &panel );
-	m_panel_UserSel		= new UsermodeSelectionPanel( &panel );
+	m_panel_UserSel		= new DocsFolderPickerPanel( &panel );
 
-	panel += panel.Heading(_("PCSX2 启动于一个新的或者未知的文件夹下面,需要进行重新设置."));
+	panel += panel.Heading(_("PCSX2 启动于一个新的或者未知的文件夹下面,需要进行重新设置.")).Bold();
 
 	panel += m_panel_LangSel		| StdCenter();
 	panel += m_panel_UserSel		| pxExpand.Border( wxALL, 8 );
@@ -93,6 +97,37 @@ void FirstTimeWizard::UsermodePage::OnCustomDirChanged( wxCommandEvent& evt )
 	OnUsermodeChanged( evt );
 }
 
+bool FirstTimeWizard::UsermodePage::PrepForApply()
+{
+	wxDirName path( PathDefs::GetDocuments(m_panel_UserSel->GetDocsMode()) );
+
+	if( path.FileExists() )
+	{
+		// FIXME: There's already a file by the same name.. not sure what we should do here.
+		throw Exception::BadStream( path.ToString(),
+			L"Targeted documents folder is already occupied by a file.",
+			pxE( ".Error:DocsFolderFileConflict",
+				L"PCSX2 cannot create a documents folder in the requested location.  "
+				L"The path name matches an existing file.  Delete the file or change the documents location, "
+				L"and then try again."
+			)
+		);
+	}
+
+	if( !path.Exists() )
+	{
+		wxDialogWithHelpers dialog( NULL, _("Create folder?") );
+		dialog += dialog.Heading( _("PCSX2 will create the following folder for documents.  You can change this setting later, at any time.") );
+		dialog += 12;
+		dialog += dialog.Heading( path.ToString() );
+
+		if( wxID_CANCEL == pxIssueConfirmation( dialog, MsgButtons().Custom(_("Create")).Cancel(), L"CreateNewFolder" ) )
+			return false;
+	}
+	path.Mkdir();
+	return true;
+}
+
 // ----------------------------------------------------------------------------
 FirstTimeWizard::FirstTimeWizard( wxWindow* parent )
 	: wxWizard( parent, wxID_ANY, _("PCSX2 第一次使用设置") )
@@ -112,6 +147,16 @@ FirstTimeWizard::FirstTimeWizard( wxWindow* parent )
 	m_page_plugins	+= m_panel_PluginSel		| StdExpand();
 	m_page_bios		+= m_panel_BiosSel			| StdExpand();
 
+	// Temporary tutorial message for the BIOS, needs proof-reading!!
+	m_page_bios		+= 12;
+	m_page_bios		+= new pxStaticHeading( &m_page_bios,
+		pxE( ".Wizard:Bios:Tutorial",
+			L"PCSX2 requires a *legal* copy of the PS2 BIOS in order to run games.\n"
+			L"You cannot use a copy obtained from a friend or the Internet.\n"
+			L"You must dump the BIOS from your *own* Playstation 2 console."
+		)
+	) | StdExpand();
+
 	// Assign page indexes as client data
 	m_page_usermode	.SetClientData( (void*)0 );
 	m_page_plugins	.SetClientData( (void*)1 );
@@ -128,9 +173,6 @@ FirstTimeWizard::FirstTimeWizard( wxWindow* parent )
 	// this doesn't descent from wxDialogWithHelpers, so we need to explicitly
 	// fit and center it. :(
 
-	Fit();
-	CenterOnScreen();
-
 	Connect( wxEVT_WIZARD_PAGE_CHANGED,				wxWizardEventHandler	(FirstTimeWizard::OnPageChanged) );
 	Connect( wxEVT_WIZARD_PAGE_CHANGING,			wxWizardEventHandler	(FirstTimeWizard::OnPageChanging) );
 	Connect( wxEVT_COMMAND_LISTBOX_DOUBLECLICKED,	wxCommandEventHandler	(FirstTimeWizard::OnDoubleClicked) );
@@ -139,6 +181,18 @@ FirstTimeWizard::FirstTimeWizard( wxWindow* parent )
 FirstTimeWizard::~FirstTimeWizard() throw()
 {
 
+}
+
+static void _OpenConsole()
+{
+	g_Conf->ProgLogBox.Visible = true;
+	wxGetApp().OpenProgramLog();
+}
+
+int FirstTimeWizard::ShowModal()
+{
+	if( IsDebugBuild ) wxGetApp().PostIdleMethod( _OpenConsole );
+	return _parent::ShowModal();
 }
 
 void FirstTimeWizard::OnDoubleClicked( wxCommandEvent& evt )
@@ -166,7 +220,7 @@ void FirstTimeWizard::OnPageChanging( wxWizardEvent& evt )
 		{
 			if( ApplicableWizardPage* page = wxDynamicCast( GetCurrentPage(), ApplicableWizardPage ) )
 			{
-				if( !page->GetApplyState().ApplyAll() )
+				if( !page->PrepForApply() || !page->GetApplyState().ApplyAll() )
 				{
 					evt.Veto();
 					return;

@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -15,6 +15,8 @@
 
 #include "PrecompiledHeader.h"
 #include "MainFrame.h"
+#include "GSFrame.h"
+
 #include "HostGui.h"
 #include "AppSaveStates.h"
 #include "GS.h"
@@ -61,7 +63,7 @@ namespace Implementations
 	{
 		g_Conf->EmuOptions.GS.FrameSkipEnable = !g_Conf->EmuOptions.GS.FrameSkipEnable;
 		SetGSConfig().FrameSkipEnable = g_Conf->EmuOptions.GS.FrameSkipEnable;
-		
+
 		if( EmuConfig.GS.FrameSkipEnable )
 			Console.WriteLn( "(FrameSkipping) Enabled : FrameDraws=%d, FrameSkips=%d", g_Conf->EmuOptions.GS.FramesToDraw, g_Conf->EmuOptions.GS.FramesToSkip );
 		else
@@ -70,13 +72,18 @@ namespace Implementations
 
 	void Framelimiter_TurboToggle()
 	{
+		ScopedCoreThreadPause pauser;
+		
 		if( !g_Conf->EmuOptions.GS.FrameLimitEnable )
 		{
-			Console.WriteLn( "(FrameLimiter) Turbo toggle ignored; framelimiter is currently disabled." );
+			g_Conf->EmuOptions.GS.FrameLimitEnable = true;
+			g_LimiterMode = Limit_Turbo;
+			g_Conf->EmuOptions.GS.LimitScalar = g_Conf->Framerate.TurboScalar;
+			Console.WriteLn("(FrameLimiter) Turbo + FrameLimit ENABLED." );
+			pauser.AllowResume();
 			return;
 		}
 
-		ScopedCoreThreadPause pauser;
 		if( g_LimiterMode == Limit_Turbo )
 		{
 			GSsetVsync( g_Conf->EmuOptions.GS.VsyncEnable );
@@ -91,17 +98,17 @@ namespace Implementations
 			g_Conf->EmuOptions.GS.LimitScalar = g_Conf->Framerate.TurboScalar;
 			Console.WriteLn("(FrameLimiter) Turbo ENABLED." );
 		}
-		pauser.Resume();
+		pauser.AllowResume();
 	}
 
 	void Framelimiter_SlomoToggle()
 	{
 		// Slow motion auto-enables the framelimiter even if it's disabled.
 		// This seems like desirable and expected behavior.
-		
+
 		// FIXME: Inconsistent use of g_Conf->EmuOptions vs. EmuConfig.  Should figure
 		// out a better consistency approach... -air
-	
+
 		ScopedCoreThreadPause pauser;
 		GSsetVsync( g_Conf->EmuOptions.GS.VsyncEnable );
 		if( g_LimiterMode == Limit_Slomo )
@@ -117,7 +124,7 @@ namespace Implementations
 			Console.WriteLn("(FrameLimiter) SlowMotion ENABLED." );
 			g_Conf->EmuOptions.GS.FrameLimitEnable = true;
 		}
-		pauser.Resume();
+		pauser.AllowResume();
 	}
 
 	void Framelimiter_MasterToggle()
@@ -126,7 +133,7 @@ namespace Implementations
 		g_Conf->EmuOptions.GS.FrameLimitEnable = !g_Conf->EmuOptions.GS.FrameLimitEnable;
 		GSsetVsync( g_Conf->EmuOptions.GS.FrameLimitEnable && g_Conf->EmuOptions.GS.VsyncEnable );
 		Console.WriteLn("(FrameLimiter) %s.", g_Conf->EmuOptions.GS.FrameLimitEnable ? "ENABLED" : "DISABLED" );
-		pauser.Resume();
+		pauser.AllowResume();
 	}
 
 	void Sys_Suspend()
@@ -142,15 +149,14 @@ namespace Implementations
 
 	void Sys_TakeSnapshot()
 	{
-		GSmakeSnapshot( g_Conf->Folders.Snapshots.ToAscii().data() );
+		GSmakeSnapshot( g_Conf->Folders.Snapshots.ToAscii() );
 	}
 
 	void Sys_RenderToggle()
 	{
-		if( g_plugins == NULL ) return;
-
-		SaveSinglePluginHelper helper( PluginId_GS );
+		ScopedCoreThreadPause paused_core( new SysExecEvent_SaveSinglePlugin(PluginId_GS) );
 		renderswitch = !renderswitch;
+		paused_core.AllowResume();
 	}
 
 	void Sys_LoggingToggle()
@@ -210,7 +216,7 @@ namespace Implementations
 		Console.Warning("hardware registers dumped EE:%x, IOP:%x\n", cpuRegs.pc, psxRegs.pc);
 #endif
 	}
-	
+
 	void FullscreenToggle()
 	{
 		g_Conf->GSWindow.DefaultToFullscreen = !g_Conf->GSWindow.DefaultToFullscreen;
@@ -265,7 +271,7 @@ static const GlobalCommandDescriptor CommandDeclarations[] =
 	},
 
 	{	"Framelimiter_SlomoToggle",
-		Implementations::Framelimiter_TurboToggle,
+		Implementations::Framelimiter_SlomoToggle,
 		NULL,
 		NULL,
 	},
@@ -383,7 +389,7 @@ void Pcsx2App::InitDefaultGlobalAccelerators()
 	// Hack! The following bindings are temporary hacks which are needed because of issues
 	// with PAD plugin interfacing (the local window-based accelerators in GSPanel are
 	// currently ignored).
-	
+
 	GlobalAccels.Map( AAC( WXK_ESCAPE ),		"Sys_Suspend");
 	GlobalAccels.Map( AAC( WXK_F8 ),			"Sys_TakeSnapshot");
 	GlobalAccels.Map( AAC( WXK_F8 ).Shift(),	"Sys_TakeSnapshot");

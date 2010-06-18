@@ -1,3 +1,18 @@
+/*  PCSX2 - PS2 Emulator for PCs
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
+ *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
+ *  of the GNU Lesser General Public License as published by the Free Software Found-
+ *  ation, either version 3 of the License, or (at your option) any later version.
+ *
+ *  PCSX2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ *  without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+ *  PURPOSE.  See the GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License along with PCSX2.
+ *  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #pragma once
 
 // --------------------------------------------------------------------------------------
@@ -15,10 +30,12 @@ protected:
 public:
     typedef T element_type;
 
-    wxEXPLICIT ScopedPtr(T * ptr = NULL) : m_ptr(ptr) { }
+    wxEXPLICIT ScopedPtr(T * ptr = NULL)
+    {
+		m_ptr = ptr;
+    }
 
-    ~ScopedPtr() throw()
-		{ Delete(); }
+    ~ScopedPtr() throw() { Delete(); }
 
 	ScopedPtr& Reassign(T * ptr = NULL)
 	{
@@ -29,7 +46,7 @@ public:
 		}
 		return *this;
 	}
-	
+
 	ScopedPtr& Delete() throw()
 	{
 		// Thread-safe deletion: Set the pointer to NULL first, and then issue
@@ -64,19 +81,19 @@ public:
 		other.m_ptr = m_ptr;
 		m_ptr = tmp;
 	}
-	
+
 	// ----------------------------------------------------------------------------
 	//  ScopedPtr Operators
 	// ----------------------------------------------------------------------------
 	// I've decided to use the ATL's approach to pointer validity tests, opposed to
 	// the wx/boost approach (which uses some bizarre member method pointer crap, and can't
 	// allow the T* implicit casting.
-	
+
 	bool operator!() const throw()
 	{
 		return m_ptr == NULL;
 	}
-	
+
 	operator T*() const
 	{
 		return m_ptr;
@@ -128,13 +145,14 @@ class ScopedArray
 protected:
 	T*		m_array;
 	uint	m_valid_range;
+
 public:
     typedef T element_type;
 
-    wxEXPLICIT ScopedArray(T * ptr = NULL) :
-		m_array(ptr)
-	,	m_valid_range( 0xffffffff )
+    wxEXPLICIT ScopedArray(T * ptr = NULL)
     {
+		m_array			= ptr;
+		m_valid_range	= 0xffffffff;
     }
 
 	wxEXPLICIT ScopedArray( int size ) :
@@ -162,7 +180,7 @@ public:
 		}
 		return *this;
 	}
-	
+
 	ScopedArray& Delete() throw()
 	{
 		// Thread-safe deletion: Set the pointer to NULL first, and then issue
@@ -197,19 +215,19 @@ public:
 		other.m_array = m_array;
 		m_array = tmp;
 	}
-	
+
 	// ----------------------------------------------------------------------------
 	//  ScopedPtr Operators
 	// ----------------------------------------------------------------------------
 	// I've decided to use the ATL's approach to pointer validity tests, opposed to
 	// the wx/boost approach (which uses some bizarre member method pointer crap, and can't
 	// allow the T* implicit casting.
-	
+
 	bool operator!() const throw()
 	{
 		return m_array == NULL;
 	}
-	
+
 	// Equality
 	bool operator==(T* pT) const throw()
 	{

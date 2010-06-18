@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -27,39 +27,18 @@
 
 using namespace pxSizerFlags;
 
-namespace Dialogs
-{
-	// Helper class for creating wxStaticText labels which are aligned to center.
-	// (automates the passing of wxDefaultSize and wxDefaultPosition)
-	//
-	class StaticTextCentered : public wxStaticText
-	{
-	public:
-		StaticTextCentered( wxWindow* parent, const wxString& text, int id=wxID_ANY ) :
-			wxStaticText( parent, id, text, wxDefaultPosition, wxDefaultSize, wxALIGN_CENTER )
-		{
-		}
-	};
-
-}
-
 // --------------------------------------------------------------------------------------
 //  AboutBoxDialog  Implementation
 // --------------------------------------------------------------------------------------
 
 Dialogs::AboutBoxDialog::AboutBoxDialog( wxWindow* parent )
-	: wxDialogWithHelpers( parent, _("关于 PCSX2"), wxVERTICAL )
+	: wxDialogWithHelpers( parent, _("关于 PCSX2"), pxDialogFlags().Resize().MinWidth( 460 ) )
 	, m_bitmap_dualshock( this, wxID_ANY, wxBitmap( EmbeddedImage<res_Dualshock>().Get() ),
 		wxDefaultPosition, wxDefaultSize, wxBORDER_SUNKEN
 	)
 {
-	SetName( GetNameStatic() );
-
 	static const wxString LabelAuthors = fromUTF8(
-		"开发者"
-		"\n\n"
-		"v0.9.6+: Arcum42, Refraction, "
-		"drk||raziel, cottonvibes, gigaherz, "
+		"Arcum42, Refraction, drk||raziel, cottonvibes, gigaherz, "
 		"rama, Jake.Stine, saqib, Tmkk, pseudonym"
 		"\n\n"
 		"Previous versions: Alexey silinov, Aumatt, "
@@ -74,56 +53,60 @@ Dialogs::AboutBoxDialog::AboutBoxDialog( wxWindow* parent )
 	);
 
 	static const wxString LabelGreets = fromUTF8(
-		"贡献者"
-		"\n\n"
-		"Hiryu and Sjeep (libcdvd / iso filesystem), nneeve (fpu and vu)"
+		"Hiryu and Sjeep (libcdvd / iso filesystem), nneeve (fpu and vu), gregory (linux distros)"
 		"\n\n"
 		"Plugin Specialists: ChickenLiver (Lilypad), Efp (efp), "
 		"Gabest (Gsdx, Cdvdolio, Xpad),  Zeydlitz (ZZogl)"
 		"\n\n"
 		"Special thanks to: black_wd, Belmont, BGome, _Demo_, Dreamtime, "
-		"F|RES, MrBrown, razorblade, Seta-san, Skarmeth, feal87"
+		"F|RES, MrBrown, razorblade, Seta-san, Skarmeth, feal87, Athos"
 	);
 
 	// This sizer holds text of the authors and a logo!
-	wxBoxSizer& AuthLogoSizer = *new wxBoxSizer( wxHORIZONTAL );
+	wxFlexGridSizer& AuthLogoSizer = *new wxFlexGridSizer( 2, 0, StdPadding );
+	AuthLogoSizer.AddGrowableCol(0, 4);
+	AuthLogoSizer.AddGrowableCol(1, 3);
 
 	// this sizer holds text of the contributors/testers, and a ps2 image!
 	wxBoxSizer& ContribSizer = *new wxBoxSizer( wxHORIZONTAL );
 
-	wxStaticBoxSizer& aboutUs = *new wxStaticBoxSizer( wxVERTICAL, this );
-	wxStaticBoxSizer& contribs = *new wxStaticBoxSizer( wxVERTICAL, this );
+	wxStaticBoxSizer& aboutUs	= *new wxStaticBoxSizer( wxVERTICAL, this );
+	wxStaticBoxSizer& contribs	= *new wxStaticBoxSizer( wxVERTICAL, this );
 
-	StaticTextCentered* label_auth   = new StaticTextCentered( this, LabelAuthors );
-	StaticTextCentered* label_greets = new StaticTextCentered( this, LabelGreets );
+	pxStaticText& label_auth	= Text( LabelAuthors ).SetMinWidth(240);
+	pxStaticText& label_greets	= Text( LabelGreets ).SetMinWidth(200);
 
-	label_auth->Wrap( 340 );
-	label_greets->Wrap( 200 );
+	aboutUs		+= Heading(L"Developers").Bold()	| StdExpand();
+	aboutUs		+= label_auth						| StdExpand();
+	contribs	+= Heading(L"Contributors").Bold()	| StdExpand();
+	contribs	+= label_greets						| StdExpand();
 
-	aboutUs		+= label_auth		| StdExpand();
-	contribs	+= label_greets		| StdExpand();
-
-	AuthLogoSizer	+= aboutUs;
-	AuthLogoSizer	+= 7;
-	AuthLogoSizer	+= contribs;
+	AuthLogoSizer	+= aboutUs		| StdExpand();
+	AuthLogoSizer	+= contribs		| StdExpand();
 
 	ContribSizer	+= pxStretchSpacer( 1 );
 	ContribSizer	+= m_bitmap_dualshock	| StdSpace();
 	ContribSizer	+= pxStretchSpacer( 1 );
 
-	// Main (top-level) layout 
+	// Main (top-level) layout
 
-	*this	+= Text(_("PCSX2  -  Playstation 2 模拟器"));
-	*this	+= AuthLogoSizer										| StdSpace();
-
-	*this	+= new wxHyperlinkCtrl( this, wxID_ANY,
-		_("Pcsx2 官方网站与论坛"), L"http://www.pcsx2.net"
-	) | wxSizerFlags(1).Center().Border( wxALL, 3 );
+	*this	+= StdPadding;
+	*this	+= Text(_("PCSX2")).Bold();
+	*this	+= Text(_("Playstation 2 模拟器"));
+	*this	+= AuthLogoSizer						| StdExpand();
 
 	*this	+= new wxHyperlinkCtrl( this, wxID_ANY,
-		_("Pcsx2 官方 SVN Repository 于 Googlecode"), L"http://code.google.com/p/pcsx2"
-	) | wxSizerFlags(1).Center().Border( wxALL, 3 );
+		_("PCSX2 官方网站与论坛"), L"http://www.pcsx2.net"
+	) | pxProportion(1).Center().Border( wxALL, 3 );
+
+	*this	+= new wxHyperlinkCtrl( this, wxID_ANY,
+		_("PCSX2 官方 SVN Repository 于 Googlecode"), L"http://code.google.com/p/pcsx2"
+	) | pxProportion(1).Center().Border( wxALL, 3 );
 
 	*this	+= ContribSizer											| StdExpand();
 	*this	+= new wxButton( this, wxID_OK, L"我知道了")	| StdCenter();
+
+	int bestHeight = GetBestSize().GetHeight();
+	if( bestHeight < 400 ) bestHeight = 400;
+	SetMinHeight( bestHeight );
 }

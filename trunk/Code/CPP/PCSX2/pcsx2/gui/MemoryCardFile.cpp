@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -15,6 +15,8 @@
 
 #include "PrecompiledHeader.h"
 #include "Utilities/SafeArray.h"
+
+#include "MemoryCardFile.h"
 
 // IMPORTANT!  If this gets a macro redefinition error it means PluginCallbacks.h is included
 // in a global-scope header, and that's a BAD THING.  Include it only into modules that need
@@ -32,18 +34,20 @@ struct Component_FileMcd;
 
 #include <wx/ffile.h>
 
-static const int MCD_SIZE = 1024 *  8  * 16;		// Legacy PSX card default size
-static const int MC2_SIZE = 1024 * 528 * 16;		// PS2 card default size.
+static const int MCD_SIZE	= 1024 *  8  * 16;		// Legacy PSX card default size
+
+static const int MC2_MBSIZE	= 1024 * 528 * 2;		// Size of a single megabyte of card data
+static const int MC2_SIZE	= MC2_MBSIZE * 8;		// PS2 card default size (8MB)
 
 // --------------------------------------------------------------------------------------
-//  FileMemoryCard 
+//  FileMemoryCard
 // --------------------------------------------------------------------------------------
 // Provides thread-safe direct file IO mapping.
 //
 class FileMemoryCard
 {
 protected:
-	wxFFile			m_file[2][4];
+	wxFFile			m_file[8];
 	u8				m_effeffs[528*16];
 	SafeArray<u8>	m_currentdata;
 
@@ -54,67 +58,156 @@ public:
 	void Lock();
 	void Unlock();
 
-	s32 IsPresent( uint port, uint slot );
-	s32 Read( uint port, uint slot, u8 *dest, u32 adr, int size );
-	s32 Save( uint port, uint slot, const u8 *src, u32 adr, int size );
-	s32 EraseBlock( uint port, uint slot, u32 adr );
-	u64 GetCRC( uint port, uint slot );
+	void Open();
+	void Close();
+
+	s32  IsPresent	( uint slot );
+	void GetSizeInfo( uint slot, PS2E_McdSizeInfo& outways );
+	s32  Read		( uint slot, u8 *dest, u32 adr, int size );
+	s32  Save		( uint slot, const u8 *src, u32 adr, int size );
+	s32  EraseBlock	( uint slot, u32 adr );
+	u64  GetCRC		( uint slot );
 
 protected:
 	bool Seek( wxFFile& f, u32 adr );
-	bool Create( const wxString& mcdFile );
+	bool Create( const wxString& mcdFile, uint sizeInMB );
 
-	wxString GetDisabledMessage( uint port, uint slot ) const
+	wxString GetDisabledMessage( uint slot ) const
 	{
-		return pxE( ".Popup:MemoryCard:HasBeenDisabled", wxsFormat(
-			L"The MemoryCard in port %d/slot %d has been automatically disabled.  You can correct the problem\n"
-			L"and re-enable the MemoryCard at any time using Config:MemoryCards from the main menu.",
-			port, slot
+		return pxE( ".Popup:Mcd:HasBeenDisabled", wxsFormat(
+			L"The memory card in slot %d has been automatically disabled.  You can correct the problem\n"
+			L"and re-enable the memory card at any time using Config:Memory cards from the main menu.",
+			slot
 		) );
 	}
 };
 
+uint FileMcd_GetMtapPort(uint slot)
+{
+	switch( slot )
+	{
+		case 0: case 2: case 3: case 4: return 0;
+		case 1: case 5: case 6: case 7: return 1;
+
+		jNO_DEFAULT
+	}
+
+	return 0;		// technically unreachable.
+}
+
+// Returns the multitap slot number, range 1 to 3 (slot 0 refers to the standard
+// 1st and 2nd player slots).
+uint FileMcd_GetMtapSlot(uint slot)
+{
+	switch( slot )
+	{
+		case 0: case 1:
+			pxFailDev( "Invalid parameter in call to GetMtapSlot -- specified slot is one of the base slots, not a Multitap slot." );
+		break;
+
+		case 2: case 3: case 4: return slot-1;
+		case 5: case 6: case 7: return slot-4;
+
+		jNO_DEFAULT
+	}
+
+	return 0;		// technically unreachable.
+}
+
+bool FileMcd_IsMultitapSlot( uint slot )
+{
+	return (slot > 1);
+}
+
+wxFileName FileMcd_GetSimpleName(uint slot)
+{
+	if( FileMcd_IsMultitapSlot(slot) )
+		return g_Conf->Folders.MemoryCards + wxsFormat( L"Mcd-Multitap%u-Slot%02u.ps2", FileMcd_GetMtapPort(slot)+1, FileMcd_GetMtapSlot(slot)+1 );
+	else
+		return g_Conf->Folders.MemoryCards + wxsFormat( L"Mcd%03u.ps2", slot+1 );
+}
+
+wxString FileMcd_GetDefaultName(uint slot)
+{
+	if( FileMcd_IsMultitapSlot(slot) )
+		return wxsFormat( L"Mcd-Multitap%u-Slot%02u.ps2", FileMcd_GetMtapPort(slot)+1, FileMcd_GetMtapSlot(slot)+1 );
+	else
+		return wxsFormat( L"Mcd%03u.ps2", slot+1 );
+}
+
 FileMemoryCard::FileMemoryCard()
 {
 	memset8<0xff>( m_effeffs );
+}
 
-	for( int port=0; port<2; ++port )
+void FileMemoryCard::Open()
+{
+	for( int slot=0; slot<8; ++slot )
 	{
-		for( int slot=0; slot<4; ++slot )
+		if( FileMcd_IsMultitapSlot(slot) )
 		{
-			if( !g_Conf->Mcd[port][slot].Enabled || g_Conf->Mcd[port][slot].Filename.GetFullName().IsEmpty() ) continue;
+			if( !EmuConfig.MultitapPort0_Enabled && (FileMcd_GetMtapPort(slot) == 0) ) continue;
+			if( !EmuConfig.MultitapPort1_Enabled && (FileMcd_GetMtapPort(slot) == 1) ) continue;
+		}
 
-			wxFileName fname( g_Conf->FullpathToMcd( port, slot ) );
-			wxString str( fname.GetFullPath() );
+		wxFileName fname( g_Conf->FullpathToMcd( slot ) );
+		wxString str( fname.GetFullPath() );
+		bool cont = false;
 
-			const wxULongLong fsz = fname.GetSize();
-			if( (fsz == 0) || (fsz == wxInvalidSize) )
+		if( fname.GetFullName().IsEmpty() )
+		{
+			str = L"[empty filename]";
+			cont = true;
+		}
+
+		if( !g_Conf->Mcd[slot].Enabled )
+		{
+			str = L"[disabled]";
+			cont = true;
+		}
+
+		Console.WriteLn( cont ? Color_Gray : Color_Green, L"McdSlot %u: " + str, slot );
+		if( cont ) continue;
+
+		const wxULongLong fsz = fname.GetSize();
+		if( (fsz == 0) || (fsz == wxInvalidSize) )
+		{
+			// FIXME : Ideally this should prompt the user for the size of the
+			// memory card file they would like to create, instead of trying to
+			// create one automatically.
+		
+			if( !Create( str, 8 ) )
 			{
-				if( !Create( str ) )
-				{
-					Msgbox::Alert(
-						wxsFormat( _( "不能创建内存卡文件: \n\n%s\n\n" ), str.c_str() ) + 
-						GetDisabledMessage( port, slot )
-					);
-				}
-			}
-
-			// [TODO] : Add memcard size detection and report it to the console log.
-			//   (8MB, 256Mb, whatever)
-
-			NTFS_CompressFile( str, g_Conf->McdEnableNTFS );
-
-			if( !m_file[port][slot].Open( str.c_str(), L"r+b" ) )
-			{
-				// Translation note: detailed description should mention that the memory card will be disabled
-				// for the duration of this session.
 				Msgbox::Alert(
-					wxsFormat( _( "访问被拒绝,内存卡文件: \n\n%s\n\n" ), str.c_str() ) + 
-					GetDisabledMessage( port, slot )
-				); 
+					wxsFormat(_( "不能创建内存卡文件: \n\n%s\n\n" ), str.c_str()) +
+					GetDisabledMessage( slot )
+				);
 			}
 		}
+
+		// [TODO] : Add memcard size detection and report it to the console log.
+		//   (8MB, 256Mb, formatted, unformatted, etc ...)
+
+#ifdef __WXMSW__
+		NTFS_CompressFile( str, g_Conf->McdCompressNTFS );
+#endif
+
+		if( !m_file[slot].Open( str.c_str(), L"r+b" ) )
+		{
+			// Translation note: detailed description should mention that the memory card will be disabled
+			// for the duration of this session.
+			Msgbox::Alert(
+				wxsFormat(_( "访问内存卡文件被拒绝: \n\n%s\n\n" ), str.c_str()) +
+				GetDisabledMessage( slot )
+			);
+		}
 	}
+}
+
+void FileMemoryCard::Close()
+{
+	for( int slot=0; slot<8; ++slot )
+		m_file[slot].Close();
 }
 
 // Returns FALSE if the seek failed (is outside the bounds of the file).
@@ -123,11 +216,11 @@ bool FileMemoryCard::Seek( wxFFile& f, u32 adr )
 	const u32 size = f.Length();
 
 	// If anyone knows why this filesize logic is here (it appears to be related to legacy PSX
-	// cards, perhaps hacked support for some special emulator-specific memcard formats that 
+	// cards, perhaps hacked support for some special emulator-specific memcard formats that
 	// had header info?), then please replace this comment with something useful.  Thanks!  -- air
 
 	u32 offset = 0;
-	
+
 	if( size == MCD_SIZE + 64 )
 		offset = 64;
 	else if( size == MCD_SIZE + 3904 )
@@ -141,14 +234,16 @@ bool FileMemoryCard::Seek( wxFFile& f, u32 adr )
 }
 
 // returns FALSE if an error occurred (either permission denied or disk full)
-bool FileMemoryCard::Create( const wxString& mcdFile )
+bool FileMemoryCard::Create( const wxString& mcdFile, uint sizeInMB )
 {
 	//int enc[16] = {0x77,0x7f,0x7f,0x77,0x7f,0x7f,0x77,0x7f,0x7f,0x77,0x7f,0x7f,0,0,0,0};
+
+	Console.WriteLn( L"(FileMcd) Creating new %uMB memory card: " + mcdFile, sizeInMB );
 
 	wxFFile fp( mcdFile, L"wb" );
 	if( !fp.IsOpened() ) return false;
 
-	for( uint i=0; i<MC2_SIZE/sizeof(m_effeffs); i++ )
+	for( uint i=0; i<(MC2_MBSIZE*sizeInMB)/sizeof(m_effeffs); i++ )
 	{
 		if( fp.Write( m_effeffs, sizeof(m_effeffs) ) == 0 )
 			return false;
@@ -156,17 +251,28 @@ bool FileMemoryCard::Create( const wxString& mcdFile )
 	return true;
 }
 
-s32 FileMemoryCard::IsPresent( uint port, uint slot )
+s32 FileMemoryCard::IsPresent( uint slot )
 {
-	return m_file[port][slot].IsOpened();
+	return m_file[slot].IsOpened();
 }
 
-s32 FileMemoryCard::Read( uint port, uint slot, u8 *dest, u32 adr, int size )
+void FileMemoryCard::GetSizeInfo( uint slot, PS2E_McdSizeInfo& outways )
 {
-	wxFFile& mcfp( m_file[port][slot] );
+	outways.SectorSize			= 512;
+	outways.EraseBlockSizeInSectors			= 16;
+
+	if( pxAssert( m_file[slot].IsOpened() ) )
+		outways.McdSizeInSectors	= m_file[slot].Length() / (outways.SectorSize + outways.EraseBlockSizeInSectors);
+	else
+		outways.McdSizeInSectors	= 0x4000;
+}
+
+s32 FileMemoryCard::Read( uint slot, u8 *dest, u32 adr, int size )
+{
+	wxFFile& mcfp( m_file[slot] );
 	if( !mcfp.IsOpened() )
 	{
-		DevCon.Error( "MemoryCard: Ignoring attempted read from disabled card." );
+		DevCon.Error( "(FileMcd) Ignoring attempted read from disabled card." );
 		memset(dest, 0, size);
 		return 1;
 	}
@@ -174,13 +280,13 @@ s32 FileMemoryCard::Read( uint port, uint slot, u8 *dest, u32 adr, int size )
 	return mcfp.Read( dest, size ) != 0;
 }
 
-s32 FileMemoryCard::Save( uint port, uint slot, const u8 *src, u32 adr, int size )
+s32 FileMemoryCard::Save( uint slot, const u8 *src, u32 adr, int size )
 {
-	wxFFile& mcfp( m_file[port][slot] );
+	wxFFile& mcfp( m_file[slot] );
 
 	if( !mcfp.IsOpened() )
 	{
-		DevCon.Error( "MemoryCard: Ignoring attempted save/write to disabled card." );
+		DevCon.Error( "(FileMcd) Ignoring attempted save/write to disabled card." );
 		return 1;
 	}
 
@@ -191,7 +297,7 @@ s32 FileMemoryCard::Save( uint port, uint slot, const u8 *src, u32 adr, int size
 	for (int i=0; i<size; i++)
 	{
 		if ((m_currentdata[i] & src[i]) != src[i])
-			Console.Warning("MemoryCard: (warning) writing to uncleared data.");
+			Console.Warning("(FileMcd) Warning: writing to uncleared data.");
 		m_currentdata[i] &= src[i];
 	}
 
@@ -199,9 +305,9 @@ s32 FileMemoryCard::Save( uint port, uint slot, const u8 *src, u32 adr, int size
 	return mcfp.Write( m_currentdata.GetPtr(), size ) != 0;
 }
 
-s32 FileMemoryCard::EraseBlock( uint port, uint slot, u32 adr )
+s32 FileMemoryCard::EraseBlock( uint slot, u32 adr )
 {
-	wxFFile& mcfp( m_file[port][slot] );
+	wxFFile& mcfp( m_file[slot] );
 
 	if( !mcfp.IsOpened() )
 	{
@@ -213,17 +319,19 @@ s32 FileMemoryCard::EraseBlock( uint port, uint slot, u32 adr )
 	return mcfp.Write( m_effeffs, sizeof(m_effeffs) ) != 0;
 }
 
-u64 FileMemoryCard::GetCRC( uint port, uint slot )
+u64 FileMemoryCard::GetCRC( uint slot )
 {
-	wxFFile& mcfp( m_file[port][slot] );
+	wxFFile& mcfp( m_file[slot] );
 	if( !mcfp.IsOpened() ) return 0;
 
 	if( !Seek( mcfp, 0 ) ) return 0;
 
 	// Process the file in 4k chunks.  Speeds things up significantly.
 	u64 retval = 0;
-	u64 buffer[0x1000];
-	for( uint i=MC2_SIZE/sizeof(buffer); i; --i )
+	u64 buffer[528*8];		// use 528 (sector size), ensures even divisibility
+	
+	const uint filesize = mcfp.Length() / sizeof(buffer);
+	for( uint i=filesize; i; --i )
 	{
 		mcfp.Read( &buffer, sizeof(buffer) );
 		for( uint t=0; t<ArraySize(buffer); ++t )
@@ -245,36 +353,62 @@ struct Component_FileMcd
 	Component_FileMcd();
 };
 
+uint FileMcd_ConvertToSlot( uint port, uint slot )
+{
+	if( slot == 0 ) return port;
+	if( port == 0 ) return slot+1;		// multitap 1
+	return slot + 4;					// multitap 2
+}
+
+static void PS2E_CALLBACK FileMcd_EmuOpen( PS2E_THISPTR thisptr, const PS2E_SessionInfo *session )
+{
+	thisptr->impl.Open();
+}
+
+static void PS2E_CALLBACK FileMcd_EmuClose( PS2E_THISPTR thisptr )
+{
+	thisptr->impl.Close();
+}
+
 static s32 PS2E_CALLBACK FileMcd_IsPresent( PS2E_THISPTR thisptr, uint port, uint slot )
 {
-	return thisptr->impl.IsPresent( port, slot );
+	return thisptr->impl.IsPresent( FileMcd_ConvertToSlot( port, slot ) );
+}
+
+static void PS2E_CALLBACK FileMcd_GetSizeInfo( PS2E_THISPTR thisptr, uint port, uint slot, PS2E_McdSizeInfo* outways )
+{
+	thisptr->impl.GetSizeInfo( FileMcd_ConvertToSlot( port, slot ), *outways );
 }
 
 static s32 PS2E_CALLBACK FileMcd_Read( PS2E_THISPTR thisptr, uint port, uint slot, u8 *dest, u32 adr, int size )
 {
-	return thisptr->impl.Read( port, slot, dest, adr, size );
+	return thisptr->impl.Read( FileMcd_ConvertToSlot( port, slot ), dest, adr, size );
 }
 
 static s32 PS2E_CALLBACK FileMcd_Save( PS2E_THISPTR thisptr, uint port, uint slot, const u8 *src, u32 adr, int size )
 {
-	return thisptr->impl.Save( port, slot, src, adr, size );
+	return thisptr->impl.Save( FileMcd_ConvertToSlot( port, slot ), src, adr, size );
 }
 
 static s32 PS2E_CALLBACK FileMcd_EraseBlock( PS2E_THISPTR thisptr, uint port, uint slot, u32 adr )
 {
-	return thisptr->impl.EraseBlock( port, slot, adr );
+	return thisptr->impl.EraseBlock( FileMcd_ConvertToSlot( port, slot ), adr );
 }
 
 static u64 PS2E_CALLBACK FileMcd_GetCRC( PS2E_THISPTR thisptr, uint port, uint slot )
 {
-	return thisptr->impl.GetCRC( port, slot );
+	return thisptr->impl.GetCRC( FileMcd_ConvertToSlot( port, slot ) );
 }
 
 Component_FileMcd::Component_FileMcd()
 {
 	memzero( api );
 
+	api.Base.EmuOpen	= FileMcd_EmuOpen;
+	api.Base.EmuClose	= FileMcd_EmuClose;
+
 	api.McdIsPresent	= FileMcd_IsPresent;
+	api.McdGetSizeInfo	= FileMcd_GetSizeInfo;
 	api.McdRead			= FileMcd_Read;
 	api.McdSave			= FileMcd_Save;
 	api.McdEraseBlock	= FileMcd_EraseBlock;
@@ -352,8 +486,9 @@ extern "C" const PS2E_LibraryAPI* FileMcd_InitAPI( const PS2E_EmulatorInfo* emui
 }
 
 // --------------------------------------------------------------------------------------
-//  Currently Unused Superblock Header Structs
+//  Currently Unused Superblock Header Struct
 // --------------------------------------------------------------------------------------
+// (provided for reference purposes)
 
 struct superblock
 {
@@ -374,17 +509,3 @@ struct superblock
 	u8 card_type; 				// 0x150
 	u8 card_flags; 				// 0x151
 };
-
-#if 0		// unused code?
-struct McdBlock
-{
-	s8 Title[48];
-	s8 ID[14];
-	s8 Name[16];
-	int IconCount;
-	u16 Icon[16*16*3];
-	u8 Flags;
-};
-
-void GetMcdBlockInfo(int mcd, int block, McdBlock *info);
-#endif

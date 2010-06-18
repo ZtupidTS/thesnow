@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -21,6 +21,19 @@
 // or better) or 0xFFBF (SSE1 and earlier).  Code can ensure a safe/valid MXCSR by
 // AND'ing this mask against an MXCSR prior to LDMXCSR.
 SSE_MXCSR	MXCSR_Mask;
+
+const wxChar* EnumToString( SSE_RoundMode sse )
+{
+	switch( sse )
+	{
+		case SSEround_Nearest:	return L"Nearest";
+		case SSEround_NegInf:	return L"NegativeInfinity";
+		case SSEround_PosInf:	return L"PositiveInfinity";
+		case SSEround_Chop:		return L"Chop";
+	}
+	
+	return L"Invalid";
+}
 
 SSE_RoundMode SSE_MXCSR::GetRoundMode() const
 {
@@ -62,7 +75,7 @@ SSE_MXCSR& SSE_MXCSR::ApplyReserveMask()
 
 SSE_MXCSR::operator x86Emitter::ModSib32() const
 {
-	return &bitmask;
+	return x86Emitter::ptr32[&bitmask];
 }
 
 namespace x86Emitter {

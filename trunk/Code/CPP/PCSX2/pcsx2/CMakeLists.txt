@@ -1,7 +1,18 @@
 # pcsx2
 
+# Clear default flags
+set(CMAKE_C_FLAGS "")
+set(CMAKE_CXX_FLAGS "")
+set(CMAKE_C_FLAGS_DEBUG "")
+set(CMAKE_CXX_FLAGS_DEBUG "")
+set(CMAKE_C_FLAGS_DEVEL "")
+set(CMAKE_CXX_FLAGS_DEVEL "")
+set(CMAKE_C_FLAGS_RELEASE "")
+set(CMAKE_CXX_FLAGS_RELEASE "")
+
 # set common flags
 set(CommonFlags 
+	-pthread
 	-fno-guess-branch-probability
 	-fno-dse
 	-fno-tree-dse
@@ -20,10 +31,6 @@ set(CommonFlags
 set(DebugFlags
 	-W
 	-g)
-
-# set linker flags
-set(LinkerFlags
-	-s)
 
 # set optimization flags
 set(OptimizationFlags
@@ -68,9 +75,6 @@ set(OptimizationFlags
 
 # Debug - Build
 if(CMAKE_BUILD_TYPE STREQUAL Debug)
-	# clear flags
-	set(CMAKE_C_FLAGS_DEBUG)
-	set(CMAKE_CXX_FLAGS_DEBUG)
 	
 	# executable name
 	set(pcsx2Name pcsx2-dbg)
@@ -81,41 +85,35 @@ endif(CMAKE_BUILD_TYPE STREQUAL Debug)
 
 # Devel - Build
 if(CMAKE_BUILD_TYPE STREQUAL Devel)
-	# clear flags
-	set(CMAKE_C_FLAGS_DEVEL)
-	set(CMAKE_CXX_FLAGS_DEVEL)
 
 	# executable name
 	set(pcsx2Name pcsx2-dev)
 	
 	# add defines
-	add_definitions(${CommonFlags} ${OptimizationFlags} -DPCSX2_DEVBUILD -DPCSX2_DEVEL -DWX_PRECOMP)
+	add_definitions(${CommonFlags} ${OptimizationFlags} -DPCSX2_DEVBUILD -DWX_PRECOMP -DNDEBUG)
 endif(CMAKE_BUILD_TYPE STREQUAL Devel)
 
 # Release - Build
 if(CMAKE_BUILD_TYPE STREQUAL Release)
-	# clear flags
-	set(CMAKE_C_FLAGS_RELEASE)
-	set(CMAKE_CXX_FLAGS_RELEASE)
 
 	# executable name
 	set(pcsx2Name pcsx2)
 	
 	# add defines
-	add_definitions(${CommonFlags} ${OptimizationFlags} ${LinkerFlags} -DWX_PRECOMP)
+	add_definitions(${CommonFlags} ${OptimizationFlags} -DWX_PRECOMP -DNDEBUG)
 endif(CMAKE_BUILD_TYPE STREQUAL Release)
 
-# get svn revision and generate svnrev.h
-if(SVN)
-	# execute subversion
-	Subversion_WC_INFO(${CMAKE_SOURCE_DIR} tmpvar)
-	
-	# write svnrev.h
-	file(WRITE ${CMAKE_BINARY_DIR}/pcsx2/svnrev.h "#define SVN_REV ${tmpvar_WC_REVISION} \n#define SVN_MODS 0")
-else(SVN)
-	# write svnrev.h
-	file(WRITE ${CMAKE_BINARY_DIR}/pcsx2/svnrev.h "#define SVN_REV 0 \n#define SVN_MODS 0")
-endif(SVN)
+# you must have both svn client executable and a source that contains svn metadata
+if((SVN) AND (EXISTS "${CMAKE_SOURCE_DIR}/.svn"))
+    # execute subversion
+    Subversion_WC_INFO(${CMAKE_SOURCE_DIR} tmpvar)
+
+    # write svnrev.h
+    file(WRITE ${CMAKE_BINARY_DIR}/pcsx2/svnrev.h "#define SVN_REV ${tmpvar_WC_REVISION} \n#define SVN_MODS 0")
+else((SVN) AND (EXISTS "${CMAKE_SOURCE_DIR}/.svn"))
+    # write svnrev.h
+    file(WRITE ${CMAKE_BINARY_DIR}/pcsx2/svnrev.h "#define SVN_REV 0 \n#define SVN_MODS 0")
+endif((SVN) AND (EXISTS "${CMAKE_SOURCE_DIR}/.svn"))
 
 # variable with sources of this executable
 set(pcsx2Sources
@@ -123,6 +121,7 @@ set(pcsx2Sources
 	COP0.cpp
 	COP2.cpp
 	Counters.cpp
+	DataBase_Loader.cpp
 	Dump.cpp
 	Elfheader.cpp
 	FiFo.cpp
@@ -146,8 +145,8 @@ set(pcsx2Sources
 	MMI.cpp
 	MTGS.cpp
 	Patch.cpp
+	Patch_Memory.cpp
 	Pcsx2Config.cpp
-	pcsx2hostfs.cpp
 	PluginManager.cpp
 	PrecompiledHeader.cpp
 	R3000A.cpp
@@ -156,7 +155,6 @@ set(pcsx2Sources
 	R5900.cpp
 	R5900OpcodeImpl.cpp
 	R5900OpcodeTables.cpp
-	RecoverySystem.cpp
 	SaveState.cpp
 	ShiftJisToUnicode.cpp
 	Sif.cpp
@@ -167,7 +165,6 @@ set(pcsx2Sources
 	SPR.cpp
 	Stats.cpp
 	System.cpp
-	Vif_Commands.cpp
 	Vif0_Dma.cpp
 	Vif1_Dma.cpp
 	Vif1_MFIFO.cpp
@@ -197,7 +194,9 @@ set(pcsx2Headers
 	Counters.h
 	Dmac.h
 	Dump.h
+	DataBase_Loader.h
 	Elfheader.h
+	File_Reader.h
 	Gif.h
 	GS.h
 	Hardware.h
@@ -215,6 +214,7 @@ set(pcsx2Headers
 	MemoryTypes.h
 	NakedAsm.h
 	Patch.h
+	Patch_Obsolete.h
 	PathDefs.h
 	Plugins.h
 	PrecompiledHeader.h
@@ -288,6 +288,7 @@ set(pcsx2GuiSources
 	gui/AdvancedDialog.cpp
 	gui/AppAssert.cpp
 	gui/AppConfig.cpp
+	gui/AppCorePlugins.cpp
 	gui/AppCoreThread.cpp
 	gui/AppEventSources.cpp
 	gui/AppInit.cpp
@@ -300,6 +301,7 @@ set(pcsx2GuiSources
 	gui/Dialogs/AppConfigDialog.cpp
 	gui/Dialogs/AssertionDialog.cpp
 	gui/Panels/BaseApplicableConfigPanel.cpp
+	gui/Panels/MemoryCardListView.cpp
 	gui/Dialogs/BaseConfigurationDialog.cpp
 	gui/Dialogs/BaseConfigurationDialog.inl
 	gui/Dialogs/BiosSelectorDialog.cpp
@@ -308,38 +310,40 @@ set(pcsx2GuiSources
 	gui/Dialogs/FirstTimeWizard.cpp
 	gui/Dialogs/ImportSettingsDialog.cpp
 	gui/Dialogs/LogOptionsDialog.cpp
+	gui/Dialogs/McdConfigDialog.cpp
 	gui/Dialogs/PickUserModeDialog.cpp
 	gui/Dialogs/StuckThreadDialog.cpp
 	gui/Dialogs/SysConfigDialog.cpp
+	gui/ExecutorThread.cpp
 	gui/FrameForGS.cpp
 	gui/GlobalCommands.cpp
 	gui/i18n.cpp
-	gui/IniInterface.cpp
 	gui/IsoDropTarget.cpp
 	gui/MainFrame.cpp
 	gui/MainMenuClicks.cpp
 	gui/MemoryCardFile.cpp
+	gui/Panels/BaseApplicableConfigPanel.cpp
 	gui/Panels/MemoryCardListPanel.cpp
-	gui/Panels/MemoryCardListView.h
 	gui/MessageBoxes.cpp
 	gui/MSWstuff.cpp
 	gui/Panels/AudioPanel.cpp
 	gui/Panels/BiosSelectorPanel.cpp
 	gui/Panels/CpuPanel.cpp
 	gui/Panels/DirPickerPanel.cpp
+	gui/Panels/GameDatabasePanel.cpp
 	gui/Panels/GameFixesPanel.cpp
 	gui/Panels/GSWindowPanel.cpp
 	gui/Panels/LogOptionsPanels.cpp
-	gui/Panels/MemoryCardsPanel.cpp
 	gui/Panels/MiscPanelStuff.cpp
 	gui/Panels/PathsPanel.cpp
 	gui/Panels/PluginSelectorPanel.cpp
 	gui/Panels/SpeedhacksPanel.cpp
 	gui/Panels/VideoPanel.cpp
-	gui/Plugins.cpp
 	gui/pxLogTextCtrl.cpp
 	gui/RecentIsoList.cpp
 	gui/Saveslots.cpp
+	gui/SysState.cpp
+	gui/UpdateUI.cpp
 	)
 
 # gui headers
@@ -349,6 +353,7 @@ set(pcsx2GuiHeaders
 	gui/ApplyState.h
 	gui/AppCommon.h
 	gui/AppConfig.h
+	gui/AppCorePlugins.h
 	gui/AppEventListeners.h
 	gui/AppForwardDefs.h
 	gui/ConsoleLogger.h
@@ -357,12 +362,13 @@ set(pcsx2GuiHeaders
 	gui/Dialogs/LogOptionsDialog.h
 	gui/Dialogs/ModalPopups.h
 	gui/i18n.h
-	gui/IniInterface.h
 	gui/IsoDropTarget.h
 	gui/MainFrame.h
+	gui/MemoryCardFile.h
 	gui/MSWstuff.h
 	gui/Panels/ConfigurationPanels.h
 	gui/Panels/LogOptionsPanels.h
+	gui/Panels/MemoryCardPanels.h
 	gui/RecentIsoList.h
 	)
 
@@ -440,6 +446,16 @@ set(pcsx2UtilitiesSources
 # Utilities headers
 set(pcsx2UtilitiesHeaders
 	Utilities/AsciiFile.h)
+
+# Zip tools utilies sources
+set(pcsx2ZipToolsSources
+    ZipTools/thread_gzip.cpp
+    ZipTools/thread_lzma.cpp)
+
+# Zip tools utilies headers
+set(pcsx2ZipToolsHeaders
+    ZipTools/ThreadedZipTools.h)
+
 
 # Windows sources
 set(pcsx2WindowsSources
@@ -572,6 +588,8 @@ set(Common
 	${pcsx2UtilitiesHeaders}
 	${pcsx2x86Sources}
 	${pcsx2x86Headers}
+	${pcsx2ZipToolsSources}
+	${pcsx2ZipToolsHeaders}
 	${pcsx2SSources})
 
 # platform sources
@@ -624,9 +642,12 @@ if(Linux)
 endif(Linux)
 
 # link target with zlib
-if(projectZLIB)
-	target_link_libraries(${pcsx2Name} zlib)
-else(projectZLIB)
-	target_link_libraries(${pcsx2Name} ${ZLIB_LIBRARIES})
-endif(projectZLIB)
+target_link_libraries(${pcsx2Name} ${ZLIB_LIBRARIES})
 
+# Force the linker into 32 bits mode
+target_link_libraries(${pcsx2Name} -m32)
+
+# Linker strip option
+if (CMAKE_BUILD_STRIP)
+    target_link_libraries(${pcsx2Name} -s)
+endif (CMAKE_BUILD_STRIP)

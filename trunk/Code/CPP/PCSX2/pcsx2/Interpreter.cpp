@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -19,6 +19,8 @@
 
 #include "R5900OpcodeTables.h"
 #include "System/SysThreads.h"
+
+#include "Elfheader.h"
 
 #include <float.h>
 
@@ -110,7 +112,7 @@ void __fastcall intDoBranch(u32 target)
 	}
 }
 
-void intSetBranch() 
+void intSetBranch()
 {
 	branch2 = /*cpuRegs.branch =*/ 1;
 }
@@ -133,15 +135,15 @@ namespace OpcodeImpl {
 *********************************************************/
 // fixme: looking at the other branching code, shouldn't those _SetLinks in BGEZAL and such only be set
 // if the condition is true? --arcum42
-	
-void J()   
+
+void J()
 {
 	doBranch(_JumpTarget_);
 }
 
-void JAL() 
+void JAL()
 {
-	_SetLink(31); 
+	_SetLink(31);
 	doBranch(_JumpTarget_);
 }
 
@@ -151,20 +153,20 @@ void JAL()
 *********************************************************/
 
 void BEQ()  // Branch if Rs == Rt
-{	
-	if (cpuRegs.GPR.r[_Rs_].SD[0] == cpuRegs.GPR.r[_Rt_].SD[0]) 
-		doBranch(_BranchTarget_); 
-	else 
+{
+	if (cpuRegs.GPR.r[_Rs_].SD[0] == cpuRegs.GPR.r[_Rt_].SD[0])
+		doBranch(_BranchTarget_);
+	else
 		intEventTest();
-} 
+}
 
 void BNE()  // Branch if Rs != Rt
-{	
-	if (cpuRegs.GPR.r[_Rs_].SD[0] != cpuRegs.GPR.r[_Rt_].SD[0]) 
-		doBranch(_BranchTarget_); 
-	else 
+{
+	if (cpuRegs.GPR.r[_Rs_].SD[0] != cpuRegs.GPR.r[_Rt_].SD[0])
+		doBranch(_BranchTarget_);
+	else
 		intEventTest();
-} 
+}
 
 /*********************************************************
 * Register branch logic                                  *
@@ -172,55 +174,55 @@ void BNE()  // Branch if Rs != Rt
 *********************************************************/
 
 void BGEZ()    // Branch if Rs >= 0
-{ 
-	if(cpuRegs.GPR.r[_Rs_].SD[0] >= 0) 
-	{ 
-		doBranch(_BranchTarget_); 
+{
+	if(cpuRegs.GPR.r[_Rs_].SD[0] >= 0)
+	{
+		doBranch(_BranchTarget_);
 	}
-}     
+}
 
 void BGEZAL() // Branch if Rs >= 0 and link
-{ 
-	
+{
+
 	if (cpuRegs.GPR.r[_Rs_].SD[0] >= 0)
-	{ 
-		_SetLink(31); 
-		doBranch(_BranchTarget_); 
+	{
+		_SetLink(31);
+		doBranch(_BranchTarget_);
 	}
-}  
+}
 
 void BGTZ()    // Branch if Rs >  0
-{ 
-	if (cpuRegs.GPR.r[_Rs_].SD[0] > 0) 
-	{ 
-		doBranch(_BranchTarget_); 
+{
+	if (cpuRegs.GPR.r[_Rs_].SD[0] > 0)
+	{
+		doBranch(_BranchTarget_);
 	}
-}      
+}
 
 void BLEZ()   // Branch if Rs <= 0
-{ 
-	if (cpuRegs.GPR.r[_Rs_].SD[0] <= 0) 
-	{ 
-		doBranch(_BranchTarget_); 
+{
+	if (cpuRegs.GPR.r[_Rs_].SD[0] <= 0)
+	{
+		doBranch(_BranchTarget_);
 	}
-}   
+}
 
 void BLTZ()    // Branch if Rs <  0
-{ 
-	if (cpuRegs.GPR.r[_Rs_].SD[0] < 0) 
-	{ 
-		doBranch(_BranchTarget_); 
+{
+	if (cpuRegs.GPR.r[_Rs_].SD[0] < 0)
+	{
+		doBranch(_BranchTarget_);
 	}
-}    
+}
 
 void BLTZAL()  // Branch if Rs <  0 and link
-{ 
-	if (cpuRegs.GPR.r[_Rs_].SD[0] < 0) 
-	{ 
-		_SetLink(31); 
-		doBranch(_BranchTarget_); 
+{
+	if (cpuRegs.GPR.r[_Rs_].SD[0] < 0)
+	{
+		_SetLink(31);
+		doBranch(_BranchTarget_);
 	}
-}  
+}
 
 /*********************************************************
 * Register branch logic  Likely                          *
@@ -229,110 +231,110 @@ void BLTZAL()  // Branch if Rs <  0 and link
 
 
 void BEQL()    // Branch if Rs == Rt
-{ 
-	if(cpuRegs.GPR.r[_Rs_].SD[0] == cpuRegs.GPR.r[_Rt_].SD[0]) 
-	{ 
-		doBranch(_BranchTarget_); 
-	} 
-	else 
-	{ 
-		cpuRegs.pc +=4; 
-		intEventTest(); 
-	}   
+{
+	if(cpuRegs.GPR.r[_Rs_].SD[0] == cpuRegs.GPR.r[_Rt_].SD[0])
+	{
+		doBranch(_BranchTarget_);
+	}
+	else
+	{
+		cpuRegs.pc +=4;
+		intEventTest();
+	}
 }
 
 void BNEL()     // Branch if Rs != Rt
-{  
-	if(cpuRegs.GPR.r[_Rs_].SD[0] != cpuRegs.GPR.r[_Rt_].SD[0]) 
-	{ 
-		doBranch(_BranchTarget_); 
-	} 
-	else 
-	{ 
-		cpuRegs.pc +=4; 
-		intEventTest(); 
-	}   
+{
+	if(cpuRegs.GPR.r[_Rs_].SD[0] != cpuRegs.GPR.r[_Rt_].SD[0])
+	{
+		doBranch(_BranchTarget_);
+	}
+	else
+	{
+		cpuRegs.pc +=4;
+		intEventTest();
+	}
 }
 
 void BLEZL()    // Branch if Rs <= 0
-{ 
-	if(cpuRegs.GPR.r[_Rs_].SD[0] <= 0) 
-	{ 
-		doBranch(_BranchTarget_); 
-	} 
-	else 
-	{ 
-		cpuRegs.pc +=4; 
+{
+	if(cpuRegs.GPR.r[_Rs_].SD[0] <= 0)
+	{
+		doBranch(_BranchTarget_);
+	}
+	else
+	{
+		cpuRegs.pc +=4;
 		intEventTest();
 	}
 }
 
 void BGTZL()     // Branch if Rs >  0
-{ 
-	if(cpuRegs.GPR.r[_Rs_].SD[0] > 0) 
-	{ 
-		doBranch(_BranchTarget_); 
-	} 
-	else 
-	{ 
-		cpuRegs.pc +=4; 
+{
+	if(cpuRegs.GPR.r[_Rs_].SD[0] > 0)
+	{
+		doBranch(_BranchTarget_);
+	}
+	else
+	{
+		cpuRegs.pc +=4;
 		intEventTest();
 	}
 }
 
 void BLTZL()     // Branch if Rs <  0
-{  
-	if(cpuRegs.GPR.r[_Rs_].SD[0] < 0) 
-	{ 
-		doBranch(_BranchTarget_); 
-	} 
-	else 
-	{ 
-		cpuRegs.pc +=4; 
+{
+	if(cpuRegs.GPR.r[_Rs_].SD[0] < 0)
+	{
+		doBranch(_BranchTarget_);
+	}
+	else
+	{
+		cpuRegs.pc +=4;
 		intEventTest();
 	}
 }
 
 void BGEZL()     // Branch if Rs >= 0
-{ 
-	if(cpuRegs.GPR.r[_Rs_].SD[0] >= 0) 
-	{ 
-		doBranch(_BranchTarget_); 
-	} 
-	else 
-	{ 
-		cpuRegs.pc +=4; 
+{
+	if(cpuRegs.GPR.r[_Rs_].SD[0] >= 0)
+	{
+		doBranch(_BranchTarget_);
+	}
+	else
+	{
+		cpuRegs.pc +=4;
 		intEventTest();
 	}
 }
 
 void BLTZALL()   // Branch if Rs <  0 and link
-{ 
-	
-	if(cpuRegs.GPR.r[_Rs_].SD[0] < 0) 
-	{ 
-		_SetLink(31); 
-		doBranch(_BranchTarget_); 
-	} 
-	else 
-	{ 
-		cpuRegs.pc +=4; 
-		intEventTest(); 
+{
+
+	if(cpuRegs.GPR.r[_Rs_].SD[0] < 0)
+	{
+		_SetLink(31);
+		doBranch(_BranchTarget_);
+	}
+	else
+	{
+		cpuRegs.pc +=4;
+		intEventTest();
 	}
 }
 
 void BGEZALL()   // Branch if Rs >= 0 and link
-{  
-	
-	if(cpuRegs.GPR.r[_Rs_].SD[0] >= 0) 
-	{ 
-		_SetLink(31); 
-		doBranch(_BranchTarget_); 
-	} 
-	else 
-	{ 
-		cpuRegs.pc +=4; 
-		intEventTest(); 
+{
+
+	if(cpuRegs.GPR.r[_Rs_].SD[0] >= 0)
+	{
+		_SetLink(31);
+		doBranch(_BranchTarget_);
+	}
+	else
+	{
+		cpuRegs.pc +=4;
+		intEventTest();
 	}
 }
 
@@ -340,17 +342,17 @@ void BGEZALL()   // Branch if Rs >= 0 and link
 * Register jump                                          *
 * Format:  OP rs, rd                                     *
 *********************************************************/
-void JR()  
-{ 
-	doBranch(cpuRegs.GPR.r[_Rs_].UL[0]); 
+void JR()
+{
+	doBranch(cpuRegs.GPR.r[_Rs_].UL[0]);
 }
 
 void JALR()
-{ 
+{
 	u32 temp = cpuRegs.GPR.r[_Rs_].UL[0];
-	
-	if (_Rd_)  _SetLink(_Rd_); 
-	
+
+	if (_Rd_)  _SetLink(_Rd_);
+
 	doBranch(temp);
 }
 
@@ -379,43 +381,23 @@ static void intExecute()
 {
 	g_EEFreezeRegs = false;
 
-	// Mem protection should be handled by the caller here so that it can be
-	// done in a more optimized fashion.
-
 	try {
-		while( true )
-			execI();
-	} catch( Exception::ExitCpuExecute& ) { }
-}
-
-static void intExecuteBiosStub()
-{
-	g_EEFreezeRegs = false;
-
-	// We need to be wary of events that could occur during vsyncs, which means
-	// making sure to exit this function for ExitCpuExecute.  The calling function
-	// will update UI status, and then re-enter if the bios stub execution criteria
-	// wasn't met yet.
-
-	try {
-		while( (cpuRegs.pc != 0x00200008) && (cpuRegs.pc != 0x00100008) ) {
-			execI();
+		if (g_SkipBiosHack) {
+			do
+				execI();
+			while (cpuRegs.pc != EELOAD_START);
+			eeloadReplaceOSDSYS();
+		}
+		if (ElfEntry != -1) {
+			do
+				execI();
+			while (cpuRegs.pc != ElfEntry);
+			eeGameStarting();
+		} else {
+			while (true)
+				execI();
 		}
 	} catch( Exception::ExitCpuExecute& ) { }
-
-	// ... some maual bios injection hack from a century ago, me thinks.  Leaving the
-	// code intact for posterity. --air
-
-	//    {
-	//        FILE* f = fopen("eebios.bin", "wb");
-	//        fwrite(PSM(0x80000000), 0x100000, 1, f);
-	//        fclose(f);
-	//        exit(0);
-
-	//        f = fopen("iopbios.bin", "wb");
-	//        fwrite(PS2MEM_PSX, 0x80000, 1, f);
-	//        fclose(f);
-	//    }
 }
 
 static void intCheckExecutionState()
@@ -445,7 +427,6 @@ R5900cpu intCpu =
 	intReset,
 	intStep,
 	intExecute,
-	intExecuteBiosStub,
 
 	intCheckExecutionState,
 	intClear,

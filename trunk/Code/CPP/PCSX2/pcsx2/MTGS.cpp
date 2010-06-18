@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -143,7 +143,7 @@ void SysMtgsThread::ResetGS()
 void SysMtgsThread::PostVsyncEnd()
 {
 	SendSimplePacket( GS_RINGTYPE_VSYNC, (*(u32*)(PS2MEM_GS+0x1000)&0x2000), 0, 0 );
-	
+
 	// Alter-frame flushing!  Restarts the ringbuffer (wraps) on every other frame.  This is a
 	// mandatory feature that prevents the MTGS from queuing more than 2 frames at any time.
 	// (queued frames cause input lag and desynced audio -- bad!).  Ring restarts work for this
@@ -191,17 +191,17 @@ void SysMtgsThread::OpenPlugin()
 	if( renderswitch )
 	{
 		Console.Indent(2).WriteLn( "Forced software switch enabled." );
-		if (EmuConfig.GS.VsyncEnable) 
+		if (EmuConfig.GS.VsyncEnable)
 		{
 			// Better turn Vsync off now, as in most cases sw rendering is not fast enough to support a steady 60fps.
 			// Having Vsync still enabled then means a big cut in speed and sloppy rendering.
-			// It's possible though that some users have very fast machines, and rather kept Vsync enabled, 
+			// It's possible though that some users have very fast machines, and rather kept Vsync enabled,
 			// but let's assume this is the minority. At least for now ;)
 			GSsetVsync( false );
 			Console.Indent(2).WriteLn( "Vsync temporarily disabled" );
 		}
 	}
-	else 
+	else
 	{
 		GSsetVsync( EmuConfig.GS.FrameLimitEnable && EmuConfig.GS.VsyncEnable );
 	}
@@ -251,7 +251,7 @@ public:
 	{
 		m_mtgs.m_RingBufferIsBusy = true;
 	}
-	
+
 	virtual ~RingBufferLock() throw()
 	{
 		m_mtgs.m_RingBufferIsBusy = false;
@@ -384,7 +384,7 @@ void SysMtgsThread::ExecuteTaskInThread()
 							MTGS_LOG( "(MTGS Packet Read) ringtype=Write8, addr=0x%08x, data=0x%02x", tag.data[0], (u8)tag.data[1] );
 							*(u8*)RingBuffer.Regs[tag.data[0]] = (u8)tag.data[1];
 						break;
-						
+
 						case GS_RINGTYPE_MEMWRITE16:
 							MTGS_LOG( "(MTGS Packet Read) ringtype=Write8, addr=0x%08x, data=0x%04x", tag.data[0], (u16)tag.data[1] );
 							*(u16*)(RingBuffer.Regs+tag.data[0]) = (u16)tag.data[1];
@@ -399,9 +399,9 @@ void SysMtgsThread::ExecuteTaskInThread()
 						{
 							MTGS_FreezeData* data = (MTGS_FreezeData*)(*(uptr*)&tag.data[1]);
 							int mode = tag.data[0];
-							data->retval = GetPluginManager().DoFreeze( PluginId_GS, mode, data->fdata );
-							break;
+							data->retval = GetCorePlugins().DoFreeze( PluginId_GS, mode, data->fdata );
 						}
+						break;
 
 						case GS_RINGTYPE_RECORD:
 						{
@@ -488,8 +488,7 @@ void SysMtgsThread::ClosePlugin()
 {
 	if( !m_PluginOpened ) return;
 	m_PluginOpened = false;
-	if( g_plugins != NULL )
-		g_plugins->m_info[PluginId_GS].CommonBindings.Close();
+	GetCorePlugins().Close( PluginId_GS );
 }
 
 void SysMtgsThread::OnSuspendInThread()
@@ -524,8 +523,11 @@ void SysMtgsThread::WaitGS()
 	if( volatize(m_RingPos) != m_WritePos )
 	{
 		SetEvent();
+		RethrowException();
+
 		do {
 			m_lock_RingBufferBusy.Wait();
+			RethrowException();
 		} while( volatize(m_RingPos) != m_WritePos );
 	}
 }
@@ -608,7 +610,7 @@ static u32 ringtx_inf_s[32];
 #endif
 
 // Returns the amount of giftag data processed (in simd128 values).
-// Return value is used by VU1's XGKICK instruction to wrap the data 
+// Return value is used by VU1's XGKICK instruction to wrap the data
 // around VU memory instead of having buffer overflow...
 // Parameters:
 //  size - size of the packet data, in smd128's
@@ -731,7 +733,7 @@ int SysMtgsThread::PrepDataPacket( GIF_PATH pathidx, const u8* srcdata, u32 size
 	else if( writepos + size > RingBufferSize )
 	{
 		pxAssert( writepos != 0 );
-	
+
 		// If the incoming packet doesn't fit, then start over from the start of the ring
 		// buffer (it's a lot easier than trying to wrap the packet around the end of the
 		// buffer).
@@ -784,7 +786,7 @@ int SysMtgsThread::PrepDataPacket( GIF_PATH pathidx, const u8* srcdata, u32 size
 				} while( (writepos < readpos) || (readpos==0) );
 			}
 		}
-		
+
 		m_QueuedFrameCount = 0;
 		m_RingWrapSpot = RingBufferSize;
     }
@@ -825,7 +827,7 @@ void SysMtgsThread::RestartRingbuffer( uint packsize )
 		// beginning of the buffer, and past the size of our packet allocation.
 
 		uint somedone;
-		
+
 		if( readpos > m_WritePos )
 			somedone = (m_RingWrapSpot - readpos) + packsize + 1;
 		else
@@ -998,7 +1000,7 @@ void SysMtgsThread::WaitForOpen()
 
 void SysMtgsThread::Freeze( int mode, MTGS_FreezeData& data )
 {
-	GetPluginManager().Open( PluginId_GS );
+	GetCorePlugins().Open( PluginId_GS );
 	SendPointerPacket( GS_RINGTYPE_FREEZE, mode, &data );
 	Resume();
 	WaitGS();

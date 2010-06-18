@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -16,319 +16,546 @@
 
 #include "PrecompiledHeader.h"
 #include "IopCommon.h"
+#include "R5900.h" // for g_GameStarted
 
 #include <ctype.h>
+#include <string.h>
+
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
 
 namespace R3000A {
 
-const char *biosA0n[256] = {
-// 0x00
-	"open",		"lseek",	"read",		"write",
-	"close",	"ioctl",	"exit",		"sys_a0_07",
-	"getc",		"putc",		"todigit",	"atof",
-	"strtoul",	"strtol",	"abs",		"labs",
-// 0x10
-	"atoi",		"atol",		"atob",		"setjmp",
-	"longjmp",	"strcat",	"strncat",	"strcmp",
-	"strncmp",	"strcpy",	"strncpy",	"strlen",
-	"index",	"rindex",	"strchr",	"strrchr",
-// 0x20
-	"strpbrk",	"strspn",	"strcspn",	"strtok",
-	"strstr",	"toupper",	"tolower",	"bcopy",
-	"bzero",	"bcmp",		"memcpy",	"memset",
-	"memmove",	"memcmp",	"memchr",	"rand",
-// 0x30
-	"srand",	"qsort",	"strtod",	"malloc",
-	"free",		"lsearch",	"bsearch",	"calloc",
-	"realloc",	"InitHeap",	"_exit",	"getchar",
-	"putchar",	"gets",		"puts",		"printf",
-// 0x40
-	"sys_a0_40",		"LoadTest",					"Load",		"Exec",
-	"FlushCache",		"InstallInterruptHandler",	"GPU_dw",	"mem2vram",
-	"SendGPUStatus",	"GPU_cw",					"GPU_cwb",	"SendPackets",
-	"sys_a0_4c",		"GetGPUStatus",				"GPU_sync",	"sys_a0_4f",
-// 0x50
-	"sys_a0_50",		"LoadExec",				"GetSysSp",		"sys_a0_53",
-	"_96_init()",		"_bu_init()",			"_96_remove()",	"sys_a0_57",
-	"sys_a0_58",		"sys_a0_59",			"sys_a0_5a",	"dev_tty_init",
-	"dev_tty_open",		"sys_a0_5d",			"dev_tty_ioctl","dev_cd_open",
-// 0x60
-	"dev_cd_read",		"dev_cd_close",			"dev_cd_firstfile",	"dev_cd_nextfile",
-	"dev_cd_chdir",		"dev_card_open",		"dev_card_read",	"dev_card_write",
-	"dev_card_close",	"dev_card_firstfile",	"dev_card_nextfile","dev_card_erase",
-	"dev_card_undelete","dev_card_format",		"dev_card_rename",	"dev_card_6f",
-// 0x70
-	"_bu_init",			"_96_init",		"_96_remove",		"sys_a0_73",
-	"sys_a0_74",		"sys_a0_75",	"sys_a0_76",		"sys_a0_77",
-	"_96_CdSeekL",		"sys_a0_79",	"sys_a0_7a",		"sys_a0_7b",
-	"_96_CdGetStatus",	"sys_a0_7d",	"_96_CdRead",		"sys_a0_7f",
-// 0x80
-	"sys_a0_80",		"sys_a0_81",	"sys_a0_82",		"sys_a0_83",
-	"sys_a0_84",		"_96_CdStop",	"sys_a0_86",		"sys_a0_87",
-	"sys_a0_88",		"sys_a0_89",	"sys_a0_8a",		"sys_a0_8b",
-	"sys_a0_8c",		"sys_a0_8d",	"sys_a0_8e",		"sys_a0_8f",
-// 0x90
-	"sys_a0_90",		"sys_a0_91",	"sys_a0_92",		"sys_a0_93",
-	"sys_a0_94",		"sys_a0_95",	"AddCDROMDevice",	"AddMemCardDevide",
-	"DisableKernelIORedirection",		"EnableKernelIORedirection", "sys_a0_9a", "sys_a0_9b",
-	"SetConf",			"GetConf",		"sys_a0_9e",		"SetMem",
-// 0xa0
-	"_boot",			"SystemError",	"EnqueueCdIntr",	"DequeueCdIntr",
-	"sys_a0_a4",		"ReadSector",	"get_cd_status",	"bufs_cb_0",
-	"bufs_cb_1",		"bufs_cb_2",	"bufs_cb_3",		"_card_info",
-	"_card_load",		"_card_auto",	"bufs_cd_4",		"sys_a0_af",
-// 0xb0
-	"sys_a0_b0",		"sys_a0_b1",	"do_a_long_jmp",	"sys_a0_b3",
-	"?? sub_function",
-};
-
-const char *biosB0n[256] = {
-// 0x00
-	"SysMalloc",		"sys_b0_01",	"sys_b0_02",	"sys_b0_03",
-	"sys_b0_04",		"sys_b0_05",	"sys_b0_06",	"DeliverEvent",
-	"OpenEvent",		"CloseEvent",	"WaitEvent",	"TestEvent",
-	"EnableEvent",		"DisableEvent",	"OpenTh",		"CloseTh",
-// 0x10
-	"ChangeTh",			"sys_b0_11",	"InitPAD",		"StartPAD",
-	"StopPAD",			"PAD_init",		"PAD_dr",		"ReturnFromExecption",
-	"ResetEntryInt",	"HookEntryInt",	"sys_b0_1a",	"sys_b0_1b",
-	"sys_b0_1c",		"sys_b0_1d",	"sys_b0_1e",	"sys_b0_1f",
-// 0x20
-	"UnDeliverEvent",	"sys_b0_21",	"sys_b0_22",	"sys_b0_23",
-	"sys_b0_24",		"sys_b0_25",	"sys_b0_26",	"sys_b0_27",
-	"sys_b0_28",		"sys_b0_29",	"sys_b0_2a",	"sys_b0_2b",
-	"sys_b0_2c",		"sys_b0_2d",	"sys_b0_2e",	"sys_b0_2f",
-// 0x30
-	"sys_b0_30",		"sys_b0_31",	"open",			"lseek",
-	"read",				"write",		"close",		"ioctl",
-	"exit",				"sys_b0_39",	"getc",			"putc",
-	"getchar",			"putchar",		"gets",			"puts",
-// 0x40
-	"cd",				"format",		"firstfile",	"nextfile",
-	"rename",			"delete",		"undelete",		"AddDevice",
-	"RemoteDevice",		"PrintInstalledDevices", "InitCARD", "StartCARD",
-	"StopCARD",			"sys_b0_4d",	"_card_write",	"_card_read",
-// 0x50
-	"_new_card",		"Krom2RawAdd",	"sys_b0_52",	"sys_b0_53",
-	"_get_errno",		"_get_error",	"GetC0Table",	"GetB0Table",
-	"_card_chan",		"sys_b0_59",	"sys_b0_5a",	"ChangeClearPAD",
-	"_card_status",		"_card_wait",
-};
-
-const char *biosC0n[256] = {
-// 0x00
-	"InitRCnt",			  "InitException",		"SysEnqIntRP",		"SysDeqIntRP",
-	"get_free_EvCB_slot", "get_free_TCB_slot",	"ExceptionHandler",	"InstallExeptionHandler",
-	"SysInitMemory",	  "SysInitKMem",		"ChangeClearRCnt",	"SystemError",
-	"InitDefInt",		  "sys_c0_0d",			"sys_c0_0e",		"sys_c0_0f",
-// 0x10
-	"sys_c0_10",		  "sys_c0_11",			"InstallDevices",	"FlushStfInOutPut",
-	"sys_c0_14",		  "_cdevinput",			"_cdevscan",		"_circgetc",
-	"_circputc",		  "ioabort",			"sys_c0_1a",		"KernelRedirect",
-	"PatchAOTable",
-};
-
-//#define r0 (psxRegs.GPR.n.r0)
-#define at (psxRegs.GPR.n.at)
 #define v0 (psxRegs.GPR.n.v0)
-#define v1 (psxRegs.GPR.n.v1)
 #define a0 (psxRegs.GPR.n.a0)
 #define a1 (psxRegs.GPR.n.a1)
 #define a2 (psxRegs.GPR.n.a2)
 #define a3 (psxRegs.GPR.n.a3)
-#define t0 (psxRegs.GPR.n.t0)
-#define t1 (psxRegs.GPR.n.t1)
-#define t2 (psxRegs.GPR.n.t2)
-#define t3 (psxRegs.GPR.n.t3)
-#define t4 (psxRegs.GPR.n.t4)
-#define t5 (psxRegs.GPR.n.t5)
-#define t6 (psxRegs.GPR.n.t6)
-#define t7 (psxRegs.GPR.n.t7)
-#define s0 (psxRegs.GPR.n.s0)
-#define s1 (psxRegs.GPR.n.s1)
-#define s2 (psxRegs.GPR.n.s2)
-#define s3 (psxRegs.GPR.n.s3)
-#define s4 (psxRegs.GPR.n.s4)
-#define s5 (psxRegs.GPR.n.s5)
-#define s6 (psxRegs.GPR.n.s6)
-#define s7 (psxRegs.GPR.n.s7)
-#define t8 (psxRegs.GPR.n.t6)
-#define t9 (psxRegs.GPR.n.t7)
-#define k0 (psxRegs.GPR.n.k0)
-#define k1 (psxRegs.GPR.n.k1)
-#define gp (psxRegs.GPR.n.gp)
 #define sp (psxRegs.GPR.n.sp)
-#define fp (psxRegs.GPR.n.s8)
 #define ra (psxRegs.GPR.n.ra)
-#define pc0 (psxRegs.pc)
+#define pc (psxRegs.pc)
 
 #define Ra0 (iopVirtMemR<char>(a0))
 #define Ra1 (iopVirtMemR<char>(a1))
 #define Ra2 (iopVirtMemR<char>(a2))
 #define Ra3 (iopVirtMemR<char>(a3))
-#define Rv0 (iopVirtMemR<char>(v0))
-#define Rsp (iopVirtMemR<char>(sp))
 
-void bios_write()  // 0x35/0x03
+// TODO: sandbox option, other permissions
+class HostFile : public IOManFile
 {
-	if (a0 == 1)  // stdout
+public:
+	int fd;
+
+	HostFile(int hostfd)
 	{
-		const char *ptr = Ra1;
-		Console.Write( ConColor_IOP, L"%s", ShiftJIS_ConvertString(ptr, a2).c_str() );
+		fd = hostfd;
 	}
-	else
+
+	static __forceinline int translate_error(int err)
 	{
-		PSXBIOS_LOG("bios_%s: %x,%x,%x", biosB0n[0x35], a0, a1, a2);
+		if (err >= 0)
+			return err;
 
-		v0 = -1;
-	}
-	pc0 = ra;
-}
-
-void bios_printf() // 3f
-{
-	char tmp[1024], tmp2[1024];
-	u32 save[4];
-	char *ptmp = tmp;
-	int n=1, i=0, j = 0;
-
-	memcpy(save, iopVirtMemR<void>(sp), 4*4);
-
-	iopMemWrite32(sp, a0);
-	iopMemWrite32(sp + 4, a1);
-	iopMemWrite32(sp + 8, a2);
-	iopMemWrite32(sp + 12, a3);
-
-	// old code used phys... is iopMemRead32 more correct?
-	//psxMu32(sp) = a0;
-	//psxMu32(sp + 4) = a1;
-	//psxMu32(sp + 8) = a2;
-	//psxMu32(sp + 12) = a3;+
-
-	while (Ra0[i]) 
-	{
-		switch (Ra0[i]) 
+		switch(err)
 		{
-			case '%':
-				j = 0;
-				tmp2[j++] = '%';
-			
-_start:
-				switch (Ra0[++i]) 
-				{
-					case '.':
-					case 'l':
-						tmp2[j++] = Ra0[i]; 
-						goto _start;
-					default:
-						if (Ra0[i] >= '0' && Ra0[i] <= '9') 
-						{
-							tmp2[j++] = Ra0[i];
-							goto _start;
-						}
-						break;
-				}
-				
-				tmp2[j++] = Ra0[i];
-				tmp2[j] = 0;
-
-				switch (Ra0[i]) 
-				{
-					case 'f': case 'F':
-						ptmp+= sprintf(ptmp, tmp2, (float)iopMemRead32(sp + n * 4));
-						n++; 
-						break;
-					
-					case 'a': case 'A':
-					case 'e': case 'E':
-					case 'g': case 'G':
-						ptmp+= sprintf(ptmp, tmp2, (double)iopMemRead32(sp + n * 4)); 
-						n++;
-						break;
-					
-					case 'p':
-					case 'i':
-					case 'd': case 'D':
-					case 'o': case 'O':
-					case 'x': case 'X':
-						ptmp+= sprintf(ptmp, tmp2, (u32)iopMemRead32(sp + n * 4)); 
-						n++; 
-						break;
-					
-					case 'c':
-						ptmp+= sprintf(ptmp, tmp2, (u8)iopMemRead32(sp + n * 4)); 
-						n++; 
-						break;
-					
-					case 's':
-						ptmp+= sprintf(ptmp, tmp2, iopVirtMemR<char>(iopMemRead32(sp + n * 4)));
-						n++; 
-						break;
-					
-					case '%':
-						*ptmp++ = Ra0[i];
-						break;
-					
-					default:
-						break;
-				}
-				i++;
-				break;
-				
+			case -ENOENT:
+				return -IOP_ENOENT;
+			case -EACCES:
+				return -IOP_EACCES;
+			case -EISDIR:
+				return -IOP_EISDIR;
+			case -EIO:
 			default:
-				*ptmp++ = Ra0[i++];
-				break;
+				return -IOP_EIO;
 		}
 	}
-	*ptmp = 0;
 
-	// Use Read to obtain a write pointer here, since we're just writing back the 
-	// temp buffer we saved earlier.
-	memcpy( (void*)iopVirtMemR<void>(sp), save, 4*4);
-	
-	// Use "%s" even though it seems indirect: this avoids chaos if/when the IOP decides
-	// to feed us strings that contain percentages or other printf formatting control chars.
-	Console.Write( ConColor_IOP, L"%s", ShiftJIS_ConvertString(tmp).c_str(), 1023 );
-	pc0 = ra;
-}
-
-void bios_putchar ()  // 3d
-{
-	// FIXME?  How would we properly handle Shift-JIS here?  Or is it even needed?
-    Console.Write( ConColor_IOP, "%c", a0 );
-    pc0 = ra;
-}
-
-void bios_puts ()  // 3e/3f
-{
-    Console.Write( ConColor_IOP, L"%s", ShiftJIS_ConvertString(Ra0).c_str() );
-    pc0 = ra;
-}
-
-void (*biosA0[256])();
-void (*biosB0[256])();
-void (*biosC0[256])();
-
-void psxBiosInit() 
-{
-	int i;
-
-	for(i = 0; i < 256; i++) 
+	static int open(IOManFile **file, const char *name, s32 flags, u16 mode)
 	{
-		biosA0[i] = NULL;
-		biosB0[i] = NULL;
-		biosC0[i] = NULL;
+		const char *path = strchr(name, ':') + 1;
+
+		if (flags != IOP_O_RDONLY)
+			return -IOP_EROFS;
+
+		int hostfd = ::open(path, O_BINARY | O_RDONLY);
+		if (hostfd < 0)
+			return translate_error(hostfd);
+
+		*file = new HostFile(hostfd);
+		if (!*file)
+			return -IOP_ENOMEM;
+
+		return 0;
 	}
-	biosA0[0x3e] = bios_puts;
-	biosA0[0x3f] = bios_printf;
 
-	biosB0[0x3d] = bios_putchar;
-	biosB0[0x3f] = bios_puts;
+	virtual void close()
+	{
+		::close(fd);
+		delete this;
+	}
 
+	virtual int lseek(s32 offset, s32 whence)
+	{
+		int err;
+
+		switch (whence)
+		{
+			case IOP_SEEK_SET:
+				err = ::lseek(fd, offset, SEEK_SET);
+				break;
+			case IOP_SEEK_CUR:
+				err = ::lseek(fd, offset, SEEK_CUR);
+				break;
+			case IOP_SEEK_END:
+				err = ::lseek(fd, offset, SEEK_END);
+				break;
+			default:
+				return -IOP_EIO;
+		}
+
+		return translate_error(err);
+	}
+
+	virtual int read(void *buf, u32 count)
+	{
+		return translate_error(::read(fd, buf, count));
+	}
+};
+
+namespace ioman {
+	const int firstfd = 0x100;
+	const int maxfds = 0x100;
+	int openfds = 0;
+
+	int freefdcount()
+	{
+		return maxfds - openfds;
+	}
+
+	struct filedesc
+	{
+		enum {
+			FILE_FREE,
+			FILE_FILE,
+			FILE_DIR,
+		} type;
+		union {
+			IOManFile *file;
+			IOManDir *dir;
+		};
+
+		operator bool() const { return type != FILE_FREE; }
+		operator IOManFile*() const { return type == FILE_FILE ? file : NULL; }
+		operator IOManDir*() const { return type == FILE_DIR ? dir : NULL; }
+		void operator=(IOManFile *f) { type = FILE_FILE; file = f; openfds++; }
+		void operator=(IOManDir *d) { type = FILE_DIR; dir = d; openfds++; }
+
+		void close()
+		{
+			if (type == FILE_FREE)
+				return;
+
+			switch (type)
+			{
+				case FILE_FILE:
+					file->close();
+					file = NULL;
+					break;
+				case FILE_DIR:
+					dir->close();
+					dir = NULL;
+					break;
+			}
+
+			type = FILE_FREE;
+			openfds--;
+		}
+	};
+
+	filedesc fds[maxfds];
+
+	template<typename T>
+	T* getfd(int fd)
+	{
+		fd -= firstfd;
+
+		if (fd < 0 || fd >= maxfds)
+			return NULL;
+
+		return fds[fd];
+	}
+
+	template <typename T>
+	int allocfd(T *obj)
+	{
+		for (int i = 0; i < maxfds; i++)
+		{
+			if (!fds[i])
+			{
+				fds[i] = obj;
+				return firstfd + i;
+			}
+		}
+
+		obj->close();
+		return -IOP_EMFILE;
+	}
+
+	void freefd(int fd)
+	{
+		fd -= firstfd;
+
+		if (fd < 0 || fd >= maxfds)
+			return;
+
+		fds[fd].close();
+	}
+
+	void reset()
+	{
+		for (int i = 0; i < maxfds; i++)
+			fds[i].close();
+	}
+
+	int open_HLE()
+	{
+		IOManFile *file = NULL;
+		const char *name = Ra0;
+		s32 flags = a1;
+		u16 mode = a2;
+
+		if ((!g_GameStarted || EmuConfig.HostFs)
+			&& !strncmp(name, "host", 4) && name[4 + strspn(name + 4, "0123456789")] == ':')
+		{
+			if (!freefdcount())
+			{
+				v0 = -IOP_EMFILE;
+				pc = ra;
+				return 1;
+			}
+
+			int err = HostFile::open(&file, name, flags, mode);
+
+			if (err != 0 || !file)
+			{
+				if (err == 0) // ???
+					err = -IOP_EIO;
+				if (file) // ??????
+					file->close();
+				v0 = err;
+			}
+			else
+			{
+				v0 = allocfd(file);
+				if ((s32)v0 < 0)
+					file->close();
+			}
+
+			pc = ra;
+			return 1;
+		}
+
+		return 0;
+	}
+
+	int close_HLE()
+	{
+		s32 fd = a0;
+
+		if (getfd<IOManFile>(fd))
+		{
+			freefd(fd);
+			v0 = 0;
+			pc = ra;
+			return 1;
+		}
+
+		return 0;
+	}
+
+	int lseek_HLE()
+	{
+		s32 fd = a0;
+		s32 offset = a1;
+		s32 whence = a2;
+
+		if (IOManFile *file = getfd<IOManFile>(fd))
+		{
+			v0 = file->lseek(offset, whence);
+			pc = ra;
+			return 1;
+		}
+
+		return 0;
+	}
+
+	int read_HLE()
+	{
+		s32 fd = a0;
+		u32 buf = a1;
+		u32 count = a2;
+
+		if (IOManFile *file = getfd<IOManFile>(fd))
+		{
+			if (!iopVirtMemR<void>(buf))
+				return 0;
+
+			v0 = file->read(iopVirtMemW<void>(buf), count);
+			pc = ra;
+			return 1;
+		}
+
+		return 0;
+	}
+
+	int write_HLE()
+	{
+		int fd = a0;
+
+#ifdef PCSX2_DEVBUILD
+		if (fd == 1) // stdout
+		{
+			Console.Write(ConColor_IOP, L"%s", ShiftJIS_ConvertString(Ra1, a2).c_str());
+			pc = ra;
+			v0 = a2;
+			return 1;
+		}
+#endif
+
+		return 0;
+	}
 }
 
-void psxBiosShutdown() 
+namespace sysmem {
+	int Kprintf_HLE()
+	{
+		char tmp[1024], tmp2[1024];
+		char *ptmp = tmp;
+		int n=1, i=0, j = 0;
+
+		iopMemWrite32(sp, a0);
+		iopMemWrite32(sp + 4, a1);
+		iopMemWrite32(sp + 8, a2);
+		iopMemWrite32(sp + 12, a3);
+
+		while (Ra0[i])
+		{
+			switch (Ra0[i])
+			{
+				case '%':
+					j = 0;
+					tmp2[j++] = '%';
+_start:
+					switch (Ra0[++i])
+					{
+						case '.':
+						case 'l':
+							tmp2[j++] = Ra0[i];
+							goto _start;
+						default:
+							if (Ra0[i] >= '0' && Ra0[i] <= '9')
+							{
+								tmp2[j++] = Ra0[i];
+								goto _start;
+							}
+							break;
+					}
+
+					tmp2[j++] = Ra0[i];
+					tmp2[j] = 0;
+
+					switch (Ra0[i])
+					{
+						case 'f': case 'F':
+							ptmp+= sprintf(ptmp, tmp2, (float)iopMemRead32(sp + n * 4));
+							n++;
+							break;
+
+						case 'a': case 'A':
+						case 'e': case 'E':
+						case 'g': case 'G':
+							ptmp+= sprintf(ptmp, tmp2, (double)iopMemRead32(sp + n * 4));
+							n++;
+							break;
+
+						case 'p':
+						case 'i':
+						case 'd': case 'D':
+						case 'o': case 'O':
+						case 'x': case 'X':
+							ptmp+= sprintf(ptmp, tmp2, (u32)iopMemRead32(sp + n * 4));
+							n++;
+							break;
+
+						case 'c':
+							ptmp+= sprintf(ptmp, tmp2, (u8)iopMemRead32(sp + n * 4));
+							n++;
+							break;
+
+						case 's':
+							ptmp+= sprintf(ptmp, tmp2, iopVirtMemR<char>(iopMemRead32(sp + n * 4)));
+							n++;
+							break;
+
+						case '%':
+							*ptmp++ = Ra0[i];
+							break;
+
+						default:
+							break;
+					}
+					i++;
+					break;
+
+				default:
+					*ptmp++ = Ra0[i++];
+					break;
+			}
+		}
+		*ptmp = 0;
+
+		// Use "%s" even though it seems indirect: this avoids chaos if/when the IOP decides
+		// to feed us strings that contain percentages or other printf formatting control chars.
+		Console.Write( ConColor_IOP, L"%s", ShiftJIS_ConvertString(tmp).c_str(), 1023 );
+		
+		pc = ra;
+		return 1;
+	}
+}
+
+namespace loadcore {
+	void RegisterLibraryEntries_DEBUG()
+	{
+		DbgCon.WriteLn(Color_Gray, "RegisterLibraryEntries: %8.8s", iopVirtMemR<char>(a0 + 12));
+	}
+}
+
+namespace intrman {
+	static const char* intrname[] = {
+		"INT_VBLANK",   "INT_GM",       "INT_CDROM",   "INT_DMA",		//00
+		"INT_RTC0",     "INT_RTC1",     "INT_RTC2",    "INT_SIO0",		//04
+		"INT_SIO1",     "INT_SPU",      "INT_PIO",     "INT_EVBLANK",	//08
+		"INT_DVD",      "INT_PCMCIA",   "INT_RTC3",    "INT_RTC4",		//0C
+		"INT_RTC5",     "INT_SIO2",     "INT_HTR0",    "INT_HTR1",		//10
+		"INT_HTR2",     "INT_HTR3",     "INT_USB",     "INT_EXTR",		//14
+		"INT_FWRE",     "INT_FDMA",     "INT_1A",      "INT_1B",		//18
+		"INT_1C",       "INT_1D",       "INT_1E",      "INT_1F",		//1C
+		"INT_dmaMDECi", "INT_dmaMDECo", "INT_dmaGPU",  "INT_dmaCD",		//20
+		"INT_dmaSPU",   "INT_dmaPIO",   "INT_dmaOTC",  "INT_dmaBERR",	//24
+		"INT_dmaSPU2",  "INT_dma8",     "INT_dmaSIF0", "INT_dmaSIF1",	//28
+		"INT_dmaSIO2i", "INT_dmaSIO2o", "INT_2E",      "INT_2F",		//2C
+		"INT_30",       "INT_31",       "INT_32",      "INT_33",		//30
+		"INT_34",       "INT_35",       "INT_36",      "INT_37",		//34
+		"INT_38",       "INT_39",       "INT_3A",      "INT_3B",		//38
+		"INT_3C",       "INT_3D",       "INT_3E",      "INT_3F",		//3C
+		"INT_MAX"														//40
+	};
+
+	void RegisterIntrHandler_DEBUG()
+	{
+		DbgCon.WriteLn(Color_Gray, "RegisterIntrHandler: intr %s, handler %x", intrname[a0], a2);
+	}
+}
+
+namespace sifcmd {
+	void sceSifRegisterRpc_DEBUG()
+	{
+		DbgCon.WriteLn( Color_Gray, "sifcmd sceSifRegisterRpc: rpc_id %x", a1);
+	}
+}
+
+const char* irxImportLibname(u32 entrypc)
 {
+	u32 i;
+
+	i = entrypc;
+	while (iopMemRead32(i -= 4) != 0x41e00000) // documented magic number
+		;
+
+	return iopVirtMemR<char>(i + 12);
+}
+
+const char* irxImportFuncname(const char libname[8], u16 index)
+{
+	#include "IopModuleNames.cpp"
+
+	switch (index) {
+		case 0: return "start";
+		// case 1: reinit?
+		case 2: return "shutdown";
+		// case 3: ???
+	}
+
+	return 0;
+}
+
+#define MODULE(n) if (!strncmp(libname, #n, 8)) { using namespace n; switch (index) {
+#define END_MODULE }}
+#define EXPORT_D(i, n) case (i): return n ## _DEBUG;
+#define EXPORT_H(i, n) case (i): return n ## _HLE;
+
+irxHLE irxImportHLE(const char libname[8], u16 index)
+{
+#ifdef PCSX2_DEVBUILD
+	// debugging output
+	MODULE(sysmem)
+		EXPORT_H( 14, Kprintf)
+	END_MODULE
+#endif
+	MODULE(ioman)
+		EXPORT_H(  4, open)
+		EXPORT_H(  5, close)
+		EXPORT_H(  6, read)
+		EXPORT_H(  7, write)
+		EXPORT_H(  8, lseek)
+	END_MODULE
+
+	return 0;
+}
+
+irxDEBUG irxImportDebug(const char libname[8], u16 index)
+{
+	MODULE(loadcore)
+		EXPORT_D(  6, RegisterLibraryEntries)
+	END_MODULE
+	MODULE(intrman)
+		EXPORT_D(  4, RegisterIntrHandler)
+	END_MODULE
+	MODULE(sifcmd)
+		EXPORT_D( 17, sceSifRegisterRpc)
+	END_MODULE
+
+	return 0;
+}
+
+#undef MODULE
+#undef END_MODULE
+#undef EXPORT_D
+#undef EXPORT_H
+
+void __fastcall irxImportLog(const char libname[8], u16 index, const char *funcname)
+{
+	PSXBIOS_LOG("%8.8s.%03d: %s (%x, %x, %x, %x)",
+		libname, index, funcname ? funcname : "unknown",
+		a0, a1, a2, a3);
+}
+
+int __fastcall irxImportExec(const char libname[8], u16 index)
+{
+	const char *funcname = irxImportFuncname(libname, index);
+	irxHLE hle = irxImportHLE(libname, index);
+	irxDEBUG debug = irxImportDebug(libname, index);
+
+	irxImportLog(libname, index, funcname);
+
+	if (debug)
+		debug();
+	
+	if (hle)
+		return hle();
+	else
+		return 0;
 }
 
 }	// end namespace R3000A

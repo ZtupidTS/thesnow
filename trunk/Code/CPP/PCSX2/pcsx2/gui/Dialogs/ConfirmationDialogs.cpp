@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -36,14 +36,21 @@ bool MsgButtons::Allows( wxWindowID id ) const
 
 		case wxID_ABORT:	return HasAbort();
 		case wxID_RETRY:	return HasRetry();
-		
+
 		// [TODO] : maybe add in an Ignore All?
 		case wxID_IGNORE:	return HasIgnore();
+		
+		case wxID_RESET:	return HasReset();
+		case wxID_CLOSE:	return HasClose();
 	}
+
+	if (id <= wxID_LOWEST)
+		return HasCustom();
+
 	return false;
 }
 
-static wxString ResultToString( int result )
+static wxString ResultToString( int result, const MsgButtons& buttons )
 {
 	switch( result )
 	{
@@ -60,8 +67,14 @@ static wxString ResultToString( int result )
 
 			// [TODO] : maybe add in an Ignore All?
 		case wxID_IGNORE:	return L"ºöÂÔ";
+
+		case wxID_RESET:	return L"reset";
+		case wxID_CLOSE:	return L"close";
 	}
-	
+
+	if (result <= wxID_LOWEST)
+		return buttons.GetCustomLabel();
+
 	return wxEmptyString;
 }
 
@@ -74,17 +87,20 @@ static wxWindowID ParseThatResult( const wxString& src, const MsgButtons& validT
 		wxID_OK,		wxID_CANCEL,	wxID_APPLY,
 		wxID_YES,		wxID_NO,
 		wxID_YESTOALL,	wxID_NOTOALL,
-		
+
 		wxID_ABORT,		wxID_RETRY,		wxID_IGNORE,
+
+		wxID_RESET,
+		wxID_ANY,
 	};
 
 	for( int i=0; i<ArraySize( retvals ); ++i )
 	{
-		if( (validTypes.Allows( retvals[i] )) && (src == ResultToString(retvals[i])) )
+		if( (validTypes.Allows( retvals[i] )) && (src == ResultToString(retvals[i], validTypes)) )
 			return retvals[i];
 	}
-	
-	return wxID_ANY;
+
+	return wxID_NONE;
 }
 
 static bool pxTrySetFocus( wxWindow& parent, wxWindowID id )
@@ -110,11 +126,11 @@ void MsgButtons::SetBestFocus( wxWindow& dialog ) const
 	if( HasNo()			&& pxTrySetFocus( dialog, wxID_NO ) ) return;
 	if( HasClose()		&& pxTrySetFocus( dialog, wxID_CLOSE ) ) return;
 	if( HasRetry()		&& pxTrySetFocus( dialog, wxID_RETRY ) ) return;
-	
+
 	// Other confirmational types of buttons must be explicitly focused by the user or
 	// by an implementing dialog.  We won't do it here implicitly because accidental
 	// "on focus" typed keys could invoke really unwanted actions.
-	
+
 	// (typically close/ok/retry/etc. aren't so bad that accidental clicking does terrible things)
 }
 
@@ -127,6 +143,8 @@ void MsgButtons::SetBestFocus( wxWindow* dialog ) const
 
 wxWindowID pxIssueConfirmation( wxDialogWithHelpers& confirmDlg, const MsgButtons& buttons )
 {
+	if( confirmDlg.GetMinWidth() <= 0 ) confirmDlg.SetMinWidth( 400 );
+
 	confirmDlg += new ModalButtonPanel( &confirmDlg, buttons ) | pxCenter.Border( wxTOP, 8 );
 	buttons.SetBestFocus( confirmDlg );
 	return confirmDlg.ShowModal();
@@ -137,12 +155,12 @@ wxWindowID pxIssueConfirmation( wxDialogWithHelpers& confirmDlg, const MsgButton
 {
 	wxConfigBase* cfg = GetAppConfig();
 
-	if( cfg != NULL ) 
+	if( cfg != NULL )
 	{
 		cfg->SetPath( L"/PopupDisablers" );
 		bool recdef = cfg->IsRecordingDefaults();
 		cfg->SetRecordDefaults( false );
-		
+
 		wxString result = cfg->Read( disablerKey, L"enabled" );
 
 		cfg->SetRecordDefaults( recdef );
@@ -152,7 +170,7 @@ wxWindowID pxIssueConfirmation( wxDialogWithHelpers& confirmDlg, const MsgButton
 		wxArrayString split;
 		SplitString( split, result, L"," );
 
-		// if only one param (no comma!?) then assume the entry is invalid and force a 
+		// if only one param (no comma!?) then assume the entry is invalid and force a
 		// re-display of the dialog.
 
 		if( split.Count() > 1 )
@@ -188,7 +206,7 @@ wxWindowID pxIssueConfirmation( wxDialogWithHelpers& confirmDlg, const MsgButton
 
 	if( cfg != NULL )
 	{
-		wxString cfgResult = ResultToString( modalResult );
+		wxString cfgResult = ResultToString( modalResult, buttons );
 		if( DisablerCtrl->IsChecked() && !cfgResult.IsEmpty() )
 		{
 			cfg->SetPath( L"/PopupDisablers" );

@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -12,7 +12,7 @@
  *  You should have received a copy of the GNU General Public License along with PCSX2.
  *  If not, see <http://www.gnu.org/licenses/>.
  */
- 
+
 #pragma once
 
 #include "Plugins.h"
@@ -69,6 +69,7 @@ extern const wxChar* CDVD_SourceLabels[];
 
 extern void CDVDsys_ChangeSource( CDVD_SourceType type );
 extern void CDVDsys_SetFile( CDVD_SourceType srctype, const wxString& newfile );
+extern const wxString& CDVDsys_GetFile( CDVD_SourceType srctype );
 extern CDVD_SourceType CDVDsys_GetSourceType();
 
 extern bool DoCDVDopen();

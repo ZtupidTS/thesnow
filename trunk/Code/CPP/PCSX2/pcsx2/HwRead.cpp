@@ -1,6 +1,6 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
- * 
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
  *  ation, either version 3 of the License, or (at your option) any later version.
@@ -38,8 +38,49 @@ __forceinline mem8_t hwRead8(u32 mem)
 
 	// TODO re-implement this warning along with a *complete* logging of all hw activity.
 	// (implementation should be modelled after thee iopHWRead/iopHwWrite files)
-	if( mem >= IPU_CMD && mem < D0_CHCR ) return psHu8(mem);
+	if( mem >= IPU_CMD && mem < D0_CHCR )
+	{
+#ifdef PCSX2_DEVBUILD
+		HW_LOG("8bit Hardware IPU Read at 0x%x, value=0x%x", mem, psHu8(mem) );
+#endif
+		return psHu8(mem);
+	}
 	//	DevCon.Warning("Unexpected hwRead8 from 0x%x", mem);
+#ifdef PCSX2_DEVBUILD
+	switch((mem >> 12) & 0xf)
+	{
+		case 0x03:
+			if((mem & 0xfff) < 0x800) break;
+		case 0x04:
+		case 0x05:
+		case 0x06:
+		case 0x07:
+		case 0x08:
+		case 0x09:
+		case 0x0a:
+		case 0x0b:
+		case 0x0c:
+		case 0x0d:
+		{
+			const char* regName = "Unknown";
+
+			switch( mem & 0xf0)
+			{
+				case 0x00: regName = "CHCR"; break;
+				case 0x10: regName = "MADR"; break;
+				case 0x20: regName = "QWC"; break;
+				case 0x30: regName = "TADR"; break;
+				case 0x40: regName = "ASR0"; break;
+				case 0x50: regName = "ASR1"; break;
+				case 0x80: regName = "SADDR"; break;
+			}
+
+			HW_LOG("Hardware Read 8 at 0x%x (%ls %s), value=0x%x", mem, ChcrName(mem & ~0xff), regName, psHu8(mem) );
+			ret = psHu8(mem);
+			return ret;
+		}
+}
+#endif
 
 	switch (mem)
 	{
@@ -80,15 +121,15 @@ __forceinline mem8_t hwRead8(u32 mem)
 			{
 				switch (mem)
 				{
-					case SBUS_F240: 
+					case SBUS_F240:
 						ret = psHu32(mem);
 						//psHu32(mem) &= ~0x4000;
 						break;
-					
+
 					case SBUS_F260:
 						ret = 0;
 						break;
-					
+
 					default:
 						ret = psHu32(mem);
 						break;
@@ -113,8 +154,50 @@ __forceinline mem16_t hwRead16(u32 mem)
 
 	// TODO re-implement this warning along with a *complete* logging of all hw activity.
 	// (implementation should be modelled after the iopHWRead/iopHwWrite files)
-	if( mem >= IPU_CMD && mem < D0_CHCR ) return psHu8(mem);
+	if( mem >= IPU_CMD && mem < D0_CHCR )
+	{
+#ifdef PCSX2_DEVBUILD
+		HW_LOG("16 bit Hardware IPU Read at 0x%x, value=0x%x", mem, psHu16(mem) );
+#endif
+		return psHu16(mem);
+	}
 	//	Console.Warning("Unexpected hwRead16 from 0x%x", mem);
+
+#ifdef PCSX2_DEVBUILD
+	switch((mem >> 12) & 0xf)
+	{
+		case 0x03:
+			if((mem & 0xfff) < 0x800) break;
+		case 0x04:
+		case 0x05:
+		case 0x06:
+		case 0x07:
+		case 0x08:
+		case 0x09:
+		case 0x0a:
+		case 0x0b:
+		case 0x0c:
+		case 0x0d:
+		{
+			const char* regName = "Unknown";
+
+			switch( mem & 0xf0)
+			{
+				case 0x00: regName = "CHCR"; break;
+				case 0x10: regName = "MADR"; break;
+				case 0x20: regName = "QWC"; break;
+				case 0x30: regName = "TADR"; break;
+				case 0x40: regName = "ASR0"; break;
+				case 0x50: regName = "ASR1"; break;
+				case 0x80: regName = "SADDR"; break;
+			}
+
+			HW_LOG("Hardware Read16 at 0x%x (%ls %s), value=0x%x", mem, ChcrName(mem & ~0xff), regName, psHu16(mem) );
+			ret = psHu16(mem);
+			return ret;
+		}
+}
+#endif
 
 	switch (mem)
 	{
@@ -141,15 +224,15 @@ __forceinline mem16_t hwRead16(u32 mem)
 			{
 				switch (mem)
 				{
-					case SBUS_F240: 
+					case SBUS_F240:
 						ret = psHu16(mem) | 0x0102;
 						psHu32(mem) &= ~0x4000; // not commented out like in bit mode?
 						break;
-					
+
 					case SBUS_F260:
 						ret = 0;
 						break;
-					
+
 					default:
 						ret = psHu32(mem);
 						break;
@@ -217,7 +300,7 @@ static __forceinline mem32_t __hwRead32_page_0F( u32 mem, bool intchack )
 	// Performance Note: Visual Studio handles this best if we just manually check for it here,
 	// outside the context of the switch statement below.  This is likely fixed by PGO also,
 	// but it's an easy enough conditional to account for anyways.
-	
+
 	static const uint ics = INTC_STAT & 0xffff;
 	if( mem == ics )		// INTC_STAT
 	{
@@ -296,8 +379,9 @@ mem32_t __fastcall hwRead32_generic(u32 mem)
 		///////////////////////////////////////////////////////
 		// Most of the following case handlers are for developer builds only (logging).
 		// It'll all optimize to ziltch in public release builds.
-
+#ifdef PCSX2_DEVBUILD
 		case 0x03:
+			if((mem & 0xfff) < 0x800) break;
 		case 0x04:
 		case 0x05:
 		case 0x06:
@@ -305,34 +389,34 @@ mem32_t __fastcall hwRead32_generic(u32 mem)
 		case 0x08:
 		case 0x09:
 		case 0x0a:
+		case 0x0b:
+		case 0x0c:
 		case 0x0d:
 		{
 			const char* regName = "Unknown";
 
-			switch( mem )
+			switch( mem & 0xf0)
 			{
-				case D2_CHCR: regName = "DMA2_CHCR"; break;
-				case D2_MADR: regName = "DMA2_MADR"; break;
-				case D2_QWC: regName = "DMA2_QWC"; break;
-				case D2_TADR: regName = "DMA2_TADDR"; break;
-				case D2_ASR0: regName = "DMA2_ASR0"; break;
-				case D2_ASR1: regName = "DMA2_ASR1"; break;
-				case D2_SADR: regName = "DMA2_SADDR"; break;
+				case 0x00: regName = "CHCR"; break;
+				case 0x10: regName = "MADR"; break;
+				case 0x20: regName = "QWC"; break;
+				case 0x30: regName = "TADR"; break;
+				case 0x40: regName = "ASR0"; break;
+				case 0x50: regName = "ASR1"; break;
+				case 0x80: regName = "SADDR"; break;
 			}
 
-			HW_LOG( "Hardware Read32 at 0x%x (%s), value=0x%x", mem, regName, psHu32(mem) );
+			HW_LOG("Hardware Read32 at 0x%x (%ls %s), value=0x%x", mem, ChcrName(mem & ~0xff), regName, psHu32(mem) );
 		}
 		break;
-
-		case 0x0b:
-			if( mem == D4_CHCR )
-				HW_LOG("Hardware Read32 at 0x%x (IPU1:DMA4_CHCR), value=0x%x", mem, psHu32(mem));
-		break;
-
-		case 0x0c:
+#endif
 		case 0x0e:
+#ifdef PCSX2_DEVBUILD
+			HW_LOG("DMAC Control Regs addr=0x%x Read32, value=0x%x", mem, psHu32(mem));
+#else
 			if( mem == DMAC_STAT)
 				HW_LOG("DMAC_STAT Read32, value=0x%x", psHu32(DMAC_STAT));
+#endif
 		break;
 
 		jNO_DEFAULT;

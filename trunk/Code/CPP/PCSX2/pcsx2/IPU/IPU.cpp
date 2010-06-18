@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2009  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -25,6 +25,8 @@
 #include "IPU.h"
 #include "yuv2rgb.h"
 #include "Vif.h"
+#include "Gif.h"
+#include "Vif_Dma.h"
 
 // Zero cycle IRQ schedules aren't really good, but the IPU uses them.
 // Better to throw the IRQ inline:
@@ -35,18 +37,11 @@
 // IPU Inline'd IRQs : Calls the IPU interrupt handlers directly instead of
 // feeding them through the EE's branch test. (see IPU.h for details)
 
-#ifdef IPU_INLINE_IRQS
-#	define IPU_INT_TO( cycles )  ipu1Interrupt()
-#	define IPU_INT_FROM( cycles )  ipu0Interrupt()
-#	define IPU_FORCEINLINE
-#else
-#	define IPU_INT_TO( cycles )  CPU_INT( DMAC_TO_IPU, cycles )
-#	define IPU_INT_FROM( cycles )  CPU_INT( DMAC_FROM_IPU, cycles )
-#	define IPU_FORCEINLINE __forceinline
-#endif
+
 
 static tIPU_DMA g_nDMATransfer(0);
 static tIPU_cmd ipu_cmd;
+static IPUStatus IPU1Status;
 
 // FIXME - g_nIPU0Data and Pointer are not saved in the savestate, which breaks savestates for some
 // FMVs at random (if they get saved during the half frame of a 30fps rate).  The fix is complicated
@@ -97,10 +92,10 @@ u8* readbits = _readbits; // always can decrement by one 1qw
 
 __forceinline void IPUProcessInterrupt()
 {
-	if (ipuRegs->ctrl.BUSY) IPUWorker();
+	if (ipuRegs->ctrl.BUSY && g_BP.IFC) IPUWorker();
 }
 
-__forceinline void init_g_decoder()
+void init_g_decoder()
 {
 	//other stuff
 	g_decoder.intra_quantizer_matrix = (u8*)iq;
@@ -113,7 +108,7 @@ __forceinline void init_g_decoder()
 	g_decoder.stride = 16;
 }
 
-__forceinline void mpeg2_init()
+void mpeg2_init()
 {
 	if (!mpeg2_inited)
 	{
@@ -137,6 +132,9 @@ int ipuInit()
 	memzero(g_BP);
 	init_g_decoder();
 	g_nDMATransfer.reset();
+	IPU1Status.InProgress = false;
+	IPU1Status.DMAMode = DMA_MODE_NORMAL;
+	IPU1Status.DMAFinished = true;
 	ipu_fifo.init();
 	ipu_cmd.clear();
 	return 0;
@@ -144,8 +142,7 @@ int ipuInit()
 
 void ipuReset()
 {
-	memzero(*ipuRegs);
-	g_nDMATransfer.reset();
+	ipuInit();
 }
 
 void ipuShutdown()
@@ -165,7 +162,7 @@ void ReportIPU()
 	Console.WriteLn("g_decoder = 0x%x.", g_decoder);
 	Console.WriteLn("mpeg2: scan_norm = 0x%x, alt = 0x%x.", mpeg2_scan_norm, mpeg2_scan_alt);
 	Console.WriteLn(ipu_cmd.desc());
-	Console.WriteLn("_readbits = 0x%x. readbits - _readbits, which is also frozen, is 0x%x.", 
+	Console.WriteLn("_readbits = 0x%x. readbits - _readbits, which is also frozen, is 0x%x.",
 		_readbits, readbits - _readbits);
 	Console.Newline();
 }
@@ -173,8 +170,6 @@ void ReportIPU()
 
 void SaveStateBase::ipuFreeze()
 {
-	IPUProcessInterrupt();
-
 	// Get a report of the status of the ipu variables when saving and loading savestates.
 	//ReportIPU();
 	FreezeTag("IPU");
@@ -223,7 +218,7 @@ __forceinline u32 ipuRead32(u32 mem)
 	pxAssert((mem & ~0xff) == 0x10002000);
 	mem &= 0xff;	// ipu repeats every 0x100
 
-	IPUProcessInterrupt();
+	//IPUProcessInterrupt();
 
 	switch (mem)
 	{
@@ -241,8 +236,10 @@ __forceinline u32 ipuRead32(u32 mem)
 			ipuRegs->ipubp |= g_BP.IFC << 8;
 			ipuRegs->ipubp |= (g_BP.FP /*+ g_BP.bufferhasnew*/) << 16;
 
-			IPU_LOG("Ipu read32: IPU_BP=0x%08X", *(u32*)&g_BP);
+			IPU_LOG("Ipu read32: IPU_BP=0x%08X", ipuRegs->ipubp);
 			return ipuRegs->ipubp;
+		default:
+			IPU_LOG("Ipu read32: Addr=0x%x Value = 0x%08X", mem, *(u32*)(((u8*)ipuRegs) + mem));
 	}
 
 	return *(u32*)(((u8*)ipuRegs) + mem);
@@ -256,7 +253,7 @@ __forceinline u64 ipuRead64(u32 mem)
 	pxAssert((mem & ~0xff) == 0x10002000);
 	mem &= 0xff;	// ipu repeats every 0x100
 
-	IPUProcessInterrupt();
+	//IPUProcessInterrupt();
 
 	switch (mem)
 	{
@@ -380,10 +377,10 @@ static void ipuBCLR(u32 val)
 	IPU_LOG("Clear IPU input FIFO. Set Bit offset=0x%X", g_BP.BP);
 }
 
-static __forceinline BOOL ipuIDEC(u32 val)
+static BOOL ipuIDEC(u32 val)
 {
 	tIPU_CMD_IDEC idec(val);
-	
+
 	idec.log();
 	g_BP.BP += idec.FB;//skip FB bits
 	//from IPU_CTRL
@@ -394,14 +391,14 @@ static __forceinline BOOL ipuIDEC(u32 val)
 	g_decoder.intra_vlc_format = ipuRegs->ctrl.IVF;
 	g_decoder.scan = ipuRegs->ctrl.AS ? mpeg2_scan_alt : mpeg2_scan_norm;
 	g_decoder.intra_dc_precision = ipuRegs->ctrl.IDP;
-	
+
 	//from IDEC value
 	g_decoder.quantizer_scale = idec.QSC;
 	g_decoder.frame_pred_frame_dct = !idec.DTD;
 	g_decoder.sgn = idec.SGN;
 	g_decoder.dte = idec.DTE;
 	g_decoder.ofm = idec.OFM;
-	
+
 	//other stuff
 	g_decoder.dcr = 1; // resets DC prediction value
 
@@ -414,12 +411,11 @@ static __forceinline BOOL ipuIDEC(u32 val)
 }
 
 static int s_bdec = 0;
-static int g_ipu_dma_error = 0;
 
 static __forceinline BOOL ipuBDEC(u32 val)
 {
 	tIPU_CMD_BDEC bdec(val);
-	
+
 	bdec.log(s_bdec);
 	if (IsDebugBuild) s_bdec++;
 
@@ -430,7 +426,7 @@ static __forceinline BOOL ipuBDEC(u32 val)
 	g_decoder.intra_vlc_format = ipuRegs->ctrl.IVF;
 	g_decoder.scan = ipuRegs->ctrl.AS ? mpeg2_scan_alt : mpeg2_scan_norm;
 	g_decoder.intra_dc_precision = ipuRegs->ctrl.IDP;
-	
+
 	//from BDEC value
 	/* JayteeMaster: the quantizer (linear/non linear) depends on the q_scale_type */
 	g_decoder.quantizer_scale = g_decoder.q_scale_type ? non_linear_quantizer_scale [bdec.QSC] : bdec.QSC << 1;
@@ -483,7 +479,7 @@ static BOOL __fastcall ipuVDEC(u32 val)
 			}
 
 			g_BP.BP += (g_decoder.bitstream_bits + 16);
-			
+
 			if ((int)g_BP.BP < 0)
 			{
 				g_BP.BP += 128;
@@ -515,7 +511,7 @@ static BOOL __fastcall ipuVDEC(u32 val)
 	return FALSE;
 }
 
-static BOOL ipuFDEC(u32 val)
+static __forceinline BOOL ipuFDEC(u32 val)
 {
 	if (!getBits32((u8*)&ipuRegs->cmd.DATA, 0)) return FALSE;
 
@@ -527,7 +523,7 @@ static BOOL ipuFDEC(u32 val)
 	return TRUE;
 }
 
-static __forceinline BOOL ipuSETIQ(u32 val)
+static BOOL ipuSETIQ(u32 val)
 {
 	int i;
 
@@ -559,7 +555,7 @@ static __forceinline BOOL ipuSETIQ(u32 val)
 	return ipu_cmd.pos[0] == 64;
 }
 
-static __forceinline BOOL ipuSETVQ(u32 val)
+static BOOL ipuSETVQ(u32 val)
 {
 	ipu_cmd.pos[0] += getBits((u8*)vqclut + ipu_cmd.pos[0], 256 - 8 * ipu_cmd.pos[0], 1); // 16*2*8
 
@@ -597,7 +593,7 @@ static BOOL __fastcall ipuCSC(u32 val)
 {
 	tIPU_CMD_CSC csc(val);
 	csc.log_from_YCbCr();
-	
+
 	for (;ipu_cmd.index < (int)csc.MBC; ipu_cmd.index++)
 	{
 
@@ -791,7 +787,7 @@ void IPUCMD_WRITE(u32 val)
 	// have to resort to the thread
 	ipu_cmd.current = val >> 28;
 	ipuRegs->ctrl.BUSY = 1;
-	hwIntcIrq(INTC_IPU);
+	if(ipu1dma->chcr.STR == false) hwIntcIrq(INTC_IPU);
 }
 
 void IPUWorker()
@@ -803,7 +799,7 @@ void IPUWorker()
 		case SCE_IPU_VDEC:
 			if (!ipuVDEC(ipuRegs->cmd.DATA))
 			{
-				hwIntcIrq(INTC_IPU);
+				if(ipu1dma->chcr.STR == false) hwIntcIrq(INTC_IPU);
 				return;
 			}
 			ipuRegs->cmd.BUSY = 0;
@@ -811,10 +807,9 @@ void IPUWorker()
 			break;
 
 		case SCE_IPU_FDEC:
-			g_ipu_dma_error = 0; // if g_ipu_dma_error is set, then continue processing. Fixes GoWs white screens of death.
-			if (!ipuFDEC(ipuRegs->cmd.DATA) && !g_ipu_dma_error)
+			if (!ipuFDEC(ipuRegs->cmd.DATA))
 			{
-				hwIntcIrq(INTC_IPU);
+				if(ipu1dma->chcr.STR == false) hwIntcIrq(INTC_IPU);
 				return;
 			}
 			ipuRegs->cmd.BUSY = 0;
@@ -824,7 +819,7 @@ void IPUWorker()
 		case SCE_IPU_SETIQ:
 			if (!ipuSETIQ(ipuRegs->cmd.DATA))
 			{
-				hwIntcIrq(INTC_IPU);
+				if(ipu1dma->chcr.STR == false) hwIntcIrq(INTC_IPU);
 				return;
 			}
 			break;
@@ -832,7 +827,7 @@ void IPUWorker()
 		case SCE_IPU_SETVQ:
 			if (!ipuSETVQ(ipuRegs->cmd.DATA))
 			{
-				hwIntcIrq(INTC_IPU);
+				if(ipu1dma->chcr.STR == false) hwIntcIrq(INTC_IPU);
 				return;
 			}
 			break;
@@ -840,7 +835,7 @@ void IPUWorker()
 		case SCE_IPU_CSC:
 			if (!ipuCSC(ipuRegs->cmd.DATA))
 			{
-				hwIntcIrq(INTC_IPU);
+				if(ipu1dma->chcr.STR == false) hwIntcIrq(INTC_IPU);
 				return;
 			}
 			if (ipu0dma->qwc > 0 && ipu0dma->chcr.STR)  IPU_INT0_FROM();
@@ -849,7 +844,7 @@ void IPUWorker()
 		case SCE_IPU_PACK:
 			if (!ipuPACK(ipuRegs->cmd.DATA))
 			{
-				hwIntcIrq(INTC_IPU);
+				if(ipu1dma->chcr.STR == false) hwIntcIrq(INTC_IPU);
 				return;
 			}
 			break;
@@ -858,7 +853,7 @@ void IPUWorker()
 			so_call(s_routine);
 			if (!s_RoutineDone)
 			{
-				hwIntcIrq(INTC_IPU);
+				if(ipu1dma->chcr.STR == false) hwIntcIrq(INTC_IPU);
 				return;
 			}
 
@@ -877,7 +872,7 @@ void IPUWorker()
 			so_call(s_routine);
 			if (!s_RoutineDone)
 			{
-				hwIntcIrq(INTC_IPU);
+				if(ipu1dma->chcr.STR == false) hwIntcIrq(INTC_IPU);
 				return;
 			}
 
@@ -950,7 +945,8 @@ u16 __fastcall FillInternalBuffer(u32 * pointer, u32 advance, u32 size)
 		inc_readbits();
 		g_BP.FP = 1;
 	}
-	else if ((g_BP.FP < 2) && (*(int*)pointer + size) >= 128)
+	
+	if ((g_BP.FP < 2) && (*(int*)pointer + size) >= 128)
 	{
 		if (ipu_fifo.in.read(next_readbits())) g_BP.FP += 1;
 	}
@@ -1166,26 +1162,27 @@ void __fastcall ipu_csc(macroblock_8 *mb8, macroblock_rgb32 *rgb32, int sgn)
 
 	if (s_thresh[0] > 0)
 	{
-		for (i = 0; i < 64*4; i++, p += 4)
+		for (i = 0; i < 16*16; i++, p += 4)
 		{
 			if ((p[0] < s_thresh[0]) && (p[1] < s_thresh[0]) && (p[2] < s_thresh[0]))
 				*(u32*)p = 0;
-			else
-				p[3] = ((p[1] < s_thresh[1]) && (p[2] < s_thresh[1]) && (p[3] < s_thresh[1])) ? 0x40 : 0x80;
+			else if ((p[0] < s_thresh[1]) && (p[1] < s_thresh[1]) && (p[2] < s_thresh[1]))
+				p[3] = 0x40;
 		}
 	}
 	else if (s_thresh[1] > 0)
 	{
-		for (i = 0; i < 64*4; i++, p += 4)
+		for (i = 0; i < 16*16; i++, p += 4)
 		{
-			p[3] = ((p[1] < s_thresh[1]) && (p[2] < s_thresh[1]) && (p[3] < s_thresh[1])) ? 0x40 : 0x80;
+			if ((p[0] < s_thresh[1]) && (p[1] < s_thresh[1]) && (p[2] < s_thresh[1]))
+				p[3] = 0x40;
 		}
 	}
-	else
+	if (sgn)
 	{
-		for (i = 0; i < 64; i++, p += 16)
+		for (i = 0; i < 16*16; i++, p += 4)
 		{
-			p[3] = p[7] = p[11] = p[15] = 0x80;
+			*(u32*)p ^= 0x808080;
 		}
 	}
 }
@@ -1220,34 +1217,7 @@ void __fastcall ipu_copy(const macroblock_8 *mb8, macroblock_16 *mb16)
 	for (i = 0; i < 64; i++) *d++ = *s++;		//Cb bias	- 128
 }
 
-static __forceinline bool IPU1chain(int &totalqwc)
-{
-	if (ipu1dma->qwc > 0)
-	{
-		int qwc = ipu1dma->qwc;
-		tDMA_TAG *pMem;
 
-		pMem = dmaGetAddr(ipu1dma->madr);
-
-		if (pMem == NULL)
-		{
-			Console.Error("ipu1dma NULL!");
-			return true;
-		}
-
-		qwc = ipu_fifo.in.write((u32*)pMem, qwc);
-		ipu1dma->madr += qwc<< 4;
-		ipu1dma->qwc -= qwc;
-		totalqwc += qwc;
-
-		if (ipu1dma->qwc > 0)
-		{
-			g_nDMATransfer.ACTV1 = true;
-			return true;
-		}
-	}
-	return false;
-}
 
 static __forceinline bool ipuDmacPartialChain(tDMA_TAG tag)
 {
@@ -1265,211 +1235,260 @@ static __forceinline bool ipuDmacPartialChain(tDMA_TAG tag)
 }
 
 extern void gsInterrupt();
+extern void vif1Interrupt();
 
-static __forceinline bool ipuDmacSrcChain(DMACh *tag, tDMA_TAG *ptag)
+static __forceinline void ipuDmacSrcChain()
 {
-	switch (ptag->ID)
-	{
-		case TAG_REFE: // refe
-			// do not change tadr
-			tag->madr = ptag[1]._u32;
-			return true;
-			break;
 
-		case TAG_CNT: // cnt
-			tag->madr = tag->tadr + 16;
-			// Set the taddr to the next tag
-			tag->tadr += 16 + (tag->qwc << 4);
-			break;
+		switch (IPU1Status.ChainMode)
+		{
+			case TAG_REFE: // refe
+				//if(IPU1Status.InProgress == false) ipu1dma->tadr += 16;
+				if(IPU1Status.DMAFinished == false) IPU1Status.DMAFinished = true;
+				break;
+			case TAG_CNT: // cnt
+				// Set the taddr to the next tag
+				ipu1dma->tadr = ipu1dma->madr;
+				//if(IPU1Status.DMAFinished == false) IPU1Status.DMAFinished = false;
+				break;
 
-		case TAG_NEXT: // next
-			tag->madr = tag->tadr + 16;
-			tag->tadr = ptag[1]._u32;
-			break;
+			case TAG_NEXT: // next
+				ipu1dma->tadr = IPU1Status.NextMem;
+				//if(IPU1Status.DMAFinished == false) IPU1Status.DMAFinished = false;
+				break;
 
-		case TAG_REF: // ref
-			tag->madr = ptag[1]._u32;
-			tag->tadr += 16;
-			break;
+			case TAG_REF: // ref
+				//if(IPU1Status.InProgress == false)ipu1dma->tadr += 16;
+				//if(IPU1Status.DMAFinished == false) IPU1Status.DMAFinished = false;
+				break;
 
-		case TAG_END: // end
-			// do not change tadr
-			tag->madr = tag->tadr + 16;
-			return true;
-			break;
-
-		default:
-			Console.Error("IPU ERROR: different transfer mode!, Please report to PCSX2 Team");
-			break;
-	}
-
-	return false;
+			case TAG_END: // end
+				ipu1dma->tadr = ipu1dma->madr;
+				if(IPU1Status.DMAFinished == false) IPU1Status.DMAFinished = true;
+				break;
+		}
 }
 
-static __forceinline void flushGIF()
+static __forceinline bool WaitGSPaths()
 {
-	while(gif->chcr.STR && (vif1Regs->mskpath3 == 0))
+	if(CHECK_IPUWAITHACK)
 	{
-		GIF_LOG("Flushing gif chcr %x tadr %x madr %x qwc %x", gif->chcr._u32, gif->tadr, gif->madr, gif->qwc);
-		gsInterrupt();
+		if(GSTransferStatus.PTH3 < STOPPED_MODE)
+		{
+			//GIF_LOG("Flushing gif chcr %x tadr %x madr %x qwc %x", gif->chcr._u32, gif->tadr, gif->madr, gif->qwc);
+			//DevCon.WriteLn("Waiting for GIF");
+			return false;
+		}
+
+		if(GSTransferStatus.PTH2 != STOPPED_MODE)
+		{
+			//DevCon.WriteLn("Waiting for VIF");
+			return false;
+		}
+		if(GSTransferStatus.PTH1 != STOPPED_MODE)
+		{
+			//DevCon.WriteLn("Waiting for VU");
+			return false;
+		}
 	}
+	return true;
 }
+
+static __forceinline int IPU1chain() {
+
+	int totalqwc = 0;
+
+	if (ipu1dma->qwc > 0 && IPU1Status.InProgress == true)
+	{
+
+		int qwc = ipu1dma->qwc;
+		u32 *pMem;
+
+		pMem = (u32*)dmaGetAddr(ipu1dma->madr, false);
+
+		if (pMem == NULL)
+		{
+			Console.Error("ipu1dma NULL!"); return totalqwc;
+		}
+
+		//Write our data to the fifo
+		qwc = ipu_fifo.in.write(pMem, qwc);
+		ipu1dma->madr += qwc << 4;
+		ipu1dma->qwc -= qwc;
+		totalqwc += qwc;
+	}
+	if( ipu1dma->qwc == 0)
+	{
+		//Update TADR etc
+		if(IPU1Status.DMAMode == DMA_MODE_CHAIN) ipuDmacSrcChain();
+		//If the transfer has finished or we have room in the FIFO, schedule to the interrupt code.
+		
+		//No data left
+		IPU1Status.InProgress = false;
+	} //If we still have data the commands should pull this across when need be.
+
+	return totalqwc;
+}
+
+//static __forceinline bool WaitGSPaths()
+//{
+//	//Wait for all GS paths to be clear
+//	if (GSTransferStatus._u32 != 0x2a)
+//	{
+//		if(GSTransferStatus.PTH3 != STOPPED_MODE && vif1Regs->mskpath3) return true;
+//		IPU_LOG("Waiting for GS transfers to finish %x", GSTransferStatus._u32);
+//		IPU_INT_TO(4);
+//		return false;
+//	}
+//	return true;
+//}
+
+
 
 int IPU1dma()
 {
-	tDMA_TAG *ptag;
-	bool done = false;
-	int ipu1cycles = 0, totalqwc = 0;
-
-	// Note: pad is the padding right above qwc, so we're testing whether qwc
-	// has overflowed into pad.
-//	if (ipu1dma->pad != 0) 
-//	{
-//	    DevCon.Warning(L"IPU1dma's upper 16 bits set to %x\n", ipu1dma->pad);
-//		//ipu1dma->qwc = ipu1dma->pad = 0;
-//		return 0;
-//	}
-	
-	pxAssert(!ipu1dma->chcr.TTE);
-
-	if (!(ipu1dma->chcr.STR) || (cpuRegs.interrupt & (1 << DMAC_TO_IPU))) return 0;
-
-	pxAssert(g_nDMATransfer.TIE1 == false);
+	int ipu1cycles = 0;
+	int totalqwc = 0;
 
 	//We need to make sure GIF has flushed before sending IPU data, it seems to REALLY screw FFX videos
-	flushGIF();
+    //if(!WaitGSPaths()) return totalqwc;
 
-	// in kh, qwc == 0 when dma_actv1 is set
-	if ((g_nDMATransfer.ACTV1) && ipu1dma->qwc > 0)
+	if(ipu1dma->chcr.STR == false || IPU1Status.DMAMode == 2)
 	{
-		if (IPU1chain(totalqwc)) return totalqwc;
+		//We MUST stop the IPU from trying to fill the FIFO with more data if the DMA has been suspended
+		//if we don't, we risk causing the data to go out of sync with the fifo and we end up losing some!
+		//This is true for Dragons Quest 8 and probably others which suspend the DMA.
+		DevCon.Warning("IPU1 running when IPU1 DMA disabled! CHCR %x QWC %x", ipu1dma->chcr._u32, ipu1dma->qwc);
+		return 0;
+	}
 
-		//Check TIE bit of CHCR and IRQ bit of tag
-		if (ipu1dma->chcr.TIE && g_nDMATransfer.DOTIE1)
-		{
-			Console.WriteLn("IPU1 TIE");
+	IPU_LOG("IPU1 DMA Called QWC %x Finished %d In Progress %d tadr %x", ipu1dma->qwc, IPU1Status.DMAFinished, IPU1Status.InProgress, ipu1dma->tadr);
 
-			IPU_INT_TO(totalqwc * BIAS);
-			g_nDMATransfer.TIE1 = true;
-			g_nDMATransfer.DOTIE1 = false;
-			g_nDMATransfer.ACTV1 = false;
-
-			return totalqwc;
-		}
-
-		if (ipu1dma->chcr.MOD == NORMAL_MODE) // If mode is normal mode.
-		{
-			IPU_INT_TO(totalqwc * BIAS);
-			return totalqwc;
-		}
-		else
-		{
-			// Chain mode.
-			tDMA_TAG tag = ipu1dma->chcr._u32; // upper bits describe current tag
-
-			if (ipu1dma->chcr.TIE && tag.IRQ)
+	switch(IPU1Status.DMAMode)
+	{
+		case DMA_MODE_NORMAL:
 			{
-				ptag = dmaGetAddr(ipu1dma->tadr);
-
-				ipuDmacPartialChain(tag);
-
-                ipu1dma->chcrTransfer(ptag);
-
-				IPU_LOG("IPU dmaIrq Set");
-				IPU_INT_TO(totalqwc * BIAS);
-				g_nDMATransfer.TIE1 = true;
-				return totalqwc;
+				if(!WaitGSPaths())
+				{ // legacy WaitGSPaths() for now
+					IPU_INT_TO(4); //Give it a short wait.
+					return totalqwc;
+				}
+				IPU_LOG("Processing Normal QWC left %x Finished %d In Progress %d", ipu1dma->qwc, IPU1Status.DMAFinished, IPU1Status.InProgress);
+				if(IPU1Status.InProgress == true) totalqwc += IPU1chain();
 			}
+			break;
 
-			if (ipuDmacPartialChain(tag))
+		case DMA_MODE_CHAIN:
 			{
-				IPU_INT_TO((1 + totalqwc)*BIAS);
-				return totalqwc;
-			}
-		}
-
-		g_nDMATransfer.DOTIE1 = false;
-		g_nDMATransfer.ACTV1 = false;
-	}
-
-	// Normal Mode & qwc is finished
-	if ((ipu1dma->chcr.MOD == NORMAL_MODE) && (ipu1dma->qwc == 0))
-	{
-		Console.Warning("ipu1 normal empty qwc?");
-		// returning totalqwc here is not enough. It seems to be an error,
-		// which may cause hangs, especially in God of War.
-		// Always zero is returned here, what is covered up by other return paths in this function.
-		// Thus, additional variable is set to indicate from where totalqwc comes.
-		g_ipu_dma_error = -1; // saves an error of the ipu1 DMA.
-		return totalqwc;
-	}
-
-	// Transfer Dn_QWC from Dn_MADR to GIF
-	if (ipu1dma->qwc > 0)
-	{
-		IPU_LOG("dmaIPU1 Normal size=%d, addr=%lx, fifosize=%x",
-		        ipu1dma->qwc, ipu1dma->madr, 8 - g_BP.IFC);
-
-		if (!IPU1chain(totalqwc)) IPU_INT_TO((ipu1cycles + totalqwc) * BIAS);
-
-		return totalqwc;
-	}
-	else
-	{
-		// Chain Mode & ipu1dma->qwc is 0
-		ptag = dmaGetAddr(ipu1dma->tadr);  //Set memory pointer to TADR
-
-		// Transfer the tag.
-		if (!ipu1dma->transfer("IPU1", ptag)) return totalqwc;
-
-		ipu1cycles += 1; // Add 1 cycles from the QW read for the tag
-
-		done = ipuDmacSrcChain(ipu1dma, ptag);
-
-		IPU_LOG("dmaIPU1 dmaChain %8.8x_%8.8x size=%d, addr=%lx, fifosize=%x",
-		        ptag[1]._u32, ptag[0]._u32, ipu1dma->qwc, ipu1dma->madr, 8 - g_BP.IFC);
-
-		g_nDMATransfer.DOTIE1 = (ipu1dma->chcr.TIE && ptag->IRQ);
-
-		if (ipu1dma->qwc == 0)
-		{
-			//Check TIE bit of CHCR and IRQ bit of tag
-			if (g_nDMATransfer.DOTIE1)
-			{
-				Console.WriteLn("IPU1 TIE");
-
-				if (IPU1chain(totalqwc)) return totalqwc;
-
-				if (done)
+				if(IPU1Status.InProgress == true) //No transfer is ready to go so we need to set one up
 				{
-					ptag = dmaGetAddr(ipu1dma->tadr);
-
-					ipuDmacPartialChain(ptag[0]);
-
-					// Transfer the last of ptag into chcr.
-					ipu1dma->chcrTransfer(ptag);
+					if(!WaitGSPaths())
+					{ // legacy WaitGSPaths() for now
+						IPU_INT_TO(4); //Give it a short wait.
+						return totalqwc;
+					}
+					IPU_LOG("Processing Chain QWC left %x Finished %d In Progress %d", ipu1dma->qwc, IPU1Status.DMAFinished, IPU1Status.InProgress);
+					totalqwc += IPU1chain();
+					//Set the TADR forward
 				}
 
-				IPU_INT_TO(ipu1cycles + totalqwc * BIAS);  // Should it be (ipu1cycles + totalqwc) * BIAS?
-				g_nDMATransfer.TIE1 = true;
-				return totalqwc;
-			}
-			else
-			{
-				//Britney Dance beat does a blank NEXT tag, for some odd reason the fix doesnt work if after IPU1Chain O_o
-				if (!done) IPU1dma();
-				if (IPU1chain(totalqwc)) return totalqwc;
-			}
 
-			ipuDmacPartialChain(ptag[0]);
-		}
-		else
-		{
-			if (IPU1chain(totalqwc)) return totalqwc;
-		}
+				if(IPU1Status.InProgress == false && IPU1Status.DMAFinished == false) //No transfer is ready to go so we need to set one up
+				{
+					tDMA_TAG* ptag = dmaGetAddr(ipu1dma->tadr, false);  //Set memory pointer to TADR
+
+					if (!ipu1dma->transfer("IPU1", ptag))
+					{
+						return totalqwc;
+					}
+
+					ipu1cycles += 1; // Add 1 cycles from the QW read for the tag
+					IPU1Status.ChainMode = ptag->ID;
+
+					if(ipu1dma->chcr.TTE) DevCon.Warning("TTE?");
+
+					switch (IPU1Status.ChainMode)
+					{
+						case TAG_REFE: // refe
+							// do not change tadr
+							//ipu1dma->tadr += 16;
+							ipu1dma->tadr += 16;
+							ipu1dma->madr = ptag[1]._u32;
+							IPU_LOG("Tag should end on %x", ipu1dma->tadr);
+
+							break;
+
+						case TAG_CNT: // cnt
+							ipu1dma->madr = ipu1dma->tadr + 16;
+							IPU_LOG("Tag should end on %x", ipu1dma->madr + ipu1dma->qwc * 16);
+							//ipu1dma->tadr = ipu1dma->madr + (ipu1dma->qwc * 16);
+							// Set the taddr to the next tag
+							//IPU1Status.DMAFinished = false;
+							break;
+
+						case TAG_NEXT: // next
+							ipu1dma->madr = ipu1dma->tadr + 16;
+							IPU1Status.NextMem = ptag[1]._u32;
+							IPU_LOG("Tag should end on %x", IPU1Status.NextMem);
+							//IPU1Status.DMAFinished = false;
+							break;
+
+						case TAG_REF: // ref
+							ipu1dma->madr = ptag[1]._u32;
+							ipu1dma->tadr += 16;
+							IPU_LOG("Tag should end on %x", ipu1dma->tadr);
+							//IPU1Status.DMAFinished = false;
+							break;
+
+						case TAG_END: // end
+							// do not change tadr
+							ipu1dma->madr = ipu1dma->tadr + 16;
+							ipu1dma->tadr += 16;
+							IPU_LOG("Tag should end on %x", ipu1dma->madr + ipu1dma->qwc * 16);
+
+							break;
+
+						default:
+							Console.Error("IPU ERROR: different transfer mode!, Please report to PCSX2 Team");
+							break;
+					}
+
+					//if(ipu1dma->qwc == 0) Console.Warning("Blank QWC!");
+					if(ipu1dma->qwc > 0) IPU1Status.InProgress = true;
+					IPU_LOG("dmaIPU1 dmaChain %8.8x_%8.8x size=%d, addr=%lx, fifosize=%x",
+							ptag[1]._u32, ptag[0]._u32, ipu1dma->qwc, ipu1dma->madr, 8 - g_BP.IFC);
+
+					if (ipu1dma->chcr.TIE && ptag->IRQ) //Tag Interrupt is set, so schedule the end/interrupt
+						IPU1Status.DMAFinished = true;
+
+
+					if(!WaitGSPaths() && ipu1dma->qwc > 0)
+					{ // legacy WaitGSPaths() for now
+						IPU_INT_TO(4); //Give it a short wait.
+						return totalqwc;
+					}
+					IPU_LOG("Processing Start Chain QWC left %x Finished %d In Progress %d", ipu1dma->qwc, IPU1Status.DMAFinished, IPU1Status.InProgress);
+					totalqwc += IPU1chain();
+					//Set the TADR forward
+				}
+
+			}
+			break;
 	}
 
-	IPU_INT_TO((ipu1cycles + totalqwc) * BIAS);
+	//Do this here to prevent double settings on Chain DMA's
+	if(totalqwc > 0 || ipu1dma->qwc == 0)
+	{
+		IPU_INT_TO(totalqwc * BIAS);
+		if(ipuRegs->ctrl.BUSY && g_BP.IFC) IPUWorker();
+	}
+	else 
+	{
+		IPU_LOG("Here");
+		cpuRegs.eCycle[4] = 0x9999;//IPU_INT_TO(2048);
+	}
+
+	IPU_LOG("Completed Call IPU1 DMA QWC Remaining %x Finished %d In Progress %d tadr %x", ipu1dma->qwc, IPU1Status.DMAFinished, IPU1Status.InProgress, ipu1dma->tadr);
 	return totalqwc;
 }
 
@@ -1479,15 +1498,6 @@ int IPU0dma()
 	static int totalsize = 0;
 	tDMA_TAG* pMem;
 
-	// Note: pad is the padding right above qwc, so we're testing whether qwc
-	// has overflowed into pad.
-//	if (ipu0dma->pad != 0) 
-//	{
-//	    DevCon.Warning(L"IPU0dma's upper 16 bits set to %x\n", ipu0dma->pad);
-//		//ipu0dma->qwc = ipu0dma->pad = 0;
-//		return 0;
-//	}
-	
 	if ((!(ipu0dma->chcr.STR) || (cpuRegs.interrupt & (1 << DMAC_FROM_IPU))) || (ipu0dma->qwc == 0))
 		return 0;
 
@@ -1497,8 +1507,8 @@ int IPU0dma()
 	        ipu0dma->chcr._u32, ipu0dma->madr, ipu0dma->qwc);
 
 	pxAssert(ipu0dma->chcr.MOD == NORMAL_MODE);
-	
-	pMem = dmaGetAddr(ipu0dma->madr);
+
+	pMem = dmaGetAddr(ipu0dma->madr, true);
 
 	readsize = min(ipu0dma->qwc, (u16)ipuRegs->ctrl.OFC);
 	totalsize+=readsize;
@@ -1517,12 +1527,15 @@ int IPU0dma()
 				case NO_STD:
 					break;
 				case STD_GIF: // GIF
+					Console.Warning("GIFSTALL");
 					g_nDMATransfer.GIFSTALL = true;
 					break;
 				case STD_VIF1: // VIF
+					Console.Warning("VIFSTALL");
 					g_nDMATransfer.VIFSTALL = true;
 					break;
 				case STD_SIF1:
+					Console.Warning("SIFSTALL");
 					g_nDMATransfer.SIFSTALL = true;
 					break;
 			}
@@ -1531,7 +1544,7 @@ int IPU0dma()
 		//This was IPU_INT_FROM(readsize*BIAS );
 		//This broke vids in Digital Devil Saga
 		//Note that interrupting based on totalsize is just guessing..
-		IPU_INT_FROM(totalsize*BIAS );
+		IPU_INT_FROM( readsize * BIAS );
 		totalsize = 0;
 	}
 
@@ -1540,13 +1553,79 @@ int IPU0dma()
 
 __forceinline void dmaIPU0() // fromIPU
 {
+	if (ipu0dma->pad != 0)
+	{
+		// Note: pad is the padding right above qwc, so we're testing whether qwc
+		// has overflowed into pad.
+	    DevCon.Warning(L"IPU0dma's upper 16 bits set to %x\n", ipu0dma->pad);
+		ipu0dma->qwc = ipu0dma->pad = 0;
+		//If we are going to clear down IPU0, we should end it too. Going to test this scenario on the PS2 mind - Refraction
+		ipu0dma->chcr.STR = false;
+		hwDmacIrq(DMAC_FROM_IPU);
+	}
 	if (ipuRegs->ctrl.BUSY) IPUWorker();
 }
 
 __forceinline void dmaIPU1() // toIPU
 {
-	IPU1dma();
-	if (ipuRegs->ctrl.BUSY) IPUWorker();
+	IPU_LOG("IPU1DMAStart QWC %x, MADR %x, CHCR %x, TADR %x", ipu1dma->qwc, ipu1dma->madr, ipu1dma->chcr._u32, ipu1dma->tadr);
+
+	if (ipu1dma->pad != 0)
+	{
+		// Note: pad is the padding right above qwc, so we're testing whether qwc
+		// has overflowed into pad.
+	    DevCon.Warning(L"IPU1dma's upper 16 bits set to %x\n", ipu1dma->pad);
+		ipu1dma->qwc = ipu1dma->pad = 0;
+		// If we are going to clear down IPU1, we should end it too.
+		// Going to test this scenario on the PS2 mind - Refraction
+		ipu1dma->chcr.STR = false;
+		hwDmacIrq(DMAC_TO_IPU);
+	}
+
+	if (ipu1dma->chcr.MOD == CHAIN_MODE)  //Chain Mode
+	{
+		IPU_LOG("Setting up IPU1 Chain mode");
+		if(ipu1dma->qwc == 0)
+		{
+			IPU1Status.InProgress = false;
+			IPU1Status.DMAFinished = false;
+		}
+		else
+		{   //Attempting to continue a previous chain
+			IPU_LOG("Resuming DMA TAG %x", (ipu1dma->chcr.TAG >> 12));
+			//We MUST check the CHCR for the tag it last knew, it can be manipulated!
+			IPU1Status.ChainMode = (ipu1dma->chcr.TAG >> 12) & 0x7;
+			IPU1Status.InProgress = true;
+			IPU1Status.DMAFinished = ((ipu1dma->chcr.TAG >> 15) && ipu1dma->chcr.TIE) ? true : false;
+		}
+
+		IPU1Status.DMAMode = DMA_MODE_CHAIN;
+		IPU1dma();
+		//if (ipuRegs->ctrl.BUSY) IPUWorker();
+	}
+	else //Normal Mode
+	{
+		if(ipu1dma->qwc == 0)
+		{
+			ipu1dma->chcr.STR = false;
+				// Hack to force stop IPU
+				ipuRegs->cmd.BUSY = 0;
+				ipuRegs->ctrl.BUSY = 0;
+				ipuRegs->topbusy = 0;
+				//
+			hwDmacIrq(DMAC_TO_IPU);
+			Console.Warning("IPU1 Normal error!");
+		}
+		else
+		{
+			IPU_LOG("Setting up IPU1 Normal mode");
+			IPU1Status.InProgress = true;
+			IPU1Status.DMAFinished = true;
+			IPU1Status.DMAMode = DMA_MODE_NORMAL;
+			IPU1dma();
+			//if (ipuRegs->ctrl.BUSY) IPUWorker();
+		}
+	}
 }
 
 extern void GIFdma();
@@ -1564,20 +1643,23 @@ void ipu0Interrupt()
 	if (g_nDMATransfer.GIFSTALL)
 	{
 		// gif
+		Console.Warning("IPU GIF Stall");
 		g_nDMATransfer.GIFSTALL = false;
-		if (gif->chcr.STR) GIFdma();
+		//if (gif->chcr.STR) GIFdma();
 	}
 
 	if (g_nDMATransfer.VIFSTALL)
 	{
 		// vif
+		Console.Warning("IPU VIF Stall");
 		g_nDMATransfer.VIFSTALL = false;
-		if (vif1ch->chcr.STR) dmaVIF1();
+		//if (vif1ch->chcr.STR) dmaVIF1();
 	}
 
 	if (g_nDMATransfer.SIFSTALL)
 	{
 		// sif
+		Console.Warning("IPU SIF Stall");
 		g_nDMATransfer.SIFSTALL = false;
 
 		// Not totally sure whether this needs to be done or not, so I'm
@@ -1598,16 +1680,14 @@ IPU_FORCEINLINE void ipu1Interrupt()
 {
 	IPU_LOG("ipu1Interrupt %x:", cpuRegs.cycle);
 
-	if (g_nDMATransfer.FIREINT1)
+	if(IPU1Status.DMAFinished == false || IPU1Status.InProgress == true)  //Sanity Check
 	{
-		hwIntcIrq(INTC_IPU);
-		g_nDMATransfer.FIREINT1 = false;
+		IPU1dma();
+		return;
 	}
 
-	if (g_nDMATransfer.TIE1)
-		g_nDMATransfer.TIE1 = false;
-	else
-		ipu1dma->chcr.STR = false;
-
+	IPU_LOG("ipu1 finish %x:", cpuRegs.cycle);
+	ipu1dma->chcr.STR = false;
+	IPU1Status.DMAMode = 2;
 	hwDmacIrq(DMAC_TO_IPU);
 }
