@@ -1,4 +1,4 @@
-// FileZilla Server - a Windows ftp server
+Ôªø// FileZilla Server - a Windows ftp server
 
 // Copyright (C) 2002-2004 - Tim Kosse <tim.kosse@gmx.de>
 
@@ -16,9 +16,9 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-// stdafx.h : Include-Datei f¸r Standard-System-Include-Dateien,
-//  oder projektspezifische Include-Dateien, die h‰ufig benutzt, aber
-//      in unregelm‰ﬂigen Abst‰nden ge‰ndert werden.
+// stdafx.h : Include-Datei f√ºr Standard-System-Include-Dateien,
+//  oder projektspezifische Include-Dateien, die h√§ufig benutzt, aber
+//      in unregelm√§√üigen Abst√§nden ge√§ndert werden.
 //
 
 #if !defined(AFX_STDAFX_H__0D7D6CEC_E1AA_4287_BB10_A97FA4D444B6__INCLUDED_)
@@ -31,13 +31,14 @@
 #define VC_EXTRALEAN		// Selten verwendete Teile der Windows-Header nicht einbinden
 
 #pragma warning (disable : 4786)
+#pragma warning (disable : 4996)	//function or variable may be unsafe
 
 #include <afxwin.h>         // MFC-Kern- und -Standardkomponenten
 #include <afxext.h>         // MFC-Erweiterungen
 #include <afxdisp.h>        // MFC Automatisierungsklassen
-#include <afxdtctl.h>		// MFC-Unterst¸tzung f¸r allgemeine Steuerelemente von Internet Explorer 4
+#include <afxdtctl.h>		// MFC-Unterst√ºtzung f√ºr allgemeine Steuerelemente von Internet Explorer 4
 #ifndef _AFX_NO_AFXCMN_SUPPORT
-#include <afxcmn.h>			// MFC-Unterst¸tzung f¸r g‰ngige Windows-Steuerelemente
+#include <afxcmn.h>			// MFC-Unterst√ºtzung f√ºr g√§ngige Windows-Steuerelemente
 #endif // _AFX_NO_AFXCMN_SUPPORT
 
 //#include <afxsock.h>		// MFC-Socket-Erweiterungen
@@ -80,7 +81,9 @@
 #define USERCONTROL_CONNOP_TRANSFERINFO 3
 #define USERCONTROL_CONNOP_TRANSFEROFFSETS 4
 
+#pragma comment(linker,"/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
+
 //{{AFX_INSERT_LOCATION}}
-// Microsoft Visual C++ f¸gt unmittelbar vor der vorhergehenden Zeile zus‰tzliche Deklarationen ein.
+// Microsoft Visual C++ f√ºgt unmittelbar vor der vorhergehenden Zeile zus√§tzliche Deklarationen ein.
 
 #endif // !defined(AFX_STDAFX_H__0D7D6CEC_E1AA_4287_BB10_A97FA4D444B6__INCLUDED_)

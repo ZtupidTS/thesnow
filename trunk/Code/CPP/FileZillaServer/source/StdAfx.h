@@ -31,6 +31,7 @@
 #define WIN32_LEAN_AND_MEAN		// Selten verwendete Teile der Windows-Header nicht einbinden
 
 #pragma warning (disable : 4786)
+#pragma warning (disable : 4996)	//function or variable may be unsafe
 
 #include <windows.h>
 #include <crtdbg.h>

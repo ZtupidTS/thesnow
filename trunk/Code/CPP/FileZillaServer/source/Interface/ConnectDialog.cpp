@@ -89,13 +89,13 @@ void CConnectDialog::OnOK()
 
 	if (m_ServerAddress == _T(""))
 	{
-		AfxMessageBox(_T("Please enter a server address."), MB_ICONEXCLAMATION);
+		AfxMessageBox(_T("请输入一个服务器地址."), MB_ICONEXCLAMATION);
 		return;
 	}
 
 	if (_ttoi(m_ServerPort)<1 || _ttoi(m_ServerPort)>65535)
 	{
-		AfxMessageBox(_T("Please enter a server port in the range from 1 to 65535."), MB_ICONEXCLAMATION);
+		AfxMessageBox(_T("请输入一个 1 到 65535范围内的端口."), MB_ICONEXCLAMATION);
 		return;
 	}
 
