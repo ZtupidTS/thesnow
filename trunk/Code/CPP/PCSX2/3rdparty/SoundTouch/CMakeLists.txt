@@ -1,24 +1,35 @@
 # SoundTouch library
 
 # library name
-set(SoundTouchName SoundTouch)
+set(SoundTouchName pcsx2_SoundTouch)
+
+set(CommonFlags
+    -m32
+    -march=athlon-xp
+    -march=prescott
+    )
+
+set(OptimizationFlags
+    -Os
+    -W
+    )
 
 # Debug - Build
 if(CMAKE_BUILD_TYPE STREQUAL Debug)
 	# add defines
-	add_definitions(-g -O0 -march=athlon-xp -march=prescott)
+	add_definitions(${CommonFlags} -g)
 endif(CMAKE_BUILD_TYPE STREQUAL Debug)
 
 # Devel - Build
 if(CMAKE_BUILD_TYPE STREQUAL Devel)
 	# add defines
-	add_definitions(-O1 -g -W -march=athlon-xp -march=prescott)
+	add_definitions(${CommonFlags} ${OptimizationFlags})
 endif(CMAKE_BUILD_TYPE STREQUAL Devel)
 
 # Release - Build
 if(CMAKE_BUILD_TYPE STREQUAL Release)
 	# add defines
-	add_definitions(-fexpensive-optimizations -O3 -Os -W -march=athlon-xp -march=prescott)
+	add_definitions(${CommonFlags} ${OptimizationFlags})
 endif(CMAKE_BUILD_TYPE STREQUAL Release)
 
 # variable with all sources of this library
@@ -51,3 +62,5 @@ set(SoundTouchHeaders
 # add library
 add_library(${SoundTouchName} STATIC ${SoundTouchSources} ${SoundTouchHeaders})
 
+# Force the linker into 32 bits mode
+target_link_libraries(${SoundTouchName} -m32)

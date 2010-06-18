@@ -1,54 +1,70 @@
 # zlib library
 
 # library name
-set(zlibName zlib)
+set(zlibName pcsx2_zlib)
+
+set(CommonFlags
+    -W
+    -m32
+    )
+
+set(OptimizationFlags
+    -Os
+    )
 
 # Debug - Build
 if(CMAKE_BUILD_TYPE STREQUAL Debug)
 	# add defines
-	add_definitions(-W -g -O0)
+	add_definitions(${CommonFlags} -g)
 endif(CMAKE_BUILD_TYPE STREQUAL Debug)
 
 # Devel - Build
 if(CMAKE_BUILD_TYPE STREQUAL Devel)
 	# add defines
-	add_definitions(-O2 -W)
+	add_definitions(${CommonFlags} ${OptimizationFlags})
 endif(CMAKE_BUILD_TYPE STREQUAL Devel)
 
 # Release - Build
 if(CMAKE_BUILD_TYPE STREQUAL Release)
 	# add defines
-	add_definitions(-fexpensive-optimizations -O3 -W)
+	add_definitions(${CommonFlags} ${OptimizationFlags})
 endif(CMAKE_BUILD_TYPE STREQUAL Release)
 
 # variable with all sources of this library
 set(zlibSources
-	adler32.c
-	compress.c
-	crc32.c
-	deflate.c
-	gzio.c
-	infback.c
-	inffast.c
-	inflate.c
-	inftrees.c
-	trees.c
-	uncompr.c
-	zutil.c)
+compress.c
+deflate.c
+gzwrite.c
+trees.c
+crc32.c
+gzlib.c
+infback.c
+inftrees.c
+adler32.c
+gzclose.c
+gzread.c
+inffast.c
+inflate.c
+uncompr.c
+zutil.c)
 
 # variable with all headers of this library
 set(zlibHeaders
-	crc32.h
-	deflate.h
-	inffast.h
-	inffixed.h
-	inflate.h
-	inftrees.h
-	trees.h
-	zconf.h
-	zlib.h
-	zutil.h)
+gzguts.h
+inffast.h
+inflate.h
+zconf.h
+zlib.h
+zutil.h
+deflate.h
+inffixed.h
+trees.h
+crc32.h
+inftrees.h )
 
 # add library
 add_library(${zlibName} STATIC ${zlibSources} ${zlibHeaders})
+
+# Force the linker into 32 bits mode
+target_link_libraries(${zlibName} -m32)
 

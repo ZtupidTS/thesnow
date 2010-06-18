@@ -436,13 +436,13 @@ public:
 #if wxUSE_PRIVATE_HEAP && defined(__WXMSW__)
 	void* operator new( size_t size, const wxChar * = NULL, int  = 0 )
 	{
-		_allocateHeap_wxObject();
+		_createHeap_wxObject();
 		return _allocHeap_wxObject( size );
 	}
 
     void *operator new[] ( size_t size, const wxChar * = NULL, int = 0 )
 	{
-		_allocateHeap_wxObject();
+		_createHeap_wxObject();
 		return _allocHeap_wxObject( size );
 	}
 
@@ -450,7 +450,7 @@ public:
 	{
 		_freeHeap_wxObject( ptr );
 	}
-	
+
 	void operator delete( void* ptr, const wxChar*, int  )
 	{
 		_freeHeap_wxObject( ptr );
@@ -460,7 +460,7 @@ public:
 	{
 		_freeHeap_wxObject( ptr );
 	}
-	
+
 	void operator delete[]( void* ptr, const wxChar*, int  )
 	{
 		_freeHeap_wxObject( ptr );
