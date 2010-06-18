@@ -15,28 +15,20 @@
 // Official SVN repository and contact information can be found at
 // http://code.google.com/p/dolphin-emu/
 
-#ifndef _PLUGIN_NJOY_SDL_CONFIG_H
-#define _PLUGIN_NJOY_SDL_CONFIG_H
+#ifndef WXINPUTBASE_H
+#define WXINPUTBASE_H
 
-struct Config
-{
-    Config();
-    void Load(bool ChangePad = false, bool ChangeSaveByID = false);
-    void Save(int Slot = -1);
-	int CheckForDuplicateJoypads(bool OK);
-
-    // General
-	bool bShowAdvanced; // Only allow one of these
-	bool bSaveByID;
-	bool bCheckFocus;
-	bool bNoTriggerFilter;
-	int RumbleStrength;
-#ifdef RERECORDING
-	bool bRecording;
-	bool bPlayback;
+#include "Common.h"
+#if defined(HAVE_WX) && HAVE_WX
+#include <wx/wx.h>
 #endif
-};
 
-extern Config g_Config;
+namespace InputCommon
+{
+#if defined(HAVE_WX) && HAVE_WX
+const wxString WXKeyToString(int keycode);
+const wxString WXKeymodToString(int modifier);
+#endif
+}
+#endif
 
-#endif  // _PLUGIN_NJOY_SDL_CONFIG_H

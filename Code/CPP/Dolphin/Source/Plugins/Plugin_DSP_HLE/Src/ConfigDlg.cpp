@@ -41,7 +41,7 @@ DSPConfigDialogHLE::DSPConfigDialogHLE(wxWindow *parent, wxWindowID id, const wx
 	m_buttonEnableDTKMusic = new wxCheckBox(this, ID_ENABLE_DTK_MUSIC, wxT("启用 DTK 音乐"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 	m_buttonEnableThrottle = new wxCheckBox(this, ID_ENABLE_THROTTLE, wxT("启用 音频 Throttle"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 	wxStaticText *BackendText = new wxStaticText(this, wxID_ANY, wxT("音频 Backend"), wxDefaultPosition, wxDefaultSize, 0);
-	m_BackendSelection = new wxChoice(this, ID_BACKEND, wxDefaultPosition, wxSize(90, 20), wxArrayBackends, 0, wxDefaultValidator, wxEmptyString);
+	m_BackendSelection = new wxChoice(this, ID_BACKEND, wxDefaultPosition, wxSize(110, 20), wxArrayBackends, 0, wxDefaultValidator, wxEmptyString);
 
 	m_volumeSlider = new wxSlider(this, ID_VOLUME, ac_Config.m_Volume, 1, 100, wxDefaultPosition, wxDefaultSize, wxSL_VERTICAL|wxSL_INVERSE);
 	m_volumeSlider->Enable(SupportsVolumeChanges(ac_Config.sBackend));
@@ -95,7 +95,7 @@ DSPConfigDialogHLE::DSPConfigDialogHLE(wxWindow *parent, wxWindowID id, const wx
 void DSPConfigDialogHLE::AddBackend(const char* backend)
 {
 	// Update values
-    m_BackendSelection->Append(wxString::FromAscii(backend));
+	m_BackendSelection->Append(wxString::FromAscii(backend));
 #ifdef __APPLE__
 	int num = m_BackendSelection->FindString(wxString::FromAscii(ac_Config.sBackend));
 #else
@@ -145,7 +145,7 @@ bool DSPConfigDialogHLE::SupportsVolumeChanges(std::string backend)
 	//       but getting the backend from string etc. is probably
 	//       too much just to enable/disable a stupid slider...
 	return (backend == BACKEND_DIRECTSOUND ||
-		    backend == BACKEND_OPENAL);
+			backend == BACKEND_OPENAL);
 }
 
 void DSPConfigDialogHLE::BackendChanged(wxCommandEvent& event)

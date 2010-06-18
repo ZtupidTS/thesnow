@@ -55,7 +55,7 @@ void OpenGL_SwapBuffers()
 {
 #if defined(USE_WX) && USE_WX
 	GLWin.glCanvas->SwapBuffers();
-#elif defined(HAVE_COCOA) && HAVE_COCOA
+#elif defined(__APPLE__)
 	cocoaGLSwap(GLWin.cocoaCtx,GLWin.cocoaWin);
 #elif defined(_WIN32)
 	SwapBuffers(hDC);
@@ -78,7 +78,7 @@ void OpenGL_SetWindowText(const char *text)
 {
 #if defined(USE_WX) && USE_WX
 //	GLWin.frame->SetTitle(wxString::FromAscii(text));
-#elif defined(HAVE_COCOA) && HAVE_COCOA
+#elif defined(__APPLE__)
 	cocoaGLSetTitle(GLWin.cocoaWin, text);
 #elif defined(_WIN32)
 	// TODO convert text to unicode and change SetWindowTextA to SetWindowText
@@ -224,9 +224,9 @@ THREAD_RETURN XEventThread(void *pArg)
 					s_backbuffer_height = GLWin.height;
 					break;
 				case ClientMessage:
-					if ((ulong) event.xclient.data.l[0] == XInternAtom(GLWin.dpy, "WM_DELETE_WINDOW", False))
+					if ((unsigned long) event.xclient.data.l[0] == XInternAtom(GLWin.dpy, "WM_DELETE_WINDOW", False))
 						g_VideoInitialize.pCoreMessage(WM_USER_STOP);
-					if ((ulong) event.xclient.data.l[0] == XInternAtom(GLWin.dpy, "RESIZE", False))
+					if ((unsigned long) event.xclient.data.l[0] == XInternAtom(GLWin.dpy, "RESIZE", False))
 						XMoveResizeWindow(GLWin.dpy, GLWin.win, event.xclient.data.l[1],
 							   	event.xclient.data.l[2], event.xclient.data.l[3], event.xclient.data.l[4]);
 					break;
@@ -268,7 +268,7 @@ bool OpenGL_Create(SVideoInitialize &_VideoInitialize, int _iwidth, int _iheight
 
 	GLWin.glCanvas->SetCurrent(*GLWin.glCtxt);
 
-#elif defined(HAVE_COCOA) && HAVE_COCOA
+#elif defined(__APPLE__)
 	GLWin.width = s_backbuffer_width;
 	GLWin.height = s_backbuffer_height;
 	GLWin.cocoaWin = cocoaGLCreateWindow(GLWin.width, GLWin.height);
@@ -415,10 +415,10 @@ bool OpenGL_MakeCurrent()
 	// connect the glx-context to the window
 #if defined(USE_WX) && USE_WX
 	GLWin.glCanvas->SetCurrent(*GLWin.glCtxt);
-#elif defined(HAVE_COCOA) && HAVE_COCOA
+#elif defined(__APPLE__)
 	cocoaGLMakeCurrent(GLWin.cocoaCtx,GLWin.cocoaWin);
 #elif defined(_WIN32)
-	return wglMakeCurrent(hDC,hRC);
+	return wglMakeCurrent(hDC,hRC) ? true : false;
 #elif defined(HAVE_X11) && HAVE_X11
 	g_VideoInitialize.pRequestWindowSize(GLWin.x, GLWin.y, (int&)GLWin.width, (int&)GLWin.height);
 	XMoveResizeWindow(GLWin.dpy, GLWin.win, GLWin.x, GLWin.y, GLWin.width, GLWin.height);
@@ -437,7 +437,7 @@ void OpenGL_Update()
 
 	// TODO fill in
 
-#elif defined(HAVE_COCOA) && HAVE_COCOA
+#elif defined(__APPLE__)
 	RECT rcWindow = {0};
 	rcWindow.right = GLWin.width;
 	rcWindow.bottom = GLWin.height;
@@ -481,7 +481,7 @@ void OpenGL_Shutdown()
 {
 #if defined(USE_WX) && USE_WX
 	delete GLWin.glCanvas;
-#elif defined(HAVE_COCOA) && HAVE_COCOA
+#elif defined(__APPLE__)
 	cocoaGLDeleteWindow(GLWin.cocoaWin);
 	cocoaGLDelete(GLWin.cocoaCtx);
 

@@ -49,7 +49,7 @@
 #include <GL/glew.h>
 #include <SDL.h>
 
-#elif defined(HAVE_COCOA) && HAVE_COCOA
+#elif defined(__APPLE__)
 #include <GL/glew.h>
 #include "cocoaGL.h"
 #endif // end USE_WX
@@ -76,7 +76,7 @@
 
 typedef struct {
 	int screen;
-#if defined(HAVE_COCOA) && HAVE_COCOA
+#if defined(__APPLE__)
 	NSWindow *cocoaWin;
 	NSOpenGLContext *cocoaCtx;
 #elif defined(HAVE_X11) && HAVE_X11
