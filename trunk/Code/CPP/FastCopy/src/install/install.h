@@ -1,9 +1,9 @@
-/* @(#)Copyright (C) H.Shirouzu 2005   install.h	Ver1.12 */
+/* @(#)Copyright (C) 2005-2010 H.Shirouzu		install.h	Ver2.00 */
 /* ========================================================================
 	Project  Name			: Installer for IPMSG32
 	Module Name				: Main Header
 	Create					: 2005-02-02(Wed)
-	Update					: 2005-05-10(Tue)
+	Update					: 2010-05-09(Sun)
 	Copyright				: H.Shirouzu
 	Reference				: 
 	======================================================================== */
@@ -117,12 +117,8 @@ public:
 
 // function prototype
 int strncmpi(const char *str1, const char *str2, int num);
-BOOL SymLink(LPCSTR src, LPSTR dest, LPCSTR arg="");
-BOOL ReadLink(LPCSTR src, LPSTR dest, LPSTR arg);
-BOOL DeleteLink(LPCSTR path);
 void BrowseDirDlg(TWin *parentWin, UINT editCtl, char *title);
 int CALLBACK BrowseDirDlg_Proc(HWND hWnd, UINT uMsg, LPARAM lParam, LPARAM data);
-BOOL GetParentDir(const char *srcfile, char *dir);
 int MakePath(char *dest, const char *dir, const char *file);
 UINT GetDriveTypeEx(const char *file);
 

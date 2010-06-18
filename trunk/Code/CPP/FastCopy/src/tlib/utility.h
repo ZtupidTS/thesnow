@@ -1,7 +1,7 @@
-ï»¿/* static char *utility_id = 
+/* static char *utility_id = 
 	"@(#)Copyright (C) 2004-2010 H.Shirouzu		utility.h	Ver2.00"; */
 /* ========================================================================
-	Project  Name			: Fast Copy file and directory
+	Project  Name			: Utility
 	Create					: 2004-09-15(Wed)
 	Update					: 2010-05-09(Sun)
 	Copyright				: H.Shirouzu
@@ -11,7 +11,7 @@
 #ifndef UTILITY_H
 #define UTILITY_H
 
-#include "tlib/tlib.h"
+#include "tlib.h"
 
 class Condition {
 protected:
@@ -32,7 +32,7 @@ public:
 	void Lock(void)		{ ::EnterCriticalSection(&cs); }
 	void UnLock(void)	{ ::LeaveCriticalSection(&cs); }
 
-	// ãƒ­ãƒƒã‚¯ã‚’å–å¾—ã—ã¦ã‹ã‚‰åˆ©ç”¨ã™ã‚‹ã“ã¨
+	// ƒƒbƒN‚ğæ“¾‚µ‚Ä‚©‚ç—˜—p‚·‚é‚±‚Æ
 	int  WaitThreads()	{ return waitCnt; }
 	int  IsWait()		{ return waitCnt ? TRUE : FALSE; }
 	void DetachThread() { max_threads--; }
@@ -129,7 +129,6 @@ protected:
 		int		len;
 	} drvID[MAX_DRIVE_LETTER];	// A-Z drive
 	int		noIdCnt;	// for Win95 family
-	char	driveMap[64];
 
 	BOOL	RegisterDriveID(int index, void *data, int len);
 	BOOL	SetDriveID(int drvLetter);
@@ -140,7 +139,6 @@ public:
 	~DriveMng();
 	void	Init();
 	BOOL	IsSameDrive(int drvLetter1, int drvLetter2);
-	void	SetDriveMap(char *map);
 };
 
 class DataList {

@@ -1,9 +1,9 @@
 ﻿static char *shellext_id = 
-	"@(#)Copyright (C) H.Shirouzu 2005-2009   shellext.cpp	Ver1.92";
+	"@(#)Copyright (C) 2005-2010 H.Shirouzu		shellext.cpp	Ver2.00";
 /* ========================================================================
 	Project  Name			: Shell Extension for Fast Copy
 	Create					: 2005-01-23(Sun)
-	Update					: 2009-01-03(Sat)
+	Update					: 2010-05-09(Sun)
 	Copyright				: H.Shirouzu
 	Reference				: 
 	======================================================================== */
@@ -181,39 +181,6 @@ STDMETHODIMP ShellExt::QueryInterface(REFIID riid, void **ppv)
 	return E_NOINTERFACE;
 }
 
-/*
-	リンクの解決
-	あらかじめ、CoInitialize(NULL); を実行しておくこと
-*/
-BOOL ReadLink(void *src, void *dest, void *arg)
-{
-	IShellLink		*shellLink;		// 実際は IShellLinkA or IShellLinkW
-	IPersistFile	*persistFile;
-	WCHAR			wbuf[MAX_PATH];
-	BOOL			ret = FALSE;
-
-	if (SUCCEEDED(CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLinkV,
-			(void **)&shellLink))) {
-		if (SUCCEEDED(shellLink->QueryInterface(IID_IPersistFile, (void **)&persistFile))) {
-			if (!IS_WINNT_V) {
-				::MultiByteToWideChar(CP_ACP, 0, (char *)src, -1, wbuf, MAX_PATH);
-				src = wbuf;
-			}
-			if (SUCCEEDED(persistFile->Load((WCHAR *)src, STGM_READ))) {
-				if (SUCCEEDED(shellLink->GetPath((char *)dest, MAX_PATH, NULL, 0))) {
-					if (arg) {
-						shellLink->GetArguments((char *)arg, MAX_PATH);
-					}
-					ret = TRUE;
-				}
-			}
-			persistFile->Release();
-		}
-		shellLink->Release();
-	}
-	return	ret;
-}
-
 BOOL ShellExt::GetClipBoardInfo(PathArray *pathArray, BOOL *is_cut)
 {
 	if (::OpenClipboard(NULL) == FALSE)
@@ -253,7 +220,7 @@ BOOL ShellExt::IsDir(void *path, BOOL is_resolve)
 {
 	WCHAR	wbuf[MAX_PATH_EX];
 
-	if (is_resolve && ReadLink(path, wbuf)) {
+	if (is_resolve && ReadLinkV(path, wbuf)) {
 		path = wbuf;
 	}
 
@@ -391,7 +358,7 @@ STDMETHODIMP ShellExt::InvokeCommand(CMINVOKECOMMANDINFO *info)
 			if (is_dd || isClip) {
 				WCHAR	dir[MAX_PATH_EX];
 				WCHAR	path[MAX_PATH_EX];
-				void	*dstPath = (isClip && ReadLink(dst.Path(0), path)) ? path : dst.Path(0);
+				void	*dstPath = (isClip && ReadLinkV(dst.Path(0), path)) ? path : dst.Path(0);
 
 				MakePathV(dir, dstPath, EMPTY_STR_V);	// 末尾に \\ を付与
 				len = sprintfV(buf, FMT_TOSTR_V, dir) + 1;
@@ -815,13 +782,14 @@ ShellExtSystem::ShellExtSystem(HINSTANCE hI)
 	::GetModuleFileName(hI, buf, MAX_PATH);
 
 	::GetFullPathName(buf, MAX_PATH, path, &fname);
-	if (TIsWow64() && fname) {
+/*	if (TIsWow64() && fname) {
 		strcpy(fname, FCSHELLEX64_DLL);
 	}
+*/
 	DllName = strdup(path);
 
-	if (fname)
-		strcpy(fname, FASTCOPY_EXE);
+	if (fname) strcpy(fname, FASTCOPY_EXE);
+
 	ExeName = strdup(path);
 
 	wsprintf(path, "%s\\FastCopy", DllRegKeys[0]);

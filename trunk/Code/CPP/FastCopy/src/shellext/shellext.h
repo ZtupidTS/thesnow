@@ -1,9 +1,9 @@
 /* static char *shellext_id = 
-	"@(#)Copyright (C) H.Shirouzu 2005   shellext.h	Ver1.12"; */
+	"@(#)Copyright (C) 2005-2010 H.Shirouzu		shellext.h	Ver1.12"; */
 /* ========================================================================
 	Project  Name			: Fast/Force copy file and directory
 	Create					: 2005-01-23(Sun)
-	Update					: 2005-05-10(Tue)
+	Update					: 2010-05-09(Sun)
 	Copyright				: H.Shirouzu
 	Reference				: 
 	======================================================================== */
@@ -41,7 +41,6 @@ BOOL GetClsId(REFIID cls_name, char *cls_id, int size);
 BOOL WINAPI SetMenuFlags(int flags);
 int WINAPI GetMenuFlags(void);
 BOOL WINAPI IsRegistServer(void);
-BOOL ReadLink(void *src, void *dest, void *arg=NULL);
 
 class PathArray {
 protected:

@@ -1,9 +1,9 @@
-Ôªøstatic char *mainwin_id = 
-	"@(#)Copyright (C) H.Shirouzu 2004-2009   mainwin.cpp	ver1.99r4";
+static char *mainwin_id = 
+	"@(#)Copyright (C) 2004-2010 H.Shirouzu		mainwin.cpp	ver2.00";
 /* ========================================================================
 	Project  Name			: Fast/Force copy file and directory
 	Create					: 2004-09-15(Wed)
-	Update					: 2009-08-11(Tue)
+	Update					: 2010-05-09(Sun)
 	Copyright				: H.Shirouzu
 	Reference				: 
 	======================================================================== */
@@ -20,10 +20,10 @@
 //#define HASHQUALITY_CHECK
 
 /*=========================================================================
-  „ÇØ„É©„Çπ Ôºö TFastCopyApp
-  Ê¶Ç  Ë¶Å Ôºö „Ç¢„Éó„É™„Ç±„Éº„Ç∑„Éß„É≥„ÇØ„É©„Çπ
-  Ë™¨  Êòé Ôºö 
-  Ê≥®  ÊÑè Ôºö 
+  ÉNÉâÉX ÅF TFastCopyApp
+  äT  óv ÅF ÉAÉvÉäÉPÅ[ÉVÉáÉìÉNÉâÉX
+  ê‡  ñæ ÅF 
+  íç  à” ÅF 
 =========================================================================*/
 TFastCopyApp::TFastCopyApp(HINSTANCE _hI, LPSTR _cmdLine, int _nCmdShow)
 	: TApp(_hI, _cmdLine, _nCmdShow)
@@ -51,19 +51,28 @@ void TFastCopyApp::InitWindow(void)
 	mainDlg->Create();
 }
 
+BOOL TFastCopyApp::PreProcMsg(MSG *msg)
+{
+	if (msg->message == WM_KEYDOWN || msg->message == WM_KEYUP || msg->message == WM_ACTIVATEAPP) {
+		mainWnd->PostMessage(WM_FASTCOPY_KEY, 0, 0);
+	}
+	return	TApp::PreProcMsg(msg);
+}
+
 int WINAPI WinMain(HINSTANCE _hI, HINSTANCE, LPSTR arg, int show)
 {
 	return	TFastCopyApp(_hI, arg, show).Run();
 }
 
 /*=========================================================================
-  „ÇØ„É©„Çπ Ôºö TMainDlg
-  Ê¶Ç  Ë¶Å Ôºö „É°„Ç§„É≥„ÉÄ„Ç§„Ç¢„É≠„Ç∞
-  Ë™¨  Êòé Ôºö 
-  Ê≥®  ÊÑè Ôºö 
+  ÉNÉâÉX ÅF TMainDlg
+  äT  óv ÅF ÉÅÉCÉìÉ_ÉCÉAÉçÉO
+  ê‡  ñæ ÅF 
+  íç  à” ÅF 
 =========================================================================*/
 TMainDlg::TMainDlg() : TDlg(MAIN_DIALOG), aboutDlg(this), setupDlg(&cfg, this),
-	shellExtDlg(&cfg, this), jobDlg(&cfg, this), finActDlg(&cfg, this)
+	shellExtDlg(&cfg, this), jobDlg(&cfg, this), finActDlg(&cfg, this),
+	pathEdit(this), errEdit(this)
 #ifdef USE_LISTVIEW
 	, listHead(this), listView(this)
 #endif
@@ -283,7 +292,7 @@ BOOL TMainDlg::SetCopyModeList(void)
 {
 	int	idx = cfg.copyMode;
 
-	if (copyInfo == NULL) {		// ÂàùÂõû„Ç≥„Éî„Éº„É¢„Éº„Éâ„É™„Çπ„Éà‰ΩúÊàê
+	if (copyInfo == NULL) {		// èââÒÉRÉsÅ[ÉÇÅ[ÉhÉäÉXÉgçÏê¨
 		for (int i=0; COPYINFO_LIST[i].resId; i++) {
 			COPYINFO_LIST[i].list_str = GetLoadStr(COPYINFO_LIST[i].resId);
 			COPYINFO_LIST[i].cmdline_name = GetLoadStrV(COPYINFO_LIST[i].cmdline_resId);
@@ -311,6 +320,12 @@ BOOL TMainDlg::SetCopyModeList(void)
 	return	TRUE;
 }
 
+BOOL TMainDlg::IsForeground()
+{
+	HWND hForeWnd = GetForegroundWindow();
+
+	return	hForeWnd && hWnd && (hForeWnd == hWnd || ::IsChild(hWnd, hForeWnd)) ? TRUE : FALSE;
+}
 
 BOOL TMainDlg::EvCreate(LPARAM lParam)
 {
@@ -327,26 +342,35 @@ BOOL TMainDlg::EvCreate(LPARAM lParam)
 	sprintf(title, "FastCopy %s", GetVersionStr());
 	InstallExceptionFilter(title, GetLoadStr(IDS_EXCEPTIONLOG));
 
-	if (IsWinVista() && !TIsUserAnAdmin()) {
+	if (IsWinVista()) {
 		HMENU	hMenu = ::GetMenu(hWnd);
-		if (cfg.isRunasButton) {
-			HWND	hRunas = GetDlgItem(RUNAS_BUTTON);
-			::SetWindowLong(hRunas, GWL_STYLE, ::GetWindowLong(hRunas, GWL_STYLE) | WS_VISIBLE);
-			::SendMessage(hRunas, BCM_SETSHIELD, 0, 1);
-		}
-		else {
-			char	buf[128];
-			int		len = ::GetMenuString(hMenu, 3, buf, sizeof(buf), MF_BYPOSITION|MF_STRING);
-			if (len > 4) {
-				buf[len - 4] = 0;
-				::ModifyMenu(hMenu, 3, MF_BYPOSITION|MF_STRING, 0, buf);
+
+		if (!TIsUserAnAdmin()) {
+			if (cfg.isRunasButton) {
+				HWND	hRunas = GetDlgItem(RUNAS_BUTTON);
+				::SetWindowLong(hRunas, GWL_STYLE, ::GetWindowLong(hRunas, GWL_STYLE)|WS_VISIBLE);
+				::SendMessage(hRunas, BCM_SETSHIELD, 0, 1);
 			}
-			::InsertMenuV(hMenu, 4, MF_BYPOSITION|MF_STRING|MF_HELP, ADMIN_MENUITEM,
-				GetLoadStrV(IDS_ELEVATE));
+			else {
+				char buf[128];
+				int	 len = ::GetMenuString(hMenu, 3, buf, sizeof(buf), MF_BYPOSITION|MF_STRING);
+				if (len > 4) {
+					buf[len - 4] = 0;
+					::ModifyMenu(hMenu, 3, MF_BYPOSITION|MF_STRING, 0, buf);
+				}
+				::InsertMenuV(hMenu, 4, MF_BYPOSITION|MF_STRING|MF_HELP, ADMIN_MENUITEM,
+					GetLoadStrV(IDS_ELEVATE));
+			}
 		}
-		if (TIsEnableUAC() && TIsVirtualizedDir(cfg.execDir)) {
-			::InsertMenu(::GetSubMenu(hMenu, 0), 0, MF_STRING|MF_BYPOSITION, USERDIR_MENUITEM,
-				GetLoadStr(IDS_USERDIR_MENU));
+		if (TIsEnableUAC()) {
+/*			if (cfg.userOldDirV && GetFileAttributesV(cfg.userOldDirV) != 0xffffffff) {
+				::InsertMenu(::GetSubMenu(hMenu, 0), 0, MF_STRING|MF_BYPOSITION,
+					USEROLDDIR_MENUITEM, GetLoadStr(IDS_USEROLDDIR_MENU));
+			}
+*/			if (strcmpV(cfg.execDirV, cfg.userDirV) != 0) {
+				::InsertMenu(::GetSubMenu(hMenu, 0), 0, MF_STRING|MF_BYPOSITION,
+					USERDIR_MENUITEM, GetLoadStr(IDS_USERDIR_MENU));
+			}
 		}
 	}
 
@@ -360,7 +384,7 @@ BOOL TMainDlg::EvCreate(LPARAM lParam)
 
 	TaskBarCreateMsg = ::RegisterWindowMessage("TaskbarCreated");
 
-	// „É°„ÉÉ„Çª„Éº„Ç∏„Çª„ÉÉ„Éà
+	// ÉÅÉbÉZÅ[ÉWÉZÉbÉg
 	SetDlgItemText(STATUS_EDIT, GetLoadStr(IDS_BEHAVIOR));
 	SetDlgItemInt(BUFSIZE_EDIT, cfg.bufSize);
 
@@ -380,16 +404,16 @@ BOOL TMainDlg::EvCreate(LPARAM lParam)
 
 	SendDlgItemMessage(STATUS_EDIT, EM_SETWORDBREAKPROC, 0, (LPARAM)EditWordBreakProc);
 //	SendDlgItemMessage(ERR_EDIT, EM_SETWORDBREAKPROC, 0, (LPARAM)EditWordBreakProc);
-	SendDlgItemMessage(ERR_EDIT, EM_SETTARGETDEVICE, 0, 0);		// Êäò„ÇäËøî„Åó
+	SendDlgItemMessage(ERR_EDIT, EM_SETTARGETDEVICE, 0, 0);		// ê‹ÇËï‘Çµ
 	SendDlgItemMessage(ERR_EDIT, EM_LIMITTEXT, 0, 0);
 	SendDlgItemMessage(PATH_EDIT, EM_LIMITTEXT, 0, 0);
 
-	// „Çπ„É©„Ç§„ÉÄ„Ç≥„É≥„Éà„É≠„Éº„É´
+	// ÉXÉâÉCÉ_ÉRÉìÉgÉçÅ[Éã
 	SendDlgItemMessage(SPEED_SLIDER, TBM_SETRANGE, FALSE, MAKELONG(SPEED_SUSPEND, SPEED_FULL));
 	SetSpeedLevelLabel(this, speedLevel = cfg.speedLevel);
 
 #ifdef USE_LISTVIEW
-	// „É™„Çπ„Éà„Éì„É•„ÉºÈñ¢ÈÄ£
+	// ÉäÉXÉgÉrÉÖÅ[ä÷òA
 	listView.CreateByWnd(GetDlgItem(MAIN_LIST));
 	listHead.CreateByWnd((HWND)listView.SendMessage(LVM_GETHEADER, 0, 0));
 
@@ -430,7 +454,10 @@ BOOL TMainDlg::EvCreate(LPARAM lParam)
 	listView.SendMessage(LVM_SETTEXTBKCOLOR, 0, (LPARAM)::GetSysColor(COLOR_3DFACE));
 #endif
 
-	// Â±•Ê≠¥„Çª„ÉÉ„Éà
+	pathEdit.CreateByWnd(GetDlgItem(PATH_EDIT));
+	errEdit.CreateByWnd(GetDlgItem(ERR_EDIT));
+
+	// óöóÉZÉbÉg
 	SetPathHistory(TRUE);
 	SetFilterHistory(FALSE);
 
@@ -457,11 +484,11 @@ BOOL TMainDlg::EvCreate(LPARAM lParam)
 
 	// command line mode
 	if (argc > 1) {
-		// isRunAsParent „ÅÆÂ†¥Âêà„ÅØ„ÄÅChildÂÅ¥„Åã„Çâ„ÅÆ CLOSE „ÇíÂæÖ„Å§„Åü„ÇÅ„ÄÅËá™‰∏ªÁµÇ‰∫Ü„Åó„Å™„ÅÑ
+		// isRunAsParent ÇÃèÍçáÇÕÅAChildë§Ç©ÇÁÇÃ CLOSE Çë“Ç¬ÇΩÇﬂÅAé©éÂèIóπÇµÇ»Ç¢
 		if (!CommandLineExecV(argc, argv) && (!isShellExt || autoCloseLevel >= NOERR_CLOSE)
 				&& !isRunAsParent) {
 			resultStatus = FALSE;
-			if ((::GetAsyncKeyState(VK_SHIFT) & 0x8000))
+			if (IsForeground() && (::GetAsyncKeyState(VK_SHIFT) & 0x8000))
 				autoCloseLevel = NO_CLOSE;
 			else
 				PostMessage(WM_CLOSE, 0, 0);
@@ -469,6 +496,7 @@ BOOL TMainDlg::EvCreate(LPARAM lParam)
 	}
 	else
 		Show();
+
 	return	TRUE;
 }
 
@@ -510,7 +538,7 @@ BOOL TMainDlg::CancelCopy()
 BOOL TMainDlg::SwapTargetCore(const void *s, const void *d, void *out_s, void *out_d)
 {
 	void	*src_fname = NULL, *dst_fname = NULL;
-	BOOL	isSrcLastBS = GetChar(s, strlenV(s) - 1) == '\\'; // 95Á≥ª„ÅØÁÑ°Ë¶ñ...
+	BOOL	isSrcLastBS = GetChar(s, strlenV(s) - 1) == '\\'; // 95ånÇÕñ≥éã...
 	BOOL	isDstLastBS = GetChar(d, strlenV(d) - 1) == '\\';
 	BOOL	isSrcRoot = FALSE;
 
@@ -536,26 +564,26 @@ BOOL TMainDlg::SwapTargetCore(const void *s, const void *d, void *out_s, void *o
 			|| (attr & FILE_ATTRIBUTE_DIRECTORY)
 				&& (!cfg.isReparse || (attr & FILE_ATTRIBUTE_REPARSE_POINT) == 0);
 
-	if (isSrcDir && !isDstLastBS) {	// dst „Å´ '\\' „Åå„Å™„ÅÑÂ†¥Âêà
+	if (isSrcDir && !isDstLastBS) {	// dst Ç… '\\' Ç™Ç»Ç¢èÍçá
 		strcpyV(out_d, s);
 		strcpyV(out_s, d);
 		goto END;
 	}
 
-	if (!isDstLastBS) {	// dst Êú´Â∞æ„Å´ '\\' „Çí‰ªò‰∏é
+	if (!isDstLastBS) {	// dst ññîˆÇ… '\\' Çïtó^
 		MakePathV(buf.Buf(), d, EMPTY_STR_V);
 		d = buf.Buf();
 	}
 
-	if (GetFullPathNameV(s, MAX_PATHLEN_V, out_d, &src_fname) <= 0) return	FALSE; // s„Çí out_d „Å´
-	if (GetFullPathNameV(d, MAX_PATHLEN_V, out_s, &dst_fname) <= 0) return	FALSE; // d„Çí out_s „Å´
+	if (GetFullPathNameV(s, MAX_PATHLEN_V, out_d, &src_fname) <= 0) return	FALSE; // sÇ out_d Ç…
+	if (GetFullPathNameV(d, MAX_PATHLEN_V, out_s, &dst_fname) <= 0) return	FALSE; // dÇ out_s Ç…
 
-	if (src_fname) {  // a:\aaa\bbb  d:\ccc\ddd\ --> d:\ccc\ddd\bbb a:\aaa\ „Å´„Åô„Çã
+	if (src_fname) {  // a:\aaa\bbb  d:\ccc\ddd\ --> d:\ccc\ddd\bbb a:\aaa\ Ç…Ç∑ÇÈ
 		strcpyV(MakeAddr(out_s, strlenV(out_s)), src_fname);
 		SetChar(src_fname, 0, 0);
 		goto END;
 	}
-	else if (isSrcRoot) {	// a:\  d:\xxx\  -> d:\xxx a:\ „Å´„Åô„Çã
+	else if (isSrcRoot) {	// a:\  d:\xxx\  -> d:\xxx a:\ Ç…Ç∑ÇÈ
 		GetRootDirV(out_s, buf.Buf());
 		if (strcmpV(out_s, buf.Buf()) && !isSrcRoot) {
 			SetChar(out_s, strlenV(out_s) -1, 0);
@@ -680,7 +708,7 @@ BOOL TMainDlg::EvCommand(WORD wNotifyCode, WORD wID, LPARAM hwndCtl)
 		return	TRUE;
 
 	case OPENDIR_MENUITEM:
-		::ShellExecute(NULL, NULL, cfg.execDir, 0, 0, SW_SHOW);
+		::ShellExecuteV(NULL, NULL, cfg.execDirV, 0, 0, SW_SHOW);
 		return	TRUE;
 
 	case OPENLOG_MENUITEM:
@@ -694,6 +722,14 @@ BOOL TMainDlg::EvCommand(WORD wNotifyCode, WORD wID, LPARAM hwndCtl)
 			sei.nShow = SW_NORMAL;
 			ShellExecuteExV(&sei);
 		}
+		return	TRUE;
+
+	case USERDIR_MENUITEM:
+		::ShellExecuteV(NULL, NULL, cfg.userDirV, 0, 0, SW_SHOW);
+		return	TRUE;
+
+	case USEROLDDIR_MENUITEM:
+		::ShellExecuteV(NULL, NULL, cfg.userOldDirV, 0, 0, SW_SHOW);
 		return	TRUE;
 
 	case FIXPOS_MENUITEM:
@@ -724,15 +760,6 @@ BOOL TMainDlg::EvCommand(WORD wNotifyCode, WORD wID, LPARAM hwndCtl)
 		else {
 			cfg.winsize.cx = cfg.winsize.cy = INVALID_SIZEVAL;
 			cfg.WriteIni();
-		}
-		return	TRUE;
-
-	case USERDIR_MENUITEM:
-		{
-			char	buf[MAX_PATH];
-			if (TMakeVirtualStorePath(cfg.execDir, buf)) {
-				::ShellExecute(NULL, NULL, buf, 0, 0, SW_SHOW);
-			}
 		}
 		return	TRUE;
 
@@ -806,8 +833,8 @@ BOOL TMainDlg::EvCommand(WORD wNotifyCode, WORD wID, LPARAM hwndCtl)
 		break;
 
 	case HELP_BUTTON: case HELP_MENUITEM:
-		ShowHelp(hWnd, cfg.execDir, GetLoadStr(IDS_FASTCOPYHELP),
-			wID == HELP_BUTTON ? "#usage" : NULL);
+		ShowHelpV(hWnd, cfg.execDirV, GetLoadStrV(IDS_FASTCOPYHELP),
+			wID == HELP_BUTTON ? toV("#usage") : NULL);
 		return	TRUE;
 
 	case FINACT_MENUITEM:
@@ -871,7 +898,7 @@ BOOL TMainDlg::EvSize(UINT fwSizeType, WORD nWidth, WORD nHeight)
 
 void TMainDlg::RefreshWindow(BOOL is_start_stop)
 {
-	if (!copyInfo) return;	// ÈÄöÂ∏∏„ÅØ„ÅÇ„Çä„Åà„Å™„ÅÑ„ÄÇ
+	if (!copyInfo) return;	// í èÌÇÕÇ†ÇËÇ¶Ç»Ç¢ÅB
 
 	GetWindowRect(&rect);
 	int	xdiff = (rect.right - rect.left) - (orgRect.right - orgRect.left);
@@ -1017,7 +1044,7 @@ BOOL TMainDlg::EvDropFiles(HDROP hDrop)
 	BOOL	isDeleteMode = GetCopyMode() == FastCopy::DELETE_MODE;
 	int		max = isDstDrop ? 1 : ::DragQueryFileV(hDrop, 0xffffffff, 0, 0), max_len;
 
-	// CTL „ÅåÊäº„Åï„Çå„Å¶„ÅÑ„ÇãÂ†¥Âêà„ÄÅÁèæÂú®„ÅÆÂÜÖÂÆπ„ÇíÂä†ÁÆó
+	// CTL Ç™âüÇ≥ÇÍÇƒÇ¢ÇÈèÍçáÅAåªç›ÇÃì‡óeÇâ¡éZ
 	if (!isDstDrop) {
 		if (::GetAsyncKeyState(VK_CONTROL) & 0x8000) {
 			max_len = ::GetWindowTextLengthV(GetDlgItem(SRC_COMBO)) + 1;
@@ -1045,13 +1072,13 @@ BOOL TMainDlg::EvDropFiles(HDROP hDrop)
 	if (pathArray.Num() > 0) {
 		if (isDstDrop) {
 			DWORD	attr = ::GetFileAttributesV(pathArray.Path(0));
-			if (attr & FILE_ATTRIBUTE_DIRECTORY) {	// 0xffffffff „ÇÇË™ç„ÇÅ„Çã(for 95Á≥ªOS„ÅÆrootÂØæÁ≠ñ)
+			if (attr & FILE_ATTRIBUTE_DIRECTORY) {	// 0xffffffff Ç‡îFÇﬂÇÈ(for 95ånOSÇÃrootëŒçÙ)
 				MakePathV(path, pathArray.Path(0), EMPTY_STR_V);
 				SetDlgItemTextV(DST_COMBO, path);
 			}
 		}
 		else {
-			WCHAR	*buf = new WCHAR [max_len = pathArray.GetMultiPathLen()]; // ÊñáÂ≠óÂàóÈÄ£ÁµêÁî®È†òÂüü
+			WCHAR	*buf = new WCHAR [max_len = pathArray.GetMultiPathLen()]; // ï∂éöóÒòAåãópóÃàÊ
 			if (pathArray.GetMultiPath(buf, max_len)) {
 				SetDlgItemTextV(SRC_COMBO, buf);
 			}
@@ -1067,7 +1094,7 @@ void TMainDlg::SetPriority(DWORD new_class)
 		::SetPriorityClass(::GetCurrentProcess(), curPriority = new_class);
 		if (IsWinVista()) {
 			::SetPriorityClass(::GetCurrentProcess(), curPriority == IDLE_PRIORITY_CLASS ?
-			PROCESS_MODE_BACKGROUND_BEGIN : PROCESS_MODE_BACKGROUND_END);
+								PROCESS_MODE_BACKGROUND_BEGIN : PROCESS_MODE_BACKGROUND_END);
 		}
 	}
 }
@@ -1082,7 +1109,7 @@ BOOL TMainDlg::EventScroll(UINT uMsg, int Code, int nPos, HWND hwndScrollBar)
 
 FastCopy::Mode TMainDlg::GetCopyMode(void)
 {
-	if (!copyInfo) return FastCopy::DIFFCP_MODE;	// ÈÄöÂ∏∏„ÅØ„ÅÇ„Çä„Åà„Å™„ÅÑ„ÄÇ
+	if (!copyInfo) return FastCopy::DIFFCP_MODE;	// í èÌÇÕÇ†ÇËÇ¶Ç»Ç¢ÅB
 
 	return	copyInfo[SendDlgItemMessage(MODE_COMBO, CB_GETCURSEL, 0, 0)].mode;
 }
@@ -1200,7 +1227,7 @@ _int64 TMainDlg::GetSizeInfo(void *buf)
 
 	if ((val = strtolV(buf, &p, 0)) < 0) return -2;
 
-	if (val == 0 && p == buf) {	// Â§âÊèõ„Åô„Åπ„ÅçÊï∞Â≠ó„ÅåÁÑ°„ÅÑ
+	if (val == 0 && p == buf) {	// ïœä∑Ç∑Ç◊Ç´êîéöÇ™ñ≥Ç¢
 		for (int i=0; GetChar(p, i); i++) {
 			if (!strchr(" \t\r\n", GetChar(p, i))) return -2;
 		}
@@ -1227,9 +1254,10 @@ BOOL TMainDlg::ExecCopy(DWORD exec_flags)
 	BOOL	is_filter = IsDlgButtonChecked(FILTER_CHECK);
 	BOOL	is_listing = (exec_flags & LISTING_EXEC) ? TRUE : FALSE;
 	BOOL	is_initerr_logging = (noConfirmStop && !is_listing) ? TRUE : FALSE;
+	BOOL	is_fore = IsForeground();
 
-	// „Ç≥„Éî„Éº„Å®Âêå„Åò„Çà„ÅÜ„Å´„ÄÅÂâäÈô§„ÇÇÊéí‰ªñÂÆüË°å„Åô„Çã
-	if (is_delete_mode && (::GetAsyncKeyState(VK_SHIFT) & 0x8000)) forceStart = 2;
+	// ÉRÉsÅ[Ç∆ìØÇ∂ÇÊÇ§Ç…ÅAçÌèúÇ‡îrëºé¿çsÇ∑ÇÈ
+	if (is_delete_mode && is_fore && (::GetAsyncKeyState(VK_SHIFT) & 0x8000)) forceStart = 2;
 
 	info.ignoreEvent	= (IsDlgButtonChecked(IGNORE_CHECK) ? FASTCOPY_ERROR_EVENT : 0) |
 							(noConfirmStop ? FASTCOPY_STOP_EVENT : 0);
@@ -1257,7 +1285,8 @@ BOOL TMainDlg::ExecCopy(DWORD exec_flags)
 			&& info.mode != FastCopy::MOVE_MODE
 			&& info.mode != FastCopy::DELETE_MODE ?
 			(FastCopy::FILE_REPARSE|FastCopy::DIR_REPARSE) : 0)
-		| ((is_listing && ::GetAsyncKeyState(VK_CONTROL) & 0x8000) ? FastCopy::VERIFY_FILE : 0)
+		| ((is_listing && is_fore && (::GetAsyncKeyState(VK_CONTROL) & 0x8000))
+			? FastCopy::VERIFY_FILE : 0)
 		| (info.mode == FastCopy::MOVE_MODE && cfg.serialMove ? FastCopy::SERIAL_MOVE : 0)
 		| (info.mode == FastCopy::MOVE_MODE && cfg.serialVerifyMove ?
 			FastCopy::SERIAL_VERIFY_MOVE : 0)
@@ -1279,6 +1308,8 @@ BOOL TMainDlg::ExecCopy(DWORD exec_flags)
 	info.toDateFilter	= 0;
 	info.minSizeFilter	= -1;
 	info.maxSizeFilter	= -1;
+	strcpy(info.driveMap, cfg.driveMap);
+
 	errBufOffset		= 0;
 	listBufOffset		= 0;
 	lastTotalSec		= 0;
@@ -1296,7 +1327,8 @@ BOOL TMainDlg::ExecCopy(DWORD exec_flags)
 
 	WCHAR	*src = new WCHAR [src_len], dst[MAX_PATH_EX] = L"";
 	BOOL	ret = TRUE;
-	BOOL	exec_confirm = cfg.execConfirm || (::GetAsyncKeyState(VK_CONTROL) & 0x8000);
+	BOOL	exec_confirm = cfg.execConfirm ||
+										is_fore && (::GetAsyncKeyState(VK_CONTROL) & 0x8000);
 
 	if (!exec_confirm) {
 		if (isShellExt && (exec_flags & CMDLINE_EXEC))
@@ -1319,7 +1351,7 @@ BOOL TMainDlg::ExecCopy(DWORD exec_flags)
 	if (!is_delete_mode)
 		dstArray.RegisterPath(dst);
 
-	// „Éï„Ç£„É´„Çø
+	// ÉtÉBÉãÉ^
 	WCHAR	from_date[MINI_BUF]=L"", to_date[MINI_BUF]=L"";
 	WCHAR	min_size[MINI_BUF]=L"", max_size[MINI_BUF]=L"";
 	WCHAR	*inc = NULL, *exc = NULL;
@@ -1356,8 +1388,9 @@ BOOL TMainDlg::ExecCopy(DWORD exec_flags)
 		}
 	}
 
-	// Á¢∫Ë™çÁî®„Éï„Ç°„Ç§„É´‰∏ÄË¶ß
-	if (!ret || !(ret = fastCopy.RegisterInfo(&srcArray, &dstArray, &info, &incArray, &excArray))) {
+	// ämîFópÉtÉ@ÉCÉãàÍóó
+	if (!ret
+	|| !(ret = fastCopy.RegisterInfo(&srcArray, &dstArray, &info, &incArray, &excArray))) {
 		SetDlgItemText(STATUS_EDIT, "Error");
 	}
 
@@ -1370,7 +1403,7 @@ BOOL TMainDlg::ExecCopy(DWORD exec_flags)
 					info.mode == FastCopy::MOVE_MODE   ? GetLoadStrV(IDS_MOVECONFIRM) :
 					info.mode == FastCopy::SYNCCP_MODE ? GetLoadStrV(IDS_SYNCCONFIRM) :
 					info.isRenameMode ? GetLoadStrV(IDS_DUPCONFIRM): NULL;
-		int		sv_flags = info.flags;	// delete confirm „ÅßÂ§âÂåñ„Åó„Å™„ÅÑ„ÅãÁ¢∫Ë™ç
+		int		sv_flags = info.flags;	// delete confirm Ç≈ïœâªÇµÇ»Ç¢Ç©ämîF
 
 		switch (TExecConfirmDlg(&info, &cfg, this, title, isShellExt).Exec(src_list,
 				is_delete_mode ? NULL : dst)) {
@@ -1390,7 +1423,7 @@ BOOL TMainDlg::ExecCopy(DWORD exec_flags)
 		}
 
 		if (ret && is_delete_mode && info.flags != sv_flags) {
-			// flag „ÅåÂ§âÂåñ„Åó„Å¶„ÅÑ„ÅüÂ†¥Âêà„ÅØ„ÄÅÂÜçÁôªÈå≤
+			// flag Ç™ïœâªÇµÇƒÇ¢ÇΩèÍçáÇÕÅAçƒìoò^
 			ret = fastCopy.RegisterInfo(&srcArray, &dstArray, &info, &incArray, &excArray);
 		}
 	}
@@ -1448,7 +1481,7 @@ BOOL TMainDlg::ExecCopy(DWORD exec_flags)
 	delete [] src;
 
 	if (ret) {
-		SendDlgItemMessage(PATH_EDIT, EM_SETTARGETDEVICE, 0, IsListing() ? 1 : 0);	// Êäò„ÇäËøî„Åó
+		SendDlgItemMessage(PATH_EDIT, EM_SETTARGETDEVICE, 0, IsListing() ? 1 : 0);	// ê‹ÇËï‘Çµ
 		SetMiniWindow();
 		SetDlgItemText(ERR_EDIT, "");
 
@@ -1484,6 +1517,7 @@ BOOL TMainDlg::ExecCopy(DWORD exec_flags)
 			delete [] pathLogBuf;
 			pathLogBuf = NULL;
 		}
+		CheckVerifyExtension();
 	}
 
 	return	ret;
@@ -1554,6 +1588,7 @@ BOOL TMainDlg::EndCopy(void)
 	isShellExt = FALSE;
 	RefreshWindow(TRUE);
 	UpdateMenu();
+	CheckVerifyExtension();
 
 	SetFocus(GetDlgItem(IsListing() ? LIST_BUTTON : IDOK));
 
@@ -1733,6 +1768,32 @@ BOOL TMainDlg::WriteErrLog(BOOL is_initerr)
 	return	TRUE;
 }
 
+BOOL TMainDlg::CheckVerifyExtension()
+{
+	if (fastCopy.IsStarting()) return FALSE;
+
+	char	buf[128];
+	DWORD	len = GetDlgItemText(LIST_BUTTON, buf, sizeof(buf));
+	BOOL	is_set = GetCopyMode() != FastCopy::DELETE_MODE && IsForeground()
+						&& (::GetAsyncKeyState(VK_CONTROL) & 0x8000) ? TRUE : FALSE;
+
+	if (len <= 0) return FALSE;
+
+	char	end_ch = buf[len-1];
+	if      ( is_set && end_ch != 'V') strcpy(buf + len, "+V");
+	else if (!is_set && end_ch == 'V') buf[len-2] = 0;
+	else return FALSE;
+
+	SetDlgItemText(LIST_BUTTON, buf);
+	return	TRUE;
+}
+
+BOOL TMainDlg::EventActivateApp(BOOL fActivate, DWORD dwThreadID)
+{
+	CheckVerifyExtension();
+	return	FALSE;
+}
+
 BOOL TMainDlg::EventUser(UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMsg) {
@@ -1792,6 +1853,10 @@ BOOL TMainDlg::EventUser(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 	case WM_FASTCOPY_STATUS:
 		return	fastCopy.IsStarting() ? 1 : isDelay ? 2 : 0;
+
+	case WM_FASTCOPY_KEY:
+		CheckVerifyExtension();
+		return	TRUE;
 
 	default:
 		if (uMsg == TaskBarCreateMsg)
@@ -1862,7 +1927,8 @@ DWORD TMainDlg::UpdateSpeedLevel(BOOL is_timer)
 	fastCopy.SetWaitTick(newWaitCnt);
 
 	if (!is_timer && fastCopy.IsStarting()) {
-		SetPriority(speedLevel != SPEED_FULL ? IDLE_PRIORITY_CLASS : NORMAL_PRIORITY_CLASS);
+		SetPriority((speedLevel != SPEED_FULL || cfg.alwaysLowIo) ?
+						IDLE_PRIORITY_CLASS : NORMAL_PRIORITY_CLASS);
 		if (speedLevel == SPEED_SUSPEND) {
 			fastCopy.Suspend();
 		}
@@ -1895,22 +1961,28 @@ BOOL TMainDlg::SetListViewItem(int idx, int subIdx, char *txt)
 BOOL TMainDlg::RunAsAdmin(DWORD flg)
 {
 	SHELLEXECUTEINFO	sei = {0};
-	char				buf[MAX_PATH];
-	sprintf(buf, "%s%p,%x", GetLoadStrA(IDS_RUNAS_OPT), hWnd, flg);
+	WCHAR				buf[MAX_PATH];
+
+	sprintfV(buf, GetLoadStrV(IDS_RUNAS_FMT), GetLoadStrV(IDS_RUNAS_OPT), hWnd, flg);
 	sei.cbSize = sizeof(SHELLEXECUTEINFO);
-	sei.lpVerb = "runas";
-	sei.lpFile = cfg.execPath;
-	sei.lpDirectory = cfg.execDir;
+	sei.lpVerb = (char *)GetLoadStrV(IDS_RUNAS);
+	sei.lpFile = (char *)cfg.execPathV;
+	sei.lpDirectory = (char *)cfg.execDirV;
 	sei.nShow = /*SW_MAXIMIZE*/ SW_NORMAL;
-	sei.lpParameters = buf;
-	isRunAsParent = ::ShellExecuteEx(&sei);
+	sei.lpParameters = (char *)buf;
+
+	EnableWindow(FALSE);
+	isRunAsParent = ::ShellExecuteExV(&sei);
+	EnableWindow(TRUE);
+
 	return	isRunAsParent;
 }
 
 BOOL TMainDlg::EnableErrLogFile(BOOL on)
 {
 	if (on && hErrLog == INVALID_HANDLE_VALUE) {
-		hErrLogMutex = ::CreateMutex(NULL, TRUE, FASTCOPYLOG_MUTEX);
+		hErrLogMutex = ::CreateMutex(NULL, FALSE, FASTCOPYLOG_MUTEX);
+		::WaitForSingleObject(hErrLogMutex, INFINITE);
 		hErrLog = ::CreateFileV(errLogPathV, GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE, 0,
 					OPEN_ALWAYS, 0, 0);
 	}
@@ -2057,7 +2129,7 @@ BOOL TMainDlg::CommandLineExecV(int argc, void **argv)
 	void	*dst_path	= NULL;
 	PathArray pathArray;
 
-	argc--, argv++;		// ÂÆüË°å„Éï„Ç°„Ç§„É´Âêç„ÅØ skip
+	argc--, argv++;		// é¿çsÉtÉ@ÉCÉãñºÇÕ skip
 
 	while (*argv && GetChar(*argv, 0) == '/') {
 		if (strcmpiEx(*argv, CMD_STR, &len) == 0) {
@@ -2065,7 +2137,7 @@ BOOL TMainDlg::CommandLineExecV(int argc, void **argv)
 			if (idx == -1)
 				return	MessageBox(GetLoadStr(IDS_USAGE), "Illegal Command"), FALSE;
 
-			// „Ç≥„Éû„É≥„Éâ„É¢„Éº„Éâ„ÇíÈÅ∏Êäû
+			// ÉRÉ}ÉìÉhÉÇÅ[ÉhÇëIë
 			SendDlgItemMessage(MODE_COMBO, CB_SETCURSEL, idx, 0);
 		}
 		else if (strcmpiEx(*argv, JOB_STR, &len) == 0) {
@@ -2272,7 +2344,7 @@ BOOL TMainDlg::CommandLineExecV(int argc, void **argv)
 				return	FALSE;
 			if ((argv = CommandLineToArgvV(shellExtBuf.Buf(), &argc)) == NULL)
 				break;
-			continue;	// ÂÜç parse
+			continue;	// çƒ parse
 		}
 		else
 			return	MessageBoxV(GetLoadStrV(IDS_USAGE), *argv), FALSE;
@@ -2324,7 +2396,7 @@ BOOL TMainDlg::CommandLineExecV(int argc, void **argv)
 		if (::GetWindowTextLengthV(GetDlgItem(SRC_COMBO)) == 0
 		|| (!is_delete && ::GetWindowTextLengthV(GetDlgItem(DST_COMBO)) == 0)) {
 			is_noexec = TRUE;
-			if (isShellExt)			// „Ç≥„Éî„ÉºÂÖà„ÅÆÁÑ°„ÅÑ shellËµ∑ÂãïÊôÇ„ÅØ„ÄÅautoclose „ÇíÁÑ°Ë¶ñ„Åô„Çã
+			if (isShellExt)			// ÉRÉsÅ[êÊÇÃñ≥Ç¢ shellãNìÆéûÇÕÅAautoclose Çñ≥éãÇ∑ÇÈ
 				autoCloseLevel = NO_CLOSE;
 		}
 
@@ -2373,7 +2445,7 @@ BOOL TMainDlg::RunasSync(HWND hOrg)
 {
 	int		i;
 
-/* GUIÊÉÖÂ†±„Çí„Ç≥„Éî„Éº */
+/* GUIèÓïÒÇÉRÉsÅ[ */
 	DWORD	copy_items[] = { SRC_COMBO, DST_COMBO, BUFSIZE_EDIT, INCLUDE_COMBO, EXCLUDE_COMBO,
 							 FROMDATE_COMBO, TODATE_COMBO, MINSIZE_COMBO, MAXSIZE_COMBO,
 							 JOBTITLE_STATIC, 0 };
@@ -2388,7 +2460,7 @@ BOOL TMainDlg::RunasSync(HWND hOrg)
 	SendDlgItemMessage(MODE_COMBO, CB_SETCURSEL,
 		::SendDlgItemMessage(hOrg, MODE_COMBO, CB_GETCURSEL, 0, 0), 0);
 
-/* Pipe „ÅßÂÜÖÈÉ®ÊÉÖÂ†±„ÇíÂèó„ÅëÊ∏°„Åó */
+/* Pipe Ç≈ì‡ïîèÓïÒÇéÛÇØìnÇµ */
 	DWORD	pid;
 	::GetWindowThreadProcessId(hOrg, &pid);
 	HANDLE	hProc = ::OpenProcess(PROCESS_DUP_HANDLE, FALSE, pid);
@@ -2405,7 +2477,7 @@ BOOL TMainDlg::RunasSync(HWND hOrg)
 	::CloseHandle(hRead);
 	::SendMessage(hOrg, WM_CLOSE, 0, 0);
 
-/* ÂÜÖÈÉ®ÊÉÖÂ†±„Å®GUI„ÇíÁÑ°ÁüõÁõæ„Å´„Åô„Çã */
+/* ì‡ïîèÓïÒÇ∆GUIÇñ≥ñµèÇÇ…Ç∑ÇÈ */
 	SetSpeedLevelLabel(this, speedLevel);
 	UpdateMenu();
 	SetItemEnable(GetCopyMode() == FastCopy::DELETE_MODE);
@@ -2485,7 +2557,7 @@ BOOL TMainDlg::StartFileLog()
 	if (fileLogMode == NO_FILELOG || IsListing()) return FALSE;
 
 	if (fileLogMode == AUTO_FILELOG || strchrV(fileLogPathV, '\\') == 0) {
-		MakePathV(logDir, cfg.execDirV, GetLoadStrV(IDS_FILELOG_SUBDIR));
+		MakePathV(logDir, cfg.userDirV, GetLoadStrV(IDS_FILELOG_SUBDIR));
 		if (GetFileAttributesV(logDir) == 0xffffffff)
 			CreateDirectoryV(logDir, NULL);
 
@@ -2936,11 +3008,12 @@ void TMainDlg::SetItemEnable(BOOL is_delete)
 }
 
 static char fastcopy_version_str[32];
+static char fastcopy_copyright_str[128];
 
 void SetVersionStr(BOOL is_runas)
 {
 	sprintf(fastcopy_version_str, "%.20s%.10s", strstr(mainwin_id, "ver"),
-	is_runas && TIsUserAnAdmin() ? " (Admin)" : "");
+			is_runas && TIsUserAnAdmin() ? " (Admin)" : "");
 }
 
 const char *GetVersionStr(void)
@@ -2948,6 +3021,18 @@ const char *GetVersionStr(void)
 	if (fastcopy_version_str[0] == 0)
 		SetVersionStr();
 	return	fastcopy_version_str;
+}
+
+const char *GetCopyrightStr(void)
+{
+	if (fastcopy_copyright_str[0] == 0) {
+		char *s = strchr(mainwin_id, 'C');
+		char *e = strchr(mainwin_id, '\t');
+		if (s && e && s < e) {
+			sprintf(fastcopy_copyright_str, "%.*s", e-s, s);
+		}
+	}
+	return	fastcopy_copyright_str;
 }
 
 void TMainDlg::UpdateMenu(void)
@@ -2960,7 +3045,7 @@ void TMainDlg::UpdateMenu(void)
 //		::DeleteMenu(hMenu, ADMIN_MENUITEM, MF_BYCOMMAND);
 //	}
 
-// „Éà„ÉÉ„Éó„É¨„Éô„É´„É°„Éã„É•„Éº„Ç¢„Ç§„ÉÜ„É†„Å´„Ç¢„Ç§„Ç≥„É≥„Çí‰ªò‰∏é„Åô„Çã„ÅÆ„ÅØÁÑ°ÁêÜ„Åã„ÇÇÔºü
+// ÉgÉbÉvÉåÉxÉãÉÅÉjÉÖÅ[ÉAÉCÉeÉÄÇ…ÉAÉCÉRÉìÇïtó^Ç∑ÇÈÇÃÇÕñ≥óùÇ©Ç‡ÅH
 //	HICON hIcon = ::LoadImage(GetModuleHandle("user32.dll"), 106, IMAGE_ICON, 16, 16, LR_DEFAULTCOLOR);
 //	::SetMenuItemBitmaps(hMenu, 0, MF_BYPOSITION, LoadBitmap(NULL, (char *)32754), LoadBitmap(NULL, (char *)32754));
 
@@ -3061,7 +3146,7 @@ void TMainDlg::SetFinAct(int idx)
 }
 
 #ifdef HASHQUALITY_CHECK
-//	„Éè„ÉÉ„Ç∑„É•ÂìÅË≥™Á¢∫Ë™çÔºà„Ç≥„É™„Ç∏„Éß„É≥Ê§úÊüªÔºâ
+//	ÉnÉbÉVÉÖïiéøämîFÅiÉRÉäÉWÉáÉìåüç∏Åj
 #define MAX_HASH	5000000
 
 #define THASH_RAND_NUM1 757

@@ -1,9 +1,9 @@
-﻿/* @(#)Copyright (C) H.Shirouzu 1996-2009   tapi32u8.h	Ver0.99 */
+﻿/* @(#)Copyright (C) 1996-2010 H.Shirouzu		tapi32u8.h	Ver0.99 */
 /* ========================================================================
 	Project  Name			: Win32 Lightweight  Class Library Test
 	Module Name				: Main Header
 	Create					: 2005-04-10(Sun)
-	Update					: 2009-03-09(Mon)
+	Update					: 2010-05-09(Sun)
 	Copyright				: H.Shirouzu
 	Reference				: 
 	======================================================================== */
@@ -40,6 +40,10 @@ char *WtoU8(const WCHAR *src, BOOL noStatic=FALSE);
 char *WtoA(const WCHAR *src, BOOL noStatic=FALSE);
 char *AtoU8(const char *src, BOOL noStatic=FALSE);
 char *U8toA(const char *src, BOOL noStatic=FALSE);
+char *toA(const void *src, BOOL noStatic=FALSE);
+WCHAR *toW(const void *src, BOOL noStatic=FALSE);
+void *toV(const char *src, BOOL noStatic=FALSE);
+void *toV(const WCHAR *src, BOOL noStatic=FALSE);
 
 // Win32(W) API UTF8 wrapper
 BOOL GetMenuStringU8(HMENU hMenu, UINT uItem, char *buf, int bufsize, UINT flags);

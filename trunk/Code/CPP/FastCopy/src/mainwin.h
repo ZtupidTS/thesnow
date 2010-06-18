@@ -1,9 +1,9 @@
-﻿/* static char *fastcopy_id = 
-	"@(#)Copyright (C) H.Shirouzu 2004-2009   mainwin.h	Ver1.99"; */
+/* static char *fastcopy_id = 
+	"@(#)Copyright (C) 2004-2010 H.Shirouzu		mainwin.h	Ver2.00"; */
 /* ========================================================================
 	Project  Name			: Fast Copy file and directory
 	Create					: 2004-09-15(Wed)
-	Update					: 2009-05-24(Sun)
+	Update					: 2010-05-09(Sun)
 	Copyright				: H.Shirouzu
 	Reference				: 
 	======================================================================== */
@@ -27,6 +27,8 @@
 #define WM_FASTCOPY_HIDDEN	(WM_USER + 102)
 #define WM_FASTCOPY_RUNAS	(WM_USER + 103)
 #define WM_FASTCOPY_STATUS	(WM_USER + 104)
+#define WM_FASTCOPY_KEY		(WM_USER + 105)
+
 #define FASTCOPY_TIMER		100
 #define FASTCOPY_NIM_ID		100
 #define FASTCOPY_FIN_TIMER	110
@@ -163,9 +165,12 @@ protected:
 	TShellExtDlg	shellExtDlg;
 	TJobDlg			jobDlg;
 	TFinActDlg		finActDlg;
+	TEditSub		pathEdit;
+	TEditSub		errEdit;
 
 protected:
 	BOOL	SetCopyModeList(void);
+	BOOL	IsForeground();
 	BOOL	MoveCenter(BOOL isShow);
 	BOOL	SetupWindow();
 	BOOL	ExecCopy(DWORD exec_flags);
@@ -197,6 +202,7 @@ protected:
 	void	WriteLogHeader(HANDLE hFile, BOOL add_filelog=TRUE);
 	BOOL	WriteLogFooter(HANDLE hFile);
 	BOOL	WriteErrLog(BOOL is_initerr=FALSE);
+	BOOL	CheckVerifyExtension();
 	BOOL	StartFileLog();
 	void	EndFileLog();
 
@@ -219,6 +225,7 @@ public:
 	virtual BOOL	EventButton(UINT uMsg, int nHitTest, POINTS pos);
 */
 	virtual BOOL	EventInitMenu(UINT uMsg, HMENU hMenu, UINT uPos, BOOL fSystemMenu);
+	virtual BOOL	EventActivateApp(BOOL fActivate, DWORD dwThreadID);
 	virtual BOOL	EventUser(UINT uMsg, WPARAM wParam, LPARAM lParam);
 	virtual void	Show(int mode = SW_SHOWDEFAULT);
 
@@ -252,10 +259,12 @@ public:
 	virtual ~TFastCopyApp();
 
 	virtual void	InitWindow(void);
+	virtual BOOL	PreProcMsg(MSG *msg);
 };
 
 void SetVersionStr(BOOL is_runas=FALSE);
 const char *GetVersionStr(void);
+const char *GetCopyrightStr(void);
 
 #endif
 

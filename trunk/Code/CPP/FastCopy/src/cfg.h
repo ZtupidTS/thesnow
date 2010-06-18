@@ -1,9 +1,9 @@
 /* static char *cfg_id = 
-	"@(#)Copyright (C) H.Shirouzu 2005-2009   cfg.h	Ver1.99"; */
+	"@(#)Copyright (C) 2005-2010 H.Shirouzu		cfg.h	Ver2.00"; */
 /* ========================================================================
 	Project  Name			: Fast/Force copy file and directory
 	Create					: 2005-01-23(Sun)
-	Update					: 2009-05-24(Sun)
+	Update					: 2010-05-09(Sun)
 	Copyright				: H.Shirouzu
 	Reference				: 
 	======================================================================== */
@@ -150,6 +150,7 @@ public:
 	int		waitTick;
 	int		speedLevel;
 	BOOL	isAutoSlowIo;
+	BOOL	alwaysLowIo;
 	BOOL	enableOwdel;
 	BOOL	enableAcl;
 	BOOL	enableStream;
@@ -185,9 +186,10 @@ public:
 	void	**toDateHistory;
 	void	**minSizeHistory;
 	void	**maxSizeHistory;
-	char	*execDir;
+	void	*execPathV;
 	void	*execDirV;
-	char	*execPath;
+	void	*userDirV;
+	void	*userOldDirV;
 	void	*errLogPathV;	// UNICODE
 	Job		**jobArray;
 	int		jobMax;
@@ -195,6 +197,7 @@ public:
 	int		finActMax;
 	POINT	winpos;
 	SIZE	winsize;
+	char	driveMap[64];
 
 	Cfg();
 	~Cfg();

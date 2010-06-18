@@ -1,9 +1,9 @@
 ﻿static char *cfg_id = 
-	"@(#)Copyright (C) H.Shirouzu 2004-2009   cfg.cpp	Ver1.99";
+	"@(#)Copyright (C) 2004-2010 H.Shirouzu		cfg.cpp	ver2.00";
 /* ========================================================================
 	Project  Name			: Fast/Force copy file and directory
 	Create					: 2004-09-15(Wed)
-	Update					: 2009-05-24(Sun)
+	Update					: 2010-05-09(Sun)
 	Copyright				: H.Shirouzu
 	Reference				: 
 	======================================================================== */
@@ -15,6 +15,7 @@
 #include <stddef.h>
 
 #define FASTCOPY_INI			"fastcopy.ini"
+#define FASTCOPY_INI_W			L"fastcopy.ini"
 #define MAIN_SECTION			"main"
 #define SRC_HISTORY				"src_history"
 #define DST_HISTORY				"dst_history"
@@ -56,6 +57,8 @@
 #define WAITTICK_KEY			"wait_tick"
 #define ISAUTOSLOWIO_KEY		"is_autoslow_io2"
 #define SPEEDLEVEL_KEY			"speed_level"
+#define ALWAYSLOWIO_KEY			"alwaysLowIo"
+#define DRIVEMAP_KEY			"driveMap"
 #define OWDEL_KEY				"overwrite_del"
 #define ACL_KEY					"acl"
 #define STREAM_KEY				"stream"
@@ -113,6 +116,40 @@
 #define FINACT_MAX				1000
 #define DEFAULT_FASTCOPYLOG		"fastcopy.log"
 
+BOOL ConvertVirtualStoreConf(void *execDirV, void *userDirV, void *userOldDirV)
+{
+	BOOL	ret = FALSE;
+	WCHAR	buf[MAX_PATH];
+	WCHAR	org_ini[MAX_PATH], usr_ini[MAX_PATH], vs_ini[MAX_PATH];
+
+	MakePathV(usr_ini, userDirV,    FASTCOPY_INI_W);
+	MakePathV(vs_ini,  userOldDirV, FASTCOPY_INI_W);
+	MakePathV(org_ini, execDirV,    FASTCOPY_INI_W);
+
+	if (GetFileAttributesV(vs_ini) != 0xffffffff) {
+		ret = ::CopyFileW(vs_ini, usr_ini, TRUE);
+		if (ret) {
+			MakePathV(buf, userDirV, L"to_OldDir(VirtualStore).lnk");
+			SymLinkV(userOldDirV, buf);
+			goto END;
+		}
+	}
+
+	if (GetFileAttributesV(org_ini) != 0xffffffff) {
+		ret = ::CopyFileW(org_ini, usr_ini, TRUE);
+		goto END;
+	}
+
+END:
+	if (ret) {
+		sprintfV(buf, L"%s.obsolete", vs_ini);
+		MoveFileW(vs_ini, buf);
+		sprintfV(buf, L"%s.obsolete", org_ini);
+		MoveFileW(org_ini, buf);
+	}
+	return	ret;
+}
+
 /*=========================================================================
   クラス ： Cfg
   概  要 ： コンフィグクラス
@@ -121,37 +158,63 @@
 =========================================================================*/
 Cfg::Cfg()
 {
-	char	buf[MAX_PATH], path[MAX_PATH], *fname = NULL;
+	WCHAR	buf[MAX_PATH], path[MAX_PATH], *fname = NULL;
 
-	::GetModuleFileName(NULL, buf, sizeof(buf));
-	::GetFullPathName(buf, sizeof(path), path, &fname);
+	GetModuleFileNameV(NULL, buf, MAX_PATH);
+	GetFullPathNameV(buf, MAX_PATH, path, (void **)&fname);
 
-	execPath = strdup(path);
+	execPathV = strdupV(path);
 	if (fname) {
 		*fname = 0;
-		execDir = strdup(path);
+		execDirV = strdupV(path);
 	}
 	else {
-		execDir = strdup(".\\");
+		execDirV = strdupV(IS_WINNT_V ? (void *)L".\\" : (void *)".\\");
 	}
 	errLogPathV = NULL;
 
-	execDirV = strdupV(IS_WINNT_V ? (void *)AtoW(execDir) : (void *)execDir);
+	userDirV = userOldDirV = NULL;
 
-	MakePath(path, execDir, FASTCOPY_INI);
-	ini.Init(path);
+	if (IsWinVista() && TIsEnableUAC() && TIsVirtualizedDirV(execDirV)) {
+		if (TSHGetSpecialFolderPathV(NULL, buf, CSIDL_APPDATA, FALSE)) {
+			void	*fastcopy_v = GetLoadStrV(IDS_FASTCOPY);
+
+			MakePathV(path, buf, fastcopy_v);
+			userDirV = strdupV(path);
+
+			if (GetFileAttributesV(userDirV) == 0xffffffff) {
+				CreateDirectoryV(userDirV, NULL);
+			}
+
+			if (TMakeVirtualStorePathV(execDirV, path)) {
+				userOldDirV = strdupV(path);
+			}
+
+			MakePathV(buf, userDirV, FASTCOPY_INI_W);
+			if (GetFileAttributesV(buf) == 0xffffffff) {
+				ConvertVirtualStoreConf(execDirV, userDirV, userOldDirV);
+			}
+		}
+	}
+	if (!userDirV) userDirV = strdupV(execDirV);
+
+	char	ini_path[MAX_PATH];
+	MakePath(ini_path, toA(execDirV), FASTCOPY_INI);
+	ini.Init(ini_path);
 }
 
 Cfg::~Cfg()
 {
-	free(execPath);
-	free(execDir);
+	free(execPathV);
 	free(execDirV);
 	free(errLogPathV);
+	free(userDirV);
+	free(userOldDirV);
 }
 
 BOOL Cfg::ReadIni(void)
 {
+	int		i, j;
 	char	key[100], *p;
 	char	*buf = new char [MAX_HISTORY_CHAR_BUF];
 	WCHAR	*wbuf = new WCHAR [MAX_HISTORY_BUF];
@@ -208,6 +271,7 @@ BOOL Cfg::ReadIni(void)
 	waitTick		= ini.GetInt(WAITTICK_KEY, DEFAULT_WAITTICK);
 	isAutoSlowIo	= ini.GetInt(ISAUTOSLOWIO_KEY, TRUE);
 	speedLevel		= ini.GetInt(SPEEDLEVEL_KEY, SPEED_FULL);
+	alwaysLowIo		= ini.GetInt(ALWAYSLOWIO_KEY, FALSE);
 	enableOwdel		= ini.GetInt(OWDEL_KEY, FALSE);
 	enableAcl		= ini.GetInt(ACL_KEY, FALSE);
 	enableStream	= ini.GetInt(STREAM_KEY, FALSE);
@@ -230,11 +294,13 @@ BOOL Cfg::ReadIni(void)
 	winsize.cx = p && (p = strtok(NULL, ", \t")) ? atoi(p) : INVALID_SIZEVAL;
 	winsize.cy = p && (p = strtok(NULL, ", \t")) ? atoi(p) : INVALID_SIZEVAL;
 
+	ini.GetStr(DRIVEMAP_KEY, driveMap, sizeof(driveMap), "");
+
 /* logfile */
 	ini.GetStr(LOGFILE_KEY, buf, MAX_PATH, DEFAULT_FASTCOPYLOG);
 	IniStrToV(buf, wbuf);
 	if (lstrchrV(wbuf, '\\') == NULL) {
-		MakePathV(buf, execDirV, wbuf);
+		MakePathV(buf, userDirV, wbuf);
 		errLogPathV = strdupV(buf);
 	}
 	else {
@@ -242,7 +308,6 @@ BOOL Cfg::ReadIni(void)
 	}
 
 /* History */
-	int	i, j;
 	for (i=0; i < sizeof(section_array) / sizeof(char *); i++) {
 		char	*&section = section_array[i];
 		void	**&history = *history_array[i];
@@ -362,7 +427,7 @@ BOOL Cfg::PostReadIni(void)
 		IDS_FINACT_NORMAL, IDS_FINACT_SUSPEND, IDS_FINACT_HIBERNATE, IDS_FINACT_SHUTDOWN, 0
 	};
 	DWORD flags_list[] = {
-		0,					  FinAct::SUSPEND,	  FinAct::HIBERNATE,	FinAct::SHUTDOWN, 0
+		0,				   FinAct::SUSPEND,	   FinAct::HIBERNATE,	 FinAct::SHUTDOWN,    0
 	};
 
 	for (int i=0; id_list[i]; i++) {
@@ -416,6 +481,7 @@ BOOL Cfg::WriteIni(void)
 //	ini.SetInt(WAITTICK_KEY, waitTick);
 //	ini.SetInt(ISAUTOSLOWIO_KEY, isAutoSlowIo);
 	ini.SetInt(SPEEDLEVEL_KEY, speedLevel);
+//	ini.SetInt(ALWAYSLOWIO_KEY, alwaysLowIo);
 	ini.SetInt(OWDEL_KEY, enableOwdel);
 	ini.SetInt(ACL_KEY, enableAcl);
 	ini.SetInt(STREAM_KEY, enableStream);
@@ -435,6 +501,7 @@ BOOL Cfg::WriteIni(void)
 	char	val[256];
 	sprintf(val, "%d,%d,%d,%d", winpos.x, winpos.y, winsize.cx, winsize.cy);
 	ini.SetStr(WINPOS_KEY, val);
+	ini.SetStr(DRIVEMAP_KEY, driveMap);
 
 	char	*section_array[] = {	SRC_HISTORY, DST_HISTORY, DEL_HISTORY,
 									INC_HISTORY, EXC_HISTORY,
@@ -524,17 +591,15 @@ BOOL Cfg::WriteIni(void)
 		VtoIniStr(finAct->command, buf);
 		ini.SetStr(CMD_KEY,			buf);
 
-		ini.SetInt(SHUTDOWNTIME_KEY,		finAct->shutdownTime);
-		ini.SetInt(FLAGS_KEY,				finAct->flags);
+		ini.SetInt(SHUTDOWNTIME_KEY,	finAct->shutdownTime);
+		ini.SetInt(FLAGS_KEY,			finAct->flags);
 	}
 	wsprintf(buf, FMT_FINACT_KEY, i);
 	ini.DelSection(buf);
 
 	delete [] buf;
 
-	ini.EndUpdate();
-
-	return	TRUE;
+	return	ini.EndUpdate();
 }
 
 BOOL Cfg::EntryPathHistory(void *src, void *dst)

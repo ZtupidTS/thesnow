@@ -1,10 +1,10 @@
 ﻿static char *tap32ex_id = 
-	"@(#)Copyright (C) H.Shirouzu 1996-2009   tap32ex.cpp	Ver0.99";
+	"@(#)Copyright (C) 1996-2010 H.Shirouzu		tap32ex.cpp	Ver0.99";
 /* ========================================================================
 	Project  Name			: Win32 Lightweight  Class Library Test
 	Module Name				: Application Frame Class
 	Create					: 1996-06-01(Sat)
-	Update					: 2009-03-09(Mon)
+	Update					: 2010-05-09(Sun)
 	Copyright				: H.Shirouzu
 	Reference				: 
 	======================================================================== */

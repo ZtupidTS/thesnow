@@ -1,10 +1,10 @@
 ﻿static char *tregist_id = 
-	"@(#)Copyright (C) H.Shirouzu 1996-2009   tregist.cpp	Ver0.97";
+	"@(#)Copyright (C) 1996-2010 H.Shirouzu		tregist.cpp	Ver0.97";
 /* ========================================================================
 	Project  Name			: Win32 Lightweight  Class Library Test
 	Module Name				: Registry Class
 	Create					: 1996-06-01(Sat)
-	Update					: 2009-03-09(Mon)
+	Update					: 2010-05-09(Sun)
 	Copyright				: H.Shirouzu
 	Reference				: 
 	======================================================================== */
@@ -156,7 +156,7 @@ BOOL TRegistry::GetLongV(const void *subKey, long *val)
 			== ERROR_SUCCESS) {
 		return	TRUE;
 	}
-// 愄偺屳姺惈梡
+// 昔の互換性用
 	WCHAR	wbuf[100];
 	long	size_byte = sizeof(wbuf);
 
@@ -316,8 +316,8 @@ BOOL TRegistry::EnumValueV(DWORD cnt, void *buf, int size, DWORD *type)
 }
 
 /*
-	subKey 傪巜掕偟偨応崌偼 subkey 傪娷傓僉乕埲壓傪嶍彍
-	subkey 偑 NULL 偺応崌丄僇儗儞僩 偺攝壓傪嶍彍
+	subKey を指定した場合は subkey を含むキー以下を削除
+	subkey が NULL の場合、カレント の配下を削除
 */
 BOOL TRegistry::DeleteChildTree(LPCSTR subKey)
 {

@@ -1,5 +1,5 @@
-ï»¿static char *utility_id = 
-	"@(#)Copyright (C) 2004-2010 H.Shirouzu		utility.cpp	ver2.00";
+static char *utility_id = 
+	"@(#)Copyright (C) 2004-2010 H.Shirouzu		utility.cpp	Ver2.00";
 /* ========================================================================
 	Project  Name			: general routine
 	Create					: 2004-09-15(Wed)
@@ -11,13 +11,12 @@
 #include <stdio.h>
 #include <stddef.h>
 #include "utility.h"
-#include "resource.h"
 
 /*=========================================================================
-  ã‚¯ãƒ©ã‚¹ ï¼š Condition
-  æ¦‚  è¦ ï¼š æ¡ä»¶å¤‰æ•°ã‚¯ãƒ©ã‚¹
-  èª¬  æ˜ ï¼š 
-  æ³¨  æ„ ï¼š 
+  ƒNƒ‰ƒX F Condition
+  ŠT  —v F ğŒ•Ï”ƒNƒ‰ƒX
+  à  –¾ F 
+  ’  ˆÓ F 
 =========================================================================*/
 Condition::Condition(void)
 {
@@ -65,8 +64,8 @@ BOOL Condition::Wait(DWORD timeout)
 
 	for (wait_id=0; wait_id < max_threads && waitEvents[wait_id] != CLEAR_EVENT; wait_id++)
 		;
-	if (wait_id == max_threads) {	// é€šå¸¸ã¯ã‚ã‚Šãˆãªã„
-		MessageBox(0, "Detect too many wait threads", "FastCopy", MB_OK);
+	if (wait_id == max_threads) {	// ’Êí‚Í‚ ‚è‚¦‚È‚¢
+		MessageBox(0, "Detect too many wait threads", "IPMsg", MB_OK);
 		return	FALSE;
 	}
 	waitEvents[wait_id] = WAIT_EVENT;
@@ -82,7 +81,7 @@ BOOL Condition::Wait(DWORD timeout)
 	return	status == WAIT_TIMEOUT ? FALSE : TRUE;
 }
 
-void Condition::Notify(void)	// ç¾çŠ¶ã§ã¯ã€çœ ã£ã¦ã„ã‚‹ã‚¹ãƒ¬ãƒƒãƒ‰å…¨å“¡ã‚’èµ·ã“ã™
+void Condition::Notify(void)	// Œ»ó‚Å‚ÍA–°‚Á‚Ä‚¢‚éƒXƒŒƒbƒh‘Sˆõ‚ğ‹N‚±‚·
 {
 	if (waitCnt > 0) {
 		for (int wait_id=0, done_cnt=0; wait_id < max_threads; wait_id++) {
@@ -97,10 +96,10 @@ void Condition::Notify(void)	// ç¾çŠ¶ã§ã¯ã€çœ ã£ã¦ã„ã‚‹ã‚¹ãƒ¬ãƒƒãƒ‰å…¨å“¡
 }
 
 /*=========================================================================
-  ã‚¯ãƒ©ã‚¹ ï¼š VBuf
-  æ¦‚  è¦ ï¼š ä»®æƒ³ãƒ¡ãƒ¢ãƒªç®¡ç†ã‚¯ãƒ©ã‚¹
-  èª¬  æ˜ ï¼š 
-  æ³¨  æ„ ï¼š 
+  ƒNƒ‰ƒX F VBuf
+  ŠT  —v F ‰¼‘zƒƒ‚ƒŠŠÇ—ƒNƒ‰ƒX
+  à  –¾ F 
+  ’  ˆÓ F 
 =========================================================================*/
 VBuf::VBuf(int _size, int _max_size, VBuf *_borrowBuf)
 {
@@ -136,7 +135,7 @@ BOOL VBuf::AllocBuf(int _size, int _max_size, VBuf *_borrowBuf)
 		borrowBuf->AddUsedSize(maxSize + PAGE_SIZE);
 	}
 	else {
-	// 1page åˆ†ã ã‘ä½™è¨ˆã«ç¢ºä¿ï¼ˆbuffer over flow æ¤œå‡ºç”¨ï¼‰
+	// 1page •ª‚¾‚¯—]Œv‚ÉŠm•Ûibuffer over flow ŒŸo—pj
 		if (!(buf = (BYTE *)::VirtualAlloc(NULL, maxSize + PAGE_SIZE, MEM_RESERVE, PAGE_READWRITE))) {
 			Init();
 			return	FALSE;
@@ -176,10 +175,10 @@ BOOL VBuf::Grow(int grow_size)
 }
 
 /*=========================================================================
-	æ‹¡å¼µ strtok()
-		"" ã«å‡ºãã‚ã™ã¨ã€"" ã®ä¸­èº«ã‚’å–ã‚Šå‡ºã™
-		token ã®å‰å¾Œã«ç©ºç™½ãŒã‚ã‚Œã°å–ã‚Šé™¤ã
-		ãã‚Œä»¥å¤–ã¯ã€strtok_r() ã¨åŒã˜
+	Šg’£ strtok()
+		"" ‚Éo‚­‚í‚·‚ÆA"" ‚Ì’†g‚ğæ‚èo‚·
+		token ‚Ì‘OŒã‚É‹ó”’‚ª‚ ‚ê‚Îæ‚èœ‚­
+		‚»‚êˆÈŠO‚ÍAstrtok_r() ‚Æ“¯‚¶
 =========================================================================*/
 void *strtok_pathV(void *str, const void *sep, void **p, BOOL remove_quote)
 {
@@ -193,18 +192,18 @@ void *strtok_pathV(void *str, const void *sep, void **p, BOOL remove_quote)
 	if (!*p)
 		return	NULL;
 
-	// é ­ã ã—
+	// “ª‚¾‚µ
 	while (GetChar(str, 0) && (strchrV(sep, GetChar(str, 0)) || GetChar(str, 0) == ' '))
 		str = MakeAddr(str, 1);
 	if (GetChar(str, 0) == 0)
 		return	NULL;
 
-	// çµ‚ç«¯æ¤œå‡º
+	// I’[ŒŸo
 	void	*in = str, *out = str;
 	for ( ; GetChar(in, 0); in = MakeAddr(in, 1)) {
 		BOOL	is_set = FALSE;
 
-		if (sep == org_sep) {	// é€šå¸¸ mode
+		if (sep == org_sep) {	// ’Êí mode
 			if (strchrV(sep, GetChar(in, 0))) {
 				break;
 			}
@@ -212,7 +211,7 @@ void *strtok_pathV(void *str, const void *sep, void **p, BOOL remove_quote)
 				if (!remove_quote) {
 					is_set = TRUE;
 				}
-				sep = quote;	// quote mode ã«é·ç§»
+				sep = quote;	// quote mode ‚É‘JˆÚ
 			}
 			else {
 				is_set = TRUE;
@@ -220,7 +219,7 @@ void *strtok_pathV(void *str, const void *sep, void **p, BOOL remove_quote)
 		}
 		else {					// quote mode
 			if (GetChar(in, 0) == '"') {
-				sep = org_sep;	// é€šå¸¸ mode ã«é·ç§»
+				sep = org_sep;	// ’Êí mode ‚É‘JˆÚ
 				if (!remove_quote) {
 					is_set = TRUE;
 				}
@@ -237,7 +236,7 @@ void *strtok_pathV(void *str, const void *sep, void **p, BOOL remove_quote)
 	*p = GetChar(in, 0) ? MakeAddr(in, 1) : NULL;
 	SetChar(out, 0, 0);
 
-	// æœ«å°¾ã®ç©ºç™½ã‚’å–ã‚Šé™¤ã
+	// ––”ö‚Ì‹ó”’‚ğæ‚èœ‚­
 	for (out = MakeAddr(out, -1); out >= str && GetChar(out, 0) == ' '; out = MakeAddr(out, -1))
 		SetChar(out, 0, 0);
 
@@ -245,8 +244,8 @@ void *strtok_pathV(void *str, const void *sep, void **p, BOOL remove_quote)
 }
 
 /*=========================================================================
-	ã‚³ãƒãƒ³ãƒ‰ãƒ©ã‚¤ãƒ³è§£æï¼ˆCommandLineToArgvW API ã® ANSIç‰ˆï¼‰
-		CommandLineToArgvW() ã¨åŒã˜ãã€è¿”ã‚Šå€¤ã®é–‹æ”¾ã¯å‘¼ã³å…ƒã§ã™ã‚‹ã“ã¨
+	ƒRƒ}ƒ“ƒhƒ‰ƒCƒ“‰ğÍiCommandLineToArgvW API ‚Ì ANSI”Åj
+		CommandLineToArgvW() ‚Æ“¯‚¶‚­A•Ô‚è’l‚ÌŠJ•ú‚ÍŒÄ‚ÑŒ³‚Å‚·‚é‚±‚Æ
 =========================================================================*/
 void **CommandLineToArgvV(void *cmdLine, int *_argc)
 {
@@ -445,7 +444,6 @@ DriveMng::DriveMng()
 {
 	memset(drvID, 0, sizeof(drvID));
 	noIdCnt = 0;
-	*driveMap = 0;
 }
 
 DriveMng::~DriveMng()
@@ -456,34 +454,17 @@ DriveMng::~DriveMng()
 void DriveMng::Init()
 {
 	for (int i=0; i < MAX_DRIVE_LETTER; i++) {
-		if (drvID[i].data) {
+		if (drvID[i].data)
 			delete [] drvID[i].data;
-		}
 	}
 	memset(drvID, 0, sizeof(drvID));
-	*driveMap = 0;
 }
 
 BOOL DriveMng::RegisterDriveID(int idx, void *data, int len)
 {
 	drvID[idx].data = new BYTE [len];
 	memcpy(drvID[idx].data, data, drvID[idx].len = len);
-
 	return	TRUE;
-}
-
-void DriveMng::SetDriveMap(char *_driveMap)
-{
-	if (strcmp(_driveMap, driveMap) == 0) return;
-
-	DWORD	val = 1;
-	Init();
-	strcpy(driveMap, _driveMap);
-
-	for (char *c=driveMap; *c; c++) {
-		if (*c == ',')	val++;
-		else 			RegisterDriveID(LetterToIndex(*c), &val, sizeof(val));
-	}
 }
 
 BOOL DriveMng::SetDriveID(int drvLetter)
@@ -495,7 +476,7 @@ BOOL DriveMng::SetDriveID(int drvLetter)
 	int			size, idx = LetterToIndex(drvLetter);
 	DWORD		val = 0;
 
-// NT ç³»
+// NT Œn
 	if (IS_WINNT_V) {
 		if (reg.OpenKey(MOUNTED_DEVICES)) {
 			::sprintf(reg_path, FMT_DOSDEVICES, drvLetter);
@@ -508,14 +489,13 @@ BOOL DriveMng::SetDriveID(int drvLetter)
 				else {
 					val = *(DWORD *)buf;
 				}
-				if (val <= 30) val |= 0x88000000;
-				return	RegisterDriveID(idx, &val, sizeof(val));
+				return	RegisterDriveID(idx, &val, 4);
 			}
 		}
 		return	RegisterDriveID(idx, &val, 1);
 	}
 
-// 95 ç³»
+// 95 Œn
 	TRegistry	dynReg(HKEY_DYN_DATA);
 	char		dyn_path[MAX_PATH];
 	int			no_id_cnt = 0;
@@ -540,7 +520,7 @@ BOOL DriveMng::SetDriveID(int drvLetter)
 					val = 0;
 					if (reg.GetStr(DRIVE_LETTERS, (char *)buf, sizeof(buf))) {
 						if (*buf == 0)
-							no_id_cnt++;	// format å¾Œã€reboot ã™ã‚‹ã¾ã§ registry ã«æœªåæ˜ ã‚‰ã—ã„
+							no_id_cnt++;	// format ŒãAreboot ‚·‚é‚Ü‚Å registry ‚É–¢”½‰f‚ç‚µ‚¢
 						for (int l=0; buf[l]; l++) {
 							if (drvLetter == buf[l]) {
 								val = 1;
@@ -596,7 +576,7 @@ BOOL DriveMng::IsSameDrive(int drvLetter1, int drvLetter2)
 		&&	(IS_WINNT_V ? drvID[idx1].len != 1 : (drvID[idx1].len == 0 && noIdCnt == 1));
 }
 
-// ãƒ¯ãƒ¼ãƒ‰å˜ä½ã§ã¯ãªãã€æ–‡å­—å˜ä½ã§æŠ˜ã‚Šè¿”ã™ãŸã‚ã® EDIT Control ç”¨ CallBack
+// ƒ[ƒh’PˆÊ‚Å‚Í‚È‚­A•¶š’PˆÊ‚ÅÜ‚è•Ô‚·‚½‚ß‚Ì EDIT Control —p CallBack
 int CALLBACK EditWordBreakProc(LPTSTR str, int cur, int len, int action)
 {
 	switch (action) {
@@ -612,7 +592,7 @@ int CALLBACK EditWordBreakProc(LPTSTR str, int cur, int len, int action)
 
 
 /*
-	16é€²æ–‡å­—åˆ— <-> ãƒã‚¤ãƒŠãƒªå¤‰æ›ãƒ«ãƒ¼ãƒãƒ³
+	16i•¶š—ñ <-> ƒoƒCƒiƒŠ•ÏŠ·ƒ‹[ƒ`ƒ“
 */
 inline u_char hexchar2char(u_char ch)
 {
@@ -661,7 +641,7 @@ int bin2hexstrW(const BYTE *bindata, int len, WCHAR *buf)
 
 BOOL GetRootDirV(const void *path, void *root_dir)
 {
-	if (GetChar(path, 0) == '\\') {	// "\\server\volname\" 4ã¤ç›®ã® \ ã‚’è¦‹ã¤ã‘ã‚‹
+	if (GetChar(path, 0) == '\\') {	// "\\server\volname\" 4‚Â–Ú‚Ì \ ‚ğŒ©‚Â‚¯‚é
 		DWORD	ch;
 		int		backslash_cnt = 0, offset;
 
@@ -670,11 +650,11 @@ BOOL GetRootDirV(const void *path, void *root_dir)
 				backslash_cnt++;
 		}
 		memcpy(root_dir, path, offset * CHAR_LEN_V);
-		if (backslash_cnt < 4)					// 4ã¤ã® \ ãŒãªã„å ´åˆã¯ã€æœ«å°¾ã« \ ã‚’ä»˜ä¸
-			SetChar(root_dir, offset++, '\\');	// ï¼ˆ\\server\volume ãªã©ï¼‰
+		if (backslash_cnt < 4)					// 4‚Â‚Ì \ ‚ª‚È‚¢ê‡‚ÍA––”ö‚É \ ‚ğ•t—^
+			SetChar(root_dir, offset++, '\\');	// i\\server\volume ‚È‚Çj
 		SetChar(root_dir, offset, 0);	// NULL terminate
 	}
-	else {	// "C:\" ç­‰
+	else {	// "C:\" “™
 		memcpy(root_dir, path, 3 * CHAR_LEN_V);
 		SetChar(root_dir, 3, 0);	// NULL terminate
 	}
@@ -682,24 +662,24 @@ BOOL GetRootDirV(const void *path, void *root_dir)
 }
 
 /*
-	ãƒãƒƒãƒˆãƒ¯ãƒ¼ã‚¯ãƒ—ãƒ¬ãƒ¼ã‚¹ã‚’ UNC path ã«å¤‰æ› (src == dst å¯ï¼‰
+	ƒlƒbƒgƒ[ƒNƒvƒŒ[ƒX‚ğ UNC path ‚É•ÏŠ· (src == dst ‰Âj
 */
 
 BOOL NetPlaceConvertV(void *src, void *dst)
 {
-	IShellLink		*shellLink;		// VC4 ã«ã¯ IShellLink ANSI ç‰ˆã—ã‹å®šç¾©ãŒãªã„ãŸã‚ã®æš«å®šå‡¦ç½®
-	IPersistFile	*persistFile;	// ï¼ˆå®Ÿéš›ã¯ NTç³»ã§ã¯ IShellLinkW ã‚’å‘¼ã³å‡ºã—ï¼‰
+	IShellLink		*shellLink;		// VC4 ‚É‚Í IShellLink ANSI ”Å‚µ‚©’è‹`‚ª‚È‚¢‚½‚ß‚Ìb’èˆ’u
+	IPersistFile	*persistFile;	// iÀÛ‚Í NTŒn‚Å‚Í IShellLinkW ‚ğŒÄ‚Ño‚µj
 	WCHAR	wSrcBuf[MAX_PATH], wDstBuf[MAX_PATH];
 	WCHAR	*wSrc = IS_WINNT_V ? (WCHAR *)src : wSrcBuf;
 	WCHAR	*wDst = IS_WINNT_V ? wDstBuf : (WCHAR *)dst;
 	BOOL	ret = FALSE;
 	DWORD	attr, attr_mask = FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_READONLY;
 
-	if (SHGetPathFromIDListV == NULL)	// NT4.0 ç³»ã¯ç„¡è¦–
+	if (SHGetPathFromIDListV == NULL)	// NT4.0 Œn‚Í–³‹
 		return	FALSE;
 
 	if ((attr = GetFileAttributesV(src)) == 0xffffffff || (attr & attr_mask) != attr_mask)
-		return	FALSE;	// ãƒ‡ã‚£ãƒ¬ã‚¯ãƒˆãƒªã‹ã¤ronly ã§ãªã„ã‚‚ã®ã¯é–¢ä¿‚ãªã„
+		return	FALSE;	// ƒfƒBƒŒƒNƒgƒŠ‚©‚Âronly ‚Å‚È‚¢‚à‚Ì‚ÍŠÖŒW‚È‚¢
 
 	if (SUCCEEDED(CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER,
 				  IID_IShellLinkV, (void **)&shellLink))) {
@@ -918,7 +898,7 @@ void DBGWrite(char *fmt,...)
 	static HANDLE	hDbgFile = INVALID_HANDLE_VALUE;
 
 	if (hDbgFile == INVALID_HANDLE_VALUE) {
-		hDbgFile = ::CreateFile("c:\\fastcopy_dbg.txt",
+		hDbgFile = ::CreateFile("c:\\ipmsg_dbg.txt",
 					GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE, 0, CREATE_ALWAYS, 0, 0);
 	}
 
@@ -935,7 +915,7 @@ void DBGWriteW(WCHAR *fmt,...)
 	static HANDLE	hDbgFile = INVALID_HANDLE_VALUE;
 
 	if (hDbgFile == INVALID_HANDLE_VALUE) {
-		hDbgFile = ::CreateFile("c:\\fastcopy_dbgw.txt",
+		hDbgFile = ::CreateFile("c:\\ipmsg_dbgw.txt",
 					GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE, 0, CREATE_ALWAYS, 0, 0);
 		DWORD	len = 2;
 		::WriteFile(hDbgFile, "\xff\xfe", len, &len, 0);

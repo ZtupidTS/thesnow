@@ -1,10 +1,10 @@
 ﻿static char *install_id = 
-	"@(#)Copyright (C) H.Shirouzu 2005-2009   install.cpp	Ver1.98";
+	"@(#)Copyright (C) 2005-2010 H.Shirouzu		install.cpp	Ver2.00";
 /* ========================================================================
 	Project  Name			: Installer for FastCopy
 	Module Name				: Installer Application Class
 	Create					: 2005-02-02(Wed)
-	Update					: 2009-03-19(Fri)
+	Update					: 2010-05-09(Sun)
 	Copyright				: H.Shirouzu
 	Reference				: 
 	======================================================================== */
@@ -65,6 +65,24 @@ TInstDlg::~TInstDlg()
 }
 
 /*
+	親ディレクトリ取得（必ずフルパスであること。UNC対応）
+*/
+BOOL GetParentDir(const char *srcfile, char *dir)
+{
+	char	path[MAX_PATH], *fname=NULL;
+
+	if (GetFullPathName(srcfile, MAX_PATH, path, &fname) == 0 || fname == NULL)
+		return	strcpy(dir, srcfile), FALSE;
+
+	if (fname - path > 3 || path[1] != ':') fname--;
+	*fname = 0;
+
+	strcpy(dir, path);
+	return	TRUE;
+}
+
+
+/*
 	メインダイアログ用 WM_INITDIALOG 処理ルーチン
 */
 BOOL TInstDlg::EvCreate(LPARAM lParam)
@@ -95,8 +113,9 @@ BOOL TInstDlg::EvCreate(LPARAM lParam)
 // 既にセットアップされている場合は、セットアップディレクトリを読み出す
 	if (reg.OpenKey(REGSTR_PATH_UNINSTALL)) {
 		if (reg.OpenKey(FASTCOPY)) {
-			if (reg.GetStr(REGSTR_VAL_UNINSTALLER_COMMANDLINE, setupDir, sizeof(setupDir)))
+			if (reg.GetStr(REGSTR_VAL_UNINSTALLER_COMMANDLINE, setupDir, sizeof(setupDir))) {
 				GetParentDir(setupDir, setupDir);
+			}
 			reg.CloseKey();
 		}
 		reg.CloseKey();
@@ -231,6 +250,42 @@ BOOL DelayCopy(char *src, char *dst)
 	return	ret;
 }
 
+#define FASTCOPY_INI_W			L"fastcopy.ini"
+
+BOOL ConvertVirtualStoreConf(void *execDirV, void *userDirV, void *userOldDirV)
+{
+	BOOL	ret = FALSE;
+	WCHAR	buf[MAX_PATH];
+	WCHAR	org_ini[MAX_PATH], usr_ini[MAX_PATH], vs_ini[MAX_PATH];
+
+	MakePathV(usr_ini, userDirV,    FASTCOPY_INI_W);
+	MakePathV(vs_ini,  userOldDirV, FASTCOPY_INI_W);
+	MakePathV(org_ini, execDirV,    FASTCOPY_INI_W);
+
+	if (GetFileAttributesV(vs_ini) != 0xffffffff) {
+		ret = ::CopyFileW(vs_ini, usr_ini, TRUE);
+		if (ret) {
+			MakePathV(buf, userDirV, L"to_OldDir(VirtualStore).lnk");
+			SymLinkV(userOldDirV, buf);
+			goto END;
+		}
+	}
+
+	if (GetFileAttributesV(org_ini) != 0xffffffff) {
+		ret = ::CopyFileW(org_ini, usr_ini, TRUE);
+		goto END;
+	}
+
+END:
+	if (ret) {
+		sprintfV(buf, L"%s.obsolete", vs_ini);
+		MoveFileW(vs_ini, buf);
+		sprintfV(buf, L"%s.obsolete", org_ini);
+		MoveFileW(org_ini, buf);
+	}
+	return	ret;
+}
+
 BOOL TInstDlg::Install(void)
 {
 	char	buf[MAX_PATH], setupDir[MAX_PATH], setupPath[MAX_PATH], curDir[MAX_PATH];
@@ -261,7 +316,9 @@ BOOL TInstDlg::Install(void)
 
 			if (MiniCopy(buf, installPath) || IsSameFile(buf, installPath))
 				continue;
-			if (strcmp(SetupFiles[cnt], current_shell) == 0 && DelayCopy(buf, installPath)) {
+
+			if ((strcmp(SetupFiles[cnt], FCSHELLEXT1_DLL) == 0 ||
+				 strcmp(SetupFiles[cnt], FCSHELLEX64_DLL) == 0) && DelayCopy(buf, installPath)) {
 				is_delay_copy = TRUE;
 				continue;
 			}
@@ -277,12 +334,28 @@ BOOL TInstDlg::Install(void)
 
 		for (int cnt=0; regStr[cnt]; cnt++) {
 			if (reg.GetStr(regStr[cnt], buf, sizeof(buf))) {
-				if (cnt != 0 || RemoveSameLink(buf, buf) == FALSE)
+				if (cnt != 0 || RemoveSameLink(buf, buf) == FALSE) {
 					::wsprintf(buf + strlen(buf), "\\%s", FASTCOPY_SHORTCUT);
-				if (execFlg[cnt])
-					SymLink(setupPath, buf);
-				else
-					DeleteLink(buf);
+				}
+				if (execFlg[cnt]) {
+					if (IS_WINNT_V) {
+						Wstr	w_setup(setupPath, BY_MBCS);
+						Wstr	w_buf(buf, BY_MBCS);
+						SymLinkV(w_setup.Buf(), w_buf.Buf());
+					}
+					else {
+						SymLinkV(setupPath, buf);
+					}
+				}
+				else {
+					if (IS_WINNT_V) {
+						Wstr	w_buf(buf, BY_MBCS);
+						DeleteLinkV(w_buf.Buf());
+					}
+					else {
+						DeleteLinkV(buf);
+					}
+				}
 			}
 		}
 		reg.CloseKey();
@@ -292,7 +365,7 @@ BOOL TInstDlg::Install(void)
 	::GetModuleFileName(NULL, curDir, sizeof(curDir));
 	GetParentDir(curDir, curDir);
 
-	MakePath(buf, setupDir, current_shell);
+	MakePath(buf, setupDir, FCSHELLEXT1_DLL);
 	HMODULE		hShellExtDll = TLoadLibrary(buf);
 
 	if (hShellExtDll) {
@@ -307,17 +380,8 @@ BOOL TInstDlg::Install(void)
 			}
 		}
 		::FreeLibrary(hShellExtDll);
-
-		// 旧バージョン dll の削除
-		char	*oldDlls[] = { SHELLEXT1_DLL, SHELLEXT2_DLL, SHELLEXT3_DLL, SHELLEXT4_DLL, NULL };
-		for (int i=0; oldDlls[i]; i++) {
-			MakePath(buf, setupDir, oldDlls[i]);
-			if (::GetFileAttributes(buf) != 0xffffffff) {
-				if (::DeleteFile(buf) == FALSE)
-					::MoveFileEx(buf, NULL, MOVEFILE_DELAY_UNTIL_REBOOT);
-			}
-		}
 	}
+	// Wow64環境では Update しない（rundll32 は戻り値が正しく取れないため）
 
 #if 0
 // レジストリにアンインストール情報を登録
@@ -332,6 +396,26 @@ BOOL TInstDlg::Install(void)
 		reg.CloseKey();
 	}
 #endif
+
+	Wstr	w_setup(setupDir);
+	WCHAR	wbuf[MAX_PATH] = L"", wpath[MAX_PATH] = L"", upath[MAX_PATH] = L"";
+
+	if (IsWinVista() && TIsEnableUAC() && TIsVirtualizedDirV(w_setup.Buf())) {
+		if (TSHGetSpecialFolderPathV(NULL, wbuf, CSIDL_APPDATA, FALSE)) {
+			MakePathV(upath, wbuf, L"FastCopy");
+
+			if (GetFileAttributesV(upath) == 0xffffffff) {
+				CreateDirectoryV(upath, NULL);
+			}
+
+			if (TMakeVirtualStorePathV(w_setup.Buf(), wpath)) {
+				MakePathV(wbuf, upath, FASTCOPY_INI_W);
+				if (GetFileAttributesV(wbuf) == 0xffffffff) {
+					ConvertVirtualStoreConf(w_setup.Buf(), upath, wpath);
+				}
+			}
+		}
+	}
 
 // コピーしたアプリケーションを起動
 	if (MessageBox(GetLoadStr(is_delay_copy ? IDS_DELAYSETUPCOMPLETE : IDS_SETUPCOMPLETE),
@@ -361,7 +445,13 @@ BOOL TInstDlg::UnInstall(void)
 				if (cnt == 0)
 					RemoveSameLink(buf);
 				::wsprintf(buf + strlen(buf), "\\%s", FASTCOPY_SHORTCUT);
-				DeleteLink(buf);
+				if (IS_WINNT_V) {
+					Wstr	w_buf(buf, BY_MBCS);
+					DeleteLinkV(w_buf.Buf());
+				}
+				else {
+					DeleteLinkV(buf);
+				}
 			}
 		}
 		reg.CloseKey();
@@ -374,7 +464,7 @@ BOOL TInstDlg::UnInstall(void)
 	GetParentDir(setupDir, setupDir);
 	BOOL	is_shext = FALSE;
 
-	MakePath(buf, setupDir, current_shell);
+	MakePath(buf, setupDir, FCSHELLEXT1_DLL);
 	HMODULE		hShellExtDll = TLoadLibrary(buf);
 	if (hShellExtDll) {
 		BOOL (WINAPI *IsRegisterDll)(void) = (BOOL (WINAPI *)(void))
@@ -386,6 +476,11 @@ BOOL TInstDlg::UnInstall(void)
 			UnRegisterDll();
 		}
 		::FreeLibrary(hShellExtDll);
+	}
+
+	if (IS_WINNT_V && TIsWow64()) {
+		ShellExecute(NULL, NULL, "rundll32.exe",
+			"DllUnregisterServer," FCSHELLEX64_DLL, NULL, SW_SHOW);
 	}
 
 // レジストリからアンインストール情報を削除
@@ -408,6 +503,33 @@ BOOL TInstDlg::UnInstall(void)
 
 	::PostQuitMessage(0);
 	return	TRUE;
+}
+
+
+BOOL ReadLink(char *src, char *dest, char *arg=NULL)
+{
+	IShellLink		*shellLink;		// 実際は IShellLinkA or IShellLinkW
+	IPersistFile	*persistFile;
+	WCHAR			wbuf[MAX_PATH];
+	BOOL			ret = FALSE;
+
+	if (SUCCEEDED(CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink,
+			(void **)&shellLink))) {
+		if (SUCCEEDED(shellLink->QueryInterface(IID_IPersistFile, (void **)&persistFile))) {
+			::MultiByteToWideChar(CP_ACP, 0, (char *)src, -1, wbuf, MAX_PATH);
+			if (SUCCEEDED(persistFile->Load(wbuf, STGM_READ))) {
+				if (SUCCEEDED(shellLink->GetPath(dest, MAX_PATH, NULL, 0))) {
+					if (arg) {
+						shellLink->GetArguments(arg, MAX_PATH);
+					}
+					ret = TRUE;
+				}
+			}
+			persistFile->Release();
+		}
+		shellLink->Release();
+	}
+	return	ret;
 }
 
 /*
@@ -650,25 +772,6 @@ BOOL TInputDlg::EvCommand(WORD wNotifyCode, WORD wID, LPARAM hwndCtl)
 }
 
 /*
-	親ディレクトリ取得（必ずフルパスであること。UNC対応）
-*/
-BOOL GetParentDir(const char *srcfile, char *dir)
-{
-	char	path[MAX_PATH], *fname=NULL;
-
-	if (::GetFullPathName(srcfile, sizeof(path), path, &fname) == 0 || fname == NULL)
-		return	strcpy(dir, srcfile), FALSE;
-
-	if (fname - path > 3 || path[1] != ':')
-		*(fname - 1) = 0;
-	else
-		*fname = 0;		// C:\ の場合
-
-	strcpy(dir, path);
-	return	TRUE;
-}
-
-/*
 	ファイルの保存されているドライブ識別
 */
 UINT GetDriveTypeEx(const char *file)
@@ -690,81 +793,5 @@ UINT GetDriveTypeEx(const char *file)
 	} while (len != len2);
 
 	return	GetDriveType(buf);
-}
-
-/*
-	リンク
-	あらかじめ、CoInitialize(NULL); を実行しておくこと
-*/
-BOOL SymLink(LPCSTR src, LPSTR dest, LPCSTR arg)
-{
-	IShellLink		*shellLink;
-	IPersistFile	*persistFile;
-	WCHAR			wbuf[MAX_PATH];
-	BOOL			ret = FALSE;
-	char			buf[MAX_PATH];
-
-	if (SUCCEEDED(CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink,
-			(void **)&shellLink))) {
-		shellLink->SetPath(src);
-		shellLink->SetArguments(arg);
-		GetParentDir(src, buf);
-		shellLink->SetWorkingDirectory(buf);
-		if (SUCCEEDED(shellLink->QueryInterface(IID_IPersistFile, (void **)&persistFile))) {
-			MultiByteToWideChar(CP_ACP, 0, dest, -1, wbuf, MAX_PATH);
-			if (SUCCEEDED(persistFile->Save(wbuf, TRUE))) {
-				ret = TRUE;
-				GetParentDir(dest, buf);
-				::SHChangeNotify(SHCNE_UPDATEDIR, SHCNF_PATH|SHCNF_FLUSH, buf, NULL);
-			}
-			persistFile->Release();
-		}
-		shellLink->Release();
-	}
-	return	ret;
-}
-
-/*
-	リンクの解決
-	あらかじめ、CoInitialize(NULL); を実行しておくこと
-*/
-BOOL ReadLink(LPCSTR src, LPSTR dest, LPSTR arg)
-{
-	IShellLink		*shellLink;
-	IPersistFile	*persistFile;
-	WCHAR			wbuf[MAX_PATH];
-	BOOL			ret = FALSE;
-
-	if (SUCCEEDED(CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink,
-			(void **)&shellLink))) {
-		if (SUCCEEDED(shellLink->QueryInterface(IID_IPersistFile, (void **)&persistFile))) {
-			::MultiByteToWideChar(CP_ACP, 0, src, -1, wbuf, MAX_PATH);
-			if (SUCCEEDED(persistFile->Load(wbuf, STGM_READ))) {
-				if (SUCCEEDED(shellLink->GetPath(dest, MAX_PATH, NULL, SLGP_SHORTPATH))) {
-					shellLink->GetArguments(arg, MAX_PATH);
-					ret = TRUE;
-				}
-			}
-			persistFile->Release();
-		}
-		shellLink->Release();
-	}
-	return	ret;
-}
-
-/*
-	リンクファイル削除
-*/
-BOOL DeleteLink(LPCSTR path)
-{
-	char	dir[MAX_PATH];
-
-	if (::DeleteFile(path) == FALSE)
-		return	FALSE;
-
-	GetParentDir(path, dir);
-	::SHChangeNotify(SHCNE_UPDATEDIR, SHCNF_PATH|SHCNF_FLUSH, dir, NULL);
-
-	return	TRUE;
 }
 

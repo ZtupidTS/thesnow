@@ -1,16 +1,17 @@
 ﻿static char *tini_id = 
-	"@(#)Copyright (C) H.Shirouzu 1996-2009   tini.cpp	Ver0.97";
+	"@(#)Copyright (C) 1996-2010 H.Shirouzu		tini.cpp	Ver0.97";
 /* ========================================================================
 	Project  Name			: Win32 Lightweight  Class Library Test
 	Module Name				: Registry Class
 	Create					: 1996-06-01(Sat)
-	Update					: 2009-03-09(Mon)
+	Update					: 2010-05-09(Sun)
 	Copyright				: H.Shirouzu
 	Reference				: 
 	======================================================================== */
 
 #include <stdio.h>
 #include <io.h>
+#include <mbstring.h>
 #include "tlib.h"
 
 TInifile::TInifile(const char *_ini_file)
@@ -19,11 +20,13 @@ TInifile::TInifile(const char *_ini_file)
 	if (_ini_file) Init(_ini_file);
 	root_sec = cur_sec = NULL;
 	ini_size = -1;
+	hMutex = NULL;
 }
 
 TInifile::~TInifile(void)
 {
 	free(ini_file);
+	if (hMutex) ::CloseHandle(hMutex);
 }
 
 BOOL TInifile::Strip(const char *s, char *d, const char *strip_chars, const char *quote_chars)
@@ -104,24 +107,37 @@ BOOL TInifile::GetFileInfo(const char *fname, FILETIME *ft, int *size)
 	return	TRUE;
 }
 
-BOOL lock_file(FILE *fp, DWORD flg=LOCKFILE_EXCLUSIVE_LOCK)
+BOOL TInifile::Lock()
 {
-	HANDLE		hFile = (HANDLE)_get_osfhandle(_fileno(fp));
-	OVERLAPPED	ol = {0};
+	if (!hMutex) {
+		char	buf[1024];
+		char	*key = (char *)_mbsrchr((u_char *)ini_file, '\\');
 
-	return	::LockFileEx(hFile, flg, 0, 0, 0xffffffff, &ol);
+		key = key ? key+1 : ini_file;
+
+		sprintf(buf, "%s_%x", key, MakeHash(ini_file, strlen(ini_file), 0));
+
+		if (!(hMutex = ::CreateMutex(NULL, FALSE, buf))) return FALSE;
+	}
+
+	return	::WaitForSingleObject(hMutex, INFINITE);
+}
+
+void TInifile::UnLock()
+{
+	if (hMutex) ReleaseMutex(hMutex);
 }
 
 void TInifile::Init(const char *_ini_file)
 {
 	if (_ini_file) ini_file = strdup(_ini_file);
+
+	Lock();
 	FILE	*fp = fopen(ini_file, "r");
 
 	AddObj(root_sec = new TIniSection());
 
 	if (fp) {
-		lock_file(fp, 0);
-
 #define MAX_INI_LINE	(64 * 1024)
 		char	*buf = new char [MAX_INI_LINE];
 		char	*val = new char [MAX_INI_LINE];
@@ -150,6 +166,7 @@ void TInifile::Init(const char *_ini_file)
 		fclose(fp);
 //		GetFileInfo(ini_file, &ini_ft, &ini_size);
 	}
+	UnLock();
 }
 
 void TInifile::UnInit()
@@ -163,25 +180,36 @@ void TInifile::UnInit()
 
 BOOL TInifile::WriteIni()
 {
+	Lock();
+
+	BOOL	ret = FALSE;
 	FILE	*fp = fopen(ini_file, "w");
 
-	if (!fp) return FALSE;
-
-	lock_file(fp);
-
-	for (TIniSection *sec = (TIniSection *)TopObj(); sec; sec = (TIniSection *)NextObj(sec)) {
-		TIniKey *key = (TIniKey *)sec->TopObj();
-		if (key) {
-			if (sec->Name()) fprintf(fp, "[%s]\n", sec->Name());
-			while (key) {
-				if (key->Key())	fprintf(fp, "%s=\"%s\"\n", key->Key(), key->Val());
-				else			fprintf(fp, "%s", key->Val());
-				key = (TIniKey *)sec->NextObj(key);
+	if (fp) {
+		for (TIniSection *sec = (TIniSection *)TopObj(); sec; sec = (TIniSection *)NextObj(sec)) {
+			TIniKey *key = (TIniKey *)sec->TopObj();
+			if (key) {
+				if (sec->Name()) {
+					if (fprintf(fp, "[%s]\n", sec->Name()) < 0) goto END;
+				}
+				while (key) {
+					if (key->Key())	{
+						if (fprintf(fp, "%s=\"%s\"\n", key->Key(), key->Val()) < 0) goto END;
+					}
+					else {
+						if (fprintf(fp, "%s", key->Val()) < 0) goto END;
+					}
+					key = (TIniKey *)sec->NextObj(key);
+				}
 			}
 		}
+		ret = TRUE;
+END:
+		fclose(fp);
 	}
-	fclose(fp);
-	return	TRUE;
+	UnLock();
+
+	return	ret;
 }
 
 BOOL TInifile::StartUpdate()
@@ -229,6 +257,7 @@ BOOL TInifile::DelSection(const char *section)
 
 	if (!sec) return FALSE;
 
+	DelObj(sec);
 	delete sec;
 	if (sec == cur_sec) cur_sec = NULL;
 	return	TRUE;

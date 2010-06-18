@@ -1,9 +1,9 @@
 ﻿static char *fastcopy_id = 
-	"@(#)Copyright (C) H.Shirouzu 2004-2009   fastcopy.cpp	Ver1.99r4";
+	"@(#)Copyright (C) 2004-2010 H.Shirouzu		fastcopy.cpp	ver2.00";
 /* ========================================================================
 	Project  Name			: Fast Copy file and directory
 	Create					: 2004-09-15(Wed)
-	Update					: 2009-08-11(Tue)
+	Update					: 2010-05-10(Mon)
 	Copyright				: H.Shirouzu
 	Reference				: 
 	======================================================================== */
@@ -112,7 +112,7 @@ FastCopy::FsType FastCopy::GetFsType(const void *root_dir)
 
 	if (GetVolumeInformationV(root_dir, vol, MAX_PATH, &serial, &max_fname, &fs_flags,
 			fs, MAX_PATH) == FALSE)
-		return	ConfirmErr("GetVolumeInformation", root_dir, FALSE), FSTYPE_NONE;
+		return	ConfirmErr("GetVolumeInformation", root_dir, CEF_STOP), FSTYPE_NONE;
 
 	return	lstrcmpiV(fs, NTFS_STR_V) == 0 ? FSTYPE_NTFS : FSTYPE_FAT;
 }
@@ -123,7 +123,7 @@ int FastCopy::GetSectorSize(const void *root_dir)
 
 	if (GetDiskFreeSpaceV(root_dir, &spc, &bps, &fc, &cl) == FALSE) {
 //		if (IS_WINNT_V)
-//			ConfirmErr("GetDiskFreeSpace", root_dir, FALSE);
+//			ConfirmErr("GetDiskFreeSpace", root_dir, CEF_STOP);
 		return	OPT_SECTOR_SIZE;
 	}
 	return	bps;
@@ -164,11 +164,13 @@ BOOL FastCopy::InitDstPath(void)
 	const void	*org_path = dstArray.Path(0), *dst_root;
 
 	// dst の確認/加工
-	if (GetChar(org_path, 1) == ':' && GetChar(org_path, 2) != '\\')
-		return	ConfirmErr(GetLoadStr(IDS_BACKSLASHERR), org_path, FALSE), FALSE;
+	if (GetChar(org_path, 1) == ':' && GetChar(org_path, 2) != '\\' ||
+		GetChar(org_path, 1) != ':' &&
+			(GetChar(org_path, 0) != '\\' || GetChar(org_path, 1) != '\\'))
+		return	ConfirmErr(GetLoadStr(IDS_BACKSLASHERR), org_path, CEF_STOP|CEF_NOAPI), FALSE;
 
 	if (GetFullPathNameV(org_path, MAX_PATHLEN_V, dst, &fname) == 0)
-		return	ConfirmErr("GetFullPathName", org_path, FALSE), FALSE;
+		return	ConfirmErr("GetFullPathName", org_path, CEF_STOP), FALSE;
 
 	GetRootDirV(dst, buf);
 	dstArray.RegisterPath(buf);
@@ -181,7 +183,7 @@ BOOL FastCopy::InitDstPath(void)
 //		if (isListing) PutList(dst, PL_DIRECTORY);
 	}
 	if (!IsDir(attr))	// 例外的に reparse point も dir 扱い
-		return	ConfirmErr("Not a directory", dst, FALSE), FALSE;
+		return	ConfirmErr("Not a directory", dst, CEF_STOP|CEF_NOAPI), FALSE;
 
 	strcpyV(buf, dst);
 	MakePathV(dst, buf, EMPTY_STR_V);
@@ -209,13 +211,16 @@ BOOL FastCopy::InitSrcPath(int idx)
 	void		*buf = wbuf, *fname = NULL;
 	const void	*dst_root = dstArray.Path(dstArray.Num() -1);
 	const void	*org_path = srcArray.Path(idx);
+	DWORD		cef_flg = IsStarting() ? 0 : CEF_STOP;
 
 	// src の確認/加工
-	if (GetChar(org_path, 1) == ':' && GetChar(org_path, 2) != '\\')
-		return	ConfirmErr(GetLoadStr(IDS_BACKSLASHERR), org_path), FALSE;
+	if (GetChar(org_path, 1) == ':' && GetChar(org_path, 2) != '\\' ||
+		GetChar(org_path, 1) != ':' &&
+			(GetChar(org_path, 0) != '\\' || GetChar(org_path, 1) != '\\'))
+		return	ConfirmErr(GetLoadStr(IDS_BACKSLASHERR), org_path, cef_flg|CEF_NOAPI), FALSE;
 
 	if (GetFullPathNameV(org_path, MAX_PATHLEN_V, src, &fname) == 0)
-		return	ConfirmErr("GetFullPathName", org_path), FALSE;
+		return	ConfirmErr("GetFullPathName", org_path, cef_flg), FALSE;
 	GetRootDirV(src, src_root_cur);
 
 	isMetaSrc = FALSE;
@@ -236,7 +241,7 @@ BOOL FastCopy::InitSrcPath(int idx)
 	srcPrefixLen = IS_WINNT_V ? MakeUnlimitedPath((WCHAR *)src) : 0;
 
 	if (GetFullPathNameV(src, MAX_PATH_EX, buf, &fname) == 0 || fname == NULL)
-		return	ConfirmErr("GetFullPathName2", MakeAddr(src, srcPrefixLen)), FALSE;
+		return	ConfirmErr("GetFullPathName2", MakeAddr(src, srcPrefixLen), cef_flg), FALSE;
 
 	// 確認用dst生成
 	strcpyV(MakeAddr(confirmDst, dstBaseLen), fname);
@@ -244,7 +249,8 @@ BOOL FastCopy::InitSrcPath(int idx)
 	// 同一パスでないことの確認
 	if (lstrcmpiV(buf, confirmDst) == 0) {
 		if (info.mode != DIFFCP_MODE || (info.flags & SAMEDIR_RENAME) == 0) {
-			ConfirmErr(GetLoadStr(IDS_SAMEPATHERR), MakeAddr(confirmDst, dstBaseLen), FALSE);
+			ConfirmErr(GetLoadStr(IDS_SAMEPATHERR), MakeAddr(confirmDst, dstBaseLen),
+				CEF_STOP|CEF_NOAPI);
 			return	FALSE;
 		}
 		strcpyV(MakeAddr(confirmDst, dstBaseLen), ASTERISK_V);
@@ -263,7 +269,8 @@ BOOL FastCopy::InitSrcPath(int idx)
 		if (strnicmpV(buf, confirmDst, len) == 0) {
 			DWORD ch = GetChar(confirmDst, len - end_offset);
 			if (ch == 0 || ch == '\\') {
-				ConfirmErr(GetLoadStr(IDS_PARENTPATHERR), MakeAddr(buf, srcPrefixLen), FALSE);
+				ConfirmErr(GetLoadStr(IDS_PARENTPATHERR), MakeAddr(buf, srcPrefixLen),
+					CEF_STOP|CEF_NOAPI);
 				return	FALSE;
 			}
 		}
@@ -315,13 +322,16 @@ BOOL FastCopy::InitDeletePath(int idx)
 	void		*buf = wbuf, *fname = NULL;
 	const void	*org_path = srcArray.Path(idx);
 	BYTE		dst_root[MAX_PATH];
+	DWORD		cef_flg = IsStarting() ? 0 : CEF_STOP;
 
 	// delete 用 path の確認/加工
-	if (GetChar(org_path, 1) == ':' && GetChar(org_path, 2) != '\\')
-		return	ConfirmErr(GetLoadStr(IDS_BACKSLASHERR), org_path), FALSE;
+	if (GetChar(org_path, 1) == ':' && GetChar(org_path, 2) != '\\' ||
+		GetChar(org_path, 1) != ':' &&
+			(GetChar(org_path, 0) != '\\' || GetChar(org_path, 1) != '\\'))
+		return	ConfirmErr(GetLoadStr(IDS_BACKSLASHERR), org_path, cef_flg|CEF_NOAPI), FALSE;
 
 	if (GetFullPathNameV(org_path, MAX_PATHLEN_V, dst, &fname) == 0)
-		return	ConfirmErr("GetFullPathName", org_path), FALSE;
+		return	ConfirmErr("GetFullPathName", org_path, cef_flg), FALSE;
 
 	attr = GetFileAttributesV(dst);
 
@@ -352,7 +362,7 @@ BOOL FastCopy::InitDeletePath(int idx)
 	dstPrefixLen = IS_WINNT_V ? MakeUnlimitedPath((WCHAR *)dst) : 0;
 
 	if (GetFullPathNameV(dst, MAX_PATH_EX, buf, &fname) == 0 || fname == NULL)
-		return	ConfirmErr("GetFullPathName2", MakeAddr(dst, dstPrefixLen)), FALSE;
+		return	ConfirmErr("GetFullPathName2", MakeAddr(dst, dstPrefixLen), cef_flg), FALSE;
 	SetChar(fname, 0, 0);
 	dstBaseLen = strlenV(buf);
 
@@ -403,7 +413,8 @@ BOOL FastCopy::RegisterInfo(const PathArray *_srcArray, const PathArray *_dstArr
 				targ = DIR_EXP;
 			}
 			if (!regExp[kind][targ].RegisterWildCard(path, RegExp::CASE_INSENSE))
-				return	ConfirmErr("Bad or Too long windcard string", path, FALSE), FALSE;
+				return	ConfirmErr("Bad or Too long windcard string",
+							path, CEF_STOP|CEF_NOAPI), FALSE;
 		}
 	}
 	if (path) filterMode |= REG_FILTER;
@@ -413,15 +424,15 @@ BOOL FastCopy::RegisterInfo(const PathArray *_srcArray, const PathArray *_dstArr
 	if (!isListingOnly &&
 		(info.mode != DELETE_MODE || (info.flags & (OVERWRITE_DELETE|OVERWRITE_DELETE_NSA))) &&
 		(info.bufSize > MAX_BUF || info.bufSize < MIN_BUF * 2))
-		return	ConfirmErr("Too large or small Main Buffer.", NULL, FALSE), FALSE;
+		return	ConfirmErr("Too large or small Main Buffer.", NULL, CEF_STOP), FALSE;
 
 	if ((info.flags & (DIR_REPARSE|FILE_REPARSE))
 	&& (info.mode == MOVE_MODE || info.mode == DELETE_MODE)) {
-		return	ConfirmErr("Illega Flags (junction/symlink)", NULL, FALSE), FALSE;
+		return	ConfirmErr("Illega Flags (junction/symlink)", NULL, CEF_STOP|CEF_NOAPI), FALSE;
 	}
 
 	if ((info.flags & RESTORE_HARDLINK) && !CreateHardLinkV) {
-		return	ConfirmErr("Illega Flags (CreateHardLink)", NULL, FALSE), FALSE;
+		return	ConfirmErr("Illega Flags (CreateHardLink)", NULL, CEF_STOP|CEF_NOAPI), FALSE;
 	}
 
 	// command
@@ -433,6 +444,8 @@ BOOL FastCopy::RegisterInfo(const PathArray *_srcArray, const PathArray *_dstArr
 	else {
 		srcArray = *_srcArray;
 		dstArray = *_dstArray;
+
+		driveMng.SetDriveMap(info.driveMap);
 
 		if (InitDstPath() == FALSE)
 			return	FALSE;
@@ -457,16 +470,16 @@ BOOL FastCopy::AllocBuf(void)
 
 	// メインリングバッファ確保
 	if (need_mainbuf && mainBuf.AllocBuf(allocSize) == FALSE) {
-		return	ConfirmErr("Can't alloc memory(mainBuf)", NULL, FALSE), FALSE;
+		return	ConfirmErr("Can't alloc memory(mainBuf)", NULL, CEF_STOP), FALSE;
 	}
 	usedOffset = freeOffset = mainBuf.Buf();	// リングバッファ用オフセット初期化
 
 	if (errBuf.AllocBuf(MIN_ERR_BUF, MAX_ERR_BUF) == FALSE) {
-		return	ConfirmErr("Can't alloc memory(errBuf)", NULL, FALSE), FALSE;
+		return	ConfirmErr("Can't alloc memory(errBuf)", NULL, CEF_STOP), FALSE;
 	}
 	if (isListing) {
 		if (listBuf.AllocBuf(MIN_PUTLIST_BUF, MAX_PUTLIST_BUF) == FALSE)
-			return	ConfirmErr("Can't alloc memory(listBuf)", NULL, FALSE), FALSE;
+			return	ConfirmErr("Can't alloc memory(listBuf)", NULL, CEF_STOP), FALSE;
 	}
 	if (info.mode == DELETE_MODE) {
 		if (need_mainbuf) SetupRandomDataBuf();
@@ -480,7 +493,7 @@ BOOL FastCopy::AllocBuf(void)
 		hardLinkDst = new WCHAR [MAX_PATHLEN_V + MAX_PATH];
 		memcpy(hardLinkDst, dst, dstBaseLen * CHAR_LEN_V);
 		if (!hardLinkList.Init(info.maxLinkHash) || !hardLinkDst)
-			return	ConfirmErr("Can't alloc memory(hardlink)", NULL, FALSE), FALSE;
+			return	ConfirmErr("Can't alloc memory(hardlink)", NULL, CEF_STOP), FALSE;
 	}
 
 	if (IsUsingDigestList()) {
@@ -492,17 +505,22 @@ BOOL FastCopy::AllocBuf(void)
 		maxDigestReadSize = max(MIN_BUF, maxDigestReadSize);
 
 		if (!wDigestList.Init(MIN_BUF, require_size, PAGE_SIZE))
-			return	ConfirmErr("Can't alloc memory(digest)", NULL, FALSE), FALSE;
+			return	ConfirmErr("Can't alloc memory(digest)", NULL, CEF_STOP), FALSE;
 	}
 
 	if (info.flags & VERIFY_FILE) {
 		srcDigest.Init((info.flags & VERIFY_MD5) ? TDigest::MD5 : TDigest::SHA1);
 		dstDigest.Init((info.flags & VERIFY_MD5) ? TDigest::MD5 : TDigest::SHA1);
+
+		if (isListingOnly) {
+			srcDigestBuf.AllocBuf(0, maxReadSize);
+			dstDigestBuf.AllocBuf(0, maxReadSize);
+		}
 	}
 
 	if (info.mode == MOVE_MODE) {
 		if (!moveList.Init(MIN_MOVEPATH_LIST, MAX_MOVEPATH_LIST, MIN_MOVEPATH_LIST))
-			return	ConfirmErr("Can't alloc memory(moveList)", NULL, FALSE), FALSE;
+			return	ConfirmErr("Can't alloc memory(moveList)", NULL, CEF_STOP), FALSE;
 	}
 
 	// src/dst dir-entry/attr 用バッファ確保
@@ -535,7 +553,7 @@ BOOL FastCopy::AllocBuf(void)
 
 	if (!fileStatBuf.Buf() || !dirStatBuf.Buf() || !dstStatBuf.Buf() || !dstStatIdxBuf.Buf()
 	|| (info.flags & SKIP_EMPTYDIR) && !mkdirQueueBuf.Buf() || !dstDirExtBuf.Buf()) {
-		return	ConfirmErr("Can't alloc memory(misc stat)", NULL, FALSE), FALSE;
+		return	ConfirmErr("Can't alloc memory(misc stat)", NULL, CEF_STOP), FALSE;
 	}
 	return	TRUE;
 }
@@ -799,7 +817,7 @@ BOOL FastCopy::PutList(void *path, DWORD opt, DWORD lastErr, BYTE *digest)
 			}
 
 			len = sprintfV(listBuf.Buf() + listBuf.UsedSize(), FMT_PUTLIST_V,
-			(opt & PL_DELETE) ? '-' : '+',
+			(opt & PL_NOADD) ? ' ' : (opt & PL_DELETE) ? '-' : '+',
 			add_backslash ? BACK_SLASH_V : EMPTY_STR_V,
 			path,
 			(opt & PL_DIRECTORY) && (opt & PL_REPARSE) ? PLSTR_REPDIR_V :
@@ -822,9 +840,8 @@ BOOL FastCopy::MakeDigest(void *path, VBuf *vbuf, TDigest *digest, BYTE *val, _i
 {
 	DWORD	flg = ((info.flags & USE_OSCACHE_READVERIFY) ? 0 : FILE_FLAG_NO_BUFFERING)
 					| FILE_FLAG_SEQUENTIAL_SCAN;
-
-	HANDLE	hFile = CreateFileWithRetry(path, GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE,
-					0, OPEN_EXISTING, flg, 0);
+	DWORD	share = FILE_SHARE_READ|FILE_SHARE_WRITE;
+	HANDLE	hFile = CreateFileWithRetry(path, GENERIC_READ, share, 0, OPEN_EXISTING, flg, 0);
 	BOOL	ret = FALSE;
 
 	memset(val, 0, digest->GetDigestSize());
@@ -833,7 +850,7 @@ BOOL FastCopy::MakeDigest(void *path, VBuf *vbuf, TDigest *digest, BYTE *val, _i
 	if (hFile == INVALID_HANDLE_VALUE)
 		return	FALSE;
 
-	if ((DWORD)vbuf->MaxSize() >= maxReadSize || vbuf->Grow(maxReadSize)) {
+	if ((DWORD)vbuf->Size() >= maxReadSize || vbuf->Grow(maxReadSize)) {
 		BY_HANDLE_FILE_INFORMATION	bhi;
 		if (::GetFileInformationByHandle(hFile, &bhi)) {
 			_int64	remain_size = FileSize(bhi);
@@ -862,8 +879,22 @@ BOOL FastCopy::MakeDigest(void *path, VBuf *vbuf, TDigest *digest, BYTE *val, _i
 	return	ret;
 }
 
-BOOL FastCopy::IsSameContents(void)
+void MakeVerifyStr(char *buf, BYTE *digest1, BYTE *digest2, DWORD digest_len)
 {
+	char	*p = buf + sprintf(buf, "Verify Error src:");
+
+	p += bin2hexstr(digest1, digest_len, p);
+	p += sprintf(p, " dst:");
+	p += bin2hexstr(digest2, digest_len, p);
+	p += sprintf(p, " ");
+}
+
+BOOL FastCopy::IsSameContents(FileStat *srcStat, FileStat *dstStat)
+{
+/*	if (srcStat->FileSize() != dstStat->FileSize()) {
+		return;
+	}
+*/
 	if (!isSameDrv) {
 		DstRequest(DSTREQ_DIGEST);
 	}
@@ -877,9 +908,25 @@ BOOL FastCopy::IsSameContents(void)
 
 	if (ret) {
 		total.verifyFiles++;
+		if ((info.flags & DISABLE_COMPARE_LIST) == 0) {
+			PutList(MakeAddr(confirmDst, dstPrefixLen), PL_NOADD, 0, srcDigestVal);
+		}
 	}
 	else {
 		total.errFiles++;
+//		PutList(MakeAddr(src,        srcPrefixLen), PL_COMPARE|PL_NOADD, 0, srcDigestVal);
+//		PutList(MakeAddr(confirmDst, dstPrefixLen), PL_COMPARE|PL_NOADD, 0, dstDigestVal);
+		if (src_ret && dst_ret) {
+			char	buf[512];
+			MakeVerifyStr(buf, srcDigestVal, dstDigestVal, dstDigest.GetDigestSize());
+			ConfirmErr(buf, MakeAddr(confirmDst, dstPrefixLen), CEF_NOAPI);
+		}
+		else if (!src_ret) {
+			ConfirmErr("Can't get src digest", MakeAddr(src, srcPrefixLen), CEF_NOAPI);
+		}
+		else if (!dst_ret) {
+			ConfirmErr("Can't get dst digest", MakeAddr(confirmDst, dstPrefixLen), CEF_NOAPI);
+		}
 	}
 
 	return	ret;
@@ -889,10 +936,11 @@ FastCopy::LinkStatus FastCopy::CheckHardLink(void *path, int len, HANDLE hFileOr
 {
 	HANDLE		hFile;
 	LinkStatus	ret = LINK_ERR;
+	DWORD		share = FILE_SHARE_READ|FILE_SHARE_WRITE;
 
 	if (hFileOrg == INVALID_HANDLE_VALUE) {
-		if ((hFile = CreateFileV(path, 0, FILE_SHARE_READ|FILE_SHARE_WRITE, 0, OPEN_EXISTING,
-					0, 0)) == INVALID_HANDLE_VALUE) {
+		if ((hFile = CreateFileV(path, 0, share, 0, OPEN_EXISTING, 0, 0))
+				== INVALID_HANDLE_VALUE) {
 //			DBGWriteW(L"CheckHardLink can't open(%s) %d\n", path);
 			return	ret;
 		}
@@ -919,7 +967,7 @@ FastCopy::LinkStatus FastCopy::CheckHardLink(void *path, int len, HANDLE hFileOr
 				ret = LINK_REGISTER;
 			}
 			else {
-				ConfirmErr("Can't malloc(CheckHardLink)", path, FALSE);
+				ConfirmErr("Can't malloc(CheckHardLink)", path, CEF_STOP);
 			}
 		}
 		else {
@@ -990,15 +1038,15 @@ BOOL FastCopy::ReadProc(int dir_len, BOOL confirm_dir)
 				if (!IsOverWriteFile(srcStat, dstStat) &&
 					(IsReparse(srcStat->dwFileAttributes) == IsReparse(dstStat->dwFileAttributes)
 					|| (info.flags & FILE_REPARSE))) {
-/* 隠し比較モード */
+/* 比較モード */
 					if (isListingOnly && (info.flags & VERIFY_FILE)) {
 						strcpyV(MakeAddr(confirmDst, confirm_len), srcStat->cFileName);
 						strcpyV(MakeAddr(src, dir_len), srcStat->cFileName);
-						if (!IsSameContents() && !isAbort) {
-							PutList(MakeAddr(src, srcPrefixLen), PL_COMPARE|PL_NORMAL);
+						if (!IsSameContents(srcStat, dstStat) && !isAbort) {
+//							PutList(MakeAddr(confirmDst, dstPrefixLen), PL_COMPARE|PL_NOADD);
 						}
 					}
-/* 隠し比較モード */
+/* 比較モード */
 
 					if (info.mode == MOVE_MODE) {
 						 PutMoveList(srcStat->fileID, src, path_len, srcStat->FileSize(),
@@ -1148,7 +1196,7 @@ BOOL FastCopy::PutMoveList(_int64 fileID, void *path, int path_len, _int64 file_
 	moveList.UnLock();
 
 	if (!head) {
-		ConfirmErr("Can't alloc memory(moveList)", NULL, FALSE);
+		ConfirmErr("Can't alloc memory(moveList)", NULL, CEF_STOP);
 	}
 	else {
 		FlushMoveList(FALSE);
@@ -1272,10 +1320,11 @@ BOOL FastCopy::GetDirExtData(ReqBuf *req_buf, FileStat *stat)
 	BOOL	ret = TRUE;
 	BOOL	is_reparse = IsReparse(stat->dwFileAttributes) && (info.flags & DIR_REPARSE) == 0;
 	int		used_size_save = dirStatBuf.UsedSize();
+	DWORD	share = FILE_SHARE_READ|FILE_SHARE_WRITE;
+	DWORD	flg = FILE_FLAG_BACKUP_SEMANTICS | (is_reparse ? FILE_FLAG_OPEN_REPARSE_POINT : 0);
 
-	if ((fh = CreateFileV(src, GENERIC_READ|READ_CONTROL, FILE_SHARE_READ|FILE_SHARE_WRITE, 0,
-				OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS |
-				(is_reparse ? FILE_FLAG_OPEN_REPARSE_POINT : 0), 0)) == INVALID_HANDLE_VALUE)
+	if ((fh = CreateFileV(src, GENERIC_READ|READ_CONTROL, share, 0, OPEN_EXISTING, flg , 0))
+			== INVALID_HANDLE_VALUE)
 		return	FALSE;
 
 	if (is_reparse) {
@@ -1283,7 +1332,7 @@ BOOL FastCopy::GetDirExtData(ReqBuf *req_buf, FileStat *stat)
 		if (dirStatBuf.RemainSize() <= (int)size + maxStatSize
 		&& dirStatBuf.Grow(ALIGN_SIZE(size + maxStatSize, MIN_ATTR_BUF)) == FALSE) {
 			ret = FALSE;
-			ConfirmErr("Can't alloc memory(dirStatBuf)", NULL, FALSE);
+			ConfirmErr("Can't alloc memory(dirStatBuf)", NULL, CEF_STOP);
 		}
 		else if ((size = ReadReparsePoint(fh, dirStatBuf.Buf() + dirStatBuf.UsedSize(), size))
 				<= 0) {
@@ -1328,9 +1377,8 @@ BOOL FastCopy::GetDirExtData(ReqBuf *req_buf, FileStat *stat)
 			dirStatBuf.AddUsedSize(data_size);
 			if (dirStatBuf.RemainSize() <= maxStatSize
 			&& !dirStatBuf.Grow(ALIGN_SIZE(maxStatSize + data_size, MIN_ATTR_BUF))) {
-				if (info.flags & REPORT_ACL_ERROR)
-					ConfirmErr("Can't alloc memory(dirStat(ACL/EADATA))",
-						MakeAddr(src, srcPrefixLen), FALSE);
+				ConfirmErr("Can't alloc memory(dirStat(ACL/EADATA))",
+					MakeAddr(src, srcPrefixLen), FALSE);
 				break;
 			}
 			memcpy(data, &sid, STRMID_OFFSET);
@@ -1481,7 +1529,7 @@ BOOL FastCopy::IsOverWriteFile(FileStat *srcStat, FileStat *dstStat)
 	if (info.overWrite == BY_ALWAYS)
 		return	TRUE;
 
-	return	ConfirmErr("Illegal overwrite mode", 0, FALSE), FALSE;
+	return	ConfirmErr("Illegal overwrite mode", 0, CEF_STOP|CEF_NOAPI), FALSE;
 }
 
 BOOL FastCopy::ReadDirEntry(int dir_len, BOOL confirm_dir)
@@ -1515,7 +1563,7 @@ BOOL FastCopy::ReadDirEntry(int dir_len, BOOL confirm_dir)
 					confirm_dir);
 			dirStatBuf.AddUsedSize(len);
 			if (dirStatBuf.RemainSize() <= maxStatSize && !dirStatBuf.Grow(MIN_ATTR_BUF)) {
-				ConfirmErr("Can't alloc memory(dirStatBuf)", NULL, FALSE);
+				ConfirmErr("Can't alloc memory(dirStatBuf)", NULL, CEF_STOP);
 				break;
 			}
 		}
@@ -1524,7 +1572,7 @@ BOOL FastCopy::ReadDirEntry(int dir_len, BOOL confirm_dir)
 					 confirm_dir);
 			fileStatBuf.AddUsedSize(len);
 			if (fileStatBuf.RemainSize() <= maxStatSize && !fileStatBuf.Grow(MIN_ATTR_BUF)) {
-				ConfirmErr("Can't alloc memory(fileStatBuf)", NULL, FALSE);
+				ConfirmErr("Can't alloc memory(fileStatBuf)", NULL, CEF_STOP);
 				break;
 			}
 		}
@@ -1561,6 +1609,7 @@ BOOL FastCopy::OpenFileProc(FileStat *stat, int dir_len)
 		DWORD	mode = GENERIC_READ;
 		DWORD	flg = ((info.flags & USE_OSCACHE_READ) ?
 						0 : FILE_FLAG_NO_BUFFERING) | FILE_FLAG_SEQUENTIAL_SCAN;
+		DWORD	share = FILE_SHARE_READ|FILE_SHARE_WRITE;
 
 		if (is_backup) {
 			mode |= READ_CONTROL;
@@ -1571,8 +1620,8 @@ BOOL FastCopy::OpenFileProc(FileStat *stat, int dir_len)
 			flg  |= FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT;
 		}
 
-		if ((stat->hFile = CreateFileV(src, mode, FILE_SHARE_READ|FILE_SHARE_WRITE, 0,
-				OPEN_EXISTING, flg, 0)) == INVALID_HANDLE_VALUE) {
+		if ((stat->hFile = CreateFileV(src, mode, share, 0, OPEN_EXISTING, flg, 0))
+				== INVALID_HANDLE_VALUE) {
 			stat->lastError = ::GetLastError();
 			ret = FALSE;
 		}
@@ -1595,6 +1644,7 @@ BOOL FastCopy::OpenFileBackupProc(FileStat *stat, int src_len)
 	void	*context = NULL;
 	int		altdata_cnt = 0;
 	BYTE	streamName[MAX_PATH * sizeof(WCHAR)];
+	DWORD	share = FILE_SHARE_READ|FILE_SHARE_WRITE;
 	DWORD	flg = ((info.flags & USE_OSCACHE_READ) ? 0 :
 				FILE_FLAG_NO_BUFFERING) | FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_BACKUP_SEMANTICS;
 
@@ -1623,7 +1673,7 @@ BOOL FastCopy::OpenFileBackupProc(FileStat *stat, int src_len)
 
 			if (++altdata_cnt >= MAX_ALTSTREAM) {
 				if (info.flags & REPORT_STREAM_ERROR)
-					ConfirmErr("Too Many AltStream", MakeAddr(src, srcPrefixLen));
+					ConfirmErr("Too Many AltStream", MakeAddr(src, srcPrefixLen), CEF_NOAPI);
 				break;
 			}
 			openFiles[openFilesCnt++] = subStat;
@@ -1639,14 +1689,14 @@ BOOL FastCopy::OpenFileBackupProc(FileStat *stat, int src_len)
 
 			fileStatBuf.AddUsedSize(subStat->minSize);
 			if (fileStatBuf.RemainSize() <= maxStatSize && !fileStatBuf.Grow(MIN_ATTR_BUF)) {
-				ConfirmErr("Can't alloc memory(fileStatBuf2)", NULL, FALSE);
+				ConfirmErr("Can't alloc memory(fileStatBuf2)", NULL, CEF_STOP);
 				break;
 			}
 			memcpy(subStat->cFileName, streamName, size + CHAR_LEN_V);
 			memcpy(MakeAddr(src, src_len), subStat->cFileName, size + CHAR_LEN_V);
 
-			if ((subStat->hFile = CreateFileV(src, GENERIC_READ|READ_CONTROL,
-									FILE_SHARE_READ|FILE_SHARE_WRITE, 0, OPEN_EXISTING, flg, 0))
+			if ((subStat->hFile = CreateFileV(src, GENERIC_READ|READ_CONTROL, share, 0,
+									OPEN_EXISTING, flg, 0))
 					== INVALID_HANDLE_VALUE) {
 				if (info.flags & REPORT_STREAM_ERROR)
 					ConfirmErr("OpenFile(Stream)", MakeAddr(src, srcPrefixLen));
@@ -1668,9 +1718,8 @@ BOOL FastCopy::OpenFileBackupProc(FileStat *stat, int src_len)
 			fileStatBuf.AddUsedSize(data_size);
 			if (fileStatBuf.RemainSize() <= maxStatSize
 			&& !fileStatBuf.Grow(ALIGN_SIZE(maxStatSize + data_size, MIN_ATTR_BUF))) {
-				if (info.flags & REPORT_ACL_ERROR)
-					ConfirmErr("Can't alloc memory(fileStat(ACL/EADATA))",
-						MakeAddr(src, srcPrefixLen), FALSE);
+				ConfirmErr("Can't alloc memory(fileStat(ACL/EADATA))",
+					MakeAddr(src, srcPrefixLen), FALSE);
 				break;
 			}
 			memcpy(data, &sid, STRMID_OFFSET);
@@ -1739,7 +1788,10 @@ void *FastCopy::RestoreOpenFilePath(void *path, int idx, int dir_len)
 				break;
 			}
 		}
-		if (i < 0) ConfirmErr("RestoreOpenFilePath", MakeAddr(path, srcPrefixLen), FALSE);
+		if (i < 0) {
+			ConfirmErr("RestoreOpenFilePath", MakeAddr(path, srcPrefixLen),
+					CEF_STOP|CEF_NOAPI);
+		}
 	}
 	sprintfV(MakeAddr(path, dir_len), FMT_STR_V, stat->cFileName);
 	return	path;
@@ -2028,12 +2080,12 @@ BOOL FastCopy::ReadDstStat(void)
 		dstStatIdxBuf.AddUsedSize(sizeof(FileStat *));
 
 		if (dstStatBuf.RemainSize() <= maxStatSize && dstStatBuf.Grow(MIN_ATTR_BUF) == FALSE) {
-			ConfirmErr("Can't alloc memory(dstStatBuf)", NULL, FALSE);
+			ConfirmErr("Can't alloc memory(dstStatBuf)", NULL, CEF_STOP);
 			break;
 		}
 		if (dstStatIdxBuf.RemainSize() <= sizeof(FileStat *)
 		&& dstStatIdxBuf.Grow(MIN_ATTRIDX_BUF) == FALSE) {
-			ConfirmErr("Can't alloc memory(dstStatIdxBuf)", NULL, FALSE);
+			ConfirmErr("Can't alloc memory(dstStatIdxBuf)", NULL, CEF_STOP);
 			break;
 		}
 	}
@@ -2060,7 +2112,7 @@ BOOL FastCopy::MakeHashTable(void)
 
 	if ((grow_size = require_size - dstStatIdxBuf.RemainSize()) > 0
 	&& dstStatIdxBuf.Grow(ALIGN_SIZE(grow_size, MIN_ATTRIDX_BUF)) == FALSE) {
-		ConfirmErr("Can't alloc memory(dstStatIdxBuf2)", NULL, FALSE);
+		ConfirmErr("Can't alloc memory(dstStatIdxBuf2)", NULL, CEF_STOP);
 		return	FALSE;
 	}
 
@@ -2305,7 +2357,7 @@ BOOL FastCopy::RDigestThreadCore(void)
 			if ((remain_size -= trans_size) <= 0) {
 				srcDigest.GetVal(stat->digest);
 				if (remain_size < 0) {
-					ConfirmErr("Internal Error(digest)", NULL, FALSE);
+					ConfirmErr("Internal Error(digest)", NULL, CEF_STOP|CEF_NOAPI);
 				}
 			}
 			cv.Lock();
@@ -2417,8 +2469,8 @@ BOOL FastCopy::WriteRandomData(void *path, FileStat *stat, BOOL skip_hardlink)
 							&& (info.flags & USE_OSCACHE_WRITE) == 0 ? TRUE : FALSE;
 	DWORD	flg = (is_nonbuf ? FILE_FLAG_NO_BUFFERING : 0) | FILE_FLAG_SEQUENTIAL_SCAN;
 	DWORD	trans_size;
-	HANDLE	hFile = CreateFileV(path, GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE,
-					0, OPEN_EXISTING, flg, 0);
+	DWORD	share = FILE_SHARE_READ|FILE_SHARE_WRITE;
+	HANDLE	hFile = CreateFileV(path, GENERIC_WRITE, share, 0, OPEN_EXISTING, flg, 0);
 	BOOL	ret = TRUE;
 
 	if (hFile == INVALID_HANDLE_VALUE) {
@@ -2476,13 +2528,7 @@ unsigned WINAPI FastCopy::WriteThread(void *fastCopyObj)
 BOOL FastCopy::WriteThreadCore(void)
 {
 	// トップレベルディレクトリが存在しない場合は作成
-	if (GetFileAttributesV(dst) == 0xffffffff) {
-		if (isListingOnly || CreateDirectoryV(dst, NULL) && isListing) {
-			PutList(MakeAddr(dst, dstPrefixLen), PL_NORMAL);	// 既に '\\' は付与されている
-			total.writeDirs++;
-		}
-//		else total.skipDirs++;
-	}
+	CheckAndCreateDestDir(dstBaseLen);
 
 	BOOL	ret = WriteProc(dstBaseLen);
 
@@ -2491,6 +2537,47 @@ BOOL FastCopy::WriteThreadCore(void)
 	writeReqList.Init();
 	cv.Notify();
 	cv.UnLock();
+
+	return	ret;
+}
+
+BOOL FastCopy::CheckAndCreateDestDir(int dst_len)
+{
+	BOOL	ret = TRUE;
+
+	SetChar(dst, dst_len - 1, 0);
+
+	if (GetFileAttributesV(dst) == 0xffffffff) {
+		int	parent_dst_len = 0;
+
+		if (IS_WINNT_V) {
+			parent_dst_len = dst_len - 2;
+			for ( ; parent_dst_len >= 9; parent_dst_len--) { // "\\?\c:\x\..."
+				if (GetChar(dst, parent_dst_len -1) == '\\') break;
+			}
+			if (parent_dst_len < 9) parent_dst_len = 0;
+		}
+		else {
+			const char *cur = (const char *)MakeAddr(dst, 0);;
+			const char *end = (const char *)MakeAddr(dst, dst_len);
+
+			while (cur < end) {
+				if (lGetCharIncA(&cur) == '\\') {
+					parent_dst_len = cur - (const char *)dst;
+				}
+			}
+			if (parent_dst_len < 4) parent_dst_len = 0;
+		}
+
+		ret = parent_dst_len ? CheckAndCreateDestDir(parent_dst_len) : FALSE;
+
+		if (isListingOnly || CreateDirectoryV(dst, NULL) && isListing) {
+			PutList(MakeAddr(dst, dstPrefixLen), PL_DIRECTORY);
+			total.writeDirs++;
+		}
+		else ret = FALSE;
+	}
+	SetChar(dst, dst_len - 1, '\\');
 
 	return	ret;
 }
@@ -2568,7 +2655,7 @@ BOOL FastCopy::WriteProc(int dir_len)
 			default:
 				ret = FALSE;
 				WCHAR cmd[2] = { writeReq->command + '0', 0 };
-				ConfirmErr("Illegal Request (internal error)", cmd, FALSE);
+				ConfirmErr("Illegal Request (internal error)", cmd, CEF_STOP|CEF_NOAPI);
 				break;
 			}
 		}
@@ -2612,7 +2699,7 @@ BOOL FastCopy::WriteDirProc(int dir_len)
 		dstDirExtBuf.AddUsedSize(buf_size);
 		if (dstDirExtBuf.RemainSize() < MIN_DSTDIREXT_BUF
 		&& !dstDirExtBuf.Grow(MIN_DSTDIREXT_BUF)) {
-			ConfirmErr("Can't alloc memory(dstDirExtBuf)", NULL, FALSE);
+			ConfirmErr("Can't alloc memory(dstDirExtBuf)", NULL, CEF_STOP);
 			goto END;
 		}
 		memcpy(dstDirExtBuf.Buf() + dstDirExtBuf.UsedSize(), writeReq->buf, buf_size);
@@ -2636,7 +2723,7 @@ BOOL FastCopy::WriteDirProc(int dir_len)
 		else {
 			if (mkdirQueueBuf.RemainSize() < sizeof(int)
 			&& mkdirQueueBuf.Grow(MIN_MKDIRQUEUE_BUF) == FALSE) {
-				ConfirmErr("Can't alloc memory(mkdirQueueBuf)", NULL, FALSE);
+				ConfirmErr("Can't alloc memory(mkdirQueueBuf)", NULL, CEF_STOP);
 				goto END;
 			}
 			*(int *)(mkdirQueueBuf.Buf() + mkdirQueueBuf.UsedSize()) = new_dir_len;
@@ -2706,11 +2793,11 @@ BOOL FastCopy::SetDirExtData(FileStat *stat)
 	DWORD	mode = GENERIC_WRITE | (stat->acl && enableAcl ? (WRITE_OWNER|WRITE_DAC) : 0);
 	BOOL	is_reparse = IsReparse(stat->dwFileAttributes) && (info.flags & DIR_REPARSE) == 0;
 	BOOL	ret = TRUE;
+	DWORD	share = FILE_SHARE_READ|FILE_SHARE_WRITE;
+	DWORD	flg = FILE_FLAG_BACKUP_SEMANTICS|(is_reparse ? FILE_FLAG_OPEN_REPARSE_POINT : 0);
 
 	if (!IS_WINNT_V
-	|| (fh = CreateFileV(dst, mode, 0, 0, OPEN_EXISTING,
-				FILE_FLAG_BACKUP_SEMANTICS|(is_reparse ? FILE_FLAG_OPEN_REPARSE_POINT : 0), 0))
-				== INVALID_HANDLE_VALUE) {
+	|| (fh = CreateFileV(dst, mode, share, 0, OPEN_EXISTING, flg, 0)) == INVALID_HANDLE_VALUE) {
 		if (is_reparse) {
 			total.errDirs++;
 		}
@@ -2808,12 +2895,8 @@ BOOL FastCopy::WDigestThreadCore(void)
 				}
 				else {
 					char	buf[512];
-					char	*p = buf + sprintf(buf, "Verify Error src:");
-					p += bin2hexstr(calc->digest, dstDigest.GetDigestSize(), p);
-					p += sprintf(p, " dst:");
-					p += bin2hexstr(digest, dstDigest.GetDigestSize(), p);
-					p += sprintf(p, " ");
-					ConfirmErr(buf, MakeAddr(calc->path, dstPrefixLen));
+					MakeVerifyStr(buf, calc->digest, digest, dstDigest.GetDigestSize());
+					ConfirmErr(buf, MakeAddr(calc->path, dstPrefixLen), CEF_NOAPI);
 					calc->status = DigestCalc::ERR;
 				}
 			}
@@ -2869,7 +2952,7 @@ FastCopy::DigestCalc *FastCopy::GetDigestCalc(DigestObj *obj, int io_size)
 		}
 
 		if (!wDigestList.Grow(wDigestList.MaxSize() - wDigestList.Size())) {
-			ConfirmErr("Can't alloc memory(digest)", NULL, FALSE);
+			ConfirmErr("Can't alloc memory(digest)", NULL, CEF_STOP);
 		}
 
 		if (isAbort) return	NULL;
@@ -2918,6 +3001,7 @@ BOOL FastCopy::MakeDigestAsync(DigestObj *obj)
 {
 	DWORD		flg = ((info.flags & USE_OSCACHE_READVERIFY) ? 0 : FILE_FLAG_NO_BUFFERING) |
 						FILE_FLAG_SEQUENTIAL_SCAN;
+	DWORD		share = FILE_SHARE_READ|FILE_SHARE_WRITE;
 	HANDLE		hFile = INVALID_HANDLE_VALUE;
 	_int64		remain_size = 0;
 	BOOL		ret = TRUE;
@@ -2927,9 +3011,8 @@ BOOL FastCopy::MakeDigestAsync(DigestObj *obj)
 
 	if (obj->fileSize) {
 		BY_HANDLE_FILE_INFORMATION	bhi;
-		if ((hFile = CreateFileWithRetry(obj->path, GENERIC_READ,
-					FILE_SHARE_READ|FILE_SHARE_WRITE, 0, OPEN_EXISTING, flg, 0))
-					== INVALID_HANDLE_VALUE) {
+		if ((hFile = CreateFileWithRetry(obj->path, GENERIC_READ, share, 0, OPEN_EXISTING, flg,
+						0)) == INVALID_HANDLE_VALUE) {
 			ConfirmErr("OpenFile(digest)", MakeAddr(obj->path, dstPrefixLen));
 			ret = FALSE;
 		}
@@ -2941,7 +3024,7 @@ BOOL FastCopy::MakeDigestAsync(DigestObj *obj)
 
 	if (remain_size != obj->fileSize) {
 		ret = FALSE;
-		ConfirmErr("Size is changed", MakeAddr(obj->path, dstPrefixLen));
+		ConfirmErr("Size is changed", MakeAddr(obj->path, dstPrefixLen), CEF_NOAPI);
 		goto END;
 	}
 	if (obj->fileSize == 0) {
@@ -3078,7 +3161,7 @@ BOOL FastCopy::RestoreHardLinkInfo(DWORD *link_data, void *path, int base_len)
 	DWORD	hash_id = hardLinkList.MakeHashId(link_data);
 
 	if (!(obj = (LinkObj *)hardLinkList.Search(link_data, hash_id))) {
-		ConfirmErr("HardLinkInfo is gone(internal error)");
+		ConfirmErr("HardLinkInfo is gone(internal error)", MakeAddr(path, base_len), CEF_NOAPI);
 		return	FALSE;
 	}
 
@@ -3122,6 +3205,7 @@ BOOL FastCopy::WriteFileProc(int dst_len)
 	}
 
 	DWORD	mode = GENERIC_WRITE;
+	DWORD	share = FILE_SHARE_READ|FILE_SHARE_WRITE;
 	DWORD	flg = (is_nonbuf ? FILE_FLAG_NO_BUFFERING : 0) | FILE_FLAG_SEQUENTIAL_SCAN;
 
 	if (command == WRITE_BACKUP_FILE || command == WRITE_BACKUP_ALTSTREAM) {
@@ -3153,10 +3237,9 @@ BOOL FastCopy::WriteFileProc(int dst_len)
 		goto END2;
 	}
 
-	if ((fh = CreateFileV(dst, mode, FILE_SHARE_READ, 0, CREATE_ALWAYS, flg, 0))
-			== INVALID_HANDLE_VALUE) {
+	if ((fh = CreateFileV(dst, mode, share, 0, CREATE_ALWAYS, flg, 0)) == INVALID_HANDLE_VALUE) {
 		SetFileAttributesV(dst, FILE_ATTRIBUTE_NORMAL);
-		fh = CreateFileV(dst, mode, FILE_SHARE_READ, 0, CREATE_ALWAYS, flg, 0);
+		fh = CreateFileV(dst, mode, share, 0, CREATE_ALWAYS, flg, 0);
 	}
 
 	if (fh == INVALID_HANDLE_VALUE) {
@@ -3180,7 +3263,7 @@ BOOL FastCopy::WriteFileProc(int dst_len)
 	else {
 		if (is_reopen) {
 			flg &= ~FILE_FLAG_NO_BUFFERING;
-			fh2 = CreateFileV(dst, mode, FILE_SHARE_READ, 0, OPEN_EXISTING, flg, 0);
+			fh2 = CreateFileV(dst, mode, share, 0, OPEN_EXISTING, flg, 0);
 		}
 
 		if (file_size > writeReq->bufSize) {
@@ -3218,7 +3301,7 @@ BOOL FastCopy::WriteFileProc(int dst_len)
 					remain = 0;
 					if (!isAbort && writeReq->command != WRITE_ABORT) {
 						WCHAR cmd[2] = { writeReq->command + '0', 0 };
-						ConfirmErr("Illegal Request2 (internal error)", cmd, FALSE);
+						ConfirmErr("Illegal Request2 (internal error)", cmd, CEF_STOP|CEF_NOAPI);
 					}
 					break;
 				}
@@ -3232,11 +3315,10 @@ BOOL FastCopy::WriteFileProc(int dst_len)
 		if (is_reopen) {
 			::CloseHandle(fh);
 			if (fh2 == INVALID_HANDLE_VALUE && ret) {
-				fh2 = CreateFileWithRetry(dst, mode, FILE_SHARE_READ, 0, OPEN_EXISTING,
-						flg, 0, 10);
+				fh2 = CreateFileWithRetry(dst, mode, share, 0, OPEN_EXISTING, flg, 0, 10);
 				if (fh2 == INVALID_HANDLE_VALUE) {
 					ret = FALSE;
-					if (is_stream || (info.flags & REPORT_STREAM_ERROR))
+					if (!is_stream || (info.flags & REPORT_STREAM_ERROR))
 						ConfirmErr(is_stream ? "CreateFile2(stream)" : "CreateFile2",
 							MakeAddr(dst, dstPrefixLen));
 				}
@@ -3259,7 +3341,7 @@ END2:
 		int path_size = (dst_len + 1) * CHAR_LEN_V;
 		DataList::Head	*head = digestList.Alloc(NULL, 0, sizeof(DigestObj) + path_size);
 		if (!head) {
-			ConfirmErr("Can't alloc memory(digestList)", NULL, FALSE);
+			ConfirmErr("Can't alloc memory(digestList)", NULL, CEF_STOP);
 		}
 		DigestObj *obj = (DigestObj *)head->data;
 		obj->fileID = stat->fileID;
@@ -3328,7 +3410,7 @@ BOOL FastCopy::WriteFileBackupProc(HANDLE fh, int dst_len)
 			ret = FALSE;
 			if (!isAbort) {
 				WCHAR cmd[2] = { writeReq->command + '0', 0 };
-				ConfirmErr("Illegal Request3 (internal error)", cmd, FALSE);
+				ConfirmErr("Illegal Request3 (internal error)", cmd, CEF_STOP|CEF_NOAPI);
 			}
 			break;
 		}
@@ -3359,7 +3441,7 @@ BOOL FastCopy::WriteFileBackupProc(HANDLE fh, int dst_len)
 		default:
 			if (!isAbort) {
 				WCHAR cmd[2] = { writeReq->command + '0', 0 };
-				ConfirmErr("Illegal Request4 (internal error)", cmd, FALSE);
+				ConfirmErr("Illegal Request4 (internal error)", cmd, CEF_STOP|CEF_NOAPI);
 			}
 			ret = FALSE;
 			break;
@@ -3781,13 +3863,15 @@ BOOL FastCopy::ConvertExternalPath(const void *path, void *buf, int max_buf)
 	return	TRUE;
 }
 
-FastCopy::Confirm::Result FastCopy::ConfirmErr(const char *message, const void *path,
-	BOOL allow_continue)
+FastCopy::Confirm::Result FastCopy::ConfirmErr(const char *message, const void *path, DWORD flags)
 {
 	if (isAbort) return	Confirm::CANCEL_RESULT;
 
+	BOOL	api_err = (flags & CEF_NOAPI) ? FALSE : TRUE;
+	BOOL	allow_continue = (flags & CEF_STOP) ? FALSE : TRUE;
+
 	WCHAR	path_buf[MAX_PATH_EX], msg_buf[MAX_PATH_EX + 100];
-	DWORD	err_code = ::GetLastError();
+	DWORD	err_code = api_err ? ::GetLastError() : 0;
 	int		len = 0;
 
 	if (IS_WINNT_V) {
@@ -3802,13 +3886,13 @@ FastCopy::Confirm::Result FastCopy::ConfirmErr(const char *message, const void *
 		len = sprintfV(msg_buf, "%s(", message);
 	}
 
-	if (err_code) {
+	if (api_err && err_code) {
 		len += FormatMessageV(FORMAT_MESSAGE_FROM_SYSTEM|FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
 				err_code, info.lcid > 0 ? LANGIDFROMLCID(info.lcid) : MAKELANGID(LANG_NEUTRAL,
 				SUBLANG_DEFAULT), MakeAddr(msg_buf, len), MAX_PATH_EX, NULL);
-	}
-	if (GetChar(msg_buf, len-1) == '\n') {
-		len -= 2;	// remove "\r\n"
+		if (GetChar(msg_buf, len-1) == '\n') {
+			len -= 2;	// remove "\r\n"
+		}
 	}
 
 	void *fmt_us_v = IS_WINNT_V ? (void *)L"%u) : %s" : (void *)"%u) : %s";
@@ -3820,10 +3904,10 @@ FastCopy::Confirm::Result FastCopy::ConfirmErr(const char *message, const void *
 		PutList(msg_buf, PL_ERRMSG);
 	}
 
-	if (allow_continue == FALSE)
-		isAbort = TRUE;
-	else if (info.ignoreEvent & FASTCOPY_ERROR_EVENT)
-		return	Confirm::CONTINUE_RESULT;
+	if (allow_continue) {
+		if (info.ignoreEvent & FASTCOPY_ERROR_EVENT) return	Confirm::CONTINUE_RESULT;
+	}
+	else isAbort = TRUE;
 
 	Confirm	 confirm = { msg_buf, allow_continue, path, err_code, Confirm::CONTINUE_RESULT };
 

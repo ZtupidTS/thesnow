@@ -1,5 +1,5 @@
 ﻿static char *tapp_id = 
-	"@(#)Copyright (C) H.Shirouzu 1996-2009   tapp.cpp	Ver0.99";
+	"@(#)Copyright (C) 1996-2009 H.Shirouzu		tapp.cpp	Ver0.99";
 /* ========================================================================
 	Project  Name			: Win32 Lightweight  Class Library Test
 	Module Name				: Application Frame Class
@@ -10,8 +10,6 @@
 	======================================================================== */
 
 #include "tlib.h"
-#pragma comment( lib, "comctl32.lib" )
-#pragma comment( lib, "Winmm.lib" )
 
 TApp *TApp::tapp = NULL;
 #define MAX_TAPPWIN_HASH	1009

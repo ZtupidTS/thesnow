@@ -1,9 +1,9 @@
 ﻿/* static char *miscdlg_id = 
-	"@(#)Copyright (C) H.Shirouzu 2005-2009   miscdlg.h	Ver1.99"; */
+	"@(#)Copyright (C) 2005-2010 H.Shirouzu		miscdlg.h	Ver2.00"; */
 /* ========================================================================
 	Project  Name			: Fast/Force copy file and directory
 	Create					: 2005-01-23(Sun)
-	Update					: 2009-05-24(Sun)
+	Update					: 2010-05-09(Sun)
 	Copyright				: H.Shirouzu
 	Reference				: 
 	======================================================================== */
@@ -90,8 +90,7 @@ public:
 	BOOL	ReflectStatus(void);
 };
 
-BOOL UpdateShellExt(Cfg *);
-HWND ShowHelp(HWND hOwner, LPCSTR help_dir, LPCSTR help_file, LPCSTR section=NULL);
+HWND ShowHelpV(HWND hOwner, void *help_dir, void *help_file, void *section=NULL);
 
 enum	DirFileMode { DIRSELECT, RELOAD, FILESELECT, SELECT_EXIT };
 
@@ -246,6 +245,18 @@ public:
 	virtual BOOL	EventFocus(UINT uMsg, HWND hFocusWnd);
 	virtual BOOL	EventButton(UINT uMsg, int nHitTest, POINTS pos);
 	virtual BOOL	EventUser(UINT uMsg, WPARAM wParam, LPARAM lParam);
+};
+
+class TEditSub : public TSubClassCtl {
+public:
+	TEditSub(TWin *_parent);
+
+	virtual BOOL	CreateByWnd(HWND _hWnd);
+	virtual int		ExGetText(void *buf, int max_len, DWORD flags=GT_USECRLF, UINT codepage=CP_UTF8);
+	virtual BOOL	ExSetText(const void *buf, int max_len=-1, DWORD flags=ST_DEFAULT, UINT codepage=CP_UTF8);
+
+	virtual BOOL	EvCommand(WORD wNotifyCode, WORD wID, LPARAM hWndCtl);
+	virtual BOOL	EvContextMenu(HWND childWnd, POINTS pos);
 };
 
 
