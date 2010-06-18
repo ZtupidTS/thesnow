@@ -31,6 +31,7 @@
 
 #include <vector>
 #include <string>
+#include <fstream>
 
 #include "Common.h" // Common
 #include "FileUtil.h"
@@ -66,7 +67,7 @@ void Wiimote::ReportMode(const u16 _channelID, wm_report_mode* dr)
 	m_reporting_channel = _channelID;
 
 	// reset IR camera
-	memset(m_reg_ir, 0, sizeof(*m_reg_ir));
+	//memset(m_reg_ir, 0, sizeof(*m_reg_ir));  //ugly hack
 
 	if (0 == dr->all_the_time)
 		PanicAlert("Wiimote: Reporting Always is set to OFF! Everything should be fine, but games never do this.");
@@ -194,7 +195,7 @@ void Wiimote::SendAck(const u16 _channelID, u8 _reportID)
 	ack->reportID = _reportID;
 	ack->errorID = 0;
 
-	g_WiimoteInitialize.pWiimoteInput( m_index, _channelID, data, sizeof(data));
+	g_WiimoteInitialize.pWiimoteInterruptChannel( m_index, _channelID, data, sizeof(data));
 }
 
 // old comment
@@ -233,7 +234,7 @@ void Wiimote::RequestStatus(const u16 _channelID, wm_request_status* rs)
 	*(wm_status_report*)(data + 2) = m_status;
 
 	// send report
-	g_WiimoteInitialize.pWiimoteInput(m_index, _channelID, data, sizeof(data));
+	g_WiimoteInitialize.pWiimoteInterruptChannel(m_index, _channelID, data, sizeof(data));
 }
 
 /* Write data to Wiimote and Extensions registers. */
@@ -486,7 +487,7 @@ void Wiimote::SendReadDataReply(const u16 _channelID, ReadRequest& _request)
 	}
 
 	// Send a piece
-	g_WiimoteInitialize.pWiimoteInput(m_index, _channelID, data, sizeof(data));
+	g_WiimoteInitialize.pWiimoteInterruptChannel(m_index, _channelID, data, sizeof(data));
 }
 
 void Wiimote::DoState(PointerWrap& p)

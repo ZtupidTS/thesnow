@@ -6,9 +6,9 @@
 #include "WiimoteEmu/WiimoteEmu.h"
 
 #if defined(HAVE_WX) && HAVE_WX
-#include "ConfigDiag.h"
+#include "../../InputUICommon/Src/ConfigDiag.h"
 #endif
-#include "../../InputPluginCommon/Src/Config.h"
+#include "../../InputCommon/Src/InputConfig.h"
 
 #if defined(HAVE_X11) && HAVE_X11
 #include <X11/Xlib.h>
@@ -32,7 +32,7 @@
 #endif
 
 // plugin globals
-static Plugin g_plugin( "WiimoteNew", "Wiimote", "Wiimote" );
+static InputPlugin g_plugin( "WiimoteNew", "Wiimote", "Wiimote" );
 SWiimoteInitialize g_WiimoteInitialize;
 
 #ifdef _WIN32
@@ -99,7 +99,9 @@ void DeInitPlugin()
 			delete *i;
 		g_plugin.controllers.clear();
 
-		g_plugin.controller_interface.DeInit();
+		// true parameter to make SDL not quit in the wiimote plugin,
+		// the old wiimote plugin uses this hack as well, to prevent crash on stop
+		g_plugin.controller_interface.DeInit(true);
 	}
 }
 
@@ -144,7 +146,18 @@ void Wiimote_ControlChannel(int _number, u16 _channelID, const void* _pData, u32
 }
 
 // __________________________________________________________________________________________________
-// Function: Wiimote_Input
+// Function: Send keyboard input to the plugin
+// Purpose:
+// input:   The key and if it's pressed or released
+// output:  None
+//
+void Wiimote_Input(u16 _Key, u8 _UpDown)
+{
+	return;
+}
+
+// __________________________________________________________________________________________________
+// Function: Wiimote_InterruptChannel
 // Purpose:  An L2CAP packet is passed from the Core to the Wiimote,
 //           on the HID INTERRUPT channel.
 // input:    Da pakket.
@@ -244,7 +257,7 @@ void DllConfig(HWND _hParent)
 
 	// copied from GCPad
 	wxWindow *frame = GetParentedWxWindow(_hParent);
-	ConfigDialog* m_ConfigFrame = new ConfigDialog( frame, g_plugin, PLUGIN_FULL_NAME, was_init );
+	InputConfigDialog* m_ConfigFrame = new InputConfigDialog(frame, g_plugin, PLUGIN_FULL_NAME);
 
 #ifdef _WIN32
 	frame->Disable();
@@ -265,7 +278,7 @@ void DllConfig(HWND _hParent)
 	frame->Destroy();
 	// /
 
-	if ( false == was_init )				// hack for showing dialog when game isnt running
+	if ( false == was_init )
 		DeInitPlugin();
 #endif
 }

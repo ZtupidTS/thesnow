@@ -34,6 +34,11 @@
 
 extern SWiimoteInitialize g_WiimoteInitialize;
 
+#if defined(HAVE_WX) && HAVE_WX
+// Hack to use wx key events
+extern volatile bool wxkeystate[WXK_SPECIAL20];
+#endif
+
 namespace WiiMoteEmu
 {
 
@@ -317,6 +322,11 @@ bool IsKey(int Key)
 			XQueryKeymap(WMdisplay, keys);
 			keyCode = XKeysymToKeycode(WMdisplay, MapKey);
 			Ret = (keys[keyCode/8] & (1 << (keyCode%8)));	// Keyboard (Linux)
+		}
+		else if (MapKey < 0x1100)
+#elif defined (USE_WX) && USE_WX
+		if (MapKey < WXK_SPECIAL20) {
+			Ret = wxkeystate[MapKey];
 		}
 		else if (MapKey < 0x1100)
 #else

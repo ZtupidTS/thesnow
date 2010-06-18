@@ -26,6 +26,7 @@
 #include "EmuDefinitions.h" // for PadMapping
 #include "main.h"
 #include "FileUtil.h"
+#include "WXInputBase.h"
 
 // Configuration file control names
 // Do not change the order unless you change the related arrays
@@ -139,6 +140,23 @@ static int wmDefaultControls[] =
 	XK_comma,
 	XK_period,
 	XK_slash,
+#elif defined(USE_WX) && USE_WX
+	'Z',
+	'X',
+	'C',
+	'V',
+	'P',
+	'O',
+	WXK_BACK,
+	WXK_LEFT,
+	WXK_RIGHT,
+	WXK_UP,
+	WXK_DOWN,
+	'N',
+	'M',
+	WXK_SEPARATOR,
+	WXK_DECIMAL,
+	WXK_DIVIDE,
 #else
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 #endif
@@ -168,6 +186,18 @@ static int wmDefaultControls[] =
 	XK_KP_1,
 	XK_KP_3,
 	XK_KP_2,
+#elif defined(USE_WX) && USE_WX
+	WXK_NUMPAD0,
+	WXK_NUMPAD_DECIMAL,
+	WXK_NUMPAD4,
+	WXK_NUMPAD6,
+	WXK_NUMPAD8,
+	WXK_NUMPAD5,
+	WXK_NUMPAD7,
+	WXK_NUMPAD9,
+	WXK_NUMPAD1,
+	WXK_NUMPAD3,
+	WXK_NUMPAD2,
 #else
 	0,0,0,0,0,0,0,0,0,0,0,
 #endif
@@ -184,6 +214,11 @@ static int wmDefaultControls[] =
 	XK_bracketright,
 	XK_semicolon,
 	XK_quoteright,
+#elif defined(USE_WX) && USE_WX
+	'O',
+	'P',
+	'K',
+	'L',
 #else
 	0,0,0,0,
 #endif
@@ -207,6 +242,11 @@ static int wmDefaultControls[] =
 	XK_KP_6,
 	XK_KP_8,
 	XK_KP_5,
+#elif defined(HAVE_X11) && HAVE_X11
+	WXK_NUMPAD4,
+	WXK_NUMPAD6,
+	WXK_NUMPAD8,
+	WXK_NUMPAD5,
 #else
 	0,0,0,0,
 #endif
@@ -240,6 +280,11 @@ static int wmDefaultControls[] =
 	XK_KP_6,
 	XK_KP_8,
 	XK_KP_5,
+#elif defined(HAVE_X11) && HAVE_X11
+	WXK_NUMPAD4,
+	WXK_NUMPAD6,
+	WXK_NUMPAD8,
+	WXK_NUMPAD5,
 #else
 	0,0,0,0,
 #endif
@@ -369,7 +414,7 @@ void Config::LoadIR()
 	int defaultLeft, defaultTop, defaultWidth, defaultHeight;
 
 	sprintf(TmpSection, "%s", g_ISOId ? Hex2Ascii(g_ISOId).c_str() : "Default");
-	iniFile.Load((std::string(File::GetUserPath(D_CONFIG_IDX)) + "IR Pointer.ini").c_str());
+	iniFile.Load((std::string(File::GetUserPath(D_CONFIG_IDX)) + "IrPointer.ini").c_str());
 	//Load defaults first...
 	iniFile.Get("Default", "IRLeft", &defaultLeft, LEFT);
 	iniFile.Get("Default", "IRTop", &defaultTop, TOP);
@@ -461,7 +506,7 @@ void Config::Save()
 	iniFile.Save((std::string(File::GetUserPath(D_CONFIG_IDX)) + "Wiimote.ini").c_str());
 
 	// Save the IR cursor settings if it's avaliable for the GameId, if not save the default settings
-	iniFile.Load((std::string(File::GetUserPath(D_CONFIG_IDX)) + "IR Pointer.ini").c_str());
+	iniFile.Load((std::string(File::GetUserPath(D_CONFIG_IDX)) + "IrPointer.ini").c_str());
 	char TmpSection[32];
 	sprintf(TmpSection, "%s", g_ISOId ? Hex2Ascii(g_ISOId).c_str() : "Default");
 	iniFile.Set(TmpSection, "IRLeft", iIRLeft);
@@ -469,7 +514,7 @@ void Config::Save()
 	iniFile.Set(TmpSection, "IRWidth", iIRWidth);
 	iniFile.Set(TmpSection, "IRHeight", iIRHeight);
 	iniFile.Set(TmpSection, "IRLevel", iIRLevel);
-	iniFile.Save((std::string(File::GetUserPath(D_CONFIG_IDX)) + "IR Pointer.ini").c_str());
+	iniFile.Save((std::string(File::GetUserPath(D_CONFIG_IDX)) + "IrPointer.ini").c_str());
 
 	//Save any options that need to be accessed in Dolphin
 	iniFile.Load((std::string(File::GetUserPath(D_CONFIG_IDX)) + "Dolphin.ini").c_str());

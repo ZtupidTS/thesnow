@@ -40,15 +40,14 @@ const VertexShaderCache::VSCacheEntry *VertexShaderCache::last_entry;
 
 static float GC_ALIGNED16(lastVSconstants[C_FOGPARAMS + 8][4]);
 
-static LPDIRECT3DVERTEXSHADER9 SimpleVertexShader;
+static LPDIRECT3DVERTEXSHADER9 SimpleVertexShader[3];
 static LPDIRECT3DVERTEXSHADER9 ClearVertexShader;
-static LPDIRECT3DVERTEXSHADER9 FSAAVertexShader;
 
 LinearDiskCache g_vs_disk_cache;
 
-LPDIRECT3DVERTEXSHADER9 VertexShaderCache::GetSimpleVertexShader()
+LPDIRECT3DVERTEXSHADER9 VertexShaderCache::GetSimpleVertexShader(int level)
 {
-	return SimpleVertexShader;
+	return SimpleVertexShader[level % 3];
 }
 
 LPDIRECT3DVERTEXSHADER9 VertexShaderCache::GetClearVertexShader()
@@ -56,12 +55,8 @@ LPDIRECT3DVERTEXSHADER9 VertexShaderCache::GetClearVertexShader()
 	return ClearVertexShader;
 }
 
-LPDIRECT3DVERTEXSHADER9 VertexShaderCache::GetFSAAVertexShader()
-{
-	return FSAAVertexShader;
-}
 
-void SetVSConstant4f(int const_number, float f1, float f2, float f3, float f4)
+void SetVSConstant4f(unsigned int const_number, float f1, float f2, float f3, float f4)
 {
 	if (lastVSconstants[const_number][0] != f1 || 
 		lastVSconstants[const_number][1] != f2 ||
@@ -76,7 +71,7 @@ void SetVSConstant4f(int const_number, float f1, float f2, float f3, float f4)
 	}
 }
 
-void SetVSConstant4fv(int const_number, const float *f)
+void SetVSConstant4fv(unsigned int const_number, const float *f)
 {
 	if (memcmp(&lastVSconstants[const_number], f, sizeof(float) * 4)) {
 		memcpy(&lastVSconstants[const_number], f, sizeof(float) * 4);
@@ -84,10 +79,10 @@ void SetVSConstant4fv(int const_number, const float *f)
 	}	
 }
 
-void SetMultiVSConstant3fv(int const_number, int count, const float *f)
+void SetMultiVSConstant3fv(unsigned int const_number, unsigned int count, const float *f)
 {
 	bool change = false;
-	for (int i = 0; i < count; i++)
+	for (unsigned int i = 0; i < count; i++)
 	{
 		if (lastVSconstants[const_number + i][0] != f[0 + i*3] || 
 			lastVSconstants[const_number + i][1] != f[1 + i*3] ||
@@ -99,7 +94,7 @@ void SetMultiVSConstant3fv(int const_number, int count, const float *f)
 	}
 	if (change)
 	{
-		for (int i = 0; i < count; i++)
+		for (unsigned int i = 0; i < count; i++)
 		{
 			lastVSconstants[const_number + i][0] = f[0 + i*3];
 			lastVSconstants[const_number + i][1] = f[1 + i*3];
@@ -110,7 +105,7 @@ void SetMultiVSConstant3fv(int const_number, int count, const float *f)
 	}
 }
 
-void SetMultiVSConstant4fv(int const_number, int count, const float *f)
+void SetMultiVSConstant4fv(unsigned int const_number, unsigned int count, const float *f)
 {
 	if (memcmp(&lastVSconstants[const_number], f, count * sizeof(float) * 4)) {
 		memcpy(&lastVSconstants[const_number], f, count * sizeof(float) * 4);
@@ -148,7 +143,7 @@ void VertexShaderCache::Init()
 							"return OUT;\n"
 						"}\n");
 
-	SimpleVertexShader = D3D::CompileAndCreateVertexShader(vProg, (int)strlen(vProg));
+	SimpleVertexShader[0] = D3D::CompileAndCreateVertexShader(vProg, (int)strlen(vProg));
 
 	sprintf(vProg,"struct VSOUTPUT\n"
 						"{\n"
@@ -180,14 +175,38 @@ void VertexShaderCache::Init()
 						   "VSOUTPUT OUT;"
 						   "OUT.vPosition = inPosition;\n"
 						   "OUT.vTexCoord  = inTEX0.xyyx;\n"
-						   "OUT.vTexCoord1 = inTEX0.xyyx + (float4(-0.1830127f,-0.6830127f,-0.7071068f,-1.2247449f) * inTEX1.xyyx);\n"
-						   "OUT.vTexCoord2 = inTEX0.xyyx + (float4(-0.6830127f, 0.1830127f, 0.7071068f, 1.2247449f) * inTEX1.xyyx);\n"
-						   "OUT.vTexCoord3 = inTEX0.xyyx + (float4( 0.6830127f,-0.1830127f,-1.2247449f, 0.7071068f) * inTEX1.xyyx);\n"
-						   "OUT.vTexCoord4 = inTEX0.xyyx + (float4( 0.1830127f, 0.6830127f, 1.2247449f,-0.7071068f) * inTEX1.xyyx);\n"
+						   "OUT.vTexCoord1 = inTEX0.xyyx + (float4(-0.5f,-0.5f,-0.5f,-0.5f) * inTEX1.xyyx);\n"
+						   "OUT.vTexCoord2 = inTEX0.xyyx + (float4(-0.5f, 0.5f, 0.5f,-0.5f) * inTEX1.xyyx);\n"
+						   "OUT.vTexCoord3 = inTEX0.xyyx + (float4( 0.5f,-0.5f,-0.5f, 0.5f) * inTEX1.xyyx);\n"
+						   "OUT.vTexCoord4 = inTEX0.xyyx + (float4( 0.5f, 0.5f, 0.5f, 0.5f) * inTEX1.xyyx);\n"
 						   "OUT.vTexCoord5 = inTEX2;\n"
 						   "return OUT;\n"
 						"}\n");
-	FSAAVertexShader = D3D::CompileAndCreateVertexShader(vProg, (int)strlen(vProg));	
+	SimpleVertexShader[1] = D3D::CompileAndCreateVertexShader(vProg, (int)strlen(vProg));	
+
+	sprintf(vProg,	"struct VSOUTPUT\n"
+						"{\n"
+						   "float4 vPosition   : POSITION;\n"
+						   "float4 vTexCoord   : TEXCOORD0;\n"
+						   "float4 vTexCoord1   : TEXCOORD1;\n"
+						   "float4 vTexCoord2   : TEXCOORD2;\n"   
+						   "float4 vTexCoord3   : TEXCOORD3;\n"
+						   "float4 vTexCoord4   : TEXCOORD4;\n"
+						   "float4 vTexCoord5   : TEXCOORD5;\n"
+						"};\n"
+						"VSOUTPUT main(float4 inPosition : POSITION,float2 inTEX0 : TEXCOORD0,float2 inTEX1 : TEXCOORD1,float4 inTEX2 : TEXCOORD2)\n"
+						"{\n"
+						   "VSOUTPUT OUT;"
+						   "OUT.vPosition = inPosition;\n"
+						   "OUT.vTexCoord  = inTEX0.xyyx;\n"
+						   "OUT.vTexCoord1 = inTEX0.xyyx + (float4(-1.0f,-1.0f,-1.0f, 1.0f) * inTEX1.xyyx);\n"
+						   "OUT.vTexCoord2 = inTEX0.xyyx + (float4(-1.0f, 0.0f, 0.0f, 1.0f) * inTEX1.xyyx);\n"
+						   "OUT.vTexCoord3 = inTEX0.xyyx + (float4(-1.0f, 1.0f, 1.0f, 1.0f) * inTEX1.xyyx);\n"
+						   "OUT.vTexCoord4 = inTEX0.xyyx + (float4( 0.0f, 1.0f,-1.0f, 0.0f) * inTEX1.xyyx);\n"
+						   "OUT.vTexCoord5 = inTEX2;\n"
+						   "return OUT;\n"
+						"}\n");
+	SimpleVertexShader[2] = D3D::CompileAndCreateVertexShader(vProg, (int)strlen(vProg));	
 	
 	Clear();
 	delete [] vProg;
@@ -196,7 +215,7 @@ void VertexShaderCache::Init()
 		File::CreateDir(File::GetUserPath(D_SHADERCACHE_IDX));
 
 	char cache_filename[MAX_PATH];
-	sprintf(cache_filename, "%s%s-vs.cache", File::GetUserPath(D_SHADERCACHE_IDX), globals->unique_id);
+	sprintf(cache_filename, "%sdx9-%s-vs.cache", File::GetUserPath(D_SHADERCACHE_IDX), globals->unique_id);
 	VertexShaderCacheInserter inserter;
 	int read_items = g_vs_disk_cache.OpenAndRead(cache_filename, &inserter);
 }
@@ -215,17 +234,17 @@ void VertexShaderCache::Clear()
 
 void VertexShaderCache::Shutdown()
 {
-	if (SimpleVertexShader)
-		SimpleVertexShader->Release();
-	SimpleVertexShader = NULL;
+	for (int i = 0; i<3;i++)
+	{
+		if (SimpleVertexShader[i])
+			SimpleVertexShader[i]->Release();
+		SimpleVertexShader[i] = NULL;
+	}
 
 	if (ClearVertexShader)
 		ClearVertexShader->Release();
 	ClearVertexShader = NULL;
-
-	if (FSAAVertexShader)
-		FSAAVertexShader->Release();
-	FSAAVertexShader = NULL;	
+	
 
 	Clear();
 	g_vs_disk_cache.Sync();
@@ -265,7 +284,7 @@ bool VertexShaderCache::SetShader(u32 components)
 			return false;
 	}
 
-	const char *code = GenerateVertexShaderCode(components, true);
+	const char *code = GenerateVertexShaderCode(components, API_D3D9);
 	u8 *bytecode;
 	int bytecodelen;
 	if (!D3D::CompileVertexShader(code, (int)strlen(code), &bytecode, &bytecodelen))
