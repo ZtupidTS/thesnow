@@ -3811,6 +3811,10 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    SendMessage(hwnd, WM_VSCROLL, SB_LINEDOWN, 0);
 	    return 0;
 	}
+	if ((wParam == VK_PRIOR || wParam == VK_NEXT) && shift_state == 3) {
+	    term_scroll_to_selection(term, (wParam == VK_PRIOR ? 0 : 1));
+	    return 0;
+	}
 	if (wParam == VK_INSERT && shift_state == 1) {
 	    request_paste(NULL);
 	    return 0;
@@ -4214,37 +4218,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 		break;
 	    }
 	    if (xkey) {
-		if (term->vt52_mode)
-		    p += sprintf((char *) p, "\x1B%c", xkey);
-		else {
-		    int app_flg = (term->app_cursor_keys && !cfg.no_applic_c);
-#if 0
-		    /*
-		     * RDB: VT100 & VT102 manuals both state the
-		     * app cursor keys only work if the app keypad
-		     * is on.
-		     * 
-		     * SGT: That may well be true, but xterm
-		     * disagrees and so does at least one
-		     * application, so I've #if'ed this out and the
-		     * behaviour is back to PuTTY's original: app
-		     * cursor and app keypad are independently
-		     * switchable modes. If anyone complains about
-		     * _this_ I'll have to put in a configurable
-		     * option.
-		     */
-		    if (!term->app_keypad_keys)
-			app_flg = 0;
-#endif
-		    /* Useful mapping of Ctrl-arrows */
-		    if (shift_state == 2)
-			app_flg = !app_flg;
-
-		    if (app_flg)
-			p += sprintf((char *) p, "\x1BO%c", xkey);
-		    else
-			p += sprintf((char *) p, "\x1B[%c", xkey);
-		}
+		p += format_arrow_key(p, term, xkey, shift_state);
 		return p - output;
 	    }
 	}
