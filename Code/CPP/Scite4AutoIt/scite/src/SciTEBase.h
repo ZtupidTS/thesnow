@@ -362,6 +362,7 @@ public:
 
 class SciTEBase : public ExtensionAPI {
 protected:
+	virtual void SetToolBar() = 0;	//!-add-[user.toolbar]
 	GUI::gui_string windowName;
 	FilePath filePath;
 	FilePath dirNameAtExecute;

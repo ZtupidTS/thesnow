@@ -304,6 +304,7 @@ const char *contributors[] = {
             "Haimag Ren",
             "Andrey Moskalyov",
             "Xavi",
+	    "Toby Inkster",
         };
 
 // AddStyledText only called from About so static size buffer is OK
@@ -335,7 +336,7 @@ SString SciTEBase::GetTranslationToAbout(const char * const propname, bool retai
 #if !defined(GTK)
 	return SString(GUI::UTF8FromString(localiser.Text(propname, retainIfNotFound)).c_str());
 #else
-	// 在 GTK+ 上, localiser.Text 总是转换为 UTF-8.
+	// On GTK+, localiser.Text always converts to UTF-8.
 	return SString(localiser.Text(propname, retainIfNotFound).c_str());
 #endif
 }

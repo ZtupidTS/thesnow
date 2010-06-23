@@ -256,19 +256,6 @@
 #define IDD_REPLACE_ADV		404
 
 // 资源 IDs
-#define IDR_NEWFILE			100			//mod		新建文件
-#define IDR_OPENFILE		101			//added		打开文件
-#define IDR_SAVEFILE		102			//added		保存文件
-#define IDR_CLOSEFILE		103			//added		关闭文件
-#define IDR_PRINTFILE		104			//added		打印文件
-#define IDR_CUT				105			//added		剪切
-#define IDR_COPY			106			//added		复制
-#define IDR_PASTE			107			//added		粘贴
-#define IDR_DELETE			108			//added		删除
-#define IDR_UNDO			109			//added		撤销
-#define IDR_REDO			110			//added		恢复
-#define IDR_FIND			111			//added		查找
-#define IDR_REPLACE			112			//added		替换
-#define IDR_HELP			113			//added		帮助
+#define IDR_BUTTONS			100	//!-change-[user.toolbar]
 #define IDC_DRAGDROP        401
 #endif

@@ -78,6 +78,7 @@
 #include "SciTEBase.h"
 #include "SciTEKeys.h"
 #include "UniqueInstance.h"
+#include "Containers.h"//!-add-[user.toolbar]
 
 const int SCITE_TRAY = WM_APP + 0;
 const int SCITE_DROP = WM_APP + 1;
@@ -89,6 +90,11 @@ class Dialog;
 class SciTEWin : public SciTEBase {
 
 protected:
+	void SetToolBar(); //!-add-[user.toolbar]
+	TMap<int,int, SString, const char *> ToolBarTips; //!-add-[user.toolbar]
+	HBITMAP hToolbarBitmap; //!-add-[user.toolbar]
+	UINT oldToolbarBitmapID; //!-add-[user.toolbar]
+	TArray<int,int> toolbarUsersPressableButtons; //!-add-[user.toolbar]
 
 	int cmdShow;
 	static HINSTANCE hInstance;
