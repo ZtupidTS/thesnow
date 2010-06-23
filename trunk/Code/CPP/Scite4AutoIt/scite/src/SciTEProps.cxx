@@ -1076,6 +1076,7 @@ void SciTEBase::ReadProperties() {
 	tabHideOne = props.GetInt("tabbar.hide.one");
 
 	SetToolsMenu();
+	SetToolBar();//!-add-[user.toolbar]
 
 	wEditor.Call(SCI_SETFOLDFLAGS, props.GetInt("fold.flags"));
 

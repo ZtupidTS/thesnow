@@ -69,8 +69,6 @@ void SciTEWin::SetFileAttrib(
  * Update the status bar text.
  */
 void SciTEWin::SetStatusBarText(const char *s) {
-//	GUI::gui_string barText = SString(s).w_str();
-//	记得设置属性文件为UTF-8
 	GUI::gui_string barText = GUI::StringFromUTF8(s);
 	::SendMessage(reinterpret_cast<HWND>(wStatusBar.GetID()),
 	              SB_SETTEXT, 0, reinterpret_cast<LPARAM>(barText.c_str()));
@@ -185,63 +183,70 @@ void SciTEWin::Notify(SCNotification *notification) {
 		// Ask for tooltip text
 		{
 			static GUI::gui_char ttt[MAX_PATH*2 + 1];
-			const GUI::gui_char *ttext = 0;
+//			const GUI::gui_char *ttext = 0;
 			NMTTDISPINFOW *pDispInfo = (NMTTDISPINFOW *)notification;
 			// Toolbar tooltips
+/*
 			switch (notification->nmhdr.idFrom) {
 			case IDM_NEW:
-				ttext = GUI_TEXT("新建");
+				ttext = GUI_TEXT("New");
 				break;
 			case IDM_OPEN:
-				ttext = GUI_TEXT("打开");
+				ttext = GUI_TEXT("Open");
 				break;
 			case IDM_SAVE:
-				ttext = GUI_TEXT("保存");
+				ttext = GUI_TEXT("Save");
 				break;
 			case IDM_CLOSE:
-				ttext = GUI_TEXT("关闭");
+				ttext = GUI_TEXT("Close");
 				break;
 			case IDM_PRINT:
-				ttext = GUI_TEXT("打印");
+				ttext = GUI_TEXT("Print");
 				break;
 			case IDM_CUT:
-				ttext = GUI_TEXT("剪切");
+				ttext = GUI_TEXT("Cut");
 				break;
 			case IDM_COPY:
-				ttext = GUI_TEXT("复制");
+				ttext = GUI_TEXT("Copy");
 				break;
 			case IDM_PASTE:
-				ttext = GUI_TEXT("粘贴");
+				ttext = GUI_TEXT("Paste");
 				break;
 			case IDM_CLEAR:
-				ttext = GUI_TEXT("删除");
+				ttext = GUI_TEXT("Delete");
 				break;
 			case IDM_UNDO:
-				ttext = GUI_TEXT("撤销");
+				ttext = GUI_TEXT("Undo");
 				break;
 			case IDM_REDO:
-				ttext = GUI_TEXT("恢复");
+				ttext = GUI_TEXT("Redo");
 				break;
 			case IDM_FIND:
-				ttext = GUI_TEXT("查找");
+				ttext = GUI_TEXT("Find");
 				break;
 			case IDM_REPLACE:
-				ttext = GUI_TEXT("替换");
+				ttext = GUI_TEXT("Replace");
 				break;
 			case IDM_MACRORECORD:
-				ttext = GUI_TEXT("录制宏");
+				ttext = GUI_TEXT("Record Macro");
 				break;
 			case IDM_MACROSTOPRECORD:
-				ttext = GUI_TEXT("停止录制");
+				ttext = GUI_TEXT("Stop Recording");
 				break;
 			case IDM_MACROPLAY:
-				ttext = GUI_TEXT("运行宏");
-				break;
-				//added
-			case IDM_HELP:
-				ttext = GUI_TEXT("打开帮助");
+				ttext = GUI_TEXT("Run Macro");
 				break;
 			default: {
+*/
+//!-start-[user.toolbar]
+			SString stext;
+			if (ToolBarTips.Lookup(notification->nmhdr.idFrom, stext)) {
+				GUI::gui_string localised = localiser.Text(stext.c_str());
+				wcscpy(ttt, localised.c_str());
+				pDispInfo->lpszText = ttt;
+			}
+			else {
+//!-end-[user.toolbar]
 					// notification->nmhdr.idFrom appears to be the buffer number for tabbar tooltips
 					GUI::Point ptCursor;
 					::GetCursorPos(reinterpret_cast<POINT *>(&ptCursor));
@@ -264,14 +269,15 @@ void SciTEWin::Notify(SCNotification *notification) {
 						wcscpy(ttt, path.c_str());
 						pDispInfo->lpszText = const_cast<GUI::gui_char *>(ttt);
 					}
+/*!
 				}
 				break;
 			}
 			if (ttext) {
-//				GUI::gui_string localised = localiser.Text(GUI::UTF8FromString(ttext).c_str());
-				GUI::gui_string localised = ttext;
+				GUI::gui_string localised = localiser.Text(GUI::UTF8FromString(ttext).c_str());
 				wcscpy(ttt, localised.c_str());
 				pDispInfo->lpszText = ttt;
+*/
 			}
 			break;
 		}
@@ -414,11 +420,181 @@ void SciTEWin::SizeSubWindows() {
 // code) as KeyMatch uses in SciTEWin.cxx.
 
 
+//!-start-[user.toolbar]
+struct BarButtonIn {
+	BarButtonIn() :id(0), cmd(0) {};
+	BarButtonIn(int _id, int _cmd) : id(_id), cmd(_cmd) {};
+	int id;
+	int cmd;
+};
+
+void SciTEWin::SetToolBar() {
+	HWND hwndToolBar = (HWND)wToolBar.GetID();
+	if ( hwndToolBar == 0 ) return;
+
+	ToolBarTips.RemoveAll();
+	toolbarUsersPressableButtons.RemoveAll();
+
+	// erasing all buttons
+	while ( ::SendMessage(hwndToolBar,TB_DELETEBUTTON,0,0) );
+
+	SString fileNameForExtension = ExtensionFileName();
+
+	SString sIconlib = props.GetNewExpand("user.toolbar.iconlib.", fileNameForExtension.c_str());
+	HICON hIcon = NULL;
+	HICON hIconBig = NULL;
+	int iIconsCount = 0;
+	TArray<HICON,HICON> arrIcons;
+	while ( (int)::ExtractIconExA( sIconlib.c_str(), iIconsCount++, &hIconBig, &hIcon, 1 ) > 0 ) {
+		if ( hIconBig != NULL ) ::DestroyIcon( hIconBig );
+		if ( hIcon != NULL ) arrIcons.Add( hIcon );
+	}
+
+	HBITMAP hToolbarBitmapNew = 0;
+	iIconsCount = arrIcons.GetSize();
+	if (iIconsCount>0) {
+		SIZE szIcon = {16, 16};
+		SIZE szBitmap = {szIcon.cx*iIconsCount, szIcon.cy};
+		RECT rcBitmap = {0, 0, szBitmap.cx, szBitmap.cy};
+		HBRUSH hBrashBack = ::GetSysColorBrush(COLOR_BTNFACE);
+//		HDC hDesktopDC = ::GetDC(NULL);
+		HDC hDesktopDC = CreateIC(L"DISPLAY",NULL,NULL,NULL);
+		HDC hCompatibleDC = ::CreateCompatibleDC(hDesktopDC);
+
+		hToolbarBitmapNew = ::CreateCompatibleBitmap(hDesktopDC, szBitmap.cx, szBitmap.cy);
+
+		::SelectObject(hCompatibleDC,hToolbarBitmapNew);
+		 SetBkMode(hCompatibleDC, TRANSPARENT);
+		::FillRect(hCompatibleDC,&rcBitmap,hBrashBack);
+		for (int iIcon=0;iIcon<iIconsCount;iIcon++) {
+			hIcon = arrIcons.GetAt(iIcon);
+			//::DrawIconEx(hCompatibleDC,szIcon.cx*iIcon,0,hIcon,szIcon.cx,szIcon.cy,0,hBrashBack,DI_NORMAL);
+			::DrawIconEx(hCompatibleDC,szIcon.cx*iIcon,0,hIcon,szIcon.cx,szIcon.cy,0,0,DI_NORMAL);
+			::DestroyIcon(hIcon);
+		}
+		::DeleteDC(hCompatibleDC);
+		::DeleteDC(hDesktopDC);
+		if ( oldToolbarBitmapID == 0 ) {
+			TBADDBITMAP addbmp = {0,(UINT)hToolbarBitmapNew};
+			if ( ::SendMessage(hwndToolBar,TB_ADDBITMAP,iIconsCount,(LPARAM)&addbmp) != (LRESULT)-1 ) {
+				oldToolbarBitmapID = (UINT)hToolbarBitmapNew;
+			}
+		} else {
+			HINSTANCE hInstanceOld = 0;
+			if ( oldToolbarBitmapID == IDR_BUTTONS ) hInstanceOld = hInstance;
+			TBREPLACEBITMAP repBmp = { hInstanceOld, oldToolbarBitmapID, 0, (UINT)hToolbarBitmapNew, iIconsCount };
+			if ( ::SendMessage(hwndToolBar,TB_REPLACEBITMAP,0,(LPARAM)&repBmp) ) {
+				oldToolbarBitmapID = (UINT)hToolbarBitmapNew;
+			}
+		}
+		if ( hToolbarBitmap != 0 ) ::DeleteObject( hToolbarBitmap );
+		hToolbarBitmap = hToolbarBitmapNew;
+	} else {
+		if ( oldToolbarBitmapID == 0 ) {
+			TBADDBITMAP addbmp = { hInstance, IDR_BUTTONS };
+			if ( ::SendMessage( hwndToolBar, TB_ADDBITMAP, 31, (LPARAM)&addbmp ) != (LRESULT)-1 ) {
+				oldToolbarBitmapID = (UINT)IDR_BUTTONS;
+			}
+		} else if ( oldToolbarBitmapID != IDR_BUTTONS ) {
+			TBREPLACEBITMAP repBmp = { 0, oldToolbarBitmapID, hInstance, IDR_BUTTONS, 31 };
+			if ( ::SendMessage(hwndToolBar,TB_REPLACEBITMAP,0,(LPARAM)&repBmp) ) {
+				oldToolbarBitmapID = (UINT)IDR_BUTTONS;
+			}
+		}
+		if ( hToolbarBitmap != 0 ) ::DeleteObject( hToolbarBitmap );
+		hToolbarBitmap = 0;
+	}
+
+	TArray<BarButtonIn,BarButtonIn> barbuttons;
+	SString userToolbar = props.GetNewExpand("user.toolbar.", fileNameForExtension.c_str());
+	userToolbar.substitute('|', '\0');
+	const char *userContextItem = userToolbar.c_str();
+	const char *endDefinition = userContextItem + userToolbar.length();
+	while (userContextItem < endDefinition) {
+		const char *tips = userContextItem;
+		userContextItem += strlen(userContextItem) + 1;
+		const char *command = userContextItem;
+		userContextItem += strlen(userContextItem) + 1;
+		if (userContextItem < endDefinition) {
+			if ( tips[0] != '#') {
+				barbuttons.Add(
+					BarButtonIn(strlen(userContextItem)?atoi(userContextItem):-1, 
+					GetMenuCommandAsInt(command)));
+				if(GetMenuCommandAsInt(command) != 0) ToolBarTips[GetMenuCommandAsInt(command)]=tips;
+				int id = atoi(command);
+				if (id > IDM_TOOLS) {
+					SString prefix = "command.checked.";
+					prefix+= SString(id - IDM_TOOLS);
+					prefix+= ".";
+					SString val = props.GetNewExpand(prefix.c_str(), fileNameForExtension.c_str());
+					if (val != "")
+						toolbarUsersPressableButtons.Add(id);
+				}
+			}
+			userContextItem += strlen(userContextItem) + 1;
+			
+		}
+	}
+
+	if (!barbuttons.GetSize()) {
+		ToolBarTips[IDM_NEW]			= "New";
+		ToolBarTips[IDM_OPEN]			= "Open";
+		ToolBarTips[IDM_SAVE]			= "Save";
+		ToolBarTips[IDM_CLOSE]			= "Close";
+		ToolBarTips[IDM_PRINT]			= "Print";
+		ToolBarTips[IDM_CUT]			= "Cut";
+		ToolBarTips[IDM_COPY]			= "Copy";
+		ToolBarTips[IDM_PASTE]			= "Paste";
+		ToolBarTips[IDM_CLEAR]			= "Delete";
+		ToolBarTips[IDM_UNDO]			= "Undo";
+		ToolBarTips[IDM_REDO]			= "Redo";
+		ToolBarTips[IDM_FIND]			= "Find";
+		ToolBarTips[IDM_REPLACE]		= "Replace";
+		barbuttons.Add(BarButtonIn(-1, 0));
+		barbuttons.Add(BarButtonIn(0, IDM_NEW));
+		barbuttons.Add(BarButtonIn(1, IDM_OPEN));
+		barbuttons.Add(BarButtonIn(2, IDM_SAVE));
+		barbuttons.Add(BarButtonIn(12, IDM_CLOSE));
+		barbuttons.Add(BarButtonIn(-1, 0));
+		barbuttons.Add(BarButtonIn(3, IDM_PRINT));
+		barbuttons.Add(BarButtonIn(-1, 0));
+		barbuttons.Add(BarButtonIn(4, IDM_CUT));
+		barbuttons.Add(BarButtonIn(5, IDM_COPY));
+		barbuttons.Add(BarButtonIn(6, IDM_PASTE));
+		barbuttons.Add(BarButtonIn(7, IDM_CLEAR));
+		barbuttons.Add(BarButtonIn(-1, 0));
+		barbuttons.Add(BarButtonIn(8, IDM_UNDO));
+		barbuttons.Add(BarButtonIn(9, IDM_REDO));
+		barbuttons.Add(BarButtonIn(-1, 0));
+		barbuttons.Add(BarButtonIn(10, IDM_FIND));
+		barbuttons.Add(BarButtonIn(11, IDM_REPLACE));
+	}
+
+	TBBUTTON *tbb = new TBBUTTON[barbuttons.GetSize()];
+	for (int i = 0;i < barbuttons.GetSize();i++) {
+		tbb[i].idCommand = barbuttons[i].cmd;
+		tbb[i].iBitmap = barbuttons[i].id;
+		tbb[i].fsState = TBSTATE_ENABLED;
+		tbb[i].fsStyle = static_cast<BYTE>(-1 == tbb[i].iBitmap ? TBSTYLE_SEP : TBSTYLE_BUTTON);
+		tbb[i].dwData = 0;
+		tbb[i].iString = 0;
+	}
+	::SendMessage(hwndToolBar, TB_BUTTONSTRUCTSIZE, sizeof(TBBUTTON), 0);
+	::SendMessage(hwndToolBar, TB_ADDBUTTONS, barbuttons.GetSize(), reinterpret_cast<LPARAM>(tbb));
+	delete []tbb;
+}
+//!-end-[user.toolbar]
 
 void SciTEWin::SetMenuItem(int menuNumber, int position, int itemID,
                            const GUI::gui_char *text, const GUI::gui_char *mnemonic) {
 	// On Windows the menu items are modified if they already exist or are created
 	HMENU hmenu = ::GetSubMenu(::GetMenu(MainHWND()), menuNumber);
+//!-start-[UserPropertiesFilesSubmenu]
+	//[mhb] 06/14/09: to put user properties files in a submenu
+	if ((menuNumber==menuOptions) && (position>=IMPORT_START)) {
+		hmenu = ::GetSubMenu(hmenu, IMPORT_START);
+	}
+//!-end-[UserPropertiesFilesSubmenu]
 	GUI::gui_string sTextMnemonic = text;
 	long keycode = 0;
 	if (mnemonic && *mnemonic) {
@@ -468,11 +644,22 @@ void SciTEWin::DestroyMenuItem(int menuNumber, int itemID) {
 	}
 }
 
+//!-start-[user.toolbar]
+static void CheckToolbarButton(HWND wTools, int id, bool enable) {
+	if (wTools) {
+		::SendMessage(wTools, TB_CHECKBUTTON, id,
+		          LongFromTwoShorts(static_cast<short>(enable ? TRUE : FALSE), 0));
+				
+	}
+}
+//!-end-[user.toolbar]
+
 void SciTEWin::CheckAMenuItem(int wIDCheckItem, bool val) {
 	if (val)
 		CheckMenuItem(::GetMenu(MainHWND()), wIDCheckItem, MF_CHECKED | MF_BYCOMMAND);
 	else
 		CheckMenuItem(::GetMenu(MainHWND()), wIDCheckItem, MF_UNCHECKED | MF_BYCOMMAND);
+	::CheckToolbarButton(reinterpret_cast<HWND>(wToolBar.GetID()), wIDCheckItem, val); //!-add-[user.toolbar]
 }
 
 void EnableButton(HWND wTools, int id, bool enable) {
@@ -491,6 +678,19 @@ void SciTEWin::EnableAMenuItem(int wIDCheckItem, bool val) {
 }
 
 void SciTEWin::CheckMenus() {
+//!-start-[user.toolbar]
+	// check user toolbar buttons status
+	if (props.GetInt("toolbar.visible") != 0) {
+		SString fileNameForExtension = ExtensionFileName();
+		for (int i = 0; i < toolbarUsersPressableButtons.GetSize(); i++) {
+			SString prefix = "command.checked.";
+			prefix+= SString(toolbarUsersPressableButtons[i] - IDM_TOOLS);
+			prefix+= ".";
+			int ischecked = props.GetNewExpand(prefix.c_str(), fileNameForExtension.c_str()).value();
+			::CheckToolbarButton(reinterpret_cast<HWND>(wToolBar.GetID()), toolbarUsersPressableButtons[i], ischecked);
+		}
+	}
+//!-end-[user.toolbar]
 	SciTEBase::CheckMenus();
 	CheckMenuRadioItem(::GetMenu(MainHWND()), IDM_EOL_CRLF, IDM_EOL_LF,
 	                   wEditor.Call(SCI_GETEOLMODE) - SC_EOL_CRLF + IDM_EOL_CRLF, 0);
@@ -690,12 +890,12 @@ void SciTEWin::LocaliseDialog(HWND wDialog) {
 #define TB_LOADIMAGES (WM_USER + 50)
 #endif
 
+/*!-change-[user.toolbar]
 struct BarButton {
 	int id;
 	int cmd;
 };
 
-/*
 static BarButton bbs[] = {
     { -1,           0 },
     { STD_FILENEW,  IDM_NEW },
@@ -715,32 +915,8 @@ static BarButton bbs[] = {
     { -1,           0 },
     { STD_FIND,     IDM_FIND },
     { STD_REPLACE,  IDM_REPLACE },
-    { STD_HELP,		IDM_HELP}
 };
 */
-static BarButton bbs[] = {
-    { -1,		0 },
-    { 0,		IDM_NEW },
-    { 1,		IDM_OPEN },
-    { 2, 		IDM_SAVE },
-    { 3,		IDM_CLOSE },
-    { -1,     	0 },
-    { 4, 		IDM_PRINT },
-    { -1, 		0 },
-    { 5,		IDM_CUT },
-    { 6, 		IDM_COPY },
-    { 7, 		IDM_PASTE },
-    { 8, 		IDM_CLEAR },
-    { -1, 	  	0 },
-    { 9, 		IDM_UNDO },
-    { 10, 		IDM_REDO },
-    { -1,		0 },
-    { 11, 		IDM_FIND },
-    { 12,		IDM_REPLACE },
-    { -1,		0 },	
-    { 13,		IDM_HELP}
-};
-
 static WNDPROC stDefaultTabProc = NULL;
 static LRESULT PASCAL TabWndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam) {
 
@@ -771,6 +947,7 @@ static LRESULT PASCAL TabWndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM
 
 	switch (iMessage) {
 
+	case WM_LBUTTONDBLCLK:	//!-add-[close_on_dbl_clk]
 	case WM_MBUTTONDOWN: {
 			// Check if on tab bar
 			GUI::Point pt = PointFromLong(lParam);
@@ -1017,41 +1194,10 @@ void SciTEWin::Creation() {
 			tbb[i].fsStyle = TBSTYLE_BUTTON;
 		tbb[i].dwData = 0;
 		tbb[i].iString = 0;
-	};
+	}
+
 */
-//add start
-	TBBUTTON tbb[ELEMENTS(bbs)];
-	DWORD backgroundColor = GetSysColor(COLOR_BTNFACE);
-	COLORMAP colorMap;
-
-	for (unsigned int i = 0;i < ELEMENTS(bbs);i++) {
-		//添加按钮图像
-//		TBADDBITMAP addbmp = { hInstance, bbs[i].id+100 };
-		//map bmp start >>
-		colorMap.from = RGB(0, 0, 0);
-		colorMap.to = backgroundColor;
-		HBITMAP hbm =(HBITMAP)::LoadImage(hInstance,MAKEINTRESOURCE(bbs[i].id+100),IMAGE_BITMAP,0,0,LR_CREATEDIBSECTION|LR_VGACOLOR|LR_LOADTRANSPARENT|LR_LOADMAP3DCOLORS);
-		// CreateMappedBitmap(hInstance, bbs[i].id+100, 0, &colorMap, 1);
-		TBADDBITMAP addbmp;
-		addbmp.hInst = NULL;
-		addbmp.nID = (UINT_PTR)hbm;
-		//map bmp end <<
-		
-		::SendMessage(hwndToolBar, TB_ADDBITMAP, 1, (LPARAM)&addbmp);
-		tbb[i].iBitmap = bbs[i].id;
-		tbb[i].idCommand = bbs[i].cmd;
-		tbb[i].fsState = TBSTATE_ENABLED;
-		if ( -1 == bbs[i].id)
-			tbb[i].fsStyle = TBSTYLE_SEP;
-		else
-			tbb[i].fsStyle = TBSTYLE_BUTTON;
-		tbb[i].dwData = 0;
-		tbb[i].iString = 0;
-	};
-//add end
-
-	//添加按钮
-	::SendMessage(hwndToolBar, TB_ADDBUTTONS, ELEMENTS(bbs), reinterpret_cast<LPARAM>(tbb));
+//	::SendMessage(hwndToolBar, TB_ADDBUTTONS, ELEMENTS(bbs), reinterpret_cast<LPARAM>(tbb));
 
 	wToolBar.Show();
 
