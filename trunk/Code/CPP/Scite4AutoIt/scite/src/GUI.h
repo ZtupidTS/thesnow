@@ -64,6 +64,9 @@ typedef std::wstring gui_string;
 gui_string StringFromUTF8(const char *s);
 std::string UTF8FromString(const gui_string &s);
 gui_string StringFromInteger(int i);
+//added ¡ý
+char* CharFromString(const gui_string &s);
+//added ¡ü
 
 typedef void *WindowID;
 class Window {

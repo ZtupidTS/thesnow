@@ -5,7 +5,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SciTe", "SciTe.vcproj", "{4
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Scintilla", "Scintilla.vcproj", "{EB309853-A408-4BBC-BDAA-6078D05B1DEB}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{684CCB20-316D-4630-8A96-79224E657734}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "README", "README", "{684CCB20-316D-4630-8A96-79224E657734}"
 	ProjectSection(SolutionItems) = preProject
 		README.txt = README.txt
 	EndProjectSection

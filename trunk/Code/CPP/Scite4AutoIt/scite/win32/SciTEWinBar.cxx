@@ -458,7 +458,7 @@ void SciTEWin::SetToolBar() {
 		RECT rcBitmap = {0, 0, szBitmap.cx, szBitmap.cy};
 		HBRUSH hBrashBack = ::GetSysColorBrush(COLOR_BTNFACE);
 //		HDC hDesktopDC = ::GetDC(NULL);
-		HDC hDesktopDC = CreateIC(L"DISPLAY",NULL,NULL,NULL);
+		HDC hDesktopDC = CreateICW(L"DISPLAY",NULL,NULL,NULL);
 		HDC hCompatibleDC = ::CreateCompatibleDC(hDesktopDC);
 
 		hToolbarBitmapNew = ::CreateCompatibleBitmap(hDesktopDC, szBitmap.cx, szBitmap.cy);
@@ -690,7 +690,7 @@ void SciTEWin::CheckMenus() {
 	                   wEditor.Call(SCI_GETEOLMODE) - SC_EOL_CRLF + IDM_EOL_CRLF, 0);
 //	CheckMenuRadioItem(::GetMenu(MainHWND()), IDM_ENCODING_DEFAULT, IDM_ENCODING_UCOOKIE,
 //	                   CurrentBuffer()->unicodeMode + IDM_ENCODING_DEFAULT, 0);
-	CheckMenuRadioItem(::GetMenu(MainHWND()), IDM_ENCODING_DEFAULT, IDM_ENCODING_GBK,		
+	CheckMenuRadioItem(::GetMenu(MainHWND()), IDM_ENCODING_DEFAULT, IDM_ENCODING_Thai,		
 	                   CurrentBuffer()->unicodeMode + IDM_ENCODING_DEFAULT, 0);
 }
 
