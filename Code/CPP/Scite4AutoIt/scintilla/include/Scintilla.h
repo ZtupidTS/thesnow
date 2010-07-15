@@ -91,7 +91,22 @@ typedef sptr_t (*SciFnDirect)(sptr_t ptr, unsigned int iMessage, uptr_t wParam, 
 #define SCI_SETTABWIDTH 2036
 #define SCI_GETTABWIDTH 2121
 #define SC_CP_UTF8 65001
-#define SC_CP_GBK 936		//added
+//added
+#define SC_CP_Arabic 1256
+#define SC_CP_Baltic 1257
+#define SC_CP_GBK 936
+#define SC_CP_BIG5	950
+#define SC_CP_Cyrillic	1251
+#define SC_CP_Greek		1253
+#define SC_CP_Hebrew		1255
+#define SC_CP_Latin1		1252
+#define SC_CP_Latin2		1250
+#define SC_CP_Latin5		1254
+#define SC_CP_Japanese	932
+#define	SC_CP_Korean		949
+#define SC_CP_VietNam	1258
+#define SC_CP_Thai		874
+//added
 #define SC_CP_DBCS 1
 #define SCI_SETCODEPAGE 2037
 #define SCI_SETUSEPALETTE 2039
@@ -670,6 +685,9 @@ typedef sptr_t (*SciFnDirect)(sptr_t ptr, unsigned int iMessage, uptr_t wParam, 
 #define SCI_FINDCOLUMN 2456
 #define SCI_GETCARETSTICKY 2457
 #define SCI_SETCARETSTICKY 2458
+#define SC_CARETSTICKY_OFF 0
+#define SC_CARETSTICKY_ON 1
+#define SC_CARETSTICKY_WHITESPACE 2
 #define SCI_TOGGLECARETSTICKY 2459
 #define SCI_SETPASTECONVERTENDINGS 2467
 #define SCI_GETPASTECONVERTENDINGS 2468

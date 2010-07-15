@@ -38,7 +38,7 @@
 
     <h1>Scintilla Documentation</h1>
 
-    <p>Last edited 4/April/2010 NH</p>
+    <p>Last edited 26/June/2010 NH</p>
 
     <p>There is <a class="jump" href="Design.html">an overview of the internal design of
     Scintilla</a>.<br />
@@ -2526,7 +2526,7 @@ struct Sci_TextToFind {
     <a class="message" href="#SCI_SETCONTROLCHARSYMBOL">SCI_SETCONTROLCHARSYMBOL(int
     symbol)</a><br />
      <a class="message" href="#SCI_GETCONTROLCHARSYMBOL">SCI_GETCONTROLCHARSYMBOL</a><br />
-     <a class="message" href="#SCI_SETCARETSTICKY">SCI_SETCARETSTICKY(bool useCaretStickyBehaviour)</a><br />
+     <a class="message" href="#SCI_SETCARETSTICKY">SCI_SETCARETSTICKY(int useCaretStickyBehaviour)</a><br />
      <a class="message" href="#SCI_GETCARETSTICKY">SCI_GETCARETSTICKY</a><br />
      <a class="message" href="#SCI_TOGGLECARETSTICKY">SCI_TOGGLECARETSTICKY</a><br />
     </code>
@@ -2631,12 +2631,25 @@ struct Sci_TextToFind {
     You can read back the current symbol with the <code>SCI_GETCONTROLCHARSYMBOL</code> message.
     The default symbol value is 0.</p>
 
-    <p><b id="SCI_SETCARETSTICKY">SCI_SETCARETSTICKY(bool useCaretStickyBehaviour)</b><br />
+    <p><b id="SCI_SETCARETSTICKY">SCI_SETCARETSTICKY(int useCaretStickyBehaviour)</b><br />
     <b id="SCI_GETCARETSTICKY">SCI_GETCARETSTICKY</b><br />
     <b id="SCI_TOGGLECARETSTICKY">SCI_TOGGLECARETSTICKY</b><br />
-    These messages set, get or toggle the caretSticky flag which controls when the last position
-     of the caret on the line is saved. When set to true, the position is not saved when you type
-     a character, a tab, paste the clipboard content or press backspace.</p>
+    These messages set, get or toggle the caretSticky setting which controls when the last position
+    of the caret on the line is saved.</p>
+
+    <p>When set to <code>SC_CARETSTICKY_OFF</code> (0), the sticky flag is off; all text changes
+    (and all caret position changes) will remember the
+    caret's new horizontal position when moving to different lines. This is the default.</p>
+
+    <p>When set to <code>SC_CARETSTICKY_ON</code> (1), the sticky flag is on, and the only thing which will cause the editor to remember the
+    horizontal caret position is moving the caret with mouse or keyboard (left/right arrow keys, home/end keys, etc). </p>
+
+    <p>When set to <code>SC_CARETSTICKY_WHITESPACE</code> (2), the caret acts like mode 0 (sticky off) except under one
+    special case; when space or tab characters are inserted. (Including pasting <b>only space/tabs</b> -- undo, redo,
+    etc. do not exhibit this behavior..).</p>
+
+    <p><code>SCI_TOGGLECARETSTICKY</code> switches from <code>SC_CARETSTICKY_ON</code> and <code>SC_CARETSTICKY_WHITESPACE</code>
+    to <code>SC_CARETSTICKY_OFF</code> and from <code>SC_CARETSTICKY_OFF</code> to <code>SC_CARETSTICKY_ON</code>.</p>
 
     <h2 id="Margins">Margins</h2>
 
@@ -2733,9 +2746,10 @@ struct Sci_TextToFind {
     sure that no symbol margin includes 0x400 in its mask, any line with the marker gets the
     background colour changed.</p>
 
-    <p>To set a non-folding margin 1 use <code>SCI_SETMARGINMASKN(1, ~SC_MASK_FOLDERS)</code>; to
-    set a folding margin 2 use <code>SCI_SETMARGINMASKN(2, SC_MASK_FOLDERS)</code>. This is the
-    default set by Scintilla. <code>~SC_MASK_FOLDERS</code> is 0x1FFFFFF in hexadecimal or 33554431
+    <p>To set a non-folding margin 1 use <code>SCI_SETMARGINMASKN(1, ~SC_MASK_FOLDERS)</code>
+    which is the default set by Scintilla.
+    To set a folding margin 2 use <code>SCI_SETMARGINMASKN(2, SC_MASK_FOLDERS)</code>.
+    <code>~SC_MASK_FOLDERS</code> is 0x1FFFFFF in hexadecimal or 33554431
     decimal. Of course, you may need to display all 32 symbols in a margin, in which case use
     <code>SCI_SETMARGINMASKN(margin, -1)</code>.</p>
 
@@ -3616,7 +3630,7 @@ struct Sci_TextToFind {
      <b id="SCI_INDICGETALPHA">SCI_INDICGETALPHA(int indicatorNumber)</b><br />
      These two messages set and get the alpha transparency used for drawing the
      fill color of the INDIC_ROUNDBOX rectangle. The alpha value can range from
-     0 (completely transparent) to 100 (no transparency).
+     0 (completely transparent) to 255 (no transparency).
      </p>
 
     <p><b id="SCI_INDICSETUNDER">SCI_INDICSETUNDER(int indicatorNumber, bool under)</b><br />

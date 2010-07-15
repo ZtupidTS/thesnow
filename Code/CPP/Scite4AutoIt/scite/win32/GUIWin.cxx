@@ -159,6 +159,18 @@ std::string UTF8FromString(const gui_string &s) {
 	return std::string(&vc[0], narrowLen);
 }
 
+char* CharFromString(const gui_string &s){
+	DWORD dwNum = WideCharToMultiByte(CP_ACP,NULL,s.c_str(),-1,NULL,0,NULL,FALSE);
+	char *psText;
+	psText = new char[dwNum];
+	if(!psText)
+	{
+		delete []psText;
+	}
+	WideCharToMultiByte (CP_ACP,NULL,s.c_str(),-1,psText,dwNum,NULL,FALSE);
+	return psText;
+};
+
 gui_string StringFromInteger(int i) {
 	gui_char number[32];
 #if defined(__BORLANDC__)

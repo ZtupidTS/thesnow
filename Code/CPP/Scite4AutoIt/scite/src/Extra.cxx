@@ -61,27 +61,3 @@ HWND ToolTip::Create(HWND ControlHWND, LPTSTR lpszText){
 void ToolTip::Delete(HWND ControlHWND){
 	CloseWindow(ControlHWND);
 };
-
-LPWSTR LanguageIni::GetValue(LPWSTR lpSection,LPWSTR lpKey,LPWSTR lpDefault){
-	wcscpy(lang,L"\0");
-	GetPrivateProfileStringW(lpSection,lpKey,lpDefault,lang,sizeof(lang),L".\\language.ini");
-	if (wcslen(lang) == 0)
-	{
-	 return lpDefault;
-	}else
-	{
-	 return lang;
-	};
-};
-
-LPCSTR LanguageIni::GetValueA(LPCSTR lpSection,LPCSTR lpKey,LPCSTR lpDefault){
-	strcpy(langA,"\0");
-	GetPrivateProfileStringA(lpSection,lpKey,lpDefault,langA,sizeof(langA),".\\language.ini");
-	if (strlen(langA) == 0)
-	{
-		return lpDefault;
-	}else
-	{
-		return langA;
-	};
-};

@@ -1068,9 +1068,14 @@ sptr_t ScintillaWin::WndProc(unsigned int iMessage, uptr_t wParam, sptr_t lParam
 }
 
 bool ScintillaWin::ValidCodePage(int codePage) const {
-	return codePage == 0 || codePage == SC_CP_UTF8 ||
-	       codePage == 932 || codePage == 936 || codePage == 949 ||
-	       codePage == 950 || codePage == 1361;
+	return codePage == 0 || codePage == SC_CP_UTF8 || codePage == 874 || 
+	       codePage == 932  || codePage == 936  || codePage == 949 ||
+	       codePage == 950  || codePage == 1250 ||
+		   codePage == 1251 || codePage == 1252 ||
+		   codePage == 1253 || codePage == 1254 ||
+		   codePage == 1255 || codePage == 1256 ||
+		   codePage == 1257 || codePage == 1258 ||
+		   codePage == 1361 ;
 }
 
 sptr_t ScintillaWin::DefWndProc(unsigned int iMessage, uptr_t wParam, sptr_t lParam) {

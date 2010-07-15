@@ -3076,10 +3076,78 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		}
 		wEditor.Call(SCI_SETCODEPAGE, codePage);
 		break;
-	case IDM_ENCODING_GBK:					//added
-		codePage = 936;
+//----added
+	case IDM_ENCODING_Arabic:					
+		CurrentBuffer()->unicodeMode = static_cast<UniMode>(cmdID - IDM_ENCODING_DEFAULT);
+		codePage=SC_CP_Arabic;
 		wEditor.Call(SCI_SETCODEPAGE, codePage);
 		break;
+	case IDM_ENCODING_Baltic:					
+		CurrentBuffer()->unicodeMode = static_cast<UniMode>(cmdID - IDM_ENCODING_DEFAULT);
+		codePage=SC_CP_Baltic;
+		wEditor.Call(SCI_SETCODEPAGE, codePage);
+		break;
+	case IDM_ENCODING_CHS:					
+		CurrentBuffer()->unicodeMode = static_cast<UniMode>(cmdID - IDM_ENCODING_DEFAULT);
+		codePage=SC_CP_GBK;
+		wEditor.Call(SCI_SETCODEPAGE, codePage);
+		break;
+	case IDM_ENCODING_CHT:					
+//		CurrentBuffer()->unicodeMode = static_cast<UniMode>(cmdID - IDM_ENCODING_DEFAULT);
+		codePage=SC_CP_BIG5;
+		wEditor.Call(SCI_SETCODEPAGE, codePage);
+		break;
+	case IDM_ENCODING_Cyrillic:					
+		CurrentBuffer()->unicodeMode = static_cast<UniMode>(cmdID - IDM_ENCODING_DEFAULT);
+		codePage=SC_CP_Cyrillic;
+		wEditor.Call(SCI_SETCODEPAGE, codePage);
+		break;
+	case IDM_ENCODING_Greek:					
+		CurrentBuffer()->unicodeMode = static_cast<UniMode>(cmdID - IDM_ENCODING_DEFAULT);
+		codePage=SC_CP_Greek;
+		wEditor.Call(SCI_SETCODEPAGE, codePage);
+		break;
+	case IDM_ENCODING_Hebrew:					
+		CurrentBuffer()->unicodeMode = static_cast<UniMode>(cmdID - IDM_ENCODING_DEFAULT);
+		codePage=SC_CP_Hebrew;
+		wEditor.Call(SCI_SETCODEPAGE, codePage);
+		break;
+	case IDM_ENCODING_Latin1:					
+		CurrentBuffer()->unicodeMode = static_cast<UniMode>(cmdID - IDM_ENCODING_DEFAULT);
+		codePage=SC_CP_Latin1;
+		wEditor.Call(SCI_SETCODEPAGE, codePage);
+		break;
+	case IDM_ENCODING_Latin2:					
+		CurrentBuffer()->unicodeMode = static_cast<UniMode>(cmdID - IDM_ENCODING_DEFAULT);
+		codePage=SC_CP_Latin2;
+		wEditor.Call(SCI_SETCODEPAGE, codePage);
+		break;
+	case IDM_ENCODING_Latin5:					
+		CurrentBuffer()->unicodeMode = static_cast<UniMode>(cmdID - IDM_ENCODING_DEFAULT);
+		codePage=SC_CP_Latin5;
+		wEditor.Call(SCI_SETCODEPAGE, codePage);
+		break;
+	case IDM_ENCODING_Japanese:					
+		CurrentBuffer()->unicodeMode = static_cast<UniMode>(cmdID - IDM_ENCODING_DEFAULT);
+		codePage=SC_CP_Japanese;
+		wEditor.Call(SCI_SETCODEPAGE, codePage);
+		break;
+	case IDM_ENCODING_Korean:					
+		CurrentBuffer()->unicodeMode = static_cast<UniMode>(cmdID - IDM_ENCODING_DEFAULT);
+		codePage=SC_CP_Korean;
+		wEditor.Call(SCI_SETCODEPAGE, codePage);
+		break;
+	case IDM_ENCODING_VietNam:					
+		CurrentBuffer()->unicodeMode = static_cast<UniMode>(cmdID - IDM_ENCODING_DEFAULT);
+		codePage=SC_CP_VietNam;
+		wEditor.Call(SCI_SETCODEPAGE, codePage);
+		break;
+	case IDM_ENCODING_Thai:					
+		CurrentBuffer()->unicodeMode = static_cast<UniMode>(cmdID - IDM_ENCODING_DEFAULT);
+		codePage=SC_CP_Thai;
+		wEditor.Call(SCI_SETCODEPAGE, codePage);
+		break;
+//----added
 	case IDM_NEXTFILESTACK:
 		if (buffers.size > 1 && props.GetInt("buffers.zorder.switching")) {
 			NextInStack(); // next most recently selected buffer
@@ -3364,8 +3432,8 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		break;
 	//add start ↓
 	case IDM_EDITORCONFIG:					//打开配置工具
-		::MessageBoxW(0,L"注意:此功能可能导致设置文件混乱,请小心使用.",L"警告!",0);
-		::ShellExecute(0,L"open",L"SciTEConfig\\sciteconfig.exe",L"acn",L"",SW_SHOW);
+		::MessageBox(0,TEXT("注意:此功能可能导致设置文件混乱,请小心使用."),TEXT("警告!"),0);
+		::ShellExecuteA(0,"open","SciTEConfig\\sciteconfig.exe","acn",GetSciteDefaultHome().AsUTF8().c_str(),SW_SHOW);
 		break;
 	//add end ↑
 	case IDM_WRAP:

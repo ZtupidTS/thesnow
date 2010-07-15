@@ -877,13 +877,13 @@ BOOL SciTEWin::FindMessage(HWND hDlg, UINT message, WPARAM wParam) {
 			::SetDlgItemInt(hDlg, IDFINDSTYLE, wEditor.Call(SCI_GETSTYLEAT, wEditor.Call(SCI_GETCURRENTPOS)), FALSE);
 //add ToolTip ↓
 			ToolTip tt;
-			hTT[1]=tt.Create(dlg.Item(IDGOOGLE),L"使用Google进行搜索");
-			hTT[2]=tt.Create(dlg.Item(IDMSDN),L"搜索MSDN中的项目");
-			hTT[3]=tt.Create(dlg.Item(IDFINDWHAT),L"你要搜索什么呢?");
-			hTT[4]=tt.Create(dlg.Item(IDREGEXP),L"使用Perl兼容的正则表达式进行查找");
-			hTT[5]=tt.Create(dlg.Item(IDCANCEL),L"哥我不需要查找就知道");
-			hTT[6]=tt.Create(dlg.Item(IDICIBA),L"用金山词霸查查单词");
-			hTT[7]=tt.Create(dlg.Item(IDOK),L"OK,让我找找.");
+			hTT[1]=tt.Create(dlg.Item(IDGOOGLE),TEXT("使用Google进行搜索"));
+			hTT[2]=tt.Create(dlg.Item(IDMSDN),TEXT("搜索MSDN中的项目"));
+			hTT[3]=tt.Create(dlg.Item(IDFINDWHAT),TEXT("你要搜索什么呢?"));
+			hTT[4]=tt.Create(dlg.Item(IDREGEXP),TEXT("使用Perl兼容的正则表达式进行查找"));
+			hTT[5]=tt.Create(dlg.Item(IDCANCEL),TEXT("哥我不需要查找就知道"));
+			hTT[6]=tt.Create(dlg.Item(IDICIBA),TEXT("用金山词霸查查单词"));
+			hTT[7]=tt.Create(dlg.Item(IDOK),TEXT("OK,让我找找."));
 //add ToolTip ↑
 		}
 		return TRUE;
