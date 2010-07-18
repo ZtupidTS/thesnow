@@ -19,7 +19,7 @@
 
 #include <rfb/VNCSConnectionST.h>
 #include <rfb/LogWriter.h>
-#include <rfb/secTypes.h>
+#include <rfb/Security.h>
 #include <rfb/screenTypes.h>
 #include <rfb/ServerCore.h>
 #include <rfb/ComparingUpdateTracker.h>
@@ -34,7 +34,7 @@ static LogWriter vlog("VNCSConnST");
 
 VNCSConnectionST::VNCSConnectionST(VNCServerST* server_, network::Socket *s,
                                    bool reverse)
-  : SConnection(server_->securityFactory, reverse), sock(s), server(server_),
+  : SConnection(reverse), sock(s), server(server_),
     updates(false), image_getter(server->useEconomicTranslate),
     drawRenderedCursor(false), removeRenderedCursor(false),
     pointerEventTime(0), accessRights(AccessDefault),

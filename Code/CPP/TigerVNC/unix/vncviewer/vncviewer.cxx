@@ -58,7 +58,7 @@ IntParameter wmDecorationHeight("WMDecorationHeight", "Height of window "
                                 "manager decoration around a window", 24);
 StringParameter passwordFile("PasswordFile",
                              "Password file for VNC authentication", "");
-AliasParameter rfbauth("passwd", "Alias for PasswordFile", &passwordFile);
+AliasParameter passwd("passwd", "Alias for PasswordFile", &passwordFile);
 
 BoolParameter useLocalCursor("UseLocalCursor",
                              "Render the mouse cursor locally", true);
@@ -302,6 +302,8 @@ int main(int argc, char** argv)
   programName = argv[0];
   char* vncServerName = 0;
   Display* dpy = 0;
+
+  Configuration::enableViewerParams();
 
   for (int i = 1; i < argc; i++) {
     if (Configuration::setParam(argv[i]))

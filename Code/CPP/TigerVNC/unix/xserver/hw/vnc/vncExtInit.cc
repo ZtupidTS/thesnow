@@ -47,7 +47,6 @@ extern "C" {
 #include <rfb/LogWriter.h>
 #include <rfb/util.h>
 #include <rfb/ServerCore.h>
-#include <rfb/SSecurityFactoryStandard.h>
 #include <rdr/HexOutStream.h>
 #include <rfb/LogWriter.h>
 #undef max
@@ -110,8 +109,6 @@ static int vncErrorBase = 0;
 static int vncEventBase = 0;
 int vncInetdSock = -1;
 
-rfb::AliasParameter rfbauth("rfbauth", "Alias for PasswordFile",
-                            &SSecurityFactoryStandard::vncAuthPasswdFile);
 rfb::StringParameter httpDir("httpd",
                              "Directory containing files to serve via HTTP",
                              "");

@@ -116,31 +116,40 @@ static void enqueueEvents(DeviceIntPtr dev, int n)
 	}
 }
 
-/* Pointer device methods */
-
-PointerDevice::PointerDevice(rfb::VNCServerST *_server)
+InputDevice::InputDevice(rfb::VNCServerST *_server)
 	: server(_server), oldButtonMask(0)
 {
-	dev = AddInputDevice(
+#if XORG < 17
+	pointerDev = AddInputDevice(
 #if XORG >= 16
-			     serverClient,
+				    serverClient,
 #endif
-			     pointerProc, TRUE);
-	RegisterPointerDevice(dev);
+				    pointerProc, TRUE);
+	RegisterPointerDevice(pointerDev);
+
+	keyboardDev = AddInputDevice(
+#if XORG >= 16
+				     serverClient,
+#endif
+				     keyboardProc, TRUE);
+	RegisterKeyboardDevice(keyboardDev);
+#endif
 	initEventq();
 }
 
-void PointerDevice::ButtonAction(int buttonMask)
+void InputDevice::PointerButtonAction(int buttonMask)
 {
 	int i, n;
+
+	initInputDevice();
 
 	for (i = 0; i < BUTTONS; i++) {
 		if ((buttonMask ^ oldButtonMask) & (1 << i)) {
 			int action = (buttonMask & (1<<i)) ?
 				     ButtonPress : ButtonRelease;
-			n = GetPointerEvents(eventq, dev, action, i + 1,
+			n = GetPointerEvents(eventq, pointerDev, action, i + 1,
 					     POINTER_RELATIVE, 0, 0, NULL);
-			enqueueEvents(dev, n);
+			enqueueEvents(pointerDev, n);
 
 		}
 	}
@@ -148,23 +157,25 @@ void PointerDevice::ButtonAction(int buttonMask)
 	oldButtonMask = buttonMask;
 }
 
-void PointerDevice::Move(const rfb::Point &pos)
+void InputDevice::PointerMove(const rfb::Point &pos)
 {
 	int n, valuators[2];
 
 	if (pos.equals(cursorPos))
 		return;
 
+	initInputDevice();
+
 	valuators[0] = pos.x;
 	valuators[1] = pos.y;
-	n = GetPointerEvents(eventq, dev, MotionNotify, 0, POINTER_ABSOLUTE, 0,
+	n = GetPointerEvents(eventq, pointerDev, MotionNotify, 0, POINTER_ABSOLUTE, 0,
 			     2, valuators);
-	enqueueEvents(dev, n);
+	enqueueEvents(pointerDev, n);
 
 	cursorPos = pos;
 }
 
-void PointerDevice::Sync(void)
+void InputDevice::PointerSync(void)
 {
 	if (cursorPos.equals(oldCursorPos))
 		return;
@@ -232,17 +243,32 @@ static int pointerProc(DeviceIntPtr pDevice, int onoff)
 	return Success;
 }
 
-/* KeyboardDevice methods */
-
-KeyboardDevice::KeyboardDevice(void)
+void InputDevice::initInputDevice(void)
 {
-	dev = AddInputDevice(
-#if XORG >= 16
-			     serverClient,
+#if XORG >= 17
+	int ret;
+	static int initialized = 0;
+
+	if (initialized != 0)
+		return;
+
+	initialized = 1;
+
+	ret = AllocDevicePair(serverClient, "TigerVNC", &pointerDev,
+			      &keyboardDev, pointerProc, keyboardProc,
+			      FALSE);
+
+	if (ret != Success)
+		FatalError("Failed to initialize TigerVNC input devices\n");
+
+	if (ActivateDevice(pointerDev, TRUE) != Success ||
+	    ActivateDevice(keyboardDev, TRUE) != Success)
+		FatalError("Failed to activate TigerVNC devices\n");
+
+	if (!EnableDevice(pointerDev, TRUE) ||
+	    !EnableDevice(keyboardDev, TRUE))
+		FatalError("Failed to activate TigerVNC devices\n");
 #endif
-			     keyboardProc, TRUE);
-	RegisterKeyboardDevice(dev);
-	initEventq();
 }
 
 #define IS_PRESSED(keyc, keycode) \
@@ -458,7 +484,7 @@ static struct altKeysym_t {
 #define FREE_MAPS
 #endif
 
-void KeyboardDevice::keyEvent(rdr::U32 keysym, bool down)
+void InputDevice::keyEvent(rdr::U32 keysym, bool down)
 {
 	DeviceIntPtr master;
 	KeyClassPtr keyc;
@@ -469,6 +495,8 @@ void KeyboardDevice::keyEvent(rdr::U32 keysym, bool down)
 	int mapWidth;
 	unsigned int i, n;
 	int j, k, action, state, maxKeysPerMod;
+
+	initInputDevice();
 
 	/* 
 	 * Since we are checking the current state to determine if we need
@@ -484,16 +512,16 @@ void KeyboardDevice::keyEvent(rdr::U32 keysym, bool down)
 	}
 
 #if XORG >= 17
-	keyc = dev->u.master->key;
+	keyc = keyboardDev->u.master->key;
 
-	keymap = XkbGetCoreMap(dev);
+	keymap = XkbGetCoreMap(keyboardDev);
 	if (!keymap) {
 		vlog.error("VNC keyboard device has no map");
 		return;
 	}
 
-	if (generate_modkeymap(serverClient, dev, &modmap, &maxKeysPerMod)
-	    != Success) {
+	if (generate_modkeymap(serverClient, keyboardDev, &modmap,
+	    		       &maxKeysPerMod) != Success) {
 		vlog.error("generate_modkeymap failed");
 		xfree(keymap->map);
 		xfree(keymap);
@@ -502,7 +530,7 @@ void KeyboardDevice::keyEvent(rdr::U32 keysym, bool down)
 
 	state = XkbStateFieldFromRec(&keyc->xkbInfo->state);
 #else
-	keyc = dev->key;
+	keyc = keyboardDev->key;
 	state = keyc->state;
 	maxKeysPerMod = keyc->maxKeysPerModifier;
 	keymap = &keyc->curKeySyms;
@@ -587,24 +615,24 @@ ModeSwitchFound:
 #if XORG == 15
 			master = inputInfo.keyboard;
 #else
-			master = dev->u.master;
+			master = keyboardDev->u.master;
 #endif
 			void *slave = dixLookupPrivate(&master->devPrivates,
 						       CoreDevicePrivateKey);
-			if (dev == slave) {
+			if (keyboardDev == slave) {
 				dixSetPrivate(&master->devPrivates,
 					      CoreDevicePrivateKey, NULL);
 #if XORG == 15
-				SwitchCoreKeyboard(dev);
+				SwitchCoreKeyboard(keyboardDev);
 #else
-				CopyKeyClass(dev, master);
+				CopyKeyClass(keyboardDev, master);
 #endif
 			}
 #else /* XORG < 17 */
-			XkbApplyMappingChange(dev, keymap, minKeyCode,
+			XkbApplyMappingChange(keyboardDev, keymap, minKeyCode,
 					      maxKeyCode - minKeyCode + 1,
 					      NULL, serverClient);
-			XkbCopyDeviceKeymap(dev->u.master, dev);
+			XkbCopyDeviceKeymap(keyboardDev->u.master, keyboardDev);
 #endif /* XORG < 17 */
 			break;
 		}
@@ -632,8 +660,8 @@ ModeSwitchFound:
 		}
 	}
 
-	ModifierState shift(dev, ShiftMapIndex);
-	ModifierState modeSwitch(dev, modeSwitchMapIndex);
+	ModifierState shift(keyboardDev, ShiftMapIndex);
+	ModifierState modeSwitch(keyboardDev, modeSwitchMapIndex);
 	if (down) {
 		if (col & 1)
 			shift.press();
@@ -649,8 +677,8 @@ ModeSwitchFound:
 
 	vlog.debug("keycode %d %s", kc, down ? "down" : "up");
 	action = down ? KeyPress : KeyRelease;
-	n = GetKeyboardEvents(eventq, dev, action, kc);
-	enqueueEvents(dev, n);
+	n = GetKeyboardEvents(eventq, keyboardDev, action, kc);
+	enqueueEvents(keyboardDev, n);
 	
 	/*
 	 * When faking a modifier we are putting a keycode (which can
@@ -684,7 +712,8 @@ static KeySym KeyCodetoKeySym(KeySymsPtr keymap, int keycode, int col)
 	}
 
 	if ((per <= (col|1)) || (syms[col|1] == NoSymbol)) {
-		XConvertCase(syms[col&~1], &lsym, &usym);
+		XkbConvertCase
+			    (syms[col&~1], &lsym, &usym);
 		if (!(col & 1))
 			return lsym;
 		/*
@@ -804,7 +833,7 @@ KeySym keyboardMap[MAP_LEN * KEYSYMS_PER_KEY] = {
 	XK_KP_Multiply, NoSymbol,
 	XK_Alt_L, XK_Meta_L,
 	XK_space, NoSymbol,
-	/* XK_Caps_Lock */ NoSymbol, NoSymbol,
+	XK_Caps_Lock, NoSymbol,
 	XK_F1, NoSymbol,
 	XK_F2, NoSymbol,
 	XK_F3, NoSymbol,
@@ -852,6 +881,10 @@ KeySym keyboardMap[MAP_LEN * KEYSYMS_PER_KEY] = {
 	XK_Print, XK_Execute,
 	XK_KP_Divide, NoSymbol,
 	XK_Alt_R, XK_Meta_R,
+	NoSymbol, NoSymbol,
+	XK_Super_L, NoSymbol,
+	XK_Super_R, NoSymbol,
+	XK_Menu, NoSymbol,
 };
 
 static Bool GetMappings(KeySymsPtr pKeySyms, CARD8 *pModMap)
@@ -862,17 +895,37 @@ static Bool GetMappings(KeySymsPtr pKeySyms, CARD8 *pModMap)
 		pModMap[i] = NoSymbol;
 
 	for (i = 0; i < MAP_LEN; i++) {
-		if (keyboardMap[i * KEYSYMS_PER_KEY] == XK_Caps_Lock)
-			pModMap[i + MIN_KEY] = LockMask;
-		else if (keyboardMap[i * KEYSYMS_PER_KEY] == XK_Shift_L ||
-			 keyboardMap[i * KEYSYMS_PER_KEY] == XK_Shift_R)
+		switch (keyboardMap[i * KEYSYMS_PER_KEY]) {
+		case XK_Shift_L:
+		case XK_Shift_R:
 			pModMap[i + MIN_KEY] = ShiftMask;
-		else if (keyboardMap[i * KEYSYMS_PER_KEY] == XK_Control_L ||
-			 keyboardMap[i * KEYSYMS_PER_KEY] == XK_Control_R)
+			break;
+		case XK_Caps_Lock:
+			pModMap[i + MIN_KEY] = LockMask;
+			break;
+		case XK_Control_L:
+		case XK_Control_R:
 			pModMap[i + MIN_KEY] = ControlMask;
-		else if (keyboardMap[i * KEYSYMS_PER_KEY] == XK_Alt_L ||
-			 keyboardMap[i * KEYSYMS_PER_KEY] == XK_Alt_R)
+			break;
+		case XK_Alt_L:
+		case XK_Alt_R:
 			pModMap[i + MIN_KEY] = Mod1Mask;
+			break;
+		case XK_Num_Lock:
+			pModMap[i + MIN_KEY] = Mod2Mask;
+			break;
+			/* No defaults for Mod3Mask yet */
+		case XK_Super_L:
+		case XK_Super_R:
+		case XK_Hyper_L:
+		case XK_Hyper_R:
+			pModMap[i + MIN_KEY] = Mod4Mask;
+			break;
+		case XK_ISO_Level3_Shift:
+		case XK_Mode_switch:
+			pModMap[i + MIN_KEY] = Mod5Mask;
+			break;
+		}
 	}
 
 	pKeySyms->minKeyCode = MIN_KEY;

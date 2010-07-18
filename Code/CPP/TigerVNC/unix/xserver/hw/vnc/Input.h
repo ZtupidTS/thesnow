@@ -1,5 +1,6 @@
 /* Copyright (C) 2009 TightVNC Team
- * Copyright (C) 2009 Red Hat, Inc.
+ * Copyright (C) 2009, 2010 Red Hat, Inc.
+ * Copyright (C) 2009, 2010 TigerVNC Team
  *
  * This is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,44 +32,47 @@ extern "C" {
 #include "input.h"
 };
 
-/* Represents pointer device. */
-class PointerDevice {
+/* Represents input device (keyboard + pointer) */
+class InputDevice {
 public:
-	/* Create new PointerDevice instance. */
-	PointerDevice(rfb::VNCServerST *_server);
+	/* Create new InputDevice instance */
+	InputDevice(rfb::VNCServerST *_server);
 
 	/*
 	 * Press or release buttons. Relationship between buttonMask and
 	 * buttons is specified in RFB protocol.
 	 */
-	void ButtonAction(int buttonMask);
+	void PointerButtonAction(int buttonMask);
 
 	/* Move pointer to target location (point coords are absolute). */
-	void Move(const rfb::Point &point);
+	void PointerMove(const rfb::Point &point);
 
 	/*
 	 * Send pointer position to clients. If not called then Move() calls
-	 * won't be visible to clients.
+	 * won't be visible to VNC clients.
 	 */
-	void Sync(void);
+	void PointerSync(void);
+
+	void KeyboardPress(rdr::U32 keysym) { keyEvent(keysym, true); }
+	void KeyboardRelease(rdr::U32 keysym) { keyEvent(keysym, false); }
 private:
+	/*
+	 * Init input device. This cannot be done in the constructor
+	 * because constructor is called during X server extensions
+	 * initialization. Devices must be initialized after core
+	 * pointer/keyboard initialization which is actually after extesions
+	 * initialization. Check InitExtensions(), InitCoreDevices() and
+	 * InitInput() calls in dix/main.c
+	 */
+	void initInputDevice(void);
+
+	void keyEvent(rdr::U32 keysym, bool down);
+
 	rfb::VNCServerST *server;
-	DeviceIntPtr dev;
+	DeviceIntPtr keyboardDev;
+	DeviceIntPtr pointerDev;
 	int oldButtonMask;
 	rfb::Point cursorPos, oldCursorPos;
-};
-
-/* Represents keyboard device. */
-class KeyboardDevice {
-public:
-	/* Create new Keyboard device instance. */
-	KeyboardDevice(void);
-
-	void Press(rdr::U32 keysym) { keyEvent(keysym, true); }
-	void Release(rdr::U32 keysym) { keyEvent(keysym, false); }
-private:
-	void keyEvent(rdr::U32 keysym, bool down);
-	DeviceIntPtr dev;
 };
 
 #endif

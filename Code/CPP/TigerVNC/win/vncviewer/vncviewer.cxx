@@ -24,11 +24,11 @@
 #endif
 #include <list>
 
+#include <vncviewer/ListenServer.h>
 #include <vncviewer/resource.h>
 #include <vncviewer/CConn.h>
 #include <vncviewer/CConnThread.h>
 #include <vncviewer/OptionsDialog.h>
-#include <vncviewer/ListenServer.h>
 #include <vncviewer/ListenTrayIcon.h>
 #include <network/TcpSocket.h>
 #include <rfb/Logger_stdio.h>
@@ -106,7 +106,7 @@ programUsage() {
   printf("\nLog destinations:\n");
   Logger::listLoggers();
   printf("\nParameters:\n");
-  Configuration::listParams();
+  Configuration::listParams(ConfViewer);
   printf("Press Enter/Return key to continue\n");
   getchar();
   exit(1);

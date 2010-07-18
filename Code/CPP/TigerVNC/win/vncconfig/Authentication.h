@@ -24,7 +24,8 @@
 #include <rfb_win32/OSVersion.h>
 #include <rfb_win32/MsgBox.h>
 #include <rfb/ServerCore.h>
-#include <rfb/secTypes.h>
+#include <rfb/Security.h>
+#include <rfb/SSecurityVncAuth.h>
 #include <rfb/Password.h>
 
 static rfb::BoolParameter queryOnlyIfLoggedOn("QueryOnlyIfLoggedOn",
@@ -39,11 +40,11 @@ namespace rfb {
       AuthenticationPage(const RegKey& rk)
         : PropSheetPage(GetModuleHandle(0), MAKEINTRESOURCE(IDD_AUTHENTICATION)), regKey(rk) {}
       void initDialog() {
-        CharArray sec_types_str(SSecurityFactoryStandard::sec_types.getData());
-        std::list<int> sec_types = parseSecTypes(sec_types_str.buf);
+        CharArray sec_types_str(Security::secTypes.getData());
+        std::list<rdr::U8> sec_types = parseSecTypes(sec_types_str.buf);
 
         useNone = useVNC = false;
-        std::list<int>::iterator i;
+        std::list<rdr::U8>::iterator i;
         for (i=sec_types.begin(); i!=sec_types.end(); i++) {
           if ((*i) == secTypeNone) useNone = true;
           else if ((*i) == secTypeVncAuth) useVNC = true;
@@ -113,7 +114,7 @@ namespace rfb {
 
 
       static bool haveVncPassword() {
-        PlainPasswd password(SSecurityFactoryStandard::vncAuthPasswd.getVncAuthPasswd());
+        PlainPasswd password(SSecurityVncAuth::vncAuthPasswd.getVncAuthPasswd());
         return password.buf && strlen(password.buf) != 0;
       }
 

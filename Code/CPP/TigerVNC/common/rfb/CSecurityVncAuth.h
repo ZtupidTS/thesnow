@@ -19,21 +19,17 @@
 #define __RFB_CSECURITYVNCAUTH_H__
 
 #include <rfb/CSecurity.h>
-#include <rfb/secTypes.h>
+#include <rfb/Security.h>
 
 namespace rfb {
 
-  class UserPasswdGetter;
-
   class CSecurityVncAuth : public CSecurity {
   public:
-    CSecurityVncAuth(UserPasswdGetter* pg);
-    virtual ~CSecurityVncAuth();
+    CSecurityVncAuth(void) {}
+    virtual ~CSecurityVncAuth() {}
     virtual bool processMsg(CConnection* cc);
     virtual int getType() const {return secTypeVncAuth;};
     virtual const char* description() const {return "No Encryption";}
-  private:
-    UserPasswdGetter* upg;
   };
 }
 #endif

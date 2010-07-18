@@ -16,14 +16,13 @@
  * USA.
  */
 
-#include <windows.h>
 #include <winsock2.h>
 #include <vncviewer/UserPasswdDialog.h>
 #include <vncviewer/CConn.h>
 #include <vncviewer/CConnThread.h>
 #include <vncviewer/resource.h>
 #include <rfb/encodings.h>
-#include <rfb/secTypes.h>
+#include <rfb/Security.h>
 #include <rfb/CSecurityNone.h>
 #include <rfb/CSecurityVncAuth.h>
 #include <rfb/CMsgWriter.h>
@@ -102,6 +101,7 @@ bool CConn::initialise(network::Socket* s, bool reverse) {
   // - Set which auth schemes we support, in order of preference
   addSecType(secTypeVncAuth);
   addSecType(secTypeNone);
+  CSecurity::upg = this;
 
   // Start the RFB protocol
   sock = s;
@@ -405,20 +405,6 @@ void CConn::clientCutText(const char* str, int len) {
     close(e.str());
   }
 }
-
-
-CSecurity* CConn::getCSecurity(int secType)
-{
-  switch (secType) {
-  case secTypeNone:
-    return new CSecurityNone();
-  case secTypeVncAuth:
-    return new CSecurityVncAuth(this);
-  default:
-    throw Exception("Unsupported secType?");
-  }
-}
-
 
 void
 CConn::setColourMapEntries(int first, int count, U16* rgbs) {
@@ -817,7 +803,7 @@ void CConn::getUserPasswd(char** user, char** password) {
   if ((user && !*user) || (password && !*password)) {
     // Missing username or password - prompt the user
     UserPasswdDialog userPasswdDialog;
-    userPasswdDialog.setCSecurity(getCurrentCSecurity());
+    userPasswdDialog.setCSecurity(csecurity);
     userPasswdDialog.getUserPasswd(user, password);
   }
   if (user) options.setUserName(*user);

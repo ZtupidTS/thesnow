@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.56])
-AC_INIT([libjpeg], [6.b])
+AC_INIT([libjpeg-turbo], [1.0.0])
 
 AM_INIT_AUTOMAKE([-Wall foreign dist-bzip2])
 
@@ -110,19 +110,10 @@ if test "x${with_simd}" != "xno"; then
   # Check if we're on a supported CPU
   AC_MSG_CHECKING([if we have SIMD optimisations for cpu type])
   case "$host_cpu" in
-    x86_64)
+    x86_64 | amd64)
       AC_MSG_RESULT([yes (x86_64)])
-
-      case "$host_os" in
-        cygwin* | mingw* | pw32* | interix*)
-          AC_MSG_WARN([Win64 not yet supported. Disabling SIMD routines.])
-          with_simd=no
-          ;;
-        *)
-          AC_PROG_NASM
-          simd_arch=x86_64
-          ;;
-      esac
+      AC_PROG_NASM
+      simd_arch=x86_64
     ;;
     i*86 | x86 | ia32)
       AC_MSG_RESULT([yes (i386)])
@@ -131,7 +122,8 @@ if test "x${with_simd}" != "xno"; then
     ;;
     *)
       AC_MSG_RESULT([no ("$host_cpu")])
-      with_simd=no
+      AC_MSG_WARN([SIMD support not available for this CPU.  Performance will suffer.])
+      with_simd=no;
     ;;
   esac
 
