@@ -75,30 +75,30 @@ void COptionsGeneralWelcomemessagePage::SaveData()
 {
 	CString msg = m_WelcomeMessage;
 	std::list<CString> msgLines;
-	int oldpos=0;
-	msg.Replace("\r\n", "\n");
-	int pos=msg.Find("\n");
+	int oldpos = 0;
+	msg.Replace(_T("\r\n"), _T("\n"));
+	int pos = msg.Find(_T("\n"));
 	CString line;
-	while (pos!=-1)
+	while (pos != -1)
 	{
 		if (pos)
 		{
-			line = msg.Mid(oldpos, pos-oldpos);
-			line=line.Left(CONST_WELCOMEMESSAGE_LINESIZE);
-			line.TrimRight(" ");
-			if (msgLines.size() || line!="")
+			line = msg.Mid(oldpos, pos - oldpos);
+			line = line.Left(CONST_WELCOMEMESSAGE_LINESIZE);
+			line.TrimRight(_T(" "));
+			if (msgLines.size() || line != _T(""))
 				msgLines.push_back(line);
 		}
-		oldpos=pos+1;
-		pos=msg.Find("\n", oldpos);
+		oldpos = pos + 1;
+		pos = msg.Find(_T("\n"), oldpos);
 	}
-	line=msg.Mid(oldpos);
-	if (line!="")
+	line = msg.Mid(oldpos);
+	if (line != _T(""))
 		msgLines.push_back(line);
-	msg="";
-	for (std::list<CString>::iterator iter=msgLines.begin(); iter!=msgLines.end(); iter++)
-		msg+=*iter+"\r\n";
-	msg.TrimRight("\r\n");
+	msg = _T("");
+	for (std::list<CString>::iterator iter = msgLines.begin(); iter != msgLines.end(); iter++)
+		msg += *iter + _T("\r\n");
+	msg.TrimRight(_T("\r\n"));
 
 	m_pOptionsDlg->SetOption(OPTION_WELCOMEMESSAGE, msg);
 	m_pOptionsDlg->SetOption(OPTION_WELCOMEMESSAGE_HIDE, m_hideWelcomeMessage);

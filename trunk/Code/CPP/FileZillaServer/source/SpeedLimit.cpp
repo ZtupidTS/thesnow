@@ -16,12 +16,14 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-// SpeedLimit.cpp: implementation of the CSpeedLimit class.
+// Speedcpp: implementation of the CSpeedLimit class.
 //
 //////////////////////////////////////////////////////////////////////
 
 #include "stdafx.h"
 #include "SpeedLimit.h"
+#include "xml_utils.h"
+#include "tinyxml/tinyxml.h"
 
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
@@ -32,9 +34,9 @@ CSpeedLimit::CSpeedLimit()
 	m_Day = 0;
 
 	m_Speed = 10;
-	m_ToCheck = FALSE;
-	m_DateCheck = FALSE;
-	m_FromCheck = FALSE;
+	m_ToCheck = false;
+	m_DateCheck = false;
+	m_FromCheck = false;
 }
 
 CSpeedLimit::~CSpeedLimit()
@@ -162,7 +164,7 @@ char * CSpeedLimit::FillBuffer(char *p) const
 unsigned char * CSpeedLimit::ParseBuffer(unsigned char *pBuffer, int length)
 {
 	if (length < GetRequiredBufferLen())
-		return NULL;
+		return 0;
 
 	unsigned char *p = pBuffer;
 
@@ -173,33 +175,33 @@ unsigned char * CSpeedLimit::ParseBuffer(unsigned char *pBuffer, int length)
 
 	if (memcmp(p, tmp, 4))	
 	{
-		m_DateCheck = TRUE;
+		m_DateCheck = true;
 		m_Date.y = *p++ << 8;
 		m_Date.y |= *p++;
 		m_Date.m = *p++;
 		m_Date.d = *p++;
 		if (m_Date.y < 1900 || m_Date.y > 3000 || m_Date.m < 1 || m_Date.m > 12 || m_Date.d < 1 || m_Date.d > 31)
-			return FALSE;
+			return false;
 	}
 	else
 	{
 		p += 4;
-		m_DateCheck = FALSE;
+		m_DateCheck = false;
 	}
 	
 	if (memcmp(p, tmp, 3))	
 	{
-		m_FromCheck = TRUE;
+		m_FromCheck = true;
 		m_FromTime.h = *p++;
 		m_FromTime.m = *p++;
 		m_FromTime.s = *p++;
 		if (m_FromTime.h > 23 || m_FromTime.m > 59 || m_FromTime.s > 59)
-			return FALSE;
+			return false;
 	}
 	else
 	{
 		p += 3;
-		m_FromCheck = FALSE;
+		m_FromCheck = false;
 	}
 
 	if (memcmp(p, tmp, 3))	
@@ -209,15 +211,139 @@ unsigned char * CSpeedLimit::ParseBuffer(unsigned char *pBuffer, int length)
 		m_ToTime.m = *p++;
 		m_ToTime.s = *p++;
 		if (m_ToTime.h > 23 || m_ToTime.m > 59 || m_ToTime.s > 59)
-			return FALSE;
+			return false;
 	}
 	else
 	{
 		p += 3;
-		m_ToCheck = FALSE;
+		m_ToCheck = false;
 	}
 
 	m_Day = *p++;
 
 	return p;
+}
+
+static void SaveTime(TiXmlElement* pElement, CSpeedLimit::t_time t)
+{
+	pElement->SetAttribute("Hour", t.h);
+	pElement->SetAttribute("Minute", t.m);
+	pElement->SetAttribute("Second", t.s);
+}
+
+void CSpeedLimit::Save(TiXmlElement* pElement)
+{
+	pElement->SetAttribute("Speed", m_Speed);
+
+	CStdString str;
+	str.Format(_T("%d"), m_Day);
+	TiXmlElement* pDays = pElement->LinkEndChild(new TiXmlElement("Days"))->ToElement();
+	XML::SetText(pDays, str);
+
+	if (m_DateCheck)
+	{
+		TiXmlElement* pDate = pElement->LinkEndChild(new TiXmlElement("Date"))->ToElement();
+		pDate->SetAttribute("Year", m_Date.y);
+		pDate->SetAttribute("Month", m_Date.m);
+		pDate->SetAttribute("Day", m_Date.d);
+	}
+
+	if (m_FromCheck)
+	{
+		TiXmlElement* pFrom = pElement->LinkEndChild(new TiXmlElement("From"))->ToElement();
+		SaveTime(pFrom, m_FromTime);
+	}
+
+	if (m_ToCheck)
+	{
+		TiXmlElement* pTo = pElement->LinkEndChild(new TiXmlElement("To"))->ToElement();
+		SaveTime(pTo, m_ToTime);
+	}
+}
+
+CSpeedLimit::t_time CSpeedLimit::ReadTime(TiXmlElement* pElement)
+{
+	CSpeedLimit::t_time t;
+
+	CStdString str = ConvFromNetwork(pElement->Attribute("Hour"));
+	int n = _ttoi(str);
+	if (n < 0 || n > 23)
+		n = 0;
+	t.h = n;
+	str = ConvFromNetwork(pElement->Attribute("Minute"));
+	n = _ttoi(str);
+	if (n < 0 || n > 59)
+		n = 0;
+	t.m = n;
+	str = ConvFromNetwork(pElement->Attribute("Second"));
+	n = _ttoi(str);
+	if (n < 0 || n > 59)
+		n = 0;
+	t.s = n;
+
+	return t;
+}
+
+bool CSpeedLimit::Load(TiXmlElement* pElement)
+{
+	CStdString str;
+	str = ConvFromNetwork(pElement->Attribute("Speed"));
+	int n = _ttoi(str);
+	if (n < 0 || n > 65535)
+		n = 10;
+	m_Speed = n;
+
+	TiXmlElement* pDays = pElement->FirstChildElement("Days");
+	if (pDays)
+	{
+		str = XML::ReadText(pDays);
+		if (str != _T(""))
+			n = _ttoi(str);
+		else
+			n = 0x7F;
+		m_Day = n & 0x7F;
+	}
+
+	m_DateCheck = false;
+
+	TiXmlElement* pDate = pElement->FirstChildElement("Date");
+	if (pDate)
+	{
+		m_DateCheck = true;
+		str = ConvFromNetwork(pDate->Attribute("Year"));
+		n = _ttoi(str);
+		if (n < 1900 || n > 3000)
+			n = 2003;
+		m_Date.y = n;
+		str = ConvFromNetwork(pDate->Attribute("Month"));
+		n = _ttoi(str);
+		if (n < 1 || n > 12)
+			n = 1;
+		m_Date.m = n;
+		str = ConvFromNetwork(pDate->Attribute("Day"));
+		n = _ttoi(str);
+		if (n < 1 || n > 31)
+			n = 1;
+		m_Date.d = n;
+	}
+
+	TiXmlElement* pFrom = pElement->FirstChildElement("From");
+	if (pFrom)
+	{
+		m_FromCheck = true;
+		m_FromTime = ReadTime(pFrom);
+	}
+	else
+		m_FromCheck = false;
+
+	TiXmlElement* pTo = pElement->FirstChildElement("To");
+	if (pTo)
+	{
+		m_ToCheck = true;
+		m_ToTime = ReadTime(pTo);
+	}
+	else
+		m_ToCheck = false;
+
+	return true;
 }

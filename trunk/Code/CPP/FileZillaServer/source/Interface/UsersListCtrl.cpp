@@ -152,12 +152,12 @@ int CUsersListCtrl::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 	SetExtendedStyle(LVS_EX_LABELTIP | LVS_EX_SUBITEMIMAGES | LVS_EX_FULLROWSELECT);
 
-	InsertColumn(COLUMN_ID, "会话ID", LVCFMT_RIGHT, 75);
-	InsertColumn(COLUMN_USER, "账号", LVCFMT_LEFT, 150);
-	InsertColumn(COLUMN_IP, "IP地址", LVCFMT_RIGHT, 100);
-	InsertColumn(COLUMN_TRANSFERINIT, "传输", LVCFMT_LEFT, 250);
-	InsertColumn(COLUMN_TRANSFERPROGRESS, "进度", LVCFMT_RIGHT, 150);
-	InsertColumn(COLUMN_TRANSFERSPEED, "速度", LVCFMT_LEFT, 80);
+	InsertColumn(COLUMN_ID, _T("会话 ID"), LVCFMT_RIGHT, 75);
+	InsertColumn(COLUMN_USER, _T("账号"), LVCFMT_LEFT, 150);
+	InsertColumn(COLUMN_IP, _T("IP 地址"), LVCFMT_RIGHT, 100);
+	InsertColumn(COLUMN_TRANSFERINIT, _T("传输"), LVCFMT_LEFT, 250);
+	InsertColumn(COLUMN_TRANSFERPROGRESS, _T("进度"), LVCFMT_RIGHT, 150);
+	InsertColumn(COLUMN_TRANSFERSPEED, _T("速度"), LVCFMT_LEFT, 80);
 
 	m_SortImg.Create( 8, 8, ILC_MASK, 3, 3 );
 	HICON Icon;
@@ -232,12 +232,12 @@ bool CUsersListCtrl::ProcessConnOp(unsigned char *pData, DWORD dwDataLength)
 		}
 		memcpy(&pConnectionData->port, pData + pos, 4);
 
-		pConnectionData->columnText[COLUMN_ID].Format("%06d", userid);
+		pConnectionData->columnText[COLUMN_ID].Format(_T("%06d"), userid);
 		m_connectionDataMap[userid] = pConnectionData;
 		pConnectionData->listIndex = m_connectionDataArray.size();
 		m_connectionDataArray.push_back(pConnectionData);
 
-		pConnectionData->columnText[COLUMN_USER] = "(未登录)";
+		pConnectionData->columnText[COLUMN_USER] = _T("(未登录)");
 		SetItemCount(GetItemCount() + 1);
 		SetSortColumn(m_sortColumn, m_sortDir);
 
@@ -276,10 +276,10 @@ bool CUsersListCtrl::ProcessConnOp(unsigned char *pData, DWORD dwDataLength)
 #endif
 		delete [] user;
 
-		if (pConnectionData->columnText[COLUMN_USER] == "")
+		if (pConnectionData->columnText[COLUMN_USER] == _T(""))
 		{
 			pConnectionData->itemImages[COLUMN_ID] = 5;
-			pConnectionData->columnText[COLUMN_USER] = "(未登录)";
+			pConnectionData->columnText[COLUMN_USER] = _T("(未登录)");
 		}
 		else
 		{
@@ -327,14 +327,14 @@ bool CUsersListCtrl::ProcessConnOp(unsigned char *pData, DWORD dwDataLength)
 
 		if (!pConnectionData->transferMode)
 		{
-			pConnectionData->physicalFile = "";
-			pConnectionData->logicalFile = "";
+			pConnectionData->physicalFile = _T("");
+			pConnectionData->logicalFile = _T("");
 			pConnectionData->currentOffset = 0;
 			pConnectionData->totalSize = -1;
 			pConnectionData->ResetSpeed();
 
-			pConnectionData->columnText[COLUMN_TRANSFERPROGRESS] =  "";
-			pConnectionData->columnText[COLUMN_TRANSFERSPEED] =  "";
+			pConnectionData->columnText[COLUMN_TRANSFERPROGRESS] =  _T("");
+			pConnectionData->columnText[COLUMN_TRANSFERSPEED] =  _T("");
 		}
 		else
 		{
@@ -436,18 +436,18 @@ bool CUsersListCtrl::ProcessConnOp(unsigned char *pData, DWORD dwDataLength)
 			if (pConnectionData->totalSize != -1)
 			{
 				double percent = (double)pConnectionData->currentOffset / pConnectionData->totalSize * 100;
-				str.Format("%s bytes (%1.1f%%)", makeUserFriendlyString(pConnectionData->currentOffset).GetString(), percent);
+				str.Format(_T("%s 字节 (%1.1f%%)"), makeUserFriendlyString(pConnectionData->currentOffset).GetString(), percent);
 			}
 			else
-				str.Format("%s bytes", makeUserFriendlyString(pConnectionData->currentOffset).GetString());
+				str.Format(_T("%s 字节"), makeUserFriendlyString(pConnectionData->currentOffset).GetString());
 			pConnectionData->columnText[COLUMN_TRANSFERPROGRESS] =  str;
 
 			if (pConnectionData->speed > 1024 * 1024)
-				str.Format("%1.1f MB/s", (double)pConnectionData->speed / 1024 / 1024);
+				str.Format(_T("%1.1f MB/s"), (double)pConnectionData->speed / 1024 / 1024);
 			else if (pConnectionData->speed > 1024)
-				str.Format("%1.1f KB/s", (double)pConnectionData->speed / 1024);
+				str.Format(_T("%1.1f KB/s"), (double)pConnectionData->speed / 1024);
 			else
-				str.Format("%1.1f bytes/s", (double)pConnectionData->speed);
+				str.Format(_T("%1.1f bytes/s"), (double)pConnectionData->speed);
 			pConnectionData->columnText[COLUMN_TRANSFERSPEED] =  str;
 			
 			p += 12;
@@ -460,7 +460,7 @@ bool CUsersListCtrl::ProcessConnOp(unsigned char *pData, DWORD dwDataLength)
 
 void CUsersListCtrl::OnContextmenuKick() 
 {
-	if (AfxMessageBox("您确定真的要踢掉选择的用户?", MB_ICONQUESTION|MB_YESNO)!=IDYES)
+	if (AfxMessageBox(_T("您确定真的要踢掉选择的用户?"), MB_ICONQUESTION|MB_YESNO)!=IDYES)
 		return;
 	POSITION pos = GetFirstSelectedItemPosition();
 	while (pos)
@@ -478,7 +478,7 @@ void CUsersListCtrl::OnContextmenuKick()
 
 void CUsersListCtrl::OnContextmenuBan() 
 {
-	if (AfxMessageBox("您确定真的要踢掉选择的用户并屏蔽他的 IP 地址?", MB_ICONQUESTION|MB_YESNO)!=IDYES)
+	if (AfxMessageBox(_T("您确定真的要踢掉所选用户并屏蔽他的 IP 地址?"), MB_ICONQUESTION|MB_YESNO)!=IDYES)
 		return;
 	POSITION pos = GetFirstSelectedItemPosition();
 	while (pos)
@@ -521,7 +521,7 @@ BOOL CUsersListCtrl::ParseUserControlCommand(unsigned char *pData, DWORD dwDataL
 	int type = *pData;
 	if (type < 0 || type > 4)
 	{
-		m_pOwner->ShowStatus(_T("协议错误: 无效数据"), 1);
+		m_pOwner->ShowStatus(_T("Protocol error: Invalid data"), 1);
 		return FALSE;
 	}
 	switch (type)
@@ -673,13 +673,13 @@ BOOL CUsersListCtrl::ParseUserControlCommand(unsigned char *pData, DWORD dwDataL
 					pConnectionData->totalSize = -1;
 				}
 
-				pConnectionData->columnText[COLUMN_ID].Format("%06d", pConnectionData->userid);
+				pConnectionData->columnText[COLUMN_ID].Format(_T("%06d"), pConnectionData->userid);
 				m_connectionDataMap[pConnectionData->userid] = pConnectionData;
 				pConnectionData->listIndex = m_connectionDataArray.size();
 				m_connectionDataArray.push_back(pConnectionData);
 
-				if (pConnectionData->columnText[COLUMN_USER] == "")
-					pConnectionData->columnText[COLUMN_USER] = "(未登录)";
+				if (pConnectionData->columnText[COLUMN_USER] == _T(""))
+					pConnectionData->columnText[COLUMN_USER] = _T("(未登录)");
 				
 				pConnectionData->itemImages[COLUMN_TRANSFERINIT] = pConnectionData->transferMode;
 				pConnectionData->columnText[COLUMN_TRANSFERINIT] = m_showPhysical ? pConnectionData->physicalFile : pConnectionData->logicalFile;
@@ -713,7 +713,6 @@ void CUsersListCtrl::SetDisplayPhysicalNames(bool showPhysical)
 	m_showPhysical = showPhysical;
 
 	// Iterate through all items and reset the transfer column text
-	int count = GetItemCount();
 	for (std::vector<CConnectionData*>::iterator iter = m_connectionDataArray.begin(); iter != m_connectionDataArray.end(); iter++)
 	{
 		CConnectionData* pData = *iter;

@@ -24,7 +24,7 @@
 			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
 			UseOfMFC="1"
 			ATLMinimizesCRunTimeLibraryUsage="false"
-			CharacterSet="2"
+			CharacterSet="1"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -121,7 +121,7 @@
 			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
 			UseOfMFC="1"
 			ATLMinimizesCRunTimeLibraryUsage="false"
-			CharacterSet="2"
+			CharacterSet="1"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -752,37 +752,8 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="misc\md5.cpp"
+				RelativePath="..\misc\md5.cpp"
 				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						PreprocessorDefinitions=""
-						BasicRuntimeChecks="3"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="1"
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Memcheck|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						PreprocessorDefinitions=""
-						BasicRuntimeChecks="3"
-					/>
-				</FileConfiguration>
 			</File>
 			<File
 				RelativePath="..\misc\mmgr.cpp"
@@ -1929,6 +1900,10 @@
 				RelativePath="..\version.cpp"
 				>
 			</File>
+			<File
+				RelativePath="..\xml_utils.cpp"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -2007,7 +1982,7 @@
 				>
 			</File>
 			<File
-				RelativePath="misc\md5.h"
+				RelativePath="..\misc\md5.h"
 				>
 			</File>
 			<File
@@ -2016,6 +1991,10 @@
 			</File>
 			<File
 				RelativePath="OfflineAskDlg.h"
+				>
+			</File>
+			<File
+				RelativePath="..\OptionLimits.h"
 				>
 			</File>
 			<File

@@ -87,12 +87,12 @@ BOOL COptionsGeneralPage::IsDataValid()
 	bool valid = true;
 	
 	CString ports = m_Port;
-	ports.TrimLeft(" ,");
+	ports.TrimLeft(_T(" ,"));
 
 	int pos = ports.FindOneOf(_T(" ,"));
 	while (pos != -1 && valid)
 	{
-		int port = atoi(ports.Left(pos));
+		int port = _ttoi(ports.Left(pos));
 		if (port < 1 || port > 65535)
 		{
 			valid = false;
@@ -101,12 +101,12 @@ BOOL COptionsGeneralPage::IsDataValid()
 		else
 			portSet.insert(port);
 		ports = ports.Mid(pos + 1);
-		ports.TrimLeft(" ,");
+		ports.TrimLeft(_T(" ,"));
 		pos = ports.FindOneOf(_T(" ,"));
 	}
-	if (valid && ports != "")
+	if (valid && ports != _T(""))
 	{
-		int port = atoi(ports);
+		int port = _ttoi(ports);
 		if (port < 1 || port > 65535)
 			valid = false;
 		else
@@ -117,23 +117,23 @@ BOOL COptionsGeneralPage::IsDataValid()
 	{
 		m_pOptionsDlg->ShowPage(this);
 		GetDlgItem(IDC_PORT)->SetFocus();
-		AfxMessageBox("Invalid port found, please only enter ports in the range from 1 to 65535.");
+		AfxMessageBox(_T("Invalid port found, please only enter ports in the range from 1 to 65535."));
 		return FALSE;
 	}
-	int threadnum = atoi(m_Threadnum);
-	if (threadnum<1 || threadnum>50)
+	int threadnum = _ttoi(m_Threadnum);
+	if (threadnum < 1 || threadnum > 50)
 	{
 		m_pOptionsDlg->ShowPage(this);
 		GetDlgItem(IDC_THREADNUM)->SetFocus();
-		AfxMessageBox("Please enter a value between 1 and 50 for the number of Threads!");
+		AfxMessageBox(_T("Please enter a value between 1 and 50 for the number of Threads!"));
 		return FALSE;
 	}
 
-	m_Port = "";
+	m_Port = _T("");
 	for (std::set<int>::const_iterator iter = portSet.begin(); iter != portSet.end(); iter++)
 	{
 		CString tmp;
-		tmp.Format("%d ", *iter);
+		tmp.Format(_T("%d "), *iter);
 		m_Port += tmp;
 	}
 	m_Port.TrimRight(' ');
@@ -145,19 +145,19 @@ BOOL COptionsGeneralPage::IsDataValid()
 void COptionsGeneralPage::LoadData()
 {
 	m_Port = m_pOptionsDlg->GetOption(OPTION_SERVERPORT);
-	m_Threadnum.Format("%d", static_cast<int>(m_pOptionsDlg->GetOptionVal(OPTION_THREADNUM)));
-	m_MaxUsers.Format("%d", static_cast<int>(m_pOptionsDlg->GetOptionVal(OPTION_MAXUSERS)));
-	m_Timeout.Format("%d", static_cast<int>(m_pOptionsDlg->GetOptionVal(OPTION_TIMEOUT)));
-	m_NoTransferTimeout.Format("%d", static_cast<int>(m_pOptionsDlg->GetOptionVal(OPTION_NOTRANSFERTIMEOUT)));
-	m_LoginTimeout.Format("%d", static_cast<int>(m_pOptionsDlg->GetOptionVal(OPTION_LOGINTIMEOUT)));
+	m_Threadnum.Format(_T("%d"), static_cast<int>(m_pOptionsDlg->GetOptionVal(OPTION_THREADNUM)));
+	m_MaxUsers.Format(_T("%d"), static_cast<int>(m_pOptionsDlg->GetOptionVal(OPTION_MAXUSERS)));
+	m_Timeout.Format(_T("%d"), static_cast<int>(m_pOptionsDlg->GetOptionVal(OPTION_TIMEOUT)));
+	m_NoTransferTimeout.Format(_T("%d"), static_cast<int>(m_pOptionsDlg->GetOptionVal(OPTION_NOTRANSFERTIMEOUT)));
+	m_LoginTimeout.Format(_T("%d"), static_cast<int>(m_pOptionsDlg->GetOptionVal(OPTION_LOGINTIMEOUT)));
 }
 
 void COptionsGeneralPage::SaveData()
 {
 	m_pOptionsDlg->SetOption(OPTION_SERVERPORT, m_Port);
-	m_pOptionsDlg->SetOption(OPTION_THREADNUM, atoi(m_Threadnum));
-	m_pOptionsDlg->SetOption(OPTION_MAXUSERS, atoi(m_MaxUsers));
-	m_pOptionsDlg->SetOption(OPTION_TIMEOUT, atoi(m_Timeout));
-	m_pOptionsDlg->SetOption(OPTION_NOTRANSFERTIMEOUT, atoi(m_NoTransferTimeout));
-	m_pOptionsDlg->SetOption(OPTION_LOGINTIMEOUT, atoi(m_LoginTimeout));
+	m_pOptionsDlg->SetOption(OPTION_THREADNUM, _ttoi(m_Threadnum));
+	m_pOptionsDlg->SetOption(OPTION_MAXUSERS, _ttoi(m_MaxUsers));
+	m_pOptionsDlg->SetOption(OPTION_TIMEOUT, _ttoi(m_Timeout));
+	m_pOptionsDlg->SetOption(OPTION_NOTRANSFERTIMEOUT, _ttoi(m_NoTransferTimeout));
+	m_pOptionsDlg->SetOption(OPTION_LOGINTIMEOUT, _ttoi(m_LoginTimeout));
 }

@@ -65,70 +65,30 @@ BEGIN_MESSAGE_MAP(CUsersDlgIpFilter, CSAPrefsSubDlg)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
-// Behandlungsroutinen für Nachrichten CUsersDlgIpFilter 
+// Behandlungsroutinen f¨¹r Nachrichten CUsersDlgIpFilter 
 
 BOOL CUsersDlgIpFilter::OnInitDialog() 
 {
 	CSAPrefsSubDlg::OnInitDialog();
 	
 	return TRUE;  // return TRUE unless you set the focus to a control
-	              // EXCEPTION: OCX-Eigenschaftenseiten sollten FALSE zurückgeben
+	              // EXCEPTION: OCX-Eigenschaftenseiten sollten FALSE zur¨¹ckgeben
 }
 
 CString CUsersDlgIpFilter::Validate()
 {
 	UpdateData(TRUE);
 
-	CString ips = m_DisallowedAddresses;
-	ips.Replace("\n", " ");
-	ips.Replace("\r", " ");
-	ips.Replace("\t", " ");
-	while (ips.Replace("  ", " "));
-	ips.TrimLeft(" ");
-	ips.TrimRight(" ");
-	ips += " ";
-
-	int pos = ips.Find(" ");
-	while (pos != -1)
+	if (!ParseIPFilter(m_DisallowedAddresses))
 	{
-		CString ip = ips.Left(pos);
-		if (ip == "")
-			break;
-		ips = ips.Mid(pos + 1);
-
-		if (ip != "*" && !IsValidAddressFilter(ip))
-		{
-			GetDlgItem(IDC_USERS_IPFILTER_DISALLOWED)->SetFocus();
-			return _T("ÎÞÐ§ IP µØÖ·/·¶Î§/ÑÚÂë");
-		}
-
-		pos = ips.Find(" ");
+		GetDlgItem(IDC_GROUPS_IPFILTER_DISALLOWED)->SetFocus();
+		return _T("ÎÞÐ§ IP µØÖ·/·¶Î§/ÑÚÂë");
 	}
 
-	ips = m_AllowedAddresses;
-	ips.Replace("\n", " ");
-	ips.Replace("\r", " ");
-	ips.Replace("\t", " ");
-	while (ips.Replace("  ", " "));
-	ips.TrimLeft(" ");
-	ips.TrimRight(" ");
-	ips += " ";
-
-	pos = ips.Find(" ");
-	while (pos != -1)
+	if (!ParseIPFilter(m_AllowedAddresses))
 	{
-		CString ip = ips.Left(pos);
-		if (ip == "")
-			break;
-		ips = ips.Mid(pos + 1);
-
-		if (ip != "*" && !IsValidAddressFilter(ip))
-		{
-			GetDlgItem(IDC_USERS_IPFILTER_ALLOWED)->SetFocus();
-			return _T("ÎÞÐ§ IP µØÖ·/·¶Î§/ÑÚÂë");
-		}
-
-		pos = ips.Find(" ");
+		GetDlgItem(IDC_GROUPS_IPFILTER_ALLOWED)->SetFocus();
+		return _T("ÎÞÐ§ IP µØÖ·/·¶Î§/ÑÚÂë");
 	}
 
 	return _T("");
@@ -152,8 +112,8 @@ BOOL CUsersDlgIpFilter::DisplayUser(t_user *pUser)
 {
 	m_pUser = pUser;
 
-	m_DisallowedAddresses = "";
-	m_AllowedAddresses = "";
+	m_DisallowedAddresses = _T("");
+	m_AllowedAddresses = _T("");
 
 	if (!pUser)
 	{
@@ -183,51 +143,8 @@ BOOL CUsersDlgIpFilter::SaveUser(t_user *pUser)
 	pUser->disallowedIPs.clear();
 	pUser->allowedIPs.clear();
 
-	CString ips = m_DisallowedAddresses;
-	ips.Replace("\n", " ");
-	ips.Replace("\r", " ");
-	ips.Replace("\t", " ");
-	while (ips.Replace("  ", " "));
-	ips.TrimLeft(" ");
-	ips.TrimRight(" ");
-	ips += " ";
-
-	int pos = ips.Find(" ");
-	while (pos != -1)
-	{
-		CString ip = ips.Left(pos);
-		if (ip == "")
-			break;
-		ips = ips.Mid(pos + 1);
-
-		if (ip == "*" || IsValidAddressFilter(ip))
-			pUser->disallowedIPs.push_back(ip);
-
-		pos = ips.Find(" ");
-	}
-
-	ips = m_AllowedAddresses;
-	ips.Replace("\n", " ");
-	ips.Replace("\r", " ");
-	ips.Replace("\t", " ");
-	while (ips.Replace("  ", " "));
-	ips.TrimLeft(" ");
-	ips.TrimRight(" ");
-	ips += " ";
-
-	pos = ips.Find(" ");
-	while (pos != -1)
-	{
-		CString ip = ips.Left(pos);
-		if (ip == "")
-			break;
-		ips = ips.Mid(pos + 1);
-
-		if (ip == "*" || IsValidAddressFilter(ip))
-			pUser->allowedIPs.push_back(ip);
-
-		pos = ips.Find(" ");
-	}
+	ParseIPFilter(m_DisallowedAddresses, &pUser->disallowedIPs);
+	ParseIPFilter(m_AllowedAddresses, &pUser->allowedIPs);
 	
 	return TRUE;
 }

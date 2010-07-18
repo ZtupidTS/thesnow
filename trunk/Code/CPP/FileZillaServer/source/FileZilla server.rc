@@ -62,8 +62,8 @@ IDR_MAINFRAME           ICON                    "res\\FileZilla server.ico"
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 0,9,34,0
- PRODUCTVERSION 0,9,34,0
+ FILEVERSION 0,9,35,0
+ PRODUCTVERSION 0,9,35,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -81,12 +81,12 @@ BEGIN
             VALUE "Comments", "Open Source FTP server for Windows"
             VALUE "CompanyName", "FileZilla Project"
             VALUE "FileDescription", "FileZilla Server"
-            VALUE "FileVersion", "0, 9, 34, 0"
+            VALUE "FileVersion", "0, 9, 35, 0"
             VALUE "InternalName", "FileZilla Server"
-            VALUE "LegalCopyright", "Copyright (C) 2001-2009"
+            VALUE "LegalCopyright", "Copyright (C) 2001-2010"
             VALUE "OriginalFilename", "FileZilla server.EXE"
             VALUE "ProductName", "FileZilla Server"
-            VALUE "ProductVersion", "0, 9, 34, 0"
+            VALUE "ProductVersion", "0, 9, 35, 0"
         END
     END
     BLOCK "VarFileInfo"

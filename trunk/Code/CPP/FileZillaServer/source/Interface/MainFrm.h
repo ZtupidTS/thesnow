@@ -1,4 +1,4 @@
-// FileZilla Server - a Windows ftp server
+ï»¿// FileZilla Server - a Windows ftp server
 
 // Copyright (C) 2002-2004 - Tim Kosse <tim.kosse@gmx.de>
 
@@ -29,8 +29,9 @@
 
 #include "misc\systemtray.h"
 #include "misc\led.h"
-#include "Options.h"	// Hinzugefügt von der Klassenansicht
+#include "Options.h"	// HinzugefÃ¼gt von der Klassenansicht
 #include "splitex.h"
+
 class CStatusView;
 class CUsersView;
 class CAdminSocket;
@@ -57,8 +58,8 @@ public:
 	CUsersView* GetUsersPane();
 
 
-// Überladungen
-	// Vom Klassenassistenten generierte Überladungen virtueller Funktionen
+// Ãœberladungen
+	// Vom Klassenassistenten generierte Ãœberladungen virtueller Funktionen
 	//{{AFX_VIRTUAL(CMainFrame)
 	public:
 	virtual BOOL PreCreateWindow(CREATESTRUCT& cs);
@@ -103,7 +104,7 @@ protected:  // Eingebundene Elemente der Steuerleiste
 	int nTrayNotificationMsg_;
 
 	// static data member to hold window class name
-	static LPCSTR s_winClassName;
+	LPTSTR s_winClassName;
 
 	CUsersDlg *m_pUsersDlg;
 	CGroupsDlg *m_pGroupsDlg;
@@ -173,6 +174,6 @@ protected:
 /////////////////////////////////////////////////////////////////////////////
 
 //{{AFX_INSERT_LOCATION}}
-// Microsoft Visual C++ fügt unmittelbar vor der vorhergehenden Zeile zusätzliche Deklarationen ein.
+// Microsoft Visual C++ fÃ¼gt unmittelbar vor der vorhergehenden Zeile zusÃ¤tzliche Deklarationen ein.
 
 #endif // !defined(AFX_MAINFRM_H__741499DF_FFBB_481F_B214_8C14C31217BB__INCLUDED_)

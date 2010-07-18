@@ -79,56 +79,16 @@ CString CGroupsDlgIpFilter::Validate()
 {
 	UpdateData(TRUE);
 
-	CString ips = m_DisallowedAddresses;
-	ips.Replace("\n", " ");
-	ips.Replace("\r", " ");
-	ips.Replace("\t", " ");
-	while (ips.Replace("  ", " "));
-	ips.TrimLeft(" ");
-	ips.TrimRight(" ");
-	ips += " ";
-
-	int pos = ips.Find(" ");
-	while (pos != -1)
+	if (!ParseIPFilter(m_DisallowedAddresses))
 	{
-		CString ip = ips.Left(pos);
-		if (ip == "")
-			break;
-		ips = ips.Mid(pos + 1);
-
-		if (ip != "*" && !IsValidAddressFilter(ip))
-		{
-			GetDlgItem(IDC_GROUPS_IPFILTER_DISALLOWED)->SetFocus();
-			return _T("Invalid IP address/range/mask");
-		}
-
-		pos = ips.Find(" ");
+		GetDlgItem(IDC_GROUPS_IPFILTER_DISALLOWED)->SetFocus();
+		return _T("Invalid IP address/range/mask");
 	}
 
-	ips = m_AllowedAddresses;
-	ips.Replace("\n", " ");
-	ips.Replace("\r", " ");
-	ips.Replace("\t", " ");
-	while (ips.Replace("  ", " "));
-	ips.TrimLeft(" ");
-	ips.TrimRight(" ");
-	ips += " ";
-
-	pos = ips.Find(" ");
-	while (pos != -1)
+	if (!ParseIPFilter(m_AllowedAddresses))
 	{
-		CString ip = ips.Left(pos);
-		if (ip == "")
-			break;
-		ips = ips.Mid(pos + 1);
-
-		if (ip != "*" && !IsValidAddressFilter(ip))
-		{
-			GetDlgItem(IDC_GROUPS_IPFILTER_ALLOWED)->SetFocus();
-			return _T("Invalid IP address/range/mask");
-		}
-
-		pos = ips.Find(" ");
+		GetDlgItem(IDC_GROUPS_IPFILTER_ALLOWED)->SetFocus();
+		return _T("Invalid IP address/range/mask");
 	}
 
 	return _T("");
@@ -152,8 +112,8 @@ BOOL CGroupsDlgIpFilter::DisplayGroup(t_group *pGroup)
 {
 	m_pGroup = pGroup;
 
-	m_DisallowedAddresses = "";
-	m_AllowedAddresses = "";
+	m_DisallowedAddresses = _T("");
+	m_AllowedAddresses = _T("");
 
 	if (!pGroup)
 	{
@@ -164,9 +124,9 @@ BOOL CGroupsDlgIpFilter::DisplayGroup(t_group *pGroup)
 
 	std::list<CString>::const_iterator iter;
 	for (iter = pGroup->disallowedIPs.begin(); iter != pGroup->disallowedIPs.end(); iter++)
-		m_DisallowedAddresses += *iter + "\r\n";
+		m_DisallowedAddresses += *iter + _T("\r\n");
 	for (iter = pGroup->allowedIPs.begin(); iter != pGroup->allowedIPs.end(); iter++)
-		m_AllowedAddresses += *iter + "\r\n";
+		m_AllowedAddresses += *iter + _T("\r\n");
 	
 	UpdateData(FALSE);
 	
@@ -183,51 +143,8 @@ BOOL CGroupsDlgIpFilter::SaveGroup(t_group *pGroup)
 	pGroup->disallowedIPs.clear();
 	pGroup->allowedIPs.clear();
 
-	CString ips = m_DisallowedAddresses;
-	ips.Replace("\n", " ");
-	ips.Replace("\r", " ");
-	ips.Replace("\t", " ");
-	while (ips.Replace("  ", " "));
-	ips.TrimLeft(" ");
-	ips.TrimRight(" ");
-	ips += " ";
-
-	int pos = ips.Find(" ");
-	while (pos != -1)
-	{
-		CString ip = ips.Left(pos);
-		if (ip == "")
-			break;
-		ips = ips.Mid(pos + 1);
-
-		if (ip == "*" || IsValidAddressFilter(ip))
-			pGroup->disallowedIPs.push_back(ip);
-
-		pos = ips.Find(" ");
-	}
-
-	ips = m_AllowedAddresses;
-	ips.Replace("\n", " ");
-	ips.Replace("\r", " ");
-	ips.Replace("\t", " ");
-	while (ips.Replace("  ", " "));
-	ips.TrimLeft(" ");
-	ips.TrimRight(" ");
-	ips += " ";
-
-	pos = ips.Find(" ");
-	while (pos != -1)
-	{
-		CString ip = ips.Left(pos);
-		if (ip == "")
-			break;
-		ips = ips.Mid(pos + 1);
-
-		if (ip == "*" || IsValidAddressFilter(ip))
-			pGroup->allowedIPs.push_back(ip);
-
-		pos = ips.Find(" ");
-	}
+	ParseIPFilter(m_DisallowedAddresses, &pGroup->disallowedIPs);
+	ParseIPFilter(m_AllowedAddresses, &pGroup->allowedIPs);
 	
 	return TRUE;
 }

@@ -24,6 +24,7 @@
 #include "misc\md5.h"
 #include "Permissions.h"
 #include "tinyxml/tinyxml.h"
+#include "xml_utils.h"
 #include "options.h"
 #include "iputils.h"
 
@@ -720,7 +721,7 @@ CStdString CPermissions::GetHomeDir(LPCTSTR username, bool physicalPath /*=false
 {
 	CUser user;
 	if (!GetUser(username, user))
-		return "";
+		return _T("");
 
 	return GetHomeDir(user, physicalPath);
 }
@@ -960,7 +961,7 @@ void CPermissions::SetKey(TiXmlElement *pXML, LPCTSTR name, LPCTSTR value)
 	ASSERT(pXML);
 	TiXmlElement* pOption = new TiXmlElement("Option");
 	pOption->SetAttribute("Name", ConvToNetwork(name));
-	SetText(pOption, value);
+	XML::SetText(pOption, value);
 	pXML->LinkEndChild(pOption);
 }
 
@@ -990,7 +991,7 @@ void CPermissions::SavePermissions(TiXmlElement *pXML, const t_group &user)
 			for (std::list<CStdString>::const_iterator iter = user.permissions[i].aliases.begin(); iter != user.permissions[i].aliases.end(); iter++)
 			{
 				TiXmlElement *pAlias = new TiXmlElement("Alias");
-				SetText(pAlias, *iter);
+				XML::SetText(pAlias, *iter);
 				pAliases->LinkEndChild(pAlias);
 			}
 		}
@@ -1129,7 +1130,7 @@ BOOL CPermissions::ParseUsersCommand(unsigned char *pData, DWORD dwDataLength)
 						break;
 					}
 				if (!user.pOwner)
-					user.group = "";
+					user.group = _T("");
 			}
 
 			if (!user.pOwner)
@@ -1317,7 +1318,7 @@ void CPermissions::ReadPermissions(TiXmlElement *pXML, t_group &user, BOOL &bGot
 			{
 				for (TiXmlElement* pAlias = pAliases->FirstChildElement("Alias"); pAlias; pAlias = pAlias->NextSiblingElement("Alias"))
 				{
-					CStdString alias = ReadText(pAlias);
+					CStdString alias = XML::ReadText(pAlias);
 					if (alias == _T(""))
 						continue;
 
@@ -1348,7 +1349,7 @@ void CPermissions::ReadPermissions(TiXmlElement *pXML, t_group &user, BOOL &bGot
 			for (TiXmlElement* pOption = pPermission->FirstChildElement("Option"); pOption; pOption = pOption->NextSiblingElement("Option"))
 			{
 				CStdString name = ConvFromNetwork(pOption->Attribute("Name"));
-				CStdString value = ReadText(pOption);
+				CStdString value = XML::ReadText(pOption);
 
 				if (name == _T("FileRead"))
 					dir.bFileRead = value == _T("1");
@@ -1430,29 +1431,6 @@ void CPermissions::AutoCreateDirs(LPCTSTR username)
 			}
 }
 
-CSpeedLimit::t_time ReadTime(TiXmlElement* pElement)
-{
-	CSpeedLimit::t_time t;
-
-	CStdString str = ConvFromNetwork(pElement->Attribute("Hour"));
-	int n = _ttoi(str);
-	if (n < 0 || n > 23)
-		n = 0;
-	t.h = n;
-	str = ConvFromNetwork(pElement->Attribute("Minute"));
-	n = _ttoi(str);
-	if (n < 0 || n > 59)
-		n = 0;
-	t.m = n;
-	str = ConvFromNetwork(pElement->Attribute("Second"));
-	n = _ttoi(str);
-	if (n < 0 || n > 59)
-		n = 0;
-	t.s = n;
-
-	return t;
-}
-
 void CPermissions::ReadSpeedLimits(TiXmlElement *pXML, t_group &group)
 {
 	const CStdString prefixes[] = { _T("Dl"), _T("Ul") };
@@ -1484,63 +1462,8 @@ void CPermissions::ReadSpeedLimits(TiXmlElement *pXML, t_group &group)
 				for (TiXmlElement* pRule = pLimit->FirstChildElement("Rule"); pRule; pRule = pRule->NextSiblingElement("Rule"))
 				{
 					CSpeedLimit limit;
-					str = ConvFromNetwork(pRule->Attribute("Speed"));
-					n = _ttoi(str);
-					if (n < 0 || n > 65535)
-						n = 10;
-					limit.m_Speed = n;
-
-					TiXmlElement* pDays = pRule->FirstChildElement("Days");
-					if (pDays)
-					{
-						str = ReadText(pDays);
-						if (str != _T(""))
-							n = _ttoi(str);
-						else
-							n = 0x7F;
-						limit.m_Day = n & 0x7F;
-					}
-			
-					limit.m_DateCheck = FALSE;
-
-					TiXmlElement* pDate = pRule->FirstChildElement("Date");
-					if (pDate)
-					{
-						limit.m_DateCheck = TRUE;
-						str = ConvFromNetwork(pDate->Attribute("Year"));
-						n = _ttoi(str);
-						if (n < 1900 || n > 3000)
-							n = 2003;
-						limit.m_Date.y = n;
-						str = ConvFromNetwork(pDate->Attribute("Month"));
-						n = _ttoi(str);
-						if (n < 1 || n > 12)
-							n = 1;
-						limit.m_Date.m = n;
-						str = ConvFromNetwork(pDate->Attribute("Day"));
-						n = _ttoi(str);
-						if (n < 1 || n > 31)
-							n = 1;
-						limit.m_Date.d = n;
-					}
-			
-					TiXmlElement* pFrom = pRule->FirstChildElement("From");
-					if (pFrom)
-					{
-						limit.m_FromCheck = TRUE;
-						limit.m_FromTime = ReadTime(pFrom);
-					}
-					else
-						limit.m_FromCheck = FALSE;
-
-					TiXmlElement* pTo = pRule->FirstChildElement("To");
-					if (pTo)
-					{
-						limit.m_ToCheck = TRUE;
-						limit.m_ToTime = ReadTime(pTo);
-					}
-					else
-						limit.m_ToCheck = FALSE;
+					if (!limit.Load(pRule))
+						continue;
 
 					if (group.SpeedLimits[i].size() < 20000)
 						group.SpeedLimits[i].push_back(limit);
@@ -1574,35 +1497,7 @@ void CPermissions::SaveSpeedLimits(TiXmlElement *pXML, const t_group &group)
 
 			TiXmlElement* pRule = pSpeedLimit->LinkEndChild(new TiXmlElement("Rule"))->ToElement();
 
-			pRule->SetAttribute("Speed", limit.m_Speed);
-
-			str.Format(_T("%d"), limit.m_Day);
-			TiXmlElement* pDays = pRule->LinkEndChild(new TiXmlElement("Days"))->ToElement();
-			SetText(pDays, str);
-
-			if (limit.m_DateCheck)
-			{
-				TiXmlElement* pDate = pRule->LinkEndChild(new TiXmlElement("Date"))->ToElement();
-				pRule->SetAttribute("Year", limit.m_Date.y);
-				pRule->SetAttribute("Month", limit.m_Date.m);
-				pRule->SetAttribute("Day", limit.m_Date.d);
-			}
-
-			if (limit.m_FromCheck)
-			{
-				TiXmlElement* pFrom = pRule->LinkEndChild(new TiXmlElement("From"))->ToElement();
-				pRule->SetAttribute("Hour", limit.m_FromTime.h);
-				pRule->SetAttribute("Minute", limit.m_FromTime.m);
-				pRule->SetAttribute("Second", limit.m_FromTime.s);
-			}
-	
-			if (limit.m_ToCheck)
-			{
-				TiXmlElement* pTo = pRule->LinkEndChild(new TiXmlElement("To"))->ToElement();
-				pRule->SetAttribute("Hour", limit.m_ToTime.h);
-				pRule->SetAttribute("Minute", limit.m_ToTime.m);
-				pRule->SetAttribute("Second", limit.m_ToTime.s);
-			}
+			limit.Save(pRule);
 		}
 	}
 }
@@ -1631,7 +1526,7 @@ void CPermissions::ReadIpFilter(TiXmlElement *pXML, t_group &group)
 		{
 			for (TiXmlElement* pIP = pDisallowed->FirstChildElement("IP"); pIP; pIP = pIP->NextSiblingElement("IP"))
 			{
-				CStdString ip = ReadText(pIP);
+				CStdString ip = XML::ReadText(pIP);
 				if (ip == _T(""))
 					continue;
 
@@ -1651,7 +1546,7 @@ void CPermissions::ReadIpFilter(TiXmlElement *pXML, t_group &group)
 		{
 			for (TiXmlElement* pIP = pAllowed->FirstChildElement("IP"); pIP; pIP = pIP->NextSiblingElement("IP"))
 			{
-				CStdString ip = ReadText(pIP);
+				CStdString ip = XML::ReadText(pIP);
 				if (ip == _T(""))
 					continue;
 
@@ -1680,7 +1575,7 @@ void CPermissions::SaveIpFilter(TiXmlElement *pXML, const t_group &group)
 	for (iter = group.disallowedIPs.begin(); iter != group.disallowedIPs.end(); iter++)
 	{
 		TiXmlElement* pIP = pDisallowed->LinkEndChild(new TiXmlElement("IP"))->ToElement();
-		SetText(pIP, *iter);
+		XML::SetText(pIP, *iter);
 	}
 
 	TiXmlElement* pAllowed = pFilter->LinkEndChild(new TiXmlElement("Allowed"))->ToElement();
@@ -1688,7 +1583,7 @@ void CPermissions::SaveIpFilter(TiXmlElement *pXML, const t_group &group)
 	for (iter = group.allowedIPs.begin(); iter != group.allowedIPs.end(); iter++)
 	{
 		TiXmlElement* pIP = pAllowed->LinkEndChild(new TiXmlElement("IP"))->ToElement();
-		SetText(pIP, *iter);
+		XML::SetText(pIP, *iter);
 	}
 }
 
@@ -2054,7 +1949,7 @@ void CPermissions::ReadSettings()
 		for (TiXmlElement* pOption = pGroup->FirstChildElement("Option"); pOption; pOption = pOption->NextSiblingElement("Option"))
 		{
 			CStdString name = ConvFromNetwork(pOption->Attribute("Name"));
-			CStdString value = ReadText(pOption);
+			CStdString value = XML::ReadText(pOption);
 
 			if (name == _T("Bypass server userlimit"))
 				group.nBypassUserLimit = _ttoi(value);
@@ -2104,7 +1999,7 @@ void CPermissions::ReadSettings()
 		for (TiXmlElement* pOption = pUser->FirstChildElement("Option"); pOption; pOption = pOption->NextSiblingElement("Option"))
 		{
 			CStdString name = ConvFromNetwork(pOption->Attribute("Name"));
-			CStdString value = ReadText(pOption);
+			CStdString value = XML::ReadText(pOption);
 
 			if (name == _T("Pass"))
 			{
@@ -2123,7 +2018,7 @@ void CPermissions::ReadSettings()
 					char *res = md5.hex_digest();
 
 					pOption->Clear();
-					SetText(pOption, res);
+					XML::SetText(pOption, res);
 					user.password = res;
 					delete [] tmp;
 					delete [] res;
@@ -2309,19 +2204,4 @@ void CPermissions::DestroyDirlisting(struct t_dirlisting* pListing)
 		pListing = pListing->pNext;
 		delete pPrev;
 	}
-}
-
-CStdString CPermissions::ReadText(TiXmlElement* pElement)
-{
-	TiXmlNode* textNode = pElement->FirstChild();
-	if (!textNode || !textNode->ToText())
-		return _T("");
-
-	return ConvFromNetwork(textNode->Value());					
-}
-
-void CPermissions::SetText(TiXmlElement* pElement, const CStdString& text)
-{
-	pElement->Clear();
-	pElement->LinkEndChild(new TiXmlText(ConvToNetwork(text)));
 }

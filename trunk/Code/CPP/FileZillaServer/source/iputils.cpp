@@ -208,3 +208,35 @@ bool IsUnroutableIP(unsigned int ip)
 
 	return false;
 }
+
+bool ParseIPFilter(CStdString in, std::list<CStdString>* output /*=0*/)
+{
+	bool valid = true;
+
+	in.Replace(_T("\n"), _T(" "));
+	in.Replace(_T("\r"), _T(" "));
+	in.Replace(_T("\t"), _T(" "));
+	while (in.Replace(_T("  "), _T(" ")));
+	in.TrimLeft(_T(" "));
+	in.TrimRight(_T(" "));
+	in += _T(" ");
+
+	int pos;
+	while ((pos = in.Find(_T(" "))) != -1)
+	{
+		CStdString ip = in.Left(pos);
+		if (ip == _T(""))
+			break;
+		in = in.Mid(pos + 1);
+
+		if (ip == _T("*") || IsValidAddressFilter(ip))
+		{
+			if (output)
+				output->push_back(ip);
+		}
+		else
+			valid = false;
+	}
+
+	return valid;
+}

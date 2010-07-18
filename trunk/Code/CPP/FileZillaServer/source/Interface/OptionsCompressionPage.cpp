@@ -52,7 +52,7 @@ BOOL COptionsCompressionPage::IsDataValid()
 {
 	UpdateData();
 
-	if (atoi(m_LevelMin) < 1 || atoi(m_LevelMin) > 8)
+	if (_ttoi(m_LevelMin) < 1 || _ttoi(m_LevelMin) > 8)
 	{
 		m_pOptionsDlg->ShowPage(this);
 		GetDlgItem(IDC_OPTIONS_COMPRESSION_LEVELMIN)->SetFocus();
@@ -60,7 +60,7 @@ BOOL COptionsCompressionPage::IsDataValid()
 		return false;
 	}
 
-	if (atoi(m_LevelMax) < 8 || atoi(m_LevelMax) > 9)
+	if (_ttoi(m_LevelMax) < 8 || _ttoi(m_LevelMax) > 9)
 	{
 		m_pOptionsDlg->ShowPage(this);
 		GetDlgItem(IDC_OPTIONS_COMPRESSION_LEVELMAX)->SetFocus();
@@ -70,31 +70,12 @@ BOOL COptionsCompressionPage::IsDataValid()
 
 
 
-	CString str = m_disallowedIPs;
-	str.Replace('\r', ' ');
-	str.Replace('\n', ' ');
-	str.Replace('\r', ' ');
-	while (str.Replace("  ", " "));
-	if (str != "")
-		str += " ";
-
-	CString ips;
-
-	int pos = str.Find(' ');
-	while (pos != -1)
+	if (!ParseIPFilter(m_disallowedIPs))
 	{
-		CString sub = str.Left(pos);
-		str = str.Mid(pos + 1);
-		str.TrimLeft(' ');
-
-		if (!IsValidAddressFilter(sub))
-		{
-			m_pOptionsDlg->ShowPage(this);
-			GetDlgItem(IDC_OPTIONS_COMPRESSION_DISALLOWED_IPS)->SetFocus();
-			AfxMessageBox(_T("Invalid IP address (range/mask) enterd."));
-			return false;
-		}
-		pos = str.Find(' ');
+		m_pOptionsDlg->ShowPage(this);
+		GetDlgItem(IDC_OPTIONS_COMPRESSION_DISALLOWED_IPS)->SetFocus();
+		AfxMessageBox(_T("Invalid IP address (range/mask) enterd."));
+		return false;
 	}
 
 	return TRUE;
@@ -103,16 +84,16 @@ BOOL COptionsCompressionPage::IsDataValid()
 void COptionsCompressionPage::SaveData()
 {
 	m_pOptionsDlg->SetOption(OPTION_MODEZ_USE, m_UseModeZ);
-	m_pOptionsDlg->SetOption(OPTION_MODEZ_LEVELMIN, atoi(m_LevelMin));
-	m_pOptionsDlg->SetOption(OPTION_MODEZ_LEVELMAX, atoi(m_LevelMax));
+	m_pOptionsDlg->SetOption(OPTION_MODEZ_LEVELMIN, _ttoi(m_LevelMin));
+	m_pOptionsDlg->SetOption(OPTION_MODEZ_LEVELMAX, _ttoi(m_LevelMax));
 	m_pOptionsDlg->SetOption(OPTION_MODEZ_ALLOWLOCAL, !m_DisallowLocal);
 	m_pOptionsDlg->SetOption(OPTION_MODEZ_DISALLOWED_IPS, m_disallowedIPs);
 }
 
 void COptionsCompressionPage::LoadData()
 {
-	m_LevelMin.Format("%d", static_cast<int>(m_pOptionsDlg->GetOptionVal(OPTION_MODEZ_LEVELMIN)));
-	m_LevelMax.Format("%d", static_cast<int>(m_pOptionsDlg->GetOptionVal(OPTION_MODEZ_LEVELMAX)));
+	m_LevelMin.Format(_T("%d"), static_cast<int>(m_pOptionsDlg->GetOptionVal(OPTION_MODEZ_LEVELMIN)));
+	m_LevelMax.Format(_T("%d"), static_cast<int>(m_pOptionsDlg->GetOptionVal(OPTION_MODEZ_LEVELMAX)));
 	m_UseModeZ = m_pOptionsDlg->GetOptionVal(OPTION_MODEZ_USE) != 0;
 	m_DisallowLocal = !m_pOptionsDlg->GetOptionVal(OPTION_MODEZ_ALLOWLOCAL);
 	m_disallowedIPs =  m_pOptionsDlg->GetOption(OPTION_MODEZ_DISALLOWED_IPS);

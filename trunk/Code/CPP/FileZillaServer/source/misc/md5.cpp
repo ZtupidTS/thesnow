@@ -43,16 +43,10 @@ documentation and/or software.
 
 
 #include "stdafx.h"
-
-
 #include "md5.h"
 
 #include <assert.h>
 #include <iostream>
-
-
-
-
 // MD5 simple initialization method
 
 MD5::MD5(){
@@ -68,12 +62,15 @@ MD5::MD5(){
 // operation, processing another message block, and updating the
 // context.
 
-void MD5::update (uint1 *input, uint4 input_length) {
+void MD5::update (const uint1 *input, uint4 input_length) {
+  unsigned char *input2 = new uint1[input_length];
+  memcpy(input2, input, input_length);
 
   uint4 input_index, buffer_index;
   uint4 buffer_space;                // how much space is left in buffer
 
   if (finalized){  // so we can't update!
+	delete [] input2;
     cerr << "MD5::update:  Can't update a finalized digest!" << endl;
     return;
   }
@@ -93,22 +90,23 @@ void MD5::update (uint1 *input, uint4 input_length) {
   // Transform as many times as possible.
   if (input_length >= buffer_space) { // ie. we have enough to fill the buffer
     // fill the rest of the buffer and transform
-    memcpy (buffer + buffer_index, input, buffer_space);
+    memcpy (buffer + buffer_index, input2, buffer_space);
     transform (buffer);
 
-    // now, transform each 64-byte piece of the input, bypassing the buffer
+    // now, transform each 64-byte piece of the input2, bypassing the buffer
     for (input_index = buffer_space; input_index + 63 < input_length; 
 	 input_index += 64)
-      transform (input+input_index);
+      transform (input2+input_index);
 
     buffer_index = 0;  // so we can buffer remaining
   }
   else
-    input_index=0;     // so we can buffer the whole input
+    input_index=0;     // so we can buffer the whole input2
 
 
   // and here we do the buffering:
   memcpy(buffer+buffer_index, input+input_index, input_length-input_index);
+  delete [] input2;
 }
 
 
@@ -116,21 +114,16 @@ void MD5::update (uint1 *input, uint4 input_length) {
 // MD5 update for files.
 // Like above, except that it works on files (and uses above as a primitive.)
 
-void MD5::update(FILE *file)
-{
-	
-	unsigned char buffer[1024];
-	
-	int len = fread(buffer, 1, 1024, file);
-	
-	while (len)
-	{
-		update(buffer, len);
-		len = fread(buffer, 1, 1024, file);
-	}
-		
-	fclose (file);
-		
+void MD5::update(FILE *file){
+
+  unsigned char buffer[1024];
+  int len;
+
+  while (len=fread(buffer, 1, 1024, file))
+    update(buffer, len);
+
+  fclose (file);
+
 }
 
 
@@ -253,13 +246,13 @@ MD5::MD5(ifstream& stream){
 
 unsigned char *MD5::raw_digest(){
 
-  uint1 *s = new uint1[16];
-
   if (!finalized){
     cerr << "MD5::raw_digest:  Can't get digest if you haven't "<<
       "finalized the digest!" <<endl;
-    return ( (unsigned char*) "");
+    return 0;
   }
+
+  uint1 *s = new uint1[16];
 
   memcpy(s, digest, 16);
   return s;
@@ -270,13 +263,13 @@ unsigned char *MD5::raw_digest(){
 char *MD5::hex_digest(){
 
   int i;
-  char *s= new char[33];
-
   if (!finalized){
     cerr << "MD5::hex_digest:  Can't get digest if you haven't "<<
       "finalized the digest!" <<endl;
-    return "";
+    return 0;
   }
+
+  char *s= new char[33];
 
   for (i=0; i<16; i++)
     sprintf(s+i*2, "%02x", digest[i]);
@@ -292,7 +285,11 @@ char *MD5::hex_digest(){
 
 ostream& operator<<(ostream &stream, MD5 context){
 
-  stream << context.hex_digest();
+  char* hex = context.hex_digest();
+  if( hex ) {
+	stream << hex;
+	delete [] hex;
+  }
   return stream;
 }
 
@@ -339,7 +336,6 @@ void MD5::init(){
 #define S42 10
 #define S43 15
 #define S44 21
-
 
 
 
@@ -469,24 +465,24 @@ void MD5::decode (uint4 *output, uint1 *input, uint4 len){
 
 
 // Note: Replace "for loop" with standard memcpy if possible.
-void MD5::memcpy (uint1 *output, uint1 *input, uint4 len){
+/*void MD5::memcpy (uint1 *output, uint1 *input, uint4 len){
 
   unsigned int i;
 
   for (i = 0; i < len; i++)
     output[i] = input[i];
-}
+}*/
 
 
 
 // Note: Replace "for loop" with standard memset if possible.
-void MD5::memset (uint1 *output, uint1 value, uint4 len){
+/*void MD5::memset (uint1 *output, uint1 value, uint4 len){
 
   unsigned int i;
 
   for (i = 0; i < len; i++)
     output[i] = value;
-}
+}*/
 
 
 

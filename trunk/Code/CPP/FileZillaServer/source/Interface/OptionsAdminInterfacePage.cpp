@@ -89,9 +89,9 @@ BOOL COptionsAdminInterfacePage::OnInitDialog()
 {
 	COptionsPage::OnInitDialog();
 	
-	if (m_NewPass != "")
+	if (m_NewPass != _T(""))
 	{
-		m_NewPass = "";
+		m_NewPass = _T("");
 		m_bChangePass = TRUE;
 		UpdateData(FALSE);
 
@@ -106,6 +106,8 @@ BOOL COptionsAdminInterfacePage::OnInitDialog()
 
 BOOL COptionsAdminInterfacePage::IsDataValid()
 {
+	USES_CONVERSION;
+
 	if (!UpdateData(TRUE))
 		return FALSE;
 
@@ -122,101 +124,80 @@ BOOL COptionsAdminInterfacePage::IsDataValid()
 	std::list<CString> ipBindList;
 	for (int i = 0; i<bindIPs.GetLength(); i++)
 	{
-		char cur = bindIPs[i];
-		if ((cur<'0' || cur>'9') && cur!='.')
+		TCHAR cur = bindIPs[i];
+		if ((cur < '0' || cur > '9') && cur != '.')
 		{
-			if (sub=="" && cur=='*')
+			if (sub == _T("") && cur == '*')
 			{
 				ipBindList.clear();
-				ipBindList.push_back("*");
+				ipBindList.push_back(_T("*"));
 				break;
 			}
 
-			if (sub != "")
+			if (sub != _T(""))
 			{
 				//Parse IP
 				SOCKADDR_IN sockAddr;
-				memset(&sockAddr,0,sizeof(sockAddr));
+				memset(&sockAddr,0, sizeof(sockAddr));
 			
 				sockAddr.sin_family = AF_INET;
-				sockAddr.sin_addr.s_addr = inet_addr(sub);
+				sockAddr.sin_addr.s_addr = inet_addr(T2A(sub));
 			
 				if (sockAddr.sin_addr.s_addr != INADDR_NONE)
 				{
 					sub = inet_ntoa(sockAddr.sin_addr);
 					std::list<CString>::iterator iter;
-					for (iter = ipBindList.begin(); iter!=ipBindList.end(); iter++)
-						if (*iter==sub)
+					for (iter = ipBindList.begin(); iter != ipBindList.end(); iter++)
+						if (*iter == sub)
 							break;
 					if (iter == ipBindList.end())
 						ipBindList.push_back(sub);
 				}
-				sub = "";
+				sub = _T("");
 			}
 		}
 		else
 			sub += cur;
 	}
-	if (sub != "")
+	if (sub != _T(""))
 	{
 		//Parse IP
 		SOCKADDR_IN sockAddr;
-		memset(&sockAddr,0,sizeof(sockAddr));
+		memset(&sockAddr, 0, sizeof(sockAddr));
 		
 		sockAddr.sin_family = AF_INET;
-		sockAddr.sin_addr.s_addr = inet_addr(sub);
+		sockAddr.sin_addr.s_addr = inet_addr(T2A(sub));
 		
 		if (sockAddr.sin_addr.s_addr != INADDR_NONE)
 		{
 			sub = inet_ntoa(sockAddr.sin_addr);
 			std::list<CString>::iterator iter;
-			for (iter = ipBindList.begin(); iter!=ipBindList.end(); iter++)
+			for (iter = ipBindList.begin(); iter != ipBindList.end(); iter++)
 				if (*iter==sub)
 					break;
 			if (iter == ipBindList.end())
 				ipBindList.push_back(sub);
 		}
-		sub = "";
+		sub = _T("");
 	}
-	bindIPs = "";
+	bindIPs = _T("");
 	for (std::list<CString>::iterator iter = ipBindList.begin(); iter!=ipBindList.end(); iter++)
-		if (*iter != "127.0.0.1")
-			bindIPs += *iter + " ";
+		if (*iter != _T("127.0.0.1"))
+			bindIPs += *iter + _T(" ");
 
-	bindIPs.TrimRight(" ");
-
-	CString ips = m_IpAddresses;
-	ips.Replace("\n", " ");
-	ips.Replace("\r", " ");
-	ips.Replace("\t", " ");
-	while (ips.Replace("  ", " "));
-	ips.TrimLeft(" ");
-	ips.TrimRight(" ");
-	ips += " ";
-
-	int pos = ips.Find(" ");
-	while (pos != -1)
-	{
-		CString ip = ips.Left(pos);
-		if (ip == "")
-			break;
-		ips = ips.Mid(pos + 1);
-
-		if (ip != "*" && !IsValidAddressFilter(ip))
-		{
-			GetDlgItem(IDC_OPTIONS_ADMININTERFACE_IPADDRESSES)->SetFocus();
-			AfxMessageBox(_T("Invalid IP address/range/mask"));
-			return FALSE;
-		}
-
-		pos = ips.Find(" ");
-	}
-					
+	bindIPs.TrimRight(_T(" "));
 	m_IpBindingsResult = bindIPs;
+
+	if (!ParseIPFilter(m_IpAddresses))
+	{
+		GetDlgItem(IDC_OPTIONS_ADMININTERFACE_IPADDRESSES)->SetFocus();
+		AfxMessageBox(_T("Invalid IP address/range/mask"));
+		return FALSE;
+	}
 
 	if (m_bChangePass)
 	{
-		if (m_NewPass == "" && m_NewPass2 == "")
+		if (m_NewPass == _T("") && m_NewPass2 == _T(""))
 			return TRUE;
 		if (m_NewPass.GetLength() < 6)
 		{
@@ -244,7 +225,7 @@ void COptionsAdminInterfacePage::SaveData()
 	if (m_bChangePass)
 		m_pOptionsDlg->SetOption(OPTION_ADMINPASS, m_NewPass);
 	else
-		m_pOptionsDlg->SetOption(OPTION_ADMINPASS, "*");
+		m_pOptionsDlg->SetOption(OPTION_ADMINPASS, _T("*"));
 }
 
 void COptionsAdminInterfacePage::LoadData()

@@ -111,6 +111,8 @@ BOOL CStatusCtrl::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
 
 DWORD __stdcall CStatusCtrl::RichEditStreamInCallback(DWORD_PTR dwCookie, LPBYTE pbBuff, LONG cb, LONG *pcb)
 {
+	char* output = (char*)pbBuff;
+	
 	CStatusCtrl *pThis = (CStatusCtrl *)dwCookie;
 	if (pThis->m_headerPos != -1)
 	{
@@ -123,7 +125,7 @@ DWORD __stdcall CStatusCtrl::RichEditStreamInCallback(DWORD_PTR dwCookie, LPBYTE
 		else
 			pThis->m_headerPos = -1;
 
-		memcpy(pbBuff, (LPCTSTR)pThis->m_RTFHeader, len);
+		memcpy(output, (const char*)pThis->m_RTFHeader, len);
 		*pcb = len;
 	}
 	else
@@ -139,15 +141,15 @@ DWORD __stdcall CStatusCtrl::RichEditStreamInCallback(DWORD_PTR dwCookie, LPBYTE
 				if (pThis->m_bEmpty)
 				{
 					pThis->m_bEmpty = false;
-					memcpy(pbBuff, "\\cf", 3);
-					pbBuff += 3;
+					memcpy(output, "\\cf", 3);
+					output += 3;
 					cb -= 3;
 					*pcb += 3;
 				}
 				else
 				{
-					memcpy(pbBuff, "\\par \\cf", 8);
-					pbBuff += 8;
+					memcpy(output, "\\par \\cf", 8);
+					output += 8;
 					cb -= 8;
 					*pcb += 8;
 				}
@@ -155,61 +157,74 @@ DWORD __stdcall CStatusCtrl::RichEditStreamInCallback(DWORD_PTR dwCookie, LPBYTE
 				{
 				default:
 				case 0:
-					*(pbBuff++) = '2';
+					*(output++) = '2';
 					break;
 				case 1:
-					*(pbBuff++) = '5';
+					*(output++) = '5';
 					break;
 				case 2:
-					*(pbBuff++) = '3';
+					*(output++) = '3';
 					break;
 				case 3:
-					*(pbBuff++) = '4';
+					*(output++) = '4';
 					break;
 				}
 				buffer.pos = 0;
 			}
-			const char* status = (LPCTSTR)buffer.status;
-			const char *p = status + buffer.pos;
+			LPCTSTR status = buffer.status;
+			LPCTSTR p = status + buffer.pos;
 			while (*p && cb > 9)
 			{	
 				switch (*p)
 				{
 				case '\\':
-					*(pbBuff++) = '\\';
-					*(pbBuff++) = '\\';
+					*(output++) = '\\';
+					*(output++) = '\\';
 					cb -= 2;
 					*pcb += 2;
 					break;
 				case '{':
-					*(pbBuff++) = '\\';
-					*(pbBuff++) = '{';
+					*(output++) = '\\';
+					*(output++) = '{';
 					cb -= 2;
 					*pcb += 2;
 					break;
 				case '}':
-					*(pbBuff++) = '\\';
-					*(pbBuff++) = '}';
+					*(output++) = '\\';
+					*(output++) = '}';
 					cb -= 2;
 					*pcb += 2;
 					break;
 				case '\r':
 					break;
 				case '\n':
-					*(pbBuff++) = '\\';
-					*(pbBuff++) = 's';
-					*(pbBuff++) = 't';
-					*(pbBuff++) = 'a';
-					*(pbBuff++) = 't';
-					*(pbBuff++) = 'u';
-					*(pbBuff++) = 's';
+					*(output++) = '\\';
+					*(output++) = 's';
+					*(output++) = 't';
+					*(output++) = 'a';
+					*(output++) = 't';
+					*(output++) = 'u';
+					*(output++) = 's';
 					cb -= 7;
 					*pcb += 7;
 					break;
 				default:
-					*(pbBuff++) = *p;
-					cb--;
-					(*pcb)++;
+					if (*p > 127)
+					{
+						*(output++) = '\\';
+						*(output++) = 'u';
+						sprintf(output, "%d ", (signed short)*p);
+						output += 4;
+						*(output++) = ' ';
+						cb -= 7;
+						*pcb += 7;
+					}
+					else
+					{
+						*(output++) = (char)*p;
+						cb--;
+						(*pcb)++;
+					}
 				}
 				p++;
 
@@ -219,12 +234,13 @@ DWORD __stdcall CStatusCtrl::RichEditStreamInCallback(DWORD_PTR dwCookie, LPBYTE
 				pThis->m_statusBuffer.pop_front();
 				if (pThis->m_statusBuffer.empty())
 				{
-					memcpy(pbBuff, "} ", 2);
+					memcpy(output, "} ", 2);
+					output += 2;
 					*pcb += 2;
 				}
 				else
 				{
-					*(pbBuff++) = ' ';
+					*(output++) = ' ';
 					(*pcb)++;
 				}
 			}
@@ -236,7 +252,8 @@ DWORD __stdcall CStatusCtrl::RichEditStreamInCallback(DWORD_PTR dwCookie, LPBYTE
 			pThis->m_statusBuffer.pop_front();
 			if (pThis->m_statusBuffer.empty())
 			{
-				memcpy(pbBuff, "} ", 2);
+				memcpy(output, "} ", 2);
+				output += 2;
 				*pcb += 2;
 			}
 		}
@@ -253,14 +270,10 @@ void CStatusCtrl::OnOutputcontextClearall()
 	buffer.type = 0;
 	m_statusBuffer.push_back(buffer);
 
-	EDITSTREAM es;
-	es.dwCookie = (DWORD)this; // Pass a pointer to the CString to the callback function 
-	es.pfnCallback = RichEditStreamInCallback; // Specify the pointer to the callback function.
-	
-	StreamIn(SF_RTF, es); // Perform the streaming
+	DoStreamIn();
+
 	SetSel(-1, -1);
 	LimitText(1000*1000);
-	int res = GetLimitText();
 	
 	m_bEmpty = TRUE;
 	m_nMoveToBottom = 0;
@@ -289,7 +302,7 @@ int CStatusCtrl::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		return -1;
 
 	USES_CONVERSION;
-	
+
 	m_RTFHeader = "{\\rtf1\\ansi\\deff0";
 
 	HFONT hSysFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
@@ -324,11 +337,8 @@ int CStatusCtrl::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 	m_headerPos = 0;
 
-	EDITSTREAM es;
-	es.dwCookie = (DWORD)this; // Pass a pointer to the CString to the callback function 
-	es.pfnCallback = RichEditStreamInCallback; // Specify the pointer to the callback function.
-	
-	StreamIn(SF_RTF, es); // Perform the streaming
+	DoStreamIn();
+
 	SetSel(-1, -1);
 	LimitText(1000*1000);
 	
@@ -360,11 +370,6 @@ void CStatusCtrl::Run()
 
 	m_headerPos = 0;
 
-	EDITSTREAM es;
-
-	es.dwCookie = (DWORD)this; // Pass a pointer to the CString to the callback function 
-	es.pfnCallback = RichEditStreamInCallback; // Specify the pointer to the callback function.
-
 	CWnd *pFocusWnd = GetFocus();
 	if (pFocusWnd && pFocusWnd == this)
 		AfxGetMainWnd()->SetFocus();
@@ -387,7 +392,8 @@ void CStatusCtrl::Run()
 		nScrollToEnd = TRUE;
 	HideSelection(TRUE, FALSE);
 	SetSel(-1, -1);
-	StreamIn(SF_RTF | SFF_SELECTION, es); // Perform the streaming
+
+	DoStreamIn(SFF_SELECTION);
 
 	int count = GetLineCount();
 	if (count > 1000)
@@ -483,4 +489,16 @@ BOOL CStatusCtrl::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 	LineScroll(-zDelta / 120 * 3);
 
 	return TRUE;
+}
+
+void CStatusCtrl::DoStreamIn(int extraFlags)
+{
+	EDITSTREAM es;
+	es.dwCookie = (DWORD)this; // Pass a pointer to the CString to the callback function 
+	es.pfnCallback = RichEditStreamInCallback; // Specify the pointer to the callback function.
+	
+#ifdef _UNICODE
+//	extraFlags |= SF_UNICODE;
+#endif
+	StreamIn(extraFlags | SF_RTF, es); // Perform the streaming
 }

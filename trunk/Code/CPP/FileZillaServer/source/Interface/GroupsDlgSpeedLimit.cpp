@@ -471,5 +471,5 @@ BOOL CGroupsDlgSpeedLimit::SaveGroup(t_group *pGroup)
 
 CString CGroupsDlgSpeedLimit::Validate()
 {
-	return "";
+	return _T("");
 }

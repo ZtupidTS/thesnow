@@ -31,7 +31,7 @@
 #define WIN32_LEAN_AND_MEAN		// Selten verwendete Teile der Windows-Header nicht einbinden
 
 #pragma warning (disable : 4786)
-#pragma warning (disable : 4996)	//function or variable may be unsafe
+#pragma warning (disable : 4996)	//added --function or variable may be unsafe
 
 #include <windows.h>
 #include <crtdbg.h>
@@ -81,6 +81,7 @@ const UINT WM_FILEZILLA_THREADMSG = ::RegisterWindowMessage(FILEZILLA_THREAD_MES
 #define FTM_GOOFFLINE 4
 #define FTM_CONTROL 5
 #define FTM_NEWSOCKET_SSL 6
+#define FTM_HASHRESULT 7
 
 #define USERCONTROL_GETLIST 0
 #define USERCONTROL_CONNOP 1

@@ -231,7 +231,7 @@ bool COptionsDlg::AddPage(CSAPrefsSubDlg &page, UINT nCaptionID, CSAPrefsSubDlg 
 {
 	CString str;
 	str.LoadString(nCaptionID);
-	return CSAPrefsDialog::AddPage(page,str,pDlgParent);
+	return CSAPrefsDialog::AddPage(page, str, pDlgParent);
 }
 
 bool COptionsDlg::IsNumeric(LPCTSTR str)
@@ -283,6 +283,8 @@ BOOL COptionsDlg::Init(unsigned char *pData, DWORD dwDataLength)
 			m_OptionsCache[i].str = ConvToLocal(ConvFromNetwork(tmp));
 #endif
 			p += len;
+
+			delete [] tmp;
 		}
 		else if (nType == 1)
 		{

@@ -71,7 +71,7 @@ BOOL CFileZillaserverApp::InitInstance()
 {
 	COptions *pOptions = new COptions;
 
-	if (m_lpCmdLine && _tcslen(m_lpCmdLine) >= 11 && !_tcsncmp(m_lpCmdLine, "/adminport ", 11))
+	if (m_lpCmdLine && _tcslen(m_lpCmdLine) >= 11 && !_tcsncmp(m_lpCmdLine, _T("/adminport "), 11))
 	{
 		int nAdminPort = _ttoi(m_lpCmdLine + 11);
 
@@ -210,7 +210,7 @@ BOOL CAboutDlg::OnInitDialog()
 				   0xFF0000, 0xFF);
 	m_mail.SetURL("mailto:Tim.Kosse@gmx.de");
 
-	m_cDonate.SubclassDlgItem(IDC_DONATE, this, "https://www.paypal.com/xclick/business=Tim.Kosse%40gmx.de&item_name=FileZilla&cn=Enter+your+comments+here&tax=0&currency_code=USD");
+	m_cDonate.SubclassDlgItem(IDC_DONATE, this, _T("https://www.paypal.com/xclick/business=Tim.Kosse%40gmx.de&item_name=FileZilla&cn=Enter+your+comments+here&tax=0&currency_code=USD"));
 	
 	m_cVersion.SetWindowText(GetVersionString());
 	return TRUE;  // return TRUE unless you set the focus to a control

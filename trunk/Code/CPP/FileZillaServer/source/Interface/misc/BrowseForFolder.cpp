@@ -26,6 +26,7 @@ CBrowseForFolder::CBrowseForFolder(const HWND hParent /*= NULL*/, const LPITEMID
 	m_bi.lpfn = BrowseCallbackProc;
 	m_bi.lParam = reinterpret_cast<long>(this);
 	m_bi.pszDisplayName = m_szSelected;
+	m_szSelected[0] = 0;
 }
 
 CBrowseForFolder::CBrowseForFolder(const HWND hParent, const LPITEMIDLIST pidl, const CString& strTitle)
@@ -37,6 +38,7 @@ CBrowseForFolder::CBrowseForFolder(const HWND hParent, const LPITEMIDLIST pidl, 
 	m_bi.lpfn = BrowseCallbackProc;
 	m_bi.lParam = reinterpret_cast<long>(this);
 	m_bi.pszDisplayName = m_szSelected;
+	m_szSelected[0] = 0;
 }
 
 CBrowseForFolder::~CBrowseForFolder()

@@ -50,7 +50,7 @@ public:
 public:
    CString m_csFontName;
 
-	void		SetConstantText(const char *pText)	{m_csConstantText = pText;}
+	void		SetConstantText(LPCTSTR pText)	{m_csConstantText = pText;}
 
    int m_fontSize, m_fontWeight;
    BOOL m_grayText;

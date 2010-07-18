@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="Windows-1252"?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="9.00"
@@ -163,7 +163,7 @@
 				AdditionalIncludeDirectories="&quot;$(ProjectDir)includes&quot;;&quot;C:\dev\libraries\zlib-1.2.3&quot;;&quot;$(ProjectDir)..\..\boost&quot;"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS"
 				StringPooling="true"
-				RuntimeLibrary="2"
+				RuntimeLibrary="0"
 				BufferSecurityCheck="true"
 				EnableFunctionLevelLinking="true"
 				UsePrecompiledHeader="2"
@@ -196,6 +196,7 @@
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
 				AdditionalLibraryDirectories="$(ProjectDir)..\..\boost\stage\lib"
+				IgnoreDefaultLibraryNames="LIBCMT.lib"
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile=".\Release/FileZilla server.pdb"
 				GenerateMapFile="true"
@@ -203,7 +204,6 @@
 				SubSystem="2"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
-				OptimizeForWindows98="0"
 				RandomizedBaseAddress="1"
 				DataExecutionPrevention="0"
 				TargetMachine="1"
@@ -887,6 +887,10 @@
 			</File>
 			<File
 				RelativePath="FileZilla server.rc"
+				>
+			</File>
+			<File
+				RelativePath=".\hash_thread.cpp"
 				>
 			</File>
 			<File
@@ -1604,6 +1608,10 @@
 					/>
 				</FileConfiguration>
 			</File>
+			<File
+				RelativePath=".\xml_utils.cpp"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -1670,6 +1678,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\hash_thread.h"
+				>
+			</File>
+			<File
 				RelativePath=".\iputils.h"
 				>
 			</File>
@@ -1679,6 +1691,10 @@
 			</File>
 			<File
 				RelativePath="MFC64bitFix.h"
+				>
+			</File>
+			<File
+				RelativePath=".\OptionLimits.h"
 				>
 			</File>
 			<File
@@ -1719,6 +1735,10 @@
 			</File>
 			<File
 				RelativePath="version.h"
+				>
+			</File>
+			<File
+				RelativePath=".\xml_utils.h"
 				>
 			</File>
 		</Filter>

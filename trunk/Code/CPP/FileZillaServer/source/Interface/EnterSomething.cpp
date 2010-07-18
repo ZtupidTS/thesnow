@@ -65,7 +65,7 @@ void CEnterSomething::OnOK()
 {
 	UpdateData(TRUE);
 	//Check if a value was entered
-	if (m_String == "" && !allowEmpty)
+	if (m_String == _T("") && !allowEmpty)
 		AfxMessageBox(IDS_ERRORMSG_ENTERSTRING, MB_ICONEXCLAMATION);
 	else
 		CDialog::OnOK();
@@ -78,7 +78,7 @@ void CEnterSomething::OnChangeEdit1()
 	if (allowEmpty)
 		m_OkCtrl.EnableWindow(TRUE);
 	else
-		m_OkCtrl.EnableWindow((m_String != "") ? TRUE : FALSE);
+		m_OkCtrl.EnableWindow((m_String != _T("")) ? TRUE : FALSE);
 }
 
 BOOL CEnterSomething::OnInitDialog() 

@@ -511,6 +511,8 @@ void CHyperLink::ReportError(int nError)
 // As seen in the August, 1997 Windows Developer's Journal.
 HINSTANCE CHyperLink::GotoURL(LPCTSTR url, int showcmd)
 {
+	USES_CONVERSION;
+
     TCHAR key[MAX_PATH + MAX_PATH];	
 
     // First try ShellExecute()
@@ -528,7 +530,7 @@ HINSTANCE CHyperLink::GotoURL(LPCTSTR url, int showcmd)
                 if (pos == NULL) {                     // No quotes found
                     pos = _tcsstr(key, _T("%1"));       // Check for %1, without quotes
                     if (pos == NULL)                   // No parameter at all...
-                        pos = key+lstrlen(key)-1;
+                        pos = key+lstrlen(key) - 1;
                     else
                         *pos = '\0';                   // Remove the parameter
                 }
@@ -537,12 +539,12 @@ HINSTANCE CHyperLink::GotoURL(LPCTSTR url, int showcmd)
 
                 lstrcat(pos, _T(" "));
                 lstrcat(pos, url);
-                result = (HINSTANCE) WinExec(key,showcmd);
+                result = (HINSTANCE)WinExec(T2A(key), showcmd);
 				PROCESS_INFORMATION ProcessInformation;  
 				STARTUPINFO startupinfo;
-				memset(&startupinfo,0,sizeof(startupinfo));
-				startupinfo.cb=sizeof(startupinfo);		
-				CreateProcess(0,key,0,0,0,0,0,0,&startupinfo,&ProcessInformation);
+				memset(&startupinfo, 0, sizeof(startupinfo));
+				startupinfo.cb = sizeof(startupinfo);		
+				CreateProcess(0, key, 0, 0, 0, 0, 0, 0, &startupinfo, &ProcessInformation);
             }
         }
 	}

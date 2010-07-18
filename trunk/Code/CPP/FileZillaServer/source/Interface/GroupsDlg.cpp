@@ -50,10 +50,10 @@ CGroupsDlg::CGroupsDlg(CWnd* pParent, bool localConnection)
 	m_pSharedFoldersPage = new CGroupsDlgSharedFolders(this);
 	m_pIpFilterPage = new CGroupsDlgIpFilter(this);
 	
-	AddPage(*m_pGeneralPage, "常规");
-	AddPage(*m_pSharedFoldersPage, "共享文件夹");
-	AddPage(*m_pSpeedLimitPage, "速度限制");
-	AddPage(*m_pIpFilterPage, "IP 过滤");
+	AddPage(*m_pGeneralPage, _T("常规"));
+	AddPage(*m_pSharedFoldersPage, _T("共享文件夹"));
+	AddPage(*m_pSpeedLimitPage, _T("速度限制"));
+	AddPage(*m_pIpFilterPage, _T("IP 过滤"));
 }
 
 CGroupsDlg::~CGroupsDlg()
@@ -88,7 +88,7 @@ BEGIN_MESSAGE_MAP(CGroupsDlg, CSAPrefsDialog)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
-// Behandlungsroutinen f黵 Nachrichten CGroupsDlg 
+// Behandlungsroutinen für Nachrichten CGroupsDlg 
 
 BOOL CGroupsDlg::OnInitDialog() 
 {

@@ -20,12 +20,12 @@ static char THIS_FILE[] = __FILE__;
 CSplitterWndEx::CSplitterWndEx()
 {
 	m_arr = 0;
+	m_length = 0;
 }
 
 CSplitterWndEx::~CSplitterWndEx()
 {
-	if (m_arr)
-		delete [] m_arr;
+	delete [] m_arr;
 }
 
 int CSplitterWndEx::Id_short(int row, int col)
@@ -242,7 +242,6 @@ void CSplitterWndEx::HideRow(int rowHide,int rowToResize)
     }
 
 	int oldsize=m_pRowInfo[m_arr[rowHide]].nCurSize;
-	int oldidealsize=m_pRowInfo[m_arr[rowHide]].nIdealSize;
 	for (int row=rowHide;row<(m_length-1);row++)
 	{
 		if (m_arr[row+1] < m_nRows )
@@ -256,7 +255,6 @@ void CSplitterWndEx::HideRow(int rowHide,int rowToResize)
 		m_pRowInfo[m_arr[rowToResize]].nCurSize+=oldsize+m_cySplitter;
 		m_pRowInfo[m_arr[rowToResize]].nIdealSize+=oldsize+m_cySplitter;
 		oldsize+=0x10000*(rowToResize+1);
-		oldidealsize+=0x10000*(rowToResize+1);
 	}
 
 	m_pRowInfo[m_nRows - 1].nCurSize =oldsize;
@@ -317,28 +315,26 @@ void CSplitterWndEx::HideColumn(int colHide, int colToResize)
 			Id_short(row, m_nCols -1));
     }
 
-	int oldsize=m_pColInfo[m_arr[colHide]].nCurSize;
-	int oldidealsize=m_pColInfo[m_arr[colHide]].nIdealSize;
-	for (int col=colHide; col<(m_length-1); col++)
+	int oldsize = m_pColInfo[m_arr[colHide]].nCurSize;
+	for (int col = colHide; col < (m_length - 1); ++col)
 	{
-		if (m_arr[col+1] < m_nCols )
+		if (m_arr[col + 1] < m_nCols)
 		{
-			m_pColInfo[m_arr[col]].nCurSize=m_pColInfo[m_arr[col+1]].nCurSize;
-			m_pColInfo[m_arr[col]].nIdealSize=m_pColInfo[m_arr[col+1]].nCurSize;		
+			m_pColInfo[m_arr[col]].nCurSize = m_pColInfo[m_arr[col + 1]].nCurSize;
+			m_pColInfo[m_arr[col]].nIdealSize = m_pColInfo[m_arr[col + 1]].nCurSize;		
 		}
 	}
-	if (colToResize!=-1)
+	if (colToResize != -1)
 	{
-		m_pColInfo[m_arr[colToResize]].nCurSize+=oldsize+m_cxSplitter;
-		m_pColInfo[m_arr[colToResize]].nIdealSize+=oldsize+m_cxSplitter;
-		oldsize+=0x10000*(colToResize+1);
-		oldidealsize+=0x10000*(colToResize+1);
+		m_pColInfo[m_arr[colToResize]].nCurSize += oldsize + m_cxSplitter;
+		m_pColInfo[m_arr[colToResize]].nIdealSize += oldsize + m_cxSplitter;
+		oldsize += 0x10000 * (colToResize + 1);
 	}
 
-	m_pColInfo[m_nCols - 1].nCurSize =oldsize;
-	m_pColInfo[m_nCols - 1].nIdealSize =oldsize;
+	m_pColInfo[m_nCols - 1].nCurSize = oldsize;
+	m_pColInfo[m_nCols - 1].nIdealSize = oldsize;
 	
-	m_arr[colHide] = m_nCols-1;
+	m_arr[colHide] = m_nCols - 1;
 
     m_nCols--;
 	RecalcLayout();

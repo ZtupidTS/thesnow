@@ -52,7 +52,7 @@ protected:
 	DWORD Run();
 	static DWORD WINAPI ThreadProc(LPVOID lpParameter);
 	HANDLE m_hEventStarted;
-	bool m_started;;
+	bool m_started;
 };
 
 #endif // !defined(AFX_THREAD_H__67621B15_8724_4B5D_9343_7667075C89F2__INCLUDED_)

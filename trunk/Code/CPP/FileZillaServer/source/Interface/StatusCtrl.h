@@ -50,6 +50,7 @@ public:
 	// Generierte Nachrichtenzuordnungsfunktionen
 protected:
 
+	void DoStreamIn(int extraFlags = 0);
 	static DWORD __stdcall CStatusCtrl::RichEditStreamInCallback(DWORD_PTR dwCookie, LPBYTE pbBuff, LONG cb, LONG *pcb);
 
 	struct t_buffer
@@ -70,7 +71,7 @@ protected:
 	BOOL m_doPopupCursor;
 	const static COLORREF m_ColTable[16]; // Colour Table
 
-	CString m_RTFHeader;
+	CStringA m_RTFHeader;
 
 	//{{AFX_MSG(CStatusCtrl)
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);

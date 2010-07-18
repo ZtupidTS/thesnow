@@ -15,7 +15,7 @@
 ;Product Info
 
   !define PRODUCT_NAME "FileZilla Server"
-  !define PRODUCT_VERSION "beta 0.9.34"
+  !define PRODUCT_VERSION "beta 0.9.35"
   !define PRODUCT_UNINSTALL "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
   Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
 
@@ -176,6 +176,9 @@ SectionIn 2
   SetOutPath $INSTDIR\source\misc
   File "..\misc\*.h"
   File "..\misc\*.cpp"
+  SetOutPath $INSTDIR\source\hash_algorithms
+  File "..\hash_algorithms\*.h"
+  File "..\hash_algorithms\*.c"
   SetOutPath $INSTDIR\source\interface
   File "..\interface\*.cpp"
   File "..\interface\*.h"
@@ -512,6 +515,8 @@ Section "Uninstall"
   Delete $INSTDIR\source\res\*.rc2
   Delete $INSTDIR\source\misc\*.h
   Delete $INSTDIR\source\misc\*.cpp
+  Delete $INSTDIR\source\hash_algorithms\*.h
+  Delete $INSTDIR\source\hash_algorithms\*.c
   Delete $INSTDIR\source\interface\*.cpp
   Delete $INSTDIR\source\interface\*.h
   Delete "$INSTDIR\source\interface\FileZilla Server Interface.vcproj"
@@ -542,6 +547,7 @@ Section "Uninstall"
 
   RMDir "$INSTDIR\source\res"
   RMDir "$INSTDIR\source\misc"
+  RMDir "$INSTDIR\source\hash_algorithms"
   RMDir "$INSTDIR\source\interface\res"
   RMDir "$INSTDIR\source\interface\misc"
   RMDir "$INSTDIR\source\interface"

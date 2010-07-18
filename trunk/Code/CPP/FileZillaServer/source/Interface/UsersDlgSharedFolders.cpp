@@ -106,8 +106,8 @@ BOOL CUsersDlgSharedFolders::OnInitDialog()
 {
 	CSAPrefsSubDlg::OnInitDialog();
 	
-	m_cDirs.InsertColumn(0, "目录", LVCFMT_LEFT, 120);
-	m_cDirs.InsertColumn(1, "别名", LVCFMT_LEFT, 200);
+	m_cDirs.InsertColumn(0, _T("目录"), LVCFMT_LEFT, 120);
+	m_cDirs.InsertColumn(1, _T("别名"), LVCFMT_LEFT, 200);
 	UpdateData(FALSE);
 	
 	m_imagelist.Create( 16, 16, ILC_MASK, 3, 3 );
@@ -140,7 +140,7 @@ CString CUsersDlgSharedFolders::Validate()
 	if (pUser->group == _T("") && pUser->permissions.empty())
 	{
 		m_cDirs.SetFocus();
-		return _T("You need to share at least one directory and set it as home directory.");
+		return _T("您至少需要设置一个共享目录并指定一个主目录才能完成操作.");
 	}
 
 	bool hasHome = false;
@@ -149,7 +149,7 @@ CString CUsersDlgSharedFolders::Validate()
 		if (iter->dir == _T("") || iter->dir == _T("/") || iter->dir == _T("\\"))
 		{
 			m_cDirs.SetFocus();
-			return _T("At least one shared directory is not a valid local path.");
+			return _T("至少有一个共享目录不是本地路径,请检查一下.");
 		}
 
 		if (iter->bIsHome)
@@ -231,7 +231,6 @@ void CUsersDlgSharedFolders::OnItemchangingDirs(NMHDR* pNMHDR, LRESULT* pResult)
 {
 	*pResult = 0;
 	UpdateData(TRUE);
-	NM_LISTVIEW* pNMListView = (NM_LISTVIEW*)pNMHDR;
 	t_user *pUser = m_pOwner->GetCurrentUser();
 	if (!pUser)
 		return;
@@ -329,14 +328,14 @@ void CUsersDlgSharedFolders::OnDirmenuAdd()
 		dir.bFileAppend = dir.bFileDelete = 
 		dir.bAutoCreate = dir.bFileWrite = 
 		dir.bIsHome = FALSE;
-	dir.dir="";
-	if (pUser->group == "" && !m_cDirs.GetItemCount())
+	dir.dir = _T("");
+	if (pUser->group == _T("") && !m_cDirs.GetItemCount())
 		dir.bIsHome = TRUE;
 	else
 		dir.bIsHome = FALSE;
 
 	pUser->permissions.push_back(dir);
-	int nItem=m_cDirs.InsertItem(LVIF_TEXT |LVIF_PARAM|LVIF_IMAGE, 0, "<new directory>", 0, 0, dir.bIsHome?1:0, pUser->permissions.size()-1);
+	int nItem = m_cDirs.InsertItem(LVIF_TEXT |LVIF_PARAM|LVIF_IMAGE, 0, _T("<新共享目录>"), 0, 0, dir.bIsHome?1:0, pUser->permissions.size()-1);
 	m_cDirs.SetItemState(nItem, LVIS_SELECTED, LVIS_SELECTED);
 	m_cDirs.SetItemState(nItem, LVIS_SELECTED, LVIS_SELECTED);
 	m_cDirs.SetFocus();
@@ -353,22 +352,22 @@ void CUsersDlgSharedFolders::OnDirmenuRemove()
 	selpos = m_cDirs.GetFirstSelectedItemPosition();
 	if (!selpos)
 		return;
-	int nItem=m_cDirs.GetNextSelectedItem(selpos);
-	int index=m_cDirs.GetItemData(nItem);
+	int nItem = m_cDirs.GetNextSelectedItem(selpos);
+	int index = m_cDirs.GetItemData(nItem);
 	m_cDirs.DeleteItem(nItem);
-	int i=0;
-	for (std::vector<t_directory>::iterator iter = pUser->permissions.begin(); iter!=pUser->permissions.end(); iter++, i++)
-		if (i==index)
+	int i = 0;
+	for (std::vector<t_directory>::iterator iter = pUser->permissions.begin(); iter != pUser->permissions.end(); ++iter, ++i)
+		if (i == index)
 		{
 			pUser->permissions.erase(iter);
 			break;
 		}
-	for (i=0;i<m_cDirs.GetItemCount();i++)
+	for (i = 0; i < m_cDirs.GetItemCount(); i++)
 	{
-		int data=m_cDirs.GetItemData(i);
-		if (data>index)
+		int data = m_cDirs.GetItemData(i);
+		if (data > index)
 		{
-			m_cDirs.SetItemData(i, data-1);
+			m_cDirs.SetItemData(i, data - 1);
 		}
 	}
 	SetCtrlState();
@@ -396,20 +395,20 @@ void CUsersDlgSharedFolders::OnDirmenuSetashomedir()
 		return;
 
 	POSITION selpos;
-	selpos=m_cDirs.GetFirstSelectedItemPosition();
+	selpos = m_cDirs.GetFirstSelectedItemPosition();
 	if (!selpos)
 		return;
-	int nItem=m_cDirs.GetNextSelectedItem(selpos);
+	int nItem = m_cDirs.GetNextSelectedItem(selpos);
 	
-	for (unsigned int j=0; j<pUser->permissions.size(); j++)
+	for (unsigned int j = 0; j<pUser->permissions.size(); j++)
 	{
 		LVITEM item;
-		memset(&item,0,sizeof(item));
-		item.mask=LVIF_IMAGE|LVIF_PARAM;
-		item.iItem=j;
+		memset(&item, 0, sizeof(item));
+		item.mask = LVIF_IMAGE|LVIF_PARAM;
+		item.iItem = j;
 		m_cDirs.GetItem(&item);
-		item.iImage = (j==(unsigned int)nItem)?1:0;
-		pUser->permissions[item.lParam].bIsHome=0;
+		item.iImage = (j == (unsigned int)nItem) ? 1 : 0;
+		pUser->permissions[item.lParam].bIsHome = 0;
 		m_cDirs.SetItem(&item);
 	}
 	int index = m_cDirs.GetItemData(nItem);
@@ -421,10 +420,10 @@ void CUsersDlgSharedFolders::OnEndlabeleditDirs(NMHDR* pNMHDR, LRESULT* pResult)
 	LV_DISPINFO* pDispInfo = (LV_DISPINFO*)pNMHDR;
 	if (pDispInfo->item.pszText)
 	{
-		if (pDispInfo->item.pszText[0]==0)
+		if (pDispInfo->item.pszText[0] == 0)
 		{
-			AfxMessageBox("请选择一个文件夹!");
-			*pResult=FALSE;
+			AfxMessageBox(_T("请选择一个文件夹!"));
+			*pResult = FALSE;
 		}
 		else
 		{
@@ -432,12 +431,12 @@ void CUsersDlgSharedFolders::OnEndlabeleditDirs(NMHDR* pNMHDR, LRESULT* pResult)
 			if (!pUser)
 				return;
 			pUser->permissions[pDispInfo->item.lParam].dir = pDispInfo->item.pszText;
-			*pResult=TRUE;
+			*pResult = TRUE;
 		}	
 	}
 	else
 	{
-		if (m_cDirs.GetItemText(pDispInfo->item.iItem,0)=="")
+		if (m_cDirs.GetItemText(pDispInfo->item.iItem, 0) == _T(""))
 		{
 			t_user *pUser = m_pOwner->GetCurrentUser();
 			if (!pUser)
@@ -445,8 +444,8 @@ void CUsersDlgSharedFolders::OnEndlabeleditDirs(NMHDR* pNMHDR, LRESULT* pResult)
 			
 			m_cDirs.DeleteItem(pDispInfo->item.iItem);
 			int i=0;
-			for (std::vector<t_directory>::iterator iter=pUser->permissions.begin(); iter!=pUser->permissions.end(); iter++, i++)
-				if (i==pDispInfo->item.lParam)
+			for (std::vector<t_directory>::iterator iter = pUser->permissions.begin(); iter != pUser->permissions.end(); iter++, i++)
+				if (i == pDispInfo->item.lParam)
 				{
 					pUser->permissions.erase(iter);
 					break;
@@ -475,7 +474,7 @@ void CUsersDlgSharedFolders::OnDblclkDirs(NMHDR* pNMHDR, LRESULT* pResult)
 		{
 			CSBDestination sb(m_hWnd, IDS_BROWSEFORFOLDER);
 			sb.SetFlags(BIF_RETURNONLYFSDIRS | BIF_STATUSTEXT);
-			sb.SetInitialSelection(m_cDirs.GetItemText(nItem,0));
+			sb.SetInitialSelection(m_cDirs.GetItemText(nItem, 0));
 			if (sb.SelectFolder())
 			{
 				m_cDirs.SetItemText(nItem, 0, sb.GetSelectedFolder());
@@ -611,7 +610,7 @@ void CUsersDlgSharedFolders::OnDirmenuEditAliases()
 
 	if (pUser->permissions[index].bIsHome)
 	{
-		AfxMessageBox("Can't set aliases for home dir, this would create a recursive directory structure.");
+		AfxMessageBox(_T("不能设置主目录别名,那样将会创建一个无限循环的目录树."));
 		return;
 	}
 
@@ -621,20 +620,20 @@ void CUsersDlgSharedFolders::OnDirmenuEditAliases()
 	if (dlg.DoModal() == IDOK)
 	{
 		CString aliases = dlg.m_String;
-		while (aliases.Replace("||", "|"));
-		aliases.TrimLeft("|");
-		aliases.TrimRight("|");
+		while (aliases.Replace(_T("||"), _T("|")));
+		aliases.TrimLeft(_T("|"));
+		aliases.TrimRight(_T("|"));
 		m_cDirs.SetItemText(nItem, 1, aliases);
 		
 		pUser->permissions[index].aliases.clear();
-		aliases += "|";
+		aliases += _T("|");
 		int pos;
 		do 
 		{
-			pos = aliases.Find("|");
+			pos = aliases.Find(_T("|"));
 
 			CString alias = aliases.Left(pos);
-			if (alias != "")
+			if (alias != _T(""))
 				pUser->permissions[index].aliases.push_back(alias);
 			aliases = aliases.Mid(pos + 1);
 		} while (pos != -1);

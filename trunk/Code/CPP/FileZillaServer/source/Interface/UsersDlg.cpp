@@ -50,10 +50,10 @@ CUsersDlg::CUsersDlg(CWnd* pParent, bool localConnection)
 	m_pSharedFoldersPage = new CUsersDlgSharedFolders(this);
 	m_pIpFilterPage = new CUsersDlgIpFilter(this);
 
-	AddPage(*m_pGeneralPage, "General");
-	AddPage(*m_pSharedFoldersPage, "Shared folders");
-	AddPage(*m_pSpeedLimitPage, "Speed Limits");
-	AddPage(*m_pIpFilterPage, "IP Filter");
+	AddPage(*m_pGeneralPage, _T("常规设置"));
+	AddPage(*m_pSharedFoldersPage, _T("共享目录"));
+	AddPage(*m_pSpeedLimitPage, _T("速度限制"));
+	AddPage(*m_pIpFilterPage, _T("地址过滤"));
 }
 
 CUsersDlg::~CUsersDlg()
@@ -257,7 +257,7 @@ void CUsersDlg::OnUsermenuAdd()
 
 		t_user user;
 		user.user = dlg.m_Name;
-		if (dlg.m_Group != "")
+		if (dlg.m_Group != _T(""))
 		{
 			user.group = dlg.m_Group;
 			user.nBypassUserLimit = 2;
@@ -275,7 +275,7 @@ void CUsersDlg::OnUsermenuAdd()
 		}
 		user.nIpLimit = 0;
 		user.nUserLimit = 0;
-		user.password = "";
+		user.password = _T("");
 		int nItem = m_cUserlist.AddString(user.user);
 		if (nItem <= m_olduser)
 			m_olduser++;

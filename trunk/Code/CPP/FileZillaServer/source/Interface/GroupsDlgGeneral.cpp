@@ -100,12 +100,12 @@ CString CGroupsDlgGeneral::Validate()
 {
 	UpdateData(TRUE);
 	
-	if (atoi(m_MaxConnCount)<0 || atoi(m_MaxConnCount)>999999999)
+	if (_ttoi(m_MaxConnCount)<0 || _ttoi(m_MaxConnCount)>999999999)
 	{
 		m_cMaxConnCount.SetFocus();
 		return _T("The maximum user count has to be between 0 and 999999999!");
 	}
-	if (atoi(m_MaxConnCount)<0 || atoi(m_MaxConnCount)>999999999)
+	if (_ttoi(m_MaxConnCount)<0 || _ttoi(m_MaxConnCount)>999999999)
 	{
 		m_cIpLimit.SetFocus();
 		return _T("The maximum user limit per IP has to be between 0 and 999999999!");
@@ -144,9 +144,9 @@ BOOL CGroupsDlgGeneral::DisplayGroup(const t_group *pGroup)
 	{
 		m_nEnabled = 0;
 		m_nMaxUsersBypass = 0;
-		m_IpLimit = "";
-		m_MaxConnCount = "";
-		m_Comments = "";
+		m_IpLimit = _T("");
+		m_MaxConnCount = _T("");
+		m_Comments = _T("");
 		m_nForceSsl = 0;
 		
 		UpdateData(FALSE);
@@ -157,9 +157,9 @@ BOOL CGroupsDlgGeneral::DisplayGroup(const t_group *pGroup)
 	m_nEnabled = pGroup->nEnabled;
 	m_nMaxUsersBypass = pGroup->nBypassUserLimit;
 	CString str;
-	str.Format("%d", pGroup->nUserLimit);
+	str.Format(_T("%d"), pGroup->nUserLimit);
 	m_MaxConnCount = str;
-	str.Format("%d", pGroup->nIpLimit);
+	str.Format(_T("%d"), pGroup->nIpLimit);
 	m_IpLimit = str;
 	m_Comments = pGroup->comment;
 	m_nForceSsl = pGroup->forceSsl;
@@ -176,8 +176,8 @@ BOOL CGroupsDlgGeneral::SaveGroup(t_group *pGroup)
 
     pGroup->nEnabled = m_nEnabled;		
 	pGroup->nBypassUserLimit = m_nMaxUsersBypass;
-	pGroup->nUserLimit = atoi(m_MaxConnCount);
-	pGroup->nIpLimit = atoi(m_IpLimit);
+	pGroup->nUserLimit = _ttoi(m_MaxConnCount);
+	pGroup->nIpLimit = _ttoi(m_IpLimit);
 	pGroup->comment = m_Comments;
 	pGroup->forceSsl = m_nForceSsl;
 	

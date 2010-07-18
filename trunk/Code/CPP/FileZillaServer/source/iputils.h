@@ -24,3 +24,4 @@ bool IsValidAddressFilter(CStdString& filter, bool allowWildcards = true);
 bool MatchesFilter(const CStdString& filter, unsigned int ip, LPCTSTR pIp);
 bool MatchesRegExp(const CStdString& filter, unsigned int addr);
 bool IsUnroutableIP(unsigned int ip);
+bool ParseIPFilter(CStdString in, std::list<CStdString>* output = 0);
