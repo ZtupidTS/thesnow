@@ -81,7 +81,7 @@ static void programUsage() {
   printf("\nLog destinations:\n");
   Logger::listLoggers();
   printf("\nAvailable configuration parameters:\n");
-  Configuration::listParams();
+  Configuration::listParams(ConfServer);
 }
 
 static void MsgBoxOrLog(const char* msg, bool isError=false) {
@@ -99,7 +99,7 @@ static void MsgBoxOrLog(const char* msg, bool isError=false) {
   }
 }
 
-static void processParams(int argc, const char* argv[]) {
+static void processParams(int argc, char** argv) {
   for (int i=1; i<argc; i++) {
     try {
 
@@ -218,7 +218,7 @@ static void processParams(int argc, const char* argv[]) {
 // -=- main
 //
 
-int main(int argc, const char* argv[]) {
+int WINAPI WinMain(HINSTANCE inst, HINSTANCE prevInst, char* cmdLine, int cmdShow) {
   int result = 0;
 
   try {
@@ -234,6 +234,9 @@ int main(int argc, const char* argv[]) {
 
     // - Print program details and process the command line
     programInfo();
+
+	int argc = __argc;
+	char **argv = __argv;
     processParams(argc, argv);
 
     // - Run the server if required

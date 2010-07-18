@@ -1,6 +1,8 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_PREREQ([2.57])
 AC_INIT([tigervnc], [1.0.90], [http://www.tigervnc.org])
+BUILD=`date +%Y%m%d`
+AC_CONFIG_AUX_DIR([.])
 AM_INIT_AUTOMAKE([-Wall foreign dist-bzip2])
 
 AC_CONFIG_SUBDIRS([common/jpeg common/zlib])
@@ -65,6 +67,20 @@ if test "$GXX" = yes; then
 fi
 
 AC_PATH_XTRA
+
+dnl Check gnutls availability
+AC_ARG_ENABLE([gnutls],
+	AS_HELP_STRING([--enable-gnutls],
+		       [build in GNUTLS based encryption support (default yes)]),
+	[enable_gnutls="$enableval"], [enable_gnutls=yes])
+GNUTLS_LIBS=
+if test "x$enable_gnutls" = xyes; then
+	AC_CHECK_LIB([gnutls], [gnutls_global_init],
+		     [GNUTLS_LIBS='-lgnutls'
+		      AC_DEFINE([HAVE_GNUTLS], 1, [Is gnutls present? ])])
+fi
+AC_SUBST([GNUTLS_LIBS])
+AM_CONDITIONAL([HAVE_GNUTLS], [ ! test "x$GNUTLS_LIBS" = x ])
 
 VNCCONFIG_DIR='vncconfig'
 AC_ARG_ENABLE([vncconfig],
@@ -153,6 +169,11 @@ AC_CHECK_DECLS([CLSID_ActiveDesktop], [BUILD_WINVNC=yes], [],
 	         #include <shlguid.h>
 	         ]])
 AM_CONDITIONAL([BUILD_WINVNC], [ test "x$BUILD_WINVNC" = xyes ])
+
+# Packaging stuff
+AM_CONDITIONAL([X86_64], [test "x$host_cpu" = "xx86_64"])
+
+AC_SUBST(BUILD)
 
 AC_OUTPUT([
 Makefile

@@ -1,5 +1,5 @@
 ;
-; jdclrss2.asm - colorspace conversion (64-bit SSE2)
+; jdclrss2-64.asm - colorspace conversion (64-bit SSE2)
 ;
 ; Copyright 2009 Pierre Ossman <ossman@cendio.se> for Cendio AB
 ; Copyright 2009 D. R. Commander
@@ -72,7 +72,7 @@ EXTN(jsimd_ycc_rgb_convert_sse2):
 	pop	rcx
 
 	mov	rdi, r13
-	mov	rax, r14
+	mov	eax, r14d
 	test	rax,rax
 	jle	near .return
 .rowloop:
