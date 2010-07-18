@@ -84,8 +84,8 @@ void COptionsMiscPage::LoadData()
 {
 	m_bDontShowPass = m_pOptionsDlg->GetOptionVal(OPTION_LOGSHOWPASS) == 0;
 	m_bStartMinimized = m_pOptionsDlg->m_pInterfaceOptions->GetOptionVal(IOPTION_STARTMINIMIZED) != 0;
-	m_TransferBufferSize.Format("%d", static_cast<int>(m_pOptionsDlg->GetOptionVal(OPTION_BUFFERSIZE)));
-	m_TransferBufferSize2.Format("%d", static_cast<int>(m_pOptionsDlg->GetOptionVal(OPTION_BUFFERSIZE2)));
+	m_TransferBufferSize.Format(_T("%d"), static_cast<int>(m_pOptionsDlg->GetOptionVal(OPTION_BUFFERSIZE)));
+	m_TransferBufferSize2.Format(_T("%d"), static_cast<int>(m_pOptionsDlg->GetOptionVal(OPTION_BUFFERSIZE2)));
 	m_bSharedWrite = m_pOptionsDlg->GetOptionVal(OPTION_SHAREDWRITE) != 0;
 	m_bActiveIgnoreLocal = m_pOptionsDlg->GetOptionVal(OPTION_ACTIVE_IGNORELOCAL) != 0;
 }

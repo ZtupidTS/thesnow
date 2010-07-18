@@ -67,13 +67,13 @@ void CGenerateCertificateDlg::OnOK()
 	UpdateData(TRUE);
 	if (m_country.GetLength() != 2)
 	{
-		AfxMessageBox("Please enter the 2 digit country code");
+		AfxMessageBox(_T("Please enter the 2 digit country code"));
 		return;
 	}
 
 	if (m_file == _T(""))
 	{
-		AfxMessageBox("Please enter a filename");
+		AfxMessageBox(_T("Please enter a filename"));
 		return;
 	}
 
@@ -87,26 +87,26 @@ void CGenerateCertificateDlg::OnOK()
 
 	CString error;
 	USES_CONVERSION;
-	if (CAsyncSslSocketLayer::CreateSslCertificate(T2CA(m_file), bits, (unsigned char*)T2CA(m_country),
+	if (CAsyncSslSocketLayer::CreateSslCertificate(LPCTSTR(m_file), bits, (unsigned char*)T2CA(m_country),
 		(unsigned char*)T2CA(m_state), (unsigned char*)T2CA(m_city), (unsigned char*)T2CA(m_organization), (unsigned char*)T2CA(m_unit),
 		(unsigned char*)T2CA(m_cname), (unsigned char*)T2CA(m_email), error))
 	{
-		AfxMessageBox("Certificate generated successfully.");
+		AfxMessageBox(_T("Certificate generated successfully."));
 		EndDialog(IDOK);
 	}
 	else
 	{
-		if (error != "")
-			AfxMessageBox("Certificate could not be generated.\nReason: " + error);
+		if (error != _T(""))
+			AfxMessageBox(_T("Certificate could not be generated.\nReason: ") + error);
 		else
-			AfxMessageBox("Certificate could not be generated.");
+			AfxMessageBox(_T("Certificate could not be generated."));
 	}
 }
 
 void CGenerateCertificateDlg::OnBrowse()
 {
 	UpdateData();
-	CFileDialog dlg(FALSE, 0, "certificate.crt");
+	CFileDialog dlg(FALSE, 0, _T("certificate.crt"));
 	if (dlg.DoModal() == IDOK)
 	{
 		m_file = dlg.GetPathName();

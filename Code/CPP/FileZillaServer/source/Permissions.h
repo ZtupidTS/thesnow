@@ -142,7 +142,7 @@ public:
 	int GetFact(LPCTSTR username, CStdString currentDir, CStdString file, CStdString& fact, CStdString& logicalName, bool enabledFacts[3]);
 
 	static void DestroyDirlisting(struct t_dirlisting* pListing);
-		
+
 protected:
 	bool Init();
 	void UpdateInstances();
@@ -161,9 +161,6 @@ protected:
 	void SetKey(TiXmlElement *pXML, LPCTSTR name, LPCTSTR value);
 	void SetKey(TiXmlElement *pXML, LPCTSTR name, int value);
 	
-	CStdString ReadText(TiXmlElement* pElement);
-	void SetText(TiXmlElement* pElement, const CStdString& text);
-
 	int GetRealDirectory(CStdString directory, const CUser &user, t_directory &ret, BOOL &truematch);
 
 	static CCriticalSectionWrapper m_sync;

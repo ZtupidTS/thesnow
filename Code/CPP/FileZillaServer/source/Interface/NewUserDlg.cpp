@@ -66,18 +66,18 @@ void CNewUserDlg::OnChangeNewuserName()
 {
 	//Disable the OK button if the edit field is empty
 	UpdateData(TRUE);
-	m_cOkCtrl.EnableWindow(m_Name!=""?TRUE:FALSE);
+	m_cOkCtrl.EnableWindow(m_Name != _T("") ? TRUE : FALSE);
 }
 
 BOOL CNewUserDlg::OnInitDialog() 
 {
 	CDialog::OnInitDialog();
 	
-	m_cOkCtrl.EnableWindow(m_Name!=""?TRUE:FALSE);	
+	m_cOkCtrl.EnableWindow(m_Name != _T("") ? TRUE : FALSE);	
 
-	m_cGroup.AddString("<none>");
+	m_cGroup.AddString(_T("<none>"));
 	m_cGroup.SetCurSel(0);
-	for (std::list<CString>::iterator iter=m_GroupList.begin(); iter!=m_GroupList.end(); iter++)
+	for (std::list<CString>::iterator iter = m_GroupList.begin(); iter != m_GroupList.end(); iter++)
 		m_cGroup.AddString(*iter);
 	
 	return TRUE;  // return TRUE unless you set the focus to a control

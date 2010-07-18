@@ -440,7 +440,7 @@ BOOL CUsersDlgSpeedLimit::DisplayUser(const t_user *pUser)
 		m_DownloadSpeedLimits = pUser->SpeedLimits[download];
 		m_UploadSpeedLimits = pUser->SpeedLimits[upload];
 
-		if (pUser->group == "")
+		if (pUser->group == _T(""))
 		{
 			((CButton *)GetDlgItem(IDC_USERS_SPEEDLIMIT_SERVERBYPASS_DOWNLOAD))->SetButtonStyle(BS_AUTOCHECKBOX);
 			((CButton *)GetDlgItem(IDC_USERS_SPEEDLIMIT_SERVERBYPASS_UPLOAD))->SetButtonStyle(BS_AUTOCHECKBOX);
@@ -483,5 +483,5 @@ BOOL CUsersDlgSpeedLimit::SaveUser(t_user *pUser)
 
 CString CUsersDlgSpeedLimit::Validate()
 {
-	return "";
+	return _T("");
 }

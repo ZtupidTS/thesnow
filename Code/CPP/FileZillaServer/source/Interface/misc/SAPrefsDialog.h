@@ -72,7 +72,7 @@ public:
 	void SetConstantText(CString t)	{m_csConstantText = t;}
 
 	// add a page (page, page title, optional parent)
-	bool AddPage(CSAPrefsSubDlg &page, const char *pCaption, CSAPrefsSubDlg *pDlgParent = NULL);
+	bool AddPage(CSAPrefsSubDlg &page, LPCTSTR pCaption, CSAPrefsSubDlg *pDlgParent = NULL);
 
 	// show a page
 	bool ShowPage(int iPage);

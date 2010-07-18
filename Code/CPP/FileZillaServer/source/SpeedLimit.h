@@ -27,6 +27,7 @@
 #pragma once
 #endif // _MSC_VER > 1000
 
+class TiXmlElement;
 class CSpeedLimit
 {
 public:
@@ -38,20 +39,31 @@ public:
 	virtual char * FillBuffer(char *p) const;
 	virtual unsigned char * ParseBuffer(unsigned char *pBuffer, int length);
 
-	BOOL		m_DateCheck;
+	BOOL m_DateCheck;
 	struct t_date
 	{
-		int y, m, d;
+		int y;
+		int m;
+		int d;
 	} m_Date;
 
-	BOOL		m_FromCheck;
-	BOOL		m_ToCheck;
+	bool m_FromCheck;
+	bool m_ToCheck;
+
 	struct t_time
 	{
-		int h, m, s;
+		int h;
+		int m;
+		int s;
 	} m_FromTime, m_ToTime;
-	int			m_Speed;
+	int	m_Speed;
 	int m_Day;
+
+	void Save(TiXmlElement* pElement);
+	bool Load(TiXmlElement* pElement);
+
+protected:
+	t_time ReadTime(TiXmlElement* pElement);
 };
 
 typedef std::vector<CSpeedLimit> SPEEDLIMITSLIST;

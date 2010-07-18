@@ -43,6 +43,7 @@ std::map<CStdString, int> CControlSocket::m_UserCount;
 CCriticalSectionWrapper CControlSocket::m_Sync;
 
 CControlSocket::CControlSocket(CServerThread *pOwner)
+	: m_hash_algorithm(CHashThread::SHA1)
 {
 	m_status.loggedon = FALSE;
 	m_status.hammerValue = 0;
@@ -90,7 +91,9 @@ CControlSocket::CControlSocket(CServerThread *pOwner)
 	for (int i = 0; i < 3; i++)
 		m_facts[i] = true;
 
-	m_shutdown = false;;
+	m_shutdown = false;
+
+	m_hash_id = 0;
 }
 
 CControlSocket::~CControlSocket()
@@ -486,6 +489,7 @@ void CControlSocket::OnClose(int nErrorCode)
 #define COMMAND_STRU	45
 #define COMMAND_CLNT	46
 #define COMMAND_MFMT	47
+#define COMMAND_HASH	48
 
 typedef struct
 {
@@ -543,6 +547,7 @@ static const t_command commands[]={	COMMAND_USER, _T("USER"), TRUE,	 TRUE,
 									COMMAND_STRU, _T("STRU"), TRUE, FALSE,
 									COMMAND_CLNT, _T("CLNT"), TRUE, TRUE,
 									COMMAND_MFMT, _T("MFMT"), TRUE, FALSE
+									//COMMAND_HASH, _T("HASH"), TRUE, FALSE
 						};
 
 void CControlSocket::ParseCommand()
@@ -2224,6 +2229,7 @@ void CControlSocket::ParseCommand()
 			Send(_T("502 Command not implemented for this authentication type"));
 		break;
 	case COMMAND_FEAT:
+		{
 		if (!Send(_T("211-Features:")))
 			break;
 		if (!Send(_T(" MDTM")))
@@ -2254,9 +2260,22 @@ void CControlSocket::ParseCommand()
 			break;
 		if (!Send(_T(" MFMT")))
 			break;
+/*		CStdString hash = _T(" HASH ");
+		hash += _T("SHA-1");
+		if (m_hash_algorithm == CHashThread::SHA1)
+			hash += _T("*");
+		hash += _T(";SHA-512");
+		if (m_hash_algorithm == CHashThread::SHA512)
+			hash += _T("*");
+		hash += _T(";MD5");
+		if (m_hash_algorithm == CHashThread::MD5)
+			hash += _T("*");
+		if (!Send(hash))
+			break;*/
 		if (!Send(_T("211 End")))
 			break;
 		break;
+		}
 	case COMMAND_MODE:
 		if (args == _T("S") || args == _T("s"))
 		{
@@ -2310,6 +2329,8 @@ void CControlSocket::ParseCommand()
 		}
 		else if (args.Left(4) == _T("MLST"))
 			ParseMlstOpts(args.Mid(4));
+		else if (args.Left(4) == _T("HASH"))
+			ParseHashOpts(args.Mid(4));
 		else
 			Send(_T("501 Option not understood"));
 		break;
@@ -2634,6 +2655,42 @@ void CControlSocket::ParseCommand()
 
 					CloseHandle(hFile);
 				}
+			}
+		}
+		break;
+	case COMMAND_HASH:
+		{
+			//Unquote args
+			if (!UnquoteArgs(args))
+			{
+				Send( _T("501 Syntax error") );
+				break;
+			}
+
+			CStdString physicalFile, logicalFile;
+			int error = m_pOwner->m_pPermissions->CheckFilePermissions(m_status.user, args, m_CurrentServerDir, FOP_READ, physicalFile, logicalFile);
+			if (error & PERMISSION_DENIED)
+			{
+				Send(_T("550 Permission denied"));
+				ResetTransferstatus();
+			}
+			else if (error & PERMISSION_INVALIDNAME)
+			{
+				Send(_T("550 Filename invalid."));
+				ResetTransferstatus();
+			}
+			else if (error)
+			{
+				Send(_T("550 File not found"));
+				ResetTransferstatus();
+			}
+			else
+			{
+				int hash_res = m_pOwner->GetHashThread().Hash(physicalFile, m_hash_algorithm, m_hash_id, m_pOwner);
+				if (hash_res == CHashThread::BUSY)
+					Send(_T("450 Another hash operation is already in progress."));
+				else if (hash_res != CHashThread::PENDING)
+					Send(_T("550 Failed to hash file"));
 			}
 		}
 		break;
@@ -3446,7 +3503,7 @@ CStdString CControlSocket::GetPassiveIP()
 				m_transferstatus.usedResolvedIP = false;
 
 				if (!bValidSockAddr)
-					return "";
+					return _T("");
 				return inet_ntoa(sockAddr.sin_addr);
 			}
 		}
@@ -3537,4 +3594,70 @@ void CControlSocket::ParseMlstOpts(CStdString args)
 		result += _T(" ") + factstr;
 
 	Send(result);
+}
+
+void CControlSocket::ParseHashOpts(CStdString args)
+{
+	if (args == _T(""))
+	{
+		switch (m_hash_algorithm)
+		{
+		case CHashThread::MD5:
+			Send(_T("200 MD5"));
+			break;
+		case CHashThread::SHA512:
+			Send(_T("200 SHA-512"));
+			break;
+		default:
+			Send(_T("200 SHA-1"));
+			break;
+		}
+		return;
+	}
+	if (args[0] != ' ')
+	{
+		Send(_T("501 Invalid HASH options"));
+		return;
+	}
+	args = args.Mid(1);
+	if (args.Find(' ') != -1)
+	{
+		Send(_T("501 Invalid HASH options"));
+		return;
+	}
+
+	if (args == _T("SHA-1"))
+	{
+		m_hash_algorithm = CHashThread::SHA1;
+		Send(_T("200 Hash algorithm set to SHA-1"));
+	}
+	else if (args == _T("SHA-512"))
+	{
+		m_hash_algorithm = CHashThread::SHA512;
+		Send(_T("200 Hash algorithm set to SHA-512"));
+	}
+	else if (args == _T("MD5"))
+	{
+		m_hash_algorithm = CHashThread::MD5;
+		Send(_T("200 Hash algorithm set to MD5"));
+	}
+	else
+		Send(_T("501 Unknown algorithm"));
+}
+
+void CControlSocket::ProcessHashResult(int hash_id, int res, const CStdString& hash)
+{
+	if (hash_id != m_hash_id)
+		return;
+	
+	m_hash_id = 0;
+
+	if (res == CHashThread::BUSY)
+		Send(_T("450 Another hash operation is already in progress."));
+	else if (res == CHashThread::FAILURE_OPEN)
+		Send(_T("550 Failed to open file"));
+	else if (res == CHashThread::FAILURE_READ)
+		Send(_T("550 Could not read from file"));
+	else
+		Send(_T("213 ") + hash);
 }

@@ -22,6 +22,7 @@
 #include "Options.h"
 #include "OptionsPage.h"
 #include "OptionsAutobanPage.h"
+#include "../OptionLimits.h"
 
 #if defined(_DEBUG) && !defined(MMGR)
 #define new DEBUG_NEW
@@ -78,8 +79,8 @@ BOOL COptionsAutobanPage::OnInitDialog()
 void COptionsAutobanPage::LoadData()
 {
 	m_enable = m_pOptionsDlg->GetOptionVal(OPTION_AUTOBAN_ENABLE) ? true : false;
-	m_attempts.Format("%d", static_cast<int>(m_pOptionsDlg->GetOptionVal(OPTION_AUTOBAN_ATTEMPTS)));
-	m_time.Format("%d", static_cast<int>(m_pOptionsDlg->GetOptionVal(OPTION_AUTOBAN_BANTIME)));
+	m_attempts.Format(_T("%d"), static_cast<int>(m_pOptionsDlg->GetOptionVal(OPTION_AUTOBAN_ATTEMPTS)));
+	m_time.Format(_T("%d"), static_cast<int>(m_pOptionsDlg->GetOptionVal(OPTION_AUTOBAN_BANTIME)));
 	m_type = m_pOptionsDlg->GetOptionVal(OPTION_AUTOBAN_TYPE) ? 1 : 0;
 }
 
@@ -100,9 +101,11 @@ BOOL COptionsAutobanPage::IsDataValid()
 		return TRUE;
 
 	int attempts = _ttoi(m_attempts);
-	if (attempts < 5 || attempts > 999)
+	if (attempts < OPTION_AUTOBAN_ATTEMPTS_MIN || attempts > OPTION_AUTOBAN_ATTEMPTS_MAX)
 	{
-		AfxMessageBox(_T("Attempts has to be a number between 5 and 999"));
+		CString s;
+		s.Format(_T("\"Attempts\" has to be a number between %d and %d."), OPTION_AUTOBAN_ATTEMPTS_MIN, OPTION_AUTOBAN_ATTEMPTS_MAX);
+		AfxMessageBox(s);
 		return FALSE;
 	}
 
@@ -118,3 +121,4 @@ BOOL COptionsAutobanPage::IsDataValid()
 
 	return TRUE;
 }
+\

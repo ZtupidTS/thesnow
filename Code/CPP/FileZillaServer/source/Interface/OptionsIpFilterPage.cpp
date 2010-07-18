@@ -75,60 +75,19 @@ BOOL COptionsIpFilterPage::IsDataValid()
 	if (!UpdateData(TRUE))
 		return FALSE;
 
-	CString ips = m_DisallowedAddresses;
-	ips.Replace("\n", " ");
-	ips.Replace("\r", " ");
-	ips.Replace("\t", " ");
-	while (ips.Replace("  ", " "));
-	ips.TrimLeft(" ");
-	ips.TrimRight(" ");
-	ips += " ";
-
-	int pos = ips.Find(" ");
-	while (pos != -1)
+	if (!ParseIPFilter(m_DisallowedAddresses))
 	{
-		CString ip = ips.Left(pos);
-		if (ip == "")
-			break;
-		ips = ips.Mid(pos + 1);
-
-		if (ip != "*" && !IsValidAddressFilter(ip))
-		{
-			GetDlgItem(IDC_OPTIONS_IPFILTER_DISALLOWED)->SetFocus();
-			AfxMessageBox(_T("Invalid IP address/range/mask"));
-			return FALSE;
-		}
-
-		pos = ips.Find(" ");
+		GetDlgItem(IDC_OPTIONS_IPFILTER_DISALLOWED)->SetFocus();
+		AfxMessageBox(_T("Invalid IP address/range/mask"));
+		return false;
 	}
 
-	ips = m_AllowedAddresses;
-	ips.Replace("\n", " ");
-	ips.Replace("\r", " ");
-	ips.Replace("\t", " ");
-	while (ips.Replace("  ", " "));
-	ips.TrimLeft(" ");
-	ips.TrimRight(" ");
-	ips += " ";
-
-	pos = ips.Find(" ");
-	while (pos != -1)
+	if (!ParseIPFilter(m_AllowedAddresses))
 	{
-		CString ip = ips.Left(pos);
-		if (ip == "")
-			break;
-		ips = ips.Mid(pos + 1);
-
-		if (ip != "*" && !IsValidAddressFilter(ip))
-		{
-			GetDlgItem(IDC_OPTIONS_IPFILTER_ALLOWED)->SetFocus();
-			AfxMessageBox(_T("Invalid IP address/range/mask"));
-			return FALSE;
-		}
-
-		pos = ips.Find(" ");
+		GetDlgItem(IDC_OPTIONS_IPFILTER_ALLOWED)->SetFocus();
+		AfxMessageBox(_T("Invalid IP address/range/mask"));
+		return false;
 	}
-
 
 	return TRUE;
 }

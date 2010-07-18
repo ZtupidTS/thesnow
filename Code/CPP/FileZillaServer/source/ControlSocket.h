@@ -25,6 +25,8 @@
 // ControlSocket.h : Header-Datei
 //
 
+#include "hash_thread.h"
+
 class CAsyncGssSocketLayer;
 class CAsyncSslSocketLayer;
 class CTransferSocket;
@@ -69,6 +71,8 @@ public:
 	void AntiHammerIncrease(int amount = 1);
 
 	void Continue();
+
+	void ProcessHashResult(int hash_id, int res, const CStdString& hash);
 
 // Implementierung
 protected:
@@ -140,11 +144,16 @@ protected:
 					// OPTS UF8 OFF
 
 	void ParseMlstOpts(CStdString args);
+	void ParseHashOpts(CStdString args);
 
 	// Enabled MLST facts
 	bool m_facts[3];
 
 	bool m_shutdown;
+
+	int m_hash_id;
+	
+	enum CHashThread::_algorithm m_hash_algorithm;
 
 public:
 	int GetSpeedLimit(enum sltype);

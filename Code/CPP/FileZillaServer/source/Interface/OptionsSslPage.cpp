@@ -118,18 +118,20 @@ void COptionsSslPage::OnEnableSsl()
 
 BOOL COptionsSslPage::IsDataValid()
 {
+	USES_CONVERSION;
+
 	UpdateData();
 
 	std::set<int> portSet;
 	bool valid = true;
 
 	CString ports = m_sslports;
-	ports.TrimLeft(" ,");
+	ports.TrimLeft(_T(" ,"));
 
 	int pos = ports.FindOneOf(_T(" ,"));
 	while (pos != -1 && valid)
 	{
-		int port = atoi(ports.Left(pos));
+		int port = _ttoi(ports.Left(pos));
 		if (port < 1 || port > 65535)
 		{
 			valid = false;
@@ -138,12 +140,12 @@ BOOL COptionsSslPage::IsDataValid()
 		else
 			portSet.insert(port);
 		ports = ports.Mid(pos + 1);
-		ports.TrimLeft(" ,");
+		ports.TrimLeft(_T(" ,"));
 		pos = ports.FindOneOf(_T(" ,"));
 	}
-	if (valid && ports != "")
+	if (valid && ports != _T(""))
 	{
-		int port = atoi(ports);
+		int port = _ttoi(ports);
 		if (port < 1 || port > 65535)
 			valid = false;
 		else
@@ -154,15 +156,15 @@ BOOL COptionsSslPage::IsDataValid()
 	{
 		m_pOptionsDlg->ShowPage(this);
 		m_cSslports.SetFocus();
-		AfxMessageBox("Invalid port found, please only enter ports in the range from 1 to 65535.");
+		AfxMessageBox(_T("Invalid port found, please only enter ports in the range from 1 to 65535."));
 		return FALSE;
 	}
 
-	m_sslports = "";
+	m_sslports = _T("");
 	for (std::set<int>::const_iterator iter = portSet.begin(); iter != portSet.end(); iter++)
 	{
 		CString tmp;
-		tmp.Format("%d ", *iter);
+		tmp.Format(_T("%d "), *iter);
 		m_sslports += tmp;
 	}
 	m_sslports.TrimRight(' ');
@@ -172,26 +174,26 @@ BOOL COptionsSslPage::IsDataValid()
 	{
 		CAsyncSslSocketLayer layer;
 		CString error;
-		int res = layer.SetCertKeyFile(m_certificate, m_key, m_pass, &error);
+		int res = layer.SetCertKeyFile(T2A(m_certificate), T2A(m_key), T2A(m_pass), &error);
 		if (res == SSL_FAILURE_LOADDLLS)
 		{
 			m_pOptionsDlg->ShowPage(this);
-			AfxMessageBox("Failed to load SSL libraries");
+			AfxMessageBox(_T("ÔØÈë SSL ¿âÊ§°Ü"));
 			return FALSE;
 		}
 		else if (res == SSL_FAILURE_INITSSL)
 		{
 			m_pOptionsDlg->ShowPage(this);
-			AfxMessageBox("Failed to initialize SSL libraries");
+			AfxMessageBox(_T("³õÊ¼»¯ SSL ¿âÊ§°Ü"));
 			return FALSE;
 		}
 		else if (res == SSL_FAILURE_VERIFYCERT)
 		{
 			m_pOptionsDlg->ShowPage(this);
-			if (error != "")
+			if (error != _T(""))
 				AfxMessageBox(error);
 			else
-				AfxMessageBox("Failed to set certificate and private key");
+				AfxMessageBox(_T("Failed to set certificate and private key"));
 			return FALSE;
 		}
 		else if (res)

@@ -107,14 +107,14 @@ BEGIN_MESSAGE_MAP(CGroupsDlgSharedFolders, CSAPrefsSubDlg)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
-// Behandlungsroutinen f黵 Nachrichten CGroupsDlgSharedFolders 
+// Behandlungsroutinen für Nachrichten CGroupsDlgSharedFolders 
 
 BOOL CGroupsDlgSharedFolders::OnInitDialog() 
 {
 	CSAPrefsSubDlg::OnInitDialog();
 	
-	m_cDirs.InsertColumn(0, "目录", LVCFMT_LEFT, 120);
-	m_cDirs.InsertColumn(1, "别名", LVCFMT_LEFT, 200);
+	m_cDirs.InsertColumn(0, _T("目录"), LVCFMT_LEFT, 120);
+	m_cDirs.InsertColumn(1, _T("别名"), LVCFMT_LEFT, 200);
 	UpdateData(FALSE);
 	
 	m_imagelist.Create(16, 16, ILC_MASK, 3, 3);
@@ -178,7 +178,7 @@ void CGroupsDlgSharedFolders::OnContextMenu(CWnd* pWnd, CPoint point)
 			pPopup->EnableMenuItem(ID_DIRMENU_SETASHOMEDIR, MF_GRAYED);
 			pPopup->EnableMenuItem(ID_DIRMENU_EDITALIASES, MF_GRAYED);
 		}
-		if (point.x==-1)
+		if (point.x == -1)
 			GetCursorPos(&point);
 		pPopup->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, point.x, point.y,
 			pWndPopupOwner);
@@ -201,7 +201,7 @@ void CGroupsDlgSharedFolders::OnItemchangedDirs(NMHDR* pNMHDR, LRESULT* pResult)
 			return;
 	}
 	int index = pNMListView->lParam;
-	if (nItem!=-1)
+	if (nItem != -1)
 	{
 		m_bFilesRead = pGroup->permissions[index].bFileRead;
 		m_bFilesWrite = pGroup->permissions[index].bFileWrite;
@@ -223,7 +223,6 @@ void CGroupsDlgSharedFolders::OnItemchangingDirs(NMHDR* pNMHDR, LRESULT* pResult
 {
 	*pResult = 0;
 	UpdateData(TRUE);
-	NM_LISTVIEW* pNMListView = (NM_LISTVIEW*)pNMHDR;
 
 	t_group *pGroup = m_pOwner->GetCurrentGroup();
 	if (!pGroup)
@@ -329,11 +328,11 @@ void CGroupsDlgSharedFolders::OnDirmenuAdd()
 		dir.bFileAppend = dir.bFileDelete = 
 		dir.bFileWrite = dir.bIsHome =
 		dir.bAutoCreate = FALSE;
-	dir.dir = "";
+	dir.dir = _T("");
 	dir.bIsHome = m_cDirs.GetItemCount()?FALSE:TRUE;
 
 	pGroup->permissions.push_back(dir);
-	int nItem = m_cDirs.InsertItem(LVIF_TEXT |LVIF_PARAM|LVIF_IMAGE, 0, "<new directory>", 0, 0, dir.bIsHome?1:0, pGroup->permissions.size()-1);
+	int nItem = m_cDirs.InsertItem(LVIF_TEXT |LVIF_PARAM|LVIF_IMAGE, 0, _T("<new directory>"), 0, 0, dir.bIsHome?1:0, pGroup->permissions.size()-1);
 	m_cDirs.SetItemState(nItem, LVIS_SELECTED,LVIS_SELECTED);
 	m_cDirs.SetItemState(nItem, LVIS_SELECTED,LVIS_SELECTED);
 	OnDblclkDirs(0, 0);	
@@ -353,18 +352,18 @@ t_group *pGroup = m_pOwner->GetCurrentGroup();
 	int index=m_cDirs.GetItemData(nItem);
 	m_cDirs.DeleteItem(nItem);
 	int i=0;
-	for (std::vector<t_directory>::iterator iter=pGroup->permissions.begin(); iter!=pGroup->permissions.end(); iter++, i++)
+	for (std::vector<t_directory>::iterator iter=pGroup->permissions.begin(); iter != pGroup->permissions.end(); iter++, i++)
 		if (i==index)
 		{
 			pGroup->permissions.erase(iter);
 			break;
 		}
-	for (i=0;i<m_cDirs.GetItemCount();i++)
+	for (i = 0; i < m_cDirs.GetItemCount(); i++)
 	{
-		int data=m_cDirs.GetItemData(i);
-		if (data>index)
+		int data = m_cDirs.GetItemData(i);
+		if (data > index)
 		{
-			m_cDirs.SetItemData(i,data-1);
+			m_cDirs.SetItemData(i, data - 1);
 		}
 	}
 	SetCtrlState();
@@ -408,7 +407,7 @@ void CGroupsDlgSharedFolders::OnDirmenuSetashomedir()
 		pGroup->permissions[item.lParam].bIsHome=0;
 		m_cDirs.SetItem(&item);
 	}
-	int index=m_cDirs.GetItemData(nItem);
+	int index = m_cDirs.GetItemData(nItem);
 	pGroup->permissions[index].bIsHome = 1;
 }
 
@@ -417,10 +416,10 @@ void CGroupsDlgSharedFolders::OnEndlabeleditDirs(NMHDR* pNMHDR, LRESULT* pResult
 	LV_DISPINFO* pDispInfo = (LV_DISPINFO*)pNMHDR;
 	if (pDispInfo->item.pszText)
 	{
-		if (pDispInfo->item.pszText[0]==0)
+		if (pDispInfo->item.pszText[0] == 0)
 		{
-			AfxMessageBox("请选择一个文件夹!");
-			*pResult=FALSE;
+			AfxMessageBox(_T("请选择一个文件夹!"));
+			*pResult = FALSE;
 		}
 		else
 		{
@@ -428,14 +427,14 @@ void CGroupsDlgSharedFolders::OnEndlabeleditDirs(NMHDR* pNMHDR, LRESULT* pResult
 			if (!pGroup)
 				return;
 						
-			pGroup->permissions[pDispInfo->item.lParam].dir=pDispInfo->item.pszText;
-			*pResult=TRUE;
+			pGroup->permissions[pDispInfo->item.lParam].dir = pDispInfo->item.pszText;
+			*pResult = TRUE;
 		}
 	
 	}
 	else
 	{
-		if (m_cDirs.GetItemText(pDispInfo->item.iItem,0)=="")
+		if (m_cDirs.GetItemText(pDispInfo->item.iItem,0) == _T(""))
 		{
 			t_group *pGroup = m_pOwner->GetCurrentGroup();
 			if (!pGroup)
@@ -521,9 +520,9 @@ void CGroupsDlgSharedFolders::OnDirsetashome()
 
 BOOL CGroupsDlgSharedFolders::PreTranslateMessage(MSG* pMsg) 
 {
-	if (pMsg->message==WM_KEYDOWN)
+	if (pMsg->message == WM_KEYDOWN)
 	{
-		if (pMsg->wParam==VK_F2)
+		if (pMsg->wParam == VK_F2)
 		{
 			if (GetFocus() == &m_cDirs)
 			{
@@ -552,11 +551,11 @@ BOOL CGroupsDlgSharedFolders::DisplayGroup(const t_group *pGroup)
 	
 	//Fill the dirs list
 	m_cDirs.DeleteAllItems();
-	for (unsigned int j=0; j<pGroup->permissions.size(); j++)
+	for (unsigned int j = 0; j < pGroup->permissions.size(); j++)
 	{
 		int nItem = m_cDirs.InsertItem(j, pGroup->permissions[j].dir);
 		LVITEM item;
-		memset(&item,0,sizeof(item));
+		memset(&item, 0, sizeof(item));
 		item.mask=LVIF_IMAGE|LVIF_PARAM;
 		item.iItem = nItem;
 		m_cDirs.GetItem(&item);
@@ -566,7 +565,7 @@ BOOL CGroupsDlgSharedFolders::DisplayGroup(const t_group *pGroup)
 
 		CString aliases;
 		for (std::list<CString>::const_iterator iter = pGroup->permissions[j].aliases.begin(); iter != pGroup->permissions[j].aliases.end(); iter++)
-			aliases += *iter + "|";
+			aliases += *iter + _T("|");
 		aliases.TrimRight('|');
 		m_cDirs.SetItemText(nItem, 1, aliases);
 	}
@@ -611,7 +610,7 @@ void CGroupsDlgSharedFolders::OnDirmenuEditAliases()
 
 	if (pGroup->permissions[index].bIsHome)
 	{
-		AfxMessageBox("Can't set aliases for home dir, this would create a recursive directory structure.");
+		AfxMessageBox(_T("Can't set aliases for home dir, this would create a recursive directory structure."));
 		return;
 	}
 
@@ -621,20 +620,20 @@ void CGroupsDlgSharedFolders::OnDirmenuEditAliases()
 	if (dlg.DoModal() == IDOK)
 	{
 		CString aliases = dlg.m_String;
-		while (aliases.Replace("||", "|"));
-		aliases.TrimLeft("|");
-		aliases.TrimRight("|");
+		while (aliases.Replace(_T("||"), _T("|")));
+		aliases.TrimLeft(_T("|"));
+		aliases.TrimRight(_T("|"));
 		m_cDirs.SetItemText(nItem, 1, aliases);
 		
 		pGroup->permissions[index].aliases.clear();
-		aliases += "|";
+		aliases += _T("|");
 		int pos;
 		do 
 		{
-			pos = aliases.Find("|");
+			pos = aliases.Find(_T("|"));
 
 			CString alias = aliases.Left(pos);
-			if (alias != "")
+			if (alias != _T(""))
 				pGroup->permissions[index].aliases.push_back(alias);
 			aliases = aliases.Mid(pos + 1);
 		} while (pos != -1);

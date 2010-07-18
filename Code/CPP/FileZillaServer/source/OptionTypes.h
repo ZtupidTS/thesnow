@@ -22,7 +22,7 @@
 #if _MSC_VER > 1000
 #pragma once
 #endif // _MSC_VER > 1000
-// Options.h : Header-Datei
+// OptionTypes.h : Header-Datei
 //
 #define OPTION_SERVERPORT 1
 #define OPTION_THREADNUM 2
@@ -96,7 +96,7 @@ struct t_Option
 	BOOL bOnlyLocal; //If TRUE, setting can only be changed from local connections
 };
 
-const DWORD SERVER_VERSION = 0x00093400;
+const DWORD SERVER_VERSION = 0x00093500;
 const DWORD PROTOCOL_VERSION = 0x00010B00;
 
 //												Name					Type		Not remotely

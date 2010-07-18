@@ -38,6 +38,7 @@ IMPLEMENT_DYNCREATE(CUsersView, CView)
 
 CUsersView::CUsersView()
 {
+	m_pListCtrl = 0;
 }
 
 CUsersView::~CUsersView()
@@ -58,7 +59,6 @@ END_MESSAGE_MAP()
 
 void CUsersView::OnDraw(CDC* pDC)
 {
-	CDocument* pDoc = GetDocument();
 	// ZU ERLEDIGEN: Code zum Zeichnen hier einfügen
 }
 
@@ -93,7 +93,7 @@ int CUsersView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		return -1;
 	
 	CMainFrame *pMainFrame = (CMainFrame *)AfxGetMainWnd();
-	m_pListCtrl=new CUsersListCtrl(pMainFrame);
+	m_pListCtrl = new CUsersListCtrl(pMainFrame);
 	m_pListCtrl->Create(LVS_REPORT | WS_CHILD | WS_VISIBLE | LVS_SHOWSELALWAYS | LVS_OWNERDATA | LVS_SHAREIMAGELISTS | WS_VSCROLL, CRect(0,0,0,0), this, 0);
 	
 	return 0;
@@ -102,7 +102,7 @@ int CUsersView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 void CUsersView::OnDestroy() 
 {
 	delete m_pListCtrl;
-	m_pListCtrl=0;
+	m_pListCtrl = 0;
 	CView::OnDestroy();
 	
 	// TODO: Code für die Behandlungsroutine für Nachrichten hier einfügen

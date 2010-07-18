@@ -1,4 +1,4 @@
-// FileZilla Server - a Windows ftp server
+ï»¿// FileZilla Server - a Windows ftp server
 
 // Copyright (C) 2002-2004 - Tim Kosse <tim.kosse@gmx.de>
 
@@ -67,7 +67,7 @@ BEGIN_MESSAGE_MAP(CConnectDialog, CDialog)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
-// Behandlungsroutinen für Nachrichten CConnectDialog 
+// Behandlungsroutinen fÃ¼r Nachrichten CConnectDialog 
 
 BOOL CConnectDialog::OnInitDialog() 
 {
@@ -80,7 +80,7 @@ BOOL CConnectDialog::OnInitDialog()
 	UpdateData(FALSE);
 
 	return TRUE;  // return TRUE unless you set the focus to a control
-	              // EXCEPTION: OCX-Eigenschaftenseiten sollten FALSE zurückgeben
+	              // EXCEPTION: OCX-Eigenschaftenseiten sollten FALSE zurÃ¼ckgeben
 }
 
 void CConnectDialog::OnOK() 
@@ -89,13 +89,13 @@ void CConnectDialog::OnOK()
 
 	if (m_ServerAddress == _T(""))
 	{
-		AfxMessageBox(_T("ÇëÊäÈëÒ»¸ö·şÎñÆ÷µØÖ·."), MB_ICONEXCLAMATION);
+		AfxMessageBox(_T("è¯·è¾“å…¥ä¸€ä¸ªæœåŠ¡å™¨åœ°å€."), MB_ICONEXCLAMATION);
 		return;
 	}
 
 	if (_ttoi(m_ServerPort)<1 || _ttoi(m_ServerPort)>65535)
 	{
-		AfxMessageBox(_T("ÇëÊäÈëÒ»¸ö 1 µ½ 65535·¶Î§ÄÚµÄ¶Ë¿Ú."), MB_ICONEXCLAMATION);
+		AfxMessageBox(_T("è¯·è¾“å…¥ä¸€ä¸ª 1 åˆ° 65535èŒƒå›´å†…çš„ç«¯å£."), MB_ICONEXCLAMATION);
 		return;
 	}
 

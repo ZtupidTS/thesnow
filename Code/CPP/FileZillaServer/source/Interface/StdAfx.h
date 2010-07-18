@@ -31,7 +31,7 @@
 #define VC_EXTRALEAN		// Selten verwendete Teile der Windows-Header nicht einbinden
 
 #pragma warning (disable : 4786)
-#pragma warning (disable : 4996)	//function or variable may be unsafe
+#pragma warning (disable : 4996)	//added--function or variable may be unsafe
 
 #include <afxwin.h>         // MFC-Kern- und -Standardkomponenten
 #include <afxext.h>         // MFC-Erweiterungen
@@ -80,9 +80,9 @@
 #define USERCONTROL_CONNOP_REMOVE 2
 #define USERCONTROL_CONNOP_TRANSFERINFO 3
 #define USERCONTROL_CONNOP_TRANSFEROFFSETS 4
-
+//added
 #pragma comment(linker,"/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
-
+//added
 //{{AFX_INSERT_LOCATION}}
 // Microsoft Visual C++ fügt unmittelbar vor der vorhergehenden Zeile zusätzliche Deklarationen ein.
 

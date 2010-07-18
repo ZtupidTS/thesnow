@@ -86,7 +86,6 @@
 				GenerateMapFile="true"
 				MapFileName=".\Release/FzGSS.map"
 				OptimizeReferences="2"
-				OptimizeForWindows98="0"
 				RandomizedBaseAddress="1"
 				DataExecutionPrevention="0"
 				ImportLibrary=".\Release/FzGSS.lib"

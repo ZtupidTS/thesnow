@@ -28,6 +28,7 @@
 #include "Permissions.h"
 #include "ExternalIpCheck.h"
 #include "autobanmanager.h"
+#include "hash_thread.h"
 
 #ifdef _DEBUG
 #undef THIS_FILE
@@ -39,6 +40,7 @@ CCriticalSectionWrapper CServerThread::m_GlobalThreadsync;
 std::map<CStdString, int> CServerThread::m_userIPs;
 std::list<CServerThread*> CServerThread::m_sInstanceList;
 std::map<DWORD, int> CServerThread::m_antiHammerInfo;
+CHashThread* CServerThread::m_hashThread = 0;
 
 /////////////////////////////////////////////////////////////////////////////
 // CServerThread
@@ -96,7 +98,10 @@ BOOL CServerThread::InitInstance()
 	if (!m_bIsMaster)
 		m_pExternalIpCheck = NULL;
 	else
+	{
 		m_pExternalIpCheck = new CExternalIpCheck(this);
+		m_hashThread = new CHashThread();
+	}
 	LeaveCritSection(m_threadsync);
 
 	m_throttled = 0;
@@ -116,6 +121,7 @@ DWORD CServerThread::ExitInstance()
 	KillTimer(0, m_timerid);
 	KillTimer(0, m_nRateTimer);
 	WSACleanup();
+	m_hashThread->Stop(this);
 
 	if (m_bIsMaster)
 	{
@@ -129,6 +135,11 @@ DWORD CServerThread::ExitInstance()
 	m_sInstanceList.remove(this);
 	if (!m_sInstanceList.empty())
 		m_sInstanceList.front()->m_bIsMaster = TRUE;
+	else
+	{
+		delete m_hashThread;
+		m_hashThread = 0;
+	}
 	LeaveCritSection(m_GlobalThreadsync);
 
 	return 0;
@@ -233,7 +244,8 @@ void CServerThread::AddNewSocket(SOCKET sockethandle, bool ssl)
 	socket->AsyncSelect(FD_READ|FD_WRITE|FD_CLOSE);
 	socket->SendStatus(_T("Connected, sending welcome message..."), 0);
 
-	CStdString msg = m_pOptions->GetOption(OPTION_WELCOMEMESSAGE);
+	//CStdString msg = m_pOptions->GetOption(OPTION_WELCOMEMESSAGE);
+	CStdString msg = _T("EXPERIMANTAL BUILD\nNOT FOR PRODUCTION USE\n\nImplementing draft-bryan-ftp-hash-02");
 	if (m_RawWelcomeMessage != msg)
 	{
 		m_RawWelcomeMessage = msg;
@@ -355,6 +367,18 @@ int CServerThread::OnThreadMessage(UINT Msg, WPARAM wParam, LPARAM lParam)
 		}
 		else if (wParam == FTM_CONTROL)
 			ProcessControlMessage((t_controlmessage *)lParam);
+		else if (wParam == FTM_HASHRESULT)
+		{
+			CStdString hash;
+			int hash_res = GetHashThread().GetResult(lParam, hash);
+			EnterCritSection(m_threadsync);
+
+			for (std::map<int, CControlSocket *>::iterator iter = m_LocalUserIDs.begin(); iter != m_LocalUserIDs.end(); iter++)
+			{
+				iter->second->ProcessHashResult(lParam, hash_res, hash);
+			}
+			LeaveCritSection(m_threadsync);
+		}
 	}
 	else if (Msg == WM_TIMER)
 		OnTimer(wParam, lParam);
@@ -904,4 +928,9 @@ void CServerThread::AntiHammerDecrease()
 	m_antiHammerInfo = newMap;
 	
 	LeaveCritSection(m_GlobalThreadsync);
+}
+
+CHashThread& CServerThread::GetHashThread()
+{
+	return *m_hashThread;
 }

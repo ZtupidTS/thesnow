@@ -33,6 +33,7 @@ class CPermissions;
 class t_user;
 class CExternalIpCheck;
 class CAutoBanManager;
+class CHashThread;
 
 typedef struct
 {
@@ -79,7 +80,7 @@ public:
 
 	void AntiHammerIncrease(DWORD ip);
 	
-// Implementierung
+	CHashThread& GetHashThread();
 
 protected:
 	virtual ~CServerThread();
@@ -133,6 +134,8 @@ protected:
 
 	static std::map<DWORD, int> m_antiHammerInfo;
 	int m_antiHammerTimer;
+
+	static CHashThread* m_hashThread;
 };
 
 /////////////////////////////////////////////////////////////////////////////

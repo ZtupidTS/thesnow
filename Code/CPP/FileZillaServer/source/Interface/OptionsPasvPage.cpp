@@ -114,28 +114,28 @@ BOOL COptionsPasvPage::IsDataValid()
 	if (m_nIPType == 1)
 	{
 		//Ensure a valid IP address has been entered
-		if (m_IP == "")
+		if (m_IP == _T(""))
 		{
 			m_pOptionsDlg->ShowPage(this);
 			GetDlgItem(IDC_OPTIONS_PASV_IP)->SetFocus();
-			AfxMessageBox("Please enter a valid IP address or hostname!");
+			AfxMessageBox(_T("请输入一个有效的 IP 地址或者主机名称!"));
 			return FALSE;
 		}
 	}
 	else if (m_nIPType == 2)
 	{
 		CString address = m_URL;
-		if (address.Left(7) == "http://")
+		if (address.Left(7) == _T("http://"))
 			address = address.Mid(7);
 		int pos = address.Find('/');
 		if (pos != -1)
 			address = address.Left(pos);
 
-		if (address == "" || address.Find(' ') != -1)
+		if (address == _T("") || address.Find(' ') != -1)
 		{
 			m_pOptionsDlg->ShowPage(this);
 			GetDlgItem(IDC_OPTIONS_PASV_URL)->SetFocus();
-			AfxMessageBox("Please enter the complete URL of the IP autodetect server!");
+			AfxMessageBox(_T("Please enter the complete URL of the IP autodetect server!"));
 			return FALSE;
 		}
 	}
@@ -144,11 +144,11 @@ BOOL COptionsPasvPage::IsDataValid()
 	{
 		int nPortMin = _ttoi(m_PortMin);
 		int nPortMax = _ttoi(m_PortMax);
-		if (nPortMin<1 || nPortMin>65535 || nPortMax<1 || nPortMax>65535 || nPortMin>nPortMax)
+		if (nPortMin < 1 || nPortMin > 65535 || nPortMax < 1 || nPortMax > 65535 || nPortMin > nPortMax)
 		{
 			m_pOptionsDlg->ShowPage(this);
 			GetDlgItem(IDC_OPTIONS_PASV_PORTMIN)->SetFocus();
-			AfxMessageBox("The port values have to be in the range from 1 to 65535. Also, the first value has to be lower than or equal to the second one.");			
+			AfxMessageBox(_T("The port values have to be in the range from 1 to 65535. Also, the first value has to be lower than or equal to the second one."));
 			return FALSE;
 		}
 	}
@@ -162,8 +162,8 @@ void COptionsPasvPage::LoadData()
 	m_IP = m_pOptionsDlg->GetOption(OPTION_CUSTOMPASVIP);
 	m_URL = m_pOptionsDlg->GetOption(OPTION_CUSTOMPASVIPSERVER);
 	m_bUseCustomPort = m_pOptionsDlg->GetOptionVal(OPTION_USECUSTOMPASVPORT) != 0;
-	m_PortMin.Format("%d", static_cast<int>(m_pOptionsDlg->GetOptionVal(OPTION_CUSTOMPASVMINPORT)));
-	m_PortMax.Format("%d", static_cast<int>(m_pOptionsDlg->GetOptionVal(OPTION_CUSTOMPASVMAXPORT)));
+	m_PortMin.Format(_T("%d"), static_cast<int>(m_pOptionsDlg->GetOptionVal(OPTION_CUSTOMPASVMINPORT)));
+	m_PortMax.Format(_T("%d"), static_cast<int>(m_pOptionsDlg->GetOptionVal(OPTION_CUSTOMPASVMAXPORT)));
 	m_NoExternalOnLocal = m_pOptionsDlg->GetOptionVal(OPTION_NOEXTERNALIPONLOCAL) != 0;
 }
 

@@ -23,9 +23,9 @@
 #include "stdafx.h"
 #include "AdminSocket.h"
 #include "MainFrm.h"
-#include "..\OptionTypes.h"
-#include "..\platform.h"
-#include "misc\md5.h"
+#include "../OptionTypes.h"
+#include "../platform.h"
+#include "../misc\md5.h"
 
 //////////////////////////////////////////////////////////////////////
 // Konstruktion/Destruktion
@@ -58,14 +58,14 @@ void CAdminSocket::OnConnect(int nErrorCode)
 	{
 		if (!m_nConnectionState)
 		{
-			m_pMainFrame->ShowStatus(_T("已连接, 等待认证"), 0);
+			m_pMainFrame->ShowStatus(_T("Connected, waiting for authentication"), 0);
 			m_nConnectionState = 1;
 		}
 		m_pMainFrame->OnAdminInterfaceConnected();
 	}
 	else
 	{
-		m_pMainFrame->ShowStatus(_T("错误,不能连接到服务器"), 1);
+		m_pMainFrame->ShowStatus(_T("Error, could not connect to server"), 1);
 		Close();
 	}
 }
@@ -74,14 +74,14 @@ void CAdminSocket::OnReceive(int nErrorCode)
 {
 	if (nErrorCode)
 	{
-		m_pMainFrame->ShowStatus(_T("OnReceive 失败, 关闭连接"), 1);
+		m_pMainFrame->ShowStatus(_T("OnReceive failed, closing connection"), 1);
 		Close();
 		return;
 	}
 	
 	if (!m_nConnectionState)
 	{
-		m_pMainFrame->ShowStatus(_T("已连接, 等待认证"), 0);
+		m_pMainFrame->ShowStatus(_T("Connected, waiting for authentication"), 0);
 		m_nConnectionState = 1;
 	}
 
@@ -185,7 +185,7 @@ BOOL CAdminSocket::ParseRecvBuffer()
 			if (len != 4)
 			{
 				CString str;
-				str.Format(_T("协议错误: 无效服务器版本长度 (%d)."), len);
+				str.Format(_T("Protocol error: Invalid server version length (%d)."), len);
 				m_pMainFrame->ShowStatus(str, 1);
 				Close();
 				return FALSE;
@@ -215,7 +215,7 @@ BOOL CAdminSocket::ParseRecvBuffer()
 			if (len != 4)
 			{
 				CString str;
-				str.Format(_T("协议错误: 无效协议版本长度 (%d)."), len);
+				str.Format(_T("Protocol error: Invalid protocol version length (%d)."), len);
 				m_pMainFrame->ShowStatus(str, 1);
 				Close();
 				return FALSE;
@@ -251,7 +251,7 @@ BOOL CAdminSocket::ParseRecvBuffer()
 		if ((m_pRecvBuffer[0]&0x03) > 2)
 		{
 			CString str;
-			str.Format(_T("协议错误: 未知命令类型 (%d), 关闭连接."), (int)(m_pRecvBuffer[0]&0x03));
+			str.Format(_T("Protocol error: Unknown command type (%d), closing connection."), (int)(m_pRecvBuffer[0]&0x03));
 			m_pMainFrame->ShowStatus(str, 1);
 			Close();
 			return FALSE;
