@@ -135,9 +135,6 @@ bool SciTEWin::ModelessHandler(MSG *pmsg) {
 	if (DialogHandled(wFindReplace.GetID(), pmsg)) {
 		return true;
 	}
-	if (DialogHandled(wFindIncrement.GetID(), pmsg)) {
-		return true;
-	}
 	if (DialogHandled(wFindInFiles.GetID(), pmsg)) {
 		return true;
 	}
@@ -148,6 +145,14 @@ bool SciTEWin::ModelessHandler(MSG *pmsg) {
 		               (pmsg->wParam != VK_RETURN) &&
 		               (IsKeyDown(VK_CONTROL) || !IsKeyDown(VK_MENU));
 		if (!menuKey && DialogHandled(wParameters.GetID(), pmsg))
+			return true;
+	}
+	if ((pmsg->message == WM_KEYDOWN) || (pmsg->message == WM_SYSKEYDOWN)) {
+		if (searchStrip.KeyDown(pmsg->wParam))
+			return true;
+		if (findStrip.KeyDown(pmsg->wParam))
+			return true;
+		if (replaceStrip.KeyDown(pmsg->wParam))
 			return true;
 	}
 	if (pmsg->message == WM_KEYDOWN || pmsg->message == WM_SYSKEYDOWN) {
@@ -778,16 +783,6 @@ public:
 		::EnableWindow(Item(id), enable);
 	}
 
-	SString ItemText(int id) {
-		HWND wT = Item(id);
-		int len = ::GetWindowTextLength(wT);
-		SBuffer itemText(len);
-		if (len > 0) {
-			::GetDlgItemTextA(hDlg, id, itemText.ptr(), len + 1);
-		}
-		return SString(itemText);
-	}
-
 	GUI::gui_string ItemTextG(int id) {
 		HWND wT = Item(id);
 		int len = ::GetWindowTextLengthW(wT) + 1;
@@ -1078,101 +1073,18 @@ BOOL CALLBACK SciTEWin::ReplaceDlg(HWND hDlg, UINT message, WPARAM wParam, LPARA
 	return Caller(hDlg, message, lParam)->ReplaceMessage(hDlg, message, wParam);
 }
 
-BOOL SciTEWin::IncrementFindMessage(HWND hDlg, UINT message, WPARAM wParam) {
-	// Prevent reentrance when setting text
-	static bool entered = false;
-	if (entered)
-		return FALSE;
-
-	// Avoid getting dialog items before set up or during tear down.
-	if (WM_SETFONT == message || WM_NCDESTROY == message)
-		return FALSE;
-
-	Dialog dlg(hDlg);
-
-	switch (message) {
-
-	case WM_INITDIALOG:{
-		wFindIncrement = hDlg;
-		LocaliseDialog(hDlg);
-		SetWindowLong(hDlg, GWL_STYLE, WS_TABSTOP || GetWindowLong(hDlg, GWL_STYLE));
-		dlg.SetItemTextU(IDC_INCFINDTEXT, "");
-		SetFocus(hDlg);
-
-		GUI::Rectangle aRect = wFindIncrement.GetPosition();
-		GUI::Rectangle aTBRect = wStatusBar.GetPosition();
-		GUI::Rectangle aNewRect = aTBRect;
-		aNewRect.top = aNewRect.bottom - (aRect.bottom - aRect.top);
-		aNewRect.right = aNewRect.left + aRect.right - aRect.left;
-		wFindIncrement.SetPosition(aNewRect);
-
-		return TRUE;
-	}
-
-	case WM_SETFOCUS:
-		return 0;
-
-	case WM_CLOSE:
-		::SendMessage(hDlg, WM_COMMAND, IDCANCEL, 0);
-		break;
-
-	case WM_COMMAND:
-		if (ControlIDOfCommand(wParam) == IDCANCEL) {
-			props.Set("Replacements", "");
-			UpdateStatusBar(false);
-			::EndDialog(hDlg, IDCANCEL);
-			wFindIncrement.Destroy();
-			return FALSE;
-		} else if (((ControlIDOfCommand(wParam) == IDC_INCFINDTEXT) && ((wParam >> 16) == 0x0300))
-			|| (ControlIDOfCommand(wParam) == IDC_INCFINDBTNOK)) {
-			SString ffLastWhat;
-			ffLastWhat = findWhat;
-			findWhat = dlg.ItemTextU(IDC_INCFINDTEXT);
-
-			if (ControlIDOfCommand(wParam) != IDC_INCFINDBTNOK) {
-				Sci_CharacterRange cr = GetSelection();
-				if (ffLastWhat.length()) {
-					SetSelection(cr.cpMin - ffLastWhat.length(), cr.cpMin - ffLastWhat.length());
-				}
-			}
-			wholeWord = false;
-			FindNext(false, false);
- 			if ((!havefound) &&
-				strncmp(findWhat.c_str(), ffLastWhat.c_str(), ffLastWhat.length()) == 0) {
-				// Could not find string with added character so revert to previous value.
-				findWhat = ffLastWhat;
-				entered = true;
-				dlg.SetItemTextU(IDC_INCFINDTEXT, findWhat);
-				SendMessage(dlg.Item(IDC_INCFINDTEXT), EM_SETSEL, ffLastWhat.length(), ffLastWhat.length());
-				entered = false;
-			}
-			return FALSE;
-		}
-	}
-
-	return FALSE;
-}
-
-
-BOOL CALLBACK SciTEWin::FindIncrementDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
-	return Caller(hDlg, message, lParam)->IncrementFindMessage(hDlg, message, wParam);
-}
-
 void SciTEWin::FindIncrement() {
-	if (wFindIncrement.Created()) {
-		wFindIncrement.Destroy();
-		return;
+	if (findStrip.visible)
+		findStrip.Close();
+	if (replaceStrip.visible)
+		replaceStrip.Close();
+	searchStrip.visible = !searchStrip.visible;
+	SizeSubWindows();
+	if (searchStrip.visible) {
+		searchStrip.Focus();
+	} else {
+		WindowSetFocus(wEditor);
 	}
-
-	findWhat.clear();
-
-	replacing = false;
-	::CreateDialogParamW(hInstance,
-	                                    (LPCWSTR)MAKEINTRESOURCE(IDD_FIND2),
-	                                    MainHWND(),
-	                                    reinterpret_cast<DLGPROC>(FindIncrementDlg),
-	                                    reinterpret_cast<LPARAM>(this));
-	wFindIncrement.Show();
 }
 
 bool SciTEWin::FindReplaceAdvanced() {
@@ -1180,22 +1092,33 @@ bool SciTEWin::FindReplaceAdvanced() {
 }
 
 void SciTEWin::Find() {
-	if (wFindIncrement.Created())
-		return;
 	if (wFindReplace.Created())
 		return;
 	SelectionIntoFind();
 
-	int dialog_id = FindReplaceAdvanced() ? IDD_FIND_ADV : IDD_FIND;
+	if (props.GetInt("find.use.strip")) {
+		if (searchStrip.visible)
+			searchStrip.Close();
+		if (replaceStrip.visible)
+			replaceStrip.Close();
+		findStrip.visible = true;
+		SizeSubWindows();
+		findStrip.Show();
+	} else {
+		if (searchStrip.visible || replaceStrip.visible)
+			return;
 
-	wFindReplace = ::CreateDialogParamW(hInstance,
-	                                    (LPCWSTR)MAKEINTRESOURCE(dialog_id),
-	                                    MainHWND(),
-	                                    reinterpret_cast<DLGPROC>(FindDlg),
-	                                    reinterpret_cast<LPARAM>(this));
-	wFindReplace.Show();
+		int dialog_id = FindReplaceAdvanced() ? IDD_FIND_ADV : IDD_FIND;
 
-	replacing = false;
+		wFindReplace = ::CreateDialogParamW(hInstance,
+											(LPCWSTR)MAKEINTRESOURCE(dialog_id),
+											MainHWND(),
+											reinterpret_cast<DLGPROC>(FindDlg),
+											reinterpret_cast<LPARAM>(this));
+		wFindReplace.Show();
+
+		replacing = false;
+	}
 }
 
 // Set a call back with the handle after init to set the path.
@@ -1384,17 +1307,30 @@ void SciTEWin::Replace() {
 		return;
 	SelectionIntoFind(false); // don't strip EOL at end of selection
 
-	int dialog_id = (!props.GetInt("find.replace.advanced") ? IDD_REPLACE : IDD_REPLACE_ADV);
+	if (props.GetInt("replace.use.strip")) {
+		if (searchStrip.visible)
+			searchStrip.Close();
+		if (findStrip.visible)
+			findStrip.Close();
+		replaceStrip.visible = true;
+		SizeSubWindows();
+		replaceStrip.Show();
+		havefound = false;
+	} else {
+		if (searchStrip.visible || findStrip.visible)
+			return;
+		int dialog_id = (!props.GetInt("find.replace.advanced") ? IDD_REPLACE : IDD_REPLACE_ADV);
 
-	wFindReplace = ::CreateDialogParamW(hInstance,
-	                                    (LPCWSTR)MAKEINTRESOURCE(dialog_id),
-	                                    MainHWND(),
-	                                    reinterpret_cast<DLGPROC>(ReplaceDlg),
-	                                    reinterpret_cast<sptr_t>(this));
-	wFindReplace.Show();
+		wFindReplace = ::CreateDialogParamW(hInstance,
+											(LPCWSTR)MAKEINTRESOURCE(dialog_id),
+											MainHWND(),
+											reinterpret_cast<DLGPROC>(ReplaceDlg),
+											reinterpret_cast<sptr_t>(this));
+		wFindReplace.Show();
 
-	replacing = true;
-	havefound = false;
+		replacing = true;
+		havefound = false;
+	}
 }
 
 void SciTEWin::FindReplace(bool replace) {
@@ -1500,7 +1436,7 @@ BOOL SciTEWin::AbbrevMessage(HWND hDlg, UINT message, WPARAM wParam) {
 			::EndDialog(hDlg, IDCANCEL);
 			return FALSE;
 		} else if (ControlIDOfCommand(wParam) == IDOK) {
-			SString sAbbrev = dlg.ItemText(IDABBREV);
+			SString sAbbrev = dlg.ItemTextU(IDABBREV);
 			strncpy(abbrevInsert, sAbbrev.c_str(), sizeof(abbrevInsert));
 			abbrevInsert[sizeof(abbrevInsert) - 1] = '\0';
 			::EndDialog(hDlg, IDOK);

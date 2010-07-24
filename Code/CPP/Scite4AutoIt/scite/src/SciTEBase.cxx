@@ -2,7 +2,7 @@
 /** @file SciTEBase.cxx
  ** Platform independent base class of editor.
  **/
-// Copyright 1998-2007 by Neil Hodgson <neilh@scintilla.org>
+// Copyright 1998-2010 by Neil Hodgson <neilh@scintilla.org>
 // The License.txt file describes the conditions under which this software may be distributed.
 
 #include <stdlib.h>
@@ -4605,9 +4605,7 @@ std::vector<GUI::gui_string> ListFromString(const GUI::gui_string &args) {
 			s += args[i];
 		}
 	}
-	if (s.size() > 0) {
-		vs.push_back(s);
-	}
+	vs.push_back(s);
 	return vs;
 }
 
