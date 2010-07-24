@@ -5,7 +5,7 @@ Scintilla 可以编译自己.
 
 
 *** GTK+/Linux 版本 ***
-不再支持
+
 You must first have GTK+ 2.0 or later and GCC (4.1 or better) installed.
 GTK+ 1.x will not work.
 Other C++ compilers may work but may require tweaking the make file.
@@ -46,17 +46,17 @@ For older versions of Borland C++ such as version 5.02, add the -l option.
 
 要编译 Scintilla, make in the scintilla/win32 directory
 		cd scintilla\win32
-GCC(not test):		mingw32-make
+GCC:		mingw32-make
 VS .NET:	nmake -f scintilla.mak
 VC++ 6:	nmake -f scintilla_vc6.mak
-Borland(not test): 	make -fscintilla.mak
+Borland: 	make -fscintilla.mak
 		cd ..\..
 
 要编译  SciTE, use the makefiles located in the scite/win32 directory
 		cd scite\win32
-GCC(not test):		mingw32-make
+GCC:		mingw32-make
 VS .NET: 	nmake -f scite.mak
-Borland(not test):	make -fscite.mak
+Borland:	make -fscite.mak
 
 An executable SciTE will now be in scite\bin.
 

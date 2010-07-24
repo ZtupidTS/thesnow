@@ -1,5 +1,5 @@
 /*
-** $Id: lzio.c,v 1.2 2007/06/15 00:37:57 nyamatongwe Exp $
+** $Id$
 ** a generic input stream interface
 ** See Copyright Notice in lua.h
 */

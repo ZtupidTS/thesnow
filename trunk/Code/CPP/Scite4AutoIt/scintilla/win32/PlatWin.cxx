@@ -1,4 +1,4 @@
-// Scintilla source code edit control
+ï»¿// Scintilla source code edit control
 /** @file PlatWin.cxx
  ** Implementation of platform facilities on Windows.
  **/
@@ -27,7 +27,7 @@
 
 // We want to use multi monitor functions, but via LoadLibrary etc
 // Luckily microsoft has done the heavy lifting for us, so we'll just use their stub functions!
-#if defined(_MSC_VER) || defined(__BORLANDC__)
+#if (defined(_MSC_VER) && (MSC_VER > 1200)) || defined(__BORLANDC__)
 #define COMPILE_MULTIMON_STUBS
 #include "MultiMon.h"
 #endif
@@ -1018,14 +1018,14 @@ void Window::Destroy() {
 		::DestroyWindow(reinterpret_cast<HWND>(wid));
 	wid = 0;
 }
-//added	¡ý
+//added	â†“
 void Window::DestroySciTe() {
 	if (wid)
 		::AnimateWindow(reinterpret_cast<HWND>(wid),500,AW_SLIDE|AW_ACTIVATE|AW_HIDE|AW_HOR_POSITIVE|AW_BLEND);
 		::DestroyWindow(reinterpret_cast<HWND>(wid));
 	wid = 0;
 }
-//added ¡ü
+//added â†‘
 bool Window::HasFocus() {
 	return ::GetFocus() == wid;
 }
@@ -1048,6 +1048,8 @@ void Window::SetPositionRelative(PRectangle rc, Window w) {
 		::GetWindowRect(reinterpret_cast<HWND>(w.GetID()), &rcOther);
 		rc.Move(rcOther.left, rcOther.top);
 
+		// This #ifdef is for VC 98 which has problems with MultiMon.h under some conditions.
+#ifdef MONITOR_DEFAULTTONULL
 		// We're using the stub functionality of MultiMon.h to decay gracefully on machines
 		// (ie, pre Win2000, Win95) that do not support the newer functions.
 		RECT rcMonitor;
@@ -1071,6 +1073,7 @@ void Window::SetPositionRelative(PRectangle rc, Window w) {
 			rc.Move(mi.rcWork.left - rc.left, 0);
 		if (rc.top < mi.rcWork.top)
 			rc.Move(0, mi.rcWork.top - rc.top);
+#endif
 	}
 	SetPosition(rc);
 }
@@ -1155,6 +1158,7 @@ void Window::SetTitle(const char *s) {
 /* Returns rectangle of monitor pt is on, both rect and pt are in Window's
    coordinates */
 PRectangle Window::GetMonitorRect(Point pt) {
+#ifdef MONITOR_DEFAULTTONULL
 	// MonitorFromPoint and GetMonitorInfo are not available on Windows 95 so are not used.
 	// There could be conditional code and dynamic loading in a future version
 	// so this would work on those platforms where they are available.
@@ -1174,6 +1178,9 @@ PRectangle Window::GetMonitorRect(Point pt) {
 	} else {
 		return PRectangle();
 	}
+#else
+	return PRectangle();
+#endif
 }
 
 struct ListItemData {

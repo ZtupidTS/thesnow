@@ -25,13 +25,12 @@
 
 #include "Platform.h"
 
+#include "ILexer.h"
 #include "Scintilla.h"
+
 #ifdef SCI_LEXER
 #include "SciLexer.h"
-#include "PropSet.h"
-#include "PropSetSimple.h"
-#include "Accessor.h"
-#include "KeyWords.h"
+#include "LexerModule.h"
 #endif
 #include "SplitVector.h"
 #include "Partitioning.h"
@@ -2068,7 +2067,7 @@ void ScintillaWin::GetIntelliMouseParameters() {
 
 void ScintillaWin::CopyToClipboard(const SelectionText &selectedText) {
 	if (!::OpenClipboard(MainHWND()))
-		return ;
+		return;
 	::EmptyClipboard();
 
 	GlobalMemory uniText;

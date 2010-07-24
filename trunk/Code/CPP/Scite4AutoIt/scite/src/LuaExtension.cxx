@@ -1176,15 +1176,13 @@ static int LuaPanicFunction(lua_State *L) {
 static char *CheckStartupScript() {
 	delete[] startupScript;
 
-//	startupScript = host->Property("ext.lua.startup.script");
-//added
-	GUI::gui_string Script = GUI::StringFromUTF8(host->Property("ext.lua.startup.script"));
-	startupScript=GUI::CharFromString(Script);
-//added
+	startupScript = host->Property("ext.lua.startup.script");
+
 	if (startupScript && startupScript[0] == '\0') {
 		delete[] startupScript;
 		startupScript = NULL;
 	}
+
 	return startupScript;
 }
 
@@ -1367,6 +1365,7 @@ static bool InitGlobalScope(bool checkProperties, bool forceReload = false) {
 		// available during a normal startup?  Are there any other functions
 		// that should be blocked during startup, e.g. the ones that allow
 		// you to add or switch buffers?
+
 		luaL_loadfile(luaState, startupScript);
 		if (!call_function(luaState, 0, true)) {
 			host->Trace(">Lua: 当载入启动脚本时发生错误,灰常郁闷..\n");
@@ -1437,11 +1436,7 @@ bool LuaExtension::Load(const char *filename) {
 		int sl = strlen(filename);
 		if (sl >= 4 && strcmp(filename+sl-4, ".lua")==0) {
 			if (luaState || InitGlobalScope(false)) {
-//added
-			GUI::gui_string Script = GUI::StringFromUTF8(filename);
-			filename=GUI::CharFromString(Script);
-//added
-			extensionScript = filename;
+				extensionScript = filename;
 				luaL_loadfile(luaState, filename);
 				if (!call_function(luaState, 0, true)) {
 					host->Trace(">Lua: 当载入一个扩展脚本时发生错误\n");

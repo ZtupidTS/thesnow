@@ -25,11 +25,11 @@ endif
 
 COMPLIB=../bin/scintilla.a
 
-vpath %.h ../src ../include
-vpath %.cxx ../src
+vpath %.h ../src ../include ../lexlib
+vpath %.cxx ../src ../lexlib ../lexers
 
-INCLUDEDIRS=-I ../include -I ../src
-CXXBASEFLAGS=-Wall -Wno-missing-braces -Wno-char-subscripts -pedantic -DGTK -DSCI_LEXER $(INCLUDEDIRS)
+INCLUDEDIRS=-I ../include -I ../src -I ../lexlib
+CXXBASEFLAGS=-Wall -Wno-missing-braces -Wno-char-subscripts -Wno-long-long -pedantic -DGTK -DSCI_LEXER $(INCLUDEDIRS)
 
 ifdef NOTHREADS
 THREADFLAGS=-DG_THREADS_IMPL_NONE
@@ -51,7 +51,7 @@ MARSHALLER=scintilla-marshal.o
 .c.o:
 	$(CCOMP) $(CONFIGFLAGS) $(CXXFLAGS) -w -c $<
 
-LEXOBJS:=$(addsuffix .o,$(basename $(notdir $(wildcard ../src/Lex*.cxx))))
+LEXOBJS:=$(addsuffix .o,$(basename $(notdir $(wildcard ../lexers/Lex*.cxx))))
 
 all: $(COMPLIB)
 
@@ -61,9 +61,9 @@ clean:
 deps:
 	$(CC) -MM $(CONFIGFLAGS) $(CXXFLAGS) *.cxx ../src/*.cxx | sed -e 's/\/usr.* //' | grep [a-zA-Z] >deps.mak
 
-$(COMPLIB): DocumentAccessor.o WindowAccessor.o KeyWords.o StyleContext.o \
-	CharClassify.o Decoration.o Document.o PerLine.o CallTip.o \
-	ScintillaBase.o ContractionState.o Editor.o ExternalLexer.o PropSet.o PlatGTK.o \
+$(COMPLIB): Accessor.o CharacterSet.o LexerBase.o LexerModule.o LexerSimple.o StyleContext.o WordList.o \
+	CharClassify.o Decoration.o Document.o PerLine.o Catalogue.o CallTip.o \
+	ScintillaBase.o ContractionState.o Editor.o ExternalLexer.o PropSetSimple.o PlatGTK.o \
 	KeyMap.o LineMarker.o PositionCache.o ScintillaGTK.o CellBuffer.o ViewStyle.o \
 	RESearch.o RunStyles.o Selection.o Style.o Indicator.o AutoComplete.o UniConversion.o XPM.o \
 	$(MARSHALLER) $(LEXOBJS)
