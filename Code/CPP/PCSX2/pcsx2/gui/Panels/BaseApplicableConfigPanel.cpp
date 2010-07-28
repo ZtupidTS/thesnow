@@ -94,7 +94,7 @@ bool ApplyStateStruct::ApplyPage( int pageid )
 
 		if( ex.IsVerbose )
 		{
-			wxMessageBox( ex.FormatDisplayMessage(), _("Cannot apply settings...") );
+			wxMessageBox( ex.FormatDisplayMessage(), _("不能应用设置...") );
 
 			if( ex.GetPanel() != NULL )
 				ex.GetPanel()->SetFocusToMe();

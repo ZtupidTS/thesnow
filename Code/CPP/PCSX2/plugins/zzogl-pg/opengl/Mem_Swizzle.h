@@ -1,5 +1,6 @@
-/*  ZeroGS KOSMOS
- *  Copyright (C) 2005-2006 zerofrog@gmail.com
+/*  ZZ Open GL graphics plugin
+ *  Copyright (c)2009-2010 zeydlitz@gmail.com, arcum42@gmail.com
+ *  Based on Zerofrog's ZeroGS KOSMOS (c)2005-2008
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -13,7 +14,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
 #ifndef MEM_SWIZZLE_H_INCLUDED
@@ -47,5 +48,17 @@ extern __forceinline void SwizzleBlock4HL(u8 *dst, u8 *src, int pitch, u32 Write
 #define SwizzleBlock8Hu SwizzleBlock8H
 #define SwizzleBlock4HHu SwizzleBlock4HH
 #define SwizzleBlock4HLu SwizzleBlock4HL
+
+#define SwizzleBlock16S SwizzleBlock16
+#define SwizzleBlock32Z SwizzleBlock32
+#define SwizzleBlock24Z SwizzleBlock24
+#define SwizzleBlock16Z SwizzleBlock16
+#define SwizzleBlock16SZ SwizzleBlock16
+
+#define SwizzleBlock16Su SwizzleBlock16u
+#define SwizzleBlock32Zu SwizzleBlock32u
+#define SwizzleBlock24Zu SwizzleBlock24u
+#define SwizzleBlock16Zu SwizzleBlock16u
+#define SwizzleBlock16SZu SwizzleBlock16u
 
 #endif // MEM_SWIZZLE_H_INCLUDED

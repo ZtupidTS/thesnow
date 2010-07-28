@@ -15,6 +15,13 @@
 
 #pragma once
 
+using namespace x86Emitter;
+
+typedef xRegisterSSE xmm;
+typedef xRegister32 x32;
+
+struct microVU;
+
 //------------------------------------------------------------------
 // Global Variables
 //------------------------------------------------------------------
@@ -82,34 +89,41 @@ extern const __aligned(32) mVU_Globals mVUglob;
 
 #define isCOP2		(mVU->cop2  != 0)
 #define isVU1		(mVU->index != 0)
+#define isVU0		(mVU->index == 0)
 #define getIndex	(isVU1 ? 1 : 0)
 #define getVUmem(x)	(((isVU1) ? (x & 0x3ff) : ((x >= 0x400) ? (x & 0x43f) : (x & 0xff))) * 16)
 #define offsetSS	((_X) ? (0) : ((_Y) ? (4) : ((_Z) ? 8: 12)))
 #define offsetReg	((_X) ? (0) : ((_Y) ? (1) : ((_Z) ? 2:  3)))
 
-#define xmmT1	0 // Used for regAlloc
-#define xmmT2	1 // Used for regAlloc
-#define xmmT3	2 // Used for regAlloc
-#define xmmT4	3 // Used for regAlloc
-#define xmmT5	4 // Used for regAlloc
-#define xmmT6	5 // Used for regAlloc
-#define xmmT7	6 // Used for regAlloc
-#define xmmPQ	7 // Holds the Value and Backup Values of P and Q regs
+#define xmmT1  xmm0 // Used for regAlloc
+#define xmmT2  xmm1 // Used for regAlloc
+#define xmmT3  xmm2 // Used for regAlloc
+#define xmmT4  xmm3 // Used for regAlloc
+#define xmmT5  xmm4 // Used for regAlloc
+#define xmmT6  xmm5 // Used for regAlloc
+#define xmmT7  xmm6 // Used for regAlloc
+#define xmmPQ  xmm7 // Holds the Value and Backup Values of P and Q regs
 
-#define gprT1	0 // Temp Reg
-#define gprT2	1 // Temp Reg
-#define gprT3	2 // Temp Reg
-#define gprF0	3 // Status Flag 0
-#define gprESP	4 // Don't use?
-#define gprF1	5 // Status Flag 1
-#define gprF2	6 // Status Flag 2
-#define gprF3	7 // Status Flag 3
+#define gprT1  eax // eax - Temp Reg
+#define gprT2  ecx // ecx - Temp Reg
+#define gprT3  edx // edx - Temp Reg
+#define gprT1b ax  // Low 16-bit of gprT1 (eax)
+#define gprT2b cx  // Low 16-bit of gprT2 (ecx)
+#define gprT3b dx  // Low 16-bit of gprT3 (edx)
+
+#define gprF0  ebx // Status Flag 0
+#define gprF1  ebp // Status Flag 1
+#define gprF2  esi // Status Flag 2
+#define gprF3  edi // Status Flag 3
 
 // Function Params
 #define mP microVU* mVU, int recPass
 #define mV microVU* mVU
 #define mF int recPass
 #define mX mVU, recPass
+
+typedef void __fastcall Fntype_mVUrecInst( microVU* mVU, int recPass );
+typedef Fntype_mVUrecInst* Fnptr_mVUrecInst;
 
 // Recursive Inline
 #ifndef __LINUX__
@@ -120,7 +134,7 @@ extern const __aligned(32) mVU_Globals mVUglob;
 
 // Function/Template Stuff
 #define  mVUx (vuIndex ? &microVU1 : &microVU0)
-#define  mVUop(opName)	static void opName (mP)
+#define  mVUop(opName)	static void __fastcall opName (mP)
 #define _mVUt template<int vuIndex>
 #define _r	  static __recInline
 
@@ -192,7 +206,7 @@ typedef u32 (__fastcall *mVUCall)(void*, void*);
 #define branchAddrN	 ((xPC + 16 + (_Imm11_ * 8)) & (mVU->microMemSize-8))
 #define shufflePQ	 (((mVU->p) ? 0xb0 : 0xe0) | ((mVU->q) ? 0x01 : 0x04))
 #define cmpOffset(x) ((u8*)&(((u8*)x)[it[0].start]))
-#define Rmem		 (uptr)&mVU->regs->VI[REG_R].UL
+#define Rmem		 &mVU->regs->VI[REG_R].UL
 #define aWrap(x, m)	 ((x > m) ? 0 : x)
 #define shuffleSS(x) ((x==1)?(0x27):((x==2)?(0xc6):((x==4)?(0xe1):(0xe4))))
 #define _1mb		 (0x100000)
@@ -260,6 +274,13 @@ typedef u32 (__fastcall *mVUCall)(void*, void*);
 // This hack only updates the Status Flag on blocks that will read it.
 // Most blocks do not read status flags, so this is a big speedup.
 
+// Block Flag Instance No-Propagation Hack
+#define CHECK_VU_BLOCKHACK (EmuConfig.Speedhacks.vuBlockHack)
+// There are times when it is unknown if future blocks will need old
+// flag instance data (due to indirect jumps). This hack assumes
+// that they won't need old flag data. This effectively removes a lot
+// of end-of-block flag instance shuffling, causing nice speedups.
+
 // Min/Max Speed Hack
 #define CHECK_VU_MINMAXHACK	(EmuConfig.Speedhacks.vuMinMax)
 // This hack uses SSE min/max instructions instead of emulated "logical min/max"
@@ -282,14 +303,11 @@ typedef u32 (__fastcall *mVUCall)(void*, void*);
 	uptr diff = ptr - start;																	  \
 	if (diff >= limit) {																		  \
 		Console.WriteLn("microVU%d: Program cache limit reached. Size = 0x%x", mVU->index, diff); \
-		mVUreset(mVU);																			  \
+		mVUresizeCache(mVU, mVU->cacheSize + mVUcacheGrowBy);									  \
 	}																							  \
 }
 
-#define mVUdebugNOW(isEndPC) {							\
-	if (mVUdebugNow) {									\
-		MOV32ItoR(gprT2, xPC);							\
-		if (isEndPC) { CALLFunc((uptr)mVUprintPC2); }	\
-		else		 { CALLFunc((uptr)mVUprintPC1); }	\
-	}													\
-}
+extern void mVUmergeRegs(const xmm& dest, const xmm& src,  int xyzw, bool modXYZW=false);
+extern void mVUsaveReg(const xmm& reg, xAddressVoid ptr, int xyzw, bool modXYZW);
+extern void mVUloadReg(const xmm& reg, xAddressVoid ptr, int xyzw);
+extern void mVUloadIreg(const xmm& reg, int xyzw, VURegs* vuRegs);

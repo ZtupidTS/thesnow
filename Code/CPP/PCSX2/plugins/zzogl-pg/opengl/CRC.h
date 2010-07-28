@@ -1,3 +1,22 @@
+/*  ZZ Open GL graphics plugin
+ *  Copyright (c)2009-2010 zeydlitz@gmail.com, arcum42@gmail.com
+ *  Based on Zerofrog's ZeroGS KOSMOS (c)2005-2008
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ */
+
 #ifndef CRC_H_INCLUDED
 #define CRC_H_INCLUDED
 
@@ -37,7 +56,7 @@ enum GAME_HACK_OPTIONS
 	GAME_NOLOGZ				=	0x20000000 // Intended for linux -- not logarithmic Z.
 };
 
-#define USEALPHATESTING (!(g_GameSettings&GAME_NOALPHATEST))
+#define USEALPHATESTING (!(conf.settings().no_alpha_test))
 
 // CRC Information
 enum Title_Info
@@ -272,5 +291,6 @@ static const Game_Info crc_game_list[] =
 };
 
 #define GAME_INFO_INDEX (sizeof(crc_game_list)/sizeof(Game_Info))
+
 
 #endif // CRC_H_INCLUDED

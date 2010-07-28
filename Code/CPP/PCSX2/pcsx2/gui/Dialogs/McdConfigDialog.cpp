@@ -46,7 +46,7 @@ Panels::McdConfigPanel_Toggles::McdConfigPanel_Toggles(wxWindow *parent)
 
 #ifdef __WXMSW__
 	m_check_CompressNTFS = new pxCheckBox( this,
-		_("Enable NTFS Compression on all cards by default."),
+		_("默认启用所有内存卡使用 NTFS 压缩."),
 		GetMsg_McdNtfsCompress()
 		);
 #endif
@@ -101,7 +101,7 @@ using namespace Panels;
 using namespace pxSizerFlags;
 
 Dialogs::McdConfigDialog::McdConfigDialog( wxWindow* parent )
-	: BaseConfigurationDialog( parent, _("MemoryCard Manager"), 600 )
+	: BaseConfigurationDialog( parent, _("内存卡管理器"), 600 )
 {
 	m_panel_mcdlist	= new MemoryCardListPanel_Simple( this );
 

@@ -1,6 +1,6 @@
 /*  ZZ Open GL graphics plugin
- *  Copyright (c)2009 zeydlitz@gmail.com
- *  Based on Zerofrog's ZeroGS KOSMOS (c)2005-2006
+ *  Copyright (c)2009-2010 zeydlitz@gmail.com, arcum42@gmail.com
+ *  Based on Zerofrog's ZeroGS KOSMOS (c)2005-2008
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
 // Create and Destroy function. They would be called once per session.
@@ -140,7 +140,7 @@ void (APIENTRY *zgsBlendFuncSeparateEXT)(GLenum, GLenum, GLenum, GLenum) = NULL;
 // State parameters
 float fiRendWidth, fiRendHeight;
 
-u8* s_lpShaderResources = NULL;
+extern u8* s_lpShaderResources;
 CGprogram pvs[16] = {NULL};
 
 // String's for shader file in developer mode
@@ -173,14 +173,14 @@ int g_nPixelShaderVer = 0; // default
 
 RasterFont* font_p = NULL;
 float g_fBlockMult = 1;
-int s_nFullscreen = 0;
+//int s_nFullscreen = 0;
 
 u32 ptexBlocks = 0, ptexConv16to32 = 0;	 // holds information on block tiling
 u32 ptexBilinearBlocks = 0;
 u32 ptexConv32to16 = 0;
 bool g_bDisplayMsg = 1;
 int g_nDepthBias = 0;
-bool g_bSaveFlushedFrame = 0;
+//u32 g_bSaveFlushedFrame = 0;
 
 //------------------ Code
 
@@ -199,7 +199,7 @@ ZeroGS::Create_Window(int _width, int _height)
 
 	if (!GLWin.DisplayWindow(_width, _height)) return false;
 
-	s_nFullscreen = (conf.options & GSOPTION_FULLSCREEN) ? 1 : 0;
+	//s_nFullscreen = (conf.fullscreen()) ? 1 : 0;
 
 	conf.mrtdepth = 0; // for now
 
@@ -299,7 +299,7 @@ inline void ZeroGS::CreateOtherCheck()
 		ZZLog::Error_Log("Could not properly make bitmasks, so some textures will be missed.");
 
 	/* Zeydlitz: we don't support 128-bit targets yet. they are slow and weirdo
-	if( g_GameSettings & GAME_32BITTARGS ) {
+	if( conf.settings() & GAME_32BITTARGS ) {
 		g_RenderFormatType = RFT_byte8;
 		ZZLog::Error_Log("Setting 32 bit render target.");
 	}
@@ -456,6 +456,27 @@ inline bool CreateFillExtensionsMap()
 
 const static char* g_pShaders[] = { "full", "reduced", "accurate", "accurate-reduced" };
 
+void LoadglFunctions()
+{
+	GL_LOADFN(glIsRenderbufferEXT);
+	GL_LOADFN(glBindRenderbufferEXT);
+	GL_LOADFN(glDeleteRenderbuffersEXT);
+	GL_LOADFN(glGenRenderbuffersEXT);
+	GL_LOADFN(glRenderbufferStorageEXT);
+	GL_LOADFN(glGetRenderbufferParameterivEXT);
+	GL_LOADFN(glIsFramebufferEXT);
+	GL_LOADFN(glBindFramebufferEXT);
+	GL_LOADFN(glDeleteFramebuffersEXT);
+	GL_LOADFN(glGenFramebuffersEXT);
+	GL_LOADFN(glCheckFramebufferStatusEXT);
+	GL_LOADFN(glFramebufferTexture1DEXT);
+	GL_LOADFN(glFramebufferTexture2DEXT);
+	GL_LOADFN(glFramebufferTexture3DEXT);
+	GL_LOADFN(glFramebufferRenderbufferEXT);
+	GL_LOADFN(glGetFramebufferAttachmentParameterivEXT);
+	GL_LOADFN(glGenerateMipmapEXT);
+}
+
 bool ZeroGS::Create(int _width, int _height)
 {
 	GLenum err = GL_NO_ERROR;
@@ -489,23 +510,7 @@ bool ZeroGS::Create(int _width, int _height)
 
 	s_srcrgb = s_dstrgb = s_srcalpha = s_dstalpha = GL_ONE;
 
-	GL_LOADFN(glIsRenderbufferEXT);
-	GL_LOADFN(glBindRenderbufferEXT);
-	GL_LOADFN(glDeleteRenderbuffersEXT);
-	GL_LOADFN(glGenRenderbuffersEXT);
-	GL_LOADFN(glRenderbufferStorageEXT);
-	GL_LOADFN(glGetRenderbufferParameterivEXT);
-	GL_LOADFN(glIsFramebufferEXT);
-	GL_LOADFN(glBindFramebufferEXT);
-	GL_LOADFN(glDeleteFramebuffersEXT);
-	GL_LOADFN(glGenFramebuffersEXT);
-	GL_LOADFN(glCheckFramebufferStatusEXT);
-	GL_LOADFN(glFramebufferTexture1DEXT);
-	GL_LOADFN(glFramebufferTexture2DEXT);
-	GL_LOADFN(glFramebufferTexture3DEXT);
-	GL_LOADFN(glFramebufferRenderbufferEXT);
-	GL_LOADFN(glGetFramebufferAttachmentParameterivEXT);
-	GL_LOADFN(glGenerateMipmapEXT);
+	LoadglFunctions();
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 	GL_REPORT_ERROR();
@@ -523,7 +528,8 @@ bool ZeroGS::Create(int _width, int _height)
 
 	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, s_uFramebuffer);
 
-	if (glDrawBuffers != NULL) glDrawBuffers(1, s_drawbuffers);
+	DrawBuffers(s_drawbuffers);
+		
 	GL_REPORT_ERROR();
 
 	if (err != GL_NO_ERROR) bSuccess = false;
@@ -545,11 +551,10 @@ bool ZeroGS::Create(int _width, int _height)
 
 	SetAA(conf.aa);
 
-	GSsetGameCRC(g_LastCRC, g_GameSettings);
+	GSsetGameCRC(g_LastCRC, conf.settings()._u32);
 
 	GL_STENCILFUNC(GL_ALWAYS, 0, 0);
 
-	//g_GameSettings |= 0;//GAME_VSSHACK|GAME_FULL16BITRES|GAME_NODEPTHRESOLVE|GAME_FASTUPDATE;
 	//s_bWriteDepth = true;
 
 	GL_BLEND_ALL(GL_ONE, GL_ONE, GL_ONE, GL_ONE);
@@ -582,13 +587,13 @@ bool ZeroGS::Create(int _width, int _height)
 
 	PBITMAPINFO pinfo = (PBITMAPINFO)LockResource(hBitmapGlob);
 
-	glTexImage2D(GL_TEXTURE_RECTANGLE_NV, 0, 4, pinfo->bmiHeader.biWidth, pinfo->bmiHeader.biHeight, 0, pinfo->bmiHeader.biBitCount == 32 ? GL_RGBA : GL_RGB, GL_UNSIGNED_BYTE, (u8*)pinfo + pinfo->bmiHeader.biSize);
+	GLenum tempFmt = (pinfo->bmiHeader.biBitCount == 32) ? GL_RGBA : GL_RGB;
+	TextureRect(4, pinfo->bmiHeader.biWidth, pinfo->bmiHeader.biHeight, tempFmt, GL_UNSIGNED_BYTE, (u8*)pinfo + pinfo->bmiHeader.biSize);
 
 	nLogoWidth = pinfo->bmiHeader.biWidth;
 	nLogoHeight = pinfo->bmiHeader.biHeight;
 
-	glTexParameteri(GL_TEXTURE_RECTANGLE_NV, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_RECTANGLE_NV, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	setRectFilters(GL_LINEAR);
 
 #else
 #endif
@@ -622,20 +627,17 @@ bool ZeroGS::Create(int _width, int _height)
 	g_internalFloatFmt = GL_ALPHA_FLOAT32_ATI;
 	g_internalRGBAFloatFmt = GL_RGBA_FLOAT32_ATI;
 	g_internalRGBAFloat16Fmt = GL_RGBA_FLOAT16_ATI;
-
-	glTexImage2D(GL_TEXTURE_2D, 0, g_internalFloatFmt, BLOCK_TEXWIDTH, BLOCK_TEXHEIGHT, 0, GL_ALPHA, GL_FLOAT, &vBlockData[0]);
+	
+	Texture2D(g_internalFloatFmt, GL_ALPHA, GL_FLOAT, &vBlockData[0]);
 
 	if (glGetError() != GL_NO_ERROR)
 	{
 		// try different internal format
 		g_internalFloatFmt = GL_FLOAT_R32_NV;
-		glTexImage2D(GL_TEXTURE_2D, 0, g_internalFloatFmt, BLOCK_TEXWIDTH, BLOCK_TEXHEIGHT, 0, GL_RED, GL_FLOAT, &vBlockData[0]);
+		Texture2D(g_internalFloatFmt, GL_RED, GL_FLOAT, &vBlockData[0]);
 	}
-
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	setTex2DFilters(GL_NEAREST);
+	setTex2DWrap(GL_REPEAT);
 
 	if (glGetError() != GL_NO_ERROR)
 	{
@@ -643,7 +645,7 @@ bool ZeroGS::Create(int _width, int _height)
 		g_fBlockMult = 65535.0f * (float)g_fiGPU_TEXWIDTH / 32.0f;
 
 		BLOCK::FillBlocks(vBlockData, vBilinearData, 0);
-		glTexImage2D(GL_TEXTURE_2D, 0, 2, BLOCK_TEXWIDTH, BLOCK_TEXHEIGHT, 0, GL_R, GL_UNSIGNED_SHORT, &vBlockData[0]);
+		Texture2D(2, GL_R, GL_UNSIGNED_SHORT, &vBlockData[0]);
 
 		if (glGetError() != GL_NO_ERROR)
 		{
@@ -651,21 +653,21 @@ bool ZeroGS::Create(int _width, int _height)
 			return false;
 		}
 
-		ZZLog::Error_Log("Using non-bilinear fill.");
+		ZZLog::GS_Log("Using non-bilinear fill.");
 	}
 	else
 	{
 		// fill in the bilinear blocks
 		glGenTextures(1, &ptexBilinearBlocks);
 		glBindTexture(GL_TEXTURE_2D, ptexBilinearBlocks);
-		glTexImage2D(GL_TEXTURE_2D, 0, g_internalRGBAFloatFmt, BLOCK_TEXWIDTH, BLOCK_TEXHEIGHT, 0, GL_RGBA, GL_FLOAT, &vBilinearData[0]);
+		Texture2D(g_internalRGBAFloatFmt, GL_RGBA, GL_FLOAT, &vBilinearData[0]);
 
 		if (glGetError() != GL_NO_ERROR)
 		{
 			g_internalRGBAFloatFmt = GL_FLOAT_RGBA32_NV;
 			g_internalRGBAFloat16Fmt = GL_FLOAT_RGBA16_NV;
-			glTexImage2D(GL_TEXTURE_2D, 0, g_internalRGBAFloatFmt, BLOCK_TEXWIDTH, BLOCK_TEXHEIGHT, 0, GL_RGBA, GL_FLOAT, &vBilinearData[0]);
-			ZZLog::Error_Log("ZZogl Fill bilinear blocks.");
+			Texture2D(g_internalRGBAFloatFmt, GL_RGBA, GL_FLOAT, &vBilinearData[0]);
+			ZZLog::Debug_Log("ZZogl Fill bilinear blocks. ");
 			B_G(glGetError() == GL_NO_ERROR, return false);
 		}
 		else
@@ -674,10 +676,8 @@ bool ZeroGS::Create(int _width, int _height)
 			//ZZLog::Error_Log("Fill bilinear blocks failed!");
 		}
 
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		setTex2DFilters(GL_NEAREST);
+		setTex2DWrap(GL_REPEAT);
 	}
 
 	float fpri = 1;
@@ -752,12 +752,10 @@ bool ZeroGS::Create(int _width, int _height)
 		conv16to32data[i] = (tempcol & 0xff00ff00) | ((tempcol & 0xff) << 16) | ((tempcol & 0xff0000) >> 16);
 	}
 
-	glTexImage2D(GL_TEXTURE_2D, 0, 4, 256, 256, 0, GL_RGBA, GL_UNSIGNED_BYTE, &conv16to32data[0]);
+	Texture2D(4, 256, 256, GL_RGBA, GL_UNSIGNED_BYTE, &conv16to32data[0]);
 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+	setTex2DFilters(GL_NEAREST);
+	setTex2DWrap(GL_CLAMP);
 
 	GL_REPORT_ERROR();
 
@@ -783,12 +781,9 @@ bool ZeroGS::Create(int _width, int _height)
 		}
 	}
 
-	glTexImage3D(GL_TEXTURE_3D, 0, 4, 32, 32, 32, 0, GL_RGBA, GL_UNSIGNED_BYTE, &conv32to16data[0]);
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP);
+	Texture3D(4, 32, 32, 32, GL_RGBA, GL_UNSIGNED_BYTE, &conv32to16data[0]);
+	setTex3DFilters(GL_NEAREST);
+	setTex3DWrap(GL_CLAMP);
 	GL_REPORT_ERROR();
 
 	if (err != GL_NO_ERROR) bSuccess = false;
@@ -812,7 +807,7 @@ bool ZeroGS::Create(int _width, int _height)
 	g_vparamPosXY[0] = cgCreateParameter(g_cgcontext, CG_FLOAT4);
 	g_vparamPosXY[1] = cgCreateParameter(g_cgcontext, CG_FLOAT4);
 
-	ZZLog::Error_Log("Creating effects.");
+	ZZLog::GS_Log("Creating effects.");
 
 	B_G(LoadEffects(), return false);
 
@@ -854,11 +849,11 @@ bool ZeroGS::Create(int _width, int _height)
 
 	if (g_nPixelShaderVer & SHADER_REDUCED) conf.bilinear = 0;
 
-	ZZLog::Error_Log("Creating extra effects.");
+	ZZLog::GS_Log("Creating extra effects.");
 
 	B_G(LoadExtraEffects(), return false);
 
-	ZZLog::Error_Log("Using %s shaders.", g_pShaders[g_nPixelShaderVer]);
+	ZZLog::GS_Log("Using %s shaders.", g_pShaders[g_nPixelShaderVer]);
 
 	GL_REPORT_ERROR();
 
@@ -887,7 +882,7 @@ bool ZeroGS::Create(int _width, int _height)
 	vb[0].Init(VB_BUFFERSIZE);
 	vb[1].Init(VB_BUFFERSIZE);
 
-	g_bSaveFlushedFrame = 1;
+//	g_bSaveFlushedFrame = 1;
 
 	g_vsprog = g_psprog = 0;
 
@@ -897,20 +892,14 @@ bool ZeroGS::Create(int _width, int _height)
 	}
 	else
 	{
-		ZZLog::Error_Log("In final init!");
+		ZZLog::Debug_Log("In final init!");
 		return false;
 	}
 }
 
 void ZeroGS::Destroy(bool bD3D)
 {
-	if (s_aviinit)
-	{
-		StopCapture();
-		Stop_Avi();
-		ZZLog::Error_Log("zerogs.avi stopped.");
-		s_aviinit = 0;
-	}
+	Delete_Avi_Capture();
 
 	g_MemTargs.Destroy();
 

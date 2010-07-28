@@ -55,17 +55,17 @@ void Panels::DirPickerPanel::Explore_Click( wxCommandEvent &evt )
 	wxString path( m_pickerCtrl->GetPath() );
 	if( !wxDirExists(path) )
 	{
-		wxDialogWithHelpers createPathDlg( NULL, _("Path does not exist") );
+		wxDialogWithHelpers createPathDlg( NULL, _("路径不存在") );
 		createPathDlg.SetMinWidth( 600 );
 
 		createPathDlg += createPathDlg.Text( path ) | StdCenter();
 
 		createPathDlg += createPathDlg.Heading( pxE( ".Error:DirPicker:CreatePath",
-			L"The specified path/directory does not exist.  Would you like to create it?" )
+			L"指定的路径/目录不存在.  是否需要创建一个?" )
 		);
 
 		wxWindowID result = pxIssueConfirmation( createPathDlg,
-			MsgButtons().Custom(_("Create")).Cancel(),
+			MsgButtons().Custom(_("创建")).Cancel(),
 			L"DirPicker:CreateOnExplore"
 		);
 
@@ -113,7 +113,7 @@ void Panels::DirPickerPanel::Init( FoldersEnum_t folderid, const wxString& dialo
 
 	if( !isCompact )
 	{
-		m_checkCtrl = new pxCheckBox( this, _("Use default setting") );
+		m_checkCtrl = new pxCheckBox( this, _("使用默认设置") );
 
 		pxSetToolTip( m_checkCtrl, pxE( ".Tooltip:DirPicker:UseDefault",
 			L"When checked this folder will automatically reflect the default associated with PCSX2's current usermode setting. " )
@@ -220,12 +220,12 @@ void Panels::DirPickerPanel::Apply()
 
 	if( !wxDir::Exists( path ) )
 	{
-		wxDialogWithHelpers dialog( NULL, _("Create folder?") );
-		dialog += dialog.Heading( _("A configured folder does not exist.  Should PCSX2 try to create it?") );
+		wxDialogWithHelpers dialog( NULL, _("创建文件夹?") );
+		dialog += dialog.Heading(AddAppName(_("A configured folder does not exist.  Should %s try to create it?")));
 		dialog += 12;
 		dialog += dialog.Heading( path );
 
-		if( wxID_CANCEL == pxIssueConfirmation( dialog, MsgButtons().Custom(_("Create")).Cancel(), L"CreateNewFolder" ) )
+		if( wxID_CANCEL == pxIssueConfirmation( dialog, MsgButtons().Custom(_("创建")).Cancel(), L"CreateNewFolder" ) )
 			throw Exception::CannotApplySettings( this );
 	}
 

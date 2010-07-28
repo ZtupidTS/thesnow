@@ -1,30 +1,29 @@
-/*	ZeroGS KOSMOS
- *	Copyright (C) 2005-2006 zerofrog@gmail.com
+/*  ZZ Open GL graphics plugin
+ *  Copyright (c)2009-2010 zeydlitz@gmail.com, arcum42@gmail.com
+ *  Based on Zerofrog's ZeroGS KOSMOS (c)2005-2008
  *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License, or
- *	(at your option) any later version.
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
  *
- *	This program is distributed in the hope that it will be useful,
- *	but WITHOUT ANY WARRANTY; without even the implied warranty of
- *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
- *	GNU General Public License for more details.
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
  *
- *	You should have received a copy of the GNU General Public License
- *	along with this program; if not, write to the Free Software
- *	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA	02111-1307	USA
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
 #ifndef GIFTRANSFER_H_INCLUDED
 #define GIFTRANSFER_H_INCLUDED
 
+#include "GS.h"
 #include "Regs.h"
 #include "Util.h"
 
-// If you notice bugs in the newest revisions, you might try disabling this,
-// to see if they are related.
-#define NEW_GIF_TRANSFER
 enum GIF_FLG
 {
 	GIF_FLG_PACKED	= 0,
@@ -53,7 +52,7 @@ union GIFTag
 		u64 REGS : 64;
 	};
 
-	void set(u32 *data)
+	void set(const u32 *data)
 	{
 		for (int i = 0; i <= 3; i++)
 		{
@@ -73,7 +72,6 @@ union GIFTag
 
 typedef struct
 {
-#ifdef NEW_GIF_TRANSFER
 	u32 mode;
 	int reg;
 	u64 regs;
@@ -82,31 +80,22 @@ typedef struct
 	int nreg;
 	u32 adonly;
 	GIFTag tag;
-#else
-	int mode;
-	int regn;
-	u64 regs;
-	int nloop;
-	int eop;
-	int nreg;
-	u32 adonly;
-	GIFTag tag;
-#endif
 
-#ifdef NEW_GIF_TRANSFER
-	void setTag(u32 *data)
+	void setTag(const u32 *data)
 	{
 		tag.set(data);
 
 		nloop	= tag.NLOOP;
 		eop		= tag.EOP;
 		mode	= tag.FLG;
+		adonly = false;
 
 		// Hmm....
 		nreg	= tag.NREG << 2;
 		if (nreg == 0) nreg = 64;
 		regs = tag.REGS;
 		reg = 0;
+		if ((nreg == 4) && (regs == GIF_REG_A_D)) adonly = true;
 
 		//      ZZLog::GS_Log("GIFtag: %8.8lx_%8.8lx_%8.8lx_%8.8lx: EOP=%d, NLOOP=%x, FLG=%x, NREG=%d, PRE=%d",
 		//                      data[3], data[2], data[1], data[0],
@@ -133,50 +122,13 @@ typedef struct
 		return true;
 	}
 
-#else
-	void setTag(u32 *data)
-	{
-		tag.set(data);
-
-		nloop   = tag.NLOOP;
-		eop     = tag.EOP;
-		u32 tagpre              = tag.PRE;
-		u32 tagprim             = tag.PRIM;
-		u32 tagflg              = tag.FLG;
-
-		// Hmm....
-		nreg    = tag.NREG << 2;
-		if (nreg == 0) nreg = 64;
-
-		//      ZZLog::GS_Log("GIFtag: %8.8lx_%8.8lx_%8.8lx_%8.8lx: EOP=%d, NLOOP=%x, FLG=%x, NREG=%d, PRE=%d",
-		//                      data[3], data[2], data[1], data[0],
-		//                      path->eop, path->nloop, tagflg, path->nreg, tagpre);
-
-		mode = tagflg;
-
-		switch (mode)
-		{
-			case GIF_FLG_PACKED:
-				regs = *(u64 *)(data + 2);
-				regn = 0;
-				if (tagpre) GIFRegHandlerPRIM((u32*)&tagprim);
-				break;
-
-			case GIF_FLG_REGLIST:
-				regs = *(u64 *)(data + 2);
-				regn = 0;
-				break;
-		}
-	}
-
-#endif
 } pathInfo;
 
-void _GSgifPacket(pathInfo *path, u32 *pMem);
-void _GSgifRegList(pathInfo *path, u32 *pMem);
-void _GSgifTransfer(pathInfo *path, u32 *pMem, u32 size);
+extern void _GSgifPacket(pathInfo *path, const u32 *pMem);
+extern void _GSgifRegList(pathInfo *path, const u32 *pMem);
+extern void _GSgifTransfer(pathInfo *path, const u32 *pMem, u32 size);
 
 extern GIFRegHandler g_GIFPackedRegHandlers[];
 extern GIFRegHandler g_GIFRegHandlers[];
-
+extern void InitPath();
 #endif // GIFTRANSFER_H_INCLUDED

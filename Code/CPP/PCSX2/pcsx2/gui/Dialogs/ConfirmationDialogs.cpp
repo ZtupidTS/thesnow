@@ -68,8 +68,8 @@ static wxString ResultToString( int result, const MsgButtons& buttons )
 			// [TODO] : maybe add in an Ignore All?
 		case wxID_IGNORE:	return L"ºöÂÔ";
 
-		case wxID_RESET:	return L"reset";
-		case wxID_CLOSE:	return L"close";
+		case wxID_RESET:	return L"ÖØÖÃ";
+		case wxID_CLOSE:	return L"¹Ø±Õ";
 	}
 
 	if (result <= wxID_LOWEST)

@@ -14,8 +14,9 @@
  */
 
 #include "PrecompiledHeader.h"
-#include "MainFrame.h"
+#include "App.h"
 #include "GSFrame.h"
+#include "AppAccelerators.h"
 
 #include "GS.h"
 #include "MSWstuff.h"
@@ -29,24 +30,29 @@ void GSPanel::InitDefaultAccelerators()
 
 	typedef KeyAcceleratorCode AAC;
 
-	m_Accels.Map( AAC( WXK_F1 ),				"States_FreezeCurrentSlot" );
-	m_Accels.Map( AAC( WXK_F3 ),				"States_DefrostCurrentSlot");
-	m_Accels.Map( AAC( WXK_F2 ),				"States_CycleSlotForward" );
-	m_Accels.Map( AAC( WXK_F2 ).Shift(),		"States_CycleSlotBackward" );
+	if( !m_Accels ) m_Accels = new AcceleratorDictionary;
 
-	m_Accels.Map( AAC( WXK_F4 ),				"Frameskip_Toggle" );
-	m_Accels.Map( AAC( WXK_TAB ),				"Framelimiter_TurboToggle" );
-	m_Accels.Map( AAC( WXK_TAB ).Shift(),		"Framelimiter_MasterToggle" );
+	m_Accels->Map( AAC( WXK_F1 ),				"States_FreezeCurrentSlot" );
+	m_Accels->Map( AAC( WXK_F3 ),				"States_DefrostCurrentSlot");
+	m_Accels->Map( AAC( WXK_F2 ),				"States_CycleSlotForward" );
+	m_Accels->Map( AAC( WXK_F2 ).Shift(),		"States_CycleSlotBackward" );
 
-	m_Accels.Map( AAC( WXK_ESCAPE ),			"Sys_Suspend" );
-	m_Accels.Map( AAC( WXK_F8 ),				"Sys_TakeSnapshot" );
-	m_Accels.Map( AAC( WXK_F9 ),				"Sys_RenderswitchToggle" );
+	m_Accels->Map( AAC( WXK_F4 ),				"Framelimiter_MasterToggle");
+	m_Accels->Map( AAC( WXK_F4 ).Shift(),		"Frameskip_Toggle");
+	m_Accels->Map( AAC( WXK_TAB ),				"Framelimiter_TurboToggle" );
+	m_Accels->Map( AAC( WXK_TAB ).Shift(),		"Framelimiter_MasterToggle" );
 
-	//m_Accels.Map( AAC( WXK_F10 ),				"Sys_LoggingToggle" );
-	m_Accels.Map( AAC( WXK_F11 ),				"Sys_FreezeGS" );
-	m_Accels.Map( AAC( WXK_F12 ),				"Sys_RecordingToggle" );
+	m_Accels->Map( AAC( WXK_ESCAPE ),			"Sys_Suspend" );
+	m_Accels->Map( AAC( WXK_F8 ),				"Sys_TakeSnapshot" );
+	m_Accels->Map( AAC( WXK_F8 ).Shift(),		"Sys_TakeSnapshot");
+	m_Accels->Map( AAC( WXK_F8 ).Shift().Cmd(),	"Sys_TakeSnapshot");
+	m_Accels->Map( AAC( WXK_F9 ),				"Sys_RenderswitchToggle");
 
-	m_Accels.Map( AAC( WXK_RETURN ).Alt(),		"FullscreenToggle" );
+	//m_Accels->Map( AAC( WXK_F10 ),				"Sys_LoggingToggle" );
+	m_Accels->Map( AAC( WXK_F11 ),				"Sys_FreezeGS" );
+	m_Accels->Map( AAC( WXK_F12 ),				"Sys_RecordingToggle" );
+
+	m_Accels->Map( AAC( WXK_RETURN ).Alt(),		"FullscreenToggle" );
 }
 
 GSPanel::GSPanel( wxWindow* parent )
@@ -57,7 +63,7 @@ GSPanel::GSPanel( wxWindow* parent )
 	m_HasFocus		= false;
 
 	if ( !wxWindow::Create(parent, wxID_ANY) )
-		throw Exception::RuntimeError( "GSPanel constructor esplode!!" );
+		throw Exception::RuntimeError().SetDiagMsg( L"GSPanel constructor esplode!!" );
 
 	SetName( L"GSPanel" );
 
@@ -94,7 +100,7 @@ GSPanel::GSPanel( wxWindow* parent )
 
 GSPanel::~GSPanel() throw()
 {
-	CoreThread.Suspend( false );		// Just in case...!
+	//CoreThread.Suspend( false );		// Just in case...!
 }
 
 void GSPanel::DoShowMouse()
@@ -182,20 +188,17 @@ void GSPanel::OnKeyDown( wxKeyEvent& evt )
 	// silly, but oh well).
 
 	if( (PADopen != NULL) && CoreThread.IsOpen() ) return;
+	DirectKeyCommand( evt );
+}
 
+void GSPanel::DirectKeyCommand( wxKeyEvent& evt )
+{
 	const GlobalCommandDescriptor* cmd = NULL;
-	m_Accels.TryGetValue( KeyAcceleratorCode( evt ).val32, cmd );
-	if( cmd == NULL )
-	{
-		evt.Skip();		// Let the global APP handle it if it wants
-		return;
-	}
+	m_Accels->TryGetValue( KeyAcceleratorCode( evt ).val32, cmd );
+	if( cmd == NULL ) return;
 
-	if( cmd != NULL )
-	{
-		DbgCon.WriteLn( "(gsFrame) Invoking command: %s", cmd->Id );
-		cmd->Invoke();
-	}
+	DbgCon.WriteLn( "(gsFrame) Invoking command: %s", cmd->Id );
+	cmd->Invoke();
 }
 
 void GSPanel::OnFocus( wxFocusEvent& evt )
@@ -245,7 +248,6 @@ GSFrame::GSFrame(wxWindow* parent, const wxString& title)
 	, m_timer_UpdateTitle( this )
 {
 	SetIcons( wxGetApp().GetIconBundle() );
-
 	SetClientSize( g_Conf->GSWindow.WindowSize );
 	SetBackgroundColour( *wxBLACK );
 
@@ -281,6 +283,27 @@ void GSFrame::OnCloseWindow(wxCloseEvent& evt)
 	evt.Skip();		// and close it.
 }
 
+bool GSFrame::ShowFullScreen(bool show, long style)
+{
+	if( show != IsFullScreen() )
+		Console.WriteLn( Color_StrongMagenta, "(gsFrame) Switching to %s mode...", show ? "Fullscreen" : "Windowed" );
+
+	if( g_Conf->GSWindow.IsFullscreen != show )
+	{
+		g_Conf->GSWindow.IsFullscreen = show;
+		wxGetApp().PostIdleMethod( AppSaveSettings );
+	}
+
+	// IMPORTANT!  On MSW platforms you must ALWAYS show the window prior to calling
+	// ShowFullscreen(), otherwise the window will be oddly unstable (lacking input and unable
+	// to properly flip back into fullscreen mode after alt-enter).  I don't know if that
+	// also happens on Linux.
+
+	if( !IsShown() ) Show();
+	bool retval = _parent::ShowFullScreen( show );
+	
+	return retval;
+}
 
 wxStaticText* GSFrame::GetLabel_OutputDisabled() const
 {
@@ -294,11 +317,17 @@ void GSFrame::CoreThread_OnResumed()
 
 void GSFrame::CoreThread_OnSuspended()
 {
-	// Could stop the timer outright here, tho no harm in having an occasional
-	// update here or there, just in case some state info changes while emu is suspended.
-	m_timer_UpdateTitle.Start( TitleBarUpdateMs );
+	if( !IsBeingDeleted() && g_Conf->GSWindow.CloseOnEsc ) Hide();
+}
 
-	if( g_Conf->GSWindow.CloseOnEsc ) Hide();
+void GSFrame::CoreThread_OnStopped()
+{
+	//if( !IsBeingDeleted() ) Destroy();
+}
+
+void GSFrame::CorePlugins_OnShutdown()
+{
+	if( !IsBeingDeleted() ) Destroy();
 }
 
 // overrides base Show behavior.
@@ -308,7 +337,7 @@ bool GSFrame::Show( bool shown )
 	{
 		GSPanel* gsPanel = GetViewport();
 
-		if( gsPanel == NULL || gsPanel->IsBeingDeleted() )
+		if( !gsPanel || gsPanel->IsBeingDeleted() )
 		{
 			gsPanel = new GSPanel( this );
 			m_id_gspanel = gsPanel->GetId();
@@ -321,7 +350,8 @@ bool GSFrame::Show( bool shown )
 		if( wxStaticText* label = GetLabel_OutputDisabled() )
 			label->Show( EmuConfig.GS.DisableOutput );
 
-		m_timer_UpdateTitle.Start( TitleBarUpdateMs );
+		if( !m_timer_UpdateTitle.IsRunning() )
+			m_timer_UpdateTitle.Start( TitleBarUpdateMs );
 	}
 	else
 	{
@@ -404,9 +434,11 @@ void GSFrame::OnMove( wxMoveEvent& evt )
 
 	evt.Skip();
 
+	g_Conf->GSWindow.IsMaximized = IsMaximized();
+
 	// evt.GetPosition() returns the client area position, not the window frame position.
-	if( !IsFullScreen() && !IsMaximized() && IsVisible() )
-		g_Conf->GSWindow.WindowPos	= GetScreenPosition();
+	if( !g_Conf->GSWindow.IsMaximized && !IsFullScreen() && !IsIconized() && IsVisible() )
+		g_Conf->GSWindow.WindowPos = GetScreenPosition();
 
 	// wxGTK note: X sends gratuitous amounts of OnMove messages for various crap actions
 	// like selecting or deselecting a window, which muck up docking logic.  We filter them

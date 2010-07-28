@@ -1,12 +1,16 @@
-# SPU2null Plugin
+# Check that people use the good file
+if(NOT TOP_CMAKE_WAS_SOURCED)
+    message(FATAL_ERROR "
+    You did not 'cmake' the good CMakeLists.txt file. Use the one in the top dir.
+    It is advice to delete all wrongly generated cmake stuff => CMakeFiles & CMakeCache.txt")
+endif(NOT TOP_CMAKE_WAS_SOURCED)
+
 
 # plugin name
-set(SPU2nullName SPU2null)
+set(Output SPU2null)
 
 set(CommonFlags
     -Wall
-    -m32
-    -fPIC
     )
 
 set(OptimizationFlags
@@ -63,22 +67,17 @@ set(SPU2nullWindowsHeaders
 include_directories(.)
 
 # add library
-add_library(${SPU2nullName} SHARED
+add_library(${Output} SHARED
 			${SPU2nullSources}
 			${SPU2nullHeaders}
 			${SPU2nullLinuxSources}
 			${SPU2nullLinuxHeaders})
 
-
-# Force the linker into 32 bits mode
-target_link_libraries(${SPU2nullName} -m32)
-
-# Linker strip option
-if (CMAKE_BUILD_STRIP)
-    target_link_libraries(${SPU2nullName} -s)
-endif (CMAKE_BUILD_STRIP)
-
 # set output directory
-set_target_properties(${SPU2nullName} PROPERTIES
+set_target_properties(${Output} PROPERTIES
 					  LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin/plugins)
 
+# User flags options
+if(NOT USER_CMAKE_LD_FLAGS STREQUAL "")
+    target_link_libraries(${Output} "${USER_CMAKE_LD_FLAGS}")
+endif(NOT USER_CMAKE_LD_FLAGS STREQUAL "")

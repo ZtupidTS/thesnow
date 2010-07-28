@@ -28,6 +28,17 @@
 #define doLowerOp()			{ incPC(-1); mVUopL(mVU, 1); incPC(1); }
 
 //------------------------------------------------------------------
+// Messages Called at Execution Time...
+//------------------------------------------------------------------
+
+void __fastcall mVUbadOp0(mV)		{ Console.Error("microVU0 Warning: Exiting... Block started with illegal opcode. [%04x] [%x]", xPC, mVU->prog.cur); }
+void __fastcall mVUbadOp1(mV)		{ Console.Error("microVU1 Warning: Exiting... Block started with illegal opcode. [%04x] [%x]", xPC, mVU->prog.cur); }
+void __fastcall mVUwarning0(mV)		{ Console.Error("microVU0 Warning: Exiting from Possible Infinite Loop [%04x] [%x]", xPC, mVU->prog.cur); }
+void __fastcall mVUwarning1(mV)		{ Console.Error("microVU1 Warning: Exiting from Possible Infinite Loop [%04x] [%x]", xPC, mVU->prog.cur); }
+void __fastcall mVUprintPC1(u32 PC) { Console.Write("Block PC [%04x] ", PC); }
+void __fastcall mVUprintPC2(u32 PC) { Console.Write("[%04x]\n", PC); }
+
+//------------------------------------------------------------------
 // Helper Functions
 //------------------------------------------------------------------
 
@@ -44,13 +55,13 @@ _f void mVUcheckIsSame(mV) {
 }
 
 // Sets up microProgram PC ranges based on whats been recompiled
-_f void mVUsetupRange(microVU* mVU, s32 pc, bool isStartPC) {
+void mVUsetupRange(microVU* mVU, s32 pc, bool isStartPC) {
 	deque<microRange>*& ranges = mVUcurProg.ranges;
 	pc &= mVU->microMemSize - 8;
 
 	if (isStartPC) { // Check if startPC is already within a block we've recompiled
-		deque<microRange>::const_iterator it = ranges->begin();
-		for ( ; it != ranges->end(); it++) {
+		deque<microRange>::const_iterator it(ranges->begin());
+		for ( ; it != ranges->end(); ++it) {
 			if ((pc >= it[0].start) && (pc <= it[0].end)) {
 				if (it[0].start != it[0].end)
 					return; // Last case makes sure its not a 1-opcode EvilBlock
@@ -71,8 +82,8 @@ _f void mVUsetupRange(microVU* mVU, s32 pc, bool isStartPC) {
 		bool mergedRange = 0;
 		s32  rStart = mVUrange.start;
 		s32  rEnd   = mVUrange.end;
-		deque<microRange>::iterator it = ranges->begin();
-		for (it++; it != ranges->end(); it++) {
+		deque<microRange>::iterator it(ranges->begin());
+		for (++it; it != ranges->end(); ++it) {
 			if((it[0].start >= rStart) && (it[0].start <= rEnd)) {
 				it[0].end   = aMax(it[0].end, rEnd);
 				mergedRange = 1;
@@ -103,7 +114,7 @@ _f void startLoop(mV) {
 	memzero(mVUregsTemp);
 }
 
-_f void doIbit(mV) { 
+void doIbit(mV) { 
 	if (mVUup.iBit) { 
 		incPC(-1);
 		u32 tempI;
@@ -115,32 +126,55 @@ _f void doIbit(mV) {
 		}
 		else tempI = curI;
 		
-		MOV32ItoM((uptr)&mVU->regs->VI[REG_I].UL, tempI);
+		xMOV(ptr32[&mVU->regs->VI[REG_I].UL], tempI);
 		incPC(1);
 	} 
 }
 
-_f void doSwapOp(mV) { 
+void doSwapOp(mV) { 
 	if (mVUinfo.backupVF && !mVUlow.noWriteVF) {
 		DevCon.WriteLn(Color_Green, "microVU%d: Backing Up VF Reg [%04x]", getIndex, xPC);
-		int t1 = mVU->regAlloc->allocReg(mVUlow.VF_write.reg);
-		int t2 = mVU->regAlloc->allocReg();
-		SSE_MOVAPS_XMM_to_XMM(t2, t1);
+
+		// Allocate t1 first for better chance of reg-alloc
+		const xmm& t1 = mVU->regAlloc->allocReg(mVUlow.VF_write.reg);
+		const xmm& t2 = mVU->regAlloc->allocReg();
+		xMOVAPS(t2, t1); // Backup VF reg
 		mVU->regAlloc->clearNeeded(t1);
+
 		mVUopL(mVU, 1);
-		t1 = mVU->regAlloc->allocReg(mVUlow.VF_write.reg, mVUlow.VF_write.reg, 0xf, 0);
-		SSE_XORPS_XMM_to_XMM(t2, t1);
-		SSE_XORPS_XMM_to_XMM(t1, t2);
-		SSE_XORPS_XMM_to_XMM(t2, t1);
-		mVU->regAlloc->clearNeeded(t1);
+
+		const xmm& t3 = mVU->regAlloc->allocReg(mVUlow.VF_write.reg, mVUlow.VF_write.reg, 0xf, 0);
+		xXOR.PS(t2, t3); // Swap new and old values of the register
+		xXOR.PS(t3, t2); // Uses xor swap trick...
+		xXOR.PS(t2, t3);
+		mVU->regAlloc->clearNeeded(t3);
+
 		incPC(1); 
 		doUpperOp();
-		t1 = mVU->regAlloc->allocReg(-1, mVUlow.VF_write.reg, 0xf);
-		SSE_MOVAPS_XMM_to_XMM(t1, t2);
-		mVU->regAlloc->clearNeeded(t1);
+
+		const xmm& t4 = mVU->regAlloc->allocReg(-1, mVUlow.VF_write.reg, 0xf);
+		xMOVAPS(t4, t2);
+		mVU->regAlloc->clearNeeded(t4);
 		mVU->regAlloc->clearNeeded(t2);
 	}
 	else { mVUopL(mVU, 1); incPC(1); doUpperOp(); }
+}
+
+// If 1st op in block is a bad opcode, then don't compile rest of block (Dawn of Mana Level 2)
+_f void mVUcheckBadOp(mV) {
+	if (mVUinfo.isBadOp && mVUcount == 0) {
+		mVUinfo.isEOB = true;
+		Console.Warning("microVU Warning: First Instruction of block contains illegal opcode...");
+	}
+}
+
+// Prints msg when exiting block early if 1st op was a bad opcode (Dawn of Mana Level 2)
+_f void handleBadOp(mV, int count) {
+	if (mVUinfo.isBadOp && count == 0) {
+		xMOV(gprT2, (uptr)mVU);
+		if (!isVU1) xCALL(mVUbadOp0);
+		else		xCALL(mVUbadOp1);
+	}
 }
 
 _f void branchWarning(mV) {
@@ -230,7 +264,7 @@ _f void mVUincCycles(mV, int x) {
 	}										\
 }
 
-_f void mVUsetCycles(mV) {
+void mVUsetCycles(mV) {
 	mVUincCycles(mVU, mVUstall);
 	// If upper Op && lower Op write to same VF reg:
 	if ((mVUregsTemp.VFreg[0] == mVUregsTemp.VFreg[1]) && mVUregsTemp.VFreg[0]) {
@@ -265,11 +299,6 @@ _f void mVUsetCycles(mV) {
 	tCycles(mVUregs.xgkick,					mVUregsTemp.xgkick);
 }
 
-void __fastcall mVUwarning0(mV)		{ Console.Error("microVU0 Warning: Exiting from Possible Infinite Loop [%04x] [%x]", xPC, mVU->prog.cur); }
-void __fastcall mVUwarning1(mV)		{ Console.Error("microVU1 Warning: Exiting from Possible Infinite Loop [%04x] [%x]", xPC, mVU->prog.cur); }
-void __fastcall mVUprintPC1(u32 PC) { Console.Write("Block PC [%04x] ", PC); }
-void __fastcall mVUprintPC2(u32 PC) { Console.Write("[%04x]\n", PC); }
-
 // vu0 is allowed to exit early, so are dev builds (for inf loops)
 _f bool doEarlyExit(microVU* mVU) {
 	return IsDevBuild || !isVU1;
@@ -279,27 +308,43 @@ _f bool doEarlyExit(microVU* mVU) {
 _f void mVUsavePipelineState(microVU* mVU) {
 	u32* lpS = (u32*)&mVU->prog.lpState.vi15;
 	for (int i = 0; i < (sizeof(microRegInfo)-4)/4; i++, lpS++) {
-		MOV32ItoM((uptr)lpS, lpS[0]);
+		xMOV(ptr32[lpS], lpS[0]);
 	}
 }
 
-_f void mVUtestCycles(microVU* mVU) {
-	//u32* vu0jmp;
+// Prints Start/End PC of blocks executed, for debugging...
+void mVUdebugPrintBlocks(microVU* mVU, bool isEndPC) {
+	if (mVUdebugNow) {
+		xMOV(gprT2, xPC);
+		if (isEndPC) xCALL(mVUprintPC2);
+		else		 xCALL(mVUprintPC1);
+	}
+}
+
+// Test cycles to see if we need to exit-early...
+void mVUtestCycles(microVU* mVU) {
 	iPC = mVUstartPC;
-	mVUdebugNOW(0);
 	if (doEarlyExit(mVU)) {
-		CMP32ItoM((uptr)&mVU->cycles, 0);
-		u32* jmp32 = JG32(0);
-		//if (!isVU1) { TEST32ItoM((uptr)&mVU->regs->flags, VUFLAG_MFLAGSET); vu0jmp = JZ32(0); }
-			MOV32ItoR(gprT2, (uptr)mVU);
-			if (isVU1)  CALLFunc((uptr)mVUwarning1);
-			//else		CALLFunc((uptr)mVUwarning0); // VU0 is allowed early exit for COP2 Interlock Simulation
+		xCMP(ptr32[&mVU->cycles], 0);
+		xForwardJG32 skip;
+		if (isVU0) {
+			// TEST32ItoM((uptr)&mVU->regs->flags, VUFLAG_MFLAGSET);
+			// xFowardJZ32 vu0jmp;
+			// xMOV(gprT2, (uptr)mVU);
+			// xCALL(mVUwarning0); // VU0 is allowed early exit for COP2 Interlock Simulation
+		mVUsavePipelineState(mVU);
+		mVUendProgram(mVU, NULL, 0);
+			// vu0jmp.SetTarget();
+		}
+		else {
+			xMOV(gprT2, (uptr)mVU);
+			xCALL(mVUwarning1);
 			mVUsavePipelineState(mVU);
 			mVUendProgram(mVU, NULL, 0);
-		//if (!isVU1) x86SetJ32(vu0jmp);
-		x86SetJ32(jmp32);
+		}
+		skip.SetTarget();
 	}
-	SUB32ItoM((uptr)&mVU->cycles, mVUcycles);
+	xSUB(ptr32[&mVU->cycles], mVUcycles);
 }
 
 // Initialize VI Constants (vi15 propagates through blocks)
@@ -327,11 +372,11 @@ _f void mVUinitFirstPass(microVU* mVU, uptr pState, u8* thisPtr) {
 		memcpy_const((u8*)&mVU->prog.lpState, (u8*)pState, sizeof(microRegInfo));
 	}
 	mVUblock.x86ptrStart	= thisPtr;
-	mVUpBlock				= mVUblocks[mVUstartPC/2]->add(&mVUblock); // Add this block to block manager
+	mVUpBlock				= mVUblocks[mVUstartPC/2]->add(&mVUblock);  // Add this block to block manager
+	mVUregs.needExactMatch	=(mVUregs.blockType || noFlagOpts) ? 7 : 0; // 1-Op blocks should just always set exactMatch (Sly Cooper)
 	mVUregs.blockType		= 0;
 	mVUregs.viBackUp		= 0;
 	mVUregs.flags			= 0;
-	mVUregs.needExactMatch	= 0;
 	mVUsFlagHack			= CHECK_VU_FLAGHACK;
 	mVUinitConstValues(mVU);
 }
@@ -340,7 +385,7 @@ _f void mVUinitFirstPass(microVU* mVU, uptr pState, u8* thisPtr) {
 // Recompiler
 //------------------------------------------------------------------
 
-_r void* mVUcompile(microVU* mVU, u32 startPC, uptr pState) {
+void* mVUcompile(microVU* mVU, u32 startPC, uptr pState) {
 	
 	microFlagCycles mFC;
 	u8*				thisPtr  = x86Ptr;
@@ -356,6 +401,7 @@ _r void* mVUcompile(microVU* mVU, u32 startPC, uptr pState) {
 		startLoop(mVU);
 		mVUincCycles(mVU, 1);
 		mVUopU(mVU, 0);
+		mVUcheckBadOp(mVU);
 		if (curI & _Ebit_)	  { eBitPass1(mVU, branch); }
 		if (curI & _DTbit_)	  { branch = 4; }
 		if (curI & _Mbit_)	  { mVUup.mBit = 1; }
@@ -377,6 +423,7 @@ _r void* mVUcompile(microVU* mVU, u32 startPC, uptr pState) {
 	
 	mVUsetFlags(mVU, mFC);	   // Sets Up Flag instances
 	mVUoptimizePipeState(mVU); // Optimize the End Pipeline State for nicer Block Linking
+	mVUdebugPrintBlocks(mVU,0);// Prints Start/End PC of blocks executed, for debugging...
 	mVUtestCycles(mVU);		   // Update VU Cycles and Exit Early if Necessary
 
 	// Second Pass
@@ -385,8 +432,8 @@ _r void* mVUcompile(microVU* mVU, u32 startPC, uptr pState) {
 	mVUbranch = 0;
 	u32 x = 0;
 	for (; x < endCount; x++) {
-		if (mVUinfo.isEOB)			{ x = 0xffff; }
-		if (mVUup.mBit)				{ OR32ItoM((uptr)&mVU->regs->flags, VUFLAG_MFLAGSET); }
+		if (mVUinfo.isEOB)			{ handleBadOp(mVU, x); x = 0xffff; }
+		if (mVUup.mBit)				{ xOR(ptr32[&mVU->regs->flags], VUFLAG_MFLAGSET); }
 		if (mVUlow.isNOP)			{ incPC(1); doUpperOp(); doIbit(mVU); }
 		else if (!mVUinfo.swapOps)	{ incPC(1); doUpperOp(); doLowerOp(); }
 		else						{ doSwapOp(mVU); }
@@ -396,7 +443,7 @@ _r void* mVUcompile(microVU* mVU, u32 startPC, uptr pState) {
 		else if (!mVUinfo.isBdelay)	{ incPC(1); }
 		else {
 			mVUsetupRange(mVU, xPC, 0);
-			mVUdebugNOW(1);
+			mVUdebugPrintBlocks(mVU,1);
 			incPC(-3); // Go back to branch opcode
 			switch (mVUlow.branch) {
 				case 1: case 2:  normBranch(mVU, mFC);			  return thisPtr; // B/BAL

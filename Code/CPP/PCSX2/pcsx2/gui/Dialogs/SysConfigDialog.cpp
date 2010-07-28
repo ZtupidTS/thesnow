@@ -24,8 +24,48 @@
 
 using namespace Panels;
 
+static void CheckHacksOverrides()
+{
+	if( !wxGetApp().Overrides.HasCustomHacks() ) return;
+	
+	// The user has commandline overrides enabled, so the options they see here and/or apply won't match
+	// the commandline overrides.  Let them know!
+
+	wxDialogWithHelpers dialog( wxFindWindowByName( L"Dialog:" + Dialogs::SysConfigDialog::GetNameStatic() ), _("设置覆盖警告") );
+	
+	dialog += dialog.Text( pxE(".Panel:HasHacksOverrides",
+		L"Warning!  You are running PCSX2 with command line options that override your configured settings.  "
+		L"These command line options will not be reflected in the Settings dialog, and will be disabled "
+		L"if you apply any changes here."
+	));
+
+	// [TODO] : List command line option overrides in action?
+
+	pxIssueConfirmation( dialog, MsgButtons().OK(), L"Dialog.SysConfig.Overrides" );
+}
+
+static void CheckPluginsOverrides()
+{
+	if( !wxGetApp().Overrides.HasPluginsOverride() ) return;
+	
+	// The user has commandline overrides enabled, so the options they see here and/or apply won't match
+	// the commandline overrides.  Let them know!
+
+	wxDialogWithHelpers dialog( NULL, _("组件覆盖警告") );
+	
+	dialog += dialog.Text( pxE(".Panel:HasPluginsOverrides",
+		L"Warning!  You are running PCSX2 with command line options that override your configured plugin and/or folder settings.  "
+		L"These command line options will not be reflected in the settings dialog, and will be disabled "
+		L"when you apply settings changes here."
+	));
+
+	// [TODO] : List command line option overrides in action?
+
+	pxIssueConfirmation( dialog, MsgButtons().OK(), L"Dialog.ComponentsConfig.Overrides" );
+}
+
 Dialogs::SysConfigDialog::SysConfigDialog(wxWindow* parent)
-	: BaseConfigurationDialog( parent, _("PS2 设置 - PCSX2"), 580 )
+	: BaseConfigurationDialog( parent, AddAppName(_("模拟设置 - %s")), 580 )
 {
 	ScopedBusyCursor busy( Cursor_ReallyBusy );
 
@@ -35,17 +75,20 @@ Dialogs::SysConfigDialog::SysConfigDialog(wxWindow* parent)
 	AddPage<CpuPanelEE>				( wxT("EE/IOP"),		cfgid.Cpu );
 	AddPage<CpuPanelVU>				( wxT("VUs"),			cfgid.Cpu );
 	AddPage<VideoPanel>				( wxT("视频图像"),		cfgid.Cpu );
-	AddPage<GSWindowSettingsPanel>	( wxT("视频窗口"),			cfgid.Video );
+	AddPage<GSWindowSettingsPanel>	( wxT("视频窗口"),		cfgid.Video );
 	AddPage<SpeedHacksPanel>		( wxT("游戏加速"),		cfgid.Speedhacks );
 	AddPage<GameFixesPanel>			( wxT("游戏修正"),		cfgid.Gamefixes );
-	AddPage<GameDatabasePanel>		( wxT("游戏数据库"),cfgid.Plugins );
+//	AddPage<GameDatabasePanel>		( wxT("游戏数据库"),	cfgid.Plugins );
 
 	AddListbook();
 	AddOkCancel();
+
+	if( wxGetApp().Overrides.HasCustomHacks() )
+		wxGetApp().PostMethod( CheckHacksOverrides );
 }
 
 Dialogs::ComponentsConfigDialog::ComponentsConfigDialog(wxWindow* parent)
-	: BaseConfigurationDialog( parent, _("应用程序设置 - PCSX2"),  600 )
+	: BaseConfigurationDialog( parent, AddAppName(_("组件选择 - %s")),  600 )
 {
 	ScopedBusyCursor busy( Cursor_ReallyBusy );
 
@@ -58,4 +101,7 @@ Dialogs::ComponentsConfigDialog::ComponentsConfigDialog(wxWindow* parent)
 
 	AddListbook();
 	AddOkCancel();
+
+	if( wxGetApp().Overrides.HasPluginsOverride() )
+		wxGetApp().PostMethod( CheckPluginsOverrides );
 }

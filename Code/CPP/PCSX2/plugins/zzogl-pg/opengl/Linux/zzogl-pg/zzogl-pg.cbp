@@ -31,8 +31,8 @@
 				<Option createStaticLib="1" />
 				<Compiler>
 					<Add option="-O2" />
-					<Add option="-W" />
 					<Add option="-g" />
+					<Add option="-W" />
 					<Add option="-DZEROGS_DEVBUILD" />
 					<Add option="-DNDEBUG" />
 				</Compiler>
@@ -70,6 +70,7 @@
 			<Add option="-L/opt/cg/lib" />
 			<Add option="-msse2" />
 			<Add option="-fno-regmove" />
+			<Add option="-fno-strict-aliasing" />
 			<Add option="-DZEROGS_SSE2" />
 			<Add directory="../../Linux" />
 			<Add directory="../../../opengl" />
@@ -92,6 +93,10 @@
 			<Add library="stdc++" />
 			<Add library="Cg" />
 		</Linker>
+		<ExtraCommands>
+			<Add after="cp $(PROJECT_DIR)/../../ps2hw.dat $(TARGET_OUTPUT_DIR)/" />
+			<Mode after="always" />
+		</ExtraCommands>
 		<Unit filename="../../CRC.h" />
 		<Unit filename="../../GLWin32.cpp" />
 		<Unit filename="../../GLWinX11.cpp" />
@@ -99,16 +104,18 @@
 		<Unit filename="../../GSmain.cpp" />
 		<Unit filename="../../GifTransfer.cpp" />
 		<Unit filename="../../GifTransfer.h" />
+		<Unit filename="../../HostMemory.cpp" />
 		<Unit filename="../Conf.cpp" />
 		<Unit filename="../Linux.cpp" />
 		<Unit filename="../Linux.h" />
-		<Unit filename="../zerogs.glade" />
 		<Unit filename="../../Mem.cpp" />
 		<Unit filename="../../Mem.h" />
 		<Unit filename="../../Mem_Swizzle.cpp" />
 		<Unit filename="../../Mem_Swizzle.h" />
 		<Unit filename="../../Mem_Tables.cpp" />
 		<Unit filename="../../Mem_Transmit.h" />
+		<Unit filename="../../NewRegs.cpp" />
+		<Unit filename="../../NewRegs.h" />
 		<Unit filename="../../Profile.cpp" />
 		<Unit filename="../../Profile.h" />
 		<Unit filename="../../Regs.cpp" />
@@ -134,13 +141,19 @@
 			<Option compile="0" />
 			<Option link="0" />
 		</Unit>
+		<Unit filename="../../ZZGl.h" />
+		<Unit filename="../../ZZKeyboard.cpp" />
+		<Unit filename="../../ZZLog.cpp" />
+		<Unit filename="../../ZZLog.h" />
 		<Unit filename="../../ZZoglCRTC.cpp" />
+		<Unit filename="../../ZZoglCRTC.h" />
 		<Unit filename="../../ZZoglCreate.cpp" />
 		<Unit filename="../../ZZoglFlush.cpp" />
 		<Unit filename="../../ZZoglSave.cpp" />
 		<Unit filename="../../ZZoglShaders.cpp" />
 		<Unit filename="../../ZZoglShoots.cpp" />
 		<Unit filename="../../ZZoglVB.cpp" />
+		<Unit filename="../../ZeroGSShaders/zerogsshaders.h" />
 		<Unit filename="../../common.h" />
 		<Unit filename="../../glprocs.c">
 			<Option compilerVar="CC" />

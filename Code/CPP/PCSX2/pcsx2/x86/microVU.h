@@ -20,14 +20,17 @@ class AsciiFile;
 using namespace std;
 using namespace x86Emitter;
 
+#include <deque>
+
 #include "VU.h"
 #include "GS.h"
+#include "Gif.h"
 #include "iR5900.h"
 #include "R5900OpcodeTables.h"
 #include "x86emitter/x86emitter.h"
 #include "SamplProf.h"
-#include "microVU_IR.h"
 #include "microVU_Misc.h"
+#include "microVU_IR.h"
 
 struct microBlockLink {
 	microBlock*		block;
@@ -92,7 +95,7 @@ public:
 				&&  (linkI->block->pState.xgkick	== pState->xgkick)
 				&&  (linkI->block->pState.viBackUp	== pState->viBackUp)
 				&&  (linkI->block->pState.blockType	== pState->blockType)
-				&& !(linkI->block->pState.needExactMatch & 5)) { return linkI->block; }
+				&& !(linkI->block->pState.needExactMatch & 7)) { return linkI->block; }
 				linkI = linkI->next;
 			}
 		}
@@ -102,9 +105,14 @@ public:
 		if (listI < 7) return;
 		microBlockLink* linkI = &blockList;
 		for (int i = 0; i <= listI; i++) {
-			DevCon.WriteLn( Color_Green, "[%04x][Block #%d][q=%02d][p=%02d][xgkick=%d][vi15=%08x][viBackup=%02d][flags=%02x][exactMatch=%x]",
-			pc, i, linkI->block->pState.q, linkI->block->pState.p, linkI->block->pState.xgkick, linkI->block->pState.vi15,
-			linkI->block->pState.viBackUp, linkI->block->pState.flags, linkI->block->pState.needExactMatch);
+			u32 viCRC = 0, vfCRC = 0, crc = 0, z = sizeof(microRegInfo)/4;
+			for (u32 j = 0; j < 4;  j++) viCRC -= ((u32*)linkI->block->pState.VI)[j];
+			for (u32 j = 0; j < 32; j++) vfCRC -= linkI->block->pState.VF[j].reg;
+			for (u32 j = 0; j < z;  j++) crc   -= ((u32*)&linkI->block->pState)[j];
+			DevCon.WriteLn(Color_Green, "[%04x][Block #%d][crc=%08x][q=%02d][p=%02d][xgkick=%d][vi15=%08x][viBackup=%02d]"
+			"[flags=%02x][exactMatch=%x][blockType=%d][viCRC=%08x][vfCRC=%08x]", pc, i, crc, linkI->block->pState.q, 
+			linkI->block->pState.p, linkI->block->pState.xgkick, linkI->block->pState.vi15, linkI->block->pState.viBackUp, 
+			linkI->block->pState.flags, linkI->block->pState.needExactMatch, linkI->block->pState.blockType, viCRC, vfCRC);
 			linkI = linkI->next;
 		}
 	}
@@ -124,9 +132,7 @@ struct microProgram {
 	int idx;	 // Program index
 };
 
-struct microProgramList {
-	deque<microProgram*>* list;  // List of microPrograms who start with the same startPC value
-};
+typedef deque<microProgram*> microProgramList;
 
 struct microProgramQuick {
 	microBlockManager*    block; // Quick reference to valid microBlockManager for current startPC
@@ -135,7 +141,7 @@ struct microProgramQuick {
 
 struct microProgManager {
 	microIR<mProgSize>	IRinfo;				// IR information
-	microProgramList	prog [mProgSize/2];	// List of microPrograms indexed by startPC values
+	microProgramList*	prog [mProgSize/2];	// List of microPrograms indexed by startPC values
 	microProgramQuick	quick[mProgSize/2];	// Quick reference to valid microPrograms for current execution
 	microProgram*		cur;				// Pointer to currently running MicroProgram
 	int					total;				// Total Number of valid MicroPrograms
@@ -148,7 +154,12 @@ struct microProgManager {
 	microRegInfo		lpState;			// Pipeline state from where program left off (useful for continuing execution)
 };
 
-#define mVUcacheSize ((mVU->index) ? (_1mb * 20) : (_1mb * 5))
+#define mVUdispCacheSize (0x1000) // Dispatcher Cache Size
+#define mVUcacheSize     ((mVU->index) ? (_1mb *  17) : (_1mb *  7)) // Initial Size (Excluding Safe-Zone)
+#define mVUcacheMaxSize  ((mVU->index) ? (_1mb * 100) : (_1mb * 50)) // Max Size allowed to grow to
+#define mVUcacheGrowBy	 ((mVU->index) ? (_1mb *  15) : (_1mb * 10)) // Grows by this amount
+#define mVUcacheSafeZone ((mVU->index) ? (_1mb *   3) : (_1mb *  3)) // Safe-Zone for last program
+
 struct microVU {
 
 	__aligned16 u32 macFlag[4];  // 4 instances of mac  flag (used in execution)
@@ -169,6 +180,7 @@ struct microVU {
 	AsciiFile* logFile;	 // Log File Pointer
 	VURegs*	regs;		 // VU Regs Struct
 	u8*		cache;		 // Dynarec Cache Start (where we will start writing the recompiled code to)
+	u8*		dispCache;	 // Dispatchers Cache (where startFunct and exitFunct are written to)
 	u8*		startFunct;	 // Ptr Function to the Start code for recompiled programs
 	u8*		exitFunct;	 // Ptr Function to the Exit  code for recompiled programs
 	u32		code;		 // Contains the current Instruction
@@ -189,13 +201,14 @@ extern __aligned16 microVU microVU0;
 extern __aligned16 microVU microVU1;
 
 // Debug Helper
-extern int mVUdebugNow;
+int mVUdebugNow = 0;
 
 // Main Functions
 _f void  mVUinit(VURegs*, int);
 _f void  mVUreset(mV);
 _f void  mVUclose(mV);
 _f void  mVUclear(mV, u32, u32);
+   void  mVUresizeCache(mV, u32);
 _f void* mVUblockFetch(microVU* mVU, u32 startPC, uptr pState);
 _mVUt void* __fastcall mVUcompileJIT(u32 startPC, uptr pState);
 

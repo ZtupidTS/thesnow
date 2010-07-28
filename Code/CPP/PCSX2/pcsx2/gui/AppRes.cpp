@@ -15,9 +15,11 @@
 
 #include "PrecompiledHeader.h"
 #include "MainFrame.h"
+#include "AppGameDatabase.h"
 
 #include <wx/zipstrm.h>
 #include <wx/wfstream.h>
+#include <wx/imaglist.h>
 
 #include "Resources/EmbeddedImage.h"
 #include "Resources/BackgroundLogo.h"
@@ -34,7 +36,6 @@
 #include "Resources/AppIcon32.h"
 #include "Resources/AppIcon64.h"
 
-// ------------------------------------------------------------------------
 const wxImage& LoadImageAny(
 	wxImage& dest, bool useTheme, wxFileName& base, const wxChar* filename, IEmbeddedImage& onFail )
 {
@@ -67,13 +68,15 @@ const wxImage& LoadImageAny(
 RecentIsoList::RecentIsoList()
 {
 	Menu = new wxMenu();
-	Menu->Append( MenuId_IsoBrowse, _("Browse..."), _("Browse for an Iso that is not in your recent history.") );
+	Menu->Append( MenuId_IsoBrowse, _("‰Ø¿¿..."), _("Browse for an Iso that is not in your recent history.") );
 	Manager = new RecentIsoManager( Menu );
 }
 
 pxAppResources::pxAppResources()
 {
 }
+
+pxAppResources::~pxAppResources() throw() {}
 
 wxMenu& Pcsx2App::GetRecentIsoMenu()
 {
@@ -110,7 +113,6 @@ const wxIconBundle& Pcsx2App::GetIconBundle()
 	return *bundle;
 }
 
-// ------------------------------------------------------------------------
 const wxBitmap& Pcsx2App::GetLogoBitmap()
 {
 	ScopedPtr<wxBitmap>& logo( GetResourceCache().Bitmap_Logo );
@@ -146,7 +148,6 @@ const wxBitmap& Pcsx2App::GetLogoBitmap()
 	return *logo;
 }
 
-// ------------------------------------------------------------------------
 wxImageList& Pcsx2App::GetImgList_Config()
 {
 	ScopedPtr<wxImageList>& images( GetResourceCache().ConfigImages );
@@ -216,3 +217,7 @@ wxImageList& Pcsx2App::GetImgList_Toolbars()
 	return *images;
 }
 
+const AppImageIds& Pcsx2App::GetImgId() const
+{
+	return m_Resources->ImageId;
+}

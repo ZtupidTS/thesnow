@@ -25,13 +25,13 @@
 static __pagealigned u8 nVifUpkExec[__pagesize*4];
 
 // Merges xmm vectors without modifying source reg
-void mergeVectors(int dest, int src, int temp, int xyzw) {
+void mergeVectors(xRegisterSSE dest, xRegisterSSE src, xRegisterSSE temp, int xyzw) {
 	if (x86caps.hasStreamingSIMD4Extensions  || (xyzw==15)
 	|| (xyzw==12) || (xyzw==11) || (xyzw==8) || (xyzw==3)) {
 		mVUmergeRegs(dest, src, xyzw);
 	}
 	else {
-		SSE_MOVAPS_XMM_to_XMM(temp, src);
+		xMOVAPS(temp, src);
 		mVUmergeRegs(dest, temp, xyzw);
 	}
 }
@@ -43,13 +43,14 @@ void loadRowCol(nVifStruct& v) {
 	xMOVAPS(xmm1, ptr32[&v.vifRegs->r1]);
 	xMOVAPS(xmm2, ptr32[&v.vifRegs->r2]);
 	xMOVAPS(xmm6, ptr32[&v.vifRegs->r3]);
+
 	xPSHUF.D(xmm0, xmm0, _v0);
 	xPSHUF.D(xmm1, xmm1, _v0);
 	xPSHUF.D(xmm2, xmm2, _v0);
 	xPSHUF.D(xmm6, xmm6, _v0);
-	mVUmergeRegs(XMM6, XMM0, 8);
-	mVUmergeRegs(XMM6, XMM1, 4);
-	mVUmergeRegs(XMM6, XMM2, 2);
+	mVUmergeRegs(xmm6, xmm0, 8);
+	mVUmergeRegs(xmm6, xmm1, 4);
+	mVUmergeRegs(xmm6, xmm2, 2);
 	xMOVAPS(xmm2, ptr32[&v.vifRegs->c0]);
 	xMOVAPS(xmm3, ptr32[&v.vifRegs->c1]);
 	xMOVAPS(xmm4, ptr32[&v.vifRegs->c2]);
@@ -97,27 +98,31 @@ void VifUnpackSSE_Base::xUPK_S_32() const {
 }
 
 void VifUnpackSSE_Base::xUPK_S_16() const {
-if (x86caps.hasStreamingSIMD4Extensions) {
-	xPMOVXX16  (workReg);
-}
-else {
-	xMOV16     (workReg, ptr32[srcIndirect]);
-	xPUNPCK.LWD(workReg, workReg);
-	xShiftR    (workReg, 16);
-}
+	if (x86caps.hasStreamingSIMD4Extensions) 
+	{
+		xPMOVXX16  (workReg);
+	}
+	else 
+	{
+		xMOV16     (workReg, ptr32[srcIndirect]);
+		xPUNPCK.LWD(workReg, workReg);
+		xShiftR    (workReg, 16);
+	}
 	xPSHUF.D   (destReg, workReg, _v0);
 }
 
 void VifUnpackSSE_Base::xUPK_S_8() const {
-if (x86caps.hasStreamingSIMD4Extensions) {
-	xPMOVXX8   (workReg);
-}
-else {
-	xMOV8      (workReg, ptr32[srcIndirect]);
-	xPUNPCK.LBW(workReg, workReg);
-	xPUNPCK.LWD(workReg, workReg);
-	xShiftR    (workReg, 24);
-}
+	if (x86caps.hasStreamingSIMD4Extensions) 
+	{
+		xPMOVXX8   (workReg);
+	}
+	else 
+	{
+		xMOV8      (workReg, ptr32[srcIndirect]);
+		xPUNPCK.LBW(workReg, workReg);
+		xPUNPCK.LWD(workReg, workReg);
+		xShiftR    (workReg, 24);
+	}
 	xPSHUF.D   (destReg, workReg, _v0);
 }
 
@@ -132,58 +137,63 @@ void VifUnpackSSE_Base::xUPK_V2_32() const {
 }
 
 void VifUnpackSSE_Base::xUPK_V2_16() const {
-if (x86caps.hasStreamingSIMD4Extensions) {
-	xPMOVXX16  (destReg);
-}
-else {
-	xMOV32     (destReg, ptr32[srcIndirect]);
-	xPUNPCK.LWD(destReg, destReg);
-	xShiftR    (destReg, 16);
-}
+	if (x86caps.hasStreamingSIMD4Extensions) 
+	{
+		xPMOVXX16  (destReg);
+	}
+	else 
+	{
+		xMOV32     (destReg, ptr32[srcIndirect]);
+		xPUNPCK.LWD(destReg, destReg);
+		xShiftR    (destReg, 16);
+	}
 	xPSHUF.D   (destReg, destReg, 0x44); //v1v0v1v0
 }
 
 void VifUnpackSSE_Base::xUPK_V2_8() const {
-if (x86caps.hasStreamingSIMD4Extensions) {
-	xPMOVXX8   (destReg);
-}
-else {
-	xMOV16     (destReg, ptr32[srcIndirect]);
-	xPUNPCK.LBW(destReg, destReg);
-	xPUNPCK.LWD(destReg, destReg);
-	xShiftR    (destReg, 24);
-}
+	if (x86caps.hasStreamingSIMD4Extensions) 
+	{
+		xPMOVXX8   (destReg);
+	}
+	else 
+	{
+		xMOV16     (destReg, ptr32[srcIndirect]);
+		xPUNPCK.LBW(destReg, destReg);
+		xPUNPCK.LWD(destReg, destReg);
+		xShiftR    (destReg, 24);
+	}
 	xPSHUF.D   (destReg, destReg, 0x44); //v1v0v1v0
 }
 
 void VifUnpackSSE_Base::xUPK_V3_32() const {
 	xMOV128    (destReg, ptr32[srcIndirect]);
-	xPSHUF.D   (destReg, destReg, 0xA4); //v2v2v1v0
 }
 
 void VifUnpackSSE_Base::xUPK_V3_16() const {
-if (x86caps.hasStreamingSIMD4Extensions) {
-	xPMOVXX16  (destReg);
-}
-else {
-	xMOV64     (destReg, ptr32[srcIndirect]);
-	xPUNPCK.LWD(destReg, destReg);
-	xShiftR    (destReg, 16);
-}
-	xPSHUF.D   (destReg, destReg, 0xA4); //v2v2v1v0
+	if (x86caps.hasStreamingSIMD4Extensions) 
+	{
+		xPMOVXX16  (destReg);
+	}
+	else 
+	{
+		xMOV64     (destReg, ptr32[srcIndirect]);
+		xPUNPCK.LWD(destReg, destReg);
+		xShiftR    (destReg, 16);
+	}
 }
 
 void VifUnpackSSE_Base::xUPK_V3_8() const {
-if (x86caps.hasStreamingSIMD4Extensions) {
-	xPMOVXX8   (destReg);
-}
-else {
-	xMOV32     (destReg, ptr32[srcIndirect]);
-	xPUNPCK.LBW(destReg, destReg);
-	xPUNPCK.LWD(destReg, destReg);
-	xShiftR    (destReg, 24);
-}
-	xPSHUF.D   (destReg, destReg, 0xA4); //v2v2v1v0
+	if (x86caps.hasStreamingSIMD4Extensions) 
+	{
+		xPMOVXX8   (destReg);
+	}
+	else 
+	{
+		xMOV32     (destReg, ptr32[srcIndirect]);
+		xPUNPCK.LBW(destReg, destReg);
+		xPUNPCK.LWD(destReg, destReg);
+		xShiftR    (destReg, 24);
+	}
 }
 
 void VifUnpackSSE_Base::xUPK_V4_32() const {
@@ -191,26 +201,30 @@ void VifUnpackSSE_Base::xUPK_V4_32() const {
 }
 
 void VifUnpackSSE_Base::xUPK_V4_16() const {
-if (x86caps.hasStreamingSIMD4Extensions) {
-	xPMOVXX16  (destReg);
-}
-else {
-	xMOV64     (destReg, ptr32[srcIndirect]);
-	xPUNPCK.LWD(destReg, destReg);
-	xShiftR    (destReg, 16);
-}
+	if (x86caps.hasStreamingSIMD4Extensions) 
+	{
+		xPMOVXX16  (destReg);
+	}
+	else 
+	{
+		xMOV64     (destReg, ptr32[srcIndirect]);
+		xPUNPCK.LWD(destReg, destReg);
+		xShiftR    (destReg, 16);
+	}
 }
 
 void VifUnpackSSE_Base::xUPK_V4_8() const {
-if (x86caps.hasStreamingSIMD4Extensions) {
-	xPMOVXX8   (destReg);
-}
-else {
-	xMOV32     (destReg, ptr32[srcIndirect]);
-	xPUNPCK.LBW(destReg, destReg);
-	xPUNPCK.LWD(destReg, destReg);
-	xShiftR    (destReg, 24);
-}
+	if (x86caps.hasStreamingSIMD4Extensions) 
+	{
+		xPMOVXX8   (destReg);
+	}
+	else 
+	{
+		xMOV32     (destReg, ptr32[srcIndirect]);
+		xPUNPCK.LBW(destReg, destReg);
+		xPUNPCK.LWD(destReg, destReg);
+		xShiftR    (destReg, 24);
+	}
 }
 
 void VifUnpackSSE_Base::xUPK_V4_5() const {
@@ -220,13 +234,13 @@ void VifUnpackSSE_Base::xUPK_V4_5() const {
 	xMOVAPS		(destReg, workReg);		// x|x|x|R
 	xPSRL.D		(workReg, 8);			// ABG
 	xPSLL.D		(workReg, 3);			// AB|G5.000
-	mVUmergeRegs(destReg.Id, workReg.Id, 0x4);	// x|x|G|R
+	mVUmergeRegs(destReg, workReg, 0x4);// x|x|G|R
 	xPSRL.D		(workReg, 8);			// AB
 	xPSLL.D		(workReg, 3);			// A|B5.000
-	mVUmergeRegs(destReg.Id, workReg.Id, 0x2);	// x|B|G|R
+	mVUmergeRegs(destReg, workReg, 0x2);// x|B|G|R
 	xPSRL.D		(workReg, 8);			// A
 	xPSLL.D		(workReg, 7);			// A.0000000
-	mVUmergeRegs(destReg.Id, workReg.Id, 0x1);	// A|B|G|R
+	mVUmergeRegs(destReg, workReg, 0x1);// A|B|G|R
 	xPSLL.D		(destReg, 24); // can optimize to
 	xPSRL.D		(destReg, 24); // single AND...
 }

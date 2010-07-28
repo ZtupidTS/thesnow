@@ -17,12 +17,16 @@
 #include "MainFrame.h"
 #include "GSFrame.h"
 
-#include "HostGui.h"
+#include "AppAccelerators.h"
 #include "AppSaveStates.h"
-#include "GS.h"
 
+#include "Utilities/HashMap.h"
+
+// Various includes needed for dumping...
+#include "GS.h"
 #include "Dump.h"
 #include "DebugTools/Debug.h"
+#include "R3000A.h"
 
 using namespace HashTools;
 
@@ -80,11 +84,8 @@ namespace Implementations
 			g_LimiterMode = Limit_Turbo;
 			g_Conf->EmuOptions.GS.LimitScalar = g_Conf->Framerate.TurboScalar;
 			Console.WriteLn("(FrameLimiter) Turbo + FrameLimit ENABLED." );
-			pauser.AllowResume();
-			return;
 		}
-
-		if( g_LimiterMode == Limit_Turbo )
+		else if( g_LimiterMode == Limit_Turbo )
 		{
 			GSsetVsync( g_Conf->EmuOptions.GS.VsyncEnable );
 			g_LimiterMode = Limit_Nominal;
@@ -202,10 +203,13 @@ namespace Implementations
 
 	void Sys_RecordingToggle()
 	{
+		ScopedCoreThreadPause paused_core;
+		paused_core.AllowResume();
+
 		g_Pcsx2Recording ^= 1;
 
 		GetMTGS().WaitGS();		// make sure GS is in sync with the audio stream when we start.
-		GetMTGS().SendSimplePacket(GS_RINGTYPE_RECORD, g_Pcsx2Recording, 0, 0);
+		if( GSsetupRecording != NULL ) GSsetupRecording(g_Pcsx2Recording, NULL);
 		if( SPU2setupRecording != NULL ) SPU2setupRecording(g_Pcsx2Recording, NULL);
 	}
 
@@ -219,8 +223,8 @@ namespace Implementations
 
 	void FullscreenToggle()
 	{
-		g_Conf->GSWindow.DefaultToFullscreen = !g_Conf->GSWindow.DefaultToFullscreen;
-		sGSFrame.ShowFullScreen( g_Conf->GSWindow.DefaultToFullscreen );
+		if( GSFrame* gsframe = wxGetApp().GetGsFramePtr() )
+			gsframe->ShowFullScreen( !gsframe->IsFullScreen() );
 	}
 }
 
@@ -328,10 +332,17 @@ static const GlobalCommandDescriptor CommandDeclarations[] =
 	{ NULL }
 };
 
-AcceleratorDictionary::AcceleratorDictionary() :
-	_parent( 0, 0xffffffff )
+CommandDictionary::CommandDictionary() {}
+
+CommandDictionary::~CommandDictionary() throw() {}
+
+
+AcceleratorDictionary::AcceleratorDictionary()
+	: _parent( 0, 0xffffffff )
 {
 }
+
+AcceleratorDictionary::~AcceleratorDictionary() throw() {}
 
 void AcceleratorDictionary::Map( const KeyAcceleratorCode& acode, const char *searchfor )
 {
@@ -343,11 +354,11 @@ void AcceleratorDictionary::Map( const KeyAcceleratorCode& acode, const char *se
 		Console.Warning(
 			L"Kbd Accelerator '%s' is mapped multiple times.\n"
 			L"\t'Command %s' is being replaced by '%s'",
-			acode.ToString().c_str(), fromUTF8( result->Id ).c_str(), searchfor
+			acode.ToString().c_str(), fromUTF8( result->Id ).c_str(), fromUTF8( searchfor ).c_str()
 		);
 	}
 
-	wxGetApp().GlobalCommands.TryGetValue( searchfor, result );
+	wxGetApp().GlobalCommands->TryGetValue( searchfor, result );
 
 	if( result == NULL )
 	{
@@ -363,42 +374,39 @@ void AcceleratorDictionary::Map( const KeyAcceleratorCode& acode, const char *se
 
 void Pcsx2App::BuildCommandHash()
 {
+	if( !GlobalCommands ) GlobalCommands = new CommandDictionary;
+
 	const GlobalCommandDescriptor* curcmd = CommandDeclarations;
 	while( curcmd->Invoke != NULL )
 	{
-		GlobalCommands[curcmd->Id] = curcmd;
+		(*GlobalCommands)[curcmd->Id] = curcmd;
 		curcmd++;
 	}
-
 }
 
 void Pcsx2App::InitDefaultGlobalAccelerators()
 {
 	typedef KeyAcceleratorCode AAC;
 
-	GlobalAccels.Map( AAC( WXK_F1 ),			"States_FreezeCurrentSlot" );
-	GlobalAccels.Map( AAC( WXK_F3 ),			"States_DefrostCurrentSlot" );
-	GlobalAccels.Map( AAC( WXK_F2 ),			"States_CycleSlotForward" );
-	GlobalAccels.Map( AAC( WXK_F2 ).Shift(),	"States_CycleSlotBackward" );
+	if( !GlobalAccels ) GlobalAccels = new AcceleratorDictionary;
 
-	GlobalAccels.Map( AAC( WXK_F4 ),			"Framelimiter_MasterToggle");
-	GlobalAccels.Map( AAC( WXK_F4 ).Shift(),	"Frameskip_Toggle");
-	GlobalAccels.Map( AAC( WXK_TAB ),			"Framelimiter_TurboToggle" );
-	GlobalAccels.Map( AAC( WXK_TAB ).Shift(),	"Framelimiter_SlomoToggle" );
+	GlobalAccels->Map( AAC( WXK_F1 ),			"States_FreezeCurrentSlot" );
+	GlobalAccels->Map( AAC( WXK_F3 ),			"States_DefrostCurrentSlot" );
+	GlobalAccels->Map( AAC( WXK_F2 ),			"States_CycleSlotForward" );
+	GlobalAccels->Map( AAC( WXK_F2 ).Shift(),	"States_CycleSlotBackward" );
 
-	// Hack! The following bindings are temporary hacks which are needed because of issues
-	// with PAD plugin interfacing (the local window-based accelerators in GSPanel are
-	// currently ignored).
+	GlobalAccels->Map( AAC( WXK_F4 ),			"Framelimiter_MasterToggle");
+	GlobalAccels->Map( AAC( WXK_F4 ).Shift(),	"Frameskip_Toggle");
 
-	GlobalAccels.Map( AAC( WXK_ESCAPE ),		"Sys_Suspend");
-	GlobalAccels.Map( AAC( WXK_F8 ),			"Sys_TakeSnapshot");
-	GlobalAccels.Map( AAC( WXK_F8 ).Shift(),	"Sys_TakeSnapshot");
-	GlobalAccels.Map( AAC( WXK_F8 ).Shift().Cmd(),"Sys_TakeSnapshot");
-	GlobalAccels.Map( AAC( WXK_F9 ),			"Sys_RenderswitchToggle");
+	/*GlobalAccels->Map( AAC( WXK_ESCAPE ),		"Sys_Suspend");
+	GlobalAccels->Map( AAC( WXK_F8 ),			"Sys_TakeSnapshot");
+	GlobalAccels->Map( AAC( WXK_F8 ).Shift(),	"Sys_TakeSnapshot");
+	GlobalAccels->Map( AAC( WXK_F8 ).Shift().Cmd(),"Sys_TakeSnapshot");
+	GlobalAccels->Map( AAC( WXK_F9 ),			"Sys_RenderswitchToggle");
 
-	GlobalAccels.Map( AAC( WXK_F10 ),			"Sys_LoggingToggle");
-	GlobalAccels.Map( AAC( WXK_F11 ),			"Sys_FreezeGS");
-	GlobalAccels.Map( AAC( WXK_F12 ),			"Sys_RecordingToggle");
+	GlobalAccels->Map( AAC( WXK_F10 ),			"Sys_LoggingToggle");
+	GlobalAccels->Map( AAC( WXK_F11 ),			"Sys_FreezeGS");
+	GlobalAccels->Map( AAC( WXK_F12 ),			"Sys_RecordingToggle");
 
-	GlobalAccels.Map( AAC( WXK_RETURN ).Alt(),	"FullscreenToggle" );
+	GlobalAccels->Map( AAC( WXK_RETURN ).Alt(),	"FullscreenToggle" );*/
 }

@@ -121,16 +121,12 @@ void Panels::BiosSelectorPanel::Apply()
 	int sel = m_ComboBox->GetSelection();
 	if( sel == wxNOT_FOUND )
 	{
-		throw Exception::CannotApplySettings( this,
-			// English Log
-			L"用户不能指定一个有效 BIOS 选择.",
-
-			// Translated
-			pxE( ".Error:BIOS:InvalidSelection",
+		throw Exception::CannotApplySettings(this)
+			.SetDiagMsg(L"用户选择了一个无效 BIOS.")
+			.SetUserMsg( pxE( ".Error:BIOS:InvalidSelection",
 				L"请选择一个有效 BIOS. 如果您不能选择一个有效的BIOS,"
 				L"请按取消关闭这个设置面板."
-			)
-		);
+			) );
 	}
 
 	g_Conf->BaseFilenames.Bios = (*m_BiosList)[(int)m_ComboBox->GetClientData(sel)];

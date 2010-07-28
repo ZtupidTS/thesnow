@@ -1,3 +1,22 @@
+/*  ZZ Open GL graphics plugin
+ *  Copyright (c)2009-2010 zeydlitz@gmail.com, arcum42@gmail.com
+ *  Based on Zerofrog's ZeroGS KOSMOS (c)2005-2008
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ */
+
 #ifndef MEM_TRANSMIT_H_INCLUDED
 #define MEM_TRANSMIT_H_INCLUDED
 
@@ -9,6 +28,8 @@ extern int tempX, tempY;
 extern int pitch, area, fracX;
 extern int nSize;
 extern u8* pstart;
+
+extern char* psm_name[64];
 
 // transfers whole rows
 template <class T>
@@ -194,18 +215,17 @@ static __forceinline const T *TransmitHostLocalY_4(_writePixel_0 wp, s32 widthli
 }
 
 template <class T>
-static __forceinline const T *TransmitHostLocalY(TransferData data, _writePixel_0 wp, s32 widthlimit, int endY, const T *buf)
+static __forceinline const T *TransmitHostLocalY(u32 psm, _writePixel_0 wp, s32 widthlimit, int endY, const T *buf)
 {
-	switch (data.psm)
+	//ZZLog::WriteLn("TransmitHostLocalY: psm == %s, bimode == 0x%x", psm_name[psm], PSMT_BITMODE(psm));
+	switch (PSMT_BITMODE(psm))
 	{
-		case PSM_:
-			return TransmitHostLocalY_<T>(wp, widthlimit, endY, buf);
-
-		case PSM_4_:
-			return TransmitHostLocalY_4<T>(wp, widthlimit, endY, buf);
-
-		case PSM_24_:
+		case 1:
 			return TransmitHostLocalY_24<T>(wp, widthlimit, endY, buf);
+		case 4:
+			return TransmitHostLocalY_4<T>(wp, widthlimit, endY, buf);
+		default:
+			return TransmitHostLocalY_<T>(wp, widthlimit, endY, buf);
 	}
 
 	assert(0);
@@ -265,18 +285,17 @@ static __forceinline const T *TransmitHostLocalX_4(_writePixel_0 wp, u32 widthli
 }
 
 template <class T>
-static __forceinline const T *TransmitHostLocalX(TransferData data, _writePixel_0 wp, u32 widthlimit, u32 blockheight, u32 startX, const T *buf)
+static __forceinline const T *TransmitHostLocalX(u32 psm, _writePixel_0 wp, u32 widthlimit, u32 blockheight, u32 startX, const T *buf)
 {
-	switch (data.psm)
+	//ZZLog::WriteLn("TransmitHostLocalX: psm == %s, bimode == 0x%x", psm_name[psm], PSMT_BITMODE(psm));
+	switch (PSMT_BITMODE(psm))
 	{
-		case PSM_:
-			return TransmitHostLocalX_<T>(wp, widthlimit, blockheight, startX, buf);
-
-		case PSM_4_:
-			return TransmitHostLocalX_4<T>(wp, widthlimit, blockheight, startX, buf);
-
-		case PSM_24_:
+		case 1:
 			return TransmitHostLocalX_24<T>(wp, widthlimit, blockheight, startX, buf);
+		case 4:
+			return TransmitHostLocalX_4<T>(wp, widthlimit, blockheight, startX, buf);
+		default:
+			return TransmitHostLocalX_<T>(wp, widthlimit, blockheight, startX, buf);
 	}
 
 	assert(0);

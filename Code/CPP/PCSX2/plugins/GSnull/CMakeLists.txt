@@ -1,12 +1,16 @@
-# GSnull Plugin
+# Check that people use the good file
+if(NOT TOP_CMAKE_WAS_SOURCED)
+    message(FATAL_ERROR "
+    You did not 'cmake' the good CMakeLists.txt file. Use the one in the top dir.
+    It is advice to delete all wrongly generated cmake stuff => CMakeFiles & CMakeCache.txt")
+endif(NOT TOP_CMAKE_WAS_SOURCED)
+
 
 # plugin name
-set(GSnullName GSnull)
+set(Output GSnull)
 
 set(CommonFlags
     -Wall
-    -m32
-    -fPIC
     -msse2
     )
 
@@ -80,7 +84,7 @@ set(GSnullWindowsHeaders
 include_directories(.)
 
 # add library
-add_library(${GSnullName} SHARED
+add_library(${Output} SHARED
 			${GSnullSources}
 			${GSnullHeaders}
 			${GSnullnullSources}
@@ -88,15 +92,11 @@ add_library(${GSnullName} SHARED
 			${GSnullLinuxSources}
 			${GSnullLinuxHeaders})
 
-# Force the linker into 32 bits mode
-target_link_libraries(${GSnullName} -m32)
-
-# Linker strip option
-if (CMAKE_BUILD_STRIP)
-    target_link_libraries(${GSnullName} -s)
-endif (CMAKE_BUILD_STRIP)
-
 # set output directory
-set_target_properties(${GSnullName} PROPERTIES
+set_target_properties(${Output} PROPERTIES
 					  LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin/plugins)
 
+# User flags options
+if(NOT USER_CMAKE_LD_FLAGS STREQUAL "")
+    target_link_libraries(${Output} "${USER_CMAKE_LD_FLAGS}")
+endif(NOT USER_CMAKE_LD_FLAGS STREQUAL "")

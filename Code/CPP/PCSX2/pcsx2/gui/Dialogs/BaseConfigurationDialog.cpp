@@ -136,7 +136,7 @@ void Dialogs::BaseConfigurationDialog::AddOkCancel( wxSizer* sizer )
 	if( wxWindow* apply = FindWindow( wxID_APPLY ) ) apply->Disable();
 
 	wxBitmapButton& screenshotButton( *new wxBitmapButton( this, wxID_SAVE, EmbeddedImage<res_ButtonIcon_Camera>().Get() ) );
-	screenshotButton.SetToolTip( _("Saves a snapshot of this settings panel to a PNG file.") );
+	screenshotButton.SetToolTip( _("保存这个设置的截图到一个 PNG 文件.") );
 
 	*m_extraButtonSizer += screenshotButton;
 }
@@ -220,7 +220,7 @@ void Dialogs::BaseConfigurationDialog::OnScreenshot_Click( wxCommandEvent& evt )
 
 	wxString pagename( m_listbook ? (L"_" + m_listbook->GetPageText( m_listbook->GetSelection() )) : wxString() );
 	wxString filenameDefault;
-	filenameDefault.Printf( L"pcsx2_%s%s.png", GetDialogName().c_str(), pagename.c_str() );
+	filenameDefault.Printf( L"%s_%s%s.png", pxGetAppName().Lower().c_str(), GetDialogName().c_str(), pagename.c_str() );
 	filenameDefault.Replace( L"/", L"-" );
 
 	wxString filename( wxFileSelector( _("保存对话框截图到..."), g_Conf->Folders.Snapshots.ToString(),

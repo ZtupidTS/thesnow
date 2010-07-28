@@ -14,10 +14,11 @@
  */
 
 #include "PrecompiledHeader.h"
-#include "DataBase_Loader.h"
+#include "App.h"
+#include "AppGameDatabase.h"
 #include "ConfigurationPanels.h"
 
-extern wxString DiscID;
+extern wxString DiscSerial;
 using namespace pxSizerFlags;
 
 #define blankLine() {												\
@@ -42,11 +43,10 @@ wxTextCtrl* CreateMultiLineTextCtrl( wxWindow* parent, int digits, long flags = 
 Panels::GameDatabasePanel::GameDatabasePanel( wxWindow* parent )
 	: BaseApplicableConfigPanel( parent )
 {
-	//if (!GameDB) GameDB = new DataBase_Loader();
-	DataBase_Loader* GameDB = AppHost_GetGameDatabase();
+	IGameDatabase* GameDB = AppHost_GetGameDatabase();
 	pxAssume( GameDB != NULL );
 	
-	searchBtn  = new wxButton  (this, wxID_DEFAULT, L"Search");
+	searchBtn  = new wxButton  (this, wxID_ANY, _("ËÑË÷"));
 
 	serialBox  = CreateNumericalTextCtrl(this, 40, wxTE_LEFT);
 	nameBox    = CreateNumericalTextCtrl(this, 40, wxTE_LEFT);
@@ -56,11 +56,11 @@ Panels::GameDatabasePanel::GameDatabasePanel( wxWindow* parent )
 	patchesBox = CreateMultiLineTextCtrl(this, 40, wxTE_LEFT);
 
 	for (GamefixId i=GamefixId_FIRST; i < pxEnumEnd; ++i)
-		gameFixes[i] = new pxCheckBox(this, EnumToString(i));
+		gameFixes[i] = new pxCheckBox(this, EnumToString(i), wxCHK_3STATE | wxCHK_ALLOW_3RD_STATE_FOR_USER );
 
-	*this	+= Heading(_("Game Database Editor")).Bold() | StdExpand();
+	*this	+= Heading(_("ÓÎÏ·Êý¾Ý¿â±à¼­Æ÷")).Bold() | StdExpand();
 	*this	+= Heading(_("This panel lets you add and edit game titles, game fixes, and game patches.")) | StdExpand();
-	
+
 	wxFlexGridSizer& sizer1(*new wxFlexGridSizer(5, StdPadding));
 	sizer1.AddGrowableCol(0);
 
@@ -70,7 +70,7 @@ Panels::GameDatabasePanel::GameDatabasePanel( wxWindow* parent )
 	sizer1	+= serialBox | pxCenter;
 	sizer1	+= 5;
 	sizer1	+= searchBtn;
-	
+
 	placeTextBox(nameBox,    "Name: ");
 	placeTextBox(regionBox,  "Region: ");
 	placeTextBox(compatBox,  "Compatibility: ");
@@ -79,7 +79,7 @@ Panels::GameDatabasePanel::GameDatabasePanel( wxWindow* parent )
 
 	blankLine();
 
-	wxStaticBoxSizer& sizer2 = *new wxStaticBoxSizer(wxVERTICAL, this, _("PCSX2 Gamefixes"));
+	wxStaticBoxSizer& sizer2 = *new wxStaticBoxSizer(wxVERTICAL, this, _("Gamefixes"));
 	wxFlexGridSizer&  sizer3(*new wxFlexGridSizer(3, 0, StdPadding*4));
 	sizer3.AddGrowableCol(0);
 
@@ -95,27 +95,36 @@ Panels::GameDatabasePanel::GameDatabasePanel( wxWindow* parent )
 	PopulateFields();
 }
 
-void Panels::GameDatabasePanel::PopulateFields() {
-	DataBase_Loader* GameDB = AppHost_GetGameDatabase();
+void Panels::GameDatabasePanel::PopulateFields( const wxString& id ) {
+	IGameDatabase* GameDB = AppHost_GetGameDatabase();
+	if (!pxAssert(GameDB)) return;
 
-	if (GameDB->gameLoaded()) {
-		serialBox ->SetLabel(GameDB->getString("Serial"));
-		nameBox   ->SetLabel(GameDB->getString("Name"));
-		regionBox ->SetLabel(GameDB->getString("Region"));
-		compatBox ->SetLabel(GameDB->getString("Compat"));
-		commentBox->SetLabel(GameDB->getString("[comments]"));
-		patchesBox->SetLabel(GameDB->getString("[patches]"));
+	Game_Data game;
+	if (GameDB->findGame(game, id.IsEmpty() ? SysGetDiscID() : id))
+	{
+		serialBox ->SetLabel(game.getString("Serial"));
+		nameBox   ->SetLabel(game.getString("Name"));
+		regionBox ->SetLabel(game.getString("Region"));
+		compatBox ->SetLabel(game.getString("Compat"));
+		commentBox->SetLabel(game.getString("[comments]"));
+		patchesBox->SetLabel(game.getString("[patches]"));
 
 		for (GamefixId i=GamefixId_FIRST; i < pxEnumEnd; ++i)
-			gameFixes[i]->SetValue(GameDB->getBool(EnumToString(i)+wxString(L"Hack")));
+		{
+			wxString keyName (EnumToString(i)); keyName += L"Hack";
+			if( game.keyExists(keyName) )
+				gameFixes[i]->SetValue(game.getBool(keyName));
+			else
+				gameFixes[i]->SetIndeterminate();
+		}
 	}
 	else {
-		serialBox ->SetLabel(L"");
-		nameBox   ->SetLabel(L"");
-		regionBox ->SetLabel(L"");
-		compatBox ->SetLabel(L"");
-		commentBox->SetLabel(L"");
-		patchesBox->SetLabel(L"");
+		serialBox ->SetLabel(wxEmptyString);
+		nameBox   ->SetLabel(wxEmptyString);
+		regionBox ->SetLabel(wxEmptyString);
+		compatBox ->SetLabel(wxEmptyString);
+		commentBox->SetLabel(wxEmptyString);
+		patchesBox->SetLabel(wxEmptyString);
 		for (int i = 0; i < GamefixId_COUNT; i++) {
 			gameFixes[i]->SetValue(0);
 		}
@@ -129,86 +138,52 @@ void Panels::GameDatabasePanel::PopulateFields() {
 
 // returns True if the database is modified, or FALSE if no changes to save.
 bool Panels::GameDatabasePanel::WriteFieldsToDB() {
-	DataBase_Loader* GameDB = AppHost_GetGameDatabase();
-	wxString wxStr( serialBox->GetValue() );
+	IGameDatabase* GameDB = AppHost_GetGameDatabase();
+	if (!GameDB) return false;
 
-	if (wxStr.IsEmpty()) return false;
-	if (wxStr != GameDB->getString("Serial")) {
-		GameDB->addGame(wxStr);
-	}
+	if (serialBox->GetValue().IsEmpty()) return false;
 
-	writeTextBoxToDB("Name",			nameBox->GetValue());
-	writeTextBoxToDB("Region",			regionBox->GetValue());
-	writeTextBoxToDB("Compat",			compatBox->GetValue());
-	writeTextBoxToDB("[comments]",		commentBox->GetValue());
-	writeTextBoxToDB("[patches]",		patchesBox->GetValue());
+	Game_Data game;
+	GameDB->findGame(game, serialBox->GetValue());
+
+	game.id = serialBox->GetValue();
+
+	game.writeString(L"Serial",		serialBox->GetValue());
+	game.writeString(L"Name",		nameBox->GetValue());
+	game.writeString(L"Region",		regionBox->GetValue());
+	game.writeString(L"Compat",		compatBox->GetValue());
+	game.writeString(L"[comments]",	commentBox->GetValue());
+	game.writeString(L"[patches]",	patchesBox->GetValue());
 	
 	for (GamefixId i=GamefixId_FIRST; i < pxEnumEnd; ++i) {
-		const bool val = gameFixes[i]->GetValue();
-		wxString keyName( EnumToString(i) ); keyName += L"Hack";
-		if (!val)	GameDB->deleteKey(keyName);
-		else		GameDB->writeBool(keyName, val);
+		wxString keyName (EnumToString(i)); keyName += L"Hack";
+
+		if (gameFixes[i]->IsIndeterminate())
+			game.deleteKey(keyName);
+		else
+			game.writeBool(keyName, gameFixes[i]->GetValue());
 	}
+	GameDB->updateGame(game);
 	return true;
 }
 
 void Panels::GameDatabasePanel::Search_Click(wxCommandEvent& evt) {
-	DataBase_Loader* GameDB = AppHost_GetGameDatabase();
-	wxString wxStr = serialBox->GetValue();
-	
-	if( wxStr.IsEmpty() ) wxStr = DiscID;
-	
-	bool bySerial  = 1;//searchType->GetSelection()==0;
-	if  (bySerial) GameDB->setGame(wxStr);
-	
-	PopulateFields();
+	IGameDatabase* GameDB = AppHost_GetGameDatabase();
+	if( !GameDB ) return;
+
+	PopulateFields( serialBox->GetValue() );
 	evt.Skip();
 }
 
 void Panels::GameDatabasePanel::Apply() {
-	DataBase_Loader* GameDB = AppHost_GetGameDatabase();
+	AppGameDatabase* GameDB = wxGetApp().GetGameDatabase();
 	if( WriteFieldsToDB() )
 	{
 		Console.WriteLn("Saving changes to Game Database...");
-		GameDB->saveToFile();
+		GameDB->SaveToFile();
 	}
 }
 
 void Panels::GameDatabasePanel::AppStatusEvent_OnSettingsApplied()
 {
 }
-
-/*
-	//#define lineIndent(_wxSizer, txt) {_wxSizer+=5;_wxSizer+=5;_wxSizer+=Heading(txt);_wxSizer+=5;_wxSizer+=5;}
-
-	//searchBox  = CreateNumericalTextCtrl(this, 40, wxTE_LEFT);
-	//searchType = new wxComboBox(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0, NULL, wxCB_READONLY);
-	//searchList = new wxListBox (this, wxID_ANY, wxDefaultPosition, wxDefaultSize, 0, NULL, wxLB_SINGLE | wxLB_SORT | wxLB_NEEDED_SB);
-	//searchList->SetFont   (wxFont(searchList->GetFont().GetPointSize()+1, wxFONTFAMILY_MODERN, wxNORMAL, wxNORMAL, false, L"Lucida Console"));
-	//searchList->SetMinSize(wxSize(wxDefaultCoord, std::max(searchList->GetMinSize().GetHeight(), 96)));
-
-	searchType->Append(L"Game Serial", (void*)0);
-	searchType->Append(L"Game Name"  , (void*)0);
-	searchType->SetSelection(0);
-
-	sizer1	+= searchType;
-	sizer1	+= 5;
-	sizer1	+= searchBox | pxCenter;
-	sizer1	+= 5;
-	sizer1	+= searchBtn;
-
-	sizer1	+= 5;
-	sizer1	+= 5;
-	sizer1	+= searchList  | StdExpand();// pxCenter;
-	sizer1	+= 5;
-	sizer1	+= 5;
-
-	lineIndent(sizer1, L"");
-	sizer1	+= 5;
-	sizer1	+= 5;
-	sizer1	+= new wxStaticLine(this) | StdExpand();
-	sizer1	+= 5;
-	sizer1	+= 5;
-	lineIndent(sizer1, L"");
-	lineIndent(sizer1, L"Game Info");
-*/

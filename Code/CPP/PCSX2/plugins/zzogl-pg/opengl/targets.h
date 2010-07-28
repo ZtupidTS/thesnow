@@ -1,5 +1,6 @@
-/*  ZeroGS KOSMOS
- *  Copyright (C) 2005-2006 zerofrog@gmail.com
+/*  ZZ Open GL graphics plugin
+ *  Copyright (c)2009-2010 zeydlitz@gmail.com, arcum42@gmail.com
+ *  Based on Zerofrog's ZeroGS KOSMOS (c)2005-2008
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -13,7 +14,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
 #ifndef __ZEROGS_TARGETS_H__
@@ -106,7 +107,7 @@ class CRenderTargetMngr
 			else
 				mapTargets[key] = ptarg;
 
-			if (g_GameSettings & GAME_RESOLVEPROMOTED)
+			if (conf.settings().resolve_promoted)
 				ptarg->status = CRenderTarget::TS_Resolved;
 			else
 				ptarg->status = CRenderTarget::TS_NeedUpdate;
@@ -281,7 +282,7 @@ inline u32 GetFrameKeyDummy(int fbp, int fbw, int fbh, int psm)
 
 #ifndef FRAME_KEY_BY_FBH	
 	int calc = ZZOgl_fbh_Calc(fbp, fbw, psm);
-	if (/*fbp > 0x2000 && */calc < 0x300)
+	if (/*fbp > 0x2000 && */calc < /*0x300*/0x2E0)
 		return ((fbw << 16) | calc);
 	else
 #endif
@@ -300,4 +301,90 @@ inline u32 GetFrameKeyDummy(CRenderTarget* frame)
 
 } // End of namespace
 
+#include "Mem.h"
+
+static __forceinline void DrawTriangleArray()
+{
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	GL_REPORT_ERRORD();
+}
+
+static __forceinline void DrawBuffers(GLenum *buffer)
+{
+	if (glDrawBuffers != NULL) 
+	{
+		glDrawBuffers(1, buffer);
+	}
+
+	GL_REPORT_ERRORD();
+}
+
+static __forceinline void FBTexture(int attach, int id = 0)
+{
+	glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT + attach, GL_TEXTURE_RECTANGLE_NV, id, 0);
+	GL_REPORT_ERRORD();
+}
+
+static __forceinline void Texture2D(GLint iFormat, GLint width, GLint height, GLenum format, GLenum type, const GLvoid* pixels)
+{
+	glTexImage2D(GL_TEXTURE_2D, 0, iFormat, width, height, 0, format, type, pixels);
+}
+
+static __forceinline void Texture2D(GLint iFormat, GLenum format, GLenum type, const GLvoid* pixels)
+{
+	glTexImage2D(GL_TEXTURE_2D, 0, iFormat, BLOCK_TEXWIDTH, BLOCK_TEXHEIGHT, 0, format, type, pixels);
+}
+
+static __forceinline void Texture3D(GLint iFormat, GLint width, GLint height, GLint depth, GLenum format, GLenum type, const GLvoid* pixels)
+{
+	glTexImage3D(GL_TEXTURE_3D, 0, iFormat, width, height, depth, 0, format, type, pixels);
+}
+	
+static __forceinline void TextureRect(GLint iFormat, GLint width, GLint height, GLenum format, GLenum type, const GLvoid* pixels)
+{
+	glTexImage2D(GL_TEXTURE_RECTANGLE_NV, 0, iFormat, width, height, 0, format, type, pixels);
+}
+
+static __forceinline void TextureRect(GLenum attach, GLuint id = 0)
+{
+	glFramebufferRenderbufferEXT(GL_FRAMEBUFFER_EXT, attach, GL_RENDERBUFFER_EXT, id);
+}
+
+static __forceinline void setTex2DFilters(GLint type)
+{
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, type);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, type);
+}
+
+static __forceinline void setTex2DWrap(GLint type)
+{
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, type);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, type);
+}
+
+static __forceinline void setTex3DFilters(GLint type)
+{
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, type);
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, type);
+}
+
+static __forceinline void setTex3DWrap(GLint type)
+{
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, type);
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, type);
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, type);
+}
+
+static __forceinline void setRectFilters(GLint type)
+{
+	glTexParameteri(GL_TEXTURE_RECTANGLE_NV, GL_TEXTURE_MAG_FILTER, type);
+	glTexParameteri(GL_TEXTURE_RECTANGLE_NV, GL_TEXTURE_MIN_FILTER, type);
+}
+
+static __forceinline void setRectWrap(GLint type)
+{
+	glTexParameteri(GL_TEXTURE_RECTANGLE_NV, GL_TEXTURE_WRAP_S, type);
+	glTexParameteri(GL_TEXTURE_RECTANGLE_NV, GL_TEXTURE_WRAP_T, type);
+}
+	
 #endif

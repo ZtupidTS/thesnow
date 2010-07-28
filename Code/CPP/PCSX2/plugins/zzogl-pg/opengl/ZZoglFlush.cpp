@@ -1,6 +1,6 @@
 /*  ZZ Open GL graphics plugin
- *  Copyright (c)2009 zeydlitz@gmail.com
- *  Based on Zerofrog's ZeroGS KOSMOS (c)2005-2006
+ *  Copyright (c)2009-2010 zeydlitz@gmail.com, arcum42@gmail.com
+ *  Based on Zerofrog's ZeroGS KOSMOS (c)2005-2008
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -14,10 +14,10 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-// Realisation of Flush -- drawing function of GS
+// Realization of Flush -- drawing function of GS
 
 #include <stdlib.h>
 
@@ -29,7 +29,7 @@
 using namespace ZeroGS;
 
 //------------------ Defines
-#ifndef DEVBUILD
+#ifndef ZEROGS_DEVBUILD
 
 #define INC_GENVARS()
 #define INC_TEXVARS()
@@ -61,7 +61,10 @@ bool g_bSaveResolved = 0;
 //#define STENCIL_PBE		   16
 #define STENCIL_CLEAR	   (2|4|8|16)
 
-#define DRAW() glDrawArrays(primtype[curvb.curprim.prim], 0, curvb.nCount)
+void Draw(const VB& curvb)
+{
+	glDrawArrays(primtype[curvb.curprim.prim], 0, curvb.nCount);
+}
 
 #define GL_BLEND_RGB(src, dst) { \
 	s_srcrgb = src; \
@@ -114,9 +117,11 @@ bool g_bSaveResolved = 0;
 
 //------------------ variables
 
-extern bool g_bIsLost;
+//extern bool g_bIsLost;
+extern int g_nDepthBias;
+extern float g_fBlockMult;
 bool g_bUpdateStencil = 1;
-u32 g_SaveFrameNum = 0;									// ZZ
+//u32 g_SaveFrameNum = 0;									// ZZ
 
 int GPU_TEXWIDTH = 512;
 float g_fiGPU_TEXWIDTH = 1 / 512.0f;
@@ -138,11 +143,11 @@ static const u32 g_dwZCmp[] = { GL_NEVER, GL_ALWAYS, GL_GEQUAL, GL_GREATER };
 /////////////////////
 // graphics resources
 #define s_bForceTexFlush 1					// ZZ
-u32 s_ptexCurSet[2] = {0};
+static u32 s_ptexCurSet[2] = {0};
 static u32 s_ptexNextSet[2] = {0};				// ZZ
 
-vector<u32> s_vecTempTextures;		   // temporary textures, released at the end of every frame
 
+extern vector<u32> s_vecTempTextures;		   // temporary textures, released at the end of every frame
 extern bool s_bTexFlush;
 bool s_bWriteDepth = false;
 bool s_bDestAlphaTest = false;
@@ -155,12 +160,11 @@ int s_nWriteDestAlphaTest = 0;					// ZZ
 // State parameters
 static Vector vAlphaBlendColor;	 // used for GPU_COLOR
 
-static u8 bNeedBlendFactorInAlpha;	  // set if the output source alpha is different from the real source alpha (only when blend factor > 0x80)
+static bool bNeedBlendFactorInAlpha;	  // set if the output source alpha is different from the real source alpha (only when blend factor > 0x80)
 static u32 s_dwColorWrite = 0xf;			// the color write mask of the current target
 
-union
+typedef union
 {
-
 	struct
 	{
 		u8 _bNeedAlphaColor;		// set if vAlphaBlendColor needs to be set
@@ -171,7 +175,9 @@ union
 	};
 
 	u32 _bAlphaState;
-} g_vars;
+} g_flag_vars;
+
+g_flag_vars g_vars;
 
 //#define bNeedAlphaColor g_vars._bNeedAlphaColor
 #define b2XAlphaTest g_vars._b2XAlphaTest
@@ -180,9 +186,12 @@ union
 
 int g_PrevBitwiseTexX = -1, g_PrevBitwiseTexY = -1; // textures stored in SAMP_BITWISEANDX and SAMP_BITWISEANDY		// ZZ
 
-static alphaInfo s_alphaInfo;												// ZZ
+//static alphaInfo s_alphaInfo;												// ZZ
 
 extern u8* g_pbyGSClut;
+extern int ppf;
+
+int s_nWireframeCount = 0;
 
 //------------------ Namespace
 
@@ -244,7 +253,7 @@ inline void SetAlphaTest(const pixTest& curtest)
 // Switch wireframe rendering off for first flush, so it's draw few solid primitives
 inline void SwitchWireframeOff()
 {
-	if (conf.options & GSOPTION_WIREFRAME)
+	if (conf.wireframe())
 	{
 		if (s_nWireframeCount > 0)
 		{
@@ -256,7 +265,7 @@ inline void SwitchWireframeOff()
 // Switch wireframe rendering on, look at previous function
 inline void SwitchWireframeOn()
 {
-	if (conf.options & GSOPTION_WIREFRAME)
+	if (conf.wireframe())
 	{
 		if (s_nWireframeCount > 0)
 		{
@@ -312,13 +321,13 @@ inline void VisualBufferMessage(int context)
 	static const char* patst[8] = { "NEVER", "ALWAYS", "LESS", "LEQUAL", "EQUAL", "GEQUAL", "GREATER", "NOTEQUAL"};
 	static const char* pztst[4] = { "NEVER", "ALWAYS", "GEQUAL", "GREATER" };
 	static const char* pafail[4] = { "KEEP", "FB_ONLY", "ZB_ONLY", "RGB_ONLY" };
-	ZZLog::Error_Log("**Drawing ctx %d, num %d, fbp: 0x%x, zbp: 0x%x, fpsm: %d, zpsm: %d, fbw: %d", context, vb[context].nCount, curvb.prndr->fbp, curvb.zbuf.zbp, curvb.prndr->psm, curvb.zbuf.psm, curvb.prndr->fbw);
-	ZZLog::Error_Log("prim: prim=%x iip=%x tme=%x fge=%x abe=%x aa1=%x fst=%x ctxt=%x fix=%x",
+	ZZLog::Debug_Log("**Drawing ctx %d, num %d, fbp: 0x%x, zbp: 0x%x, fpsm: %d, zpsm: %d, fbw: %d", context, vb[context].nCount, curvb.prndr->fbp, curvb.zbuf.zbp, curvb.prndr->psm, curvb.zbuf.psm, curvb.prndr->fbw);
+	ZZLog::Debug_Log("prim: prim=%x iip=%x tme=%x fge=%x abe=%x aa1=%x fst=%x ctxt=%x fix=%x",
 					 curvb.curprim.prim, curvb.curprim.iip, curvb.curprim.tme, curvb.curprim.fge, curvb.curprim.abe, curvb.curprim.aa1, curvb.curprim.fst, curvb.curprim.ctxt, curvb.curprim.fix);
-	ZZLog::Error_Log("test: ate:%d, atst: %s, aref: %d, afail: %s, date: %d, datm: %d, zte: %d, ztst: %s, fba: %d",
+	ZZLog::Debug_Log("test: ate:%d, atst: %s, aref: %d, afail: %s, date: %d, datm: %d, zte: %d, ztst: %s, fba: %d",
 					 curvb.test.ate, patst[curvb.test.atst], curvb.test.aref, pafail[curvb.test.afail], curvb.test.date, curvb.test.datm, curvb.test.zte, pztst[curvb.test.ztst], curvb.fba.fba);
-	ZZLog::Error_Log("alpha: A%d B%d C%d D%d FIX:%d pabe: %d; aem: %d, ta0: %d, ta1: %d\n", curvb.alpha.a, curvb.alpha.b, curvb.alpha.c, curvb.alpha.d, curvb.alpha.fix, gs.pabe, gs.texa.aem, gs.texa.ta[0], gs.texa.ta[1]);
-	ZZLog::Error_Log("tex0: tbp0=0x%x, tbw=%d, psm=0x%x, tw=%d, th=%d, tcc=%d, tfx=%d, cbp=0x%x, cpsm=0x%x, csm=%d, csa=%d, cld=%d",
+	ZZLog::Debug_Log("alpha: A%d B%d C%d D%d FIX:%d pabe: %d; aem: %d, ta0: %d, ta1: %d\n", curvb.alpha.a, curvb.alpha.b, curvb.alpha.c, curvb.alpha.d, curvb.alpha.fix, gs.pabe, gs.texa.aem, gs.texa.ta[0], gs.texa.ta[1]);
+	ZZLog::Debug_Log("tex0: tbp0=0x%x, tbw=%d, psm=0x%x, tw=%d, th=%d, tcc=%d, tfx=%d, cbp=0x%x, cpsm=0x%x, csm=%d, csa=%d, cld=%d",
 					 curvb.tex0.tbp0, curvb.tex0.tbw, curvb.tex0.psm, curvb.tex0.tw,
 					 curvb.tex0.th, curvb.tex0.tcc, curvb.tex0.tfx, curvb.tex0.cbp,
 					 curvb.tex0.cpsm, curvb.tex0.csm, curvb.tex0.csa, curvb.tex0.cld);
@@ -331,7 +340,8 @@ inline void VisualBufferMessage(int context)
 	ZZLog::Error_Log("TGA name '%s'.", Name);
 	free(Name);
 //	}
-	ZZLog::Error_Log("frame: %d, buffer %ld.\n", g_SaveFrameNum, BufferNumber);
+//	ZZLog::Debug_Log("frame: %d, buffer %ld.\n", g_SaveFrameNum, BufferNumber);
+	ZZLog::Debug_Log("buffer %ld.\n", BufferNumber);
 #endif
 }
 
@@ -339,12 +349,12 @@ inline void SaveRendererTarget(VB& curvb)
 {
 #ifdef _DEBUG
 
-	if (g_bSaveFlushedFrame & 0x80000000)
-	{
-		char str[255];
-		sprintf(str, "rndr.tga", g_SaveFrameNum);
-		SaveRenderTarget(str, curvb.prndr->fbw, curvb.prndr->fbh, 0);
-	}
+//	if (g_bSaveFlushedFrame & 0x80000000)
+//	{
+//		char str[255];
+//		sprintf(str, "rndr%d.tga", g_SaveFrameNum);
+//		SaveRenderTarget(str, curvb.prndr->fbw, curvb.prndr->fbh, 0);
+//	}
 
 #endif
 }
@@ -366,7 +376,7 @@ inline void FlushUpdateEffect()
 // Check, maybe we cold skip flush
 inline bool IsFlushNoNeed(VB& curvb, const pixTest& curtest)
 {
-	if (curvb.nCount == 0 || (curtest.zte && curtest.ztst == 0) || g_bIsLost)
+	if (curvb.nCount == 0 || (curtest.zte && curtest.ztst == 0) /*|| g_bIsLost*/)
 	{
 		curvb.nCount = 0;
 		return true;
@@ -390,7 +400,7 @@ inline void FlushTransferRangesHelper(VB& curvb)
 	}
 }
 
-// If set bit for texture cheking, do it. Maybe it's all.
+// If set bit for texture checking, do it. Maybe it's all.
 inline bool FushTexDataHelper(VB& curvb)
 {
 	if (curvb.bNeedFrameCheck || curvb.bNeedZCheck)
@@ -449,7 +459,7 @@ inline CRenderTarget* FlushReGetTarget(int& tbw, int& tbp0, int& tpsm, VB& curvb
 	// This was incorrect code
 	CRenderTarget* ptextarg = NULL;
 
-	if (ptextarg == NULL && tpsm == PSMT8 && (g_GameSettings & GAME_REGETHACK))
+	if ((ptextarg == NULL) && (tpsm == PSMT8) && (conf.settings().reget))
 	{
 		// check for targets with half the width. Break Valkyrie Chronicles
 		ptextarg = s_RTs.GetTarg(tbp0, tbw / 2, curvb);
@@ -481,7 +491,7 @@ inline CRenderTarget* FlushReGetTarget(int& tbw, int& tbp0, int& tpsm, VB& curvb
 		ptextarg = s_DepthRTs.GetTarg(tbp0, tbw, curvb);
 	}
 
-	if ((ptextarg == NULL) && (g_GameSettings & GAME_TEXTURETARGS))
+	if ((ptextarg == NULL) && (conf.settings().texture_targs))
 	{
 		// check if any part of the texture intersects the current target
 		if (!PSMT_ISCLUT(tpsm) && (curvb.tex0.tbp0 >= curvb.frame.fbp) && ((curvb.tex0.tbp0) < curvb.prndr->end))
@@ -624,8 +634,13 @@ inline void FlushSetContextTarget(VB& curvb, int context)
 
 	if (curvb.pdepth != NULL)
 	{
-		assert(!(curvb.pdepth->status&CRenderTarget::TS_NeedUpdate));
-
+#ifdef _DEBUG
+		// Reduce an assert to a warning.
+		if (curvb.pdepth->status & CRenderTarget::TS_NeedUpdate)
+		{
+			ZZLog::Debug_Log("In FlushSetContextTarget, pdepth has TS_NeedUpdate set.");
+		}
+#endif
 		if (!curvb.zbuf.zmsk)
 		{
 			assert(!(curvb.pdepth->status & CRenderTarget::TS_Virtual));
@@ -761,22 +776,21 @@ inline void FlushDecodeClut(VB& curvb, GLuint& ptexclut)
 			}
 		}
 
-		glTexImage2D(GL_TEXTURE_2D, 0, 4, 256, 1, 0, GL_RGBA, PSMT_ISHALF_STORAGE(curvb.tex0) ? GL_UNSIGNED_SHORT_5_5_5_1 : GL_UNSIGNED_BYTE, &data[0]);
-
+		GLenum tempType = PSMT_ISHALF_STORAGE(curvb.tex0) ? GL_UNSIGNED_SHORT_5_5_5_1 : GL_UNSIGNED_BYTE;
+		Texture2D(4, 256, 1, GL_RGBA, tempType, &data[0]);
+		
 		s_vecTempTextures.push_back(ptexclut);
 
 		if (g_bSaveTex) SaveTexture("clut.tga", GL_TEXTURE_2D, ptexclut, 256, 1);
 
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		setTex2DWrap(GL_REPEAT);
+		setTex2DFilters(GL_LINEAR);
 	}
 }
 
 inline int FlushGetShaderType(VB& curvb, CRenderTarget* ptextarg, GLuint& ptexclut)
 {
-	if (PSMT_ISCLUT(curvb.tex0.psm) && !(g_GameSettings&GAME_NOTARGETCLUT))
+	if (PSMT_ISCLUT(curvb.tex0.psm) && !(conf.settings().no_target_clut))
 	{
 		FlushDecodeClut(curvb, ptexclut);
 
@@ -811,7 +825,7 @@ inline int FlushGetShaderType(VB& curvb, CRenderTarget* ptextarg, GLuint& ptexcl
 }
 
 
-//Set page offsets depends omn shader type.
+//Set page offsets depends on shader type.
 inline Vector FlushSetPageOffset(FRAGMENTSHADER* pfragment, int shadertype, CRenderTarget* ptextarg)
 {
 	SetShaderCaller("FlushSetPageOffset");
@@ -929,8 +943,8 @@ inline void FlushApplyResizeFilter(VB& curvb, u32& dwFilterOpts, CRenderTarget* 
 }
 
 
-// Usage existing targets depends on several tricks, 32-16 conversion and CLUTing, so we need handle it.
-inline FRAGMENTSHADER* FlushUseExistRenderTaget(VB& curvb, CRenderTarget* ptextarg, u32& dwFilterOpts, int exactcolor, int context)
+// Usage existing targets depends on several tricks, 32-16 conversion and CLUTing, so we need to handle it.
+inline FRAGMENTSHADER* FlushUseExistRenderTarget(VB& curvb, CRenderTarget* ptextarg, u32& dwFilterOpts, int exactcolor, int context)
 {
 	if (ptextarg->IsDepth())
 		SetWriteDepth();
@@ -983,7 +997,6 @@ inline FRAGMENTSHADER* FlushMadeNewTarget(VB& curvb, int exactcolor, int context
 	}
 
 	FRAGMENTSHADER* pfragment = LoadShadeEffect(0, GetTexFilter(curvb.tex1), curvb.curprim.fge,
-
 								IsAlphaTestExpansion(curvb), exactcolor, curvb.clamp, context, NULL);
 
 	if (pfragment == NULL)
@@ -1039,7 +1052,7 @@ inline FRAGMENTSHADER* FlushRendererStage(VB& curvb, u32& dwFilterOpts, CRenderT
 	if (curvb.curprim.tme)
 	{
 		if (ptextarg != NULL)
-			pfragment = FlushUseExistRenderTaget(curvb, ptextarg, dwFilterOpts, exactcolor, context);
+			pfragment = FlushUseExistRenderTarget(curvb, ptextarg, dwFilterOpts, exactcolor, context);
 		else
 			pfragment = FlushMadeNewTarget(curvb, exactcolor, context);
 
@@ -1070,7 +1083,7 @@ inline FRAGMENTSHADER* FlushRendererStage(VB& curvb, u32& dwFilterOpts, CRenderT
 inline bool AlphaCanRenderStencil(VB& curvb)
 {
 	return g_bUpdateStencil && (PSMT_BITMODE(curvb.prndr->psm) != 1) &&
-		   !ZZOglGet_fbmHighByte(curvb.frame.fbm) && !(g_GameSettings & GAME_NOSTENCIL);
+		   !ZZOglGet_fbmHighByte(curvb.frame.fbm) && !(conf.settings().no_stencil);
 }
 
 inline void AlphaSetStencil(bool DoIt)
@@ -1241,7 +1254,7 @@ inline void AlphaTest(VB& curvb)
 
 	if (!curvb.test.ate || curvb.test.atst > 0)
 	{
-		DRAW();
+		Draw(curvb);
 	}
 
 	GL_REPORT_ERRORD();
@@ -1266,7 +1279,7 @@ inline void AlphaPabe(VB& curvb, FRAGMENTSHADER* pfragment, int exactcolor)
 
 		ZZcgSetParameter4fv(pfragment->sOneColor, v, "g_fOneColor");
 
-		DRAW();
+		Draw(curvb);
 
 		// reset
 		if (!s_stencilmask) s_stencilfunc = GL_ALWAYS;
@@ -1281,17 +1294,15 @@ inline void AlphaPabe(VB& curvb, FRAGMENTSHADER* pfragment, int exactcolor)
 // First three cases are trivial manual.
 inline bool AlphaFailureIgnore(const pixTest curtest)
 {
-	if (!curtest.ate) return true;
-	if (curtest.atst == 1) return true;
-	if (curtest.afail == 0) return true;
+	if ((!curtest.ate) || (curtest.atst == 1) || (curtest.afail == 0)) return true;
 
-	if (g_GameSettings & GAME_NOALPHAFAIL && ((s_dwColorWrite < 8) || (s_dwColorWrite == 15 && curtest.atst == 5 && (curtest.aref == 64))))
+	if (conf.settings().no_alpha_fail && ((s_dwColorWrite < 8) || (s_dwColorWrite == 15 && curtest.atst == 5 && (curtest.aref == 64))))
 		return true;
 
 //	old and seemingly incorrect code.
 //	if ((s_dwColorWrite < 8 && s_dwColorWrite !=8) && curtest.afail == 1)
 //		return true;
-//	if ((s_dwColorWrite == 0xf) && curtest.atst == 5 && curtest.afail == 1 && !(g_GameSettings & GAME_REGETHACK))
+//	if ((s_dwColorWrite == 0xf) && curtest.atst == 5 && curtest.afail == 1 && !(conf.settings() & GAME_REGETHACK))
 //		return true;
 	return false;
 }
@@ -1341,7 +1352,7 @@ inline void AlphaFailureTestJob(VB& curvb, const pixTest curtest,  FRAGMENTSHADE
 		GL_STENCILFUNC(GL_EQUAL, s_stencilref | STENCIL_FBA, s_stencilmask | STENCIL_FBA);
 	}
 
-	DRAW();
+	Draw(curvb);
 
 	GL_REPORT_ERRORD();
 
@@ -1361,7 +1372,7 @@ inline void AlphaFailureTestJob(VB& curvb, const pixTest curtest,  FRAGMENTSHADE
 
 		ZZcgSetParameter4fv(pfragment->sOneColor, v, "g_fOneColor");
 
-		DRAW();
+		Draw(curvb);
 
 		// reset
 		if (oldabe) glEnable(GL_BLEND);
@@ -1412,7 +1423,7 @@ inline void AlphaSpecialTesting(VB& curvb, FRAGMENTSHADER* pfragment, u32 dwUsin
 
 		Vector v = Vector(0, exactcolor ? 510.0f : 2.0f, 0, 0);
 		ZZcgSetParameter4fv(pfragment->sOneColor, v, "g_fOneColor");
-		DRAW();
+		Draw(curvb);
 
 		// don't need to restore
 	}
@@ -1471,8 +1482,10 @@ inline void AlphaSaveTarget(VB& curvb)
 inline void AlphaColorClamping(VB& curvb, const pixTest curtest)
 {
 	// clamp the final colors, when enabled ffx2 credits mess up
-	if (curvb.curprim.abe && bAlphaClamping && GetRenderFormat() != RFT_byte8 && !(g_GameSettings&GAME_NOCOLORCLAMP))   // if !colclamp, skip
+	//if (gs.colclamp) ZZLog::Error_Log("ColClamp!");
+	if ((curvb.curprim.abe && bAlphaClamping) && (GetRenderFormat() != RFT_byte8) && !(conf.settings().no_color_clamp))   // if !colclamp, skip
 	{
+		//ZZLog::Error_Log("Clamped.");
 		ResetAlphaVariables();
 
 		// if processing the clamping case, make sure can write to the front buffer
@@ -1497,7 +1510,7 @@ inline void AlphaColorClamping(VB& curvb, const pixTest curtest)
 			f = 0;
 			ZZcgSetParameter4fv(ppsOne.sOneColor, &f, "g_fOneColor");
 			GL_BLENDEQ_RGB(GL_MAX_EXT);
-			DRAW();
+			Draw(curvb);
 		}
 
 		// bios shows white screen
@@ -1506,7 +1519,7 @@ inline void AlphaColorClamping(VB& curvb, const pixTest curtest)
 			f = 1;
 			ZZcgSetParameter4fv(ppsOne.sOneColor, &f, "g_fOneColor");
 			GL_BLENDEQ_RGB(GL_MIN_EXT);
-			DRAW();
+			Draw(curvb);
 		}
 
 		if (!curvb.zbuf.zmsk)
@@ -1554,8 +1567,7 @@ void ZeroGS::Flush(int context)
 	SwitchWireframeOff();
 	FlushDoContextJob(curvb, context);
 
-	u32 dwUsingSpecialTesting = 0;
-	u32 dwFilterOpts = 0;
+	u32 dwUsingSpecialTesting = 0, dwFilterOpts = 0;
 	int exactcolor = FlushGetExactcolor(curtest);
 
 	FRAGMENTSHADER* pfragment = FlushRendererStage(curvb, dwFilterOpts, ptextarg, exactcolor, context);
@@ -1597,6 +1609,12 @@ void ZeroGS::Flush(int context)
 	GL_REPORT_ERRORD();
 }
 
+void ZeroGS::FlushBoth()
+{
+	Flush(0);
+	Flush(1);
+}
+
 inline void ZeroGS::RenderFBA(const VB& curvb, CGparameter sOneColor)
 {
 	// add fba to all pixels
@@ -1620,7 +1638,7 @@ inline void ZeroGS::RenderFBA(const VB& curvb, CGparameter sOneColor)
 
 	ZZcgSetParameter4fv(sOneColor, v, "g_fOneColor");
 
-	DRAW();
+	Draw(curvb);
 
 	SetAlphaTest(curvb.test);
 
@@ -1673,7 +1691,7 @@ __forceinline void ZeroGS::RenderAlphaTest(const VB& curvb, CGparameter sOneColo
 		glStencilMask(STENCIL_CLEAR);
 		glDisable(GL_ALPHA_TEST);
 		GL_STENCILFUNC_SET();
-		DRAW();
+		Draw(curvb);
 
 		if (curvb.test.ate && curvb.test.afail != 1 && USEALPHATESTING) glEnable(GL_ALPHA_TEST);
 	}
@@ -1691,7 +1709,7 @@ __forceinline void ZeroGS::RenderAlphaTest(const VB& curvb, CGparameter sOneColo
 	GL_STENCILFUNC_SET();
 	glDisable(GL_DEPTH_TEST);
 
-	DRAW();
+	Draw(curvb);
 
 	if (curvb.test.zte) glEnable(GL_DEPTH_TEST);
 
@@ -1746,17 +1764,17 @@ inline void ZeroGS::ProcessStencil(const VB& curvb)
 	SetShaderCaller("ProcessStencil");
 
 	SETPIXELSHADER(ppsOne.prog);
-	DRAW();
+	Draw(curvb);
 
 	// process when alpha >= 0xff
 	GL_STENCILFUNC(GL_EQUAL, STENCIL_PIXELWRITE | STENCIL_FBA | STENCIL_ALPHABIT, STENCIL_PIXELWRITE | STENCIL_FBA);
-	DRAW();
+	Draw(curvb);
 
 	// clear STENCIL_PIXELWRITE bit
 	glStencilMask(STENCIL_CLEAR);
 
 	GL_STENCILFUNC(GL_ALWAYS, 0, STENCIL_PIXELWRITE | STENCIL_FBA);
-	DRAW();
+	Draw(curvb);
 
 	// restore state
 	GL_COLORMASK(s_dwColorWrite);
@@ -1807,14 +1825,14 @@ __forceinline void ZeroGS::ProcessFBA(const VB& curvb, CGparameter sOneColor)
 	float f = 1;
 	ZZcgSetParameter4fv(sOneColor, &f, "g_fOneColor");
 	SETPIXELSHADER(ppsOne.prog);
-	DRAW();
+	Draw(curvb);
 	glDisable(GL_ALPHA_TEST);
 
 	// reset bits
 	glStencilMask(STENCIL_CLEAR);
 	GL_STENCILFUNC(GL_GREATER, 0, STENCIL_PIXELWRITE | STENCIL_FBA);
 	glStencilOp(GL_KEEP, GL_KEEP, GL_ZERO);
-	DRAW();
+	Draw(curvb);
 
 	if (curvb.test.atst && USEALPHATESTING)
 	{
@@ -1931,8 +1949,18 @@ void ZeroGS::SetContextTarget(int context)
 
 	if (vb[!context].prndr != curvb.prndr) vb[!context].bVarsSetTarg = false;
 
-	assert(!(curvb.prndr->status&CRenderTarget::TS_NeedUpdate));
-	assert(curvb.pdepth == NULL || !(curvb.pdepth->status&CRenderTarget::TS_NeedUpdate));
+#ifdef _DEBUG
+	// These conditions happen often enough that we'll just warn about it rather then abort in Debug mode.
+	if (curvb.prndr->status & CRenderTarget::TS_NeedUpdate) 
+	{
+		ZZLog::Debug_Log("In SetContextTarget, prndr is ending with TS_NeedUpdate set.");
+	}
+	
+	if (curvb.pdepth != NULL && (curvb.pdepth->status & CRenderTarget::TS_NeedUpdate))
+	{
+		ZZLog::Debug_Log("In SetContextTarget, pdepth is ending with TS_NeedUpdate set.");
+	}
+#endif
 
 	GL_REPORT_ERRORD();
 }
@@ -2394,7 +2422,7 @@ void ZeroGS::SetTexVariablesInt(int context, int bilinear, const tex0Info& tex0,
 		break; \
 		\
 		case 2: \
-			bNeedBlendFactorInAlpha = 1; /* should disable alpha channel writing */ \
+			bNeedBlendFactorInAlpha = true; /* should disable alpha channel writing */ \
 			vAlphaBlendColor.y = 0; \
 			vAlphaBlendColor.w = (sign) ? (float)a.fix * (2.0f/255.0f) : (float)a.fix * (-2.0f/255.0f); \
 			usec = 0; /* change so that alpha comes from source*/ \
@@ -2418,7 +2446,7 @@ inline void ZeroGS::NeedFactor(int w)
 {
 	if (bDestAlphaColor == 2)
 	{
-		bNeedBlendFactorInAlpha = (w + 1) ? 1 : 0;
+		bNeedBlendFactorInAlpha = (w + 1) ? true : false;
 		vAlphaBlendColor.y = 0;
 		vAlphaBlendColor.w = (float)w;
 	}
@@ -2433,7 +2461,7 @@ void ZeroGS::SetAlphaVariables(const alphaInfo& a)
 
 	// TODO: negative color when not clamping turns to positive???
 	g_vars._bAlphaState = 0; // set all to zero
-	bNeedBlendFactorInAlpha = 0;
+	bNeedBlendFactorInAlpha = false;
 	b2XAlphaTest = 1;
 	//u32 dwTemp = 0xffffffff;
 	bDestAlphaColor = 0;
@@ -2444,7 +2472,7 @@ void ZeroGS::SetAlphaVariables(const alphaInfo& a)
 	s_alphaeq = GL_FUNC_ADD;
 	s_rgbeq = 1;
 
-	s_alphaInfo = a;
+//	s_alphaInfo = a;
 	vAlphaBlendColor = Vector(1, 2 * 255.0f / 256.0f, 0, 0);
 	u32 usec = a.c;
 

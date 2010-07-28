@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "App.h"
+#include "AppCommon.h"
 #include "CpuUsageProvider.h"
 
 
@@ -32,15 +32,17 @@ extern LimiterModeType g_LimiterMode;
 // --------------------------------------------------------------------------------------
 //  GSPanel
 // --------------------------------------------------------------------------------------
-class GSPanel : public wxWindow, public EventListener_AppStatus
+class GSPanel : public wxWindow
+	, public EventListener_AppStatus
 {
 	typedef wxWindow _parent;
 
 protected:
-	AcceleratorDictionary		m_Accels;
-	wxTimer						m_HideMouseTimer;
-	bool						m_CursorShown;
-	bool						m_HasFocus;
+	ScopedPtr<AcceleratorDictionary>	m_Accels;
+
+	wxTimer					m_HideMouseTimer;
+	bool					m_CursorShown;
+	bool					m_HasFocus;
 
 public:
 	GSPanel( wxWindow* parent );
@@ -48,6 +50,7 @@ public:
 
 	void DoResize();
 	void DoShowMouse();
+	void DirectKeyCommand( wxKeyEvent& evt );
 
 protected:
 	void AppStatusEvent_OnSettingsApplied();
@@ -71,9 +74,10 @@ protected:
 // --------------------------------------------------------------------------------------
 //  GSFrame
 // --------------------------------------------------------------------------------------
-class GSFrame : public wxFrame,
-	public EventListener_AppStatus,
-	public EventListener_CoreThread
+class GSFrame : public wxFrame
+	, public EventListener_AppStatus
+	, public EventListener_CoreThread
+	, public EventListener_Plugins
 {
 	typedef wxFrame _parent;
 
@@ -95,6 +99,8 @@ public:
 	bool Show( bool shown=true );
 	wxStaticText* GetLabel_OutputDisabled() const;
 
+	bool ShowFullScreen(bool show, long style = wxFULLSCREEN_ALL);
+
 protected:
 	void OnCloseWindow( wxCloseEvent& evt );
 	void OnMove( wxMoveEvent& evt );
@@ -105,6 +111,8 @@ protected:
 	void AppStatusEvent_OnSettingsApplied();
 	void CoreThread_OnResumed();
 	void CoreThread_OnSuspended();
+	void CoreThread_OnStopped();
+	void CorePlugins_OnShutdown();
 };
 
 // --------------------------------------------------------------------------------------

@@ -24,7 +24,7 @@
 
 using namespace x86Emitter;
 
-extern void mergeVectors(int dest, int src, int temp, int xyzw);
+extern void mergeVectors(xRegisterSSE dest, xRegisterSSE src, xRegisterSSE temp, int xyzw);
 extern void loadRowCol(nVifStruct& v);
 
 // --------------------------------------------------------------------------------------
@@ -37,8 +37,8 @@ public:
 	bool			doMask;			// masking write enable flag
 
 protected:
-	xAddressInfo	dstIndirect;
-	xAddressInfo	srcIndirect;
+	xAddressVoid	dstIndirect;
+	xAddressVoid	srcIndirect;
 	xRegisterSSE	workReg;
 	xRegisterSSE	destReg;
 

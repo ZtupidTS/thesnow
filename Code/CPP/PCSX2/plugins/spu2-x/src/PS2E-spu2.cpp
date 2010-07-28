@@ -353,8 +353,8 @@ EXPORT_C_(s32) SPU2init()
 
 	memset(spu2regs, 0, 0x010000);
 	memset(_spu2mem, 0, 0x200000);
-	Cores[0].Reset(0);
-	Cores[1].Reset(1);
+	Cores[0].Init(0);
+	Cores[1].Init(1);
 
 	DMALogOpen();
 	InitADSR();
@@ -366,6 +366,7 @@ EXPORT_C_(s32) SPU2init()
 	return 0;
 }
 
+#ifdef _MSC_VER
 // Bit ugly to have this here instead of in RealttimeDebugger.cpp, but meh :p
 extern bool debugDialogOpen;
 extern HWND hDebugDialog;
@@ -405,7 +406,7 @@ static BOOL CALLBACK DebugProc(HWND hWnd,UINT uMsg,WPARAM wParam,LPARAM lParam)
 	}
 	return TRUE;
 }
-
+#endif
 uptr gsWindowHandle = 0;
 
 EXPORT_C_(s32) SPU2open(void *pDsp)
@@ -458,6 +459,7 @@ EXPORT_C_(void) SPU2close()
 #ifndef __LINUX__
 	DspCloseLibrary();
 #endif
+
 	spdif_shutdown();
 	SndBuffer::Cleanup();
 }
@@ -492,6 +494,7 @@ EXPORT_C_(void) SPU2shutdown()
 	safe_free(spu2regs);
 	safe_free(_spu2mem);
 	safe_free( pcm_cache_data );
+
 
 #ifdef SPU2_LOG
 	if(!AccessLog()) return;

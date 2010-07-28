@@ -18,6 +18,8 @@
 extern void _vu0WaitMicro();
 extern void _vu0FinishMicro();
 
+typedef void FnType_Void();
+
 //------------------------------------------------------------------
 // Macro VU - Helper Macros / Functions
 //------------------------------------------------------------------
@@ -36,7 +38,7 @@ void setupMacroOp(int mode, const char* opName) {
 	iFlushCall(FLUSH_EVERYTHING);
 	microVU0.regAlloc->reset();
 	if (mode & 0x01) { // Q-Reg will be Read
-		SSE_MOVSS_M32_to_XMM(xmmPQ, (uptr)&microVU0.regs->VI[REG_Q].UL);
+		xMOVSSZX(xmmPQ, ptr32[&microVU0.regs->VI[REG_Q].UL]);
 	}
 	if (mode & 0x08) { // Clip Instruction
 		microVU0.prog.IRinfo.info[0].cFlag.write	 = 0xff;
@@ -49,16 +51,16 @@ void setupMacroOp(int mode, const char* opName) {
 		microVU0.prog.IRinfo.info[0].sFlag.lastWrite	= 0;
 		microVU0.prog.IRinfo.info[0].mFlag.doFlag		= 1;
 		microVU0.prog.IRinfo.info[0].mFlag.write		= 0xff;
-		MOV32MtoR(gprF0, (uptr)&microVU0.regs->VI[REG_STATUS_FLAG].UL);
+		xMOV(gprF0, ptr32[&microVU0.regs->VI[REG_STATUS_FLAG].UL]);
 	}
 }
 
 void endMacroOp(int mode) {
 	if (mode & 0x02) { // Q-Reg was Written To
-		SSE_MOVSS_XMM_to_M32((uptr)&microVU0.regs->VI[REG_Q].UL, xmmPQ);
+		xMOVSS(ptr32[&microVU0.regs->VI[REG_Q].UL], xmmPQ);
 	}
 	if (mode & 0x10) { // Status/Mac Flags were Updated
-		MOV32RtoM((uptr)&microVU0.regs->VI[REG_STATUS_FLAG].UL, gprF0);
+		xMOV(ptr32[&microVU0.regs->VI[REG_STATUS_FLAG].UL], gprF0);
 	}
 	microVU0.regAlloc->flushAll();
 	microVU0.cop2 = 0;
@@ -244,41 +246,42 @@ void recBC2TL() { _setupBranchTest(JZ32,  true);  }
 
 void COP2_Interlock(bool mBitSync) {
 	if (cpuRegs.code & 1) {
-		iFlushCall(FLUSH_NOCONST);
-		if (mBitSync) CALLFunc((uptr)_vu0WaitMicro);
-		else		  CALLFunc((uptr)_vu0FinishMicro);
+		iFlushCall(FLUSH_EVERYTHING | FLUSH_PC);
+		if (mBitSync) xCALL(_vu0WaitMicro);
+		else		  xCALL(_vu0FinishMicro);
 	}
 }
 
-void TEST_FBRST_RESET(uptr resetFunct, int vuIndex) {
-	TEST32ItoR(EAX, (vuIndex) ? 0x200 : 0x002);
-	j8Ptr[0] = JZ8(0);
-		CALLFunc(resetFunct);
-		MOV32MtoR(EAX, (uptr)&cpuRegs.GPR.r[_Rt_].UL[0]);
-	x86SetJ8(j8Ptr[0]);
+void TEST_FBRST_RESET(FnType_Void* resetFunct, int vuIndex) {
+	xTEST(eax, (vuIndex) ? 0x200 : 0x002);
+	xForwardJZ8 skip;
+		xCALL(resetFunct);
+		xMOV(eax, ptr32[&cpuRegs.GPR.r[_Rt_].UL[0]]);
+	skip.SetTarget();
 }
 
 static void recCFC2() {
 
 	printCOP2("CFC2");
+
 	COP2_Interlock(0);
 	if (!_Rt_) return;
 	iFlushCall(FLUSH_EVERYTHING);
 
 	if (_Rd_ == REG_STATUS_FLAG) { // Normalize Status Flag
-		MOV32MtoR(gprF0, (uptr)&microVU0.regs->VI[REG_STATUS_FLAG].UL);
-		mVUallocSFLAGc(EAX, gprF0, 0);
+		xMOV(gprF0, ptr32[&microVU0.regs->VI[REG_STATUS_FLAG].UL]);
+		mVUallocSFLAGc(eax, gprF0, 0);
 	}
-	else MOV32MtoR(EAX, (uptr)&microVU0.regs->VI[_Rd_].UL);
+	else xMOV(eax, ptr32[&microVU0.regs->VI[_Rd_].UL]);
 
 	// FixMe: Should R-Reg have upper 9 bits 0?
-	MOV32RtoM((uptr)&cpuRegs.GPR.r[_Rt_].UL[0], EAX);
+	xMOV(ptr32[&cpuRegs.GPR.r[_Rt_].UL[0]], eax);
 
 	if (_Rd_ >= 16) {
-		CDQ(); // Sign Extend
-		MOV32RtoM ((uptr)&cpuRegs.GPR.r[_Rt_].UL[1], EDX);
+		xCDQ(); // Sign Extend
+		xMOV(ptr32[&cpuRegs.GPR.r[_Rt_].UL[1]], edx);
 	}
-	else MOV32ItoM((uptr)&cpuRegs.GPR.r[_Rt_].UL[1], 0);
+	else xMOV(ptr32[&cpuRegs.GPR.r[_Rt_].UL[1]], 0);
 
 	// FixMe: I think this is needed, but not sure how it works
 	_eeOnWriteReg(_Rt_, 1);
@@ -295,36 +298,36 @@ static void recCTC2() {
 		case REG_MAC_FLAG: case REG_TPC:
 		case REG_VPU_STAT: break; // Read Only Regs
 		case REG_R:
-			MOV32MtoR(EAX, (uptr)&cpuRegs.GPR.r[_Rt_].UL[0]);
-			OR32ItoR (EAX, 0x3f800000);
-			MOV32RtoM((uptr)&microVU0.regs->VI[REG_R].UL, EAX);
+			xMOV(eax, ptr32[&cpuRegs.GPR.r[_Rt_].UL[0]]);
+			xOR (eax, 0x3f800000);
+			xMOV(ptr32[&microVU0.regs->VI[REG_R].UL], eax);
 			break;
 		case REG_STATUS_FLAG:
 			if (_Rt_) { // Denormalizes flag into gprF1
-				mVUallocSFLAGd((uptr)&cpuRegs.GPR.r[_Rt_].UL[0], 0);
-				MOV32RtoM((uptr)&microVU0.regs->VI[_Rd_].UL, gprF1);
+				mVUallocSFLAGd(&cpuRegs.GPR.r[_Rt_].UL[0], 0);
+				xMOV(ptr32[&microVU0.regs->VI[_Rd_].UL], gprF1);
 			}
-			else MOV32ItoM((uptr)&microVU0.regs->VI[_Rd_].UL, 0);
+			else xMOV(ptr32[&microVU0.regs->VI[_Rd_].UL], 0);
 			break;
 		case REG_CMSAR1:	// Execute VU1 Micro SubRoutine
 			if (_Rt_) {
-				MOV32MtoR(ECX, (uptr)&cpuRegs.GPR.r[_Rt_].UL[0]);
+				xMOV(ecx, ptr32[&cpuRegs.GPR.r[_Rt_].UL[0]]);
 			}
-			else XOR32RtoR(ECX,ECX);
+			else xXOR(ecx, ecx);
 			xCALL(vu1ExecMicro);
 			break;
 		case REG_FBRST:
 			if (!_Rt_) { 
-				MOV32ItoM((uptr)&microVU0.regs->VI[REG_FBRST].UL, 0); 
+				xMOV(ptr32[&microVU0.regs->VI[REG_FBRST].UL], 0); 
 				return;
 			}
-			else MOV32MtoR(EAX, (uptr)&cpuRegs.GPR.r[_Rt_].UL[0]);
+			else xMOV(eax, ptr32[&cpuRegs.GPR.r[_Rt_].UL[0]]);
 
-			TEST_FBRST_RESET((uptr)vu0ResetRegs, 0);
-			TEST_FBRST_RESET((uptr)vu1ResetRegs, 1);
+			TEST_FBRST_RESET(vu0ResetRegs, 0);
+			TEST_FBRST_RESET(vu1ResetRegs, 1);
 
-			AND32ItoR(EAX, 0x0C0C);
-			MOV32RtoM((uptr)&microVU0.regs->VI[REG_FBRST].UL, EAX);
+			xAND(eax, 0x0C0C);
+			xMOV(ptr32[&microVU0.regs->VI[REG_FBRST].UL], eax);
 			break;
 		default:
 			// Executing vu0 block here fixes the intro of Ratchet and Clank
@@ -346,8 +349,8 @@ static void recQMFC2() {
 	// FixMe: For some reason this line is needed or else games break:
 	_eeOnWriteReg(_Rt_, 0);
 
-	SSE_MOVAPS_M128_to_XMM(xmmT1, (uptr)&microVU0.regs->VF[_Rd_].UL[0]);
-	SSE_MOVAPS_XMM_to_M128((uptr)&cpuRegs.GPR.r[_Rt_].UL[0], xmmT1);
+	xMOVAPS(xmmT1, ptr128[&microVU0.regs->VF[_Rd_]]);
+	xMOVAPS(ptr128[&cpuRegs.GPR.r[_Rt_]], xmmT1);
 }
 
 static void recQMTC2() {
@@ -357,8 +360,8 @@ static void recQMTC2() {
 	if (!_Rd_) return;
 	iFlushCall(FLUSH_EVERYTHING);
 
-	SSE_MOVAPS_M128_to_XMM(xmmT1, (uptr)&cpuRegs.GPR.r[_Rt_].UL[0]);
-	SSE_MOVAPS_XMM_to_M128((uptr)&microVU0.regs->VF[_Rd_].UL[0], xmmT1);
+	xMOVAPS(xmmT1, ptr128[&cpuRegs.GPR.r[_Rt_]]);
+	xMOVAPS(ptr128[&microVU0.regs->VF[_Rd_]], xmmT1);
 }
 
 //------------------------------------------------------------------

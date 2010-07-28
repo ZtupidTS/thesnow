@@ -1,5 +1,6 @@
-/*  ZeroGS KOSMOS
- *  Copyright (C) 2005-2006 zerofrog@gmail.com
+/*  ZZ Open GL graphics plugin
+ *  Copyright (c)2009-2010 zeydlitz@gmail.com, arcum42@gmail.com
+ *  Based on Zerofrog's ZeroGS KOSMOS (c)2005-2008
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -13,13 +14,16 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
 #include "GS.h"
 #include "zerogs.h"
 
 #ifdef GL_WIN32_WINDOW
+
+HDC			hDC = NULL;	 // Private GDI Device Context
+HGLRC		hRC = NULL;	 // Permanent Rendering Context
 
 LRESULT WINAPI MsgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -97,7 +101,7 @@ bool GLWindow::CreateWindow(void *pDisplay)
 
 	RegisterClassEx(&wc);
 
-	if (conf.options & GSOPTION_FULLSCREEN)
+	if (conf.fullscreen())
 	{
 		dwExStyle = WS_EX_APPWINDOW;
 		dwStyle = WS_POPUP;
@@ -186,7 +190,7 @@ bool GLWindow::DisplayWindow(int _width, int _height)
 	RECT rcdesktop;
 	GetWindowRect(GetDesktopWindow(), &rcdesktop);
 
-	if (conf.options & GSOPTION_FULLSCREEN)
+	if (conf.fullscreen())
 	{
 		nBackbufferWidth = rcdesktop.right - rcdesktop.left;
 		nBackbufferHeight = rcdesktop.bottom - rcdesktop.top;
@@ -216,7 +220,7 @@ bool GLWindow::DisplayWindow(int _width, int _height)
 
 	SetWindowPos(GShwnd, HWND_TOP, X, Y, rc.right - rc.left, rc.bottom - rc.top, SWP_SHOWWINDOW);
 
-	if (conf.options & GSOPTION_FULLSCREEN)
+	if (conf.fullscreen())
 	{
 		DEVMODE dmScreenSettings;
 		memset(&dmScreenSettings, 0, sizeof(dmScreenSettings));
@@ -231,7 +235,7 @@ bool GLWindow::DisplayWindow(int _width, int _height)
 		if (ChangeDisplaySettings(&dmScreenSettings, CDS_FULLSCREEN) != DISP_CHANGE_SUCCESSFUL)
 		{
 			if (MessageBox(NULL, "The Requested Fullscreen Mode Is Not Supported By\nYour Video Card. Use Windowed Mode Instead?", "NeHe GL", MB_YESNO | MB_ICONEXCLAMATION) == IDYES)
-				conf.options &= ~GSOPTION_FULLSCREEN;
+				conf.setFullscreen(false);
 			else
 				return false;
 		}

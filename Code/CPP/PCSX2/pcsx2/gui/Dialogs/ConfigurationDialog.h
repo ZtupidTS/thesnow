@@ -16,7 +16,6 @@
 #pragma once
 
 #include <wx/wx.h>
-#include <wx/image.h>
 #include <wx/propdlg.h>
 
 #include "AppCommon.h"
@@ -113,6 +112,21 @@ namespace Dialogs
 	protected:
 		virtual wxString& GetConfSettingsTabName() const { return g_Conf->McdSettingsTabName; }
 		void OnMultitapClicked( wxCommandEvent& evt );
+	};
+
+	// --------------------------------------------------------------------------------------
+	//  GameDatabaseDialog
+	// --------------------------------------------------------------------------------------
+	class GameDatabaseDialog : public BaseConfigurationDialog
+	{
+	public:
+		virtual ~GameDatabaseDialog() throw() {}
+		GameDatabaseDialog(wxWindow* parent=NULL);
+		static wxString GetNameStatic() { return L"GameDatabase"; }
+		wxString GetDialogName() const { return GetNameStatic(); }
+
+	protected:
+		virtual wxString& GetConfSettingsTabName() const { return g_Conf->GameDatabaseTabName; }
 	};
 
 	// --------------------------------------------------------------------------------------

@@ -47,11 +47,11 @@ Panels::eeLogOptionsPanel::eeLogOptionsPanel( LogOptionsPanel* parent )
 	s_disasm.Add( m_COP0		= new pxCheckBox( m_disasmPanel, L"COP0 (MMU/SysCtrl)" ));
 	s_disasm.Add( m_COP1		= new pxCheckBox( m_disasmPanel, L"COP1 (FPU)" ));
 	s_disasm.Add( m_COP2		= new pxCheckBox( m_disasmPanel, L"COP2 (VU0 macro)" ));
-	s_disasm.Add( m_VU0micro	= new pxCheckBox( m_disasmPanel, L"VU0 micro" ));
-	s_disasm.Add( m_VU1micro	= new pxCheckBox( m_disasmPanel, L"VU1 micro" ));
+	s_disasm.Add( m_VU0micro	= new pxCheckBox( m_disasmPanel, L"VU0 ºê" ));
+	s_disasm.Add( m_VU1micro	= new pxCheckBox( m_disasmPanel, L"VU1 ºê" ));
 
 	s_hw.Add( m_KnownHw		= new pxCheckBox( m_hwPanel, L"¼Ä´æÆ÷" ));
-	s_hw.Add( m_UnknownHw	= new pxCheckBox( m_hwPanel, L"Unknown Regs" ));
+	s_hw.Add( m_UnknownHw	= new pxCheckBox( m_hwPanel, L"Î´Öª¼Ä´æÆ÷" ));
 	s_hw.Add( m_DMA			= new pxCheckBox( m_hwPanel, L"DMA" ));
 
 	s_evt.Add( m_Counters	= new pxCheckBox( m_evtPanel, L"Counters" ));
@@ -142,8 +142,8 @@ void Panels::eeLogOptionsPanel::OnSettingsChanged()
 	m_evtPanel->SetValue( conf.EE.m_EnableEvents );
 	m_hwPanel->SetValue( conf.EE.m_EnableHardware );
 
-	SetCheckValue( EE, Memory );
 	SetCheckValue( EE, Bios );
+	SetCheckValue( EE, Memory );
 	SetCheckValue( EE, Cache );
 	SetCheckValue( EE, SysCtrl );
 
@@ -151,7 +151,6 @@ void Panels::eeLogOptionsPanel::OnSettingsChanged()
 	SetCheckValue( EE, COP0 );
 	SetCheckValue( EE, COP1 );
 	SetCheckValue( EE, COP2 );
-
 	SetCheckValue(EE, VU0micro);
 	SetCheckValue(EE, VU1micro);
 
@@ -162,8 +161,8 @@ void Panels::eeLogOptionsPanel::OnSettingsChanged()
 	SetCheckValue(EE, Counters);
 	SetCheckValue(EE, VIF);
 	SetCheckValue(EE, GIF);
-	SetCheckValue(EE, SPR);
 	SetCheckValue(EE, IPU);
+	SetCheckValue(EE, SPR);
 }
 
 void Panels::iopLogOptionsPanel::OnSettingsChanged()
@@ -178,6 +177,7 @@ void Panels::iopLogOptionsPanel::OnSettingsChanged()
 
 	SetCheckValue(IOP, Bios);
 	SetCheckValue(IOP, Memory);
+	SetCheckValue(IOP, GPU);
 
 	SetCheckValue(IOP, R3000A);
 	SetCheckValue(IOP, COP2);
@@ -190,9 +190,9 @@ void Panels::iopLogOptionsPanel::OnSettingsChanged()
 	SetCheckValue(IOP, Memcards);
 	SetCheckValue(IOP, PAD);
 	SetCheckValue(IOP, SPU2);
+	SetCheckValue(IOP, CDVD);
 	SetCheckValue(IOP, USB);
 	SetCheckValue(IOP, FW);
-	SetCheckValue(IOP, CDVD);
 }
 
 // --------------------------------------------------------------------------------------
@@ -203,7 +203,7 @@ Panels::LogOptionsPanel::LogOptionsPanel(wxWindow* parent )
 	, m_eeSection	( *new eeLogOptionsPanel( this ) )
 	, m_iopSection	( *new iopLogOptionsPanel( this ) )
 {
-	m_masterEnabler = new pxCheckBox( this, _("Enable Trace Logging"),
+	m_masterEnabler = new pxCheckBox( this, _("ÆôÓÃ×·×ÙÈÕÖ¾"),
 		_("Trace logs are all written to emulog.txt.  Toggle trace logging at any time using F10.") );
 	m_masterEnabler->SetToolTip( _("Warning: Enabling trace logs is typically very slow, and is a leading cause of 'What happened to my FPS?' problems. :)") );
 

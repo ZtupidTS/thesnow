@@ -1,6 +1,6 @@
 /*  ZZ Open GL graphics plugin
- *  Copyright (c)2009 zeydlitz@gmail.com
- *  Based on Zerofrog's ZeroGS KOSMOS (c)2005-2006
+ *  Copyright (c)2009-2010 zeydlitz@gmail.com, arcum42@gmail.com
+ *  Based on Zerofrog's ZeroGS KOSMOS (c)2005-2008
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
 // Zerogs:VB implementation.
@@ -240,7 +240,6 @@ inline int ZeroGS::VB::CheckFrameAddConstraints(int tbp)
 
 #ifdef DEVBUILD
 	int noscissorpos = maxpos;
-
 	int ConstrainR1 = ConstraintReason;
 #endif
 
@@ -249,26 +248,24 @@ inline int ZeroGS::VB::CheckFrameAddConstraints(int tbp)
 	frame = gsfb;
 	frame.fbh = maxpos;
 
-	if (!PSMT_ISHALF(frame.psm) || !(g_GameSettings&GAME_FULL16BITRES))
-		CheckFrame32bitRes(maxpos);
+	if (!PSMT_ISHALF(frame.psm) || !(conf.settings().full_16_bit_res)) CheckFrame32bitRes(maxpos);
 
 #ifdef DEVBUILD
 	if (frame.fbh == 0xe2)
-		ZZLog::Error_Log("Const: %x %x %d| %x %d %x %x", frame.fbh, frame.fbw, ConstraintReason, noscissorpos, ConstrainR1, tbp, frame.fbp);
-
+		ZZLog::Debug_Log("Const: %x %x %d| %x %d %x %x", frame.fbh, frame.fbw, ConstraintReason, noscissorpos, ConstrainR1, tbp, frame.fbp);
 #endif
 
 // 	Fixme: Reserved psm for framebuffers
 //	gsfb.psm &= 0xf; // shadow tower
 
-	return 0 ;
+	return 0;
 }
 
 // Check if after resizing new depth target is needed to be used.
 // it returns 2 if a new depth target is used. 
 inline int ZeroGS::VB::CheckFrameResolveDepth(int tbp)
 {
-	int result = 0 ;
+	int result = 0;
 	CDepthTarget* pprevdepth = pdepth;
 	pdepth = NULL;
 
@@ -287,7 +284,7 @@ inline int ZeroGS::VB::CheckFrameResolveDepth(int tbp)
 
 	pdepth = pnewdepth;
 
-	return result ;
+	return result;
 }
 
 // Check if after resizing, a new render target is needed to be used. Also perform deptarget check.
@@ -330,11 +327,11 @@ inline int ZeroGS::VB::CheckFrameResolveRender(int tbp)
 
 	prndr = pnewtarg;
 
-	pdepth = pprevdepth ;
+	pdepth = pprevdepth;
 
-	result |= CheckFrameResolveDepth(tbp) ;
+	result |= CheckFrameResolveDepth(tbp);
 
-	return result ;
+	return result;
 }
 
 // After frame resetting, it is possible that 16 to 32 or 32 to 16 (color bits) conversion should be made.
@@ -362,6 +359,8 @@ inline void ZeroGS::VB::CheckFrame16vs32Conversion()
 // If tbp != 0, use it to bound.
 void ZeroGS::VB::CheckFrame(int tbp)
 {
+	GL_REPORT_ERRORD();
+	
 	static int bChanged;
 
 	if (bNeedZCheck)
@@ -384,7 +383,7 @@ void ZeroGS::VB::CheckFrame(int tbp)
 		bNeedFrameCheck = 0;
 		bNeedZCheck = 0;
 
-		if (CheckFrameAddConstraints(tbp) == -1) return ;
+		if (CheckFrameAddConstraints(tbp) == -1) return;
 
 		if ((prndr != NULL) && (prndr->psm != gsfb.psm))
 		{
@@ -400,11 +399,11 @@ void ZeroGS::VB::CheckFrame(int tbp)
 	{
 		bNeedZCheck = 0;
 
-		if (prndr != NULL && gsfb.fbw > 0)
-			CheckFrameResolveDepth(tbp);
+		if (prndr != NULL && gsfb.fbw > 0) CheckFrameResolveDepth(tbp);
 	}
 
 	if (prndr != NULL) SetContextTarget(ictx);
+	GL_REPORT_ERRORD();
 }
 
 // This is the case, most easy to perform, when nothing was changed
@@ -422,8 +421,7 @@ inline void ZeroGS::VB::FlushTexUnchangedClutDontUpdate()
 // update anything except texture itself
 inline void ZeroGS::VB::FlushTexClutDontUpdate()
 {
-	if (!ZZOglClutStorageUnchanged(uCurTex0Data, uNextTex0Data))
-		ZeroGS::Flush(ictx);
+	if (!ZZOglClutStorageUnchanged(uCurTex0Data, uNextTex0Data)) ZeroGS::Flush(ictx);
 
 	// clut memory isn't going to be loaded so can ignore, but at least update CSA and CPSM!
 	uCurTex0Data[1] = (uCurTex0Data[1] & CPSM_CSA_NOTMASK) | (uNextTex0Data[1] & CPSM_CSA_BITMASK);
@@ -457,44 +455,49 @@ inline void ZeroGS::VB::FlushTexSetNewVars(u32 psm)
 // This function made VB state consistant before real Flush.
 void ZeroGS::VB::FlushTexData()
 {
-	assert(bNeedTexCheck);
-
-	bNeedTexCheck = 0;
-
-	u32 psm = ZZOglGet_psm_TexBitsFix(uNextTex0Data[0]);
-
-	// don't update unless necessary
-
-	if (ZZOglAllExceptClutIsSame(uCurTex0Data, uNextTex0Data))
+	GL_REPORT_ERRORD();
+	
+	//assert(bNeedTexCheck);
+	if (bNeedTexCheck)
 	{
-		// Don't need to do anything if there is no clutting and VB tex data was not changed
-		if (!PSMT_ISCLUT(psm)) return ;
+		bNeedTexCheck = 0;
 
-		// have to write the CLUT again if only CLD was changed
-		if (ZZOglClutMinusCLDunchanged(uCurTex0Data, uNextTex0Data))
+		u32 psm = ZZOglGet_psm_TexBitsFix(uNextTex0Data[0]);
+
+		// don't update unless necessary
+
+		if (ZZOglAllExceptClutIsSame(uCurTex0Data, uNextTex0Data))
 		{
-			FlushTexUnchangedClutDontUpdate();
-			return;
+			// Don't need to do anything if there is no clutting and VB tex data was not changed
+			if (!PSMT_ISCLUT(psm)) return;
+
+			// have to write the CLUT again if only CLD was changed
+			if (ZZOglClutMinusCLDunchanged(uCurTex0Data, uNextTex0Data))
+			{
+				FlushTexUnchangedClutDontUpdate();
+				return;
+			}
+
+			// Cld bit is 0 means that clut buffer stay unchanged
+			if (ZZOglGet_cld_TexBits(uNextTex0Data[1]) == 0)
+			{
+				FlushTexClutDontUpdate();
+				return;
+			}
 		}
 
-		// Cld bit is 0 means that clut buffer stay unchanged
-		if (ZZOglGet_cld_TexBits(uNextTex0Data[1]) == 0)
-		{
-			FlushTexClutDontUpdate();
-			return;
-		}
+		// Made the full update
+		ZeroGS::Flush(ictx);
+
+		bVarsTexSync = false;
+		bTexConstsSync = false;
+
+		uCurTex0Data[0] = uNextTex0Data[0];
+		uCurTex0Data[1] = uNextTex0Data[1];
+
+		FlushTexSetNewVars(psm);
+
+		if (PSMT_ISCLUT(psm)) ZeroGS::CluttingForFlushedTex(&tex0, uNextTex0Data[1], ictx) ;
+		GL_REPORT_ERRORD();
 	}
-
-	// Made the full update
-	ZeroGS::Flush(ictx);
-
-	bVarsTexSync = false;
-	bTexConstsSync = false;
-
-	uCurTex0Data[0] = uNextTex0Data[0];
-	uCurTex0Data[1] = uNextTex0Data[1];
-
-	FlushTexSetNewVars(psm);
-
-	if (PSMT_ISCLUT(psm)) ZeroGS::CluttingForFlushedTex(&tex0, uNextTex0Data[1], ictx) ;
 }

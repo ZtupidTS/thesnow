@@ -32,7 +32,7 @@ using namespace pxSizerFlags;
 // --------------------------------------------------------------------------------------
 
 Dialogs::AboutBoxDialog::AboutBoxDialog( wxWindow* parent )
-	: wxDialogWithHelpers( parent, _("关于 PCSX2"), pxDialogFlags().Resize().MinWidth( 460 ) )
+	: wxDialogWithHelpers( parent, AddAppName(_("关于 %s")), pxDialogFlags().Resize().MinWidth( 460 ) )
 	, m_bitmap_dualshock( this, wxID_ANY, wxBitmap( EmbeddedImage<res_Dualshock>().Get() ),
 		wxDefaultPosition, wxDefaultSize, wxBORDER_SUNKEN
 	)
@@ -91,7 +91,7 @@ Dialogs::AboutBoxDialog::AboutBoxDialog( wxWindow* parent )
 	// Main (top-level) layout
 
 	*this	+= StdPadding;
-	*this	+= Text(_("PCSX2")).Bold();
+	*this	+= Text(wxGetApp().GetAppName()).Bold();
 	*this	+= Text(_("Playstation 2 模拟器"));
 	*this	+= AuthLogoSizer						| StdExpand();
 

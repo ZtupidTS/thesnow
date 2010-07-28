@@ -16,11 +16,17 @@
 #include "PrecompiledHeader.h"
 #include "App.h"
 #include "AppSaveStates.h"
+#include "AppGameDatabase.h"
 
 #include "Utilities/TlsVariable.inl"
 
 #include "ps2/BiosTools.h"
 #include "GS.h"
+
+#include "CDVD/CDVD.h"
+#include "Elfheader.h"
+#include "Patch.h"
+#include "R5900Exceptions.h"
 
 __aligned16 SysMtgsThread mtgsThread;
 __aligned16 AppCoreThread CoreThread;
@@ -34,31 +40,34 @@ class SysExecEvent_InvokeCoreThreadMethod : public SysExecEvent
 {
 protected:
 	FnPtr_CoreThreadMethod	m_method;
+	bool	m_IsCritical;
 
 public:
 	wxString GetEventName() const { return L"CoreThreadMethod"; }
 	virtual ~SysExecEvent_InvokeCoreThreadMethod() throw() {}
 	SysExecEvent_InvokeCoreThreadMethod* Clone() const { return new SysExecEvent_InvokeCoreThreadMethod(*this); }
+
+	bool AllowCancelOnExit() const { return false; }
+	bool IsCriticalEvent() const { return m_IsCritical; }
 	
-	SysExecEvent_InvokeCoreThreadMethod( FnPtr_CoreThreadMethod method )
+	SysExecEvent_InvokeCoreThreadMethod( FnPtr_CoreThreadMethod method, bool critical=false )
 	{
 		m_method = method;
+		m_IsCritical = critical;
 	}
-	
+
+	SysExecEvent_InvokeCoreThreadMethod& Critical()
+	{
+		m_IsCritical = true;
+		return *this;
+	}
+
 protected:
 	void InvokeEvent()
 	{
 		if( m_method ) (CoreThread.*m_method)();
 	}
 };
-
-bool ProcessingMethodViaThread( FnPtr_CoreThreadMethod method )
-{
-	if( GetSysExecutorThread().IsSelf() ) return false;
-	SysExecEvent_InvokeCoreThreadMethod evt( method );
-	GetSysExecutorThread().ProcessEvent( evt );
-	return false;
-}
 
 static void PostCoreStatus( CoreThreadStatus pevt )
 {
@@ -78,17 +87,26 @@ AppCoreThread::~AppCoreThread() throw()
 	_parent::Cancel();		// use parent's, skips thread affinity check.
 }
 
-void AppCoreThread::Cancel( bool isBlocking )
+static void _Cancel()
 {
-	AffinityAssert_AllowFrom_SysExecutor();
-	_parent::Cancel( wxTimeSpan(0, 0, 2, 0) );
+	GetCoreThread().Cancel();
 }
 
-void AppCoreThread::Shutdown()
+void AppCoreThread::Cancel( bool isBlocking )
 {
-	AffinityAssert_AllowFrom_SysExecutor();
+	if (GetSysExecutorThread().IsRunning() && !GetSysExecutorThread().Rpc_TryInvoke( _Cancel ))
+		_parent::Cancel( wxTimeSpan(0, 0, 4, 0) );
+}
+
+void AppCoreThread::Reset()
+{
+	if( !GetSysExecutorThread().IsSelf() )
+	{
+		GetSysExecutorThread().PostEvent( SysExecEvent_InvokeCoreThreadMethod(&AppCoreThread::Reset) );
+		return;
+	}
+
 	_parent::Reset();
-	CorePlugins.Shutdown();
 }
 
 ExecutorThread& GetSysExecutorThread()
@@ -103,24 +121,28 @@ static void _Suspend()
 
 void AppCoreThread::Suspend( bool isBlocking )
 {
-	if( !GetSysExecutorThread().ProcessMethodSelf( _Suspend ) )
+	if (IsClosed()) return;
+
+	if (IsSelf())
+	{
+		// this should never fail...
+		bool result = GetSysExecutorThread().Rpc_TryInvokeAsync( _Suspend );
+		pxAssert(result);
+	}
+	else if (!GetSysExecutorThread().Rpc_TryInvoke( _Suspend ))
 		_parent::Suspend(true);
 }
 
 void AppCoreThread::Resume()
 {
-	//if( !AffinityAssert_AllowFrom_SysExecutor() ) return;
 	if( !GetSysExecutorThread().IsSelf() )
 	{
 		GetSysExecutorThread().PostEvent( SysExecEvent_InvokeCoreThreadMethod(&AppCoreThread::Resume) );
 		return;
 	}
 
-	//if( m_ExecMode == ExecMode_Opened ) return;
-	//if( !pxAssert( CorePlugins.AreLoaded() ) ) return;
-
+	GetCorePlugins().Init();
 	_parent::Resume();
-
 }
 
 void AppCoreThread::ChangeCdvdSource()
@@ -144,30 +166,166 @@ void AppCoreThread::ChangeCdvdSource()
 	// TODO: Add a listener for CDVDsource changes?  Or should we bother?
 }
 
-void AppCoreThread::OnResumeReady()
+void Pcsx2App::SysApplySettings()
 {
-	ApplySettings( g_Conf->EmuOptions );
+	if( AppRpc_TryInvoke(&Pcsx2App::SysApplySettings) ) return;
+	CoreThread.ApplySettings( g_Conf->EmuOptions );
 
 	CDVD_SourceType cdvdsrc( g_Conf->CdvdSource );
 	if( cdvdsrc != CDVDsys_GetSourceType() || (cdvdsrc==CDVDsrc_Iso && (CDVDsys_GetFile(cdvdsrc) != g_Conf->CurrentIso)) )
 	{
-		m_resetCdvd = true;
+		CoreThread.ResetCdvd();
 	}
 
 	CDVDsys_SetFile( CDVDsrc_Iso, g_Conf->CurrentIso );
+}
 
-	AppSaveSettings();
-
+void AppCoreThread::OnResumeReady()
+{
+	wxGetApp().SysApplySettings();
+	wxGetApp().PostMethod( AppSaveSettings );
 	_parent::OnResumeReady();
+}
+
+// Load Game Settings found in database
+// (game fixes, round modes, clamp modes, etc...)
+// Returns number of gamefixes set
+static int loadGameSettings(Pcsx2Config& dest, const Game_Data& game, bool verbose = true) {
+	if( !game.IsOk() ) return 0;
+
+	int  gf  = 0;
+
+	if (game.keyExists("eeRoundMode"))
+	{
+		SSE_RoundMode eeRM = (SSE_RoundMode)game.getInt("eeRoundMode");
+		if (EnumIsValid(eeRM))
+		{
+			if(verbose) Console.WriteLn("(GameDB) Changing EE/FPU roundmode to %d [%s]", eeRM, EnumToString(eeRM));
+			dest.Cpu.sseMXCSR.SetRoundMode(eeRM);
+			++gf;
+		}
+	}
+	
+	if (game.keyExists("vuRoundMode"))
+	{
+		SSE_RoundMode vuRM = (SSE_RoundMode)game.getInt("vuRoundMode");
+		if (EnumIsValid(vuRM))
+		{
+			if(verbose) Console.WriteLn("(GameDB) Changing VU0/VU1 roundmode to %d [%s]", vuRM, EnumToString(vuRM));
+			dest.Cpu.sseVUMXCSR.SetRoundMode(vuRM);
+			++gf;
+		}
+	}
+
+	if (game.keyExists("eeClampMode")) {
+		int clampMode = game.getInt("eeClampMode");
+		if(verbose) Console.WriteLn("(GameDB) Changing EE/FPU clamp mode [mode=%d]", clampMode);
+		dest.Recompiler.fpuOverflow			= (clampMode >= 1);
+		dest.Recompiler.fpuExtraOverflow	= (clampMode >= 2);
+		dest.Recompiler.fpuFullMode			= (clampMode >= 3);
+		gf++;
+	}
+
+	if (game.keyExists("vuClampMode")) {
+		int clampMode = game.getInt("vuClampMode");
+		if(verbose) Console.WriteLn("(GameDB) Changing VU0/VU1 clamp mode [mode=%d]", clampMode);
+		dest.Recompiler.vuOverflow			= (clampMode >= 1);
+		dest.Recompiler.vuExtraOverflow		= (clampMode >= 2);
+		dest.Recompiler.vuSignOverflow		= (clampMode >= 3);
+		gf++;
+	}
+
+	for( GamefixId id=GamefixId_FIRST; id<pxEnumEnd; ++id )
+	{
+		wxString key( EnumToString(id) );
+		key += L"Hack";
+
+		if (game.keyExists(key))
+		{
+			bool enableIt = game.getBool(key);
+			dest.Gamefixes.Set(id, enableIt);
+			if(verbose) Console.WriteLn(L"(GameDB) %s Gamefix: " + key, enableIt ? L"Enabled" : L"Disabled" );
+			gf++;
+		}
+	}
+
+	return gf;
 }
 
 void AppCoreThread::ApplySettings( const Pcsx2Config& src )
 {
+	// Used to track the current game serial/id, and used to disable verbose logging of
+	// applied patches if the game info hasn't changed.  (avoids spam when suspending/resuming
+	// or using TAB or other things).
+	static wxString curGameKey;
+
+	// 'fixup' is the EmuConfig we're going to upload to the emulator, which very well may
+	// differ from the user-configured EmuConfig settings.  So we make a copy here and then
+	// we apply the commandline overrides and database gamefixes, and then upload 'fixup'
+	// to the global EmuConfig.
+	//
+	// Note: It's important that we apply the commandline overrides *before* database fixes.
+	// The database takes precedence (if enabled).
+
 	Pcsx2Config fixup( src );
-	if( !g_Conf->EnableSpeedHacks )
+
+	const CommandlineOverrides& overrides( wxGetApp().Overrides );
+	if( overrides.DisableSpeedhacks || !g_Conf->EnableSpeedHacks )
 		fixup.Speedhacks = Pcsx2Config::SpeedhackOptions();
-	if( !g_Conf->EnableGameFixes )
+
+	if( overrides.ApplyCustomGamefixes )
+	{
+		for (GamefixId id=GamefixId_FIRST; id < pxEnumEnd; ++id)
+			fixup.Gamefixes.Set( id, overrides.Gamefixes.Get(id) );
+	}
+	else if( !g_Conf->EnableGameFixes )
 		fixup.Gamefixes = Pcsx2Config::GamefixOptions();
+
+	wxString gameCRC;
+	wxString gameSerial;
+	wxString gamePatch;
+	wxString gameFixes;
+	wxString gameCheats;
+
+	// [TODO] : Fix this so that it recognizes and reports BIOS-booting status!
+	wxString gameName	(L"Unknown");
+	wxString gameCompat;
+
+	if (ElfCRC) gameCRC.Printf( L"%8.8x", ElfCRC );
+	if (!DiscSerial.IsEmpty()) gameSerial = L" [" + DiscSerial  + L"]";
+
+	const wxString newGameKey( SysGetDiscID() );
+	const bool verbose( newGameKey != curGameKey );
+	curGameKey = newGameKey;
+
+	if (IGameDatabase* GameDB = AppHost_GetGameDatabase() )
+	{
+		Game_Data game;
+		if (GameDB->findGame(game, curGameKey)) {
+			int compat = game.getInt("Compat");
+			gameName   = game.getString("Name");
+			gameName  += L" (" + game.getString("Region") + L")";
+			gameCompat = L" [Status = "+compatToStringWX(compat)+L"]";
+		}
+
+		if (EmuConfig.EnablePatches) {
+			if (int patches = InitPatches(gameCRC, game)) {
+				gamePatch.Printf(L" [%d Patches]", patches);
+				if (verbose) Console.WriteLn(Color_Green, "(GameDB) Patches Loaded: %d", patches);
+			}
+			if (int fixes = loadGameSettings(fixup, game, verbose)) {
+				gameFixes.Printf(L" [%d Fixes]", fixes);
+			}
+		}
+	}
+
+	if (EmuConfig.EnableCheats) {
+		if (int cheats = InitCheats(gameCRC)) {
+			gameCheats.Printf(L" [%d Cheats]", cheats);
+		}
+	}
+
+	Console.SetTitle(gameName+gameSerial+gameCompat+gameFixes+gamePatch+gameCheats);
 
 	// Re-entry guard protects against cases where code wants to manually set core settings
 	// which are not part of g_Conf.  The subsequent call to apply g_Conf settings (which is
@@ -226,18 +384,33 @@ void AppCoreThread::OnSuspendInThread()
 // the new (lack of) thread status, so this posts a message to the App to do so.
 void AppCoreThread::OnCleanupInThread()
 {
+	m_ExecMode = ExecMode_Closing;
 	PostCoreStatus( CoreThread_Stopped );
 	_parent::OnCleanupInThread();
 }
 
-void AppCoreThread::PostVsyncToUI()
+void AppCoreThread::VsyncInThread()
 {
 	wxGetApp().LogicalVsync();
+	_parent::VsyncInThread();
 }
 
-void AppCoreThread::StateCheckInThread()
+void AppCoreThread::GameStartingInThread()
 {
-	_parent::StateCheckInThread();
+	// Simulate a Close/Resume, so that settings get re-applied and the database
+	// lookups and other game-based detections are done.
+
+	m_ExecMode = ExecMode_Paused;
+	OnResumeReady();
+	_reset_stuff_as_needed();
+	m_ExecMode = ExecMode_Opened;
+	
+	_parent::GameStartingInThread();
+}
+
+bool AppCoreThread::StateCheckInThread()
+{
+	return _parent::StateCheckInThread();
 }
 
 void AppCoreThread::UploadStateCopy( const VmStateBuffer& copy )
@@ -247,10 +420,42 @@ void AppCoreThread::UploadStateCopy( const VmStateBuffer& copy )
 	paused_core.AllowResume();
 }
 
+static uint m_except_threshold = 0;
+
 void AppCoreThread::ExecuteTaskInThread()
 {
 	PostCoreStatus( CoreThread_Started );
+	m_except_threshold = 0;
 	_parent::ExecuteTaskInThread();
+}
+
+void AppCoreThread::DoCpuExecute()
+{
+	try {
+		_parent::DoCpuExecute();
+	}
+	catch (BaseR5900Exception& ex)
+	{
+		Console.Error( ex.FormatMessage() );
+
+		// [TODO] : Debugger Hook!
+		
+		if( ++m_except_threshold > 6 )
+		{
+			// If too many TLB Misses occur, we're probably going to crash and
+			// the game is probably running miserably.
+
+			m_except_threshold = 0;
+			//Suspend();
+
+			// [TODO] Issue error dialog to the user here...
+			Console.Error( "Too many execution errors.  VM execution has been suspended!" );
+
+			// Hack: this keeps the EE thread from running more code while the SysExecutor
+			// thread catches up and signals it for suspension.
+			m_ExecMode = ExecMode_Closing;
+		}
+	}
 }
 
 // --------------------------------------------------------------------------------------
@@ -298,9 +503,28 @@ void SysExecEvent_CoreThreadClose::InvokeEvent()
 
 void SysExecEvent_CoreThreadPause::InvokeEvent()
 {
+#ifdef PCSX2_DEVBUILD
+	bool CorePluginsAreOpen = GetCorePlugins().AreOpen();
+	ScopedCoreThreadPause paused_core;
+	_post_and_wait(paused_core);
+
+	// All plugins should be initialized and opened upon resuming from 
+	// a paused state.  If the thread that puased us changed plugin status, it should
+	// have used Close instead.
+	if( CorePluginsAreOpen )
+	{
+		CorePluginsAreOpen = GetCorePlugins().AreOpen();
+		pxAssumeDev( CorePluginsAreOpen, "Invalid plugin close/shutdown detected during paused CoreThread; please Stop/Suspend the core instead." );
+	}
+	paused_core.AllowResume();
+
+#else
+
 	ScopedCoreThreadPause paused_core;
 	_post_and_wait(paused_core);
 	paused_core.AllowResume();
+
+#endif
 }	
 
 

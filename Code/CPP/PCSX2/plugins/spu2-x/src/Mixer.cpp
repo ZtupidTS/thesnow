@@ -116,8 +116,7 @@ static void __forceinline IncrementNextA(V_Core& thiscore, uint voiceidx)
 			if( IsDevBuild )
 				ConLog(" * SPU2 Core %d: IRQ Called (IRQA (%05X) passed; voice %d).\n", i, Cores[i].IRQA, thiscore.Index * 24 + voiceidx);
 
-			Spdif.Info |= 4 << i;
-			SetIrqCall();
+			SetIrqCall(i);
 		}
 	}
 
@@ -251,16 +250,16 @@ static __forceinline void GetNextDataDummy(V_Core& thiscore, uint voiceidx)
 /////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////
 //                                                                                     //
+
 static s32 __forceinline GetNoiseValues()
 {
 	static s32 Seed = 0x41595321;
 	s32 retval = 0x8000;
-
+	
 	if( Seed&0x100 )
 		retval = (Seed&0xff) << 8;
 	else if( Seed&0xffff )
 		retval = 0x7fff;
-
 #ifdef _WIN32
 	__asm {
 		MOV eax,Seed
@@ -279,17 +278,18 @@ static s32 __forceinline GetNoiseValues()
 		"MOV %%eax,%1\n"
 		"ROR %%eax,5\n"
 		"XOR %%eax,0x9a\n"
-		"MOV %%ebx,%%eax\n"
+		"MOV %%esi,%%eax\n"
 		"ROL %%eax,2\n"
-		"ADD %%eax,%%ebx\n"
-		"XOR %%eax,%%ebx\n"
+		"ADD %%eax,%%esi\n"
+		"XOR %%eax,%%esi\n"
 		"ROR %%eax,3\n"
 		"MOV %0,%%eax\n"
-		".att_syntax\n" : "=r"(Seed) :"r"(Seed));
+		".att_syntax\n" : "=r"(Seed) :"r"(Seed)
+		: "%eax", "%esi"
+		);
 #endif
 	return retval;
 }
-
 /////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////
 //                                                                                     //
@@ -331,7 +331,7 @@ static void __forceinline UpdatePitch( uint coreidx, uint voiceidx )
 	if( (vc.Modulated==0) || (voiceidx==0) )
 		pitch = vc.Pitch;
 	else
-		pitch = (vc.Pitch*(32768 + abs(Cores[coreidx].Voices[voiceidx-1].OutX)))>>15;
+		pitch = (vc.Pitch*(32768 + Cores[coreidx].Voices[voiceidx-1].OutX))>>15;
 
 	vc.SP+=pitch;
 }
@@ -501,15 +501,14 @@ static __forceinline s32 GetNoiseValues( V_Core& thiscore, uint voiceidx )
 // Performs no cache invalidation -- use only for dynamic memory ranges
 // of the SPU2 (between 0x0000 and SPU2_DYN_MEMLINE)
 static __forceinline void spu2M_WriteFast( u32 addr, s16 value )
-{
+{ 
 	// Fixes some of the oldest hangs in pcsx2's history! :p
 	for( uint i=0; i<2; i++ )
 	{
 		if( Cores[i].IRQEnable && Cores[i].IRQA == addr )
 		{
 			//printf("Core %d special write IRQ Called (IRQ passed). IRQA = %x\n",i,addr);
-			Spdif.Info |= 4 << i;
-			SetIrqCall();
+			SetIrqCall(i);
 		}
 	}
 	// throw an assertion if the memory range is invalid:
@@ -573,16 +572,29 @@ static __forceinline StereoOut32 MixVoice( uint coreidx, uint voiceidx )
 
 		CalculateADSR( thiscore, voiceidx );
 		Value	= MulShr32( Value, vc.ADSR.Value );
-		vc.OutX	= Value;		// Note: All values recorded into OutX (may be used for modulation later)
+		
+		// Store Value for eventual modulation later
+		// Pseudonym's Crest calculation idea. Actually calculates a crest, unlike the old code which was just peak.
+		u32 Amplitude = std::abs(Value);
+		if(Amplitude < vc.NextCrest)
+		{
+			vc.OutX = vc.NextCrest;
+			vc.NextCrest = 0;
+		}
+		if(Amplitude > vc.PrevAmp)
+		{
+			vc.NextCrest = Amplitude;
+		}
+		vc.PrevAmp = Amplitude;
 
 		if( IsDevBuild )
-			DebugCores[coreidx].Voices[voiceidx].displayPeak = std::max(DebugCores[coreidx].Voices[voiceidx].displayPeak,abs(vc.OutX));
+			DebugCores[coreidx].Voices[voiceidx].displayPeak = std::max(DebugCores[coreidx].Voices[voiceidx].displayPeak,(s32)vc.OutX);
 
 		// Write-back of raw voice data (post ADSR applied)
 
-		if (voiceidx==1)      spu2M_WriteFast( ( (0==coreidx) ? 0x400 : 0xc00 ) + OutPos, Value );
-		else if (voiceidx==3) spu2M_WriteFast( ( (0==coreidx) ? 0x600 : 0xe00 ) + OutPos, Value );
-
+		if (voiceidx==1)      spu2M_WriteFast( ( (0==coreidx) ? 0x400 : 0xc00 ) + OutPos, vc.OutX );
+		else if (voiceidx==3) spu2M_WriteFast( ( (0==coreidx) ? 0x600 : 0xe00 ) + OutPos, vc.OutX );
+			
 		return ApplyVolume( StereoOut32( Value, Value ), vc.Volume );
 	}
 	else
@@ -615,10 +627,10 @@ static __forceinline void MixCoreVoices( VoiceMixSet& dest, const uint coreidx )
 
 		// Note: Results from MixVoice are ranged at 16 bits.
 
-		dest.Dry.Left += VVal.Left & thiscore.VoiceGates[voiceidx].DryL;
-		dest.Dry.Right += VVal.Right & thiscore.VoiceGates[voiceidx].DryR;
-		dest.Wet.Left += VVal.Left & thiscore.VoiceGates[voiceidx].WetL;
-		dest.Wet.Right += VVal.Right & thiscore.VoiceGates[voiceidx].WetR;
+		dest.Dry.Left	+= VVal.Left	& thiscore.VoiceGates[voiceidx].DryL;
+		dest.Dry.Right	+= VVal.Right	& thiscore.VoiceGates[voiceidx].DryR;
+		dest.Wet.Left	+= VVal.Left	& thiscore.VoiceGates[voiceidx].WetL;
+		dest.Wet.Right	+= VVal.Right	& thiscore.VoiceGates[voiceidx].WetR;
 	}
 }
 
@@ -643,45 +655,54 @@ StereoOut32 V_Core::Mix( const VoiceMixSet& inVoices, const StereoOut32& Input, 
 	// Mix in the Input data
 
 	StereoOut32 TD(
-		Input.Left & DryGate.InpL,
-		Input.Right & DryGate.InpR
+		Input.Left	& DryGate.InpL,
+		Input.Right	& DryGate.InpR
 	);
 
 	// Mix in the Voice data
-	TD.Left += Voices.Dry.Left & DryGate.SndL;
-	TD.Right += Voices.Dry.Right & DryGate.SndR;
+	TD.Left		+= Voices.Dry.Left	& DryGate.SndL;
+	TD.Right	+= Voices.Dry.Right	& DryGate.SndR;
 
 	// Mix in the External (nothing/core0) data
-	TD.Left += Ext.Left & DryGate.ExtL;
-	TD.Right += Ext.Right & DryGate.ExtR;
+	TD.Left		+= Ext.Left			& DryGate.ExtL;
+	TD.Right	+= Ext.Right		& DryGate.ExtR;
 
+	// User-level Effects disabling.  Nice speedup but breaks games that depend on
+	// reverb IRQs (very few -- if you find one name it here!).
 	if( EffectsDisabled ) return TD;
 
 	// ----------------------------------------------------------------------------
 	//    Reverberation Effects Processing
 	// ----------------------------------------------------------------------------
-	// The FxEnable bit is, like many other things in the SPU2, only a partial systems
-	// toogle.  It disables the *inputs* to the reverb, such that the reverb is fed silence,
-	// but it does not actually disable reverb effects processing.  In practical terms
-	// this means that when a game turns off reverb, an existing reverb effect should trail
-	// off naturally, instead of being chopped off dead silent.
+	// SPU2 has an FxEnable bit which seems to disable all reverb processing *and*
+	// output, but does *not* disable the advancing buffers.  IRQs are not triggered
+	// and reverb is rendered silent.
+	//
+	// Technically we should advance the buffers even when fx are disabled.  However
+	// there are two things that make this very unlikely to matter:
+	//
+	//  1. Any SPU2 app wanting to avoid noise or pops needs to clear the reverb buffers
+	//     when adjusting settings anyway; so the read/write positions in the reverb
+	//     buffer after FxEnabled is set back to 1 doesn't really matter.
+	//
+	//  2. Writes to ESA (and possibly EEA) reset the buffer pointers to 0.
+	//
+	// On the other hand, updating the buffer is cheap and easy, so might as well. ;) 
 
-	Reverb_AdvanceBuffer();
+	Reverb_AdvanceBuffer(); // Updates the reverb work area as well, if needed.
+	if (!FxEnable) return TD;
 
 	StereoOut32 TW;
 
-	if( FxEnable )
-	{
-		// Mix Input, Voice, and External data:
+	// Mix Input, Voice, and External data:
 
-		TW.Left = Input.Left & WetGate.InpL;
-		TW.Right = Input.Right & WetGate.InpR;
+	TW.Left		 = Input.Left		& WetGate.InpL;
+	TW.Right	 = Input.Right		& WetGate.InpR;
 
-		TW.Left += Voices.Wet.Left & WetGate.SndL;
-		TW.Right += Voices.Wet.Right & WetGate.SndR;
-		TW.Left += Ext.Left & WetGate.ExtL;
-		TW.Right += Ext.Right & WetGate.ExtR;
-	}
+	TW.Left		+= Voices.Wet.Left	& WetGate.SndL;
+	TW.Right	+= Voices.Wet.Right	& WetGate.SndR;
+	TW.Left		+= Ext.Left			& WetGate.ExtL;
+	TW.Right	+= Ext.Right		& WetGate.ExtR;
 
 	WaveDump::WriteCore( Index, CoreSrc_PreReverb, TW );
 
@@ -754,13 +775,13 @@ __forceinline void Mix()
 	}
 	else
 	{
-		Out.Left = MulShr32( Out.Left<<SndOutVolumeShift, Cores[1].MasterVol.Left.Value );
-		Out.Right = MulShr32( Out.Right<<SndOutVolumeShift, Cores[1].MasterVol.Right.Value );
+		Out.Left = MulShr32( Out.Left<<(SndOutVolumeShift+1), Cores[1].MasterVol.Left.Value );
+		Out.Right = MulShr32( Out.Right<<(SndOutVolumeShift+1), Cores[1].MasterVol.Right.Value );
 
 		// Final Clamp!
-		// This could be circumvented by using 1/2th total output volume, although
-		// I suspect this approach (clamping at the higher volume) is more true to the
-		// PS2's real implementation.
+		// Like any good audio system, the PS2 pumps the volume and incurs some distortion in its
+		// output, giving us a nice thumpy sound at times.  So we add 1 above (2x volume pump) and
+		// then clamp it all here.
 
 		Out = clamp_mix( Out, SndOutVolumeShift );
 	}

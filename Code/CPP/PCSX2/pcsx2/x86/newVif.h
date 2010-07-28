@@ -27,15 +27,15 @@ static const s64 _1mb = 0x100000;
 #define _f __forceinline
 
 // newVif_HashBucket.h uses this typedef, so it has to be declared first.
-typedef u32  (__fastcall *nVifCall)(void*, void*);
+typedef u32  (__fastcall *nVifCall)(void*, const void*);
 typedef void (__fastcall *nVifrecCall)(uptr dest, uptr src);
 
 #include "newVif_BlockBuffer.h"
 #include "newVif_HashBucket.h"
 
-extern void  mVUmergeRegs(int dest, int src,  int xyzw, bool modXYZW = 0);
-extern void _nVifUnpack  (int idx,  u8 *data, u32 size, bool isFill);
-extern void  dVifUnpack  (int idx,  u8 *data, u32 size, bool isFill);
+extern void  mVUmergeRegs(const xRegisterSSE& dest, const xRegisterSSE& src,  int xyzw, bool modXYZW = 0);
+extern void _nVifUnpack  (int idx,  const u8 *data, u32 size, bool isFill);
+extern void  dVifUnpack  (int idx,  const u8 *data, u32 size, bool isFill);
 extern void  dVifReset   (int idx);
 extern void  dVifClose   (int idx);
 extern void  VifUnpackSSE_Init();
@@ -87,6 +87,7 @@ struct nVifStruct {
 	u8*						vuMemEnd;		// End of VU Memory
 	u32						vuMemLimit;		// Use for fast AND
 	u32						bSize;			// Size of 'buffer'
+	u32						bPtr;
 	u8						buffer[_1mb];	// Buffer for partial transfers
 	u8*						recPtr;			// Cur Pos to recompile to
 	u8*						recEnd;			// 'Safe' End of Rec Cache

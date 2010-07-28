@@ -140,12 +140,12 @@ Panels::BaseMcdListPanel::BaseMcdListPanel( wxWindow* parent )
 {
 	m_FolderPicker = new DirPickerPanel( this, FolderId_MemoryCards,
 		//_("memory card Search Path:"),				// static box label
-		_("Select folder with PS2 memory cards")		// dir picker popup label
+		_("选择 PS2 内存卡所在文件夹")		// dir picker popup label
 	);
 	
 	m_listview = NULL;
 	
-	m_btn_Refresh = new wxButton( this, wxID_ANY, _("Refresh list") );
+	m_btn_Refresh = new wxButton( this, wxID_ANY, _("刷新列表") );
 
 	Connect( m_btn_Refresh->GetId(), wxEVT_COMMAND_BUTTON_CLICKED,	wxCommandEventHandler(BaseMcdListPanel::OnRefreshSelections) );
 	//Connect( pxEvt_RefreshSelections, wxCommandEventHandler(BaseMcdListPanel::OnRefreshSelections) );
@@ -361,7 +361,7 @@ public:
 				
 				wxString content;
 
-				Msgbox::Alert( heading + L"\n\n" + content, _("Copy failed!") );
+				Msgbox::Alert( heading + L"\n\n" + content, _("复制失败!") );
 				return wxDragNone;
 			}
 		}
@@ -426,8 +426,8 @@ Panels::MemoryCardListPanel_Simple::MemoryCardListPanel_Simple( wxWindow* parent
 	m_listview = new MemoryCardListView_Simple(this);
 	m_listview->SetDropTarget( new McdDropTarget(m_listview) );
 
-	m_button_Create	= new wxButton(this, wxID_ANY, _("Create"));
-	m_button_Mount	= new wxButton(this, wxID_ANY, _("Mount"));
+	m_button_Create	= new wxButton(this, wxID_ANY, _("创建"));
+	m_button_Mount	= new wxButton(this, wxID_ANY, _("加载"));
 
 	// ------------------------------------
 	//       Sizer / Layout Section
@@ -472,7 +472,7 @@ void Panels::MemoryCardListPanel_Simple::UpdateUI()
 	const McdListItem& item( m_Cards[sel] );
 
 	m_button_Create->Enable();
-	m_button_Create->SetLabel( item.IsPresent ? _("Delete") : _("Create") );
+	m_button_Create->SetLabel( item.IsPresent ? _("删除") : _("创建") );
 	pxSetToolTip( m_button_Create,
 		item.IsPresent
 			? _("Deletes the existing memory card from disk (all contents are lost)." )
@@ -480,7 +480,7 @@ void Panels::MemoryCardListPanel_Simple::UpdateUI()
 	);
 
 	m_button_Mount->Enable( item.IsPresent );
-	m_button_Mount->SetLabel( item.IsEnabled ? _("Disable") : _("Enable") );
+	m_button_Mount->SetLabel( item.IsEnabled ? _("禁用") : _("启用") );
 	pxSetToolTip( m_button_Mount,
 		item.IsEnabled
 			? _("Disables the selected memory card, so that it will not be seen by games or BIOS.")
@@ -557,14 +557,14 @@ void Panels::MemoryCardListPanel_Simple::OnCreateCard(wxCommandEvent& evt)
 		if( m_Cards[slot].IsFormatted )
 		{
 			wxString content;
-			content.Printf(wxsFormat(
+			content.Printf(
 				pxE( ".Popup:Mcd:Delete",
 					L"You are about to delete the formatted memory card in slot %u. "
 					L"All data on this card will be lost!  Are you absolutely and quite positively sure?"
-				), slot )
+				), slot
 			);
 
-			result = Msgbox::YesNo( content, _("Delete memory card?") );
+			result = Msgbox::YesNo( content, _("删除内存卡?") );
 		}
 
 		if( result == wxID_YES )
@@ -628,13 +628,13 @@ void Panels::MemoryCardListPanel_Simple::OnOpenItemContextMenu(wxListEvent& evt)
 	{
 		const McdListItem& item( m_Cards[idx] );
 
-		junk->Append( McdMenuId_Create,	item.IsPresent ? _("Delete")	: _("Create new...") );
-		junk->Append( McdMenuId_Mount,	item.IsEnabled ? _("Disable")	: _("Enable") );
+		junk->Append( McdMenuId_Create,	item.IsPresent ? _("删除")	: _("创建新的...") );
+		junk->Append( McdMenuId_Mount,	item.IsEnabled ? _("禁用")	: _("启用") );
 
 		junk->AppendSeparator();
 	}
 
-	junk->Append( McdMenuId_RefreshList, _("Refresh List") );
+	junk->Append( McdMenuId_RefreshList, _("刷新列表") );
 	
 	PopupMenu( junk );
 	m_listview->RefreshItem( idx );

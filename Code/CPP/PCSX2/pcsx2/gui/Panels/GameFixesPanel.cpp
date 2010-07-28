@@ -14,6 +14,7 @@
  */
 
 #include "PrecompiledHeader.h"
+#include "App.h"
 #include "ConfigurationPanels.h"
 
 using namespace pxSizerFlags;
@@ -21,7 +22,7 @@ using namespace pxSizerFlags;
 Panels::GameFixesPanel::GameFixesPanel( wxWindow* parent )
 	: BaseApplicableConfigPanel( parent )
 {
-	wxStaticBoxSizer& groupSizer = *new wxStaticBoxSizer( wxVERTICAL, this, _("PCSX2 游戏修正") );
+	wxStaticBoxSizer& groupSizer = *new wxStaticBoxSizer( wxVERTICAL, this, _("游戏修正") );
 
 	// NOTE: Order of checkboxes must match the order of the bits in the GamefixOptions structure!
 	// NOTE2: Don't make this static, because translations can change at run-time :)
@@ -58,7 +59,7 @@ Panels::GameFixesPanel::GameFixesPanel( wxWindow* parent )
 			wxEmptyString
 		},
 		{
-			_("FFX videos fix - Fixes bad graphics overlay in FFX videos."),
+			_("FFX 视频修正 - Fixes bad graphics overlay in FFX videos."),
 			wxEmptyString
 		},
 		{
@@ -73,6 +74,15 @@ Panels::GameFixesPanel::GameFixesPanel( wxWindow* parent )
 		{
 			_("Skip MPEG hack - Skips videos/FMVs in games to avoid game hanging/freezes."),
 			wxEmptyString
+		},
+		{
+			_("OPH Flag hack - Try if your game freezes showing the same frame."),
+			pxE( ".Tooltip:Gamefixes:OPH Flag hack",
+				L"Known to affect following games:\n"
+				L" * Bleach Blade Battler\n"
+				L" * Growlanser II and III\n"
+				L" * Wizardry"
+			)
 		}
 	};
 
@@ -82,7 +92,7 @@ Panels::GameFixesPanel::GameFixesPanel( wxWindow* parent )
 		m_checkbox[i]->SetToolTip( check_text[i].tooltip );
 	}
 
-	m_check_Enable = new pxCheckBox( this, _("Enable game fixes"),
+	m_check_Enable = new pxCheckBox( this, _("启用游戏修正"),
 		pxE( ".Panel:Gamefixes:Compat Warning",
 			L"Gamefixes can fix wrong emulation in some games. However "
             L"it can cause compatibility or performance issues in other games.  You "
@@ -109,6 +119,9 @@ void Panels::GameFixesPanel::Apply()
 	Pcsx2Config::GamefixOptions& opts( g_Conf->EmuOptions.Gamefixes );
     for (GamefixId i=GamefixId_FIRST; i < pxEnumEnd; ++i)
 		opts.Set((GamefixId)i, m_checkbox[i]->GetValue());
+
+	// make sure the user's command line specifications are disabled (if present).
+	wxGetApp().Overrides.ApplyCustomGamefixes = false;
 }
 
 void Panels::GameFixesPanel::EnableStuff()

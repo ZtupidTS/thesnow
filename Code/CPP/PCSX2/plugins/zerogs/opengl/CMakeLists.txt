@@ -1,11 +1,10 @@
 # zerogs Plugin
 
 # plugin name
-set(zerogsName zerogs)
+set(Output zerogs)
 
 set(CommonFlags
     -Wall
-    -m32
     )
 
 set(OptimizationFlags
@@ -108,7 +107,7 @@ set_source_files_properties(${zerogsSSources} PROPERTIES LANGUAGE CXX)
 include_directories(.)
 
 # add library
-add_library(${zerogsName} SHARED
+add_library(${Output} SHARED
 			${zerogsSources}
 			${zerogsHeaders}
 			${zerogsSSources}
@@ -117,32 +116,29 @@ add_library(${zerogsName} SHARED
 			${zerogsLinuxHeaders})
 
 # set output directory
-set_target_properties(${zerogsName} PROPERTIES
+set_target_properties(${Output} PROPERTIES
 					  LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin/plugins)
 
 # copy ps2hw.dat to plugins folder
-add_custom_command(TARGET ${zerogsName} POST_BUILD
+add_custom_command(TARGET ${Output} POST_BUILD
 				   COMMAND ${CMAKE_COMMAND} -E copy ${PROJECT_SOURCE_DIR}/plugins/zerogs/opengl/Win32/ps2hw.dat ${PROJECT_SOURCE_DIR}/bin/plugins)
 
 # link target with Cg
-target_link_libraries(${zerogsName} ${CG_LIBRARIES})
+target_link_libraries(${Output} ${CG_LIBRARIES})
 
 # link target with glew
-target_link_libraries(${zerogsName} ${GLEW_LIBRARY})
+target_link_libraries(${Output} ${GLEW_LIBRARY})
 
 # link target with opengl
-target_link_libraries(${zerogsName} ${OPENGL_LIBRARIES})
+target_link_libraries(${Output} ${OPENGL_LIBRARIES})
 
 # link target with X11
-target_link_libraries(${zerogsName} ${X11_LIBRARIES})
+target_link_libraries(${Output} ${X11_LIBRARIES})
 
 # link target with X11 videomod
-target_link_libraries(${zerogsName} ${X11_Xxf86vm_LIB})
+target_link_libraries(${Output} ${X11_Xxf86vm_LIB})
 
-# Force the linker into 32 bits mode
-target_link_libraries(${zerogsName} -m32)
-
-# Linker strip option
-if (CMAKE_BUILD_STRIP)
-    target_link_libraries(${zerogsName} -s)
-endif (CMAKE_BUILD_STRIP)
+# User flags options
+if(NOT USER_CMAKE_LD_FLAGS STREQUAL "")
+    target_link_libraries(${Output} "${USER_CMAKE_LD_FLAGS}")
+endif(NOT USER_CMAKE_LD_FLAGS STREQUAL "")

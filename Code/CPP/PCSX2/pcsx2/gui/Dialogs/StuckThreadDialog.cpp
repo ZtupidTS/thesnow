@@ -24,14 +24,14 @@ using namespace Threading;
 // though I would like to have something in place in the distant future. --air
 
 
-Dialogs::StuckThreadDialog::StuckThreadDialog( wxWindow* parent, StuckThreadActionType action, PersistentThread& stuck_thread )
-	: wxDialogWithHelpers( parent, _("PCSX2 Thread is not responding") )
+Dialogs::StuckThreadDialog::StuckThreadDialog( wxWindow* parent, StuckThreadActionType action, pxThread& stuck_thread )
+	: wxDialogWithHelpers( parent, _("PCSX2 线程不能响应") )
 {
 	stuck_thread.AddListener( this );
 
 	*this += Heading( wxsFormat(
 		pxE( ".Panel:StuckThread:Heading",
-			L"The thread '%s' is not responding.  It could be deadlocked, or it might "
+			L"线程 '%s' 不能响应. 它可能已经僵死."
 			L"just be running *really* slowly."
 		),
 		stuck_thread.GetName().data()

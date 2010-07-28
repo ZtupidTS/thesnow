@@ -16,9 +16,11 @@
 #include "PrecompiledHeader.h"
 #include "MainFrame.h"
 #include "GSFrame.h"
+#include "AppSaveStates.h"
+#include "AppGameDatabase.h"
+#include "AppAccelerators.h"
 
 #include "Plugins.h"
-#include "AppSaveStates.h"
 #include "ps2/BiosTools.h"
 
 #include "Dialogs/ModalPopups.h"
@@ -26,7 +28,6 @@
 #include "Dialogs/LogOptionsDialog.h"
 
 #include "Utilities/IniInterface.h"
-#include "Utilities/HashMap.h"
 
 #ifdef __WXMSW__
 #	include <wx/msw/wrapwin.h>		// needed to implement the app!
@@ -171,9 +172,9 @@ void Pcsx2App::PostMenuAction( MenuIdentifiers menu_id ) const
 // invoked method is completed.  If the method can be executed in non-blocking fashion then
 // it should leave the semaphore postback NULL.
 //
-class Pcsx2AppMethodEvent : public pxInvokeActionEvent
+class Pcsx2AppMethodEvent : public pxActionEvent
 {
-	typedef pxInvokeActionEvent _parent;
+	typedef pxActionEvent _parent;
 	DECLARE_DYNAMIC_CLASS_NO_ASSIGN(Pcsx2AppMethodEvent)
 
 protected:
@@ -184,19 +185,19 @@ public:
 	virtual Pcsx2AppMethodEvent *Clone() const { return new Pcsx2AppMethodEvent(*this); }
 
 	explicit Pcsx2AppMethodEvent( FnPtr_Pcsx2App method=NULL, SynchronousActionState* sema=NULL )
-		: pxInvokeActionEvent( sema )
+		: pxActionEvent( sema )
 	{
 		m_Method = method;
 	}
 
 	explicit Pcsx2AppMethodEvent( FnPtr_Pcsx2App method, SynchronousActionState& sema )
-		: pxInvokeActionEvent( sema )
+		: pxActionEvent( sema )
 	{
 		m_Method = method;
 	}
 	
 	Pcsx2AppMethodEvent( const Pcsx2AppMethodEvent& src )
-		: pxInvokeActionEvent( src )
+		: pxActionEvent( src )
 	{
 		m_Method = src.m_Method;
 	}
@@ -214,7 +215,7 @@ protected:
 };
 
 
-IMPLEMENT_DYNAMIC_CLASS( Pcsx2AppMethodEvent, pxInvokeActionEvent )
+IMPLEMENT_DYNAMIC_CLASS( Pcsx2AppMethodEvent, pxActionEvent )
 
 #ifdef __WXGTK__
 extern int TranslateGDKtoWXK( u32 keysym );
@@ -244,27 +245,93 @@ void Pcsx2App::PadKeyDispatch( const keyEvent& ev )
 
 	m_kevt.m_keyCode = vkey;
 
-	// HACK: Legacy PAD plugins expect PCSX2 to ignore keyboard messages on the
-	// GS window while the PAD plugin is open, so send messages to the APP handler
-	// only if *either* the GS or PAD plugins are in legacy mode.
-
-	GSFrame* gsFrame = wxGetApp().GetGsFramePtr();
-
-	if( gsFrame == NULL || (PADopen != NULL) )
+	if( m_kevt.GetEventType() == wxEVT_KEY_DOWN )
 	{
-		if( m_kevt.GetEventType() == wxEVT_KEY_DOWN )
+		if( GSFrame* gsFrame = wxGetApp().GetGsFramePtr() )
+		{
+			gsFrame->GetViewport()->DirectKeyCommand( m_kevt );
+		}
+		else
 		{
 			m_kevt.SetId( pxID_PadHandler_Keydown );
 			wxGetApp().ProcessEvent( m_kevt );
 		}
 	}
-	else
-	{
-		m_kevt.SetId( gsFrame->GetViewport()->GetId() );
-		gsFrame->ProcessEvent( m_kevt );
-	}
 }
 
+// --------------------------------------------------------------------------------------
+//  Pcsx2AppTraits (implementations)  [includes pxMessageOutputMessageBox]
+// --------------------------------------------------------------------------------------
+// This is here to override pxMessageOutputMessageBox behavior, which itself is ONLY used
+// by wxWidgets' command line processor.  The default edition is totally inadequate for
+// displaying a readable --help command line list, so I replace it here with a custom one
+// that formats things nicer.
+//
+class pxMessageOutputMessageBox : public wxMessageOutput
+{
+public:
+	pxMessageOutputMessageBox() { }
+
+	virtual void Printf(const wxChar* format, ...);
+};
+
+void pxMessageOutputMessageBox::Printf(const wxChar* format, ...)
+{
+	using namespace pxSizerFlags;
+
+	va_list args;
+	va_start(args, format);
+	wxString out;
+	out.PrintfV(format, args);
+	va_end(args);
+
+	int pos = out.Find( L"[IsoFile]" );
+	
+	if(pos == wxNOT_FOUND)
+	{
+		Msgbox::Alert( out ); return;
+	}
+
+	pos += 9;		// strlen of [IsoFile]
+
+	wxDialogWithHelpers popup( NULL, AddAppName(_("%s ÃüÁîÐÐÑ¡Ïî")) );
+	popup.SetMinWidth( 640 );
+	popup += popup.Heading(out.Mid(0, pos));
+	//popup += ;
+	//popup += popup.Text(out.Mid(pos, out.Length())).Align( wxALIGN_LEFT ) | pxExpand.Border(wxALL, StdPadding*3);
+
+	wxTextCtrl* traceArea = new wxTextCtrl(
+		&popup, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize,
+		wxTE_READONLY | wxTE_MULTILINE | wxTE_RICH2 | wxHSCROLL
+	);
+
+	traceArea->SetDefaultStyle( wxTextAttr( wxNullColour, wxNullColour, pxGetFixedFont() ) );
+	traceArea->SetFont( pxGetFixedFont() );
+
+	int fonty = traceArea->GetCharHeight();
+
+	traceArea->SetMinSize( wxSize( traceArea->GetMinWidth(), (fonty+1)*18 ) );
+	traceArea->WriteText( pxTextWrapper(wxString(L' ', 18)).Wrap(traceArea, out.Mid(pos, out.Length()), 600).GetResult() );
+	traceArea->SetInsertionPoint( 0 );
+	traceArea->ShowPosition( 0 );
+
+	popup += traceArea	| pxExpand.Border(wxALL, StdPadding*3);
+
+	pxIssueConfirmation(popup, MsgButtons().Close() );
+}
+
+wxMessageOutput* Pcsx2AppTraits::CreateMessageOutput()
+{
+#ifdef __UNIX__
+	return _parent::CreateMessageOutput();
+#else
+	return new pxMessageOutputMessageBox;
+#endif
+}
+	
+// --------------------------------------------------------------------------------------
+//  FramerateManager  (implementations)
+// --------------------------------------------------------------------------------------
 void FramerateManager::Reset()
 {
 	//memzero( m_fpsqueue );
@@ -302,12 +369,16 @@ double FramerateManager::GetFramerate() const
 	return (double)GetTickFrequency() / (double)ticks_per_frame;
 }
 
+// ----------------------------------------------------------------------------
+//         Pcsx2App Event Handlers
+// ----------------------------------------------------------------------------
+
 // LogicalVsync - Event received from the AppCoreThread (EEcore) for each vsync,
 // roughly 50/60 times a second when frame limiting is enabled, and up to 10,000 
 // times a second if not (ok, not quite, but you get the idea... I hope.)
 void Pcsx2App::LogicalVsync()
 {
-	if( PostAppMethodMyself( &Pcsx2App::LogicalVsync ) ) return;
+	if( AppRpc_TryInvokeAsync( &Pcsx2App::LogicalVsync ) ) return;
 
 	if( !SysHasValidState() ) return;
 
@@ -332,29 +403,19 @@ void Pcsx2App::LogicalVsync()
 	}
 }
 
-
-// ----------------------------------------------------------------------------
-//         Pcsx2App Event Handlers
-// ----------------------------------------------------------------------------
-
-HashTools::HashMap<int, const GlobalCommandDescriptor*> GlobalAccels( 0, 0xffffffff );
-
 void Pcsx2App::OnEmuKeyDown( wxKeyEvent& evt )
 {
 	const GlobalCommandDescriptor* cmd = NULL;
-	GlobalAccels.TryGetValue( KeyAcceleratorCode( evt ).val32, cmd );
+	if( GlobalAccels ) GlobalAccels->TryGetValue( KeyAcceleratorCode( evt ).val32, cmd );
+
 	if( cmd == NULL )
 	{
 		evt.Skip();
 		return;
 	}
 
-	if( cmd != NULL )
-	{
-		DbgCon.WriteLn( "(app) Invoking command: %s", cmd->Id );
-		cmd->Invoke();
-	}
-
+	DbgCon.WriteLn( "(app) Invoking command: %s", cmd->Id );
+	cmd->Invoke();
 }
 
 // Returns a string message telling the user to consult guides for obtaining a legal BIOS.
@@ -492,7 +553,7 @@ void Pcsx2App::HandleEvent(wxEvtHandler* handler, wxEventFunction func, wxEvent&
 // should be matched by a call to ClearPendingSave().
 void Pcsx2App::StartPendingSave()
 {
-	if( PostAppMethodMyself(&Pcsx2App::StartPendingSave) ) return;
+	if( AppRpc_TryInvokeAsync(&Pcsx2App::StartPendingSave) ) return;
 	++m_PendingSaves;
 }
 
@@ -501,7 +562,7 @@ void Pcsx2App::StartPendingSave()
 // such calls are detected (though the detection is far from fool-proof).
 void Pcsx2App::ClearPendingSave()
 {
-	if( PostAppMethodMyself(&Pcsx2App::ClearPendingSave) ) return;
+	if( AppRpc_TryInvokeAsync(&Pcsx2App::ClearPendingSave) ) return;
 
 	--m_PendingSaves;
 	pxAssumeDev( m_PendingSaves >= 0, "Pending saves count mismatch (pending count is less than 0)" );
@@ -511,6 +572,11 @@ void Pcsx2App::ClearPendingSave()
 		Console.WriteLn( "App: All pending saves completed; exiting!" );
 		Exit();
 	}
+}
+
+wxAppTraits* Pcsx2App::CreateTraits()
+{
+	return new Pcsx2AppTraits;
 }
 
 // This method generates debug assertions if the MainFrame handle is NULL (typically
@@ -523,7 +589,7 @@ MainEmuFrame& Pcsx2App::GetMainFrame() const
 	MainEmuFrame* mainFrame = GetMainFramePtr();
 
 	pxAssume( mainFrame != NULL );
-	pxAssume( ((uptr)GetTopWindow()) == ((uptr)mainFrame) );
+	pxAssert( ((uptr)GetTopWindow()) == ((uptr)mainFrame) );
 	return *mainFrame;
 }
 
@@ -660,7 +726,7 @@ AppIniLoader::AppIniLoader()
 
 void AppLoadSettings()
 {
-	if( wxGetApp().PostMethodMyself(AppLoadSettings) ) return;
+	if( wxGetApp().Rpc_TryInvoke(AppLoadSettings) ) return;
 
 	AppIniLoader loader;
 	g_Conf->LoadSave( loader );
@@ -673,12 +739,25 @@ void AppLoadSettings()
 
 void AppSaveSettings()
 {
-	if( wxGetApp().PostMethodMyself(AppSaveSettings) ) return;
+	// If multiple SaveSettings messages are requested, we want to ignore most of them.
+	// Saving settings once when the GUI is idle should be fine. :)
+
+	static u32 isPosted = false;
+
+	if( !wxThread::IsMain() )
+	{
+		if( AtomicExchange(isPosted, true) )
+			wxGetApp().PostIdleMethod( AppSaveSettings );
+
+		return;
+	}
 
 	if( !wxFile::Exists( g_Conf->CurrentIso ) )
 		g_Conf->CurrentIso.clear();
 
 	sApp.GetRecentIsoManager().Add( g_Conf->CurrentIso );
+
+	AtomicExchange( isPosted, false );
 
 	AppIniSaver saver;
 	g_Conf->LoadSave( saver );
@@ -687,7 +766,7 @@ void AppSaveSettings()
 
 // Invokes the specified Pcsx2App method, or posts the method to the main thread if the calling
 // thread is not Main.  Action is blocking.  For non-blocking method execution, use
-// PostAppMethodMyself.
+// AppRpc_TryInvokeAsync.
 //
 // This function works something like setjmp/longjmp, in that the return value indicates if the
 // function actually executed the specified method or not.
@@ -696,7 +775,7 @@ void AppSaveSettings()
 //   FALSE if the method was not posted to the main thread (meaning this IS the main thread!)
 //   TRUE if the method was posted.
 //
-bool Pcsx2App::InvokeOnMainThread( FnPtr_Pcsx2App method )
+bool Pcsx2App::AppRpc_TryInvoke( FnPtr_Pcsx2App method )
 {
 	if( wxThread::IsMain() ) return false;
 
@@ -709,7 +788,7 @@ bool Pcsx2App::InvokeOnMainThread( FnPtr_Pcsx2App method )
 
 // Invokes the specified Pcsx2App method, or posts the method to the main thread if the calling
 // thread is not Main.  Action is non-blocking.  For blocking method execution, use
-// InvokeOnMainThread.
+// AppRpc_TryInvoke.
 //
 // This function works something like setjmp/longjmp, in that the return value indicates if the
 // function actually executed the specified method or not.
@@ -718,7 +797,7 @@ bool Pcsx2App::InvokeOnMainThread( FnPtr_Pcsx2App method )
 //   FALSE if the method was not posted to the main thread (meaning this IS the main thread!)
 //   TRUE if the method was posted.
 //
-bool Pcsx2App::PostAppMethodMyself( FnPtr_Pcsx2App method )
+bool Pcsx2App::AppRpc_TryInvokeAsync( FnPtr_Pcsx2App method )
 {
 	if( wxThread::IsMain() ) return false;
 	PostEvent( Pcsx2AppMethodEvent( method ) );
@@ -742,14 +821,28 @@ void Pcsx2App::PostIdleAppMethod( FnPtr_Pcsx2App method )
 
 void Pcsx2App::OpenGsPanel()
 {
-	if( InvokeOnMainThread( &Pcsx2App::OpenGsPanel ) ) return;
+	if( AppRpc_TryInvoke( &Pcsx2App::OpenGsPanel ) ) return;
 
 	GSFrame* gsFrame = GetGsFramePtr();
 	if( gsFrame == NULL )
 	{
-		gsFrame = new GSFrame( GetMainFramePtr(), L"PCSX2" );
-		gsFrame->SetFocus();
+		gsFrame = new GSFrame( GetMainFramePtr(), GetAppName() );
 		m_id_GsFrame = gsFrame->GetId();
+
+		switch( wxGetApp().Overrides.GsWindowMode )
+		{
+			case GsWinMode_Windowed:
+				g_Conf->GSWindow.IsFullscreen = false;
+			break;
+
+			case GsWinMode_Fullscreen:
+				g_Conf->GSWindow.IsFullscreen = true;
+			break;
+
+			case GsWinMode_Unspecified:
+				g_Conf->GSWindow.IsFullscreen = g_Conf->GSWindow.DefaultToFullscreen;
+			break;
+		}
 	}
 	else
 	{
@@ -761,6 +854,9 @@ void Pcsx2App::OpenGsPanel()
 		//   Doing an immediate hide/show didn't work.  So now I'm trying a resize.  Because
 		//   wxWidgets is "clever" (grr!) it optimizes out just force-setting the same size
 		//   over again, so instead I resize it to size-1 and then back to the original size.
+		//
+		// FIXME: Gsdx memory leaks in DX10 have been fixed.  This code may not be needed
+		// anymore.
 		
 		const wxSize oldsize( gsFrame->GetSize() );
 		wxSize newsize( oldsize );
@@ -770,10 +866,10 @@ void Pcsx2App::OpenGsPanel()
 		gsFrame->SetSize( oldsize );
 	}
 	
-	pxAssumeDev( !GetCorePlugins().IsOpen( PluginId_GS ), "GS Plugin must be closed prior to opening a new Gs Panel!" );
-
-	gsFrame->Show();
+	pxAssertDev( !GetCorePlugins().IsOpen( PluginId_GS ), "GS Plugin must be closed prior to opening a new Gs Panel!" );
 	pDsp = (uptr)gsFrame->GetViewport()->GetHandle();
+
+	gsFrame->ShowFullScreen( g_Conf->GSWindow.IsFullscreen );
 
 	// The "in the main window" quickie hack...
 	//pDsp = (uptr)m_MainFrame->m_background.GetHandle();
@@ -781,12 +877,12 @@ void Pcsx2App::OpenGsPanel()
 
 void Pcsx2App::CloseGsPanel()
 {
-	if( InvokeOnMainThread( &Pcsx2App::CloseGsPanel ) ) return;
+	if( AppRpc_TryInvoke( &Pcsx2App::CloseGsPanel ) ) return;
 
-	GSFrame* gsFrame = GetGsFramePtr();
-	if( (gsFrame != NULL) && CloseViewportWithPlugins )
+	if (CloseViewportWithPlugins)
 	{
-		if( GSPanel* woot = gsFrame->GetViewport() )
+		if (GSFrame* gsFrame = GetGsFramePtr())
+		if (GSPanel* woot = gsFrame->GetViewport())
 			woot->Destroy();
 	}
 }
@@ -797,11 +893,19 @@ void Pcsx2App::OnGsFrameClosed( wxWindowID id )
 
 	CoreThread.Suspend();
 	m_id_GsFrame = wxID_ANY;
+
+	if( !m_UseGUI )
+	{
+		// [TODO] : Prompt user before exiting, k thx. :)
+		PrepForExit();
+	}
 }
 
 void Pcsx2App::OnProgramLogClosed( wxWindowID id )
 {
 	if( (m_id_ProgramLogBox == wxID_ANY) || (m_id_ProgramLogBox != id) ) return;
+
+	ScopedLock lock( m_mtx_ProgramLog );
 	m_id_ProgramLogBox = wxID_ANY;
 	DisableWindowLogging();
 }
@@ -864,7 +968,8 @@ protected:
 
 		DbgCon.WriteLn( Color_Gray, "(SysExecute) received." );
 
-		if( m_UseCDVDsrc ) CoreThread.Shutdown(); else CoreThread.Suspend();
+		CoreThread.Reset();
+
 		CDVDsys_SetFile( CDVDsrc_Iso, g_Conf->CurrentIso );
 		if( m_UseCDVDsrc )
 			CDVDsys_ChangeSource( m_cdvdsrc_type );
@@ -878,8 +983,8 @@ protected:
 	}
 };
 
-// Executes the emulator using a saved/existing virtual machine state and currently
-// configured CDVD source device.
+// This command performs a full closure of any existing VM state and starts a
+// fresh VM with the requested sources.
 void Pcsx2App::SysExecute()
 {
 	SysExecutorThread.PostEvent( new SysExecEvent_Execute() );
@@ -891,36 +996,6 @@ void Pcsx2App::SysExecute()
 void Pcsx2App::SysExecute( CDVD_SourceType cdvdsrc, const wxString& elf_override )
 {
 	SysExecutorThread.PostEvent( new SysExecEvent_Execute(cdvdsrc, elf_override) );
-}
-
-// --------------------------------------------------------------------------------------
-//  SysExecEvent_Shutdown
-// --------------------------------------------------------------------------------------
-class SysExecEvent_Shutdown : public SysExecEvent
-{
-public:
-	wxString GetEventName() const
-	{
-		return L"SysShutdown";
-	}
-	
-	wxString GetEventMessage() const
-	{
-		return _("Resetting PS2 virtual machine...");
-	}
-
-protected:
-	void InvokeEvent()
-	{
-		CoreThread.Shutdown();
-	}
-
-};
-
-// Full system reset stops the core thread and unloads all core plugins *completely*.
-void Pcsx2App::SysShutdown()
-{
-	SysExecutorThread.PostEvent( new SysExecEvent_Shutdown() );	
 }
 
 // Returns true if there is a "valid" virtual machine state from the user's perspective.  This
@@ -985,18 +1060,4 @@ SysMtgsThread& GetMTGS()
 SysCoreAllocations& GetSysCoreAlloc()
 {
 	return *wxGetApp().m_CoreAllocs;
-}
-
-DataBase_Loader* Pcsx2App::GetGameDatabase()
-{
-	pxAppResources& res( GetResourceCache() );
-	
-	ScopedLock lock( m_mtx_LoadingGameDB );
-	if( !res.GameDB ) res.GameDB = new DataBase_Loader();
-	return res.GameDB;
-}
-
-DataBase_Loader* AppHost_GetGameDatabase()
-{
-	return wxGetApp().GetGameDatabase();
 }

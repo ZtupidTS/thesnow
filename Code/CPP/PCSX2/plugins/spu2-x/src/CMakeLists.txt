@@ -1,22 +1,16 @@
-# spu2x Plugin
+# Check that people use the good file
+if(NOT TOP_CMAKE_WAS_SOURCED)
+    message(FATAL_ERROR "
+    You did not 'cmake' the good CMakeLists.txt file. Use the one in the top dir.
+    It is advice to delete all wrongly generated cmake stuff => CMakeFiles & CMakeCache.txt")
+endif(NOT TOP_CMAKE_WAS_SOURCED)
+
 
 # plugin name
-set(spu2xName spu2x)
-
-# Clear default flags
-set(CMAKE_C_FLAGS "")
-set(CMAKE_CXX_FLAGS "")
-set(CMAKE_C_FLAGS_DEBUG "")
-set(CMAKE_CXX_FLAGS_DEBUG "")
-set(CMAKE_C_FLAGS_DEVEL "")
-set(CMAKE_CXX_FLAGS_DEVEL "")
-set(CMAKE_C_FLAGS_RELEASE "")
-set(CMAKE_CXX_FLAGS_RELEASE "")
+set(Output spu2x)
 
 set(CommonFlags
     -Wall
-    -m32
-    -FPIC
     -msse2
     )
 
@@ -64,7 +58,7 @@ set(spu2xSources
     Spu2replay.cpp
     spu2sys.cpp
     Timestretcher.cpp
-    utf8.cpp
+    #utf8.cpp
     Wavedump_wav.cpp)
 
 # spu2x headers
@@ -82,7 +76,8 @@ set(spu2xHeaders
     SndOut.h
     spdif.h
     Spu2replay.h
-    utf8.h)
+    #utf8.h
+)
 
 
 # spu2x Linux sources
@@ -106,7 +101,7 @@ include_directories(.
 					Linux)
 
 # add library
-add_library(${spu2xName} SHARED
+add_library(${Output} SHARED
 			${spu2xSources}
 			${spu2xHeaders}
 			${spu2xLinuxSources}
@@ -114,28 +109,25 @@ add_library(${spu2xName} SHARED
 
 
 # set output directory
-set_target_properties(${spu2xName} PROPERTIES
+set_target_properties(${Output} PROPERTIES
 					  LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin/plugins)
 
 # link target with project internal libraries
-target_link_libraries(${spu2xName} Utilities x86emitter Utilities)
+target_link_libraries(${Output} Utilities x86emitter Utilities)
 
 # link target with ALSA
-target_link_libraries(${spu2xName} ${ALSA_LIBRARIES})
+target_link_libraries(${Output} ${ALSA_LIBRARIES})
 
 # link target with PortAudio
-target_link_libraries(${spu2xName} ${PORTAUDIO_LIBRARIES})
+target_link_libraries(${Output} ${PORTAUDIO_LIBRARIES})
 
 # link target with SoundTouch
-target_link_libraries(${spu2xName} ${SOUNDTOUCH_LIBRARIES})
+target_link_libraries(${Output} ${SOUNDTOUCH_LIBRARIES})
 
 # link target with A52
-target_link_libraries(${spu2xName} ${A52_LIBRARIES})
+target_link_libraries(${Output} ${A52_LIBRARIES})
 
-# Force the linker into 32 bits mode
-target_link_libraries(${spu2xName} -m32)
-
-# Linker strip option
-if (CMAKE_BUILD_STRIP)
-    target_link_libraries(${spu2xName} -s)
-endif (CMAKE_BUILD_STRIP)
+# User flags options
+if(NOT USER_CMAKE_LD_FLAGS STREQUAL "")
+    target_link_libraries(${Output} "${USER_CMAKE_LD_FLAGS}")
+endif(NOT USER_CMAKE_LD_FLAGS STREQUAL "")

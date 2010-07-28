@@ -94,13 +94,40 @@ namespace PathDefs
 		return retval;
 	}
 
+    // Specifies the main configuration folder.
+    wxDirName GetUserLocalDataDir()
+    {
+#ifdef __LINUX__
+        // Note: GetUserLocalDataDir() on linux return $HOME/.pcsx2 unfortunately it does not follow the XDG standard
+        // So we re-implement it, to follow the standard.
+        wxDirName user_local_dir;
+        wxString xdg_home_value;
+        if( wxGetEnv(L"XDG_CONFIG_HOME", &xdg_home_value) ) {
+            if ( xdg_home_value.IsEmpty() ) {
+                // variable exist but it is empty. So use the default value
+                user_local_dir = (wxDirName)Path::Combine( wxStandardPaths::Get().GetUserConfigDir() , wxDirName( L".config/pcsx2" ));
+            } else {
+                user_local_dir = (wxDirName)Path::Combine( xdg_home_value, pxGetAppName());
+            }
+        } else {
+            // variable do not exist
+            user_local_dir = (wxDirName)Path::Combine( wxStandardPaths::Get().GetUserConfigDir() , wxDirName( L".config/pcsx2" ));
+        }
+        return user_local_dir;
+#else
+        return wxDirName(wxStandardPaths::Get().GetUserLocalDataDir());
+#endif
+    }
+
 	// Fetches the path location for user-consumable documents -- stuff users are likely to want to
 	// share with other programs: screenshots, memory cards, and savestates.
 	wxDirName GetDocuments( DocsModeType mode )
 	{
 		switch( mode )
 		{
-			case DocsFolder_User:	return (wxDirName)Path::Combine( wxStandardPaths::Get().GetDocumentsDir(), wxGetApp().GetAppName() );
+//change to portable path
+//			case DocsFolder_User:	return (wxDirName)Path::Combine( wxStandardPaths::Get().GetDocumentsDir(), pxGetAppName() );
+			case DocsFolder_User:	return (wxDirName) wxStandardPaths::Get().GetDataDir();
 			//case DocsFolder_CWD:	return (wxDirName)wxGetCwd();
 			case DocsFolder_Custom: return CustomDocumentsFolder;
 
@@ -204,7 +231,8 @@ bool AppConfig::FolderOptions::IsDefault( FoldersEnum_t folderidx ) const
 	switch( folderidx )
 	{
 		case FolderId_Plugins:		return UseDefaultPlugins;
-		case FolderId_Settings:		return UseDefaultSettingsFolder;
+//		case FolderId_Settings:		return UseDefaultSettingsFolder;
+		case FolderId_Settings:		return true;
 		case FolderId_Bios:			return UseDefaultBios;
 		case FolderId_Snapshots:	return UseDefaultSnapshots;
 		case FolderId_Savestates:	return UseDefaultSavestates;
@@ -275,7 +303,7 @@ namespace FilenameDefs
 		// TODO : ini extension on Win32 is normal.  Linux ini filename default might differ
 		// from this?  like pcsx2_conf or something ... ?
 
-		return wxGetApp().GetAppName() + L".ini";
+		return pxGetAppName() + L".ini";
 	}
 
 	wxFileName GetUsermodeConfig()
@@ -353,8 +381,9 @@ wxString AppConfig::FullpathToMcd( uint slot ) const
 AppConfig::AppConfig()
 	: MainGuiPosition( wxDefaultPosition )
 	, SysSettingsTabName( L"Cpu" )
-	, McdSettingsTabName( L"Standard" )
+	, McdSettingsTabName( L"none" )
 	, AppSettingsTabName( L"Plugins" )
+	, GameDatabaseTabName( L"none" )
 	, DeskTheme( L"default" )
 {
 	LanguageId			= wxLANGUAGE_DEFAULT;
@@ -459,6 +488,7 @@ void AppConfig::LoadSaveRootItems( IniInterface& ini )
 	IniEntry( SysSettingsTabName );
 	IniEntry( McdSettingsTabName );
 	IniEntry( AppSettingsTabName );
+	IniEntry( GameDatabaseTabName );
 	ini.EnumEntry( L"LanguageId", LanguageId, NULL, defaults.LanguageId );
 	IniEntry( RecentIsoCount );
 	IniEntry( DeskTheme );
@@ -623,6 +653,7 @@ AppConfig::GSWindowOptions::GSWindowOptions()
 	WindowSize				= wxSize( 640, 480 );
 	WindowPos				= wxDefaultPosition;
 	IsMaximized				= false;
+	IsFullscreen			= false;
 }
 
 void AppConfig::GSWindowOptions::SanityCheck()
@@ -657,6 +688,8 @@ void AppConfig::GSWindowOptions::LoadSave( IniInterface& ini )
 
 	IniEntry( WindowSize );
 	IniEntry( WindowPos );
+	IniEntry( IsMaximized );
+	IniEntry( IsFullscreen );
 
 	static const wxChar* AspectRatioNames[] =
 	{
@@ -750,7 +783,7 @@ void AppConfig_OnChangedSettingsFolder( bool overwrite )
 	if( overwrite )
 	{
 		if( wxFileExists( iniFilename ) && !wxRemoveFile( iniFilename ) )
-			throw Exception::AccessDenied( "Failed to overwrite settings; permission to file was denied." );
+			throw Exception::AccessDenied(iniFilename).SetBothMsgs(wxLt("Failed to overwrite existing settings file; permission was denied."));
 	}
 
 	// Bind into wxConfigBase to allow wx to use our config internally, and delete whatever
