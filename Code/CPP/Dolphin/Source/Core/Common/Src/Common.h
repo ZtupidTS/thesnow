@@ -25,6 +25,10 @@
 #include <stdio.h>
 #include <string.h>
 
+// SVN version number
+extern const char *svn_rev_str;
+extern const char *netplay_dolphin_ver;
+
 // Force enable logging in the right modes. For some reason, something had changed
 // so that debugfast no longer logged.
 #if defined(_DEBUG) || defined(DEBUGFAST)
@@ -32,41 +36,44 @@
 #define LOGGING 1
 #endif
 
+#define STACKALIGN
+
+// A macro to disallow the copy constructor and operator= functions
+// This should be used in the private: declarations for a class
+#define DISALLOW_COPY_AND_ASSIGN(TypeName) \
+	TypeName(const TypeName&); \
+	void operator=(const TypeName&)
+
 #include "Log.h"
 #include "CommonTypes.h"
 #include "MsgHandler.h"
-#include "CommonPaths.h"
 #include "CommonFuncs.h"
 
-#ifdef _MSC_VER
-#define __strdup _strdup
-#define __getcwd _getcwd
-#define __chdir _chdir
-#else
-#define __strdup strdup
-#define __getcwd getcwd
-#define __chdir chdir
+#ifdef __APPLE__
+// The Darwin ABI requires that stack frames be aligned to 16-byte boundaries.
+// This is only needed on i386 gcc - x86_64 already aligns to 16 bytes.
+#if defined __i386__ && defined __GNUC__
+#undef STACKALIGN
+#define STACKALIGN __attribute__((__force_align_arg_pointer__))
+#endif
+#define HAVE_WIIUSE 1
+// We use wxWidgets on OS X only if it is version 2.9+ with Cocoa support.
+#ifdef __WXOSX_COCOA__
+#define HAVE_WX 1
+#define USE_WX 1	// Use wxGLCanvas
 #endif
 
-// Darwin ABI requires that stack frames be aligned to 16-byte boundaries.
-// This is only needed on i386 gcc - x86_64 already aligns to 16bytes
-#if defined(__APPLE__) && defined(__i386__) && defined(__GNUC__)
-	#define STACKALIGN __attribute__((__force_align_arg_pointer__))
-#else
-	#define STACKALIGN
-#endif
+#elif defined _WIN32
 
-#ifdef _WIN32
 // Check MSC ver
 	#if !defined _MSC_VER || _MSC_VER <= 1000
 		#error needs at least version 1000 of MSC
 	#endif
 
+	#define NOMINMAX
+
 // Memory leak checks
 	#define CHECK_HEAP_INTEGRITY()
-
-	#define POSIX 0
-	#define NOMINMAX
 
 // Alignment
 	#define GC_ALIGNED16(x) __declspec(align(16)) x
@@ -79,8 +86,6 @@
 	#define HAVE_WIIUSE 1
 	#define HAVE_WX 1
 	#define HAVE_OPENAL 1
-	#define HAVE_ALSA 0
-	#define HAVE_PORTAUDIO 0
 
 // it is VERY DANGEROUS to mix _SECURE_SCL=0 and _SECURE_SCL=1 compiled libraries.
 // You will get bizarre crash bugs whenever you use STL.
@@ -105,34 +110,39 @@
 		//CrtDebugBreak breakAt(614);
 	#endif // end DEBUG/FAST
 
-#else // Not windows
+#else
+#include "config.h"	// SCons autoconfiguration defines
+#endif
 
-#include "Config.h" // Scons defines
-// General defines
-	#define POSIX 1
-	#define MAX_PATH 260
+#if defined __linux__ && HAVE_BLUEZ
+#define HAVE_WIIUSE 1
+#endif
 
 // Windows compatibility
-	#define __forceinline inline __attribute__((always_inline))
+#ifndef _WIN32
+#include <limits.h>
+#define MAX_PATH PATH_MAX
+#ifdef _LP64
+#define _M_X64 1
+#else
+#define _M_IX86 1
+#endif
+#define __forceinline inline __attribute__((always_inline))
+#define GC_ALIGNED16(x) __attribute__((aligned(16))) x
+#define GC_ALIGNED32(x) __attribute__((aligned(32))) x
+#define GC_ALIGNED64(x) __attribute__((aligned(64))) x
+#define GC_ALIGNED16_DECL(x) __attribute__((aligned(16))) x
+#define GC_ALIGNED64_DECL(x) __attribute__((aligned(64))) x
+#endif
 
-	#ifdef _LP64
-		#define _M_X64 1
-	#else
-		#define _M_IX86 1
-	#endif
-// Alignment
-	#define GC_ALIGNED16(x)  __attribute__((aligned(16))) x
-	#define GC_ALIGNED32(x)  __attribute__((aligned(32))) x
-	#define GC_ALIGNED64(x)  __attribute__((aligned(64))) x
-	#define GC_ALIGNED16_DECL(x) __attribute__((aligned(16))) x
-	#define GC_ALIGNED64_DECL(x) __attribute__((aligned(64))) x
-
-#endif // WIN32
-
-// A macro to disallow the copy constructor and operator= functions
-// This should be used in the private: declarations for a class
-#define DISALLOW_COPY_AND_ASSIGN(TypeName) \
-	TypeName(const TypeName&);               \
-	void operator=(const TypeName&)
+#ifdef _MSC_VER
+#define __strdup _strdup
+#define __getcwd _getcwd
+#define __chdir _chdir
+#else
+#define __strdup strdup
+#define __getcwd getcwd
+#define __chdir chdir
+#endif
 
 #endif // _COMMON_H_

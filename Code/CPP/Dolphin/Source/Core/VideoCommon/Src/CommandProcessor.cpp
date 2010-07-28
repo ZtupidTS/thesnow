@@ -77,7 +77,7 @@
 #include "Fifo.h"
 #include "ChunkFile.h"
 #include "CommandProcessor.h"
-
+#include "PixelEngine.h"
 
 namespace CommandProcessor
 {
@@ -109,6 +109,8 @@ u16 m_tokenReg;
 static u32 fake_GPWatchdogLastToken = 0;
 static Common::EventEx s_fifoIdleEvent;
 static Common::CriticalSection sFifoCritical;
+
+volatile bool isFifoBusy = false; //This state is changed when the FIFO is processing data.
 
 void FifoCriticalEnter()
 {
@@ -409,6 +411,14 @@ void Write16(const u16 _Value, const u32 _Address)
 				m_CPStatusReg.OverflowHiWatermark = false;
 
 			UpdateInterrupts();
+			
+			// If the new fifo is being attached We make sure there wont be SetFinish event pending.
+			// This protection fix eternal darkness booting, because the second SetFinish event when it is booting
+			// seems invalid or has a bug and hang the game.
+			if (!fifo.bFF_GPReadEnable && tmpCtrl.GPReadEnable && !tmpCtrl.BPEnable)
+			{
+				PixelEngine::ResetSetFinish();			
+			}
 
 			fifo.bFF_BPInt = tmpCtrl.BPInt;
 			fifo.bFF_BPEnable = tmpCtrl.BPEnable;
@@ -493,7 +503,7 @@ void Write16(const u16 _Value, const u32 _Address)
 	case FIFO_HI_WATERMARK_HI:
 		WriteHigh((u32 &)fifo.CPHiWatermark, _Value);
 		// Tune this when you see lots of FIFO overflown by GatherPipe
-		HiWatermark_Tighter = fifo.CPHiWatermark - 32 * 50;
+		HiWatermark_Tighter = fifo.CPHiWatermark - 32 * g_ActiveConfig.iFIFOWatermarkTightness;
 		DEBUG_LOG(COMMANDPROCESSOR,"\t write to FIFO_HI_WATERMARK_HI : %04x", _Value);
 		break;
 
@@ -614,7 +624,7 @@ void STACKALIGN GatherPipeBursted()
 	}
 
 	_assert_msg_(COMMANDPROCESSOR, fifo.CPReadWriteDistance	<= fifo.CPEnd - fifo.CPBase,
-		"FIFO is overflown by GatherPipe !\nCPU thread is too fast, lower the HiWatermark may help.");
+		"FIFO is overflown by GatherPipe !\nCPU thread is too fast, try changing the watermark tightness in the game properties.");
 
 	// check if we are in sync
 	_assert_msg_(COMMANDPROCESSOR, fifo.CPWritePointer	== *(g_VideoInitialize.Fifo_CPUWritePointer), "FIFOs linked but out of sync");
@@ -683,7 +693,7 @@ void UpdateInterrupts()
 
 void UpdateInterruptsFromVideoPlugin()
 {
-	g_VideoInitialize.pScheduleEvent_Threadsafe(0, et_UpdateInterrupts, 0);
+	g_VideoInitialize.pScheduleEvent_Threadsafe(0, et_UpdateInterrupts, 0, true);
 }
 
 void SetFifoIdleFromVideoPlugin()

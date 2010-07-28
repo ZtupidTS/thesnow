@@ -94,19 +94,19 @@ void VideoConfig::Load(const char *ini_file)
 	iniFile.Get("Hacks", "EFBCopyDisableHotKey", &bOSDHotKey, 0);
 	iniFile.Get("Hacks", "EFBToTextureEnable", &bCopyEFBToTexture, false);
 	iniFile.Get("Hacks", "EFBScaledCopy", &bCopyEFBScaled, true);
-	iniFile.Get("Hacks", "FIFOBPHack", &bFIFOBPhack, false);
+	iniFile.Get("Hacks", "FIFOWatermarkTightness", &iFIFOWatermarkTightness, 50);
 	iniFile.Get("Hacks", "ProjectionHack", &iPhackvalue, 0);
 
 	iniFile.Get("Hardware", "Adapter", &iAdapter, 0);
 	if (iAdapter == -1)
 		iAdapter = 0;
-	iniFile.Get("Hardware", "SimpleFB", &bSimpleFB, false);
 	
 	// Load common settings
 	iniFile.Load(File::GetUserPath(F_DOLPHINCONFIG_IDX));
 	bool bTmp;
 	iniFile.Get("Interface", "UsePanicHandlers", &bTmp, true);
 	SetEnableAlert(bTmp);
+	iniFile.Get("Core", "EnableOpenCL", &bEnableOpenCL, false);
 }
 
 void VideoConfig::GameIniLoad(const char *ini_file)
@@ -123,7 +123,7 @@ void VideoConfig::GameIniLoad(const char *ini_file)
 	if (iniFile.Exists("Video", "EFBCopyDisableHotKey"))
 		iniFile.Get("Video", "EFBCopyDisableHotKey", &bOSDHotKey);
 	if (iniFile.Exists("Video", "EFBToTextureEnable"))
-		iniFile.Get("Video", "EFBToTextureEnable", &bCopyEFBToTexture);
+		iniFile.Get("Video", "EFBToTextureEnable", &bCopyEFBToTexture);	
 	if (iniFile.Exists("Video", "EFBScaledCopy"))
 		iniFile.Get("Video", "EFBScaledCopy", &bCopyEFBScaled);
 	if (iniFile.Exists("Video", "SafeTextureCache"))
@@ -142,8 +142,8 @@ void VideoConfig::GameIniLoad(const char *ini_file)
 		iniFile.Get("Video", "UseXFB", &bUseXFB);
 	if (iniFile.Exists("Video", "UseRealXFB"))
 		iniFile.Get("Video", "UseRealXFB", &bUseRealXFB);
-	if (iniFile.Exists("Video", "FIFOBPHack"))
-		iniFile.Get("Video", "FIFOBPHack", &bFIFOBPhack);
+	if (iniFile.Exists("Video", "FIFOWatermarkTightness"))
+		iniFile.Get("Video", "FIFOWatermarkTightness", &iFIFOWatermarkTightness);
 	if (iniFile.Exists("Video", "ProjectionHack"))
 		iniFile.Get("Video", "ProjectionHack", &iPhackvalue);
 	if (iniFile.Exists("Video", "UseNativeMips"))
@@ -198,13 +198,11 @@ void VideoConfig::Save(const char *ini_file)
 	iniFile.Set("Hacks", "EFBAccessEnable", bEFBAccessEnable);
 	iniFile.Set("Hacks", "EFBCopyDisable", bEFBCopyDisable);
 	iniFile.Set("Hacks", "EFBCopyDisableHotKey", bOSDHotKey);
-	iniFile.Set("Hacks", "EFBToTextureEnable", bCopyEFBToTexture);
+	iniFile.Set("Hacks", "EFBToTextureEnable", bCopyEFBToTexture);	
 	iniFile.Set("Hacks", "EFBScaledCopy", bCopyEFBScaled);
-	iniFile.Set("Hacks", "FIFOBPHack", bFIFOBPhack);
 	iniFile.Set("Hacks", "ProjectionHack", iPhackvalue);
 	
 	iniFile.Set("Hardware", "Adapter", iAdapter);
-	iniFile.Set("Hardware", "SimpleFB", bSimpleFB);
 	
 	iniFile.Save(ini_file);
 }

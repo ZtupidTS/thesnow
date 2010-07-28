@@ -132,12 +132,12 @@ CPanel::CPanel(
 			case WM_USER_PAUSE:
 				main_frame->DoPause();
 				break;
-			
+
 			// Stop
 			case WM_USER_STOP:
 				main_frame->DoStop();
 				break;
-			
+
 			case WM_USER_CREATE:
 				break;
 
@@ -266,15 +266,7 @@ EVT_MENU(IDM_ADD_PERSPECTIVE, CFrame::OnDropDownToolbarSelect)
 EVT_MENU(IDM_TAB_SPLIT, CFrame::OnDropDownToolbarSelect)
 EVT_MENU(IDM_NO_DOCKING, CFrame::OnDropDownToolbarSelect)
 // Drop down float
-EVT_MENU(IDM_FLOAT_LOGWINDOW, CFrame::OnFloatWindow)
-EVT_MENU(IDM_FLOAT_CONSOLEWINDOW, CFrame::OnFloatWindow)
-EVT_MENU(IDM_FLOAT_CODEWINDOW, CFrame::OnFloatWindow)
-EVT_MENU(IDM_FLOAT_REGISTERWINDOW, CFrame::OnFloatWindow)
-EVT_MENU(IDM_FLOAT_BREAKPOINTWINDOW, CFrame::OnFloatWindow)
-EVT_MENU(IDM_FLOAT_MEMORYWINDOW, CFrame::OnFloatWindow)
-EVT_MENU(IDM_FLOAT_JITWINDOW, CFrame::OnFloatWindow)
-EVT_MENU(IDM_FLOAT_SOUNDWINDOW, CFrame::OnFloatWindow)
-EVT_MENU(IDM_FLOAT_VIDEOWINDOW, CFrame::OnFloatWindow)
+EVT_MENU_RANGE(IDM_FLOAT_LOGWINDOW, IDM_FLOAT_CODEWINDOW, CFrame::OnFloatWindow)
 
 EVT_MENU(IDM_NETPLAY, CFrame::OnNetPlay)
 EVT_MENU(IDM_BROWSE, CFrame::OnBrowse)
@@ -290,8 +282,7 @@ EVT_MENU(IDM_TOGGLE_DUALCORE, CFrame::OnToggleDualCore)
 EVT_MENU(IDM_TOGGLE_SKIPIDLE, CFrame::OnToggleSkipIdle)
 EVT_MENU(IDM_TOGGLE_TOOLBAR, CFrame::OnToggleToolbar)
 EVT_MENU(IDM_TOGGLE_STATUSBAR, CFrame::OnToggleStatusbar)
-EVT_MENU(IDM_LOGWINDOW, CFrame::OnToggleLogWindow)
-EVT_MENU(IDM_CONSOLEWINDOW, CFrame::OnToggleConsole)
+EVT_MENU_RANGE(IDM_LOGWINDOW, IDM_VIDEOWINDOW, CFrame::OnToggleWindow)
 
 EVT_MENU(IDM_PURGECACHE, CFrame::GameListChanged)
 
@@ -326,10 +317,8 @@ EVT_AUINOTEBOOK_PAGE_CHANGED(wxID_ANY, CFrame::OnNotebookPageChanged)
 EVT_AUINOTEBOOK_TAB_RIGHT_UP(wxID_ANY, CFrame::OnTab)
 
 // Post events to child panels
-EVT_MENU(wxID_ANY, CFrame::PostEvent)
-EVT_TEXT(wxID_ANY, CFrame::PostEvent)
-//EVT_MENU_HIGHLIGHT_ALL(CFrame::PostMenuEvent)
-//EVT_UPDATE_UI(wxID_ANY, CFrame::PostUpdateUIEvent)
+EVT_MENU_RANGE(IDM_INTERPRETER, IDM_ADDRBOX, CFrame::PostEvent)
+EVT_TEXT(IDM_ADDRBOX, CFrame::PostEvent)
 
 END_EVENT_TABLE()
 
@@ -342,29 +331,33 @@ CFrame::CFrame(wxFrame* parent,
 		const wxPoint& pos,
 		const wxSize& size,
 		bool _UseDebugger,
+		bool _BatchMode,
 		bool ShowLogWindow,
 		long style)
 	: CRenderFrame(parent, id, title, pos, size, style)
-	, g_pCodeWindow(NULL)		
-	, m_MenuBar(NULL)
+	, g_pCodeWindow(NULL)
 	, bRenderToMain(false), bNoWiimoteMsg(false)
 	, m_ToolBar(NULL), m_ToolBarDebug(NULL), m_ToolBarAui(NULL)
-	, bFloatLogWindow(false), bFloatConsoleWindow(false)
 	, m_pStatusBar(NULL), m_GameListCtrl(NULL), m_Panel(NULL)
 	, m_RenderFrame(NULL), m_RenderParent(NULL)
-	, m_LogWindow(NULL)
-	, UseDebugger(_UseDebugger), m_bEdit(false), m_bTabSplit(false), m_bNoDocking(false)
+	, m_LogWindow(NULL), UseDebugger(_UseDebugger)
+	, m_bBatchMode(_BatchMode), m_bEdit(false), m_bTabSplit(false), m_bNoDocking(false)
 	, m_bControlsCreated(false), m_bGameLoading(false), m_StopDlg(NULL)
 	#if wxUSE_TIMER
 		, m_timer(this)
 	#endif
 {
+	for (int i = 0; i <= IDM_CODEWINDOW - IDM_LOGWINDOW; i++)
+		bFloatWindow[i] = false;
+
 	if (ShowLogWindow) SConfig::GetInstance().m_InterfaceLogWindow = true;
 
 	// Give it a console early to show potential messages from this onward
 	ConsoleListener *Console = LogManager::GetInstance()->getConsoleListener();
 	if (SConfig::GetInstance().m_InterfaceConsole) Console->Open();
-	if (SConfig::GetInstance().m_InterfaceLogWindow) m_LogWindow = new CLogWindow(this, IDM_LOGWINDOW);
+	m_LogWindow = new CLogWindow(this, IDM_LOGWINDOW);
+	m_LogWindow->Hide();
+	m_LogWindow->Disable();
 
 	// Start debugging mazimized
 	if (UseDebugger) this->Maximize(true);
@@ -373,8 +366,8 @@ CFrame::CFrame(wxFrame* parent,
 	{
 		g_pCodeWindow = new CCodeWindow(SConfig::GetInstance().m_LocalCoreStartupParameter, this, IDM_CODEWINDOW);
 		g_pCodeWindow->Hide();
-		g_pCodeWindow->Load();
-	}	
+		LoadIniPerspectives();
+	}
 
 	// Create timer
 	#if wxUSE_TIMER
@@ -382,7 +375,7 @@ CFrame::CFrame(wxFrame* parent,
 		m_timer.Start( floor((double)(1000 / TimesPerSecond)) );
 	#endif
 
-	// Create toolbar bitmaps	
+	// Create toolbar bitmaps
 	InitBitmaps();
 
 	// Give it an icon
@@ -407,7 +400,7 @@ CFrame::CFrame(wxFrame* parent,
 			wxDefaultPosition, wxDefaultSize,
 			wxLC_REPORT | wxSUNKEN_BORDER | wxLC_ALIGN_LEFT);
 
-	sizerPanel = new wxBoxSizer(wxHORIZONTAL);
+	wxBoxSizer *sizerPanel = new wxBoxSizer(wxHORIZONTAL);
 	sizerPanel->Add(m_GameListCtrl, 1, wxEXPAND | wxALL);
 	m_Panel->SetSizer(sizerPanel);
 	// ---------------
@@ -416,9 +409,6 @@ CFrame::CFrame(wxFrame* parent,
 	// wxAUI_MGR_LIVE_RESIZE does not exist in the wxWidgets 2.8.9 that comes with Ubuntu 9.04
 	// Could just check for wxWidgets version if it becomes a problem.
 	m_Mgr = new wxAuiManager(this, wxAUI_MGR_DEFAULT | wxAUI_MGR_LIVE_RESIZE);
-	NOTEBOOK_STYLE = wxAUI_NB_TOP | wxAUI_NB_TAB_SPLIT | wxAUI_NB_TAB_EXTERNAL_MOVE | wxAUI_NB_SCROLL_BUTTONS | wxAUI_NB_WINDOWLIST_BUTTON | wxNO_BORDER;
-	TOOLBAR_STYLE = wxAUI_TB_DEFAULT_STYLE | wxAUI_TB_TEXT  /*wxAUI_TB_OVERFLOW overflow visible*/;
-	aNormalFile = wxArtProvider::GetBitmap(wxART_NORMAL_FILE, wxART_OTHER, wxSize(16,16));
 
 	if (g_pCodeWindow)
 	{
@@ -432,20 +422,16 @@ CFrame::CFrame(wxFrame* parent,
 
 	// Setup perspectives
 	if (g_pCodeWindow)
-	{		
+	{
 		m_Mgr->GetPane(wxT("Pane 0")).CenterPane().PaneBorder(false);
 		AuiFullscreen = m_Mgr->SavePerspective();
 		m_Mgr->GetPane(wxT("Pane 0")).CenterPane().PaneBorder(true);
 	}
 	else
 	{
-		IniFile ini; int winpos;
-		ini.Load(File::GetUserPath(F_LOGGERCONFIG_IDX));
-		ini.Get("LogWindow", "pos", &winpos, 2);
-
 		m_Mgr->GetPane(wxT("Pane 0")).Show().PaneBorder(false).CaptionVisible(false).Layer(0).Center();
 		m_Mgr->GetPane(wxT("Pane 1")).Hide().PaneBorder(false).CaptionVisible(true).Layer(0)
-			.FloatingSize(wxSize(600, 350)).CloseButton(false).Direction(winpos);
+			.FloatingSize(wxSize(600, 350)).CloseButton(false);
 		AuiFullscreen = m_Mgr->SavePerspective();
 	}
 
@@ -458,22 +444,23 @@ CFrame::CFrame(wxFrame* parent,
 
 	// Setup perspectives
 	if (g_pCodeWindow)
-	{		
+	{
 		// Load perspective
-		SaveLocal();
+		LoadIniPerspectives();
 		DoLoadPerspective();
 	}
 	else
 	{
-		SetSimplePaneSize();
-		if (SConfig::GetInstance().m_InterfaceLogWindow) DoToggleWindow(IDM_LOGWINDOW, true);
-		if (SConfig::GetInstance().m_InterfaceConsole) DoToggleWindow(IDM_CONSOLEWINDOW, true);
+		if (SConfig::GetInstance().m_InterfaceLogWindow)
+		   	ToggleLogWindow(true);
+		if (SConfig::GetInstance().m_InterfaceConsole)
+		   	ToggleConsole(true);
 	}
 
 	// Show window
 	Show();
 
-	// Commit 
+	// Commit
 	m_Mgr->Update();
 
 	// Create cursors
@@ -575,7 +562,12 @@ void CFrame::OnClose(wxCloseEvent& event)
 	// Don't forget the skip or the window won't be destroyed
 	event.Skip();
 	// Save GUI settings
-	if (g_pCodeWindow) Save();
+	if (g_pCodeWindow) SaveIniPerspectives();
+
+	// Close the log window now so that its settings are saved
+	if (!g_pCodeWindow)
+		m_LogWindow->Close();
+
 	// Uninit
 	m_Mgr->UnInit();
 
@@ -591,24 +583,15 @@ void CFrame::OnClose(wxCloseEvent& event)
 // Warning: This may cause an endless loop if the event is propagated back to its parent
 void CFrame::PostEvent(wxCommandEvent& event)
 {
-	if (g_pCodeWindow
-		&& event.GetId() >= IDM_INTERPRETER && event.GetId() <= IDM_ADDRBOX
-		//&& event.GetId() != IDM_JITUNLIMITED
-		)
+	if (g_pCodeWindow &&
+		event.GetId() >= IDM_INTERPRETER &&
+		event.GetId() <= IDM_ADDRBOX)
 	{
 		event.StopPropagation();
 		g_pCodeWindow->GetEventHandler()->AddPendingEvent(event);
 	}
 	else
 		event.Skip();
-}
-void CFrame::PostMenuEvent(wxMenuEvent& event)
-{
-	if (g_pCodeWindow) g_pCodeWindow->GetEventHandler()->AddPendingEvent(event);
-}
-void CFrame::PostUpdateUIEvent(wxUpdateUIEvent& event)
-{
-	if (g_pCodeWindow) g_pCodeWindow->GetEventHandler()->AddPendingEvent(event);
 }
 
 void CFrame::OnMove(wxMoveEvent& event)
@@ -691,42 +674,12 @@ void CFrame::OnHostMessage(wxCommandEvent& event)
 		if (SConfig::GetInstance().m_LocalCoreStartupParameter.bHideCursor)
 			m_RenderParent->SetCursor(wxCURSOR_BLANK);
 		break;
+
 #if defined(HAVE_X11) && HAVE_X11
 	case WM_USER_STOP:
 		DoStop();
 		break;
 #endif
-	}
-}
-
-void CFrame::OnCustomHostMessage(int Id)
-{
-	wxWindow *Win;
-
-	switch(Id)
-	{
-	// Destroy windows
-	case AUDIO_DESTROY:		
-		Win = GetWxWindow(wxT("Sound"));
-		if (Win)
-		{
-			DoRemovePage(Win, false);
-
-			CPluginManager::GetInstance().OpenDebug(
-				GetHandle(),
-				SConfig::GetInstance().m_LocalCoreStartupParameter.m_strDSPPlugin.c_str(),
-				PLUGIN_TYPE_DSP, false
-				);
-
-			//Win->Reparent(NULL);
-			//g_pCodeWindow->OnToggleDLLWindow(false, 0);
-			GetMenuBar()->FindItem(IDM_SOUNDWINDOW)->Check(false);
-			NOTICE_LOG(CONSOLE, "%s", Core::StopMessage(true, "Sound debugging window closed").c_str());
-		}
-		break;
-
-	case VIDEO_DESTROY:
-		break;
 	}
 }
 
@@ -740,16 +693,21 @@ void CFrame::OnSizeRequest(int& x, int& y, int& width, int& height)
 
 bool CFrame::RendererHasFocus()
 {
+	if (m_RenderParent == NULL)
+		return false;
 #ifdef _WIN32
-	// Why doesn't the "else" method below work in windows when called from
-	// Host_RendererHasFocus()?
-	if (m_RenderParent)
-		if (m_RenderParent->GetParent()->GetHWND() == GetForegroundWindow())
-			return true;
-	return false;
+	if (m_RenderParent->GetParent()->GetHWND() == GetForegroundWindow())
+		return true;
 #else
-	return m_RenderParent && (m_RenderParent == wxWindow::FindFocus());
+	if (wxWindow::FindFocus() == NULL)
+		return false;
+	// Why these different cases?
+	if (m_RenderParent == wxWindow::FindFocus() ||
+	    m_RenderParent == wxWindow::FindFocus()->GetParent() ||
+	    m_RenderParent->GetParent() == wxWindow::FindFocus()->GetParent())
+		return true;
 #endif
+	return false;
 }
 
 void CFrame::OnGameListCtrl_ItemActivated(wxListEvent& WXUNUSED (event))
@@ -778,7 +736,7 @@ void CFrame::OnGameListCtrl_ItemActivated(wxListEvent& WXUNUSED (event))
 		SConfig::GetInstance().m_ListWad	= SConfig::GetInstance().m_ListJap =
 		SConfig::GetInstance().m_ListUsa	= SConfig::GetInstance().m_ListPal =
 		SConfig::GetInstance().m_ListFrance	= SConfig::GetInstance().m_ListItaly =
-		SConfig::GetInstance().m_ListKorea	= SConfig::GetInstance().m_ListTaiwan = 
+		SConfig::GetInstance().m_ListKorea	= SConfig::GetInstance().m_ListTaiwan =
 		SConfig::GetInstance().m_ListUnknown= true;
 
 		GetMenuBar()->FindItem(IDM_LISTGC)->Check(true);
@@ -794,7 +752,7 @@ void CFrame::OnGameListCtrl_ItemActivated(wxListEvent& WXUNUSED (event))
 		GetMenuBar()->FindItem(IDM_LIST_UNK)->Check(true);
 
 		m_GameListCtrl->Update();
-	}			
+	}
 	else
 		// Game started by double click
 		BootGame(std::string(""));
@@ -847,7 +805,7 @@ void CFrame::OnKeyDown(wxKeyEvent& event)
 			if (event.GetModifiers() == wxMOD_NONE)
 				State_UndoSaveState();
 			else if (event.GetModifiers() == wxMOD_SHIFT)
-				State_UndoLoadState();	
+				State_UndoLoadState();
 			else
 				event.Skip();
 		}
@@ -874,7 +832,7 @@ void CFrame::OnKeyDown(wxKeyEvent& event)
 #ifdef _WIN32
 			PostMessage((HWND)Core::GetWindowHandle(), WM_USER, WM_USER_KEYDOWN, event.GetKeyCode());
 #elif defined(HAVE_X11) && HAVE_X11
-			X11Utils::SendKeyEvent(event.GetKeyCode());
+			X11Utils::SendKeyEvent(X11Utils::XDisplayFromHandle(GetHandle()), event.GetKeyCode());
 #endif
 		}
 #ifdef _WIN32
@@ -900,52 +858,6 @@ void CFrame::OnKeyUp(wxKeyEvent& event)
 	}
 }
 
-// --------
-// Functions
-
-
-wxFrame * CFrame::CreateParentFrame(wxWindowID Id, const wxString& Title, wxWindow * Child)
-{
-	wxFrame * Frame = new wxFrame(this, Id, Title, wxDefaultPosition, wxDefaultSize, wxDEFAULT_FRAME_STYLE);
-	
-	Child->Reparent(Frame);
-	Child->Show();
-
-	wxBoxSizer * m_MainSizer = new wxBoxSizer(wxHORIZONTAL);
-
-	m_MainSizer->Add(Child, 1, wxEXPAND);
-
-	Frame->Connect(wxID_ANY, wxEVT_CLOSE_WINDOW,
-		wxCloseEventHandler(CFrame::OnFloatingPageClosed),
-		(wxObject*)0, this);
-
-	if (Id == IDM_CONSOLEWINDOW_PARENT)
-	{
-		Frame->Connect(wxID_ANY, wxEVT_SIZE,
-			wxSizeEventHandler(CFrame::OnFloatingPageSize),
-			(wxObject*)0, this);
-	}
-
-	// Main sizer
-	Frame->SetSizer( m_MainSizer );
-	// Minimum frame size
-	Frame->SetMinSize(wxSize(200, -1));
-	Frame->Show();
-	return Frame;
-}
-
-wxPanel* CFrame::CreateEmptyPanel(wxWindowID Id)
-{
-	wxPanel* Panel = new wxPanel(this, Id);
-	return Panel;
-}
-
-wxAuiNotebook* CFrame::CreateEmptyNotebook()
-{
-	wxAuiNotebook* NB = new wxAuiNotebook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, NOTEBOOK_STYLE);
-	return NB;
-}
-
 void CFrame::DoFullscreen(bool bF)
 {
 	ToggleDisplayMode(bF);
@@ -967,94 +879,4 @@ void CFrame::DoFullscreen(bool bF)
 	}
 	else
 		m_RenderFrame->Raise();
-}
-
-// Debugging, show loose windows
-void CFrame::ListChildren()
-{	
-	ConsoleListener* Console = LogManager::GetInstance()->getConsoleListener();
-	wxAuiNotebook * NB = NULL;
-
-	Console->Log(LogTypes::LNOTICE, "--------------------------------------------------------------------\n");
-
-	for (u32 i = 0; i < this->GetChildren().size(); i++)
-	{
-		wxWindow * Win = this->GetChildren().Item(i)->GetData();
-		Console->Log(LogTypes::LNOTICE, StringFromFormat(
-			"%i: %s (%s) :: %s", i,
-			(const char*)Win->GetName().mb_str(), (const char*)Win->GetLabel().mb_str(), (const char*)Win->GetParent()->GetName().mb_str()).c_str());
-		//if (Win->GetName().IsSameAs(wxT("control")))
-		if (Win->IsKindOf(CLASSINFO(wxAuiNotebook)))
-		{
-			NB = (wxAuiNotebook*)Win;
-			Console->Log(LogTypes::LNOTICE, StringFromFormat(" :: NB", (const char*)NB->GetName().mb_str()).c_str());
-		}
-		else
-		{
-			NB = NULL;
-		}
-		Console->Log(LogTypes::LNOTICE, StringFromFormat("\n").c_str());
-
-		Win = this->GetChildren().Item(i)->GetData();
-		for (u32 j = 0; j < Win->GetChildren().size(); j++)
-		{
-			Console->Log(LogTypes::LNOTICE, StringFromFormat(
-			 "     %i.%i: %s (%s) :: %s", i, j,
-			 (const char*)Win->GetName().mb_str(), (const char*)Win->GetLabel().mb_str(), (const char*)Win->GetParent()->GetName().mb_str()).c_str());
-			if (NB)
-			{
-				if (j < NB->GetPageCount())
-					Console->Log(LogTypes::LNOTICE, StringFromFormat(" :: %s", (const char*)NB->GetPage(j)->GetName().mb_str()).c_str());
-			}
-			Console->Log(LogTypes::LNOTICE, StringFromFormat("\n").c_str());
-
-			/*
-			Win = this->GetChildren().Item(j)->GetData();
-			for (int k = 0; k < Win->GetChildren().size(); k++)
-			{
-				Console->Log(LogTypes::LNOTICE, StringFromFormat(
-					"          %i.%i.%i: %s (%s) :: %s\n", i, j, k,
-					Win->GetName().mb_str(), Win->GetLabel().mb_str(), Win->GetParent()->GetName().mb_str()).c_str());
-			}
-			*/
-		}
-	}	
-
-	Console->Log(LogTypes::LNOTICE, "--------------------------------------------------------------------\n");
-
-	for (u32 i = 0; i < m_Mgr->GetAllPanes().GetCount(); i++)
-	{
-		if (!m_Mgr->GetAllPanes().Item(i).window->IsKindOf(CLASSINFO(wxAuiNotebook))) continue;
-		wxAuiNotebook * _NB = (wxAuiNotebook*)m_Mgr->GetAllPanes().Item(i).window;
-		Console->Log(LogTypes::LNOTICE, StringFromFormat("%i: %s\n", i, (const char *)m_Mgr->GetAllPanes().Item(i).name.mb_str()).c_str());
-
-		for (u32 j = 0; j < _NB->GetPageCount(); j++)
-		{
-			Console->Log(LogTypes::LNOTICE, StringFromFormat("%i.%i: %s\n", i, j, (const char *)_NB->GetPageText(j).mb_str()).c_str());
-		}
-	}
-
-	Console->Log(LogTypes::LNOTICE, "--------------------------------------------------------------------\n");
-}
-
-void CFrame::ListTopWindows()
-{
-	wxWindowList::const_iterator i;
-	int j = 0;
-	const wxWindowList::const_iterator end = wxTopLevelWindows.end();
-
-	for (i = wxTopLevelWindows.begin(); i != end; ++i)
-	{
-		wxTopLevelWindow * const Win = wx_static_cast(wxTopLevelWindow *, *i);
-		NOTICE_LOG(CONSOLE, "%i: %i %s", j, Win, (const char *)Win->GetTitle().mb_str());
-		/*
-		if ( win->ShouldPreventAppExit() )
-		{
-			// there remains at least one important TLW, don't exit
-			return false;
-		}
-		*/
-		j++;
-	}
-	NOTICE_LOG(CONSOLE, "\n");
 }

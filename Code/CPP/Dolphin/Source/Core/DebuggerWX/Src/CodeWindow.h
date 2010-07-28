@@ -48,60 +48,50 @@ class CCodeWindow
 			wxWindowID id = wxID_ANY,
 			const wxPoint& pos = wxDefaultPosition,
 			const wxSize& size = wxDefaultSize,
-			long style = wxTAB_TRAVERSAL | wxNO_BORDER,
-			const wxString& name = wxT("Dolphin-Debugger")
+			long style = wxTAB_TRAVERSAL | wxBORDER_NONE,
+			const wxString& name = wxT("Code")
 			);
-		/*
-		CCodeWindow(const SCoreStartupParameter& _LocalCoreStartupParameter, wxWindow* parent,
-			wxWindowID id = wxID_ANY,
-			const wxString& title = _T("Dolphin-Debugger"),
-		const wxPoint& pos = wxPoint(950, 100),
-		const wxSize& size = wxSize(400, 500),
-		long style = wxDEFAULT_FRAME_STYLE | wxCLIP_CHILDREN | wxNO_FULL_REPAINT_ON_RESIZE);
-		*/
 
-		~CCodeWindow();
 		void Load();
 		void Save();
 
 		// Parent interaction
 		CFrame *Parent;
 		wxMenuBar * GetMenuBar();
-		wxAuiToolBar * GetToolBar();		
-		int GetNootebookAffiliation(wxString);
+		wxAuiToolBar * GetToolBar();
 		wxBitmap m_Bitmaps[ToolbarDebugBitmapMax];
 
 		bool UseInterpreter();
 		bool BootToPause();
 		bool AutomaticStart();
-		bool UnlimitedJITCache();
+		bool JITNoBlockCache();
 		bool JITBlockLinking();
-        void JumpToAddress(u32 _Address);
+		void JumpToAddress(u32 _Address);
 
 		void Update();
 		void NotifyMapLoaded();
-		void CreateMenu(const SCoreStartupParameter& _LocalCoreStartupParameter, wxMenuBar * pMenuBar);
-		void CreateMenuView(wxMenuBar * pMenuBar, wxMenu*);
-		void CreateMenuOptions(wxMenuBar * pMenuBar, wxMenu*);
-		void CreateMenuSymbols();
+		void CreateMenu(const SCoreStartupParameter& _LocalCoreStartupParameter,
+			   	wxMenuBar *pMenuBar);
+		void CreateMenuOptions(wxMenu *pMenu);
+		void CreateMenuSymbols(wxMenuBar *pMenuBar);
 		void RecreateToolbar(wxAuiToolBar*);
 		void PopulateToolbar(wxAuiToolBar* toolBar);
 		void UpdateButtonStates();
 		void OpenPages();
 		void UpdateManager();
-		
+
 		// Menu bar
 		// -------------------
-		void OnCPUMode(wxCommandEvent& event); // CPU Mode menu	
+		void OnCPUMode(wxCommandEvent& event); // CPU Mode menu
 		void OnJITOff(wxCommandEvent& event);
 
-		void OnToggleWindow(wxCommandEvent& event);
-		void OnToggleCodeWindow(bool,int);
-		void OnToggleRegisterWindow(bool,int);
-		void OnToggleBreakPointWindow(bool,int);
-		void OnToggleMemoryWindow(bool,int);
-		void OnToggleJitWindow(bool,int);
-		void OnToggleDLLWindow(int,bool,int);
+		void ToggleCodeWindow(bool bShow);
+		void ToggleRegisterWindow(bool bShow);
+		void ToggleBreakPointWindow(bool bShow);
+		void ToggleMemoryWindow(bool bShow);
+		void ToggleJitWindow(bool bShow);
+		void ToggleDLLWindow(int Id, bool bShow);
+
 		void OnChangeFont(wxCommandEvent& event);
 
 		void OnCodeStep(wxCommandEvent& event);
@@ -111,7 +101,6 @@ class CCodeWindow
 		void OnProfilerMenu(wxCommandEvent& event);
 
 		// Sub dialogs
-		wxMenuBar* pMenuBar;
 		CRegisterWindow* m_RegisterWindow;
 		CBreakPointWindow* m_BreakpointWindow;
 		CMemoryWindow* m_MemoryWindow;
@@ -119,20 +108,13 @@ class CCodeWindow
 
 		// Settings
 		bool bAutomaticStart; bool bBootToPause;
-		bool bLogWindow; int iLogWindow;
-		bool bConsoleWindow; int iConsoleWindow;
-		bool bCodeWindow; int iCodeWindow; bool bFloatCodeWindow;
-		bool bRegisterWindow; int iRegisterWindow; bool bFloatRegisterWindow;
-		bool bBreakpointWindow; int iBreakpointWindow; bool bFloatBreakpointWindow;
-		bool bMemoryWindow; int iMemoryWindow; bool bFloatMemoryWindow;
-		bool bJitWindow; int iJitWindow; bool bFloatJitWindow;
-		bool bSoundWindow; int iSoundWindow; bool bFloatSoundWindow;
-		bool bVideoWindow; int iVideoWindow; bool bFloatVideoWindow;
+		bool bShowOnStart[IDM_VIDEOWINDOW - IDM_LOGWINDOW + 1];
+		int iNbAffiliation[IDM_CODEWINDOW - IDM_LOGWINDOW + 1];
 
 	private:
 
 		enum
-		{			
+		{
 			// Debugger GUI Objects
 			ID_CODEVIEW,
 			ID_CALLSTACKLIST,
@@ -147,19 +129,17 @@ class CCodeWindow
 		void OnCallersListChange(wxCommandEvent& event);
 		void OnCallsListChange(wxCommandEvent& event);
 		void OnCodeViewChange(wxCommandEvent &event);
-		void SingleCPUStep();		
+		void SingleCPUStep();
 		void OnHostMessage(wxCommandEvent& event);
 
 		void UpdateLists();
 		void UpdateCallstack();
-		void OnStatusBar(wxMenuEvent& event); void OnStatusBar_(wxUpdateUIEvent& event);
-		void DoTip(wxString text);
 		void OnKeyDown(wxKeyEvent& event);
 
 		void InitBitmaps();
-		void CreateGUIControls(const SCoreStartupParameter& _LocalCoreStartupParameter);	
+		void CreateGUIControls(const SCoreStartupParameter& _LocalCoreStartupParameter);
 
-		wxMenuItem* jitblocklinking, *jitunlimited, *jitoff;
+		wxMenuItem* jitblocklinking, *jitnoblockcache, *jitoff;
 		wxMenuItem* jitlsoff, *jitlslxzoff, *jitlslwzoff, *jitlslbzxoff;
 		wxMenuItem* jitlspoff;
 		wxMenuItem* jitlsfoff;
@@ -175,7 +155,7 @@ class CCodeWindow
 		wxListBox* calls;
 		Common::Event sync_event;
 
-		DECLARE_EVENT_TABLE()	
+		DECLARE_EVENT_TABLE()
 };
 
-#endif /*CODEWINDOW_*/
+#endif // CODEWINDOW_H_

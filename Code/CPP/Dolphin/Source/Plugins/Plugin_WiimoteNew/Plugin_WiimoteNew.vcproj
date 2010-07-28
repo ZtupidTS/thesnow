@@ -44,7 +44,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\..\PluginSpecs;..\..\..\Externals\SDL\Include_1.3;..\..\Core\Common\Src;..\InputPluginCommon\Src;..\..\Core\InputCommon\Src;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc"
+				AdditionalIncludeDirectories="..\..\PluginSpecs;..\..\..\Externals\SDL\Include_1.3;..\..\..\Externals\WiiUse\Src;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc;..\..\Core\Common\Src;..\..\Core\InputCommon\Src;..\..\Core\InputUICommon\Src"
 				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;Plugin_WiimoteNew_TEST_EXPORTS;_SECURE_SCL=0"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -67,10 +67,10 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="SDL.lib xinput.lib comctl32.lib rpcrt4.lib winmm.lib wxbase28ud.lib wxmsw28ud_core.lib openal32.lib"
+				AdditionalDependencies="SDL.lib xinput.lib comctl32.lib rpcrt4.lib winmm.lib wxbase28ud.lib wxmsw28ud_core.lib openal32.lib wiiuse.lib"
 				OutputFile="..\..\..\Binary\Win32/Plugins\Plugin_WiimoteNewD.dll"
 				LinkIncremental="1"
-				AdditionalLibraryDirectories="..\..\..\Externals\SDL\win32;..\..\..\Externals\wxWidgets\lib\vc_lib\Win32;../../../Externals/OpenAL/Win32/"
+				AdditionalLibraryDirectories="&quot;..\..\..\Externals\SDL\$(PlatformName)&quot;;&quot;..\..\..\Externals\wxWidgets\lib\vc_lib\$(PlatformName)&quot;;../../../Externals/OpenAL/Win32/;&quot;..\..\..\Externals\WiiUse\$(PlatformName)&quot;"
 				GenerateManifest="false"
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile="$(PlatformName)\$(ConfigurationName)\$(TargetName).pdb"
@@ -130,7 +130,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\..\PluginSpecs;..\..\..\Externals\SDL\Include_1.3;..\..\Core\Common\Src;..\InputPluginCommon\Src;..\..\Core\InputCommon\Src;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc"
+				AdditionalIncludeDirectories="..\..\PluginSpecs;..\..\..\Externals\SDL\Include_1.3;..\..\..\Externals\WiiUse\Src;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc;..\..\Core\Common\Src;..\..\Core\InputCommon\Src;..\..\Core\InputUICommon\Src"
 				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;Plugin_WiimoteNew_TEST_EXPORTS;_SECURE_SCL=0"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -151,10 +151,10 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="SDL.lib xinput.lib comctl32.lib rpcrt4.lib winmm.lib wxbase28ud.lib wxmsw28ud_core.lib openal32.lib"
+				AdditionalDependencies="SDL.lib xinput.lib comctl32.lib rpcrt4.lib winmm.lib wxbase28ud.lib wxmsw28ud_core.lib openal32.lib wiiuse.lib"
 				OutputFile="..\..\..\Binary\x64\Plugins\Plugin_WiimoteNewD.dll"
 				LinkIncremental="1"
-				AdditionalLibraryDirectories="..\..\..\Externals\SDL\x64;..\..\..\Externals\wxWidgets\lib\vc_lib\x64;../../../Externals/OpenAL/Win64/"
+				AdditionalLibraryDirectories="&quot;..\..\..\Externals\SDL\$(PlatformName)&quot;;&quot;..\..\..\Externals\wxWidgets\lib\vc_lib\$(PlatformName)&quot;;../../../Externals/OpenAL/Win64/;&quot;..\..\..\Externals\WiiUse\$(PlatformName)&quot;"
 				GenerateManifest="false"
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile="$(PlatformName)\$(ConfigurationName)\$(TargetName).pdb"
@@ -213,7 +213,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalIncludeDirectories="..\..\PluginSpecs;..\..\..\Externals\SDL\Include_1.3;..\..\Core\Common\Src;..\InputPluginCommon\Src;..\..\Core\InputCommon\Src;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc"
+				AdditionalIncludeDirectories="..\..\PluginSpecs;..\..\..\Externals\SDL\Include_1.3;..\..\..\Externals\WiiUse\Src;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc;..\..\Core\Common\Src;..\..\Core\InputCommon\Src;..\..\Core\InputUICommon\Src"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;Plugin_WiimoteNew_TEST_EXPORTS;_SECURE_SCL=0;_CRT_SECURE_NO_WARNINGS"
 				RuntimeLibrary="0"
 				AssemblerListingLocation="$(IntDir)\"
@@ -235,10 +235,10 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalOptions="/NODEFAULTLIB:msvcrt.lib"
-				AdditionalDependencies="SDL.lib xinput.lib comctl32.lib winmm.lib wxbase28u.lib wxmsw28u_core.lib openal32.lib"
+				AdditionalDependencies="SDL.lib xinput.lib comctl32.lib winmm.lib wxbase28u.lib wxmsw28u_core.lib openal32.lib wiiuse.lib"
 				OutputFile="..\..\..\Binary\Win32\Plugins\Plugin_WiimoteNew.dll"
 				LinkIncremental="1"
-				AdditionalLibraryDirectories="..\..\..\Externals\SDL\win32;..\..\..\Externals\wxWidgets\lib\vc_lib\Win32;../../../Externals/OpenAL/Win32/"
+				AdditionalLibraryDirectories="&quot;..\..\..\Externals\SDL\$(PlatformName)&quot;;&quot;..\..\..\Externals\wxWidgets\lib\vc_lib\$(PlatformName)&quot;;../../../Externals/OpenAL/Win32/;&quot;..\..\..\Externals\WiiUse\$(PlatformName)&quot;"
 				GenerateManifest="false"
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile="$(PlatformName)\$(ConfigurationName)\$(TargetName).pdb"
@@ -299,7 +299,8 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalIncludeDirectories="..\..\PluginSpecs;..\..\..\Externals\SDL\Include_1.3;..\..\Core\Common\Src;..\InputPluginCommon\Src;..\..\Core\InputCommon\Src;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc"
+				AdditionalOptions="/MP"
+				AdditionalIncludeDirectories="..\..\PluginSpecs;..\..\..\Externals\SDL\Include_1.3;..\..\..\Externals\WiiUse\Src;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc;..\..\Core\Common\Src;..\..\Core\InputCommon\Src;..\..\Core\InputUICommon\Src"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;Plugin_WiimoteNew_TEST_EXPORTS;_SECURE_SCL=0;_CRT_SECURE_NO_WARNINGS"
 				RuntimeLibrary="0"
 				AssemblerListingLocation="$(IntDir)\"
@@ -320,10 +321,10 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="SDL.lib xinput.lib comctl32.lib winmm.lib wxbase28u.lib wxmsw28u_core.lib openal32.lib"
+				AdditionalDependencies="SDL.lib xinput.lib comctl32.lib winmm.lib wxbase28u.lib wxmsw28u_core.lib openal32.lib wiiuse.lib"
 				OutputFile="..\..\..\Binary\x64\Plugins\Plugin_WiimoteNew.dll"
 				LinkIncremental="1"
-				AdditionalLibraryDirectories="..\..\..\Externals\SDL\x64;..\..\..\Externals\wxWidgets\lib\vc_lib\x64;../../../Externals/OpenAL/Win64/"
+				AdditionalLibraryDirectories="&quot;..\..\..\Externals\SDL\$(PlatformName)&quot;;&quot;..\..\..\Externals\wxWidgets\lib\vc_lib\$(PlatformName)&quot;;../../../Externals/OpenAL/Win64/;&quot;..\..\..\Externals\WiiUse\$(PlatformName)&quot;"
 				GenerateManifest="false"
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile="$(PlatformName)\$(ConfigurationName)\$(TargetName).pdb"
@@ -382,7 +383,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalIncludeDirectories="..\..\PluginSpecs;..\..\..\Externals\SDL\Include_1.3;..\..\Core\Common\Src;..\InputPluginCommon\Src;..\..\Core\InputCommon\Src;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc"
+				AdditionalIncludeDirectories="..\..\PluginSpecs;..\..\..\Externals\SDL\Include_1.3;..\..\..\Externals\WiiUse\Src;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc;..\..\Core\Common\Src;..\..\Core\InputCommon\Src;..\..\Core\InputUICommon\Src"
 				PreprocessorDefinitions="DEBUGFAST;WIN32;NDEBUG;_WINDOWS;_USRDLL;Plugin_WiimoteNew_TEST_EXPORTS;_SECURE_SCL=0;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE"
 				RuntimeLibrary="0"
 				WarningLevel="3"
@@ -402,10 +403,10 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalOptions="/NODEFAULTLIB:msvcrt.lib"
-				AdditionalDependencies="SDL.lib xinput.lib comctl32.lib winmm.lib wxbase28u.lib wxmsw28u_core.lib openal32.lib"
+				AdditionalDependencies="SDL.lib xinput.lib comctl32.lib winmm.lib wxbase28u.lib wxmsw28u_core.lib openal32.lib wiiuse.lib"
 				OutputFile="..\..\..\Binary\Win32\Plugins\Plugin_WiimoteNewDF.dll"
 				LinkIncremental="1"
-				AdditionalLibraryDirectories="..\..\..\Externals\SDL\win32;..\..\..\Externals\wxWidgets\lib\vc_lib\Win32;../../../Externals/OpenAL/Win32/"
+				AdditionalLibraryDirectories="&quot;..\..\..\Externals\SDL\$(PlatformName)&quot;;&quot;..\..\..\Externals\wxWidgets\lib\vc_lib\$(PlatformName)&quot;;../../../Externals/OpenAL/Win32/;&quot;..\..\..\Externals\WiiUse\$(PlatformName)&quot;"
 				GenerateManifest="false"
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile="$(PlatformName)\$(ConfigurationName)\$(TargetName).pdb"
@@ -465,7 +466,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalIncludeDirectories="..\..\PluginSpecs;..\..\..\Externals\SDL\Include_1.3;..\..\Core\Common\Src;..\InputPluginCommon\Src;..\..\Core\InputCommon\Src;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc"
+				AdditionalIncludeDirectories="..\..\PluginSpecs;..\..\..\Externals\SDL\Include_1.3;..\..\..\Externals\WiiUse\Src;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc;..\..\Core\Common\Src;..\..\Core\InputCommon\Src;..\..\Core\InputUICommon\Src"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;Plugin_WiimoteNew_TEST_EXPORTS;DEBUGFAST;_SECURE_SCL=0;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE"
 				RuntimeLibrary="0"
 				WarningLevel="3"
@@ -484,10 +485,10 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="SDL.lib xinput.lib comctl32.lib winmm.lib wxbase28u.lib wxmsw28u_core.lib openal32.lib"
+				AdditionalDependencies="SDL.lib xinput.lib comctl32.lib winmm.lib wxbase28u.lib wxmsw28u_core.lib openal32.lib wiiuse.lib"
 				OutputFile="..\..\..\Binary\x64\Plugins\Plugin_WiimoteNewDF.dll"
 				LinkIncremental="1"
-				AdditionalLibraryDirectories="..\..\..\Externals\SDL\x64;..\..\..\Externals\wxWidgets\lib\vc_lib\x64;../../../Externals/OpenAL/Win64/"
+				AdditionalLibraryDirectories="&quot;..\..\..\Externals\SDL\$(PlatformName)&quot;;&quot;..\..\..\Externals\wxWidgets\lib\vc_lib\$(PlatformName)&quot;;../../../Externals/OpenAL/Win64/;&quot;..\..\..\Externals\WiiUse\$(PlatformName)&quot;"
 				GenerateManifest="false"
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile="$(PlatformName)\$(ConfigurationName)\$(TargetName).pdb"
@@ -542,6 +543,10 @@
 			</File>
 			<File
 				RelativePath=".\Src\WiimoteEmu\Speaker.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\Src\WiimoteEmu\UDPTLayer.h"
 				>
 			</File>
 			<File
@@ -601,6 +606,26 @@
 				</File>
 			</Filter>
 		</Filter>
+		<Filter
+			Name="WiimoteReal"
+			>
+			<File
+				RelativePath=".\Src\WiimoteReal\WiimoteReal.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\Src\WiimoteReal\WiimoteReal.h"
+				>
+			</File>
+		</Filter>
+		<File
+			RelativePath=".\Src\WiimoteConfigDiag.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\Src\WiimoteConfigDiag.h"
+			>
+		</File>
 		<File
 			RelativePath=".\Src\WiimoteNew.cpp"
 			>

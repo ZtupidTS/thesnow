@@ -18,11 +18,10 @@
 #pragma once
 
 #include "D3DBase.h"
-#include "TextureDecoder.h"
 
 namespace D3D
 {
-	void ReplaceTexture2D(ID3D11Texture2D* pTexture, const u8* buffer, unsigned int width, unsigned int height, unsigned int pitch, DXGI_FORMAT fmt, PC_TexFormat pcfmt, unsigned int level, D3D11_USAGE usage);
+	void ReplaceRGBATexture2D(ID3D11Texture2D* pTexture, const u8* buffer, unsigned int width, unsigned int height, unsigned int pitch, unsigned int level, D3D11_USAGE usage);
 }
 
 class D3DTexture2D
@@ -33,7 +32,7 @@ public:
 	//     or let the texture automatically be created by D3DTexture2D::Create
 
 	D3DTexture2D(ID3D11Texture2D* texptr, D3D11_BIND_FLAG bind, DXGI_FORMAT srv_format = DXGI_FORMAT_UNKNOWN, DXGI_FORMAT dsv_format = DXGI_FORMAT_UNKNOWN, DXGI_FORMAT rtv_format = DXGI_FORMAT_UNKNOWN);
-	static D3DTexture2D* Create(unsigned int width, unsigned int height, D3D11_BIND_FLAG bind, D3D11_USAGE usage, DXGI_FORMAT fmt = DXGI_FORMAT_B8G8R8A8_UNORM, unsigned int levels = 1);
+	static D3DTexture2D* Create(unsigned int width, unsigned int height, D3D11_BIND_FLAG bind, D3D11_USAGE usage, DXGI_FORMAT, unsigned int levels = 1);
 
 	// reference counting, use AddRef() when creating a new reference and Release() it when you don't need it anymore
 	void AddRef();

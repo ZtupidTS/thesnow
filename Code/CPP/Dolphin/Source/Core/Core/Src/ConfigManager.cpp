@@ -18,6 +18,7 @@
 #include <string>
 
 #include "Common.h"
+#include "CommonPaths.h"
 #include "IniFile.h"
 #include "ConfigManager.h"
 #include "PluginManager.h"
@@ -68,7 +69,7 @@ SConfig::~SConfig()
 
 void SConfig::SaveSettings()
 {
-	NOTICE_LOG(BOOT, "Saving Settings to %s", File::GetUserPath(F_DOLPHINCONFIG_IDX));
+	NOTICE_LOG(BOOT, "Saving settings to %s", File::GetUserPath(F_DOLPHINCONFIG_IDX));
 	IniFile ini;
 	ini.Load(File::GetUserPath(F_DOLPHINCONFIG_IDX)); // load first to not kill unknown stuff
 
@@ -136,6 +137,7 @@ void SConfig::SaveSettings()
 
 	// Core
 	ini.Set("Core", "HLE_BS2",			m_LocalCoreStartupParameter.bHLE_BS2);
+	ini.Set("Core", "EnableOpenCL",		m_LocalCoreStartupParameter.bEnableOpenCL);
 	ini.Set("Core", "CPUCore",			m_LocalCoreStartupParameter.iCPUCore);
 	ini.Set("Core", "CPUThread",		m_LocalCoreStartupParameter.bCPUThread);
 	ini.Set("Core", "DSPThread",		m_LocalCoreStartupParameter.bDSPThread);
@@ -260,6 +262,7 @@ void SConfig::LoadSettings()
 
 		// Core
 		ini.Get("Core", "HLE_BS2",		&m_LocalCoreStartupParameter.bHLE_BS2,		true);
+		ini.Get("Core", "EnableOpenCL",	&m_LocalCoreStartupParameter.bEnableOpenCL,	false);
 		ini.Get("Core", "CPUCore",		&m_LocalCoreStartupParameter.iCPUCore,		1);
 		ini.Get("Core", "DSPThread",	&m_LocalCoreStartupParameter.bDSPThread,	false);
 		ini.Get("Core", "CPUThread",	&m_LocalCoreStartupParameter.bCPUThread,	true);
@@ -310,4 +313,7 @@ void SConfig::LoadSettingsWii()
 		sprintf(SectionName, "Wiimote%i", i + 1);
 		ini.Get(SectionName, "AutoReconnectRealWiimote", &m_WiiAutoReconnect[i], false);
 	}
+		ini.Load((std::string(File::GetUserPath(D_CONFIG_IDX)) + "wiimote.ini").c_str());
+		ini.Get("Real", "Unpair", &m_WiiAutoUnpair, false);
+		
 }

@@ -62,7 +62,7 @@ ControllerEmu::ControlGroup::Control::~Control()
 	delete control_ref;
 }
 
-void ControllerEmu::UpdateReferences( ControllerInterface& devi )
+void ControllerEmu::UpdateReferences(ControllerInterface& devi)
 {
 	std::vector<ControlGroup*>::const_iterator
 		i = groups.begin(),
@@ -73,7 +73,7 @@ void ControllerEmu::UpdateReferences( ControllerInterface& devi )
 			ci = (*i)->controls.begin(),
 			ce = (*i)->controls.end();
 		for ( ; ci!=ce; ++ci )
-			devi.UpdateReference( (*ci)->control_ref );
+			devi.UpdateReference((*ci)->control_ref, default_device);
 
 		// extension
 		if ( GROUP_TYPE_EXTENSION == (*i)->type )
@@ -82,7 +82,7 @@ void ControllerEmu::UpdateReferences( ControllerInterface& devi )
 				ai = ((Extension*)*i)->attachments.begin(),
 				ae = ((Extension*)*i)->attachments.end();
 			for ( ; ai!=ae; ++ai )
-				(*ai)->UpdateReferences( devi );
+				(*ai)->UpdateReferences(devi);
 		}
 	}
 }
@@ -94,11 +94,11 @@ void ControllerEmu::UpdateDefaultDevice()
 		e = groups.end();
 	for ( ; i!=e; ++i )
 	{
-		std::vector<ControlGroup::Control*>::const_iterator
-			ci = (*i)->controls.begin(),
-			ce = (*i)->controls.end();
-		for ( ; ci!=ce; ++ci )
-			(*ci)->control_ref->device_qualifier = default_device;
+		//std::vector<ControlGroup::Control*>::const_iterator
+			//ci = (*i)->controls.begin(),
+			//ce = (*i)->controls.end();
+		//for ( ; ci!=ce; ++ci )
+			//(*ci)->control_ref->device_qualifier = default_device;
 
 		// extension
 		if ( GROUP_TYPE_EXTENSION == (*i)->type )
@@ -135,19 +135,13 @@ void ControllerEmu::ControlGroup::LoadConfig(IniFile::Section *sec, const std::s
 		ce = controls.end();
 	for ( ; ci!=ce; ++ci )
 	{
-		// control and dev qualifier
-		sec->Get((group + (*ci)->name).c_str(), &(*ci)->control_ref->control_qualifier.name, "");
-		std::string dev;
-		sec->Get((group+(*ci)->name+"/Device").c_str(), &dev, defdev.c_str());
-		(*ci)->control_ref->device_qualifier.FromString(dev);
+		// control expression
+		sec->Get((group + (*ci)->name).c_str(), &(*ci)->control_ref->expression, "");
 
 		// range
 		sec->Get( (group+(*ci)->name+"/Range").c_str(), &(*ci)->control_ref->range, 100.0f);
 		(*ci)->control_ref->range /= 100;
 
-		// input mode
-		if ( (*ci)->control_ref->is_input )
-			sec->Get( (group+(*ci)->name+"/Mode").c_str(), &((ControllerInterface::InputReference*)((*ci)->control_ref))->mode, 0 );
 	}
 
 	// extensions
@@ -205,22 +199,11 @@ void ControllerEmu::ControlGroup::SaveConfig( IniFile::Section *sec, const std::
 		ce = controls.end();
 	for ( ; ci!=ce; ++ci )
 	{
-		// control and dev qualifier
-		sec->Set( (group+(*ci)->name).c_str(), (*ci)->control_ref->control_qualifier.name, "");
-		sec->Set( (group+(*ci)->name+"/Device").c_str(), (*ci)->control_ref->device_qualifier.ToString(), defdev);
+		// control expression
+		sec->Set( (group+(*ci)->name).c_str(), (*ci)->control_ref->expression, "");
 
 		// range
 		sec->Set( (group+(*ci)->name+"/Range").c_str(), (*ci)->control_ref->range*100.0f, 100.0f);
-
-		// input mode
-		if ( (*ci)->control_ref->is_input )
-		{
-			const int mode = ((ControllerInterface::InputReference*)((*ci)->control_ref))->mode;
-			if (mode)
-				sec->Set((group+(*ci)->name+"/Mode").c_str(), mode);
-			else
-				sec->Delete((group+(*ci)->name+"/Mode").c_str());
-		}
 	}
 
 	// extensions
@@ -278,13 +261,15 @@ ControllerEmu::Triggers::Triggers( const char* const _name ) : ControlGroup( _na
 
 ControllerEmu::Force::Force( const char* const _name ) : ControlGroup( _name, GROUP_TYPE_FORCE )
 {
+	memset(m_swing, 0, sizeof(m_swing));
+
 	controls.push_back( new Input( "Up" ) );
 	controls.push_back( new Input( "Down" ) );
 	controls.push_back( new Input( "Left" ) );
 	controls.push_back( new Input( "Right" ) );
 	controls.push_back( new Input( "Forward" ) );
 	controls.push_back( new Input( "Backward" ) );
-	controls.push_back( new Input( "Modifier" ) );
+	//controls.push_back( new Input( "Modifier" ) );
 
 	settings.push_back( new Setting("Dead Zone", 0, 0, 50 ) );
 }
@@ -294,8 +279,6 @@ ControllerEmu::Tilt::Tilt( const char* const _name )
 {
 	memset(m_tilt, 0, sizeof(m_tilt));
 
-	//for ( unsigned int i = 0; i < 4; ++i )
-		//controls.push_back( new Input( named_directions[i] ) );
 	controls.push_back( new Input( "Forward" ) );
 	controls.push_back( new Input( "Backward" ) );
 	controls.push_back( new Input( "Left" ) );
@@ -324,52 +307,15 @@ ControllerEmu::Cursor::Cursor( const char* const _name, const SWiimoteInitialize
 
 }
 
-void GetMousePos(float& x, float& y, const SWiimoteInitialize* const wiimote_initialize)
+void ControllerEmu::LoadDefaults(const ControllerInterface &ciface)
 {
-#if ( defined(_WIN32) || (defined(HAVE_X11) && HAVE_X11))
-	unsigned int win_width = 2, win_height = 2;
-#endif
+	// load an empty inifile section, clears everything
+	IniFile::Section sec;
+	LoadConfig(&sec);
 
-#ifdef _WIN32
-	// Get the cursor position for the entire screen
-	POINT point = { 1, 1 };
-	GetCursorPos(&point);
-	// Get the cursor position relative to the upper left corner of the rendering window
-	ScreenToClient(wiimote_initialize->hWnd, &point);
-
-	// Get the size of the rendering window. (In my case Rect.top and Rect.left was zero.)
-	RECT Rect;
-	GetClientRect(wiimote_initialize->hWnd, &Rect);
-	// Width and height is the size of the rendering window
-	win_width = Rect.right - Rect.left;
-	win_height = Rect.bottom - Rect.top;
-
-#elif defined(HAVE_X11) && HAVE_X11
-	int root_x, root_y;
-	struct
+	if (ciface.Devices().size())
 	{
-		int x, y;
-	} point = { 1, 1 };
-
-	Display* const wm_display = (Display*)wiimote_initialize->hWnd;
-	Window glwin = *(Window *)wiimote_initialize->pXWindow;
-
-	XWindowAttributes win_attribs;
-	XGetWindowAttributes (wm_display, glwin, &win_attribs);
-	win_width = win_attribs.width;
-	win_height = win_attribs.height;
-	Window root_dummy, child_win;
-	unsigned int mask;
-	XQueryPointer(wm_display, glwin, &root_dummy, &child_win, &root_x, &root_y, &point.x, &point.y, &mask);
-#endif
-
-#if ( defined(_WIN32) || (defined(HAVE_X11) && HAVE_X11))
-	// Return the mouse position as a range from -1 to 1
-	x = (float)point.x / (float)win_width * 2 - 1;
-	y = (float)point.y / (float)win_height * 2 - 1;
-#else
-	x = 0;
-	y = 0;
-#endif
-
+		default_device.FromDevice(ciface.Devices()[0]);
+		UpdateDefaultDevice();
+	}
 }

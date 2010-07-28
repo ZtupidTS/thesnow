@@ -202,6 +202,7 @@ void Flush()
 	if (LocalVBuffer == s_pCurBufferPointer) return;
 	if(Flushed) return;
 	Flushed=true;
+	VideoFifo_CheckEFBAccess();
 #if defined(_DEBUG) || defined(DEBUGFAST) 
 	PRIM_LOG("frame%d:\n texgen=%d, numchan=%d, dualtex=%d, ztex=%d, cole=%d, alpe=%d, ze=%d", g_ActiveConfig.iSaveTargetId, xfregs.numTexGens,
 		xfregs.nNumChans, (int)xfregs.bEnableDualTexTransform, bpmem.ztex2.op,
@@ -359,7 +360,12 @@ void Flush()
 	{
 		char str[128];
 		sprintf(str, "%starg%.3d.tga", File::GetUserPath(D_DUMPFRAMES_IDX), g_ActiveConfig.iSaveTargetId);
-		Renderer::SaveRenderTarget(str, Renderer::GetTargetWidth(), Renderer::GetTargetHeight());
+		TargetRectangle tr;
+		tr.left = 0;
+		tr.right = Renderer::GetTargetWidth();
+		tr.top = 0;
+		tr.bottom = Renderer::GetTargetHeight();
+		Renderer::SaveRenderTarget(str, tr);
 	}
 #endif
 	g_Config.iSaveTargetId++;

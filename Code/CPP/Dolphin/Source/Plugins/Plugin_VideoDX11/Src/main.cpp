@@ -27,31 +27,32 @@
 #include "Thread.h"
 #include "LogManager.h"
 
-#include "svnrev.h"
-#include "resource.h"
-#include "main.h"
 #include "VideoConfig.h"
 #include "Fifo.h"
 #include "OpcodeDecoding.h"
-#include "TextureCache.h"
 #include "BPStructs.h"
-#include "VertexManager.h"
 #include "VertexLoaderManager.h"
 #include "VertexShaderManager.h"
 #include "PixelShaderManager.h"
-#include "VertexShaderCache.h"
-#include "PixelShaderCache.h"
 #include "CommandProcessor.h"
 #include "PixelEngine.h"
 #include "OnScreenDisplay.h"
+#include "VideoState.h"
+#include "XFBConvert.h"
+#include "Render.h"
+
+#include "main.h"
+#include "resource.h"
 #include "DlgSettings.h"
+#include "TextureCache.h"
+#include "VertexManager.h"
+#include "VertexShaderCache.h"
+#include "PixelShaderCache.h"
 #include "D3DTexture.h"
 #include "D3DUtil.h"
 #include "W32Util/Misc.h"
 #include "EmuWindow.h"
-#include "VideoState.h"
-#include "XFBConvert.h"
-#include "render.h"
+#include "FBManager.h"
 
 
 #if defined(DEBUGFAST)
@@ -71,7 +72,6 @@ static bool s_PluginInitialized = false;
 volatile u32 s_swapRequested = FALSE;
 static u32 s_efbAccessRequested = FALSE;
 static volatile u32 s_FifoShuttingDown = FALSE;
-static bool ForceSwap = true;
 
 static volatile struct
 {
@@ -93,38 +93,23 @@ bool IsD3D()
 	return true;
 }
 
-bool IsD3D9()
-{
-	return false;
-}
-
-bool IsD3D11()
-{
-	return true;
-}
-
 // This is used for the functions right below here which use wxwidgets
 #if defined(HAVE_WX) && HAVE_WX
-#ifdef _WIN32
-	WXDLLIMPEXP_BASE void wxSetInstance(HINSTANCE hInst);
-#endif
+WXDLLIMPEXP_BASE void wxSetInstance(HINSTANCE hInst);
 
 wxWindow* GetParentedWxWindow(HWND Parent)
 {
-#ifdef _WIN32
 	wxSetInstance((HINSTANCE)g_hInstance);
-#endif
 	wxWindow* win = new wxWindow();
-#ifdef _WIN32
 	win->SetHWND((WXHWND)Parent);
 	win->AdoptAttributesFromHWND();
-#endif
 	return win;
 }
 #endif
 
-void DllDebugger(HWND _hParent, bool Show)
+void *DllDebugger(void *_hParent, bool Show)
 {
+	return NULL;
 }
 
 #if defined(HAVE_WX) && HAVE_WX
@@ -135,7 +120,7 @@ void DllDebugger(HWND _hParent, bool Show)
 			return true;
 		}
 	};
-	IMPLEMENT_APP_NO_MAIN(wxDLLApp) 
+	IMPLEMENT_APP_NO_MAIN(wxDLLApp)
 	WXDLLIMPEXP_BASE void wxSetInstance(HINSTANCE hInst);
 #endif
 
@@ -179,11 +164,11 @@ unsigned int Callback_PeekMessages()
 void UpdateFPSDisplay(const char* text)
 {
 	char temp[512];
-	sprintf_s(temp, 512, "SVN R%i: DX11: %s", SVN_REV, text);
-    SetWindowTextA(EmuWindow::GetWnd(), temp);
+	sprintf_s(temp, 512, "SVN R%s: DX11: %s", svn_rev_str, text);
+	SetWindowTextA(EmuWindow::GetWnd(), temp);
 }
 
-void GetDllInfo (PLUGIN_INFO* _PluginInfo)
+void GetDllInfo(PLUGIN_INFO* _PluginInfo)
 {
 	_PluginInfo->Version = 0x0100;
 	_PluginInfo->Type = PLUGIN_TYPE_VIDEO;
@@ -227,9 +212,9 @@ void Initialize(void* init)
 	g_VideoInitialize.pPeekMessages = &Callback_PeekMessages;
 	g_VideoInitialize.pUpdateFPSDisplay = &UpdateFPSDisplay;
 
-    _pVideoInitialize->pPeekMessages = g_VideoInitialize.pPeekMessages;
-    _pVideoInitialize->pUpdateFPSDisplay = g_VideoInitialize.pUpdateFPSDisplay;
-    _pVideoInitialize->pWindowHandle = g_VideoInitialize.pWindowHandle;
+	_pVideoInitialize->pPeekMessages = g_VideoInitialize.pPeekMessages;
+	_pVideoInitialize->pUpdateFPSDisplay = g_VideoInitialize.pUpdateFPSDisplay;
+	_pVideoInitialize->pWindowHandle = g_VideoInitialize.pWindowHandle;
 
 	OSD::AddMessage("Dolphin Direct3D 11 Video Plugin.", 5000);
 	s_PluginInitialized = true;
@@ -240,21 +225,24 @@ void Video_Prepare()
 	s_efbAccessRequested = FALSE;
 	s_FifoShuttingDown = FALSE;
 	s_swapRequested = FALSE;
-	ForceSwap = true;
+
+	// internal interfaces
 	Renderer::Init();
 	TextureCache::Init();
-	BPInit();
 	VertexManager::Init();
+	VertexShaderCache::Init();
+	PixelShaderCache::Init();
+	D3D::InitUtils();
+
+	// VideoCommon
+	BPInit();
 	Fifo_Init();
 	VertexLoaderManager::Init();
 	OpcodeDecoder_Init();
-	VertexShaderCache::Init();
 	VertexShaderManager::Init();
-	PixelShaderCache::Init();
 	PixelShaderManager::Init();
-    CommandProcessor::Init();
-    PixelEngine::Init();
-	D3D::InitUtils();
+	CommandProcessor::Init();
+	PixelEngine::Init();
 
 	// tell the host that the window is ready
 	g_VideoInitialize.pCoreMessage(WM_USER_CREATE);
@@ -265,19 +253,24 @@ void Shutdown()
 	s_efbAccessRequested = FALSE;
 	s_FifoShuttingDown = FALSE;
 	s_swapRequested = FALSE;
-	D3D::ShutdownUtils();
+
+	// VideoCommon
 	CommandProcessor::Shutdown();
 	PixelShaderManager::Shutdown();
-	PixelShaderCache::Shutdown();
 	VertexShaderManager::Shutdown();
-	VertexShaderCache::Shutdown();
 	OpcodeDecoder_Shutdown();
 	VertexLoaderManager::Shutdown();
 	Fifo_Shutdown();
+
+	// internal interfaces
+	D3D::ShutdownUtils();
+	PixelShaderCache::Shutdown();
+	VertexShaderCache::Shutdown();
 	VertexManager::Shutdown();
 	TextureCache::Shutdown();
 	Renderer::Shutdown();
 	EmuWindow::Close();
+
 	s_PluginInitialized = false;
 }
 
@@ -313,38 +306,36 @@ void Video_SetRendering(bool bEnabled)
 	Fifo_SetRendering(bEnabled);
 }
 
-// run from the graphics thread
+// Run from the graphics thread (from Fifo.cpp)
 void VideoFifo_CheckSwapRequest()
 {
-	if (Common::AtomicLoadAcquire(s_swapRequested))
+	if(g_ActiveConfig.bUseXFB)
 	{
-		if (ForceSwap || g_ActiveConfig.bUseXFB)
+		if (Common::AtomicLoadAcquire(s_swapRequested))
 		{
-			Renderer::Swap(s_beginFieldArgs.xfbAddr, s_beginFieldArgs.field, s_beginFieldArgs.fbWidth, s_beginFieldArgs.fbHeight);
+			EFBRectangle rc;
+			Renderer::Swap(s_beginFieldArgs.xfbAddr, s_beginFieldArgs.field, s_beginFieldArgs.fbWidth, s_beginFieldArgs.fbHeight,rc);
+			Common::AtomicStoreRelease(s_swapRequested, FALSE);
 		}
-		Common::AtomicStoreRelease(s_swapRequested, FALSE);
 	}
 }
 
-inline bool addrRangesOverlap(u32 aLower, u32 aUpper, u32 bLower, u32 bUpper)
-{
-	return !((aLower >= bUpper) || (bLower >= aUpper));
-}
-
-// Run from the graphics thread
+// Run from the graphics thread (from Fifo.cpp)
 void VideoFifo_CheckSwapRequestAt(u32 xfbAddr, u32 fbWidth, u32 fbHeight)
 {
-	if (Common::AtomicLoadAcquire(s_swapRequested) && g_ActiveConfig.bUseXFB)
+	if (g_ActiveConfig.bUseXFB)
 	{
-		u32 aLower = xfbAddr;
-		u32 aUpper = xfbAddr + 2 * fbWidth * fbHeight;
-		u32 bLower = s_beginFieldArgs.xfbAddr;
-		u32 bUpper = s_beginFieldArgs.xfbAddr + 2 * s_beginFieldArgs.fbWidth * s_beginFieldArgs.fbHeight;
+		if(Common::AtomicLoadAcquire(s_swapRequested))
+		{
+			u32 aLower = xfbAddr;
+			u32 aUpper = xfbAddr + 2 * fbWidth * fbHeight;
+			u32 bLower = s_beginFieldArgs.xfbAddr;
+			u32 bUpper = s_beginFieldArgs.xfbAddr + 2 * s_beginFieldArgs.fbWidth * s_beginFieldArgs.fbHeight;
 
-		if (addrRangesOverlap(aLower, aUpper, bLower, bUpper))
-			VideoFifo_CheckSwapRequest();
+			if (addrRangesOverlap(aLower, aUpper, bLower, bUpper))
+				VideoFifo_CheckSwapRequest();
+		}
 	}
-	ForceSwap = false;
 }
 
 // Run from the CPU thread (from VideoInterface.cpp)
@@ -352,12 +343,6 @@ void Video_BeginField(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight)
 {
 	if (s_PluginInitialized && g_ActiveConfig.bUseXFB)
 	{
-		s_beginFieldArgs.xfbAddr = xfbAddr;
-		s_beginFieldArgs.field = field;
-		s_beginFieldArgs.fbWidth = fbWidth;
-		s_beginFieldArgs.fbHeight = fbHeight;
-
-		Common::AtomicStoreRelease(s_swapRequested, TRUE);
 		if (g_VideoInitialize.bOnThread)
 		{
 			while (Common::AtomicLoadAcquire(s_swapRequested) && !s_FifoShuttingDown)
@@ -366,6 +351,12 @@ void Video_BeginField(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight)
 		}
 		else
 			VideoFifo_CheckSwapRequest();
+		s_beginFieldArgs.xfbAddr = xfbAddr;
+		s_beginFieldArgs.field = field;
+		s_beginFieldArgs.fbWidth = fbWidth;
+		s_beginFieldArgs.fbHeight = fbHeight;
+
+		Common::AtomicStoreRelease(s_swapRequested, TRUE);
 	}
 }
 
@@ -376,11 +367,6 @@ void Video_EndField()
 void Video_AddMessage(const char* pstr, u32 milliseconds)
 {
 	OSD::AddMessage(pstr, milliseconds);
-}
-
-HRESULT ScreenShot(const char* filename)
-{
-	return S_OK;
 }
 
 void Video_Screenshot(const char* _szFilename)
@@ -435,35 +421,40 @@ u32 Video_AccessEFB(EFBAccessType type, u32 x, u32 y, u32 InputData)
 
 void Video_CommandProcessorRead16(u16& _rReturnValue, const u32 _Address)
 {
-    CommandProcessor::Read16(_rReturnValue, _Address);
+	CommandProcessor::Read16(_rReturnValue, _Address);
 }
 
 void Video_CommandProcessorWrite16(const u16 _Data, const u32 _Address)
 {
-    CommandProcessor::Write16(_Data, _Address);
+	CommandProcessor::Write16(_Data, _Address);
 }
 
 void Video_PixelEngineRead16(u16& _rReturnValue, const u32 _Address)
 {
-    PixelEngine::Read16(_rReturnValue, _Address);
+	PixelEngine::Read16(_rReturnValue, _Address);
 }
 
 void Video_PixelEngineWrite16(const u16 _Data, const u32 _Address)
 {
-    PixelEngine::Write16(_Data, _Address);
+	PixelEngine::Write16(_Data, _Address);
 }
 
 void Video_PixelEngineWrite32(const u32 _Data, const u32 _Address)
 {
-    PixelEngine::Write32(_Data, _Address);
+	PixelEngine::Write32(_Data, _Address);
 }
 
 inline void Video_GatherPipeBursted(void)
 {
-    CommandProcessor::GatherPipeBursted();
+	CommandProcessor::GatherPipeBursted();
 }
 
 void Video_WaitForFrameFinish(void)
 {
-    CommandProcessor::WaitForFrameFinish();
+	CommandProcessor::WaitForFrameFinish();
+}
+
+bool Video_IsFifoBusy(void)
+{
+	return CommandProcessor::isFifoBusy;
 }

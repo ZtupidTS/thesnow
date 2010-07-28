@@ -25,6 +25,7 @@
 
 #include "Common.h"
 #include "Gekko.h"
+#include "PPCTables.h"
 
 class PPCSymbolDB;
 struct Symbol;
@@ -35,6 +36,7 @@ namespace PPCAnalyst
 struct CodeOp //16B
 {
 	UGeckoInstruction inst;
+	GekkoOPInfo * opinfo;
 	u32 address;
 	u32 branchTo; //if 0, not a branch
 	int branchToIndex; //index of target block
@@ -75,6 +77,20 @@ struct BlockRegStats
 	int GetUseRange(int reg) {
 		return max(lastRead[reg], lastWrite[reg]) - 
 			   min(firstRead[reg], firstWrite[reg]);}
+
+	inline void SetInputRegister(int reg, short opindex) {
+		if (firstRead[reg] == -1)
+			firstRead[reg] = (short)(opindex);
+		lastRead[reg] = (short)(opindex);
+		numReads[reg]++;
+	}
+
+	inline void SetOutputRegister(int reg, short opindex) {
+		if (firstWrite[reg] == -1)
+			firstWrite[reg] = (short)(opindex);
+		lastWrite[reg] = (short)(opindex);
+		numWrites[reg]++;
+	}
 };
 
 

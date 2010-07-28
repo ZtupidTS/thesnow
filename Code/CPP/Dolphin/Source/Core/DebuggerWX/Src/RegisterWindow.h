@@ -27,13 +27,10 @@ class CRegisterWindow
 public:
 	CRegisterWindow(wxWindow* parent,
 			wxWindowID id = wxID_ANY,
-			const wxString& name = wxT("Registers"),
 			const wxPoint& pos = wxDefaultPosition,
 			const wxSize& size = wxDefaultSize,
-			long style = wxTAB_TRAVERSAL | wxNO_BORDER			
-			);
-
-	virtual ~CRegisterWindow();
+			long style = wxTAB_TRAVERSAL | wxNO_BORDER,
+			const wxString& name = wxT("Registers"));
 
 	void NotifyUpdate();
 
@@ -47,7 +44,6 @@ private:
 	};
 
 	CRegisterView* m_GPRGridView;
-	void OnClose(wxCloseEvent& event);
 	void CreateGUIControls();
 };
 

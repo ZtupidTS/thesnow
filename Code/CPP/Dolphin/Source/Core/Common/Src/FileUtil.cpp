@@ -16,6 +16,7 @@
 // http://code.google.com/p/dolphin-emu/
 
 #include "Common.h"
+#include "CommonPaths.h"
 #include "FileUtil.h"
 #include "StringUtil.h"
 
@@ -27,6 +28,7 @@
 #include <io.h>
 #include <direct.h>		// getcwd
 #else
+#include <sys/param.h>
 #include <sys/types.h>
 #include <dirent.h>
 #include <errno.h>
@@ -37,7 +39,6 @@
 #include <CoreFoundation/CFString.h>
 #include <CoreFoundation/CFURL.h>
 #include <CoreFoundation/CFBundle.h>
-#include <sys/param.h>
 #endif
 
 #include <fstream>
@@ -45,6 +46,10 @@
 
 #ifndef S_ISDIR
 #define S_ISDIR(m)  (((m)&S_IFMT) == S_IFDIR)
+#endif
+
+#ifdef BSD4_4
+#define stat64 stat	// XXX
 #endif
 
 // This namespace has various generic functions related to files and paths.
@@ -647,13 +652,11 @@ const char *GetUserPath(int DirIDX)
 #ifdef _WIN32
 		// Keep the directory setup the way it was on windows
 		snprintf(UserDir, sizeof(UserDir), ROOT_DIR DIR_SEP USERDATA_DIR DIR_SEP);
-#elif defined (__linux__)
+#else
 		if (File::Exists(ROOT_DIR DIR_SEP USERDATA_DIR))
 			snprintf(UserDir, sizeof(UserDir), ROOT_DIR DIR_SEP USERDATA_DIR DIR_SEP);
 		else
 			snprintf(UserDir, sizeof(UserDir), "%s" DIR_SEP DOLPHIN_DATA_DIR DIR_SEP, getenv("HOME"));
-#else
-		snprintf(UserDir, sizeof(UserDir), "%s" DIR_SEP DOLPHIN_DATA_DIR DIR_SEP, getenv("HOME"));
 #endif
 		INFO_LOG(COMMON, "GetUserPath: Setting user directory to %s:", UserDir);
 

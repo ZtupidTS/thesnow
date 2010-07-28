@@ -20,7 +20,6 @@
 #include "main.h"
 #include "ConfigBasicDlg.h"
 #include "ConfigPadDlg.h"
-#include "ConfigRecordingDlg.h"
 #include "Config.h"
 #include "EmuMain.h" // for SetDefaultExtensionRegistry
 #include "EmuSubroutines.h" // for WmRequestStatus
@@ -77,8 +76,10 @@ WiimoteBasicConfigDialog::WiimoteBasicConfigDialog(wxWindow *parent, wxWindowID 
 	ControlsCreated = false;
 	m_Page = 0;
 
+#if defined HAVE_WIIUSE && HAVE_WIIUSE
 	// Initialize the Real WiiMotes here, so we get a count of how many were found and set everything properly
 	WiiMoteReal::Initialize();
+#endif
 
 	CreateGUIControls();
 	UpdateGUI();
@@ -94,7 +95,9 @@ void WiimoteBasicConfigDialog::ButtonClick(wxCommandEvent& event)
 	switch(event.GetId())
 	{
 	case wxID_OK:
+#if defined HAVE_WIIUSE && HAVE_WIIUSE
 		WiiMoteReal::Allocate();
+#endif
 		g_Config.Save();
 		Close();
 		break;
@@ -111,12 +114,6 @@ void WiimoteBasicConfigDialog::ButtonClick(wxCommandEvent& event)
 		m_Page = g_Config.CurrentPage;
 		m_Notebook->ChangeSelection(g_Config.CurrentPage);
 		UpdateGUI();
-		break;
-	case ID_BUTTONRECORDING:
-		m_RecordingConfigFrame = new WiimoteRecordingConfigDialog(this);
-		m_RecordingConfigFrame->ShowModal();
-		m_RecordingConfigFrame->Destroy();
-		m_RecordingConfigFrame = NULL;
 		break;
 #ifdef _WIN32
 	case IDB_PAIRUP_REAL:
@@ -198,7 +195,7 @@ void WiimoteBasicConfigDialog::CreateGUIControls()
 
 		m_TextWiimoteTimeout[i] = new wxStaticText(m_Controller[i], wxID_ANY, wxT("Timeout: 000 ms"));
 		m_WiimoteTimeout[i] = new wxSlider(m_Controller[i], IDS_TIMEOUT, 0, 10, 200, wxDefaultPosition, wxSize(75, -1));
-		m_WiimoteTimeout[i]->SetToolTip(wxT("General Real Wiimote Read Timeout, Default: 10 (ms). Higher values might eliminate frequent disconnects."));
+		m_WiimoteTimeout[i]->SetToolTip(wxT("General Real Wiimote Read Timeout, Default: 30 (ms). Higher values eliminate frequent disconnects and packet loss."));
 
 #ifdef _WIN32
 		//Real Wiimote / automatic settings
@@ -327,7 +324,6 @@ void WiimoteBasicConfigDialog::CreateGUIControls()
 	}
 
 	m_ButtonMapping = new wxButton(this, ID_BUTTONMAPPING, wxT("Button Mapping"));
-	m_Recording		= new wxButton(this, ID_BUTTONRECORDING, wxT("Recording"));
 
 	m_OK = new wxButton(this, wxID_OK, wxT("OK"));
 	m_OK->SetToolTip(wxT("Save changes and close"));
@@ -336,7 +332,6 @@ void WiimoteBasicConfigDialog::CreateGUIControls()
 
 	wxBoxSizer* sButtons = new wxBoxSizer(wxHORIZONTAL);
 	sButtons->Add(m_ButtonMapping, 0, (wxALL), 0);
-	sButtons->Add(m_Recording, 0, (wxALL), 0);
 	sButtons->AddStretchSpacer();
 	sButtons->Add(m_OK, 0, (wxALL), 0);
 	sButtons->Add(m_Cancel, 0, (wxLEFT), 5);	
@@ -549,7 +544,7 @@ void WiimoteBasicConfigDialog::IRCursorChanged(wxScrollEvent& event)
 	case IDS_TIMEOUT:
 		g_Config.bWiiReadTimeout = m_WiimoteTimeout[m_Page]->GetValue();
 		if (g_RealWiiMotePresent) {
-			wiiuse_set_timeout(WiiMoteReal::g_WiiMotesFromWiiUse, WiiMoteReal::g_NumberOfWiiMotes, g_Config.bWiiReadTimeout, g_Config.bWiiReadTimeout);
+			wiiuse_set_timeout(WiiMoteReal::g_WiiMotesFromWiiUse, WiiMoteReal::g_NumberOfWiiMotes, g_Config.bWiiReadTimeout);
 		}
 		break;
 	}

@@ -27,11 +27,9 @@
 #include "main.h"
 #if defined(HAVE_WX) && HAVE_WX
 	#include "ConfigPadDlg.h"
-	#include "ConfigRecordingDlg.h"
 	#include "ConfigBasicDlg.h"
 
 	WiimotePadConfigDialog *m_PadConfigFrame = NULL;
-	WiimoteRecordingConfigDialog *m_RecordingConfigFrame = NULL;
 	WiimoteBasicConfigDialog *m_BasicConfigFrame = NULL;
 #endif
 #include "Config.h"
@@ -42,7 +40,7 @@
 #endif
 
 #if defined(HAVE_X11) && HAVE_X11
-	Display* WMdisplay;
+	Display* WMdisplay = NULL;
 #endif
 SWiimoteInitialize g_WiimoteInitialize;
 PLUGIN_GLOBALS* globals = NULL;
@@ -105,12 +103,6 @@ BOOL APIENTRY DllMain(HINSTANCE hinstDLL,	// DLL module handle
 
 	case DLL_PROCESS_DETACH:
 		{
-#ifdef _WIN32
-			if (g_Config.bUnpairRealWiimote){
-				WiiMoteReal::Shutdown();
-				WiiMoteReal::WiimotePairUp(true);
-			}
-#endif
 #if defined(HAVE_WX) && HAVE_WX
 		wxUninitialize();
 #endif
@@ -160,7 +152,10 @@ void SetDllGlobals(PLUGIN_GLOBALS* _pPluginGlobals)
 	 LogManager::SetInstance((LogManager *)globals->logManager);
 }
 
-void DllDebugger(HWND _hParent, bool Show) {}
+void *DllDebugger(void *_hParent, bool Show)
+{
+	return NULL;
+}
 
 void DllConfig(HWND _hParent)
 {
@@ -216,7 +211,7 @@ void Initialize(void *init)
 	g_Config.Load();
 	#endif
 	#if defined(HAVE_X11) && HAVE_X11
-		WMdisplay = (Display*)g_WiimoteInitialize.hWnd;
+		WMdisplay = XOpenDisplay(NULL);
 	#endif
 
 	g_ISOId = g_WiimoteInitialize.ISOId;
@@ -262,6 +257,11 @@ void Shutdown(void)
 	WiiMoteReal::Shutdown();
 #endif
 	WiiMoteEmu::Shutdown();
+
+#if defined(HAVE_X11) && HAVE_X11
+	if (WMdisplay)
+		XCloseDisplay(WMdisplay);
+#endif
 }
 
 
@@ -320,15 +320,7 @@ void Wiimote_Input(u16 _Key, u8 _UpDown)
    */
 void Wiimote_InterruptChannel(int _number, u16 _channelID, const void* _pData, u32 _Size)
 {
-	// Debugging
-#if defined(_DEBUG) || defined(DEBUGFAST)
-	DEBUG_LOG(WIIMOTE, "Wiimote_InterruptChannel");
-	DEBUG_LOG(WIIMOTE, "    Channel ID: %04x", _channelID);
-	std::string Temp = ArrayToString((const u8*)_pData, _Size);
-	DEBUG_LOG(WIIMOTE, "    Data: %s", Temp.c_str());
-#endif
-
-	// Decice where to send the message
+	// Decide where to send the message
 	if (WiiMoteEmu::WiiMapping[_number].Source <= 1)
 		WiiMoteEmu::InterruptChannel(_number, _channelID, _pData, _Size);
 #if HAVE_WIIUSE
@@ -372,20 +364,6 @@ void Wiimote_ControlChannel(int _number, u16 _channelID, const void* _pData, u32
 // This sends a Data Report from the Wiimote. See SystemTimers.cpp for the documentation of this update.
 void Wiimote_Update(int _number)
 {
-	// Tell us about the update rate, but only about once every second to avoid a major slowdown
-#if defined(HAVE_WX) && HAVE_WX
-	if (m_RecordingConfigFrame)
-	{
-		GetUpdateRate();
-		if (g_UpdateWriteScreen > g_UpdateRate)
-		{
-			m_RecordingConfigFrame->m_TextUpdateRate->SetLabel(wxString::Format(wxT("Update rate: %03i times/s"), g_UpdateRate));
-			g_UpdateWriteScreen = 0;
-		}
-		g_UpdateWriteScreen++;
-	}
-#endif
-
 	// This functions will send:
 	//		Emulated Wiimote: Only data reports 0x30-0x37
 	//		Real Wiimote: Both data reports 0x30-0x37 and all other read reports
@@ -425,6 +403,15 @@ unsigned int Wiimote_GetAttachedControllers()
 }
 
 
+// Unpair Wiimotes, TODO: Add linux/osx un-pair function
+unsigned int Wiimote_UnPairWiimotes()
+{
+#ifdef _WIN32
+	if (g_Config.bUnpairRealWiimote)
+		return WiiMoteReal::WiimotePairUp(true);
+#endif
+	return 0;
+}
 
 // Supporting functions
 
@@ -432,9 +419,6 @@ unsigned int Wiimote_GetAttachedControllers()
 
 bool IsFocus()
 {
-#if defined(__APPLE__) && defined(USE_WX) && USE_WX
-	return true;	/* XXX */
-#endif
 	return g_WiimoteInitialize.pRendererHasFocus();
 }
 
@@ -442,40 +426,3 @@ bool IsFocus()
    of the form seconds.milleseconds for example 1234.123. The leding seconds have no particular meaning
    but are just there to enable use to tell if we have entered a new second or now. */
 // -----------------
-
-/* Calculate the current update frequency. Calculate the time between ten updates, and average
-   five such rates. If we assume there are 60 updates per second if the game is running at full
-   speed then we get this measure on average once every second. The reason to have a few updates
-   between each measurement is becase the milliseconds may not be perfectly accurate and may return
-   the same time even when a milliseconds has actually passed, for example.*/
-int GetUpdateRate()
-{
-#if defined(HAVE_WX) && HAVE_WX
-	if(g_UpdateCounter == 10)
-	{
-		// Erase the old ones
-		if(g_UpdateTimeList.size() == 5) g_UpdateTimeList.erase(g_UpdateTimeList.begin() + 0);
-
-		// Calculate the time and save it
-		int Time = (int)(10 / (Common::Timer::GetDoubleTime() - g_UpdateTime));
-		g_UpdateTimeList.push_back(Time);
-		//DEBUG_LOG(WIIMOTE, "Time: %i %f", Time, Common::Timer::GetDoubleTime());
-
-		int TotalTime = 0;
-		for (int i = 0; i < (int)g_UpdateTimeList.size(); i++)
-			TotalTime += g_UpdateTimeList.at(i);
-		g_UpdateRate = TotalTime / 5;
-
-		// Write the new update time
-		g_UpdateTime = Common::Timer::GetDoubleTime();
-
-		g_UpdateCounter = 0;
-	}
-
-	g_UpdateCounter++;
-
-	return g_UpdateRate;
-#else
-	return 0;
-#endif
-}

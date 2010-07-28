@@ -244,7 +244,7 @@ void CMemcardManager::CreateGUIControls()
 
 		m_MemcardPath[slot] = new wxFilePickerCtrl(this, ID_MEMCARDPATH_A + slot,
 			 wxString::From8BitData(File::GetUserPath(D_GCUSER_IDX)), wxT("选择内存卡:"),
-		wxT("Gamecube Memory Cards (*.raw,*.gcp)|*.raw;*.gcp"), wxDefaultPosition, wxDefaultSize, wxFLP_USE_TEXTCTRL|wxFLP_OPEN);
+		wxT("Gamecube 内存卡 (*.raw,*.gcp)|*.raw;*.gcp"), wxDefaultPosition, wxDefaultSize, wxFLP_USE_TEXTCTRL|wxFLP_OPEN);
 	
 		m_MemcardList[slot] = new CMemcardListCtrl(this, ID_MEMCARDLIST_A + slot, wxDefaultPosition, wxSize(350,400),
 		wxLC_REPORT | wxSUNKEN_BORDER | wxLC_ALIGN_LEFT | wxLC_SINGLE_SEL);
@@ -556,26 +556,21 @@ void CMemcardManager::CopyDeleteClick(wxCommandEvent& event)
 		slot = SLOT_A;
 	case ID_SAVEIMPORT_B:
 	{
-		wxString fileName = wxFileSelector(wxT("Select a save file to import"),
-									   (strcmp(DefaultIOPath.c_str(), "/Users/GC") == 0) ?  wxString::FromAscii(""): wxString::From8BitData(DefaultIOPath.c_str()), wxEmptyString, wxEmptyString, wxString::Format
-			(
-				wxT("Gamecube save files(*.gci,*.gcs,*.sav)|*.gci;*.gcs;*.sav|")
-				wxT("Native GCI files (*.gci)|*.gci|")
-				wxT("MadCatz Gameshark files(*.gcs)|*.gcs|")
-				wxT("Datel MaxDrive/Pro files(*.sav)|*.sav"),
-				wxFileSelectorDefaultWildcardStr,
-				wxFileSelectorDefaultWildcardStr
-			),
+		wxString fileName = wxFileSelector(
+			wxT("选择需要导入的存档文件"),
+			(strcmp(DefaultIOPath.c_str(), "/Users/GC") == 0)
+				? wxString::FromAscii("")
+				: wxString::From8BitData(DefaultIOPath.c_str()),
+			wxEmptyString, wxEmptyString,
+			wxT("Native GCI files(*.gci)|*.gci|")
+			wxT("MadCatz Gameshark files(*.gcs)|*.gcs|")
+			wxT("Datel MaxDrive/Pro files(*.sav)|*.sav"),
 			wxFD_OPEN | wxFD_FILE_MUST_EXIST);
 		if (!fileName.empty() && !fileName2.empty())
 		{
-			wxString temp2 = wxFileSelector(wxT("Save GCI as.."),
-				wxEmptyString, wxEmptyString, wxT(".gci"), wxString::Format
-				(
-					wxT("GCI File(*.gci)|*.gci"),
-					wxFileSelectorDefaultWildcardStr,
-					wxFileSelectorDefaultWildcardStr
-				),
+			wxString temp2 = wxFileSelector(wxT("保存 GCI 为.."),
+				wxEmptyString, wxEmptyString, wxT(".gci"),
+				wxT("GCI 文件(*.gci)|*.gci"),
 				wxFD_OVERWRITE_PROMPT|wxFD_SAVE);
 			if (temp2.empty()) break;
 			fileName2 = temp2.mb_str();
@@ -597,15 +592,13 @@ void CMemcardManager::CopyDeleteClick(wxCommandEvent& event)
 			memoryCard[slot]->DEntry_GameCode(index,tempC);
 			memoryCard[slot]->DEntry_FileName(index,tempC2);
 			sprintf(tempC, "%s_%s.gci", tempC, tempC2);
-			wxString fileName = wxFileSelector(wxT("Export save as.."),	wxString::From8BitData(DefaultIOPath.c_str()),
-				wxString::From8BitData(tempC), wxT(".gci"), wxString::Format
-				(
-					wxT("Native GCI files (*.gci)|*.gci|")
-					wxT("MadCatz Gameshark files(*.gcs)|*.gcs|")
-					wxT("Datel MaxDrive/Pro files(*.sav)|*.sav"),
-					wxFileSelectorDefaultWildcardStr,
-					wxFileSelectorDefaultWildcardStr
-				),
+			wxString fileName = wxFileSelector(
+				wxT("导出存档为.."),
+				wxString::From8BitData(DefaultIOPath.c_str()),
+				wxString::From8BitData(tempC), wxT(".gci"),
+				wxT("Native GCI files(*.gci)|*.gci|")
+				wxT("MadCatz Gameshark files(*.gcs)|*.gcs|")
+				wxT("Datel MaxDrive/Pro files(*.sav)|*.sav"),
 				wxFD_OVERWRITE_PROMPT|wxFD_SAVE);
 
 			if (fileName.length() > 0)
@@ -920,10 +913,10 @@ void CMemcardManager::CMemcardListCtrl::OnRightClick(wxMouseEvent& event)
 		
 		popupMenu->AppendSeparator();
 
-		popupMenu->AppendCheckItem(COLUMN_BANNER, wxT("Show save banner"));
-		popupMenu->AppendCheckItem(COLUMN_TITLE, wxT("Show save title"));
+		popupMenu->AppendCheckItem(COLUMN_BANNER, wxT("显示存档LOGO"));
+		popupMenu->AppendCheckItem(COLUMN_TITLE, wxT("显示存档标题"));
 		popupMenu->AppendCheckItem(COLUMN_COMMENT, wxT("Show save comment"));
-		popupMenu->AppendCheckItem(COLUMN_ICON, wxT("Show save icon"));
+		popupMenu->AppendCheckItem(COLUMN_ICON, wxT("显示存档图标"));
 		popupMenu->AppendCheckItem(COLUMN_BLOCKS, wxT("Show save blocks"));
 
 		for (int i = COLUMN_BANNER; i <= COLUMN_BLOCKS; i++)

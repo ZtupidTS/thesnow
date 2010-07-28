@@ -22,121 +22,27 @@
 namespace D3D
 {
 
-// buffers for storing the data for DEFAULT textures
-u8* texbuf = NULL;
-unsigned int texbufsize = 0;
-
-// TODO: Remove this class and properly clean up texbuf!
-struct TexbufDeleter
+void ReplaceRGBATexture2D(ID3D11Texture2D* pTexture, const u8* buffer, unsigned int width, unsigned int height, unsigned int pitch, unsigned int level, D3D11_USAGE usage)
 {
-	~TexbufDeleter()
+	if (usage == D3D11_USAGE_DYNAMIC)
 	{
-		if (texbuf) delete[] texbuf;
-		texbuf = NULL;
-		texbufsize = 0;
-	}
-} texbufdeleter;
-
-void ReplaceTexture2D(ID3D11Texture2D* pTexture, const u8* buffer, unsigned int width, unsigned int height, unsigned int pitch, DXGI_FORMAT fmt, PC_TexFormat pcfmt, unsigned int level, D3D11_USAGE usage)
-{
-	u8* outptr;
-	unsigned int destPitch;
-	bool bExpand = false;
-
-	if (usage == D3D11_USAGE_DYNAMIC || usage == D3D11_USAGE_STAGING)
-	{
-		if (usage == D3D11_USAGE_DYNAMIC && level != 0) PanicAlert("Dynamic textures don't support mipmaps, but given level is not 0 at %s %d\n", __FILE__, __LINE__);
 		D3D11_MAPPED_SUBRESOURCE map;
-		D3D::context->Map(pTexture, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
-		outptr = (u8*)map.pData;
-		destPitch = map.RowPitch;
-	}
-	else if (usage == D3D11_USAGE_DEFAULT && pcfmt != PC_TEX_FMT_BGRA32)
-	{
-		if (texbufsize < 4*width*height)
+		D3D::context->Map(pTexture, level, D3D11_MAP_WRITE_DISCARD, 0, &map);
+		if (4 * pitch == map.RowPitch)
 		{
-			if (texbuf) delete[] texbuf;
-			texbuf = new u8[4*width*height];
-			texbufsize = 4*width*height;
+			memcpy(map.pData, buffer, map.RowPitch * height);
 		}
-		outptr = texbuf;
-		destPitch = width * 4;
-	}
-	else if (usage == D3D11_USAGE_DEFAULT && pcfmt == PC_TEX_FMT_BGRA32)
-	{
-		// BGRA32 textures can be uploaded directly to VRAM in this case
-		D3D11_BOX dest_region = CD3D11_BOX(0, 0, 0, width, height, 1);
-		D3D::context->UpdateSubresource(pTexture, level, &dest_region, buffer, 4*pitch, 4*pitch*height);
-		return;
+		else
+		{
+			for (unsigned int y = 0; y < height; ++y)
+				memcpy((u8*)map.pData + y * map.RowPitch, (u32*)buffer + y * pitch, map.RowPitch);
+		}
+		D3D::context->Unmap(pTexture, level);
 	}
 	else
 	{
-		PanicAlert("ReplaceTexture2D called on an immutable texture!\n");
-		return;
-	}
-
-	// TODO: Merge the conversions done here to VideoDecoder
-	switch (pcfmt)
-	{
-		case PC_TEX_FMT_IA8:
-		case PC_TEX_FMT_IA4_AS_IA8:
-			for (unsigned int y = 0; y < height; y++)
-			{
-				u16* in = (u16*)buffer + y * pitch;
-				u32* pBits = (u32*)(outptr + y * destPitch);
-				for (unsigned int x = 0; x < width; x++)
-				{
-					const u8 I = (*in & 0xFF);
-					const u8 A = (*in & 0xFF00) >> 8;
-					*pBits++ = (A << 24) | (I << 16) | (I << 8) | I;
-					in++;
-				}
-			}
-			break;
-		case PC_TEX_FMT_I8:
-		case PC_TEX_FMT_I4_AS_I8:
-			for (unsigned int y = 0; y < height; y++)
-			{
-				const u8* in = buffer + y * pitch;
-				u32* pBits = (u32*)(outptr + y * destPitch);
-				for(unsigned int i = 0; i < width; i++)
-					memset( pBits++, *in++, 4 );
-			}
-			break;
-		case PC_TEX_FMT_BGRA32:
-			for (unsigned int y = 0; y < height; y++)
-				memcpy( outptr + y * destPitch, (u32*)buffer + y * pitch, destPitch );
-
-			break;
-		case PC_TEX_FMT_RGB565:
-			for (unsigned int y = 0; y < height; y++)
-			{
-				u16* in = (u16*)buffer + y * pitch;
-				u32* pBits = (u32*)(outptr + y * destPitch);
-				for (unsigned int x = 0; x < width; x++)
-				{
-					// we can't simply shift here, since e.g. 11111 must map to 11111111 and not 11111000
-					const u16 col = *in++;
-					*(pBits++) = 0xFF000000 | // alpha
-							((((col&0xF800) << 5) * 255 / 31) & 0xFF0000) | // red
-							((((col& 0x7e0) << 3) * 255 / 63) & 0xFF00) |   // green
-							(( (col&  0x1f)       * 255 / 31));             // blue
-				}
-			}
-			break;
-		default:
-			PanicAlert("Unknown tex fmt %d\n", pcfmt);
-			break;
-	}
-	if (usage == D3D11_USAGE_DYNAMIC)
-	{
-		// TODO: UpdateSubresource might be faster than mapping
-		D3D::context->Unmap(pTexture, 0);
-	}
-	else if (usage == D3D11_USAGE_DEFAULT)
-	{
 		D3D11_BOX dest_region = CD3D11_BOX(0, 0, 0, width, height, 1);
-		D3D::context->UpdateSubresource(pTexture, level, &dest_region, outptr, destPitch, 4*width*height);
+		D3D::context->UpdateSubresource(pTexture, level, &dest_region, buffer, 4*pitch, 4*pitch*height);
 	}
 }
 
@@ -155,23 +61,23 @@ D3DTexture2D* D3DTexture2D::Create(unsigned int width, unsigned int height, D3D1
 	hr = D3D::device->CreateTexture2D(&texdesc, NULL, &pTexture);
 	if (FAILED(hr))
 	{
-		PanicAlert("Failed to create texture at %s %d\n", __FILE__, __LINE__);
+		PanicAlert("Failed to create texture at %s, line %d: hr=%#x\n", __FILE__, __LINE__, hr);
 		return NULL;
 	}
 
 	D3DTexture2D* ret = new D3DTexture2D(pTexture, bind);
-	pTexture->Release();
+	SAFE_RELEASE(pTexture);
 	return ret;
 }
 
 void D3DTexture2D::AddRef()
 {
-	ref++;
+	++ref;
 }
 
 UINT D3DTexture2D::Release()
 {
-	ref--;
+	--ref;
 	if (ref == 0)
 	{
 		delete this;
@@ -200,8 +106,8 @@ D3DTexture2D::D3DTexture2D(ID3D11Texture2D* texptr, D3D11_BIND_FLAG bind,
 
 D3DTexture2D::~D3DTexture2D()
 {
-	if (srv) srv->Release();
-	if (rtv) rtv->Release();
-	if (dsv) dsv->Release();
-	tex->Release();
+	SAFE_RELEASE(srv);
+	SAFE_RELEASE(rtv);
+	SAFE_RELEASE(dsv);
+	SAFE_RELEASE(tex);
 }

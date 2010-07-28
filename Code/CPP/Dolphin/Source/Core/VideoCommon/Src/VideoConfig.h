@@ -77,6 +77,9 @@ struct VideoConfig
 	bool bUseRealXFB;
 	bool bAutoScale;  // Removes annoying borders without using XFB. Doesn't always work perfectly.
 	bool bUseNativeMips;
+
+	// OpenCL
+	bool bEnableOpenCL;
 	
 	// Enhancements
 	int iMultisampleMode;
@@ -112,11 +115,11 @@ struct VideoConfig
 	bool bEFBCopyDisable;  // should reverse polarity of this one :) true=disabled can be confusing
 	bool bOSDHotKey;
 	bool bHack;
-	bool bCopyEFBToTexture;
+	bool bCopyEFBToTexture;	
 	bool bCopyEFBScaled;
 	bool bSafeTextureCache;
 	int iSafeTextureCache_ColorSamples;	
-	bool bFIFOBPhack;
+	int iFIFOWatermarkTightness;
 	int iPhackvalue;
 	bool bPhackvalue1, bPhackvalue2;
 	float fhackvalue1, fhackvalue2;
@@ -132,10 +135,6 @@ struct VideoConfig
 
 	// D3D only config, mostly to be merged into the above
 	int iAdapter;
-
-	// With this enabled, the plugin renders directly to the backbuffer. Many features are
-	// disabled but it might be faster on really old GPUs.
-	bool bSimpleFB;
 
 	// Static config per API
 	bool bAllowSignedBytes;

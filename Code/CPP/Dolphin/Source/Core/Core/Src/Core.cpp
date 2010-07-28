@@ -17,7 +17,11 @@
 
 
 #ifdef _WIN32
-	#include <windows.h>
+#include <windows.h>
+#endif
+
+#ifdef __APPLE__
+#import <Foundation/NSAutoreleasePool.h>
 #endif
 
 #include "Setup.h" // Common
@@ -25,6 +29,7 @@
 #include "Thread.h"
 #include "Timer.h"
 #include "Common.h"
+#include "CommonPaths.h"
 #include "StringUtil.h"
 #include "MathUtil.h"
 #include "MemoryUtil.h"
@@ -97,9 +102,7 @@ bool g_bStopping = false;
 bool g_bHwInit = false;
 bool g_bRealWiimote = false;
 HWND g_pWindowHandle = NULL;
-#if defined(HAVE_X11) && HAVE_X11
-void *g_pXWindow = NULL;
-#endif
+
 Common::Thread* g_EmuThread = NULL;
 
 static Common::Thread* cpuThread = NULL;
@@ -150,13 +153,6 @@ void *GetWindowHandle()
 	return g_pWindowHandle;
 }
 
-#if defined HAVE_X11 && HAVE_X11
-void *GetXWindow()
-{
-	return g_pXWindow;
-}
-#endif
-	 
 bool GetRealWiimote()
 {
 	return g_bRealWiimote;
@@ -186,8 +182,6 @@ bool Init()
 	CPluginManager &pManager = CPluginManager::GetInstance();
 	SCoreStartupParameter &_CoreParameter = SConfig::GetInstance().m_LocalCoreStartupParameter;
 
-	Common::InitThreading();
-
 	g_CoreStartupParameter = _CoreParameter;
 	// FIXME DEBUG_LOG(BOOT, dump_params());
 	Host_SetWaitCursor(true);
@@ -209,8 +203,7 @@ bool Init()
 	return true;
 }
 
-// Called from GUI thread or VI thread (why VI??? That must be bad. Window
-// close? TODO: Investigate.)
+// Called from GUI thread
 void Stop()  // - Hammertime!
 {
 	const SCoreStartupParameter& _CoreParameter = SConfig::GetInstance().m_LocalCoreStartupParameter;
@@ -218,11 +211,6 @@ void Stop()  // - Hammertime!
 	CPluginManager::GetInstance().EmuStateChange(PLUGIN_EMUSTATE_STOP);
 
 	WARN_LOG(CONSOLE, "Stop [Main Thread]\t\t---- Shutting down ----");	
-
-	// This must be done a while before freeing the dll to not crash wx around
-	// MSWWindowProc and DefWindowProc, will investigate further
-	Host_Message(AUDIO_DESTROY);
-	Host_Message(VIDEO_DESTROY);
 
 	Host_SetWaitCursor(true);  // hourglass!
 	if (PowerPC::GetState() == PowerPC::CPU_POWERDOWN)
@@ -261,6 +249,10 @@ void Stop()  // - Hammertime!
 
 THREAD_RETURN CpuThread(void *pArg)
 {
+#ifdef __APPLE__
+	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+#endif
+
 	CPluginManager &Plugins = CPluginManager::GetInstance();
 	const SCoreStartupParameter& _CoreParameter = SConfig::GetInstance().m_LocalCoreStartupParameter;
 
@@ -298,6 +290,10 @@ THREAD_RETURN CpuThread(void *pArg)
 	}
 
 	cpuRunloopQuit.Set();
+
+#ifdef __APPLE__
+	[pool release];
+#endif
 	return 0;
 }
 
@@ -306,6 +302,10 @@ THREAD_RETURN CpuThread(void *pArg)
 // Call browser: Init():g_EmuThread(). See the BootManager.cpp file description for a complete call schedule.
 THREAD_RETURN EmuThread(void *pArg)
 {
+#ifdef __APPLE__
+	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+#endif
+
 	Host_UpdateMainFrame(); // Disable any menus or buttons at boot
 
 	cpuRunloopQuit.Init();
@@ -330,6 +330,7 @@ THREAD_RETURN EmuThread(void *pArg)
 	VideoInitialize.pSetInterrupt				= ProcessorInterface::SetInterrupt;
 	VideoInitialize.pRegisterEvent				= CoreTiming::RegisterEvent;
 	VideoInitialize.pScheduleEvent_Threadsafe	= CoreTiming::ScheduleEvent_Threadsafe;
+	VideoInitialize.pRemoveEvent				= CoreTiming::RemoveAllEvents;
 	// This is first the m_Panel handle, then it is updated to have the new window handle
 	VideoInitialize.pWindowHandle				= _CoreParameter.hMainWindow;
 	VideoInitialize.pLog						= Callback_VideoLog;
@@ -356,11 +357,8 @@ THREAD_RETURN EmuThread(void *pArg)
 
 	Plugins.GetVideo()->Initialize(&VideoInitialize); // Call the dll
 
-	// Under linux, this is an X11 Display, not a HWND!
+	// Under linux, this is an X11 Window, not a HWND!
 	g_pWindowHandle			= (HWND)VideoInitialize.pWindowHandle;
-#if defined(HAVE_X11) && HAVE_X11
-	g_pXWindow					= (void *)VideoInitialize.pXWindow;
-#endif
 	Callback_PeekMessages	= VideoInitialize.pPeekMessages;
 	g_pUpdateFPSDisplay		= VideoInitialize.pUpdateFPSDisplay;
 
@@ -390,9 +388,6 @@ THREAD_RETURN EmuThread(void *pArg)
 	{
 		SWiimoteInitialize WiimoteInitialize;
 		WiimoteInitialize.hWnd			= g_pWindowHandle;
-#if defined(HAVE_X11) && HAVE_X11
-		WiimoteInitialize.pXWindow	= g_pXWindow;
-#endif
 		WiimoteInitialize.ISOId			= Ascii2Hex(_CoreParameter.m_strUniqueID);
 		WiimoteInitialize.pLog			= Callback_WiimoteLog;
 		WiimoteInitialize.pWiimoteInterruptChannel = Callback_WiimoteInterruptChannel;
@@ -522,6 +517,10 @@ THREAD_RETURN EmuThread(void *pArg)
 
 	cpuRunloopQuit.Shutdown();
 	g_bStopping = false;
+
+#ifdef __APPLE__
+	[pool release];
+#endif
 	return 0;
 }
 
@@ -608,6 +607,12 @@ void VideoThrottle()
 	{
 		// Make the limiter a bit loose
 		u32 frametime = ((SConfig::GetInstance().b_UseFPS)? Common::AtomicLoad(DrawnFrame) : DrawnVideo) * 1000 / TargetVPS;
+
+		u32 timeDifference = (u32)Timer.GetTimeDifference();
+		if (timeDifference < frametime) {
+			Common::SleepCurrentThread(frametime - timeDifference - 1);
+		}
+
 		while ((u32)Timer.GetTimeDifference() < frametime)
 			Common::YieldCPU();
 			//Common::SleepCurrentThread(1);

@@ -35,7 +35,6 @@
 #define EXCLUDE_H // Avoid certain declarations in wiimote_real.h
 #include "wiimote_real.h"
 #if defined(HAVE_WX) && HAVE_WX
-#include "ConfigRecordingDlg.h"
 #include "ConfigBasicDlg.h"
 #endif
 
@@ -50,8 +49,8 @@ extern SWiimoteInitialize g_WiimoteInitialize;
 namespace WiiMoteReal
 {
 
-bool g_RealWiiMoteInitialized = false;
-bool g_RealWiiMoteAllocated = false;
+ bool g_RealWiiMoteInitialized = false;
+ bool g_RealWiiMoteAllocated = false;
 
 // Forwarding
 
@@ -62,18 +61,9 @@ class CWiiMote;
 wiimote_t**			g_WiiMotesFromWiiUse = NULL;
 Common::Thread*		g_pReadThread = NULL;
 int					g_NumberOfWiiMotes;
+volatile int		LastNumberOfWiimotes = 0;
 CWiiMote*			g_WiiMotes[MAX_WIIMOTES];
-volatile bool				g_Shutdown = false;
-Common::Event		g_StartThread;
-Common::Event		g_StopThreadTemporary;
-bool				g_LocalThread = true;
-bool				g_IRSensing = false;
-bool				g_MotionSensing = false;
-u64					g_UpdateTime = 0;
-int					g_UpdateCounter = 0;
-bool				g_RunTemporary = false;
-int					g_RunTemporaryCountdown = 0;
-u8					g_EventBuffer[32];
+volatile bool		g_Shutdown = false;
 bool				g_WiimoteInUse[MAX_WIIMOTES];
 Common::Event		NeedsConnect;
 Common::Event		Connected;
@@ -87,13 +77,14 @@ Common::Event		g_StartAutopairThread;
 int					stoprefresh = 0;
 unsigned int		PairUpTimer = 2000;
 
-int PaiUpRefreshWiimote();
+int PairUpRefreshWiimote(bool addwiimote);
+int PairUpFindNewSlot(void);
+void ToggleEmulatorState(bool stop);
 THREAD_RETURN PairUp_ThreadFunc(void* arg);
 THREAD_RETURN RunInvisibleMessageWindow_ThreadFunc(void* arg);
 #endif
 
 THREAD_RETURN ReadWiimote_ThreadFunc(void* arg);
-THREAD_RETURN SafeCloseReadWiimote_ThreadFunc(void* arg);
 
 // Probably this class should be in its own file
 
@@ -114,7 +105,8 @@ CWiiMote(u8 _WiimoteNumber, wiimote_t* _pWiimote)
 
 	#ifdef _WIN32
 		// F|RES: i dunno if we really need this
-		CancelIo(m_pWiiMote->dev_handle);
+		//CancelIo(m_pWiiMote->dev_handle);
+		CancelIoEx(m_pWiiMote->dev_handle,NULL);
 	#endif
 }
 
@@ -147,6 +139,9 @@ void SendData(u16 _channelID, const u8* _pData, u32 _Size)
 /* Read and write data to the Wiimote */
 void ReadData()
 {
+	if (!m_channelID)
+		return;
+
 	m_pCriticalSection->Enter();
 
 	// Send data to the Wiimote
@@ -346,6 +341,8 @@ int Initialize()
 	// Return if already initialized
 	if (g_RealWiiMoteInitialized)
 		return g_NumberOfWiiMotes;
+
+
 	NeedsConnect.Init();
 	Connected.Init();
 
@@ -371,11 +368,19 @@ int Initialize()
 		return 0;
 
 	// Call Wiiuse.dll
-	g_WiiMotesFromWiiUse = wiiuse_init(MAX_WIIMOTES);
-	g_NumberOfWiiMotes = wiiuse_find(g_WiiMotesFromWiiUse, wiimote_slots, 5);
+	if(!g_WiiMotesFromWiiUse)
+		g_WiiMotesFromWiiUse = wiiuse_init(MAX_WIIMOTES);
+
+#ifdef _WIN32
+	g_NumberOfWiiMotes = wiiuse_find(g_WiiMotesFromWiiUse, wiimote_slots, LastNumberOfWiimotes);
+#else
+	g_NumberOfWiiMotes = wiiuse_find(g_WiiMotesFromWiiUse, wiimote_slots, 5); //move the timeout var into wiimote_t structure to avoid confusion
+#endif
+	LastNumberOfWiimotes = g_NumberOfWiiMotes;
 	DEBUG_LOG(WIIMOTE, "Found No of Wiimotes: %i", g_NumberOfWiiMotes);
 	if (g_NumberOfWiiMotes > 0)
 	{
+
 		g_RealWiiMotePresent = true;
 		// Create a new thread for listening for Wiimote data
 		// and also connecting in Linux/OSX.
@@ -383,6 +388,8 @@ int Initialize()
 		g_pReadThread = new Common::Thread(ReadWiimote_ThreadFunc, NULL);
 		// Don't run the Wiimote thread if no wiimotes were found
 		g_Shutdown = false;
+
+		//Hack for OSX
 		NeedsConnect.Set();
 		Connected.Wait();
 	}
@@ -390,55 +397,29 @@ int Initialize()
 		return 0;
 
 	for (i = 0; i < g_NumberOfWiiMotes; i++)
-	{
-		// Remove the wiiuse_poll() threshold
-		wiiuse_set_accel_threshold(g_WiiMotesFromWiiUse[i], 0);
-		
+	{	
 		// Set the ir sensor sensitivity.
 		if (g_Config.iIRLevel) {
 			wiiuse_set_ir_sensitivity(g_WiiMotesFromWiiUse[i], g_Config.iIRLevel);
 		}
-
-		// Set the sensor bar position, this should only affect the internal wiiuse api functions
-		wiiuse_set_ir_position(g_WiiMotesFromWiiUse[i], WIIUSE_IR_ABOVE);
-
-		// Set flags
-		//wiiuse_set_flags(g_WiiMotesFromWiiUse[i], NULL, WIIUSE_SMOOTHING);
 	}
-
-	// psyjoe reports this allows majority of lost packets to be transferred.
-	// Will test soon
-		if (g_Config.bWiiReadTimeout != 10)
-			wiiuse_set_timeout(g_WiiMotesFromWiiUse, g_NumberOfWiiMotes, g_Config.bWiiReadTimeout, g_Config.bWiiReadTimeout);
+	if (g_Config.bWiiReadTimeout != 30)
+			wiiuse_set_timeout(g_WiiMotesFromWiiUse, g_NumberOfWiiMotes, g_Config.bWiiReadTimeout);
 
 	// If we are connecting from the config window without a game running we set the LEDs
-	if (g_EmulatorState != PLUGIN_EMUSTATE_PLAY && g_RealWiiMotePresent)
+	if (g_EmulatorState == PLUGIN_EMUSTATE_STOP && g_RealWiiMotePresent)
 		FlashLights(true);
-	
-
-	/* Allocate memory and copy the Wiimote eeprom accelerometer neutral values
-	   to g_Eeprom. Unlike with and extension we have to do this here, because
-	   this data is only read once when the Wiimote is connected. Also, we
-	   can't change the neutral values the wiimote will report, I think, unless
-	   we update its eeprom? In any case it's probably better to let the
-	   current calibration be where it is and adjust the global values after
-	   that to avoid overwriting critical data on any Wiimote. */
-	for (i = 0; i < g_NumberOfWiiMotes; i++)
-	{
-		byte *data = (byte*)malloc(sizeof(byte) * sizeof(WiiMoteEmu::EepromData_0));
-		wiiuse_read_data(g_WiiMotesFromWiiUse[i], data, 0, sizeof(WiiMoteEmu::EepromData_0));
-	}
 
 	// Initialized, even if we didn't find a Wiimote
 	g_RealWiiMoteInitialized = true;
-	
+
 	return g_NumberOfWiiMotes;
 }
 
 // Allocate each Real WiiMote found to a WiiMote slot with Source set to "WiiMote Real"
 void Allocate()
 {
-	if (g_RealWiiMoteAllocated)
+	if (g_RealWiiMoteAllocated)// && (g_NumberOfWiiMotes == LastNumberOfWiimotes))
 		return;
 	if (!g_RealWiiMoteInitialized)
 		Initialize();
@@ -507,10 +488,6 @@ void Allocate()
 
 	DEBUG_LOG(WIIMOTE, "Using %i Real Wiimote(s) and %i Emu Wiimote(s)", g_Config.bNumberRealWiimotes, g_Config.bNumberEmuWiimotes);
 
-	// If we are not using any emulated wiimotes we can run the thread temporary until the data has beeen copied
-	if (g_Config.bNumberEmuWiimotes == 0)
-		g_RunTemporary = true;
-	
 	g_RealWiiMoteAllocated = true;
 
 }
@@ -546,11 +523,14 @@ void Shutdown(void)
 		FlashLights(false);
 
 	// Clean up wiiuse
+#ifndef WIN32
 	wiiuse_cleanup(g_WiiMotesFromWiiUse, g_NumberOfWiiMotes);
-
+	g_WiiMotesFromWiiUse = NULL;
+#endif
 	// Uninitialized
 	g_RealWiiMoteInitialized = false;
 	g_RealWiiMotePresent = false;
+	g_RealWiiMoteAllocated = false;
 }
 
 void InterruptChannel(int _WiimoteNumber, u16 _channelID, const void* _pData, u32 _Size)
@@ -579,8 +559,6 @@ void Update(int _WiimoteNumber)
    time to avoid a potential collision. */
 THREAD_RETURN ReadWiimote_ThreadFunc(void* arg)
 {
-	g_StopThreadTemporary.Init();
-	g_StartThread.Init();
 	NeedsConnect.Wait();
 #ifndef _WIN32
 	int Connect;
@@ -593,63 +571,24 @@ THREAD_RETURN ReadWiimote_ThreadFunc(void* arg)
 	
 	while (!g_Shutdown)
 	{
-		// There is at least one Real Wiimote in use
-		
-		if (g_Config.bNumberRealWiimotes > 0 && !g_RunTemporary)
+		// Usually, there is at least one Real Wiimote in use,
+		// except a wiimote gets disconnected unexpectly ingame or wiimote input type gets changed from real to none
+	
+		if (g_Config.bNumberRealWiimotes > 0)
 		{
 			for (int i = 0; i < MAX_WIIMOTES; i++)
 				if (g_WiimoteInUse[i])
 					g_WiiMotes[i]->ReadData();
-		}
-		else {
-			
-			if (!g_StopThreadTemporary.Wait(0))
-			{
-				// Event object was signaled, exiting thread to close ConfigRecordingDlg
-				new Common::Thread(SafeCloseReadWiimote_ThreadFunc, NULL);
-				g_StartThread.Set(); //tell the new thread to get going
-				return 0;
-			}
-			else
-				ReadWiimote();
-		}
+		} 
+		//else { idle }  
 		
 	}
-	return 0;
-}
-
-// Returns whether SafeClose_ThreadFunc will take over closing of Recording dialog.
-// FIXME: this whole threading stuff is bad, and should be removed.
-//        OSX is having problems with the threading anyways, since WiiUse is used
-//        from multiple threads, and not just the one where it was created on.
-bool SafeClose()
-{
-	if (!g_RealWiiMoteInitialized)
-		return false;
-
-	g_StopThreadTemporary.Set();
-	return true;
-}
-
-// Thread to avoid racing conditions by directly closing of ReadWiimote_ThreadFunc() resp. ReadWiimote()
-// shutting down the Dlg while still beeing @ReadWiimote will result in a crash;
-THREAD_RETURN SafeCloseReadWiimote_ThreadFunc(void* arg)
-{
-	g_Shutdown = true;
-	g_StartThread.Wait(); //Ready to start cleaning
-	
-	if (g_RealWiiMoteInitialized)
-		Shutdown();
-#if defined(HAVE_WX) && HAVE_WX
-	m_RecordingConfigFrame->Close(true);
-#endif
-	if (!g_RealWiiMoteInitialized)
-		Initialize();
 
 	return 0;
 }
-// WiiMote Pair-Up
+
 #ifdef WIN32
+// WiiMote Pair-Up, function will return amount of either new paired or unpaired devices
 int WiimotePairUp(bool unpair)
 {
 	HANDLE hRadios[256];
@@ -675,7 +614,7 @@ int WiimotePairUp(bool unpair)
 		return -1;
 	}
 	nRadios--;
-	//DEBUG_LOG(WIIMOTE, "Pair-Up: Found %d radios\n", nRadios);
+	DEBUG_LOG(WIIMOTE, "Pair-Up: Found %d radios\n", nRadios);
 
 	// Pair with Wii device(s)
 	int radio = 0;
@@ -699,7 +638,7 @@ int WiimotePairUp(bool unpair)
 		srch.fReturnConnected = TRUE; // does not filter properly somehow, so we 've to do an additional check on fConnected BT Devices
 		srch.fReturnUnknown = TRUE;
 		srch.fIssueInquiry = TRUE;
-		srch.cTimeoutMultiplier = 1;
+		srch.cTimeoutMultiplier = 2;
 		srch.hRadio = hRadios[radio];
 
 		//DEBUG_LOG(WIIMOTE, "Pair-Up: Scanning for BT Device(s)");
@@ -715,6 +654,9 @@ int WiimotePairUp(bool unpair)
 		do
 		{
 			//btdi.szName is sometimes missings it's content - it's a bt feature..
+
+			DEBUG_LOG(WIIMOTE, "authed %i connected %i remembered %i ", btdi.fAuthenticated, btdi.fConnected, btdi.fRemembered);
+
 			if ((!wcscmp(btdi.szName, L"Nintendo RVL-WBC-01") || !wcscmp(btdi.szName, L"Nintendo RVL-CNT-01")) && !btdi.fConnected && !unpair)
 			{
 				//TODO: improve the read of the BT driver, esp. when batteries of the wiimote are removed while being fConnected
@@ -763,13 +705,13 @@ int WiimotePairUp(bool unpair)
 }
 
 #ifdef HAVE_WIIUSE
+// Listening for new installed wiimotes, and calling PaiUpRefreshWiimote() when found
 LRESULT CALLBACK CallBackDeviceChange(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	switch(uMsg)
 	{
 		
 		case WM_DEVICECHANGE:
-
 			// DBT_DEVNODES_CHANGED 0x007 (devnodes are atm not received); DBT_DEVICEARRIVAL 0x8000 DBT_DEVICEREMOVECOMPLETE 0x8004 // avoiding header file^^
 			if ( ( wParam == 0x8000 || wParam  == 0x8004 || wParam == 0x0007 ) )
 			{
@@ -782,7 +724,7 @@ LRESULT CALLBACK CallBackDeviceChange(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 							{
 								stoprefresh = 0;
 								
-								PaiUpRefreshWiimote();
+								PairUpRefreshWiimote(true);
 								break;
 							}
 							else stoprefresh = 1; //fake arrival wait for second go
@@ -791,9 +733,10 @@ LRESULT CALLBACK CallBackDeviceChange(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 						case 0x8004:
 							if (!stoprefresh) // removal event will pop up only once (it will also pop up if we add a device: fake arrival, fake removal, real arrival.
 							{
-								PaiUpRefreshWiimote();
+								PairUpRefreshWiimote(false);
 							}
 							break;
+
 					}
 				}
 			}
@@ -805,11 +748,12 @@ LRESULT CALLBACK CallBackDeviceChange(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 
 return 0;
 }
-
+// Generating a new invisible message window and listening for new messages
 THREAD_RETURN RunInvisibleMessageWindow_ThreadFunc(void* arg)
 {
 	MSG Msg;
 	HWND hwnd;
+	BOOL ret;
 	
 	WNDCLASSEX  WCEx;
 	ZeroMemory(&WCEx, sizeof(WCEx));
@@ -831,47 +775,86 @@ THREAD_RETURN RunInvisibleMessageWindow_ThreadFunc(void* arg)
 
 	wiiuse_register_system_notification(hwnd); //function moved into wiiuse to avoid ddk/wdk dependicies
 	
-	while(GetMessage(&Msg, 0, 0, 0) > 0)
+	while((ret = GetMessage(&Msg, 0, 0, 0)) != 0)
 	{
-		TranslateMessage(&Msg);
-		DispatchMessage(&Msg);
+		if ( ret == -1) {
+			return 1;
+		}
+		else {
+			TranslateMessage(&Msg);
+			DispatchMessage(&Msg);
+		}
 	}
 
 	UnregisterClass(WCEx.lpszClassName, g_hInstance);
-
-	if (g_Config.bUnpairRealWiimote)
-		WiiMoteReal::WiimotePairUp(true);
 
 	return (int)Msg.wParam;
 
 }
 
-int PaiUpRefreshWiimote()
+
+void ToggleEmulatorState(bool stop) {
+	PostMessage(GetParent(g_WiimoteInitialize.hWnd), WM_USER, WM_USER_PAUSE, 0);
+	if (stop) {
+		while (g_EmulatorState != PLUGIN_EMUSTATE_PLAY) Sleep(50);
+	}
+	else {
+		while (g_EmulatorState == PLUGIN_EMUSTATE_PLAY) Sleep(50);
+	}
+}
+
+
+// function gets called by windows callbacks if a wiimote was either installed or removed
+int PairUpRefreshWiimote(bool addwiimote)
 {
+	int connectslot = -1;
+
 	if (g_EmulatorState != PLUGIN_EMUSTATE_PLAY)
 	{
 		Shutdown();
+		if (addwiimote)
+		{
+			connectslot = PairUpFindNewSlot();
+		}
 		Initialize();
-		//Allocate();
 		if (m_BasicConfigFrame != NULL)
 			m_BasicConfigFrame->UpdateGUI();
 	}
 	else {
 
-		Sleep(100);
-		PostMessage(GetParent(g_WiimoteInitialize.hWnd), WM_USER, WM_USER_PAUSE, 0);
-		while (g_EmulatorState == PLUGIN_EMUSTATE_PLAY) Sleep(50);
+		ToggleEmulatorState(true);
 		Shutdown();
+		if (addwiimote)
+		{
+			connectslot = PairUpFindNewSlot();
+		}
 		Initialize();
 		Allocate();
-		PostMessage(GetParent(g_WiimoteInitialize.hWnd), WM_USER, WM_USER_PAUSE, 0);
-		while (g_EmulatorState != PLUGIN_EMUSTATE_PLAY) Sleep(50);
+		ToggleEmulatorState(false);
+		if (addwiimote)
+			PostMessage(GetParent(g_WiimoteInitialize.hWnd), WM_USER, WM_USER_KEYDOWN, (3 + connectslot));
 		
 	}
 	return 0;
 }
-
-
+// returns first inactive wiimote slot to place new wiimote and set type to real wiimote
+int PairUpFindNewSlot() {
+	int realWM = 0;
+	for(int x=0; x<MAX_WIIMOTES; x++)
+	{
+		if (WiiMoteEmu::WiiMapping[x].Source == 0)
+		{
+			WiiMoteEmu::WiiMapping[x].Source = 2;
+			return x;
+		} else if (WiiMoteEmu::WiiMapping[x].Source == 2) {
+			realWM++;
+			if (realWM>g_NumberOfWiiMotes)
+				return x;
+		}
+	}
+return -1;
+}
+// loop to poll and install new bluetooth devices; windows callback will take care of the rest on successful installation
 THREAD_RETURN PairUp_ThreadFunc(void* arg)
 {
 	Sleep(100); //small pause till the callback is registered on first start

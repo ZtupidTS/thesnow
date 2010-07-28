@@ -45,6 +45,7 @@ enum
 	GROUP_TYPE_TILT,
 	GROUP_TYPE_CURSOR,
 	GROUP_TYPE_TRIGGERS,
+	GROUP_TYPE_UDPWII
 };
 
 const char * const named_directions[] = 
@@ -54,8 +55,6 @@ const char * const named_directions[] =
 	"Left",
 	"Right"
 };
-
-void GetMousePos(float& x, float& y, const SWiimoteInitialize* const wiimote_initialize);
 
 class ControllerEmu
 {
@@ -117,8 +116,8 @@ public:
 		ControlGroup( const char* const _name, const unsigned int _type = GROUP_TYPE_OTHER ) : name(_name), type(_type) {}
 		virtual ~ControlGroup();
 	
-		void LoadConfig(IniFile::Section *sec, const std::string& defdev = "", const std::string& base = "" );
-		void SaveConfig(IniFile::Section *sec, const std::string& defdev = "", const std::string& base = "" );
+		virtual void LoadConfig(IniFile::Section *sec, const std::string& defdev = "", const std::string& base = "" );
+		virtual void SaveConfig(IniFile::Section *sec, const std::string& defdev = "", const std::string& base = "" );
 
 		const char* const			name;
 		const unsigned int			type;
@@ -147,8 +146,8 @@ public:
 			// modifier code
 			if ( m )
 			{
-				yy = (abs(yy)>deadzone) * sign(yy) * (m + deadzone/2);
-				xx = (abs(xx)>deadzone) * sign(xx) * (m + deadzone/2);
+				yy = (fabsf(yy)>deadzone) * sign(yy) * (m + deadzone/2);
+				xx = (fabsf(xx)>deadzone) * sign(xx) * (m + deadzone/2);
 			}
 
 			// deadzone / square stick code
@@ -161,7 +160,7 @@ public:
 				ControlState ang_cos = cos(ang);
 
 				// the amt a full square stick would have at current angle
-				ControlState square_full = std::min( ang_sin ? 1/abs(ang_sin) : 2, ang_cos ? 1/abs(ang_cos) : 2 );
+				ControlState square_full = std::min( ang_sin ? 1/fabsf(ang_sin) : 2, ang_cos ? 1/fabsf(ang_cos) : 2 );
 
 				// the amt a full stick would have that was ( user setting squareness) at current angle
 				// i think this is more like a pointed circle rather than a rounded square like it should be
@@ -254,19 +253,35 @@ public:
 		Force( const char* const _name );
 
 		template <typename C, typename R>
-		void GetState( C* axis, const u8 base, const R range )
+		void GetState(C* axis, const u8 base, const R range)
 		{
 			const float deadzone = settings[0]->value;
-			for ( unsigned int i=0; i<6; i+=2 )
+			for (unsigned int i=0; i<6; i+=2)
 			{
+				float tmpf = 0;
 				const float state = controls[i+1]->control_ref->State() - controls[i]->control_ref->State();
-				if (abs(state) > deadzone)
-					*axis++ = (C)((state - (deadzone * sign(state))) / (1 - deadzone) * range + base);
-					//*axis++ = state * range + base;
+				if (fabsf(state) > deadzone)
+					tmpf = ((state - (deadzone * sign(state))) / (1 - deadzone));
 				else
-					*axis++ = (C)(base);
+					tmpf = 0;
+
+				float &ax = m_swing[i >> 1];
+
+				if (fabs(tmpf) > fabsf(ax))
+				{
+					if (tmpf > ax)
+						ax = std::min(ax + 0.15f, tmpf);
+					else if (tmpf < ax)
+						ax = std::max(ax - 0.15f, tmpf);
+				}
+				else
+					ax = tmpf;
+
+				*axis++	= (C)(ax * range + base);
 			}
 		}
+	private:
+		float	m_swing[3];
 	};
 
 	class Tilt : public ControlGroup
@@ -275,7 +290,7 @@ public:
 		Tilt( const char* const _name );
 
 		template <typename C, typename R>
-		void GetState( C* const x, C* const y, const unsigned int base, const R range )
+		void GetState(C* const x, C* const y, const unsigned int base, const R range, const bool step = true)
 		{
 			// this is all a mess
 
@@ -289,8 +304,8 @@ public:
 			// modifier code
 			if ( m )
 			{
-				yy = (abs(yy)>deadzone) * sign(yy) * (m + deadzone/2);
-				xx = (abs(xx)>deadzone) * sign(xx) * (m + deadzone/2);
+				yy = (fabsf(yy)>deadzone) * sign(yy) * (m + deadzone/2);
+				xx = (fabsf(xx)>deadzone) * sign(xx) * (m + deadzone/2);
 			}
 
 			// deadzone / circle stick code
@@ -303,7 +318,7 @@ public:
 				ControlState ang_cos = cos(ang);
 
 				// the amt a full square stick would have at current angle
-				ControlState square_full = std::min( ang_sin ? 1/abs(ang_sin) : 2, ang_cos ? 1/abs(ang_cos) : 2 );
+				ControlState square_full = std::min( ang_sin ? 1/fabsf(ang_sin) : 2, ang_cos ? 1/fabsf(ang_cos) : 2 );
 
 				// the amt a full stick would have that was ( user setting circular ) at current angle
 				// i think this is more like a pointed circle rather than a rounded square like it should be
@@ -325,15 +340,20 @@ public:
 
 			// this is kinda silly here
 			// gui being open will make this happen 2x as fast, o well
-			if (xx > m_tilt[0])
-				m_tilt[0] = std::min(m_tilt[0] + 0.1f, xx);
-			else if (xx < m_tilt[0])
-				m_tilt[0] = std::max(m_tilt[0] - 0.1f, xx);
+			
+			// silly
+			if (step)
+			{
+				if (xx > m_tilt[0])
+					m_tilt[0] = std::min(m_tilt[0] + 0.1f, xx);
+				else if (xx < m_tilt[0])
+					m_tilt[0] = std::max(m_tilt[0] - 0.1f, xx);
 
-			if (yy > m_tilt[1])
-				m_tilt[1] = std::min(m_tilt[1] + 0.1f, yy);
-			else if (yy < m_tilt[1])
-				m_tilt[1] = std::max(m_tilt[1] - 0.1f, yy);
+				if (yy > m_tilt[1])
+					m_tilt[1] = std::min(m_tilt[1] + 0.1f, yy);
+				else if (yy < m_tilt[1])
+					m_tilt[1] = std::max(m_tilt[1] - 0.1f, yy);
+			}
 
 			*y = C( m_tilt[1] * range + base );
 			*x = C( m_tilt[0] * range + base );
@@ -367,18 +387,8 @@ public:
 			}
 			else
 			{
-				float xx, yy;
-				GetMousePos(xx, yy, wiimote_initialize);
-
-				// use mouse cursor, or user defined mapping if they have something mapped
-				// this if seems horrible
-				if ( controls[0]->control_ref->control_qualifier.name.size() || controls[1]->control_ref->control_qualifier.name.size() )
-					yy = controls[0]->control_ref->State() - controls[1]->control_ref->State();
-				else
-					yy = -yy;
-
-				if ( controls[2]->control_ref->control_qualifier.name.size() || controls[3]->control_ref->control_qualifier.name.size() )
-					xx = controls[3]->control_ref->State() - controls[2]->control_ref->State();
+				float yy = controls[0]->control_ref->State() - controls[1]->control_ref->State();
+				float xx = controls[3]->control_ref->State() - controls[2]->control_ref->State();
 
 				// adjust cursor according to settings
 				if (adjusted)
@@ -420,10 +430,10 @@ public:
 
 	virtual std::string GetName() const = 0;
 
-	virtual void LoadDefaults() {}
+	virtual void LoadDefaults(const ControllerInterface& ciface);
 
-	void LoadConfig(IniFile::Section *sec, const std::string& base = "");
-	void SaveConfig(IniFile::Section *sec, const std::string& base = "");
+	virtual void LoadConfig(IniFile::Section *sec, const std::string& base = "");
+	virtual void SaveConfig(IniFile::Section *sec, const std::string& base = "");
 	void UpdateDefaultDevice();
 
 	void UpdateReferences( ControllerInterface& devi );

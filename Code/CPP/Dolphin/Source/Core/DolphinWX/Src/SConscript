@@ -4,29 +4,26 @@ Import('env')
 import os
 import sys
 
-wxenv = env.Clone()
-
 files = [
 	'BootManager.cpp',
 	]
 
 libs = [
-	'core', 'lzo2', 'discio', 'bdisasm', 'videocommon',
-	'inputcommon', 'inputuicommon', 'common', 'lua', 'z', 'sfml-network',
-	'SDL'
+	'core', 'lzo2', 'discio', 'bdisasm',
+	'inputcommon', 'common', 'lua', 'z', 'sfml-network',
 	]
 
-if wxenv['HAVE_WX']:
+if env['HAVE_WX']:
 	memcardfiles = [
 		'MemcardManager.cpp',
 		'MemoryCards/GCMemcard.cpp',
-		'WxUtils.cpp',		
-	]
+		'WxUtils.cpp',
+		]
 
-	files += memcardfiles
 	files += [
 		'AboutDolphin.cpp',
 		'ARCodeAddEdit.cpp',
+		'GeckoCodeDiag.cpp',
 		'ConfigMain.cpp',
 		'Frame.cpp',
 		'FrameAui.cpp',
@@ -34,12 +31,12 @@ if wxenv['HAVE_WX']:
 		'LuaWindow.cpp',
 		'LogWindow.cpp',
 		'GameListCtrl.cpp',
-		'Globals.cpp',
 		'HotkeyDlg.cpp',
 		'ISOFile.cpp',
 		'ISOProperties.cpp',
 		'PatchAddEdit.cpp',
 		'CheatsWindow.cpp',
+		'Main.cpp',
 		'MemoryCards/WiiSaveCrypted.cpp',
 		'NetPlay.cpp',
 		'NetPlayClient.cpp',
@@ -47,53 +44,61 @@ if wxenv['HAVE_WX']:
 		'NetWindow.cpp',
 		]
 
-	CPPDEFINES = [
-		'wxNEEDS_CHARPP',
-		],
-
-	libs = [ 'debwx', 'debugger_ui_util'] + libs
+	wxlibs = [ 'debwx', 'debugger_ui_util', 'inputuicommon', 'memcard' ]
 else:
 	files+= [
+		'MainNoGUI.cpp',
 		'cmdline.c',
 		]
 
 if sys.platform == 'win32':
 	files += [ "stdafx.cpp" ]
-
-if sys.platform == 'darwin':
+elif sys.platform == 'darwin' and not env['HAVE_WX']:
 	files += [ 'cocoaApp.m' ]
+	exeNoGUI = '#' + env['prefix'] + '/DolphinNoGUI'
+elif sys.platform == 'darwin' and env['HAVE_WX']:
+	exeGUI = 'Dolphin'
+	exeGUIdist = '#' + env['prefix'] + '/Dolphin.app/Contents/MacOS/Dolphin'
 
-	exeGUI = env['binary_dir'] + 'Dolphin.app/Contents/MacOS/Dolphin'
-	exeNoGUI = env['binary_dir'] + 'DolphinNoGUI'
+	env.Install('#' + env['prefix'] + '/Dolphin.app/Contents/' +
+		'Library/Frameworks/Cg.framework',
+		'#Externals/Cg/Cg.framework/Cg')
 
-	wxenv.Plist(
-		env['binary_dir'] + 'Dolphin.app/Contents/Info.plist',
+	env.Install(env['data_dir'],
+		'#Source/Core/DolphinWX/resources/Dolphin.icns')
+
+	from plistlib import writePlist
+	def createPlist(target, source, env):
+		for srcNode in source:
+			writePlist(srcNode.value, str(target[0]))
+	env.Append(BUILDERS = {'Plist' : Builder(action = createPlist)})
+	env.Plist('#' + env['prefix'] + '/Dolphin.app/Contents/Info.plist',
 		Value(dict(
-			CFBundleExecutable = 'Dolphin',
-			CFBundleIconFile = 'Dolphin.icns',
-			CFBundleIdentifier = 'com.dolphin-emu.dolphin',
-			CFBundleName = 'Dolphin',
-			CFBundlePackageType = 'APPL',
-			CFBundleShortVersionString =
+		CFBundleExecutable = 'Dolphin',
+		CFBundleIconFile = 'Dolphin.icns',
+		CFBundleIdentifier = 'com.dolphin-emu.dolphin',
+		CFBundlePackageType = 'APPL',
+		CFBundleShortVersionString =
 			os.popen('svnversion -n ' + Dir('#').abspath).read(),
-			CFBundleVersion = '2.0',
-			LSMinimumSystemVersion = '10.5.0',
-			LSRequiresCarbon = True,
-			))
-		)
+		CFBundleVersion = '2.0',
+		LSMinimumSystemVersion = '10.5.0',
+		LSRequiresCarbon = True,
+		)))
+
+	def Fixup(target, source, env):
+		os.link(str(source[0]), str(target[0]))
+	env.Append(BUILDERS = {'Fixup' : Builder(action = Fixup)})
+	env.Depends(exeGUIdist, env['plugin_dir'])
+	if env['CPPDEFINES'].count('WXUSINGDLL'):
+		env.Fixup(exeGUIdist, exeGUI)
 else:
-	exeGUI = env['binary_dir'] + 'dolphin-emu'
-	exeNoGUI = env['binary_dir'] + 'dolphin-emu-nogui'
-
-wxenv.Append(
-	LIBS = libs
-	)
-
-if wxenv['HAVE_X11']:
 	files += [ 'X11Utils.cpp' ]
+	libs += [ 'SDL' ]
+	exeGUI = env['binary_dir'] + '/dolphin-emu'
+	exeNoGUI = env['binary_dir'] + '/dolphin-emu-nogui'
 
-if wxenv['HAVE_WX']:
-	wxenv.Program(exeGUI, files + [ 'Main.cpp' ])
-	wxenv.StaticLibrary(env['local_libs'] + 'memcard', memcardfiles)
+if env['HAVE_WX']:
+	env.StaticLibrary(env['local_libs'] + 'memcard', memcardfiles)
+	env.Program(exeGUI, files, LIBS = env['LIBS'] + wxlibs + libs)
 else:
-	wxenv.Program(exeNoGUI, files + [ 'MainNoGUI.cpp' ])
+	env.Program(exeNoGUI, files, LIBS = env['LIBS'] + libs)

@@ -18,7 +18,7 @@
 #ifndef _OPENALSTREAM_H_
 #define _OPENALSTREAM_H_
 
-#include <Common.h>
+#include "Common.h"
 #include "SoundStream.h"
 #include "Thread.h"
 
@@ -26,7 +26,7 @@
 #ifdef _WIN32
 #include "../../../../Externals/OpenAL/include/al.h"
 #include "../../../../Externals/OpenAL/include/alc.h"
-#elif defined __linux__
+#else
 #include <AL/al.h>
 #include <AL/alc.h>
 #endif

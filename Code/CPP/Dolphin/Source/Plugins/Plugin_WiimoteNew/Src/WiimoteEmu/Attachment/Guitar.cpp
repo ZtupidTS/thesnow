@@ -6,42 +6,30 @@ namespace WiimoteEmu
 
 static const u8 guitar_id[]	= { 0x00, 0x00, 0xa4, 0x20, 0x01, 0x03 };
 
-// guitar buttons
-#define GUITAR_PLUS			0x04
-#define GUITAR_MINUS		0x10
-#define GUITAR_BAR_DOWN		0x40
-
-#define GUITAR_BAR_UP		0x0100
-#define GUITAR_YELLOW		0x0800
-#define GUITAR_GREEN		0x1000
-#define GUITAR_BLUE			0x2000
-#define GUITAR_RED			0x4000
-#define GUITAR_ORANGE		0x8000
-
-const u16 guitar_fret_bitmasks[] =
+static const u16 guitar_fret_bitmasks[] =
 {
-	GUITAR_GREEN,
-	GUITAR_RED,
-	GUITAR_YELLOW,
-	GUITAR_BLUE,
-	GUITAR_ORANGE,
+	Guitar::FRET_GREEN,
+	Guitar::FRET_RED,
+	Guitar::FRET_YELLOW,
+	Guitar::FRET_BLUE,
+	Guitar::FRET_ORANGE,
 };
 
-const char* guitar_fret_names[] =
+static const char* const guitar_fret_names[] =
 {
 	"Green","Red","Yellow","Blue","Orange",
 };
 
-const u16 guitar_button_bitmasks[] =
+static const u16 guitar_button_bitmasks[] =
 {
-	GUITAR_MINUS,
-	GUITAR_PLUS,
+	Guitar::BUTTON_MINUS,
+	Guitar::BUTTON_PLUS,
 };
 
-const u16 guitar_strum_bitmasks[] =
+static const u16 guitar_strum_bitmasks[] =
 {
-	GUITAR_BAR_UP,
-	GUITAR_BAR_DOWN,
+	Guitar::BAR_UP,
+	Guitar::BAR_DOWN,
 };
 
 Guitar::Guitar() : Attachment( "Guitar" )
@@ -65,8 +53,8 @@ Guitar::Guitar() : Attachment( "Guitar" )
 
 	// buttons
 	groups.push_back( m_buttons = new Buttons( "Buttons" ) );
-	m_buttons->controls.push_back( new ControlGroup::Input("Minus") );
-	m_buttons->controls.push_back( new ControlGroup::Input("Plus") );
+	m_buttons->controls.push_back( new ControlGroup::Input("-") );
+	m_buttons->controls.push_back( new ControlGroup::Input("+") );
 
 	// set up register
 	// id
@@ -76,6 +64,7 @@ Guitar::Guitar() : Attachment( "Guitar" )
 void Guitar::GetState(u8* const data, const bool focus)
 {
 	wm_guitar_extension* const gdata = (wm_guitar_extension*)data;
+	gdata->bt = 0;
 
 	// calibration data not figured out yet?
 

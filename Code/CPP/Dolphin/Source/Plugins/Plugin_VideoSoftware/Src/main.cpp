@@ -61,8 +61,9 @@ void SetDllGlobals(PLUGIN_GLOBALS* _pPluginGlobals)
 	LogManager::SetInstance((LogManager *)globals->logManager);
 }
 
-void DllDebugger(HWND _hParent, bool Show)
+void *DllDebugger(void *_hParent, bool Show)
 {
+	return NULL;
 }
 
 void DllConfig(HWND _hParent)
@@ -94,6 +95,11 @@ void DoState(unsigned char **ptr, int mode)
 
 void EmuStateChange(PLUGIN_EMUSTATE newState)
 {
+}
+
+bool IsD3D()
+{
+	return false;
 }
 
 void Shutdown(void)
@@ -208,4 +214,9 @@ void Video_GatherPipeBursted(void)
 
 void Video_WaitForFrameFinish(void)
 {
+}
+
+bool Video_IsFifoBusy(void)
+{
+	return false;
 }

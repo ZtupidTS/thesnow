@@ -25,19 +25,15 @@
 
 class IniFile;
 
-class GFXDebuggerOGL : public wxDialog
+class GFXDebuggerOGL : public wxPanel
 {
 public:
 	GFXDebuggerOGL(wxWindow *parent,
-		wxWindowID id = 1,
-		const wxString &title = wxT("Video"),
+		wxWindowID id = wxID_ANY,
 		const wxPoint& pos = wxDefaultPosition,
 		const wxSize& size = wxDefaultSize,
-		#ifdef _WIN32
-		long style = wxNO_BORDER);
-		#else
-		long style = wxDEFAULT_FRAME_STYLE | wxCLIP_CHILDREN | wxNO_FULL_REPAINT_ON_RESIZE);
-		#endif
+		long style = wxTAB_TRAVERSAL,
+		const wxString &title = wxT("OpenGL Debugger"));
 
 	virtual ~GFXDebuggerOGL();
 
@@ -53,9 +49,7 @@ public:
 private:
 	DECLARE_EVENT_TABLE();
 
-	wxPanel *m_MainPanel;
-
-	wxCheckBox *m_Check[6];
+	wxCheckBox* m_Check[6];
 
 	// WARNING: Make sure these are not also elsewhere
 	enum
@@ -70,7 +64,7 @@ private:
 		NUM_OPTIONS
 	};
 
-	void OnClose(wxCloseEvent& event);		
+	void OnClose(wxCloseEvent& event);
 	void CreateGUIControls();
 
 	void GeneralSettings(wxCommandEvent& event);

@@ -49,8 +49,6 @@ public:
 	static void ResetAPIState();
 	static void RestoreAPIState();
 
-	static void ReinitView();
-
 	static void SetColorMask();
 	static void SetBlendMode(bool forceUpdate);
 	static bool SetScissorRect();
@@ -91,13 +89,13 @@ public:
 	static void DrawDebugText();
 	static void SetScreenshot(const char *filename);
 	static void FlipImageData(u8 *data, int w, int h);
-	static bool SaveRenderTarget(const char *filename, int w, int h, int YOffset = 0);
+	static bool SaveRenderTarget(const char *filename, TargetRectangle back_rc);
 
 	static void ClearScreen(const EFBRectangle& rc, bool colorEnable, bool alphaEnable, bool zEnable, u32 color, u32 z);
 	static void RenderToXFB(u32 xfbAddr, u32 fbWidth, u32 fbHeight, const EFBRectangle& sourceRc);
 
     // Finish up the current frame, print some stats
-    static void Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight);
+    static void Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,const EFBRectangle& rc);
 };
 
 void UpdateViewport();
