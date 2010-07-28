@@ -294,7 +294,11 @@ CDVD_SourceType CDVDsys_GetSourceType()
 void CDVDsys_ChangeSource( CDVD_SourceType type )
 {
 	GetCorePlugins().Close( PluginId_CDVD );
-
+	
+	static bool firstRun = true;
+	if (!firstRun) cdvdCtrlTrayOpen();
+	firstRun = false;
+	
 	switch( m_CurrentSourceType = type )
 	{
 		case CDVDsrc_Iso:
@@ -332,7 +336,8 @@ bool DoCDVDopen()
 		m_SourceFilename[m_CurrentSourceType].ToUTF8() : (char*)NULL
 	);
 
-	if( ret == -1 ) return false;
+	if( ret == -1 ) return false;	// error! (handled by caller)
+	if( ret == 1 )	throw Exception::CancelEvent(L"User canceled the CDVD plugin's open dialog.");
 
 	int cdtype = DoCDVDdetectDiskType();
 

@@ -81,7 +81,8 @@ void SysThreadBase::OnStart()
 //
 void SysThreadBase::Suspend( bool isBlocking )
 {
-	if( IsSelf() || !IsRunning() ) return;
+	if (!pxAssertDev(!IsSelf(),"Suspend/Resume are not allowed from this thread.")) return;
+	if (!IsRunning()) return;
 
 	// shortcut ExecMode check to avoid deadlocking on redundant calls to Suspend issued
 	// from Resume or OnResumeReady code.
@@ -98,7 +99,7 @@ void SysThreadBase::Suspend( bool isBlocking )
 			case ExecMode_Pausing:
 			case ExecMode_Paused:
 				if( !isBlocking )
-					throw Exception::CancelEvent( "Cannot suspend in non-blocking fashion: Another thread is pausing the VM state." );
+					throw Exception::CancelEvent( L"Cannot suspend in non-blocking fashion: Another thread is pausing the VM state." );
 	
 				m_ExecMode = ExecMode_Closing;
 				m_sem_Resume.Post();
@@ -182,7 +183,7 @@ void SysThreadBase::Resume()
 		{
 			Start();
 			if( !m_running || (m_ExecMode == ExecMode_NoThreadYet) )
-				throw Exception::ThreadCreationError();
+				throw Exception::ThreadCreationError(this);
 			if( m_ExecMode == ExecMode_Opened ) return;
 		}
 		// fall through...
@@ -230,7 +231,16 @@ void SysThreadBase::OnCleanupInThread()
 void SysThreadBase::OnSuspendInThread() {}
 void SysThreadBase::OnResumeInThread( bool isSuspended ) {}
 
-void SysThreadBase::StateCheckInThread()
+// Tests for Pause and Suspend/Close requests.  If the thread is trying to be paused or
+// closed, it will enter a wait/holding pattern here in this method until the managing
+// thread releases it.  Use the return value to detect if changes to the thread's state
+// may have been changed (based on the rule that other threads are not allowed to modify
+// this thread's state without pausing or closing it first, to prevent race conditions).
+//
+// Return value:
+//   TRUE if the thread was paused or closed; FALSE if the thread
+//   continued execution unimpeded.
+bool SysThreadBase::StateCheckInThread()
 {
 	switch( m_ExecMode )
 	{
@@ -240,14 +250,14 @@ void SysThreadBase::StateCheckInThread()
 			// threads should never have this state set while the thread is in any way
 			// active or alive. (for obvious reasons!!)
 			pxFailDev( "Invalid execution state detected." );
-		break;
+		return false;
 	#endif
 
 		case ExecMode_Opened:
-			// Yup, need this a second time.  Variable state could have changed while we
-			// were trying to acquire the lock above.
+			// Other cases don't need TestCancel() because its built into the various
+			// threading wait/signal actions.
 			TestCancel();
-		break;
+		return false;
 
 		// -------------------------------------
 		case ExecMode_Pausing:
@@ -291,4 +301,6 @@ void SysThreadBase::StateCheckInThread()
 
 		jNO_DEFAULT;
 	}
+	
+	return true;
 }

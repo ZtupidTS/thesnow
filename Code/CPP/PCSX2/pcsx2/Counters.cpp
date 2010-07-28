@@ -222,8 +222,6 @@ static void vSyncInfoCalc( vSyncTimingInfo* info, Fixed100 framesPerSecond, u32 
 
 u32 UpdateVSyncRate()
 {
-	Registers::Freeze();
-
 	// Notice:  (and I probably repeat this elsewhere, but it's worth repeating)
 	//  The PS2's vsync timer is an *independent* crystal that is fixed to either 59.94 (NTSC)
 	//  or 50.0 (PAL) Hz.  It has *nothing* to do with real TV timings or the real vsync of
@@ -276,8 +274,6 @@ u32 UpdateVSyncRate()
 	}
 
 	m_iStart = GetCPUTicks();
-
-	Registers::Thaw();
 
 	return (u32)m_iTicks;
 }
@@ -337,8 +333,8 @@ static __forceinline void frameLimit()
 
 static __forceinline void VSyncStart(u32 sCycle)
 {
-	Cpu->CheckExecutionState();
 	GetCoreThread().VsyncInThread();
+	Cpu->CheckExecutionState();
 
 	EECNT_LOG( "/////////  EE COUNTER VSYNC START (frame: %6d)  \\\\\\\\\\\\\\\\\\\\ ", g_FrameCount );
 
@@ -350,13 +346,13 @@ static __forceinline void VSyncStart(u32 sCycle)
 	CpuVU0->Vsync();
 	CpuVU1->Vsync();
 
-	if ((CSRw & 0x8))
+	if (!CSRreg.VSINT)
 	{
+		CSRreg.VSINT = true;
 		if (!(GSIMR&0x800))
 		{
 			gsIrq();
 		}
-		GSCSRr|= 0x8;
 	}
 
 	hwIntcIrq(INTC_VBLANK_S);
@@ -423,13 +419,13 @@ __forceinline void rcntUpdate_hScanline()
 		hsyncCounter.Mode = MODE_HRENDER;
 	}
 	else { //HBLANK END / HRENDER Begin
-		if (CSRw & 0x4)
+		if (!CSRreg.HSINT)
 		{
+			CSRreg.HSINT = true;
 			if (!(GSIMR&0x400))
 			{
 				gsIrq();
 			}
-			GSCSRr |= 4; // signal
 		}
 		if (gates) rcntEndGate(false, hsyncCounter.sCycle);
 		if (psxhblankgate) psxCheckEndGate16(0);
@@ -809,8 +805,6 @@ void SaveStateBase::rcntFreeze()
 
 	if( IsLoading() )
 	{
-		UpdateVSyncRate();
-
 		// make sure the gate flags are set based on the counter modes...
 		for( int i=0; i<4; i++ )
 			_rcntSetGate( i );

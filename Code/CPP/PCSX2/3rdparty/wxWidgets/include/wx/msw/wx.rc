@@ -29,7 +29,7 @@
 
 wxWindowMenu MENU DISCARDABLE
 BEGIN
-    POPUP "&Window"
+    POPUP "´°¿Ú(&W)"
     BEGIN
         MENUITEM "&Cascade",                    4002
         MENUITEM "Tile &Horizontally",          4001

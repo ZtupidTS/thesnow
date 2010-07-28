@@ -51,10 +51,18 @@ enum CdvdIrqId
 };
 
 /* is cdvd.Status only for NCMDS? (linuzappz) */
+/* cdvd.Status is a construction site as of now (rama)*/ 
 enum cdvdStatus
 {
-	CDVD_STATUS_NONE            = 0x00, // not sure ;)
-	CDVD_STATUS_SEEK_COMPLETE   = 0x0A,
+	//CDVD_STATUS_NONE            = 0x00, // not sure ;)
+	//CDVD_STATUS_SEEK_COMPLETE   = 0x0A,
+	CDVD_STATUS_STOP            = 0x00, 
+	CDVD_STATUS_TRAY_OPEN       = 0x01, // confirmed to be tray open
+	CDVD_STATUS_SPIN            = 0x02,
+	CDVD_STATUS_READ			= 0x06,
+	CDVD_STATUS_PAUSE			= 0x0A, // neutral value. Recommended to never rely on this.
+	CDVD_STATUS_SEEK			= 0x12,
+	CDVD_STATUS_EMERGENCY		= 0x20,
 };
 
 enum cdvdready
@@ -128,6 +136,8 @@ static const uint PSX_DVD_READSPEED = 1382400 + 256000; // normal is 1 Byte Time
 
 static const uint Cdvd_FullSeek_Cycles = (PSXCLK*100) / 1000;		// average number of cycles per fullseek (100ms)
 static const uint Cdvd_FastSeek_Cycles = (PSXCLK*30) / 1000;		// average number of cycles per fastseek (37ms)
+short DiscSwapTimerSeconds = 0;
+bool trayState = 0; // Used to check if the CD tray status has changed since the last time
 
 static const char *mg_zones[8] = {"Japan", "USA", "Europe", "Oceania", "Asia", "Russia", "China", "Mexico"};
 

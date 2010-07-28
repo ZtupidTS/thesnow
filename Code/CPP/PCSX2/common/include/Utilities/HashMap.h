@@ -1,9 +1,26 @@
+/*  PCSX2 - PS2 Emulator for PCs
+*  Copyright (C) 2002-2010  PCSX2 Dev Team
+*
+*  PCSX2 is free software: you can redistribute it and/or modify it under the terms
+*  of the GNU Lesser General Public License as published by the Free Software Found-
+*  ation, either version 3 of the License, or (at your option) any later version.
+*
+*  PCSX2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+*  without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+*  PURPOSE.  See the GNU General Public License for more details.
+*
+*  You should have received a copy of the GNU General Public License along with PCSX2.
+*  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #pragma once
 
 #include <google/type_traits.h>
 #include <google/dense_hash_set>
 #include <google/dense_hash_map>
 #include <google/sparsehash/densehashtable.h>
+
+#include <wx/string.h>
 
 namespace HashTools {
 
@@ -204,6 +221,11 @@ public:
 		return Hash( (const char *)src.data(), src.length() * sizeof( wchar_t ) );
 	}
 
+	hash_key_t operator()( const wxString& src ) const
+	{
+		return Hash( (const char *)src.data(), src.length() * sizeof( wxChar ) );
+	}
+
 	// Returns a hashcode for a character.
 	// This has function has been optimized to return an even distribution
 	// across the range of an int value.  In theory that should be more rewarding
@@ -322,6 +344,8 @@ public:
 		hash_key_t key = (hash_key_t) addr;
 		return (hash_key_t)((key >> 3) * 2654435761ul);
 	}
+	
+	
 };
 
 /// <summary>
@@ -528,7 +552,7 @@ public:
 
 	const T& GetValue( Key key ) const
 	{
-		return (this->find( key ))->second;
+		return (find( key ))->second;
 	}
 };
 
@@ -546,10 +570,12 @@ public:
 ///   matter, don't use this class at all! Use the string-specialized classes <see cref="Dictionary" /> and
 ///   <see cref="UnicodeDictionary" />.
 /// </remarks>
-template< class Key, class T >
-class HashMap : public google::dense_hash_map<Key, T, CommonHashClass>
+template< class Key, class T, class HashFunctor=CommonHashClass >
+class HashMap : public google::dense_hash_map<Key, T, HashFunctor>
 {
-	typedef typename google::dense_hash_map<Key, T, CommonHashClass> _parent;
+	DeclareNoncopyableObject( HashMap );
+
+	typedef typename google::dense_hash_map<Key, T, HashFunctor> _parent;
 
 public:
 	using _parent::operator[];
@@ -566,7 +592,7 @@ public:
 	///   are *not* used as actual values in the set.
 	/// </remarks>
 	HashMap( const Key& emptyKey, const Key& deletedKey, int initialCapacity=33 ) :
-		google::dense_hash_map<Key, T, CommonHashClass>( initialCapacity )
+		google::dense_hash_map<Key, T, HashFunctor>( initialCapacity )
 	{
 		set_empty_key( emptyKey );
 		set_deleted_key( deletedKey );
@@ -580,16 +606,25 @@ public:
 	///   parameter.  This is a more favorable alternative to the indexer operator since the
 	///   indexer implementation can and will create new entries for every request that
 	/// </remarks>
-	void TryGetValue( const Key& key, T& outval ) const
+	bool TryGetValue( const Key& key, T& outval ) const
 	{
 		const_iterator iter( find(key) );
 		if( iter != end() )
+		{
 			outval = iter->second;
+			return true;
+		}
+		return false;
 	}
 
 	const T& GetValue( Key key ) const
 	{
-		return (this->find( key ))->second;
+		return (find( key ))->second;
+	}
+	
+	bool Find( Key key ) const
+	{
+		return find(key) != end();
 	}
 };
 
@@ -607,12 +642,10 @@ class Dictionary : public HashMap<std::string, T>
 public:
 	virtual ~Dictionary() {}
 
-	Dictionary( int initialCapacity=33, const std::string& emptyKey = "@@-EMPTY-@@", const std::string& deletedKey = "@@-DELETED-@@" ) :
-		HashMap<std::string, T>( emptyKey, deletedKey, initialCapacity)
+	Dictionary( int initialCapacity=33, const std::string& emptyKey = "@@-EMPTY-@@", const std::string& deletedKey = "@@-DELETED-@@" )
+		: HashMap<std::string, T>( emptyKey, deletedKey, initialCapacity)
 	{
 	}
-private:
-	Dictionary( const Dictionary& src ) {}
 };
 
 /// <summary>
@@ -631,13 +664,22 @@ class UnicodeDictionary : public HashMap<std::wstring, T>
 public:
 	virtual ~UnicodeDictionary() {}
 
-	UnicodeDictionary( int initialCapacity=33, const std::wstring& emptyKey = L"@@-EMPTY-@@", const std::wstring& deletedKey = L"@@-DELETED-@@" ) :
-		HashMap<std::wstring, T>( emptyKey, deletedKey, initialCapacity)
+	UnicodeDictionary( int initialCapacity=33, const std::wstring& emptyKey = L"@@-EMPTY-@@", const std::wstring& deletedKey = L"@@-DELETED-@@" )
+		: HashMap<std::wstring, T>( emptyKey, deletedKey, initialCapacity)
 	{
 	}
-
-private:
-	UnicodeDictionary( const UnicodeDictionary& src ) {}
 };
 
 }
+
+template< class T, class HashFunctor=HashTools::CommonHashClass >
+class pxDictionary : public HashTools::HashMap<wxString, T, HashFunctor>
+{
+public:
+	virtual ~pxDictionary() {}
+
+	pxDictionary( int initialCapacity=33, const wxString& emptyKey = L"@@-EMPTY-@@", const wxString& deletedKey = L"@@-DELETED-@@" )
+		: HashTools::HashMap<wxString, T, HashFunctor>( emptyKey, deletedKey, initialCapacity)
+	{
+	}
+};

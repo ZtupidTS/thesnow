@@ -23,10 +23,31 @@
 // because its vif stalling not the EE core...
 __forceinline void vif0FLUSH()
 {
+	if(g_packetsizeonvu > vif0.vifpacketsize && g_vu0Cycles > 0) 
+	{
+		//DevCon.Warning("Adding on same packet");
+		if( ((g_packetsizeonvu - vif0.vifpacketsize) >> 1) > g_vu0Cycles)
+			g_vu0Cycles -= (g_packetsizeonvu - vif0.vifpacketsize) >> 1;
+		else g_vu0Cycles = 0;
+	}
+	if(g_vu0Cycles > 0)
+	{
+		//DevCon.Warning("Adding %x cycles to VIF0", g_vu1Cycles * BIAS);
+		g_vifCycles += g_vu0Cycles;
+		g_vu0Cycles = 0;		
+	} 
+	g_vu0Cycles = 0;
 	if (!(VU0.VI[REG_VPU_STAT].UL & 1)) return;
+	if(VU0.flags & VUFLAG_MFLAGSET)
+	{
+		vif0.vifstalled = true;
+		return;
+	}
 	int _cycles = VU0.cycle;
 	vu0Finish();
+	//DevCon.Warning("VIF0 adding %x cycles", (VU0.cycle - _cycles) * BIAS);
 	g_vifCycles += (VU0.cycle - _cycles) * BIAS;
+	return;
 }
 
 bool _VIF0chain()
@@ -52,9 +73,9 @@ bool _VIF0chain()
 	        vif0ch->qwc, vif0ch->madr, vif0ch->tadr);
 
 	if (vif0.vifstalled)
-		return VIF0transfer(pMem + vif0.irqoffset, vif0ch->qwc * 4 - vif0.irqoffset, false);
+		return VIF0transfer(pMem + vif0.irqoffset, vif0ch->qwc * 4 - vif0.irqoffset);
 	else
-		return VIF0transfer(pMem, vif0ch->qwc * 4, false);
+		return VIF0transfer(pMem, vif0ch->qwc * 4);
 }
 
 __forceinline void vif0SetupTransfer()
@@ -82,16 +103,16 @@ __forceinline void vif0SetupTransfer()
 			VIF_LOG("vif0 Tag %8.8x_%8.8x size=%d, id=%d, madr=%lx, tadr=%lx\n",
 			        ptag[1]._u32, ptag[0]._u32, vif0ch->qwc, ptag->ID, vif0ch->madr, vif0ch->tadr);
 
-			vif0.inprogress = 1;
+			vif0.inprogress = 0;
 
 			if (vif0ch->chcr.TTE)
 			{
 			    bool ret;
 
 				if (vif0.vifstalled)
-					ret = VIF0transfer((u32*)ptag + (2 + vif0.irqoffset), 2 - vif0.irqoffset, true);  //Transfer Tag on stall
+					ret = VIF0transfer((u32*)ptag + (2 + vif0.irqoffset), 2 - vif0.irqoffset);  //Transfer Tag on stall
 				else
-					ret = VIF0transfer((u32*)ptag + 2, 2, true);  //Transfer Tag
+					ret = VIF0transfer((u32*)ptag + 2, 2);  //Transfer Tag
 
 				if ((ret == false) && vif0.irqoffset < 2)
 				{
@@ -103,6 +124,7 @@ __forceinline void vif0SetupTransfer()
 			vif0.irqoffset = 0;
 			vif0.done |= hwDmacSrcChainWithStack(vif0ch, ptag->ID);
 
+			if(vif0ch->qwc > 0) vif0.inprogress = 1;
 			//Check TIE bit of CHCR and IRQ bit of tag
 			if (vif0ch->chcr.TIE && ptag->IRQ)
 			{
@@ -124,6 +146,15 @@ __forceinline void vif0Interrupt()
 
 	if (!(vif0ch->chcr.STR)) Console.WriteLn("vif0 running when CHCR == %x", vif0ch->chcr._u32);
 
+	if (vif0.cmd) 
+	{
+		if(vif0.done == true && vif0ch->qwc == 0)	vif0Regs->stat.VPS = VPS_WAITING;
+	}
+	else		 
+	{
+		vif0Regs->stat.VPS = VPS_IDLE;
+	}
+
 	if (vif0.irq && vif0.tag.size == 0)
 	{
 		vif0Regs->stat.INT = true;
@@ -134,25 +165,15 @@ __forceinline void vif0Interrupt()
 			vif0Regs->stat.FQC = 0;
 
 			// One game doesn't like vif stalling at end, can't remember what. Spiderman isn't keen on it tho
-			vif0ch->chcr.STR = false;
-			return;
-		}
-		else if ((vif0ch->qwc > 0) || (vif0.irqoffset > 0))
-		{
-			if (vif0.stallontag)
-				vif0SetupTransfer();
-			else
-				_VIF0chain();//CPU_INT(DMAC_STALL_SIS, vif0ch->qwc * BIAS);
+			//vif0ch->chcr.STR = false;
+			if(vif0ch->qwc > 0 || !vif0.done)	return;
 		}
 	}
 
 	if (vif0.inprogress & 0x1)
 	{
 		_VIF0chain();
-		// VIF_NORMAL_FROM_MEM_MODE is a very slow operation.
-		// Timesplitters 2 depends on this beeing a bit higher than 128.
-		if (vif0.dmamode == VIF_NORMAL_FROM_MEM_MODE ) CPU_INT(DMAC_VIF0, 1024);
-		else CPU_INT(DMAC_VIF0, g_vifCycles);
+		CPU_INT(DMAC_VIF0, g_vifCycles);
 		return;
 	}
 
@@ -182,7 +203,6 @@ __forceinline void vif0Interrupt()
 	if (vif0.cmd != 0) Console.WriteLn("vif0.cmd still set %x tag size %x", vif0.cmd, vif0.tag.size);
 #endif
 
-	vif0Regs->stat.VPS = VPS_IDLE; //Vif goes idle as the stall happened between commands;
 	vif0ch->chcr.STR = false;
 	g_vifCycles = 0;
 	hwDmacIrq(DMAC_VIF0);
@@ -197,24 +217,41 @@ void dmaVIF0()
 	        vif0ch->tadr, vif0ch->asr0, vif0ch->asr1);
 
 	g_vifCycles = 0;
+	g_vu0Cycles = 0;
+	//if(vif0.irqoffset != 0 && vif0.vifstalled == true) DevCon.Warning("Offset on VIF0 start! offset %x, Progress %x", vif0.irqoffset, vif0.vifstalled);
+	/*vif0.irqoffset = 0;
+	vif0.vifstalled = false;
 	vif0.inprogress = 0;
+	vif0.done = false;*/
 
 	if ((vif0ch->chcr.MOD == NORMAL_MODE) || vif0ch->qwc > 0)   // Normal Mode
 	{
 			vif0.dmamode = VIF_NORMAL_TO_MEM_MODE;
-			if(vif0ch->chcr.MOD == CHAIN_MODE && vif0ch->qwc > 0) DevCon.Warning(L"VIF0 QWC on Chain CHCR " + vif0ch->chcr.desc());
+
+			vif0.done = false;
+
+			if(vif0ch->chcr.MOD == CHAIN_MODE && vif0ch->qwc > 0) 
+			{
+				vif0.dmamode = VIF_CHAIN_MODE;
+				DevCon.Warning(L"VIF0 QWC on Chain CHCR " + vif0ch->chcr.desc());
+				
+				if ((vif0ch->chcr.tag().ID == TAG_REFE) || (vif0ch->chcr.tag().ID == TAG_END))
+				{
+					vif0.done = true;
+				}
+			}
 	}
 	else
 	{
 		vif0.dmamode = VIF_CHAIN_MODE;
+		vif0.done = false;
 	}
 
-	if (vif0.dmamode != VIF_NORMAL_FROM_MEM_MODE)
-		vif0Regs->stat.FQC = 0x8;
-	else
-		vif0Regs->stat.FQC = min((u16)0x8, vif0ch->qwc);
+	vif0Regs->stat.FQC = min((u16)0x8, vif0ch->qwc);
 
+	//Using a delay as Beyond Good and Evil does the DMA twice with 2 different TADR's (no checks in the middle, all one block of code),
+	//the first bit it sends isnt required for it to work.
+	//Also being an end chain it ignores the second lot, this causes infinite loops ;p
 	// Chain Mode
-	vif0.done = false;
-	vif0Interrupt();
+	CPU_INT(DMAC_VIF0, 4);
 }

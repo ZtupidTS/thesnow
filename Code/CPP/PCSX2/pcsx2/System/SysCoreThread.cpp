@@ -16,6 +16,8 @@
 #include "PrecompiledHeader.h"
 #include "Common.h"
 
+#include "IopBios.h"
+
 #include "Counters.h"
 #include "GS.h"
 #include "Elfheader.h"
@@ -104,6 +106,9 @@ void SysCoreThread::SetElfOverride( const wxString& elf )
 {
 	//pxAssertDev( !m_hasValidMachine, "Thread synchronization error while assigning ELF override." );
 	m_elf_override = elf;
+
+
+	Hle_SetElfPath(elf.ToUTF8());
 }
 
 void SysCoreThread::Reset()
@@ -151,10 +156,16 @@ bool SysCoreThread::HasPendingStateChangeRequest() const
 
 void SysCoreThread::_reset_stuff_as_needed()
 {
+	// Note that resetting recompilers along with the virtual machine is only really needed
+	// because of changes to the TLB.  We don't actually support the TLB, however, so rec
+	// resets aren't in fact *needed* ... yet.  But might as well, no harm.  --air
+
 	if( m_resetVirtualMachine || m_resetRecompilers || m_resetProfilers )
 	{
 		SysClearExecutionCache();
 		memBindConditionalHandlers();
+		SetCPUState( EmuConfig.Cpu.sseMXCSR, EmuConfig.Cpu.sseVUMXCSR );
+
 		m_resetRecompilers		= false;
 		m_resetProfilers		= false;
 	}
@@ -162,28 +173,24 @@ void SysCoreThread::_reset_stuff_as_needed()
 	if( m_resetVirtualMachine )
 	{
 		DoCpuReset();
+
 		m_resetVirtualMachine	= false;
-		m_resetRecompilers		= true;
+		m_resetVsyncTimers		= false;
 	}
 
 	if( m_resetVsyncTimers )
 	{
 		UpdateVSyncRate();
 		frameLimitReset();
+
 		m_resetVsyncTimers		= false;
 	}
-
-	SetCPUState( EmuConfig.Cpu.sseMXCSR, EmuConfig.Cpu.sseVUMXCSR );
 }
 
 void SysCoreThread::DoCpuReset()
 {
 	AffinityAssert_AllowFromSelf( pxDiagSpot );
 	cpuReset();
-}
-
-void SysCoreThread::PostVsyncToUI()
-{
 }
 
 // This is called from the PS2 VM at the start of every vsync (either 59.94 or 50 hz by PS2
@@ -197,17 +204,22 @@ void SysCoreThread::PostVsyncToUI()
 //
 void SysCoreThread::VsyncInThread()
 {
-	PostVsyncToUI();
 	if (EmuConfig.EnablePatches) ApplyPatch();
 	if (EmuConfig.EnableCheats)  ApplyCheat();
 }
 
-void SysCoreThread::StateCheckInThread()
+void SysCoreThread::GameStartingInThread()
+{
+	GetMTGS().SendGameCRC(ElfCRC);
+
+	if (EmuConfig.EnablePatches) ApplyPatch(0);
+	if (EmuConfig.EnableCheats)  ApplyCheat(0);
+}
+
+bool SysCoreThread::StateCheckInThread()
 {
 	GetMTGS().RethrowException();
-	_parent::StateCheckInThread();
-
-	_reset_stuff_as_needed();		// kinda redundant but could catch unexpected threaded state changes...
+	return _parent::StateCheckInThread() && (_reset_stuff_as_needed(), true);
 }
 
 // Runs CPU cycles indefinitely, until the user or another thread requests execution to break.
@@ -248,7 +260,10 @@ void SysCoreThread::OnResumeInThread( bool isSuspended )
 // Invoked by the pthread_exit or pthread_cancel.
 void SysCoreThread::OnCleanupInThread()
 {
-	m_hasActiveMachine = false;
+	m_ExecMode				= ExecMode_Closing;
+
+	m_hasActiveMachine		= false;
+	m_resetVirtualMachine	= true;
 
 	GetCorePlugins().Close();
 	GetCorePlugins().Shutdown();
@@ -256,5 +271,7 @@ void SysCoreThread::OnCleanupInThread()
 	_mm_setcsr( m_mxcsr_saved.bitmask );
 	Threading::DisableHiresScheduler();
 	_parent::OnCleanupInThread();
+
+	m_ExecMode				= ExecMode_NoThreadYet;
 }
 

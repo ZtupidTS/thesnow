@@ -74,6 +74,7 @@ void Pcsx2Config::SpeedhackOptions::LoadSave( IniInterface& ini )
 	IniBitBool( IntcStat );
 	IniBitBool( WaitLoop );
 	IniBitBool( vuFlagHack );
+	IniBitBool( vuBlockHack );
 	IniBitBool( vuMinMax );
 }
 
@@ -93,7 +94,8 @@ Pcsx2Config::RecompilerOptions::RecompilerOptions()
 {
 	bitset		= 0;
 
-	StackFrameChecks = false;
+	//StackFrameChecks	= false;
+	//PreBlockCheckEE		= false;
 
 	// All recs are enabled by default.
 
@@ -172,6 +174,8 @@ void Pcsx2Config::RecompilerOptions::LoadSave( IniInterface& ini )
 	IniBitBool( fpuFullMode );
 
 	IniBitBool( StackFrameChecks );
+	IniBitBool( PreBlockCheckEE );
+	IniBitBool( PreBlockCheckIOP );
 }
 
 Pcsx2Config::CpuOptions::CpuOptions()
@@ -213,6 +217,7 @@ Pcsx2Config::GSOptions::GSOptions()
 
 	SynchronousMTGS			= false;
 	DisableOutput			= false;
+	VsyncQueueSize			= 2;
 
 	DefaultRegionMode		= Region_NTSC;
 	FramesToDraw			= 2;
@@ -230,6 +235,7 @@ void Pcsx2Config::GSOptions::LoadSave( IniInterface& ini )
 
 	IniEntry( SynchronousMTGS );
 	IniEntry( DisableOutput );
+	IniEntry( VsyncQueueSize );
 
 	IniEntry( FrameLimitEnable );
 	IniEntry( FrameSkipEnable );
@@ -256,7 +262,8 @@ const wxChar *const tbl_GamefixNames[] =
 	L"XGKick",
 	L"IpuWait",
 	L"EETiming",
-	L"SkipMpeg"
+	L"SkipMpeg",
+	L"OPHFlag"
 };
 
 const __forceinline wxChar* EnumToString( GamefixId id )
@@ -288,7 +295,7 @@ void Pcsx2Config::GamefixOptions::Set( const wxString& list, bool enabled )
 
 void Pcsx2Config::GamefixOptions::Set( GamefixId id, bool enabled )
 {
-	EnumAssume( id );
+	EnumAssert( id );
 	switch(id)
 	{
 		case Fix_VuAddSub:		VuAddSubHack		= enabled;	break;
@@ -300,6 +307,7 @@ void Pcsx2Config::GamefixOptions::Set( GamefixId id, bool enabled )
 		case Fix_IpuWait:		IPUWaitHack			= enabled;	break;
 		case Fix_EETiming:		EETimingHack		= enabled;	break;
 		case Fix_SkipMpeg:		SkipMPEGHack		= enabled;	break;
+		case Fix_OPHFlag:		OPHFlagHack			= enabled;  break;
 
 		jNO_DEFAULT;
 	}
@@ -307,7 +315,7 @@ void Pcsx2Config::GamefixOptions::Set( GamefixId id, bool enabled )
 
 bool Pcsx2Config::GamefixOptions::Get( GamefixId id ) const
 {
-	EnumAssume( id );
+	EnumAssert( id );
 	switch(id)
 	{
 		case Fix_VuAddSub:		return VuAddSubHack;
@@ -319,6 +327,7 @@ bool Pcsx2Config::GamefixOptions::Get( GamefixId id ) const
 		case Fix_IpuWait:		return IPUWaitHack;
 		case Fix_EETiming:		return EETimingHack;
 		case Fix_SkipMpeg:		return SkipMPEGHack;
+		case Fix_OPHFlag:		return OPHFlagHack;
 		
 		jNO_DEFAULT
 	}
@@ -339,6 +348,7 @@ void Pcsx2Config::GamefixOptions::LoadSave( IniInterface& ini )
 	IniBitBool( IPUWaitHack );
 	IniBitBool( EETimingHack );
 	IniBitBool( SkipMPEGHack );
+	IniBitBool( OPHFlagHack );
 }
 
 Pcsx2Config::Pcsx2Config()

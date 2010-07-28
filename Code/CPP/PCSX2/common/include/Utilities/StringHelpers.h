@@ -18,7 +18,6 @@
 #include "Dependencies.h"
 
 #include <wx/tokenzr.h>
-#include <wx/gdicmn.h>		// for wxPoint/wxRect stuff
 
 
 // --------------------------------------------------------------------------------------
@@ -70,7 +69,8 @@ extern wxString fromAscii( const char* src );
 extern const wxRect wxDefaultRect;
 
 extern void SplitString( wxArrayString& dest, const wxString& src, const wxString& delims, wxStringTokenizerMode mode = wxTOKEN_RET_EMPTY_ALL );
-extern void JoinString( wxString& dest, const wxArrayString& src, const wxString& separator );
+extern wxString JoinString( const wxArrayString& src, const wxString& separator );
+extern wxString JoinString( const wxChar** src, const wxString& separator );
 
 extern wxString ToString( const wxPoint& src, const wxString& separator=L"," );
 extern wxString ToString( const wxSize& src, const wxString& separator=L"," );
@@ -108,6 +108,7 @@ struct ParsedAssignmentString
 
 extern bool pxParseAssignmentString( const wxString& src, wxString& ldest, wxString& rdest );
 
+extern int FastFormatString_AsciiRaw(wxCharBuffer& dest, const char* fmt, va_list argptr);
 extern wxString FastFormatString_Ascii(const char* fmt, va_list argptr);
 extern wxString FastFormatString_Unicode(const wxChar* fmt, va_list argptr);
 

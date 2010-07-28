@@ -1,22 +1,17 @@
-# Utilities library
+# Check that people use the good file
+if(NOT TOP_CMAKE_WAS_SOURCED)
+    message(FATAL_ERROR "
+    You did not 'cmake' the good CMakeLists.txt file. Use the one in the top dir.
+    It is advice to delete all wrongly generated cmake stuff => CMakeFiles & CMakeCache.txt")
+endif(NOT TOP_CMAKE_WAS_SOURCED)
+
 
 # library name
-set(UtilitiesName Utilities)
-
-# Clear default flags
-set(CMAKE_C_FLAGS "")
-set(CMAKE_CXX_FLAGS "")
-set(CMAKE_C_FLAGS_DEBUG "")
-set(CMAKE_CXX_FLAGS_DEBUG "")
-set(CMAKE_C_FLAGS_DEVEL "")
-set(CMAKE_CXX_FLAGS_DEVEL "")
-set(CMAKE_C_FLAGS_RELEASE "")
-set(CMAKE_CXX_FLAGS_RELEASE "")
+set(Output Utilities)
 
 # set common flags
 set(CommonFlags 
 	-pthread
-	-m32
 	-march=i486
 	-msse
 	-msse2
@@ -99,6 +94,7 @@ endif(CMAKE_BUILD_TYPE STREQUAL Release)
 
 # variable with all sources of this library
 set(UtilitiesSources
+	../../include/Utilities/FixedPointTypes.inl
 	../../include/Utilities/EventSource.inl
 	AlignedMalloc.cpp
 	CheckedStaticBox.cpp
@@ -127,6 +123,7 @@ set(UtilitiesSources
 	wxAppWithHelpers.cpp
 	wxGuiTools.cpp
 	wxHelpers.cpp
+	x86/MemcpyVibes.cpp
 #	x86/MemcpyFast.cpp
 	)
 
@@ -163,19 +160,18 @@ set(UtilitiesHeaders
 	../../include/Utilities/wxGuiTools.h
 	PrecompiledHeader.h)
 
+include_directories(.)
+
 # change language of .S-files to c++
 set_source_files_properties(${UtilitiesSSources} PROPERTIES LANGUAGE CXX)
 
 # add library
-add_library(${UtilitiesName} STATIC ${UtilitiesSources} ${UtilitiesHeaders} ${UtilitiesSSources})
+add_library(${Output} STATIC ${UtilitiesSources} ${UtilitiesHeaders} ${UtilitiesSSources})
 
 # link target with wx
-target_link_libraries(${UtilitiesName} ${wxWidgets_LIBRARIES})
- 
-# Force the linker into 32 bits mode
-target_link_libraries(${UtilitiesName} -m32)
+target_link_libraries(${Output} ${wxWidgets_LIBRARIES})
 
-# Linker strip option
-if (CMAKE_BUILD_STRIP)
-    target_link_libraries(${UtilitiesName} -s)
-endif (CMAKE_BUILD_STRIP)
+# User flags options
+if(NOT USER_CMAKE_LD_FLAGS STREQUAL "")
+    target_link_libraries(${Output} "${USER_CMAKE_LD_FLAGS}")
+endif(NOT USER_CMAKE_LD_FLAGS STREQUAL "")

@@ -17,8 +17,6 @@
 #ifndef __HW_H__
 #define __HW_H__
 
-extern void CPU_INT( u32 n, s32 ecycle );
-
 //////////////////////////////////////////////////////////////////////////
 // Hardware FIFOs (128 bit access only!)
 //
@@ -132,6 +130,9 @@ enum EERegisterAddresses
 	D0_CHCR			=	0x10008000,
 	D0_MADR			=	0x10008010,
 	D0_QWC			=	0x10008020,
+	D0_TADR			=	0x10008030,
+	D0_ASR0			=	0x10008040,
+	D0_ASR1			=	0x10008050,
 
 //VIF1
 	D1_CHCR			=	0x10009000,
@@ -308,8 +309,6 @@ extern void __fastcall hwWrite64_page_0E( u32 mem, const mem64_t* srcval );
 extern void __fastcall hwWrite64_generic( u32 mem, const mem64_t* srcval );
 
 extern void __fastcall hwWrite128_generic(u32 mem, const mem128_t *srcval);
-
-bool hwMFIFOWrite(u32 addr, u8 *data, u32 size);
 
 extern const int rdram_devices;
 extern int rdram_sdevid;

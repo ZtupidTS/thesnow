@@ -31,9 +31,9 @@ void vuMicroMemAlloc()
 		m_vuAllMem = vtlb_malloc( m_vuMemSize, 16 );
 
 	if( m_vuAllMem == NULL )
-		throw Exception::OutOfMemory( "vuMicroMemInit > Failed to allocate VUmicro memory." );
+		throw Exception::OutOfMemory( L"VU0 and VU1 on-chip memory" );
 
-	jASSUME( sizeof( VURegs ) <= 0x800 );
+	pxAssume( sizeof( VURegs ) <= 0x800 );
 
 	u8* curpos = m_vuAllMem;
 	VU0.Micro	= curpos; curpos += 0x1000;
@@ -55,8 +55,8 @@ void vuMicroMemShutdown()
 
 void vuMicroMemReset()
 {
-	jASSUME( VU0.Mem != NULL );
-	jASSUME( VU1.Mem != NULL );
+	pxAssume( VU0.Mem != NULL );
+	pxAssume( VU1.Mem != NULL );
 
 	memMapVUmicro();
 
@@ -107,11 +107,18 @@ void SaveStateBase::vuMicroFreeze()
 {
 	FreezeTag( "vuMicro" );
 
-	jASSUME( VU0.Mem != NULL );
-	jASSUME( VU1.Mem != NULL );
+	pxAssume( VU0.Mem != NULL );
+	pxAssume( VU1.Mem != NULL );
 
 	Freeze(VU0.ACC);
-	Freeze(VU0.code);
+
+	// Seemingly silly and pointless use of temp var:  GCC is unable to bind packed fields
+	// (appears to be a bug, tracked here: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=36566 ).
+	// Dereferencing outside the context of the function (via a temp var) seems to circumvent it. --air
+	
+	u32& temp_vu0_code = VU0.code;
+	Freeze(temp_vu0_code);
+
 	FreezeMem(VU0.Mem,   4*1024);
 	FreezeMem(VU0.Micro, 4*1024);
 
@@ -119,7 +126,10 @@ void SaveStateBase::vuMicroFreeze()
 	Freeze(VU0.VI);
 
 	Freeze(VU1.ACC);
-	Freeze(VU1.code);
+
+	u32& temp_vu1_code = VU1.code;
+	Freeze(temp_vu1_code);
+
 	FreezeMem(VU1.Mem,   16*1024);
 	FreezeMem(VU1.Micro, 16*1024);
 

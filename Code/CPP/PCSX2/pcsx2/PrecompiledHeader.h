@@ -1,3 +1,18 @@
+/*  PCSX2 - PS2 Emulator for PCs
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *
+ *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
+ *  of the GNU Lesser General Public License as published by the Free Software Found-
+ *  ation, either version 3 of the License, or (at your option) any later version.
+ *
+ *  PCSX2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ *  without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+ *  PURPOSE.  See the GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License along with PCSX2.
+ *  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #ifndef PCSX2_PRECOMPILED_HEADER
 #define PCSX2_PRECOMPILED_HEADER
 
@@ -20,7 +35,9 @@
 // macro provided for tagging translation strings, without actually running them through the
 // translator (which the _() does automatically, and sometimes we don't want that).  This is
 // a shorthand replacement for wxTRANSLATE.
-#define wxLt(a)		(a)
+#ifndef wxLt
+#	define wxLt(a)		a
+#endif
 
 #define NOMINMAX		// Disables other libs inclusion of their own min/max macros (we use std instead)
 
@@ -29,7 +46,6 @@
 
 #include <wx/string.h>
 #include <wx/tokenzr.h>
-#include <wx/gdicmn.h>		// for wxPoint/wxRect stuff
 #include <wx/intl.h>
 #include <wx/log.h>
 #include <wx/filename.h>
@@ -38,18 +54,11 @@
 // Include the STL junk that's actually handy.
 
 #include <stdexcept>
-#include <algorithm>
 #include <vector>
-#include <string>
 #include <list>
-#include <deque>
-#include <sstream>
 #include <cstring>		// string.h under c++
 #include <cstdio>		// stdio.h under c++
 #include <cstdlib>
-#include <iostream>
-#include <sstream>
-#include <fstream>
 
 // ... and include some ANSI/POSIX C libs that are useful too, just for good measure.
 // (these compile lightning fast with or without PCH, but they never change so
@@ -59,8 +68,6 @@
 #include <sys/stat.h>
 #include <pthread.h>
 
-
-using std::string;		// we use it enough, so bring it into the global namespace.
 using std::min;
 using std::max;
 
@@ -115,14 +122,6 @@ typedef int BOOL;
 // Definitions added Feb 16, 2006 by efp
 #	ifndef __declspec
 #		define __declspec(x)
-#	endif
-
-#	ifndef strnicmp
-#		define strnicmp strncasecmp
-#	endif
-
-#	ifndef stricmp
-#		define stricmp strcasecmp
 #	endif
 
 #endif		// end GCC/Linux stuff

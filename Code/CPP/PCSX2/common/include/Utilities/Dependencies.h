@@ -23,10 +23,32 @@
 
 class wxOutputStream;
 class wxInputStream;
+class wxPoint;
+class wxRect;
+class wxSize;
+
+extern const wxSize wxDefaultSize;
+extern const wxPoint wxDefaultPosition;
 
 
 // This should prove useful....
 #define wxsFormat wxString::Format
+
+#ifdef PCSX2_DEBUG
+#	define tryDEBUG				try
+#	define catchDEBUG(clause)	catch(clause)
+#else
+#	define tryDEBUG				if(true)
+#	define catchDEBUG(clause)	if(false)
+#endif
+
+#if defined(PCSX2_DEVBUILD) || defined(PCSX2_DEBUG)
+#	define tryDEVEL				try
+#	define catchDEVEL			catch(clause)
+#else
+#	define tryDEBUG				if(true)
+#	define catchDEBUG(clause)	if(false)
+#endif
 
 // --------------------------------------------------------------------------------------
 //  ImplementEnumOperators  (macro)
@@ -64,8 +86,6 @@ class wxInputStream;
 		return ((int)id >= enumName##_FIRST) && ((int)id < enumName##_COUNT); } \
 	static __forceinline bool EnumAssert( enumName id ) { \
 		return pxAssert( EnumIsValid(id) ); } \
-	static __forceinline void EnumAssume( enumName id ) { \
-		pxAssume( EnumIsValid(id) ); } \
  \
 	extern const wxChar* EnumToString( enumName id )
 
@@ -102,23 +122,46 @@ static const pxEnumEnd_t pxEnumEnd = {};
 	classname& operator=(const classname&)
 #endif
 
+
+// --------------------------------------------------------------------------------------
+//  ScopedBool  -  Makes sure a boolean is set back to FALSE when current scope is left
+// --------------------------------------------------------------------------------------
+// Exception-safe way of tracking entry and exit of various functions of execution zones.
+//
+class ScopedBool
+{
+protected:
+	bool*	m_boolme;
+
+public:
+	ScopedBool(bool& boolme)
+	{
+		boolme = true;
+		m_boolme = &boolme;
+	}
+
+	~ScopedBool() throw()
+	{
+		m_boolme = false;
+	}
+};
+
 //////////////////////////////////////////////////////////////////////////////////////////
 // macro provided for tagging translation strings, without actually running them through the
 // translator (which the _() does automatically, and sometimes we don't want that).  This is
 // a shorthand replacement for wxTRANSLATE.
 //
-#define wxLt(a)		(a)
+#ifndef wxLt
+#	define wxLt(a)		a
+#endif
 
 #include <wx/string.h>
-#include <wx/gdicmn.h>		// for wxPoint/wxRect stuff
 #include <wx/intl.h>
 #include <wx/log.h>
 
 #include "Pcsx2Defs.h"
 
 #include <stdexcept>
-#include <algorithm>
-#include <string>
 #include <cstring>		// string.h under c++
 #include <cstdio>		// stdio.h under c++
 #include <cstdlib>

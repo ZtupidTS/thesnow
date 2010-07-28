@@ -204,8 +204,6 @@
 		<Unit filename="../Config.h" />
 		<Unit filename="../Counters.cpp" />
 		<Unit filename="../Counters.h" />
-		<Unit filename="../DataBase_Loader.cpp" />
-		<Unit filename="../DataBase_Loader.h" />
 		<Unit filename="../DebugTools/Debug.h" />
 		<Unit filename="../DebugTools/DisASM.h" />
 		<Unit filename="../DebugTools/DisR3000A.cpp" />
@@ -225,14 +223,14 @@
 		<Unit filename="../Elfheader.h" />
 		<Unit filename="../FPU.cpp" />
 		<Unit filename="../FiFo.cpp" />
-		<Unit filename="../File_Reader.h" />
 		<Unit filename="../GS.cpp" />
 		<Unit filename="../GS.h" />
 		<Unit filename="../GSState.cpp" />
+		<Unit filename="../GameDatabase.cpp" />
+		<Unit filename="../GameDatabase.h" />
 		<Unit filename="../Gif.cpp" />
 		<Unit filename="../Gif.h" />
 		<Unit filename="../Hardware.h" />
-		<Unit filename="../HostGui.h" />
 		<Unit filename="../Hw.cpp" />
 		<Unit filename="../Hw.h" />
 		<Unit filename="../HwRead.cpp" />
@@ -241,9 +239,6 @@
 		<Unit filename="../IPU/IPU.h" />
 		<Unit filename="../IPU/IPU_Fifo.cpp" />
 		<Unit filename="../IPU/IPU_Fifo.h" />
-		<Unit filename="../IPU/acoroutine.S" />
-		<Unit filename="../IPU/coroutine.cpp" />
-		<Unit filename="../IPU/coroutine.h" />
 		<Unit filename="../IPU/mpeg2lib/Idct.cpp" />
 		<Unit filename="../IPU/mpeg2lib/Mpeg.cpp" />
 		<Unit filename="../IPU/mpeg2lib/Mpeg.h" />
@@ -349,6 +344,7 @@
 		<Unit filename="../gui/AdvancedDialog.cpp" />
 		<Unit filename="../gui/AdvancedDialog.h" />
 		<Unit filename="../gui/App.h" />
+		<Unit filename="../gui/AppAccelerators.h" />
 		<Unit filename="../gui/AppAssert.cpp" />
 		<Unit filename="../gui/AppConfig.cpp" />
 		<Unit filename="../gui/AppConfig.h" />
@@ -359,6 +355,8 @@
 		<Unit filename="../gui/AppEventListeners.h" />
 		<Unit filename="../gui/AppEventSources.cpp" />
 		<Unit filename="../gui/AppForwardDefs.h" />
+		<Unit filename="../gui/AppGameDatabase.cpp" />
+		<Unit filename="../gui/AppGameDatabase.h" />
 		<Unit filename="../gui/AppInit.cpp" />
 		<Unit filename="../gui/AppMain.cpp" />
 		<Unit filename="../gui/AppRes.cpp" />
@@ -380,6 +378,7 @@
 		<Unit filename="../gui/Dialogs/ConfirmationDialogs.cpp" />
 		<Unit filename="../gui/Dialogs/CreateMemoryCardDialog.cpp" />
 		<Unit filename="../gui/Dialogs/FirstTimeWizard.cpp" />
+		<Unit filename="../gui/Dialogs/GameDatabaseDialog.cpp" />
 		<Unit filename="../gui/Dialogs/ImportSettingsDialog.cpp" />
 		<Unit filename="../gui/Dialogs/LogOptionsDialog.cpp" />
 		<Unit filename="../gui/Dialogs/LogOptionsDialog.h" />
@@ -591,6 +590,7 @@
 		<Unit filename="../x86/newVif_Unpack.cpp" />
 		<Unit filename="../x86/newVif_UnpackSSE.cpp" />
 		<Unit filename="../x86/newVif_UnpackSSE.h" />
+		<Unit filename="../x86/sVU_Compare.h" />
 		<Unit filename="../x86/sVU_Debug.h" />
 		<Unit filename="../x86/sVU_Lower.cpp" />
 		<Unit filename="../x86/sVU_Micro.cpp" />

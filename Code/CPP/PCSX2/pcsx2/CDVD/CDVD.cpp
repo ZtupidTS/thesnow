@@ -27,9 +27,13 @@
 #include "GS.h"			// for gsRegionMode
 #include "Elfheader.h"
 #include "ps2/BiosTools.h"
-#include "DataBase_Loader.h"
+#include "GameDatabase.h"
 
-wxString DiscID;
+// This typically reflects the Sony-assigned serial code for the Disc, if one exists.
+//  (examples:  SLUS-2113, etc).
+// If the disc is homebrew then it probably won't have a valid serial; in which case
+// this string will be empty.
+wxString DiscSerial;
 
 static cdvdStruct cdvd;
 
@@ -92,12 +96,7 @@ FILE *_cdvdOpenMechaVer()
 		Console.Warning("MEC File Not Found , Creating Blank File");
 		fd = fopen(file, "wb");
 		if (fd == NULL)
-		{
-			Console.Error( "MEC File Creation failed!" );
-			throw Exception::CannotCreateStream( file );
-			//Msgbox::Alert( "_cdvdOpenMechaVer: Error creating %s", file);
-			//exit(1);
-		}
+			throw Exception::CannotCreateStream(mecfile.GetFullPath());
 
 		fputc(0x03, fd);
 		fputc(0x06, fd);
@@ -132,10 +131,8 @@ FILE *_cdvdOpenNVM()
 		Console.Warning("NVM File Not Found , Creating Blank File");
 		fd = fopen(file, "wb");
 		if (fd == NULL)
-		{
-			Console.Error( "NVM File Creation failed!" );
-			throw Exception::CannotCreateStream( file );
-		}
+			throw Exception::CannotCreateStream(nvmfile.GetFullPath());
+
 		for (int i=0; i<1024; i++) fputc(0, fd);
 	}
 	return fd;
@@ -309,17 +306,34 @@ s32 cdvdWriteConfig(const u8* config)
 static MutexRecursive Mutex_NewDiskCB;
 
 // Sets ElfCRC to the CRC of the game bound to the CDVD plugin.
-static __forceinline ElfObject *loadElf( const wxString filename )
+static __forceinline ElfObject* loadElf( const wxString filename )
 {
 	if (filename.StartsWith(L"host"))
 		return new ElfObject(filename.After(':'), Path::GetFileSize(filename.After(':')));
 
+	// Mimic PS2 behavior!
+	// Much trial-and-error with changing the ISOFS and BOOT2 contents of an image have shown that
+	// the PS2 BIOS performs the peculiar task of *ignoring* the version info from the parsed BOOT2
+	// filename *and* the ISOFS, when loading the game's ELF image.  What this means is:
+	//
+	//   1. a valid PS2 ELF can have any version (ISOFS), and the version need not match the one in SYSTEM.CNF.
+	//   2. the version info on the file in the BOOT2 parameter of SYSTEM.CNF can be missing, 10 chars long,
+	//      or anything else.  Its all ignored.
+	//   3. Games loading their own files do *not* exhibit this behavior; likely due to using newer IOP modules
+	//      or lower level filesystem APIs (fortunately that doesn't affect us).
+	//
+	// FIXME: Properly mimicing this behavior is troublesome since we need to add support for "ignoring"
+	// version information when doing file searches.  I'll add this later.  For now, assuming a ;1 should
+	// be sufficient (no known games have their ELF binary as anything but version ;1)
+
+	const wxString fixedname( wxStringTokenizer(filename, L';').GetNextToken() + L";1" );
+
+	if( fixedname != filename )
+		Console.WriteLn( Color_Blue, "(LoadELF) Non-conforming version suffix detected and replaced." );
+
 	IsoFSCDVD isofs;
 	IsoFile file(isofs, filename);
-	ElfObject *elfptr;
-
-	elfptr = new ElfObject(filename, file);
-	return elfptr;
+	return new ElfObject(filename, file);
 }
 
 static __forceinline void _reloadElfInfo(wxString elfpath)
@@ -340,9 +354,8 @@ static __forceinline void _reloadElfInfo(wxString elfpath)
 	if (!fname)
 		fname = elfpath.AfterLast(':');
 	if (fname.Matches(L"????_???.??*"))
-		DiscID = fname(0,4) + L"-" + fname(5,3) + fname(9,2);
+		DiscSerial = fname(0,4) + L"-" + fname(5,3) + fname(9,2);
 
-	Console.WriteLn("Disc ID = %s", DiscID.ToUTF8().data());
 	elfptr = loadElf(elfpath);
 
 	ElfCRC = elfptr->getCRC();
@@ -351,42 +364,54 @@ static __forceinline void _reloadElfInfo(wxString elfpath)
 	ElfEntry = elfptr->header.e_entry;
 	Console.WriteLn("Entry point = 0x%08x", ElfEntry);
 
-	elfptr.Delete();
-
-	// Set the Game DataBase to the correct game based on Game Serial Code...
-	if (DataBase_Loader* GameDB = AppHost_GetGameDatabase()) {
-		wxString gameSerial = DiscID;
-		if (DiscID.IsEmpty()) { // Search for crc if no Serial Code
-			gameSerial = wxString(wxsFormat( L"%8.8x", ElfCRC ));
-		}
-		if (GameDB->setGame(gameSerial)) { // Game Found
-			Console.WriteLn ("Game = %s (%s)", GameDB->getString("Name").c_str(), GameDB->getString("Region").c_str());
-		}
-		else Console.Warning(L"Game not found in database [%s]", gameSerial.c_str());
-	}
+	// Note: Do not load game database info here.  This code is generic and called from
+	// BIOS key encryption as well as eeloadReplaceOSDSYS.  The first is actually still executing
+	// BIOS code, and patches and cheats should not be applied yet.  (they are applied when
+	// eeGameStarting is invoked, which is when the VM starts executing the actual game ELF
+	// binary).
 }
 
 void cdvdReloadElfInfo(wxString elfoverride)
 {
-	if (!elfoverride.IsEmpty())
+	// called from context of executing VM code (recompilers), so we need to trap exceptions
+	// and route them through the VM's exception handler.  (needed for non-SEH platforms, such
+	// as Linux/GCC)
+
+	try
 	{
-		_reloadElfInfo(elfoverride);
-		return;
+		if (!elfoverride.IsEmpty())
+		{
+			_reloadElfInfo(elfoverride);
+			return;
+		}
+
+		wxString elfpath;
+		u32 discType = GetPS2ElfName(elfpath);
+
+		if(discType==1)
+		{
+			// Is a PS1 disc.
+			if (!ENABLE_LOADING_PS1_GAMES)
+				Cpu->ThrowException( Exception::RuntimeError()
+					.SetDiagMsg(L"PSX game discs are not supported by PCSX2.")
+					.SetUserMsg(pxE( "Error:PsxDisc",
+						L"Playstation game discs are not supported by PCSX2.  If you want to emulate PSX games "
+						L"then you'll have to download a PSX-specific emulator, such as ePSXe or PCSX.")
+					)
+				);
+				//Console.Error( "Playstation1 game discs are not supported by PCSX2." );
+		}
+		
+		// Isn't a disc we recognize?
+		if(discType == 0)  return;
+
+		// Recognized and PS2 (BOOT2).  Good job, user.
+		_reloadElfInfo(elfpath);
 	}
-
-	wxString elfpath;
-	u32 discType = GetPS2ElfName(elfpath);
-
-	switch (discType)
-    {
-		case 2: // Is a PS2 disc.
-			_reloadElfInfo(elfpath);
-			break;
-		case 1: // Is a PS1 disc.
-			if (ENABLE_LOADING_PS1_GAMES) _reloadElfInfo(elfpath);
-			break;
-		default: // Isn't a disc we recognise.
-			break;
+	catch (Exception::FileNotFound& e)
+	{
+		pxFail( "Not in my back yard!" );
+		Cpu->ThrowException(e);
 	}
 }
 
@@ -406,14 +431,14 @@ void cdvdReadKey(u8 arg0, u16 arg1, u32 arg2, u8* key)
     cdvdReloadElfInfo();
 
 	// convert the number characters to a real 32 bit number
-	numbers = StrToS32(DiscID(5,5));
+	numbers = StrToS32(DiscSerial(5,5));
 
 	// combine the lower 7 bits of each char
 	// to make the 4 letters fit into a single u32
-	letters =	(s32)((DiscID[3]&0x7F)<< 0) |
-				(s32)((DiscID[2]&0x7F)<< 7) |
-				(s32)((DiscID[1]&0x7F)<<14) |
-				(s32)((DiscID[0]&0x7F)<<21);
+	letters =	(s32)((DiscSerial[3]&0x7F)<< 0) |
+				(s32)((DiscSerial[2]&0x7F)<< 7) |
+				(s32)((DiscSerial[1]&0x7F)<<14) |
+				(s32)((DiscSerial[0]&0x7F)<<21);
 
 	// calculate magic numbers
 	key_0_3 = ((numbers & 0x1FC00) >> 10) | ((0x01FFFFFF & letters) <<  7);	// numbers = 7F  letters = FFFFFF80
@@ -476,31 +501,40 @@ s32 cdvdReadSubQ(s32 lsn, cdvdSubQ* subq)
 
 s32 cdvdCtrlTrayOpen()
 {
-	s32 ret = CDVD->ctrlTrayOpen();
-	if (ret == -1) ret = 0x80;
-	return ret;
+	Console.Warning("Open virtual disk tray");
+	DiscSwapTimerSeconds = cdvd.RTC.second; // remember the PS2 time when this happened
+	cdvd.Status = CDVD_STATUS_TRAY_OPEN;
+	cdvd.Ready = CDVD_NOTREADY;
+	trayState = 1;
+
+	return 0; // needs to be 0 for success according to homebrew test "CDVD"
 }
 
 s32 cdvdCtrlTrayClose()
 {
-	s32 ret = CDVD->ctrlTrayClose();
-	if (ret == -1) ret = 0x80;
-	return ret;
+	Console.Warning("Close virtual disk tray");
+	cdvd.Status = CDVD_STATUS_PAUSE;
+	cdvd.Ready = CDVD_READY1;
+	trayState = 0;
+
+	return 0; // needs to be 0 for success according to homebrew test "CDVD"
 }
 
-// Modified by (efp) - 16/01/2006
-// checks if tray was opened since last call to this func
+// Some legacy function, not used anymore
 s32 cdvdGetTrayStatus()
 {
-	s32 ret = CDVD->getTrayStatus();
+	/*s32 ret = CDVD->getTrayStatus();
 
 	if (ret == -1)
 		return(CDVD_TRAY_CLOSE);
 	else
-		return(ret);
+		return(ret);*/
+	return -1;
 }
 
 // Note: Is tray status being kept as a var here somewhere?
+// Yep, and sceCdTrayReq needs it to detect tray state changes (rama)
+
 //   cdvdNewDiskCB() can update it's status as well...
 
 // Modified by (efp) - 16/01/2006
@@ -710,26 +744,34 @@ __forceinline void cdvdActionInterrupt()
 	switch( cdvd.Action )
 	{
 		case cdvdAction_Seek:
-		case cdvdAction_Standby:
 			cdvd.Spinning = true;
-			cdvd.Ready  = CDVD_READY1;
+			cdvd.Ready  = CDVD_READY1; //check (rama)
 			cdvd.Sector = cdvd.SeekToSector;
-			cdvd.Status = CDVD_STATUS_SEEK_COMPLETE;
+			cdvd.Status = CDVD_STATUS_PAUSE;
+		break;
+
+		case cdvdAction_Standby:
+			DevCon.Warning("CDVD Standby Call");
+			cdvd.Spinning = true; //check (rama)
+			cdvd.Ready  = CDVD_READY1; //check (rama)
+			cdvd.Sector = cdvd.SeekToSector;
+			cdvd.Status = CDVD_STATUS_PAUSE;
 		break;
 
 		case cdvdAction_Stop:
 			cdvd.Spinning = false;
 			cdvd.Ready = CDVD_READY1;
 			cdvd.Sector = 0;
-			cdvd.Status = CDVD_STATUS_NONE;
+			cdvd.Status = CDVD_STATUS_STOP;
 		break;
 
 		case cdvdAction_Break:
 			// Make sure the cdvd action state is pretty well cleared:
+			DevCon.Warning("CDVD Break Call");
 			cdvd.Reading = 0;
 			cdvd.Readed = 0;
 			cdvd.Ready  = CDVD_READY2;		// should be CDVD_READY1 or something else?
-			cdvd.Status = CDVD_STATUS_NONE;
+			cdvd.Status = CDVD_STATUS_STOP;
 			cdvd.RErr = 0;
 			cdvd.nCommand = 0;
 		break;
@@ -759,7 +801,7 @@ __forceinline void cdvdReadInterrupt()
 		cdvd.RetryCntP = 0;
 		cdvd.Reading = 1;
 		cdvd.Readed = 1;
-		cdvd.Status = CDVD_STATUS_SEEK_COMPLETE;
+		cdvd.Status = CDVD_STATUS_PAUSE; // check (rama)
 		cdvd.Sector = cdvd.SeekToSector;
 
 		CDVD_LOG( "Cdvd Seek Complete > Scheduling block read interrupt at iopcycle=%8.8x.",
@@ -800,7 +842,7 @@ __forceinline void cdvdReadInterrupt()
 
 		// Any other value besides 0 should be considered invalid here (wtf is that wacky
 		// plugin trying to do?)
-		jASSUME( cdvd.RErr == 0 );
+		pxAssume( cdvd.RErr == 0 );
 	}
 
 	if (cdvdReadSector() == -1)
@@ -851,7 +893,7 @@ static uint cdvdStartSeek( uint newsector, CDVD_MODE_TYPE mode )
 	cdvd.Ready = CDVD_NOTREADY;
 	cdvd.Reading = 0;
 	cdvd.Readed = 0;
-	cdvd.Status = CDVD_STATUS_NONE;
+	cdvd.Status = CDVD_STATUS_STOP;
 
 	if( !cdvd.Spinning )
 	{
@@ -884,7 +926,7 @@ static uint cdvdStartSeek( uint newsector, CDVD_MODE_TYPE mode )
 
 		if( delta == 0 )
 		{
-			cdvd.Status = CDVD_STATUS_SEEK_COMPLETE;
+			cdvd.Status = CDVD_STATUS_PAUSE;
 			cdvd.Readed = 1; // Note: 1, not 0, as implied by the next comment. Need to look into this. --arcum42
 			cdvd.RetryCntP = 0;
 
@@ -905,6 +947,14 @@ void cdvdVsync() {
 	cdvd.RTCcount++;
 	if (cdvd.RTCcount < ((gsRegionMode == Region_NTSC) ? 60 : 50)) return;
 	cdvd.RTCcount = 0;
+
+	if ( cdvd.Status == CDVD_STATUS_TRAY_OPEN )
+	{	
+		if ( cdvd.RTC.second != DiscSwapTimerSeconds)
+		{
+			cdvdCtrlTrayClose();
+		}
+	}
 
 	cdvd.RTC.second++;
 	if (cdvd.RTC.second < 60) return;
@@ -982,9 +1032,8 @@ u8 cdvdRead(u8 key)
 
 		case 0x0B: // TRAY-STATE (if tray has been opened)
 		{
-			u8 tray = cdvdGetTrayStatus();
-			CDVD_LOG("cdvdRead0B(Tray) %x", tray);
-			return tray;
+			CDVD_LOG("cdvdRead0B(Tray) %x", trayState);
+			return /*tray*/ trayState;
 			break;
 		}
 		case 0x0C: // CRT MINUTE
@@ -1102,7 +1151,7 @@ static void cdvdWrite04(u8 rt) { // NCOMMAND
 	CDVD_LOG("cdvdWrite04: NCMD %s (%x) (ParamP = %x)", nCmdName[rt], rt, cdvd.ParamP);
 
 	cdvd.nCommand = rt;
-	cdvd.Status = CDVD_STATUS_NONE;
+	cdvd.Status = CDVD_STATUS_STOP; // check (rama)
 	cdvd.PwOff = Irq_None;		// good or bad?
 
 	switch (rt) {
@@ -1331,7 +1380,7 @@ static __forceinline void cdvdWrite07(u8 rt)		// BREAK
 	// Clear the cdvd status:
 	cdvd.Readed = 0;
 	cdvd.Reading = 0;
-	cdvd.Status = CDVD_STATUS_NONE;
+	cdvd.Status = CDVD_STATUS_STOP;
 	//cdvd.nCommand = 0;
 }
 
@@ -1374,6 +1423,7 @@ static void cdvdWrite16(u8 rt)		 // SCOMMAND
 //	cdvdTN	diskInfo;
 //	cdvdTD	trackInfo;
 //	int i, lbn, type, min, sec, frm, address;
+	static bool oldTrayState = 0;
 	int address;
 	u8 tmp;
 
@@ -1428,8 +1478,15 @@ static void cdvdWrite16(u8 rt)		 // SCOMMAND
 			break;
 
 		case 0x05: // CdTrayReqState  (0:1) - resets the tray open detection
+			
+			//Console.Warning("CdTrayReqState. trayState = %d oldTrayState = %d",trayState, oldTrayState);
 			SetResultSize(1);
-			cdvd.Result[0] = 0;
+			if (trayState != oldTrayState)
+				cdvd.Result[0] = 1;
+			else
+				cdvd.Result[0] = 0; // old behaviour was always this
+
+			oldTrayState = trayState;
 			break;
 
 		case 0x06: // CdTrayCtrl  (1:1)

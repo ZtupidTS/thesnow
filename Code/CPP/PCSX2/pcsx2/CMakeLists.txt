@@ -1,14 +1,10 @@
-# pcsx2
+# Check that people use the good file
+if(NOT TOP_CMAKE_WAS_SOURCED)
+    message(FATAL_ERROR "
+    You did not 'cmake' the good CMakeLists.txt file. Use the one in the top dir.
+    It is advice to delete all wrongly generated cmake stuff => CMakeFiles & CMakeCache.txt")
+endif(NOT TOP_CMAKE_WAS_SOURCED)
 
-# Clear default flags
-set(CMAKE_C_FLAGS "")
-set(CMAKE_CXX_FLAGS "")
-set(CMAKE_C_FLAGS_DEBUG "")
-set(CMAKE_CXX_FLAGS_DEBUG "")
-set(CMAKE_C_FLAGS_DEVEL "")
-set(CMAKE_CXX_FLAGS_DEVEL "")
-set(CMAKE_C_FLAGS_RELEASE "")
-set(CMAKE_CXX_FLAGS_RELEASE "")
 
 # set common flags
 set(CommonFlags 
@@ -17,7 +13,6 @@ set(CommonFlags
 	-fno-dse
 	-fno-tree-dse
 	-fno-strict-aliasing
-	-m32
 	-march=i486
 	-msse
 	-msse2
@@ -77,7 +72,7 @@ set(OptimizationFlags
 if(CMAKE_BUILD_TYPE STREQUAL Debug)
 	
 	# executable name
-	set(pcsx2Name pcsx2-dbg)
+	set(Output pcsx2-dbg)
 	
 	# add defines
 	add_definitions(${CommonFlags} ${DebugFlags} -DPCSX2_DEVBUILD -DPCSX2_DEBUG -DWX_PRECOMP)
@@ -87,7 +82,7 @@ endif(CMAKE_BUILD_TYPE STREQUAL Debug)
 if(CMAKE_BUILD_TYPE STREQUAL Devel)
 
 	# executable name
-	set(pcsx2Name pcsx2-dev)
+	set(Output pcsx2-dev)
 	
 	# add defines
 	add_definitions(${CommonFlags} ${OptimizationFlags} -DPCSX2_DEVBUILD -DWX_PRECOMP -DNDEBUG)
@@ -97,23 +92,23 @@ endif(CMAKE_BUILD_TYPE STREQUAL Devel)
 if(CMAKE_BUILD_TYPE STREQUAL Release)
 
 	# executable name
-	set(pcsx2Name pcsx2)
+	set(Output pcsx2)
 	
 	# add defines
 	add_definitions(${CommonFlags} ${OptimizationFlags} -DWX_PRECOMP -DNDEBUG)
 endif(CMAKE_BUILD_TYPE STREQUAL Release)
 
 # you must have both svn client executable and a source that contains svn metadata
-if((SVN) AND (EXISTS "${CMAKE_SOURCE_DIR}/.svn"))
+if(Subversion_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/.svn")
     # execute subversion
     Subversion_WC_INFO(${CMAKE_SOURCE_DIR} tmpvar)
 
     # write svnrev.h
     file(WRITE ${CMAKE_BINARY_DIR}/pcsx2/svnrev.h "#define SVN_REV ${tmpvar_WC_REVISION} \n#define SVN_MODS 0")
-else((SVN) AND (EXISTS "${CMAKE_SOURCE_DIR}/.svn"))
+else(Subversion_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/.svn")
     # write svnrev.h
     file(WRITE ${CMAKE_BINARY_DIR}/pcsx2/svnrev.h "#define SVN_REV 0 \n#define SVN_MODS 0")
-endif((SVN) AND (EXISTS "${CMAKE_SOURCE_DIR}/.svn"))
+endif(Subversion_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/.svn")
 
 # variable with sources of this executable
 set(pcsx2Sources
@@ -121,7 +116,7 @@ set(pcsx2Sources
 	COP0.cpp
 	COP2.cpp
 	Counters.cpp
-	DataBase_Loader.cpp
+	GameDatabase.cpp
 	Dump.cpp
 	Elfheader.cpp
 	FiFo.cpp
@@ -194,13 +189,11 @@ set(pcsx2Headers
 	Counters.h
 	Dmac.h
 	Dump.h
-	DataBase_Loader.h
+	GameDatabase.h
 	Elfheader.h
-	File_Reader.h
 	Gif.h
 	GS.h
 	Hardware.h
-	HostGui.h
 	Hw.h
 	IopBios.h
 	IopCommon.h
@@ -230,7 +223,7 @@ set(pcsx2Headers
 	sio_internal.h
 	SPR.h
 	Stats.h
-	StringUtils.h
+	SysForwardDefs.h
 	System.h
 	Vif_Dma.h
 	Vif.h
@@ -291,6 +284,7 @@ set(pcsx2GuiSources
 	gui/AppCorePlugins.cpp
 	gui/AppCoreThread.cpp
 	gui/AppEventSources.cpp
+	gui/AppGameDatabase.cpp
 	gui/AppInit.cpp
 	gui/AppMain.cpp
 	gui/AppRes.cpp
@@ -308,6 +302,7 @@ set(pcsx2GuiSources
 	gui/Dialogs/ConfirmationDialogs.cpp
 	gui/Dialogs/CreateMemoryCardDialog.cpp
 	gui/Dialogs/FirstTimeWizard.cpp
+	gui/Dialogs/GameDatabaseDialog.cpp
 	gui/Dialogs/ImportSettingsDialog.cpp
 	gui/Dialogs/LogOptionsDialog.cpp
 	gui/Dialogs/McdConfigDialog.cpp
@@ -351,11 +346,13 @@ set(pcsx2GuiHeaders
 	gui/AdvancedDialog.h
 	gui/App.h
 	gui/ApplyState.h
+	gui/AppAccelerators.h
 	gui/AppCommon.h
 	gui/AppConfig.h
 	gui/AppCorePlugins.h
 	gui/AppEventListeners.h
 	gui/AppForwardDefs.h
+	gui/AppGameDatabase.h
 	gui/ConsoleLogger.h
 	gui/CpuUsageProvider.h
 	gui/Dialogs/ConfigurationDialog.h
@@ -374,7 +371,6 @@ set(pcsx2GuiHeaders
 
 # IPU sources
 set(pcsx2IPUSources
-	IPU/coroutine.cpp
 	IPU/IPU.cpp
 	IPU/IPU_Fifo.cpp
 	IPU/mpeg2lib/Idct.cpp
@@ -383,7 +379,6 @@ set(pcsx2IPUSources
 
 # IPU headers
 set(pcsx2IPUHeaders
-	IPU/coroutine.h
 	IPU/IPU.h
 	IPU/IPU_Fifo.h
 	IPU/yuv2rgb.h)
@@ -549,6 +544,7 @@ set(pcsx2x86Headers
 	x86/newVif_BlockBuffer.h
 	x86/newVif_HashBucket.h
 	x86/newVif_UnpackSSE.h
+	x86/sVU_Compare.h
 	x86/sVU_Debug.h
 	x86/sVU_Micro.h
 	x86/sVU_zerorec.h
@@ -556,13 +552,11 @@ set(pcsx2x86Headers
 
 # colect .asm files
 set(pcsx2AsmFiles
-	IPU/acoroutine.asm
 	IPU/yuv2rgb.asm
 	x86/ix86-32/aVif_proc-32.asm)
 
 # collect .S files
 set(pcsx2SSources
-	IPU/acoroutine.S
 	x86/aVUzerorec.S)
 
 # change language of .S-files to c++
@@ -623,31 +617,28 @@ include_directories(.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 
 # add executable
-add_executable(${pcsx2Name}
+add_executable(${Output}
 			   ${Common}
 			   ${Platform})
 
 # add dependencies
-add_dependencies(${pcsx2Name} Resources)
+add_dependencies(${Output} Resources)
 
 # link target with project internal libraries
-target_link_libraries(${pcsx2Name} Utilities x86emitter)
+target_link_libraries(${Output} Utilities x86emitter)
 					
 # link target with wx
-target_link_libraries(${pcsx2Name} ${wxWidgets_LIBRARIES})
+target_link_libraries(${Output} ${wxWidgets_LIBRARIES})
 
 if(Linux)
 	# link target with gtk2
-	target_link_libraries(${pcsx2Name} ${GTK2_LIBRARIES})
+	target_link_libraries(${Output} ${GTK2_LIBRARIES})
 endif(Linux)
 
 # link target with zlib
-target_link_libraries(${pcsx2Name} ${ZLIB_LIBRARIES})
+target_link_libraries(${Output} ${ZLIB_LIBRARIES})
 
-# Force the linker into 32 bits mode
-target_link_libraries(${pcsx2Name} -m32)
-
-# Linker strip option
-if (CMAKE_BUILD_STRIP)
-    target_link_libraries(${pcsx2Name} -s)
-endif (CMAKE_BUILD_STRIP)
+# User flags options
+if(NOT USER_CMAKE_LD_FLAGS STREQUAL "")
+    target_link_libraries(${Output} "${USER_CMAKE_LD_FLAGS}")
+endif(NOT USER_CMAKE_LD_FLAGS STREQUAL "")

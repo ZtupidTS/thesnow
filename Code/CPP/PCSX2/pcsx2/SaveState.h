@@ -24,7 +24,7 @@
 //  the lower 16 bit value.  IF the change is breaking of all compatibility with old
 //  states, increment the upper 16 bit value, and clear the lower 16 bits to 0.
 
-static const u32 g_SaveVersion = 0x8b430000;
+static const u32 g_SaveVersion = 0x8b460001;
 
 // this function is meant to be used in the place of GSfreeze, and provides a safe layer
 // between the GS saving function and the MTGS's needs. :)
@@ -58,17 +58,20 @@ namespace Exception
 
 	// thrown when the savestate being loaded isn't supported.
 	//
-	class UnsupportedStateVersion : public virtual SaveStateLoadError
+	class UnsupportedStateVersion : public SaveStateLoadError
 	{
+		DEFINE_EXCEPTION_COPYTORS( UnsupportedStateVersion, SaveStateLoadError )
+		DEFINE_EXCEPTION_MESSAGES( UnsupportedStateVersion )
+
 	public:
 		u32 Version;		// version number of the unsupported state.
 
-	public:
-		DEFINE_EXCEPTION_COPYTORS( UnsupportedStateVersion )
+	protected:
+		UnsupportedStateVersion() {}
 
-		explicit UnsupportedStateVersion( int version, const wxString& objname=wxEmptyString )
+	public:
+		explicit UnsupportedStateVersion( int version )
 		{
-			StreamName = objname;
 			Version = version;
 		}
 
@@ -80,18 +83,21 @@ namespace Exception
 	// CRC returned by the Cdvd driver.
 	// [feature not implemented yet]
 	//
-	class StateCrcMismatch : public virtual SaveStateLoadError
+	class StateCrcMismatch : public SaveStateLoadError
 	{
+		DEFINE_EXCEPTION_COPYTORS( StateCrcMismatch, SaveStateLoadError )
+		DEFINE_EXCEPTION_MESSAGES( StateCrcMismatch )
+
 	public:
 		u32 Crc_Savestate;
 		u32 Crc_Cdvd;
 
-	public:
-		DEFINE_EXCEPTION_COPYTORS( StateCrcMismatch )
+	protected:
+		StateCrcMismatch() {}
 
-		explicit StateCrcMismatch( u32 crc_save, u32 crc_cdvd, const wxString& objname=wxEmptyString )
+	public:
+		StateCrcMismatch( u32 crc_save, u32 crc_cdvd )
 		{
-			StreamName		= objname;
 			Crc_Savestate	= crc_save;
 			Crc_Cdvd		= crc_cdvd;
 		}

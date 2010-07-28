@@ -15,19 +15,25 @@ endif(Linux)
 # Use cmake package to find module
 find_package(ALSA)
 find_package(BZip2)
+find_package(JPEG)
 find_package(OpenGL)
 # Tell cmake that we use SDL as a library and not as an application
 set(SDL_BUILDING_LIBRARY TRUE)
 find_package(SDL)
 find_package(Subversion)
 find_package(wxWidgets REQUIRED base core adv)
-find_package(ZLIB)
+if(NOT FORCE_INTERNAL_ZLIB)
+    find_package(ZLIB)
+endif(NOT FORCE_INTERNAL_ZLIB)
 # Use pcsx2 package to find module
 include(FindA52)
 include(FindCg)
 include(FindGlew)
 include(FindPortAudio)
-include(FindSoundTouch)
+if(NOT FORCE_INTERNAL_SOUNDTOUCH)
+    include(FindSoundTouch)
+endif(NOT FORCE_INTERNAL_SOUNDTOUCH)
+include(FindSparseHash)
 
 # Note for include_directory: The order is important to avoid a mess between include file from your system and the one of pcsx2
 # If you include first 3rdparty, all 3rdpary include will have a higer priority...
@@ -44,27 +50,19 @@ if(NOT ZLIB_FOUND OR FORCE_INTERNAL_ZLIB)
 	set(projectZLIB TRUE)
     set(ZLIB_FOUND TRUE)
     # Set path
-    set(ZLIB_LIBRARIES zlib)
+    set(ZLIB_LIBRARIES pcsx2_zlib)
     include_directories(${PROJECT_SOURCE_DIR}/3rdparty/zlib)
+    message(STATUS "Use internal pcsx2 zlib library")
 endif(NOT ZLIB_FOUND OR FORCE_INTERNAL_ZLIB)
-
-if(NOT BZIP2_FOUND OR FORCE_INTERNAL_BZIP2)
-	# use project one
-	set(projectBZip2 TRUE)
-    set(BZIP2_FOUND TRUE)
-    # Set path
-	set(BZIP2_LIBRARIES bzip2)
-    include_directories(${PROJECT_SOURCE_DIR}/3rdparty/bzip2)
-endif(NOT BZIP2_FOUND OR FORCE_INTERNAL_BZIP2)
 
 if(NOT SOUNDTOUCH_FOUND OR FORCE_INTERNAL_SOUNDTOUCH)
 	# use project one
 	set(projectSoundTouch TRUE)
 	set(SOUNDTOUCH_FOUND TRUE)
     # Set path
-	set(SOUNDTOUCH_LIBRARIES SoundTouch)
-    # include_directories(${PROJECT_SOURCE_DIR}/3rdparty/SoundTouch)
+	set(SOUNDTOUCH_LIBRARIES pcsx2_SoundTouch)
     include_directories(${PROJECT_SOURCE_DIR}/3rdparty/soundtouch_linux_include)
+    message(STATUS "Use internal pcsx2 SoundTouch library")
 endif(NOT SOUNDTOUCH_FOUND OR FORCE_INTERNAL_SOUNDTOUCH)
 
 #----------------------------------------
@@ -93,14 +91,19 @@ if(ALSA_FOUND)
 endif(ALSA_FOUND)
 
 # bzip2
-if(BZIP2_FOUND AND NOT projectBZip2)
+if(BZIP2_FOUND)
 	include_directories(${BZIP2_INCLUDE_DIR})
-endif(BZIP2_FOUND AND NOT projectBZip2)
+endif(BZIP2_FOUND)
 
 # Cg
 if(CG_FOUND)
-	include_directories(${CG_INCLUDE_DIR})
+	include_directories(${CG_INCLUDE_DIRS})
 endif(CG_FOUND)
+
+# Jpeg
+if(JPEG_FOUND)
+	include_directories(${JPEG_INCLUDE_DIR})
+endif(JPEG_FOUND)
 
 # GLEW
 if(GLEW_FOUND)
@@ -127,13 +130,10 @@ if(SOUNDTOUCH_FOUND AND NOT projectSoundTouch)
 	include_directories(${SOUNDTOUCH_INCLUDE_DIR})
 endif(SOUNDTOUCH_FOUND AND NOT projectSoundTouch)
 
-# Note: subversion it only used to detect the current revision of your build
-# Subversion optional
-if(Subversion_FOUND)
-	set(SVN TRUE)
-else(Subversion_FOUND)
-	set(SVN FALSE)
-endif(Subversion_FOUND)
+# SPARSEHASH
+if(SPARSEHASH_FOUND)
+	include_directories(${SPARSEHASH_INCLUDE_DIR})
+endif(SPARSEHASH_FOUND)
 
 # Wx
 if(wxWidgets_FOUND)

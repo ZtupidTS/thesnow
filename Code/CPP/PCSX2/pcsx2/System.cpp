@@ -15,7 +15,7 @@
 
 #include "PrecompiledHeader.h"
 #include "Common.h"
-#include "HostGui.h"
+#include "IopCommon.h"
 
 #include "System/PageFaultSource.h"
 #include "Utilities/EventSource.inl"
@@ -23,7 +23,8 @@
 // Includes needed for cleanup, since we don't have a good system (yet) for
 // cleaning up these things.
 #include "sVU_zerorec.h"
-#include "DataBase_Loader.h"
+#include "GameDatabase.h"
+#include "Elfheader.h"
 
 extern void closeNewVif(int idx);
 extern void resetNewVif(int idx);
@@ -153,9 +154,11 @@ void SysLogMachineCaps()
 	if( x86caps.has3DNOWInstructionExtensionsExt )	features[1].Add( L"3DNOW2" );
 	if( x86caps.hasStreamingSIMD4ExtensionsA )		features[1].Add( L"SSE4a " );
 
-	wxString result[2];
-	JoinString( result[0], features[0], L".. " );
-	JoinString( result[1], features[1], L".. " );
+	const wxString result[2] =
+	{
+		JoinString( features[0], L".. " ),
+		JoinString( features[1], L".. " )
+	};
 
 	Console.WriteLn( Color_StrongBlack,	L"x86 Features Detected:" );
 	Console.Indent().WriteLn( result[0] + (result[1].IsEmpty() ? L"" : (L"\n" + result[1])) );
@@ -166,8 +169,9 @@ template< typename CpuType >
 class CpuInitializer
 {
 public:
-	ScopedPtr<CpuType>	MyCpu;
-
+	ScopedPtr<CpuType>			MyCpu;
+	ScopedPtr<BaseException>	ExThrown;
+	
 	CpuInitializer();
 	virtual ~CpuInitializer() throw();
 
@@ -198,14 +202,14 @@ CpuInitializer< CpuType >::CpuInitializer()
 	catch( Exception::RuntimeError& ex )
 	{
 		Console.Error( L"CPU provider error:\n\t" + ex.FormatDiagnosticMessage() );
-		if( MyCpu )
-			MyCpu = NULL;
+		MyCpu = NULL;
+		ExThrown = ex.Clone();
 	}
 	catch( std::runtime_error& ex )
 	{
 		Console.Error( L"CPU provider error (STL Exception)\n\tDetails:" + fromUTF8( ex.what() ) );
-		if( MyCpu )
-			MyCpu = NULL;
+		MyCpu = NULL;
+		ExThrown = new Exception::RuntimeError(ex);
 	}
 }
 
@@ -252,9 +256,6 @@ SysCoreAllocations::SysCoreAllocations()
 
 	Console.WriteLn( "Initializing PS2 virtual machine..." );
 
-	m_RecSuccessEE		= false;
-	m_RecSuccessIOP		= false;
-
 	try
 	{
 		vtlb_Core_Alloc();
@@ -265,8 +266,7 @@ SysCoreAllocations::SysCoreAllocations()
 	// ----------------------------------------------------------------------------
 	catch( Exception::OutOfMemory& ex )
 	{
-		wxString newmsg( ex.UserMsg() + L"\n\n" + GetMemoryErrorVM() );
-		ex.UserMsg() = newmsg;
+		ex.UserMsg() += L"\n\n" + GetMemoryErrorVM();
 		CleanupMess();
 		throw;
 	}
@@ -277,12 +277,12 @@ SysCoreAllocations::SysCoreAllocations()
 		// re-throw std::bad_alloc as something more friendly.  This is needed since
 		// much of the code uses new/delete internally, which throw std::bad_alloc on fail.
 
-		throw Exception::OutOfMemory(
-			L"std::bad_alloc caught while trying to allocate memory for the PS2 Virtual Machine.\n"
-			L"Error Details: " + fromUTF8( ex.what() ),
-
-			GetMemoryErrorVM()	// translated
-		);
+		throw Exception::OutOfMemory()
+			.SetDiagMsg(
+				L"std::bad_alloc caught while trying to allocate memory for the PS2 Virtual Machine.\n"
+				L"Error Details: " + fromUTF8( ex.what() )
+			)
+			.SetUserMsg(GetMemoryErrorVM()); 	// translated
 	}
 
 	Console.WriteLn( "Allocating memory for recompilers..." );
@@ -291,20 +291,20 @@ SysCoreAllocations::SysCoreAllocations()
 
 	try {
 		recCpu.Allocate();
-		m_RecSuccessEE = true;
 	}
 	catch( Exception::RuntimeError& ex )
 	{
+		m_RecExceptionEE = ex.Clone();
 		Console.Error( L"EE Recompiler Allocation Failed:\n" + ex.FormatDiagnosticMessage() );
 		recCpu.Shutdown();
 	}
 
 	try {
 		psxRec.Allocate();
-		m_RecSuccessIOP = true;
 	}
 	catch( Exception::RuntimeError& ex )
 	{
+		m_RecExceptionIOP = ex.Clone();
 		Console.Error( L"IOP Recompiler Allocation Failed:\n" + ex.FormatDiagnosticMessage() );
 		psxRec.Shutdown();
 	}
@@ -319,9 +319,13 @@ SysCoreAllocations::SysCoreAllocations()
 
 bool SysCoreAllocations::IsRecAvailable_MicroVU0() const { return CpuProviders->microVU0.IsAvailable(); }
 bool SysCoreAllocations::IsRecAvailable_MicroVU1() const { return CpuProviders->microVU1.IsAvailable(); }
+BaseException* SysCoreAllocations::GetException_MicroVU0() const { return CpuProviders->microVU0.ExThrown; }
+BaseException* SysCoreAllocations::GetException_MicroVU1() const { return CpuProviders->microVU1.ExThrown; }
 
 bool SysCoreAllocations::IsRecAvailable_SuperVU0() const { return CpuProviders->superVU0.IsAvailable(); }
 bool SysCoreAllocations::IsRecAvailable_SuperVU1() const { return CpuProviders->superVU1.IsAvailable(); }
+BaseException* SysCoreAllocations::GetException_SuperVU0() const { return CpuProviders->superVU0.ExThrown; }
+BaseException* SysCoreAllocations::GetException_SuperVU1() const { return CpuProviders->superVU1.ExThrown; }
 
 
 void SysCoreAllocations::CleanupMess() throw()
@@ -379,6 +383,15 @@ void SysCoreAllocations::SelectCpuProviders() const
 		CpuVU1 = EmuConfig.Cpu.Recompiler.UseMicroVU1 ? (BaseVUmicroCPU*)CpuProviders->microVU1 : (BaseVUmicroCPU*)CpuProviders->superVU1;
 }
 
+// This is a semi-hacky function for convenience
+BaseVUmicroCPU* SysCoreAllocations::getVUprovider(int whichProvider, int vuIndex) const {
+	switch (whichProvider) {
+		case 0: return vuIndex ? (BaseVUmicroCPU*)CpuProviders->interpVU1 : (BaseVUmicroCPU*)CpuProviders->interpVU0;
+		case 1: return vuIndex ? (BaseVUmicroCPU*)CpuProviders->superVU1  : (BaseVUmicroCPU*)CpuProviders->superVU0;
+		case 2: return vuIndex ? (BaseVUmicroCPU*)CpuProviders->microVU1  : (BaseVUmicroCPU*)CpuProviders->microVU0;
+	}
+	return NULL;
+}
 
 // Resets all PS2 cpu execution caches, which does not affect that actual PS2 state/condition.
 // This can be called at any time outside the context of a Cpu->Execute() block without
@@ -406,9 +419,9 @@ void SysClearExecutionCache()
 // allocation is below a certain memory address (specified in "bounds" parameter).
 // The allocated block has code execution privileges.
 // Returns NULL on allocation failure.
-u8 *SysMmapEx(uptr base, u32 size, uptr bounds, const char *caller)
+u8* SysMmapEx(uptr base, u32 size, uptr bounds, const char *caller)
 {
-	u8 *Mem = (u8*)HostSys::Mmap( base, size );
+	u8* Mem = (u8*)HostSys::Mmap( base, size );
 
 	if( (Mem == NULL) || (bounds != 0 && (((uptr)Mem + size) > bounds)) )
 	{
@@ -433,4 +446,21 @@ u8 *SysMmapEx(uptr base, u32 size, uptr bounds, const char *caller)
 		}
 	}
 	return Mem;
+}
+
+// This function always returns a valid DiscID -- using the Sony serial when possible, and
+// falling back on the CRC checksum of the ELF binary if the PS2 software being run is
+// homebrew or some other serial-less item.
+wxString SysGetDiscID()
+{
+	if( !DiscSerial.IsEmpty() ) return DiscSerial;
+	
+	if( !ElfCRC )
+	{
+		// FIXME: If the system is currently running the BIOS, it should return a serial based on
+		// the BIOS being run (either a checksum of the BIOS roms, and/or a string based on BIOS
+		// region and revision).
+	}
+
+	return wxsFormat( L"%8.8x", ElfCRC );
 }

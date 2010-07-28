@@ -197,12 +197,12 @@ void psxDma9(u32 madr, u32 bcr, u32 chcr)
 	sif0.iop.busy = true;
 	psHu32(SBUS_F240) |= 0x2000;
 
-	if (sif0.ee.busy)
-	{
+	/*if (sif0.ee.busy)
+	{*/
 		SIF0Dma();
 		psHu32(SBUS_F240) &= ~0x20;
 		psHu32(SBUS_F240) &= ~0x2000;
-	}
+	//}
 }
 
 void psxDma10(u32 madr, u32 bcr, u32 chcr)
@@ -212,15 +212,13 @@ void psxDma10(u32 madr, u32 bcr, u32 chcr)
 	sif1.iop.busy = true;
 	psHu32(SBUS_F240) |= 0x4000;
 
-	if (sif1.ee.busy)
-	{
-        XMMRegisters::Freeze();
+	/*if (sif1.ee.busy)
+	{*/
 		SIF1Dma();
 		psHu32(SBUS_F240) &= ~0x40;
 		psHu32(SBUS_F240) &= ~0x100;
 		psHu32(SBUS_F240) &= ~0x4000;
-        XMMRegisters::Thaw();
-	}
+	//}
 }
 
 /* psxDma11 & psxDma 12 are in IopSio2.cpp, along with the appropriate interrupt functions. */

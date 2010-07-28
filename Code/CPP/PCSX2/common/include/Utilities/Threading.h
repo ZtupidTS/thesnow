@@ -47,69 +47,70 @@ class wxTimeSpan;
 
 namespace Threading
 {
-	class PersistentThread;
+	class pxThread;
 	class RwMutex;
 
 	extern void pxTestCancel();
-	extern PersistentThread* pxGetCurrentThread();
+	extern pxThread* pxGetCurrentThread();
 	extern wxString pxGetCurrentThreadName();
 	extern u64 GetThreadCpuTime();
 	extern u64 GetThreadTicksPerSecond();
 
 	// Yields the current thread and provides cancellation points if the thread is managed by
-	// PersistentThread.  Unmanaged threads use standard Sleep.
+	// pxThread.  Unmanaged threads use standard Sleep.
 	extern void pxYield( int ms );
 }
 
 namespace Exception
 {
-	class BaseThreadError : public virtual RuntimeError
+	class BaseThreadError : public RuntimeError
 	{
+		DEFINE_EXCEPTION_COPYTORS( BaseThreadError, RuntimeError )
+		DEFINE_EXCEPTION_MESSAGES( BaseThreadError )
+
 	public:
-		Threading::PersistentThread*	m_thread;
+		Threading::pxThread*	m_thread;
 
-		DEFINE_EXCEPTION_COPYTORS( BaseThreadError )
-
-		explicit BaseThreadError( Threading::PersistentThread* _thread=NULL )
-		{
-			m_thread = _thread;
-			BaseException::InitBaseEx( "Unspecified thread error" );
+	protected:
+		BaseThreadError() {
+			m_thread = NULL;
 		}
 
-		BaseThreadError( Threading::PersistentThread& _thread )
+	public:
+		explicit BaseThreadError( Threading::pxThread* _thread )
+		{
+			m_thread = _thread;
+			m_message_diag = L"An unspecified thread-related error occurred (thread=%s)";
+		}
+
+		explicit BaseThreadError( Threading::pxThread& _thread )
 		{
 			m_thread = &_thread;
-			BaseException::InitBaseEx( "Unspecified thread error" );
+			m_message_diag = L"An unspecified thread-related error occurred (thread=%s)";
 		}
 
 		virtual wxString FormatDiagnosticMessage() const;
 		virtual wxString FormatDisplayMessage() const;
 
-		Threading::PersistentThread& Thread();
-		const Threading::PersistentThread& Thread() const;
+		Threading::pxThread& Thread();
+		const Threading::pxThread& Thread() const;
 	};
 
-	class ThreadCreationError : public virtual BaseThreadError
+	class ThreadCreationError : public BaseThreadError
 	{
-	public:
-		DEFINE_EXCEPTION_COPYTORS( ThreadCreationError )
+		DEFINE_EXCEPTION_COPYTORS( ThreadCreationError, BaseThreadError )
 
-		explicit ThreadCreationError( Threading::PersistentThread* _thread=NULL, const char* msg="Creation of thread '%s' failed." )
+	public:
+		explicit ThreadCreationError( Threading::pxThread* _thread )
 		{
 			m_thread = _thread;
-			BaseException::InitBaseEx( msg );
+			SetBothMsgs( "Thread creation failure.  An unspecified error occurred while trying to create the %s thread." );
 		}
 
-		ThreadCreationError( Threading::PersistentThread& _thread, const char* msg="Creation of thread '%s' failed." )
+		explicit ThreadCreationError( Threading::pxThread& _thread )
 		{
 			m_thread = &_thread;
-			BaseException::InitBaseEx( msg );
-		}
-
-		ThreadCreationError( Threading::PersistentThread& _thread, const wxString& msg_diag, const wxString& msg_user )
-		{
-			m_thread = &_thread;
-			BaseException::InitBaseEx( msg_diag, msg_user );
+			SetBothMsgs( "Thread creation failure.  An unspecified error occurred while trying to create the %s thread." );
 		}
 	};
 }
@@ -128,6 +129,10 @@ namespace Threading
 
 	// For use in spin/wait loops.
 	extern void SpinWait();
+	
+	// Use prior to committing data to another thread (internal memcpy_qwc does not use fencing,
+	// so that many memcpys can be issued in a row more efficiently)
+	extern void StoreFence();
 
 	// Optional implementation to enable hires thread/process scheduler for the operating system.
 	// Needed by Windows, but might not be relevant to other platforms.

@@ -261,6 +261,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\GameDatabase.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\GameDatabase.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\PrecompiledHeader.cpp"
 				>
 				<FileConfiguration
@@ -305,26 +313,6 @@
 				</File>
 				<File
 					RelativePath="..\..\Utilities\FileUtils.cpp"
-					>
-				</File>
-				<File
-					RelativePath="..\..\StringUtils.h"
-					>
-				</File>
-			</Filter>
-			<Filter
-				Name="Game DataBase"
-				>
-				<File
-					RelativePath="..\..\DataBase_Loader.cpp"
-					>
-				</File>
-				<File
-					RelativePath="..\..\DataBase_Loader.h"
-					>
-				</File>
-				<File
-					RelativePath="..\..\File_Reader.h"
 					>
 				</File>
 			</Filter>
@@ -468,10 +456,6 @@
 					>
 				</File>
 				<File
-					RelativePath="..\..\Paths.h"
-					>
-				</File>
-				<File
 					RelativePath="..\..\Plugins.h"
 					>
 				</File>
@@ -485,6 +469,10 @@
 				</File>
 				<File
 					RelativePath="..\..\Stats.h"
+					>
+				</File>
+				<File
+					RelativePath="..\..\SysForwardDefs.h"
 					>
 				</File>
 				<File
@@ -683,6 +671,10 @@
 							<Filter
 								Name="Super VU"
 								>
+								<File
+									RelativePath="..\..\x86\sVU_Compare.h"
+									>
+								</File>
 								<File
 									RelativePath="..\..\x86\sVU_Debug.h"
 									>
@@ -1263,14 +1255,6 @@
 					Name="IPU"
 					>
 					<File
-						RelativePath="..\..\IPU\coroutine.cpp"
-						>
-					</File>
-					<File
-						RelativePath="..\..\IPU\coroutine.h"
-						>
-					</File>
-					<File
 						RelativePath="..\..\Ipu\IPU.cpp"
 						>
 						<FileConfiguration
@@ -1278,7 +1262,7 @@
 							>
 							<Tool
 								Name="VCCLCompilerTool"
-								UsePrecompiledHeader="0"
+								UsePrecompiledHeader="2"
 							/>
 						</FileConfiguration>
 						<FileConfiguration
@@ -1310,7 +1294,7 @@
 							>
 							<Tool
 								Name="VCCLCompilerTool"
-								UsePrecompiledHeader="0"
+								UsePrecompiledHeader="2"
 							/>
 						</FileConfiguration>
 						<FileConfiguration
@@ -1897,6 +1881,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\gui\AppGameDatabase.cpp"
+				>
+			</File>
+			<File
 				RelativePath="..\..\gui\AppInit.cpp"
 				>
 			</File>
@@ -2041,6 +2029,10 @@
 				</File>
 				<File
 					RelativePath="..\..\gui\Dialogs\FirstTimeWizard.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\..\gui\Dialogs\GameDatabaseDialog.cpp"
 					>
 				</File>
 				<File
@@ -2634,6 +2626,10 @@
 					>
 				</File>
 				<File
+					RelativePath="..\..\gui\AppAccelerators.h"
+					>
+				</File>
+				<File
 					RelativePath="..\..\gui\AppCommon.h"
 					>
 				</File>
@@ -2658,6 +2654,10 @@
 					>
 				</File>
 				<File
+					RelativePath="..\..\gui\AppGameDatabase.h"
+					>
+				</File>
+				<File
 					RelativePath="..\..\gui\ApplyState.h"
 					>
 				</File>
@@ -2679,10 +2679,6 @@
 				</File>
 				<File
 					RelativePath="..\..\gui\GSFrame.h"
-					>
-				</File>
-				<File
-					RelativePath="..\..\HostGui.h"
 					>
 				</File>
 				<File

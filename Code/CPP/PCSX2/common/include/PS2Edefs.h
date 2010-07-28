@@ -248,6 +248,7 @@ void CALLBACK GSsetSettingsDir( const char* dir );
 void CALLBACK GSsetLogDir( const char* dir );
 
 void CALLBACK GSvsync(int field);
+void CALLBACK GSgifTransfer(const u32 *pMem, u32 addr);
 void CALLBACK GSgifTransfer1(u32 *pMem, u32 addr);
 void CALLBACK GSgifTransfer2(u32 *pMem, u32 size);
 void CALLBACK GSgifTransfer3(u32 *pMem, u32 size);
@@ -343,6 +344,7 @@ void CALLBACK SPU2shutdown();
 void CALLBACK SPU2setSettingsDir( const char* dir );
 void CALLBACK SPU2setLogDir( const char* dir );
 
+void CALLBACK SPU2reset();
 void CALLBACK SPU2write(u32 mem, u16 value);
 u16  CALLBACK SPU2read(u32 mem);
 
@@ -564,6 +566,7 @@ typedef void (CALLBACK* _PS2EsetEmuVersion)(const char* emuId, u32 version);		//
 typedef s32  (CALLBACK* _GSopen)(void *pDsp, char *Title, int multithread);
 typedef s32  (CALLBACK* _GSopen2)( void *pDsp, u32 flags );
 typedef void (CALLBACK* _GSvsync)(int field);
+typedef void (CALLBACK* _GSgifTransfer)(const u32 *pMem, u32 size);
 typedef void (CALLBACK* _GSgifTransfer1)(u32 *pMem, u32 addr);
 typedef void (CALLBACK* _GSgifTransfer2)(u32 *pMem, u32 size);
 typedef void (CALLBACK* _GSgifTransfer3)(u32 *pMem, u32 size);
@@ -587,11 +590,6 @@ typedef void (CALLBACK* _GSwriteCSR)(u32 value);
 typedef void (CALLBACK* _GSmakeSnapshot)(const char *path);
 typedef void (CALLBACK* _GSmakeSnapshot2)(const char *path, int*, int);
 
-// Worthless crap function that returns GS plugin specific data via some
-// undocumented void* to a struct.   If any pad plugin actually relies on
-// this info, it deserves to fail new newer pcsx2s.  -- air
-//typedef void (CALLBACK* _GSgetDriverInfo)(GSdriverInfo *info);
-
 // PAD
 typedef s32  (CALLBACK* _PADinit)(u32 flags);
 typedef s32  (CALLBACK* _PADopen)(void *pDsp);
@@ -605,9 +603,8 @@ typedef s32  (CALLBACK* _PADsetSlot)(u8 port, u8 slot);
 typedef s32  (CALLBACK* _PADqueryMtap)(u8 port);
 
 // SPU2
-// NOTE: The read/write functions CANNOT use XMM/MMX regs
-// If you want to use them, need to save and restore current ones
 typedef s32  (CALLBACK* _SPU2open)(void *pDsp);
+typedef void (CALLBACK* _SPU2reset)();
 typedef void (CALLBACK* _SPU2write)(u32 mem, u16 value);
 typedef u16  (CALLBACK* _SPU2read)(u32 mem);
 
@@ -723,6 +720,7 @@ typedef void (CALLBACK* _FWirqCallback)(void (*callback)());
 extern _GSopen            GSopen;
 extern _GSopen2           GSopen2;
 extern _GSvsync           GSvsync;
+extern _GSgifTransfer     GSgifTransfer;
 extern _GSgifTransfer1    GSgifTransfer1;
 extern _GSgifTransfer2    GSgifTransfer2;
 extern _GSgifTransfer3    GSgifTransfer3;
@@ -758,6 +756,7 @@ extern _PADqueryMtap      PADqueryMtap;
 
 // SPU2
 extern _SPU2open          SPU2open;
+extern _SPU2reset         SPU2reset;
 extern _SPU2write         SPU2write;
 extern _SPU2read          SPU2read;
 

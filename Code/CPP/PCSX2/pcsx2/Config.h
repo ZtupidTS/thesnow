@@ -50,6 +50,7 @@ enum GamefixId
 	Fix_IpuWait,
 	Fix_EETiming,
 	Fix_SkipMpeg,
+	Fix_OPHFlag,
 
 	GamefixId_COUNT
 };
@@ -343,7 +344,9 @@ struct Pcsx2Config
 				fpuFullMode		:1;
 
 			bool
-				StackFrameChecks:1;
+				StackFrameChecks:1,
+				PreBlockCheckEE	:1,
+				PreBlockCheckIOP:1;
 		BITFIELD_END
 
 		RecompilerOptions();
@@ -393,6 +396,7 @@ struct Pcsx2Config
 		// style.  Useful for debugging potential bugs in the MTGS pipeline.
 		bool	SynchronousMTGS;
 		bool	DisableOutput;
+		int		VsyncQueueSize;
 
 		bool	FrameLimitEnable;
 		bool	FrameSkipEnable;
@@ -418,6 +422,8 @@ struct Pcsx2Config
 			return
 				OpEqu( SynchronousMTGS )		&&
 				OpEqu( DisableOutput )			&&
+				OpEqu( VsyncQueueSize )			&&
+				
 				OpEqu( FrameSkipEnable )		&&
 				OpEqu( FrameLimitEnable )		&&
 				OpEqu( VsyncEnable )			&&
@@ -452,7 +458,8 @@ struct Pcsx2Config
 				XgKickHack		:1,		// Erementar Gerad, adds more delay to VU XGkick instructions. Corrects the color of some graphics, but breaks Tri-ace games and others.
 				IPUWaitHack     :1,		// FFX FMV, makes GIF flush before doing IPU work. Fixes bad graphics overlay.
 				EETimingHack	:1,		// General purpose timing hack.
-				SkipMPEGHack	:1;		// Skips MPEG videos (Katamari and other games need this)
+				SkipMPEGHack	:1,		// Skips MPEG videos (Katamari and other games need this)
+				OPHFlagHack		:1;		// Skips MPEG videos (Katamari and other games need this)
 		BITFIELD_END
 
 		// all gamefixes are disabled by default.
@@ -485,8 +492,9 @@ struct Pcsx2Config
 				IopCycleRate_X2	:1,		// enables the x2 multiplier of the IOP cyclerate
 				IntcStat		:1,		// tells Pcsx2 to fast-forward through intc_stat waits.
 				WaitLoop		:1,		// enables constant loop detection and fast-forwarding
-				vuFlagHack		:1,		// microVU specific flag hack; Can cause Infinite loops, SPS, etc...
-				vuMinMax		:1;		// microVU specific MinMax hack; Can cause SPS, Black Screens,  etc...
+				vuFlagHack		:1,		// microVU specific flag hack
+				vuBlockHack		:1,		// microVU specific block flag no-propagation hack
+				vuMinMax		:1;		// microVU specific MinMax hack
 		BITFIELD_END
 
 		u8	EECycleRate;		// EE cycle rate selector (1.0, 1.5, 2.0)
@@ -597,6 +605,7 @@ TraceLogFilters&				SetTraceConfig();
 #define CHECK_IPUWAITHACK			(EmuConfig.Gamefixes.IPUWaitHack)	 // Special Fix For FFX
 #define CHECK_EETIMINGHACK			(EmuConfig.Gamefixes.EETimingHack)	 // Fix all scheduled events to happen in 1 cycle.
 #define CHECK_SKIPMPEGHACK			(EmuConfig.Gamefixes.SkipMPEGHack)	 // Finds sceMpegIsEnd pattern to tell the game the mpeg is finished (Katamari and a lot of games need this)
+#define CHECK_OPHFLAGHACK			(EmuConfig.Gamefixes.OPHFlagHack)
 
 //------------ Advanced Options!!! ---------------
 #define CHECK_VU_OVERFLOW			(EmuConfig.Cpu.Recompiler.vuOverflow)

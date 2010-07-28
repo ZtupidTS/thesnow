@@ -77,8 +77,8 @@ public:
 	int			ChunkSize;
 
 protected:
-	T*		m_ptr;
-	int		m_size;				// size of the allocation of memory
+	T*			m_ptr;
+	int			m_size;			// size of the allocation of memory
 
 protected:
 	// Internal constructor for use by derived classes.  This allows a derived class to
@@ -93,15 +93,27 @@ protected:
 		m_size		= initSize;
 
 		if( m_ptr == NULL )
-			throw Exception::OutOfMemory();
+			throw Exception::OutOfMemory(name + wxsFormat(L" (SafeArray::constructor) [size=%d]", initSize));
 	}
 
 	virtual T* _virtual_realloc( int newsize )
 	{
-		return (T*)((m_ptr == NULL) ?
+		T* retval = (T*)((m_ptr == NULL) ?
 			malloc( newsize * sizeof(T) ) :
 			realloc( m_ptr, newsize * sizeof(T) )
 		);
+		
+		if( IsDebugBuild )
+		{
+			// Zero everything out to 0xbaadf00d, so that its obviously uncleared
+			// to a debuggee
+
+			u32* fill = (u32*)&retval[m_size];
+			const u32* end = (u32*)((((uptr)&retval[newsize-1])-3) & ~0x3);
+			for( ; fill<end; ++fill ) *fill = 0xbaadf00d;
+		}
+		
+		return retval;
 	}
 
 public:
@@ -126,7 +138,7 @@ public:
 		m_size		= initialSize;
 
 		if( (initialSize != 0) && (m_ptr == NULL) )
-			throw Exception::OutOfMemory();
+			throw Exception::OutOfMemory(name + wxsFormat(L" (SafeArray::constructor) [size=%d]", initialSize));
 	}
 
 	// Clears the contents of the array to zero, and frees all memory allocations.
@@ -151,17 +163,10 @@ public:
 
 		m_ptr = _virtual_realloc( newsize );
 		if( m_ptr == NULL )
-		{
-			throw Exception::OutOfMemory(
-				wxsFormat(	// english (for diagnostic)
-					L"Out-of-memory on SafeArray block re-allocation.\n"
-					L"Old size: %d bytes, New size: %d bytes.",
-					m_size, newsize
-				),
-				// internationalized!
-				wxsFormat( _("Out of memory, trying to allocate %d bytes."), newsize )
+			throw Exception::OutOfMemory(Name +
+				wxsFormat(L" (SafeArray::ExactAlloc) [oldsize=%d] [newsize=%d]", m_size, newsize)
 			);
-		}
+
 		m_size = newsize;
 	}
 
@@ -250,24 +255,27 @@ public:
 		safe_free( m_ptr );
 	}
 
-	explicit SafeList( const wxChar* name=L"Unnamed" ) :
-		Name( name )
-	,	ChunkSize( DefaultChunkSize )
-	,	m_ptr( NULL )
-	,	m_allocsize( 0 )
-	,	m_length( 0 )
+	explicit SafeList( const wxChar* name=L"Unnamed" )
+		: Name( name )
 	{
+		ChunkSize	= DefaultChunkSize;
+		m_ptr		= NULL;
+		m_allocsize	= 0;
+		m_length	= 0;
 	}
 
-	explicit SafeList( int initialSize, const wxChar* name=L"Unnamed" ) :
-		Name( name )
-	,	ChunkSize( DefaultChunkSize )
-	,	m_ptr( (T*)malloc( initialSize * sizeof(T) ) )
-	,	m_allocsize( initialSize )
-	,	m_length( 0 )
+	explicit SafeList( int initialSize, const wxChar* name=L"Unnamed" )
+		: Name( name )
 	{
+		ChunkSize	= DefaultChunkSize;
+		m_allocsize	= initialSize;
+		m_length	= 0;
+		m_ptr		= (T*)malloc( initialSize * sizeof(T) );
+
 		if( m_ptr == NULL )
-			throw Exception::OutOfMemory();
+			throw Exception::OutOfMemory(Name +
+				wxsFormat(L" (SafeList::Constructor) [length=%d]", m_length)
+			);
 
 		for( int i=0; i<m_allocsize; ++i )
 		{
@@ -298,18 +306,9 @@ public:
 			const int newalloc = blockSize + ChunkSize;
 			m_ptr = _virtual_realloc( newalloc );
 			if( m_ptr == NULL )
-			{
-				throw Exception::OutOfMemory(
-					// English Diagnostic message:
-					wxsFormat(
-						L"Out-of-memory on SafeList block re-allocation.\n"
-						L"Name: %s, Old size: %d bytes, New size: %d bytes",
-						Name.c_str(), m_allocsize, newalloc
-					),
-
-					wxsFormat( _("Out of memory, trying to allocate %d bytes."), newalloc )
+				throw Exception::OutOfMemory(Name +
+					wxsFormat(L" (SafeList::MakeRoomFor) [oldlen=%d] [newlen=%d]", m_length, blockSize)
 				);
-			}
 
 			for( ; m_allocsize<newalloc; ++m_allocsize )
 			{
@@ -455,4 +454,4 @@ public:
 
 // For lack of a better place for now (they depend on SafeList so they can't go in StringUtil)
 extern void SplitString( SafeList<wxString>& dest, const wxString& src, const wxString& delims );
-extern void JoinString( wxString& dest, const SafeList<wxString>& src, const wxString& separator );
+extern wxString JoinString( const SafeList<wxString>& src, const wxString& separator );

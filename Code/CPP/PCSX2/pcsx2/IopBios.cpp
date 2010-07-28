@@ -25,6 +25,61 @@
 #define O_BINARY 0
 #endif
 
+// set this to 0 to disable rewriting 'host:' paths!
+#define USE_HOST_REWRITE 1
+
+#if USE_HOST_REWRITE
+#	ifdef WIN32
+		// disable this if you DON'T want "host:/usr/local/" paths
+		// to get rewritten into host:/
+#		define HOST_REWRITE_USR_LOCAL 1
+#	else
+		// unix/linux users might want to set it to 1
+		// if they DO want to keep demos from accessing their systems' /usr/local
+#		define HOST_REWRITE_USR_LOCAL 0
+#	endif
+
+static char HostRoot[1024];
+#endif
+
+void Hle_SetElfPath(const char* elfFileName)
+{
+#if USE_HOST_REWRITE
+	DevCon.WriteLn("HLE Host: Will load ELF: %s\n", elfFileName);
+
+	const char* pos1 = strrchr(elfFileName,'/');
+	const char* pos2 = strrchr(elfFileName,'\\');
+
+	if(pos2 > pos1) // we want the LAST path separator
+		pos1=pos2;
+
+	if(!pos1) // if pos1 is NULL, then pos2 was not > pos1, so it must also be NULL
+	{
+		Console.Warning("HLE Warning: ELF does not have a path!!\n");
+
+		// use %CD%/host/
+		getcwd(HostRoot,1000); // save the other 23 chars to append /host/ :P
+		HostRoot[1000]=0; // Be Safe.
+
+		char* last = HostRoot + strlen(HostRoot) - 1;
+		
+		if((*last!='/') && (*last!='\\')) // PathAppend()-ish
+			last++;
+
+		strcpy(last,"/host/");
+
+		return;
+	}
+
+	int len = pos1-elfFileName+1;
+	memcpy(HostRoot,elfFileName,len); // include the / (or \\)
+	HostRoot[len] = 0;
+
+	Console.WriteLn("HLE Host: Set 'host:' root path to: %s\n", HostRoot);
+
+#endif
+}
+
 namespace R3000A {
 
 #define v0 (psxRegs.GPR.n.v0)
@@ -75,10 +130,59 @@ public:
 	{
 		const char *path = strchr(name, ':') + 1;
 
-		if (flags != IOP_O_RDONLY)
-			return -IOP_EROFS;
+		// host: actually DOES let you write!
+		//if (flags != IOP_O_RDONLY)
+		//	return -IOP_EROFS;
 
-		int hostfd = ::open(path, O_BINARY | O_RDONLY);
+		// WIP code. Works well on win32, not so sure on unixes
+		// TODO: get rid of dependency on CWD/PWD
+#if USE_HOST_REWRITE
+		// we want filenames to be relative to pcs2dir / host
+
+		static char pathMod[1024];
+
+		// partial "rooting",
+		// it will NOT avoid a path like "../../x" from escaping the pcsx2 folder!
+
+#if HOST_REWRITE_USR_LOCAL
+		const char *_local_root = "/usr/local/";
+		if(strncmp(path,_local_root,strlen(_local_root))==0)
+		{
+			strcpy(pathMod,HostRoot);
+			strcat(pathMod,path+strlen(_local_root));
+		}
+		else
+#endif
+		if((path[0] == '/') || (path[0] == '\\') || (isalpha(path[0]) && (path[1] == ':'))) // absolute NATIVE path (X:\blah)
+		{
+			// TODO: allow some way to use native paths in non-windows platforms
+			// maybe hack it so linux prefixes the path with "X:"? ;P
+			// or have all platforms use a common prefix for native paths
+			strcpy(pathMod,path);
+		}
+		else // relative paths
+		{
+			strcpy(pathMod,HostRoot);
+			strcat(pathMod,path);
+		}
+#else
+		const char* pathMod = path;
+#endif
+
+		int native_flags = O_BINARY; // necessary in Windows.
+
+		switch(flags&IOP_O_RDWR)
+		{
+		case IOP_O_RDONLY:	native_flags |= O_RDONLY;	break;
+		case IOP_O_WRONLY:	native_flags |= O_WRONLY; break;
+		case IOP_O_RDWR:	native_flags |= O_RDWR;	break;
+		}
+
+		if(flags&IOP_O_APPEND)	native_flags |= O_APPEND;
+		if(flags&IOP_O_CREAT)	native_flags |= O_CREAT;
+		if(flags&IOP_O_TRUNC)	native_flags |= O_TRUNC;
+
+		int hostfd = ::open(pathMod, native_flags);
 		if (hostfd < 0)
 			return translate_error(hostfd);
 
@@ -120,6 +224,11 @@ public:
 	virtual int read(void *buf, u32 count)
 	{
 		return translate_error(::read(fd, buf, count));
+	}
+
+	virtual int write(void *buf, u32 count)
+	{
+		return translate_error(::write(fd, buf, count));
 	}
 };
 
@@ -311,7 +420,9 @@ namespace ioman {
 
 	int write_HLE()
 	{
-		int fd = a0;
+		s32 fd = a0;
+		u32 buf = a1;
+		u32 count = a2;
 
 #ifdef PCSX2_DEVBUILD
 		if (fd == 1) // stdout
@@ -321,7 +432,17 @@ namespace ioman {
 			v0 = a2;
 			return 1;
 		}
+		else
 #endif
+		if (IOManFile *file = getfd<IOManFile>(fd))
+		{
+			if (!iopVirtMemR<void>(buf))
+				return 0;
+
+			v0 = file->write(iopVirtMemW<void>(buf), count);
+			pc = ra;
+			return 1;
+		}
 
 		return 0;
 	}

@@ -29,7 +29,7 @@
 
 using namespace Threading;
 
-#if 0 // PCSX2_DEBUG
+#if 0 //PCSX2_DEBUG
 #	define MTGS_LOG Console.WriteLn
 #else
 #	define MTGS_LOG 0&&
@@ -46,34 +46,7 @@ using namespace Threading;
 //  MTGS Threaded Class Implementation
 // =====================================================================================================
 
-// Size of the ringbuffer as a power of 2 -- size is a multiple of simd128s.
-// (actual size is 1<<m_RingBufferSizeFactor simd vectors [128-bit values])
-// A value of 19 is a 8meg ring buffer.  18 would be 4 megs, and 20 would be 16 megs.
-// Default was 2mb, but some games with lots of MTGS activity want 8mb to run fast (rama)
-static const uint RingBufferSizeFactor = 19;
-
-// size of the ringbuffer in simd128's.
-static const uint RingBufferSize = 1<<RingBufferSizeFactor;
-
-// Mask to apply to ring buffer indices to wrap the pointer from end to
-// start (the wrapping is what makes it a ringbuffer, yo!)
-static const uint RingBufferMask = RingBufferSize - 1;
-
-struct MTGS_BufferedData
-{
-	u128		m_Ring[RingBufferSize];
-	u8			Regs[Ps2MemSize::GSregs];
-
-	MTGS_BufferedData() {}
-
-	u128& operator[]( uint idx )
-	{
-		pxAssert( idx < RingBufferSize );
-		return m_Ring[idx];
-	}
-};
-
-static __aligned(32) MTGS_BufferedData RingBuffer;
+__aligned(32) MTGS_BufferedData RingBuffer;
 extern bool renderswitch;
 
 
@@ -97,16 +70,16 @@ void SysMtgsThread::OnStart()
 {
 	m_PluginOpened		= false;
 
-	m_RingPos			= 0;
+	m_ReadPos			= 0;
 	m_WritePos			= 0;
 	m_RingBufferIsBusy	= false;
 	m_packet_size		= 0;
-	m_packet_ringpos	= 0;
+	m_packet_writepos	= 0;
 
 	m_QueuedFrameCount	= 0;
+	m_VsyncSignalListener = false;
 	m_SignalRingEnable	= 0;
 	m_SignalRingPosition= 0;
-	m_RingWrapSpot		= 0;
 
 	m_CopyDataTally		= 0;
 
@@ -125,12 +98,16 @@ void SysMtgsThread::OnResumeReady()
 
 void SysMtgsThread::ResetGS()
 {
+	pxAssertDev( !IsOpen() || (m_ReadPos == m_WritePos), "Must close or terminate the GS thread prior to gsReset." );
+
 	// MTGS Reset process:
 	//  * clear the ringbuffer.
 	//  * Signal a reset.
 	//  * clear the path and byRegs structs (used by GIFtagDummy)
 
-	m_RingPos = m_WritePos;
+	m_ReadPos = m_WritePos;
+	m_QueuedFrameCount = 0;
+	m_VsyncSignalListener = false;
 
 	MTGS_LOG( "MTGS: Sending Reset..." );
 	SendSimplePacket( GS_RINGTYPE_RESET, 0, 0, 0 );
@@ -140,24 +117,46 @@ void SysMtgsThread::ResetGS()
 	GIFPath_Reset();
 }
 
+struct RingCmdPacket_Vsync
+{
+	u8				regset1[0x0f0];
+	u32				csr;
+	u32				imr;
+	GSRegSIGBLID	siglblid;
+};
+
 void SysMtgsThread::PostVsyncEnd()
 {
-	SendSimplePacket( GS_RINGTYPE_VSYNC, (*(u32*)(PS2MEM_GS+0x1000)&0x2000), 0, 0 );
+	// Optimization note: Typically regset1 isn't needed.  The regs in that area are typically
+	// changed infrequently, usually during video mode changes.  However, on modern systems the
+	// 256-byte copy is only a few dozen cycles -- executed 60 times a second -- so probably
+	// not worth the effort or overhead of trying to selectively avoid it.
 
-	// Alter-frame flushing!  Restarts the ringbuffer (wraps) on every other frame.  This is a
-	// mandatory feature that prevents the MTGS from queuing more than 2 frames at any time.
-	// (queued frames cause input lag and desynced audio -- bad!).  Ring restarts work for this
-	// because they act as sync points where the EE must stall to wait for the GS to catch-up,
-	// and they also allow us to reuse the front of the ringbuffer more often, which should improve
-	// L2 cache performance.
+	uint packsize = sizeof(RingCmdPacket_Vsync) / 16;
+	PrepDataPacket(GS_RINGTYPE_VSYNC, packsize);
+	MemCopy_WrappedDest( (u128*)PS2MEM_GS, RingBuffer.m_Ring, m_packet_writepos, RingBufferSize, 0xf );
 
-	if( m_QueuedFrameCount > 0 )
-		RestartRingbuffer();
-	else
-	{
-		m_QueuedFrameCount++;
-		SetEvent();
-	}
+	u32* remainder = (u32*)GetDataPacketPtr();
+	remainder[0] = GSCSRr;
+	remainder[1] = GSIMR;
+	(GSRegSIGBLID&)remainder[2] = GSSIGLBLID;
+	m_packet_writepos = (m_packet_writepos + 1) & RingBufferMask;
+
+	SendDataPacket();
+
+	// Vsyncs should always start the GS thread, regardless of how little has actually be queued.
+	if (m_CopyDataTally != 0) SetEvent();
+
+	// If the MTGS is allowed to queue a lot of frames in advance, it creates input lag.
+	// Use the Queued FrameCount to stall the EE if another vsync (or two) are already queued
+	// in the ringbuffer.  The queue limit is disabled when both FrameLimiting and Vsync are
+	// disabled, since the queue can have perverse effects on framerate benchmarking.
+
+	if ((AtomicIncrement(m_QueuedFrameCount) < EmuConfig.GS.VsyncQueueSize) || (!EmuConfig.GS.VsyncEnable && !EmuConfig.GS.FrameLimitEnable)) return;
+
+	m_VsyncSignalListener = true;
+	//Console.WriteLn( Color_Blue, "(EEcore Sleep) Vsync\t\tringpos=0x%06x, writepos=0x%06x", volatize(m_ReadPos), m_WritePos );
+	m_sem_Vsync.WaitNoCancel();
 }
 
 struct PacketTagType
@@ -235,18 +234,19 @@ void SysMtgsThread::OpenPlugin()
 	m_PluginOpened = true;
 	m_sem_OpenDone.Post();
 
-	GSCSRr = 0x551B4000; // 0x55190000
 	GSsetGameCRC( ElfCRC, 0 );
 }
 
 class RingBufferLock : public ScopedLock
 {
+	typedef ScopedLock _parent;
+	
 protected:
 	SysMtgsThread&		m_mtgs;
 
 public:
 	RingBufferLock( SysMtgsThread& mtgs )
-		: ScopedLock( mtgs.m_lock_RingBufferBusy )
+		: ScopedLock( mtgs.m_mtx_RingBufferBusy )
 		, m_mtgs( mtgs )
 	{
 		m_mtgs.m_RingBufferIsBusy = true;
@@ -256,6 +256,18 @@ public:
 	{
 		m_mtgs.m_RingBufferIsBusy = false;
 	}
+	
+	void Acquire()
+	{
+		_parent::Acquire();
+		m_mtgs.m_RingBufferIsBusy = true;
+	}
+	
+	void Release()
+	{
+		m_mtgs.m_RingBufferIsBusy = false;
+		_parent::Release();	
+	}
 };
 
 void SysMtgsThread::ExecuteTaskInThread()
@@ -264,31 +276,33 @@ void SysMtgsThread::ExecuteTaskInThread()
 	PacketTagType prevCmd;
 #endif
 
+	RingBufferLock busy( *this );
+
 	while( true )
 	{
+		busy.Release();
+
 		// Performance note: Both of these perform cancellation tests, but pthread_testcancel
 		// is very optimized (only 1 instruction test in most cases), so no point in trying
 		// to avoid it.
 
 		m_sem_event.WaitWithoutYield();
 		StateCheckInThread();
+		busy.Acquire();
 
-		{
-		RingBufferLock busy( *this );
-
-		// note: m_RingPos is intentionally not volatile, because it should only
+		// note: m_ReadPos is intentionally not volatile, because it should only
 		// ever be modified by this thread.
-		while( m_RingPos != volatize(m_WritePos))
+		while( m_ReadPos != volatize(m_WritePos))
 		{
 			if( EmuConfig.GS.DisableOutput )
 			{
-				m_RingPos = m_WritePos;
+				m_ReadPos = m_WritePos;
 				continue;
 			}
 
-			pxAssert( m_RingPos < RingBufferSize );
+			pxAssert( m_ReadPos < RingBufferSize );
 
-			const PacketTagType& tag = (PacketTagType&)RingBuffer[m_RingPos];
+			const PacketTagType& tag = (PacketTagType&)RingBuffer[m_ReadPos];
 			u32 ringposinc = 1;
 
 #ifdef RINGBUF_DEBUG_STACK
@@ -296,11 +310,11 @@ void SysMtgsThread::ExecuteTaskInThread()
 
 			m_lock_Stack.Lock();
 			uptr stackpos = ringposStack.back();
-			if( stackpos != m_RingPos )
+			if( stackpos != m_ReadPos )
 			{
-				Console.Error( "MTGS Ringbuffer Critical Failure ---> %x to %x (prevCmd: %x)\n", stackpos, m_RingPos, prevCmd.command );
+				Console.Error( "MTGS Ringbuffer Critical Failure ---> %x to %x (prevCmd: %x)\n", stackpos, m_ReadPos, prevCmd.command );
 			}
-			pxAssert( stackpos == m_RingPos );
+			pxAssert( stackpos == m_ReadPos );
 			prevCmd = tag;
 			ringposStack.pop_back();
 			m_lock_Stack.Release();
@@ -310,60 +324,104 @@ void SysMtgsThread::ExecuteTaskInThread()
 			{
 				case GS_RINGTYPE_P1:
 				{
+					uint datapos = (m_ReadPos+1) & RingBufferMask;
 					const int qsize = tag.data[0];
-					const u128* data = &RingBuffer[m_RingPos+1];
+					const u128* data = &RingBuffer[datapos];
 
 					MTGS_LOG( "(MTGS Packet Read) ringtype=P1, qwc=%u", qsize );
 
-					// make sure that tag>>16 is the MAX size readable
-					GSgifTransfer1((u32*)(data - 0x400 + qsize), 0x4000-qsize*16);
-					//GSgifTransfer1((u32*)data, qsize);
+					uint endpos = datapos + qsize;
+					if( endpos >= RingBufferSize )
+					{
+						uint firstcopylen = RingBufferSize - datapos;
+						GSgifTransfer( (u32*)data, firstcopylen );
+						datapos = endpos & RingBufferMask;
+						GSgifTransfer( (u32*)RingBuffer.m_Ring, datapos );
+					}
+					else
+					{
+						GSgifTransfer( (u32*)data, qsize );
+					}
+
 					ringposinc += qsize;
 				}
 				break;
 
 				case GS_RINGTYPE_P2:
 				{
+					uint datapos = (m_ReadPos+1) & RingBufferMask;
 					const int qsize = tag.data[0];
-					const u128* data = &RingBuffer[m_RingPos+1];
+					const u128* data = &RingBuffer[datapos];
 
 					MTGS_LOG( "(MTGS Packet Read) ringtype=P2, qwc=%u", qsize );
 
-					GSgifTransfer2((u32*)data, qsize);
+					uint endpos = datapos + qsize;
+					if( endpos >= RingBufferSize )
+					{
+						uint firstcopylen = RingBufferSize - datapos;
+						GSgifTransfer2( (u32*)data, firstcopylen );
+						datapos = endpos & RingBufferMask;
+						GSgifTransfer2( (u32*)RingBuffer.m_Ring, datapos );
+					}
+					else
+					{
+						GSgifTransfer2( (u32*)data, qsize );
+					}
+
 					ringposinc += qsize;
 				}
 				break;
 
 				case GS_RINGTYPE_P3:
 				{
+					uint datapos = (m_ReadPos+1) & RingBufferMask;
 					const int qsize = tag.data[0];
-					const u128* data = &RingBuffer[m_RingPos+1];
+					const u128* data = &RingBuffer[datapos];
 
 					MTGS_LOG( "(MTGS Packet Read) ringtype=P3, qwc=%u", qsize );
 
-					GSgifTransfer3((u32*)data, qsize);
+					uint endpos = datapos + qsize;
+					if( endpos >= RingBufferSize )
+					{
+						uint firstcopylen = RingBufferSize - datapos;
+						GSgifTransfer3( (u32*)data, firstcopylen );
+						datapos = endpos & RingBufferMask;
+						GSgifTransfer3( (u32*)RingBuffer.m_Ring, datapos );
+					}
+					else
+					{
+						GSgifTransfer3( (u32*)data, qsize );
+					}
+
 					ringposinc += qsize;
 				}
-				break;
-
-				case GS_RINGTYPE_MEMWRITE64:
-					MTGS_LOG( "(MTGS Packet Read) ringtype=Write64, data=%lu", *(u64*)&tag.data[1] );
-					*(u64*)(RingBuffer.Regs+tag.data[0]) = *(u64*)&tag.data[1];
 				break;
 
 				default:
 				{
 					switch( tag.command )
 					{
-						case GS_RINGTYPE_RESTART:
-							//MTGS_LOG( "(MTGS Packet Read) ringtype=Restart" );
-							m_RingPos = 0;
-						continue;
-
 						case GS_RINGTYPE_VSYNC:
 						{
-							MTGS_LOG( "(MTGS Packet Read) ringtype=Vsync, field=%u, skip=%s", tag.data[0], tag.data[1] ? "true" : "false" );
-							GSvsync(tag.data[0]);
+							const int qsize = tag.data[0];
+							ringposinc += qsize;
+
+							MTGS_LOG( "(MTGS Packet Read) ringtype=Vsync, field=%u, skip=%s", !!(((u32&)RingBuffer.Regs[0x1000]) & 0x2000) ? 0 : 1, tag.data[1] ? "true" : "false" );
+
+							// Mail in the important GS registers.
+							// This seemingly obtuse system is needed in order to handle cases where the vsync data wraps
+							// around the edge of the ringbuffer.  If not for that I'd just use a struct. >_<
+
+							uint datapos = (m_ReadPos+1) & RingBufferMask;
+							MemCopy_WrappedSrc( RingBuffer.m_Ring, datapos, RingBufferSize, (u128*)RingBuffer.Regs, 0xf );
+
+							u32* remainder = (u32*)&RingBuffer[datapos];
+							((u32&)RingBuffer.Regs[0x1000])				= remainder[0];
+							((u32&)RingBuffer.Regs[0x1010])				= remainder[1];
+							((GSRegSIGBLID&)RingBuffer.Regs[0x1080])	= (GSRegSIGBLID&)remainder[2];
+
+							// CSR & 0x2000; is the pageflip id.
+							GSvsync(((u32&)RingBuffer.Regs[0x1000]) & 0x2000);
 							gsFrameSkip();
 
 							// if we're not using GSOpen2, then the GS window is on this thread (MTGS thread),
@@ -371,7 +429,13 @@ void SysMtgsThread::ExecuteTaskInThread()
 							if( (GSopen2 == NULL) && (PADupdate != NULL) )
 								PADupdate(0);
 
+							AtomicDecrement( m_QueuedFrameCount );
+							if (!!AtomicExchange(m_VsyncSignalListener, false))
+								m_sem_Vsync.Post();
+
+							busy.Release();
 							StateCheckInThread();
+							busy.Acquire();
 						}
 						break;
 
@@ -380,34 +444,11 @@ void SysMtgsThread::ExecuteTaskInThread()
 							_gs_ResetFrameskip();
 						break;
 
-						case GS_RINGTYPE_MEMWRITE8:
-							MTGS_LOG( "(MTGS Packet Read) ringtype=Write8, addr=0x%08x, data=0x%02x", tag.data[0], (u8)tag.data[1] );
-							*(u8*)RingBuffer.Regs[tag.data[0]] = (u8)tag.data[1];
-						break;
-
-						case GS_RINGTYPE_MEMWRITE16:
-							MTGS_LOG( "(MTGS Packet Read) ringtype=Write8, addr=0x%08x, data=0x%04x", tag.data[0], (u16)tag.data[1] );
-							*(u16*)(RingBuffer.Regs+tag.data[0]) = (u16)tag.data[1];
-						break;
-
-						case GS_RINGTYPE_MEMWRITE32:
-							MTGS_LOG( "(MTGS Packet Read) ringtype=Write8, addr=0x%08x, data=0x%08x", tag.data[0], (u32)tag.data[1] );
-							*(u32*)(RingBuffer.Regs+tag.data[0]) = tag.data[1];
-						break;
-
 						case GS_RINGTYPE_FREEZE:
 						{
 							MTGS_FreezeData* data = (MTGS_FreezeData*)(*(uptr*)&tag.data[1]);
 							int mode = tag.data[0];
 							data->retval = GetCorePlugins().DoFreeze( PluginId_GS, mode, data->fdata );
-						}
-						break;
-
-						case GS_RINGTYPE_RECORD:
-						{
-							int record = tag.data[0];
-							if( GSsetupRecording != NULL ) GSsetupRecording(record, NULL);
-							if( SPU2setupRecording != NULL ) SPU2setupRecording(record, NULL);
 						}
 						break;
 
@@ -424,11 +465,6 @@ void SysMtgsThread::ExecuteTaskInThread()
 						}
 						break;
 
-						case GS_RINGTYPE_WRITECSR:
-							MTGS_LOG( "(MTGS Packet Read) ringtype=WriteCSR, value=%08x", tag.data[0] );
-							GSwriteCSR( tag.data[0] );
-						break;
-
 						case GS_RINGTYPE_MODECHANGE:
 							// [TODO] some frameskip sync logic might be needed here!
 						break;
@@ -439,9 +475,9 @@ void SysMtgsThread::ExecuteTaskInThread()
 
 #ifdef PCSX2_DEVBUILD
 						default:
-							Console.Error("GSThreadProc, bad packet (%x) at m_RingPos: %x, m_WritePos: %x", tag.command, m_RingPos, m_WritePos);
+							Console.Error("GSThreadProc, bad packet (%x) at m_ReadPos: %x, m_WritePos: %x", tag.command, m_ReadPos, m_WritePos);
 							pxFail( "Bad packet encountered in the MTGS Ringbuffer." );
-							m_RingPos = m_WritePos;
+							m_ReadPos = m_WritePos;
 						continue;
 #else
 						// Optimized performance in non-Dev builds.
@@ -451,23 +487,29 @@ void SysMtgsThread::ExecuteTaskInThread()
 				}
 			}
 
-			uint newringpos = m_RingPos + ringposinc;
-			pxAssert( newringpos <= RingBufferSize );
-			m_RingPos = newringpos & RingBufferMask;
+			uint newringpos = (m_ReadPos + ringposinc) & RingBufferMask;
+
+			if( EmuConfig.GS.SynchronousMTGS )
+			{
+				pxAssert( m_WritePos == newringpos );
+			}
+			
+			m_ReadPos = newringpos;
 
 			if( m_SignalRingEnable != 0 )
 			{
 				// The EEcore has requested a signal after some amount of processed data.
 				if( AtomicExchangeSub( m_SignalRingPosition, ringposinc ) <= 0 )
 				{
-					// Make sure to post the signal after the m_RingPos has been updated...
+					// Make sure to post the signal after the m_ReadPos has been updated...
 					AtomicExchange( m_SignalRingEnable, 0 );
 					m_sem_OnRingReset.Post();
 					continue;
 				}
 			}
 		}
-		}
+
+		busy.Release();
 
 		// Safety valve in case standard signals fail for some reason -- this ensures the EEcore
 		// won't sleep the eternity, even if SignalRingPosition didn't reach 0 for some reason.
@@ -480,7 +522,10 @@ void SysMtgsThread::ExecuteTaskInThread()
 			m_sem_OnRingReset.Post();
 		}
 
-		//Console.Warning( "(MTGS Thread) Nothing to do!  ringpos=0x%06x", m_RingPos );
+		if (!!AtomicExchange(m_VsyncSignalListener, false))
+			m_sem_Vsync.Post();
+
+		//Console.Warning( "(MTGS Thread) Nothing to do!  ringpos=0x%06x", m_ReadPos );
 	}
 }
 
@@ -520,16 +565,19 @@ void SysMtgsThread::WaitGS()
 	if( m_ExecMode == ExecMode_NoThreadYet || !IsRunning() ) return;
 	if( !pxAssertDev( IsOpen(), "MTGS Warning!  WaitGS issued on a closed thread." ) ) return;
 
-	if( volatize(m_RingPos) != m_WritePos )
+	if( volatize(m_ReadPos) != m_WritePos )
 	{
 		SetEvent();
 		RethrowException();
 
 		do {
-			m_lock_RingBufferBusy.Wait();
+			m_mtx_RingBufferBusy.Wait();
 			RethrowException();
-		} while( volatize(m_RingPos) != m_WritePos );
+		} while( volatize(m_ReadPos) != m_WritePos );
 	}
+	
+	// Completely synchronize GS and MTGS register states.
+	memcpy_fast( RingBuffer.Regs, PS2MEM_GS, sizeof(RingBuffer.Regs) );
 }
 
 // Sets the gsEvent flag and releases a timeslice.
@@ -544,7 +592,7 @@ void SysMtgsThread::SetEvent()
 
 u8* SysMtgsThread::GetDataPacketPtr() const
 {
-	return (u8*)&RingBuffer[m_packet_ringpos];
+	return (u8*)&RingBuffer[m_packet_writepos & RingBufferMask];
 }
 
 // Closes the data packet send command, and initiates the gs thread (if needed).
@@ -553,31 +601,14 @@ void SysMtgsThread::SendDataPacket()
 	// make sure a previous copy block has been started somewhere.
 	pxAssert( m_packet_size != 0 );
 
-	uint temp = m_packet_ringpos + m_packet_size;
-	pxAssert( temp <= RingBufferSize );
-	temp &= RingBufferMask;
+	uint actualSize = ((m_packet_writepos - m_packet_startpos) & RingBufferMask)-1;
+	pxAssert( actualSize <= m_packet_size );
+	pxAssert( m_packet_writepos < RingBufferSize );
 
-	if( IsDebugBuild )
-	{
-		if( m_packet_ringpos + m_packet_size < RingBufferSize )
-		{
-			uint readpos = volatize(m_RingPos);
-			if( readpos != m_WritePos )
-			{
-				// The writepos should never leapfrog the readpos
-				// since that indicates a bad write.
-				if( m_packet_ringpos < readpos )
-					pxAssert( temp < readpos );
-			}
+	PacketTagType& tag = (PacketTagType&)RingBuffer[m_packet_startpos];
+	tag.data[0] = actualSize;
 
-			// Updating the writepos should never make it equal the readpos, since
-			// that would stop the buffer prematurely (and indicates bad code in the
-			// ringbuffer manager)
-			pxAssert( readpos != temp );
-		}
-	}
-
-	m_WritePos = temp;
+	m_WritePos = m_packet_writepos;
 
 	if( EmuConfig.GS.SynchronousMTGS )
 	{
@@ -594,339 +625,122 @@ void SysMtgsThread::SendDataPacket()
 	//m_PacketLocker.Release();
 }
 
-int SysMtgsThread::PrepDataPacket( GIF_PATH pathidx, const u32* srcdata, u32 size )
+void SysMtgsThread::GenericStall( uint size )
 {
-	return PrepDataPacket( pathidx, (u8*)srcdata, size );
+	// Note on volatiles: m_WritePos is not modified by the GS thread, so there's no need
+	// to use volatile reads here.  We do cache it though, since we know it never changes,
+	// except for calls to RingbufferRestert() -- handled below.
+	const uint writepos = m_WritePos;
+
+	// Sanity checks! (within the confines of our ringbuffer please!)
+	pxAssert( size < RingBufferSize );
+	pxAssert( writepos < RingBufferSize );
+
+	// generic gs wait/stall.
+	// if the writepos is past the readpos then we're safe.
+	// But if not then we need to make sure the readpos is outside the scope of
+	// the block about to be written (writepos + size)
+
+	uint readpos = volatize(m_ReadPos);
+	uint freeroom;
+
+	if (writepos < readpos)
+		freeroom = readpos - writepos;
+	else
+		freeroom = RingBufferSize - (writepos - readpos);
+
+	if (freeroom <= size)
+	{
+		// writepos will overlap readpos if we commit the data, so we need to wait until
+		// readpos is out past the end of the future write pos, or until it wraps around
+		// (in which case writepos will be >= readpos).
+
+		// Ideally though we want to wait longer, because if we just toss in this packet
+		// the next packet will likely stall up too.  So lets set a condition for the MTGS
+		// thread to wake up the EE once there's a sizable chunk of the ringbuffer emptied.
+
+		uint somedone	= (RingBufferSize - freeroom) / 4;
+		if( somedone < size+1 ) somedone = size + 1;
+
+		// FMV Optimization: FMVs typically send *very* little data to the GS, in some cases
+		// every other frame is nothing more than a page swap.  Sleeping the EEcore is a
+		// waste of time, and we get better results using a spinwait.
+
+		if( somedone > 0x80 )
+		{
+			pxAssertDev( m_SignalRingEnable == 0, "MTGS Thread Synchronization Error" );
+			m_SignalRingPosition = somedone;
+
+			//Console.WriteLn( Color_Blue, "(EEcore Sleep) PrepDataPacker \tringpos=0x%06x, writepos=0x%06x, signalpos=0x%06x", readpos, writepos, m_SignalRingPosition );
+
+			while(true) {
+				AtomicExchange( m_SignalRingEnable, 1 );
+				SetEvent();
+				m_sem_OnRingReset.WaitWithoutYield();
+				readpos = volatize(m_ReadPos);
+				//Console.WriteLn( Color_Blue, "(EEcore Awake) Report!\tringpos=0x%06x", readpos );
+
+				if (writepos < readpos)
+					freeroom = readpos - writepos;
+				else
+					freeroom = RingBufferSize - (writepos - readpos);
+					
+				if (freeroom > size) break;
+			}
+
+			pxAssertDev( m_SignalRingPosition <= 0, "MTGS Thread Synchronization Error" );
+		}
+		else
+		{
+			//Console.WriteLn( Color_StrongGray, "(EEcore Spin) PrepDataPacket!" );
+			SetEvent();
+			while(true) {
+				SpinWait();
+				readpos = volatize(m_ReadPos);
+
+				if (writepos < readpos)
+					freeroom = readpos - writepos;
+				else
+					freeroom = RingBufferSize - (writepos - readpos);
+
+				if (freeroom > size) break;
+			}
+		}
+	}
 }
 
-#ifdef PCSX2_GSRING_TX_STATS
-static u32 ringtx_s=0;
-static u32 ringtx_s_ulg=0;
-static u32 ringtx_s_min=0xFFFFFFFF;
-static u32 ringtx_s_max=0;
-static u32 ringtx_c=0;
-static u32 ringtx_inf[32][32];
-static u32 ringtx_inf_s[32];
-#endif
+void SysMtgsThread::PrepDataPacket( MTGS_RingCommand cmd, u32 size )
+{
+	m_packet_size = size;
+	++size;			// takes into account our RingCommand QWC.
+	GenericStall(size);
+
+	// Command qword: Low word is the command, and the high word is the packet
+	// length in SIMDs (128 bits).
+
+	PacketTagType& tag = (PacketTagType&)RingBuffer[m_WritePos];
+	tag.command = cmd;
+	tag.data[0] = m_packet_size;
+	m_packet_startpos = m_WritePos;
+	m_packet_writepos = (m_WritePos + 1) & RingBufferMask;
+}
 
 // Returns the amount of giftag data processed (in simd128 values).
 // Return value is used by VU1's XGKICK instruction to wrap the data
 // around VU memory instead of having buffer overflow...
 // Parameters:
 //  size - size of the packet data, in smd128's
-int SysMtgsThread::PrepDataPacket( GIF_PATH pathidx, const u8* srcdata, u32 size )
+void SysMtgsThread::PrepDataPacket( GIF_PATH pathidx, u32 size )
 {
 	//m_PacketLocker.Acquire();
 
-#ifdef PCSX2_GSRING_TX_STATS
-	ringtx_s += size;
-	ringtx_s_ulg += size&0x7F;
-	ringtx_s_min = min(ringtx_s_min,size);
-	ringtx_s_max = max(ringtx_s_max,size);
-	ringtx_c++;
-	u32 tx_sz;
-
-	if (_BitScanReverse(&tx_sz,size))
-	{
-		u32 tx_algn;
-		_BitScanForward(&tx_algn,size);
-		ringtx_inf[tx_sz][tx_algn]++;
-		ringtx_inf_s[tx_sz]+=size;
-	}
-	if (ringtx_s>=128*1024*1024)
-	{
-		Console.Status("GSRingBufCopy:128MB in %d tx -> b/tx: AVG = %.2f , max = %d, min = %d",ringtx_c,ringtx_s/(float)ringtx_c,ringtx_s_max,ringtx_s_min);
-		for (int i=0;i<32;i++)
-		{
-			u32 total_bucket=0;
-			u32 bucket_subitems=0;
-			for (int j=0;j<32;j++)
-			{
-				if (ringtx_inf[i][j])
-				{
-					total_bucket+=ringtx_inf[i][j];
-					bucket_subitems++;
-					Console.Warning("GSRingBufCopy :tx [%d,%d] algn %d : count= %d [%.2f%%]",1<<i,(1<<(i+1))-16,1<<j,ringtx_inf[i][j],ringtx_inf[i][j]/(float)ringtx_c*100);
-					ringtx_inf[i][j]=0;
-				}
-			}
-			if (total_bucket)
-				Console.Warning("GSRingBufCopy :tx [%d,%d] total : count= %d [%.2f%%] [%.2f%%]",1<<i,(1<<(i+1))-16,total_bucket,total_bucket/(float)ringtx_c*100,ringtx_inf_s[i]/(float)ringtx_s*100);
-			ringtx_inf_s[i]=0;
-		}
-		Console.Warning("GSRingBufCopy :tx ulg count =%d [%.2f%%]",ringtx_s_ulg,ringtx_s_ulg/(float)ringtx_s*100);
-		ringtx_s_ulg=0;
-		ringtx_c=0;
-		ringtx_s=0;
-		ringtx_s_min=0xFFFFFFFF;
-		ringtx_s_max=0;
-	}
-#endif
-	// Note on volatiles: m_WritePos is not modified by the GS thread, so there's no need
-	// to use volatile reads here.  We do cache it though, since we know it never changes,
-	// except for calls to RingbufferRestert() -- handled below.
-	uint writepos = m_WritePos;
-
-	// Checks if a previous copy was started without an accompanying call to GSRINGBUF_DONECOPY
-	pxAssert( m_packet_size == 0 );
-
-	// Sanity checks! (within the confines of our ringbuffer please!)
-	pxAssert( size < RingBufferSize );
-	pxAssert( writepos < RingBufferSize );
-
-	m_packet_size = GIFPath_ParseTag(pathidx, srcdata, size);
-	size		  = m_packet_size + 1; // takes into account our command qword.
-
-	if( writepos + size < RingBufferSize )
-	{
-		// generic gs wait/stall.
-		// if the writepos is past the readpos then we're safe.
-		// But if not then we need to make sure the readpos is outside the scope of
-		// the block about to be written (writepos + size)
-
-		uint readpos = volatize(m_RingPos);
-		if( (writepos < readpos) && (writepos+size >= readpos) )
-		{
-			// writepos is behind the readpos and will overlap it if we commit the data,
-			// so we need to wait until readpos is out past the end of the future write pos,
-			// or until it wraps around (in which case writepos will be >= readpos).
-
-			// Ideally though we want to wait longer, because if we just toss in this packet
-			// the next packet will likely stall up too.  So lets set a condition for the MTGS
-			// thread to wake up the EE once there's a sizable chunk of the ringbuffer emptied.
-
-			uint totalAccum	= (m_RingWrapSpot - readpos) + writepos;
-			uint somedone	= totalAccum / 4;
-			if( somedone < size+1 ) somedone = size + 1;
-
-			// FMV Optimization: FMVs typically send *very* little data to the GS, in some cases
-			// every other frame is nothing more than a page swap.  Sleeping the EEcore is a
-			// waste of time, and we get better results using a spinwait.
-
-			if( somedone > 0x80 )
-			{
-				pxAssertDev( m_SignalRingEnable == 0, "MTGS Thread Synchronization Error" );
-				m_SignalRingPosition = somedone;
-
-				//Console.WriteLn( Color_Blue, "(EEcore Sleep) GenStall \tringpos=0x%06x, writepos=0x%06x, wrapspot=0x%06x, signalpos=0x%06x", readpos, writepos, m_RingWrapSpot, m_SignalRingPosition );
-
-				do {
-					AtomicExchange( m_SignalRingEnable, 1 );
-					SetEvent();
-					m_sem_OnRingReset.WaitWithoutYield();
-					readpos = volatize(m_RingPos);
-					//Console.WriteLn( Color_Blue, "(EEcore Awake) Report!\tringpos=0x%06x", readpos );
-				} while( (writepos < readpos) && (writepos+size >= readpos) );
-
-				pxAssertDev( m_SignalRingPosition <= 0, "MTGS Thread Synchronization Error" );
-			}
-			else
-			{
-				SetEvent();
-				do {
-					SpinWait();
-					readpos = volatize(m_RingPos);
-				} while( (writepos < readpos) && (writepos+size >= readpos) );
-			}
-		}
-	}
-	else if( writepos + size > RingBufferSize )
-	{
-		pxAssert( writepos != 0 );
-
-		// If the incoming packet doesn't fit, then start over from the start of the ring
-		// buffer (it's a lot easier than trying to wrap the packet around the end of the
-		// buffer).
-
-		//Console.WriteLn( "MTGS > Ringbuffer Got Filled!");
-		RestartRingbuffer( size );
-		writepos = m_WritePos;
-	}
-    else	// always true - if( writepos + size == MTGS_RINGBUFFEREND )
-	{
-		// Yay.  Perfect fit.  What are the odds?
-		// Copy is ready so long as readpos is less than writepos and *not* equal to the
-		// base of the ringbuffer (otherwise the buffer will stop when the writepos is
-		// wrapped around to zero later-on in SendDataPacket).
-
-		uint readpos = volatize(m_RingPos);
-		//Console.WriteLn( "MTGS > Perfect Fit!\tringpos=0x%06x, writepos=0x%06x", readpos, writepos );
-		if( readpos > writepos || readpos == 0 )
-		{
-			uint totalAccum	= (readpos == 0) ? RingBufferSize : ((m_RingWrapSpot - readpos) + writepos);
-			uint somedone	= totalAccum / 4;
-			if( somedone < size+1 ) somedone = size + 1;
-
-			// FMV Optimization: (see above) This condition of a perfect fit is so rare that optimizing
-			// for it is pointless -- but it was also mindlessly simple copy-paste.  So there. :p
-
-			if( somedone > 0x80 )
-			{
-				m_SignalRingPosition = somedone;
-
-				//Console.WriteLn( Color_Blue, "(MTGS Sync) EEcore Perfect Sleep!\twrapspot=0x%06x, ringpos=0x%06x, writepos=0x%06x, signalpos=0x%06x", m_RingWrapSpot, readpos, writepos, m_SignalRingPosition );
-
-				do {
-					AtomicExchange( m_SignalRingEnable, 1 );
-					SetEvent();
-					m_sem_OnRingReset.WaitWithoutYield();
-					readpos = volatize(m_RingPos);
-					//Console.WriteLn( Color_Blue, "(MTGS Sync) EEcore Perfect Post-sleep Report!\tringpos=0x%06x", readpos );
-				} while( (writepos < readpos) || (readpos==0) );
-
-				pxAssertDev( m_SignalRingPosition <= 0, "MTGS Thread Synchronization Error" );
-			}
-			else
-			{
-				//Console.WriteLn( Color_Blue, "(MTGS Sync) EEcore Perfect Spin!" );
-				SetEvent();
-				do {
-					SpinWait();
-					readpos = volatize(m_RingPos);
-				} while( (writepos < readpos) || (readpos==0) );
-			}
-		}
-
-		m_QueuedFrameCount = 0;
-		m_RingWrapSpot = RingBufferSize;
-    }
-
-#ifdef RINGBUF_DEBUG_STACK
-	m_lock_Stack.Lock();
-	ringposStack.push_front( writepos );
-	m_lock_Stack.Release();
-#endif
-
-	// Command qword: Low word is the command, and the high word is the packet
-	// length in SIMDs (128 bits).
-
-	PacketTagType& tag = (PacketTagType&)RingBuffer[m_WritePos];
-	tag.command = pathidx;
-	tag.data[0] = m_packet_size;
-	m_packet_ringpos = m_WritePos + 1;
-
-	return m_packet_size;
+	PrepDataPacket( (MTGS_RingCommand)pathidx, size );
 }
 
-void SysMtgsThread::RestartRingbuffer( uint packsize )
+__forceinline void SysMtgsThread::_FinishSimplePacket()
 {
-	if( m_WritePos == 0 ) return;
-	const uint thefuture = packsize;
-
-	//Console.WriteLn( Color_Magenta, "**** Ringbuffer Restart!!" );
-	// Always kick the MTGS into action for a ringbuffer restart.
-	SetEvent();
-
-	uint readpos = volatize(m_RingPos);
-
-	if( (readpos > m_WritePos) || (readpos <= thefuture) )
-	{
-		// We have to be careful not to leapfrog our read-position, which would happen if
-		// it's greater than the current write position (since wrapping writepos to 0 would
-		// be the act of skipping PAST readpos).  Stall until it loops around to the
-		// beginning of the buffer, and past the size of our packet allocation.
-
-		uint somedone;
-
-		if( readpos > m_WritePos )
-			somedone = (m_RingWrapSpot - readpos) + packsize + 1;
-		else
-			somedone = (packsize + 1) - readpos;
-
-		if( somedone > 0x80 )
-		{
-			m_SignalRingPosition = somedone;
-			//Console.WriteLn( Color_Blue, "(EEcore Sleep) Restart!\tringpos=0x%06x, writepos=0x%06x, wrapspot=0x%06x, signalpos=0x%06x",
-			//	readpos, m_WritePos, m_RingWrapSpot, m_SignalRingPosition );
-
-			do {
-				AtomicExchange( m_SignalRingEnable, 1 );
-				SetEvent();
-				m_sem_OnRingReset.WaitWithoutYield();
-				readpos = volatize(m_RingPos);
-				//Console.WriteLn( Color_Blue, "(EEcore Awake) Report!\tringpos=0x%06x", readpos );
-			} while( (readpos > m_WritePos) || (readpos <= thefuture) );
-		}
-		else
-		{
-			SetEvent();
-			do {
-				SpinWait();
-				readpos = volatize(m_RingPos);
-			} while( (readpos > m_WritePos) || (readpos <= thefuture) );
-		}
-	}
-
-	PacketTagType& tag = (PacketTagType&)RingBuffer[m_WritePos];
-
-	tag.command = GS_RINGTYPE_RESTART;
-
-	m_RingWrapSpot = m_WritePos;
-	m_WritePos = 0;
-	m_QueuedFrameCount = 0;
-
-	if( EmuConfig.GS.SynchronousMTGS )
-		WaitGS();
-}
-
-__forceinline uint SysMtgsThread::_PrepForSimplePacket()
-{
-#ifdef RINGBUF_DEBUG_STACK
-	m_lock_Stack.Lock();
-	ringposStack.push_front( m_WritePos );
-	m_lock_Stack.Release();
-#endif
-
-	uint future_writepos = m_WritePos+1;
-	pxAssert( future_writepos <= RingBufferSize );
-
-    future_writepos &= RingBufferMask;
-    if( future_writepos == 0 )
-    {
-		m_QueuedFrameCount = 0;
-		m_RingWrapSpot = RingBufferSize;
-	}
-
-	uint readpos = volatize(m_RingPos);
-	if( future_writepos == readpos )
-	{
-		// The ringbuffer read pos is blocking the future write position, so stall out
-		// until the read position has moved.
-
-		uint totalAccum	= (m_RingWrapSpot - readpos) + future_writepos;
-		uint somedone	= totalAccum / 4;
-
-		if( somedone > 0x80 )
-		{
-			m_SignalRingPosition = somedone;
-
-			//Console.WriteLn( Color_Blue, "(MTGS Sync) EEcore Simple Sleep!\t\twrapspot=0x%06x, ringpos=0x%06x, writepos=0x%06x, signalpos=0x%06x", m_RingWrapSpot, readpos, writepos, m_SignalRingPosition );
-
-			do {
-				AtomicExchange( m_SignalRingEnable, 1 );
-				SetEvent();
-				m_sem_OnRingReset.WaitWithoutYield();
-				readpos = volatize(m_RingPos);
-				//Console.WriteLn( Color_Blue, "(MTGS Sync) EEcore Simple Post-sleep Report!\tringpos=0x%06x", readpos );
-			} while( future_writepos  == readpos );
-
-			pxAssertDev( m_SignalRingPosition <= 0, "MTGS Thread Synchronization Error" );
-		}
-		else
-		{
-			SetEvent();
-			do {
-				SpinWait();
-			} while( future_writepos == volatize(m_RingPos) );
-		}
-	}
-
-	return future_writepos;
-}
-
-__forceinline void SysMtgsThread::_FinishSimplePacket( uint future_writepos )
-{
-	pxAssert( future_writepos != volatize(m_RingPos) );
+	uint future_writepos = (m_WritePos+1) & RingBufferMask;
+	pxAssert( future_writepos != volatize(m_ReadPos) );
 	m_WritePos = future_writepos;
 
 	if( EmuConfig.GS.SynchronousMTGS )
@@ -939,7 +753,7 @@ void SysMtgsThread::SendSimplePacket( MTGS_RingCommand type, int data0, int data
 {
 	//ScopedLock locker( m_PacketLocker );
 
-	const uint thefuture = _PrepForSimplePacket();
+	GenericStall(1);
 	PacketTagType& tag = (PacketTagType&)RingBuffer[m_WritePos];
 
 	tag.command = type;
@@ -947,21 +761,21 @@ void SysMtgsThread::SendSimplePacket( MTGS_RingCommand type, int data0, int data
 	tag.data[1] = data1;
 	tag.data[2] = data2;
 
-	_FinishSimplePacket( thefuture );
+	_FinishSimplePacket();
 }
 
 void SysMtgsThread::SendPointerPacket( MTGS_RingCommand type, u32 data0, void* data1 )
 {
 	//ScopedLock locker( m_PacketLocker );
 
-	const uint thefuture = _PrepForSimplePacket();
+	GenericStall(1);
 	PacketTagType& tag = (PacketTagType&)RingBuffer[m_WritePos];
 
 	tag.command = type;
 	tag.data[0] = data0;
 	*(uptr*)&tag.data[1] = (uptr)data1;
 
-	_FinishSimplePacket( thefuture );
+	_FinishSimplePacket();
 }
 
 void SysMtgsThread::SendGameCRC( u32 crc )
@@ -988,10 +802,11 @@ void SysMtgsThread::WaitForOpen()
 			RethrowException();
 
 			// Not opened yet, and no exceptions.  Weird?  You decide!
-			// TODO : implement a user confirmation to cancel the action and exit the
+			// [TODO] : implement a user confirmation to cancel the action and exit the
 			//   emulator forcefully, or to continue waiting on the GS.
 
-			throw Exception::PluginOpenError( PluginId_GS, "The MTGS thread has become unresponsive while waiting for the GS plugin to open." );
+			throw Exception::PluginOpenError( PluginId_GS )
+				.SetBothMsgs(wxLt("The MTGS thread has become unresponsive while waiting for the GS plugin to open."));
 		}
 	}
 

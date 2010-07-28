@@ -33,19 +33,12 @@ _vifT bool runMark(u32* &data) {
 
 // Returns 1 if i-bit && finished vifcode && i-bit not masked
 _vifT bool analyzeIbit(u32* &data, int iBit) {
+	vifStruct& vifX = GetVifX;
 	if (iBit && !vifX.cmd && !vifXRegs->err.MII) {
 		//DevCon.WriteLn("Vif I-Bit IRQ");
 		vifX.irq++;
-		// On i-bit, the command is run, vif stalls etc,
-		// however if the vifcode is MARK, you do NOT stall, just send IRQ. - Max Payne shows this up.
-		//if(((vifXRegs->code >> 24) & 0x7f) == 0x7) return 0;
 
-		// If we have a vifcode with i-bit, the following instruction
-		// should stall unless its MARK?.. we test that case here...
-		// Not 100% sure if this is the correct behavior, so printing
-		// a console message to see games that use this. (cottonvibes)
-
-		// Okay did some testing with Max Payne, it does this
+		// Okay did some testing with Max Payne, it does this:
 		// VifMark  value = 0x666   (i know, evil!)
 		// NOP with I Bit
 		// VifMark  value = 0
@@ -53,6 +46,23 @@ _vifT bool analyzeIbit(u32* &data, int iBit) {
 		// If you break after the 2nd Mark has run, the game reports invalid mark 0 and the game dies.
 		// So it has to occur here, testing a theory that it only doesn't stall if the command with
 		// the iBit IS mark, but still sends the IRQ to let the cpu know the mark is there. (Refraction)
+		//
+		// --------------------------
+		//
+		// This is how it probably works: i-bit sets the IRQ flag, and VIF keeps running until it encounters
+		// a non-MARK instruction.  This includes the *current* instruction.  ie, execution only continues
+		// unimpeded if MARK[i] is specified, and keeps executing unimpeded until any non-MARK command.
+		// Any other command with an I bit should stall immediately.
+		// Example:
+		//
+		// VifMark[i] value = 0x321   (with I bit)
+		// VifMark    value = 0
+		// VifMark    value = 0x333
+		// NOP
+		//
+		// ... the VIF should not stall and raise the interrupt until after the NOP is processed.
+		// So the final value for MARK as the game sees it will be 0x333. --air
+		
 		return runMark<idx>(data);
 	}
 	return 0;
@@ -60,6 +70,8 @@ _vifT bool analyzeIbit(u32* &data, int iBit) {
 
 // Interprets packet
 _vifT void vifTransferLoop(u32* &data) {
+	vifStruct& vifX = GetVifX;
+
 	u32& pSize = vifX.vifpacketsize;
 	int  iBit  = vifX.cmd >> 7;
 
@@ -69,27 +81,29 @@ _vifT void vifTransferLoop(u32* &data) {
 	while (pSize > 0 && !vifX.vifstalled) {
 
 		if(!vifX.cmd) { // Get new VifCode
+			vifX.lastcmd = (vifXRegs->code >> 24) & 0x7f;
 			vifXRegs->code = data[0];
 			vifX.cmd	   = data[0] >> 24;
 			iBit		   = data[0] >> 31;
 			VIF_LOG("New VifCMD %x tagsize %x", vifX.cmd, vifX.tag.size);
-			vifXCode[vifX.cmd & 0x7f](0, data);
+			vifCmdHandler[idx][vifX.cmd & 0x7f](0, data);
 			data++; pSize--;
 			if (analyzeIbit<idx>(data, iBit)) break;
 			continue;
 		}
 
-		int ret = vifXCode[vifX.cmd & 0x7f](1, data);
+		int ret = vifCmdHandler[idx][vifX.cmd & 0x7f](1, data);
 		data   += ret;
 		pSize  -= ret;
 		if (analyzeIbit<idx>(data, iBit)) break;
 	}
-	if (vifX.cmd) vifXRegs->stat.VPS = VPS_WAITING;
-	else		  vifXRegs->stat.VPS = VPS_IDLE;
+	
 	if (pSize)	  vifX.vifstalled	 = true;
 }
 
 _vifT _f bool vifTransfer(u32 *data, int size) {
+	vifStruct& vifX = GetVifX;
+
 	// irqoffset necessary to add up the right qws, or else will spin (spiderman)
 	int transferred = vifX.vifstalled ? vifX.irqoffset : 0;
 
@@ -97,14 +111,29 @@ _vifT _f bool vifTransfer(u32 *data, int size) {
 	vifX.vifstalled = false;
 	vifX.stallontag = false;
 	vifX.vifpacketsize = size;
-
+	g_packetsizeonvu = size;
 	vifTransferLoop<idx>(data);
 
+
 	transferred   += size - vifX.vifpacketsize;
-	g_vifCycles   +=(transferred >> 2) * BIAS; /* guessing */
+
+	g_vifCycles   +=((transferred * BIAS) >> 2) ; /* guessing */
+
+	if(!idx && g_vu0Cycles > 0)
+	{
+		if(g_vifCycles < g_vu0Cycles) g_vu0Cycles -= g_vifCycles;
+		else if(g_vifCycles >= g_vu0Cycles)g_vu0Cycles = 0;
+	}
+	else if(idx && g_vu1Cycles > 0)
+	{
+		if(g_vifCycles < g_vu1Cycles) g_vu1Cycles -= g_vifCycles;
+		else if(g_vifCycles >= g_vu1Cycles)g_vu1Cycles = 0;
+	}
+
 	vifX.irqoffset = transferred % 4; // cannot lose the offset
 
 	transferred   = transferred >> 2;
+
 	vifXch->madr +=(transferred << 4);
 	vifXch->qwc  -= transferred;
 
@@ -125,9 +154,9 @@ _vifT _f bool vifTransfer(u32 *data, int size) {
 	return !vifX.vifstalled;
 }
 
-bool VIF0transfer(u32 *data, int size, bool istag) {
+bool VIF0transfer(u32 *data, int size) {
 	return vifTransfer<0>(data, size);
 }
-bool VIF1transfer(u32 *data, int size, bool istag) {
+bool VIF1transfer(u32 *data, int size) {
 	return vifTransfer<1>(data, size);
 }
