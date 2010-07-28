@@ -16,6 +16,16 @@
 #include "PrecompiledHeader.h"
 #include "IniInterface.h"
 
+#include <wx/gdicmn.h>
+
+const wxRect wxDefaultRect( wxDefaultCoord, wxDefaultCoord, wxDefaultCoord, wxDefaultCoord );
+
+// Implement FixedPointTypes (for lack of a better location, for now)
+
+#include "FixedPointTypes.inl"
+template struct FixedInt<100>;
+template struct FixedInt<256>;
+
 static int _calcEnumLength( const wxChar* const* enumArray )
 {
 	int cnt = 0;

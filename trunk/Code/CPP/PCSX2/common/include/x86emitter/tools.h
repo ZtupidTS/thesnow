@@ -193,40 +193,11 @@ union SSE_MXCSR
 		return bitmask != right.bitmask;
 	}
 
-	operator x86Emitter::ModSib32() const;
+	operator x86Emitter::xIndirect32() const;
 };
 
 extern SSE_MXCSR	MXCSR_Mask;
 
-//////////////////////////////////////////////////////////////////////////////////////////
-
 
 extern __aligned16 x86capabilities x86caps;
-
-extern bool g_EEFreezeRegs;
-
-// when using mmx/xmm regs, use these functions.
-
-namespace MMXRegisters
-{
-    extern void Freeze();
-    extern void Thaw();
-    extern bool Saved();
-    extern __aligned16 u64 data[8];
-};
-
-namespace XMMRegisters
-{
-    extern void Freeze();
-    extern void Thaw();
-    extern bool Saved();
-    extern __aligned16 u64 data[2*iREGCNT_XMM];
-};
-
-namespace Registers
-{
-    extern void Freeze();
-    extern void Thaw();
-    extern bool Saved();
-};
 

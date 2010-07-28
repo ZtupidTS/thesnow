@@ -29,9 +29,9 @@ typedef SafeArray<u8> VmStateBuffer;
 //  SysThreadBase
 // --------------------------------------------------------------------------------------
 
-class SysThreadBase : public PersistentThread
+class SysThreadBase : public pxThread
 {
-	typedef PersistentThread _parent;
+	typedef pxThread _parent;
 
 public:
 	// Important: The order of these enumerations matters!  Optimized tests are used for both
@@ -95,13 +95,16 @@ public:
 	}
 
 	bool IsClosed() const { return !IsOpen(); }
-	
 	bool IsPaused() const { return !IsRunning() || (m_ExecMode <= ExecMode_Paused); }
+
+	bool IsClosing() const
+	{
+		return !IsRunning() || (m_ExecMode <= ExecMode_Closed) || (m_ExecMode == ExecMode_Closing); 
+	}
 
 	bool HasPendingStateChangeRequest() const
 	{
-		ExecutionMode mode = m_ExecMode;
-		return (mode == ExecMode_Closing) || (mode == ExecMode_Pausing);
+		return m_ExecMode >= ExecMode_Closing;
 	}
 
 	ExecutionMode GetExecutionMode() const { return m_ExecMode; }
@@ -119,7 +122,7 @@ protected:
 	// Resume() has a lot of checks and balances to prevent re-entrance and race conditions.
 	virtual void OnResumeReady() {}
 
-	virtual void StateCheckInThread();
+	virtual bool StateCheckInThread();
 	virtual void OnCleanupInThread();
 	virtual void OnStartInThread();
 
@@ -184,9 +187,9 @@ public:
 	virtual void Cancel( bool isBlocking=true );
 	virtual bool Cancel( const wxTimeSpan& timeout );
 
-	virtual void StateCheckInThread();
+	virtual bool StateCheckInThread();
 	virtual void VsyncInThread();
-	virtual void PostVsyncToUI()=0;
+	virtual void GameStartingInThread();
 
 	virtual void ApplySettings( const Pcsx2Config& src );
 	virtual void UploadStateCopy( const VmStateBuffer& copy );

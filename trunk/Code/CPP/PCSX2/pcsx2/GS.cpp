@@ -25,10 +25,7 @@
 using namespace Threading;
 using namespace R5900;
 
-u32 CSRw;
-
 __aligned16 u8 g_RealGSMem[0x2000];
-extern int m_nCounters[];
 
 void gsOnModeChanged( Fixed100 framerate, u32 newTickrate )
 {
@@ -54,20 +51,8 @@ void gsInit()
 	memzero(g_RealGSMem);
 }
 
-void gsReset()
-{
-	GetMTGS().ResetGS();
-
-	UpdateVSyncRate();
-	GSTransferStatus = (STOPPED_MODE<<4) | (STOPPED_MODE<<2) | STOPPED_MODE;
-	memzero(g_RealGSMem);
-
-	GSCSRr = 0x551B4000;   // Set the FINISH bit to 1 for now
-	GSIMR = 0x7f00;
-	gifRegs->stat.reset();
-	gifRegs->ctrl.reset();
-	gifRegs->mode.reset();
-}
+extern bool SIGNAL_IMR_Pending;
+extern u32 SIGNAL_Data_Pending[2];
 
 void gsGIFReset()
 {
@@ -76,9 +61,27 @@ void gsGIFReset()
 	gifRegs->mode.reset();
 }
 
-void gsCSRwrite(u32 value)
+void gsReset()
 {
-	if (value & 0x200) { // resetGS
+	GetMTGS().ResetGS();
+
+	UpdateVSyncRate();
+	GSTransferStatus = (STOPPED_MODE<<8) | (STOPPED_MODE<<4) | STOPPED_MODE;
+	memzero(g_RealGSMem);
+
+	SIGNAL_IMR_Pending = false;
+
+	CSRreg.Reset();
+	GSIMR = 0x7f00;
+
+	// FIXME: This really doesn't belong here, and I seriously doubt it's needed.
+	// If it is needed it should be in the GIF portion of hwReset().  --air
+	gsGIFReset();
+}
+
+static __forceinline void gsCSRwrite( const tGS_CSR& csr )
+{
+	if (csr.RESET) {
 
 		// perform a soft reset -- which is a clearing of all GIFpaths -- and fall back to doing
 		// a full reset if the plugin doesn't support soft resets.
@@ -94,55 +97,99 @@ void gsCSRwrite(u32 value)
 			GetMTGS().SendSimplePacket( GS_RINGTYPE_RESET, 0, 0, 0 );
 		}
 
-		CSRw |= 0x1f;
-		GSCSRr = 0x551B4000;   // Set the FINISH bit to 1 - GS is always at a finish state as we don't have a FIFO(saqib)
-		GSIMR = 0x7F00; //This is bits 14-8 thats all that should be 1
+		SIGNAL_IMR_Pending = false;
+		CSRreg.Reset();
+		GSIMR = 0x7F00;			//This is bits 14-8 thats all that should be 1
 	}
-	else if( value & 0x100 ) // FLUSH
+
+	if(csr.FLUSH)
 	{
 		// Our emulated GS has no FIFO, but if it did, it would flush it here...
 		//Console.WriteLn("GS_CSR FLUSH GS fifo: %x (CSRr=%x)", value, GSCSRr);
 	}
-	else
+	
+	if(csr.SIGNAL)
 	{
-		CSRw |= value & 0x1f;
-		GetMTGS().SendSimplePacket( GS_RINGTYPE_WRITECSR, CSRw, 0, 0 );
-		GSCSRr = ((GSCSRr&~value)&0x1f)|(GSCSRr&~0x1f);
-	}
+		// SIGNAL : What's not known here is whether or not the SIGID register should be updated
+		//  here or when the IMR is cleared (below).
 
+		if(SIGNAL_IMR_Pending == true)
+		{
+			//DevCon.Warning("Firing pending signal");
+			GIF_LOG("GS SIGNAL (pending) data=%x_%x IMR=%x CSRr=%x\n",SIGNAL_Data_Pending[0], SIGNAL_Data_Pending[1], GSIMR, GSCSRr);
+			GSSIGLBLID.SIGID = (GSSIGLBLID.SIGID&~SIGNAL_Data_Pending[1])|(SIGNAL_Data_Pending[0]&SIGNAL_Data_Pending[1]);
+
+			if (!(GSIMR&0x100))
+			gsIrq();
+
+			CSRreg.SIGNAL = true; //Just to be sure :P
+		}
+		else CSRreg.SIGNAL = false;
+		
+		SIGNAL_IMR_Pending = false;
+
+		if(gifRegs->stat.P1Q && gifRegs->stat.APATH <= GIF_APATH1) gsPath1Interrupt();
+	}
+	
+	if(csr.FINISH)	CSRreg.FINISH	= false;
+	if(csr.HSINT)	CSRreg.HSINT	= false;
+	if(csr.VSINT)	CSRreg.VSINT	= false;
+	if(csr.EDWINT)	CSRreg.EDWINT	= false;
 }
 
-static void IMRwrite(u32 value)
+static __forceinline void IMRwrite(u32 value)
 {
 	GSIMR = (value & 0x1f00)|0x6000;
 
-	if((GSCSRr & 0x1f) & (~(GSIMR >> 8) & 0x1f))
+	if(CSRreg.GetInterruptMask() & (~(GSIMR >> 8) & 0x1f))
+		gsIrq();
+
+	if( SIGNAL_IMR_Pending && !(GSIMR & 0x100))
 	{
+		// Note: PS2 apps are expected to write a successive 1 and 0 to the IMR in order to
+		//  trigger the gsInt and clear the second pending SIGNAL interrupt -- if they fail
+		//  to do so, the GS will freeze again upon the very next SIGNAL).
+		//
+		// What's not known here is whether or not the SIGID register should be updated
+		//  here or when the GS is resumed during CSR write (above).
+
+		//GIF_LOG("GS SIGNAL (pending) data=%x_%x IMR=%x CSRr=%x\n",CSR_SIGNAL_Data[0], CSR_SIGNAL_Data[1], GSIMR, GSCSRr);
+		//GSSIGLBLID.SIGID = (GSSIGLBLID.SIGID&~CSR_SIGNAL_Data[1])|(CSR_SIGNAL_Data[0]&CSR_SIGNAL_Data[1]);
+
+		CSRreg.SIGNAL = true;
 		gsIrq();
 	}
-	// don't update mtgs mem
 }
 
 __forceinline void gsWrite8(u32 mem, u8 value)
 {
 	switch (mem)
 	{
+		// CSR 8-bit write handlers.
+		// I'm quite sure these whould just write the CSR portion with the other
+		// bits set to 0 (no action).  The previous implementation masked the 8-bit 
+		// write value against the previous CSR write value, but that really doesn't
+		// make any sense, given that the real hardware's CSR circuit probably has no
+		// real "memory" where it saves anything.  (for example, you can't write to
+		// and change the GS revision or ID portions -- they're all hard wired.) --air
+	
 		case GS_CSR: // GS_CSR
-			gsCSRwrite((CSRw & ~0x000000ff) | value); break;
+			gsCSRwrite( tGS_CSR((u32)value) );			break;
 		case GS_CSR + 1: // GS_CSR
-			gsCSRwrite((CSRw & ~0x0000ff00) | (value <<  8)); break;
+			gsCSRwrite( tGS_CSR(((u32)value) <<  8) );	break;
 		case GS_CSR + 2: // GS_CSR
-			gsCSRwrite((CSRw & ~0x00ff0000) | (value << 16)); break;
+			gsCSRwrite( tGS_CSR(((u32)value) << 16) );	break;
 		case GS_CSR + 3: // GS_CSR
-			gsCSRwrite((CSRw & ~0xff000000) | (value << 24)); break;
+			gsCSRwrite( tGS_CSR(((u32)value) << 24) );	break;
+
 		default:
 			*PS2GS_BASE(mem) = value;
-			GetMTGS().SendSimplePacket(GS_RINGTYPE_MEMWRITE8, mem&0x13ff, value, 0);
+		break;
 	}
 	GIF_LOG("GS write 8 at %8.8lx with data %8.8lx", mem, value);
 }
 
-__forceinline void _gsSMODEwrite( u32 mem, u32 value )
+static __forceinline void _gsSMODEwrite( u32 mem, u32 value )
 {
 	switch (mem)
 	{
@@ -167,12 +214,15 @@ __forceinline void gsWrite16(u32 mem, u16 value)
 
 	switch (mem)
 	{
+		// See note above about CSR 8 bit writes, and handling them as zero'd bits
+		// for all but the written parts.
+		
 		case GS_CSR:
-			gsCSRwrite( (CSRw&0xffff0000) | value);
+			gsCSRwrite( tGS_CSR((u32)value) );
 		return; // do not write to MTGS memory
 
 		case GS_CSR+2:
-			gsCSRwrite( (CSRw&0xffff) | ((u32)value<<16));
+			gsCSRwrite( tGS_CSR(((u32)value) << 16) );
 		return; // do not write to MTGS memory
 
 		case GS_IMR:
@@ -181,7 +231,6 @@ __forceinline void gsWrite16(u32 mem, u16 value)
 	}
 
 	*(u16*)PS2GS_BASE(mem) = value;
-	GetMTGS().SendSimplePacket(GS_RINGTYPE_MEMWRITE16, mem&0x13ff, value, 0);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -189,7 +238,7 @@ __forceinline void gsWrite16(u32 mem, u16 value)
 
 __forceinline void gsWrite32(u32 mem, u32 value)
 {
-	jASSUME( (mem & 3) == 0 );
+	pxAssume( (mem & 3) == 0 );
 	GIF_LOG("GS write 32 at %8.8lx with data %8.8lx", mem, value);
 
 	_gsSMODEwrite( mem, value );
@@ -197,7 +246,7 @@ __forceinline void gsWrite32(u32 mem, u32 value)
 	switch (mem)
 	{
 		case GS_CSR:
-			gsCSRwrite(value);
+			gsCSRwrite(tGS_CSR(value));
 		return;
 
 		case GS_IMR:
@@ -206,11 +255,18 @@ __forceinline void gsWrite32(u32 mem, u32 value)
 	}
 
 	*(u32*)PS2GS_BASE(mem) = value;
-	GetMTGS().SendSimplePacket(GS_RINGTYPE_MEMWRITE32, mem&0x13ff, value, 0);
 }
 
 //////////////////////////////////////////////////////////////////////////
 // GS Write 64 bit
+
+void __fastcall gsWrite64_generic( u32 mem, const mem64_t* value )
+{
+	const u32* const srcval32 = (u32*)value;
+	GIF_LOG("GS Write64 at %8.8lx with data %8.8x_%8.8x", mem, srcval32[1], srcval32[0]);
+
+	*(u64*)PS2GS_BASE(mem) = *value;
+}
 
 void __fastcall gsWrite64_page_00( u32 mem, const mem64_t* value )
 {
@@ -224,8 +280,30 @@ void __fastcall gsWrite64_page_01( u32 mem, const mem64_t* value )
 
 	switch( mem )
 	{
+		case 0x12001040: //busdir
+
+			//This is probably a complete hack, however writing to BUSDIR "should" start a transfer 
+			//Only problem is it kills killzone :(.
+			// (yes it *is* a complete hack; both lines here in fact --air)
+			//=========================================================================
+			//gifRegs->stat.OPH = true; // Bleach wants it, Killzone hates it.
+			
+			gifRegs->stat.DIR = (u32)value[0];
+			//=========================================================================
+			// BUSDIR INSANITY !! MTGS FLUSH NEEDED
+			//
+			// Yup folks.  BUSDIR is evil.  The only safe way to handle it is to flush the whole MTGS
+			// and ensure complete MTGS and EEcore thread synchronization  This is very slow, no doubt,
+			// but on the birght side BUSDIR is used quite rately, indeed.
+
+			// Important: writeback to gsRegs area *prior* to flushing the MTGS.  The flush will sync
+			// the GS and MTGS register states, and upload our screwy busdir register in the process. :)
+			gsWrite64_generic( mem, value );
+			GetMTGS().WaitGS();
+		return;
+
 		case GS_CSR:
-			gsCSRwrite((u32)value[0]);
+			gsCSRwrite(tGS_CSR(*value));
 		return;
 
 		case GS_IMR:
@@ -234,15 +312,6 @@ void __fastcall gsWrite64_page_01( u32 mem, const mem64_t* value )
 	}
 
 	gsWrite64_generic( mem, value );
-}
-
-void __fastcall gsWrite64_generic( u32 mem, const mem64_t* value )
-{
-	const u32* const srcval32 = (u32*)value;
-	GIF_LOG("GS Write64 at %8.8lx with data %8.8x_%8.8x", mem, srcval32[1], srcval32[0]);
-
-	*(u64*)PS2GS_BASE(mem) = *value;
-	GetMTGS().SendSimplePacket(GS_RINGTYPE_MEMWRITE64, mem&0x13ff, srcval32[0], srcval32[1]);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -278,13 +347,10 @@ void __fastcall gsWrite128_generic( u32 mem, const mem128_t* value )
 		srcval32[3], srcval32[2], srcval32[1], srcval32[0]);
 
 	const uint masked_mem = mem & 0x13ff;
-	u64* writeTo = (u64*)(&g_RealGSMem[masked_mem]);
+	u64* writeTo = (u64*)(&PS2MEM_GS[masked_mem]);
 
 	writeTo[0] = value[0];
 	writeTo[1] = value[1];
-
-	GetMTGS().SendSimplePacket(GS_RINGTYPE_MEMWRITE64, masked_mem, srcval32[0], srcval32[1]);
-	GetMTGS().SendSimplePacket(GS_RINGTYPE_MEMWRITE64, masked_mem+8, srcval32[2], srcval32[3]);
 }
 
 __forceinline u8 gsRead8(u32 mem)
@@ -338,12 +404,21 @@ void gsIrq() {
 
 __forceinline void gsFrameSkip()
 {
-
-	if( !EmuConfig.GS.FrameSkipEnable ) return;
-
 	static int consec_skipped = 0;
 	static int consec_drawn = 0;
 	static bool isSkipping = false;
+
+	if( !EmuConfig.GS.FrameSkipEnable )
+	{
+		if( isSkipping )
+		{
+			// Frameskipping disabled on-the-fly .. make sure the GS is restored to non-skip
+			// behavior.
+			GSsetFrameSkip( false );
+			isSkipping = false;
+		}
+		return;
+	}
 
 	GSsetFrameSkip( isSkipping );
 
@@ -369,7 +444,7 @@ __forceinline void gsFrameSkip()
 
 void gsPostVsyncEnd()
 {
-	*(u32*)(PS2MEM_GS+0x1000) ^= 0x2000; // swap the vsync field
+	CSRreg.SwapField();
 	GetMTGS().PostVsyncEnd();
 }
 
@@ -387,6 +462,10 @@ void gsResetFrameSkip()
 void SaveStateBase::gsFreeze()
 {
 	FreezeMem(PS2MEM_GS, 0x2000);
-	Freeze(CSRw);
+	Freeze(SIGNAL_IMR_Pending);
+
+	if( GetVersion() > 0 )
+		Freeze(gsRegionMode);
+
 	gifPathFreeze();
 }

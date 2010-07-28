@@ -14,7 +14,6 @@
  */
 
 #include "PrecompiledHeader.h"
-#include "HashMap.h"
 #include "wxGuiTools.h"
 #include "pxStaticText.h"
 #include "Threading.h"
@@ -190,7 +189,7 @@ void wxDialogWithHelpers::DoAutoCenter()
 	{
 		const wxSize parentSize( parent->GetSize() );
 
-		if( (parentSize.x > ((int)GetSize().x * 1.75)) && (parentSize.y > ((int)GetSize().y * 1.75)) )
+		if( (parentSize.x > ((int)GetSize().x * 1.5)) || (parentSize.y > ((int)GetSize().y * 1.5)) )
 		{
 			CenterOnParent();
 			centerfail = false;

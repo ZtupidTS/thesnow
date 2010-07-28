@@ -13,9 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
-#ifndef __DMAC_H__
-#define __DMAC_H__
+#pragma once
 
 extern u8  *psH; // hw mem
 
@@ -66,7 +64,7 @@ enum std_type
 	STD_SIF1
 };
 
-enum TransferMode
+enum LogicalTransferMode
 {
 	NORMAL_MODE = 0,
 	CHAIN_MODE,
@@ -85,7 +83,7 @@ enum TransferMode
 union tDMA_TAG {
 	struct {
 		u32 QWC : 16;
-		u32 reserved2 : 10;
+		u32 _reserved2 : 10;
 		u32 PCE : 2;
 		u32 ID : 3;
 		u32 IRQ : 1;
@@ -121,14 +119,14 @@ union tDMA_TAG {
 union tDMA_CHCR {
 	struct {
 		u32 DIR : 1;        // Direction: 0 - to memory, 1 - from memory. VIF1 & SIF2 only.
-		u32 reserved1 : 1;
-		u32 MOD : 2;
+		u32 _reserved1 : 1;
+		u32 MOD : 2;		// Logical transfer mode. Normal, Chain, or Interleave (see LogicalTransferMode enum)
 		u32 ASP : 2;        // ASP1 & ASP2; Address stack pointer. 0, 1, or 2 addresses.
 		u32 TTE : 1;        // Tag Transfer Enable. 0 - Disable / 1 - Enable.
 		u32 TIE : 1;        // Tag Interrupt Enable. 0 - Disable / 1 - Enable.
 		u32 STR : 1;        // Start. 0 while stopping DMA, 1 while it's running.
-		u32 reserved2 : 7;
-		u32 TAG : 16;
+		u32 _reserved2 : 7;
+		u32 TAG : 16;		// Maintains upper 16 bits of the most recently read DMAtag.
 	};
 	u32 _u32;
 
@@ -142,6 +140,7 @@ union tDMA_CHCR {
 	u16 upper() const { return (_u32 >> 16); }
 	u16 lower() const { return (u16)_u32; }
 	wxString desc() const { return wxsFormat(L"Chcr: 0x%x", _u32); }
+	tDMA_TAG tag() { return (tDMA_TAG)_u32; }
 };
 
 #define CHCR(value) ((tDMA_CHCR)(value))
@@ -157,6 +156,7 @@ union tDMA_SADR {
 
 	void reset() { _u32 = 0; }
 	wxString desc() const { return wxsFormat(L"Sadr: 0x%x", _u32); }
+	tDMA_TAG tag() { return (tDMA_TAG)_u32; }
 };
 
 union tDMA_MADR {
@@ -170,6 +170,7 @@ union tDMA_MADR {
 
 	void reset() { _u32 = 0; }
 	wxString desc() const { return wxsFormat(L"Madr: 0x%x", _u32); }
+	tDMA_TAG tag() { return (tDMA_TAG)_u32; }
 };
 
 union tDMA_TADR {
@@ -183,9 +184,11 @@ union tDMA_TADR {
 
 	void reset() { _u32 = 0; }
 	wxString desc() const { return wxsFormat(L"Tadr: 0x%x", _u32); }
+	tDMA_TAG tag() { return (tDMA_TAG)_u32; }
 };
 
-union tDMA_ASR { // The Address Stack Register
+// The Address Stack Register
+union tDMA_ASR {
 	struct {
 		u32 ADDR : 31; // Tag memory address
 		u32 SPR : 1; // Memory/SPR Address
@@ -196,12 +199,13 @@ union tDMA_ASR { // The Address Stack Register
 
 	void reset() { _u32 = 0; }
 	wxString desc() const { return wxsFormat(L"Asr: 0x%x", _u32); }
+	tDMA_TAG tag() { return (tDMA_TAG)_u32; }
 };
 
 union tDMA_QWC {
 	struct {
 		u32 QWC : 16;
-		u32 reserved2 : 16;
+		u32 _reserved2 : 16;
 	};
 	u32 _u32;
 
@@ -209,6 +213,7 @@ union tDMA_QWC {
 
 	void reset() { _u32 = 0; }
 	wxString desc() const { return wxsFormat(L"QWC: 0x%x", _u32); }
+	tDMA_TAG tag() { return (tDMA_TAG)_u32; }
 };
 static __forceinline void setDmacStat(u32 num);
 static __forceinline tDMA_TAG *dmaGetAddr(u32 addr, bool write);
@@ -216,17 +221,17 @@ static __forceinline void throwBusError(const char *s);
 
 struct DMACh {
 	tDMA_CHCR chcr;
-	u32 null0[3];
+	u32 _null0[3];
 	u32 madr;
-	u32 null1[3];
+	u32 _null1[3];
 	u16 qwc; u16 pad;
-	u32 null2[3];
+	u32 _null2[3];
 	u32 tadr;
-	u32 null3[3];
+	u32 _null3[3];
 	u32 asr0;
-	u32 null4[3];
+	u32 _null4[3];
 	u32 asr1;
-	u32 null5[11];
+	u32 _null5[11];
 	u32 sadr;
 
 	void chcrTransfer(tDMA_TAG* ptag)
@@ -282,9 +287,9 @@ struct DMACh {
         return tag;
 	}
 
-	tDMA_TAG dma_tag() const
+	tDMA_TAG dma_tag()
 	{
-		return DMA_TAG(chcr._u32);
+		return chcr.tag();
 	}
 
 	wxString cmq_to_str() const
@@ -324,25 +329,6 @@ enum dmac_conditions
 	DMAC_STAT_BEIS	= (1<<15),	 // bus error
 	DMAC_STAT_SIM	= (1<<29),	 // stall mask
 	DMAC_STAT_MEIM	= (1<<30)	 // mfifo mask
-};
-
-enum DMACIrqs
-{
-	DMAC_VIF0	= 0,
-	DMAC_VIF1,
-	DMAC_GIF,
-	DMAC_FROM_IPU,
-	DMAC_TO_IPU,
-	DMAC_SIF0,
-	DMAC_SIF1,
-	DMAC_SIF2,
-	DMAC_FROM_SPR,
-	DMAC_TO_SPR,
-
-	// We're setting error conditions through hwDmacIrq, so these correspond to the conditions above.
-	DMAC_STALL_SIS		= 13, // SIS
-	DMAC_MFIFO_EMPTY	= 14, // MEIS
-	DMAC_BUS_ERROR	= 15      // BEIS
 };
 
 //DMA interrupts & masks
@@ -423,7 +409,7 @@ static __forceinline int ChannelNumber(u32 addr)
         case D9_CHCR: return 9;
 		default:
 		{
-			DevCon.Warning("Invalid DMA channel number");
+			pxFailDev("Invalid DMA channel number");
 			return 51; // some value
 		}
     }
@@ -437,7 +423,7 @@ union tDMAC_CTRL {
 		u32 STS : 2;        // Stall Control source channel (sts type)
 		u32 STD : 2;        // Stall Control drain channel (std_type)
 		u32 RCYC : 3;       // Release cycle (8/16/32/64/128/256)
-		u32 reserved1 : 21;
+		u32 _reserved1 : 21;
 	};
 	u32 _u32;
 
@@ -453,17 +439,21 @@ union tDMAC_CTRL {
 union tDMAC_STAT {
 	struct {
 		u32 CIS : 10;
-		u32 reserved1 : 3;
+		u32 _reserved1 : 3;
 		u32 SIS : 1;
 		u32 MEIS : 1;
 		u32 BEIS : 1;
 		u32 CIM : 10;
-		u32 reserved2 : 3;
+		u32 _reserved2 : 3;
 		u32 SIM : 1;
 		u32 MEIM : 1;
-		u32 reserved3 : 1;
+		u32 _reserved3 : 1;
 	};
 	u32 _u32;
+	struct {
+		u16 _u16lo;
+		u16 _u16hi;
+	};
 
 	tDMAC_STAT(u32 val) { _u32 = val; }
 
@@ -472,14 +462,19 @@ union tDMAC_STAT {
 	void clear_flags(u32 flags) { _u32 &= ~flags; }
 	void reset() { _u32 = 0; }
 	wxString desc() const { return wxsFormat(L"Stat: 0x%x", _u32); }
+
+	bool TestForInterrupt() const
+	{
+		return ((_u16lo & _u16hi) != 0) || BEIS;
+	}
 };
 
 union tDMAC_PCR {
 	struct {
 		u32 CPC : 10;
-		u32 reserved1 : 6;
+		u32 _reserved1 : 6;
 		u32 CDE : 10;
-		u32 reserved2 : 5;
+		u32 _reserved2 : 5;
 		u32 PCE : 1;
 	};
 	u32 _u32;
@@ -496,9 +491,9 @@ union tDMAC_PCR {
 union tDMAC_SQWC {
 	struct {
 		u32 SQWC : 8;
-		u32 reserved1 : 8;
+		u32 _reserved1 : 8;
 		u32 TQWC : 8;
-		u32 reserved2 : 8;
+		u32 _reserved2 : 8;
 	};
 	u32 _u32;
 
@@ -514,7 +509,7 @@ union tDMAC_SQWC {
 union tDMAC_RBSR {
 	struct {
 		u32 RMSK : 31;
-		u32 reserved1 : 1;
+		u32 _reserved1 : 1;
 	};
 	u32 _u32;
 
@@ -527,7 +522,7 @@ union tDMAC_RBSR {
 union tDMAC_RBOR {
 	struct {
 		u32 ADDR : 31;
-		u32 reserved1 : 1;
+		u32 _reserved1 : 1;
 	};
 	u32 _u32;
 
@@ -554,18 +549,18 @@ union tDMAC_STADR {
 struct DMACregisters
 {
 	tDMAC_CTRL	ctrl;
-	u32 padding[3];
+	u32 _padding[3];
 	tDMAC_STAT	stat;
-	u32 padding1[3];
+	u32 _padding1[3];
 	tDMAC_PCR	pcr;
-	u32 padding2[3];
+	u32 _padding2[3];
 
 	tDMAC_SQWC	sqwc;
-	u32 padding3[3];
+	u32 _padding3[3];
 	tDMAC_RBSR	rbsr;
-	u32 padding4[3];
+	u32 _padding4[3];
 	tDMAC_RBOR	rbor;
-	u32 padding5[3];
+	u32 _padding5[3];
 	tDMAC_STADR	stadr;
 };
 
@@ -573,7 +568,7 @@ struct DMACregisters
 union tINTC_STAT {
 	struct {
 		u32 interrupts : 10;
-	    u32 placeholder : 22;
+	    u32 _placeholder : 22;
 	};
 	u32 _u32;
 
@@ -589,7 +584,7 @@ union tINTC_STAT {
 union tINTC_MASK {
 	struct {
 	    u32 int_mask : 10;
-	    u32 placeholder:22;
+	    u32 _placeholder:22;
 	};
 	u32 _u32;
 
@@ -605,7 +600,7 @@ union tINTC_MASK {
 struct INTCregisters
 {
 	tINTC_STAT  stat;
-	u32 padding[3];
+	u32 _padding[3];
 	tINTC_MASK  mask;
 };
 
@@ -628,6 +623,12 @@ static __forceinline tDMA_TAG *SPRdmaGetAddr(u32 addr, bool write)
 {
 	// if (addr & 0xf) { DMA_LOG("*PCSX2*: DMA address not 128bit aligned: %8.8x", addr); }
 
+	//For some reason Getaway references SPR Memory from itself using SPR0, oh well, let it i guess...
+	if((addr & 0x70000000) == 0x70000000)
+	{
+		return (tDMA_TAG*)&psS[addr & 0x3ff0];
+	}
+
 	// FIXME: Why??? DMA uses physical addresses
 	addr &= 0x1ffffff0;
 
@@ -635,27 +636,26 @@ static __forceinline tDMA_TAG *SPRdmaGetAddr(u32 addr, bool write)
 	{
 		return (tDMA_TAG*)&psM[addr];
 	}
-
-	if (addr >= 0x11004000 && addr < 0x11010000)
+	else if (addr < 0x10000000)
+	{
+		return (tDMA_TAG*)(write ? psMHW : psMHR);
+	}
+	else if ((addr >= 0x11004000) && (addr < 0x11010000))
 	{
 		//Access for VU Memory
 		return (tDMA_TAG*)vtlb_GetPhyPtr(addr & 0x1FFFFFF0);
 	}
-
-	if (addr >= Ps2MemSize::Base && addr < 0x10000000)
+	else
 	{
-		return (tDMA_TAG*)(write ? psMHW : psMHR);
+		Console.Error( "*PCSX2*: DMA error: %8.8x", addr);
+		return NULL;
 	}
-
-	Console.Error( "*PCSX2*: DMA error: %8.8x", addr);
-	return NULL;
 }
 
 // Note: Dma addresses are guaranteed to be aligned to 16 bytes (128 bits)
 static __forceinline tDMA_TAG *dmaGetAddr(u32 addr, bool write)
 {
 	// if (addr & 0xf) { DMA_LOG("*PCSX2*: DMA address not 128bit aligned: %8.8x", addr); }
-
 	if (DMA_TAG(addr).SPR) return (tDMA_TAG*)&psS[addr & 0x3ff0];
 
 	// FIXME: Why??? DMA uses physical addresses
@@ -665,30 +665,27 @@ static __forceinline tDMA_TAG *dmaGetAddr(u32 addr, bool write)
 	{
 		return (tDMA_TAG*)&psM[addr];
 	}
-
-	// Secret scratchpad address for DMA = end of maximum main memory?
-	if (addr >= 0x10000000 && addr < 0x10004000)
-	{
-		//Console.Warning("Writing to the scratchpad without the SPR flag set!");
-		return (tDMA_TAG*)&psS[addr & 0x3ff0];
-	}
-
-	if (addr >= Ps2MemSize::Base && addr < 0x10000000)
+	else if (addr < 0x10000000)
 	{
 		return (tDMA_TAG*)(write ? psMHW : psMHR);
 	}
-
-	Console.Error( "*PCSX2*: DMA error: %8.8x", addr);
-	return NULL;
+	else if (addr < 0x10004000)
+	{
+		// Secret scratchpad address for DMA = end of maximum main memory?
+		//Console.Warning("Writing to the scratchpad without the SPR flag set!");
+		return (tDMA_TAG*)&psS[addr & 0x3ff0];
+	}
+	else
+	{
+		Console.Error( "*PCSX2*: DMA error: %8.8x", addr);
+		return NULL;
+	}
 }
 
-void hwIntcIrq(int n);
-void hwDmacIrq(int n);
+extern void hwIntcIrq(int n);
+extern void hwDmacIrq(int n);
 
-bool hwDmacSrcChainWithStack(DMACh *dma, int id);
-bool hwDmacSrcChain(DMACh *dma, int id);
+extern bool hwMFIFOWrite(u32 addr, const u128* data, uint size_qwc);
+extern bool hwDmacSrcChainWithStack(DMACh *dma, int id);
+extern bool hwDmacSrcChain(DMACh *dma, int id);
 
-extern void intcInterrupt();
-extern void dmacInterrupt();
-
-#endif

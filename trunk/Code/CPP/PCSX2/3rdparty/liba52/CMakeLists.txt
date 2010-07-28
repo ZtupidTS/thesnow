@@ -1,11 +1,10 @@
 # a52 library
 
 # library name
-set(a52Name pcsx2_a52)
+set(Output pcsx2_a52)
 
 set(CommonFlags
     -Wall
-    -m32
     -g
     )
 
@@ -53,7 +52,9 @@ set(a52Headers
     tendra.h)
 
 # add library
-add_library(${a52Name} STATIC ${a52Sources} ${a52Headers}) 
+add_library(${Output} STATIC ${a52Sources} ${a52Headers}) 
 
-# Force the linker into 32 bits mode
-target_link_libraries(${a52Name} -m32)
+# User flags options
+if(NOT USER_CMAKE_LD_FLAGS STREQUAL "")
+    target_link_libraries(${Output} "${USER_CMAKE_LD_FLAGS}")
+endif(NOT USER_CMAKE_LD_FLAGS STREQUAL "")

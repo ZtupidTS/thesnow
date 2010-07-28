@@ -24,6 +24,7 @@
 #include "AppConfig.h"
 
 #include "Elfheader.h"
+#include "Counters.h"
 
 using namespace R5900;
 
@@ -38,6 +39,8 @@ static void PostLoadPrep()
 	memzero(pCache);
 //	WriteCP0Status(cpuRegs.CP0.n.Status.val);
 	for(int i=0; i<48; i++) MapTLB(i);
+
+	UpdateVSyncRate();
 }
 
 wxString SaveStateBase::GetFilename( int slot )
@@ -91,11 +94,9 @@ void SaveStateBase::FreezeTag( const char* src )
 
 	if( strcmp( m_tagspace, src ) != 0 )
 	{
-		pxFail( "Savestate data corruption detected while reading tag" );
-		throw Exception::SaveStateLoadError(
-			// Untranslated diagnostic msg (use default msg for translation)
-			L"Savestate data corruption detected while reading tag: " + fromUTF8(src)
-		);
+		wxString msg( L"Savestate data corruption detected while reading tag: " + fromUTF8(src) );
+		pxFail( msg );
+		throw Exception::SaveStateLoadError().SetDiagMsg(msg);
 	}
 }
 
@@ -226,10 +227,9 @@ void SaveStateBase::WritebackSectionLength( int seekpos, int sectlen, const wxCh
 	{
 		if( sectlen != realsectsize )		// if they don't match then we have a problem, jim.
 		{
-			throw Exception::SaveStateLoadError( wxEmptyString,
-				wxsFormat( L"Invalid size encountered on section '%s'.", sectname ),
-				_("The savestate data is invalid or corrupted.")
-			);
+			throw Exception::SaveStateLoadError()
+				.SetDiagMsg(wxsFormat(L"Invalid size encountered on section '%s'.", sectname ))
+				.SetUserMsg(_("The savestate data is invalid or corrupted."));
 		}
 	}
 }
@@ -255,10 +255,9 @@ bool SaveStateBase::FreezeSection( int seek_section )
 
 			if( sectlen != 128 )
 			{
-				throw Exception::SaveStateLoadError( wxEmptyString,
-					L"Invalid size encountered on BiosVersion section.",
-					_("The savestate data is invalid or corrupted.")
-				);
+				throw Exception::SaveStateLoadError()
+					.SetDiagMsg(L"Invalid size encountered on BiosVersion section.")
+					.SetUserMsg(_("The savestate data is invalid or corrupted."));
 			}
 
 			if( isSeeking )
@@ -278,10 +277,9 @@ bool SaveStateBase::FreezeSection( int seek_section )
 			Freeze( sectlen );
 			if( sectlen != MainMemorySizeInBytes )
 			{
-				throw Exception::SaveStateLoadError( wxEmptyString,
-					L"Invalid size encountered on MainMemory section.",
-					_("The savestate data is invalid or corrupted.")
-				);
+				throw Exception::SaveStateLoadError()
+					.SetDiagMsg(L"Invalid size encountered on MainMemory section.")
+					.SetUserMsg(_("The savestate data is invalid or corrupted."));
 			}
 
 			if( isSeeking )

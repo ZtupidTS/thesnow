@@ -30,7 +30,7 @@
 #include "Elfheader.h"
 #include "CDVD/CDVD.h"
 #include "Patch.h"
-#include "DataBase_Loader.h"
+#include "GameDatabase.h"
 #include "SamplProf.h"
 
 using namespace R5900;	// for R5900 disasm tools
@@ -49,9 +49,6 @@ bool g_GameStarted; // set when we reach the game's entry point or earlier if th
 static const uint eeWaitCycles = 3072;
 
 bool eeEventTestIsActive = false;
-
-R5900Exception::BaseExcept::~BaseExcept() throw (){}
-
 
 void cpuReset()
 {
@@ -88,7 +85,7 @@ void cpuReset()
 	g_SkipBiosHack = EmuConfig.UseBOOT2Injection;
 
 	ElfCRC = 0;
-	DiscID = L"";
+	DiscSerial = L"";
 	ElfEntry = -1;
 	LastELF = L"";
 }
@@ -294,10 +291,10 @@ static __forceinline void _cpuTestInterrupts()
 	/* These are 'pcsx2 interrupts', they handle asynchronous stuff
 	   that depends on the cycle timings */
 
-	TESTINT(1, vif1Interrupt);
-	TESTINT(2, gsInterrupt);
-	TESTINT(5, EEsif0Interrupt);
-	TESTINT(6, EEsif1Interrupt);
+	TESTINT(DMAC_VIF1,		vif1Interrupt);	
+	TESTINT(DMAC_GIF,		gsInterrupt);	
+	TESTINT(DMAC_SIF0,		EEsif0Interrupt);
+	TESTINT(DMAC_SIF1,		EEsif1Interrupt);
 
 	// Profile-guided Optimization (sorta)
 	// The following ints are rarely called.  Encasing them in a conditional
@@ -305,16 +302,16 @@ static __forceinline void _cpuTestInterrupts()
 
 	if( cpuRegs.interrupt & 0xF19 ) // Bits 0 3 4 8 9 10 11 ( 111100011001 )
 	{
-		TESTINT(0, vif0Interrupt);
+		TESTINT(DMAC_VIF0,		vif0Interrupt);
 
-		TESTINT(3, ipu0Interrupt);
-		TESTINT(4, ipu1Interrupt);
+		TESTINT(DMAC_FROM_IPU,	ipu0Interrupt);
+		TESTINT(DMAC_TO_IPU,	ipu1Interrupt);
 
-		TESTINT(8, SPRFROMinterrupt);
-		TESTINT(9, SPRTOinterrupt);
+		TESTINT(DMAC_FROM_SPR,	SPRFROMinterrupt);
+		TESTINT(DMAC_TO_SPR,	SPRTOinterrupt);
 
-		TESTINT(10, vifMFIFOInterrupt);
-		TESTINT(11, gifMFIFOInterrupt);
+		TESTINT(DMAC_MFIFO_VIF, vifMFIFOInterrupt);
+		TESTINT(DMAC_MFIFO_GIF, gifMFIFOInterrupt);
 	}
 }
 
@@ -351,10 +348,12 @@ static __forceinline void _cpuTestPERF()
 // them out.  Exceptions while the exception handler is active (EIE), or exceptions of any
 // level other than 0 are ignored here.
 
-static bool cpuIntsEnabled()
+static bool cpuIntsEnabled(int Interrupt)
 {
+	bool IntType = !!(cpuRegs.CP0.n.Status.val & Interrupt); //Choose either INTC or DMAC, depending on what called it
+
 	return cpuRegs.CP0.n.Status.b.EIE && cpuRegs.CP0.n.Status.b.IE &&
-		!cpuRegs.CP0.n.Status.b.EXL && (cpuRegs.CP0.n.Status.b.ERL == 0);
+		!cpuRegs.CP0.n.Status.b.EXL && (cpuRegs.CP0.n.Status.b.ERL == 0) && IntType;
 }
 
 // if cpuRegs.cycle is greater than this cycle, should check cpuBranchTest for updates
@@ -364,7 +363,7 @@ u32 g_nextBranchCycle = 0;
 // and the recompiler.  (moved here to help alleviate redundant code)
 __forceinline void _cpuBranchTest_Shared()
 {
-	eeEventTestIsActive = true;
+	ScopedBool etest(eeEventTestIsActive);
 	g_nextBranchCycle = cpuRegs.cycle + eeWaitCycles;
 
 	// ---- Counters -------------
@@ -472,26 +471,25 @@ __forceinline void _cpuBranchTest_Shared()
 	// Apply vsync and other counter nextCycles
 	cpuSetNextBranch( nextsCounter, nextCounter );
 
-	eeEventTestIsActive = false;
-
 	// ---- INTC / DMAC Exceptions -----------------
 	// Raise the INTC and DMAC interrupts here, which usually throw exceptions.
 	// This should be done last since the IOP and the VU0 can raise several EE
 	// exceptions.
 
 	//if ((cpuRegs.CP0.n.Status.val & 0x10007) == 0x10001)
-	if( cpuIntsEnabled() )
-	{
-		TESTINT(30, intcInterrupt);
-		TESTINT(31, dmacInterrupt);
-	}
+	if( cpuIntsEnabled(0x400) ) TESTINT(30, intcInterrupt);
+	if( cpuIntsEnabled(0x800) ) TESTINT(31, dmacInterrupt);
 }
 
 __releaseinline void cpuTestINTCInts()
 {
+	// Check the internal Event System -- if one's already scheduled then don't bother:
 	if( cpuRegs.interrupt & (1 << 30) ) return;
-	//if( (cpuRegs.CP0.n.Status.val & 0x10407) != 0x10401 ) return;
-	if( !cpuIntsEnabled() ) return;
+
+	// Check the COP0's Status register for general interrupt disables, and the 0x400
+	// bit (which is INTC master toggle).
+	if( !cpuIntsEnabled(0x400) ) return;
+
 	if( (psHu32(INTC_STAT) & psHu32(INTC_MASK)) == 0 ) return;
 
 	cpuRegs.interrupt|= 1 << 30;
@@ -511,8 +509,12 @@ __releaseinline void cpuTestINTCInts()
 
 __forceinline void cpuTestDMACInts()
 {
+	// Check the internal Event System -- if one's already scheduled then don't bother:
 	if ( cpuRegs.interrupt & (1 << 31) ) return;
-	if ((cpuRegs.CP0.n.Status.val & 0x10807) != 0x10801) return;
+
+	// Check the COP0's Status register for general interrupt disables, and the 0x800
+	// bit (which is the DMAC master toggle).
+	if( !cpuIntsEnabled(0x800) ) return;
 
 	if ( ( (psHu16(0xe012) & psHu16(0xe010)) == 0) &&
 		 ( (psHu16(0xe010) & 0x8000) == 0) ) return;
@@ -545,16 +547,16 @@ __forceinline void cpuTestHwInts() {
 	cpuTestTIMRInts();
 }
 
-__forceinline void CPU_INT( u32 n, s32 ecycle)
+__forceinline void CPU_INT( EE_EventType n, s32 ecycle)
 {
 	if( n != 2 && cpuRegs.interrupt & (1<<n) ){ //2 is Gif, and every path 3 masking game triggers this :/
 		DevCon.Warning( "***** EE > Twice-thrown int on IRQ %d", n );
 	}
 
-	// EE events happen 1 cycle in the future instead of whatever was requested.
+	// EE events happen 8 cycles in the future instead of whatever was requested.
 	// This can be used on games with PATH3 masking issues for example, or when
 	// some FMV look bad.
-	if(CHECK_EETIMINGHACK) ecycle = 1;
+	if(CHECK_EETIMINGHACK) ecycle = 8;
 
 	cpuRegs.interrupt|= 1 << n;
 	cpuRegs.sCycle[n] = cpuRegs.cycle;
@@ -574,60 +576,26 @@ __forceinline void CPU_INT( u32 n, s32 ecycle)
 	cpuSetNextBranchDelta( cpuRegs.eCycle[n] );
 }
 
+// Called from recompilers; __fastcall define is mandatory.
 void __fastcall eeGameStarting()
 {
-	if (!g_GameStarted && ElfCRC) {
-		wxString gameCRC( wxsFormat( L"%8.8x", ElfCRC ) );
-		wxString gameName   = L"Unknown Game (\?\?\?)";
-		wxString gameSerial = L" [" + DiscID  + L"]";
-		wxString gameCompat = L" [Status = Unknown]";
-		wxString gamePatch  = L"";
-		wxString gameFixes  = L"";
-		wxString gameCheats = L"";
-
-		if (DataBase_Loader* GameDB = AppHost_GetGameDatabase() )
-		{
-			if (GameDB->gameLoaded()) {
-				int compat = GameDB->getInt("Compat");
-				gameName   = GameDB->getString("Name");
-				gameName  += L" (" + GameDB->getString("Region") + L")";
-				gameCompat = L" [Status = "+compatToStringWX(compat)+L"]";
-			}
-		
-			if (EmuConfig.EnablePatches) {
-				int patches = InitPatches(gameCRC);
-				if (patches) {
-					wxString pString( wxsFormat( L"%d", patches ) );
-					gamePatch = L" [Patches = " + pString + L"]";
-				}
-				int fixes = loadGameSettings(GameDB);
-				if (fixes) {
-					wxString pString( wxsFormat( L"%d", fixes ) );
-					gameFixes = L" [Fixes = " + pString + L"]";
-				}
-			}
-		}
-
-		if (EmuConfig.EnableCheats) {
-			int cheats = InitCheats(gameCRC);
-			if (cheats) {
-				wxString cString( wxsFormat( L"%d", cheats ) );
-				gameCheats = L" [Cheats = " + cString + L"]";
-			}
-		}
-
-		Console.SetTitle(gameName+gameSerial+gameCompat+gameFixes+gamePatch+gameCheats);
-		
-		GetMTGS().SendGameCRC(ElfCRC);
+	if (!g_GameStarted)
+	{
+		//Console.WriteLn( Color_Green, "(R5900) ELF Entry point! [addr=0x%08X]", ElfEntry );
 		g_GameStarted = true;
-		
-		if (0) ProfilerSetEnabled(true);
-	}
+		GetCoreThread().GameStartingInThread();
 
-	if (EmuConfig.EnablePatches) ApplyPatch(0);
-	if (EmuConfig.EnableCheats)  ApplyCheat(0);
+		// GameStartingInThread may issue a reset of the cpu and/or recompilers.  Check for and
+		// handle such things here:
+		Cpu->CheckExecutionState();
+	}
+	else
+	{
+		Console.WriteLn( Color_Green, "(R5900) Re-executed ELF Entry point (ignored) [addr=0x%08X]", ElfEntry );
+	}
 }
 
+// Called from recompilers; __fastcall define is mandatory.
 void __fastcall eeloadReplaceOSDSYS()
 {
 	g_SkipBiosHack = false;
@@ -639,7 +607,7 @@ void __fastcall eeloadReplaceOSDSYS()
 	else
 		cdvdReloadElfInfo();
 
-	// didn't recognise an ELF
+	// didn't recognize an ELF
 	if (ElfEntry == -1) {
 		eeGameStarting();
 		return;
@@ -668,7 +636,7 @@ void __fastcall eeloadReplaceOSDSYS()
 	}
 	pxAssert(osdsys_p);
 
-	string elfname;
+	std::string elfname;
 
 	if (!elf_override.IsEmpty())
 	{

@@ -23,30 +23,6 @@ namespace Threading
 {
 
 // --------------------------------------------------------------------------------------
-// IThread - Interface for the public access to PersistentThread.
-// --------------------------------------------------------------------------------------
-// Class usage: Can be used for allowing safe nullification of a thread handle.  Rather
-// than being NULL'd, the handle can be mapped to an IThread implementation which acts
-// as a do-nothing placebo or an assertion generator.
-//
-	class IThread
-	{
-		DeclareNoncopyableObject(IThread);
-
-	public:
-		IThread() {}
-		virtual ~IThread() throw() {}
-
-		virtual bool IsSelf() const { return false; }
-		virtual bool IsRunning() { return false; }
-
-		virtual void Start() {}
-		virtual void Cancel( bool isBlocking = true ) {}
-		virtual void Block() {}
-		virtual bool Detach() { return false; }
-	};
-
-// --------------------------------------------------------------------------------------
 //  ThreadDeleteEvent
 // --------------------------------------------------------------------------------------
 	class EventListener_Thread : public IEventDispatcher<int>
@@ -55,7 +31,7 @@ namespace Threading
 		typedef int EvtParams;
 
 	protected:
-		PersistentThread* m_thread;
+		pxThread* m_thread;
 
 	public:
 		EventListener_Thread()
@@ -65,8 +41,8 @@ namespace Threading
 
 		virtual ~EventListener_Thread() throw() {}
 
-		void SetThread( PersistentThread& thr ) { m_thread = &thr; }
-		void SetThread( PersistentThread* thr ) { m_thread = thr; }
+		void SetThread( pxThread& thr ) { m_thread = &thr; }
+		void SetThread( pxThread* thr ) { m_thread = thr; }
 
 		void DispatchEvent( const int& params )
 		{
@@ -74,7 +50,7 @@ namespace Threading
 		}
 
 	protected:
-		// Invoked by the PersistentThread when the thread execution is ending.  This is
+		// Invoked by the pxThread when the thread execution is ending.  This is
 		// typically more useful than a delete listener since the extended thread information
 		// provided by virtualized functions/methods will be available.
 		// Important!  This event is executed *by the thread*, so care must be taken to ensure
@@ -83,7 +59,7 @@ namespace Threading
 	};
 
 // --------------------------------------------------------------------------------------
-// PersistentThread - Helper class for the basics of starting/managing persistent threads.
+// pxThread - Helper class for the basics of starting/managing persistent threads.
 // --------------------------------------------------------------------------------------
 // This class is meant to be a helper for the typical threading model of "start once and
 // reuse many times."  This class incorporates a lot of extra overhead in stopping and
@@ -109,9 +85,9 @@ namespace Threading
 //    no dependency options for ensuring correct static var initializations).  Use heap
 //    allocation to create thread objects instead.
 //
-	class PersistentThread : public virtual IThread
+	class pxThread
 	{
-		DeclareNoncopyableObject(PersistentThread);
+		DeclareNoncopyableObject(pxThread);
 
 		friend void pxYield( int ms );
 
@@ -137,9 +113,8 @@ namespace Threading
 
 
 	public:
-		virtual ~PersistentThread() throw();
-		PersistentThread();
-		PersistentThread( const char* name );
+		virtual ~pxThread() throw();
+		pxThread( const wxString& name=L"pxThread" );
 
 		pthread_t GetId() const { return m_thread; }
 		u64 GetCpuTime() const;
@@ -177,7 +152,7 @@ namespace Threading
 
 		virtual void OnStartInThread();
 
-		// This is called when the thread has been canceled or exits normally.  The PersistentThread
+		// This is called when the thread has been canceled or exits normally.  The pxThread
 		// automatically binds it to the pthread cleanup routines as soon as the thread starts.
 		virtual void OnCleanupInThread();
 
@@ -217,7 +192,7 @@ namespace Threading
 		void _DoSetThreadName( const wxString& name );
 		void _DoSetThreadName( const char* name );
 		void _internal_execute();
-		void _try_virtual_invoke( void (PersistentThread::*method)() );
+		void _try_virtual_invoke( void (pxThread::*method)() );
 		void _ThreadCleanup();
 
 		static void* _internal_callback( void* func );
@@ -262,7 +237,7 @@ namespace Threading
 //    into smaller sections.  For example, if you have 20,000 items to process, the task
 //    can be divided into two threads of 10,000 items each.
 //
-	class BaseTaskThread : public PersistentThread
+	class BaseTaskThread : public pxThread
 	{
 	protected:
 		volatile bool m_Done;

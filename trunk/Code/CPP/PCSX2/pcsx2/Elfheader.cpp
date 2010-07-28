@@ -242,7 +242,7 @@ bool ElfObject::hasHeaders() { return (hasProgramHeaders() && hasSectionHeaders(
 void ElfObject::readIso(IsoFile file)
 {
 	int rsize = file.read(data.GetPtr(), data.GetSizeInBytes());
-	if (rsize < data.GetSizeInBytes()) throw Exception::EndOfStream( filename );
+	if (rsize < data.GetSizeInBytes()) throw Exception::EndOfStream(filename);
 }
 
 void ElfObject::readFile()
@@ -257,19 +257,19 @@ void ElfObject::readFile()
 	rsize = fread(data.GetPtr(), 1, data.GetSizeInBytes(), f);
 	fclose( f );
 
-	if (rsize < data.GetSizeInBytes()) throw Exception::EndOfStream( filename );
+	if (rsize < data.GetSizeInBytes()) throw Exception::EndOfStream(filename);
 }
 
 void ElfObject::checkElfSize(s64 elfsize)
 {
 	if (elfsize > 0xfffffff)
-		throw Exception::BadStream( filename, wxLt("Illegal ELF file size, over 2GB!") );
+		throw Exception::BadStream(filename).SetBothMsgs(wxLt("Illegal ELF file size over 2GB!"));
 
 	if (elfsize == -1)
-		throw Exception::BadStream( filename, wxLt("Elf file does not exist! ") );
+		throw Exception::BadStream(filename).SetBothMsgs(wxLt("ELF file does not exist!"));
 
 	if (elfsize == 0)
-		throw Exception::BadStream( filename, wxLt("Unexpected end of ELF file: ") );
+		throw Exception::BadStream(filename).SetBothMsgs(wxLt("Unexpected end of ELF file."));
 }
 
 u32 ElfObject::getCRC()
@@ -434,13 +434,13 @@ int GetPS2ElfName( wxString& name )
 
 		while( !file.eof() )
 		{
-			wxString original( fromUTF8(file.readLine().c_str()) );
-			ParsedAssignmentString parts( original );
+			const wxString original( fromUTF8(file.readLine().c_str()) );
+			const ParsedAssignmentString parts( original );
 
 			if( parts.lvalue.IsEmpty() && parts.rvalue.IsEmpty() ) continue;
 			if( parts.rvalue.IsEmpty() )
 			{
-				Console.Error( "(GetElfName) Unusual or malformed entry in SYSTEM.CNF ignored:" );
+				Console.Warning( "(SYSTEM.CNF) Unusual or malformed entry in SYSTEM.CNF ignored:" );
 				Console.Indent().WriteLn( original );
 				continue;
 			}
@@ -448,22 +448,22 @@ int GetPS2ElfName( wxString& name )
 			if( parts.lvalue == L"BOOT2" )
 			{
 				name = parts.rvalue;
-				Console.WriteLn( Color_StrongBlue, L"(GetElfName) Detected PS2 Disc = " + name );
+				Console.WriteLn( Color_StrongBlue, L"(SYSTEM.CNF) Detected PS2 Disc = " + name );
 				retype = 2;
 			}
 			else if( parts.lvalue == L"BOOT" )
 			{
 				name = parts.rvalue;
-				Console.WriteLn( Color_StrongBlue, L"(GetElfName) Detected PSX/PSone Disc = " + name );
+				Console.WriteLn( Color_StrongBlue, L"(SYSTEM.CNF) Detected PSX/PSone Disc = " + name );
 				retype = 1;
 			}
 			else if( parts.lvalue == L"VMODE" )
 			{
-				Console.WriteLn( Color_StrongBlue, L"(GetElfName) Disc region type = " + parts.rvalue );
+				Console.WriteLn( Color_Blue, L"(SYSTEM.CNF) Disc region type = " + parts.rvalue );
 			}
 			else if( parts.lvalue == L"VER" )
 			{
-				Console.WriteLn( Color_StrongBlue, L"(GetElfName) Software version = " + parts.rvalue );
+				Console.WriteLn( Color_Blue, L"(SYSTEM.CNF) Software version = " + parts.rvalue );
 			}
 		}
 
@@ -473,12 +473,14 @@ int GetPS2ElfName( wxString& name )
 			return 0;
 		}
 	}
-	catch (Exception::BadStream&)
+	catch (Exception::BadStream& ex)
 	{
+		Console.Error(ex.FormatDiagnosticMessage());
 		return 0;		// ISO error
 	}
 	catch( Exception::FileNotFound& )
 	{
+		//Console.Warning(ex.FormatDiagnosticMessage());
 		return 0;		// no SYSTEM.CNF, not a PS1/PS2 disc.
 	}
 

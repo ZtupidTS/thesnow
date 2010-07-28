@@ -22,11 +22,44 @@
 #include "Common.h"
 #include "IPU.h"
 #include "yuv2rgb.h"
+#include "mpeg2lib/Mpeg.h"
+
+// The IPU's colour space conversion conforms to ITU-R Recommendation BT.601 if anyone wants to make a
+// faster or "more accurate" implementation, but this is the precise documented integer method used by
+// the hardware and is fast enough with SSE2.
+
+#define IPU_Y_BIAS 16
+#define IPU_C_BIAS 128
+#define IPU_Y_COEFF 0x95	//  1.1640625
+#define IPU_GCR_COEFF -0x68	// -0.8125
+#define IPU_GCB_COEFF -0x32	// -0.390625
+#define IPU_RCR_COEFF 0xcc	//  1.59375
+#define IPU_BCB_COEFF 0x102	//  2.015625
+
+// conforming implementation for reference, do not optimise
+void yuv2rgb_reference(void)
+{
+	for (int y = 0; y < 16; y++)
+		for (int x = 0; x < 16; x++)
+		{
+			s32 lum = (IPU_Y_COEFF * (max(0, (s32)mb8.Y[y][x] - IPU_Y_BIAS))) >> 6;
+			s32 rcr = (IPU_RCR_COEFF * ((s32)mb8.Cr[y>>1][x>>1] - 128)) >> 6;
+			s32 gcr = (IPU_GCR_COEFF * ((s32)mb8.Cr[y>>1][x>>1] - 128)) >> 6;
+			s32 gcb = (IPU_GCB_COEFF * ((s32)mb8.Cb[y>>1][x>>1] - 128)) >> 6;
+			s32 bcb = (IPU_BCB_COEFF * ((s32)mb8.Cb[y>>1][x>>1] - 128)) >> 6;
+
+			rgb32.c[y][x].r = max(0, min(255, (lum + rcr + 1) >> 1));
+			rgb32.c[y][x].g = max(0, min(255, (lum + gcr + gcb + 1) >> 1));
+			rgb32.c[y][x].b = max(0, min(255, (lum + bcb + 1) >> 1));
+			rgb32.c[y][x].a = 0x80; // the norm to save doing this on the alpha pass
+		}
+}
 
 // Everything below is bit accurate to the IPU specification (except maybe rounding).
 // Know the specification before you touch it.
-#define SSE_COEFFICIENTS(x) \
-	{(x)<<2,(x)<<2,(x)<<2,(x)<<2,(x)<<2,(x)<<2,(x)<<2,(x)<<2}
+#define SSE_BYTES(x) {x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x}
+#define SSE_WORDS(x) {x, x, x, x, x, x, x, x}
+#define SSE_COEFFICIENTS(x) SSE_WORDS((x)<<2)
 
 struct SSE2_Tables
 {
@@ -35,11 +68,11 @@ struct SSE2_Tables
 	u16 Y_mask[8];			// offset -32
 	u16 round_1bit[8];		// offset -16
 
-	u16 Y_coefficients[8];	// offset 0
-	u16 GCr_coefficients[8];// offset 16
-	u16 GCb_coefficients[8];// offset 32
-	u16 RCr_coefficients[8];// offset 48
-	u16 BCb_coefficients[8];// offset 64
+	s16 Y_coefficients[8];	// offset 0
+	s16 GCr_coefficients[8];// offset 16
+	s16 GCb_coefficients[8];// offset 32
+	s16 RCr_coefficients[8];// offset 48
+	s16 BCb_coefficients[8];// offset 64
 };
 
 enum
@@ -58,19 +91,19 @@ enum
 
 static const __aligned16 SSE2_Tables sse2_tables =
 {
-	{0x8000,0x8000,0x8000,0x8000,0x8000,0x8000,0x8000,0x8000},	// c_bias
-	{16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16},			// y_bias
-	{0xff00,0xff00,0xff00,0xff00,0xff00,0xff00,0xff00,0xff00},	// y_mask
+	SSE_WORDS(0x8000),		// c_bias
+	SSE_BYTES(IPU_Y_BIAS),	// y_bias
+	SSE_WORDS(0xff00),		// y_mask
 
 	// Specifying round off instead of round down as everywhere else
 	// implies that this is right
-	{1,1,1,1,1,1,1,1},		// round_1bit
+	SSE_WORDS(1),		// round_1bit
 
-	SSE_COEFFICIENTS(0x95),   // 1.1640625 [Y_coefficients]
-	SSE_COEFFICIENTS(-0x68),  // -0.8125 [GCr_coefficients]
-	SSE_COEFFICIENTS(-0x32),  // -0.390625 [GCb_coefficients]
-	SSE_COEFFICIENTS(0xcc),   // 1.59375 [RCr_coefficients]
-	SSE_COEFFICIENTS(0x102),  // 2.015625 [BCb_coefficients]
+	SSE_COEFFICIENTS(IPU_Y_COEFF),
+	SSE_COEFFICIENTS(IPU_GCR_COEFF),
+	SSE_COEFFICIENTS(IPU_GCB_COEFF),
+	SSE_COEFFICIENTS(IPU_RCR_COEFF),
+	SSE_COEFFICIENTS(IPU_BCB_COEFF),
 };
 
 static __aligned16 u16 yuv2rgb_temp[3][8];
@@ -78,8 +111,6 @@ static __aligned16 u16 yuv2rgb_temp[3][8];
 // This could potentially be improved for SSE4
 __releaseinline void yuv2rgb_sse2(void)
 {
-    XMMRegisters::Freeze();
-
 #if defined(_MSC_VER) || defined(__INTEL_COMPILER)
 	__asm {
 		mov eax, 1
@@ -368,8 +399,6 @@ ihatemsvc:
 #else
 #	error Unsupported compiler
 #endif
-
-    XMMRegisters::Thaw();
 }
 
 void yuv2rgb_init(void)

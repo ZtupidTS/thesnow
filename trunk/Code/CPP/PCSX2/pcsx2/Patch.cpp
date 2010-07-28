@@ -19,7 +19,7 @@
 
 #include "IopCommon.h"
 #include "Patch.h"
-#include "DataBase_Loader.h"
+#include "GameDatabase.h"
 #include <wx/textfile.h>
 
 IniPatch Patch[ MAX_PATCH ];
@@ -131,33 +131,25 @@ void TrimPatches(wxString& s)
 
 // This routine loads patches from the game database
 // Returns number of patches loaded
-int InitPatches(const wxString& name)
+int InitPatches(const wxString& crc, const Game_Data& game)
 {
-	bool   patchFound = false;
+	bool patchFound = false;
 	wxString patch;
-	const wxString crc( L"[patches = " + name + L"]" );
 	patchnumber = 0;
-	
-	if (DataBase_Loader* GameDB = AppHost_GetGameDatabase() )
+
+	if (game.IsOk())
 	{
-		if(GameDB->gameLoaded()) {
-			if (GameDB->sectionExists(L"patches", name)) {
-				patch = GameDB->getSection(L"patches", name);
-				patchFound = true;
-			}
-			else if (GameDB->keyExists(L"[patches]")) {
-				patch = GameDB->getString(L"[patches]");
-				patchFound = true;
-			}
+		if (game.sectionExists(L"patches", crc)) {
+			patch = game.getSection(L"patches", crc);
+			patchFound = true;
+		}
+		else if (game.keyExists(L"[patches]")) {
+			patch = game.getString(L"[patches]");
+			patchFound = true;
 		}
 	}
-
-	if (patchFound) {
-		Console.WriteLn(Color_Green, "Patch found in the Database!");
-		TrimPatches(patch);
-		Console.WriteLn(Color_Green, "Patches Loaded: %d", patchnumber);
-	}
-	else Console.WriteLn(Color_Gray, "No patch for this game in the Database.");
+	
+	if (patchFound) TrimPatches(patch);
 	
 	return patchnumber;
 }
