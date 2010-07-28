@@ -16,26 +16,34 @@
 // http://code.google.com/p/dolphin-emu/
 
 
-#ifndef _WIN32
-#include <execinfo.h>
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <stdio.h>
 #include <signal.h>
 #include <sys/ucontext.h>   // Look in here for the context definition.
-#ifdef __linux__
-#define CREG_RAX(ctx) (ctx)->gregs[REG_RAX]
-#define CREG_RIP(ctx) (ctx)->gregs[REG_RIP]
-#define CREG_EAX(ctx) (ctx)->gregs[REG_EAX]
-#define CREG_EIP(ctx) (ctx)->gregs[REG_EIP]
-#elif defined(__APPLE__)
+#endif
+
+#ifdef __APPLE__
 #define CREG_RAX(ctx) (*(ctx))->__ss.__rax
 #define CREG_RIP(ctx) (*(ctx))->__ss.__rip
 #define CREG_EAX(ctx) (*(ctx))->__ss.__eax
 #define CREG_EIP(ctx) (*(ctx))->__ss.__eip
-#endif
-
-#else
-#include <windows.h>
-
+#elif defined __FreeBSD__
+#define CREG_RAX(ctx) (ctx)->mc_rax
+#define CREG_RIP(ctx) (ctx)->mc_rip
+#define CREG_EAX(ctx) (ctx)->mc_eax
+#define CREG_EIP(ctx) (ctx)->mc_eip
+#elif defined __linux__
+#define CREG_RAX(ctx) (ctx)->gregs[REG_RAX]
+#define CREG_RIP(ctx) (ctx)->gregs[REG_RIP]
+#define CREG_EAX(ctx) (ctx)->gregs[REG_EAX]
+#define CREG_EIP(ctx) (ctx)->gregs[REG_EIP]
+#elif defined __NetBSD__
+#define CREG_RAX(ctx) (ctx)->__gregs[_REG_RAX]
+#define CREG_RIP(ctx) (ctx)->__gregs[_REG_RIP]
+#define CREG_EAX(ctx) (ctx)->__gregs[_REG_EAX]
+#define CREG_EIP(ctx) (ctx)->__gregs[_REG_EIP]
 #endif
 
 #include <vector>
@@ -152,10 +160,10 @@ void InstallExceptionHandler()
 
 #else  // _WIN32
 
-//
-// backtrace useful function
-//
-
+#if defined __APPLE__ || defined __linux__ || defined _WIN32
+#ifndef _WIN32
+#include <execinfo.h>
+#endif
 void print_trace(const char * msg)
 {
 	void *array[100];
@@ -170,6 +178,7 @@ void print_trace(const char * msg)
 		printf("--> %s\n", strings[i]);
 	free(strings);
 }
+#endif
 
 void sigsegv_handler(int signal, siginfo_t *info, void *raw_context)
 {
@@ -179,8 +188,8 @@ void sigsegv_handler(int signal, siginfo_t *info, void *raw_context)
 		return;
 	}
 	ucontext_t *context = (ucontext_t *)raw_context;
-	int si_code = info->si_code;
-	if (si_code != SEGV_MAPERR && si_code != SEGV_ACCERR)
+	int sicode = info->si_code;
+	if (sicode != SEGV_MAPERR && sicode != SEGV_ACCERR)
 	{
 		// Huh? Return.
 		return;

@@ -5,7 +5,6 @@
 #ifndef _VIDEO_H_INCLUDED__
 #define _VIDEO_H_INCLUDED__
 
-#include "Common.h"
 #include "PluginSpecs.h"
 
 #include "ExportProlog.h"
@@ -14,7 +13,8 @@ typedef void (*TimedCallback)(u64 userdata, int cyclesLate);
 
 typedef void            (*TSetInterrupt)(u32 _causemask, bool _bSet);
 typedef int             (*TRegisterEvent)(const char *name, TimedCallback callback);
-typedef void            (*TScheduleEvent_Threadsafe)(int cyclesIntoFuture, int event_type, u64 userdata);
+typedef void            (*TScheduleEvent_Threadsafe)(int cyclesIntoFuture, int event_type, u64 userdata, bool fifoWait);
+typedef void            (*TRemoveEvent)(int event_type);
 typedef unsigned char*	(*TGetMemoryPointer)(const unsigned int  _iAddress);
 typedef void			(*TVideoLog)(const char* _pMessage, int _bBreak);
 typedef void			(*TSysMessage)(const char *fmt, ...);
@@ -71,13 +71,11 @@ typedef struct
 typedef struct
 {
 	void *pWindowHandle;
-#if defined(HAVE_X11) && HAVE_X11
-	void *pXWindow;
-#endif
 
     TSetInterrupt                   pSetInterrupt;
     TRegisterEvent                  pRegisterEvent;
     TScheduleEvent_Threadsafe       pScheduleEvent_Threadsafe;
+	TRemoveEvent					pRemoveEvent;
 	TGetMemoryPointer				pGetMemoryPointer;
 	TVideoLog						pLog;
 	TSysMessage						pSysMessage;
@@ -181,6 +179,15 @@ EXPORT void CALL Video_PixelEngineWrite16(const u16 _Data, const u32 _Address);
 EXPORT void CALL Video_PixelEngineWrite32(const u32 _Data, const u32 _Address);
 EXPORT void CALL Video_GatherPipeBursted(void);
 EXPORT void CALL Video_WaitForFrameFinish(void);
+
+// __________________________________________________________________________________________________
+// Function: Video_IsFifoBusy
+// Purpose:  Return if the FIFO is proecessing data, that is used for sync gfx thread and emulator
+//           thread in CoreTiming
+// input:    none
+// output:   bool
+//
+EXPORT bool CALL Video_IsFifoBusy(void);
 
 #include "ExportEpilog.h"
 #endif

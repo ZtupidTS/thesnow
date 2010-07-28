@@ -100,7 +100,7 @@ void CFrame::CreateMenu()
 {
 	if (GetMenuBar()) GetMenuBar()->Destroy();
 
-	m_MenuBar = new wxMenuBar(wxMB_DOCKABLE);
+	wxMenuBar *m_MenuBar = new wxMenuBar();
 
 	// file menu
 	wxMenu* fileMenu = new wxMenu;
@@ -177,7 +177,7 @@ void CFrame::CreateMenu()
 	if (g_pCodeWindow)
 	{
 		pOptionsMenu->AppendSeparator();
-		g_pCodeWindow->CreateMenuOptions(NULL, pOptionsMenu);	
+		g_pCodeWindow->CreateMenuOptions(pOptionsMenu);	
 	}
 	m_MenuBar->Append(pOptionsMenu, _T("选项(&O)"));
 
@@ -185,8 +185,8 @@ void CFrame::CreateMenu()
 	wxMenu* toolsMenu = new wxMenu;
 	toolsMenu->Append(IDM_LUA, _T("新 &Lua 控制台"));
 	toolsMenu->Append(IDM_MEMCARD, _T("内存卡管理器(GC)(&M)"));
-	toolsMenu->Append(IDM_IMPORTSAVE, _T("Wii 存档导入 (不稳定)"));
-	toolsMenu->Append(IDM_CHEATS, _T("动作回放管理器(&R)"));
+	toolsMenu->Append(IDM_IMPORTSAVE, _T("Wii 存档导入"));
+	toolsMenu->Append(IDM_CHEATS, _T("金手指管理器(&C)"));
 
 	toolsMenu->Append(IDM_NETPLAY, _T("开始网络游戏(&N)"));
 
@@ -196,7 +196,7 @@ void CFrame::CreateMenu()
 	}
 	else
 	{
-		toolsMenu->Append(IDM_INSTALL_WII_MENU, _T("Install Wii Menu"));
+		toolsMenu->Append(IDM_INSTALL_WII_MENU, _T("安装 Wii 菜单"));
 	}
 	toolsMenu->AppendSeparator();
 	toolsMenu->AppendCheckItem(IDM_CONNECT_WIIMOTE1, GetMenuLabel(HK_WIIMOTE1_CONNECT));
@@ -213,15 +213,35 @@ void CFrame::CreateMenu()
 	viewMenu->Check(IDM_TOGGLE_STATUSBAR, SConfig::GetInstance().m_InterfaceStatusbar);
 	viewMenu->AppendSeparator();
 	viewMenu->AppendCheckItem(IDM_LOGWINDOW, _T("显示日志窗口(&L)"));
-	viewMenu->Check(IDM_LOGWINDOW, SConfig::GetInstance().m_InterfaceLogWindow);
 	viewMenu->AppendCheckItem(IDM_CONSOLEWINDOW, _T("显示控制台(&C)"));
-	viewMenu->Check(IDM_CONSOLEWINDOW, SConfig::GetInstance().m_InterfaceConsole);
 	viewMenu->AppendSeparator();
 
 	if (g_pCodeWindow)
 	{
-		g_pCodeWindow->CreateMenuView(NULL, viewMenu);
+		viewMenu->Check(IDM_LOGWINDOW, g_pCodeWindow->bShowOnStart[0]);
+		viewMenu->Check(IDM_CONSOLEWINDOW, g_pCodeWindow->bShowOnStart[1]);
+
+		const wxString MenuText[] = {
+			wxT("&Registers"),
+			wxT("&Breakpoints"),
+			wxT("&Memory"),
+			wxT("&JIT"),
+			wxT("&Sound"),
+			wxT("&Video")
+		};
+
+		for (int i = IDM_REGISTERWINDOW; i <= IDM_VIDEOWINDOW; i++)
+		{
+			viewMenu->AppendCheckItem(i, MenuText[i - IDM_REGISTERWINDOW]);
+			viewMenu->Check(i, g_pCodeWindow->bShowOnStart[i - IDM_LOGWINDOW]);
+		}
+
 		viewMenu->AppendSeparator();
+	}
+	else
+	{
+		viewMenu->Check(IDM_LOGWINDOW, SConfig::GetInstance().m_InterfaceLogWindow);
+		viewMenu->Check(IDM_CONSOLEWINDOW, SConfig::GetInstance().m_InterfaceConsole);
 	}
 
 	wxMenu *platformMenu = new wxMenu;
@@ -367,6 +387,7 @@ void CFrame::RecreateToolbar()
 		m_ToolBar->Destroy();
 	}
 
+	long TOOLBAR_STYLE = wxAUI_TB_DEFAULT_STYLE | wxAUI_TB_TEXT  /*wxAUI_TB_OVERFLOW overflow visible*/;
 	m_ToolBar = new wxAuiToolBar(this, ID_TOOLBAR, wxDefaultPosition, wxDefaultSize, TOOLBAR_STYLE);
 
 	PopulateToolbar(m_ToolBar);
@@ -495,8 +516,6 @@ void CFrame::InitBitmaps()
 
 	// Update in case the bitmap has been updated
 	if (m_ToolBar != NULL) RecreateToolbar();
-
-	aNormalFile = wxArtProvider::GetBitmap(wxART_NORMAL_FILE, wxART_OTHER, wxSize(16,16));
 }
 
 // Menu items
@@ -702,8 +721,11 @@ void CFrame::OnRenderParentResize(wxSizeEvent& event)
 		int x, y;
 		m_RenderParent->GetSize(&width, &height);
 		m_RenderParent->GetPosition(&x, &y);
-		X11Utils::SendClientEvent("RESIZE", x, y, width, height);
+		X11Utils::SendClientEvent(X11Utils::XDisplayFromHandle(GetHandle()),
+			   	"RESIZE", x, y, width, height);
 #endif
+		m_LogWindow->Refresh();
+		m_LogWindow->Update();
 	}
 	event.Skip();
 }
@@ -800,7 +822,7 @@ void CFrame::StartGame(const std::string& filename)
 		wxTheApp->Connect(wxID_ANY, wxEVT_KEY_UP,
 				wxKeyEventHandler(CFrame::OnKeyUp),
 				(wxObject*)0, this);
-		m_RenderFrame->Connect(wxID_ANY, wxEVT_SIZE,
+		m_RenderParent->Connect(wxID_ANY, wxEVT_SIZE,
 				wxSizeEventHandler(CFrame::OnRenderParentResize),
 				(wxObject*)0, this);
 	}
@@ -880,12 +902,19 @@ void CFrame::DoStop()
 			Frame::EndRecordingInput();
 		if(Frame::IsPlayingInput())
 			Frame::EndPlayInput();
-	
+
+		// These windows cause segmentation faults if they are open when the emulator
+		// stops.  It has something to do with the the wxAuiManager update.
+		if (g_pCodeWindow)
+		{
+			g_pCodeWindow->ToggleDLLWindow(IDM_SOUNDWINDOW, false);
+			g_pCodeWindow->ToggleDLLWindow(IDM_VIDEOWINDOW, false);
+		}
+
 		Core::Stop();
-		UpdateGUI();
 
 		// Destroy the renderer frame when not rendering to main
-		m_RenderFrame->Disconnect(wxID_ANY, wxEVT_SIZE,
+		m_RenderParent->Disconnect(wxID_ANY, wxEVT_SIZE,
 				wxSizeEventHandler(CFrame::OnRenderParentResize),
 				(wxObject*)0, this);
 		wxTheApp->Disconnect(wxID_ANY, wxEVT_KEY_DOWN, // Keyboard
@@ -901,8 +930,17 @@ void CFrame::DoStop()
 			m_RenderFrame->Destroy();
 		m_RenderParent = NULL;
 
+		UpdateGUI();
+
 		// Clean framerate indications from the status bar.
 		m_pStatusBar->SetStatusText(wxT(" "), 0);
+
+		// Clear wiimote connection status from the status bar.
+		m_pStatusBar->SetStatusText(wxT(" "), 1);
+
+		// If batch mode was specified on the command-line, exit now.
+		if (m_bBatchMode)
+			Close(true);
 	}
 }
 
@@ -951,7 +989,8 @@ void CFrame::OnPluginPAD(wxCommandEvent& WXUNUSED (event))
 	else
 	{
 #if defined(HAVE_X11) && HAVE_X11
-		GCPad_Init(X11Utils::XDisplayFromHandle(GetHandle()));
+		Window win = X11Utils::XWindowFromHandle(GetHandle());
+		GCPad_Init((void *)win);
 #else
 		GCPad_Init(GetHandle());
 #endif
@@ -1053,7 +1092,7 @@ void CFrame::OnOpenLuaWindow(wxCommandEvent& WXUNUSED (event))
 
 void CFrame::OnShow_CheatsWindow(wxCommandEvent& WXUNUSED (event))
 {
-	CheatsWindow = new wxCheatsWindow(this, wxDefaultPosition, wxSize(600, 390));
+	CheatsWindow = new wxCheatsWindow(this);
 }
 
 void CFrame::OnLoadWiiMenu(wxCommandEvent& event)
@@ -1068,12 +1107,7 @@ void CFrame::OnLoadWiiMenu(wxCommandEvent& event)
 		wxString path = wxFileSelector(
 			_T("Select the System Menu wad extracted from the update partition of a disc"),
 			wxEmptyString, wxEmptyString, wxEmptyString,
-			wxString::Format
-			(
-					_T("System Menu wad|*.wad"),
-					wxFileSelectorDefaultWildcardStr,
-					wxFileSelectorDefaultWildcardStr
-			),
+			_T("System Menu (*.wad)|*.wad"),
 			wxFD_OPEN | wxFD_PREVIEW | wxFD_FILE_MUST_EXIST,
 			this);
 
@@ -1312,10 +1346,8 @@ void CFrame::UpdateGUI()
 			// Game has not started, show game list
 			if (!m_GameListCtrl->IsShown())
 			{
-				m_GameListCtrl->Reparent(m_Panel);
 				m_GameListCtrl->Enable();
 				m_GameListCtrl->Show();
-				sizerPanel->FitInside(m_Panel);
 			}
 			// Game has been selected but not started, enable play button
 			if (m_GameListCtrl->GetSelectedISO() != NULL && m_GameListCtrl->IsEnabled() && !m_bGameLoading)
@@ -1419,13 +1451,21 @@ void CFrame::DoToggleToolbar(bool _show)
 	if (_show)
 	{
 		m_Mgr->GetPane(wxT("TBMain")).Show();
-		if (g_pCodeWindow) { m_Mgr->GetPane(wxT("TBDebug")).Show(); m_Mgr->GetPane(wxT("TBAui")).Show(); }
+		if (g_pCodeWindow)
+	   	{
+		   	m_Mgr->GetPane(wxT("TBDebug")).Show();
+		   	m_Mgr->GetPane(wxT("TBAui")).Show();
+	   	}
 		m_Mgr->Update();
 	}
 	else
 	{
 		m_Mgr->GetPane(wxT("TBMain")).Hide();
-		if (g_pCodeWindow) { m_Mgr->GetPane(wxT("TBDebug")).Hide(); m_Mgr->GetPane(wxT("TBAui")).Hide(); }
+		if (g_pCodeWindow)
+	   	{
+		   	m_Mgr->GetPane(wxT("TBDebug")).Hide();
+		   	m_Mgr->GetPane(wxT("TBAui")).Hide();
+	   	}
 		m_Mgr->Update();
 	}
 }

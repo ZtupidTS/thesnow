@@ -35,6 +35,7 @@
 #include "IniFile.h"
 #include "PatchEngine.h"
 #include "ActionReplay.h"
+#include "GeckoCodeDiag.h"
 
 class CISOProperties : public wxDialog
 {
@@ -50,6 +51,9 @@ class CISOProperties : public wxDialog
 		virtual ~CISOProperties();
 
 		bool bRefreshList;
+
+		void ActionReplayList_Load();
+		bool SaveGameConfig();
 
 	private:
 
@@ -80,7 +84,7 @@ class CISOProperties : public wxDialog
 
 		wxStaticText *OverrideText;
 		// Core
-		wxCheckBox *CPUThread, *SkipIdle, *TLBHack, *BPHack;
+		wxCheckBox *CPUThread, *SkipIdle, *TLBHack;
 		// Wii
 		wxCheckBox *EnableProgressiveScan, *EnableWideScreen;
 		// Video
@@ -90,6 +94,8 @@ class CISOProperties : public wxDialog
 		wxStaticText *Hacktext;
 		wxArrayString arrayStringFor_Hack;
 		wxChoice *Hack;
+		wxStaticText *WMTightnessText;
+		wxTextCtrl *WMTightness;
 
 		wxButton *EditConfig;
 		wxStaticText *EmuStateText;
@@ -140,6 +146,8 @@ class CISOProperties : public wxDialog
 		wxTreeItemId RootId;
 		wxImageList *m_iconList;
 
+		Gecko::CodeConfigPanel *m_geckocode_panel;
+
 		enum
 		{
 			ID_CLOSE = 1000,
@@ -157,7 +165,6 @@ class CISOProperties : public wxDialog
 			ID_USEDUALCORE,
 			ID_IDLESKIP,
 			ID_TLBHACK,
-			ID_BPHACK,
 			ID_FORCEFILTERING,
 			ID_EFBCOPYDISABLE,
 			ID_EFBTOTEXTUREENABLE,
@@ -166,6 +173,8 @@ class CISOProperties : public wxDialog
 			ID_USEXFB,
 			ID_HACK_TEXT,
 			ID_HACK,
+			ID_WMTIGHTNESS_TEXT,
+			ID_WMTIGHTNESS,
 			ID_ENABLEPROGRESSIVESCAN,
 			ID_ENABLEWIDESCREEN,
 			ID_EDITCONFIG,
@@ -249,10 +258,8 @@ class CISOProperties : public wxDialog
 		std::string GameIniFile;
 
 		void LoadGameConfig();
-		bool SaveGameConfig();
 		void PatchList_Load();
 		void PatchList_Save();
-		void ActionReplayList_Load();
 		void ActionReplayList_Save();
 		void ChangeBannerDetails(int lang);
 };

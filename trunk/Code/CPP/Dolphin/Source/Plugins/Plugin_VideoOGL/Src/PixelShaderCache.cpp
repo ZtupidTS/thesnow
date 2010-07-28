@@ -20,9 +20,6 @@
 
 #include "GLUtil.h"
 
-#include <Cg/cg.h>
-#include <Cg/cgGL.h>
-
 #include <cmath>
 
 #include "Statistics.h"
@@ -45,7 +42,7 @@ GLuint PixelShaderCache::CurrentShader;
 bool PixelShaderCache::ShaderEnabled;
 
 static FRAGMENTSHADER* pShaderLast = NULL;
-static float lastPSconstants[C_COLORMATRIX+16][4];
+static float lastPSconstants[C_PENVCONST_END][4];
 
 
 void SetPSConstant4f(unsigned int const_number, float f1, float f2, float f3, float f4)
@@ -89,14 +86,20 @@ void PixelShaderCache::Init()
 	CurrentShader = 0;
 	GL_REPORT_ERRORD();
 
-	for (unsigned int i = 0; i < (C_COLORMATRIX+16) * 4; i++)
+	for (unsigned int i = 0; i < (C_PENVCONST_END) * 4; i++)
 		lastPSconstants[i/4][i%4] = -100000000.0f;
 	memset(&last_pixel_shader_uid, 0xFF, sizeof(last_pixel_shader_uid));
 
-    s_displayCompileAlert = true;
+	s_displayCompileAlert = true;
 
 	glGetProgramivARB(GL_FRAGMENT_PROGRAM_ARB, GL_MAX_PROGRAM_NATIVE_ALU_INSTRUCTIONS_ARB, (GLint *)&s_nMaxPixelInstructions);
-	
+#if CG_VERSION_NUM == 2100
+	if (strstr((const char*)glGetString(GL_VENDOR), "ATI") != NULL)
+	{
+		s_nMaxPixelInstructions = 4096;
+	}
+#endif
+
 	int maxinst, maxattribs;
 	glGetProgramivARB(GL_FRAGMENT_PROGRAM_ARB, GL_MAX_PROGRAM_NATIVE_INSTRUCTIONS_ARB, (GLint *)&maxinst);
 	glGetProgramivARB(GL_FRAGMENT_PROGRAM_ARB, GL_MAX_PROGRAM_NATIVE_ATTRIBS_ARB, (GLint *)&maxattribs);
@@ -242,6 +245,7 @@ bool PixelShaderCache::CompilePixelShader(FRAGMENTSHADER& ps, const char* pstrpr
 		ERROR_LOG(VIDEO, "glError %08x before PS!", err);
 	}
 
+#if defined HAVE_CG && HAVE_CG
 	char stropt[128];
 	sprintf(stropt, "MaxLocalParams=32,NumInstructionSlots=%d", s_nMaxPixelInstructions);
 	const char *opts[] = {"-profileopts", stropt, "-O2", "-q", NULL};
@@ -299,6 +303,7 @@ bool PixelShaderCache::CompilePixelShader(FRAGMENTSHADER& ps, const char* pstrpr
 	}
 
 	cgDestroyProgram(tempprog);
+#endif
 
 #if defined(_DEBUG) || defined(DEBUGFAST) 
 	ps.strprog = pstrprogram;
@@ -309,7 +314,6 @@ bool PixelShaderCache::CompilePixelShader(FRAGMENTSHADER& ps, const char* pstrpr
 //Disable Fragment programs and reset the selected Program
 void PixelShaderCache::DisableShader()
 {
-	CurrentShader = 0;
 	if(ShaderEnabled)
 	{		
 		glDisable(GL_FRAGMENT_PROGRAM_ARB);
@@ -325,11 +329,11 @@ void PixelShaderCache::SetCurrentShader(GLuint Shader)
 	{
 		glEnable(GL_FRAGMENT_PROGRAM_ARB);
 		ShaderEnabled = true;
-		CurrentShader =  0;
 	}
 	if(CurrentShader != Shader)
 	{
-		CurrentShader = Shader;
+		if(Shader != 0)
+			CurrentShader = Shader;
 		glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, CurrentShader);
 	}
 }

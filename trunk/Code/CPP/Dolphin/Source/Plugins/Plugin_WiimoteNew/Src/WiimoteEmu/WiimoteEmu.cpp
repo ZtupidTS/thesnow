@@ -10,20 +10,7 @@
 #include <Timer.h>
 #include <Common.h>
 
-// buttons
-
-#define WIIMOTE_PAD_LEFT		0x01
-#define WIIMOTE_PAD_RIGHT		0x02
-#define WIIMOTE_PAD_DOWN		0x04
-#define WIIMOTE_PAD_UP			0x08
-#define WIIMOTE_PLUS 			0x10
-
-#define WIIMOTE_TWO				0x0100
-#define WIIMOTE_ONE				0x0200
-#define WIIMOTE_B				0x0400
-#define WIIMOTE_A				0x0800
-#define WIIMOTE_MINUS	 		0x1000
-#define	WIIMOTE_HOME			0x8000
+#include "UDPTLayer.h"
 
 namespace WiimoteEmu
 {
@@ -36,9 +23,9 @@ static const u8 eeprom_data_0[] = {
 	0xA1, 0xAA, 0x8B, 0x99, 0xAE, 0x9E, 0x78, 0x30, 0xA7, /*0x74, 0xD3,*/ 0x00, 0x00,	// messing up the checksum on purpose
 	0xA1, 0xAA, 0x8B, 0x99, 0xAE, 0x9E, 0x78, 0x30, 0xA7, /*0x74, 0xD3,*/ 0x00, 0x00,
 	// Accelerometer
-	// 0g x,y,z, 1g x,y,z, 2 byte checksum
-	0x82, 0x82, 0x82, 0x15, 0x9C, 0x9C, 0x9E, 0x38, 0x40, 0x3E,
-	0x82, 0x82, 0x82, 0x15, 0x9C, 0x9C, 0x9E, 0x38, 0x40, 0x3E
+	// 0g x,y,z, 1g x,y,z, idk, last byte is a checksum
+	0x80, 0x80, 0x80, 0x00, 0x9A, 0x9A, 0x9A, 0x00, 0x40, 0xE3,
+	0x80, 0x80, 0x80, 0x00, 0x9A, 0x9A, 0x9A, 0x00, 0x40, 0xE3,
 };
 
 static const u8 motion_plus_id[] = { 0x00, 0x00, 0xA6, 0x20, 0x00, 0x05 };
@@ -49,7 +36,9 @@ static const u8 eeprom_data_16D0[] = {
 	0x77, 0x88, 0x00, 0x00, 0x2B, 0x01, 0xE8, 0x13
 };
 
-struct ReportFeatures
+#define SWING_INTENSITY		0x40
+
+static struct ReportFeatures
 {
 	u8		core, accel, ir, ext, size;
 } const reporting_mode_features[] = 
@@ -78,8 +67,8 @@ struct ReportFeatures
 };
 
 void EmulateShake( u8* const accel
-				  , ControllerEmu::Buttons* const buttons_group
-				  , unsigned int* const shake_step )
+	  , ControllerEmu::Buttons* const buttons_group
+	  , unsigned int* const shake_step )
 {
 	static const u8 shake_data[] = { 0x40, 0x01, 0x40, 0x80, 0xC0, 0xFF, 0xC0, 0x80 };
 	static const unsigned int btns[] = { 0x01, 0x02, 0x04 };
@@ -96,10 +85,10 @@ void EmulateShake( u8* const accel
 			shake_step[i] = 0;
 }
 
-void EmulateTilt( wm_accel* const accel
-				 , ControllerEmu::Tilt* const tilt_group
-				 , const accel_cal* const cal
-				 , bool focus, bool sideways, bool upright)
+void EmulateTilt(wm_accel* const accel
+	, ControllerEmu::Tilt* const tilt_group
+	, const accel_cal* const cal
+	, const bool focus, const bool sideways, const bool upright)
 {
 	float roll, pitch;
 	tilt_group->GetState( &roll, &pitch, 0, focus ? (PI / 2) : 0 ); // 90 degrees
@@ -114,46 +103,12 @@ void EmulateTilt( wm_accel* const accel
 	unsigned int	ud = 0, lr = 0, fb = 0;
 
 	// some notes that no one will understand but me :p
-
 	// left, forward, up
 	// lr/ left == negative for all orientations
 	// ud/ up == negative for upright longways
 	// fb/ forward == positive for (sideways flat)
 
-	//if (sideways)
-	//{
-	//	if (upright)
-	//	{
-	//		ud = 0;
-	//		lr = 1;
-	//		fb = 2;
-	//	}
-	//	else
-	//	{
-	//		ud = 2;
-	//		lr = 1;
-	//		fb = 0;
-	//		one_g[fb] *= -1;
-	//	}
-	//}
-	//else
-	//{
-	//	if (upright)
-	//	{
-	//		ud = 1;
-	//		lr = 0;
-	//		fb = 2;
-	//		one_g[ud] *= -1;
-	//	}
-	//	else
-	//	{
-	//		ud = 2;
-	//		lr = 0;
-	//		fb = 1;
-	//	}
-	//}
-
-	// this is the above statements compacted
+	// determine which axis is which direction
 	ud = upright ? (sideways ? 0 : 1) : 2;
 	lr = sideways;
 	fb = upright ? 2 : (sideways ? 0 : 1);
@@ -163,39 +118,68 @@ void EmulateTilt( wm_accel* const accel
 	if (!sideways && upright)
 		one_g[ud] *= -1;
 
-	(&accel->x)[ud] = u8(sin( (PI / 2) - std::max( abs(roll), abs(pitch) ) ) * one_g[ud] + zero_g[ud]);
+	(&accel->x)[ud] = u8(sin((PI / 2) -
+		std::max(fabsf(roll), fabsf(pitch))) * one_g[ud] + zero_g[ud]);
 	(&accel->x)[lr] = u8(sin(roll) * -one_g[lr] + zero_g[lr]);
 	(&accel->x)[fb] = u8(sin(pitch) * one_g[fb] + zero_g[fb]);
 }
 
-//void EmulateSwing()
-//{
-//
-//}
+void EmulateSwing(wm_accel* const accel
+	, ControllerEmu::Force* const swing_group
+	, const accel_cal* const cal
+	, const bool sideways, const bool upright)
+{
+	float swing[3];
+	swing_group->GetState(swing, 0, 2 * PI);
+
+	s8 g_dir[3] = {-1, -1, -1};
+	u8 axis_map[3];
+
+	// determine which axis is which direction
+	axis_map[0] = upright ? (sideways ? 0 : 1) : 2;	// up/down
+	axis_map[1] = sideways;	// left|right
+	axis_map[2] = upright ? 2 : (sideways ? 0 : 1);	// forward/backward
+
+	// some orientations have up as positive, some as negative
+	// same with forward
+	if (sideways && !upright)
+		g_dir[axis_map[2]] *= -1;
+	if (!sideways && upright)
+		g_dir[axis_map[0]] *= -1;
+
+	for (unsigned int i=0; i<3; ++i)
+	{
+		if (swing[i])
+		{
+			// sin() should create a nice curve for the swing data
+			(&accel->x)[axis_map[i]] += sin(swing[i]) * SWING_INTENSITY * g_dir[i];
+		}
+	}
+}
 
 const u16 button_bitmasks[] =
 {
-	WIIMOTE_A, WIIMOTE_B, WIIMOTE_ONE, WIIMOTE_TWO, WIIMOTE_MINUS, WIIMOTE_PLUS, WIIMOTE_HOME
+	Wiimote::BUTTON_A,
+	Wiimote::BUTTON_B,
+	Wiimote::BUTTON_ONE,
+	Wiimote::BUTTON_TWO,
+	Wiimote::BUTTON_MINUS,
+	Wiimote::BUTTON_PLUS,
+	Wiimote::BUTTON_HOME
 };
 
 const u16 dpad_bitmasks[] =
 {
-	WIIMOTE_PAD_UP, WIIMOTE_PAD_DOWN, WIIMOTE_PAD_LEFT, WIIMOTE_PAD_RIGHT
+	Wiimote::PAD_UP, Wiimote::PAD_DOWN, Wiimote::PAD_LEFT, Wiimote::PAD_RIGHT
 };
 const u16 dpad_sideways_bitmasks[] =
 {
-	WIIMOTE_PAD_RIGHT, WIIMOTE_PAD_LEFT, WIIMOTE_PAD_UP, WIIMOTE_PAD_DOWN
+	Wiimote::PAD_RIGHT, Wiimote::PAD_LEFT, Wiimote::PAD_UP, Wiimote::PAD_DOWN
 };
 
 const char* const named_buttons[] =
 {
-	"A",
-	"B",
-	"One",
-	"Two",
-	"Minus",
-	"Plus",
-	"Home",
+	"A", "B", "1", "2", "-", "+", "Home",
 };
 
 void Wiimote::Reset()
@@ -213,11 +197,11 @@ void Wiimote::Reset()
 	m_extension->active_extension = -1;
 
 	// eeprom
-	memset( m_eeprom, 0, sizeof(m_eeprom) );
+	memset(m_eeprom, 0, sizeof(m_eeprom));
 	// calibration data
-	memcpy( m_eeprom, eeprom_data_0, sizeof(eeprom_data_0) );
+	memcpy(m_eeprom, eeprom_data_0, sizeof(eeprom_data_0));
 	// dunno what this is for, copied from old plugin
-	memcpy( m_eeprom + 0x16D0, eeprom_data_16D0, sizeof(eeprom_data_16D0) );
+	memcpy(m_eeprom + 0x16D0, eeprom_data_16D0, sizeof(eeprom_data_16D0));
 
 	// set up the register
 	m_register.clear();
@@ -232,10 +216,10 @@ void Wiimote::Reset()
 	m_reg_ir			= (IrReg*)&m_register[0xB00000][0];
 
 	// testing
-	//memcpy( m_reg_motion_plus + 0xfa, motion_plus_id, sizeof(motion_plus_id) );
+	//memcpy(m_reg_motion_plus + 0xfa, motion_plus_id, sizeof(motion_plus_id));
 
 	// status
-	memset( &m_status, 0, sizeof(m_status) );
+	memset(&m_status, 0, sizeof(m_status));
 	// Battery levels in voltage
 	//   0x00 - 0x32: level 1
 	//   0x33 - 0x43: level 2
@@ -244,7 +228,6 @@ void Wiimote::Reset()
 	m_status.battery = 0x5f;
 
 	memset(m_shake_step, 0, sizeof(m_shake_step));
-	memset(m_swing_step, 0, sizeof(m_swing_step));
 
 	// clear read request queue
 	while (m_read_requests.size())
@@ -261,47 +244,50 @@ Wiimote::Wiimote( const unsigned int index )
 	// ---- set up all the controls ----
 
 	// buttons
-	groups.push_back( m_buttons = new Buttons( "Buttons" ) );
-	for ( unsigned int i=0; i < sizeof(named_buttons)/sizeof(*named_buttons); ++i )
-		m_buttons->controls.push_back( new ControlGroup::Input( named_buttons[i] ) );
+	groups.push_back(m_buttons = new Buttons("Buttons"));
+	for (unsigned int i=0; i < sizeof(named_buttons)/sizeof(*named_buttons); ++i)
+		m_buttons->controls.push_back(new ControlGroup::Input( named_buttons[i]));
 
 	// ir
-	groups.push_back( m_ir = new Cursor( "IR", &g_WiimoteInitialize ) );
-
-	// tilt
-	groups.push_back( m_tilt = new Tilt( "Tilt" ) );
+	groups.push_back(m_ir = new Cursor("IR", &g_WiimoteInitialize));
 
 	// swing
-	//groups.push_back( m_swing = new Force( "Swing" ) );
+	groups.push_back(m_swing = new Force("Swing"));
+
+	// tilt
+	groups.push_back(m_tilt = new Tilt("Tilt"));
+
+	// udp 
+	groups.push_back(m_udp = new UDPWrapper(m_index, "UDP Wiimote"));
 
 	// shake
-	groups.push_back( m_shake = new Buttons( "Shake" ) );
-	m_shake->controls.push_back( new ControlGroup::Input( "X" ) );
-	m_shake->controls.push_back( new ControlGroup::Input( "Y" ) );
-	m_shake->controls.push_back( new ControlGroup::Input( "Z" ) );
+	groups.push_back(m_shake = new Buttons("Shake"));
+	m_shake->controls.push_back(new ControlGroup::Input("X"));
+	m_shake->controls.push_back(new ControlGroup::Input("Y"));
+	m_shake->controls.push_back(new ControlGroup::Input("Z"));
 
 	// extension
-	groups.push_back( m_extension = new Extension( "Extension" ) );
-	m_extension->attachments.push_back( new WiimoteEmu::None() );
-	m_extension->attachments.push_back( new WiimoteEmu::Nunchuk() );
-	m_extension->attachments.push_back( new WiimoteEmu::Classic() );
-	m_extension->attachments.push_back( new WiimoteEmu::Guitar() );
-	m_extension->attachments.push_back( new WiimoteEmu::Drums() );
+	groups.push_back(m_extension = new Extension("Extension"));
+	m_extension->attachments.push_back(new WiimoteEmu::None());
+	m_extension->attachments.push_back(new WiimoteEmu::Nunchuk(m_udp));
+	m_extension->attachments.push_back(new WiimoteEmu::Classic());
+	m_extension->attachments.push_back(new WiimoteEmu::Guitar());
+	m_extension->attachments.push_back(new WiimoteEmu::Drums());
 
 	// rumble
-	groups.push_back( m_rumble = new ControlGroup( "Rumble" ) );
-	m_rumble->controls.push_back( new ControlGroup::Output( "Motor" ) );
+	groups.push_back(m_rumble = new ControlGroup("Rumble"));
+	m_rumble->controls.push_back(new ControlGroup::Output("Motor"));
 
 	// dpad
-	groups.push_back( m_dpad = new Buttons( "D-Pad" ) );
-	for ( unsigned int i=0; i < 4; ++i )
-		m_dpad->controls.push_back( new ControlGroup::Input( named_directions[i] ) );
+	groups.push_back(m_dpad = new Buttons("D-Pad"));
+	for (unsigned int i=0; i < 4; ++i)
+		m_dpad->controls.push_back(new ControlGroup::Input(named_directions[i]));
 
 	// options
-	groups.push_back( m_options = new ControlGroup( "Options" ) );
-	m_options->settings.push_back( new ControlGroup::Setting( "Background Input", false ) );
-	m_options->settings.push_back( new ControlGroup::Setting( "Sideways Wiimote", false ) );
-	m_options->settings.push_back( new ControlGroup::Setting( "Upright Wiimote", false ) );
+	groups.push_back( m_options = new ControlGroup("Options"));
+	m_options->settings.push_back(new ControlGroup::Setting("Background Input", false));
+	m_options->settings.push_back(new ControlGroup::Setting("Sideways Wiimote", false));
+	m_options->settings.push_back(new ControlGroup::Setting("Upright Wiimote", false));
 	
 #ifdef USE_WIIMOTE_EMU_SPEAKER
 	// set up speaker stuff
@@ -385,9 +371,14 @@ void Wiimote::Update()
 	m_status.buttons = 0;
 	if (is_focus)
 	{
-		m_buttons->GetState( &m_status.buttons, button_bitmasks );
-		m_dpad->GetState( &m_status.buttons, is_sideways ? dpad_sideways_bitmasks : dpad_bitmasks );
+		m_buttons->GetState(&m_status.buttons, button_bitmasks);
+		m_dpad->GetState(&m_status.buttons, is_sideways ? dpad_sideways_bitmasks : dpad_bitmasks);
+		UDPTLayer::GetButtons(m_udp, &m_status.buttons);
 	}
+	
+	// no channel == not connected i guess
+	if (0 == m_reporting_channel)
+		return;
 
 	// check if there is a read data request
 	if (m_read_requests.size())
@@ -452,98 +443,88 @@ void Wiimote::Update()
 	if (rpt.accel)
 	{
 		// ----TILT----
-		EmulateTilt((wm_accel*)&data[rpt.accel], m_tilt, (accel_cal*)&m_eeprom[0x16], is_focus, is_sideways, is_upright );
+		EmulateTilt((wm_accel*)&data[rpt.accel], m_tilt, (accel_cal*)&m_eeprom[0x16], is_focus, is_sideways, is_upright);
 
 		// ----SWING----
-		//const s8 swing_data[] = { 0x20, 0x40, 0x20, 0x00 };
-		//u8 swing[3];
-		//m_swing->GetState( swing, 0x80, 0x40 );
-
-		//// up/down
-		//if (swing[0] != 0x80)
-		//{
-		//	//data[rpt.accel + 0] = swing[0];
-		//	data[rpt.accel + 2] += swing_data[m_swing_step[0]/4];
-		//	if (m_swing_step[0] < 12)
-		//		++m_swing_step[0];
-		//}
-		//else
-		//	m_swing_step[0] = 0;
-
-		//// left/right
-		//if (swing[1] != 0x80)
-		//	data[rpt.accel + !is_sideways] = swing[1];
-
-		//// forward/backward
-		//if (swing[2] != 0x80)
-		//	data[rpt.accel + is_sideways] = swing[2];
-
 		// ----SHAKE----
 		if (is_focus)
+		{
+			EmulateSwing((wm_accel*)&data[rpt.accel], m_swing, (accel_cal*)&m_eeprom[0x16], is_sideways, is_upright);
 			EmulateShake(data + rpt.accel, m_shake, m_shake_step);
-
+			// UDP Wiimote
+			UDPTLayer::GetAcceleration(m_udp, (wm_accel*)&data[rpt.accel], (accel_cal*)&m_eeprom[0x16]);
+		}
 	}
 
 	// ----ir----
 	if (rpt.ir)
 	{
 		float xx = 10000, yy = 0, zz = 0;
+		unsigned int x[4], y[4];
 
 		if (is_focus)
+		{
 			m_ir->GetState(&xx, &yy, &zz, true);
+			UDPTLayer::GetIR(m_udp, &xx, &yy, &zz);
 
-		xx *= (-256 * 0.95f);
-		xx += 512;
+			float tx, ty;
+			m_tilt->GetState(&tx, &ty, 0, 1, false);
 
-		yy *= (-256 * 0.90f);
-		yy += 490;
+			// TODO: fix tilt math stuff
 
-		const unsigned int distance = (unsigned int)(200 + 100 * zz);
+			const float rtan = tan(0.0f/*tx*/);	// disabled cause my math fails
+			const float rsin = sin(rtan);
+			const float rcos = cos(rtan);
 
-		// TODO: make roll affect the dot positions
-		const unsigned int y = (unsigned int)yy;
+			{
+				const float xxx = (xx * -256 * 0.95f);
+				const float yyy = (yy * -256 * 0.90f);
 
-		unsigned int x[4];
-		x[0] = (unsigned int)(xx - distance);
-		x[1] = (unsigned int)(xx + distance);
-		x[2] = (unsigned int)(xx - 1.2f * distance);
-		x[3] = (unsigned int)(xx + 1.2f * distance);
-		
-		// 0xFF report / these memsets are silly
-		if (rpt.ext)
-			memset(data + rpt.ir, 0xFF, (rpt.ext - rpt.ir));
-		else 
-			memset(data + rpt.ir, 0xFF, (46 - rpt.ir));
+				xx = 512 + xxx * rcos + yyy * rsin;
+				yy = 490 + yyy * rcos + xxx * rsin;
+			}
+
+			const unsigned int distance = (unsigned int)(200 + 100 * zz);
+
+			x[0] = (unsigned int)(xx - distance * rcos);
+			x[1] = (unsigned int)(xx + distance * rcos);
+			x[2] = (unsigned int)(xx - 1.2f * distance * rcos);
+			x[3] = (unsigned int)(xx + 1.2f * distance * rcos);
+
+			y[0] = (unsigned int)(yy - 0.75 * distance * rsin);
+			y[1] = (unsigned int)(yy + 0.75 * distance * rsin);
+			y[2] = (unsigned int)(yy - 0.75 * 1.2f * distance * rsin);
+			y[3] = (unsigned int)(yy + 0.75 * 1.2f * distance * rsin);
+
+		}
 
 		// Fill report with valid data when full handshake was done
-		if (m_reg_ir->data[0x30] || m_reg_ir->data[0x33])
+		if (m_reg_ir->data[0x30])
 		// ir mode
 		switch (m_reg_ir->mode)
 		{
 		// basic
 		case 1 :
 			{
+			memset(data + rpt.ir, 0xFF, 10);
 			wm_ir_basic* const irdata = (wm_ir_basic*)(data + rpt.ir);
-			if (y < 768)
+			for (unsigned int i=0; i<2; ++i)
 			{
-				for ( unsigned int i=0; i<2; ++i )
+				if (x[i*2] < 1024 && y[i*2] < 768) 
 				{
-					if (x[i*2] < 1024)
-					{
-						irdata[i].x1 = u8(x[i*2]);
-						irdata[i].x1hi = x[i*2] >> 8;
+					irdata[i].x1 = u8(x[i*2]);
+					irdata[i].x1hi = x[i*2] >> 8;
 
-						irdata[i].y1 = u8(y);
-						irdata[i].y1hi = y >> 8;
-					}
-					if (x[i*2+1] < 1024)
-					{
-						irdata[i].x2 = u8(x[i*2+1]);
-						irdata[i].x2hi = x[i*2+1] >> 8;
+					irdata[i].y1 = u8(y[i*2]);
+					irdata[i].y1hi = y[i*2] >> 8;
+				}
+				if (x[i*2+1] < 1024 && y[i*2+1] < 768)
+				{
+					irdata[i].x2 = u8(x[i*2+1]);
+					irdata[i].x2hi = x[i*2+1] >> 8;
 
-						irdata[i].y2 = u8(y);
-						irdata[i].y2hi = y >> 8;
-					}
+					irdata[i].y2 = u8(y[i*2+1]);
+					irdata[i].y2hi = y[i*2+1] >> 8;
 				}
 			}
 			}
@@ -551,21 +532,19 @@ void Wiimote::Update()
 		// extended
 		case 3 :
 			{
+			memset(data + rpt.ir, 0xFF, 12);
 			wm_ir_extended* const irdata = (wm_ir_extended*)(data + rpt.ir);
-			if (y < 768)
-			{
-				for ( unsigned int i=0; i<4; ++i )
-					if (x[i] < 1024)
-					{
-						irdata[i].x = u8(x[i]);
-						irdata[i].xhi = x[i] >> 8;
+			for (unsigned int i=0; i<4; ++i)
+				if (x[i] < 1024 && y[i] < 768)
+				{
+					irdata[i].x = u8(x[i]);
+					irdata[i].xhi = x[i] >> 8;
 
-						irdata[i].y = u8(y);
-						irdata[i].yhi = y >> 8;
+					irdata[i].y = u8(y[i]);
+					irdata[i].yhi = y[i] >> 8;
 
-						irdata[i].size = 10;
-					}
-			}
+					irdata[i].size = 10;
+				}
 			}
 			break;
 		// full
@@ -594,7 +573,6 @@ void Wiimote::Update()
 
 void Wiimote::ControlChannel(const u16 _channelID, const void* _pData, u32 _Size) 
 {
-
 	// Check for custom communication
 	if (99 == _channelID)
 	{
@@ -605,6 +583,9 @@ void Wiimote::ControlChannel(const u16 _channelID, const void* _pData, u32 _Size
 		Reset();
 		return;
 	}
+
+	// this all good?
+	m_reporting_channel = _channelID;
 
 	hid_packet* hidp = (hid_packet*)_pData;
 
@@ -647,6 +628,9 @@ void Wiimote::ControlChannel(const u16 _channelID, const void* _pData, u32 _Size
 
 void Wiimote::InterruptChannel(const u16 _channelID, const void* _pData, u32 _Size)
 {
+	// this all good?
+	m_reporting_channel = _channelID;
+
 	hid_packet* hidp = (hid_packet*)_pData;
 
 	switch (hidp->type)
@@ -671,6 +655,57 @@ void Wiimote::InterruptChannel(const u16 _channelID, const void* _pData, u32 _Si
 		PanicAlert("HidInput: Unknown type 0x%02x and param 0x%02x", hidp->type, hidp->param);
 		break;
 	}
+}
+
+void Wiimote::LoadDefaults(const ControllerInterface& ciface)
+{
+	#define set_control(group, num, str)	(group)->controls[num]->control_ref->expression = (str)
+
+	ControllerEmu::LoadDefaults(ciface);
+
+	// TODO: finish this
+
+	// Buttons
+	// these alright for OSX/Linux?
+
+	set_control(m_buttons, 0, "Button 0");		// A
+	set_control(m_buttons, 1, "Button 1");		// B
+	//set_control(m_buttons, 2, "");		// 1
+	//set_control(m_buttons, 3, "");		// 2
+	//set_control(m_buttons, 4, "");		// -
+	//set_control(m_buttons, 5, "");		// +
+	//set_control(m_buttons, 6, "");		// Start
+
+	// Shake
+	for (unsigned int i=0; i<3; ++i)
+		set_control(m_shake, i, "Button 2");
+
+	// IR
+#ifndef __APPLE__
+	set_control(m_ir, 0, "Cursor Y-");
+	set_control(m_ir, 1, "Cursor Y+");
+	set_control(m_ir, 2, "Cursor X-");
+	set_control(m_ir, 3, "Cursor X+");
+#endif
+
+	// DPad
+#ifdef _WIN32
+	set_control(m_dpad, 0, "UP");			// Up
+	set_control(m_dpad, 1, "DOWN");		// Down
+	set_control(m_dpad, 2, "LEFT");		// Left
+	set_control(m_dpad, 3, "RIGHT");		// Right
+#elif __APPLE__
+	set_control(m_dpad, 0, "Up Arrow");		// Up
+	set_control(m_dpad, 1, "Down Arrow");		// Down
+	set_control(m_dpad, 2, "Left Arrow");		// Left
+	set_control(m_dpad, 3, "Right Arrow");	// Right
+#else
+	set_control(m_dpad, 0, "Up");		// Up
+	set_control(m_dpad, 1, "Down");		// Down
+	set_control(m_dpad, 2, "Left");		// Left
+	set_control(m_dpad, 3, "Right");	// Right
+#endif
+
 }
 
 // TODO: i need to test this
@@ -778,4 +813,3 @@ void Wiimote::Register::Write( size_t address, void* src, size_t length )
 }
 
 }
-

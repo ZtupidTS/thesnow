@@ -78,6 +78,17 @@ void Jit64AsmRoutineManager::Generate()
 			// The result of slice decrementation should be in flags if somebody jumped here
 			// IMPORTANT - We jump on negative, not carry!!!
 			FixupBranch bail = J_CC(CC_BE);
+
+			if (Core::g_CoreStartupParameter.bEnableDebugging)
+			{
+				ABI_CallFunction(reinterpret_cast<void *>(&PowerPC::CheckBreakPoints));
+				TEST(32, M((void*)PowerPC::GetStatePtr()), Imm32(0xFFFFFFFF));
+				FixupBranch noBreakpoint = J_CC(CC_Z);
+				ABI_PopAllCalleeSavedRegsAndAdjustStack();
+				RET();
+				SetJumpTarget(noBreakpoint);
+			}
+
 			SetJumpTarget(skipToRealDispatch);
 
 			dispatcherNoCheck = GetCodePtr();
@@ -114,11 +125,6 @@ void Jit64AsmRoutineManager::Generate()
 			MOV(32, R(ABI_PARAM1), M(&PowerPC::ppcState.pc));
 			CALL((void *)&Jit);
 #endif
-#ifdef JIT_NO_CACHE
-			TEST(32, M((void*)PowerPC::GetStatePtr()), Imm32(0xFFFFFFFF));
-			FixupBranch notRunning = J_CC(CC_NZ);
-#endif
-
 			JMP(dispatcherNoCheck); // no point in special casing this
 
 			//FP blocks test for FPU available, jump here if false
@@ -131,9 +137,6 @@ void Jit64AsmRoutineManager::Generate()
 			MOV(32, M(&PC), R(EAX));
 			JMP(dispatcher);
 
-#ifdef JIT_NO_CACHE
-			SetJumpTarget(notRunning);
-#endif
 		SetJumpTarget(bail);
 		doTiming = GetCodePtr();
 
@@ -195,8 +198,8 @@ void Jit64AsmRoutineManager::Generate()
 			MOV(32, R(EAX), MComplex(RSI, EAX, SCALE_1, 0));
 #endif
 
-			SetJumpTarget(getinst);
 			SetJumpTarget(getinst2);
+			SetJumpTarget(getinst);
 #else
 #ifdef _M_IX86
 			AND(32, R(EAX), Imm32(Memory::MEMVIEW32_MASK));
@@ -219,35 +222,6 @@ void Jit64AsmRoutineManager::Generate()
 
 void Jit64AsmRoutineManager::GenerateCommon()
 {
-	// USES_CR
-	computeRc = AlignCode16();
-	CMP(32, R(EAX), Imm8(0));
-	FixupBranch pLesser  = J_CC(CC_L);
-	FixupBranch pGreater = J_CC(CC_G);
-	MOV(8, M(&PowerPC::ppcState.cr_fast[0]), Imm8(0x2)); // _x86Reg == 0
-	FixupBranch continue1 = J();
-	
-	SetJumpTarget(pGreater);
-	MOV(8, M(&PowerPC::ppcState.cr_fast[0]), Imm8(0x4)); // _x86Reg > 0
-	FixupBranch continue2 = J();
-	
-	SetJumpTarget(pLesser);
-	MOV(8, M(&PowerPC::ppcState.cr_fast[0]), Imm8(0x8)); // _x86Reg < 0
-	
-	SetJumpTarget(continue1);
-	SetJumpTarget(continue2);
-	
-	// cr[0] |= SPR_XER & 1
-	
-	/*MOV(32, R(EAX), M(&PowerPC::ppcState.spr[SPR_XER]));
-		
-	AND(32, R(EAX), Imm32(1));
-	
-	MOVSX(32, 8, ECX, M(&PowerPC::ppcState.cr_fast[0]));
-	OR(32, R(ECX), R(EAX));
-	MOV(8, M(&PowerPC::ppcState.cr_fast[0]), R(ECX));*/
-	RET();
-	
 	fifoDirectWrite8 = AlignCode4();
 	GenFifoWrite(8);
 	fifoDirectWrite16 = AlignCode4();

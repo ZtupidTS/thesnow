@@ -21,6 +21,10 @@
 #include "Common.h"
 #include "Timer.h"
 
+#ifdef _WIN32
+#include "clrun.h"
+#endif
+
 namespace OpenCL
 {
 
@@ -40,8 +44,17 @@ bool Initialize()
 #if defined(HAVE_OPENCL) && HAVE_OPENCL
 	if(g_context)
 		return false;
-	int err;                            // error code returned from api calls
-	
+	int err;			// error code returned from api calls
+
+#ifdef _WIN32
+	clrInit();
+	if(!clrHasOpenCL())
+		return false;
+#endif
+	// If OpenCL is weakly linked and not found, its symbols will be NULL
+	if (clGetPlatformIDs == NULL)
+		return false;
+
 	// Connect to a compute device
 	cl_uint numPlatforms;
 	cl_platform_id platform = NULL;
@@ -53,7 +66,7 @@ bool Initialize()
 		return false;
 	}
 
-	if (0 < numPlatforms) 
+	if (0 < numPlatforms)
 	{
 		cl_platform_id* platforms = new cl_platform_id[numPlatforms];
 		err = clGetPlatformIDs(numPlatforms, platforms, NULL);
@@ -93,7 +106,7 @@ bool Initialize()
 		return false;
 	}
 
-	// Create a compute context 
+	// Create a compute context
 	g_context = clCreateContext(cprops, 1, &device_id, NULL, NULL, &err);
 	if (!g_context)
 	{
@@ -163,7 +176,9 @@ cl_kernel CompileKernel(cl_program program, const char *Function)
 	cl_kernel kernel = clCreateKernel(program, Function, &err);
 	if (!kernel || err != CL_SUCCESS)
 	{
-		HandleCLError(err, "Failed to create compute kernel!");
+		char buffer[1024];
+		sprintf(buffer, "Failed to create compute kernel '%s' !", Function);
+		HandleCLError(err, buffer);
 		return NULL;
 	}
 	NOTICE_LOG(COMMON, "OpenCL CompileKernel took %.3f seconds", (float)(Common::Timer::GetTimeMs() - compileStart) / 1000.0);
@@ -176,7 +191,7 @@ void Destroy()
 #if defined(HAVE_OPENCL) && HAVE_OPENCL
 	if(!g_context)
 		return;
-	clReleaseCommandQueue(g_cmdq); 
+	clReleaseCommandQueue(g_cmdq);
 	clReleaseContext(g_context);
 	g_context = NULL;
 	g_cmdq = NULL;

@@ -139,14 +139,14 @@ void X11_MainLoop()
 		updateMainFrameEvent.Wait();
 
 	Display *dpy = XOpenDisplay(0);
-	Window win = *(Window *)Core::GetXWindow();
+	Window win = (Window)Core::GetWindowHandle();
 	XSelectInput(dpy, win, KeyPressMask | KeyReleaseMask | FocusChangeMask);
 
 #if defined(HAVE_XRANDR) && HAVE_XRANDR
 	X11Utils::XRRConfiguration *XRRConfig = new X11Utils::XRRConfiguration(dpy, win);
 #endif
 
-	Cursor blankCursor = NULL;
+	Cursor blankCursor = None;
 	if (SConfig::GetInstance().m_LocalCoreStartupParameter.bHideCursor)
 	{
 		// make a blank cursor
@@ -161,7 +161,7 @@ void X11_MainLoop()
 
 	if (fullscreen)
 	{
-		X11Utils::EWMH_Fullscreen(_NET_WM_STATE_TOGGLE);
+		X11Utils::EWMH_Fullscreen(dpy, _NET_WM_STATE_TOGGLE);
 #if defined(HAVE_XRANDR) && HAVE_XRANDR
 		XRRConfig->ToggleDisplayMode(True);
 #endif
@@ -197,7 +197,7 @@ void X11_MainLoop()
 					else if ((key == XK_Return) && (event.xkey.state & Mod1Mask))
 					{
 						fullscreen = !fullscreen;
-						X11Utils::EWMH_Fullscreen(_NET_WM_STATE_TOGGLE);
+						X11Utils::EWMH_Fullscreen(dpy, _NET_WM_STATE_TOGGLE);
 #if defined(HAVE_XRANDR) && HAVE_XRANDR
 						XRRConfig->ToggleDisplayMode(fullscreen);
 #endif
@@ -322,13 +322,12 @@ int appleMain(int argc, char *argv[]);
 
 int main(int argc, char *argv[])
 {
+	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 
 	cocoaArgc = argc;
 	cocoaArgv = argv;
 
 	cocoaCreateApp();
-
-	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 
 	CocoaThread *thread = [[CocoaThread alloc] init];
 	NSEvent *event = [[NSEvent alloc] init];	
@@ -357,10 +356,6 @@ int main(int argc, char *argv[])
 
 int appleMain(int argc, char *argv[])
 #else
-// Include SDL header so it can hijack main().
-#if defined(USE_SDL) && USE_SDL
-#include <SDL.h>
-#endif
 int main(int argc, char* argv[])
 #endif
 {
@@ -379,7 +374,6 @@ int main(int argc, char* argv[])
 	updateMainFrameEvent.Init();
 
 	LogManager::Init();
-	EventHandler::Init();
 	SConfig::Init();
 	CPluginManager::Init();
 
@@ -402,7 +396,6 @@ int main(int argc, char* argv[])
 
 	CPluginManager::Shutdown();
 	SConfig::Shutdown();
-	EventHandler::Shutdown();
 	LogManager::Shutdown();
 
 	cmdline_parser_free (&args_info);

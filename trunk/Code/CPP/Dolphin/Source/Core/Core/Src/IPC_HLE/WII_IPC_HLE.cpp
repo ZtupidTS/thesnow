@@ -38,6 +38,7 @@ They will also generate a true or false return for UpdateInterrupts() in WII_IPC
 #include <list>
 
 #include "Common.h"
+#include "CommonPaths.h"
 #include "WII_IPC_HLE.h"
 #include "WII_IPC_HLE_Device.h"
 #include "WII_IPC_HLE_Device_Error.h"
@@ -109,7 +110,7 @@ void Reset(bool _bHard)
 		if (itr->second)
 		{
 			// Force close
-			itr->second->Close(NULL, true);
+			itr->second->Close(0, true);
 			// Hardware should not be deleted unless it is a hard reset
 			if (_bHard || !itr->second->IsHardware())
 				delete itr->second;

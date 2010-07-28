@@ -354,7 +354,7 @@ void SetToken(const u16 _token, const int _bSetTokenAcknowledge)
 		// This seems smelly...
 		CommandProcessor::IncrementGPWDToken(); // for DC watchdog hack since PEToken seems to be a frame-finish too
 		g_VideoInitialize.pScheduleEvent_Threadsafe(
-			0, et_SetTokenOnMainThread, _token | (_bSetTokenAcknowledge << 16));
+			0, et_SetTokenOnMainThread, _token | (_bSetTokenAcknowledge << 16), true);
 	}
 	else // set token value
 	{
@@ -373,8 +373,24 @@ void SetFinish()
 {
 	CommandProcessor::IncrementGPWDToken(); // for DC watchdog hack
 	g_VideoInitialize.pScheduleEvent_Threadsafe(
-		0, et_SetFinishOnMainThread, 0);
+		0, et_SetFinishOnMainThread, 0, true);
 	INFO_LOG(PIXELENGINE, "VIDEO Set Finish");
+}
+
+//This function is used in CommandProcessor when write CTRL_REGISTER and the new fifo is attached.
+void ResetSetFinish()
+{
+	//if SetFinish happened but PE_CTRL_REGISTER not, I reset the interrupt else
+	//remove event from the queque
+	if (g_bSignalFinishInterrupt)
+	{
+		g_VideoInitialize.pSetInterrupt(INT_CAUSE_PE_FINISH, false);
+		g_bSignalFinishInterrupt = false;
+		
+	}else
+	{
+		g_VideoInitialize.pRemoveEvent(et_SetFinishOnMainThread);
+	}
 }
 
 } // end of namespace PixelEngine

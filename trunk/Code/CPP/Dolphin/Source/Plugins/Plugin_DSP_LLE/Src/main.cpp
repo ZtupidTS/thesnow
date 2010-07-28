@@ -16,7 +16,8 @@
 // http://code.google.com/p/dolphin-emu/
 
 
-#include "Common.h" // Common
+#include "Common.h"
+#include "CommonPaths.h"
 #include "Atomic.h"
 #include "CommonTypes.h"
 #include "LogManager.h"
@@ -201,16 +202,13 @@ void EmuStateChange(PLUGIN_EMUSTATE newState)
 	DSP_ClearAudioBuffer((newState == PLUGIN_EMUSTATE_PLAY) ? false : true);
 }
 
-void DllDebugger(HWND _hParent, bool Show)
+void *DllDebugger(void *_hParent, bool Show)
 {
 #if defined(HAVE_WX) && HAVE_WX
-	if (!m_DebuggerFrame)
-		m_DebuggerFrame = new DSPDebuggerLLE(GetParentedWxWindow(_hParent));
-
-	if (Show)
-		m_DebuggerFrame->Show();
-	else
-		m_DebuggerFrame->Hide();
+	m_DebuggerFrame = new DSPDebuggerLLE((wxWindow *)_hParent);
+	return (void *)m_DebuggerFrame;
+#else
+	return NULL;
 #endif
 }
 
@@ -222,16 +220,9 @@ THREAD_RETURN dsp_thread(void* lpParameter)
 	{
 		int cycles = (int)cycle_count;
 		if (cycles > 0) {
-			if (jit)
-			{
-				cycles -= DSPCore_RunCycles(cycles);
-			}
-			else {
-				cycles -= DSPInterpreter::RunCycles(cycles);
-			}
+			cycles -= jit ?  DSPCore_RunCycles(cycles) : DSPInterpreter::RunCycles(cycles);
 			Common::AtomicAdd(cycle_count, -cycles);
 		}
-
 		// yield?
 	}
 	return 0;

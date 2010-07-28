@@ -30,7 +30,6 @@
 #include "Thread.h"
 #include "CoreParameter.h"
 
-
 class JitBlockList : public wxListCtrl
 {
 	std::vector<int> block_ranking;
@@ -40,17 +39,15 @@ public:
 	void Update();
 };
 
-
 class CJitWindow : public wxPanel
 {
 public:
 	CJitWindow(wxWindow* parent,
 		wxWindowID id = wxID_ANY,
-		const wxString& title = _T("JIT block viewer"),
-		const wxPoint& pos = wxPoint(950, 100),
-		const wxSize& size = wxSize(400, 500),
-		long style = wxNO_BORDER);
-    ~CJitWindow();
+		const wxPoint& pos = wxDefaultPosition,
+		const wxSize& size = wxDefaultSize,
+		long style = wxTAB_TRAVERSAL | wxBORDER_NONE,
+		const wxString& name = _T("JIT block viewer"));
 
 	static void ViewAddr(u32 em_address);
 	void Update();

@@ -17,18 +17,14 @@
 
 #include "X11Utils.h"
 
-#if defined(HAVE_XRANDR) && HAVE_XRANDR
-#endif
-
 namespace X11Utils
 {
 
-void SendClientEvent(const char *message,
+void SendClientEvent(Display *dpy, const char *message,
 	   	int data1, int data2, int data3, int data4)
 {
 	XEvent event;
-	Display *dpy = (Display *)Core::GetWindowHandle();
-	Window win = *(Window *)Core::GetXWindow();
+	Window win = (Window)Core::GetWindowHandle();
 
 	// Init X event structure for client message
 	event.xclient.type = ClientMessage;
@@ -41,14 +37,13 @@ void SendClientEvent(const char *message,
 
 	// Send the event
 	if (!XSendEvent(dpy, win, False, False, &event))
-		ERROR_LOG(VIDEO, "Failed to send message %s to the emulator window.\n", message);
+		ERROR_LOG(VIDEO, "Failed to send message %s to the emulator window.", message);
 }
 
-void SendKeyEvent(int key)
+void SendKeyEvent(Display *dpy, int key)
 {
 	XEvent event;
-	Display *dpy = (Display *)Core::GetWindowHandle();
-	Window win = *(Window *)Core::GetXWindow();
+	Window win = (Window)Core::GetWindowHandle();
 
 	// Init X event structure for key press event
 	event.xkey.type = KeyPress;
@@ -58,16 +53,15 @@ void SendKeyEvent(int key)
 
 	// Send the event
 	if (!XSendEvent(dpy, win, False, False, &event))
-		ERROR_LOG(VIDEO, "Failed to send key press event to the emulator window.\n");
+		ERROR_LOG(VIDEO, "Failed to send key press event to the emulator window.");
 }
 
-void EWMH_Fullscreen(int action)
+void EWMH_Fullscreen(Display *dpy, int action)
 {
 	_assert_(action == _NET_WM_STATE_REMOVE || action == _NET_WM_STATE_ADD
 			|| action == _NET_WM_STATE_TOGGLE);
 
-	Display *dpy = (Display *)Core::GetWindowHandle();
-	Window win = *(Window *)Core::GetXWindow();
+	Window win = (Window)Core::GetWindowHandle();
 
 	// Init X event structure for _NET_WM_STATE_FULLSCREEN client message
 	XEvent event;
@@ -81,7 +75,7 @@ void EWMH_Fullscreen(int action)
 	// Send the event
 	if (!XSendEvent(dpy, DefaultRootWindow(dpy), False,
 				SubstructureRedirectMask | SubstructureNotifyMask, &event))
-		ERROR_LOG(VIDEO, "Failed to switch fullscreen/windowed mode.\n");
+		ERROR_LOG(VIDEO, "Failed to switch fullscreen/windowed mode.");
 }
 
 #if defined(HAVE_WX) && HAVE_WX
@@ -101,7 +95,21 @@ XRRConfiguration::XRRConfiguration(Display *_dpy, Window _win)
 	: dpy(_dpy)
 	, win(_win)
 	, deskSize(-1), fullSize(-1)
+	, bValid(true)
 {
+	XRRScreenSize *sizes;
+	int numSizes;
+
+	// XRRSizes is safe to call even if the RANDR extension is not present and numSizes
+	// will be 0 in that case (according to the documentation)
+	sizes = XRRSizes(dpy, DefaultScreen(dpy), &numSizes);
+	if (!numSizes)
+	{
+		NOTICE_LOG(VIDEO, "XRRExtension not supported.");
+		bValid = false;
+		return;
+	}
+
 	int vidModeMajorVersion, vidModeMinorVersion;
 	XRRQueryVersion(dpy, &vidModeMajorVersion, &vidModeMinorVersion);
 	NOTICE_LOG(VIDEO, "XRRExtension-Version %d.%d", vidModeMajorVersion, vidModeMinorVersion);
@@ -110,13 +118,19 @@ XRRConfiguration::XRRConfiguration(Display *_dpy, Window _win)
 
 XRRConfiguration::~XRRConfiguration()
 {
-	ToggleDisplayMode(False);
-	XRRFreeScreenConfigInfo(screenConfig);
+	if (bValid)
+	{
+		ToggleDisplayMode(False);
+		XRRFreeScreenConfigInfo(screenConfig);
+	}
 }
 
 
 void XRRConfiguration::Update()
 {
+	if (!bValid)
+		return;
+
 	// Get the resolution setings for fullscreen mode
 	int fullWidth, fullHeight;
 	sscanf(SConfig::GetInstance().m_LocalCoreStartupParameter.strFullscreenResolution.c_str(),
@@ -145,12 +159,15 @@ void XRRConfiguration::Update()
 	}
 	else {
 		ERROR_LOG(VIDEO, "Failed to obtain fullscreen size.\n"
-				"Using current desktop resolution for fullscreen.\n");
+				"Using current desktop resolution for fullscreen.");
 	}
 }
 
 void XRRConfiguration::ToggleDisplayMode(bool bFullscreen)
 {
+	if (!bValid)
+		return;
+
 	if (bFullscreen)
 		XRRSetScreenConfig(dpy, screenConfig, win,
 				fullSize, screenRotation, CurrentTime);
@@ -162,6 +179,9 @@ void XRRConfiguration::ToggleDisplayMode(bool bFullscreen)
 #if defined(HAVE_WX) && HAVE_WX
 void XRRConfiguration::AddResolutions(wxArrayString& arrayStringFor_FullscreenResolution)
 {
+	if (!bValid)
+		return;
+
 	int screen;
 	screen = DefaultScreen(dpy);
 	//Get all full screen resos for the config dialog

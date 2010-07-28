@@ -38,12 +38,11 @@ class CMemoryWindow
 
 		CMemoryWindow(wxWindow* parent,
 					  wxWindowID id = wxID_ANY,
-					  const wxString& title = _T("Dolphin-Memory"),
-					  const wxPoint& pos = wxPoint(950, 100),
-					  const wxSize& size = wxSize(400, 500),
-					  long style = wxNO_BORDER);
+					  const wxPoint& pos = wxDefaultPosition,
+					  const wxSize& size = wxDefaultSize,
+					  long style = wxTAB_TRAVERSAL | wxBORDER_NONE,
+					  const wxString& name = _T("Memory"));
 
-        ~CMemoryWindow();
 		wxCheckBox* chk8;
 		wxCheckBox* chk16;
 		wxCheckBox* chk32;
@@ -56,9 +55,11 @@ class CMemoryWindow
 		void Update();
 		void NotifyMapLoaded();
 
-        void JumpToAddress(u32 _Address);
+		void JumpToAddress(u32 _Address);
 
 	private:
+		DECLARE_EVENT_TABLE()
+
 		CMemoryView* memview;
 		wxListBox* symbols;
 
@@ -66,9 +67,6 @@ class CMemoryWindow
 		wxTextCtrl* addrbox;
 		wxTextCtrl* valbox;
 
-
-
-		DECLARE_EVENT_TABLE()
 		void U8(wxCommandEvent& event);
 		void U16(wxCommandEvent& event);
 		void U32(wxCommandEvent& event);

@@ -99,6 +99,7 @@ class CFrame : public CRenderFrame
 			const wxPoint& pos = wxDefaultPosition,
 			const wxSize& size = wxDefaultSize,
 			bool _UseDebugger = false,
+			bool _BatchMode = false,
 			bool ShowLogWindow = false,
 			long style = wxDEFAULT_FRAME_STYLE | wxNO_FULL_REPAINT_ON_RESIZE);
 
@@ -117,8 +118,6 @@ class CFrame : public CRenderFrame
 
 		// These have to be public		
 		CCodeWindow* g_pCodeWindow;
-		wxMenuBar* m_MenuBar;
-		wxBitmap aNormalFile;
 		void InitBitmaps();
 		void DoPause();
 		void DoStop();
@@ -126,14 +125,11 @@ class CFrame : public CRenderFrame
 		bool bNoWiimoteMsg;
 		void UpdateGUI();
 		void UpdateGameList();
-		void ToggleLogWindow(bool, int i = -1);
-		void ToggleConsole(bool, int i = -1);		
+		void ToggleLogWindow(bool bShow);
+		void ToggleConsole(bool bShow);		
 		void PostEvent(wxCommandEvent& event);
-		void PostMenuEvent(wxMenuEvent& event);
-		void PostUpdateUIEvent(wxUpdateUIEvent& event);
 		void StatusBarMessage(const char * Text, ...);
 		void ClearStatusBar();
-		void OnCustomHostMessage(int Id);
 		void OnSizeRequest(int& x, int& y, int& width, int& height);
 		void BootGame(const std::string& filename);
 		void OnRenderParentClose(wxCloseEvent& event);
@@ -149,28 +145,12 @@ class CFrame : public CRenderFrame
 		// AUI
 		wxAuiManager *m_Mgr;
 		wxAuiToolBar *m_ToolBar, *m_ToolBarDebug, *m_ToolBarAui;
-		long NOTEBOOK_STYLE, TOOLBAR_STYLE;
-		int iLeftWidth[2], iMidWidth[2];
-		bool bFloatLogWindow;
-		bool bFloatConsoleWindow;
+		bool bFloatWindow[IDM_CODEWINDOW - IDM_LOGWINDOW + 1];
 
 		// Utility
-		wxWindow * GetWxWindow(wxString);
-		#ifdef _WIN32
-			wxWindow * GetWxWindowHwnd(HWND);
-		#endif
-		wxWindow * GetFloatingPage(int Id);
-		wxWindow * GetNootebookPage(wxString);
-		wxWindow * GetNootebookPageFromId(wxWindowID Id);
+		wxWindow * GetNotebookPageFromId(wxWindowID Id);
 		wxAuiNotebook * GetNotebookFromId(u32);
-		wxWindowID WindowParentIdFromChildId(int Id);
-		wxString WindowNameFromId(int Id);
 		int GetNotebookCount();
-		int Limit(int,int,int);
-		int PercentageToPixels(int,int);
-		int PixelsToPercentage(int,int);
-		void ListChildren();
-		void ListTopWindows();
 		wxString GetMenuLabel(int Id);
 
 		// Perspectives
@@ -179,19 +159,16 @@ class CFrame : public CRenderFrame
 		void OnAllowNotebookDnD(wxAuiNotebookEvent& event);
 		void OnNotebookPageChanged(wxAuiNotebookEvent& event);
 		void OnFloatWindow(wxCommandEvent& event);
+		void ToggleFloatWindow(int Id);
 		void OnTab(wxAuiNotebookEvent& event);
-		int GetNootebookAffiliation(wxString Name);
+		int GetNotebookAffiliation(wxWindowID Id);
 		void ClosePages();
-		void DoToggleWindow(int,bool);
 		void ShowAllNotebooks(bool Window = false);
 		void HideAllNotebooks(bool Window = false);
 		void CloseAllNotebooks();
-		void DoAddPage(wxWindow *, int, wxString, bool);
-		void DoRemovePage(wxWindow *, bool Hide = true);
-		void DoRemovePageId(wxWindowID Id, bool Hide = true, bool Destroy = false);
-		void DoRemovePageString(wxString, bool Hide = true, bool Destroy = false);
+		void DoAddPage(wxWindow *Win, int i, bool Float);
+		void DoRemovePage(wxWindow *, bool bHide = true);
 		void TogglePane();
-		void SetSimplePaneSize();
 		void SetPaneSize();
 		void ResetToolbarStyle();
 		void TogglePaneStyle(bool On, int EventId);
@@ -214,10 +191,10 @@ class CFrame : public CRenderFrame
 		wxString AuiFullscreen, AuiCurrent;
 		wxArrayString AuiPerspective;
 		u32 ActivePerspective;	
-		void NamePanes();
 		void AddPane();
-		void Save();
-		void SaveLocal();
+		void UpdateCurrentPerspective();
+		void SaveIniPerspectives();
+		void LoadIniPerspectives();
 		void OnPaneClose(wxAuiManagerEvent& evt);
 		void ReloadPanes();
 		void DoLoadPerspective();
@@ -228,7 +205,6 @@ class CFrame : public CRenderFrame
 
 	private:
 		wxStatusBar* m_pStatusBar;
-		wxBoxSizer* sizerPanel;
 		wxBoxSizer* sizerFrame;
 		CGameListCtrl* m_GameListCtrl;
 		wxPanel* m_Panel;
@@ -237,6 +213,7 @@ class CFrame : public CRenderFrame
 		wxToolBarToolBase* m_ToolPlay;
 		CLogWindow* m_LogWindow;
 		bool UseDebugger;
+		bool m_bBatchMode;
 		bool m_bEdit;
 		bool m_bTabSplit;
 		bool m_bNoDocking;
@@ -282,7 +259,6 @@ class CFrame : public CRenderFrame
 		void PopulateToolbarAui(wxAuiToolBar* toolBar);
 		void RecreateToolbar();
 		void CreateMenu();
-		wxPanel *CreateEmptyPanel(wxWindowID Id = wxID_ANY);
 		wxAuiNotebook *CreateEmptyNotebook();
 
 #ifdef _WIN32
@@ -337,8 +313,7 @@ class CFrame : public CRenderFrame
 		void OnToggleToolbar(wxCommandEvent& event);
 		void DoToggleToolbar(bool);
 		void OnToggleStatusbar(wxCommandEvent& event);
-		void OnToggleLogWindow(wxCommandEvent& event);
-		void OnToggleConsole(wxCommandEvent& event);
+		void OnToggleWindow(wxCommandEvent& event);
 		void OnKeyDown(wxKeyEvent& event);
 		void OnKeyUp(wxKeyEvent& event);
 		

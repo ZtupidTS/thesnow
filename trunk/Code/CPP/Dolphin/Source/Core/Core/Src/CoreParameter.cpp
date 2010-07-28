@@ -15,7 +15,8 @@
 // Official SVN repository and contact information can be found at
 // http://code.google.com/p/dolphin-emu/
 
-#include "Common.h" // Common
+#include "Common.h"
+#include "CommonPaths.h"
 #include "FileUtil.h"
 #include "StringUtil.h"
 #include "CDUtils.h"
@@ -31,7 +32,7 @@
 
 SCoreStartupParameter::SCoreStartupParameter()
 : hInstance(0), hMainWindow(0),
-  bJITUnlimitedCache(false), bJITBlockLinking(false),
+  bJITNoBlockCache(false), bJITBlockLinking(false),
   bJITOff(false),
   bJITLoadStoreOff(false), bJITLoadStorelXzOff(false),
   bJITLoadStorelwzOff(false), bJITLoadStorelbzxOff(false),
@@ -120,7 +121,7 @@ bool SCoreStartupParameter::AutoSetup(EBootBS2 _BootBS2)
 			// that gave an incorrect file name 
 			if (!bootDrive && !File::Exists(m_strFilename.c_str()))
 			{
-				PanicAlert("The file you specified (%s) does not exists", m_strFilename.c_str());
+				PanicAlert("The specified file \"%s\" does not exist", m_strFilename.c_str());
 				return false;
 			}
 			
@@ -137,9 +138,10 @@ bool SCoreStartupParameter::AutoSetup(EBootBS2 _BootBS2)
 				if (pVolume == NULL)
 				{
 					PanicAlert(bootDrive ?
-						"Disc in %s could not be read - no disc, or not a GC/Wii backup.\n"
-						"Please note that original Gamecube and Wii discs cannot be read by most PC DVD drives.":
-						"Your GCM/ISO file seems to be invalid, or not a GC/Wii ISO.", m_strFilename.c_str());
+						"Could not read \"%s\".  There is no disc in the drive, or it is not a GC/Wii backup.  "
+						"Please note that original Gamecube and Wii discs cannot be read by most PC DVD drives." :
+						"\"%s\" is an invalid GCM/ISO file, or is not a GC/Wii ISO."
+						, m_strFilename.c_str());
 					return false;
 				}
 				m_strName = pVolume->GetName();

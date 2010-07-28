@@ -19,7 +19,7 @@
 #include "FileUtil.h"
 
 #include "D3DBase.h"
-
+#include "Fifo.h"
 #include "Statistics.h"
 #include "Profiler.h"
 #include "VertexManager.h"
@@ -29,7 +29,6 @@
 #include "VertexShaderCache.h"
 #include "PixelShaderManager.h"
 #include "PixelShaderCache.h"
-#include "Utils.h"
 #include "NativeVertexFormat.h"
 #include "NativeVertexWriter.h"
 #include "TextureCache.h"
@@ -227,7 +226,7 @@ void Flush()
 	if (LocalVBuffer == s_pCurBufferPointer) return;
 	if(Flushed) return;
 	Flushed=true;
-
+	VideoFifo_CheckEFBAccess();
 	DVSTARTPROFILE();
 	
 	u32 usedtextures = 0;
@@ -244,7 +243,6 @@ void Flush()
 		}
 	}
 
-	u32 nonpow2tex = 0;
 	for (int i = 0; i < 8; i++)
 	{
 		if (usedtextures & (1 << i)) {

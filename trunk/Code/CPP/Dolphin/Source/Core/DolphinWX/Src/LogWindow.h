@@ -28,19 +28,19 @@
 
 enum
 {
-    IDM_LOG,
-    IDM_CLEARLOG,
-    IDM_LOGCHECKS,
-    IDM_OPTIONS,
-    IDM_TOGGLEALL,
+	IDM_LOG,
+	IDM_CLEARLOG,
+	IDM_LOGCHECKS,
+	IDM_OPTIONS,
+	IDM_TOGGLEALL,
 	IDM_WRAPLINE,
-    IDM_WRITEFILE,
-    IDM_WRITECONSOLE,
-    IDM_WRITEWINDOW,
+	IDM_WRITEFILE,
+	IDM_WRITECONSOLE,
+	IDM_WRITEWINDOW,
 	IDTM_UPDATELOG,
 	IDM_VERBOSITY,
 	IDM_FONT,
-    IDM_SUBMITCMD
+	IDM_SUBMITCMD
 };
 
 class wxTextCtrl;
@@ -54,10 +54,11 @@ class CLogWindow : public wxPanel, LogListener
 public:
 	CLogWindow(CFrame *parent,
 		wxWindowID id = wxID_ANY,
-		const wxString& title = wxT("Log"),
-		const wxPoint& pos = wxPoint(100, 700),
-		const wxSize& size = wxSize(800, 270),
-		long style = wxNO_BORDER);
+		const wxPoint& pos = wxDefaultPosition,
+		const wxSize& size = wxDefaultSize,
+		long style = wxTAB_TRAVERSAL,
+		const wxString& name = wxT("Log")
+		);
 	~CLogWindow();
 	void NotifyUpdate();
 
@@ -65,10 +66,12 @@ public:
 	void LoadSettings();
 	void Log(LogTypes::LOG_LEVELS, const char *text);
 
+	int x, y, winpos;
+
 private:
 	CFrame *Parent;
 	wxFont DefaultFont, MonoSpaceFont;
-	std::vector<wxFont> Font;	
+	std::vector<wxFont> Font;
 	wxTimer *m_LogTimer;
 	FileLogListener *m_fileLog;
 	ConsoleListener *m_console;

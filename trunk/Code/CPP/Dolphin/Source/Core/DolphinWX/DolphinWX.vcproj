@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="9,00"
+	Version="9.00"
 	Name="Dolphin"
 	ProjectGUID="{A72606EF-C5C1-4954-90AD-F0F93A8D97D9}"
 	RootNamespace="DolphinWX"
@@ -30,7 +30,7 @@
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
-				CommandLine="set outfile=&quot;$(ProjectDir)..\Common\Src\svnrev.h&quot;&#x0D;&#x0A;&quot;$(ProjectDir)..\Common\SubWCRev.exe&quot; &quot;$(SolutionDir)\.&quot; &quot;$(ProjectDir)..\Common\Src\svnrev_template.h&quot; %outfile%&#x0D;&#x0A;if errorlevel 1 (goto checkhg) else (goto VCEnd)&#x0D;&#x0A;:checkhg&#x0D;&#x0A;for /f &quot;usebackq tokens=1,* skip=3&quot; %%i in (`hg svn info`) do (&#x0D;&#x0A;echo Hg: Working copy at SVN revision %%j&#x0D;&#x0A;echo #define SVN_REV %%j &gt; %outfile%&#x0D;&#x0A;echo #define SVN_REV_STR &quot;%%j&quot; &gt;&gt; %outfile%&#x0D;&#x0A;goto VCEnd&#x0D;&#x0A;)&#x0D;&#x0A;"
+				CommandLine="cscript /nologo &quot;..\Common\make_svnrev.h.vbs&quot; &quot;..\Common&quot;"
 				ExcludedFromBuild="false"
 			/>
 			<Tool
@@ -56,7 +56,7 @@
 				Optimization="3"
 				InlineFunctionExpansion="0"
 				FavorSizeOrSpeed="1"
-				AdditionalIncludeDirectories="..\Common\Src;..\Core\Src;..\DebuggerWX\src;..\DebuggerUICommon\Src;..\InputUICommon\Src;..\DiscIO\Src;..\InputCommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc;..\..\..\Externals\SFML\include"
+				AdditionalIncludeDirectories="..\Common\Src;..\Core\Src;..\DebuggerWX\src;..\DebuggerUICommon\Src;..\InputUICommon\Src;..\DiscIO\Src;..\InputCommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc;..\..\..\Externals\SFML\include;..\..\..\Externals\CLRun\include"
 				PreprocessorDefinitions="WIN32;__WXMSW__;_WINDOWS;NOPCH;_SECURE_SCL=0;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE"
 				StringPooling="false"
 				RuntimeLibrary="0"
@@ -146,7 +146,7 @@
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
-				CommandLine="set outfile=&quot;$(ProjectDir)..\Common\Src\svnrev.h&quot;&#x0D;&#x0A;&quot;$(ProjectDir)..\Common\SubWCRev.exe&quot; &quot;$(SolutionDir)\.&quot; &quot;$(ProjectDir)..\Common\Src\svnrev_template.h&quot; %outfile%&#x0D;&#x0A;if errorlevel 1 (goto checkhg) else (goto VCEnd)&#x0D;&#x0A;:checkhg&#x0D;&#x0A;for /f &quot;usebackq tokens=1,* skip=3&quot; %%i in (`hg svn info`) do (&#x0D;&#x0A;echo Hg: Working copy at SVN revision %%j&#x0D;&#x0A;echo #define SVN_REV %%j &gt; %outfile%&#x0D;&#x0A;echo #define SVN_REV_STR &quot;%%j&quot; &gt;&gt; %outfile%&#x0D;&#x0A;goto VCEnd&#x0D;&#x0A;)&#x0D;&#x0A;"
+				CommandLine="cscript /nologo &quot;..\Common\make_svnrev.h.vbs&quot; &quot;..\Common&quot;"
 				ExcludedFromBuild="false"
 			/>
 			<Tool
@@ -169,12 +169,13 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
+				AdditionalOptions="/MP"
 				Optimization="3"
 				InlineFunctionExpansion="2"
 				EnableIntrinsicFunctions="true"
 				FavorSizeOrSpeed="1"
 				OmitFramePointers="false"
-				AdditionalIncludeDirectories="..\Common\Src;..\Core\Src;..\DebuggerWX\src;..\DebuggerUICommon\Src;..\InputUICommon\Src;..\DiscIO\Src;..\InputCommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc;..\..\..\Externals\SFML\include"
+				AdditionalIncludeDirectories="..\Common\Src;..\Core\Src;..\DebuggerWX\src;..\DebuggerUICommon\Src;..\InputUICommon\Src;..\DiscIO\Src;..\InputCommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc;..\..\..\Externals\SFML\include;..\..\..\Externals\CLRun\include"
 				PreprocessorDefinitions="WIN32;__WXMSW__;_WINDOWS;NOPCH;_SECURE_SCL=0;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE"
 				StringPooling="true"
 				RuntimeLibrary="0"
@@ -262,7 +263,7 @@
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
-				CommandLine="set outfile=&quot;$(ProjectDir)..\Common\Src\svnrev.h&quot;&#x0D;&#x0A;&quot;$(ProjectDir)..\Common\SubWCRev.exe&quot; &quot;$(SolutionDir)\.&quot; &quot;$(ProjectDir)..\Common\Src\svnrev_template.h&quot; %outfile%&#x0D;&#x0A;if errorlevel 1 (goto checkhg) else (goto VCEnd)&#x0D;&#x0A;:checkhg&#x0D;&#x0A;for /f &quot;usebackq tokens=1,* skip=3&quot; %%i in (`hg svn info`) do (&#x0D;&#x0A;echo Hg: Working copy at SVN revision %%j&#x0D;&#x0A;echo #define SVN_REV %%j &gt; %outfile%&#x0D;&#x0A;echo #define SVN_REV_STR &quot;%%j&quot; &gt;&gt; %outfile%&#x0D;&#x0A;goto VCEnd&#x0D;&#x0A;)&#x0D;&#x0A;"
+				CommandLine="cscript /nologo &quot;..\Common\make_svnrev.h.vbs&quot; &quot;..\Common&quot;"
 				ExcludedFromBuild="false"
 			/>
 			<Tool
@@ -286,7 +287,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\Common\Src;..\Core\Src;..\DebuggerWX\src;..\DebuggerUICommon\Src;..\InputUICommon\Src;..\DiscIO\Src;..\InputCommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc;..\..\..\Externals\SFML\include"
+				AdditionalIncludeDirectories="..\Common\Src;..\Core\Src;..\DebuggerWX\src;..\DebuggerUICommon\Src;..\InputUICommon\Src;..\DiscIO\Src;..\InputCommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc;..\..\..\Externals\SFML\include;..\..\..\Externals\CLRun\include"
 				PreprocessorDefinitions="WIN32;_DEBUG;__WXMSW__;__WXDEBUG__;_WINDOWS;NOPCH;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;_SECURE_SCL=0"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -373,7 +374,7 @@
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
-				CommandLine="set outfile=&quot;$(ProjectDir)..\Common\Src\svnrev.h&quot;&#x0D;&#x0A;&quot;$(ProjectDir)..\Common\SubWCRev.exe&quot; &quot;$(SolutionDir)\.&quot; &quot;$(ProjectDir)..\Common\Src\svnrev_template.h&quot; %outfile%&#x0D;&#x0A;if errorlevel 1 (goto checkhg) else (goto VCEnd)&#x0D;&#x0A;:checkhg&#x0D;&#x0A;for /f &quot;usebackq tokens=1,* skip=3&quot; %%i in (`hg svn info`) do (&#x0D;&#x0A;echo Hg: Working copy at SVN revision %%j&#x0D;&#x0A;echo #define SVN_REV %%j &gt; %outfile%&#x0D;&#x0A;echo #define SVN_REV_STR &quot;%%j&quot; &gt;&gt; %outfile%&#x0D;&#x0A;goto VCEnd&#x0D;&#x0A;)&#x0D;&#x0A;"
+				CommandLine="cscript /nologo &quot;..\Common\make_svnrev.h.vbs&quot; &quot;..\Common&quot;"
 				ExcludedFromBuild="false"
 			/>
 			<Tool
@@ -397,7 +398,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\Common\Src;..\Core\Src;..\DebuggerWX\src;..\DebuggerUICommon\Src;..\InputUICommon\Src;..\DiscIO\Src;..\InputCommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc;..\..\..\Externals\SFML\include"
+				AdditionalIncludeDirectories="..\Common\Src;..\Core\Src;..\DebuggerWX\src;..\DebuggerUICommon\Src;..\InputUICommon\Src;..\DiscIO\Src;..\InputCommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc;..\..\..\Externals\SFML\include;..\..\..\Externals\CLRun\include"
 				PreprocessorDefinitions="WIN32;_DEBUG;__WXMSW__;__WXDEBUG__;_WINDOWS;NOPCH;_SECURE_SCL=0;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -484,7 +485,7 @@
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
-				CommandLine="set outfile=&quot;$(ProjectDir)..\Common\Src\svnrev.h&quot;&#x0D;&#x0A;&quot;$(ProjectDir)..\Common\SubWCRev.exe&quot; &quot;$(SolutionDir)\.&quot; &quot;$(ProjectDir)..\Common\Src\svnrev_template.h&quot; %outfile%&#x0D;&#x0A;if errorlevel 1 (goto checkhg) else (goto VCEnd)&#x0D;&#x0A;:checkhg&#x0D;&#x0A;for /f &quot;usebackq tokens=1,* skip=3&quot; %%i in (`hg svn info`) do (&#x0D;&#x0A;echo Hg: Working copy at SVN revision %%j&#x0D;&#x0A;echo #define SVN_REV %%j &gt; %outfile%&#x0D;&#x0A;echo #define SVN_REV_STR &quot;%%j&quot; &gt;&gt; %outfile%&#x0D;&#x0A;goto VCEnd&#x0D;&#x0A;)&#x0D;&#x0A;"
+				CommandLine="cscript /nologo &quot;..\Common\make_svnrev.h.vbs&quot; &quot;..\Common&quot;"
 				ExcludedFromBuild="false"
 			/>
 			<Tool
@@ -510,7 +511,7 @@
 				Optimization="2"
 				InlineFunctionExpansion="1"
 				FavorSizeOrSpeed="1"
-				AdditionalIncludeDirectories="..\Common\Src;..\Core\Src;..\DebuggerWX\src;..\DebuggerUICommon\Src;..\InputUICommon\Src;..\DiscIO\Src;..\InputCommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc;..\..\..\Externals\SFML\include"
+				AdditionalIncludeDirectories="..\Common\Src;..\Core\Src;..\DebuggerWX\src;..\DebuggerUICommon\Src;..\InputUICommon\Src;..\DiscIO\Src;..\InputCommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc;..\..\..\Externals\SFML\include;..\..\..\Externals\CLRun\include"
 				PreprocessorDefinitions="DEBUGFAST;WIN32;__WXMSW__;_WINDOWS;NOPCH;_SECURE_SCL=0;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE"
 				StringPooling="true"
 				RuntimeLibrary="0"
@@ -599,7 +600,7 @@
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
-				CommandLine="set outfile=&quot;$(ProjectDir)..\Common\Src\svnrev.h&quot;&#x0D;&#x0A;&quot;$(ProjectDir)..\Common\SubWCRev.exe&quot; &quot;$(SolutionDir)\.&quot; &quot;$(ProjectDir)..\Common\Src\svnrev_template.h&quot; %outfile%&#x0D;&#x0A;if errorlevel 1 (goto checkhg) else (goto VCEnd)&#x0D;&#x0A;:checkhg&#x0D;&#x0A;for /f &quot;usebackq tokens=1,* skip=3&quot; %%i in (`hg svn info`) do (&#x0D;&#x0A;echo Hg: Working copy at SVN revision %%j&#x0D;&#x0A;echo #define SVN_REV %%j &gt; %outfile%&#x0D;&#x0A;echo #define SVN_REV_STR &quot;%%j&quot; &gt;&gt; %outfile%&#x0D;&#x0A;goto VCEnd&#x0D;&#x0A;)&#x0D;&#x0A;"
+				CommandLine="cscript /nologo &quot;..\Common\make_svnrev.h.vbs&quot; &quot;..\Common&quot;"
 				ExcludedFromBuild="false"
 			/>
 			<Tool
@@ -626,7 +627,7 @@
 				InlineFunctionExpansion="1"
 				EnableIntrinsicFunctions="true"
 				FavorSizeOrSpeed="1"
-				AdditionalIncludeDirectories="..\Common\Src;..\Core\Src;..\DebuggerWX\src;..\DebuggerUICommon\Src;..\InputUICommon\Src;..\DiscIO\Src;..\InputCommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc;..\..\..\Externals\SFML\include"
+				AdditionalIncludeDirectories="..\Common\Src;..\Core\Src;..\DebuggerWX\src;..\DebuggerUICommon\Src;..\InputUICommon\Src;..\DiscIO\Src;..\InputCommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc;..\..\..\Externals\SFML\include;..\..\..\Externals\CLRun\include"
 				PreprocessorDefinitions="DEBUGFAST;WIN32;__WXMSW__;_WINDOWS;NOPCH;_SECURE_SCL=0;_CRT_SECURE_NO_WARNINGS"
 				StringPooling="true"
 				RuntimeLibrary="0"
@@ -864,7 +865,11 @@
 				>
 			</File>
 			<File
-				RelativePath=".\src\Globals.cpp"
+				RelativePath=".\Src\GeckoCodeDiag.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\Src\GeckoCodeDiag.h"
 				>
 			</File>
 			<File

@@ -18,6 +18,9 @@
 #include <string> // System
 #include <vector>
 
+#include "Common.h"
+#include "CommonPaths.h"
+
 #include "Core.h" // Core
 #include "HW/EXI.h"
 #include "HW/SI.h"
@@ -29,6 +32,8 @@
 #include "SysConf.h"
 #include "Frame.h"
 #include "HotkeyDlg.h"
+
+#include "../../Common/Src/OpenCL.h"
 
 #ifdef __APPLE__
 #include <Cocoa/Cocoa.h>
@@ -62,6 +67,9 @@ EVT_CHOICE(ID_FRAMELIMIT, CConfigMain::CoreSettingsChanged)
 EVT_CHECKBOX(ID_FRAMELIMIT_USEFPSFORLIMITING, CConfigMain::CoreSettingsChanged)
 
 EVT_CHECKBOX(ID_ALWAYS_HLE_BS2, CConfigMain::CoreSettingsChanged)
+#if defined(HAVE_OPENCL) && HAVE_OPENCL
+EVT_CHECKBOX(ID_ENABLE_OPENCL, CConfigMain::CoreSettingsChanged)
+#endif
 EVT_RADIOBOX(ID_CPUENGINE, CConfigMain::CoreSettingsChanged)
 EVT_CHECKBOX(ID_LOCKTHREADS, CConfigMain::CoreSettingsChanged)
 EVT_CHECKBOX(ID_DSPTHREAD, CConfigMain::CoreSettingsChanged)
@@ -158,6 +166,9 @@ void CConfigMain::UpdateGUI()
 		EnableCheats->Disable();
 		
 		AlwaysHLE_BS2->Disable();
+#if defined(HAVE_OPENCL) && HAVE_OPENCL
+		EnableOpenCL->Disable();
+#endif
 		CPUEngine->Disable();
 		LockThreads->Disable();
 		DSPThread->Disable();
@@ -261,6 +272,9 @@ void CConfigMain::InitializeGUIValues()
 
 	// General - Advanced
 	AlwaysHLE_BS2->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bHLE_BS2);
+#if defined(HAVE_OPENCL) && HAVE_OPENCL
+	EnableOpenCL->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bEnableOpenCL);
+#endif
 	CPUEngine->SetSelection(SConfig::GetInstance().m_LocalCoreStartupParameter.iCPUCore);
 	LockThreads->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bLockThreads);
 	DSPThread->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bDSPThread);
@@ -328,7 +342,9 @@ void CConfigMain::InitializeGUITooltips()
 
 	// General - Advanced
 	DSPThread->SetToolTip(wxT("Run DSPLLE on a dedicated thread (not recommended)."));
-
+#if defined(HAVE_OPENCL) && HAVE_OPENCL
+	EnableOpenCL->SetToolTip(wxT("Allow videocard to accelerate texture decoding."));
+#endif
 
 	// Display - Display
 	FullscreenResolution->SetToolTip(wxT("Select resolution for fullscreen mode"));
@@ -397,6 +413,9 @@ void CConfigMain::CreateGUIControls()
 	// Core Settings - Advanced
 	sbAdvanced = new wxStaticBoxSizer(wxVERTICAL, GeneralPage, wxT("高级设置"));
 	AlwaysHLE_BS2 = new wxCheckBox(GeneralPage, ID_ALWAYS_HLE_BS2, wxT("HLE the IPL (推荐)"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+#if defined(HAVE_OPENCL) && HAVE_OPENCL
+	EnableOpenCL = new wxCheckBox(GeneralPage, ID_ENABLE_OPENCL, wxT("启用 OpenCL"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+#endif
 	CPUEngine = new wxRadioBox(GeneralPage, ID_CPUENGINE, wxT("CPU 模拟引擎"), wxDefaultPosition, wxDefaultSize, arrayStringFor_CPUEngine, 0, wxRA_SPECIFY_ROWS);
 	LockThreads = new wxCheckBox(GeneralPage, ID_LOCKTHREADS, wxT("锁定线程到核心"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 	DSPThread = new wxCheckBox(GeneralPage, ID_DSPTHREAD, wxT("DSPLLE 独立线程"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
@@ -412,6 +431,9 @@ void CConfigMain::CreateGUIControls()
 	sbBasic->Add(sFramelimit, 0, wxALL | wxEXPAND, 5);
 
 	sbAdvanced->Add(AlwaysHLE_BS2, 0, wxALL, 5);
+#if defined(HAVE_OPENCL) && HAVE_OPENCL
+	sbAdvanced->Add(EnableOpenCL, 0, wxALL, 5);
+#endif
 	sbAdvanced->Add(CPUEngine, 0, wxALL, 5);
 	sbAdvanced->Add(LockThreads, 0, wxALL, 5);
 	sbAdvanced->Add(DSPThread, 0, wxALL, 5);
@@ -715,15 +737,15 @@ void CConfigMain::CreateGUIControls()
 	
 	// Plugins page
 	sbGraphicsPlugin = new wxStaticBoxSizer(wxHORIZONTAL, PluginsPage, wxT("图形"));
-	GraphicSelection = new wxChoice(PluginsPage, ID_GRAPHIC_CB, wxDefaultPosition, wxDefaultSize, NULL, 0, wxDefaultValidator);
+	GraphicSelection = new wxChoice(PluginsPage, ID_GRAPHIC_CB, wxDefaultPosition, wxDefaultSize, 0, NULL, 0, wxDefaultValidator);
 	GraphicConfig = new wxButton(PluginsPage, ID_GRAPHIC_CONFIG, wxT("配置..."), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 
 	sbDSPPlugin = new wxStaticBoxSizer(wxHORIZONTAL, PluginsPage, wxT("DSP音频"));
-	DSPSelection = new wxChoice(PluginsPage, ID_DSP_CB, wxDefaultPosition, wxDefaultSize, NULL, 0, wxDefaultValidator);
+	DSPSelection = new wxChoice(PluginsPage, ID_DSP_CB, wxDefaultPosition, wxDefaultSize, 0, NULL, 0, wxDefaultValidator);
 	DSPConfig = new wxButton(PluginsPage, ID_DSP_CONFIG, wxT("配置..."), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 
 	sbWiimotePlugin = new wxStaticBoxSizer(wxHORIZONTAL, PluginsPage, wxT("Wiimote"));
-	WiimoteSelection = new wxChoice(PluginsPage, ID_WIIMOTE_CB, wxDefaultPosition, wxDefaultSize, NULL, 0, wxDefaultValidator);
+	WiimoteSelection = new wxChoice(PluginsPage, ID_WIIMOTE_CB, wxDefaultPosition, wxDefaultSize, 0, NULL, 0, wxDefaultValidator);
 	WiimoteConfig = new wxButton(PluginsPage, ID_WIIMOTE_CONFIG, wxT("配置..."), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 
 	// Populate the settings
@@ -807,6 +829,11 @@ void CConfigMain::CoreSettingsChanged(wxCommandEvent& event)
 	case ID_ALWAYS_HLE_BS2:
 		SConfig::GetInstance().m_LocalCoreStartupParameter.bHLE_BS2 = AlwaysHLE_BS2->IsChecked();
 		break;
+#if defined(HAVE_OPENCL) && HAVE_OPENCL
+	case ID_ENABLE_OPENCL:
+		SConfig::GetInstance().m_LocalCoreStartupParameter.bEnableOpenCL = EnableOpenCL->IsChecked();
+		break;
+#endif
 	case ID_CPUENGINE:
 		SConfig::GetInstance().m_LocalCoreStartupParameter.iCPUCore = CPUEngine->GetSelection();
 		if (main_frame->g_pCodeWindow)

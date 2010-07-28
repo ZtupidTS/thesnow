@@ -1,48 +1,37 @@
-# -*- python -*- 
- 
-Import('env')
-import sys
+# -*- python -*-
 
-wmenv = env.Clone()
-name = "Plugin_Wiimote"
+Import('env')
+import os
+
+name = os.sep + "Plugin_Wiimote"
 
 files = [
-        "Config.cpp",
-        "DataReports.cpp",
-        "EmuDefinitions.cpp",
-        "EmuDynamics.cpp",
-        "EmuMain.cpp",
-        "EmuPad.cpp",
-        "EmuSubroutines.cpp",
-        "Encryption.cpp",
-        "main.cpp",
-        "Rumble.cpp",
+	"Config.cpp",
+	"DataReports.cpp",
+	"EmuDefinitions.cpp",
+	"EmuDynamics.cpp",
+	"EmuMain.cpp",
+	"EmuPad.cpp",
+	"EmuSubroutines.cpp",
+	"Encryption.cpp",
+	"main.cpp",
+	"Rumble.cpp",
 	"UDPWiimote.cpp"
 	]
 
-if wmenv['HAVE_WX']:
-    files += [
-        "ConfigBasicDlg.cpp",
-        "ConfigPadDlg.cpp",
-        "ConfigRecordingDlg.cpp",
-        "ConfigGamepad.cpp",
-        "ConfigRecording.cpp",
-        "FillReport.cpp",
-        ]
+libs = [ 'inputcommon', 'common', 'SDL' ]
 
-libs = [ 'common', 'inputcommon', 'inputuicommon', 'SDL' ]
+if env['HAVE_WX']:
+	libs = [ 'inputuicommon' ] + libs
+	files += [
+		"ConfigBasicDlg.cpp",
+		"ConfigPadDlg.cpp",
+		"ConfigGamepad.cpp",
+		"FillReport.cpp",
+		]
 
-cxxflags = [ ]
+if env['HAVE_WIIUSE']:
+	libs += [ 'wiiuse' ]
+	files += [ 'wiimote_real.cpp' ]
 
-if wmenv['HAVE_WIIUSE']:
-	libs  += [ 'wiiuse' ]
-	files += [ "wiimote_real.cpp" ]
-	files += [ "ReadWiimote.cpp" ]
-	cxxflags += ['-DHAVE_WIIUSE']
-
-wmenv.Append(
-	CXXFLAGS = cxxflags,
-	LIBS = libs,
-	)
-
-wmenv.SharedLibrary(env['plugin_dir']+name, files)
+env.SharedLibrary(env['plugin_dir'] + name, files, LIBS = env['LIBS'] + libs)

@@ -15,6 +15,8 @@
 // Official SVN repository and contact information can be found at
 // http://code.google.com/p/dolphin-emu/
 
+#include "Common.h"
+#include "CommonPaths.h"
 #include "Globals.h"
 
 #include "VolumeCreator.h"
@@ -22,6 +24,7 @@
 #include "ISOProperties.h"
 #include "PatchAddEdit.h"
 #include "ARCodeAddEdit.h"
+#include "GeckoCodeDiag.h"
 #include "ConfigManager.h"
 #include "StringUtil.h"
 
@@ -266,6 +269,8 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	m_Notebook->AddPage(m_PatchPage, _("补丁"));
 	m_CheatPage = new wxPanel(m_Notebook, ID_ARCODE_PAGE, wxDefaultPosition, wxDefaultSize);
 	m_Notebook->AddPage(m_CheatPage, _("AR Codes"));
+	m_geckocode_panel = new Gecko::CodeConfigPanel(m_Notebook);
+	m_Notebook->AddPage(m_geckocode_panel, wxT("Gecko Codes"));
 	m_Information = new wxPanel(m_Notebook, ID_INFORMATION, wxDefaultPosition, wxDefaultSize);
 	m_Notebook->AddPage(m_Information, _("信息"));
 	m_Filesystem = new wxPanel(m_Notebook, ID_FILESYSTEM, wxDefaultPosition, wxDefaultSize);
@@ -312,7 +317,6 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	DstAlphaPass = new wxCheckBox(m_GameConfig, ID_DSTALPHAPASS, _("Distance Alpha Pass"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
 	UseXFB = new wxCheckBox(m_GameConfig, ID_USEXFB, _("使用 XFB"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
 	// Hack
-	BPHack = new wxCheckBox(m_GameConfig, ID_BPHACK, _("FIFO BP Hack"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
 	Hacktext = new wxStaticText(m_GameConfig, ID_HACK_TEXT, _("Projection Hack for: "), wxDefaultPosition, wxDefaultSize);
 	arrayStringFor_Hack.Add(_("None"));
 	arrayStringFor_Hack.Add(_("塞尔达黄昏(黎明)公主布卢姆"));
@@ -320,6 +324,10 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	arrayStringFor_Hack.Add(_("Bleach Versus Crusade"));
 	arrayStringFor_Hack.Add(_("Skies of Arcadia"));
 	Hack = new wxChoice(m_GameConfig, ID_HACK, wxDefaultPosition, wxDefaultSize, arrayStringFor_Hack, 0, wxDefaultValidator);
+
+	WMTightnessText = new wxStaticText(m_GameConfig, ID_WMTIGHTNESS_TEXT, wxT("Watermark tightness: "), wxDefaultPosition, wxDefaultSize);
+	WMTightness = new wxTextCtrl(m_GameConfig, ID_WMTIGHTNESS, wxT(""), wxDefaultPosition, wxDefaultSize, 0, wxTextValidator(wxFILTER_NUMERIC));
+	WMTightness->SetToolTip(wxT("Change this if you get lots of FIFO overflow errors. Reasonable values range from 0 to 200."));
 
 	// Emulation State
 	sEmuState = new wxBoxSizer(wxHORIZONTAL);
@@ -347,9 +355,14 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	sbVideoOverrides->Add(SafeTextureCache, 0, wxEXPAND|wxLEFT, 5);
 	sbVideoOverrides->Add(DstAlphaPass, 0, wxEXPAND|wxLEFT, 5);
 	sbVideoOverrides->Add(UseXFB, 0, wxEXPAND|wxLEFT, 5);
-	sbVideoOverrides->Add(BPHack, 0, wxEXPAND|wxLEFT, 5);
-	sbVideoOverrides->Add(Hacktext, 0, wxEXPAND|wxLEFT, 5);
-	sbVideoOverrides->Add(Hack, 0, wxEXPAND|wxLEFT, 5);
+
+	wxFlexGridSizer* fifosizer = new wxFlexGridSizer(2, 2, 0, 0);
+	fifosizer->Add(Hacktext, 0, wxLEFT, 5);
+	fifosizer->Add(Hack, 0, wxEXPAND|wxLEFT, 5);
+	fifosizer->Add(WMTightnessText, 0, wxLEFT, 5);
+	fifosizer->Add(WMTightness, 0, wxEXPAND|wxLEFT, 5);
+	sbVideoOverrides->Add(fifosizer);
+
 	sbGameConfig->Add(sbCoreOverrides, 0, wxEXPAND);
 	sbGameConfig->Add(sbWiiOverrides, 0, wxEXPAND);
 	sbGameConfig->Add(sbVideoOverrides, 0, wxEXPAND);
@@ -841,10 +854,10 @@ void CISOProperties::LoadGameConfig()
 	else
 		UseXFB->Set3StateValue(wxCHK_UNDETERMINED);
 
-	if (GameIni.Get("Video", "FIFOBPHack", &bTemp))
-		BPHack->Set3StateValue((wxCheckBoxState)bTemp);
+	if (GameIni.Get("Video", "FIFOWatermarkTightness", &sTemp))
+		WMTightness->SetValue(wxString(sTemp.c_str(), *wxConvCurrent));
 	else
-		BPHack->Set3StateValue(wxCHK_UNDETERMINED);
+		WMTightness->SetValue(wxT("50"));
 
 	GameIni.Get("Video", "ProjectionHack", &iTemp, -1);
 	Hack->SetSelection(iTemp);
@@ -862,6 +875,7 @@ void CISOProperties::LoadGameConfig()
 
 	PatchList_Load();
 	ActionReplayList_Load();
+	m_geckocode_panel->LoadCodes(GameIni, OpenISO->GetUniqueID());
 }
 
 bool CISOProperties::SaveGameConfig()
@@ -921,15 +935,19 @@ bool CISOProperties::SaveGameConfig()
 	else
 		GameIni.Set("Video", "UseXFB", UseXFB->Get3StateValue());
 
-	if (BPHack->Get3StateValue() == wxCHK_UNDETERMINED)
-		GameIni.DeleteKey("Video", "FIFOBPHack");
-	else
-		GameIni.Set("Video", "FIFOBPHack", BPHack->Get3StateValue());
-
 	if (Hack->GetSelection() == -1)
 		GameIni.DeleteKey("Video", "ProjectionHack");
 	else
 		GameIni.Set("Video", "ProjectionHack", Hack->GetSelection());
+
+	if (WMTightness->GetValue().size() == 0)
+		GameIni.DeleteKey("Video", "FIFOWatermarkTightness");
+	else
+	{
+		long val;
+		WMTightness->GetValue().ToLong(&val);
+		GameIni.Set("Video", "FIFOWatermarkTightness", (int)val);
+	}
 
 	if (EmuState->GetSelection() == -1)
 		GameIni.DeleteKey("EmuState", "EmulationStateId");
@@ -940,6 +958,7 @@ bool CISOProperties::SaveGameConfig()
 
 	PatchList_Save();
 	ActionReplayList_Save();
+	Gecko::SaveCodes(GameIni, m_geckocode_panel->GetCodes());
 
 	return GameIni.Save(GameIniFile.c_str());
 }

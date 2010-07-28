@@ -1,26 +1,35 @@
 # -*- python -*-
 
 Import('env')
+import os
 import sys
 
-name = "Plugin_WiimoteNew"
-wiinewenv = env.Clone()
+name = os.sep + "Plugin_WiimoteNew"
 
 files = [
-	  'WiimoteEmu/WiimoteEmu.cpp',
-	  'WiimoteEmu/Attachment/Classic.cpp',
-	  'WiimoteEmu/Attachment/Attachment.cpp',
-	  'WiimoteEmu/Attachment/Nunchuk.cpp',
-	  'WiimoteEmu/Attachment/Drums.cpp',
-	  'WiimoteEmu/Attachment/Guitar.cpp',
-	  'WiimoteEmu/EmuSubroutines.cpp',
-	  'WiimoteEmu/Encryption.cpp',
-	  'WiimoteEmu/Speaker.cpp',
-	  'WiimoteNew.cpp',
+	'WiimoteEmu/WiimoteEmu.cpp',
+	'WiimoteEmu/Attachment/Classic.cpp',
+	'WiimoteEmu/Attachment/Attachment.cpp',
+	'WiimoteEmu/Attachment/Nunchuk.cpp',
+	'WiimoteEmu/Attachment/Drums.cpp',
+	'WiimoteEmu/Attachment/Guitar.cpp',
+	'WiimoteEmu/EmuSubroutines.cpp',
+	'WiimoteEmu/Encryption.cpp',
+	'WiimoteEmu/Speaker.cpp',
+	'WiimoteNew.cpp'
 	]
 
-wiinewenv.Append(
-	LIBS = [ 'inputuicommon', 'inputcommon', 'common', 'SDL' ],
-	)
+libs = [ 'inputcommon', 'common' ]
 
-wiinewenv.SharedLibrary(env['plugin_dir']+name, files)
+if not sys.platform == 'darwin':
+	libs += [ 'SDL' ]
+
+if env['HAVE_WX']:
+	libs = [ 'inputuicommon' ] + libs
+	files += [ 'WiimoteConfigDiag.cpp' ]
+
+if env['HAVE_WIIUSE']:
+	files += [ 'WiimoteReal/WiimoteReal.cpp' ]
+	libs += [ 'wiiuse' ]
+
+env.SharedLibrary(env['plugin_dir'] + name, files, LIBS = env['LIBS'] + libs)

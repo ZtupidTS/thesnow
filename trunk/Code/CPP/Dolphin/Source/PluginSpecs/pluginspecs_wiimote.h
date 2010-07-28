@@ -8,11 +8,6 @@
 #include "PluginSpecs.h"
 #include "ExportProlog.h"
 
-#ifndef _WIN32
-#include "Config.h"
-#endif
-
-
 typedef void (*TLogv)(const char* _pMessage, int _v);
 
 // This is called when the Wiimote sends input reports to the Core.
@@ -24,9 +19,6 @@ typedef bool (*TRendererHasFocus)(void);
 typedef struct
 {
 	HWND hWnd;
-#if defined HAVE_X11 && HAVE_X11
-	void *pXWindow;
-#endif
 	u32 ISOId;
 	TLogv pLog;
 	TWiimoteInterruptChannel pWiimoteInterruptChannel;
@@ -70,6 +62,14 @@ EXPORT void CALL Wiimote_InterruptChannel(int _number, u16 _channelID, const voi
 // output:   none
 //
 EXPORT void CALL Wiimote_Update(int _number);
+
+// __________________________________________________________________________________________________
+// Function: Wiimote_UnPairWiimotes
+// Purpose:  Unpair real wiimotes to safe battery
+// input:	 none
+// output:   number of unpaired wiimotes
+//
+EXPORT unsigned int CALL Wiimote_UnPairWiimotes();
 
 // __________________________________________________________________________________________________
 // Function: PAD_GetAttachedPads

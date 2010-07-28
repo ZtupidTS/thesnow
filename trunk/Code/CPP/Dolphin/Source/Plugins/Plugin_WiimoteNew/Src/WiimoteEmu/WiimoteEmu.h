@@ -13,6 +13,7 @@
 
 #include "WiimoteHid.h"
 #include "Encryption.h"
+#include "UDPWrapper.h"
 
 #include <vector>
 #include <queue>
@@ -31,18 +32,40 @@ extern SWiimoteInitialize g_WiimoteInitialize;
 namespace WiimoteEmu
 {
 
-void EmulateShake( u8* const accel_data
-				  , ControllerEmu::Buttons* const buttons_group
-				  , unsigned int* const shake_step );
+void EmulateShake(u8* const accel_data
+	  , ControllerEmu::Buttons* const buttons_group
+	  , unsigned int* const shake_step);
 
-void EmulateTilt( wm_accel* const accel
-				 , ControllerEmu::Tilt* const tilt_group
-				 , const accel_cal* const cal
-				 , bool focus, bool sideways = false, bool upright = false);
+void EmulateTilt(wm_accel* const accel
+	 , ControllerEmu::Tilt* const tilt_group
+	 , const accel_cal* const cal
+	 , const bool focus, const bool sideways = false, const bool upright = false);
+
+void EmulateSwing(wm_accel* const accel
+	 , ControllerEmu::Force* const tilt_group
+	 , const accel_cal* const cal
+	 , const bool sideways = false, const bool upright = false);
 
 class Wiimote : public ControllerEmu
 {
 public:
+
+	enum
+	{
+		PAD_LEFT =		0x01,
+		PAD_RIGHT =		0x02,
+		PAD_DOWN =		0x04,
+		PAD_UP =		0x08,
+		BUTTON_PLUS =	0x10,
+
+		BUTTON_TWO =	0x0100,
+		BUTTON_ONE =	0x0200,
+		BUTTON_B =		0x0400,
+		BUTTON_A =		0x0800,
+		BUTTON_MINUS =	 0x1000,
+		BUTTON_HOME =	0x8000,
+	};
+
 	Wiimote( const unsigned int index );
 	std::string GetName() const;
 
@@ -51,6 +74,8 @@ public:
 	void ControlChannel(const u16 _channelID, const void* _pData, u32 _Size);
 
 	void DoState(PointerWrap& p);
+
+	void LoadDefaults(const ControllerInterface& ciface);
 
 private:
 	struct ReadRequest
@@ -86,6 +111,9 @@ private:
 	Extension*				m_extension;
 	ControlGroup*			m_options;
 
+	//UDPWiimote
+	UDPWrapper* m_udp;
+
 	// wiimote index, 0-3
 	const unsigned int		m_index;
 
@@ -97,7 +125,6 @@ private:
 	u16			m_reporting_channel;
 
 	unsigned int			m_shake_step[3];
-	unsigned int			m_swing_step[3];
 
 	wm_status_report		m_status;
 

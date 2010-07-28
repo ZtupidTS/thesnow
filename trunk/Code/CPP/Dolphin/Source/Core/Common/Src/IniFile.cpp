@@ -119,6 +119,22 @@ void IniFile::Section::Set(const char* key, const float newValue, const float de
 		Delete(key);
 }
 
+void IniFile::Section::Set(const char* key, int newValue, int defaultValue)
+{
+	if (newValue != defaultValue)
+		Set(key, newValue);
+	else
+		Delete(key);
+}
+
+void IniFile::Section::Set(const char* key, bool newValue, bool defaultValue)
+{
+	if (newValue != defaultValue)
+		Set(key, newValue);
+	else
+		Delete(key);
+}
+
 void IniFile::Section::Set(const char* key, const std::vector<std::string>& newValues) 
 {
 	std::string temp;
@@ -334,7 +350,7 @@ bool IniFile::GetKeys(const char* sectionName, std::vector<std::string>& keys) c
 }
 
 // Return a list of all lines in a section
-bool IniFile::GetLines(const char* sectionName, std::vector<std::string>& lines) const
+bool IniFile::GetLines(const char* sectionName, std::vector<std::string>& lines, const bool remove_comments) const
 {
 	const Section* section = GetSection(sectionName);
 	if (!section)
@@ -344,15 +360,19 @@ bool IniFile::GetLines(const char* sectionName, std::vector<std::string>& lines)
 	for (std::vector<std::string>::const_iterator iter = section->lines.begin(); iter != section->lines.end(); ++iter)
 	{
 		std::string line = StripSpaces(*iter);
-		int commentPos = (int)line.find('#');
-		if (commentPos == 0)
-		{
-			continue;
-		}
 
-		if (commentPos != (int)std::string::npos)
+		if (remove_comments)
 		{
-			line = StripSpaces(line.substr(0, commentPos));
+			int commentPos = (int)line.find('#');
+			if (commentPos == 0)
+			{
+				continue;
+			}
+
+			if (commentPos != (int)std::string::npos)
+			{
+				line = StripSpaces(line.substr(0, commentPos));
+			}
 		}
 
 		lines.push_back(line);

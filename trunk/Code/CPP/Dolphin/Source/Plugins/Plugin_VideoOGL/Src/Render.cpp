@@ -26,9 +26,6 @@
 
 #include "GLUtil.h"
 
-#include <Cg/cg.h>
-#include <Cg/cgGL.h>
-
 #include "FileUtil.h"
 
 #ifdef _WIN32
@@ -76,9 +73,11 @@
 // ----------------------------
 int s_fps=0;
 
+#if defined HAVE_CG && HAVE_CG
 CGcontext g_cgcontext;
 CGprofile g_cgvProf;
 CGprofile g_cgfProf;
+#endif
 
 RasterFont* s_pfont = NULL;
 
@@ -113,8 +112,6 @@ static int m_CustomHeight;
 // The framebuffer size
 static int m_FrameBufferWidth;
 static int m_FrameBufferHeight;
-
-static GLuint s_tempScreenshotFramebuffer = 0;
 
 static unsigned int s_XFB_width;
 static unsigned int s_XFB_height;
@@ -210,6 +207,7 @@ void SetDefaultRectTexParams()
 	glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 }
 
+#if defined HAVE_CG && HAVE_CG
 void HandleCgError(CGcontext ctx, CGerror err, void* appdata)
 {
 	DEBUG_LOG(VIDEO, "Cg error: %s", cgGetErrorString(err));
@@ -218,6 +216,7 @@ void HandleCgError(CGcontext ctx, CGerror err, void* appdata)
 		DEBUG_LOG(VIDEO, "    last listing: %s", listing);
 	}
 }
+#endif
 
 } // namespace
 void VideoConfig::UpdateProjectionHack()
@@ -233,6 +232,8 @@ bool Renderer::Init()
 	bool bSuccess = true;
 	s_blendMode = 0;
 	s_MSAACoverageSamples = 0;
+	GLint numvertexattribs = 0;
+
 	switch (g_ActiveConfig.iMultisampleMode)
 	{
 		case MULTISAMPLE_OFF: s_MSAASamples = 1; break;
@@ -246,11 +247,12 @@ bool Renderer::Init()
 		default:
 		s_MSAASamples = 1;
 	}
-	GLint numvertexattribs = 0;
-	g_cgcontext = cgCreateContext();
 
+#if defined HAVE_CG && HAVE_CG
+	g_cgcontext = cgCreateContext();
 	cgGetError();
 	cgSetErrorHandler(HandleCgError, NULL);
+#endif
 
 	// Look for required extensions.
 	const char *ptoken = (const char*)glGetString(GL_EXTENSIONS);
@@ -390,6 +392,7 @@ bool Renderer::Init()
 
 	s_pfont = new RasterFont();
 
+#if defined HAVE_CG && HAVE_CG
 	// load the effect, find the best profiles (if any)
 	if (cgGLIsProfileSupported(CG_PROFILE_ARBVP1) != CG_TRUE) {
 		ERROR_LOG(VIDEO, "arbvp1 not supported");
@@ -403,10 +406,22 @@ bool Renderer::Init()
 
 	g_cgvProf = cgGLGetLatestProfile(CG_GL_VERTEX);
 	g_cgfProf = cgGLGetLatestProfile(CG_GL_FRAGMENT);
+#if CG_VERSION_NUM == 2100
+	// A bug was introduced in Cg2.1's handling of very large profile option values
+	// so this will not work on ATI. ATI returns MAXINT = 2147483647 (0x7fffffff)
+	// which is correct in OpenGL but Cg fails to handle it properly. As a result
+	// -1 is used by Cg resulting (signedness incorrect) and compilation fails.
+	if (strstr((const char*)glGetString(GL_VENDOR), "ATI") == NULL) 
+	{
+		cgGLSetOptimalOptions(g_cgvProf);
+		cgGLSetOptimalOptions(g_cgfProf);
+	}
+#else
 	cgGLSetOptimalOptions(g_cgvProf);
 	cgGLSetOptimalOptions(g_cgfProf);
+#endif
+#endif	// HAVE_CG
 
-	INFO_LOG(VIDEO, "Max buffer sizes: %d %d", cgGetProgramBufferMaxSize(g_cgvProf), cgGetProgramBufferMaxSize(g_cgfProf));
 	int nenvvertparams, nenvfragparams, naddrregisters[2];
 	glGetProgramivARB(GL_VERTEX_PROGRAM_ARB,   GL_MAX_PROGRAM_ENV_PARAMETERS_ARB,    (GLint *)&nenvvertparams);
 	glGetProgramivARB(GL_FRAGMENT_PROGRAM_ARB, GL_MAX_PROGRAM_ENV_PARAMETERS_ARB,    (GLint *)&nenvfragparams);
@@ -418,8 +433,13 @@ bool Renderer::Init()
 	if (nenvvertparams < 238)
 		ERROR_LOG(VIDEO, "Not enough vertex shader environment constants!!");
 
+#if defined HAVE_CG && HAVE_CG
+	INFO_LOG(VIDEO, "Max buffer sizes: %d %d",
+		cgGetProgramBufferMaxSize(g_cgvProf),
+		cgGetProgramBufferMaxSize(g_cgfProf));
 #ifndef _DEBUG
 	cgGLSetDebugMode(GL_FALSE);
+#endif
 #endif
 	
 	glStencilFunc(GL_ALWAYS, 0, 0);
@@ -469,13 +489,12 @@ void Renderer::Shutdown(void)
 	delete s_pfont;
 	s_pfont = 0;
 
+#if defined HAVE_CG && HAVE_CG
 	if (g_cgcontext) {
 		cgDestroyContext(g_cgcontext);
 		g_cgcontext = 0;
 	}
-	if(s_tempScreenshotFramebuffer)
-		glDeleteFramebuffersEXT(1, &s_tempScreenshotFramebuffer);
-	s_tempScreenshotFramebuffer = 0;
+#endif
 
 	g_framebufferManager.Shutdown();
 
@@ -557,8 +576,6 @@ void Renderer::ResetAPIState()
 {
 	// Gets us to a reasonably sane state where it's possible to do things like
 	// image copies with textured quads, etc.
-	glDisable(GL_VERTEX_PROGRAM_ARB);// needed by nvidia cards to avoid texture problems
-	glDisable(GL_FRAGMENT_PROGRAM_ARB);// needed by nvidia cards to avoid texture problems
 	VertexShaderCache::DisableShader();
 	PixelShaderCache::DisableShader();
 	glDisable(GL_SCISSOR_TEST);
@@ -570,11 +587,6 @@ void Renderer::ResetAPIState()
 }
 
 void UpdateViewport();
-
-void Renderer::ReinitView()
-{
-
-}
 
 void Renderer::RestoreAPIState()
 {
@@ -591,8 +603,6 @@ void Renderer::RestoreAPIState()
 	SetColorMask();
 	SetBlendMode(true);
 
-	glEnable(GL_VERTEX_PROGRAM_ARB);// needed by nvidia cards o avoid texture problems
-	glEnable(GL_FRAGMENT_PROGRAM_ARB);// needed by nvidia cards o avoid texture problems	
 	VertexShaderCache::SetCurrentShader(0);
 	PixelShaderCache::SetCurrentShader(0);
 }
@@ -792,13 +802,15 @@ bool Renderer::SetScissorRect()
 
 void Renderer::ClearScreen(const EFBRectangle& rc, bool colorEnable, bool alphaEnable, bool zEnable, u32 color, u32 z)
 {
+	
 	// Update the view port for clearing the picture
-	glViewport(0, 0, Renderer::GetTargetWidth(), Renderer::GetTargetHeight());
-
 	TargetRectangle targetRc = Renderer::ConvertEFBRectangle(rc);
+	glViewport(targetRc.left, targetRc.bottom, targetRc.GetWidth(), targetRc.GetHeight());
+	glScissor(targetRc.left, targetRc.bottom, targetRc.GetWidth(), targetRc.GetHeight());
+	
 
 	// Always set the scissor in case it was set by the game and has not been reset
-	glScissor(targetRc.left, targetRc.bottom, targetRc.GetWidth(), targetRc.GetHeight());
+	
 
 	VertexShaderManager::SetViewportChanged();
 
@@ -810,7 +822,7 @@ void Renderer::ClearScreen(const EFBRectangle& rc, bool colorEnable, bool alphaE
 			((color >> 16) & 0xFF) / 255.0f,
 			((color >> 8) & 0xFF) / 255.0f,
 			(color & 0xFF) / 255.0f,
-			(alphaEnable ? ((color >> 24) & 0xFF) / 255.0f : 1.0f)
+			((color >> 24) & 0xFF) / 255.0f
 			);
 	}
 	if (zEnable)
@@ -831,19 +843,22 @@ void Renderer::RenderToXFB(u32 xfbAddr, u32 fbWidth, u32 fbHeight, const EFBRect
 	s_skipSwap = g_bSkipCurrentFrame;
 	VideoFifo_CheckEFBAccess();
 	VideoFifo_CheckSwapRequestAt(xfbAddr, fbWidth, fbHeight);
-	g_framebufferManager.CopyToXFB(xfbAddr, fbWidth, fbHeight, sourceRc);
 	XFBWrited = true;
 	// XXX: Without the VI, how would we know what kind of field this is? So
 	// just use progressive.
-	if (!g_ActiveConfig.bUseXFB)
+	if (g_ActiveConfig.bUseXFB)
 	{
-		Renderer::Swap(xfbAddr, FIELD_PROGRESSIVE, fbWidth, fbHeight);
+		g_framebufferManager.CopyToXFB(xfbAddr, fbWidth, fbHeight, sourceRc);
+	}
+	else
+	{
+		Renderer::Swap(xfbAddr, FIELD_PROGRESSIVE, fbWidth, fbHeight,sourceRc);
 		Common::AtomicStoreRelease(s_swapRequested, FALSE);
 	}
 }
 
 // This function has the final picture. We adjust the aspect ratio here.
-void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight)
+void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,const EFBRectangle& Rc)
 {
 	if (g_bSkipCurrentFrame || (!XFBWrited && !g_ActiveConfig.bUseRealXFB) || !fbWidth || !fbHeight)
 	{
@@ -853,7 +868,7 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight)
 	if (field == FIELD_LOWER) xfbAddr -= fbWidth * 2;
 	u32 xfbCount = 0;
 	const XFBSource** xfbSourceList = g_framebufferManager.GetXFBSource(xfbAddr, fbWidth, fbHeight, xfbCount);
-	if (!xfbSourceList)
+	if ((!xfbSourceList || xfbCount == 0) && g_ActiveConfig.bUseXFB && !g_ActiveConfig.bUseRealXFB)
 	{
 		g_VideoInitialize.pCopiedToXFB(false);
 		WARN_LOG(VIDEO, "Failed to get video for this frame");
@@ -883,9 +898,7 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight)
 
 	// Copy the framebuffer to screen.
 
-	// Render to the real buffer now.
-	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0); // switch to the window backbuffer
-
+	
 	// Texture map s_xfbTexture onto the main buffer
 	glActiveTexture(GL_TEXTURE0);
 	glEnable(GL_TEXTURE_RECTANGLE_ARB);
@@ -899,90 +912,124 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight)
 
 	const XFBSource* xfbSource = NULL;
 
-	// draw each xfb source
-	for (u32 i = 0; i < xfbCount; ++i)
+	if(g_ActiveConfig.bUseXFB)
 	{
-		xfbSource = xfbSourceList[i];
+		// draw each xfb source
+		// Render to the real buffer now.
+		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0); // switch to the window backbuffer
 
-		TargetRectangle sourceRc;
-
-		if (g_ActiveConfig.bAutoScale || g_ActiveConfig.bUseXFB)
+		for (u32 i = 0; i < xfbCount; ++i)
 		{
-			sourceRc = xfbSource->sourceRc;
-		}
-		else
-		{
-			sourceRc.left = 0;
-			sourceRc.top = xfbSource->texHeight;
-			sourceRc.right = xfbSource->texWidth;
-			sourceRc.bottom = 0;
-		}
+			xfbSource = xfbSourceList[i];
 
-		MathUtil::Rectangle<float> drawRc;
+			TargetRectangle sourceRc;
 
-		if (g_ActiveConfig.bUseXFB && !g_ActiveConfig.bUseRealXFB)
-		{
-			// use virtual xfb with offset
-			int xfbHeight = xfbSource->srcHeight;
-			int xfbWidth = xfbSource->srcWidth;
-			int hOffset = ((s32)xfbSource->srcAddr - (s32)xfbAddr) / ((s32)fbWidth * 2);
-
-			drawRc.top = 1.0f - (2.0f * (hOffset) / (float)fbHeight);
-			drawRc.bottom = 1.0f - (2.0f * (hOffset + xfbHeight) / (float)fbHeight);
-			drawRc.left = -(xfbWidth / (float)fbWidth);
-			drawRc.right = (xfbWidth / (float)fbWidth);
-
-			if (!g_ActiveConfig.bAutoScale)
+			if (g_ActiveConfig.bAutoScale || g_ActiveConfig.bUseXFB)
 			{
-				// scale draw area for a 1 to 1 pixel mapping with the draw target
-				float vScale = (float)fbHeight / (float)back_rc.GetHeight();
-				float hScale = (float)fbWidth / (float)back_rc.GetWidth();
-
-				drawRc.top *= vScale;
-				drawRc.bottom *= vScale;
-				drawRc.left *= hScale;
-				drawRc.right *= hScale;
+				sourceRc = xfbSource->sourceRc;
 			}
-		}
-		else
-		{
-			drawRc.top = 1;
-			drawRc.bottom = -1;
-			drawRc.left = -1;
-			drawRc.right = 1;
-		}
-		
-		// Tell the OSD Menu about the current internal resolution
-		OSDInternalW = xfbSource->sourceRc.GetWidth(); OSDInternalH = xfbSource->sourceRc.GetHeight();
+			else
+			{
+				sourceRc.left = 0;
+				sourceRc.top = xfbSource->texHeight;
+				sourceRc.right = xfbSource->texWidth;
+				sourceRc.bottom = 0;
+			}
 
-		// Texture map xfbSource->texture onto the main buffer
-		glBindTexture(GL_TEXTURE_RECTANGLE_ARB, xfbSource->texture);
+			MathUtil::Rectangle<float> drawRc;
 
-		// We must call ApplyShader here even if no post proc is selected - it takes
-		// care of disabling it in that case. It returns false in case of no post processing.
+			if (g_ActiveConfig.bUseXFB && !g_ActiveConfig.bUseRealXFB)
+			{
+				// use virtual xfb with offset
+				int xfbHeight = xfbSource->srcHeight;
+				int xfbWidth = xfbSource->srcWidth;
+				int hOffset = ((s32)xfbSource->srcAddr - (s32)xfbAddr) / ((s32)fbWidth * 2);
+
+				drawRc.top = 1.0f - (2.0f * (hOffset) / (float)fbHeight);
+				drawRc.bottom = 1.0f - (2.0f * (hOffset + xfbHeight) / (float)fbHeight);
+				drawRc.left = -(xfbWidth / (float)fbWidth);
+				drawRc.right = (xfbWidth / (float)fbWidth);
+
+				if (!g_ActiveConfig.bAutoScale)
+				{
+					// scale draw area for a 1 to 1 pixel mapping with the draw target
+					float vScale = (float)fbHeight / (float)back_rc.GetHeight();
+					float hScale = (float)fbWidth / (float)back_rc.GetWidth();
+
+					drawRc.top *= vScale;
+					drawRc.bottom *= vScale;
+					drawRc.left *= hScale;
+					drawRc.right *= hScale;
+				}
+			}
+			else
+			{
+				drawRc.top = 1;
+				drawRc.bottom = -1;
+				drawRc.left = -1;
+				drawRc.right = 1;
+			}
+			
+			// Tell the OSD Menu about the current internal resolution
+			OSDInternalW = xfbSource->sourceRc.GetWidth(); OSDInternalH = xfbSource->sourceRc.GetHeight();
+
+			// Texture map xfbSource->texture onto the main buffer
+			glBindTexture(GL_TEXTURE_RECTANGLE_ARB, xfbSource->texture);
+
+			// We must call ApplyShader here even if no post proc is selected - it takes
+			// care of disabling it in that case. It returns false in case of no post processing.
+			if (applyShader)
+			{
+				glBegin(GL_QUADS);
+					glTexCoord2f(sourceRc.left, sourceRc.bottom);  glMultiTexCoord2fARB(GL_TEXTURE1, 0, 0); glVertex2f(drawRc.left, drawRc.bottom);
+					glTexCoord2f(sourceRc.left, sourceRc.top);     glMultiTexCoord2fARB(GL_TEXTURE1, 0, 1); glVertex2f(drawRc.left, drawRc.top);
+					glTexCoord2f(sourceRc.right, sourceRc.top);    glMultiTexCoord2fARB(GL_TEXTURE1, 1, 1); glVertex2f(drawRc.right, drawRc.top);
+					glTexCoord2f(sourceRc.right, sourceRc.bottom); glMultiTexCoord2fARB(GL_TEXTURE1, 1, 0); glVertex2f(drawRc.right, drawRc.bottom);
+				glEnd();
+				PixelShaderCache::DisableShader();
+			}
+			else
+			{
+				glBegin(GL_QUADS);
+					glTexCoord2f(sourceRc.left, sourceRc.bottom);  glVertex2f(drawRc.left, drawRc.bottom);
+					glTexCoord2f(sourceRc.left, sourceRc.top);	   glVertex2f(drawRc.left, drawRc.top);
+					glTexCoord2f(sourceRc.right, sourceRc.top);	   glVertex2f(drawRc.right, drawRc.top);
+					glTexCoord2f(sourceRc.right, sourceRc.bottom); glVertex2f(drawRc.right, drawRc.bottom);
+				glEnd();
+			}
+
+			GL_REPORT_ERRORD();
+		}
+	}
+	else
+	{
+		TargetRectangle targetRc = Renderer::ConvertEFBRectangle(Rc);
+		GLuint read_texture = g_framebufferManager.ResolveAndGetRenderTarget(Rc);
+		// Render to the real buffer now.
+		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0); // switch to the window backbuffer
+		glBindTexture(GL_TEXTURE_RECTANGLE_ARB, read_texture);
 		if (applyShader)
 		{
 			glBegin(GL_QUADS);
-				glTexCoord2f(sourceRc.left, sourceRc.bottom);  glMultiTexCoord2fARB(GL_TEXTURE1, 0, 0); glVertex2f(drawRc.left, drawRc.bottom);
-				glTexCoord2f(sourceRc.left, sourceRc.top);     glMultiTexCoord2fARB(GL_TEXTURE1, 0, 1); glVertex2f(drawRc.left, drawRc.top);
-				glTexCoord2f(sourceRc.right, sourceRc.top);    glMultiTexCoord2fARB(GL_TEXTURE1, 1, 1); glVertex2f(drawRc.right, drawRc.top);
-				glTexCoord2f(sourceRc.right, sourceRc.bottom); glMultiTexCoord2fARB(GL_TEXTURE1, 1, 0); glVertex2f(drawRc.right, drawRc.bottom);
+				glTexCoord2f(targetRc.left, targetRc.bottom);  glMultiTexCoord2fARB(GL_TEXTURE1, 0, 0); glVertex2f(-1, -1);
+				glTexCoord2f(targetRc.left, targetRc.top);     glMultiTexCoord2fARB(GL_TEXTURE1, 0, 1); glVertex2f(-1,  1);
+				glTexCoord2f(targetRc.right, targetRc.top);    glMultiTexCoord2fARB(GL_TEXTURE1, 1, 1); glVertex2f( 1,  1);
+				glTexCoord2f(targetRc.right, targetRc.bottom); glMultiTexCoord2fARB(GL_TEXTURE1, 1, 0); glVertex2f( 1, -1);
 			glEnd();
 			PixelShaderCache::DisableShader();
 		}
 		else
 		{
 			glBegin(GL_QUADS);
-				glTexCoord2f(sourceRc.left, sourceRc.bottom);  glVertex2f(drawRc.left, drawRc.bottom);
-				glTexCoord2f(sourceRc.left, sourceRc.top);	   glVertex2f(drawRc.left, drawRc.top);
-				glTexCoord2f(sourceRc.right, sourceRc.top);	   glVertex2f(drawRc.right, drawRc.top);
-				glTexCoord2f(sourceRc.right, sourceRc.bottom); glVertex2f(drawRc.right, drawRc.bottom);
+				glTexCoord2f(targetRc.left, targetRc.bottom);  glVertex2f(-1, -1);
+				glTexCoord2f(targetRc.left, targetRc.top);	   glVertex2f(-1, 1);
+				glTexCoord2f(targetRc.right, targetRc.top);	   glVertex2f( 1, 1);
+				glTexCoord2f(targetRc.right, targetRc.bottom); glVertex2f( 1, -1);
 			glEnd();
 		}
-
-		GL_REPORT_ERRORD();
+		
+		
 	}
-
 	glBindTexture(GL_TEXTURE_RECTANGLE_ARB, 0);
 	TextureMngr::DisableStage(0);
 
@@ -993,41 +1040,25 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight)
 	// Save screenshot
 	if (s_bScreenshot)
 	{
-		if (!s_tempScreenshotFramebuffer)
-			glGenFramebuffersEXT(1, &s_tempScreenshotFramebuffer);
-
-		glBindFramebufferEXT(GL_READ_FRAMEBUFFER_EXT, s_tempScreenshotFramebuffer);
-		glFramebufferTexture2DEXT(GL_READ_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_RECTANGLE_ARB, xfbSource->texture, 0);
-
 		s_criticalScreenshot.Enter();
 		// Save screenshot
-		SaveRenderTarget(s_sScreenshotName.c_str(), xfbSource->sourceRc.GetWidth(), xfbSource->sourceRc.GetHeight());
+		SaveRenderTarget(s_sScreenshotName.c_str(), back_rc);
 		// Reset settings
 		s_sScreenshotName = "";
 		s_bScreenshot = false;
-		s_criticalScreenshot.Leave();
-
-		glFramebufferTexture2DEXT(GL_READ_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_RECTANGLE_ARB, 0, 0);
-		glBindFramebufferEXT(GL_READ_FRAMEBUFFER_EXT, g_framebufferManager.GetEFBFramebuffer());
+		s_criticalScreenshot.Leave();		
 	}
 
 	// Frame dumps are handled a little differently in Windows
 #ifdef _WIN32
 	if (g_ActiveConfig.bDumpFrames)
 	{
-		if (!s_tempScreenshotFramebuffer)
-			glGenFramebuffersEXT(1, &s_tempScreenshotFramebuffer);
-
-		glBindFramebufferEXT(GL_READ_FRAMEBUFFER_EXT, s_tempScreenshotFramebuffer);
-		glFramebufferTexture2DEXT(GL_READ_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_RECTANGLE_ARB, xfbSource->texture, 0);
-
 		s_criticalScreenshot.Enter();
-		int w = xfbSource->sourceRc.GetWidth();
-		int h = xfbSource->sourceRc.GetHeight();
-
+		int w = back_rc.GetWidth();
+		int h = back_rc.GetHeight();
 		u8 *data = (u8 *) malloc(3 * w * h);
 		glPixelStorei(GL_PACK_ALIGNMENT, 1);
-		glReadPixels(0, Renderer::GetTargetHeight() - h, w, h, GL_BGR, GL_UNSIGNED_BYTE, data);
+		glReadPixels(back_rc.left, back_rc.bottom, w, h, GL_BGR, GL_UNSIGNED_BYTE, data);
 		if (glGetError() == GL_NO_ERROR && w > 0 && h > 0)
 		{
 			if (!s_bLastFrameDumped)
@@ -1051,10 +1082,7 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight)
 			NOTICE_LOG(VIDEO, "Error reading framebuffer");
 		}
 		free(data);
-		s_criticalScreenshot.Leave();
-
-		glFramebufferTexture2DEXT(GL_READ_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_RECTANGLE_ARB, 0, 0);
-		glBindFramebufferEXT(GL_READ_FRAMEBUFFER_EXT, g_framebufferManager.GetEFBFramebuffer());
+		s_criticalScreenshot.Leave();		
 	}
 	else
 	{
@@ -1070,11 +1098,11 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight)
 	if (g_ActiveConfig.bDumpFrames) {
 		s_criticalScreenshot.Enter();
 		char movie_file_name[255];
-		int w = OpenGL_GetBackbufferWidth();
-		int h = OpenGL_GetBackbufferHeight();
+		int w = back_rc.GetWidth();
+		int h = back_rc.GetHeight();
 		u8 *data = (u8 *) malloc(3 * w * h);
 		glPixelStorei(GL_PACK_ALIGNMENT, 1);
-		glReadPixels(0, Renderer::GetTargetHeight() - h, w, h, GL_RGB, GL_UNSIGNED_BYTE, data);
+		glReadPixels(back_rc.left, back_rc.bottom, w, h, GL_BGR, GL_UNSIGNED_BYTE, data);
 		if (glGetError() == GL_NO_ERROR) {
 			if (!s_bLastFrameDumped) {
 				sprintf(movie_file_name, "%sframedump.raw", File::GetUserPath(D_DUMPFRAMES_IDX));
@@ -1246,8 +1274,8 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight)
 	// For testing zbuffer targets.
 	// Renderer::SetZBufferRender();
 	// SaveTexture("tex.tga", GL_TEXTURE_RECTANGLE_ARB, s_FakeZTarget, GetTargetWidth(), GetTargetHeight());
+	g_VideoInitialize.pCopiedToXFB(XFBWrited || g_ActiveConfig.bUseRealXFB);	
 	XFBWrited = false;
-	g_VideoInitialize.pCopiedToXFB(true);
 	
 }
 
@@ -1471,12 +1499,28 @@ THREAD_RETURN TakeScreenshot(void *pArgs)
 }
 #endif
 
-bool Renderer::SaveRenderTarget(const char *filename, int W, int H, int YOffset)
+void Renderer::FlipImageData(u8 *data, int w, int h)
 {
+	// Flip image upside down. Damn OpenGL.
+	for (int y = 0; y < h / 2; y++)
+	{
+		for(int x = 0; x < w; x++)
+		{
+			std::swap(data[(y * w + x) * 3],     data[((h - 1 - y) * w + x) * 3]);
+			std::swap(data[(y * w + x) * 3 + 1], data[((h - 1 - y) * w + x) * 3 + 1]);
+			std::swap(data[(y * w + x) * 3 + 2], data[((h - 1 - y) * w + x) * 3 + 2]);
+		}
+	}
+}
+
+bool Renderer::SaveRenderTarget(const char *filename, TargetRectangle back_rc)
+{
+	u32 W = back_rc.GetWidth();
+	u32 H = back_rc.GetHeight();
 	u8 *data = (u8 *)malloc(3 * W * H);
 	glPixelStorei(GL_PACK_ALIGNMENT, 1);
 	
-	glReadPixels(0, Renderer::GetTargetHeight() - H + YOffset, W, H, GL_RGB, GL_UNSIGNED_BYTE, data);
+	glReadPixels(back_rc.left, back_rc.bottom, W, H, GL_RGB, GL_UNSIGNED_BYTE, data);
 	
 	// Show failure message
 	if (glGetError() != GL_NO_ERROR)
@@ -1520,19 +1564,7 @@ bool Renderer::SaveRenderTarget(const char *filename, int W, int H, int YOffset)
 }
 
 
-void Renderer::FlipImageData(u8 *data, int w, int h)
-{
-	// Flip image upside down. Damn OpenGL.
-	for (int y = 0; y < h / 2; y++)
-	{
-		for(int x = 0; x < w; x++)
-		{
-			std::swap(data[(y * w + x) * 3],     data[((h - 1 - y) * w + x) * 3]);
-			std::swap(data[(y * w + x) * 3 + 1], data[((h - 1 - y) * w + x) * 3 + 1]);
-			std::swap(data[(y * w + x) * 3 + 2], data[((h - 1 - y) * w + x) * 3 + 2]);
-		}
-	}
-}
+
 
 // Called from VertexShaderManager
 void UpdateViewport()

@@ -23,11 +23,10 @@ System Requirements:
 Usage: Dolphin [-h] [-d] [-l] [-e <str>] [-V <str>] [-A <str>] [-P <str>] [-W <str>]
   -h, --help                	Show this help message
   -d, --debugger            	Opens the debugger
-  -l, --logger              	Opens The Logger
-  -e, --elf=<str>           	Loads an elf file
+  -l, --logger              	Opens the logger
+  -e, --exec=<str>          	Loads the specified file (DOL, ELF, WAD, GCM, ISO)
   -V, --video_plugin=<str>  	Specify a video plugin
   -A, --audio_plugin=<str>  	Specify an audio plugin
-  -P, --pad_plugin=<str>    	Specify a pad plugin
   -W, --wiimote_plugin=<str>	Specify a wiimote plugin
 
 [Libraries]
@@ -42,13 +41,12 @@ Plugin_DSP_LLE: Low Level DSP Emulation
 
 [Video Plugins]
 Plugin_VideoDX9: Render with Direct3D 9
+Plugin_VideoDX11: Render with Direct3D 11
 Plugin_VideoOGL: Render with OpenGL + Cg Shader Language
 
-[Gamecube Controller Plugins]
-Plugin_GCPad: Use keyboard or joypads
-
 [Wiimote Plugins]
-Plugin_Wiimote: Use native wiimote or keyboard
+Plugin_Wiimote: Use native wiimote or keyboard (legacy)
+Plugin_WiimoteNew: Use native wiimote or keyboard (incomplete)
 
 [Sys Files]
 totaldb.dsy: Database of symbols (for devs only)

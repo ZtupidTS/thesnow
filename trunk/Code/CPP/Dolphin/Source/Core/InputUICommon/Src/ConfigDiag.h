@@ -43,33 +43,38 @@
 #include "ControllerEmu.h"
 #include "InputConfig.h"
 #include "FileSearch.h"
+#include "UDPWrapper.h"
 
 class PadSetting
 {
 protected:
-	PadSetting() {}
+	PadSetting(wxControl* const _control) : wxcontrol(_control) { wxcontrol->SetClientData(this); }
 
 public:
 	virtual void UpdateGUI() = 0;
 	virtual void UpdateValue() = 0;
+
+	virtual ~PadSetting() {}
+
+	wxControl* const	wxcontrol;
 };
 
-class PadSettingExtension : public wxChoice, public PadSetting
+class PadSettingExtension : public PadSetting
 {
 public:
-	PadSettingExtension( wxWindow* const parent, ControllerEmu::Extension* const ext );
+	PadSettingExtension(wxWindow* const parent, ControllerEmu::Extension* const ext);
 	void UpdateGUI();
 	void UpdateValue();
 
 	ControllerEmu::Extension* const	extension;
 };
 
-class PadSettingChoice : public wxSpinCtrl, public PadSetting
+class PadSettingSpin : public PadSetting
 {
 public:
-	PadSettingChoice( wxWindow* const parent, ControllerEmu::ControlGroup::Setting* const setting )
-		: wxSpinCtrl(parent, -1, wxEmptyString, wxDefaultPosition
-			, wxSize( 54, -1 ), 0, setting->low, setting->high, setting->value * 100)
+	PadSettingSpin(wxWindow* const parent, ControllerEmu::ControlGroup::Setting* const setting)
+		: PadSetting(new wxSpinCtrl(parent, -1, wxEmptyString, wxDefaultPosition
+			, wxSize( 54, -1 ), 0, setting->low, setting->high, setting->value * 100))
 		, value(setting->value) {}
 
 	void UpdateGUI();
@@ -78,44 +83,14 @@ public:
 	ControlState& value;
 };
 
-class PadSettingCheckBox : public wxCheckBox, public PadSetting
+class PadSettingCheckBox : public PadSetting
 {
 public:
-	PadSettingCheckBox( wxWindow* const parent, ControlState& _value, const char* const label );
+	PadSettingCheckBox(wxWindow* const parent, ControlState& _value, const char* const label);
 	void UpdateGUI();
 	void UpdateValue();
 
 	ControlState&		value;
-};
-
-class ControlChooser : public wxStaticBoxSizer
-{
-public:
-	ControlChooser( wxWindow* const parent, ControllerInterface::ControlReference* const ref, wxWindow* const eventsink );
-	
-	void UpdateGUI();
-	void UpdateListContents();
-	void UpdateListSelection();
-
-	ControllerInterface::ControlReference*	control_reference;
-
-	wxTextCtrl*			textctrl;
-	wxListBox*			control_lbox;
-	wxChoice*			mode_cbox;
-	wxSlider*			range_slider;
-
-private:
-	wxStaticText*		m_bound_label;
-};
-
-class ControlList : public wxDialog
-{
-public:
-
-	ControlList( wxWindow* const parent, ControllerInterface::ControlReference* const ref, ControlChooser* const chooser );
-
-private:
-	ControlChooser* const		m_control_chooser;
 };
 
 class GamepadPage;
@@ -125,16 +100,32 @@ class ControlDialog : public wxDialog
 public:
 	ControlDialog(GamepadPage* const parent, InputPlugin& plugin, ControllerInterface::ControlReference* const ref);
 	
-	void SelectControl( wxCommandEvent& event );
-	void DetectControl( wxCommandEvent& event );
-	void ClearControl( wxCommandEvent& event );
-	void SetControl( wxCommandEvent& event );
-	void SetDevice( wxCommandEvent& event );
+	wxStaticBoxSizer* CreateControlChooser(wxWindow* const parent, wxWindow* const eventsink );
+
+	void DetectControl(wxCommandEvent& event);
+	void ClearControl(wxCommandEvent& event);
+	void SetControl(wxCommandEvent& event);
+	void SetDevice(wxCommandEvent& event);
+
+	void UpdateGUI();
+	void UpdateListContents();
+	void SelectControl(const std::string& name);
+
+	void SetSelectedControl(wxCommandEvent& event);
+	void AppendControl(wxCommandEvent& event);
 
 	ControllerInterface::ControlReference* const		control_reference;
 	InputPlugin&				m_plugin;
 	wxComboBox*				device_cbox;
-	ControlChooser*			control_chooser;
+
+	wxTextCtrl*		textctrl;
+	wxListBox*		control_lbox;
+	wxSlider*		range_slider;
+
+private:
+	GamepadPage* const		m_parent;
+	wxStaticText*		m_bound_label;
+	ControllerInterface::DeviceQualifier	m_devq;
 };
 
 class ExtensionButton : public wxButton
@@ -153,6 +144,17 @@ public:
 	ControlButton( wxWindow* const parent, ControllerInterface::ControlReference* const _ref, const unsigned int width, const std::string& label = "" );
 
 	ControllerInterface::ControlReference* const		control_reference;
+};
+
+
+class UDPConfigButton : public wxButton
+{
+public:
+	UDPWrapper* const wrapper;
+	UDPConfigButton( wxWindow* const parent, UDPWrapper * udp)
+		: wxButton( parent, -1, wxT("Configure"), wxDefaultPosition )
+		, wrapper(udp)
+	{}
 };
 
 class ControlGroupBox : public wxStaticBoxSizer
@@ -180,6 +182,7 @@ class InputConfigDialog;
 class GamepadPage : public wxNotebookPage
 {
 	friend class InputConfigDialog;
+	friend class ControlDialog;
 
 public:
 	GamepadPage( wxWindow* parent, InputPlugin& plugin, const unsigned int pad_num, InputConfigDialog* const config_dialog );
@@ -198,12 +201,17 @@ public:
 
 	void ConfigExtension( wxCommandEvent& event );
 
+	void ConfigUDPWii( wxCommandEvent& event );
+
 	void SetDevice( wxCommandEvent& event );
 
 	void ClearAll( wxCommandEvent& event );
+	void LoadDefaults( wxCommandEvent& event );
 
 	void AdjustControlOption( wxCommandEvent& event );
 	void AdjustSetting( wxCommandEvent& event );
+
+	void GetProfilePath(std::string& path);
 
 	wxComboBox*					profile_cbox;
 	wxComboBox*					device_cbox;
@@ -217,15 +225,16 @@ protected:
 private:
 
 	ControlDialog*				m_control_dialog;
-	InputConfigDialog* const			m_config_dialog;
+	InputConfigDialog* const	m_config_dialog;
 	InputPlugin &m_plugin;
 };
 
 class InputConfigDialog : public wxDialog
 {
 public:
+	InputConfigDialog( wxWindow* const parent, InputPlugin& plugin, const std::string& name, const int tab_num = 0);
+	//~InputConfigDialog();
 
-	InputConfigDialog(wxWindow* const parent, InputPlugin& plugin, const std::string& name);
 	bool Destroy();
 
 	void ClickSave( wxCommandEvent& event );

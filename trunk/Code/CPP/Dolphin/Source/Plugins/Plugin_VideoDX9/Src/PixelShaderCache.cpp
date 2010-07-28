@@ -15,7 +15,11 @@
 // Official SVN repository and contact information can be found at
 // http://code.google.com/p/dolphin-emu/
 
+#include <map>
+#include <set>
+
 #include "Common.h"
+#include "Hash.h"
 #include "FileUtil.h"
 #include "LinearDiskCache.h"
 
@@ -23,7 +27,6 @@
 #include "D3DBase.h"
 #include "D3DShader.h"
 #include "Statistics.h"
-#include "Utils.h"
 #include "VideoConfig.h"
 #include "PixelShaderGen.h"
 #include "PixelShaderManager.h"
@@ -38,29 +41,31 @@
 PixelShaderCache::PSCache PixelShaderCache::PixelShaders;
 const PixelShaderCache::PSCacheEntry *PixelShaderCache::last_entry;
 
-LinearDiskCache g_ps_disk_cache;
+static LinearDiskCache g_ps_disk_cache;
+static std::set<u32> unique_shaders;
 
 static float lastPSconstants[C_COLORMATRIX+16][4];
 
-static LPDIRECT3DPIXELSHADER9 s_ColorMatrixProgram[3];
-static LPDIRECT3DPIXELSHADER9 s_ColorCopyProgram[3];
-static LPDIRECT3DPIXELSHADER9 s_DepthMatrixProgram[3];
-static LPDIRECT3DPIXELSHADER9 s_ClearProgram = 0;
+#define MAX_SSAA_SHADERS 3
 
+static LPDIRECT3DPIXELSHADER9 s_ColorMatrixProgram[MAX_SSAA_SHADERS];
+static LPDIRECT3DPIXELSHADER9 s_ColorCopyProgram[MAX_SSAA_SHADERS];
+static LPDIRECT3DPIXELSHADER9 s_DepthMatrixProgram[MAX_SSAA_SHADERS];
+static LPDIRECT3DPIXELSHADER9 s_ClearProgram = 0;
 
 LPDIRECT3DPIXELSHADER9 PixelShaderCache::GetColorMatrixProgram(int SSAAMode)
 {
-	return s_ColorMatrixProgram[SSAAMode % 3];
+	return s_ColorMatrixProgram[SSAAMode % MAX_SSAA_SHADERS];
 }
 
 LPDIRECT3DPIXELSHADER9 PixelShaderCache::GetDepthMatrixProgram(int SSAAMode)
 {
-	return s_DepthMatrixProgram[SSAAMode % 3];
+	return s_DepthMatrixProgram[SSAAMode % MAX_SSAA_SHADERS];
 }
 
 LPDIRECT3DPIXELSHADER9 PixelShaderCache::GetColorCopyProgram(int SSAAMode)
 {
-	return s_ColorCopyProgram[SSAAMode % 3];
+	return s_ColorCopyProgram[SSAAMode % MAX_SSAA_SHADERS];
 }
 
 LPDIRECT3DPIXELSHADER9 PixelShaderCache::GetClearProgram()
@@ -131,33 +136,31 @@ void PixelShaderCache::Init()
 						"in float2 uv0 : TEXCOORD0){\n"
 						"ocol0 = tex2D(samp0,uv0);\n"						
 						"}\n");
-	s_ColorCopyProgram[0] = D3D::CompileAndCreatePixelShader(pprog, (int)strlen(pprog));	
+	s_ColorCopyProgram[0] = D3D::CompileAndCreatePixelShader(pprog, (int)strlen(pprog));		
 
-	//4 Samples
-	sprintf(pprog, "uniform sampler samp0 : register(s0);\n"					
+	//1 Samples SSAA
+	sprintf(pprog, "uniform sampler samp0 : register(s0);\n"
 					"void main(\n"
 					"out float4 ocol0 : COLOR0,\n"
 					"in float4 uv0 : TEXCOORD0,\n"
-					"in float4 uv1 : TEXCOORD1,\n"
-					"in float4 uv2 : TEXCOORD2,\n"
-					"in float4 uv3 : TEXCOORD3,\n"
-					"in float4 uv4 : TEXCOORD4){\n"
-					"ocol0 = (tex2D(samp0,uv1.xy) + tex2D(samp0,uv2.xy) + tex2D(samp0,uv3.xy) + tex2D(samp0,uv4.xy))*0.25f;\n"
+					"in float4 uv1 : TEXCOORD1){\n"
+					"ocol0 = tex2D(samp0,uv0.xy);\n"
 					"}\n");
 	s_ColorCopyProgram[1] = D3D::CompileAndCreatePixelShader(pprog, (int)strlen(pprog));
-	
-	//9 Samples
+
+	//4 Samples SSAA
 	sprintf(pprog, "uniform sampler samp0 : register(s0);\n"					
 					"void main(\n"
 					"out float4 ocol0 : COLOR0,\n"
 					"in float4 uv0 : TEXCOORD0,\n"
 					"in float4 uv1 : TEXCOORD1,\n"
 					"in float4 uv2 : TEXCOORD2,\n"
-					"in float4 uv3 : TEXCOORD3,\n"
-					"in float4 uv4 : TEXCOORD4){\n"
-					"ocol0 = (tex2D(samp0,uv1.xy) + tex2D(samp0,uv1.wz) + tex2D(samp0,uv2.xy) + tex2D(samp0,uv2.wz) + tex2D(samp0,uv3.xy) + tex2D(samp0,uv3.wz) + tex2D(samp0,uv4.xy) + tex2D(samp0,uv4.wz) + tex2D(samp0,uv0.xy))/9.0f;\n"
+					"in float4 uv3 : TEXCOORD3){\n"
+					"ocol0 = (tex2D(samp0,uv1.xy) + tex2D(samp0,uv1.wz) + tex2D(samp0,uv2.xy) + tex2D(samp0,uv2.wz))*0.25;\n"
 					"}\n");
 	s_ColorCopyProgram[2] = D3D::CompileAndCreatePixelShader(pprog, (int)strlen(pprog));
+
+
 
 	//Color conversion Programs
 	//1 sample
@@ -169,25 +172,21 @@ void PixelShaderCache::Init()
 						"float4 texcol = tex2D(samp0,uv0);\n"
 						"ocol0 = float4(dot(texcol,cColMatrix[0]),dot(texcol,cColMatrix[1]),dot(texcol,cColMatrix[2]),dot(texcol,cColMatrix[3])) + cColMatrix[4];\n"
 						"}\n",C_COLORMATRIX);
-	s_ColorMatrixProgram[0] = D3D::CompileAndCreatePixelShader(pprog, (int)strlen(pprog));	
+	s_ColorMatrixProgram[0] = D3D::CompileAndCreatePixelShader(pprog, (int)strlen(pprog));		
 	
-	//4 samples
-	sprintf(pprog, "uniform sampler samp0 : register(s0);\n"					
+	//1 samples SSAA
+	sprintf(pprog, "uniform sampler samp0 : register(s0);\n"
 					"uniform float4 cColMatrix[5] : register(c%d);\n"
 					"void main(\n"
 					"out float4 ocol0 : COLOR0,\n"
 					"in float4 uv0 : TEXCOORD0,\n"
-					"in float4 uv1 : TEXCOORD1,\n"
-					"in float4 uv2 : TEXCOORD2,\n"
-					"in float4 uv3 : TEXCOORD3,\n"
-					"in float4 uv4 : TEXCOORD4,\n"
-					"in float4 uv5 : TEXCOORD5){\n"
-					"float4 texcol = (tex2D(samp0,float2(clamp(uv1.x,uv5.x,uv5.z),clamp(uv1.y,uv5.y,uv5.w))) + tex2D(samp0,float2(clamp(uv2.x,uv5.x,uv5.z),clamp(uv2.y,uv5.y,uv5.w))) + tex2D(samp0,float2(clamp(uv3.x,uv5.x,uv5.z),clamp(uv3.y,uv5.y,uv5.w))) + tex2D(samp0,float2(clamp(uv4.x,uv5.x,uv5.z),clamp(uv4.y,uv5.y,uv5.w))))*0.25f;\n"
+					"in float4 uv1 : TEXCOORD1){\n"
+					"float4 texcol = tex2D(samp0,uv0.xy);\n"
 					"ocol0 = float4(dot(texcol,cColMatrix[0]),dot(texcol,cColMatrix[1]),dot(texcol,cColMatrix[2]),dot(texcol,cColMatrix[3])) + cColMatrix[4];\n"
 					"}\n",C_COLORMATRIX);
 	s_ColorMatrixProgram[1] = D3D::CompileAndCreatePixelShader(pprog, (int)strlen(pprog));
 
-	//9 samples
+	//4 samples SSAA
 	sprintf(pprog, "uniform sampler samp0 : register(s0);\n"
 					"uniform float4 cColMatrix[5] : register(c%d);\n"
 					"void main(\n"
@@ -195,10 +194,8 @@ void PixelShaderCache::Init()
 					"in float4 uv0 : TEXCOORD0,\n"
 					"in float4 uv1 : TEXCOORD1,\n"
 					"in float4 uv2 : TEXCOORD2,\n"
-					"in float4 uv3 : TEXCOORD3,\n"
-					"in float4 uv4 : TEXCOORD4,\n"
-					"in float4 uv5 : TEXCOORD5){\n"
-					"float4 texcol = (tex2D(samp0,float2(clamp(uv1.x,uv5.x,uv5.z),clamp(uv1.y,uv5.y,uv5.w))) + tex2D(samp0,float2(clamp(uv1.w,uv5.x,uv5.z),clamp(uv1.z,uv5.y,uv5.w))) + tex2D(samp0,float2(clamp(uv2.x,uv5.x,uv5.z),clamp(uv2.y,uv5.y,uv5.w))) + tex2D(samp0,float2(clamp(uv2.w,uv5.x,uv5.z),clamp(uv2.z,uv5.y,uv5.w))) + tex2D(samp0,float2(clamp(uv3.x,uv5.x,uv5.z),clamp(uv3.y,uv5.y,uv5.w))) + tex2D(samp0,float2(clamp(uv3.w,uv5.x,uv5.z),clamp(uv3.z,uv5.y,uv5.w))) + tex2D(samp0,float2(clamp(uv4.x,uv5.x,uv5.z),clamp(uv4.y,uv5.y,uv5.w))) + tex2D(samp0,float2(clamp(uv4.w,uv5.x,uv5.z),clamp(uv4.z,uv5.y,uv5.w))) + tex2D(samp0,float2(clamp(uv0.x,uv5.x,uv5.z),clamp(uv0.y,uv5.y,uv5.w))))/9;\n"
+					"in float4 uv3 : TEXCOORD3){\n"
+					"float4 texcol = (tex2D(samp0,uv1.xy) + tex2D(samp0,uv1.wz) + tex2D(samp0,uv2.xy) + tex2D(samp0,uv2.wz))*0.25f;\n"
 					"ocol0 = float4(dot(texcol,cColMatrix[0]),dot(texcol,cColMatrix[1]),dot(texcol,cColMatrix[2]),dot(texcol,cColMatrix[3])) + cColMatrix[4];\n"
 					"}\n",C_COLORMATRIX);
 	s_ColorMatrixProgram[2] = D3D::CompileAndCreatePixelShader(pprog, (int)strlen(pprog));
@@ -213,29 +210,25 @@ void PixelShaderCache::Init()
 						"float4 texcol = tex2D(samp0,uv0);\n"
 						"float4 EncodedDepth = frac((texcol.r * (16777215.0f/16777216.0f)) * float4(1.0f,255.0f,255.0f*255.0f,255.0f*255.0f*255.0f));\n"
 						"texcol = float4((EncodedDepth.rgb * (16777216.0f/16777215.0f)),1.0f);\n"
-						"ocol0 = float4(dot(texcol,cColMatrix[0]),dot(texcol,cColMatrix[1]),dot(texcol,cColMatrix[2]),dot(texcol,cColMatrix[3])) + cColMatrix[4];\n"						
+						"ocol0 = float4(dot(texcol,cColMatrix[0]),dot(texcol,cColMatrix[1]),dot(texcol,cColMatrix[2]),dot(texcol,cColMatrix[3])) + cColMatrix[4];\n"
 						"}\n",C_COLORMATRIX);
-	s_DepthMatrixProgram[0] = D3D::CompileAndCreatePixelShader(pprog, (int)strlen(pprog));	
+	s_DepthMatrixProgram[0] = D3D::CompileAndCreatePixelShader(pprog, (int)strlen(pprog));
 	
-	//4 sample
+	//1 sample SSAA
 	sprintf(pprog, "uniform sampler samp0 : register(s0);\n"					
 					"uniform float4 cColMatrix[5] : register(c%d);\n"
 					"void main(\n"
 					"out float4 ocol0 : COLOR0,\n"
 					"in float4 uv0 : TEXCOORD0,\n"
-					"in float4 uv1 : TEXCOORD1,\n"
-					"in float4 uv2 : TEXCOORD2,\n"
-					"in float4 uv3 : TEXCOORD3,\n"
-					"in float4 uv4 : TEXCOORD4,\n"
-					"in float4 uv5 : TEXCOORD5){\n"
-					"float4 texcol = (tex2D(samp0,float2(clamp(uv1.x,uv5.x,uv5.z),clamp(uv1.y,uv5.y,uv5.w))) + tex2D(samp0,float2(clamp(uv2.x,uv5.x,uv5.z),clamp(uv2.y,uv5.y,uv5.w))) + tex2D(samp0,float2(clamp(uv3.x,uv5.x,uv5.z),clamp(uv3.y,uv5.y,uv5.w))) + tex2D(samp0,float2(clamp(uv4.x,uv5.x,uv5.z),clamp(uv4.y,uv5.y,uv5.w))))*0.25f;\n"
+					"in float4 uv1 : TEXCOORD1){\n"
+					"float4 texcol = tex2D(samp0,uv0.xy);\n"
 					"float4 EncodedDepth = frac((texcol.r * (16777215.0f/16777216.0f)) * float4(1.0f,255.0f,255.0f*255.0f,255.0f*255.0f*255.0f));\n"
 					"texcol = float4((EncodedDepth.rgb * (16777216.0f/16777215.0f)),1.0f);\n"
 					"ocol0 = float4(dot(texcol,cColMatrix[0]),dot(texcol,cColMatrix[1]),dot(texcol,cColMatrix[2]),dot(texcol,cColMatrix[3])) + cColMatrix[4];\n"						
 					"}\n",C_COLORMATRIX);
 	s_DepthMatrixProgram[1] = D3D::CompileAndCreatePixelShader(pprog, (int)strlen(pprog));
 
-	//9 sample
+	//4 sample SSAA
 	sprintf(pprog, "uniform sampler samp0 : register(s0);\n"					
 					"uniform float4 cColMatrix[5] : register(c%d);\n"
 					"void main(\n"
@@ -243,10 +236,8 @@ void PixelShaderCache::Init()
 					"in float4 uv0 : TEXCOORD0,\n"
 					"in float4 uv1 : TEXCOORD1,\n"
 					"in float4 uv2 : TEXCOORD2,\n"
-					"in float4 uv3 : TEXCOORD3,\n"
-					"in float4 uv4 : TEXCOORD4,\n"
-					"in float4 uv5 : TEXCOORD5){\n"
-					"float4 texcol = (tex2D(samp0,float2(clamp(uv1.x,uv5.x,uv5.z),clamp(uv1.y,uv5.y,uv5.w))) + tex2D(samp0,float2(clamp(uv1.w,uv5.x,uv5.z),clamp(uv1.z,uv5.y,uv5.w))) + tex2D(samp0,float2(clamp(uv2.x,uv5.x,uv5.z),clamp(uv2.y,uv5.y,uv5.w))) + tex2D(samp0,float2(clamp(uv2.w,uv5.x,uv5.z),clamp(uv2.z,uv5.y,uv5.w))) + tex2D(samp0,float2(clamp(uv3.x,uv5.x,uv5.z),clamp(uv3.y,uv5.y,uv5.w))) + tex2D(samp0,float2(clamp(uv3.w,uv5.x,uv5.z),clamp(uv3.z,uv5.y,uv5.w))) + tex2D(samp0,float2(clamp(uv4.x,uv5.x,uv5.z),clamp(uv4.y,uv5.y,uv5.w))) + tex2D(samp0,float2(clamp(uv4.w,uv5.x,uv5.z),clamp(uv4.z,uv5.y,uv5.w))) + tex2D(samp0,float2(clamp(uv0.x,uv5.x,uv5.z),clamp(uv0.y,uv5.y,uv5.w))))/9;\n"
+					"in float4 uv3 : TEXCOORD3){\n"
+					"float4 texcol = (tex2D(samp0,uv1.xy) + tex2D(samp0,uv1.wz) + tex2D(samp0,uv2.xy) + tex2D(samp0,uv2.wz))*0.25f;\n"
 					"float4 EncodedDepth = frac((texcol.r * (16777215.0f/16777216.0f)) * float4(1.0f,255.0f,255.0f*255.0f,255.0f*255.0f*255.0f));\n"
 					"texcol = float4((EncodedDepth.rgb * (16777216.0f/16777215.0f)),1.0f);\n"
 					"ocol0 = float4(dot(texcol,cColMatrix[0]),dot(texcol,cColMatrix[1]),dot(texcol,cColMatrix[2]),dot(texcol,cColMatrix[3])) + cColMatrix[4];\n"						
@@ -257,6 +248,9 @@ void PixelShaderCache::Init()
 
 	if (!File::Exists(File::GetUserPath(D_SHADERCACHE_IDX)))
 		File::CreateDir(File::GetUserPath(D_SHADERCACHE_IDX));
+
+	SETSTAT(stats.numPixelShadersCreated, 0);
+	SETSTAT(stats.numPixelShadersAlive, 0);
 
 	char cache_filename[MAX_PATH];
 	sprintf(cache_filename, "%sdx9-%s-ps.cache", File::GetUserPath(D_SHADERCACHE_IDX), globals->unique_id);
@@ -272,14 +266,14 @@ void PixelShaderCache::Clear()
 		iter->second.Destroy();
 	PixelShaders.clear(); 
 
-	for (int i = 0; i < (C_COLORMATRIX + 16) * 4; i++)
+	for (int i = 0; i < C_PENVCONST_END * 4; i++)
 		lastPSconstants[i / 4][i % 4] = -100000000.0f;
 	memset(&last_pixel_shader_uid, 0xFF, sizeof(last_pixel_shader_uid));
 }
 
 void PixelShaderCache::Shutdown()
 {
-	for(int i = 0;i<3;i++)
+	for(int i = 0;i < MAX_SSAA_SHADERS; i++)
 	{
 		if (s_ColorMatrixProgram[i]) s_ColorMatrixProgram[i]->Release();
 		s_ColorMatrixProgram[i] = NULL;
@@ -294,6 +288,8 @@ void PixelShaderCache::Shutdown()
 	Clear();
 	g_ps_disk_cache.Sync();
 	g_ps_disk_cache.Close();
+
+	unique_shaders.clear();
 }
 
 bool PixelShaderCache::SetShader(bool dstAlpha)
@@ -335,6 +331,11 @@ bool PixelShaderCache::SetShader(bool dstAlpha)
 
 	// OK, need to generate and compile it.
 	const char *code = GeneratePixelShaderCode(PixelShaderManager::GetTextureMask(), dstAlpha, API_D3D9);
+
+	u32 code_hash = HashAdler32((const u8 *)code, strlen(code));
+	unique_shaders.insert(code_hash);
+	SETSTAT(stats.numUniquePixelShaders, unique_shaders.size());
+
 	#if defined(_DEBUG) || defined(DEBUGFAST)
 	if (g_ActiveConfig.iLog & CONF_SAVESHADERS && code) {	
 		static int counter = 0;

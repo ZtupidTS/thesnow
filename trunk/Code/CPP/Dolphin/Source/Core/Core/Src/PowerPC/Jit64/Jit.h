@@ -29,8 +29,6 @@
 
 // Settings
 // ----------
-#define JIT_OFF_OPTIONS // Compile with JIT off options
-
 #ifndef _JIT64_H
 #define _JIT64_H
 
@@ -63,6 +61,7 @@ private:
 		u32 next_compilerPC;
 		u32 blockStart;
 		bool cancel;
+		bool skipnext;
 		UGeckoInstruction next_inst;  // for easy peephole opt.
 		int blockSize;
 		int instructionNumber;
@@ -138,7 +137,8 @@ public:
 	void WriteCallInterpreter(UGeckoInstruction _inst);
 	void Cleanup();
 
-	void GenerateCarry(Gen::X64Reg temp_reg);
+	void GenerateCarry();
+	void ComputeRC(const Gen::OpArg & arg);
 
 	void tri_op(int d, int a, int b, bool reversible, void (XEmitter::*op)(Gen::X64Reg, Gen::OpArg));
 	typedef u32 (*Operation)(u32 a, u32 b);

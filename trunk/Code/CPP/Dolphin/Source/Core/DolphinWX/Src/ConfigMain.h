@@ -71,6 +71,7 @@ private:
 	
 	// Advanced
 	wxCheckBox* AlwaysHLE_BS2;
+	wxCheckBox* EnableOpenCL;
 	wxRadioBox* CPUEngine;
 	wxCheckBox* DSPThread;
 	wxCheckBox* LockThreads;
@@ -189,6 +190,7 @@ private:
 		ID_FRAMELIMIT_USEFPSFORLIMITING,
 		
 		ID_ALWAYS_HLE_BS2,
+		ID_ENABLE_OPENCL,
 		ID_CPUENGINE,
 		ID_LOCKTHREADS,
 		ID_DSPTHREAD,

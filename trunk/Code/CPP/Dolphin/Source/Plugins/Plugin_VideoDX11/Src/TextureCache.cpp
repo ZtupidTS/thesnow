@@ -67,6 +67,8 @@ void TextureCache::TCacheEntry::Destroy(bool shutdown)
 
 void TextureCache::Init()
 {
+	HRESULT hr;
+
 	temp = (u8*)AllocateMemoryPages(TEMP_SIZE);
 	TexDecoder_SetTexFmtOverlayOptions(g_ActiveConfig.bTexFmtOverlayEnable, g_ActiveConfig.bTexFmtOverlayCenter);
 	HiresTextures::Init(globals->unique_id);
@@ -82,7 +84,8 @@ void TextureCache::Init()
 	blenddesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
 	blenddesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
 	blenddesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
-	D3D::device->CreateBlendState(&blenddesc, &efbcopyblendstate);
+	hr = D3D::device->CreateBlendState(&blenddesc, &efbcopyblendstate);
+	CHECK(hr==S_OK, "Create blend state for TextureCache::CopyRenderTargetToTexture");
 	D3D::SetDebugObjectName((ID3D11DeviceChild*)efbcopyblendstate, "blend state used in TextureCache::CopyRenderTargetToTexture");
 
 	D3D11_DEPTH_STENCIL_DESC depthdesc;
@@ -92,7 +95,8 @@ void TextureCache::Init()
 	depthdesc.StencilEnable      = FALSE;
 	depthdesc.StencilReadMask    = D3D11_DEFAULT_STENCIL_READ_MASK;
 	depthdesc.StencilWriteMask   = D3D11_DEFAULT_STENCIL_WRITE_MASK;
-	D3D::device->CreateDepthStencilState(&depthdesc, &efbcopydepthstate);
+	hr = D3D::device->CreateDepthStencilState(&depthdesc, &efbcopydepthstate);
+	CHECK(hr==S_OK, "Create depth state for TextureCache::CopyRenderTargetToTexture");
 	D3D::SetDebugObjectName((ID3D11DeviceChild*)efbcopydepthstate, "depth stencil state used in TextureCache::CopyRenderTargetToTexture");
 
 	D3D11_RASTERIZER_DESC rastdesc;
@@ -106,7 +110,8 @@ void TextureCache::Init()
 	rastdesc.ScissorEnable = false;
 	rastdesc.MultisampleEnable = false;
 	rastdesc.AntialiasedLineEnable = false;
-	D3D::device->CreateRasterizerState(&rastdesc, &efbcopyraststate);
+	hr = D3D::device->CreateRasterizerState(&rastdesc, &efbcopyraststate);
+	CHECK(hr==S_OK, "Create rasterizer state for TextureCache::CopyRenderTargetToTexture");
 	D3D::SetDebugObjectName((ID3D11DeviceChild*)efbcopyraststate, "rasterizer state used in TextureCache::CopyRenderTargetToTexture");
 }
 
@@ -263,60 +268,51 @@ TextureCache::TCacheEntry* TextureCache::Load(unsigned int stage, u32 address, u
 	TCacheEntry& entry = textures[texID];
 	PC_TexFormat pcfmt = PC_TEX_FMT_NONE;
 
-	if (pcfmt == PC_TEX_FMT_NONE)
-		pcfmt = TexDecoder_Decode(temp, ptr, expandedWidth, expandedHeight, tex_format, tlutaddr, tlutfmt);
-
-	DXGI_FORMAT d3d_fmt = DXGI_FORMAT_B8G8R8A8_UNORM;
-	bool swap_r_b = false;
+	pcfmt = TexDecoder_Decode(temp, ptr, expandedWidth, expandedHeight, tex_format, tlutaddr, tlutfmt, true);
 
 	entry.oldpixel = ((u32*)ptr)[0];
 	if (g_ActiveConfig.bSafeTextureCache) entry.hash = hash_value;
 	else entry.hash = ((u32*)ptr)[0] = (u32)(((double)rand() / RAND_MAX) * 0xFFFFFFFF);
 
-	entry.addr = address;
-	entry.size_in_bytes = TexDecoder_GetTextureSizeInBytes(expandedWidth, expandedHeight, tex_format);
-	entry.isRenderTarget = false;
 	bool isPow2 = !((width & (width - 1)) || (height & (height - 1)));
-	entry.isNonPow2 = false;
 	unsigned int TexLevels = (isPow2 && UseNativeMips && maxlevel) ? GetPow2(max(width, height)) : ((isPow2)? 0 : 1);
 	if (TexLevels > (maxlevel + 1) && maxlevel)
 		TexLevels = maxlevel + 1;
-	entry.MipLevels = maxlevel;
+
 	D3D11_USAGE usage = (TexLevels == 1) ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_DEFAULT;
+
 	if (!skip_texture_create)
 	{
 		// TODO: A little more verbosity in the debug names would be quite helpful..
-		if (usage == D3D11_USAGE_DYNAMIC)
-		{
-			entry.texture = D3DTexture2D::Create(width, height, D3D11_BIND_SHADER_RESOURCE, usage, d3d_fmt, TexLevels);
-			D3D::SetDebugObjectName((ID3D11DeviceChild*)entry.texture->GetTex(), "a (dynamic) texture of the TextureCache");
-			D3D::SetDebugObjectName((ID3D11DeviceChild*)entry.texture->GetSRV(), "shader resource view of a (dynamic) texture of the TextureCache");
-		}
-		else // need to use default textures
-		{
-			ID3D11Texture2D* pTexture = NULL;
-			HRESULT hr;
+		D3D11_CPU_ACCESS_FLAG cpu_access = (TexLevels == 1) ? D3D11_CPU_ACCESS_WRITE : (D3D11_CPU_ACCESS_FLAG)0;
+		ID3D11Texture2D* pTexture = NULL;
+		HRESULT hr;
+		D3D11_SUBRESOURCE_DATA data;
+		data.pSysMem = temp;
+		data.SysMemPitch = 4*expandedWidth;
 
-			D3D11_TEXTURE2D_DESC texdesc = CD3D11_TEXTURE2D_DESC(d3d_fmt, width, height, 1, TexLevels, D3D11_BIND_SHADER_RESOURCE, usage);
-			hr = D3D::device->CreateTexture2D(&texdesc, NULL, &pTexture);
-			if (FAILED(hr))
-			{
-				PanicAlert("Failed to create texture at %s %d\n", __FILE__, __LINE__);
-				return NULL;
-			}
-			entry.texture = new D3DTexture2D(pTexture, D3D11_BIND_SHADER_RESOURCE);
-			D3D::SetDebugObjectName((ID3D11DeviceChild*)entry.texture->GetTex(), "a (static) texture of the TextureCache");
-			D3D::SetDebugObjectName((ID3D11DeviceChild*)entry.texture->GetSRV(), "shader resource view of a (static) texture of the TextureCache");
-			pTexture->Release();
-		}
-		if (entry.texture == NULL) PanicAlert("Failed to create texture at %s %d\n", __FILE__, __LINE__);
-		D3D::ReplaceTexture2D(entry.texture->GetTex(), temp, width, height, expandedWidth, d3d_fmt, pcfmt, 0, usage);
+		D3D11_TEXTURE2D_DESC texdesc = CD3D11_TEXTURE2D_DESC(DXGI_FORMAT_R8G8B8A8_UNORM, width, height, 1, TexLevels, D3D11_BIND_SHADER_RESOURCE, usage, cpu_access);
+		hr = D3D::device->CreateTexture2D(&texdesc, (TexLevels==1)?&data:NULL, &pTexture);
+		CHECK(hr==S_OK, "Create texture of the TextureCache");
+		entry.texture = new D3DTexture2D(pTexture, D3D11_BIND_SHADER_RESOURCE);
+		CHECK(entry.texture!=NULL, "Create texture of the TextureCache");
+		D3D::SetDebugObjectName((ID3D11DeviceChild*)entry.texture->GetTex(), "a texture of the TextureCache");
+		D3D::SetDebugObjectName((ID3D11DeviceChild*)entry.texture->GetSRV(), "shader resource view of a texture of the TextureCache");
+		SAFE_RELEASE(pTexture);
+
+		if (TexLevels != 1) D3D::ReplaceRGBATexture2D(entry.texture->GetTex(), temp, width, height, expandedWidth, 0, usage);
 	}
 	else
 	{
-		D3D::ReplaceTexture2D(entry.texture->GetTex(), temp, width, height, expandedWidth, d3d_fmt, pcfmt, 0, usage);
+		D3D::ReplaceRGBATexture2D(entry.texture->GetTex(), temp, width, height, expandedWidth, 0, usage);
 	}
-	if (TexLevels == 0 && usage == D3D11_USAGE_DEFAULT) D3DX11FilterTexture(D3D::context, entry.texture->GetTex(), 0, D3DX11_DEFAULT);
+	entry.addr = address;
+	entry.size_in_bytes = TexDecoder_GetTextureSizeInBytes(expandedWidth, expandedHeight, tex_format);
+	entry.isRenderTarget = false;
+	entry.isNonPow2 = false;
+	entry.MipLevels = maxlevel;
+
+	if (TexLevels == 0) PD3DX11FilterTexture(D3D::context, entry.texture->GetTex(), 0, D3DX11_DEFAULT);
 	else if (TexLevels > 1 && pcfmt != PC_TEX_FMT_NONE)
 	{
 		unsigned int level = 1;
@@ -329,8 +325,8 @@ TextureCache::TCacheEntry* TextureCache::Load(unsigned int stage, u32 address, u
 			unsigned int currentHeight = (mipHeight > 0) ? mipHeight : 1;
 			expandedWidth  = (currentWidth + bsw)  & (~bsw);
 			expandedHeight = (currentHeight + bsh) & (~bsh);
-			PC_TexFormat texfmtbuf = TexDecoder_Decode(temp, ptr, expandedWidth, expandedHeight, tex_format, tlutaddr, tlutfmt);
-			D3D::ReplaceTexture2D(entry.texture->GetTex(), (BYTE*)temp, currentWidth, currentHeight, expandedWidth, d3d_fmt, texfmtbuf, level, usage);
+			TexDecoder_Decode(temp, ptr, expandedWidth, expandedHeight, tex_format, tlutaddr, tlutfmt, true);
+			D3D::ReplaceRGBATexture2D(entry.texture->GetTex(), temp, currentWidth, currentHeight, expandedWidth, level, usage);
 			u32 size = (max(mipWidth, bsw) * max(mipHeight, bsh) * bsdepth) >> 1;
 			ptr +=  size;
 			mipWidth >>= 1;
@@ -351,7 +347,6 @@ TextureCache::TCacheEntry* TextureCache::Load(unsigned int stage, u32 address, u
 	return &entry;
 }
 
-// TODO: this doesn't work quite right, yet
 void TextureCache::CopyRenderTargetToTexture(u32 address, bool bFromZBuffer, bool bIsIntensityFmt, u32 copyfmt, unsigned int bScaleByHalf, const EFBRectangle &source_rect)
 {
 	int efb_w = source_rect.GetWidth();
@@ -393,7 +388,7 @@ void TextureCache::CopyRenderTargetToTexture(u32 address, bool bFromZBuffer, boo
 		entry.Scaledh = Scaledtex_h;
 		entry.fmt = copyfmt;
 		entry.isNonPow2 = true;
-		entry.texture = D3DTexture2D::Create(Scaledtex_w, Scaledtex_h, (D3D11_BIND_FLAG)((int)D3D11_BIND_RENDER_TARGET|(int)D3D11_BIND_SHADER_RESOURCE), D3D11_USAGE_DEFAULT, DXGI_FORMAT_B8G8R8A8_UNORM);
+		entry.texture = D3DTexture2D::Create(Scaledtex_w, Scaledtex_h, (D3D11_BIND_FLAG)((int)D3D11_BIND_RENDER_TARGET|(int)D3D11_BIND_SHADER_RESOURCE), D3D11_USAGE_DEFAULT, DXGI_FORMAT_R8G8B8A8_UNORM);
 		if (entry.texture == NULL) PanicAlert("CopyRenderTargetToTexture failed to create entry.texture at %s %d\n", __FILE__, __LINE__);
 		textures[address] = entry;
 		tex = entry.texture;
@@ -543,18 +538,22 @@ void TextureCache::CopyRenderTargetToTexture(u32 address, bool bFromZBuffer, boo
 		D3D11_BUFFER_DESC cbdesc = CD3D11_BUFFER_DESC(20*sizeof(float), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DEFAULT);
 		D3D11_SUBRESOURCE_DATA data;
 		data.pSysMem = colmat;
-		D3D::device->CreateBuffer(&cbdesc, &data, &efbcopycbuf[cbufid]);
+		HRESULT hr = D3D::device->CreateBuffer(&cbdesc, &data, &efbcopycbuf[cbufid]);
+		CHECK(hr==S_OK, "Create efb copy constant buffer %d", cbufid);
+		D3D::SetDebugObjectName((ID3D11DeviceChild*)efbcopycbuf[cbufid], "a constant buffer used in TextureCache::CopyRenderTargetToTexture");
 	}
 	D3D::context->PSSetConstantBuffers(0, 1, &efbcopycbuf[cbufid]);
 
 	TargetRectangle targetSource = Renderer::ConvertEFBRectangle(source_rect);
 	D3D11_RECT sourcerect = CD3D11_RECT(targetSource.left, targetSource.top, targetSource.right, targetSource.bottom);
 
-	// TODO: Use linear filtering if (bScaleByHalf), else use point filtering
+	// Use linear filtering if (bScaleByHalf), use point filtering otherwise
+	if (bScaleByHalf) D3D::SetLinearCopySampler();
+	else D3D::SetPointCopySampler();
 
-	D3D::context->OMSetBlendState(efbcopyblendstate, NULL, 0xffffffff);
-	D3D::context->RSSetState(efbcopyraststate);
-	D3D::context->OMSetDepthStencilState(efbcopydepthstate, 0);
+	D3D::stateman->PushBlendState(efbcopyblendstate);
+	D3D::stateman->PushRasterizerState(efbcopyraststate);
+	D3D::stateman->PushDepthState(efbcopydepthstate);
 	D3D::context->OMSetRenderTargets(1, &tex->GetRTV(), NULL);
 	D3D::drawShadedTexQuad(
 				(bFromZBuffer) ? FBManager.GetEFBDepthTexture()->GetSRV() : FBManager.GetEFBColorTexture()->GetSRV(),
@@ -564,5 +563,8 @@ void TextureCache::CopyRenderTargetToTexture(u32 address, bool bFromZBuffer, boo
 				(bFromZBuffer) ? PixelShaderCache::GetDepthMatrixProgram() : PixelShaderCache::GetColorMatrixProgram(), VertexShaderCache::GetSimpleVertexShader(), VertexShaderCache::GetSimpleInputLayout());
 
 	D3D::context->OMSetRenderTargets(1, &FBManager.GetEFBColorTexture()->GetRTV(), FBManager.GetEFBDepthTexture()->GetDSV());
+	D3D::stateman->PopBlendState();
+	D3D::stateman->PopDepthState();
+	D3D::stateman->PopRasterizerState();
 	Renderer::RestoreAPIState();
 }

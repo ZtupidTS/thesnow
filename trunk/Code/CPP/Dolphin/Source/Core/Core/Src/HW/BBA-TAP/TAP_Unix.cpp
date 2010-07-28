@@ -23,8 +23,12 @@
 	#include <stdio.h>
 	#include <fcntl.h>
 	#include <sys/ioctl.h>
-	#include <net/if.h>  
+	#include <net/if.h>
+#ifdef __linux__
 	#include <linux/if_tun.h>
+#else
+	#include <net/if_tun.h>
+#endif
 	#include <assert.h>
 	int fd = -1;
 bool CEXIETHERNET::deactivate()
@@ -39,6 +43,7 @@ bool CEXIETHERNET::isActivated()
 }
 
 bool CEXIETHERNET::activate() {
+#ifdef __linux__
 	if(isActivated())
 		return true;
 	if( (fd = open("/dev/net/tun", O_RDWR)) < 0)
@@ -78,7 +83,9 @@ bool CEXIETHERNET::activate() {
 	system("ifconfig Dolphin 0.0.0.0 promisc up");
 	resume();
 	return true;
-	
+#else
+	return false;
+#endif
 }
 bool CEXIETHERNET::CheckRecieved()
 {

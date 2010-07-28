@@ -11,6 +11,7 @@
 #ifdef _WIN32
 	#include <windows.h>
 #endif
+#include "Common.h"
 #include "CommonTypes.h"
 
 // Plugin communication. I place this here rather in Common.h to rebuild less if any of this is changed
@@ -23,8 +24,6 @@ enum PLUGIN_COMM
 	WM_USER_CREATE,
 	WM_USER_SETCURSOR,
 	WM_USER_KEYDOWN,
-	VIDEO_DESTROY, // The video debugging window was destroyed
-	AUDIO_DESTROY, // The audio debugging window was destroyed
 	WIIMOTE_DISCONNECT, // Disconnect Wiimote
 	INPUT_FRAME_COUNTER // Wind back the frame counter for rerecording
 };
@@ -47,7 +46,6 @@ enum PLUGIN_COMM
 	// simulate something that looks like win32
 	// long term, kill these
 	#define HWND  void*
-	#define HINSTANCE void*
 #endif
 
 #if defined(__cplusplus)
@@ -90,11 +88,6 @@ typedef struct
 	char Name[100];		// Name of the DLL
 } PLUGIN_INFO;
 
-#ifndef MAX_PATH
-// apparently a windows-ism.
-#define MAX_PATH 260
-#endif
-
 // TODO: Remove, or at least remove the void pointers and replace with data.
 // This design is just wrong and ugly - the plugins shouldn't have this much access.
 typedef struct 
@@ -131,7 +124,7 @@ EXPORT void CALL DllConfig(HWND _hParent);
 // input:    a handle to the window that calls this function
 // output:   none
 //
-EXPORT void CALL DllDebugger(HWND _hParent, bool Show);
+EXPORT void* CALL DllDebugger(void *_hParent, bool Show);
 
 // ___________________________________________________________________________
 // Function: DllSetGlobals

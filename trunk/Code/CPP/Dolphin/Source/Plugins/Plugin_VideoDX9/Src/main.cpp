@@ -26,14 +26,10 @@
 GFXConfigDialogDX *m_ConfigFrame = NULL;
 #endif // HAVE_WX
 
-
-
 #if defined(HAVE_WX) && HAVE_WX
 #include "Debugger/Debugger.h"
-GFXDebuggerDX9 *m_DebuggerFrame = NULL;
 #endif // HAVE_WX
 
-#include "svnrev.h"
 #include "main.h"
 #include "VideoConfig.h"
 #include "Fifo.h"
@@ -52,14 +48,10 @@ GFXDebuggerDX9 *m_DebuggerFrame = NULL;
 #include "DlgSettings.h"
 #include "D3DTexture.h"
 #include "D3DUtil.h"
-#include "W32Util/Misc.h"
 #include "EmuWindow.h"
 #include "VideoState.h"
 #include "XFBConvert.h"
 #include "render.h"
-
-
-#include "Utils.h"
 
 HINSTANCE g_hInstance = NULL;
 SVideoInitialize g_VideoInitialize;
@@ -69,7 +61,6 @@ static bool s_PluginInitialized = false;
 volatile u32 s_swapRequested = FALSE;
 static u32 s_efbAccessRequested = FALSE;
 static volatile u32 s_FifoShuttingDown = FALSE;
-static bool ForceSwap = true;
 
 static volatile struct
 {
@@ -93,34 +84,24 @@ bool IsD3D()
 
 // This is used for the functions right below here which use wxwidgets
 #if defined(HAVE_WX) && HAVE_WX
-#ifdef _WIN32
-	WXDLLIMPEXP_BASE void wxSetInstance(HINSTANCE hInst);
-#endif
+WXDLLIMPEXP_BASE void wxSetInstance(HINSTANCE hInst);
 
 wxWindow* GetParentedWxWindow(HWND Parent)
 {
-#ifdef _WIN32
 	wxSetInstance((HINSTANCE)g_hInstance);
-#endif
 	wxWindow *win = new wxWindow();
-#ifdef _WIN32
 	win->SetHWND((WXHWND)Parent);
 	win->AdoptAttributesFromHWND();
-#endif
 	return win;
 }
 #endif
 
-void DllDebugger(HWND _hParent, bool Show)
+void *DllDebugger(void *_hParent, bool Show)
 {
 #if defined(HAVE_WX) && HAVE_WX
-	if (!m_DebuggerFrame)
-		m_DebuggerFrame = new GFXDebuggerDX9(GetParentedWxWindow(_hParent));
-
-	if (Show)
-		m_DebuggerFrame->Show();
-	else
-		m_DebuggerFrame->Hide();
+	return new GFXDebuggerDX9((wxWindow *)_hParent);
+#else
+	return NULL;
 #endif
 }
 
@@ -176,7 +157,7 @@ unsigned int Callback_PeekMessages()
 void UpdateFPSDisplay(const char *text)
 {
 	TCHAR temp[512];
-	swprintf_s(temp, 512, _T("SVN R%i: DX9: %hs"), SVN_REV, text);
+	swprintf_s(temp, 512, _T("SVN R%s: DX9: %hs"), svn_rev_str, text);
 	SetWindowText(EmuWindow::GetWnd(), temp);
 }
 
@@ -219,20 +200,13 @@ void DllConfig(HWND _hParent)
 	m_ConfigFrame = new GFXConfigDialogDX(frame);
 
 	// Prevent user to show more than 1 config window at same time
-#ifdef _WIN32
 	frame->Disable();
 	m_ConfigFrame->CreateGUIControls();
 	m_ConfigFrame->ShowModal();
 	frame->Enable();
-#else
-	m_ConfigFrame->CreateGUIControls();
-	m_ConfigFrame->ShowModal();
-#endif
 
-#ifdef _WIN32
 	frame->SetFocus();
 	frame->SetHWND(NULL);
-#endif
 
 	m_ConfigFrame->Destroy();
 	m_ConfigFrame = NULL;
@@ -266,15 +240,6 @@ void Initialize(void *init)
 		return;
 	}
 
-	std::wstring msg;
-	if( !D3D::DXCheck(msg) )
-	{
-		msg.insert( 0, _T("Unable to initialize Direct3D. ") );
-		msg.append( _T("\n\nHave a nice crash. :P") );
-		MessageBox( (HWND)g_VideoInitialize.pWindowHandle, msg.c_str(), _T("Critical Error"), MB_ICONERROR|MB_OK );
-		ShellExecute( NULL, NULL, _T("http://www.microsoft.com/downloads/details.aspx?FamilyID=2da43d38-db71-4c1b-bc6a-9b6652cd92a3"), NULL, NULL, SW_SHOWNORMAL );
-	}
-
 	g_VideoInitialize.pPeekMessages = &Callback_PeekMessages;
 	g_VideoInitialize.pUpdateFPSDisplay = &UpdateFPSDisplay;
 
@@ -292,7 +257,6 @@ void Video_Prepare()
 	s_efbAccessRequested = FALSE;
 	s_FifoShuttingDown = FALSE;
 	s_swapRequested = FALSE;
-	ForceSwap = true;
 	Renderer::Init();
 	TextureCache::Init();
 	BPInit();
@@ -300,9 +264,7 @@ void Video_Prepare()
 	Fifo_Init();
 	VertexLoaderManager::Init();
 	OpcodeDecoder_Init();
-	VertexShaderCache::Init();
 	VertexShaderManager::Init();
-	PixelShaderCache::Init();
 	PixelShaderManager::Init();
 	CommandProcessor::Init();
 	PixelEngine::Init();
@@ -320,9 +282,7 @@ void Shutdown()
 	CommandProcessor::Shutdown();
 	VertexManager::Shutdown();
 	VertexLoaderManager::Shutdown();
-	VertexShaderCache::Shutdown();
 	VertexShaderManager::Shutdown();
-	PixelShaderCache::Shutdown();
 	PixelShaderManager::Shutdown();
 	TextureCache::Shutdown();
 	OpcodeDecoder_Shutdown();
@@ -363,16 +323,17 @@ void Video_SetRendering(bool bEnabled) {
 	Fifo_SetRendering(bEnabled);
 }
 
-// Run from the graphics thread
+// Run from the graphics thread (from Fifo.cpp)
 void VideoFifo_CheckSwapRequest()
 {
-	if (Common::AtomicLoadAcquire(s_swapRequested))
+	if(g_ActiveConfig.bUseXFB)
 	{
-		if (ForceSwap || g_ActiveConfig.bUseXFB)
+		if (Common::AtomicLoadAcquire(s_swapRequested))
 		{
-			Renderer::Swap(s_beginFieldArgs.xfbAddr, s_beginFieldArgs.field, s_beginFieldArgs.fbWidth, s_beginFieldArgs.fbHeight);
+			EFBRectangle rc;
+			Renderer::Swap(s_beginFieldArgs.xfbAddr, s_beginFieldArgs.field, s_beginFieldArgs.fbWidth, s_beginFieldArgs.fbHeight,rc);
+			Common::AtomicStoreRelease(s_swapRequested, FALSE);
 		}
-		Common::AtomicStoreRelease(s_swapRequested, FALSE);
 	}
 }
 
@@ -381,34 +342,29 @@ inline bool addrRangesOverlap(u32 aLower, u32 aUpper, u32 bLower, u32 bUpper)
 	return !((aLower >= bUpper) || (bLower >= aUpper));
 }
 
-// Run from the graphics thread
+// Run from the graphics thread (from Fifo.cpp)
 void VideoFifo_CheckSwapRequestAt(u32 xfbAddr, u32 fbWidth, u32 fbHeight)
 {
-	if (Common::AtomicLoadAcquire(s_swapRequested) && g_ActiveConfig.bUseXFB)
+	if (g_ActiveConfig.bUseXFB)
 	{
-		u32 aLower = xfbAddr;
-		u32 aUpper = xfbAddr + 2 * fbWidth * fbHeight;
-		u32 bLower = s_beginFieldArgs.xfbAddr;
-		u32 bUpper = s_beginFieldArgs.xfbAddr + 2 * s_beginFieldArgs.fbWidth * s_beginFieldArgs.fbHeight;
+		if(Common::AtomicLoadAcquire(s_swapRequested))
+		{
+			u32 aLower = xfbAddr;
+			u32 aUpper = xfbAddr + 2 * fbWidth * fbHeight;
+			u32 bLower = s_beginFieldArgs.xfbAddr;
+			u32 bUpper = s_beginFieldArgs.xfbAddr + 2 * s_beginFieldArgs.fbWidth * s_beginFieldArgs.fbHeight;
 
-		if (addrRangesOverlap(aLower, aUpper, bLower, bUpper))
-			VideoFifo_CheckSwapRequest();
-	}
-
-	ForceSwap = false;
+			if (addrRangesOverlap(aLower, aUpper, bLower, bUpper))
+				VideoFifo_CheckSwapRequest();
+		}
+	}	
 }
 
 // Run from the CPU thread (from VideoInterface.cpp)
 void Video_BeginField(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight)
 {
 	if (s_PluginInitialized && g_ActiveConfig.bUseXFB)
-	{
-		s_beginFieldArgs.xfbAddr = xfbAddr;
-		s_beginFieldArgs.field = field;
-		s_beginFieldArgs.fbWidth = fbWidth;
-		s_beginFieldArgs.fbHeight = fbHeight;
-
-		Common::AtomicStoreRelease(s_swapRequested, TRUE);
+	{		
 		if (g_VideoInitialize.bOnThread)
 		{
 			while (Common::AtomicLoadAcquire(s_swapRequested) && !s_FifoShuttingDown)
@@ -416,7 +372,13 @@ void Video_BeginField(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight)
 				Common::YieldCPU();
 		}
 		else
-			VideoFifo_CheckSwapRequest();
+			VideoFifo_CheckSwapRequest();				
+		s_beginFieldArgs.xfbAddr = xfbAddr;
+		s_beginFieldArgs.field = field;
+		s_beginFieldArgs.fbWidth = fbWidth;
+		s_beginFieldArgs.fbHeight = fbHeight;
+
+		Common::AtomicStoreRelease(s_swapRequested, TRUE);
 	}
 }
 
@@ -526,4 +488,9 @@ inline void Video_GatherPipeBursted(void)
 void Video_WaitForFrameFinish(void)
 {
 	CommandProcessor::WaitForFrameFinish();
+}
+
+bool Video_IsFifoBusy(void)
+{
+	return CommandProcessor::isFifoBusy;
 }

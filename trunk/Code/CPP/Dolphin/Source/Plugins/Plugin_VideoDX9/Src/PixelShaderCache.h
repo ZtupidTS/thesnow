@@ -37,14 +37,15 @@ private:
 	struct PSCacheEntry
 	{
 		LPDIRECT3DPIXELSHADER9 shader;
+		bool owns_shader;
 		int frameCount;
 #if defined(_DEBUG) || defined(DEBUGFAST)
 		std::string code;
 #endif
-		PSCacheEntry() : shader(NULL), frameCount(0) {}
+		PSCacheEntry() : shader(NULL), owns_shader(true), frameCount(0) {}
 		void Destroy()
 		{
-			if (shader)
+			if (shader && owns_shader)
 				shader->Release();
 			shader = NULL;
 		}
@@ -54,11 +55,10 @@ private:
 
 	static PSCache PixelShaders;
 	static const PSCacheEntry *last_entry;
-
+	static void Clear();
 
 public:
 	static void Init();
-	static void Clear();
 	static void Shutdown();
 	static bool SetShader(bool dstAlpha);
 	static bool InsertByteCode(const PIXELSHADERUID &uid, const u8 *bytecode, int bytecodelen, bool activate);

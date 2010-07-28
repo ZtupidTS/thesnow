@@ -23,7 +23,7 @@
 
 #include "../../InputCommon/Src/InputConfig.h"
 
-InputPlugin g_plugin("GCPadNew", "Pad", "GCPad");
+static InputPlugin g_plugin("GCPadNew", "Pad", "GCPad");
 
 InputPlugin *PAD_GetPlugin() {
 	return &g_plugin;
@@ -51,71 +51,49 @@ void GCPad_Init( void* const hwnd )
 	if ( false == g_plugin.controller_interface.IsInit() )
 	{
 		// add 4 gcpads
-		for ( unsigned int i = 0; i<4; ++i )
-			g_plugin.controllers.push_back( new GCPad( i ) );
+		for (unsigned int i=0; i<4; ++i)
+			g_plugin.controllers.push_back(new GCPad(i));
 		
 		// needed for Xlib
 		g_plugin.controller_interface.SetHwnd(hwnd);
 		g_plugin.controller_interface.Init();
 
 		// load the saved controller config
-		if (false == g_plugin.LoadConfig())
-		{
-			// load default config for pad 1
-			g_plugin.controllers[0]->LoadDefaults();
-
-			// kinda silly, set default device(all controls) to first one found in ControllerInterface
-			// should be the keyboard device
-			if (g_plugin.controller_interface.Devices().size())
-			{
-				g_plugin.controllers[0]->default_device.FromDevice(g_plugin.controller_interface.Devices()[0]);
-				g_plugin.controllers[0]->UpdateDefaultDevice();
-			}
-		}
-
-		// update control refs
-		std::vector<ControllerEmu*>::const_iterator
-			i = g_plugin.controllers.begin(),
-			e = g_plugin.controllers.end();
-		for ( ; i!=e; ++i )
-			(*i)->UpdateReferences( g_plugin.controller_interface );
-
+		g_plugin.LoadConfig();
 	}
 }
 
 void PAD_GetStatus(u8 _numPAD, SPADStatus* _pPADStatus)
 {
-	memset( _pPADStatus, 0, sizeof(*_pPADStatus) );
+	memset(_pPADStatus, 0, sizeof(*_pPADStatus));
 	_pPADStatus->err = PAD_ERR_NONE;
-	// wtf is this?	
-	_pPADStatus->button |= PAD_USE_ORIGIN;
+	// wtf is this?
+	_pPADStatus->button = PAD_USE_ORIGIN;
 
 	// try lock
-	if ( false == g_plugin.controls_crit.TryEnter() )
+	if (false == g_plugin.controls_crit.TryEnter())
 	{
 		// if gui has lock (messing with controls), skip this input cycle
 		// center axes and return
-		memset( &_pPADStatus->stickX, 0x80, 4 );
+		memset(&_pPADStatus->stickX, 0x80, 4);
 		return;
 	}
 
 	// if we are on the next input cycle, update output and input
 	// if we can get a lock
 	static int _last_numPAD = 4;
-	if ( _numPAD <= _last_numPAD && g_plugin.interface_crit.TryEnter() )
+	if (_numPAD <= _last_numPAD)
 	{
 		g_plugin.controller_interface.UpdateOutput();
 		g_plugin.controller_interface.UpdateInput();
-		g_plugin.interface_crit.Leave();
 	}
 	_last_numPAD = _numPAD;
 	
 	// get input
-	((GCPad*)g_plugin.controllers[ _numPAD ])->GetInput( _pPADStatus );
+	((GCPad*)g_plugin.controllers[_numPAD])->GetInput(_pPADStatus);
 
 	// leave
 	g_plugin.controls_crit.Leave();
-
 }
 
 // __________________________________________________________________________________________________

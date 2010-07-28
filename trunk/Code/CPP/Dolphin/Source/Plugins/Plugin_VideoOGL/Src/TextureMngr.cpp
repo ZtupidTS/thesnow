@@ -52,6 +52,7 @@
 #include "FramebufferManager.h"
 #include "FileUtil.h"
 #include "HiresTextures.h"
+#include "TextureConverter.h"
 
 u8 *TextureMngr::temp = NULL;
 TextureMngr::TexCache TextureMngr::textures;
@@ -95,13 +96,13 @@ bool SaveTexture(const char* filename, u32 textarget, u32 tex, int width, int he
     return SaveTGA(filename, width, height, &data[0]);
 }
 
-bool TextureMngr::TCacheEntry::IntersectsMemoryRange(u32 range_address, u32 range_size)
+int TextureMngr::TCacheEntry::IntersectsMemoryRange(u32 range_address, u32 range_size)
 {
 	if (addr + size_in_bytes < range_address)
-		return false;
+		return -1;
 	if (addr >= range_address + range_size)
-		return false;
-	return true;
+		return 1;
+	return 0;
 }
 
 void TextureMngr::TCacheEntry::SetTextureParameters(TexMode0 &newmode,TexMode1 &newmode1)
@@ -192,23 +193,17 @@ void TextureMngr::Shutdown()
 
 void TextureMngr::ProgressiveCleanup()
 {
-    TexCache::iterator iter = textures.begin();
-    while (iter != textures.end())
+	TexCache::iterator iter = textures.begin();
+	while (iter != textures.end())
 	{
-        if (frameCount > TEXTURE_KILL_THRESHOLD + iter->second.frameCount)
+		if (frameCount > TEXTURE_KILL_THRESHOLD + iter->second.frameCount)
 		{
-            if (!iter->second.isRenderTarget) {
-                iter->second.Destroy(false);
-				textures.erase(iter++);
-            }
-            else {
-                iter->second.Destroy(false);
-				textures.erase(iter++);
-            }
-        }
-        else
-            ++iter;
-    }
+			iter->second.Destroy(false);
+			textures.erase(iter++);
+		}
+		else
+			++iter;
+	}
 }
 
 void TextureMngr::InvalidateRange(u32 start_address, u32 size)
@@ -216,16 +211,33 @@ void TextureMngr::InvalidateRange(u32 start_address, u32 size)
 	TexCache::iterator iter = textures.begin();
 	while (iter != textures.end())
 	{
-		if (iter->second.IntersectsMemoryRange(start_address, size))
+		int rangePosition = iter->second.IntersectsMemoryRange(start_address, size);
+		if (rangePosition == 0)
 		{
 			iter->second.Destroy(false);
 			textures.erase(iter++);
 		}
-		else {
-			++iter;
+		else 
+		{
+			++iter;			
 		}
 	}
 }
+
+void TextureMngr::MakeRangeDynamic(u32 start_address, u32 size)
+{
+	TexCache::iterator iter = textures.begin();
+	while (iter != textures.end())
+	{
+		int rangePosition = iter->second.IntersectsMemoryRange(start_address, size);
+		if ( rangePosition == 0)
+		{
+			iter->second.hash = 0;
+		}
+		++iter;
+	}
+}
+
 
 TextureMngr::TCacheEntry* TextureMngr::Load(int texstage, u32 address, int width, int height, u32 tex_format, int tlutaddr, int tlutfmt)
 {
@@ -273,6 +285,7 @@ TextureMngr::TCacheEntry* TextureMngr::Load(int texstage, u32 address, int width
     u32 texID = address;
 	u64 texHash = 0;
 	u32 FullFormat = tex_format;
+	bool TextureisDynamic = false;
 	if ((tex_format == GX_TF_C4) || (tex_format == GX_TF_C8) || (tex_format == GX_TF_C14X2))
 		FullFormat = (tex_format | (tlutfmt << 16));
 	if (g_ActiveConfig.bSafeTextureCache || g_ActiveConfig.bHiresTextures || g_ActiveConfig.bDumpTextures)
@@ -306,19 +319,47 @@ TextureMngr::TCacheEntry* TextureMngr::Load(int texstage, u32 address, int width
         TCacheEntry &entry = iter->second;
 
 		if (!g_ActiveConfig.bSafeTextureCache)
-			hash_value = ((u32 *)ptr)[0];
+		{
+			if(entry.isRenderTarget || entry.isDynamic)
+			{
+				if(!g_ActiveConfig.bCopyEFBToTexture)
+				{
+					hash_value =  TexDecoder_GetHash64(ptr,TexDecoder_GetTextureSizeInBytes(expandedWidth, expandedHeight, tex_format),g_ActiveConfig.iSafeTextureCache_ColorSamples);
+					if ((tex_format == GX_TF_C4) || (tex_format == GX_TF_C8) || (tex_format == GX_TF_C14X2))
+					{
+						hash_value ^= TexDecoder_GetHash64(&texMem[tlutaddr], TexDecoder_GetPaletteSize(tex_format),g_ActiveConfig.iSafeTextureCache_ColorSamples);
+					}
+				}
+				else
+				{
+					hash_value = 0;
+				}
+			}
+			else
+			{
+				hash_value = ((u32 *)ptr)[0];
+			}
+		}
+		else
+		{
+			if(entry.isRenderTarget || entry.isDynamic)
+			{
+				if(g_ActiveConfig.bCopyEFBToTexture)
+				{
+					hash_value = 0;
+				}
+			}
+		}
 
-        if (entry.isRenderTarget || ((address == entry.addr) && (hash_value == entry.hash) && ((int) FullFormat == entry.fmt && entry.MipLevels >= maxlevel)))
+        if (((entry.isRenderTarget || entry.isDynamic) && hash_value == entry.hash && address == entry.addr) 
+			|| ((address == entry.addr) && (hash_value == entry.hash) && ((int) FullFormat == entry.fmt) && entry.MipLevels >= maxlevel))
 		{
             entry.frameCount = frameCount;
 			glEnable(entry.isRectangle ? GL_TEXTURE_RECTANGLE_ARB : GL_TEXTURE_2D);
-//			entry.isRectangle ? TextureMngr::EnableTex2D(texstage) : TextureMngr::EnableTexRECT(texstage);
-            glBindTexture(entry.isRectangle ? GL_TEXTURE_RECTANGLE_ARB : GL_TEXTURE_2D, entry.texture);
+			glBindTexture(entry.isRectangle ? GL_TEXTURE_RECTANGLE_ARB : GL_TEXTURE_2D, entry.texture);
 			GL_REPORT_ERRORD();
-            //if (entry.mode.hex != tm0.hex || entry.mode1.hex != tm1.hex)//gl needs this refreshed for every texture to work right
-                entry.SetTextureParameters(tm0,tm1);
-			//DebugLog("%cC addr: %08x | fmt: %i | e.hash: %08x | w:%04i h:%04i", g_ActiveConfig.bSafeTextureCache ? 'S' : 'U'
- 			//		, address, tex_format, entry.hash, width, height);
+            entry.SetTextureParameters(tm0,tm1);
+			entry.isDynamic = false;
 			return &entry;
         }
         else
@@ -326,12 +367,14 @@ TextureMngr::TCacheEntry* TextureMngr::Load(int texstage, u32 address, int width
             // Let's reload the new texture data into the same texture,
 			// instead of destroying it and having to create a new one.
 			// Might speed up movie playback very, very slightly.
-			if (width == entry.w && height == entry.h && (int) FullFormat == entry.fmt)
-            {
+			TextureisDynamic = (entry.isRenderTarget || entry.isDynamic) && !g_ActiveConfig.bCopyEFBToTexture;
+			if (((!(entry.isRenderTarget || entry.isDynamic)  && width == entry.w && height == entry.h && (int)FullFormat == entry.fmt) ||
+				((entry.isRenderTarget || entry.isDynamic)  && entry.w == width && entry.h == height && entry.Scaledw == width && entry.Scaledh == height)) 
+				&& !entry.isRectangle)
+			{
 				glBindTexture(entry.isRectangle ? GL_TEXTURE_RECTANGLE_ARB : GL_TEXTURE_2D, entry.texture);
 				GL_REPORT_ERRORD();
-				//if (entry.mode.hex != tm0.hex || entry.mode1.hex != tm1.hex) //gl needs this refreshed for every texture to work right
-					entry.SetTextureParameters(tm0,tm1);
+				entry.SetTextureParameters(tm0,tm1);
 				skip_texture_create = true;
             }
             else
@@ -344,6 +387,8 @@ TextureMngr::TCacheEntry* TextureMngr::Load(int texstage, u32 address, int width
 
     //Make an entry in the table
 	TCacheEntry& entry = textures[texID];
+	entry.isDynamic = TextureisDynamic;
+	entry.isRenderTarget = false;
 	PC_TexFormat dfmt = PC_TEX_FMT_NONE;
 
 	if (g_ActiveConfig.bHiresTextures)
@@ -364,23 +409,27 @@ TextureMngr::TCacheEntry* TextureMngr::Load(int texstage, u32 address, int width
 			entry.scaleY = (float) height / oldHeight;
 		}
 	}
+	else
+	{
+		entry.scaleX = 1.0f;
+		entry.scaleY = 1.0f;
+	}
 
 	if (dfmt == PC_TEX_FMT_NONE)
 		dfmt = TexDecoder_Decode(temp, ptr, expandedWidth, expandedHeight, tex_format, tlutaddr, tlutfmt);
 
     entry.oldpixel = ((u32 *)ptr)[0];
 
-	if (g_ActiveConfig.bSafeTextureCache)
+	if (g_ActiveConfig.bSafeTextureCache || entry.isDynamic)
 		entry.hash = hash_value;
-	else 
+	else
 	{
 		entry.hash = (u32)(((double)rand() / RAND_MAX) * 0xFFFFFFFF);
-	    ((u32 *)ptr)[0] = entry.hash;
+		((u32 *)ptr)[0] = entry.hash;		
 	}
 
     entry.addr = address;
-	entry.size_in_bytes = TexDecoder_GetTextureSizeInBytes(expandedWidth, expandedHeight, tex_format);
-    entry.isRenderTarget = false;
+	entry.size_in_bytes = TexDecoder_GetTextureSizeInBytes(expandedWidth, expandedHeight, tex_format);    
 
 	// For static textures, we use NPOT.
 	entry.isRectangle = false;
@@ -528,6 +577,8 @@ TextureMngr::TCacheEntry* TextureMngr::Load(int texstage, u32 address, int width
     entry.frameCount = frameCount;
     entry.w = width;
     entry.h = height;
+	entry.Scaledw = width;
+	entry.Scaledh = height;
     entry.fmt = FullFormat;
     entry.SetTextureParameters(tm0,tm1);
     if (g_ActiveConfig.bDumpTextures) // dump texture to file
@@ -575,9 +626,6 @@ void TextureMngr::CopyRenderTargetToTexture(u32 address, bool bFromZBuffer, bool
 	// IA4,RA4 - IA4
 	// Z8M,G8,I8,A8,Z8,R8,B8,Z8L - I8
 	// Z16,GB8,RG8,Z16L,IA8,RA8 - IA8
-	GLenum gl_format = GL_RGBA;
-	GLenum gl_iformat = 4;
-	GLenum gl_type = GL_UNSIGNED_BYTE;
 	float colmat[16];
 	float fConstAdd[4] = {0};
 	memset(colmat, 0, sizeof(colmat));
@@ -688,6 +736,15 @@ void TextureMngr::CopyRenderTargetToTexture(u32 address, bool bFromZBuffer, bool
 	int w = (abs(source_rect.GetWidth()) >> bScaleByHalf);
 	int h = (abs(source_rect.GetHeight()) >> bScaleByHalf);
 
+	float xScale = Renderer::GetTargetScaleX();
+	float yScale = Renderer::GetTargetScaleY();
+	
+	int Scaledtex_w = (g_ActiveConfig.bCopyEFBScaled)?((int)(xScale * w)) : w;
+	int Scaledtex_h = (g_ActiveConfig.bCopyEFBScaled)?((int)(yScale * h)) : h;
+
+	GLenum gl_format = GL_RGBA;
+	GLenum gl_iformat = 4;
+	GLenum gl_type = GL_UNSIGNED_BYTE;
 
 
 	GL_REPORT_ERRORD();
@@ -697,30 +754,38 @@ void TextureMngr::CopyRenderTargetToTexture(u32 address, bool bFromZBuffer, bool
 		glGenTextures(1, (GLuint *)&entry.texture);
 		glBindTexture(GL_TEXTURE_RECTANGLE_ARB, entry.texture);
 		GL_REPORT_ERRORD();
-		glTexImage2D(GL_TEXTURE_RECTANGLE_ARB, 0, gl_iformat, w, h, 0, gl_format, gl_type, NULL);
+		glTexImage2D(GL_TEXTURE_RECTANGLE_ARB, 0, gl_iformat, Scaledtex_w, Scaledtex_h, 0, gl_format, gl_type, NULL);
 		GL_REPORT_ERRORD();
+		entry.isRenderTarget = true;
+		entry.isDynamic = false;
 	}
 	else 
 	{
 		_assert_(entry.texture);
 		GL_REPORT_ERRORD();
-		if (entry.w == w && entry.h == h && entry.isRectangle && entry.fmt == (int) copyfmt) 
+		if(entry.isDynamic)
 		{
-			glBindTexture(GL_TEXTURE_RECTANGLE_ARB, entry.texture);
+			Scaledtex_h = h;
+			Scaledtex_w = w;
+		}
+		if (((entry.isRenderTarget || entry.isDynamic)  && entry.Scaledw == Scaledtex_w && entry.Scaledh == Scaledtex_h))
+		{
+			glBindTexture(entry.isRectangle ? GL_TEXTURE_RECTANGLE_ARB : GL_TEXTURE_2D, entry.texture);
 			// for some reason mario sunshine errors here...
 			// Beyond Good and Evil does too, occasionally.
 			GL_REPORT_ERRORD();
 		} else {
-			// Delete existing texture.
+			// Delete existing texture.			
 			glDeleteTextures(1,(GLuint *)&entry.texture);
 			glGenTextures(1, (GLuint *)&entry.texture);
-			glBindTexture(GL_TEXTURE_RECTANGLE_ARB, entry.texture);
-			glTexImage2D(GL_TEXTURE_RECTANGLE_ARB, 0, gl_iformat, w, h, 0, gl_format, gl_type, NULL);
+			glBindTexture(entry.isDynamic ? GL_TEXTURE_2D : GL_TEXTURE_RECTANGLE_ARB, entry.texture);
+			glTexImage2D(entry.isDynamic ? GL_TEXTURE_2D : GL_TEXTURE_RECTANGLE_ARB, 0, gl_iformat, Scaledtex_w, Scaledtex_h, 0, gl_format, gl_type, NULL);
 			GL_REPORT_ERRORD();
+			entry.isRenderTarget = !entry.isDynamic;
 		}
 	}
 
-	if (!bIsInit || !entry.isRenderTarget) 
+	if (!bIsInit) 
 	{
 		glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -734,11 +799,16 @@ void TextureMngr::CopyRenderTargetToTexture(u32 address, bool bFromZBuffer, bool
 		}
 	}
 
+	entry.addr = address;
 	entry.w = w;
 	entry.h = h;
-	entry.isRectangle = true;
-	entry.isRenderTarget = true;
+	entry.Scaledw = Scaledtex_w;
+	entry.Scaledh = Scaledtex_h;
+	entry.isRectangle = !entry.isDynamic;
+	entry.scaleX = (g_ActiveConfig.bCopyEFBScaled  && !entry.isDynamic) ? xScale : 1.0f;
+	entry.scaleY = (g_ActiveConfig.bCopyEFBScaled  && !entry.isDynamic) ? yScale : 1.0f;
 	entry.fmt = copyfmt;	
+	entry.hash = 0;
 
 	// Make sure to resolve anything we need to read from.
 	GLuint read_texture = bFromZBuffer ? g_framebufferManager.ResolveAndGetDepthTarget(source_rect) : g_framebufferManager.ResolveAndGetRenderTarget(source_rect);
@@ -747,41 +817,57 @@ void TextureMngr::CopyRenderTargetToTexture(u32 address, bool bFromZBuffer, bool
 
     // We have to run a pixel shader, for color conversion.
     Renderer::ResetAPIState(); // reset any game specific settings
+	if(!entry.isDynamic || g_ActiveConfig.bCopyEFBToTexture)
+	{
+		if (s_TempFramebuffer == 0)
+			glGenFramebuffersEXT(1, (GLuint *)&s_TempFramebuffer);
 
-    if (s_TempFramebuffer == 0)
-        glGenFramebuffersEXT(1, (GLuint *)&s_TempFramebuffer);
+		g_framebufferManager.SetFramebuffer(s_TempFramebuffer);
+		// Bind texture to temporary framebuffer
+		glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_RECTANGLE_ARB, entry.texture, 0);
+		GL_REPORT_FBO_ERROR();
+		GL_REPORT_ERRORD();
+	    
+		glDrawBuffer(GL_COLOR_ATTACHMENT0_EXT);
+		glActiveTexture(GL_TEXTURE0);
+		glEnable(GL_TEXTURE_RECTANGLE_ARB);
+		glBindTexture(GL_TEXTURE_RECTANGLE_ARB, read_texture);
+	   
+		glViewport(0, 0, Scaledtex_w, Scaledtex_h);
 
-    g_framebufferManager.SetFramebuffer(s_TempFramebuffer);
-	// Bind texture to temporary framebuffer
-	glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_RECTANGLE_ARB, entry.texture, 0);
-	GL_REPORT_FBO_ERROR();
-    GL_REPORT_ERRORD();
-    
-    glDrawBuffer(GL_COLOR_ATTACHMENT0_EXT);
-    glActiveTexture(GL_TEXTURE0);
-	glEnable(GL_TEXTURE_RECTANGLE_ARB);
-	glBindTexture(GL_TEXTURE_RECTANGLE_ARB, read_texture);
-   
-    glViewport(0, 0, w, h);
+		PixelShaderCache::SetCurrentShader(bFromZBuffer ? PixelShaderCache::GetDepthMatrixProgram() : PixelShaderCache::GetColorMatrixProgram());    
+		PixelShaderManager::SetColorMatrix(colmat, fConstAdd); // set transformation
+		GL_REPORT_ERRORD();
 
-	PixelShaderCache::SetCurrentShader(bFromZBuffer ? PixelShaderCache::GetDepthMatrixProgram() : PixelShaderCache::GetColorMatrixProgram());    
-    PixelShaderManager::SetColorMatrix(colmat, fConstAdd); // set transformation
-    GL_REPORT_ERRORD();
+		TargetRectangle targetSource = Renderer::ConvertEFBRectangle(source_rect);
 
-	TargetRectangle targetSource = Renderer::ConvertEFBRectangle(source_rect);
+		glBegin(GL_QUADS);
+		glTexCoord2f((GLfloat)targetSource.left,  (GLfloat)targetSource.bottom); glVertex2f(-1,  1);
+		glTexCoord2f((GLfloat)targetSource.left,  (GLfloat)targetSource.top  ); glVertex2f(-1, -1);
+		glTexCoord2f((GLfloat)targetSource.right, (GLfloat)targetSource.top  ); glVertex2f( 1, -1);
+		glTexCoord2f((GLfloat)targetSource.right, (GLfloat)targetSource.bottom); glVertex2f( 1,  1);
+		glEnd();
 
-    glBegin(GL_QUADS);
-	glTexCoord2f((GLfloat)targetSource.left,  (GLfloat)targetSource.bottom); glVertex2f(-1,  1);
-    glTexCoord2f((GLfloat)targetSource.left,  (GLfloat)targetSource.top  ); glVertex2f(-1, -1);
-    glTexCoord2f((GLfloat)targetSource.right, (GLfloat)targetSource.top  ); glVertex2f( 1, -1);
-    glTexCoord2f((GLfloat)targetSource.right, (GLfloat)targetSource.bottom); glVertex2f( 1,  1);
-    glEnd();
+		GL_REPORT_ERRORD();
 
-    GL_REPORT_ERRORD();
+		// Unbind texture from temporary framebuffer
+		glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_RECTANGLE_ARB, 0, 0);
+	}
 
-	// Unbind texture from temporary framebuffer
-	glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_RECTANGLE_ARB, 0, 0);
-
+	if(!g_ActiveConfig.bCopyEFBToTexture)
+	{
+		textures[address].hash = TextureConverter::EncodeToRamFromTexture(
+			address,
+			read_texture,
+			xScale,
+			yScale, 
+			bFromZBuffer, 
+			bIsIntensityFmt, 
+			copyfmt, 
+			bScaleByHalf, 
+			source_rect);
+	
+	}
 	// Return to the EFB.
     g_framebufferManager.SetFramebuffer(0);
     Renderer::RestoreAPIState();

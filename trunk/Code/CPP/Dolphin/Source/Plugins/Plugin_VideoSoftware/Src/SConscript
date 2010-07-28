@@ -1,13 +1,10 @@
 # -*- python -*-
 
 Import('env')
-# can we import path in one place?
+import os
 import sys
-sys.path.append(env['base_dir']+'SconsTests')
-import utils
-import platform
 
-name = "Plugin_VideoSoftware"
+name = os.sep + "Plugin_VideoSoftware"
 
 files = [
 	'BPMemLoader.cpp',
@@ -25,47 +22,23 @@ files = [
 	'Rasterizer.cpp',
 	'RasterFont.cpp',
 	'Renderer.cpp',
-        'SetupUnit.cpp',
-        'Statistics.cpp',
-        'Tev.cpp',
-        'TextureEncoder.cpp',
-        'TextureSampler.cpp',
-        'TransformUnit.cpp',
-        'VertexFormatConverter.cpp',
-        'VertexLoader.cpp',
-        'VideoConfig.cpp',
-        'XFMemLoader.cpp',
-	]
-linkFlags = [
-	]
-libs = [
-	'videocommon', 'GLEW', 'SDL', 'SOIL', 'common'
+	'SetupUnit.cpp',
+	'Statistics.cpp',
+	'Tev.cpp',
+	'TextureEncoder.cpp',
+	'TextureSampler.cpp',
+	'TransformUnit.cpp',
+	'VertexFormatConverter.cpp',
+	'VertexLoader.cpp',
+	'VideoConfig.cpp',
+	'XFMemLoader.cpp',
 	]
 
-gfxenv = env.Clone()
+libs = [ 'videocommon', 'GLEW', 'SOIL', 'common' ]
 
-if sys.platform == 'win32':
-        files += [ 'Win32.cpp' ]
-
-if sys.platform == 'darwin':
-	files += [ 'cocoaGL.m', ]
-
-if sys.platform == 'win32':
-	files += [
-		'Win32.cpp'
-		]
-	libs += [
-		env['base_dir'] + '/Externals/Cg/'
-		]	
-	gfxenv['CPPPATH'] += libs
+if sys.platform == 'darwin' and not env['HAVE_WX']:
+	files += [ 'cocoaGL.m' ]
+elif sys.platform == 'win32':
+	files += [ 'Win32.cpp' ]
 	
-# Sanity check
-if gfxenv['USE_WX'] and not gfxenv['HAVE_WX']:
-    print "Must have wx to use wxgl"
-    Return()
-
-gfxenv.SharedLibrary(
-	env['plugin_dir']+name,
-	files,
-	LIBS =  libs + gfxenv['LIBS']
-	)
+env.SharedLibrary(env['plugin_dir'] + name, files, LIBS = env['LIBS'] + libs)

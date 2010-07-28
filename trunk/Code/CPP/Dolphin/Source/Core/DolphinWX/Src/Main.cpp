@@ -17,9 +17,9 @@
 
 #include <vector>
 #include <string>
-#include "svnrev.h"
 
-#include "Common.h" // Common
+#include "Common.h"
+#include "CommonPaths.h"
 
 #if defined HAVE_X11 && HAVE_X11
 #include <X11/Xlib.h>
@@ -91,13 +91,12 @@ bool DolphinApp::OnInit()
 {
 	// Declarations and definitions
 	bool UseDebugger = false;
+	bool BatchMode = false;
 	bool UseLogger = false;
-	bool LoadElf = false;
 	bool selectVideoPlugin = false;
 	bool selectAudioPlugin = false;
 	bool selectWiimotePlugin = false;
 
-	wxString ElfFile;
 	wxString videoPluginFilename;
 	wxString audioPluginFilename;
 	wxString wiimotePluginFilename;
@@ -114,11 +113,14 @@ bool DolphinApp::OnInit()
 			wxCMD_LINE_SWITCH, "d", "debugger", "Opens the debugger"
 		},
 		{
-			wxCMD_LINE_SWITCH, "l", "logger", "Opens The Logger"
+			wxCMD_LINE_SWITCH, "l", "logger", "Opens the logger"
 		},
 		{
-			wxCMD_LINE_OPTION, "e", "elf", "Loads an elf file",
+			wxCMD_LINE_OPTION, "e", "exec", "Loads the specified file (DOL, ELF, WAD, GCM, ISO)",
 			wxCMD_LINE_VAL_STRING, wxCMD_LINE_PARAM_OPTIONAL
+		},
+		{
+			wxCMD_LINE_SWITCH, "b", "batch", "Exit Dolphin with emulator"
 		},
 		{
 			wxCMD_LINE_OPTION, "V", "video_plugin","Specify a video plugin",
@@ -126,10 +128,6 @@ bool DolphinApp::OnInit()
 		},
 		{
 			wxCMD_LINE_OPTION, "A", "audio_plugin","Specify an audio plugin",
-			wxCMD_LINE_VAL_STRING, wxCMD_LINE_PARAM_OPTIONAL
-		},
-		{
-			wxCMD_LINE_OPTION, "P", "pad_plugin","Specify a pad plugin",
 			wxCMD_LINE_VAL_STRING, wxCMD_LINE_PARAM_OPTIONAL
 		},
 		{
@@ -152,11 +150,14 @@ bool DolphinApp::OnInit()
 			wxCMD_LINE_SWITCH, _("d"), _("debugger"), wxT("Opens the debugger")
 		},
 		{
-			wxCMD_LINE_SWITCH, _("l"), _("logger"), wxT("Opens The Logger")
+			wxCMD_LINE_SWITCH, _("l"), _("logger"), wxT("Opens the logger")
 		},
 		{
-			wxCMD_LINE_OPTION, _("e"), _("elf"), wxT("Loads an elf file"),
+			wxCMD_LINE_OPTION, _("e"), _("exec"), wxT("Loads the specified file (DOL, ELF, WAD, GCM, ISO)"),
 			wxCMD_LINE_VAL_STRING, wxCMD_LINE_PARAM_OPTIONAL
+		},
+		{
+			wxCMD_LINE_SWITCH, _("b"), _("batch"), wxT("Exit Dolphin with emulator")
 		},
 		{
 			wxCMD_LINE_OPTION, _("V"), _("video_plugin"), wxT("Specify a video plugin"),
@@ -164,10 +165,6 @@ bool DolphinApp::OnInit()
 		},
 		{
 			wxCMD_LINE_OPTION, _("A"), _("audio_plugin"), wxT("Specify an audio plugin"),
-			wxCMD_LINE_VAL_STRING, wxCMD_LINE_PARAM_OPTIONAL
-		},
-		{
-			wxCMD_LINE_OPTION, _("P"), _("pad_plugin"), wxT("Specify a pad plugin"),
 			wxCMD_LINE_VAL_STRING, wxCMD_LINE_PARAM_OPTIONAL
 		},
 		{
@@ -189,11 +186,13 @@ bool DolphinApp::OnInit()
 #if wxCHECK_VERSION(2, 9, 0)
 	UseDebugger = parser.Found("debugger");
 	UseLogger = parser.Found("logger");
-	LoadElf = parser.Found("elf", &ElfFile);
+	LoadFile = parser.Found("exec", &FileToLoad);
+	BatchMode = parser.Found("batch");
 #else
 	UseDebugger = parser.Found(wxT("debugger"));
 	UseLogger = parser.Found(wxT("logger"));
-	LoadElf = parser.Found(wxT("elf"), &ElfFile);
+	LoadFile = parser.Found(wxT("exec"), &FileToLoad);
+	BatchMode = parser.Found(wxT("batch"));
 #endif
 
 #if wxCHECK_VERSION(2, 9, 0)
@@ -233,7 +232,7 @@ bool DolphinApp::OnInit()
 		return false;
 	}
 
-#if ! defined(__APPLE__) && ! defined(__linux__)
+#ifdef _WIN32
 	// Keep the user config dir free unless user wants to save the working dir
 	if (!File::Exists((std::string(File::GetUserPath(D_CONFIG_IDX)) + "portable").c_str()))
 	{
@@ -308,9 +307,7 @@ bool DolphinApp::OnInit()
 	}
 	else if (!File::IsDirectory(AppSupportDir))
 		PanicAlert("~/Library/Application Support/Dolphin exists, but is not a directory");
-#endif
-
-#ifdef __linux__
+#elif !defined _WIN32
 	//create all necessary directories in user directory
 	//TODO : detect the revision and upgrade where necessary
 	File::CopyDir(SHARED_USER_DIR CONFIG_DIR DIR_SEP, File::GetUserPath(D_CONFIG_IDX));
@@ -358,21 +355,6 @@ bool DolphinApp::OnInit()
 
 	SetEnableAlert(SConfig::GetInstance().m_LocalCoreStartupParameter.bUsePanicHandlers);
 
-	// Create the window title
-	#ifdef _DEBUG
-		const char *title = "Dolphin Debug SVN R " SVN_REV_STR;
-	#else
-		#ifdef DEBUGFAST
-			const char *title = "Dolphin Debugfast SVN R " SVN_REV_STR;
-		#else
-		#ifndef	NO_MOD
-			const char *title = "Dolphin SVN R " SVN_REV_STR;
-		#else
-			const WCHAR *title = wxT("Dolphin - ºã¾Ã¿ìÀÖ,¾­µäÓÀÔ¶");
-		#endif
-		#endif
-	#endif
-
 	int x = SConfig::GetInstance().m_LocalCoreStartupParameter.iPosX;
 	int y = SConfig::GetInstance().m_LocalCoreStartupParameter.iPosY;
 	int w = SConfig::GetInstance().m_LocalCoreStartupParameter.iWidth;
@@ -389,19 +371,41 @@ bool DolphinApp::OnInit()
 		x = y = -1;
 #endif
 
-	main_frame = new CFrame((wxFrame*)NULL, wxID_ANY, wxString(title),
-			wxPoint(x, y), wxSize(w, h), UseDebugger, UseLogger);
+	main_frame = new CFrame((wxFrame*)NULL, wxID_ANY,
+				wxString::FromAscii(svn_rev_str),
+				wxPoint(x, y), wxSize(w, h),
+				UseDebugger, BatchMode, UseLogger);
+	SetTopWindow(main_frame);
 
-	// ------------
-	// Check the autoboot options.
+#if defined HAVE_X11 && HAVE_X11
+	XInitThreads();
+#endif 
 
-	// First check if we have an elf command line.
-	if (LoadElf && ElfFile != wxEmptyString)
+	// Postpone final actions until event handler is running
+	m_afterinit = new wxTimer(this, wxID_ANY);
+	m_afterinit->Start(1, wxTIMER_ONE_SHOT);
+
+	return true;
+}
+
+void DolphinApp::AfterInit(wxTimerEvent& WXUNUSED(event))
+{
+	delete m_afterinit;
+
+	// Updating the game list makes use of wxProgressDialog which may
+	// only be run after OnInit() when the event handler is running.
+	main_frame->UpdateGameList();
+
+	// Check the autoboot options:
+
+	// First check if we have an exec command line.
+	if (LoadFile && FileToLoad != wxEmptyString)
 	{
-		main_frame->BootGame(std::string(ElfFile.mb_str()));
+		main_frame->BootGame(std::string(FileToLoad.mb_str()));
 	}
-	// If we have selected Automatic Start, start the default ISO, or if no default
-	// ISO exists, start the last loaded ISO
+
+	// If we have selected Automatic Start, start the default ISO,
+	// or if no default ISO exists, start the last loaded ISO
 	else if (main_frame->g_pCodeWindow)
 	{
 		if (main_frame->g_pCodeWindow->AutomaticStart())
@@ -420,27 +424,6 @@ bool DolphinApp::OnInit()
 			}	
 		}
 	}
-	// ---------------------
-
-	// Set main parent window
-	SetTopWindow(main_frame);
-
-#if defined HAVE_X11 && HAVE_X11
-	XInitThreads();
-#endif 
-
-	// Postpone final actions until event handler is running
-	m_afterinit = new wxTimer(this, wxID_ANY);
-	m_afterinit->Start(1, wxTIMER_ONE_SHOT);
-
-	return true;
-}
-
-void DolphinApp::AfterInit(wxTimerEvent& WXUNUSED(event))
-{
-	delete m_afterinit;
-
-	main_frame->UpdateGameList();
 }
 
 void DolphinApp::OnEndSession()
@@ -450,6 +433,13 @@ void DolphinApp::OnEndSession()
 
 int DolphinApp::OnExit()
 {
+#ifdef _WIN32
+	if (SConfig::GetInstance().m_WiiAutoUnpair)
+	{
+		if (CPluginManager::GetInstance().GetWiimote())
+			CPluginManager::GetInstance().GetWiimote()->Wiimote_UnPairWiimotes();
+	}
+#endif
 	CPluginManager::Shutdown();
 	SConfig::Shutdown();
 	LogManager::Shutdown();
@@ -492,21 +482,8 @@ CFrame* DolphinApp::GetCFrame()
 
 void Host_Message(int Id)
 {
-
-	switch(Id)
-	{
-#if defined(HAVE_X11) && HAVE_X11
-		case WM_USER_STOP:
-#endif
-		case WM_USER_CREATE:
-			{
-				wxCommandEvent event(wxEVT_HOST_COMMAND, Id);
-				main_frame->GetEventHandler()->AddPendingEvent(event);
-				break;
-			}
-		default:
-			main_frame->OnCustomHostMessage(Id);
-	}
+	wxCommandEvent event(wxEVT_HOST_COMMAND, Id);
+	main_frame->GetEventHandler()->AddPendingEvent(event);
 }
 
 // OK, this thread boundary is DANGEROUS on linux

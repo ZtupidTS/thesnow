@@ -48,7 +48,7 @@ ID3D11InputLayout* VertexShaderCache::GetSimpleInputLayout() { return SimpleLayo
 ID3D11InputLayout* VertexShaderCache::GetClearInputLayout() { return ClearLayout; }
 
 // maps the constant numbers to float indices in the constant buffer
-unsigned int vs_constant_offset_table[238];
+unsigned int vs_constant_offset_table[C_VENVCONST_END];
 void SetVSConstant4f(unsigned int const_number, float f1, float f2, float f3, float f4)
 {
 	D3D::gfxstate->vsconstants[vs_constant_offset_table[const_number]  ] = f1;
@@ -139,11 +139,11 @@ void VertexShaderCache::Init()
 	const D3D11_INPUT_ELEMENT_DESC clearelems[2] =
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "COLOR", 0, DXGI_FORMAT_B8G8R8A8_UNORM, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	};
 
 	D3DBlob* blob;
-	D3D::CompileVertexShader(simple_shader_code, strlen(simple_shader_code), &blob);
+	D3D::CompileVertexShader(simple_shader_code, sizeof(simple_shader_code), &blob);
 	D3D::device->CreateInputLayout(simpleelems, 2, blob->Data(), blob->Size(), &SimpleLayout);
 	SimpleVertexShader = D3D::CreateVertexShaderFromByteCode(blob);
 	if (SimpleLayout == NULL || SimpleVertexShader == NULL) PanicAlert("Failed to create simple vertex shader or input layout at %s %d\n", __FILE__, __LINE__);
@@ -151,7 +151,7 @@ void VertexShaderCache::Init()
 	D3D::SetDebugObjectName((ID3D11DeviceChild*)SimpleVertexShader, "simple vertex shader");
 	D3D::SetDebugObjectName((ID3D11DeviceChild*)SimpleLayout, "simple input layout");
 
-	D3D::CompileVertexShader(clear_shader_code, (int)strlen(clear_shader_code), &blob);
+	D3D::CompileVertexShader(clear_shader_code, sizeof(clear_shader_code), &blob);
 	D3D::device->CreateInputLayout(clearelems, 2, blob->Data(), blob->Size(), &ClearLayout);
 	ClearVertexShader = D3D::CreateVertexShaderFromByteCode(blob);
 	if (ClearLayout == NULL || ClearVertexShader == NULL) PanicAlert("Failed to create clear vertex shader or input layout at %s %d\n", __FILE__, __LINE__);
@@ -164,14 +164,15 @@ void VertexShaderCache::Init()
 	// these values are hardcoded, they depend on internal D3DCompile behavior
 	// TODO: Do this with D3DReflect or something instead
 	unsigned int k;
-	for (k = 0;k < 64;k++) vs_constant_offset_table[C_TRANSFORMMATRICES+k]     = 312+4*k;
-	for (k = 0;k < 24;k++) vs_constant_offset_table[C_TEXMATRICES+k]           = 216+4*k;
-	for (k = 0;k < 32;k++) vs_constant_offset_table[C_NORMALMATRICES+k]        = 568+4*k;
 	for (k = 0;k <  6;k++) vs_constant_offset_table[C_POSNORMALMATRIX+k]       =   0+4*k;
-	for (k = 0;k < 64;k++) vs_constant_offset_table[C_POSTTRANSFORMMATRICES+k] = 696+4*k;
-	for (k = 0;k < 40;k++) vs_constant_offset_table[C_LIGHTS+k]                =  56+4*k;
-	for (k = 0;k <  4;k++) vs_constant_offset_table[C_MATERIALS+k]             =  40+4*k;
 	for (k = 0;k <  4;k++) vs_constant_offset_table[C_PROJECTION+k]            =  24+4*k;
+	for (k = 0;k <  4;k++) vs_constant_offset_table[C_MATERIALS+k]             =  40+4*k;
+	for (k = 0;k < 40;k++) vs_constant_offset_table[C_LIGHTS+k]                =  56+4*k;
+	for (k = 0;k < 24;k++) vs_constant_offset_table[C_TEXMATRICES+k]           = 216+4*k;
+	for (k = 0;k < 64;k++) vs_constant_offset_table[C_TRANSFORMMATRICES+k]     = 312+4*k;	
+	for (k = 0;k < 32;k++) vs_constant_offset_table[C_NORMALMATRICES+k]        = 568+4*k;	
+	for (k = 0;k < 64;k++) vs_constant_offset_table[C_POSTTRANSFORMMATRICES+k] = 696+4*k;
+	for (k = 0;k <  4;k++) vs_constant_offset_table[C_DEPTHPARAMS+k]		   = 952+4*k;	
 
 	if (!File::Exists(File::GetUserPath(D_SHADERCACHE_IDX)))
 		File::CreateDir(File::GetUserPath(D_SHADERCACHE_IDX));
@@ -184,8 +185,7 @@ void VertexShaderCache::Init()
 
 void VertexShaderCache::Clear()
 {
-	VSCache::iterator iter = vshaders.begin();
-	for (; iter != vshaders.end(); ++iter)
+	for (VSCache::iterator iter = vshaders.begin(); iter != vshaders.end(); ++iter)
 		iter->second.Destroy();
 	vshaders.clear();
 }

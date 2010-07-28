@@ -45,10 +45,6 @@
 #include <X11/keysym.h>
 #include "Thread.h"
 
-#elif defined(USE_SDL) && USE_SDL
-#include <GL/glew.h>
-#include <SDL.h>
-
 #elif defined(__APPLE__)
 #include <GL/glew.h>
 #include "cocoaGL.h"
@@ -75,11 +71,15 @@
 #include <sys/types.h>
 
 typedef struct {
-	int screen;
-#if defined(__APPLE__)
+#if defined(USE_WX) && USE_WX
+	wxGLCanvas *glCanvas;
+	wxPanel *panel;
+	wxGLContext *glCtxt;
+#elif defined(__APPLE__)
 	NSWindow *cocoaWin;
 	NSOpenGLContext *cocoaCtx;
 #elif defined(HAVE_X11) && HAVE_X11
+	int screen;
 	Window win;
 	Window parent;
 	Display *dpy;
@@ -87,13 +87,8 @@ typedef struct {
 	GLXContext ctx;
 	XSetWindowAttributes attr;
 	Common::Thread *xEventThread;
-#endif // X11
-#if defined(USE_WX) && USE_WX
-	wxGLCanvas *glCanvas;
-	wxPanel *panel;
-	wxGLContext *glCtxt;
-#endif 
 	int x, y;
+#endif
 	unsigned int width, height;
 } GLWindow;
 
@@ -138,10 +133,12 @@ bool OpenGL_ReportFBOError(const char *function, const char *file, int line);
 #define GL_REPORT_ERRORD()
 #endif
 
+#if defined __APPLE__ || defined __linux__ || defined _WIN32
 #include <Cg/cg.h>
 #include <Cg/cgGL.h>
-
+#define HAVE_CG 1
 extern CGcontext g_cgcontext;
 extern CGprofile g_cgvProf, g_cgfProf;
+#endif
 
 #endif  // _GLINIT_H_

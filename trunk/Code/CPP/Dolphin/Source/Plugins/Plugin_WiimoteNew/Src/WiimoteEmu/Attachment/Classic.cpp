@@ -13,59 +13,40 @@ static const u8 classic_calibration[] =
 	0x00, 0x00, 0x51, 0xa6
 };
 
-// classic buttons
-#define CLASSIC_PAD_RIGHT		0x80
-#define CLASSIC_PAD_DOWN		0x40
-#define CLASSIC_TRIGGER_L		0x20
-#define CLASSIC_MINUS	 		0x10
-#define	CLASSIC_HOME			0x08
-#define CLASSIC_PLUS 			0x04
-#define CLASSIC_TRIGGER_R		0x02
-#define CLASSIC_NOTHING			0x01
-#define CLASSIC_ZL				0x8000
-#define CLASSIC_B				0x4000
-#define CLASSIC_Y				0x2000
-#define CLASSIC_A				0x1000
-#define CLASSIC_X				0x0800
-#define CLASSIC_ZR				0x0400
-#define CLASSIC_PAD_LEFT		0x0200
-#define CLASSIC_PAD_UP			0x0100
-
-
-const u16 classic_button_bitmasks[] =
+static const u16 classic_button_bitmasks[] =
 {
-	CLASSIC_A,
-	CLASSIC_B,
-	CLASSIC_X,
-	CLASSIC_Y,
+	Classic::BUTTON_A,
+	Classic::BUTTON_B,
+	Classic::BUTTON_X,
+	Classic::BUTTON_Y,
 
-	CLASSIC_ZL,
-	CLASSIC_ZR,
+	Classic::BUTTON_ZL,
+	Classic::BUTTON_ZR,
 
-	CLASSIC_MINUS,
-	CLASSIC_PLUS,
+	Classic::BUTTON_MINUS,
+	Classic::BUTTON_PLUS,
 
-	CLASSIC_HOME,
+	Classic::BUTTON_HOME,
 };
 
-const char* classic_button_names[] =
+static const char* const classic_button_names[] =
 {
-	"A","B","X","Y","ZL","ZR","Minus","Plus","Home",
+	"A","B","X","Y","ZL","ZR","-","+","Home",
 };
 
-const u16 classic_trigger_bitmasks[] =
+static const u16 classic_trigger_bitmasks[] =
 {
-	CLASSIC_TRIGGER_L, CLASSIC_TRIGGER_R,
+	Classic::TRIGGER_L, Classic::TRIGGER_R,
 };
 
-const char* const classic_trigger_names[] =
+static const char* const classic_trigger_names[] =
 {
 	"L", "R", "L-Analog", "R-Analog"
 };
 
-const u16 classic_dpad_bitmasks[] =
+static const u16 classic_dpad_bitmasks[] =
 {
-	CLASSIC_PAD_UP, CLASSIC_PAD_DOWN, CLASSIC_PAD_LEFT, CLASSIC_PAD_RIGHT 
+	Classic::PAD_UP, Classic::PAD_DOWN, Classic::PAD_LEFT, Classic::PAD_RIGHT 
 };
 
 Classic::Classic() : Attachment( "Classic" )
@@ -99,6 +80,7 @@ Classic::Classic() : Attachment( "Classic" )
 void Classic::GetState( u8* const data, const bool focus )
 {
 	wm_classic_extension* const ccdata = (wm_classic_extension*)data;
+	ccdata->bt = 0;
 
 	// not using calibration data, o well
 
