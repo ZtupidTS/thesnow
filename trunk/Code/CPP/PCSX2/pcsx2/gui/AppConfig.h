@@ -36,6 +36,7 @@ namespace PathDefs
 	// complete pathnames are returned by these functions
 	// For 99% of all code, you should use these.
 
+    extern wxDirName GetUserLocalDataDir();
 	extern wxDirName GetDocuments();
 	extern wxDirName GetDocuments( DocsModeType mode );
 	extern wxDirName GetThemes();
@@ -147,6 +148,7 @@ public:
 	{
 		// Closes the GS/Video port on escape (good for fullscreen activity)
 		bool		CloseOnEsc;
+		
 		bool		DefaultToFullscreen;
 		bool		AlwaysHideMouse;
 		bool		DisableResizeBorders;
@@ -157,6 +159,7 @@ public:
 		wxSize		WindowSize;
 		wxPoint		WindowPos;
 		bool		IsMaximized;
+		bool		IsFullscreen;
 
 		GSWindowOptions();
 
@@ -187,6 +190,7 @@ public:
 	wxString	SysSettingsTabName;
 	wxString	McdSettingsTabName;
 	wxString	AppSettingsTabName;
+	wxString	GameDatabaseTabName;
 
 	// Current language in use (correlates to a wxWidgets wxLANGUAGE specifier)
 	wxLanguage	LanguageId;

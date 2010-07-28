@@ -18,7 +18,6 @@
 #include "Utilities/wxAppWithHelpers.h"
 
 #include <wx/fileconf.h>
-#include <wx/imaglist.h>
 #include <wx/apptrait.h>
 
 #include "pxEventThread.h"
@@ -26,14 +25,9 @@
 #include "AppCommon.h"
 #include "AppCoreThread.h"
 #include "RecentIsoList.h"
-#include "DataBase_Loader.h"
 
 #include "System.h"
 #include "System/SysThreads.h"
-
-#include "Utilities/HashMap.h"
-
-class Pcsx2App;
 
 typedef void FnType_OnThreadComplete(const wxCommandEvent& evt);
 typedef void (Pcsx2App::*FnPtr_Pcsx2App)();
@@ -160,106 +154,18 @@ namespace Exception
 	// Exception used to perform an "errorless" termination of the app during OnInit
 	// procedures.  This happens when a user cancels out of startup prompts/wizards.
 	//
-	class StartupAborted : public BaseException
+	class StartupAborted : public CancelEvent
 	{
-	public:
-		DEFINE_EXCEPTION_COPYTORS( StartupAborted )
+		DEFINE_RUNTIME_EXCEPTION( StartupAborted, CancelEvent, "Startup initialization was aborted by the user." )
 
-		StartupAborted( const wxString& msg_eng=L"Startup initialization was aborted by the user." )
+	public:
+		StartupAborted( const wxString& reason )
 		{
-			// english messages only for this exception.
-			BaseException::InitBaseEx( msg_eng, msg_eng );
+			m_message_diag = L"Startup aborted: " + reason;
 		}
 	};
 
 }
-
-// --------------------------------------------------------------------------------------
-//  KeyAcceleratorCode
-//  A custom keyboard accelerator that I like better than wx's wxAcceleratorEntry.
-// --------------------------------------------------------------------------------------
-struct KeyAcceleratorCode
-{
-	union
-	{
-		struct
-		{
-			u16		keycode;
-			u16		win:1,		// win32 only.
-					cmd:1,		// ctrl in win32, Command in Mac
-					alt:1,
-					shift:1;
-		};
-		u32  val32;
-	};
-
-	KeyAcceleratorCode() : val32( 0 ) {}
-	KeyAcceleratorCode( const wxKeyEvent& evt );
-
-	KeyAcceleratorCode( wxKeyCode code )
-	{
-		val32 = 0;
-		keycode = code;
-	}
-
-	KeyAcceleratorCode& Shift()
-	{
-		shift = true;
-		return *this;
-	}
-
-	KeyAcceleratorCode& Alt()
-	{
-		alt = true;
-		return *this;
-	}
-
-	KeyAcceleratorCode& Win()
-	{
-		win = true;
-		return *this;
-	}
-
-	KeyAcceleratorCode& Cmd()
-	{
-		cmd = true;
-		return *this;
-	}
-
-	wxString ToString() const;
-};
-
-
-// --------------------------------------------------------------------------------------
-//  GlobalCommandDescriptor
-//  Describes a global command which can be invoked from the main GUI or GUI plugins.
-// --------------------------------------------------------------------------------------
-
-struct GlobalCommandDescriptor
-{
-	const char* Id;					// Identifier string
-	void		(*Invoke)();		// Do it!!  Do it NOW!!!
-
-	const char*	Fullname;			// Name displayed in pulldown menus
-	const char*	Tooltip;			// text displayed in toolbar tooltips and menu status bars.
-
-	int			ToolbarIconId;		// not implemented yet, leave 0 for now.
-};
-
-typedef HashTools::Dictionary<const GlobalCommandDescriptor*>	CommandDictionary;
-
-class AcceleratorDictionary : public HashTools::HashMap<int, const GlobalCommandDescriptor*>
-{
-	typedef HashTools::HashMap<int, const GlobalCommandDescriptor*> _parent;
-
-protected:
-
-public:
-	using _parent::operator[];
-
-	AcceleratorDictionary();
-	void Map( const KeyAcceleratorCode& acode, const char *searchfor );
-};
 
 // --------------------------------------------------------------------------------------
 //  AppImageIds  - Config and Toolbar Images and Icons
@@ -310,30 +216,19 @@ struct AppImageIds
 // Container class for resources that should (or must) be unloaded prior to the ~wxApp() destructor.
 // (typically this object is deleted at OnExit() or just prior to OnExit()).
 //
-struct pxAppResources
+class pxAppResources
 {
+public:
 	AppImageIds					ImageId;
 
 	ScopedPtr<wxImageList>		ConfigImages;
 	ScopedPtr<wxImageList>		ToolbarImages;
 	ScopedPtr<wxIconBundle>		IconBundle;
 	ScopedPtr<wxBitmap>			Bitmap_Logo;
-	ScopedPtr<DataBase_Loader>	GameDB;
+	ScopedPtr<AppGameDatabase>	GameDB;
 
 	pxAppResources();
-	virtual ~pxAppResources() throw() { }
-};
-
-// --------------------------------------------------------------------------------------
-//  RecentIsoList
-// --------------------------------------------------------------------------------------
-struct RecentIsoList
-{
-	ScopedPtr<RecentIsoManager>		Manager;
-	ScopedPtr<wxMenu>				Menu;
-
-	RecentIsoList();
-	virtual ~RecentIsoList() throw() { }
+	virtual ~pxAppResources() throw();
 };
 
 // --------------------------------------------------------------------------------------
@@ -391,6 +286,12 @@ public:
 	}
 };
 
+enum GsWindowMode_t
+{
+	GsWinMode_Unspecified = 0,
+	GsWinMode_Windowed,
+	GsWinMode_Fullscreen,
+};
 
 class CommandlineOverrides
 {
@@ -403,20 +304,29 @@ public:
 
 	// Note that gamefixes in this array should only be honored if the
 	// "HasCustomGamefixes" boolean is also enabled.
-	bool			UseGamefix[GamefixId_COUNT];
+	Pcsx2Config::GamefixOptions	Gamefixes;
 	bool			ApplyCustomGamefixes;
+
+	GsWindowMode_t	GsWindowMode;
 
 public:
 	CommandlineOverrides()
 	{
 		DisableSpeedhacks		= false;
 		ApplyCustomGamefixes	= false;
+		GsWindowMode			= GsWinMode_Unspecified;
 	}
 	
 	// Returns TRUE if either speedhacks or gamefixes are being overridden.
 	bool HasCustomHacks() const
 	{
 		return DisableSpeedhacks || ApplyCustomGamefixes;
+	}
+	
+	void RemoveCustomHacks()
+	{
+		DisableSpeedhacks = false;
+		ApplyCustomGamefixes = false;
 	}
 
 	bool HasSettingsOverride() const
@@ -431,6 +341,23 @@ public:
 
 		return false;
 	}
+};
+
+// --------------------------------------------------------------------------------------
+//  Pcsx2AppTraits
+// --------------------------------------------------------------------------------------
+// Overrides and customizes some default wxWidgets behaviors.  This class is instanized by
+// calls to Pcsx2App::CreateTraits(), which is called from wxWidgets as-needed.  wxWidgets
+// does cache an instance of the traits, so the object construction need not be trivial
+// (translation: it can be complicated-ish -- it won't affect performance).
+//
+class Pcsx2AppTraits : public wxGUIAppTraits
+{
+	typedef wxGUIAppTraits _parent;
+
+public:
+	virtual ~Pcsx2AppTraits() {}
+	wxMessageOutput* CreateMessageOutput();
 };
 
 // =====================================================================================================
@@ -521,11 +448,14 @@ protected:
 	int								m_PendingSaves;
 	bool							m_ScheduledTermination;
 	bool							m_UseGUI;
-	
+
+	Threading::Mutex				m_mtx_Resources;
+	Threading::Mutex				m_mtx_LoadingGameDB;
+
 public:
 	FramerateManager				FpsManager;
-	CommandDictionary				GlobalCommands;
-	AcceleratorDictionary			GlobalAccels;
+	ScopedPtr<CommandDictionary>	GlobalCommands;
+	ScopedPtr<AcceleratorDictionary> GlobalAccels;
 
 	StartupOptions					Startup;
 	CommandlineOverrides			Overrides;
@@ -538,9 +468,6 @@ protected:
 
 	ScopedPtr<RecentIsoList>		m_RecentIsoList;
 	ScopedPtr<pxAppResources>		m_Resources;
-
-	Threading::Mutex				m_mtx_Resources;
-	Threading::Mutex				m_mtx_LoadingGameDB;
 
 public:
 	// Executor Thread for complex VM/System tasks.  This thread is used to execute such tasks
@@ -564,11 +491,11 @@ public:
 	void PostAppMethod( FnPtr_Pcsx2App method );
 	void PostIdleAppMethod( FnPtr_Pcsx2App method );
 
+	void SysApplySettings();
 	void SysExecute();
 	void SysExecute( CDVD_SourceType cdvdsrc, const wxString& elf_override=wxEmptyString );
-	void SysShutdown();
 	void LogicalVsync();
-
+	
 	GSFrame&		GetGsFrame() const;
 	MainEmuFrame&	GetMainFrame() const;
 
@@ -613,16 +540,13 @@ public:
 	wxImageList&		GetImgList_Config();
 	wxImageList&		GetImgList_Toolbars();
 
-	const AppImageIds& GetImgId() const
-	{
-		return m_Resources->ImageId;
-	}
-	
-	DataBase_Loader* GetGameDatabase();
+	const AppImageIds& GetImgId() const;
+	AppGameDatabase* GetGameDatabase();
 
 	// --------------------------------------------------------------------------
 	//  Overrides of wxApp virtuals:
 	// --------------------------------------------------------------------------
+	wxAppTraits* CreateTraits();
 	bool OnInit();
 	int  OnExit();
 	void CleanUp();
@@ -653,8 +577,8 @@ public:
 	void OnProgramLogClosed( wxWindowID id );
 
 protected:
-	bool InvokeOnMainThread( FnPtr_Pcsx2App method );
-	bool PostAppMethodMyself( FnPtr_Pcsx2App method );
+	bool AppRpc_TryInvoke( FnPtr_Pcsx2App method );
+	bool AppRpc_TryInvokeAsync( FnPtr_Pcsx2App method );
 
 	void AllocateCoreStuffs();
 	void InitDefaultGlobalAccelerators();
@@ -768,8 +692,7 @@ extern MainEmuFrame*	GetMainFramePtr();
 
 extern __aligned16 AppCoreThread CoreThread;
 extern __aligned16 SysMtgsThread mtgsThread;
-extern __aligned16 AppPluginManager CorePlugins;
-
+extern __aligned16 AppCorePlugins CorePlugins;
 
 extern void UI_UpdateSysControls();
 

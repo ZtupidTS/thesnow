@@ -15,7 +15,7 @@
 
 
 #include "PrecompiledHeader.h"
-
+#if 0
 #include "Common.h"
 #include "iR5900.h"
 #include "VUmicro.h"
@@ -23,8 +23,6 @@
 
 
 #define useMVU1 CHECK_MICROVU1
-
-int mVUdebugNow = 0;
 
 //#define DEBUG_COMPARE  // Run sVU or mVU and print results
 //#define DEBUG_COMPARE2 // Runs both VU recs and breaks when results differ
@@ -126,8 +124,6 @@ namespace VU1micro
 #ifdef DEBUG_COMPARE
 		SysPrintf("(%08d) StartPC = 0x%04x\n", runAmount, VU1.VI[REG_TPC].UL);
 #endif
-
-        XMMRegisters::Freeze();
 
 		runCount++;
 		memcpy_const((u8*)backVUregs, (u8*)&VU1,		sizeof(VURegs));
@@ -243,7 +239,6 @@ namespace VU1micro
 		}
 
 		VUtestPause();
-        XMMRegisters::Thaw();
 	}
 }
 #else
@@ -275,7 +270,6 @@ namespace VU1micro
 		SysPrintf("(%08d) StartPC = 0x%04x\n", runAmount, VU1.VI[REG_TPC].UL);
 #endif
 
-        XMMRegisters::Freeze();
 		if (useMVU1) runVUrec(VU1.VI[REG_TPC].UL, 3000000, 1);
 		else {
 			if (VU1.VI[REG_TPC].UL >= VU1.maxmicro) {
@@ -285,8 +279,9 @@ namespace VU1micro
 				SuperVUExecuteProgram(VU1.VI[REG_TPC].UL & 0x3fff, 1);
 			} while( VU0.VI[REG_VPU_STAT].UL & 0x100 );
 		}
-        XMMRegisters::Thaw();
 		VUtestPause();
 	}
 }*/
+#endif
+
 #endif

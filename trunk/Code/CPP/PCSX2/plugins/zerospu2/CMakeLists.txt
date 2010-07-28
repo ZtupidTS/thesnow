@@ -1,12 +1,16 @@
-# zerospu2 Plugin
+# Check that people use the good file
+if(NOT TOP_CMAKE_WAS_SOURCED)
+    message(FATAL_ERROR "
+    You did not 'cmake' the good CMakeLists.txt file. Use the one in the top dir.
+    It is advice to delete all wrongly generated cmake stuff => CMakeFiles & CMakeCache.txt")
+endif(NOT TOP_CMAKE_WAS_SOURCED)
+
 
 # plugin name
-set(zerospu2Name zerospu2)
+set(Output zerospu2)
 
 set(CommonFlags
     -Wall
-    -m32
-    -fPIC
     -msse2
     )
 
@@ -82,31 +86,28 @@ include_directories(.
 					Targets)
 
 # add library
-add_library(${zerospu2Name} SHARED
+add_library(${Output} SHARED
 			${zerospu2Sources}
 			${zerospu2Headers}
 			${zerospu2LinuxSources}
 			${zerospu2LinuxHeaders})
 
 # set output directory
-set_target_properties(${zerospu2Name} PROPERTIES
+set_target_properties(${Output} PROPERTIES
 					  LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin/plugins)
 
 # link target with ALSA
-target_link_libraries(${zerospu2Name} ${ALSA_LIBRARIES})
+target_link_libraries(${Output} ${ALSA_LIBRARIES})
 
 if(PORTAUDIO_FOUND)
 	# link target with PortAudio
-	#target_link_libraries(${zerospu2Name} ${PORTAUDIO_LIBRARIES})
+	#target_link_libraries(${Output} ${PORTAUDIO_LIBRARIES})
 endif(PORTAUDIO_FOUND)
 
 # link target with SoundTouch
-target_link_libraries(${zerospu2Name} ${SOUNDTOUCH_LIBRARIES})
+target_link_libraries(${Output} ${SOUNDTOUCH_LIBRARIES})
 
-# Force the linker into 32 bits mode
-target_link_libraries(${zerospu2Name} -m32)
-
-# Linker strip option
-if (CMAKE_BUILD_STRIP)
-    target_link_libraries(${zerospu2Name} -s)
-endif (CMAKE_BUILD_STRIP)
+# User flags options
+if(NOT USER_CMAKE_LD_FLAGS STREQUAL "")
+    target_link_libraries(${Output} "${USER_CMAKE_LD_FLAGS}")
+endif(NOT USER_CMAKE_LD_FLAGS STREQUAL "")

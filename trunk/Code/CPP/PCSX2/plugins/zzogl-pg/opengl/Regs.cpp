@@ -1,5 +1,6 @@
-/*  ZeroGS KOSMOS
- *  Copyright (C) 2005-2006 zerorog@gmail.com
+/*  ZZ Open GL graphics plugin
+ *  Copyright (c)2009-2010 zeydlitz@gmail.com, arcum42@gmail.com
+ *  Based on Zerofrog's ZeroGS KOSMOS (c)2005-2008
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -13,13 +14,8 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
-
-#include <stdarg.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
 
 #include "GS.h"
 #include "Mem.h"
@@ -29,6 +25,8 @@
 #include "zerogs.h"
 #include "targets.h"
 
+#ifdef USE_OLD_REGS
+
 const u32 g_primmult[8] = { 1, 2, 2, 3, 3, 3, 2, 0xff };
 const u32 g_primsub[8] = { 1, 2, 1, 3, 1, 1, 2, 0 };
 
@@ -36,44 +34,9 @@ const u32 g_primsub[8] = { 1, 2, 1, 3, 1, 1, 2, 0 };
 #pragma warning(disable:4244)
 #endif
 
-GIFRegHandler g_GIFPackedRegHandlers[16] =
-{
-	GIFRegHandlerPRIM,		  GIFPackedRegHandlerRGBA,	GIFPackedRegHandlerSTQ, GIFPackedRegHandlerUV,
-	GIFPackedRegHandlerXYZF2,   GIFPackedRegHandlerXYZ2,	GIFRegHandlerTEX0_1,	GIFRegHandlerTEX0_2,
-	GIFRegHandlerCLAMP_1,	   GIFRegHandlerCLAMP_2,	   GIFPackedRegHandlerFOG, GIFPackedRegHandlerNull,
-	GIFRegHandlerXYZF3,		 GIFRegHandlerXYZ3,		  GIFPackedRegHandlerA_D, GIFPackedRegHandlerNOP
-};
-
-GIFRegHandler g_GIFRegHandlers[] =
-{
-	GIFRegHandlerPRIM,	  GIFRegHandlerRGBAQ,	 GIFRegHandlerST,		GIFRegHandlerUV,
-	GIFRegHandlerXYZF2,	 GIFRegHandlerXYZ2,	  GIFRegHandlerTEX0_1,	GIFRegHandlerTEX0_2,
-	GIFRegHandlerCLAMP_1,   GIFRegHandlerCLAMP_2,   GIFRegHandlerFOG,	   GIFRegHandlerNull,
-	GIFRegHandlerXYZF3,	 GIFRegHandlerXYZ3,	  GIFRegHandlerNOP,	   GIFRegHandlerNOP,
-	GIFRegHandlerNull,	  GIFRegHandlerNull,	  GIFRegHandlerNull,	  GIFRegHandlerNull,
-	GIFRegHandlerTEX1_1,	GIFRegHandlerTEX1_2,	GIFRegHandlerTEX2_1,	GIFRegHandlerTEX2_2,
-	GIFRegHandlerXYOFFSET_1, GIFRegHandlerXYOFFSET_2, GIFRegHandlerPRMODECONT, GIFRegHandlerPRMODE,
-	GIFRegHandlerTEXCLUT,   GIFRegHandlerNull,	  GIFRegHandlerNull,	  GIFRegHandlerNull,
-	GIFRegHandlerNull,	  GIFRegHandlerNull,	  GIFRegHandlerSCANMSK,   GIFRegHandlerNull,
-	GIFRegHandlerNull,	  GIFRegHandlerNull,	  GIFRegHandlerNull,	  GIFRegHandlerNull,
-	GIFRegHandlerNull,	  GIFRegHandlerNull,	  GIFRegHandlerNull,	  GIFRegHandlerNull,
-	GIFRegHandlerNull,	  GIFRegHandlerNull,	  GIFRegHandlerNull,	  GIFRegHandlerNull,
-	GIFRegHandlerNull,	  GIFRegHandlerNull,	  GIFRegHandlerNull,	  GIFRegHandlerNull,
-	GIFRegHandlerMIPTBP1_1, GIFRegHandlerMIPTBP1_2, GIFRegHandlerMIPTBP2_1, GIFRegHandlerMIPTBP2_2,
-	GIFRegHandlerNull,	  GIFRegHandlerNull,	  GIFRegHandlerNull,	  GIFRegHandlerTEXA,
-	GIFRegHandlerNull,	  GIFRegHandlerFOGCOL,	GIFRegHandlerNull,	  GIFRegHandlerTEXFLUSH,
-	GIFRegHandlerSCISSOR_1, GIFRegHandlerSCISSOR_2, GIFRegHandlerALPHA_1,   GIFRegHandlerALPHA_2,
-	GIFRegHandlerDIMX,	  GIFRegHandlerDTHE,	  GIFRegHandlerCOLCLAMP,  GIFRegHandlerTEST_1,
-	GIFRegHandlerTEST_2,	GIFRegHandlerPABE,	  GIFRegHandlerFBA_1,	 GIFRegHandlerFBA_2,
-	GIFRegHandlerFRAME_1,   GIFRegHandlerFRAME_2,   GIFRegHandlerZBUF_1,	GIFRegHandlerZBUF_2,
-	GIFRegHandlerBITBLTBUF, GIFRegHandlerTRXPOS,	GIFRegHandlerTRXREG,	GIFRegHandlerTRXDIR,
-	GIFRegHandlerHWREG,	 GIFRegHandlerNull,	  GIFRegHandlerNull,	  GIFRegHandlerNull,
-	GIFRegHandlerNull,	  GIFRegHandlerNull,	  GIFRegHandlerNull,	  GIFRegHandlerNull,
-	GIFRegHandlerNull,	  GIFRegHandlerNull,	  GIFRegHandlerNull,	  GIFRegHandlerNull,
-	GIFRegHandlerSIGNAL,	GIFRegHandlerFINISH,	GIFRegHandlerLABEL,	 GIFRegHandlerNull
-};
-
-C_ASSERT(sizeof(g_GIFRegHandlers) / sizeof(g_GIFRegHandlers[0]) == 100);
+GIFRegHandler g_GIFPackedRegHandlers[16];
+GIFRegHandler g_GIFRegHandlers[256];
+GIFRegHandler g_GIFTempRegHandlers[16] = {0};
 
 // values for keeping track of changes
 u32 s_uTex1Data[2][2] = {{0, }};
@@ -122,16 +85,25 @@ inline bool NoHighlights(int i)
 //	if ((resultA == 0x300b) && (result == 0x300) && ZeroGS::vb[i].zbuf.zmsk) return false; // ATF, but no Melty Blood
 
 //	Old code
-	return (!(g_GameSettings&GAME_XENOSPECHACK) || !ZeroGS::vb[i].zbuf.zmsk || prim->iip) ;
+	return (!(conf.settings().xenosaga_spec) || !ZeroGS::vb[i].zbuf.zmsk || prim->iip) ;
 }
 
-void __fastcall GIFPackedRegHandlerNull(u32* data)
+void __gifCall GIFPackedRegHandlerNull(const u32* data)
 {
 	FUNCLOG
 	ZZLog::Debug_Log("Unexpected packed reg handler %8.8lx_%8.8lx %x.", data[0], data[1], data[2]);
 }
 
-void __fastcall GIFPackedRegHandlerRGBA(u32* data)
+// All these just call their non-packed equivalent.
+void __gifCall GIFPackedRegHandlerPRIM(const u32* data) { GIFRegHandlerPRIM(data); }
+void __gifCall GIFPackedRegHandlerTEX0_1(const u32* data) { GIFRegHandlerTEX0_1(data); }
+void __gifCall GIFPackedRegHandlerTEX0_2(const u32* data) { GIFRegHandlerTEX0_2(data); }
+void __gifCall GIFPackedRegHandlerCLAMP_1(const u32* data) { GIFRegHandlerCLAMP_1(data); }
+void __gifCall GIFPackedRegHandlerCLAMP_2(const u32* data) { GIFRegHandlerCLAMP_2(data); }
+void __gifCall GIFPackedRegHandlerXYZF3(const u32* data) { GIFRegHandlerXYZF3(data); }
+void __gifCall GIFPackedRegHandlerXYZ3(const u32* data) { GIFRegHandlerXYZ3(data); }
+
+void __gifCall GIFPackedRegHandlerRGBA(const u32* data)
 {
 	FUNCLOG
 	gs.rgba = (data[0] & 0xff) |
@@ -142,7 +114,7 @@ void __fastcall GIFPackedRegHandlerRGBA(u32* data)
 	gs.vertexregs.q = gs.q;
 }
 
-void __fastcall GIFPackedRegHandlerSTQ(u32* data)
+void __gifCall GIFPackedRegHandlerSTQ(const u32* data)
 {
 	FUNCLOG
 	*(u32*)&gs.vertexregs.s = data[0] & 0xffffff00;
@@ -150,7 +122,7 @@ void __fastcall GIFPackedRegHandlerSTQ(u32* data)
 	*(u32*)&gs.q = data[2];
 }
 
-void __fastcall GIFPackedRegHandlerUV(u32* data)
+void __gifCall GIFPackedRegHandlerUV(const u32* data)
 {
 	FUNCLOG
 	gs.vertexregs.u = data[0] & 0x3fff;
@@ -186,7 +158,7 @@ void __forceinline KICK_VERTEX3()
 	}
 }
 
-void __fastcall GIFPackedRegHandlerXYZF2(u32* data)
+void __gifCall GIFPackedRegHandlerXYZF2(const u32* data)
 {
 	FUNCLOG
 	gs.vertexregs.x = (data[0] >> 0) & 0xffff;
@@ -206,7 +178,7 @@ void __fastcall GIFPackedRegHandlerXYZF2(u32* data)
 	}
 }
 
-void __fastcall GIFPackedRegHandlerXYZ2(u32* data)
+void __gifCall GIFPackedRegHandlerXYZ2(const u32* data)
 {
 	FUNCLOG
 	gs.vertexregs.x = (data[0] >> 0) & 0xffff;
@@ -225,13 +197,13 @@ void __fastcall GIFPackedRegHandlerXYZ2(u32* data)
 	}
 }
 
-void __fastcall GIFPackedRegHandlerFOG(u32* data)
+void __gifCall GIFPackedRegHandlerFOG(const u32* data)
 {
 	FUNCLOG
 	gs.vertexregs.f = (data[3] & 0xff0) >> 4;
 }
 
-void __fastcall GIFPackedRegHandlerA_D(u32* data)
+void __gifCall GIFPackedRegHandlerA_D(const u32* data)
 {
 	FUNCLOG
 
@@ -241,14 +213,12 @@ void __fastcall GIFPackedRegHandlerA_D(u32* data)
 		GIFRegHandlerNull(data);
 }
 
-void __fastcall GIFPackedRegHandlerNOP(u32* data)
+void __gifCall GIFPackedRegHandlerNOP(const u32* data)
 {
 	FUNCLOG
 }
 
-extern int g_PrevBitwiseTexX, g_PrevBitwiseTexY;
-
-void tex0Write(int i, u32 *data)
+void tex0Write(int i, const u32 *data)
 {
 	FUNCLOG
 	u32 psm = ZZOglGet_psm_TexBitsFix(data[0]);
@@ -260,7 +230,6 @@ void tex0Write(int i, u32 *data)
 	}
 
 	ZeroGS::vb[i].uNextTex0Data[0] = data[0];
-
 	ZeroGS::vb[i].uNextTex0Data[1] = data[1];
 	ZeroGS::vb[i].bNeedTexCheck = 1;
 
@@ -282,13 +251,12 @@ void tex0Write(int i, u32 *data)
 	}
 }
 
-void tex2Write(int i, u32 *data)
+void tex2Write(int i, const u32 *data)
 {
 	FUNCLOG
 	tex0Info& tex0 = ZeroGS::vb[i].tex0;
 
-	if (ZeroGS::vb[i].bNeedTexCheck)
-		ZeroGS::vb[i].FlushTexData();
+	ZeroGS::vb[i].FlushTexData();
 
 	u32 psm = ZZOglGet_psm_TexBitsFix(data[0]);
 
@@ -329,7 +297,7 @@ void tex2Write(int i, u32 *data)
 	if (PSMT_ISCLUT(tex0.psm)) ZeroGS::CluttingForFlushedTex(&tex0, data[1], i);
 }
 
-__forceinline void frameWrite(int i, u32 *data)
+__forceinline void frameWrite(int i, const u32 *data)
 {
 	FUNCLOG
 	frameInfo& gsfb = ZeroGS::vb[i].gsfb;
@@ -342,8 +310,7 @@ __forceinline void frameWrite(int i, u32 *data)
 		return;
 	}
 
-	ZeroGS::Flush(0);
-	ZeroGS::Flush(1);
+	ZeroGS::FlushBoth();
 
 	gsfb.fbp = ZZOglGet_fbp_FrameBitsMult(data[0]);
 	gsfb.fbw = ZZOglGet_fbw_FrameBitsMult(data[0]);
@@ -355,7 +322,7 @@ __forceinline void frameWrite(int i, u32 *data)
 	ZeroGS::vb[i].bNeedFrameCheck = 1;
 }
 
-__forceinline void testWrite(int i, u32 *data)
+__forceinline void testWrite(int i, const u32 *data)
 {
 	FUNCLOG
 	pixTest* test = &ZeroGS::vb[i].test;
@@ -376,14 +343,16 @@ __forceinline void testWrite(int i, u32 *data)
 //  test.ztst  = (data[0] >> 17) & 0x3;
 }
 
-__forceinline void clampWrite(int i, u32 *data)
+#ifndef __LINUX__
+__forceinline 
+#endif
+void clampWrite(int i, const u32 *data)
 {
 	FUNCLOG
 	clampInfo& clamp = ZeroGS::vb[i].clamp;
 
 	if ((s_uClampData[i] != data[0]) || (((clamp.minv >> 8) | (clamp.maxv << 2)) != (data[1]&0x0fff)))
 	{
-
 		ZeroGS::Flush(i);
 		s_uClampData[i] = data[0];
 
@@ -398,7 +367,7 @@ __forceinline void clampWrite(int i, u32 *data)
 	}
 }
 
-void __fastcall GIFRegHandlerNull(u32* data)
+void __gifCall GIFRegHandlerNull(const u32* data)
 {
 	FUNCLOG
 #ifdef _DEBUG
@@ -414,14 +383,14 @@ void __fastcall GIFRegHandlerNull(u32* data)
 #endif
 }
 
-void __fastcall GIFRegHandlerPRIM(u32 *data)
+void __gifCall GIFRegHandlerPRIM(const u32 *data)
 {
 	FUNCLOG
 
-	if (data[0] & ~0x3ff)
-	{
+	//if (data[0] & ~0x3ff)
+	//{
 		//ZZLog::Warn_Log("Warning: unknown bits in prim %8.8lx_%8.8lx", data[1], data[0]);
-	}
+	//}
 
 	gs.nTriFanVert = gs.primIndex;
 
@@ -434,7 +403,7 @@ void __fastcall GIFRegHandlerPRIM(u32 *data)
 	ZeroGS::Prim();
 }
 
-void __fastcall GIFRegHandlerRGBAQ(u32* data)
+void __gifCall GIFRegHandlerRGBAQ(const u32* data)
 {
 	FUNCLOG
 	gs.rgba = data[0];
@@ -442,7 +411,7 @@ void __fastcall GIFRegHandlerRGBAQ(u32* data)
 	*(u32*)&gs.vertexregs.q = data[1];
 }
 
-void __fastcall GIFRegHandlerST(u32* data)
+void __gifCall GIFRegHandlerST(const u32* data)
 {
 	FUNCLOG
 	*(u32*)&gs.vertexregs.s = data[0] & 0xffffff00;
@@ -450,14 +419,14 @@ void __fastcall GIFRegHandlerST(u32* data)
 	//*(u32*)&gs.q = data[2];
 }
 
-void __fastcall GIFRegHandlerUV(u32* data)
+void __gifCall GIFRegHandlerUV(const u32* data)
 {
 	FUNCLOG
 	gs.vertexregs.u = (data[0]) & 0x3fff;
 	gs.vertexregs.v = (data[0] >> 16) & 0x3fff;
 }
 
-void __fastcall GIFRegHandlerXYZF2(u32* data)
+void __gifCall GIFRegHandlerXYZF2(const u32* data)
 {
 	FUNCLOG
 	gs.vertexregs.x = (data[0]) & 0xffff;
@@ -470,7 +439,7 @@ void __fastcall GIFRegHandlerXYZF2(u32* data)
 	KICK_VERTEX2();
 }
 
-void __fastcall GIFRegHandlerXYZ2(u32* data)
+void __gifCall GIFRegHandlerXYZ2(const u32* data)
 {
 	FUNCLOG
 	gs.vertexregs.x = (data[0]) & 0xffff;
@@ -482,7 +451,7 @@ void __fastcall GIFRegHandlerXYZ2(u32* data)
 	KICK_VERTEX2();
 }
 
-void __fastcall GIFRegHandlerTEX0_1(u32* data)
+void __gifCall GIFRegHandlerTEX0_1(const u32* data)
 {
 	FUNCLOG
 
@@ -491,7 +460,7 @@ void __fastcall GIFRegHandlerTEX0_1(u32* data)
 	tex0Write(0, data);
 }
 
-void __fastcall GIFRegHandlerTEX0_2(u32* data)
+void __gifCall GIFRegHandlerTEX0_2(const u32* data)
 {
 	FUNCLOG
 
@@ -500,7 +469,7 @@ void __fastcall GIFRegHandlerTEX0_2(u32* data)
 	tex0Write(1, data);
 }
 
-void __fastcall GIFRegHandlerCLAMP_1(u32* data)
+void __gifCall GIFRegHandlerCLAMP_1(const u32* data)
 {
 	FUNCLOG
 
@@ -509,7 +478,7 @@ void __fastcall GIFRegHandlerCLAMP_1(u32* data)
 	clampWrite(0, data);
 }
 
-void __fastcall GIFRegHandlerCLAMP_2(u32* data)
+void __gifCall GIFRegHandlerCLAMP_2(const u32* data)
 {
 	FUNCLOG
 
@@ -518,14 +487,14 @@ void __fastcall GIFRegHandlerCLAMP_2(u32* data)
 	clampWrite(1, data);
 }
 
-void __fastcall GIFRegHandlerFOG(u32* data)
+void __gifCall GIFRegHandlerFOG(const u32* data)
 {
 	FUNCLOG
 	//gs.gsvertex[gs.primIndex].f = (data[1] >> 24);	// shift to upper bits
 	gs.vertexregs.f = data[1] >> 24;
 }
 
-void __fastcall GIFRegHandlerXYZF3(u32* data)
+void __gifCall GIFRegHandlerXYZF3(const u32* data)
 {
 	FUNCLOG
 	gs.vertexregs.x = (data[0]) & 0xffff;
@@ -538,7 +507,7 @@ void __fastcall GIFRegHandlerXYZF3(u32* data)
 	KICK_VERTEX3();
 }
 
-void __fastcall GIFRegHandlerXYZ3(u32* data)
+void __gifCall GIFRegHandlerXYZ3(const u32* data)
 {
 	FUNCLOG
 	gs.vertexregs.x = (data[0]) & 0xffff;
@@ -550,12 +519,12 @@ void __fastcall GIFRegHandlerXYZ3(u32* data)
 	KICK_VERTEX3();
 }
 
-void __fastcall GIFRegHandlerNOP(u32* data)
+void __gifCall GIFRegHandlerNOP(const u32* data)
 {
 	FUNCLOG
 }
 
-void tex1Write(int i, u32* data)
+void tex1Write(int i, const u32* data)
 {
 	FUNCLOG
 	tex1Info& tex1 = ZeroGS::vb[i].tex1;
@@ -576,7 +545,7 @@ void tex1Write(int i, u32* data)
 	tex1.k	= (data[1] >> 4) & 0xff;
 }
 
-void __fastcall GIFRegHandlerTEX1_1(u32* data)
+void __gifCall GIFRegHandlerTEX1_1(const u32* data)
 {
 	FUNCLOG
 
@@ -585,7 +554,7 @@ void __fastcall GIFRegHandlerTEX1_1(u32* data)
 	tex1Write(0, data);
 }
 
-void __fastcall GIFRegHandlerTEX1_2(u32* data)
+void __gifCall GIFRegHandlerTEX1_2(const u32* data)
 {
 	FUNCLOG
 
@@ -594,19 +563,19 @@ void __fastcall GIFRegHandlerTEX1_2(u32* data)
 	tex1Write(1, data);
 }
 
-void __fastcall GIFRegHandlerTEX2_1(u32* data)
+void __gifCall GIFRegHandlerTEX2_1(const u32* data)
 {
 	FUNCLOG
 	tex2Write(0, data);
 }
 
-void __fastcall GIFRegHandlerTEX2_2(u32* data)
+void __gifCall GIFRegHandlerTEX2_2(const u32* data)
 {
 	FUNCLOG
 	tex2Write(1, data);
 }
 
-void __fastcall GIFRegHandlerXYOFFSET_1(u32* data)
+void __gifCall GIFRegHandlerXYOFFSET_1(const u32* data)
 {
 	FUNCLOG
 	// eliminator low 4 bits for now
@@ -619,7 +588,7 @@ void __fastcall GIFRegHandlerXYOFFSET_1(u32* data)
 //  }
 }
 
-void __fastcall GIFRegHandlerXYOFFSET_2(u32* data)
+void __gifCall GIFRegHandlerXYOFFSET_2(const u32* data)
 {
 	FUNCLOG
 	ZeroGS::vb[1].offset.x = (data[0]) & 0xffff;
@@ -631,7 +600,7 @@ void __fastcall GIFRegHandlerXYOFFSET_2(u32* data)
 //  }
 }
 
-void __fastcall GIFRegHandlerPRMODECONT(u32* data)
+void __gifCall GIFRegHandlerPRMODECONT(const u32* data)
 {
 	FUNCLOG
 	gs.prac = data[0] & 0x1;
@@ -640,39 +609,37 @@ void __fastcall GIFRegHandlerPRMODECONT(u32* data)
 	ZeroGS::Prim();
 }
 
-void __fastcall GIFRegHandlerPRMODE(u32* data)
+void __gifCall GIFRegHandlerPRMODE(const u32* data)
 {
 	FUNCLOG
 	gs._prim[0]._val = (data[0] >> 3) & 0xff;
 
-	if (gs.prac == 0)
-		ZeroGS::Prim();
+	if (gs.prac == 0) ZeroGS::Prim();
 }
 
-void __fastcall GIFRegHandlerTEXCLUT(u32* data)
+void __gifCall GIFRegHandlerTEXCLUT(const u32* data)
 {
 	FUNCLOG
 
-	if (ZeroGS::vb[0].bNeedTexCheck) ZeroGS::vb[0].FlushTexData();
-	if (ZeroGS::vb[1].bNeedTexCheck) ZeroGS::vb[1].FlushTexData();
+	ZeroGS::vb[0].FlushTexData();
+	ZeroGS::vb[1].FlushTexData();
 
 	gs.clut.cbw = ((data[0]) & 0x3f) * 64;
 	gs.clut.cou = ((data[0] >>  6) & 0x3f) * 16;
 	gs.clut.cov = (data[0] >> 12) & 0x3ff;
 }
 
-void __fastcall GIFRegHandlerSCANMSK(u32* data)
+void __gifCall GIFRegHandlerSCANMSK(const u32* data)
 {
 	FUNCLOG
-//  ZeroGS::Flush(0);
-//  ZeroGS::Flush(1);
+//  ZeroGS::FlushBoth();
 //  ZeroGS::ResolveC(&ZeroGS::vb[0]);
 //  ZeroGS::ResolveZ(&ZeroGS::vb[0]);
 
 	gs.smask = data[0] & 0x3;
 }
 
-void __fastcall GIFRegHandlerMIPTBP1_1(u32* data)
+void __gifCall GIFRegHandlerMIPTBP1_1(const u32* data)
 {
 	FUNCLOG
 	miptbpInfo& miptbp0 = ZeroGS::vb[0].miptbp0;
@@ -684,7 +651,7 @@ void __fastcall GIFRegHandlerMIPTBP1_1(u32* data)
 	miptbp0.tbw[2] = (data[1] >> 22) & 0x3f;
 }
 
-void __fastcall GIFRegHandlerMIPTBP1_2(u32* data)
+void __gifCall GIFRegHandlerMIPTBP1_2(const u32* data)
 {
 	FUNCLOG
 	miptbpInfo& miptbp0 = ZeroGS::vb[1].miptbp0;
@@ -696,7 +663,7 @@ void __fastcall GIFRegHandlerMIPTBP1_2(u32* data)
 	miptbp0.tbw[2] = (data[1] >> 22) & 0x3f;
 }
 
-void __fastcall GIFRegHandlerMIPTBP2_1(u32* data)
+void __gifCall GIFRegHandlerMIPTBP2_1(const u32* data)
 {
 	FUNCLOG
 	miptbpInfo& miptbp1 = ZeroGS::vb[0].miptbp1;
@@ -708,7 +675,7 @@ void __fastcall GIFRegHandlerMIPTBP2_1(u32* data)
 	miptbp1.tbw[2] = (data[1] >> 22) & 0x3f;
 }
 
-void __fastcall GIFRegHandlerMIPTBP2_2(u32* data)
+void __gifCall GIFRegHandlerMIPTBP2_2(const u32* data)
 {
 	FUNCLOG
 	miptbpInfo& miptbp1 = ZeroGS::vb[1].miptbp1;
@@ -720,7 +687,7 @@ void __fastcall GIFRegHandlerMIPTBP2_2(u32* data)
 	miptbp1.tbw[2] = (data[1] >> 22) & 0x3f;
 }
 
-void __fastcall GIFRegHandlerTEXA(u32* data)
+void __gifCall GIFRegHandlerTEXA(const u32* data)
 {
 	FUNCLOG
 	texaInfo newinfo;
@@ -730,9 +697,10 @@ void __fastcall GIFRegHandlerTEXA(u32* data)
 
 	if (*(u32*)&newinfo != *(u32*)&gs.texa)
 	{
-		ZeroGS::Flush(0);
-		ZeroGS::Flush(1);
+		ZeroGS::FlushBoth();
+		
 		*(u32*)&gs.texa = *(u32*) & newinfo;
+		
 		gs.texa.fta[0] = newinfo.ta[0] / 255.0f;
 		gs.texa.fta[1] = newinfo.ta[1] / 255.0f;
 
@@ -741,19 +709,19 @@ void __fastcall GIFRegHandlerTEXA(u32* data)
 	}
 }
 
-void __fastcall GIFRegHandlerFOGCOL(u32* data)
+void __gifCall GIFRegHandlerFOGCOL(const u32* data)
 {
 	FUNCLOG
 	ZeroGS::SetFogColor(data[0]&0xffffff);
 }
 
-void __fastcall GIFRegHandlerTEXFLUSH(u32* data)
+void __gifCall GIFRegHandlerTEXFLUSH(const u32* data)
 {
 	FUNCLOG
 	ZeroGS::SetTexFlush();
 }
 
-void __fastcall GIFRegHandlerSCISSOR_1(u32* data)
+void __gifCall GIFRegHandlerSCISSOR_1(const u32* data)
 {
 	FUNCLOG
 	Rect2& scissor = ZeroGS::vb[0].scissor;
@@ -768,15 +736,13 @@ void __fastcall GIFRegHandlerSCISSOR_1(u32* data)
 	if (newscissor.x1 != scissor.x1 || newscissor.y1 != scissor.y1 ||
 			newscissor.x0 != scissor.x0 || newscissor.y0 != scissor.y0)
 	{
-
 		ZeroGS::Flush(0);
 		scissor = newscissor;
-
 		ZeroGS::vb[0].bNeedFrameCheck = 1;
 	}
 }
 
-void __fastcall GIFRegHandlerSCISSOR_2(u32* data)
+void __gifCall GIFRegHandlerSCISSOR_2(const u32* data)
 {
 	FUNCLOG
 	Rect2& scissor = ZeroGS::vb[1].scissor;
@@ -791,7 +757,6 @@ void __fastcall GIFRegHandlerSCISSOR_2(u32* data)
 	if (newscissor.x1 != scissor.x1 || newscissor.y1 != scissor.y1 ||
 			newscissor.x0 != scissor.x0 || newscissor.y0 != scissor.y0)
 	{
-
 		ZeroGS::Flush(1);
 		scissor = newscissor;
 
@@ -800,7 +765,7 @@ void __fastcall GIFRegHandlerSCISSOR_2(u32* data)
 	}
 }
 
-void __fastcall GIFRegHandlerALPHA_1(u32* data)
+void __gifCall GIFRegHandlerALPHA_1(const u32* data)
 {
 	FUNCLOG
 	alphaInfo newalpha;
@@ -820,7 +785,7 @@ void __fastcall GIFRegHandlerALPHA_1(u32* data)
 	}
 }
 
-void __fastcall GIFRegHandlerALPHA_2(u32* data)
+void __gifCall GIFRegHandlerALPHA_2(const u32* data)
 {
 	FUNCLOG
 	alphaInfo newalpha;
@@ -840,75 +805,75 @@ void __fastcall GIFRegHandlerALPHA_2(u32* data)
 	}
 }
 
-void __fastcall GIFRegHandlerDIMX(u32* data)
+void __gifCall GIFRegHandlerDIMX(const u32* data)
 {
 	FUNCLOG
 }
 
-void __fastcall GIFRegHandlerDTHE(u32* data)
+void __gifCall GIFRegHandlerDTHE(const u32* data)
 {
 	FUNCLOG
 	gs.dthe = data[0] & 0x1;
 }
 
-void __fastcall GIFRegHandlerCOLCLAMP(u32* data)
+void __gifCall GIFRegHandlerCOLCLAMP(const u32* data)
 {
 	FUNCLOG
 	gs.colclamp = data[0] & 0x1;
 }
 
-void __fastcall GIFRegHandlerTEST_1(u32* data)
+void __gifCall GIFRegHandlerTEST_1(const u32* data)
 {
 	FUNCLOG
 	testWrite(0, data);
 }
 
-void __fastcall GIFRegHandlerTEST_2(u32* data)
+void __gifCall GIFRegHandlerTEST_2(const u32* data)
 {
 	FUNCLOG
 	testWrite(1, data);
 }
 
-void __fastcall GIFRegHandlerPABE(u32* data)
+void __gifCall GIFRegHandlerPABE(const u32* data)
 {
 	FUNCLOG
 	//ZeroGS::SetAlphaChanged(0, GPUREG_PABE);
 	//ZeroGS::SetAlphaChanged(1, GPUREG_PABE);
-	ZeroGS::Flush(0);
-	ZeroGS::Flush(1);
+	ZeroGS::FlushBoth();
 
 	gs.pabe = *data & 0x1;
 }
 
-void __fastcall GIFRegHandlerFBA_1(u32* data)
+void __gifCall GIFRegHandlerFBA_1(const u32* data)
 {
 	FUNCLOG
-	ZeroGS::Flush(0);
-	ZeroGS::Flush(1);
+	
+	ZeroGS::FlushBoth();
 	ZeroGS::vb[0].fba.fba = *data & 0x1;
 }
 
-void __fastcall GIFRegHandlerFBA_2(u32* data)
+void __gifCall GIFRegHandlerFBA_2(const u32* data)
 {
 	FUNCLOG
-	ZeroGS::Flush(0);
-	ZeroGS::Flush(1);
+	
+	ZeroGS::FlushBoth();
+	
 	ZeroGS::vb[1].fba.fba = *data & 0x1;
 }
 
-void __fastcall GIFRegHandlerFRAME_1(u32* data)
+void __gifCall GIFRegHandlerFRAME_1(const u32* data)
 {
 	FUNCLOG
 	frameWrite(0, data);
 }
 
-void __fastcall GIFRegHandlerFRAME_2(u32* data)
+void __gifCall GIFRegHandlerFRAME_2(const u32* data)
 {
 	FUNCLOG
 	frameWrite(1, data);
 }
 
-void __fastcall GIFRegHandlerZBUF_1(u32* data)
+void __gifCall GIFRegHandlerZBUF_1(const u32* data)
 {
 	FUNCLOG
 	zbufInfo& zbuf = ZeroGS::vb[0].zbuf;
@@ -925,8 +890,7 @@ void __fastcall GIFRegHandlerZBUF_1(u32* data)
 	// error detection
 	if (m_Blocks[psm].bpp == 0) return;
 
-	ZeroGS::Flush(0);
-	ZeroGS::Flush(1);
+	ZeroGS::FlushBoth();
 
 	zbuf.zbp = (data[0] & 0x1ff) * 32;
 	zbuf.psm = 0x30 | ((data[0] >> 24) & 0xf);
@@ -939,7 +903,7 @@ void __fastcall GIFRegHandlerZBUF_1(u32* data)
 	ZeroGS::vb[0].bNeedZCheck = 1;
 }
 
-void __fastcall GIFRegHandlerZBUF_2(u32* data)
+void __gifCall GIFRegHandlerZBUF_2(const u32* data)
 {
 	FUNCLOG
 	zbufInfo& zbuf = ZeroGS::vb[1].zbuf;
@@ -954,11 +918,9 @@ void __fastcall GIFRegHandlerZBUF_2(u32* data)
 	}
 
 	// error detection
-	if (m_Blocks[psm].bpp == 0)
-		return;
+	if (m_Blocks[psm].bpp == 0) return;
 
-	ZeroGS::Flush(0);
-	ZeroGS::Flush(1);
+	ZeroGS::FlushBoth();
 
 	zbuf.zbp = (data[0] & 0x1ff) * 32;
 
@@ -972,7 +934,7 @@ void __fastcall GIFRegHandlerZBUF_2(u32* data)
 	if (zbuf.psm > 0x31) ZeroGS::vb[1].zprimmask = 0xffff;
 }
 
-void __fastcall GIFRegHandlerBITBLTBUF(u32* data)
+void __gifCall GIFRegHandlerBITBLTBUF(const u32* data)
 {
 	FUNCLOG
 	gs.srcbufnew.bp  = ((data[0]) & 0x3fff);   // * 64;
@@ -985,9 +947,10 @@ void __fastcall GIFRegHandlerBITBLTBUF(u32* data)
 	if (gs.dstbufnew.bw == 0) gs.dstbufnew.bw = 64;
 }
 
-void __fastcall GIFRegHandlerTRXPOS(u32* data)
+void __gifCall GIFRegHandlerTRXPOS(const u32* data)
 {
 	FUNCLOG
+	
 	gs.trxposnew.sx  = (data[0]) & 0x7ff;
 	gs.trxposnew.sy  = (data[0] >> 16) & 0x7ff;
 	gs.trxposnew.dx  = (data[1]) & 0x7ff;
@@ -995,14 +958,14 @@ void __fastcall GIFRegHandlerTRXPOS(u32* data)
 	gs.trxposnew.dir = (data[1] >> 27) & 0x3;
 }
 
-void __fastcall GIFRegHandlerTRXREG(u32* data)
+void __gifCall GIFRegHandlerTRXREG(const u32* data)
 {
 	FUNCLOG
 	gs.imageWtemp = data[0] & 0xfff;
 	gs.imageHtemp = data[1] & 0xfff;
 }
 
-void __fastcall GIFRegHandlerTRXDIR(u32* data)
+void __gifCall GIFRegHandlerTRXDIR(const u32* data)
 {
 	FUNCLOG
 	// terminate any previous transfers
@@ -1060,7 +1023,7 @@ void __fastcall GIFRegHandlerTRXDIR(u32* data)
 	}
 }
 
-void __fastcall GIFRegHandlerHWREG(u32* data)
+void __gifCall GIFRegHandlerHWREG(const u32* data)
 {
 	FUNCLOG
 
@@ -1079,7 +1042,7 @@ void __fastcall GIFRegHandlerHWREG(u32* data)
 
 extern int g_GSMultiThreaded;
 
-void __fastcall GIFRegHandlerSIGNAL(u32* data)
+void __gifCall GIFRegHandlerSIGNAL(const u32* data)
 {
 	FUNCLOG
 
@@ -1101,7 +1064,7 @@ void __fastcall GIFRegHandlerSIGNAL(u32* data)
 	}
 }
 
-void __fastcall GIFRegHandlerFINISH(u32* data)
+void __gifCall GIFRegHandlerFINISH(const u32* data)
 {
 	FUNCLOG
 
@@ -1124,7 +1087,7 @@ void __fastcall GIFRegHandlerFINISH(u32* data)
 	}
 }
 
-void __fastcall GIFRegHandlerLABEL(u32* data)
+void __gifCall GIFRegHandlerLABEL(const u32* data)
 {
 	FUNCLOG
 
@@ -1133,3 +1096,169 @@ void __fastcall GIFRegHandlerLABEL(u32* data)
 		SIGLBLID->LBLID = (SIGLBLID->LBLID & ~data[1]) | (data[0] & data[1]);
 	}
 }
+
+
+void SetMultithreaded()
+{
+	// Some older versions of PCSX2 didn't properly set the irq callback to NULL
+	// in multithreaded mode (possibly because ZeroGS itself would assert in such
+	// cases), and didn't bind them to a dummy callback either.  PCSX2 handles all
+	// IRQs internally when multithreaded anyway -- so let's ignore them here:
+
+	if (g_GSMultiThreaded)
+	{
+		g_GIFRegHandlers[GIF_A_D_REG_SIGNAL] = &GIFRegHandlerNull;
+		g_GIFRegHandlers[GIF_A_D_REG_FINISH] = &GIFRegHandlerNull;
+		g_GIFRegHandlers[GIF_A_D_REG_LABEL] = &GIFRegHandlerNull;
+	}
+	else
+	{
+		g_GIFRegHandlers[GIF_A_D_REG_SIGNAL] = &GIFRegHandlerSIGNAL;
+		g_GIFRegHandlers[GIF_A_D_REG_FINISH] = &GIFRegHandlerFINISH;
+		g_GIFRegHandlers[GIF_A_D_REG_LABEL] = &GIFRegHandlerLABEL;
+	}
+}
+
+void ResetRegs()
+{
+	for (int i = 0; i < 16; i++)
+	{
+		g_GIFPackedRegHandlers[i] = &GIFPackedRegHandlerNull;
+	}
+
+	g_GIFPackedRegHandlers[GIF_REG_PRIM] = &GIFPackedRegHandlerPRIM;
+	g_GIFPackedRegHandlers[GIF_REG_RGBA] = &GIFPackedRegHandlerRGBA;
+	g_GIFPackedRegHandlers[GIF_REG_STQ] = &GIFPackedRegHandlerSTQ;
+	g_GIFPackedRegHandlers[GIF_REG_UV] = &GIFPackedRegHandlerUV;
+	g_GIFPackedRegHandlers[GIF_REG_XYZF2] = &GIFPackedRegHandlerXYZF2;
+	g_GIFPackedRegHandlers[GIF_REG_XYZ2] = &GIFPackedRegHandlerXYZ2;
+	g_GIFPackedRegHandlers[GIF_REG_TEX0_1] = &GIFPackedRegHandlerTEX0_1;
+	g_GIFPackedRegHandlers[GIF_REG_TEX0_2] = &GIFPackedRegHandlerTEX0_2;
+	g_GIFPackedRegHandlers[GIF_REG_CLAMP_1] = &GIFPackedRegHandlerCLAMP_1;
+	g_GIFPackedRegHandlers[GIF_REG_CLAMP_2] = &GIFPackedRegHandlerCLAMP_2;
+	g_GIFPackedRegHandlers[GIF_REG_FOG] = &GIFPackedRegHandlerFOG;
+	g_GIFPackedRegHandlers[GIF_REG_XYZF3] = &GIFPackedRegHandlerXYZF3;
+	g_GIFPackedRegHandlers[GIF_REG_XYZ3] = &GIFPackedRegHandlerXYZ3;
+	g_GIFPackedRegHandlers[GIF_REG_A_D] = &GIFPackedRegHandlerA_D;
+	g_GIFPackedRegHandlers[GIF_REG_NOP] = &GIFPackedRegHandlerNOP;
+	
+	for (int i = 0; i < 256; i++)
+	{
+		g_GIFRegHandlers[i] = &GIFPackedRegHandlerNull;
+	}
+	
+	g_GIFRegHandlers[GIF_A_D_REG_PRIM] = &GIFRegHandlerPRIM;
+	g_GIFRegHandlers[GIF_A_D_REG_RGBAQ] = &GIFRegHandlerRGBAQ;
+	g_GIFRegHandlers[GIF_A_D_REG_ST] = &GIFRegHandlerST;
+	g_GIFRegHandlers[GIF_A_D_REG_UV] = &GIFRegHandlerUV;
+	g_GIFRegHandlers[GIF_A_D_REG_XYZF2] = &GIFRegHandlerXYZF2;
+	g_GIFRegHandlers[GIF_A_D_REG_XYZ2] = &GIFRegHandlerXYZ2;
+	g_GIFRegHandlers[GIF_A_D_REG_TEX0_1] = &GIFRegHandlerTEX0_1;
+	g_GIFRegHandlers[GIF_A_D_REG_TEX0_2] = &GIFRegHandlerTEX0_2;
+	g_GIFRegHandlers[GIF_A_D_REG_CLAMP_1] = &GIFRegHandlerCLAMP_1;
+	g_GIFRegHandlers[GIF_A_D_REG_CLAMP_2] = &GIFRegHandlerCLAMP_2;
+	g_GIFRegHandlers[GIF_A_D_REG_FOG] = &GIFRegHandlerFOG;
+	g_GIFRegHandlers[GIF_A_D_REG_XYZF3] = &GIFRegHandlerXYZF3;
+	g_GIFRegHandlers[GIF_A_D_REG_XYZ3] = &GIFRegHandlerXYZ3;
+	g_GIFRegHandlers[GIF_A_D_REG_NOP] = &GIFRegHandlerNOP;
+	g_GIFRegHandlers[GIF_A_D_REG_TEX1_1] = &GIFRegHandlerTEX1_1;
+	g_GIFRegHandlers[GIF_A_D_REG_TEX1_2] = &GIFRegHandlerTEX1_2;
+	g_GIFRegHandlers[GIF_A_D_REG_TEX2_1] = &GIFRegHandlerTEX2_1;
+	g_GIFRegHandlers[GIF_A_D_REG_TEX2_2] = &GIFRegHandlerTEX2_2;
+	g_GIFRegHandlers[GIF_A_D_REG_XYOFFSET_1] = &GIFRegHandlerXYOFFSET_1;
+	g_GIFRegHandlers[GIF_A_D_REG_XYOFFSET_2] = &GIFRegHandlerXYOFFSET_2;
+	g_GIFRegHandlers[GIF_A_D_REG_PRMODECONT] = &GIFRegHandlerPRMODECONT;
+	g_GIFRegHandlers[GIF_A_D_REG_PRMODE] = &GIFRegHandlerPRMODE;
+	g_GIFRegHandlers[GIF_A_D_REG_TEXCLUT] = &GIFRegHandlerTEXCLUT;
+	g_GIFRegHandlers[GIF_A_D_REG_SCANMSK] = &GIFRegHandlerSCANMSK;
+	g_GIFRegHandlers[GIF_A_D_REG_MIPTBP1_1] = &GIFRegHandlerMIPTBP1_1;
+	g_GIFRegHandlers[GIF_A_D_REG_MIPTBP1_2] = &GIFRegHandlerMIPTBP1_2;
+	g_GIFRegHandlers[GIF_A_D_REG_MIPTBP2_1] = &GIFRegHandlerMIPTBP2_1;
+	g_GIFRegHandlers[GIF_A_D_REG_MIPTBP2_2] = &GIFRegHandlerMIPTBP2_2;
+	g_GIFRegHandlers[GIF_A_D_REG_TEXA] = &GIFRegHandlerTEXA;
+	g_GIFRegHandlers[GIF_A_D_REG_FOGCOL] = &GIFRegHandlerFOGCOL;
+	g_GIFRegHandlers[GIF_A_D_REG_TEXFLUSH] = &GIFRegHandlerTEXFLUSH;
+	g_GIFRegHandlers[GIF_A_D_REG_SCISSOR_1] = &GIFRegHandlerSCISSOR_1;
+	g_GIFRegHandlers[GIF_A_D_REG_SCISSOR_2] = &GIFRegHandlerSCISSOR_2;
+	g_GIFRegHandlers[GIF_A_D_REG_ALPHA_1] = &GIFRegHandlerALPHA_1;
+	g_GIFRegHandlers[GIF_A_D_REG_ALPHA_2] = &GIFRegHandlerALPHA_2;
+	g_GIFRegHandlers[GIF_A_D_REG_DIMX] = &GIFRegHandlerDIMX;
+	g_GIFRegHandlers[GIF_A_D_REG_DTHE] = &GIFRegHandlerDTHE;
+	g_GIFRegHandlers[GIF_A_D_REG_COLCLAMP] = &GIFRegHandlerCOLCLAMP;
+	g_GIFRegHandlers[GIF_A_D_REG_TEST_1] = &GIFRegHandlerTEST_1;
+	g_GIFRegHandlers[GIF_A_D_REG_TEST_2] = &GIFRegHandlerTEST_2;
+	g_GIFRegHandlers[GIF_A_D_REG_PABE] = &GIFRegHandlerPABE;
+	g_GIFRegHandlers[GIF_A_D_REG_FBA_1] = &GIFRegHandlerFBA_1;
+	g_GIFRegHandlers[GIF_A_D_REG_FBA_2] = &GIFRegHandlerFBA_2;
+	g_GIFRegHandlers[GIF_A_D_REG_FRAME_1] = &GIFRegHandlerFRAME_1;
+	g_GIFRegHandlers[GIF_A_D_REG_FRAME_2] = &GIFRegHandlerFRAME_2;
+	g_GIFRegHandlers[GIF_A_D_REG_ZBUF_1] = &GIFRegHandlerZBUF_1;
+	g_GIFRegHandlers[GIF_A_D_REG_ZBUF_2] = &GIFRegHandlerZBUF_2;
+	g_GIFRegHandlers[GIF_A_D_REG_BITBLTBUF] = &GIFRegHandlerBITBLTBUF;
+	g_GIFRegHandlers[GIF_A_D_REG_TRXPOS] = &GIFRegHandlerTRXPOS;
+	g_GIFRegHandlers[GIF_A_D_REG_TRXREG] = &GIFRegHandlerTRXREG;
+	g_GIFRegHandlers[GIF_A_D_REG_TRXDIR] = &GIFRegHandlerTRXDIR;
+	g_GIFRegHandlers[GIF_A_D_REG_HWREG] = &GIFRegHandlerHWREG;
+	SetMultithreaded();
+}
+
+void WriteTempRegs()
+{
+	memcpy(g_GIFTempRegHandlers, g_GIFPackedRegHandlers, sizeof(g_GIFTempRegHandlers));
+}
+
+void SetFrameSkip(bool skip)
+{
+	if (skip)
+	{
+		g_GIFPackedRegHandlers[GIF_REG_PRIM] = &GIFPackedRegHandlerNOP;
+		g_GIFPackedRegHandlers[GIF_REG_RGBA] = &GIFPackedRegHandlerNOP;
+		g_GIFPackedRegHandlers[GIF_REG_STQ] = &GIFPackedRegHandlerNOP;
+		g_GIFPackedRegHandlers[GIF_REG_UV] = &GIFPackedRegHandlerNOP;
+		g_GIFPackedRegHandlers[GIF_REG_XYZF2] = &GIFPackedRegHandlerNOP;
+		g_GIFPackedRegHandlers[GIF_REG_XYZ2] = &GIFPackedRegHandlerNOP;
+		g_GIFPackedRegHandlers[GIF_REG_CLAMP_1] = &GIFPackedRegHandlerNOP;
+		g_GIFPackedRegHandlers[GIF_REG_CLAMP_2] = &GIFPackedRegHandlerNOP;
+		g_GIFPackedRegHandlers[GIF_REG_FOG] = &GIFPackedRegHandlerNOP;
+		g_GIFPackedRegHandlers[GIF_REG_XYZF3] = &GIFPackedRegHandlerNOP;
+		g_GIFPackedRegHandlers[GIF_REG_XYZ3] = &GIFPackedRegHandlerNOP;
+
+		g_GIFRegHandlers[GIF_A_D_REG_PRIM] = &GIFRegHandlerNOP;
+		g_GIFRegHandlers[GIF_A_D_REG_RGBAQ] = &GIFRegHandlerNOP;
+		g_GIFRegHandlers[GIF_A_D_REG_ST] = &GIFRegHandlerNOP;
+		g_GIFRegHandlers[GIF_A_D_REG_UV] = &GIFRegHandlerNOP;
+		g_GIFRegHandlers[GIF_A_D_REG_XYZF2] = &GIFRegHandlerNOP;
+		g_GIFRegHandlers[GIF_A_D_REG_XYZ2] = &GIFRegHandlerNOP;
+		g_GIFRegHandlers[GIF_A_D_REG_XYZF3] = &GIFRegHandlerNOP;
+		g_GIFRegHandlers[GIF_A_D_REG_XYZ3] = &GIFRegHandlerNOP;
+		g_GIFRegHandlers[GIF_A_D_REG_PRMODECONT] = &GIFRegHandlerNOP;
+		g_GIFRegHandlers[GIF_A_D_REG_PRMODE] = &GIFRegHandlerNOP;
+	}
+	else
+	{
+		g_GIFPackedRegHandlers[GIF_REG_PRIM] = &GIFPackedRegHandlerPRIM;
+		g_GIFPackedRegHandlers[GIF_REG_RGBA] = &GIFPackedRegHandlerRGBA;
+		g_GIFPackedRegHandlers[GIF_REG_STQ] = &GIFPackedRegHandlerSTQ;
+		g_GIFPackedRegHandlers[GIF_REG_UV] = &GIFPackedRegHandlerUV;
+		g_GIFPackedRegHandlers[GIF_REG_XYZF2] = &GIFPackedRegHandlerXYZF2;
+		g_GIFPackedRegHandlers[GIF_REG_XYZ2] = &GIFPackedRegHandlerXYZ2;
+		g_GIFPackedRegHandlers[GIF_REG_CLAMP_1] = &GIFPackedRegHandlerCLAMP_1;
+		g_GIFPackedRegHandlers[GIF_REG_CLAMP_2] = &GIFPackedRegHandlerCLAMP_2;
+		g_GIFPackedRegHandlers[GIF_REG_FOG] = &GIFPackedRegHandlerFOG;
+		g_GIFPackedRegHandlers[GIF_REG_XYZF3] = &GIFPackedRegHandlerXYZF3;
+		g_GIFPackedRegHandlers[GIF_REG_XYZ3] = &GIFPackedRegHandlerXYZ3;
+
+		g_GIFRegHandlers[GIF_A_D_REG_PRIM] = &GIFRegHandlerPRIM;
+		g_GIFRegHandlers[GIF_A_D_REG_RGBAQ] = &GIFRegHandlerRGBAQ;
+		g_GIFRegHandlers[GIF_A_D_REG_ST] = &GIFRegHandlerST;
+		g_GIFRegHandlers[GIF_A_D_REG_UV] = &GIFRegHandlerUV;
+		g_GIFRegHandlers[GIF_A_D_REG_XYZF2] = &GIFRegHandlerXYZF2;
+		g_GIFRegHandlers[GIF_A_D_REG_XYZ2] = &GIFRegHandlerXYZ2;
+		g_GIFRegHandlers[GIF_A_D_REG_XYZF3] = &GIFRegHandlerXYZF3;
+		g_GIFRegHandlers[GIF_A_D_REG_XYZ3] = &GIFRegHandlerXYZ3;
+		g_GIFRegHandlers[GIF_A_D_REG_PRMODECONT] = &GIFRegHandlerPRMODECONT;
+		g_GIFRegHandlers[GIF_A_D_REG_PRMODE] = &GIFRegHandlerPRMODE;
+	}
+}
+
+#endif

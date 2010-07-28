@@ -42,8 +42,13 @@ int		PlayMode;
 
 bool has_to_call_irq=false;
 
-void SetIrqCall()
+void SetIrqCall(int core)
 {
+	// reset by an irq disable/enable cycle, behaviour found by
+	// test programs that bizarrely only fired one interrupt
+	if (Spdif.Info & 4 << core)
+		return;
+	Spdif.Info |= 4 << core;
 	has_to_call_irq=true;
 }
 
@@ -107,9 +112,9 @@ V_Core::~V_Core() throw()
 	}*/
 }
 
-void V_Core::Reset( int index )
+void V_Core::Init( int index )
 {
-	ConLog( "* SPU2-X: RESET SPU2 core%d \n", index );
+	ConLog( "* SPU2-X: Init SPU2 core %d \n", index );
 	memset( this, 0, sizeof(V_Core) );
 
 	const int c = Index = index;
@@ -130,8 +135,62 @@ void V_Core::Reset( int index )
 	Regs.VMIXR		= 0xFFFFFF;
 	Regs.VMIXEL		= 0xFFFFFF;
 	Regs.VMIXER		= 0xFFFFFF;
-	EffectsStartA	= 0xE0000 + (0x10000*c);
-	EffectsEndA		= 0xEFFFF + (0x10000*c);
+	EffectsStartA	= c ? 0xEFFF8 : 0xFFFF8;
+	EffectsEndA		= c ? 0xEFFFF : 0xFFFFF;
+
+	FxEnable		= 0;
+	IRQA			= 0xFFFFF;
+	IRQEnable		= 0;
+
+	for( uint v=0; v<NumVoices; ++v )
+	{
+		VoiceGates[v].DryL = -1;
+		VoiceGates[v].DryR = -1;
+		VoiceGates[v].WetL = -1;
+		VoiceGates[v].WetR = -1;
+
+		Voices[v].Volume		= V_VolumeSlideLR(0,0); // V_VolumeSlideLR::Max;
+		Voices[v].SCurrent		= 28;
+
+		Voices[v].ADSR.Value	= 0;
+		Voices[v].ADSR.Phase	= 0;
+		Voices[v].Pitch			= 0x3FFF;
+		Voices[v].NextA			= 0x2800;
+		Voices[v].StartA		= 0x2800;
+		Voices[v].LoopStartA	= 0x2800;
+	}
+
+	DMAICounter		= 0;
+	AdmaInProgress	= 0;
+
+	Regs.STATX		= 0x80;
+}
+
+void V_Core::Reset( int index )
+{
+	ConLog( "* SPU2-X: Init SPU2 core %d \n", index );
+	memset( this, 0, sizeof(V_Core) );
+
+	const int c = Index = index;
+
+	Regs.STATX		= 0;
+	Regs.ATTR		= 0;
+	ExtVol			= V_VolumeLR::Max;
+	InpVol			= V_VolumeLR::Max;
+	FxVol			= V_VolumeLR::Max;
+
+	MasterVol		= V_VolumeSlideLR::Max;
+
+	memset( &DryGate, -1, sizeof(DryGate) );
+	memset( &WetGate, -1, sizeof(WetGate) );
+
+	Regs.MMIX		= 0xFFCF;
+	Regs.VMIXL		= 0xFFFFFF;
+	Regs.VMIXR		= 0xFFFFFF;
+	Regs.VMIXEL		= 0xFFFFFF;
+	Regs.VMIXER		= 0xFFFFFF;
+	EffectsStartA	= c ? 0xEFFF8 : 0xFFFF8;
+	EffectsEndA		= c ? 0xEFFFF : 0xFFFFF;
 
 	FxEnable		= 0;
 	IRQA			= 0xFFFF0;
@@ -144,7 +203,7 @@ void V_Core::Reset( int index )
 		VoiceGates[v].WetL = -1;
 		VoiceGates[v].WetR = -1;
 
-		Voices[v].Volume		= V_VolumeSlideLR::Max;
+		Voices[v].Volume		= V_VolumeSlideLR(0,0); // V_VolumeSlideLR::Max;
 		Voices[v].SCurrent		= 28;
 
 		Voices[v].ADSR.Value	= 0;
@@ -163,7 +222,12 @@ void V_Core::Reset( int index )
 
 s32 V_Core::EffectsBufferIndexer( s32 offset ) const
 {
-	offset *= 4;
+	// Should offsets be multipled by 4 or not?  Reverse-engineering of IOP code reveals
+	// that it *4's all addresses before upping them to the SPU2 -- so our buffers are
+	// already x4'd.  It doesn't really make sense that we should x4 them again, and this
+	// seems to work. (feedback-free in bios and DDS)  --air
+
+	//offset *= 4;
 
 	u32 pos = EffectsStartA + offset;
 
@@ -196,8 +260,15 @@ void V_Core::UpdateFeedbackBuffersB()
 void V_Core::UpdateEffectsBufferSize()
 {
 	const s32 newbufsize = EffectsEndA - EffectsStartA + 1;
+	//printf("Rvb Area change: ESA = %x, EEA = %x, Size(dec) = %d, Size(hex) = %x FxEnable = %d\n", EffectsStartA, EffectsEndA, newbufsize * 2, newbufsize * 2, FxEnable);
+	
+	if( (newbufsize*2) > 0x20000 ) // max 128kb per core
+	{ 
+		//printf("too big, returning\n");
+		//return;
+	}
 	if( !RevBuffers.NeedsUpdated && (newbufsize == EffectsBufferSize) ) return;
-
+	
 	RevBuffers.NeedsUpdated = false;
 	EffectsBufferSize = newbufsize;
 
@@ -258,6 +329,8 @@ void V_Voice::Start()
 
 		PV1 = PV2		= 0;
 		PV3 = PV4		= 0;
+		PrevAmp = 0;
+		NextCrest = 0;
 	}
 	else
 	{
@@ -749,7 +822,7 @@ static void __fastcall RegWrite_VoiceParams( u16 value )
 		break;
 
 		case 2:
-			thisvoice.Pitch			= value;
+			thisvoice.Pitch			= value & 0x3fff;
 		break;
 
 		case 3: // ADSR1 (Envelope)
@@ -806,12 +879,19 @@ static void __fastcall RegWrite_VoiceAddr( u16 value )
 			thisvoice.LoopMode = 3;
 		break;
 
+		// Note that there's no proof that I know of that writing to NextA is
+		// even allowed or handled by the SPU2 (it might be disabled or ignored,
+		// for example).  Tests should be done to find games that write to this
+		// reg, and see if they're buggy or not. --air
+
 		case 4:
 			thisvoice.NextA = ((value & 0x0F) << 16) | (thisvoice.NextA & 0xFFF8);
+			thisvoice.SCurrent = 28;
 		break;
 
 		case 5:
 			thisvoice.NextA = (thisvoice.NextA & 0x0F0000) | (value & 0xFFF8);
+			thisvoice.SCurrent = 28;
 		break;
 	}
 }
@@ -842,8 +922,7 @@ static void __fastcall RegWrite_Core( u16 value )
 			{
 				if(Cores[i].IRQEnable && (Cores[i].IRQA == thiscore.TSA))
 				{
-					Spdif.Info |= 4 << i;
-					SetIrqCall();
+					SetIrqCall(i);
 				}
 			}
 			thiscore.DmaWrite( value );
@@ -851,9 +930,11 @@ static void __fastcall RegWrite_Core( u16 value )
 
 		case REG_C_ATTR:
 		{
-			bool irqe = thiscore.IRQEnable;
-			int bit0 = thiscore.AttrBit0;
-			u8 oldDmaMode = thiscore.DmaMode;
+			bool fxenable	= thiscore.FxEnable;
+			bool irqe		= thiscore.IRQEnable;
+			int bit0		= thiscore.AttrBit0;
+			u8 oldDmaMode	= thiscore.DmaMode;
+			
 
 			if( ((value>>15)&1) && (!thiscore.CoreEnabled) && (thiscore.InitDelay==0) ) // on init/reset
 			{
@@ -880,10 +961,13 @@ static void __fastcall RegWrite_Core( u16 value )
 			thiscore.IRQEnable  =(value>> 6) & 0x01; //1 bit
 			thiscore.FxEnable   =(value>> 7) & 0x01; //1 bit
 			thiscore.NoiseClk   =(value>> 8) & 0x3f; //6 bits
-			//thiscore.Mute	   =(value>>14) & 0x01; //1 bit
-			thiscore.Mute=0;
+			//thiscore.Mute		=(value>>14) & 0x01; //1 bit
+			thiscore.Mute		=0;
 			thiscore.CoreEnabled=(value>>15) & 0x01; //1 bit
 			thiscore.Regs.ATTR  =value&0x7fff;
+
+			if (!fxenable && thiscore.FxEnable)
+				thiscore.RevBuffers.NeedsUpdated = true;
 
 			if(oldDmaMode != thiscore.DmaMode)
 			{
@@ -902,7 +986,9 @@ static void __fastcall RegWrite_Core( u16 value )
 			}
 			if(thiscore.IRQEnable!=irqe)
 			{
-				ConLog("* SPU2-X: IRQ %s at cycle %d\n",((thiscore.IRQEnable==0)?"disabled":"enabled"), Cycles);
+				ConLog("* SPU2-X: IRQ %s at cycle %d. Current IRQA = %x\n",
+					((thiscore.IRQEnable==0)?"disabled":"enabled"), Cycles, thiscore.IRQA);
+				
 				if(!thiscore.IRQEnable)
 					Spdif.Info &= ~(4 << thiscore.Index);
 			}
@@ -1030,28 +1116,36 @@ static void __fastcall RegWrite_Core( u16 value )
 		break;
 
 		// Reverb Start and End Address Writes!
+		//  * These regs are only writable when Effects are *DISABLED* (FxEnable is false).
+		//    Writes while enabled should be ignored.
 		//  * Yes, these are backwards from all the volumes -- the hiword comes FIRST (wtf!)
 		//  * End position is a hiword only!  Loword is always ffff.
 		//  * The Reverb buffer position resets on writes to StartA.  It probably resets
 		//    on writes to End too.  Docs don't say, but they're for PSX, which couldn't
 		//    change the end address anyway.
-
+		//
 		case REG_A_ESA:
-			SetHiWord( thiscore.EffectsStartA, value );
-			thiscore.RevBuffers.NeedsUpdated = true;
-			thiscore.ReverbX = 0;
+			if (!thiscore.FxEnable)
+			{
+				SetHiWord( thiscore.EffectsStartA, value );
+				thiscore.ReverbX = 0;
+			}
 		break;
 
 		case (REG_A_ESA + 2):
-			SetLoWord( thiscore.EffectsStartA, value );
-			thiscore.RevBuffers.NeedsUpdated = true;
-			thiscore.ReverbX = 0;
+			if (!thiscore.FxEnable)
+			{
+				SetLoWord( thiscore.EffectsStartA, value );
+				thiscore.ReverbX = 0;
+			}
 		break;
 
 		case REG_A_EEA:
-			thiscore.EffectsEndA = ((u32)value<<16) | 0xFFFF;
-			thiscore.RevBuffers.NeedsUpdated = true;
-			thiscore.ReverbX = 0;
+			if (!thiscore.FxEnable)
+			{
+				thiscore.EffectsEndA = ((u32)value<<16) | 0xFFFF;
+				thiscore.ReverbX = 0;
+			}
 		break;
 
 		case REG_S_ADMAS:

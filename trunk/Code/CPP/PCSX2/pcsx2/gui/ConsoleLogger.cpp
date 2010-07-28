@@ -228,6 +228,8 @@ enum MenuIDs_t
 	MenuID_FontSize_Huge,
 };
 
+#define pxTheApp ((Pcsx2App&)*wxTheApp)
+
 // --------------------------------------------------------------------------------------
 //  ScopedLogLock  (implementations)
 // --------------------------------------------------------------------------------------
@@ -238,9 +240,9 @@ public:
 
 public:
 	ScopedLogLock()
-		: ScopedLock( ((Pcsx2App&)*wxTheApp).GetProgramLogLock() )
+		: ScopedLock( wxThread::IsMain() ? NULL : &pxTheApp.GetProgramLogLock() )
 	{
-		WindowPtr = ((Pcsx2App&)*wxTheApp).m_ptr_ProgramLog;
+		WindowPtr = pxTheApp.m_ptr_ProgramLog;
 	}
 
 	virtual ~ScopedLogLock() throw() {}
@@ -295,13 +297,13 @@ ConsoleLogFrame::ConsoleLogFrame( MainEmuFrame *parent, const wxString& title, A
 
 	// create Appearance menu and submenus
 
-	menuFontSizes.Append( MenuID_FontSize_Small,	_("很小"),	_("Fits a lot of log in a microcosmically small area."),
+	menuFontSizes.Append( MenuID_FontSize_Small,	_("很少"),	_("Fits a lot of log in a microcosmically small area."),
 		wxITEM_RADIO )->Check( options.FontSize == 7 );
 	menuFontSizes.Append( MenuID_FontSize_Normal,	_("正常"),_("It's what I use (the programmer guy)."),
 		wxITEM_RADIO )->Check( options.FontSize == 8 );
-	menuFontSizes.Append( MenuID_FontSize_Large,	_("很大"),	_("Its nice and readable."),
+	menuFontSizes.Append( MenuID_FontSize_Large,	_("很多"),	_("Its nice and readable."),
 		wxITEM_RADIO )->Check( options.FontSize == 10 );
-	menuFontSizes.Append( MenuID_FontSize_Huge,		_("巨大"),	_("In case you have a really high res display."),
+	menuFontSizes.Append( MenuID_FontSize_Huge,		_("详细"),	_("In case you have a really high res display."),
 		wxITEM_RADIO )->Check( options.FontSize == 12 );
 
 	menuAppear.AppendSeparator();
@@ -372,7 +374,7 @@ ConsoleLogFrame::~ConsoleLogFrame()
 
 // Implementation note:  Calls SetColor and Write( text ).  Override those virtuals
 // and this one will magically follow suite. :)
-void ConsoleLogFrame::Write( ConsoleColors color, const wxString& text )
+bool ConsoleLogFrame::Write( ConsoleColors color, const wxString& text )
 {
 	pthread_testcancel();
 
@@ -415,7 +417,7 @@ void ConsoleLogFrame::Write( ConsoleColors color, const wxString& text )
 		if( wxThread::IsMain() )
 		{
 			OnFlushEvent( evt );
-			return;
+			return false;
 		}
 		else
 			GetEventHandler()->AddPendingEvent( evt );
@@ -426,33 +428,34 @@ void ConsoleLogFrame::Write( ConsoleColors color, const wxString& text )
 	if( !wxThread::IsMain() )
 	{
 		// Too many color changes causes huge slowdowns when decorating the rich textview, so
-		// include a secodary check to avoid having a colorful log spam from killing gui responsiveness.
+		// include a secondary check to avoid having a colorful log spam killing gui responsiveness.
 		
 		if( m_CurQueuePos > 0x100000 || m_QueueColorSection.GetLength() > 256 )
 		{
 			++m_WaitingThreadsForFlush;
 			lock.Release();
 
-			if( !m_sem_QueueFlushed.Wait( wxTimeSpan( 0,0,0,250 ) ) )
-			{
-				// Necessary since the main thread could grab the lock and process before
-				// the above function actually returns (gotta love threading!)
-				lock.Acquire();
-				if( m_WaitingThreadsForFlush != 0 ) --m_WaitingThreadsForFlush;
-			}
-			else
-			{
-				// give gui thread time to repaint and handle other pending messages.
+			// Note: if the queue flushes, we need to return TRUE, so that our thread sleeps
+			// until the main thread has had a chance to repaint the console window contents.
+			// [TODO] : It'd be a lot better if the console window repaint released the lock
+			//  once its task were complete, but thats been problematic, so for now this hack is
+			//  what we get.
+			if( m_sem_QueueFlushed.Wait( wxTimeSpan( 0,0,0,250 ) ) ) return true;
 
-				wxGetApp().Ping();
-			}
+			// If we're here it means QueueFlush wait timed out, so remove us from the waiting
+			// threads count. This way no thread permanently deadlocks against the console
+			// logger.  They just run quite slow, but should remain responsive to user input.
+			lock.Acquire();
+			if( m_WaitingThreadsForFlush != 0 ) --m_WaitingThreadsForFlush;
 		}
 	}
+	
+	return false;
 }
 
-void ConsoleLogFrame::Newline()
+bool ConsoleLogFrame::Newline()
 {
-	Write( Color_Current, L"\n" );
+	return Write( Color_Current, L"\n" );
 }
 
 void ConsoleLogFrame::DockedMove()
@@ -475,7 +478,7 @@ void ConsoleLogFrame::OnDockedMove( wxCommandEvent& event )
 
 void ConsoleLogFrame::OnMoveAround( wxMoveEvent& evt )
 {
-	if( IsBeingDeleted() || IsIconized() ) return;
+	if( IsBeingDeleted() || !IsVisible() || IsIconized() ) return;
 
 	// Docking check!  If the window position is within some amount
 	// of the main window, enable docking.
@@ -839,8 +842,13 @@ template< const IConsoleWriter& secondary >
 static void __concall ConsoleToWindow_Newline()
 {
 	secondary.Newline();
-	ScopedLogLock locker;
-	if( locker.WindowPtr ) locker.WindowPtr->Newline();
+
+	bool needsSleep = false;
+	{
+		ScopedLogLock locker;
+		if( locker.WindowPtr ) needsSleep = locker.WindowPtr->Newline();
+	}
+	if( needsSleep ) wxGetApp().Ping();
 }
 
 template< const IConsoleWriter& secondary >
@@ -849,8 +857,12 @@ static void __concall ConsoleToWindow_DoWrite( const wxString& fmt )
 	if( secondary.DoWrite != NULL )
 		secondary.DoWrite( fmt );
 
-	ScopedLogLock locker;
-	if( locker.WindowPtr ) locker.WindowPtr->Write( Console.GetColor(), fmt );
+	bool needsSleep = false;
+	{
+		ScopedLogLock locker;
+		if( locker.WindowPtr ) needsSleep = locker.WindowPtr->Write( Console.GetColor(), fmt );
+	}
+	if( needsSleep ) wxGetApp().Ping();
 }
 
 template< const IConsoleWriter& secondary >
@@ -859,8 +871,12 @@ static void __concall ConsoleToWindow_DoWriteLn( const wxString& fmt )
 	if( secondary.DoWriteLn != NULL )
 		secondary.DoWriteLn( fmt );
 
-	ScopedLogLock locker;
-	if( locker.WindowPtr ) locker.WindowPtr->Write( Console.GetColor(), fmt + L'\n' );
+	bool needsSleep = false;
+	{
+		ScopedLogLock locker;
+		if( locker.WindowPtr ) needsSleep = locker.WindowPtr->Write( Console.GetColor(), fmt + L'\n' );
+	}
+	if( needsSleep ) wxGetApp().Ping();
 }
 
 typedef void __concall DoWriteFn(const wxString&);
@@ -889,7 +905,7 @@ static const IConsoleWriter	ConsoleWriter_WindowAndFile =
 
 void Pcsx2App::EnableAllLogging()
 {
-	ScopedLock lock( m_mtx_ProgramLog );
+	AffinityAssert_AllowFrom_MainUI();
 
 	const bool logBoxOpen = (m_ptr_ProgramLog != NULL);
 	const IConsoleWriter* newHandler = NULL;
@@ -918,6 +934,8 @@ void Pcsx2App::EnableAllLogging()
 // emuLog file handle.  Call SetConsoleLogging to re-enable the disk logger when finished.
 void Pcsx2App::DisableDiskLogging() const
 {
+	AffinityAssert_AllowFrom_MainUI();
+
 	const bool logBoxOpen = (GetProgramLog() != NULL);
 	Console_SetActiveHandler( logBoxOpen ? (IConsoleWriter&)ConsoleWriter_Window : (IConsoleWriter&)ConsoleWriter_Stdout );
 
@@ -936,7 +954,6 @@ void Pcsx2App::DisableDiskLogging() const
 
 void Pcsx2App::DisableWindowLogging() const
 {
-	ScopedLock lock( m_mtx_ProgramLog );
+	AffinityAssert_AllowFrom_MainUI();
 	Console_SetActiveHandler( (emuLog!=NULL) ? (IConsoleWriter&)ConsoleWriter_File : (IConsoleWriter&)ConsoleWriter_Stdout );
-	//Threading::Sleep( 5 );
 }

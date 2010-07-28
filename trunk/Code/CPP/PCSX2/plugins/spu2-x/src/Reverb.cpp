@@ -41,6 +41,9 @@ __forceinline s32 V_Core::RevbGetIndexer( s32 offset )
 
 void V_Core::Reverb_AdvanceBuffer()
 {
+	if( RevBuffers.NeedsUpdated )
+			UpdateEffectsBufferSize();
+
 	if( (Cycles & 1) && (EffectsBufferSize > 0) )
 	{
 		ReverbX += 1;
@@ -73,9 +76,6 @@ StereoOut32 V_Core::DoReverb( const StereoOut32& Input )
 	}
 	else
 	{
-		if( RevBuffers.NeedsUpdated )
-			UpdateEffectsBufferSize();
-
 		if( EffectsBufferSize <= 0 )
 		{
 			ubpos = (ubpos+1) & 7;
@@ -154,8 +154,7 @@ StereoOut32 V_Core::DoReverb( const StereoOut32& Input )
 					(Cores[i].IRQA == mix_dest_b0)	||	(Cores[i].IRQA == mix_dest_b1) )
 				{
 					//printf("Core %d IRQ Called (Reverb). IRQA = %x\n",i,addr);
-					Spdif.Info |= 4 << i;
-					SetIrqCall();
+					SetIrqCall(i);
 				}
 			}
 		}
@@ -211,8 +210,10 @@ StereoOut32 V_Core::DoReverb( const StereoOut32& Input )
 		// The following code differs from Neill's doc as it uses the more natural single-mul
 		// interpolative, instead of the funky ^0x8000 stuff.  (better result, faster)
 
-#define A_HACK
-#ifndef A_HACK
+		// A hack!  Why?  Because gigaherz decided the other version didn't make sense. --air
+		// Set to 1 to enable gigaherz hack mode, set to 0 to use Neill's version.
+#define A_HACK 0
+#if !A_HACK
 		const s32 FB_A0 = _spu2mem[fb_src_a0] * Revb.FB_ALPHA;
 		const s32 FB_A1 = _spu2mem[fb_src_a1] * Revb.FB_ALPHA;
 
@@ -223,7 +224,7 @@ StereoOut32 V_Core::DoReverb( const StereoOut32& Input )
 		const s32 acc_fb_mix_a = ACC0 + ( (_spu2mem[fb_src_a0] - (ACC0>>16)) * Revb.FB_ALPHA );
 		const s32 acc_fb_mix_b = ACC1 + ( (_spu2mem[fb_src_a1] - (ACC1>>16)) * Revb.FB_ALPHA );
 
-#ifdef A_HACK
+#if A_HACK
 		_spu2mem[mix_dest_a0] = clamp_mix( acc_fb_mix_a >> 16 );
 		_spu2mem[mix_dest_a1] = clamp_mix( acc_fb_mix_b >> 16 );
 #endif

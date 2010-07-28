@@ -125,7 +125,7 @@ bool GSCaptureDlg::OnCommand(HWND hWnd, UINT id, UINT code)
 		ofn.hwndOwner = m_hWnd;
 		ofn.lpstrFile = buff;
 		ofn.nMaxFile = countof(buff);
-		ofn.lpstrFilter = "Avi files (*.avi)\0*.avi\0";
+		ofn.lpstrFilter = "Avi нд╪Ч (*.avi)\0*.avi\0";
 		ofn.Flags = OFN_EXPLORER | OFN_ENABLESIZING | OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST;
 
 		strcpy(ofn.lpstrFile, m_filename.c_str());

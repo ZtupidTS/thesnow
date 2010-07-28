@@ -15,10 +15,12 @@
 
 #include "PrecompiledHeader.h"
 #include "MainFrame.h"
+#include "AppAccelerators.h"
 #include "ConsoleLogger.h"
 #include "MSWstuff.h"
 
 #include "Utilities/IniInterface.h"
+#include "Utilities/HashMap.h"
 #include "DebugTools/Debug.h"
 #include "Dialogs/ModalPopups.h"
 
@@ -44,7 +46,7 @@ static void CpuCheckSSE2()
 		L"Your options will be limited and emulation will be *very* slow." )
 	);
 
-	pxIssueConfirmation( exconf, MsgButtons().OK(), L"Error:Startup:NoSSE2" );
+	pxIssueConfirmation( exconf, MsgButtons().OK(), L"Error.Startup.NoSSE2" );
 
 	// Auto-disable anything that needs SSE2:
 
@@ -55,7 +57,7 @@ static void CpuCheckSSE2()
 
 void Pcsx2App::WipeUserModeSettings()
 {
-	wxDirName usrlocaldir( wxStandardPaths::Get().GetUserLocalDataDir() );
+	wxDirName usrlocaldir = PathDefs::GetUserLocalDataDir();
 	if( !usrlocaldir.Exists() ) return;
 
 	wxString cwd( Path::Normalize( wxGetCwd() ) );
@@ -84,7 +86,7 @@ void Pcsx2App::WipeUserModeSettings()
 //
 void Pcsx2App::ReadUserModeSettings()
 {
-	wxDirName usrlocaldir( wxStandardPaths::Get().GetUserLocalDataDir() );
+	wxDirName usrlocaldir = PathDefs::GetUserLocalDataDir();
 	if( !usrlocaldir.Exists() )
 	{
 		Console.WriteLn( L"Creating UserLocalData folder: " + usrlocaldir.ToString() );
@@ -120,7 +122,7 @@ void Pcsx2App::ReadUserModeSettings()
 		#if 0
 		if( !hasGroup )
 		{
-			wxDialogWithHelpers beta( NULL, wxsFormat(_("Welcome to PCSX2 %u.%u.%u (r%u)")), PCSX2_VersionHi, PCSX2_VersionMid, PCSX2_VersionLo, SVN_REV );
+			wxDialogWithHelpers beta( NULL, _fmt("Welcome to %s %u.%u.%u (r%u)", pxGetAppName().c_str(), PCSX2_VersionHi, PCSX2_VersionMid, PCSX2_VersionLo, SVN_REV ));
 			beta.SetMinWidth(480);
 
 			beta += beta.Heading(
@@ -136,7 +138,7 @@ void Pcsx2App::ReadUserModeSettings()
 		// first time startup, so give the user the choice of user mode:
 		FirstTimeWizard wiz( NULL );
 		if( !wiz.RunWizard( wiz.GetUsermodePage() ) )
-			throw Exception::StartupAborted( L"Startup aborted: User canceled FirstTime Wizard." );
+			throw Exception::StartupAborted( L"User canceled FirstTime Wizard." );
 
 		// Save user's new settings
 		IniSaver saver( *conf_usermode );
@@ -148,7 +150,6 @@ void Pcsx2App::ReadUserModeSettings()
 	{
 		// usermode.ini exists and is populated with valid data -- assume User Documents mode,
 		// unless the ini explicitly specifies otherwise.
-//		UseAdminMode = true;	//moded
 		DocsFolderMode = DocsFolder_User;
 
 		IniLoader loader( *conf_usermode );
@@ -164,7 +165,7 @@ void Pcsx2App::ReadUserModeSettings()
 			// If we skip this check, it's very likely that actions like creating Memory Cards will fail.
 			FirstTimeWizard wiz( NULL );
 			if( !wiz.RunWizard( /*wiz.GetPostUsermodePage()*/ wiz.GetUsermodePage() ) )
-				throw Exception::StartupAborted( L"Startup aborted: User canceled Configuration Wizard." );
+				throw Exception::StartupAborted( L"User canceled Configuration Wizard." );
 
 			// Save user's new settings
 			IniSaver saver( *conf_usermode );
@@ -181,15 +182,19 @@ void Pcsx2App::ReadUserModeSettings()
 
 void Pcsx2App::DetectCpuAndUserMode()
 {
+	AffinityAssert_AllowFrom_MainUI();
+	
 	x86caps.Identify();
 	x86caps.CountCores();
 	x86caps.SIMD_EstablishMXCSRmask();
 
-	if( !x86caps.hasMultimediaExtensions )
+	if( !x86caps.hasMultimediaExtensions || !x86caps.hasStreamingSIMDExtensions )
 	{
-		// Note: due to memcpy_fast, we need minimum MMX even for interpreters.  This will
-		// hopefully change later once we have a dynamically recompiled memcpy.
-		throw Exception::HardwareDeficiency(L"MMX Extensions not available.", _("PCSX2 requires cpu with MMX instruction to run."));
+		// Note: Due to optimizations to GIFpath parsers, memcpy, and possibly other things, we need
+		// a bare minimum of SSE supported by the CPU.
+		throw Exception::HardwareDeficiency()
+			.SetDiagMsg(L"Critical Failure: SSE Extensions not available.")
+			.SetUserMsg(_("SSE extensions are not available.  PCSX2 requires a cpu that supports the SSE instruction set."));
 	}
 
 //	ReadUserModeSettings();			//mod for admin mode by thesnoW
@@ -198,9 +203,11 @@ void Pcsx2App::DetectCpuAndUserMode()
 
 void Pcsx2App::OpenMainFrame()
 {
+	if( AppRpc_TryInvokeAsync( &Pcsx2App::OpenMainFrame ) ) return;
+
 	if( GetMainFramePtr() != NULL ) return;
 
-	MainEmuFrame* mainFrame = new MainEmuFrame( NULL, L"PCSX2" );
+	MainEmuFrame* mainFrame = new MainEmuFrame( NULL, pxGetAppName() );
 	m_id_MainFrame = mainFrame->GetId();
 
 	PostIdleAppMethod( &Pcsx2App::OpenProgramLog );
@@ -212,6 +219,8 @@ void Pcsx2App::OpenMainFrame()
 
 void Pcsx2App::OpenProgramLog()
 {
+	if( AppRpc_TryInvokeAsync( &Pcsx2App::OpenProgramLog ) ) return;
+
 	if( ConsoleLogFrame* frame = GetProgramLog() )
 	{
 		//pxAssume( );
@@ -221,7 +230,7 @@ void Pcsx2App::OpenProgramLog()
 	wxWindow* m_current_focus = wxGetActiveWindow();
 
 	ScopedLock lock( m_mtx_ProgramLog );
-	m_ptr_ProgramLog	= new ConsoleLogFrame( GetMainFramePtr(), L"PCSX2 Program Log", g_Conf->ProgLogBox );
+	m_ptr_ProgramLog	= new ConsoleLogFrame( GetMainFramePtr(), L"PCSX2 程序日志", g_Conf->ProgLogBox );
 	m_id_ProgramLogBox	= m_ptr_ProgramLog->GetId();
 	EnableAllLogging();
 
@@ -230,12 +239,17 @@ void Pcsx2App::OpenProgramLog()
 
 void Pcsx2App::AllocateCoreStuffs()
 {
+	if( AppRpc_TryInvokeAsync( &Pcsx2App::AllocateCoreStuffs ) ) return;
+
 	CpuCheckSSE2();
 	SysLogMachineCaps();
 	AppApplySettings();
 
 	if( !m_CoreAllocs )
 	{
+		// FIXME : Some or all of SysCoreAllocations should be run from the SysExecutor thread,
+		// so that the thread is safely blocked from being able to start emulation.
+
 		m_CoreAllocs = new SysCoreAllocations();
 
 		if( m_CoreAllocs->HadSomeFailures( g_Conf->EmuOptions.Cpu.Recompiler ) )
@@ -244,11 +258,11 @@ void Pcsx2App::AllocateCoreStuffs()
 			// the user already has all interps configured, for example, then no point in
 			// popping up this dialog.
 			
-			wxDialogWithHelpers exconf( NULL, _("PCSX2 Recompiler Error(s)") );
+			wxDialogWithHelpers exconf( NULL, _("PCSX2 重编译器错误") );
 
 			exconf += 12;
-			exconf += exconf.Heading( pxE( ".Popup:RecompilerInit",
-				L"Warning: Some of the configured PS2 recompilers failed to initialize and will not be available for this session:\n" )
+			exconf += exconf.Heading( pxE( ".Popup:RecompilerInit:Header",
+				L"Warning: Some of the configured PS2 recompilers failed to initialize and have been disabled:" )
 			);
 
 			wxTextCtrl* scrollableTextArea = new wxTextCtrl(
@@ -256,64 +270,55 @@ void Pcsx2App::AllocateCoreStuffs()
 				wxTE_READONLY | wxTE_MULTILINE | wxTE_WORDWRAP
 			);
 
-			exconf += scrollableTextArea	| pxSizerFlags::StdExpand();
+			exconf += 6;
+			exconf += scrollableTextArea	| pxExpand.Border(wxALL, 16);
 			
-			if( !m_CoreAllocs->IsRecAvailable_EE() )
+			if( BaseException* ex = m_CoreAllocs->GetException_EE() )
 			{
-				scrollableTextArea->AppendText( L"* R5900 (EE)\n\n" );
-
-				g_Conf->EmuOptions.Recompiler.EnableEE = false;
+				scrollableTextArea->AppendText( L"* R5900 (EE)\n\t" + ex->FormatDiagnosticMessage() + L"\n\n" );
+				g_Conf->EmuOptions.Recompiler.EnableEE		= false;
 			}
 
-			if( !m_CoreAllocs->IsRecAvailable_IOP() )
+			if( BaseException* ex = m_CoreAllocs->GetException_IOP() )
 			{
-				scrollableTextArea->AppendText( L"* R3000A (IOP)\n\n" );
-				g_Conf->EmuOptions.Recompiler.EnableIOP = false;
+				scrollableTextArea->AppendText( L"* R3000A (IOP)\n\t"  + ex->FormatDiagnosticMessage() + L"\n\n" );
+				g_Conf->EmuOptions.Recompiler.EnableIOP		= false;
 			}
 
-			if( !m_CoreAllocs->IsRecAvailable_MicroVU0() )
+			if( BaseException* ex = m_CoreAllocs->GetException_MicroVU0() )
 			{
-				scrollableTextArea->AppendText( L"* microVU0\n\n" );
+				scrollableTextArea->AppendText( L"* microVU0\n\t" + ex->FormatDiagnosticMessage() + L"\n\n" );
 				g_Conf->EmuOptions.Recompiler.UseMicroVU0	= false;
 				g_Conf->EmuOptions.Recompiler.EnableVU0		= g_Conf->EmuOptions.Recompiler.EnableVU0 && m_CoreAllocs->IsRecAvailable_SuperVU0();
 			}
 
-			if( !m_CoreAllocs->IsRecAvailable_MicroVU1() )
+			if( BaseException* ex = m_CoreAllocs->GetException_MicroVU1() )
 			{
-				scrollableTextArea->AppendText( L"* microVU1\n\n" );
+				scrollableTextArea->AppendText( L"* microVU1\n\t" + ex->FormatDiagnosticMessage() + L"\n\n" );
 				g_Conf->EmuOptions.Recompiler.UseMicroVU1	= false;
 				g_Conf->EmuOptions.Recompiler.EnableVU1		= g_Conf->EmuOptions.Recompiler.EnableVU1 && m_CoreAllocs->IsRecAvailable_SuperVU1();
 			}
 
-			if( !m_CoreAllocs->IsRecAvailable_SuperVU0() )
+			if( BaseException* ex = m_CoreAllocs->GetException_SuperVU0() )
 			{
-				scrollableTextArea->AppendText( L"* SuperVU0\n\n" );
+				scrollableTextArea->AppendText( L"* SuperVU0\n\t" + ex->FormatDiagnosticMessage() + L"\n\n" );
 				g_Conf->EmuOptions.Recompiler.UseMicroVU0	= m_CoreAllocs->IsRecAvailable_MicroVU0();
 				g_Conf->EmuOptions.Recompiler.EnableVU0		= g_Conf->EmuOptions.Recompiler.EnableVU0 && g_Conf->EmuOptions.Recompiler.UseMicroVU0;
 			}
 
-			if( !m_CoreAllocs->IsRecAvailable_SuperVU1() )
+			if( BaseException* ex = m_CoreAllocs->GetException_SuperVU1() )
 			{
-				scrollableTextArea->AppendText( L"* SuperVU1\n\n" );
+				scrollableTextArea->AppendText( L"* SuperVU1\n\t" + ex->FormatDiagnosticMessage() + L"\n\n" );
 				g_Conf->EmuOptions.Recompiler.UseMicroVU1	= m_CoreAllocs->IsRecAvailable_MicroVU1();
 				g_Conf->EmuOptions.Recompiler.EnableVU1		= g_Conf->EmuOptions.Recompiler.EnableVU1 && g_Conf->EmuOptions.Recompiler.UseMicroVU1;
 			}
 
-			exconf += new ModalButtonPanel( &exconf, MsgButtons().OK() ) | pxSizerFlags::StdCenter();
+			exconf += exconf.Heading( pxE(".Popup:RecompilerInit:Footer",
+				L"Note: Recompilers are not necessary for PCSX2 to run, however they typically improve emulation speed substantially. "
+				L"You may have to manually re-enable the recompilers listed above, if you resolve the errors." )
+			);
 
-			exconf.ShowModal();
-
-			// Failures can be SSE-related OR memory related.  Should do per-cpu error reports instead...
-
-			/*message += pxE( ".Popup Error:EmuCore:MemoryForRecs",
-				L"These errors are the result of memory allocation failures (see the program log for details). "
-				L"Closing out some memory hogging background tasks may resolve this error.\n\n"
-				L"These recompilers have been disabled and interpreters will be used in their place.  "
-				L"Interpreters can be very slow, so don't get too excited.  Press OK to continue or CANCEL to close PCSX2."
-			);*/
-
-			//if( !Msgbox::OkCancel( message, _("PCSX2 Initialization Error"), wxICON_ERROR ) )
-			//	return false;
+			pxIssueConfirmation( exconf, MsgButtons().OK() );
 		}
 	}
 
@@ -323,7 +328,7 @@ void Pcsx2App::AllocateCoreStuffs()
 
 void Pcsx2App::OnInitCmdLine( wxCmdLineParser& parser )
 {
-	parser.SetLogo( (wxString)L" >>  PCSX2  --  PC 上的 Playstation2 模拟器  <<\n\n" +
+	parser.SetLogo( AddAppName(" >>  %s  --  PC 上的 Playstation2 模拟器  <<") + L"\n\n" +
 		_("所有选项只在本次会话有效,不会保存设置.\n")
 	);
 
@@ -336,20 +341,22 @@ void Pcsx2App::OnInitCmdLine( wxCmdLineParser& parser )
 
 	parser.AddParam( _("IsoFile"), wxCMD_LINE_VAL_STRING, wxCMD_LINE_PARAM_OPTIONAL );
 	parser.AddSwitch( L"h",			L"help",		_("显示这个命令行选项列表"), wxCMD_LINE_OPTION_HELP );
-	parser.AddSwitch( wxEmptyString,L"console",		_("forces the program log/console to be visible") );
+	parser.AddSwitch( wxEmptyString,L"console",		_("强制程序日志/控制台可见"), wxCMD_LINE_VAL_STRING );
+	parser.AddSwitch( wxEmptyString,L"fullscreen",	_("使用全屏 GS 模式") );
+	parser.AddSwitch( wxEmptyString,L"windowed",	_("使用窗口化 GS 模式") );
 
-	parser.AddSwitch( wxEmptyString,L"nogui",	_("当运行游戏时关闭GUI窗口") );
-	parser.AddOption( wxEmptyString,L"elf",		_("执行 ELF 镜像"), wxCMD_LINE_VAL_STRING );
-	parser.AddSwitch( wxEmptyString,L"nodisc",	_("不加载DVD启动; 用于进入 PS2 系统菜单") );
-	parser.AddSwitch( wxEmptyString,L"usecd",	_("从已设置的 CDVD 插件启动 (忽略 IsoFile 参数)") );
+	parser.AddSwitch( wxEmptyString,L"nogui",		_("当运行游戏时关闭GUI窗口") );
+	parser.AddOption( wxEmptyString,L"elf",			_("执行 ELF 镜像"), wxCMD_LINE_VAL_STRING );
+	parser.AddSwitch( wxEmptyString,L"nodisc",		_("不加载DVD启动; 用于进入 PS2 系统菜单") );
+	parser.AddSwitch( wxEmptyString,L"usecd",		_("从已设置的 CDVD 插件启动 (忽略 IsoFile 参数)") );
 
-	parser.AddSwitch( wxEmptyString,L"fullboot",_("禁用快速启动") );
-	parser.AddSwitch( wxEmptyString,L"nohacks",	_("禁用速度破解") );
-	parser.AddSwitch( wxEmptyString,L"gamefixes",	_("use the specified comma or pipe-delimited list of gamefixes.") + fixlist );
+	parser.AddSwitch( wxEmptyString,L"nohacks",		_("禁用速度破解") );
+	parser.AddOption( wxEmptyString,L"gamefixes",	_("use the specified comma or pipe-delimited list of gamefixes.") + fixlist, wxCMD_LINE_VAL_STRING );
+	parser.AddSwitch( wxEmptyString,L"fullboot",	_("禁用快速启动") );
 
-	parser.AddOption( wxEmptyString,L"cfgpath",	_("修改配置文件路径"), wxCMD_LINE_VAL_STRING );
-	parser.AddOption( wxEmptyString,L"cfg",		_("指定要使用的 PCSX2 设置文件"), wxCMD_LINE_VAL_STRING );
-	parser.AddSwitch( wxEmptyString,L"forcewiz",_("强制 PCSX2 启动第一次运行向导") );
+	parser.AddOption( wxEmptyString,L"cfgpath",		_("修改配置文件路径"), wxCMD_LINE_VAL_STRING );
+	parser.AddOption( wxEmptyString,L"cfg",			_("指定要使用的 PCSX2 设置文件"), wxCMD_LINE_VAL_STRING );
+	parser.AddSwitch( wxEmptyString,L"forcewiz",	AddAppName(_("强制 %s 启动第一次运行向导")) );
 
 	const PluginInfo* pi = tbl_PluginInfo; do {
 		parser.AddOption( wxEmptyString, pi->GetShortname().Lower(),
@@ -370,19 +377,28 @@ bool Pcsx2App::ParseOverrides( wxCmdLineParser& parser )
 {
 	wxString dest;
 
-	if( parser.Found( L"cfgpath", &dest ) && !dest.IsEmpty() )
+	if (parser.Found( L"cfgpath", &dest ) && !dest.IsEmpty())
 	{
 		Console.Warning( L"Config path override: " + dest );
 		Overrides.SettingsFolder = dest;
 	}
 
-	if( parser.Found( L"cfg", &dest ) && !dest.IsEmpty() )
+	if (parser.Found( L"cfg", &dest ) && !dest.IsEmpty())
 	{
 		Console.Warning( L"Config file override: " + dest );
 		Overrides.SettingsFile = dest;
 	}
 
 	Overrides.DisableSpeedhacks = parser.Found(L"nohacks");
+
+	if (parser.Found(L"gamefixes", &dest))
+	{
+		Overrides.ApplyCustomGamefixes = true;
+		Overrides.Gamefixes.Set( dest, true );
+	}
+
+	if (parser.Found(L"fullscreen"))	Overrides.GsWindowMode = GsWinMode_Fullscreen;
+	if (parser.Found(L"windowed"))		Overrides.GsWindowMode = GsWinMode_Windowed;
 
 	const PluginInfo* pi = tbl_PluginInfo; do
 	{
@@ -392,7 +408,7 @@ bool Pcsx2App::ParseOverrides( wxCmdLineParser& parser )
 			Console.Warning( pi->GetShortname() + L" override: " + dest );
 		else
 		{
-			wxDialogWithHelpers okcan( NULL, _("Plugin Override Error - PCSX2") );
+			wxDialogWithHelpers okcan( NULL, AddAppName(_("插件覆盖错误 - %s")) );
 
 			okcan += okcan.Heading( wxsFormat(
 				_("%s Plugin Override Error!  The following file does not exist or is not a valid %s plugin:\n\n"),
@@ -402,7 +418,7 @@ bool Pcsx2App::ParseOverrides( wxCmdLineParser& parser )
 			okcan += okcan.GetCharHeight();
 			okcan += okcan.Text(dest);
 			okcan += okcan.GetCharHeight();
-			okcan += okcan.Heading(_("Press OK to use the default configured plugin, or Cancel to close PCSX2."));
+			okcan += okcan.Heading(AddAppName(_("Press OK to use the default configured plugin, or Cancel to close %s.")));
 
 			if( wxID_CANCEL == pxIssueConfirmation( okcan, MsgButtons().OKCancel() ) ) return false;
 		}
@@ -451,6 +467,47 @@ bool Pcsx2App::OnCmdLineParsed( wxCmdLineParser& parser )
 
 typedef void (wxEvtHandler::*pxInvokeAppMethodEventFunction)(Pcsx2AppMethodEvent&);
 typedef void (wxEvtHandler::*pxStuckThreadEventHandler)(pxMessageBoxEvent&);
+
+// --------------------------------------------------------------------------------------
+//   GameDatabaseLoaderThread
+// --------------------------------------------------------------------------------------
+class GameDatabaseLoaderThread : public pxThread
+	, EventListener_AppStatus
+{
+	typedef pxThread _parent;
+
+protected:
+	gzFile		m_gzfp;
+
+public:
+	GameDatabaseLoaderThread()
+		: pxThread( L"GameDatabaseLoader" )
+	{
+	}
+
+	virtual ~GameDatabaseLoaderThread() throw()
+	{
+		_parent::Cancel();
+	}
+
+protected:
+	void ExecuteTaskInThread()
+	{
+		Sleep(2);
+		wxGetApp().GetGameDatabase();
+	}
+
+	void OnCleanupInThread()
+	{
+		_parent::OnCleanupInThread();
+		wxGetApp().DeleteThread(this);
+	}
+	
+	void AppStatusEvent_OnExit()
+	{
+		Block();
+	}
+};
 
 bool Pcsx2App::OnInit()
 {
@@ -511,12 +568,22 @@ bool Pcsx2App::OnInit()
 		//   Start GUI and/or Direct Emulation
 		// -------------------------------------
 		if( Startup.ForceConsole ) g_Conf->ProgLogBox.Visible = true;
-		PostAppMethod( &Pcsx2App::OpenProgramLog );
+		OpenProgramLog();
+		AllocateCoreStuffs();
+		if( m_UseGUI ) OpenMainFrame();
+		
+		(new GameDatabaseLoaderThread())->Start();
 
-		if( m_UseGUI )
-			PostAppMethod( &Pcsx2App::OpenMainFrame );
+		if( Startup.SysAutoRun )
+		{
+			// Notes: Saving/remembering the Iso file is probably fine and desired, so using
+			// SysUpdateIsoSrcFile is good(ish).
+			// Saving the cdvd plugin override isn't desirable, so we don't assign it into g_Conf.
 
-		PostAppMethod( &Pcsx2App::AllocateCoreStuffs );
+			g_Conf->EmuOptions.UseBOOT2Injection = !Startup.NoFastBoot;
+			SysUpdateIsoSrcFile( Startup.IsoFile );
+			sApp.SysExecute( Startup.CdvdSource );
+		}
 	}
 	// ----------------------------------------------------------------------------
 	catch( Exception::StartupAborted& ex )		// user-aborted, no popups needed.
@@ -527,7 +594,7 @@ bool Pcsx2App::OnInit()
 	}
 	catch( Exception::HardwareDeficiency& ex )
 	{
-		Msgbox::Alert( ex.FormatDisplayMessage() + _("\n\nPress OK to close PCSX2."), _("PCSX2 Error: Hardware Deficiency") );
+		Msgbox::Alert( ex.FormatDisplayMessage() + AddAppName(_("\n\n点击[确定]关闭 %s.")), _("PCSX2 错误: Hardware Deficiency") );
 		CleanupOnExit();
 		return false;
 	}
@@ -539,8 +606,8 @@ bool Pcsx2App::OnInit()
 	catch( Exception::RuntimeError& ex )
 	{
 		Console.Error( ex.FormatDiagnosticMessage() );
-		Msgbox::Alert( ex.FormatDisplayMessage() + _("\n\n点击 [确定] 关闭 PCSX2."),
-			_("PCSX2 Critical Error"), wxICON_ERROR );
+		Msgbox::Alert( ex.FormatDisplayMessage() + AddAppName(_("\n\点击 [确定] 关闭 %s.")),
+			AddAppName(_("%s Critical Error")), wxICON_ERROR );
 		CleanupOnExit();
 		return false;
 	}
@@ -584,15 +651,12 @@ void Pcsx2App::PrepForExit()
 	if( m_ScheduledTermination ) return;
 	m_ScheduledTermination = true;
 
-	SysExecutorThread.ShutdownQueue();
 	DispatchEvent( AppStatus_Exiting );
 
-	m_timer_Termination->Start( 500 );
+	CoreThread.Cancel();
+	SysExecutorThread.ShutdownQueue();
 
-	// This should be called by OnExit(), but sometimes wxWidgets fails to call OnExit(), so
-	// do it here just in case (no harm anyway -- OnExit is the next logical step after
-	// CloseWindow returns true from the TopLevel window).
-	//CleanupRestartable();
+	m_timer_Termination->Start( 500 );
 }
 
 // This cleanup procedure can only be called when the App message pump is still active.
@@ -601,7 +665,7 @@ void Pcsx2App::CleanupRestartable()
 {
 	AffinityAssert_AllowFrom_MainUI();
 
-	ShutdownPlugins();
+	CoreThread.Cancel();
 	SysExecutorThread.ShutdownQueue();
 	IdleEventDispatcher( L"Cleanup" );
 
@@ -650,11 +714,14 @@ void Pcsx2App::CleanupOnExit()
 
 void Pcsx2App::CleanupResources()
 {
+	ScopedBusyCursor cursor( Cursor_ReallyBusy );
 	delete wxConfigBase::Set( NULL );
 
 	while( wxGetLocale() != NULL )
 		delete wxGetLocale();
 
+	m_mtx_LoadingGameDB.Wait();
+	ScopedLock lock(m_mtx_Resources);
 	m_Resources = NULL;
 }
 
@@ -711,7 +778,7 @@ Pcsx2App::Pcsx2App()
 	m_id_ProgramLogBox	= wxID_ANY;
 	m_ptr_ProgramLog	= NULL;
 
-	SetAppName( L"pcsx2" );
+	SetAppName( L"PCSX2" );
 	BuildCommandHash();
 }
 
@@ -737,6 +804,15 @@ void Pcsx2App::CleanUp()
 	_parent::CleanUp();
 }
 
+__forceinline wxString AddAppName( const wxChar* fmt )
+{
+	return wxsFormat( fmt, pxGetAppName().c_str() );
+}
+
+__forceinline wxString AddAppName( const char* fmt )
+{
+	return wxsFormat( fromUTF8(fmt), pxGetAppName().c_str() );
+}
 
 // ------------------------------------------------------------------------------------------
 //  Using the MSVCRT to track memory leaks:
@@ -764,6 +840,6 @@ struct CrtDebugBreak
 	}
 };
 
-//CrtDebugBreak breakAt( 2014 );
+//CrtDebugBreak breakAt( 909 );
 
 #endif

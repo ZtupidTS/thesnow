@@ -66,9 +66,9 @@ protected:
 //  of the console logger.
 // --------------------------------------------------------------------------------------
 
-class ConsoleTestThread : public Threading::PersistentThread
+class ConsoleTestThread : public Threading::pxThread
 {
-	typedef PersistentThread _parent;
+	typedef pxThread _parent;
 
 protected:
 	volatile bool m_done;
@@ -97,10 +97,6 @@ protected:
 	//EventListenerHelper_CoreThread<pxLogTextCtrl>	m_listener_CoreThread;
 	//EventListenerHelper_Plugins<pxLogTextCtrl>		m_listener_Plugins;
 
-#ifdef __WXMSW__
-	int		m_win32_LinesPerPage;
-	int		m_win32_LinesPerScroll;
-#endif
 	ScopedPtr<ScopedCoreThreadPause>	m_IsPaused;
 	bool	m_FreezeWrites;
 
@@ -236,8 +232,8 @@ public:
 	// (settings change if the user moves the window or changes the font size)
 	const ConLogConfig& GetConfig() const { return m_conf; }
 
-	void Write( ConsoleColors color, const wxString& text );
-	void Newline();
+	bool Write( ConsoleColors color, const wxString& text );
+	bool Newline();
 
 protected:
 	// menu callbacks

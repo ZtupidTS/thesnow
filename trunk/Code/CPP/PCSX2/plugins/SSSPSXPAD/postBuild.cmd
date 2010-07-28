@@ -33,7 +33,7 @@ cd %mycwd%
 
 set pcsxoutdir=%~1\%~5
 set pcsxoutname=%pcsxoutdir%\%~3%4
-set pcsxnewname=%pcsxoutdir%\%~3-r3186m%4
+set pcsxnewname=%pcsxoutdir%\%~3-r3517m%4
 
 IF NOT EXIST "%pcsxoutdir%" (
     md "%pcsxoutdir%"

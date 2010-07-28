@@ -27,42 +27,42 @@
 
 GSSetting GSSettingsDlg::g_renderers[] =
 {
-	{0, "Direct3D9 (硬件)", NULL},
-	{1, "Direct3D9 (软件)", NULL},
-	{2, "Direct3D9 (Null)", NULL},
-	{3, "Direct3D10/11 (硬件)", NULL},
-	{4, "Direct3D10/11 (软件)", NULL},
-	{5, "Direct3D10/11 (Null)", NULL},
-	{12, "Null (软件)", NULL},
-	{13, "Null (Null)", NULL},
+	{0, "Direct3D9 (硬件)", ""},
+	{1, "Direct3D9 (软件)", ""},
+	{2, "Direct3D9 (Null)", ""},
+	{3, "Direct3D%d    ", "硬件"},
+	{4, "Direct3D%d    ", "软件"},
+	{5, "Direct3D%d    ", "Null"},
+	{12, "Null (软件)", ""},
+	{13, "Null (Null)", ""},
 };
 
 GSSetting GSSettingsDlg::g_interlace[] =
 {
-	{0, "None", NULL},
-	{1, "Weave tff", "saw-tooth"},
-	{2, "Weave bff", "saw-tooth"},
-	{3, "Bob tff", "use blend if shaking"},
-	{4, "Bob bff", "use blend if shaking"},
-	{5, "Blend tff", "slight blur, 1/2 fps"},
-	{6, "Blend bff", "slight blur, 1/2 fps"},
+	{0, "无", ""},
+	{1, "交织 tff", "锯齿"},
+	{2, "交织 bff", "锯齿"},
+	{3, "Bob tff", "如果摇晃使用混合"},
+	{4, "Bob bff", "如果摇晃使用混合"},
+	{5, "混合 tff", "轻微模糊, 1/2 fps"},
+	{6, "混合 bff", "轻微模糊, 1/2 fps"},
 };
 
 GSSetting GSSettingsDlg::g_aspectratio[] =
 {
-	{0, "Stretch", NULL},
-	{1, "4:3", NULL},
-	{2, "16:9", NULL},
+	{0, "拉伸", ""},
+	{1, "4:3", ""},
+	{2, "16:9", ""},
 };
 
 GSSetting GSSettingsDlg::g_upscale_multiplier[] =
 {
-	{1, "1x (使用 D3D 内部资源)", NULL},
-	{2, "2x", NULL},
-	{3, "3x", NULL},
-	{4, "4x", NULL},
-	{5, "5x", NULL},
-	{6, "6x", NULL},
+	{1, "1x", "使用 D3D 内部资源"},
+	{2, "2x", ""},
+	{3, "3x", ""},
+	{4, "4x", ""},
+	{5, "5x", ""},
+	{6, "6x", ""},
 };
 
 GSSettingsDlg::GSSettingsDlg( bool isOpen2 )
@@ -113,7 +113,11 @@ void GSSettingsDlg::OnInit()
 
 	for(size_t i = 0; i < countof(g_renderers); i++)
 	{
-		if(i >= 3 && i <= 5 && !isdx11avail) continue;
+		if(i >= 3 && i <= 5)
+		{
+			if(!isdx11avail) continue;
+			g_renderers[i].name = std::string("Direct3D") + (GSUtil::HasD3D11Features() ? "11" : "10");
+		}
 
 		renderers.push_back(g_renderers[i]);
 	}

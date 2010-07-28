@@ -23,7 +23,6 @@
 
 #include "Plugins.h"
 #include "GS.h"
-#include "HostGui.h"
 #include "AppConfig.h"
 
 using namespace Threading;
@@ -32,9 +31,9 @@ using namespace Threading;
 // the window shouldn't. This blocks it. :)
 static bool s_DisableGsWindow = false;
 
-__aligned16 AppPluginManager CorePlugins;
+__aligned16 AppCorePlugins CorePlugins;
 
-PluginManager& GetCorePlugins()
+SysCorePlugins& GetCorePlugins()
 {
 	return CorePlugins;
 }
@@ -43,9 +42,9 @@ PluginManager& GetCorePlugins()
 // --------------------------------------------------------------------------------------
 //  CorePluginsEvent
 // --------------------------------------------------------------------------------------
-class CorePluginsEvent : public pxInvokeActionEvent
+class CorePluginsEvent : public pxActionEvent
 {
-	typedef pxInvokeActionEvent _parent;
+	typedef pxActionEvent _parent;
 
 protected:
 	PluginEventType		m_evt;
@@ -55,19 +54,19 @@ public:
 	CorePluginsEvent* Clone() const { return new CorePluginsEvent( *this ); }
 
 	explicit CorePluginsEvent( PluginEventType evt, SynchronousActionState* sema=NULL )
-		: pxInvokeActionEvent( sema )
+		: pxActionEvent( sema )
 	{
 		m_evt = evt;
 	}
 
 	explicit CorePluginsEvent( PluginEventType evt, SynchronousActionState& sema )
-		: pxInvokeActionEvent( sema )
+		: pxActionEvent( sema )
 	{
 		m_evt = evt;
 	}
 
 	CorePluginsEvent( const CorePluginsEvent& src )
-		: pxInvokeActionEvent( src )
+		: pxActionEvent( src )
 	{
 		m_evt = src.m_evt;
 	}
@@ -98,8 +97,8 @@ static void ConvertPluginFilenames( wxString (&passins)[PluginId_Count] )
 	} while( ++pi, pi->shortname != NULL );
 }
 
-typedef void (AppPluginManager::*FnPtr_AppPluginManager)();
-typedef void (AppPluginManager::*FnPtr_AppPluginPid)( PluginsEnum_t pid );
+typedef void (AppCorePlugins::*FnPtr_AppPluginManager)();
+typedef void (AppCorePlugins::*FnPtr_AppPluginPid)( PluginsEnum_t pid );
 
 // --------------------------------------------------------------------------------------
 //  SysExecEvent_AppPluginManager
@@ -110,6 +109,7 @@ protected:
 	FnPtr_AppPluginManager	m_method;
 	
 public:
+	wxString GetEventName() const { return L"CorePluginsMethod"; }
 	virtual ~SysExecEvent_AppPluginManager() throw() {}
 	SysExecEvent_AppPluginManager* Clone() const { return new SysExecEvent_AppPluginManager( *this ); }
 
@@ -128,9 +128,9 @@ protected:
 // --------------------------------------------------------------------------------------
 //  LoadSinglePluginEvent
 // --------------------------------------------------------------------------------------
-class LoadSinglePluginEvent : public pxInvokeActionEvent
+class LoadSinglePluginEvent : public pxActionEvent
 {
-	typedef pxInvokeActionEvent _parent;
+	typedef pxActionEvent _parent;
 	DECLARE_DYNAMIC_CLASS_NO_ASSIGN(LoadSinglePluginEvent)
 
 protected:
@@ -154,9 +154,12 @@ protected:
 	}
 };
 
-class SinglePluginMethodEvent : public pxInvokeActionEvent
+// --------------------------------------------------------------------------------------
+//  SinglePluginMethodEvent
+// --------------------------------------------------------------------------------------
+class SinglePluginMethodEvent : public pxActionEvent
 {
-	typedef pxInvokeActionEvent _parent;
+	typedef pxActionEvent _parent;
 	DECLARE_DYNAMIC_CLASS_NO_ASSIGN(SinglePluginMethodEvent)
 
 protected:
@@ -181,11 +184,11 @@ protected:
 	}
 };
 
-IMPLEMENT_DYNAMIC_CLASS( LoadSinglePluginEvent,	 pxInvokeActionEvent );
-IMPLEMENT_DYNAMIC_CLASS( SinglePluginMethodEvent, pxInvokeActionEvent );
+IMPLEMENT_DYNAMIC_CLASS( LoadSinglePluginEvent,	 pxActionEvent );
+IMPLEMENT_DYNAMIC_CLASS( SinglePluginMethodEvent, pxActionEvent );
 
 // --------------------------------------------------------------------------------------
-//  AppPluginManager
+//  AppCorePlugins
 // --------------------------------------------------------------------------------------
 //
 // Thread Affinity Notes:
@@ -200,15 +203,27 @@ IMPLEMENT_DYNAMIC_CLASS( SinglePluginMethodEvent, pxInvokeActionEvent );
 //  the main thread from being completely busy while plugins are loaded and initialized.
 //  (responsiveness is bliss!!) -- air
 //
-AppPluginManager::AppPluginManager()
+AppCorePlugins::AppCorePlugins()
 {
 }
 
-AppPluginManager::~AppPluginManager() throw()
+AppCorePlugins::~AppCorePlugins() throw()
 {
 }
 
-void AppPluginManager::Load( PluginsEnum_t pid, const wxString& srcfile )
+static void _SetSettingsFolder()
+{
+	if (wxGetApp().Rpc_TryInvoke( _SetSettingsFolder )) return;
+	CorePlugins.SetSettingsFolder( GetSettingsFolder().ToString() );
+}
+
+static void _SetLogFolder()
+{
+	if (wxGetApp().Rpc_TryInvoke( _SetLogFolder )) return;
+	CorePlugins.SetLogFolder( GetLogFolder().ToString() );
+}
+
+void AppCorePlugins::Load( PluginsEnum_t pid, const wxString& srcfile )
 { 
 	if( !wxThread::IsMain() )
 	{
@@ -221,11 +236,11 @@ void AppPluginManager::Load( PluginsEnum_t pid, const wxString& srcfile )
 	_parent::Load( pid, srcfile );
 }
 
-void AppPluginManager::Unload( PluginsEnum_t pid )
+void AppCorePlugins::Unload( PluginsEnum_t pid )
 {
 	if( !wxThread::IsMain() )
 	{
-		SinglePluginMethodEvent evt( &AppPluginManager::Unload, pid );
+		SinglePluginMethodEvent evt( &AppCorePlugins::Unload, pid );
 		wxGetApp().ProcessAction( evt );
 		Sleep( 5 );
 		return;
@@ -234,30 +249,33 @@ void AppPluginManager::Unload( PluginsEnum_t pid )
 	_parent::Unload( pid );
 }
 
-void AppPluginManager::Load( const wxString (&folders)[PluginId_Count] )
+void AppCorePlugins::Load( const wxString (&folders)[PluginId_Count] )
 {
 	if( !pxAssert(!AreLoaded()) ) return;
 
-	SetLogFolder( GetLogFolder().ToString() );
-	SetSettingsFolder( GetSettingsFolder().ToString() );
+	_SetLogFolder();
+	SendLogFolder();
+
+	_SetSettingsFolder();
+	SendSettingsFolder();
 
 	_parent::Load( folders );
 	PostPluginStatus( CorePlugins_Loaded );
 }
 
-void AppPluginManager::Unload()
+void AppCorePlugins::Unload()
 {
 	_parent::Unload();
 	PostPluginStatus( CorePlugins_Unloaded );
 }
 
-void AppPluginManager::Init( PluginsEnum_t pid )
+void AppCorePlugins::Init( PluginsEnum_t pid )
 {
 	if( !wxTheApp ) return;
 
 	if( !wxThread::IsMain() )
 	{
-		SinglePluginMethodEvent evt(&AppPluginManager::Init, pid);
+		SinglePluginMethodEvent evt(&AppCorePlugins::Init, pid);
 		wxGetApp().ProcessAction( evt );
 		Sleep( 5 );
 		return;
@@ -266,11 +284,11 @@ void AppPluginManager::Init( PluginsEnum_t pid )
 	_parent::Init( pid );
 }
 
-void AppPluginManager::Shutdown( PluginsEnum_t pid )
+void AppCorePlugins::Shutdown( PluginsEnum_t pid )
 {
 	if( !wxThread::IsMain() && wxTheApp )
 	{
-		SinglePluginMethodEvent evt( &AppPluginManager::Shutdown, pid );
+		SinglePluginMethodEvent evt( &AppCorePlugins::Shutdown, pid );
 		wxGetApp().ProcessAction( evt );
 		Sleep( 5 );
 		return;
@@ -279,32 +297,37 @@ void AppPluginManager::Shutdown( PluginsEnum_t pid )
 	_parent::Shutdown( pid );
 }
 
-void AppPluginManager::Init()
+bool AppCorePlugins::Init()
 {
-    SetLogFolder( GetLogFolder().ToString() );
-	SetSettingsFolder( GetSettingsFolder().ToString() );
-	_parent::Init();
-	PostPluginStatus( CorePlugins_Init );
+	if( !NeedsInit() ) return false;
+
+    _SetLogFolder();
+	SendLogFolder();
+
+	_SetSettingsFolder();
+	SendSettingsFolder();
+
+	if (_parent::Init())
+	{
+		PostPluginStatus( CorePlugins_Init );
+		return true;
+	}
+	return false;
 }
 
-void AppPluginManager::Shutdown()
+bool AppCorePlugins::Shutdown()
 {
-	_parent::Shutdown();
-	PostPluginStatus( CorePlugins_Shutdown );
-
-	// Precautionary, in case an error occurs during saving a single plugin.
-	sApp.CloseGsPanel();
+	if (_parent::Shutdown())
+	{
+		PostPluginStatus( CorePlugins_Shutdown );
+		return true;
+	}
+	return false;
 }
 
-void AppPluginManager::Close()
+void AppCorePlugins::Close()
 {
 	AffinityAssert_AllowFrom_CoreThread();
-
-	/*if( !GetSysExecutorThread().IsSelf() )
-	{
-		GetSysExecutorThread().ProcessEvent( new SysExecEvent_AppPluginManager( &AppPluginManager::Close ) );
-		return;
-	}*/
 
 	if( !NeedsClose() ) return;
 
@@ -313,13 +336,13 @@ void AppPluginManager::Close()
 	PostPluginStatus( CorePlugins_Closed );
 }
 
-void AppPluginManager::Open()
+void AppCorePlugins::Open()
 {
 	AffinityAssert_AllowFrom_CoreThread();
 
 	/*if( !GetSysExecutorThread().IsSelf() )
 	{
-		GetSysExecutorThread().ProcessEvent( new SysExecEvent_AppPluginManager( &AppPluginManager::Open ) );
+		GetSysExecutorThread().ProcessEvent( new SysExecEvent_AppPluginManager( &AppCorePlugins::Open ) );
 		return;
 	}*/
 
@@ -334,7 +357,7 @@ void AppPluginManager::Open()
 }
 
 // Yay, this plugin is guaranteed to always be opened first and closed last.
-bool AppPluginManager::OpenPlugin_GS()
+bool AppCorePlugins::OpenPlugin_GS()
 {
 	if( GSopen2 && !s_DisableGsWindow )
 	{
@@ -350,10 +373,10 @@ bool AppPluginManager::OpenPlugin_GS()
 }
 
 // Yay, this plugin is guaranteed to always be opened first and closed last.
-void AppPluginManager::ClosePlugin_GS()
+void AppCorePlugins::ClosePlugin_GS()
 {
 	_parent::ClosePlugin_GS();
-	if( GetMTGS().IsSelf() && GSopen2 && CloseViewportWithPlugins ) sApp.CloseGsPanel();
+	if( CloseViewportWithPlugins && GetMTGS().IsSelf() && GSopen2 ) sApp.CloseGsPanel();
 }
 
 

@@ -48,11 +48,11 @@ Panels::DocsFolderPickerPanel::DocsFolderPickerPanel( wxWindow* parent, bool isF
 	{
 		RadioPanelItem(
 			_("用户文档 (推荐)"),
-			_("位置: ") + wxStandardPaths::Get().GetDocumentsDir()
+			_("位置: ") + PathDefs::GetDocuments(DocsFolder_User).ToString()
 		),
 
 		RadioPanelItem(
-			_("Custom folder:"),
+			_("自定义文件夹:"),
 			wxEmptyString,
 			_("This setting may require administration privileges from your operating system, depending on how your system is configured.")
 		)
@@ -63,7 +63,7 @@ Panels::DocsFolderPickerPanel::DocsFolderPickerPanel( wxWindow* parent, bool isF
 	m_radio_UserMode->Realize();
 	if( pxStaticText* woot = m_radio_UserMode->GetSubText(0) ) woot->Unwrapped();		// wrapping sucks for path names!
 	
-	m_dirpicker_custom = new DirPickerPanel( this, FolderId_Documents, _("Select a document root for PCSX2") );
+	m_dirpicker_custom = new DirPickerPanel( this, FolderId_Documents, AddAppName(_("Select a document root for %s")) );
 
 	*this	+= Heading( isFirstTime ? usermodeExplained : usermodeWarning );
 	*this	+= m_radio_UserMode		| StdExpand();

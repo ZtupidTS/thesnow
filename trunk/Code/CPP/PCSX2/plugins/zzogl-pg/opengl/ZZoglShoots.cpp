@@ -1,6 +1,6 @@
 /*  ZZ Open GL graphics plugin
- *  Copyright (c)2009 zeydlitz@gmail.com
- *  Based on Zerofrog's ZeroGS KOSMOS (c)2005-2006
+ *  Copyright (c)2009-2010 zeydlitz@gmail.com, arcum42@gmail.com
+ *  Based on Zerofrog's ZeroGS KOSMOS (c)2005-2008
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
 // Texture and avi saving to file functions
@@ -31,6 +31,9 @@
 #include "targets.h"
 #include "Mem.h"
 
+// AVI Capture
+int s_avicapturing = 0;
+bool g_bMakeSnapshot = false;
 
 extern "C"
 {
@@ -57,12 +60,14 @@ extern "C"
 int TexNumber = 0;
 int s_aviinit = 0;
 
+string strSnapshot;
+
 //------------------ Code
 
 // Set variables need to made a snapshoot when it's possible
 void ZeroGS::SaveSnapshot(const char* filename)
 {
-	g_bMakeSnapshot = 1;
+	g_bMakeSnapshot = true;
 	strSnapshot = filename;
 }
 
@@ -311,6 +316,7 @@ bool ZeroGS::SaveTGA(const char* filename, int width, int height, void* pdata)
 // AVI start -- set needed glabal variables
 void ZeroGS::StartCapture()
 {
+	if (conf.captureAvi()) return;
 	if (!s_aviinit)
 	{
 #ifdef _WIN32
@@ -326,19 +332,24 @@ void ZeroGS::StartCapture()
 	}
 
 	s_avicapturing = 1;
+	conf.setCaptureAvi(true);
+	ZZLog::Warn_Log("Started recording zerogs.avi.");
+	
 }
 
 // Stop.
 void ZeroGS::StopCapture()
 {
+	if (!conf.captureAvi()) return;
 	s_avicapturing = 0;
+	conf.setCaptureAvi(false);
+	ZZLog::Warn_Log("Stopped recording.");
 }
 
-// And capture frame
-// Does not work on linux
+// And capture frame does not work on linux.
 void ZeroGS::CaptureFrame()
 {
-	assert(s_avicapturing && s_aviinit);
+	if ((!s_avicapturing) || (!s_aviinit)) return;
 
 	vector<u32> data(nBackbufferWidth*nBackbufferHeight);
 	glReadPixels(0, 0, nBackbufferWidth, nBackbufferHeight, GL_RGBA, GL_UNSIGNED_BYTE, &data[0]);
@@ -627,4 +638,15 @@ void ZeroGS::Stop_Avi()
 #else
 // Does not support yet
 #endif
+}
+
+void ZeroGS::Delete_Avi_Capture()
+{
+	if (s_aviinit)
+	{
+		StopCapture();
+		Stop_Avi();
+		ZZLog::Error_Log("zerogs.avi stopped.");
+		s_aviinit = 0;
+	}
 }

@@ -51,14 +51,14 @@ DEFINE_EVENT_TYPE(pxEVT_ShowStatusBar);
 typedef s32		(CALLBACK* TestFnptr)();
 typedef void	(CALLBACK* ConfigureFnptr)();
 
-static const wxString failed_separator( L"--------   Unsupported Plugins  --------" );
+static const wxString failed_separator( L"--------   不支持的插件  --------" );
 
 namespace Exception
 {
 	class NotEnumerablePlugin : public BadStream
 	{
 	public:
-		DEFINE_STREAM_EXCEPTION( NotEnumerablePlugin, wxLt("文件不是一个 PCSX2 插件") );
+		DEFINE_STREAM_EXCEPTION( NotEnumerablePlugin, BadStream, wxLt("文件不是一个 PCSX2 插件") );
 	};
 }
 
@@ -89,7 +89,7 @@ public:
 		: m_plugpath( plugpath )
 	{
 		if( !m_plugin.Load( m_plugpath ) )
-			throw Exception::BadStream( m_plugpath, "File is not a valid dynamic library." );
+			throw Exception::BadStream( m_plugpath ).SetBothMsgs("文件不是一个有效的动态链接库.");
 
 		wxDoNotLogInThisScope please;
 		m_GetLibType		= (_PS2EgetLibType)m_plugin.GetSymbol( L"PS2EgetLibType" );
@@ -161,10 +161,10 @@ public:
 // --------------------------------------------------------------------------------------
 //  ApplyOverValidStateEvent
 // --------------------------------------------------------------------------------------
-class ApplyOverValidStateEvent : public pxInvokeActionEvent
+class ApplyOverValidStateEvent : public pxActionEvent
 {
 	//DeclareNoncopyableObject( ApplyOverValidStateEvent );
-	typedef pxInvokeActionEvent _parent;
+	typedef pxActionEvent _parent;
 
 protected:
 	ApplyPluginsDialog*		m_owner;
@@ -218,7 +218,7 @@ protected:
 IMPLEMENT_DYNAMIC_CLASS(ApplyPluginsDialog, WaitForTaskDialog)
 
 ApplyPluginsDialog::ApplyPluginsDialog( BaseApplicableConfigPanel* panel )
-	: WaitForTaskDialog( _("Applying settings...") )
+	: WaitForTaskDialog( _("应用设置...") )
 {
 	GetSysExecutorThread().PostEvent( new SysExecEvent_ApplyPlugins( this, m_sync ) );
 }
@@ -238,10 +238,11 @@ void ApplyOverValidStateEvent::InvokeEvent()
 		L"Are you sure you want to apply settings now?"
 	) );
 
-	int result = pxIssueConfirmation( dialog, MsgButtons().OK().Cancel(), L"PluginSelector:ConfirmShutdown" );
+	int result = pxIssueConfirmation( dialog, MsgButtons().OK().Cancel(), L"PluginSelector.ConfirmShutdown" );
 
 	if( result == wxID_CANCEL )
-		throw Exception::CannotApplySettings( m_owner->GetApplicableConfigPanel(), "Cannot apply settings: canceled by user because plugins changed while the emulation state was active.", false );
+		throw Exception::CannotApplySettings( m_owner->GetApplicableConfigPanel() ).Quiet()
+			.SetDiagMsg(L"Cannot apply settings: canceled by user because plugins changed while the emulation state was active.");
 }
 
 // --------------------------------------------------------------------------------------
@@ -443,11 +444,11 @@ void Panels::PluginSelectorPanel::AppStatusEvent_OnSettingsApplied()
 
 static wxString GetApplyFailedMsg()
 {
-	return pxE( ".Error:PluginSelector:ApplyFailed",
-		L"All plugins must have valid selections for PCSX2 to run.  If you are unable to make\n"
-		L"a valid selection due to missing plugins or an incomplete install of PCSX2, then\n"
+	return wxsFormat( pxE( ".Error:PluginSelector:ApplyFailed",
+		L"All plugins must have valid selections for %s to run.  If you are unable to make\n"
+		L"a valid selection due to missing plugins or an incomplete install of %s, then\n"
 		L"press cancel to close the Configuration panel."
-	);
+	), pxGetAppName().c_str(), pxGetAppName().c_str() );
 }
 
 void Panels::PluginSelectorPanel::Apply()
@@ -465,13 +466,9 @@ void Panels::PluginSelectorPanel::Apply()
 		{
 			wxString plugname( pi->GetShortname() );
 
-			throw Exception::CannotApplySettings( this,
-				// English Log
-				wxsFormat( L"PluginSelectorPanel: Invalid or missing selection for the %s plugin.", plugname.c_str() ),
-
-				// Translated
-				wxsFormat( L"请选择一个有效的 %s 插件.", plugname.c_str() ) + L"\n\n" + GetApplyFailedMsg()
-			);
+			throw Exception::CannotApplySettings( this )
+				.SetDiagMsg(wxsFormat( L"PluginSelectorPanel: Invalid or missing selection for the %s plugin.", plugname.c_str()) )
+				.SetUserMsg(wxsFormat( L"请选择一个有效的 %s 插件.", plugname.c_str() ) + L"\n\n" + GetApplyFailedMsg() );
 		}
 
 		g_Conf->BaseFilenames.Plugins[pid] = GetFilename((int)m_ComponentBoxes->Get(pid).GetClientData(sel));
@@ -498,7 +495,7 @@ void Panels::PluginSelectorPanel::Apply()
 	try
 	{
 		if( wxID_CANCEL == ApplyPluginsDialog( this ).ShowModal() )
-			throw Exception::CannotApplySettings( this, "User canceled plugin load process.", false );
+			throw Exception::CannotApplySettings( this ).Quiet().SetDiagMsg(L"User canceled plugin load process.");
 	}
 	catch( Exception::PluginError& ex )
 	{
@@ -506,15 +503,12 @@ void Panels::PluginSelectorPanel::Apply()
 
 		wxString plugname( tbl_PluginInfo[ex.PluginId].GetShortname() );
 
-		throw Exception::CannotApplySettings( this,
-			// Diagnostic
-			ex.FormatDiagnosticMessage(),
-
-			// Translated
-			wxsFormat( _("The selected %s plugin failed to load.\n\nReason: %s\n\n"),
+		throw Exception::CannotApplySettings( this )
+			.SetDiagMsg(ex.FormatDiagnosticMessage())
+			.SetUserMsg(wxsFormat(
+				_("The selected %s plugin failed to load.\n\nReason: %s\n\n"),
 				plugname.c_str(), ex.FormatDisplayMessage().c_str()
-			) + GetApplyFailedMsg()
-		);
+			) + GetApplyFailedMsg());
 	}
 }
 
@@ -744,7 +738,7 @@ void Panels::PluginSelectorPanel::OnProgress( wxCommandEvent& evt )
 // --------------------------------------------------------------------------------------
 
 Panels::PluginSelectorPanel::EnumThread::EnumThread( PluginSelectorPanel& master )
-	: PersistentThread()
+	: pxThread()
 	, Results( master.FileCount(), L"PluginSelectorResults" )
 	, m_master( master )
 	, m_hourglass( Cursor_KindaBusy )

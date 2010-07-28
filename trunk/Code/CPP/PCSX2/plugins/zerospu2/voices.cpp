@@ -13,7 +13,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
 #include <assert.h>
@@ -209,13 +209,15 @@ static void __forceinline GetNoiseValues(s32& VD)
 		"MOV %%eax,%1\n"
 		"ROR %%eax,5\n"
 		"XOR %%eax,0x9a\n"
-		"MOV %%ebx,%%eax\n"
+		"MOV %%esi,%%eax\n"
 		"ROL %%eax,2\n"
-		"ADD %%eax,%%ebx\n"
-		"XOR %%eax,%%ebx\n"
+		"ADD %%eax,%%esi\n"
+		"XOR %%eax,%%esi\n"
 		"ROR %%eax,3\n"
 		"MOV %0,%%eax\n"
-		".att_syntax\n" : "=r"(Seed) :"r"(Seed));
+		".att_syntax\n" : "=r"(Seed) :"r"(Seed)
+		:"%eax", "%esi"
+		);
 #endif
 }
 

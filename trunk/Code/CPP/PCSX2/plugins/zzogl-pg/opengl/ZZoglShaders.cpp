@@ -1,6 +1,6 @@
 /*  ZZ Open GL graphics plugin
- *  Copyright (c)2009 zeydlitz@gmail.com
- *  Based on Zerofrog's ZeroGS KOSMOS (c)2005-2006
+ *  Copyright (c)2009-2010 zeydlitz@gmail.com, arcum42@gmail.com
+ *  Based on Zerofrog's ZeroGS KOSMOS (c)2005-2008
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
 // ZZogl Shader manipulation functions.
@@ -40,6 +40,14 @@ FRAGMENTSHADER ppsBaseTexture, ppsConvert16to32, ppsConvert32to16;
 // Debug variable, store name of the function that call the shader.
 const char* ShaderCallerName = "";
 const char* ShaderHandleName = "";
+
+extern u32 ptexBlocks;		// holds information on block tiling
+extern u32 ptexConv16to32;
+extern u32 ptexConv32to16;
+bool g_bCRTCBilinear = true;
+u8* s_lpShaderResources = NULL;
+map<int, SHADERHEADER*> mapShaderResources;
+CGcontext g_cgcontext;
 
 //------------------ Code
 
@@ -109,12 +117,14 @@ void SetupFragmentProgramParameters(FRAGMENTSHADER* pf, int context, int type)
 	pf->set_texture(pf->sInterlace, "g_sInterlace");
 
 	// set global shader constants
-	pf->set_shader_const(Vector(0.5f, (g_GameSettings&GAME_EXACTCOLOR) ? 0.9f / 256.0f : 0.5f / 256.0f, 0, 1 / 255.0f), "g_fExactColor");
+	pf->set_shader_const(Vector(0.5f, (conf.settings().exact_color) ? 0.9f / 256.0f : 0.5f / 256.0f, 0, 1 / 255.0f), "g_fExactColor");
 	pf->set_shader_const(Vector(-0.2f, -0.65f, 0.9f, 1.0f / 32767.0f), "g_fBilinear");
 	pf->set_shader_const(Vector(1.0f / 256.0f, 1.0004f, 1, 0.5f), "g_fZBias");
 	pf->set_shader_const(Vector(0, 1, 0.001f, 0.5f), "g_fc0");
 	pf->set_shader_const(Vector(1 / 1024.0f, 0.2f / 1024.0f, 1 / 128.0f, 1 / 512.0f), "g_fMult");
 }
+
+static bool outdated_shaders = false;
 
 void SetupVertexProgramParameters(CGprogram prog, int context)
 {
@@ -126,7 +136,7 @@ void SetupVertexProgramParameters(CGprogram prog, int context)
 		cgConnectParameter(g_vparamPosXY[context], p);
 
 	// Set Z-test, log or no log;
-	if (g_GameSettings&GAME_NOLOGZ)
+	if (conf.settings().no_logz)
 	{
 		g_vdepth = Vector(255.0 / 256.0f,  255.0 / 65536.0f, 255.0f / (65535.0f * 256.0f), 1.0f / (65536.0f * 65536.0f));
 		vlogz = Vector(1.0f, 0.0f, 0.0f, 0.0f);
@@ -152,7 +162,11 @@ void SetupVertexProgramParameters(CGprogram prog, int context)
 		}
 		else
 		{
-			ZZLog::Error_Log("Shader file version is outdated! Only log-Z is possible.");
+			if (!outdated_shaders)
+			{
+				outdated_shaders = true;
+				ZZLog::Error_Log("Shader file version is outdated! Only log-Z is possible.");
+			}
 		}
 	}
 

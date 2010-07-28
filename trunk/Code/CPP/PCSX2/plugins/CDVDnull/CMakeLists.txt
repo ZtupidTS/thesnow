@@ -1,12 +1,16 @@
-# CDVDnull Plugin
+# Check that people use the good file
+if(NOT TOP_CMAKE_WAS_SOURCED)
+    message(FATAL_ERROR "
+    You did not 'cmake' the good CMakeLists.txt file. Use the one in the top dir.
+    It is advice to delete all wrongly generated cmake stuff => CMakeFiles & CMakeCache.txt")
+endif(NOT TOP_CMAKE_WAS_SOURCED)
+
 
 # plugin name
-set(CDVDnullName CDVDnull)
+set(Output CDVDnull)
 
 set(CommonFlags
     -Wall
-    -m32
-    -fPIC
     )
 
 set(OptimizationFlags
@@ -40,20 +44,6 @@ set(CDVDnullSources
 set(CDVDnullHeaders
 	CDVD.h)
 
-# CDVDnull Linux sources
-set(CDVDnullLinuxSources
-	Linux/callbacks.c
-	Linux/Config.cpp
-	Linux/interface.c
-	Linux/support.c)
-
-# CDVDnull Linux headers
-set(CDVDnullLinuxHeaders
-	Linux/callbacks.h
-	Linux/Config.h
-	Linux/interface.h
-	Linux/support.h)
-
 # CDVDnull Windows sources
 set(CDVDnullWindowsSources
 	Windows/CDVDnull.def
@@ -67,21 +57,16 @@ set(CDVDnullWindowsHeaders
 include_directories(.)
 
 # add library
-add_library(${CDVDnullName} SHARED
+add_library(${Output} SHARED
 			${CDVDnullSources}
 			${CDVDnullHeaders}
-			${CDVDnullLinuxSources}
-			${CDVDnullLinuxHeaders})
-
-# Force the linker into 32 bits mode
-target_link_libraries(${CDVDnullName} -m32)
-
-# Linker strip option
-if (CMAKE_BUILD_STRIP)
-    target_link_libraries(${CDVDnullName} -s)
-endif (CMAKE_BUILD_STRIP)
+            )
 
 # set output directory
-set_target_properties(${CDVDnullName} PROPERTIES
+set_target_properties(${Output} PROPERTIES
 					  LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin/plugins)
 
+# User flags options
+if(NOT USER_CMAKE_LD_FLAGS STREQUAL "")
+    target_link_libraries(${Output} "${USER_CMAKE_LD_FLAGS}")
+endif(NOT USER_CMAKE_LD_FLAGS STREQUAL "")

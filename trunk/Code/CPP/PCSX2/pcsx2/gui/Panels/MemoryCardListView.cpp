@@ -52,12 +52,12 @@ void MemoryCardListView_Simple::CreateColumns()
 
 	const ColumnInfo columns[] =
 	{
-		{ _("Slot"),			wxLIST_FORMAT_LEFT },
-		{ _("Status"),			wxLIST_FORMAT_CENTER },
-		{ _("Size"),			wxLIST_FORMAT_LEFT },
-		{ _("Formatted"),		wxLIST_FORMAT_CENTER },
-		{ _("Modified"),		wxLIST_FORMAT_LEFT },
-		{ _("Created On"),		wxLIST_FORMAT_LEFT },
+		{ _("插槽"),			wxLIST_FORMAT_LEFT },
+		{ _("状态"),			wxLIST_FORMAT_CENTER },
+		{ _("大小"),			wxLIST_FORMAT_LEFT },
+		{ _("已格式化"),		wxLIST_FORMAT_CENTER },
+		{ _("修改时间"),		wxLIST_FORMAT_LEFT },
+		{ _("创建时间"),		wxLIST_FORMAT_LEFT },
 	};
 
 	for( int i=0; i<McdColS_Count; ++i )
@@ -81,9 +81,9 @@ wxString MemoryCardListView_Simple::OnGetItemText(long item, long column) const
 	switch( column )
 	{
 		case McdColS_PortSlot:		return wxsFormat( L"%u", item+1);
-		case McdColS_Status:		return it.IsPresent ? ( it.IsEnabled ? _("Enabled") : _("Disabled")) : _("Missing");
+		case McdColS_Status:		return it.IsPresent ? ( it.IsEnabled ? _("启用") : _("禁用")) : _("丢失");
 		case McdColS_Size:			return it.IsPresent ? wxsFormat( L"%u MB", it.SizeInMB ) : (wxString)_("N/A");
-		case McdColS_Formatted:		return it.IsFormatted ? _("Yes") : _("No");
+		case McdColS_Formatted:		return it.IsFormatted ? _("是") : _("否");
 		case McdColS_DateModified:	return it.IsPresent ? it.DateModified.FormatDate()	: (wxString)_("N/A");
 		case McdColS_DateCreated:	return it.IsPresent ? it.DateCreated.FormatDate()	: (wxString)_("N/A");
 	}
@@ -158,12 +158,12 @@ void MemoryCardListView_Advanced::CreateColumns()
 
 	const ColumnInfo columns[] =
 	{
-		{ _("Filename"),		wxLIST_FORMAT_LEFT },
-		{ _("Mounted"),			wxLIST_FORMAT_CENTER },
-		{ _("Size"),			wxLIST_FORMAT_LEFT },
-		{ _("Formatted"),		wxLIST_FORMAT_CENTER },
-		{ _("Last Modified"),	wxLIST_FORMAT_LEFT },
-		{ _("Created On"),		wxLIST_FORMAT_LEFT },
+		{ _("文件名"),		wxLIST_FORMAT_LEFT },
+		{ _("已加载"),			wxLIST_FORMAT_CENTER },
+		{ _("大小"),			wxLIST_FORMAT_LEFT },
+		{ _("已格式化"),		wxLIST_FORMAT_CENTER },
+		{ _("修改时间"),	wxLIST_FORMAT_LEFT },
+		{ _("创建时间"),		wxLIST_FORMAT_LEFT },
 		//{ _("Path"),			wxLIST_FORMAT_LEFT }
 	};
 
@@ -189,13 +189,13 @@ wxString MemoryCardListView_Advanced::OnGetItemText(long item, long column) cons
 	{
 		case McdColA_Mounted:
 		{
-			if( !it.IsEnabled ) return _("No");
+			if( !it.IsEnabled ) return _("否");
 			return wxsFormat( L"%u", it.Slot+1);
 		}
 
 		case McdColA_Filename:		return it.Filename.GetName();
 		case McdColA_Size:			return wxsFormat( L"%u MB", it.SizeInMB );
-		case McdColA_Formatted:		return it.IsFormatted ? L"Yes" : L"No";
+		case McdColA_Formatted:		return it.IsFormatted ? L"是" : L"否";
 		case McdColA_DateModified:	return it.DateModified.FormatDate();
 		case McdColA_DateCreated:	return it.DateModified.FormatDate();
 	}

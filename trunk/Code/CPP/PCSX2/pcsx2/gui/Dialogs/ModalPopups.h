@@ -19,7 +19,6 @@
 #include "ConfigurationDialog.h"
 #include "Panels/ConfigurationPanels.h"
 
-#include <wx/image.h>
 #include <wx/wizard.h>
 
 static const wxWindowID pxID_CUSTOM = wxID_LOWEST - 1;
@@ -153,7 +152,7 @@ namespace Dialogs
 		public EventListener_Thread
 	{
 	public:
-		StuckThreadDialog( wxWindow* parent, StuckThreadActionType action, Threading::PersistentThread& stuck_thread );
+		StuckThreadDialog( wxWindow* parent, StuckThreadActionType action, Threading::pxThread& stuck_thread );
 		virtual ~StuckThreadDialog() throw() {}
 
 	protected:

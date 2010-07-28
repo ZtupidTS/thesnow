@@ -20,12 +20,10 @@
 
 // Sets FDIV Flags at the proper time
 _f void mVUdivSet(mV) {
-	int flagReg1, flagReg2;
 	if (mVUinfo.doDivFlag) {
-		getFlagReg(flagReg1, sFLAG.write);
-		if (!sFLAG.doFlag) { getFlagReg(flagReg2, sFLAG.lastWrite); MOV32RtoR(flagReg1, flagReg2); }
-		AND32ItoR(flagReg1, 0xfff3ffff);
-		OR32MtoR (flagReg1, (uptr)&mVU->divFlag);
+		if (!sFLAG.doFlag) { xMOV(getFlagReg(sFLAG.write), getFlagReg(sFLAG.lastWrite)); }
+		xAND(getFlagReg(sFLAG.write), 0xfff3ffff);
+		xOR (getFlagReg(sFLAG.write), ptr32[&mVU->divFlag]);
 	}
 }
 
@@ -159,9 +157,8 @@ _f void mVUsetFlags(mV, microFlagCycles& mFC) {
 	iPC = endPC;
 }
 
-#define getFlagReg1(x)	((x == 3) ? gprF3 : ((x == 2) ? gprF2 : ((x == 1) ? gprF1 : gprF0)))
-#define getFlagReg2(x)	((bStatus[0] == x) ? getFlagReg1(x) : gprT1)
-#define getFlagReg3(x)	((gFlag == x) ? gprT1 : getFlagReg1(x))
+#define getFlagReg2(x)	((bStatus[0] == x) ? getFlagReg(x) : gprT1)
+#define getFlagReg3(x)	((gFlag == x) ? gprT1 : getFlagReg(x))
 #define getFlagReg4(x)	((gFlag == x) ? gprT1 : gprT2)
 #define shuffleMac		((bMac [3]<<6)|(bMac [2]<<4)|(bMac [1]<<2)|bMac [0])
 #define shuffleClip		((bClip[3]<<6)|(bClip[2]<<4)|(bClip[1]<<2)|bClip[0])
@@ -175,112 +172,133 @@ _f void mVUsetupFlags(mV, microFlagCycles& mFC) {
 		// DevCon::Status("sortRegs = %d", params sortRegs);
 		// Note: Emitter will optimize out mov(reg1, reg1) cases...
 		if (sortRegs == 1) {
-			MOV32RtoR(gprF0,  getFlagReg1(bStatus[0]));
-			MOV32RtoR(gprF1,  getFlagReg1(bStatus[1]));
-			MOV32RtoR(gprF2,  getFlagReg1(bStatus[2]));
-			MOV32RtoR(gprF3,  getFlagReg1(bStatus[3]));
+			xMOV(gprF0,  getFlagReg(bStatus[0]));
+			xMOV(gprF1,  getFlagReg(bStatus[1]));
+			xMOV(gprF2,  getFlagReg(bStatus[2]));
+			xMOV(gprF3,  getFlagReg(bStatus[3]));
 		}
 		else if (sortRegs == 2) {
-			MOV32RtoR(gprT1,  getFlagReg1(bStatus[3])); 
-			MOV32RtoR(gprF0,  getFlagReg1(bStatus[0]));
-			MOV32RtoR(gprF1,  getFlagReg2(bStatus[1]));
-			MOV32RtoR(gprF2,  getFlagReg2(bStatus[2]));
-			MOV32RtoR(gprF3,  gprT1);
+			xMOV(gprT1,	 getFlagReg (bStatus[3])); 
+			xMOV(gprF0,  getFlagReg (bStatus[0]));
+			xMOV(gprF1,  getFlagReg2(bStatus[1]));
+			xMOV(gprF2,  getFlagReg2(bStatus[2]));
+			xMOV(gprF3,  gprT1);
 		}
 		else if (sortRegs == 3) {
 			int gFlag = (bStatus[0] == bStatus[1]) ? bStatus[2] : bStatus[1];
-			MOV32RtoR(gprT1,  getFlagReg1(gFlag)); 
-			MOV32RtoR(gprT2,  getFlagReg1(bStatus[3]));
-			MOV32RtoR(gprF0,  getFlagReg1(bStatus[0]));
-			MOV32RtoR(gprF1,  getFlagReg3(bStatus[1]));
-			MOV32RtoR(gprF2,  getFlagReg4(bStatus[2]));
-			MOV32RtoR(gprF3,  gprT2);
+			xMOV(gprT1,	 getFlagReg (gFlag)); 
+			xMOV(gprT2,	 getFlagReg (bStatus[3]));
+			xMOV(gprF0,  getFlagReg (bStatus[0]));
+			xMOV(gprF1,  getFlagReg3(bStatus[1]));
+			xMOV(gprF2,  getFlagReg4(bStatus[2]));
+			xMOV(gprF3,  gprT2);
 		}
 		else {
-			MOV32RtoR(gprT1,  getFlagReg1(bStatus[0])); 
-			MOV32RtoR(gprT2,  getFlagReg1(bStatus[1]));
-			MOV32RtoR(gprT3,  getFlagReg1(bStatus[2]));
-			MOV32RtoR(gprF3,  getFlagReg1(bStatus[3]));
-			MOV32RtoR(gprF0,  gprT1);
-			MOV32RtoR(gprF1,  gprT2); 
-			MOV32RtoR(gprF2,  gprT3);
+			xMOV(gprT1,  getFlagReg(bStatus[0])); 
+			xMOV(gprT2,  getFlagReg(bStatus[1]));
+			xMOV(gprT3,  getFlagReg(bStatus[2]));
+			xMOV(gprF3,  getFlagReg(bStatus[3]));
+			xMOV(gprF0,  gprT1);
+			xMOV(gprF1,  gprT2); 
+			xMOV(gprF2,  gprT3);
 		}
 	}
-
+	
 	if (__Mac) {
 		int bMac[4];
 		sortFlag(mFC.xMac, bMac, mFC.cycles);
-		SSE_MOVAPS_M128_to_XMM(xmmT1, (uptr)mVU->macFlag);
-		SSE_SHUFPS_XMM_to_XMM (xmmT1, xmmT1, shuffleMac);
-		SSE_MOVAPS_XMM_to_M128((uptr)mVU->macFlag, xmmT1);
+		xMOVAPS(xmmT1, ptr128[mVU->macFlag]);
+		xSHUF.PS(xmmT1, xmmT1, shuffleMac);
+		xMOVAPS(ptr128[mVU->macFlag], xmmT1);
 	}
 
 	if (__Clip) {
 		int bClip[4];
 		sortFlag(mFC.xClip, bClip, mFC.cycles);
-		SSE_MOVAPS_M128_to_XMM(xmmT2, (uptr)mVU->clipFlag);
-		SSE_SHUFPS_XMM_to_XMM (xmmT2, xmmT2, shuffleClip);
-		SSE_MOVAPS_XMM_to_M128((uptr)mVU->clipFlag, xmmT2);
+		xMOVAPS(xmmT2, ptr128[mVU->clipFlag]);
+		xSHUF.PS(xmmT2, xmmT2, shuffleClip);
+		xMOVAPS(ptr128[mVU->clipFlag], xmmT2);
 	}
 }
 
-#define shortBranch()											\
-	if ((branch == 3) || (branch == 4)) {						\
-		mVUflagPass(mVU, aBranchAddr, (xCount - (mVUcount+1)));	\
-		if (branch == 3) { mVUcount = 4; break; }				\
+#define shortBranch() {											\
+	if ((branch == 3) || (branch == 4)) { /*Branches*/			\
+		_mVUflagPass(mVU, aBranchAddr, sCount+found, found, v);	\
+		if (branch == 3) break;	/*Non-conditional Branch*/		\
+		branch = 0;												\
 	}															\
-	else break
+	else if (branch == 5) { /*JR/JARL*/							\
+		if(!CHECK_VU_BLOCKHACK && (sCount+found<4)) {			\
+			mVUregs.needExactMatch |= 7;						\
+		}														\
+		break;													\
+	}															\
+	else break; /*E-Bit End*/									\
+}
 
 // Scan through instructions and check if flags are read (FSxxx, FMxxx, FCxxx opcodes)
-void mVUflagPass(mV, u32 startPC, u32 xCount) {
+void _mVUflagPass(mV, u32 startPC, u32 sCount, u32 found, vector<u32>& v) {
 
-	int oldPC	  = iPC;
-	int oldCount  = mVUcount;
-	int oldBranch = mVUbranch;
-	int aBranchAddr;
+	for (u32 i = 0; i < v.size(); i++) {
+		if (v[i] == startPC) return; // Prevent infinite recursion
+	}
+	v.push_back(startPC);
+
+	int oldPC	    = iPC;
+	int oldBranch   = mVUbranch;
+	int aBranchAddr = 0;
 	iPC		  = startPC / 4;
-	mVUcount  = 0;
 	mVUbranch = 0;
-	for (int branch = 0; mVUcount < xCount; mVUcount=(mVUregs.needExactMatch&8)?(mVUcount+1):mVUcount) {
+	for (int branch = 0; sCount < 4; sCount += found) {
+		mVUregs.needExactMatch &= 7;
 		incPC(1);
 		mVUopU(mVU, 3);
+		found |= (mVUregs.needExactMatch&8)>>3;
+		mVUregs.needExactMatch &= 7;
 		if (  curI & _Ebit_  )	{ branch = 1; }
 		if (  curI & _DTbit_ )	{ branch = 6; }
 		if (!(curI & _Ibit_) )	{ incPC(-1); mVUopL(mVU, 3); incPC(1); }
+		
+		// if (mVUbranch&&(branch>=3)&&(branch<=5)) { DevCon.Error("Double Branch [%x]", xPC); mVUregs.needExactMatch |= 7; break; }
+		
 		if		(branch >= 2)	{ shortBranch(); }
 		else if (branch == 1)	{ branch = 2; }
-		if		(mVUbranch)		{ branch = ((mVUbranch>8)?(5):((mVUbranch<3)?3:4)); aBranchAddr = branchAddr; mVUbranch = 0; }
+		if		(mVUbranch)		{ branch = ((mVUbranch>8)?(5):((mVUbranch<3)?3:4)); incPC(-1); aBranchAddr = branchAddr; incPC(1); mVUbranch = 0; }
 		incPC(1);
+		if ((mVUregs.needExactMatch&7)==7) break;
 	}
-	if (mVUcount < 4) { mVUregs.needExactMatch |= 0x7; }
 	iPC		  = oldPC;
-	mVUcount  = oldCount;
 	mVUbranch = oldBranch;
+	mVUregs.needExactMatch &= 7;
 	setCode();
+}
+
+void mVUflagPass(mV, u32 startPC, u32 sCount = 0, u32 found = 0) {
+	vector<u32> v;
+	_mVUflagPass(mVU, startPC, sCount, found, v);
 }
 
 #define branchType1 if		(mVUbranch <= 2)	// B/BAL
 #define branchType2 else if (mVUbranch >= 9)	// JR/JALR
 #define branchType3 else						// Conditional Branch
 
-// Checks if the first 4 instructions of a block will read flags
+// Checks if the first ~4 instructions of a block will read flags
 _f void mVUsetFlagInfo(mV) {
-	branchType1 { incPC(-1); mVUflagPass(mVU, branchAddr, 4); incPC(1); }
-	branchType2 { 
+	branchType1 { incPC(-1); mVUflagPass(mVU, branchAddr); incPC(1); }
+	branchType2 { // This case can possibly be turned off via a hack for a small speedup...
 		if (!mVUlow.constJump.isValid || !CHECK_VU_CONSTPROP) { mVUregs.needExactMatch |= 0x7; } 
-		else { mVUflagPass(mVU, (mVUlow.constJump.regValue*8)&(mVU->microMemSize-8), 4); }
+		else { mVUflagPass(mVU, (mVUlow.constJump.regValue*8)&(mVU->microMemSize-8)); }
 	}
 	branchType3 {
 		incPC(-1);
-		mVUflagPass(mVU, branchAddr, 4);
+		mVUflagPass(mVU, branchAddr);
 		int backupFlagInfo = mVUregs.needExactMatch;
 		mVUregs.needExactMatch = 0;
 		incPC(4); // Branch Not Taken
-		mVUflagPass(mVU, xPC, 4);
+		mVUflagPass(mVU, xPC);
 		incPC(-3);
 		mVUregs.needExactMatch |= backupFlagInfo;
 	}
 	mVUregs.needExactMatch &= 0x7;
 	if (noFlagOpts) mVUregs.needExactMatch |= 0x7;
 }
-

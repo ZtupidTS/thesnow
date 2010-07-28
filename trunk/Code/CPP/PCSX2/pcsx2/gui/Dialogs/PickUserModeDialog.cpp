@@ -26,7 +26,7 @@ Dialogs::PickUserModeDialog::PickUserModeDialog( wxWindow* parent )
 	m_panel_usersel = new DocsFolderPickerPanel( this, false );
 	m_panel_langsel = new LanguageSelectionPanel( this );
 
-	*this	+= new pxStaticHeading( this, _("PCSX2 启动于一个新的或者未知的文件夹下面,需要进行重新设置.") );
+	*this	+= Heading(AddAppName(_("%s 启动于一个新的或者未知的文件夹下面,需要进行重新设置.")));
 	*this	+= m_panel_langsel	| pxSizerFlags::StdCenter();
 	*this	+= m_panel_usersel	| wxSizerFlags().Expand().Border( wxALL, 8 );
 

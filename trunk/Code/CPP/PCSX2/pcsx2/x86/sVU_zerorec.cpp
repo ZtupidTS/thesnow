@@ -41,6 +41,9 @@
 #include "NakedAsm.h"
 #include "AppConfig.h"
 
+// Needed in gcc for find.
+#include <algorithm>
+
 using namespace std;
 using namespace x86Emitter;
 
@@ -357,13 +360,13 @@ static void SuperVUAlloc(int vuindex)
 
 		if (s_recVUMem == NULL)
 		{
-			throw Exception::VirtualMemoryMapConflict(
-				// untranslated diagnostic msg, use exception's default for translation
-				wxsFormat( L"SuperVU failed to allocate virtual memory below 256MB." ),
-
-				// Translated message
-				_("Out of Memory (sorta): The SuperVU recompiler was unable to reserve the specific memory ranges required.")
-			);
+			throw Exception::VirtualMemoryMapConflict()
+				.SetDiagMsg(wxsFormat( L"SuperVU failed to allocate virtual memory below 256MB." ))
+				.SetUserMsg(pxE( ".Error:superVU:VirtualMemoryAlloc",
+					L"Out of Memory (sorta): The SuperVU recompiler was unable to reserve the specific memory "
+					L"ranges required, and will not be available for use.  This is not a critical error, since "
+					L"the sVU rec is obsolete, and you should use microVU instead anyway. :)"
+				));
 		}
 
 		ProfilerRegisterSource("sVU Rec", s_recVUMem, VU_EXESIZE);
@@ -450,7 +453,7 @@ void SuperVUReset(int vuindex)
 	if (s_recVUMem == NULL)
 		return;
 
-	//jASSUME( s_recVUMem != NULL );
+	//pxAssume( s_recVUMem != NULL );
 
 	if (vuindex < 0)
 	{
@@ -467,7 +470,6 @@ void SuperVUReset(int vuindex)
 	else
 	{
 		DbgCon.WriteLn("SuperVU [VU%d]: Resetting the recs and junk", vuindex);
-		list<VuFunctionHeader*>::iterator it;
 		if (recVUHeaders[vuindex]) memset(recVUHeaders[vuindex], 0, sizeof(VuFunctionHeader*) * (s_MemSize[vuindex] / 8));
 		if (recVUBlocks[vuindex]) memset(recVUBlocks[vuindex], 0, sizeof(VuBlockHeader) * (s_MemSize[vuindex] / 8));
 
@@ -4634,10 +4636,8 @@ void recSuperVU0::Execute(u32 cycles)
 {
 	if ((VU0.VI[REG_VPU_STAT].UL & 1) == 0) return;
 
-	XMMRegisters::Freeze();
 	runCycles = cycles;
 	SuperVUExecuteProgram(VU0.VI[REG_TPC].UL & 0xfff, 0);
-	XMMRegisters::Thaw();
 }
 
 void recSuperVU0::Clear(u32 Addr, u32 Size)
@@ -4670,14 +4670,15 @@ void recSuperVU1::Reset()
 	SuperVUReset( 1 );
 }
 
+#if 0
+	#include "sVU_Compare.h"
+#else
 void recSuperVU1::Execute(u32 cycles)
 {
 	if ((VU0.VI[REG_VPU_STAT].UL & 0x100) == 0) return;
 	pxAssert( (VU1.VI[REG_TPC].UL&7) == 0 );
 
 	// [TODO] Debugging pre- and post- hooks?
-
-	XMMRegisters::Freeze();
 
 	if (VU1.VI[REG_TPC].UL >= VU1.maxmicro) {
 		Console.Error("VU1 memory overflow!!: %x", VU1.VI[REG_TPC].UL);
@@ -4686,11 +4687,10 @@ void recSuperVU1::Execute(u32 cycles)
 	do { // while loop needed since not always will return finished
 		SuperVUExecuteProgram(VU1.VI[REG_TPC].UL & 0x3fff, 1);
 	} while( VU0.VI[REG_VPU_STAT].UL&0x100 );
-
-	XMMRegisters::Thaw();
 }
 
 void recSuperVU1::Clear(u32 Addr, u32 Size)
 {
 	SuperVUClear(Addr, Size, 1);
 }
+#endif

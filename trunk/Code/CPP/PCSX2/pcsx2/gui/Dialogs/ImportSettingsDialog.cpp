@@ -25,11 +25,13 @@ Dialogs::ImportSettingsDialog::ImportSettingsDialog( wxWindow* parent )
 {
 	SetMinWidth( 440 );
 
-	pxStaticText& heading = Text( pxE( ".Popup:ImportExistingSettings",
-		L"模拟器发现了已经存在的设置文件r.  "
-		L"您是想导入这是设置还是使用默认设置覆盖掉它们?"
-		L"\n\n(或者点击取消选择一个不同的设置文件夹)" )
-	);
+	pxStaticText& heading( Text( wxsFormat(
+		pxE( ".Popup:ImportExistingSettings",
+			L"Existing %s settings have been found in the configured settings folder.  "
+			L"Would you like to import these settings or overwrite them with %s default values?"
+			L"\n\n(or press Cancel to select a different settings folder)"
+		), pxGetAppName().c_str(), pxGetAppName().c_str()
+	)));
 
 	wxBoxSizer& s_buttons = *new wxBoxSizer( wxHORIZONTAL );
 	wxButton* b_import	= new wxButton( this, wxID_ANY, _("导入") );

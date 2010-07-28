@@ -1,12 +1,16 @@
-# CDVDiso Plugin
+# Check that people use the good file
+if(NOT TOP_CMAKE_WAS_SOURCED)
+    message(FATAL_ERROR "
+    You did not 'cmake' the good CMakeLists.txt file. Use the one in the top dir.
+    It is advice to delete all wrongly generated cmake stuff => CMakeFiles & CMakeCache.txt")
+endif(NOT TOP_CMAKE_WAS_SOURCED)
+
 
 # plugin name
-set(CDVDisoName CDVDiso)
+set(Output CDVDiso)
 
 set(CommonFlags
     -Wall
-    -m32
-    -fpic
     -fpermissive
     )
 
@@ -63,23 +67,20 @@ include_directories(.
     Linux)
 
 # add library
-add_library(${CDVDisoName} SHARED
+add_library(${Output} SHARED
 			${CDVDisoSources}
 			${CDVDisoHeaders}
 			${CDVDisoLinuxSources}
 			${CDVDisoLinuxHeaders})
 
 # set output directory
-set_target_properties(${CDVDisoName} PROPERTIES
+set_target_properties(${Output} PROPERTIES
 					  LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin/plugins)
 
 # Link with bz2
-target_link_libraries(${CDVDisoName} ${BZIP2_LIBRARIES})
+target_link_libraries(${Output} ${BZIP2_LIBRARIES})
 
-# Force the linker into 32 bits mode
-target_link_libraries(${CDVDisoName} -m32)
-
-# Linker strip option
-if (CMAKE_BUILD_STRIP)
-    target_link_libraries(${CDVDisoName} -s)
-endif (CMAKE_BUILD_STRIP)
+# User flags options
+if(NOT USER_CMAKE_LD_FLAGS STREQUAL "")
+    target_link_libraries(${Output} "${USER_CMAKE_LD_FLAGS}")
+endif(NOT USER_CMAKE_LD_FLAGS STREQUAL "")

@@ -1,5 +1,6 @@
-/*  ZeroGS KOSMOS
- *  Copyright (C) 2005-2006 zerofrog@gmail.com
+/*  ZZ Open GL graphics plugin
+ *  Copyright (c)2009-2010 zeydlitz@gmail.com, arcum42@gmail.com
+ *  Based on Zerofrog's ZeroGS KOSMOS (c)2005-2008
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -13,7 +14,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
 #ifndef UTIL_H_INCLUDED
@@ -24,6 +25,9 @@
 
 #include <windows.h>
 #include <windowsx.h>
+#include <GL/gl.h>
+#include <GL/glext.h>
+#include "glprocs.h"
 
 extern HWND GShwnd;
 
@@ -31,13 +35,17 @@ extern HWND GShwnd;
 
 #include <GL/glew.h>
 #include <GL/gl.h>
+#include <GL/glext.h>
 #include <GL/glx.h>
 #include <gtk/gtk.h>
 
 #endif
 
+
 #define GSdefs
 #include "PS2Edefs.h"
+#include "CRC.h"
+#include "ZZLog.h"
 
 // need C definitions -- no mangling please!
 extern "C" u32   CALLBACK PS2EgetLibType(void);
@@ -122,24 +130,71 @@ typedef struct
 	int x, y, c;
 } PointC;
 
-enum GSOption
+enum GSWindowDim
 {
-	GSOPTION_FULLSCREEN = 0x2,
-	GSOPTION_TGASNAP = 0x4,
-	GSOPTION_CAPTUREAVI = 0x8,
-
-	GSOPTION_WINDIMS = 0x30,
-	GSOPTION_WIN640 = 0x00,
-	GSOPTION_WIN800 = 0x10,
-	GSOPTION_WIN1024 = 0x20,
-	GSOPTION_WIN1280 = 0x30,
-	GSOPTION_WIDESCREEN = 0x40,
-
-	GSOPTION_WIREFRAME = 0x100,
-	GSOPTION_LOADED = 0x8000
+	
+	GSDim_640 = 0,
+	GSDim_800,
+	GSDim_1024,
+	GSDim_1280,
 };
+typedef union 
+{
+	struct
+	{
+		u32 texture_targs : 1;
+		u32 auto_reset : 1;
+		u32 interlace_2x : 1;
+		u32 texa : 1; // apply texa to non textured polys
+		u32 no_target_resolve : 1;
+		u32 exact_color : 1;
+		u32 no_color_clamp : 1;
+		u32 ffx : 1;
+		u32 no_alpha_fail : 1;
+		u32 no_depth_update : 1;
+		u32 quick_resolve_1 : 1;
+		u32 no_quick_resolve : 1;
+		u32 no_target_clut : 1; // full 16 bit resolution
+		u32 no_stencil : 1;
+		u32 vss_hack_off : 1; // vertical stripe syndrome
+		u32 no_depth_resolve : 1;
+		u32 full_16_bit_res : 1;
+		u32 resolve_promoted : 1;
+		u32 fast_update : 1;
+		u32 no_alpha_test : 1;
+		u32 disable_mrt_depth : 1;
+		u32 args_32_bit : 1;
+		u32 path3 : 1;
+		u32 parallel_context : 1; // tries to parallelize both contexts so that render calls are reduced (xenosaga)
+									// makes the game faster, but can be buggy
+		u32 xenosaga_spec : 1; // xenosaga specularity hack (ignore any zmask=1 draws)
+		u32 partial_pointers : 1; // whenver the texture or render target are small, tries to look for bigger ones to read from
+		u32 partial_depth : 1; // tries to save depth targets as much as possible across height changes
+		u32 reget : 1; // some sort of weirdness in ReGet() code
+		u32 gust : 1; // Needed for Gustgames fast update.
+		u32 no_logz : 1; // Intended for linux -- not logarithmic Z.
+		u32 reserved1 :1;
+		u32 reserved2 :1;
+	};
+	u32 _u32;
+} gameHacks;
 
-//Configuration values.
+typedef union
+{
+	struct
+	{
+		u32 fullscreen : 1;
+		u32 tga_snap : 1;
+		u32 capture_avi : 1;
+		u32 widescreen : 1;
+		u32 wireframe : 1;
+		u32 loaded : 1;
+		u32 dimensions : 2;
+	};
+	u32 _u32;
+	
+	void ZZOptions(u32 value) { _u32 = value; }
+} ZZOptions;
 
 typedef struct
 {
@@ -148,94 +203,53 @@ typedef struct
 	u8 aa;	// antialiasing 0 - off, 1 - 2x, 2 - 4x, 3 - 8x, 4 - 16x
 	u8 negaa; // negative aliasing
 	u8 bilinear; // set to enable bilinear support. 0 - off, 1 -- on, 2 -- force (use for textures that usually need it)
-	u32 options; // game options -- different hacks.
-	u32 gamesettings;// default game settings
+	ZZOptions zz_options;
+	gameHacks hacks; // game options -- different hacks.
+	gameHacks def_hacks;// default game settings
 	int width, height; // View target size, has no impact towards speed
 	int x, y; // Lets try for a persistant window position.
 	bool isWideScreen; // Widescreen support
 	u32 log;
+	
+	void incAA() { aa++; if (aa > 4) aa = 0; }
+	void decAA() { aa--; if (aa > 4) aa = 4; } // u8 is unsigned, so negative value is 255.
+	
+	gameHacks settings() 
+	{
+		gameHacks tempHack;
+		tempHack._u32 = (hacks._u32 | def_hacks._u32 | GAME_PATH3HACK);
+		 return tempHack; 
+	}
+	bool fullscreen() { return !!(zz_options.fullscreen); }
+	bool wireframe() { return !!(zz_options.wireframe); }
+	bool widescreen() { return !!(zz_options.widescreen); }
+	bool captureAvi() { return !!(zz_options.capture_avi); }
+	bool loaded() {  return !!(zz_options.loaded); }
+	
+	void setFullscreen(bool flag)
+	{
+		zz_options.fullscreen = (flag) ? 1 : 0;
+	}
+	
+	void setWireframe(bool flag)
+	{
+		zz_options.wireframe = (flag) ? 1 : 0;
+	}
+	
+	void setCaptureAvi(bool flag)
+	{
+		zz_options.capture_avi = (flag) ? 1 : 0;
+	}
+	
+	void setLoaded(bool flag)
+	{
+		zz_options.loaded = (flag) ? 1 : 0;
+	}
+	
 } GSconf;
+extern GSconf conf;
 
-//Logging for errors that are called often should have a time counter.
-#ifdef __LINUX__
-static u32 __attribute__((unused)) lasttime = 0;
-static u32 __attribute__((unused)) BigTime = 5000;
-static bool __attribute__((unused)) SPAM_PASS;
-#else
-static u32 lasttime = 0;
-static u32 BigTime = 5000;
-static bool SPAM_PASS;
-#endif
-
-#define ERROR_LOG_SPAM(text) { \
-	if( timeGetTime() - lasttime > BigTime ) { \
-		ZZLog::Error_Log(text); \
-		lasttime = timeGetTime(); \
-	} \
-}
-// The same macro with one-argument substitution.
-#define ERROR_LOG_SPAMA(fmt, value) { \
-	if( timeGetTime() - lasttime > BigTime ) { \
-		ZZLog::Error_Log(fmt, value); \
-		lasttime = timeGetTime(); \
-	} \
-}
-
-#define ERROR_LOG_SPAM_TEST(text) {\
-	if( timeGetTime() - lasttime > BigTime ) { \
-		ZZLog::Error_Log(text); \
-		lasttime = timeGetTime(); \
-		SPAM_PASS = true; \
-	} \
-	else \
-		SPAM_PASS = false; \
-}
-
-#if DEBUG_PROF
-#define FILE_IS_IN_CHECK ((strcmp(__FILE__, "targets.cpp") == 0) || (strcmp(__FILE__, "ZZoglFlush.cpp") == 0))
-
-#define FUNCLOG {\
-	static bool Was_Here = false; \
-	static unsigned long int waslasttime = 0; \
-	if (!Was_Here && FILE_IS_IN_CHECK) { \
-		Was_Here = true;\
-		ZZLog::Error_Log("%s:%d %s", __FILE__, __LINE__, __func__); \
-		waslasttime = timeGetTime(); \
-	} \
-	if (FILE_IS_IN_CHECK && (timeGetTime() - waslasttime > BigTime ))  { \
-		Was_Here = false; \
-	} \
-}
-#else
-#define FUNCLOG
-#endif
-
-//#define WRITE_PRIM_LOGS
-#if defined(_DEBUG) && !defined(ZEROGS_DEVBUILD)
-#define ZEROGS_DEVBUILD
-#endif
-
-#ifdef ZEROGS_DEVBUILD
-//#define DEVBUILD
-#endif
-
-extern void __LogToConsole(const char *fmt, ...);
-
-namespace ZZLog
-{
-extern void Message(const char *fmt, ...);
-extern void Log(const char *fmt, ...);
-extern void WriteToConsole(const char *fmt, ...);
-extern void Print(const char *fmt, ...);
-
-extern void Greg_Log(const char *fmt, ...);
-extern void Prim_Log(const char *fmt, ...);
-extern void GS_Log(const char *fmt, ...);
-
-extern void Debug_Log(const char *fmt, ...);
-extern void Warn_Log(const char *fmt, ...);
-extern void Error_Log(const char *fmt, ...);
-};
+// ----------------------- Defines
 
 #define REG64(name) \
 union name			\
@@ -271,6 +285,22 @@ union name			\
  
 #define REG_SET_END };
 
+#ifndef SAFE_DELETE
+#	define SAFE_DELETE(x)		if( (x) != NULL ) { delete (x); (x) = NULL; }
+#endif
+#ifndef SAFE_DELETE_ARRAY
+#	define SAFE_DELETE_ARRAY(x)	if( (x) != NULL ) { delete[] (x); (x) = NULL; }
+#endif
+#ifndef SAFE_RELEASE
+#	define SAFE_RELEASE(x)		if( (x) != NULL ) { (x)->Release(); (x) = NULL; }
+#endif
+
+#define FORIT(it, v) for(it = (v).begin(); it != (v).end(); ++(it))
+ 
+#ifndef ARRAY_SIZE
+#	define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#endif
+
 extern void LoadConfig();
 extern void SaveConfig();
 
@@ -289,5 +319,7 @@ extern void SysMessage(const char *fmt, ...);
 extern "C" void * memcpy_amd(void *dest, const void *src, size_t n);
 extern "C" u8 memcmp_mmx(const void *dest, const void *src, int n);
 #endif
+
+
 
 #endif // UTIL_H_INCLUDED

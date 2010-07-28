@@ -21,7 +21,6 @@
 
 #pragma once
 
-#include <wx/image.h>
 #include <wx/statline.h>
 #include <wx/dnd.h>
 
@@ -301,6 +300,7 @@ namespace Panels
 		pxCheckBox*		m_check_waitloop;
 		pxCheckBox*		m_check_IOPx2;
 		pxCheckBox*		m_check_vuFlagHack;
+		pxCheckBox*		m_check_vuBlockHack;
 		pxCheckBox*		m_check_vuMinMax;
 
 	public:
@@ -367,7 +367,7 @@ namespace Panels
 		void AppStatusEvent_OnSettingsApplied();
 
 	protected:
-		void PopulateFields();
+		void PopulateFields( const wxString& serial=wxEmptyString );
 		bool WriteFieldsToDB();
 		void Search_Click( wxCommandEvent& evt );
 	};
@@ -465,7 +465,7 @@ namespace Panels
 		};
 
 		// ----------------------------------------------------------------------------
-		class EnumThread : public Threading::PersistentThread
+		class EnumThread : public Threading::pxThread
 		{
 		public:
 			SafeList<EnumeratedPluginInfo> Results;		// array of plugin results.
@@ -476,7 +476,7 @@ namespace Panels
 		public:
 			virtual ~EnumThread() throw()
 			{
-				PersistentThread::Cancel();
+				pxThread::Cancel();
 			}
 
 			EnumThread( PluginSelectorPanel& master );

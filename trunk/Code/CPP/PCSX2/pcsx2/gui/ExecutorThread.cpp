@@ -190,7 +190,7 @@ void pxEvtHandler::ProcessEvents( pxEvtList& list )
 			}
 
 			u64 qpc_end = GetCPUTicks();
-			DevCon.WriteLn( L"(pxEvtHandler) Event '%s' completed in %dms", deleteMe->GetEventName().c_str(), ((qpc_end-m_qpc_Start)*1000) / GetTickFrequency() );
+			DevCon.WriteLn( L"(pxEvtHandler) Event '%s' completed in %ums", deleteMe->GetEventName().c_str(), (u32)(((qpc_end-m_qpc_Start)*1000) / GetTickFrequency()) );
 
 			synclock.Acquire();
 			m_qpc_Start = 0;		// lets the main thread know the message completed.
@@ -308,12 +308,23 @@ void pxEvtHandler::ProcessEvent( SysExecEvent* evt )
 	}
 }
 
-bool pxEvtHandler::ProcessMethodSelf( FnType_Void* method )
+bool pxEvtHandler::Rpc_TryInvokeAsync( FnType_Void* method )
+{
+	if( wxThread::GetCurrentId() != m_OwnerThreadId )
+	{
+		PostEvent( new SysExecEvent_MethodVoid(method) );
+		return true;
+	}
+
+	return false;
+}
+
+bool pxEvtHandler::Rpc_TryInvoke( FnType_Void* method )
 {
 	if( wxThread::GetCurrentId() != m_OwnerThreadId )
 	{
 		SynchronousActionState sync;
-		SysExecEvent_MethodVoid evt(method);
+		SysExecEvent_MethodVoid evt(method, true);
 		evt.SetSyncState( sync );
 		PostEvent( evt );
 		sync.WaitForResult();
@@ -357,10 +368,10 @@ private:
 	typedef wxDialogWithHelpers _parent;
 
 protected:
-	PersistentThread*	m_thread;
+	pxThread*	m_thread;
 	
 public:
-	WaitingForThreadedTaskDialog( PersistentThread* thr, wxWindow* parent, const wxString& title, const wxString& content );
+	WaitingForThreadedTaskDialog( pxThread* thr, wxWindow* parent, const wxString& title, const wxString& content );
 	virtual ~WaitingForThreadedTaskDialog() throw() {}
 
 protected:
@@ -371,7 +382,7 @@ protected:
 // --------------------------------------------------------------------------------------
 //  WaitingForThreadedTaskDialog Implementations
 // --------------------------------------------------------------------------------------
-WaitingForThreadedTaskDialog::WaitingForThreadedTaskDialog( PersistentThread* thr, wxWindow* parent, const wxString& title, const wxString& content )
+WaitingForThreadedTaskDialog::WaitingForThreadedTaskDialog( pxThread* thr, wxWindow* parent, const wxString& title, const wxString& content )
 	: wxDialogWithHelpers( parent, title )
 {
 	SetMinWidth( 500 );
@@ -380,8 +391,8 @@ WaitingForThreadedTaskDialog::WaitingForThreadedTaskDialog( PersistentThread* th
 	
 	*this += Text( content )	| StdExpand();
 	*this += 15;
-	*this += Heading( _("Press Cancel to attempt to cancel the action.") );
-	*this += Heading( _("Press Terminate to kill PCSX2 immediately.") );
+	*this += Heading(_("Press Cancel to attempt to cancel the action."));
+	*this += Heading(AddAppName(_("Press Terminate to kill %s immediately.")));
 	
 	*this += new wxButton( this, wxID_CANCEL );
 	*this += new wxButton( this, wxID_ANY, _("Terminate App") );
@@ -408,6 +419,12 @@ void WaitingForThreadedTaskDialog::OnTerminateApp_Clicked( wxCommandEvent& evt )
 ExecutorThread::ExecutorThread( pxEvtHandler* evthandler )
 {
 	m_EvtHandler = evthandler;
+}
+
+bool ExecutorThread::IsRunning() const
+{
+	if( !m_EvtHandler ) return false;
+	return( !m_EvtHandler->IsShuttingDown() );
 }
 
 // Exposes the internal pxEvtHandler::ShutdownQueue API.  See pxEvtHandler for details.

@@ -1,5 +1,6 @@
-/*  ZeroGS KOSMOS
- *  Copyright (C) 2005-2006 zerofrog@gmail.com
+/*  ZZ Open GL graphics plugin
+ *  Copyright (c)2009-2010 zeydlitz@gmail.com, arcum42@gmail.com
+ *  Based on Zerofrog's ZeroGS KOSMOS (c)2005-2008
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -13,7 +14,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
 //-------------------------- Includes
@@ -44,21 +45,15 @@ extern u32 g_nGenVars, g_nTexVars, g_nAlphaVars, g_nResolve;
 extern char *libraryName;
 extern int g_nFrame, g_nRealFrame;
 
+//extern int s_nFullscreen;
 //-------------------------- Variables
 
-#ifdef _WIN32
-HDC			hDC = NULL;	 // Private GDI Device Context
-HGLRC		hRC = NULL;	 // Permanent Rendering Context
-#endif
+// Context is lost -- could not draw.
+// Setting this variable to true is also lost. Fixme.
+//bool g_bIsLost = false; 
 
-bool g_bIsLost = 0;									// ZZ
-
-bool g_bMakeSnapshot = 0;
-string strSnapshot;
-
+primInfo *prim;
 CGprogram g_vsprog = 0, g_psprog = 0;							// 2 -- ZZ
-// AVI Capture
-int s_avicapturing = 0;
 
 inline u32 FtoDW(float f) { return (*((u32*)&f)); }
 
@@ -91,16 +86,12 @@ PFNGLDRAWBUFFERSPROC glDrawBuffers = NULL;
 // graphics resources
 CGparameter g_vparamPosXY[2] = {0}, g_fparamFogColor = 0;
 
-map<int, SHADERHEADER*> mapShaderResources;
-
 bool s_bTexFlush = false;
 int s_nLastResolveReset = 0;
-int s_nWireframeCount = 0;
 int s_nResolveCounts[30] = {0}; // resolve counts for last 30 frames
 
 ////////////////////
 // State parameters
-CGcontext g_cgcontext;
 int nBackbufferWidth, nBackbufferHeight;
 
 u8* g_pbyGSMemory = NULL;   // 4Mb GS system mem
@@ -158,7 +149,7 @@ void ExtWrite();
 
 void ResetRenderTarget(int index)
 {
-	glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT + index, GL_TEXTURE_RECTANGLE_NV, 0, 0);
+	FBTexture(index);
 }
 
 DrawFn drawfn[8] = { KickDummy, KickDummy, KickDummy, KickDummy,
@@ -262,7 +253,6 @@ void ZeroGS::HandleGLError()
 	}
 }
 
-
 void ZeroGS::GSStateReset()
 {
 	FUNCLOG
@@ -292,55 +282,6 @@ void ZeroGS::GSStateReset()
 	vb[1].ictx = 1;
 }
 
-void ZeroGS::AddMessage(const char* pstr, u32 ms)
-{
-	FUNCLOG
-	listMsgs.push_back(MESSAGE(pstr, timeGetTime() + ms));
-	ZZLog::Log("%s\n", pstr);
-}
-
-void ZeroGS::DrawText(const char* pstr, int left, int top, u32 color)
-{
-	FUNCLOG
-	cgGLDisableProfile(cgvProf);
-	cgGLDisableProfile(cgfProf);
-
-	Vector v;
-	v.SetColor(color);
-	glColor3f(v.z, v.y, v.x);
-	//glColor3f(((color >> 16) & 0xff) / 255.0f, ((color >> 8) & 0xff)/ 255.0f, (color & 0xff) / 255.0f);
-
-	font_p->printString(pstr, left * 2.0f / (float)nBackbufferWidth - 1, 1 - top * 2.0f / (float)nBackbufferHeight, 0);
-	cgGLEnableProfile(cgvProf);
-	cgGLEnableProfile(cgfProf);
-}
-
-void ZeroGS::ChangeWindowSize(int nNewWidth, int nNewHeight)
-{
-	FUNCLOG
-	nBackbufferWidth = max(nNewWidth, 16);
-	nBackbufferHeight = max(nNewHeight, 16);
-
-	if (!(conf.options & GSOPTION_FULLSCREEN))
-	{
-		conf.width = nNewWidth;
-		conf.height = nNewHeight;
-	}
-}
-
-void ZeroGS::SetChangeDeviceSize(int nNewWidth, int nNewHeight)
-{
-	FUNCLOG
-	s_nNewWidth = nNewWidth;
-	s_nNewHeight = nNewHeight;
-
-	if (!(conf.options & GSOPTION_FULLSCREEN))
-	{
-		conf.width = nNewWidth;
-		conf.height = nNewHeight;
-	}
-}
-
 void ZeroGS::Reset()
 {
 	FUNCLOG
@@ -367,6 +308,84 @@ void ZeroGS::Reset()
 	drawfn[5] = KickDummy;
 	drawfn[6] = KickDummy;
 	drawfn[7] = KickDummy;
+}
+
+void ZeroGS::GSReset()
+{
+	FUNCLOG
+
+	memset(&gs, 0, sizeof(gs));
+
+	ZeroGS::GSStateReset();
+
+	gs.prac = 1;
+	prim = &gs._prim[0];
+	gs.nTriFanVert = -1;
+	gs.imageTransfer = -1;
+	gs.q = 1;
+}
+
+void ZeroGS::GSSoftReset(u32 mask)
+{
+	FUNCLOG
+
+	if (mask & 1) memset(&gs.path[0], 0, sizeof(gs.path[0]));
+	if (mask & 2) memset(&gs.path[1], 0, sizeof(gs.path[1]));
+	if (mask & 4) memset(&gs.path[2], 0, sizeof(gs.path[2]));
+
+	gs.imageTransfer = -1;
+	gs.q = 1;
+	gs.nTriFanVert = -1;
+}
+
+void ZeroGS::AddMessage(const char* pstr, u32 ms)
+{
+	FUNCLOG
+	listMsgs.push_back(MESSAGE(pstr, timeGetTime() + ms));
+	ZZLog::Log("%s\n", pstr);
+}
+
+extern RasterFont* font_p;
+void ZeroGS::DrawText(const char* pstr, int left, int top, u32 color)
+{
+	FUNCLOG
+	cgGLDisableProfile(cgvProf);
+	cgGLDisableProfile(cgfProf);
+
+	Vector v;
+	v.SetColor(color);
+	glColor3f(v.z, v.y, v.x);
+	//glColor3f(((color >> 16) & 0xff) / 255.0f, ((color >> 8) & 0xff)/ 255.0f, (color & 0xff) / 255.0f);
+
+	font_p->printString(pstr, left * 2.0f / (float)nBackbufferWidth - 1, 1 - top * 2.0f / (float)nBackbufferHeight, 0);
+	cgGLEnableProfile(cgvProf);
+	cgGLEnableProfile(cgfProf);
+}
+
+void ZeroGS::ChangeWindowSize(int nNewWidth, int nNewHeight)
+{
+	FUNCLOG
+	nBackbufferWidth = max(nNewWidth, 16);
+	nBackbufferHeight = max(nNewHeight, 16);
+
+	if (!(conf.fullscreen()))
+	{
+		conf.width = nNewWidth;
+		conf.height = nNewHeight;
+	}
+}
+
+void ZeroGS::SetChangeDeviceSize(int nNewWidth, int nNewHeight)
+{
+	FUNCLOG
+	s_nNewWidth = nNewWidth;
+	s_nNewHeight = nNewHeight;
+
+	if (!(conf.fullscreen()))
+	{
+		conf.width = nNewWidth;
+		conf.height = nNewHeight;
+	}
 }
 
 void ZeroGS::ChangeDeviceSize(int nNewWidth, int nNewHeight)
@@ -468,7 +487,7 @@ void ZeroGS::Prim()
 {
 	FUNCLOG
 
-	if (g_bIsLost) return;
+//	if (g_bIsLost) return;
 
 	VB& curvb = vb[prim->ctxt];
 
@@ -534,7 +553,7 @@ void ZeroGS::RenderCustom(float fAlpha)
 	v.x = v.y = v.z = v.w = fAlpha;
 	ZZcgSetParameter4fv(ppsBaseTexture.sOneColor, v, "g_fOneColor");
 
-	if (conf.options & GSOPTION_WIREFRAME) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	if (conf.wireframe()) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 	// inside vhDCb[0]'s target area, so render that region only
 	cgGLSetTextureParameter(ppsBaseTexture.sFinal, ptexLogo);
@@ -545,11 +564,10 @@ void ZeroGS::RenderCustom(float fAlpha)
 
 	SETVERTEXSHADER(pvsBitBlt.prog);
 	SETPIXELSHADER(ppsBaseTexture.prog);
-
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
+	DrawTriangleArray();
+	
 	// restore
-	if (conf.options & GSOPTION_WIREFRAME) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	if (conf.wireframe()) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 	ProcessMessages();
 
@@ -567,14 +585,14 @@ void ZeroGS::RenderCustom(float fAlpha)
 void ZeroGS::Restore()
 {
 	FUNCLOG
-
-	if (!g_bIsLost) return;
+	return;
+	/*if (!g_bIsLost) return;
 
 	//if( SUCCEEDED(pd3dDevice->Reset(&d3dpp)) ) {
-	g_bIsLost = 0;
+	g_bIsLost = false;
 
 	// handle lost states
-	ZeroGS::ChangeDeviceSize(nBackbufferWidth, nBackbufferHeight);
+	ZeroGS::ChangeDeviceSize(nBackbufferWidth, nBackbufferHeight);*/
 
 	//}
 }
@@ -596,21 +614,12 @@ __forceinline void MOVFOG(VertexGPU *p, Vertex gsf)
 
 
 int Values[100] = {0, };
-__forceinline void SET_VERTEX(VertexGPU *p, int Index, const VB& curvb)
+
+void SET_VERTEX(VertexGPU *p, int Index, const VB& curvb)
 {
 	int index = Index;
 	p->x = ((((int)gs.gsvertex[index].x - curvb.offset.x) >> 1) & 0xffff);
 	p->y = ((((int)gs.gsvertex[index].y - curvb.offset.y) >> 1) & 0xffff);
-
-#ifdef LSD_MODE
-	int diffX = (int)gs.gsvertex[index].x - curvb.offset.x;
-	int diffY = (int)gs.gsvertex[index].y - curvb.offset.y;
-
-	if (diffX < 0) { p->x = - p->x; }
-	if (diffY < 0) { p->y = - p->y; }
-#endif
-
-
 	p->f = ((s16)gs.gsvertex[index].f << 7) | 0x7f;
 
 	MOVZ(p, gs.gsvertex[index].z, curvb);
@@ -621,7 +630,7 @@ __forceinline void SET_VERTEX(VertexGPU *p, int Index, const VB& curvb)
 //	if ((gs.texa.aem) && ((p->rgba & 0xffffff ) == 0))
 //		p->rgba = 0;
 
-	if (g_GameSettings & GAME_TEXAHACK)
+	if (conf.settings().texa)
 	{
 		u32 B = ((p->rgba & 0xfe000000) >> 1) +
 				(0x01000000 * curvb.fba.fba) ;
@@ -661,7 +670,7 @@ void ZeroGS::KickPoint()
 
 	VB& curvb = vb[prim->ctxt];
 
-	if (curvb.bNeedTexCheck) curvb.FlushTexData();
+	curvb.FlushTexData();
 
 	if ((vb[!prim->ctxt].nCount > 0) && (vb[prim->ctxt].gsfb.fbp == vb[!prim->ctxt].gsfb.fbp))
 	{
@@ -686,7 +695,7 @@ void ZeroGS::KickLine()
 	assert(gs.primC >= 2);
 	VB& curvb = vb[prim->ctxt];
 
-	if (curvb.bNeedTexCheck) curvb.FlushTexData();
+	curvb.FlushTexData();
 
 	if ((vb[!prim->ctxt].nCount > 0) && (vb[prim->ctxt].gsfb.fbp == vb[!prim->ctxt].gsfb.fbp))
 	{
@@ -715,7 +724,7 @@ void ZeroGS::KickTriangle()
 	assert(gs.primC >= 3);
 	VB& curvb = vb[prim->ctxt];
 
-	if (curvb.bNeedTexCheck) curvb.FlushTexData();
+	curvb.FlushTexData();
 
 	if ((vb[!prim->ctxt].nCount > 0) && (vb[prim->ctxt].gsfb.fbp == vb[!prim->ctxt].gsfb.fbp))
 	{
@@ -743,7 +752,7 @@ void ZeroGS::KickTriangleFan()
 	assert(gs.primC >= 3);
 	VB& curvb = vb[prim->ctxt];
 
-	if (curvb.bNeedTexCheck) curvb.FlushTexData();
+	curvb.FlushTexData();
 
 	if ((vb[!prim->ctxt].nCount > 0) && (vb[prim->ctxt].gsfb.fbp == vb[!prim->ctxt].gsfb.fbp))
 	{
@@ -769,7 +778,7 @@ void ZeroGS::KickTriangleFan()
 	OUTPUT_VERT(p[2], 2);
 }
 
-__forceinline void SetKickVertex(VertexGPU *p, Vertex v, int next, const VB& curvb)
+void SetKickVertex(VertexGPU *p, Vertex v, int next, const VB& curvb)
 {
 	SET_VERTEX(p, next, curvb);
 	MOVZ(p, v.z, curvb);
@@ -782,7 +791,7 @@ void ZeroGS::KickSprite()
 	assert(gs.primC >= 2);
 	VB& curvb = vb[prim->ctxt];
 
-	if (curvb.bNeedTexCheck) curvb.FlushTexData();
+	curvb.FlushTexData();
 
 	if ((vb[!prim->ctxt].nCount > 0) && (vb[prim->ctxt].gsfb.fbp == vb[!prim->ctxt].gsfb.fbp))
 	{
@@ -794,15 +803,10 @@ void ZeroGS::KickSprite()
 
 	int next = (gs.primIndex + 1) % ARRAY_SIZE(gs.gsvertex);
 	int last = (gs.primIndex + 2) % ARRAY_SIZE(gs.gsvertex);
-
-	// sprite is too small and AA shows lines (tek4)
-
-	if (s_AAx)
-	{
-		gs.gsvertex[last].x += 4;
-
-		if (s_AAy) gs.gsvertex[last].y += 4;
-	}
+	
+	// sprite is too small and AA shows lines (tek4, Mana Khemia)
+	gs.gsvertex[last].x += (4*s_AAx);
+	gs.gsvertex[last].y += (4*s_AAy);
 
 	// might be bad sprite (KH dialog text)
 	//if( gs.gsvertex[next].x == gs.gsvertex[last].x || gs.gsvertex[next].y == gs.gsvertex[last].y )
@@ -845,11 +849,10 @@ void ZeroGS::SetFogColor(u32 fog)
 //	{
 	gs.fogcol = fog;
 
-	ZeroGS::Flush(0);
-	ZeroGS::Flush(1);
+	ZeroGS::FlushBoth();
 
-	if (!g_bIsLost)
-	{
+	//if (!g_bIsLost)
+	//{
 		SetShaderCaller("SetFogColor");
 		Vector v;
 
@@ -859,9 +862,22 @@ void ZeroGS::SetFogColor(u32 fog)
 //			v.z = ((gs.fogcol >> 16) & 0xff) / 255.0f;
 		v.SetColor(gs.fogcol);
 		ZZcgSetParameter4fv(g_fparamFogColor, v, "g_fParamFogColor");
-	}
+	//}
 
 //	}
+}
+
+void ZeroGS::SetFogColor(GIFRegFOGCOL* fog)
+{
+	FUNCLOG
+	
+	SetShaderCaller("SetFogColor");
+	Vector v;
+	
+	v.x = fog->FCR / 255.0f;
+	v.y = fog->FCG / 255.0f;
+	v.z = fog->FCB / 255.0f;
+	ZZcgSetParameter4fv(g_fparamFogColor, v, "g_fParamFogColor");
 }
 
 void ZeroGS::ExtWrite()
@@ -1101,9 +1117,9 @@ bool ZeroGS::CheckChangeInClut(u32 highdword, u32 psm)
 void ZeroGS::texClutWrite(int ctx)
 {
 	FUNCLOG
-	s_bTexFlush = 0;
+	s_bTexFlush = false;
 
-	if (g_bIsLost) return;
+	//if (g_bIsLost) return;
 
 	tex0Info& tex0 = vb[ctx].tex0;
 
@@ -1213,22 +1229,37 @@ void ZeroGS::texClutWrite(int ctx)
 	}
 	else
 	{
-		switch (tex0.cpsm)
+		u32* src = (u32*)(g_pbyGSMemory + 256 * tex0.cbp);
+		
+		if (entries == 16)
 		{
-			case PSMCT24:
-			case PSMCT32:
-				if (entries == 16)
-					WriteCLUT_T32_I4_CSM1((u32*)(g_pbyGSMemory + tex0.cbp*256), (u32*)(g_pbyGSClut + 64*tex0.csa));
-				else
-					WriteCLUT_T32_I8_CSM1((u32*)(g_pbyGSMemory + tex0.cbp*256), (u32*)(g_pbyGSClut + 64*tex0.csa));
-				break;
+			switch (tex0.cpsm)
+			{
+				case PSMCT24:
+				case PSMCT32:
+					WriteCLUT_T32_I4_CSM1(src, (u32*)(g_pbyGSClut + 64 * tex0.csa));
+					break;
 
-			default:
-				if (entries == 16)
-					WriteCLUT_T16_I4_CSM1((u32*)(g_pbyGSMemory + 256 * tex0.cbp), (u32*)(g_pbyGSClut + 32*(tex0.csa&15) + (tex0.csa >= 16 ? 2 : 0)));
-				else // sse2 for 256 is more complicated, so use regular
-					WriteCLUT_T16_I8_CSM1_c((u32*)(g_pbyGSMemory + 256 * tex0.cbp), (u32*)(g_pbyGSClut + 32*(tex0.csa&15) + (tex0.csa >= 16 ? 2 : 0)));
-				break;
+				default:
+					WriteCLUT_T16_I4_CSM1(src, (u32*)(g_pbyGSClut + 32*(tex0.csa & 15) + (tex0.csa >= 16 ? 2 : 0)));
+					break;
+			}
+		}
+		else
+		{
+			switch (tex0.cpsm)
+			{
+				case PSMCT24:
+				case PSMCT32:
+					WriteCLUT_T32_I8_CSM1(src, (u32*)(g_pbyGSClut + 64 * tex0.csa));
+					break;
+
+				default:
+					// sse2 for 256 is more complicated, so use regular
+					WriteCLUT_T16_I8_CSM1_c(src, (u32*)(g_pbyGSClut + 32*(tex0.csa & 15) + (tex0.csa >= 16 ? 2 : 0)));
+					break;
+			}
+
 		}
 	}
 }

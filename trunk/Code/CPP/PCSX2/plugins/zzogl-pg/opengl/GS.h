@@ -1,5 +1,6 @@
-/*  ZeroGS KOSMOS
- *  Copyright (C) 2005-2006 zerofrog@gmail.com
+/*  ZZ Open GL graphics plugin
+ *  Copyright (c)2009-2010 zeydlitz@gmail.com, arcum42@gmail.com
+ *  Based on Zerofrog's ZeroGS KOSMOS (c)2005-2008
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -13,11 +14,14 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
 #ifndef __GS_H__
 #define __GS_H__
+
+
+#define USE_OLD_REGS
 
 #include "Util.h"
 #include "GifTransfer.h"
@@ -254,6 +258,7 @@ extern u8* g_pBasePS2Mem;
 
 // PS2 vertex
 
+
 struct VertexGPU
 {
 	// gained from XYZ2, XYZ3, XYZF2, XYZF3,
@@ -282,9 +287,7 @@ struct Vertex
 	u16 u, v;
 };
 
-extern int g_GameSettings;
 extern GSconf conf;
-extern int ppf;
 
 // PSM values
 // PSM types == Texture Storage Format
@@ -558,7 +561,12 @@ typedef struct
 	int sy;
 	int dx;
 	int dy;
+#ifdef USE_OLD_REGS
 	int dir;
+#else
+	int diry;
+	int dirx;
+#endif
 } trxposInfo;
 
 typedef struct 
@@ -627,8 +635,34 @@ typedef struct
 	int imageTransfer;
 	int imageWnew, imageHnew, imageX, imageY, imageEndX, imageEndY;
 
-	pathInfo path[3];
-
+	pathInfo path[4];
+	GIFRegDIMX dimx;
+	void setRGBA(u32 r, u32 g, u32 b, u32 a)
+	{
+		rgba = (r & 0xff) |
+			  ((g & 0xff) <<  8) |
+			  ((b & 0xff) << 16) |
+			  ((a & 0xff) << 24);
+	}
+	
+	void add_vertex(u16 x, u16 y, u32 z, u16 f)
+	{
+		vertexregs.x = x;
+		vertexregs.y = y;
+		vertexregs.z = z;
+		vertexregs.f = f;
+		gsvertex[primIndex] = vertexregs;
+		primIndex = (primIndex + 1) % ARRAY_SIZE(gsvertex);
+	}
+	
+	void add_vertex(u16 x, u16 y, u32 z)
+	{
+		vertexregs.x = x;
+		vertexregs.y = y;
+		vertexregs.z = z;
+		gsvertex[primIndex] = vertexregs;
+		primIndex = (primIndex + 1) % ARRAY_SIZE(gsvertex);
+	}
 } GSinternal;
 
 extern GSinternal gs;
@@ -976,19 +1010,19 @@ inline u32 ZZOglGet_fbmHighByte(u32 data)
 
 //-------------------------- tex0 comparison
 // Check if old and new tex0 registers have only clut difference
-inline bool ZZOglAllExceptClutIsSame(u32* oldtex, u32* newtex)
+inline bool ZZOglAllExceptClutIsSame(const u32* oldtex, const u32* newtex)
 {
 	return ((oldtex[0] == newtex[0]) && ((oldtex[1] & 0x1f) == (newtex[1] & 0x1f)));
 }
 
 // Check if the CLUT registers are same, except CLD
-inline bool ZZOglClutMinusCLDunchanged(u32* oldtex, u32* newtex)
+inline bool ZZOglClutMinusCLDunchanged(const u32* oldtex, const u32* newtex)
 {
 	return ((oldtex[1] & 0x1fffffe0) == (newtex[1] & 0x1fffffe0));
 }
 
 // Check if CLUT storage mode is not changed (CSA, CSM and CSPM)
-inline bool ZZOglClutStorageUnchanged(u32* oldtex, u32* newtex)
+inline bool ZZOglClutStorageUnchanged(const u32* oldtex, const u32* newtex)
 {
 	return ((oldtex[1] & 0x1ff10000) == (newtex[1] & 0x1ff10000));
 }

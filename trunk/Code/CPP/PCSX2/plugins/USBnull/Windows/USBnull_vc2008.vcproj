@@ -110,7 +110,6 @@
 			/>
 			<Tool
 				Name="VCResourceCompilerTool"
-				Culture="0"
 			/>
 			<Tool
 				Name="VCPreLinkEventTool"

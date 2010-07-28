@@ -1,5 +1,6 @@
-/*  ZeroGS KOSMOS
- *  Copyright (C) 2005-2006 zerofrog@gmail.com
+/*  ZZ Open GL graphics plugin
+ *  Copyright (c)2009-2010 zeydlitz@gmail.com, arcum42@gmail.com
+ *  Based on Zerofrog's ZeroGS KOSMOS (c)2005-2008
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -13,19 +14,14 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
 #include "GS.h"
 #include <Cg/cg.h>
 #include <Cg/cgGL.h>
 
-#include <stdio.h>
-
-#include <malloc.h>
-#include <assert.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include "Mem.h"
 #include "x86.h"
@@ -35,22 +31,15 @@
 #define RHA
 //#define RW
 
-extern int g_GameSettings;
-
 using namespace ZeroGS;
 extern int g_TransferredToGPU;
-extern bool g_bIsLost;
+//extern bool g_bIsLost;
 extern bool g_bUpdateStencil;
-extern u32 s_uFramebuffer;
 
 #if !defined(ZEROGS_DEVBUILD)
 #	define INC_RESOLVE()
 #else
 #	define INC_RESOLVE() ++g_nResolve
-#endif
-
-#ifdef DEVBUILD
-//static int g_bSaveResolved = 0;
 #endif
 
 extern int s_nResolved;
@@ -64,29 +53,30 @@ CBitwiseTextureMngr s_BitwiseTextures;
 CMemoryTargetMngr g_MemTargs;
 }
 
-extern u32 s_ptexCurSet[2];
-extern u32 ptexBilinearBlocks;
-extern u32 ptexConv32to16;
+//extern u32 s_ptexCurSet[2];
 bool g_bSaveZUpdate = 0;
 
-// ------------------------- Usefull inlines ------------------------------------
+int VALIDATE_THRESH = 8;
+u32 TEXDESTROY_THRESH = 16;
 
-// memory size for one row of texture. It's depends of windth of texture and number of bytes
+// ------------------------- Useful inlines ------------------------------------
+
+// memory size for one row of texture. It depends on width of texture and number of bytes
 // per pixel
 inline u32 Pitch(int fbw) { return (RW(fbw) * (GetRenderFormat() == RFT_float16 ? 8 : 4)) ; }
 
 // memory size of whole texture. It is number of rows multiplied by memory size of row
 inline u32 Tex_Memory_Size(int fbw, int fbh) { return (RH(fbh) * Pitch(fbw)); }
 
-// Oftenly called for several reasons
-// Call flush if renderer or depther target is equal to ptr
+// Often called for several reasons
+// Call flush if renderer or depth target is equal to ptr
 inline void FlushIfNecesary(void* ptr)
 {
 	if (vb[0].prndr == ptr || vb[0].pdepth == ptr) Flush(0);
 	if (vb[1].prndr == ptr || vb[1].pdepth == ptr) Flush(1);
 }
 
-// This block was repreaded several times, so I inlined it.
+// This block was repeated several times, so I inlined it.
 inline void DestroyAllTargetsHelper(void* ptr)
 {
 	for (int i = 0; i < 2; ++i)
@@ -96,30 +86,30 @@ inline void DestroyAllTargetsHelper(void* ptr)
 	}
 }
 
-// Made an empty rexture and bind it to $ptr_p
-// return false if creating texture was uncuccessfull
-// fbh and fdb should be properly shifter before calling this!.
-// We should ignore framebuffer trouble here, we put textures of dufferent sized to it.
+// Made an empty texture and bind it to $ptr_p
+// returns false if creating texture was unsuccessful
+// fbh and fdb should be properly shifted before calling this!
+// We should ignore framebuffer trouble here, as we put textures of different sizes to it.
 inline bool ZeroGS::CRenderTarget::InitialiseDefaultTexture(u32 *ptr_p, int fbw, int fbh)
 {
 	glGenTextures(1, ptr_p);
 	glBindTexture(GL_TEXTURE_RECTANGLE_NV, *ptr_p);
+	
 	// initialize to default
-	glTexImage2D(GL_TEXTURE_RECTANGLE_NV, 0, GetRenderTargetFormat(), fbw, fbh, 0, GL_RGBA, GetRenderFormat() == RFT_float16 ? GL_FLOAT : GL_UNSIGNED_BYTE, NULL);
-
-	glTexParameteri(GL_TEXTURE_RECTANGLE_NV, GL_TEXTURE_WRAP_S, GL_CLAMP);
-	glTexParameteri(GL_TEXTURE_RECTANGLE_NV, GL_TEXTURE_WRAP_T, GL_CLAMP);
-	glTexParameteri(GL_TEXTURE_RECTANGLE_NV, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_RECTANGLE_NV, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	GLenum texType = (GetRenderFormat() == RFT_float16) ? GL_FLOAT : GL_UNSIGNED_BYTE;
+	TextureRect(GetRenderTargetFormat(), fbw, fbh, GL_RGBA, texType, NULL);
+		
+	setRectWrap(GL_CLAMP);
+	setRectFilters(GL_LINEAR);
 
 	GLenum Error = glGetError();
 	return ((Error == GL_NO_ERROR) || (Error == GL_INVALID_FRAMEBUFFER_OPERATION_EXT));
 }
 
-// Draw 4 triangles from binded array using only stenclil buffer
+// Draw 4 triangles from binded array using only stencil buffer
 inline void FillOnlyStencilBuffer()
 {
-	if (ZeroGS::IsWriteDestAlphaTest() && !(g_GameSettings&GAME_NOSTENCIL))
+	if (ZeroGS::IsWriteDestAlphaTest() && !(conf.settings().no_stencil))
 	{
 		glColorMask(0, 0, 0, 0);
 		glEnable(GL_ALPHA_TEST);
@@ -127,8 +117,8 @@ inline void FillOnlyStencilBuffer()
 
 		glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 		glStencilFunc(GL_ALWAYS, 1, 0xff);
-
-		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		
+		DrawTriangleArray();
 		glColorMask(1, 1, 1, 1);
 	}
 }
@@ -157,8 +147,7 @@ inline Vector ZeroGS::CRenderTarget::DefaultBitBltTex()
 inline void BindToSample(u32 *p_ptr)
 {
 	glBindTexture(GL_TEXTURE_RECTANGLE_NV, *p_ptr);
-	glTexParameteri(GL_TEXTURE_RECTANGLE_NV, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_RECTANGLE_NV, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	setRectFilters(GL_NEAREST);
 }
 
 ////////////////////
@@ -257,6 +246,7 @@ void ZeroGS::CRenderTarget::SetTarget(int fbplocal, const Rect2& scissor, int co
 	}
 
 	// set render states
+	// Bleh. I *really* need to fix this. << 3 when setting the scissors, then >> 3 when using them... --Arcum42
 	scissorrect.x = scissor.x0 >> 3;
 	scissorrect.y = (scissor.y0 >> 3) + dy;
 	scissorrect.w = (scissor.x1 >> 3) + 1;
@@ -279,7 +269,7 @@ void ZeroGS::CRenderTarget::SetViewport()
 
 inline bool NotResolveHelper()
 {
-	return ((s_nResolved > 8 && (2 * s_nResolved > fFPS - 10)) || (g_GameSettings&GAME_NOTARGETRESOLVE));
+	return ((s_nResolved > 8 && (2 * s_nResolved > fFPS - 10)) || (conf.settings().no_target_resolve));
 }
 
 void ZeroGS::CRenderTarget::Resolve()
@@ -309,7 +299,7 @@ void ZeroGS::CRenderTarget::Resolve()
 
 		GL_REPORT_ERRORD();
 
-#if defined(DEVBUILD)
+#if defined(ZEROGS_DEVBUILD)
 
 		if (g_bSaveResolved)
 		{
@@ -335,14 +325,14 @@ void ZeroGS::CRenderTarget::Resolve(int startrange, int endrange)
 		// flush if necessary
 		FlushIfNecesary(this) ;
 
-#if defined(DEVBUILD)
+#if defined(ZEROGS_DEVBUILD)
 		if (g_bSaveResolved)
 		{
 			SaveTexture("resolved.tga", GL_TEXTURE_RECTANGLE_NV, ptex, RW(fbw), RH(fbh));
 			g_bSaveResolved = 0;
 		}
 #endif
-		if (g_GameSettings&GAME_NOTARGETRESOLVE)
+		if (conf.settings().no_target_resolve)
 		{
 			status = TS_Resolved;
 			return;
@@ -430,13 +420,13 @@ void ZeroGS::CRenderTarget::Update(int context, ZeroGS::CRenderTarget* pdepth)
 				nUpdateTarg = 0;
 			else if (ittarg->second == this)
 			{
-				ZZLog::Error_Log("Updating self.");
+				ZZLog::Debug_Log("Updating self.");
 				nUpdateTarg = 0;
 			}
 		}
 		else if (ittarg->second == this)
 		{
-			ZZLog::Error_Log("Updating self.");
+			ZZLog::Debug_Log("Updating self.");
 			nUpdateTarg = 0;
 		}
 	}
@@ -445,7 +435,6 @@ void ZeroGS::CRenderTarget::Update(int context, ZeroGS::CRenderTarget* pdepth)
 
 	if (nUpdateTarg)
 	{
-
 		cgGLSetTextureParameter(ppsBaseTexture.sFinal, ittarg->second->ptex);
 		cgGLEnableTextureParameter(ppsBaseTexture.sFinal);
 
@@ -497,7 +486,7 @@ void ZeroGS::CRenderTarget::Update(int context, ZeroGS::CRenderTarget* pdepth)
 
 		assert(ptex != 0);
 
-		if (conf.options & GSOPTION_WIREFRAME) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		if (conf.wireframe()) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 		if (ZeroGS::IsWriteDestAlphaTest())
 		{
@@ -514,13 +503,13 @@ void ZeroGS::CRenderTarget::Update(int context, ZeroGS::CRenderTarget* pdepth)
 
 	SETVERTEXSHADER(pvsBitBlt.prog);
 
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
+	DrawTriangleArray();
+	
 	// fill stencil buf only
 	FillOnlyStencilBuffer();
 	glEnable(GL_SCISSOR_TEST);
 
-	if (conf.options & GSOPTION_WIREFRAME) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	if (conf.wireframe()) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	if (conf.mrtdepth && pdepth != NULL && ZeroGS::IsWriteDepth()) pdepth->SetRenderTarget(1);
 
 	status = TS_Resolved;
@@ -578,9 +567,8 @@ void ZeroGS::CRenderTarget::ConvertTo32()
 	SET_STREAM();
 
 	// assume depth already set !?
-	glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_RECTANGLE_NV, ptexConv, 0);
+	FBTexture(0, ptexConv);
 	ZeroGS::ResetRenderTarget(1);
-	GL_REPORT_ERRORD();
 
 	BindToSample(&ptex) ;
 
@@ -590,15 +578,14 @@ void ZeroGS::CRenderTarget::ConvertTo32()
 	fbh /= 2; // have 16 bit surfaces are usually 2x higher
 	SetViewport();
 
-	if (conf.options & GSOPTION_WIREFRAME) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	if (conf.wireframe()) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 	// render with an AA shader if possible (bilinearly interpolates data)
 	SETVERTEXSHADER(pvsBitBlt.prog);
 
 	SETPIXELSHADER(ppsConvert16to32.prog);
-
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
+	DrawTriangleArray();
+	
 #ifdef _DEBUG
 	if (g_bSaveZUpdate)
 	{
@@ -620,7 +607,7 @@ void ZeroGS::CRenderTarget::ConvertTo32()
 	ptex = ptexConv;
 
 	// no need to free psys since the render target is getting shrunk
-	if (conf.options & GSOPTION_WIREFRAME) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	if (conf.wireframe()) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 	// reset textures
 	BindToSample(&ptex) ;
@@ -685,8 +672,7 @@ void ZeroGS::CRenderTarget::ConvertTo16()
 	SET_STREAM();
 
 	// assume depth already set !?
-	// assume depth already set !?
-	glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_RECTANGLE_NV, ptexConv, 0);
+	FBTexture(0, ptexConv);
 	ZeroGS::ResetRenderTarget(1);
 	GL_REPORT_ERRORD();
 
@@ -699,15 +685,14 @@ void ZeroGS::CRenderTarget::ConvertTo16()
 
 	SetViewport();
 
-	if (conf.options & GSOPTION_WIREFRAME) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	if (conf.wireframe()) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 	// render with an AA shader if possible (bilinearly interpolates data)
 	SETVERTEXSHADER(pvsBitBlt.prog);
 
 	SETPIXELSHADER(ppsConvert32to16.prog);
-
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
+	DrawTriangleArray();
+	
 #ifdef _DEBUG
 	//g_bSaveZUpdate = 1;
 	if (g_bSaveZUpdate)
@@ -731,7 +716,7 @@ void ZeroGS::CRenderTarget::ConvertTo16()
 
 	psys = _aligned_malloc(Tex_Memory_Size(fbw, fbh), 16);
 
-	if (conf.options & GSOPTION_WIREFRAME) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	if (conf.wireframe()) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 	// reset textures
 	BindToSample(&ptex) ;
@@ -794,7 +779,7 @@ void ZeroGS::CRenderTarget::_CreateFeedback()
 	glBindBuffer(GL_ARRAY_BUFFER, vboRect);
 	SET_STREAM();
 
-	glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_RECTANGLE_NV, ptexFeedback, 0);
+	FBTexture(0, ptexFeedback);
 	glBindTexture(GL_TEXTURE_RECTANGLE_NV, ptex);
 	GL_REPORT_ERRORD();
 
@@ -803,18 +788,17 @@ void ZeroGS::CRenderTarget::_CreateFeedback()
 
 	SetViewport();
 
-	if (conf.options & GSOPTION_WIREFRAME) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	if (conf.wireframe()) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 	// render with an AA shader if possible (bilinearly interpolates data)
 	SETVERTEXSHADER(pvsBitBlt.prog);
 	SETPIXELSHADER(ppsBaseTexture.prog);
-
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
+	DrawTriangleArray();
+	
 	// restore
 	swap(ptex, ptexFeedback);
 
-	if (conf.options & GSOPTION_WIREFRAME) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	if (conf.wireframe()) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 	glEnable(GL_SCISSOR_TEST);
 
@@ -833,8 +817,8 @@ void ZeroGS::CRenderTarget::_CreateFeedback()
 void ZeroGS::CRenderTarget::SetRenderTarget(int targ)
 {
 	FUNCLOG
-
-	glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT + targ, GL_TEXTURE_RECTANGLE_NV, ptex, 0);
+	
+	FBTexture(targ, ptex);
 
 	//GL_REPORT_ERRORD();
 	//if (glCheckFramebufferStatusEXT(GL_FRAMEBUFFER_EXT) != GL_FRAMEBUFFER_COMPLETE_EXT)
@@ -854,8 +838,7 @@ bool ZeroGS::CDepthTarget::Create(const frameInfo& frame)
 {
 	FUNCLOG
 
-	if (!CRenderTarget::Create(frame))
-		return false;
+	if (!CRenderTarget::Create(frame)) return false;
 
 	GL_REPORT_ERROR();
 
@@ -903,8 +886,8 @@ void ZeroGS::CDepthTarget::Destroy()
 	if (status)     // In this case Framebuffer extension is off-use and lead to segfault
 	{
 		ResetRenderTarget(1);
-		glFramebufferRenderbufferEXT(GL_FRAMEBUFFER_EXT, GL_DEPTH_ATTACHMENT_EXT, GL_RENDERBUFFER_EXT, 0);
-		glFramebufferRenderbufferEXT(GL_FRAMEBUFFER_EXT, GL_STENCIL_ATTACHMENT_EXT, GL_RENDERBUFFER_EXT, 0);
+		TextureRect(GL_DEPTH_ATTACHMENT_EXT);
+		TextureRect(GL_STENCIL_ATTACHMENT_EXT);
 		GL_REPORT_ERRORD();
 
 		if (pstencil != 0)
@@ -932,7 +915,7 @@ void ZeroGS::CDepthTarget::Resolve()
 {
 	FUNCLOG
 
-	if (g_nDepthUsed > 0 && conf.mrtdepth && !(status&TS_Virtual) && ZeroGS::IsWriteDepth() && !(g_GameSettings&GAME_NODEPTHRESOLVE))
+	if (g_nDepthUsed > 0 && conf.mrtdepth && !(status&TS_Virtual) && ZeroGS::IsWriteDepth() && !(conf.settings().no_depth_resolve))
 		CRenderTarget::Resolve();
 	else
 	{
@@ -970,8 +953,6 @@ void ZeroGS::CDepthTarget::Resolve(int startrange, int endrange)
 		ZeroGS::SetWriteDepth();
 	}
 }
-
-extern int g_nDepthUpdateCount;
 
 void ZeroGS::CDepthTarget::Update(int context, ZeroGS::CRenderTarget* prndr)
 {
@@ -1011,9 +992,9 @@ void ZeroGS::CDepthTarget::Update(int context, ZeroGS::CRenderTarget* prndr)
 	cgGLSetTextureParameter(ppsBitBltDepth.sMemory, pmemtarg->ptex->tex);
 	cgGLEnableTextureParameter(ppsBaseTexture.sFinal);
 
-	Vector v = DefaultBitBltPos() ;
+	Vector v = DefaultBitBltPos();
 
-	v = DefaultBitBltTex() ;
+	v = DefaultBitBltTex();
 
 	v.x = 1;
 	v.y = 2;
@@ -1037,20 +1018,24 @@ void ZeroGS::CDepthTarget::Update(int context, ZeroGS::CRenderTarget* prndr)
 	ZZcgSetParameter4fv(ppsBitBltDepth.sBitBltZ, ((255.0f / 256.0f)*vdepth), "g_fBitBltZ");
 
 	assert(pdepth != 0);
+	//GLint w1 = 0;
+	//GLint h1 = 0;
 
 	glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_RECTANGLE_NV, ptex, 0);
+	//glGetRenderbufferParameterivEXT(GL_RENDERBUFFER_EXT, GL_RENDERBUFFER_WIDTH_EXT, &w1);
+	//glGetRenderbufferParameterivEXT(GL_RENDERBUFFER_EXT, GL_RENDERBUFFER_HEIGHT_EXT, &h1);
 	SetDepthStencilSurface();
 	
-	glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT1_EXT, GL_TEXTURE_RECTANGLE_NV, 0, 0);
+	FBTexture(1);
+	
 	GLenum buffer = GL_COLOR_ATTACHMENT0_EXT;
 	
-	if (glDrawBuffers != NULL) glDrawBuffers(1, &buffer);
-
-	GL_REPORT_ERRORD();
+	//ZZLog::Error_Log("CDepthTarget::Update: w1 = 0x%x; h1 = 0x%x", w1, h1);
+	DrawBuffers(&buffer);
 
 	SetViewport();
 
-	if (conf.options & GSOPTION_WIREFRAME) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	if (conf.wireframe()) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 	glBindBuffer(GL_ARRAY_BUFFER, vboRect);
 
@@ -1058,7 +1043,7 @@ void ZeroGS::CDepthTarget::Update(int context, ZeroGS::CRenderTarget* prndr)
 	SETVERTEXSHADER(pvsBitBlt.prog);
 	SETPIXELSHADER(ppsBitBltDepth.prog);
 
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	DrawTriangleArray();
 
 	status = TS_Resolved;
 
@@ -1067,7 +1052,7 @@ void ZeroGS::CDepthTarget::Update(int context, ZeroGS::CRenderTarget* prndr)
 		ResetRenderTarget(1);
 	}
 
-	if (conf.options & GSOPTION_WIREFRAME) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	if (conf.wireframe()) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 	glEnable(GL_SCISSOR_TEST);
 
@@ -1083,12 +1068,12 @@ void ZeroGS::CDepthTarget::Update(int context, ZeroGS::CRenderTarget* prndr)
 void ZeroGS::CDepthTarget::SetDepthStencilSurface()
 {
 	FUNCLOG
-	glFramebufferRenderbufferEXT(GL_FRAMEBUFFER_EXT, GL_DEPTH_ATTACHMENT_EXT, GL_RENDERBUFFER_EXT, pdepth);
+	TextureRect(GL_DEPTH_ATTACHMENT_EXT, pdepth);
 
 	if (pstencil)
 	{
 		// there's a bug with attaching stencil and depth buffers
-		glFramebufferRenderbufferEXT(GL_FRAMEBUFFER_EXT, GL_STENCIL_ATTACHMENT_EXT, GL_RENDERBUFFER_EXT, pstencil);
+		TextureRect(GL_STENCIL_ATTACHMENT_EXT, pstencil);
 
 		if (icount++ < 8)    // not going to fail if succeeded 4 times
 		{
@@ -1096,20 +1081,18 @@ void ZeroGS::CDepthTarget::SetDepthStencilSurface()
 			
 			if (glCheckFramebufferStatusEXT(GL_FRAMEBUFFER_EXT) != GL_FRAMEBUFFER_COMPLETE_EXT)
 			{
-				glFramebufferRenderbufferEXT(GL_FRAMEBUFFER_EXT, GL_STENCIL_ATTACHMENT_EXT, GL_RENDERBUFFER_EXT, 0);
+				TextureRect(GL_STENCIL_ATTACHMENT_EXT);
 
-				if (pstencil != pdepth)
-					glDeleteRenderbuffersEXT(1, &pstencil);
+				if (pstencil != pdepth) glDeleteRenderbuffersEXT(1, &pstencil);
 
 				pstencil = 0;
-
 				g_bUpdateStencil = 0;
 			}
 		}
 	}
 	else
 	{
-		glFramebufferRenderbufferEXT(GL_FRAMEBUFFER_EXT, GL_STENCIL_ATTACHMENT_EXT, GL_RENDERBUFFER_EXT, 0);
+		TextureRect(GL_STENCIL_ATTACHMENT_EXT);
 	}
 }
 
@@ -1211,7 +1194,7 @@ void ZeroGS::CRenderTargetMngr::DestroyIntersecting(CRenderTarget* prndr)
 
 	for (MAPTARGETS::iterator it = mapTargets.begin(); it != mapTargets.end();)
 	{
-		if (it->second != prndr && it->second->start < end && start < it->second->end)
+		if ((it->second != prndr) && (it->second->start < end) && (start < it->second->end))
 		{
 			it->second->Resolve();
 			DestroyAllTargetsHelper(it->second) ;
@@ -1281,7 +1264,7 @@ CRenderTarget* ZeroGS::CRenderTargetMngr::GetTarg(const frameInfo& frame, u32 op
 		{
 			bfound = it->second->fbh == frame.fbh;
 
-			if ((g_GameSettings&GAME_PARTIALDEPTH) && !bfound)
+			if ((conf.settings().partial_depth) && !bfound)
 			{
 				MAPTARGETS::iterator itnew = mapTargets.find(key + 1);
 
@@ -1300,8 +1283,8 @@ CRenderTarget* ZeroGS::CRenderTargetMngr::GetTarg(const frameInfo& frame, u32 op
 		}
 		else
 		{
-			if (PSMT_ISHALF(frame.psm) == PSMT_ISHALF(it->second->psm) && !(g_GameSettings & GAME_FULL16BITRES))
-				bfound = (frame.fbh > 0x1c0 || it->second->fbh >= frame.fbh) && it->second->fbh <= maxposheight;
+			if (PSMT_ISHALF(frame.psm) == PSMT_ISHALF(it->second->psm) && !(conf.settings().full_16_bit_res))
+				bfound = ((frame.fbh > 0x1c0) || (it->second->fbh >= frame.fbh)) && (it->second->fbh <= maxposheight);
 		}
 	}
 
@@ -1312,7 +1295,7 @@ CRenderTarget* ZeroGS::CRenderTargetMngr::GetTarg(const frameInfo& frame, u32 op
 		bfound = it != mapTargets.end() && ((opts & TO_StrictHeight) ? it->second->fbh == frame.fbh : it->second->fbh >= frame.fbh) && it->second->fbh <= maxposheight;
 	}
 
-	if (bfound && PSMT_ISHALF(frame.psm) && PSMT_ISHALF(it->second->psm) && (g_GameSettings&GAME_FULL16BITRES))
+	if (bfound && PSMT_ISHALF(frame.psm) && PSMT_ISHALF(it->second->psm) && (conf.settings().full_16_bit_res))
 	{
 		// mgs3
 		if (frame.fbh > it->second->fbh)
@@ -1323,7 +1306,6 @@ CRenderTarget* ZeroGS::CRenderTargetMngr::GetTarg(const frameInfo& frame, u32 op
 
 	if (bfound)
 	{
-
 		// can be both 16bit and 32bit
 		if (PSMT_ISHALF(frame.psm) != PSMT_ISHALF(it->second->psm))
 		{
@@ -1334,7 +1316,7 @@ CRenderTarget* ZeroGS::CRenderTargetMngr::GetTarg(const frameInfo& frame, u32 op
 
 			if (!(opts & TO_StrictHeight))
 			{
-				if ((g_GameSettings & GAME_VSSHACKOFF))
+				if ((conf.settings().vss_hack_off))
 				{
 					if (PSMT_ISHALF(it->second->psm))
 					{
@@ -1384,7 +1366,7 @@ CRenderTarget* ZeroGS::CRenderTargetMngr::GetTarg(const frameInfo& frame, u32 op
 
 		// check if there exists a more recent target that this target could update from
 		// only update if target isn't mirrored
-		bool bCheckHalfCovering = (g_GameSettings & GAME_FULL16BITRES) && PSMT_ISHALF(it->second->psm) && it->second->fbh + 32 < frame.fbh;
+		bool bCheckHalfCovering = (conf.settings().full_16_bit_res) && PSMT_ISHALF(it->second->psm) && it->second->fbh + 32 < frame.fbh;
 
 		for (MAPTARGETS::iterator itnew = mapTargets.begin(); itnew != mapTargets.end(); ++itnew)
 		{
@@ -1431,7 +1413,6 @@ CRenderTarget* ZeroGS::CRenderTargetMngr::GetTarg(const frameInfo& frame, u32 op
 		GetRectMemAddress(start, end, frame.psm, 0, 0, frame.fbw, frame.fbh, frame.fbp, frame.fbw);
 		CRenderTarget* pbesttarg = NULL;
 
-
 		if (besttarg == 0)
 		{
 			// if there is only one intersecting target and it encompasses the current one, update the new render target with
@@ -1440,10 +1421,10 @@ CRenderTarget* ZeroGS::CRenderTargetMngr::GetTarg(const frameInfo& frame, u32 op
 			{
 				if (it->second->start < end && start < it->second->end)
 				{
-					if ((g_GameSettings&GAME_FASTUPDATE) ||
+					if ((conf.settings().fast_update) ||
 							((frame.fbw == it->second->fbw) &&
 							 // check depth targets only if partialdepth option
-							 ((it->second->fbp != frame.fbp) || ((g_GameSettings & GAME_PARTIALDEPTH) && (opts & CRenderTargetMngr::TO_DepthBuffer)))))
+							 ((it->second->fbp != frame.fbp) || ((conf.settings().partial_depth) && (opts & CRenderTargetMngr::TO_DepthBuffer)))))
 					{
 						if (besttarg != 0)
 						{
@@ -1490,8 +1471,9 @@ CRenderTarget* ZeroGS::CRenderTargetMngr::GetTarg(const frameInfo& frame, u32 op
 
 		// if more than 5s passed since target used, destroy
 
-		if (it->second != vb[0].prndr && it->second != vb[1].prndr && it->second != vb[0].pdepth && it->second != vb[1].pdepth &&
-				timeGetTime() - it->second->lastused > 5000)
+		if ((it->second != vb[0].prndr) && (it->second != vb[1].prndr) && 
+			(it->second != vb[0].pdepth) && (it->second != vb[1].pdepth) &&
+				((timeGetTime() - it->second->lastused) > 5000))
 		{
 			delete it->second;
 			mapTargets.erase(it);
@@ -1541,7 +1523,6 @@ CRenderTarget* ZeroGS::CRenderTargetMngr::GetTarg(const frameInfo& frame, u32 op
 
 			while (!ptarg->Create(frame))
 			{
-
 				// destroy unused targets
 				if (mapDummyTargs.size() > 0)
 				{
@@ -1626,13 +1607,11 @@ ZeroGS::CRenderTargetMngr::MAPTARGETS::iterator ZeroGS::CRenderTargetMngr::GetOl
 	}
 
 	// release some resources
-	u32 curtime = timeGetTime();
-
 	MAPTARGETS::iterator itmaxtarg = m.begin();
 
 	for (MAPTARGETS::iterator it = ++m.begin(); it != m.end(); ++it)
 	{
-		if (itmaxtarg->second->lastused - curtime < it->second->lastused - curtime) itmaxtarg = it;
+		if (itmaxtarg->second->lastused < it->second->lastused) itmaxtarg = it;
 	}
 
 	return itmaxtarg;
@@ -1644,7 +1623,7 @@ void ZeroGS::CRenderTargetMngr::GetTargs(int start, int end, list<ZeroGS::CRende
 
 	for (MAPTARGETS::const_iterator it = mapTargets.begin(); it != mapTargets.end(); ++it)
 	{
-		if (it->second->start < end && start < it->second->end) listTargets.push_back(it->second);
+		if ((it->second->start < end) && (start < it->second->end)) listTargets.push_back(it->second);
 	}
 }
 
@@ -1654,7 +1633,7 @@ void ZeroGS::CRenderTargetMngr::Resolve(int start, int end)
 
 	for (MAPTARGETS::const_iterator it = mapTargets.begin(); it != mapTargets.end(); ++it)
 	{
-		if (it->second->start < end && start < it->second->end)
+		if ((it->second->start < end) && (start < it->second->end))
 			it->second->Resolve();
 	}
 }
@@ -1672,9 +1651,12 @@ int memcmp_clut16(u16* pSavedBuffer, u16* pClutBuffer, int clutsize)
 	assert((clutsize&31) == 0);
 
 	// left > 0 only when csa < 16
-	int left = ((u32)(uptr)pClutBuffer & 2) ? 0 : (((u32)(uptr)pClutBuffer & 0x3ff) / 2) + clutsize - 512;
-
-	if (left > 0) clutsize -= left;
+	int left = 0;
+	if (((u32)(uptr)pClutBuffer & 2) == 0)
+	{
+		left = (((u32)(uptr)pClutBuffer & 0x3ff) / 2) + clutsize - 512;
+		clutsize -= left;
+	}
 
 	while (clutsize > 0)
 	{
@@ -1684,7 +1666,6 @@ int memcmp_clut16(u16* pSavedBuffer, u16* pClutBuffer, int clutsize)
 		}
 
 		clutsize -= 32;
-
 		pSavedBuffer += 16;
 		pClutBuffer += 32;
 	}
@@ -1715,8 +1696,7 @@ bool ZeroGS::CMemoryTarget::ValidateClut(const tex0Info& tex0)
 	FUNCLOG
 	assert(tex0.psm == psm && PSMT_ISCLUT(psm) && cpsm == tex0.cpsm);
 
-	int nClutOffset = 0;
-	int clutsize = 0;
+	int nClutOffset = 0, clutsize = 0;
 	int entries = PSMT_IS8CLUT(tex0.psm) ? 256 : 16;
 
 	if (PSMT_IS32BIT(tex0.cpsm))   // 32 bit
@@ -1744,15 +1724,11 @@ bool ZeroGS::CMemoryTarget::ValidateClut(const tex0Info& tex0)
 	return true;
 }
 
-int VALIDATE_THRESH = 8;
-u32 TEXDESTROY_THRESH = 16;
-
 bool ZeroGS::CMemoryTarget::ValidateTex(const tex0Info& tex0, int starttex, int endtex, bool bDeleteBadTex)
 {
 	FUNCLOG
 
-	if (clearmaxy == 0)
-		return true;
+	if (clearmaxy == 0) return true;
 
 	int checkstarty = max(starttex, clearminy);
 	int checkendy = min(endtex, clearmaxy);
@@ -1769,13 +1745,14 @@ bool ZeroGS::CMemoryTarget::ValidateTex(const tex0Info& tex0, int starttex, int 
 	assert(ptex != NULL && ptex->memptr != NULL);
 
 	int result = memcmp_mmx(ptex->memptr + (checkstarty - realy) * 4 * GPU_TEXWIDTH, g_pbyGSMemory + checkstarty * 4 * GPU_TEXWIDTH, (checkendy - checkstarty) * 4 * GPU_TEXWIDTH);
-
-	if (result == 0 || !bDeleteBadTex)
+	
+	if (result == 0)
 	{
-		if (result == 0) clearmaxy = 0;
-
-		return result == 0;
+		clearmaxy = 0;
+		return true;
 	}
+	
+	if (!bDeleteBadTex) return false;
 
 	// delete clearminy, clearmaxy range (not the checkstarty, checkendy range)
 	//int newstarty = 0;
@@ -1802,7 +1779,7 @@ bool ZeroGS::CMemoryTarget::ValidateTex(const tex0Info& tex0, int starttex, int 
 
 	clearmaxy = 0;
 
-	assert(starty >= realy && starty + height <= realy + realheight);
+	assert((starty >= realy) && ((starty + height) <= (realy + realheight)));
 
 	return false;
 }
@@ -2166,12 +2143,9 @@ ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::GetMemoryTarget(const tex0Info
 
 	if (PSMT_ISHALF_STORAGE(tex0)) fmt = GL_UNSIGNED_SHORT_1_5_5_5_REV;
 
-	int widthmult = 1;
+	int widthmult = 1, channels = 1;
 
 	if ((g_MaxTexHeight < 4096) && (end - start > g_MaxTexHeight)) widthmult = 2;
-
-	int channels = 1;
-
 	channels = NumberOfChannels(tex0.psm);
 
 	targ = MemoryTarget_ClearedTargetsSearch(fmt, widthmult, channels, end - start);
@@ -2251,9 +2225,11 @@ ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::GetMemoryTarget(const tex0Info
 
 #if defined(ZEROGS_DEVBUILD)
 	g_TransferredToGPU += GPU_TEXWIDTH * channels * 4 * targ->height;
-
 #endif
 
+	const int texH = (targ->realheight + widthmult - 1) / widthmult;
+	const int texW = GPU_TEXWIDTH * channels * widthmult;
+	
 	// fill with data
 	if (targ->ptex->memptr == NULL)
 	{
@@ -2268,7 +2244,7 @@ ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::GetMemoryTarget(const tex0Info
 
 	if (PSMT_ISCLUT(tex0.psm))
 	{
-		texdata.resize((tex0.cpsm <= 1 ? 4 : 2) *GPU_TEXWIDTH*channels*widthmult*(targ->realheight + widthmult - 1) / widthmult);
+		texdata.resize(((tex0.cpsm <= 1) ? 4 : 2) * texW * texH);
 		ptexdata = &texdata[0];
 
 		u8* psrc = (u8*)(g_pbyGSMemory + 4 * GPU_TEXWIDTH * targ->realy);
@@ -2292,7 +2268,7 @@ ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::GetMemoryTarget(const tex0Info
 	{
 		if (tex0.psm == PSMT16Z || tex0.psm == PSMT16SZ)
 		{
-			texdata.resize(4*GPU_TEXWIDTH*channels*widthmult*(targ->realheight + widthmult - 1) / widthmult
+			texdata.resize(4 * texW * texH
 #if defined(ZEROGS_SSE2)
 			+ 15 						// reserve additional elements for alignment if SSE2 used.
 										// better do it now, so less resizing would be needed
@@ -2311,11 +2287,13 @@ ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::GetMemoryTarget(const tex0Info
 			{
 				// This is not unusual situation, when vector<u8> does not 16bit alignment, that is destructive for SSE2
 				// instruction movdqa [%eax], xmm0
-				// The idea would be resise vector to 15 elements, that set ptxedata to aligned position.
+				// The idea would be resize vector to 15 elements, that set ptxedata to aligned position.
 				// Later we would move eax by 16, so only we should verify is first element align
 				// FIXME. As I see, texdata used only once here, it does not have any impact on other code.
 				// Probably, usage of _aligned_maloc() would be preferable.
-				int disalignment = 16 - ((u32)(uptr)dst) % 16 ;		// This is value of shift. It could be 0 < disalignment <= 15
+				
+				// Note: this often happens when changing AA.
+				int disalignment = 16 - ((u32)(uptr)dst) % 16;		// This is value of shift. It could be 0 < disalignment <= 15
 				ptexdata = &texdata[disalignment];			// Set pointer to aligned element
 				dst = (u16*)ptexdata;
 				ZZLog::GS_Log("Made alignment for texdata, 0x%x", dst);
@@ -2356,9 +2334,11 @@ ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::GetMemoryTarget(const tex0Info
 	if (targ->ptex->tex == 0) glGenTextures(1, &targ->ptex->tex);
 
 	glBindTexture(GL_TEXTURE_RECTANGLE_NV, targ->ptex->tex);
-
-	glTexImage2D(GL_TEXTURE_RECTANGLE_NV, 0, fmt == GL_UNSIGNED_BYTE ? 4 : GL_RGB5_A1, GPU_TEXWIDTH*channels*widthmult,
-				 (targ->realheight + widthmult - 1) / widthmult, 0, GL_RGBA, fmt, ptexdata);
+	
+	if (fmt == GL_UNSIGNED_BYTE)
+		TextureRect(4, texW, texH, GL_RGBA, fmt, ptexdata);
+	else
+		TextureRect(GL_RGB5_A1, texW, texH, GL_RGBA, fmt, ptexdata);
 
 	int realheight = targ->realheight;
 
@@ -2380,12 +2360,11 @@ ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::GetMemoryTarget(const tex0Info
 
 			DestroyOldest();
 		}
-
-		glTexImage2D(GL_TEXTURE_RECTANGLE_NV, 0, 4, GPU_TEXWIDTH*channels*widthmult, (targ->realheight + widthmult - 1) / widthmult, 0, GL_RGBA, fmt, ptexdata);
+		
+		TextureRect(4, texW, texH, GL_RGBA, fmt, ptexdata);
 	}
 
-	glTexParameteri(GL_TEXTURE_RECTANGLE_NV, GL_TEXTURE_WRAP_S, GL_CLAMP);
-	glTexParameteri(GL_TEXTURE_RECTANGLE_NV, GL_TEXTURE_WRAP_T, GL_CLAMP);
+	setRectWrap(GL_CLAMP);
 
 	assert(tex0.psm != 0xd);
 
@@ -2576,13 +2555,12 @@ u32 ZeroGS::CBitwiseTextureMngr::GetTexInt(u32 bitvalue, u32 ptexDoNotDelete)
 	glBindTexture(GL_TEXTURE_RECTANGLE_NV, ptex);
 	if (glGetError() != GL_NO_ERROR) ZZLog::Error_Log("Error on binding bitmask texture.");
 
-	glTexImage2D(GL_TEXTURE_RECTANGLE_NV, 0, GL_LUMINANCE16, GPU_TEXMASKWIDTH + 1, 1, 0, GL_LUMINANCE, GL_UNSIGNED_SHORT, &data[0]);
+	TextureRect(GL_LUMINANCE16, GPU_TEXMASKWIDTH + 1, 1, GL_LUMINANCE, GL_UNSIGNED_SHORT, &data[0]);
 	if (glGetError() != GL_NO_ERROR) ZZLog::Error_Log("Error on applying bitmask texture.");
 
 //	Removing clamping, as it seems lead to numerous troubles at some drivers
 //	Need to observe, may be clamping is not really needed.
-	/*glTexParameteri(GL_TEXTURE_RECTANGLE_NV, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_RECTANGLE_NV, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	/* setTexRectWrap(GL_REPEAT);
 
 	GLint Error = glGetError();
 	if( Error != GL_NO_ERROR ) {
@@ -2774,7 +2752,6 @@ namespace ZeroGS
 {
 
 CRangeManager s_RangeMngr; // manages overwritten memory
-static int gs_imageEnd = 0;
 
 void ResolveInRange(int start, int end)
 {
@@ -2785,8 +2762,7 @@ void ResolveInRange(int start, int end)
 
 	if (listTargs.size() > 0)
 	{
-		Flush(0);
-		Flush(1);
+		FlushBoth();
 
 		// We need another list, because old one could be brocken by Flush().
 		listTargs.clear();
@@ -2800,7 +2776,7 @@ void ResolveInRange(int start, int end)
 			if ((*it)->created == 123)
 				(*it)->Resolve();
 			else
-				ZZLog::Error_Log("Resolving non-existing object! Destroy code %d.", (*it)->created);
+				ZZLog::Debug_Log("Resolving non-existing object! Destroy code %d.", (*it)->created);
 		}
 	}
 }
@@ -2835,8 +2811,7 @@ void FlushTransferRanges(const tex0Info* ptex)
 				s_RTs.GetTargs(start, end, listTransmissionUpdateTargs);*/
 
 //	  if( !bHasFlushed && listTransmissionUpdateTargs.size() > 0 ) {
-//		  Flush(0);
-//		  Flush(1);
+//		  FlushBoth();
 //
 //#ifdef _DEBUG
 //		  // make sure targets are still the same
@@ -2872,7 +2847,7 @@ void FlushTransferRanges(const tex0Info* ptex)
 			{
 				// check if target is currently being used
 
-				if (!(g_GameSettings & GAME_NOQUICKRESOLVE))
+				if (!(conf.settings().no_quick_resolve))
 				{
 					if (ptarg->fbp != vb[0].gsfb.fbp)   //&& (vb[0].prndr == NULL || ptarg->fbp != vb[0].prndr->fbp) ) {
 					{
@@ -2883,7 +2858,7 @@ void FlushTransferRanges(const tex0Info* ptex)
 							// (ffx changing screens, shadowhearts)
 							// start == ptarg->start, used for kh to transfer text
 
-							if (ptarg->IsDepth() || end - start > 0x50000 || ((g_GameSettings&GAME_QUICKRESOLVE1) && start == ptarg->start))
+							if (ptarg->IsDepth() || end - start > 0x50000 || ((conf.settings().quick_resolve_1) && start == ptarg->start))
 								ptarg->status |= CRenderTarget::TS_NeedUpdate | CRenderTarget::TS_Resolved;
 
 							continue;
@@ -2925,7 +2900,7 @@ void FlushTransferRanges(const tex0Info* ptex)
 
 					// suikoden5 is faster with check, but too big of a value and kh screens mess up
 					/* Zeydlitz remove this check, it does not do anything good
-					if ((end - start > 0x8000) && (!(g_GameSettings & GAME_GUSTHACK) || (end-start > 0x40000))) {
+					if ((end - start > 0x8000) && (!(conf.settings() & GAME_GUSTHACK) || (end-start > 0x40000))) {
 						// intersects, do only one sided resolves
 						if( end-start > 4*ptarg->fbw ) { // at least it be greater than one scanline (spiro is faster)
 							if( start > ptarg->start ) {
@@ -2940,7 +2915,7 @@ void FlushTransferRanges(const tex0Info* ptex)
 
 					ptarg->status |= CRenderTarget::TS_Resolved;
 
-					if ((!ptarg->IsDepth() || (!(g_GameSettings & GAME_NODEPTHUPDATE) || end - start > 0x1000)) && ((end - start > 0x40000) || !(g_GameSettings & GAME_GUSTHACK)))
+					if ((!ptarg->IsDepth() || (!(conf.settings().no_depth_update) || end - start > 0x1000)) && ((end - start > 0x40000) || !(conf.settings().gust)))
 						ptarg->status |= CRenderTarget::TS_NeedUpdate;
 				}
 			}
@@ -2952,838 +2927,6 @@ void FlushTransferRanges(const tex0Info* ptex)
 	s_RangeMngr.Clear();
 }
 
-static vector<u8> s_vTempBuffer, s_vTransferCache;
-
-void InitTransferHostLocal()
-{
-	FUNCLOG
-
-	if (g_bIsLost)
-		return;
-
-#if defined(ZEROGS_DEVBUILD)
-	if (gs.trxpos.dx + gs.imageWnew > gs.dstbuf.bw)
-		ZZLog::Warn_Log("Transfer error, width exceeded.");
-
-#endif
-
-	//bool bHasFlushed = false;
-
-	gs.imageX = gs.trxpos.dx;
-	gs.imageY = gs.trxpos.dy;
-
-	gs.imageEndX = gs.imageX + gs.imageWnew;
-	gs.imageEndY = gs.imageY + gs.imageHnew;
-
-	assert(gs.imageEndX < 2048 && gs.imageEndY < 2048);
-
-	// hack! viewful joe
-	if (gs.dstbuf.psm == 63) gs.dstbuf.psm = 0;
-
-	int start, end;
-
-	GetRectMemAddress(start, end, gs.dstbuf.psm, gs.trxpos.dx, gs.trxpos.dy, gs.imageWnew, gs.imageHnew, gs.dstbuf.bp, gs.dstbuf.bw);
-
-	if (end > 0x00400000)
-	{
-		ZZLog::Warn_Log("Host local out of bounds!");
-		//gs.imageTransfer = -1;
-		end = 0x00400000;
-	}
-
-	gs_imageEnd = end;
-
-	if (vb[0].nCount > 0) Flush(0);
-	if (vb[1].nCount > 0) Flush(1);
-
-	//ZZLog::Prim_Log("trans: bp:%x x:%x y:%x w:%x h:%x\n", gs.dstbuf.bp, gs.trxpos.dx, gs.trxpos.dy, gs.imageWnew, gs.imageHnew);
-
-//  if( !bHasFlushed && (vb[0].bNeedFrameCheck || vb[0].bNeedZCheck || vb[1].bNeedFrameCheck || vb[1].bNeedZCheck)) {
-//	  Flush(0);
-//	  Flush(1);
-//	  bHasFlushed = 1;
-//  }
-//
-//  // for all ranges, flush the targets
-//  // check if new rect intersects with current rendering texture, if so, flush
-//  if( vb[0].nCount > 0 && vb[0].curprim.tme ) {
-//	  int tstart, tend;
-//	  GetRectMemAddress(tstart, tend, vb[0].tex0.psm, 0, 0, vb[0].tex0.tw, vb[0].tex0.th, vb[0].tex0.tbp0, vb[0].tex0.tbw);
-//
-//	  if( start < tend && end > tstart ) {
-//		  Flush(0);
-//		  Flush(1);
-//		  bHasFlushed = 1;
-//	  }
-//  }
-//
-//  if( !bHasFlushed && vb[1].nCount > 0 && vb[1].curprim.tme ) {
-//	  int tstart, tend;
-//	  GetRectMemAddress(tstart, tend, vb[1].tex0.psm, 0, 0, vb[1].tex0.tw, vb[1].tex0.th, vb[1].tex0.tbp0, vb[1].tex0.tbw);
-//
-//	  if( start < tend && end > tstart ) {
-//		  Flush(0);
-//		  Flush(1);
-//		  bHasFlushed = 1;
-//	  }
-//  }
-
-	//ZeroGS::g_MemTargs.ClearRange(start, end);
-	//s_RangeMngr.Insert(start, end);
-}
-
-void TransferHostLocal(const void* pbyMem, u32 nQWordSize)
-{
-	FUNCLOG
-
-	if (g_bIsLost) return;
-
-	int start, end;
-
-	GetRectMemAddress(start, end, gs.dstbuf.psm, gs.imageX, gs.imageY, gs.imageWnew, gs.imageHnew, gs.dstbuf.bp, gs.dstbuf.bw);
-
-	assert(start < gs_imageEnd);
-
-	end = gs_imageEnd;
-
-	// sometimes games can decompress to alpha channel of render target only, in this case
-	// do a resolve right away. wolverine x2
-	if ((gs.dstbuf.psm == PSMT8H || gs.dstbuf.psm == PSMT4HL || gs.dstbuf.psm == PSMT4HH) && !(g_GameSettings & GAME_GUSTHACK))
-	{
-		list<CRenderTarget*> listTransmissionUpdateTargs;
-		s_RTs.GetTargs(start, end, listTransmissionUpdateTargs);
-
-		for (list<CRenderTarget*>::iterator it = listTransmissionUpdateTargs.begin(); it != listTransmissionUpdateTargs.end(); ++it)
-		{
-			CRenderTarget* ptarg = *it;
-
-			if ((ptarg->status & CRenderTarget::TS_Virtual)) continue;
-
-			//ZZLog::Error_Log("Resolving to alpha channel.");
-			ptarg->Resolve();
-		}
-	}
-
-	s_RangeMngr.Insert(start, min(end, start + (int)nQWordSize*16));
-
-	const u8* porgend = (const u8*)pbyMem + 4 * nQWordSize;
-
-	if (s_vTransferCache.size() > 0)
-	{
-
-		int imagecache = s_vTransferCache.size();
-		s_vTempBuffer.resize(imagecache + nQWordSize*4);
-		memcpy(&s_vTempBuffer[0], &s_vTransferCache[0], imagecache);
-		memcpy(&s_vTempBuffer[imagecache], pbyMem, nQWordSize*4);
-
-		pbyMem = (const void*) & s_vTempBuffer[0];
-		porgend = &s_vTempBuffer[0] + s_vTempBuffer.size();
-
-		int wordinc = imagecache / 4;
-
-		if ((nQWordSize * 4 + imagecache) / 3 == ((nQWordSize + wordinc) * 4) / 3)
-		{
-			// can use the data
-			nQWordSize += wordinc;
-		}
-	}
-
-	int leftover = m_Blocks[gs.dstbuf.psm].TransferHostLocal(pbyMem, nQWordSize);
-
-	if (leftover > 0)
-	{
-		// copy the last gs.image24bitOffset to the cache
-		s_vTransferCache.resize(leftover);
-		memcpy(&s_vTransferCache[0], porgend - leftover, leftover);
-	}
-	else 
-	{
-		s_vTransferCache.resize(0);
-	}
-
-#if defined(_DEBUG)
-	if (g_bSaveTrans)
-	{
-		tex0Info t;
-		t.tbp0 = gs.dstbuf.bp;
-		t.tw = gs.imageWnew;
-		t.th = gs.imageHnew;
-		t.tbw = gs.dstbuf.bw;
-		t.psm = gs.dstbuf.psm;
-		SaveTex(&t, 0);
-	}
-
-#endif
-}
-
-#if 0
-// left/right, top/down
-//void TransferHostLocal(const void* pbyMem, u32 nQWordSize)
-//{
-//  assert( gs.imageTransfer == 0 );
-//  u8* pstart = g_pbyGSMemory + gs.dstbuf.bp*256;
-//
-//  const u8* pendbuf = (const u8*)pbyMem + nQWordSize*4;
-//  int i = gs.imageY, j = gs.imageX;
-//
-//#define DSTPSM gs.dstbuf.psm
-//
-//#define TRANSFERHOSTLOCAL(psm, T, widthlimit) { \
-//  const T* pbuf = (const T*)pbyMem; \
-//  u32 nSize = nQWordSize*(4/sizeof(T)); \
-//  assert( (nSize%widthlimit) == 0 && widthlimit <= 4 ); \
-//  if( ((gs.imageEndX-gs.trxpos.dx)%widthlimit) ) ZZLog::Error_Log("Bad Transmission! %d %d, psm: %d.", gs.trxpos.dx, gs.imageEndX, DSTPSM); \
-//  for(; i < gs.imageEndY; ++i) { \
-//	  for(; j < gs.imageEndX && nSize > 0; j += widthlimit, nSize -= widthlimit, pbuf += widthlimit) { \
-//		  /* write as many pixel at one time as possible */ \
-//		  writePixel##psm##_0(pstart, j%2048, i%2048, pbuf[0], gs.dstbuf.bw); \
-//		  \
-//		  if( widthlimit > 1 ) { \
-//			  writePixel##psm##_0(pstart, (j+1)%2048, i%2048, pbuf[1], gs.dstbuf.bw); \
-//			  \
-//			  if( widthlimit > 2 ) { \
-//				  writePixel##psm##_0(pstart, (j+2)%2048, i%2048, pbuf[2], gs.dstbuf.bw); \
-//				  \
-//				  if( widthlimit > 3 ) { \
-//					  writePixel##psm##_0(pstart, (j+3)%2048, i%2048, pbuf[3], gs.dstbuf.bw); \
-//				  } \
-//			  } \
-//		  } \
-//	  } \
-//	  \
-//	  if( j >= gs.imageEndX ) { assert(j == gs.imageEndX); j = gs.trxpos.dx; } \
-//	  else { assert( nSize == 0 ); goto End; } \
-//  } \
-//} \
-//
-//#define TRANSFERHOSTLOCAL_4(psm) { \
-//  const u8* pbuf = (const u8*)pbyMem; \
-//  u32 nSize = nQWordSize*8; \
-//  for(; i < gs.imageEndY; ++i) { \
-//	  for(; j < gs.imageEndX && nSize > 0; j += 8, nSize -= 8) { \
-//		  /* write as many pixel at one time as possible */ \
-//		  writePixel##psm##_0(pstart, j%2048, i%2048, *pbuf&0x0f, gs.dstbuf.bw); \
-//		  writePixel##psm##_0(pstart, (j+1)%2048, i%2048, *pbuf>>4, gs.dstbuf.bw); \
-//		  pbuf++; \
-//		  writePixel##psm##_0(pstart, (j+2)%2048, i%2048, *pbuf&0x0f, gs.dstbuf.bw); \
-//		  writePixel##psm##_0(pstart, (j+3)%2048, i%2048, *pbuf>>4, gs.dstbuf.bw); \
-//		  pbuf++; \
-//		  writePixel##psm##_0(pstart, (j+4)%2048, i%2048, *pbuf&0x0f, gs.dstbuf.bw); \
-//		  writePixel##psm##_0(pstart, (j+5)%2048, i%2048, *pbuf>>4, gs.dstbuf.bw); \
-//		  pbuf++; \
-//		  writePixel##psm##_0(pstart, (j+6)%2048, i%2048, *pbuf&0x0f, gs.dstbuf.bw); \
-//		  writePixel##psm##_0(pstart, (j+7)%2048, i%2048, *pbuf>>4, gs.dstbuf.bw); \
-//		  pbuf++; \
-//	  } \
-//	  \
-//	  if( j >= gs.imageEndX ) { /*assert(j == gs.imageEndX);*/ j = gs.trxpos.dx; } \
-//	  else { assert( nSize == 0 ); goto End; } \
-//  } \
-//} \
-//
-//  switch (gs.dstbuf.psm) {
-//	  case 0x0:  TRANSFERHOSTLOCAL(32, u32, 2); break;
-//	  case 0x1:  TRANSFERHOSTLOCAL(24, u32, 4); break;
-//	  case 0x2:  TRANSFERHOSTLOCAL(16, u16, 4); break;
-//	  case 0xA:  TRANSFERHOSTLOCAL(16S, u16, 4); break;
-//	  case 0x13:
-//		  if( ((gs.imageEndX-gs.trxpos.dx)%4) ) {
-//			  TRANSFERHOSTLOCAL(8, u8, 1);
-//		  }
-//		  else {
-//			  TRANSFERHOSTLOCAL(8, u8, 4);
-//		  }
-//		  break;
-//
-//	  case 0x14:
-////			if( (gs.imageEndX-gs.trxpos.dx)%8 ) {
-////				// hack
-////				if( abs((int)nQWordSize*8 - (gs.imageEndY-i)*(gs.imageEndX-gs.trxpos.dx)+(j-gs.trxpos.dx)) <= 8 ) {
-////					// don't transfer
-////					ZZLog::Error_Log("bad texture 4: %d %d %d.", gs.trxpos.dx, gs.imageEndX, nQWordSize);
-////					gs.imageEndX = gs.trxpos.dx + (gs.imageEndX-gs.trxpos.dx)&~7;
-////					//i = gs.imageEndY;
-////					//goto End;
-////					gs.imageTransfer = -1;
-////				}
-////			}
-//		  TRANSFERHOSTLOCAL_4(4);
-//		  break;
-//	  case 0x1B: TRANSFERHOSTLOCAL(8H, u8, 4); break;
-//	  case 0x24: TRANSFERHOSTLOCAL_4(4HL); break;
-//	  case 0x2C: TRANSFERHOSTLOCAL_4(4HH); break;
-//	  case 0x30: TRANSFERHOSTLOCAL(32Z, u32, 2); break;
-//	  case 0x31: TRANSFERHOSTLOCAL(24Z, u32, 4); break;
-//	  case 0x32: TRANSFERHOSTLOCAL(16Z, u16, 4); break;
-//	  case 0x3A: TRANSFERHOSTLOCAL(16SZ, u16, 4); break;
-//  }
-//
-//End:
-//  if( i >= gs.imageEndY ) {
-//	  assert( i == gs.imageEndY );
-//	  gs.imageTransfer = -1;
-//
-//	  if( g_bSaveTrans ) {
-//		  tex0Info t;
-//		  t.tbp0 = gs.dstbuf.bp;
-//		  t.tw = gs.imageWnew;
-//		  t.th = gs.imageHnew;
-//		  t.tbw = gs.dstbuf.bw;
-//		  t.psm = gs.dstbuf.psm;
-//		  SaveTex(&t, 0);
-//	  }
-//  }
-//  else {
-//	  /* update new params */
-//	  gs.imageY = i;
-//	  gs.imageX = j;
-//  }
-//}
-#endif //if 0
-
-void InitTransferLocalHost()
-{
-	FUNCLOG
-	assert(gs.trxpos.sx + gs.imageWnew <= 2048 && gs.trxpos.sy + gs.imageHnew <= 2048);
-
-#if defined(ZEROGS_DEVBUILD)
-
-	if (gs.trxpos.sx + gs.imageWnew > gs.srcbuf.bw)
-		ZZLog::Warn_Log("Transfer error, width exceeded.");
-
-#endif
-
-	gs.imageX = gs.trxpos.sx;
-	gs.imageY = gs.trxpos.sy;
-
-	gs.imageEndX = gs.imageX + gs.imageWnew;
-	gs.imageEndY = gs.imageY + gs.imageHnew;
-
-	s_vTransferCache.resize(0);
-
-	int start, end;
-
-	GetRectMemAddress(start, end, gs.srcbuf.psm, gs.trxpos.sx, gs.trxpos.sy, gs.imageWnew, gs.imageHnew, gs.srcbuf.bp, gs.srcbuf.bw);
-
-	ResolveInRange(start, end);
-}
-
-template <class T>
-void TransferLocalHost(void* pbyMem, u32 nQWordSize, int& x, int& y, u8 *pstart, _readPixel_0 rp)
-{
-	int i = x, j = y;
-	T* pbuf = (T*)pbyMem;
-	u32 nSize = nQWordSize * 16 / sizeof(T);
-
-	for (; i < gs.imageEndY; ++i)
-	{
-		for (; j < gs.imageEndX && nSize > 0; ++j, --nSize)
-		{
-			*pbuf++ = rp(pstart, j % 2048, i % 2048, gs.srcbuf.bw);
-		}
-
-		if (j >= gs.imageEndX)
-		{
-			assert(j == gs.imageEndX);
-			j = gs.trxpos.sx;
-		}
-		else
-		{
-			assert(nSize == 0);
-			break;
-		}
-	}
-
-}
-
-void TransferLocalHost_24(void* pbyMem, u32 nQWordSize, int& x, int& y, u8 *pstart, _readPixel_0 rp)
-{
-	int i = x, j = y;
-	u8* pbuf = (u8*)pbyMem;
-	u32 nSize = nQWordSize * 16 / 3;
-
-	for (; i < gs.imageEndY; ++i)
-	{
-		for (; j < gs.imageEndX && nSize > 0; ++j, --nSize)
-		{
-			u32 p = rp(pstart, j % 2048, i % 2048, gs.srcbuf.bw);
-			pbuf[0] = (u8)p;
-			pbuf[1] = (u8)(p >> 8);
-			pbuf[2] = (u8)(p >> 16);
-			pbuf += 3;
-		}
-
-		if (j >= gs.imageEndX)
-		{
-			assert(j == gs.imageEndX);
-			j = gs.trxpos.sx;
-		}
-		else
-		{
-			assert(nSize == 0);
-			break;
-		}
-	}
-}
-
-// left/right, top/down
-void TransferLocalHost(void* pbyMem, u32 nQWordSize)
-{
-	FUNCLOG
-	assert(gs.imageTransfer == 1);
-
-	u8* pstart = g_pbyGSMemory + 256 * gs.srcbuf.bp;
-	int i = gs.imageY, j = gs.imageX;
-
-	switch (gs.srcbuf.psm)
-	{
-
-		case PSMCT32:
-			TransferLocalHost<u32>(pbyMem, nQWordSize, i, j, pstart, readPixel32_0);
-			break;
-
-		case PSMCT24:
-			TransferLocalHost_24(pbyMem, nQWordSize, i, j, pstart, readPixel24_0);
-			break;
-
-		case PSMCT16:
-			TransferLocalHost<u16>(pbyMem, nQWordSize, i, j, pstart, readPixel16_0);
-			break;
-
-		case PSMCT16S:
-			TransferLocalHost<u16>(pbyMem, nQWordSize, i, j, pstart, readPixel16S_0);
-			break;
-
-		case PSMT8:
-			TransferLocalHost<u8>(pbyMem, nQWordSize, i, j, pstart, readPixel8_0);
-			break;
-
-		case PSMT8H:
-			TransferLocalHost<u8>(pbyMem, nQWordSize, i, j, pstart, readPixel8H_0);
-			break;
-
-		case PSMT32Z:
-			TransferLocalHost<u32>(pbyMem, nQWordSize, i, j, pstart, readPixel32Z_0);
-			break;
-
-		case PSMT24Z:
-			TransferLocalHost_24(pbyMem, nQWordSize, i, j, pstart, readPixel24Z_0);
-			break;
-
-		case PSMT16Z:
-			TransferLocalHost<u16>(pbyMem, nQWordSize, i, j, pstart, readPixel16Z_0);
-			break;
-
-		case PSMT16SZ:
-			TransferLocalHost<u16>(pbyMem, nQWordSize, i, j, pstart, readPixel16SZ_0);
-			break;
-
-		default:
-			assert(0);
-	}
-
-	gs.imageY = i;
-	gs.imageX = j;
-
-	if (gs.imageY >= gs.imageEndY)
-	{
-		assert(gs.imageY == gs.imageEndY);
-		gs.imageTransfer = -1;
-	}
-}
-
-// dir depends on trxpos.dir
-void TransferLocalLocal()
-{
-	FUNCLOG
-	assert(gs.imageTransfer == 2);
-	assert(gs.trxpos.sx + gs.imageWnew < 2048 && gs.trxpos.sy + gs.imageHnew < 2048);
-	assert(gs.trxpos.dx + gs.imageWnew < 2048 && gs.trxpos.dy + gs.imageHnew < 2048);
-	assert((gs.srcbuf.psm&0x7) == (gs.dstbuf.psm&0x7));
-
-	if (gs.trxpos.sx + gs.imageWnew > gs.srcbuf.bw)
-		ZZLog::Warn_Log("Transfer error, src width exceeded.");
-
-	if (gs.trxpos.dx + gs.imageWnew > gs.dstbuf.bw)
-		ZZLog::Warn_Log("Transfer error, dst width exceeded.");
-
-	int srcstart, srcend, dststart, dstend;
-
-	GetRectMemAddress(srcstart, srcend, gs.srcbuf.psm, gs.trxpos.sx, gs.trxpos.sy, gs.imageWnew, gs.imageHnew, gs.srcbuf.bp, gs.srcbuf.bw);
-	GetRectMemAddress(dststart, dstend, gs.dstbuf.psm, gs.trxpos.dx, gs.trxpos.dy, gs.imageWnew, gs.imageHnew, gs.dstbuf.bp, gs.dstbuf.bw);
-
-	// resolve the targs
-	ResolveInRange(srcstart, srcend);
-
-	list<CRenderTarget*> listTargs;
-
-	s_RTs.GetTargs(dststart, dstend, listTargs);
-
-	for (list<CRenderTarget*>::iterator it = listTargs.begin(); it != listTargs.end(); ++it)
-	{
-		if (!((*it)->status & CRenderTarget::TS_Virtual))
-		{
-			(*it)->Resolve();
-			//(*it)->status |= CRenderTarget::TS_NeedUpdate;
-		}
-	}
-
-	u8* pSrcBuf = g_pbyGSMemory + gs.srcbuf.bp * 256;
-	u8* pDstBuf = g_pbyGSMemory + gs.dstbuf.bp * 256;
-
-#define TRANSFERLOCALLOCAL(srcpsm, dstpsm, widthlimit) { \
-	if( (gs.imageWnew&widthlimit)!=0 ) break; \
-	assert( (gs.imageWnew&widthlimit)==0 && widthlimit <= 4); \
-	for(int i = gs.trxpos.sy, i2 = gs.trxpos.dy; i < gs.trxpos.sy+gs.imageHnew; i++, i2++) { \
-		for(int j = gs.trxpos.sx, j2 = gs.trxpos.dx; j < gs.trxpos.sx+gs.imageWnew; j+=widthlimit, j2+=widthlimit) { \
-			\
-			writePixel##dstpsm##_0(pDstBuf, j2%2048, i2%2048, \
-				readPixel##srcpsm##_0(pSrcBuf, j%2048, i%2048, gs.srcbuf.bw), gs.dstbuf.bw); \
-			\
-			if( widthlimit > 1 ) { \
-				writePixel##dstpsm##_0(pDstBuf, (j2+1)%2048, i2%2048, \
-					readPixel##srcpsm##_0(pSrcBuf, (j+1)%2048, i%2048, gs.srcbuf.bw), gs.dstbuf.bw); \
-				\
-				if( widthlimit > 2 ) { \
-					writePixel##dstpsm##_0(pDstBuf, (j2+2)%2048, i2%2048, \
-						readPixel##srcpsm##_0(pSrcBuf, (j+2)%2048, i%2048, gs.srcbuf.bw), gs.dstbuf.bw); \
-					\
-					if( widthlimit > 3 ) { \
-						writePixel##dstpsm##_0(pDstBuf, (j2+3)%2048, i2%2048, \
-							readPixel##srcpsm##_0(pSrcBuf, (j+3)%2048, i%2048, gs.srcbuf.bw), gs.dstbuf.bw); \
-					} \
-				} \
-			} \
-		} \
-	} \
-} \
- 
-#define TRANSFERLOCALLOCAL_4(srcpsm, dstpsm) { \
-	assert( (gs.imageWnew%8) == 0 ); \
-	for(int i = gs.trxpos.sy, i2 = gs.trxpos.dy; i < gs.trxpos.sy+gs.imageHnew; ++i, ++i2) { \
-		for(int j = gs.trxpos.sx, j2 = gs.trxpos.dx; j < gs.trxpos.sx+gs.imageWnew; j+=8, j2+=8) { \
-			/* NOTE: the 2 conseq 4bit values are in NOT in the same byte */ \
-			u32 read = getPixelAddress##srcpsm##_0(j%2048, i%2048, gs.srcbuf.bw); \
-			u32 write = getPixelAddress##dstpsm##_0(j2%2048, i2%2048, gs.dstbuf.bw); \
-			pDstBuf[write] = (pDstBuf[write]&0xf0)|(pSrcBuf[read]&0x0f); \
- \
-			read = getPixelAddress##srcpsm##_0((j+1)%2048, i%2048, gs.srcbuf.bw); \
-			write = getPixelAddress##dstpsm##_0((j2+1)%2048, i2%2048, gs.dstbuf.bw); \
-			pDstBuf[write] = (pDstBuf[write]&0x0f)|(pSrcBuf[read]&0xf0); \
- \
-			read = getPixelAddress##srcpsm##_0((j+2)%2048, i%2048, gs.srcbuf.bw); \
-			write = getPixelAddress##dstpsm##_0((j2+2)%2048, i2%2048, gs.dstbuf.bw); \
-			pDstBuf[write] = (pDstBuf[write]&0xf0)|(pSrcBuf[read]&0x0f); \
- \
-			read = getPixelAddress##srcpsm##_0((j+3)%2048, i%2048, gs.srcbuf.bw); \
-			write = getPixelAddress##dstpsm##_0((j2+3)%2048, i2%2048, gs.dstbuf.bw); \
-			pDstBuf[write] = (pDstBuf[write]&0x0f)|(pSrcBuf[read]&0xf0); \
- \
-			read = getPixelAddress##srcpsm##_0((j+2)%2048, i%2048, gs.srcbuf.bw); \
-			write = getPixelAddress##dstpsm##_0((j2+2)%2048, i2%2048, gs.dstbuf.bw); \
-			pDstBuf[write] = (pDstBuf[write]&0xf0)|(pSrcBuf[read]&0x0f); \
- \
-			read = getPixelAddress##srcpsm##_0((j+3)%2048, i%2048, gs.srcbuf.bw); \
-			write = getPixelAddress##dstpsm##_0((j2+3)%2048, i2%2048, gs.dstbuf.bw); \
-			pDstBuf[write] = (pDstBuf[write]&0x0f)|(pSrcBuf[read]&0xf0); \
- \
-			read = getPixelAddress##srcpsm##_0((j+2)%2048, i%2048, gs.srcbuf.bw); \
-			write = getPixelAddress##dstpsm##_0((j2+2)%2048, i2%2048, gs.dstbuf.bw); \
-			pDstBuf[write] = (pDstBuf[write]&0xf0)|(pSrcBuf[read]&0x0f); \
- \
-			read = getPixelAddress##srcpsm##_0((j+3)%2048, i%2048, gs.srcbuf.bw); \
-			write = getPixelAddress##dstpsm##_0((j2+3)%2048, i2%2048, gs.dstbuf.bw); \
-			pDstBuf[write] = (pDstBuf[write]&0x0f)|(pSrcBuf[read]&0xf0); \
-		} \
-	} \
-} \
- 
-	switch (gs.srcbuf.psm) 
-	{
-		case PSMCT32:
-			if (gs.dstbuf.psm == PSMCT32)
-			{
-				TRANSFERLOCALLOCAL(32, 32, 2);
-			}
-			else
-			{
-				TRANSFERLOCALLOCAL(32, 32Z, 2);
-			}
-			break;
-
-		case PSMCT24:
-			if (gs.dstbuf.psm == PSMCT24)
-			{
-				TRANSFERLOCALLOCAL(24, 24, 4);
-			}
-			else
-			{
-				TRANSFERLOCALLOCAL(24, 24Z, 4);
-			}
-			break;
-
-		case PSMCT16:
-			switch (gs.dstbuf.psm)
-			{
-				case PSMCT16:
-					TRANSFERLOCALLOCAL(16, 16, 4);
-					break;
-
-				case PSMCT16S:
-					TRANSFERLOCALLOCAL(16, 16S, 4);
-					break;
-
-				case PSMT16Z:
-					TRANSFERLOCALLOCAL(16, 16Z, 4);
-					break;
-
-				case PSMT16SZ:
-					TRANSFERLOCALLOCAL(16, 16SZ, 4);
-					break;
-			}
-			break;
-
-		case PSMCT16S:
-			switch (gs.dstbuf.psm)
-			{
-				case PSMCT16:
-					TRANSFERLOCALLOCAL(16S, 16, 4);
-					break;
-
-				case PSMCT16S:
-					TRANSFERLOCALLOCAL(16S, 16S, 4);
-					break;
-
-				case PSMT16Z:
-					TRANSFERLOCALLOCAL(16S, 16Z, 4);
-					break;
-
-				case PSMT16SZ:
-					TRANSFERLOCALLOCAL(16S, 16SZ, 4);
-					break;
-			}
-			break;
-
-		case PSMT8:
-			if (gs.dstbuf.psm == PSMT8)
-			{
-				TRANSFERLOCALLOCAL(8, 8, 4);
-			}
-			else
-			{
-				TRANSFERLOCALLOCAL(8, 8H, 4);
-			}
-			break;
-
-		case PSMT4:
-			switch (gs.dstbuf.psm)
-			{
-
-				case PSMT4:
-					TRANSFERLOCALLOCAL_4(4, 4);
-					break;
-
-				case PSMT4HL:
-					TRANSFERLOCALLOCAL_4(4, 4HL);
-					break;
-
-				case PSMT4HH:
-					TRANSFERLOCALLOCAL_4(4, 4HH);
-					break;
-			}
-			break;
-
-		case PSMT8H:
-			if (gs.dstbuf.psm == PSMT8)
-			{
-				TRANSFERLOCALLOCAL(8H, 8, 4);
-			}
-			else
-			{
-				TRANSFERLOCALLOCAL(8H, 8H, 4);
-			}
-			break;
-
-		case PSMT4HL:
-			switch (gs.dstbuf.psm)
-			{
-				case PSMT4:
-					TRANSFERLOCALLOCAL_4(4HL, 4);
-					break;
-
-				case PSMT4HL:
-					TRANSFERLOCALLOCAL_4(4HL, 4HL);
-					break;
-
-				case PSMT4HH:
-					TRANSFERLOCALLOCAL_4(4HL, 4HH);
-					break;
-			}
-			break;
-
-		case PSMT4HH:
-			switch (gs.dstbuf.psm)
-			{
-				case PSMT4:
-					TRANSFERLOCALLOCAL_4(4HH, 4);
-					break;
-
-				case PSMT4HL:
-					TRANSFERLOCALLOCAL_4(4HH, 4HL);
-					break;
-
-				case PSMT4HH:
-					TRANSFERLOCALLOCAL_4(4HH, 4HH);
-					break;
-			}
-			break;
-
-		case PSMT32Z:
-			if (gs.dstbuf.psm == PSMCT32)
-			{
-				TRANSFERLOCALLOCAL(32Z, 32, 2);
-			}
-			else
-			{
-				TRANSFERLOCALLOCAL(32Z, 32Z, 2);
-			}
-			break;
-
-		case PSMT24Z:
-			if (gs.dstbuf.psm == PSMCT24)
-			{
-				TRANSFERLOCALLOCAL(24Z, 24, 4);
-			}
-			else
-			{
-				TRANSFERLOCALLOCAL(24Z, 24Z, 4);
-			}
-			break;
-
-		case PSMT16Z:
-			switch (gs.dstbuf.psm)
-			{
-				case PSMCT16:
-					TRANSFERLOCALLOCAL(16Z, 16, 4);
-					break;
-
-				case PSMCT16S:
-					TRANSFERLOCALLOCAL(16Z, 16S, 4);
-					break;
-
-				case PSMT16Z:
-					TRANSFERLOCALLOCAL(16Z, 16Z, 4);
-					break;
-
-				case PSMT16SZ:
-					TRANSFERLOCALLOCAL(16Z, 16SZ, 4);
-					break;
-			}
-			break;
-
-		case PSMT16SZ:
-			switch (gs.dstbuf.psm)
-			{
-				case PSMCT16:
-					TRANSFERLOCALLOCAL(16SZ, 16, 4);
-					break;
-
-				case PSMCT16S:
-					TRANSFERLOCALLOCAL(16SZ, 16S, 4);
-					break;
-
-				case PSMT16Z:
-					TRANSFERLOCALLOCAL(16SZ, 16Z, 4);
-					break;
-
-				case PSMT16SZ:
-					TRANSFERLOCALLOCAL(16SZ, 16SZ, 4);
-					break;
-			}
-			break;
-	}
-
-	g_MemTargs.ClearRange(dststart, dstend);
-
-#ifdef DEVBUILD
-
-	if (g_bSaveTrans)
-	{
-		tex0Info t;
-		t.tbp0 = gs.dstbuf.bp;
-		t.tw = gs.imageWnew;
-		t.th = gs.imageHnew;
-		t.tbw = gs.dstbuf.bw;
-		t.psm = gs.dstbuf.psm;
-		SaveTex(&t, 0);
-
-		t.tbp0 = gs.srcbuf.bp;
-		t.tw = gs.imageWnew;
-		t.th = gs.imageHnew;
-		t.tbw = gs.srcbuf.bw;
-		t.psm = gs.srcbuf.psm;
-		SaveTex(&t, 0);
-	}
-
-#endif
-}
-
-void GetRectMemAddress(int& start, int& end, int psm, int x, int y, int w, int h, int bp, int bw)
-{
-	FUNCLOG
-
-	if (m_Blocks[psm].bpp == 0)
-	{
-		ZZLog::Error_Log("ZeroGS: Bad psm 0x%x.", psm);
-		start = 0;
-		end = 0x00400000;
-		return;
-	}
-
-	if (PSMT_ISZTEX(psm) || psm == PSMCT16S)
-	{
-
-		const BLOCK& b = m_Blocks[psm];
-
-		bw = (bw + b.width - 1) / b.width;
-		start = bp * 256 + ((y / b.height) * bw + (x / b.width)) * 0x2000;
-		end = bp * 256  + (((y + h - 1) / b.height) * bw + (x + w + b.width - 1) / b.width) * 0x2000;
-	}
-	else
-	{
-		// just take the addresses
-		switch (psm)
-		{
-			case PSMCT32:
-			case PSMCT24:
-			case PSMT8H:
-			case PSMT4HL:
-			case PSMT4HH:
-				start = 4 * getPixelAddress32(x, y, bp, bw);
-				end = 4 * getPixelAddress32(x + w - 1, y + h - 1, bp, bw) + 4;
-				break;
-
-			case PSMCT16:
-				start = 2 * getPixelAddress16(x, y, bp, bw);
-				end = 2 * getPixelAddress16(x + w - 1, y + h - 1, bp, bw) + 2;
-				break;
-
-			case PSMT8:
-				start = getPixelAddress8(x, y, bp, bw);
-				end = getPixelAddress8(x + w - 1, y + h - 1, bp, bw) + 1;
-				break;
-
-			case PSMT4:
-			{
-				start = getPixelAddress4(x, y, bp, bw) / 2;
-				int newx = ((x + w - 1 + 31) & ~31) - 1;
-				int newy = ((y + h - 1 + 15) & ~15) - 1;
-				end = (getPixelAddress4(max(newx, x), max(newy, y), bp, bw) + 2) / 2;
-				break;
-			}
-		}
-	}
-}
 
 // I removed some code here that wasn't getting called. The old versions #if'ed out below this.
 #define RESOLVE_32_BIT(PSM, T, Tsrc, convfn) \
@@ -3836,7 +2979,6 @@ void _Resolve(const void* psrc, int fbp, int fbw, int fbh, int psm, u32 fbm, boo
 		{
 
 			case PSMCT32:
-
 			case PSMCT24:
 				RESOLVE_32_BIT(32, u32, u32, (u32));
 				break;
@@ -3850,7 +2992,6 @@ void _Resolve(const void* psrc, int fbp, int fbw, int fbh, int psm, u32 fbm, boo
 				break;
 
 			case PSMT32Z:
-
 			case PSMT24Z:
 				RESOLVE_32_BIT(32Z, u32, u32, (u32));
 				break;
@@ -3870,7 +3011,6 @@ void _Resolve(const void* psrc, int fbp, int fbw, int fbh, int psm, u32 fbm, boo
 		{
 
 			case PSMCT32:
-
 			case PSMCT24:
 				RESOLVE_32_BIT(32, u32, Vector_16F, Float16ToARGB);
 				break;
@@ -3884,7 +3024,6 @@ void _Resolve(const void* psrc, int fbp, int fbw, int fbh, int psm, u32 fbm, boo
 				break;
 
 			case PSMT32Z:
-
 			case PSMT24Z:
 				RESOLVE_32_BIT(32Z, u32, Vector_16F,  Float16ToARGB_Z);
 				break;

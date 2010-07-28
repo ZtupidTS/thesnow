@@ -14,7 +14,6 @@
  */
 
 #include "PrecompiledHeader.h"
-#include "HostGui.h"
 
 #include "CDVD/CDVD.h"
 #include "GS.h"
@@ -99,13 +98,13 @@ void MainEmuFrame::Menu_ResetAllSettings_Click(wxCommandEvent &event)
 
 	{
 		ScopedCoreThreadPopup suspender;
-		if( !Msgbox::OkCancel(
+		if( !Msgbox::OkCancel( wxsFormat(
 			pxE( ".Popup:DeleteSettings",
-				L"This command clears PCSX2 settings and allows you to re-run the First-Time Wizard.  You will need to "
-				L"manually restart PCSX2 after this operation.\n\n"
-				L"WARNING!!  Click OK to delete *ALL* settings for PCSX2 and force PCSX2 to shudown, losing any current emulation progress.  Are you absolutely sure?"
+				L"This command clears %s settings and allows you to re-run the First-Time Wizard.  You will need to "
+				L"manually restart %s after this operation.\n\n"
+				L"WARNING!!  Click OK to delete *ALL* settings for %s and force-close the app, losing any current emulation progress.  Are you absolutely sure?"
 				L"\n\n(note: settings for plugins are unaffected)"
-			),
+			), pxGetAppName().c_str(), pxGetAppName().c_str(), pxGetAppName().c_str() ),
 			_("Reset all settings?") ) )
 		{
 			suspender.AllowResume();
@@ -125,7 +124,7 @@ wxWindowID SwapOrReset_Iso( wxWindow* owner, IScopedCoreThread& core_control, co
 {
 	wxWindowID result = wxID_CANCEL;
 
-	if( g_Conf->CdvdSource == CDVDsrc_Iso && isoFilename == g_Conf->CurrentIso )
+	if( (g_Conf->CdvdSource == CDVDsrc_Iso) && (isoFilename == g_Conf->CurrentIso) )
 	{
 		core_control.AllowResume();
 		return result;
@@ -142,7 +141,7 @@ wxWindowID SwapOrReset_Iso( wxWindow* owner, IScopedCoreThread& core_control, co
 		dialog += dialog.GetCharHeight();
 		dialog += dialog.Heading(_("Do you want to swap discs or boot the new image (via system reset)?"));
 
-		result = pxIssueConfirmation( dialog, MsgButtons().Reset().Cancel().Custom(_("Swap Disc")), L"DragDrop:BootSwapIso" );
+		result = pxIssueConfirmation( dialog, MsgButtons().Reset().Cancel().Custom(_("Swap Disc")), L"DragDrop.BootSwapIso" );
 		if( result == wxID_CANCEL )
 		{
 			core_control.AllowResume();
@@ -185,7 +184,7 @@ wxWindowID SwapOrReset_CdvdSrc( wxWindow* owner, CDVD_SourceType newsrc )
 			_("Do you want to swap discs or boot the new image (system reset)?")
 		);
 
-		result = pxIssueConfirmation( dialog, MsgButtons().Reset().Cancel().Custom(_("Swap Disc")), L"DragDrop:BootSwapIso" );
+		result = pxIssueConfirmation( dialog, MsgButtons().Reset().Cancel().Custom(_("Swap Disc")), L"DragDrop.BootSwapIso" );
 
 		if( result == wxID_CANCEL )
 		{
@@ -214,17 +213,55 @@ wxWindowID SwapOrReset_CdvdSrc( wxWindow* owner, CDVD_SourceType newsrc )
 	return result;
 }
 
+static wxString JoinFiletypes( const wxChar** src )
+{
+	wxString dest;
+	while( *src != NULL )
+	{
+		if( *src[0] == 0 ) continue;
+		if( !dest.IsEmpty() )
+			dest += L";";
+
+		dest += wxsFormat(L"*.%s", *src);
+
+		#ifdef __LINUX__
+		// omgosh!  linux is CaSE SeNSiTiVE!!
+		dest += wxsFormat(L";*.%s", *src).MakeUpper();
+		#endif
+
+		++src;
+	}
+	
+	return dest;
+}
+
 // Returns FALSE if the user canceled the action.
 bool MainEmuFrame::_DoSelectIsoBrowser( wxString& result )
 {
-	static const wxChar* isoFilterTypes =
-		L"所有支持的 (.iso .mdf .nrg .bin .img .dump)|*.iso;*.mdf;*.nrg;*.bin;*.img;*.dump|"
-		L"光碟镜像 (.iso .mdf .nrg .bin .img)|*.iso;*.mdf;*.nrg;*.bin;*.img|"
-		L"扇区转储 (.dump)|*.dump|"
-		L"所有文件 (*.*)|*.*";
+	static const wxChar* isoSupportedTypes[] =
+	{
+		L"iso", L"mdf", L"nrg", L"bin", L"img", NULL
+	};
 
+	const wxString isoSupportedLabel( JoinString(isoSupportedTypes, L" ") );
+	const wxString isoSupportedList( JoinFiletypes(isoSupportedTypes) );
+	
+	wxArrayString isoFilterTypes;
+
+	isoFilterTypes.Add(wxsFormat(_("所有支持的 (%s)"), (isoSupportedLabel + L" .dump").c_str()));
+	isoFilterTypes.Add(isoSupportedList + L";*.dump");
+
+	isoFilterTypes.Add(wxsFormat(_("光碟镜像 (%s)"), isoSupportedLabel.c_str() ));
+	isoFilterTypes.Add(isoSupportedList);
+
+	isoFilterTypes.Add(wxsFormat(_("扇区转储 (%s)"), L".dump" ));
+	isoFilterTypes.Add(L"*.dump");
+
+	isoFilterTypes.Add(_("所有文件 (*.*)"));
+	isoFilterTypes.Add(L"*.*");
+	
 	wxFileDialog ctrl( this, _("选择 CDVD 源 ISO..."), g_Conf->Folders.RunIso.ToString(), wxEmptyString,
-		isoFilterTypes, wxFD_OPEN | wxFD_FILE_MUST_EXIST );
+		JoinString(isoFilterTypes, L"|"), wxFD_OPEN | wxFD_FILE_MUST_EXIST );
 
 	if( ctrl.ShowModal() != wxID_CANCEL )
 	{
@@ -238,12 +275,10 @@ bool MainEmuFrame::_DoSelectIsoBrowser( wxString& result )
 
 bool MainEmuFrame::_DoSelectELFBrowser()
 {
-	static const wxChar* elfFilterTypes =
-		L"ELF 文件 (.elf)|*.elf|"
-		L"All 文件 (*.*)|*.*";
+	static const wxChar* elfFilterType = L"ELF 文件 (.elf)|*.elf;*.ELF";
 
 	wxFileDialog ctrl( this, _("选择 ELF 文件..."), g_Conf->Folders.RunELF.ToString(), wxEmptyString,
-		elfFilterTypes, wxFD_OPEN | wxFD_FILE_MUST_EXIST );
+		(wxString)elfFilterType + L"|" + _("所有文件 (*.*)") + L"|*.*", wxFD_OPEN | wxFD_FILE_MUST_EXIST );
 
 	if( ctrl.ShowModal() != wxID_CANCEL )
 	{
@@ -296,7 +331,7 @@ void MainEmuFrame::_DoBootCdvd()
 	{
 		wxDialogWithHelpers dialog( this, _("确认 PS2 重置") );
 		dialog += dialog.Heading( GetMsg_ConfirmSysReset() );
-		bool confirmed = (pxIssueConfirmation( dialog, MsgButtons().Yes().Cancel(), L"BootCdvd:ConfirmReset" ) != wxID_CANCEL);
+		bool confirmed = (pxIssueConfirmation( dialog, MsgButtons().Yes().Cancel(), L"BootCdvd.ConfirmReset" ) != wxID_CANCEL);
 
 		if( !confirmed )
 		{
@@ -439,26 +474,6 @@ protected:
 	}
 };
 
-class SysExecEvent_Restart : public SysExecEvent
-{
-public:
-	virtual ~SysExecEvent_Restart() throw() {}
-
-	wxString GetEventName() const { return L"SysRestart"; }
-
-	wxString GetEventMessage() const
-	{
-		return _("Restarting PS2 Virtual Machine...");
-	}
-
-protected:
-	void InvokeEvent()
-	{
-		sApp.SysShutdown();
-		sApp.SysExecute();
-	}
-};
-
 void MainEmuFrame::Menu_SuspendResume_Click(wxCommandEvent &event)
 {
 	if( !SysHasValidState() ) return;
@@ -474,15 +489,15 @@ void MainEmuFrame::Menu_SuspendResume_Click(wxCommandEvent &event)
 void MainEmuFrame::Menu_SysReset_Click(wxCommandEvent &event)
 {
 	UI_DisableSysReset();
-	GetSysExecutorThread().PostEvent( new SysExecEvent_Restart() );
+	sApp.SysExecute();
 }
 
 void MainEmuFrame::Menu_SysShutdown_Click(wxCommandEvent &event)
 {
-	if( !SysHasValidState() && !CorePlugins.AreAnyInitialized() ) return;
+	//if( !SysHasValidState() && !CorePlugins.AreAnyInitialized() ) return;
 
 	UI_DisableSysShutdown();
-	sApp.SysShutdown();
+	CoreThread.Reset();
 }
 
 void MainEmuFrame::Menu_ConfigPlugin_Click(wxCommandEvent &event)

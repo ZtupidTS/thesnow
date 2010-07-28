@@ -43,7 +43,7 @@ bool ApplicableWizardPage::PrepForApply()
 
 // ----------------------------------------------------------------------------
 Panels::SettingsDirPickerPanel::SettingsDirPickerPanel( wxWindow* parent )
-	: DirPickerPanel( parent, FolderId_Settings, _("Settings"), _("选择 PCSX2 设置所在的文件夹") )
+	: DirPickerPanel( parent, FolderId_Settings, _("Settings"), AddAppName(_("选择 %s 设置所在的文件夹")) )
 {
 	pxSetToolTip( this, pxE( ".Tooltip:Folders:Settings",
 		L"This is the folder where PCSX2 saves your settings, including settings generated "
@@ -69,7 +69,7 @@ FirstTimeWizard::UsermodePage::UsermodePage( wxWizard* parent ) :
 	m_panel_LangSel		= new LanguageSelectionPanel( &panel );
 	m_panel_UserSel		= new DocsFolderPickerPanel( &panel );
 
-	panel += panel.Heading(_("PCSX2 启动于一个新的或者未知的文件夹下面,需要进行重新设置.")).Bold();
+	panel += panel.Heading(AddAppName(_("%s 启动于一个新的或者未知的文件夹下面,需要进行重新设置."))).Bold();
 
 	panel += m_panel_LangSel		| StdCenter();
 	panel += m_panel_UserSel		| pxExpand.Border( wxALL, 8 );
@@ -104,20 +104,19 @@ bool FirstTimeWizard::UsermodePage::PrepForApply()
 	if( path.FileExists() )
 	{
 		// FIXME: There's already a file by the same name.. not sure what we should do here.
-		throw Exception::BadStream( path.ToString(),
-			L"Targeted documents folder is already occupied by a file.",
-			pxE( ".Error:DocsFolderFileConflict",
+		throw Exception::BadStream( path.ToString() )
+			.SetDiagMsg(L"Targeted documents folder is already occupied by a file.")
+			.SetUserMsg(pxE( ".Error:DocsFolderFileConflict",
 				L"PCSX2 cannot create a documents folder in the requested location.  "
 				L"The path name matches an existing file.  Delete the file or change the documents location, "
 				L"and then try again."
-			)
-		);
+			));
 	}
 
 	if( !path.Exists() )
 	{
-		wxDialogWithHelpers dialog( NULL, _("Create folder?") );
-		dialog += dialog.Heading( _("PCSX2 will create the following folder for documents.  You can change this setting later, at any time.") );
+		wxDialogWithHelpers dialog( NULL, _("创建文件夹?") );
+		dialog += dialog.Heading(AddAppName(_("%s will create the following folder for documents.  You can change this setting later, at any time.")));
 		dialog += 12;
 		dialog += dialog.Heading( path.ToString() );
 
@@ -130,7 +129,7 @@ bool FirstTimeWizard::UsermodePage::PrepForApply()
 
 // ----------------------------------------------------------------------------
 FirstTimeWizard::FirstTimeWizard( wxWindow* parent )
-	: wxWizard( parent, wxID_ANY, _("PCSX2 第一次使用设置") )
+	: wxWizard( parent, wxID_ANY, AddAppName(_("%s 第一次使用设置")) )
 	, m_page_usermode	( *new UsermodePage( this ) )
 	, m_page_plugins	( *new ApplicableWizardPage( this, &m_page_usermode ) )
 	, m_page_bios		( *new ApplicableWizardPage( this, &m_page_plugins ) )
@@ -151,9 +150,9 @@ FirstTimeWizard::FirstTimeWizard( wxWindow* parent )
 	m_page_bios		+= 12;
 	m_page_bios		+= new pxStaticHeading( &m_page_bios,
 		pxE( ".Wizard:Bios:Tutorial",
-			L"PCSX2 requires a *legal* copy of the PS2 BIOS in order to run games.\n"
-			L"You cannot use a copy obtained from a friend or the Internet.\n"
-			L"You must dump the BIOS from your *own* Playstation 2 console."
+			L"PCSX2 需要一个 *合法* 的 PS2 BIOS 拷贝来运行游戏.\n"
+			L"你不能使用一个从互联网或者朋友得到的BIOS拷贝.\n"
+			L"你必须从您 *拥有* 的 Playstation 2 终端转储一个BIOS文件."
 		)
 	) | StdExpand();
 

@@ -1,5 +1,6 @@
-/*  ZeroGS KOSMOS
- *  Copyright (C) 2005-2006 zerofrog@gmail.com
+/*  ZZ Open GL graphics plugin
+ *  Copyright (c)2009-2010 zeydlitz@gmail.com, arcum42@gmail.com
+ *  Based on Zerofrog's ZeroGS KOSMOS (c)2005-2008
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -13,7 +14,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
 #ifndef __ZEROGS__H
@@ -24,42 +25,12 @@
 #endif
 
 // ----------------------------- Includes
-#include "PS2Etypes.h"
-#include "PS2Edefs.h"
-
-// Need this before gl.h
-#ifdef _WIN32
-
-#include <windows.h>
-#include <GL/gl.h>
-#include <GL/glext.h>
-#include "glprocs.h"
-
-#else
-
-// adding glew support instead of glXGetProcAddress (thanks to scaught)
-#include <GL/glew.h>
-#include <GL/gl.h>
-#include <GL/glext.h>
-#include <GL/glx.h>
-
-inline void* wglGetProcAddress(const char* x)
-{
-	return (void*)glXGetProcAddress((const GLubyte*)x);
-}
-
-#endif
-
-#include <Cg/cg.h>
-#include <Cg/cgGL.h>
-
-//#include <assert.h>
-
 #include <list>
 #include <vector>
 #include <map>
 #include <string>
 
+#include "ZZGl.h"
 #include "GS.h"
 #include "CRC.h"
 #include "rasterfont.h" // simple font
@@ -67,166 +38,16 @@ inline void* wglGetProcAddress(const char* x)
 
 using namespace std;
 
-// ----------------------- Defines
-#ifndef GL_DEPTH24_STENCIL8_EXT // allows FBOs to support stencils
-#	define GL_DEPTH_STENCIL_EXT 0x84F9
-#	define GL_UNSIGNED_INT_24_8_EXT 0x84FA
-#	define GL_DEPTH24_STENCIL8_EXT 0x88F0
-#	define GL_TEXTURE_STENCIL_SIZE_EXT 0x88F1
-#endif
 
-#define GL_STENCILFUNC(func, ref, mask) { \
-	s_stencilfunc  = func; \
-	s_stencilref = ref; \
-	s_stencilmask = mask; \
-	glStencilFunc(func, ref, mask); \
-}
-
-#define GL_STENCILFUNC_SET() glStencilFunc(s_stencilfunc, s_stencilref, s_stencilmask)
-
-#ifndef SAFE_DELETE
-#	define SAFE_DELETE(x)		if( (x) != NULL ) { delete (x); (x) = NULL; }
-#endif
-#ifndef SAFE_DELETE_ARRAY
-#	define SAFE_DELETE_ARRAY(x)	if( (x) != NULL ) { delete[] (x); (x) = NULL; }
-#endif
-#ifndef SAFE_RELEASE
-#	define SAFE_RELEASE(x)		if( (x) != NULL ) { (x)->Release(); (x) = NULL; }
-#endif
-
-#define SAFE_RELEASE_PROG(x) { if( (x) != NULL ) { cgDestroyProgram(x); x = NULL; } }
-#define SAFE_RELEASE_TEX(x) { if( (x) != 0 ) { glDeleteTextures(1, &(x)); x = 0; } }
-
-#define FORIT(it, v) for(it = (v).begin(); it != (v).end(); ++(it))
-
-// sends a message to output window if assert fails
-#define BMSG(x, str)			{ if( !(x) ) { ZZLog::Log(str); ZZLog::Log(str); } }
-#define BMSG_RETURN(x, str)	{ if( !(x) ) { ZZLog::Log(str); ZZLog::Log(str); return; } }
-#define BMSG_RETURNX(x, str, rtype)	{ if( !(x) ) { ZZLog::Log(str); ZZLog::Log(str); return (##rtype); } }
-#define B(x)				{ if( !(x) ) { ZZLog::Log(_#x"\n"); ZZLog::Log(#x"\n"); } }
-#define B_RETURN(x)			{ if( !(x) ) { ZZLog::Error_Log("%s:%d: %s", __FILE__, (u32)__LINE__, #x); return; } }
-#define B_RETURNX(x, rtype)			{ if( !(x) ) { ZZLog::Error_Log("%s:%d: %s", __FILE__, (u32)__LINE__, #x); return (##rtype); } }
-#define B_G(x, action)			{ if( !(x) ) { ZZLog::Error_Log("%s:%d: %s", __FILE__, (u32)__LINE__, #x); action; } }
-
-#define GL_REPORT_ERROR() \
-{ \
-	GLenum err = glGetError(); \
-	if( err != GL_NO_ERROR ) \
-	{ \
-		ZZLog::Error_Log("%s:%d: gl error %s", __FILE__, (int)__LINE__, error_name(err)); \
-		ZeroGS::HandleGLError(); \
-	} \
-}
-
-#ifdef _DEBUG
-#	define GL_REPORT_ERRORD() \
-{ \
-	GLenum err = glGetError(); \
-	if( err != GL_NO_ERROR ) \
-	{ \
-		ZZLog::Error_Log("%s:%d: gl error %s", __FILE__, (int)__LINE__, error_name(err)); \
-		ZeroGS::HandleGLError(); \
-	} \
-}
-#else
-#	define GL_REPORT_ERRORD()
-#endif
-
-// sets the data stream
-#define SET_STREAM() { \
-	glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(VertexGPU), (void*)8); \
-	glSecondaryColorPointerEXT(4, GL_UNSIGNED_BYTE, sizeof(VertexGPU), (void*)12); \
-	glTexCoordPointer(3, GL_FLOAT, sizeof(VertexGPU), (void*)16); \
-	glVertexPointer(4, GL_SHORT, sizeof(VertexGPU), (void*)0); \
-}
-
-extern const char* ShaderCallerName;
-extern const char* ShaderHandleName;
-
-inline void SetShaderCaller(const char* Name)
-{
-	ShaderCallerName = Name;
-}
-
-inline void SetHandleName(const char* Name)
-{
-	ShaderHandleName = Name;
-}
-
-extern void HandleCgError(CGcontext ctx, CGerror err, void* appdata);
-extern void ZZcgSetParameter4fv(CGparameter param, const float* v, const char* name);
-
-#define SETVERTEXSHADER(prog) { \
-	if( (prog) != g_vsprog ) { \
-		cgGLBindProgram(prog); \
-		g_vsprog = prog; \
-	} \
-} \
- 
-#define SETPIXELSHADER(prog) { \
-	if( (prog) != g_psprog ) { \
-		cgGLBindProgram(prog); \
-		g_psprog = prog; \
-	} \
-} \
- 
-#ifndef ARRAY_SIZE
-#	define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-#endif
 
 //------------------------ Constants ----------------------
 #define VB_BUFFERSIZE			   0x400
 
-// Used in logaripmic Z-test, as (1-o(1))/log(MAX_U32).
+// Used in a logarithmic Z-test, as (1-o(1))/log(MAX_U32).
 const float g_filog32 = 0.999f / (32.0f * logf(2.0f));
 
 //------------------------ Inlines -------------------------
 
-inline const char *error_name(int err)
-{
-	switch (err)
-	{
-		case GL_NO_ERROR:
-			return "GL_NO_ERROR";
-
-		case GL_INVALID_ENUM:
-			return "GL_INVALID_ENUM";
-
-		case GL_INVALID_VALUE:
-			return "GL_INVALID_VALUE";
-
-		case GL_INVALID_OPERATION:
-			return "GL_INVALID_OPERATION";
-
-		case GL_STACK_OVERFLOW:
-			return "GL_STACK_OVERFLOW";
-
-		case GL_STACK_UNDERFLOW:
-			return "GL_STACK_UNDERFLOW";
-
-		case GL_OUT_OF_MEMORY:
-			return "GL_OUT_OF_MEMORY";
-
-		case GL_TABLE_TOO_LARGE:
-			return "GL_TABLE_TOO_LARGE";
-
-		default:
-			return "Unknown GL error";
-	}
-}
-
-// inline for an extemely often used sequence
-// This is turning off all gl functions. Safe to do updates.
-inline void DisableAllgl()
-{
-	glDisable(GL_SCISSOR_TEST);
-	glDisable(GL_BLEND);
-	glDisable(GL_ALPHA_TEST);
-	glDisable(GL_DEPTH_TEST);
-	glDepthMask(0);
-	glDisable(GL_STENCIL_TEST);
-	glColorMask(1, 1, 1, 1);
-}
 
 // Calculate maximum height for target
 inline int get_maxheight(int fbp, int fbw, int psm)
@@ -256,110 +77,6 @@ inline u8 GetTexCPSM(const tex0Info& tex)
 		return tex.psm;
 }
 
-//--------------------- Dummies
-
-#ifdef _WIN32
-extern void (__stdcall *zgsBlendEquationSeparateEXT)(GLenum, GLenum);
-extern void (__stdcall *zgsBlendFuncSeparateEXT)(GLenum, GLenum, GLenum, GLenum);
-#else
-extern void (APIENTRY *zgsBlendEquationSeparateEXT)(GLenum, GLenum);
-extern void (APIENTRY *zgsBlendFuncSeparateEXT)(GLenum, GLenum, GLenum, GLenum);
-#endif
-
-// ------------------------ Types -------------------------
-
-struct FRAGMENTSHADER
-{
-	FRAGMENTSHADER() : prog(0), sMemory(0), sFinal(0), sBitwiseANDX(0), sBitwiseANDY(0), sInterlace(0), sCLUT(0), sOneColor(0), sBitBltZ(0),
-			fTexAlpha2(0), fTexOffset(0), fTexDims(0), fTexBlock(0), fClampExts(0), fTexWrapMode(0),
-			fRealTexDims(0), fTestBlack(0), fPageOffset(0), fTexAlpha(0) {}
-
-	CGprogram prog;
-	CGparameter sMemory, sFinal, sBitwiseANDX, sBitwiseANDY, sInterlace, sCLUT;
-	CGparameter sOneColor, sBitBltZ, sInvTexDims;
-	CGparameter fTexAlpha2, fTexOffset, fTexDims, fTexBlock, fClampExts, fTexWrapMode, fRealTexDims, fTestBlack, fPageOffset, fTexAlpha;
-
-#ifdef _DEBUG
-	string filename;
-#endif
-	void set_uniform_param(CGparameter &var, const char *name)
-	{
-		CGparameter p;
-		p = cgGetNamedParameter(prog, name);
-
-		if (p != NULL && cgIsParameterUsed(p, prog) == CG_TRUE) var = p;
-	}
-
-	bool set_texture(GLuint texobj, const char *name)
-	{
-		CGparameter p;
-
-		p = cgGetNamedParameter(prog, name);
-
-		if (p != NULL && cgIsParameterUsed(p, prog) == CG_TRUE)
-		{
-			cgGLSetTextureParameter(p, texobj);
-			cgGLEnableTextureParameter(p);
-			return true;
-		}
-
-		return false;
-	}
-
-	bool connect(CGparameter &tex, const char *name)
-	{
-		CGparameter p;
-
-		p = cgGetNamedParameter(prog, name);
-
-		if (p != NULL && cgIsParameterUsed(p, prog) == CG_TRUE)
-		{
-			cgConnectParameter(tex, p);
-			return true;
-		}
-
-		return false;
-	}
-
-	bool set_texture(CGparameter &tex, const char *name)
-	{
-		CGparameter p;
-
-		p = cgGetNamedParameter(prog, name);
-
-		if (p != NULL && cgIsParameterUsed(p, prog) == CG_TRUE)
-		{
-			//cgGLEnableTextureParameter(p);
-			tex = p;
-			return true;
-		}
-
-		return false;
-	}
-
-	bool set_shader_const(Vector v, const char *name)
-	{
-		CGparameter p;
-
-		p = cgGetNamedParameter(prog, name);
-
-		if (p != NULL && cgIsParameterUsed(p, prog) == CG_TRUE)
-		{
-			cgGLSetParameter4fv(p, v);
-			return true;
-		}
-
-		return false;
-	}
-};
-
-struct VERTEXSHADER
-{
-	VERTEXSHADER() : prog(0), sBitBltPos(0), sBitBltTex(0) {}
-
-	CGprogram prog;
-	CGparameter sBitBltPos, sBitBltTex, fBitBltTrans;		 // vertex shader constants
-};
 
 // ------------------------ Variables -------------------------
 // all textures have this width
@@ -369,93 +86,34 @@ extern float g_fiGPU_TEXWIDTH;
 #define MASKDIVISOR		0
 #define GPU_TEXMASKWIDTH	(1024 >> MASKDIVISOR) // bitwise mask width for region repeat mode
 
-#ifdef _WIN32
-extern HDC		hDC;	   // Private GDI Device Context
-extern HGLRC	hRC;	   // Permanent Rendering Context
-#endif
-
-extern bool g_bIsLost;     // Context is lost -- could not draw
-
-extern u32 ptexBlocks;		// holds information on block tiling
-extern u32 ptexConv16to32;
 extern u32 ptexBilinearBlocks;
-extern u32 ptexConv32to16;
-extern int g_MaxTexWidth, g_MaxTexHeight;
-extern float g_fBlockMult;
-extern bool g_bDisplayMsg;
-extern bool g_bDisplayFPS;
 
-extern int g_nDepthBias;
-extern bool g_bSaveFlushedFrame;
-extern u8* s_lpShaderResources;
-extern u32 g_SaveFrameNum;
-extern int s_nWriteDepthCount;
-extern int s_nWireframeCount;
-extern int s_nWriteDestAlphaTest;
+// this is currently *not* used as a bool, in spite of its moniker --air
+// Actually, the only thing written to it is 1 or 0, which makes the (g_bSaveFlushedFrame & 0x80000000) check rather bizzare.
+//extern u32 g_bSaveFlushedFrame;	
 
 //////////////////////////
 // State parameters
-extern float fiRendWidth, fiRendHeight;
-extern int g_PrevBitwiseTexX, g_PrevBitwiseTexY; // textures stored in SAMP_BITWISEANDX and SAMP_BITWISEANDY
-extern bool s_bDestAlphaTest;
-extern int s_ClutResolve;
-extern int s_nLastResolveReset;
-extern int g_nDepthUpdateCount;
-extern int s_nResolveCounts[30]; // resolve counts for last 30 frames
-extern int g_nDepthUsed; // ffx2 pal movies
 
-/////////////////////
-// graphics resources
-extern map<string, GLbyte> mapGLExtensions;
-extern map<int, SHADERHEADER*> mapShaderResources;
 
-#ifdef DEVBUILD
+#ifdef ZEROGS_DEVBUILD
 extern char* EFFECT_NAME;
 extern char* EFFECT_DIR;
 extern u32 g_nGenVars, g_nTexVars, g_nAlphaVars, g_nResolve;
 extern bool g_bSaveTrans, g_bUpdateEffect, g_bSaveTex, g_bSaveResolved;
-
 #endif
 
-extern RasterFont* font_p;
 extern u32 s_uFramebuffer;
-extern CGprofile cgvProf, cgfProf;
 extern int g_nPixelShaderVer;
-extern CGprogram pvs[16];
-extern FRAGMENTSHADER ppsRegular[4], ppsTexture[NUM_SHADERS];
-extern FRAGMENTSHADER ppsCRTC[2], ppsCRTC24[2], ppsCRTCTarg[2];
-extern GLenum s_srcrgb, s_dstrgb, s_srcalpha, s_dstalpha; // set by zgsBlendFuncSeparateEXT
-extern u32 s_stencilfunc, s_stencilref, s_stencilmask;
-extern GLenum s_drawbuffers[];
-extern bool s_bTexFlush;
+
 extern bool s_bWriteDepth;
 
-extern int maxmin;
-extern const GLenum primtype[8];
 extern u32 ptexLogo;
 extern int nLogoWidth, nLogoHeight;
-extern u32 s_ptexInterlace;		 // holds interlace fields
-extern int s_nFullscreen;
-
-extern vector<u32> s_vecTempTextures;		   // temporary textures, released at the end of every frame
-// global alpha blending settings
-extern GLenum g_internalFloatFmt;
-extern GLenum g_internalRGBAFloatFmt;
-extern GLenum g_internalRGBAFloat16Fmt;
-
-extern CGprogram g_vsprog, g_psprog;
-extern bool g_bMakeSnapshot;
-extern string strSnapshot;
-extern bool g_bCRTCBilinear;
-
-// AVI Capture
-extern int s_aviinit;
-extern int s_avicapturing;
-
 extern int nBackbufferWidth, nBackbufferHeight;
+
 extern u8* g_pbyGSMemory;
 extern u8* g_pbyGSClut; // the temporary clut buffer
-extern CGparameter g_vparamPosXY[2], g_fparamFogColor;
 
 namespace ZeroGS
 {
@@ -752,7 +410,11 @@ public:
 	frameInfo frame;
 	int zprimmask; // zmask for incoming points
 
+union
+{
 	u32 uCurTex0Data[2]; // current tex0 data
+	GIFRegTEX0 uCurTex0;	
+};
 	u32 uNextTex0Data[2]; // tex0 data that has to be applied if bNeedTexCheck is 1
 
 	//int nFrameHeights[8];	// frame heights for the past frame changes
@@ -813,8 +475,10 @@ void Destroy(bool bD3D);
 
 void Restore(); // call to restore device
 void Reset(); // call to destroy video resources
-
 void GSStateReset();
+void GSReset();
+void GSSoftReset(u32 mask);
+
 void HandleGLError();
 
 // called on a primitive switch
@@ -823,7 +487,7 @@ void Prim();
 void SetTexFlush();
 // flush current vertices, call before setting new registers (the main render method)
 void Flush(int context);
-
+void FlushBoth();
 void ExtWrite();
 
 void SetWriteDepth();
@@ -833,6 +497,7 @@ void SetDestAlphaTest();
 bool IsWriteDestAlphaTest();
 
 void SetFogColor(u32 fog);
+void SetFogColor(GIFRegFOGCOL* fog);
 void SaveTex(tex0Info* ptex, int usevid);
 char* NamedSaveTex(tex0Info* ptex, int usevid);
 
@@ -867,6 +532,7 @@ bool SaveTexture(const char* filename, u32 textarget, u32 tex, int width, int he
 bool SaveJPEG(const char* filename, int width, int height, const void* pdata, int quality);
 bool SaveTGA(const char* filename, int width, int height, void* pdata);
 void Stop_Avi();
+void Delete_Avi_Capture();
 
 // private methods
 void FlushSysMem(const RECT* prc);
@@ -904,25 +570,5 @@ inline void CluttingForFlushedTex(tex0Info* tex0, u32 Data, int ictx)
 	ZeroGS::texClutWrite(ictx);
 }
 };
-
-// GL prototypes
-extern PFNGLISRENDERBUFFEREXTPROC glIsRenderbufferEXT;
-extern PFNGLBINDRENDERBUFFEREXTPROC glBindRenderbufferEXT;
-extern PFNGLDELETERENDERBUFFERSEXTPROC glDeleteRenderbuffersEXT;
-extern PFNGLGENRENDERBUFFERSEXTPROC glGenRenderbuffersEXT;
-extern PFNGLRENDERBUFFERSTORAGEEXTPROC glRenderbufferStorageEXT;
-extern PFNGLGETRENDERBUFFERPARAMETERIVEXTPROC glGetRenderbufferParameterivEXT;
-extern PFNGLISFRAMEBUFFEREXTPROC glIsFramebufferEXT;
-extern PFNGLBINDFRAMEBUFFEREXTPROC glBindFramebufferEXT;
-extern PFNGLDELETEFRAMEBUFFERSEXTPROC glDeleteFramebuffersEXT;
-extern PFNGLGENFRAMEBUFFERSEXTPROC glGenFramebuffersEXT;
-extern PFNGLCHECKFRAMEBUFFERSTATUSEXTPROC glCheckFramebufferStatusEXT;
-extern PFNGLFRAMEBUFFERTEXTURE1DEXTPROC glFramebufferTexture1DEXT;
-extern PFNGLFRAMEBUFFERTEXTURE2DEXTPROC glFramebufferTexture2DEXT;
-extern PFNGLFRAMEBUFFERTEXTURE3DEXTPROC glFramebufferTexture3DEXT;
-extern PFNGLFRAMEBUFFERRENDERBUFFEREXTPROC glFramebufferRenderbufferEXT;
-extern PFNGLGETFRAMEBUFFERATTACHMENTPARAMETERIVEXTPROC glGetFramebufferAttachmentParameterivEXT;
-extern PFNGLGENERATEMIPMAPEXTPROC glGenerateMipmapEXT;
-extern PFNGLDRAWBUFFERSPROC glDrawBuffers;
 
 #endif

@@ -1,6 +1,6 @@
 /*  ZZ Open GL graphics plugin
- *  Copyright (c)2009 zeydlitz@gmail.com
- *  Based on Zerofrog's ZeroGS KOSMOS (c)2005-2006
+ *  Copyright (c)2009-2010 zeydlitz@gmail.com, arcum42@gmail.com
+ *  Based on Zerofrog's ZeroGS KOSMOS (c)2005-2008
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -14,17 +14,14 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
 // Realisation of RenderCRTC function ONLY.
 // It draw picture direct on screen, so here we have interlacing and frame skipping.
 
 //------------------ Includes
-#include <stdlib.h>
-
-#include "zerogs.h"
-#include "targets.h"
+#include "ZZoglCRTC.h"
 
 using namespace ZeroGS;
 
@@ -37,92 +34,18 @@ bool g_bSaveFrame = 0;  // saves the current psurfTarget
 bool g_bSaveFinalFrame = 0; // saves the input to the CRTC
 #endif // !defined(ZEROGS_DEVBUILD)
 
-#define INTERLACE_COUNT (bInterlace && interlace == (conf.interlace))
-
-// ----------------- Types
-//------------------ Dummies
-
-//------------------ variables
-
-#ifdef _WIN32
-extern HDC		hDC;	   // Private GDI Device Context
-extern HGLRC	hRC;	   // Permanent Rendering Context
-#endif
-
-bool g_bCRTCBilinear = true;
-extern bool g_bIsLost;
-int g_nFrameRender = 10;
-int g_nFramesSkipped = 0;
-
-extern int s_frameskipping;
-extern float fFPS;
-extern unsigned char zgsrevision, zgsbuild, zgsminor;
-
-extern u32 g_SaveFrameNum;
-extern int s_nWriteDepthCount;
-extern int s_nWireframeCount;
-extern int s_nWriteDestAlphaTest;
-
-extern int g_PrevBitwiseTexX, g_PrevBitwiseTexY; // textures stored in SAMP_BITWISEANDX and SAMP_BITWISEANDY
-
+extern int maxmin;
+extern bool g_bCRTCBilinear;
 bool g_bDisplayFPS = false;
+int g_nFrameRender = 10, g_nFramesSkipped = 0, s_nResolved = 0; // s_nResolved == number of targets resolved this frame
+// Helper for skip frames.
+int TimeLastSkip = 0;
 
-extern bool s_bDestAlphaTest;
-extern int s_ClutResolve;
-extern int s_nLastResolveReset;
-extern int g_nDepthUpdateCount;
-extern int s_nResolveCounts[30]; // resolve counts for last 30 frames
-static int s_nCurResolveIndex = 0;
-int s_nResolved = 0; // number of targets resolved this frame
-extern int g_nDepthUsed; // ffx2 pal movies
+vector<u32> s_vecTempTextures;		   // temporary textures, released at the end of every frame
 
-extern vector<u32> s_vecTempTextures;		   // temporary textures, released at the end of every frame
-
-//------------------ Namespace
-
-namespace ZeroGS
-{
-extern int s_nNewWidth, s_nNewHeight;
-
-extern CRangeManager s_RangeMngr; // manages overwritten memory
-extern void FlushTransferRanges(const tex0Info* ptex);
-extern void ProcessMessages();
-void AdjustTransToAspect(Vector& v);
-
-// Interlace texture is lazy 1*(height) array of 1 and 0.
-// If its height (named s_nInterlaceTexWidth here) is hanging we must redo
-// the texture.
-// FIXME: If this function were spammed too often, we could use
-// width < s_nInterlaceTexWidth as correct for old texture
-static int s_nInterlaceTexWidth = 0;				// width of texture
-
-inline u32 CreateInterlaceTex(int width)
-{
-	if (width == s_nInterlaceTexWidth && s_ptexInterlace != 0) return s_ptexInterlace;
-
-	SAFE_RELEASE_TEX(s_ptexInterlace);
-
-	s_nInterlaceTexWidth = width;
-
-	vector<u32> data(width);
-
-	for (int i = 0; i < width; ++i)
-	{
-		data[i] = (i & 1) ? 0xffffffff : 0;
-	}
-
-	glGenTextures(1, &s_ptexInterlace);
-	glBindTexture(GL_TEXTURE_RECTANGLE_NV, s_ptexInterlace);
-	glTexImage2D(GL_TEXTURE_RECTANGLE_NV, 0, 4, width, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, &data[0]);
-	glTexParameteri(GL_TEXTURE_RECTANGLE_NV, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_RECTANGLE_NV, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	GL_REPORT_ERRORD();
-
-	return s_ptexInterlace;
-}
-}
-
-//------------------ Code
+// Snapshot variables.
+extern bool g_bMakeSnapshot;
+extern string strSnapshot;
 
 // Adjusts vertex shader BitBltPos vector v to preserve aspect ratio. It used to emulate 4:3 or 16:9.
 void ZeroGS::AdjustTransToAspect(Vector& v)
@@ -130,10 +53,8 @@ void ZeroGS::AdjustTransToAspect(Vector& v)
 	double temp;
 	float f;
 
-	if (conf.width * nBackbufferHeight > conf.height * nBackbufferWidth)
+	if (conf.width * nBackbufferHeight > conf.height * nBackbufferWidth) // limited by width
 	{
-		// limited by width
-
 		// change in ratio
 		f = ((float)nBackbufferWidth / (float)conf.width) / ((float)nBackbufferHeight / (float)conf.height);
 		v.y *= f;
@@ -143,10 +64,8 @@ void ZeroGS::AdjustTransToAspect(Vector& v)
 		v.y += (1 - (float)modf(v.y * (float)nBackbufferHeight * 0.5f + 0.05f, &temp)) * 2.0f / (float)nBackbufferHeight;
 		v.w += (1 - (float)modf(v.w * (float)nBackbufferHeight * 0.5f + 0.05f, &temp)) * 2.0f / (float)nBackbufferHeight;
 	}
-	else
+	else // limited by height
 	{
-		// limited by height
-
 		f = ((float)nBackbufferHeight / (float)conf.height) / ((float)nBackbufferWidth / (float)conf.width);
 		f -= (float)modf(f * nBackbufferWidth, &temp) / (float)nBackbufferWidth;
 		v.x *= f;
@@ -155,9 +74,6 @@ void ZeroGS::AdjustTransToAspect(Vector& v)
 
 	v *= 1 / 32767.0f;
 }
-
-// Helper for skip frames.
-int TimeLastSkip = 0;
 
 inline bool FrameSkippingHelper()
 {
@@ -187,15 +103,14 @@ inline bool FrameSkippingHelper()
 		g_nFrameRender--;
 	}
 
-
 #if defined _DEBUG
 	if (timeGetTime() - TimeLastSkip > 15000 && ShouldSkip)
 	{
 		ZZLog::Debug_Log("ZZogl Skipped frames.");
 		TimeLastSkip = timeGetTime();
 	}
-
 #endif
+
 	return ShouldSkip;
 }
 
@@ -222,8 +137,8 @@ inline void FrameSavingHelper()
 #endif
 	}
 
-	g_SaveFrameNum = 0;
-	g_bSaveFlushedFrame = 1;
+//	g_SaveFrameNum = 0;
+//	g_bSaveFlushedFrame = 1;
 }
 
 // Function populated tex0Info[2] array
@@ -240,7 +155,6 @@ inline void FrameObtainDispinfo(u32 bInterlace, tex0Info* dispinfo)
 		}
 
 		GSRegDISPFB* pfb = i ? DISPFB2 : DISPFB1;
-
 		GSRegDISPLAY* pd = i ? DISPLAY2 : DISPLAY1;
 		int magh = pd->MAGH + 1;
 		int magv = pd->MAGV + 1;
@@ -254,7 +168,7 @@ inline void FrameObtainDispinfo(u32 bInterlace, tex0Info* dispinfo)
 		// hack!!
 		// 2 * dispinfo[i].tw / dispinfo[i].th <= 1, metal slug 4
 
-		if (bInterlace && 2 * dispinfo[i].tw / dispinfo[i].th <= 1 && !(g_GameSettings&GAME_INTERLACE2X))
+		if (bInterlace && 2 * dispinfo[i].tw / dispinfo[i].th <= 1 && !(conf.settings().interlace_2x))
 		{
 			dispinfo[i].th >>= 1;
 		}
@@ -262,7 +176,7 @@ inline void FrameObtainDispinfo(u32 bInterlace, tex0Info* dispinfo)
 }
 
 
-// Something should be done before Renderer the picture.
+// Something should be done before Renderering the picture.
 inline void RenderStartHelper(u32 bInterlace)
 {
 	// Crashes Final Fantasy X at startup if uncommented. --arcum42
@@ -283,14 +197,11 @@ inline void RenderStartHelper(u32 bInterlace)
 		ZZLog::Debug_Log("Disabling MRT depth writing\n");
 	}
 
-	Flush(0);
-	Flush(1);
-	GL_REPORT_ERRORD();
+	FlushBoth();
 
 	FrameSavingHelper();
 
-	if (s_RangeMngr.ranges.size() > 0)
-		FlushTransferRanges(NULL);
+	if (s_RangeMngr.ranges.size() > 0) FlushTransferRanges(NULL);
 
 	SetShaderCaller("RenderStartHelper");
 
@@ -315,20 +226,20 @@ inline void RenderStartHelper(u32 bInterlace)
 	SET_STREAM();
 	GL_REPORT_ERRORD();
 
-	if (conf.options & GSOPTION_WIREFRAME) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	if (conf.wireframe()) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-	DisableAllgl() ;
+	DisableAllgl();
 
 	GL_REPORT_ERRORD();
 
 	if (bInterlace) g_PrevBitwiseTexX = -1;  // reset since will be using
 }
 
-// It is setting for intrelace texture multiplied vector;
-// Idea is: (x, y) -- position on screen, than interlaced texture get F = 1 ot 0 depends
-// on image y coord. So it we write valpha.z * F + valpha.w + 0.5 it would be swicthig odd
-// and even strings at each frame
-// valpha.x and y used for image blending.
+// Settings for interlace texture multiplied vector;
+// The idea is: (x, y) -- position on screen, then interlaced texture get F = 1 or 0 depending
+// on image y coords. So if we write valpha.z * F + valpha.w + 0.5, it would be switching odd
+// and even strings at each frame.
+// valpha.x and y are used for image blending.
 inline Vector RenderGetForClip(u32 bInterlace, int interlace, int psm, FRAGMENTSHADER* prog)
 {
 	SetShaderCaller("RenderGetForClip");
@@ -349,7 +260,7 @@ inline Vector RenderGetForClip(u32 bInterlace, int interlace, int psm, FRAGMENTS
 
 	if (bInterlace)
 	{
-		if (interlace == (conf.interlace&1))
+		if (interlace == (conf.interlace & 1))
 		{
 			// pass if odd
 			valpha.z = 1.0f;
@@ -378,8 +289,7 @@ inline Vector RenderGetForClip(u32 bInterlace, int interlace, int psm, FRAGMENTS
 // Note: if frame interlaced it's th is halved, so we should x2 it.
 inline void RenderCreateInterlaceTex(u32 bInterlace, int th, FRAGMENTSHADER* prog)
 {
-	if (!bInterlace)
-		return;
+	if (!bInterlace) return;
 
 	int interlacetex = CreateInterlaceTex(2 * th);
 
@@ -406,13 +316,21 @@ inline void RenderSetupBlending()
 		s_dstrgb = GL_ONE_MINUS_SRC_ALPHA;
 	}
 
-	s_srcalpha = PMODE->AMOD ? GL_ZERO : GL_ONE;
-
-	s_dstalpha = PMODE->AMOD ? GL_ONE : GL_ZERO;
+	if (PMODE->AMOD)
+	{
+		s_srcalpha = GL_ZERO;
+		s_dstalpha = GL_ONE;
+	}
+	else
+	{
+		s_srcalpha = GL_ONE;
+		s_dstalpha = GL_ZERO;
+	}
+	
 	zgsBlendFuncSeparateEXT(s_srcrgb, s_dstrgb, s_srcalpha, s_dstalpha);
 }
 
-// each frame could be drawed in two stages, so blending should be different for them
+// each frame could be drawn in two stages, so blending should be different for them
 inline void RenderSetupStencil(int i)
 {
 	glStencilMask(1 << i);
@@ -420,13 +338,10 @@ inline void RenderSetupStencil(int i)
 	GL_STENCILFUNC_SET();
 }
 
-// do stencil check for each found target i -- texturig stage
+// do stencil check for each found target i -- texturing stage
 inline void RenderUpdateStencil(int i, bool* bUsingStencil)
 {
-	if (!(*bUsingStencil))
-	{
-		glClear(GL_STENCIL_BUFFER_BIT);
-	}
+	if (!(*bUsingStencil)) glClear(GL_STENCIL_BUFFER_BIT);
 
 	*bUsingStencil = 1;
 
@@ -439,28 +354,27 @@ inline void RenderUpdateStencil(int i, bool* bUsingStencil)
 // CRTC24 could not be rendered
 inline void RenderCRTC24helper(u32 bInterlace, int interlace, int psm)
 {
-	ZZLog::Error_Log("ZZogl: CRTC24!!! I'm trying to show something.");
+	ZZLog::Debug_Log("ZZogl: CRTC24!!! I'm trying to show something.");
 	SetShaderCaller("RenderCRTC24helper");
 	// assume that data is already in ptexMem (do Resolve?)
 	RenderGetForClip(bInterlace, interlace, psm, &ppsCRTC24[bInterlace]);
 	SETPIXELSHADER(ppsCRTC24[bInterlace].prog);
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	
+	DrawTriangleArray();
 }
 
 // Maybe I do this function global-defined. Calculate bits per pixel for
-// each psm. It's obly place with PSMCT16 which have diffetent bpp.
+// each psm. It's the only place with PSMCT16 which have a different bpp.
 // FIXME: check PSMCT16S
 inline int RenderGetBpp(int psm)
 {
 	if (psm == PSMCT16S)
 	{
+		//ZZLog::Debug_Log("ZZogl: 16S target.");
 		return 3;
-
-		ZZLog::Debug_Log("ZZogl: 16S target.");
 	}
 
-	if (PSMT_ISHALF(psm))
-		return 2;
+	if (PSMT_ISHALF(psm)) return 2;
 
 	return 4;
 }
@@ -506,10 +420,10 @@ inline Vector RenderSetTargetBitPos(int dh, int th, int movy, bool isInterlace)
 	return v;
 }
 
-// Important stuff. We could use this coordinated to change viewport position on frame
-// For example use tw / X and tw / X magnify the vieport.
-// Interlaced output is little out of VB, it could be see as evil blinking line on top
-// and bottom, so we try to remove it
+// Important stuff. We could use these coordinates to change viewport position on the frame.
+// For example, use tw / X and tw / X magnify the viewport.
+// Interlaced output is little out of VB, it could be seen as an evil blinking line on top
+// and bottom, so we try to remove it.
 inline Vector RenderSetTargetBitTex(float th, float tw, float dh, float dw, bool isInterlace)
 {
 	SetShaderCaller("RenderSetTargetBitTex");
@@ -530,8 +444,8 @@ inline Vector RenderSetTargetBitTex(float th, float tw, float dh, float dw, bool
 	return v;
 }
 
-// Translator for POSITION coordinats (-1.0:+1.0f at x axis, +1.0f:-1.0y at y) into target frame ones
-// We don't need x coordinate, bvecause interlacing is y-axis only.
+// Translator for POSITION coordinates (-1.0:+1.0f at x axis, +1.0f:-1.0y at y) into target frame ones.
+// We don't need x coordinate, because interlacing is y-axis only.
 inline Vector RenderSetTargetBitTrans(int th)
 {
 	SetShaderCaller("RenderSetTargetBitTrans");
@@ -560,12 +474,11 @@ inline Vector RenderSetTargetInvTex(int bInterlace, int tw, int th, FRAGMENTSHAD
 	return v;
 }
 
-// Metal Slug 5 hack (as was written). If tarhet tbp not equal to framed fbp, than we look for better possibility,
-// Note, than after true result iterator it could not be use.
+// Metal Slug 5 hack (as was written). If target tbp not equal to framed fbp, than we look for a better possibility,
+// Note, than after true result iterator it could not be used.
 inline bool RenderLookForABetterTarget(int fbp, int tbp, list<CRenderTarget*>& listTargs, list<CRenderTarget*>::iterator& it)
 {
-	if (fbp == tbp)
-		return false;
+	if (fbp == tbp) return false;
 
 	// look for a better target (metal slug 5)
 	list<CRenderTarget*>::iterator itbetter;
@@ -584,8 +497,10 @@ inline bool RenderLookForABetterTarget(int fbp, int tbp, list<CRenderTarget*>& l
 	return false;
 }
 
+inline void RenderCheckForMemory(tex0Info& texframe, list<CRenderTarget*>& listTargs, int i, bool* bUsingStencil, int interlace, int bInterlace);
+
 // First try to draw frame from targets. 
-inline bool RenderCheckForTargets(tex0Info& texframe, list<CRenderTarget*>& listTargs, int i, bool* bUsingStencil, int interlace, int bInterlace)
+inline void RenderCheckForTargets(tex0Info& texframe, list<CRenderTarget*>& listTargs, int i, bool* bUsingStencil, int interlace, int bInterlace)
 {
 	// get the start and end addresses of the buffer
 	int bpp = RenderGetBpp(texframe.psm);
@@ -594,23 +509,23 @@ inline bool RenderCheckForTargets(tex0Info& texframe, list<CRenderTarget*>& list
 	int start, end;
 	GetRectMemAddress(start, end, texframe.psm, 0, 0, texframe.tw, texframe.th, texframe.tbp0, texframe.tbw);
 
-	// We need share list of targets beetween functions
+	// We need share list of targets between functions
 	s_RTs.GetTargs(start, end, listTargs);
 
 	for (list<CRenderTarget*>::iterator it = listTargs.begin(); it != listTargs.end();)
 	{
-
 		CRenderTarget* ptarg = *it;
 
 		if (ptarg->fbw == texframe.tbw && !(ptarg->status&CRenderTarget::TS_NeedUpdate) && ((256 / bpp)*(texframe.tbp0 - ptarg->fbp)) % texframe.tbw == 0)
 		{
+			int dby = pfb->DBY;
+			int movy = 0;
+			
 			if (RenderLookForABetterTarget(ptarg->fbp, texframe.tbp0, listTargs, it)) continue;
 
 			if (g_bSaveFinalFrame) SaveTexture("frame1.tga", GL_TEXTURE_RECTANGLE_NV, ptarg->ptex, RW(ptarg->fbw), RH(ptarg->fbh));
 
 			// determine the rectangle to render
-			int dby = pfb->DBY;
-			int movy = 0;
 			int dh = RenderGetOffsets(&dby, &movy, texframe, ptarg, bpp);
 
 			if (dh >= 64)
@@ -618,6 +533,12 @@ inline bool RenderCheckForTargets(tex0Info& texframe, list<CRenderTarget*>& list
 
 				if (ptarg->fbh - dby < texframe.th - movy && !(*bUsingStencil))
 					RenderUpdateStencil(i, bUsingStencil);
+				else if (ptarg->fbh - dby > 2 * ( texframe.th - movy )) 
+				{
+					// Sometimes calculated position onscreen is misaligned, ie in FFX-2 intro. In such case some part of image are out of
+					// border's and we should move it manually.
+					dby -= ((ptarg->fbh - dby) >> 2) -  ((texframe.th + movy) >> 1) ;
+				}
 
 				SetShaderCaller("RenderCheckForTargets");
 
@@ -638,11 +559,9 @@ inline bool RenderCheckForTargets(tex0Info& texframe, list<CRenderTarget*>& list
 
 				SETPIXELSHADER(ppsCRTCTarg[bInterlace].prog);
 
-				GL_REPORT_ERRORD();
+				DrawTriangleArray();
 
-				glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
-				if (abs(dh - (int)texframe.th) <= 1) return true;
+				if (abs(dh - (int)texframe.th) <= 1) return;
 
 				if (abs(dh - (int)ptarg->fbh) <= 1)
 				{
@@ -654,8 +573,7 @@ inline bool RenderCheckForTargets(tex0Info& texframe, list<CRenderTarget*>& list
 
 		++it;
 	}
-
-	return false;
+	RenderCheckForMemory(texframe, listTargs, i, bUsingStencil, interlace, bInterlace);
 }
 
 
@@ -664,12 +582,7 @@ inline bool RenderCheckForTargets(tex0Info& texframe, list<CRenderTarget*>& list
 // this is the function that does it.
 inline void RenderCheckForMemory(tex0Info& texframe, list<CRenderTarget*>& listTargs, int i, bool* bUsingStencil, int interlace, int bInterlace)
 {
-	// get the start and end addresses of the buffer
-	int bpp = RenderGetBpp(texframe.psm);
-	GSRegDISPFB* pfb = i ? DISPFB2 : DISPFB1;
-	
-	int start, end;
-	GetRectMemAddress(start, end, texframe.psm, 0, 0, texframe.tw, texframe.th, texframe.tbp0, texframe.tbw);
+	Vector v;
 	
 	for (list<CRenderTarget*>::iterator it = listTargs.begin(); it != listTargs.end(); ++it)
 	{
@@ -686,33 +599,44 @@ inline void RenderCheckForMemory(tex0Info& texframe, list<CRenderTarget*>& listT
 		
 	SetShaderCaller("RenderCheckForMemory");
 
-	SetTexVariablesInt(0, g_bCRTCBilinear ? 2 : 0, texframe, pmemtarg, &ppsCRTC[bInterlace], 1);
+	float w1, h1, w2, h2;
+	if (g_bCRTCBilinear)
+	{
+		w1 = texframe.tw;
+		h1 = texframe.th;
+		w2 = -0.5f;
+		h2 = -0.5f;
+		SetTexVariablesInt(0, 2, texframe, pmemtarg, &ppsCRTC[bInterlace], 1);
+	}
+	else
+	{
+		w1 = 1;
+		h1 = 1;
+		w2 = -0.5f / (float)texframe.tw;
+		h2 = -0.5f / (float)texframe.th;
+		SetTexVariablesInt(0, 0, texframe, pmemtarg, &ppsCRTC[bInterlace], 1);
+	}
+	
 	if (g_bSaveFinalFrame) SaveTex(&texframe, g_bSaveFinalFrame - 1 > 0);
-	Vector v;
 	
 	// Fixme: Why is this here?
 	// We should probably call RenderSetTargetBitTex instead.
-	if (g_bCRTCBilinear)
-		v = RenderSetTargetBitTex(texframe.tw, texframe.th, -0.5f, -0.5f, INTERLACE_COUNT);
-	else
-		v = RenderSetTargetBitTex(1, 1, -0.5f / (float)texframe.tw, -0.5f / (float)texframe.th, INTERLACE_COUNT);
+	v = RenderSetTargetBitTex(w1, h1, w2, h2, INTERLACE_COUNT);
 
 	// finally render from the memory (note that the stencil buffer will keep previous regions)
 	v = RenderSetTargetBitPos(1, 1, 0, INTERLACE_COUNT);
-	
 	v = RenderSetTargetBitTrans(texframe.th);
-
 	v = RenderSetTargetInvTex(bInterlace, texframe.tw, texframe.th, &ppsCRTC[bInterlace]);
-
 	Vector valpha = RenderGetForClip(bInterlace, interlace, texframe.psm, &ppsCRTC[bInterlace]);
 
 	cgGLSetTextureParameter(ppsCRTC[bInterlace].sMemory, pmemtarg->ptex->tex);
 	cgGLEnableTextureParameter(ppsCRTC[bInterlace].sMemory);
+	
 	RenderCreateInterlaceTex(bInterlace, texframe.th, &ppsCRTC[bInterlace]);
 
 	SETPIXELSHADER(ppsCRTC[bInterlace].prog);
-	GL_REPORT_ERRORD();
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	
+	DrawTriangleArray();
 }
 
 // Put FPS counter on screen (not in window title)
@@ -726,7 +650,7 @@ inline void AfterRenderDisplayFPS()
 	DrawText(str, left, top, 0xffc0ffff);
 }
 
-// Swapping buffers, so we could use another windows
+// Swapping buffers, so we could use another window
 inline void AfterRenderSwapBuffers()
 {
 	if (glGetError() != GL_NO_ERROR) ZZLog::Debug_Log("glError before swap!");
@@ -737,6 +661,9 @@ inline void AfterRenderSwapBuffers()
 // SnapeShoot helper
 inline void AfterRenderMadeSnapshoot()
 {
+	
+	if (!g_bMakeSnapshot) return;
+	
 	char str[64];
 	int left = 200, top = 15;
 	sprintf(str, "ZeroGS %d.%d.%d - %.1f fps %s", zgsrevision, zgsbuild, zgsminor, fFPS, s_frameskipping ? " - frameskipping" : "");
@@ -744,12 +671,14 @@ inline void AfterRenderMadeSnapshoot()
 	DrawText(str, left + 1, top + 1, 0xff000000);
 	DrawText(str, left, top, 0xffc0ffff);
 
-	if (SaveRenderTarget(strSnapshot != "" ? strSnapshot.c_str() : "temp.jpg", nBackbufferWidth, -nBackbufferHeight, 0))  //(conf.options&GSOPTION_TGASNAP)?0:1) ) {
+	if (SaveRenderTarget(strSnapshot != "" ? strSnapshot.c_str() : "temp.jpg", nBackbufferWidth, -nBackbufferHeight, 0))  //(conf.options.tga_snap)?0:1) ) {
 	{
 		char str[255];
 		sprintf(str, "saved %s\n", strSnapshot.c_str());
 		AddMessage(str, 500);
 	}
+	
+		g_bMakeSnapshot = false;
 }
 
 // If needed reset
@@ -797,7 +726,7 @@ inline void AfterRendererUnimportantJob()
 
 	AfterRenderSwapBuffers();
 
-	if (conf.options & GSOPTION_WIREFRAME)
+	if (conf.wireframe())
 	{
 		// clear all targets
 		s_nWireframeCount = 1;
@@ -806,21 +735,20 @@ inline void AfterRendererUnimportantJob()
 	if (g_bMakeSnapshot)
 	{
 		AfterRenderMadeSnapshoot();
-		g_bMakeSnapshot = 0;
+		g_bMakeSnapshot = false;
 	}
 
-	if (s_avicapturing)
-		CaptureFrame();
+	CaptureFrame();
 
 	AfterRenderCountStatistics();
 
-	if (s_nNewWidth >= 0 && s_nNewHeight >= 0 && !g_bIsLost)
+	if (s_nNewWidth >= 0 && s_nNewHeight >= 0/* && !g_bIsLost*/)
 		AfterRendererResizeWindow();
 
 	maxmin = 608;
 }
 
-// Swich Frabuffers
+// Swich Framebuffers
 inline void AfterRendererSwitchBackToTextures()
 {
 	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, s_uFramebuffer);
@@ -839,7 +767,7 @@ inline void AfterRendererSwitchBackToTextures()
 		EXTWRITE->WRITE = 0;
 	}
 
-	if (conf.options & GSOPTION_WIREFRAME) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	if (conf.wireframe()) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 	glEnable(GL_SCISSOR_TEST);
 
@@ -854,7 +782,7 @@ inline void AfterRendererSwitchBackToTextures()
 // Reset Targets Helper, for hack.
 inline void AfterRendererAutoresetTargets()
 {
-	if (g_GameSettings & GAME_AUTORESET)
+	if (conf.settings().auto_reset)
 	{
 		s_nResolveCounts[s_nCurResolveIndex] = s_nResolved;
 		s_nCurResolveIndex = (s_nCurResolveIndex + 1) % ARRAY_SIZE(s_nResolveCounts);
@@ -874,18 +802,18 @@ inline void AfterRendererAutoresetTargets()
 
 				s_RTs.ResolveAll();
 				return;
-				s_RTs.Destroy();
-				s_DepthRTs.ResolveAll();
-				s_DepthRTs.Destroy();
-
-				vb[0].prndr = NULL;
-				vb[0].pdepth = NULL;
-				vb[0].bNeedFrameCheck = 1;
-				vb[0].bNeedZCheck = 1;
-				vb[1].prndr = NULL;
-				vb[1].pdepth = NULL;
-				vb[1].bNeedFrameCheck = 1;
-				vb[1].bNeedZCheck = 1;
+//				s_RTs.Destroy();
+//				s_DepthRTs.ResolveAll();
+//				s_DepthRTs.Destroy();
+//
+//				vb[0].prndr = NULL;
+//				vb[0].pdepth = NULL;
+//				vb[0].bNeedFrameCheck = 1;
+//				vb[0].bNeedZCheck = 1;
+//				vb[1].prndr = NULL;
+//				vb[1].pdepth = NULL;
+//				vb[1].bNeedFrameCheck = 1;
+//				vb[1].bNeedZCheck = 1;
 			}
 		}
 
@@ -902,14 +830,13 @@ int count = 0;
 // The main renderer function
 void ZeroGS::RenderCRTC(int interlace)
 {
-	if (g_bIsLost) return;
-	if (FrameSkippingHelper()) return;
+	if (/*g_bIsLost || */FrameSkippingHelper()) return;
 
 	u32 bInterlace = SMODE2->INT && SMODE2->FFMD && (conf.interlace < 2);
 
 	RenderStartHelper(bInterlace);
 
-	bool bUsingStencil = 0;
+	bool bUsingStencil = false;
 	tex0Info dispinfo[2];
 
 	FrameObtainDispinfo(bInterlace, dispinfo);
@@ -934,8 +861,7 @@ void ZeroGS::RenderCRTC(int interlace)
 		list<CRenderTarget*> listTargs;
 
 		// if we could not draw image from target's do it from memory
-		if (!RenderCheckForTargets(texframe, listTargs, i, &bUsingStencil, interlace, bInterlace))
-			RenderCheckForMemory(texframe, listTargs, i, &bUsingStencil, interlace, bInterlace);
+		RenderCheckForTargets(texframe, listTargs, i, &bUsingStencil, interlace, bInterlace);
 	}
 
 	GL_REPORT_ERRORD();
@@ -946,5 +872,3 @@ void ZeroGS::RenderCRTC(int interlace)
 	AfterRendererSwitchBackToTextures();
 	AfterRendererAutoresetTargets();
 }
-
-

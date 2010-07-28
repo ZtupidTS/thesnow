@@ -84,7 +84,7 @@ _f void VifUnpackSSE_Dynarec::SetMasks(int cS) const {
 
 void VifUnpackSSE_Dynarec::doMaskWrite(const xRegisterSSE& regX) const {
 	pxAssumeDev(regX.Id <= 1, "Reg Overflow! XMM2 thru XMM6 are reserved for masking.");
-	int t  =  regX.Id ? 0 : 1; // Get Temp Reg
+	xRegisterSSE t  =  regX == xmm0 ? xmm1 : xmm0; // Get Temp Reg
 	int cc =  aMin(vCL, 3);
 	u32 m0 = (vB.mask >> (cc * 8)) & 0xff;
 	u32 m1 =  m0 & 0xaa;
@@ -95,18 +95,18 @@ void VifUnpackSSE_Dynarec::doMaskWrite(const xRegisterSSE& regX) const {
 	makeMergeMask(m3);
 	makeMergeMask(m4);
 	if (doMask&&m4) { xMOVAPS(xmmTemp, ptr[dstIndirect]);			} // Load Write Protect
-	if (doMask&&m2) { mergeVectors(regX.Id, xmmRow.Id,		t, m2); } // Merge Row
-	if (doMask&&m3) { mergeVectors(regX.Id, xmmCol0.Id+cc,	t, m3); } // Merge Col
-	if (doMask&&m4) { mergeVectors(regX.Id, xmmTemp.Id,		t, m4); } // Merge Write Protect
+	if (doMask&&m2) { mergeVectors(regX, xmmRow,						t, m2); } // Merge Row
+	if (doMask&&m3) { mergeVectors(regX, xRegisterSSE(xmmCol0.Id+cc),	t, m3); } // Merge Col
+	if (doMask&&m4) { mergeVectors(regX, xmmTemp,						t, m4); } // Merge Write Protect
 	if (doMode) {
 		u32 m5 = (~m1>>1) & ~m0;
 		if (!doMask)  m5 = 0xf;
 		else		  makeMergeMask(m5);
 		if (m5 < 0xf) {
 			xPXOR(xmmTemp, xmmTemp);
-			mergeVectors(xmmTemp.Id, xmmRow.Id, t, m5);
+			mergeVectors(xmmTemp, xmmRow, t, m5);
 			xPADD.D(regX, xmmTemp);
-			if (doMode==2) mergeVectors(xmmRow.Id, regX.Id, t, m5);
+			if (doMode==2) mergeVectors(xmmRow, regX, t, m5);
 		}
 		else if (m5 == 0xf) {
 			xPADD.D(regX, xmmRow);
@@ -123,7 +123,7 @@ void VifUnpackSSE_Dynarec::writeBackRow() const {
 	// ToDo: Do we need to write back to vifregs.rX too!? :/
 }
 
-static void ShiftDisplacementWindow( xAddressInfo& addr, const xRegister32& modReg )
+static void ShiftDisplacementWindow( xAddressVoid& addr, const xRegister32& modReg )
 {
 	// Shifts the displacement factor of a given indirect address, so that the address
 	// remains in the optimal 0xf0 range (which allows for byte-form displacements when
@@ -173,7 +173,7 @@ void VifUnpackSSE_Dynarec::CompileRoutine() {
 			if (++vCL == blockSize) vCL = 0;
 		}
 		else if (isFill) {
-			DevCon.WriteLn("filling mode!");
+			//DevCon.WriteLn("filling mode!");
 			VifUnpackSSE_Dynarec fill( VifUnpackSSE_Dynarec::FillingWrite( *this ) );
 			fill.xUnpack(upkNum);
 			fill.xMovDest();
@@ -209,7 +209,7 @@ static _f u8* dVifsetVUptr(const nVifStruct& v, int cl, int wl, bool isFill) {
 	}
 	else endPtr = ptr + (_vBlock.num * 16);
 	if ( endPtr > v.vuMemEnd ) {
-		DevCon.WriteLn("nVif%x - VU Mem Ptr Overflow; falling back to interpreter. Start = %x End = %x num = %x, wl = %x, cl = %x", v.idx, v.vif->tag.addr, v.vif->tag.addr + (_vBlock.num * 16), _vBlock.num, wl, cl);
+		//DevCon.WriteLn("nVif%x - VU Mem Ptr Overflow; falling back to interpreter. Start = %x End = %x num = %x, wl = %x, cl = %x", v.idx, v.vif->tag.addr, v.vif->tag.addr + (_vBlock.num * 16), _vBlock.num, wl, cl);
 		ptr = NULL; // Fall Back to Interpreters which have wrap-around logic
 	}
 	return ptr;
@@ -227,7 +227,7 @@ static _f void dVifRecLimit(int idx) {
 }
 
 // Gcc complains about recursive functions being inlined.
-void dVifUnpack(int idx, u8 *data, u32 size, bool isFill) {
+void dVifUnpack(int idx, const u8 *data, u32 size, bool isFill) {
 
 	const nVifStruct& v		= nVif[idx];
 	const u8	upkType		= v.vif->cmd & 0x1f | ((!!v.vif->usn) << 5);

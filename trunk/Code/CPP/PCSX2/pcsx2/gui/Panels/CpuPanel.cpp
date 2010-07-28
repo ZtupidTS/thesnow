@@ -32,7 +32,7 @@ Panels::BaseAdvancedCpuOptions::BaseAdvancedCpuOptions( wxWindow* parent )
 		RadioPanelItem(_("最近")),
 		RadioPanelItem(_("负数")),
 		RadioPanelItem(_("正数")),
-		RadioPanelItem(_("Chop / Zero"))
+		RadioPanelItem(_("Chop / 零"))
 	};
 
 	const RadioPanelItem ClampModeChoices[] =

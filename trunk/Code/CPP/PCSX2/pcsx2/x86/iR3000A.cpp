@@ -30,7 +30,6 @@
 #endif
 
 #include "IopCommon.h"
-#include "VU.h"
 #include "iCore.h"
 
 #include "SamplProf.h"
@@ -122,9 +121,7 @@ static DynGenFunc* iopExitRecompiledCode	= NULL;
 
 static void recEventTest()
 {
-    pxAssert(!Registers::Saved());
 	_cpuBranchTest_Shared();
-    pxAssert(!Registers::Saved());
 }
 
 // parameters:
@@ -772,7 +769,7 @@ static void recAlloc()
 		recMem = (u8*)SysMmapEx( 0x28000000, RECMEM_SIZE, 0, "recAlloc(R3000a)" );
 
 	if( recMem == NULL )
-		throw Exception::OutOfMemory( "R3000a Init > failed to allocate memory for the recompiler." );
+		throw Exception::OutOfMemory( L"R3000A recompiled code cache" );
 
 	// Goal: Allocate BASEBLOCKs for every possible branch target in IOP memory.
 	// Any 4-byte aligned address makes a valid branch target as per MIPS design (all instructions are
@@ -782,7 +779,7 @@ static void recAlloc()
 		m_recBlockAlloc = (u8*)_aligned_malloc( m_recBlockAllocSize, 4096 );
 
 	if( m_recBlockAlloc == NULL )
-		throw Exception::OutOfMemory( "R3000a Init > Failed to allocate memory for baseblock lookup tables." );
+		throw Exception::OutOfMemory( L"R3000A BASEBLOCK lookup tables" );
 
 	u8* curpos = m_recBlockAlloc;
 	recRAM = (BASEBLOCK*)curpos; curpos += (Ps2MemSize::IopRam / 4) * sizeof(BASEBLOCK);
@@ -796,7 +793,7 @@ static void recAlloc()
 	}
 
 	if( s_pInstCache == NULL )
-		throw Exception::OutOfMemory( "R3000a Init > Failed to allocate memory for pInstCache." );
+		throw Exception::OutOfMemory( L"R3000 InstCache." );
 
 	ProfilerRegisterSource( "IOP Rec", recMem, RECMEM_SIZE );
 	_DynGen_Dispatchers();
@@ -865,8 +862,6 @@ static void recShutdown()
 	s_nInstCacheSize = 0;
 }
 
-u32 g_psxlastpc = 0;
-
 static void iopClearRecLUT(BASEBLOCK* base, int count)
 {
 	for (int i = 0; i < count; i++)
@@ -883,10 +878,6 @@ static __noinline s32 recExecuteBlock( s32 eeCycles )
 {
 	psxBreak = 0;
 	psxCycleEE = eeCycles;
-
-	// Register freezing note:
-	//  The IOP does not use mmx/xmm registers, so we don't modify the status
-	//  of the g_EEFreezeRegs here.
 
 	// [TODO] recExecuteBlock could be replaced by a direct call to the iopEnterRecompiledCode()
 	//   (by assigning its address to the psxRec structure).  But for that to happen, we need
@@ -1167,7 +1158,7 @@ void psxRecompileNextInstruction(int delayslot)
 	_clearNeededX86regs();
 }
 
-static void printfn()
+static void __fastcall  PreBlockCheck( u32 blockpc )
 {
 #ifdef PCSX2_DEBUG
 	extern void iDumpPsxRegisters(u32 startpc, u32 temp);
@@ -1178,16 +1169,16 @@ static void printfn()
 
     //*(int*)PSXM(0x27990) = 1; // enables cdvd bios output for scph10000
 
-    if( (psxdump&2) && lastrec != g_psxlastpc )
+    if( (psxdump&2) && lastrec != blockpc )
     {
 		curcount++;
 
 		if( curcount > skip ) {
-			iDumpPsxRegisters(g_psxlastpc, 1);
+			iDumpPsxRegisters(blockpc, 1);
 			curcount = 0;
 		}
 
-		lastrec = g_psxlastpc;
+		lastrec = blockpc;
 	}
 #endif
 }
@@ -1235,8 +1226,8 @@ static void __fastcall iopRecRecompile( const u32 startpc )
 
 	if( IsDebugBuild )
 	{
-		MOV32ItoM((uptr)&g_psxlastpc, psxpc);
-		CALLFunc((uptr)printfn);
+		xMOV(ecx, psxpc);
+		xCALL(PreBlockCheck);
 	}
 
 	// go until the next branch

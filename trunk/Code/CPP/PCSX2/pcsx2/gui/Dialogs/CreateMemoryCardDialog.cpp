@@ -29,7 +29,7 @@ extern wxString GetMsg_McdNtfsCompress();
 wxFilePickerCtrl* CreateMemoryCardFilePicker( wxWindow* parent, uint portidx, uint slotidx, const wxString& filename=wxEmptyString )
 {
 	return new wxFilePickerCtrl( parent, wxID_ANY, filename,
-		wxsFormat(_("Select memory card for Port %u / Slot %u"), portidx+1, slotidx+1),	// picker window title
+		wxsFormat(_("选择内存卡端口 %u / 插槽 %u"), portidx+1, slotidx+1),	// picker window title
 		L"*.ps2",	// default wildcard
 		wxDefaultPosition, wxDefaultSize,
 		wxFLP_DEFAULT_STYLE & ~wxFLP_FILE_MUST_EXIST
@@ -38,7 +38,7 @@ wxFilePickerCtrl* CreateMemoryCardFilePicker( wxWindow* parent, uint portidx, ui
 }
 
 Dialogs::CreateMemoryCardDialog::CreateMemoryCardDialog( wxWindow* parent, uint slot, const wxDirName& mcdpath, const wxString& mcdfile )
-	: wxDialogWithHelpers( parent, _("创建一个新 MemoryCard") )
+	: wxDialogWithHelpers( parent, _("创建一个新内存卡") )
 	, m_mcdpath( mcdpath.IsOk() ? mcdpath : (wxDirName)g_Conf->Mcd[slot].Filename.GetPath() )
 	, m_mcdfile( mcdfile.IsEmpty() ? g_Conf->Mcd[slot].Filename.GetFullName() : mcdfile )
 {
@@ -57,7 +57,7 @@ Dialogs::CreateMemoryCardDialog::CreateMemoryCardDialog( wxWindow* parent, uint 
 	if( m_radio_CardSize ) m_radio_CardSize->Realize();
 
 	wxBoxSizer& s_buttons( *new wxBoxSizer(wxHORIZONTAL) );
-	s_buttons += new wxButton( this, wxID_OK, _("Create") )	| pxProportion(2);
+	s_buttons += new wxButton( this, wxID_OK, _("创建") )	| pxProportion(2);
 	s_buttons += pxStretchSpacer(3);
 	s_buttons += new wxButton( this, wxID_CANCEL )			| pxProportion(2);
 
@@ -69,7 +69,7 @@ Dialogs::CreateMemoryCardDialog::CreateMemoryCardDialog( wxWindow* parent, uint 
 		s_padding += m_filepicker			| StdExpand();
 	else
 	{
-		s_padding += Heading( _( "New card will be saved to:" ) )					| StdExpand();
+		s_padding += Heading( _( "新内存卡将被保存到:" ) )					| StdExpand();
 		s_padding += Heading( (m_mcdpath + m_mcdfile).GetFullPath() ).Unwrapped()	| StdExpand();
 	}
 	
@@ -126,8 +126,8 @@ void Dialogs::CreateMemoryCardDialog::OnOk_Click( wxCommandEvent& evt )
 	) )
 	{
 		Msgbox::Alert(
-			_("Error: The memory card could not be created."),
-			_("memory card creation error")
+			_("错误: 内存卡不能创建."),
+			_("内存卡创建错误")
 		);
 		return;
 	}
@@ -145,8 +145,8 @@ void Dialogs::CreateMemoryCardDialog::CreateControls()
 
 	const RadioPanelItem tbl_CardSizes[] =
 	{
-		RadioPanelItem(_("8 MB [most compatible]"), _("This is the standard Sony-provisioned size, and is supported by all games and BIOS versions."))
-		.	SetToolTip(_("Always use this option if you want the safest and surest memory card behavior."))
+		RadioPanelItem(_("8 MB [最兼容]"), _("这是索尼指定的默认大小, 并且所有游戏和BIOS版本都支持."))
+		.	SetToolTip(_("如果你希望安全可靠的内存卡,请使用这个选项."))
 		.	SetInt(8),
 
 		RadioPanelItem(_("16 MB"), _("A typical size for 3rd-party memory cards which should work with most games."))

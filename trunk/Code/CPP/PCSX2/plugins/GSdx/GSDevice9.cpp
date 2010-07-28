@@ -131,7 +131,7 @@ bool GSDevice9::Create(GSWnd* wnd)
 	else
 	{
 		string s = format(
-			"Supported pixel shader version is too low!\n\nSupported: %d.%d\nNeeded: 2.0 or higher",
+			"支持的像素阴影版本太低!\n\n支持的版本: %d.%d\n需要的版本: 2.0 或更高",
 			D3DSHADER_VERSION_MAJOR(m_d3dcaps.PixelShaderVersion), D3DSHADER_VERSION_MINOR(m_d3dcaps.PixelShaderVersion));
 
 		MessageBox(NULL, s.c_str(), "GSdx", MB_OK);

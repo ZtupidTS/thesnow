@@ -107,6 +107,7 @@ class SysExecEvent_MethodVoid : public SysExecEvent
 {
 protected:
 	FnType_Void*	m_method;
+	bool			m_IsCritical;
 
 public:
 	wxString GetEventName() const { return L"MethodVoid"; }
@@ -114,9 +115,21 @@ public:
 	virtual ~SysExecEvent_MethodVoid() throw() {}
 	SysExecEvent_MethodVoid* Clone() const { return new SysExecEvent_MethodVoid( *this ); }
 
-	explicit SysExecEvent_MethodVoid( FnType_Void* method = NULL )	
+	bool AllowCancelOnExit() const { return !m_IsCritical; }
+	bool IsCriticalEvent() const { return m_IsCritical; }
+
+	// Hacky: I don't really like this Critical parameter mess, but I haven't thought
+	// of a better solution (yet).
+	explicit SysExecEvent_MethodVoid( FnType_Void* method = NULL, bool critical=false )	
 	{
 		m_method = method;
+		m_IsCritical = critical;
+	}
+	
+	SysExecEvent_MethodVoid& Critical()
+	{
+		m_IsCritical = true;
+		return *this;
 	}
 	
 protected:
@@ -191,7 +204,8 @@ public:
 	void ProcessEvent( SysExecEvent* evt );
 	void ProcessEvent( SysExecEvent& evt );
 
-	bool ProcessMethodSelf( FnType_Void* method );
+	bool Rpc_TryInvokeAsync( FnType_Void* method );
+	bool Rpc_TryInvoke( FnType_Void* method );
 	void SetActiveThread();
 
 protected:
@@ -204,9 +218,9 @@ protected:
 // Threaded wrapper class for implementing pxEvtHandler.  Simply create the desired
 // EvtHandler, start the thread, and enjoy queued event execution in fully blocking fashion.
 //
-class ExecutorThread : public Threading::PersistentThread
+class ExecutorThread : public Threading::pxThread
 {
-	typedef Threading::PersistentThread _parent;
+	typedef Threading::pxThread _parent;
 
 protected:
 	ScopedPtr<wxTimer>		m_ExecutorTimer;
@@ -217,7 +231,8 @@ public:
 	virtual ~ExecutorThread() throw() { }
 
 	virtual void ShutdownQueue();
-
+	bool IsRunning() const;
+	
 	void PostEvent( SysExecEvent* evt );
 	void PostEvent( const SysExecEvent& evt );
 
@@ -227,9 +242,14 @@ public:
 	void ProcessEvent( SysExecEvent* evt );
 	void ProcessEvent( SysExecEvent& evt );
 
-	bool ProcessMethodSelf( void (*evt)() )
+	bool Rpc_TryInvokeAsync( void (*evt)() )
 	{
-		return m_EvtHandler ? m_EvtHandler->ProcessMethodSelf( evt ) : false;
+		return m_EvtHandler ? m_EvtHandler->Rpc_TryInvokeAsync( evt ) : false;
+	}
+
+	bool Rpc_TryInvoke( void (*evt)() )
+	{
+		return m_EvtHandler ? m_EvtHandler->Rpc_TryInvoke( evt ) : false;
 	}
 
 protected:

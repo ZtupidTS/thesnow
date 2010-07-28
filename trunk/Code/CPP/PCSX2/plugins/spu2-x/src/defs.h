@@ -143,7 +143,7 @@ struct V_Voice
 // Envelope
 	V_ADSR ADSR;
 // Pitch (also Reg_PITCH)
-	s16 Pitch;
+	u16 Pitch;
 // Loop Start address (also Reg_LSAH/L)
 	u32 LoopStartA;
 // Sound Start address (also Reg_SSAH/L)
@@ -180,7 +180,9 @@ struct V_Voice
 	s32 PV1;
 
 // Last outputted audio value, used for voice modulation.
-	s32 OutX;
+	u32 OutX;
+	u32 NextCrest; // temp value for Crest calculation
+	u32 PrevAmp;  // temp value for Crest calculation (abs of last value)
 
 // SBuffer now points directly to an ADPCM cache entry.
 	s16 *SBuffer;
@@ -266,8 +268,8 @@ struct V_ReverbBuffers
 
 	s32 IIR_SRC_A0;
 	s32 IIR_SRC_A1;
-	s32 IIR_SRC_B1;
 	s32 IIR_SRC_B0;
+	s32 IIR_SRC_B1;
 	s32 IIR_DEST_A0;
 	s32 IIR_DEST_A1;
 	s32 IIR_DEST_B0;
@@ -447,6 +449,7 @@ struct V_Core
 	virtual ~V_Core() throw();
 
 	void	Reset( int index );
+	void	Init( int index );
 	void	UpdateEffectsBufferSize();
 
 	s32		EffectsBufferIndexer( s32 offset ) const;
@@ -526,7 +529,7 @@ extern s16*		spu2regs;
 extern s16*		_spu2mem;
 extern int		PlayMode;
 
-extern void SetIrqCall();
+extern void SetIrqCall(int core);
 extern void StartVoices(int core, u32 value);
 extern void StopVoices(int core, u32 value);
 extern void InitADSR();
