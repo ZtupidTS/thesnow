@@ -666,13 +666,41 @@ NameError: mistake
     </h3>
     <p>
        SciTE supports folding for many languages (see the list of languages
-       understood by SciTE for more information.)
-       Fold points are based upon indentation for Python and on counting braces
-       for the other languages. The fold point markers can be clicked to
-       expand and contract folds. Ctrl+Shift+Click in the fold margin
-       will expand or contract all the top level folds. Ctrl+Click on a fold
-       point to toggle it and perform the same operation on all children.
-       Shift+Click on a fold point to show all children.
+       understood by SciTE for more information.) Fold points are based upon
+       indentation for Python and on counting braces for the other languages.
+    </p>
+
+    <p>
+       The fold point markers (in the fold margin) can be clicked to expand and
+       contract folds. Normal clicking does not alter the fold state of child fold
+       points; naturally the children are hidden when the parent fold is
+       contracted, but when the parent is expanded again, each child is still
+       folded or not, as before.
+    </p>
+
+    <p>
+       Ctrl+Click on a fold point toggles it and performs the same operation on
+       all children.
+    </p>
+
+    <p>
+       Shift+Click on a fold point does not toggle that fold, it expands all the
+       child folds.
+    </p>
+
+    <p>
+       Ctrl+Shift+Click in the fold margin expands or contracts all the top level
+       folds.
+       "Toggle all folds" in the View menu does the same; it toggles only
+       top-level folds.
+    </p>
+
+    <p>
+       Tip:
+       To open a large code block with all its children folded, fold it with
+       Ctrl+Click, then open it with a normal click. Then on opening a child fold,
+       you will see that the grandchild folds are still closed; if you want those
+       'grandchild' folds open, Shift+Click the child fold.
     </p>
     <h3>
        Properties file
@@ -753,6 +781,7 @@ NameError: mistake
                <tr><td>FileName</td><td>base name of the current file</td></tr>
                <tr><td>FileExt</td><td>extension of the current file</td></tr>
                <tr><td>FileNameExt</td><td>$(FileName).$(FileExt)</td></tr>
+               <tr><td>Language</td><td>name of the lexer used for the current file</td></tr>
                <tr><td>SessionPath</td><td>full path of the current session</td></tr>
                <tr><td>CurrentSelection</td><td>value of the currently selected text</td></tr>
                <tr><td>CurrentWord</td><td>value of word which the caret is within or near</td></tr>
@@ -1024,21 +1053,6 @@ NameError: mistake
           Setting this to a number makes SciTE display a selection margin to the left of the text.
           The value is the number of pixels wide the selection margin should be. Line markers are
           displayed in the selection margin area.
-        </td>
-      </tr>
-      <tr>
-        <td>
-          fold.margin.colour<br />
-          fold.margin.highlight.colour
-        </td>
-        <td>
-          These two properties defined the fold margin colour and fold
-          margin highlight colour.  If they are not defined (left commented out) the colours for the
-          fold margin will default to a reasonable pair of colours.
-          On Windows, the system colours are used to make the fold margin appear like the background
-          of scroll bars. As an example, with <span class="example">fold.margin.colour=#FF0000</span> and
-          <span class="example">fold.margin.highlight.colour=#0000FF</span>, the fold margin is a mixture of red
-          and blue.
         </td>
       </tr>
       <tr class="windowsonly">
@@ -2165,12 +2179,21 @@ Prev File|IDM_PREVFILE|<br/>
         <td>
           Setting open.dialog.in.file.directory causes the open dialog to initially
           display the same directory as the current file. If it is not set then the
-          system default is used which on Windows 2000 is the last directory
+          system default is used which on Windows XP is the last directory
           visited by the open dialog in any instance of SciTE. This is hard
           to use with multiple instances of SciTE. <br />
 	  	  Some versions of GTK+ may also set an unexpected directory.
         </td>
       </tr>
+      <tr class="windowsonly">
+        <td>
+          find.close.on.find
+        </td>
+        <td>
+          Set to 0 to prevent the Find dialog from closing when "Find" pressed.
+        </td>
+      </tr>
+      <tr>
       <tr>
         <td>
         find.replace.matchcase<br />
@@ -2322,16 +2345,15 @@ c:\cygwin\bin\xargs -0 fgrep -G -n "$(find.what)"
 	  <tr><td>UTF-8</td><td align="right">65001</td></tr>
 	  <tr><td>Japanese Shift-JIS</td><td align="right">932</td></tr>
 	  <tr><td>Simplified Chinese GBK</td><td align="right">936</td></tr>
+	  <tr><td>Korean Wansung</td><td align="right">949</td></tr>
 	  <tr><td>Traditional Chinese Big5</td><td align="right">950</td></tr>
-	  <tr class="windowsonly"><td>Korean</td><td align="right">949</td></tr>
-	  <tr class="windowsonly"><td>Korean Johab</td><td align="right">1361</td></tr>
+	  <tr><td>Korean Johab</td><td align="right">1361</td></tr>
   	  </table>
-	  All of these may work on Windows but the Korean code pages are not supported on GTK+.<br />
         Setting code.page to 65001 starts Unicode mode and the document is treated as
         a sequence of characters expressed as UTF-8. Display is performed by converting to the
         platform's normal Unicode encoding first so characters from any language will be displayed.
         Correct glyphs will only be displayed if fonts are chosen that contain the appropriate glyphs.
-        Tahoma is a good choice on Windows 2000. <br/>
+        Tahoma is a good choice on Windows XP. <br/>
         This property can <em>not</em> set a single byte character set.<br />
 	If output.code.page is set then it is used for the output pane which otherwise
 	matches the edit pane.
@@ -2430,7 +2452,8 @@ c:\cygwin\bin\xargs -0 fgrep -G -n "$(find.what)"
           extensions (.cpp, .cc, .h) can map to one language (C++) and hence one lexer. These
           settings associate a file name with a lexer.<br />
           The lexers included in SciTE are written in C++ and compiled into the SciTE executable.
-          Lexers can also be written as a <a href="ScriptLexer.html">Lua script</a>.
+          Lexers can also be written as a <a href="ScriptLexer.html">Lua script</a>
+          or as a Lua LPeg lexer using <a href="http://code.google.com/p/scintillua/">scintillua</a>.
         </td>
       </tr>
       <tr>
@@ -2920,19 +2943,49 @@ groupundo - yes or no
         </td>
       </tr>
       <tr>
+	<td>fold</td>
+	<td>Folding is turned on by setting fold=1.</td>
+      </tr>
+      <tr>
         <td>
-          fold<br />
-          fold.margin.width<br />
-          fold.symbols<br />
-          fold.on.open
+          fold.symbols
         </td>
         <td>
-                Options to control folding. Folding is turned on be setting fold to 1.
         The fold.symbols setting chooses between four ways of showing folding.
         Set to 0 (the default) for MacOS style arrows to indicate contracted
         (facing right) and expanded (facing down); 1 to display contracted folds
         with "+" and expanded with "-"; 2 for a flattened tree control with round
         headers and rounded joins; 3 for a flattened tree control with square headers.
+        </td>
+      </tr>
+      <tr>
+        <td>
+          fold.margin.width
+        </td>
+        <td>
+          Sets the width of the fold margin.
+        </td>
+      </tr>
+      <tr>
+        <td>
+          fold.margin.colour<br />
+          fold.margin.highlight.colour
+        </td>
+        <td>
+          These two properties defined the fold margin colour and fold
+          margin highlight colour.  If they are not defined (left commented out) the colours for the
+          fold margin will default to a reasonable pair of colours.
+          On Windows, the system colours are used to make the fold margin appear like the background
+          of scroll bars. As an example, with <span class="example">fold.margin.colour=#FF0000</span> and
+          <span class="example">fold.margin.highlight.colour=#0000FF</span>, the fold margin is a mixture of red
+          and blue.
+        </td>
+      </tr>
+      <tr>
+        <td>
+          fold.on.open
+        </td>
+        <td>
         To automatically fold files as much as possible when loaded, set
         fold.on.open to 1.
         </td>
@@ -3211,17 +3264,18 @@ groupundo - yes or no
           Interface</a> but is currently only used by the Lua Scripting Extension.
           <br />
           The ext.lua.startup.script property defines the filename of a Lua script that
-          will be loaded when SciTE starts to set up the global state for Lua.  You
-          should use an absolute path for this property, but can reference the
+          will be loaded when SciTE starts to set up the global state for Lua.
+          The default value is $(SciteUserHome)/SciTEStartup.lua.
+          You should use an absolute path for this property, but can reference the
           $(SciteDefaultHome) or $(SciteUserHome) properties.  Global event handlers,
           command functions, as well as other functions and objects can be defined here.
           <br />
           The ext.lua.auto.reload property determines what happens if you save the
           startup script, or the active extension script, from within SciTE.  If it
-          is set to 0 (the default), the startup script only applied at startup time
+          is set to 0, the startup script only applied at startup time
           or when you switch buffers (depending on ext.lua.reset), and changes to the
           extension script are only applied when you switch buffers.  If
-          ext.lua.auto.reload is set to 1, SciTE will re-initialize the global scope
+          ext.lua.auto.reload is set to 1 (the default), SciTE will re-initialize the global scope
           immediately when either script is saved from within SciTE.  <i>Even
           when ext.lua.auto.reload is enabled, SciTE will not notice if the files
           are changed from outside the current SciTE instance.  For that, see

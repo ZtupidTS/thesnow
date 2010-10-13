@@ -52,63 +52,6 @@ enum {
     menuHelp = 8
 };
 
-/**
- * This is a fixed length list of strings suitable for display in combo boxes
- * as a memory of user entries.
- */
-template < int sz >
-class EntryMemory {
-	SString entries[sz];
-public:
-	void Insert(const SString &s) {
-		for (int i = 0; i < sz; i++) {
-			if (entries[i] == s) {
-				for (int j = i; j > 0; j--) {
-					entries[j] = entries[j - 1];
-				}
-				entries[0] = s;
-				return;
-			}
-		}
-		for (int k = sz - 1; k > 0; k--) {
-			entries[k] = entries[k - 1];
-		}
-		entries[0] = s;
-	}
-	void AppendIfNotPresent(const SString &s) {
-		for (int i = 0; i < sz; i++) {
-			if (entries[i] == s) {
-				return;
-			}
-			if (0 == entries[i].length()) {
-				entries[i] = s;
-				return;
-			}
-		}
-	}
-	void AppendList(const SString &s, char sep = '|') {
-		int start = 0;
-		int end = 0;
-		while (s[end] != '\0') {
-			while ((s[end] != sep) && (s[end] != '\0'))
-				++end;
-			AppendIfNotPresent(SString(s.c_str(), start, end));
-			start = end + 1;
-			end = start;
-		}
-	}
-	int Length() const {
-		int len = 0;
-		for (int i = 0; i < sz; i++)
-			if (entries[i].length())
-				len++;
-		return len;
-	}
-	SString At(int n) const {
-		return entries[n];
-	}
-};
-
 class RecentFile : public FilePath {
 public:
 	Sci_CharacterRange selection;
@@ -132,85 +75,6 @@ enum UniMode {
     uniCookie = 4
 };
 
-// State of folding in a given document, remembers lines folded.
-class FoldState {
-private:
-	int *lines;
-	int size;
-	int fill;
-
-	void CopyFrom(const FoldState& b) {
-		Alloc(b.size);
-		memcpy(lines, b.lines, size*sizeof(int));
-		fill = b.fill;
-	}
-
-public:
-	FoldState() {
-		lines = 0;
-		size = 0;
-		fill = 0;
-	}
-
-	FoldState &operator=(const FoldState &b) {
-		if (this != &b) {
-			CopyFrom(b);
-		}
-		return *this;
-	}
-
-	FoldState(const FoldState &b) {
-		lines = 0;
-		size = 0;
-		fill = 0;
-
-		CopyFrom(b);
-	}
-
-	void Alloc(int s) {
-		//assert(s>0);
-		//assert(size==0);
-
-		delete []lines;
-		lines = new int[s];
-		size = s;
-		fill = 0;
-
-		//assert(lines && size>0);
-	}
-
-	void Clear() {
-
-		delete []lines;
-		lines = 0;
-
-		size = 0;
-		fill = 0;
-	}
-
-	virtual ~FoldState() {
-		Clear();
-	}
-
-	void Append(int line) {
-		//assert(fill<size);
-		lines[fill] = line;
-		fill++;
-	}
-
-	int Folds() const {
-		return size;
-	}
-
-	int Line(int fold) const {
-		if (fold >= size) {
-			return 0;
-		} else {
-			return lines[fold];
-		}
-	}
-};
-
 class Buffer : public RecentFile {
 public:
 	sptr_t doc;
@@ -221,7 +85,7 @@ public:
 	time_t fileModLastAsk;
 	enum { fmNone, fmMarked, fmModified} findMarks;
 	SString overrideExtension;	///< User has chosen to use a particular language
-	FoldState foldState;
+	std::vector<int> foldState;
 	Buffer() :
 			RecentFile(), doc(0), isDirty(false), useMonoFont(false),
 			unicodeMode(uni8Bit), fileModTime(0), fileModLastAsk(0), findMarks(fmNone), foldState() {}
@@ -235,7 +99,7 @@ public:
 		fileModLastAsk = 0;
 		findMarks = fmNone;
 		overrideExtension = "";
-		foldState.Clear();
+		foldState.clear();
 	}
 
 	void SetTimeFromFile() {
@@ -285,8 +149,6 @@ public:
 	SString menuKey;
 	SString extension;
 };
-
-typedef EntryMemory < 10 > ComboMemory;
 
 enum {
     heightTools = 24,
@@ -345,7 +207,7 @@ struct StyleAndWords {
 	bool IsSingleChar() { return words.length() == 1; }
 };
 
-class Localization : public PropSetFile {
+class Localization : public PropSetFile, public ILocalize {
 	SString missing;
 public:
 	bool read;
@@ -360,7 +222,58 @@ public:
 	}
 };
 
-class SciTEBase : public ExtensionAPI {
+// Interface between SciTE and dialogs and strips for find and replace
+class Searcher {
+public:
+	SString findWhat;
+	SString replaceWhat;
+
+	bool wholeWord;
+	bool matchCase;
+	bool regExp;
+	bool unSlash;
+	bool wrapFind;
+	bool reverseFind;
+
+	bool replacing;
+	bool havefound;
+	bool findInStyle;
+	int findStyle;
+	bool closeFind;
+	ComboMemory memFinds;
+	ComboMemory memReplaces;
+
+	bool focusOnReplace;
+
+	Searcher();
+
+	virtual void SetFind(const char *sFind) = 0;
+	virtual bool FindHasText() const = 0;
+	virtual void SetReplace(const char *sReplace) = 0;
+	virtual void MoveBack(int distance) = 0;
+	virtual void ScrollEditorIfNeeded() = 0;
+
+	virtual int FindNext(bool reverseDirection, bool showWarnings = true) = 0;
+	virtual int MarkAll() = 0;
+	virtual int ReplaceAll(bool inSelection) = 0;
+	virtual void ReplaceOnce() = 0;
+	virtual void UIClosed() = 0;
+	virtual void UIHasFocus() = 0;
+	bool &FlagFromCmd(int cmd);
+};
+
+class SearchUI {
+protected:
+	Searcher *pSearcher;
+public:
+	SearchUI() : pSearcher(0) {
+	}
+	void SetSearcher(Searcher *pSearcher_) {
+		pSearcher = pSearcher_;
+	}
+};
+
+class SciTEBase : public ExtensionAPI, public Searcher {
 protected:
 	virtual void SetToolBar() = 0;	//!-add-[user.toolbar]
 	GUI::gui_string windowName;
@@ -376,25 +289,10 @@ protected:
 	FilePath importFiles[importMax];
 	enum { importCmdID = IDM_IMPORT };
 
-	SString findWhat;
-	SString replaceWhat;
 	enum { indicatorMatch = INDIC_CONTAINER };
 	enum { markerBookmark = 1 };
-	bool replacing;
-	bool havefound;
-	bool matchCase;
-	bool wholeWord;
-	bool reverseFind;
-	bool regExp;
-	bool wrapFind;
-	bool unSlash;
-	bool findInStyle;
-	int findStyle;
-	ComboMemory memFinds;
-	ComboMemory memReplaces;
 	ComboMemory memFiles;
 	ComboMemory memDirectory;
-	enum { maxParam = 4 };
 	SString parameterisedCommand;
 	char abbrevInsert[200];
 
@@ -410,6 +308,7 @@ protected:
 	int characterSet;
 	SString language;
 	int lexLanguage;
+	int lexLPeg;
 	StringList apis;
 	SString apisFileNames;
 	SString functionDefinition;
@@ -685,6 +584,11 @@ protected:
 	virtual void FindMessageBox(const GUI::gui_string &msg, const SString *findItem = 0) = 0;
 //add ended ↑
 	int FindInTarget(const char *findWhat, int lenFind, int startPosition, int endPosition);
+	virtual void SetFind(const char *sFind);
+	virtual bool FindHasText() const;
+	virtual void SetReplace(const char *sReplace);
+	virtual void MoveBack(int distance);
+	virtual void ScrollEditorIfNeeded();
 	int FindNext(bool reverseDirection, bool showWarnings = true);
 	virtual void FindIncrement() = 0;
 	int IncrementSearchMode();
@@ -694,6 +598,8 @@ protected:
 	int DoReplaceAll(bool inSelection); // returns number of replacements or negative value if error
 	int ReplaceAll(bool inSelection);
 	int ReplaceInBuffers();
+	virtual void UIClosed();
+	virtual void UIHasFocus();
 	virtual void DestroyFindReplace() = 0;
 	virtual void GoLineDialog() = 0;
 	virtual bool AbbrevDialog() = 0;
@@ -903,6 +809,8 @@ protected:
 	bool islexerwordcharforsel(char ch);
 public:
 
+	enum { maxParam = 4 };
+
 	SciTEBase(Extension *ext = 0);
 	virtual ~SciTEBase();
 
@@ -934,14 +842,8 @@ const int blockSize = 131072;
 int ControlIDOfCommand(unsigned long);
 void LowerCaseString(char *s);
 long ColourOfProperty(PropSetFile &props, const char *key, Colour colourDefault);
-char *Slash(const char *s, bool quoteQuotes);
-unsigned int UnSlash(char *s);
 void WindowSetFocus(GUI::ScintillaWindow &w);
 
 inline bool isspacechar(unsigned char ch) {
     return (ch == ' ') || ((ch >= 0x09) && (ch <= 0x0d));
 }
-
-bool StartsWith(GUI::gui_string const &s, GUI::gui_string const &end);
-bool EndsWith(GUI::gui_string const &s, GUI::gui_string const &end);
-int Substitute(GUI::gui_string &s, const GUI::gui_string &sFind, const GUI::gui_string &sReplace);

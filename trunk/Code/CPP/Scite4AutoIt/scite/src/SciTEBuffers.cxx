@@ -16,6 +16,7 @@
 #endif
 
 #include <string>
+#include <vector>
 #include <map>
 
 #if defined(GTK)
@@ -58,6 +59,7 @@
 
 #include "SString.h"
 #include "StringList.h"
+#include "StringHelpers.h"
 #include "FilePath.h"
 #include "PropSetFile.h"
 #include "StyleWriter.h"
@@ -275,28 +277,17 @@ void SciTEBase::UpdateBuffersCurrent() {
 		buffers.buffers[currentbuf].scrollPosition = GetCurrentScrollPosition();
 
 		// Retrieve fold state and store in buffer state info
-		int maxLine = wEditor.Call(SCI_GETLINECOUNT);
-		int foldPoints = 0;
 
-		for (int line = 0; line < maxLine; line++) {
-			if ((wEditor.Call(SCI_GETFOLDLEVEL, line) & SC_FOLDLEVELHEADERFLAG) &&
-				!wEditor.Call(SCI_GETFOLDEXPANDED, line)) {
-				foldPoints++;
-			}
-		}
+		std::vector<int> *f = &buffers.buffers[currentbuf].foldState;
+		f->clear();
 
-		FoldState *f = &buffers.buffers[currentbuf].foldState;
-		f->Clear();
-
-		if (foldPoints > 0) {
-
-			f->Alloc(foldPoints);
-
-			for (int line = 0; line < maxLine; line++) {
-				if ((wEditor.Call(SCI_GETFOLDLEVEL, line) & SC_FOLDLEVELHEADERFLAG) &&
-					!wEditor.Call(SCI_GETFOLDEXPANDED, line)) {
-					f->Append(line);
-				}
+		if (props.GetInt("fold")) {
+			for (int line = 0; ; line++) {
+				int lineNext = wEditor.Call(SCI_CONTRACTEDFOLDNEXT, line);
+				if ((line < 0) || (lineNext < line))
+					break;
+				line = lineNext;
+				f->push_back(line);
 			}
 		}
 	}
@@ -323,8 +314,10 @@ bool SciTEBase::CanMakeRoom(bool maySaveIfDirty) {
 
 void SciTEBase::ClearDocument() {
 	wEditor.Call(SCI_SETREADONLY, 0);
+	wEditor.Call(SCI_SETUNDOCOLLECTION, 0);
 	wEditor.Call(SCI_CLEARALL);
 	wEditor.Call(SCI_EMPTYUNDOBUFFER);
+	wEditor.Call(SCI_SETUNDOCOLLECTION, 1);
 	wEditor.Call(SCI_SETSAVEPOINT);
 	wEditor.Call(SCI_SETREADONLY, isReadOnly);
 }
@@ -665,8 +658,8 @@ void SciTEBase::RestoreState(const Buffer &buffer) {
 	isReadOnly = wEditor.Call(SCI_GETREADONLY);
 
 	// check to see whether there is saved fold state, restore
-	for (int fold = 0; fold < buffer.foldState.Folds(); fold++) {
-		wEditor.Call(SCI_TOGGLEFOLD, buffer.foldState.Line(fold));
+	for (size_t fold = 0; fold < buffer.foldState.size(); fold++) {
+		wEditor.Call(SCI_TOGGLEFOLD, buffer.foldState[fold]);
 	}
 }
 
@@ -1091,6 +1084,7 @@ void SciTEBase::StackMenu(int pos) {
 				SetWindowName();
 				ReadProperties();
 				SetIndentSettings();
+				SetEol();
 			} else if (recentFileStack[pos].IsSet()) {
 				RecentFile rf = recentFileStack[pos];
 				// Already asked user so don't allow Open to ask again.

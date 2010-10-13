@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdio.h>
+#include <time.h>
 
 #include <string>
 
@@ -13,6 +15,7 @@
 
 #include "GUI.h"
 #include "SString.h"
+#include "FilePath.h"
 #include "StyleWriter.h"
 #include "Extender.h"
 #include "LuaExtension.h"
@@ -264,7 +267,7 @@ static int cf_scite_constname(lua_State *L) {
 
 static int cf_scite_open(lua_State *L) {
 	const char *s = luaL_checkstring(L, 1);
-	if (s){
+	if (s) {
 		SString cmd = "open:";
 		cmd += s;
 		cmd.substitute("\\", "\\\\");
@@ -722,7 +725,9 @@ static bool call_function(lua_State *L, int nargs, bool ignoreFunctionReturnValu
 	if (L) {
 		int traceback = 0;
 		if (tracebackEnabled) {
-			lua_getglobal(L, "print");
+			lua_getglobal(L, "debug");
+			lua_getfield(L, -1, "traceback");
+			lua_remove(L, -2);
 			if (lua_isfunction(L, -1)) {
 				traceback = lua_gettop(L) - nargs - 1;
 				lua_insert(L, traceback);
@@ -1366,9 +1371,12 @@ static bool InitGlobalScope(bool checkProperties, bool forceReload = false) {
 		// that should be blocked during startup, e.g. the ones that allow
 		// you to add or switch buffers?
 
-		luaL_loadfile(luaState, startupScript);
-		if (!call_function(luaState, 0, true)) {
-			host->Trace(">Lua: 当载入启动脚本时发生错误,灰常郁闷..\n");
+		FilePath fpTest(GUI::StringFromUTF8(startupScript));
+		if (fpTest.Exists()) {
+			luaL_loadfile(luaState, startupScript);
+			if (!call_function(luaState, 0, true)) {
+				host->Trace(">Lua: 当载入启动脚本时发生错误,灰常郁闷..\n");
+			}
 		}
 	}
 

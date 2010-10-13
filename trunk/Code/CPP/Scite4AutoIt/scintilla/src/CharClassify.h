@@ -27,7 +27,6 @@ private:
 	unsigned char charClass[maxChar];    // not type cc to save space
 };
 
-
 #ifdef SCI_NAMESPACE
 }
 #endif

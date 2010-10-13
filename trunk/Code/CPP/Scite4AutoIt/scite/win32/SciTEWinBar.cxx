@@ -357,19 +357,18 @@ void SciTEWin::SizeSubWindows() {
 	}
 
 	bands[bandTab].visible = showTab;
-	int tabRows = 1;
-	if (showTab && tabMultiLine) {
-		wTabBar.SetPosition(GUI::Rectangle(
-			rcClient.left, rcClient.top + visHeightTools,
-			rcClient.right, rcClient.top + heightTab + visHeightTools));
-		tabRows = ::SendMessage(reinterpret_cast<HWND>(
-			wTabBar.GetID()), TCM_GETROWCOUNT, 0, 0);
-	}
-	bands[bandTab].height = ((tabRows - 1) * (heightTab - 6)) + heightTab;
+
+	RECT r = { rcClient.left, 0, rcClient.right, 0 };
+	::SendMessage(reinterpret_cast<HWND>(wTabBar.GetID()),
+		TCM_ADJUSTRECT, TRUE, LPARAM(&r));
+	bands[bandTab].height = r.bottom - r.top - 4;
 
 	bands[bandSearch].visible = searchStrip.visible;
 	bands[bandFind].visible = findStrip.visible;
 	bands[bandReplace].visible = replaceStrip.visible;
+
+	GUI::Rectangle rcSB = wStatusBar.GetPosition();
+	bands[bandStatus].height = rcSB.Height() - 2;	// -2 hides a top border
 	bands[bandStatus].visible = sbVisible;
 
 	int heightContent = rcClient.Height();
@@ -1210,7 +1209,7 @@ void SciTEWin::Creation() {
 	INITCOMMONCONTROLSEX icce;
 	icce.dwSize = sizeof(icce);
 	icce.dwICC = ICC_TAB_CLASSES;
-	commonControlsLoaded = InitCommonControlsEx(&icce);
+	InitCommonControlsEx(&icce);
 
 	WNDCLASS wndClass = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 	GetClassInfo(NULL, WC_TABCONTROL, &wndClass);
