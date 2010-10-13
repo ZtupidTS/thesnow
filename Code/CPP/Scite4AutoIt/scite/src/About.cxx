@@ -19,10 +19,12 @@
 #endif
 
 #include <string>
+#include <vector>
 #include <map>
 #include <algorithm>
 
 #if !defined(GTK)
+#undef _WIN32_WINNT
 #define _WIN32_WINNT  0x0500
 #ifdef _MSC_VER
 // windows.h, et al, use a lot of nameless struct/unions - can't fix it, so allow it
@@ -46,6 +48,7 @@
 #include "GUI.h"
 #include "SString.h"
 #include "StringList.h"
+#include "StringHelpers.h"
 #include "FilePath.h"
 #include "PropSetFile.h"
 #include "StyleWriter.h"
@@ -306,6 +309,10 @@ const char *contributors[] = {
             "Xavi",
             "Toby Inkster",
             "Eric Forgeot",
+            "Colomban Wendling",
+            "Neo",
+            "Jordan Russell",
+            "Farshid Lashkari",
         };
 
 // AddStyledText only called from About so static size buffer is OK
@@ -383,14 +390,14 @@ void SciTEBase::SetAboutMessage(GUI::ScintillaWindow &wsci, const char *appTitle
 		}
 #endif
 		AddStyledText(wsci, GetTranslationToAbout("Version").c_str(), trsSty);
-		AddStyledText(wsci, " 2.20\n", 1);
+		AddStyledText(wsci, " 2.21\n", 1);
 		AddStyledText(wsci, " Build On: " __DATE__ " " __TIME__ "\n", 1);
 		SetAboutStyle(wsci, 2, ColourRGB(0, 0, 0));
 		wsci.Send(SCI_STYLESETITALIC, 2, 1);
 		AddStyledText(wsci, GetTranslationToAbout("by").c_str(), trsSty);
 		AddStyledText(wsci, " Neil Hodgson.\n", 2);
 		SetAboutStyle(wsci, 3, ColourRGB(0, 0, 0));
-		AddStyledText(wsci, "December 1998-July 2010.\n", 3);
+		AddStyledText(wsci, "December 1998-August 2010.\n", 3);
 		SetAboutStyle(wsci, 4, ColourRGB(0, 0x7f, 0x7f));
 		AddStyledText(wsci, "http://www.scintilla.org\n", 4);
 		AddStyledText(wsci, "Lua scripting language by TeCGraf, PUC-Rio\n", 3);

@@ -61,6 +61,7 @@
 #include "GUI.h"
 #include "SString.h"
 #include "StringList.h"
+#include "StringHelpers.h"
 #include "FilePath.h"
 #include "PropSetFile.h"
 #include "StyleWriter.h"
@@ -71,11 +72,56 @@
 #include "SciTEBase.h"
 #include "About.h"
 
+
+Searcher::Searcher() {
+	wholeWord = false;
+	matchCase = false;
+	regExp = false;
+	unSlash = false;
+	wrapFind = true;
+	reverseFind = false;
+
+	replacing = false;
+	havefound = false;
+	findInStyle = false;
+	findStyle = 0;
+	closeFind = true;
+
+	focusOnReplace = false;
+}
+
+// The find and replace dialogs and strips often manipulate boolean
+// flags based on dialog control IDs and menu IDs.
+bool &Searcher::FlagFromCmd(int cmd) {
+	static bool notFound;
+	switch (cmd) {
+		case IDWHOLEWORD:
+		case IDM_WHOLEWORD:
+			return wholeWord;
+		case IDMATCHCASE:
+		case IDM_MATCHCASE:
+			return matchCase;
+		case IDREGEXP:
+		case IDM_REGEXP:
+			return regExp;
+		case IDUNSLASH:
+		case IDM_UNSLASH:
+			return unSlash;
+		case IDWRAP:
+		case IDM_WRAPAROUND:
+			return wrapFind;
+		case IDDIRECTIONUP:
+		case IDM_DIRECTIONUP:
+			return reverseFind;
+	}
+	return notFound;
+}
 SciTEBase::SciTEBase(Extension *ext) : apis(true), extender(ext) {
 	codePage = 0;
 	characterSet = 0;
 	language = "au3";						//语言
 	lexLanguage = SCLEX_AU3;				//扩展语言
+	lexLPeg = -1;
 	functionDefinition = 0;
 	indentOpening = true;
 	indentClosing = true;
@@ -144,17 +190,6 @@ SciTEBase::SciTEBase(Extension *ext) : apis(true), extender(ext) {
 	lineNumbersWidth = lineNumbersWidthDefault;
 	lineNumbersExpand = false;
 	usePalette = false;
-
-	replacing = false;
-	havefound = false;
-	matchCase = false;
-	wholeWord = false;
-	reverseFind = false;
-	regExp = false;
-	wrapFind = true;
-	unSlash = false;
-	findInStyle = false;
-	findStyle = 0;
 
 	abbrevInsert[0] = '\0';
 
@@ -822,173 +857,6 @@ SString SciTEBase::EncodeString(const SString &s) {
 	return SString(s);
 }
 
-/**
- * Convert a string into C string literal form using \a, \b, \f, \n, \r, \t, \v, and \ooo.
- * The return value is a newly allocated character array containing the result.
- * 4 bytes are allocated for each byte of the input because that is the maximum
- * expansion needed when all of the input needs to be output using the octal form.
- * The return value should be deleted with delete[].
- */
-char *Slash(const char *s, bool quoteQuotes) {
-	char *oRet = new char[strlen(s) * 4 + 1];
-	char *o = oRet;
-	while (*s) {
-		if (*s == '\a') {
-			*o++ = '\\';
-			*o++ = 'a';
-		} else if (*s == '\b') {
-			*o++ = '\\';
-			*o++ = 'b';
-		} else if (*s == '\f') {
-			*o++ = '\\';
-			*o++ = 'f';
-		} else if (*s == '\n') {
-			*o++ = '\\';
-			*o++ = 'n';
-		} else if (*s == '\r') {
-			*o++ = '\\';
-			*o++ = 'r';
-		} else if (*s == '\t') {
-			*o++ = '\\';
-			*o++ = 't';
-		} else if (*s == '\v') {
-			*o++ = '\\';
-			*o++ = 'v';
-		} else if (*s == '\\') {
-			*o++ = '\\';
-			*o++ = '\\';
-		} else if (quoteQuotes && (*s == '\'')) {
-			*o++ = '\\';
-			*o++ = '\'';
-		} else if (quoteQuotes && (*s == '\"')) {
-			*o++ = '\\';
-			*o++ = '\"';
-		} else if (isascii(*s) && (*s < ' ')) {
-			*o++ = '\\';
-			*o++ = static_cast<char>((*s >> 6) + '0');
-			*o++ = static_cast<char>((*s >> 3) + '0');
-			*o++ = static_cast<char>((*s & 0x7) + '0');
-		} else {
-			*o++ = *s;
-		}
-		s++;
-	}
-	*o = '\0';
-	return oRet;
-}
-
-/**
- * Is the character an octal digit?
- */
-static bool IsOctalDigit(char ch) {
-	return ch >= '0' && ch <= '7';
-}
-
-/**
- * If the character is an hexa digit, get its value.
- */
-static int GetHexaDigit(char ch) {
-	if (ch >= '0' && ch <= '9') {
-		return ch - '0';
-	}
-	if (ch >= 'A' && ch <= 'F') {
-		return ch - 'A' + 10;
-	}
-	if (ch >= 'a' && ch <= 'f') {
-		return ch - 'a' + 10;
-	}
-	return -1;
-}
-
-/**
- * Convert C style \a, \b, \f, \n, \r, \t, \v, \ooo and \xhh into their indicated characters.
- */
-unsigned int UnSlash(char *s) {
-	char *sStart = s;
-	char *o = s;
-
-	while (*s) {
-		if (*s == '\\') {
-			s++;
-			if (*s == 'a') {
-				*o = '\a';
-			} else if (*s == 'b') {
-				*o = '\b';
-			} else if (*s == 'f') {
-				*o = '\f';
-			} else if (*s == 'n') {
-				*o = '\n';
-			} else if (*s == 'r') {
-				*o = '\r';
-			} else if (*s == 't') {
-				*o = '\t';
-			} else if (*s == 'v') {
-				*o = '\v';
-			} else if (IsOctalDigit(*s)) {
-				int val = *s - '0';
-				if (IsOctalDigit(*(s + 1))) {
-					s++;
-					val *= 8;
-					val += *s - '0';
-					if (IsOctalDigit(*(s + 1))) {
-						s++;
-						val *= 8;
-						val += *s - '0';
-					}
-				}
-				*o = static_cast<char>(val);
-			} else if (*s == 'x') {
-				s++;
-				int val = 0;
-				int ghd = GetHexaDigit(*s);
-				if (ghd >= 0) {
-					s++;
-					val = ghd;
-					ghd = GetHexaDigit(*s);
-					if (ghd >= 0) {
-						s++;
-						val *= 16;
-						val += ghd;
-					}
-				}
-				*o = static_cast<char>(val);
-			} else {
-				*o = *s;
-			}
-		} else {
-			*o = *s;
-		}
-		o++;
-		if (*s) {
-			s++;
-		}
-	}
-	*o = '\0';
-	return o - sStart;
-}
-
-/**
- * Convert C style \0oo into their indicated characters.
- * This is used to get control characters into the regular expresion engine.
- */
-unsigned int UnSlashLowOctal(char *s) {
-	char *sStart = s;
-	char *o = s;
-	while (*s) {
-		if ((s[0] == '\\') && (s[1] == '0') && IsOctalDigit(s[2]) && IsOctalDigit(s[3])) {
-			*o = static_cast<char>(8 * (s[2] - '0') + (s[3] - '0'));
-			s += 3;
-		} else {
-			*o = *s;
-		}
-		o++;
-		if (*s)
-			s++;
-	}
-	*o = '\0';
-	return o - sStart;
-}
-
 static int UnSlashAsNeeded(SString &s, bool escapes, bool regularExpression) {
 	if (escapes) {
 		char *sUnslashed = StringDup(s.c_str(), s.length());
@@ -1066,6 +934,38 @@ int SciTEBase::FindInTarget(const char *findWhat, int lenFind, int startPosition
 	return posFind;
 }
 
+void SciTEBase::SetFind(const char *sFind) {
+	findWhat = sFind;
+	memFinds.Insert(findWhat.c_str());
+	props.Set("find.what", findWhat.c_str());
+}
+
+bool SciTEBase::FindHasText() const {
+	return findWhat[0];
+}
+
+void SciTEBase::SetReplace(const char *sReplace) {
+	replaceWhat = sReplace;
+	memReplaces.Insert(replaceWhat.c_str());
+}
+
+void SciTEBase::MoveBack(int distance) {
+	Sci_CharacterRange cr = GetSelection();
+	SetSelection(cr.cpMin - distance, cr.cpMin - distance);
+}
+
+void SciTEBase::ScrollEditorIfNeeded() {
+	GUI::Point ptCaret;
+	int caret = wEditor.Call(SCI_GETCURRENTPOS);
+	ptCaret.x = wEditor.Call(SCI_POINTXFROMPOSITION, 0, caret);
+	ptCaret.y = wEditor.Call(SCI_POINTYFROMPOSITION, 0, caret);
+	ptCaret.y += wEditor.Call(SCI_TEXTHEIGHT, 0, 0) - 1;
+
+	GUI::Rectangle rcEditor = wEditor.GetClientPosition();
+	if (!rcEditor.Contains(ptCaret))
+		wEditor.Call(SCI_SCROLLCARET);
+}
+
 int SciTEBase::FindNext(bool reverseDirection, bool showWarnings) {
 	if (findWhat.length() == 0) {
 		Find();
@@ -1118,7 +1018,7 @@ int SciTEBase::FindNext(bool reverseDirection, bool showWarnings) {
 		int end = wEditor.Call(SCI_GETTARGETEND);
 		EnsureRangeVisible(start, end);
 		SetSelection(start, end);
-		if (!replacing) {
+		if (!replacing && closeFind) {
 			DestroyFindReplace();
 		}
 	}
@@ -1126,6 +1026,15 @@ int SciTEBase::FindNext(bool reverseDirection, bool showWarnings) {
 }
 
 void SciTEBase::ReplaceOnce() {
+	if (!FindHasText())
+		return;
+
+	if (!havefound) {
+		Sci_CharacterRange crange = GetSelection();
+		SetSelection(crange.cpMin, crange.cpMin);
+		FindNext(false);
+	}
+
 	if (havefound) {
 		SString replaceTarget = EncodeString(replaceWhat);
 		int replaceLen = UnSlashAsNeeded(replaceTarget, unSlash, regExp);
@@ -1303,6 +1212,12 @@ int SciTEBase::ReplaceInBuffers() {
 		    L"不能执行替换,因为字符串 '^0' 没有出现.", &findWhat);
 	}
 	return replacements;
+}
+
+void SciTEBase::UIClosed() {
+}
+
+void SciTEBase::UIHasFocus() {
 }
 
 void SciTEBase::OutputAppendString(const char *s, int len) {
@@ -4597,15 +4512,19 @@ std::vector<GUI::gui_string> ListFromString(const GUI::gui_string &args) {
 	// Split on \n
 	std::vector<GUI::gui_string> vs;
 	GUI::gui_string s;
+	bool lastNewLine = false;
 	for (size_t i=0; i<args.size(); i++) {
-		if (args[i] == '\n') {
+		lastNewLine = args[i] == '\n';
+		if (lastNewLine) {
 			vs.push_back(s);
 			s = GUI::gui_string();
 		} else {
 			s += args[i];
 		}
 	}
-	vs.push_back(s);
+	if ((s.size() > 0) || lastNewLine) {
+		vs.push_back(s);
+	}
 	return vs;
 }
 
@@ -4638,8 +4557,8 @@ bool SciTEBase::ProcessCommandLine(GUI::gui_string &args, int phase) {
 				}
 			} else if ((tolower(arg[0]) == 'p') && (arg[1] == 0)) {
 				performPrint = true;
-			} else if (GUI::gui_string(arg) == GUI_TEXT("grep")) {
-				// wlArgs[i+1] will be options in future
+			} else if (GUI::gui_string(arg) == GUI_TEXT("grep") && (wlArgs.size() - i >= 4)) {
+				// in form -grep [w~][c~][d~][b~] "<file-patterns>" "<search-string>"
 				GrepFlags gf = grepStdOut;
 				if (wlArgs[i+1][0] == 'w')
 					gf = static_cast<GrepFlags>(gf | grepWholeWord);

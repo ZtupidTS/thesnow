@@ -139,6 +139,8 @@ bool SciTEWin::ModelessHandler(MSG *pmsg) {
 		return true;
 	}
 	if (wParameters.GetID()) {
+		// Allow commands, such as Ctrl+1 to be active while the Parameters dialog is
+		// visible so that a group of commands can be easily run with differing parameters.
 		bool menuKey = (pmsg->message == WM_KEYDOWN) &&
 		               (pmsg->wParam != VK_TAB) &&
 		               (pmsg->wParam != VK_ESCAPE) &&
@@ -846,25 +848,68 @@ static void FillComboFromProps(HWND combo, PropSetFile &props) {
 	}
 }
 
+class DialogFindReplace : public Dialog, public SearchUI  {
+	bool advanced;
+public:
+	DialogFindReplace(HWND hDlg_, bool advanced_) :
+		Dialog(hDlg_), advanced(advanced_) {
+	}
+	void GrabFields();
+	void FillFields();
+};
+
+void DialogFindReplace::GrabFields() {
+	pSearcher->SetFind(ItemTextU(IDFINDWHAT).c_str());
+	if (pSearcher->replacing) {
+		pSearcher->SetReplace(ItemTextU(IDREPLACEWITH).c_str());
+	}
+	pSearcher->wholeWord = Checked(IDWHOLEWORD);
+	pSearcher->matchCase = Checked(IDMATCHCASE);
+	pSearcher->regExp = Checked(IDREGEXP);
+	pSearcher->wrapFind = Checked(IDWRAP);
+	pSearcher->unSlash = Checked(IDUNSLASH);
+	if (!pSearcher->replacing) {
+		pSearcher->reverseFind = Checked(IDDIRECTIONUP);
+	}
+	if (advanced) {
+		pSearcher->findInStyle = Checked(IDFINDINSTYLE);
+		pSearcher->findStyle = atoi(ItemTextU(IDFINDSTYLE).c_str());
+	}
+}
+
+void DialogFindReplace::FillFields() {
+	FillComboFromMemory(IDFINDWHAT, pSearcher->memFinds);
+	SetItemTextU(IDFINDWHAT, pSearcher->findWhat);
+	if (pSearcher->replacing) {
+		FillComboFromMemory(IDREPLACEWITH, pSearcher->memReplaces);
+		SetItemTextU(IDREPLACEWITH, pSearcher->replaceWhat);
+		SetItemText(IDREPLDONE, GUI_TEXT("0"));
+	}
+	SetCheck(IDWHOLEWORD, pSearcher->wholeWord);
+	SetCheck(IDMATCHCASE, pSearcher->matchCase);
+	SetCheck(IDREGEXP, pSearcher->regExp);
+	SetCheck(IDWRAP, pSearcher->wrapFind);
+	SetCheck(IDUNSLASH, pSearcher->unSlash);
+	if (!pSearcher->replacing) {
+		SetCheck(pSearcher->reverseFind ? IDDIRECTIONUP : IDDIRECTIONDOWN, true);
+	}
+	if (advanced) {
+		SetCheck(IDFINDSTYLE, pSearcher->findInStyle);
+	}
+}
 BOOL SciTEWin::FindMessage(HWND hDlg, UINT message, WPARAM wParam) {
 	HWND hTT[9];	//added
 	// Avoid getting dialog items before set up or during tear down.
-	if (WM_SETFONT == message || WM_NCDESTROY == message)
+	if (!(WM_INITDIALOG == message || WM_CLOSE == message || WM_COMMAND == message))
 		return FALSE;
-	Dialog dlg(hDlg);
+	DialogFindReplace dlg(hDlg, FindReplaceAdvanced());
+	dlg.SetSearcher(this);
 
 	switch (message) {
 
 	case WM_INITDIALOG:
 		LocaliseDialog(hDlg);
-		dlg.FillComboFromMemory(IDFINDWHAT, memFinds);
-		dlg.SetItemTextU(IDFINDWHAT, findWhat);
-		dlg.SetCheck(IDWHOLEWORD, wholeWord);
-		dlg.SetCheck(IDMATCHCASE, matchCase);
-		dlg.SetCheck(IDREGEXP, regExp);
-		dlg.SetCheck(IDWRAP, wrapFind);
-		dlg.SetCheck(IDUNSLASH, unSlash);
-		dlg.SetCheck(reverseFind ? IDDIRECTIONUP : IDDIRECTIONDOWN, true);
+		dlg.FillFields();
 		if (FindReplaceAdvanced()) {
 			dlg.SetCheck(IDFINDSTYLE, findInStyle);
 			dlg.Enable(IDFINDSTYLE, findInStyle);
@@ -900,21 +945,11 @@ BOOL SciTEWin::FindMessage(HWND hDlg, UINT message, WPARAM wParam) {
 			return FALSE;
 		} else if ( (ControlIDOfCommand(wParam) == IDOK) ||
 		            (ControlIDOfCommand(wParam) == IDMARKALL) ) {
-			findWhat = dlg.ItemTextU(IDFINDWHAT);
-			props.Set("find.what", findWhat.c_str());
-			memFinds.Insert(findWhat.c_str());
-			wholeWord = dlg.Checked(IDWHOLEWORD);
-			matchCase = dlg.Checked(IDMATCHCASE);
-			regExp = dlg.Checked(IDREGEXP);
-			wrapFind = dlg.Checked(IDWRAP);
-			unSlash = dlg.Checked(IDUNSLASH);
-			if (FindReplaceAdvanced()) {
-				findInStyle = dlg.Checked(IDFINDINSTYLE);
-				findStyle = atoi(dlg.ItemTextU(IDFINDSTYLE).c_str());
+			dlg.GrabFields();
+			if (closeFind) {
+				::EndDialog(hDlg, IDOK);
+				wFindReplace.Destroy();
 			}
-			reverseFind = dlg.Checked(IDDIRECTIONUP);
-			::EndDialog(hDlg, IDOK);
-			wFindReplace.Destroy();
 			if (ControlIDOfCommand(wParam) == IDMARKALL){
 				MarkAll();
 			}
@@ -966,41 +1001,18 @@ BOOL SciTEWin::HandleReplaceCommand(int cmd) {
 	if (!wFindReplace.GetID())
 		return TRUE;
 	HWND hwndFR = reinterpret_cast<HWND>(wFindReplace.GetID());
-	Dialog dlg(hwndFR);
+	DialogFindReplace dlg(hwndFR, FindReplaceAdvanced());
+	dlg.SetSearcher(this);
 
 	if ((cmd == IDOK) || (cmd == IDREPLACE) || (cmd == IDREPLACEALL) || (cmd == IDREPLACEINSEL) || (cmd == IDREPLACEINBUF)) {
-		findWhat = dlg.ItemTextU(IDFINDWHAT);
-		props.Set("find.what", findWhat.c_str());
-		memFinds.Insert(findWhat.c_str());
-		wholeWord = dlg.Checked(IDWHOLEWORD);
-		matchCase = dlg.Checked(IDMATCHCASE);
-		regExp = dlg.Checked(IDREGEXP);
-		wrapFind = dlg.Checked(IDWRAP);
-		unSlash = dlg.Checked(IDUNSLASH);
-		if (FindReplaceAdvanced()) {
-			findInStyle = dlg.Checked(IDFINDINSTYLE);
-			findStyle = atoi(dlg.ItemTextU(IDFINDSTYLE).c_str());
-		}
-	}
-	if ((cmd == IDREPLACE) || (cmd == IDREPLACEALL) || (cmd == IDREPLACEINSEL) || (cmd == IDREPLACEINBUF)) {
-		replaceWhat = dlg.ItemTextU(IDREPLACEWITH);
-		memReplaces.Insert(replaceWhat.c_str());
+		dlg.GrabFields();
 	}
 
 	int replacements = 0;
 	if (cmd == IDOK) {
 		FindNext(false);
 	} else if (cmd == IDREPLACE) {
-		if (havefound) {
-			ReplaceOnce();
-		} else {
-			Sci_CharacterRange crange = GetSelection();
-			SetSelection(crange.cpMin, crange.cpMin);
-			FindNext(false);
-			if (havefound) {
-				ReplaceOnce();
-			}
-		}
+		ReplaceOnce();
 	} else if ((cmd == IDREPLACEALL) || (cmd == IDREPLACEINSEL)) {
 		replacements = ReplaceAll(cmd == IDREPLACEINSEL);
 	} else if (cmd == IDREPLACEINBUF) {
@@ -1014,32 +1026,22 @@ BOOL SciTEWin::HandleReplaceCommand(int cmd) {
 
 BOOL SciTEWin::ReplaceMessage(HWND hDlg, UINT message, WPARAM wParam) {
 	// Avoid getting dialog items before set up or during tear down.
-	if (WM_SETFONT == message || WM_NCDESTROY == message)
+	if (!(WM_INITDIALOG == message || WM_CLOSE == message || WM_COMMAND == message))
 		return FALSE;
-	Dialog dlg(hDlg);
-	HWND wReplaceWith = ::GetDlgItem(hDlg, IDREPLACEWITH);
+	DialogFindReplace dlg(hDlg, FindReplaceAdvanced());
+	dlg.SetSearcher(this);
 
 	switch (message) {
 
 	case WM_INITDIALOG:
 		LocaliseDialog(hDlg);
-		dlg.FillComboFromMemory(IDFINDWHAT, memFinds);
-		dlg.SetItemTextU(IDFINDWHAT, findWhat);
-		dlg.FillComboFromMemory(IDREPLACEWITH, memReplaces);
-		dlg.SetItemTextU(IDREPLACEWITH, replaceWhat);
-		dlg.SetCheck(IDWHOLEWORD, wholeWord);
-		dlg.SetCheck(IDMATCHCASE, matchCase);
-		dlg.SetCheck(IDREGEXP, regExp);
-		dlg.SetCheck(IDWRAP, wrapFind);
-		dlg.SetCheck(IDUNSLASH, unSlash);
+		dlg.FillFields();
 		if (FindReplaceAdvanced()) {
-			dlg.SetCheck(IDFINDSTYLE, findInStyle);
 			dlg.Enable(IDFINDSTYLE, findInStyle);
 			::SetDlgItemInt(hDlg, IDFINDSTYLE, wEditor.Call(SCI_GETSTYLEAT, wEditor.Call(SCI_GETCURRENTPOS)), FALSE);
 		}
-		dlg.SetItemText(IDREPLDONE, GUI_TEXT("0"));
 		if (findWhat.length() != 0 && props.GetInt("find.replacewith.focus", 1)) {
-			::SetFocus(wReplaceWith);
+			::SetFocus(::GetDlgItem(hDlg, IDREPLACEWITH));
 			return FALSE;
 		}
 		return TRUE;
@@ -1073,6 +1075,20 @@ BOOL CALLBACK SciTEWin::ReplaceDlg(HWND hDlg, UINT message, WPARAM wParam, LPARA
 	return Caller(hDlg, message, lParam)->ReplaceMessage(hDlg, message, wParam);
 }
 
+void SciTEWin::UIClosed() {
+	SciTEBase::UIClosed();
+	props.Set("Replacements", "");
+	if (!searchStrip.visible)
+		bands[SciTEWin::bandSearch].visible = false;
+	if (!findStrip.visible)
+		bands[SciTEWin::bandFind].visible = false;
+	if (!replaceStrip.visible)
+		bands[SciTEWin::bandReplace].visible = false;
+	UpdateStatusBar(false);
+	SizeSubWindows();
+	WindowSetFocus(wEditor);
+}
+
 void SciTEWin::FindIncrement() {
 	if (findStrip.visible)
 		findStrip.Close();
@@ -1092,8 +1108,16 @@ bool SciTEWin::FindReplaceAdvanced() {
 }
 
 void SciTEWin::Find() {
-	if (wFindReplace.Created())
+	if (wFindReplace.Created()) {
+		if (!replacing) {
+			SelectionIntoFind();
+			HWND hDlg = reinterpret_cast<HWND>(wFindReplace.GetID());
+			Dialog dlg(hDlg);
+			dlg.SetItemTextU(IDFINDWHAT, findWhat);
+			::SetFocus(hDlg);
+		}
 		return;
+	}
 	SelectionIntoFind();
 
 	if (props.GetInt("find.use.strip")) {
@@ -1108,6 +1132,8 @@ void SciTEWin::Find() {
 		if (searchStrip.visible || replaceStrip.visible)
 			return;
 
+		replacing = false;
+
 		int dialog_id = FindReplaceAdvanced() ? IDD_FIND_ADV : IDD_FIND;
 
 		wFindReplace = ::CreateDialogParamW(hInstance,
@@ -1116,8 +1142,6 @@ void SciTEWin::Find() {
 											reinterpret_cast<DLGPROC>(FindDlg),
 											reinterpret_cast<LPARAM>(this));
 		wFindReplace.Show();
-
-		replacing = false;
 	}
 }
 
@@ -1303,8 +1327,16 @@ void SciTEWin::FindInFiles() {
 }
 
 void SciTEWin::Replace() {
-	if (wFindReplace.Created())
+	if (wFindReplace.Created()) {
+		if (replacing) {
+			SelectionIntoFind(false);
+			HWND hDlg = reinterpret_cast<HWND>(wFindReplace.GetID());
+			Dialog dlg(hDlg);
+			dlg.SetItemTextU(IDFINDWHAT, findWhat);
+			::SetFocus(hDlg);
+		}
 		return;
+	}
 	SelectionIntoFind(false); // don't strip EOL at end of selection
 
 	if (props.GetInt("replace.use.strip")) {
@@ -1321,15 +1353,15 @@ void SciTEWin::Replace() {
 			return;
 		int dialog_id = (!props.GetInt("find.replace.advanced") ? IDD_REPLACE : IDD_REPLACE_ADV);
 
+		replacing = true;
+		havefound = false;
+
 		wFindReplace = ::CreateDialogParamW(hInstance,
 											(LPCWSTR)MAKEINTRESOURCE(dialog_id),
 											MainHWND(),
 											reinterpret_cast<DLGPROC>(ReplaceDlg),
 											reinterpret_cast<sptr_t>(this));
 		wFindReplace.Show();
-
-		replacing = true;
-		havefound = false;
 	}
 }
 

@@ -17,6 +17,7 @@
 #endif
 
 #include <string>
+#include <vector>
 #include <map>
 
 #if defined(GTK)
@@ -55,6 +56,7 @@
 
 #include "SString.h"
 #include "StringList.h"
+#include "StringHelpers.h"
 #include "FilePath.h"
 #include "PropSetFile.h"
 #include "StyleWriter.h"
@@ -140,9 +142,10 @@ void SciTEBase::CountLineEnds(int &linesCR, int &linesLF, int &linesCRLF) {
 	int lengthDoc = LengthDocument();
 	char chPrev = ' ';
 	TextReader acc(wEditor);
+	char chNext = acc.SafeGetCharAt(0);
 	for (int i = 0; i < lengthDoc; i++) {
-		char ch = acc[i];
-		char chNext = acc.SafeGetCharAt(i + 1);
+		char ch = chNext;
+		chNext = acc.SafeGetCharAt(i + 1);
 		if (ch == '\r') {
 			if (chNext == '\n')
 				linesCRLF++;
@@ -456,6 +459,7 @@ bool SciTEBase::Open(FilePath file, OpenFlags of) {
 	CurrentBuffer()->overrideExtension = "";
 	ReadProperties();
 	SetIndentSettings();
+	SetEol();
 	UpdateBuffersCurrent();
 	SizeSubWindows();
 
@@ -718,6 +722,14 @@ int SciTEBase::SaveIfUnsureAll(bool forceQuestion) {
 	}
 	if (props.GetInt("save.session") || props.GetInt("save.position") || props.GetInt("save.recent")) {
 		SaveSessionFile(GUI_TEXT(""));
+	}
+
+	// Ensure extender is told about each buffer closing
+	for (int k = 0; k < buffers.length; k++) {
+		SetDocumentAt(k);
+		if (extender) {
+			extender->OnClose(filePath.AsUTF8().c_str());
+		}
 	}
 
 	// Definitely going to exit now, so delete all documents
