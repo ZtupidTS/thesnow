@@ -12,9 +12,7 @@ set(Output Utilities)
 # set common flags
 set(CommonFlags 
 	-pthread
-	-march=i486
-	-msse
-	-msse2
+    -fvisibility=hidden
 	-fno-dse
 	-fno-guess-branch-probability
 	-fno-strict-aliasing
@@ -96,6 +94,8 @@ endif(CMAKE_BUILD_TYPE STREQUAL Release)
 set(UtilitiesSources
 	../../include/Utilities/FixedPointTypes.inl
 	../../include/Utilities/EventSource.inl
+    ../../include/Utilities/SafeArray.inl
+    ../../include/Utilities/TlsVariable.inl
 	AlignedMalloc.cpp
 	CheckedStaticBox.cpp
 	Console.cpp
@@ -113,7 +113,8 @@ set(UtilitiesSources
 	pxCheckBox.cpp
 	pxRadioPanel.cpp
 	pxStaticText.cpp
-	pxTextStream.cpp
+	pxStreams.cpp
+	pxTranslate.cpp
 	pxWindowTextWriter.cpp
 	Semaphore.cpp
 	StringHelpers.cpp
@@ -148,13 +149,16 @@ set(UtilitiesHeaders
 	../../include/Utilities/pxCheckBox.h
 	../../include/Utilities/pxRadioPanel.h
 	../../include/Utilities/pxStaticText.h
+	../../include/Utilities/pxStreams.h
 	../../include/Utilities/RedtapeWindows.h
 	../../include/Utilities/SafeArray.h
+	../../include/Utilities/ScopedAlloc.h
 	../../include/Utilities/ScopedPtr.h
 	../../include/Utilities/ScopedPtrMT.h
 	../../include/Utilities/StringHelpers.h
 	../../include/Utilities/Threading.h
 	../../include/Utilities/ThreadingDialogs.h
+	../../include/Utilities/TraceLog.h
 	../../include/Utilities/wxAppWithHelpers.h
 	../../include/Utilities/wxBaseTools.h
 	../../include/Utilities/wxGuiTools.h

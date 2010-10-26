@@ -16,7 +16,7 @@
 #include "PrecompiledHeader.h"
 #include <wx/gdicmn.h>		// for wxPoint/wxRect stuff
 
-__forceinline wxString fromUTF8( const char* src )
+__fi wxString fromUTF8( const char* src )
 {
 	// IMPORTANT:  We cannot use wxString::FromUTF8 because it *stupidly* relies on a C++ global instance of
 	// wxMBConvUTF8().  C++ initializes and destroys these globals at random, so any object constructor or
@@ -30,9 +30,45 @@ __forceinline wxString fromUTF8( const char* src )
 	return wxString( src, wxMBConvUTF8() );
 }
 
-__forceinline wxString fromAscii( const char* src )
+__fi wxString fromAscii( const char* src )
 {
 	return wxString::FromAscii( src );
+}
+
+wxString u128::ToString() const
+{
+	return pxsFmt( L"0x%08X.%08X.%08X.%08X", _u32[0], _u32[1], _u32[2], _u32[3] );
+}
+
+wxString u128::ToString64() const
+{
+	return pxsFmt( L"0x%08X%08X.%08X%08X", _u32[0], _u32[1], _u32[2], _u32[3] );
+}
+
+wxString u128::ToString8() const
+{
+	FastFormatUnicode result;
+	result.Write( L"0x%02X.%02X", _u8[0], _u8[1] );
+	for (uint i=2; i<16; i+=2)
+		result.Write( L".%02X.%02X", _u8[i], _u8[i+1] );
+	return result;
+}
+
+void u128::WriteTo( FastFormatAscii& dest ) const
+{
+	dest.Write( "0x%08X.%08X.%08X.%08X", _u32[0], _u32[1], _u32[2], _u32[3] );
+}
+
+void u128::WriteTo64( FastFormatAscii& dest ) const
+{
+	dest.Write( "0x%08X%08X.%08X%08X", _u32[0], _u32[1], _u32[2], _u32[3] );
+}
+
+void u128::WriteTo8( FastFormatAscii& dest ) const
+{
+	dest.Write( "0x%02X.%02X", _u8[0], _u8[1] );
+	for (uint i=2; i<16; i+=2)
+		dest.Write( ".%02X.%02X", _u8[i], _u8[i+1] );
 }
 
 // Splits a string into parts and adds the parts into the given SafeList.
@@ -41,13 +77,6 @@ __forceinline wxString fromAscii( const char* src )
 //
 // Note: wxWidgets 2.9 / 3.0 has a wxSplit function, but we're using 2.8 so I had to make
 // my own.
-void SplitString( SafeList<wxString>& dest, const wxString& src, const wxString& delims )
-{
-	wxStringTokenizer parts( src, delims );
-	while( parts.HasMoreTokens() )
-		dest.Add( parts.GetNextToken() );
-}
-
 void SplitString( wxArrayString& dest, const wxString& src, const wxString& delims, wxStringTokenizerMode mode )
 {
 	wxStringTokenizer parts( src, delims, mode );
@@ -61,20 +90,6 @@ void SplitString( wxArrayString& dest, const wxString& src, const wxString& deli
 //
 // Note: wxWidgets 2.9 / 3.0 has a wxJoin function, but we're using 2.8 so I had to make
 // my own.
-wxString JoinString( const SafeList<wxString>& src, const wxString& separator )
-{
-	wxString dest;
-	for( int i=0, len=src.GetLength(); i<len; ++i )
-	{
-		if( src[i].IsEmpty() ) continue;
-		if( !dest.IsEmpty() )
-			dest += separator;
-		dest += src[i];
-	}
-	
-	return dest;
-}
-
 wxString JoinString( const wxArrayString& src, const wxString& separator )
 {
 	wxString dest;

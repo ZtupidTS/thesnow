@@ -25,6 +25,22 @@ using namespace Threading;
 
 class pxSynchronousCommandEvent;
 
+// --------------------------------------------------------------------------------------
+//  pxAppLog / ConsoleLogSource_App
+// --------------------------------------------------------------------------------------
+
+class ConsoleLogSource_App : public ConsoleLogSource
+{
+	typedef ConsoleLogSource _parent;
+
+public:
+	ConsoleLogSource_App();
+};
+
+extern ConsoleLogSource_App pxConLog_App;
+
+#define pxAppLog pxConLog_App.IsActive() && pxConLog_App
+
 
 // --------------------------------------------------------------------------------------
 //  ModalButtonPanel
@@ -110,7 +126,7 @@ public:
 	bool ProcessEvent( pxActionEvent* evt );
 
 protected:
-	void IdleEventDispatcher( const wxChar* action );
+	void IdleEventDispatcher( const wxChar* action=wxEmptyString );
 
 	void OnIdleEvent( wxIdleEvent& evt );
 	void OnStartIdleEventTimer( wxEvent& evt );
@@ -125,4 +141,5 @@ protected:
 namespace Msgbox
 {
 	extern int	ShowModal( BaseMessageBoxEvent& evt );
+	extern int	ShowModal( const wxString& title, const wxString& content, const MsgButtons& buttons );
 }

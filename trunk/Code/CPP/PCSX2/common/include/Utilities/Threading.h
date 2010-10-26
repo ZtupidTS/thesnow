@@ -21,11 +21,41 @@
 
 #include "Pcsx2Defs.h"
 #include "ScopedPtr.h"
+#include "TraceLog.h"
 
 #undef Yield		// release the burden of windows.h global namespace spam.
 
 #define AffinityAssert_AllowFrom_MainUI() \
 	pxAssertMsg( wxThread::IsMain(), "Thread affinity violation: Call allowed from main thread only." )
+
+// --------------------------------------------------------------------------------------
+//  pxThreadLog / ConsoleLogSource_Threading
+// --------------------------------------------------------------------------------------
+
+class ConsoleLogSource_Threading : ConsoleLogSource
+{
+	typedef ConsoleLogSource _parent;
+
+public:
+	using _parent::IsActive;
+
+	ConsoleLogSource_Threading();
+
+	bool Write( const wxString& thrname, const wxChar* msg ) {
+		return _parent::Write( wxsFormat(L"(thread:%s) ", thrname.c_str()) + msg );
+	}
+	bool Warn( const wxString& thrname, const wxChar* msg )	{
+		return _parent::Warn( wxsFormat(L"(thread:%s) ", thrname.c_str()) + msg );
+	}
+	bool Error( const wxString& thrname, const wxChar* msg ) {
+		return _parent::Error( wxsFormat(L"(thread:%s) ", thrname.c_str()) + msg );
+	}
+};
+
+extern ConsoleLogSource_Threading pxConLog_Thread;
+
+#define pxThreadLog pxConLog_Thread.IsActive() && pxConLog_Thread
+
 
 // --------------------------------------------------------------------------------------
 //  PCSX2_THREAD_LOCAL - Defines platform/operating system support for Thread Local Storage
@@ -104,13 +134,13 @@ namespace Exception
 		explicit ThreadCreationError( Threading::pxThread* _thread )
 		{
 			m_thread = _thread;
-			SetBothMsgs( "Thread creation failure.  An unspecified error occurred while trying to create the %s thread." );
+			SetBothMsgs( L"Thread creation failure.  An unspecified error occurred while trying to create the %s thread." );
 		}
 
 		explicit ThreadCreationError( Threading::pxThread& _thread )
 		{
 			m_thread = &_thread;
-			SetBothMsgs( "Thread creation failure.  An unspecified error occurred while trying to create the %s thread." );
+			SetBothMsgs( L"Thread creation failure.  An unspecified error occurred while trying to create the %s thread." );
 		}
 	};
 }

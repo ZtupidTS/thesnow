@@ -28,6 +28,18 @@ DEFINE_EVENT_TYPE( pxEvt_SynchronousCommand );
 
 IMPLEMENT_DYNAMIC_CLASS( pxSimpleEvent, wxEvent )
 
+ConsoleLogSource_App::ConsoleLogSource_App()
+{
+	static const TraceLogDescriptor myDesc =
+	{
+		L"AppEvents",		L"App Events",
+		wxLt("Includes idle event processing and some other uncommon event usages.")
+	};
+	
+	m_Descriptor = &myDesc;
+}
+
+ConsoleLogSource_App pxConLog_App;
 
 void BaseDeletableObject::DoDeletion()
 {
@@ -133,12 +145,12 @@ void pxActionEvent::SetException( const BaseException& ex )
 
 void pxActionEvent::SetException( BaseException* ex )
 {
-	const wxString& prefix( wxsFormat(L"(%s) ", GetClassInfo()->GetClassName()) );
+	const wxString& prefix( pxsFmt(L"(%s) ", GetClassInfo()->GetClassName()) );
 	ex->DiagMsg() = prefix + ex->DiagMsg();
 
 	if( !m_state )
 	{
-		ScopedPtr<BaseException> exptr( ex );		// auto-delete it after handling.
+		ScopedExcept exptr( ex );		// auto-delete it after handling.
 		ex->Rethrow();
 	}
 
@@ -197,7 +209,7 @@ void pxSynchronousCommandEvent::SetException( BaseException* ex )
 {
 	if( !m_sync )
 	{
-		ScopedPtr<BaseException> exptr( ex );		// auto-delete it after handling.
+		ScopedExcept exptr( ex );		// auto-delete it after handling.
 		ex->Rethrow();
 	}
 
@@ -266,7 +278,7 @@ pxExceptionEvent::pxExceptionEvent( const BaseException& ex )
 
 void pxExceptionEvent::InvokeEvent()
 {
-	ScopedPtr<BaseException> deleteMe( m_except );
+	ScopedExcept deleteMe( m_except );
 	if( deleteMe ) deleteMe->Rethrow();
 }
 
@@ -450,6 +462,7 @@ void wxAppWithHelpers::OnSynchronousCommand( pxSynchronousCommandEvent& evt )
 {
 	AffinityAssert_AllowFrom_MainUI();
 
+	pxAppLog.Write(L"(App) Executing command event synchronously...");
 	evt.SetEventType( evt.GetRealEventType() );
 
 	try {
@@ -506,33 +519,41 @@ void wxAppWithHelpers::IdleEventDispatcher( const wxChar* action )
 		lock.Release();
 		if( !Threading::AllowDeletions() && (deleteMe->GetEventType() == pxEvt_DeleteThread) )
 		{
+			// Threads that have active semaphores or mutexes (other threads are waiting on them) cannot
+			// be deleted because those mutex/sema objects will become invalid and cause the pending
+			// thread to crash.  So we disallow deletions when those waits are in action, and continue
+			// to postpone the deletion of the thread until such time that it is safe.
+
+			pxThreadLog.Write( ((pxThread*)((wxCommandEvent*)deleteMe.GetPtr())->GetClientData())->GetName(), L"Deletion postponed due to mutex or semaphore dependency." );
 			postponed.push_back(deleteMe.DetachPtr());
 		}
 		else
 		{
-			DbgCon.WriteLn( Color_Gray, L"(AppIdleQueue:%s) -> Dispatching event '%s'", action, deleteMe->GetClassInfo()->GetClassName() );
+			pxAppLog.Write( L"(AppIdleQueue%s) Dispatching event '%s'", action, deleteMe->GetClassInfo()->GetClassName() );
 			ProcessEvent( *deleteMe );		// dereference to prevent auto-deletion by ProcessEvent
 		}
 		lock.Acquire();
 	}
 
 	m_IdleEventQueue = postponed;
+	if( m_IdleEventQueue.size() > 0 )
+		pxAppLog.Write( L"(AppIdleQueue%s) %d events postponed due to dependencies.", action, m_IdleEventQueue.size() );
 }
 
 void wxAppWithHelpers::OnIdleEvent( wxIdleEvent& evt )
 {
 	m_IdleEventTimer.Stop();
-	IdleEventDispatcher( L"Idle" );
+	IdleEventDispatcher();
 }
 
 void wxAppWithHelpers::OnIdleEventTimeout( wxTimerEvent& evt )
 {
-	IdleEventDispatcher( L"Timeout" );
+	IdleEventDispatcher( L"[Timeout]" );
 }
 
 void wxAppWithHelpers::Ping()
 {
-	DbgCon.WriteLn( Color_Gray, L"App Event Ping Requested from %s thread.", pxGetCurrentThreadName().c_str() );
+	pxThreadLog.Write( pxGetCurrentThreadName().c_str(), L"App Event Ping Requested." );
 
 	SynchronousActionState sync;
 	pxActionEvent evt( sync );
@@ -604,7 +625,7 @@ void wxAppWithHelpers::DeleteObject( BaseDeletableObject& obj )
 
 void wxAppWithHelpers::DeleteThread( pxThread& obj )
 {
-	//pxAssume( obj.IsBeingDeleted() );
+	pxThreadLog.Write(obj.GetName(), L"Scheduling for deletion...");
 	wxCommandEvent evt( pxEvt_DeleteThread );
 	evt.SetClientData( (void*)&obj );
 	AddIdleEvent( evt );
@@ -648,8 +669,13 @@ void wxAppWithHelpers::OnDeleteObject( wxCommandEvent& evt )
 void wxAppWithHelpers::OnDeleteThread( wxCommandEvent& evt )
 {
 	ScopedPtr<pxThread> thr( (pxThread*)evt.GetClientData() );
-	if( !thr ) return;
+	if( !thr )
+	{
+		pxThreadLog.Write( L"null", L"OnDeleteThread: NULL thread object received (and ignored)." );
+		return;
+	}
 
+	pxThreadLog.Write(thr->GetName(), (wxString)L"Thread object deleted successfully" + (thr->HasPendingException() ? wxEmptyString : L"[exception pending!]"));
 	thr->RethrowException();
 }
 

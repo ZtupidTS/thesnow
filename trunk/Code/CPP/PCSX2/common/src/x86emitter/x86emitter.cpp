@@ -72,22 +72,22 @@ template void xWrite<u32>( u32 val );
 template void xWrite<u64>( u64 val );
 template void xWrite<u128>( u128 val );
 
-__forceinline void xWrite8( u8 val )
+__fi void xWrite8( u8 val )
 {
 	xWrite( val );
 }
 
-__forceinline void xWrite16( u16 val )
+__fi void xWrite16( u16 val )
 {
 	xWrite( val );
 }
 
-__forceinline void xWrite32( u32 val )
+__fi void xWrite32( u32 val )
 {
 	xWrite( val );
 }
 
-__forceinline void xWrite64( u64 val )
+__fi void xWrite64( u64 val )
 {
 	xWrite( val );
 }
@@ -213,12 +213,12 @@ const char* xRegisterBase::GetName()
 // (btw, I know this isn't a critical performance item by any means, but it's
 //  annoying simply because it *should* be an easy thing to optimize)
 
-static __forceinline void ModRM( uint mod, uint reg, uint rm )
+static __fi void ModRM( uint mod, uint reg, uint rm )
 {
 	xWrite8( (mod << 6) | (reg << 3) | rm );
 }
 
-static __forceinline void SibSB( u32 ss, u32 index, u32 base )
+static __fi void SibSB( u32 ss, u32 index, u32 base )
 {
 	xWrite8( (ss << 6) | (index << 3) | base );
 }
@@ -260,7 +260,7 @@ __emitinline void xOpWrite0F( u16 opcode, int instId, const xIndirectVoid& sib )
 //////////////////////////////////////////////////////////////////////////////////////////
 // returns TRUE if this instruction requires SIB to be encoded, or FALSE if the
 // instruction ca be encoded as ModRm alone.
-static __forceinline bool NeedsSibMagic( const xIndirectVoid& info )
+static __fi bool NeedsSibMagic( const xIndirectVoid& info )
 {
 	// no registers? no sibs!
 	// (xIndirectVoid::Reduce always places a register in Index, and optionally leaves
@@ -289,7 +289,7 @@ void EmitSibMagic( uint regfield, const xIndirectVoid& info )
 	int displacement_size = (info.Displacement == 0) ? 0 :
 		( ( info.IsByteSizeDisp() ) ? 1 : 2 );
 
-	assert(!info.Base.IsEmpty() || !info.Index.IsEmpty() || displacement_size == 2);
+	pxAssert(!info.Base.IsEmpty() || !info.Index.IsEmpty() || displacement_size == 2);
 
 	if( !NeedsSibMagic( info ) )
 	{
@@ -543,7 +543,7 @@ xAddressVoid& xAddressVoid::Add( const xAddressReg& src )
 	else if( Index.IsEmpty() )
 		Index = src;
 	else
-		pxFailDev( L"x86Emitter: address modifiers cannot have more than two index registers." );	// oops, only 2 regs allowed per ModRm!
+		pxAssumeDev( false, L"x86Emitter: address modifiers cannot have more than two index registers." );	// oops, only 2 regs allowed per ModRm!
 
 	return *this;
 }
@@ -568,7 +568,7 @@ xAddressVoid& xAddressVoid::Add( const xAddressVoid& src )
 		Factor += src.Factor;
 	}
 	else
-		pxFailDev( L"x86Emitter: address modifiers cannot have more than two index registers." );	// oops, only 2 regs allowed per ModRm!
+		pxAssumeDev( false, L"x86Emitter: address modifiers cannot have more than two index registers." );	// oops, only 2 regs allowed per ModRm!
 
 	return *this;
 }
@@ -664,11 +664,11 @@ void xIndirectVoid::Reduce()
 		break;
 
 		case 6:				// invalid!
-			pxFail( "x86 asm cannot scale a register by 6." );
+			pxAssumeDev( false, "x86 asm cannot scale a register by 6." );
 		break;
 
 		case 7:				// so invalid!
-			pxFail( "x86 asm cannot scale a register by 7." );
+			pxAssumeDev( false, "x86 asm cannot scale a register by 7." );
 		break;
 
 		case 8: Scale = 3; break;
@@ -677,12 +677,14 @@ void xIndirectVoid::Reduce()
 			Base = Index;
 			Scale = 3;
 		break;
+		
+		jNO_DEFAULT
 	}
 }
 
 uint xIndirectVoid::GetOperandSize() const
 {
-	pxFail( "Invalid operation on xIndirectVoid" );
+	pxFailDev( "Invalid operation on xIndirectVoid" );
 	return 0;
 }
 
@@ -952,37 +954,37 @@ __emitinline void xPUSH( const xIndirectVoid& from )
 	EmitSibMagic( 6, from );
 }
 
-__forceinline void xPOP( xRegister32 from )		{ xWrite8( 0x58 | from.Id ); }
+__fi void xPOP( xRegister32 from )		{ xWrite8( 0x58 | from.Id ); }
 
-__forceinline void xPUSH( u32 imm )				{ xWrite8( 0x68 ); xWrite32( imm ); }
-__forceinline void xPUSH( xRegister32 from )	{ xWrite8( 0x50 | from.Id ); }
+__fi void xPUSH( u32 imm )				{ xWrite8( 0x68 ); xWrite32( imm ); }
+__fi void xPUSH( xRegister32 from )	{ xWrite8( 0x50 | from.Id ); }
 
 // pushes the EFLAGS register onto the stack
-__forceinline void xPUSHFD()					{ xWrite8( 0x9C ); }
+__fi void xPUSHFD()					{ xWrite8( 0x9C ); }
 // pops the EFLAGS register from the stack
-__forceinline void xPOPFD()						{ xWrite8( 0x9D ); }
+__fi void xPOPFD()						{ xWrite8( 0x9D ); }
 
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //
 
-__forceinline void xLEAVE()	{ xWrite8( 0xC9 ); }
-__forceinline void xRET()	{ xWrite8( 0xC3 ); }
-__forceinline void xCBW()	{ xWrite16( 0x9866 );  }
-__forceinline void xCWD()	{ xWrite8( 0x98 ); }
-__forceinline void xCDQ()	{ xWrite8( 0x99 ); }
-__forceinline void xCWDE()	{ xWrite8( 0x98 ); }
+__fi void xLEAVE()	{ xWrite8( 0xC9 ); }
+__fi void xRET()	{ xWrite8( 0xC3 ); }
+__fi void xCBW()	{ xWrite16( 0x9866 );  }
+__fi void xCWD()	{ xWrite8( 0x98 ); }
+__fi void xCDQ()	{ xWrite8( 0x99 ); }
+__fi void xCWDE()	{ xWrite8( 0x98 ); }
 
-__forceinline void xLAHF()	{ xWrite8( 0x9f ); }
-__forceinline void xSAHF()	{ xWrite8( 0x9e ); }
+__fi void xLAHF()	{ xWrite8( 0x9f ); }
+__fi void xSAHF()	{ xWrite8( 0x9e ); }
 
-__forceinline void xSTC()	{ xWrite8( 0xF9 ); }
-__forceinline void xCLC()	{ xWrite8( 0xF8 ); }
+__fi void xSTC()	{ xWrite8( 0xF9 ); }
+__fi void xCLC()	{ xWrite8( 0xF8 ); }
 
 // NOP 1-byte
-__forceinline void xNOP()	{ xWrite8(0x90); }
+__fi void xNOP()	{ xWrite8(0x90); }
 
-__forceinline void xINT( u8 imm )
+__fi void xINT( u8 imm )
 {
 	if (imm == 3)
 		xWrite8(0xcc);
@@ -993,7 +995,7 @@ __forceinline void xINT( u8 imm )
 	}
 }
 
-__forceinline void xINTO()	{ xWrite8(0xce); }
+__fi void xINTO()	{ xWrite8(0xce); }
 
 __emitinline void xBSWAP( const xRegister32& to )
 {

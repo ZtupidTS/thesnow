@@ -23,9 +23,9 @@
 #include <signal.h>
 #endif
 
-static wxString GetTranslation( const char* msg )
+static wxString GetTranslation( const wxChar* msg )
 {
-	return msg ? wxGetTranslation( fromUTF8(msg) ) : wxEmptyString;
+	return msg ? wxGetTranslation( msg ) : wxEmptyString;
 }
 
 // ------------------------------------------------------------------------
@@ -36,7 +36,7 @@ static wxString GetTranslation( const char* msg )
 #ifdef PCSX2_DEVBUILD
 #	define DEVASSERT_INLINE __noinline
 #else
-#	define DEVASSERT_INLINE __forceinline
+#	define DEVASSERT_INLINE __fi
 #endif
 
 // Using a threadlocal assertion guard.  Separate threads can assert at the same time.
@@ -49,21 +49,20 @@ pxDoAssertFnType* pxDoAssert = pxAssertImpl_LogIt;
 // response times from the Output window...
 wxString DiagnosticOrigin::ToString( const wxChar* msg ) const
 {
-	wxString message;
-	message.reserve( 2048 );
+	FastFormatUnicode message;
 
-	message.Printf( L"%s(%d) : assertion failed:\n", srcfile, line );
+	message.Write( L"%s(%d) : assertion failed:\n", srcfile, line );
 
 	if( function != NULL )
-		message	+= L"    Function:  " + fromUTF8(function) + L"\n";
+		message.Write( "    Function:  %s\n", function );
 
-	message		+= L"    Thread:    " + Threading::pxGetCurrentThreadName() + L"\n";
+		message.Write(L"    Thread:    %s\n", Threading::pxGetCurrentThreadName().c_str() );
 
 	if( condition != NULL )
-		message	+= L"    Condition: " + wxString(condition) + L"\n";
+		message.Write(L"    Condition: %s\n", condition);
 
 	if( msg != NULL )
-		message += L"    Message:   " + wxString(msg) + L"\n";
+		message.Write(L"    Message:   %s\n", msg);
 
 	return message;
 }
@@ -97,8 +96,11 @@ void pxTrap()
 
 DEVASSERT_INLINE void pxOnAssert( const DiagnosticOrigin& origin, const wxChar* msg )
 {
+	// Recursion guard: Allow at least one recursive call.  This is useful because sometimes
+	// we get meaningless assertions while unwinding stack traces after exceptions have occurred.
+
 	RecursionGuard guard( s_assert_guard );
-	if( guard.IsReentrant() ) { return wxTrap(); }
+	if (guard.Counter > 2) { return wxTrap(); }
 
 	// wxWidgets doesn't come with debug builds on some Linux distros, and other distros make
 	// it difficult to use the debug build (compilation failures).  To handle these I've had to
@@ -120,7 +122,7 @@ DEVASSERT_INLINE void pxOnAssert( const DiagnosticOrigin& origin, const wxChar* 
 	if( trapit ) { pxTrap(); }
 }
 
-__forceinline void pxOnAssert( const DiagnosticOrigin& origin, const char* msg)
+__fi void pxOnAssert( const DiagnosticOrigin& origin, const char* msg)
 {
 	pxOnAssert( origin, fromUTF8(msg) );
 }
@@ -132,10 +134,10 @@ __forceinline void pxOnAssert( const DiagnosticOrigin& origin, const char* msg)
 
 BaseException::~BaseException() throw() {}
 
-BaseException& BaseException::SetBothMsgs( const char* msg_diag )
+BaseException& BaseException::SetBothMsgs( const wxChar* msg_diag )
 {
 	m_message_user = GetTranslation( msg_diag );
-	return SetDiagMsg( fromUTF8(msg_diag) );
+	return SetDiagMsg( msg_diag );
 }
 
 BaseException& BaseException::SetDiagMsg( const wxString& msg_diag )
@@ -167,24 +169,20 @@ Exception::RuntimeError::RuntimeError( const std::runtime_error& ex, const wxStr
 {
 	IsSilent = false;
 
-	const wxString msg( wxsFormat( L"STL Runtime Error%s: %s",
-		(prefix.IsEmpty() ? prefix.c_str() : wxsFormat(L" (%s)", prefix.c_str()).c_str()),
+	SetDiagMsg( pxsFmt( L"STL Runtime Error%s: %s",
+		(prefix.IsEmpty() ? prefix.c_str() : pxsFmt(L" (%s)", prefix.c_str()).c_str()),
 		fromUTF8( ex.what() ).c_str()
 	) );
-
-	SetDiagMsg( msg );
 }
 
 Exception::RuntimeError::RuntimeError( const std::exception& ex, const wxString& prefix )
 {
 	IsSilent = false;
 
-	const wxString msg( wxsFormat( L"STL Exception%s: %s",
-		(prefix.IsEmpty() ? prefix.c_str() : wxsFormat(L" (%s)", prefix.c_str()).c_str()),
+	SetDiagMsg( pxsFmt( L"STL Exception%s: %s",
+		(prefix.IsEmpty() ? prefix.c_str() : pxsFmt(L" (%s)", prefix.c_str()).c_str()),
 		fromUTF8( ex.what() ).c_str()
 	) );
-
-	SetDiagMsg( msg );
 }
 
 // --------------------------------------------------------------------------------------
@@ -205,7 +203,7 @@ wxString Exception::OutOfMemory::FormatDiagnosticMessage() const
 wxString Exception::OutOfMemory::FormatDisplayMessage() const
 {
 	if (m_message_user.IsEmpty()) return FormatDisplayMessage();
-	return m_message_user + wxsFormat( L"\n\nInternal allocation descriptor: %s", AllocDescription.c_str());
+	return m_message_user + pxsFmt( L"\n\nInternal allocation descriptor: %s", AllocDescription.c_str());
 }
 
 
@@ -222,7 +220,7 @@ wxString Exception::CancelEvent::FormatDisplayMessage() const
 
 wxString Exception::Stream::FormatDiagnosticMessage() const
 {
-	return wxsFormat(
+	return pxsFmt(
 		L"%s\n\tFile/Object: %s",
 		m_message_diag.c_str(), StreamName.c_str()
 	);
@@ -232,8 +230,46 @@ wxString Exception::Stream::FormatDisplayMessage() const
 {
 	wxString retval( m_message_user );
 	if (!StreamName.IsEmpty())
-		retval += L"\n\n" + wxsFormat( _("Path: %s"), StreamName.c_str() );
+		retval += L"\n\n" + pxsFmt( _("Path: %s"), StreamName.c_str() );
 
 	return retval;
 }
 
+// --------------------------------------------------------------------------------------
+//  Exceptions from Errno (POSIX)
+// --------------------------------------------------------------------------------------
+
+// Translates an Errno code into an exception.
+// Throws an exception based on the given error code (usually taken from ANSI C's errno)
+BaseException* Exception::FromErrno( const wxString& streamname, int errcode )
+{
+	pxAssumeDev( errcode != 0, "Invalid NULL error code?  (errno)" );
+
+	switch( errcode )
+	{
+		case EINVAL:
+			pxFailDev( L"Invalid argument" );
+			return &(new Exception::Stream( streamname ))->SetDiagMsg(L"Invalid argument? (likely caused by an unforgivable programmer error!)" );
+
+		case EACCES:	// Access denied!
+			return new Exception::AccessDenied( streamname );
+
+		case EMFILE:	// Too many open files!
+			return &(new Exception::CannotCreateStream( streamname ))->SetDiagMsg(L"Too many open files");	// File handle allocation failure
+
+		case EEXIST:
+			return &(new Exception::CannotCreateStream( streamname ))->SetDiagMsg(L"File already exists");
+
+		case ENOENT:	// File not found!
+			return new Exception::FileNotFound( streamname );
+
+		case EPIPE:
+			return &(new Exception::BadStream( streamname ))->SetDiagMsg(L"Broken pipe");
+
+		case EBADF:
+			return &(new Exception::BadStream( streamname ))->SetDiagMsg(L"Bad file number");
+
+		default:
+			return &(new Exception::Stream( streamname ))->SetDiagMsg(pxsFmt( L"General file/stream error [errno: %d]", errcode ));
+	}
+}

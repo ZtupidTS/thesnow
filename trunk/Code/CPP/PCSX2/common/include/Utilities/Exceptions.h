@@ -15,8 +15,8 @@
 
 #pragma once
 
-#include "Dependencies.h"
-#include "StringHelpers.h"
+#include "Assertions.h"
+#include "ScopedPtr.h"
 
 // --------------------------------------------------------------------------------------
 //  DESTRUCTOR_CATCHALL - safe destructor helper
@@ -43,6 +43,7 @@
 namespace Exception
 {
 	int MakeNewType();
+	BaseException* FromErrno( const wxString& streamname, int errcode );
 
 	// --------------------------------------------------------------------------------------
 	//  BaseException
@@ -76,7 +77,7 @@ namespace Exception
 		wxString& DiagMsg() { return m_message_diag; }
 		wxString& UserMsg() { return m_message_user; }
 
-		BaseException& SetBothMsgs( const char* msg_diag );
+		BaseException& SetBothMsgs( const wxChar* msg_diag );
 		BaseException& SetDiagMsg( const wxString& msg_diag );
 		BaseException& SetUserMsg( const wxString& msg_user );
 
@@ -91,6 +92,8 @@ namespace Exception
 		virtual void Rethrow() const=0;
 		virtual BaseException* Clone() const=0;
 	};
+
+	typedef ScopedPtr<BaseException> ScopedExcept;
 
 	// --------------------------------------------------------------------------------------
 	//  Ps2Generic Exception
@@ -143,13 +146,13 @@ public: \
 
 #define DEFINE_EXCEPTION_MESSAGES( classname ) \
 public: \
-	classname& SetBothMsgs( const char* msg_diag )		{ BaseException::SetBothMsgs(msg_diag);	return *this; } \
+	classname& SetBothMsgs( const wxChar* msg_diag )	{ BaseException::SetBothMsgs(msg_diag);	return *this; } \
 	classname& SetDiagMsg( const wxString& msg_diag )	{ m_message_diag = msg_diag;			return *this; } \
 	classname& SetUserMsg( const wxString& msg_user )	{ m_message_user = msg_user;			return *this; }
 
 #define DEFINE_RUNTIME_EXCEPTION( classname, parent, message ) \
 	DEFINE_EXCEPTION_COPYTORS( classname, parent ) \
-	classname() { SetDiagMsg(wxT(message)); } \
+	classname() { SetDiagMsg(message); } \
 	DEFINE_EXCEPTION_MESSAGES( classname )
 	
 	
@@ -181,7 +184,7 @@ public: \
 	// an App message loop we'll still want it to be handled in a reasonably graceful manner.
 	class CancelEvent : public RuntimeError
 	{
-		DEFINE_RUNTIME_EXCEPTION( CancelEvent, RuntimeError, "No reason given." )
+		DEFINE_RUNTIME_EXCEPTION( CancelEvent, RuntimeError, wxLt("No reason given.") )
 
 	public:
 		explicit CancelEvent( const wxString& logmsg )
@@ -220,7 +223,7 @@ public: \
 
 	class ParseError : public RuntimeError
 	{
-		DEFINE_RUNTIME_EXCEPTION( ParseError, RuntimeError, "Parse error" );
+		DEFINE_RUNTIME_EXCEPTION( ParseError, RuntimeError, wxLt("Parse error") );
 	};
 
 	// ---------------------------------------------------------------------------------------
@@ -337,3 +340,4 @@ public: \
 }
 
 using Exception::BaseException;
+using Exception::ScopedExcept;
