@@ -15,17 +15,19 @@
 
 
 #include "PrecompiledHeader.h"
-#include "Common.h"
 
 #include <time.h>
 #include <cmath>
 
+#include "Common.h"
 #include "R3000A.h"
 #include "Counters.h"
 #include "IopCounters.h"
 
 #include "GS.h"
 #include "VUmicro.h"
+
+#include "ps2/HwInternal.h"
 
 using namespace Threading;
 
@@ -45,6 +47,15 @@ SyncCounter vsyncCounter;
 u32 nextsCounter;	// records the cpuRegs.cycle value of the last call to rcntUpdate()
 s32 nextCounter;	// delta from nextsCounter, in cycles, until the next rcntUpdate()
 
+// Forward declarations needed because C/C++ both are wimpy single-pass compilers.
+
+static void rcntStartGate(bool mode, u32 sCycle);
+static void rcntEndGate(bool mode, u32 sCycle);
+static void rcntWcount(int index, u32 value);
+static void rcntWmode(int index, u32 value);
+static void rcntWtarget(int index, u32 value);
+static void rcntWhold(int index, u32 value);
+
 
 void rcntReset(int index) {
 	counters[index].count = 0;
@@ -54,7 +65,7 @@ void rcntReset(int index) {
 // Updates the state of the nextCounter value (if needed) to serve
 // any pending events for the given counter.
 // Call this method after any modifications to the state of a counter.
-static __forceinline void _rcntSet( int cntidx )
+static __fi void _rcntSet( int cntidx )
 {
 	s32 c;
 	jASSUME( cntidx <= 4 );		// rcntSet isn't valid for h/vsync counters.
@@ -82,7 +93,7 @@ static __forceinline void _rcntSet( int cntidx )
 	if (c < nextCounter)
 	{
 		nextCounter = c;
-		cpuSetNextBranch( nextsCounter, nextCounter );	//Need to update on counter resets/target changes
+		cpuSetNextEvent( nextsCounter, nextCounter );	//Need to update on counter resets/target changes
 	}
 
 	// Ignore target diff if target is currently disabled.
@@ -100,13 +111,13 @@ static __forceinline void _rcntSet( int cntidx )
 		if (c < nextCounter)
 		{
 			nextCounter = c;
-			cpuSetNextBranch( nextsCounter, nextCounter );	//Need to update on counter resets/target changes
+			cpuSetNextEvent( nextsCounter, nextCounter );	//Need to update on counter resets/target changes
 		}
 	}
 }
 
 
-static __forceinline void cpuRcntSet()
+static __fi void cpuRcntSet()
 {
 	int i;
 
@@ -286,7 +297,7 @@ void frameLimitReset()
 // Framelimiter - Measures the delta time between calls and stalls until a
 // certain amount of time passes if such time hasn't passed yet.
 // See the GS FrameSkip function for details on why this is here and not in the GS.
-static __forceinline void frameLimit()
+static __fi void frameLimit()
 {
 	// 999 means the user would rather just have framelimiting turned off...
 	if( !EmuConfig.GS.FrameLimitEnable ) return;
@@ -331,12 +342,13 @@ static __forceinline void frameLimit()
 	// starting this frame, it'll just sleep longer the next to make up for it. :)
 }
 
-static __forceinline void VSyncStart(u32 sCycle)
+static __fi void VSyncStart(u32 sCycle)
 {
 	GetCoreThread().VsyncInThread();
 	Cpu->CheckExecutionState();
 
-	EECNT_LOG( "/////////  EE COUNTER VSYNC START (frame: %6d)  \\\\\\\\\\\\\\\\\\\\ ", g_FrameCount );
+	if(EmuConfig.Trace.Enabled && EmuConfig.Trace.EE.m_EnableAll)
+		SysTrace.EE.Counters.Write( "    ================  EE COUNTER VSYNC START (frame: %d)  ================", g_FrameCount );
 
 	// EE Profiling and Debug code.
 	// FIXME: should probably be moved to VsyncInThread, and handled
@@ -380,9 +392,10 @@ static __forceinline void VSyncStart(u32 sCycle)
 	// Should no longer be required (Refraction)
 }
 
-static __forceinline void VSyncEnd(u32 sCycle)
+static __fi void VSyncEnd(u32 sCycle)
 {
-	EECNT_LOG( "/////////  EE COUNTER VSYNC END (frame: %d)  \\\\\\\\\\\\\\\\\\\\", g_FrameCount );
+	if(EmuConfig.Trace.Enabled && EmuConfig.Trace.EE.m_EnableAll)
+		SysTrace.EE.Counters.Write( "    ================  EE COUNTER VSYNC END (frame: %d)  ================", g_FrameCount );
 
 	g_FrameCount++;
 
@@ -404,11 +417,11 @@ static u32 hsc=0;
 static int vblankinc = 0;
 #endif
 
-__forceinline void rcntUpdate_hScanline()
+__fi void rcntUpdate_hScanline()
 {
 	if( !cpuTestCycle( hsyncCounter.sCycle, hsyncCounter.CycleT ) ) return;
 
-	//iopBranchAction = 1;
+	//iopEventAction = 1;
 	if (hsyncCounter.Mode & MODE_HBLANK) { //HBLANK Start
 		rcntStartGate(false, hsyncCounter.sCycle);
 		psxCheckStartGate16(0);
@@ -441,7 +454,7 @@ __forceinline void rcntUpdate_hScanline()
 	}
 }
 
-__forceinline void rcntUpdate_vSync()
+__fi void rcntUpdate_vSync()
 {
 	s32 diff = (cpuRegs.cycle - vsyncCounter.sCycle);
 	if( diff < vsyncCounter.CycleT ) return;
@@ -478,7 +491,7 @@ __forceinline void rcntUpdate_vSync()
 	}
 }
 
-static __forceinline void _cpuTestTarget( int i )
+static __fi void _cpuTestTarget( int i )
 {
 	if (counters[i].count < counters[i].target) return;
 
@@ -497,7 +510,7 @@ static __forceinline void _cpuTestTarget( int i )
 	else counters[i].target |= EECNT_FUTURE_TARGET;
 }
 
-static __forceinline void _cpuTestOverflow( int i )
+static __fi void _cpuTestOverflow( int i )
 {
 	if (counters[i].count <= 0xffff) return;
 
@@ -516,7 +529,7 @@ static __forceinline void _cpuTestOverflow( int i )
 // forceinline note: this method is called from two locations, but one
 // of them is the interpreter, which doesn't count. ;)  So might as
 // well forceinline it!
-__forceinline void rcntUpdate()
+__fi void rcntUpdate()
 {
 	rcntUpdate_vSync();
 
@@ -550,7 +563,7 @@ __forceinline void rcntUpdate()
 	cpuRcntSet();
 }
 
-static __forceinline void _rcntSetGate( int index )
+static __fi void _rcntSetGate( int index )
 {
 	if (counters[index].mode.EnableGate)
 	{
@@ -575,7 +588,7 @@ static __forceinline void _rcntSetGate( int index )
 }
 
 // mode - 0 means hblank source, 8 means vblank source.
-__forceinline void rcntStartGate(bool isVblank, u32 sCycle)
+static __fi void rcntStartGate(bool isVblank, u32 sCycle)
 {
 	int i;
 
@@ -636,7 +649,7 @@ __forceinline void rcntStartGate(bool isVblank, u32 sCycle)
 }
 
 // mode - 0 means hblank signal, 8 means vblank signal.
-__forceinline void rcntEndGate(bool isVblank , u32 sCycle)
+static __fi void rcntEndGate(bool isVblank , u32 sCycle)
 {
 	int i;
 
@@ -677,7 +690,15 @@ __forceinline void rcntEndGate(bool isVblank , u32 sCycle)
 	// rcntUpdate, since we're being called from there anyway.
 }
 
-__forceinline void rcntWmode(int index, u32 value)
+static __fi u32 rcntCycle(int index)
+{
+	if (counters[index].mode.IsCounting && (counters[index].mode.ClockSource != 0x3))
+		return counters[index].count + ((cpuRegs.cycle - counters[index].sCycleT) / counters[index].rate);
+	else
+		return counters[index].count;
+}
+
+static __fi void rcntWmode(int index, u32 value)
 {
 	if(counters[index].mode.IsCounting) {
 		if(counters[index].mode.ClockSource != 0x3) {
@@ -711,7 +732,7 @@ __forceinline void rcntWmode(int index, u32 value)
 	_rcntSet( index );
 }
 
-__forceinline void rcntWcount(int index, u32 value)
+static __fi void rcntWcount(int index, u32 value)
 {
 	EECNT_LOG("EE Counter[%d] writeCount = %x,   oldcount=%x, target=%x", index, value, counters[index].count, counters[index].target );
 
@@ -737,7 +758,7 @@ __forceinline void rcntWcount(int index, u32 value)
 	_rcntSet( index );
 }
 
-__forceinline void rcntWtarget(int index, u32 value)
+static __fi void rcntWtarget(int index, u32 value)
 {
 	EECNT_LOG("EE Counter[%d] writeTarget = %x", index, value);
 
@@ -766,13 +787,13 @@ __forceinline void rcntWtarget(int index, u32 value)
 	_rcntSet( index );
 }
 
-__forceinline void rcntWhold(int index, u32 value)
+static __fi void rcntWhold(int index, u32 value)
 {
 	EECNT_LOG("EE Counter[%d] Hold Write = %x", index, value);
 	counters[index].hold = value;
 }
 
-__forceinline u32 rcntRcount(int index)
+__fi u32 rcntRcount(int index)
 {
 	u32 ret;
 
@@ -787,13 +808,75 @@ __forceinline u32 rcntRcount(int index)
 	return ret;
 }
 
-__forceinline u32 rcntCycle(int index)
+template< uint page >
+__fi u16 rcntRead32( u32 mem )
 {
-	if (counters[index].mode.IsCounting && (counters[index].mode.ClockSource != 0x3))
-		return counters[index].count + ((cpuRegs.cycle - counters[index].sCycleT) / counters[index].rate);
-	else
-		return counters[index].count;
+	// Important DevNote:
+	// Yes this uses a u16 return value on purpose!  The upper bits 16 of the counter registers
+	// are all fixed to 0, so we always truncate everything in these two pages using a u16
+	// return value! --air
+
+	iswitch( mem ) {
+	icase(RCNT0_COUNT)	return (u16)rcntRcount(0);
+	icase(RCNT0_MODE)	return (u16)counters[0].modeval;
+	icase(RCNT0_TARGET)	return (u16)counters[0].target;
+	icase(RCNT0_HOLD)	return (u16)counters[0].hold;
+
+	icase(RCNT1_COUNT)	return (u16)rcntRcount(1);
+	icase(RCNT1_MODE)	return (u16)counters[1].modeval;
+	icase(RCNT1_TARGET)	return (u16)counters[1].target;
+	icase(RCNT1_HOLD)	return (u16)counters[1].hold;
+
+	icase(RCNT2_COUNT)	return (u16)rcntRcount(2);
+	icase(RCNT2_MODE)	return (u16)counters[2].modeval;
+	icase(RCNT2_TARGET)	return (u16)counters[2].target;
+
+	icase(RCNT3_COUNT)	return (u16)rcntRcount(3);
+	icase(RCNT3_MODE)	return (u16)counters[3].modeval;
+	icase(RCNT3_TARGET)	return (u16)counters[3].target;
+	}
+	
+	return psHu16(mem);
 }
+
+template< uint page >
+__fi bool rcntWrite32( u32 mem, mem32_t& value )
+{
+	pxAssume( mem >= RCNT0_COUNT && mem < 0x10002000 );
+
+	// [TODO] : counters should actually just use the EE's hw register space for storing
+	// count, mode, target, and hold. This will allow for a simplified handler for register
+	// reads.
+
+	iswitch( mem ) {
+	icase(RCNT0_COUNT)	return rcntWcount(0, value),	false;
+	icase(RCNT0_MODE)	return rcntWmode(0, value),		false;
+	icase(RCNT0_TARGET)	return rcntWtarget(0, value),	false;
+	icase(RCNT0_HOLD)	return rcntWhold(0, value),		false;
+
+	icase(RCNT1_COUNT)	return rcntWcount(1, value),	false;
+	icase(RCNT1_MODE)	return rcntWmode(1, value),		false;
+	icase(RCNT1_TARGET)	return rcntWtarget(1, value),	false;
+	icase(RCNT1_HOLD)	return rcntWhold(1, value),		false;
+
+	icase(RCNT2_COUNT)	return rcntWcount(2, value),	false;
+	icase(RCNT2_MODE)	return rcntWmode(2, value),		false;
+	icase(RCNT2_TARGET)	return rcntWtarget(2, value),	false;
+
+	icase(RCNT3_COUNT)	return rcntWcount(3, value),	false;
+	icase(RCNT3_MODE)	return rcntWmode(3, value),		false;
+	icase(RCNT3_TARGET)	return rcntWtarget(3, value),	false;
+	}
+
+	// unhandled .. do memory writeback.
+	return true;
+}
+
+template u16 rcntRead32<0x00>( u32 mem );
+template u16 rcntRead32<0x01>( u32 mem );
+
+template bool rcntWrite32<0x00>( u32 mem, mem32_t& value );
+template bool rcntWrite32<0x01>( u32 mem, mem32_t& value );
 
 void SaveStateBase::rcntFreeze()
 {
@@ -809,6 +892,6 @@ void SaveStateBase::rcntFreeze()
 		for( int i=0; i<4; i++ )
 			_rcntSetGate( i );
 
-		iopBranchAction = 1;	// probably not needed but won't hurt anything either.
+		iopEventAction = 1;	// probably not needed but won't hurt anything either.
 	}
 }

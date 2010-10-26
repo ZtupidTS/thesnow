@@ -18,8 +18,6 @@
  */
 
 #include "GS.h"
-#include <Cg/cg.h>
-#include <Cg/cgGL.h>
 
 #include <stdlib.h>
 
@@ -27,13 +25,16 @@
 #include "x86.h"
 #include "zerogs.h"
 #include "targets.h"
+#include "ZZoglShaders.h"
+#ifdef ZEROGS_SSE2
+#include <emmintrin.h>
+#endif
 
 #define RHA
 //#define RW
 
 using namespace ZeroGS;
 extern int g_TransferredToGPU;
-//extern bool g_bIsLost;
 extern bool g_bUpdateStencil;
 
 #if !defined(ZEROGS_DEVBUILD)
@@ -63,7 +64,7 @@ u32 TEXDESTROY_THRESH = 16;
 
 // memory size for one row of texture. It depends on width of texture and number of bytes
 // per pixel
-inline u32 Pitch(int fbw) { return (RW(fbw) * (GetRenderFormat() == RFT_float16 ? 8 : 4)) ; }
+inline u32 Pitch(int fbw) { return (RW(fbw) * 4) ; }
 
 // memory size of whole texture. It is number of rows multiplied by memory size of row
 inline u32 Tex_Memory_Size(int fbw, int fbh) { return (RH(fbh) * Pitch(fbw)); }
@@ -94,11 +95,10 @@ inline bool ZeroGS::CRenderTarget::InitialiseDefaultTexture(u32 *ptr_p, int fbw,
 {
 	glGenTextures(1, ptr_p);
 	glBindTexture(GL_TEXTURE_RECTANGLE_NV, *ptr_p);
-	
+
 	// initialize to default
-	GLenum texType = (GetRenderFormat() == RFT_float16) ? GL_FLOAT : GL_UNSIGNED_BYTE;
-	TextureRect(GetRenderTargetFormat(), fbw, fbh, GL_RGBA, texType, NULL);
-		
+	TextureRect(GL_RGBA, fbw, fbh, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+
 	setRectWrap(GL_CLAMP);
 	setRectFilters(GL_LINEAR);
 
@@ -117,7 +117,7 @@ inline void FillOnlyStencilBuffer()
 
 		glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 		glStencilFunc(GL_ALWAYS, 1, 0xff);
-		
+
 		DrawTriangleArray();
 		glColorMask(1, 1, 1, 1);
 	}
@@ -125,22 +125,22 @@ inline void FillOnlyStencilBuffer()
 
 // used for transformation from vertex position in GS window.coords (I hope)
 // to view coordinates (in range 0, 1).
-inline Vector ZeroGS::CRenderTarget::DefaultBitBltPos()
+inline float4 ZeroGS::CRenderTarget::DefaultBitBltPos()
 {
-	Vector v = Vector(1, -1, 0.5f / (float)RW(fbw), 0.5f / (float)RH(fbh));
+	float4 v = float4(1, -1, 0.5f / (float)RW(fbw), 0.5f / (float)RH(fbh));
 	v *= 1.0f / 32767.0f;
-	ZZcgSetParameter4fv(pvsBitBlt.sBitBltPos, v, "g_sBitBltPos");
+	ZZshSetParameter4fv(pvsBitBlt.prog, pvsBitBlt.sBitBltPos, v, "g_sBitBltPos");
 	return v;
 }
 
 // Used to transform texture coordinates from GS (when 0,0 is upper left) to
 // OpenGL (0,0 - lower left).
-inline Vector ZeroGS::CRenderTarget::DefaultBitBltTex()
+inline float4 ZeroGS::CRenderTarget::DefaultBitBltTex()
 {
 	// I really sure that -0.5 is correct, because OpenGL have no half-offset
 	// issue, DirectX known for.
-	Vector v = Vector(1, -1, 0.5f / (float)RW(fbw), -0.5f / (float)RH(fbh));
-	ZZcgSetParameter4fv(pvsBitBlt.sBitBltTex, v, "g_sBitBltTex");
+	float4 v = float4(1, -1, 0.5f / (float)RW(fbw), -0.5f / (float)RH(fbh));
+	ZZshSetParameter4fv(pvsBitBlt.prog, pvsBitBlt.sBitBltTex, v, "g_sBitBltTex");
 	return v;
 }
 
@@ -225,7 +225,7 @@ void ZeroGS::CRenderTarget::SetTarget(int fbplocal, const Rect2& scissor, int co
 
 	if (fbplocal != fbp)
 	{
-		Vector v;
+		float4 v;
 
 		// will be rendering to a subregion
 		u32 bpp = PSMT_ISHALF(psm) ? 2 : 4;
@@ -238,11 +238,11 @@ void ZeroGS::CRenderTarget::SetTarget(int fbplocal, const Rect2& scissor, int co
 		v.y = vposxy.y;
 		v.z = vposxy.z;
 		v.w = vposxy.w - dy * 2.0f / (float)fbh;
-		ZZcgSetParameter4fv(g_vparamPosXY[context], v, "g_fPosXY");
+		ZZshSetParameter4fv(g_vparamPosXY[context], v, "g_fPosXY");
 	}
 	else
 	{
-		ZZcgSetParameter4fv(g_vparamPosXY[context], vposxy, "g_fPosXY");
+		ZZshSetParameter4fv(g_vparamPosXY[context], vposxy, "g_fPosXY");
 	}
 
 	// set render states
@@ -404,7 +404,7 @@ void ZeroGS::CRenderTarget::Update(int context, ZeroGS::CRenderTarget* pdepth)
 	((CDepthTarget*)pdepth)->SetDepthStencilSurface();
 
 	SetShaderCaller("CRenderTarget::Update");
-	Vector v = DefaultBitBltPos();
+	float4 v = DefaultBitBltPos();
 
 	CRenderTargetMngr::MAPTARGETS::iterator ittarg;
 
@@ -435,8 +435,7 @@ void ZeroGS::CRenderTarget::Update(int context, ZeroGS::CRenderTarget* pdepth)
 
 	if (nUpdateTarg)
 	{
-		cgGLSetTextureParameter(ppsBaseTexture.sFinal, ittarg->second->ptex);
-		cgGLEnableTextureParameter(ppsBaseTexture.sFinal);
+		ZZshGLSetTextureParameter(ppsBaseTexture.prog, ppsBaseTexture.sFinal, ittarg->second->ptex, "BaseTexture.final");
 
 		//assert( ittarg->second->fbw == fbw );
 		int offset = (fbp - ittarg->second->fbp) * 64 / fbw;
@@ -449,17 +448,19 @@ void ZeroGS::CRenderTarget::Update(int context, ZeroGS::CRenderTarget* pdepth)
 		v.z = 0.25f;
 		v.w = (float)RH(offset) + 0.25f;
 
-		ZZcgSetParameter4fv(pvsBitBlt.sBitBltTex, v, "g_fBitBltTex");
+		ZZshSetParameter4fv(pvsBitBlt.prog, pvsBitBlt.sBitBltTex, v, "g_fBitBltTex");
 
 //		v = DefaultBitBltTex(); Maybe?
-		v = DefaultOneColor(ppsBaseTexture) ;
+		ZZshDefaultOneColor ( ppsBaseTexture );
 
-		SETPIXELSHADER(ppsBaseTexture.prog);
+		ZZshSetPixelShader(ppsBaseTexture.prog);
 
 		nUpdateTarg = 0;
 	}
 	else
 	{
+		u32 bit_idx = (AA.x == 0) ? 0 : 1;
+
 		// align the rect to the nearest page
 		// note that fbp is always aligned on page boundaries
 		tex0Info texframe;
@@ -468,21 +469,20 @@ void ZeroGS::CRenderTarget::Update(int context, ZeroGS::CRenderTarget* pdepth)
 		texframe.tw = fbw;
 		texframe.th = fbh;
 		texframe.psm = psm;
-		CMemoryTarget* pmemtarg = g_MemTargs.GetMemoryTarget(texframe, 1);
 
 		// write color and zero out stencil buf, always 0 context!
 		// force bilinear if using AA
 		// Fix in r133 -- FFX movies and Gust backgrounds!
-		SetTexVariablesInt(0, 0*(s_AAx || s_AAy) ? 2 : 0, texframe, pmemtarg, &ppsBitBlt[!!s_AAx], 1);
-		cgGLSetTextureParameter(ppsBitBlt[!!s_AAx].sMemory, pmemtarg->ptex->tex);
-		cgGLEnableTextureParameter(ppsBitBlt[!!s_AAx].sMemory);
+		//SetTexVariablesInt(0, 0*(AA.x || AA.y) ? 2 : 0, texframe, false, &ppsBitBlt[!!s_AAx], 1);
+		SetTexVariablesInt(0, 0, texframe, false, &ppsBitBlt[bit_idx], 1);
+		ZZshGLSetTextureParameter(ppsBitBlt[bit_idx].prog, ppsBitBlt[bit_idx].sMemory, vb[0].pmemtarg->ptex->tex, "BitBlt.memory");
 
-		v = Vector(1, 1, 0.0f, 0.0f);
-		ZZcgSetParameter4fv(pvsBitBlt.sBitBltTex, v, "g_fBitBltTex");
+		v = float4(1, 1, 0.0f, 0.0f);
+		ZZshSetParameter4fv(pvsBitBlt.prog, pvsBitBlt.sBitBltTex, v, "g_fBitBltTex");
 
 		v.x = 1;
 		v.y = 2;
-		ZZcgSetParameter4fv(ppsBitBlt[!!s_AAx].sOneColor, v, "g_fOneColor");
+		ZZshSetParameter4fv(ppsBitBlt[bit_idx].prog, ppsBitBlt[bit_idx].sOneColor, v, "g_fOneColor");
 
 		assert(ptex != 0);
 
@@ -497,14 +497,14 @@ void ZeroGS::CRenderTarget::Update(int context, ZeroGS::CRenderTarget* pdepth)
 		}
 
 		// render with an AA shader if possible (bilinearly interpolates data)
-		//cgGLLoadProgram(ppsBitBlt[!!s_AAx].prog);
-		SETPIXELSHADER(ppsBitBlt[!!s_AAx].prog);
+		//cgGLLoadProgram(ppsBitBlt[bit_idx].prog);
+		ZZshSetPixelShader(ppsBitBlt[bit_idx].prog);
 	}
 
-	SETVERTEXSHADER(pvsBitBlt.prog);
+	ZZshSetVertexShader(pvsBitBlt.prog);
 
 	DrawTriangleArray();
-	
+
 	// fill stencil buf only
 	FillOnlyStencilBuffer();
 	glEnable(GL_SCISSOR_TEST);
@@ -539,29 +539,29 @@ void ZeroGS::CRenderTarget::ConvertTo32()
 	SetShaderCaller("CRenderTarget::ConvertTo32");
 
 	// tex coords, test ffx bikanel island when changing these
-	Vector v = DefaultBitBltPos();
+	float4 v = DefaultBitBltPos();
 	v = DefaultBitBltTex();
 
 	v.x = (float)RW(16);
 	v.y = (float)RH(16);
 	v.z = -(float)RW(fbw);
 	v.w = (float)RH(8);
-	ZZcgSetParameter4fv(ppsConvert16to32.fTexOffset, v, "g_fTexOffset");
+	ZZshSetParameter4fv(ppsConvert16to32.prog, ppsConvert16to32.fTexOffset, v, "g_fTexOffset");
 
 	v.x = (float)RW(8);
 	v.y = 0;
 	v.z = 0;
 	v.w = 0.25f;
-	ZZcgSetParameter4fv(ppsConvert16to32.fPageOffset, v, "g_fPageOffset");
+	ZZshSetParameter4fv(ppsConvert16to32.prog, ppsConvert16to32.fPageOffset, v, "g_fPageOffset");
 
 	v.x = (float)RW(2 * fbw);
 	v.y = (float)RH(fbh);
 	v.z = 0;
 	v.w = 0.0001f * (float)RH(fbh);
-	ZZcgSetParameter4fv(ppsConvert16to32.fTexDims, v, "g_fTexDims");
+	ZZshSetParameter4fv(ppsConvert16to32.prog, ppsConvert16to32.fTexDims, v, "g_fTexDims");
 
 //	v.x = 0;
-//	ZZcgSetParameter4fv(ppsConvert16to32.fTexBlock, v, "g_fTexBlock");
+//	ZZshSetParameter4fv(ppsConvert16to32.fTexBlock, v, "g_fTexBlock");
 
 	glBindBuffer(GL_ARRAY_BUFFER, vboRect);
 	SET_STREAM();
@@ -570,10 +570,8 @@ void ZeroGS::CRenderTarget::ConvertTo32()
 	FBTexture(0, ptexConv);
 	ZeroGS::ResetRenderTarget(1);
 
-	BindToSample(&ptex) ;
-
-	cgGLSetTextureParameter(ppsConvert16to32.sFinal, ptex);
-	cgGLEnableTextureParameter(ppsBitBlt[!!s_AAx].sMemory);
+	BindToSample(&ptex);
+	ZZshGLSetTextureParameter(ppsConvert16to32.prog, ppsConvert16to32.sFinal, ptex, "Convert 16 to 32.Final");
 
 	fbh /= 2; // have 16 bit surfaces are usually 2x higher
 	SetViewport();
@@ -581,11 +579,10 @@ void ZeroGS::CRenderTarget::ConvertTo32()
 	if (conf.wireframe()) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 	// render with an AA shader if possible (bilinearly interpolates data)
-	SETVERTEXSHADER(pvsBitBlt.prog);
-
-	SETPIXELSHADER(ppsConvert16to32.prog);
+	ZZshSetVertexShader(pvsBitBlt.prog);
+	ZZshSetPixelShader(ppsConvert16to32.prog);
 	DrawTriangleArray();
-	
+
 #ifdef _DEBUG
 	if (g_bSaveZUpdate)
 	{
@@ -601,7 +598,6 @@ void ZeroGS::CRenderTarget::ConvertTo32()
 
 	// restore
 	SAFE_RELEASE_TEX(ptex);
-
 	SAFE_RELEASE_TEX(ptexFeedback);
 
 	ptex = ptexConv;
@@ -610,7 +606,7 @@ void ZeroGS::CRenderTarget::ConvertTo32()
 	if (conf.wireframe()) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 	// reset textures
-	BindToSample(&ptex) ;
+	BindToSample(&ptex);
 
 	glEnable(GL_SCISSOR_TEST);
 
@@ -647,26 +643,26 @@ void ZeroGS::CRenderTarget::ConvertTo16()
 	SetShaderCaller("CRenderTarget::ConvertTo16");
 
 	// tex coords, test ffx bikanel island when changing these
-	Vector v = DefaultBitBltPos();
+	float4 v = DefaultBitBltPos();
 	v = DefaultBitBltTex();
 
 	v.x = 16.0f / (float)fbw;
 	v.y = 8.0f / (float)fbh;
 	v.z = 0.5f * v.x;
 	v.w = 0.5f * v.y;
-	ZZcgSetParameter4fv(ppsConvert32to16.fTexOffset, v, "g_fTexOffset");
+	ZZshSetParameter4fv(ppsConvert32to16.prog, ppsConvert32to16.fTexOffset, v, "g_fTexOffset");
 
 	v.x = 256.0f / 255.0f;
 	v.y = 256.0f / 255.0f;
 	v.z = 0.05f / 256.0f;
 	v.w = -0.001f / 256.0f;
-	ZZcgSetParameter4fv(ppsConvert32to16.fPageOffset, v, "g_fPageOffset");
+	ZZshSetParameter4fv(ppsConvert32to16.prog, ppsConvert32to16.fPageOffset, v, "g_fPageOffset");
 
 	v.x = (float)RW(fbw);
 	v.y = (float)RH(2 * fbh);
 	v.z = 0;
 	v.w = -0.1f / RH(fbh);
-	ZZcgSetParameter4fv(ppsConvert32to16.fTexDims, v, "g_fTexDims");
+	ZZshSetParameter4fv(ppsConvert32to16.prog, ppsConvert32to16.fTexDims, v, "g_fTexDims");
 
 	glBindBuffer(GL_ARRAY_BUFFER, vboRect);
 	SET_STREAM();
@@ -676,10 +672,9 @@ void ZeroGS::CRenderTarget::ConvertTo16()
 	ZeroGS::ResetRenderTarget(1);
 	GL_REPORT_ERRORD();
 
-	BindToSample(&ptex) ;
+	BindToSample(&ptex);
 
-	cgGLSetTextureParameter(ppsConvert32to16.sFinal, ptex);
-	cgGLEnableTextureParameter(ppsConvert32to16.sFinal);
+	ZZshGLSetTextureParameter(ppsConvert32to16.prog, ppsConvert32to16.sFinal, ptex, "Convert 32 to 16");
 
 //	fbh *= 2; // have 16 bit surfaces are usually 2x higher
 
@@ -688,11 +683,10 @@ void ZeroGS::CRenderTarget::ConvertTo16()
 	if (conf.wireframe()) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 	// render with an AA shader if possible (bilinearly interpolates data)
-	SETVERTEXSHADER(pvsBitBlt.prog);
-
-	SETPIXELSHADER(ppsConvert32to16.prog);
+	ZZshSetVertexShader(pvsBitBlt.prog);
+	ZZshSetPixelShader(ppsConvert32to16.prog);
 	DrawTriangleArray();
-	
+
 #ifdef _DEBUG
 	//g_bSaveZUpdate = 1;
 	if (g_bSaveZUpdate)
@@ -703,7 +697,6 @@ void ZeroGS::CRenderTarget::ConvertTo16()
 #endif
 
 	vposxy.y = -2.0f * (32767.0f / 8.0f) / (float)fbh;
-
 	vposxy.w = 1 + 0.5f / fbh;
 
 	// restore
@@ -758,23 +751,23 @@ void ZeroGS::CRenderTarget::_CreateFeedback()
 	ResetRenderTarget(1);
 
 	// tex coords, test ffx bikanel island when changing these
-	/*	Vector v = DefaultBitBltPos();
-		v = Vector ((float)(RW(fbw+4)), (float)(RH(fbh+4)), +0.25f, -0.25f);
-		ZZcgSetParameter4fv(pvsBitBlt.sBitBltTex, v, "BitBltTex");*/
+	/*	float4 v = DefaultBitBltPos();
+		v = float4 ((float)(RW(fbw+4)), (float)(RH(fbh+4)), +0.25f, -0.25f);
+		ZZshSetParameter4fv(pvsBitBlt.prog, pvsBitBlt.sBitBltTex, v, "BitBltTex");*/
 
 	// tex coords, test ffx bikanel island when changing these
 
-//	Vector v = Vector(1, -1, 0.5f / (fbw<<s_AAx), 0.5f / (fbh << s_AAy));
+//	float4 v = float4(1, -1, 0.5f / (fbw << AA.x), 0.5f / (fbh << AA.y));
 //	v *= 1/32767.0f;
 //	cgGLSetParameter4fv(pvsBitBlt.sBitBltPos, v);
-	Vector v = DefaultBitBltPos();
+	float4 v = DefaultBitBltPos();
 
 	v.x = (float)(RW(fbw));
 	v.y = (float)(RH(fbh));
 	v.z = 0.0f;
 	v.w = 0.0f;
-	cgGLSetParameter4fv(pvsBitBlt.sBitBltTex, v);
-	v = DefaultOneColor(ppsBaseTexture);
+	ZZshSetParameter4fv(pvsBitBlt.prog, pvsBitBlt.sBitBltTex, v, "BitBlt.Feedback");
+	ZZshDefaultOneColor(ppsBaseTexture);
 
 	glBindBuffer(GL_ARRAY_BUFFER, vboRect);
 	SET_STREAM();
@@ -783,18 +776,17 @@ void ZeroGS::CRenderTarget::_CreateFeedback()
 	glBindTexture(GL_TEXTURE_RECTANGLE_NV, ptex);
 	GL_REPORT_ERRORD();
 
-	cgGLSetTextureParameter(ppsBaseTexture.sFinal, ptex);
-	cgGLEnableTextureParameter(ppsBaseTexture.sFinal);
+	ZZshGLSetTextureParameter(ppsBaseTexture.prog, ppsBaseTexture.sFinal, ptex, "BaseTexture.Feedback");
 
 	SetViewport();
 
 	if (conf.wireframe()) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 	// render with an AA shader if possible (bilinearly interpolates data)
-	SETVERTEXSHADER(pvsBitBlt.prog);
-	SETPIXELSHADER(ppsBaseTexture.prog);
+	ZZshSetVertexShader(pvsBitBlt.prog);
+	ZZshSetPixelShader(ppsBaseTexture.prog);
 	DrawTriangleArray();
-	
+
 	// restore
 	swap(ptex, ptexFeedback);
 
@@ -817,7 +809,7 @@ void ZeroGS::CRenderTarget::_CreateFeedback()
 void ZeroGS::CRenderTarget::SetRenderTarget(int targ)
 {
 	FUNCLOG
-	
+
 	FBTexture(targ, ptex);
 
 	//GL_REPORT_ERRORD();
@@ -864,7 +856,7 @@ bool ZeroGS::CDepthTarget::Create(const frameInfo& frame)
 				return false;
 			}
 		}
-		else 
+		else
 		{
 			pstencil = 0;
 		}
@@ -968,7 +960,6 @@ void ZeroGS::CDepthTarget::Update(int context, ZeroGS::CRenderTarget* prndr)
 	texframe.tw = fbw;
 	texframe.th = fbh;
 	texframe.psm = psm;
-	CMemoryTarget* pmemtarg = g_MemTargs.GetMemoryTarget(texframe, 1);
 
 	DisableAllgl();
 
@@ -987,12 +978,10 @@ void ZeroGS::CDepthTarget::Update(int context, ZeroGS::CRenderTarget* prndr)
 	glDepthFunc(g_dwZCmp[curvb.test.ztst]);
 
 	// write color and zero out stencil buf, always 0 context!
-	SetTexVariablesInt(0, 0, texframe, pmemtarg, &ppsBitBltDepth, 1);
+	SetTexVariablesInt(0, 0, texframe, false, &ppsBitBltDepth, 1);
+	ZZshGLSetTextureParameter(ppsBitBltDepth.prog, ppsBitBltDepth.sMemory, vb[0].pmemtarg->ptex->tex, "BitBltDepth");
 
-	cgGLSetTextureParameter(ppsBitBltDepth.sMemory, pmemtarg->ptex->tex);
-	cgGLEnableTextureParameter(ppsBaseTexture.sFinal);
-
-	Vector v = DefaultBitBltPos();
+	float4 v = DefaultBitBltPos();
 
 	v = DefaultBitBltTex();
 
@@ -1000,9 +989,9 @@ void ZeroGS::CDepthTarget::Update(int context, ZeroGS::CRenderTarget* prndr)
 	v.y = 2;
 	v.z = PSMT_IS16Z(psm) ? 1.0f : 0.0f;
 	v.w = g_filog32;
-	ZZcgSetParameter4fv(ppsBitBltDepth.sOneColor, v, "g_fOneColor");
+	ZZshSetParameter4fv(ppsBitBltDepth.prog, ppsBitBltDepth.sOneColor, v, "g_fOneColor");
 
-	Vector vdepth = g_vdepth;
+	float4 vdepth = g_vdepth;
 
 	if (psm == PSMT24Z)
 	{
@@ -1015,7 +1004,7 @@ void ZeroGS::CDepthTarget::Update(int context, ZeroGS::CRenderTarget* prndr)
 
 	assert(ppsBitBltDepth.sBitBltZ != 0);
 
-	ZZcgSetParameter4fv(ppsBitBltDepth.sBitBltZ, ((255.0f / 256.0f)*vdepth), "g_fBitBltZ");
+	ZZshSetParameter4fv(ppsBitBltDepth.prog, ppsBitBltDepth.sBitBltZ, (vdepth*(255.0f / 256.0f)), "g_fBitBltZ");
 
 	assert(pdepth != 0);
 	//GLint w1 = 0;
@@ -1025,11 +1014,11 @@ void ZeroGS::CDepthTarget::Update(int context, ZeroGS::CRenderTarget* prndr)
 	//glGetRenderbufferParameterivEXT(GL_RENDERBUFFER_EXT, GL_RENDERBUFFER_WIDTH_EXT, &w1);
 	//glGetRenderbufferParameterivEXT(GL_RENDERBUFFER_EXT, GL_RENDERBUFFER_HEIGHT_EXT, &h1);
 	SetDepthStencilSurface();
-	
+
 	FBTexture(1);
-	
+
 	GLenum buffer = GL_COLOR_ATTACHMENT0_EXT;
-	
+
 	//ZZLog::Error_Log("CDepthTarget::Update: w1 = 0x%x; h1 = 0x%x", w1, h1);
 	DrawBuffers(&buffer);
 
@@ -1040,8 +1029,8 @@ void ZeroGS::CDepthTarget::Update(int context, ZeroGS::CRenderTarget* prndr)
 	glBindBuffer(GL_ARRAY_BUFFER, vboRect);
 
 	SET_STREAM();
-	SETVERTEXSHADER(pvsBitBlt.prog);
-	SETPIXELSHADER(ppsBitBltDepth.prog);
+	ZZshSetVertexShader(pvsBitBlt.prog);
+	ZZshSetPixelShader(ppsBitBltDepth.prog);
 
 	DrawTriangleArray();
 
@@ -1078,7 +1067,7 @@ void ZeroGS::CDepthTarget::SetDepthStencilSurface()
 		if (icount++ < 8)    // not going to fail if succeeded 4 times
 		{
 			GL_REPORT_ERRORD();
-			
+
 			if (glCheckFramebufferStatusEXT(GL_FRAMEBUFFER_EXT) != GL_FRAMEBUFFER_COMPLETE_EXT)
 			{
 				TextureRect(GL_STENCIL_ATTACHMENT_EXT);
@@ -1170,7 +1159,7 @@ void ZeroGS::CRenderTargetMngr::DestroyAllTargs(int start, int end, int fbw)
 
 			mapTargets.erase(it++);
 		}
-		else 
+		else
 		{
 			++it;
 		}
@@ -1211,7 +1200,7 @@ void ZeroGS::CRenderTargetMngr::DestroyIntersecting(CRenderTarget* prndr)
 
 			mapTargets.erase(it++);
 		}
-		else 
+		else
 		{
 			++it;
 		}
@@ -1243,21 +1232,11 @@ void ZeroGS::CRenderTargetMngr::PrintTargets()
 #endif
 }
 
-CRenderTarget* ZeroGS::CRenderTargetMngr::GetTarg(const frameInfo& frame, u32 opts, int maxposheight)
+bool ZeroGS::CRenderTargetMngr::isFound(const frameInfo& frame, MAPTARGETS::iterator& it, u32 opts, u32 key, int maxposheight)
 {
-	FUNCLOG
-
-	if (frame.fbw <= 0 || frame.fbh <= 0) return NULL;
-
-	GL_REPORT_ERRORD();
-
-	u32 key = GetFrameKey(frame);
-
-	MAPTARGETS::iterator it = mapTargets.find(key);
-
 	// only enforce height if frame.fbh <= 0x1c0
 	bool bfound = it != mapTargets.end();
-
+	
 	if (bfound)
 	{
 		if (opts&TO_StrictHeight)
@@ -1304,7 +1283,26 @@ CRenderTarget* ZeroGS::CRenderTargetMngr::GetTarg(const frameInfo& frame, u32 op
 		}
 	}
 
-	if (bfound)
+	return bfound;
+}
+
+CRenderTarget* ZeroGS::CRenderTargetMngr::GetTarg(const frameInfo& frame, u32 opts, int maxposheight)
+{
+	FUNCLOG
+
+	if (frame.fbw <= 0 || frame.fbh <= 0) 
+	{
+		//ZZLog::Dev_Log("frame fbw == %d; fbh == %d", frame.fbw, frame.fbh);
+		return NULL;
+	}
+
+	GL_REPORT_ERRORD();
+
+	u32 key = GetFrameKey(frame);
+
+	MAPTARGETS::iterator it = mapTargets.find(key);
+	
+	if (isFound(frame, it, opts, key, maxposheight))
 	{
 		// can be both 16bit and 32bit
 		if (PSMT_ISHALF(frame.psm) != PSMT_ISHALF(it->second->psm))
@@ -1339,9 +1337,8 @@ CRenderTarget* ZeroGS::CRenderTargetMngr::GetTarg(const frameInfo& frame, u32 op
 			// certain variables have to be reset every time
 			if ((it->second->psm & ~1) != (frame.psm & ~1))
 			{
-#if defined(ZEROGS_DEVBUILD)
-				ZZLog::Warn_Log("Bad formats 2: %d %d", frame.psm, it->second->psm);
-#endif
+				ZZLog::Dev_Log("Bad formats 2: %d %d", frame.psm, it->second->psm);
+				
 				it->second->psm = frame.psm;
 
 				// recalc extents
@@ -1351,7 +1348,7 @@ CRenderTarget* ZeroGS::CRenderTargetMngr::GetTarg(const frameInfo& frame, u32 op
 
 		if (it->second->fbm != frame.fbm)
 		{
-			//ZZLog::Warn_Log("Bad fbm: 0x%8.8x 0x%8.8x, psm: %d", frame.fbm, it->second->fbm, frame.psm);
+			//ZZLog::Dev_Log("Bad fbm: 0x%8.8x 0x%8.8x, psm: %d", frame.fbm, it->second->fbm, frame.psm);
 		}
 
 		it->second->fbm &= frame.fbm;
@@ -1471,7 +1468,7 @@ CRenderTarget* ZeroGS::CRenderTargetMngr::GetTarg(const frameInfo& frame, u32 op
 
 		// if more than 5s passed since target used, destroy
 
-		if ((it->second != vb[0].prndr) && (it->second != vb[1].prndr) && 
+		if ((it->second != vb[0].prndr) && (it->second != vb[1].prndr) &&
 			(it->second != vb[0].pdepth) && (it->second != vb[1].pdepth) &&
 				((timeGetTime() - it->second->lastused) > 5000))
 		{
@@ -1744,14 +1741,14 @@ bool ZeroGS::CMemoryTarget::ValidateTex(const tex0Info& tex0, int starttex, int 
 	// lock and compare
 	assert(ptex != NULL && ptex->memptr != NULL);
 
-	int result = memcmp_mmx(ptex->memptr + (checkstarty - realy) * 4 * GPU_TEXWIDTH, g_pbyGSMemory + checkstarty * 4 * GPU_TEXWIDTH, (checkendy - checkstarty) * 4 * GPU_TEXWIDTH);
+	int result = memcmp_mmx(ptex->memptr + MemorySize(checkstarty-realy), MemoryAddress(checkstarty), MemorySize(checkendy-checkstarty));
 	
 	if (result == 0)
 	{
 		clearmaxy = 0;
 		return true;
 	}
-	
+
 	if (!bDeleteBadTex) return false;
 
 	// delete clearminy, clearmaxy range (not the checkstarty, checkendy range)
@@ -1893,7 +1890,7 @@ static __forceinline void BuildClut(u32 psm, u32 height, T* pclut, u8* psrc, T* 
 
 #define TARGET_THRESH 0x500
 
-extern int g_MaxTexWidth, g_MaxTexHeight;
+extern int g_MaxTexWidth, g_MaxTexHeight; // Maximum height & width of supported texture.
 
 //#define SORT_TARGETS
 inline list<CMemoryTarget>::iterator ZeroGS::CMemoryTargetMngr::DestroyTargetIter(list<CMemoryTarget>::iterator& it)
@@ -1911,7 +1908,7 @@ inline list<CMemoryTarget>::iterator ZeroGS::CMemoryTargetMngr::DestroyTargetIte
 	return it;
 }
 
-int MemoryTarget_CompareTarget(list<CMemoryTarget>::iterator& it, const tex0Info& tex0, int clutsize, int nClutOffset)
+int ZeroGS::CMemoryTargetMngr::CompareTarget(list<CMemoryTarget>::iterator& it, const tex0Info& tex0, int clutsize, int nClutOffset)
 {
 	if (PSMT_ISCLUT(it->psm) != PSMT_ISCLUT(tex0.psm))
 	{
@@ -1952,7 +1949,7 @@ int MemoryTarget_CompareTarget(list<CMemoryTarget>::iterator& it, const tex0Info
 	return 0;
 }
 
-void MemoryTarget_GetClutVariables(int& nClutOffset, int& clutsize, const tex0Info& tex0)
+void ZeroGS::CMemoryTargetMngr::GetClutVariables(int& nClutOffset, int& clutsize, const tex0Info& tex0)
 {
 	nClutOffset = 0;
 	clutsize = 0;
@@ -1974,12 +1971,12 @@ void MemoryTarget_GetClutVariables(int& nClutOffset, int& clutsize, const tex0In
 	}
 }
 
-void MemoryTarget_GetMemAddress(int& start, int& end,  const tex0Info& tex0)
+void ZeroGS::CMemoryTargetMngr::GetMemAddress(int& start, int& end,  const tex0Info& tex0)
 {
 	int nbStart, nbEnd;
 	GetRectMemAddress(nbStart, nbEnd, tex0.psm, 0, 0, tex0.tw, tex0.th, tex0.tbp0, tex0.tbw);
 	assert(nbStart < nbEnd);
-	nbEnd = min(nbEnd, 0x00400000);
+	nbEnd = min(nbEnd, MEMORY_END);
 
 	start = nbStart / (4 * GPU_TEXWIDTH);
 	end = (nbEnd + GPU_TEXWIDTH * 4 - 1) / (4 * GPU_TEXWIDTH);
@@ -1987,7 +1984,7 @@ void MemoryTarget_GetMemAddress(int& start, int& end,  const tex0Info& tex0)
 
 }
 
-ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::MemoryTarget_SearchExistTarget(int start, int end, int nClutOffset, int clutsize, const tex0Info& tex0, int forcevalidate)
+ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::SearchExistTarget(int start, int end, int nClutOffset, int clutsize, const tex0Info& tex0, int forcevalidate)
 {
 	for (list<CMemoryTarget>::iterator it = listTargets.begin(); it != listTargets.end();)
 	{
@@ -1995,7 +1992,7 @@ ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::MemoryTarget_SearchExistTarget
 		if (it->starty <= start && it->starty + it->height >= end)
 		{
 
-			int res = MemoryTarget_CompareTarget(it, tex0, clutsize, nClutOffset);
+			int res = CompareTarget(it, tex0, clutsize, nClutOffset);
 
 			if (res == 1)
 			{
@@ -2058,30 +2055,7 @@ ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::MemoryTarget_SearchExistTarget
 	return NULL;
 }
 
-static __forceinline int NumberOfChannels(int psm)
-{
-	int channels = 1;
-
-	if (PSMT_ISCLUT(psm))
-	{
-		if (psm == PSMT8)
-			channels = 4;
-		else if (psm == PSMT4)
-			channels = 8;
-	}
-	else
-	{
-		if (PSMT_IS16BIT(psm))
-		{
-			// 16z needs to be a8r8g8b8
-			channels = 2;
-		}
-	}
-
-	return channels;
-}
-
-ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::MemoryTarget_ClearedTargetsSearch(int fmt, int widthmult, int channels, int height)
+ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::ClearedTargetsSearch(int fmt, int widthmult, int channels, int height)
 {
 	CMemoryTarget* targ = NULL;
 
@@ -2091,12 +2065,10 @@ ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::MemoryTarget_ClearedTargetsSea
 
 		while (itbest != listClearedTargets.end())
 		{
-			if ((height <= itbest->realheight) && (itbest->fmt == fmt) && (itbest->widthmult == widthmult) && (itbest->channels == channels))
+			if ((height == itbest->realheight) && (itbest->fmt == fmt) && (itbest->widthmult == widthmult) && (itbest->channels == channels))
 			{
 				// check channels
-				int targchannels = NumberOfChannels(itbest->psm);
-
-				if (targchannels == channels) break;
+				if (PIXELS_PER_WORD(itbest->psm) == channels) break;
 			}
 
 			++itbest;
@@ -2129,10 +2101,10 @@ ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::GetMemoryTarget(const tex0Info
 	FUNCLOG
 	int start, end, nClutOffset, clutsize;
 
-	MemoryTarget_GetClutVariables(nClutOffset, clutsize, tex0);
-	MemoryTarget_GetMemAddress(start, end, tex0);
+	GetClutVariables(nClutOffset, clutsize, tex0);
+	GetMemAddress(start, end, tex0);
 
-	ZeroGS::CMemoryTarget* it = MemoryTarget_SearchExistTarget(start, end, nClutOffset, clutsize, tex0, forcevalidate);
+	ZeroGS::CMemoryTarget* it = SearchExistTarget(start, end, nClutOffset, clutsize, tex0, forcevalidate);
 
 	if (it != NULL) return it;
 
@@ -2141,14 +2113,22 @@ ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::GetMemoryTarget(const tex0Info
 
 	u32 fmt = GL_UNSIGNED_BYTE;
 
+	// RGBA16 storage format
 	if (PSMT_ISHALF_STORAGE(tex0)) fmt = GL_UNSIGNED_SHORT_1_5_5_5_REV;
 
 	int widthmult = 1, channels = 1;
 
-	if ((g_MaxTexHeight < 4096) && (end - start > g_MaxTexHeight)) widthmult = 2;
-	channels = NumberOfChannels(tex0.psm);
+	// If our texture is too big and could not be placed in 1 GPU texture. Pretty rare in modern cards.
+	if ((g_MaxTexHeight < 4096) && (end - start > g_MaxTexHeight)) 
+	{
+		// In this rare case we made a texture of half height and place it on the screen.
+		ZZLog::Debug_Log("Making a half height texture (start - end == 0x%x)", (end-start));
+		widthmult = 2;
+	}
+	
+	channels = PIXELS_PER_WORD(tex0.psm);
 
-	targ = MemoryTarget_ClearedTargetsSearch(fmt, widthmult, channels, end - start);
+	targ = ClearedTargetsSearch(fmt, widthmult, channels, end - start);
 
 	// fill local clut
 	if (PSMT_ISCLUT(tex0.psm))
@@ -2217,6 +2197,8 @@ ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::GetMemoryTarget(const tex0Info
 		targ->cpsm = tex0.cpsm;
 		targ->widthmult = widthmult;
 		targ->channels = channels;
+		targ->texH = (targ->realheight + widthmult - 1)/widthmult;
+		targ->texW = GPU_TEXWIDTH *  widthmult * channels;
 
 		// alloc the mem
 		targ->ptex = new CMemoryTarget::TEXTURE();
@@ -2224,30 +2206,27 @@ ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::GetMemoryTarget(const tex0Info
 	}
 
 #if defined(ZEROGS_DEVBUILD)
-	g_TransferredToGPU += GPU_TEXWIDTH * channels * 4 * targ->height;
+	g_TransferredToGPU += MemorySize(channels * targ->height);
 #endif
 
-	const int texH = (targ->realheight + widthmult - 1) / widthmult;
-	const int texW = GPU_TEXWIDTH * channels * widthmult;
-	
 	// fill with data
 	if (targ->ptex->memptr == NULL)
 	{
-		targ->ptex->memptr = (u8*)_aligned_malloc(4 * GPU_TEXWIDTH * targ->realheight, 16);
+		targ->ptex->memptr = (u8*)_aligned_malloc(MemorySize(targ->realheight), 16);
 		assert(targ->ptex->ref > 0);
 	}
 
-	memcpy_amd(targ->ptex->memptr, g_pbyGSMemory + 4 * GPU_TEXWIDTH * targ->realy, 4 * GPU_TEXWIDTH * targ->height);
+	memcpy_amd(targ->ptex->memptr, MemoryAddress(targ->realy), MemorySize(targ->height));
 
-	vector<u8> texdata;
-	u8* ptexdata = NULL;
+	__aligned16 u8* ptexdata = NULL;
+	bool has_data = false;
 
 	if (PSMT_ISCLUT(tex0.psm))
 	{
-		texdata.resize(((tex0.cpsm <= 1) ? 4 : 2) * texW * texH);
-		ptexdata = &texdata[0];
+		ptexdata = (u8*)_aligned_malloc(CLUT_PIXEL_SIZE(tex0.cpsm) * targ->texH * targ->texW, 16);
+		has_data = true;
 
-		u8* psrc = (u8*)(g_pbyGSMemory + 4 * GPU_TEXWIDTH * targ->realy);
+		u8* psrc = (u8*)(MemoryAddress(targ->realy));
 
 		if (PSMT_IS32BIT(tex0.cpsm))
 		{
@@ -2268,41 +2247,68 @@ ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::GetMemoryTarget(const tex0Info
 	{
 		if (tex0.psm == PSMT16Z || tex0.psm == PSMT16SZ)
 		{
-			texdata.resize(4 * texW * texH
-#if defined(ZEROGS_SSE2)
-			+ 15 						// reserve additional elements for alignment if SSE2 used.
-										// better do it now, so less resizing would be needed
-#endif
-							);
-
-			ptexdata = &texdata[0];
+			ptexdata = (u8*)_aligned_malloc(4 * targ->texH * targ->texW, 16);
+			has_data = true;
 
 			// needs to be 8 bit, use xmm for unpacking
 			u16* dst = (u16*)ptexdata;
-			u16* src = (u16*)(g_pbyGSMemory + 4 * GPU_TEXWIDTH * targ->realy);
+			u16* src = (u16*)(MemoryAddress(targ->realy));
 
 #if defined(ZEROGS_SSE2)
+			assert(((u32)(uptr)dst) % 16 == 0);
+            // FIXME Uncomment to test intrinsic versions (instead of asm)
+            // perf improvement vs asm:
+            // 1/ gcc updates both pointer with 1 addition
+            // 2/ Bypass the cache for the store
+#define NEW_INTRINSIC_VERSION
+#ifdef NEW_INTRINSIC_VERSION
 
-			if (((u32)(uptr)dst) % 16 != 0)
-			{
-				// This is not unusual situation, when vector<u8> does not 16bit alignment, that is destructive for SSE2
-				// instruction movdqa [%eax], xmm0
-				// The idea would be resize vector to 15 elements, that set ptxedata to aligned position.
-				// Later we would move eax by 16, so only we should verify is first element align
-				// FIXME. As I see, texdata used only once here, it does not have any impact on other code.
-				// Probably, usage of _aligned_maloc() would be preferable.
-				
-				// Note: this often happens when changing AA.
-				int disalignment = 16 - ((u32)(uptr)dst) % 16;		// This is value of shift. It could be 0 < disalignment <= 15
-				ptexdata = &texdata[disalignment];			// Set pointer to aligned element
-				dst = (u16*)ptexdata;
-				ZZLog::GS_Log("Made alignment for texdata, 0x%x", dst);
-				assert(((u32)(uptr)dst) % 16 == 0);			// Assert, because at future could be vectors with uncontigious spaces
-			}
+            __m128i zero_128 = _mm_setzero_si128();
+            // NOTE: future performance improvement
+            // SSE4.1 support uncacheable load 128bits. Maybe it can
+            // avoid some cache pollution
+            // NOTE2: I create multiple _n variable to mimic the previous ASM behavior
+            // but I'm not sure there are real gains.
+			for (int i = targ->height * GPU_TEXWIDTH/16 ; i > 0 ; --i)
+            {
+                // Convert 16 bits pixels to 32bits (zero extended)
+                // Batch 64 bytes (32 pixels) at once.
+                __m128i pixels_1 = _mm_load_si128((__m128i*)src);
+                __m128i pixels_2 = _mm_load_si128((__m128i*)(src+8));
+                __m128i pixels_3 = _mm_load_si128((__m128i*)(src+16));
+                __m128i pixels_4 = _mm_load_si128((__m128i*)(src+24));
 
-			int iters = targ->height * GPU_TEXWIDTH / 16;
+                __m128i pix_low_1 = _mm_unpacklo_epi16(pixels_1, zero_128);
+                __m128i pix_high_1 = _mm_unpackhi_epi16(pixels_1, zero_128);
+                __m128i pix_low_2 = _mm_unpacklo_epi16(pixels_2, zero_128);
+                __m128i pix_high_2 = _mm_unpackhi_epi16(pixels_2, zero_128);
 
-			SSE2_UnswizzleZ16Target(dst, src, iters) ;
+                // Note: bypass cache
+                _mm_stream_si128((__m128i*)dst, pix_low_1);
+                _mm_stream_si128((__m128i*)(dst+8), pix_high_1);
+                _mm_stream_si128((__m128i*)(dst+16), pix_low_2);
+                _mm_stream_si128((__m128i*)(dst+24), pix_high_2);
+
+                __m128i pix_low_3 = _mm_unpacklo_epi16(pixels_3, zero_128);
+                __m128i pix_high_3 = _mm_unpackhi_epi16(pixels_3, zero_128);
+                __m128i pix_low_4 = _mm_unpacklo_epi16(pixels_4, zero_128);
+                __m128i pix_high_4 = _mm_unpackhi_epi16(pixels_4, zero_128);
+
+                // Note: bypass cache
+                _mm_stream_si128((__m128i*)(dst+32), pix_low_3);
+                _mm_stream_si128((__m128i*)(dst+40), pix_high_3);
+                _mm_stream_si128((__m128i*)(dst+48), pix_low_4);
+                _mm_stream_si128((__m128i*)(dst+56), pix_high_4);
+
+                src += 32;
+                dst += 64;
+            }
+            // It is advise to use a fence instruction after non temporal move (mm_stream) instruction...
+            // store fence insures that previous store are finish before execute new one.
+            _mm_sfence();
+#else
+			SSE2_UnswizzleZ16Target(dst, src, targ->height * GPU_TEXWIDTH / 16);
+#endif
 #else // ZEROGS_SSE2
 
 			for (int i = 0; i < targ->height; ++i)
@@ -2323,6 +2329,8 @@ ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::GetMemoryTarget(const tex0Info
 		else
 		{
 			ptexdata = targ->ptex->memptr;
+			// We really don't want to deallocate memptr. As a reminder...
+			has_data = false;
 		}
 	}
 
@@ -2334,13 +2342,11 @@ ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::GetMemoryTarget(const tex0Info
 	if (targ->ptex->tex == 0) glGenTextures(1, &targ->ptex->tex);
 
 	glBindTexture(GL_TEXTURE_RECTANGLE_NV, targ->ptex->tex);
-	
-	if (fmt == GL_UNSIGNED_BYTE)
-		TextureRect(4, texW, texH, GL_RGBA, fmt, ptexdata);
-	else
-		TextureRect(GL_RGB5_A1, texW, texH, GL_RGBA, fmt, ptexdata);
 
-	int realheight = targ->realheight;
+	if (fmt == GL_UNSIGNED_BYTE)
+		TextureRect(GL_RGBA, targ->texW, targ->texH, GL_RGBA, fmt, ptexdata);
+	else
+		TextureRect(GL_RGB5_A1, targ->texW, targ->texH, GL_RGBA, fmt, ptexdata);
 
 	while (glGetError() != GL_NO_ERROR)
 	{
@@ -2353,18 +2359,20 @@ ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::GetMemoryTarget(const tex0Info
 		{
 			if (listTargets.size() == 0)
 			{
-				ZZLog::Error_Log("Failed to create %dx%x texture.", GPU_TEXWIDTH*channels*widthmult, (realheight + widthmult - 1) / widthmult);
+				ZZLog::Error_Log("Failed to create %dx%x texture.", targ->texW, targ->texH);
 				channels = 1;
+				if (has_data) _aligned_free(ptexdata);
 				return NULL;
 			}
 
 			DestroyOldest();
 		}
-		
-		TextureRect(4, texW, texH, GL_RGBA, fmt, ptexdata);
+
+		TextureRect(GL_RGBA, targ->texW, targ->texH, GL_RGBA, fmt, ptexdata);
 	}
 
 	setRectWrap(GL_CLAMP);
+	if (has_data) _aligned_free(ptexdata);
 
 	assert(tex0.psm != 0xd);
 
@@ -2527,7 +2535,7 @@ u32 ZeroGS::CBitwiseTextureMngr::GetTexInt(u32 bitvalue, u32 ptexDoNotDelete)
 				glDeleteTextures(1, &it->second);
 				mapTextures.erase(it++);
 			}
-			else 
+			else
 			{
 				++it;
 			}
@@ -2543,24 +2551,25 @@ u32 ZeroGS::CBitwiseTextureMngr::GetTexInt(u32 bitvalue, u32 ptexDoNotDelete)
 
 	if (glGetError() != GL_NO_ERROR) ZZLog::Error_Log("Error on generation of bitmask texture.");
 
-	vector<u16> data(GPU_TEXMASKWIDTH + 1);
+	vector<u16> data(GPU_TEXMASKWIDTH);
 
 	for (u32 i = 0; i < GPU_TEXMASKWIDTH; ++i)
 	{
 		data[i] = (((i << MASKDIVISOR) & bitvalue) << 6); // add the 1/2 offset so that
 	}
 
-	data[GPU_TEXMASKWIDTH] = 0;
+	//	data[GPU_TEXMASKWIDTH] = 0;	// I remove GPU_TEXMASKWIDTH+1 element of this texture, because it was a reason of FFC crush
+									// Probably, some sort of PoT incompability in drivers.
 
-	glBindTexture(GL_TEXTURE_RECTANGLE_NV, ptex);
+	glBindTexture(GL_TEXTURE_RECTANGLE, ptex);
 	if (glGetError() != GL_NO_ERROR) ZZLog::Error_Log("Error on binding bitmask texture.");
 
-	TextureRect(GL_LUMINANCE16, GPU_TEXMASKWIDTH + 1, 1, GL_LUMINANCE, GL_UNSIGNED_SHORT, &data[0]);
+	TextureRect2(GL_LUMINANCE16, GPU_TEXMASKWIDTH, 1, GL_LUMINANCE, GL_UNSIGNED_SHORT, &data[0]);
 	if (glGetError() != GL_NO_ERROR) ZZLog::Error_Log("Error on applying bitmask texture.");
 
 //	Removing clamping, as it seems lead to numerous troubles at some drivers
 //	Need to observe, may be clamping is not really needed.
-	/* setTexRectWrap(GL_REPEAT);
+	/* setRectWrap2(GL_REPEAT);
 
 	GLint Error = glGetError();
 	if( Error != GL_NO_ERROR ) {
@@ -2928,6 +2937,7 @@ void FlushTransferRanges(const tex0Info* ptex)
 }
 
 
+#if 0
 // I removed some code here that wasn't getting called. The old versions #if'ed out below this.
 #define RESOLVE_32_BIT(PSM, T, Tsrc, convfn) \
 	{ \
@@ -2947,7 +2957,7 @@ void FlushTransferRanges(const tex0Info* ptex)
 		\
 		Tsrc* src = (Tsrc*)(psrc); \
 		T* pPageOffset = (T*)g_pbyGSMemory + fbp*(256/sizeof(T)), *dst; \
-		int maxfbh = (0x00400000-fbp*256) / (sizeof(T) * fbw); \
+		int maxfbh = (MEMORY_END-fbp*256) / (sizeof(T) * fbw); \
 		if( maxfbh > fbh ) maxfbh = fbh; \
 		\
 		for(int i = 0; i < maxfbh; ++i) { \
@@ -2959,7 +2969,414 @@ void FlushTransferRanges(const tex0Info* ptex)
 			src += RH(Pitch(fbw))/sizeof(Tsrc); \
 		} \
 	} \
- 
+
+#endif
+
+//#define LOG_RESOLVE_PROFILE
+
+template <typename Tdst, bool do_conversion>
+inline void Resolve_32_Bit(const void* psrc, int fbp, int fbw, int fbh, const int psm, u32 fbm)
+{
+    u32 mask, imask;
+#ifdef LOG_RESOLVE_PROFILE
+#ifdef __LINUX__
+     u32 startime = timeGetPreciseTime();
+#endif
+#endif
+
+    if (PSMT_ISHALF(psm)) /* 16 bit */
+    {
+        /* mask is shifted*/
+        imask = RGBA32to16(fbm);
+        mask = (~imask)&0xffff;
+    }
+    else
+    {
+        mask = ~fbm;
+        imask = fbm;
+    }
+
+    Tdst* pPageOffset = (Tdst*)g_pbyGSMemory + fbp*(256/sizeof(Tdst));
+    Tdst* dst;
+    Tdst  dsrc;
+
+    int maxfbh = (MEMORY_END-fbp*256) / (sizeof(Tdst) * fbw);
+    if( maxfbh > fbh ) maxfbh = fbh;
+    
+#ifdef LOG_RESOLVE_PROFILE
+    ZZLog::Dev_Log("*** Resolve 32 bits: %dx%d in %x", maxfbh, fbw, psm);
+#endif
+
+    // Start the src array at the end to reduce testing in loop
+    u32 raw_size = RH(Pitch(fbw))/sizeof(u32);
+    u32* src = (u32*)(psrc) + (maxfbh-1)*raw_size;
+
+    for(int i = maxfbh-1; i >= 0; --i) {
+        for(int j = fbw-1; j >= 0; --j) {
+            if (do_conversion) {
+                dsrc = RGBA32to16(src[RW(j)]);
+            } else {
+                dsrc = (Tdst)src[RW(j)];
+            }
+            // They are 3 methods to call the functions
+            // macro (compact, inline) but need a nice psm ; swich (inline) ; function pointer (compact)
+            // Use a switch to allow inlining of the getPixel function.
+            // Note: psm is const so the switch is completely optimized
+            // Function method example:
+            // dst = pPageOffset + getPixelFun_0[psm](j, i, fbw);
+            switch (psm)
+            {
+                case PSMCT32:
+                case PSMCT24:
+                    dst = pPageOffset + getPixelAddress32_0(j, i, fbw);
+                    break;
+
+                case PSMCT16:
+                    dst = pPageOffset + getPixelAddress16_0(j, i, fbw);
+                    break;
+
+                case PSMCT16S:
+                    dst = pPageOffset + getPixelAddress16S_0(j, i, fbw);
+                    break;
+
+                case PSMT32Z:
+                case PSMT24Z:
+                    dst = pPageOffset + getPixelAddress32Z_0(j, i, fbw);
+                    break;
+
+                case PSMT16Z:
+                    dst = pPageOffset + getPixelAddress16Z_0(j, i, fbw);
+                    break;
+
+                case PSMT16SZ:
+                    dst = pPageOffset + getPixelAddress16SZ_0(j, i, fbw);
+                    break;
+            }
+            *dst = (dsrc & mask) | (*dst & imask);
+        }
+        src -= raw_size;
+    }
+#ifdef LOG_RESOLVE_PROFILE
+#ifdef __LINUX__
+    ZZLog::Dev_Log("*** 32 bits: execution time %d", timeGetPreciseTime()-startime);
+#endif
+#endif
+}
+
+static const __aligned16 unsigned int pixel_5b_mask[4] = {0x0000001F, 0x0000001F, 0x0000001F, 0x0000001F};
+
+// The function process 2*2 pixels in 32bits. And 2*4 pixels in 16bits
+template <u32 psm, u32 size, u32 pageTable[size][64], bool null_second_line, u32 INDEX>
+__forceinline void update_8pixels_sse2(u32* src, u32* basepage, u32 i_msk, u32 j, u32 pix_mask, u32 src_pitch)
+{
+    u32* base_ptr;
+    __m128i pixels_0;
+    __m128i pixel_0_low;
+    __m128i pixel_0_high;
+
+    __m128i pixels_1;
+    __m128i pixel_1_low;
+    __m128i pixel_1_high;
+
+    assert((i_msk&0x1) == 0); // Failure => wrong line selected
+
+    // Note: pixels have a special arrangement in column. Here a short description when AA.x = 0
+    //
+    // 32 bits format: 8x2 pixels: the idea is to read pixels 0-3
+    // It is easier to process 4 bits (we can not cross column bondary)
+    //      0 1 4 5 8  9  12 13
+    //      2 3 6 7 10 11 14 15
+    //
+    // 16 bits format: 16x2 pixels, each pixels have a lower and higher part.
+    // Here the idea to read 0L-3L & 0H-3H to combine lower and higher part this avoid
+    // data interleaving and useless read/write
+    //      0L 1L 4L 5L 8L  9L  12L 13L  0H 1H 4H 5H 8H  9H  12H 13H
+    //      2L 3L 6L 7L 10L 11L 14L 15L  2H 3H 6H 7H 10H 11H 14H 15H
+    //
+    if (AA.x == 2) {
+        // Note: pixels (32bits) are stored like that:
+        // p0 p0 p0 p0  p1 p1 p1 p1  p4 p4 p4 p4  p5 p5 p5 p5
+        // ...
+        // p2 p2 p2 p2  p3 p3 p3 p3  p6 p6 p6 p6  p7 p7 p7 p7
+        base_ptr = &src[((j+INDEX)<<2)];
+        pixel_0_low = _mm_loadl_epi64((__m128i*)(base_ptr + 3));
+        if (!null_second_line) pixel_0_high = _mm_loadl_epi64((__m128i*)(base_ptr + 3 + src_pitch));
+
+        if (PSMT_ISHALF(psm)) {
+            pixel_1_low = _mm_loadl_epi64((__m128i*)(base_ptr + 3 + 32));
+            if (!null_second_line) pixel_1_high = _mm_loadl_epi64((__m128i*)(base_ptr + 3 + 32 + src_pitch));
+        }
+    } else if(AA.x ==1) {
+        // Note: pixels (32bits) are stored like that:
+        // p0 p0 p1 p1  p4 p4 p5 p5
+        // ...
+        // p2 p2 p3 p3  p6 p6 p7 p7
+        base_ptr = &src[((j+INDEX)<<1)];
+        pixel_0_low = _mm_loadl_epi64((__m128i*)(base_ptr + 1));
+        if (!null_second_line) pixel_0_high = _mm_loadl_epi64((__m128i*)(base_ptr + 1 + src_pitch));
+
+        if (PSMT_ISHALF(psm)) {
+            pixel_1_low = _mm_loadl_epi64((__m128i*)(base_ptr + 1 + 16));
+            if (!null_second_line) pixel_1_high = _mm_loadl_epi64((__m128i*)(base_ptr + 1 + 16 + src_pitch));
+        }
+    } else {
+        // Note: pixels (32bits) are stored like that:
+        // p0 p1  p4 p5
+        // p2 p3  p6 p7
+        base_ptr = &src[(j+INDEX)];
+        pixel_0_low = _mm_loadl_epi64((__m128i*)base_ptr);
+        if (!null_second_line) pixel_0_high = _mm_loadl_epi64((__m128i*)(base_ptr + src_pitch));
+
+        if (PSMT_ISHALF(psm)) {
+            pixel_1_low = _mm_loadl_epi64((__m128i*)(base_ptr + 8));
+            if (!null_second_line) pixel_1_high = _mm_loadl_epi64((__m128i*)(base_ptr + 8 + src_pitch));
+        }
+    }
+
+    // 2nd line does not exist... Just duplicate the pixel value
+    if(null_second_line) {
+        pixel_0_high = pixel_0_low;
+        if (PSMT_ISHALF(psm)) pixel_1_high = pixel_1_low;
+    }
+
+    // Merge the 2 dword
+    pixels_0 = _mm_unpacklo_epi64(pixel_0_low, pixel_0_high);
+    if (PSMT_ISHALF(psm)) pixels_1 = _mm_unpacklo_epi64(pixel_1_low, pixel_1_high);
+
+    // transform pixel from ARGB:8888 to ARGB:1555
+    if (psm == PSMCT16 || psm == PSMCT16S) {
+        // shift pixel instead of the mask. It allow to keep 1 mask into a register
+        // instead of 4 (not enough room on x86...).
+        __m128i pixel_mask = _mm_load_si128((__m128i*)pixel_5b_mask);
+
+        __m128i pixel_0_B = _mm_srli_epi32(pixels_0, 3);
+        pixel_0_B = _mm_and_si128(pixel_0_B, pixel_mask);
+
+        __m128i pixel_0_G = _mm_srli_epi32(pixels_0, 11);
+        pixel_0_G = _mm_and_si128(pixel_0_G, pixel_mask);
+
+        __m128i pixel_0_R = _mm_srli_epi32(pixels_0, 19);
+        pixel_0_R = _mm_and_si128(pixel_0_R, pixel_mask);
+
+        // Note: because of the logical shift we do not need to mask the value
+        __m128i pixel_0_A = _mm_srli_epi32(pixels_0, 31);
+
+        // Realignment of pixels
+        pixel_0_A = _mm_slli_epi32(pixel_0_A, 15);
+        pixel_0_R = _mm_slli_epi32(pixel_0_R, 10);
+        pixel_0_G = _mm_slli_epi32(pixel_0_G, 5);
+
+        // rebuild a complete pixel
+        pixels_0 = _mm_or_si128(pixel_0_A, pixel_0_B);
+        pixels_0 = _mm_or_si128(pixels_0, pixel_0_G);
+        pixels_0 = _mm_or_si128(pixels_0, pixel_0_R);
+
+        // do the same for pixel_1
+        __m128i pixel_1_B = _mm_srli_epi32(pixels_1, 3);
+        pixel_1_B = _mm_and_si128(pixel_1_B, pixel_mask);
+
+        __m128i pixel_1_G = _mm_srli_epi32(pixels_1, 11);
+        pixel_1_G = _mm_and_si128(pixel_1_G, pixel_mask);
+
+        __m128i pixel_1_R = _mm_srli_epi32(pixels_1, 19);
+        pixel_1_R = _mm_and_si128(pixel_1_R, pixel_mask);
+
+        __m128i pixel_1_A = _mm_srli_epi32(pixels_1, 31);
+
+        // Realignment of pixels
+        pixel_1_A = _mm_slli_epi32(pixel_1_A, 15);
+        pixel_1_R = _mm_slli_epi32(pixel_1_R, 10);
+        pixel_1_G = _mm_slli_epi32(pixel_1_G, 5);
+
+        // rebuild a complete pixel
+        pixels_1 = _mm_or_si128(pixel_1_A, pixel_1_B);
+        pixels_1 = _mm_or_si128(pixels_1, pixel_1_G);
+        pixels_1 = _mm_or_si128(pixels_1, pixel_1_R);
+    }
+
+    // Move the pixels to higher parts and merge it with pixels_0
+    if (PSMT_ISHALF(psm)) {
+        pixels_1 = _mm_slli_epi32(pixels_1, 16);
+        pixels_0 = _mm_or_si128(pixels_0, pixels_1);
+    }
+
+    // Status 16 bits
+    // pixels_0 = p3H p3L p2H p2L  p1H p1L p0H p0L
+    // Status 32 bits
+    // pixels_0 = p3 p2 p1 p0
+
+    // load the destination add
+    u32* dst_add;
+    if (PSMT_ISHALF(psm))
+        dst_add = basepage + (pageTable[i_msk][(INDEX)] >> 1);
+    else
+        dst_add = basepage + pageTable[i_msk][(INDEX)];
+
+    // Save some memory access when pix_mask is 0.
+    if (pix_mask) {
+        // Build fbm mask (tranform a u32 to a 4 packets u32)
+        // In 16 bits texture one packet is "0000 DATA"
+        __m128i imask = _mm_cvtsi32_si128(pix_mask);
+        imask = _mm_shuffle_epi32(imask, 0);
+
+        // apply the mask on new values
+        pixels_0 = _mm_andnot_si128(imask, pixels_0);
+
+        __m128i old_pixels_0;
+        __m128i final_pixels_0;
+
+        old_pixels_0 = _mm_and_si128(imask, _mm_load_si128((__m128i*)dst_add));
+        final_pixels_0 = _mm_or_si128(old_pixels_0, pixels_0);
+
+        _mm_store_si128((__m128i*)dst_add, final_pixels_0);
+    } else {
+        // Note: because we did not read the previous value of add. We could bypass the cache.
+        // We gains a few percents
+        _mm_stream_si128((__m128i*)dst_add, pixels_0);
+    }
+
+}
+
+// Update 2 lines of a page (2*64 pixels)
+template <u32 psm, u32 size, u32 pageTable[size][64], bool null_second_line>
+__forceinline void update_pixels_row_sse2(u32* src, u32* basepage, u32 i_msk, u32 j, u32 pix_mask, u32 raw_size)
+{
+    update_8pixels_sse2<psm, size, pageTable, null_second_line, 0>(src, basepage, i_msk, j, pix_mask, raw_size);
+    update_8pixels_sse2<psm, size, pageTable, null_second_line, 2>(src, basepage, i_msk, j, pix_mask, raw_size);
+    update_8pixels_sse2<psm, size, pageTable, null_second_line, 4>(src, basepage, i_msk, j, pix_mask, raw_size);
+    update_8pixels_sse2<psm, size, pageTable, null_second_line, 6>(src, basepage, i_msk, j, pix_mask, raw_size);
+
+    if(!PSMT_ISHALF(psm)) {
+        update_8pixels_sse2<psm, size, pageTable, null_second_line, 8>(src, basepage, i_msk, j, pix_mask, raw_size);
+        update_8pixels_sse2<psm, size, pageTable, null_second_line, 10>(src, basepage, i_msk, j, pix_mask, raw_size);
+        update_8pixels_sse2<psm, size, pageTable, null_second_line, 12>(src, basepage, i_msk, j, pix_mask, raw_size);
+        update_8pixels_sse2<psm, size, pageTable, null_second_line, 14>(src, basepage, i_msk, j, pix_mask, raw_size);
+    }
+
+    update_8pixels_sse2<psm, size, pageTable, null_second_line, 16>(src, basepage, i_msk, j, pix_mask, raw_size);
+    update_8pixels_sse2<psm, size, pageTable, null_second_line, 18>(src, basepage, i_msk, j, pix_mask, raw_size);
+    update_8pixels_sse2<psm, size, pageTable, null_second_line, 20>(src, basepage, i_msk, j, pix_mask, raw_size);
+    update_8pixels_sse2<psm, size, pageTable, null_second_line, 22>(src, basepage, i_msk, j, pix_mask, raw_size);
+
+    if(!PSMT_ISHALF(psm)) {
+        update_8pixels_sse2<psm, size, pageTable, null_second_line, 24>(src, basepage, i_msk, j, pix_mask, raw_size);
+        update_8pixels_sse2<psm, size, pageTable, null_second_line, 26>(src, basepage, i_msk, j, pix_mask, raw_size);
+        update_8pixels_sse2<psm, size, pageTable, null_second_line, 28>(src, basepage, i_msk, j, pix_mask, raw_size);
+        update_8pixels_sse2<psm, size, pageTable, null_second_line, 30>(src, basepage, i_msk, j, pix_mask, raw_size);
+    }
+
+    update_8pixels_sse2<psm, size, pageTable, null_second_line, 32>(src, basepage, i_msk, j, pix_mask, raw_size);
+    update_8pixels_sse2<psm, size, pageTable, null_second_line, 34>(src, basepage, i_msk, j, pix_mask, raw_size);
+    update_8pixels_sse2<psm, size, pageTable, null_second_line, 36>(src, basepage, i_msk, j, pix_mask, raw_size);
+    update_8pixels_sse2<psm, size, pageTable, null_second_line, 38>(src, basepage, i_msk, j, pix_mask, raw_size);
+
+    if(!PSMT_ISHALF(psm)) {
+        update_8pixels_sse2<psm, size, pageTable, null_second_line, 40>(src, basepage, i_msk, j, pix_mask, raw_size);
+        update_8pixels_sse2<psm, size, pageTable, null_second_line, 42>(src, basepage, i_msk, j, pix_mask, raw_size);
+        update_8pixels_sse2<psm, size, pageTable, null_second_line, 44>(src, basepage, i_msk, j, pix_mask, raw_size);
+        update_8pixels_sse2<psm, size, pageTable, null_second_line, 46>(src, basepage, i_msk, j, pix_mask, raw_size);
+    }
+
+    update_8pixels_sse2<psm, size, pageTable, null_second_line, 48>(src, basepage, i_msk, j, pix_mask, raw_size);
+    update_8pixels_sse2<psm, size, pageTable, null_second_line, 50>(src, basepage, i_msk, j, pix_mask, raw_size);
+    update_8pixels_sse2<psm, size, pageTable, null_second_line, 52>(src, basepage, i_msk, j, pix_mask, raw_size);
+    update_8pixels_sse2<psm, size, pageTable, null_second_line, 54>(src, basepage, i_msk, j, pix_mask, raw_size);
+
+    if(!PSMT_ISHALF(psm)) {
+        update_8pixels_sse2<psm, size, pageTable, null_second_line, 56>(src, basepage, i_msk, j, pix_mask, raw_size);
+        update_8pixels_sse2<psm, size, pageTable, null_second_line, 58>(src, basepage, i_msk, j, pix_mask, raw_size);
+        update_8pixels_sse2<psm, size, pageTable, null_second_line, 60>(src, basepage, i_msk, j, pix_mask, raw_size);
+        update_8pixels_sse2<psm, size, pageTable, null_second_line, 62>(src, basepage, i_msk, j, pix_mask, raw_size);
+    }
+}
+
+template <u32 psm, u32 size, u32 pageTable[size][64]>
+void Resolve_32_Bit_sse2(const void* psrc, int fbp, int fbw, int fbh, u32 fbm)
+{
+    // Note a basic implementation was done in Resolve_32_Bit function
+#ifdef LOG_RESOLVE_PROFILE
+#ifdef __LINUX__
+    u32 startime = timeGetPreciseTime();
+#endif
+#endif
+    u32 pix_mask;
+    if (PSMT_ISHALF(psm)) /* 16 bit format */
+    {
+        /* Use 2 16bits mask */
+        u32 pix16_mask = RGBA32to16(fbm);
+        pix_mask = (pix16_mask<<16) | pix16_mask;
+    }
+    else
+        pix_mask = fbm;
+
+    // Note GS register: frame_register__fbp is specified in units of the 32 bits address divided by 2048
+    // fbp is stored as 32*frame_register__fbp
+    u32* pPageOffset = (u32*)g_pbyGSMemory + (fbp/32)*2048;
+
+    int maxfbh;
+    int memory_space = MEMORY_END-(fbp/32)*2048*4;
+    if (PSMT_ISHALF(psm))
+        maxfbh = memory_space / (2*fbw);
+    else
+        maxfbh = memory_space / (4*fbw);
+
+    if( maxfbh > fbh ) maxfbh = fbh;
+    
+#ifdef LOG_RESOLVE_PROFILE
+    ZZLog::Dev_Log("*** Resolve 32 to 32 bits: %dx%d. Frame Mask %x. Format %x", maxfbh, fbw, pix_mask, psm);
+#endif
+
+    // Start the src array at the end to reduce testing in loop
+    // If maxfbh is odd, proces maxfbh -1 alone and then go back to maxfbh -3
+    u32 raw_size = RH(Pitch(fbw))/sizeof(u32);
+    u32* src;
+    if (maxfbh&0x1) {
+        ZZLog::Dev_Log("*** Warning resolve 32bits have an odd number of lines");
+
+        // decrease maxfbh to process the bottom line (maxfbh-1)
+        maxfbh--;
+
+        src = (u32*)(psrc) + maxfbh*raw_size;
+        u32 i_msk = maxfbh & (size-1);
+        // Note fbw is a multiple of 64. So you can unroll the loop 64 times
+        for(int j = (fbw - 64); j >= 0; j -= 64) {
+            u32* basepage = pPageOffset + ((maxfbh/size) * (fbw/64) + (j/64)) * 2048;
+            update_pixels_row_sse2<psm, size, pageTable, true>(src, basepage, i_msk, j, pix_mask, raw_size);
+        }
+        // realign the src pointer to process others lines
+        src -= 2*raw_size;
+    } else {
+        // Because we process 2 lines at once go back to maxfbh-2.
+        src = (u32*)(psrc) + (maxfbh-2)*raw_size;
+    }
+
+    // Note i must be even for the update_8pixels functions
+    assert((maxfbh&0x1) == 0);
+    for(int i = (maxfbh-2); i >= 0; i -= 2) {
+        u32 i_msk = i & (size-1);
+        // Note fbw is a multiple of 64. So you can unroll the loop 64 times
+        for(int j = (fbw - 64); j >= 0; j -= 64) {
+            u32* basepage = pPageOffset + ((i/size) * (fbw/64) + (j/64)) * 2048;
+            update_pixels_row_sse2<psm, size, pageTable, false>(src, basepage, i_msk, j, pix_mask, raw_size);
+        }
+
+        // Note update_8pixels process 2 lines at onces hence the factor 2
+        src -= 2*raw_size;
+    }
+
+    if(!pix_mask) {
+        // Ensure that previous (out of order) write are done. It must be done after non temporal instruction
+        // (or *_stream_* intrinsic)
+        _mm_sfence();
+    }
+
+#ifdef LOG_RESOLVE_PROFILE
+#ifdef __LINUX__
+    ZZLog::Dev_Log("*** 32 bits: execution time %d", timeGetPreciseTime()-startime);
+#endif
+#endif
+}
+
 void _Resolve(const void* psrc, int fbp, int fbw, int fbh, int psm, u32 fbm, bool mode = true)
 {
 	FUNCLOG
@@ -2972,71 +3389,64 @@ void _Resolve(const void* psrc, int fbp, int fbw, int fbh, int psm, u32 fbm, boo
 	// note that fbp is always aligned on page boundaries
 	GetRectMemAddress(start, end, psm, 0, 0, fbw, fbh, fbp, fbw);
 
-	if (GetRenderFormat() == RFT_byte8)
-	{
-		// start the conversion process A8R8G8B8 -> psm
-		switch (psm)
-		{
+    // Comment this to restore the previous resolve_32 version
+#define OPTI_RESOLVE_32
+    // start the conversion process A8R8G8B8 -> psm
+    switch (psm)
+    {
 
-			case PSMCT32:
-			case PSMCT24:
-				RESOLVE_32_BIT(32, u32, u32, (u32));
-				break;
+        // NOTE pass psm as a constant value otherwise gcc does not do its job. It keep
+        // the psm switch in Resolve_32_Bit
+        case PSMCT32:
+        case PSMCT24:
+#if defined(ZEROGS_SSE2) && defined(OPTI_RESOLVE_32)
+            Resolve_32_Bit_sse2<PSMCT32, 32, g_pageTable32 >(psrc, fbp, fbw, fbh, fbm);
+#else
+            Resolve_32_Bit<u32, false >(psrc, fbp, fbw, fbh, PSMCT32, fbm);
+#endif
+            break;
 
-			case PSMCT16:
-				RESOLVE_32_BIT(16, u16, u32, RGBA32to16);
-				break;
+        case PSMCT16:
+#if defined(ZEROGS_SSE2) && defined(OPTI_RESOLVE_32)
+            Resolve_32_Bit_sse2<PSMCT16, 64, g_pageTable16 >(psrc, fbp, fbw, fbh, fbm);
+#else
+            Resolve_32_Bit<u16, true >(psrc, fbp, fbw, fbh, PSMCT16, fbm);
+#endif
+            break;
 
-			case PSMCT16S:
-				RESOLVE_32_BIT(16S, u16, u32, RGBA32to16);
-				break;
+        case PSMCT16S:
+#if defined(ZEROGS_SSE2) && defined(OPTI_RESOLVE_32)
+            Resolve_32_Bit_sse2<PSMCT16S, 64, g_pageTable16S >(psrc, fbp, fbw, fbh, fbm);
+#else
+            Resolve_32_Bit<u16, true >(psrc, fbp, fbw, fbh, PSMCT16S, fbm);
+#endif
+            break;
 
-			case PSMT32Z:
-			case PSMT24Z:
-				RESOLVE_32_BIT(32Z, u32, u32, (u32));
-				break;
+        case PSMT32Z:
+        case PSMT24Z:
+#if defined(ZEROGS_SSE2) && defined(OPTI_RESOLVE_32)
+            Resolve_32_Bit_sse2<PSMT32Z, 32, g_pageTable32Z >(psrc, fbp, fbw, fbh, fbm);
+#else
+            Resolve_32_Bit<u32, false >(psrc, fbp, fbw, fbh, PSMT32Z, fbm);
+#endif
+            break;
 
-			case PSMT16Z:
-				RESOLVE_32_BIT(16Z, u16, u32, (u16));
-				break;
+        case PSMT16Z:
+#if defined(ZEROGS_SSE2) && defined(OPTI_RESOLVE_32)
+            Resolve_32_Bit_sse2<PSMT16Z, 64, g_pageTable16Z >(psrc, fbp, fbw, fbh, fbm);
+#else
+            Resolve_32_Bit<u16, false >(psrc, fbp, fbw, fbh, PSMT16Z, fbm);
+#endif
+            break;
 
-			case PSMT16SZ:
-				RESOLVE_32_BIT(16SZ, u16, u32, (u16));
-				break;
-		}
-	}
-	else  // float16
-	{
-		switch (psm)
-		{
-
-			case PSMCT32:
-			case PSMCT24:
-				RESOLVE_32_BIT(32, u32, Vector_16F, Float16ToARGB);
-				break;
-
-			case PSMCT16:
-				RESOLVE_32_BIT(16, u16, Vector_16F, Float16ToARGB16);
-				break;
-
-			case PSMCT16S:
-				RESOLVE_32_BIT(16S, u16, Vector_16F, Float16ToARGB16);
-				break;
-
-			case PSMT32Z:
-			case PSMT24Z:
-				RESOLVE_32_BIT(32Z, u32, Vector_16F,  Float16ToARGB_Z);
-				break;
-
-			case PSMT16Z:
-				RESOLVE_32_BIT(16Z, u16, Vector_16F, Float16ToARGB16_Z);
-				break;
-
-			case PSMT16SZ:
-				RESOLVE_32_BIT(16SZ, u16, Vector_16F, Float16ToARGB16_Z);
-				break;
-		}
-	}
+        case PSMT16SZ:
+#if defined(ZEROGS_SSE2) && defined(OPTI_RESOLVE_32)
+            Resolve_32_Bit_sse2<PSMT16SZ, 64, g_pageTable16SZ >(psrc, fbp, fbw, fbh, fbm);
+#else
+            Resolve_32_Bit<u16, false >(psrc, fbp, fbw, fbh, PSMT16SZ, fbm);
+#endif
+            break;
+    }
 
 	g_MemTargs.ClearRange(start, end);
 
@@ -3092,7 +3502,7 @@ void _Resolve(const void* psrc, int fbp, int fbw, int fbh, int psm, u32 fbm, boo
 		Tsrc* src = (Tsrc*)(psrc); \
 		T* pPageOffset = (T*)g_pbyGSMemory + fbp*(256/sizeof(T)), *dst; \
 		int srcpitch = Pitch(fbw) * blockheight/sizeof(Tsrc); \
-		int maxfbh = (0x00400000-fbp*256) / (sizeof(T) * fbw); \
+		int maxfbh = (MEMORY_END-fbp*256) / (sizeof(T) * fbw); \
 		if( maxfbh > fbh ) maxfbh = fbh; \
 		for(i = 0; i < (maxfbh&~(blockheight-1))*X; i += blockheight) { \
 			/*if( smask2 && (i&1) == smask1 ) continue; */ \
@@ -3112,7 +3522,7 @@ void _Resolve(const void* psrc, int fbp, int fbw, int fbh, int psm, u32 fbm, boo
 			src += RH(Pitch(fbw))/sizeof(Tsrc); \
 		} \
 	} \
- 
+
 	if( GetRenderFormat() == RFT_byte8 ) {
 		// start the conversion process A8R8G8B8 -> psm
 		switch (psm)
@@ -3122,11 +3532,11 @@ void _Resolve(const void* psrc, int fbp, int fbw, int fbh, int psm, u32 fbm, boo
 
 			case PSMCT24:
 
-				if (s_AAy)
+				if (AA.y)
 				{
-					RESOLVE_32BIT(32, u32, u32, 32A4, 8, 8, (u32), Frame, s_AAx, s_AAy);
+					RESOLVE_32BIT(32, u32, u32, 32A4, 8, 8, (u32), Frame, AA.x, AA.y);
 				}
-				else if (s_AAx)
+				else if (AA.x)
 				{
 					RESOLVE_32BIT(32, u32, u32, 32A2, 8, 8, (u32), Frame, 1, 0);
 				}
@@ -3139,11 +3549,11 @@ void _Resolve(const void* psrc, int fbp, int fbw, int fbh, int psm, u32 fbm, boo
 
 			case PSMCT16:
 
-				if (s_AAy)
+				if (AA.y)
 				{
-					RESOLVE_32BIT(16, u16, u32, 16A4, 16, 8, RGBA32to16, Frame, s_AAx, s_AAy);
+					RESOLVE_32BIT(16, u16, u32, 16A4, 16, 8, RGBA32to16, Frame, AA.x, AA.y);
 				}
-				else if (s_AAx)
+				else if (AA.x)
 				{
 					RESOLVE_32BIT(16, u16, u32, 16A2, 16, 8, RGBA32to16, Frame, 1, 0);
 				}
@@ -3156,11 +3566,11 @@ void _Resolve(const void* psrc, int fbp, int fbw, int fbh, int psm, u32 fbm, boo
 
 			case PSMCT16S:
 
-				if (s_AAy)
+				if (AA.y)
 				{
-					RESOLVE_32BIT(16S, u16, u32, 16A4, 16, 8, RGBA32to16, Frame, s_AAx, s_AAy);
+					RESOLVE_32BIT(16S, u16, u32, 16A4, 16, 8, RGBA32to16, Frame, AA.x, AA.y);
 				}
-				else if (s_AAx)
+				else if (AA.x)
 				{
 					RESOLVE_32BIT(16S, u16, u32, 16A2, 16, 8, RGBA32to16, Frame, 1, 0);
 				}
@@ -3175,11 +3585,11 @@ void _Resolve(const void* psrc, int fbp, int fbw, int fbh, int psm, u32 fbm, boo
 
 			case PSMT24Z:
 
-				if (s_AAy)
+				if (AA.y)
 				{
-					RESOLVE_32BIT(32Z, u32, u32, 32A4, 8, 8, (u32), Frame, s_AAx, s_AAy);
+					RESOLVE_32BIT(32Z, u32, u32, 32A4, 8, 8, (u32), Frame, AA.x, AA.y);
 				}
-				else if (s_AAx)
+				else if (AA.x)
 				{
 					RESOLVE_32BIT(32Z, u32, u32, 32A2, 8, 8, (u32), Frame, 1, 0);
 				}
@@ -3192,11 +3602,11 @@ void _Resolve(const void* psrc, int fbp, int fbw, int fbh, int psm, u32 fbm, boo
 
 			case PSMT16Z:
 
-				if (s_AAy)
+				if (AA.y)
 				{
-					RESOLVE_32BIT(16Z, u16, u32, 16A4, 16, 8, (u16), Frame, s_AAx, s_AAy);
+					RESOLVE_32BIT(16Z, u16, u32, 16A4, 16, 8, (u16), Frame, AA.x, AA.y);
 				}
-				else if (s_AAx)
+				else if (AA.x)
 				{
 					RESOLVE_32BIT(16Z, u16, u32, 16A2, 16, 8, (u16), Frame, 1, 0);
 				}
@@ -3209,11 +3619,11 @@ void _Resolve(const void* psrc, int fbp, int fbw, int fbh, int psm, u32 fbm, boo
 
 			case PSMT16SZ:
 
-				if (s_AAy)
+				if (AA.y)
 				{
-					RESOLVE_32BIT(16SZ, u16, u32, 16A4, 16, 8, (u16), Frame, s_AAx, s_AAy);
+					RESOLVE_32BIT(16SZ, u16, u32, 16A4, 16, 8, (u16), Frame, AA.x, AA.y);
 				}
-				else if (s_AAx)
+				else if (AA.x)
 				{
 					RESOLVE_32BIT(16SZ, u16, u32, 16A2, 16, 8, (u16), Frame, 1, 0);
 				}
@@ -3234,11 +3644,11 @@ void _Resolve(const void* psrc, int fbp, int fbw, int fbh, int psm, u32 fbm, boo
 
 			case PSMCT24:
 
-				if (s_AAy)
+				if (AA.y)
 				{
 					RESOLVE_32BIT(32, u32, Vector_16F, 32A4, 8, 8, Float16ToARGB, Frame16, 1, 1);
 				}
-				else if (s_AAx)
+				else if (AA.x)
 				{
 					RESOLVE_32BIT(32, u32, Vector_16F, 32A2, 8, 8, Float16ToARGB, Frame16, 1, 0);
 				}
@@ -3251,11 +3661,11 @@ void _Resolve(const void* psrc, int fbp, int fbw, int fbh, int psm, u32 fbm, boo
 
 			case PSMCT16:
 
-				if (s_AAy)
+				if (AA.y)
 				{
 					RESOLVE_32BIT(16, u16, Vector_16F, 16A4, 16, 8, Float16ToARGB16, Frame16, 1, 1);
 				}
-				else if (s_AAx)
+				else if (AA.x)
 				{
 					RESOLVE_32BIT(16, u16, Vector_16F, 16A2, 16, 8, Float16ToARGB16, Frame16, 1, 0);
 				}
@@ -3268,11 +3678,11 @@ void _Resolve(const void* psrc, int fbp, int fbw, int fbh, int psm, u32 fbm, boo
 
 			case PSMCT16S:
 
-				if (s_AAy)
+				if (AA.y)
 				{
 					RESOLVE_32BIT(16S, u16, Vector_16F, 16A4, 16, 8, Float16ToARGB16, Frame16, 1, 1);
 				}
-				else if (s_AAx)
+				else if (AA.x)
 				{
 					RESOLVE_32BIT(16S, u16, Vector_16F, 16A2, 16, 8, Float16ToARGB16, Frame16, 1, 0);
 				}
@@ -3287,11 +3697,11 @@ void _Resolve(const void* psrc, int fbp, int fbw, int fbh, int psm, u32 fbm, boo
 
 			case PSMT24Z:
 
-				if (s_AAy)
+				if (AA.y)
 				{
 					RESOLVE_32BIT(32Z, u32, Vector_16F, 32ZA4, 8, 8, Float16ToARGB_Z, Frame16, 1, 1);
 				}
-				else if (s_AAx)
+				else if (AA.x)
 				{
 					RESOLVE_32BIT(32Z, u32, Vector_16F, 32ZA2, 8, 8, Float16ToARGB_Z, Frame16, 1, 0);
 				}
@@ -3304,11 +3714,11 @@ void _Resolve(const void* psrc, int fbp, int fbw, int fbh, int psm, u32 fbm, boo
 
 			case PSMT16Z:
 
-				if (s_AAy)
+				if (AA.y)
 				{
 					RESOLVE_32BIT(16Z, u16, Vector_16F, 16ZA4, 16, 8, Float16ToARGB16_Z, Frame16, 1, 1);
 				}
-				else if (s_AAx)
+				else if (AA.x)
 				{
 					RESOLVE_32BIT(16Z, u16, Vector_16F, 16ZA2, 16, 8, Float16ToARGB16_Z, Frame16, 1, 0);
 				}
@@ -3321,11 +3731,11 @@ void _Resolve(const void* psrc, int fbp, int fbw, int fbh, int psm, u32 fbm, boo
 
 			case PSMT16SZ:
 
-				if (s_AAy)
+				if (AA.y)
 				{
 					RESOLVE_32BIT(16SZ, u16, Vector_16F, 16ZA4, 16, 8, Float16ToARGB16_Z, Frame16, 1, 1);
 				}
-				else if (s_AAx)
+				else if (AA.x)
 				{
 					RESOLVE_32BIT(16SZ, u16, Vector_16F, 16ZA2, 16, 8, Float16ToARGB16_Z, Frame16, 1, 0);
 				}

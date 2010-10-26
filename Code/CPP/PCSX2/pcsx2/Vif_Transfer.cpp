@@ -24,8 +24,8 @@
 
 // Doesn't stall if the next vifCode is the Mark command
 _vifT bool runMark(u32* &data) {
-	if (((vifXRegs->code >> 24) & 0x7f) == 0x7) {
-		Console.WriteLn("Vif%d: Running Mark with I-bit", idx);
+	if (((vifXRegs.code >> 24) & 0x7f) == 0x7) {
+		DevCon.WriteLn("Vif%d: Running Mark with I-bit", idx);
 		return 1; // No Stall?
 	}
 	return 1; // Stall
@@ -34,7 +34,7 @@ _vifT bool runMark(u32* &data) {
 // Returns 1 if i-bit && finished vifcode && i-bit not masked
 _vifT bool analyzeIbit(u32* &data, int iBit) {
 	vifStruct& vifX = GetVifX;
-	if (iBit && !vifX.cmd && !vifXRegs->err.MII) {
+	if (iBit && !vifX.cmd && !vifXRegs.err.MII) {
 		//DevCon.WriteLn("Vif I-Bit IRQ");
 		vifX.irq++;
 
@@ -75,17 +75,24 @@ _vifT void vifTransferLoop(u32* &data) {
 	u32& pSize = vifX.vifpacketsize;
 	int  iBit  = vifX.cmd >> 7;
 
-	vifXRegs->stat.VPS |= VPS_TRANSFERRING;
-	vifXRegs->stat.ER1  = false;
+	vifXRegs.stat.VPS |= VPS_TRANSFERRING;
+	vifXRegs.stat.ER1  = false;
 
 	while (pSize > 0 && !vifX.vifstalled) {
 
 		if(!vifX.cmd) { // Get new VifCode
-			vifX.lastcmd = (vifXRegs->code >> 24) & 0x7f;
-			vifXRegs->code = data[0];
+			vifX.lastcmd = (vifXRegs.code >> 24) & 0x7f;
+			vifXRegs.code = data[0];
 			vifX.cmd	   = data[0] >> 24;
 			iBit		   = data[0] >> 31;
-			VIF_LOG("New VifCMD %x tagsize %x", vifX.cmd, vifX.tag.size);
+
+			//VIF_LOG("New VifCMD %x tagsize %x", vifX.cmd, vifX.tag.size);
+			if (IsDevBuild && SysTrace.EE.VIFcode.IsActive())
+			{
+				// Pass 2 means "log it"
+				vifCmdHandler[idx][vifX.cmd & 0x7f](2, data);
+			}
+
 			vifCmdHandler[idx][vifX.cmd & 0x7f](0, data);
 			data++; pSize--;
 			if (analyzeIbit<idx>(data, iBit)) break;
@@ -97,11 +104,11 @@ _vifT void vifTransferLoop(u32* &data) {
 		pSize  -= ret;
 		if (analyzeIbit<idx>(data, iBit)) break;
 	}
-	
+
 	if (pSize)	  vifX.vifstalled	 = true;
 }
 
-_vifT _f bool vifTransfer(u32 *data, int size) {
+_vifT static __fi bool vifTransfer(u32 *data, int size, bool TTE) {
 	vifStruct& vifX = GetVifX;
 
 	// irqoffset necessary to add up the right qws, or else will spin (spiderman)
@@ -132,31 +139,34 @@ _vifT _f bool vifTransfer(u32 *data, int size) {
 
 	vifX.irqoffset = transferred % 4; // cannot lose the offset
 
+	if (TTE) return !vifX.vifstalled;
+
 	transferred   = transferred >> 2;
 
-	vifXch->madr +=(transferred << 4);
-	vifXch->qwc  -= transferred;
+	vifXch.madr +=(transferred << 4);
+	vifXch.qwc  -= transferred;
 
-	if (!vifXch->qwc && !vifX.irqoffset) vifX.inprogress &= ~0x1;
+	if (!vifXch.qwc && !vifX.irqoffset) vifX.inprogress &= ~0x1;
 
 	if (vifX.irq && vifX.cmd == 0) {
 		//DevCon.WriteLn("Vif IRQ!");
-		if(((vifXRegs->code >> 24) & 0x7f) != 0x7)
+		if(((vifXRegs.code >> 24) & 0x7f) != 0x7)
 		{
 			vifX.vifstalled    = true;
-			vifXRegs->stat.VIS = true; // Note: commenting this out fixes WALL-E?
+			vifXRegs.stat.VIS = true; // Note: commenting this out fixes WALL-E?
 		}
 
-		if (!vifXch->qwc && !vifX.irqoffset) vifX.inprogress = 0;
+		if (!vifXch.qwc && !vifX.irqoffset) vifX.inprogress &= ~1;
 		return false;
 	}
 
 	return !vifX.vifstalled;
 }
 
-bool VIF0transfer(u32 *data, int size) {
-	return vifTransfer<0>(data, size);
+// When TTE is set to 1, MADR and QWC are not updated as part of the transfer.
+bool VIF0transfer(u32 *data, int size, bool TTE) {
+	return vifTransfer<0>(data, size, TTE);
 }
-bool VIF1transfer(u32 *data, int size) {
-	return vifTransfer<1>(data, size);
+bool VIF1transfer(u32 *data, int size, bool TTE) {
+	return vifTransfer<1>(data, size, TTE);
 }

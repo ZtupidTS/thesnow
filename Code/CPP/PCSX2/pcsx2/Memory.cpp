@@ -35,15 +35,14 @@ BIOS
 */
 
 #include "PrecompiledHeader.h"
-#include "IopCommon.h"
-
-#pragma warning(disable:4799) // No EMMS at end of function
-
 #include <wx/file.h>
 
+#include "IopCommon.h"
 #include "VUmicro.h"
 #include "GS.h"
 #include "System/PageFaultSource.h"
+
+#include "ps2/HwInternal.h"
 #include "ps2/BiosTools.h"
 
 #ifdef ENABLECACHE
@@ -77,23 +76,6 @@ u16 ba0R16(u32 mem)
 	return 0;
 }
 
-
-u8  *psM = NULL; //32mb Main Ram
-u8  *psR = NULL; //4mb rom area
-u8  *psR1 = NULL; //256kb rom1 area (actually 196kb, but can't mask this)
-u8  *psR2 = NULL; // 0x00080000
-u8  *psER = NULL; // 0x001C0000
-u8  *psS = NULL; //0.015 mb, scratch pad
-
-// Two 1 megabyte (max DMA) buffers for reading and writing to high memory (>32MB).
-// Such accesses are not documented as causing bus errors but as the memory does
-// not exist, reads should continue to return 0 and writes should be discarded.
-// Probably.
-static __aligned16 u8 highmem[0x200000];
-
-u8  *psMHR = &highmem[0];
-u8  *psMHW = &highmem[0x100000];
-
 #define CHECK_MEM(mem) //MyMemCheck(mem)
 
 void MyMemCheck(u32 mem)
@@ -105,41 +87,49 @@ void MyMemCheck(u32 mem)
 /////////////////////////////
 // REGULAR MEM START
 /////////////////////////////
-vtlbHandler null_handler;
+static vtlbHandler
+	null_handler,
 
-vtlbHandler tlb_fallback_0;
-vtlbHandler tlb_fallback_1;
-vtlbHandler tlb_fallback_2;
-vtlbHandler tlb_fallback_3;
-vtlbHandler tlb_fallback_4;
-vtlbHandler tlb_fallback_5;
-vtlbHandler tlb_fallback_6;
-vtlbHandler tlb_fallback_7;
-vtlbHandler tlb_fallback_8;
+	tlb_fallback_0,
+	tlb_fallback_1,
+	tlb_fallback_2,
+	tlb_fallback_3,
+	tlb_fallback_4,
+	tlb_fallback_5,
+	tlb_fallback_6,
+	tlb_fallback_7,
+	tlb_fallback_8,
 
-vtlbHandler vu0_micro_mem[2];		// 0 - dynarec, 1 - interpreter
-vtlbHandler vu1_micro_mem[2];		// 0 - dynarec, 1 - interpreter
+	vu0_micro_mem,
+	vu1_micro_mem,
 
-vtlbHandler hw_by_page[0x10] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-vtlbHandler gs_page_0;
-vtlbHandler gs_page_1;
+	hw_by_page[0x10] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 },
 
-vtlbHandler iopHw_by_page_01;
-vtlbHandler iopHw_by_page_03;
-vtlbHandler iopHw_by_page_08;
+	gs_page_0,
+	gs_page_1,
+
+	iopHw_by_page_01,
+	iopHw_by_page_03,
+	iopHw_by_page_08;
 
 
-// Used to remap the VUmicro memory according to the VU0/VU1 dynarec setting.
-// (the VU memory operations are different for recs vs. interpreters)
 void memMapVUmicro()
 {
-	vtlb_MapHandler(vu0_micro_mem[CpuVU0->IsInterpreter],0x11000000,0x00004000);
-	vtlb_MapHandler(vu1_micro_mem[CpuVU1->IsInterpreter],0x11008000,0x00004000);
-
-	// VU0/VU1 memory
+	// VU0/VU1 micro mem (instructions)
 	// (Like IOP memory, these are generally only used by the EE Bios kernel during
-	//  boot-up.  Applications/games are "supposed" to use the thread-safe VIF
-	//  instead.)
+	//  boot-up.  Applications/games are "supposed" to use the thread-safe VIF instead;
+	//  or must ensure all VIF/GIF transfers are finished and all VUmicro execution stopped
+	//  prior to accessing VU memory directly).
+
+	// The VU0 mapping actually repeats 4 times across the mapped range, but we don't bother
+	// to manually mirror it here because the indirect memory handler for it (see vuMicroRead*
+	// functions below) automatically mask and wrap the address for us.
+
+	vtlb_MapHandler(vu0_micro_mem,0x11000000,0x00004000);
+	vtlb_MapHandler(vu1_micro_mem,0x11008000,0x00004000);
+
+	// VU0/VU1 memory (data)
+	// VU0 is 4k, mirrored 4 times across a 16k area.
 	vtlb_MapBlock(VU0.Mem,0x11004000,0x00004000,0x1000);
 	vtlb_MapBlock(VU1.Mem,0x1100c000,0x00004000);
 }
@@ -147,23 +137,22 @@ void memMapVUmicro()
 void memMapPhy()
 {
 	// Main memory
-	vtlb_MapBlock(psM,	0x00000000,Ps2MemSize::Base);//mirrored on first 256 mb ?
+	vtlb_MapBlock(eeMem->Main,	0x00000000,Ps2MemSize::Base);//mirrored on first 256 mb ?
 	// High memory, uninstalled on the configuration we emulate
 	vtlb_MapHandler(null_handler, Ps2MemSize::Base, 0x10000000 - Ps2MemSize::Base);
 
 	// Various ROMs (all read-only)
-	vtlb_MapBlock(psR,	0x1fc00000,Ps2MemSize::Rom);
-	vtlb_MapBlock(psR1,	0x1e000000,Ps2MemSize::Rom1);
-	vtlb_MapBlock(psR2,	0x1e400000,Ps2MemSize::Rom2);
-	vtlb_MapBlock(psER,	0x1e040000,Ps2MemSize::ERom);
+	vtlb_MapBlock(eeMem->ROM,	0x1fc00000,Ps2MemSize::Rom);
+	vtlb_MapBlock(eeMem->ROM1,	0x1e000000,Ps2MemSize::Rom1);
+	vtlb_MapBlock(eeMem->ROM2,	0x1e400000,Ps2MemSize::Rom2);
+	vtlb_MapBlock(eeMem->EROM,	0x1e040000,Ps2MemSize::ERom);
 
 	// IOP memory
 	// (used by the EE Bios Kernel during initial hardware initialization, Apps/Games
 	//  are "supposed" to use the thread-safe SIF instead.)
-	vtlb_MapBlock(psxM,0x1c000000,0x00800000);
+	vtlb_MapBlock(iopMem->Main,0x1c000000,0x00800000);
 
 	// Generic Handlers; These fallback to mem* stuff...
-	vtlb_MapHandler(tlb_fallback_1,0x10000000,0x10000);
 	vtlb_MapHandler(tlb_fallback_7,0x14000000,0x10000);
 	vtlb_MapHandler(tlb_fallback_4,0x18000000,0x10000);
 	vtlb_MapHandler(tlb_fallback_5,0x1a000000,0x10000);
@@ -175,17 +164,9 @@ void memMapPhy()
 
 	// Hardware Register Handlers : specialized/optimized per-page handling of HW register accesses
 	// (note that hw_by_page handles are assigned in memReset prior to calling this function)
-	vtlb_MapHandler(hw_by_page[0x0], 0x10000000, 0x01000);
-	vtlb_MapHandler(hw_by_page[0x1], 0x10001000, 0x01000);
-	vtlb_MapHandler(hw_by_page[0x2], 0x10002000, 0x01000);
-	vtlb_MapHandler(hw_by_page[0x3], 0x10003000, 0x01000);
-	vtlb_MapHandler(hw_by_page[0x4], 0x10004000, 0x01000);
-	vtlb_MapHandler(hw_by_page[0x5], 0x10005000, 0x01000);
-	vtlb_MapHandler(hw_by_page[0x6], 0x10006000, 0x01000);
-	vtlb_MapHandler(hw_by_page[0x7], 0x10007000, 0x01000);
-	vtlb_MapHandler(hw_by_page[0xb], 0x1000b000, 0x01000);
-	vtlb_MapHandler(hw_by_page[0xe], 0x1000e000, 0x01000);
-	vtlb_MapHandler(hw_by_page[0xf], 0x1000f000, 0x01000);
+
+	for( uint i=0; i<16; ++i)
+		vtlb_MapHandler(hw_by_page[i], 0x10000000 + (0x01000 * i), 0x01000);
 
 	vtlb_MapHandler(gs_page_0, 0x12000000, 0x01000);
 	vtlb_MapHandler(gs_page_1, 0x12001000, 0x01000);
@@ -237,7 +218,7 @@ static void __fastcall nullRead64(u32 mem, mem64_t *out) {
 }
 static void __fastcall nullRead128(u32 mem, mem128_t *out) {
 	MEM_LOG("Read uninstalled memory at address %08x", mem);
-	*out = 0;
+	ZeroQWC(out);
 }
 static void __fastcall nullWrite8(u32 mem, mem8_t value)
 {
@@ -261,12 +242,10 @@ static void __fastcall nullWrite128(u32 mem, const mem128_t *value)
 }
 
 template<int p>
-mem8_t __fastcall _ext_memRead8 (u32 mem)
+static mem8_t __fastcall _ext_memRead8 (u32 mem)
 {
 	switch (p)
 	{
-		case 1: // hwm
-			return hwRead8(mem);
 		case 3: // psh4
 			return psxHw4Read8(mem);
 		case 6: // gsm
@@ -285,12 +264,10 @@ mem8_t __fastcall _ext_memRead8 (u32 mem)
 }
 
 template<int p>
-mem16_t __fastcall _ext_memRead16(u32 mem)
+static mem16_t __fastcall _ext_memRead16(u32 mem)
 {
 	switch (p)
 	{
-		case 1: // hwm
-			return hwRead16(mem);
 		case 4: // b80
 			MEM_LOG("b800000 Memory read16 address %x", mem);
 			return 0;
@@ -315,7 +292,7 @@ mem16_t __fastcall _ext_memRead16(u32 mem)
 }
 
 template<int p>
-mem32_t __fastcall _ext_memRead32(u32 mem)
+static mem32_t __fastcall _ext_memRead32(u32 mem)
 {
 	switch (p)
 	{
@@ -335,7 +312,7 @@ mem32_t __fastcall _ext_memRead32(u32 mem)
 }
 
 template<int p>
-void __fastcall _ext_memRead64(u32 mem, mem64_t *out)
+static void __fastcall _ext_memRead64(u32 mem, mem64_t *out)
 {
 	switch (p)
 	{
@@ -348,15 +325,15 @@ void __fastcall _ext_memRead64(u32 mem, mem64_t *out)
 }
 
 template<int p>
-void __fastcall _ext_memRead128(u32 mem, mem128_t *out)
+static void __fastcall _ext_memRead128(u32 mem, mem128_t *out)
 {
 	switch (p)
 	{
 		//case 1: // hwm
 		//	hwRead128(mem & ~0xa0000000, out); return;
 		case 6: // gsm
-			out[0] = gsRead64(mem  );
-			out[1] = gsRead64(mem+8); return;
+			CopyQWC(out,PS2GS_BASE(mem));
+		return;
 	}
 
 	MEM_LOG("Unknown Memory read128 from address %8.8x", mem);
@@ -364,12 +341,9 @@ void __fastcall _ext_memRead128(u32 mem, mem128_t *out)
 }
 
 template<int p>
-void __fastcall _ext_memWrite8 (u32 mem, mem8_t  value)
+static void __fastcall _ext_memWrite8 (u32 mem, mem8_t  value)
 {
 	switch (p) {
-		case 1: // hwm
-			hwWrite8(mem, value);
-			return;
 		case 3: // psh4
 			psxHw4Write8(mem, value); return;
 		case 6: // gsm
@@ -383,13 +357,11 @@ void __fastcall _ext_memWrite8 (u32 mem, mem8_t  value)
 	MEM_LOG("Unknown Memory write8   to  address %x with data %2.2x", mem, value);
 	cpuTlbMissW(mem, cpuRegs.branch);
 }
+
 template<int p>
-void __fastcall _ext_memWrite16(u32 mem, mem16_t value)
+static void __fastcall _ext_memWrite16(u32 mem, mem16_t value)
 {
 	switch (p) {
-		case 1: // hwm
-			hwWrite16(mem, value);
-			return;
 		case 5: // ba0
 			MEM_LOG("ba00000 Memory write16 to  address %x with data %x", mem, value);
 			return;
@@ -407,7 +379,7 @@ void __fastcall _ext_memWrite16(u32 mem, mem16_t value)
 }
 
 template<int p>
-void __fastcall _ext_memWrite32(u32 mem, mem32_t value)
+static void __fastcall _ext_memWrite32(u32 mem, mem32_t value)
 {
 	switch (p) {
 		case 6: // gsm
@@ -422,7 +394,7 @@ void __fastcall _ext_memWrite32(u32 mem, mem32_t value)
 }
 
 template<int p>
-void __fastcall _ext_memWrite64(u32 mem, const mem64_t* value)
+static void __fastcall _ext_memWrite64(u32 mem, const mem64_t* value)
 {
 
 	/*switch (p) {
@@ -438,7 +410,7 @@ void __fastcall _ext_memWrite64(u32 mem, const mem64_t* value)
 }
 
 template<int p>
-void __fastcall _ext_memWrite128(u32 mem, const mem128_t *value)
+static void __fastcall _ext_memWrite128(u32 mem, const mem128_t *value)
 {
 	/*switch (p) {
 		//case 1: // hwm
@@ -457,32 +429,19 @@ void __fastcall _ext_memWrite128(u32 mem, const mem128_t *value)
 #define vtlb_RegisterHandlerTempl1(nam,t) vtlb_RegisterHandler(nam##Read8<t>,nam##Read16<t>,nam##Read32<t>,nam##Read64<t>,nam##Read128<t>, \
 															   nam##Write8<t>,nam##Write16<t>,nam##Write32<t>,nam##Write64<t>,nam##Write128<t>)
 
-#define vtlb_RegisterHandlerTempl2(nam,t,rec) vtlb_RegisterHandler(nam##Read8<t>,nam##Read16<t>,nam##Read32<t>,nam##Read64<t>,nam##Read128<t>, \
-																   nam##Write8<t,rec>,nam##Write16<t,rec>,nam##Write32<t,rec>,nam##Write64<t,rec>,nam##Write128<t,rec>)
-
 typedef void __fastcall ClearFunc_t( u32 addr, u32 qwc );
 
-template<int vunum, bool dynarec>
-static __forceinline void ClearVuFunc( u32 addr, u32 size )
+template<int vunum>
+static __fi void ClearVuFunc( u32 addr, u32 size )
 {
-	if( dynarec )
-	{
-		if( vunum==0 )
-			CpuVU0->Clear(addr,size);
-		else
-			CpuVU1->Clear(addr,size);
-	}
+	if( vunum==0 )
+		CpuVU0->Clear(addr,size);
 	else
-	{
-		if( vunum==0 )
-			CpuVU0->Clear(addr,size);
-		else
-			CpuVU1->Clear(addr,size);
-	}
+		CpuVU1->Clear(addr,size);
 }
 
 template<int vunum>
-mem8_t __fastcall vuMicroRead8(u32 addr)
+static mem8_t __fastcall vuMicroRead8(u32 addr)
 {
 	addr&=(vunum==0)?0xfff:0x3fff;
 	VURegs* vu=(vunum==0)?&VU0:&VU1;
@@ -491,7 +450,7 @@ mem8_t __fastcall vuMicroRead8(u32 addr)
 }
 
 template<int vunum>
-mem16_t __fastcall vuMicroRead16(u32 addr)
+static mem16_t __fastcall vuMicroRead16(u32 addr)
 {
 	addr&=(vunum==0)?0xfff:0x3fff;
 	VURegs* vu=(vunum==0)?&VU0:&VU1;
@@ -500,7 +459,7 @@ mem16_t __fastcall vuMicroRead16(u32 addr)
 }
 
 template<int vunum>
-mem32_t __fastcall vuMicroRead32(u32 addr)
+static mem32_t __fastcall vuMicroRead32(u32 addr)
 {
 	addr&=(vunum==0)?0xfff:0x3fff;
 	VURegs* vu=(vunum==0)?&VU0:&VU1;
@@ -509,7 +468,7 @@ mem32_t __fastcall vuMicroRead32(u32 addr)
 }
 
 template<int vunum>
-void __fastcall vuMicroRead64(u32 addr,mem64_t* data)
+static void __fastcall vuMicroRead64(u32 addr,mem64_t* data)
 {
 	addr&=(vunum==0)?0xfff:0x3fff;
 	VURegs* vu=(vunum==0)?&VU0:&VU1;
@@ -518,81 +477,79 @@ void __fastcall vuMicroRead64(u32 addr,mem64_t* data)
 }
 
 template<int vunum>
-void __fastcall vuMicroRead128(u32 addr,mem128_t* data)
+static void __fastcall vuMicroRead128(u32 addr,mem128_t* data)
 {
 	addr&=(vunum==0)?0xfff:0x3fff;
 	VURegs* vu=(vunum==0)?&VU0:&VU1;
 
-	data[0]=*(u64*)&vu->Micro[addr];
-	data[1]=*(u64*)&vu->Micro[addr+8];
+	CopyQWC(data,&vu->Micro[addr]);
 }
 
 // Profiled VU writes: Happen very infrequently, with exception of BIOS initialization (at most twice per
 //   frame in-game, and usually none at all after BIOS), so cpu clears aren't much of a big deal.
 
-template<int vunum, bool dynrec>
-void __fastcall vuMicroWrite8(u32 addr,mem8_t data)
+template<int vunum>
+static void __fastcall vuMicroWrite8(u32 addr,mem8_t data)
 {
 	addr &= (vunum==0) ? 0xfff : 0x3fff;
 	VURegs& vu = (vunum==0) ? VU0 : VU1;
 
 	if (vu.Micro[addr]!=data)
 	{
-		ClearVuFunc<vunum, dynrec>(addr&(~7), 8); // Clear before writing new data (clearing 8 bytes because an instruction is 8 bytes) (cottonvibes)
+		ClearVuFunc<vunum>(addr&(~7), 8); // Clear before writing new data (clearing 8 bytes because an instruction is 8 bytes) (cottonvibes)
 		vu.Micro[addr]=data;
 	}
 }
 
-template<int vunum, bool dynrec>
-void __fastcall vuMicroWrite16(u32 addr,mem16_t data)
+template<int vunum>
+static void __fastcall vuMicroWrite16(u32 addr,mem16_t data)
 {
 	addr &= (vunum==0) ? 0xfff : 0x3fff;
 	VURegs& vu = (vunum==0) ? VU0 : VU1;
 
 	if (*(u16*)&vu.Micro[addr]!=data)
 	{
-		ClearVuFunc<vunum, dynrec>(addr&(~7), 8);
+		ClearVuFunc<vunum>(addr&(~7), 8);
 		*(u16*)&vu.Micro[addr]=data;
 	}
 }
 
-template<int vunum, bool dynrec>
-void __fastcall vuMicroWrite32(u32 addr,mem32_t data)
+template<int vunum>
+static void __fastcall vuMicroWrite32(u32 addr,mem32_t data)
 {
 	addr &= (vunum==0) ? 0xfff : 0x3fff;
 	VURegs& vu = (vunum==0) ? VU0 : VU1;
 
 	if (*(u32*)&vu.Micro[addr]!=data)
 	{
-		ClearVuFunc<vunum, dynrec>(addr&(~7), 8);
+		ClearVuFunc<vunum>(addr&(~7), 8);
 		*(u32*)&vu.Micro[addr]=data;
 	}
 }
 
-template<int vunum, bool dynrec>
-void __fastcall vuMicroWrite64(u32 addr,const mem64_t* data)
+template<int vunum>
+static void __fastcall vuMicroWrite64(u32 addr,const mem64_t* data)
 {
 	addr &= (vunum==0) ? 0xfff : 0x3fff;
 	VURegs& vu = (vunum==0) ? VU0 : VU1;
 
 	if (*(u64*)&vu.Micro[addr]!=data[0])
 	{
-		ClearVuFunc<vunum, dynrec>(addr&(~7), 8);
+		ClearVuFunc<vunum>(addr&(~7), 8);
 		*(u64*)&vu.Micro[addr]=data[0];
 	}
 }
 
-template<int vunum, bool dynrec>
-void __fastcall vuMicroWrite128(u32 addr,const mem128_t* data)
+template<int vunum>
+static void __fastcall vuMicroWrite128(u32 addr,const mem128_t* data)
 {
 	addr &= (vunum==0) ? 0xfff : 0x3fff;
 	VURegs& vu = (vunum==0) ? VU0 : VU1;
 
-	if (*(u64*)&vu.Micro[addr]!=data[0] || *(u64*)&vu.Micro[addr+8]!=data[1])
+	if ((u128&)vu.Micro[addr] != *data)
 	{
-		ClearVuFunc<vunum, dynrec>(addr&(~7), 16);
-		*(u64*)&vu.Micro[addr]=data[0];
-		*(u64*)&vu.Micro[addr+8]=data[1];
+		ClearVuFunc<vunum>(addr&(~7), 16);
+		CopyQWC(&vu.Micro[addr],data);
 	}
 }
 
@@ -625,30 +582,19 @@ protected:
 	void OnPageFaultEvent( const PageFaultInfo& info, bool& handled );
 };
 
-mmap_PageFaultHandler mmap_faultHandler;
+static mmap_PageFaultHandler mmap_faultHandler;
 
-static const uint m_allMemSize =
-		Ps2MemSize::Rom + Ps2MemSize::Rom1 + Ps2MemSize::Rom2 + Ps2MemSize::ERom +
-		Ps2MemSize::Base + Ps2MemSize::Hardware + Ps2MemSize::Scratch;
+EEVM_MemoryAllocMess* eeMem = NULL;
 
-static u8* m_psAllMem = NULL;
+__pagealigned u8 eeHw[Ps2MemSize::Hardware];
 
 void memAlloc()
 {
-	if( m_psAllMem == NULL )
-		m_psAllMem = vtlb_malloc( m_allMemSize, 4096 );
+	if( eeMem == NULL )
+		eeMem = (EEVM_MemoryAllocMess*)vtlb_malloc( sizeof(*eeMem), 4096 );
 
-	if( m_psAllMem == NULL)
+	if( eeMem == NULL)
 		throw Exception::OutOfMemory( L"memAlloc > failed to allocate PS2's base ram/rom/scratchpad." );
-
-	u8* curpos = m_psAllMem;
-	psM = curpos; curpos += Ps2MemSize::Base;
-	psR = curpos; curpos += Ps2MemSize::Rom;
-	psR1 = curpos; curpos += Ps2MemSize::Rom1;
-	psR2 = curpos; curpos += Ps2MemSize::Rom2;
-	psER = curpos; curpos += Ps2MemSize::ERom;
-	psH = curpos; curpos += Ps2MemSize::Hardware;
-	psS = curpos; //curpos += Ps2MemSize::Scratch;
 
 	Source_PageFault.Add( mmap_faultHandler );
 }
@@ -657,9 +603,8 @@ void memShutdown()
 {
 	Source_PageFault.Remove( mmap_faultHandler );
 
-	vtlb_free( m_psAllMem, m_allMemSize );
-	m_psAllMem = NULL;
-	psM = psR = psR1 = psR2 = psER = psS = psH = NULL;
+	vtlb_free( eeMem, sizeof(*eeMem) );
+	eeMem = NULL;
 	vtlb_Term();
 }
 
@@ -667,13 +612,28 @@ void memBindConditionalHandlers()
 {
 	if( hw_by_page[0xf] == -1 ) return;
 
-	vtlbMemR32FP* page0F32( EmuConfig.Speedhacks.IntcStat ? hwRead32_page_0F_INTC_HACK : hwRead32_page_0F );
-	vtlbMemR64FP* page0F64( EmuConfig.Speedhacks.IntcStat ? hwRead64_generic_INTC_HACK : hwRead64_generic );
+	if (EmuConfig.Speedhacks.IntcStat)
+	{
+		vtlbMemR16FP* page0F16(hwRead16_page_0F_INTC_HACK);
+		vtlbMemR32FP* page0F32(hwRead32_page_0F_INTC_HACK);
+		//vtlbMemR64FP* page0F64(hwRead64_generic_INTC_HACK);
 
-	vtlb_ReassignHandler( hw_by_page[0xf],
-		_ext_memRead8<1>, _ext_memRead16<1>, page0F32, page0F64, hwRead128_generic,
-		_ext_memWrite8<1>, _ext_memWrite16<1>, hwWrite32_page_0F, hwWrite64_generic, hwWrite128_generic
-	);
+		vtlb_ReassignHandler( hw_by_page[0xf],
+			hwRead8<0x0f>,	page0F16,			page0F32,			hwRead64<0x0f>,		hwRead128<0x0f>,
+			hwWrite8<0x0f>,	hwWrite16<0x0f>,	hwWrite32<0x0f>,	hwWrite64<0x0f>,	hwWrite128<0x0f>
+		);
+	}
+	else
+	{
+		vtlbMemR16FP* page0F16(hwRead16<0x0f>);
+		vtlbMemR32FP* page0F32(hwRead32<0x0f>);
+		//vtlbMemR64FP* page0F64(hwRead64<0x0f>);
+
+		vtlb_ReassignHandler( hw_by_page[0xf],
+			hwRead8<0x0f>,	page0F16,			page0F32,			hwRead64<0x0f>,		hwRead128<0x0f>,
+			hwWrite8<0x0f>,	hwWrite16<0x0f>,	hwWrite32<0x0f>,	hwWrite64<0x0f>,	hwWrite128<0x0f>
+		);
+	}
 }
 
 // Resets memory mappings, unmaps TLBs, reloads bios roms, etc.
@@ -687,7 +647,9 @@ void memReset()
 	// rest of the emu is not really set up to support a "soft" reset of that sort
 	// we opt for the hard/safe version.
 
-	memzero_ptr<m_allMemSize>( m_psAllMem );
+	pxAssume( eeMem != NULL );
+	memzero( *eeMem );
+
 #ifdef ENABLECACHE
 	memset(pCache,0,sizeof(_cacheS)*64);
 #endif
@@ -701,17 +663,12 @@ void memReset()
 	tlb_fallback_3 = vtlb_RegisterHandlerTempl1(_ext_mem,3);
 	tlb_fallback_4 = vtlb_RegisterHandlerTempl1(_ext_mem,4);
 	tlb_fallback_5 = vtlb_RegisterHandlerTempl1(_ext_mem,5);
-	//tlb_fallback_6 = vtlb_RegisterHandlerTempl1(_ext_mem,6);
 	tlb_fallback_7 = vtlb_RegisterHandlerTempl1(_ext_mem,7);
 	tlb_fallback_8 = vtlb_RegisterHandlerTempl1(_ext_mem,8);
 
 	// Dynarec versions of VUs
-	vu0_micro_mem[0] = vtlb_RegisterHandlerTempl2(vuMicro,0,true);
-	vu1_micro_mem[0] = vtlb_RegisterHandlerTempl2(vuMicro,1,true);
-
-	// Interpreter versions of VUs
-	vu0_micro_mem[1] = vtlb_RegisterHandlerTempl2(vuMicro,0,false);
-	vu1_micro_mem[1] = vtlb_RegisterHandlerTempl2(vuMicro,1,false);
+	vu0_micro_mem = vtlb_RegisterHandlerTempl1(vuMicro,0);
+	vu1_micro_mem = vtlb_RegisterHandlerTempl1(vuMicro,1);
 
 	//////////////////////////////////////////////////////////////////////////////////////////
 	// IOP's "secret" Hardware Register mapping, accessible from the EE (and meant for use
@@ -742,68 +699,29 @@ void memReset()
 	);
 
 
-	//////////////////////////////////////////////////////////////////////////////////////////
 	// psHw Optimized Mappings
 	// The HW Registers have been split into pages to improve optimization.
-	// Anything not explicitly mapped into one of the hw_by_page handlers will be handled
-	// by the default/generic tlb_fallback_1 handler.
+	
+#define hwHandlerTmpl(page) \
+	hwRead8<page>,	hwRead16<page>,	hwRead32<page>,	hwRead64<page>,	hwRead128<page>, \
+	hwWrite8<page>,	hwWrite16<page>,hwWrite32<page>,hwWrite64<page>,hwWrite128<page>
 
-	tlb_fallback_1 = vtlb_RegisterHandler(
-		_ext_memRead8<1>, _ext_memRead16<1>, hwRead32_generic, hwRead64_generic, hwRead128_generic,
-		_ext_memWrite8<1>, _ext_memWrite16<1>, hwWrite32_generic, hwWrite64_generic, hwWrite128_generic
-	);
-
-	hw_by_page[0x0] = vtlb_RegisterHandler(
-		_ext_memRead8<1>, _ext_memRead16<1>, hwRead32_page_00, hwRead64_page_00, hwRead128_page_00,
-		_ext_memWrite8<1>, _ext_memWrite16<1>, hwWrite32_page_00, hwWrite64_page_00, hwWrite128_generic
-	);
-
-	hw_by_page[0x1] = vtlb_RegisterHandler(
-		_ext_memRead8<1>, _ext_memRead16<1>, hwRead32_page_01, hwRead64_page_01, hwRead128_page_01,
-		_ext_memWrite8<1>, _ext_memWrite16<1>, hwWrite32_page_01, hwWrite64_page_01, hwWrite128_generic
-	);
-
-	hw_by_page[0x2] = vtlb_RegisterHandler(
-		_ext_memRead8<1>, _ext_memRead16<1>, hwRead32_page_02, hwRead64_page_02, hwRead128_page_02,
-		_ext_memWrite8<1>, _ext_memWrite16<1>, hwWrite32_page_02, hwWrite64_page_02, hwWrite128_generic
-	);
-
-	hw_by_page[0x3] = vtlb_RegisterHandler(
-		_ext_memRead8<1>, _ext_memRead16<1>, hwRead32_generic, hwRead64_generic, hwRead128_generic,
-		_ext_memWrite8<1>, _ext_memWrite16<1>, hwWrite32_page_03, hwWrite64_page_03, hwWrite128_generic
-	);
-
-	hw_by_page[0x4] = vtlb_RegisterHandler(
-		_ext_memRead8<1>, _ext_memRead16<1>, hwRead32_generic, hwRead64_generic, ReadFIFO_page_4,
-		_ext_memWrite8<1>, _ext_memWrite16<1>, hwWrite32_generic, hwWrite64_generic, WriteFIFO_page_4
-	);
-
-	hw_by_page[0x5] = vtlb_RegisterHandler(
-		_ext_memRead8<1>, _ext_memRead16<1>, hwRead32_generic, hwRead64_generic, ReadFIFO_page_5,
-		_ext_memWrite8<1>, _ext_memWrite16<1>, hwWrite32_generic, hwWrite64_generic, WriteFIFO_page_5
-	);
-
-	hw_by_page[0x6] = vtlb_RegisterHandler(
-		_ext_memRead8<1>, _ext_memRead16<1>, hwRead32_generic, hwRead64_generic, ReadFIFO_page_6,
-		_ext_memWrite8<1>, _ext_memWrite16<1>, hwWrite32_generic, hwWrite64_generic, WriteFIFO_page_6
-	);
-
-	hw_by_page[0x7] = vtlb_RegisterHandler(
-		_ext_memRead8<1>, _ext_memRead16<1>, hwRead32_generic, hwRead64_generic, ReadFIFO_page_7,
-		_ext_memWrite8<1>, _ext_memWrite16<1>, hwWrite32_generic, hwWrite64_generic, WriteFIFO_page_7
-	);
-
-	hw_by_page[0xb] = vtlb_RegisterHandler(
-		_ext_memRead8<1>, _ext_memRead16<1>, hwRead32_generic, hwRead64_generic, hwRead128_generic,
-		_ext_memWrite8<1>, _ext_memWrite16<1>, hwWrite32_page_0B, hwWrite64_generic, hwWrite128_generic
-	);
-
-	hw_by_page[0xe] = vtlb_RegisterHandler(
-		_ext_memRead8<1>, _ext_memRead16<1>, hwRead32_generic, hwRead64_generic, hwRead128_generic,
-		_ext_memWrite8<1>, _ext_memWrite16<1>, hwWrite32_page_0E, hwWrite64_page_0E, hwWrite128_generic
-	);
-
-	hw_by_page[0xf] = vtlb_NewHandler();
+	hw_by_page[0x0] = vtlb_RegisterHandler( hwHandlerTmpl(0x00) );
+	hw_by_page[0x1] = vtlb_RegisterHandler( hwHandlerTmpl(0x01) );
+	hw_by_page[0x2] = vtlb_RegisterHandler( hwHandlerTmpl(0x02) );
+	hw_by_page[0x3] = vtlb_RegisterHandler( hwHandlerTmpl(0x03) );
+	hw_by_page[0x4] = vtlb_RegisterHandler( hwHandlerTmpl(0x04) );
+	hw_by_page[0x5] = vtlb_RegisterHandler( hwHandlerTmpl(0x05) );
+	hw_by_page[0x6] = vtlb_RegisterHandler( hwHandlerTmpl(0x06) );
+	hw_by_page[0x7] = vtlb_RegisterHandler( hwHandlerTmpl(0x07) );
+	hw_by_page[0x8] = vtlb_RegisterHandler( hwHandlerTmpl(0x08) );
+	hw_by_page[0x9] = vtlb_RegisterHandler( hwHandlerTmpl(0x09) );
+	hw_by_page[0xa] = vtlb_RegisterHandler( hwHandlerTmpl(0x0a) );
+	hw_by_page[0xb] = vtlb_RegisterHandler( hwHandlerTmpl(0x0b) );
+	hw_by_page[0xc] = vtlb_RegisterHandler( hwHandlerTmpl(0x0c) );
+	hw_by_page[0xd] = vtlb_RegisterHandler( hwHandlerTmpl(0x0d) );
+	hw_by_page[0xe] = vtlb_RegisterHandler( hwHandlerTmpl(0x0e) );
+	hw_by_page[0xf] = vtlb_NewHandler();		// redefined later based on speedhacking prefs
 	memBindConditionalHandlers();
 
 	//////////////////////////////////////////////////////////////////////
@@ -900,7 +818,7 @@ int mmap_GetRamPageInfo( u32 paddr )
 	paddr &= ~0xfff;
 
 	uptr ptr = (uptr)PSM( paddr );
-	uptr rampage = ptr - (uptr)psM;
+	uptr rampage = ptr - (uptr)eeMem->Main;
 
 	if (rampage >= Ps2MemSize::Base)
 		return -1; //not in ram, no tracking done ...
@@ -915,7 +833,7 @@ void mmap_MarkCountedRamPage( u32 paddr )
 	paddr &= ~0xfff;
 
 	uptr ptr = (uptr)PSM( paddr );
-	int rampage = (ptr - (uptr)psM) >> 12;
+	int rampage = (ptr - (uptr)eeMem->Main) >> 12;
 
 	// Important: reassign paddr here, since TLB changes could alter the paddr->psM mapping
 	// (and clear blocks accordingly), but don't necessarily clear the protection status.
@@ -924,17 +842,19 @@ void mmap_MarkCountedRamPage( u32 paddr )
 	if( m_PageProtectInfo[rampage].Mode == ProtMode_Write )
 		return;		// skip town if we're already protected.
 
-	DbgCon.WriteLn( Color_Gray, (m_PageProtectInfo[rampage].Mode == ProtMode_Manual) ?
-		"dyna_page_reset @ 0x%05x" : "Write-protected page @ 0x%05x",
+	eeRecPerfLog.Write( (m_PageProtectInfo[rampage].Mode == ProtMode_Manual) ?
+		"Re-protecting page @ 0x%05x" : "Protected page @ 0x%05x",
 		paddr>>12
 	);
 
 	m_PageProtectInfo[rampage].Mode = ProtMode_Write;
-	HostSys::MemProtect( &psM[rampage<<12], __pagesize, Protect_ReadOnly );
+	HostSys::MemProtect( &eeMem->Main[rampage<<12], __pagesize, Protect_ReadOnly );
 }
 
 // offset - offset of address relative to psM.
-static __forceinline void mmap_ClearCpuBlock( uint offset )
+// All recompiled blocks belonging to the page are cleared, and any new blocks recompiled
+// from code residing in this page will use manual protection.
+static __fi void mmap_ClearCpuBlock( uint offset )
 {
 	int rampage = offset >> 12;
 
@@ -943,7 +863,7 @@ static __forceinline void mmap_ClearCpuBlock( uint offset )
 	pxAssertMsg( m_PageProtectInfo[rampage].Mode != ProtMode_Manual,
 		"Attempted to clear a block that is already under manual protection." );
 
-	HostSys::MemProtect( &psM[rampage<<12], __pagesize, Protect_ReadWrite );
+	HostSys::MemProtect( &eeMem->Main[rampage<<12], __pagesize, Protect_ReadWrite );
 	m_PageProtectInfo[rampage].Mode = ProtMode_Manual;
 	Cpu->Clear( m_PageProtectInfo[rampage].ReverseRamMap, 0x400 );
 }
@@ -951,7 +871,7 @@ static __forceinline void mmap_ClearCpuBlock( uint offset )
 void mmap_PageFaultHandler::OnPageFaultEvent( const PageFaultInfo& info, bool& handled )
 {
 	// get bad virtual address
-	uptr offset = info.addr - (uptr)psM;
+	uptr offset = info.addr - (uptr)eeMem->Main;
 	if( offset >= Ps2MemSize::Base ) return;
 
 	mmap_ClearCpuBlock( offset );
@@ -961,9 +881,10 @@ void mmap_PageFaultHandler::OnPageFaultEvent( const PageFaultInfo& info, bool& h
 // Clears all block tracking statuses, manual protection flags, and write protection.
 // This does not clear any recompiler blocks.  It is assumed (and necessary) for the caller
 // to ensure the EErec is also reset in conjunction with calling this function.
+//  (this function is called by default from the eerecReset).
 void mmap_ResetBlockTracking()
 {
-	DevCon.WriteLn( "vtlb/mmap: Block Tracking reset..." );
+	//DbgCon.WriteLn( "vtlb/mmap: Block Tracking reset..." );
 	memzero( m_PageProtectInfo );
-	HostSys::MemProtect( psM, Ps2MemSize::Base, Protect_ReadWrite );
+	HostSys::MemProtect( eeMem->Main, Ps2MemSize::Base, Protect_ReadWrite );
 }

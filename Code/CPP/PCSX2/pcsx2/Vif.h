@@ -15,6 +15,7 @@
 
 #pragma once
 
+#include "MemoryTypes.h"
 #include "R5900.h"
 
 enum vif0_stat_flags
@@ -212,24 +213,18 @@ struct VIFregisters {
 	u32 addr;
 };
 
-extern VIFregisters *vifRegs;
-
-#define vif0RegsRef ((VIFregisters&)PS2MEM_HW[0x3800])
-#define vif1RegsRef ((VIFregisters&)PS2MEM_HW[0x3c00])
-#define vif0Regs (&vif0RegsRef)
-#define vif1Regs (&vif1RegsRef)
+static VIFregisters& vif0Regs = (VIFregisters&)eeHw[0x3800];
+static VIFregisters& vif1Regs = (VIFregisters&)eeHw[0x3C00];
 
 #define _vifT		template <int idx>
 #define  GetVifX	(idx ? (vif1)     : (vif0))
 #define  vifXch		(idx ? (vif1ch)   : (vif0ch))
 #define  vifXRegs	(idx ? (vif1Regs) : (vif0Regs))
-#define _f			__forceinline
-#define _ri			__releaseinline
 
 extern void dmaVIF0();
 extern void dmaVIF1();
 extern void mfifoVIF1transfer(int qwc);
-extern bool VIF0transfer(u32 *data, int size);
-extern bool VIF1transfer(u32 *data, int size);
+extern bool VIF0transfer(u32 *data, int size, bool TTE=0);
+extern bool VIF1transfer(u32 *data, int size, bool TTE=0);
 extern void vifMFIFOInterrupt();
 extern bool CheckPath2GIF(EE_EventType channel);

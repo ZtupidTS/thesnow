@@ -107,7 +107,7 @@ public:
 		fd = hostfd;
 	}
 
-	static __forceinline int translate_error(int err)
+	static __fi int translate_error(int err)
 	{
 		if (err >= 0)
 			return err;
@@ -424,17 +424,14 @@ namespace ioman {
 		u32 buf = a1;
 		u32 count = a2;
 
-#ifdef PCSX2_DEVBUILD
 		if (fd == 1) // stdout
 		{
-			Console.Write(ConColor_IOP, L"%s", ShiftJIS_ConvertString(Ra1, a2).c_str());
+			iopConLog(ShiftJIS_ConvertString(Ra1, a2));
 			pc = ra;
 			v0 = a2;
 			return 1;
 		}
-		else
-#endif
-		if (IOManFile *file = getfd<IOManFile>(fd))
+		else if (IOManFile *file = getfd<IOManFile>(fd))
 		{
 			if (!iopVirtMemR<void>(buf))
 				return 0;
@@ -451,14 +448,23 @@ namespace ioman {
 namespace sysmem {
 	int Kprintf_HLE()
 	{
-		char tmp[1024], tmp2[1024];
-		char *ptmp = tmp;
-		int n=1, i=0, j = 0;
-
+		// Emulate the expected Kprintf functionality:
 		iopMemWrite32(sp, a0);
 		iopMemWrite32(sp + 4, a1);
 		iopMemWrite32(sp + 8, a2);
 		iopMemWrite32(sp + 12, a3);
+		pc = ra;
+
+
+		// From here we're intercepting the Kprintf and piping it to our console, complete with
+		// printf-style formatting processing.  This part can be skipped if the user has the
+		// console disabled.
+
+		if (!SysConsole.iopConsole.IsActive()) return 1;
+
+		char tmp[1024], tmp2[1024];
+		char *ptmp = tmp;
+		int n=1, i=0, j = 0;
 
 		while (Ra0[i])
 		{
@@ -535,12 +541,8 @@ _start:
 			}
 		}
 		*ptmp = 0;
+		iopConLog( ShiftJIS_ConvertString(tmp, 1023) );
 
-		// Use "%s" even though it seems indirect: this avoids chaos if/when the IOP decides
-		// to feed us strings that contain percentages or other printf formatting control chars.
-		Console.Write( ConColor_IOP, L"%s", ShiftJIS_ConvertString(tmp).c_str(), 1023 );
-		
-		pc = ra;
 		return 1;
 	}
 }
@@ -618,12 +620,11 @@ const char* irxImportFuncname(const char libname[8], u16 index)
 
 irxHLE irxImportHLE(const char libname[8], u16 index)
 {
-#ifdef PCSX2_DEVBUILD
 	// debugging output
 	MODULE(sysmem)
 		EXPORT_H( 14, Kprintf)
 	END_MODULE
-#endif
+
 	MODULE(ioman)
 		EXPORT_H(  4, open)
 		EXPORT_H(  5, close)

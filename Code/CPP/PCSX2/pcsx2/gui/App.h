@@ -156,7 +156,7 @@ namespace Exception
 	//
 	class StartupAborted : public CancelEvent
 	{
-		DEFINE_RUNTIME_EXCEPTION( StartupAborted, CancelEvent, "Startup initialization was aborted by the user." )
+		DEFINE_RUNTIME_EXCEPTION( StartupAborted, CancelEvent, L"Startup initialization was aborted by the user." )
 
 	public:
 		StartupAborted( const wxString& reason )
@@ -474,7 +474,8 @@ public:
 	// in parallel to the main message pump, to allow the main pump to run without fear of
 	// blocked threads stalling the GUI.
 	ExecutorThread					SysExecutorThread;
-	ScopedPtr<SysCoreAllocations>	m_CoreAllocs;
+	ScopedPtr<SysCpuProviderPack>	m_CpuProviders;
+	ScopedPtr<SysAllocVM>			m_VmAllocs;
 
 protected:
 	wxWindowID			m_id_MainFrame;
@@ -524,6 +525,8 @@ public:
 
 	void StartPendingSave();
 	void ClearPendingSave();
+	
+	void AllocateVM();
 
 	// --------------------------------------------------------------------------
 	//  App-wide Resources
@@ -677,10 +680,6 @@ extern void LoadPluginsPassive();
 extern void LoadPluginsImmediate();
 extern void UnloadPlugins();
 extern void ShutdownPlugins();
-
-extern void AppLoadSettings();
-extern void AppSaveSettings();
-extern void AppApplySettings( const AppConfig* oldconf=NULL );
 
 extern bool SysHasValidState();
 extern void SysUpdateIsoSrcFile( const wxString& newIsoFile );

@@ -10,8 +10,8 @@ endif(NOT TOP_CMAKE_WAS_SOURCED)
 set(Output CDVDiso)
 
 set(CommonFlags
+    -fvisibility=hidden
     -Wall
-    -fpermissive
     )
 
 set(OptimizationFlags

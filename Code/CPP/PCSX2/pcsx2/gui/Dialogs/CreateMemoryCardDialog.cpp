@@ -29,7 +29,7 @@ extern wxString GetMsg_McdNtfsCompress();
 wxFilePickerCtrl* CreateMemoryCardFilePicker( wxWindow* parent, uint portidx, uint slotidx, const wxString& filename=wxEmptyString )
 {
 	return new wxFilePickerCtrl( parent, wxID_ANY, filename,
-		wxsFormat(_("Ñ¡ÔñÄÚ´æ¿¨¶Ë¿Ú %u / ²å²Û %u"), portidx+1, slotidx+1),	// picker window title
+		wxsFormat(_("é€‰æ‹©å†…å­˜å¡ç«¯å£ %u / æ’æ§½ %u"), portidx+1, slotidx+1),	// picker window title
 		L"*.ps2",	// default wildcard
 		wxDefaultPosition, wxDefaultSize,
 		wxFLP_DEFAULT_STYLE & ~wxFLP_FILE_MUST_EXIST
@@ -38,7 +38,7 @@ wxFilePickerCtrl* CreateMemoryCardFilePicker( wxWindow* parent, uint portidx, ui
 }
 
 Dialogs::CreateMemoryCardDialog::CreateMemoryCardDialog( wxWindow* parent, uint slot, const wxDirName& mcdpath, const wxString& mcdfile )
-	: wxDialogWithHelpers( parent, _("´´½¨Ò»¸öĞÂÄÚ´æ¿¨") )
+	: wxDialogWithHelpers( parent, _("åˆ›å»ºä¸€ä¸ªæ–°å†…å­˜å¡") )
 	, m_mcdpath( mcdpath.IsOk() ? mcdpath : (wxDirName)g_Conf->Mcd[slot].Filename.GetPath() )
 	, m_mcdfile( mcdfile.IsEmpty() ? g_Conf->Mcd[slot].Filename.GetFullName() : mcdfile )
 {
@@ -57,7 +57,7 @@ Dialogs::CreateMemoryCardDialog::CreateMemoryCardDialog( wxWindow* parent, uint 
 	if( m_radio_CardSize ) m_radio_CardSize->Realize();
 
 	wxBoxSizer& s_buttons( *new wxBoxSizer(wxHORIZONTAL) );
-	s_buttons += new wxButton( this, wxID_OK, _("´´½¨") )	| pxProportion(2);
+	s_buttons += new wxButton( this, wxID_OK, _("åˆ›å»º") )	| pxProportion(2);
 	s_buttons += pxStretchSpacer(3);
 	s_buttons += new wxButton( this, wxID_CANCEL )			| pxProportion(2);
 
@@ -69,7 +69,7 @@ Dialogs::CreateMemoryCardDialog::CreateMemoryCardDialog( wxWindow* parent, uint 
 		s_padding += m_filepicker			| StdExpand();
 	else
 	{
-		s_padding += Heading( _( "ĞÂÄÚ´æ¿¨½«±»±£´æµ½:" ) )					| StdExpand();
+		s_padding += Heading( _( "æ–°å†…å­˜å¡å°†è¢«ä¿å­˜åˆ°:" ) )					| StdExpand();
 		s_padding += Heading( (m_mcdpath + m_mcdfile).GetFullPath() ).Unwrapped()	| StdExpand();
 	}
 	
@@ -85,7 +85,6 @@ Dialogs::CreateMemoryCardDialog::CreateMemoryCardDialog( wxWindow* parent, uint 
 	*this += s_padding | StdExpand();
 
 	Connect( wxID_OK,		wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( CreateMemoryCardDialog::OnOk_Click ) );
-	//Connect( wxID_APPLY,	wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( CreateMemoryCardDialog::OnApply_Click ) );
 }
 
 wxDirName Dialogs::CreateMemoryCardDialog::GetPathToMcds() const
@@ -93,7 +92,7 @@ wxDirName Dialogs::CreateMemoryCardDialog::GetPathToMcds() const
 	return m_filepicker ? (wxDirName)m_filepicker->GetPath() : m_mcdpath;
 }
 
-// When this GUI is moved itno the FileMemoryCard plugin (where it eventually belongs),
+// When this GUI is moved into the FileMemoryCard plugin (where it eventually belongs),
 // this function will be removed and the MemoryCardFile::Create() function will be used
 // instead.
 static bool CreateIt( const wxString& mcdFile, uint sizeInMB )
@@ -120,14 +119,21 @@ static bool CreateIt( const wxString& mcdFile, uint sizeInMB )
 
 void Dialogs::CreateMemoryCardDialog::OnOk_Click( wxCommandEvent& evt )
 {
+	// Save status of the NTFS compress checkbox for future reference.
+	// [TODO] Remove g_Conf->McdCompressNTFS, and have this dialog load/save directly from the ini.
+
+#ifdef __WXMSW__
+	g_Conf->McdCompressNTFS = m_check_CompressNTFS->GetValue();
+#endif
+
 	if( !CreateIt(
 		m_filepicker		? m_filepicker->GetPath()					: (m_mcdpath + m_mcdfile).GetFullPath(),
 		m_radio_CardSize	? m_radio_CardSize->SelectedItem().SomeInt	: 8
 	) )
 	{
 		Msgbox::Alert(
-			_("´íÎó: ÄÚ´æ¿¨²»ÄÜ´´½¨."),
-			_("ÄÚ´æ¿¨´´½¨´íÎó")
+			_("é”™è¯¯: å†…å­˜å¡ä¸èƒ½åˆ›å»º."),
+			_("å†…å­˜å¡åˆ›å»ºé”™è¯¯")
 		);
 		return;
 	}
@@ -138,15 +144,24 @@ void Dialogs::CreateMemoryCardDialog::CreateControls()
 {
 	#ifdef __WXMSW__
 	m_check_CompressNTFS = new pxCheckBox( this,
-		_("Ê¹ÓÃ NTFS Ñ¹ËõÕâ¸ö¼ÇÒä¿¨"),
+		_("Use NTFS compression when creating this card."),
 		GetMsg_McdNtfsCompress()
 	);
+
+	m_check_CompressNTFS->SetToolTip( pxE( ".Tooltip:ChangingNTFS",
+			L"NTFS compression can be changed manually at any time by using file properties from Windows Explorer."
+		)
+	);
+
+	// Initial value of the checkbox is saved between calls to the dialog box.  If the user checks
+	// the option, it remains checked for future dialog.  If the user unchecks it, ditto.
+	m_check_CompressNTFS->SetValue( g_Conf->McdCompressNTFS );
 	#endif
 
 	const RadioPanelItem tbl_CardSizes[] =
 	{
-		RadioPanelItem(_("8 MB [×î¼æÈİ]"), _("ÕâÊÇË÷ÄáÖ¸¶¨µÄÄ¬ÈÏ´óĞ¡, ²¢ÇÒËùÓĞÓÎÏ·ºÍBIOS°æ±¾¶¼Ö§³Ö."))
-		.	SetToolTip(_("Èç¹ûÄãÏ£Íû°²È«¿É¿¿µÄÄÚ´æ¿¨,ÇëÊ¹ÓÃÕâ¸öÑ¡Ïî."))
+		RadioPanelItem(_("8 MB [æœ€å…¼å®¹]"), _("è¿™æ˜¯ç´¢å°¼æŒ‡å®šçš„é»˜è®¤å¤§å°, å¹¶ä¸”æ‰€æœ‰æ¸¸æˆå’ŒBIOSç‰ˆæœ¬éƒ½æ”¯æŒ."))
+		.	SetToolTip(_("å¦‚æœä½ å¸Œæœ›å®‰å…¨å¯é çš„å†…å­˜å¡,è¯·ä½¿ç”¨è¿™ä¸ªé€‰é¡¹."))
 		.	SetInt(8),
 
 		RadioPanelItem(_("16 MB"), _("A typical size for 3rd-party memory cards which should work with most games."))

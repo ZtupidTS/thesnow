@@ -26,6 +26,8 @@
 #include "Elfheader.h"
 #include "Counters.h"
 
+#include "Utilities/SafeArray.inl"
+
 using namespace R5900;
 
 
@@ -150,13 +152,13 @@ void SaveStateBase::FreezeMainMemory()
 
 	// First Block - Memory Dumps
 	// ---------------------------
-	FreezeMem(PS2MEM_BASE,		Ps2MemSize::Base);		// 32 MB main memory
-	FreezeMem(PS2MEM_SCRATCH,	Ps2MemSize::Scratch);	// scratch pad
-	FreezeMem(PS2MEM_HW,		Ps2MemSize::Hardware);	// hardware memory
+	FreezeMem(eeMem->Main,		Ps2MemSize::Base);		// 32 MB main memory
+	FreezeMem(eeMem->Scratch,	Ps2MemSize::Scratch);	// scratch pad
+	FreezeMem(eeHw,		Ps2MemSize::Hardware);	// hardware memory
 
-	FreezeMem(psxM, Ps2MemSize::IopRam);		// 2 MB main memory
-	FreezeMem(psxH, Ps2MemSize::IopHardware);	// hardware memory
-	FreezeMem(psxS, 0x000100);					// iop's sif memory
+	FreezeMem(iopMem->Main, Ps2MemSize::IopRam);		// 2 MB main memory
+	FreezeMem(iopHw, Ps2MemSize::IopHardware);	// hardware memory
+	FreezeMem(iopMem->Sif, 0x000100);					// iop's sif memory
 }
 
 void SaveStateBase::FreezeRegisters()
@@ -177,8 +179,8 @@ void SaveStateBase::FreezeRegisters()
 	FreezeTag( "Cycles" );
 	Freeze(EEsCycle);
 	Freeze(EEoCycle);
-	Freeze(g_nextBranchCycle);
-	Freeze(g_psxNextBranchCycle);
+	Freeze(g_nextEventCycle);
+	Freeze(g_iopNextEventCycle);
 	Freeze(s_iLastCOP0Cycle);
 	Freeze(s_iLastPERFCycle);
 
@@ -192,6 +194,7 @@ void SaveStateBase::FreezeRegisters()
 	vif1Freeze();
 	sifFreeze();
 	ipuFreeze();
+	ipuDmaFreeze();
 	gifFreeze();
 	sprFreeze();
 

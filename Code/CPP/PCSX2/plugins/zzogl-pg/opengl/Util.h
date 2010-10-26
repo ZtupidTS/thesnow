@@ -52,10 +52,11 @@ extern "C" u32   CALLBACK PS2EgetLibType(void);
 extern "C" u32   CALLBACK PS2EgetLibVersion2(u32 type);
 extern "C" char* CALLBACK PS2EgetLibName(void);
 
-#include "zerogsmath.h"
+#include "ZZoglMath.h"
 
 #include <vector>
 #include <string>
+#include <cstring>
 
 extern std::string s_strIniPath; // Air's new (r2361) new constant for ini file path
 
@@ -87,6 +88,9 @@ static __forceinline void pcsx2_aligned_free(void* pmem)
 #define _aligned_malloc pcsx2_aligned_malloc
 #define _aligned_free pcsx2_aligned_free
 
+#endif
+
+#ifdef __LINUX__
 #include <sys/timeb.h>	// ftime(), struct timeb
 
 inline unsigned long timeGetTime()
@@ -95,6 +99,15 @@ inline unsigned long timeGetTime()
 	ftime(&t);
 
 	return (unsigned long)(t.time*1000 + t.millitm);
+}
+
+#include <time.h>
+inline unsigned long timeGetPreciseTime()
+{
+    timespec t;
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &t);
+
+    return t.tv_nsec;
 }
 
 struct RECT
@@ -138,6 +151,7 @@ enum GSWindowDim
 	GSDim_1024,
 	GSDim_1280,
 };
+
 typedef union 
 {
 	struct
@@ -173,7 +187,7 @@ typedef union
 		u32 reget : 1; // some sort of weirdness in ReGet() code
 		u32 gust : 1; // Needed for Gustgames fast update.
 		u32 no_logz : 1; // Intended for linux -- not logarithmic Z.
-		u32 reserved1 :1;
+		u32 automatic_skip_draw :1; // allow debug of the automatic skip draw option
 		u32 reserved2 :1;
 	};
 	u32 _u32;
@@ -201,7 +215,6 @@ typedef struct
 	u8 mrtdepth; // write color in render target
 	u8 interlace; // intelacing mode 0, 1, 3-off
 	u8 aa;	// antialiasing 0 - off, 1 - 2x, 2 - 4x, 3 - 8x, 4 - 16x
-	u8 negaa; // negative aliasing
 	u8 bilinear; // set to enable bilinear support. 0 - off, 1 -- on, 2 -- force (use for textures that usually need it)
 	ZZOptions zz_options;
 	gameHacks hacks; // game options -- different hacks.
@@ -209,17 +222,27 @@ typedef struct
 	int width, height; // View target size, has no impact towards speed
 	int x, y; // Lets try for a persistant window position.
 	bool isWideScreen; // Widescreen support
+	u32 SkipDraw;
 	u32 log;
+	u32 disableHacks;
 	
 	void incAA() { aa++; if (aa > 4) aa = 0; }
 	void decAA() { aa--; if (aa > 4) aa = 4; } // u8 is unsigned, so negative value is 255.
 	
 	gameHacks settings() 
 	{
-		gameHacks tempHack;
-		tempHack._u32 = (hacks._u32 | def_hacks._u32 | GAME_PATH3HACK);
-		 return tempHack; 
+		if (disableHacks)
+		{
+			return hacks;
+		}
+		else
+		{
+			gameHacks tempHack;
+			tempHack._u32 = (hacks._u32 | def_hacks._u32);
+			return tempHack;
+		}
 	}
+	
 	bool fullscreen() { return !!(zz_options.fullscreen); }
 	bool wireframe() { return !!(zz_options.wireframe); }
 	bool widescreen() { return !!(zz_options.widescreen); }
@@ -244,6 +267,37 @@ typedef struct
 	void setLoaded(bool flag)
 	{
 		zz_options.loaded = (flag) ? 1 : 0;
+	}
+	void set_dimensions(u32 dim)
+	{
+		switch (dim)
+		{
+
+			case GSDim_640:
+				width = 640;
+				height = isWideScreen ? 360 : 480;
+				break;
+
+			case GSDim_800:
+				width = 800;
+				height = isWideScreen ? 450 : 600;
+				break;
+
+			case GSDim_1024:
+				width = 1024;
+				height = isWideScreen ? 576 : 768;
+				break;
+
+			case GSDim_1280:
+				width = 1280;
+				height = isWideScreen ? 720 : 960;
+				break;
+				
+			default:
+				width = 800;
+				height = 600;
+				break;
+		}
 	}
 	
 } GSconf;
@@ -320,6 +374,6 @@ extern "C" void * memcpy_amd(void *dest, const void *src, size_t n);
 extern "C" u8 memcmp_mmx(const void *dest, const void *src, int n);
 #endif
 
-
+extern bool g_bDisplayFPS; // should we display FPS on screen?
 
 #endif // UTIL_H_INCLUDED

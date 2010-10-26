@@ -20,9 +20,10 @@
 u32 s_iLastCOP0Cycle = 0;
 u32 s_iLastPERFCycle[2] = { 0, 0 };
 
-__releaseinline void UpdateCP0Status() {
-	//currently the 2 memory modes are not implemented. Given this function is called so much,
-	//it's commented out for now. Only the interrupt test is needed. (rama)
+// Updates the CPU's mode of operation (either, Kernel, Supervisor, or User modes).
+// Currently the different modes are not implemented.
+// Given this function is called so much, it's commented out for now. (rama)
+__ri void cpuUpdateOperationMode() {
 
 	//u32 value = cpuRegs.CP0.n.Status.val;
 
@@ -32,12 +33,15 @@ __releaseinline void UpdateCP0Status() {
 	//} else { // User Mode
 	//	memSetUserMode();
 	//}
-	cpuTestHwInts();
 }
 
 void __fastcall WriteCP0Status(u32 value) {
+
+	//DMA_LOG("COP0 Status write = 0x%08x", value);
+
 	cpuRegs.CP0.n.Status.val = value;
-    UpdateCP0Status();
+    cpuUpdateOperationMode();
+    cpuSetNextEventDelta(4);
 }
 
 void MapTLB(int i)
@@ -45,17 +49,15 @@ void MapTLB(int i)
 	u32 mask, addr;
 	u32 saddr, eaddr;
 
-	DevCon.WriteLn("MAP TLB %d: %08x-> [%08x %08x] S=%d G=%d ASID=%d Mask= %03X",
-		i,tlb[i].VPN2,tlb[i].PFN0,tlb[i].PFN1,tlb[i].S,tlb[i].G,tlb[i].ASID,tlb[i].Mask);
+	DevCon.WriteLn("MAP TLB %d: 0x%08X-> [0x%08X 0x%08X] S=0x%08X G=%d ASID=%d Mask=0x%03X",
+		i, tlb[i].VPN2, tlb[i].PFN0, tlb[i].PFN1, tlb[i].S, tlb[i].G, tlb[i].ASID, tlb[i].Mask);
 
 	if (tlb[i].S)
 	{
-		DevCon.WriteLn("OMG SPRAM MAPPING %08X %08X\n", tlb[i].VPN2,tlb[i].Mask);
-		vtlb_VMapBuffer(tlb[i].VPN2, psS, 0x4000);
+		vtlb_VMapBuffer(tlb[i].VPN2, eeMem->Scratch, Ps2MemSize::Scratch);
 	}
 
 	if (tlb[i].VPN2 == 0x70000000) return; //uh uhh right ...
-
 	if (tlb[i].EntryLo0 & 0x2) {
 		mask  = ((~tlb[i].Mask) << 1) & 0xfffff;
 		saddr = tlb[i].VPN2 >> 12;
@@ -162,7 +164,7 @@ void WriteTLB(int i)
 // count.  But only mode 1 (instruction counter) has been found to be used by games thus far.
 //
 
-static __forceinline bool PERF_ShouldCountEvent( uint evt )
+static __fi bool PERF_ShouldCountEvent( uint evt )
 {
 	switch( evt )
 	{
@@ -213,7 +215,7 @@ void COP0_DiagnosticPCCR()
 		Console.Warning( "PERF/PCR1 Unsupported Update Event Mode = 0x%x", cpuRegs.PERF.n.pccr.b.Event1 );
 }
 extern int branch;
-__forceinline void COP0_UpdatePCCR()
+__fi void COP0_UpdatePCCR()
 {
 	//if( cpuRegs.CP0.n.Status.b.ERL || !cpuRegs.PERF.n.pccr.b.CTE ) return;
 
@@ -430,7 +432,7 @@ void MTC0()
 }
 
 int CPCOND0() {
-	return ((dmacRegs->stat.CIS | ~dmacRegs->pcr.CPC) == 0x3ff);
+	return ((dmacRegs.stat.CIS | ~dmacRegs.pcr.CPC) == 0x3ff);
 }
 
 //#define CPCOND0	1
@@ -534,7 +536,8 @@ void ERET() {
 		cpuRegs.pc = cpuRegs.CP0.n.EPC;
 		cpuRegs.CP0.n.Status.b.EXL = 0;
 	}
-	UpdateCP0Status();
+	cpuUpdateOperationMode();
+	cpuSetNextEventDelta(4);
 	intSetBranch();
 }
 
@@ -542,7 +545,8 @@ void DI() {
 	if (cpuRegs.CP0.n.Status.b._EDI || cpuRegs.CP0.n.Status.b.EXL ||
 		cpuRegs.CP0.n.Status.b.ERL || (cpuRegs.CP0.n.Status.b.KSU == 0)) {
 		cpuRegs.CP0.n.Status.b.EIE = 0;
-		//UpdateCP0Status();		// ints are disabled so checking for them is kinda silly...
+		// IRQs are disabled so no need to do a cpu exception/event test...
+		//cpuSetNextEventDelta();
 	}
 }
 
@@ -550,7 +554,8 @@ void EI() {
 	if (cpuRegs.CP0.n.Status.b._EDI || cpuRegs.CP0.n.Status.b.EXL ||
 		cpuRegs.CP0.n.Status.b.ERL || (cpuRegs.CP0.n.Status.b.KSU == 0)) {
 		cpuRegs.CP0.n.Status.b.EIE = 1;
-		UpdateCP0Status();
+		// schedule an event test, which will check for and raise pending IRQs.
+		cpuSetNextEventDelta(4);
 	}
 }
 

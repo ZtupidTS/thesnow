@@ -107,7 +107,7 @@ void GSSettingsDlg::OnInit()
 		}
 	}
 
-	bool isdx11avail = GSUtil::IsDirect3D11Available();
+	bool isdx11avail_config = GSUtil::IsDirect3D11Available();
 
 	vector<GSSetting> renderers;
 
@@ -115,7 +115,7 @@ void GSSettingsDlg::OnInit()
 	{
 		if(i >= 3 && i <= 5)
 		{
-			if(!isdx11avail) continue;
+			if(!isdx11avail_config) continue;
 			g_renderers[i].name = std::string("Direct3D") + (GSUtil::HasD3D11Features() ? "11" : "10");
 		}
 
@@ -219,6 +219,9 @@ bool GSSettingsDlg::OnCommand(HWND hWnd, UINT id, UINT code)
 		theApp.SetConfig("UserHacks_AlphaHack", (int)IsDlgButtonChecked(m_hWnd, IDC_ALPHAHACK));
 		theApp.SetConfig("UserHacks_HalfPixelOffset", (int)IsDlgButtonChecked(m_hWnd, IDC_OFFSETHACK));
 		theApp.SetConfig("UserHacks_SkipDraw", (int)SendMessage(GetDlgItem(m_hWnd, IDC_SKIPDRAWHACK), UDM_GETPOS, 0, 0));
+
+		bool allowHacks = !!theApp.GetConfig("allowHacks", 0);
+		theApp.SetConfig("allowHacks", allowHacks);
 	}
 
 	return __super::OnCommand(hWnd, id, code);
@@ -228,7 +231,6 @@ void GSSettingsDlg::UpdateControls()
 {
 	INT_PTR i;
 
-	// Simple check only
 	bool allowHacks = !!theApp.GetConfig("allowHacks", 0);
 
 	if(ComboBoxGetSelData(IDC_RENDERER, i))
@@ -263,12 +265,16 @@ void GSSettingsDlg::UpdateControls()
 		EnableWindow(GetDlgItem(m_hWnd, IDC_MSAAEDIT), hw);
 		EnableWindow(GetDlgItem(m_hWnd, IDC_MSAA), hw);
 
-		ShowWindow(GetDlgItem(m_hWnd, IDC_USERHACKS), allowHacks && hw)?SW_SHOW:SW_HIDE;
+		//ShowWindow(GetDlgItem(m_hWnd, IDC_USERHACKS), allowHacks && hw)?SW_SHOW:SW_HIDE;  //Don't disable the "Hacks" frame
+		ShowWindow(GetDlgItem(m_hWnd, IDC_MSAAEDIT), allowHacks && hw)?SW_SHOW:SW_HIDE;
+		ShowWindow(GetDlgItem(m_hWnd, IDC_MSAA), allowHacks && hw)?SW_SHOW:SW_HIDE;
+		ShowWindow(GetDlgItem(m_hWnd, IDC_STATIC_TEXT_HWAA), allowHacks && hw)?SW_SHOW:SW_HIDE;
+		
 		ShowWindow(GetDlgItem(m_hWnd, IDC_ALPHAHACK), allowHacks && hw)?SW_SHOW:SW_HIDE;
 		ShowWindow(GetDlgItem(m_hWnd, IDC_OFFSETHACK), allowHacks && hw)?SW_SHOW:SW_HIDE;
+		
 		ShowWindow(GetDlgItem(m_hWnd, IDC_SKIPDRAWHACKEDIT), allowHacks && hw)?SW_SHOW:SW_HIDE;
-		ShowWindow(GetDlgItem(m_hWnd, IDC_STATIC10), allowHacks && hw)?SW_SHOW:SW_HIDE;
 		ShowWindow(GetDlgItem(m_hWnd, IDC_SKIPDRAWHACK), allowHacks && hw)?SW_SHOW:SW_HIDE;
-
+		ShowWindow(GetDlgItem(m_hWnd, IDC_STATIC_TEXT_SKIPDRAW), allowHacks && hw)?SW_SHOW:SW_HIDE;
 	}
 }

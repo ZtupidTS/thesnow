@@ -23,8 +23,9 @@
 #include "GS.h"
 #include "Mem.h"
 #include "zerogs.h"
+#include "GLWin.h"
 
-#include "ZeroGSShaders/zerogsshaders.h"
+#include "ZZoglShaders.h"
 #include "targets.h"
 // This include for windows resource file with Shaders
 #ifdef _WIN32
@@ -65,17 +66,6 @@
 }
 
 #define GL_BLEND_SET() zgsBlendFuncSeparateEXT(s_srcrgb, s_dstrgb, s_srcalpha, s_dstalpha)
-
-#define GL_STENCILFUNC(func, ref, mask) { \
-	s_stencilfunc  = func; \
-	s_stencilref = ref; \
-	s_stencilmask = mask; \
-	glStencilFunc(func, ref, mask); \
-}
-
-#define GL_STENCILFUNC_SET() glStencilFunc(s_stencilfunc, s_stencilref, s_stencilmask)
-
-#define VB_BUFFERSIZE			   0x400
 #define VB_NUMBUFFERS			   512
 
 // ----------------- Types
@@ -85,8 +75,6 @@ map<string, GLbyte> mapGLExtensions;
 
 namespace ZeroGS
 {
-RenderFormatType g_RenderFormatType = RFT_float16;
-
 extern void KickPoint();
 extern void KickLine();
 extern void KickTriangle();
@@ -94,9 +82,8 @@ extern void KickTriangleFan();
 extern void KickSprite();
 extern void KickDummy();
 extern bool LoadEffects();
-extern bool LoadExtraEffects();
-extern FRAGMENTSHADER* LoadShadeEffect(int type, int texfilter, int fog, int testaem, int exactcolor, const clampInfo& clamp, int context, bool* pbFailed);
-VERTEXSHADER pvsBitBlt;
+extern bool ZZshLoadExtraEffects();
+extern FRAGMENTSHADER* ZZshLoadShadeEffect(int type, int texfilter, int fog, int testaem, int exactcolor, const clampInfo& clamp, int context, bool* pbFailed);
 
 GLuint vboRect = 0;
 vector<GLuint> g_vboBuffers; // VBOs for all drawing commands
@@ -138,10 +125,9 @@ void (APIENTRY *zgsBlendFuncSeparateEXT)(GLenum, GLenum, GLenum, GLenum) = NULL;
 //------------------ variables
 ////////////////////////////
 // State parameters
-float fiRendWidth, fiRendHeight;
 
 extern u8* s_lpShaderResources;
-CGprogram pvs[16] = {NULL};
+ZZshProgram pvs[16] = {NULL};
 
 // String's for shader file in developer mode
 #ifdef DEVBUILD
@@ -166,10 +152,10 @@ int nLogoWidth, nLogoHeight;
 u32 s_ptexInterlace = 0;		 // holds interlace fields
 
 //------------------ Global Variables
+int GPU_TEXWIDTH = 512;
+float g_fiGPU_TEXWIDTH = 1/512.0f;
 int g_MaxTexWidth = 4096, g_MaxTexHeight = 4096;
 u32 s_uFramebuffer = 0;
-CGprofile cgvProf, cgfProf;
-int g_nPixelShaderVer = 0; // default
 
 RasterFont* font_p = NULL;
 float g_fBlockMult = 1;
@@ -178,7 +164,6 @@ float g_fBlockMult = 1;
 u32 ptexBlocks = 0, ptexConv16to32 = 0;	 // holds information on block tiling
 u32 ptexBilinearBlocks = 0;
 u32 ptexConv32to16 = 0;
-bool g_bDisplayMsg = 1;
 int g_nDepthBias = 0;
 //u32 g_bSaveFlushedFrame = 0;
 
@@ -189,13 +174,10 @@ bool ZeroGS::IsGLExt(const char* szTargetExtension)
 	return mapGLExtensions.find(string(szTargetExtension)) != mapGLExtensions.end();
 }
 
-inline bool
-ZeroGS::Create_Window(int _width, int _height)
+inline bool ZeroGS::Create_Window(int _width, int _height)
 {
 	nBackbufferWidth = _width;
 	nBackbufferHeight = _height;
-	fiRendWidth = 1.0f / nBackbufferWidth;
-	fiRendHeight = 1.0f / nBackbufferHeight;
 
 	if (!GLWin.DisplayWindow(_width, _height)) return false;
 
@@ -232,20 +214,9 @@ inline bool ZeroGS::CreateImportantCheck()
 		ZZLog::Error_Log("*********\nZZogl: OGL WARNING: Need GL_EXT_secondary_color\nZZogl: *********");
 		bSuccess = false;
 	}
-
-	// load the effect & find the best profiles (if any)
-	if (cgGLIsProfileSupported(CG_PROFILE_ARBVP1) != CG_TRUE)
-	{
-		ZZLog::Error_Log("arbvp1 not supported.");
-		bSuccess = false;
-	}
-
-	if (cgGLIsProfileSupported(CG_PROFILE_ARBFP1) != CG_TRUE)
-	{
-		ZZLog::Error_Log("arbfp1 not supported.");
-		bSuccess = false;
-	}
-
+	
+	bSuccess &= ZZshCheckProfilesSupport();
+	
 	return bSuccess;
 }
 
@@ -297,19 +268,6 @@ inline void ZeroGS::CreateOtherCheck()
 
 	if (Max_Texture_Size_NV < 1024)
 		ZZLog::Error_Log("Could not properly make bitmasks, so some textures will be missed.");
-
-	/* Zeydlitz: we don't support 128-bit targets yet. they are slow and weirdo
-	if( conf.settings() & GAME_32BITTARGS ) {
-		g_RenderFormatType = RFT_byte8;
-		ZZLog::Error_Log("Setting 32 bit render target.");
-	}
-	else {
-		if( !IsGLExt("GL_NV_float_buffer") && !IsGLExt("GL_ARB_color_buffer_float") && !IsGLExt("ATI_pixel_format_float") ) {
-			ZZLog::Error_Log("******\nZZogl: GS WARNING: Floating point render targets not supported, switching to 32bit\nZZogl: *********");
-			g_RenderFormatType = RFT_byte8;
-		}
-	}*/
-	g_RenderFormatType = RFT_byte8;
 
 #ifdef _WIN32
 	if (IsGLExt("WGL_EXT_swap_control") || IsGLExt("EXT_swap_control"))
@@ -453,9 +411,6 @@ inline bool CreateFillExtensionsMap()
 	return true;
 }
 
-
-const static char* g_pShaders[] = { "full", "reduced", "accurate", "accurate-reduced" };
-
 void LoadglFunctions()
 {
 	GL_LOADFN(glIsRenderbufferEXT);
@@ -477,6 +432,20 @@ void LoadglFunctions()
 	GL_LOADFN(glGenerateMipmapEXT);
 }
 
+inline bool TryBlockFormat(GLint fmt, const GLvoid* vBlockData) {
+	g_internalFloatFmt = fmt; 
+	glTexImage2D(GL_TEXTURE_2D, 0, g_internalFloatFmt, BLOCK_TEXWIDTH, BLOCK_TEXHEIGHT, 0, GL_ALPHA, GL_FLOAT, vBlockData);
+	return (glGetError() == GL_NO_ERROR);
+}
+
+inline bool TryBlinearFormat(GLint fmt32, GLint fmt16, const GLvoid* vBilinearData) {
+	g_internalRGBAFloatFmt = fmt32;
+	g_internalRGBAFloat16Fmt = fmt16;
+	glTexImage2D(GL_TEXTURE_2D, 0, g_internalRGBAFloatFmt, BLOCK_TEXWIDTH, BLOCK_TEXHEIGHT, 0, GL_RGBA, GL_FLOAT, vBilinearData);
+	return (glGetError() == GL_NO_ERROR);
+}
+
+
 bool ZeroGS::Create(int _width, int _height)
 {
 	GLenum err = GL_NO_ERROR;
@@ -486,9 +455,6 @@ bool ZeroGS::Create(int _width, int _height)
 	Destroy(1);
 	GSStateReset();
 
-	cgSetErrorHandler(HandleCgError, NULL);
-	g_RenderFormatType = RFT_float16;
-
 	if (!Create_Window(_width, _height)) return false;
 	if (!CreateFillExtensionsMap()) return false;
 	if (!CreateImportantCheck()) return false;
@@ -497,9 +463,13 @@ bool ZeroGS::Create(int _width, int _height)
 
 	// check the max texture width and height
 	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &g_MaxTexWidth);
+    // Limit the texture size supported to 8192. We do not need bigger texture.
+    // Besides the following assertion is false when texture are too big.
+    // ZZoglFlush.cpp:2349:	assert(fblockstride >= 1.0f)
+    //g_MaxTexWidth = min(8192, g_MaxTexWidth);
 
 	g_MaxTexHeight = g_MaxTexWidth / 4;
-	GPU_TEXWIDTH = g_MaxTexWidth / 8;
+	GPU_TEXWIDTH = min (g_MaxTexWidth/8, 1024);
 	g_fiGPU_TEXWIDTH = 1.0f / GPU_TEXWIDTH;
 
 	if (!CreateOpenShadersFile()) return false;
@@ -588,7 +558,7 @@ bool ZeroGS::Create(int _width, int _height)
 	PBITMAPINFO pinfo = (PBITMAPINFO)LockResource(hBitmapGlob);
 
 	GLenum tempFmt = (pinfo->bmiHeader.biBitCount == 32) ? GL_RGBA : GL_RGB;
-	TextureRect(4, pinfo->bmiHeader.biWidth, pinfo->bmiHeader.biHeight, tempFmt, GL_UNSIGNED_BYTE, (u8*)pinfo + pinfo->bmiHeader.biSize);
+	TextureRect(GL_RGBA, pinfo->bmiHeader.biWidth, pinfo->bmiHeader.biHeight, tempFmt, GL_UNSIGNED_BYTE, (u8*)pinfo + pinfo->bmiHeader.biSize);
 
 	nLogoWidth = pinfo->bmiHeader.biWidth;
 	nLogoHeight = pinfo->bmiHeader.biHeight;
@@ -616,65 +586,57 @@ bool ZeroGS::Create(int _width, int _height)
 
 	// create the blocks texture
 	g_fBlockMult = 1;
+	bool do_not_use_billinear = false;
 
 	vector<char> vBlockData, vBilinearData;
-
 	BLOCK::FillBlocks(vBlockData, vBilinearData, 1);
 
 	glGenTextures(1, &ptexBlocks);
 	glBindTexture(GL_TEXTURE_2D, ptexBlocks);
-
-	g_internalFloatFmt = GL_ALPHA_FLOAT32_ATI;
-	g_internalRGBAFloatFmt = GL_RGBA_FLOAT32_ATI;
-	g_internalRGBAFloat16Fmt = GL_RGBA_FLOAT16_ATI;
 	
-	Texture2D(g_internalFloatFmt, GL_ALPHA, GL_FLOAT, &vBlockData[0]);
-
-	if (glGetError() != GL_NO_ERROR)
-	{
-		// try different internal format
-		g_internalFloatFmt = GL_FLOAT_R32_NV;
-		Texture2D(g_internalFloatFmt, GL_RED, GL_FLOAT, &vBlockData[0]);
+	if 	(TryBlockFormat(GL_RGBA32F, &vBlockData[0]))
+		ZZLog::Error_Log("Use GL_RGBA32F for blockdata.");
+	else if (TryBlockFormat(GL_ALPHA_FLOAT32_ATI, &vBlockData[0]))
+	 	ZZLog::Error_Log("Use ATI_texture_float for blockdata.");
+	else if (TryBlockFormat(GL_ALPHA32F_ARB, &vBlockData[0]))
+		ZZLog::Error_Log("Use ARB_texture_float for blockdata.");
+	else 
+		{	// This case is bad. But for really old cards it could be nice. 			
+		g_fBlockMult = 65535.0f*(float)g_fiGPU_TEXWIDTH;
+		BLOCK::FillBlocks(vBlockData, vBilinearData, 0);
+		g_internalFloatFmt = GL_ALPHA16;
+		
+		// We store block data on u16 rather float numbers. It's not so preciese, but ALPHA16 is OpenGL 2.0 standart
+		// and use only 16 bit. Old zerogs use red channel, but it does not work.
+		
+		glTexImage2D(GL_TEXTURE_2D, 0, g_internalFloatFmt, BLOCK_TEXWIDTH, BLOCK_TEXHEIGHT, 0, GL_ALPHA, GL_UNSIGNED_SHORT, &vBlockData[0]);
+		if( glGetError() != GL_NO_ERROR ) {
+			ZZLog::Error_Log("ZZogl ERROR: could not fill blocks");
+			return false;
+ 		}
+	
+		do_not_use_billinear = true;
+		conf.bilinear = 0;
+		ZZLog::Error_Log("Using non-bilinear fill, quallity is outdated!");	
 	}
+
 	setTex2DFilters(GL_NEAREST);
 	setTex2DWrap(GL_REPEAT);
 
-	if (glGetError() != GL_NO_ERROR)
+	if (!do_not_use_billinear) 
 	{
-		// error, resort to 16bit
-		g_fBlockMult = 65535.0f * (float)g_fiGPU_TEXWIDTH / 32.0f;
-
-		BLOCK::FillBlocks(vBlockData, vBilinearData, 0);
-		Texture2D(2, GL_R, GL_UNSIGNED_SHORT, &vBlockData[0]);
-
-		if (glGetError() != GL_NO_ERROR)
-		{
-			ZZLog::Error_Log("Could not fill blocks.");
-			return false;
-		}
-
-		ZZLog::GS_Log("Using non-bilinear fill.");
-	}
-	else
-	{
-		// fill in the bilinear blocks
+		// fill in the bilinear blocks (main variant).
 		glGenTextures(1, &ptexBilinearBlocks);
 		glBindTexture(GL_TEXTURE_2D, ptexBilinearBlocks);
-		Texture2D(g_internalRGBAFloatFmt, GL_RGBA, GL_FLOAT, &vBilinearData[0]);
-
-		if (glGetError() != GL_NO_ERROR)
-		{
-			g_internalRGBAFloatFmt = GL_FLOAT_RGBA32_NV;
-			g_internalRGBAFloat16Fmt = GL_FLOAT_RGBA16_NV;
-			Texture2D(g_internalRGBAFloatFmt, GL_RGBA, GL_FLOAT, &vBilinearData[0]);
-			ZZLog::Debug_Log("ZZogl Fill bilinear blocks. ");
-			B_G(glGetError() == GL_NO_ERROR, return false);
-		}
-		else
-		{
-			// No, they failed on the first clause of the if statement, not the second.
-			//ZZLog::Error_Log("Fill bilinear blocks failed!");
-		}
+		
+		if 	(TryBlinearFormat(GL_RGBA32F, GL_RGBA16F, &vBilinearData[0]))
+			ZZLog::Error_Log("Fill bilinear blocks OK.!");
+		else if (TryBlinearFormat(GL_RGBA_FLOAT32_ATI, GL_RGBA_FLOAT16_ATI, &vBilinearData[0]))
+			ZZLog::Error_Log("Fill bilinear blocks with ATI_texture_float.");
+		else if (TryBlinearFormat(GL_FLOAT_RGBA32_NV, GL_FLOAT_RGBA16_NV, &vBilinearData[0]))
+			ZZLog::Error_Log("ZZogl Fill bilinear blocks with NVidia_float.");
+		else 
+			ZZLog::Error_Log("Fill bilinear blocks failed.");
 
 		setTex2DFilters(GL_NEAREST);
 		setTex2DWrap(GL_REPEAT);
@@ -788,72 +750,7 @@ bool ZeroGS::Create(int _width, int _height)
 
 	if (err != GL_NO_ERROR) bSuccess = false;
 
-	g_cgcontext = cgCreateContext();
-
-	cgvProf = CG_PROFILE_ARBVP1;
-	cgfProf = CG_PROFILE_ARBFP1;
-
-	cgGLEnableProfile(cgvProf);
-	cgGLEnableProfile(cgfProf);
-
-	cgGLSetOptimalOptions(cgvProf);
-	cgGLSetOptimalOptions(cgfProf);
-
-	cgGLSetManageTextureParameters(g_cgcontext, CG_FALSE);
-
-	//cgSetAutoCompile(g_cgcontext, CG_COMPILE_IMMEDIATE);
-
-	g_fparamFogColor = cgCreateParameter(g_cgcontext, CG_FLOAT4);
-	g_vparamPosXY[0] = cgCreateParameter(g_cgcontext, CG_FLOAT4);
-	g_vparamPosXY[1] = cgCreateParameter(g_cgcontext, CG_FLOAT4);
-
-	ZZLog::GS_Log("Creating effects.");
-
-	B_G(LoadEffects(), return false);
-
-	g_bDisplayMsg = 0;
-
-
-	// create a sample shader
-	clampInfo temp;
-
-	memset(&temp, 0, sizeof(temp));
-
-	temp.wms = 3;
-	temp.wmt = 3;
-
-	g_nPixelShaderVer = 0;//SHADER_ACCURATE;
-
-	// test
-	bool bFailed;
-
-	FRAGMENTSHADER* pfrag = LoadShadeEffect(0, 1, 1, 1, 1, temp, 0, &bFailed);
-
-	if (bFailed || pfrag == NULL)
-	{
-		g_nPixelShaderVer = SHADER_ACCURATE | SHADER_REDUCED;
-
-		pfrag = LoadShadeEffect(0, 0, 1, 1, 0, temp, 0, &bFailed);
-
-		if (pfrag != NULL)
-			cgGLLoadProgram(pfrag->prog);
-
-		if (bFailed || pfrag == NULL || cgGetError() != CG_NO_ERROR)
-		{
-			g_nPixelShaderVer = SHADER_REDUCED;
-			ZZLog::Error_Log("Basic shader test failed.");
-		}
-	}
-
-	g_bDisplayMsg = 1;
-
-	if (g_nPixelShaderVer & SHADER_REDUCED) conf.bilinear = 0;
-
-	ZZLog::GS_Log("Creating extra effects.");
-
-	B_G(LoadExtraEffects(), return false);
-
-	ZZLog::GS_Log("Using %s shaders.", g_pShaders[g_nPixelShaderVer]);
+	if (!ZZshStartUsingShaders())  bSuccess = false;
 
 	GL_REPORT_ERROR();
 
@@ -923,20 +820,29 @@ void ZeroGS::Destroy(bool bD3D)
 	}
 
 	g_nCurVBOIndex = 0;
-
-	for (int i = 0; i < ARRAY_SIZE(pvs); ++i)
+	
+	if (pvs != NULL)
 	{
-		SAFE_RELEASE_PROG(pvs[i]);
+		for (int i = 0; i < ARRAY_SIZE(pvs); ++i)
+		{
+			SAFE_RELEASE_PROG(pvs[i]);
+		}
 	}
 
-	for (int i = 0; i < ARRAY_SIZE(ppsRegular); ++i)
+	if (ppsRegular != NULL)
 	{
-		SAFE_RELEASE_PROG(ppsRegular[i].prog);
+		for (int i = 0; i < ARRAY_SIZE(ppsRegular); ++i)
+		{
+			SAFE_RELEASE_PROG(ppsRegular[i].prog);
+		}
 	}
 
-	for (int i = 0; i < ARRAY_SIZE(ppsTexture); ++i)
+	if (ppsTexture != NULL)
 	{
-		SAFE_RELEASE_PROG(ppsTexture[i].prog);
+		for (int i = 0; i < ARRAY_SIZE(ppsTexture); ++i)
+		{
+			SAFE_RELEASE_PROG(ppsTexture[i].prog);
+		}
 	}
 
 	SAFE_RELEASE_PROG(pvsBitBlt.prog);
@@ -954,7 +860,7 @@ void ZeroGS::Destroy(bool bD3D)
 
 	SAFE_DELETE(font_p);
 
-	GLWin.ReleaseWindow();
+	GLWin.ReleaseContext();
 
 	mapGLExtensions.clear();
 }

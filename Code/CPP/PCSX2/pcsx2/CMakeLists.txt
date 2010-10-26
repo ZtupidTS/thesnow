@@ -9,13 +9,12 @@ endif(NOT TOP_CMAKE_WAS_SOURCED)
 # set common flags
 set(CommonFlags 
 	-pthread
+    -fvisibility=hidden
 	-fno-guess-branch-probability
 	-fno-dse
 	-fno-tree-dse
 	-fno-strict-aliasing
-	-march=i486
-	-msse
-	-msse2
+    -Wstrict-aliasing # Allow to track strict aliasing issue.
 	-pipe
 	-Wno-format
 	-Wno-unused-parameter
@@ -167,7 +166,6 @@ set(pcsx2Sources
 	Vif_Codes.cpp
 	Vif_Transfer.cpp
 	Vif_Unpack.cpp
-	Vif_Unpack.inl
 	vtlb.cpp
 	VU0.cpp
 	VUmicro.cpp
@@ -240,7 +238,6 @@ set(pcsx2CDVDSources
 	CDVD/CDVD.cpp
 	CDVD/CDVDisoReader.cpp
 	CDVD/IsoFileFormats.cpp
-	CDVD/IsoFileTools.cpp
 	CDVD/IsoFS/IsoFile.cpp
 	CDVD/IsoFS/IsoFSCDVD.cpp
 	CDVD/IsoFS/IsoFS.cpp)
@@ -253,7 +250,6 @@ set(pcsx2CDVDHeaders
 	CDVD/CDVD_internal.h
 	CDVD/CDVDisoReader.h
 	CDVD/IsoFileFormats.h
-	CDVD/IsoFileTools.h
 	CDVD/IsoFS/IsoDirectory.h
 	CDVD/IsoFS/IsoFileDescriptor.h
 	CDVD/IsoFS/IsoFile.h
@@ -297,7 +293,6 @@ set(pcsx2GuiSources
 	gui/Panels/BaseApplicableConfigPanel.cpp
 	gui/Panels/MemoryCardListView.cpp
 	gui/Dialogs/BaseConfigurationDialog.cpp
-	gui/Dialogs/BaseConfigurationDialog.inl
 	gui/Dialogs/BiosSelectorDialog.cpp
 	gui/Dialogs/ConfirmationDialogs.cpp
 	gui/Dialogs/CreateMemoryCardDialog.cpp
@@ -355,6 +350,7 @@ set(pcsx2GuiHeaders
 	gui/AppGameDatabase.h
 	gui/ConsoleLogger.h
 	gui/CpuUsageProvider.h
+	gui/Dialogs/BaseConfigurationDialog.inl
 	gui/Dialogs/ConfigurationDialog.h
 	gui/Dialogs/LogOptionsDialog.h
 	gui/Dialogs/ModalPopups.h
@@ -373,6 +369,7 @@ set(pcsx2GuiHeaders
 set(pcsx2IPUSources
 	IPU/IPU.cpp
 	IPU/IPU_Fifo.cpp
+	IPU/IPUdma.cpp
 	IPU/mpeg2lib/Idct.cpp
 	IPU/mpeg2lib/Mpeg.cpp
 	IPU/yuv2rgb.cpp)
@@ -381,6 +378,7 @@ set(pcsx2IPUSources
 set(pcsx2IPUHeaders
 	IPU/IPU.h
 	IPU/IPU_Fifo.h
+	IPU/IPUdma.h
 	IPU/yuv2rgb.h)
 
 # Linux sources
@@ -396,12 +394,15 @@ set(pcsx2LinuxHeaders
 set(pcsx2ps2Sources
 	ps2/BiosTools.cpp
 	ps2/GIFpath.cpp
+	ps2/LegacyDmac.cpp
 	ps2/Iop/IopHwRead.cpp
 	ps2/Iop/IopHwWrite.cpp)
 
 # ps2 headers
 set(pcsx2ps2Headers
 	ps2/BiosTools.h
+	ps2/eeHwTraceLog.inl
+	ps2/HwInternal.h
 	ps2/Iop/IopHw_Internal.h)
 
 # RDebug sources
@@ -497,20 +498,6 @@ set(pcsx2x86Sources
 	x86/ix86-32/iR5900Shift.cpp
 	x86/ix86-32/iR5900Templates.cpp
 	x86/ix86-32/recVTLB.cpp
-	x86/microVU_Alloc.inl
-	x86/microVU_Analyze.inl
-	x86/microVU_Branch.inl
-	x86/microVU_Clamp.inl
-	x86/microVU_Compile.inl
-	x86/microVU.cpp
-	x86/microVU_Execute.inl
-	x86/microVU_Flags.inl
-	x86/microVU_Log.inl
-	x86/microVU_Lower.inl
-	x86/microVU_Macro.inl
-	x86/microVU_Misc.inl
-	x86/microVU_Tables.inl
-	x86/microVU_Upper.inl
 	x86/newVif_Dynarec.cpp
 	x86/newVif_Unpack.cpp
 	x86/newVif_UnpackSSE.cpp
@@ -540,6 +527,20 @@ set(pcsx2x86Headers
 	x86/microVU.h
 	x86/microVU_IR.h
 	x86/microVU_Misc.h
+	x86/microVU_Alloc.inl
+	x86/microVU_Analyze.inl
+	x86/microVU_Branch.inl
+	x86/microVU_Clamp.inl
+	x86/microVU_Compile.inl
+	x86/microVU.cpp
+	x86/microVU_Execute.inl
+	x86/microVU_Flags.inl
+	x86/microVU_Log.inl
+	x86/microVU_Lower.inl
+	x86/microVU_Macro.inl
+	x86/microVU_Misc.inl
+	x86/microVU_Tables.inl
+	x86/microVU_Upper.inl
 	x86/newVif.h
 	x86/newVif_BlockBuffer.h
 	x86/newVif_HashBucket.h

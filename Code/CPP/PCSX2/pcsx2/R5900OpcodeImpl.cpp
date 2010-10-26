@@ -24,7 +24,7 @@
 #include "R5900Exceptions.h"
 
 
-static __forceinline s64 _add64_Overflow( s64 x, s64 y )
+static __fi s64 _add64_Overflow( s64 x, s64 y )
 {
 	const s64 result = x + y;
 
@@ -43,7 +43,7 @@ static __forceinline s64 _add64_Overflow( s64 x, s64 y )
 	return result;
 }
 
-static __forceinline s64 _add32_Overflow( s32 x, s32 y )
+static __fi s64 _add32_Overflow( s32 x, s32 y )
 {
 	GPR_reg64 result;  result.SD[0] = (s64)x + y;
 
@@ -199,11 +199,10 @@ static int __Deci2Call(int call, u32 *addr)
 					pdeciaddr += (d2ptr[4]+0xc) % 16;
 
 				const int copylen = std::min<uint>(255, d2ptr[1]-0xc);
-				memcpy(deci2buffer, pdeciaddr, copylen );
+				memcpy_fast(deci2buffer, pdeciaddr, copylen );
 				deci2buffer[copylen] = '\0';
 
-				if( EmuConfig.Log.Deci2 )
-					Console.Write( ConColor_EE, L"%s", ShiftJIS_ConvertString(deci2buffer).c_str() );
+				eeConLog( ShiftJIS_ConvertString(deci2buffer) );
 			}
 			((u32*)PSM(deci2addr))[3] = 0;
 			return 1;
@@ -221,8 +220,10 @@ static int __Deci2Call(int call, u32 *addr)
 			return 1;
 
 		case 0x10://kputs
-			if( addr != NULL && EmuConfig.Log.Deci2 )
-				Console.Write( ConColor_EE, L"%s", ShiftJIS_ConvertString((char*)PSM(*addr)).c_str() );
+			if( addr != NULL )
+			{
+				eeDeci2Log( ShiftJIS_ConvertString((char*)PSM(*addr)) );
+			}
 			return 1;
 	}
 
@@ -626,9 +627,9 @@ static __aligned16 GPR_reg m_dummy_gpr_zero;
 // Returns the x86 address of the requested GPR, which is safe for writing. (includes
 // special handling for returning a dummy var for GPR0(zero), so that it's value is
 // always preserved)
-static u64* gpr_GetWritePtr( uint gpr )
+static GPR_reg* gpr_GetWritePtr( uint gpr )
 {
-	return (u64*)(( gpr == 0 ) ? &m_dummy_gpr_zero : &cpuRegs.GPR.r[gpr]);
+	return (( gpr == 0 ) ? &m_dummy_gpr_zero : &cpuRegs.GPR.r[gpr]);
 }
 
 void LD()
@@ -638,7 +639,7 @@ void LD()
 	if( addr & 7 )
 		throw R5900Exception::AddressError( addr, false );
 
-	memRead64(addr, gpr_GetWritePtr(_Rt_));
+	memRead64(addr, (u64*)gpr_GetWritePtr(_Rt_));
 }
 
 static const u64 LDL_MASK[8] =
@@ -686,7 +687,7 @@ void LQ()
 	// an address error due to unaligned access isn't possible like it is on other loads/stores.
 
 	u32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
-	memRead128(addr & ~0xf, gpr_GetWritePtr(_Rt_));
+	memRead128(addr & ~0xf, (u128*)gpr_GetWritePtr(_Rt_));
 }
 
 void SB()
@@ -815,7 +816,7 @@ void SQ()
 	// an address error due to unaligned access isn't possible like it is on other loads/stores.
 
 	u32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
-	memWrite128(addr & ~0xf, &cpuRegs.GPR.r[_Rt_].UD[0]);
+	memWrite128(addr & ~0xf, cpuRegs.GPR.r[_Rt_].UQ);
 }
 
 /*********************************************************
@@ -859,14 +860,15 @@ void SYSCALL()
 	if (call == 0x7c)
 	{
 		if(cpuRegs.GPR.n.a0.UL[0] == 0x10)
-			Console.Write( ConColor_EE, L"%s", ShiftJIS_ConvertString((char*)PSM(memRead32(cpuRegs.GPR.n.a1.UL[0]))).c_str() );
+		{
+			eeConLog( ShiftJIS_ConvertString((char*)PSM(memRead32(cpuRegs.GPR.n.a1.UL[0]))) );
+		}
 		else
 			__Deci2Call( cpuRegs.GPR.n.a0.UL[0], (u32*)PSM(cpuRegs.GPR.n.a1.UL[0]) );
 	}
 
 	// The only thing this code is used for is the one log message, so don't execute it if we aren't logging bios messages.
-#ifdef PCSX2_DEVBUILD
-	if (macTrace.EE.Bios() && (call == 0x77))
+	if (SysTraceActive(EE.Bios) && (call == 0x77))
 	{
 		t_sif_dma_transfer *dmat;
 		//struct t_sif_cmd_header	*hdr;
@@ -888,7 +890,6 @@ void SYSCALL()
 				dmat->dest, dmat->src);
 		}
 	}
-#endif
 
 	cpuRegs.pc -= 4;
 	cpuException(0x20, cpuRegs.branch);

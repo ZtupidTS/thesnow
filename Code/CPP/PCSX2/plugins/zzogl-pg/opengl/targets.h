@@ -23,12 +23,9 @@
 #define TARGET_VIRTUAL_KEY 0x80000000
 #include "PS2Edefs.h"
 
-inline Vector DefaultOneColor(FRAGMENTSHADER ptr)
-{
-	Vector v = Vector(1, 1, 1, 1);
-	cgGLSetParameter4fv(ptr.sOneColor, v);
-	return v ;
-}
+#ifndef GL_TEXTURE_RECTANGLE
+#define GL_TEXTURE_RECTANGLE GL_TEXTURE_RECTANGLE_NV
+#endif
 
 namespace ZeroGS
 {
@@ -53,7 +50,9 @@ class CRenderTargetMngr
 
 		void Destroy();
 		static MAPTARGETS::iterator GetOldestTarg(MAPTARGETS& m);
-
+		
+		bool isFound(const frameInfo& frame, MAPTARGETS::iterator& it, u32 opts, u32 key, int maxposheight);
+		
 		CRenderTarget* GetTarg(const frameInfo& frame, u32 Options, int maxposheight);
 		inline CRenderTarget* GetTarg(int fbp, int fbw, VB& curvb)
 		{
@@ -122,13 +121,13 @@ class CRenderTargetMngr
 
 class CMemoryTargetMngr
 {
-
 	public:
 		CMemoryTargetMngr() : curstamp(0) {}
 
 		CMemoryTarget* GetMemoryTarget(const tex0Info& tex0, int forcevalidate); // pcbp is pointer to start of clut
-		CMemoryTarget* MemoryTarget_SearchExistTarget(int start, int end, int nClutOffset, int clutsize, const tex0Info& tex0, int forcevalidate);
-		CMemoryTarget* MemoryTarget_ClearedTargetsSearch(int fmt, int widthmult, int channels, int height);
+		CMemoryTarget* SearchExistTarget(int start, int end, int nClutOffset, int clutsize, const tex0Info& tex0, int forcevalidate);
+		CMemoryTarget* ClearedTargetsSearch(int fmt, int widthmult, int channels, int height);
+		int CompareTarget(list<CMemoryTarget>::iterator& it, const tex0Info& tex0, int clutsize, int nClutOffset);
 
 		void Destroy(); // destroy all targs
 
@@ -141,6 +140,8 @@ class CMemoryTargetMngr
 
 	private:
 		list<CMemoryTarget>::iterator DestroyTargetIter(list<CMemoryTarget>::iterator& it);
+		void GetClutVariables(int& nClutOffset, int& clutsize, const tex0Info& tex0);
+		void GetMemAddress(int& start, int& end,  const tex0Info& tex0);
 };
 
 class CBitwiseTextureMngr
@@ -202,24 +203,19 @@ extern CRenderTargetMngr s_RTs, s_DepthRTs;
 extern CBitwiseTextureMngr s_BitwiseTextures;
 extern CMemoryTargetMngr g_MemTargs;
 
-extern u8 s_AAx, s_AAy, s_AAz, s_AAw;
+//extern u8 s_AAx, s_AAy;
+extern Point AA;
 
-// Real rendered width, depends on AA and AAneg.
+// Real rendered width, depends on AA.
 inline int RW(int tbw)
 {
-	if (s_AAx >= s_AAz)
-		return (tbw << (s_AAx - s_AAz));
-	else
-		return (tbw >> (s_AAz - s_AAx));
+    return (tbw << AA.x);
 }
 
-// Real rendered height, depends on AA and AAneg.
+// Real rendered height, depends on AA.
 inline int RH(int tbh)
 {
-	if (s_AAy >= s_AAw)
-		return (tbh << (s_AAy - s_AAw));
-	else
-		return (tbh >> (s_AAw - s_AAy));
+    return (tbh << AA.y);
 }
 
 /*	inline void CreateTargetsList(int start, int end, list<ZeroGS::CRenderTarget*>& listTargs) {
@@ -236,12 +232,8 @@ inline list<ZeroGS::CRenderTarget*> CreateTargetsList(int start, int end)
 	return listTargs;
 }
 
-extern Vector g_vdepth;
+extern float4 g_vdepth;
 extern int icurctx;
-
-extern VERTEXSHADER pvsBitBlt;
-extern FRAGMENTSHADER ppsBitBlt[2], ppsBitBltDepth, ppsOne;
-extern FRAGMENTSHADER ppsBaseTexture, ppsConvert16to32, ppsConvert32to16;
 extern GLuint vboRect;
 
 // Unworking
@@ -345,6 +337,11 @@ static __forceinline void TextureRect(GLint iFormat, GLint width, GLint height, 
 	glTexImage2D(GL_TEXTURE_RECTANGLE_NV, 0, iFormat, width, height, 0, format, type, pixels);
 }
 
+static __forceinline void TextureRect2(GLint iFormat, GLint width, GLint height, GLenum format, GLenum type, const GLvoid* pixels)
+{
+	glTexImage2D(GL_TEXTURE_RECTANGLE, 0, iFormat, width, height, 0, format, type, pixels);
+}
+
 static __forceinline void TextureRect(GLenum attach, GLuint id = 0)
 {
 	glFramebufferRenderbufferEXT(GL_FRAMEBUFFER_EXT, attach, GL_RENDERBUFFER_EXT, id);
@@ -385,6 +382,12 @@ static __forceinline void setRectWrap(GLint type)
 {
 	glTexParameteri(GL_TEXTURE_RECTANGLE_NV, GL_TEXTURE_WRAP_S, type);
 	glTexParameteri(GL_TEXTURE_RECTANGLE_NV, GL_TEXTURE_WRAP_T, type);
+}
+
+static __forceinline void setRectWrap2(GLint type)
+{
+	glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_WRAP_S, type);
+	glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_WRAP_T, type);
 }
 	
 #endif

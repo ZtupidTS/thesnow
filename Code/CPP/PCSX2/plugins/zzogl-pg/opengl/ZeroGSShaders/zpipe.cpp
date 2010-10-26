@@ -1,3 +1,10 @@
+/* The file is based of zpipe.c + minor rename and minor adaptation
+ *
+ * zpipe.c: example of proper use of zlib's inflate() and deflate()
+ * Not copyrighted -- provided to the public domain
+ * Version 1.4  11 December 2005  Mark Adler 
+ */
+
 // zpipe.cpp : Defines the entry point for the console application.
 //
 

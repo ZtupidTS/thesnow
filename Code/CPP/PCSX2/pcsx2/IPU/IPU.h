@@ -13,14 +13,9 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __IPU_H__
-#define __IPU_H__
+#pragma once
 
 #include "IPU_Fifo.h"
-
-#ifdef _MSC_VER
-#pragma pack(1)
-#endif
 
 #define ipumsk( src ) ( (src) & 0xff )
 #define ipucase( src ) case ipumsk(src)
@@ -28,27 +23,7 @@
 #define IPU_INT_TO( cycles )  if(!(cpuRegs.interrupt & (1<<4))) CPU_INT( DMAC_TO_IPU, cycles )
 #define IPU_INT_FROM( cycles )  CPU_INT( DMAC_FROM_IPU, cycles )
 
-#define IPU_FORCEINLINE __forceinline
-
-struct IPUStatus {
-	bool InProgress;
-	u8 DMAMode;
-	bool DMAFinished;
-	bool IRQTriggered;
-	u8 TagFollow;
-	u32 TagAddr;
-	bool stalled;
-	u8 ChainMode;
-	u32 NextMem;
-};
-
-#define DMA_MODE_NORMAL 0
-#define DMA_MODE_CHAIN 1
-
-#define IPU1_TAG_FOLLOW 0
-#define IPU1_TAG_QWC 1
-#define IPU1_TAG_ADDR 2
-#define IPU1_TAG_NONE 3
+#define IPU_FORCEINLINE __fi
 
 //
 // Bitfield Structures
@@ -56,16 +31,13 @@ struct IPUStatus {
 
 struct tIPU_CMD
 {
-	union
-	{
-		struct
-		{
-			u32 OPTION : 28;	// VDEC decoded value
-			u32 CMD : 4;	// last command
-		};
-		u32 DATA;
-	};
+	u32 DATA;
 	u32 BUSY;
+	
+	void SetBusy(bool busy=true)
+	{
+		BUSY = busy ? 0x80000000 : 0;
+	}
 };
 
 union tIPU_CTRL {
@@ -100,20 +72,74 @@ union tIPU_CTRL {
 	void reset() { _u32 = 0; }
 };
 
-struct tIPU_BP {
-	u32 BP;		// Bit stream point
-	u16 IFC;	// Input FIFO counter
-	u8 FP;		// FIFO point
-	u8 bufferhasnew; // Always 0.
+struct __aligned16 tIPU_BP {
+	__aligned16 u128 internal_qwc[2];
+
+	u32 BP;		// Bit stream point (0 to 128*2)
+	u32 IFC;	// Input FIFO counter (8QWC) (0 to 8)
+	u32 FP;		// internal FIFO (2QWC) fill status (0 to 2)
+
+	__fi void Align()
+	{
+		BP = (BP + 7) & ~7;
+		Advance(0);
+	}
+
+	__fi void Advance(uint bits)
+	{
+		BP += bits;
+		pxAssume( BP <= 256 );
+
+		if (BP >= 128)
+		{
+			BP -= 128;
+
+			if (FP == 2)
+			{
+				// when BP is over 128 it means we're reading data from the second quadword.  Shift that one
+				// to the front and load the new quadword into the second QWC (its a manualized ringbuffer!)
+
+				CopyQWC(&internal_qwc[0], &internal_qwc[1]);
+				FP = 1;
+			}
+			else
+			{
+				// if FP == 1 then the buffer has been completely drained.
+				// if FP == 0 then an already-drained buffer is being advanced, and we need to drop a
+				// quadword from the IPU FIFO.
+
+				if (!FP)
+					ipu_fifo.in.read(&internal_qwc[0]);
+
+				FP = 0;
+			}
+		}
+	}
+
+	__fi bool FillBuffer(u32 bits)
+	{
+		while (FP < 2)
+		{
+			if (ipu_fifo.in.read(&internal_qwc[FP]) == 0)
+			{
+				// Here we *try* to fill the entire internal QWC buffer; however that may not necessarily
+				// be possible -- so if the fill fails we'll only return 0 if we don't have enough
+				// remaining bits in the FIFO to fill the request.
+
+				return ((FP!=0) && (BP + bits) <= 128);
+			}
+
+			++FP;
+		}
+
+		return true;
+	}
+
 	wxString desc() const
 	{
 		return wxsFormat(L"Ipu BP: bp = 0x%x, IFC = 0x%x, FP = 0x%x.", BP, IFC, FP);
 	}
 };
-
-#ifdef _WIN32
-#pragma pack()
-#endif
 
 union tIPU_CMD_IDEC
 {
@@ -138,31 +164,7 @@ union tIPU_CMD_IDEC
 	void set_flags(u32 flags) { _u32 |= flags; }
 	void clear_flags(u32 flags) { _u32 &= ~flags; }
 	void reset() { _u32 = 0; }
-	void log()
-	{
-		IPU_LOG("IPU IDEC command.");
-
-		if (FB) IPU_LOG(" Skip %d	bits.", FB);
-		IPU_LOG(" Quantizer step code=0x%X.", QSC);
-
-		if (DTD == 0)
-			IPU_LOG(" Does not decode DT.");
-		else
-			IPU_LOG(" Decodes DT.");
-
-		if (SGN == 0)
-			IPU_LOG(" No bias.");
-		else
-			IPU_LOG(" Bias=128.");
-
-		if (DTE == 1) IPU_LOG(" Dither Enabled.");
-		if (OFM == 0)
-			IPU_LOG(" Output format is RGB32.");
-		else
-			IPU_LOG(" Output format is RGB16.");
-
-		IPU_LOG("");
-	}
+	void log() const;
 };
 
 union tIPU_CMD_BDEC
@@ -186,28 +188,7 @@ union tIPU_CMD_BDEC
 	void set_flags(u32 flags) { _u32 |= flags; }
 	void clear_flags(u32 flags) { _u32 &= ~flags; }
 	void reset() { _u32 = 0; }
-	void log(int s_bdec)
-	{
-		IPU_LOG("IPU BDEC(macroblock decode) command %x, num: 0x%x", cpuRegs.pc, s_bdec);
-		if (FB) IPU_LOG(" Skip 0x%X bits.", FB);
-
-		if (MBI)
-			IPU_LOG(" Intra MB.");
-		else
-			IPU_LOG(" Non-intra MB.");
-
-		if (DCR)
-			IPU_LOG(" Resets DC prediction value.");
-		else
-			IPU_LOG(" Doesn't reset DC prediction value.");
-
-		if (DT)
-			IPU_LOG(" Use field DCT.");
-		else
-			IPU_LOG(" Use frame DCT.");
-
-		IPU_LOG(" Quantizer step=0x%X", QSC);
-	}
+	void log(int s_bdec) const;
 };
 
 union tIPU_CMD_CSC
@@ -228,70 +209,8 @@ union tIPU_CMD_CSC
 	void set_flags(u32 flags) { _u32 |= flags; }
 	void clear_flags(u32 flags) { _u32 &= ~flags; }
 	void reset() { _u32 = 0; }
-	void log_from_YCbCr()
-	{
-		IPU_LOG("IPU CSC(Colorspace conversion from YCbCr) command (%d).", MBC);
-		if (OFM)
-			IPU_LOG("Output format is RGB16. ");
-		else
-			IPU_LOG("Output format is RGB32. ");
-
-		if (DTE) IPU_LOG("Dithering enabled.");
-	}
-	void log_from_RGB32()
-	{
-		IPU_LOG("IPU PACK (Colorspace conversion from RGB32) command.");
-
-		if (OFM)
-			IPU_LOG("Output format is RGB16. ");
-		else
-			IPU_LOG("Output format is INDX4. ");
-
-		if (DTE) IPU_LOG("Dithering enabled.");
-
-		IPU_LOG("Number of macroblocks to be converted: %d", MBC);
-	}
-};
-
-union tIPU_DMA
-{
-	struct
-	{
-		bool GIFSTALL  : 1;
-		bool TIE0 :1;
-		bool TIE1 : 1;
-		bool ACTV1 : 1;
-		bool DOTIE1  : 1;
-		bool FIREINT0 : 1;
-		bool FIREINT1 : 1;
-		bool VIFSTALL : 1;
-		bool SIFSTALL : 1;
-	};
-	u32 _u32;
-
-	tIPU_DMA( u32 val ){ _u32 = val; }
-
-	bool test(u32 flags) const { return !!(_u32 & flags); }
-	void set_flags(u32 flags) { _u32 |= flags; }
-	void clear_flags(u32 flags) { _u32 &= ~flags; }
-	void reset() { _u32 = 0; }
-	wxString desc() const
-	{
-		wxString temp(L"g_nDMATransfer[");
-
-		if (GIFSTALL) temp += L" GIFSTALL ";
-		if (TIE0) temp += L" TIE0 ";
-		if (TIE1) temp += L" TIE1 ";
-		if (ACTV1) temp += L" ACTV1 ";
-		if (DOTIE1) temp += L" DOTIE1 ";
-		if (FIREINT0) temp += L" FIREINT0 ";
-		if (FIREINT1) temp += L" FIREINT1 ";
-		if (VIFSTALL) temp += L" VIFSTALL ";
-		if (SIFSTALL) temp += L" SIFSTALL ";
-
-		temp += L"]";
-		return temp;
-	}
+	void log_from_YCbCr() const;
+	void log_from_RGB32() const;
 };
 
 enum SCE_IPU
@@ -309,72 +228,77 @@ enum SCE_IPU
 };
 
 struct IPUregisters {
-  tIPU_CMD  cmd;
-  u32 dummy0[2];
-  tIPU_CTRL ctrl;
-  u32 dummy1[3];
-  u32   ipubp;
-  u32 dummy2[3];
-  u32		top;
-  u32		topbusy;
-  u32 dummy3[2];
+	tIPU_CMD	cmd;
+	u32			dummy0[2];
+
+	tIPU_CTRL	ctrl;
+	u32			dummy1[3];
+
+	u32			ipubp;
+	u32			dummy2[3];
+
+	u32			top;
+	u32			topbusy;
+	u32			dummy3[2];
+
+	void SetTopBusy()
+	{
+		topbusy = 0x80000000;
+	}
+
+	void SetDataBusy()
+	{
+		cmd.BUSY = 0x80000000;
+		topbusy = 0x80000000;
+	}
+
 };
 
-#define ipuRegs ((IPUregisters*)(PS2MEM_HW+0x2000))
-
-struct tIPU_cmd
+union tIPU_cmd
 {
-	int index;
-	int pos[6];
-	int current;
-	void clear()
+	struct
 	{
-		memzero(pos);
-		index = 0;
-		current = 0xffffffff;
-	}
+		int index;
+		int pos[6];
+		union {
+			struct {
+				u32 OPTION : 28;
+				u32 CMD : 4;
+			};
+			u32 current;
+		};
+	};
+	
+	u128 _u128[2];
+
+	void clear();
 	wxString desc() const
 	{
-		return wxsFormat(L"Ipu cmd: index = 0x%x, current = 0x%x, pos[0] = 0x%x, pos[1] = 0x%x",
+		return pxsFmt(L"Ipu cmd: index = 0x%x, current = 0x%x, pos[0] = 0x%x, pos[1] = 0x%x",
 			index, current, pos[0], pos[1]);
 	}
 };
 
-extern tIPU_cmd ipu_cmd;
+static IPUregisters& ipuRegs = (IPUregisters&)eeHw[0x2000];
+
+extern __aligned16 tIPU_cmd ipu_cmd;
 extern int coded_block_pattern;
-extern int g_nIPU0Data; // or 0x80000000 whenever transferring
-extern u8* g_pIPU0Pointer;
-extern IPUStatus IPU1Status;
-extern tIPU_DMA g_nDMATransfer;
 
 extern int ipuInit();
 extern void ipuReset();
-extern void ipuShutdown();
-extern int  ipuFreeze(gzFile f, int Mode);
-extern bool ipuCanFreeze();
 
 extern u32 ipuRead32(u32 mem);
 extern u64 ipuRead64(u32 mem);
-extern void ipuWrite32(u32 mem,u32 value);
-extern void ipuWrite64(u32 mem,u64 value);
+extern bool ipuWrite32(u32 mem,u32 value);
+extern bool ipuWrite64(u32 mem,u64 value);
 
 extern void IPUCMD_WRITE(u32 val);
 extern void ipuSoftReset();
 extern void IPUProcessInterrupt();
-extern void ipu0Interrupt();
-extern void ipu1Interrupt();
 
-extern void dmaIPU0();
-extern void dmaIPU1();
-extern int IPU0dma();
-extern int IPU1dma();
+extern u8 getBits128(u8 *address, bool advance);
+extern u8 getBits64(u8 *address, bool advance);
+extern u8 getBits32(u8 *address, bool advance);
+extern u8 getBits16(u8 *address, bool advance);
+extern u8 getBits8(u8 *address, bool advance);
 
-extern u16 __fastcall FillInternalBuffer(u32 * pointer, u32 advance, u32 size);
-extern u8 __fastcall getBits128(u8 *address, u32 advance);
-extern u8 __fastcall getBits64(u8 *address, u32 advance);
-extern u8 __fastcall getBits32(u8 *address, u32 advance);
-extern u8 __fastcall getBits16(u8 *address, u32 advance);
-extern u8 __fastcall getBits8(u8 *address, u32 advance);
-
-
-#endif

@@ -98,7 +98,7 @@ void MainEmuFrame::Menu_ResetAllSettings_Click(wxCommandEvent &event)
 
 	{
 		ScopedCoreThreadPopup suspender;
-		if( !Msgbox::OkCancel( wxsFormat(
+		if( !Msgbox::OkCancel( pxsFmt(
 			pxE( ".Popup:DeleteSettings",
 				L"This command clears %s settings and allows you to re-run the First-Time Wizard.  You will need to "
 				L"manually restart %s after this operation.\n\n"
@@ -222,12 +222,13 @@ static wxString JoinFiletypes( const wxChar** src )
 		if( !dest.IsEmpty() )
 			dest += L";";
 
-		dest += wxsFormat(L"*.%s", *src);
+		dest += pxsFmt(L"*.%s", *src);
 
-		#ifdef __LINUX__
-		// omgosh!  linux is CaSE SeNSiTiVE!!
-		dest += wxsFormat(L";*.%s", *src).MakeUpper();
-		#endif
+		if (wxFileName::IsCaseSensitive())
+		{
+			// omgosh!  the filesystem is CaSE SeNSiTiVE!!
+			dest += pxsFmt(L";*.%s", *src).ToUpper();
+		}
 
 		++src;
 	}
@@ -248,13 +249,13 @@ bool MainEmuFrame::_DoSelectIsoBrowser( wxString& result )
 	
 	wxArrayString isoFilterTypes;
 
-	isoFilterTypes.Add(wxsFormat(_("所有支持的 (%s)"), (isoSupportedLabel + L" .dump").c_str()));
+	isoFilterTypes.Add(pxsFmt(_("所有支持的 (%s)"), (isoSupportedLabel + L" .dump").c_str()));
 	isoFilterTypes.Add(isoSupportedList + L";*.dump");
 
-	isoFilterTypes.Add(wxsFormat(_("光碟镜像 (%s)"), isoSupportedLabel.c_str() ));
+	isoFilterTypes.Add(pxsFmt(_("光碟镜像 (%s)"), isoSupportedLabel.c_str() ));
 	isoFilterTypes.Add(isoSupportedList);
 
-	isoFilterTypes.Add(wxsFormat(_("扇区转储 (%s)"), L".dump" ));
+	isoFilterTypes.Add(pxsFmt(_("扇区转储 (%s)"), L".dump" ));
 	isoFilterTypes.Add(L"*.dump");
 
 	isoFilterTypes.Add(_("所有文件 (*.*)"));

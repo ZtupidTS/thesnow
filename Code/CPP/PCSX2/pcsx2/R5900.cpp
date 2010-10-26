@@ -26,6 +26,7 @@
 #include "R5900Exceptions.h"
 
 #include "Hardware.h"
+#include "IPU/IPUdma.h"
 
 #include "Elfheader.h"
 #include "CDVD/CDVD.h"
@@ -70,7 +71,7 @@ void cpuReset()
 	fpuRegs.fprc[0]			= 0x00002e00; // fpu Revision..
 	fpuRegs.fprc[31]		= 0x01000001; // fpu Status/Control
 
-	g_nextBranchCycle = cpuRegs.cycle + 4;
+	g_nextEventCycle = cpuRegs.cycle + 4;
 	EEsCycle = 0;
 	EEoCycle = cpuRegs.cycle;
 
@@ -87,10 +88,16 @@ void cpuReset()
 	ElfCRC = 0;
 	DiscSerial = L"";
 	ElfEntry = -1;
+
+	// FIXME: LastELF should be reset on media changes as well as on CPU resets, in
+	// the very unlikely case that a user swaps to another media source that "looks"
+	// the same (identical ELF names) but is actually different (devs actually could
+	// run into this while testing minor binary hacked changes to ISO images, which
+	// is why I found out about this) --air
 	LastELF = L"";
 }
 
-__releaseinline void cpuException(u32 code, u32 bd)
+__ri void cpuException(u32 code, u32 bd)
 {
 	bool errLevel2, checkStatus;
 	u32 offset;
@@ -123,7 +130,7 @@ __releaseinline void cpuException(u32 code, u32 bd)
 			//Reset / NMI
 			cpuRegs.pc = 0xBFC00000;
 			Console.Warning("Reset request");
-			UpdateCP0Status();
+			cpuUpdateOperationMode();
 			return;
 		}
 		else if((code & 0x38000) == 0x10000)
@@ -160,7 +167,7 @@ __releaseinline void cpuException(u32 code, u32 bd)
 	else
 		cpuRegs.pc = 0xBFC00200 + offset;
 
-	UpdateCP0Status();
+	cpuUpdateOperationMode();
 }
 
 void cpuTlbMiss(u32 addr, u32 bd, u32 excode)
@@ -182,14 +189,14 @@ void cpuTlbMiss(u32 addr, u32 bd, u32 excode)
 		cpuRegs.CP0.n.EPC = cpuRegs.pc - 4;
 	}
 
-	if ((cpuRegs.CP0.n.Status.val & 0x1) == 0) {
+	if (!cpuRegs.CP0.n.Status.b.IE) {
 		cpuRegs.pc = 0x80000000;
 	} else {
 		cpuRegs.pc = 0x80000180;
 	}
 
 	cpuRegs.CP0.n.Status.b.EXL = 1;
-	UpdateCP0Status();
+	cpuUpdateOperationMode();
 //	Log=1; varLog|= 0x40000000;
 }
 
@@ -201,54 +208,27 @@ void cpuTlbMissW(u32 addr, u32 bd) {
 	cpuTlbMiss(addr, bd, EXC_CODE_TLBS);
 }
 
-__forceinline void _cpuTestMissingINTC() {
-	if (cpuRegs.CP0.n.Status.val & 0x400 &&
-		psHu32(INTC_STAT) & psHu32(INTC_MASK)) {
-		if ((cpuRegs.interrupt & (1 << 30)) == 0) {
-			Console.Error("*PCSX2*: Error, missing INTC Interrupt");
-		}
-	}
-}
-
-__forceinline void _cpuTestMissingDMAC() {
-	if (cpuRegs.CP0.n.Status.val & 0x800 &&
-		(psHu16(0xe012) & psHu16(0xe010) ||
-		 psHu16(0xe010) & 0x8000)) {
-		if ((cpuRegs.interrupt & (1 << 31)) == 0) {
-			Console.Error("*PCSX2*: Error, missing DMAC Interrupt");
-		}
-	}
-}
-
-void cpuTestMissingHwInts() {
-	if ((cpuRegs.CP0.n.Status.val & 0x10007) == 0x10001) {
-		_cpuTestMissingINTC();
-		_cpuTestMissingDMAC();
-//		_cpuTestTIMR();
-	}
-}
-
 // sets a branch test to occur some time from an arbitrary starting point.
-__forceinline void cpuSetNextBranch( u32 startCycle, s32 delta )
+__fi void cpuSetNextEvent( u32 startCycle, s32 delta )
 {
 	// typecast the conditional to signed so that things don't blow up
 	// if startCycle is greater than our next branch cycle.
 
-	if( (int)(g_nextBranchCycle - startCycle) > delta )
+	if( (int)(g_nextEventCycle - startCycle) > delta )
 	{
-		g_nextBranchCycle = startCycle + delta;
+		g_nextEventCycle = startCycle + delta;
 	}
 }
 
 // sets a branch to occur some time from the current cycle
-__forceinline void cpuSetNextBranchDelta( s32 delta )
+__fi void cpuSetNextEventDelta( s32 delta )
 {
-	cpuSetNextBranch( cpuRegs.cycle, delta );
+	cpuSetNextEvent( cpuRegs.cycle, delta );
 }
 
-// tests the cpu cycle agaisnt the given start and delta values.
+// tests the cpu cycle against the given start and delta values.
 // Returns true if the delta time has passed.
-__forceinline int cpuTestCycle( u32 startCycle, s32 delta )
+__fi int cpuTestCycle( u32 startCycle, s32 delta )
 {
 	// typecast the conditional to signed so that things don't explode
 	// if the startCycle is ahead of our current cpu cycle.
@@ -257,18 +237,18 @@ __forceinline int cpuTestCycle( u32 startCycle, s32 delta )
 }
 
 // tells the EE to run the branch test the next time it gets a chance.
-__forceinline void cpuSetBranch()
+__fi void cpuSetEvent()
 {
-	g_nextBranchCycle = cpuRegs.cycle;
+	g_nextEventCycle = cpuRegs.cycle;
 }
 
-__forceinline void cpuClearInt( uint i )
+__fi void cpuClearInt( uint i )
 {
 	jASSUME( i < 32 );
 	cpuRegs.interrupt &= ~(1 << i);
 }
 
-static __forceinline void TESTINT( u8 n, void (*callback)() )
+static __fi void TESTINT( u8 n, void (*callback)() )
 {
 	if( !(cpuRegs.interrupt & (1 << n)) ) return;
 
@@ -278,12 +258,14 @@ static __forceinline void TESTINT( u8 n, void (*callback)() )
 		callback();
 	}
 	else
-		cpuSetNextBranch( cpuRegs.sCycle[n], cpuRegs.eCycle[n] );
+		cpuSetNextEvent( cpuRegs.sCycle[n], cpuRegs.eCycle[n] );
 }
 
-static __forceinline void _cpuTestInterrupts()
+// [TODO] move this function to LegacyDmac.cpp, and remove most of the DMAC-related headers from
+// being included into R5900.cpp.
+static __fi void _cpuTestInterrupts()
 {
-	if (!dmacRegs->ctrl.DMAE || psHu8(DMAC_ENABLER+2) == 1)
+	if (!dmacRegs.ctrl.DMAE || (psHu8(DMAC_ENABLER+2) & 1))
 	{
 		//Console.Write("DMAC Disabled or suspended");
 		return;
@@ -315,13 +297,13 @@ static __forceinline void _cpuTestInterrupts()
 	}
 }
 
-static __forceinline void _cpuTestTIMR()
+static __fi void _cpuTestTIMR()
 {
 	cpuRegs.CP0.n.Count += cpuRegs.cycle-s_iLastCOP0Cycle;
 	s_iLastCOP0Cycle = cpuRegs.cycle;
 
 	// fixme: this looks like a hack to make up for the fact that the TIMR
-	// doesn't yet have a proper mechanism for setting itself up on a nextBranchCycle.
+	// doesn't yet have a proper mechanism for setting itself up on a nextEventCycle.
 	// A proper fix would schedule the TIMR to trigger at a specific cycle anytime
 	// the Count or Compare registers are modified.
 
@@ -333,7 +315,7 @@ static __forceinline void _cpuTestTIMR()
 	}
 }
 
-static __forceinline void _cpuTestPERF()
+static __fi void _cpuTestPERF()
 {
 	// Perfs are updated when read by games (COP0's MFC0/MTC0 instructions), so we need
 	// only update them at semi-regular intervals to keep cpuRegs.cycle from wrapping
@@ -352,24 +334,33 @@ static bool cpuIntsEnabled(int Interrupt)
 {
 	bool IntType = !!(cpuRegs.CP0.n.Status.val & Interrupt); //Choose either INTC or DMAC, depending on what called it
 
-	return cpuRegs.CP0.n.Status.b.EIE && cpuRegs.CP0.n.Status.b.IE &&
-		!cpuRegs.CP0.n.Status.b.EXL && (cpuRegs.CP0.n.Status.b.ERL == 0) && IntType;
+	return IntType && cpuRegs.CP0.n.Status.b.EIE && cpuRegs.CP0.n.Status.b.IE &&
+		!cpuRegs.CP0.n.Status.b.EXL && (cpuRegs.CP0.n.Status.b.ERL == 0);
 }
 
-// if cpuRegs.cycle is greater than this cycle, should check cpuBranchTest for updates
-u32 g_nextBranchCycle = 0;
+// if cpuRegs.cycle is greater than this cycle, should check cpuEventTest for updates
+u32 g_nextEventCycle = 0;
 
 // Shared portion of the branch test, called from both the Interpreter
 // and the recompiler.  (moved here to help alleviate redundant code)
-__forceinline void _cpuBranchTest_Shared()
+__fi void _cpuEventTest_Shared()
 {
 	ScopedBool etest(eeEventTestIsActive);
-	g_nextBranchCycle = cpuRegs.cycle + eeWaitCycles;
+	g_nextEventCycle = cpuRegs.cycle + eeWaitCycles;
+
+	// ---- INTC / DMAC (CPU-level Exceptions) -----------------
+	// Done first because exceptions raised during event tests need to be postponed a few
+	// cycles (fixes Grandia II [PAL], which does a spin loop on a vsync and expects to
+	// be able to read the value before the exception handler clears it).
+
+	uint mask = intcInterrupt() | dmacInterrupt();
+	if (cpuIntsEnabled(mask)) cpuException(mask, cpuRegs.branch);
+
 
 	// ---- Counters -------------
 	// Important: the vsync counter must be the first to be checked.  It includes emulation
 	// escape/suspend hooks, and it's really a good idea to suspend/resume emulation before
-	// doing any actual meaninful branchtest logic.
+	// doing any actual meaningful branchtest logic.
 
 	if( cpuTestCycle( nextsCounter, nextCounter ) )
 	{
@@ -382,67 +373,40 @@ __forceinline void _cpuBranchTest_Shared()
 	_cpuTestTIMR();
 
 	// ---- Interrupts -------------
-	// Handles all interrupts except 30 and 31, which are handled later.
+	// These are basically just DMAC-related events, which also piggy-back the same bits as
+	// the PS2's own DMA channel IRQs and IRQ Masks.
 
-	if( cpuRegs.interrupt & ~(3<<30) )
-		_cpuTestInterrupts();
+	_cpuTestInterrupts();
 
 	// ---- IOP -------------
-	// * It's important to run a psxBranchTest before calling ExecuteBlock. This
+	// * It's important to run a iopEventTest before calling ExecuteBlock. This
 	//   is because the IOP does not always perform branch tests before returning
 	//   (during the prev branch) and also so it can act on the state the EE has
 	//   given it before executing any code.
 	//
 	// * The IOP cannot always be run.  If we run IOP code every time through the
-	//   cpuBranchTest, the IOP generally starts to run way ahead of the EE.
+	//   cpuEventTest, the IOP generally starts to run way ahead of the EE.
 
 	EEsCycle += cpuRegs.cycle - EEoCycle;
 	EEoCycle = cpuRegs.cycle;
 
 	if( EEsCycle > 0 )
-		iopBranchAction = true;
+		iopEventAction = true;
 
-	psxBranchTest();
+	iopEventTest();
 
-	if( iopBranchAction )
+	if( iopEventAction )
 	{
 		//if( EEsCycle < -450 )
 		//	Console.WriteLn( " IOP ahead by: %d cycles", -EEsCycle );
 
-		// Experimental and Probably Unnecessry Logic -->
-		// Check if the EE already has an exception pending, and if so we shouldn't
-		// waste too much time updating the IOP.  Theory being that the EE and IOP should
-		// run closely in sync during raised exception events.  But in practice it didn't
-		// seem to make much of a difference.
+		EEsCycle = psxCpu->ExecuteBlock( EEsCycle );
 
-		// Note: The IOP is very good about chaining blocks together so it tends to
-		// run lots of cycles, even with only 32 (4 IOP) cycles specified here.  That's
-		// probably why it doesn't improve sync much.
-
-		/*bool eeExceptPending = cpuIntsEnabled() &&
-			//( cpuRegs.CP0.n.Status.b.EIE && cpuRegs.CP0.n.Status.b.IE && (cpuRegs.CP0.n.Status.b.ERL == 0) ) &&
-			//( (cpuRegs.CP0.n.Status.val & 0x10007) == 0x10001 ) &&
-			( (cpuRegs.interrupt & (3<<30)) != 0 );
-
-		if( eeExceptPending )
-		{
-			// ExecuteBlock returns a negative value, so subtract it from the cycle count
-			// specified to get the total cycles processed! :D
-			int cycleCount = std::min( EEsCycle, (s32)(eeWaitCycles>>4) );
-			int cyclesRun = cycleCount - psxCpu->ExecuteBlock( cycleCount );
-			EEsCycle -= cyclesRun;
-			//Console.Warning( "IOP Exception-Pending Execution -- EEsCycle: %d", EEsCycle );
-		}
-		else*/
-		{
-			EEsCycle = psxCpu->ExecuteBlock( EEsCycle );
-		}
-
-		iopBranchAction = false;
+		iopEventAction = false;
 	}
 
 	// ---- VU0 -------------
-	// We're in a BranchTest.  All dynarec registers are flushed
+	// We're in a EventTest.  All dynarec registers are flushed
 	// so there is no need to freeze registers here.
 	CpuVU0->ExecuteBlock();
 
@@ -457,61 +421,39 @@ __forceinline void _cpuBranchTest_Shared()
 		// EE's running way ahead of the IOP still, so we should branch quickly to give the
 		// IOP extra timeslices in short order.
 
-		cpuSetNextBranchDelta( 48 );
-		//Console.Warning( "EE ahead of the IOP -- Rapid Branch!  %d", EEsCycle );
+		cpuSetNextEventDelta( 48 );
+		//Console.Warning( "EE ahead of the IOP -- Rapid Event!  %d", EEsCycle );
 	}
 
 	// The IOP could be running ahead/behind of us, so adjust the iop's next branch by its
 	// relative position to the EE (via EEsCycle)
-	cpuSetNextBranchDelta( ((g_psxNextBranchCycle-psxRegs.cycle)*8) - EEsCycle );
+	cpuSetNextEventDelta( ((g_iopNextEventCycle-psxRegs.cycle)*8) - EEsCycle );
 
 	// Apply the hsync counter's nextCycle
-	cpuSetNextBranch( hsyncCounter.sCycle, hsyncCounter.CycleT );
+	cpuSetNextEvent( hsyncCounter.sCycle, hsyncCounter.CycleT );
 
 	// Apply vsync and other counter nextCycles
-	cpuSetNextBranch( nextsCounter, nextCounter );
-
-	// ---- INTC / DMAC Exceptions -----------------
-	// Raise the INTC and DMAC interrupts here, which usually throw exceptions.
-	// This should be done last since the IOP and the VU0 can raise several EE
-	// exceptions.
-
-	//if ((cpuRegs.CP0.n.Status.val & 0x10007) == 0x10001)
-	if( cpuIntsEnabled(0x400) ) TESTINT(30, intcInterrupt);
-	if( cpuIntsEnabled(0x800) ) TESTINT(31, dmacInterrupt);
+	cpuSetNextEvent( nextsCounter, nextCounter );
 }
 
-__releaseinline void cpuTestINTCInts()
+__ri void cpuTestINTCInts()
 {
-	// Check the internal Event System -- if one's already scheduled then don't bother:
-	if( cpuRegs.interrupt & (1 << 30) ) return;
-
 	// Check the COP0's Status register for general interrupt disables, and the 0x400
 	// bit (which is INTC master toggle).
 	if( !cpuIntsEnabled(0x400) ) return;
 
 	if( (psHu32(INTC_STAT) & psHu32(INTC_MASK)) == 0 ) return;
 
-	cpuRegs.interrupt|= 1 << 30;
-	cpuRegs.sCycle[30] = cpuRegs.cycle;
-	cpuRegs.eCycle[30] = 4;  //Needs to be 4 to account for bus delays/pipelines etc
-
-	// only set the next branch delta if the exception won't be handled for
-	// the current branch...
-	if( !eeEventTestIsActive )
-		cpuSetNextBranchDelta( 4 );
-	else if(psxCycleEE > 0)
+	cpuSetNextEventDelta( 4 );
+	if(eeEventTestIsActive && (iopCycleEE > 0))
 	{
-		psxBreak += psxCycleEE;		// record the number of cycles the IOP didn't run.
-		psxCycleEE = 0;
+		iopBreak += iopCycleEE;		// record the number of cycles the IOP didn't run.
+		iopCycleEE = 0;
 	}
 }
 
-__forceinline void cpuTestDMACInts()
+__fi void cpuTestDMACInts()
 {
-	// Check the internal Event System -- if one's already scheduled then don't bother:
-	if ( cpuRegs.interrupt & (1 << 31) ) return;
-
 	// Check the COP0's Status register for general interrupt disables, and the 0x800
 	// bit (which is the DMAC master toggle).
 	if( !cpuIntsEnabled(0x800) ) return;
@@ -519,35 +461,28 @@ __forceinline void cpuTestDMACInts()
 	if ( ( (psHu16(0xe012) & psHu16(0xe010)) == 0) &&
 		 ( (psHu16(0xe010) & 0x8000) == 0) ) return;
 
-	cpuRegs.interrupt|= 1 << 31;
-	cpuRegs.sCycle[31] = cpuRegs.cycle;
-	cpuRegs.eCycle[31] = 4;  //Needs to be 4 to account for bus delays/pipelines etc
-
-	// only set the next branch delta if the exception won't be handled for
-	// the current branch...
-	if( !eeEventTestIsActive )
-		cpuSetNextBranchDelta( 4 );
-	else if(psxCycleEE > 0)
+	cpuSetNextEventDelta( 4 );
+	if(eeEventTestIsActive && (iopCycleEE > 0))
 	{
-		psxBreak += psxCycleEE;		// record the number of cycles the IOP didn't run.
-		psxCycleEE = 0;
+		iopBreak += iopCycleEE;		// record the number of cycles the IOP didn't run.
+		iopCycleEE = 0;
 	}
 }
 
-__forceinline void cpuTestTIMRInts() {
+__fi void cpuTestTIMRInts() {
 	if ((cpuRegs.CP0.n.Status.val & 0x10007) == 0x10001) {
 		_cpuTestPERF();
 		_cpuTestTIMR();
 	}
 }
 
-__forceinline void cpuTestHwInts() {
+__fi void cpuTestHwInts() {
 	cpuTestINTCInts();
 	cpuTestDMACInts();
 	cpuTestTIMRInts();
 }
 
-__forceinline void CPU_INT( EE_EventType n, s32 ecycle)
+__fi void CPU_INT( EE_EventType n, s32 ecycle)
 {
 	if( n != 2 && cpuRegs.interrupt & (1<<n) ){ //2 is Gif, and every path 3 masking game triggers this :/
 		DevCon.Warning( "***** EE > Twice-thrown int on IRQ %d", n );
@@ -564,16 +499,16 @@ __forceinline void CPU_INT( EE_EventType n, s32 ecycle)
 
 	// Interrupt is happening soon: make sure both EE and IOP are aware.
 
-	if( ecycle <= 28 && psxCycleEE > 0 )
+	if( ecycle <= 28 && iopCycleEE > 0 )
 	{
 		// If running in the IOP, force it to break immediately into the EE.
 		// the EE's branch test is due to run.
 
-		psxBreak += psxCycleEE;		// record the number of cycles the IOP didn't run.
-		psxCycleEE = 0;
+		iopBreak += iopCycleEE;		// record the number of cycles the IOP didn't run.
+		iopCycleEE = 0;
 	}
 
-	cpuSetNextBranchDelta( cpuRegs.eCycle[n] );
+	cpuSetNextEventDelta( cpuRegs.eCycle[n] );
 }
 
 // Called from recompilers; __fastcall define is mandatory.

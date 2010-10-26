@@ -55,7 +55,7 @@ void iDumpPsxRegisters(u32 startpc, u32 temp)
 
 	for(i = 0; i < 34; i+=2) __Log("%spsx%s: %x %x", pstr, disRNameGPR[i], psxRegs.GPR.r[i], psxRegs.GPR.r[i+1]);
 
-	DbgCon.WriteLn("%scycle: %x %x %x; counters %x %x", pstr, psxRegs.cycle, g_psxNextBranchCycle, EEsCycle,
+	DbgCon.WriteLn("%scycle: %x %x %x; counters %x %x", pstr, psxRegs.cycle, g_iopNextEventCycle, EEsCycle,
 		psxNextsCounter, psxNextCounter);
 
 	DbgCon.WriteLn(wxsFormat(L"psxdma%d ", 2) + hw_dma(2).desc());
@@ -109,7 +109,7 @@ void iDumpRegisters(u32 startpc, u32 temp)
 	__Log("%svfACC: %x %x %x %x", pstr, VU0.ACC.UL[3], VU0.ACC.UL[2], VU0.ACC.UL[1], VU0.ACC.UL[0]);
 	__Log("%sLO: %x_%x_%x_%x, HI: %x_%x_%x_%x", pstr, cpuRegs.LO.UL[3], cpuRegs.LO.UL[2], cpuRegs.LO.UL[1], cpuRegs.LO.UL[0],
 	cpuRegs.HI.UL[3], cpuRegs.HI.UL[2], cpuRegs.HI.UL[1], cpuRegs.HI.UL[0]);
-	__Log("%sCycle: %x %x, Count: %x", pstr, cpuRegs.cycle, g_nextBranchCycle, cpuRegs.CP0.n.Count);
+	__Log("%sCycle: %x %x, Count: %x", pstr, cpuRegs.cycle, g_nextEventCycle, cpuRegs.CP0.n.Count);
 
 	iDumpPsxRegisters(psxRegs.pc, temp);
 
@@ -129,10 +129,10 @@ void iDumpRegisters(u32 startpc, u32 temp)
 	__Log("gif: %x %x %x", psHu32(0x3000), psHu32(0x3010), psHu32(0x3020));
 
 	for(i = 0; i < ArraySize(dmacs); ++i) {
-		DMACh* p = (DMACh*)(PS2MEM_HW+dmacs[i]);
+		DMACh* p = (DMACh*)(&eeHw[dmacs[i]]);
 		__Log("dma%d c%x m%x q%x t%x s%x", i, p->chcr._u32, p->madr, p->qwc, p->tadr, p->sadr);
 	}
-	__Log(L"dmac " + dmacRegs->ctrl.desc() + L" " + dmacRegs->stat.desc() + L" " + dmacRegs->rbsr.desc() + L" " + dmacRegs->rbor.desc());
+	__Log(L"dmac " + dmacRegs.ctrl.desc() + L" " + dmacRegs.stat.desc() + L" " + dmacRegs.rbsr.desc() + L" " + dmacRegs.rbor.desc());
 	__Log(L"intc " + intcRegs->stat.desc() + L" " +  intcRegs->mask.desc());
 	__Log("sif: %x %x %x %x %x", psHu32(SBUS_F200), psHu32(SBUS_F220), psHu32(SBUS_F230), psHu32(SBUS_F240), psHu32(SBUS_F260));
 #endif

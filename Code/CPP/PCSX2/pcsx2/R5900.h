@@ -50,6 +50,8 @@ extern s32 EEsCycle;
 extern u32 EEoCycle;
 
 union GPR_reg {   // Declare union type GPR register
+	u128 UQ;
+	s128 SQ;
 	u64 UD[2];      //128 bits
 	s64 SD[2];
 	u32 UL[4];
@@ -242,7 +244,7 @@ extern __aligned16 cpuRegisters cpuRegs;
 extern __aligned16 fpuRegisters fpuRegs;
 extern __aligned16 tlbs tlb[48];
 
-extern u32 g_nextBranchCycle;
+extern u32 g_nextEventCycle;
 extern bool eeEventTestIsActive;
 extern u32 s_iLastCOP0Cycle;
 extern u32 s_iLastPERFCycle[2];
@@ -401,8 +403,8 @@ enum EE_EventType
 };
 
 extern void CPU_INT( EE_EventType n, s32 ecycle );
-extern void intcInterrupt();
-extern void dmacInterrupt();
+extern uint intcInterrupt();
+extern uint dmacInterrupt();
 
 
 extern void cpuInit();
@@ -413,12 +415,12 @@ extern void cpuTlbMissW(u32 addr, u32 bd);
 extern void cpuTestHwInts();
 extern void cpuClearInt(uint n);
 
-extern void cpuSetNextBranch( u32 startCycle, s32 delta );
-extern void cpuSetNextBranchDelta( s32 delta );
+extern void cpuSetNextEvent( u32 startCycle, s32 delta );
+extern void cpuSetNextEventDelta( s32 delta );
 extern int  cpuTestCycle( u32 startCycle, s32 delta );
-extern void cpuSetBranch();
+extern void cpuSetEvent();
 
-extern void _cpuBranchTest_Shared();		// for internal use by the Dynarecs and Ints inside R5900:
+extern void _cpuEventTest_Shared();		// for internal use by the Dynarecs and Ints inside R5900:
 
 extern void cpuTestINTCInts();
 extern void cpuTestDMACInts();

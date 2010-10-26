@@ -25,6 +25,7 @@
 #include "GS.h"
 #include "Linux.h"
 #include "zerogs.h"
+#include "GLWin.h"
 
 #include <map>
 
@@ -32,6 +33,7 @@ extern u32 THR_KeyEvent; // value for passing out key events beetwen threads
 extern bool THR_bShift;
 
 static map<string, confOptsStruct> mapConfOpts;
+static gameHacks tempHacks;
 
 void CALLBACK GSkeyEvent(keyEvent *ev)
 {
@@ -51,7 +53,7 @@ void CALLBACK GSkeyEvent(keyEvent *ev)
 					break;
 
 				case XK_Escape:
-					if (conf.fullscreen()) GSclose();
+                    if (conf.fullscreen()) GLWin.ToggleFullscreen();
 					break;
 
 				case XK_Shift_L:
@@ -64,6 +66,10 @@ void CALLBACK GSkeyEvent(keyEvent *ev)
 				case XK_Alt_R:
 					bAlt = true;
 					break;
+
+                case XK_Return:
+                    if (bAlt)
+                        GLWin.ToggleFullscreen();
 			}
 			break;
 
@@ -91,7 +97,7 @@ void add_map_entry(u32 option, const char *key, const char *desc)
 	mapConfOpts[key] = confOpts;
 }
 
-void CreateGameHackTable(GtkWidget *treeview)
+void CreateGameHackTable(GtkWidget *treeview, gameHacks hacks)
 {
 	char descbuf[255];
 	bool itval;
@@ -126,34 +132,51 @@ void CreateGameHackTable(GtkWidget *treeview)
 	mapConfOpts.clear();
 
 	add_map_entry(GAME_TEXTURETARGS, "00000001", "Tex Target checking - 00000001\nLego Racers");
-	add_map_entry(GAME_AUTORESET, "00000002", "Auto reset targs - 00000002\nShadow Hearts, Samurai Warriors.  Use when game is slow and toggling AA fixes it.");
-	add_map_entry(GAME_NOTARGETRESOLVE, "00000010", "No target resolves - 00000010\nStops all resolving of targets.  Try this first for really slow games. Dark Cloud 1");
-	add_map_entry(GAME_EXACTCOLOR, "00000020", "Exact color testing - 00000020\nFixes overbright or shadow/black artifacts (Crash 'n Burn).");
-	add_map_entry(GAME_NOCOLORCLAMP, "00000040", "No color clamping - 00000040\nSpeeds up games, but might be too bright or too dim.");
-	add_map_entry(GAME_NOALPHAFAIL, "00000100", "Alpha Fail hack - 00000100\nFor Sonic Unleashed, Shadow the Hedgehog, Ghost in the Shell. Remove vertical stripes or other coloring artefacts. Break Persona 4 and MGS3");
+	add_map_entry(GAME_AUTORESET, "00000002", "Auto reset targs - 00000002\nUse when game is slow and toggling AA fixes it. Samurai Warriors. (Automatically on for Shadow Hearts)");
+	add_map_entry(GAME_INTERLACE2X, "00000004", "Interlace 2X - 00000004\nFixes 2x bigger screen. Gradius 3.");
+	//GAME_TEXAHACK (still implemented)
+	add_map_entry(GAME_NOTARGETRESOLVE, "00000010", "No target resolves - 00000010\nStops all resolving of targets.  Try this first for really slow games. (Automatically on for Dark Cloud 1.)");
+	add_map_entry(GAME_EXACTCOLOR, "00000020", "Exact color testing - 00000020\nFixes overbright or shadow/black artifacts. Crash 'n Burn.");
+	//add_map_entry(GAME_NOCOLORCLAMP, "00000040", "No color clamping - 00000040\nSpeeds up games, but might be too bright or too dim.");
+	//GAME_FFXHACK
+	add_map_entry(GAME_NOALPHAFAIL, "00000100", "Alpha Fail hack - 00000100\nRemove vertical stripes or other coloring artifacts. Breaks Persona 4 and MGS3. (Automatically on for Sonic Unleashed, Shadow the Hedgehog, & Ghost in the Shell.)");
 	add_map_entry(GAME_NODEPTHUPDATE, "00000200", "Disable depth updates - 00000200");
-	add_map_entry(GAME_QUICKRESOLVE1, "00000400", "Resolve Hack #1 - 00000400\nKingdom Hearts.  Speeds some games.");
-	add_map_entry(GAME_NOQUICKRESOLVE, "00000800", "Resolve Hack #2 - 00000800\nShadow Hearts, Urbz. Destroy FFX");
+	add_map_entry(GAME_QUICKRESOLVE1, "00000400", "Resolve Hack #1 - 00000400\n Speeds some games. Kingdom Hearts.");
+	add_map_entry(GAME_NOQUICKRESOLVE, "00000800", "Resolve Hack #2 - 00000800\nShadow Hearts, Urbz. Destroys FFX.");
 	add_map_entry(GAME_NOTARGETCLUT, "00001000", "No target CLUT - 00001000\nResident Evil 4, or foggy scenes.");
-	add_map_entry(GAME_NOSTENCIL, "00002000", "Disable stencil buffer - 00002000\nUsually safe to do for simple scenes. Harvest Moon");
+	add_map_entry(GAME_NOSTENCIL, "00002000", "Disable stencil buffer - 00002000\nUsually safe to do for simple scenes. Harvest Moon.");
+	//GAME_VSSHACKOFF (still implemented)
 	add_map_entry(GAME_NODEPTHRESOLVE, "00008000", "No depth resolve - 00008000\nMight give z buffer artifacts.");
 	add_map_entry(GAME_FULL16BITRES, "00010000", "Full 16 bit resolution - 00010000\nUse when half the screen is missing.");
 	add_map_entry(GAME_RESOLVEPROMOTED, "00020000", "Resolve Hack #3 - 00020000\nNeopets");
-	add_map_entry(GAME_FASTUPDATE, "00040000", "Fast Update - 00040000\nOkami. Speeds some games. Needs for Sonic Unleashed");
+	add_map_entry(GAME_FASTUPDATE, "00040000", "Fast Update - 00040000\n Speeds some games. Needed for Sonic Unleashed. Okami.");
 	add_map_entry(GAME_NOALPHATEST, "00080000", "Disable alpha testing - 00080000");
 	add_map_entry(GAME_DISABLEMRTDEPTH, "00100000", "Enable Multiple RTs - 00100000");
-	add_map_entry(GAME_XENOSPECHACK, "01000000", "Specular Highlights - 01000000\nMakes Xenosaga and Okage graphics faster by removing highlights");
-	add_map_entry(GAME_PARTIALPOINTERS, "02000000", "Partial targets - 02000000");
+	//GAME_32BITTARGS
+	//GAME_PATH3HACK
+	//GAME_DOPARALLELCTX
+	add_map_entry(GAME_XENOSPECHACK, "01000000", "Specular Highlights - 01000000\nMakes graphics faster by removing highlights. (Automatically on for Xenosaga, Okami, & Okage.)");
+	//add_map_entry(GAME_PARTIALPOINTERS, "02000000", "Partial targets - 02000000");
 	add_map_entry(GAME_PARTIALDEPTH, "04000000", "Partial depth - 04000000");
-	add_map_entry(GAME_GUSTHACK, "10000000", "Gust fix, made gustgame more clean and fast - 10000000");
-	add_map_entry(GAME_NOLOGZ, "20000000", "No logarithmic Z, could decrease number of Z-artefacts - 20000000");
-	add_map_entry(GAME_INTERLACE2X, "00000004", "Interlace 2X - 00000004\nFixes 2x bigger screen (Gradius 3).");
+	//GAME_REGETHACK (commented out in code)
+	add_map_entry(GAME_GUSTHACK, "10000000", "Gust fix - 10000000. Makes gust games cleaner and faster. (Automatically on for most Gust games)");
+	add_map_entry(GAME_NOLOGZ, "20000000", "No logarithmic Z - 20000000. Could decrease number of Z-artifacts.");
+	add_map_entry(GAME_AUTOSKIPDRAW, "40000000", "Remove blur effect on some games\nSlow games.");
 
 	for (map<string, confOptsStruct>::iterator it = mapConfOpts.begin(); it != mapConfOpts.end(); ++it)
 	{
 		gtk_list_store_append(treestore, &treeiter);//new row
-		itval = (conf.settings()._u32 & it->second.value) ? true : false;
-		snprintf(descbuf, 254, "%s", it->second.desc);
+		itval = (hacks._u32 & it->second.value) ? true : false;
+		
+		if (conf.def_hacks._u32 & it->second.value)
+		{
+			snprintf(descbuf, 254, "*%s", it->second.desc);
+		}
+		else
+		{
+			snprintf(descbuf, 254, "%s", it->second.desc);
+		}
+		
 		gtk_list_store_set(treestore, &treeiter, 0, itval, 1, descbuf, -1);
 	}
 
@@ -166,7 +189,7 @@ void CreateGameHackTable(GtkWidget *treeview)
 	//------treeview done -------//
 }
 
-void SaveGameHackTable(GtkWidget *treeview)
+void SaveGameHackTable(GtkWidget *treeview, gameHacks& hacks)
 {
 	GtkTreeModel *treemodel;
 	GtkTreeIter treeiter;
@@ -176,19 +199,17 @@ void SaveGameHackTable(GtkWidget *treeview)
 	treemodel = gtk_tree_view_get_model(GTK_TREE_VIEW(treeview));
 	gtk_tree_model_get_iter_first(treemodel, &treeiter);
 
-	conf.hacks._u32 = 0;
+	hacks._u32 = 0;
 
 	for (map<string, confOptsStruct>::iterator it = mapConfOpts.begin(); it != mapConfOpts.end(); ++it)
 	{
 		treeoptval = false;
 		gtk_tree_model_get(treemodel, &treeiter, 0, &treeoptval, -1);
 
-		if (treeoptval) conf.hacks._u32 |= it->second.value;
+		if (treeoptval) hacks._u32 |= it->second.value;
 
 		gtk_tree_model_iter_next(treemodel, &treeiter);
 	}
-
-	GSsetGameCRC(0, conf.hacks._u32);
 
 	//---------- done getting advanced options ---------//
 }
@@ -204,6 +225,42 @@ void OnToggle_advopts(GtkCellRendererToggle *cell, gchar *path, gpointer user_da
 	gtk_list_store_set(GTK_LIST_STORE(user_data), &treeiter, 0, val, -1);
 }
 
+void DisplayAdvancedDialog()
+{
+	GtkWidget *dialog;
+	
+	GtkWidget *advanced_frame, *advanced_box;
+	GtkWidget *advanced_scroll;
+	GtkWidget *tree;
+				 
+	dialog = gtk_dialog_new();
+	gtk_window_set_title(GTK_WINDOW(dialog), "ZZOgl PG Advanced Config");
+	gtk_window_set_default_size(GTK_WINDOW(dialog), 600, 600);
+	gtk_window_set_modal(GTK_WINDOW(dialog), true);
+	
+	advanced_box = gtk_vbox_new(false, 5);
+	advanced_frame = gtk_frame_new("Advanced Settings:");
+	gtk_container_add(GTK_CONTAINER(advanced_frame), advanced_box);
+
+	tree = gtk_tree_view_new();
+
+	CreateGameHackTable(tree, tempHacks);
+
+	advanced_scroll = gtk_scrolled_window_new(NULL, NULL);
+
+	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(advanced_scroll), tree);
+	
+	gtk_box_pack_start(GTK_BOX(advanced_box), advanced_scroll, true, true, 2);
+	
+	gtk_container_add(GTK_CONTAINER(GTK_DIALOG(dialog)->vbox), advanced_frame);
+
+	gtk_widget_show_all(dialog);
+
+	gtk_dialog_run(GTK_DIALOG(dialog));
+	SaveGameHackTable(tree, tempHacks);
+	gtk_widget_destroy(dialog);
+}
+
 void DisplayDialog()
 {
 	int return_value;
@@ -212,19 +269,18 @@ void DisplayDialog()
 	GtkWidget *main_frame, *main_box;
 
 	GtkWidget *option_frame, *option_box;
-	GtkWidget *log_check;
-	GtkWidget *int_label, *int_box;
-	GtkWidget *bilinear_check, *bilinear_label;
-	GtkWidget *aa_label, *aa_box;
-	GtkWidget *wireframe_check, *avi_check;
-	GtkWidget *snap_label, *snap_box;
-	GtkWidget *size_label, *size_box;
-	GtkWidget *fullscreen_check, *widescreen_check;
+	GtkWidget *log_check, *dis_hacks_check;
+	GtkWidget *int_label, *int_box, *int_holder;
+	GtkWidget *bilinear_label, *bilinear_box, *bilinear_holder;
+	GtkWidget *aa_label, *aa_box, *aa_holder;
+	GtkWidget *snap_label, *snap_box, *snap_holder;
+	GtkWidget *fullscreen_label, *widescreen_check;
 
-	GtkWidget *advanced_frame, *advanced_box;
-	GtkWidget *advanced_scroll;
-	GtkWidget *tree;
-
+	
+	GtkWidget *advanced_button;
+	GtkWidget *separator;
+	GtkWidget *skipdraw_label, *skipdraw_text, *skipdraw_holder, *warning_label;
+	
 	if (!(conf.loaded())) LoadConfig();
 
 	/* Create the widgets */
@@ -238,54 +294,80 @@ void DisplayDialog()
 				 GTK_RESPONSE_ACCEPT,
 				 NULL);
 
-	log_check = gtk_check_button_new_with_label("Logging (For Debugging):");
+	log_check = gtk_check_button_new_with_label("Logging");
+	gtk_widget_set_tooltip_text(log_check, "Used for Debugging.");
 
-	int_label = gtk_label_new("Interlacing: (F5 to toggle)");
-
+	int_label = gtk_label_new("Interlacing:");
 	int_box = gtk_combo_box_new_text();
 
 	gtk_combo_box_append_text(GTK_COMBO_BOX(int_box), "No Interlacing");
 	gtk_combo_box_append_text(GTK_COMBO_BOX(int_box), "Interlace 0");
 	gtk_combo_box_append_text(GTK_COMBO_BOX(int_box), "Interlace 1");
 	gtk_combo_box_set_active(GTK_COMBO_BOX(int_box), conf.interlace);
+	gtk_widget_set_tooltip_text(int_box, "Toggled by pressing F5 when running.");
+	int_holder = gtk_hbox_new(false, 5);
+	gtk_box_pack_start(GTK_BOX(int_holder), int_label, false, false, 2);
+	gtk_box_pack_start(GTK_BOX(int_holder), int_box, false, false, 2);
 
-
-	bilinear_check = gtk_check_button_new_with_label("Bilinear Filtering (Shift + F5)");
-	bilinear_label = gtk_label_new("Best quality is off. Turn on for speed.");
-
-	aa_label = gtk_label_new("Anti-Aliasing for Higher Quality(F6)");
+	bilinear_label = gtk_label_new("Bilinear Filtering:");
+	bilinear_box = gtk_combo_box_new_text();
+	
+	gtk_combo_box_append_text(GTK_COMBO_BOX(bilinear_box), "Off");
+	gtk_combo_box_append_text(GTK_COMBO_BOX(bilinear_box), "Normal");
+	gtk_combo_box_append_text(GTK_COMBO_BOX(bilinear_box), "Forced");
+	gtk_combo_box_set_active(GTK_COMBO_BOX(bilinear_box), conf.bilinear);
+	gtk_widget_set_tooltip_text(bilinear_box, "Best quality is off. Turn on for speed. Toggled by pressing Shift + F5 when running.");
+	bilinear_holder = gtk_hbox_new(false, 5);
+	gtk_box_pack_start(GTK_BOX(bilinear_holder), bilinear_label, false, false, 2);
+	gtk_box_pack_start(GTK_BOX(bilinear_holder), bilinear_box, false, false, 2);
+	
+	aa_label = gtk_label_new("Anti-Aliasing:");
 	aa_box = gtk_combo_box_new_text();
 
-	gtk_combo_box_append_text(GTK_COMBO_BOX(aa_box), "1X - No Anti-Aliasing");
-	gtk_combo_box_append_text(GTK_COMBO_BOX(aa_box), "2X - Anti-Aliasing x 2");
-	gtk_combo_box_append_text(GTK_COMBO_BOX(aa_box), "4X - Anti-Aliasing x 4");
-	gtk_combo_box_append_text(GTK_COMBO_BOX(aa_box), "8X - Anti-Aliasing x 8");
-	gtk_combo_box_append_text(GTK_COMBO_BOX(aa_box), "16X - Anti-Aliasing x 16");
+	gtk_combo_box_append_text(GTK_COMBO_BOX(aa_box), "1X (None)");
+	gtk_combo_box_append_text(GTK_COMBO_BOX(aa_box), "2X");
+	gtk_combo_box_append_text(GTK_COMBO_BOX(aa_box), "4X");
+	gtk_combo_box_append_text(GTK_COMBO_BOX(aa_box), "8X");
+	gtk_combo_box_append_text(GTK_COMBO_BOX(aa_box), "16X");
 	gtk_combo_box_set_active(GTK_COMBO_BOX(aa_box), conf.aa);
-
-	wireframe_check = gtk_check_button_new_with_label("Wireframe Rendering(Shift + F6)");
-	avi_check = gtk_check_button_new_with_label("Capture Avi (as zerogs.avi)(F7)");
-
+	gtk_widget_set_tooltip_text(aa_box, "Toggled by pressing F6 when running.");
+	aa_holder = gtk_hbox_new(false, 5);
+	gtk_box_pack_start(GTK_BOX(aa_holder), aa_label, false, false, 2);
+	gtk_box_pack_start(GTK_BOX(aa_holder), aa_box, false, false, 2);
+	
 	snap_label = gtk_label_new("Snapshot format:");
 	snap_box = gtk_combo_box_new_text();
 	gtk_combo_box_append_text(GTK_COMBO_BOX(snap_box), "JPEG");
 	gtk_combo_box_append_text(GTK_COMBO_BOX(snap_box), "TIFF");
 	gtk_combo_box_set_active(GTK_COMBO_BOX(snap_box), conf.zz_options.tga_snap);
+	snap_holder = gtk_hbox_new(false, 5);
+	gtk_box_pack_start(GTK_BOX(snap_holder), snap_label, false, false, 2);
+	gtk_box_pack_start(GTK_BOX(snap_holder), snap_box, false, false, 2);
 
-	fullscreen_check = gtk_check_button_new_with_label("Fullscreen (Alt + Enter)");
 	widescreen_check = gtk_check_button_new_with_label("Widescreen");
+	gtk_widget_set_tooltip_text(widescreen_check, "Force a 4:3 ration when disabled");
+	fullscreen_label = gtk_label_new("Press Alt-Enter for Fullscreen.");
+	gtk_label_set_single_line_mode(GTK_LABEL(fullscreen_label), false);
+	  
+	advanced_button = gtk_button_new_with_label("Advanced...");
 
-	size_label = gtk_label_new("Default Window Size: (no speed impact)");
-
-	size_box = gtk_combo_box_new_text();
-
-	gtk_combo_box_append_text(GTK_COMBO_BOX(size_box), "640x480");
-	gtk_combo_box_append_text(GTK_COMBO_BOX(size_box), "800x600");
-	gtk_combo_box_append_text(GTK_COMBO_BOX(size_box), "1024x768");
-	gtk_combo_box_append_text(GTK_COMBO_BOX(size_box), "1280x960");
-
-	gtk_combo_box_set_active(GTK_COMBO_BOX(size_box), conf.zz_options.dimensions);
-
+	dis_hacks_check = gtk_check_button_new_with_label("Disable Automatic Hacks");
+	gtk_widget_set_tooltip_text(dis_hacks_check, "Used for testing how useful hacks that are on automatically are.");
+	
+#ifdef ZEROGS_DEVBUILD
+	separator = gtk_hseparator_new();
+	skipdraw_label = gtk_label_new("Skipdraw:");
+	skipdraw_text = gtk_entry_new();
+	warning_label = gtk_label_new("Experimental!!");
+	char buf[5];
+	sprintf(buf, "%d", conf.SkipDraw);
+	gtk_entry_set_text(GTK_ENTRY(skipdraw_text), buf);
+	skipdraw_holder = gtk_hbox_new(false, 5);
+	
+	gtk_box_pack_start(GTK_BOX(skipdraw_holder), skipdraw_label, false, false, 2);
+	gtk_box_pack_start(GTK_BOX(skipdraw_holder), skipdraw_text, false, false, 2);
+#endif
+	
 	main_box = gtk_hbox_new(false, 5);
 	main_frame = gtk_frame_new("ZZOgl PG Config");
 
@@ -294,47 +376,34 @@ void DisplayDialog()
 	option_box = gtk_vbox_new(false, 5);
 	option_frame = gtk_frame_new("");
 	gtk_container_add(GTK_CONTAINER(option_frame), option_box);
-
-	advanced_box = gtk_vbox_new(false, 5);
-	advanced_frame = gtk_frame_new("Advanced Settings:");
-	gtk_container_add(GTK_CONTAINER(advanced_frame), advanced_box);
-
-	tree = gtk_tree_view_new();
-
-	CreateGameHackTable(tree);
-
-	advanced_scroll = gtk_scrolled_window_new(NULL, NULL);
-
-	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(advanced_scroll), tree);
+	gtk_frame_set_shadow_type(GTK_FRAME(option_frame), GTK_SHADOW_NONE);
 
 	gtk_box_pack_start(GTK_BOX(option_box), log_check, false, false, 2);
-	gtk_box_pack_start(GTK_BOX(option_box), int_label, false, false, 2);
-	gtk_box_pack_start(GTK_BOX(option_box), int_box, false, false, 2);
-	gtk_box_pack_start(GTK_BOX(option_box), bilinear_check, false, false, 2);
-	gtk_box_pack_start(GTK_BOX(option_box), bilinear_label, false, false, 2);
-	gtk_box_pack_start(GTK_BOX(option_box), aa_label, false, false, 2);
-	gtk_box_pack_start(GTK_BOX(option_box), aa_box, false, false, 2);
-	gtk_box_pack_start(GTK_BOX(option_box), wireframe_check, false, false, 2);
-	gtk_box_pack_start(GTK_BOX(option_box), avi_check, false, false, 2);
-	gtk_box_pack_start(GTK_BOX(option_box), snap_label, false, false, 2);
-	gtk_box_pack_start(GTK_BOX(option_box), snap_box, false, false, 2);
-	gtk_box_pack_start(GTK_BOX(option_box), fullscreen_check, false, false, 2);
+	gtk_box_pack_start(GTK_BOX(option_box), bilinear_holder, false, false, 2);
+	gtk_box_pack_start(GTK_BOX(option_box), int_holder, false, false, 2);
+	gtk_box_pack_start(GTK_BOX(option_box), aa_holder, false, false, 2);
+	gtk_box_pack_start(GTK_BOX(option_box), snap_holder, false, false, 2);
 	gtk_box_pack_start(GTK_BOX(option_box), widescreen_check, false, false, 2);
-	gtk_box_pack_start(GTK_BOX(option_box), size_label, false, false, 2);
-	gtk_box_pack_start(GTK_BOX(option_box), size_box, false, false, 2);
-	gtk_box_pack_start(GTK_BOX(advanced_box), advanced_scroll, true, true, 2);
+	gtk_box_pack_start(GTK_BOX(option_box), advanced_button, false, false, 2);
+	gtk_box_pack_start(GTK_BOX(option_box), dis_hacks_check, false, false, 2);
+	
+#ifdef ZEROGS_DEVBUILD
+	gtk_box_pack_start(GTK_BOX(option_box), separator, false, false, 2);
+	gtk_box_pack_start(GTK_BOX(option_box), warning_label, false, false, 2);
+	gtk_box_pack_start(GTK_BOX(option_box), skipdraw_holder, false, false, 2);
+#endif
+
+	gtk_box_pack_start(GTK_BOX(option_box), fullscreen_label, false, false, 2);
+	
 	gtk_box_pack_start(GTK_BOX(main_box), option_frame, false, false, 2);
-	gtk_box_pack_start(GTK_BOX(main_box), advanced_frame, true, true, 2);
 
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(log_check), conf.log);
-	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(bilinear_check), conf.bilinear);
-	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(wireframe_check), (conf.wireframe()));
-	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(avi_check), (conf.captureAvi()));
-	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(fullscreen_check), (conf.fullscreen()));
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widescreen_check), (conf.widescreen()));
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dis_hacks_check), (conf.disableHacks));
 
 	gtk_container_add(GTK_CONTAINER(GTK_DIALOG(dialog)->vbox), main_frame);
-
+	g_signal_connect_swapped(GTK_OBJECT (advanced_button), "clicked", G_CALLBACK(DisplayAdvancedDialog), advanced_button);
+	tempHacks = conf.hacks;
 	gtk_widget_show_all(dialog);
 
 	return_value = gtk_dialog_run(GTK_DIALOG(dialog));
@@ -342,30 +411,30 @@ void DisplayDialog()
 	if (return_value == GTK_RESPONSE_ACCEPT)
 	{
 		ZZOptions fake_options;
-		SaveGameHackTable(tree);
 
 		if (gtk_combo_box_get_active(GTK_COMBO_BOX(int_box)) != -1)
 			conf.interlace = gtk_combo_box_get_active(GTK_COMBO_BOX(int_box));
 
 		if (gtk_combo_box_get_active(GTK_COMBO_BOX(aa_box)) != -1)
 			conf.aa = gtk_combo_box_get_active(GTK_COMBO_BOX(aa_box));
-
-		conf.negaa = 0;
-
-		if (gtk_combo_box_get_active(GTK_COMBO_BOX(size_box)) != -1)
-			fake_options.dimensions = gtk_combo_box_get_active(GTK_COMBO_BOX(size_box));
+			
+		if (gtk_combo_box_get_active(GTK_COMBO_BOX(bilinear_box)) != -1)
+			conf.bilinear = gtk_combo_box_get_active(GTK_COMBO_BOX(bilinear_box));
 
 		conf.log = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(log_check));
-
-		conf.bilinear = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(bilinear_check));
-
-		fake_options.wireframe = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(wireframe_check));
-		fake_options.capture_avi = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(avi_check));
-		fake_options.fullscreen = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(fullscreen_check));
 		fake_options.widescreen = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widescreen_check));
 		fake_options.tga_snap = gtk_combo_box_get_active(GTK_COMBO_BOX(snap_box));
-
+		
+#ifdef ZEROGS_DEVBUILD
+		conf.SkipDraw = atoi((char*)gtk_entry_get_text(GTK_ENTRY(skipdraw_text)));
+#endif
+	
 		conf.zz_options = fake_options;
+		conf.hacks = tempHacks;
+		
+		conf.disableHacks = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dis_hacks_check));
+			
+		GSsetGameCRC(g_LastCRC, conf.hacks._u32);
 
 		SaveConfig();
 	}
@@ -409,7 +478,7 @@ void SysMessage(const char *fmt, ...)
 
 void CALLBACK GSabout()
 {
-	SysMessage("ZZOgl PG: by Zeydlitz (PG version worked on by arcum42). Based off of ZeroGS, by zerofrog.");
+	SysMessage("ZZOgl PG: by Zeydlitz (PG version worked on by arcum42, gregory, and the pcsx2 development team). Based off of ZeroGS, by zerofrog.");
 }
 
 s32 CALLBACK GStest()

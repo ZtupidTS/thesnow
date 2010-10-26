@@ -316,7 +316,7 @@ void recBranchCall( void (*func)() )
 	// to the current cpu cycle.
 
 	MOV32MtoR( EAX, (uptr)&cpuRegs.cycle );
-	MOV32RtoM( (uptr)&g_nextBranchCycle, EAX );
+	MOV32RtoM( (uptr)&g_nextEventCycle, EAX );
 
 	recCall(func);
 	branch = 2;
@@ -350,7 +350,7 @@ static DynGenFunc* ExitRecompiledCode	= NULL;
 
 static void recEventTest()
 {
-	_cpuBranchTest_Shared();
+	_cpuEventTest_Shared();
 }
 
 // parameters:
@@ -370,7 +370,7 @@ static void __fastcall StackFrameCheckFailed( int espORebp, int regval )
 
 static void _DynGen_StackFrameCheck()
 {
-	if( !EmuConfig.Recompiler.StackFrameChecks ) return;
+	if( !EmuConfig.Cpu.Recompiler.StackFrameChecks ) return;
 
 	// --------- EBP Here -----------
 
@@ -630,7 +630,7 @@ void recResetEE( void )
 	//AtomicExchange( eeRecNeedsReset, false );
 	if( AtomicExchange( eeRecIsReset, true ) ) return;
 
-	Console.WriteLn( Color_StrongBlack, "Issuing EE/iR5900-32 Recompiler Reset" );
+	Console.WriteLn( Color_StrongBlack, "EE/iR5900-32 Recompiler Reset" );
 
 	maxrecmem = 0;
 
@@ -716,7 +716,7 @@ void recStep( void )
 #	define SETJMP_CODE(x)  x
 	static jmp_buf		m_SetJmp_StateCheck;
 	static ScopedPtr<BaseR5900Exception>	m_cpuException;
-	static ScopedPtr<BaseException>			m_Exception;
+	static ScopedExcept			m_Exception;
 #else
 #	define SETJMP_CODE(x)
 #endif
@@ -817,7 +817,7 @@ void R5900::Dynarec::OpcodeImpl::recBREAK( void )
 }
 
 // Clears the recLUT table so that all blocks are mapped to the JIT recompiler by default.
-static __releaseinline void ClearRecLUT(BASEBLOCK* base, int count)
+static __ri void ClearRecLUT(BASEBLOCK* base, int count)
 {
 	for (int i = 0; i < count; i++)
 		base[i].SetFnptr((uptr)JITCompile);
@@ -881,8 +881,10 @@ void recClear(u32 addr, u32 size)
 		u32 blockend = pexblock->startpc + pexblock->size * 4;
 		if (pexblock->startpc >= addr && pexblock->startpc < addr + size * 4
 		 || pexblock->startpc < addr && blockend > addr) {
-			DevCon.Error( "Impossible block clearing failure" );
-			pxFailDev( "Impossible block clearing failure" );
+			if( !IsDevBuild )
+				Console.Error( "Impossible block clearing failure" );
+			else
+				pxFailDev( "Impossible block clearing failure" );
 		}
 	}
 
@@ -1109,11 +1111,11 @@ static void iBranchTest(u32 newpc)
 	// Check the Event scheduler if our "cycle target" has been reached.
 	// Equiv code to:
 	//    cpuRegs.cycle += blockcycles;
-	//    if( cpuRegs.cycle > g_nextBranchCycle ) { DoEvents(); }
+	//    if( cpuRegs.cycle > g_nextEventCycle ) { DoEvents(); }
 
 	if (EmuConfig.Speedhacks.WaitLoop && s_nBlockFF && newpc == s_branchTo)
 	{
-		xMOV(eax, ptr32[&g_nextBranchCycle]);
+		xMOV(eax, ptr32[&g_nextEventCycle]);
 		xADD(ptr32[&cpuRegs.cycle], eeScaleBlockCycles());
 		xCMP(eax, ptr32[&cpuRegs.cycle]);
 		xCMOVS(eax, ptr32[&cpuRegs.cycle]);
@@ -1126,7 +1128,7 @@ static void iBranchTest(u32 newpc)
 		xMOV(eax, ptr[&cpuRegs.cycle]);
 		xADD(eax, eeScaleBlockCycles());
 		xMOV(ptr[&cpuRegs.cycle], eax); // update cycles
-		xSUB(eax, ptr[&g_nextBranchCycle]);
+		xSUB(eax, ptr[&g_nextEventCycle]);
 
 		if (newpc == 0xffffffff)
 			xJS( DispatcherReg );
@@ -1281,9 +1283,11 @@ static u32 s_recblocks[] = {0};
 #endif
 
 // Called when a block under manual protection fails it's pre-execution integrity check.
+// (meaning the actual code area has been modified -- ie dynamic modules being loaded or,
+//  less likely, self-modifying code)
 void __fastcall dyna_block_discard(u32 start,u32 sz)
 {
-	DevCon.WriteLn("Discarding Manual Block @ 0x%08X  [size=%d]", start, sz*4);
+	eeRecPerfLog.Write( Color_StrongGray, "Clearing Manual Block @ 0x%08X  [size=%d]", start, sz*4);
 	recClear(start, sz);
 
 	// Stack trick: This function was invoked via a direct jmp, so manually pop the
@@ -1296,8 +1300,9 @@ void __fastcall dyna_block_discard(u32 start,u32 sz)
 #endif
 }
 
-// called when a block under manual protection has been run enough times to be a
-// candidate for being reset under the faster vtlb write protection.
+// called when a page under manual protection has been run enough times to be a candidate
+// for being reset under the faster vtlb write protection.  All blocks in the page are cleared
+// and the block is re-assigned for write protection.
 void __fastcall dyna_page_reset(u32 start,u32 sz)
 {
 	recClear(start & ~0xfffUL, 0x400);
@@ -1317,12 +1322,12 @@ bool skipMPEG_By_Pattern(u32 sPC) {
 	if (!CHECK_SKIPMPEGHACK) return 0;
 
 	// sceMpegIsEnd: lw reg, 0x40(a0); jr ra; lw v0, 0(reg)
-	if ((s_nEndBlock == sPC + 12) && (vtlb_memRead32(sPC + 4) == 0x03e00008)) {
-		u32 code = vtlb_memRead32(sPC);
+	if ((s_nEndBlock == sPC + 12) && (memRead32(sPC + 4) == 0x03e00008)) {
+		u32 code = memRead32(sPC);
 		u32 p1   = 0x8c800040;
 		u32 p2	 = 0x8c020000 | (code & 0x1f0000) << 5;
 		if ((code & 0xffe0ffff)   != p1) return 0;
-		if (vtlb_memRead32(sPC+8) != p2) return 0;
+		if (memRead32(sPC+8) != p2) return 0;
 		xMOV(ptr32[&cpuRegs.GPR.n.v0.UL[0]], 1);
 		xMOV(ptr32[&cpuRegs.GPR.n.v0.UL[1]], 0);
 		xMOV(eax, ptr32[&cpuRegs.GPR.n.ra.UL[0]]);
@@ -1353,7 +1358,7 @@ static void __fastcall recRecompile( const u32 startpc )
 		recResetEE();
 	}
 	if ( (recConstBufPtr - recConstBuf) >= RECCONSTBUF_SIZE - 64 ) {
-		DevCon.WriteLn("EE recompiler stack reset");
+		Console.WriteLn("EE recompiler stack reset");
 		recResetEE();
 	}
 
@@ -1395,7 +1400,7 @@ static void __fastcall recRecompile( const u32 startpc )
 	_initXMMregs();
 	_initMMXregs();
 
-	if( EmuConfig.Recompiler.PreBlockCheckEE )
+	if( EmuConfig.Cpu.Recompiler.PreBlockCheckEE )
 	{
 		// per-block dump checks, for debugging purposes.
 		// [TODO] : These must be enabled from the GUI or INI to be used, otherwise the
@@ -1420,7 +1425,7 @@ static void __fastcall recRecompile( const u32 startpc )
 				willbranch3 = 1;
 				s_nEndBlock = i;
 
-				//DevCon.Warning( "Pagesplit @ %08X : size=%d insts", startpc, (i-startpc) / 4 );
+				eeRecPerfLog.Write( "Pagesplit @ %08X : size=%d insts", startpc, (i-startpc) / 4 );
 				break;
 			}
 
@@ -1522,7 +1527,7 @@ StartRecomp:
 			if (cpuRegs.code == 0)
 				continue;
 			// cache, sync
-			else if (_Opcode_ == 057 || _Opcode_ == 0 && _Funct_ == 013)
+			else if (_Opcode_ == 057 || _Opcode_ == 0 && _Funct_ == 017)
 				continue;
 			// imm arithmetic
 			else if ((_Opcode_ & 070) == 010 || (_Opcode_ & 076) == 030)
@@ -1729,12 +1734,13 @@ StartRecomp:
 				xJC( dyna_page_reset );
 
 				// note: clearcnt is measured per-page, not per-block!
-				//DbgCon.WriteLn( "Manual block @ %08X : size =%3d  page/offs = %05X/%03X  inpgsz = %d  clearcnt = %d",
-				//	startpc, sz, inpage_ptr>>12, inpage_ptr&0xfff, inpage_sz, manual_counter[inpage_ptr >> 12] );
+				ConsoleColorScope cs( Color_Gray );
+				eeRecPerfLog.Write( "Manual block @ %08X : size =%3d  page/offs = 0x%05X/0x%03X  inpgsz = %d  clearcnt = %d",
+					startpc, sz, inpage_ptr>>12, inpage_ptr&0xfff, inpage_sz, manual_counter[inpage_ptr >> 12] );
 			}
 			else
 			{
-				DbgCon.WriteLn( Color_Gray, "Uncounted Manual block @ 0x%08X : size =%3d page/offs = %05X/%03X  inpgsz = %d",
+				eeRecPerfLog.Write( "Uncounted Manual block @ 0x%08X : size =%3d page/offs = 0x%05X/0x%03X  inpgsz = %d",
 					startpc, sz, inpage_ptr>>12, inpage_ptr&0xfff, pgsz, inpage_sz );
 			}
             break;
@@ -1779,7 +1785,7 @@ StartRecomp:
 			}
 		}
 
-		memcpy(&recRAMCopy[HWADDR(startpc) / 4], PSM(startpc), pc - startpc);
+		memcpy_fast(&recRAMCopy[HWADDR(startpc) / 4], PSM(startpc), pc - startpc);
 	}
 
 	s_pCurBlock->SetFnptr((uptr)recPtr);

@@ -36,7 +36,7 @@
 // translator (which the _() does automatically, and sometimes we don't want that).  This is
 // a shorthand replacement for wxTRANSLATE.
 #ifndef wxLt
-#	define wxLt(a)		a
+#	define wxLt(a)	wxT(a)
 #endif
 
 #define NOMINMAX		// Disables other libs inclusion of their own min/max macros (we use std instead)
@@ -78,6 +78,7 @@ typedef int BOOL;
 #define TRUE  1
 #define FALSE 0
 
+
 //////////////////////////////////////////////////////////////////////////////////////////
 // Begin Pcsx2 Includes: Add items here that are local to Pcsx2 but stay relatively
 // unchanged for long periods of time, or happen to be used by almost everything, so they
@@ -87,27 +88,34 @@ typedef int BOOL;
 #include "Pcsx2Defs.h"
 #include "i18n.h"
 
-#include "Utilities/Assertions.h"
 #include "Utilities/FixedPointTypes.h"
 #include "Utilities/wxBaseTools.h"
 #include "Utilities/ScopedPtr.h"
 #include "Utilities/Path.h"
 #include "Utilities/Console.h"
-#include "Utilities/Exceptions.h"
 #include "Utilities/MemcpyFast.h"
 #include "Utilities/General.h"
 #include "x86emitter/tools.h"
 
 #include "Config.h"
 
+typedef void FnType_Void();
+typedef FnType_Void* Fnptr_Void;
+
+static const s64 _1mb	= 0x100000;
+static const s64 _8mb	= _1mb * 8;
+static const s64 _16mb	= _1mb * 16;
+static const s64 _256mb	= _1mb * 256;
+static const s64 _1gb	= _256mb * 4;
+
+//////////////////////////////////////////////////////////////////////////////////////////
+// Compiler/OS specific macros and defines -- Begin Section
+
 // Linux isn't set up for svn version numbers yet.
 #ifdef __LINUX__
 #	define SVN_REV 0
 #	define SVN_MODS 0
 #endif
-
-//////////////////////////////////////////////////////////////////////////////////////////
-// Compiler/OS specific macros and defines -- Begin Section
 
 #if defined(_MSC_VER)
 
