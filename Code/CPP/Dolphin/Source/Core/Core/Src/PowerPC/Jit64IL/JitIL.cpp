@@ -47,7 +47,7 @@ using namespace PowerPC;
 // * Fast dispatcher
 
 // Unfeatures:
-// * Does not recompile all instructions - sometimes falls back to inserting a CALL to the corresponding JIT function.
+// * Does not recompile all instructions - sometimes falls back to inserting a CALL to the corresponding Interpreter function.
 
 // Various notes below
 
@@ -67,8 +67,6 @@ using namespace PowerPC;
 // Open questions
 // * Should there be any statically allocated registers? r3, r4, r5, r8, r0 come to mind.. maybe sp
 // * Does it make sense to finish off the remaining non-jitted instructions? Seems we are hitting diminishing returns.
-// * Why is the FPU exception handling not working 100%? Several games still get corrupted floating point state.
-//   This can even be seen in one homebrew Wii demo - RayTracer.elf
 
 // Other considerations
 //
@@ -154,7 +152,7 @@ ps_adds1
 
 */
 
-static int CODE_SIZE = 1024*1024*16;
+static int CODE_SIZE = 1024*1024*32;
 
 namespace CPUCompare
 {
@@ -172,7 +170,11 @@ void JitIL::Init()
 	}
 	else
 	{
-		jo.enableBlocklink = true;  // Speed boost, but not 100% safe
+		if (!Core::g_CoreStartupParameter.bJITBlockLinking)
+			jo.enableBlocklink = false;
+		else
+			// Speed boost, but not 100% safe
+			jo.enableBlocklink = !Core::g_CoreStartupParameter.bMMU;
 	}
 
 #ifdef _M_X64
@@ -180,11 +182,12 @@ void JitIL::Init()
 #else
 	jo.enableFastMem = false;
 #endif
-	jo.assumeFPLoadFromMem = true;
+	jo.assumeFPLoadFromMem = Core::g_CoreStartupParameter.bUseFastMem;
 	jo.fpAccurateFcmp = false;
 	jo.optimizeGatherPipe = true;
 	jo.fastInterrupts = false;
 	jo.accurateSinglePrecision = false;
+	js.memcheck = Core::g_CoreStartupParameter.bMMU;
 
 	trampolines.Init();
 	AllocCodeSpace(CODE_SIZE);
@@ -222,7 +225,7 @@ void JitIL::WriteCallInterpreter(UGeckoInstruction inst)
 	if (js.isLastInstruction)
 	{
 		MOV(32, R(EAX), M(&NPC));
-		WriteRfiExitDestInEAX();
+		WriteRfiExitDestInOpArg(R(EAX));
 	}
 }
 
@@ -243,21 +246,12 @@ void JitIL::HLEFunction(UGeckoInstruction _inst)
 {
 	ABI_CallFunctionCC((void*)&HLE::Execute, js.compilerPC, _inst.hex);
 	MOV(32, R(EAX), M(&NPC));
-	WriteExitDestInEAX(0);
+	WriteExitDestInOpArg(R(EAX));
 }
 
 void JitIL::DoNothing(UGeckoInstruction _inst)
 {
 	// Yup, just don't do anything.
-}
-
-void JitIL::NotifyBreakpoint(u32 em_address, bool set)
-{
-	int block_num = blocks.GetBlockNumberFromStartAddress(em_address);
-	if (block_num >= 0)
-	{
-		blocks.DestroyBlock(block_num, false);
-	}
 }
 
 static const bool ImHereDebug = false;
@@ -320,27 +314,26 @@ void JitIL::WriteExit(u32 destination, int exit_num)
 	}
 }
 
-void JitIL::WriteExitDestInEAX(int exit_num) 
+void JitIL::WriteExitDestInOpArg(const Gen::OpArg& arg)
 {
-	MOV(32, M(&PC), R(EAX));
+	MOV(32, M(&PC), arg);
 	Cleanup();
 	SUB(32, M(&CoreTiming::downcount), js.downcountAmount > 127 ? Imm32(js.downcountAmount) : Imm8(js.downcountAmount)); 
 	JMP(asm_routines.dispatcher, true);
 }
 
-void JitIL::WriteRfiExitDestInEAX() 
+void JitIL::WriteRfiExitDestInOpArg(const Gen::OpArg& arg)
 {
-	MOV(32, M(&PC), R(EAX));
+	MOV(32, M(&PC), arg);
 	Cleanup();
 	SUB(32, M(&CoreTiming::downcount), js.downcountAmount > 127 ? Imm32(js.downcountAmount) : Imm8(js.downcountAmount)); 
 	JMP(asm_routines.testExceptions, true);
 }
 
-void JitIL::WriteExceptionExit(u32 exception)
+void JitIL::WriteExceptionExit()
 {
 	Cleanup();
-	OR(32, M(&PowerPC::ppcState.Exceptions), Imm32(exception));
-	MOV(32, M(&PC), Imm32(js.compilerPC + 4));
+	SUB(32, M(&CoreTiming::downcount), js.downcountAmount > 127 ? Imm32(js.downcountAmount) : Imm8(js.downcountAmount)); 
 	JMP(asm_routines.testExceptions, true);
 }
 
@@ -357,13 +350,13 @@ void JitIL::SingleStep()
 	pExecAddr();
 }
 
-void JitIL::Trace(PPCAnalyst::CodeBuffer *code_buf, u32 em_address)
+void JitIL::Trace()
 {
 	char regs[500] = "";
 	char fregs[750] = "";
 
 #ifdef JIT_LOG_GPR
-	for (unsigned int i = 0; i < 32; i++)
+	for (int i = 0; i < 32; i++)
 	{
 		char reg[50];
 		sprintf(reg, "r%02d: %08x ", i, PowerPC::ppcState.gpr[i]);
@@ -372,18 +365,18 @@ void JitIL::Trace(PPCAnalyst::CodeBuffer *code_buf, u32 em_address)
 #endif
 
 #ifdef JIT_LOG_FPR
-	for (unsigned int i = 0; i < 32; i++)
+	for (int i = 0; i < 32; i++)
 	{
 		char reg[50];
 		sprintf(reg, "f%02d: %016x ", i, riPS0(i));
 		strncat(fregs, reg, 750);
 	}
 #endif	
-	const PPCAnalyst::CodeOp &op = code_buf->codebuffer[0];
-	char ppcInst[256];
-	DisassembleGekko(op.inst.hex, em_address, ppcInst, 256);
-	
-	NOTICE_LOG(DYNA_REC, "JITIL PC: %08x SRR0: %08x SRR1: %08x CRfast: %02x%02x%02x%02x%02x%02x%02x%02x FPSCR: %08x MSR: %08x LR: %08x %s %s %08x %s", PC, SRR0, SRR1, PowerPC::ppcState.cr_fast[0], PowerPC::ppcState.cr_fast[1], PowerPC::ppcState.cr_fast[2], PowerPC::ppcState.cr_fast[3], PowerPC::ppcState.cr_fast[4], PowerPC::ppcState.cr_fast[5], PowerPC::ppcState.cr_fast[6], PowerPC::ppcState.cr_fast[7], PowerPC::ppcState.fpscr, PowerPC::ppcState.msr, PowerPC::ppcState.spr[8], regs, fregs, op.inst.hex, ppcInst);
+
+	NOTICE_LOG(DYNA_REC, "JITIL PC: %08x SRR0: %08x SRR1: %08x CRfast: %02x%02x%02x%02x%02x%02x%02x%02x FPSCR: %08x MSR: %08x LR: %08x %s %s", 
+		PC, SRR0, SRR1, PowerPC::ppcState.cr_fast[0], PowerPC::ppcState.cr_fast[1], PowerPC::ppcState.cr_fast[2], PowerPC::ppcState.cr_fast[3], 
+		PowerPC::ppcState.cr_fast[4], PowerPC::ppcState.cr_fast[5], PowerPC::ppcState.cr_fast[6], PowerPC::ppcState.cr_fast[7], PowerPC::ppcState.fpscr, 
+		PowerPC::ppcState.msr, PowerPC::ppcState.spr[8], regs, fregs);
 }
 
 void STACKALIGN JitIL::Jit(u32 em_address)
@@ -401,29 +394,52 @@ const u8* JitIL::DoJit(u32 em_address, PPCAnalyst::CodeBuffer *code_buf, JitBloc
 {
 	int blockSize = code_buf->GetSize();
 
+	// Memory exception on instruction fetch
+	bool memory_exception = false;
+
+	// A broken block is a block that does not end in a branch
+	bool broken_block = false;
+
 	if (Core::g_CoreStartupParameter.bEnableDebugging)
 	{
 		// Comment out the following to disable breakpoints (speed-up)
 		blockSize = 1;
-		Trace(code_buf, em_address);
+		Trace();
 	}
 
 	if (em_address == 0)
 		PanicAlert("ERROR : Trying to compile at 0. LR=%08x", LR);
 
-	int size;
+	if (Core::g_CoreStartupParameter.bMMU && (em_address & JIT_ICACHE_VMEM_BIT))
+	{
+		if (!Memory::TranslateAddress(em_address, Memory::FLAG_OPCODE))
+		{
+			// Memory exception occurred during instruction fetch
+			memory_exception = true;
+		}
+	}
+
+	int size = 0;
 	js.isLastInstruction = false;
 	js.blockStart = em_address;
 	js.fifoBytesThisBlock = 0;
 	js.curBlock = b;
 	js.cancel = false;
 
-	//Analyze the block, collect all instructions it is made of (including inlining,
-	//if that is enabled), reorder instructions for optimal performance, and join joinable instructions.
-	b->exitAddress[0] = PPCAnalyst::Flatten(em_address, &size, &js.st, &js.gpa, &js.fpa, code_buf, blockSize);
+	// Analyze the block, collect all instructions it is made of (including inlining,
+	// if that is enabled), reorder instructions for optimal performance, and join joinable instructions.
+	b->exitAddress[0] = em_address;
+	u32 merged_addresses[32];
+	const int capacity_of_merged_addresses = sizeof(merged_addresses) / sizeof(merged_addresses[0]);
+	int size_of_merged_addresses = 0;
+	if (!memory_exception)
+	{
+		// If there is a memory exception inside a block (broken_block==true), compile up to that instruction.
+		b->exitAddress[0] = PPCAnalyst::Flatten(em_address, &size, &js.st, &js.gpa, &js.fpa, broken_block, code_buf, blockSize, merged_addresses, capacity_of_merged_addresses, size_of_merged_addresses);
+	}
 	PPCAnalyst::CodeOp *ops = code_buf->codebuffer;
 
-	const u8 *start = AlignCode4(); //TODO: Test if this or AlignCode16 make a difference from GetCodePtr
+	const u8 *start = AlignCode4(); // TODO: Test if this or AlignCode16 make a difference from GetCodePtr
 	b->checkedEntry = start;
 	b->runCount = 0;
 
@@ -437,11 +453,11 @@ const u8* JitIL::DoJit(u32 em_address, PPCAnalyst::CodeBuffer *code_buf, JitBloc
 	b->normalEntry = normalEntry;
 	
 	if (ImHereDebug)
-		ABI_CallFunction((void *)&ImHere); //Used to get a trace of the last few blocks before a crash, sometimes VERY useful
+		ABI_CallFunction((void *)&ImHere); // Used to get a trace of the last few blocks before a crash, sometimes VERY useful
 
 	if (js.fpa.any)
 	{
-		//This block uses FPU - needs to add FP exception bailout
+		// This block uses FPU - needs to add FP exception bailout
 		TEST(32, M(&PowerPC::ppcState.msr), Imm32(1 << 13)); //Test FP enabled bit
 		FixupBranch b1 = J_CC(CC_NZ);
 		MOV(32, M(&PC), Imm32(js.blockStart));
@@ -455,11 +471,15 @@ const u8* JitIL::DoJit(u32 em_address, PPCAnalyst::CodeBuffer *code_buf, JitBloc
 	// instruction processed by the JIT routines)
 	ibuild.Reset();
 
-	
-	js.downcountAmount = js.st.numCycles;
-
+	js.downcountAmount = 0;
 	if (!Core::g_CoreStartupParameter.bEnableDebugging)
-		js.downcountAmount += PatchEngine::GetSpeedhackCycles(em_address);
+	{
+		for (int i = 0; i < size_of_merged_addresses; ++i)
+		{
+			const u32 address = merged_addresses[i];
+			js.downcountAmount += PatchEngine::GetSpeedhackCycles(address);
+		}
+	}
 
 	// Translate instructions
 	for (int i = 0; i < (int)size; i++)
@@ -467,6 +487,9 @@ const u8* JitIL::DoJit(u32 em_address, PPCAnalyst::CodeBuffer *code_buf, JitBloc
 		js.compilerPC = ops[i].address;
 		js.op = &ops[i];
 		js.instructionNumber = i;
+		const GekkoOPInfo *opinfo = GetOpInfo(ops[i].inst);
+		js.downcountAmount += (opinfo->numCyclesMinusOne + 1);
+
 		if (i == (int)size - 1)
 		{
 			js.isLastInstruction = true;
@@ -481,8 +504,23 @@ const u8* JitIL::DoJit(u32 em_address, PPCAnalyst::CodeBuffer *code_buf, JitBloc
 
 		if (!ops[i].skip)
 		{
+			if (js.memcheck && (opinfo->flags & FL_USE_FPU))
+			{
+				ibuild.EmitFPExceptionCheckStart(ibuild.EmitIntConst(ops[i].address));
+			}
+			
 			JitILTables::CompileInstruction(ops[i]);
+
+			if (js.memcheck && (opinfo->flags & FL_LOADSTORE))
+			{
+				ibuild.EmitFPExceptionCheckEnd(ibuild.EmitIntConst(ops[i].address));
+			}
 		}
+	}
+
+	if (memory_exception)
+	{
+		ibuild.EmitISIException(ibuild.EmitIntConst(em_address));
 	}
 
 	// Perform actual code generation

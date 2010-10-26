@@ -50,7 +50,6 @@ struct SConfig
 	// hard coded default plugins ...
 	std::string m_DefaultGFXPlugin;
 	std::string m_DefaultDSPPlugin;
-	std::string m_DefaultWiiMotePlugin;
 
 	// name of the last used filename
 	std::string m_LastFilename;
@@ -71,8 +70,6 @@ struct SConfig
 	// framelimit choose
 	int m_Framelimit;
 	bool b_UseFPS;
-	// FIFO watermark tightness
-	int m_WatermarkTightness;
 	// other interface settings
 	bool m_InterfaceToolbar;
 	bool m_InterfaceStatusbar;

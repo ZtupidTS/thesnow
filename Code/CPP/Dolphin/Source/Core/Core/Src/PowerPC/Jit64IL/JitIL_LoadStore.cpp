@@ -39,6 +39,7 @@ void JitIL::lhax(UGeckoInstruction inst)
 {
 	INSTRUCTION_START
 	JITDISABLE(LoadStore)
+	if (js.memcheck) { Default(inst); return; }
 	IREmitter::InstLoc addr = ibuild.EmitLoadGReg(inst.RB);
 	if (inst.RA)
 		addr = ibuild.EmitAdd(addr, ibuild.EmitLoadGReg(inst.RA));
@@ -50,7 +51,8 @@ void JitIL::lhax(UGeckoInstruction inst)
 void JitIL::lXz(UGeckoInstruction inst)
 {
 	INSTRUCTION_START
-	JITDISABLE(LoadStore)	
+	JITDISABLE(LoadStore)
+	if (js.memcheck) { Default(inst); return; }
 	IREmitter::InstLoc addr = ibuild.EmitIntConst(inst.SIMM_16);
 	if (inst.RA)
 		addr = ibuild.EmitAdd(addr, ibuild.EmitLoadGReg(inst.RA));
@@ -61,16 +63,26 @@ void JitIL::lXz(UGeckoInstruction inst)
 	{
 	case 32: val = ibuild.EmitLoad32(addr); break; //lwz	
 	case 40: val = ibuild.EmitLoad16(addr); break; //lhz
-	case 34: val = ibuild.EmitLoad8(addr);  break; //lbz - lbzu crashes GFZP01 @ 0x8008575C
+	case 34: val = ibuild.EmitLoad8(addr);  break; //lbz
 	default: PanicAlert("lXz: invalid access size"); val = 0; break;
 	}
 	ibuild.EmitStoreGReg(val, inst.RD);
+}
+
+void JitIL::lbzu(UGeckoInstruction inst) {
+	INSTRUCTION_START
+	JITDISABLE(LoadStore)
+	const IREmitter::InstLoc uAddress = ibuild.EmitAdd(ibuild.EmitLoadGReg(inst.RA), ibuild.EmitIntConst((int)inst.SIMM_16));
+	const IREmitter::InstLoc temp = ibuild.EmitLoad8(uAddress);
+	ibuild.EmitStoreGReg(temp, inst.RD);
+	ibuild.EmitStoreGReg(uAddress, inst.RA);
 }
 
 void JitIL::lha(UGeckoInstruction inst)
 {
 	INSTRUCTION_START
 	JITDISABLE(LoadStore)
+	if (js.memcheck) { Default(inst); return; }
 	IREmitter::InstLoc addr =
 		ibuild.EmitIntConst((s32)(s16)inst.SIMM_16);
 	if (inst.RA)
@@ -84,6 +96,7 @@ void JitIL::lXzx(UGeckoInstruction inst)
 {
 	INSTRUCTION_START
 	JITDISABLE(LoadStore)
+	if (js.memcheck) { Default(inst); return; }
 	IREmitter::InstLoc addr = ibuild.EmitLoadGReg(inst.RB);
 	if (inst.RA) {
 		addr = ibuild.EmitAdd(addr, ibuild.EmitLoadGReg(inst.RA));
@@ -131,6 +144,7 @@ void JitIL::stX(UGeckoInstruction inst)
 {
 	INSTRUCTION_START
 	JITDISABLE(LoadStore)
+	if (js.memcheck) { Default(inst); return; }
 	IREmitter::InstLoc addr = ibuild.EmitIntConst(inst.SIMM_16),
 			   value = ibuild.EmitLoadGReg(inst.RS);
 	if (inst.RA)
@@ -150,6 +164,7 @@ void JitIL::stXx(UGeckoInstruction inst)
 {
 	INSTRUCTION_START
 	JITDISABLE(LoadStore)
+	if (js.memcheck) { Default(inst); return; }
 	IREmitter::InstLoc addr = ibuild.EmitLoadGReg(inst.RB),
 			   value = ibuild.EmitLoadGReg(inst.RS);
 	addr = ibuild.EmitAdd(addr, ibuild.EmitLoadGReg(inst.RA));
@@ -169,6 +184,7 @@ void JitIL::lmw(UGeckoInstruction inst)
 {
 	INSTRUCTION_START
 	JITDISABLE(LoadStore)
+	if (js.memcheck) { Default(inst); return; }
 	IREmitter::InstLoc addr = ibuild.EmitIntConst(inst.SIMM_16);
 	if (inst.RA)
 		addr = ibuild.EmitAdd(addr, ibuild.EmitLoadGReg(inst.RA));
@@ -184,6 +200,7 @@ void JitIL::stmw(UGeckoInstruction inst)
 {
 	INSTRUCTION_START
 	JITDISABLE(LoadStore)
+	if (js.memcheck) { Default(inst); return; }
 	IREmitter::InstLoc addr = ibuild.EmitIntConst(inst.SIMM_16);
 	if (inst.RA)
 		addr = ibuild.EmitAdd(addr, ibuild.EmitLoadGReg(inst.RA));

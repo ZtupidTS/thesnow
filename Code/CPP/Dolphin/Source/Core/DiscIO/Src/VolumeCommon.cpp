@@ -44,6 +44,10 @@ IVolume::ECountry CountrySwitch(u8 CountryCode)
 		case 'I':
 			return IVolume::COUNTRY_ITALY;
 			break;
+			
+		case 'R':
+			return IVolume::COUNTRY_RUSSIA;
+			break;
 
 		// NTSC
 		case 'E':
@@ -71,7 +75,8 @@ IVolume::ECountry CountrySwitch(u8 CountryCode)
 			break;
 
 		default:
-			WARN_LOG(DISCIO, "Unknown Country Code! %c", CountryCode);
+			if (CountryCode > 'A') // Silently ignore IOS wads
+				WARN_LOG(DISCIO, "Unknown Country Code! %c", CountryCode);
 			return IVolume::COUNTRY_UNKNOWN;
 			break;
 	}

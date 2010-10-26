@@ -127,7 +127,7 @@ bool JitBlock::ContainsAddress(u32 em_address)
 	// is full and when saving and loading states.
 	void JitBlockCache::Clear()
 	{		
-		Core::DisplayMessage("Cleared code cache.", 3000);
+		Core::DisplayMessage("Clearing code cache.", 3000);
 		for (int i = 0; i < num_blocks; i++)
 		{
 			DestroyBlock(i, false);
@@ -135,7 +135,16 @@ bool JitBlock::ContainsAddress(u32 em_address)
 		links_to.clear();
 		block_map.clear();
 		num_blocks = 0;
-		memset(blockCodePointers, 0, sizeof(u8*)*MAX_NUM_BLOCKS);		
+		memset(blockCodePointers, 0, sizeof(u8*)*MAX_NUM_BLOCKS);
+	}
+
+	void JitBlockCache::ClearSafe()
+	{
+#ifdef JIT_UNLIMITED_ICACHE
+		memset(iCache, JIT_ICACHE_INVALID_BYTE, JIT_ICACHE_SIZE);
+		memset(iCacheEx, JIT_ICACHE_INVALID_BYTE, JIT_ICACHEEX_SIZE);
+		memset(iCacheVMEM, JIT_ICACHE_INVALID_BYTE, JIT_ICACHE_SIZE);
+#endif
 	}
 
 	/*void JitBlockCache::DestroyBlocksWithFlag(BlockFlag death_flag)
@@ -360,7 +369,7 @@ bool JitBlock::ContainsAddress(u32 em_address)
 		}
 		b.invalid = true;
 #ifdef JIT_UNLIMITED_ICACHE
-		Memory::Write_Opcode_JIT(b.originalAddress, b.originalFirstOpcode);
+		Memory::Write_Opcode_JIT(b.originalAddress, b.originalFirstOpcode?b.originalFirstOpcode:JIT_ICACHE_INVALID_WORD);
 #else
 		if (Memory::ReadFast32(b.originalAddress) == block_num)
 			Memory::WriteUnchecked_U32(b.originalFirstOpcode, b.originalAddress);
@@ -399,7 +408,7 @@ bool JitBlock::ContainsAddress(u32 em_address)
 
 #ifdef JIT_UNLIMITED_ICACHE
 		// invalidate iCache.
-		// icbi can be called with any address, so we sholud check
+		// icbi can be called with any address, so we should check
 		if ((address & ~JIT_ICACHE_MASK) != 0x80000000 && (address & ~JIT_ICACHE_MASK) != 0x00000000 &&
 			(address & ~JIT_ICACHE_MASK) != 0x7e000000 && // TLB area
 			(address & ~JIT_ICACHEEX_MASK) != 0x90000000 && (address & ~JIT_ICACHEEX_MASK) != 0x10000000)

@@ -54,6 +54,8 @@ void Jit64::psq_st(UGeckoInstruction inst)
 	INSTRUCTION_START
 	JITDISABLE(LoadStorePaired)
 
+	if (js.memcheck) { Default(inst); return; }
+
 	if (!inst.RA)
 	{
 		// TODO: Support these cases if it becomes necessary.
@@ -97,8 +99,8 @@ void Jit64::psq_st(UGeckoInstruction inst)
 	gpr.FlushLockX(EAX, EDX);
 	gpr.FlushLockX(ECX);
 	if (update)
-		gpr.LoadToX64(inst.RA, true, true);
-	fpr.LoadToX64(inst.RS, true);
+		gpr.BindToRegister(inst.RA, true, true);
+	fpr.BindToRegister(inst.RS, true, false);
 	MOV(32, R(ECX), gpr.R(inst.RA));
 	if (offset)
 		ADD(32, R(ECX), Imm32((u32)offset));
@@ -136,6 +138,8 @@ void Jit64::psq_l(UGeckoInstruction inst)
 	INSTRUCTION_START
 	JITDISABLE(LoadStorePaired)
 
+	if (js.memcheck) { Default(inst); return; }
+
 	if (!inst.RA)
 	{
 		Default(inst);
@@ -155,8 +159,8 @@ void Jit64::psq_l(UGeckoInstruction inst)
 
 	gpr.FlushLockX(EAX, EDX);
 	gpr.FlushLockX(ECX);
-	gpr.LoadToX64(inst.RA, true, true);
-	fpr.LoadToX64(inst.RS, false, true);
+	gpr.BindToRegister(inst.RA, true, update && offset);
+	fpr.BindToRegister(inst.RS, false, true);
 	if (offset)
 		LEA(32, ECX, MDisp(gpr.RX(inst.RA), offset));
 	else
@@ -174,7 +178,13 @@ void Jit64::psq_l(UGeckoInstruction inst)
 	ABI_AlignStack(0);
 	CALLptr(MDisp(EDX, (u32)(u64)asm_routines.pairedLoadQuantized));
 	ABI_RestoreStack(0);
+
+//	MEMCHECK_START // FIXME: MMU does not work here because of unsafe memory access
+
 	CVTPS2PD(fpr.RX(inst.RS), R(XMM0));
+
+//	MEMCHECK_END
+
 	gpr.UnlockAll();
 	gpr.UnlockAllX();
 }

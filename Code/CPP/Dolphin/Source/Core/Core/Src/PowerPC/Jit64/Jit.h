@@ -52,6 +52,16 @@
 	Core::g_CoreStartupParameter.bJIT##type##Off) \
 	{Default(inst); return;}
 
+#define MEMCHECK_START \
+	FixupBranch memException; \
+	if (js.memcheck) \
+	{ TEST(32, M((void *)&PowerPC::ppcState.Exceptions), Imm32(EXCEPTION_DSI)); \
+	memException = J_CC(CC_NZ); }
+
+#define MEMCHECK_END \
+	if (js.memcheck) \
+		SetJumpTarget(memException);
+
 class Jit64 : public JitBase
 {
 private:
@@ -69,6 +79,7 @@ private:
 		int block_flags;
 
 		bool isLastInstruction;
+		bool memcheck;
 
 		int fifoBytesThisBlock;
 
@@ -104,13 +115,12 @@ public:
 
 	JitBlockCache *GetBlockCache() { return &blocks; }
 
-	void NotifyBreakpoint(u32 em_address, bool set);
-	void Trace(PPCAnalyst::CodeBuffer *code_buffer, u32 em_address);
+	void Trace();
 
 	void ClearCache();
 
 	const u8 *GetDispatcher() {
-		return asm_routines.dispatcher;  // asm_routines.dispatcher
+		return asm_routines.dispatcher;
 	}
 	const CommonAsmRoutines *GetAsmRoutines() {
 		return &asm_routines;
@@ -131,8 +141,8 @@ public:
 	// Utilities for use by opcodes
 
 	void WriteExit(u32 destination, int exit_num);
-	void WriteExitDestInEAX(int exit_num);
-	void WriteExceptionExit(u32 exception);
+	void WriteExitDestInEAX();
+	void WriteExceptionExit();
 	void WriteRfiExitDestInEAX();
 	void WriteCallInterpreter(UGeckoInstruction _inst);
 	void Cleanup();
@@ -158,9 +168,7 @@ public:
 	void DynaRunTable63(UGeckoInstruction _inst);
 
 	void addx(UGeckoInstruction inst);
-	void orx(UGeckoInstruction inst);
-	void xorx(UGeckoInstruction inst);
-	void andx(UGeckoInstruction inst);
+	void addcx(UGeckoInstruction inst);
 	void mulli(UGeckoInstruction inst);
 	void mulhwux(UGeckoInstruction inst);
 	void mullwx(UGeckoInstruction inst);
@@ -168,6 +176,8 @@ public:
 	void srawix(UGeckoInstruction inst);
 	void srawx(UGeckoInstruction inst);
 	void addex(UGeckoInstruction inst);
+	void addmex(UGeckoInstruction inst);
+	void addzex(UGeckoInstruction inst);
 
 	void extsbx(UGeckoInstruction inst);
 	void extshx(UGeckoInstruction inst);
@@ -187,6 +197,11 @@ public:
 	void mftb(UGeckoInstruction inst);
 	void mtcrf(UGeckoInstruction inst);
 	void mfcr(UGeckoInstruction inst);
+	void mcrf(UGeckoInstruction inst);
+	void mcrxr(UGeckoInstruction inst);
+
+	void boolX(UGeckoInstruction inst);
+	void crXXX(UGeckoInstruction inst);
 
 	void reg_imm(UGeckoInstruction inst);
 
@@ -221,8 +236,6 @@ public:
 	void fmaddXX(UGeckoInstruction inst);
 	void fsign(UGeckoInstruction inst);
 	void stX(UGeckoInstruction inst); //stw sth stb
-	void lXz(UGeckoInstruction inst);
-	void lha(UGeckoInstruction inst);
 	void rlwinmx(UGeckoInstruction inst);
 	void rlwimix(UGeckoInstruction inst);
 	void rlwnmx(UGeckoInstruction inst);
@@ -236,13 +249,11 @@ public:
 	void subfcx(UGeckoInstruction inst);
 	void subfx(UGeckoInstruction inst);
 	void subfex(UGeckoInstruction inst);
+	void subfmex(UGeckoInstruction inst);
+	void subfzex(UGeckoInstruction inst);
 
-	void lbzx(UGeckoInstruction inst);
-	void lwzx(UGeckoInstruction inst);
-	void lhax(UGeckoInstruction inst);
+	void lXXx(UGeckoInstruction inst);
 	
-	void lwzux(UGeckoInstruction inst);
-
 	void stXx(UGeckoInstruction inst);
 
 	void lmw(UGeckoInstruction inst);

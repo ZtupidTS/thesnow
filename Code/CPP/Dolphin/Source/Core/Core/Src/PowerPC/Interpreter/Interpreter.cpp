@@ -25,42 +25,40 @@
 #include "../../ConfigManager.h"
 #include "PowerPCDisasm.h"
 #include "../../IPC_HLE/WII_IPC_HLE.h"
+#include "Atomic.h"
 
 
 namespace {
 	u32 last_pc;
 }
 
+bool Interpreter::m_EndBlock;
+
 // function tables
+Interpreter::_interpreterInstruction Interpreter::m_opTable[64];
+Interpreter::_interpreterInstruction Interpreter::m_opTable4[1024];
+Interpreter::_interpreterInstruction Interpreter::m_opTable19[1024];
+Interpreter::_interpreterInstruction Interpreter::m_opTable31[1024];
+Interpreter::_interpreterInstruction Interpreter::m_opTable59[32];
+Interpreter::_interpreterInstruction Interpreter::m_opTable63[1024];
 
-namespace Interpreter
+void Interpreter::RunTable4(UGeckoInstruction _inst)  {m_opTable4 [_inst.SUBOP10](_inst);}
+void Interpreter::RunTable19(UGeckoInstruction _inst) {m_opTable19[_inst.SUBOP10](_inst);}
+void Interpreter::RunTable31(UGeckoInstruction _inst) {m_opTable31[_inst.SUBOP10](_inst);}
+void Interpreter::RunTable59(UGeckoInstruction _inst) {m_opTable59[_inst.SUBOP5 ](_inst);}
+void Interpreter::RunTable63(UGeckoInstruction _inst) {m_opTable63[_inst.SUBOP10](_inst);}
+
+void Interpreter::Init()
 {
-// cpu register to keep the code readable
-u32 *m_GPR = PowerPC::ppcState.gpr;
-bool m_EndBlock = false;
+	g_bReserve = false;
+	m_EndBlock = false;
+}
 
-_interpreterInstruction m_opTable[64];
-_interpreterInstruction m_opTable4[1024];
-_interpreterInstruction m_opTable19[1024];
-_interpreterInstruction m_opTable31[1024];
-_interpreterInstruction m_opTable59[32];
-_interpreterInstruction m_opTable63[1024];
-
-void RunTable4(UGeckoInstruction _inst)  {m_opTable4 [_inst.SUBOP10](_inst);}
-void RunTable19(UGeckoInstruction _inst) {m_opTable19[_inst.SUBOP10](_inst);}
-void RunTable31(UGeckoInstruction _inst) {m_opTable31[_inst.SUBOP10](_inst);}
-void RunTable59(UGeckoInstruction _inst) {m_opTable59[_inst.SUBOP5 ](_inst);}
-void RunTable63(UGeckoInstruction _inst) {m_opTable63[_inst.SUBOP10](_inst);}
-
-void Init()
+void Interpreter::Shutdown()
 {
 }
 
-void Shutdown()
-{
-}
-
-void patches()
+static void patches()
 {
 /*	if (Memory::Read_U16(0x90000880) == 0x130b)
 	{
@@ -77,43 +75,100 @@ void patches()
 	}*/
 }
 
-void SingleStepInner(void)
+int startTrace = 0;
+
+void Trace( UGeckoInstruction &instCode )
+{
+	char regs[500]="";
+	for (int i=0; i<32; i++) {
+		sprintf(regs, "%sr%02d: %08x ", regs, i, PowerPC::ppcState.gpr[i]);
+	}
+
+	char fregs[500]="";
+	for (int i=0; i<32; i++) {
+		sprintf(fregs, "%sf%02d: %08llx %08llx ", fregs, i,
+			PowerPC::ppcState.ps[i][0], PowerPC::ppcState.ps[i][1]);
+	}
+
+	char ppcInst[256];
+	DisassembleGekko(instCode.hex, PC, ppcInst, 256);
+
+	DEBUG_LOG(POWERPC, "INTER PC: %08x SRR0: %08x SRR1: %08x CRfast: %02x%02x%02x%02x%02x%02x%02x%02x FPSCR: %08x MSR: %08x LR: %08x %s %s %08x %s", PC, SRR0, SRR1, PowerPC::ppcState.cr_fast[0], PowerPC::ppcState.cr_fast[1], PowerPC::ppcState.cr_fast[2], PowerPC::ppcState.cr_fast[3], PowerPC::ppcState.cr_fast[4], PowerPC::ppcState.cr_fast[5], PowerPC::ppcState.cr_fast[6], PowerPC::ppcState.cr_fast[7], PowerPC::ppcState.fpscr, PowerPC::ppcState.msr, PowerPC::ppcState.spr[8], regs, fregs, instCode.hex, ppcInst);
+}
+
+int Interpreter::SingleStepInner(void)
 {
 	static UGeckoInstruction instCode;
 
 	NPC = PC + sizeof(UGeckoInstruction);
-	instCode.hex = Memory::Read_Opcode(PC); 
+	instCode.hex = Memory::Read_Opcode(PC);
 
-	UReg_MSR& msr = (UReg_MSR&)MSR;
-	if (msr.FP)  //If FPU is enabled, just execute
-		m_opTable[instCode.OPCD](instCode);
-	else
+	// Uncomment to trace the interpreter
+	//if ((PC & 0xffffff)>=0x0ab54c && (PC & 0xffffff)<=0x0ab624)
+	//	startTrace = 1;
+	//else
+	//	startTrace = 0;
+
+	if (startTrace)
 	{
-		// check if we have to generate a FPU unavailable exception
-		if (!PPCTables::UsesFPU(instCode))
+		Trace(instCode);
+	}
+
+	if (instCode.hex != 0)
+	{
+		UReg_MSR& msr = (UReg_MSR&)MSR;
+		if (msr.FP)  //If FPU is enabled, just execute
+		{
 			m_opTable[instCode.OPCD](instCode);
+			if (PowerPC::ppcState.Exceptions & EXCEPTION_DSI)
+			{
+				PowerPC::CheckExceptions();
+				m_EndBlock = true;
+			}
+		}
 		else
 		{
-			PowerPC::ppcState.Exceptions |= EXCEPTION_FPU_UNAVAILABLE;
-			PowerPC::CheckExceptions();
-			m_EndBlock = true;
+			// check if we have to generate a FPU unavailable exception
+			if (!PPCTables::UsesFPU(instCode))
+			{
+				m_opTable[instCode.OPCD](instCode);
+				if (PowerPC::ppcState.Exceptions & EXCEPTION_DSI)
+				{
+					PowerPC::CheckExceptions();
+					m_EndBlock = true;
+				}
+			}
+			else
+			{
+				Common::AtomicOr(PowerPC::ppcState.Exceptions, EXCEPTION_FPU_UNAVAILABLE);
+				PowerPC::CheckExceptions();
+				m_EndBlock = true;
+			}
 		}
-
+	}
+	else
+	{
+		// Memory exception on instruction fetch
+		PowerPC::CheckExceptions();
+		m_EndBlock = true;
 	}
 	last_pc = PC;
 	PC = NPC;
 	
+#if defined(_DEBUG) || defined(DEBUGFAST)
 	if (PowerPC::ppcState.gpr[1] == 0)
 	{
 		printf("%i Corrupt stack", PowerPC::ppcState.DebugCount);
 	}
-#if defined(_DEBUG) || defined(DEBUGFAST)
 	PowerPC::ppcState.DebugCount++;
 #endif
     patches();
+
+	GekkoOPInfo *opinfo = GetOpInfo(instCode);
+	return opinfo->numCyclesMinusOne + 1;
 }
 
-void SingleStep()
+void Interpreter::SingleStep()
 {	
 	SingleStepInner();
 	
@@ -137,7 +192,7 @@ int ShowSteps = 300;
 #endif
 
 // FastRun - inspired by GCemu (to imitate the JIT so that they can be compared).
-void Run()
+void Interpreter::Run()
 {
 	while (!PowerPC::GetState())
 	{
@@ -204,11 +259,12 @@ void Run()
 			{
 				m_EndBlock = false;
 				int i;
+				int cycles = 0;
 				for (i = 0; !m_EndBlock; i++)
 				{
-					SingleStepInner();
+					cycles += SingleStepInner();
 				}
-				CoreTiming::downcount -= i;
+				CoreTiming::downcount -= cycles;
 			}
 		}
 
@@ -222,13 +278,35 @@ void Run()
 	}
 }
 
-void unknown_instruction(UGeckoInstruction _inst)
+void Interpreter::unknown_instruction(UGeckoInstruction _inst)
 {
-	char disasm[256];
-	DisassembleGekko(Memory::ReadUnchecked_U32(last_pc), last_pc, disasm, 256);
-	printf("Last PC = %08x : %s\n", last_pc, disasm);
-	Dolphin_Debugger::PrintCallstack();
-	_dbg_assert_msg_(POWERPC, 0, "\nIntCPU: Unknown instr %08x at PC = %08x  last_PC = %08x  LR = %08x\n", _inst.hex, PC, last_pc, LR);
+	if (_inst.hex != 0)
+	{
+		char disasm[256];
+		DisassembleGekko(Memory::ReadUnchecked_U32(last_pc), last_pc, disasm, 256);
+		printf("Last PC = %08x : %s\n", last_pc, disasm);
+		Dolphin_Debugger::PrintCallstack();
+		_dbg_assert_msg_(POWERPC, 0, "\nIntCPU: Unknown instr %08x at PC = %08x  last_PC = %08x  LR = %08x\n", _inst.hex, PC, last_pc, LR);
+	}
+
 }
 
-}  // namespace
+void Interpreter::ClearCache()
+{
+	// Do nothing.
+}
+
+const char *Interpreter::GetName()
+{
+#ifdef _M_X64
+		return "Interpreter64";
+#else
+		return "Interpreter32";
+#endif
+}
+
+Interpreter *Interpreter::getInstance()
+{
+	static Interpreter instance;
+	return &instance;
+}

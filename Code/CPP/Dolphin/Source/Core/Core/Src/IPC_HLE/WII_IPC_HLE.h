@@ -25,8 +25,8 @@ class IWII_IPC_HLE_Device;
 namespace WII_IPC_HLE_Interface
 {
 
-#define IPC_FIRST_HARDWARE_ID	0x13370000		// first IPC device ID
-#define IPC_FIRST_FILEIO_ID		0x13380000		// first IPC file ID 
+#define IPC_FIRST_HARDWARE_ID	0		// first IPC device ID
+#define IPC_FIRST_FILEIO_ID		33		// first IPC file ID 
 
 // Init
 void Init();
@@ -42,8 +42,9 @@ void DoState(PointerWrap &p);
 
 // Set default content file
 void SetDefaultContentFile(const std::string& _rFilename);
+void ES_DIVerify(u8 *_pTMD, u32 _sz);
 
-u32 GetDeviceIDByName(const std::string& _rDeviceName);
+int GetDeviceIDByName(const std::string& _rDeviceName);
 
 IWII_IPC_HLE_Device* AccessDeviceByID(u32 _ID);
 

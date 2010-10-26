@@ -128,61 +128,116 @@ void JitIL::mftb(UGeckoInstruction inst)
 
 void JitIL::mfcr(UGeckoInstruction inst)
 {
-	Default(inst); return;
-#if 0
-	if(Core::g_CoreStartupParameter.bJITOff || Core::g_CoreStartupParameter.bJITSystemRegistersOff)
-	{Default(inst); return;} // turn off from debugger
 	INSTRUCTION_START;
-	// USES_CR
-	int d = inst.RD;
-	gpr.LoadToX64(d, false, true);
-	MOV(8, R(EAX), M(&PowerPC::ppcState.cr_fast[0]));
-	SHL(32, R(EAX), Imm8(4));
-	for (int i = 1; i < 7; i++) {
-		OR(8, R(EAX), M(&PowerPC::ppcState.cr_fast[i]));
-		SHL(32, R(EAX), Imm8(4));
+	JITDISABLE(SystemRegisters)
+
+	IREmitter::InstLoc d = ibuild.EmitIntConst(0);
+	for (int i = 0; i < 8; ++i)
+	{
+		d = ibuild.EmitShl(d, ibuild.EmitIntConst(4));
+		d = ibuild.EmitOr(d, ibuild.EmitLoadCR(i));
 	}
-	OR(8, R(EAX), M(&PowerPC::ppcState.cr_fast[7]));
-	MOV(32, gpr.R(d), R(EAX));
-#endif
+	ibuild.EmitStoreGReg(d, inst.RD);
 }
 
 void JitIL::mtcrf(UGeckoInstruction inst)
 {
-	Default(inst); return;
-#if 0
-	if(Core::g_CoreStartupParameter.bJITOff || Core::g_CoreStartupParameter.bJITSystemRegistersOff)
-	{Default(inst); return;} // turn off from debugger
 	INSTRUCTION_START;
+	JITDISABLE(SystemRegisters)
 
-	// USES_CR
-	u32 mask = 0;
-	u32 crm = inst.CRM;
-	if (crm == 0xFF) {
-		gpr.FlushLockX(ECX);			
-		MOV(32, R(EAX), gpr.R(inst.RS));
-		for (int i = 0; i < 8; i++) {
-			MOV(32, R(ECX), R(EAX));
-			SHR(32, R(ECX), Imm8(28 - (i * 4)));
-			AND(32, R(ECX), Imm32(0xF));
-			MOV(8, M(&PowerPC::ppcState.cr_fast[i]), R(ECX));
+	IREmitter::InstLoc s = ibuild.EmitLoadGReg(inst.RS);
+	for (int i = 0; i < 8; ++i)
+	{
+		if (inst.CRM & (0x80 >> i))
+		{
+			IREmitter::InstLoc value;
+			value = ibuild.EmitShrl(s, ibuild.EmitIntConst(28 - i * 4));
+			value = ibuild.EmitAnd(value, ibuild.EmitIntConst(0xF));
+			ibuild.EmitStoreCR(value, i);
 		}
-		gpr.UnlockAllX();
-	} else {
-		Default(inst);
-		return;
-
-		// TODO: translate this to work in new CR model.
-		for (int i = 0; i < 8; i++) {
-			if (crm & (1 << i))
-				mask |= 0xF << (i*4);
-		}
-		MOV(32, R(EAX), gpr.R(inst.RS));
-		MOV(32, R(ECX), M(&PowerPC::ppcState.cr));
-		AND(32, R(EAX), Imm32(mask));
-		AND(32, R(ECX), Imm32(~mask));
-		OR(32, R(EAX), R(ECX));
-		MOV(32, M(&PowerPC::ppcState.cr), R(EAX));
 	}
-#endif
+}
+
+void JitIL::mcrf(UGeckoInstruction inst)
+{
+	INSTRUCTION_START
+	JITDISABLE(SystemRegisters)
+
+	if (inst.CRFS != inst.CRFD)
+	{
+		ibuild.EmitStoreCR(ibuild.EmitLoadCR(inst.CRFS), inst.CRFD);
+	}
+}
+
+void JitIL::crXX(UGeckoInstruction inst)
+{
+	// Ported from Jit_SystemRegister.cpp
+
+	// Get bit CRBA in EAX aligned with bit CRBD
+	const int shiftA = (inst.CRBD & 3) - (inst.CRBA & 3);
+	IREmitter::InstLoc eax = ibuild.EmitLoadCR(inst.CRBA >> 2);
+	if (shiftA < 0)
+		eax = ibuild.EmitShl(eax, ibuild.EmitIntConst(-shiftA));
+	else if (shiftA > 0)
+		eax = ibuild.EmitShrl(eax, ibuild.EmitIntConst(shiftA));
+
+	// Get bit CRBB in ECX aligned with bit CRBD
+	const int shiftB = (inst.CRBD & 3) - (inst.CRBB & 3);
+	IREmitter::InstLoc ecx = ibuild.EmitLoadCR(inst.CRBB >> 2);
+	if (shiftB < 0)
+		ecx = ibuild.EmitShl(ecx, ibuild.EmitIntConst(-shiftB));
+	else if (shiftB > 0)
+		ecx = ibuild.EmitShrl(ecx, ibuild.EmitIntConst(shiftB));
+
+	// Compute combined bit
+	const unsigned subop = inst.SUBOP10;
+	switch (subop) {
+		case 257:
+			// crand
+			eax = ibuild.EmitAnd(eax, ecx);	
+			break;
+		case 129:
+			// crandc
+			ecx = ibuild.EmitNot(ecx);
+			eax = ibuild.EmitAnd(eax, ecx);	
+			break;
+		case 289:
+			// creqv
+			eax = ibuild.EmitXor(eax, ecx);
+			eax = ibuild.EmitNot(eax);
+			break;
+		case 225:
+			// crnand
+			eax = ibuild.EmitAnd(eax, ecx);
+			eax = ibuild.EmitNot(eax);
+			break;
+		case 33:
+			// crnor
+			eax = ibuild.EmitOr(eax, ecx);
+			eax = ibuild.EmitNot(eax);
+			break;
+		case 449:
+			// cror
+			eax = ibuild.EmitOr(eax, ecx);
+			break;
+		case 417:
+			// crorc
+			ecx = ibuild.EmitNot(ecx);
+			eax = ibuild.EmitOr(eax, ecx);
+			break;
+		case 193:
+			// crxor
+			eax = ibuild.EmitXor(eax, ecx);
+			break;
+		default:
+			PanicAlert("crXX: invalid instruction");
+			break;
+	}
+
+	// Store result bit in CRBD
+	eax = ibuild.EmitAnd(eax, ibuild.EmitIntConst(0x8 >> (inst.CRBD & 3)));
+	IREmitter::InstLoc bd = ibuild.EmitLoadCR(inst.CRBD >> 2);
+	bd = ibuild.EmitAnd(bd, ibuild.EmitIntConst(~(0x8 >> (inst.CRBD & 3))));
+	bd = ibuild.EmitOr(bd, eax);
+	ibuild.EmitStoreCR(bd, inst.CRBD >> 2);
 }

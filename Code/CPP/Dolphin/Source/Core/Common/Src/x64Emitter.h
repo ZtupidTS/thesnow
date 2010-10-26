@@ -526,8 +526,6 @@ public:
 	void PUNPCKLWD(X64Reg dest, const OpArg &arg);
 	void PUNPCKLDQ(X64Reg dest, const OpArg &arg);
 
-	void PSRAD(X64Reg dest, int shift);
-
 	void PAND(X64Reg dest, OpArg arg);
 	void PANDN(X64Reg dest, OpArg arg);   
 	void PXOR(X64Reg dest, OpArg arg);    
@@ -581,8 +579,15 @@ public:
 	void PSHUFLW(X64Reg dest, OpArg arg, u8 shuffle);
 
 	void PSRLW(X64Reg reg, int shift);
+	void PSRLD(X64Reg reg, int shift);
+	void PSRLQ(X64Reg reg, int shift);
+
 	void PSLLW(X64Reg reg, int shift);
+	void PSLLD(X64Reg reg, int shift);
+	void PSLLQ(X64Reg reg, int shift);
+
 	void PSRAW(X64Reg reg, int shift);
+	void PSRAD(X64Reg reg, int shift);
 
 	void RTDSC();
 
@@ -599,7 +604,9 @@ public:
 	void ABI_CallFunctionCC(void *func, u32 param1, u32 param2);
 	void ABI_CallFunctionCCC(void *func, u32 param1, u32 param2, u32 param3);
 	void ABI_CallFunctionCCP(void *func, u32 param1, u32 param2, void *param3);
+	void ABI_CallFunctionCCCP(void *func, u32 param1, u32 param2,u32 param3, void *param4);
 	void ABI_CallFunctionAC(void *func, const Gen::OpArg &arg1, u32 param2);
+	void ABI_CallFunctionA(void *func, const Gen::OpArg &arg1);
 
 	// Pass a register as a paremeter.
 	void ABI_CallFunctionR(void *func, Gen::X64Reg reg1);

@@ -32,7 +32,7 @@
 
 SCoreStartupParameter::SCoreStartupParameter()
 : hInstance(0), hMainWindow(0),
-  bJITNoBlockCache(false), bJITBlockLinking(false),
+  bJITNoBlockCache(false), bJITBlockLinking(true),
   bJITOff(false),
   bJITLoadStoreOff(false), bJITLoadStorelXzOff(false),
   bJITLoadStorelwzOff(false), bJITLoadStorelbzxOff(false),
@@ -46,14 +46,17 @@ SCoreStartupParameter::SCoreStartupParameter()
   bHLE_BS2(true), bUseFastMem(false),
   bLockThreads(false),
   bEnableCheats(false),
+  bMergeBlocks(false),
   bRunCompareServer(false), bRunCompareClient(false),
-  iTLBHack(0), SelectedLanguage(0),
-  bWii(false),
+  bMMU(false), bMMUBAT(false), iTLBHack(0), bAlternateRFI(false),
+  bFastDiscSpeed(false),
+  SelectedLanguage(0), bWii(false),
   bConfirmStop(false), bHideCursor(false), 
   bAutoHideCursor(false), bUsePanicHandlers(true),
   iRenderWindowXPos(0), iRenderWindowYPos(0),
   iRenderWindowWidth(640), iRenderWindowHeight(480),
   bFullscreen(false), bRenderToMain(false),
+  bProgressive(false),
   iTheme(0),
   iPosX(100), iPosY(100), iWidth(800), iHeight(600)
 {
@@ -70,9 +73,14 @@ void SCoreStartupParameter::LoadDefaults()
 	bDSPThread = true;
 	bLockThreads = true;
 	bEnableFPRF = false;
-	bWii = false;
-	SelectedLanguage = 0;
+	bMMU = false;
+	bMMUBAT = false;
 	iTLBHack = 0;
+	bAlternateRFI = false;
+	bFastDiscSpeed = false;
+	bMergeBlocks = false;
+	SelectedLanguage = 0;
+	bWii = false;
 
 	iPosX = 100;
 	iPosY = 100;
@@ -167,6 +175,7 @@ bool SCoreStartupParameter::AutoSetup(EBootBS2 _BootBS2)
 				case DiscIO::IVolume::COUNTRY_EUROPE:
 				case DiscIO::IVolume::COUNTRY_FRANCE:
 				case DiscIO::IVolume::COUNTRY_ITALY:
+				case DiscIO::IVolume::COUNTRY_RUSSIA:
 					bNTSC = false;
 					Region = EUR_DIR; 
 					break;

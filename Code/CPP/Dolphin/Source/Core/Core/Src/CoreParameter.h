@@ -25,6 +25,7 @@ enum Hotkey {
 	HK_FULLSCREEN,
 	HK_PLAY_PAUSE,
 	HK_STOP,
+	HK_SCREENSHOT,
 	HK_WIIMOTE1_CONNECT,
 	HK_WIIMOTE2_CONNECT,
 	HK_WIIMOTE3_CONNECT,
@@ -73,11 +74,16 @@ struct SCoreStartupParameter
 	bool bUseFastMem;
 	bool bLockThreads;
 	bool bEnableCheats;
+	bool bMergeBlocks;
 
 	bool bRunCompareServer;
 	bool bRunCompareClient;
 
+	bool bMMU;
+	bool bMMUBAT;
 	int iTLBHack;
+	bool bAlternateRFI;
+	bool bFastDiscSpeed;
 
 	int SelectedLanguage;
 
@@ -95,6 +101,7 @@ struct SCoreStartupParameter
 	int iRenderWindowXPos, iRenderWindowYPos;
 	int iRenderWindowWidth, iRenderWindowHeight;
 	bool bFullscreen, bRenderToMain;
+	bool bProgressive;
 
 	int iTheme;
 	int iPosX, iPosY, iWidth, iHeight;
@@ -120,7 +127,6 @@ struct SCoreStartupParameter
 	// files
 	std::string m_strVideoPlugin;
 	std::string m_strDSPPlugin;
-	std::string m_strWiimotePlugin;
 
 	std::string m_strFilename;
 	std::string m_strBootROM;

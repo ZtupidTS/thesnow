@@ -27,7 +27,6 @@
 #include <algorithm>
 
 #include "GCPadStatus.h"
-#include "pluginspecs_wiimote.h"
 
 #include "ControllerInterface/ControllerInterface.h"
 #include "IniFile.h"
@@ -45,7 +44,8 @@ enum
 	GROUP_TYPE_TILT,
 	GROUP_TYPE_CURSOR,
 	GROUP_TYPE_TRIGGERS,
-	GROUP_TYPE_UDPWII
+	GROUP_TYPE_UDPWII,
+	GROUP_TYPE_SLIDER,
 };
 
 const char * const named_directions[] = 
@@ -247,6 +247,26 @@ public:
 
 	};
 
+	class Slider : public ControlGroup
+	{
+	public:
+
+		template <typename S>
+		void GetState(S* const slider, const unsigned int range, const unsigned int base = 0)
+		{
+			const float deadzone = settings[0]->value;
+			const float state = controls[1]->control_ref->State() - controls[0]->control_ref->State();
+
+			if (fabsf(state) > deadzone)
+				*slider = (S)((state - (deadzone * sign(state))) / (1 - deadzone) * range + base);
+			else
+				*slider = 0;
+		}
+
+		Slider(const char* const _name);
+
+	};
+
 	class Force : public ControlGroup
 	{
 	public:
@@ -262,22 +282,10 @@ public:
 				const float state = controls[i+1]->control_ref->State() - controls[i]->control_ref->State();
 				if (fabsf(state) > deadzone)
 					tmpf = ((state - (deadzone * sign(state))) / (1 - deadzone));
-				else
-					tmpf = 0;
 
 				float &ax = m_swing[i >> 1];
-
-				if (fabs(tmpf) > fabsf(ax))
-				{
-					if (tmpf > ax)
-						ax = std::min(ax + 0.15f, tmpf);
-					else if (tmpf < ax)
-						ax = std::max(ax - 0.15f, tmpf);
-				}
-				else
-					ax = tmpf;
-
-				*axis++	= (C)(ax * range + base);
+				*axis++	= (C)((tmpf - ax) * range + base);
+				ax = tmpf;
 			}
 		}
 	private:
@@ -365,7 +373,7 @@ public:
 	class Cursor : public ControlGroup
 	{
 	public:
-		Cursor( const char* const _name, const SWiimoteInitialize* const _wiimote_initialize );
+		Cursor(const char* const _name);
 
 		template <typename C>
 		void GetState( C* const x, C* const y, C* const z, const bool adjusted = false )
@@ -402,9 +410,6 @@ public:
 				*y = yy;
 			}
 		}
-
-	private:
-		const SWiimoteInitialize* const wiimote_initialize;
 
 		float	m_z;
 	};

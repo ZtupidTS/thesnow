@@ -17,19 +17,6 @@
 
 #include "InputConfig.h"
 
-InputPlugin::InputPlugin( const char* const _ini_name, const char* const _gui_name, const char* const _profile_name  )
-	: ini_name(_ini_name)
-	, gui_name(_gui_name)
-	, profile_name(_profile_name)
-{
-	// GCPads
-	//for ( unsigned int i = 0; i<4; ++i )
-		//controllers.push_back( new GCPad( i ) );
-	// Wiimotes / disabled, cause it only the GUI half is done
-	//for ( unsigned int i = 0; i<4; ++i )
-	//	controllers.push_back( new Wiimote( i ) );
-};
-
 InputPlugin::~InputPlugin()
 {
 	// delete pads
@@ -42,24 +29,26 @@ InputPlugin::~InputPlugin()
 bool InputPlugin::LoadConfig()
 {
 	IniFile inifile;
-	if (false == inifile.Load(std::string(File::GetUserPath(D_CONFIG_IDX)) + ini_name + ".ini"))
+	if (inifile.Load(std::string(File::GetUserPath(D_CONFIG_IDX)) + ini_name + ".ini"))
 	{
-		controllers[0]->LoadDefaults(controller_interface);
+		std::vector< ControllerEmu* >::const_iterator
+			i = controllers.begin(),
+			e = controllers.end();
+		for (; i!=e; ++i)
+		{
+			// load settings from ini
+			(*i)->LoadConfig(inifile.GetOrCreateSection((*i)->GetName().c_str()));
+			// update refs
+			(*i)->UpdateReferences(g_controller_interface);
+		}
+		return true;
+	}
+	else
+	{
+		controllers[0]->LoadDefaults(g_controller_interface);
+		controllers[0]->UpdateReferences(g_controller_interface);
 		return false;
 	}
-
-	std::vector< ControllerEmu* >::const_iterator
-		i = controllers.begin(),
-		e = controllers.end();
-	for ( ; i!=e; ++i )
-	{
-		// load settings from ini
-		(*i)->LoadConfig(inifile.GetOrCreateSection((*i)->GetName().c_str()));
-		// update refs
-		(*i)->UpdateReferences(controller_interface);
-	}
-
-	return true;
 }
 
 void InputPlugin::SaveConfig()

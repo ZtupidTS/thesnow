@@ -37,19 +37,30 @@ unsigned int CMixer::Mix(short* samples, unsigned int numSamples)
 	}
 
 	unsigned int numLeft = Common::AtomicLoad(m_numSamples);
-	numLeft = (numLeft > numSamples) ? numSamples : numLeft;
-
-	// Do re-sampling if needed
-	if (m_sampleRate == 32000)
-	{
-		for (unsigned int i = 0; i < numLeft * 2; i++)
-			samples[i] = Common::swap16(m_buffer[(m_indexR + i) & INDEX_MASK]);
-		m_indexR += numLeft * 2;
+	if (m_AIplaying) {
+		if (numLeft < numSamples)//cannot do much about this
+			m_AIplaying = false;
+		if (numLeft < MAX_SAMPLES/4)//low watermark
+			m_AIplaying = false;
+	} else {
+		if (numLeft > MAX_SAMPLES/2)//high watermark
+			m_AIplaying = true;
 	}
-	else
-	{
-		// AyuanX: Up-sampling is not implemented yet
-		PanicAlert("Mixer: Up-sampling is not implemented yet!");
+
+	if (m_AIplaying) {
+		numLeft = (numLeft > numSamples) ? numSamples : numLeft;
+
+		// Do re-sampling if needed
+		if (m_sampleRate == 32000)
+		{
+			for (unsigned int i = 0; i < numLeft * 2; i++)
+				samples[i] = Common::swap16(m_buffer[(m_indexR + i) & INDEX_MASK]);
+			m_indexR += numLeft * 2;
+		}
+		else
+		{
+			// AyuanX: Up-sampling is not implemented yet
+			PanicAlert("Mixer: Up-sampling is not implemented yet!");
 /*
 	static int PV1l=0,PV2l=0,PV3l=0,PV4l=0;
 	static int PV1r=0,PV2r=0,PV3r=0,PV4r=0;
@@ -112,6 +123,10 @@ unsigned int CMixer::Mix(short* samples, unsigned int numSamples)
 		m_queueSize += 2;
 	}
 */
+		}
+
+	} else {
+		numLeft = 0;
 	}
 
 	// Padding
@@ -136,9 +151,9 @@ unsigned int CMixer::Mix(short* samples, unsigned int numSamples)
 
 void CMixer::PushSamples(short *samples, unsigned int num_samples)
 {
-	// The auto throttle function. This loop will put a ceiling on the CPU MHz.
 	if (m_throttle)
 	{
+		// The auto throttle function. This loop will put a ceiling on the CPU MHz.
 		while (Common::AtomicLoad(m_numSamples) >= MAX_SAMPLES - RESERVED_SAMPLES)
 		{
 			if (g_dspInitialize.pEmulatorState)

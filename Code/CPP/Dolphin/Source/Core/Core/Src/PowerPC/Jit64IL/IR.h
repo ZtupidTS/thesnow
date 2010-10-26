@@ -42,6 +42,7 @@ enum Opcode {
 	BSwap32,
 	BSwap16,
 	Cntlzw, // Count leading zeros
+	Not,
 	Load8,  // These loads zext
 	Load16,
 	Load32,
@@ -68,6 +69,7 @@ enum Opcode {
 	Or,
 	Xor,
 	// Non-commutative integer operators
+	MulHighUnsigned,
 	Sub,
 	Shl,  // Note that shifts ignore bits above the bottom 5
 	Shrl,
@@ -163,6 +165,10 @@ enum Opcode {
 	ShortIdleLoop, // Idle loop seen in homebrew like wii mahjong,
 		       // just a branch
 
+	// used for MMU, at least until someone 
+	// has a better idea of integrating it
+	FPExceptionCheckStart, FPExceptionCheckEnd,
+	ISIException,
 	// "Opcode" representing a register too far away to
 	// reference directly; this is a size optimization
 	Tramp,
@@ -220,6 +226,7 @@ private:
 	InstLoc FoldAdd(InstLoc Op1, InstLoc Op2);
 	InstLoc FoldSub(InstLoc Op1, InstLoc Op2);
 	InstLoc FoldMul(InstLoc Op1, InstLoc Op2);
+	InstLoc FoldMulHighUnsigned(InstLoc Op1, InstLoc Op2);
 	InstLoc FoldAnd(InstLoc Op1, InstLoc Op2);
 	InstLoc FoldOr(InstLoc Op1, InstLoc Op2);
 	InstLoc FoldRol(InstLoc Op1, InstLoc Op2);
@@ -281,6 +288,9 @@ public:
 	InstLoc EmitStoreGReg(InstLoc value, unsigned reg) {
 		return FoldUOp(StoreGReg, value, reg);
 	}
+	InstLoc EmitNot(InstLoc op1) {
+		return FoldUOp(Not, op1);
+	}
 	InstLoc EmitAnd(InstLoc op1, InstLoc op2) {
 		return FoldBiOp(And, op1, op2);
 	}
@@ -298,6 +308,9 @@ public:
 	}
 	InstLoc EmitMul(InstLoc op1, InstLoc op2) {
 		return FoldBiOp(Mul, op1, op2);
+	}
+	InstLoc EmitMulHighUnsigned(InstLoc op1, InstLoc op2) {
+		return FoldBiOp(MulHighUnsigned, op1, op2);
 	}
 	InstLoc EmitRol(InstLoc op1, InstLoc op2) {
 		return FoldBiOp(Rol, op1, op2);
@@ -388,6 +401,15 @@ public:
 	}
 	InstLoc EmitSystemCall(InstLoc pc) {
 		return FoldUOp(SystemCall, pc);
+	}
+	InstLoc EmitFPExceptionCheckStart(InstLoc pc) {
+		return EmitUOp(FPExceptionCheckStart, pc);
+	}
+	InstLoc EmitFPExceptionCheckEnd(InstLoc pc) {
+		return EmitUOp(FPExceptionCheckEnd, pc);
+	}
+	InstLoc EmitISIException(InstLoc dest) {
+		return EmitUOp(ISIException, dest);
 	}
 	InstLoc EmitRFIExit() {
 		return FoldZeroOp(RFIExit, 0);
@@ -497,8 +519,8 @@ public:
 	InstLoc EmitDoubleToSingle(InstLoc op1) {
 		return FoldUOp(DoubleToSingle, op1);
 	}
-	InstLoc EmitFDCmpCR(InstLoc op1, InstLoc op2) {
-		return FoldBiOp(FDCmpCR, op1, op2);
+	InstLoc EmitFDCmpCR(InstLoc op1, InstLoc op2, int ordered) {
+		return FoldBiOp(FDCmpCR, op1, op2, ordered);
 	}
 	InstLoc EmitLoadGQR(unsigned gqr) {
 		return FoldZeroOp(LoadGQR, gqr);
@@ -544,13 +566,15 @@ public:
 
 	IRBuilder() { Reset(); }
 
+	unsigned getNumberOfOperands(InstLoc I) const;
+
 private:
 	IRBuilder(IRBuilder&); // DO NOT IMPLEMENT
 	unsigned isSameValue(InstLoc Op1, InstLoc Op2) const;
 	unsigned getComplexity(InstLoc I) const;
 	void simplifyCommutative(unsigned Opcode, InstLoc& Op1, InstLoc& Op2);
 	bool maskedValueIsZero(InstLoc Op1, InstLoc Op2) const;
-	InstLoc isNot(InstLoc I) const;
+	InstLoc isNeg(InstLoc I) const;
 
 	std::vector<Inst> InstList; // FIXME: We must ensure this is 
 				    // continuous!

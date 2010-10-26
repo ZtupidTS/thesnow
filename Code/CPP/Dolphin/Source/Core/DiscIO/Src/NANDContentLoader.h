@@ -25,6 +25,7 @@
 #include "Common.h"
 #include "Blob.h"
 #include "Volume.h"
+#include "NandPaths.h"
 
 namespace DiscIO
 {
@@ -59,9 +60,9 @@ public:
     virtual const u8* GetTicketView() const = 0;
     virtual const u8* GetTmdHeader() const = 0;
     virtual const std::vector<SNANDContent>& GetContent() const = 0;    
-    virtual const u16 GetTitleVersion() const = 0;
-    virtual const u16 GetNumEntries() const = 0;
-    virtual const DiscIO::IVolume::ECountry GetCountry() const = 0;
+    virtual u16 GetTitleVersion() const = 0;
+    virtual u16 GetNumEntries() const = 0;
+    virtual DiscIO::IVolume::ECountry GetCountry() const = 0;
 
     enum
     {
@@ -80,7 +81,7 @@ public:
     static CNANDContentManager& Access() { return m_Instance; }
 
     const INANDContentLoader& GetNANDLoader(const std::string& _rName);
-
+	const INANDContentLoader& GetNANDLoader(u64 _titleId);
 private:
 
     CNANDContentManager() {};
@@ -132,9 +133,7 @@ public:
 
 	u32 GetUIDFromTitle(u64 _Title);
 	bool AddTitle(u64 _Title);
-	bool CheckTitleTMD(u64 _TitleID);
-	bool CheckTitleTIK(u64 _TitleID);
-	void GetTitleIDs(std::vector<u64>& _TitleIDs);
+	void GetTitleIDs(std::vector<u64>& _TitleIDs, bool _owned = false);
 private:
 
 

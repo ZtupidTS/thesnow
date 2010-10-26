@@ -51,7 +51,7 @@ namespace Memory
 // so be sure to load it into a 64-bit register.
 extern u8 *base; 
 
-// These are guarenteed to point to "low memory" addresses (sub-32-bit).
+// These are guaranteed to point to "low memory" addresses (sub-32-bit).
 extern u8 *m_pRAM;
 extern u8 *m_pEXRAM;
 extern u8 *m_pL1Cache;
@@ -72,10 +72,14 @@ enum
 	IO_SIZE         = 0x10000,
 	EXRAM_SIZE      = 0x4000000,
 	EXRAM_MASK      = 0x3FFFFFF,
-	#ifdef _M_IX86
-		MEMVIEW32_MASK  = 0x3FFFFFFF,
-	#endif
-};	
+
+	ADDR_MASK_HW_ACCESS	= 0x0c000000,
+	ADDR_MASK_MEM1		= 0x20000000,
+
+#ifdef _M_IX86
+	MEMVIEW32_MASK  = 0x3FFFFFFF,
+#endif
+};
 
 // Init and Shutdown
 bool IsInitialized();
@@ -112,7 +116,7 @@ inline u32 ReadFast32(const u32 _Address)
 
 // used by interpreter to read instructions, uses iCache
 u32 Read_Opcode(const u32 _Address);
-// used by JIT to read instructions, uses iCacheJIT
+// used by JIT to read instructions
 u32 Read_Opcode_JIT(const u32 _Address);
 // used by JIT. uses iCacheJIT. Reads in the "Locked cache" mode
 u32 Read_Opcode_JIT_LC(const u32 _Address);
@@ -169,11 +173,14 @@ enum XCheckTLBFlag
 	FLAG_WRITE,
 	FLAG_OPCODE,
 };
-u32 TranslatePageAddress(u32 _Address, XCheckTLBFlag _Flag);
-u32 TranslateBlockAddress(u32 _Address);
+u32 TranslateAddress(u32 _Address, XCheckTLBFlag _Flag);
+void InvalidateTLBEntry(u32 _Address);
+void GenerateDSIException(u32 _EffectiveAdress, bool _bWrite);
+void GenerateISIException(u32 _EffectiveAdress);
 extern u32 pagetable_base;
 extern u32 pagetable_hashmask;
 
 };
 
 #endif
+

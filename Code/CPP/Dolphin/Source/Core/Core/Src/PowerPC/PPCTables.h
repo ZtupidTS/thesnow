@@ -49,6 +49,7 @@ enum
 	FL_CHECKEXCEPTIONS = (1<<16),
 	FL_EVIL = (1<<17),
 	FL_USE_FPU = (1<<18),
+	FL_LOADSTORE = (1<<19),
 };
 
 enum
@@ -112,7 +113,7 @@ class cJit64;
 namespace PPCTables
 {
 
-void InitTables();
+void InitTables(int cpu_core);
 bool IsValidInstruction(UGeckoInstruction _instCode);
 bool UsesFPU(UGeckoInstruction _inst);
 

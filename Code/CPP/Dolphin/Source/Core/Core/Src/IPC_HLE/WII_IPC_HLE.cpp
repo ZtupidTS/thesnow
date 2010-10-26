@@ -41,7 +41,6 @@ They will also generate a true or false return for UpdateInterrupts() in WII_IPC
 #include "CommonPaths.h"
 #include "WII_IPC_HLE.h"
 #include "WII_IPC_HLE_Device.h"
-#include "WII_IPC_HLE_Device_Error.h"
 #include "WII_IPC_HLE_Device_DI.h"
 #include "WII_IPC_HLE_Device_FileIO.h"
 #include "WII_IPC_HLE_Device_stm.h"
@@ -76,7 +75,6 @@ typedef std::queue<u32> ipc_msg_queue;
 static ipc_msg_queue request_queue;	// ppc -> arm
 static ipc_msg_queue reply_queue;	// arm -> ppc
 
-// General IPC functions 
 void Init()
 {
     _dbg_assert_msg_(WII_IPC_HLE, g_DeviceMap.empty(), "DeviceMap isnt empty on init");
@@ -93,11 +91,10 @@ void Init()
 	g_DeviceMap[i] = new CWII_IPC_HLE_Device_net_kd_time(i, std::string("/dev/net/kd/time")); i++;
 	g_DeviceMap[i] = new CWII_IPC_HLE_Device_net_ncd_manage(i, std::string("/dev/net/ncd/manage")); i++;
 	g_DeviceMap[i] = new CWII_IPC_HLE_Device_net_ip_top(i, std::string("/dev/net/ip/top")); i++;
-	g_DeviceMap[i] = new CWII_IPC_HLE_Device_usb_oh0(i, std::string("/dev/usb/oh0")); i++;
 	g_DeviceMap[i] = new CWII_IPC_HLE_Device_usb_kbd(i, std::string("/dev/usb/kbd")); i++;
-	g_DeviceMap[i] = new CWII_IPC_HLE_Device_usb_hid(i, std::string("/dev/usb/hid")); i++;
 	g_DeviceMap[i] = new CWII_IPC_HLE_Device_sdio_slot0(i, std::string("/dev/sdio/slot0")); i++;
-	g_DeviceMap[i] = new CWII_IPC_HLE_Device_Error(i, std::string("_Unknown_Device_")); i++;
+	g_DeviceMap[i] = new CWII_IPC_HLE_Device_stub(i, std::string("/dev/usb/hid")); i++;
+	g_DeviceMap[i] = new IWII_IPC_HLE_Device(i, std::string("_Unimplemented_Device_"));
 
 	g_LastDeviceID = IPC_FIRST_FILEIO_ID;
 }
@@ -141,7 +138,16 @@ void SetDefaultContentFile(const std::string& _rFilename)
 		pDevice->LoadWAD(_rFilename);
 }
 
-u32 GetDeviceIDByName(const std::string& _rDeviceName)
+void ES_DIVerify(u8 *_pTMD, u32 _sz)
+{
+	CWII_IPC_HLE_Device_es* pDevice = (CWII_IPC_HLE_Device_es*)AccessDeviceByID(GetDeviceIDByName(std::string("/dev/es")));
+	if (pDevice)
+		pDevice->ES_DIVerify(_pTMD, _sz);
+	else
+		ERROR_LOG(WII_IPC_ES, "DIVerify called but /dev/es is not available");
+}
+
+int GetDeviceIDByName(const std::string& _rDeviceName)
 {
     TDeviceMap::const_iterator itr = g_DeviceMap.begin();
     while(itr != g_DeviceMap.end())
@@ -151,7 +157,7 @@ u32 GetDeviceIDByName(const std::string& _rDeviceName)
         ++itr;
     }
 
-    return 0;
+    return -1;
 }
 
 IWII_IPC_HLE_Device* AccessDeviceByID(u32 _ID)
@@ -262,7 +268,7 @@ void ExecuteCommand(u32 _Address)
     bool CmdSuccess = false;
 
     ECommandType Command = static_cast<ECommandType>(Memory::Read_U32(_Address));
-	u32 DeviceID = Memory::Read_U32(_Address + 8);
+	int DeviceID = Memory::Read_U32(_Address + 8);
 	IWII_IPC_HLE_Device* pDevice = AccessDeviceByID(DeviceID);
 
 	INFO_LOG(WII_IPC_HLE, "-->> Execute Command Address: 0x%08x (code: %x, device: %x) ", _Address, Command, DeviceID);
@@ -283,15 +289,14 @@ void ExecuteCommand(u32 _Address)
             u32 Mode = Memory::Read_U32(_Address + 0x10);
             DeviceID = GetDeviceIDByName(DeviceName);
 
-			// check if a device with this name has been created already
-            if (DeviceID == 0)				
+            // check if a device with this name has been created already
+            if (DeviceID == -1)				
             {
 				if (DeviceName.find("/dev/") != std::string::npos)
 				{
-					ERROR_LOG(WII_IPC_FILEIO, "Unknown device: %s", DeviceName.c_str());
-				 	PanicAlert("Unknown device: %s\n\nMaybe you can continue to play or maybe the game will freeze.", DeviceName.c_str());
+					WARN_LOG(WII_IPC_HLE, "Unimplemented device: %s", DeviceName.c_str());
 
-					pDevice = AccessDeviceByID(GetDeviceIDByName(std::string("_Unknown_Device_")));
+					pDevice = AccessDeviceByID(GetDeviceIDByName(std::string("_Unimplemented_Device_")));
 					CmdSuccess = pDevice->Open(_Address, Mode);
 				}
 				else
@@ -315,12 +320,6 @@ void ExecuteCommand(u32 _Address)
 				// The device is already created 
                 pDevice = AccessDeviceByID(DeviceID);
 
-				// If we return -6 here after a Open > Failed > CREATE_FILE > ReOpen call
-				//   sequence Mario Galaxy and Mario Kart Wii will not start writing to the file,
-				//   it will just (seemingly) wait for one or two seconds and then give an error
-				//   message. So I'm trying to return the DeviceID instead to make it write to the file.
-				//   (Which was most likely the reason it created the file in the first place.)
-
 				// F|RES: prolly the re-open is just a mode change
 
                 INFO_LOG(WII_IPC_FILEIO, "IOP: ReOpen (Device=%s, DeviceID=%08x, Mode=%i)",
@@ -328,23 +327,7 @@ void ExecuteCommand(u32 _Address)
 
 				if (pDevice->IsHardware())
 				{
-					if (pDevice->IsOpened())
-					{
-						if (pDevice->GetDeviceName().find("/dev/net/kd/request") != std::string::npos)
-							// AyuanX: /dev/net/kd/request is more like event which doesn't need close so it can be reopened
-							pDevice->Open(_Address, Mode);
-						else
-							// We have already opened this hardware, return -6
-
-							// AyuanX: TO_BE_VERIFIED
-							// -6 seems to be a bad number as in NET it means "Retry Again"(?)
-							// I guess -4 stands for "Already Opened"(?)
-							Memory::Write_U32(u32(-6), _Address + 4);
-					}
-					else
-					{
-						pDevice->Open(_Address, Mode);
-					}
+					pDevice->Open(_Address, Mode);
 				}
 				else
 				{
@@ -364,31 +347,50 @@ void ExecuteCommand(u32 _Address)
     case COMMAND_CLOSE_DEVICE:
         if (pDevice)
 		{
-            pDevice->Close(_Address);
+            CmdSuccess = pDevice->Close(_Address);
 			// Don't delete hardware
 			if (!pDevice->IsHardware())
 				DeleteDeviceByID(DeviceID);
-            CmdSuccess = true;
+		}
+		else
+		{
+			Memory::Write_U32(FS_EINVAL, _Address + 4);
+			CmdSuccess = true;
 		}
         break;
 
     case COMMAND_READ:
-		if (pDevice != NULL)
+		if (pDevice)
 			CmdSuccess = pDevice->Read(_Address);
+		else
+		{
+			Memory::Write_U32(FS_EINVAL, _Address + 4);
+			CmdSuccess = true;
+		}
         break;
     
     case COMMAND_WRITE:
-		if (pDevice != NULL)
+		if (pDevice)
 			CmdSuccess = pDevice->Write(_Address);
+		else
+		{
+			Memory::Write_U32(FS_EINVAL, _Address + 4);
+			CmdSuccess = true;
+		}
         break;
 
     case COMMAND_SEEK:
-		if (pDevice != NULL)
+		if (pDevice)
 			CmdSuccess = pDevice->Seek(_Address);
+		else
+		{
+			Memory::Write_U32(FS_EINVAL, _Address + 4);
+			CmdSuccess = true;
+		}
         break;
 
     case COMMAND_IOCTL:
-		if (pDevice != NULL)
+		if (pDevice)
 			CmdSuccess = pDevice->IOCtl(_Address);
         break;
 
@@ -403,7 +405,7 @@ void ExecuteCommand(u32 _Address)
     }
 
     // It seems that the original hardware overwrites the command after it has been
-	//	   executed. We write 8 which is not any valid command, and what IOS does 
+	// executed. We write 8 which is not any valid command, and what IOS does 
 	Memory::Write_U32(8, _Address);
 	// IOS seems to write back the command that was responded to
 	Memory::Write_U32(Command, _Address + 8);
@@ -415,7 +417,14 @@ void ExecuteCommand(u32 _Address)
     }
 	else
 	{
-		//DEBUG_LOG(WII_IPC_HLE, "<<-- Failed or Not Ready to Reply to IPC Request @ 0x%08x ", _Address);
+		if (pDevice)
+		{
+			INFO_LOG(WII_IPC_HLE, "<<-- Reply Failed to %s IPC Request %i @ 0x%08x ", pDevice->GetDeviceName().c_str(), Command, _Address);
+		}
+		else
+		{
+			INFO_LOG(WII_IPC_HLE, "<<-- Reply Failed to Unknown (%08x) IPC Request %i @ 0x%08x ", DeviceID, Command, _Address);
+		}
 	}
 }
 
@@ -440,14 +449,6 @@ void Update()
 
 	UpdateDevices();
 
-	if (reply_queue.size())
-	{
-		WII_IPCInterface::GenerateReply(reply_queue.front());
-		INFO_LOG(WII_IPC_HLE, "<<-- Reply to IPC Request @ 0x%08x", reply_queue.front());
-		reply_queue.pop();
-		return;
-	}
-
 	if (request_queue.size())
 	{
 		WII_IPCInterface::GenerateAck(request_queue.front());
@@ -456,9 +457,16 @@ void Update()
 		ExecuteCommand(request_queue.front());
 		request_queue.pop();
 
-		#if MAX_LOGLEVEL >= DEBUG_LEVEL
+#if MAX_LOGLEVEL >= DEBUG_LEVEL
 		Dolphin_Debugger::PrintCallstack(LogTypes::WII_IPC_HLE, LogTypes::LDEBUG);
-		#endif
+#endif
+	}
+
+	if (reply_queue.size())
+	{
+		WII_IPCInterface::GenerateReply(reply_queue.front());
+		INFO_LOG(WII_IPC_HLE, "<<-- Reply to IPC Request @ 0x%08x", reply_queue.front());
+		reply_queue.pop();
 	}
 }
 

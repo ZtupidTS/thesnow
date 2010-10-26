@@ -34,91 +34,84 @@
 #include "JitAsm.h"
 #include "JitRegCache.h"
 
-void Jit64::lbzx(UGeckoInstruction inst)
+void Jit64::lXXx(UGeckoInstruction inst)
 {
 	INSTRUCTION_START
 	JITDISABLE(LoadStore)
-	if (Core::g_CoreStartupParameter.bJITLoadStorelbzxOff)
+
+	int a = inst.RA, b = inst.RB, d = inst.RD;
+
+	// Skip disabled JIT instructions
+	if (Core::g_CoreStartupParameter.bJITLoadStorelbzxOff && (inst.OPCD == 31) && (inst.SUBOP10 == 87))
+	{ Default(inst); return; }
+	if (Core::g_CoreStartupParameter.bJITLoadStorelXzOff && ((inst.OPCD == 34) || (inst.OPCD == 40) || (inst.OPCD == 32)))
+	{ Default(inst); return; }
+	if (Core::g_CoreStartupParameter.bJITLoadStorelwzOff && (inst.OPCD == 32))
 	{ Default(inst); return; }
 
-	int a = inst.RA, b = inst.RB, d = inst.RD;
-	gpr.Lock(a, b, d);
-	gpr.FlushLockX(ABI_PARAM1);
-	if (b == d || a == d)
-		gpr.LoadToX64(d, true, true);
-	else 
-		gpr.LoadToX64(d, false, true);
-	MOV(32, R(ABI_PARAM1), gpr.R(b));
-	if (a)
-		ADD(32, R(ABI_PARAM1), gpr.R(a));
-#if 0
-	SafeLoadRegToEAX(ABI_PARAM1, 8, 0);
-	MOV(32, gpr.R(d), R(EAX));
-#else
-	UnsafeLoadRegToReg(ABI_PARAM1, gpr.RX(d), 8, 0, false);
-#endif
-	gpr.UnlockAll();
-	gpr.UnlockAllX();
-}
-
-void Jit64::lwzx(UGeckoInstruction inst)
-{
-	INSTRUCTION_START
-	JITDISABLE(LoadStore)
-
-	int a = inst.RA, b = inst.RB, d = inst.RD;
-	gpr.Lock(a, b, d);
-	gpr.FlushLockX(ABI_PARAM1);
-	if (b == d || a == d)
-		gpr.LoadToX64(d, true, true);
-	else 
-		gpr.LoadToX64(d, false, true);
-	MOV(32, R(ABI_PARAM1), gpr.R(b));
-	if (a)
-		ADD(32, R(ABI_PARAM1), gpr.R(a));
-#if 1
-	SafeLoadRegToEAX(ABI_PARAM1, 32, 0);
-	MOV(32, gpr.R(d), R(EAX));
-#else
-	UnsafeLoadRegToReg(ABI_PARAM1, gpr.RX(d), 32, 0, false);
-#endif
-	gpr.UnlockAll();
-	gpr.UnlockAllX();
-}
-
-void Jit64::lhax(UGeckoInstruction inst)
-{
-	INSTRUCTION_START
-	JITDISABLE(LoadStore)
-
-	int a = inst.RA, b = inst.RB, d = inst.RD;
-	gpr.Lock(a, b, d);
-	gpr.FlushLockX(ABI_PARAM1);
-	if (b == d || a == d)
-		gpr.LoadToX64(d, true, true);
-	else 
-		gpr.LoadToX64(d, false, true);
-	MOV(32, R(ABI_PARAM1), gpr.R(b));
-	if (a)
-		ADD(32, R(ABI_PARAM1), gpr.R(a));
-
-	// Some homebrew actually loads from a hw reg with this instruction
-	SafeLoadRegToEAX(ABI_PARAM1, 16, 0, true);
-	MOV(32, gpr.R(d), R(EAX));
-
-	gpr.UnlockAll();
-	gpr.UnlockAllX();
-}
-
-void Jit64::lXz(UGeckoInstruction inst)
-{
-	INSTRUCTION_START
-	JITDISABLE(LoadStore)
-	if (Core::g_CoreStartupParameter.bJITLoadStorelXzOff)
-	{ Default(inst); return; }
-
-	int d = inst.RD;
-	int a = inst.RA;
+	// Determine memory access size and sign extend
+	int accessSize = 0;
+	bool signExtend = false;
+	switch (inst.OPCD)
+	{
+	case 32: /* lwz */
+	case 33: /* lwzu */
+		accessSize = 32;
+		signExtend = false;
+		break;
+		
+	case 34: /* lbz */
+	case 35: /* lbzu */
+		accessSize = 8;
+		signExtend = false;
+		break;
+		
+	case 40: /* lhz */
+	case 41: /* lhzu */
+		accessSize = 16;
+		signExtend = false;
+		break;
+		
+	case 42: /* lha */
+	case 43: /* lhau */
+		accessSize = 16;
+		signExtend = true;
+		break;
+		
+	case 31:
+		switch (inst.SUBOP10)
+		{
+		case 23:  /* lwzx */
+		case 55:  /* lwzux */
+			accessSize = 32;
+			signExtend = false;
+			break;
+			
+		case 87:  /* lbzx */
+		case 119: /* lbzux */
+			accessSize = 8;
+			signExtend = false;
+			break;
+		case 279: /* lhzx */
+		case 311: /* lhzux */
+			accessSize = 16;
+			signExtend = false;
+			break;
+			
+		case 343: /* lhax */
+		case 375: /* lhaux */
+			accessSize = 16;
+			signExtend = true;
+			break;
+			
+		default:
+			PanicAlert("Invalid instruction");
+		}
+		break;
+		
+	default:
+		PanicAlert("Invalid instruction");
+	}
 
 	// TODO(ector): Make it dynamically enable/disable idle skipping where appropriate
 	// Will give nice boost to dual core mode
@@ -135,25 +128,22 @@ void Jit64::lXz(UGeckoInstruction inst)
 	{
 		// TODO(LinesPrower): 			
 		// - Rewrite this!
-		// It seems to be ugly and unefficient, but I don't know JIT stuff enough to make it right
+		// It seems to be ugly and inefficient, but I don't know JIT stuff enough to make it right
 		// It only demonstrates the idea
 
 		// do our job at first
 		s32 offset = (s32)(s16)inst.SIMM_16;
-		gpr.FlushLockX(ABI_PARAM1);
-		gpr.Lock(d, a);
-		MOV(32, R(ABI_PARAM1), gpr.R(a));
-		SafeLoadRegToEAX(ABI_PARAM1, 32, offset);
-		gpr.LoadToX64(d, false, true);
+		gpr.Lock(d);
+		SafeLoadToEAX(gpr.R(a), accessSize, offset, signExtend);
+		gpr.KillImmediate(d, false, true);
 		MOV(32, gpr.R(d), R(EAX));
 		gpr.UnlockAll();
-		gpr.UnlockAllX();
-
+		
 		gpr.Flush(FLUSH_ALL); 
 
 		// if it's still 0, we can wait until the next event
-		CMP(32, R(RAX), Imm32(0));
-		FixupBranch noIdle = J_CC(CC_NE);
+		TEST(32, R(EAX), R(EAX));
+		FixupBranch noIdle = J_CC(CC_NZ);
 
 		gpr.Flush(FLUSH_ALL);
 		fpr.Flush(FLUSH_ALL);
@@ -168,109 +158,81 @@ void Jit64::lXz(UGeckoInstruction inst)
 		//js.compilerPC += 8;
 		return;
 	}
-
-	// R2 always points to the small read-only data area. We could bake R2-relative loads into immediates.
-	// R13 always points to the small read/write data area. Not so exciting but at least could drop checks in 32-bit safe mode.
-
-	s32 offset = (s32)(s16)inst.SIMM_16;
-	if (!a) 
+	
+	// Determine whether this instruction updates inst.RA
+	bool update;
+	if (inst.OPCD == 31)
+		update = ((inst.SUBOP10 & 0x20) != 0);
+	else
+		update = ((inst.OPCD & 1) != 0);
+	
+	// Prepare address operand
+	Gen::OpArg opAddress;
+	if (!update && !a)
 	{
-		Default(inst);
-		return;
+		if (inst.OPCD == 31)
+		{
+			gpr.Lock(b);
+			opAddress = gpr.R(b);
+		}
+		else
+		{
+			opAddress = Imm32((u32)(s32)inst.SIMM_16);
+		}
 	}
-	int accessSize;
-	switch (inst.OPCD)
+	else if (update && ((a == 0) || (d == a)))
 	{
-	case 32:
-		accessSize = 32;
-		if (Core::g_CoreStartupParameter.bJITLoadStorelwzOff) {Default(inst); return;}
-		break; //lwz	
-	case 40: accessSize = 16; break; //lhz
-	case 34: accessSize = 8;  break; //lbz
-	default:
-		//_assert_msg_(DYNA_REC, 0, "lXz: invalid access size");
-		PanicAlert("lXz: invalid access size");
-		return;
+		PanicAlert("Invalid instruction");
+	}
+	else
+	{
+		if ((inst.OPCD != 31) && gpr.R(a).IsImm())
+		{
+			opAddress = Imm32((u32)gpr.R(a).offset + (s32)inst.SIMM_16);
+		}
+		else if ((inst.OPCD == 31) && gpr.R(a).IsImm() && gpr.R(b).IsImm())
+		{
+			opAddress = Imm32((u32)gpr.R(a).offset + (u32)gpr.R(b).offset);
+		}
+		else
+		{
+			gpr.FlushLockX(ABI_PARAM1);
+			opAddress = R(ABI_PARAM1);
+			MOV(32, opAddress, gpr.R(a));
+			
+			if (inst.OPCD == 31)
+				ADD(32, opAddress, gpr.R(b));
+			else
+				ADD(32, opAddress, Imm32((u32)(s32)inst.SIMM_16));
+		}
 	}
 
-	//Still here? Do regular path.
-#if defined(_M_X64)
-	if (accessSize == 8 || accessSize == 16 || !jo.enableFastMem) {
-#else
-	if (true) {
-#endif
-		// Safe and boring
-		gpr.FlushLockX(ABI_PARAM1);
-		gpr.Lock(d, a);
-		MOV(32, R(ABI_PARAM1), gpr.R(a));
-		SafeLoadRegToEAX(ABI_PARAM1, accessSize, offset);
-		gpr.LoadToX64(d, false, true);
-		MOV(32, gpr.R(d), R(EAX));
-		gpr.UnlockAll();
-		gpr.UnlockAllX();
-		return;
+	SafeLoadToEAX(opAddress, accessSize, 0, signExtend);
+
+	// We must flush immediate values from the following registers because
+	// they may change at runtime if no MMU exception has been raised
+	gpr.KillImmediate(d, true, true);
+	if (update)
+	{
+		gpr.Lock(a);
+		gpr.BindToRegister(a, true, true);
 	}
+	
+	MEMCHECK_START
 
-	// Fast and daring
-	gpr.Lock(a, d);
-	gpr.LoadToX64(a, true, false);
-	gpr.LoadToX64(d, a == d, true);
-	MOV(accessSize, gpr.R(d), MComplex(RBX, gpr.R(a).GetSimpleReg(), SCALE_1, offset));
-	switch (accessSize) {
-		case 32:
-			BSWAP(32, gpr.R(d).GetSimpleReg());
-			break;
-			// Careful in the backpatch - need to properly nop over first
-			//		case 16:
-			//			BSWAP(32, gpr.R(d).GetSimpleReg());
-			//			SHR(32, gpr.R(d), Imm8(16));
-			//			break;
+	if (update)
+	{
+		if (inst.OPCD == 31)
+			ADD(32, gpr.R(a), gpr.R(b));
+		else
+			ADD(32, gpr.R(a), Imm32((u32)(s32)inst.SIMM_16));
 	}
-	gpr.UnlockAll();
-}
-
-void Jit64::lha(UGeckoInstruction inst)
-{
-	INSTRUCTION_START
-	JITDISABLE(LoadStore)
-
-	int d = inst.RD;
-	int a = inst.RA;
-	s32 offset = (s32)(s16)inst.SIMM_16;
-	// Safe and boring
-	gpr.FlushLockX(ABI_PARAM1);
-	gpr.Lock(d, a);
-	MOV(32, R(ABI_PARAM1), gpr.R(a));
-	SafeLoadRegToEAX(ABI_PARAM1, 16, offset, true);
-	gpr.LoadToX64(d, d == a, true);
 	MOV(32, gpr.R(d), R(EAX));
+
+	MEMCHECK_END
+	
 	gpr.UnlockAll();
 	gpr.UnlockAllX();
-	return;
-}
-
-void Jit64::lwzux(UGeckoInstruction inst)
-{
-	INSTRUCTION_START
-	JITDISABLE(LoadStore)
-
-	int a = inst.RA, b = inst.RB, d = inst.RD;
-	if (!a || a == d || a == b)
-	{
-		Default(inst);
-		return;
-	}
-	gpr.Lock(a, b, d);
-
-	gpr.LoadToX64(d, b == d, true);
-	gpr.LoadToX64(a, true, true);
-	ADD(32, gpr.R(a), gpr.R(b));
-	MOV(32, R(EAX), gpr.R(a));
-	SafeLoadRegToEAX(EAX, 32, 0, false);
-	MOV(32, gpr.R(d), R(EAX));
-
-	gpr.UnlockAll();
-	return;
 }
 
 // Zero cache line.
@@ -307,7 +269,7 @@ void Jit64::stX(UGeckoInstruction inst)
 	bool update = inst.OPCD & 1;
 
 	s32 offset = (s32)(s16)inst.SIMM_16;
-	if (a || update) 
+	if (a || !update) 
 	{
 		int accessSize;
 		switch (inst.OPCD & ~1)
@@ -318,18 +280,18 @@ void Jit64::stX(UGeckoInstruction inst)
 		default: _assert_msg_(DYNA_REC, 0, "AWETKLJASDLKF"); return;
 		}
 
-		if (gpr.R(a).IsImm())
+		if ((a == 0) || gpr.R(a).IsImm())
 		{
 			// If we already know the address through constant folding, we can do some
 			// fun tricks...
-			u32 addr = (u32)gpr.R(a).offset;
+			u32 addr = ((a == 0) ? 0 : (u32)gpr.R(a).offset);
 			addr += offset;
 			if ((addr & 0xFFFFF000) == 0xCC008000 && jo.optimizeGatherPipe)
 			{
-				if (offset && update)
-					gpr.SetImmediate32(a, addr);
 				gpr.FlushLockX(ABI_PARAM1);
 				MOV(32, R(ABI_PARAM1), gpr.R(s));
+				if (update)
+					gpr.SetImmediate32(a, addr);
 				switch (accessSize)
 				{	
 					// No need to protect these, they don't touch any state
@@ -342,16 +304,27 @@ void Jit64::stX(UGeckoInstruction inst)
 				gpr.UnlockAllX();
 				return;
 			}
-			else if (Memory::IsRAMAddress(addr) && accessSize == 32)
+			else if (Memory::IsRAMAddress(addr))
 			{
-				if (offset && update)
-					gpr.SetImmediate32(a, addr);
-				MOV(accessSize, R(EAX), gpr.R(s));
+				MOV(32, R(EAX), gpr.R(s));
 				BSWAP(accessSize, EAX);
-				WriteToConstRamAddress(accessSize, R(EAX), addr); 
+				WriteToConstRamAddress(accessSize, R(EAX), addr);
+				if (update)
+					gpr.SetImmediate32(a, addr);
 				return;
 			}
-			// Other IO not worth the trouble.
+			else
+			{
+				switch (accessSize)
+				{
+				case 32: ABI_CallFunctionAC(thunks.ProtectFunction(true ? ((void *)&Memory::Write_U32) : ((void *)&Memory::Write_U32_Swap), 2), gpr.R(s), addr); break;
+				case 16: ABI_CallFunctionAC(thunks.ProtectFunction(true ? ((void *)&Memory::Write_U16) : ((void *)&Memory::Write_U16_Swap), 2), gpr.R(s), addr); break;
+				case 8:  ABI_CallFunctionAC(thunks.ProtectFunction((void *)&Memory::Write_U8, 2), gpr.R(s), addr);  break;
+				}
+				if (update)
+					gpr.SetImmediate32(a, addr);
+				return;
+			}
 		}
 		
 		// Optimized stack access?
@@ -363,12 +336,17 @@ void Jit64::stX(UGeckoInstruction inst)
 			BSWAP(32, EAX);
 #ifdef _M_X64	
 			MOV(accessSize, MComplex(RBX, ABI_PARAM1, SCALE_1, (u32)offset), R(EAX));
-#elif _M_IX86
+#else
 			AND(32, R(ABI_PARAM1), Imm32(Memory::MEMVIEW32_MASK));
 			MOV(accessSize, MDisp(ABI_PARAM1, (u32)Memory::base + (u32)offset), R(EAX));
 #endif
-			if (update)
+			if (update && offset)
+			{
+				gpr.Lock(a);
+				gpr.KillImmediate(a, true, true);
 				ADD(32, gpr.R(a), Imm32(offset));
+				gpr.UnlockAll();
+			}
 			gpr.UnlockAllX();
 			return;
 		}
@@ -379,7 +357,7 @@ void Jit64::stX(UGeckoInstruction inst)
 		{
 		// Fast and daring - requires 64-bit
 		MOV(32, R(EAX), gpr.R(s));
-		gpr.LoadToX64(a, true, false);
+		gpr.BindToRegister(a, true, false);
 		BSWAP(32, EAX);
 		MOV(accessSize, MComplex(RBX, gpr.RX(a), SCALE_1, (u32)offset), R(EAX));
 		return;
@@ -387,41 +365,29 @@ void Jit64::stX(UGeckoInstruction inst)
 		#endif*/
 
 		//Still here? Do regular path.
-		gpr.Lock(s, a);
+
 		gpr.FlushLockX(ECX, EDX);
+		gpr.Lock(s, a);
 		MOV(32, R(EDX), gpr.R(a));
 		MOV(32, R(ECX), gpr.R(s));
-		if (offset)
-			ADD(32, R(EDX), Imm32((u32)offset));
+		SafeWriteRegToReg(ECX, EDX, accessSize, offset);
+
 		if (update && offset)
 		{
-			gpr.LoadToX64(a, true, true);
-			MOV(32, gpr.R(a), R(EDX));
+			gpr.KillImmediate(a, true, true);
+			MEMCHECK_START
+			
+			ADD(32, gpr.R(a), Imm32((u32)offset));
+
+			MEMCHECK_END
 		}
-		TEST(32, R(EDX), Imm32(0x0C000000));
-		FixupBranch unsafe_addr = J_CC(CC_NZ);
-		BSWAP(accessSize, ECX);
-#ifdef _M_X64
-		MOV(accessSize, MComplex(RBX, EDX, SCALE_1, 0), R(ECX));
-#else
-		AND(32, R(EDX), Imm32(Memory::MEMVIEW32_MASK));
-		MOV(accessSize, MDisp(EDX, (u32)Memory::base), R(ECX));
-#endif
-		FixupBranch skip_call = J();
-		SetJumpTarget(unsafe_addr);
-		switch (accessSize)
-		{
-		case 32: ABI_CallFunctionRR(thunks.ProtectFunction((void *)&Memory::Write_U32, 2), ECX, EDX); break;
-		case 16: ABI_CallFunctionRR(thunks.ProtectFunction((void *)&Memory::Write_U16, 2), ECX, EDX); break;
-		case 8:  ABI_CallFunctionRR(thunks.ProtectFunction((void *)&Memory::Write_U8,  2), ECX, EDX); break;
-		}
-		SetJumpTarget(skip_call);
+
 		gpr.UnlockAll();
 		gpr.UnlockAllX();
 	}
 	else
 	{
-		Default(inst);
+		PanicAlert("Invalid stX");
 	}
 }
 
@@ -440,14 +406,14 @@ void Jit64::stXx(UGeckoInstruction inst)
 	gpr.FlushLockX(ECX, EDX);
 
 	if (inst.SUBOP10 & 32) {
-		gpr.LoadToX64(a, true, true);
+		gpr.BindToRegister(a, true, true);
 		ADD(32, gpr.R(a), gpr.R(b));
 		MOV(32, R(EDX), gpr.R(a));
 	} else {
 		MOV(32, R(EDX), gpr.R(a));
 		ADD(32, R(EDX), gpr.R(b));
 	}
-	unsigned accessSize;
+	int accessSize;
 	switch (inst.SUBOP10 & ~32) {
 		case 151: accessSize = 32; break;
 		case 407: accessSize = 16; break;
@@ -459,17 +425,20 @@ void Jit64::stXx(UGeckoInstruction inst)
 	MOV(32, R(ECX), gpr.R(s));
 	SafeWriteRegToReg(ECX, EDX, accessSize, 0);
 
+	//MEMCHECK_START
+
+	// TODO: Insert rA update code here
+
+	//MEMCHECK_END
+
 	gpr.UnlockAll();
 	gpr.UnlockAllX();
-	return;
 }
 
 // A few games use these heavily in video codecs.
 void Jit64::lmw(UGeckoInstruction inst)
 {
-#ifdef _M_IX86
-	Default(inst); return;
-#else
+#ifdef _M_X64
 	gpr.FlushLockX(ECX);
 	MOV(32, R(EAX), Imm32((u32)(s32)inst.SIMM_16));
 	if (inst.RA)
@@ -478,18 +447,18 @@ void Jit64::lmw(UGeckoInstruction inst)
 	{
 		MOV(32, R(ECX), MComplex(EBX, EAX, SCALE_1, (i - inst.RD) * 4));
 		BSWAP(32, ECX);
-		gpr.LoadToX64(i, false, true);
+		gpr.BindToRegister(i, false, true);
 		MOV(32, gpr.R(i), R(ECX));
 	}
 	gpr.UnlockAllX();
+#else
+	Default(inst); return;
 #endif
 }
 
 void Jit64::stmw(UGeckoInstruction inst)
 {
-#ifdef _M_IX86
-	Default(inst); return;
-#else
+#ifdef _M_X64
 	gpr.FlushLockX(ECX);
 	MOV(32, R(EAX), Imm32((u32)(s32)inst.SIMM_16));
 	if (inst.RA)
@@ -501,6 +470,8 @@ void Jit64::stmw(UGeckoInstruction inst)
 		MOV(32, MComplex(EBX, EAX, SCALE_1, (i - inst.RD) * 4), R(ECX));
 	}
 	gpr.UnlockAllX();
+#else
+	Default(inst); return;
 #endif
 }
 

@@ -34,6 +34,7 @@ static const struct {
 	{ "ToggleFullscreen",	13 /* WXK_RETURN */,	0x0001 /* wxMOD_ALT */ },
 	{ "PlayPause",		 	349 /* WXK_F10 */,		0x0000 /* wxMOD_NONE */ },
 	{ "Stop",			 	27 /* WXK_ESCAPE */,	0x0000 /* wxMOD_NONE */ },
+	{ "Screenshot",		 	348 /* WXK_F9 */,		0x0000 /* wxMOD_NONE */ },
 	{ "Wiimote1Connect", 	344 /* WXK_F5 */,		0x0001 /* wxMOD_ALT */ },
 	{ "Wiimote2Connect", 	345 /* WXK_F6 */,		0x0001 /* wxMOD_ALT */ },
 	{ "Wiimote3Connect", 	346 /* WXK_F7 */,		0x0001 /* wxMOD_ALT */ },
@@ -120,6 +121,7 @@ void SConfig::SaveSettings()
 	ini.Set("Display", "RenderWindowYPos",		m_LocalCoreStartupParameter.iRenderWindowYPos);
 	ini.Set("Display", "RenderWindowWidth",		m_LocalCoreStartupParameter.iRenderWindowWidth);
 	ini.Set("Display", "RenderWindowHeight",	m_LocalCoreStartupParameter.iRenderWindowHeight);
+	ini.Set("Display", "ProgressiveScan",		m_LocalCoreStartupParameter.bProgressive);
 
 	// Game List Control
 	ini.Set("GameList", "ListDrives",	m_ListDrives);
@@ -170,7 +172,6 @@ void SConfig::SaveSettings()
 	// Plugins
 	ini.Set("Core", "GFXPlugin",	m_LocalCoreStartupParameter.m_strVideoPlugin);
 	ini.Set("Core", "DSPPlugin",	m_LocalCoreStartupParameter.m_strDSPPlugin);
-	ini.Set("Core", "WiiMotePlugin",m_LocalCoreStartupParameter.m_strWiimotePlugin);
 
 	ini.Save(File::GetUserPath(F_DOLPHINCONFIG_IDX));
 	m_SYSCONF->Save();
@@ -186,7 +187,6 @@ void SConfig::LoadSettings()
 	// Hard coded defaults
 	m_DefaultGFXPlugin = DEFAULT_GFX_PLUGIN;
 	m_DefaultDSPPlugin = DEFAULT_DSP_PLUGIN;
-	m_DefaultWiiMotePlugin = DEFAULT_WIIMOTE_PLUGIN;
 
 	// General
 	{
@@ -244,6 +244,7 @@ void SConfig::LoadSettings()
 		ini.Get("Display", "RenderWindowYPos",		&m_LocalCoreStartupParameter.iRenderWindowYPos,	0);
 		ini.Get("Display", "RenderWindowWidth",		&m_LocalCoreStartupParameter.iRenderWindowWidth, 640);
 		ini.Get("Display", "RenderWindowHeight",	&m_LocalCoreStartupParameter.iRenderWindowHeight, 480);
+		ini.Get("Display", "ProgressiveScan",		&m_LocalCoreStartupParameter.bProgressive, false);
 
 		// Game List Control
 		ini.Get("GameList", "ListDrives",	&m_ListDrives,	false);
@@ -261,7 +262,7 @@ void SConfig::LoadSettings()
 		ini.Get("GameList", "ListUnknown",		&m_ListUnknown, true);
 
 		// Core
-		ini.Get("Core", "HLE_BS2",		&m_LocalCoreStartupParameter.bHLE_BS2,		true);
+		ini.Get("Core", "HLE_BS2",		&m_LocalCoreStartupParameter.bHLE_BS2,		false);
 		ini.Get("Core", "EnableOpenCL",	&m_LocalCoreStartupParameter.bEnableOpenCL,	false);
 		ini.Get("Core", "CPUCore",		&m_LocalCoreStartupParameter.iCPUCore,		1);
 		ini.Get("Core", "DSPThread",	&m_LocalCoreStartupParameter.bDSPThread,	false);
@@ -290,14 +291,17 @@ void SConfig::LoadSettings()
 		ini.Get("Core", "WiiKeyboard",		&m_WiiKeyboard,									false);
 		ini.Get("Core", "RunCompareServer",	&m_LocalCoreStartupParameter.bRunCompareServer,	false);
 		ini.Get("Core", "RunCompareClient",	&m_LocalCoreStartupParameter.bRunCompareClient,	false);
+		ini.Get("Core", "MMU",				&m_LocalCoreStartupParameter.bMMU,				false);
 		ini.Get("Core", "TLBHack",			&m_LocalCoreStartupParameter.iTLBHack,			0);
+		ini.Get("Core", "AlternateRFI",		&m_LocalCoreStartupParameter.bAlternateRFI,		false);
+		ini.Get("Core", "FastDiscSpeed",	&m_LocalCoreStartupParameter.bFastDiscSpeed,	false);
+		ini.Get("Core", "BAT",				&m_LocalCoreStartupParameter.bMMUBAT,			false);
 		ini.Get("Core", "FrameLimit",		&m_Framelimit,									1); // auto frame limit by default
 		ini.Get("Core", "UseFPS",			&b_UseFPS,										false); // use vps as default
 
 		// Plugins
 		ini.Get("Core", "GFXPlugin",  &m_LocalCoreStartupParameter.m_strVideoPlugin,	m_DefaultGFXPlugin.c_str());
 		ini.Get("Core", "DSPPlugin",  &m_LocalCoreStartupParameter.m_strDSPPlugin,		m_DefaultDSPPlugin.c_str());
-		ini.Get("Core", "WiiMotePlugin", &m_LocalCoreStartupParameter.m_strWiimotePlugin, m_DefaultWiiMotePlugin.c_str());
 	}
 
 	m_SYSCONF = new SysConf();

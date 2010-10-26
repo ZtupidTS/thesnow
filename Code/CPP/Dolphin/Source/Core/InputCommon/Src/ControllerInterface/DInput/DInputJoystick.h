@@ -21,7 +21,7 @@ namespace ciface
 namespace DInput
 {
 
-void InitJoystick( IDirectInput8* const idi8, std::vector<ControllerInterface::Device*>& devices/*, HWND hwnd*/ );
+void InitJoystick(IDirectInput8* const idi8, std::vector<ControllerInterface::Device*>& devices, HWND hwnd);
 
 class Joystick : public ControllerInterface::Device
 {
@@ -32,10 +32,11 @@ protected:
 
 	struct EffectState
 	{
-		EffectState( LPDIRECTINPUTEFFECT eff ) : changed(0), iface(eff) {}
-		LPDIRECTINPUTEFFECT			iface;
-		ControlState				magnitude;
-		bool						changed;
+		EffectState(LPDIRECTINPUTEFFECT eff) : iface(eff), params(NULL), size(0) {}
+
+		LPDIRECTINPUTEFFECT		iface;
+		void*	params;	// null when force hasn't changed
+		u8		size;	// zero when force should stop
 	};
 
 	class Input : public ControllerInterface::Device::Input
@@ -92,17 +93,23 @@ protected:
 		const unsigned int	m_direction;
 	};
 
+	template <typename P>
 	class Force : public Output
 	{
 		friend class Joystick;
 	public:
 		std::string GetName() const;
 	protected:
-		Force( const unsigned int index ) : m_index(index) {}
-		void SetState( const ControlState state, EffectState* const joystate );
+		Force(const unsigned int index, const unsigned int type);
+		void SetState(const ControlState state, EffectState* const joystate);
 	private:
 		const unsigned int	m_index;
+		const unsigned int	m_type;
+		P	params;
 	};
+	typedef Force<DICONSTANTFORCE>	ForceConstant;
+	typedef Force<DIRAMPFORCE>		ForceRamp;
+	typedef Force<DIPERIODIC>		ForcePeriodic;
 
 	bool UpdateInput();
 	bool UpdateOutput();
@@ -121,14 +128,14 @@ public:
 	std::string GetSource() const;
 
 private:
-	const LPDIRECTINPUTDEVICE8			m_device;
-	const unsigned int					m_index;
-	//const std::string					m_name;
+	const LPDIRECTINPUTDEVICE8		m_device;
+	const unsigned int				m_index;
+	//const std::string				m_name;
 
-	DIJOYSTATE							m_state_in;
-	std::vector<EffectState>			m_state_out;
+	DIJOYSTATE						m_state_in;
+	std::vector<EffectState>		m_state_out;
 
-	bool								m_must_poll;
+	bool							m_buffered;
 };
 
 }
