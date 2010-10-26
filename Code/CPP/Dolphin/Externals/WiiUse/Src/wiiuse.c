@@ -37,8 +37,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
-#ifndef WIN32
+#ifndef _WIN32
 	#include <unistd.h>
 #else
 	#include <Winsock2.h>
@@ -122,7 +123,7 @@ struct wiimote_t** wiiuse_init(int wiimotes) {
 
 		wm[i]->unid = i+1;
 
-		#ifdef __linux__
+		#if defined __linux__ && HAVE_BLUEZ
 			wm[i]->bdaddr = *BDADDR_ANY;
 			wm[i]->out_sock = -1;
 			wm[i]->in_sock = -1;
@@ -159,7 +160,7 @@ void wiiuse_disconnected(struct wiimote_t* wm) {
 	wm->state = WIIMOTE_INIT_STATES;
 	memset(wm->event_buf, 0, sizeof(wm->event_buf));
 
-	#ifdef __linux__
+	#if defined __linux__ && HAVE_BLUEZ
 		wm->out_sock = -1;
 		wm->in_sock = -1;
 	#elif defined(_WIN32)
@@ -352,7 +353,7 @@ int wiiuse_send(struct wiimote_t* wm, byte report_type, byte* msg, int len) {
 	{
 		int x = 2;
 		printf("[DEBUG] (id %i) SEND: (%x) %.2x ", wm->unid, buf[0], buf[1]);
-		#ifndef WIN32
+		#ifndef _WIN32
 		for (; x < len+2; ++x)
 		#else
 		for (; x < len+1; ++x)
@@ -376,7 +377,7 @@ int wiiuse_send(struct wiimote_t* wm, byte report_type, byte* msg, int len) {
  *	@param type		The type of bluetooth stack to use.
  */
 void wiiuse_set_bluetooth_stack(struct wiimote_t** wm, int wiimotes, enum win_bt_stack_t type) {
-	#ifdef WIN32
+	#ifdef _WIN32
 	int i;
 
 	if (!wm)	return;

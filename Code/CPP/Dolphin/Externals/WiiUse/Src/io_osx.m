@@ -31,6 +31,8 @@
  *	@brief Handles device I/O for OS X.
  */
 
+#import <CoreServices/CoreServices.h>
+extern OSErr UpdateSystemActivity(UInt8 activity);
 #define BLUETOOTH_VERSION_USE_CURRENT
 #import <IOBluetooth/objc/IOBluetoothDevice.h>
 #import <IOBluetooth/objc/IOBluetoothDeviceInquiry.h>
@@ -55,7 +57,7 @@ volatile int reader, writer, outstanding, watermark;
 
 @interface SearchBT: NSObject {
 @public
-	int maxDevices;
+	unsigned int maxDevices;
 }
 @end
 
@@ -113,6 +115,8 @@ volatile int reader, writer, outstanding, watermark;
 	}
 
 	CFRunLoopStop(CFRunLoopGetCurrent());
+
+	UpdateSystemActivity(1);
 }
 
 - (void) l2capChannelClosed: (IOBluetoothL2CAPChannel *) l2capChannel
@@ -172,7 +176,6 @@ int wiiuse_find(struct wiimote_t **wm, int max_wiimotes, int timeout)
 		majorDeviceClass: kBluetoothDeviceClassMajorPeripheral
 		minorDeviceClass: kBluetoothDeviceClassMinorPeripheral2Joystick
 		];
-	[bti setUpdateNewDeviceNames: NO];
 
 	IOReturn ret = [bti start];
 	if (ret == kIOReturnSuccess)

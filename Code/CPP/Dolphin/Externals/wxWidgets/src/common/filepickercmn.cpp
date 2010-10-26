@@ -41,8 +41,8 @@ const wxChar wxFilePickerCtrlNameStr[] = wxT("filepicker");
 const wxChar wxFilePickerWidgetNameStr[] = wxT("filepickerwidget");
 const wxChar wxDirPickerCtrlNameStr[] = wxT("dirpicker");
 const wxChar wxDirPickerWidgetNameStr[] = wxT("dirpickerwidget");
-const wxChar wxFilePickerWidgetLabel[] = wxT("‰Ø¿¿");
-const wxChar wxDirPickerWidgetLabel[] = wxT("‰Ø¿¿");
+const wxChar wxFilePickerWidgetLabel[] = wxT("ÊµèËßà");
+const wxChar wxDirPickerWidgetLabel[] = wxT("ÊµèËßà");
 
 DEFINE_EVENT_TYPE(wxEVT_COMMAND_FILEPICKER_CHANGED)
 DEFINE_EVENT_TYPE(wxEVT_COMMAND_DIRPICKER_CHANGED)
