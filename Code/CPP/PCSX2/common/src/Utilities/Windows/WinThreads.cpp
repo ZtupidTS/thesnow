@@ -24,24 +24,24 @@
 
 #else
 
-__forceinline void Threading::Sleep( int ms )
+__fi void Threading::Sleep( int ms )
 {
 	::Sleep( ms );
 }
 
 // For use in spin/wait loops,  Acts as a hint to Intel CPUs and should, in theory
 // improve performance and reduce cpu power consumption.
-__forceinline void Threading::SpinWait()
+__fi void Threading::SpinWait()
 {
 	__asm pause;
 }
 
-__forceinline void Threading::StoreFence()
+__fi void Threading::StoreFence()
 {
 	__asm sfence;
 }
 
-__forceinline void Threading::EnableHiresScheduler()
+__fi void Threading::EnableHiresScheduler()
 {
 	// This improves accuracy of Sleep() by some amount, and only adds a negligible amount of
 	// overhead on modern CPUs.  Typically desktops are already set pretty low, but laptops in
@@ -52,7 +52,7 @@ __forceinline void Threading::EnableHiresScheduler()
 	timeBeginPeriod( 1 );
 }
 
-__forceinline void Threading::DisableHiresScheduler()
+__fi void Threading::DisableHiresScheduler()
 {
 	timeEndPeriod( 1 );
 }
@@ -80,7 +80,7 @@ u64 Threading::GetThreadTicksPerSecond()
 
 u64 Threading::pxThread::GetCpuTime() const
 {
-	if( m_native_handle == NULL ) return 0;
+	if (!m_native_handle) return 0;
 
 	FileTimeSucks user, kernel;
 	FILETIME dummy;
@@ -99,7 +99,7 @@ void Threading::pxThread::_platform_specific_OnStartInThread()
 	m_native_id		= (uptr)GetCurrentThreadId();
 	m_native_handle	= (uptr)OpenThread( THREAD_QUERY_INFORMATION, false, (DWORD)m_native_id );
 
-	pxAssertDev( m_native_handle != NULL, wxNullChar );
+	pxAssertDev( m_native_handle, wxNullChar );
 }
 
 void Threading::pxThread::_platform_specific_OnCleanupInThread()

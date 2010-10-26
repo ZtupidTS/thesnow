@@ -16,6 +16,8 @@
 #pragma once
 
 #include "Dependencies.h"
+#include "SafeArray.h"
+#include "ScopedAlloc.h"
 
 #include <wx/tokenzr.h>
 
@@ -62,9 +64,6 @@ public:
 
 extern void px_fputs( FILE* fp, const char* src );
 
-extern wxString fromUTF8( const char* src );
-extern wxString fromAscii( const char* src );
-
 // wxWidgets lacks one of its own...
 extern const wxRect wxDefaultRect;
 
@@ -106,11 +105,126 @@ struct ParsedAssignmentString
 	ParsedAssignmentString( const wxString& src );
 };
 
+// ======================================================================================
+//  FastFormatAscii / FastFormatUnicode  (overview!)
+// ======================================================================================
+// Fast formatting of ASCII or Unicode text.  These classes uses a series of thread-local
+// format buffers that are allocated only once and grown to accommodate string formatting
+// needs.  Because the buffers are thread-local, no thread synch objects are required in
+// order to format strings, allowing for multi-threaded string formatting operations to be
+// performed with maximum efficiency.  This class also reduces the overhead typically required
+// to allocate string buffers off the heap.
+//
+// Drawbacks:
+//  * Some overhead is added to the creation and destruction of threads, however since thread
+//    construction is a typically slow process, and often avoided to begin with, this should
+//    be a sound trade-off.
+//
+// Notes:
+//  * conversion to wxString requires a heap allocation.
+//  * FastFormatUnicode can accept either UTF8 or UTF16/32 (wchar_t) input, but FastFormatAscii
+//    accepts Ascii/UTF8 only.
+//
+
+// --------------------------------------------------------------------------------------
+//  FastFormatAscii 
+// --------------------------------------------------------------------------------------
+
+class FastFormatAscii
+{
+protected:
+	ScopedAlignedAlloc<char,16>*	m_dest;
+	bool				m_deleteDest;
+	uint				m_Length;
+	
+public:
+	FastFormatAscii();
+	~FastFormatAscii() throw();
+	FastFormatAscii& Write( const char* fmt, ... );
+	FastFormatAscii& WriteV( const char* fmt, va_list argptr );
+
+	void Clear();
+	bool IsEmpty() const;
+	uint Length() const { return m_Length; }
+
+	const char* c_str() const		{ return m_dest->GetPtr(); }
+	operator const char*() const	{ return m_dest->GetPtr(); }
+
+	const wxString GetString() const;
+	//operator wxString() const;
+
+	FastFormatAscii& operator+=(const wxString& s)
+	{
+		Write( "%ls", s.c_str() );
+		return *this;
+	}
+
+	FastFormatAscii& operator+=(const wxChar* psz )
+	{
+		Write( "%ls", psz );
+		return *this;
+	}
+
+	FastFormatAscii& operator+=(const char* psz )
+	{
+		Write( "%s", psz );
+		return *this;
+	}
+};
+
+// --------------------------------------------------------------------------------------
+//  FastFormatUnicode
+// --------------------------------------------------------------------------------------
+class FastFormatUnicode
+{
+protected:
+	ScopedAlignedAlloc<char,16>*	m_dest;
+	bool				m_deleteDest;
+	uint				m_Length;
+
+public:
+	FastFormatUnicode();
+	~FastFormatUnicode() throw();
+
+	FastFormatUnicode& Write( const char* fmt, ... );
+	FastFormatUnicode& Write( const wxChar* fmt, ... );
+	FastFormatUnicode& WriteV( const char* fmt, va_list argptr );
+	FastFormatUnicode& WriteV( const wxChar* fmt, va_list argptr );
+
+	void Clear();
+	bool IsEmpty() const;
+	uint Length() const { return m_Length; }
+
+	FastFormatUnicode& ToUpper();
+	FastFormatUnicode& ToLower();
+
+	const wxChar* c_str() const		{ return (const wxChar*)m_dest->GetPtr(); }
+	operator const wxChar*() const	{ return (const wxChar*)m_dest->GetPtr(); }
+	operator wxString() const		{ return (const wxChar*)m_dest->GetPtr(); }
+
+	FastFormatUnicode& operator+=(const wxString& s)
+	{
+		Write( L"%s", s.c_str() );
+		return *this;
+	}
+
+	FastFormatUnicode& operator+=(const wxChar* psz )
+	{
+		Write( L"%s", psz );
+		return *this;
+	}
+
+	FastFormatUnicode& operator+=(const char* psz );
+};
+
 extern bool pxParseAssignmentString( const wxString& src, wxString& ldest, wxString& rdest );
 
-extern int FastFormatString_AsciiRaw(wxCharBuffer& dest, const char* fmt, va_list argptr);
-extern wxString FastFormatString_Ascii(const char* fmt, va_list argptr);
-extern wxString FastFormatString_Unicode(const wxChar* fmt, va_list argptr);
+#define pxsFmt	FastFormatUnicode().Write
+#define pxsFmtV	FastFormatUnicode().WriteV
+
+extern wxString& operator+=(wxString& str1, const FastFormatUnicode& str2);
+extern wxString operator+(const wxString& str1, const FastFormatUnicode& str2);
+extern wxString operator+(const wxChar* str1, const FastFormatUnicode& str2);
 
 
 //////////////////////////////////////////////////////////////////////////////////////////

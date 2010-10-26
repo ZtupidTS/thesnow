@@ -276,7 +276,11 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\Utilities\pxTextStream.cpp"
+				RelativePath="..\..\src\Utilities\pxStreams.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\Utilities\pxTranslate.cpp"
 				>
 			</File>
 			<File
@@ -438,11 +442,23 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\include\Utilities\pxStreams.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\include\Utilities\RedtapeWindows.h"
 				>
 			</File>
 			<File
 				RelativePath="..\..\include\Utilities\SafeArray.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\include\Utilities\SafeArray.inl"
+				>
+			</File>
+			<File
+				RelativePath="..\..\include\Utilities\ScopedAlloc.h"
 				>
 			</File>
 			<File
@@ -455,6 +471,10 @@
 			</File>
 			<File
 				RelativePath="..\..\include\Utilities\StringHelpers.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\include\Utilities\TraceLog.h"
 				>
 			</File>
 			<File

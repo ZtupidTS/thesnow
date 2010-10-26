@@ -30,7 +30,7 @@
 #include <gtk/gtk.h>
 #include <cstring>
 
-#define EXPORT_C_(type) extern "C" type
+#define EXPORT_C_(type) extern "C" __attribute__((externally_visible,visibility("default"))) type
 #endif
 
 //#include "PS2Edefs.h"
@@ -64,7 +64,10 @@ struct PluginLog
 
     void Close()
     {
-        if (LogFile) fclose(LogFile);
+        if (LogFile) {
+            fclose(LogFile);
+            LogFile = NULL;
+        }
     }
 
     void Write(const char *fmt, ...)
@@ -132,7 +135,10 @@ struct PluginConf
 
     void Close()
     {
-        fclose(ConfFile);
+        if (ConfFile) {
+            fclose(ConfFile);
+            ConfFile = NULL;
+        }
     }
 
     int ReadInt(const std::string& item, int defval)
