@@ -87,6 +87,13 @@ struct t_dirlisting
 	t_dirlisting *pNext;
 };
 
+enum _facts {
+	fact_type,
+	fact_size,
+	fact_modify,
+	fact_perm
+};
+
 class CPermissions  
 {
 public:

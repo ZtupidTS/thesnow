@@ -207,7 +207,6 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	ShowStatus(GetVersionString(), 0);
 	ShowStatus(_T("Copyright 2001-2010 by Tim Kosse (tim.kosse@filezilla-project.org)"), 0);
 	ShowStatus(_T("Translate and mod by thesnoW (thegfw@Gmail.com)"), 2);
-	ShowStatus(L"测试",0);
 	m_nTimerID = SetTimer(7777, 10000, 0);
 	m_nRateTimerID = SetTimer(7778, 1000, 0);
 
@@ -404,7 +403,7 @@ void CMainFrame::OnActive()
 	{
 		if (!GetUsersPane()->m_pListCtrl->GetItemCount())
 		{
-			if (AfxMessageBox(_T("Do you really want to take the server offline?"), MB_YESNO | MB_ICONQUESTION) != IDYES)
+			if (AfxMessageBox(_T("请确认使服务器离线!"), MB_YESNO | MB_ICONQUESTION) != IDYES)
 				return;
 			int nServerState = m_nServerState | STATE_GOOFFLINE_NOW;
 			unsigned char buffer[2];

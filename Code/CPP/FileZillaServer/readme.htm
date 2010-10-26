@@ -1,4 +1,4 @@
-<p align="center"><b><u>FileZilla Server version 0.9.35 beta</u></b></p>
+<p align="center"><b><u>FileZilla Server version 0.9.37 beta</u></b></p>
 <p align="center">Copyright 2001-2010<br>
 by <a href="mailto:Tim.Kosse@gmx.de">Tim Kosse</a><a href="http://sourceforge.net/projects/filezilla/"><br>
 http://sourceforge.net/projects/filezilla/</a></p>
@@ -67,6 +67,25 @@ as restoring it to normal size.</p>
 </table>
 <p align="left"><b><u>Version History:</u></b></p>
 <p>For a more detailed list of changes, please have a look at the CVS changelog located at <a href="http://filezilla-project.org/changelog.php?type=2">http://filezilla-project.org/changelog.php?type=2</a>.</p>
+<p><b>Version 0.9.37</b></p>
+<blockquote>
+  <u>Fixed bugs:</u>
+  <ul>
+    <li>Advertise support for PBSZ and PROT in FEAT reply</li>
+    <li>Allow PROT after PORT/PASV/EPRT/EPSV but before transfer command</li>
+    <li>Use correct replies for RNTO, EPRT and MKD command</li>
+    <li>Reply with correct error code in response to transfer commands if PROT P is required but not set</li>
+    <li>Fix display of non-ASCII characters in log</li>
+    <li>Ignore read-only attribute on DELE</li>
+  </ul>
+</blockquote>
+<p><b>Version 0.9.36</b></p>
+<blockquote>
+  <u>Fixed bugs:</u>
+  <ul>
+    <li>Fix welcome message</li>
+  </ul>
+</blockquote>
 <p><b>Version 0.9.35</b></p>
 <blockquote>
   <u>New features:</u>

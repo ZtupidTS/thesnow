@@ -72,7 +72,7 @@ public:
 
 	void Continue();
 
-	void ProcessHashResult(int hash_id, int res, const CStdString& hash);
+	void ProcessHashResult(int hash_id, int res, CHashThread::_algorithm alg, const CStdString& hash, const CStdString& file);
 
 // Implementierung
 protected:
@@ -147,7 +147,7 @@ protected:
 	void ParseHashOpts(CStdString args);
 
 	// Enabled MLST facts
-	bool m_facts[3];
+	bool m_facts[4];
 
 	bool m_shutdown;
 

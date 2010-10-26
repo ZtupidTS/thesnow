@@ -68,6 +68,12 @@ to tim.kosse@gmx.de
 #pragma once
 #endif // _MSC_VER > 1000
 
+#ifdef _AFX
+#define CStdString CString
+#define CStdStringW CStringW
+#define CStdStringA CStringA
+#endif //_AFX
+
 #define FD_FORCEREAD (1<<15)
 
 #include <winsock2.h>
@@ -129,15 +135,11 @@ public:
 	static int GetLastError();
 
 	//Gets the address of the peer socket to which the socket is connected.
-#ifdef _AFX
-	BOOL GetPeerName( CString& rPeerAddress, UINT& rPeerPort );
-#endif
+	BOOL GetPeerName( CStdString& rPeerAddress, UINT& rPeerPort );
 	BOOL GetPeerName( SOCKADDR* lpSockAddr, int* lpSockAddrLen );
 
 	//Gets the local name for a socket.
-#ifdef _AFX
-	BOOL GetSockName( CString& rSocketAddress, UINT& rSocketPort );
-#endif
+	BOOL GetSockName( CStdString& rSocketAddress, UINT& rSocketPort );
 	BOOL GetSockName( SOCKADDR* lpSockAddr, int* lpSockAddrLen );
 
 	//Retrieves a socket option.

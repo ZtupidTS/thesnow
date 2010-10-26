@@ -1417,8 +1417,7 @@ BOOL CAsyncSocketEx::Connect(const SOCKADDR* lpSockAddr, int nSockAddrLen)
 	return res;
 }
 
-#ifdef _AFX
-BOOL CAsyncSocketEx::GetPeerName( CString& rPeerAddress, UINT& rPeerPort )
+BOOL CAsyncSocketEx::GetPeerName( CStdString& rPeerAddress, UINT& rPeerPort )
 {
 #ifndef NOLAYERS
 	if (m_pFirstLayer)
@@ -1472,7 +1471,6 @@ BOOL CAsyncSocketEx::GetPeerName( CString& rPeerAddress, UINT& rPeerPort )
 
 	return bResult;
 }
-#endif //_AFX
 
 BOOL CAsyncSocketEx::GetPeerName( SOCKADDR* lpSockAddr, int* lpSockAddrLen )
 {
@@ -1487,8 +1485,7 @@ BOOL CAsyncSocketEx::GetPeerName( SOCKADDR* lpSockAddr, int* lpSockAddrLen )
 		return FALSE;
 }
 
-#ifdef _AFX
-BOOL CAsyncSocketEx::GetSockName(CString& rSocketAddress, UINT& rSocketPort)
+BOOL CAsyncSocketEx::GetSockName(CStdString& rSocketAddress, UINT& rSocketPort)
 {
 	SOCKADDR* sockAddr = 0;
 	int nSockAddrLen = 0;
@@ -1537,7 +1534,6 @@ BOOL CAsyncSocketEx::GetSockName(CString& rSocketAddress, UINT& rSocketPort)
 
 	return bResult;
 }
-#endif //_AFX
 
 BOOL CAsyncSocketEx::GetSockName( SOCKADDR* lpSockAddr, int* lpSockAddrLen )
 {

@@ -277,7 +277,7 @@ void CPermissions::AddFactsListingEntry(t_dirlisting *&pResult, bool isDir, cons
 	unsigned int nameLen = strlen(name);
 
 	// This wastes some memory but keeps the whole thing fast
-	if ((8192 - pResult->len) < (60 + nameLen))
+	if ((8192 - pResult->len) < (76 + nameLen))
 	{
 		pResult->pNext = new t_dirlisting;
 		pResult = pResult->pNext;
@@ -335,6 +335,26 @@ void CPermissions::AddFactsListingEntry(t_dirlisting *&pResult, bool isDir, cons
 	{
 		if (!isDir)
 			pResult->len += sprintf(pResult->buffer + pResult->len, "size=%I64d;", size);
+	}
+
+	if (enabledFacts && enabledFacts[fact_perm])
+	{
+		// TODO: a, d,f,p,r,w
+		memcpy(pResult->buffer + pResult->len, "perm=", 5);
+		pResult->len += 5;
+		if (isDir)
+		{
+			if (directory.bFileWrite)
+				pResult->buffer[pResult->len++] = 'c';
+			pResult->buffer[pResult->len++] = 'e';
+			if (directory.bDirList)
+				pResult->buffer[pResult->len++] = 'l';
+			if (directory.bFileDelete || directory.bDirDelete)
+				pResult->buffer[pResult->len++] = 'p';
+		}
+		else
+		{
+		}	
 	}
 
 	pResult->len += sprintf(pResult->buffer + pResult->len, " %s\r\n", name);

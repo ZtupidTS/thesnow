@@ -36,6 +36,8 @@ static char THIS_FILE[] = __FILE__;
 /////////////////////////////////////////////////////////////////////////////
 // CTransferSocket
 CTransferSocket::CTransferSocket(CControlSocket *pOwner)
+: m_pSslLayer()
+, m_sslContext()
 {
 	ASSERT(pOwner);
 	m_pOwner = pOwner;
@@ -56,7 +58,6 @@ CTransferSocket::CTransferSocket(CControlSocket *pOwner)
 	m_nRest = 0;
 
 	m_pGssLayer = 0;
-	m_pSslLayer = 0;
 
 	m_hFile = INVALID_HANDLE_VALUE;
 
@@ -621,8 +622,10 @@ void CTransferSocket::OnConnect(int nErrorCode)
 
 	if (m_pGssLayer)
 		VERIFY(AddLayer(m_pGssLayer));
-	if (m_pSslLayer)
+	if (m_sslContext)
 	{
+		if (!m_pSslLayer)
+			m_pSslLayer = new CAsyncSslSocketLayer();
 		VERIFY(AddLayer(m_pSslLayer));
 
 		int code = m_pSslLayer->InitSSLConnection(false, m_sslContext);
@@ -713,8 +716,10 @@ void CTransferSocket::OnAccept(int nErrorCode)
 
 	if (m_pGssLayer)
 		VERIFY(AddLayer(m_pGssLayer));
-	if (m_pSslLayer)
+	if (m_sslContext)
 	{
+		if (!m_pSslLayer)
+			m_pSslLayer = new CAsyncSslSocketLayer();
 		VERIFY(AddLayer(m_pSslLayer));
 		
 		int code = m_pSslLayer->InitSSLConnection(false, m_sslContext);
@@ -1105,10 +1110,14 @@ void CTransferSocket::UseGSS(CAsyncGssSocketLayer *pGssLayer)
 	m_pGssLayer->InitTransferChannel(pGssLayer);
 }
 
-void CTransferSocket::UseSSL(CAsyncSslSocketLayer *pSslLayer, void* sslContext)
+bool CTransferSocket::UseSSL(void* sslContext)
 {
-	m_pSslLayer = pSslLayer;
+	if (m_pSslLayer)
+		return false;
+
 	m_sslContext = sslContext;
+
+	return true;
 }
 
 int CTransferSocket::OnLayerCallback(std::list<t_callbackMsg>& callbacks)

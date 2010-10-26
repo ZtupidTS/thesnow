@@ -15,7 +15,7 @@
 ;Product Info
 
   !define PRODUCT_NAME "FileZilla Server"
-  !define PRODUCT_VERSION "beta 0.9.35"
+  !define PRODUCT_VERSION "beta 0.9.37"
   !define PRODUCT_UNINSTALL "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
   Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
 

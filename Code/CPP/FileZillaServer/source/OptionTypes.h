@@ -84,8 +84,9 @@
 #define OPTION_AUTOBAN_BANTIME 58
 #define OPTION_SERVICE_NAME 59
 #define OPTION_SERVICE_DISPLAY_NAME 60
+#define OPTION_ENABLE_HASH 61
 
-#define OPTIONS_NUM 60
+#define OPTIONS_NUM 61
 
 #define CONST_WELCOMEMESSAGE_LINESIZE 75
 
@@ -96,7 +97,7 @@ struct t_Option
 	BOOL bOnlyLocal; //If TRUE, setting can only be changed from local connections
 };
 
-const DWORD SERVER_VERSION = 0x00093500;
+const DWORD SERVER_VERSION = 0x00093700;
 const DWORD PROTOCOL_VERSION = 0x00010B00;
 
 //												Name					Type		Not remotely
@@ -160,7 +161,8 @@ static const t_Option m_Options[OPTIONS_NUM]={	_T("Serverports"),				0,	FALSE,
 												_T("Autoban type"),				1,	FALSE,
 												_T("Autoban time"),				1,	FALSE,
 												_T("Service name"),				0,	TRUE,
-												_T("Service display name"),		0,	TRUE
+												_T("Service display name"),		0,	TRUE,
+												_T("Enable HASH"),				1,  FALSE
 											};
 
 #endif // OPTION_TYPES_INCLUDED

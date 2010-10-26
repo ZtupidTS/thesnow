@@ -1,4 +1,4 @@
-// FileZilla Server - a Windows ftp server
+﻿// FileZilla Server - a Windows ftp server
 
 // Copyright (C) 2002-2004 - Tim Kosse <tim.kosse@gmx.de>
 
@@ -60,7 +60,7 @@ END_MESSAGE_MAP()
 
 void CStatusView::OnDraw(CDC* pDC)
 {
-	// ZU ERLEDIGEN: Code zum Zeichnen hier einf�gen
+	// ZU ERLEDIGEN: Code zum Zeichnen hier einfügen
 }
 
 /////////////////////////////////////////////////////////////////////////////
