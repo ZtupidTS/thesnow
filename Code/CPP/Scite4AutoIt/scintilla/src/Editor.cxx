@@ -995,6 +995,16 @@ void Editor::HorizontalScrollTo(int xPos) {
 	}
 }
 
+void Editor::VerticalCentreCaret() {
+	int lineDoc = pdoc->LineFromPosition(sel.IsRectangular() ? sel.Rectangular().caret.Position() : sel.MainCaret());
+	int lineDisplay = cs.DisplayFromDoc(lineDoc);
+	int newTop = lineDisplay - (LinesOnScreen() / 2);
+	if (topLine != newTop) {
+		SetTopLine(newTop > 0 ? newTop : 0);
+		RedrawRect(GetClientRectangle());
+	}
+}
+
 void Editor::MoveCaretInsideView(bool ensureVisible) {
 	PRectangle rcClient = GetTextRectangle();
 	Point pt = PointMainCaret();
@@ -2044,11 +2054,11 @@ void Editor::LayoutLine(int line, Surface *surface, ViewStyle &vstyle, LineLayou
 			numCharsBeforeEOL--;
 		}
 		const int numCharsInLine = (vstyle.viewEOL) ? lineLength : numCharsBeforeEOL;
-		for (int charInLine = 0; charInLine < numCharsInLine; charInLine++) {
-			styleByte = ll->styles[charInLine];
+		for (int styleInLine = 0; styleInLine < numCharsInLine; styleInLine++) {
+			styleByte = ll->styles[styleInLine];
 			ll->styleBitsSet |= styleByte;
-			ll->styles[numCharsInLine] = static_cast<char>(styleByte & styleMask);
-			ll->indicators[numCharsInLine] = static_cast<char>(styleByte & ~styleMask);
+			ll->styles[styleInLine] = static_cast<char>(styleByte & styleMask);
+			ll->indicators[styleInLine] = static_cast<char>(styleByte & ~styleMask);
 		}
 		if (vstyle.someStylesForceCase) {
 			for (int charInLine = 0; charInLine<lineLength; charInLine++) {
@@ -4589,6 +4599,7 @@ void Editor::NotifyMacroRecord(unsigned int iMessage, uptr_t wParam, sptr_t lPar
 	case SCI_PAGEDOWNRECTEXTEND:
 	case SCI_SELECTIONDUPLICATE:
 	case SCI_COPYALLOWLINE:
+	case SCI_VERTICALCENTRECARET:
 		break;
 
 		// Filter out all others like display changes. Also, newlines are redundant
@@ -6319,7 +6330,7 @@ void Editor::StyleToPositionInView(Position pos) {
 	int styleAtEnd = pdoc->StyleAt(pos-1);
 	pdoc->EnsureStyledTo(pos);
 	if ((endWindow > pos) && (styleAtEnd != pdoc->StyleAt(pos-1))) {
-		// Style at end of line changed so is multi-line change like starting a comment 
+		// Style at end of line changed so is multi-line change like starting a comment
 		// so require rest of window to be styled.
 		pdoc->EnsureStyledTo(endWindow);
 	}
@@ -6792,6 +6803,10 @@ sptr_t Editor::WndProc(unsigned int iMessage, uptr_t wParam, sptr_t lParam) {
 
 	case SCI_COPYALLOWLINE:
 		CopyAllowLine();
+		break;
+
+	case SCI_VERTICALCENTRECARET:
+		VerticalCentreCaret();
 		break;
 
 	case SCI_COPYRANGE:
