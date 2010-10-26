@@ -116,6 +116,7 @@ BEGIN_EVENT_TABLE(CCodeWindow, wxPanel)
 	// Toolbar
 	EVT_MENU(IDM_STEP,					CCodeWindow::OnCodeStep)
 	EVT_MENU(IDM_STEPOVER,				CCodeWindow::OnCodeStep)
+	EVT_MENU(IDM_TOGGLE_BREAKPOINT,				CCodeWindow::OnCodeStep)
 	EVT_MENU(IDM_SKIP,					CCodeWindow::OnCodeStep)
 	EVT_MENU(IDM_SETPC,					CCodeWindow::OnCodeStep)
 	EVT_MENU(IDM_GOTOPC,				CCodeWindow::OnCodeStep)
@@ -167,9 +168,10 @@ wxAuiToolBar *CCodeWindow::GetToolBar()
 
 void CCodeWindow::OnKeyDown(wxKeyEvent& event)
 {
-	event.Skip();
-
-	if ((event.GetKeyCode() == WXK_SPACE) && Parent->IsActive()) SingleCPUStep();
+	if (event.GetKeyCode() == WXK_SPACE && event.GetModifiers() == wxMOD_NONE)
+		SingleStep();
+	else
+		event.Skip();
 }
 
 void CCodeWindow::OnHostMessage(wxCommandEvent& event)
@@ -199,12 +201,16 @@ void CCodeWindow::OnCodeStep(wxCommandEvent& event)
 	switch (event.GetId())
 	{
 	    case IDM_STEP:
-			SingleCPUStep();
+			SingleStep();
 		    break;
 
 	    case IDM_STEPOVER:
-		    CCPU::EnableStepping(true);   // TODO: Huh?
+			StepOver();
 		    break;
+
+		case IDM_TOGGLE_BREAKPOINT:
+			ToggleBreakpoint();
+			break;
 
 	    case IDM_SKIP:
 		    PC += 4;
@@ -289,14 +295,47 @@ void CCodeWindow::OnCallsListChange(wxCommandEvent& event)
 	}
 }
 
-void CCodeWindow::SingleCPUStep()
+void CCodeWindow::SingleStep()
 {
-	CCPU::StepOpcode(&sync_event);
-	wxThread::Sleep(20);
-	// need a short wait here
-	JumpToAddress(PC);
-	Update();
-	Host_UpdateLogDisplay();
+	if (CCPU::IsStepping())
+	{
+		CCPU::StepOpcode(&sync_event);
+		wxThread::Sleep(20);
+		// need a short wait here
+		JumpToAddress(PC);
+		Update();
+		Host_UpdateLogDisplay();
+	}
+}
+
+void CCodeWindow::StepOver()
+{
+	if (CCPU::IsStepping())
+	{
+		UGeckoInstruction inst = Memory::Read_Instruction(PC);
+		if (inst.LK)
+		{
+			PowerPC::breakpoints.Add(PC + 4, true);
+			CCPU::EnableStepping(false);
+			JumpToAddress(PC);
+			Update();
+		}
+		else
+			SingleStep();
+
+		UpdateButtonStates();
+		// Update all toolbars in the aui manager
+		Parent->UpdateGUI();
+	}
+}
+
+void CCodeWindow::ToggleBreakpoint()
+{
+	if (CCPU::IsStepping())
+	{
+		if (codeview) codeview->ToggleBreakpoint(codeview->GetSelection());
+		Update();
+	}
 }
 
 void CCodeWindow::UpdateLists()
@@ -398,11 +437,11 @@ void CCodeWindow::CreateMenu(const SCoreStartupParameter& _LocalCoreStartupParam
 	interpreter->Check(_LocalCoreStartupParameter.iCPUCore == 0);
 	pCoreMenu->AppendSeparator();
 
-	jitblocklinking = pCoreMenu->Append(IDM_JITBLOCKLINKING, _T("&JIT Block Linking off"),
+	pCoreMenu->Append(IDM_JITBLOCKLINKING, _T("&JIT Block Linking off"),
 		_T("Provide safer execution by not linking the JIT blocks."),
 		wxITEM_CHECK);
 
-	jitnoblockcache = pCoreMenu->Append(IDM_JITNOBLOCKCACHE, _T("&Disable JIT Cache"),
+	pCoreMenu->Append(IDM_JITNOBLOCKCACHE, _T("&Disable JIT Cache"),
 		_T("Avoid any involuntary JIT cache clearing, this may prevent Zelda TP from crashing.")
 		_T(" [This option must be selected before a game is started.]"),
 		wxITEM_CHECK);
@@ -413,31 +452,41 @@ void CCodeWindow::CreateMenu(const SCoreStartupParameter& _LocalCoreStartupParam
 	pCoreMenu->Append(IDM_SEARCHINSTRUCTION, _T("&Search for an op"));
 
 	pCoreMenu->AppendSeparator();
-	jitoff = pCoreMenu->Append(IDM_JITOFF, _T("&JIT off (JIT core)"),
+	pCoreMenu->Append(IDM_JITOFF, _T("&JIT off (JIT core)"),
 		_T("Turn off all JIT functions, but still use the JIT core from Jit.cpp"),
 		wxITEM_CHECK);
-	jitlsoff = pCoreMenu->Append(IDM_JITLSOFF, _T("&JIT LoadStore off"),
+	pCoreMenu->Append(IDM_JITLSOFF, _T("&JIT LoadStore off"),
 		   	wxEmptyString, wxITEM_CHECK);
-	jitlslbzxoff = pCoreMenu->Append(IDM_JITLSLBZXOFF, _T("    &JIT LoadStore lbzx off"),
+	pCoreMenu->Append(IDM_JITLSLBZXOFF, _T("    &JIT LoadStore lbzx off"),
 			wxEmptyString, wxITEM_CHECK);
-	jitlslxzoff = pCoreMenu->Append(IDM_JITLSLXZOFF, _T("    &JIT LoadStore lXz off"),
+	pCoreMenu->Append(IDM_JITLSLXZOFF, _T("    &JIT LoadStore lXz off"),
 			wxEmptyString, wxITEM_CHECK);
-	jitlslwzoff = pCoreMenu->Append(IDM_JITLSLWZOFF, _T("        &JIT LoadStore lwz off"),
+	pCoreMenu->Append(IDM_JITLSLWZOFF, _T("        &JIT LoadStore lwz off"),
 			wxEmptyString, wxITEM_CHECK);
-	jitlspoff = pCoreMenu->Append(IDM_JITLSFOFF, _T("&JIT LoadStore Floating off"),
+	pCoreMenu->Append(IDM_JITLSFOFF, _T("&JIT LoadStore Floating off"),
 		   	wxEmptyString, wxITEM_CHECK);
-	jitlsfoff = pCoreMenu->Append(IDM_JITLSPOFF, _T("&JIT LoadStore Paired off"),
+	pCoreMenu->Append(IDM_JITLSPOFF, _T("&JIT LoadStore Paired off"),
 		   	wxEmptyString, wxITEM_CHECK);
-	jitfpoff = pCoreMenu->Append(IDM_JITFPOFF, _T("&JIT FloatingPoint off"),
+	pCoreMenu->Append(IDM_JITFPOFF, _T("&JIT FloatingPoint off"),
 		   	wxEmptyString, wxITEM_CHECK);
-	jitioff = pCoreMenu->Append(IDM_JITIOFF, _T("&JIT Integer off"),
+	pCoreMenu->Append(IDM_JITIOFF, _T("&JIT Integer off"),
 		   	wxEmptyString, wxITEM_CHECK);
-	jitpoff = pCoreMenu->Append(IDM_JITPOFF, _T("&JIT Paired off"),
+	pCoreMenu->Append(IDM_JITPOFF, _T("&JIT Paired off"),
 		   	wxEmptyString, wxITEM_CHECK);
-	jitsroff = pCoreMenu->Append(IDM_JITSROFF, _T("&JIT SystemRegisters off"),
+	pCoreMenu->Append(IDM_JITSROFF, _T("&JIT SystemRegisters off"),
 		   	wxEmptyString, wxITEM_CHECK);
 
 	pMenuBar->Append(pCoreMenu, _T("&JIT"));
+
+
+	// Debug Menu
+	wxMenu* pDebugMenu = new wxMenu;
+
+	pDebugMenu->Append(IDM_STEP, _T("Step &Into\tF11"));
+	pDebugMenu->Append(IDM_STEPOVER, _T("Step &Over\tF10"));
+	pDebugMenu->Append(IDM_TOGGLE_BREAKPOINT, _T("Toggle &Breakpoint\tF9"));
+
+	pMenuBar->Append(pDebugMenu, _T("&Debug"));
 
 	CreateMenuSymbols(pMenuBar);
 }
@@ -511,7 +560,10 @@ void CCodeWindow::OnCPUMode(wxCommandEvent& event)
 	}
 
 	// Clear the JIT cache to enable these changes
-	jit->ClearCache();
+	if (jit)
+	{
+		jit->ClearCache();
+	}
 	// Update
 	UpdateButtonStates();
 }

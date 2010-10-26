@@ -84,8 +84,7 @@ public:
 	void Jit(u32 em_address);
 	const u8* DoJit(u32 em_address, PPCAnalyst::CodeBuffer *code_buffer, JitBlock *b);
 
-	void NotifyBreakpoint(u32 em_address, bool set);
-	void Trace(PPCAnalyst::CodeBuffer *code_buffer, u32 em_address);
+	void Trace();
 
 	void ClearCache();
 	const u8 *GetDispatcher() {
@@ -111,9 +110,9 @@ public:
 	// Utilities for use by opcodes
 
 	void WriteExit(u32 destination, int exit_num);
-	void WriteExitDestInEAX(int exit_num);
-	void WriteExceptionExit(u32 exception);
-	void WriteRfiExitDestInEAX();
+	void WriteExitDestInOpArg(const Gen::OpArg& arg);
+	void WriteExceptionExit();
+	void WriteRfiExitDestInOpArg(const Gen::OpArg& arg);
 	void WriteCallInterpreter(UGeckoInstruction _inst);
 	void Cleanup();
 	
@@ -141,9 +140,7 @@ public:
 	void DynaRunTable63(UGeckoInstruction _inst);
 
 	void addx(UGeckoInstruction inst);
-	void orx(UGeckoInstruction inst);
-	void xorx(UGeckoInstruction inst);
-	void andx(UGeckoInstruction inst);
+	void boolX(UGeckoInstruction inst);
 	void mulli(UGeckoInstruction inst);
 	void mulhwux(UGeckoInstruction inst);
 	void mullwx(UGeckoInstruction inst);
@@ -171,6 +168,8 @@ public:
 	void mftb(UGeckoInstruction inst);
 	void mtcrf(UGeckoInstruction inst);
 	void mfcr(UGeckoInstruction inst);
+	void mcrf(UGeckoInstruction inst);
+	void crXX(UGeckoInstruction inst);
 
 	void reg_imm(UGeckoInstruction inst);
 
@@ -205,6 +204,7 @@ public:
 	void fsign(UGeckoInstruction inst);
 	void stX(UGeckoInstruction inst); //stw sth stb
 	void lXz(UGeckoInstruction inst);
+	void lbzu(UGeckoInstruction inst);
 	void lha(UGeckoInstruction inst);
 	void rlwinmx(UGeckoInstruction inst);
 	void rlwimix(UGeckoInstruction inst);

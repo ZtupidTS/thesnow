@@ -19,6 +19,7 @@
 #include "ChunkFile.h"
 #include "../ConfigManager.h"
 #include "../CoreTiming.h"
+#include "../HW/SystemTimers.h"
 
 #include "StreamADPCM.h" // Core
 #include "DVDInterface.h"
@@ -27,6 +28,13 @@
 #include "Thread.h"
 #include "Memmap.h"
 #include "../VolumeHandler.h"
+
+// Disc transfer rate measured in bytes per second
+#define DISC_TRANSFER_RATE_GC (3125 * 1024)
+#define DISC_TRANSFER_RATE_WII (7926 * 1024)
+
+// Disc access time measured in seconds
+#define DISC_ACCESS_TIME (128 / 1000)
 
 namespace DVDInterface
 {
@@ -71,14 +79,14 @@ union UDISR
 	u32 Hex;
 	struct
 	{
-		unsigned BREAK          :  1;	// Stop the Device + Interrupt
-		unsigned DEINITMASK     :  1;	// Access Device Error Int Mask
-		unsigned DEINT          :  1;	// Access Device Error Int
-		unsigned TCINTMASK      :  1;	// Transfer Complete Int Mask
-		unsigned TCINT          :  1;	// Transfer Complete Int
-		unsigned BRKINTMASK     :  1;
-		unsigned BRKINT         :  1;	// w 1: clear brkint
-		unsigned                : 25;
+		u32 BREAK          :  1;	// Stop the Device + Interrupt
+		u32 DEINITMASK     :  1;	// Access Device Error Int Mask
+		u32 DEINT          :  1;	// Access Device Error Int
+		u32 TCINTMASK      :  1;	// Transfer Complete Int Mask
+		u32 TCINT          :  1;	// Transfer Complete Int
+		u32 BRKINTMASK     :  1;
+		u32 BRKINT         :  1;	// w 1: clear brkint
+		u32                : 25;
 	};
 	UDISR() {Hex = 0;}
 	UDISR(u32 _hex) {Hex = _hex;}
@@ -90,10 +98,10 @@ union UDICVR
 	u32 Hex;
 	struct
 	{
-		unsigned CVR            :  1;	// 0: Cover closed	1: Cover open
-		unsigned CVRINTMASK	    :  1;	// 1: Interrupt enabled
-		unsigned CVRINT         :  1;	// r 1: Interrupt requested w 1: Interrupt clear
-		unsigned                : 29;
+		u32 CVR            :  1;	// 0: Cover closed	1: Cover open
+		u32 CVRINTMASK	   :  1;	// 1: Interrupt enabled
+		u32 CVRINT         :  1;	// r 1: Interrupt requested w 1: Interrupt clear
+		u32                : 29;
 	};
 	UDICVR() {Hex = 0;}
 	UDICVR(u32 _hex) {Hex = _hex;}
@@ -117,13 +125,13 @@ union UDIMAR
 	u32 Hex;
 	struct
 	{
-		unsigned Zerobits	:	5; // Must be zero (32byte aligned)
-		unsigned			:	27;
+		u32 Zerobits	:	5; // Must be zero (32byte aligned)
+		u32				:	27;
 	};
 	struct
 	{
-		unsigned Address	:	26;
-		unsigned			:	6;
+		u32 Address		:	26;
+		u32				:	6;
 	};
 };
 
@@ -133,13 +141,13 @@ union UDILENGTH
 	u32 Hex;
 	struct
 	{
-		unsigned Zerobits	:	5; // Must be zero (32byte aligned)
-		unsigned			:	27;
+		u32 Zerobits	:	5; // Must be zero (32byte aligned)
+		u32				:	27;
 	};
 	struct
 	{
-		unsigned Length		:	26;
-		unsigned			:	6;
+		u32 Length		:	26;
+		u32				:	6;
 	};
 };
 
@@ -149,10 +157,10 @@ union UDICR
 	u32 Hex;
 	struct
 	{
-		unsigned TSTART		:	1;	// w:1 start   r:0 ready
-		unsigned DMA		:	1;	// 1: DMA Mode    0: Immediate Mode (can only do Access Register Command)
-		unsigned RW			:	1;	// 0: Read Command (DVD to Memory)  1: Write COmmand (Memory to DVD)
-		unsigned			:  29;
+		u32 TSTART		:	1;	// w:1 start   r:0 ready
+		u32 DMA			:	1;	// 1: DMA Mode    0: Immediate Mode (can only do Access Register Command)
+		u32 RW			:	1;	// 0: Read Command (DVD to Memory)  1: Write Command (Memory to DVD)
+		u32				:  29;
 	};
 };
 
@@ -174,8 +182,8 @@ union UDICFG
 	u32 Hex;
 	struct
 	{
-		unsigned CONFIG		:	8;
-		unsigned			:  24;
+		u32 CONFIG		:	8;
+		u32				:  24;
 	};
 	UDICFG() {Hex = 0;}
 	UDICFG(u32 _hex) {Hex = _hex;}
@@ -200,6 +208,7 @@ static u32			AudioLength;
 u32	 g_ErrorCode = 0;
 bool g_bDiscInside = false;
 bool g_bStream = false;
+int  tc = 0;
 
 // GC-AM only
 static unsigned char media_buffer[0x40];
@@ -208,13 +217,15 @@ static unsigned char media_buffer[0x40];
 // (both requests can happen at the same time, audio takes precedence)
 Common::CriticalSection dvdread_section;
 
-static int changeDisc;
-void ChangeDiscCallback(u64 userdata, int cyclesLate);
+static int ejectDisc;
+static int insertDisc;
+
+void EjectDiscCallback(u64 userdata, int cyclesLate);
+void InsertDiscCallback(u64 userdata, int cyclesLate);
 
 void UpdateInterrupts();
 void GenerateDIInterrupt(DI_InterruptType _DVDInterrupt);
 void ExecuteCommand(UDICR& _DICR);
-
 
 void DoState(PointerWrap &p)
 {
@@ -235,6 +246,12 @@ void DoState(PointerWrap &p)
 	p.Do(g_bDiscInside);
 }
 
+void TransferComplete(u64 userdata, int cyclesLate)
+{
+	if (m_DICR.TSTART)
+		ExecuteCommand(m_DICR);
+}
+
 void Init()
 {
 	m_DISR.Hex		= 0;
@@ -253,7 +270,10 @@ void Init()
 	AudioPos		= 0;
 	AudioLength		= 0;
 
-	changeDisc = CoreTiming::RegisterEvent("ChangeDisc", ChangeDiscCallback);
+	ejectDisc = CoreTiming::RegisterEvent("EjectDisc", EjectDiscCallback);
+	insertDisc = CoreTiming::RegisterEvent("InsertDisc", InsertDiscCallback);
+
+	tc = CoreTiming::RegisterEvent("TransferComplete", TransferComplete);
 }
 
 void Shutdown()
@@ -274,44 +294,35 @@ bool IsDiscInside()
 // We want this in the "backend", NOT the gui
 // any !empty string will be deleted to ensure
 // that the userdata string exists when called
-void ChangeDiscCallback(u64 userdata, int cyclesLate)
+void EjectDiscCallback(u64 userdata, int cyclesLate)
 {
-	std::string FileName((const char*)userdata);
+	// Empty the drive
 	SetDiscInside(false);
 	SetLidOpen();
-
-	std::string& SavedFileName = SConfig::GetInstance().m_LocalCoreStartupParameter.m_strFilename;
-
-	if (FileName.empty())
-	{
-		// Empty the drive
-		VolumeHandler::EjectVolume();
-	}
-	else
-	{
-		if (VolumeHandler::SetVolumeName(FileName))
-		{
-			// Save the new ISO file name
-			SavedFileName = FileName;
-		}
-		else
-		{
-			PanicAlert("Invalid file \n %s", FileName.c_str());
-
-			// Put back the old one
-			VolumeHandler::SetVolumeName(SavedFileName);
-		}
-	}
-
-	SetLidOpen(false);
-	SetDiscInside(VolumeHandler::IsValid());
+	VolumeHandler::EjectVolume();
 }
 
-void ChangeDisc(const char* _FileName)
+void InsertDiscCallback(u64 userdata, int cyclesLate)
 {
-	const char* NoDisc = "";
-	CoreTiming::ScheduleEvent_Threadsafe(0, changeDisc, (u64)NoDisc);
-	CoreTiming::ScheduleEvent_Threadsafe(500000000, changeDisc, (u64)_FileName);
+	std::string& SavedFileName = SConfig::GetInstance().m_LocalCoreStartupParameter.m_strFilename;
+	std::string *_FileName = (std::string *)userdata;
+
+	if (!VolumeHandler::SetVolumeName(*_FileName))
+	{
+		// Put back the old one
+		VolumeHandler::SetVolumeName(SavedFileName);
+		PanicAlert("Invalid file");
+	}
+	SetLidOpen(false);
+	SetDiscInside(VolumeHandler::IsValid());
+	delete _FileName;
+}
+
+void ChangeDisc(const char* _newFileName)
+{
+	std::string* _FileName = new std::string(_newFileName);
+	CoreTiming::ScheduleEvent_Threadsafe(0, ejectDisc);
+	CoreTiming::ScheduleEvent_Threadsafe(500000000, insertDisc, (u64)_FileName);
 }
 
 void SetLidOpen(bool _bOpen)
@@ -439,31 +450,39 @@ void Write32(const u32 _iValue, const u32 _iAddress)
 
 	case DI_DMA_ADDRESS_REGISTER:
 		{
-			m_DIMAR.Hex = _iValue; 
-			_dbg_assert_msg_(DVDINTERFACE, m_DIMAR.Zerobits == 0, "DMA Addr not 32byte aligned!");
+			m_DIMAR.Hex = _iValue & ~0xfc00001f;
 		}
 		break;
 	case DI_DMA_LENGTH_REGISTER:
 		{
-			m_DILENGTH.Hex = _iValue; 
-			_dbg_assert_msg_(DVDINTERFACE, m_DILENGTH.Zerobits == 0, "DMA Length not 32byte aligned!");
+			m_DILENGTH.Hex = _iValue & ~0x1f;
 		}
 		break;
 	case DI_DMA_CONTROL_REGISTER:	
 		{
-			m_DICR.Hex = _iValue;
+			m_DICR.Hex = _iValue & 7;
 			if (m_DICR.TSTART)
-				ExecuteCommand(m_DICR);
+			{
+				if (!SConfig::GetInstance().m_LocalCoreStartupParameter.bFastDiscSpeed)
+				{
+					u64 ticksUntilTC = m_DILENGTH.Length * 
+						(SystemTimers::GetTicksPerSecond() / (SConfig::GetInstance().m_LocalCoreStartupParameter.bWii?DISC_TRANSFER_RATE_WII:DISC_TRANSFER_RATE_GC)) + 
+						(SystemTimers::GetTicksPerSecond() * DISC_ACCESS_TIME);
+					CoreTiming::ScheduleEvent((int)ticksUntilTC, tc);
+				}
+				else
+				{
+					ExecuteCommand(m_DICR);
+				}
+			}
 		}
 		break;
 
 	case DI_IMMEDIATE_DATA_BUFFER:	m_DIIMMBUF.Hex = _iValue; break;
 
 	case DI_CONFIG_REGISTER:
-		{	
-			UDICFG tmpConfigReg(_iValue);
-			m_DICFG.CONFIG = tmpConfigReg.CONFIG;
-			WARN_LOG(DVDINTERFACE, "Write to DICFG, should be read-only");
+		{
+			WARN_LOG(DVDINTERFACE, "Write to DICFG, ignored as it's read-only");
 		}
 		break;
 
@@ -571,33 +590,34 @@ void ExecuteCommand(UDICR& _DICR)
 					{
 						if (iDVDOffset & 0x80000000) // read request to hardware buffer
 						{
+							u32 len = m_DILENGTH.Length / 4;
 							switch (iDVDOffset)
 							{
 							case 0x80000000:
 								ERROR_LOG(DVDINTERFACE, "GC-AM: READ MEDIA BOARD STATUS (80000000)");
-								for (int i = 0; i < m_DILENGTH.Length / 4; i++)
+								for (u32 i = 0; i < len; i++)
 									Memory::Write_U32(0, m_DIMAR.Address + i * 4);
 								break;
 							case 0x80000040:
 								ERROR_LOG(DVDINTERFACE, "GC-AM: READ MEDIA BOARD STATUS (2) (80000040)");
-								for (int i = 0; i < m_DILENGTH.Length / 4; i++)
+								for (u32 i = 0; i < len; i++)
 									Memory::Write_U32(~0, m_DIMAR.Address + i * 4);
 								Memory::Write_U32(0x00000020, m_DIMAR.Address); // DIMM SIZE, LE
 								Memory::Write_U32(0x4743414D, m_DIMAR.Address + 4); // GCAM signature
 								break;
 							case 0x80000120:
 								ERROR_LOG(DVDINTERFACE, "GC-AM: READ FIRMWARE STATUS (80000120)");
-								for (int i = 0; i < m_DILENGTH.Length / 4; i++)
+								for (u32 i = 0; i < len; i++)
 									Memory::Write_U32(0x01010101, m_DIMAR.Address + i * 4);
 								break;
 							case 0x80000140:
 								ERROR_LOG(DVDINTERFACE, "GC-AM: READ FIRMWARE STATUS (80000140)");
-								for (int i = 0; i < m_DILENGTH.Length / 4; i++)
+								for (u32 i = 0; i < len; i++)
 									Memory::Write_U32(0x01010101, m_DIMAR.Address + i * 4);
 								break;
 							case 0x84000020:
 								ERROR_LOG(DVDINTERFACE, "GC-AM: READ MEDIA BOARD STATUS (1) (84000020)");
-								for (int i = 0; i < m_DILENGTH.Length / 4; i++)
+								for (u32 i = 0; i < len; i++)
 									Memory::Write_U32(0x00000000, m_DIMAR.Address + i * 4);
 								break;
 							default:
@@ -610,8 +630,7 @@ void ExecuteCommand(UDICR& _DICR)
 						{
 							ERROR_LOG(DVDINTERFACE, "GC-AM: READ MEDIA BOARD COMM AREA (1f900020)");
 							memcpy(Memory::GetPointer(m_DIMAR.Address), media_buffer + iDVDOffset - 0x1f900000, m_DILENGTH.Length);
-							unsigned int i;
-							for (i = 0; i < m_DILENGTH.Length; i += 4)
+							for (u32 i = 0; i < m_DILENGTH.Length; i += 4)
 								ERROR_LOG(DVDINTERFACE, "GC-AM: %08x", Memory::Read_U32(m_DIMAR.Address + i));
 							break;
 						}
@@ -631,6 +650,7 @@ void ExecuteCommand(UDICR& _DICR)
 				_dbg_assert_(DVDINTERFACE, m_DILENGTH.Length == 0x20);
 				if (!DVDRead(m_DICMDBUF[1].Hex, m_DIMAR.Address, m_DILENGTH.Length))
 					PanicAlert("Cant read from DVD_Plugin - DVD-Interface: Fatal Error");
+				WARN_LOG(DVDINTERFACE, "Read DiscID %08x", Memory::Read_U32(m_DIMAR.Address))
 				break;
 
 			default:

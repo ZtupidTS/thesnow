@@ -49,6 +49,18 @@ files = [
 	"HW/EXI_DeviceEthernet.cpp",
 	"HW/GPFifo.cpp",
 	"HW/GCPad.cpp",
+	"HW/Wiimote.cpp",
+	"HW/WiimoteEmu/WiimoteEmu.cpp",
+	"HW/WiimoteEmu/Attachment/Classic.cpp",
+	"HW/WiimoteEmu/Attachment/Attachment.cpp",
+	"HW/WiimoteEmu/Attachment/Nunchuk.cpp",
+	"HW/WiimoteEmu/Attachment/Drums.cpp",
+	"HW/WiimoteEmu/Attachment/Guitar.cpp",
+	"HW/WiimoteEmu/Attachment/Turntable.cpp",
+	"HW/WiimoteEmu/EmuSubroutines.cpp",
+	"HW/WiimoteEmu/Encryption.cpp",
+	#"HW/WiimoteEmu/Speaker.cpp",
+	"HW/WiimoteReal/WiimoteReal.cpp",
 	"HW/GCPadEmu.cpp",
 	"HW/HW.cpp",
 	"HW/Memmap.cpp",
@@ -125,18 +137,18 @@ files = [
 	"PowerPC/Jit64/Jit64_Tables.cpp",
 	]
 
-if sys.platform == 'win32':
-	files += [ "HW/BBA-TAP/TAP_Win32.cpp", "stdafx.cpp" ]
-elif sys.platform == 'darwin':
-	files += [ "HW/BBA-TAP/TAP_Apple.cpp" ]
-else:
-	files += [ "HW/BBA-TAP/TAP_Unix.cpp" ]
-
 libs = [
 	'bdisasm',
 	'inputcommon',
 	'lua',
 	'sfml-network',
 	]
+
+if sys.platform == 'win32':
+	files += [ "HW/BBA-TAP/TAP_Win32.cpp", "stdafx.cpp" ]
+elif sys.platform == 'darwin':
+	files += [ "HW/BBA-TAP/TAP_Apple.cpp" ]
+else:
+	files += [ "HW/BBA-TAP/TAP_Unix.cpp" ]
 
 env.StaticLibrary(env['local_libs'] + 'core', files, LIBS = libs)

@@ -66,7 +66,7 @@ s64 idledCycles;
 
 Common::CriticalSection externalEventSection;
 
-void (*advanceCallback)(int cyclesExecuted);
+void (*advanceCallback)(int cyclesExecuted) = NULL;
 
 Event* GetNewEvent()
 {
@@ -178,6 +178,7 @@ void DoState(PointerWrap &p)
 			p.Do(ev->time);
 			p.Do(ev->type);
 			p.Do(ev->userdata);
+			p.Do(ev->fifoWait);
 			ev->next = 0;
 			prev = ev;
 			ev = ev->next;
@@ -195,6 +196,7 @@ void DoState(PointerWrap &p)
 			p.Do(ev->time);
 			p.Do(ev->type);
 			p.Do(ev->userdata);
+			p.Do(ev->fifoWait);
 			ev = ev->next;
 		}
 		more_events = 0;
@@ -314,8 +316,6 @@ void RemoveEvent(int event_type)
 		return;
 	if (first->type == event_type)
 	{
-		if (event_type == 24)
-		NOTICE_LOG(FILEMON, "REMOVE 24");
 		Event *next = first->next;
 		FreeEvent(first);
 		first = next;
@@ -328,8 +328,6 @@ void RemoveEvent(int event_type)
 	{
 		if (ptr->type == event_type)
 		{
-			if (event_type == 24)
-			NOTICE_LOG(FILEMON, "REMOVE 24");
 			prev->next = ptr->next;
 			FreeEvent(ptr);
 			ptr = prev->next;
@@ -344,26 +342,29 @@ void RemoveEvent(int event_type)
 
 void RemoveThreadsafeEvent(int event_type)
 {
+	externalEventSection.Enter();
 	if (!tsFirst)
+	{
+		externalEventSection.Leave();
 		return;
+	}
 	if (tsFirst->type == event_type)
 	{
-		if (event_type == 24)
-		NOTICE_LOG(FILEMON, "REMOVE 24");
 		Event *next = tsFirst->next;
 		FreeTsEvent(tsFirst);
 		tsFirst = next;
 	}
 	if (!tsFirst)
+	{
+		externalEventSection.Leave();
 		return;
+	}
 	Event *prev = tsFirst;
 	Event *ptr = prev->next;
 	while (ptr)
 	{
 		if (ptr->type == event_type)
-		{
-			if (event_type == 24)
-			NOTICE_LOG(FILEMON, "REMOVE 24");		
+		{	
 			prev->next = ptr->next;
 			FreeTsEvent(ptr);
 			ptr = prev->next;
@@ -374,6 +375,7 @@ void RemoveThreadsafeEvent(int event_type)
 			ptr = ptr->next;
 		}
 	}
+	externalEventSection.Leave();
 }
 
 void RemoveAllEvents(int event_type)
@@ -520,7 +522,7 @@ std::string GetScheduledEventsSummary()
 	while (ptr)
 	{
 		unsigned int t = ptr->type;
-		if (t < 0 || t >= event_types.size())
+		if (t >= event_types.size())
 			PanicAlert("Invalid event type %i", t);
 		const char *name = event_types[ptr->type].name;
 		if (!name)

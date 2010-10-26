@@ -45,6 +45,7 @@
 #include "HW/GPFifo.h"
 #include "HW/CPU.h"
 #include "HW/GCPad.h"
+#include "HW/Wiimote.h"
 #include "HW/HW.h"
 #include "HW/DSP.h"
 #include "HW/GPFifo.h"
@@ -101,7 +102,7 @@ void Stop();
 bool g_bStopping = false;
 bool g_bHwInit = false;
 bool g_bRealWiimote = false;
-HWND g_pWindowHandle = NULL;
+void *g_pWindowHandle = NULL;
 
 Common::Thread* g_EmuThread = NULL;
 
@@ -183,6 +184,7 @@ bool Init()
 	SCoreStartupParameter &_CoreParameter = SConfig::GetInstance().m_LocalCoreStartupParameter;
 
 	g_CoreStartupParameter = _CoreParameter;
+
 	// FIXME DEBUG_LOG(BOOT, dump_params());
 	Host_SetWaitCursor(true);
 
@@ -358,7 +360,7 @@ THREAD_RETURN EmuThread(void *pArg)
 	Plugins.GetVideo()->Initialize(&VideoInitialize); // Call the dll
 
 	// Under linux, this is an X11 Window, not a HWND!
-	g_pWindowHandle			= (HWND)VideoInitialize.pWindowHandle;
+	g_pWindowHandle			= VideoInitialize.pWindowHandle;
 	Callback_PeekMessages	= VideoInitialize.pPeekMessages;
 	g_pUpdateFPSDisplay		= VideoInitialize.pUpdateFPSDisplay;
 
@@ -381,20 +383,11 @@ THREAD_RETURN EmuThread(void *pArg)
 
 	Plugins.GetDSP()->Initialize((void *)&dspInit);
 	
-	GCPad_Init(g_pWindowHandle);
+	Pad::Initialize(g_pWindowHandle);
 
-	// Load and Init WiimotePlugin - only if we are booting in wii mode	
+	// Load and Init Wiimotes - only if we are booting in wii mode	
 	if (_CoreParameter.bWii)
-	{
-		SWiimoteInitialize WiimoteInitialize;
-		WiimoteInitialize.hWnd			= g_pWindowHandle;
-		WiimoteInitialize.ISOId			= Ascii2Hex(_CoreParameter.m_strUniqueID);
-		WiimoteInitialize.pLog			= Callback_WiimoteLog;
-		WiimoteInitialize.pWiimoteInterruptChannel = Callback_WiimoteInterruptChannel;
-		WiimoteInitialize.pRendererHasFocus	= Callback_RendererHasFocus;
-		// Wait for Wiiuse to find the number of connected Wiimotes
-		Plugins.GetWiimote()->Initialize((void *)&WiimoteInitialize);
-	}
+		Wiimote::Initialize(g_pWindowHandle);
 
 	// The hardware is initialized.
 	g_bHwInit = true;
@@ -507,7 +500,8 @@ THREAD_RETURN EmuThread(void *pArg)
 	if (_CoreParameter.bCPUThread)
 		Plugins.ShutdownVideoPlugin();
 
-	GCPad_Deinit();
+	Pad::Shutdown();
+	Wiimote::Shutdown();
 	Plugins.ShutdownPlugins();
 
 	NOTICE_LOG(CONSOLE, "%s", StopMessage(false, "Plugins shutdown").c_str());
@@ -629,13 +623,7 @@ void VideoThrottle()
 		u32 Speed = VPS * 100 / VideoInterface::TargetRefreshRate;
 		
 		// Settings are shown the same for both extended and summary info
-		std::string SSettings = StringFromFormat("%s %s",
-		#ifdef _M_IX86
-					_CoreParameter.iCPUCore ? jit->GetName() : "Int32", 
-		#else
-					_CoreParameter.iCPUCore ? jit->GetName() : "Int64", 
-		#endif
-		_CoreParameter.bCPUThread ? "DC" : "SC");
+		std::string SSettings = StringFromFormat("%s %s", cpu_core_base->GetName(),	_CoreParameter.bCPUThread ? "DC" : "SC");
 
 		// Use extended or summary information. The summary information does not print the ticks data,
 		// that's more of a debugging interest, it can always be optional of course if someone is interested.

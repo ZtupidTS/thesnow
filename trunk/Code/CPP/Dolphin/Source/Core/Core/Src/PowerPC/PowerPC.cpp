@@ -18,6 +18,7 @@
 #include <float.h>
 
 #include "Common.h"
+#include "Atomic.h"
 #include "MathUtil.h"
 #include "ChunkFile.h"
 
@@ -25,6 +26,7 @@
 #include "../HW/CPU.h"
 #include "../Core.h"
 #include "../CoreTiming.h"
+#include "../HW/SystemTimers.h"
 
 #include "Interpreter/Interpreter.h"
 #include "JitCommon/JitBase.h"
@@ -32,8 +34,11 @@
 #include "Jit64/Jit.h"
 #include "PowerPC.h"
 #include "PPCTables.h"
+#include "CPUCoreBase.h"
 
 #include "../Host.h"
+
+CPUCoreBase *cpu_core_base;
 
 namespace PowerPC
 {
@@ -42,7 +47,8 @@ namespace PowerPC
 PowerPCState GC_ALIGNED16(ppcState);
 volatile CPUState state = CPU_STEPPING;
 
-static CoreMode mode;
+Interpreter * const interpreter = Interpreter::getInstance();
+CoreMode mode;
 
 BreakPoints breakpoints;
 MemChecks memchecks;
@@ -68,7 +74,13 @@ void ExpandCR()
 
 void DoState(PointerWrap &p)
 {
+	rSPR(SPR_DEC) = SystemTimers::GetFakeDecrementer();
+	*((u64 *)&TL) = SystemTimers::GetFakeTimeBase(); //works since we are little endian and TL comes first :)
+
 	p.Do(ppcState);
+
+	SystemTimers::DecrementerSet();
+	SystemTimers::TimeBaseSet();
 }
 
 void ResetRegisters()
@@ -105,10 +117,12 @@ void ResetRegisters()
 
 	TL = 0;
 	TU = 0;
+	SystemTimers::TimeBaseSet();
 
 	// MSR should be 0x40, but we don't emulate BS1, so it would never be turned off :}
 	ppcState.msr = 0;
 	rDEC = 0xFFFFFFFF;
+	SystemTimers::DecrementerSet();
 }
 
 void Init(int cpu_core)
@@ -137,18 +151,46 @@ void Init(int cpu_core)
 #endif
 
 	ResetRegisters();
-	PPCTables::InitTables();
+	PPCTables::InitTables(cpu_core);
 
-	// Initialize both execution engines ... 
-	Interpreter::Init();
+	// We initialize the interpreter because
+	// it is used on boot and code window independently.
+	interpreter->Init();
 
-	if (cpu_core == 1)
-		jit = new Jit64;
+	switch (cpu_core)
+	{
+	case 0:
+		{
+			cpu_core_base = interpreter;
+			break;
+		}
+	case 1:
+		{
+			cpu_core_base = new Jit64();
+			break;
+		}
+	case 2:
+		{
+			cpu_core_base = new JitIL();
+			break;
+		}
+	default:
+		{
+			PanicAlert("Unrecognizable cpu_core: %d", cpu_core);
+			break;
+		}
+	}
+
+	if (cpu_core_base != interpreter)
+	{
+		jit = dynamic_cast<JitBase*>(cpu_core_base);
+		jit->Init();
+		mode = MODE_JIT;
+	}
 	else
-		jit = new JitIL;
-	jit->Init();
-	// ... but start as interpreter by default.
-	mode = MODE_INTERPRETER;
+	{
+		mode = MODE_INTERPRETER;
+	}
 	state = CPU_STEPPING;
 
 	ppcState.iCache.Reset();
@@ -156,12 +198,15 @@ void Init(int cpu_core)
 
 void Shutdown()
 {
-	// Shutdown both execution engines. Doesn't matter which one is active.
-	jit->Shutdown();
+	if (jit)
+	{
+		jit->Shutdown();
+		delete jit;
+		jit = NULL;
+	}
+	interpreter->Shutdown();
+	cpu_core_base = NULL;
 	state = CPU_POWERDOWN;
-	delete jit;
-	jit = 0;
-	Interpreter::Shutdown();
 }
 
 void SetMode(CoreMode new_mode)
@@ -170,43 +215,30 @@ void SetMode(CoreMode new_mode)
 		return;  // We don't need to do anything.
 
 	mode = new_mode;
+
 	switch (mode)
 	{
 	case MODE_INTERPRETER:  // Switching from JIT to interpreter
 		jit->ClearCache();  // Remove all those nasty JIT patches.
+		cpu_core_base = interpreter;
 		break;
 
 	case MODE_JIT:  // Switching from interpreter to JIT.
 		// Don't really need to do much. It'll work, the cache will refill itself.
+		cpu_core_base = jit;
 		break;
 	}
 }
 
 void SingleStep() 
 {
-	switch (mode)
-	{
-	case MODE_INTERPRETER:
-		Interpreter::SingleStep();
-		break;
-	case MODE_JIT:
-		jit->SingleStep();
-		break;
-	}
+	cpu_core_base->SingleStep();
 }
 
 void RunLoop()
 {
 	state = CPU_RUNNING;
-	switch (mode) 
-	{
-	case MODE_INTERPRETER:
-		Interpreter::Run();
-		break;
-	case MODE_JIT:
-		jit->Run();
-		break;
-	}
+	cpu_core_base->Run();
 	Host_UpdateDisasmDialog();
 }
 
@@ -240,16 +272,12 @@ void Stop()
 
 void CheckExceptions()
 {
-	// This check is unnecessary in JIT mode. However, it probably doesn't really hurt.
-	if (!ppcState.Exceptions)
-		return;
+	// Read volatile data once
+	u32 exceptions = ppcState.Exceptions;
 
-	// gcemu uses the mask 0x87C0FFFF instead of 0x0780FF77
-	// shuffle2: the MSR bits saved to SRR1 depend on the type of
-	// exception being taken, the common mask is 0x87C00008.
-	// I guess gcemu just uses 0x87C0FFFF for simplicity
-	// I think we should too, or else we would have to check what type of
-	// exception a rfi is returning from - I doubt a real cpu does this
+	// This check is unnecessary in JIT mode. However, it probably doesn't really hurt.
+	if (!exceptions)
+		return;
 
 	// Example procedure:
 	// set SRR0 to either PC or NPC
@@ -257,120 +285,119 @@ void CheckExceptions()
 	// save specified MSR bits
 	//SRR1 = MSR & 0x87C0FFFF;
 	// copy ILE bit to LE
-	//MSR |= (MSR >> 17) & 1;
+	//MSR |= (MSR >> 16) & 1;
 	// clear MSR as specified
 	//MSR &= ~0x04EF36; // 0x04FF36 also clears ME (only for machine check exception)
 	// set to exception type entry point
 	//NPC = 0x80000x00;
 
-	if (ppcState.Exceptions & EXCEPTION_ISI)
+	if (exceptions & EXCEPTION_ISI)
 	{
 		SRR0 = NPC;
-		//GenerateISIException() sets up SRR1
-		SRR1 |= MSR & 0x87C0FFFF;
-		MSR |= (MSR >> 17) & 1;
+		// Page fault occurred
+		SRR1 = (MSR & 0x87C0FFFF) | (1 << 30);
+		MSR |= (MSR >> 16) & 1;
 		MSR &= ~0x04EF36;
 		NPC = 0x80000400;
 
 		INFO_LOG(POWERPC, "EXCEPTION_ISI");
-		ppcState.Exceptions &= ~EXCEPTION_ISI;
+		Common::AtomicAnd(ppcState.Exceptions, ~EXCEPTION_ISI);
 	}
-	else if (ppcState.Exceptions & EXCEPTION_PROGRAM)
+	else if (exceptions & EXCEPTION_PROGRAM)
 	{
 		SRR0 = PC;
-		SRR1 = MSR & 0x87C0FFFF;
 		// say that it's a trap exception
-		SRR1 |= 0x40000;
-		MSR |= (MSR >> 17) & 1;
+		SRR1 = (MSR & 0x87C0FFFF) | 0x40000;
+		MSR |= (MSR >> 16) & 1;
 		MSR &= ~0x04EF36;
 		NPC = 0x80000700;
 
 		INFO_LOG(POWERPC, "EXCEPTION_PROGRAM");
-		ppcState.Exceptions &= ~EXCEPTION_PROGRAM;
+		Common::AtomicAnd(ppcState.Exceptions, ~EXCEPTION_PROGRAM);
 	} 
-	else if (ppcState.Exceptions & EXCEPTION_SYSCALL)
+	else if (exceptions & EXCEPTION_SYSCALL)
 	{
 		SRR0 = NPC;
 		SRR1 = MSR & 0x87C0FFFF;
-		MSR |= (MSR >> 17) & 1;
+		MSR |= (MSR >> 16) & 1;
 		MSR &= ~0x04EF36;
 		NPC = 0x80000C00;
 
 		INFO_LOG(POWERPC, "EXCEPTION_SYSCALL (PC=%08x)", PC);
-		ppcState.Exceptions &= ~EXCEPTION_SYSCALL;
+		Common::AtomicAnd(ppcState.Exceptions, ~EXCEPTION_SYSCALL);
 	}
-	else if (ppcState.Exceptions & EXCEPTION_FPU_UNAVAILABLE)
+	else if (exceptions & EXCEPTION_FPU_UNAVAILABLE)
 	{			
 		//This happens a lot - Gamecube OS uses deferred FPU context switching
 		SRR0 = PC;	// re-execute the instruction
 		SRR1 = MSR & 0x87C0FFFF;
-		MSR |= (MSR >> 17) & 1;
+		MSR |= (MSR >> 16) & 1;
 		MSR &= ~0x04EF36;
 		NPC = 0x80000800;
 
 		INFO_LOG(POWERPC, "EXCEPTION_FPU_UNAVAILABLE");
-		ppcState.Exceptions &= ~EXCEPTION_FPU_UNAVAILABLE;
+		Common::AtomicAnd(ppcState.Exceptions, ~EXCEPTION_FPU_UNAVAILABLE);
 	}
-	else if (ppcState.Exceptions & EXCEPTION_DSI)
+	else if (exceptions & EXCEPTION_DSI)
 	{
 		SRR0 = PC;
 		SRR1 = MSR & 0x87C0FFFF;
-		MSR |= (MSR >> 17) & 1;
+		MSR |= (MSR >> 16) & 1;
 		MSR &= ~0x04EF36;
 		NPC = 0x80000300;
 		//DSISR and DAR regs are changed in GenerateDSIException()
 
 		INFO_LOG(POWERPC, "EXCEPTION_DSI");
-		ppcState.Exceptions &= ~EXCEPTION_DSI;
+		Common::AtomicAnd(ppcState.Exceptions, ~EXCEPTION_DSI);
 	} 
-	else if (ppcState.Exceptions & EXCEPTION_ALIGNMENT)
+	else if (exceptions & EXCEPTION_ALIGNMENT)
 	{
 		//This never happens ATM
 		// perhaps we can get dcb* instructions to use this :p
 		SRR0 = PC;
 		SRR1 = MSR & 0x87C0FFFF;
-		MSR |= (MSR >> 17) & 1;
+		MSR |= (MSR >> 16) & 1;
 		MSR &= ~0x04EF36;
 		NPC = 0x80000600;
 
 		//TODO crazy amount of DSISR options to check out
 
 		INFO_LOG(POWERPC, "EXCEPTION_ALIGNMENT");
-		ppcState.Exceptions &= ~EXCEPTION_ALIGNMENT;
+		Common::AtomicAnd(ppcState.Exceptions, ~EXCEPTION_ALIGNMENT);
 	}
 
 	// EXTERNAL INTERRUPT
 	else if (MSR & 0x0008000) //hacky...the exception shouldn't be generated if EE isn't set...
 	{
-		if (ppcState.Exceptions & EXCEPTION_EXTERNAL_INT)
+		if (exceptions & EXCEPTION_EXTERNAL_INT)
 		{
 			// Pokemon gets this "too early", it hasn't a handler yet
 			SRR0 = NPC;
 			SRR1 = MSR & 0x87C0FFFF;
-			MSR |= (MSR >> 17) & 1;
+			MSR |= (MSR >> 16) & 1;
 			MSR &= ~0x04EF36;
 			NPC = 0x80000500;
 
 			INFO_LOG(POWERPC, "EXCEPTION_EXTERNAL_INT");
-			ppcState.Exceptions &= ~EXCEPTION_EXTERNAL_INT;
+			Common::AtomicAnd(ppcState.Exceptions, ~EXCEPTION_EXTERNAL_INT);
 
 			_dbg_assert_msg_(POWERPC, (SRR1 & 0x02) != 0, "GEKKO", "EXTERNAL_INT unrecoverable???");
 		}
-		else if (ppcState.Exceptions & EXCEPTION_DECREMENTER)
+		else if (exceptions & EXCEPTION_DECREMENTER)
 		{
 			SRR0 = NPC;
 			SRR1 = MSR & 0x87C0FFFF;
-			MSR |= (MSR >> 17) & 1;
+			MSR |= (MSR >> 16) & 1;
 			MSR &= ~0x04EF36;
 			NPC = 0x80000900;
 
 			INFO_LOG(POWERPC, "EXCEPTION_DECREMENTER");
-			ppcState.Exceptions &= ~EXCEPTION_DECREMENTER;
+			Common::AtomicAnd(ppcState.Exceptions, ~EXCEPTION_DECREMENTER);
 		}
 		else
 		{
-			_dbg_assert_msg_(POWERPC, 0, "Unknown EXT interrupt: Exceptions == %08x", ppcState.Exceptions);
-			ERROR_LOG(POWERPC, "Unknown EXTERNAL INTERRUPT exception: Exceptions == %08x", ppcState.Exceptions);
+			_dbg_assert_msg_(POWERPC, 0, "Unknown EXT interrupt: Exceptions == %08x", exceptions);
+			ERROR_LOG(POWERPC, "Unknown EXTERNAL INTERRUPT exception: Exceptions == %08x", exceptions);
 		}
 	}
 }

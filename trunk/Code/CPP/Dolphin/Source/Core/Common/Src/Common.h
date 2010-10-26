@@ -56,7 +56,6 @@ extern const char *netplay_dolphin_ver;
 #undef STACKALIGN
 #define STACKALIGN __attribute__((__force_align_arg_pointer__))
 #endif
-#define HAVE_WIIUSE 1
 // We use wxWidgets on OS X only if it is version 2.9+ with Cocoa support.
 #ifdef __WXOSX_COCOA__
 #define HAVE_WX 1
@@ -83,7 +82,6 @@ extern const char *netplay_dolphin_ver;
 	#define GC_ALIGNED64_DECL(x) __declspec(align(64)) x
 
 // Since they are always around on windows
-	#define HAVE_WIIUSE 1
 	#define HAVE_WX 1
 	#define HAVE_OPENAL 1
 
@@ -114,10 +112,6 @@ extern const char *netplay_dolphin_ver;
 #include "config.h"	// SCons autoconfiguration defines
 #endif
 
-#if defined __linux__ && HAVE_BLUEZ
-#define HAVE_WIIUSE 1
-#endif
-
 // Windows compatibility
 #ifndef _WIN32
 #include <limits.h>
@@ -143,6 +137,14 @@ extern const char *netplay_dolphin_ver;
 #define __strdup strdup
 #define __getcwd getcwd
 #define __chdir chdir
+#endif
+
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 3) || defined __APPLE__
+#define _M_SSE 0x301
+#endif
+
+#if _MSC_VER >= 1500 // Visual Studio 2008
+#define _M_SSE 0x401
 #endif
 
 #endif // _COMMON_H_

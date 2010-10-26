@@ -38,7 +38,12 @@ DSPEmitter::DSPEmitter() : storeIndex(-1)
 	blocks = new CompiledCode[MAX_BLOCKS];
 	blockSize = new u16[0x10000];
 	
-	ClearIRAM();
+	//clear all of the block references
+	for(int i = 0x0000; i < MAX_BLOCKS; i++)
+	{
+		blocks[i] = NULL;
+		blockSize[i] = 0;
+	}
 
 	compileSR = 0;
 	compileSR |= SR_INT_ENABLE;
@@ -65,33 +70,21 @@ void DSPEmitter::ClearIRAM() {
 
 
 // Must go out of block if exception is detected
-void DSPEmitter::checkExceptions() {
-	/*
-	// check if there is an external interrupt
-	if (! dsp_SR_is_flag_set(SR_EXT_INT_ENABLE))
-		return;
-
-	if (! (g_dsp.cr & CR_EXTERNAL_INT)) 
-		return;
-
-	g_dsp.cr &= ~CR_EXTERNAL_INT;
-
-	// Check for other exceptions
-	if (dsp_SR_is_flag_set(SR_INT_ENABLE))
-		return;
-
-	if (g_dsp.exceptions == 0)
-		return;	
-	*/
-	ABI_CallFunction((void *)&DSPCore_CheckExternalInterrupt);
+void DSPEmitter::checkExceptions(u32 retval) {
 	// Check for interrupts and exceptions
+#ifdef _M_IX86 // All32
 	TEST(8, M(&g_dsp.exceptions), Imm8(0xff));
+#else
+	MOV(64, R(RAX), ImmPtr(&g_dsp.exceptions));
+	TEST(8, MDisp(RAX,0), Imm8(0xff));
+#endif
 	FixupBranch skipCheck = J_CC(CC_Z);
 	
 	ABI_CallFunction((void *)&DSPCore_CheckExceptions);
 	
 	//	ABI_RestoreStack(0);
 	ABI_PopAllCalleeSavedRegsAndAdjustStack();
+	MOV(32,R(EAX),Imm32(retval));
 	RET();
 	
 	SetJumpTarget(skipCheck);
@@ -156,30 +149,67 @@ const u8 *DSPEmitter::Compile(int start_addr) {
 	ABI_PushAllCalleeSavedRegsAndAdjustStack();
 	//	ABI_AlignStack(0);
 
+	/*
+	// check if there is an external interrupt
+	if (! dsp_SR_is_flag_set(SR_EXT_INT_ENABLE))
+		return;
+
+	if (! (g_dsp.cr & CR_EXTERNAL_INT)) 
+		return;
+
+	g_dsp.cr &= ~CR_EXTERNAL_INT;
+
+	// Check for other exceptions
+	if (dsp_SR_is_flag_set(SR_INT_ENABLE))
+		return;
+
+	if (g_dsp.exceptions == 0)
+		return;	
+	*/
+	ABI_CallFunction((void *)&DSPCore_CheckExternalInterrupt);
+
 	int addr = start_addr;
-	checkExceptions();
 	blockSize[start_addr] = 0;
 	while (addr < start_addr + MAX_BLOCK_SIZE)
 	{
+		checkExceptions(blockSize[start_addr]);
+
 		UDSPInstruction inst = dsp_imem_read(addr);
 		const DSPOPCTemplate *opcode = GetOpTemplate(inst);
-		
+
 		// Increment PC - we shouldn't need to do this for every instruction. only for branches and end of block.
+		// fallbacks to interpreter need this for fetching immedate values
+#ifdef _M_IX86 // All32
 		ADD(16, M(&(g_dsp.pc)), Imm16(1));
+#else
+		MOV(64, R(RAX), ImmPtr(&(g_dsp.pc)));
+		ADD(16, MDisp(RAX,0), Imm16(1));
+#endif
 
 		EmitInstruction(inst);
-				
-		// Handle loop condition, only if current instruction was flagged as a loop destination
-		// by the analyzer.  COMMENTED OUT - this breaks Zelda TP. Bah.
 
-		// if (DSPAnalyzer::code_flags[addr] & DSPAnalyzer::CODE_LOOP_END)
+		blockSize[start_addr]++;
+		addr += opcode->size;
+
+		// Handle loop condition, only if current instruction was flagged as a loop destination
+		// by the analyzer.
+		if (DSPAnalyzer::code_flags[addr-1] & DSPAnalyzer::CODE_LOOP_END)
 		{
 			// TODO: Change to TEST for some reason (who added this comment?)
+#ifdef _M_IX86 // All32
 			MOVZX(32, 16, EAX, M(&(g_dsp.r[DSP_REG_ST2])));
+#else
+			MOV(64, R(R11), ImmPtr(&g_dsp.r));
+			MOVZX(32, 16, EAX, MDisp(R11,DSP_REG_ST2*2));
+#endif
 			CMP(32, R(EAX), Imm32(0));
 			FixupBranch rLoopAddressExit = J_CC(CC_LE);
 		
+#ifdef _M_IX86 // All32
 			MOVZX(32, 16, EAX, M(&(g_dsp.r[DSP_REG_ST3])));
+#else
+			MOVZX(32, 16, EAX, MDisp(R11,DSP_REG_ST3*2));
+#endif
 			CMP(32, R(EAX), Imm32(0));
 			FixupBranch rLoopCounterExit = J_CC(CC_LE);
 
@@ -188,26 +218,41 @@ const u8 *DSPEmitter::Compile(int start_addr) {
 			ABI_CallFunction((void *)&DSPInterpreter::HandleLoop);
 			//		ABI_RestoreStack(0);
 			ABI_PopAllCalleeSavedRegsAndAdjustStack();
+			MOV(32,R(EAX),Imm32(blockSize[start_addr]));
 			RET();
 
 			SetJumpTarget(rLoopAddressExit);
 			SetJumpTarget(rLoopCounterExit);
 		}
 
-		blockSize[start_addr]++;
+		if (opcode->branch) {
+			if (opcode->uncond_branch) {
+				break;
+			} else {
+				//look at g_dsp.pc if we actually branched
+#ifdef _M_IX86 // All32
+				MOV(16, R(AX), M(&(g_dsp.pc)));
+#else
+				MOV(64, R(RAX), ImmPtr(&(g_dsp.pc)));
+				MOV(16, R(AX), MDisp(RAX,0));
+#endif
+				CMP(16, R(AX), Imm16(addr));
+				FixupBranch rNoBranch = J_CC(CC_Z);
 
-		// End the block if we're at a loop end.
-		if (opcode->branch ||
-			(DSPAnalyzer::code_flags[addr] & DSPAnalyzer::CODE_LOOP_END) ||
-			(DSPAnalyzer::code_flags[addr] & DSPAnalyzer::CODE_IDLE_SKIP)) {
+				//		ABI_RestoreStack(0);
+				ABI_PopAllCalleeSavedRegsAndAdjustStack();
+				MOV(32,R(EAX),Imm32(blockSize[start_addr]));
+				RET();
+
+				SetJumpTarget(rNoBranch);
+			}
+		}
+
+		// End the block if we're before an idle skip address
+		if (DSPAnalyzer::code_flags[addr] & DSPAnalyzer::CODE_IDLE_SKIP) {
 			break;
 		}
-		addr += opcode->size;
 	}
-
-	//	ABI_RestoreStack(0);
-	ABI_PopAllCalleeSavedRegsAndAdjustStack();
-	RET();
 
 	blocks[start_addr] = (CompiledCode)entryPoint;
 	if (blockSize[start_addr] == 0) 
@@ -217,6 +262,11 @@ const u8 *DSPEmitter::Compile(int start_addr) {
 		ERROR_LOG(DSPLLE, "Block at 0x%04x has zero size", start_addr);
 		blockSize[start_addr] = 1;
 	}
+
+	//	ABI_RestoreStack(0);
+	ABI_PopAllCalleeSavedRegsAndAdjustStack();
+	MOV(32,R(EAX),Imm32(blockSize[start_addr]));
+	RET();
 
 	return entryPoint;
 }
@@ -254,14 +304,14 @@ int STACKALIGN DSPEmitter::RunForCycles(int cycles)
 		// Execute the block if we have enough cycles
 		if (cycles > block_size)
 		{
-			blocks[block_addr]();
+			int c = blocks[block_addr]();
 			if (DSPAnalyzer::code_flags[block_addr] & DSPAnalyzer::CODE_IDLE_SKIP) {
 				if (cycles > idle_cycles)
 					cycles -= idle_cycles;
 				else
 					cycles = 0;
 			} else {
-				cycles -= block_size;
+				cycles -= c;
 			}
 		}
 		else {

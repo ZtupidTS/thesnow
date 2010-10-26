@@ -168,7 +168,12 @@ void OpArg::WriteRest(XEmitter *emit, int extraBytes, X64Reg _operandReg) const
 		//TODO : add some checks
 #ifdef _M_X64
 		u64 ripAddr = (u64)emit->GetCodePtr() + 4 + extraBytes;
-		s32 offs = (s32)((s64)offset - (s64)ripAddr);
+		s64 distance = (s64)offset - (s64)ripAddr;
+		if (distance >= 0x0000000080000000LL
+		    || distance <  -0x0000000080000000LL) {
+		    PanicAlert("WriteRest: op out of range (%p uses %p)", ripAddr, offset);
+		}
+		s32 offs = (s32)distance;
 		emit->Write32((u32)offs);
 #else
 		emit->Write32((u32)offset);
@@ -1200,6 +1205,36 @@ void XEmitter::PUNPCKLWD(X64Reg dest, const OpArg &arg) {WriteSSEOp(64, 0x61, tr
 void XEmitter::PUNPCKLDQ(X64Reg dest, const OpArg &arg) {WriteSSEOp(64, 0x62, true, dest, arg);}
 //void PUNPCKLQDQ(X64Reg dest, OpArg arg) {WriteSSEOp(64, 0x60, true, dest, arg);}
 
+void XEmitter::PSRLW(X64Reg reg, int shift) {
+	WriteSSEOp(64, 0x71, true, (X64Reg)2, R(reg));
+	Write8(shift);
+}
+
+void XEmitter::PSRLD(X64Reg reg, int shift) {
+	WriteSSEOp(64, 0x72, true, (X64Reg)2, R(reg));
+	Write8(shift);
+}
+
+void XEmitter::PSRLQ(X64Reg reg, int shift) {
+	WriteSSEOp(64, 0x73, true, (X64Reg)2, R(reg));
+	Write8(shift);
+}
+
+void XEmitter::PSLLW(X64Reg reg, int shift) {
+	WriteSSEOp(64, 0x71, true, (X64Reg)6, R(reg));
+	Write8(shift);
+}
+
+void XEmitter::PSLLD(X64Reg reg, int shift) {
+	WriteSSEOp(64, 0x72, true, (X64Reg)6, R(reg));
+	Write8(shift);
+}
+
+void XEmitter::PSLLQ(X64Reg reg, int shift) {
+	WriteSSEOp(64, 0x73, true, (X64Reg)6, R(reg));
+	Write8(shift);
+}
+
 // WARNING not REX compatible
 void XEmitter::PSRAW(X64Reg reg, int shift) {
 	if (reg > 7)
@@ -1208,16 +1243,6 @@ void XEmitter::PSRAW(X64Reg reg, int shift) {
 	Write8(0x0f);
 	Write8(0x71);
 	Write8(0xE0 | reg);
-	Write8(shift);
-}
-
-void XEmitter::PSRLW(X64Reg reg, int shift) {
-	WriteSSEOp(64, 0x71, true, (X64Reg)2, R(reg));
-	Write8(shift);
-}
-
-void XEmitter::PSLLW(X64Reg reg, int shift) {
-	WriteSSEOp(64, 0x71, true, (X64Reg)6, R(reg));
 	Write8(shift);
 }
 

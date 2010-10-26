@@ -125,43 +125,62 @@ void JitIL::cmpXX(UGeckoInstruction inst)
 		rhs = ibuild.EmitIntConst(inst.SIMM_16);
 		res = ibuild.EmitICmpCRSigned(lhs, rhs);
 	}
+	js.downcountAmount++; //TODO: should this be somewhere else?
 	
 	ibuild.EmitStoreCR(res, inst.CRFD);
 }
 
-void JitIL::orx(UGeckoInstruction inst)
+void JitIL::boolX(UGeckoInstruction inst)
 {
 	INSTRUCTION_START
 	JITDISABLE(Integer)
-	IREmitter::InstLoc val = ibuild.EmitLoadGReg(inst.RB);
-	val = ibuild.EmitOr(ibuild.EmitLoadGReg(inst.RS), val);
-	ibuild.EmitStoreGReg(val, inst.RA);
-	if (inst.Rc)
-		ComputeRC(ibuild, val);
-}
 
+	IREmitter::InstLoc a = NULL;
+	IREmitter::InstLoc s = ibuild.EmitLoadGReg(inst.RS);
+	IREmitter::InstLoc b = ibuild.EmitLoadGReg(inst.RB);
 
-// m_GPR[_inst.RA] = m_GPR[_inst.RS] ^ m_GPR[_inst.RB];
-void JitIL::xorx(UGeckoInstruction inst)
-{
-	INSTRUCTION_START
-	JITDISABLE(Integer)
-	IREmitter::InstLoc val = ibuild.EmitLoadGReg(inst.RB);
-	val = ibuild.EmitXor(ibuild.EmitLoadGReg(inst.RS), val);
-	ibuild.EmitStoreGReg(val, inst.RA);
-	if (inst.Rc)
-		ComputeRC(ibuild, val);
-}
+	// FIXME: Some instructions does not work well in NSMBW, MP2, etc.
+	//        Refer JitIL_Tables.cpp.
+	if (inst.SUBOP10 == 28) /* andx */
+	{
+		a = ibuild.EmitAnd(s, b);
+	}
+	else if (inst.SUBOP10 == 476) /* nandx */
+	{
+		a = ibuild.EmitNot(ibuild.EmitAnd(s, b));
+	}
+	else if (inst.SUBOP10 == 60) /* andcx */
+	{
+		a = ibuild.EmitAnd(s, ibuild.EmitNot(b));
+	}
+	else if (inst.SUBOP10 == 444) /* orx */
+	{
+		a = ibuild.EmitOr(s, b);
+	}
+	else if (inst.SUBOP10 == 124) /* norx */
+	{
+		a = ibuild.EmitNot(ibuild.EmitOr(s, b));
+	}
+	else if (inst.SUBOP10 == 412) /* orcx */
+	{
+		a = ibuild.EmitOr(s, ibuild.EmitNot(b));
+	}
+	else if (inst.SUBOP10 == 316) /* xorx */
+	{
+		a = ibuild.EmitXor(s, b);
+	}
+	else if (inst.SUBOP10 == 284) /* eqvx */
+	{
+		a = ibuild.EmitNot(ibuild.EmitXor(s, b));
+	}
+	else
+	{
+		PanicAlert("WTF!");
+	}
 
-void JitIL::andx(UGeckoInstruction inst)
-{
-	INSTRUCTION_START
-	JITDISABLE(Integer)
-	IREmitter::InstLoc val = ibuild.EmitLoadGReg(inst.RB);
-	val = ibuild.EmitAnd(ibuild.EmitLoadGReg(inst.RS), val);
-	ibuild.EmitStoreGReg(val, inst.RA);
+	ibuild.EmitStoreGReg(a, inst.RA);
 	if (inst.Rc)
-		ComputeRC(ibuild, val);
+		ComputeRC(ibuild, a);
 }
 
 void JitIL::extsbx(UGeckoInstruction inst)
@@ -277,36 +296,15 @@ void JitIL::mullwx(UGeckoInstruction inst)
 
 void JitIL::mulhwux(UGeckoInstruction inst)
 {
-	Default(inst); return;
-#if 0
-	if(Core::g_CoreStartupParameter.bJITOff || Core::g_CoreStartupParameter.bJITIntegerOff)
-		{Default(inst); return;} // turn off from debugger
+	INSTRUCTION_START
+	JITDISABLE(Integer)
 
-	INSTRUCTION_START;
-	int a = inst.RA, b = inst.RB, d = inst.RD;
-	gpr.FlushLockX(EDX);
-	gpr.Lock(a, b, d);
-	if (d != a && d != b) {
-		gpr.LoadToX64(d, false, true);
-	} else {
-		gpr.LoadToX64(d, true, true);
-	}
-	if (gpr.RX(d) == EDX)
-		PanicAlert("mulhwux : WTF");
-	MOV(32, R(EAX), gpr.R(a));
-	gpr.KillImmediate(b);
-	MUL(32, gpr.R(b));
-	gpr.UnlockAll();
-	gpr.UnlockAllX();
-	if (inst.Rc) {
-		MOV(32, R(EAX), R(EDX));
-		MOV(32, gpr.R(d), R(EDX));
-		// result is already in eax
-		CALL((u8*)asm_routines.computeRc);
-	} else {
-		MOV(32, gpr.R(d), R(EDX));
-	}
-#endif
+	IREmitter::InstLoc a = ibuild.EmitLoadGReg(inst.RA);
+	IREmitter::InstLoc b = ibuild.EmitLoadGReg(inst.RB);
+	IREmitter::InstLoc d = ibuild.EmitMulHighUnsigned(a, b);
+	ibuild.EmitStoreGReg(d, inst.RD);
+	if (inst.Rc)
+		ComputeRC(ibuild, d);
 }
 
 // skipped some of the special handling in here - if we get crashes, let the interpreter handle this op
@@ -358,36 +356,28 @@ void JitIL::addzex(UGeckoInstruction inst)
 	if (inst.Rc)
 		ComputeRC(ibuild, val);
 }
-// This can be optimized
+
 void JitIL::addex(UGeckoInstruction inst)
 {
-	Default(inst); return;
-#if 0
-	// USES_XER
-	if(Core::g_CoreStartupParameter.bJITOff || Core::g_CoreStartupParameter.bJITIntegerOff)
-		{Default(inst); return;} // turn off from debugger
+	INSTRUCTION_START
+	JITDISABLE(Integer)
 
-	INSTRUCTION_START;
-	int a = inst.RA, b = inst.RB, d = inst.RD;
-	gpr.FlushLockX(ECX);
-	gpr.Lock(a, b, d);
-	if (d != a && d != b)
-		gpr.LoadToX64(d, false);
-	else
-		gpr.LoadToX64(d, true);
-	MOV(32, R(EAX), M(&PowerPC::ppcState.spr[SPR_XER]));
-	SHR(32, R(EAX), Imm8(30)); // shift the carry flag out into the x86 carry flag
-	MOV(32, R(EAX), gpr.R(a));
-	ADC(32, R(EAX), gpr.R(b));
-	MOV(32, gpr.R(d), R(EAX));
-	//GenerateCarry(ECX);
-	gpr.UnlockAll();
-	gpr.UnlockAllX();
+	IREmitter::InstLoc a = ibuild.EmitLoadGReg(inst.RA);
+	IREmitter::InstLoc b = ibuild.EmitLoadGReg(inst.RB);
+
+	IREmitter::InstLoc ab = ibuild.EmitAdd(a, b);
+	IREmitter::InstLoc new_carry = ibuild.EmitICmpUlt(ab, a);
+
+	IREmitter::InstLoc previous_carry = ibuild.EmitLoadCarry();
+	IREmitter::InstLoc abc = ibuild.EmitAdd(ab, previous_carry);
+	new_carry = ibuild.EmitOr(new_carry, ibuild.EmitICmpUlt(abc, ab));
+
+	ibuild.EmitStoreGReg(abc, inst.RD);
+	ibuild.EmitStoreCarry(new_carry);
+
+	if (inst.OE) PanicAlert("OE: addex");
 	if (inst.Rc)
-	{
-		CALL((u8*)asm_routines.computeRc);
-	}
-#endif
+		ComputeRC(ibuild, abc);
 }
 
 void JitIL::rlwinmx(UGeckoInstruction inst)

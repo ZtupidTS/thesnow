@@ -129,8 +129,12 @@ class CCodeWindow
 		void OnCallersListChange(wxCommandEvent& event);
 		void OnCallsListChange(wxCommandEvent& event);
 		void OnCodeViewChange(wxCommandEvent &event);
-		void SingleCPUStep();
 		void OnHostMessage(wxCommandEvent& event);
+
+		// Debugger functions
+		void SingleStep();
+		void StepOver();
+		void ToggleBreakpoint();
 
 		void UpdateLists();
 		void UpdateCallstack();
@@ -138,15 +142,6 @@ class CCodeWindow
 
 		void InitBitmaps();
 		void CreateGUIControls(const SCoreStartupParameter& _LocalCoreStartupParameter);
-
-		wxMenuItem* jitblocklinking, *jitnoblockcache, *jitoff;
-		wxMenuItem* jitlsoff, *jitlslxzoff, *jitlslwzoff, *jitlslbzxoff;
-		wxMenuItem* jitlspoff;
-		wxMenuItem* jitlsfoff;
-		wxMenuItem* jitfpoff;
-		wxMenuItem* jitioff;
-		wxMenuItem* jitpoff;
-		wxMenuItem* jitsroff;
 
 		CCodeView* codeview;
 		wxListBox* callstack;

@@ -3,6 +3,7 @@
 
 #include "Thread.h"
 #include "HW/Memmap.h"
+#include "ConfigManager.h"
 
 #include "vector"
 
@@ -60,6 +61,9 @@ static Common::CriticalSection active_codes_lock;
 static GeckoCode::Code *codes_start = NULL, *current_code = NULL;
 static const GeckoCode::Code *codes_end = NULL;
 
+// asm codes used for CT6 CST1
+static std::map<u32, std::vector<u32> > inserted_asm_codes;
+
 // Functions for each code type
 bool RamWriteAndFill();
 bool RegularIf();
@@ -88,6 +92,8 @@ void SetActiveCodes(const std::vector<GeckoCode>& gcodes)
 			// TODO: don't need description or creator string, just takin up memory
 			active_codes.push_back(*gcodes_iter);
 		}
+
+	inserted_asm_codes.clear();
 
 	active_codes_lock.Leave();
 }
@@ -142,6 +148,8 @@ bool RunGeckoCode(GeckoCode& gecko_code)
 
 bool RunActiveCodes()
 {
+	if (false == SConfig::GetInstance().m_LocalCoreStartupParameter.bEnableCheats)
+		return true;
 	if (false == active_codes_lock.TryEnter())
 		return true;
 
@@ -158,6 +166,10 @@ bool RunActiveCodes()
 
 	active_codes_lock.Leave();
 	return true;
+}
+
+const std::map<u32, std::vector<u32> >& GetInsertedAsmCodes() {
+	return inserted_asm_codes;
 }
 
 // CT0: Direct ram write/fill
@@ -814,9 +826,30 @@ bool AsmSwitchRange()
 
 		// CST1 : Insert ASM code in the game
 	case 0x1 :
-		// TODO:
-		return false;
-		break;
+		{
+			const int number_of_codes = code.data;
+			std::vector<u32>& asm_code = inserted_asm_codes[code.GetAddress()];
+			if (asm_code.empty()) {
+				for (int index = 0; index < number_of_codes; ++index) {
+					// Reserved for padding
+					if (current_code[index + 1].address != 0x60000000) {
+						asm_code.push_back(current_code[index + 1].address);
+					}
+
+					// Reserved for b instruction
+					if (current_code[index + 1].data != 0x00000000) {
+						asm_code.push_back(current_code[index + 1].data);
+					}
+				}
+			}
+
+			// Though the next code starts at current_code+number_of_codes+1,
+			// we add only number_of_codes. It is because the for statemet in
+			// RunGeckoCode() increments current_code.
+			current_code += number_of_codes;
+
+			break;
+		}
 
 		// CST3 : Create a branch
 	case 0x3 :

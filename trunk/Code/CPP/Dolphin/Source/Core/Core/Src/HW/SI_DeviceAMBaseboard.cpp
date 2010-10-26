@@ -148,7 +148,7 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* _pBuffer, int _iLength)
 							DEBUG_LOG(AMBASEBOARDDEBUG, "GC-AM: CMD 10, %02x (READ STATUS&SWITCHES)", ptr(1));
 							SPADStatus PadStatus;
 							memset(&PadStatus, 0 ,sizeof(PadStatus));
-							PAD_GetStatus(ISIDevice::m_iDeviceNumber, &PadStatus);
+							Pad::GetStatus(ISIDevice::m_iDeviceNumber, &PadStatus);
 							res[resp++] = 0x10;
 							res[resp++] = 0x2;
 							int d10_0 = 0xdf;
@@ -299,7 +299,7 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* _pBuffer, int _iLength)
 									msg.addData((void *)"\x00\x00\x00\x00", 4); 
 									break;
 								case 0x15:
-									while (*jvs_io++);
+									while (*jvs_io++) {};
 									msg.addData(1);
 									break;
 								case 0x20:
@@ -313,7 +313,7 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* _pBuffer, int _iLength)
 										for (i=0; i<nr_players; ++i)
 										{
 											SPADStatus PadStatus;
-											PAD_GetStatus(i, &PadStatus);
+											Pad::GetStatus(i, &PadStatus);
 											unsigned char player_data[2] = {0,0};
 											if (PadStatus.button & PAD_BUTTON_START)
 												player_data[0] |= 0x80;
@@ -350,7 +350,7 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* _pBuffer, int _iLength)
 										int slots = *jvs_io++;
 										msg.addData(1);
 										SPADStatus PadStatus;
-										PAD_GetStatus(0, &PadStatus);
+										Pad::GetStatus(0, &PadStatus);
 										while (slots--)
 										{
 											msg.addData(0);

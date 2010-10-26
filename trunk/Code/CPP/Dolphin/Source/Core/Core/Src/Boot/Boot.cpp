@@ -31,6 +31,7 @@
 #include "../HW/DVDInterface.h"
 #include "../HW/VideoInterface.h"
 #include "../HW/CPU.h"
+#include "../IPC_HLE/WII_IPC_HLE.h"
 
 #include "../Debugger/Debugger_SymbolMap.h" // Debugger
 
@@ -135,9 +136,9 @@ bool CBoot::LoadMapFromFilename(const std::string &_rFilename, const char *_game
 	return success;
 }
 
-// This function does *some* of what BS1 does: loading IPL(BS2) and jumping to it
-// It does not initialize the hardware or anything else like BS1 does
-// We should eventually just load BS1 and let it take care of everything :)
+// If ipl.bin is not found, this function does *some* of what BS1 does: 
+// loading IPL(BS2) and jumping to it.
+// It does not initialize the hardware or anything else like BS1 does.
 bool CBoot::Load_BS2(const std::string& _rBootROMFilename)
 {
 	// Load the whole ROM dump
@@ -148,10 +149,9 @@ bool CBoot::Load_BS2(const std::string& _rBootROMFilename)
 	// Run the descrambler over the encrypted section containing BS1/BS2
 	CEXIIPL::Descrambler((u8*)data.data()+0x100, 0x1AFE00);
 
-	//File::WriteStringToFile(false, data, "decrypted_bs1_bs2.bin");
-	//Memory::WriteBigEData((const u8*)data.data() + 0x100, 0x81200000, 0x700);
+	Memory::WriteBigEData((const u8*)data.data() + 0x100, 0x81200000, 0x700);
 	Memory::WriteBigEData((const u8*)data.data() + 0x820, 0x81300000, 0x1AFE00);
-	PC = 0x81300000;
+	PC = 0x81200000;
     return true;
 }
 
@@ -191,6 +191,16 @@ bool CBoot::BootUp()
 		VideoInterface::SetRegionReg((char)VolumeHandler::GetVolume()->GetUniqueID().at(3));
 
 		DVDInterface::SetDiscInside(VolumeHandler::IsValid());
+
+		u32 _TMDsz = 0x208;
+		u8* _pTMD = new u8[_TMDsz];
+		pVolume->GetTMD(_pTMD, &_TMDsz);
+		if (_TMDsz)
+		{
+			WII_IPC_HLE_Interface::ES_DIVerify(_pTMD, _TMDsz);
+		}
+		delete []_pTMD;
+
 
 		_StartupPara.bWii = VolumeHandler::IsWii();
 

@@ -18,12 +18,14 @@
 #include "PPCCache.h"
 #include "../HW/Memmap.h"
 #include "PowerPC.h"
+#include "JitCommon/JitBase.h"
+#include "JitCommon/JitCache.h"
 
 namespace PowerPC
 {
 
-	u32 plru_mask[8] = {11,11,19,19,37,37,69,69};
-	u32 plru_value[8] = {11,3,17,1,36,4,64,0};
+	const u32 plru_mask[8] = {11,11,19,19,37,37,69,69};
+	const u32 plru_value[8] = {11,3,17,1,36,4,64,0};
 
 	InstructionCache::InstructionCache()
 	{
@@ -74,10 +76,14 @@ namespace PowerPC
 		memset(lookup_table_ex, 0xff, sizeof(lookup_table_ex));
 		memset(lookup_table_vmem, 0xff, sizeof(lookup_table_vmem));
 #endif
+		if (jit)
+			jit->GetBlockCache()->ClearSafe();
 	}
 
 	void InstructionCache::Invalidate(u32 addr)
 	{
+		if (jit)
+			jit->GetBlockCache()->InvalidateICache(addr);
 		if (!HID0.ICE)
 			return;
 		// invalidates the whole set
@@ -99,7 +105,7 @@ namespace PowerPC
 
 	u32 InstructionCache::ReadInstruction(u32 addr)
 	{		
-		if (!HID0.ICE) // instuction cache is disabled
+		if (!HID0.ICE) // instruction cache is disabled
 			return Memory::ReadUnchecked_U32(addr);
 		u32 set = (addr >> 5) & 0x7f;
 		u32 tag = addr >> 12;

@@ -19,12 +19,15 @@
 #define _POWERPC_H
 
 #include "Common.h"
+#include "CPUCoreBase.h"
 #include "Gekko.h"
 #include "BreakPoints.h"
 #include "../Debugger/PPCDebugInterface.h"
 #include "PPCCache.h"
 
 class PointerWrap;
+
+extern CPUCoreBase *cpu_core_base;
 
 namespace PowerPC
 {
@@ -56,7 +59,7 @@ struct GC_ALIGNED64(PowerPCState)
 	u32 fpscr;  // floating point flags/status bits
 
 	// Exception management.
-	u32 Exceptions;
+	volatile u32 Exceptions;
 
 	u32 sr[16];  // Segment registers.
 
@@ -66,11 +69,14 @@ struct GC_ALIGNED64(PowerPCState)
 	// also for power management, but we don't care about that.
 	u32 spr[1024];
 
-	u32 tlb_last;
-	u32 tlb_va[16];
-	u32 tlb_pa[16];
+	u32 dtlb_last;
+	u32 dtlb_va[128];
+	u32 dtlb_pa[128];
 
-	
+	u32 itlb_last;
+	u32 itlb_va[128];
+	u32 itlb_pa[128];
+
 	InstructionCache iCache;
 };
 
@@ -112,6 +118,7 @@ void OnIdleIL();
 	// Easy register access macros.
 #define HID0 ((UReg_HID0&)PowerPC::ppcState.spr[SPR_HID0])
 #define HID2 ((UReg_HID2&)PowerPC::ppcState.spr[SPR_HID2])
+#define HID4 ((UReg_HID4&)PowerPC::ppcState.spr[SPR_HID4])
 #define DMAU  (*(UReg_DMAU*)&PowerPC::ppcState.spr[SPR_DMAU])
 #define DMAL  (*(UReg_DMAL*)&PowerPC::ppcState.spr[SPR_DMAL])
 #define PC     PowerPC::ppcState.pc

@@ -82,7 +82,7 @@ static GekkoOPTemplate primarytable[] =
 	{32, &JitIL::lXz}, //"lwz",  OPTYPE_LOAD, FL_OUT_D | FL_IN_A}},
 	{33, &JitIL::lXz}, //"lwzu", OPTYPE_LOAD, FL_OUT_D | FL_OUT_A | FL_IN_A}},
 	{34, &JitIL::lXz}, //"lbz",  OPTYPE_LOAD, FL_OUT_D | FL_IN_A}},
-	{35, &JitIL::Default}, //"lbzu", OPTYPE_LOAD, FL_OUT_D | FL_OUT_A | FL_IN_A}},
+	{35, &JitIL::lbzu}, //"lbzu", OPTYPE_LOAD, FL_OUT_D | FL_OUT_A | FL_IN_A}},
 	{40, &JitIL::lXz}, //"lhz",  OPTYPE_LOAD, FL_OUT_D | FL_IN_A}},
 	{41, &JitIL::lXz}, //"lhzu", OPTYPE_LOAD, FL_OUT_D | FL_OUT_A | FL_IN_A}},
 	{42, &JitIL::lha}, //"lha",  OPTYPE_LOAD, FL_OUT_D | FL_IN_A}},
@@ -176,17 +176,17 @@ static GekkoOPTemplate table19[] =
 {
 	{528, &JitIL::bcctrx}, //"bcctrx", OPTYPE_BRANCH, FL_ENDBLOCK}},
 	{16,  &JitIL::bclrx}, //"bclrx",  OPTYPE_BRANCH, FL_ENDBLOCK}},
-	{257, &JitIL::Default}, //"crand",  OPTYPE_CR, FL_EVIL}},
-	{129, &JitIL::Default}, //"crandc", OPTYPE_CR, FL_EVIL}},
-	{289, &JitIL::Default}, //"creqv",  OPTYPE_CR, FL_EVIL}},
-	{225, &JitIL::Default}, //"crnand", OPTYPE_CR, FL_EVIL}},
-	{33,  &JitIL::Default}, //"crnor",  OPTYPE_CR, FL_EVIL}},
-	{449, &JitIL::Default}, //"cror",   OPTYPE_CR, FL_EVIL}},
-	{417, &JitIL::Default}, //"crorc",  OPTYPE_CR, FL_EVIL}},
-	{193, &JitIL::Default}, //"crxor",  OPTYPE_CR, FL_EVIL}},
+	{257, &JitIL::crXX}, //"crand",  OPTYPE_CR, FL_EVIL}},
+	{129, &JitIL::crXX}, //"crandc", OPTYPE_CR, FL_EVIL}},
+	{289, &JitIL::crXX}, //"creqv",  OPTYPE_CR, FL_EVIL}},
+	{225, &JitIL::crXX}, //"crnand", OPTYPE_CR, FL_EVIL}},
+	{33,  &JitIL::crXX}, //"crnor",  OPTYPE_CR, FL_EVIL}},
+	{449, &JitIL::crXX}, //"cror",   OPTYPE_CR, FL_EVIL}},
+	{417, &JitIL::crXX}, //"crorc",  OPTYPE_CR, FL_EVIL}},
+	{193, &JitIL::crXX}, //"crxor",  OPTYPE_CR, FL_EVIL}},
 												   
 	{150, &JitIL::DoNothing}, //"isync",  OPTYPE_ICACHE, FL_EVIL}},
-	{0,   &JitIL::Default}, //"mcrf",   OPTYPE_SYSTEM, FL_EVIL}},
+	{0,   &JitIL::mcrf}, //"mcrf",   OPTYPE_SYSTEM, FL_EVIL}},
 												   
 	{50,  &JitIL::rfi}, //"rfi",    OPTYPE_SYSTEM, FL_ENDBLOCK | FL_CHECKEXCEPTIONS, 1}},
 	{18,  &JitIL::Default}, //"rfid",   OPTYPE_SYSTEM, FL_ENDBLOCK | FL_CHECKEXCEPTIONS}}
@@ -195,14 +195,14 @@ static GekkoOPTemplate table19[] =
 
 static GekkoOPTemplate table31[] = 
 {
-	{28,  &JitIL::andx}, //"andx",   OPTYPE_INTEGER, FL_OUT_A | FL_IN_SB | FL_RC_BIT}},
-	{60,  &JitIL::Default}, //"andcx",  OPTYPE_INTEGER, FL_OUT_A | FL_IN_SB | FL_RC_BIT}},
-	{444, &JitIL::orx}, //"orx",    OPTYPE_INTEGER, FL_OUT_A | FL_IN_SB | FL_RC_BIT}},
-	{124, &JitIL::Default}, //"norx",   OPTYPE_INTEGER, FL_OUT_A | FL_IN_SB | FL_RC_BIT}},
-	{316, &JitIL::xorx}, //"xorx",   OPTYPE_INTEGER, FL_OUT_A | FL_IN_SB | FL_RC_BIT}},
-	{412, &JitIL::Default}, //"orcx",   OPTYPE_INTEGER, FL_OUT_A | FL_IN_SB | FL_RC_BIT}},
-	{476, &JitIL::Default}, //"nandx",  OPTYPE_INTEGER, FL_OUT_A | FL_IN_SB | FL_RC_BIT}},
-	{284, &JitIL::Default}, //"eqvx",   OPTYPE_INTEGER, FL_OUT_A | FL_IN_SB | FL_RC_BIT}},
+	{28,  &JitIL::boolX}, //"andx",   OPTYPE_INTEGER, FL_OUT_A | FL_IN_SB | FL_RC_BIT}},
+	{60,  &JitIL::boolX}, //"andcx",  OPTYPE_INTEGER, FL_OUT_A | FL_IN_SB | FL_RC_BIT}},
+	{444, &JitIL::boolX}, //"orx",    OPTYPE_INTEGER, FL_OUT_A | FL_IN_SB | FL_RC_BIT}},
+	{124, &JitIL::boolX}, //"norx",   OPTYPE_INTEGER, FL_OUT_A | FL_IN_SB | FL_RC_BIT}},
+	{316, &JitIL::boolX}, //"xorx",   OPTYPE_INTEGER, FL_OUT_A | FL_IN_SB | FL_RC_BIT}},
+	{412, &JitIL::boolX}, //"orcx",   OPTYPE_INTEGER, FL_OUT_A | FL_IN_SB | FL_RC_BIT}},
+	{476, &JitIL::boolX}, //"nandx",  OPTYPE_INTEGER, FL_OUT_A | FL_IN_SB | FL_RC_BIT}},
+	{284, &JitIL::boolX}, //"eqvx",   OPTYPE_INTEGER, FL_OUT_A | FL_IN_SB | FL_RC_BIT}},
 	{0,   &JitIL::cmpXX}, //"cmp",    OPTYPE_INTEGER, FL_IN_AB | FL_SET_CRn}},
 	{32,  &JitIL::cmpXX}, //"cmpl",   OPTYPE_INTEGER, FL_IN_AB | FL_SET_CRn}},
 	{26,  &JitIL::cntlzwx}, //"cntlzwx",OPTYPE_INTEGER, FL_OUT_A | FL_IN_S | FL_RC_BIT}},
@@ -376,6 +376,7 @@ static GekkoOPTemplate table63_2[] =
 
 namespace JitILTables
 {
+
 void CompileInstruction(PPCAnalyst::CodeOp & op)
 {
 	JitIL *jitil = (JitIL *)jit;
@@ -393,8 +394,14 @@ void CompileInstruction(PPCAnalyst::CodeOp & op)
 		PanicAlert("Tried to compile illegal (or unknown) instruction %08x, at %08x", op.inst.hex, jit->js.compilerPC);
 	}
 }
+
 void InitTables()
 {
+	// once initialized, tables are read-only
+	static bool initialized = false;
+	if (initialized)
+		return;
+
 	//clear
 	for (int i = 0; i < 32; i++) 
 	{
@@ -483,5 +490,8 @@ void InitTables()
 			dynaOpTable63[op] = table63_2[j].Inst;
 		}
 	}
+
+	initialized = true;
 }
+
 }

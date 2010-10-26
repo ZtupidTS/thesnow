@@ -58,6 +58,7 @@ IPC_HLE_PERIOD: For the Wiimote this is the call schedule:
 
 
 #include "Common.h"
+#include "Atomic.h"
 #include "../PatchEngine.h"
 #include "SystemTimers.h"
 #include "../PluginManager.h"
@@ -80,8 +81,10 @@ namespace SystemTimers
 
 u32 CPU_CORE_CLOCK  = 486000000u;             // 486 mhz (its not 485, stop bugging me!)
 
-s64 fakeDec;
-u64 startTimeBaseTicks;
+u32 fakeDecStartValue;
+u64 fakeDecStartTicks;
+u64 fakeTBStartValue;
+u64 fakeTBStartTicks;
 
 /*
 Gamecube						MHz
@@ -170,14 +173,16 @@ void AudioDMACallback(u64 userdata, int cyclesLate)
 void IPC_HLE_UpdateCallback(u64 userdata, int cyclesLate)
 {
 	if (SConfig::GetInstance().m_LocalCoreStartupParameter.bWii)
+	{
 		WII_IPC_HLE_Interface::Update();
-	CoreTiming::ScheduleEvent(IPC_HLE_PERIOD - cyclesLate, et_IPC_HLE);
+		CoreTiming::ScheduleEvent(IPC_HLE_PERIOD - cyclesLate, et_IPC_HLE);
+	}
 }
 
 void VICallback(u64 userdata, int cyclesLate)
 {
 	VideoInterface::Update();
-	CoreTiming::ScheduleEvent(VideoInterface::GetTicksPerFrame() - cyclesLate, et_VI);
+	CoreTiming::ScheduleEvent(VideoInterface::GetTicksPerLine() - cyclesLate, et_VI);
 }
 
 void SICallback(u64 userdata, int cyclesLate)
@@ -188,33 +193,39 @@ void SICallback(u64 userdata, int cyclesLate)
 
 void DecrementerCallback(u64 userdata, int cyclesLate)
 {
-	// Why is fakeDec too big here?
-	// A: Because it's 64bit (0xffffffffffffffff)...?
-	fakeDec = -1;
 	PowerPC::ppcState.spr[SPR_DEC] = 0xFFFFFFFF;
-	PowerPC::ppcState.Exceptions |= EXCEPTION_DECREMENTER;
+	Common::AtomicOr(PowerPC::ppcState.Exceptions, EXCEPTION_DECREMENTER);
 }
 
 void DecrementerSet()
 {
 	u32 decValue = PowerPC::ppcState.spr[SPR_DEC];
-	fakeDec = decValue * TIMER_RATIO;
+
 	CoreTiming::RemoveEvent(et_Dec);
-	CoreTiming::ScheduleEvent(decValue * TIMER_RATIO, et_Dec);
+	if ((decValue & 0x80000000) == 0)
+	{
+		fakeDecStartTicks = CoreTiming::GetTicks();
+		fakeDecStartValue = decValue;
+		
+		CoreTiming::ScheduleEvent(decValue * TIMER_RATIO, et_Dec);
+	}
 }
 
-void AdvanceCallback(int cyclesExecuted)
+u32 GetFakeDecrementer()
 {
-	if (PowerPC::GetState() != PowerPC::CPU_RUNNING)
-		return;
-
-	fakeDec -= cyclesExecuted;
-	u64 timebase_ticks = CoreTiming::GetTicks() / TIMER_RATIO;
-	*(u64*)&TL = timebase_ticks + startTimeBaseTicks;  //works since we are little endian and TL comes first :)
-	if (fakeDec >= 0)
-		PowerPC::ppcState.spr[SPR_DEC] = (u32)fakeDec / TIMER_RATIO;
+	return (fakeDecStartValue - (u32)((CoreTiming::GetTicks() - fakeDecStartTicks) / TIMER_RATIO));
 }
 
+void TimeBaseSet()
+{
+	fakeTBStartTicks = CoreTiming::GetTicks();
+	fakeTBStartValue = *((u64 *)&TL);
+}
+
+u64 GetFakeTimeBase()
+{
+	return fakeTBStartValue + ((CoreTiming::GetTicks() - fakeTBStartTicks) / TIMER_RATIO);
+}
 
 // For DC watchdog hack
 void FakeGPWatchdogCallback(u64 userdata, int cyclesLate)
@@ -246,12 +257,12 @@ void Init()
 			DSP_PERIOD = (int)(GetTicksPerSecond() * 0.003f);
 
 		// AyuanX: TO BE TWEAKED
-		// Now the 15000 is a pure assumption
+		// Now the 1500 is a pure assumption
 		// We need to figure out the real frequency though
 		// PS: When this period is tweaked, the FreqDividerMote
 		// in WII_IPC_HLE_Device_usb.cpp should also be tweaked accordingly
 		// to guarantee WiiMote updates at a fixed 100Hz
-		IPC_HLE_PERIOD = GetTicksPerSecond() / 15000;
+		IPC_HLE_PERIOD = GetTicksPerSecond() / 1500;
 	}
 	else
 	{
@@ -267,12 +278,16 @@ void Init()
 	// This is the biggest question mark.
 	AI_PERIOD = GetTicksPerSecond() / 80;
 
-	// System internal sample rate is fixed at 32KHz
+	// System internal sample rate is fixed at 32KHz * 4 (16bit Stereo) / 32 bytes DMA
 	AUDIO_DMA_PERIOD = CPU_CORE_CLOCK / (32000 * 4 / 32);
 
 	Common::Timer::IncreaseResolution();
 	// store and convert localtime at boot to timebase ticks
-	startTimeBaseTicks = (u64)(CPU_CORE_CLOCK / TIMER_RATIO) * (u64)CEXIIPL::GetGCTime();
+	fakeTBStartValue = (u64)(CPU_CORE_CLOCK / TIMER_RATIO) * (u64)CEXIIPL::GetGCTime();
+	fakeTBStartTicks = CoreTiming::GetTicks();
+
+	fakeDecStartValue = 0xFFFFFFFF;
+	fakeDecStartTicks = CoreTiming::GetTicks();
 
 	et_Dec = CoreTiming::RegisterEvent("DecCallback", DecrementerCallback);
 	et_AI = CoreTiming::RegisterEvent("AICallback", AICallback);
@@ -286,7 +301,7 @@ void Init()
 	et_PatchEngine = CoreTiming::RegisterEvent("PatchEngine", PatchEngineCallback);
 
 	CoreTiming::ScheduleEvent(AI_PERIOD, et_AI);
-	CoreTiming::ScheduleEvent(VideoInterface::GetTicksPerFrame(), et_VI);
+	CoreTiming::ScheduleEvent(VideoInterface::GetTicksPerLine(), et_VI);
 	CoreTiming::ScheduleEvent(DSP_PERIOD, et_DSP);
 	CoreTiming::ScheduleEvent(VideoInterface::GetTicksPerFrame(), et_SI);
 	CoreTiming::ScheduleEvent(AUDIO_DMA_PERIOD, et_AudioDMA);
@@ -299,8 +314,6 @@ void Init()
 
 	if (SConfig::GetInstance().m_LocalCoreStartupParameter.bWii)
 		CoreTiming::ScheduleEvent(IPC_HLE_PERIOD, et_IPC_HLE);
-
-	CoreTiming::RegisterAdvanceCallback(&AdvanceCallback);
 }
 
 void Shutdown()
