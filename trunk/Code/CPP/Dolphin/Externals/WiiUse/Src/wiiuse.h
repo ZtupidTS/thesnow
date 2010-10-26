@@ -48,7 +48,10 @@
 	#include <IOBluetooth/IOBluetoothUserLib.h>
 	#include <string.h>
 #elif defined(__linux__)
+	#include "config.h"
+	#if HAVE_BLUEZ
 	#include <bluetooth/bluetooth.h>
+	#endif
 #endif
 
 #ifdef WIIUSE_INTERNAL_H_INCLUDED
@@ -153,7 +156,7 @@ typedef struct wiimote_t {
 	#if defined(__APPLE__)
 		WCONST IOBluetoothDeviceRef *device;
 		WCONST char bdaddr_str[18];
-	#elif defined(__linux__)
+	#elif defined(__linux__) && HAVE_BLUEZ
 		WCONST bdaddr_t bdaddr;			/**< bt address	(linux)				*/
 		WCONST char bdaddr_str[18];		/**< readable bt address			*/
 		WCONST int out_sock;			/**< output socket				*/
@@ -220,17 +223,12 @@ WIIUSE_EXPORT extern int wiiuse_connect(struct wiimote_t** wm, int wiimotes);
 WIIUSE_EXPORT extern void wiiuse_disconnect(struct wiimote_t* wm);
 WIIUSE_EXPORT extern void wiiuse_set_timeout(struct wiimote_t** wm, int wiimotes, byte timeout);
 
-#ifdef WIN32
+#ifdef _WIN32
 WIIUSE_EXPORT extern int wiiuse_check_system_notification(unsigned int nMsg, WPARAM wParam, LPARAM lParam);
 WIIUSE_EXPORT extern int wiiuse_register_system_notification(HWND hwnd);
 #endif
 
-#ifdef __linux__
-int wiiuse_find_more(struct wiimote_t** wm, int max_wiimotes, int timeout);
-#endif
-
 /* ir.c */
-
 WIIUSE_EXPORT extern void wiiuse_set_ir_sensitivity(struct wiimote_t* wm, int level);
 
 /* io.c */
