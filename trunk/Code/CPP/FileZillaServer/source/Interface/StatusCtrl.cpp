@@ -211,13 +211,10 @@ DWORD __stdcall CStatusCtrl::RichEditStreamInCallback(DWORD_PTR dwCookie, LPBYTE
 				default:
 					if (*p > 127)
 					{
-						*(output++) = '\\';
-						*(output++) = 'u';
-						sprintf(output, "%d ", (signed short)*p);
-						output += 4;
-						*(output++) = ' ';
-						cb -= 7;
-						*pcb += 7;
+						int w = sprintf(output, "\\u%d?", (unsigned short)*p);
+						output += w;
+						cb -= w;
+						*pcb += w;
 					}
 					else
 					{
@@ -305,8 +302,8 @@ int CStatusCtrl::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 	m_RTFHeader = "{\\rtf1\\ansi\\deff0";
 
+//	HFONT hSysFont = (HFONT)GetStockObject(SYSTEM_FONT );
 	HFONT hSysFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
-
 	LOGFONT lf;
 	CFont* pFont = CFont::FromHandle( hSysFont );
 	pFont->GetLogFont( &lf );
@@ -324,7 +321,7 @@ int CStatusCtrl::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	}
 	m_RTFHeader += "}";
 	
-	int pointsize = (-m_lfFont.lfHeight*72/ GetDeviceCaps(GetDC()->GetSafeHdc(), LOGPIXELSY))*2;
+	int pointsize =(-m_lfFont.lfHeight*72/ GetDeviceCaps(GetDC()->GetSafeHdc(), LOGPIXELSY))*2;
 	CString tmp;
 	tmp.Format(_T("%d"), pointsize);
 	m_RTFHeader += "\\uc1\\pard\\fi-200\\li200\\tx200\\f0\\fs"+tmp; //180*m_nAvgCharWidth;

@@ -53,7 +53,7 @@ public:
 	void Init(const CStdString& filename, int nMode, _int64 rest);
 	inline bool InitCalled() { return m_bReady; }
 	void UseGSS(CAsyncGssSocketLayer* pGssLayer);
-	void UseSSL(CAsyncSslSocketLayer* pSslLayer, void* sslContext);
+	bool UseSSL(void* sslContext);
 	virtual ~CTransferSocket();
 
 // Überschreibungen

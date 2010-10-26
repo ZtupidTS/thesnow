@@ -244,8 +244,11 @@ void CServerThread::AddNewSocket(SOCKET sockethandle, bool ssl)
 	socket->AsyncSelect(FD_READ|FD_WRITE|FD_CLOSE);
 	socket->SendStatus(_T("Connected, sending welcome message..."), 0);
 
-	//CStdString msg = m_pOptions->GetOption(OPTION_WELCOMEMESSAGE);
-	CStdString msg = _T("EXPERIMANTAL BUILD\nNOT FOR PRODUCTION USE\n\nImplementing draft-bryan-ftp-hash-02");
+	CStdString msg;
+	if (m_pOptions->GetOptionVal(OPTION_ENABLE_HASH))
+		msg = _T("EXPERIMANTAL BUILD\nNOT FOR PRODUCTION USE\n\nImplementing draft-bryan-ftp-hash-06");
+	else
+		msg = m_pOptions->GetOption(OPTION_WELCOMEMESSAGE);
 	if (m_RawWelcomeMessage != msg)
 	{
 		m_RawWelcomeMessage = msg;
@@ -369,13 +372,15 @@ int CServerThread::OnThreadMessage(UINT Msg, WPARAM wParam, LPARAM lParam)
 			ProcessControlMessage((t_controlmessage *)lParam);
 		else if (wParam == FTM_HASHRESULT)
 		{
+			CHashThread::_algorithm alg;
 			CStdString hash;
-			int hash_res = GetHashThread().GetResult(lParam, hash);
+			CStdString file;
+			int hash_res = GetHashThread().GetResult(lParam, alg, hash, file);
 			EnterCritSection(m_threadsync);
 
 			for (std::map<int, CControlSocket *>::iterator iter = m_LocalUserIDs.begin(); iter != m_LocalUserIDs.end(); iter++)
 			{
-				iter->second->ProcessHashResult(lParam, hash_res, hash);
+				iter->second->ProcessHashResult(lParam, hash_res, alg, hash, file);
 			}
 			LeaveCritSection(m_threadsync);
 		}

@@ -90,6 +90,7 @@ CControlSocket::CControlSocket(CServerThread *pOwner)
 
 	for (int i = 0; i < 3; i++)
 		m_facts[i] = true;
+	m_facts[fact_perm] = false;
 
 	m_shutdown = false;
 
@@ -546,8 +547,8 @@ static const t_command commands[]={	COMMAND_USER, _T("USER"), TRUE,	 TRUE,
 									COMMAND_PASVSMC, _T("P@SW"), FALSE, FALSE,
 									COMMAND_STRU, _T("STRU"), TRUE, FALSE,
 									COMMAND_CLNT, _T("CLNT"), TRUE, TRUE,
-									COMMAND_MFMT, _T("MFMT"), TRUE, FALSE
-									//COMMAND_HASH, _T("HASH"), TRUE, FALSE
+									COMMAND_MFMT, _T("MFMT"), TRUE, FALSE,
+									COMMAND_HASH, _T("HASH"), TRUE, FALSE
 						};
 
 void CControlSocket::ParseCommand()
@@ -914,7 +915,7 @@ void CControlSocket::ParseCommand()
 				m_transferstatus.socket->UseGSS(m_pGssLayer);
 
 			if (m_pSslLayer && m_bProtP)
-				m_transferstatus.socket->UseSSL(new CAsyncSslSocketLayer(), m_pSslLayer->GetContext());
+				m_transferstatus.socket->UseSSL(m_pSslLayer->GetContext());
 
 			if (!m_transferstatus.socket->Listen())
 			{
@@ -972,7 +973,7 @@ void CControlSocket::ParseCommand()
 		}
 		if (m_pSslLayer && m_pOwner->m_pOptions->GetOptionVal(OPTION_FORCEPROTP) && !m_bProtP)
 		{
-			Send(_T("550 PROT P required"));
+			Send(_T("521 PROT P required"));
 			break;
 		}
 		else
@@ -1160,7 +1161,7 @@ void CControlSocket::ParseCommand()
 			}
 			if (m_pSslLayer && m_pOwner->m_pOptions->GetOptionVal(OPTION_FORCEPROTP) && !m_bProtP)
 			{
-				Send(_T("550 PROT P required"));
+				Send(_T("521 PROT P required"));
 				break;
 			}
 			//Much more checks
@@ -1254,6 +1255,7 @@ void CControlSocket::ParseCommand()
 		}
 	case COMMAND_STOR:
 		{
+			Send(_T("550 ¿ªÊ¼´«Êä."));
 			if (m_transferstatus.pasv == -1)
 			{
 				Send(_T("503 Bad sequence of commands."));
@@ -1266,7 +1268,7 @@ void CControlSocket::ParseCommand()
 			}
 			if (m_pSslLayer && m_pOwner->m_pOptions->GetOptionVal(OPTION_FORCEPROTP) && !m_bProtP)
 			{
-				Send(_T("550 PROT P required"));
+				Send(_T("521 PROT P required"));
 				break;
 			}
 			//Much more checks
@@ -1391,7 +1393,19 @@ void CControlSocket::ParseCommand()
 				Send(_T("550 File not found"));
 			else
 			{
-				if (!DeleteFile(physicalFile))
+				bool success = DeleteFile(physicalFile);
+				if (!success && GetLastError() == ERROR_ACCESS_DENIED)
+				{
+					DWORD attr = GetFileAttributes(physicalFile);
+					if (attr != INVALID_FILE_ATTRIBUTES && attr & FILE_ATTRIBUTE_READONLY)
+					{
+						attr &= ~FILE_ATTRIBUTE_READONLY;
+						SetFileAttributes(physicalFile, attr);
+
+						success = DeleteFile(physicalFile);
+					}
+				}
+				if (!success)
 					Send(_T("500 Failed to delete the file."));
 				else
 					Send(_T("250 File deleted successfully"));
@@ -1481,7 +1495,7 @@ void CControlSocket::ParseCommand()
 							Send(_T("450 Internal error creating the directory."));
 					}
 					else
-						Send(_T("257 Directory created successfully"));
+						Send(_T("257 \"") + logicalFile + _T("\" created successfully"));
 			}
 		}
 		break;
@@ -1552,11 +1566,11 @@ void CControlSocket::ParseCommand()
 				if (error & PERMISSION_DENIED)
 					Send(_T("550 Permission denied"));
 				else if (error & PERMISSION_INVALIDNAME)
-					Send(_T("550 Filename invalid."));
+					Send(_T("553 Filename invalid."));
 				else if (error & PERMISSION_DOESALREADYEXIST && (error & PERMISSION_DIRNOTFILE)!=PERMISSION_DIRNOTFILE)
-					Send(_T("550 file exists"));
+					Send(_T("553 file exists"));
 				else if (error)
-					Send(_T("550 Filename invalid"));
+					Send(_T("553 Filename invalid"));
 				else
 				{
 					if (!MoveFile(RenName, physicalFile))
@@ -1621,7 +1635,7 @@ void CControlSocket::ParseCommand()
 			}
 			if (m_pSslLayer && m_pOwner->m_pOptions->GetOptionVal(OPTION_FORCEPROTP) && !m_bProtP)
 			{
-				Send(_T("550 PROT P required"));
+				Send(_T("521 PROT P required"));
 				break;
 			}
 			//Much more checks
@@ -1719,7 +1733,7 @@ void CControlSocket::ParseCommand()
 		}
 		if (m_pSslLayer && m_pOwner->m_pOptions->GetOptionVal(OPTION_FORCEPROTP) && !m_bProtP)
 		{
-			Send(_T("550 PROT P required"));
+			Send(_T("521 PROT P required"));
 			break;
 		}
 		//Much more checks
@@ -1922,7 +1936,7 @@ void CControlSocket::ParseCommand()
 				m_transferstatus.socket->UseGSS(m_pGssLayer);
 
 			if (m_pSslLayer && m_bProtP)
-				m_transferstatus.socket->UseSSL(new CAsyncSslSocketLayer(), m_pSslLayer->GetContext());
+				m_transferstatus.socket->UseSSL(m_pSslLayer->GetContext());
 
 			if (!m_transferstatus.socket->Listen())
 			{
@@ -1975,7 +1989,7 @@ void CControlSocket::ParseCommand()
 			int protocol = _ttoi(args.Left(pos));
 			if (protocol != 1)
 			{
-				Send(_T("522 Extended Port Failure - unknown network protocol"));
+				Send(_T("522 Extended Port Failure - unknown network protocol. Supported protocols: (1)"));
 				m_transferstatus.pasv = -1;
 				break;
 			}
@@ -2211,12 +2225,18 @@ void CControlSocket::ParseCommand()
 					Send(_T("534 This server requires an encrypted data connection with PROT P"));
 				else
 				{
+					if (m_transferstatus.socket)
+						m_transferstatus.socket->UseSSL(0);
+
 					Send(_T("200 Protection level set to C"));
 					m_bProtP = false;
 				}
 			}
 			else if (args == _T("P"))
 			{
+				if (m_transferstatus.socket)
+					m_transferstatus.socket->UseSSL(m_pSslLayer->GetContext());
+
 				Send(_T("200 Protection level set to P"));
 				m_bProtP = true;
 			}
@@ -2253,6 +2273,10 @@ void CControlSocket::ParseCommand()
 				break;
 			if (!Send(_T(" AUTH TLS")))
 				break;
+			if (!Send(_T(" PROT")))
+				break;
+			if (!Send(_T(" PBSZ")))
+				break;
 		}
 		if (!Send(_T(" UTF8")))
 			break;
@@ -2260,18 +2284,21 @@ void CControlSocket::ParseCommand()
 			break;
 		if (!Send(_T(" MFMT")))
 			break;
-/*		CStdString hash = _T(" HASH ");
-		hash += _T("SHA-1");
-		if (m_hash_algorithm == CHashThread::SHA1)
-			hash += _T("*");
-		hash += _T(";SHA-512");
-		if (m_hash_algorithm == CHashThread::SHA512)
-			hash += _T("*");
-		hash += _T(";MD5");
-		if (m_hash_algorithm == CHashThread::MD5)
-			hash += _T("*");
-		if (!Send(hash))
-			break;*/
+		if (m_pOwner->m_pOptions->GetOptionVal(OPTION_ENABLE_HASH))
+		{
+			CStdString hash = _T(" HASH ");
+			hash += _T("SHA-1");
+			if (m_hash_algorithm == CHashThread::SHA1)
+				hash += _T("*");
+			hash += _T(";SHA-512");
+			if (m_hash_algorithm == CHashThread::SHA512)
+				hash += _T("*");
+			hash += _T(";MD5");
+			if (m_hash_algorithm == CHashThread::MD5)
+				hash += _T("*");
+			if (!Send(hash))
+				break;
+		}
 		if (!Send(_T("211 End")))
 			break;
 		break;
@@ -2425,7 +2452,7 @@ void CControlSocket::ParseCommand()
 		{
 			if (m_pSslLayer && m_pOwner->m_pOptions->GetOptionVal(OPTION_FORCEPROTP) && !m_bProtP)
 			{
-				Send(_T("550 PROT P required"));
+				Send(_T("521 PROT P required"));
 				break;
 			}
 			if (args != _T(""))
@@ -2660,6 +2687,12 @@ void CControlSocket::ParseCommand()
 		break;
 	case COMMAND_HASH:
 		{
+			if (!m_pOwner->m_pOptions->GetOptionVal(OPTION_ENABLE_HASH))
+			{
+				Send(_T("500 Syntax error, command unrecognized."));
+				break;
+			}
+
 			//Unquote args
 			if (!UnquoteArgs(args))
 			{
@@ -3279,7 +3312,7 @@ creation_fallback:
 	}
 
 	if (m_pSslLayer && m_bProtP)
-		pTransferSocket->UseSSL(new CAsyncSslSocketLayer(), m_pSslLayer->GetContext());
+		pTransferSocket->UseSSL(m_pSslLayer->GetContext());
 
 	return TRUE;
 }
@@ -3540,7 +3573,7 @@ void CControlSocket::ParseMlstOpts(CStdString args)
 {
 	if (args == _T(""))
 	{
-		for (int i = 0; i < 3; i++)
+		for (int i = 0; i < 4; i++)
 			m_facts[i] = false;
 		Send(_T("200 MLST OPTS"));
 		return;
@@ -3557,7 +3590,7 @@ void CControlSocket::ParseMlstOpts(CStdString args)
 		return;
 	}
 
-	bool facts[3] = {0};
+	bool facts[4] = {0};
 	while (args != _T(""))
 	{
 		int pos = args.Find(';');
@@ -3571,23 +3604,27 @@ void CControlSocket::ParseMlstOpts(CStdString args)
 		args = args.Mid(pos + 1);
 
 		if (fact == _T("TYPE"))
-			facts[0] = true;
+			facts[fact_type] = true;
 		else if (fact == _T("SIZE"))
-			facts[1] = true;
+			facts[fact_size] = true;
 		else if (fact == _T("MODIFY"))
-			facts[2] = true;
+			facts[fact_modify] = true;
+		//else if (fact == _T("PERM"))
+		//	facts[fact_perm] = true;
 	}
 
-	for (int i = 0; i < 3; i++)
+	for (int i = 0; i < 4; i++)
 		m_facts[i] = facts[i];
 
 	CStdString factstr;
-	if (facts[0])
+	if (facts[fact_type])
 		factstr += _T("type;");
-	if (facts[1])
+	if (facts[fact_size])
 		factstr += _T("size;");
-	if (facts[2])
+	if (facts[fact_modify])
 		factstr += _T("modify;");
+	if (facts[fact_perm])
+		factstr += _T("perm;");
 	
 	CStdString result = _T("200 MLST OPTS");
 	if (factstr != _T(""))
@@ -3645,7 +3682,7 @@ void CControlSocket::ParseHashOpts(CStdString args)
 		Send(_T("501 Unknown algorithm"));
 }
 
-void CControlSocket::ProcessHashResult(int hash_id, int res, const CStdString& hash)
+void CControlSocket::ProcessHashResult(int hash_id, int res, CHashThread::_algorithm alg, const CStdString& hash, const CStdString& file)
 {
 	if (hash_id != m_hash_id)
 		return;
@@ -3659,5 +3696,20 @@ void CControlSocket::ProcessHashResult(int hash_id, int res, const CStdString& h
 	else if (res == CHashThread::FAILURE_READ)
 		Send(_T("550 Could not read from file"));
 	else
-		Send(_T("213 ") + hash);
+	{
+		CStdString algname;
+		switch (alg)
+		{
+		case CHashThread::SHA1:
+			algname = "SHA-1";
+			break;
+		case CHashThread::SHA512:
+			algname = "SHA-512";
+			break;
+		case CHashThread::MD5:
+			algname = "MD5";
+			break;
+		}
+		Send(_T("213 ") + algname + _T(" ") + hash + _T(" ") + file);
+	}
 }

@@ -1,4 +1,4 @@
-// FileZilla Server - a Windows ftp server
+ï»¿// FileZilla Server - a Windows ftp server
 
 // Copyright (C) 2002-2004 - Tim Kosse <tim.kosse@gmx.de>
 
@@ -32,7 +32,7 @@ class CStatusCtrl;
 class CStatusView : public CView
 {
 protected:
-	CStatusView();           // Dynamische Erstellung verwendet geschützten Konstruktor
+	CStatusView();           // Dynamische Erstellung verwendet geschÃ¼tzten Konstruktor
 	DECLARE_DYNCREATE(CStatusView)
 
 // Attribute
@@ -42,8 +42,8 @@ public:
 public:
 	void ShowStatus(LPCTSTR status, int type);
 
-// Überschreibungen
-	// Vom Klassen-Assistenten generierte virtuelle Funktionsüberschreibungen
+// Ãœberschreibungen
+	// Vom Klassen-Assistenten generierte virtuelle FunktionsÃ¼berschreibungen
 	//{{AFX_VIRTUAL(CStatusView)
 	protected:
 	virtual void OnDraw(CDC* pDC);
@@ -73,6 +73,6 @@ public:
 /////////////////////////////////////////////////////////////////////////////
 
 //{{AFX_INSERT_LOCATION}}
-// Microsoft Visual C++ fügt unmittelbar vor der vorhergehenden Zeile zusätzliche Deklarationen ein.
+// Microsoft Visual C++ fÃ¼gt unmittelbar vor der vorhergehenden Zeile zusÃ¤tzliche Deklarationen ein.
 
 #endif // AFX_STATUSView_H__7B174A5E_3D67_4C34_A7B0_A1B3F05BF18C__INCLUDED_

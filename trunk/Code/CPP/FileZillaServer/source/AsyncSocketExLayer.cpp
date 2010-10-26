@@ -59,7 +59,8 @@ Feel free to use this class, as long as you don't claim that you wrote it
 and this copyright notice stays intact in the source files.
 If you use this class in commercial applications, please send a short message
 to tim.kosse@gmx.de
-*/#include "stdafx.h"
+*/
+#include "stdafx.h"
 #include "AsyncSocketExLayer.h"
 
 #include "AsyncSocketEx.h"
@@ -470,14 +471,12 @@ BOOL CAsyncSocketExLayer::ConnectNext( const SOCKADDR* lpSockAddr, int nSockAddr
 }
 
 //Gets the address of the peer socket to which the socket is connected
-#ifdef _AFX
-
-BOOL CAsyncSocketExLayer::GetPeerName( CString& rPeerAddress, UINT& rPeerPort )
+BOOL CAsyncSocketExLayer::GetPeerName( CStdString& rPeerAddress, UINT& rPeerPort )
 {
 	return GetPeerNameNext(rPeerAddress, rPeerPort);
 }
 
-BOOL CAsyncSocketExLayer::GetPeerNameNext( CString& rPeerAddress, UINT& rPeerPort )
+BOOL CAsyncSocketExLayer::GetPeerNameNext( CStdString& rPeerAddress, UINT& rPeerPort )
 {
 	if (m_pNextLayer)
 		return m_pNextLayer->GetPeerName(rPeerAddress, rPeerPort);
@@ -532,8 +531,6 @@ BOOL CAsyncSocketExLayer::GetPeerNameNext( CString& rPeerAddress, UINT& rPeerPor
 	}
 }
 
-#endif //_AFX
-
 BOOL CAsyncSocketExLayer::GetPeerName( SOCKADDR* lpSockAddr, int* lpSockAddrLen )
 {
 	return GetPeerNameNext(lpSockAddr, lpSockAddrLen);
@@ -554,14 +551,12 @@ BOOL CAsyncSocketExLayer::GetPeerNameNext( SOCKADDR* lpSockAddr, int* lpSockAddr
 }
 
 //Gets the address of the sock socket to which the socket is connected
-#ifdef _AFX
-
-BOOL CAsyncSocketExLayer::GetSockName( CString& rSockAddress, UINT& rSockPort )
+BOOL CAsyncSocketExLayer::GetSockName( CStdString& rSockAddress, UINT& rSockPort )
 {
 	return GetSockNameNext(rSockAddress, rSockPort);
 }
 
-BOOL CAsyncSocketExLayer::GetSockNameNext( CString& rSockAddress, UINT& rSockPort )
+BOOL CAsyncSocketExLayer::GetSockNameNext( CStdString& rSockAddress, UINT& rSockPort )
 {
 	if (m_pNextLayer)
 		return m_pNextLayer->GetSockName(rSockAddress, rSockPort);
@@ -615,8 +610,6 @@ BOOL CAsyncSocketExLayer::GetSockNameNext( CString& rSockAddress, UINT& rSockPor
 		return bResult;
 	}
 }
-
-#endif //_AFX
 
 BOOL CAsyncSocketExLayer::GetSockName( SOCKADDR* lpSockAddr, int* lpSockAddrLen )
 {
