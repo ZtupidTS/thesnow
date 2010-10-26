@@ -24,7 +24,7 @@
 using namespace Dialogs;
 
 // -----------------------------------------------------------------------
-// This method should be called by the parent dalog box of a configuration
+// This method should be called by the parent dialog box of a configuration
 // on dialog destruction.  It asserts if the ApplyList hasn't been cleaned up
 // and then cleans it up forcefully.
 //
@@ -94,7 +94,7 @@ bool ApplyStateStruct::ApplyPage( int pageid )
 
 		if( ex.IsVerbose )
 		{
-			wxMessageBox( ex.FormatDisplayMessage(), _("不能应用设置...") );
+			Msgbox::Alert( ex.FormatDisplayMessage(), _("不能应用设置...") );
 
 			if( ex.GetPanel() != NULL )
 				ex.GetPanel()->SetFocusToMe();

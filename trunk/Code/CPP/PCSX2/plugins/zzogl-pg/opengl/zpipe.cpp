@@ -1,5 +1,9 @@
-// zpipe.cpp : Defines the entry point for the console application.
-//
+/* The file is based of zpipe.c + minor rename and minor adaptation
+ *
+ * zpipe.c: example of proper use of zlib's inflate() and deflate()
+ * Not copyrighted -- provided to the public domain
+ * Version 1.4  11 December 2005  Mark Adler 
+ */
 
 #include <iostream>
 
@@ -10,14 +14,11 @@
 //#define ZLIB_WINAPI
 #include "zlib.h"
 
-int def(char *src, char *dst, int bytes_to_compress, int *bytes_after_compressed) ;
-int inf(char *src, char *dst, int bytes_to_decompress, int maximum_after_decompress) ;
-
 int def(char *src, char *dst, int bytes_to_compress, int *bytes_after_compressed)
 {
 	z_stream strm;
 
-	int ret;//, flush;
+	int ret;
 	unsigned have;
 
 	/* allocate deflate state */
@@ -55,7 +56,6 @@ int inf(char *src, char *dst, int bytes_to_decompress, int maximum_after_decompr
 	z_stream strm;
 
 	int ret;
-	//unsigned have;
 
 	/* allocate inflate state */
 	strm.zalloc = Z_NULL;

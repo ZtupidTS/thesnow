@@ -14,6 +14,8 @@
  */
 
 #pragma once
+
+#include "Vif.h"
 #include "Vif_Unpack.h"
 
 struct vifCode {
@@ -54,6 +56,8 @@ union tTRXREG {
 
 // NOTE, if debugging vif stalls, use sega classics, spyro, gt4, and taito
 struct vifStruct {
+	u128	MaskRow, MaskCol;
+
 	vifCode tag;
 	int cmd;
 	int irq;
@@ -80,17 +84,17 @@ struct vifStruct {
 	u8 GifWaitState; // 0 = General PATH checking, 1 = Flush path 3, 2 == Wait for VU1
 };
 
-extern vifStruct* vif;
-extern vifStruct  vif0, vif1;
+extern __aligned16 vifStruct  vif0, vif1;
 extern u8		  schedulepath3msk;
 
+_vifT extern u32 vifRead32(u32 mem);
+_vifT extern bool vifWrite32(u32 mem, u32 value);
+
 extern void vif0Interrupt();
-extern void vif0Write32(u32 mem, u32 value);
 extern void vif0Reset();
 
 extern void vif1Interrupt();
 extern void Vif1MskPath3();
-extern void vif1Write32(u32 mem, u32 value);
 extern void vif1Reset();
 
 typedef int __fastcall FnType_VifCmdHandler(int pass, const u32 *data);
@@ -98,7 +102,7 @@ typedef FnType_VifCmdHandler* Fnptr_VifCmdHandler;
 
 extern const __aligned16 Fnptr_VifCmdHandler vifCmdHandler[2][128];
 
-__forceinline static int _limit(int a, int max)
+__fi static int _limit(int a, int max)
 {
 	return ((a > max) ? max : a);
 }
@@ -120,15 +124,3 @@ extern u32 g_vu1Cycles;
 extern u32 g_packetsizeonvu;
 extern void vif0FLUSH();
 extern void vif1FLUSH();
-
-//------------------------------------------------------------------
-// newVif SSE-optimized Row/Col Structs
-//------------------------------------------------------------------
-
-struct VifMaskTypes
-{
-	u32	Row0[4], Col0[4];
-	u32	Row1[4], Col1[4];
-};
-
-extern __aligned16 VifMaskTypes g_vifmask; // This struct is used by newVif

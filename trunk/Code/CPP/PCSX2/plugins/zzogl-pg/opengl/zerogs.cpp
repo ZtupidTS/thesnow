@@ -29,8 +29,12 @@
 #include "Mem.h"
 #include "x86.h"
 #include "zerogs.h"
-#include "zpipe.h"
 #include "targets.h"
+#include "GLWin.h"
+#include "ZZoglShaders.h"
+#ifdef ZEROGS_SSE2
+#include <emmintrin.h>
+#endif
 
 //----------------------- Defines
 
@@ -48,12 +52,8 @@ extern int g_nFrame, g_nRealFrame;
 //extern int s_nFullscreen;
 //-------------------------- Variables
 
-// Context is lost -- could not draw.
-// Setting this variable to true is also lost. Fixme.
-//bool g_bIsLost = false; 
-
 primInfo *prim;
-CGprogram g_vsprog = 0, g_psprog = 0;							// 2 -- ZZ
+ZZshProgram g_vsprog = 0, g_psprog = 0;							// 2 -- ZZ
 
 inline u32 FtoDW(float f) { return (*((u32*)&f)); }
 
@@ -84,7 +84,7 @@ PFNGLDRAWBUFFERSPROC glDrawBuffers = NULL;
 
 /////////////////////
 // graphics resources
-CGparameter g_vparamPosXY[2] = {0}, g_fparamFogColor = 0;
+ZZshParameter g_vparamPosXY[2] = {0}, g_fparamFogColor = 0;
 
 bool s_bTexFlush = false;
 int s_nLastResolveReset = 0;
@@ -92,27 +92,19 @@ int s_nResolveCounts[30] = {0}; // resolve counts for last 30 frames
 
 ////////////////////
 // State parameters
-int nBackbufferWidth, nBackbufferHeight;
-
-u8* g_pbyGSMemory = NULL;   // 4Mb GS system mem
-u8* g_pbyGSClut = NULL;													// ZZ
+int nBackbufferWidth, nBackbufferHeight;									// ZZ
 
 namespace ZeroGS
 {
-Vector g_vdepth, vlogz;
+float4 g_vdepth, vlogz;
 
-//       	= Vector( 255.0 /256.0f,  255.0/65536.0f, 255.0f/(65535.0f*256.0f), 1.0f/(65536.0f*65536.0f));
-//	Vector g_vdepth = Vector( 65536.0f*65536.0f, 256.0f*65536.0f, 65536.0f, 256.0f);
+//       	= float4( 255.0 /256.0f,  255.0/65536.0f, 255.0f/(65535.0f*256.0f), 1.0f/(65536.0f*65536.0f));
+//	float4 g_vdepth = float4( 65536.0f*65536.0f, 256.0f*65536.0f, 65536.0f, 256.0f);
 
 extern CRangeManager s_RangeMngr; // manages overwritten memory
-GLenum GetRenderTargetFormat() { return GetRenderFormat() == RFT_byte8 ? 4 : g_internalRGBAFloat16Fmt; }
 
 // returns the first and last addresses aligned to a page that cover
 void GetRectMemAddress(int& start, int& end, int psm, int x, int y, int w, int h, int bp, int bw);
-
-//	bool LoadEffects();
-//	bool LoadExtraEffects();
-//	FRAGMENTSHADER* LoadShadeEffect(int type, int texfilter, int fog, int testaem, int exactcolor, const clampInfo& clamp, int context, bool* pbFailed);
 
 int s_nNewWidth = -1, s_nNewHeight = -1;
 void ChangeDeviceSize(int nNewWidth, int nNewHeight);
@@ -166,7 +158,7 @@ class ZeroGSInit
 	public:
 		ZeroGSInit()
 		{
-			const u32 mem_size = 0x00400000 + 0x10000; // leave some room for out of range accesses (saves on the checks)
+			const u32 mem_size = MEMORY_END + 0x10000; // leave some room for out of range accesses (saves on the checks)
 			// clear
 			g_pbyGSMemory = (u8*)_aligned_malloc(mem_size, 1024);
 			memset(g_pbyGSMemory, 0, mem_size);
@@ -349,17 +341,15 @@ extern RasterFont* font_p;
 void ZeroGS::DrawText(const char* pstr, int left, int top, u32 color)
 {
 	FUNCLOG
-	cgGLDisableProfile(cgvProf);
-	cgGLDisableProfile(cgfProf);
+	ZZshGLDisableProfile();
 
-	Vector v;
+	float4 v;
 	v.SetColor(color);
 	glColor3f(v.z, v.y, v.x);
 	//glColor3f(((color >> 16) & 0xff) / 255.0f, ((color >> 8) & 0xff)/ 255.0f, (color & 0xff) / 255.0f);
 
 	font_p->printString(pstr, left * 2.0f / (float)nBackbufferWidth - 1, 1 - top * 2.0f / (float)nBackbufferHeight, 0);
-	cgGLEnableProfile(cgvProf);
-	cgGLEnableProfile(cgfProf);
+	ZZshGLEnableProfile();
 }
 
 void ZeroGS::ChangeWindowSize(int nNewWidth, int nNewHeight)
@@ -415,42 +405,10 @@ void ZeroGS::ChangeDeviceSize(int nNewWidth, int nNewHeight)
 	assert(vb[0].pBufferData != NULL && vb[1].pBufferData != NULL);
 }
 
-
-void ZeroGS::SetNegAA(int mode)
-{
-	FUNCLOG
-	// need to flush all targets
-	s_RTs.ResolveAll();
-	s_RTs.Destroy();
-	s_DepthRTs.ResolveAll();
-	s_DepthRTs.Destroy();
-
-	s_AAz = s_AAw = 0;			// This is code for x0, x2, x4, x8 and x16 anti-aliasing.
-
-	if (mode > 0)
-	{
-		s_AAz = (mode + 1) / 2;		// ( 1, 0 ) ; (  1, 1 ) -- it's used as binary shift, so x << s_AAz, y << s_AAw
-		s_AAw = mode / 2;
-	}
-
-	memset(s_nResolveCounts, 0, sizeof(s_nResolveCounts));
-
-	s_nLastResolveReset = 0;
-
-	vb[0].prndr = NULL;
-	vb[0].pdepth = NULL;
-	vb[0].bNeedFrameCheck = 1;
-	vb[0].bNeedZCheck = 1;
-	vb[1].prndr = NULL;
-	vb[1].pdepth = NULL;
-	vb[1].bNeedFrameCheck = 1;
-	vb[1].bNeedZCheck = 1;
-}
-
 void ZeroGS::SetAA(int mode)
 {
 	FUNCLOG
-	float f;
+	float f = 1.0f;
 
 	// need to flush all targets
 	s_RTs.ResolveAll();
@@ -458,28 +416,28 @@ void ZeroGS::SetAA(int mode)
 	s_DepthRTs.ResolveAll();
 	s_DepthRTs.Destroy();
 
-	s_AAx = s_AAy = 0;			// This is code for x0, x2, x4, x8 and x16 anti-aliasing.
-
+	AA.x = AA.y = 0;			// This is code for x0, x2, x4, x8 and x16 anti-aliasing.
+	
 	if (mode > 0)
 	{
-		s_AAx = (mode + 1) / 2;		// ( 1, 0 ) ; (  1, 1 ) ; ( 2, 1 ) ; ( 2, 2 ) -- it's used as binary shift, so x >> s_AAx, y >> s_AAy
-		s_AAy = mode / 2;
+		// ( 1, 0 ) ; (  1, 1 ) ; ( 2, 1 ) ; ( 2, 2 ) 
+		// it's used as a binary shift, so x >> AA.x, y >> AA.y
+		AA.x = (mode + 1) / 2;
+		AA.y = mode / 2;
+		f = 2.0f;
 	}
 
 	memset(s_nResolveCounts, 0, sizeof(s_nResolveCounts));
-
 	s_nLastResolveReset = 0;
 
 	vb[0].prndr = NULL;
 	vb[0].pdepth = NULL;
-	vb[0].bNeedFrameCheck = 1;
-	vb[0].bNeedZCheck = 1;
 	vb[1].prndr = NULL;
 	vb[1].pdepth = NULL;
-	vb[1].bNeedFrameCheck = 1;
-	vb[1].bNeedZCheck = 1;
+	
+	vb[0].bNeedFrameCheck = vb[0].bNeedZCheck = 1;
+	vb[1].bNeedFrameCheck = vb[1].bNeedZCheck = 1;
 
-	f = mode > 0 ? 2.0f : 1.0f;
 	glPointSize(f);
 }
 
@@ -487,21 +445,11 @@ void ZeroGS::Prim()
 {
 	FUNCLOG
 
-//	if (g_bIsLost) return;
-
 	VB& curvb = vb[prim->ctxt];
 
 	if (curvb.CheckPrim()) Flush(prim->ctxt);
 
 	curvb.curprim._val = prim->_val;
-
-	// flush the other pipe if sharing the same buffer
-//  if( vb[prim->ctxt].gsfb.fbp == vb[!prim->ctxt].gsfb.fbp && vb[!prim->ctxt].nCount > 0 )
-//  {
-//	  assert( vb[prim->ctxt].nCount == 0 );
-//	  Flush(!prim->ctxt);
-//  }
-
 	curvb.curprim.prim = prim->prim;
 }
 
@@ -544,26 +492,25 @@ void ZeroGS::RenderCustom(float fAlpha)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 	// tex coords
-	Vector v = Vector(1 / 32767.0f, 1 / 32767.0f, 0, 0);
-	ZZcgSetParameter4fv(pvsBitBlt.sBitBltPos, v, "g_fBitBltPos");
+	float4 v = float4(1 / 32767.0f, 1 / 32767.0f, 0, 0);
+	ZZshSetParameter4fv(pvsBitBlt.sBitBltPos, v, "g_fBitBltPos");
 	v.x = (float)nLogoWidth;
 	v.y = (float)nLogoHeight;
-	ZZcgSetParameter4fv(pvsBitBlt.sBitBltTex, v, "g_fBitBltTex");
+	ZZshSetParameter4fv(pvsBitBlt.sBitBltTex, v, "g_fBitBltTex");
 
 	v.x = v.y = v.z = v.w = fAlpha;
-	ZZcgSetParameter4fv(ppsBaseTexture.sOneColor, v, "g_fOneColor");
+	ZZshSetParameter4fv(ppsBaseTexture.sOneColor, v, "g_fOneColor");
 
 	if (conf.wireframe()) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 	// inside vhDCb[0]'s target area, so render that region only
-	cgGLSetTextureParameter(ppsBaseTexture.sFinal, ptexLogo);
-	cgGLEnableTextureParameter(ppsBaseTexture.sFinal);
+	ZZshGLSetTextureParameter(ppsBaseTexture.sFinal, ptexLogo, "Logo");
 	glBindBuffer(GL_ARRAY_BUFFER, vboRect);
 
 	SET_STREAM();
 
-	SETVERTEXSHADER(pvsBitBlt.prog);
-	SETPIXELSHADER(ppsBaseTexture.prog);
+	ZZshSetVertexShader(pvsBitBlt.prog);
+	ZZshSetPixelShader(ppsBaseTexture.prog);
 	DrawTriangleArray();
 	
 	// restore
@@ -580,21 +527,6 @@ void ZeroGS::RenderCustom(float fAlpha)
 	vb[1].bSyncVars = 0;
 
 	GL_REPORT_ERROR();
-}
-
-void ZeroGS::Restore()
-{
-	FUNCLOG
-	return;
-	/*if (!g_bIsLost) return;
-
-	//if( SUCCEEDED(pd3dDevice->Reset(&d3dpp)) ) {
-	g_bIsLost = false;
-
-	// handle lost states
-	ZeroGS::ChangeDeviceSize(nBackbufferWidth, nBackbufferHeight);*/
-
-	//}
 }
 
 //////////////////////////
@@ -615,7 +547,7 @@ __forceinline void MOVFOG(VertexGPU *p, Vertex gsf)
 
 int Values[100] = {0, };
 
-void SET_VERTEX(VertexGPU *p, int Index, const VB& curvb)
+inline void SET_VERTEX(VertexGPU *p, int Index, const VB& curvb)
 {
 	int index = Index;
 	p->x = ((((int)gs.gsvertex[index].x - curvb.offset.x) >> 1) & 0xffff);
@@ -680,7 +612,7 @@ void ZeroGS::KickPoint()
 
 	curvb.NotifyWrite(1);
 
-	int last = (gs.primIndex + 2) % ARRAY_SIZE(gs.gsvertex);
+	int last = gs.primNext(2);
 
 	VertexGPU* p = curvb.pBufferData + curvb.nCount;
 	SET_VERTEX(&p[0], last, curvb);
@@ -705,8 +637,8 @@ void ZeroGS::KickLine()
 
 	curvb.NotifyWrite(2);
 
-	int next = (gs.primIndex + 1) % ARRAY_SIZE(gs.gsvertex);
-	int last = (gs.primIndex + 2) % ARRAY_SIZE(gs.gsvertex);
+	int next = gs.primNext();
+	int last = gs.primNext(2);
 
 	VertexGPU* p = curvb.pBufferData + curvb.nCount;
 	SET_VERTEX(&p[0], next, curvb);
@@ -771,7 +703,7 @@ void ZeroGS::KickTriangleFan()
 
 	// add 1 to skip the first vertex
 
-	if (gs.primIndex == gs.nTriFanVert) gs.primIndex = (gs.primIndex + 1) % ARRAY_SIZE(gs.gsvertex);
+	if (gs.primIndex == gs.nTriFanVert) gs.primIndex = gs.primNext();
 
 	OUTPUT_VERT(p[0], 0);
 	OUTPUT_VERT(p[1], 1);
@@ -800,13 +732,12 @@ void ZeroGS::KickSprite()
 	}
 
 	curvb.NotifyWrite(6);
-
-	int next = (gs.primIndex + 1) % ARRAY_SIZE(gs.gsvertex);
-	int last = (gs.primIndex + 2) % ARRAY_SIZE(gs.gsvertex);
+	int next = gs.primNext();
+	int last = gs.primNext(2);
 	
 	// sprite is too small and AA shows lines (tek4, Mana Khemia)
-	gs.gsvertex[last].x += (4*s_AAx);
-	gs.gsvertex[last].y += (4*s_AAy);
+	gs.gsvertex[last].x += (4 * AA.x);
+	gs.gsvertex[last].y += (4 * AA.y);
 
 	// might be bad sprite (KH dialog text)
 	//if( gs.gsvertex[next].x == gs.gsvertex[last].x || gs.gsvertex[next].y == gs.gsvertex[last].y )
@@ -851,18 +782,12 @@ void ZeroGS::SetFogColor(u32 fog)
 
 	ZeroGS::FlushBoth();
 
-	//if (!g_bIsLost)
-	//{
-		SetShaderCaller("SetFogColor");
-		Vector v;
+	SetShaderCaller("SetFogColor");
+	float4 v;
 
-		// set it immediately
-//			v.x = (gs.fogcol & 0xff) / 255.0f;
-//			v.y = ((gs.fogcol >> 8) & 0xff) / 255.0f;
-//			v.z = ((gs.fogcol >> 16) & 0xff) / 255.0f;
-		v.SetColor(gs.fogcol);
-		ZZcgSetParameter4fv(g_fparamFogColor, v, "g_fParamFogColor");
-	//}
+	// set it immediately
+	v.SetColor(gs.fogcol);
+	ZZshSetParameter4fv(g_fparamFogColor, v, "g_fParamFogColor");
 
 //	}
 }
@@ -872,12 +797,12 @@ void ZeroGS::SetFogColor(GIFRegFOGCOL* fog)
 	FUNCLOG
 	
 	SetShaderCaller("SetFogColor");
-	Vector v;
+	float4 v;
 	
 	v.x = fog->FCR / 255.0f;
 	v.y = fog->FCG / 255.0f;
 	v.z = fog->FCB / 255.0f;
-	ZZcgSetParameter4fv(g_fparamFogColor, v, "g_fParamFogColor");
+	ZZshSetParameter4fv(g_fparamFogColor, v, "g_fParamFogColor");
 }
 
 void ZeroGS::ExtWrite()
@@ -920,7 +845,7 @@ bool IsDirty(u32 highdword, u32 psm, int cld, int cbp)
 	if (cpsm > 1 || csm)
 	{
 		// Mana Khemia triggers this.
-		//ZZLog::Error_Log("16 bit clut not supported.");
+        //ZZLog::Error_Log("16 bit clut not supported.");
 		return true;
 	}
 
@@ -932,6 +857,66 @@ bool IsDirty(u32 highdword, u32 psm, int cld, int cbp)
 	u64* dst = (u64*)(g_pbyGSClut + 64 * csa);
 
 	bool bRet = false;
+
+    // FIXME code generated by intrinsics is the same as the linux asm.
+    // However there is no "cmp %%esi, 0x90" equivalent in the windows asm !!!
+    // So control flow must be check
+#define TEST_THIS
+#ifdef TEST_THIS
+    while(entries != 0) {
+#ifdef ZEROGS_SSE2
+        // Note: local memory datas are swizzles
+        __m128i src_0 = _mm_load_si128((__m128i*)src);   // 9  8  1 0
+        __m128i src_1 = _mm_load_si128((__m128i*)src+1); // 11 10 3 2
+        __m128i src_2 = _mm_load_si128((__m128i*)src+2); // 13 12 5 4
+        __m128i src_3 = _mm_load_si128((__m128i*)src+3); // 15 14 7 6
+
+        __m128i dst_0 = _mm_load_si128((__m128i*)dst);
+        __m128i dst_1 = _mm_load_si128((__m128i*)dst+1);
+        __m128i dst_2 = _mm_load_si128((__m128i*)dst+2);
+        __m128i dst_3 = _mm_load_si128((__m128i*)dst+3);
+
+        __m128i result = _mm_cmpeq_epi32(_mm_unpacklo_epi64(src_0, src_1), dst_0);
+
+        __m128i result_tmp = _mm_cmpeq_epi32(_mm_unpacklo_epi64(src_2, src_3), dst_1);
+        result = _mm_and_si128(result, result_tmp);
+
+        result_tmp = _mm_cmpeq_epi32(_mm_unpackhi_epi64(src_0, src_1), dst_2);
+        result = _mm_and_si128(result, result_tmp);
+
+        result_tmp = _mm_cmpeq_epi32(_mm_unpackhi_epi64(src_2, src_3), dst_3);
+        result = _mm_and_si128(result, result_tmp);
+
+        u32 result_int = _mm_movemask_epi8(result);
+        if (result_int != 0xFFFF) {
+            bRet = true;
+            break;
+        }
+#else
+        // I see no point to keep an mmx version. SSE2 versions is probably faster.
+        // Keep a slow portable C version for reference/debug
+        // Note: local memory datas are swizzles
+        if (dst[0] != src[0] || dst[1] != src[2] || dst[2] != src[4] || dst[3] != src[6]
+                || dst[4] != src[1] || dst[5] != src[3] || dst[6] != src[5] || dst[7] != src[7]) {
+            bRet = true;
+            break;
+        }
+#endif
+
+        if (entries & 0x10) {
+            src -= 56; // go back and down one column
+        }
+
+        src += 32; // go to the right block
+
+        if (entries == 0x90) {
+            src += 32; // skip whole block
+        }
+
+        dst += 8;
+        entries -= 16;
+    }
+#else
 
 	// do a fast test with MMX
 #ifdef _MSC_VER
@@ -1059,6 +1044,7 @@ Return:
 	".att_syntax\n" : "=m"(bRet) : "c"(dst), "d"(src), "S"(entries) : "eax", "memory");
 
 #endif // _WIN32
+#endif
 	return bRet;
 }
 
@@ -1118,8 +1104,6 @@ void ZeroGS::texClutWrite(int ctx)
 {
 	FUNCLOG
 	s_bTexFlush = false;
-
-	//if (g_bIsLost) return;
 
 	tex0Info& tex0 = vb[ctx].tex0;
 

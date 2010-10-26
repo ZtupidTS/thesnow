@@ -24,7 +24,7 @@ _sif sif0;
 
 static bool done = false;
 
-static __forceinline void Sif0Init()
+static __fi void Sif0Init()
 {
 	SIF_LOG("SIF0 DMA start...");
 	done = false;
@@ -33,16 +33,16 @@ static __forceinline void Sif0Init()
 }
 
 // Write from Fifo to EE.
-static __forceinline bool WriteFifoToEE()
+static __fi bool WriteFifoToEE()
 {
-	const int readSize = min((s32)sif0dma->qwc, sif0.fifo.size >> 2);
+	const int readSize = min((s32)sif0dma.qwc, sif0.fifo.size >> 2);
 
 	tDMA_TAG *ptag;
 
-	//SIF_LOG(" EE SIF doing transfer %04Xqw to %08X", readSize, sif0dma->madr);
-	SIF_LOG("Write Fifo to EE: ----------- %lX of %lX", readSize << 2, sif0dma->qwc << 2);
+	//SIF_LOG(" EE SIF doing transfer %04Xqw to %08X", readSize, sif0dma.madr);
+	SIF_LOG("Write Fifo to EE: ----------- %lX of %lX", readSize << 2, sif0dma.qwc << 2);
 
-	ptag = sif0dma->getAddr(sif0dma->madr, DMAC_SIF0, true);
+	ptag = sif0dma.getAddr(sif0dma.madr, DMAC_SIF0, true);
 	if (ptag == NULL)
 	{
 		DevCon.Warning("Write Fifo to EE: ptag == NULL");
@@ -52,25 +52,25 @@ static __forceinline bool WriteFifoToEE()
 	sif0.fifo.read((u32*)ptag, readSize << 2);
 
 	// Clearing handled by vtlb memory protection and manual blocks.
-	//Cpu->Clear(sif0dma->madr, readSize*4);
+	//Cpu->Clear(sif0dma.madr, readSize*4);
 
-	sif0dma->madr += readSize << 4;
+	sif0dma.madr += readSize << 4;
 	sif0.ee.cycles += readSize;	// fixme : BIAS is factored in above
-	sif0dma->qwc -= readSize;
+	sif0dma.qwc -= readSize;
 
 	return true;
 }
 
 // Write IOP to Fifo.
-static __forceinline bool WriteIOPtoFifo()
+static __fi bool WriteIOPtoFifo()
 {
 	// There's some data ready to transfer into the fifo..
 	const int writeSize = min(sif0.iop.counter, sif0.fifo.free());
 
 	SIF_LOG("Write IOP to Fifo: +++++++++++ %lX of %lX", writeSize, sif0.iop.counter);
 
-	sif0.fifo.write((u32*)iopPhysMem(hw_dma(9).madr), writeSize);
-	hw_dma(9).madr += writeSize << 2;
+	sif0.fifo.write((u32*)iopPhysMem(hw_dma9.madr), writeSize);
+	hw_dma9.madr += writeSize << 2;
 
 	// iop is 1/8th the clock rate of the EE and psxcycles is in words (not quadwords).
 	sif0.iop.cycles += (writeSize >> 2)/* * BIAS*/;		// fixme : should be >> 4
@@ -80,21 +80,21 @@ static __forceinline bool WriteIOPtoFifo()
 }
 
 // Read Fifo into an ee tag, transfer it to sif0dma, and process it.
-static __forceinline bool ProcessEETag()
+static __fi bool ProcessEETag()
 {
 	static __aligned16 u32 tag[4];
+	tDMA_TAG& ptag(*(tDMA_TAG*)tag);
 
 	sif0.fifo.read((u32*)&tag[0], 4); // Tag
 	SIF_LOG("SIF0 EE read tag: %x %x %x %x", tag[0], tag[1], tag[2], tag[3]);
 
-	sif0dma->unsafeTransfer(((tDMA_TAG*)(tag)));
-	sif0dma->madr = tag[1];
-	tDMA_TAG ptag(tag[0]);
+	sif0dma.unsafeTransfer(&ptag);
+	sif0dma.madr = tag[1];
 
 	SIF_LOG("SIF0 EE dest chain tag madr:%08X qwc:%04X id:%X irq:%d(%08X_%08X)",
-		sif0dma->madr, sif0dma->qwc, ptag.ID, ptag.IRQ, tag[1], tag[0]);
+		sif0dma.madr, sif0dma.qwc, ptag.ID, ptag.IRQ, tag[1], tag[0]);
 
-	if (sif0dma->chcr.TIE && ptag.IRQ)
+	if (sif0dma.chcr.TIE && ptag.IRQ)
 	{
 		//Console.WriteLn("SIF0 TIE");
 		sif0.ee.end = true;
@@ -102,16 +102,12 @@ static __forceinline bool ProcessEETag()
 
 	switch (ptag.ID)
 	{
-		case TAG_REFE:
-			sif0.ee.end = true;
-			if (dmacRegs->ctrl.STS != NO_STS)
-				dmacRegs->stadr.ADDR = sif0dma->madr + (sif0dma->qwc * 16);
-				break;
+		case TAG_CNT:	break;
 
-		case TAG_REFS:
-			if (dmacRegs->ctrl.STS != NO_STS)
-				dmacRegs->stadr.ADDR = sif0dma->madr + (sif0dma->qwc * 16);
-				break;
+		case TAG_CNTS:
+			if (dmacRegs.ctrl.STS != NO_STS)
+				dmacRegs.stadr.ADDR = sif0dma.madr + (sif0dma.qwc * 16);
+			break;
 
 		case TAG_END:
 			sif0.ee.end = true;
@@ -120,28 +116,35 @@ static __forceinline bool ProcessEETag()
 	return true;
 }
 
-// Read Fifo into an iop tag, and transfer it to hw_dma(9). And presumably process it.
-static __forceinline bool ProcessIOPTag()
+// Read Fifo into an iop tag, and transfer it to hw_dma9. And presumably process it.
+static __fi bool ProcessIOPTag()
 {
-	// Process DMA tag at hw_dma(9).tadr
-	sif0.iop.data = *(sifData *)iopPhysMem(hw_dma(9).tadr);
+	// Process DMA tag at hw_dma9.tadr
+	sif0.iop.data = *(sifData *)iopPhysMem(hw_dma9.tadr);
 	sif0.iop.data.words = (sif0.iop.data.words + 3) & 0xfffffffc; // Round up to nearest 4.
-	sif0.fifo.write((u32*)iopPhysMem(hw_dma(9).tadr + 8), 4);
 
-	hw_dma(9).tadr += 16; ///hw_dma(9).madr + 16 + sif0.sifData.words << 2;
+	// send the EE's side of the DMAtag.  The tag is only 64 bits, with the upper 64 bits
+	// ignored by the EE.
 
-	// We're only copying the first 24 bits.
-	hw_dma(9).madr = sif0data & 0xFFFFFF;
+	sif0.fifo.write((u32*)iopPhysMem(hw_dma9.tadr + 8), 2);
+	sif0.fifo.writePos = (sif0.fifo.writePos + 2) & (FIFO_SIF_W - 1);		// iggy on the upper 64.
+	sif0.fifo.size += 2;
+
+	hw_dma9.tadr += 16; ///hw_dma9.madr + 16 + sif0.sifData.words << 2;
+
+	// We're only copying the first 24 bits.  Bits 30 and 31 (checked below) are Stop/IRQ bits.
+	hw_dma9.madr = sif0data & 0xFFFFFF;
 	sif0.iop.counter = sif0words;
 
+	// IOP tags have an IRQ bit and an End of Transfer bit:
 	if (sif0tag.IRQ  || (sif0tag.ID & 4)) sif0.iop.end = true;
-	SIF_LOG("SIF0 IOP Tag: madr=%lx, tadr=%lx, counter=%lx (%08X_%08X)", hw_dma(9).madr, hw_dma(9).tadr, sif0.iop.counter, sif0words, sif0data);
+	SIF_LOG("SIF0 IOP Tag: madr=%lx, tadr=%lx, counter=%lx (%08X_%08X)", hw_dma9.madr, hw_dma9.tadr, sif0.iop.counter, sif0words, sif0data);
 
 	return true;
 }
 
 // Stop transferring ee, and signal an interrupt.
-static __forceinline void EndEE()
+static __fi void EndEE()
 {
 	SIF_LOG("Sif0: End EE");
 	sif0.ee.end = false;
@@ -156,7 +159,7 @@ static __forceinline void EndEE()
 }
 
 // Stop transferring iop, and signal an interrupt.
-static __forceinline void EndIOP()
+static __fi void EndIOP()
 {
 	SIF_LOG("Sif0: End IOP");
 	sif0data = 0;
@@ -175,9 +178,9 @@ static __forceinline void EndIOP()
 }
 
 // Handle the EE transfer.
-static __forceinline void HandleEETransfer()
+static __fi void HandleEETransfer()
 {
-	if(sif0dma->chcr.STR == false)
+	if(sif0dma.chcr.STR == false)
 	{
 		DevCon.Warning("Replacement for irq prevention hack EE SIF0");
 		sif0.ee.end = false;
@@ -185,22 +188,22 @@ static __forceinline void HandleEETransfer()
 		return;
 	}
 
-	if (dmacRegs->ctrl.STS == STS_SIF0)
+	if (dmacRegs.ctrl.STS == STS_SIF0)
 	{
 		DevCon.Warning("SIF0 stall control");
 	}
 
-	/*if (sif0dma->qwc == 0)
-		if (sif0dma->chcr.MOD == NORMAL_MODE)
+	/*if (sif0dma.qwc == 0)
+		if (sif0dma.chcr.MOD == NORMAL_MODE)
 			if (!sif0.ee.end){
 				DevCon.Warning("sif0 irq prevented");
 				done = true;
 				return;
 			}*/
 
-	if (sif0dma->qwc <= 0)
+	if (sif0dma.qwc <= 0)
 	{
-		if ((sif0dma->chcr.MOD == NORMAL_MODE) || sif0.ee.end)
+		if ((sif0dma.chcr.MOD == NORMAL_MODE) || sif0.ee.end)
 		{
 			// Stop transferring ee, and signal an interrupt.
 			done = true;
@@ -214,7 +217,7 @@ static __forceinline void HandleEETransfer()
 		}
 	}
 
-	if (sif0dma->qwc > 0) // If we're writing something, continue to do so.
+	if (sif0dma.qwc > 0) // If we're writing something, continue to do so.
 	{
 		// Write from Fifo to EE.
 		if (sif0.fifo.size > 0)
@@ -253,7 +256,7 @@ static __forceinline void HandleEETransfer()
 // SIF - 8 = 0 (pos=12)
 // SIF0 DMA end...
 
-static __forceinline void HandleIOPTransfer()
+static __fi void HandleIOPTransfer()
 {
 	if (sif0.iop.counter <= 0) // If there's no more to transfer
 	{
@@ -265,7 +268,7 @@ static __forceinline void HandleIOPTransfer()
 		}
 		else
 		{
-			// Read Fifo into an iop tag, and transfer it to hw_dma(9).
+			// Read Fifo into an iop tag, and transfer it to hw_dma9.
 			// And presumably process it.
 			ProcessIOPTag();
 		}
@@ -280,13 +283,16 @@ static __forceinline void HandleIOPTransfer()
 	}
 }
 
-static __forceinline void Sif0End()
+static __fi void Sif0End()
 {
+	psHu32(SBUS_F240) &= ~0x20;
+	psHu32(SBUS_F240) &= ~0x2000;
+
 	SIF_LOG("SIF0 DMA end...");
 }
 
 // Transfer IOP to EE, putting data in the fifo as an intermediate step.
-__forceinline void SIF0Dma()
+__fi void SIF0Dma()
 {
 	int BusyCheck = 0;
 	Sif0Init();
@@ -306,7 +312,7 @@ __forceinline void SIF0Dma()
 		}
 		if (sif0.ee.busy)
 		{
-			if(sif0.fifo.size >= 4 || (sif0.ee.end == true && sif0dma->qwc == 0)) 
+			if(sif0.fifo.size >= 4 || (sif0.ee.end == true && sif0dma.qwc == 0)) 
 			{
 				BusyCheck++;
 				HandleEETransfer();
@@ -317,36 +323,39 @@ __forceinline void SIF0Dma()
 	Sif0End();
 }
 
-__forceinline void  sif0Interrupt()
+__fi void  sif0Interrupt()
 {
 	HW_DMA9_CHCR &= ~0x01000000;
 	psxDmaInterrupt2(2);
 }
 
-__forceinline void  EEsif0Interrupt()
+__fi void  EEsif0Interrupt()
 {
 	hwDmacIrq(DMAC_SIF0);
-	sif0dma->chcr.STR = false;
+	sif0dma.chcr.STR = false;
 }
 
-__forceinline void dmaSIF0()
+__fi void dmaSIF0()
 {
-	SIF_LOG(wxString(L"dmaSIF0" + sif0dma->cmqt_to_str()).To8BitData());
+	SIF_LOG(wxString(L"dmaSIF0" + sif0dma.cmqt_to_str()).To8BitData());
 
 	if (sif0.fifo.readPos != sif0.fifo.writePos)
 	{
 		SIF_LOG("warning, sif0.fifoReadPos != sif0.fifoWritePos");
 	}
 
-	//if(sif0dma->chcr.MOD == CHAIN_MODE && sif0dma->qwc > 0) DevCon.Warning(L"SIF0 QWC on Chain CHCR " + sif0dma->chcr.desc());
+	//if(sif0dma.chcr.MOD == CHAIN_MODE && sif0dma.qwc > 0) DevCon.Warning(L"SIF0 QWC on Chain CHCR " + sif0dma.chcr.desc());
 	psHu32(SBUS_F240) |= 0x2000;
 	sif0.ee.busy = true;
 
-	/*if (sif0.iop.busy)
-	{*/
-        hwIntcIrq(INTC_SBUS);
+	// Okay, this here is needed currently (r3644). 
+	// FFX battles in the thunder plains map die otherwise, Phantasy Star 4 as well
+	// These 2 games could be made playable again by increasing the time the EE or the IOP run,
+	// showing that this is very timing sensible.
+	// Doing this DMA unfortunately brings back an old warning in Legend of Legaia though, but it still works.
+	if (sif0.iop.busy)
+	{
+        //hwIntcIrq(INTC_SBUS); // not sure, so let's not
 		SIF0Dma();
-		psHu32(SBUS_F240) &= ~0x20;
-		psHu32(SBUS_F240) &= ~0x2000;
-	//}
+	}
 }

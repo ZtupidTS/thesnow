@@ -137,6 +137,60 @@
 					<Add library="$(SvnRootDir)/deps/release/libUtilities.a" />
 				</Linker>
 			</Target>
+			<Target title="Devel-Debug">
+				<Option platforms="Windows;Unix;" />
+				<Option output="$(SvnRootDir)/bin/pcsx2-deb" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="$(SvnRootDir)/bin/" />
+				<Option object_output="./.objs/devel" />
+				<Option external_deps="../../tools/bin/bin2cpp;" />
+				<Option type="0" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-fdefer-pop" />
+					<Add option="-fcprop-registers" />
+					<Add option="-fif-conversion" />
+					<Add option="-fif-conversion2" />
+					<Add option="-ftree-ccp" />
+					<Add option="-ftree-dce" />
+					<Add option="-ftree-dominator-opts" />
+					<Add option="-ftree-ter" />
+					<Add option="-ftree-lrs" />
+					<Add option="-ftree-sra" />
+					<Add option="-ftree-copyrename" />
+					<Add option="-ftree-fre" />
+					<Add option="-ftree-ch" />
+					<Add option="-funit-at-a-time" />
+					<Add option="-fmerge-constants" />
+					<Add option="-fthread-jumps" />
+					<Add option="-fcrossjumping" />
+					<Add option="-foptimize-sibling-calls" />
+					<Add option="-fcse-follow-jumps" />
+					<Add option="-fcse-skip-blocks" />
+					<Add option="-fgcse  -fgcse-lm" />
+					<Add option="-frerun-cse-after-loop" />
+					<Add option="-fcaller-saves" />
+					<Add option="-fpeephole2" />
+					<Add option="-fsched-interblock  -fsched-spec" />
+					<Add option="-fregmove" />
+					<Add option="-fstrict-overflow" />
+					<Add option="-fdelete-null-pointer-checks" />
+					<Add option="-freorder-blocks  -freorder-functions" />
+					<Add option="-falign-functions  -falign-jumps" />
+					<Add option="-falign-loops  -falign-labels" />
+					<Add option="-ftree-vrp" />
+					<Add option="-ftree-pre" />
+					<Add option="-DPCSX2_DEVBUILD" />
+					<Add option="-DPCSX2_DEVEL" />
+					<Add option="-DNDEBUG" />
+				</Compiler>
+				<ResourceCompiler>
+					<Add directory="$(ProjectRootDir)/gui" />
+				</ResourceCompiler>
+				<Linker>
+					<Add library="$(SvnRootDir)/deps/devel/libx86emitter.a" />
+					<Add library="$(SvnRootDir)/deps/devel/libUtilities.a" />
+				</Linker>
+			</Target>
 			<Environment>
 				<Variable name="SvnRootDir" value="../../" />
 				<Variable name="ProjectRootDir" value='&quot;$(SvnRootDir)/pcsx2/&quot;' />
@@ -156,6 +210,7 @@
 			<Add option="-fno-strict-aliasing" />
 			<Add option="-pipe -msse -msse2" />
 			<Add option="-m32" />
+			<Add option="-fvisibility=hidden" />
 			<Add option="-DWX_PRECOMP" />
 			<Add directory="$(SvnRootDir)/common/include/" />
 			<Add directory="$(SvnRootDir)/3rdparty/" />
@@ -194,9 +249,8 @@
 		<Unit filename="../CDVD/IsoFS/SectorSource.h" />
 		<Unit filename="../CDVD/IsoFileFormats.cpp" />
 		<Unit filename="../CDVD/IsoFileFormats.h" />
-		<Unit filename="../CDVD/IsoFileTools.cpp" />
-		<Unit filename="../CDVD/IsoFileTools.h" />
 		<Unit filename="../COP0.cpp" />
+		<Unit filename="../COP0.h" />
 		<Unit filename="../COP2.cpp" />
 		<Unit filename="../Cache.cpp" />
 		<Unit filename="../Cache.h" />
@@ -239,6 +293,8 @@
 		<Unit filename="../IPU/IPU.h" />
 		<Unit filename="../IPU/IPU_Fifo.cpp" />
 		<Unit filename="../IPU/IPU_Fifo.h" />
+		<Unit filename="../IPU/IPUdma.cpp" />
+		<Unit filename="../IPU/IPUdma.h" />
 		<Unit filename="../IPU/mpeg2lib/Idct.cpp" />
 		<Unit filename="../IPU/mpeg2lib/Mpeg.cpp" />
 		<Unit filename="../IPU/mpeg2lib/Mpeg.h" />
@@ -260,6 +316,7 @@
 		<Unit filename="../IopMem.h" />
 		<Unit filename="../IopSio2.cpp" />
 		<Unit filename="../IopSio2.h" />
+		<Unit filename="../Ipu_fifo.h" />
 		<Unit filename="LnxHostSys.cpp" />
 		<Unit filename="LnxKeyCodes.cpp">
 			<Option compiler="gcc" use="1" buildCommand="$compiler $options $includes `pkg-config gtk+-2.0 --cflags` -c $file -o $object" />
@@ -268,6 +325,7 @@
 		<Unit filename="../MTGS.cpp" />
 		<Unit filename="../Memory.cpp" />
 		<Unit filename="../Memory.h" />
+		<Unit filename="../MemoryTypes.h" />
 		<Unit filename="../NakedAsm.h" />
 		<Unit filename="../Patch.cpp" />
 		<Unit filename="../Patch.h" />
@@ -277,6 +335,7 @@
 		<Unit filename="../Pcsx2Config.cpp" />
 		<Unit filename="../PluginManager.cpp" />
 		<Unit filename="../Plugins.h" />
+		<Unit filename="../PrecompiledHeader.cpp" />
 		<Unit filename="../PrecompiledHeader.h" />
 		<Unit filename="../R3000A.cpp" />
 		<Unit filename="../R3000A.h" />
@@ -305,6 +364,7 @@
 		<Unit filename="../Stats.cpp" />
 		<Unit filename="../Stats.h" />
 		<Unit filename="../StringUtils.h" />
+		<Unit filename="../SysForwardDefs.h" />
 		<Unit filename="../System.cpp" />
 		<Unit filename="../System.h" />
 		<Unit filename="../System/PageFaultSource.h" />
@@ -337,7 +397,6 @@
 		<Unit filename="../Vif_Transfer.cpp" />
 		<Unit filename="../Vif_Unpack.cpp" />
 		<Unit filename="../Vif_Unpack.h" />
-		<Unit filename="../Vif_Unpack.inl" />
 		<Unit filename="../ZipTools/ThreadedZipTools.h" />
 		<Unit filename="../ZipTools/thread_gzip.cpp" />
 		<Unit filename="../ZipTools/thread_lzma.cpp" />
@@ -521,9 +580,13 @@
 		<Unit filename="../ps2/BiosTools.cpp" />
 		<Unit filename="../ps2/BiosTools.h" />
 		<Unit filename="../ps2/GIFpath.cpp" />
+		<Unit filename="../ps2/HwInternal.h" />
 		<Unit filename="../ps2/Iop/IopHwRead.cpp" />
 		<Unit filename="../ps2/Iop/IopHwWrite.cpp" />
 		<Unit filename="../ps2/Iop/IopHw_Internal.h" />
+		<Unit filename="../ps2/LegacyDmac.cpp" />
+		<Unit filename="../ps2/eeHwTraceLog.inl" />
+		<Unit filename="../sio_internal.h" />
 		<Unit filename="../vtlb.cpp" />
 		<Unit filename="../vtlb.h" />
 		<Unit filename="../x86/BaseblockEx.cpp" />

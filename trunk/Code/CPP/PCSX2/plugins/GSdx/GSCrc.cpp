@@ -57,6 +57,11 @@ CRC::Game CRC::m_games[] =
 	{0xdc2a467e, FFXII, EU, 0},
 	{0xca284668, FFXII, EU, 0},
 	{0x280AD120, FFXII, JP, 0},
+	{0x08C1ED4D, HauntingGround, Unknown, 0},
+	{0x2CD5794C, HauntingGround, EU, 0},
+	{0x867BB945, HauntingGround, JP, 0},
+	{0xE263BC4B, HauntingGround, JP, 0},
+	{0x901AAC09, HauntingGround, US, 0},
 	{0x8BE3D7B2, ShadowHearts, Unknown, 0},
 	{0xDEFA4763, ShadowHearts, US, 0},
 	{0x21068223, Okami, US, 0},
@@ -72,6 +77,7 @@ CRC::Game CRC::m_games[] =
 	{0x0481AD8A, MetalGearSolid3, JP, 0},
 	{0x79ED26AD, MetalGearSolid3, EU, 0},
 	{0x5E31EA42, MetalGearSolid3, EU, 0},
+	{0xD7ED797D, MetalGearSolid3, EU, 0},
 	{0x278722BF, DBZBT2, US, 0},
 	{0xFE961D28, DBZBT2, US, 0},
 	{0x0393B6BE, DBZBT2, EU, 0},
@@ -106,6 +112,7 @@ CRC::Game CRC::m_games[] =
 	{0x565B6170, WildArms5, JP, 0},
 	{0xBBC3EFFA, WildArms4, US, 0},
 	{0xBBC396EC, WildArms4, US, 0}, //hmm such a small diff in the CRC..
+	{0x7B2DE9CC, WildArms4, EU, 0},
 	{0x8B029334, Manhunt2, Unknown, 0},
 	{0x09F49E37, CrashBandicootWoC, Unknown, 0},
 	{0x013E349D, ResidentEvil4, US, 0},
@@ -146,6 +153,7 @@ CRC::Game CRC::m_games[] =
 	{0x4C7BB3C8, SimpsonsGame, Unknown, 0},
 	{0x4C94B32C, SimpsonsGame, Unknown, 0},
 	{0xD71B57F4, Genji, Unknown, 0},
+	{0xE04EA200, StarOcean3, EU, 0},
 	{0x23A97857, StarOcean3, US, 0},
 	{0xBEC32D49, StarOcean3, JP, 0},
 	{0x8192A241, StarOcean3, JP, 0}, //NTSC JP special directors cut limited extra sugar on top edition (the special one :p)
@@ -153,6 +161,7 @@ CRC::Game CRC::m_games[] =
 	{0xCC96CE93, ValkyrieProfile2, US, 0},
 	{0x774DE8E2, ValkyrieProfile2, JP, 0},
 	{0x04CCB600, ValkyrieProfile2, EU, 0},
+	{0xB65E141B, ValkyrieProfile2, EU, 0}, // PAL German
 	{0x47B9B2FD, RadiataStories, US, 0},
 	{0xE8FCF8EC, SMTNocturne, US, ZWriteMustNotClear},	// saves/reloads z buffer around shadow drawing, same issue with all the SMT games following
 	{0xF0A31EE3, SMTNocturne, EU, ZWriteMustNotClear},	// SMTNocturne (Lucifers Call in EU)
@@ -164,6 +173,7 @@ CRC::Game CRC::m_games[] =
 	{0x1683A6BE, SMTDDS1, EU, ZWriteMustNotClear},		// SMT Digital Devil Saga
 	{0x44865CE1, SMTDDS1, JP, ZWriteMustNotClear},		// SMT Digital Devil Saga
 	{0xD382C164, SMTDDS2, US, ZWriteMustNotClear},		// SMT Digital Devil Saga 2
+	{0xD568B684, SMTDDS2, EU, ZWriteMustNotClear},		// SMT Digital Devil Saga 2
 	{0xE47C1A9C, SMTDDS2, JP, ZWriteMustNotClear},		// SMT Digital Devil Saga 2
 	{0x0B8AB37B, RozenMaidenGebetGarden, JP, 0},
 };

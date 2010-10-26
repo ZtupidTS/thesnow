@@ -25,6 +25,7 @@
 using namespace std;
 
 #include "GS.h"
+#include "GifTransfer.h"
 #include "null/GSnull.h"
 
 const unsigned char version  = PS2E_GS_VERSION;
@@ -40,6 +41,7 @@ bool GSShift = false, GSAlt = false;
 string s_strIniPath="inis";
 std::string s_strLogPath("logs/");
 const char* s_iniFilename = "GSnull.ini";
+GSVars gs;
 
 // Because I haven't bothered to get GSOpen2 working in Windows yet in GSNull.
 #ifdef __LINUX__
@@ -47,6 +49,10 @@ const char* s_iniFilename = "GSnull.ini";
 #endif
 
 void (*GSirq)();
+extern void ResetRegs();
+extern void SetMultithreaded();
+extern void SetFrameSkip(bool skip);
+extern void InitPath();
 
 EXPORT_C_(u32) PS2EgetLibType()
 {
@@ -130,7 +136,10 @@ EXPORT_C_(void) GSsetLogDir(const char* dir)
 	s_strLogPath = (dir==NULL) ? "logs/" : dir;
 
 	// Reload the log file after updated the path
-	if (gsLog != NULL) fclose(gsLog);
+	if (gsLog) {
+        fclose(gsLog);
+        gsLog = NULL;
+    }
     OpenLog();
 }
 
@@ -150,7 +159,10 @@ EXPORT_C_(void) GSshutdown()
 	GSCloseWindow();
 
 #ifdef GS_LOG
-	if (gsLog) fclose(gsLog);
+	if (gsLog) {
+        fclose(gsLog);
+        gsLog = NULL;
+    }
 #endif
 }
 
@@ -161,7 +173,11 @@ EXPORT_C_(s32) GSopen(void *pDsp, char *Title, int multithread)
 	//assert( GSirq != NULL );
 
 	err = GSOpenWindow(pDsp, Title);
+	gs.MultiThreaded = multithread;
 
+	ResetRegs();
+	SetMultithreaded();
+	InitPath();
 	SysPrintf("Opening GSnull\n");
 	return err;
 }
@@ -173,6 +189,11 @@ EXPORT_C_(s32) GSopen2( void *pDsp, u32 flags )
 
     GSOpenWindow2(pDsp, flags);
 
+	gs.MultiThreaded = true;
+
+	ResetRegs();
+	SetMultithreaded();
+	InitPath();
 	SysPrintf("Opening GSnull (2)\n");
 	return 0;
 }
@@ -208,24 +229,11 @@ EXPORT_C_(void) GSvsync(int field)
 	GSProcessMessages();
 }
 
-EXPORT_C_(void) GSgifTransfer1(u32 *pMem, u32 addr)
-{
-	_GSgifTransfer1(pMem, addr);
-}
-
-EXPORT_C_(void) GSgifTransfer2(u32 *pMem, u32 size)
-{
-	_GSgifTransfer2(pMem, size);
-}
-
-EXPORT_C_(void) GSgifTransfer3(u32 *pMem, u32 size)
-{
-	_GSgifTransfer3(pMem, size);
-}
-
  // returns the last tag processed (64 bits)
 EXPORT_C_(void) GSgetLastTag(u64* ptag)
 {
+	*(u32*)ptag = gs.nPath3Hack;
+	gs.nPath3Hack = 0;
 }
 
 EXPORT_C_(void) GSgifSoftReset(u32 mask)
@@ -276,6 +284,7 @@ EXPORT_C_(void) GSsetGameCRC(int crc, int gameoptions)
 // controls frame skipping in the GS, if this routine isn't present, frame skipping won't be done
 EXPORT_C_(void) GSsetFrameSkip(int frameskip)
 {
+	SetFrameSkip(frameskip != 0);
 	SysPrintf("Frameskip set to %d.\n", frameskip);
 }
 

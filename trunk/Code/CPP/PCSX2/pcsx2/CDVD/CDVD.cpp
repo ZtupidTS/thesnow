@@ -37,7 +37,7 @@ wxString DiscSerial;
 
 static cdvdStruct cdvd;
 
-static __forceinline void SetResultSize(u8 size)
+static __fi void SetResultSize(u8 size)
 {
 	cdvd.ResultC = size;
 	cdvd.ResultP = 0;
@@ -46,6 +46,8 @@ static __forceinline void SetResultSize(u8 size)
 
 static void CDVDREAD_INT(int eCycle)
 {
+	// Give it an arbitary FAST value. Good for ~5000kb/s in ULE when copying a file from CDVD to HDD
+	if (EmuConfig.Speedhacks.fastCDVD) eCycle = 3000;
 	PSX_INT(IopEvt_CdvdRead, eCycle);
 }
 
@@ -81,22 +83,20 @@ static int mg_BIToffset(u8 *buffer)
 
 FILE *_cdvdOpenMechaVer()
 {
-	FILE* fd;
-
 	// get the name of the bios file
 
 	wxFileName mecfile(EmuConfig.BiosFilename);
 	mecfile.SetExt( L"mec" );
-	const wxCharBuffer file( mecfile.GetFullPath().ToUTF8() );
+	const wxString fname( mecfile.GetFullPath() );
 
 	// if file doesnt exist, create empty one
-	fd = fopen(file, "r+b");
+	FILE* fd = wxFopen(fname, L"r+b");
 	if (fd == NULL)
 	{
-		Console.Warning("MEC File Not Found , Creating Blank File");
-		fd = fopen(file, "wb");
+		Console.Warning("MEC File Not Found, creating substitute...");
+		fd = wxFopen(fname, L"wb");
 		if (fd == NULL)
-			throw Exception::CannotCreateStream(mecfile.GetFullPath());
+			throw Exception::CannotCreateStream(fname);
 
 		fputc(0x03, fd);
 		fputc(0x06, fd);
@@ -106,32 +106,30 @@ FILE *_cdvdOpenMechaVer()
 	return fd;
 }
 
-s32 cdvdGetMechaVer(u8* ver)
+static void cdvdGetMechaVer(u8* ver)
 {
 	FILE* fd = _cdvdOpenMechaVer();
-	if (fd == NULL) return 1;
 	fseek(fd, 0, SEEK_SET);
 	fread(ver, 1, 4, fd);
 	fclose(fd);
-	return 0;
 }
 
-FILE *_cdvdOpenNVM()
+// Throws Exception::CannotCreateStream if the file cannot be opened for reading, or cannot
+// be created for some reason.
+FILE* _cdvdOpenNVM()
 {
-	FILE* fd;
-
 	wxFileName nvmfile(EmuConfig.BiosFilename);
 	nvmfile.SetExt( L"nvm" );
-	const wxCharBuffer file( nvmfile.GetFullPath().ToUTF8() );
+	const wxString fname( nvmfile.GetFullPath() );
 
 	// if file doesn't exist, create empty one
-	fd = fopen(file, "r+b");
+	FILE* fd = wxFopen(fname, L"r+b");
 	if (fd == NULL)
 	{
-		Console.Warning("NVM File Not Found , Creating Blank File");
-		fd = fopen(file, "wb");
+		Console.Warning("NVM File Not Found, Creating Blank File");
+		fd = wxFopen(fname, L"wb");
 		if (fd == NULL)
-			throw Exception::CannotCreateStream(nvmfile.GetFullPath());
+			throw Exception::CannotCreateStream(fname);
 
 		for (int i=0; i<1024; i++) fputc(0, fd);
 	}
@@ -142,28 +140,23 @@ FILE *_cdvdOpenNVM()
 // the following 'cdvd' functions all return 0 if successful
 //
 
-s32 cdvdReadNVM(u8 *dst, int offset, int bytes) {
+static void cdvdReadNVM(u8 *dst, int offset, int bytes) {
 	FILE* fd = _cdvdOpenNVM();
-	if (fd == NULL) return 1;
 
 	fseek(fd, offset, SEEK_SET);
 	fread(dst, 1, bytes, fd);
 	fclose(fd);
-
-	return 0;
 }
-s32 cdvdWriteNVM(const u8 *src, int offset, int bytes) {
+
+static void cdvdWriteNVM(const u8 *src, int offset, int bytes) {
 	FILE* fd = _cdvdOpenNVM();
-	if (fd == NULL) return 1;
 
 	fseek(fd, offset, SEEK_SET);
 	fwrite(src, 1, bytes, fd);
 	fclose(fd);
-
-	return 0;
 }
 
-NVMLayout* getNvmLayout(void)
+NVMLayout* getNvmLayout()
 {
 	NVMLayout* nvmLayout = NULL;
 	s32 nvmIdx;
@@ -176,70 +169,67 @@ NVMLayout* getNvmLayout(void)
 	return nvmLayout;
 }
 
-s32 getNvmData(u8* buffer, s32 offset, s32 size, s32 fmtOffset)
+void getNvmData(u8* buffer, s32 offset, s32 size, s32 fmtOffset)
 {
 	// find the correct bios version
 	NVMLayout* nvmLayout = getNvmLayout();
-	if (nvmLayout == NULL) return 1;
 
 	// get data from eeprom
-	return cdvdReadNVM(buffer, *(s32*)(((u8*)nvmLayout)+fmtOffset) + offset, size);
+	cdvdReadNVM(buffer, *(s32*)(((u8*)nvmLayout)+fmtOffset) + offset, size);
 }
-s32 setNvmData(const u8* buffer, s32 offset, s32 size, s32 fmtOffset)
+
+void  setNvmData(const u8* buffer, s32 offset, s32 size, s32 fmtOffset)
 {
 	// find the correct bios version
 	NVMLayout* nvmLayout = getNvmLayout();
-	if (nvmLayout == NULL) return 1;
 
 	// set data in eeprom
-	return cdvdWriteNVM(buffer, *(s32*)(((u8*)nvmLayout)+fmtOffset) + offset, size);
+	cdvdWriteNVM(buffer, *(s32*)(((u8*)nvmLayout)+fmtOffset) + offset, size);
 }
 
-s32 cdvdReadConsoleID(u8* id)
+static void cdvdReadConsoleID(u8* id)
 {
-	return getNvmData(id, 0, 8, offsetof(NVMLayout, consoleId));
+	getNvmData(id, 0, 8, offsetof(NVMLayout, consoleId));
 }
-s32 cdvdWriteConsoleID(const u8* id)
+static void cdvdWriteConsoleID(const u8* id)
 {
-	return setNvmData(id, 0, 8, offsetof(NVMLayout, consoleId));
-}
-
-s32 cdvdReadILinkID(u8* id)
-{
-	return getNvmData(id, 0, 8, offsetof(NVMLayout, ilinkId));
-}
-s32 cdvdWriteILinkID(const u8* id)
-{
-	return setNvmData(id, 0, 8, offsetof(NVMLayout, ilinkId));
+	setNvmData(id, 0, 8, offsetof(NVMLayout, consoleId));
 }
 
-s32 cdvdReadModelNumber(u8* num, s32 part)
+static void cdvdReadILinkID(u8* id)
 {
-	return getNvmData(num, part, 8, offsetof(NVMLayout, modelNum));
+	getNvmData(id, 0, 8, offsetof(NVMLayout, ilinkId));
 }
-s32 cdvdWriteModelNumber(const u8* num, s32 part)
+static void cdvdWriteILinkID(const u8* id)
 {
-	return setNvmData(num, part, 8, offsetof(NVMLayout, modelNum));
-}
-
-s32 cdvdReadRegionParams(u8* num)
-{
-	return getNvmData(num, 0, 8, offsetof(NVMLayout,regparams));
+	setNvmData(id, 0, 8, offsetof(NVMLayout, ilinkId));
 }
 
-s32 cdvdWriteRegionParams(const u8* num)
+static void cdvdReadModelNumber(u8* num, s32 part)
 {
-	return setNvmData(num, 0, 8, offsetof(NVMLayout,regparams));
+	getNvmData(num, part, 8, offsetof(NVMLayout, modelNum));
+}
+static void cdvdWriteModelNumber(const u8* num, s32 part)
+{
+	setNvmData(num, part, 8, offsetof(NVMLayout, modelNum));
 }
 
-s32 cdvdReadMAC(u8* num)
+static void cdvdReadRegionParams(u8* num)
 {
-	return getNvmData(num, 0, 8, offsetof(NVMLayout,mac));
+	getNvmData(num, 0, 8, offsetof(NVMLayout,regparams));
+}
+static void cdvdWriteRegionParams(const u8* num)
+{
+	setNvmData(num, 0, 8, offsetof(NVMLayout,regparams));
 }
 
-s32 cdvdWriteMAC(const u8* num)
+static void cdvdReadMAC(u8* num)
 {
-	return setNvmData(num, 0, 8, offsetof(NVMLayout,mac));
+	getNvmData(num, 0, 8, offsetof(NVMLayout,mac));
+}
+static void cdvdWriteMAC(const u8* num)
+{
+	setNvmData(num, 0, 8, offsetof(NVMLayout,mac));
 }
 
 s32 cdvdReadConfig(u8* config)
@@ -268,14 +258,15 @@ s32 cdvdReadConfig(u8* config)
 	switch (cdvd.COffset)
 	{
 		case 0:
-			return getNvmData(config, (cdvd.CBlockIndex++)*16, 16, offsetof(NVMLayout, config0));
+			getNvmData(config, (cdvd.CBlockIndex++)*16, 16, offsetof(NVMLayout, config0));
 			break;
 		case 2:
-			return getNvmData(config, (cdvd.CBlockIndex++)*16, 16, offsetof(NVMLayout, config2));
+			getNvmData(config, (cdvd.CBlockIndex++)*16, 16, offsetof(NVMLayout, config2));
 			break;
 		default:
-			return getNvmData(config, (cdvd.CBlockIndex++)*16, 16, offsetof(NVMLayout, config1));
+			getNvmData(config, (cdvd.CBlockIndex++)*16, 16, offsetof(NVMLayout, config1));
 	}
+	return 0;
 }
 s32 cdvdWriteConfig(const u8* config)
 {
@@ -293,20 +284,21 @@ s32 cdvdWriteConfig(const u8* config)
 	switch (cdvd.COffset)
 	{
 		case 0:
-			return setNvmData(config, (cdvd.CBlockIndex++)*16, 16, offsetof(NVMLayout, config0));
+			setNvmData(config, (cdvd.CBlockIndex++)*16, 16, offsetof(NVMLayout, config0));
 			break;
 		case 2:
-			return setNvmData(config, (cdvd.CBlockIndex++)*16, 16, offsetof(NVMLayout, config2));
+			setNvmData(config, (cdvd.CBlockIndex++)*16, 16, offsetof(NVMLayout, config2));
 			break;
 		default:
-			return setNvmData(config, (cdvd.CBlockIndex++)*16, 16, offsetof(NVMLayout, config1));
+			setNvmData(config, (cdvd.CBlockIndex++)*16, 16, offsetof(NVMLayout, config1));
 	}
+	return 0;
 }
 
 static MutexRecursive Mutex_NewDiskCB;
 
 // Sets ElfCRC to the CRC of the game bound to the CDVD plugin.
-static __forceinline ElfObject* loadElf( const wxString filename )
+static __fi ElfObject* loadElf( const wxString filename )
 {
 	if (filename.StartsWith(L"host"))
 		return new ElfObject(filename.After(':'), Path::GetFileSize(filename.After(':')));
@@ -336,16 +328,14 @@ static __forceinline ElfObject* loadElf( const wxString filename )
 	return new ElfObject(filename, file);
 }
 
-static __forceinline void _reloadElfInfo(wxString elfpath)
+static __fi void _reloadElfInfo(wxString elfpath)
 {
 	ScopedPtr<ElfObject> elfptr;
 
 	// Now's a good time to reload the ELF info...
     ScopedLock locker( Mutex_NewDiskCB );
 
-	if (elfpath == LastELF)
-		return;
-
+	if (elfpath == LastELF) return;
 	LastELF = elfpath;
 
 	wxString fname = elfpath.AfterLast('\\');
@@ -359,10 +349,8 @@ static __forceinline void _reloadElfInfo(wxString elfpath)
 	elfptr = loadElf(elfpath);
 
 	ElfCRC = elfptr->getCRC();
-	Console.WriteLn("ELF (%s) CRC = %8.8X", elfpath.ToUTF8().data(), ElfCRC);
-
 	ElfEntry = elfptr->header.e_entry;
-	Console.WriteLn("Entry point = 0x%08x", ElfEntry);
+	Console.WriteLn(L"ELF (%s) CRC=0x%08X, EntryPoint=0x%08X", elfpath.c_str(), ElfCRC, ElfEntry);
 
 	// Note: Do not load game database info here.  This code is generic and called from
 	// BIOS key encryption as well as eeloadReplaceOSDSYS.  The first is actually still executing
@@ -415,38 +403,41 @@ void cdvdReloadElfInfo(wxString elfoverride)
 	}
 }
 
-static __forceinline s32 StrToS32(const wxString& str, int base = 10)
+static __fi s32 StrToS32(const wxString& str, int base = 10)
 {
     long l;
     str.ToLong(&l, base);
     return l;
 }
 
-void cdvdReadKey(u8 arg0, u16 arg1, u32 arg2, u8* key)
+void cdvdReadKey(u8, u16, u32 arg2, u8* key)
 {
-	s32 numbers, letters;
+	s32 numbers=0, letters=0;
 	u32 key_0_3;
 	u8 key_4, key_14;
 
     cdvdReloadElfInfo();
 
-	// convert the number characters to a real 32 bit number
-	numbers = StrToS32(DiscSerial(5,5));
+	// clear key values
+	memzero_ptr<16>(key);
 
-	// combine the lower 7 bits of each char
-	// to make the 4 letters fit into a single u32
-	letters =	(s32)((DiscSerial[3]&0x7F)<< 0) |
-				(s32)((DiscSerial[2]&0x7F)<< 7) |
-				(s32)((DiscSerial[1]&0x7F)<<14) |
-				(s32)((DiscSerial[0]&0x7F)<<21);
+	if (!DiscSerial.IsEmpty())
+	{
+		// convert the number characters to a real 32 bit number
+		numbers = StrToS32(DiscSerial(5,5));
+
+		// combine the lower 7 bits of each char
+		// to make the 4 letters fit into a single u32
+		letters =	(s32)((DiscSerial[3]&0x7F)<< 0) |
+					(s32)((DiscSerial[2]&0x7F)<< 7) |
+					(s32)((DiscSerial[1]&0x7F)<<14) |
+					(s32)((DiscSerial[0]&0x7F)<<21);
+	}
 
 	// calculate magic numbers
 	key_0_3 = ((numbers & 0x1FC00) >> 10) | ((0x01FFFFFF & letters) <<  7);	// numbers = 7F  letters = FFFFFF80
 	key_4   = ((numbers & 0x0001F) <<  3) | ((0x0E000000 & letters) >> 25);	// numbers = F8  letters = 07
 	key_14  = ((numbers & 0x003E0) >>  2) | 0x04;							// numbers = F8  extra   = 04  unused = 03
-
-	// clear key values
-	memzero_ptr<16>(key);
 
 	// store key values
 	key[ 0] = (key_0_3&0x000000FF)>> 0;
@@ -454,7 +445,7 @@ void cdvdReadKey(u8 arg0, u16 arg1, u32 arg2, u8* key)
 	key[ 2] = (key_0_3&0x00FF0000)>>16;
 	key[ 3] = (key_0_3&0xFF000000)>>24;
 	key[ 4] = key_4;
-
+	
     switch (arg2)
     {
         case 75:
@@ -481,7 +472,7 @@ void cdvdReadKey(u8 arg0, u16 arg1, u32 arg2, u8* key)
             break;
     }
 
-	Console.WriteLn( "CDVD.KEY = %02X,%02X,%02X,%02X,%02X,%02X,%02X",
+	DevCon.WriteLn( "CDVD.KEY = %02X,%02X,%02X,%02X,%02X,%02X,%02X",
 		cdvd.Key[0],cdvd.Key[1],cdvd.Key[2],cdvd.Key[3],cdvd.Key[4],cdvd.Key[14],cdvd.Key[15] );
 }
 
@@ -538,7 +529,7 @@ s32 cdvdGetTrayStatus()
 //   cdvdNewDiskCB() can update it's status as well...
 
 // Modified by (efp) - 16/01/2006
-static __forceinline void cdvdGetDiskType()
+static __fi void cdvdGetDiskType()
 {
 	cdvd.Type = DoCDVDdetectDiskType();
 }
@@ -739,7 +730,7 @@ int cdvdReadSector() {
 }
 
 // inlined due to being referenced in only one place.
-__forceinline void cdvdActionInterrupt()
+__fi void cdvdActionInterrupt()
 {
 	switch( cdvd.Action )
 	{
@@ -784,7 +775,7 @@ __forceinline void cdvdActionInterrupt()
 }
 
 // inlined due to being referenced in only one place.
-__forceinline void cdvdReadInterrupt()
+__fi void cdvdReadInterrupt()
 {
 	//Console.WriteLn("cdvdReadInterrupt %x %x %x %x %x", cpuRegs.interrupt, cdvd.Readed, cdvd.Reading, cdvd.nSectors, (HW_DMA3_BCR_H16 * HW_DMA3_BCR_L16) *4);
 
@@ -981,7 +972,7 @@ void cdvdVsync() {
 	cdvd.RTC.year = 0;
 }
 
-static __forceinline u8 cdvdRead18(void)  // SDATAOUT
+static __fi u8 cdvdRead18(void)  // SDATAOUT
 {
 	u8 ret = 0;
 
@@ -1346,7 +1337,7 @@ static void cdvdWrite04(u8 rt) { // NCOMMAND
 	cdvd.ParamC = 0;
 }
 
-static __forceinline void cdvdWrite05(u8 rt) { // NDATAIN
+static __fi void cdvdWrite05(u8 rt) { // NDATAIN
 	CDVD_LOG("cdvdWrite05(NDataIn) %x", rt);
 
 	if (cdvd.ParamP < 32) {
@@ -1355,12 +1346,12 @@ static __forceinline void cdvdWrite05(u8 rt) { // NDATAIN
 	}
 }
 
-static __forceinline void cdvdWrite06(u8 rt) { // HOWTO
+static __fi void cdvdWrite06(u8 rt) { // HOWTO
 	CDVD_LOG("cdvdWrite06(HowTo) %x", rt);
 	cdvd.HowTo = rt;
 }
 
-static __forceinline void cdvdWrite07(u8 rt)		// BREAK
+static __fi void cdvdWrite07(u8 rt)		// BREAK
 {
 	CDVD_LOG("cdvdWrite07(Break) %x", rt);
 
@@ -1384,21 +1375,21 @@ static __forceinline void cdvdWrite07(u8 rt)		// BREAK
 	//cdvd.nCommand = 0;
 }
 
-static __forceinline void cdvdWrite08(u8 rt) { // INTR_STAT
+static __fi void cdvdWrite08(u8 rt) { // INTR_STAT
 	CDVD_LOG("cdvdWrite08(IntrReason) = ACK(%x)", rt);
 	cdvd.PwOff &= ~rt;
 }
 
-static __forceinline void cdvdWrite0A(u8 rt) { // STATUS
+static __fi void cdvdWrite0A(u8 rt) { // STATUS
 	CDVD_LOG("cdvdWrite0A(Status) %x", rt);
 }
 
-static __forceinline void cdvdWrite0F(u8 rt) { // TYPE
+static __fi void cdvdWrite0F(u8 rt) { // TYPE
 	CDVD_LOG("cdvdWrite0F(Type) %x", rt);
 	DevCon.WriteLn("*PCSX2*: CDVD TYPE %x", rt);
 }
 
-static __forceinline void cdvdWrite14(u8 rt) { // PS1 MODE??
+static __fi void cdvdWrite14(u8 rt) { // PS1 MODE??
 	u32 cycle = psxRegs.cycle;
 
 	if (rt == 0xFE)
@@ -1412,7 +1403,7 @@ static __forceinline void cdvdWrite14(u8 rt) { // PS1 MODE??
 	psxRegs.cycle = cycle;
 }
 
-static __forceinline void fail_pol_cal()
+static __fi void fail_pol_cal()
 {
 	Console.Error("[MG] ERROR - Make sure the file is already decrypted!!!");
 	cdvd.Result[0] = 0x80;
@@ -1430,6 +1421,8 @@ static void cdvdWrite16(u8 rt)		 // SCOMMAND
 	CDVD_LOG("cdvdWrite16: SCMD %s (%x) (ParamP = %x)", sCmdName[rt], rt, cdvd.ParamP);
 
 	cdvd.sCommand = rt;
+	cdvd.Result[0] = 0;		// assume success -- failures will overwrite this with an error code.
+
 	switch (rt) {
 //		case 0x01: // GetDiscType - from cdvdman (0:1)
 //			SetResultSize(1);
@@ -1451,12 +1444,12 @@ static void cdvdWrite16(u8 rt)		 // SCOMMAND
 
 				case 0x44: // write console ID (9:1)
 					SetResultSize(1);
-					cdvd.Result[0] = cdvdWriteConsoleID(&cdvd.Param[1]);
+					cdvdWriteConsoleID(&cdvd.Param[1]);
 					break;
 
 				case 0x45: // read console ID (1:9)
 					SetResultSize(9);
-					cdvd.Result[0] = cdvdReadConsoleID(&cdvd.Result[1]);
+					cdvdReadConsoleID(&cdvd.Result[1]);
 					break;
 
 				case 0xFD: // _sceCdReadRenewalDate (1:6) BCD
@@ -1537,7 +1530,7 @@ static void cdvdWrite16(u8 rt)		 // SCOMMAND
 			if (address < 512)
 			{
 				SetResultSize(3);
-				cdvd.Result[0] = cdvdReadNVM(&cdvd.Result[1], address*2, 2);
+				cdvdReadNVM(&cdvd.Result[1], address*2, 2);
 				// swap bytes around
 				tmp = cdvd.Result[1];
 				cdvd.Result[1] = cdvd.Result[2];
@@ -1560,7 +1553,7 @@ static void cdvdWrite16(u8 rt)		 // SCOMMAND
 				tmp = cdvd.Param[2];
 				cdvd.Param[2] = cdvd.Param[3];
 				cdvd.Param[3] = tmp;
-				cdvd.Result[0] = cdvdWriteNVM(&cdvd.Param[2], address*2, 2);
+				cdvdWriteNVM(&cdvd.Param[2], address*2, 2);
 			}
 			else
 			{
@@ -1579,12 +1572,12 @@ static void cdvdWrite16(u8 rt)		 // SCOMMAND
 
 		case 0x12: // sceCdReadILinkId (0:9)
 			SetResultSize(9);
-			cdvd.Result[0] = cdvdReadILinkID(&cdvd.Result[1]);
+			cdvdReadILinkID(&cdvd.Result[1]);
 			break;
 
 		case 0x13: // sceCdWriteILinkID (8:1)
 			SetResultSize(1);
-			cdvd.Result[0] = cdvdWriteILinkID(&cdvd.Param[1]);
+			cdvdWriteILinkID(&cdvd.Param[1]);
 			break;
 
 		case 0x14: // CdCtrlAudioDigitalOut (1:1)
@@ -1606,12 +1599,12 @@ static void cdvdWrite16(u8 rt)		 // SCOMMAND
 
 		case 0x17: // CdReadModelNumber (1:9) - from xcdvdman
 			SetResultSize(9);
-			cdvd.Result[0] = cdvdReadModelNumber(&cdvd.Result[1], cdvd.Param[0]);
+			cdvdReadModelNumber(&cdvd.Result[1], cdvd.Param[0]);
 			break;
 
 		case 0x18: // CdWriteModelNumber (9:1) - from xcdvdman
 			SetResultSize(1);
-			cdvd.Result[0] = cdvdWriteModelNumber(&cdvd.Param[1], cdvd.Param[0]);
+			cdvdWriteModelNumber(&cdvd.Param[1], cdvd.Param[0]);
 			break;
 
 //		case 0x19: // sceCdForbidRead (0:1) - from xcdvdman
@@ -1727,7 +1720,7 @@ static void cdvdWrite16(u8 rt)		 // SCOMMAND
 			SetResultSize(15);
 
 			cdvdGetMechaVer(&cdvd.Result[1]);
-			cdvd.Result[0] = cdvdReadRegionParams(&cdvd.Result[3]);//size==8
+			cdvdReadRegionParams(&cdvd.Result[3]);//size==8
 			Console.WriteLn("REGION PARAMS = %s %s", mg_zones[cdvd.Result[1]], &cdvd.Result[3]);
 			cdvd.Result[1] = 1 << cdvd.Result[1];	//encryption zone; see offset 0x1C in encrypted headers
 			//////////////////////////////////////////
@@ -1749,17 +1742,17 @@ static void cdvdWrite16(u8 rt)		 // SCOMMAND
 
 		case 0x37: //called from EECONF [sceCdReadMAC - made up name] (0:9)
 			SetResultSize(9);
-			cdvd.Result[0] = cdvdReadMAC(&cdvd.Result[1]);
+			cdvdReadMAC(&cdvd.Result[1]);
 			break;
 
 		case 0x38: //used to fix the MAC back after accidentally trashed it :D [sceCdWriteMAC - made up name] (8:1)
 			SetResultSize(1);
-			cdvd.Result[0] = cdvdWriteMAC(&cdvd.Param[0]);
+			cdvdWriteMAC(&cdvd.Param[0]);
 			break;
 
 		case 0x3E: //[__sceCdWriteRegionParams - made up name] (15:1) [Florin: hum, i was expecting 14:1]
 			SetResultSize(1);
-			cdvd.Result[0] = cdvdWriteRegionParams(&cdvd.Param[2]);
+			cdvdWriteRegionParams(&cdvd.Param[2]);
 			break;
 
 		case 0x40: // CdOpenConfig (3:1)
@@ -1778,7 +1771,7 @@ static void cdvdWrite16(u8 rt)		 // SCOMMAND
 
 		case 0x42: // CdWriteConfig (16:1)
 			SetResultSize(1);
-			cdvd.Result[0] = cdvdWriteConfig(&cdvd.Param[0]);
+			cdvdWriteConfig(&cdvd.Param[0]);
 			break;
 
 		case 0x43: // CdCloseConfig (0:1)
@@ -1895,14 +1888,17 @@ static void cdvdWrite16(u8 rt)		 // SCOMMAND
 					break;
 				}
 
-				Console.Write("[MG] ELF_size=0x%X Hdr_size=0x%X unk=0x%X flags=0x%X count=%d zones=",
-					*(u32*)&cdvd.mg_buffer[0x10], *(u16*)&cdvd.mg_buffer[0x14], *(u16*)&cdvd.mg_buffer[0x16],
-					*(u16*)&cdvd.mg_buffer[0x18], *(u16*)&cdvd.mg_buffer[0x1A]);
+				std::string zoneStr;
 				for (i=0; i<8; i++)
 				{
-					if (cdvd.mg_buffer[0x1C] & (1<<i)) Console.Write("%s ", mg_zones[i]);
+					if (cdvd.mg_buffer[0x1C] & (1<<i)) zoneStr += mg_zones[i];
 				}
-				Console.Newline();
+
+				Console.WriteLn("[MG] ELF_size=0x%X Hdr_size=0x%X unk=0x%X flags=0x%X count=%d zones=%s",
+					*(u32*)&cdvd.mg_buffer[0x10], *(u16*)&cdvd.mg_buffer[0x14], *(u16*)&cdvd.mg_buffer[0x16],
+					*(u16*)&cdvd.mg_buffer[0x18], *(u16*)&cdvd.mg_buffer[0x1A],
+					zoneStr.c_str()
+				);
 
 				bit_ofs = mg_BIToffset(cdvd.mg_buffer);
 
@@ -1919,7 +1915,7 @@ static void cdvdWrite16(u8 rt)		 // SCOMMAND
 				//memcpy(cdvd.mg_kcon, &cdvd.mg_buffer[bit_ofs-0x10], 0x10);
 
 				if ((cdvd.mg_buffer[bit_ofs+5] || cdvd.mg_buffer[bit_ofs+6] || cdvd.mg_buffer[bit_ofs+7]) ||
-				     (cdvd.mg_buffer[bit_ofs+4] * 16 + bit_ofs + 8 + 16 != *(u16*)&cdvd.mg_buffer[0x14]))
+					(cdvd.mg_buffer[bit_ofs+4] * 16 + bit_ofs + 8 + 16 != *(u16*)&cdvd.mg_buffer[0x14]))
 				{
 					fail_pol_cal();
 					break;
@@ -2020,7 +2016,7 @@ static void cdvdWrite16(u8 rt)		 // SCOMMAND
 	cdvd.ParamC = 0;
 }
 
-static __forceinline void cdvdWrite17(u8 rt) { // SDATAIN
+static __fi void cdvdWrite17(u8 rt) { // SDATAIN
 	CDVD_LOG("cdvdWrite17(SDataIn) %x", rt);
 
 	if (cdvd.ParamP < 32) {
@@ -2029,12 +2025,12 @@ static __forceinline void cdvdWrite17(u8 rt) { // SDATAIN
 	}
 }
 
-static __forceinline void cdvdWrite18(u8 rt) { // SDATAOUT
+static __fi void cdvdWrite18(u8 rt) { // SDATAOUT
 	CDVD_LOG("cdvdWrite18(SDataOut) %x", rt);
 	Console.WriteLn("*PCSX2* SDATAOUT");
 }
 
-static __forceinline void cdvdWrite3A(u8 rt) { // DEC-SET
+static __fi void cdvdWrite3A(u8 rt) { // DEC-SET
 	CDVD_LOG("cdvdWrite3A(DecSet) %x", rt);
 	cdvd.decSet = rt;
 	Console.WriteLn("DecSet Write: %02X", cdvd.decSet);

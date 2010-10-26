@@ -24,7 +24,7 @@ _sif sif1;
 
 static bool done = false;
 
-static __forceinline void Sif1Init()
+static __fi void Sif1Init()
 {
 	SIF_LOG("SIF1 DMA start...");
 	done = false;
@@ -33,16 +33,16 @@ static __forceinline void Sif1Init()
 }
 
 // Write from the EE to Fifo.
-static __forceinline bool WriteEEtoFifo()
+static __fi bool WriteEEtoFifo()
 {
 	// There's some data ready to transfer into the fifo..
 
 	SIF_LOG("Sif 1: Write EE to Fifo");
-	const int writeSize = min((s32)sif1dma->qwc, sif1.fifo.free() >> 2);
+	const int writeSize = min((s32)sif1dma.qwc, sif1.fifo.free() >> 2);
 
 	tDMA_TAG *ptag;
 
-	ptag = sif1dma->getAddr(sif1dma->madr, DMAC_SIF1, false);
+	ptag = sif1dma.getAddr(sif1dma.madr, DMAC_SIF1, false);
 	if (ptag == NULL)
 	{
 		DevCon.Warning("Write EE to Fifo: ptag == NULL");
@@ -51,15 +51,15 @@ static __forceinline bool WriteEEtoFifo()
 
 	sif1.fifo.write((u32*)ptag, writeSize << 2);
 
-	sif1dma->madr += writeSize << 4;
+	sif1dma.madr += writeSize << 4;
 	sif1.ee.cycles += writeSize;		// fixme : BIAS is factored in above
-	sif1dma->qwc -= writeSize;
+	sif1dma.qwc -= writeSize;
 
 	return true;
 }
 
 // Read from the fifo and write to IOP
-static __forceinline bool WriteFifoToIOP()
+static __fi bool WriteFifoToIOP()
 {
 	// If we're reading something, continue to do so.
 
@@ -68,9 +68,9 @@ static __forceinline bool WriteFifoToIOP()
 
 	SIF_LOG("Sif 1 IOP doing transfer %04X to %08X", readSize, HW_DMA10_MADR);
 
-	sif1.fifo.read((u32*)iopPhysMem(hw_dma(10).madr), readSize);
-	psxCpu->Clear(hw_dma(10).madr, readSize);
-	hw_dma(10).madr += readSize << 2;
+	sif1.fifo.read((u32*)iopPhysMem(hw_dma10.madr), readSize);
+	psxCpu->Clear(hw_dma10.madr, readSize);
+	hw_dma10.madr += readSize << 2;
 	sif1.iop.cycles += readSize >> 2;		// fixme: should be >> 4
 	sif1.iop.counter -= readSize;
 
@@ -78,27 +78,27 @@ static __forceinline bool WriteFifoToIOP()
 }
 
 // Get a tag and process it.
-static __forceinline bool ProcessEETag()
+static __fi bool ProcessEETag()
 {
 	// Chain mode
 	tDMA_TAG *ptag;
 	SIF_LOG("Sif1: ProcessEETag");
 
-	// Process DMA tag at sif1dma->tadr
-	ptag = sif1dma->DMAtransfer(sif1dma->tadr, DMAC_SIF1);
+	// Process DMA tag at sif1dma.tadr
+	ptag = sif1dma.DMAtransfer(sif1dma.tadr, DMAC_SIF1);
 	if (ptag == NULL)
 	{
 		Console.WriteLn("Sif1 ProcessEETag: ptag = NULL");
 		return false;
 	}
 
-	if (sif1dma->chcr.TTE)
+	if (sif1dma.chcr.TTE)
 	{
 		Console.WriteLn("SIF1 TTE");
 		sif1.fifo.write((u32*)ptag + 2, 2);
 	}
 
-	if (sif1dma->chcr.TIE && ptag->IRQ)
+	if (sif1dma.chcr.TIE && ptag->IRQ)
 	{
 		Console.WriteLn("SIF1 TIE");
 		sif1.ee.end = true;
@@ -109,30 +109,30 @@ static __forceinline bool ProcessEETag()
 	{
 		case TAG_REFE:
 			sif1.ee.end = true;
-			sif1dma->madr = ptag[1]._u32;
-			sif1dma->tadr += 16;
+			sif1dma.madr = ptag[1]._u32;
+			sif1dma.tadr += 16;
 			break;
 
 		case TAG_CNT:
-			sif1dma->madr = sif1dma->tadr + 16;
-			sif1dma->tadr = sif1dma->madr + (sif1dma->qwc << 4);
+			sif1dma.madr = sif1dma.tadr + 16;
+			sif1dma.tadr = sif1dma.madr + (sif1dma.qwc << 4);
 			break;
 
 		case TAG_NEXT:
-			sif1dma->madr = sif1dma->tadr + 16;
-			sif1dma->tadr = ptag[1]._u32;
+			sif1dma.madr = sif1dma.tadr + 16;
+			sif1dma.tadr = ptag[1]._u32;
 			break;
 
 		case TAG_REF:
 		case TAG_REFS:
-			sif1dma->madr = ptag[1]._u32;
-			sif1dma->tadr += 16;
+			sif1dma.madr = ptag[1]._u32;
+			sif1dma.tadr += 16;
 			break;
 
 		case TAG_END:
 			sif1.ee.end = true;
-			sif1dma->madr = sif1dma->tadr + 16;
-			sif1dma->tadr = sif1dma->madr + (sif1dma->qwc << 4);
+			sif1dma.madr = sif1dma.tadr + 16;
+			sif1dma.tadr = sif1dma.madr + (sif1dma.qwc << 4);
 			break;
 
 		default:
@@ -142,7 +142,7 @@ static __forceinline bool ProcessEETag()
 }
 
 // Write fifo to data, and put it in IOP.
-static __forceinline bool SIFIOPReadTag()
+static __fi bool SIFIOPReadTag()
 {
 	// Read a tag.
 	sif1.fifo.read((u32*)&sif1.iop.data, 4);
@@ -151,7 +151,7 @@ static __forceinline bool SIFIOPReadTag()
 		sif1data & 0xffffff, sif1words, sif1tag.ID, sif1tag.IRQ);
 
 	// Only use the first 24 bits.
-	hw_dma(10).madr = sif1data & 0xffffff;
+	hw_dma10.madr = sif1data & 0xffffff;
 
 	sif1.iop.counter = sif1words;
 	if (sif1tag.IRQ  || (sif1tag.ID & 4)) sif1.iop.end = true;
@@ -160,7 +160,7 @@ static __forceinline bool SIFIOPReadTag()
 }
 
 // Stop processing EE, and signal an interrupt.
-static __forceinline void EndEE()
+static __fi void EndEE()
 {
 	sif1.ee.end = false;
 	sif1.ee.busy = false;
@@ -180,7 +180,7 @@ static __forceinline void EndEE()
 }
 
 // Stop processing IOP, and signal an interrupt.
-static __forceinline void EndIOP()
+static __fi void EndIOP()
 {
 	sif1data = 0;
 	sif1.iop.end = false;
@@ -201,33 +201,33 @@ static __forceinline void EndIOP()
 }
 
 // Handle the EE transfer.
-static __forceinline void HandleEETransfer()
+static __fi void HandleEETransfer()
 {
-	if(sif1dma->chcr.STR == false)
+	if(sif1dma.chcr.STR == false)
 	{
 		DevCon.Warning("Replacement for irq prevention hack EE SIF1");
 		sif1.ee.end = false;
 		sif1.ee.busy = false;
 		return;
 	}
-	if (dmacRegs->ctrl.STD == STD_SIF1)
+	if (dmacRegs.ctrl.STD == STD_SIF1)
 	{
 		DevCon.Warning("SIF1 stall control"); // STD == fromSIF1
 	}
 
-	/*if (sif1dma->qwc == 0)
-		if (sif1dma->chcr.MOD == NORMAL_MODE)
+	/*if (sif1dma.qwc == 0)
+		if (sif1dma.chcr.MOD == NORMAL_MODE)
 			if (!sif1.ee.end){
-				DevCon.Warning("sif1 irq prevented CHCR %x QWC %x", sif1dma->chcr, sif1dma->qwc);
+				DevCon.Warning("sif1 irq prevented CHCR %x QWC %x", sif1dma.chcr, sif1dma.qwc);
 				done = true;
 				return;
 			}*/
 
 	// If there's no more to transfer.
-	if (sif1dma->qwc <= 0)
+	if (sif1dma.qwc <= 0)
 	{
 		// If NORMAL mode or end of CHAIN then stop DMA.
-		if ((sif1dma->chcr.MOD == NORMAL_MODE) || sif1.ee.end)
+		if ((sif1dma.chcr.MOD == NORMAL_MODE) || sif1.ee.end)
 		{
 			done = true;
 			EndEE();
@@ -248,7 +248,7 @@ static __forceinline void HandleEETransfer()
 }
 
 // Handle the IOP transfer.
-static __forceinline void HandleIOPTransfer()
+static __fi void HandleIOPTransfer()
 {
 	if (sif1.iop.counter > 0)
 	{
@@ -274,13 +274,16 @@ static __forceinline void HandleIOPTransfer()
 	}
 }
 
-static __forceinline void Sif1End()
+static __fi void Sif1End()
 {
+	psHu32(SBUS_F240) &= ~0x40;
+	psHu32(SBUS_F240) &= ~0x4000;
+
 	SIF_LOG("SIF1 DMA end...");
 }
 
 // Transfer EE to IOP, putting data in the fifo as an intermediate step.
-__forceinline void SIF1Dma()
+__fi void SIF1Dma()
 {
 	int BusyCheck = 0;
 	Sif1Init();
@@ -292,7 +295,7 @@ __forceinline void SIF1Dma()
 
 		if (sif1.ee.busy)
 		{
-			if(sif1.fifo.free() > 0 || (sif1.ee.end == true && sif1dma->qwc == 0)) 
+			if(sif1.fifo.free() > 0 || (sif1.ee.end == true && sif1dma.qwc == 0)) 
 			{
 				BusyCheck++;
 				HandleEETransfer();
@@ -313,39 +316,41 @@ __forceinline void SIF1Dma()
 	Sif1End();
 }
 
-__forceinline void  sif1Interrupt()
+__fi void  sif1Interrupt()
 {
 	HW_DMA10_CHCR &= ~0x01000000; //reset TR flag
 	psxDmaInterrupt2(3);
 }
 
-__forceinline void  EEsif1Interrupt()
+__fi void  EEsif1Interrupt()
 {
 	hwDmacIrq(DMAC_SIF1);
-	sif1dma->chcr.STR = false;
+	sif1dma.chcr.STR = false;
 }
 
 // Do almost exactly the same thing as psxDma10 in IopDma.cpp.
 // Main difference is this checks for iop, where psxDma10 checks for ee.
-__forceinline void dmaSIF1()
+__fi void dmaSIF1()
 {
-	SIF_LOG(wxString(L"dmaSIF1" + sif1dma->cmqt_to_str()).To8BitData());
+	SIF_LOG(wxString(L"dmaSIF1" + sif1dma.cmqt_to_str()).To8BitData());
 
 	if (sif1.fifo.readPos != sif1.fifo.writePos)
 	{
 		SIF_LOG("warning, sif1.fifoReadPos != sif1.fifoWritePos");
 	}
 
-	//if(sif1dma->chcr.MOD == CHAIN_MODE && sif1dma->qwc > 0) DevCon.Warning(L"SIF1 QWC on Chain CHCR " + sif1dma->chcr.desc());
+	//if(sif1dma.chcr.MOD == CHAIN_MODE && sif1dma.qwc > 0) DevCon.Warning(L"SIF1 QWC on Chain CHCR " + sif1dma.chcr.desc());
 
 	psHu32(SBUS_F240) |= 0x4000;
 	sif1.ee.busy = true;
 
-	/*if (sif1.iop.busy)
-	{*/
+	// Okay, this here is needed currently (r3644). 
+	// FFX battles in the thunder plains map die otherwise, Phantasy Star 4 as well
+	// These 2 games could be made playable again by increasing the time the EE or the IOP run,
+	// showing that this is very timing sensible.
+	// Doing this DMA unfortunately brings back an old warning in Legend of Legaia though, but it still works.
+	if (sif1.iop.busy)
+	{
 		SIF1Dma();
-		psHu32(SBUS_F240) &= ~0x40;
-		psHu32(SBUS_F240) &= ~0x100;
-		psHu32(SBUS_F240) &= ~0x4000;
-	//}
+	}
 }

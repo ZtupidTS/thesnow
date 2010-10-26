@@ -39,7 +39,7 @@
 
 using namespace x86Emitter;
 
-extern u32 g_psxNextBranchCycle;
+extern u32 g_iopNextEventCycle;
 extern void psxBREAK();
 
 u32 g_psxMaxRecMem = 0;
@@ -121,7 +121,7 @@ static DynGenFunc* iopExitRecompiledCode	= NULL;
 
 static void recEventTest()
 {
-	_cpuBranchTest_Shared();
+	_cpuEventTest_Shared();
 }
 
 // parameters:
@@ -670,7 +670,7 @@ void psxRecompileCodeConst1(R3000AFNPTR constcode, R3000AFNPTR_INFO noconstcode)
 			const char *funcname = irxImportFuncname(libname, index);
 			irxDEBUG debug = irxImportDebug(libname, index);
 
-			if (macTrace.IOP.Bios()) {
+			if (SysTraceActive(IOP.Bios)) {
 				xMOV(ecx, (uptr)libname);
 				xMOV(edx, index);
 				xPUSH((uptr)funcname);
@@ -876,32 +876,37 @@ static void recExecute()
 
 static __noinline s32 recExecuteBlock( s32 eeCycles )
 {
-	psxBreak = 0;
-	psxCycleEE = eeCycles;
+	iopBreak = 0;
+	iopCycleEE = eeCycles;
+
+#ifdef PCSX2_DEVBUILD
+	//if (SysTrace.SIF.IsActive())
+	//	SysTrace.IOP.R3000A.Write("Switching to IOP CPU for %d cycles", eeCycles);
+#endif
 
 	// [TODO] recExecuteBlock could be replaced by a direct call to the iopEnterRecompiledCode()
 	//   (by assigning its address to the psxRec structure).  But for that to happen, we need
-	//   to move psxBreak/psxCycleEE update code to emitted assembly code. >_<  --air
+	//   to move iopBreak/iopCycleEE update code to emitted assembly code. >_<  --air
 
 	// Likely Disasm, as borrowed from MSVC:
 
 // Entry:
 // 	mov         eax,dword ptr [esp+4]
-// 	mov         dword ptr [psxBreak (0E88DCCh)],0
-// 	mov         dword ptr [psxCycleEE (832A84h)],eax
+// 	mov         dword ptr [iopBreak (0E88DCCh)],0
+// 	mov         dword ptr [iopCycleEE (832A84h)],eax
 
 // Exit:
-// 	mov         ecx,dword ptr [psxBreak (0E88DCCh)]
-// 	mov         edx,dword ptr [psxCycleEE (832A84h)]
+// 	mov         ecx,dword ptr [iopBreak (0E88DCCh)]
+// 	mov         edx,dword ptr [iopCycleEE (832A84h)]
 // 	lea         eax,[edx+ecx]
 
 	iopEnterRecompiledCode();
 
-	return psxBreak + psxCycleEE;
+	return iopBreak + iopCycleEE;
 }
 
 // Returns the offset to the next instruction after any cleared memory
-static __forceinline u32 psxRecClearMem(u32 pc)
+static __fi u32 psxRecClearMem(u32 pc)
 {
 	BASEBLOCK* pblock;
 
@@ -948,7 +953,7 @@ static __forceinline u32 psxRecClearMem(u32 pc)
 	return upperextent - pc;
 }
 
-static __forceinline void recClearIOP(u32 Addr, u32 Size)
+static __fi void recClearIOP(u32 Addr, u32 Size)
 {
 	u32 pc = Addr;
 	while (pc < Addr + Size*4)
@@ -1008,9 +1013,9 @@ void psxSetBranchImm( u32 imm )
 	recBlocks.Link(HWADDR(imm), xJcc32());
 }
 
-static __forceinline u32 psxScaleBlockCycles()
+static __fi u32 psxScaleBlockCycles()
 {
-	return s_psxBlockCycles * (EmuConfig.Speedhacks.IopCycleRate_X2 ? 2 : 1);
+	return s_psxBlockCycles;
 }
 
 static void iPsxBranchTest(u32 newpc, u32 cpuBranch)
@@ -1021,19 +1026,19 @@ static void iPsxBranchTest(u32 newpc, u32 cpuBranch)
 	{
 		xMOV(eax, ptr32[&psxRegs.cycle]);
 		xMOV(ecx, eax);
-		xMOV(edx, ptr32[&psxCycleEE]);
+		xMOV(edx, ptr32[&iopCycleEE]);
 		xADD(edx, 7);
 		xSHR(edx, 3);
 		xADD(eax, edx);
-		xCMP(eax, ptr32[&g_psxNextBranchCycle]);
-		xCMOVNS(eax, ptr32[&g_psxNextBranchCycle]);
+		xCMP(eax, ptr32[&g_iopNextEventCycle]);
+		xCMOVNS(eax, ptr32[&g_iopNextEventCycle]);
 		xMOV(ptr32[&psxRegs.cycle], eax);
 		xSUB(eax, ecx);
 		xSHL(eax, 3);
-		xSUB(ptr32[&psxCycleEE], eax);
+		xSUB(ptr32[&iopCycleEE], eax);
 		xJLE(iopExitRecompiledCode);
 
-		xCALL(psxBranchTest);
+		xCALL(iopEventTest);
 
 		if( newpc != 0xffffffff )
 		{
@@ -1047,15 +1052,15 @@ static void iPsxBranchTest(u32 newpc, u32 cpuBranch)
 		xADD(eax, blockCycles);
 		xMOV(ptr32[&psxRegs.cycle], eax); // update cycles
 
-		// jump if psxCycleEE <= 0  (iop's timeslice timed out, so time to return control to the EE)
-		xSUB(ptr32[&psxCycleEE], blockCycles*8);
+		// jump if iopCycleEE <= 0  (iop's timeslice timed out, so time to return control to the EE)
+		xSUB(ptr32[&iopCycleEE], blockCycles*8);
 		xJLE(iopExitRecompiledCode);
 
 		// check if an event is pending
-		xSUB(eax, ptr32[&g_psxNextBranchCycle]);
+		xSUB(eax, ptr32[&g_iopNextEventCycle]);
 		xForwardJS<u8> nointerruptpending;
 
-		xCALL(psxBranchTest);
+		xCALL(iopEventTest);
 
 		if( newpc != 0xffffffff ) {
 			xCMP(ptr32[&psxRegs.pc], newpc);
@@ -1098,7 +1103,7 @@ void rpsxSYSCALL()
 	j8Ptr[0] = JE8(0);
 
 	ADD32ItoM((uptr)&psxRegs.cycle, psxScaleBlockCycles() );
-	SUB32ItoM((uptr)&psxCycleEE, psxScaleBlockCycles()*8 );
+	SUB32ItoM((uptr)&iopCycleEE, psxScaleBlockCycles()*8 );
 	JMP32((uptr)iopDispatcherReg - ( (uptr)x86Ptr + 5 ));
 
 	// jump target for skipping blockCycle updates
@@ -1120,7 +1125,7 @@ void rpsxBREAK()
 	CMP32ItoM((uptr)&psxRegs.pc, psxpc-4);
 	j8Ptr[0] = JE8(0);
 	ADD32ItoM((uptr)&psxRegs.cycle, psxScaleBlockCycles() );
-	SUB32ItoM((uptr)&psxCycleEE, psxScaleBlockCycles()*8 );
+	SUB32ItoM((uptr)&iopCycleEE, psxScaleBlockCycles()*8 );
 	JMP32((uptr)iopDispatcherReg - ( (uptr)x86Ptr + 5 ));
 	x86SetJ8(j8Ptr[0]);
 
@@ -1373,7 +1378,7 @@ StartRecomp:
 		else
 		{
 			ADD32ItoM((uptr)&psxRegs.cycle, psxScaleBlockCycles() );
-			SUB32ItoM((uptr)&psxCycleEE, psxScaleBlockCycles()*8 );
+			SUB32ItoM((uptr)&iopCycleEE, psxScaleBlockCycles()*8 );
 		}
 
 		if (willbranch3 || !psxbranch) {

@@ -29,16 +29,14 @@
 #include <vector>
 #include <map>
 #include <string>
+#include <math.h>
 
 #include "ZZGl.h"
 #include "GS.h"
 #include "CRC.h"
 #include "rasterfont.h" // simple font
-#include "ZeroGSShaders/zerogsshaders.h"
 
 using namespace std;
-
-
 
 //------------------------ Constants ----------------------
 #define VB_BUFFERSIZE			   0x400
@@ -47,7 +45,6 @@ using namespace std;
 const float g_filog32 = 0.999f / (32.0f * logf(2.0f));
 
 //------------------------ Inlines -------------------------
-
 
 // Calculate maximum height for target
 inline int get_maxheight(int fbp, int fbw, int psm)
@@ -62,29 +59,13 @@ inline int get_maxheight(int fbp, int fbw, int psm)
 	return ret;
 }
 
-// Does psm need Alpha test with alpha expansion?
-inline int nNeedAlpha(u8 psm)
-{
-	return (psm == PSMCT24 || psm == PSMCT16 || psm == PSMCT16S);
-}
-
-// Get color storage model psm, that is important on flush stage.
-inline u8 GetTexCPSM(const tex0Info& tex)
-{
-	if (PSMT_ISCLUT(tex.psm))
-		return tex.cpsm;
-	else
-		return tex.psm;
-}
-
-
 // ------------------------ Variables -------------------------
+
 // all textures have this width
-//#define GPU_TEXWIDTH		512
 extern int GPU_TEXWIDTH;
 extern float g_fiGPU_TEXWIDTH;
-#define MASKDIVISOR		0
-#define GPU_TEXMASKWIDTH	(1024 >> MASKDIVISOR) // bitwise mask width for region repeat mode
+#define MASKDIVISOR		0							// Used for decrement bitwise mask texture size if 1024 is too big
+#define GPU_TEXMASKWIDTH	(1024 >> MASKDIVISOR)	// bitwise mask width for region repeat mode
 
 extern u32 ptexBilinearBlocks;
 
@@ -112,19 +93,10 @@ extern u32 ptexLogo;
 extern int nLogoWidth, nLogoHeight;
 extern int nBackbufferWidth, nBackbufferHeight;
 
-extern u8* g_pbyGSMemory;
-extern u8* g_pbyGSClut; // the temporary clut buffer
-
 namespace ZeroGS
 {
 
 typedef void (*DrawFn)();
-
-enum RenderFormatType
-{
-	RFT_byte8 = 0,	  // A8R8G8B8
-	RFT_float16 = 1,	// A32R32B32G32
-};
 
 // managers render-to-texture targets
 
@@ -165,7 +137,7 @@ class CRenderTarget
 		int fbp, fbw, fbh, fbhCalc; // if fbp is negative, virtual target (not mapped to any real addr)
 		int start, end; // in bytes
 		u32 lastused;	// time stamp since last used
-		Vector vposxy;
+		float4 vposxy;
 
 		u32 fbm;
 		u16 status;
@@ -190,8 +162,8 @@ class CRenderTarget
 			TS_NeedConvert32 = 16,
 			TS_NeedConvert16 = 32,
 		};
-		inline Vector DefaultBitBltPos() ;
-		inline Vector DefaultBitBltTex() ;
+		inline float4 DefaultBitBltPos();
+		inline float4 DefaultBitBltTex();
 
 	private:
 		void _CreateFeedback();
@@ -257,6 +229,8 @@ class CMemoryTarget
 			clearminy = r.clearminy;
 			clearmaxy = r.clearmaxy;
 			widthmult = r.widthmult;
+			texH = r.texH;
+			texW = r.texW;
 			channels = r.channels;
 			validatecount = r.validatecount;
 			fmt = r.fmt;
@@ -287,14 +261,20 @@ class CMemoryTarget
 
 		int starty, height; // assert(starty >= realy)
 		int realy, realheight; // this is never touched once allocated
+		// realy is start pointer of data in 4M data block (start) and size (end-start).
+		
 		u32 usedstamp;
 		u8 psm, cpsm; // texture and clut format. For psm, only 16bit/32bit differentiation matters
 
 		u32 fmt;
 
-		int widthmult;
-		int channels;
-		int clearminy, clearmaxy; // when maxy > 0, need to check for clearing
+		int widthmult;	// Either 1 or 2.
+		int channels;	// The number of pixels per PSM format word. channels == PIXELS_PER_WORD(psm)
+						// This is the real drawing size in pixels of the texture in renderbuffer.
+		int texW;		// (realheight + widthmult - 1)/widthmult == realheight or [(realheight+1)/2]
+		int texH;		//  GPU_TEXWIDTH *widthmult * channels;			
+
+		int clearminy, clearmaxy;	// when maxy > 0, need to check for clearing
 
 		int validatecount; // count how many times has been validated, if too many, destroy
 
@@ -423,16 +403,8 @@ union
 	CMemoryTarget* pmemtarg; // the current mem target set
 	CRenderTarget* prndr;
 	CDepthTarget* pdepth;
-};
 
-// Return, if tcc, aem or psm mode told us, than Alpha test should be used
-// if tcc == 0 than no alpha used, aem used for alpha expanding and I am not sure
-// that it's correct, psm -- color mode,
-inline bool
-IsAlphaTestExpansion(VB& curvb)
-{
-	return (curvb.tex0.tcc && gs.texa.aem && nNeedAlpha(GetTexCPSM(curvb.tex0)));
-}
+};
 
 // visible members
 extern DrawFn drawfn[8];
@@ -444,25 +416,12 @@ extern vector<GLuint> g_vboBuffers; // VBOs for all drawing commands
 extern GLuint vboRect;
 extern int g_nCurVBOIndex;
 
-// Shaders variables
-extern Vector g_vdepth;
-extern Vector vlogz;
-extern VERTEXSHADER pvsBitBlt;
-extern FRAGMENTSHADER ppsBitBlt[2], ppsBitBltDepth, ppsOne;
-extern FRAGMENTSHADER ppsBaseTexture, ppsConvert16to32, ppsConvert32to16;
-bool LoadEffects();
-bool LoadExtraEffects();
-FRAGMENTSHADER* LoadShadeEffect(int type, int texfilter, int fog, int testaem, int exactcolor, const clampInfo& clamp, int context, bool* pbFailed);
-
-extern RenderFormatType g_RenderFormatType;
-
 void AddMessage(const char* pstr, u32 ms = 5000);
 void DrawText(const char* pstr, int left, int top, u32 color);
 void ChangeWindowSize(int nNewWidth, int nNewHeight);
 void SetChangeDeviceSize(int nNewWidth, int nNewHeight);
 void ChangeDeviceSize(int nNewWidth, int nNewHeight);
 void SetAA(int mode);
-void SetNegAA(int mode);
 void SetCRC(int crc);
 
 void ReloadEffects();
@@ -473,7 +432,6 @@ inline bool Create_Window(int _width, int _height);
 bool Create(int width, int height);
 void Destroy(bool bD3D);
 
-void Restore(); // call to restore device
 void Reset(); // call to destroy video resources
 void GSStateReset();
 void GSReset();
@@ -520,8 +478,6 @@ bool CheckChangeInClut(u32 highdword, u32 psm); // returns true if clut will cha
 
 // call to load CLUT data (depending on CLD)
 void texClutWrite(int ctx);
-RenderFormatType GetRenderFormat();
-GLenum GetRenderTargetFormat();
 
 int Save(s8* pbydata);
 bool Load(s8* pbydata);
@@ -548,10 +504,6 @@ void GetRectMemAddress(int& start, int& end, int psm, int x, int y, int w, int h
 void SetContextTarget(int context) ;
 
 void NeedFactor(int w);
-// only sets a limited amount of state (for Update)
-void SetTexClamping(int context, FRAGMENTSHADER* pfragment);
-void SetTexVariablesInt(int context, int bilinear, const tex0Info& tex0, ZeroGS::CMemoryTarget* pmemtarg, FRAGMENTSHADER* pfragment, int force);
-
 void ResetAlphaVariables();
 
 void StartCapture();
@@ -568,7 +520,25 @@ inline void CluttingForFlushedTex(tex0Info* tex0, u32 Data, int ictx)
 	tex0->cld  = ZZOglGet_cld_TexBits(Data);
 
 	ZeroGS::texClutWrite(ictx);
+ };
+ 
+// The size in bytes of x strings (of texture).
+inline int MemorySize(int x) 
+{
+	return 4 * GPU_TEXWIDTH * x;
 }
-};
 
+// Return the address in memory of data block for string x. 
+inline u8* MemoryAddress(int x) 
+{
+	return g_pbyGSMemory + MemorySize(x);
+}
+
+template <u32 mult>
+inline u8* _MemoryAddress(int x) 
+{
+	return g_pbyGSMemory + mult * x;
+}
+
+};
 #endif

@@ -34,19 +34,13 @@ typedef struct _keyEvent keyEvent;
 #include "PS2Edefs.h"
 #include "PS2Eext.h"
 
-#include "Registers.h"
+#include "GifTransfer.h"
 #include "null/GSnull.h"
-
-/*#ifdef _MSC_VER
-#define EXPORT_C_(type) extern "C" __declspec(dllexport) type CALLBACK
-#else
-#define EXPORT_C_(type) extern "C" type
-#endif*/
 
 #ifdef _MSC_VER
 #define EXPORT_C_(type) extern "C" type CALLBACK
 #else
-#define EXPORT_C_(type) extern "C" type
+#define EXPORT_C_(type) extern "C" __attribute__((externally_visible,visibility("default"))) type
 #endif
 
 #define GS_LOG __Log
@@ -54,7 +48,24 @@ typedef struct _keyEvent keyEvent;
 typedef struct
 {
 	int Log;
+	bool path3;
 } Config;
+
+typedef struct
+{
+	u32 CSRw;
+	pathInfo path[4];
+	bool Path3transfer;
+	float q;
+	u32 imageTransfer;
+	int MultiThreaded;
+	int nPath3Hack;
+	
+	GIFReg regs;
+	GIFCTXTReg ctxt_regs[2];
+} GSVars;
+
+extern GSVars gs;
 
 extern Config conf;
 extern FILE *gsLog;

@@ -446,7 +446,7 @@ struct V_Core
 	// uninitialized constructor
 	V_Core() : Index( -1 ), DMAPtr( NULL ) {}
 	V_Core( int idx );			// our badass constructor
-	virtual ~V_Core() throw();
+	~V_Core() throw();
 
 	void	Reset( int index );
 	void	Init( int index );
@@ -534,11 +534,6 @@ extern void StartVoices(int core, u32 value);
 extern void StopVoices(int core, u32 value);
 extern void InitADSR();
 extern void CalculateADSR( V_Voice& vc );
-
-extern void spdif_set51(u32 is_5_1_out);
-extern u32  spdif_init();
-extern void spdif_shutdown();
-extern void spdif_get_samples(s32 *samples); // fills the buffer with [l,r,c,lfe,sl,sr] if using 5.1 output, or [l,r] if using stereo
 extern void UpdateSpdifMode();
 
 namespace Savestate

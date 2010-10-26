@@ -51,10 +51,10 @@ static void __fastcall psxDmaGeneric(u32 madr, u32 bcr, u32 chcr, u32 spuCore, _
 		if (psxCounters[6].CycleT < psxNextCounter)
 			psxNextCounter = psxCounters[6].CycleT;
 
-		if((g_psxNextBranchCycle - psxNextsCounter) > (u32)psxNextCounter)
+		if((g_iopNextEventCycle - psxNextsCounter) > (u32)psxNextCounter)
 		{
-			//DevCon.Warning("SPU2async Setting new counter branch, old %x new %x ((%x - %x = %x) > %x delta)", g_psxNextBranchCycle, psxNextsCounter + psxNextCounter, g_psxNextBranchCycle, psxNextsCounter, (g_psxNextBranchCycle - psxNextsCounter), psxNextCounter);
-			g_psxNextBranchCycle = psxNextsCounter + psxNextCounter;
+			//DevCon.Warning("SPU2async Setting new counter branch, old %x new %x ((%x - %x = %x) > %x delta)", g_iopNextEventCycle, psxNextsCounter + psxNextCounter, g_iopNextEventCycle, psxNextsCounter, (g_iopNextEventCycle - psxNextsCounter), psxNextCounter);
+			g_iopNextEventCycle = psxNextsCounter + psxNextCounter;
 		}
 	}
 
@@ -195,14 +195,8 @@ void psxDma9(u32 madr, u32 bcr, u32 chcr)
 	SIF_LOG("IOP: dmaSIF0 chcr = %lx, madr = %lx, bcr = %lx, tadr = %lx",	chcr, madr, bcr, HW_DMA9_TADR);
 
 	sif0.iop.busy = true;
-	psHu32(SBUS_F240) |= 0x2000;
 
-	/*if (sif0.ee.busy)
-	{*/
-		SIF0Dma();
-		psHu32(SBUS_F240) &= ~0x20;
-		psHu32(SBUS_F240) &= ~0x2000;
-	//}
+	SIF0Dma();
 }
 
 void psxDma10(u32 madr, u32 bcr, u32 chcr)
@@ -210,15 +204,8 @@ void psxDma10(u32 madr, u32 bcr, u32 chcr)
 	SIF_LOG("IOP: dmaSIF1 chcr = %lx, madr = %lx, bcr = %lx",	chcr, madr, bcr);
 
 	sif1.iop.busy = true;
-	psHu32(SBUS_F240) |= 0x4000;
 
-	/*if (sif1.ee.busy)
-	{*/
-		SIF1Dma();
-		psHu32(SBUS_F240) &= ~0x40;
-		psHu32(SBUS_F240) &= ~0x100;
-		psHu32(SBUS_F240) &= ~0x4000;
-	//}
+	SIF1Dma();
 }
 
 /* psxDma11 & psxDma 12 are in IopSio2.cpp, along with the appropriate interrupt functions. */
@@ -261,10 +248,10 @@ struct DmaHandlerInfo
 	DmaIHandler Interrupt;
 	DmaSHandler Start;
 
-	__forceinline u32& REG_MADR(void) const { return psxHu32(DmacRegisterBase + 0x0); }
-	__forceinline u32& REG_BCR(void)  const { return psxHu32(DmacRegisterBase + 0x4); }
-	__forceinline u32& REG_CHCR(void) const { return psxHu32(DmacRegisterBase + 0x8); }
-	__forceinline u32& REG_TADR(void) const { return psxHu32(DmacRegisterBase + 0xC); }
+	__fi u32& REG_MADR(void) const { return psxHu32(DmacRegisterBase + 0x0); }
+	__fi u32& REG_BCR(void)  const { return psxHu32(DmacRegisterBase + 0x4); }
+	__fi u32& REG_CHCR(void) const { return psxHu32(DmacRegisterBase + 0x8); }
+	__fi u32& REG_TADR(void) const { return psxHu32(DmacRegisterBase + 0xC); }
 };
 
 #define MEM_BASE1 0x1f801080
@@ -452,7 +439,7 @@ void IopDmaStart(int channel)
 // IopDmaProcessChannel: Called from IopDmaUpdate (below) to process a dma channel
 
 template<int channel>
-static void __releaseinline IopDmaProcessChannel(int elapsed, int& MinDelay)
+static void __ri IopDmaProcessChannel(int elapsed, int& MinDelay)
 {
 	// Hopefully the compiler would be able to optimize the whole function away if this doesn't pass.
 	if(!(IopDmaHandlers[channel].DirectionFlags&_E__))

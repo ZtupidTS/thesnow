@@ -32,10 +32,13 @@ using namespace std;
 #include "Mem.h"
 #include "Regs.h"
 #include "Profile.h"
+#include "GLWin.h"
 
 #include "zerogs.h"
 #include "targets.h"
-#include "ZeroGSShaders/zerogsshaders.h"
+#include "ZZoglShaders.h"
+#include "ZZoglFlushHack.h"
+#include "ZZoglFlushHack.h"
 
 #ifdef _MSC_VER
 #pragma warning(disable:4244)
@@ -48,6 +51,8 @@ GSconf conf;
 
 int ppf, g_GSMultiThreaded, CurrentSavestate = 0;
 int g_LastCRC = 0, g_TransferredToGPU = 0, s_frameskipping = 0;
+int g_SkipFlushFrame = 0;
+GetSkipCount GetSkipCount_Handler = 0;
 
 int UPDATE_FRAMES = 16, g_nFrame = 0, g_nRealFrame = 0;
 float fFPS = 0;
@@ -60,12 +65,11 @@ bool SaveStateExists = true;		// We could not know save slot status before first
 const char* SaveStateFile = NULL;	// Name of SaveFile for access check.
 
 extern const char* s_aa[5];
-extern const char* s_naa[3];
 extern const char* pbilinear[];
 // statistics
 u32 g_nGenVars = 0, g_nTexVars = 0, g_nAlphaVars = 0, g_nResolve = 0;
 
-#define VER 1
+#define VER 3
 const unsigned char zgsversion	= PS2E_GS_VERSION;
 unsigned char zgsrevision = 0; // revision and build gives plugin version
 unsigned char zgsbuild	= VER;
@@ -81,7 +85,7 @@ char *libraryName	 = "ZZ Ogl PG ";
 
 extern int g_nPixelShaderVer, g_nFrameRender, g_nFramesSkipped;
 
-extern void ProcessMessages();
+extern void ProcessEvents();
 extern void WriteAA();
 extern void WriteBilinear();
 
@@ -140,6 +144,7 @@ void ReportHacks(gameHacks hacks)
 	if (hacks.quick_resolve_1) ZZLog::WriteLn("'Quick resolve 1' enabled.");
 	if (hacks.no_quick_resolve) ZZLog::WriteLn("'No Quick resolve' hack enabled.");
 	if (hacks.no_target_clut) ZZLog::WriteLn("'No target clut' hack enabled.");
+	if (hacks.no_stencil) ZZLog::WriteLn("'No stencil' hack enabled.");
 	if (hacks.vss_hack_off) ZZLog::WriteLn("VSS hack enabled.");
 	if (hacks.no_depth_resolve) ZZLog::WriteLn("'No depth resolve' hack enabled.");
 	if (hacks.full_16_bit_res) ZZLog::WriteLn("'Full 16 bit resolution' hack enabled.");
@@ -148,7 +153,7 @@ void ReportHacks(gameHacks hacks)
 	if (hacks.no_alpha_test) ZZLog::WriteLn("'No alpha test' hack enabled.");
 	if (hacks.disable_mrt_depth) ZZLog::WriteLn("'Disable mrt depth' hack enabled.");
 	if (hacks.args_32_bit) ZZLog::WriteLn("'Args 32 bit' hack enabled.");
-	if (hacks.path3) ZZLog::WriteLn("'Path3' hack enabled.");
+	//if (hacks.path3) ZZLog::WriteLn("'Path3' hack enabled.");
 	if (hacks.parallel_context) ZZLog::WriteLn("'Parallel context' hack enabled.");
 	if (hacks.xenosaga_spec) ZZLog::WriteLn("'Xenosaga spec' hack enabled.");
 	if (hacks.partial_pointers) ZZLog::WriteLn("'Partial pointers' hack enabled.");
@@ -156,11 +161,12 @@ void ReportHacks(gameHacks hacks)
 	if (hacks.reget) ZZLog::WriteLn("Reget hack enabled.");
 	if (hacks.gust) ZZLog::WriteLn("Gust hack enabled.");
 	if (hacks.no_logz) ZZLog::WriteLn("'No logz' hack enabled.");
+	if (hacks.automatic_skip_draw) ZZLog::WriteLn("'Automatic skip draw' hack enabled.");
 }
 
 void ListHacks()
 {
-	if (conf.def_hacks._u32 != 0)
+	if ((!conf.disableHacks) && (conf.def_hacks._u32 != 0))
 	{
 		ZZLog::WriteLn("AutoEnabling these hacks:");
 		ReportHacks(conf.def_hacks);
@@ -175,6 +181,54 @@ void ListHacks()
 
 void CALLBACK GSsetGameCRC(int crc, int options)
 {
+    // build a list of function pointer for GetSkipCount (SkipDraw)
+	static GetSkipCount GSC_list[NUMBER_OF_TITLES];
+	static bool inited = false;
+	
+	if (!inited)
+	{
+		inited = true;
+
+		memset(GSC_list, 0, sizeof(GSC_list));
+		// for(int i = 0; i < NUMBER_OF_TITLES; i++)
+		// {
+		// 	GSC_list[i] = GSC_Null;
+		// }
+		
+		GSC_list[Okami] = GSC_Okami;
+		GSC_list[MetalGearSolid3] = GSC_MetalGearSolid3;
+		GSC_list[DBZBT2] = GSC_DBZBT2;
+		GSC_list[DBZBT3] = GSC_DBZBT3;
+		GSC_list[SFEX3] = GSC_SFEX3;
+		GSC_list[Bully] = GSC_Bully;
+		GSC_list[BullyCC] = GSC_BullyCC;
+		GSC_list[SoTC] = GSC_SoTC;
+		GSC_list[OnePieceGrandAdventure] = GSC_OnePieceGrandAdventure;
+		GSC_list[OnePieceGrandBattle] = GSC_OnePieceGrandBattle;
+		GSC_list[ICO] = GSC_ICO;
+		GSC_list[GT4] = GSC_GT4;
+		//FIXME GSC_list[WildArms4] = GSC_WildArms4;
+		GSC_list[WildArms5] = GSC_WildArms5;
+		GSC_list[Manhunt2] = GSC_Manhunt2;
+		GSC_list[CrashBandicootWoC] = GSC_CrashBandicootWoC;
+		GSC_list[ResidentEvil4] = GSC_ResidentEvil4;
+		GSC_list[Spartan] = GSC_Spartan;
+		GSC_list[AceCombat4] = GSC_AceCombat4;
+		GSC_list[Drakengard2] = GSC_Drakengard2;
+		GSC_list[Tekken5] = GSC_Tekken5;
+		GSC_list[IkkiTousen] = GSC_IkkiTousen;
+		GSC_list[GodOfWar] = GSC_GodOfWar;
+		GSC_list[GodOfWar2] = GSC_GodOfWar2;
+		GSC_list[GiTS] = GSC_GiTS;
+		GSC_list[Onimusha3] = GSC_Onimusha3;
+		GSC_list[TalesOfAbyss] = GSC_TalesOfAbyss;
+		GSC_list[SonicUnleashed] = GSC_SonicUnleashed;
+		GSC_list[Genji] = GSC_Genji;
+		GSC_list[StarOcean3] = GSC_StarOcean3;
+		GSC_list[ValkyrieProfile2] = GSC_ValkyrieProfile2;
+		GSC_list[RadiataStories] = GSC_RadiataStories;
+	}
+
 	// TEXDESTROY_THRESH starts out at 16.
 	VALIDATE_THRESH = 8;
 	conf.mrtdepth = (conf.settings().disable_mrt_depth != 0);
@@ -210,8 +264,14 @@ void CALLBACK GSsetGameCRC(int crc, int options)
 					ZZLog::WriteLn("Setting TEXDESTROY_THRESH to %d", TEXDESTROY_THRESH);
 				}
 
-				conf.def_hacks._u32 |= crc_game_list[i].flags;
-				ListHacks();
+                // FIXME need to check SkipDraw is positive (enabled by users)
+                GetSkipCount_Handler = GSC_list[crc_game_list[i].title];
+
+				if (!conf.disableHacks) 
+				{
+					conf.def_hacks._u32 |= crc_game_list[i].flags;
+					ListHacks();
+				}
 				return;
 			}
 		}
@@ -248,7 +308,7 @@ s32 CALLBACK GSinit()
 {
 	FUNCLOG
 
-    if (ZZLog::Open() == false) return -1;
+    ZZLog::Open();
 	ZZLog::WriteLn("Calling GSinit.");
 
 	WriteTempRegs();
@@ -318,17 +378,16 @@ void CALLBACK GSshutdown()
 
 	ZZLog::Close();
 }
-
 void CALLBACK GSclose()
 {
 	FUNCLOG
 
 	ZeroGS::Destroy(1);
-
 	GLWin.CloseWindow();
 
 	SaveStateFile = NULL;
 	SaveStateExists = true; // default value
+    g_LastCRC = 0;
 }
 
 void CALLBACK GSirqCallback(void (*callback)())
@@ -423,8 +482,7 @@ static __forceinline void SetGSTitle()
 		SaveStateExists = true;
 
 	sprintf(strtitle, "ZZ Open GL 0.%d.%d | %.1f fps | %s%s%s savestate %d%s | shaders %s | (%.1f)", zgsbuild, zgsminor, fFPS,
-			g_pInterlace[conf.interlace], g_pBilinear[conf.bilinear],
-			(conf.aa >= conf.negaa) ? (conf.aa ? s_aa[conf.aa - conf.negaa] : "") : (conf.negaa ? s_naa[conf.negaa - conf.aa] : ""),
+			g_pInterlace[conf.interlace], g_pBilinear[conf.bilinear], (conf.aa ? s_aa[conf.aa] : ""),
 					CurrentSavestate, (SaveStateExists ? "" :  "*"),
 					g_pShaders[g_nPixelShaderVer], (ppf&0xfffff) / (float)UPDATE_FRAMES);
 
@@ -442,7 +500,7 @@ static __forceinline void SetGSTitle()
 //		ZZLog::Debug_Log("Set profile.");
 //		g_bWriteProfile = 1;
 //	}
-	if (!(conf.fullscreen())) GLWin.SetTitle(strtitle);
+	GLWin.SetTitle(strtitle);
 }
 
 void CALLBACK GSvsync(int interlace)
@@ -461,7 +519,7 @@ void CALLBACK GSvsync(int interlace)
 	// !interlace? Hmmm... Fixme.
 	ZeroGS::RenderCRTC(!interlace);
 
-	ProcessMessages();
+	ProcessEvents();
 
 	if (--nToNextUpdate <= 0)
 	{
@@ -492,6 +550,7 @@ void CALLBACK GSvsync(int interlace)
 		g_nAlphaVars = 0;
 		g_nResolve = 0;
 		g_nFramesSkipped = 0;
+        g_SkipFlushFrame = 0;
 	}
 
 #if defined(ZEROGS_DEVBUILD)

@@ -17,10 +17,6 @@
 
 #include "Global.h"
 
-//#include <float.h>
-
-extern void	spdif_update();
-
 void ADMAOutLogWrite(void *lpData, u32 ulSize);
 
 static const s32 tbl_XA_Factor[5][2] =
@@ -67,9 +63,12 @@ __forceinline
 #endif
 StereoOut32 clamp_mix( const StereoOut32& sample, u8 bitshift )
 {
+	// We should clampify between -0x8000 and 0x7fff, however some audio output
+	// modules or sound drivers could (will :p) overshoot with that. So giving it a small safety.
+	
 	return StereoOut32(
-		GetClamped( sample.Left, -0x8000<<bitshift, 0x7fff<<bitshift ),
-		GetClamped( sample.Right, -0x8000<<bitshift, 0x7fff<<bitshift )
+		GetClamped( sample.Left, -0x7f00<<bitshift, 0x7f00<<bitshift ),
+		GetClamped( sample.Right, -0x7f00<<bitshift, 0x7f00<<bitshift )
 	);
 }
 
@@ -785,10 +784,6 @@ __forceinline void Mix()
 
 		Out = clamp_mix( Out, SndOutVolumeShift );
 	}
-
-	// Update spdif (called each sample)
-	if(PlayMode&4)
-		spdif_update();
 
 	SndBuffer::Write( Out );
 

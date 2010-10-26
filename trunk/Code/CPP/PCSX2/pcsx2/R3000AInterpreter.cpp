@@ -125,7 +125,7 @@ void psxJALR()
 ///////////////////////////////////////////
 // These macros are used to assemble the repassembler functions
 
-static __forceinline void execI()
+static __fi void execI()
 {
 	psxRegs.code = iopMemRead32(psxRegs.pc);
 
@@ -133,7 +133,7 @@ static __forceinline void execI()
 
 	psxRegs.pc+= 4;
 	psxRegs.cycle++;
-	psxCycleEE-=8;
+	iopCycleEE-=8;
 
 	psxBSC[psxRegs.code >> 26]();
 }
@@ -147,7 +147,7 @@ static void doBranch(s32 tar) {
 	iopIsDelaySlot = false;
 	psxRegs.pc = branchPC;
 
-	psxBranchTest();
+	iopEventTest();
 }
 
 static void intAlloc() {
@@ -162,16 +162,16 @@ static void intExecute() {
 
 static s32 intExecuteBlock( s32 eeCycles )
 {
-	psxBreak = 0;
-	psxCycleEE = eeCycles;
+	iopBreak = 0;
+	iopCycleEE = eeCycles;
 
-	while (psxCycleEE > 0){
+	while (iopCycleEE > 0){
 		branch2 = 0;
 		while (!branch2) {
 			execI();
         }
 	}
-	return psxBreak + psxCycleEE;
+	return iopBreak + iopCycleEE;
 }
 
 static void intClear(u32 Addr, u32 Size) {

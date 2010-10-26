@@ -10,6 +10,7 @@ endif(NOT TOP_CMAKE_WAS_SOURCED)
 set(Output CDVDnull)
 
 set(CommonFlags
+    -fvisibility=hidden
     -Wall
     )
 

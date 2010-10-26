@@ -16,16 +16,17 @@
 #include "PrecompiledHeader.h"
 #include "AppCoreThread.h"
 #include "System.h"
+#include "MemoryCardFile.h"
 
 #include "ConfigurationPanels.h"
 #include "MemoryCardPanels.h"
 
+#include "Dialogs/ConfigurationDialog.h"
+#include "Utilities/IniInterface.h"
+
 #include <wx/filepicker.h>
 #include <wx/ffile.h>
 #include <wx/dir.h>
-#include "Dialogs/ConfigurationDialog.h"
-
-#include "MemoryCardFile.h"
 
 
 using namespace pxSizerFlags;
@@ -140,12 +141,12 @@ Panels::BaseMcdListPanel::BaseMcdListPanel( wxWindow* parent )
 {
 	m_FolderPicker = new DirPickerPanel( this, FolderId_MemoryCards,
 		//_("memory card Search Path:"),				// static box label
-		_("Ñ¡Ôñ PS2 ÄÚ´æ¿¨ËùÔÚÎÄ¼þ¼Ð")		// dir picker popup label
+		_("é€‰æ‹© PS2 å†…å­˜å¡æ‰€åœ¨æ–‡ä»¶å¤¹")		// dir picker popup label
 	);
 	
 	m_listview = NULL;
 	
-	m_btn_Refresh = new wxButton( this, wxID_ANY, _("Ë¢ÐÂÁÐ±í") );
+	m_btn_Refresh = new wxButton( this, wxID_ANY, _("åˆ·æ–°åˆ—è¡¨") );
 
 	Connect( m_btn_Refresh->GetId(), wxEVT_COMMAND_BUTTON_CLICKED,	wxCommandEventHandler(BaseMcdListPanel::OnRefreshSelections) );
 	//Connect( pxEvt_RefreshSelections, wxCommandEventHandler(BaseMcdListPanel::OnRefreshSelections) );
@@ -175,6 +176,27 @@ void Panels::BaseMcdListPanel::CreateLayout()
 							*this += s_buttons		| pxExpand;
 
 	*s_leftside_buttons += m_btn_Refresh;
+
+	if (m_listview)
+	{
+		IniLoader loader;
+		ScopedIniGroup group( loader, L"MemoryCardListPanel" );
+		m_listview->LoadSaveColumns( loader );
+	}
+}
+
+void Panels::BaseMcdListPanel::Apply()
+{
+	// Save column widths to the configuration file.  Since these are used *only* by this
+	// dialog, we use a direct local ini save approach, instead of going through g_conf.
+	uint colcnt = m_listview->GetColumnCount();
+
+	if (m_listview)
+	{
+		IniSaver saver;
+		ScopedIniGroup group( saver, L"MemoryCardListPanel" );
+		m_listview->LoadSaveColumns(saver);
+	}
 }
 
 void Panels::BaseMcdListPanel::AppStatusEvent_OnSettingsApplied()
@@ -340,7 +362,7 @@ public:
 
 			if( dest.IsPresent && dest.IsFormatted )
 			{
-				wxsFormat( pxE( ".Popup:Mcd:Overwrite", 
+				pxsFmt( pxE( ".Popup:Mcd:Overwrite", 
 					L"This will copy the contents of the memory card in slot %u over the memory card in slot %u. "
 					L"All data on the target slot will be lost.  Are you sure?" ), 
 					src.Slot, dest.Slot
@@ -361,7 +383,7 @@ public:
 				
 				wxString content;
 
-				Msgbox::Alert( heading + L"\n\n" + content, _("¸´ÖÆÊ§°Ü!") );
+				Msgbox::Alert( heading + L"\n\n" + content, _("å¤åˆ¶å¤±è´¥!") );
 				return wxDragNone;
 			}
 		}
@@ -382,7 +404,7 @@ public:
 				// Neat trick to handle errors.
 				result = result && wxRenameFile( srcfile.GetFullPath(), tempname.GetFullPath(), true );
 				result = result && wxRenameFile( destfile.GetFullPath(), srcfile.GetFullPath(), false );
-				result = result && wxRenameFile( tempname.GetFullPath(), srcfile.GetFullPath(), true );
+				result = result && wxRenameFile( tempname.GetFullPath(), destfile.GetFullPath(), true );
 			}
 			else if( destExists )
 			{
@@ -411,6 +433,7 @@ enum McdMenuId
 {
 	McdMenuId_Create = 0x888,
 	McdMenuId_Mount,
+	McdMenuId_Relocate,
 	McdMenuId_RefreshList
 };
 
@@ -424,10 +447,11 @@ Panels::MemoryCardListPanel_Simple::MemoryCardListPanel_Simple( wxWindow* parent
 	m_MultitapEnabled[1] = false;
 
 	m_listview = new MemoryCardListView_Simple(this);
+	m_listview->SetMinSize(wxSize(m_listview->GetMinWidth(), m_listview->GetCharHeight() * 8));
 	m_listview->SetDropTarget( new McdDropTarget(m_listview) );
 
-	m_button_Create	= new wxButton(this, wxID_ANY, _("´´½¨"));
-	m_button_Mount	= new wxButton(this, wxID_ANY, _("¼ÓÔØ"));
+	m_button_Create	= new wxButton(this, wxID_ANY, _("åˆ›å»º"));
+	m_button_Mount	= new wxButton(this, wxID_ANY, _("åŠ è½½"));
 
 	// ------------------------------------
 	//       Sizer / Layout Section
@@ -453,6 +477,7 @@ Panels::MemoryCardListPanel_Simple::MemoryCardListPanel_Simple( wxWindow* parent
 	
 	Connect( McdMenuId_Create,		wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MemoryCardListPanel_Simple::OnCreateCard) );
 	Connect( McdMenuId_Mount,		wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MemoryCardListPanel_Simple::OnMountCard) );
+	Connect( McdMenuId_Relocate,	wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MemoryCardListPanel_Simple::OnRelocateCard) );
 	Connect( McdMenuId_RefreshList,	wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MemoryCardListPanel_Simple::OnRefreshSelections) );
 }
 
@@ -472,7 +497,7 @@ void Panels::MemoryCardListPanel_Simple::UpdateUI()
 	const McdListItem& item( m_Cards[sel] );
 
 	m_button_Create->Enable();
-	m_button_Create->SetLabel( item.IsPresent ? _("É¾³ý") : _("´´½¨") );
+	m_button_Create->SetLabel( item.IsPresent ? _("åˆ é™¤") : _("åˆ›å»º") );
 	pxSetToolTip( m_button_Create,
 		item.IsPresent
 			? _("Deletes the existing memory card from disk (all contents are lost)." )
@@ -480,7 +505,7 @@ void Panels::MemoryCardListPanel_Simple::UpdateUI()
 	);
 
 	m_button_Mount->Enable( item.IsPresent );
-	m_button_Mount->SetLabel( item.IsEnabled ? _("½ûÓÃ") : _("ÆôÓÃ") );
+	m_button_Mount->SetLabel( item.IsEnabled ? _("ç¦ç”¨") : _("å¯ç”¨") );
 	pxSetToolTip( m_button_Mount,
 		item.IsEnabled
 			? _("Disables the selected memory card, so that it will not be seen by games or BIOS.")
@@ -491,7 +516,7 @@ void Panels::MemoryCardListPanel_Simple::UpdateUI()
 
 void Panels::MemoryCardListPanel_Simple::Apply()
 {
-	//_parent::Apply();
+	_parent::Apply();
 
 	ScopedCoreThreadClose closed_core;
 	closed_core.AllowResume();
@@ -547,9 +572,8 @@ void Panels::MemoryCardListPanel_Simple::OnCreateCard(wxCommandEvent& evt)
 {
 	ScopedCoreThreadClose closed_core;
 
-	const int	sel		= m_listview->GetFirstSelected();
-	if( wxNOT_FOUND == sel ) return;
-	const uint	slot	= sel;
+	const int slot = m_listview->GetFirstSelected();
+	if( wxNOT_FOUND == slot ) return;
 
 	if( m_Cards[slot].IsPresent )
 	{
@@ -564,7 +588,7 @@ void Panels::MemoryCardListPanel_Simple::OnCreateCard(wxCommandEvent& evt)
 				), slot
 			);
 
-			result = Msgbox::YesNo( content, _("É¾³ýÄÚ´æ¿¨?") );
+			result = Msgbox::YesNo( content, _("åˆ é™¤å†…å­˜å¡?") );
 		}
 
 		if( result == wxID_YES )
@@ -592,11 +616,26 @@ void Panels::MemoryCardListPanel_Simple::OnMountCard(wxCommandEvent& evt)
 {
 	evt.Skip();
 
-	const int	sel		= m_listview->GetFirstSelected();
-	if( wxNOT_FOUND == sel ) return;
-	const uint	slot	= sel;
+	const int slot = m_listview->GetFirstSelected();
+	if( wxNOT_FOUND == slot ) return;
 
 	m_Cards[slot].IsEnabled = !m_Cards[slot].IsEnabled;
+	m_listview->RefreshItem(slot);
+	UpdateUI();
+}
+
+void Panels::MemoryCardListPanel_Simple::OnRelocateCard(wxCommandEvent& evt)
+{
+	evt.Skip();
+
+	const int slot = m_listview->GetFirstSelected();
+	if( wxNOT_FOUND == slot ) return;
+
+	// Issue a popup to the user that allows them to pick a new .PS2 file to serve as
+	// the new host memorycard file for the slot.  The dialog has a number of warnings
+	// present to reiterate that this is an advanced operation that PCSX2 may not
+	// support very well (ie, might be buggy).
+
 	m_listview->RefreshItem(slot);
 	UpdateUI();
 }
@@ -628,13 +667,14 @@ void Panels::MemoryCardListPanel_Simple::OnOpenItemContextMenu(wxListEvent& evt)
 	{
 		const McdListItem& item( m_Cards[idx] );
 
-		junk->Append( McdMenuId_Create,	item.IsPresent ? _("É¾³ý")	: _("´´½¨ÐÂµÄ...") );
-		junk->Append( McdMenuId_Mount,	item.IsEnabled ? _("½ûÓÃ")	: _("ÆôÓÃ") );
+		junk->Append( McdMenuId_Create,		item.IsPresent ? _("åˆ é™¤")	: _("åˆ›å»ºæ–°çš„...") );
+		junk->Append( McdMenuId_Mount,		item.IsEnabled ? _("ç¦ç”¨")	: _("å¯ç”¨") );
+		junk->Append( McdMenuId_Relocate,	_("Relocate file...") );
 
 		junk->AppendSeparator();
 	}
 
-	junk->Append( McdMenuId_RefreshList, _("Ë¢ÐÂÁÐ±í") );
+	junk->Append( McdMenuId_RefreshList, _("åˆ·æ–°åˆ—è¡¨") );
 	
 	PopupMenu( junk );
 	m_listview->RefreshItem( idx );

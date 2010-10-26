@@ -26,238 +26,45 @@
 #include "Util.h"
 #include "GifTransfer.h"
 
-extern float fFPS;
-
 using namespace std;
 
-#ifdef _WIN32
-#define GL_WIN32_WINDOW
-#else
-#define GL_X11_WINDOW
-#endif
+extern float fFPS;
 
-#undef CreateWindow	// Undo Windows.h global namespace pollution
+#define MEMORY_END 0x00400000
 
-#ifdef GL_X11_WINDOW
-#include <X11/extensions/xf86vmode.h>
-#endif
+extern int g_LastCRC;
+extern u8* g_pBasePS2Mem;
 
-class GLWindow
+extern u8* g_pbyGSMemory;
+
+class GSMemory
 {
-
-	private:
-#ifdef GL_X11_WINDOW
-		Display *glDisplay;
-		Window glWindow;
-		int glScreen;
-		GLXContext context;
-		XSetWindowAttributes attr;
-		XF86VidModeModeInfo deskMode;
-#endif
-		bool fullScreen, doubleBuffered;
-		s32 x, y;
-		u32 width, height, depth;
-
 	public:
-		void SwapGLBuffers();
-		void SetTitle(char *strtitle);
-		bool CreateWindow(void *pDisplay);
-		bool ReleaseWindow();
-		void CloseWindow();
-		bool DisplayWindow(int _width, int _height);
-		void ResizeCheck();
+		void init();
+		void destroy();
+		u8* get();
+		u8* get(u32 addr);
+		u8* get_raw(u32 addr);
 };
 
-extern GLWindow GLWin;
+extern u8* g_pbyGSClut;		// the temporary clut buffer
+
+class GSClut
+{
+	public:
+		void init();
+		void destroy();
+		u8* get();
+		u8* get(u32 addr);
+		u8* get_raw(u32 addr);
+};
 
 struct Vector_16F
 {
 	u16 x, y, z, w;
 };
 
-REG64_(GSReg, BGCOLOR)
-	u32 R:8;
-	u32 G:8;
-	u32 B:8;
-	u32 _PAD1:8;
-	u32 _PAD2:32;
-REG_END
-
-REG64_(GSReg, BUSDIR)
-	u32 DIR:1;
-	u32 _PAD1:31;
-	u32 _PAD2:32;
-REG_END
-
-REG64_(GSReg, CSR)
-	u32 SIGNAL:1;
-	u32 FINISH:1;
-	u32 HSINT:1;
-	u32 VSINT:1;
-	u32 EDWINT:1;
-	u32 ZERO1:1;
-	u32 ZERO2:1;
-	u32 _PAD1:1;
-	u32 FLUSH:1;
-	u32 RESET:1;
-	u32 _PAD2:2;
-	u32 NFIELD:1;
-	u32 FIELD:1;
-	u32 FIFO:2;
-	u32 REV:8;
-	u32 ID:8;
-	u32 _PAD3:32;
-REG_END
-
-REG64_(GSReg, DISPFB) // (-1/2)
-	u32 FBP:9;
-	u32 FBW:6;
-	u32 PSM:5;
-	u32 _PAD:12;
-	u32 DBX:11;
-	u32 DBY:11;
-	u32 _PAD2:10;
-REG_END
-
-REG64_(GSReg, DISPLAY) // (-1/2)
-	u32 DX:12;
-	u32 DY:11;
-	u32 MAGH:4;
-	u32 MAGV:2;
-	u32 _PAD:3;
-	u32 DW:12;
-	u32 DH:11;
-	u32 _PAD2:9;
-REG_END
-
-REG64_(GSReg, EXTBUF)
-	u32 EXBP:14;
-	u32 EXBW:6;
-	u32 FBIN:2;
-	u32 WFFMD:1;
-	u32 EMODA:2;
-	u32 EMODC:2;
-	u32 _PAD1:5;
-	u32 WDX:11;
-	u32 WDY:11;
-	u32 _PAD2:10;
-REG_END
-
-REG64_(GSReg, EXTDATA)
-	u32 SX:12;
-	u32 SY:11;
-	u32 SMPH:4;
-	u32 SMPV:2;
-	u32 _PAD1:3;
-	u32 WW:12;
-	u32 WH:11;
-	u32 _PAD2:9;
-REG_END
-
-REG64_(GSReg, EXTWRITE)
-	u32 WRITE;
-	u32 _PAD2:32;
-REG_END
-
-REG64_(GSReg, IMR)
-	u32 _PAD1:8;
-	u32 SIGMSK:1;
-	u32 FINISHMSK:1;
-	u32 HSMSK:1;
-	u32 VSMSK:1;
-	u32 EDWMSK:1;
-	u32 _PAD2:19;
-	u32 _PAD3:32;
-REG_END
-
-REG64_(GSReg, PMODE)
-	u32 EN1:1;
-	u32 EN2:1;
-	u32 CRTMD:3;
-	u32 MMOD:1;
-	u32 AMOD:1;
-	u32 SLBG:1;
-	u32 ALP:8;
-	u32 _PAD:16;
-	u32 _PAD1:32;
-REG_END
-
-REG64_(GSReg, SIGLBLID)
-	u32 SIGID:32;
-	u32 LBLID:32;
-REG_END
-
-REG64_(GSReg, SMODE1)
-	u32 RC:3;
-	u32 LC:7;
-	u32 T1248:2;
-	u32 SLCK:1;
-	u32 CMOD:2;
-	u32 EX:1;
-	u32 PRST:1;
-	u32 SINT:1;
-	u32 XPCK:1;
-	u32 PCK2:2;
-	u32 SPML:4;
-	u32 GCONT:1;
-	u32 PHS:1;
-	u32 PVS:1;
-	u32 PEHS:1;
-	u32 PEVS:1;
-	u32 CLKSEL:2;
-	u32 NVCK:1;
-	u32 SLCK2:1;
-	u32 VCKSEL:2;
-	u32 VHP:1;
-	u32 _PAD1:27;
-REG_END
-
-REG64_(GSReg, SMODE2)
-	u32 INT:1;
-	u32 FFMD:1;
-	u32 DPMS:2;
-	u32 _PAD2:28;
-	u32 _PAD3:32;
-REG_END
-
-REG64_(GSReg, SIGBLID)
-	u32 SIGID;
-	u32 LBLID;
-REG_END
-
-extern int g_LastCRC;
-extern u8* g_pBasePS2Mem;
-
-#define PMODE ((GSRegPMODE*)(g_pBasePS2Mem+0x0000))
-#define SMODE1 ((GSRegSMODE1*)(g_pBasePS2Mem+0x0010))
-#define SMODE2 ((GSRegSMODE2*)(g_pBasePS2Mem+0x0020))
-// SRFSH
-#define SYNCH1 ((GSRegSYNCH1*)(g_pBasePS2Mem+0x0040))
-#define SYNCH2 ((GSRegSYNCH2*)(g_pBasePS2Mem+0x0050))
-#define SYNCV ((GSRegSYNCV*)(g_pBasePS2Mem+0x0060))
-#define DISPFB1 ((GSRegDISPFB*)(g_pBasePS2Mem+0x0070))
-#define DISPLAY1 ((GSRegDISPLAY*)(g_pBasePS2Mem+0x0080))
-#define DISPFB2 ((GSRegDISPFB*)(g_pBasePS2Mem+0x0090))
-#define DISPLAY2 ((GSRegDISPLAY*)(g_pBasePS2Mem+0x00a0))
-#define EXTBUF ((GSRegEXTBUF*)(g_pBasePS2Mem+0x00b0))
-#define EXTDATA ((GSRegEXTDATA*)(g_pBasePS2Mem+0x00c0))
-#define EXTWRITE ((GSRegEXTWRITE*)(g_pBasePS2Mem+0x00d0))
-#define BGCOLOR ((GSRegBGCOLOR*)(g_pBasePS2Mem+0x00e0))
-#define CSR ((GSRegCSR*)(g_pBasePS2Mem+0x1000))
-#define IMR ((GSRegIMR*)(g_pBasePS2Mem+0x1010))
-#define BUSDIR ((GSRegBUSDIR*)(g_pBasePS2Mem+0x1040))
-#define SIGLBLID ((GSRegSIGBLID*)(g_pBasePS2Mem+0x1080))
-
-#define GET_GSFPS (((SMODE1->CMOD&1) ? 50 : 60) / (SMODE2->INT ? 1 : 2))
-
-//
-// sps2tags.h
-//
-#define GET_GIF_REG(tag, reg) \
-	(((tag).ai32[2 + ((reg) >> 3)] >> (((reg) & 7) << 2)) & 0xf)
-
 // PS2 vertex
-
 
 struct VertexGPU
 {
@@ -274,7 +81,7 @@ struct VertexGPU
 	float s, t, q;
 };
 
-// Almost same with previous, controlled by prim.fst flagf
+// Almost same as previous, controlled by prim.fst flags
 
 struct Vertex
 {
@@ -293,24 +100,49 @@ extern GSconf conf;
 // PSM types == Texture Storage Format
 enum PSM_value
 {
-	PSMCT32		= 0,		// 000000
-	PSMCT24		= 1,		// 000001
-	PSMCT16		= 2,		// 000010
-	PSMCT16S	= 10,		// 001010
-	PSMT8		= 19,		// 010011
-	PSMT4		= 20,		// 010100
-	PSMT8H		= 27,		// 011011
-	PSMT4HL		= 36,		// 100100
-	PSMT4HH		= 44,		// 101100
-	PSMT32Z		= 48,		// 110000
-	PSMT24Z		= 49,		// 110001
-	PSMT16Z		= 50,		// 110010
-	PSMT16SZ	= 58,		// 111010
+	PSMCT32		= 0,		// 00 0000
+	PSMCT24		= 1,		// 00 0001
+	PSMCT16		= 2,		// 00 0010
+	PSMCT16S	= 10,		// 00 1010
+	PSMT8		= 19,		// 01 0011
+	PSMT4		= 20,		// 01 0100
+	PSMT8H		= 27,		// 01 1011
+	PSMT4HL		= 36,		// 10 0100
+	PSMT4HH		= 44,		// 10 1100
+	PSMT32Z		= 48,		// 11 0000
+	PSMT24Z		= 49,		// 11 0001
+	PSMT16Z		= 50,		// 11 0010
+	PSMT16SZ	= 58,		// 11 1010
 };
 
 // Check target bit mode. PSMCT32 and 32Z return 0, 24 and 24Z - 1
 // 16, 16S, 16Z, 16SZ -- 2, PSMT8 and 8H - 3, PSMT4, 4HL, 4HH -- 4.
+// This code returns the same value on Z-textures, so texel storage mode is (BITMODE and !ISZTEX).
 inline int PSMT_BITMODE(int psm) {return (psm & 0x7);}
+
+inline int PSMT_BITS_NUM(int psm)
+{
+	// Treat these as 32 bit.
+	if ((psm == PSMT8H) || (psm == PSMT4HL) || (psm == PSMT4HH)) 
+	{
+		return 4;
+	}
+	
+	switch (PSMT_BITMODE(psm))
+	{
+		case 4: 
+			return 0;
+			
+		case 3:
+			return 1;
+			
+		case 2:
+			return 2;
+			
+		default:
+			return 4;
+	}
+}
 
 // CLUT = Color look up table. Set proper color to table according CLUT table.
 // Used for PSMT8, PSMT8H, PSMT4, PSMT4HH, PSMT4HL textures
@@ -335,7 +167,47 @@ inline bool PSMT_IS16Z(int psm) {return ((psm & 0x32) == 0x32);}
 
 // Check to see if it is 32 bits. According to code comments, anyways.
 // I'll have to look closer at it, because it'd seem like it'd return true for 24 bits.
+// Note: the function only works for clut format. Clut PSM is 4 bits only. The possible value are PSMCT32, PSMCT16, PSMCT16S
 inline bool PSMT_IS32BIT(int psm) {return !!(psm <= 1);}
+
+// When color format is RGB24 (PSMCT24) or RGBA16 (PSMCT16 & 16S) alpha value expanded, based on
+// TEXA register and AEM status.
+inline int PSMT_ALPHAEXP(int psm) {return (psm == PSMCT24 || psm == PSMCT16 || psm == PSMCT16S);}
+
+
+// This function updates the 6th and 5th bit of psm
+// 00 or 11 -> 00 ; 01 -> 10 ; 10 -> 01
+inline int Switch_Top_Bytes (int X) {
+	if ( ( X & 0x30 ) == 0 )
+		return X;
+	else
+		return (X ^ 0x30);
+}
+
+// How many pixel stored in 1 word.
+// PSMT8 has 4 pixels per 32bit, PSMT4 has 8. All 16-bit textures are 2 pixel per bit. And all others are 1 pixel in texture.
+inline int PIXELS_PER_WORD(int psm) 
+{
+	if (psm == PSMT8)
+		return 4;
+	if (psm == PSMT4)
+		return 8;
+	if (PSMT_IS16BIT(psm))
+		return 2;
+	return 1;
+}
+
+// Some storage formats could share the same memory block (2 textures in 1 format). This include following combinations:
+// PSMT24(24Z) with either 8H, 4HL, 4HH and PSMT4HL with PSMT4HH.
+// We use slightly different versions of this function on comparison with GSDX, Storage format XOR 0x30 made Z-textures
+// similar to normal ones and change higher bits on short (8 and 4 bits) textures.
+inline bool PSMT_HAS_SHARED_BITS (int fpsm, int tpsm) {
+	int SUM = Switch_Top_Bytes(fpsm)  + Switch_Top_Bytes(tpsm) ;
+	return (SUM == 0x15 || SUM == 0x1D || SUM == 0x2C || SUM == 0x30);
+}
+
+// If a clut is in 32-bit color, its size is 4 bytes, and 16-bit clut has a 2 byte size.
+inline int CLUT_PIXEL_SIZE(int cpsm) {return ((cpsm <= 1) ? 4 : 2); }
 
 //----------------------- Data from registers -----------------------
 
@@ -459,10 +331,9 @@ union tex_0_info
 	u32 _u32[2];
 	u16 _u16[4];
 	u8 _u8[8];
+	
 	tex_0_info(u64 data) { _u64 = data; }
-
 	tex_0_info(u32 data) { _u32[0] = data; _u32[1] = 0; }
-
 	tex_0_info(u32 data0, u32 data1) { _u32[0] = data0; _u32[1] = data1; }
 
 	u32 tbw_mult()
@@ -637,6 +508,13 @@ typedef struct
 
 	pathInfo path[4];
 	GIFRegDIMX dimx;
+	GSMemory mem;
+	GSClut clut_buffer;
+	int primNext(int inc = 1)
+	{
+		return ((primIndex + inc) % ARRAY_SIZE(gsvertex));
+	}
+	
 	void setRGBA(u32 r, u32 g, u32 b, u32 a)
 	{
 		rgba = (r & 0xff) |
@@ -652,7 +530,7 @@ typedef struct
 		vertexregs.z = z;
 		vertexregs.f = f;
 		gsvertex[primIndex] = vertexregs;
-		primIndex = (primIndex + 1) % ARRAY_SIZE(gsvertex);
+		primIndex = primNext();
 	}
 	
 	void add_vertex(u16 x, u16 y, u32 z)
@@ -661,7 +539,7 @@ typedef struct
 		vertexregs.y = y;
 		vertexregs.z = z;
 		gsvertex[primIndex] = vertexregs;
-		primIndex = (primIndex + 1) % ARRAY_SIZE(gsvertex);
+		primIndex = primNext();
 	}
 } GSinternal;
 
@@ -683,6 +561,7 @@ static __forceinline u32 RGBA16to32(u16 c)
 		   (((c) & 0x8000) ? 0xff000000 : 0);
 }
 
+#if 0
 // converts float16 [0,1] to BYTE [0,255] (assumes value is in range, otherwise will take lower 8bits)
 // f is a u16
 static __forceinline u16 Float16ToBYTE(u16 f)
@@ -728,6 +607,7 @@ static __forceinline u16 Float16ToALPHA(u16 f)
 // used for Z values
 #define Float16ToARGB_Z(f) COLOR_ARGB((u32)Float16ToBYTE_2(f.w), Float16ToBYTE_2(f.x), Float16ToBYTE_2(f.y), Float16ToBYTE_2(f.z))
 #define Float16ToARGB16_Z(f) ((Float16ToBYTE_2(f.y)<<8)|Float16ToBYTE_2(f.z))
+#endif
 
 
 inline float Clamp(float fx, float fmin, float fmax)
@@ -737,14 +617,17 @@ inline float Clamp(float fx, float fmin, float fmax)
 	return fx > fmax ? fmax : fx;
 }
 
-// PSMT16, 16S have shorter color per pixel, also cluted textures with half storage.
-inline bool PSMT_ISHALF_STORAGE(const tex0Info& tex0)
-{
-	if (PSMT_IS16BIT(tex0.psm) || (PSMT_ISCLUT(tex0.psm) && tex0.cpsm > 1))
-		return true;
-	else
-		return false;
-}
+// Get pixel storage format from tex0. Clutted textures store pixels in cpsm format.
+inline int PIXEL_STORAGE_FORMAT(const tex0Info& tex) {
+	if (PSMT_ISCLUT(tex.psm)) 
+		return tex.cpsm;
+ 	else
+		return tex.psm;
+ }
+ 
+// If pixel storage format not PSMCT24 ot PSMCT32, then it is 16-bit. 
+// Z-textures have 0x30 upper bits, so we eliminate them by &&(~0x30)
+inline bool PSMT_ISHALF_STORAGE(const tex0Info& tex0) { return ((PIXEL_STORAGE_FORMAT(tex0) & (~0x30)) > 1); }
 
 //--------------------------- Inlines for bitwise ops
 //--------------------------- textures

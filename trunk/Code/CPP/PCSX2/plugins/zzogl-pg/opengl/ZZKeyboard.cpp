@@ -21,8 +21,9 @@
 
 #include "Util.h"
 #include "GS.h"
-#include "ZeroGSShaders/zerogsshaders.h"
+#include "ZZoglShaders.h"
 #include "Profile.h"
+#include "GLWin.h"
 
 extern int CurrentSavestate, g_GSMultiThreaded, g_nPixelShaderVer;
 extern char *libraryName;
@@ -33,7 +34,6 @@ extern u32 THR_KeyEvent; // value for passing out key events between threads
 extern bool THR_bShift, SaveStateExists;
 
 const char* s_aa[5] = { "AA none |", "AA 2x |", "AA 4x |", "AA 8x |", "AA 16x |" };
-const char* s_naa[3] = { "native res |", "res /2 |", "res /4 |" };
 const char* pbilinear[] = { "off", "normal", "forced" };
 
 
@@ -95,7 +95,6 @@ void ProcessAASetting(bool reverse)
 void ProcessFPS()
 {
 	FUNCLOG
-	extern bool g_bDisplayFPS;
 	g_bDisplayFPS ^= 1;
 	ZZLog::Debug_Log("Toggled FPS.");
 }
@@ -111,38 +110,13 @@ void ProcessWireFrame()
 	ZZLog::WriteToScreen(strtitle);
 }
 
-void ProcessNegAASetting(bool reverse)
-{
-	FUNCLOG
-
-	char strtitle[256];
-
-	if (reverse)
-	{
-		conf.negaa--; // -1
-		if (conf.negaa > 2) conf.negaa = 2;					// u8 in unsigned, so negative value is 255.
-		sprintf(strtitle, "down resolution - %s", s_naa[conf.negaa]);
-		ZeroGS::SetNegAA(conf.negaa);
-	}
-	else
-	{
-		conf.negaa++;
-		if (conf.negaa > 2) conf.negaa = 0;
-		sprintf(strtitle, "down resolution - %s", s_naa[conf.negaa]);
-		ZeroGS::SetNegAA(conf.negaa);
-	}
-
-	ZZLog::WriteToScreen(strtitle);
-	SaveConfig();
-}
-
 typedef struct GameHackStruct
 {
 	const char HackName[40];
 	u32 HackMask;
 } GameHack;
 
-#define HACK_NUMBER 30
+#define HACK_NUMBER 25
 
 GameHack HackinshTable[HACK_NUMBER] =
 {
@@ -153,30 +127,31 @@ GameHack HackinshTable[HACK_NUMBER] =
 	{"*** 4 TexA hack", GAME_TEXAHACK},
 	{"*** 5 No Target Resolve", GAME_NOTARGETRESOLVE},
 	{"*** 6 Exact color", GAME_EXACTCOLOR},
-	{"*** 7 No color clamp", GAME_NOCOLORCLAMP},
-	{"*** 8 FFX hack", GAME_FFXHACK},
-	{"*** 9 No Alpha Fail", GAME_NOALPHAFAIL},
-	{"***10 No Depth Update", GAME_NODEPTHUPDATE},
-	{"***11 Quick Resolve 1", GAME_QUICKRESOLVE1},
-	{"***12 No quick resolve", GAME_NOQUICKRESOLVE},
-	{"***13 Notaget clut", GAME_NOTARGETCLUT},
-	{"***14 No Stencil", GAME_NOSTENCIL},
-	{"***15 No Depth resolve", GAME_NODEPTHRESOLVE},
-	{"***16 Full 16 bit", GAME_FULL16BITRES},
-	{"***17 Resolve promoted", GAME_RESOLVEPROMOTED},
-	{"***18 Fast Update", GAME_FASTUPDATE},
-	{"***19 No Alpha Test", GAME_NOALPHATEST},
-	{"***20 Disable MRT deprh", GAME_DISABLEMRTDEPTH},
-	{"***21 32 bit targes", GAME_32BITTARGS},
-	{"***22 path 3 hack", GAME_PATH3HACK},
-	{"***23 parallelise calls", GAME_DOPARALLELCTX},
-	{"***24 specular highligths", GAME_XENOSPECHACK},
-	{"***25 partial pointers", GAME_PARTIALPOINTERS},
-	{"***26 partial depth", GAME_PARTIALDEPTH},
-	{"***27 reget hack", GAME_REGETHACK},
+	//{"***xx No color clamp", GAME_NOCOLORCLAMP},
+	//{"***xx FFX hack", GAME_FFXHACK},
+	{"*** 7 No Alpha Fail", GAME_NOALPHAFAIL},
+	{"*** 8 No Depth Update", GAME_NODEPTHUPDATE},
+	{"*** 9 Quick Resolve 1", GAME_QUICKRESOLVE1},
+	{"***10 No quick resolve", GAME_NOQUICKRESOLVE},
+	{"***11 Notaget clut", GAME_NOTARGETCLUT},
+	{"***12 No Stencil", GAME_NOSTENCIL},
+	{"***13 No Depth resolve", GAME_NODEPTHRESOLVE},
+	{"***14 Full 16 bit", GAME_FULL16BITRES},
+	{"***15 Resolve promoted", GAME_RESOLVEPROMOTED},
+	{"***16 Fast Update", GAME_FASTUPDATE},
+	{"***17 No Alpha Test", GAME_NOALPHATEST},
+	{"***18 Disable MRT depth", GAME_DISABLEMRTDEPTH},
+	//{"***xx 32 bit targs", GAME_32BITTARGS},
+	//{"***xx Path 3 hack", GAME_PATH3HACK},
+	//{"***xx Parallel calls", GAME_DOPARALLELCTX},
+	{"***19 Specular highlights", GAME_XENOSPECHACK},
+	//{"***xx Partial pointers", GAME_PARTIALPOINTERS},
+	{"***20 Partial depth", GAME_PARTIALDEPTH},
+	{"***21 Reget hack", GAME_REGETHACK},
 
-	{"***28 gust hack", GAME_GUSTHACK},
-	{"***29 log-Z", GAME_NOLOGZ}
+	{"***22 Gust hack", GAME_GUSTHACK},
+	{"***23 Log-Z", GAME_NOLOGZ},
+	{"***24 Auto skipdraw", GAME_AUTOSKIPDRAW}
 };
 
 int CurrentHackSetting = 0;
@@ -198,7 +173,7 @@ void ProcessHackSetting(bool reverse)
 	{
 		CurrentHackSetting++;
 
-		if (CurrentHackSetting == HACK_NUMBER) CurrentHackSetting = 0;
+		if (CurrentHackSetting >= HACK_NUMBER) CurrentHackSetting = 0;
 	}
 
 	conf.hacks._u32 |= HackinshTable[CurrentHackSetting].HackMask;
@@ -280,7 +255,7 @@ void WriteBilinear()
 }
 
 #ifdef _WIN32
-void ProcessMessages()
+void ProcessEvents()
 {
 	MSG msg;
 
@@ -348,14 +323,14 @@ void ProcessMessages()
 
 #else // linux
 
-void ProcessMessages()
+void ProcessEvents()
 {
 	FUNCLOG
 
 	// check resizing
 	GLWin.ResizeCheck();
 
-	if (THR_KeyEvent)     // This values was passed from GSKeyEvents which could be in another thread
+	if (THR_KeyEvent)     // This value was passed from GSKeyEvents which could be in another thread
 	{
 		int my_KeyEvent = THR_KeyEvent;
 		bool my_bShift = THR_bShift;

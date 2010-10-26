@@ -27,7 +27,7 @@ void psxHwReset() {
 /*	if (Config.Sio) psxHu32(0x1070) |= 0x80;
 	if (Config.SpuIrq) psxHu32(0x1070) |= 0x200;*/
 
-	memzero_ptr<0x10000>(psxH);
+	memzero_ptr<0x10000>(iopHw);
 
 //	mdecInit(); //initialize mdec decoder
 	cdrReset();
@@ -37,7 +37,7 @@ void psxHwReset() {
 	//sio2Reset();
 }
 
-__forceinline u8 psxHw4Read8(u32 add)
+__fi u8 psxHw4Read8(u32 add)
 {
 	u16 mem = add & 0xFF;
 	u8 ret = cdvdRead(mem);
@@ -45,7 +45,7 @@ __forceinline u8 psxHw4Read8(u32 add)
 	return ret;
 }
 
-__forceinline void psxHw4Write8(u32 add, u8 value)
+__fi void psxHw4Write8(u32 add, u8 value)
 {
 	u8 mem = (u8)add;	// only lower 8 bits are relevant (cdvd regs mirror across the page)
 	cdvdWrite(mem, value);

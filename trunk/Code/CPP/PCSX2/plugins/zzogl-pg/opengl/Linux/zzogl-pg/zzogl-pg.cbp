@@ -16,6 +16,7 @@
 				<Compiler>
 					<Add option="-Wall" />
 					<Add option="-g" />
+					<Add option="-DZEROGS_DEVBUILD" />
 					<Add option="-D_DEBUG" />
 				</Compiler>
 				<Linker>
@@ -87,7 +88,6 @@
 			<Add library="jpeg" />
 			<Add library="GLEW" />
 			<Add library="GLU" />
-			<Add library="Xxf86vm" />
 			<Add library="z" />
 			<Add library="dl" />
 			<Add library="stdc++" />
@@ -98,6 +98,7 @@
 			<Mode after="always" />
 		</ExtraCommands>
 		<Unit filename="../../CRC.h" />
+		<Unit filename="../../GLWin.h" />
 		<Unit filename="../../GLWin32.cpp" />
 		<Unit filename="../../GLWinX11.cpp" />
 		<Unit filename="../../GS.h" />
@@ -149,11 +150,14 @@
 		<Unit filename="../../ZZoglCRTC.h" />
 		<Unit filename="../../ZZoglCreate.cpp" />
 		<Unit filename="../../ZZoglFlush.cpp" />
+		<Unit filename="../../ZZoglFlushHack.cpp" />
+		<Unit filename="../../ZZoglFlushHack.h" />
+		<Unit filename="../../ZZoglMath.h" />
 		<Unit filename="../../ZZoglSave.cpp" />
 		<Unit filename="../../ZZoglShaders.cpp" />
+		<Unit filename="../../ZZoglShaders.h" />
 		<Unit filename="../../ZZoglShoots.cpp" />
 		<Unit filename="../../ZZoglVB.cpp" />
-		<Unit filename="../../ZeroGSShaders/zerogsshaders.h" />
 		<Unit filename="../../common.h" />
 		<Unit filename="../../glprocs.c">
 			<Option compilerVar="CC" />
@@ -168,7 +172,6 @@
 		<Unit filename="../../x86.h" />
 		<Unit filename="../../zerogs.cpp" />
 		<Unit filename="../../zerogs.h" />
-		<Unit filename="../../zerogsmath.h" />
 		<Unit filename="../../zpipe.cpp" />
 		<Unit filename="../../zpipe.h" />
 		<Extensions>

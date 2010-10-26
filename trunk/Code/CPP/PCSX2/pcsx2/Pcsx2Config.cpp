@@ -24,11 +24,10 @@
 void TraceLogFilters::LoadSave( IniInterface& ini )
 {
 	TraceLogFilters defaults;
-	IniScopedGroup path( ini, L"TraceLog" );
+	ScopedIniGroup path( ini, L"TraceLog" );
 
 	IniEntry( Enabled );
-	IniEntry( SIF );
-
+	
 	// Retaining backwards compat of the trace log enablers isn't really important, and
 	// doing each one by hand would be murder.  So let's cheat and just save it as an int:
 
@@ -36,41 +35,33 @@ void TraceLogFilters::LoadSave( IniInterface& ini )
 	IniEntry( IOP.bitset );
 }
 
-// all speedhacks are disabled by default
 Pcsx2Config::SpeedhackOptions::SpeedhackOptions()
+{
+	DisableAll();
+	
+	// Set recommended speedhacks to enabled by default. They'll still be off globally on resets.
+	WaitLoop = true;
+	IntcStat = true;
+	vuFlagHack = true;
+}
+
+Pcsx2Config::SpeedhackOptions& Pcsx2Config::SpeedhackOptions::DisableAll()
 {
 	bitset			= 0;
 	EECycleRate		= 0;
 	VUCycleSteal	= 0;
-}
-
-ConsoleLogFilters::ConsoleLogFilters()
-{
-	ELF			= false;
-	StdoutEE	= true;
-	StdoutIOP	= true;
-	Deci2		= true;
-}
-
-void ConsoleLogFilters::LoadSave( IniInterface& ini )
-{
-	ConsoleLogFilters defaults;
-	IniScopedGroup path( ini, L"ConsoleLog" );
-
-	IniBitBool( ELF );
-	IniBitBool( StdoutEE );
-	IniBitBool( StdoutIOP );
-	IniBitBool( Deci2 );
+	
+	return *this;
 }
 
 void Pcsx2Config::SpeedhackOptions::LoadSave( IniInterface& ini )
 {
 	SpeedhackOptions defaults;
-	IniScopedGroup path( ini, L"Speedhacks" );
+	ScopedIniGroup path( ini, L"Speedhacks" );
 
 	IniBitfield( EECycleRate );
 	IniBitfield( VUCycleSteal );
-	IniBitBool( IopCycleRate_X2 );
+	IniBitBool( fastCDVD );
 	IniBitBool( IntcStat );
 	IniBitBool( WaitLoop );
 	IniBitBool( vuFlagHack );
@@ -81,7 +72,7 @@ void Pcsx2Config::SpeedhackOptions::LoadSave( IniInterface& ini )
 void Pcsx2Config::ProfilerOptions::LoadSave( IniInterface& ini )
 {
 	ProfilerOptions defaults;
-	IniScopedGroup path( ini, L"Profiler" );
+	ScopedIniGroup path( ini, L"Profiler" );
 
 	IniBitBool( Enabled );
 	IniBitBool( RecBlocks_EE );
@@ -95,7 +86,7 @@ Pcsx2Config::RecompilerOptions::RecompilerOptions()
 	bitset		= 0;
 
 	//StackFrameChecks	= false;
-	//PreBlockCheckEE		= false;
+	//PreBlockCheckEE	= false;
 
 	// All recs are enabled by default.
 
@@ -154,7 +145,7 @@ void Pcsx2Config::RecompilerOptions::ApplySanityCheck()
 void Pcsx2Config::RecompilerOptions::LoadSave( IniInterface& ini )
 {
 	RecompilerOptions defaults;
-	IniScopedGroup path( ini, L"Recompiler" );
+	ScopedIniGroup path( ini, L"Recompiler" );
 
 	IniBitBool( EnableEE );
 	IniBitBool( EnableIOP );
@@ -195,7 +186,7 @@ void Pcsx2Config::CpuOptions::ApplySanityCheck()
 void Pcsx2Config::CpuOptions::LoadSave( IniInterface& ini )
 {
 	CpuOptions defaults;
-	IniScopedGroup path( ini, L"CPU" );
+	ScopedIniGroup path( ini, L"CPU" );
 
 	IniBitBoolEx( sseMXCSR.DenormalsAreZero,	"FPU.DenormalsAreZero" );
 	IniBitBoolEx( sseMXCSR.FlushToZero,			"FPU.FlushToZero" );
@@ -231,7 +222,7 @@ Pcsx2Config::GSOptions::GSOptions()
 void Pcsx2Config::GSOptions::LoadSave( IniInterface& ini )
 {
 	GSOptions defaults;
-	IniScopedGroup path( ini, L"GS" );
+	ScopedIniGroup path( ini, L"GS" );
 
 	IniEntry( SynchronousMTGS );
 	IniEntry( DisableOutput );
@@ -266,9 +257,21 @@ const wxChar *const tbl_GamefixNames[] =
 	L"OPHFlag"
 };
 
-const __forceinline wxChar* EnumToString( GamefixId id )
+const __fi wxChar* EnumToString( GamefixId id )
 {
 	return tbl_GamefixNames[id];
+}
+
+// all gamefixes are disabled by default.
+Pcsx2Config::GamefixOptions::GamefixOptions()
+{
+	DisableAll();
+}
+
+Pcsx2Config::GamefixOptions& Pcsx2Config::GamefixOptions::DisableAll()
+{
+	bitset = 0;
+	return *this;
 }
 
 // Enables a full list of gamefixes.  The list can be either comma or pipe-delimited.
@@ -337,7 +340,7 @@ bool Pcsx2Config::GamefixOptions::Get( GamefixId id ) const
 void Pcsx2Config::GamefixOptions::LoadSave( IniInterface& ini )
 {
 	GamefixOptions defaults;
-	IniScopedGroup path( ini, L"Gamefixes" );
+	ScopedIniGroup path( ini, L"Gamefixes" );
 
 	IniBitBool( VuAddSubHack );
 	IniBitBool( VuClipFlagHack );
@@ -354,13 +357,15 @@ void Pcsx2Config::GamefixOptions::LoadSave( IniInterface& ini )
 Pcsx2Config::Pcsx2Config()
 {
 	bitset = 0;
+	// Set defaults for fresh installs / reset settings
 	McdEnableEjection = true;
+	EnablePatches = true;
 }
 
 void Pcsx2Config::LoadSave( IniInterface& ini )
 {
 	Pcsx2Config defaults;
-	IniScopedGroup path( ini, L"EmuCore" );
+	ScopedIniGroup path( ini, L"EmuCore" );
 
 	IniBitBool( CdvdVerboseReads );
 	IniBitBool( CdvdDumpBlocks );
@@ -382,7 +387,6 @@ void Pcsx2Config::LoadSave( IniInterface& ini )
 	Profiler		.LoadSave( ini );
 
 	Trace			.LoadSave( ini );
-	Log				.LoadSave( ini );
 
 	ini.Flush();
 }
