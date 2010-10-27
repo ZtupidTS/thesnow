@@ -125,6 +125,16 @@ unsigned int ps_constant_offset_table[] = {
 	76, 80,							// C_INDTEXSCALE, 8
 	84, 88, 92, 96, 100, 104,		// C_INDTEXMTX, 24
 	108, 112,						// C_FOG, 8
+	116, 120, 124 ,128,				// C_COLORMATRIX, 16	
+	132, 136, 140, 144, 148,        // C_PLIGHTS0, 20
+	152, 156, 160, 164, 168,		// C_PLIGHTS1, 20
+	172, 176, 180, 184, 188,		// C_PLIGHTS2, 20		
+	192, 196, 200, 204, 208,		// C_PLIGHTS3, 20
+	212, 216, 220, 224, 228,		// C_PLIGHTS4, 20
+	232, 236, 240, 244, 248,		// C_PLIGHTS5, 20
+	252, 256, 260, 264, 268,		// C_PLIGHTS6, 20
+	272, 276, 280, 284, 288,		// C_PLIGHTS7, 20	
+	292, 296, 300, 304,				// C_PMATERIALS, 16
 };
 void SetPSConstant4f(unsigned int const_number, float f1, float f2, float f3, float f4)
 {
@@ -189,6 +199,9 @@ void PixelShaderCache::Init()
 	if (!File::Exists(File::GetUserPath(D_SHADERCACHE_IDX)))
 		File::CreateDir(File::GetUserPath(D_SHADERCACHE_IDX));
 
+	SETSTAT(stats.numPixelShadersCreated, 0);
+	SETSTAT(stats.numPixelShadersAlive, 0);
+
 	char cache_filename[MAX_PATH];
 	sprintf(cache_filename, "%sdx11-%s-ps.cache", File::GetUserPath(D_SHADERCACHE_IDX), globals->unique_id);
 	PixelShaderCacheInserter inserter;
@@ -215,12 +228,12 @@ void PixelShaderCache::Shutdown()
 	g_ps_disk_cache.Close();
 }
 
-bool PixelShaderCache::SetShader(bool dstAlpha)
+bool PixelShaderCache::SetShader(DSTALPHA_MODE dstAlphaMode, u32 components)
 {
 	PIXELSHADERUID uid;
-	GetPixelShaderId(&uid, PixelShaderManager::GetTextureMask(), dstAlpha);
+	GetPixelShaderId(&uid, dstAlphaMode);
 
-	// check if the shader is already set
+	// Check if the shader is already set
 	if (uid == last_pixel_shader_uid && PixelShaders[uid].frameCount == frameCount)
 	{
 		PSCache::const_iterator iter = PixelShaders.find(uid);
@@ -229,7 +242,7 @@ bool PixelShaderCache::SetShader(bool dstAlpha)
 
 	memcpy(&last_pixel_shader_uid, &uid, sizeof(PIXELSHADERUID));
 
-	// check if the shader is already in the cache
+	// Check if the shader is already in the cache
 	PSCache::iterator iter;
 	iter = PixelShaders.find(uid);
 	if (iter != PixelShaders.end())
@@ -242,8 +255,8 @@ bool PixelShaderCache::SetShader(bool dstAlpha)
 		return (entry.shader != NULL);
 	}
 
-	// need to compile a new shader
-	const char* code = GeneratePixelShaderCode(PixelShaderManager::GetTextureMask(), dstAlpha, API_D3D11);
+	// Need to compile a new shader
+	const char* code = GeneratePixelShaderCode(dstAlphaMode, API_D3D11, components);
 
 	D3DBlob* pbytecode;
 	if (!D3D::CompilePixelShader(code, strlen(code), &pbytecode))
@@ -252,7 +265,7 @@ bool PixelShaderCache::SetShader(bool dstAlpha)
 		return false;
 	}
 
-	// insert the bytecode into the caches
+	// Insert the bytecode into the caches
 	g_ps_disk_cache.Append((u8*)&uid, sizeof(uid), (const u8*)pbytecode->Data(), pbytecode->Size());
 	g_ps_disk_cache.Sync();
 
@@ -273,15 +286,19 @@ bool PixelShaderCache::InsertByteCode(const PIXELSHADERUID &uid, void* bytecode,
 	// TODO: Somehow make the debug name a bit more specific
 	D3D::SetDebugObjectName((ID3D11DeviceChild*)shader, "a pixel shader of PixelShaderCache");
 
-	// make an entry in the table
+	// Make an entry in the table
 	PSCacheEntry newentry;
 	newentry.shader = shader;
 	newentry.frameCount = frameCount;
 	PixelShaders[uid] = newentry;
 	last_entry = &PixelShaders[uid];
 
+	if (!shader) {
+		// INCSTAT(stats.numPixelShadersFailed);
+		return false;
+	}
+
 	INCSTAT(stats.numPixelShadersCreated);
 	SETSTAT(stats.numPixelShadersAlive, PixelShaders.size());
-
 	return true;
 }

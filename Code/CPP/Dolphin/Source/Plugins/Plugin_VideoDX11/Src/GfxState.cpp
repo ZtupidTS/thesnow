@@ -34,6 +34,8 @@ EmuGfxState::EmuGfxState() : vertexshader(NULL), vsbytecode(NULL), pixelshader(N
 		if(g_ActiveConfig.iMaxAnisotropy > 1) samplerdesc[k].Filter = D3D11_FILTER_ANISOTROPIC;
 	}
 
+	m_useDstAlpha = false;
+
 	memset(&blenddesc, 0, sizeof(blenddesc));
 	blenddesc.AlphaToCoverageEnable = FALSE;
 	blenddesc.IndependentBlendEnable = FALSE;
@@ -70,7 +72,7 @@ EmuGfxState::EmuGfxState() : vertexshader(NULL), vsbytecode(NULL), pixelshader(N
 EmuGfxState::~EmuGfxState()
 {
 	for (unsigned int k = 0;k < 8;k++)
-		SAFE_RELEASE(shader_resources[k])
+		SAFE_RELEASE(shader_resources[k]);
 
 	SAFE_RELEASE(vsbytecode);
 	SAFE_RELEASE(psbytecode);
@@ -224,27 +226,6 @@ void EmuGfxState::ApplyState()
 	apply_called = true;
 }
 
-void EmuGfxState::AlphaPass()
-{
-	if (!apply_called) ERROR_LOG(VIDEO, "EmuGfxState::AlphaPass called without having called ApplyState before!")
-	else stateman->PopBlendState();
-
-	// pixel shader for alpha pass is different, so update it
-	context->PSSetShader(pixelshader, NULL, 0);
-
-	ID3D11BlendState* blstate;
-	D3D11_BLEND_DESC desc = blenddesc;
-	desc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALPHA;
-	desc.RenderTarget[0].BlendEnable = FALSE;
-	HRESULT hr = device->CreateBlendState(&desc, &blstate);
-	if (FAILED(hr)) PanicAlert("Failed to create blend state at %s %d\n", __FILE__, __LINE__);
-	SetDebugObjectName((ID3D11DeviceChild*)blstate, "a blend state of EmuGfxState (created during alpha pass)");
-	stateman->PushBlendState(blstate);
-	blstate->Release();
-
-	stateman->Apply();
-}
-
 void EmuGfxState::Reset()
 {
 	for (unsigned int k = 0;k < 8;k++)
@@ -273,29 +254,94 @@ void EmuGfxState::SetRenderTargetWriteMask(UINT8 mask)
 void EmuGfxState::SetSrcBlend(D3D11_BLEND val)
 {
 	// TODO: Check whether e.g. the dest color check is needed here
+	if (m_useDstAlpha)
+	{
+		// Colors should blend against SRC1_ALPHA
+		if (val == D3D11_BLEND_SRC_ALPHA)
+			val = D3D11_BLEND_SRC1_ALPHA;
+		else if (val == D3D11_BLEND_INV_SRC_ALPHA)
+			val = D3D11_BLEND_INV_SRC1_ALPHA;
+
+		blenddesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+	}
+	else
+	{
+		// Colors should blend against SRC_ALPHA
+		if (val == D3D11_BLEND_SRC1_ALPHA)
+			val = D3D11_BLEND_SRC_ALPHA;
+		else if (val == D3D11_BLEND_INV_SRC1_ALPHA)
+			val = D3D11_BLEND_INV_SRC_ALPHA;
+
+		if (val == D3D11_BLEND_SRC_COLOR)
+			blenddesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_SRC_ALPHA;
+		else if (val == D3D11_BLEND_INV_SRC_COLOR)
+			blenddesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
+		else if (val == D3D11_BLEND_DEST_COLOR)
+			blenddesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_DEST_ALPHA;
+		else if (val == D3D11_BLEND_INV_DEST_COLOR)
+			blenddesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_INV_DEST_ALPHA;
+		else
+			blenddesc.RenderTarget[0].SrcBlendAlpha = val;
+	}
+
 	blenddesc.RenderTarget[0].SrcBlend = val;
-	if (val == D3D11_BLEND_SRC_COLOR) blenddesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_SRC_ALPHA;
-	else if (val == D3D11_BLEND_INV_SRC_COLOR) blenddesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
-	else if (val == D3D11_BLEND_DEST_COLOR) blenddesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_DEST_ALPHA;
-	else if (val == D3D11_BLEND_INV_DEST_COLOR) blenddesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_INV_DEST_ALPHA;
-	else blenddesc.RenderTarget[0].SrcBlendAlpha = val;
 }
 
 void EmuGfxState::SetDestBlend(D3D11_BLEND val)
 {
 	// TODO: Check whether e.g. the source color check is needed here
+	if (m_useDstAlpha)
+	{
+		// Colors should blend against SRC1_ALPHA
+		if (val == D3D11_BLEND_SRC_ALPHA)
+			val = D3D11_BLEND_SRC1_ALPHA;
+		else if (val == D3D11_BLEND_INV_SRC_ALPHA)
+			val = D3D11_BLEND_INV_SRC1_ALPHA;
+
+		blenddesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+	}
+	else
+	{
+		// Colors should blend against SRC_ALPHA
+		if (val == D3D11_BLEND_SRC1_ALPHA)
+			val = D3D11_BLEND_SRC_ALPHA;
+		else if (val == D3D11_BLEND_INV_SRC1_ALPHA)
+			val = D3D11_BLEND_INV_SRC_ALPHA;
+
+		if (val == D3D11_BLEND_SRC_COLOR)
+			blenddesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_SRC_ALPHA;
+		else if (val == D3D11_BLEND_INV_SRC_COLOR)
+			blenddesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
+		else if (val == D3D11_BLEND_DEST_COLOR)
+			blenddesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_DEST_ALPHA;
+		else if (val == D3D11_BLEND_INV_DEST_COLOR)
+			blenddesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_INV_DEST_ALPHA;
+		else
+			blenddesc.RenderTarget[0].DestBlendAlpha = val;
+	}
+
 	blenddesc.RenderTarget[0].DestBlend = val;
-	if (val == D3D11_BLEND_SRC_COLOR) blenddesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_SRC_ALPHA;
-	else if (val == D3D11_BLEND_INV_SRC_COLOR) blenddesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
-	else if (val == D3D11_BLEND_DEST_COLOR) blenddesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_DEST_ALPHA;
-	else if (val == D3D11_BLEND_INV_DEST_COLOR) blenddesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_INV_DEST_ALPHA;
-	else blenddesc.RenderTarget[0].DestBlendAlpha = val;
 }
 
 void EmuGfxState::SetBlendOp(D3D11_BLEND_OP val)
 {
 	blenddesc.RenderTarget[0].BlendOp = val;
-	blenddesc.RenderTarget[0].BlendOpAlpha = val;
+	if (m_useDstAlpha)
+	{
+		blenddesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	}
+	else
+	{
+		blenddesc.RenderTarget[0].BlendOpAlpha = val;
+	}
+}
+
+void EmuGfxState::SetDstAlpha(bool enable)
+{
+	m_useDstAlpha = enable;
+	SetSrcBlend(blenddesc.RenderTarget[0].SrcBlend);
+	SetDestBlend(blenddesc.RenderTarget[0].DestBlend);
+	SetBlendOp(blenddesc.RenderTarget[0].BlendOp);
 }
 
 void EmuGfxState::SetSamplerFilter(DWORD stage, D3D11_FILTER filter)

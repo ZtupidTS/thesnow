@@ -15,6 +15,7 @@
 // Official SVN repository and contact information can be found at
 // http://code.google.com/p/dolphin-emu/
 
+#include <list>
 #include "Common.h"
 
 #include "D3DBase.h"
@@ -28,9 +29,64 @@
 namespace D3D
 {
 
-CD3DFont font;
+// Ring buffer class, shared between the draw* functions
+class UtilVertexBuffer
+{
+public:
+	UtilVertexBuffer(int size) : buf(NULL), offset(0), max_size(size)
+	{
+		D3D11_BUFFER_DESC desc = CD3D11_BUFFER_DESC(max_size, D3D11_BIND_VERTEX_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
+		device->CreateBuffer(&desc, NULL, &buf);
+	}
+	~UtilVertexBuffer()
+	{
+		buf->Release();
+	}
 
-#define MAX_NUM_VERTICES 300
+	// returns vertex offset to the new data
+	int AppendData(void* data, int size, int vertex_size)
+	{
+		D3D11_MAPPED_SUBRESOURCE map;
+		if(offset + size >= max_size)
+		{
+			// wrap buffer around and notify observers
+			offset = 0;
+			context->Map(buf, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
+
+			for(std::list<bool*>::iterator it = observers.begin(); it != observers.end(); ++it)
+				**it = true;
+		}
+		else
+		{
+			context->Map(buf, 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &map);
+		}
+		offset = ((offset+vertex_size-1)/vertex_size)*vertex_size; // align offset to vertex_size bytes
+		memcpy((u8*)map.pData + offset, data, size);
+		context->Unmap(buf, 0);
+
+		offset += size;
+		return (offset - size) / vertex_size;
+	}
+
+	void AddWrapObserver(bool* observer)
+	{
+		observers.push_back(observer);
+	}
+
+	inline ID3D11Buffer* &GetBuffer() { return buf; }
+
+private:
+	ID3D11Buffer* buf;
+	int offset;
+	int max_size;
+
+	std::list<bool*> observers;
+};
+
+CD3DFont font;
+UtilVertexBuffer* util_vbuf = NULL;
+
+#define MAX_NUM_VERTICES 50*6
 struct FONT2DVERTEX {
 	float x,y,z;
 	float col[4];
@@ -102,9 +158,10 @@ const char fontvertshader[] = {
 
 int CD3DFont::Init()
 {
+	// Create vertex buffer for the letters
 	HRESULT hr;
 
-	// prepare to create a bitmap
+	// Prepare to create a bitmap
 	unsigned int* pBitmapBits;
 	BITMAPINFO bmi;
 	ZeroMemory(&bmi.bmiHeader, sizeof(BITMAPINFOHEADER));
@@ -115,7 +172,7 @@ int CD3DFont::Init()
 	bmi.bmiHeader.biCompression = BI_RGB;
 	bmi.bmiHeader.biBitCount    = 32;
 
-	// create a DC and a bitmap for the font
+	// Create a DC and a bitmap for the font
 	HDC hDC = CreateCompatibleDC(NULL);
 	HBITMAP hbmBitmap = CreateDIBSection(hDC, &bmi, DIB_RGB_COLORS, (void**)&pBitmapBits, NULL, 0);
 	SetMapMode(hDC, MM_TEXT);
@@ -130,7 +187,7 @@ int CD3DFont::Init()
 	HGDIOBJ hOldbmBitmap = SelectObject(hDC, hbmBitmap);
 	HGDIOBJ hOldFont = SelectObject(hDC, hFont);
 
-	// set text properties
+	// Set text properties
 	SetTextColor(hDC, 0xFFFFFF);
 	SetBkColor  (hDC, 0);
 	SetTextAlign(hDC, TA_TOP);
@@ -139,8 +196,8 @@ int CD3DFont::Init()
 	GetTextMetricsW(hDC, &tm);
 	m_LineHeight = tm.tmHeight;
 
-	// loop through all printable characters and output them to the bitmap
-	// meanwhile, keep track of the corresponding tex coords for each character.
+	// Loop through all printable characters and output them to the bitmap
+	// Meanwhile, keep track of the corresponding tex coords for each character.
 	int x = 0, y = 0;
 	char str[2] = "\0";
 	for (int c = 0; c < 127 - 32; c++)
@@ -155,15 +212,15 @@ int CD3DFont::Init()
 		}
 
 		ExtTextOutA(hDC, x+1, y+0, ETO_OPAQUE | ETO_CLIPPED, NULL, str, 1, NULL);
-		m_fTexCoords[c][0] = (float) x         /m_dwTexWidth;
-		m_fTexCoords[c][1] = (float) y         /m_dwTexHeight;
-		m_fTexCoords[c][2] = (float)(x+size.cx)/m_dwTexWidth;
-		m_fTexCoords[c][3] = (float)(y+size.cy)/m_dwTexHeight;
+		m_fTexCoords[c][0] = ((float)(x+0))/m_dwTexWidth;
+		m_fTexCoords[c][1] = ((float)(y+0))/m_dwTexHeight;
+		m_fTexCoords[c][2] = ((float)(x+0+size.cx))/m_dwTexWidth;
+		m_fTexCoords[c][3] = ((float)(y+0+size.cy))/m_dwTexHeight;
 
 		x += size.cx + 3;  // 3 to work around annoying ij conflict (part of the j ends up with the i)
 	}
 
-	// create a new texture for the font
+	// Create a new texture for the font
 	// possible optimization: store the converted data in a buffer and fill the texture on creation.
 	//							That way, we can use a static texture
 	ID3D11Texture2D* buftex;
@@ -178,7 +235,7 @@ int CD3DFont::Init()
 	}
 	D3D::SetDebugObjectName((ID3D11DeviceChild*)buftex, "texture of a CD3DFont object");
 
-	// lock the surface and write the alpha values for the set pixels
+	// Lock the surface and write the alpha values for the set pixels
 	D3D11_MAPPED_SUBRESOURCE texmap;
 	hr = context->Map(buftex, 0, D3D11_MAP_WRITE_DISCARD, 0, &texmap);
 	if (FAILED(hr)) PanicAlert("Failed to map a texture at %s %d\n", __FILE__, __LINE__);
@@ -193,7 +250,7 @@ int CD3DFont::Init()
 		}
 	}
 
-	// clean up
+	// Done updating texture, so clean up used objects
 	context->Unmap(buftex, 0);
 	hr = D3D::device->CreateShaderResourceView(buftex, NULL, &m_pTexture);
 	if (FAILED(hr)) PanicAlert("Failed to create shader resource view at %s %d\n", __FILE__, __LINE__);
@@ -274,7 +331,8 @@ int CD3DFont::Shutdown()
 
 int CD3DFont::DrawTextScaled(float x, float y, float size, float spacing, u32 dwColor, const char* strText, bool center)
 {
-	if (!m_pVB) return 0;
+	if (!m_pVB)
+		return 0;
 
 	UINT stride = sizeof(FONT2DVERTEX);
 	UINT bufoffset = 0;
@@ -288,7 +346,7 @@ int CD3DFont::DrawTextScaled(float x, float y, float size, float spacing, u32 dw
 	float sy = 1.f - y * scaley;
 	char c;
 
-	// fill vertex buffer
+	// Fill vertex buffer
 	FONT2DVERTEX* pVertices;
 	int dwNumTriangles = 0L;
 
@@ -336,7 +394,8 @@ int CD3DFont::DrawTextScaled(float x, float y, float size, float spacing, u32 dw
 			sx  = fStartX;
 			sy -= scaley * size;
 		}
-		if (c < (' ')) continue;
+		if (c < (' '))
+			continue;
 
 		c -= 32;
 		float tx1 = m_fTexCoords[c][0];
@@ -348,10 +407,10 @@ int CD3DFont::DrawTextScaled(float x, float y, float size, float spacing, u32 dw
 		float h = (float)(ty1-ty2) * m_dwTexHeight * scaley * sizeratio;
 
 		FONT2DVERTEX v[6];
-		v[0] = InitFont2DVertex(  sx, h+sy, dwColor, tx1, ty2);
-		v[1] = InitFont2DVertex(  sx,   sy, dwColor, tx1, ty1);
-		v[2] = InitFont2DVertex(w+sx, h+sy, dwColor, tx2, ty2);
-		v[3] = InitFont2DVertex(w+sx,   sy, dwColor, tx2, ty1);
+		v[0] = InitFont2DVertex(sx,   sy+h, dwColor, tx1, ty2);
+		v[1] = InitFont2DVertex(sx,   sy,   dwColor, tx1, ty1);
+		v[2] = InitFont2DVertex(sx+w, sy+h, dwColor, tx2, ty2);
+		v[3] = InitFont2DVertex(sx+w, sy,   dwColor, tx2, ty1);
 		v[4] = v[2];
 		v[5] = v[1];
 
@@ -388,35 +447,13 @@ int CD3DFont::DrawTextScaled(float x, float y, float size, float spacing, u32 dw
 	return S_OK;
 }
 
-ID3D11Buffer* CreateQuadVertexBuffer(unsigned int size, void* data)
-{
-	ID3D11Buffer* vb;
-	D3D11_BUFFER_DESC vbdesc;
-	vbdesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	vbdesc.ByteWidth = size;
-	vbdesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	vbdesc.MiscFlags = 0;
-	vbdesc.Usage = D3D11_USAGE_DYNAMIC;
-	if (data)
-	{
-		D3D11_SUBRESOURCE_DATA bufdata;
-		bufdata.pSysMem = data;
-		if (FAILED(device->CreateBuffer(&vbdesc, &bufdata, &vb))) return NULL;
-	}
-	else if (FAILED(device->CreateBuffer(&vbdesc, NULL, &vb))) return NULL;
-
-	return vb;
-}
-
 ID3D11SamplerState* linear_copy_sampler = NULL;
 ID3D11SamplerState* point_copy_sampler = NULL;
-ID3D11Buffer* stqvb = NULL;
-ID3D11Buffer* stsqvb = NULL;
-ID3D11Buffer* clearvb = NULL;
 
 typedef struct { float x,y,z,u,v; } STQVertex;
 typedef struct { float x,y,z,u,v; } STSQVertex;
 typedef struct { float x,y,z; u32 col; } ClearVertex;
+typedef struct { float x,y,z; u32 col; } ColVertex;
 
 struct
 {
@@ -431,12 +468,26 @@ struct
 
 struct
 {
+	float x1, y1, x2, y2;
+	u32 col;
+} draw_quad_data;
+
+struct
+{
 	u32 col;
 	float z;
 } clear_quad_data;
 
+// ring buffer offsets
+int stq_offset, stsq_offset, cq_offset, clearq_offset;
+
+// observer variables for ring buffer wraps
+bool stq_observer, stsq_observer, cq_observer, clearq_observer;
+
 void InitUtils()
 {
+	util_vbuf = new UtilVertexBuffer(0x4000);
+
 	float border[4] = { 0.f, 0.f, 0.f, 0.f };
 	D3D11_SAMPLER_DESC samDesc = CD3D11_SAMPLER_DESC(D3D11_FILTER_MIN_MAG_MIP_POINT, D3D11_TEXTURE_ADDRESS_BORDER, D3D11_TEXTURE_ADDRESS_BORDER, D3D11_TEXTURE_ADDRESS_BORDER, 0.f, 1, D3D11_COMPARISON_ALWAYS, border, -D3D11_FLOAT32_MAX, D3D11_FLOAT32_MAX);
 	HRESULT hr = D3D::device->CreateSamplerState(&samDesc, &point_copy_sampler);
@@ -451,36 +502,15 @@ void InitUtils()
 	// cached data used to avoid unnecessarily reloading the vertex buffers
 	memset(&tex_quad_data, 0, sizeof(tex_quad_data));
 	memset(&tex_sub_quad_data, 0, sizeof(tex_sub_quad_data));
+	memset(&draw_quad_data, 0, sizeof(draw_quad_data));
 	memset(&clear_quad_data, 0, sizeof(clear_quad_data));
 
-	STQVertex stqcoords[4] = {
-		{-1.0f, 1.0f, 0.0f, 0, 0},
-		{ 1.0f, 1.0f, 0.0f, 0, 0},
-		{-1.0f,-1.0f, 0.0f, 0, 0},
-		{ 1.0f,-1.0f, 0.0f, 0, 0},
-	};
-
-	STSQVertex stsqcoords[4];
-	memset(stsqcoords, 0, sizeof(stsqcoords));
-
-	ClearVertex cqcoords[4] = {
-		{-1.0f,  1.0f, 0, 0},
-		{ 1.0f,  1.0f, 0, 0},
-		{-1.0f, -1.0f, 0, 0},
-		{ 1.0f, -1.0f, 0, 0},
-	};
-
-	stqvb = CreateQuadVertexBuffer(4*sizeof(STQVertex), stqcoords);
-	CHECK(stqvb!=NULL, "Create vertex buffer of drawShadedTexQuad");
-	SetDebugObjectName((ID3D11DeviceChild*)stqvb, "vertex buffer of drawShadedTexQuad");
-
-	stsqvb = CreateQuadVertexBuffer(4*sizeof(STSQVertex), stsqcoords);
-	CHECK(stsqvb!=NULL, "Create vertex buffer of drawShadedTexSubQuad");
-	SetDebugObjectName((ID3D11DeviceChild*)stsqvb, "vertex buffer of drawShadedTexSubQuad");
-
-	clearvb = CreateQuadVertexBuffer(4*sizeof(ClearVertex), cqcoords);
-	CHECK(clearvb!=NULL, "Create vertex buffer of drawClearQuad");
-	SetDebugObjectName((ID3D11DeviceChild*)clearvb, "vertex buffer of drawClearQuad");
+	// make sure to properly load the vertex data whenever the corresponding functions get called the first time
+	stq_observer = stsq_observer = cq_observer = clearq_observer = true;
+	util_vbuf->AddWrapObserver(&stq_observer);
+	util_vbuf->AddWrapObserver(&stsq_observer);
+	util_vbuf->AddWrapObserver(&cq_observer);
+	util_vbuf->AddWrapObserver(&clearq_observer);
 
 	font.Init();
 }
@@ -490,9 +520,7 @@ void ShutdownUtils()
 	font.Shutdown();
 	SAFE_RELEASE(point_copy_sampler);
 	SAFE_RELEASE(linear_copy_sampler);
-	SAFE_RELEASE(stqvb);
-	SAFE_RELEASE(stsqvb);
-	SAFE_RELEASE(clearvb);
+	SAFE_DELETE(util_vbuf);
 }
 
 void SetPointCopySampler()
@@ -528,13 +556,13 @@ void drawShadedTexQuad(ID3D11ShaderResourceView* texture,
 	};
 
 	// only upload the data to VRAM if it changed
-	if (tex_quad_data.u1 != u1 || tex_quad_data.v1 != v1 ||
+	if (stq_observer ||
+		tex_quad_data.u1 != u1 || tex_quad_data.v1 != v1 ||
 		tex_quad_data.u2 != u2 || tex_quad_data.v2 != v2)
 	{
-		D3D11_MAPPED_SUBRESOURCE map;
-		D3D::context->Map(stqvb, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
-		memcpy(map.pData, coords, sizeof(coords));
-		D3D::context->Unmap(stqvb, 0);
+		stq_offset = util_vbuf->AppendData(coords, sizeof(coords), sizeof(STQVertex));
+		stq_observer = false;
+
 		tex_quad_data.u1 = u1;
 		tex_quad_data.v1 = v1;
 		tex_quad_data.u2 = u2;
@@ -545,12 +573,12 @@ void drawShadedTexQuad(ID3D11ShaderResourceView* texture,
 
 	D3D::context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 	D3D::context->IASetInputLayout(layout);
-	D3D::context->IASetVertexBuffers(0, 1, &stqvb, &stride, &offset);
+	D3D::context->IASetVertexBuffers(0, 1, &util_vbuf->GetBuffer(), &stride, &offset);
 	D3D::context->PSSetShader(PShader, NULL, 0);
 	D3D::context->PSSetShaderResources(0, 1, &texture);
 	D3D::context->VSSetShader(Vshader, NULL, 0);
 	D3D::stateman->Apply();
-	D3D::context->Draw(4, 0);
+	D3D::context->Draw(4, stq_offset);
 
 	ID3D11ShaderResourceView* texres = NULL;
 	context->PSSetShaderResources(0, 1, &texres); // immediately unbind the texture
@@ -580,14 +608,14 @@ void drawShadedTexSubQuad(ID3D11ShaderResourceView* texture,
 	};
 
 	// only upload the data to VRAM if it changed
-	if (memcmp(rDest, &tex_sub_quad_data.rdest, sizeof(rDest)) != 0 ||
+	if (stsq_observer ||
+		memcmp(rDest, &tex_sub_quad_data.rdest, sizeof(rDest)) != 0 ||
 		tex_sub_quad_data.u1 != u1 || tex_sub_quad_data.v1 != v1 ||
 		tex_sub_quad_data.u2 != u2 || tex_sub_quad_data.v2 != v2)
 	{
-		D3D11_MAPPED_SUBRESOURCE map;
-		D3D::context->Map(stsqvb, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
-		memcpy(map.pData, coords, sizeof(coords));
-		D3D::context->Unmap(stsqvb, 0);
+		stsq_offset = util_vbuf->AppendData(coords, sizeof(coords), sizeof(STSQVertex));
+		stsq_observer = false;
+
 		tex_sub_quad_data.u1 = u1;
 		tex_sub_quad_data.v1 = v1;
 		tex_sub_quad_data.u2 = u2;
@@ -598,33 +626,71 @@ void drawShadedTexSubQuad(ID3D11ShaderResourceView* texture,
 	UINT offset = 0;
 
 	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-	context->IASetVertexBuffers(0, 1, &stsqvb, &stride, &offset);
+	context->IASetVertexBuffers(0, 1, &util_vbuf->GetBuffer(), &stride, &offset);
 	context->IASetInputLayout(layout);
 	context->PSSetShaderResources(0, 1, &texture);
-	context->PSSetShader(PShader, NULL, 0);	
-	context->VSSetShader(Vshader, NULL, 0);	
+	context->PSSetShader(PShader, NULL, 0);
+	context->VSSetShader(Vshader, NULL, 0);
 	stateman->Apply();
-	context->Draw(4, 0);
+	context->Draw(4, stsq_offset);
 
 	ID3D11ShaderResourceView* texres = NULL;
 	context->PSSetShaderResources(0, 1, &texres); // immediately unbind the texture
 }
 
+// Fills a certain area of the current render target with the specified color
+// destination coordinates normalized to (-1;1)
+void drawColorQuad(u32 Color, float x1, float y1, float x2, float y2)
+{
+	ColVertex coords[4] = {
+		{ x1, y2, 0.f, Color },
+		{ x2, y2, 0.f, Color },
+		{ x1, y1, 0.f, Color },
+		{ x2, y1, 0.f, Color },
+	};
+
+	if(cq_observer ||
+		draw_quad_data.x1 != x1 || draw_quad_data.y1 != y1 ||
+		draw_quad_data.x2 != x2 || draw_quad_data.y2 != y2 ||
+		draw_quad_data.col != Color)
+	{
+		cq_offset = util_vbuf->AppendData(coords, sizeof(coords), sizeof(ColVertex));
+		cq_observer = false;
+
+		draw_quad_data.x1 = x1;
+		draw_quad_data.y1 = y1;
+		draw_quad_data.x2 = x2;
+		draw_quad_data.y2 = y2;
+		draw_quad_data.col = Color;
+	}
+
+	context->VSSetShader(VertexShaderCache::GetClearVertexShader(), NULL, 0);
+	context->PSSetShader(PixelShaderCache::GetClearProgram(), NULL, 0);
+	context->IASetInputLayout(VertexShaderCache::GetClearInputLayout());
+
+	UINT stride = sizeof(ColVertex);
+	UINT offset = 0;
+	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	context->IASetVertexBuffers(0, 1, &util_vbuf->GetBuffer(), &stride, &offset);
+
+	stateman->Apply();
+	context->Draw(4, cq_offset);
+}
+
 void drawClearQuad(u32 Color, float z, ID3D11PixelShader* PShader, ID3D11VertexShader* Vshader, ID3D11InputLayout* layout)
 {
-	if (clear_quad_data.col != Color || clear_quad_data.z != z)
-	{
-		ClearVertex coords[4] = {
-			{-1.0f,  1.0f, z, Color},
-			{ 1.0f,  1.0f, z, Color},
-			{-1.0f, -1.0f, z, Color},
-			{ 1.0f, -1.0f, z, Color},
-		};
+	ClearVertex coords[4] = {
+		{-1.0f,  1.0f, z, Color},
+		{ 1.0f,  1.0f, z, Color},
+		{-1.0f, -1.0f, z, Color},
+		{ 1.0f, -1.0f, z, Color},
+	};
 
-		D3D11_MAPPED_SUBRESOURCE map;
-		context->Map(clearvb, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
-		memcpy(map.pData, coords, sizeof(coords));
-		context->Unmap(clearvb, 0);
+	if (clearq_observer || clear_quad_data.col != Color || clear_quad_data.z != z)
+	{
+		clearq_offset = util_vbuf->AppendData(coords, sizeof(coords), sizeof(ClearVertex));
+		clearq_observer = false;
+
 		clear_quad_data.col = Color;
 		clear_quad_data.z = z;
 	}
@@ -635,10 +701,9 @@ void drawClearQuad(u32 Color, float z, ID3D11PixelShader* PShader, ID3D11VertexS
 	UINT stride = sizeof(ClearVertex);
 	UINT offset = 0;
 	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-	context->IASetVertexBuffers(0, 1, &clearvb, &stride, &offset);
+	context->IASetVertexBuffers(0, 1, &util_vbuf->GetBuffer(), &stride, &offset);
 	stateman->Apply();
-	context->Draw(4, 0);
+	context->Draw(4, clearq_offset);
 }
-
 
 }  // namespace

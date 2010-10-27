@@ -21,17 +21,35 @@
 #include "CPMemory.h"
 #include "VertexLoader.h"
 
-namespace VertexManager
+#include "VertexManagerBase.h"
+#include "D3DBase.h"
+
+namespace DX11
 {
 
-bool Init();
-void Shutdown();
+class VertexManager : public ::VertexManager
+{
+public:
+	VertexManager();
+	~VertexManager();
 
-void AddVertices(int _primitive, int _numVertices);
-void Flush();
+private:
+	void CreateDeviceObjects();
+	void DestroyDeviceObjects();
+	void LoadBuffers();
+	void Draw(UINT stride);
+	// temp
+	void vFlush();
 
-void CreateDeviceObjects();
-void DestroyDeviceObjects();
+	UINT m_indexBufferCursor;
+	UINT m_vertexBufferCursor;
+	UINT m_vertexDrawOffset;
+	UINT m_triangleDrawIndex;
+	UINT m_lineDrawIndex;
+	UINT m_pointDrawIndex;
+	ID3D11Buffer* m_indexBuffer;
+	ID3D11Buffer* m_vertexBuffer;
+};
 
 }  // namespace
 

@@ -8,10 +8,9 @@ name = os.sep + "Plugin_VideoOGL"
 
 files = [
 	'BPFunctions.cpp',
-	'DLCache.cpp',
 	'RasterFont.cpp',
 	'Render.cpp',
-	'TextureMngr.cpp',
+	'TextureCache.cpp',
 	'NativeVertexFormat.cpp',
 	'PixelShaderCache.cpp',
 	'VertexShaderCache.cpp',

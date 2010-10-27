@@ -30,132 +30,19 @@
 #include "PixelShaderManager.h"
 #include "PixelShaderCache.h"
 #include "NativeVertexFormat.h"
-#include "NativeVertexWriter.h"
 #include "TextureCache.h"
+#include "main.h"
 
 #include "BPStructs.h"
 #include "XFStructs.h"
 
 #include "debugger/debugger.h"
 
-
-using namespace D3D;
-
 // internal state for loading vertices
 extern NativeVertexFormat *g_nativeVertexFmt;
 
-namespace VertexManager
+namespace DX9
 {
-
-static int lastPrimitive;
-
-static u8 *LocalVBuffer;
-static u16 *TIBuffer;
-static u16 *LIBuffer;
-static u16 *PIBuffer;
-#define MAXVBUFFERSIZE 0x50000
-#define MAXIBUFFERSIZE 0xFFFF
-static bool Flushed=false;
-
-bool Init()
-{
-	LocalVBuffer = new u8[MAXVBUFFERSIZE];
-	TIBuffer = new u16[MAXIBUFFERSIZE];
-	LIBuffer = new u16[MAXIBUFFERSIZE];
-	PIBuffer = new u16[MAXIBUFFERSIZE];
-	s_pCurBufferPointer = LocalVBuffer;
-	Flushed=false;
-	IndexGenerator::Start(TIBuffer,LIBuffer,PIBuffer);
-	return true;
-}
-
-void ResetBuffer()
-{
-	s_pCurBufferPointer = LocalVBuffer;
-}
-
-void Shutdown()
-{
-	delete [] LocalVBuffer;
-	delete [] TIBuffer;
-	delete [] LIBuffer;
-	delete [] PIBuffer;	
-	ResetBuffer();
-}
-
-void AddIndices(int _primitive, int _numVertices)
-{
-	switch (_primitive)
-	{
-	case GX_DRAW_QUADS:          IndexGenerator::AddQuads(_numVertices); break;
-	case GX_DRAW_TRIANGLES:      IndexGenerator::AddList(_numVertices); break;
-	case GX_DRAW_TRIANGLE_STRIP: IndexGenerator::AddStrip(_numVertices);     break;
-	case GX_DRAW_TRIANGLE_FAN:   IndexGenerator::AddFan(_numVertices);       break;
-	case GX_DRAW_LINE_STRIP:     IndexGenerator::AddLineStrip(_numVertices); break;
-	case GX_DRAW_LINES:          IndexGenerator::AddLineList(_numVertices); break;
-	case GX_DRAW_POINTS:         IndexGenerator::AddPoints(_numVertices);    break;
-	}
-}
-
-
-
-int GetRemainingSize()
-{
-	return MAXVBUFFERSIZE - (int)(s_pCurBufferPointer - LocalVBuffer);
-}
-
-int GetRemainingVertices(int primitive)
-{
-	switch (primitive)
-	{
-		case GX_DRAW_QUADS:
-		case GX_DRAW_TRIANGLES:
-		case GX_DRAW_TRIANGLE_STRIP:
-		case GX_DRAW_TRIANGLE_FAN:
-			return (MAXIBUFFERSIZE - IndexGenerator::GetTriangleindexLen())/3;
-		case GX_DRAW_LINE_STRIP:
-		case GX_DRAW_LINES:
-			return (MAXIBUFFERSIZE - IndexGenerator::GetLineindexLen())/2;
-		case GX_DRAW_POINTS:
-			return (MAXIBUFFERSIZE - IndexGenerator::GetPointindexLen());
-		default: return 0;
-	}
-}
-
-void AddVertices(int _primitive, int _numVertices)
-{
-	if (_numVertices <= 0)
-		return;
-	switch (_primitive)
-	{
-		case GX_DRAW_QUADS:
-		case GX_DRAW_TRIANGLES:
-		case GX_DRAW_TRIANGLE_STRIP:
-		case GX_DRAW_TRIANGLE_FAN:
-			if(MAXIBUFFERSIZE - IndexGenerator::GetTriangleindexLen() < 3 * _numVertices)
-			Flush();
-			break;
-		case GX_DRAW_LINE_STRIP:
-		case GX_DRAW_LINES:
-			if(MAXIBUFFERSIZE - IndexGenerator::GetLineindexLen() < 2 * _numVertices)
-			Flush();
-			break;
-		case GX_DRAW_POINTS:
-			if(MAXIBUFFERSIZE - IndexGenerator::GetPointindexLen() < _numVertices)
-			Flush();
-			break;
-		default: return;
-	}
-	if(Flushed)
-	{
-		IndexGenerator::Start(TIBuffer,LIBuffer,PIBuffer);
-		Flushed=false;
-	}
-	lastPrimitive = _primitive;
-	ADDSTAT(stats.thisFrame.numPrims, _numVertices);
-	INCSTAT(stats.thisFrame.numPrimitiveJoins);
-	AddIndices(_primitive, _numVertices);
-}
 
 inline void DumpBadShaders()
 {
@@ -175,9 +62,9 @@ inline void DumpBadShaders()
 #endif
 }
 
-inline void Draw(int stride)
+void VertexManager::Draw(int stride)
 {
-	if(IndexGenerator::GetNumTriangles() > 0)
+	if (IndexGenerator::GetNumTriangles() > 0)
 	{
 		if (FAILED(D3D::dev->DrawIndexedPrimitiveUP(
 			D3DPT_TRIANGLELIST, 
@@ -191,7 +78,7 @@ inline void Draw(int stride)
 		}
 		INCSTAT(stats.thisFrame.numIndexedDrawCalls);
 	}
-	if(IndexGenerator::GetNumLines() > 0)
+	if (IndexGenerator::GetNumLines() > 0)
 	{
 		if (FAILED(D3D::dev->DrawIndexedPrimitiveUP(
 			D3DPT_LINELIST, 
@@ -205,7 +92,7 @@ inline void Draw(int stride)
 		}
 		INCSTAT(stats.thisFrame.numIndexedDrawCalls);
 	}
-	if(IndexGenerator::GetNumPoints() > 0)
+	if (IndexGenerator::GetNumPoints() > 0)
 	{
 		if (FAILED(D3D::dev->DrawIndexedPrimitiveUP(
 			D3DPT_POINTLIST, 
@@ -221,61 +108,54 @@ inline void Draw(int stride)
 	}
 }
 
-void Flush()
+void VertexManager::vFlush()
 {
 	if (LocalVBuffer == s_pCurBufferPointer) return;
-	if(Flushed) return;
-	Flushed=true;
+	if (Flushed) return;
+	Flushed = true;
 	VideoFifo_CheckEFBAccess();
+
 	DVSTARTPROFILE();
-	
+
 	u32 usedtextures = 0;
-	for (u32 i = 0; i < (u32)bpmem.genMode.numtevstages + 1; ++i) {
-		if (bpmem.tevorders[i/2].getEnable(i & 1))
+	for (u32 i = 0; i < (u32)bpmem.genMode.numtevstages + 1; ++i)
+		if (bpmem.tevorders[i / 2].getEnable(i & 1))
 			usedtextures |= 1 << bpmem.tevorders[i/2].getTexMap(i & 1);
-	}
 
-	if (bpmem.genMode.numindstages > 0) {
-		for (u32 i = 0; i < (u32)bpmem.genMode.numtevstages + 1; ++i) {
-			if (bpmem.tevind[i].IsActive() && bpmem.tevind[i].bt < bpmem.genMode.numindstages) {
+	if (bpmem.genMode.numindstages > 0)
+		for (unsigned int i = 0; i < bpmem.genMode.numtevstages + 1; ++i)
+			if (bpmem.tevind[i].IsActive() && bpmem.tevind[i].bt < bpmem.genMode.numindstages)
 				usedtextures |= 1 << bpmem.tevindref.getTexMap(bpmem.tevind[i].bt);
-			}
-		}
-	}
 
-	for (int i = 0; i < 8; i++)
+	for (unsigned int i = 0; i < 8; i++)
 	{
-		if (usedtextures & (1 << i)) {
+		if (usedtextures & (1 << i))
+		{
 			Renderer::SetSamplerState(i & 3, i >> 2);
 			FourTexUnits &tex = bpmem.tex[i >> 2];
-			TextureCache::TCacheEntry* tentry = TextureCache::Load(i, 
-				(tex.texImage3[i&3].image_base/* & 0x1FFFFF*/) << 5, 
-				tex.texImage0[i&3].width + 1, tex.texImage0[i&3].height + 1, 
+			TextureCache::TCacheEntryBase* tentry = TextureCache::Load(i, 
+				(tex.texImage3[i&3].image_base/* & 0x1FFFFF*/) << 5,
+				tex.texImage0[i&3].width + 1, tex.texImage0[i&3].height + 1,
 				tex.texImage0[i&3].format, tex.texTlut[i&3].tmem_offset<<9, 
 				tex.texTlut[i&3].tlut_format,
-				(tex.texMode0[i&3].min_filter & 3) && (tex.texMode0[i&3].min_filter != 8) && g_ActiveConfig.bUseNativeMips, 
+				(tex.texMode0[i&3].min_filter & 3) && (tex.texMode0[i&3].min_filter != 8) && g_ActiveConfig.bUseNativeMips,
 				(tex.texMode1[i&3].max_lod >> 4));
 
-			if (tentry) {
-				PixelShaderManager::SetTexDims(i, tentry->w, tentry->h, 0, 0);
-				if (tentry->scaleX != 1.0f || tentry->scaleY != 1.0f)
-					PixelShaderManager::SetCustomTexScale(i, tentry->scaleX, tentry->scaleY);
+			if (tentry)
+			{
+				// 0s are probably for no manual wrapping needed.
+				PixelShaderManager::SetTexDims(i, tentry->realW, tentry->realH, 0, 0);
 			}
 			else
-			{
-				DEBUGGER_PAUSE_LOG_AT(NEXT_ERROR,true,{printf("Fail to load texture\n");});
 				ERROR_LOG(VIDEO, "error loading texture");
-			}
-
 		}
 	}
-	PixelShaderManager::SetTexturesUsed(0);
 
 	// set global constants
 	VertexShaderManager::SetConstants();
 	PixelShaderManager::SetConstants();
 
-	if (!PixelShaderCache::SetShader(false))
+	if (!PixelShaderCache::SetShader(DSTALPHA_NONE,g_nativeVertexFmt->m_components))
 	{
 		DEBUGGER_PAUSE_LOG_AT(NEXT_ERROR,true,{printf("Fail to set pixel shader\n");});
 		goto shader_fail;
@@ -295,7 +175,7 @@ void Flush()
 	if (bpmem.dstalpha.enable && bpmem.blendmode.alphaupdate)
 	{
 		DWORD write = 0;
-		if (!PixelShaderCache::SetShader(true))
+		if (!PixelShaderCache::SetShader(DSTALPHA_ALPHA_PASS, g_nativeVertexFmt->m_components))
 		{
 			DEBUGGER_PAUSE_LOG_AT(NEXT_ERROR,true,{printf("Fail to set pixel shader\n");});
 			goto shader_fail;
@@ -303,7 +183,7 @@ void Flush()
 		// update alpha only
 		D3D::ChangeRenderState(D3DRS_COLORWRITEENABLE, D3DCOLORWRITEENABLE_ALPHA);
 		D3D::ChangeRenderState(D3DRS_ALPHABLENDENABLE, false);
-		
+
 		Draw(stride);
 
 		D3D::RefreshRenderState(D3DRS_COLORWRITEENABLE);
@@ -313,7 +193,6 @@ void Flush()
 
 shader_fail:
 	ResetBuffer();
-	
 }
 
-}  // namespace
+}

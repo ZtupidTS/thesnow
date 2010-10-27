@@ -107,11 +107,10 @@ public:
 	void Destroy();
 
 	void CopyToXFB(u32 xfbAddr, u32 fbWidth, u32 fbHeight, const EFBRectangle& sourceRc);
-
 	const XFBSource** GetXFBSource(u32 xfbAddr, u32 fbWidth, u32 fbHeight, u32 &xfbCount);
 
-	LPDIRECT3DTEXTURE9 GetEFBColorTexture(const EFBRectangle& sourceRc);
-	LPDIRECT3DTEXTURE9 GetEFBDepthTexture(const EFBRectangle& sourceRc);
+	LPDIRECT3DTEXTURE9 GetEFBColorTexture();
+	LPDIRECT3DTEXTURE9 GetEFBDepthTexture();
 
 	LPDIRECT3DSURFACE9 GetEFBColorRTSurface();
 	LPDIRECT3DSURFACE9 GetEFBDepthRTSurface();
@@ -168,6 +167,6 @@ private:
 	D3DFORMAT s_efb_depth_ReadBuffer_Format;//Format of the Depth color Read Surface
 };
 
-extern FramebufferManager FBManager;
+extern FramebufferManager g_framebufferManager;
 
 #endif
