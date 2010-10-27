@@ -59,9 +59,6 @@ public:
 	static void SetLineWidth();
 	static void SetSamplerState(int stage,int texindex);
 	static void SetInterlacingMode();
-	// Live resolution change
-	static bool Allow2x();
-	static bool AllowCustom();
 
 	// Render target management
 	static int GetFrameBufferWidth();
@@ -82,7 +79,7 @@ public:
 
 	static TargetRectangle ConvertEFBRectangle(const EFBRectangle& rc);
 
-	static u32 AccessEFB(EFBAccessType type, int x, int y);
+	static u32 AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data);
 
 	// Random utilities
     static void RenderText(const char* pstr, int left, int top, u32 color);

@@ -35,7 +35,6 @@
 #include <string>
 #include <vector>
 
-#include "Globals.h"
 #include "Common.h"
 #include "IniFile.h"
 #include "BootManager.h"
@@ -46,6 +45,7 @@
 #include "SysConf.h"
 #include "Core.h"
 #if defined(HAVE_WX) && HAVE_WX
+	#include "Globals.h"
 	#include "ConfigMain.h"
 	#include "Frame.h"
 	#include "CodeWindow.h"
@@ -106,7 +106,12 @@ bool BootCore(const std::string& _rFilename)
 		game_ini.Get("Core", "CPUThread",			&StartUp.bCPUThread, StartUp.bCPUThread);
 		game_ini.Get("Core", "SkipIdle",			&StartUp.bSkipIdle, StartUp.bSkipIdle);
 		game_ini.Get("Core", "EnableFPRF",			&StartUp.bEnableFPRF, StartUp.bEnableFPRF);
+		game_ini.Get("Core", "MMU",					&StartUp.bMMU, StartUp.bMMU);
+		game_ini.Get("Core", "BAT",					&StartUp.bMMUBAT, StartUp.bMMUBAT);
 		game_ini.Get("Core", "TLBHack",				&StartUp.iTLBHack, StartUp.iTLBHack);
+		game_ini.Get("Core", "AlternateRFI",		&StartUp.bAlternateRFI, StartUp.bAlternateRFI);
+		game_ini.Get("Core", "FastDiscSpeed",		&StartUp.bFastDiscSpeed, StartUp.bFastDiscSpeed);
+		game_ini.Get("Core", "BlockMerging",		&StartUp.bMergeBlocks, StartUp.bMergeBlocks);
 		// Wii settings
 		if (StartUp.bWii)
 		{

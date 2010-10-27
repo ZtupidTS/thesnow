@@ -84,13 +84,15 @@ class CISOProperties : public wxDialog
 
 		wxStaticText *OverrideText;
 		// Core
-		wxCheckBox *CPUThread, *SkipIdle, *TLBHack;
+		wxCheckBox *CPUThread, *SkipIdle, *MMU, *MMUBAT, *TLBHack;
+		wxCheckBox *AlternateRFI, *FastDiscSpeed, *BlockMerging;
 		// Wii
 		wxCheckBox *EnableProgressiveScan, *EnableWideScreen;
 		// Video
 		wxCheckBox *ForceFiltering,
 			*EFBCopyDisable, *EFBToTextureEnable,
-			*SafeTextureCache, *DstAlphaPass, *UseXFB;
+			*SafeTextureCache, *DstAlphaPass, *UseXFB, *UseZTPSpeedupHack,
+			*DListCache;
 		wxStaticText *Hacktext;
 		wxArrayString arrayStringFor_Hack;
 		wxChoice *Hack;
@@ -164,13 +166,20 @@ class CISOProperties : public wxDialog
 			ID_OVERRIDE_TEXT,
 			ID_USEDUALCORE,
 			ID_IDLESKIP,
+			ID_MMU,
+			ID_MMUBAT,
 			ID_TLBHACK,
+			ID_RFI,
+			ID_DISCSPEED,
+			ID_MERGEBLOCKS,
 			ID_FORCEFILTERING,
 			ID_EFBCOPYDISABLE,
 			ID_EFBTOTEXTUREENABLE,
 			ID_SAFETEXTURECACHE,
 			ID_DSTALPHAPASS,
 			ID_USEXFB,
+			ID_ZTP_SPEEDUP,
+			ID_DLISTCACHE,
 			ID_HACK_TEXT,
 			ID_HACK,
 			ID_WMTIGHTNESS_TEXT,

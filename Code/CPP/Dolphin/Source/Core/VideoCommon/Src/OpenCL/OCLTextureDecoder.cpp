@@ -26,7 +26,6 @@
 #include <string.h>
 #include <math.h>
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <string>
 
 //#define DEBUG_OPENCL
@@ -128,8 +127,8 @@ void TexDecoder_OpenCL_Initialize()
 void TexDecoder_OpenCL_Shutdown()
 {
 #if defined(HAVE_OPENCL) && HAVE_OPENCL && !defined(DEBUG_OPENCL)
-
-	clReleaseProgram(g_program);
+	if (g_program)
+		clReleaseProgram(g_program);
 
 	for (int i = 0; i < GX_TF_CMPR; ++i) {
 		if (g_DecodeParametersNative[i].kernel)

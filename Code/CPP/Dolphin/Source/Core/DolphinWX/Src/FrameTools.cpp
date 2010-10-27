@@ -57,12 +57,14 @@ Core::GetWindowHandle().
 #include "HW/DVDInterface.h"
 #include "HW/ProcessorInterface.h"
 #include "HW/GCPad.h"
+#include "HW/Wiimote.h"
 #include "IPC_HLE/WII_IPC_HLE_Device_usb.h"
 #include "State.h"
 #include "VolumeHandler.h"
 #include "NANDContentLoader.h"
 #include "WXInputBase.h"
-#include "../../InputUICommon/Src/ConfigDiag.h"
+#include "WiimoteConfigDiag.h"
+#include "InputConfigDiag.h"
 
 #include <wx/datetime.h> // wxWidgets
 
@@ -105,9 +107,10 @@ void CFrame::CreateMenu()
 	// file menu
 	wxMenu* fileMenu = new wxMenu;
 	fileMenu->Append(wxID_OPEN, _T("打开游戏镜像(&O)...\tCtrl+O"));
+	fileMenu->Append(IDM_CHANGEDISC, _T("Change &Disc..."));
 
 	wxMenu *externalDrive = new wxMenu;
-	m_pSubMenuDrive = fileMenu->AppendSubMenu(externalDrive, _T("从驱动器启动(&B)..."));
+	fileMenu->Append(IDM_DRIVES, _T("从驱动器启动(&B)..."), externalDrive);
 	
 	drives = cdio_get_devices();
 	// Windows Limitation of 24 character drives
@@ -131,32 +134,39 @@ void CFrame::CreateMenu()
 	emulationMenu->AppendSeparator();
 	emulationMenu->Append(IDM_TOGGLE_FULLSCREEN, GetMenuLabel(HK_FULLSCREEN));	
 	emulationMenu->AppendSeparator();
-	emulationMenu->Append(IDM_RECORD, _T("开始录制(&C)..."));
+	emulationMenu->Append(IDM_RECORD, _T("开始录制(&C)"));
 	emulationMenu->Append(IDM_PLAYRECORD, _T("播放录制(&L)..."));
+	emulationMenu->Append(IDM_RECORDEXPORT, _T("导出录制(&E)..."));
 	emulationMenu->AppendSeparator();
-	emulationMenu->Append(IDM_CHANGEDISC, _T("切换光盘(&D)"));
 	
 	emulationMenu->Append(IDM_FRAMESTEP, _T("帧数步进(&F)"), wxEmptyString, wxITEM_CHECK);
 
 	wxMenu *skippingMenu = new wxMenu;
-	m_pSubMenuFrameSkipping = emulationMenu->AppendSubMenu(skippingMenu, _T("跳帧加速(&K)"));
+	emulationMenu->AppendSubMenu(skippingMenu, _T("跳帧加速(&K)"));
 	for(int i = 0; i < 10; i++)
 		skippingMenu->Append(IDM_FRAMESKIP0 + i, wxString::Format(_T("%i"), i), wxEmptyString, wxITEM_RADIO);
 
 	emulationMenu->AppendSeparator();
-	emulationMenu->Append(IDM_SCREENSHOT, _T("屏幕截图(&S)\tF9"));
+	emulationMenu->Append(IDM_SCREENSHOT, GetMenuLabel(HK_SCREENSHOT));
+
 	emulationMenu->AppendSeparator();
 	wxMenu *saveMenu = new wxMenu;
 	wxMenu *loadMenu = new wxMenu;
-	m_pSubMenuLoad = emulationMenu->AppendSubMenu(loadMenu, _T("载入状态(&L)"));
-	m_pSubMenuSave = emulationMenu->AppendSubMenu(saveMenu, _T("保存状态(&V)"));
+	emulationMenu->Append(IDM_LOADSTATE, _T("载入状态(&L)"), loadMenu);
+	emulationMenu->Append(IDM_SAVESTATE, _T("保存状态(&V)"), saveMenu);
 
 	saveMenu->Append(IDM_SAVESTATEFILE, _T("保存状态文件..."));
 	loadMenu->Append(IDM_UNDOSAVESTATE, _T("最后覆盖状态\tShift+F12"));
 	saveMenu->AppendSeparator();
 
 	loadMenu->Append(IDM_LOADSTATEFILE, _T("载入状态文件..."));
-	loadMenu->Append(IDM_LOADLASTSTATE, _T("最后存档状态\tF11"));
+
+	// Reserve F11 for the "step into" function in the debugger
+	if (g_pCodeWindow)
+		loadMenu->Append(IDM_LOADLASTSTATE, _T("最后存档状态"));
+	else
+		loadMenu->Append(IDM_LOADLASTSTATE, _T("最后存档状态\tF11"));
+	
 	loadMenu->Append(IDM_UNDOLOADSTATE, _T("撤销载入状态\tF12"));
 	loadMenu->AppendSeparator();
 
@@ -190,7 +200,7 @@ void CFrame::CreateMenu()
 
 	toolsMenu->Append(IDM_NETPLAY, _T("开始网络游戏(&N)"));
 
-	if (DiscIO::CNANDContentManager::Access().GetNANDLoader(std::string (File::GetUserPath(D_WIIMENU_IDX))).IsValid())
+	if (DiscIO::CNANDContentManager::Access().GetNANDLoader(TITLEID_SYSMENU).IsValid())
 	{
 		toolsMenu->Append(IDM_LOAD_WII_MENU, _T("载入 Wii 菜单"));
 	}
@@ -310,17 +320,15 @@ wxString CFrame::GetMenuLabel(int Id)
 		case HK_STOP:
 			Label = _T("停止游戏(&S)\t");
 			break;
+		case HK_SCREENSHOT:
+			Label = _T("Take Screenshot\t");
+			break;
 		case HK_WIIMOTE1_CONNECT:
-			Label = _T("连接 Wiimote 1\t");
-			break;
 		case HK_WIIMOTE2_CONNECT:
-			Label = _T("连接 Wiimote 2\t");
-			break;
 		case HK_WIIMOTE3_CONNECT:
-			Label = _T("连接 Wiimote 3\t");
-			break;
 		case HK_WIIMOTE4_CONNECT:
-			Label = _T("连接 Wiimote 4\t");
+			Label = wxString::Format(_T("连接 Wiimote %i\t"),
+					Id - HK_WIIMOTE1_CONNECT + 1);
 			break;
 	}
 
@@ -365,7 +373,7 @@ void CFrame::PopulateToolbar(wxAuiToolBar* ToolBar)
 void CFrame::PopulateToolbarAui(wxAuiToolBar* ToolBar)
 {
 	int w = m_Bitmaps[Toolbar_FileOpen].GetWidth(),
-	    h = m_Bitmaps[Toolbar_FileOpen].GetHeight();
+		h = m_Bitmaps[Toolbar_FileOpen].GetHeight();
 	ToolBar->SetToolBitmapSize(wxSize(w, h));
 
 	ToolBar->AddTool(IDM_SAVE_PERSPECTIVE,	wxT("保存"),	g_pCodeWindow->m_Bitmaps[Toolbar_GotoPC], wxT("保存当前 perspective"));
@@ -570,7 +578,7 @@ void CFrame::OnOpen(wxCommandEvent& WXUNUSED (event))
 
 void CFrame::DoOpen(bool Boot)
 {
-    std::string currentDir = File::GetCurrentDir();
+	std::string currentDir = File::GetCurrentDir();
 
 	wxString path = wxFileSelector(
 			_T("选择须载入文件"),
@@ -584,26 +592,24 @@ void CFrame::DoOpen(bool Boot)
 			wxFD_OPEN | wxFD_PREVIEW | wxFD_FILE_MUST_EXIST,
 			this);
 
-	bool fileChosen = !path.IsEmpty();
-
 	std::string currentDir2 = File::GetCurrentDir();
 
 	if (currentDir != currentDir2)
 	{
-		PanicAlert("Current dir changed from %s to %s after wxFileSelector!",currentDir.c_str(),currentDir2.c_str());
+		PanicAlert("Current dir changed from %s to %s after wxFileSelector!",
+				currentDir.c_str(), currentDir2.c_str());
 		File::SetCurrentDir(currentDir.c_str());
 	}
 
+	if (path.IsEmpty())
+		return;
 
 	// Should we boot a new game or just change the disc?
 	if (Boot)
-	{
-		if (!fileChosen)
-			return;
 		BootGame(std::string(path.mb_str()));
-	}
 	else
 	{
+		char newDiscpath[2048];
 		strncpy(newDiscpath, path.mb_str(), strlen(path.mb_str())+1);
 		DVDInterface::ChangeDisc(newDiscpath);
 	}
@@ -621,23 +627,18 @@ void CFrame::OnChangeDisc(wxCommandEvent& WXUNUSED (event))
 
 void CFrame::OnRecord(wxCommandEvent& WXUNUSED (event))
 {
-	wxString path = wxFileSelector(
-			_T("选择录制文件"),
-			wxEmptyString, wxEmptyString, wxEmptyString,
-			wxString::Format
-			(
-					_T("Dolphin TAS 电影 (*.dtm)|*.dtm|所有文件 (%s)|%s"),
-					wxFileSelectorDefaultWildcardStr,
-					wxFileSelectorDefaultWildcardStr
-			),
-			wxFD_SAVE | wxFD_PREVIEW | wxFD_FILE_MUST_EXIST,
-			this);
+	int controllers = 0;
 
-	if(path.IsEmpty())
-		return;
+	if (SConfig::GetInstance().m_SIDevice[0] == SI_GC_CONTROLLER)
+		controllers |= 0x01;
+	if (SConfig::GetInstance().m_SIDevice[1] == SI_GC_CONTROLLER)
+		controllers |= 0x02;
+	if (SConfig::GetInstance().m_SIDevice[2] == SI_GC_CONTROLLER)
+		controllers |= 0x04;
+	if (SConfig::GetInstance().m_SIDevice[3] == SI_GC_CONTROLLER)
+		controllers |= 0x08;
 
-	// TODO: Take controller settings from Gamecube Configuration menu
-	if(Frame::BeginRecordingInput(path.mb_str(), 1))
+	if(Frame::BeginRecordingInput(controllers))
 		BootGame(std::string(""));
 }
 
@@ -660,6 +661,11 @@ void CFrame::OnPlayRecording(wxCommandEvent& WXUNUSED (event))
 
 	if(Frame::PlayInput(path.mb_str()))
 		BootGame(std::string(""));
+}
+
+void CFrame::OnRecordExport(wxCommandEvent& WXUNUSED (event))
+{
+	DoRecordingSave();
 }
 
 void CFrame::OnPlay(wxCommandEvent& WXUNUSED (event))
@@ -697,7 +703,7 @@ void CFrame::OnRenderParentClose(wxCloseEvent& event)
 void CFrame::OnRenderParentMove(wxMoveEvent& event)
 {
 	if (Core::GetState() != Core::CORE_UNINITIALIZED &&
-			!RendererIsFullscreen() && !m_RenderFrame->IsMaximized())
+		!RendererIsFullscreen() && !m_RenderFrame->IsMaximized() && !m_RenderFrame->IsIconized())
 	{
 		SConfig::GetInstance().m_LocalCoreStartupParameter.iRenderWindowXPos = m_RenderFrame->GetPosition().x;
 		SConfig::GetInstance().m_LocalCoreStartupParameter.iRenderWindowYPos = m_RenderFrame->GetPosition().y;
@@ -711,7 +717,7 @@ void CFrame::OnRenderParentResize(wxSizeEvent& event)
 	{
 		int width, height;
 		if (!SConfig::GetInstance().m_LocalCoreStartupParameter.bRenderToMain &&
-				!RendererIsFullscreen() && !m_RenderFrame->IsMaximized())
+		    !RendererIsFullscreen() && !m_RenderFrame->IsMaximized() && !m_RenderFrame->IsIconized())
 		{
 			m_RenderFrame->GetSize(&width, &height);
 			SConfig::GetInstance().m_LocalCoreStartupParameter.iRenderWindowWidth = width;
@@ -722,7 +728,7 @@ void CFrame::OnRenderParentResize(wxSizeEvent& event)
 		m_RenderParent->GetSize(&width, &height);
 		m_RenderParent->GetPosition(&x, &y);
 		X11Utils::SendClientEvent(X11Utils::XDisplayFromHandle(GetHandle()),
-			   	"RESIZE", x, y, width, height);
+				"RESIZE", x, y, width, height);
 #endif
 		m_LogWindow->Refresh();
 		m_LogWindow->Update();
@@ -730,7 +736,7 @@ void CFrame::OnRenderParentResize(wxSizeEvent& event)
 	event.Skip();
 }
 
-void CFrame::ToggleDisplayMode (bool bFullscreen)
+void CFrame::ToggleDisplayMode(bool bFullscreen)
 {
 #ifdef _WIN32
 	if (bFullscreen)
@@ -739,7 +745,7 @@ void CFrame::ToggleDisplayMode (bool bFullscreen)
 		memset(&dmScreenSettings,0,sizeof(dmScreenSettings));
 		dmScreenSettings.dmSize = sizeof(dmScreenSettings);
 		sscanf(SConfig::GetInstance().m_LocalCoreStartupParameter.strFullscreenResolution.c_str(),
-			   	"%dx%d", &dmScreenSettings.dmPelsWidth, &dmScreenSettings.dmPelsHeight);
+				"%dx%d", &dmScreenSettings.dmPelsWidth, &dmScreenSettings.dmPelsHeight);
 		dmScreenSettings.dmBitsPerPel = 32;
 		dmScreenSettings.dmFields = DM_BITSPERPEL|DM_PELSWIDTH|DM_PELSHEIGHT;
 
@@ -783,7 +789,8 @@ void CFrame::StartGame(const std::string& filename)
 				SConfig::GetInstance().m_LocalCoreStartupParameter.iRenderWindowYPos);
 		wxSize size(SConfig::GetInstance().m_LocalCoreStartupParameter.iRenderWindowWidth,
 				SConfig::GetInstance().m_LocalCoreStartupParameter.iRenderWindowHeight);
-		m_RenderFrame = new CRenderFrame((wxFrame*)this, wxID_ANY, _("Dolphin"), position, size);
+		m_RenderFrame = new CRenderFrame((wxFrame*)this, wxID_ANY, _("Dolphin"), position);
+		m_RenderFrame->SetClientSize(size.GetWidth(), size.GetHeight());
 		m_RenderFrame->Connect(wxID_ANY, wxEVT_CLOSE_WINDOW,
 				wxCloseEventHandler(CFrame::OnRenderParentClose),
 				(wxObject*)0, this);
@@ -879,11 +886,7 @@ void CFrame::DoStop()
 		// Ask for confirmation in case the user accidentally clicked Stop / Escape
 		if (SConfig::GetInstance().m_LocalCoreStartupParameter.bConfirmStop)
 		{
-			// Suppress duplicate dialog boxes
-			if (m_StopDlg)
-				return;
-
-			m_StopDlg = new wxMessageDialog(
+			wxMessageDialog *m_StopDlg = new wxMessageDialog(
 				this,
 				wxT("是否停止当前的模拟?"),
 				wxT("请确认..."),
@@ -892,15 +895,14 @@ void CFrame::DoStop()
 
 			int Ret = m_StopDlg->ShowModal();
 			m_StopDlg->Destroy();
-			m_StopDlg = NULL;
-			if (Ret == wxID_NO)
+			if (Ret != wxID_YES)
 				return;
 		}
 
 		// TODO: Show the author/description dialog here
 		if(Frame::IsRecordingInput())
-			Frame::EndRecordingInput();
-		if(Frame::IsPlayingInput())
+			DoRecordingSave();
+		if(Frame::IsPlayingInput() || Frame::IsRecordingInput())
 			Frame::EndPlayInput();
 
 		// These windows cause segmentation faults if they are open when the emulator
@@ -933,15 +935,43 @@ void CFrame::DoStop()
 		UpdateGUI();
 
 		// Clean framerate indications from the status bar.
-		m_pStatusBar->SetStatusText(wxT(" "), 0);
+		GetStatusBar()->SetStatusText(wxT(" "), 0);
 
 		// Clear wiimote connection status from the status bar.
-		m_pStatusBar->SetStatusText(wxT(" "), 1);
+		GetStatusBar()->SetStatusText(wxT(" "), 1);
 
 		// If batch mode was specified on the command-line, exit now.
 		if (m_bBatchMode)
 			Close(true);
 	}
+}
+
+void CFrame::DoRecordingSave()
+{
+	bool paused = (Core::GetState() == Core::CORE_PAUSE);
+	
+	if (!paused)
+		DoPause();
+	
+	wxString path = wxFileSelector(
+			_T("Select The Recording File"),
+			wxEmptyString, wxEmptyString, wxEmptyString,
+			wxString::Format
+			(
+					_T("Dolphin TAS Movies (*.dtm)|*.dtm|All files (%s)|%s"),
+					wxFileSelectorDefaultWildcardStr,
+					wxFileSelectorDefaultWildcardStr
+			),
+			wxFD_SAVE | wxFD_PREVIEW,
+			this);
+
+	if(path.IsEmpty())
+		return;
+	
+	Frame::SaveRecording(path.mb_str());
+	
+	if (!paused)
+		DoPause();
 }
 
 void CFrame::OnStop(wxCommandEvent& WXUNUSED (event))
@@ -964,53 +994,82 @@ void CFrame::OnConfigMain(wxCommandEvent& WXUNUSED (event))
 
 void CFrame::OnPluginGFX(wxCommandEvent& WXUNUSED (event))
 {
+	#ifdef _WIN32
+	Disable(); // Fake a modal dialog
+	#endif
 	CPluginManager::GetInstance().OpenConfig(
-			GetHandle(),
+			this,
 			SConfig::GetInstance().m_LocalCoreStartupParameter.m_strVideoPlugin.c_str(),
 			PLUGIN_TYPE_VIDEO
 			);
+	#ifdef _WIN32
+	Enable();
+	Raise();
+	#endif
 }
 
 void CFrame::OnPluginDSP(wxCommandEvent& WXUNUSED (event))
 {
+	#ifdef _WIN32
+	Disable(); // Fake a modal dialog
+	#endif
 	CPluginManager::GetInstance().OpenConfig(
-			GetHandle(),
+			this,
 			SConfig::GetInstance().m_LocalCoreStartupParameter.m_strDSPPlugin.c_str(),
 			PLUGIN_TYPE_DSP
 			);
+	#ifdef _WIN32
+	Enable();
+	Raise();
+	#endif
 }
 
 void CFrame::OnPluginPAD(wxCommandEvent& WXUNUSED (event))
 {
-	InputPlugin *pad_plugin = PAD_GetPlugin();
+	InputPlugin *const pad_plugin = Pad::GetPlugin();
 	bool was_init = false;
-	if ( pad_plugin->controller_interface.IsInit() )	// check if game is running
+	if (g_controller_interface.IsInit())	// check if game is running
 		was_init = true;
 	else
 	{
 #if defined(HAVE_X11) && HAVE_X11
 		Window win = X11Utils::XWindowFromHandle(GetHandle());
-		GCPad_Init((void *)win);
+		Pad::Initialize((void *)win);
 #else
-		GCPad_Init(GetHandle());
+		Pad::Initialize(GetHandle());
 #endif
 	}
-	InputConfigDialog* m_ConfigFrame = new InputConfigDialog(this, *pad_plugin, "Dolphin GCPad Configuration");
+	InputConfigDialog *const m_ConfigFrame = new InputConfigDialog(this, *pad_plugin, "Dolphin GCPad Configuration");
 	m_ConfigFrame->ShowModal();
 	m_ConfigFrame->Destroy();
 	if (!was_init)				// if game isn't running
 	{
-		GCPad_Deinit();
+		Pad::Shutdown();
 	}
 }
 
 void CFrame::OnPluginWiimote(wxCommandEvent& WXUNUSED (event))
 {
-	CPluginManager::GetInstance().OpenConfig(
-			GetHandle(),
-			SConfig::GetInstance().m_LocalCoreStartupParameter.m_strWiimotePlugin.c_str(),
-			PLUGIN_TYPE_WIIMOTE
-			);
+	InputPlugin *const wiimote_plugin = Wiimote::GetPlugin();
+	bool was_init = false;
+	if (g_controller_interface.IsInit())	// check if game is running
+		was_init = true;
+	else
+	{
+#if defined(HAVE_X11) && HAVE_X11
+		Window win = X11Utils::XWindowFromHandle(GetHandle());
+		Wiimote::Initialize((void *)win);
+#else
+		Wiimote::Initialize(GetHandle());
+#endif
+	}
+	WiimoteConfigDiag *const m_ConfigFrame = new WiimoteConfigDiag(this, *wiimote_plugin);
+	m_ConfigFrame->ShowModal();
+	m_ConfigFrame->Destroy();
+	if (!was_init)				// if game isn't running
+	{
+		Wiimote::Shutdown();
+	}
 }
 
 void CFrame::OnHelp(wxCommandEvent& event)
@@ -1080,7 +1139,7 @@ void CFrame::OnImportSave(wxCommandEvent& WXUNUSED (event))
 
 	if (!path.IsEmpty())
 	{
-		CWiiSaveCrypted* saveFile = new CWiiSaveCrypted(path.ToUTF8().data());
+		CWiiSaveCrypted* saveFile = new CWiiSaveCrypted(path.mb_str());
 		delete saveFile;
 	}
 }
@@ -1099,7 +1158,7 @@ void CFrame::OnLoadWiiMenu(wxCommandEvent& event)
 {
 	if (event.GetId() == IDM_LOAD_WII_MENU)
 	{
-		BootGame(std::string (File::GetUserPath(D_WIIMENU_IDX)));
+		BootGame(Common::CreateTitleContentPath(TITLEID_SYSMENU));
 	}
 	else
 	{
@@ -1231,9 +1290,6 @@ void CFrame::OnFrameSkip(wxCommandEvent& event)
 // Update the enabled/disabled status
 void CFrame::UpdateGUI()
 {
-	if (!m_bControlsCreated)
-		return;
-
 	// Save status
 	bool Initialized = Core::isRunning();
 	bool Running = Core::GetState() == Core::CORE_RUN;
@@ -1252,7 +1308,7 @@ void CFrame::UpdateGUI()
 
 	// File
 	GetMenuBar()->FindItem(wxID_OPEN)->Enable(!Initialized);
-	m_pSubMenuDrive->Enable(!Initialized);
+	GetMenuBar()->FindItem(IDM_DRIVES)->Enable(!Initialized);
 	GetMenuBar()->FindItem(wxID_REFRESH)->Enable(!Initialized);
 	GetMenuBar()->FindItem(IDM_BROWSE)->Enable(!Initialized);
 
@@ -1261,6 +1317,7 @@ void CFrame::UpdateGUI()
 	GetMenuBar()->FindItem(IDM_RESET)->Enable(Running || Paused);
 	GetMenuBar()->FindItem(IDM_RECORD)->Enable(!Initialized);
 	GetMenuBar()->FindItem(IDM_PLAYRECORD)->Enable(!Initialized);
+	GetMenuBar()->FindItem(IDM_RECORDEXPORT)->Enable(Frame::IsRecordingInput());
 	GetMenuBar()->FindItem(IDM_FRAMESTEP)->Enable(Running || Paused);
 	GetMenuBar()->FindItem(IDM_SCREENSHOT)->Enable(Running || Paused);
 	GetMenuBar()->FindItem(IDM_TOGGLE_FULLSCREEN)->Enable(Running || Paused);
@@ -1269,29 +1326,37 @@ void CFrame::UpdateGUI()
 	GetMenuBar()->FindItem(IDM_TOGGLE_FULLSCREEN)->SetItemLabel(GetMenuLabel(HK_FULLSCREEN));
 	GetMenuBar()->FindItem(IDM_PLAY)->SetItemLabel(GetMenuLabel(HK_PLAY_PAUSE));
 	GetMenuBar()->FindItem(IDM_STOP)->SetItemLabel(GetMenuLabel(HK_STOP));
+	GetMenuBar()->FindItem(IDM_SCREENSHOT)->SetItemLabel(GetMenuLabel(HK_SCREENSHOT));
 	GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE1)->SetItemLabel(GetMenuLabel(HK_WIIMOTE1_CONNECT));
 	GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE2)->SetItemLabel(GetMenuLabel(HK_WIIMOTE2_CONNECT));
 	GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE3)->SetItemLabel(GetMenuLabel(HK_WIIMOTE3_CONNECT));
 	GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE4)->SetItemLabel(GetMenuLabel(HK_WIIMOTE4_CONNECT));
 
-	m_pSubMenuLoad->Enable(Initialized);
-	m_pSubMenuSave->Enable(Initialized);
-
+	GetMenuBar()->FindItem(IDM_LOADSTATE)->Enable(Initialized);
+	GetMenuBar()->FindItem(IDM_SAVESTATE)->Enable(Initialized);
 	// Misc
 	GetMenuBar()->FindItem(IDM_CHANGEDISC)->Enable(Initialized);
-	if (DiscIO::CNANDContentManager::Access().GetNANDLoader(std::string(File::GetUserPath(D_WIIMENU_IDX))).IsValid())
+	if (DiscIO::CNANDContentManager::Access().GetNANDLoader(TITLEID_SYSMENU).IsValid())
 		GetMenuBar()->FindItem(IDM_LOAD_WII_MENU)->Enable(!Initialized);
 
-	GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE1)->Enable(Initialized  && SConfig::GetInstance().m_LocalCoreStartupParameter.bWii);
-	GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE2)->Enable(Initialized  && SConfig::GetInstance().m_LocalCoreStartupParameter.bWii);
-	GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE3)->Enable(Initialized  && SConfig::GetInstance().m_LocalCoreStartupParameter.bWii);
-	GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE4)->Enable(Initialized  && SConfig::GetInstance().m_LocalCoreStartupParameter.bWii);
+	GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE1)->
+		Enable(Initialized  && SConfig::GetInstance().m_LocalCoreStartupParameter.bWii);
+	GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE2)->
+		Enable(Initialized  && SConfig::GetInstance().m_LocalCoreStartupParameter.bWii);
+	GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE3)->
+		Enable(Initialized  && SConfig::GetInstance().m_LocalCoreStartupParameter.bWii);
+	GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE4)->
+		Enable(Initialized  && SConfig::GetInstance().m_LocalCoreStartupParameter.bWii);
 	if (Initialized && SConfig::GetInstance().m_LocalCoreStartupParameter.bWii)
 	{
-		GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE1)->Check(GetUsbPointer()->AccessWiiMote(0x0100)->IsConnected() == 3);
-		GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE2)->Check(GetUsbPointer()->AccessWiiMote(0x0101)->IsConnected() == 3);
-		GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE3)->Check(GetUsbPointer()->AccessWiiMote(0x0102)->IsConnected() == 3);
-		GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE4)->Check(GetUsbPointer()->AccessWiiMote(0x0103)->IsConnected() == 3);
+		GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE1)->Check(GetUsbPointer()->
+				AccessWiiMote(0x0100)->IsConnected());
+		GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE2)->Check(GetUsbPointer()->
+				AccessWiiMote(0x0101)->IsConnected());
+		GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE3)->Check(GetUsbPointer()->
+				AccessWiiMote(0x0102)->IsConnected());
+		GetMenuBar()->FindItem(IDM_CONNECT_WIIMOTE4)->Check(GetUsbPointer()->
+				AccessWiiMote(0x0103)->IsConnected());
 	}
 
 	if (Running)
@@ -1452,20 +1517,20 @@ void CFrame::DoToggleToolbar(bool _show)
 	{
 		m_Mgr->GetPane(wxT("TBMain")).Show();
 		if (g_pCodeWindow)
-	   	{
-		   	m_Mgr->GetPane(wxT("TBDebug")).Show();
-		   	m_Mgr->GetPane(wxT("TBAui")).Show();
-	   	}
+		{
+			m_Mgr->GetPane(wxT("TBDebug")).Show();
+			m_Mgr->GetPane(wxT("TBAui")).Show();
+		}
 		m_Mgr->Update();
 	}
 	else
 	{
 		m_Mgr->GetPane(wxT("TBMain")).Hide();
 		if (g_pCodeWindow)
-	   	{
-		   	m_Mgr->GetPane(wxT("TBDebug")).Hide();
-		   	m_Mgr->GetPane(wxT("TBAui")).Hide();
-	   	}
+		{
+			m_Mgr->GetPane(wxT("TBDebug")).Hide();
+			m_Mgr->GetPane(wxT("TBAui")).Hide();
+		}
 		m_Mgr->Update();
 	}
 }
@@ -1475,9 +1540,9 @@ void CFrame::OnToggleStatusbar(wxCommandEvent& event)
 {
 	SConfig::GetInstance().m_InterfaceStatusbar = event.IsChecked();
 	if (SConfig::GetInstance().m_InterfaceStatusbar == true)
-		m_pStatusBar->Show();
+		GetStatusBar()->Show();
 	else
-		m_pStatusBar->Hide();
+		GetStatusBar()->Hide();
 
 	this->SendSizeEvent();
 }

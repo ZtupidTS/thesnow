@@ -19,12 +19,12 @@
 #include "VideoCommon.h"
 #include "VertexLoader.h"
 #include "VertexLoader_TextCoord.h"
-#include "NativeVertexWriter.h"
+#include "VertexManagerBase.h"
 #include "CPUDetect.h"
 
 #if _M_SSE >= 0x401
 #include <smmintrin.h>
-#elif _M_SSE >= 0x301
+#elif _M_SSE >= 0x301 && !(defined __GNUC__ && !defined __SSSE3__)
 #include <tmmintrin.h>
 #endif
 

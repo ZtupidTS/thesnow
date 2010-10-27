@@ -24,6 +24,8 @@
 #include "PixelShaderGen.h"
 #include "XFMemory.h"  // for texture projection mode
 #include "BPMemory.h"
+#include "VideoConfig.h"
+#include "NativeVertexFormat.h"
 
 PIXELSHADERUID last_pixel_shader_uid;
 
@@ -31,7 +33,7 @@ PIXELSHADERUID last_pixel_shader_uid;
 // a unique identifier, basically containing all the bits. Yup, it's a lot ....
 // It would likely be a lot more efficient to build this incrementally as the attributes
 // are set...
-void GetPixelShaderId(PIXELSHADERUID *uid, u32 texturemask, u32 dstAlphaEnable)
+void GetPixelShaderId(PIXELSHADERUID *uid, DSTALPHA_MODE dstAlphaMode)
 {
 	u32 numstages = bpmem.genMode.numtevstages + 1;
 	u32 projtexcoords = 0;
@@ -47,25 +49,35 @@ void GetPixelShaderId(PIXELSHADERUID *uid, u32 texturemask, u32 dstAlphaEnable)
 	uid->values[0] = (u32)bpmem.genMode.numtevstages |
 				   ((u32)bpmem.genMode.numindstages << 4) |
 				   ((u32)bpmem.genMode.numtexgens << 7) |
-				   ((u32)dstAlphaEnable << 11) |
-				   ((u32)((bpmem.alphaFunc.hex >> 16) & 0xff) << 12) |
-				   (projtexcoords << 20) |
-				   ((u32)bpmem.ztex2.op << 28);
+				   ((u32)dstAlphaMode << 11) |
+				   ((u32)((bpmem.alphaFunc.hex >> 16) & 0xff) << 13) |
+				   (projtexcoords << 21) |
+				   ((u32)bpmem.ztex2.op << 29);
 
-	uid->values[0] = (uid->values[0] & ~0x0ff00000) | (projtexcoords << 20);
 	// swap table
 	for (int i = 0; i < 8; i += 2)
 		((u8*)&uid->values[1])[i / 2] = (bpmem.tevksel[i].hex & 0xf) | ((bpmem.tevksel[i + 1].hex & 0xf) << 4);
 
-	uid->values[2] = texturemask;
-
 	u32 enableZTexture = (!bpmem.zcontrol.zcomploc && bpmem.zmode.testenable && bpmem.zmode.updateenable)?1:0;
 
-	uid->values[3] = (u32)bpmem.fog.c_proj_fsel.fsel |
+	uid->values[2] = (u32)bpmem.fog.c_proj_fsel.fsel |
 				   ((u32)bpmem.fog.c_proj_fsel.proj << 3) |
 				   ((u32)enableZTexture << 4);
 
-	int hdr = 4;
+	if(g_ActiveConfig.bEnablePixelLigting)
+	{
+		for (int i = 0; i < 2; ++i) {
+			uid->values[3 + i] = xfregs.colChans[i].color.enablelighting ?
+				(u32)xfregs.colChans[i].color.hex :
+				(u32)xfregs.colChans[i].color.matsource;
+			uid->values[3 + i] |= (xfregs.colChans[i].alpha.enablelighting ?
+				(u32)xfregs.colChans[i].alpha.hex :
+				(u32)xfregs.colChans[i].alpha.matsource) << 15;
+		}
+	}
+	uid->values[4] |= g_ActiveConfig.bEnablePixelLigting << 31;
+
+	int hdr = 5;
 	u32 *pcurvalue = &uid->values[hdr];
 	for (u32 i = 0; i < numstages; ++i)
 	{
@@ -135,7 +147,8 @@ void GetPixelShaderId(PIXELSHADERUID *uid, u32 texturemask, u32 dstAlphaEnable)
 	}
 
 	// yeah, well ....
-	uid->indstages = (u32)(pcurvalue - &uid->values[0] - (hdr - 1) - uid->tevstages);
+	uid->indstages = (u32)(pcurvalue - &uid->values[0] - (hdr - 1) - uid->tevstages);	
+	
 }
 
 //   old tev->pixelshader notes
@@ -147,11 +160,12 @@ void GetPixelShaderId(PIXELSHADERUID *uid, u32 texturemask, u32 dstAlphaEnable)
 //   output is given by .outreg
 //   tevtemp is set according to swapmodetables and 
 
-static void WriteStage(char *&p, int n, u32 texture_mask, API_TYPE ApiType);
-static void SampleTexture(char *&p, const char *destination, const char *texcoords, const char *texswap, int texmap, u32 texture_mask, API_TYPE ApiType);
+static void WriteStage(char *&p, int n, API_TYPE ApiType);
+static void SampleTexture(char *&p, const char *destination, const char *texcoords, const char *texswap, int texmap, API_TYPE ApiType);
 // static void WriteAlphaCompare(char *&p, int num, int comp);
 static bool WriteAlphaTest(char *&p, API_TYPE ApiType);
 static void WriteFog(char *&p);
+static int AlphaPreTest();
 
 static const char *tevKSelTableC[] = // KCSEL
 {
@@ -275,11 +289,11 @@ static const char *tevCInputTable[] = // CC
 	"(cc2.aaa)",           // A2,
 	"(textemp.rgb)",            // TEXC,
 	"(textemp.aaa)",      // TEXA,
-	"(rastemp.rgb)",            // RASC,
-	"(rastemp.aaa)",      // RASA,
+	"(crastemp.rgb)",            // RASC,
+	"(crastemp.aaa)",      // RASA,
 	"float3(1.0f, 1.0f, 1.0f)",              // ONE
 	"float3(0.5f, 0.5f, 0.5f)",                 // HALF
-	"(konsttemp.rgb)", //"konsttemp.rgb",        // KONST
+	"(ckonsttemp.rgb)", //"konsttemp.rgb",        // KONST
 	"float3(0.0f, 0.0f, 0.0f)",              // ZERO
 	"PADERROR", "PADERROR", "PADERROR", "PADERROR"
 };
@@ -300,8 +314,8 @@ static const char *tevAInputTable[] = // CA
 	"cc1",              // A1,
 	"cc2",              // A2,
 	"textemp",         // TEXA,
-	"rastemp",         // RASA,
-	"konsttemp",       // KONST,  (hw1 had quarter)
+	"crastemp",         // RASA,
+	"ckonsttemp",       // KONST,  (hw1 had quarter)
 	"float4(0.0f, 0.0f, 0.0f, 0.0f)", // ZERO
 	"PADERROR", "PADERROR", "PADERROR", "PADERROR",
 	"PADERROR", "PADERROR", "PADERROR", "PADERROR",
@@ -366,7 +380,69 @@ static void BuildSwapModeTable()
 	}
 }
 
-const char *GeneratePixelShaderCode(u32 texture_mask, bool dstAlphaEnable, API_TYPE ApiType)
+char *GeneratePixelLightShader(char *p, int index, const LitChannel& chan, const char *dest, int coloralpha)
+{
+	const char* swizzle = "xyzw";
+	if (coloralpha == 1 ) swizzle = "xyz";
+	else if (coloralpha == 2 ) swizzle = "w";
+
+	if (!(chan.attnfunc & 1)) {
+		// atten disabled
+		switch (chan.diffusefunc) {
+			case LIGHTDIF_NONE:
+				WRITE(p, "%s.%s += "I_PLIGHTS".lights[%d].col.%s;\n", dest, swizzle, index, swizzle);
+				break;
+			case LIGHTDIF_SIGN:
+			case LIGHTDIF_CLAMP:
+				WRITE(p, "ldir = normalize("I_PLIGHTS".lights[%d].pos.xyz - pos.xyz);\n", index);
+				WRITE(p, "%s.%s += %sdot(ldir, _norm0)) * "I_PLIGHTS".lights[%d].col.%s;\n",
+					dest, swizzle, chan.diffusefunc != LIGHTDIF_SIGN ? "max(0.0f," :"(", index, swizzle);
+				break;
+			default: _assert_(0);
+		}
+	}
+	else { // spec and spot
+		
+		if (chan.attnfunc == 3) 
+		{ // spot
+			WRITE(p, "ldir = "I_PLIGHTS".lights[%d].pos.xyz - pos.xyz;\n", index);
+			WRITE(p, "dist2 = dot(ldir, ldir);\n"
+				"dist = sqrt(dist2);\n"
+				"ldir = ldir / dist;\n"
+				"attn = max(0.0f, dot(ldir, "I_PLIGHTS".lights[%d].dir.xyz));\n",index);
+			WRITE(p, "attn = max(0.0f, dot("I_PLIGHTS".lights[%d].cosatt.xyz, float3(1.0f, attn, attn*attn))) / dot("I_PLIGHTS".lights[%d].distatt.xyz, float3(1.0f,dist,dist2));\n", index, index);
+		}
+		else if (chan.attnfunc == 1) 
+		{ // specular
+			WRITE(p, "ldir = normalize("I_PLIGHTS".lights[%d].pos.xyz);\n",index);
+			WRITE(p, "attn = (dot(_norm0,ldir) > 0.0f) ? max(0.0f, dot(_norm0, "I_PLIGHTS".lights[%d].dir.xyz)) : 0.0f;\n", index);
+			WRITE(p, "attn = max(0.0f, dot("I_PLIGHTS".lights[%d].cosatt.xyz, float3(1,attn,attn*attn))) / dot("I_PLIGHTS".lights[%d].distatt.xyz, float3(1,attn,attn*attn));\n", index, index);
+		}
+
+		switch (chan.diffusefunc)
+		{
+			case LIGHTDIF_NONE:
+				WRITE(p, "%s.%s += attn * "I_PLIGHTS".lights[%d].col.%s;\n", dest, swizzle, index, swizzle);
+				break;
+			case LIGHTDIF_SIGN:
+			case LIGHTDIF_CLAMP:
+				WRITE(p, "%s.%s += attn * %sdot(ldir, _norm0)) * "I_PLIGHTS".lights[%d].col.%s;\n",
+					dest, 
+					swizzle, 
+					chan.diffusefunc != LIGHTDIF_SIGN ? "max(0.0f," :"(", 
+					index, 
+					swizzle);
+				break;
+			default: _assert_(0);
+		}
+	}
+	WRITE(p, "\n");	
+	return p;
+}
+
+
+
+const char *GeneratePixelShaderCode(DSTALPHA_MODE dstAlphaMode, API_TYPE ApiType,u32 components)
 {
 	setlocale(LC_NUMERIC, "C"); // Reset locale for compilation
 	text[sizeof(text) - 1] = 0x7C;  // canary
@@ -392,55 +468,33 @@ const char *GeneratePixelShaderCode(u32 texture_mask, bool dstAlphaEnable, API_T
 	}
 	DepthTextureEnable = bpmem.ztex2.op != ZTEXTURE_DISABLE && !bpmem.zcontrol.zcomploc && bpmem.zmode.testenable && bpmem.zmode.updateenable;
 	// Declare samplers
-	if (texture_mask && ApiType == API_OPENGL)
-	{
-		WRITE(p, "uniform samplerRECT ");
-		bool bfirst = true;
-		for (int i = 0; i < 8; ++i)
-		{
-			if (texture_mask & (1<<i))
-			{
-				WRITE(p, "%s samp%d : register(s%d)", bfirst?"":",", i, i);
-				bfirst = false;
-			}
-		}
-		WRITE(p, ";\n");
-	}
 
-	if (texture_mask != 0xff)
+	if(ApiType != API_D3D11)
 	{
-		if(ApiType != API_D3D11)
-		{
-			WRITE(p, "uniform sampler2D ");
-		}
-		else
-		{
-			WRITE(p, "sampler ");
-		}
-		
-		bool bfirst = true;
+		WRITE(p, "uniform sampler2D ");
+	}
+	else
+	{
+		WRITE(p, "sampler ");
+	}
+	
+	bool bfirst = true;
+	for (int i = 0; i < 8; ++i)
+	{
+		WRITE(p, "%s samp%d : register(s%d)", bfirst?"":",", i, i);
+		bfirst = false;
+	}
+	WRITE(p, ";\n");
+	if(ApiType == API_D3D11)
+	{
+		WRITE(p, "Texture2D ");
+		bfirst = true;
 		for (int i = 0; i < 8; ++i)
 		{
-			if (!(texture_mask & (1<<i))) {
-				WRITE(p, "%s samp%d : register(s%d)", bfirst?"":",", i, i);
-				bfirst = false;
-			}
+			WRITE(p, "%s Tex%d : register(t%d)", bfirst?"":",", i, i);
+			bfirst = false;
 		}
 		WRITE(p, ";\n");
-		if(ApiType == API_D3D11)
-		{
-			WRITE(p, "Texture2D ");
-			bfirst = true;
-			for (int i = 0; i < 8; ++i)
-			{
-				if (!(texture_mask & (1<<i)))
-				{
-					WRITE(p, "%s Tex%d : register(t%d)", bfirst?"":",", i, i);
-					bfirst = false;
-				}
-			}
-			WRITE(p, ";\n");
-		}
 	}
 
 	WRITE(p, "\n");
@@ -453,12 +507,29 @@ const char *GeneratePixelShaderCode(u32 texture_mask, bool dstAlphaEnable, API_T
 	WRITE(p, "uniform float4 "I_INDTEXSCALE"[2] : register(c%d);\n", C_INDTEXSCALE);
 	WRITE(p, "uniform float4 "I_INDTEXMTX"[6] : register(c%d);\n", C_INDTEXMTX);
 	WRITE(p, "uniform float4 "I_FOG"[2] : register(c%d);\n", C_FOG);
+	if(g_ActiveConfig.bEnablePixelLigting)
+	{
+		WRITE(p,"typedef struct { float4 col; float4 cosatt; float4 distatt; float4 pos; float4 dir; } Light;\n");
+		WRITE(p,"typedef struct { Light lights[8]; } s_"I_PLIGHTS";\n");
+		WRITE(p, "uniform s_"I_PLIGHTS" "I_PLIGHTS" : register(c%d);\n", C_PLIGHTS);
+		WRITE(p, "typedef struct { float4 C0, C1, C2, C3; } s_"I_PMATERIALS";\n");
+		WRITE(p, "uniform s_"I_PMATERIALS" "I_PMATERIALS" : register(c%d);\n", C_PMATERIALS);
+	}
 
 	WRITE(p, "void main(\n");
 	if(ApiType != API_D3D11)
-		WRITE(p, "  out float4 ocol0 : COLOR0,%s\n  in float4 rawpos : POSITION,\n",DepthTextureEnable ? "\n  out float depth : DEPTH," : "");
+	{
+		WRITE(p, "  out float4 ocol0 : COLOR0,%s%s\n  in float4 rawpos : %s,\n",
+			dstAlphaMode == DSTALPHA_DUAL_SOURCE_BLEND ? "\n  out float4 ocol1 : COLOR1," : "",
+			DepthTextureEnable ? "\n  out float depth : DEPTH," : "",
+			ApiType == API_OPENGL ? "WPOS" : "POSITION");
+	}
 	else
-		WRITE(p, "  out float4 ocol0 : SV_Target,%s\n  in float4 rawpos : SV_Position,\n",DepthTextureEnable ? "\n  out float depth : SV_Depth," : "");
+	{
+		WRITE(p, "  out float4 ocol0 : SV_Target0,%s%s\n  in float4 rawpos : SV_Position,\n",
+			dstAlphaMode == DSTALPHA_DUAL_SOURCE_BLEND ? "\n  out float4 ocol1 : SV_Target1," : "",
+			DepthTextureEnable ? "\n  out float depth : SV_Depth," : "");
+	}
 	
 	WRITE(p, "  in float4 colors_0 : COLOR0,\n");
 	WRITE(p, "  in float4 colors_1 : COLOR1");
@@ -468,27 +539,177 @@ const char *GeneratePixelShaderCode(u32 texture_mask, bool dstAlphaEnable, API_T
 	{
 		for (int i = 0; i < numTexgen; ++i)
 			WRITE(p, ",\n  in float3 uv%d : TEXCOORD%d", i, i);
-
 		WRITE(p, ",\n  in float4 clipPos : TEXCOORD%d", numTexgen);
+		WRITE(p, ",\n  in float4 Normal : TEXCOORD%d", numTexgen + 1);		
 	}
 	else
 	{
 		// wpos is in w of first 4 texcoords
-		for (int i = 0; i < numTexgen; ++i)
-			WRITE(p, ",\n  in float%d uv%d : TEXCOORD%d", i<4?4:3, i, i);
+		for (int i = 0; i < 8; ++i)
+			WRITE(p, ",\n  in float4 uv%d : TEXCOORD%d", i, i);
 	}
 	WRITE(p, "        ) {\n");
 
-	char* pmainstart = p;	
-	
+	char* pmainstart = p;
+	int Pretest = AlphaPreTest();
+	if (dstAlphaMode == DSTALPHA_ALPHA_PASS && !DepthTextureEnable && Pretest >= 0)
+	{
+		if (!Pretest)
+		{
+			// alpha test will always fail, so restart the shader and just make it an empty function
+			WRITE(p, "ocol0 = 0;\n");
+			if(DepthTextureEnable)
+				WRITE(p, "depth = 1.f;\n");
+			WRITE(p, "discard;\n");
+			if(ApiType != API_D3D11)
+				WRITE(p, "return;\n");
+		}
+		else
+		{
+			WRITE(p, "  ocol0 = "I_ALPHA"[0].aaaa;\n");
+		}
+		WRITE(p, "}\n");
+		return text;
+	}
 
 	WRITE(p, "  float4 c0 = "I_COLORS"[1], c1 = "I_COLORS"[2], c2 = "I_COLORS"[3], prev = float4(0.0f, 0.0f, 0.0f, 0.0f), textemp = float4(0.0f, 0.0f, 0.0f, 0.0f), rastemp = float4(0.0f, 0.0f, 0.0f, 0.0f), konsttemp = float4(0.0f, 0.0f, 0.0f, 0.0f);\n"
 			"  float3 comp16 = float3(1.0f, 255.0f, 0.0f), comp24 = float3(1.0f, 255.0f, 255.0f*255.0f);\n"
 			"  float4 alphabump=0;\n"
 			"  float3 tevcoord;\n"
 			"  float2 wrappedcoord, tempcoord;\n"
-			"  float4 cc0, cc1, cc2, cprev;\n\n");
+			"  float4 cc0, cc1, cc2, cprev,crastemp,ckonsttemp;\n\n");
+	
+	if(g_ActiveConfig.bEnablePixelLigting)
+	{
+		if (xfregs.numTexGens < 7) 
+		{
+			WRITE(p,"float3 _norm0 = normalize(Normal.xyz);\n\n");
+			WRITE(p,"float3 pos = float3(clipPos.x,clipPos.y,Normal.w);\n");
+		} 
+		else 
+		{
+			WRITE(p,"  float3 _norm0 = normalize(float3(uv4.w,uv5.w,uv6.w));\n\n");
+			WRITE(p,"float3 pos = float3(uv0.w,uv1.w,uv7.w);\n");
+		}
 
+		
+		WRITE(p, "float4 mat, lacc;\n"
+		"float3 ldir, h;\n"
+		"float dist, dist2, attn;\n");
+		// lights/colors
+		for (int j = 0; j < xfregs.nNumChans; j++)
+		{
+			const LitChannel& color = xfregs.colChans[j].color;
+			const LitChannel& alpha = xfregs.colChans[j].alpha;
+
+			WRITE(p, "{\n");
+			
+			if (color.matsource) {// from vertex
+				if (components & (VB_HAS_COL0 << j))
+					WRITE(p, "mat = colors_%d;\n", j);
+				else if (components & VB_HAS_COL0)
+					WRITE(p, "mat = colors_0;\n");
+				else
+					WRITE(p, "mat = float4(1.0f, 1.0f, 1.0f, 1.0f);\n");
+			}
+			else // from color
+				WRITE(p, "mat = "I_PMATERIALS".C%d;\n", j+2);
+
+				if (color.enablelighting) {
+				if (color.ambsource) { // from vertex
+					if (components & (VB_HAS_COL0<<j) )
+						WRITE(p, "lacc = colors_%d;\n", j);
+					else if (components & VB_HAS_COL0 )
+						WRITE(p, "lacc = colors_0;\n");
+					else
+						WRITE(p, "lacc = float4(0.0f, 0.0f, 0.0f, 0.0f);\n");
+				}
+				else // from color
+					WRITE(p, "lacc = "I_PMATERIALS".C%d;\n", j);
+			}
+			else
+			{
+				WRITE(p, "lacc = float4(1.0f, 1.0f, 1.0f, 1.0f);\n");
+			}
+
+			// check if alpha is different
+			if (alpha.matsource != color.matsource) {
+				if (alpha.matsource) {// from vertex
+					if (components & (VB_HAS_COL0<<j))
+						WRITE(p, "mat.w = colors_%d.w;\n", j);
+					else if (components & VB_HAS_COL0)
+						WRITE(p, "mat.w = colors_0.w;\n");
+					else WRITE(p, "mat.w = 1.0f;\n");
+				}
+				else // from color
+					WRITE(p, "mat.w = "I_PMATERIALS".C%d.w;\n", j+2);
+			}
+
+			if (alpha.enablelighting)
+			{
+				if (alpha.ambsource) {// from vertex
+					if (components & (VB_HAS_COL0<<j) )
+						WRITE(p, "lacc.w = colors_%d.w;\n", j);
+					else if (components & VB_HAS_COL0 )
+						WRITE(p, "lacc.w = colors_0.w;\n");
+					else
+						WRITE(p, "lacc.w = 0.0f;\n");
+				}
+				else // from color
+					WRITE(p, "lacc.w = "I_PMATERIALS".C%d.w;\n", j);
+			}
+			else
+			{
+				WRITE(p, "lacc.w = 1.0f;\n");
+			}			
+
+			if(color.enablelighting && alpha.enablelighting)
+			{
+				// both have lighting, test if they use the same lights
+				int mask = 0;
+				if(color.lightparams == alpha.lightparams)
+				{
+					mask = color.GetFullLightMask() & alpha.GetFullLightMask();
+					if(mask)
+					{
+						for (int i = 0; i < 8; ++i)
+						{
+							if (mask & (1<<i))
+								p = GeneratePixelLightShader(p, i, color, "lacc", 3);
+						}
+					}
+				}
+
+				// no shared lights
+				for (int i = 0; i < 8; ++i)
+				{
+					if (!(mask&(1<<i)) && (color.GetFullLightMask() & (1<<i)))
+						p = GeneratePixelLightShader(p, i, color, "lacc", 1);
+					if (!(mask&(1<<i)) && (alpha.GetFullLightMask() & (1<<i)))
+						p = GeneratePixelLightShader(p, i, alpha, "lacc", 2);
+				}
+			}
+			else if (color.enablelighting || alpha.enablelighting)
+			{
+				// lights are disabled on one channel so process only the active ones
+				LitChannel workingchannel = color.enablelighting ? color : alpha;
+				int coloralpha = color.enablelighting ? 1 : 2;
+				for (int i = 0; i < 8; ++i)
+				{
+					if (workingchannel.GetFullLightMask() & (1<<i))
+						p = GeneratePixelLightShader(p, i, workingchannel, "lacc", coloralpha);
+				}
+			}			
+			WRITE(p, "colors_%d = mat * saturate(lacc);\n", j);
+			WRITE(p, "}\n");
+		}
+	}
+
+	if (numTexgen < 7)
+		WRITE(p, "clipPos = float4(rawpos.x, rawpos.y, clipPos.z, clipPos.w);\n");
+	else
+		WRITE(p, "float4 clipPos = float4(rawpos.x, rawpos.y, uv2.w, uv3.w);\n");
+	
 	// HACK to handle cases where the tex gen is not enabled
 	if (numTexgen == 0)
 	{
@@ -501,8 +722,7 @@ const char *GeneratePixelShaderCode(u32 texture_mask, bool dstAlphaEnable, API_T
 			// optional perspective divides
 			if (xfregs.texcoords[i].texmtxinfo.projection == XF_TEXPROJ_STQ)
 				WRITE(p, "uv%d.xy = uv%d.xy/uv%d.z;\n", i, i, i);
-
-			// scale texture coordinates
+			
 			WRITE(p, "uv%d.xy = uv%d.xy * "I_TEXDIMS"[%d].zw;\n", i, i, i);
 		}
 	}
@@ -521,7 +741,7 @@ const char *GeneratePixelShaderCode(u32 texture_mask, bool dstAlphaEnable, API_T
 
 			char buffer[32];
 			sprintf(buffer, "float3 indtex%d", i);
-			SampleTexture(p, buffer, "tempcoord", "abg", bpmem.tevindref.getTexMap(i), texture_mask, ApiType);
+			SampleTexture(p, buffer, "tempcoord", "abg", bpmem.tevindref.getTexMap(i), ApiType);
 		}
 	}
 
@@ -536,7 +756,7 @@ const char *GeneratePixelShaderCode(u32 texture_mask, bool dstAlphaEnable, API_T
 	}
 
 	for (int i = 0; i < numStages; i++)
-		WriteStage(p, i, texture_mask, ApiType); //build the equation for this stage
+		WriteStage(p, i, ApiType); //build the equation for this stage
 
 	if(numStages)
 	{
@@ -574,8 +794,7 @@ const char *GeneratePixelShaderCode(u32 texture_mask, bool dstAlphaEnable, API_T
 	{
 		if((bpmem.fog.c_proj_fsel.fsel != 0) || DepthTextureEnable)
 		{
-			if (numTexgen >= 7)
-				WRITE(p, "float4 clipPos = float4(uv0.w, uv1.w, uv2.w, uv3.w);\n");
+			
 			// the screen space depth value = far z + (clip z / clip w) * z range
 			WRITE(p, "float zCoord = "I_ZBIAS"[1].x + (clipPos.z / clipPos.w) * "I_ZBIAS"[1].y;\n");
 		}
@@ -595,12 +814,22 @@ const char *GeneratePixelShaderCode(u32 texture_mask, bool dstAlphaEnable, API_T
 			WRITE(p, "depth = zCoord;\n");
 		}
 
-		if (dstAlphaEnable)
+		if (dstAlphaMode == DSTALPHA_ALPHA_PASS)
 			WRITE(p, "  ocol0 = float4(prev.rgb, "I_ALPHA"[0].a);\n");
 		else
 		{
 			WriteFog(p);
 			WRITE(p, "  ocol0 = prev;\n");
+		}
+
+		// On D3D11, use dual-source color blending to perform dst alpha in a
+		// single pass
+		if (dstAlphaMode == DSTALPHA_DUAL_SOURCE_BLEND)
+		{
+			// Colors will be blended against the alpha from ocol1...
+			WRITE(p, "  ocol1 = ocol0;\n");
+			// ...and the alpha from ocol0 will be written to the framebuffer.
+			WRITE(p, "  ocol0.a = "I_ALPHA"[0].a;\n");
 		}
 	}
 	WRITE(p, "}\n");
@@ -657,7 +886,7 @@ static const char *TEVCMPAlphaOPTable[16] =
 };
 
 
-static void WriteStage(char *&p, int n, u32 texture_mask, API_TYPE ApiType)
+static void WriteStage(char *&p, int n, API_TYPE ApiType)
 {
 	char *rasswap = swapModeTable[bpmem.combiners[n].alphaC.rswap];
 	char *texswap = swapModeTable[bpmem.combiners[n].alphaC.tswap];
@@ -739,7 +968,18 @@ static void WriteStage(char *&p, int n, u32 texture_mask, API_TYPE ApiType)
 			WRITE(p, "tevcoord.xy = wrappedcoord + indtevtrans%d;\n", n);
 	}
 
-	WRITE(p, "rastemp = %s.%s;\n", tevRasTable[bpmem.tevorders[n / 2].getColorChan(n & 1)], rasswap);
+	TevStageCombiner::ColorCombiner &cc = bpmem.combiners[n].colorC;
+	TevStageCombiner::AlphaCombiner &ac = bpmem.combiners[n].alphaC;
+
+	bool bCRas = cc.a == TEVCOLORARG_RASA || cc.a == TEVCOLORARG_RASC || cc.b == TEVCOLORARG_RASA || cc.b == TEVCOLORARG_RASC || cc.c == TEVCOLORARG_RASA || cc.c == TEVCOLORARG_RASC || cc.d == TEVCOLORARG_RASA || cc.d == TEVCOLORARG_RASC;
+	bool bARas = ac.a == TEVALPHAARG_RASA || ac.b == TEVALPHAARG_RASA || ac.c == TEVALPHAARG_RASA || ac.d == TEVALPHAARG_RASA;
+
+	if(bCRas || bARas)
+	{
+		WRITE(p, "rastemp = %s.%s;\n", tevRasTable[bpmem.tevorders[n / 2].getColorChan(n & 1)], rasswap);
+		WRITE(p, "crastemp = frac(4.0f + rastemp * (255.0f/256.0f)) * (256.0f/255.0f);\n");
+	}
+
 
 	if (bpmem.tevorders[n/2].getEnable(n&1))
 	{
@@ -753,7 +993,7 @@ static void WriteStage(char *&p, int n, u32 texture_mask, API_TYPE ApiType)
 				WRITE(p, "tevcoord.xy = float2(0.0f, 0.0f);\n");
 		}
 
-		SampleTexture(p, "textemp", "tevcoord", texswap, texmap, texture_mask, ApiType);
+		SampleTexture(p, "textemp", "tevcoord", texswap, texmap, ApiType);
 	}
 	else
 		WRITE(p, "textemp = float4(1.0f, 1.0f, 1.0f, 1.0f);\n");
@@ -761,13 +1001,22 @@ static void WriteStage(char *&p, int n, u32 texture_mask, API_TYPE ApiType)
 	int kc = bpmem.tevksel[n / 2].getKC(n & 1);
 	int ka = bpmem.tevksel[n / 2].getKA(n & 1);
 
-	TevStageCombiner::ColorCombiner &cc = bpmem.combiners[n].colorC;
-	TevStageCombiner::AlphaCombiner &ac = bpmem.combiners[n].alphaC;
+	
 
 	bool bCKonst = cc.a == TEVCOLORARG_KONST || cc.b == TEVCOLORARG_KONST || cc.c == TEVCOLORARG_KONST || cc.d == TEVCOLORARG_KONST;
 	bool bAKonst = ac.a == TEVALPHAARG_KONST || ac.b == TEVALPHAARG_KONST || ac.c == TEVALPHAARG_KONST || ac.d == TEVALPHAARG_KONST;
 	if (bCKonst || bAKonst )
+	{
 		WRITE(p, "konsttemp = float4(%s, %s);\n", tevKSelTableC[kc], tevKSelTableA[ka]);
+		if(kc > 7 || ka > 7)
+		{
+			WRITE(p, "ckonsttemp = frac(4.0f + konsttemp * (255.0f/256.0f)) * (256.0f/255.0f);\n");
+		}
+		else
+		{
+			WRITE(p, "ckonsttemp = konsttemp;\n");
+		}
+	}
 
 	if(cc.a == TEVCOLORARG_CPREV 
 	|| cc.a == TEVCOLORARG_APREV 
@@ -958,41 +1207,12 @@ static void WriteStage(char *&p, int n, u32 texture_mask, API_TYPE ApiType)
 	WRITE(p, ";\n\n");
 }
 
-void SampleTexture(char *&p, const char *destination, const char *texcoords, const char *texswap, int texmap, u32 texture_mask, API_TYPE ApiType)
+void SampleTexture(char *&p, const char *destination, const char *texcoords, const char *texswap, int texmap, API_TYPE ApiType)
 {
-	if (texture_mask & (1<<texmap)) {// opengl only
-		// non pow 2
-		bool bwraps = (texture_mask & (0x100<<texmap)) ? true : false;
-		bool bwrapt = (texture_mask & (0x10000<<texmap)) ? true : false;
-
-		if (bwraps || bwrapt) {
-			if (bwraps) {
-				WRITE(p, "tempcoord.x = fmod(%s.x, "I_TEXDIMS"[%d].x);\n", texcoords, texmap);
-			}
-			else {
-				WRITE(p, "tempcoord.x = %s.x;\n", texcoords);
-			}
-
-			if (bwrapt) {
-				WRITE(p, "tempcoord.y = fmod(%s.y, "I_TEXDIMS"[%d].y);\n", texcoords, texmap);
-			}
-			else {
-				WRITE(p, "tempcoord.y = %s.y;\n", texcoords);
-			}
-			WRITE(p, "%s=texRECT(samp%d,tempcoord.xy).%s;\n", destination, texmap, texswap);
-		}
-		else
-		{
-			 WRITE(p, "%s=texRECT(samp%d,%s.xy).%s;\n", destination, texmap, texcoords, texswap);
-		}
-	}
+	if (ApiType == API_D3D11)
+		WRITE(p, "%s=Tex%d.Sample(samp%d,%s.xy * "I_TEXDIMS"[%d].xy).%s;\n", destination, texmap,texmap, texcoords, texmap, texswap);
 	else
-	{
-		if (ApiType == API_D3D11)
-			WRITE(p, "%s=Tex%d.Sample(samp%d,%s.xy * "I_TEXDIMS"[%d].xy).%s;\n", destination, texmap,texmap, texcoords, texmap, texswap);
-		else
-			WRITE(p, "%s=tex2D(samp%d,%s.xy * "I_TEXDIMS"[%d].xy).%s;\n", destination, texmap, texcoords, texmap, texswap);
-	}
+		WRITE(p, "%s=tex2D(samp%d,%s.xy * "I_TEXDIMS"[%d].xy).%s;\n", destination, texmap, texcoords, texmap, texswap);
 }
 
 static const char *tevAlphaFuncsTable[] =
@@ -1014,8 +1234,7 @@ static const char *tevAlphaFunclogicTable[] =
 	" != ", // xor
 	" == "  // xnor
 };
-
-static bool WriteAlphaTest(char *&p, API_TYPE ApiType)
+static int AlphaPreTest()
 {
 	u32 op = bpmem.alphaFunc.logic;
 	u32 comp[2] = {bpmem.alphaFunc.comp0, bpmem.alphaFunc.comp1};
@@ -1045,7 +1264,18 @@ static bool WriteAlphaTest(char *&p, API_TYPE ApiType)
 		break;
 	default: PanicAlert("bad logic for alpha test? %08x", op);
 	}
+	return -1;
+}
 
+
+static bool WriteAlphaTest(char *&p, API_TYPE ApiType)
+{
+	
+	int Pretest = AlphaPreTest();
+	if(Pretest >= 0)
+	{
+		return Pretest != 0;
+	}
 
 	// using discard then return works the same in cg and dx9 but not in dx11
 	WRITE(p, "if(!( ");
@@ -1067,10 +1297,10 @@ static const char *tevFogFuncsTable[] =
 	"",																//?
 	"",																//Linear
 	"",																//?
-	"  fog = 1.0f - pow(2, -8.0f * fog);\n",						//exp
-	"  fog = 1.0f - pow(2, -8.0f * fog * fog);\n",					//exp2
-	"  fog = pow(2, -8.0f * (1.0f - fog));\n",						//backward exp
-	"  fog = 1.0f - fog;\n   fog = pow(2, -8.0f * fog * fog);\n"	//backward exp2
+	"  fog = 1.0f - pow(2.0f, -8.0f * fog);\n",						//exp
+	"  fog = 1.0f - pow(2.0f, -8.0f * fog * fog);\n",					//exp2
+	"  fog = pow(2.0f, -8.0f * (1.0f - fog));\n",						//backward exp
+	"  fog = 1.0f - fog;\n   fog = pow(2.0f, -8.0f * fog * fog);\n"	//backward exp2
 };
 
 static void WriteFog(char *&p)

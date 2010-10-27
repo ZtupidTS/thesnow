@@ -145,8 +145,8 @@ void CFrame::ToggleConsole(bool bShow)
 
 		ConsoleParent->Enable();
 		DoAddPage(ConsoleParent,
-			   	g_pCodeWindow ? g_pCodeWindow->iNbAffiliation[1] : 0,
-			   	g_pCodeWindow ? bFloatWindow[1] : false);
+				g_pCodeWindow ? g_pCodeWindow->iNbAffiliation[1] : 0,
+				g_pCodeWindow ? bFloatWindow[1] : false);
 	}
 	else // Hide
 	{
@@ -175,13 +175,13 @@ void CFrame::OnToggleWindow(wxCommandEvent& event)
 	{
 		case IDM_LOGWINDOW:
 			if (!g_pCodeWindow)
-				SConfig::GetInstance().m_InterfaceLogWindow = event.IsChecked();
+				SConfig::GetInstance().m_InterfaceLogWindow = bShow;
 			ToggleLogWindow(bShow);
 			break;
 		case IDM_CONSOLEWINDOW:
 			if (!g_pCodeWindow)
-				SConfig::GetInstance().m_InterfaceConsole = event.IsChecked();
-			ToggleConsole(event.IsChecked());
+				SConfig::GetInstance().m_InterfaceConsole = bShow;
+			ToggleConsole(bShow);
 			break;
 		case IDM_REGISTERWINDOW:
 			g_pCodeWindow->ToggleRegisterWindow(bShow);
@@ -202,7 +202,6 @@ void CFrame::OnToggleWindow(wxCommandEvent& event)
 			g_pCodeWindow->ToggleDLLWindow(IDM_VIDEOWINDOW, bShow);
 			break;
 	}
-	event.Skip();
 }
 
 // Notebooks
@@ -247,9 +246,9 @@ void CFrame::OnNotebookPageClose(wxAuiNotebookEvent& event)
 	wxAuiNotebook* Ctrl = (wxAuiNotebook*)event.GetEventObject();
 
 	if (Ctrl->GetPage(event.GetSelection())->GetId() == IDM_LOGWINDOW)
-	   	ToggleLogWindow(false);
+		ToggleLogWindow(false);
 	if (Ctrl->GetPage(event.GetSelection())->GetId() == IDM_CONSOLEWINDOW)
-	   	ToggleConsole(false);
+		ToggleConsole(false);
 	if (Ctrl->GetPage(event.GetSelection())->GetId() == IDM_REGISTERWINDOW)
 		g_pCodeWindow->ToggleRegisterWindow(false);
 	if (Ctrl->GetPage(event.GetSelection())->GetId() == IDM_BREAKPOINTWINDOW)
@@ -308,7 +307,8 @@ void CFrame::DoFloatNotebookPage(wxWindowID Id)
 		{
 			nb->RemovePage(nb->GetPageIndex(Win));
 			// Create the parent frame and reparent the window
-			CreateParentFrame(Win->GetId() + IDM_LOGWINDOW_PARENT - IDM_LOGWINDOW, Win->GetName(), Win);
+			CreateParentFrame(Win->GetId() + IDM_LOGWINDOW_PARENT - IDM_LOGWINDOW,
+					Win->GetName(), Win);
 			if (nb->GetPageCount() == 0)
 				AddRemoveBlankPage();
 		}
@@ -320,7 +320,7 @@ void CFrame::DoUnfloatPage(int Id)
 	wxFrame * Win = (wxFrame*)FindWindowById(Id);
 	if (!Win) return;
 
-	wxWindow * Child = Win->GetWindowChildren().Item(0)->GetData();
+	wxWindow * Child = Win->GetChildren().Item(0)->GetData();
 	Child->Reparent(this);
 	DoAddPage(Child, g_pCodeWindow->iNbAffiliation[Child->GetId() - IDM_LOGWINDOW], false);
 	Win->Destroy();
@@ -335,7 +335,7 @@ void CFrame::OnTab(wxAuiNotebookEvent& event)
 	wxMenu* MenuPopup = new wxMenu;
 
 	wxMenuItem* Item =  new wxMenuItem(MenuPopup, wxID_ANY,
-			 wxT("选择浮动窗口"));
+			wxT("选择浮动窗口"));
 	MenuPopup->Append(Item);
 	Item->Enable(false);
 	MenuPopup->Append(new wxMenuItem(MenuPopup));
@@ -345,7 +345,7 @@ void CFrame::OnTab(wxAuiNotebookEvent& event)
 		if (Win && Win->IsEnabled())
 		{
 			Item = new wxMenuItem(MenuPopup, i + IDM_FLOAT_LOGWINDOW - IDM_LOGWINDOW,
-				   	Win->GetName(), wxT(""), wxITEM_CHECK);
+					Win->GetName(), wxT(""), wxITEM_CHECK);
 			MenuPopup->Append(Item);
 			Item->Check(!!FindWindowById(i + IDM_LOGWINDOW_PARENT - IDM_LOGWINDOW));
 		}
@@ -371,8 +371,8 @@ void CFrame::TogglePane()
 	wxAuiNotebook * NB = NULL;
 	for (u32 i = 0; i < m_Mgr->GetAllPanes().GetCount(); i++)
 	{
-		if (m_Mgr->GetAllPanes().Item(i).window->IsKindOf(CLASSINFO(wxAuiNotebook)))
-			NB = (wxAuiNotebook*)m_Mgr->GetAllPanes().Item(i).window;
+		if (m_Mgr->GetAllPanes()[i].window->IsKindOf(CLASSINFO(wxAuiNotebook)))
+			NB = (wxAuiNotebook*)m_Mgr->GetAllPanes()[i].window;
 	}
 	if (NB)
 	{
@@ -401,7 +401,8 @@ void CFrame::DoRemovePage(wxWindow *Win, bool bHide)
 {
 	if (!Win) return;
 
-	wxWindow *Parent = FindWindowById(Win->GetId() + IDM_LOGWINDOW_PARENT - IDM_LOGWINDOW);
+	wxWindow *Parent = FindWindowById(Win->GetId() +
+			IDM_LOGWINDOW_PARENT - IDM_LOGWINDOW);
 
 	if (Parent)
 	{
@@ -439,13 +440,13 @@ void CFrame::DoRemovePage(wxWindow *Win, bool bHide)
 void CFrame::DoAddPage(wxWindow *Win, int i, bool Float)
 {
 	if (!Win) return;
-	if (GetNotebookCount() == 0) return;
 	if (i < 0 || i > GetNotebookCount()-1) i = 0;
 	if (Win && GetNotebookFromId(i)->GetPageIndex(Win) != wxNOT_FOUND) return;
 	if (!Float)
 		GetNotebookFromId(i)->AddPage(Win, Win->GetName(), true);
 	else
-		CreateParentFrame(Win->GetId() + IDM_LOGWINDOW_PARENT - IDM_LOGWINDOW, Win->GetName(), Win);
+		CreateParentFrame(Win->GetId() + IDM_LOGWINDOW_PARENT - IDM_LOGWINDOW,
+				Win->GetName(), Win);
 }
 
 // Toolbar
@@ -462,13 +463,16 @@ void CFrame::OnDropDownSettingsToolbar(wxAuiToolBarEvent& event)
 		// Create the popup menu
 		wxMenu* menuPopup = new wxMenu;
 
-		wxMenuItem* Item =  new wxMenuItem(menuPopup, IDM_PERSPECTIVES_ADD_PANE, wxT("添加新面板"));
+		wxMenuItem* Item =  new wxMenuItem(menuPopup, IDM_PERSPECTIVES_ADD_PANE,
+				wxT("添加新面板"));
 		menuPopup->Append(Item);
 		menuPopup->Append(new wxMenuItem(menuPopup));
-		Item = new wxMenuItem(menuPopup, IDM_TAB_SPLIT, wxT("Tab split"), wxT(""), wxITEM_CHECK);
+		Item = new wxMenuItem(menuPopup, IDM_TAB_SPLIT, wxT("Tab split"),
+				wxT(""), wxITEM_CHECK);
 		menuPopup->Append(Item);
 		Item->Check(m_bTabSplit);
-		Item = new wxMenuItem(menuPopup, IDM_NO_DOCKING, wxT("No docking"), wxT(""), wxITEM_CHECK);
+		Item = new wxMenuItem(menuPopup, IDM_NO_DOCKING, wxT("No docking"),
+				wxT(""), wxITEM_CHECK);
 		menuPopup->Append(Item);
 		Item->Check(m_bNoDocking);
 
@@ -495,7 +499,8 @@ void CFrame::OnDropDownToolbarItem(wxAuiToolBarEvent& event)
 
 		// create the popup menu
 		wxMenu* menuPopup = new wxMenu;
-		wxMenuItem* Item = new wxMenuItem(menuPopup, IDM_ADD_PERSPECTIVE, wxT("Create new perspective"));
+		wxMenuItem* Item = new wxMenuItem(menuPopup, IDM_ADD_PERSPECTIVE,
+				wxT("Create new perspective"));
 		menuPopup->Append(Item);
 
 		if (Perspectives.size() > 0)
@@ -504,7 +509,8 @@ void CFrame::OnDropDownToolbarItem(wxAuiToolBarEvent& event)
 			for (u32 i = 0; i < Perspectives.size(); i++)
 			{
 				wxMenuItem* mItem = new wxMenuItem(menuPopup, IDM_PERSPECTIVES_0 + i,
-					   	wxString::FromAscii(Perspectives[i].Name.c_str()), wxT(""), wxITEM_CHECK);
+						wxString::FromAscii(Perspectives[i].Name.c_str()),
+						wxT(""), wxITEM_CHECK);
 				menuPopup->Append(mItem);
 				if (i == ActivePerspective) mItem->Check(true);
 			}
@@ -557,10 +563,11 @@ void CFrame::OnDropDownToolbarSelect(wxCommandEvent& event)
 	{
 		case IDM_ADD_PERSPECTIVE:
 			{
-				wxTextEntryDialog dlg(this, wxT("Enter a name for the new perspective:"),
-					   	wxT("Create new perspective"));
+				wxTextEntryDialog dlg(this,
+						wxT("Enter a name for the new perspective:"),
+						wxT("Create new perspective"));
 				wxString DefaultValue = wxString::Format(wxT("Perspective %d"),
-					   	Perspectives.size() + 1);
+						Perspectives.size() + 1);
 				dlg.SetValue(DefaultValue);
 				bool DlgOk = false; int Return = 0;
 				while (!DlgOk)
@@ -579,7 +586,7 @@ void CFrame::OnDropDownToolbarSelect(wxCommandEvent& event)
 					else if (dlg.GetValue().IsSameAs(wxT("")))
 					{
 						wxMessageBox(wxT("名称不能为空"), 
-						wxT("Notice"), wxOK, this);
+							wxT("Notice"), wxOK, this);
 						dlg.SetValue(DefaultValue);
 					}
 					else
@@ -590,7 +597,7 @@ void CFrame::OnDropDownToolbarSelect(wxCommandEvent& event)
 				Tmp.Name = dlg.GetValue().mb_str();
 				Tmp.Perspective = m_Mgr->SavePerspective();
 
-				ActivePerspective = Perspectives.size();
+				ActivePerspective = (u32)Perspectives.size();
 				Perspectives.push_back(Tmp);
 
 				UpdateCurrentPerspective();
@@ -612,7 +619,7 @@ void CFrame::ResetToolbarStyle()
 	wxAuiPaneInfoArray& AllPanes = m_Mgr->GetAllPanes();
 	for (int i = 0, Count = (int)AllPanes.GetCount(); i < Count; ++i)
 	{
-		wxAuiPaneInfo& Pane = AllPanes.Item(i);
+		wxAuiPaneInfo& Pane = AllPanes[i];
 		if (Pane.window->IsKindOf(CLASSINFO(wxAuiToolBar)))
 		{
 			Pane.Show();
@@ -629,7 +636,7 @@ void CFrame::TogglePaneStyle(bool On, int EventId)
 	wxAuiPaneInfoArray& AllPanes = m_Mgr->GetAllPanes();
 	for (u32 i = 0; i < AllPanes.GetCount(); ++i)
 	{
-		wxAuiPaneInfo& Pane = AllPanes.Item(i);
+		wxAuiPaneInfo& Pane = AllPanes[i];
 		if (Pane.window->IsKindOf(CLASSINFO(wxAuiNotebook)))
 		{
 			// Default
@@ -659,7 +666,7 @@ void CFrame::ToggleNotebookStyle(bool On, long Style)
 	wxAuiPaneInfoArray& AllPanes = m_Mgr->GetAllPanes();
 	for (int i = 0, Count = (int)AllPanes.GetCount(); i < Count; ++i)
 	{
-		wxAuiPaneInfo& Pane = AllPanes.Item(i);
+		wxAuiPaneInfo& Pane = AllPanes[i];
 		if (Pane.window->IsKindOf(CLASSINFO(wxAuiNotebook)))
 		{
 			wxAuiNotebook* NB = (wxAuiNotebook*)Pane.window;
@@ -689,46 +696,23 @@ void CFrame::ResizeConsole()
 	wxWindow * Win = FindWindowById(IDM_CONSOLEWINDOW);
 	if (!Win) return;
 
-	// Get OS version
-	int wxBorder, Border, LowerBorder, MenuBar, ScrollBar, WidthReduction;
-	OSVERSIONINFO osvi;
-	ZeroMemory(&osvi, sizeof(OSVERSIONINFO));
-	osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
-	GetVersionEx(&osvi);
-	if (osvi.dwMajorVersion == 6) // Vista (same as 7?)
-	{
-		wxBorder = 2;
-		Border = 4;
-		LowerBorder = 6;
-		MenuBar = 30; // Including upper border
-		ScrollBar = 19;
-	}
-	else // XP
-	{
-		wxBorder = 2;
-		Border = 4;
-		LowerBorder = 6;
-		MenuBar = 30;
-		ScrollBar = 19;
-	}
-	WidthReduction = 30 - Border;
+	const int wxBorder = 2, Border = 4,
+		  MenuBar = 30, ScrollBar = 19;
 
 	// Get the client size
-	int X = Win->GetClientSize().GetX();
-	int Y = Win->GetClientSize().GetY();
+	int X = Win->GetSize().GetX();
+	int Y = Win->GetSize().GetY();
 	int InternalWidth = X - wxBorder*2 - ScrollBar;
 	int InternalHeight = Y - wxBorder*2;
-	int WindowWidth = InternalWidth + Border*2 + /*max out the width in the word wrap mode*/ 100;
+	int WindowWidth = InternalWidth + Border*2 +
+		/*max out the width in the word wrap mode*/ 100;
 	int WindowHeight = InternalHeight + MenuBar;
 	// Resize buffer
 	ConsoleListener* Console = LogManager::GetInstance()->getConsoleListener();
-	Console->PixelSpace(0,0, InternalWidth,InternalHeight, false);
+	Console->PixelSpace(0,0, InternalWidth, InternalHeight, false);
 	// Move the window to hide the border
-	MoveWindow(GetConsoleWindow(), -Border-wxBorder,-MenuBar-wxBorder, WindowWidth + 100,WindowHeight, true);
-	// Move it to the bottom of the view order so that it doesn't hide the notebook tabs
-	// ...
-	// Log
-	//NOTICE_LOG(CONSOLE, "Size: %ix%i", X, Y);
+	MoveWindow(GetConsoleWindow(), -Border-wxBorder, -MenuBar-wxBorder,
+			WindowWidth + 100, WindowHeight, true);
 #endif
 }
 
@@ -746,21 +730,21 @@ void CFrame::SetPaneSize()
 
 	for (u32 i = 0, j = 0; i < m_Mgr->GetAllPanes().GetCount(); i++)
 	{
-		if (!m_Mgr->GetAllPanes().Item(i).window->IsKindOf(CLASSINFO(wxAuiToolBar)))
+		if (!m_Mgr->GetAllPanes()[i].window->IsKindOf(CLASSINFO(wxAuiToolBar)))
 		{
-			if (!m_Mgr->GetAllPanes().Item(i).IsOk()) return;
+			if (!m_Mgr->GetAllPanes()[i].IsOk()) return;
 			if (Perspectives[ActivePerspective].Width.size() <= j ||
-				   	Perspectives[ActivePerspective].Height.size() <= j)
-			   	continue;
+					Perspectives[ActivePerspective].Height.size() <= j)
+				continue;
 			u32 W = Perspectives[ActivePerspective].Width[j],
-			   	H = Perspectives[ActivePerspective].Height[j];
+				H = Perspectives[ActivePerspective].Height[j];
 			// Check limits
 			W = Limit(W, 5, 95);
-		   	H = Limit(H, 5, 95);
+			H = Limit(H, 5, 95);
 			// Convert percentages to pixel lengths
 			W = (W * iClientX) / 100;
-		   	H = (H * iClientY) / 100;
-			m_Mgr->GetAllPanes().Item(i).BestSize(W,H).MinSize(W,H);
+			H = (H * iClientY) / 100;
+			m_Mgr->GetAllPanes()[i].BestSize(W,H).MinSize(W,H);
 
 			j++;
 		}
@@ -769,17 +753,15 @@ void CFrame::SetPaneSize()
 
 	for (u32 i = 0; i < m_Mgr->GetAllPanes().GetCount(); i++)
 	{
-		if (!m_Mgr->GetAllPanes().Item(i).window->IsKindOf(CLASSINFO(wxAuiToolBar)))
+		if (!m_Mgr->GetAllPanes()[i].window->IsKindOf(CLASSINFO(wxAuiToolBar)))
 		{
-			m_Mgr->GetAllPanes().Item(i).MinSize(-1,-1);
+			m_Mgr->GetAllPanes()[i].MinSize(-1,-1);
 		}
 	}
 }
 
 void CFrame::ReloadPanes()
 {
-	// Hide to avoid flickering
-	HideAllNotebooks(true);
 	// Close all pages
 	ClosePages();
 
@@ -793,7 +775,6 @@ void CFrame::ReloadPanes()
 				.CaptionVisible(m_bEdit).Dockable(!m_bNoDocking).Position(i)
 				.Name(PaneName).Caption(PaneName));
 	}
-	HideAllNotebooks(true);
 
 	// Perspectives
 	m_Mgr->LoadPerspective(Perspectives[ActivePerspective].Perspective, false);
@@ -808,8 +789,6 @@ void CFrame::ReloadPanes()
 	// Open notebook pages
 	AddRemoveBlankPage();
 	g_pCodeWindow->OpenPages();
-	if (g_pCodeWindow->bShowOnStart[0]) ToggleLogWindow(true);
-	if (g_pCodeWindow->bShowOnStart[1]) ToggleConsole(true);
 }
 
 void CFrame::DoLoadPerspective()
@@ -817,8 +796,8 @@ void CFrame::DoLoadPerspective()
 	ReloadPanes();
 	// Restore the exact window sizes, which LoadPerspective doesn't always do
 	SetPaneSize();
-	// Show
-	ShowAllNotebooks(true);
+
+	m_Mgr->Update();
 }
 
 // Update the local perspectives array
@@ -845,7 +824,7 @@ void CFrame::LoadIniPerspectives()
 
 		_Section = StringFromFormat("P - %s", Tmp.Name.c_str());
 		ini.Get(_Section.c_str(), "Perspective", &_Perspective,
-			   	"layout2|"
+				"layout2|"
 				"name=Pane 0;caption=Pane 0;state=768;dir=5;prop=100000;|"
 				"name=Pane 1;caption=Pane 1;state=31458108;dir=4;prop=100000;|"
 				"dock_size(5,0,0)=22|dock_size(4,0,0)=333|");
@@ -879,17 +858,17 @@ void CFrame::UpdateCurrentPerspective()
 	int iClientX = GetSize().GetX(), iClientY = GetSize().GetY();
 	current->Width.clear();
 	current->Height.clear();
-	for (size_t i = 0; i < m_Mgr->GetAllPanes().GetCount(); i++)
+	for (u32 i = 0; i < m_Mgr->GetAllPanes().GetCount(); i++)
 	{
-		if (!m_Mgr->GetAllPanes().Item(i).window->
+		if (!m_Mgr->GetAllPanes()[i].window->
 				IsKindOf(CLASSINFO(wxAuiToolBar)))
 		{
 			// Save width and height as a percentage of the client width and height
 			current->Width.push_back(
-					(m_Mgr->GetAllPanes().Item(i).window->GetClientSize().GetX() * 100) /
-				   	iClientX);
+					(m_Mgr->GetAllPanes()[i].window->GetClientSize().GetX() * 100) /
+					iClientX);
 			current->Height.push_back(
-					(m_Mgr->GetAllPanes().Item(i).window->GetClientSize().GetY() * 100) /
+					(m_Mgr->GetAllPanes()[i].window->GetClientSize().GetY() * 100) /
 					iClientY);
 		}
 	}
@@ -919,20 +898,20 @@ void CFrame::SaveIniPerspectives()
 	ini.Set("Perspectives", "Active", ActivePerspective);
 
 	// Save the perspectives
-	for (size_t i = 0; i < Perspectives.size(); i++)
+	for (u32 i = 0; i < Perspectives.size(); i++)
 	{
 		std::string _Section = "P - " + Perspectives[i].Name;
 		ini.Set(_Section.c_str(), "Perspective", Perspectives[i].Perspective.mb_str());
 
 		std::string SWidth = "", SHeight = "";
-		for (size_t j = 0; j < Perspectives[i].Width.size(); j++)
+		for (u32 j = 0; j < Perspectives[i].Width.size(); j++)
 		{
 			SWidth += StringFromFormat("%i,", Perspectives[i].Width[j]);
 			SHeight += StringFromFormat("%i,", Perspectives[i].Height[j]);
 		}
 		// Remove the ending ","
 		SWidth = SWidth.substr(0, SWidth.length()-1);
-	   	SHeight = SHeight.substr(0, SHeight.length()-1);
+		SHeight = SHeight.substr(0, SHeight.length()-1);
 
 		ini.Set(_Section.c_str(), "Width", SWidth.c_str());
 		ini.Set(_Section.c_str(), "Height", SHeight.c_str());
@@ -963,8 +942,9 @@ wxWindow * CFrame::GetNotebookPageFromId(wxWindowID Id)
 {
 	for (u32 i = 0; i < m_Mgr->GetAllPanes().GetCount(); i++)
 	{
-		if (!m_Mgr->GetAllPanes().Item(i).window->IsKindOf(CLASSINFO(wxAuiNotebook))) continue;
-		wxAuiNotebook * NB = (wxAuiNotebook*)m_Mgr->GetAllPanes().Item(i).window;
+		if (!m_Mgr->GetAllPanes()[i].window->IsKindOf(CLASSINFO(wxAuiNotebook)))
+			continue;
+		wxAuiNotebook * NB = (wxAuiNotebook*)m_Mgr->GetAllPanes()[i].window;
 		for(u32 j = 0; j < NB->GetPageCount(); j++)
 		{
 			if (NB->GetPage(j)->GetId() == Id) return NB->GetPage(j);
@@ -973,12 +953,13 @@ wxWindow * CFrame::GetNotebookPageFromId(wxWindowID Id)
 	return NULL;
 }
 
-wxFrame * CFrame::CreateParentFrame(wxWindowID Id, const wxString& Title, wxWindow * Child)
+wxFrame * CFrame::CreateParentFrame(wxWindowID Id, const wxString& Title,
+		wxWindow * Child)
 {
-	wxFrame * Frame = new wxFrame(this, Id, Title, wxDefaultPosition, wxDefaultSize, wxDEFAULT_FRAME_STYLE);
+	wxFrame * Frame = new wxFrame(this, Id, Title,
+			wxDefaultPosition, wxDefaultSize, wxDEFAULT_FRAME_STYLE);
 
 	Child->Reparent(Frame);
-	Child->Show();
 
 	wxBoxSizer * m_MainSizer = new wxBoxSizer(wxHORIZONTAL);
 
@@ -996,18 +977,20 @@ wxFrame * CFrame::CreateParentFrame(wxWindowID Id, const wxString& Title, wxWind
 	}
 
 	// Main sizer
-	Frame->SetSizer( m_MainSizer );
+	Frame->SetSizer(m_MainSizer);
 	// Minimum frame size
-	Frame->SetMinSize(wxSize(200, -1));
+	Frame->SetMinSize(wxSize(200, 200));
 	Frame->Show();
 	return Frame;
 }
 
 wxAuiNotebook* CFrame::CreateEmptyNotebook()
 {
-	long NOTEBOOK_STYLE = wxAUI_NB_TOP | wxAUI_NB_TAB_SPLIT | wxAUI_NB_TAB_EXTERNAL_MOVE
-		| wxAUI_NB_SCROLL_BUTTONS | wxAUI_NB_WINDOWLIST_BUTTON | wxNO_BORDER;
-	wxAuiNotebook* NB = new wxAuiNotebook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, NOTEBOOK_STYLE);
+	const long NOTEBOOK_STYLE = wxAUI_NB_TOP | wxAUI_NB_TAB_SPLIT |
+		wxAUI_NB_TAB_EXTERNAL_MOVE | wxAUI_NB_SCROLL_BUTTONS |
+		wxAUI_NB_WINDOWLIST_BUTTON | wxNO_BORDER;
+	wxAuiNotebook* NB = new wxAuiNotebook(this, wxID_ANY,
+			wxDefaultPosition, wxDefaultSize, NOTEBOOK_STYLE);
 	return NB;
 }
 
@@ -1015,13 +998,16 @@ void CFrame::AddRemoveBlankPage()
 {
 	for (u32 i = 0; i < m_Mgr->GetAllPanes().GetCount(); i++)
 	{
-		if (!m_Mgr->GetAllPanes().Item(i).window->IsKindOf(CLASSINFO(wxAuiNotebook))) continue;
-		wxAuiNotebook * NB = (wxAuiNotebook*)m_Mgr->GetAllPanes().Item(i).window;
+		if (!m_Mgr->GetAllPanes()[i].window->IsKindOf(CLASSINFO(wxAuiNotebook)))
+			continue;
+		wxAuiNotebook * NB = (wxAuiNotebook*)m_Mgr->GetAllPanes()[i].window;
 		for(u32 j = 0; j < NB->GetPageCount(); j++)
 		{
-			if (NB->GetPageText(j).IsSameAs(wxT("<>")) && NB->GetPageCount() > 1) NB->DeletePage(j);
+			if (NB->GetPageText(j).IsSameAs(wxT("<>")) && NB->GetPageCount() > 1)
+				NB->DeletePage(j);
 		}
-		if (NB->GetPageCount() == 0) NB->AddPage(new wxPanel(this, wxID_ANY), wxT("<>"), true);
+		if (NB->GetPageCount() == 0)
+			NB->AddPage(new wxPanel(this, wxID_ANY), wxT("<>"), true);
 	}
 }
 
@@ -1029,11 +1015,13 @@ int CFrame::GetNotebookAffiliation(wxWindowID Id)
 {
 	for (u32 i = 0, j = 0; i < m_Mgr->GetAllPanes().GetCount(); i++)
 	{
-		if (!m_Mgr->GetAllPanes().Item(i).window->IsKindOf(CLASSINFO(wxAuiNotebook))) continue;
-		wxAuiNotebook * NB = (wxAuiNotebook*)m_Mgr->GetAllPanes().Item(i).window;
+		if (!m_Mgr->GetAllPanes()[i].window->IsKindOf(CLASSINFO(wxAuiNotebook)))
+			continue;
+		wxAuiNotebook * NB = (wxAuiNotebook*)m_Mgr->GetAllPanes()[i].window;
 		for(u32 k = 0; k < NB->GetPageCount(); k++)
 		{
-			if (NB->GetPage(k)->GetId() == Id) return j;
+			if (NB->GetPage(k)->GetId() == Id)
+				return j;
 		}
 		j++;
 	}
@@ -1043,20 +1031,14 @@ int CFrame::GetNotebookAffiliation(wxWindowID Id)
 // Close all panes with notebooks
 void CFrame::CloseAllNotebooks()
 {
-	int i = 0;
-	while(GetNotebookCount() > 0)
+	wxAuiPaneInfoArray AllPanes = m_Mgr->GetAllPanes();
+	for (u32 i = 0; i < AllPanes.GetCount(); i++)
 	{
-		if (m_Mgr->GetAllPanes().Item(i).window->IsKindOf(CLASSINFO(wxAuiNotebook)))
+		if (AllPanes[i].window->IsKindOf(CLASSINFO(wxAuiNotebook)))
 		{
-			m_Mgr->GetAllPanes().Item(i).DestroyOnClose(true);
-			m_Mgr->ClosePane(m_Mgr->GetAllPanes().Item(i));
-			//m_Mgr->GetAllPanes().Item(i).window->Hide();
-			//m_Mgr->DetachPane(m_Mgr->GetAllPanes().Item(i).window);
-
-			i = 0;
+			AllPanes[i].DestroyOnClose(true);
+			m_Mgr->ClosePane(AllPanes[i]);
 		}
-		else
-			i++;
 	}
 }
 
@@ -1065,7 +1047,8 @@ int CFrame::GetNotebookCount()
 	int Ret = 0;
 	for (u32 i = 0; i < m_Mgr->GetAllPanes().GetCount(); i++)
 	{
-		if (m_Mgr->GetAllPanes().Item(i).window->IsKindOf(CLASSINFO(wxAuiNotebook))) Ret++;
+		if (m_Mgr->GetAllPanes()[i].window->IsKindOf(CLASSINFO(wxAuiNotebook)))
+			Ret++;
 	}
 	return Ret;
 }
@@ -1074,39 +1057,11 @@ wxAuiNotebook * CFrame::GetNotebookFromId(u32 NBId)
 {
 	for (u32 i = 0, j = 0; i < m_Mgr->GetAllPanes().GetCount(); i++)
 	{
-		if (!m_Mgr->GetAllPanes().Item(i).window->IsKindOf(CLASSINFO(wxAuiNotebook))) continue;
-		if (j == NBId) return (wxAuiNotebook*)m_Mgr->GetAllPanes().Item(i).window;
+		if (!m_Mgr->GetAllPanes()[i].window->IsKindOf(CLASSINFO(wxAuiNotebook)))
+			continue;
+		if (j == NBId)
+			return (wxAuiNotebook*)m_Mgr->GetAllPanes()[i].window;
 		j++;
 	}
 	return NULL;
-}
-
-void CFrame::ShowAllNotebooks(bool bShow)
-{
-	for (u32 i = 0; i < m_Mgr->GetAllPanes().GetCount(); i++)
-	{
-		if (m_Mgr->GetAllPanes().Item(i).window->IsKindOf(CLASSINFO(wxAuiNotebook)))
-		{
-			if (bShow)
-				m_Mgr->GetAllPanes().Item(i).Show();
-			else
-				m_Mgr->GetAllPanes().Item(i).window->Hide();
-		}
-	}
-	m_Mgr->Update();
-}
-
-void CFrame::HideAllNotebooks(bool Window)
-{
-	for (u32 i = 0; i < m_Mgr->GetAllPanes().GetCount(); i++)
-	{
-		if (m_Mgr->GetAllPanes().Item(i).window->IsKindOf(CLASSINFO(wxAuiNotebook)))
-		{
-			if (Window)
-				m_Mgr->GetAllPanes().Item(i).Hide();
-			else
-				m_Mgr->GetAllPanes().Item(i).window->Hide();
-		}
-	}
-	m_Mgr->Update();
 }

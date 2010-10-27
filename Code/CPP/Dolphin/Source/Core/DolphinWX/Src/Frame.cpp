@@ -218,6 +218,12 @@ WXLRESULT CRenderFrame::MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, WXLPARAM lPa
 					return wxFrame::MSWWindowProc(nMsg, wParam, lParam);
 			}
 			break;
+
+		case WM_CLOSE:
+			// Let Core finish initializing before accepting any WM_CLOSE messages
+			if (Core::GetState() == Core::CORE_UNINITIALIZED) break;
+			// Use default action otherwise
+
 		default:
 			// By default let wxWidgets do what it normally does with this event
 			return wxFrame::MSWWindowProc(nMsg, wParam, lParam);
@@ -246,6 +252,7 @@ EVT_MENU(IDM_STOP, CFrame::OnStop)
 EVT_MENU(IDM_RESET, CFrame::OnReset)
 EVT_MENU(IDM_RECORD, CFrame::OnRecord)
 EVT_MENU(IDM_PLAYRECORD, CFrame::OnPlayRecording)
+EVT_MENU(IDM_RECORDEXPORT, CFrame::OnRecordExport)
 EVT_MENU(IDM_FRAMESTEP, CFrame::OnFrameStep)
 EVT_MENU(IDM_LUA, CFrame::OnOpenLuaWindow)
 EVT_MENU(IDM_SCREENSHOT, CFrame::OnScreenshot)
@@ -306,9 +313,6 @@ EVT_SIZE(CFrame::OnResize)
 EVT_MOVE(CFrame::OnMove)
 EVT_LIST_ITEM_ACTIVATED(LIST_CTRL, CFrame::OnGameListCtrl_ItemActivated)
 EVT_HOST_COMMAND(wxID_ANY, CFrame::OnHostMessage)
-#if wxUSE_TIMER
-EVT_TIMER(wxID_ANY, CFrame::OnTimer)
-#endif
 
 EVT_AUI_PANE_CLOSE(CFrame::OnPaneClose)
 EVT_AUINOTEBOOK_PAGE_CLOSE(wxID_ANY, CFrame::OnNotebookPageClose)
@@ -338,14 +342,11 @@ CFrame::CFrame(wxFrame* parent,
 	, g_pCodeWindow(NULL)
 	, bRenderToMain(false), bNoWiimoteMsg(false)
 	, m_ToolBar(NULL), m_ToolBarDebug(NULL), m_ToolBarAui(NULL)
-	, m_pStatusBar(NULL), m_GameListCtrl(NULL), m_Panel(NULL)
+	, m_GameListCtrl(NULL), m_Panel(NULL)
 	, m_RenderFrame(NULL), m_RenderParent(NULL)
 	, m_LogWindow(NULL), UseDebugger(_UseDebugger)
 	, m_bBatchMode(_BatchMode), m_bEdit(false), m_bTabSplit(false), m_bNoDocking(false)
-	, m_bControlsCreated(false), m_bGameLoading(false), m_StopDlg(NULL)
-	#if wxUSE_TIMER
-		, m_timer(this)
-	#endif
+	, m_bGameLoading(false)
 {
 	for (int i = 0; i <= IDM_CODEWINDOW - IDM_LOGWINDOW; i++)
 		bFloatWindow[i] = false;
@@ -355,9 +356,6 @@ CFrame::CFrame(wxFrame* parent,
 	// Give it a console early to show potential messages from this onward
 	ConsoleListener *Console = LogManager::GetInstance()->getConsoleListener();
 	if (SConfig::GetInstance().m_InterfaceConsole) Console->Open();
-	m_LogWindow = new CLogWindow(this, IDM_LOGWINDOW);
-	m_LogWindow->Hide();
-	m_LogWindow->Disable();
 
 	// Start debugging mazimized
 	if (UseDebugger) this->Maximize(true);
@@ -365,15 +363,9 @@ CFrame::CFrame(wxFrame* parent,
 	if (UseDebugger)
 	{
 		g_pCodeWindow = new CCodeWindow(SConfig::GetInstance().m_LocalCoreStartupParameter, this, IDM_CODEWINDOW);
-		g_pCodeWindow->Hide();
 		LoadIniPerspectives();
+		g_pCodeWindow->Load();
 	}
-
-	// Create timer
-	#if wxUSE_TIMER
-		int TimesPerSecond = 10; // We don't need more than this
-		m_timer.Start( floor((double)(1000 / TimesPerSecond)) );
-	#endif
 
 	// Create toolbar bitmaps
 	InitBitmaps();
@@ -384,9 +376,9 @@ CFrame::CFrame(wxFrame* parent,
 	SetIcon(IconTemp);
 
 	// Give it a status bar
-	m_pStatusBar = CreateStatusBar(2, wxST_SIZEGRIP, ID_STATUSBAR);
+	SetStatusBar(CreateStatusBar(2, wxST_SIZEGRIP, ID_STATUSBAR));
 	if (!SConfig::GetInstance().m_InterfaceStatusbar)
-		m_pStatusBar->Hide();
+		GetStatusBar()->Hide();
 
 	// Give it a menu bar
 	CreateMenu();
@@ -412,32 +404,29 @@ CFrame::CFrame(wxFrame* parent,
 
 	if (g_pCodeWindow)
 	{
-		m_Mgr->AddPane(m_Panel, wxAuiPaneInfo().Name(wxT("Pane 0")).Caption(wxT("Pane 0")).Show());
-	}
-	else
-	{
-		m_Mgr->AddPane(m_Panel, wxAuiPaneInfo().Name(wxT("Pane 0")).Caption(wxT("Pane 0")).Hide());
-		m_Mgr->AddPane(CreateEmptyNotebook(), wxAuiPaneInfo().Name(wxT("Pane 1")).Caption(wxT("Logging")).Hide());
-	}
-
-	// Setup perspectives
-	if (g_pCodeWindow)
-	{
-		m_Mgr->GetPane(wxT("Pane 0")).CenterPane().PaneBorder(false);
+		m_Mgr->AddPane(m_Panel, wxAuiPaneInfo()
+				.Name(wxT("Pane 0")).Caption(wxT("Pane 0"))
+				.CenterPane().PaneBorder(false).Show());
 		AuiFullscreen = m_Mgr->SavePerspective();
-		m_Mgr->GetPane(wxT("Pane 0")).CenterPane().PaneBorder(true);
 	}
 	else
 	{
-		m_Mgr->GetPane(wxT("Pane 0")).Show().PaneBorder(false).CaptionVisible(false).Layer(0).Center();
-		m_Mgr->GetPane(wxT("Pane 1")).Hide().PaneBorder(false).CaptionVisible(true).Layer(0)
-			.FloatingSize(wxSize(600, 350)).CloseButton(false);
+		m_Mgr->AddPane(m_Panel, wxAuiPaneInfo()
+				.Name(wxT("Pane 0")).Caption(wxT("Pane 0")).PaneBorder(false)
+				.CaptionVisible(false).Layer(0).Center().Show());
+		m_Mgr->AddPane(CreateEmptyNotebook(), wxAuiPaneInfo()
+				.Name(wxT("Pane 1")).Caption(wxT("Logging")).CaptionVisible(true)
+				.Layer(0).FloatingSize(wxSize(600, 350)).CloseButton(true).Hide());
 		AuiFullscreen = m_Mgr->SavePerspective();
 	}
 
 	// Create toolbar
 	RecreateToolbar();
 	if (!SConfig::GetInstance().m_InterfaceToolbar) DoToggleToolbar(false);
+
+	m_LogWindow = new CLogWindow(this, IDM_LOGWINDOW);
+	m_LogWindow->Hide();
+	m_LogWindow->Disable();
 
 	// Create list of available plugins for the configuration window
 	CPluginManager::GetInstance().ScanForPlugins();
@@ -446,15 +435,14 @@ CFrame::CFrame(wxFrame* parent,
 	if (g_pCodeWindow)
 	{
 		// Load perspective
-		LoadIniPerspectives();
 		DoLoadPerspective();
 	}
 	else
 	{
 		if (SConfig::GetInstance().m_InterfaceLogWindow)
-		   	ToggleLogWindow(true);
+			ToggleLogWindow(true);
 		if (SConfig::GetInstance().m_InterfaceConsole)
-		   	ToggleConsole(true);
+			ToggleConsole(true);
 	}
 
 	// Show window
@@ -470,7 +458,7 @@ CFrame::CFrame(wxFrame* parent,
 
 	#if defined(HAVE_XRANDR) && HAVE_XRANDR
 		m_XRRConfig = new X11Utils::XRRConfiguration(X11Utils::XDisplayFromHandle(GetHandle()),
-			   	X11Utils::XWindowFromHandle(GetHandle()));
+				X11Utils::XWindowFromHandle(GetHandle()));
 	#endif
 
 	// -------------------------
@@ -482,7 +470,6 @@ CFrame::CFrame(wxFrame* parent,
 	// ----------
 
 	// Update controls
-	m_bControlsCreated = true;
 	UpdateGUI();
 
 	// If we are rerecording create the status bar now instead of later when a game starts
@@ -495,14 +482,7 @@ CFrame::CFrame(wxFrame* parent,
 // Destructor
 CFrame::~CFrame()
 {
-	m_bControlsCreated = false;
-
 	drives.clear();
-	/* The statbar sample has this so I add this to, but I guess timer will be deleted after
-	   this anyway */
-	#if wxUSE_TIMER
-		if (m_timer.IsRunning()) m_timer.Stop();
-	#endif
 
 	#if defined(HAVE_XRANDR) && HAVE_XRANDR
 		delete m_XRRConfig;
@@ -599,7 +579,7 @@ void CFrame::OnMove(wxMoveEvent& event)
 	event.Skip();
 
 	if (!IsMaximized() &&
-			!(SConfig::GetInstance().m_LocalCoreStartupParameter.bRenderToMain && RendererIsFullscreen()))
+		!(SConfig::GetInstance().m_LocalCoreStartupParameter.bRenderToMain && RendererIsFullscreen()))
 	{
 		SConfig::GetInstance().m_LocalCoreStartupParameter.iPosX = GetPosition().x;
 		SConfig::GetInstance().m_LocalCoreStartupParameter.iPosY = GetPosition().y;
@@ -609,8 +589,9 @@ void CFrame::OnMove(wxMoveEvent& event)
 void CFrame::OnResize(wxSizeEvent& event)
 {
 	event.Skip();
+
 	if (!IsMaximized() &&
-			!(SConfig::GetInstance().m_LocalCoreStartupParameter.bRenderToMain && RendererIsFullscreen()))
+		!(SConfig::GetInstance().m_LocalCoreStartupParameter.bRenderToMain && RendererIsFullscreen()))
 	{
 		SConfig::GetInstance().m_LocalCoreStartupParameter.iWidth = GetSize().GetWidth();
 		SConfig::GetInstance().m_LocalCoreStartupParameter.iHeight = GetSize().GetHeight();
@@ -641,15 +622,6 @@ WXLRESULT CFrame::MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, WXLPARAM lParam)
 }
 #endif
 
-#if wxUSE_TIMER
-void CFrame::OnTimer(wxTimerEvent& WXUNUSED(event))
-{
-	// Process events.  Primarily to update the statusbar text.
-	if (wxGetApp().Pending())
-		wxGetApp().ProcessPendingEvents();
-}
-#endif
-
 void CFrame::OnHostMessage(wxCommandEvent& event)
 {
 	switch (event.GetId())
@@ -659,9 +631,9 @@ void CFrame::OnHostMessage(wxCommandEvent& event)
 		break;
 
 	case IDM_UPDATESTATUSBAR:
-		if (m_pStatusBar != NULL)
+		if (GetStatusBar() != NULL)
 		{
-			m_pStatusBar->SetStatusText(event.GetString(), event.GetInt());
+			GetStatusBar()->SetStatusText(event.GetString(), event.GetInt());
 		}
 		break;
 
@@ -703,8 +675,8 @@ bool CFrame::RendererHasFocus()
 		return false;
 	// Why these different cases?
 	if (m_RenderParent == wxWindow::FindFocus() ||
-	    m_RenderParent == wxWindow::FindFocus()->GetParent() ||
-	    m_RenderParent->GetParent() == wxWindow::FindFocus()->GetParent())
+			m_RenderParent == wxWindow::FindFocus()->GetParent() ||
+			m_RenderParent->GetParent() == wxWindow::FindFocus()->GetParent())
 		return true;
 #endif
 	return false;
@@ -753,6 +725,8 @@ void CFrame::OnGameListCtrl_ItemActivated(wxListEvent& WXUNUSED (event))
 
 		m_GameListCtrl->Update();
 	}
+	else if (!m_GameListCtrl->GetGameNames().size())
+		m_GameListCtrl->BrowseForDirectory();
 	else
 		// Game started by double click
 		BootGame(std::string(""));
@@ -772,12 +746,18 @@ void CFrame::OnKeyDown(wxKeyEvent& event)
 		// Toggle fullscreen
 		if (IsHotkey(event, HK_FULLSCREEN))
 			DoFullscreen(!RendererIsFullscreen());
+		// Send Debugger keys to CodeWindow
+		else if (g_pCodeWindow && (event.GetKeyCode() >= WXK_F9 && event.GetKeyCode() <= WXK_F11))
+ 			event.Skip();
 		// Pause and Unpause
 		else if (IsHotkey(event, HK_PLAY_PAUSE))
 			DoPause();
 		// Stop
 		else if (IsHotkey(event, HK_STOP))
 			DoStop();
+		// Screenshot hotkey
+		else if (IsHotkey(event, HK_SCREENSHOT))
+			Core::ScreenShot();
 		// Wiimote connect and disconnect hotkeys
 		else if (IsHotkey(event, HK_WIIMOTE1_CONNECT))
 			WiimoteId = 0;
@@ -787,7 +767,7 @@ void CFrame::OnKeyDown(wxKeyEvent& event)
 			WiimoteId = 2;
 		else if (IsHotkey(event, HK_WIIMOTE4_CONNECT))
 			WiimoteId = 3;
-		// state save and state load hotkeys
+		// State save and state load hotkeys
 		else if (event.GetKeyCode() >= WXK_F1 && event.GetKeyCode() <= WXK_F8)
 		{
 			int slot_number = event.GetKeyCode() - WXK_F1 + 1;
@@ -809,9 +789,6 @@ void CFrame::OnKeyDown(wxKeyEvent& event)
 			else
 				event.Skip();
 		}
-		// screenshot hotkeys
-		else if (event.GetKeyCode() == WXK_F9 && event.GetModifiers() == wxMOD_NONE)
-			Core::ScreenShot();
 		else
 			event.Skip();
 
@@ -841,9 +818,6 @@ void CFrame::OnKeyDown(wxKeyEvent& event)
 				&& event.GetModifiers() == wxMOD_SHIFT)
 			PostMessage((HWND)Core::GetWindowHandle(), WM_USER, WM_USER_KEYDOWN, event.GetKeyCode());
 #endif
-
-		// Send the keyboard status to the Input plugins
-		CPluginManager::GetInstance().GetWiimote()->Wiimote_Input(event.GetKeyCode(), 1); // 1 = Down
 	}
 	else
 		event.Skip();
@@ -852,10 +826,6 @@ void CFrame::OnKeyDown(wxKeyEvent& event)
 void CFrame::OnKeyUp(wxKeyEvent& event)
 {
 	event.Skip();
-
-	if(Core::GetState() != Core::CORE_UNINITIALIZED) {
-		CPluginManager::GetInstance().GetWiimote()->Wiimote_Input(event.GetKeyCode(), 0); // 0 = Up
-	}
 }
 
 void CFrame::DoFullscreen(bool bF)

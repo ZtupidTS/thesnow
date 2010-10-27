@@ -146,6 +146,9 @@ CISOProperties::CISOProperties(const std::string fileName, wxWindow* parent, wxW
 	case DiscIO::IVolume::COUNTRY_ITALY:
 		m_Country->SetValue(wxT("意大利"));
 		break;
+	case DiscIO::IVolume::COUNTRY_RUSSIA:
+		m_Country->SetValue(wxT("RUSSIA"));
+		break;
 	case DiscIO::IVolume::COUNTRY_USA:
 		m_Country->SetValue(wxT("美国"));
 		m_Lang->SetSelection(0);
@@ -290,7 +293,18 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	sbCoreOverrides = new wxStaticBoxSizer(wxVERTICAL, m_GameConfig, _("核心"));
 	CPUThread = new wxCheckBox(m_GameConfig, ID_USEDUALCORE, _("启用多核计算"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
 	SkipIdle = new wxCheckBox(m_GameConfig, ID_IDLESKIP, _("启用空闲步进"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
-	TLBHack = new wxCheckBox(m_GameConfig, ID_TLBHACK, _("TLB 破解"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
+	MMU = new wxCheckBox(m_GameConfig, ID_MMU, _("启用 MMU"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
+	MMU->SetToolTip(wxT("Enables the Memory Management Unit, needed for some games. (ON = Compatible, OFF = Fast)"));
+	MMUBAT = new wxCheckBox(m_GameConfig, ID_MMUBAT, _("Enable BAT"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
+	MMUBAT->SetToolTip(wxT("Enables Block Address Translation (BAT); a function of the Memory Management Unit. Accurate to the hardware, but slow to emulate. (ON = Compatible, OFF = Fast)"));
+	TLBHack = new wxCheckBox(m_GameConfig, ID_TLBHACK, _("MMU 速度破解"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
+	TLBHack->SetToolTip(wxT("Fast version of the MMU.  Does not work for every game."));
+	AlternateRFI = new wxCheckBox(m_GameConfig, ID_RFI, _("Alternate RFI"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
+	AlternateRFI->SetToolTip(wxT("If a game hangs, works only in the Interpreter or Dolphin crashes, this option may fix the game."));
+	FastDiscSpeed = new wxCheckBox(m_GameConfig, ID_DISCSPEED, _("Speed up Disc Transfer Rate"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
+	FastDiscSpeed->SetToolTip(wxT("Enable fast disc access.  Needed for a few games. (ON = Fast, OFF = Compatible)"));
+	BlockMerging = new wxCheckBox(m_GameConfig, ID_MERGEBLOCKS, _("Enable Block Merging"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
+
 	// Wii Console
 	sbWiiOverrides = new wxStaticBoxSizer(wxVERTICAL, m_GameConfig, _("Wii 控制台"));
 	EnableProgressiveScan = new wxCheckBox(m_GameConfig, ID_ENABLEPROGRESSIVESCAN, _("启用 Progressive Scan"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
@@ -316,6 +330,9 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	SafeTextureCache = new wxCheckBox(m_GameConfig, ID_SAFETEXTURECACHE, _("安全材质缓存"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
 	DstAlphaPass = new wxCheckBox(m_GameConfig, ID_DSTALPHAPASS, _("Distance Alpha Pass"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
 	UseXFB = new wxCheckBox(m_GameConfig, ID_USEXFB, _("使用 XFB"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
+	UseZTPSpeedupHack = new wxCheckBox(m_GameConfig, ID_ZTP_SPEEDUP, _("ZTP hack"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
+	UseZTPSpeedupHack->SetToolTip(wxT("Enable this to speed up The Legend of Zelda: Twilight Princess. Disable for ANY other game."));
+	DListCache = new wxCheckBox(m_GameConfig, ID_DLISTCACHE, _("DList Cache"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
 	// Hack
 	Hacktext = new wxStaticText(m_GameConfig, ID_HACK_TEXT, _("Projection Hack for: "), wxDefaultPosition, wxDefaultSize);
 	arrayStringFor_Hack.Add(_("None"));
@@ -327,7 +344,7 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 
 	WMTightnessText = new wxStaticText(m_GameConfig, ID_WMTIGHTNESS_TEXT, wxT("Watermark tightness: "), wxDefaultPosition, wxDefaultSize);
 	WMTightness = new wxTextCtrl(m_GameConfig, ID_WMTIGHTNESS, wxT(""), wxDefaultPosition, wxDefaultSize, 0, wxTextValidator(wxFILTER_NUMERIC));
-	WMTightness->SetToolTip(wxT("Change this if you get lots of FIFO overflow errors. Reasonable values range from 0 to 200."));
+	WMTightness->SetToolTip(wxT("Change this if you get lots of FIFO overflow errors. Reasonable values range from 0 to 1000."));
 
 	// Emulation State
 	sEmuState = new wxBoxSizer(wxHORIZONTAL);
@@ -346,7 +363,12 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	sbGameConfig->Add(OverrideText, 0, wxEXPAND|wxALL, 5);
 	sbCoreOverrides->Add(CPUThread, 0, wxEXPAND|wxLEFT, 5);
 	sbCoreOverrides->Add(SkipIdle, 0, wxEXPAND|wxLEFT, 5);
+	sbCoreOverrides->Add(MMU, 0, wxEXPAND|wxLEFT, 5);
+	sbCoreOverrides->Add(MMUBAT, 0, wxEXPAND|wxLEFT, 5);
 	sbCoreOverrides->Add(TLBHack, 0, wxEXPAND|wxLEFT, 5);
+	sbCoreOverrides->Add(AlternateRFI, 0, wxEXPAND|wxLEFT, 5);
+	sbCoreOverrides->Add(FastDiscSpeed, 0, wxEXPAND|wxLEFT, 5);	
+	sbCoreOverrides->Add(BlockMerging, 0, wxEXPAND|wxLEFT, 5);
 	sbWiiOverrides->Add(EnableProgressiveScan, 0, wxEXPAND|wxLEFT, 5);
 	sbWiiOverrides->Add(EnableWideScreen, 0, wxEXPAND|wxLEFT, 5);
 	sbVideoOverrides->Add(ForceFiltering, 0, wxEXPAND|wxLEFT, 5);
@@ -355,6 +377,8 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	sbVideoOverrides->Add(SafeTextureCache, 0, wxEXPAND|wxLEFT, 5);
 	sbVideoOverrides->Add(DstAlphaPass, 0, wxEXPAND|wxLEFT, 5);
 	sbVideoOverrides->Add(UseXFB, 0, wxEXPAND|wxLEFT, 5);
+	sbVideoOverrides->Add(UseZTPSpeedupHack, 0, wxEXPAND|wxLEFT, 5);
+	sbVideoOverrides->Add(DListCache, 0, wxEXPAND|wxLEFT, 5);
 
 	wxFlexGridSizer* fifosizer = new wxFlexGridSizer(2, 2, 0, 0);
 	fifosizer->Add(Hacktext, 0, wxLEFT, 5);
@@ -467,7 +491,7 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	sISODetails->Add(m_FSTText, wxGBPosition(5, 0), wxGBSpan(1, 1), wxALIGN_CENTER_VERTICAL|wxALL, 5);
 	sISODetails->Add(m_FST, wxGBPosition(5, 1), wxGBSpan(1, 1), wxEXPAND|wxALL, 5);
 	sISODetails->AddGrowableCol(1);
-	sbISODetails = new wxStaticBoxSizer(wxVERTICAL, m_Information, _("ISO Details"));
+	sbISODetails = new wxStaticBoxSizer(wxVERTICAL, m_Information, _("ISO 详细信息"));
 	sbISODetails->Add(sISODetails, 0, wxEXPAND, 5);
 
 	// Banner Details
@@ -483,7 +507,7 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	sBannerDetails->Add(m_BannerText, wxGBPosition(4, 0), wxGBSpan(1, 1), wxALL, 5);
 	sBannerDetails->Add(m_Banner, wxGBPosition(4, 1), wxGBSpan(1, 1), wxEXPAND|wxALL, 5);
 	sBannerDetails->AddGrowableCol(1);
-	sbBannerDetails = new wxStaticBoxSizer(wxVERTICAL, m_Information, _("Banner Details"));
+	sbBannerDetails = new wxStaticBoxSizer(wxVERTICAL, m_Information, _("Banner 详细信息"));
 	sbBannerDetails->Add(sBannerDetails, 0, wxEXPAND, 5);
 
 	wxBoxSizer* sInfoPage;
@@ -520,9 +544,9 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	sMain = new wxBoxSizer(wxVERTICAL);
 	sMain->Add(m_Notebook, 1, wxEXPAND|wxALL, 5);
 	sMain->Add(sButtons, 0, wxEXPAND, 5);
-	sMain->SetMinSize(wxSize(400, 600));
+	sMain->SetMinSize(wxSize(550, 600));
 
-	m_Notebook->SetMaxSize(wxSize(400, 600));
+	m_Notebook->SetMaxSize(wxSize(550, 600));
 	SetSizerAndFit(sMain);
 }
 
@@ -576,8 +600,8 @@ void CISOProperties::OnRightClickOnTree(wxTreeEvent& event)
 
 	popupMenu->Append(IDM_EXTRACTALL, _("解压缩所有文件..."));
 	popupMenu->AppendSeparator();
-	popupMenu->Append(IDM_EXTRACTAPPLOADER, _("Extract Apploader..."));
-	popupMenu->Append(IDM_EXTRACTDOL, _("Extract DOL..."));
+	popupMenu->Append(IDM_EXTRACTAPPLOADER, _("解压缩 Apploader..."));
+	popupMenu->Append(IDM_EXTRACTDOL, _("解压缩 DOL..."));
 
 	PopupMenu(popupMenu);
 
@@ -709,11 +733,11 @@ void CISOProperties::ExportDir(const char* _rFullPath, const char* _rExportFolde
 
 			if (!File::Exists(exportName) && !FS->ExportFile(fst[i]->m_FullPath, exportName))
 			{
-				ERROR_LOG(DISCIO, "Could not export %s", exportName);
+				ERROR_LOG(DISCIO, "不能导出 %s", exportName);
 			}
 			else
 			{
-				DEBUG_LOG(DISCIO, "%s already exists", exportName);
+				DEBUG_LOG(DISCIO, "%s 已经存在", exportName);
 			}
 		}
 	}
@@ -809,12 +833,37 @@ void CISOProperties::LoadGameConfig()
 	else
 		SkipIdle->Set3StateValue(wxCHK_UNDETERMINED);
 
+	if (GameIni.Get("Core", "MMU", &bTemp))
+		MMU->Set3StateValue((wxCheckBoxState)bTemp);
+	else
+		MMU->Set3StateValue(wxCHK_UNDETERMINED);
+
+	if (GameIni.Get("Core", "BAT", &bTemp))
+		MMUBAT->Set3StateValue((wxCheckBoxState)bTemp);
+	else
+		MMUBAT->Set3StateValue(wxCHK_UNDETERMINED);
+
 	if (GameIni.Get("Core", "TLBHack", &bTemp))
 		TLBHack->Set3StateValue((wxCheckBoxState)bTemp);
 	else
 		TLBHack->Set3StateValue(wxCHK_UNDETERMINED);
 
-	if (GameIni.Get("Wii", "ProgressiveScan", &bTemp))
+	if (GameIni.Get("Core", "AlternateRFI", &bTemp))
+		AlternateRFI->Set3StateValue((wxCheckBoxState)bTemp);
+	else
+		AlternateRFI->Set3StateValue(wxCHK_UNDETERMINED);
+
+	if (GameIni.Get("Core", "FastDiscSpeed", &bTemp))
+		FastDiscSpeed->Set3StateValue((wxCheckBoxState)bTemp);
+	else
+		FastDiscSpeed->Set3StateValue(wxCHK_UNDETERMINED);
+
+	if (GameIni.Get("Core", "BlockMerging", &bTemp))
+		BlockMerging->Set3StateValue((wxCheckBoxState)bTemp);
+	else
+		BlockMerging->Set3StateValue(wxCHK_UNDETERMINED);
+
+	if (GameIni.Get("Display", "ProgressiveScan", &bTemp))
 		EnableProgressiveScan->Set3StateValue((wxCheckBoxState)bTemp);
 	else
 		EnableProgressiveScan->Set3StateValue(wxCHK_UNDETERMINED);
@@ -854,6 +903,16 @@ void CISOProperties::LoadGameConfig()
 	else
 		UseXFB->Set3StateValue(wxCHK_UNDETERMINED);
 
+	if (GameIni.Get("Video", "ZTPSpeedupHack", &bTemp))
+		UseZTPSpeedupHack->Set3StateValue((wxCheckBoxState)bTemp);
+	else
+		UseZTPSpeedupHack->Set3StateValue(wxCHK_UNDETERMINED);
+
+	if (GameIni.Get("Video", "DlistCachingEnable", &bTemp))
+		DListCache->Set3StateValue((wxCheckBoxState)bTemp);
+	else
+		DListCache->Set3StateValue(wxCHK_UNDETERMINED);
+
 	if (GameIni.Get("Video", "FIFOWatermarkTightness", &sTemp))
 		WMTightness->SetValue(wxString(sTemp.c_str(), *wxConvCurrent));
 	else
@@ -890,15 +949,40 @@ bool CISOProperties::SaveGameConfig()
 	else
 		GameIni.Set("Core", "SkipIdle", SkipIdle->Get3StateValue());
 
+	if (MMU->Get3StateValue() == wxCHK_UNDETERMINED)
+		GameIni.DeleteKey("Core", "MMU");
+	else
+		GameIni.Set("Core", "MMU", MMU->Get3StateValue());
+
+	if (MMUBAT->Get3StateValue() == wxCHK_UNDETERMINED)
+		GameIni.DeleteKey("Core", "BAT");
+	else
+		GameIni.Set("Core", "BAT", MMUBAT->Get3StateValue());
+
 	if (TLBHack->Get3StateValue() == wxCHK_UNDETERMINED)
 		GameIni.DeleteKey("Core", "TLBHack");
 	else
 		GameIni.Set("Core", "TLBHack", TLBHack->Get3StateValue());
 
-	if (EnableProgressiveScan->Get3StateValue() == wxCHK_UNDETERMINED)
-		GameIni.DeleteKey("Wii", "ProgressiveScan");
+	if (AlternateRFI->Get3StateValue() == wxCHK_UNDETERMINED)
+		GameIni.DeleteKey("Core", "AlternateRFI");
 	else
-		GameIni.Set("Wii", "ProgressiveScan", EnableProgressiveScan->Get3StateValue());
+		GameIni.Set("Core", "AlternateRFI", AlternateRFI->Get3StateValue());
+
+	if (FastDiscSpeed->Get3StateValue() == wxCHK_UNDETERMINED)
+		GameIni.DeleteKey("Core", "FastDiscSpeed");
+	else
+		GameIni.Set("Core", "FastDiscSpeed", FastDiscSpeed->Get3StateValue());
+
+	if (BlockMerging->Get3StateValue() == wxCHK_UNDETERMINED)
+		GameIni.DeleteKey("Core", "BlockMerging");
+	else
+		GameIni.Set("Core", "BlockMerging", BlockMerging->Get3StateValue());
+
+	if (EnableProgressiveScan->Get3StateValue() == wxCHK_UNDETERMINED)
+		GameIni.DeleteKey("Display", "ProgressiveScan");
+	else
+		GameIni.Set("Display", "ProgressiveScan", EnableProgressiveScan->Get3StateValue());
 
 	if (EnableWideScreen->Get3StateValue() == wxCHK_UNDETERMINED)
 		GameIni.DeleteKey("Wii", "Widescreen");
@@ -934,6 +1018,16 @@ bool CISOProperties::SaveGameConfig()
 		GameIni.DeleteKey("Video", "UseXFB");
 	else
 		GameIni.Set("Video", "UseXFB", UseXFB->Get3StateValue());
+
+	if (UseZTPSpeedupHack->Get3StateValue() == wxCHK_UNDETERMINED)
+		GameIni.DeleteKey("Video", "ZTPSpeedupHack");
+	else
+		GameIni.Set("Video", "ZTPSpeedupHack", UseZTPSpeedupHack->Get3StateValue());
+
+	if (DListCache->Get3StateValue() == wxCHK_UNDETERMINED)
+		GameIni.DeleteKey("Video", "DlistCachingEnable");
+	else
+		GameIni.Set("Video", "DlistCachingEnable", DListCache->Get3StateValue());
 
 	if (Hack->GetSelection() == -1)
 		GameIni.DeleteKey("Video", "ProjectionHack");

@@ -23,7 +23,7 @@
 #include "PixelShaderManager.h"
 #include "VideoCommon.h"
 #include "VideoConfig.h"
-
+static float GC_ALIGNED16(s_fMaterials[16]);
 static int s_nColorsChanged[2]; // 0 - regular colors, 1 - k colors
 static int s_nIndTexMtxChanged;
 static bool s_bAlphaChanged;
@@ -32,28 +32,21 @@ static bool s_bZTextureTypeChanged;
 static bool s_bDepthRangeChanged;
 static bool s_bFogColorChanged;
 static bool s_bFogParamChanged;
+static int nLightsChanged[2]; // min,max
 static float lastDepthRange[2]; // 0 = far z, 1 = far - near
 static float lastRGBAfull[2][4][4];
-static float lastCustomTexScale[8][2];
 static u8 s_nTexDimsChanged;
 static u8 s_nIndTexScaleChanged;
 static u32 lastAlpha;
 static u32 lastTexDims[8]; // width | height << 16 | wrap_s << 28 | wrap_t << 30
 static u32 lastZBias;
-
-// lower byte describes if a texture is nonpow2 or pow2
-// next byte describes whether the repeat wrap mode is enabled for the s channel
-// next byte is for t channel
-static u32 s_texturemask = 0;
+static int nMaterialsChanged;
 
 void PixelShaderManager::Init()
 {
-	for (int i = 0; i < 8; i++)
-		lastCustomTexScale[i][0] = lastCustomTexScale[i][1] = 1.0f;
 	lastAlpha = 0;
 	memset(lastTexDims, 0, sizeof(lastTexDims));
 	lastZBias = 0;
-	s_texturemask = 0;
 	memset(lastRGBAfull, 0, sizeof(lastRGBAfull));
 	Dirty();
 }
@@ -61,11 +54,13 @@ void PixelShaderManager::Init()
 void PixelShaderManager::Dirty()
 {
 	s_nColorsChanged[0] = s_nColorsChanged[1] = 15;
-	s_nTexDimsChanged = true;
-	s_nIndTexScaleChanged = true;
+	s_nTexDimsChanged = 0xFF;
+	s_nIndTexScaleChanged = 0xFF;
 	s_nIndTexMtxChanged = 15;
 	s_bAlphaChanged = s_bZBiasChanged = s_bZTextureTypeChanged = s_bDepthRangeChanged = true;
 	s_bFogColorChanged = s_bFogParamChanged = true;
+	nLightsChanged[0] = 0; nLightsChanged[1] = 0x80;
+	nMaterialsChanged = 15;
 }
 
 void PixelShaderManager::Shutdown()
@@ -217,32 +212,62 @@ void PixelShaderManager::SetConstants()
         s_bFogParamChanged = false;
     }
 
-	for (int i = 0; i < 8; i++)
-		lastCustomTexScale[i][0] = lastCustomTexScale[i][1] = 1.0f;
+	if (nLightsChanged[0] >= 0)
+	{
+		// lights don't have a 1 to 1 mapping, the color component needs to be converted to 4 floats
+		int istart = nLightsChanged[0] / 0x10;
+		int iend = (nLightsChanged[1] + 15) / 0x10;
+		const float* xfmemptr = (const float*)&xfmem[0x10 * istart + XFMEM_LIGHTS];
+
+		for (int i = istart; i < iend; ++i)
+		{
+			u32 color = *(const u32*)(xfmemptr + 3);
+			float NormalizationCoef = 1 / 255.0f;
+			SetPSConstant4f(C_PLIGHTS + 5 * i,
+				((color >> 24) & 0xFF) * NormalizationCoef,
+				((color >> 16) & 0xFF) * NormalizationCoef,
+				((color >> 8)  & 0xFF) * NormalizationCoef,
+				((color)       & 0xFF) * NormalizationCoef);
+			xfmemptr += 4;
+
+			for (int j = 0; j < 4; ++j, xfmemptr += 3)
+			{
+				if (j == 1 &&
+					fabs(xfmemptr[0]) < 0.00001f &&
+					fabs(xfmemptr[1]) < 0.00001f &&
+					fabs(xfmemptr[2]) < 0.00001f)
+				{
+					// dist attenuation, make sure not equal to 0!!!
+					SetPSConstant4f(C_PLIGHTS+5*i+j+1, 0.00001f, xfmemptr[1], xfmemptr[2], 0);
+				}
+				else
+					SetPSConstant4fv(C_PLIGHTS+5*i+j+1, xfmemptr);
+			}
+		}
+
+		nLightsChanged[0] = nLightsChanged[1] = -1;
+	}
+	if (nMaterialsChanged)
+	{
+		for (int i = 0; i < 4; ++i)
+			if (nMaterialsChanged & (1 << i))
+				SetPSConstant4fv(C_PMATERIALS + i, &s_fMaterials[4 * i]);
+
+		nMaterialsChanged = 0;
+	}
 }
 
 void PixelShaderManager::SetPSTextureDims(int texid)
 {
-	// non pow 2 textures - texdims.xy are the real texture dimensions used for wrapping
-    // pow 2 textures - texdims.xy are reciprocals of the real texture dimensions
-    // both - texdims.zw are the scaled dimensions
+    // texdims.xy are reciprocals of the real texture dimensions
+    // texdims.zw are the scaled dimensions
     float fdims[4];
-	if (s_texturemask & (1 << texid))
-	{
-		TCoordInfo& tc = bpmem.texcoords[texid];
-		fdims[0] = (float)(lastTexDims[texid] & 0xffff);
-		fdims[1] = (float)((lastTexDims[texid] >> 16) & 0xfff);
-        fdims[2] = (float)(tc.s.scale_minus_1 + 1)*lastCustomTexScale[texid][0];
-		fdims[3] = (float)(tc.t.scale_minus_1 + 1)*lastCustomTexScale[texid][1];
-	}
-	else 
-	{
-        TCoordInfo& tc = bpmem.texcoords[texid];
-		fdims[0] = 1.0f / (float)(lastTexDims[texid] & 0xffff);
-		fdims[1] = 1.0f / (float)((lastTexDims[texid] >> 16) & 0xfff);
-		fdims[2] = (float)(tc.s.scale_minus_1 + 1) * lastCustomTexScale[texid][0];
-		fdims[3] = (float)(tc.t.scale_minus_1 + 1) * lastCustomTexScale[texid][1];
-	}
+
+    TCoordInfo& tc = bpmem.texcoords[texid];
+	fdims[0] = 1.0f / (float)(lastTexDims[texid] & 0xffff);
+	fdims[1] = 1.0f / (float)((lastTexDims[texid] >> 16) & 0xfff);
+	fdims[2] = (float)(tc.s.scale_minus_1 + 1);
+	fdims[3] = (float)(tc.t.scale_minus_1 + 1);
 
 	PRIM_LOG("texdims%d: %f %f %f %f\n", texid, fdims[0], fdims[1], fdims[2], fdims[3]);
 	SetPSConstant4fv(C_TEXDIMS + texid, fdims);
@@ -291,16 +316,6 @@ void PixelShaderManager::SetTexDims(int texmapid, u32 width, u32 height, u32 wra
         lastTexDims[texmapid] = wh;
 		s_nTexDimsChanged |= 1 << texmapid;        
     }
-}
-
-void PixelShaderManager::SetCustomTexScale(int texmapid, float x, float y)
-{
-	if (lastCustomTexScale[texmapid][0] != x || lastCustomTexScale[texmapid][1] != y)
-	{
-		s_nTexDimsChanged |= 1 << texmapid;
-		lastCustomTexScale[texmapid][0] = x;
-		lastCustomTexScale[texmapid][1] = y;
-	}
 }
 
 void PixelShaderManager::SetZTextureBias(u32 bias)
@@ -362,23 +377,6 @@ void PixelShaderManager::SetZTextureTypeChanged()
 	s_bZTextureTypeChanged = true;
 }
 
-void PixelShaderManager::SetTexturesUsed(u32 nonpow2tex)
-{
-    if (s_texturemask != nonpow2tex)
-	{
-        for (int i = 0; i < 8; ++i)
-		{
-            if (nonpow2tex & (0x10101 << i))
-			{
-				// this check was previously implicit, but should it be here?
-				if (s_nTexDimsChanged)
-					s_nTexDimsChanged |= 1 << i;
-            }
-        }
-        s_texturemask = nonpow2tex;
-    }
-}
-
 void PixelShaderManager::SetTexCoordChanged(u8 texmapid)
 {
     s_nTexDimsChanged |= 1 << texmapid;
@@ -400,7 +398,34 @@ void PixelShaderManager::SetColorMatrix(const float* pmatrix, const float* pfCon
     SetPSConstant4fv(C_COLORMATRIX+4, pfConstAdd);
 }
 
-u32 PixelShaderManager::GetTextureMask()
+void PixelShaderManager::InvalidateXFRange(int start, int end)
 {
-	return s_texturemask;
+	if (start < XFMEM_LIGHTS_END && end > XFMEM_LIGHTS)
+	{
+		int _start = start < XFMEM_LIGHTS ? XFMEM_LIGHTS : start-XFMEM_LIGHTS;
+		int _end = end < XFMEM_LIGHTS_END ? end-XFMEM_LIGHTS : XFMEM_LIGHTS_END-XFMEM_LIGHTS;
+
+		if (nLightsChanged[0] == -1 )
+		{
+			nLightsChanged[0] = _start;
+			nLightsChanged[1] = _end;
+		}
+		else
+		{
+			if (nLightsChanged[0] > _start) nLightsChanged[0] = _start;
+			if (nLightsChanged[1] < _end)   nLightsChanged[1] = _end;
+		}
+	}
+}
+
+void PixelShaderManager::SetMaterialColor(int index, u32 data)
+{
+	int ind = index * 4;
+
+	nMaterialsChanged  |= (1 << index);
+	float NormalizationCoef = 1 / 255.0f;
+	s_fMaterials[ind++] = ((data >> 24) & 0xFF) * NormalizationCoef;
+	s_fMaterials[ind++] = ((data >> 16) & 0xFF) * NormalizationCoef;
+	s_fMaterials[ind++] = ((data >>  8) & 0xFF) * NormalizationCoef;
+	s_fMaterials[ind]   = ( data        & 0xFF) * NormalizationCoef;
 }

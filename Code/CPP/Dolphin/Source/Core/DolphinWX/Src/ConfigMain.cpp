@@ -36,7 +36,7 @@
 #include "../../Common/Src/OpenCL.h"
 
 #ifdef __APPLE__
-#include <Cocoa/Cocoa.h>
+#include <ApplicationServices/ApplicationServices.h>
 #endif
 
 extern CFrame* main_frame;
@@ -130,9 +130,6 @@ EVT_BUTTON(ID_GRAPHIC_CONFIG, CConfigMain::OnConfig)
 EVT_CHOICE(ID_DSP_CB, CConfigMain::OnSelectionChanged)
 EVT_BUTTON(ID_DSP_CONFIG, CConfigMain::OnConfig)
 
-EVT_CHOICE(ID_WIIMOTE_CB, CConfigMain::OnSelectionChanged)
-EVT_BUTTON(ID_WIIMOTE_CONFIG, CConfigMain::OnConfig)
-
 END_EVENT_TABLE()
 
 CConfigMain::CConfigMain(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& position, const wxSize& size, long style)
@@ -199,7 +196,6 @@ void CConfigMain::UpdateGUI()
 		// Disable stuff on PluginsPage
 		GraphicSelection->Disable();
 		DSPSelection->Disable();
-		WiimoteSelection->Disable();
 	}
 }
 
@@ -329,7 +325,6 @@ void CConfigMain::InitializeGUIValues()
 	// Plugins
 	FillChoiceBox(GraphicSelection, PLUGIN_TYPE_VIDEO, SConfig::GetInstance().m_LocalCoreStartupParameter.m_strVideoPlugin);
 	FillChoiceBox(DSPSelection, PLUGIN_TYPE_DSP, SConfig::GetInstance().m_LocalCoreStartupParameter.m_strDSPPlugin);
-	FillChoiceBox(WiimoteSelection, PLUGIN_TYPE_WIIMOTE, SConfig::GetInstance().m_LocalCoreStartupParameter.m_strWiimotePlugin);
 }
 
 void CConfigMain::InitializeGUITooltips()
@@ -412,7 +407,7 @@ void CConfigMain::CreateGUIControls()
 
 	// Core Settings - Advanced
 	sbAdvanced = new wxStaticBoxSizer(wxVERTICAL, GeneralPage, wxT("高级设置"));
-	AlwaysHLE_BS2 = new wxCheckBox(GeneralPage, ID_ALWAYS_HLE_BS2, wxT("HLE the IPL (推荐)"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	AlwaysHLE_BS2 = new wxCheckBox(GeneralPage, ID_ALWAYS_HLE_BS2, wxT("跳过 GC BIOS"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 #if defined(HAVE_OPENCL) && HAVE_OPENCL
 	EnableOpenCL = new wxCheckBox(GeneralPage, ID_ENABLE_OPENCL, wxT("启用 OpenCL"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 #endif
@@ -576,14 +571,13 @@ void CConfigMain::CreateGUIControls()
 	GCSIDeviceText[1] = new wxStaticText(GamecubePage, ID_GC_SIDEVICE_TEXT, wxT("端口 2"), wxDefaultPosition, wxDefaultSize);
 	GCSIDeviceText[2] = new wxStaticText(GamecubePage, ID_GC_SIDEVICE_TEXT, wxT("端口 3"), wxDefaultPosition, wxDefaultSize);
 	GCSIDeviceText[3] = new wxStaticText(GamecubePage, ID_GC_SIDEVICE_TEXT, wxT("端口 4"), wxDefaultPosition, wxDefaultSize);
-	const wxString SIPort1Devices[] = {wxT(DEV_NONE_STR),wxT(SIDEV_STDCONT_STR),wxT(SIDEV_GBA_STR),wxT(SIDEV_AM_BB_STR)};
-	static const int numSIPort1Devices = sizeof(SIPort1Devices)/sizeof(wxString);
-	const wxString SIDevices[] = {wxT(DEV_NONE_STR),wxT(SIDEV_STDCONT_STR),wxT(SIDEV_GBA_STR)};
+	// SIDEV_AM_BB_STR must be last!
+	const wxString SIDevices[] = {wxT(DEV_NONE_STR),wxT(SIDEV_STDCONT_STR),wxT(SIDEV_GBA_STR),wxT(SIDEV_AM_BB_STR)};
 	static const int numSIDevices = sizeof(SIDevices)/sizeof(wxString);
-	GCSIDevice[0] = new wxChoice(GamecubePage, ID_GC_SIDEVICE0, wxDefaultPosition, wxDefaultSize, numSIPort1Devices, SIPort1Devices, 0, wxDefaultValidator);
-	GCSIDevice[1] = new wxChoice(GamecubePage, ID_GC_SIDEVICE1, wxDefaultPosition, wxDefaultSize, numSIDevices, SIDevices, 0, wxDefaultValidator);
-	GCSIDevice[2] = new wxChoice(GamecubePage, ID_GC_SIDEVICE2, wxDefaultPosition, wxDefaultSize, numSIDevices, SIDevices, 0, wxDefaultValidator);
-	GCSIDevice[3] = new wxChoice(GamecubePage, ID_GC_SIDEVICE3, wxDefaultPosition, wxDefaultSize, numSIDevices, SIDevices, 0, wxDefaultValidator);
+	GCSIDevice[0] = new wxChoice(GamecubePage, ID_GC_SIDEVICE0, wxDefaultPosition, wxDefaultSize, numSIDevices, SIDevices, 0, wxDefaultValidator);
+	GCSIDevice[1] = new wxChoice(GamecubePage, ID_GC_SIDEVICE1, wxDefaultPosition, wxDefaultSize, numSIDevices - 1, SIDevices, 0, wxDefaultValidator);
+	GCSIDevice[2] = new wxChoice(GamecubePage, ID_GC_SIDEVICE2, wxDefaultPosition, wxDefaultSize, numSIDevices - 1, SIDevices, 0, wxDefaultValidator);
+	GCSIDevice[3] = new wxChoice(GamecubePage, ID_GC_SIDEVICE3, wxDefaultPosition, wxDefaultSize, numSIDevices - 1, SIDevices, 0, wxDefaultValidator);
 	// Can't move this one without making the 2 const's etc. above class members/fields.
 	for (int i = 0; i < 4; ++i)
 	{
@@ -744,10 +738,6 @@ void CConfigMain::CreateGUIControls()
 	DSPSelection = new wxChoice(PluginsPage, ID_DSP_CB, wxDefaultPosition, wxDefaultSize, 0, NULL, 0, wxDefaultValidator);
 	DSPConfig = new wxButton(PluginsPage, ID_DSP_CONFIG, wxT("配置..."), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 
-	sbWiimotePlugin = new wxStaticBoxSizer(wxHORIZONTAL, PluginsPage, wxT("Wiimote"));
-	WiimoteSelection = new wxChoice(PluginsPage, ID_WIIMOTE_CB, wxDefaultPosition, wxDefaultSize, 0, NULL, 0, wxDefaultValidator);
-	WiimoteConfig = new wxButton(PluginsPage, ID_WIIMOTE_CONFIG, wxT("配置..."), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-
 	// Populate the settings
 	sbGraphicsPlugin->Add(GraphicSelection, 1, wxEXPAND|wxALL, 5);
 	sbGraphicsPlugin->Add(GraphicConfig, 0, wxALL, 5);
@@ -755,14 +745,10 @@ void CConfigMain::CreateGUIControls()
 	sbDSPPlugin->Add(DSPSelection, 1, wxEXPAND|wxALL, 5);
 	sbDSPPlugin->Add(DSPConfig, 0, wxALL, 5);
 
-	sbWiimotePlugin->Add(WiimoteSelection, 1, wxEXPAND|wxALL, 5);
-	sbWiimotePlugin->Add(WiimoteConfig, 0, wxALL, 5);
-
 	// Populate the Plugins page
 	sPluginsPage = new wxBoxSizer(wxVERTICAL);
 	sPluginsPage->Add(sbGraphicsPlugin, 0, wxEXPAND|wxALL, 5);
 	sPluginsPage->Add(sbDSPPlugin, 0, wxEXPAND|wxALL, 5);
-	sPluginsPage->Add(sbWiimotePlugin, 0, wxEXPAND|wxALL, 5);
 
 	PluginsPage->SetSizer(sPluginsPage);
 	sPluginsPage->Layout();
@@ -1053,6 +1039,7 @@ void CConfigMain::WiiSettingsChanged(wxCommandEvent& event)
 		break;
 	case ID_WII_IPL_PGS:
 		SConfig::GetInstance().m_SYSCONF->SetData("IPL.PGS", WiiProgressiveScan->IsChecked());
+		SConfig::GetInstance().m_LocalCoreStartupParameter.bProgressive = WiiProgressiveScan->IsChecked();
 		break;
 	case ID_WII_IPL_E60:
 		SConfig::GetInstance().m_SYSCONF->SetData("IPL.E60", WiiEuRGB60->IsChecked());
@@ -1152,9 +1139,10 @@ void CConfigMain::ApploaderPathChanged(wxFileDirPickerEvent& WXUNUSED (event))
 void CConfigMain::OnSelectionChanged(wxCommandEvent& WXUNUSED (event))
 {
 	// Update plugin filenames
-	GetFilename(GraphicSelection, SConfig::GetInstance().m_LocalCoreStartupParameter.m_strVideoPlugin);
-	GetFilename(DSPSelection, SConfig::GetInstance().m_LocalCoreStartupParameter.m_strDSPPlugin);
-	GetFilename(WiimoteSelection, SConfig::GetInstance().m_LocalCoreStartupParameter.m_strWiimotePlugin);
+	if (GetFilename(GraphicSelection, SConfig::GetInstance().m_LocalCoreStartupParameter.m_strVideoPlugin))
+		CPluginManager::GetInstance().FreeVideo();
+	if (GetFilename(DSPSelection, SConfig::GetInstance().m_LocalCoreStartupParameter.m_strDSPPlugin))
+		CPluginManager::GetInstance().FreeDSP();
 }
 
 void CConfigMain::OnConfig(wxCommandEvent& event)
@@ -1167,9 +1155,6 @@ void CConfigMain::OnConfig(wxCommandEvent& event)
 		case ID_DSP_CONFIG:
 			CallConfig(DSPSelection);
 			break;
-		case ID_WIIMOTE_CONFIG:
-			CallConfig(WiimoteSelection);
-			break;
 	}
 }
 
@@ -1181,7 +1166,19 @@ void CConfigMain::CallConfig(wxChoice* _pChoice)
 	{
 		const CPluginInfo* pInfo = static_cast<CPluginInfo*>(_pChoice->GetClientData(Index));
 		if (pInfo != NULL)
-			CPluginManager::GetInstance().OpenConfig((HWND) this->GetHandle(), pInfo->GetFilename().c_str(), pInfo->GetPluginInfo().Type);
+		{
+			#ifdef _WIN32
+			// Make sure only one dialog can be opened at a time in Windows,
+			// but is unnecessary and looks bad in linux.
+			Disable();
+			#endif
+			CPluginManager::GetInstance().OpenConfig(this,
+					pInfo->GetFilename().c_str(), pInfo->GetPluginInfo().Type);
+			#ifdef _WIN32
+			Enable();
+			Raise();
+			#endif
+		}
 	}
 }
 
