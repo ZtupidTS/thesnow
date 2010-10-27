@@ -30,12 +30,7 @@
 #include "CPMemory.h"
 #include "XFMemory.h"
 #include "VideoCommon.h"
-
-// Temporary ugly declaration.
-namespace VertexManager
-{
-	void Flush();
-}
+#include "VertexManagerBase.h"
 
 static float GC_ALIGNED16(s_fMaterials[16]);
 float GC_ALIGNED16(g_fProjectionMatrix[16]);
@@ -379,7 +374,7 @@ void VertexShaderManager::SetConstants()
 
 		PRIM_LOG("Projection: %f %f %f %f %f %f\n", xfregs.rawProjection[0], xfregs.rawProjection[1], xfregs.rawProjection[2], xfregs.rawProjection[3], xfregs.rawProjection[4], xfregs.rawProjection[5]);
 
-		if (g_ActiveConfig.bFreeLook)
+		if ((g_ActiveConfig.bFreeLook || g_ActiveConfig.bAnaglyphStereo ) && xfregs.rawProjection[6] == 0)
 		{
 			Matrix44 mtxA;
 			Matrix44 mtxB;

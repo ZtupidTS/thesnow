@@ -48,14 +48,11 @@ void VideoConfig::Load(const char *ini_file)
 	iniFile.Load(ini_file);
 	
 	iniFile.Get("Hardware", "VSync", &bVSync, 0); // Hardware
-	iniFile.Get("Settings", "StretchToFit", &bNativeResolution, true);
-	iniFile.Get("Settings", "2xResolution", &b2xResolution, false);
 	iniFile.Get("Settings", "wideScreenHack", &bWidescreenHack, false);
 	iniFile.Get("Settings", "AspectRatio", &iAspectRatio, (int)ASPECT_AUTO);
 	iniFile.Get("Settings", "Crop", &bCrop, false);
 	iniFile.Get("Settings", "UseXFB", &bUseXFB, 0);
 	iniFile.Get("Settings", "UseRealXFB", &bUseRealXFB, 0);
-	iniFile.Get("Settings", "AutoScale", &bAutoScale, true);
 	iniFile.Get("Settings", "UseNativeMips", &bUseNativeMips, true);
 	
 	iniFile.Get("Settings", "SafeTextureCache", &bSafeTextureCache, false); // Settings
@@ -72,6 +69,11 @@ void VideoConfig::Load(const char *ini_file)
 	iniFile.Get("Settings", "DumpEFBTarget", &bDumpEFBTarget, 0);
 	iniFile.Get("Settings", "DumpFrames", &bDumpFrames, 0);
 	iniFile.Get("Settings", "FreeLook", &bFreeLook, 0);
+	iniFile.Get("Settings", "AnaglyphStereo", &bAnaglyphStereo, false);
+	iniFile.Get("Settings", "AnaglyphStereoSeparation", &iAnaglyphStereoSeparation, 200);
+	iniFile.Get("Settings", "AnaglyphFocalAngle", &iAnaglyphFocalAngle, 0);
+	iniFile.Get("Settings", "EnablePixelLigting", &bEnablePixelLigting, 0);
+	
 	iniFile.Get("Settings", "ShowShaderErrors", &bShowShaderErrors, 0);
 	iniFile.Get("Settings", "MSAA", &iMultisampleMode, 0);
 	iniFile.Get("Settings", "EFBScale", &iEFBScale, 0);
@@ -90,6 +92,7 @@ void VideoConfig::Load(const char *ini_file)
 	iniFile.Get("Enhancements", "PostProcessingShader", &sPostProcessingShader, "");
 	
 	iniFile.Get("Hacks", "EFBAccessEnable", &bEFBAccessEnable, true);
+	iniFile.Get("Hacks", "DlistCachingEnable", &bDlistCachingEnable,false);
 	iniFile.Get("Hacks", "EFBCopyDisable", &bEFBCopyDisable, false);
 	iniFile.Get("Hacks", "EFBCopyDisableHotKey", &bOSDHotKey, 0);
 	iniFile.Get("Hacks", "EFBToTextureEnable", &bCopyEFBToTexture, false);
@@ -148,6 +151,10 @@ void VideoConfig::GameIniLoad(const char *ini_file)
 		iniFile.Get("Video", "ProjectionHack", &iPhackvalue);
 	if (iniFile.Exists("Video", "UseNativeMips"))
 		iniFile.Get("Video", "UseNativeMips", &bUseNativeMips);
+	if (iniFile.Exists("Video", "ZTPSpeedupHack"))
+	   iniFile.Get("Video", "ZTPSpeedupHack", &bZTPSpeedHack);
+	if (iniFile.Exists("Video", "DlistCachingEnable"))
+	   iniFile.Get("Video", "DlistCachingEnable", &bDlistCachingEnable);
 }
 
 void VideoConfig::Save(const char *ini_file)
@@ -155,14 +162,11 @@ void VideoConfig::Save(const char *ini_file)
 	IniFile iniFile;
 	iniFile.Load(ini_file);
 	iniFile.Set("Hardware", "VSync", bVSync);
-	iniFile.Set("Settings", "StretchToFit", bNativeResolution);
-	iniFile.Set("Settings", "2xResolution", b2xResolution);
 	iniFile.Set("Settings", "AspectRatio", iAspectRatio);
 	iniFile.Set("Settings", "Crop", bCrop);
 	iniFile.Set("Settings", "wideScreenHack", bWidescreenHack);
 	iniFile.Set("Settings", "UseXFB", bUseXFB);
 	iniFile.Set("Settings", "UseRealXFB", bUseRealXFB);
-	iniFile.Set("Settings", "AutoScale", bAutoScale);
 	iniFile.Set("Settings", "UseNativeMips", bUseNativeMips);
 
 	iniFile.Set("Settings", "SafeTextureCache", bSafeTextureCache);
@@ -179,6 +183,11 @@ void VideoConfig::Save(const char *ini_file)
 	iniFile.Set("Settings", "DumpEFBTarget", bDumpEFBTarget);
 	iniFile.Set("Settings", "DumpFrames", bDumpFrames);
 	iniFile.Set("Settings", "FreeLook", bFreeLook);
+	iniFile.Set("Settings", "AnaglyphStereo", bAnaglyphStereo);
+	iniFile.Set("Settings", "AnaglyphStereoSeparation", iAnaglyphStereoSeparation);
+	iniFile.Set("Settings", "AnaglyphFocalAngle", iAnaglyphFocalAngle);
+	iniFile.Set("Settings", "EnablePixelLigting", bEnablePixelLigting);
+
 	iniFile.Set("Settings", "ShowEFBCopyRegions", bShowEFBCopyRegions);
 	iniFile.Set("Settings", "ShowShaderErrors", bShowShaderErrors);
 	iniFile.Set("Settings", "MSAA", iMultisampleMode);
@@ -196,6 +205,7 @@ void VideoConfig::Save(const char *ini_file)
 	iniFile.Set("Enhancements", "PostProcessingShader", sPostProcessingShader);
 	
 	iniFile.Set("Hacks", "EFBAccessEnable", bEFBAccessEnable);
+	iniFile.Set("Hacks", "DlistCachingEnable", bDlistCachingEnable);
 	iniFile.Set("Hacks", "EFBCopyDisable", bEFBCopyDisable);
 	iniFile.Set("Hacks", "EFBCopyDisableHotKey", bOSDHotKey);
 	iniFile.Set("Hacks", "EFBToTextureEnable", bCopyEFBToTexture);	

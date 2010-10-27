@@ -19,6 +19,7 @@
 #define _PIXELSHADERMANAGER_H
 
 #include "BPMemory.h"
+#include "XFMemory.h"
 #include "PixelShaderGen.h"
 
 void SetPSConstant4f(unsigned int const_number, float f1, float f2, float f3, float f4);
@@ -41,19 +42,18 @@ public:
 	static void SetAlpha(const AlphaFunc& alpha);
 	static void SetDestAlpha(const ConstantAlpha& alpha);
 	static void SetTexDims(int texmapid, u32 width, u32 height, u32 wraps, u32 wrapt);
-	static void SetCustomTexScale(int texmapid, float x, float y);
 	static void SetZTextureBias(u32 bias);
 	static void SetViewport(float* viewport,int VIndex = -1);
 	static void SetIndMatrixChanged(int matrixidx);
 	static void SetTevKSelChanged(int id);
 	static void SetZTextureTypeChanged();
 	static void SetIndTexScaleChanged(u8 stagemask);
-	static void SetTexturesUsed(u32 nonpow2tex);
 	static void SetTexCoordChanged(u8 texmapid);
 	static void SetFogColorChanged();
 	static void SetFogParamChanged();
 	static void SetColorMatrix(const float* pmatrix, const float* pfConstAdd);
-	static u32 GetTextureMask();
+	static void InvalidateXFRange(int start, int end);
+	static void SetMaterialColor(int index, u32 data);
 };
 
 

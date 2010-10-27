@@ -16,9 +16,7 @@
 // http://code.google.com/p/dolphin-emu/
 
 
-
 // This file holds global data for DolphinWx and DebuggerWx
-
 
 
 #ifndef _GLOBALS_H
@@ -29,9 +27,6 @@
 #endif
 
 #include "Common.h"
-
-// Constant Colors
-const unsigned long COLOR_GRAY = 0xDCDCDC;
 
 enum
 {
@@ -86,9 +81,11 @@ enum
 	IDM_TOGGLE_FULLSCREEN,
 	IDM_RECORD,
 	IDM_PLAYRECORD,
+	IDM_RECORDEXPORT,
 	IDM_FRAMESTEP,
 	IDM_SCREENSHOT,
 	IDM_BROWSE,
+	IDM_DRIVES,
 	IDM_DRIVE1,
 	IDM_DRIVE24 = IDM_DRIVE1 + 23,//248,
 
@@ -206,6 +203,7 @@ enum
 	ID_TOOLBAR_DEBUG,
 	IDM_STEP,
 	IDM_STEPOVER,
+	IDM_TOGGLE_BREAKPOINT,
 	IDM_SKIP,
 	IDM_SETPC,
 	IDM_GOTOPC,
@@ -251,49 +249,31 @@ enum
 	LIST_CTRL = 1000
 };
 
-#define wxUSE_XPM_IN_MSW 1
-#define USE_XPM_BITMAPS 1
+#include <wx/wx.h>
+#include <wx/toolbar.h>
+#include <wx/log.h>
+#include <wx/image.h>
+#include <wx/aboutdlg.h>
+#include <wx/filedlg.h>
+#include <wx/spinctrl.h>
+#include <wx/srchctrl.h>
+#include <wx/listctrl.h>
+#include <wx/progdlg.h>
+#include <wx/imagpng.h>
+#include <wx/button.h>
+#include <wx/stattext.h>
+#include <wx/choice.h>
+#include <wx/cmdline.h>
+#include <wx/busyinfo.h>
 
-// For compilers that support precompilation, includes <wx/wx.h>.
-//#include <wx/wxprec.h>
-
-//#ifndef WX_PRECOMP
-#if defined(HAVE_WX) && HAVE_WX
-	#include <wx/wx.h>
-	//#endif
-
-	#include <wx/toolbar.h>
-	#include <wx/log.h>
-	#include <wx/image.h>
-	#include <wx/aboutdlg.h>
-	#include <wx/filedlg.h>
-	#include <wx/spinctrl.h>
-	#include <wx/srchctrl.h>
-	#include <wx/listctrl.h>
-	#include <wx/progdlg.h>
-	#include <wx/imagpng.h>
-	#include <wx/button.h>
-	#include <wx/stattext.h>
-	#include <wx/choice.h>
-	#include <wx/cmdline.h>
-	#include <wx/busyinfo.h>
-
-	// Define this to use XPMs everywhere (by default, BMPs are used under Win)
-	// BMPs use less space, but aren't compiled into the executable on other platforms
-	#if USE_XPM_BITMAPS && defined (__WXMSW__) && !wxUSE_XPM_IN_MSW
-	#error You need to enable XPM support to use XPM bitmaps with toolbar!
-	#endif // USE_XPM_BITMAPS
-
-	// custom message macro
-	#define EVT_HOST_COMMAND(id, fn) \
-		DECLARE_EVENT_TABLE_ENTRY(\
+// custom message macro
+#define EVT_HOST_COMMAND(id, fn) \
+	DECLARE_EVENT_TABLE_ENTRY(\
 			wxEVT_HOST_COMMAND, id, wxID_ANY, \
 			(wxObjectEventFunction)(wxEventFunction) wxStaticCastEvent(wxCommandEventFunction, &fn), \
 			(wxObject*) NULL \
 			),
 
-	extern const wxEventType wxEVT_HOST_COMMAND;
+extern const wxEventType wxEVT_HOST_COMMAND;
 
-#endif // HAVE_WX
 #endif // _GLOBALS_H
-

@@ -69,13 +69,12 @@ struct VideoConfig
 	// General
 	bool bVSync;
 
-	bool bNativeResolution, b2xResolution, bRunning;  // Should possibly be augmented with 2x, 4x native.
+	bool bRunning;
 	bool bWidescreenHack;
 	int iAspectRatio;
 	bool bCrop;   // Aspect ratio controls.
 	bool bUseXFB;
 	bool bUseRealXFB;
-	bool bAutoScale;  // Removes annoying borders without using XFB. Doesn't always work perfectly.
 	bool bUseNativeMips;
 
 	// OpenCL
@@ -109,9 +108,13 @@ struct VideoConfig
 	bool bDumpEFBTarget;
 	bool bDumpFrames;
 	bool bFreeLook;
+	bool bAnaglyphStereo;
+	int iAnaglyphStereoSeparation;
+	int iAnaglyphFocalAngle;
 	
 	// Hacks
 	bool bEFBAccessEnable;
+	bool bDlistCachingEnable;
 	bool bEFBCopyDisable;  // should reverse polarity of this one :) true=disabled can be confusing
 	bool bOSDHotKey;
 	bool bHack;
@@ -125,6 +128,8 @@ struct VideoConfig
 	float fhackvalue1, fhackvalue2;
 	bool bProjHack1;
 	float fAspectRatioHackW, fAspectRatioHackH;
+	bool bZTPSpeedHack; // The Legend of Zelda: Twilight Princess
+	bool bEnablePixelLigting;
 
 	int iLog; // CONF_ bits
 	int iSaveTargetId;

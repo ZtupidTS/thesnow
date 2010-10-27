@@ -29,13 +29,15 @@ files = [
 	'VertexLoader_TextCoord.cpp',
 	'TextureConversionShader.cpp',
 	'ImageWrite.cpp',
-	'NativeVertexWriter.cpp',
+	'VertexManagerBase.cpp',
+	'TextureCacheBase.cpp',
 	'Statistics.cpp',
 	'Fifo.cpp',
 	'VideoState.cpp',
 	'Profiler.cpp',
 	'OnScreenDisplay.cpp',
 	'HiresTextures.cpp',
+	'DLCache.cpp',
 	]
 
 if env['HAVE_OPENCL']:

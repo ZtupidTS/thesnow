@@ -54,6 +54,17 @@ enum
 namespace PixelEngine
 {
 
+// ReadMode specifies the returned alpha channel for EFB peeks
+union UPEAlphaReadReg
+{
+	u16 Hex;
+	struct
+	{
+		u16 ReadMode		: 3;
+		u16					: 13;
+	};
+};
+
 void Init();
 void DoState(PointerWrap &p);
 
@@ -68,6 +79,7 @@ void Write32(const u32 _iValue, const u32 _iAddress);
 void SetToken(const u16 _token, const int _bSetTokenAcknowledge);
 void SetFinish(void);
 void ResetSetFinish(void);
+void ResetSetToken(void);
 bool AllowIdleSkipping();
 
 // Bounding box functionality. Paper Mario (both) are a couple of the few games that use it.

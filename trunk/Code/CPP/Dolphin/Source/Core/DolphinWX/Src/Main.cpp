@@ -32,12 +32,12 @@
 
 #include "Host.h" // Core
 #include "PluginManager.h"
+#include "HW/Wiimote.h"
 
 #include "Globals.h" // Local
 #include "Main.h"
 #include "ConfigManager.h"
 #include "CodeWindow.h"
-#include "LogWindow.h"
 #include "JitWindow.h"
 #include "ExtendedTrace.h"
 #include "BootManager.h"
@@ -95,11 +95,9 @@ bool DolphinApp::OnInit()
 	bool UseLogger = false;
 	bool selectVideoPlugin = false;
 	bool selectAudioPlugin = false;
-	bool selectWiimotePlugin = false;
 
 	wxString videoPluginFilename;
 	wxString audioPluginFilename;
-	wxString wiimotePluginFilename;
 
 #if wxUSE_CMDLINE_PARSER // Parse command lines
 #if wxCHECK_VERSION(2, 9, 0)
@@ -128,10 +126,6 @@ bool DolphinApp::OnInit()
 		},
 		{
 			wxCMD_LINE_OPTION, "A", "audio_plugin","Specify an audio plugin",
-			wxCMD_LINE_VAL_STRING, wxCMD_LINE_PARAM_OPTIONAL
-		},
-		{
-			wxCMD_LINE_OPTION, "W", "wiimote_plugin","Specify a wiimote plugin",
 			wxCMD_LINE_VAL_STRING, wxCMD_LINE_PARAM_OPTIONAL
 		},
 		{
@@ -168,10 +162,6 @@ bool DolphinApp::OnInit()
 			wxCMD_LINE_VAL_STRING, wxCMD_LINE_PARAM_OPTIONAL
 		},
 		{
-			wxCMD_LINE_OPTION, _("W"), _("wiimote_plugin"), wxT("Specify a wiimote plugin"),
-			wxCMD_LINE_VAL_STRING, wxCMD_LINE_PARAM_OPTIONAL
-		},
-		{
 			wxCMD_LINE_NONE
 		}
 	};
@@ -198,11 +188,9 @@ bool DolphinApp::OnInit()
 #if wxCHECK_VERSION(2, 9, 0)
 	selectVideoPlugin = parser.Found("video_plugin", &videoPluginFilename);
 	selectAudioPlugin = parser.Found("audio_plugin", &audioPluginFilename);
-	selectWiimotePlugin = parser.Found("wiimote_plugin", &wiimotePluginFilename);
 #else
 	selectVideoPlugin = parser.Found(wxT("video_plugin"), &videoPluginFilename);
 	selectAudioPlugin = parser.Found(wxT("audio_plugin"), &audioPluginFilename);
-	selectWiimotePlugin = parser.Found(wxT("wiimote_plugin"), &wiimotePluginFilename);
 #endif
 #endif // wxUSE_CMDLINE_PARSER
 
@@ -337,6 +325,7 @@ bool DolphinApp::OnInit()
 	LogManager::Init();
 	SConfig::Init();
 	CPluginManager::Init();
+	WiimoteReal::LoadSettings();
 
 	if (selectVideoPlugin && videoPluginFilename != wxEmptyString)
 		SConfig::GetInstance().m_LocalCoreStartupParameter.m_strVideoPlugin =
@@ -346,12 +335,8 @@ bool DolphinApp::OnInit()
 		SConfig::GetInstance().m_LocalCoreStartupParameter.m_strDSPPlugin =
 			std::string(audioPluginFilename.mb_str());
 
-	if (selectWiimotePlugin && wiimotePluginFilename != wxEmptyString)
-		SConfig::GetInstance().m_LocalCoreStartupParameter.m_strWiimotePlugin =
-			std::string(wiimotePluginFilename.mb_str());
-
-	// Enable the PNG image handler
-	wxInitAllImageHandlers(); 
+	// Enable the PNG image handler for screenshots
+	wxImage::AddHandler(new wxPNGHandler);
 
 	SetEnableAlert(SConfig::GetInstance().m_LocalCoreStartupParameter.bUsePanicHandlers);
 
@@ -433,12 +418,10 @@ void DolphinApp::OnEndSession()
 
 int DolphinApp::OnExit()
 {
+	WiimoteReal::Shutdown();
 #ifdef _WIN32
 	if (SConfig::GetInstance().m_WiiAutoUnpair)
-	{
-		if (CPluginManager::GetInstance().GetWiimote())
-			CPluginManager::GetInstance().GetWiimote()->Wiimote_UnPairWiimotes();
-	}
+		WiimoteReal::UnPair();
 #endif
 	CPluginManager::Shutdown();
 	SConfig::Shutdown();

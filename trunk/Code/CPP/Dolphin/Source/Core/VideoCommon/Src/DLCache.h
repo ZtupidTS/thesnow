@@ -1,4 +1,4 @@
-// Copyright (C) 2003 Dolphin Project.
+// Copyright (C) 2003-2009 Dolphin Project.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -15,19 +15,18 @@
 // Official SVN repository and contact information can be found at
 // http://code.google.com/p/dolphin-emu/
 
-#ifndef _HIRESTEXTURES_H
-#define _HIRESTEXTURES_H
+#ifndef _DLCACHE_H
+#define _DLCACHE_H
 
-#include <map>
-#include "VideoCommon.h"
-#include "TextureDecoder.h"
+bool HandleDisplayList(u32 address, u32 size);
 
-namespace HiresTextures
-{
-void Init(const char *gameCode);
+namespace DLCache {
+
+void Init();
 void Shutdown();
-PC_TexFormat GetHiresTex(const char *fileName, unsigned int *pWidth, unsigned int *pHeight, int texformat, u8 *data);
+void ProgressiveCleanup();
+void Clear();
 
-};
+}  // namespace
 
-#endif // _HIRESTEXTURES_H
+#endif  // _DLCACHE_H
