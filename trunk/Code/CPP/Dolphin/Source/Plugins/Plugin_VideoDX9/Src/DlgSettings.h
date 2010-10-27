@@ -100,13 +100,18 @@ class GFXConfigDialogDX : public wxDialog
 		wxRadioButton *m_Radio_SafeTextureCache_Fast;
 		wxRadioButton *m_Radio_SafeTextureCache_Normal;
 		wxRadioButton *m_Radio_SafeTextureCache_Safe;
-
+		wxCheckBox *m_DlistCaching;
 		//Enhancements Tab
 		wxCheckBox *m_ForceFiltering;
 		wxCheckBox *m_MaxAnisotropy;
 		wxCheckBox *m_HiresTextures;
 		wxCheckBox *m_EFBScaledCopy;
-
+		wxCheckBox *m_Anaglyph;
+		wxCheckBox *m_PixelLighting;
+		wxStaticText* m_AnaglyphSeparationText;
+		wxSlider *m_AnaglyphSeparation;
+		wxStaticText* m_AnaglyphFocalAngleText;
+		wxSlider *m_AnaglyphFocalAngle;
 		//Advanced Tab
 		wxCheckBox *m_DisableFog;
 		wxCheckBox *m_OverlayFPS;
@@ -141,6 +146,7 @@ class GFXConfigDialogDX : public wxDialog
 			ID_RADIO_SAFETEXTURECACHE_SAFE,
 			ID_RADIO_SAFETEXTURECACHE_NORMAL,
 			ID_RADIO_SAFETEXTURECACHE_FAST,
+			ID_DLISTCACHING,
 			ID_FORCEFILTERING,
 			ID_FORCEANISOTROPY,
 			ID_LOADHIRESTEXTURES,
@@ -172,7 +178,11 @@ class GFXConfigDialogDX : public wxDialog
 			ID_ABOUT,
 			ID_DIRERCT3D,
 			ID_PAGEENHANCEMENTS,
-			ID_PAGEADVANCED
+			ID_PAGEADVANCED,
+			ID_PIXELLIGHTING,
+			ID_ANAGLYPH,
+			ID_ANAGLYPHSEPARATION,
+			ID_ANAGLYPHFOCALANGLE,
 		};
 		void InitializeAdapters();
 		void OnClose(wxCloseEvent& event);

@@ -50,9 +50,9 @@ Make AA apply instantly during gameplay if possible
 */
 
 #include "Globals.h"
-#include "LogManager.h"
-#include "Thread.h"
 #include "Atomic.h"
+#include "Thread.h"
+#include "LogManager.h"
 
 #include <cstdarg>
 
@@ -73,7 +73,7 @@ GFXConfigDialogOGL *m_ConfigFrame = NULL;
 #include "GLUtil.h"
 #include "Fifo.h"
 #include "OpcodeDecoding.h"
-#include "TextureMngr.h"
+#include "TextureCache.h"
 #include "BPStructs.h"
 #include "VertexLoader.h"
 #include "VertexLoaderManager.h"
@@ -103,15 +103,36 @@ int GLScissorX, GLScissorY, GLScissorW, GLScissorH;
 static bool s_PluginInitialized = false;
 
 volatile u32 s_swapRequested = FALSE;
+#if defined(HAVE_X11) && HAVE_X11
+static volatile u32 s_doStateRequested = FALSE;
+#endif
 static u32 s_efbAccessRequested = FALSE;
 static volatile u32 s_FifoShuttingDown = FALSE;
+
+static volatile struct
+{
+	u32 xfbAddr;
+	FieldType field;
+	u32 fbWidth;
+	u32 fbHeight;
+} s_beginFieldArgs;
+
+static volatile EFBAccessType s_AccessEFBType;
 
 bool IsD3D()
 {
 	return false;
 }
 
-void GetDllInfo (PLUGIN_INFO* _PluginInfo)
+// This is used for the functions right below here which use wxwidgets
+#if defined(HAVE_WX) && HAVE_WX
+#ifdef _WIN32
+	WXDLLIMPEXP_BASE void wxSetInstance(HINSTANCE hInst);
+	extern HINSTANCE g_hInstance;
+#endif
+#endif
+
+void GetDllInfo(PLUGIN_INFO* _PluginInfo)
 {
 	_PluginInfo->Version = 0x0100;
 	_PluginInfo->Type = PLUGIN_TYPE_VIDEO;
@@ -130,27 +151,6 @@ void SetDllGlobals(PLUGIN_GLOBALS* _pPluginGlobals)
 	LogManager::SetInstance((LogManager*)globals->logManager);
 }
 
-// This is used for the functions right below here which use wxwidgets
-#if defined(HAVE_WX) && HAVE_WX
-#ifdef _WIN32
-	WXDLLIMPEXP_BASE void wxSetInstance(HINSTANCE hInst);
-	extern HINSTANCE g_hInstance;
-#endif
-
-wxWindow* GetParentedWxWindow(HWND Parent)
-{
-#ifdef _WIN32
-	wxSetInstance((HINSTANCE)g_hInstance);
-#endif
-	wxWindow *win = new wxWindow();
-#ifdef _WIN32
-	win->SetHWND((WXHWND)Parent);
-	win->AdoptAttributesFromHWND();
-#endif
-	return win;
-}
-#endif
-
 void *DllDebugger(void *_hParent, bool Show)
 {
 #if defined(HAVE_WX) && HAVE_WX
@@ -160,35 +160,18 @@ void *DllDebugger(void *_hParent, bool Show)
 #endif
 }
 
-void DllConfig(HWND _hParent)
+void DllConfig(void *_hParent)
 {
 	g_Config.Load((std::string(File::GetUserPath(D_CONFIG_IDX)) + "gfx_opengl.ini").c_str());
 	g_Config.GameIniLoad(globals->game_ini);
 	g_Config.UpdateProjectionHack();
 	UpdateActiveConfig();
 #if defined(HAVE_WX) && HAVE_WX
-	wxWindow *frame = GetParentedWxWindow(_hParent);
-	m_ConfigFrame = new GFXConfigDialogOGL(frame);
+	m_ConfigFrame = new GFXConfigDialogOGL((wxWindow *)_hParent);
 
-	// Prevent user to show more than 1 config window at same time
-#ifdef _WIN32
-	frame->Disable();
 	m_ConfigFrame->CreateGUIControls();
 	m_ConfigFrame->ShowModal();
-	frame->Enable();
-#else
-	m_ConfigFrame->CreateGUIControls();
-	m_ConfigFrame->ShowModal();
-#endif
-
-#ifdef _WIN32
-	frame->SetFocus();
-	frame->SetHWND(NULL);
-#endif
-
 	m_ConfigFrame->Destroy();
-	m_ConfigFrame = NULL;
-	frame->Destroy();
 #endif
 }
 
@@ -197,17 +180,13 @@ void Initialize(void *init)
 	frameCount = 0;
 	SVideoInitialize *_pVideoInitialize = (SVideoInitialize*)init;
 	// Create a shortcut to _pVideoInitialize that can also update it
-	g_VideoInitialize = *(_pVideoInitialize); 
+	g_VideoInitialize = *(_pVideoInitialize);
 	InitXFBConvTables();
 
 	g_Config.Load((std::string(File::GetUserPath(D_CONFIG_IDX)) + "gfx_opengl.ini").c_str());
 	g_Config.GameIniLoad(globals->game_ini);
 
 	g_Config.UpdateProjectionHack();
-#if defined(HAVE_WX) && HAVE_WX
-	// Enable support for PNG screenshots.
-	wxImage::AddHandler( new wxPNGHandler );
-#endif
 	UpdateActiveConfig();
 
 	if (!OpenGL_Create(g_VideoInitialize, 640, 480))
@@ -222,36 +201,13 @@ void Initialize(void *init)
 	// Now the window handle is written
 	_pVideoInitialize->pWindowHandle = g_VideoInitialize.pWindowHandle;
 
-	OSD::AddMessage("Dolphin OpenGL Video Plugin", 5000);
+	OSD::AddMessage("Dolphin OpenGL Video Plugin.", 5000);
+	s_PluginInitialized = true;
 }
 
-void DoState(unsigned char **ptr, int mode)
-{
-#if defined(HAVE_X11) && HAVE_X11
-	OpenGL_MakeCurrent();
-#endif
-	// Clear all caches that touch RAM
-	TextureMngr::Invalidate(false);
-	VertexLoaderManager::MarkAllDirty();
-	
-	PointerWrap p(ptr, mode);
-	VideoCommon_DoState(p);
-	
-	// Refresh state.
-	if (mode == PointerWrap::MODE_READ)
-	{
-		BPReload();
-		RecomputeCachedArraybases();
-	}
-}
-
-void EmuStateChange(PLUGIN_EMUSTATE newState)
-{
-	Fifo_RunLoop((newState == PLUGIN_EMUSTATE_PLAY) ? true : false);
-}
-
-// This is called after Video_Initialize() from the Core
-void Video_Prepare(void)
+// This is called after Initialize() from the Core
+// Run from the graphics thread
+void Video_Prepare()
 {
 	OpenGL_MakeCurrent();
 	if (!Renderer::Init()) {
@@ -260,17 +216,17 @@ void Video_Prepare(void)
 		exit(1);
 	}
 
-	s_swapRequested = FALSE;
 	s_efbAccessRequested = FALSE;
 	s_FifoShuttingDown = FALSE;
+	s_swapRequested = FALSE;
 
 	CommandProcessor::Init();
 	PixelEngine::Init();
 
-	TextureMngr::Init();
+	g_texture_cache = new OGL::TextureCache;
 
 	BPInit();
-	VertexManager::Init();
+	g_vertex_manager = new OGL::VertexManager;
 	Fifo_Init(); // must be done before OpcodeDecoder_Init()
 	OpcodeDecoder_Init();
 	VertexShaderCache::Init();
@@ -288,16 +244,16 @@ void Video_Prepare(void)
 
 	s_PluginInitialized = true;
 	INFO_LOG(VIDEO, "Video plugin initialized.");
+
 }
 
-void Shutdown(void)
+void Shutdown()
 {
-	s_PluginInitialized = false;	
+	s_PluginInitialized = false;
 
 	s_efbAccessRequested = FALSE;
-	s_swapRequested = FALSE;
 	s_FifoShuttingDown = FALSE;
-
+	s_swapRequested = FALSE;
 	DLCache::Shutdown();
 	Fifo_Shutdown();
 	PostProcessing::Shutdown();
@@ -310,11 +266,66 @@ void Shutdown(void)
 	VertexShaderManager::Shutdown();
 	PixelShaderManager::Shutdown();
 	PixelShaderCache::Shutdown();
-	VertexManager::Shutdown();
-	TextureMngr::Shutdown();
+	delete g_vertex_manager;
+	delete g_texture_cache;
 	OpcodeDecoder_Shutdown();
 	Renderer::Shutdown();
 	OpenGL_Shutdown();
+}
+
+static volatile struct
+{
+	unsigned char **ptr;
+	int mode;
+} s_doStateArgs;
+
+// Run from the GPU thread on X11, CPU thread on the rest
+static void check_DoState() {
+#if defined(HAVE_X11) && HAVE_X11
+	if (Common::AtomicLoadAcquire(s_doStateRequested))
+	{
+#endif
+		// Clear all caches that touch RAM
+		TextureCache::Invalidate(false);
+		VertexLoaderManager::MarkAllDirty();
+
+		PointerWrap p(s_doStateArgs.ptr, s_doStateArgs.mode);
+		VideoCommon_DoState(p);
+
+		// Refresh state.
+		if (s_doStateArgs.mode == PointerWrap::MODE_READ)
+		{
+			BPReload();
+			RecomputeCachedArraybases();
+		}
+
+#if defined(HAVE_X11) && HAVE_X11
+		Common::AtomicStoreRelease(s_doStateRequested, FALSE);
+	}
+#endif
+}
+
+// Run from the CPU thread
+void DoState(unsigned char **ptr, int mode)
+{
+	s_doStateArgs.ptr = ptr;
+	s_doStateArgs.mode = mode;
+#if defined(HAVE_X11) && HAVE_X11
+	Common::AtomicStoreRelease(s_doStateRequested, TRUE);
+	if (g_VideoInitialize.bOnThread)
+	{
+		while (Common::AtomicLoadAcquire(s_doStateRequested) && !s_FifoShuttingDown)
+			//Common::SleepCurrentThread(1);
+			Common::YieldCPU();
+	}
+	else
+#endif
+		check_DoState();
+}
+
+void EmuStateChange(PLUGIN_EMUSTATE newState)
+{
+	Fifo_RunLoop((newState == PLUGIN_EMUSTATE_PLAY) ? true : false);
 }
 
 // Enter and exit the video loop
@@ -326,34 +337,13 @@ void Video_EnterLoop()
 void Video_ExitLoop()
 {
 	Fifo_ExitLoop();
-
 	s_FifoShuttingDown = TRUE;
-}
-
-// Screenshot and screen message
-
-void Video_Screenshot(const char *_szFilename)
-{
-	Renderer::SetScreenshot(_szFilename);
-}
-
-void Video_AddMessage(const char* pstr, u32 milliseconds)
-{
-	OSD::AddMessage(pstr, milliseconds);
 }
 
 void Video_SetRendering(bool bEnabled)
 {
 	Fifo_SetRendering(bEnabled);
 }
-
-static volatile struct
-{
-	u32 xfbAddr;
-	FieldType field;
-	u32 fbWidth;
-	u32 fbHeight;
-} s_beginFieldArgs;
 
 // Run from the graphics thread (from Fifo.cpp)
 void VideoFifo_CheckSwapRequest()
@@ -369,7 +359,7 @@ void VideoFifo_CheckSwapRequest()
 	}
 }
 
-inline bool addrRangesOverlap(u32 aLower, u32 aUpper, u32 bLower, u32 bUpper)
+static inline bool addrRangesOverlap(u32 aLower, u32 aUpper, u32 bLower, u32 bUpper)
 {
 	return !((aLower >= bUpper) || (bLower >= aUpper));
 }
@@ -389,14 +379,14 @@ void VideoFifo_CheckSwapRequestAt(u32 xfbAddr, u32 fbWidth, u32 fbHeight)
 			if (addrRangesOverlap(aLower, aUpper, bLower, bUpper))
 				VideoFifo_CheckSwapRequest();
 		}
-	}	
+	}
 }
 
 // Run from the CPU thread (from VideoInterface.cpp)
 void Video_BeginField(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight)
 {
 	if (s_PluginInitialized && g_ActiveConfig.bUseXFB)
-	{		
+	{
 		if (g_VideoInitialize.bOnThread)
 		{
 			while (Common::AtomicLoadAcquire(s_swapRequested) && !s_FifoShuttingDown)
@@ -404,19 +394,32 @@ void Video_BeginField(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight)
 				Common::YieldCPU();
 		}
 		else
-			VideoFifo_CheckSwapRequest();				
+			VideoFifo_CheckSwapRequest();
 		s_beginFieldArgs.xfbAddr = xfbAddr;
 		s_beginFieldArgs.field = field;
 		s_beginFieldArgs.fbWidth = fbWidth;
 		s_beginFieldArgs.fbHeight = fbHeight;
-
-		Common::AtomicStoreRelease(s_swapRequested, TRUE);
 	}
 }
 
 // Run from the CPU thread (from VideoInterface.cpp)
 void Video_EndField()
 {
+	if (s_PluginInitialized)
+	{
+		Common::AtomicStoreRelease(s_swapRequested, TRUE);
+	}
+}
+
+void Video_AddMessage(const char* pstr, u32 milliseconds)
+{
+	OSD::AddMessage(pstr, milliseconds);
+}
+
+// Screenshot
+void Video_Screenshot(const char *_szFilename)
+{
+	Renderer::SetScreenshot(_szFilename);
 }
 
 static struct
@@ -433,7 +436,7 @@ void VideoFifo_CheckEFBAccess()
 {
 	if (Common::AtomicLoadAcquire(s_efbAccessRequested))
 	{
-		s_AccessEFBResult = Renderer::AccessEFB(s_accessEFBArgs.type, s_accessEFBArgs.x, s_accessEFBArgs.y);
+		s_AccessEFBResult = Renderer::AccessEFB(s_accessEFBArgs.type, s_accessEFBArgs.x, s_accessEFBArgs.y, s_accessEFBArgs.Data);
 
 		Common::AtomicStoreRelease(s_efbAccessRequested, FALSE);
 	}
@@ -447,6 +450,7 @@ u32 Video_AccessEFB(EFBAccessType type, u32 x, u32 y, u32 InputData)
 		s_accessEFBArgs.x = x;
 		s_accessEFBArgs.y = y;
 		s_accessEFBArgs.Data = InputData;
+
 		Common::AtomicStoreRelease(s_efbAccessRequested, TRUE);
 
 		if (g_VideoInitialize.bOnThread)
@@ -462,6 +466,14 @@ u32 Video_AccessEFB(EFBAccessType type, u32 x, u32 y, u32 InputData)
 	}
 
 	return 0;
+}
+
+void VideoFifo_CheckAsyncRequest() {
+	VideoFifo_CheckSwapRequest();
+	VideoFifo_CheckEFBAccess();
+#if defined(HAVE_X11) && HAVE_X11
+	check_DoState();
+#endif
 }
 
 void Video_CommandProcessorRead16(u16& _rReturnValue, const u32 _Address)
@@ -502,4 +514,9 @@ void Video_WaitForFrameFinish(void)
 bool Video_IsFifoBusy(void)
 {
 	return CommandProcessor::isFifoBusy;
+}
+
+void Video_AbortFrame(void)
+{
+	CommandProcessor::AbortFrame();
 }

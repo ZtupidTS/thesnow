@@ -45,6 +45,7 @@ BEGIN_EVENT_TABLE(GFXConfigDialogDX,wxDialog)
 	EVT_CHOICE(ID_EFBSCALEMODE, GFXConfigDialogDX::DirectXSettingsChanged)
 	EVT_CHECKBOX(ID_EFB_ACCESS_ENABLE, GFXConfigDialogDX::DirectXSettingsChanged)
 	EVT_CHECKBOX(ID_SAFETEXTURECACHE, GFXConfigDialogDX::DirectXSettingsChanged)
+	EVT_CHECKBOX(ID_DLISTCACHING, GFXConfigDialogDX::DirectXSettingsChanged)
 	EVT_RADIOBUTTON(ID_RADIO_SAFETEXTURECACHE_SAFE, GFXConfigDialogDX::DirectXSettingsChanged)
 	EVT_RADIOBUTTON(ID_RADIO_SAFETEXTURECACHE_NORMAL, GFXConfigDialogDX::DirectXSettingsChanged)
 	EVT_RADIOBUTTON(ID_RADIO_SAFETEXTURECACHE_FAST, GFXConfigDialogDX::DirectXSettingsChanged)
@@ -54,6 +55,11 @@ BEGIN_EVENT_TABLE(GFXConfigDialogDX,wxDialog)
 	EVT_CHECKBOX(ID_FORCEANISOTROPY, GFXConfigDialogDX::EnhancementsSettingsChanged)
 	EVT_CHECKBOX(ID_LOADHIRESTEXTURES, GFXConfigDialogDX::EnhancementsSettingsChanged)
 	EVT_CHECKBOX(ID_EFBSCALEDCOPY, GFXConfigDialogDX::EnhancementsSettingsChanged)
+	EVT_CHECKBOX(ID_PIXELLIGHTING, GFXConfigDialogDX::EnhancementsSettingsChanged)
+	EVT_CHECKBOX(ID_ANAGLYPH, GFXConfigDialogDX::EnhancementsSettingsChanged)
+	EVT_SLIDER(ID_ANAGLYPHSEPARATION, GFXConfigDialogDX::EnhancementsSettingsChanged)
+	EVT_SLIDER(ID_ANAGLYPHFOCALANGLE, GFXConfigDialogDX::EnhancementsSettingsChanged)
+	
 
 	//Advanced Tab
 	EVT_CHECKBOX(ID_DISABLEFOG, GFXConfigDialogDX::AdvancedSettingsChanged)
@@ -84,7 +90,7 @@ GFXConfigDialogDX::GFXConfigDialogDX(wxWindow *parent, wxWindowID id, const wxSt
 // ---------------
 GFXConfigDialogDX::~GFXConfigDialogDX()
 {
-	INFO_LOG(CONSOLE, "GFXConfigDialogDX Closed");
+	INFO_LOG(CONSOLE, "GFXConfigDialogDX closed");
 }
 
 void GFXConfigDialogDX::OnClose(wxCloseEvent& event)
@@ -111,6 +117,7 @@ void GFXConfigDialogDX::InitializeGUIValues()
 	m_EFBScaleMode->SetSelection(g_Config.iEFBScale);
 	m_EnableEFBAccess->SetValue(g_Config.bEFBAccessEnable);
 	m_SafeTextureCache->SetValue(g_Config.bSafeTextureCache);
+	m_DlistCaching->SetValue(g_Config.bDlistCachingEnable);
 	if(g_Config.iSafeTextureCache_ColorSamples == 0)
 		m_Radio_SafeTextureCache_Safe->SetValue(true);
 	else
@@ -131,7 +138,10 @@ void GFXConfigDialogDX::InitializeGUIValues()
 	m_HiresTextures->SetValue(g_Config.bHiresTextures);
 	m_MSAAModeCB->SetSelection(g_Config.iMultisampleMode);
 	m_EFBScaledCopy->SetValue(g_Config.bCopyEFBScaled);
-
+	m_Anaglyph->SetValue(g_Config.bAnaglyphStereo);
+	m_PixelLighting->SetValue(g_Config.bEnablePixelLigting);
+	m_AnaglyphSeparation->SetValue(g_Config.iAnaglyphStereoSeparation);
+	m_AnaglyphFocalAngle->SetValue(g_Config.iAnaglyphFocalAngle);
 	//Advance
 	m_DisableFog->SetValue(g_Config.bDisableFog);
 	m_OverlayFPS->SetValue(g_Config.bShowFPS);
@@ -182,7 +192,7 @@ void GFXConfigDialogDX::CreateGUIControls()
 	const D3D::Adapter &adapter = D3D::GetAdapter(g_Config.iAdapter);
 
 	m_AdapterCB = new wxChoice( m_PageDirect3D, ID_ADAPTER, wxDefaultPosition, wxDefaultSize, arrayStringFor_AdapterCB, 0);
-	m_VSync = new wxCheckBox( m_PageDirect3D, ID_VSYNC, wxT("Vsync"), wxPoint( -1,-1 ), wxDefaultSize, 0 );
+	m_VSync = new wxCheckBox( m_PageDirect3D, ID_VSYNC, wxT("V-sync"), wxPoint( -1,-1 ), wxDefaultSize, 0 );
 	m_WidescreenHack = new wxCheckBox( m_PageDirect3D, ID_WIDESCREEN_HACK, wxT("强制宽屏"), wxPoint( -1,-1 ), wxDefaultSize, 0 );
 
 	m_staticARText = new wxStaticText( m_PageDirect3D, wxID_ANY, wxT("高宽比:"), wxPoint( -1,-1 ), wxDefaultSize, 0 );
@@ -200,9 +210,9 @@ void GFXConfigDialogDX::CreateGUIControls()
 		arrayStringFor_MSAAModeCB.Add(wxString::FromAscii(adapter.aa_levels[i].name));
 	}
 	m_MSAAModeCB = new wxChoice( m_PageDirect3D, ID_ANTIALIASMODE, wxPoint( -1,-1 ), wxDefaultSize, arrayStringFor_MSAAModeCB, 0);
-	m_EFBScaleText = new wxStaticText( m_PageDirect3D, wxID_ANY, wxT("EFB Scale:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_EFBScaleText = new wxStaticText( m_PageDirect3D, wxID_ANY, wxT("Internal Resolution:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_EFBScaleText->Wrap( -1 );
-	wxString m_EFBScaleModeChoices[] = { wxT("Auto (Fractional)"), wxT("Auto (Integral)"), wxT("1x"), wxT("2x"), wxT("3x") };
+	wxString m_EFBScaleModeChoices[] = { wxT("Auto (fractional)"), wxT("Auto (integral)"), wxT("Native"), wxT("2x"), wxT("3x") };
 	int m_EFBScaleModeNChoices = sizeof( m_EFBScaleModeChoices ) / sizeof( wxString );
 	m_EFBScaleMode = new wxChoice( m_PageDirect3D, ID_EFBSCALEMODE, wxDefaultPosition, wxDefaultSize, m_EFBScaleModeNChoices, m_EFBScaleModeChoices, 0 );
 
@@ -214,7 +224,7 @@ void GFXConfigDialogDX::CreateGUIControls()
 	m_Radio_SafeTextureCache_Safe = new wxRadioButton( m_PageDirect3D, ID_RADIO_SAFETEXTURECACHE_SAFE, wxT("安全"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_Radio_SafeTextureCache_Normal = new wxRadioButton( m_PageDirect3D, ID_RADIO_SAFETEXTURECACHE_NORMAL, wxT("正常"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_Radio_SafeTextureCache_Fast = new wxRadioButton( m_PageDirect3D, ID_RADIO_SAFETEXTURECACHE_FAST, wxT("快速"), wxDefaultPosition, wxDefaultSize, 0 );
-
+	m_DlistCaching = new wxCheckBox( m_PageDirect3D, ID_DLISTCACHING, wxT("Use DList Caching"), wxDefaultPosition, wxDefaultSize, 0 );
 	// Sizers
 	wxGridBagSizer* sBasic;
 	wxBoxSizer* sGeneral;
@@ -234,6 +244,7 @@ void GFXConfigDialogDX::CreateGUIControls()
 	sBasic->Add( m_EFBScaleText, wxGBPosition( 4, 0 ), wxGBSpan( 1, 1 ), wxALL, 5 );
 	sBasic->Add( m_EFBScaleMode, wxGBPosition( 4, 1 ), wxGBSpan( 1, 1 ), wxALL, 5 );
 	sBasic->Add( m_EnableEFBAccess, wxGBPosition( 5, 1 ), wxGBSpan( 1, 1 ), wxALL, 5 );
+	sBasic->Add( m_DlistCaching, wxGBPosition( 6, 1 ), wxGBSpan( 1, 1 ), wxALL, 5 );
 	sbBasic->Add( sBasic, 0, 0, 5 );
 	sGeneral->Add( sbBasic, 0, wxEXPAND|wxALL, 5 );
 	
@@ -252,18 +263,24 @@ void GFXConfigDialogDX::CreateGUIControls()
 	m_PageDirect3D->SetSizer( sGeneral );
 	m_PageDirect3D->Layout();
 	sGeneral->Fit( m_PageDirect3D );
-	m_Notebook->AddPage( m_PageDirect3D, wxT("Direct3D"), true );
+	m_Notebook->AddPage( m_PageDirect3D, wxT("General"), true );
 
 	//Enhancements Tab
 	wxStaticBoxSizer* sbTextureFilter;
 	sbTextureFilter = new wxStaticBoxSizer( new wxStaticBox( m_PageEnhancements, wxID_ANY, wxT("材质过滤") ), wxVERTICAL );
-	m_ForceFiltering = new wxCheckBox( m_PageEnhancements, ID_FORCEFILTERING, wxT("Force bi/trilinear filtering  (Breaks video in several Wii games )"), wxDefaultPosition, wxDefaultSize, 0 );
-	m_MaxAnisotropy = new wxCheckBox( m_PageEnhancements, ID_FORCEANISOTROPY, wxT("Enable 16x Anisotropy filtering"), wxDefaultPosition, wxDefaultSize, 0 );
-	m_HiresTextures = new wxCheckBox( m_PageEnhancements, ID_LOADHIRESTEXTURES, wxT("Enable hires Texture loading"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_ForceFiltering = new wxCheckBox( m_PageEnhancements, ID_FORCEFILTERING, wxT("Force bi/trilinear filtering  (breaks video in several Wii games )"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_MaxAnisotropy = new wxCheckBox( m_PageEnhancements, ID_FORCEANISOTROPY, wxT("Enable 16x anisotropic filtering"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_HiresTextures = new wxCheckBox( m_PageEnhancements, ID_LOADHIRESTEXTURES, wxT("Enable hires texture loading"), wxDefaultPosition, wxDefaultSize, 0 );
 
 	wxStaticBoxSizer* sbEFBHacks;
 	sbEFBHacks = new wxStaticBoxSizer( new wxStaticBox( m_PageEnhancements, wxID_ANY, wxT("EFB 破解") ), wxVERTICAL );
-	m_EFBScaledCopy = new wxCheckBox( m_PageEnhancements, ID_EFBSCALEDCOPY, wxT("EFB Scaled Copy"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_EFBScaledCopy = new wxCheckBox( m_PageEnhancements, ID_EFBSCALEDCOPY, wxT("EFB scaled copy"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_Anaglyph = new wxCheckBox( m_PageEnhancements, ID_ANAGLYPH, wxT("Enable Anaglyph Stereo"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_PixelLighting = new wxCheckBox( m_PageEnhancements, ID_PIXELLIGHTING, wxT("Enable Pixel Lighting"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_AnaglyphSeparation  = new wxSlider( m_PageEnhancements, ID_ANAGLYPHSEPARATION,2000,1,10000, wxDefaultPosition, wxDefaultSize, wxHORIZONTAL,wxDefaultValidator, wxT("Stereo separation") );
+	m_AnaglyphFocalAngle = new wxSlider( m_PageEnhancements, ID_ANAGLYPHFOCALANGLE,0,-1000,1000, wxDefaultPosition, wxDefaultSize, wxHORIZONTAL,wxDefaultValidator, wxT("Stereo Focal Angle") );
+	m_AnaglyphSeparationText = new wxStaticText( m_PageEnhancements, wxID_ANY, wxT("Stereo Separation:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_AnaglyphFocalAngleText= new wxStaticText( m_PageEnhancements, wxID_ANY, wxT("Focal Angle:"), wxDefaultPosition, wxDefaultSize, 0 );
 
 	// Sizers
 	wxBoxSizer* sEnhancements;
@@ -286,6 +303,21 @@ void GFXConfigDialogDX::CreateGUIControls()
 	sbEFBHacks->Add( sEFBHacks, 1, wxEXPAND, 5 );
 	sEnhancements->Add( sbEFBHacks, 0, wxEXPAND|wxALL, 5 );
 	
+	wxStaticBoxSizer* sbImprovements;
+	sbImprovements = new wxStaticBoxSizer( new wxStaticBox( m_PageEnhancements, wxID_ANY, wxT("Improvements") ), wxVERTICAL );
+	wxGridBagSizer* sImprovements;
+	sImprovements = new wxGridBagSizer(  0, 0  );
+	sImprovements->SetFlexibleDirection( wxBOTH );
+	sImprovements->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
+	sImprovements->Add( m_Anaglyph, wxGBPosition( 0, 0 ), wxGBSpan( 1, 1 ), wxALL, 5 );
+	sImprovements->Add( m_AnaglyphSeparationText, wxGBPosition( 1, 0 ), wxGBSpan( 1, 1 ), wxALL, 5 );
+	sImprovements->Add( m_AnaglyphFocalAngleText, wxGBPosition( 1, 1 ), wxGBSpan( 1, 1 ), wxALL, 5 );
+	sImprovements->Add( m_AnaglyphSeparation, wxGBPosition( 2, 0 ), wxGBSpan( 1, 1 ), wxALL, 5 );
+	sImprovements->Add( m_AnaglyphFocalAngle, wxGBPosition( 2, 1 ), wxGBSpan( 1, 1 ), wxALL, 5 );
+	sImprovements->Add( m_PixelLighting, wxGBPosition( 3, 0 ), wxGBSpan( 1, 1 ), wxALL, 5 );
+	sbImprovements->Add( sImprovements, 1, wxEXPAND, 5 );
+	sEnhancements->Add( sbImprovements, 0, wxEXPAND|wxALL, 5 );
+
 	m_PageEnhancements->SetSizer( sEnhancements );
 	m_PageEnhancements->Layout();
 	sEnhancements->Fit( m_PageEnhancements );
@@ -303,7 +335,7 @@ void GFXConfigDialogDX::CreateGUIControls()
 	m_WireFrame = new wxCheckBox( m_PageAdvanced, ID_WIREFRAME, wxT("启用 Wireframe"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_EnableRealXFB = new wxCheckBox( m_PageAdvanced, ID_ENABLEREALXFB, wxT("启用真实 XFB"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_EnableXFB = new wxCheckBox( m_PageAdvanced, ID_ENABLEXFB, wxT("启用 XFB"), wxDefaultPosition, wxDefaultSize, 0 );
-	m_UseNativeMips = new wxCheckBox( m_PageAdvanced, ID_USENATIVEMIPS, wxT("Use Native Mips"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_UseNativeMips = new wxCheckBox( m_PageAdvanced, ID_USENATIVEMIPS, wxT("Use native mipmaps"), wxDefaultPosition, wxDefaultSize, 0 );
 
 	wxStaticBoxSizer* sbDataDumping;
 	sbDataDumping = new wxStaticBoxSizer( new wxStaticBox( m_PageAdvanced, wxID_ANY, wxT("数据转储") ), wxVERTICAL );
@@ -314,7 +346,7 @@ void GFXConfigDialogDX::CreateGUIControls()
 	sbDebuggingTools = new wxStaticBoxSizer( new wxStaticBox( m_PageAdvanced, wxID_ANY, wxT("调试工具") ), wxVERTICAL );
 	m_OverlayStats = new wxCheckBox( m_PageAdvanced, ID_OVERLAYSTATS, wxT("显示状态信息"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_ShaderErrors = new wxCheckBox( m_PageAdvanced, ID_SHADERERRORS, wxT("显示 Shader 兼容错误"), wxDefaultPosition, wxDefaultSize, 0 );	
-	m_TexfmtOverlay = new wxCheckBox( m_PageAdvanced, ID_TEXFMT_OVERLAY, wxT("Enable TexFmt Overlay"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_TexfmtOverlay = new wxCheckBox( m_PageAdvanced, ID_TEXFMT_OVERLAY, wxT("Enable texture format overlay"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_TexfmtCenter = new wxCheckBox( m_PageAdvanced, ID_TEXFMT_CENTER, wxT("Centered"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_ProjStats = new wxCheckBox( m_PageAdvanced, wxID_ANY, wxT("显示项目状态"), wxDefaultPosition, wxDefaultSize, 0 );
 
@@ -412,6 +444,9 @@ void GFXConfigDialogDX::DirectXSettingsChanged(wxCommandEvent& event)
 	case ID_SAFETEXTURECACHE:
 		g_Config.bSafeTextureCache = m_SafeTextureCache->IsChecked();
 		break;
+	case ID_DLISTCACHING:
+		g_Config.bDlistCachingEnable = m_DlistCaching->IsChecked();
+		break;
 	case ID_RADIO_SAFETEXTURECACHE_SAFE:
 		g_Config.iSafeTextureCache_ColorSamples = 0;
 		break;
@@ -441,7 +476,19 @@ void GFXConfigDialogDX::EnhancementsSettingsChanged(wxCommandEvent& event)
 			g_Config.bHiresTextures = m_HiresTextures->IsChecked();
 		break;
 	case ID_EFBSCALEDCOPY:
-			g_Config.bCopyEFBScaled = m_EFBScaledCopy->IsChecked();
+		g_Config.bCopyEFBScaled = m_EFBScaledCopy->IsChecked();
+		break;
+	case ID_PIXELLIGHTING:
+		g_Config.bEnablePixelLigting = m_PixelLighting->IsChecked();
+		break;
+	case ID_ANAGLYPH:
+		g_Config.bAnaglyphStereo = m_Anaglyph->IsChecked();
+		break;
+	case ID_ANAGLYPHSEPARATION:
+		g_Config.iAnaglyphStereoSeparation = m_AnaglyphSeparation->GetValue();
+		break;
+	case ID_ANAGLYPHFOCALANGLE:
+		g_Config.iAnaglyphFocalAngle = m_AnaglyphFocalAngle->GetValue();
 		break;
 	}
 	UpdateGUI();

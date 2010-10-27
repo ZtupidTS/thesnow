@@ -26,10 +26,8 @@
 
 #define GLEW_STATIC
 
-#include <GLew/glew.h>
-#include <GLew/wglew.h>
-#include <GLew/gl.h>
-#include <GLew/glext.h>
+#include <GL/glew.h>
+#include <GL/wglew.h>
 
 #else // linux and apple basic definitions
 
@@ -40,7 +38,6 @@
 
 #elif defined(HAVE_X11) && HAVE_X11
 #include <GL/glxew.h>
-#include <X11/XKBlib.h>
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
 #include "Thread.h"
@@ -67,7 +64,6 @@
 
 #ifndef _WIN32
 
-#include <sys/stat.h>
 #include <sys/types.h>
 
 typedef struct {
@@ -82,7 +78,10 @@ typedef struct {
 	int screen;
 	Window win;
 	Window parent;
-	Display *dpy;
+ // dpy (mainly) used for glx stuff, evdpy for window events etc.
+ // used to keep the two threads from eating each others events
+ // evdpy is to be used by XEventThread only (when it is running)
+	Display *dpy, *evdpy;
 	XVisualInfo *vi;
 	GLXContext ctx;
 	XSetWindowAttributes attr;
@@ -117,20 +116,16 @@ void OpenGL_ReportARBProgramError();
 GLuint OpenGL_ReportGLError(const char *function, const char *file, int line);
 bool OpenGL_ReportFBOError(const char *function, const char *file, int line);
 
-#if 1
-#define GL_REPORT_ERROR()         OpenGL_ReportGLError        (__FUNCTION__, __FILE__, __LINE__)
+#if defined(_DEBUG) || defined(DEBUGFAST)
+#define GL_REPORT_ERROR()         OpenGL_ReportGLError(__FUNCTION__, __FILE__, __LINE__)
+#define GL_REPORT_ERRORD()        OpenGL_ReportGLError(__FUNCTION__, __FILE__, __LINE__)
+#define GL_REPORT_FBO_ERROR()     OpenGL_ReportFBOError(__FUNCTION__, __FILE__, __LINE__)
 #define GL_REPORT_PROGRAM_ERROR() OpenGL_ReportARBProgramError()
-#define GL_REPORT_FBO_ERROR()     OpenGL_ReportFBOError       (__FUNCTION__, __FILE__, __LINE__)
 #else
 #define GL_REPORT_ERROR() GL_NO_ERROR
-#define GL_REPORT_PROGRAM_ERROR()
-#define GL_REPORT_FBO_ERROR()
-#endif
-
-#if defined(_DEBUG) || defined(DEBUGFAST) 
-#define GL_REPORT_ERRORD() OpenGL_ReportGLError(__FUNCTION__, __FILE__, __LINE__)
-#else
-#define GL_REPORT_ERRORD()
+#define GL_REPORT_ERRORD() (void)GL_NO_ERROR
+#define GL_REPORT_FBO_ERROR() (void)true
+#define GL_REPORT_PROGRAM_ERROR() (void)0
 #endif
 
 #if defined __APPLE__ || defined __linux__ || defined _WIN32
@@ -140,5 +135,10 @@ bool OpenGL_ReportFBOError(const char *function, const char *file, int line);
 extern CGcontext g_cgcontext;
 extern CGprofile g_cgvProf, g_cgfProf;
 #endif
+
+// XXX: Dual-source blending in OpenGL does not work correctly yet. To make it
+// work, we may need to use glBindFragDataLocation. To use that, we need to
+// use GLSL shaders across the whole pipeline. Yikes!
+//#define USE_DUAL_SOURCE_BLEND
 
 #endif  // _GLINIT_H_

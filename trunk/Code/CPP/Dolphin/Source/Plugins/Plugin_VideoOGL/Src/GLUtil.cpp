@@ -112,23 +112,28 @@ void CreateXWindow (void)
 {
 	Atom wmProtocols[1];
 
+	// use evdpy to create the window, so that connection gets the events
+	// the colormap needs to be created on the same display, because it
+	// is a client side structure, as well as wmProtocols(or so it seems)
+	// GLWin.win is a xserver global window handle, so it can be used by both
+	// display connections
+
 	// Setup window attributes
-	GLWin.attr.colormap = XCreateColormap(GLWin.dpy,
+	GLWin.attr.colormap = XCreateColormap(GLWin.evdpy,
 			GLWin.parent, GLWin.vi->visual, AllocNone);
-	GLWin.attr.event_mask = ExposureMask | KeyPressMask | KeyReleaseMask |
-		StructureNotifyMask | EnterWindowMask | LeaveWindowMask | FocusChangeMask;
-	GLWin.attr.background_pixel = BlackPixel(GLWin.dpy, GLWin.screen);
+	GLWin.attr.event_mask = KeyPressMask | StructureNotifyMask | FocusChangeMask;
+	GLWin.attr.background_pixel = BlackPixel(GLWin.evdpy, GLWin.screen);
 	GLWin.attr.border_pixel = 0;
 
 	// Create the window
-	GLWin.win = XCreateWindow(GLWin.dpy, GLWin.parent,
+	GLWin.win = XCreateWindow(GLWin.evdpy, GLWin.parent,
 			GLWin.x, GLWin.y, GLWin.width, GLWin.height, 0, GLWin.vi->depth, InputOutput, GLWin.vi->visual,
 			CWBorderPixel | CWBackPixel | CWColormap | CWEventMask, &GLWin.attr);
-	wmProtocols[0] = XInternAtom(GLWin.dpy, "WM_DELETE_WINDOW", True);
-	XSetWMProtocols(GLWin.dpy, GLWin.win, wmProtocols, 1);
-	XSetStandardProperties(GLWin.dpy, GLWin.win, "GPU", "GPU", None, NULL, 0, NULL);
-	XMapRaised(GLWin.dpy, GLWin.win);
-	XSync(GLWin.dpy, True);
+	wmProtocols[0] = XInternAtom(GLWin.evdpy, "WM_DELETE_WINDOW", True);
+	XSetWMProtocols(GLWin.evdpy, GLWin.win, wmProtocols, 1);
+	XSetStandardProperties(GLWin.evdpy, GLWin.win, "GPU", "GPU", None, NULL, 0, NULL);
+	XMapRaised(GLWin.evdpy, GLWin.win);
+	XSync(GLWin.evdpy, True);
 
 	GLWin.xEventThread = new Common::Thread(XEventThread, NULL);
 }
@@ -137,10 +142,10 @@ void DestroyXWindow(void)
 {
 	XUnmapWindow(GLWin.dpy, GLWin.win);
 	GLWin.win = 0;
-	XFreeColormap(GLWin.dpy, GLWin.attr.colormap);
 	if (GLWin.xEventThread)
 		GLWin.xEventThread->WaitForDeath();
 	GLWin.xEventThread = NULL;
+	XFreeColormap(GLWin.evdpy, GLWin.attr.colormap);
 }
 
 THREAD_RETURN XEventThread(void *pArg)
@@ -149,8 +154,8 @@ THREAD_RETURN XEventThread(void *pArg)
 	{
 		XEvent event;
 		KeySym key;
-		for (int num_events = XPending(GLWin.dpy); num_events > 0; num_events--) {
-			XNextEvent(GLWin.dpy, &event);
+		for (int num_events = XPending(GLWin.evdpy); num_events > 0; num_events--) {
+			XNextEvent(GLWin.evdpy, &event);
 			switch(event.type) {
 				case KeyPress:
 					key = XLookupKeysym((XKeyEvent*)&event, 0);
@@ -159,16 +164,8 @@ THREAD_RETURN XEventThread(void *pArg)
 						case XK_3:
 							OSDChoice = 1;
 							// Toggle native resolution
-							if (!(g_Config.bNativeResolution || g_Config.b2xResolution))
-								g_Config.bNativeResolution = true;
-							else if (g_Config.bNativeResolution && Renderer::AllowCustom())
-							{
-								g_Config.bNativeResolution = false;
-								if (Renderer::Allow2x())
-									g_Config.b2xResolution = true;
-							}
-							else if (Renderer::AllowCustom())
-								g_Config.b2xResolution = false;
+							g_Config.iEFBScale = g_Config.iEFBScale + 1;
+							if (g_Config.iEFBScale > 4) g_Config.iEFBScale = 0;
 							break;
 						case XK_4:
 							OSDChoice = 2;
@@ -203,16 +200,16 @@ THREAD_RETURN XEventThread(void *pArg)
 				case ConfigureNotify:
 					Window winDummy;
 					unsigned int borderDummy, depthDummy;
-					XGetGeometry(GLWin.dpy, GLWin.win, &winDummy, &GLWin.x, &GLWin.y,
+					XGetGeometry(GLWin.evdpy, GLWin.win, &winDummy, &GLWin.x, &GLWin.y,
 							&GLWin.width, &GLWin.height, &borderDummy, &depthDummy);
 					s_backbuffer_width = GLWin.width;
 					s_backbuffer_height = GLWin.height;
 					break;
 				case ClientMessage:
-					if ((unsigned long) event.xclient.data.l[0] == XInternAtom(GLWin.dpy, "WM_DELETE_WINDOW", False))
+					if ((unsigned long) event.xclient.data.l[0] == XInternAtom(GLWin.evdpy, "WM_DELETE_WINDOW", False))
 						g_VideoInitialize.pCoreMessage(WM_USER_STOP);
-					if ((unsigned long) event.xclient.data.l[0] == XInternAtom(GLWin.dpy, "RESIZE", False))
-						XMoveResizeWindow(GLWin.dpy, GLWin.win, event.xclient.data.l[1],
+					if ((unsigned long) event.xclient.data.l[0] == XInternAtom(GLWin.evdpy, "RESIZE", False))
+						XMoveResizeWindow(GLWin.evdpy, GLWin.win, event.xclient.data.l[1],
 							   	event.xclient.data.l[2], event.xclient.data.l[3], event.xclient.data.l[4]);
 					break;
 				default:
@@ -344,11 +341,11 @@ bool OpenGL_Create(SVideoInitialize &_VideoInitialize, int _iwidth, int _iheight
 		None };
 
 	GLWin.dpy = XOpenDisplay(0);
+	GLWin.evdpy = XOpenDisplay(0);
 	GLWin.parent = (Window)g_VideoInitialize.pWindowHandle;
 	GLWin.screen = DefaultScreen(GLWin.dpy);
 	if (GLWin.parent == 0)
 		GLWin.parent = RootWindow(GLWin.dpy, GLWin.screen);
-	XkbSetDetectableAutoRepeat(GLWin.dpy, True, NULL);
 
 	glXQueryVersion(GLWin.dpy, &glxMajorVersion, &glxMinorVersion);
 	NOTICE_LOG(VIDEO, "glX-Version %d.%d", glxMajorVersion, glxMinorVersion);
@@ -404,8 +401,10 @@ bool OpenGL_MakeCurrent()
 #elif defined(_WIN32)
 	return wglMakeCurrent(hDC,hRC) ? true : false;
 #elif defined(HAVE_X11) && HAVE_X11
+#if defined(HAVE_WX) && (HAVE_WX)
 	g_VideoInitialize.pRequestWindowSize(GLWin.x, GLWin.y, (int&)GLWin.width, (int&)GLWin.height);
 	XMoveResizeWindow(GLWin.dpy, GLWin.win, GLWin.x, GLWin.y, GLWin.width, GLWin.height);
+#endif
 	return glXMakeCurrent(GLWin.dpy, GLWin.win, GLWin.ctx);
 #endif
 	return true;
@@ -492,6 +491,7 @@ void OpenGL_Shutdown()
 	{
 		glXDestroyContext(GLWin.dpy, GLWin.ctx);
 		XCloseDisplay(GLWin.dpy);
+		XCloseDisplay(GLWin.evdpy);
 		GLWin.ctx = NULL;
 	}
 #endif

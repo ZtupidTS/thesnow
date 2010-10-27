@@ -155,7 +155,7 @@ void Enumerate()
 		bool isNvidia = a.ident.VendorId == VENDOR_NVIDIA;
 		
 		// Add SuperSamples modes
-		a.aa_levels.push_back(AALevel("NONE", D3DMULTISAMPLE_NONE, 0));
+		a.aa_levels.push_back(AALevel("None", D3DMULTISAMPLE_NONE, 0));
 		a.aa_levels.push_back(AALevel("4x SSAA", D3DMULTISAMPLE_NONE, 0));
 		a.aa_levels.push_back(AALevel("9x SSAA", D3DMULTISAMPLE_NONE, 0));		
 		//Add multisample modes
@@ -265,7 +265,6 @@ HRESULT LoadD3DX9()
 	hD3DXDll = LoadLibraryA(StringFromFormat("d3dx9_%d.dll", D3DX_SDK_VERSION).c_str());
 	if (hD3DXDll != NULL)
 	{
-		NOTICE_LOG(VIDEO, "Successfully loaded %s.", StringFromFormat("d3dx9_%d.dll", D3DX_SDK_VERSION).c_str());
 		hr = S_OK;
 	}
 	else

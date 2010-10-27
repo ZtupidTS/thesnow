@@ -24,7 +24,7 @@
 #include "Fifo.h"
 #include "Statistics.h"
 #include "Profiler.h"
-#include "FBManager.h"
+#include "FramebufferManager.h"
 #include "VertexManager.h"
 #include "OpcodeDecoding.h"
 #include "IndexGenerator.h"
@@ -33,264 +33,145 @@
 #include "PixelShaderManager.h"
 #include "PixelShaderCache.h"
 #include "NativeVertexFormat.h"
-#include "NativeVertexWriter.h"
 #include "TextureCache.h"
+#include "main.h"
 
 #include "BPStructs.h"
 #include "XFStructs.h"
 
 #include "Globals.h"
 
-#include <string>
-using std::string;
+// internal state for loading vertices
+extern NativeVertexFormat *g_nativeVertexFmt;
 
-using namespace D3D;
-
-extern NativeVertexFormat* g_nativeVertexFmt;
-
-namespace VertexManager
+namespace DX11
 {
 
-#define MAXVBUFFERSIZE 0x50000
-#define MAXIBUFFERSIZE 0x10000
+// TODO: Find sensible values for these two
+const UINT IBUFFER_SIZE = VertexManager::MAXIBUFFERSIZE*2 * 16;
+const UINT VBUFFER_SIZE = VertexManager::MAXVBUFFERSIZE * 16;
 
-// TODO: find sensible values for these two
-#define NUM_VERTEXBUFFERS 8
-#define NUM_INDEXBUFFERS 10
-
-int lastPrimitive;
-
-u8* LocalVBuffer = NULL;
-u16* TIBuffer = NULL;
-u16* LIBuffer = NULL;
-u16* PIBuffer = NULL;
-bool Flushed=false;
-
-ID3D11Buffer* indexbuffers[NUM_INDEXBUFFERS] = {NULL};
-ID3D11Buffer* vertexbuffers[NUM_VERTEXBUFFERS] = {NULL};
-
-inline ID3D11Buffer* GetSuitableIndexBuffer(const u32 minsize)
+void VertexManager::CreateDeviceObjects()
 {
-	for (u32 k = 0;k < NUM_INDEXBUFFERS-1;k++)
-		if (minsize > 2 * (((u32)MAXIBUFFERSIZE)>>(k+1)))
-			return indexbuffers[k];
-	return indexbuffers[NUM_INDEXBUFFERS-1];
+	D3D11_BUFFER_DESC bufdesc = CD3D11_BUFFER_DESC(IBUFFER_SIZE,
+		D3D11_BIND_INDEX_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
+
+	CHECK(SUCCEEDED(D3D::device->CreateBuffer(&bufdesc, NULL, &m_indexBuffer)),
+		"Failed to create index buffer.");
+	D3D::SetDebugObjectName((ID3D11DeviceChild*)m_indexBuffer, "index buffer of VertexManager");
+
+	bufdesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	bufdesc.ByteWidth = VBUFFER_SIZE;
+
+	CHECK(SUCCEEDED(D3D::device->CreateBuffer(&bufdesc, NULL, &m_vertexBuffer)),
+		"Failed to create vertex buffer.");
+	D3D::SetDebugObjectName((ID3D11DeviceChild*)m_vertexBuffer, "vertex buffer of VertexManager");
+
+	m_indexBufferCursor = 0;
+	m_vertexBufferCursor = 0;
+	m_vertexDrawOffset = 0;
+
+	m_triangleDrawIndex = 0;
+	m_lineDrawIndex = 0;
+	m_pointDrawIndex = 0;
 }
 
-inline ID3D11Buffer* GetSuitableVertexBuffer(const u32 minsize)
+void VertexManager::DestroyDeviceObjects()
 {
-	for (u32 k = 0;k < NUM_VERTEXBUFFERS-1;++k)
-		if (minsize > (((u32)MAXVBUFFERSIZE)>>(k+1)))
-			return vertexbuffers[k];
-	return vertexbuffers[NUM_VERTEXBUFFERS-1];
+	SAFE_RELEASE(m_vertexBuffer);
+	SAFE_RELEASE(m_indexBuffer);
 }
 
-void CreateDeviceObjects()
+VertexManager::VertexManager() :
+	m_indexBufferCursor(0),
+	m_vertexBufferCursor(0),
+	m_vertexDrawOffset(0),
+	m_triangleDrawIndex(0),
+	m_lineDrawIndex(0),
+	m_pointDrawIndex(0),
+	m_indexBuffer(NULL),
+	m_vertexBuffer(NULL)
 {
-	D3D11_BUFFER_DESC bufdesc;
-	HRESULT hr;
-	for (u32 k = 0;k < NUM_INDEXBUFFERS;++k)
-	{	
-		bufdesc = CD3D11_BUFFER_DESC(2*(MAXIBUFFERSIZE>>k), D3D11_BIND_INDEX_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
-		hr = D3D::device->CreateBuffer(&bufdesc, NULL, &indexbuffers[k]);
-		if (FAILED(hr)) PanicAlert("Failed to create index buffer, %s %d\n", __FILE__, __LINE__);
-		D3D::SetDebugObjectName((ID3D11DeviceChild*)indexbuffers[k], "an index buffer of VertexManager");
-	}
-	
-	for (u32 k = 0;k < NUM_VERTEXBUFFERS;++k)
-	{
-		bufdesc = CD3D11_BUFFER_DESC(MAXVBUFFERSIZE >> k, D3D11_BIND_VERTEX_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
-		hr = D3D::device->CreateBuffer(&bufdesc, NULL, &vertexbuffers[k]);
-		if (FAILED(hr)) PanicAlert("Failed to create vertex buffer, %s %d\n", __FILE__, __LINE__);
-		D3D::SetDebugObjectName((ID3D11DeviceChild*)vertexbuffers[k], "a vertex buffer of VertexManager");
-	}
-}
-
-void DestroyDeviceObjects()
-{
-	for (u32 k = 0;k < NUM_INDEXBUFFERS;++k)
-		SAFE_RELEASE(indexbuffers[k]);
-
-	for (u32 k = 0;k < NUM_VERTEXBUFFERS;++k)
-		SAFE_RELEASE(vertexbuffers[k]);
-}
-
-bool Init()
-{
-	LocalVBuffer = new u8[MAXVBUFFERSIZE];
-	TIBuffer = new u16[MAXIBUFFERSIZE];
-	LIBuffer = new u16[MAXIBUFFERSIZE];
-	PIBuffer = new u16[MAXIBUFFERSIZE];
-	s_pCurBufferPointer = LocalVBuffer;
-	Flushed=false;
-
 	CreateDeviceObjects();
-
-	IndexGenerator::Start(TIBuffer,LIBuffer,PIBuffer);
-	return true;
 }
 
-void ResetBuffer()
-{
-	s_pCurBufferPointer = LocalVBuffer;
-}
-
-void Shutdown()
+VertexManager::~VertexManager()
 {
 	DestroyDeviceObjects();
-	SAFE_DELETE_ARRAY(LocalVBuffer);
-	SAFE_DELETE_ARRAY(TIBuffer);
-	SAFE_DELETE_ARRAY(LIBuffer);
-	SAFE_DELETE_ARRAY(PIBuffer);
-	ResetBuffer();
 }
 
-void AddIndices(int _primitive, int _numVertices)
-{
-	switch (_primitive)
-	{
-		case GX_DRAW_QUADS:          IndexGenerator::AddQuads(_numVertices);     break;
-		case GX_DRAW_TRIANGLES:      IndexGenerator::AddList(_numVertices);      break;
-		case GX_DRAW_TRIANGLE_STRIP: IndexGenerator::AddStrip(_numVertices);     break;
-		case GX_DRAW_TRIANGLE_FAN:   IndexGenerator::AddFan(_numVertices);       break;
-		case GX_DRAW_LINE_STRIP:     IndexGenerator::AddLineStrip(_numVertices); break;
-		case GX_DRAW_LINES:          IndexGenerator::AddLineList(_numVertices);  break;
-		case GX_DRAW_POINTS:         IndexGenerator::AddPoints(_numVertices);    break;
-	}
-}
-
-int GetRemainingSize()
-{
-	return MAXVBUFFERSIZE - (int)(s_pCurBufferPointer - LocalVBuffer);
-}
-
-int GetRemainingVertices(int primitive)
-{
-	switch (primitive)
-	{
-		case GX_DRAW_QUADS:
-		case GX_DRAW_TRIANGLES:
-		case GX_DRAW_TRIANGLE_STRIP:
-		case GX_DRAW_TRIANGLE_FAN:
-			return (MAXIBUFFERSIZE - IndexGenerator::GetTriangleindexLen())/3;
-		case GX_DRAW_LINE_STRIP:
-		case GX_DRAW_LINES:
-			return (MAXIBUFFERSIZE - IndexGenerator::GetLineindexLen())/2;
-		case GX_DRAW_POINTS:
-			return (MAXIBUFFERSIZE - IndexGenerator::GetPointindexLen());
-		default: return 0;
-	}
-}
-
-void AddVertices(int _primitive, int _numVertices)
-{
-	if (_numVertices <= 0) return;
-
-	switch (_primitive)
-	{
-		case GX_DRAW_QUADS:
-		case GX_DRAW_TRIANGLES:
-		case GX_DRAW_TRIANGLE_STRIP:
-		case GX_DRAW_TRIANGLE_FAN:
-			if (MAXIBUFFERSIZE - IndexGenerator::GetTriangleindexLen() < 3 * _numVertices)
-			Flush();
-			break;
-		case GX_DRAW_LINE_STRIP:
-		case GX_DRAW_LINES:
-			if (MAXIBUFFERSIZE - IndexGenerator::GetLineindexLen() < 2 * _numVertices)
-			Flush();
-			break;
-		case GX_DRAW_POINTS:
-			if (MAXIBUFFERSIZE - IndexGenerator::GetPointindexLen() < _numVertices)
-			Flush();
-			break;
-		default: return;
-	}
-	if (Flushed)
-	{
-		IndexGenerator::Start(TIBuffer,LIBuffer,PIBuffer);
-		Flushed=false;
-	}
-	lastPrimitive = _primitive;
-	ADDSTAT(stats.thisFrame.numPrims, _numVertices);
-	INCSTAT(stats.thisFrame.numPrimitiveJoins);
-	AddIndices(_primitive, _numVertices);
-}
-
-inline void Draw(u32 stride, bool alphapass)
+void VertexManager::LoadBuffers()
 {
 	D3D11_MAPPED_SUBRESOURCE map;
-	ID3D11Buffer* vertexbuffer = GetSuitableVertexBuffer((u32)(s_pCurBufferPointer - LocalVBuffer));
 
-	if (!alphapass)
+	UINT vSize = UINT(s_pCurBufferPointer - LocalVBuffer);
+	if (m_vertexBufferCursor + vSize >= VBUFFER_SIZE)
 	{
-		context->Map(vertexbuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
-		memcpy(map.pData, LocalVBuffer, (u32)(s_pCurBufferPointer - LocalVBuffer));
-		context->Unmap(vertexbuffer, 0);
+		// Wrap around
+		D3D::context->Map(m_vertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
+		m_vertexBufferCursor = 0;
 	}
+	else
+	{
+		// Append data
+		D3D::context->Map(m_vertexBuffer, 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &map);
+	}
+	memcpy((u8*)map.pData + m_vertexBufferCursor, LocalVBuffer, vSize);
+	D3D::context->Unmap(m_vertexBuffer, 0);
+	m_vertexDrawOffset = m_vertexBufferCursor;
+	m_vertexBufferCursor += vSize;
 
-	UINT bufoffset = 0;
-	UINT bufstride = stride;
+	UINT iCount = IndexGenerator::GetTriangleindexLen() +
+		IndexGenerator::GetLineindexLen() + IndexGenerator::GetPointindexLen();
+	if (m_indexBufferCursor + iCount >= IBUFFER_SIZE/2)
+	{
+		// Wrap around
+		D3D::context->Map(m_indexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
+		m_indexBufferCursor = 0;
+	}
+	else
+	{
+		// Append data
+		D3D::context->Map(m_indexBuffer, 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &map);
+	}
+	m_triangleDrawIndex = m_indexBufferCursor;
+	m_lineDrawIndex = m_triangleDrawIndex + IndexGenerator::GetTriangleindexLen();
+	m_pointDrawIndex = m_lineDrawIndex + IndexGenerator::GetLineindexLen();
+	memcpy((u16*)map.pData + m_triangleDrawIndex, TIBuffer, 2*IndexGenerator::GetTriangleindexLen());
+	memcpy((u16*)map.pData + m_lineDrawIndex, LIBuffer, 2*IndexGenerator::GetLineindexLen());
+	memcpy((u16*)map.pData + m_pointDrawIndex, PIBuffer, 2*IndexGenerator::GetPointindexLen());
+	D3D::context->Unmap(m_indexBuffer, 0);
+	m_indexBufferCursor += iCount;
+}
 
-	if (!alphapass) gfxstate->ApplyState();
-	else gfxstate->AlphaPass();
+void VertexManager::Draw(UINT stride)
+{
+	D3D::gfxstate->ApplyState();
+
+	D3D::context->IASetVertexBuffers(0, 1, &m_vertexBuffer, &stride, &m_vertexDrawOffset);
+	D3D::context->IASetIndexBuffer(m_indexBuffer, DXGI_FORMAT_R16_UINT, 0);
+
 	if (IndexGenerator::GetNumTriangles() > 0)
 	{
-		u32 indexbuffersize = IndexGenerator::GetTriangleindexLen();
-		ID3D11Buffer* indexbuffer = GetSuitableIndexBuffer(2*indexbuffersize);
-		if (!alphapass)
-		{
-			D3D::context->Map(indexbuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
-			memcpy(map.pData, TIBuffer, 2*indexbuffersize);
-			D3D::context->Unmap(indexbuffer, 0);
-		}
-
 		D3D::context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		D3D::context->IASetVertexBuffers(0, 1, &vertexbuffer, &bufstride, &bufoffset);
-		D3D::context->IASetIndexBuffer(indexbuffer, DXGI_FORMAT_R16_UINT, 0);
-
-		D3D::context->DrawIndexed(indexbuffersize, 0, 0);
+		D3D::context->DrawIndexed(IndexGenerator::GetTriangleindexLen(), m_triangleDrawIndex, 0);
 		INCSTAT(stats.thisFrame.numIndexedDrawCalls);
 	}
 	if (IndexGenerator::GetNumLines() > 0)
 	{
-		u32 indexbuffersize = IndexGenerator::GetLineindexLen();
-		ID3D11Buffer* indexbuffer = GetSuitableIndexBuffer(2*indexbuffersize);
-		if (!alphapass)
-		{
-			D3D::context->Map(indexbuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
-			memcpy(map.pData, LIBuffer, 2*indexbuffersize);
-			D3D::context->Unmap(indexbuffer, 0);
-		}
-
 		D3D::context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
-		D3D::context->IASetVertexBuffers(0, 1, &vertexbuffer, &bufstride, &bufoffset);
-		D3D::context->IASetIndexBuffer(indexbuffer, DXGI_FORMAT_R16_UINT, 0);
-
-		D3D::context->DrawIndexed(indexbuffersize, 0, 0);
+		D3D::context->DrawIndexed(IndexGenerator::GetLineindexLen(), m_lineDrawIndex, 0);
 		INCSTAT(stats.thisFrame.numIndexedDrawCalls);
 	}
 	if (IndexGenerator::GetNumPoints() > 0)
 	{
-		u32 indexbuffersize = IndexGenerator::GetPointindexLen();
-		ID3D11Buffer* indexbuffer = GetSuitableIndexBuffer(2*indexbuffersize);
-		if (!alphapass)
-		{
-			D3D::context->Map(indexbuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
-			memcpy(map.pData, PIBuffer, 2*indexbuffersize);
-			D3D::context->Unmap(indexbuffer, 0);
-		}
-
 		D3D::context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
-		D3D::context->IASetVertexBuffers(0, 1, &vertexbuffer, &bufstride, &bufoffset);
-		D3D::context->IASetIndexBuffer(indexbuffer, DXGI_FORMAT_R16_UINT, 0);
-
-		D3D::context->DrawIndexed(indexbuffersize, 0, 0);
+		D3D::context->DrawIndexed(IndexGenerator::GetPointindexLen(), m_pointDrawIndex, 0);
 		INCSTAT(stats.thisFrame.numIndexedDrawCalls);
 	}
 }
 
-void Flush()
+void VertexManager::vFlush()
 {
 	if (LocalVBuffer == s_pCurBufferPointer) return;
 	if (Flushed) return;
@@ -301,10 +182,8 @@ void Flush()
 
 	u32 usedtextures = 0;
 	for (u32 i = 0; i < (u32)bpmem.genMode.numtevstages + 1; ++i)
-	{
-		if (bpmem.tevorders[i/2].getEnable(i & 1))
+		if (bpmem.tevorders[i / 2].getEnable(i & 1))
 			usedtextures |= 1 << bpmem.tevorders[i/2].getTexMap(i & 1);
-	}
 
 	if (bpmem.genMode.numindstages > 0)
 		for (unsigned int i = 0; i < bpmem.genMode.numtevstages + 1; ++i)
@@ -316,33 +195,37 @@ void Flush()
 		if (usedtextures & (1 << i))
 		{
 			Renderer::SetSamplerState(i & 3, i >> 2);
-			FourTexUnits &tex = bpmem.tex[i >> 2];
-			TextureCache::TCacheEntry* tentry = TextureCache::Load(i, 
-							(tex.texImage3[i&3].image_base/* & 0x1FFFFF*/) << 5,
-							tex.texImage0[i&3].width + 1, tex.texImage0[i&3].height + 1,
-							tex.texImage0[i&3].format, tex.texTlut[i&3].tmem_offset<<9, 
-							tex.texTlut[i&3].tlut_format,
-							(tex.texMode0[i&3].min_filter & 3) && (tex.texMode0[i&3].min_filter != 8) && g_ActiveConfig.bUseNativeMips,
-							(tex.texMode1[i&3].max_lod >> 4));
+			const FourTexUnits &tex = bpmem.tex[i >> 2];
+			const TextureCache::TCacheEntryBase* tentry = TextureCache::Load(i, 
+				(tex.texImage3[i&3].image_base/* & 0x1FFFFF*/) << 5,
+				tex.texImage0[i&3].width + 1, tex.texImage0[i&3].height + 1,
+				tex.texImage0[i&3].format, tex.texTlut[i&3].tmem_offset<<9, 
+				tex.texTlut[i&3].tlut_format,
+				(tex.texMode0[i&3].min_filter & 3) && (tex.texMode0[i&3].min_filter != 8) && g_ActiveConfig.bUseNativeMips,
+				(tex.texMode1[i&3].max_lod >> 4));
 
 			if (tentry)
 			{
-				PixelShaderManager::SetTexDims(i, tentry->w, tentry->h, 0, 0);
-				if (tentry->scaleX != 1.0f || tentry->scaleY != 1.0f)
-					PixelShaderManager::SetCustomTexScale(i, tentry->scaleX, tentry->scaleY);
+				// 0s are probably for no manual wrapping needed.
+				PixelShaderManager::SetTexDims(i, tentry->realW, tentry->realH, 0, 0);
 			}
 			else
-			{
 				ERROR_LOG(VIDEO, "error loading texture");
-			}
 		}
 	}
-	PixelShaderManager::SetTexturesUsed(0);
 
+	// set global constants
 	VertexShaderManager::SetConstants();
 	PixelShaderManager::SetConstants();
 
-	if (!PixelShaderCache::SetShader(false))
+	bool useDstAlpha = bpmem.dstalpha.enable && bpmem.blendmode.alphaupdate &&
+		bpmem.zcontrol.pixel_format == PIXELFMT_RGBA6_Z24;
+
+	D3D::gfxstate->SetDstAlpha(useDstAlpha);
+
+	if (!PixelShaderCache::SetShader(
+		useDstAlpha ? DSTALPHA_DUAL_SOURCE_BLEND : DSTALPHA_NONE,
+		g_nativeVertexFmt->m_components))
 		goto shader_fail;
 	if (!VertexShaderCache::SetShader(g_nativeVertexFmt->m_components))
 		goto shader_fail;
@@ -350,18 +233,10 @@ void Flush()
 	unsigned int stride = g_nativeVertexFmt->GetVertexStride();
 	g_nativeVertexFmt->SetupVertexPointers();
 
-	Draw(stride, false);
+	LoadBuffers();
+	Draw(stride);
 
-	if (bpmem.dstalpha.enable && bpmem.blendmode.alphaupdate)
-	{
-		DWORD write = 0;
-		if (!PixelShaderCache::SetShader(true))
-			goto shader_fail;
-
-		// update alpha only
-		Draw(stride, true);
-	}
-	gfxstate->Reset();
+	D3D::gfxstate->Reset();
 
 shader_fail:
 	ResetBuffer();

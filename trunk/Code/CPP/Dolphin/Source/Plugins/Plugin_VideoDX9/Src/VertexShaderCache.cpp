@@ -37,7 +37,6 @@
 VertexShaderCache::VSCache VertexShaderCache::vshaders;
 const VertexShaderCache::VSCacheEntry *VertexShaderCache::last_entry;
 
-static float GC_ALIGNED16(lastVSconstants[C_VENVCONST_END][4]);
 #define MAX_SSAA_SHADERS 3
 
 static LPDIRECT3DVERTEXSHADER9 SimpleVertexShader[MAX_SSAA_SHADERS];
@@ -58,71 +57,46 @@ LPDIRECT3DVERTEXSHADER9 VertexShaderCache::GetClearVertexShader()
 
 void SetVSConstant4f(unsigned int const_number, float f1, float f2, float f3, float f4)
 {
-	if (lastVSconstants[const_number][0] != f1 || 
-		lastVSconstants[const_number][1] != f2 ||
-		lastVSconstants[const_number][2] != f3 ||
-		lastVSconstants[const_number][3] != f4)
-	{
-		lastVSconstants[const_number][0] = f1;
-		lastVSconstants[const_number][1] = f2;
-		lastVSconstants[const_number][2] = f3;
-		lastVSconstants[const_number][3] = f4;
-		D3D::dev->SetVertexShaderConstantF(const_number, lastVSconstants[const_number], 1);
-	}
+	const float f[4] = { f1, f2, f3, f4 };
+	D3D::dev->SetVertexShaderConstantF(const_number, f, 1);
 }
 
 void SetVSConstant4fv(unsigned int const_number, const float *f)
 {
-	if (memcmp(&lastVSconstants[const_number], f, sizeof(float) * 4)) {
-		memcpy(&lastVSconstants[const_number], f, sizeof(float) * 4);
-		D3D::dev->SetVertexShaderConstantF(const_number, lastVSconstants[const_number], 1);
-	}	
+	D3D::dev->SetVertexShaderConstantF(const_number, f, 1);
 }
 
 void SetMultiVSConstant3fv(unsigned int const_number, unsigned int count, const float *f)
 {
-	bool change = false;
+	float buf[4*C_VENVCONST_END];
 	for (unsigned int i = 0; i < count; i++)
 	{
-		if (lastVSconstants[const_number + i][0] != f[0 + i*3] || 
-			lastVSconstants[const_number + i][1] != f[1 + i*3] ||
-			lastVSconstants[const_number + i][2] != f[2 + i*3])
-		{
-			change = true;
-			break;
-		}
+		buf[4*i  ] = *f++;
+		buf[4*i+1] = *f++;
+		buf[4*i+2] = *f++;
+		buf[4*i+3] = 0.f;
 	}
-	if (change)
-	{
-		for (unsigned int i = 0; i < count; i++)
-		{
-			lastVSconstants[const_number + i][0] = f[0 + i*3];
-			lastVSconstants[const_number + i][1] = f[1 + i*3];
-			lastVSconstants[const_number + i][2] = f[2 + i*3];
-			lastVSconstants[const_number + i][3] = 0.0f;
-		}
-		D3D::dev->SetVertexShaderConstantF(const_number, lastVSconstants[const_number], count);
-	}
+	D3D::dev->SetVertexShaderConstantF(const_number, buf, count);
 }
 
 void SetMultiVSConstant4fv(unsigned int const_number, unsigned int count, const float *f)
 {
-	if (memcmp(&lastVSconstants[const_number], f, count * sizeof(float) * 4)) {
-		memcpy(&lastVSconstants[const_number], f, count * sizeof(float) * 4);
-		D3D::dev->SetVertexShaderConstantF(const_number, lastVSconstants[const_number], count);
-	}
+	D3D::dev->SetVertexShaderConstantF(const_number, f, count);
 }
 
+// this class will load the precompiled shaders into our cache
 class VertexShaderCacheInserter : public LinearDiskCacheReader {
 public:
 	void Read(const u8 *key, int key_size, const u8 *value, int value_size)
 	{
 		VERTEXSHADERUID uid;
-		if (key_size != sizeof(uid)) {
+		if (key_size != sizeof(uid))
+		{
 			ERROR_LOG(VIDEO, "Wrong key size in vertex shader cache");
 			return;
 		}
 		memcpy(&uid, key, key_size);
+
 		VertexShaderCache::InsertByteCode(uid, value, value_size, false);
 	}
 };
@@ -208,18 +182,15 @@ void VertexShaderCache::Init()
 	char cache_filename[MAX_PATH];
 	sprintf(cache_filename, "%sdx9-%s-vs.cache", File::GetUserPath(D_SHADERCACHE_IDX), globals->unique_id);
 	VertexShaderCacheInserter inserter;
-	int read_items = g_vs_disk_cache.OpenAndRead(cache_filename, &inserter);
+	g_vs_disk_cache.OpenAndRead(cache_filename, &inserter);
 }
 
 void VertexShaderCache::Clear()
 {
-	VSCache::iterator iter = vshaders.begin();
-	for (; iter != vshaders.end(); ++iter)
+	for (VSCache::iterator iter = vshaders.begin(); iter != vshaders.end(); ++iter)
 		iter->second.Destroy();
 	vshaders.clear();
 
-	for (int i = 0; i < (C_VENVCONST_END * 4); i++)
-		lastVSconstants[i / 4][i % 4] = -100000000.0f;
 	memset(&last_vertex_shader_uid, 0xFF, sizeof(last_vertex_shader_uid));
 }
 
@@ -248,16 +219,11 @@ bool VertexShaderCache::SetShader(u32 components)
 	VERTEXSHADERUID uid;
 	GetVertexShaderId(&uid, components);
 	if (uid == last_vertex_shader_uid && vshaders[uid].frameCount == frameCount)
-	{
-		if (vshaders[uid].shader)
-			return true;
-		else
-			return false;
-	}
+		return (vshaders[uid].shader != NULL);
+
 	memcpy(&last_vertex_shader_uid, &uid, sizeof(VERTEXSHADERUID));
 
-	VSCache::iterator iter;
-	iter = vshaders.find(uid);
+	VSCache::iterator iter = vshaders.find(uid);
 	if (iter != vshaders.end())
 	{
 		iter->second.frameCount = frameCount;

@@ -35,48 +35,39 @@
 static int s_nMaxPixelInstructions;
 static GLuint s_ColorMatrixProgram = 0;
 static GLuint s_DepthMatrixProgram = 0;
-PixelShaderCache::PSCache PixelShaderCache::pshaders;
+PixelShaderCache::PSCache PixelShaderCache::PixelShaders;
 PIXELSHADERUID PixelShaderCache::s_curuid;
 bool PixelShaderCache::s_displayCompileAlert;
 GLuint PixelShaderCache::CurrentShader;
 bool PixelShaderCache::ShaderEnabled;
 
 static FRAGMENTSHADER* pShaderLast = NULL;
-static float lastPSconstants[C_PENVCONST_END][4];
 
+GLuint PixelShaderCache::GetDepthMatrixProgram()
+{
+	return s_DepthMatrixProgram;
+}
+
+GLuint PixelShaderCache::GetColorMatrixProgram()
+{
+	return s_ColorMatrixProgram;
+}
 
 void SetPSConstant4f(unsigned int const_number, float f1, float f2, float f3, float f4)
 {
-	if (lastPSconstants[const_number][0] != f1 || lastPSconstants[const_number][1] != f2 ||
-		lastPSconstants[const_number][2] != f3 || lastPSconstants[const_number][3] != f4)
-	{
-		lastPSconstants[const_number][0] = f1;
-		lastPSconstants[const_number][1] = f2;
-		lastPSconstants[const_number][2] = f3;
-		lastPSconstants[const_number][3] = f4;
-		glProgramEnvParameter4fvARB(GL_FRAGMENT_PROGRAM_ARB, const_number, lastPSconstants[const_number]);
-		
-	}
+	float f[4] = { f1, f2, f3, f4 };
+	glProgramEnvParameter4fvARB(GL_FRAGMENT_PROGRAM_ARB, const_number, f);
 }
 
 void SetPSConstant4fv(unsigned int const_number, const float *f)
 {
-	if (memcmp(&lastPSconstants[const_number], f, sizeof(float) * 4)) {
-		memcpy(&lastPSconstants[const_number], f, sizeof(float) * 4);
-		glProgramEnvParameter4fvARB(GL_FRAGMENT_PROGRAM_ARB, const_number, f);
-	}	
+	glProgramEnvParameter4fvARB(GL_FRAGMENT_PROGRAM_ARB, const_number, f);
 }
 
 void SetMultiPSConstant4fv(unsigned int const_number, unsigned int count, const float *f)
 {
-	const float *f0 = f;
-	for (unsigned int i = 0; i < count ;i++,f0+=4)
-	{
-		if (memcmp(&lastPSconstants[const_number + i], f0, sizeof(float) * 4)) {
-			memcpy(&lastPSconstants[const_number + i], f0, sizeof(float) * 4);		
-				glProgramEnvParameter4fvARB(GL_FRAGMENT_PROGRAM_ARB, const_number + i, lastPSconstants[const_number + i]);
-		}
-	}
+	for (unsigned int i = 0; i < count; i++,f+=4)
+		glProgramEnvParameter4fvARB(GL_FRAGMENT_PROGRAM_ARB, const_number + i, f);
 }
 
 void PixelShaderCache::Init()
@@ -86,13 +77,12 @@ void PixelShaderCache::Init()
 	CurrentShader = 0;
 	GL_REPORT_ERRORD();
 
-	for (unsigned int i = 0; i < (C_PENVCONST_END) * 4; i++)
-		lastPSconstants[i/4][i%4] = -100000000.0f;
 	memset(&last_pixel_shader_uid, 0xFF, sizeof(last_pixel_shader_uid));
 
 	s_displayCompileAlert = true;
 
 	glGetProgramivARB(GL_FRAGMENT_PROGRAM_ARB, GL_MAX_PROGRAM_NATIVE_ALU_INSTRUCTIONS_ARB, (GLint *)&s_nMaxPixelInstructions);
+	if (strstr((const char*)glGetString(GL_VENDOR), "Humper") != NULL) s_nMaxPixelInstructions = 4096;
 #if CG_VERSION_NUM == 2100
 	if (strstr((const char*)glGetString(GL_VENDOR), "ATI") != NULL)
 	{
@@ -127,17 +117,42 @@ void PixelShaderCache::Init()
 		s_ColorMatrixProgram = 0;
 	}
 
-    sprintf(pmatrixprog, "!!ARBfp1.0"
+    sprintf(pmatrixprog, "!!ARBfp1.0\n"
 						"TEMP R0;\n"
 						"TEMP R1;\n"
                         "TEMP R2;\n"
-                        "PARAM K0 = { 65535.0, 255.0,1.0,16777215.0};\n" 
-						"PARAM K1 = { 0.999999940395355224609375, 1.0000000596046483281045155587504,0.0,0.0};\n" 
+                        //16777215/16777216*256, 1/255, 256, 0
+                        "PARAM K0 = { 255.99998474121, 0.003921568627451, 256.0, 0.0};\n" 
+                        //sample the depth value
 						"TEX R2, fragment.texcoord[0], texture[0], RECT;\n"
-						"MUL R0, R2.x, K1.x;\n"
-                        "MUL R0, R0.x, K0;\n"						
-                        "FRC R0, R0;\n"
-						"MUL R0, R0, K1.y;\n"
+
+                        //scale from [0*16777216..1*16777216] to
+                        //[0*16777215..1*16777215], multiply by 256
+						"MUL R0, R2.x, K0.x;\n" // *16777215/16777216*256
+
+                        //It is easy to get bad results due to low precision
+                        //here, for example converting like this:
+                        //MUL R0,R0,{ 65536, 256, 1, 16777216 }
+                        //FRC R0,R0
+                        //gives {?, 128/255, 254/255, ?} for depth value 254/255
+                        //on some gpus
+
+                        "FLR R0.z,R0;\n"        //bits 31..24
+
+                        "SUB R0.xyw,R0,R0.z;\n" //subtract bits 31..24 from rest
+                        "MUL R0.xyw,R0,K0.z;\n" // *256
+                        "FLR R0.y,R0;\n"        //bits 23..16
+
+                        "SUB R0.xw,R0,R0.y;\n"  //subtract bits 23..16 from rest
+                        "MUL R0.xw,R0,K0.z;\n"  // *256
+                        "FLR R0.x,R0;\n"        //bits 15..8
+
+                        "SUB R0.w,R0,R0.x;\n"   //subtract bits 15..8 from rest
+                        "MUL R0.w,R0,K0.z;\n"   // *256
+                        "FLR R0.w,R0;\n"        //bits 7..0
+
+                        "MUL R0,R0,K0.y;\n"     // /255
+
 						"DP4 R1.x, R0, program.env[%d];\n"
 						"DP4 R1.y, R0, program.env[%d];\n"
                         "DP4 R1.z, R0, program.env[%d];\n"
@@ -163,38 +178,30 @@ void PixelShaderCache::Shutdown()
 	s_ColorMatrixProgram = 0;
     glDeleteProgramsARB(1, &s_DepthMatrixProgram);
 	s_DepthMatrixProgram = 0;
-	PSCache::iterator iter = pshaders.begin();
-	for (; iter != pshaders.end(); iter++)
+	PSCache::iterator iter = PixelShaders.begin();
+	for (; iter != PixelShaders.end(); iter++)
 		iter->second.Destroy();
-	pshaders.clear();
+	PixelShaders.clear();
 }
 
-GLuint PixelShaderCache::GetColorMatrixProgram()
-{
-	return s_ColorMatrixProgram;
-}
-
-GLuint PixelShaderCache::GetDepthMatrixProgram()
-{
-	return s_DepthMatrixProgram;
-}
-
-
-FRAGMENTSHADER* PixelShaderCache::GetShader(bool dstAlphaEnable)
+FRAGMENTSHADER* PixelShaderCache::SetShader(DSTALPHA_MODE dstAlphaMode, u32 components)
 {
 	DVSTARTPROFILE();
 	PIXELSHADERUID uid;
-	GetPixelShaderId(&uid, PixelShaderManager::GetTextureMask(), dstAlphaEnable ? 1 : 0);
-	if (uid == last_pixel_shader_uid && pshaders[uid].frameCount == frameCount)
+	GetPixelShaderId(&uid, dstAlphaMode);
+
+	// Check if the shader is already set
+	if (uid == last_pixel_shader_uid && PixelShaders[uid].frameCount == frameCount)
 	{
 		return pShaderLast;
 	}
 
 	memcpy(&last_pixel_shader_uid, &uid, sizeof(PIXELSHADERUID));
 
-	PSCache::iterator iter = pshaders.find(uid);
+	PSCache::iterator iter = PixelShaders.find(uid);
 
-	if (iter != pshaders.end()) {
+	if (iter != PixelShaders.end())
+	{
 		iter->second.frameCount = frameCount;
 		PSCacheEntry &entry = iter->second;
 		if (&entry.shader != pShaderLast)
@@ -206,11 +213,10 @@ FRAGMENTSHADER* PixelShaderCache::GetShader(bool dstAlphaEnable)
 	}
 
 	//Make an entry in the table
-	PSCacheEntry& newentry = pshaders[uid];
+	PSCacheEntry& newentry = PixelShaders[uid];
 	newentry.frameCount = frameCount;
 	pShaderLast = &newentry.shader;
-	const char *code = GeneratePixelShaderCode(PixelShaderManager::GetTextureMask(),
-                                               dstAlphaEnable,API_OPENGL);
+	const char *code = GeneratePixelShaderCode(dstAlphaMode, API_OPENGL, components);
 
 #if defined(_DEBUG) || defined(DEBUGFAST)
 	if (g_ActiveConfig.iLog & CONF_SAVESHADERS && code) {	
@@ -233,7 +239,7 @@ FRAGMENTSHADER* PixelShaderCache::GetShader(bool dstAlphaEnable)
 	}
 	
 	INCSTAT(stats.numPixelShadersCreated);
-	SETSTAT(stats.numPixelShadersAlive, pshaders.size());
+	SETSTAT(stats.numPixelShadersAlive, PixelShaders.size());
 	return pShaderLast;
 }
 

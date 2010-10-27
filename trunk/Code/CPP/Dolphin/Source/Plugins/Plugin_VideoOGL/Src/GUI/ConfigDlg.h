@@ -90,7 +90,7 @@ class GFXConfigDialogOGL : public wxDialog
 		wxPanel *m_PageGeneral;
 		wxPanel *m_PageAdvanced;
 		wxCheckBox *m_VSync;
-		wxCheckBox *m_NativeResolution, *m_2xResolution;
+		wxChoice *m_EFBScaleMode;
 		wxCheckBox *m_WidescreenHack;
 		wxCheckBox *m_ForceFiltering;
 		wxCheckBox *m_Crop;
@@ -98,7 +98,6 @@ class GFXConfigDialogOGL : public wxDialog
 		wxCheckBox *m_UseNativeMips;
 		wxCheckBox *m_EFBScaledCopy;
 		wxCheckBox *m_UseRealXFB;
-		wxCheckBox *m_AutoScale;
 		wxChoice *m_MaxAnisotropyCB;
 		wxChoice *m_MSAAModeCB, *m_PhackvalueCB, *m_PostShaderCB, *m_KeepAR;
 
@@ -119,6 +118,7 @@ class GFXConfigDialogOGL : public wxDialog
 		wxCheckBox *m_DumpEFBTarget;
 		wxCheckBox *m_DumpFrames;
 		wxCheckBox *m_FreeLook;
+		wxCheckBox *m_PixelLighting;		
 		wxStaticBox * m_StaticBox_EFB;
 		wxCheckBox *m_CheckBox_DisableCopyEFB;
 		wxRadioButton *m_Radio_CopyEFBToRAM, *m_Radio_CopyEFBToGL;
@@ -128,12 +128,14 @@ class GFXConfigDialogOGL : public wxDialog
 		wxRadioButton *m_Radio_SafeTextureCache_Safe;
 		wxRadioButton *m_Radio_SafeTextureCache_Normal;
 		wxRadioButton *m_Radio_SafeTextureCache_Fast;
+		wxCheckBox *m_DlistCaching;
 		// Screen size
 		wxStaticText *m_TextScreenWidth, *m_TextScreenHeight, *m_TextScreenLeft, *m_TextScreenTop;
 		wxSlider *m_SliderWidth, *m_SliderHeight, *m_SliderLeft, *m_SliderTop;
 		wxCheckBox *m_ScreenSize;
 
 		wxArrayString arrayStringFor_FullscreenCB;
+		wxArrayString arrayStringFor_EFBScale;
 		wxArrayString arrayStringFor_AspectRatio;
 		wxArrayString arrayStringFor_MaxAnisotropyCB;
 		wxArrayString arrayStringFor_MSAAModeCB;
@@ -147,14 +149,13 @@ class GFXConfigDialogOGL : public wxDialog
 			ID_PAGEADVANCED,
 
 			ID_VSYNC,
-			ID_NATIVERESOLUTION, ID_2X_RESOLUTION,
+			ID_EFBSCALEMODE,
 			ID_ASPECT, 
 			ID_CROP,
 			ID_USEREALXFB,
 			ID_USEXFB,
 			ID_USENATIVEMIPS,
 			ID_EFBSCALEDCOPY,
-			ID_AUTOSCALE,
 			ID_WIDESCREENHACK,
 
 			ID_FORCEFILTERING,
@@ -173,6 +174,7 @@ class GFXConfigDialogOGL : public wxDialog
 
 			ID_WIREFRAME,
 			ID_DISABLELIGHTING,
+			ID_PIXELLIGHTING,
 			ID_DISABLETEXTURING,
 			ID_DISABLEFOG,
 			ID_STATICBOX_EFB,
@@ -182,6 +184,7 @@ class GFXConfigDialogOGL : public wxDialog
 			ID_RADIO_SAFETEXTURECACHE_FAST,
 			ID_HACK,
 			ID_PHACKVALUE,
+			ID_DLISTCACHING,
 
 			ID_DUMPTEXTURES,
 			ID_HIRESTEXTURES,
@@ -200,6 +203,7 @@ class GFXConfigDialogOGL : public wxDialog
 			ID_POSTSHADERTEXT,
 			ID_RELOADSHADER,
 			ID_EDITSHADER,
+			
 		};
 
 		void LoadShaders();

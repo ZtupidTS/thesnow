@@ -29,7 +29,7 @@
 #include "Render.h"
 #include "ImageWrite.h"
 #include "BPMemory.h"
-#include "TextureMngr.h"
+#include "TextureCache.h"
 #include "PixelShaderCache.h"
 #include "PixelShaderManager.h"
 #include "VertexShaderCache.h"
@@ -41,166 +41,57 @@
 #include "OpcodeDecoding.h"
 #include "FileUtil.h"
 
+#include "main.h"
+
 // internal state for loading vertices
 extern NativeVertexFormat *g_nativeVertexFmt;
 
-namespace VertexManager
+namespace OGL
 {
 
-static int lastPrimitive;
+//static GLint max_Index_size = 0;
 
-static u8 *LocalVBuffer;
-static u16 *TIBuffer;
-static u16 *LIBuffer;
-static u16 *PIBuffer;
-static GLint max_Index_size = 0;
-#define MAXVBUFFERSIZE 0x1FFFF
-#define MAXIBUFFERSIZE 0xFFFF
-#define MAXVBOBUFFERCOUNT 0x8
+//static GLuint s_vboBuffers[MAXVBOBUFFERCOUNT] = {0};
+//static int s_nCurVBOIndex = 0; // current free buffer
 
-static GLuint s_vboBuffers[MAXVBOBUFFERCOUNT] = {0};
-static int s_nCurVBOIndex = 0; // current free buffer
-static bool Flushed=false;
-
-
-bool Init()
+VertexManager::VertexManager()
 {
-	lastPrimitive = GX_DRAW_NONE;
-	glGetIntegerv(GL_MAX_ELEMENTS_INDICES, (GLint *)&max_Index_size);
-	
-	if(max_Index_size>MAXIBUFFERSIZE)
-		max_Index_size = MAXIBUFFERSIZE;
-	
-	LocalVBuffer = new u8[MAXVBUFFERSIZE];
-	TIBuffer = new u16[max_Index_size];
-	LIBuffer = new u16[max_Index_size];
-	PIBuffer = new u16[max_Index_size];
-	IndexGenerator::Start(TIBuffer,LIBuffer,PIBuffer);
-	s_pCurBufferPointer = LocalVBuffer;
-	s_nCurVBOIndex = 0;
-	glGenBuffers(ARRAYSIZE(s_vboBuffers), s_vboBuffers);
+	// TODO: doesn't seem to be used anywhere
+
+	//glGetIntegerv(GL_MAX_ELEMENTS_INDICES, (GLint*)&max_Index_size);
+	//
+	//if (max_Index_size > MAXIBUFFERSIZE)
+	//	max_Index_size = MAXIBUFFERSIZE;
+	//
+	//GL_REPORT_ERRORD();
+
 	glEnableClientState(GL_VERTEX_ARRAY);
-	g_nativeVertexFmt = NULL;
-	Flushed=false;
 	GL_REPORT_ERRORD();
-	
-	return true;
 }
 
-void Shutdown()
+void VertexManager::Draw()
 {
-	delete [] LocalVBuffer;
-	delete [] TIBuffer;
-	delete [] LIBuffer;
-	delete [] PIBuffer;
-	glDeleteBuffers(ARRAYSIZE(s_vboBuffers), s_vboBuffers);
-	s_nCurVBOIndex = 0;
-}
-
-void ResetBuffer()
-{
-	s_nCurVBOIndex = (s_nCurVBOIndex + 1) % ARRAYSIZE(s_vboBuffers);
-	s_pCurBufferPointer = LocalVBuffer;
-}
-
-void AddIndices(int primitive, int numVertices)
-{
-	switch (primitive)
-	{
-		case GX_DRAW_QUADS:          IndexGenerator::AddQuads(numVertices);break;    
-		case GX_DRAW_TRIANGLES:      IndexGenerator::AddList(numVertices);break;
-		case GX_DRAW_TRIANGLE_STRIP: IndexGenerator::AddStrip(numVertices);     break;
-		case GX_DRAW_TRIANGLE_FAN:   IndexGenerator::AddFan(numVertices);       break;
-		case GX_DRAW_LINE_STRIP:     IndexGenerator::AddLineStrip(numVertices); break;
-		case GX_DRAW_LINES:          IndexGenerator::AddLineList(numVertices);break;
-		case GX_DRAW_POINTS:         IndexGenerator::AddPoints(numVertices);    break;
-	}
-}
-
-int GetRemainingSize()
-{
-	return  MAXVBUFFERSIZE - (int)(s_pCurBufferPointer - LocalVBuffer);
-}
-
-int GetRemainingVertices(int primitive)
-{
-	switch (primitive)
-	{
-		case GX_DRAW_QUADS:
-		case GX_DRAW_TRIANGLES:
-		case GX_DRAW_TRIANGLE_STRIP:
-		case GX_DRAW_TRIANGLE_FAN:
-			return (max_Index_size - IndexGenerator::GetTriangleindexLen())/3;
-		case GX_DRAW_LINE_STRIP:
-		case GX_DRAW_LINES:
-			return (max_Index_size - IndexGenerator::GetLineindexLen())/2;
-		case GX_DRAW_POINTS:
-			return (max_Index_size - IndexGenerator::GetPointindexLen());
-		default: return 0;
-	}
-}
-
-void AddVertices(int primitive, int numvertices)
-{
-	if (numvertices <= 0)
-		return;
-	GL_REPORT_ERROR();
-	switch (primitive)
-	{
-		case GX_DRAW_QUADS:
-		case GX_DRAW_TRIANGLES:
-		case GX_DRAW_TRIANGLE_STRIP:
-		case GX_DRAW_TRIANGLE_FAN:
-			if(max_Index_size - IndexGenerator::GetTriangleindexLen() < 3 * numvertices)
-				Flush();
-			break;
-		case GX_DRAW_LINE_STRIP:
-		case GX_DRAW_LINES:
-			if(max_Index_size - IndexGenerator::GetLineindexLen() < 2 * numvertices)
-				Flush();
-			break;
-		case GX_DRAW_POINTS:
-			if(max_Index_size - IndexGenerator::GetPointindexLen() < numvertices)
-				Flush();
-			break;
-		default: return;
-	}
-	if(Flushed)
-	{
-		IndexGenerator::Start(TIBuffer,LIBuffer,PIBuffer);
-		Flushed=false;
-	}
-	lastPrimitive = primitive;
-	ADDSTAT(stats.thisFrame.numPrims, numvertices);
-	INCSTAT(stats.thisFrame.numPrimitiveJoins);
-	AddIndices(primitive, numvertices);
-	
-	
-}
-
-inline void Draw()
-{
-	if(IndexGenerator::GetNumTriangles() > 0)
+	if (IndexGenerator::GetNumTriangles() > 0)
 	{
 		glDrawElements(GL_TRIANGLES, IndexGenerator::GetTriangleindexLen(), GL_UNSIGNED_SHORT, TIBuffer);
 		INCSTAT(stats.thisFrame.numIndexedDrawCalls);
 	}
-	if(IndexGenerator::GetNumLines() > 0)
+	if (IndexGenerator::GetNumLines() > 0)
 	{
 		glDrawElements(GL_LINES, IndexGenerator::GetLineindexLen(), GL_UNSIGNED_SHORT, LIBuffer);
 		INCSTAT(stats.thisFrame.numIndexedDrawCalls);
 	}
-	if(IndexGenerator::GetNumPoints() > 0)
+	if (IndexGenerator::GetNumPoints() > 0)
 	{
 		glDrawElements(GL_POINTS, IndexGenerator::GetPointindexLen(), GL_UNSIGNED_SHORT, PIBuffer);
 		INCSTAT(stats.thisFrame.numIndexedDrawCalls);
 	}
 }
 
-void Flush()
+void VertexManager::vFlush()
 {
 	if (LocalVBuffer == s_pCurBufferPointer) return;
-	if(Flushed) return;
+	if (Flushed) return;
 	Flushed=true;
 	VideoFifo_CheckEFBAccess();
 #if defined(_DEBUG) || defined(DEBUGFAST) 
@@ -233,12 +124,10 @@ void Flush()
 
 	DVSTARTPROFILE();
 
-	GL_REPORT_ERROR();
-
+	(void)GL_REPORT_ERROR();
 	
-	
-	glBindBuffer(GL_ARRAY_BUFFER, s_vboBuffers[s_nCurVBOIndex]);
-	glBufferData(GL_ARRAY_BUFFER, s_pCurBufferPointer - LocalVBuffer, LocalVBuffer, GL_STREAM_DRAW);
+	//glBindBuffer(GL_ARRAY_BUFFER, s_vboBuffers[s_nCurVBOIndex]);
+	//glBufferData(GL_ARRAY_BUFFER, s_pCurBufferPointer - LocalVBuffer, LocalVBuffer, GL_STREAM_DRAW);
 	GL_REPORT_ERRORD();
 
 	// setup the pointers
@@ -256,76 +145,87 @@ void Flush()
 
 	if (bpmem.genMode.numindstages > 0)
 		for (u32 i = 0; i < (u32)bpmem.genMode.numtevstages + 1; ++i)
-			if (bpmem.tevind[i].IsActive() && bpmem.tevind[i].bt < bpmem.genMode.numindstages) 
+			if (bpmem.tevind[i].IsActive() && bpmem.tevind[i].bt < bpmem.genMode.numindstages)
 				usedtextures |= 1 << bpmem.tevindref.getTexMap(bpmem.tevind[i].bt);
 
-	u32 nonpow2tex = 0;
 	for (int i = 0; i < 8; i++)
 	{
 		if (usedtextures & (1 << i))
 		{
 			glActiveTexture(GL_TEXTURE0 + i);
-
 			FourTexUnits &tex = bpmem.tex[i >> 2];
-			TextureMngr::TCacheEntry* tentry = TextureMngr::Load(i, (tex.texImage3[i&3].image_base/* & 0x1FFFFF*/) << 5,
+			TextureCache::TCacheEntryBase* tentry = TextureCache::Load(i, 
+				(tex.texImage3[i&3].image_base/* & 0x1FFFFF*/) << 5,
 				tex.texImage0[i&3].width + 1, tex.texImage0[i&3].height + 1,
-				tex.texImage0[i&3].format, tex.texTlut[i&3].tmem_offset<<9, tex.texTlut[i&3].tlut_format);
+				tex.texImage0[i&3].format, tex.texTlut[i&3].tmem_offset<<9, 
+				tex.texTlut[i&3].tlut_format,
+				(tex.texMode0[i&3].min_filter & 3) && (tex.texMode0[i&3].min_filter != 8) && g_ActiveConfig.bUseNativeMips,
+				(tex.texMode1[i&3].max_lod >> 4));
 
-			if (tentry) 
+			if (tentry)
 			{
-				// texture loaded fine, set dims for pixel shader
-				if (tentry->isRectangle) 
-				{
-					PixelShaderManager::SetTexDims(i, tentry->w, tentry->h, tentry->mode.wrap_s, tentry->mode.wrap_t);
-					nonpow2tex |= 1 << i;
-					if (tentry->mode.wrap_s > 0) nonpow2tex |= 1 << (8 + i);
-					if (tentry->mode.wrap_t > 0) nonpow2tex |= 1 << (16 + i);
-				}
-				// if texture is power of two, set to ones (since don't need scaling)
-				// (the above seems to have changed - we set the width and height here too.
-				else 
-				{
-					// 0s are probably for no manual wrapping needed.
-					PixelShaderManager::SetTexDims(i, tentry->w, tentry->h, 0, 0);
-				}
-				// texture is hires - pass the scaling size
-				if (tentry->scaleX != 1.0f || tentry->scaleY != 1.0f)
-					PixelShaderManager::SetCustomTexScale(i, tentry->scaleX, tentry->scaleY);
+				// 0s are probably for no manual wrapping needed.
+				PixelShaderManager::SetTexDims(i, tentry->realW, tentry->realH, 0, 0);
+
 				if (g_ActiveConfig.iLog & CONF_SAVETEXTURES) 
 				{
 					// save the textures
 					char strfile[255];
 					sprintf(strfile, "%stex%.3d_%d.tga", File::GetUserPath(D_DUMPFRAMES_IDX), g_Config.iSaveTargetId, i);
-					SaveTexture(strfile, tentry->isRectangle?GL_TEXTURE_RECTANGLE_ARB:GL_TEXTURE_2D, tentry->texture, tentry->w, tentry->h);
+					tentry->Save(strfile);
 				}
 			}
 			else
-				ERROR_LOG(VIDEO, "error loading tex\n");
+				ERROR_LOG(VIDEO, "error loading texture");
 		}
 	}
-
-	PixelShaderManager::SetTexturesUsed(nonpow2tex);
-
-	FRAGMENTSHADER* ps = PixelShaderCache::GetShader(false);
-	VERTEXSHADER* vs = VertexShaderCache::GetShader(g_nativeVertexFmt->m_components);
 
 	// set global constants
 	VertexShaderManager::SetConstants();
 	PixelShaderManager::SetConstants();
 
-	// finally bind
+	bool useDstAlpha = !g_ActiveConfig.bDstAlphaPass && bpmem.dstalpha.enable && bpmem.blendmode.alphaupdate
+		&& bpmem.zcontrol.pixel_format == PIXELFMT_RGBA6_Z24;
 
-	if (vs) VertexShaderCache::SetCurrentShader(vs->glprogid);
+#ifdef USE_DUAL_SOURCE_BLEND
+	bool dualSourcePossible = GLEW_ARB_blend_func_extended;
+
+	// finally bind
+	FRAGMENTSHADER* ps;
+	if (dualSourcePossible)
+	{
+		if (useDstAlpha)
+		{
+			// If host supports GL_ARB_blend_func_extended, we can do dst alpha in
+			// the same pass as regular rendering.
+			Renderer::SetBlendMode(true);
+			ps = PixelShaderCache::SetShader(DSTALPHA_DUAL_SOURCE_BLEND, g_nativeVertexFmt->m_components);
+		}
+		else
+		{
+			Renderer::SetBlendMode(true);
+			ps = PixelShaderCache::SetShader(DSTALPHA_NONE,g_nativeVertexFmt->m_components);
+		}
+	}
+	else
+	{
+		ps = PixelShaderCache::SetShader(DSTALPHA_NONE,g_nativeVertexFmt->m_components);
+	}
+#else
+	bool dualSourcePossible = false;
+	FRAGMENTSHADER* ps = PixelShaderCache::SetShader(DSTALPHA_NONE,g_nativeVertexFmt->m_components);
+#endif
+	VERTEXSHADER* vs = VertexShaderCache::SetShader(g_nativeVertexFmt->m_components);
 	if (ps) PixelShaderCache::SetCurrentShader(ps->glprogid); // Lego Star Wars crashes here.
+	if (vs) VertexShaderCache::SetCurrentShader(vs->glprogid);
 
 	Draw();
-	
-	// run through vertex groups again to set alpha
-	if (!g_ActiveConfig.bDstAlphaPass && bpmem.dstalpha.enable && bpmem.blendmode.alphaupdate) 
-	{
-		ps = PixelShaderCache::GetShader(true);
 
-		if (ps)PixelShaderCache::SetCurrentShader(ps->glprogid);
+	// run through vertex groups again to set alpha
+	if (useDstAlpha && !dualSourcePossible)
+	{
+		ps = PixelShaderCache::SetShader(DSTALPHA_ALPHA_PASS,g_nativeVertexFmt->m_components);
+		if (ps) PixelShaderCache::SetCurrentShader(ps->glprogid);
 
 		// only update alpha
 		glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_TRUE);
@@ -339,7 +239,7 @@ void Flush()
 		if (bpmem.blendmode.blendenable || bpmem.blendmode.subtract) 
 			glEnable(GL_BLEND);
 	}
-	s_nCurVBOIndex = (s_nCurVBOIndex + 1) % ARRAYSIZE(s_vboBuffers);
+	//s_nCurVBOIndex = (s_nCurVBOIndex + 1) % ARRAYSIZE(s_vboBuffers);
 	s_pCurBufferPointer = LocalVBuffer;
 	IndexGenerator::Start(TIBuffer,LIBuffer,PIBuffer);
 
@@ -371,7 +271,6 @@ void Flush()
 	g_Config.iSaveTargetId++;
 
 	GL_REPORT_ERRORD();
-
 }
-}  // namespace
 
+}  // namespace

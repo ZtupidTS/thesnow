@@ -57,7 +57,7 @@ class PixelShaderCache
 
 	typedef std::map<PIXELSHADERUID, PSCacheEntry> PSCache;
 
-	static PSCache pshaders;
+	static PSCache PixelShaders;
 
 	static PIXELSHADERUID s_curuid; // the current pixel shader uid (progressively changed as memory is written)
 
@@ -71,7 +71,7 @@ public:
 	static void Init();
 	static void Shutdown();
 
-	static FRAGMENTSHADER* GetShader(bool dstAlphaEnable);
+	static FRAGMENTSHADER* SetShader(DSTALPHA_MODE dstAlphaMode, u32 components);
 	static bool CompilePixelShader(FRAGMENTSHADER& ps, const char* pstrprogram);
 
 	static GLuint GetColorMatrixProgram();

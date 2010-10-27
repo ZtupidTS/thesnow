@@ -66,7 +66,7 @@ void *DllDebugger(void *_hParent, bool Show)
 	return NULL;
 }
 
-void DllConfig(HWND _hParent)
+void DllConfig(void *_hParent)
 {
 }
 
@@ -219,4 +219,8 @@ void Video_WaitForFrameFinish(void)
 bool Video_IsFifoBusy(void)
 {
 	return false;
+}
+
+void Video_AbortFrame(void)
+{
 }

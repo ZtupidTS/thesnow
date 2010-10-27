@@ -28,10 +28,8 @@
 
 #define GLEW_STATIC
 
-#include <GLew/glew.h>
-#include <GLew/wglew.h>
-#include <GLew/gl.h>
-#include <GLew/glext.h>
+#include <GL/glew.h>
+#include <GL/wglew.h>
 
 #else // linux basic definitions
 
@@ -66,7 +64,6 @@
 
 #ifndef _WIN32
 
-#include <sys/stat.h>
 #include <sys/types.h>
 
 typedef struct {
@@ -111,19 +108,15 @@ void OpenGL_ReportARBProgramError();
 GLuint OpenGL_ReportGLError(const char *function, const char *file, int line);
 bool OpenGL_ReportFBOError(const char *function, const char *file, int line);
 
-#if 1
+#if defined(_DEBUG) || defined(DEBUGFAST)
 #define GL_REPORT_ERROR()         OpenGL_ReportGLError        (__FUNCTION__, __FILE__, __LINE__)
 #define GL_REPORT_PROGRAM_ERROR() OpenGL_ReportARBProgramError()
 #define GL_REPORT_FBO_ERROR()     OpenGL_ReportFBOError       (__FUNCTION__, __FILE__, __LINE__)
+#define GL_REPORT_ERRORD() OpenGL_ReportGLError(__FUNCTION__, __FILE__, __LINE__)
 #else
 #define GL_REPORT_ERROR() GL_NO_ERROR
 #define GL_REPORT_PROGRAM_ERROR()
 #define GL_REPORT_FBO_ERROR()
-#endif
-
-#if defined(_DEBUG) || defined(DEBUGFAST) 
-#define GL_REPORT_ERRORD() OpenGL_ReportGLError(__FUNCTION__, __FILE__, __LINE__)
-#else
 #define GL_REPORT_ERRORD()
 #endif
 

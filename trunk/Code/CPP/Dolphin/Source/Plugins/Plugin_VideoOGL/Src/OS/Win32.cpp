@@ -76,8 +76,6 @@ BOOL APIENTRY DllMain(HINSTANCE hinstDLL,	// DLL module handle
 }
 
 extern bool gShowDebugger;
-int OSDChoice = 0 , OSDTime = 0, OSDInternalW = 0, OSDInternalH = 0;
-
 
 // ---------------------------------------------------------------------
 // OSD Menu
@@ -91,12 +89,8 @@ void OSDMenu(WPARAM wParam)
 	case '3':
 		OSDChoice = 1;
 		// Toggle native resolution
-		if (!(g_Config.bNativeResolution || g_Config.b2xResolution))
-			g_Config.bNativeResolution = true;
-		else if (g_Config.bNativeResolution && Renderer::AllowCustom())
-			{ g_Config.bNativeResolution = false; if (Renderer::Allow2x()) {g_Config.b2xResolution = true;} }
-		else if (Renderer::AllowCustom())
-			g_Config.b2xResolution = false;
+		g_Config.iEFBScale = g_Config.iEFBScale + 1;
+		if (g_Config.iEFBScale > 4) g_Config.iEFBScale = 0;
 		break;
 	case '4':
 		OSDChoice = 2;
@@ -157,8 +151,9 @@ void FreeLookInput( UINT iMsg, WPARAM wParam )
 {
 	static float debugSpeed = 1.0f;
 	static bool mouseLookEnabled = false;
+	static bool mouseMoveEnabled = false;
 	static float lastMouse[2];
-
+	POINT point;	
 	switch( iMsg )
 	{
 	case WM_USER_KEYDOWN:
@@ -191,23 +186,37 @@ void FreeLookInput( UINT iMsg, WPARAM wParam )
 
 	case WM_MOUSEMOVE:
 		if (mouseLookEnabled) {
-			POINT point;
 			GetCursorPos(&point);
 			VertexShaderManager::RotateView((point.x - lastMouse[0]) / 200.0f, (point.y - lastMouse[1]) / 200.0f);
+			lastMouse[0] = point.x;
+			lastMouse[1] = point.y;
+		}
+
+		if (mouseMoveEnabled) {
+			GetCursorPos(&point);
+			VertexShaderManager::TranslateView((point.x - lastMouse[0]) / 50.0f, (point.y - lastMouse[1]) / 50.0f);
 			lastMouse[0] = point.x;
 			lastMouse[1] = point.y;
 		}
 		break;
 
 	case WM_RBUTTONDOWN:
-		POINT point;	
 		GetCursorPos(&point);
 		lastMouse[0] = point.x;
 		lastMouse[1] = point.y;
 		mouseLookEnabled= true;
 		break;
+	case WM_MBUTTONDOWN:		
+		GetCursorPos(&point);
+		lastMouse[0] = point.x;
+		lastMouse[1] = point.y;
+		mouseMoveEnabled= true;
+		break;
 	case WM_RBUTTONUP:
 		mouseLookEnabled = false;
+		break;
+	case WM_MBUTTONUP:
+		mouseMoveEnabled = false;
 		break;
 	}
 }
