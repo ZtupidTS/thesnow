@@ -167,7 +167,7 @@ static int CALLBACK LicenceProc(HWND hwnd, UINT msg,
     switch (msg) {
       case WM_INITDIALOG:
 	{
-	    char *str = dupprintf("%s Licence", appname);
+	    TCHAR *str = dupprintf("%s 许可协议", appname);
 	    SetWindowText(hwnd, str);
 	    sfree(str);
 	}
@@ -190,11 +190,11 @@ static int CALLBACK LicenceProc(HWND hwnd, UINT msg,
 static int CALLBACK AboutProc(HWND hwnd, UINT msg,
 			      WPARAM wParam, LPARAM lParam)
 {
-    char *str;
+    TCHAR *str;
 
     switch (msg) {
       case WM_INITDIALOG:
-	str = dupprintf("About %s", appname);
+	str = dupprintf("关于 %s", appname);
 	SetWindowText(hwnd, str);
 	sfree(str);
 	SetDlgItemText(hwnd, IDA_TEXT1, appname);
@@ -303,7 +303,7 @@ struct treeview_faff {
 };
 
 static HTREEITEM treeview_insert(struct treeview_faff *faff,
-				 int level, char *text, char *path)
+				 int level, TCHAR *text, TCHAR *path)
 {
     TVINSERTSTRUCT ins;
     int i;
@@ -418,7 +418,7 @@ static int CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
 	    r.top = 3;
 	    r.bottom = r.top + 10;
 	    MapDialogRect(hwnd, &r);
-	    tvstatic = CreateWindowEx(0, "STATIC", "Cate&gory:",
+	    tvstatic = CreateWindowEx(0, TEXT("STATIC"), TEXT("分类(&G):"),
 				      WS_CHILD | WS_VISIBLE,
 				      r.left, r.top,
 				      r.right - r.left, r.bottom - r.top,
@@ -828,7 +828,7 @@ int verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 int askalg(void *frontend, const char *algtype, const char *algname,
 	   void (*callback)(void *ctx, int result), void *ctx)
 {
-    static const char mbtitle[] = "%s Security Alert";
+    static const char mbtitle[] = "%s 安全警告";
     static const char msg[] =
 	"The first %s supported by the server\n"
 	"is %.64s, which is below the configured\n"

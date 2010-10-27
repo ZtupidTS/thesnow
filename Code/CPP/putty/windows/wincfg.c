@@ -117,7 +117,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
      * the interface, and template creation code is under no actual
      * obligation to use them.
      */
-    s = ctrl_getset(b, "终端/Bell", "style", "Set the style of bell");
+    s = ctrl_getset(b, "终端/鸣叫", "样式", "设置鸣叫样式");
     {
 	int i;
 	for (i = 0; i < s->ncontrols; i++) {
@@ -129,9 +129,9 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
 		c->radio.buttons =
 		    sresize(c->radio.buttons, c->radio.nbuttons, char *);
 		c->radio.buttons[c->radio.nbuttons-1] =
-		    dupstr("Play a custom sound file");
+		    dupstr("播放一个自定义声音文件");
 		c->radio.buttons[c->radio.nbuttons-2] =
-		    dupstr("Beep using the PC speaker");
+		    dupstr("使用PC蜂鸣器鸣叫Beep");
 		c->radio.buttondata =
 		    sresize(c->radio.buttondata, c->radio.nbuttons, intorptr);
 		c->radio.buttondata[c->radio.nbuttons-1] = I(BELL_WAVEFILE);
@@ -146,8 +146,8 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
 	    }
 	}
     }
-    ctrl_filesel(s, "Custom sound file to play as a bell:", NO_SHORTCUT,
-		 FILTER_WAVE_FILES, FALSE, "Select bell sound file",
+    ctrl_filesel(s, "要播放为鸣叫的自定义声音文件:", NO_SHORTCUT,
+		 FILTER_WAVE_FILES, FALSE, "选择鸣叫声音文件",
 		 HELPCTX(bell_style),
 		 dlg_stdfilesel_handler, I(offsetof(Config, bell_wavefile)));
 
@@ -155,18 +155,18 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
      * While we've got this box open, taskbar flashing on a bell is
      * also Windows-specific.
      */
-    ctrl_radiobuttons(s, "任务栏/caption indication on bell:", 'i', 3,
+    ctrl_radiobuttons(s, "鸣叫事件中的任务栏/标题:", 'i', 3,
 		      HELPCTX(bell_taskbar),
 		      dlg_stdradiobutton_handler,
 		      I(offsetof(Config, beep_ind)),
-		      "Disabled", I(B_IND_DISABLED),
-		      "Flashing", I(B_IND_FLASH),
+		      "禁用", I(B_IND_DISABLED),
+		      "闪烁", I(B_IND_FLASH),
 		      "Steady", I(B_IND_STEADY), NULL);
 
     /*
      * The sunken-edge border is a Windows GUI feature.
      */
-    s = ctrl_getset(b, "窗口/Appearance", "border",
+    s = ctrl_getset(b, "窗口/外观", "边框",
 		    "Adjust the window border");
     ctrl_checkbox(s, "Sunken-edge border (slightly thicker)", 's',
 		  HELPCTX(appearance_border),
@@ -175,16 +175,16 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
     /*
      * Configurable font quality settings for Windows.
      */
-    s = ctrl_getset(b, "窗口/Appearance", "font",
-		    "Font settings");
-    ctrl_radiobuttons(s, "Font quality:", 'q', 2,
+    s = ctrl_getset(b, "窗口/外观", "字体",
+		    "字体设置");
+    ctrl_radiobuttons(s, "字体质量:", 'q', 2,
 		      HELPCTX(appearance_font),
 		      dlg_stdradiobutton_handler,
 		      I(offsetof(Config, font_quality)),
-		      "Antialiased", I(FQ_ANTIALIASED),
-		      "Non-Antialiased", I(FQ_NONANTIALIASED),
+		      "抗锯齿", I(FQ_ANTIALIASED),
+		      "非抗锯齿", I(FQ_NONANTIALIASED),
 		      "ClearType", I(FQ_CLEARTYPE),
-		      "Default", I(FQ_DEFAULT), NULL);
+		      "默认", I(FQ_DEFAULT), NULL);
 
     /*
      * Cyrillic Lock is a horrid misfeature even on Windows, and
@@ -226,11 +226,11 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
 		c->radio.buttons =
 		    sresize(c->radio.buttons, c->radio.nbuttons, char *);
 		c->radio.buttons[c->radio.nbuttons-3] =
-		    dupstr("Font has XWindows encoding");
+		    dupstr("字体带有 XWindows 编码");
 		c->radio.buttons[c->radio.nbuttons-2] =
-		    dupstr("Use font in both ANSI and OEM modes");
+		    dupstr("在ANSI和OEM模式中使用字体");
 		c->radio.buttons[c->radio.nbuttons-1] =
-		    dupstr("Use font in OEM mode only");
+		    dupstr("只在OEM模式中使用字体");
 		c->radio.buttondata =
 		    sresize(c->radio.buttondata, c->radio.nbuttons, intorptr);
 		c->radio.buttondata[c->radio.nbuttons-3] = I(VT_XWINDOWS);
@@ -256,7 +256,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
     /*
      * RTF paste is Windows-specific.
      */
-    s = ctrl_getset(b, "窗口/Selection", "format",
+    s = ctrl_getset(b, "窗口/Selection", "格式",
 		    "Formatting of pasted characters");
     ctrl_checkbox(s, "Paste to clipboard in RTF as well as plain text", 'f',
 		  HELPCTX(selection_rtf),
@@ -267,7 +267,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
      * mode in which the more critical Paste action is available on
      * the right button instead.
      */
-    s = ctrl_getset(b, "窗口/Selection", "mouse",
+    s = ctrl_getset(b, "窗口/Selection", "鼠标",
 		    "Control use of mouse");
     ctrl_radiobuttons(s, "Action of mouse buttons:", 'm', 1,
 		      HELPCTX(selection_buttons),
@@ -288,12 +288,12 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
     /*
      * Logical palettes don't even make sense anywhere except Windows.
      */
-    s = ctrl_getset(b, "窗口/Colours", "general",
+    s = ctrl_getset(b, "窗口/颜色", "general",
 		    "General options for colour usage");
     ctrl_checkbox(s, "Attempt to use logical palettes", 'l',
 		  HELPCTX(colours_logpal),
 		  dlg_stdcheckbox_handler, I(offsetof(Config,try_palette)));
-    ctrl_checkbox(s, "Use system colours", 's',
+    ctrl_checkbox(s, "使用系统颜色(S)", 's',
                   HELPCTX(colours_system),
                   dlg_stdcheckbox_handler, I(offsetof(Config,system_colour)));
 
@@ -301,7 +301,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
     /*
      * Resize-by-changing-font is a Windows insanity.
      */
-    s = ctrl_getset(b, "窗口", "size", "Set the size of the window");
+    s = ctrl_getset(b, "窗口", "大小", "设置窗口大小");
     ctrl_radiobuttons(s, "When window is resized:", 'z', 1,
 		      HELPCTX(window_resize),
 		      dlg_stdradiobutton_handler,
@@ -316,20 +316,20 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
      * conventions which PuTTY can optionally disregard. Hence,
      * most of these options are Windows-specific.
      */
-    s = ctrl_getset(b, "窗口/Behaviour", "main", NULL);
-    ctrl_checkbox(s, "Window closes on ALT-F4", '4',
+    s = ctrl_getset(b, "窗口/行为", "main", NULL);
+    ctrl_checkbox(s, "使用 ALT-F4 关闭窗口", '4',
 		  HELPCTX(behaviour_altf4),
 		  dlg_stdcheckbox_handler, I(offsetof(Config,alt_f4)));
-    ctrl_checkbox(s, "System menu appears on ALT-Space", 'y',
+    ctrl_checkbox(s, "ALT-Space 显示系统菜单", 'y',
 		  HELPCTX(behaviour_altspace),
 		  dlg_stdcheckbox_handler, I(offsetof(Config,alt_space)));
     ctrl_checkbox(s, "System menu appears on ALT alone", 'l',
 		  HELPCTX(behaviour_altonly),
 		  dlg_stdcheckbox_handler, I(offsetof(Config,alt_only)));
-    ctrl_checkbox(s, "Ensure window is always on top", 'e',
+    ctrl_checkbox(s, "确保窗口总在最前", 'e',
 		  HELPCTX(behaviour_alwaysontop),
 		  dlg_stdcheckbox_handler, I(offsetof(Config,alwaysontop)));
-    ctrl_checkbox(s, "Full screen on Alt-Enter", 'f',
+    ctrl_checkbox(s, "使用 Alt-Enter 全屏显示", 'f',
 		  HELPCTX(behaviour_altenter),
 		  dlg_stdcheckbox_handler,
 		  I(offsetof(Config,fullscreenonaltenter)));
