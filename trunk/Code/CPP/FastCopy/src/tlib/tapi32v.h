@@ -1,4 +1,4 @@
-﻿/* @(#)Copyright (C) 1996-2010 H.Shirouzu		tapi32v.h	Ver0.99 */
+/* @(#)Copyright (C) 1996-2010 H.Shirouzu		tapi32v.h	Ver0.99 */
 /* ========================================================================
 	Project  Name			: Win32 Lightweight  Class Library Test
 	Module Name				: Main Header
@@ -102,7 +102,7 @@ extern GUID IID_IShellLinkV;
 extern HINSTANCE (WINAPI *ShellExecuteV)(HWND hWnd, const void *, const void *, void *,
 	const void *, int);
 extern BOOL (WINAPI *ShellExecuteExV)(LPSHELLEXECUTEINFO);
-
+extern HMODULE (WINAPI *LoadLibraryV)(void *);
 extern BOOL (WINAPI *PlaySoundV)(const void *, HMODULE, DWORD);
 
 extern void *(WINAPI *GetCommandLineV)(void);
@@ -234,7 +234,9 @@ typedef struct _REPARSE_DATA_BUFFER {
 #define IsReparseTagSymlink(r) \
 		(((REPARSE_DATA_BUFFER *)r)->ReparseTag == IO_REPARSE_TAG_SYMLINK)
 
+#ifndef SE_CREATE_SYMBOLIC_LINK_NAME
 #define SE_CREATE_SYMBOLIC_LINK_NAME  "SeCreateSymbolicLinkPrivilege"
+#endif
 
 BOOL TLibInit_Win32V();
 

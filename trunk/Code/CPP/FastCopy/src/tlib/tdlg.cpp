@@ -15,7 +15,7 @@ TDlg::TDlg(UINT _resId, TWin *_parent) : TWin(_parent)
 {
 	resId	= _resId;
 	modalFlg = FALSE;
-	maxItems = allocItems = 0;
+	maxItems = 0;
 	dlgItems = NULL;
 }
 
@@ -116,7 +116,7 @@ LRESULT TDlg::WinProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 		return	0;
 
 	case WM_SHOWWINDOW:
-		EvShowWindow(wParam, lParam);
+		EvShowWindow((BOOL)wParam, (int)lParam);
 		return	0;
 
 	case WM_GETMINMAXINFO:
@@ -162,7 +162,7 @@ LRESULT TDlg::WinProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 		return	result;
 
 	case WM_ACTIVATEAPP:
-		EventActivateApp(wParam, lParam);
+		EventActivateApp((BOOL)wParam, (DWORD)lParam);
 		break;
 
 	case WM_ACTIVATE:
@@ -181,12 +181,12 @@ LRESULT TDlg::WinProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 	case WM_RBUTTONDBLCLK:
 	case WM_NCLBUTTONDBLCLK:
 	case WM_NCRBUTTONDBLCLK:
-		EventButton(uMsg, wParam, MAKEPOINTS(lParam));
+		EventButton(uMsg, (int)wParam, MAKEPOINTS(lParam));
 		return	0;
 
 	case WM_KEYUP:
 	case WM_KEYDOWN:
-		EventKey(uMsg, wParam, lParam);
+		EventKey(uMsg, (int)wParam, (LONG)lParam);
 		return	0;
 
 	case WM_HSCROLL:
@@ -285,13 +285,18 @@ void TDlg::EndDialog(int result)
 	}
 }
 
-BOOL TDlg::SetDlgItem(UINT ctl_id, int idx, DWORD flags)
+int TDlg::SetDlgItem(UINT ctl_id, DWORD flags)
 {
 	WINDOWPLACEMENT wp;
 	wp.length = sizeof(wp);
 
-	if (idx >= allocItems) return FALSE;
-	DlgItem *item = dlgItems + idx;
+#define BIG_ALLOC 16
+	if ((maxItems % BIG_ALLOC) == 0) {
+		DlgItem *p = (DlgItem *)realloc(dlgItems, (maxItems + BIG_ALLOC) * sizeof(DlgItem));
+		if (!p) return -1;
+		dlgItems = p;
+	}
+	DlgItem *item = dlgItems + maxItems;
 
 	item->hWnd = GetDlgItem(ctl_id);
 	::GetWindowPlacement(item->hWnd, &wp);
@@ -300,7 +305,8 @@ BOOL TDlg::SetDlgItem(UINT ctl_id, int idx, DWORD flags)
 	item->wpos.cx = wp.rcNormalPosition.right - wp.rcNormalPosition.left;
 	item->wpos.cy = wp.rcNormalPosition.bottom - wp.rcNormalPosition.top;
 	item->flags = flags;
-	return	TRUE;
+
+	return	maxItems++;
 }
 
 BOOL TDlg::FitDlgItems()

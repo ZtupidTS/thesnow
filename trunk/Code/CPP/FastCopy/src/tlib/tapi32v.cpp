@@ -1,4 +1,4 @@
-﻿/* @(#)Copyright (C) 1996-2010 H.Shirouzu		tapi32v.cpp	Ver0.99 */
+/* @(#)Copyright (C) 1996-2010 H.Shirouzu		tapi32v.cpp	Ver0.99 */
 /* ========================================================================
 	Project  Name			: Win32 Lightweight  Class Library Test
 	Module Name				: Main Header
@@ -85,7 +85,7 @@ void (WINAPI *ILFreeV)(LPITEMIDLIST);
 GUID	IID_IShellLinkV;
 HINSTANCE (WINAPI *ShellExecuteV)(HWND hWnd, const void*, const void*, void*, const void*, int);
 BOOL	(WINAPI *ShellExecuteExV)(LPSHELLEXECUTEINFO);
-
+HMODULE	(WINAPI *LoadLibraryV)(void *);
 BOOL	(WINAPI *PlaySoundV)(const void *, HMODULE, DWORD);
 
 void	*(WINAPI *GetCommandLineV)(void);
@@ -220,6 +220,7 @@ BOOL TLibInit_Win32V()
 		ShellExecuteV = (HINSTANCE (WINAPI *)(HWND hWnd, const void *, const void *, void *,
 			const void *, int))ShellExecuteW;
 		ShellExecuteExV = (BOOL (WINAPI *)(LPSHELLEXECUTEINFO))ShellExecuteExW;
+		LoadLibraryV = (HMODULE	(WINAPI *)(void *))LoadLibraryW;
 		PlaySoundV = (BOOL (WINAPI *)(const void *, HMODULE, DWORD))PlaySoundW;
 
 		CharUpperV = (void *(WINAPI *)(void *))::CharUpperW;
@@ -358,6 +359,7 @@ BOOL TLibInit_Win32V()
 		ShellExecuteV = (HINSTANCE (WINAPI *)(HWND hWnd, const void *, const void *, void *,
 			const void *, int))ShellExecuteA;
 		ShellExecuteExV = (BOOL (WINAPI *)(LPSHELLEXECUTEINFO))ShellExecuteExA;
+		LoadLibraryV = (HMODULE	(WINAPI *)(void *))LoadLibraryA;
 		PlaySoundV = (BOOL (WINAPI *)(const void *, HMODULE, DWORD))PlaySoundA;
 
 		CharUpperV = (void *(WINAPI *)(void *))::CharUpperA;

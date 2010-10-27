@@ -24,6 +24,8 @@
 #define PATH_LOCAL_PREFIX_LEN	4
 #define PATH_UNC_PREFIX_LEN		7
 
+#define FASTCOPY			"FastCopy"
+
 #define MAX_BASE_BUF		( 512 * 1024 * 1024)
 #define MIN_BASE_BUF		(  64 * 1024 * 1024)
 #define RESERVE_BUF			( 128 * 1024 * 1024)
@@ -106,34 +108,35 @@ struct TransInfo {
 
 struct FileStat {
 	_int64		fileID;
+	HANDLE		hFile;
+	BYTE		*upperName;		// cFileName 終端+1を指す
 	FILETIME	ftCreationTime;
 	FILETIME	ftLastAccessTime;
 	FILETIME	ftLastWriteTime;
-	DWORD		nFileSizeLow;	// WIN32_FIND_DATA 偺 nFileSizeLow/High
-	DWORD		nFileSizeHigh;	// 偲偼媡弴乮_int64 梡乯
+	DWORD		nFileSizeLow;	// WIN32_FIND_DATA の nFileSizeLow/High
+	DWORD		nFileSizeHigh;	// とは逆順（_int64 用）
 	DWORD		dwFileAttributes;	// 0 == ALTSTREAM
-	HANDLE		hFile;
 	DWORD		lastError;
 	int			renameCount;
 	BOOL		isExists;
 	BOOL		isCaseChanged;
 	int			size;
-	int			minSize;		// upperName 暘傪娷傔側偄
-	BYTE		*upperName;		// cFileName 廔抂+1傪巜偡
-	DWORD		hashVal;		// upperName 偺 hash抣
+	int			minSize;		// upperName 分を含めない
+	DWORD		hashVal;		// upperName の hash値
+
+	// for hashTable
+	FileStat	*next;
 
 	// extraData
 	BYTE		*acl;
-	int			aclSize;
 	BYTE		*ead;
-	int			eadSize;
 	BYTE		*rep;	// reparse data
+	int			aclSize;
+	int			eadSize;
 	int			repSize;
 
 	// md5/sha1 digest
 	BYTE		digest[SHA1_SIZE];
-
-	FileStat	*next;			// for hashTable
 	BYTE		cFileName[4];	// 4 == dummy
 
 	_int64	FileSize() { return *(_int64 *)&nFileSizeLow; }
@@ -166,8 +169,8 @@ struct DirStatTag {
 
 struct LinkObj : public THashObj {
 	void	*path;
-	int		len;
 	DWORD	data[3];
+	int		len;
 	DWORD	nLinks;
 	LinkObj(const void *_path, DWORD _nLinks, DWORD *_data, int len=-1) {
 		if (len == -1) len = strlenV(_path) + 1;
@@ -257,20 +260,20 @@ public:
 		int		maxTransSize;	// (I/ )
 		int		maxAttrSize;	// (I/ )
 		int		maxDirSize;		// (I/ )
-		int		nbMinSizeNtfs;	// (I/ ) FILE_FLAG_NO_BUFFERING 偱僆乕僾儞偡傞嵟彫僒僀僘
-		int		nbMinSizeFat;	// (I/ ) FILE_FLAG_NO_BUFFERING 偱僆乕僾儞偡傞嵟彫僒僀僘 (FAT梡)
-		int		maxLinkHash;	// (I/ ) Dest Hardlink 梡 hash table 僒僀僘
+		int		nbMinSizeNtfs;	// (I/ ) FILE_FLAG_NO_BUFFERING でオープンする最小サイズ
+		int		nbMinSizeFat;	// (I/ ) FILE_FLAG_NO_BUFFERING でオープンする最小サイズ (FAT用)
+		int		maxLinkHash;	// (I/ ) Dest Hardlink 用 hash table サイズ
 		_int64	allowContFsize;	// (I/ )
 		HWND	hNotifyWnd;		// (I/ )
 		UINT	uNotifyMsg;		// (I/ )
 		int		lcid;			// (I/ )
-		_int64	fromDateFilter;	// (I/ ) 嵟屆擔帪僼傿儖僞
-		_int64	toDateFilter;	// (I/ ) 嵟怴擔帪僼傿儖僞
-		_int64	minSizeFilter;	// (I/ ) 嵟掅僒僀僘僼傿儖僞
-		_int64	maxSizeFilter;	// (I/ ) 嵟戝僒僀僘僼傿儖僞
-		char	driveMap[64];	// (I/ ) 暔棟僪儔僀僽儅僢僾
-		BOOL	isRenameMode;	// ( /O) ...乽暋惢偟傑偡乿僟僀傾儘僌僞僀僩儖梡忣曬乮巄掕乯
-	};							//			 彨棃揑偵丄忣曬偑憹偊傟偽丄儊儞僶偐傜愗傝棧偟
+		_int64	fromDateFilter;	// (I/ ) 最古日時フィルタ
+		_int64	toDateFilter;	// (I/ ) 最新日時フィルタ
+		_int64	minSizeFilter;	// (I/ ) 最低サイズフィルタ
+		_int64	maxSizeFilter;	// (I/ ) 最大サイズフィルタ
+		char	driveMap[64];	// (I/ ) 物理ドライブマップ
+		BOOL	isRenameMode;	// ( /O) ...「複製します」ダイアログタイトル用情報（暫定）
+	};							//			 将来的に、情報が増えれば、メンバから切り離し
 
 	enum Notify { END_NOTIFY, CONFIRM_NOTIFY, RENAME_NOTIFY, LISTING_NOTIFY };
 	struct Confirm {
@@ -318,15 +321,15 @@ protected:
 
 	struct ReqHeader : public TListObj {	// request header
 		Command		command;
-		BYTE		*buf;
 		int			bufSize;
+		BYTE		*buf;
 		int			reqSize;
-		FileStat	stat;	// 壜曄挿
+		FileStat	stat;	// 可変長
 	};
 	struct ReqBuf {
 		BYTE		*buf;
-		int			bufSize;
 		ReqHeader	*req;
+		int			bufSize;
 		int			reqSize;
 	};
 
@@ -352,48 +355,48 @@ protected:
 		int			dataSize;
 		BYTE		digest[SHA1_SIZE];
 		BYTE		*data;
-		BYTE		path[1]; // 偝傜偵 dstSector嫬奅屻偵僨乕僞偑懕偔
+		BYTE		path[1]; // さらに dstSector境界後にデータが続く
 	};
 
-	struct RandomDataBuf {	// 忋彂偒嶍彍梡
+	struct RandomDataBuf {	// 上書き削除用
 		BOOL	is_nsa;
 		int		base_size;
 		int		buf_size;
 		BYTE	*buf[3];
 	};
 
-	class TReqList : public TList {	// 儕僋僄僗僩僉儏乕
+	class TReqList : public TList {	// リクエストキュー
 	public:
 		TReqList(void) {}
 		ReqHeader *TopObj(void) { return (ReqHeader *)TList::TopObj(); }
 		ReqHeader *NextObj(ReqHeader *obj) { return (ReqHeader *)TList::NextObj(obj); }
 	};
 
-	// 婎杮忣曬
-	DriveMng	driveMng;	// Drive 忣曬
-	Info		info;		// 僆僾僔儑儞巜掕摍
+	// 基本情報
+	DriveMng	driveMng;	// Drive 情報
+	Info		info;		// オプション指定等
 	StatHash	hash;
 	PathArray	srcArray;
 	PathArray	dstArray;
 
-	void	*src;			// src 僷僗奿擺梡
-	void	*dst;			// dst 僷僗奿擺梡
-	void	*confirmDst;	// 忋彂偒妋擣挷嵏梡
-	void	*hardLinkDst;	// 僴乕僪儕儞僋梡
-	int		srcBaseLen;		// src 僷僗偺屌掕晹暘偺挿偝
-	int		dstBaseLen;		// dst 僷僗偺屌掕晹暘偺挿偝
-	int		srcPrefixLen;	// \\?\ or \\?\UNC\ 偺挿偝
+	void	*src;			// src パス格納用
+	void	*dst;			// dst パス格納用
+	void	*confirmDst;	// 上書き確認調査用
+	void	*hardLinkDst;	// ハードリンク用
+	int		srcBaseLen;		// src パスの固定部分の長さ
+	int		dstBaseLen;		// dst パスの固定部分の長さ
+	int		srcPrefixLen;	// \\?\ or \\?\UNC\ の長さ
 	int		dstPrefixLen;
 	BOOL	isExtendDir;
 	BOOL	isMetaSrc;
 	BOOL	isListing;
 	BOOL	isListingOnly;
 	int		maxStatSize;	// max size of FileStat
-	int		nbMinSize;		// struct Info 嶲徠
+	int		nbMinSize;		// struct Info 参照
 	BOOL	enableAcl;
 	BOOL	enableStream;
 
-	// 僙僋僞忣曬側偳
+	// セクタ情報など
 	int		srcSectorSize;
 	int		dstSectorSize;
 	int		sectorSize;
@@ -404,7 +407,7 @@ protected:
 	FsType	dstFsType;
 	BYTE	src_root[MAX_PATH];
 
-	TotalTrans	total;		// 僼傽僀儖僐僺乕摑寁忣曬
+	TotalTrans	total;		// ファイルコピー統計情報
 
 	// filter
 	enum		{ REG_FILTER=0x1, DATE_FILTER=0x2, SIZE_FILTER=0x4 };
@@ -413,13 +416,13 @@ protected:
 	enum		{ INC_EXP, EXC_EXP, MAX_KIND_EXP };
 	RegExpEx	regExp[MAX_FTYPE_EXP][MAX_KIND_EXP];
 
-	// 僶僢僼傽
-	VBuf	mainBuf;		// Read/Write 梡 buffer
-//	VBuf	baseBuf;		// mainBuf 埲奜偺恊buffer
-	VBuf	fileStatBuf;	// src file stat 梡 buffer
-	VBuf	dirStatBuf;		// src dir stat 梡 buffer
-	VBuf	dstStatBuf;		// dst dir/file stat 梡 buffer
-	VBuf	dstStatIdxBuf;	// dstStatBuf 撪 entry 偺 index sort 梡
+	// バッファ
+	VBuf	mainBuf;		// Read/Write 用 buffer
+//	VBuf	baseBuf;		// mainBuf 以外の親buffer
+	VBuf	fileStatBuf;	// src file stat 用 buffer
+	VBuf	dirStatBuf;		// src dir stat 用 buffer
+	VBuf	dstStatBuf;		// dst dir/file stat 用 buffer
+	VBuf	dstStatIdxBuf;	// dstStatBuf 内 entry の index sort 用
 	VBuf	mkdirQueueBuf;
 	VBuf	dstDirExtBuf;
 	VBuf	srcDigestBuf;
@@ -427,7 +430,7 @@ protected:
 	VBuf	errBuf;
 	VBuf	listBuf;
 
-	// 僨乕僞揮憲僉儏乕娭楢
+	// データ転送キュー関連
 	TReqList	readReqList;
 	TReqList	writeReqList;
 	TReqList	rDigestReqList;
@@ -439,7 +442,7 @@ protected:
 	FileStat	**openFiles;
 	int			openFilesCnt;
 
-	// 僗儗僢僪娭楢
+	// スレッド関連
 	HANDLE		hReadThread;
 	HANDLE		hWriteThread;
 	HANDLE		hRDigestThread;
@@ -451,13 +454,13 @@ protected:
 	CRITICAL_SECTION errCs;
 	CRITICAL_SECTION listCs;
 
-	// 帪娫忣曬
+	// 時間情報
 	DWORD	startTick;
 	DWORD	endTick;
 	DWORD	suspendTick;
 	volatile DWORD	waitTick;
 
-	// 儌乕僪丒僼儔僌椶
+	// モード・フラグ類
 	BOOL	isAbort;
 	BOOL	isSuspend;
 	BOOL	isSameDrv;
@@ -467,24 +470,24 @@ protected:
 	BOOL	dstRequestResult;
 	enum	RunMode { RUN_NORMAL, RUN_DIGESTREQ } runMode;
 
-	// 僟僀僕僃僗僩娭楢
+	// ダイジェスト関連
 	TDigest		srcDigest;
 	TDigest		dstDigest;
 	BYTE		srcDigestVal[SHA1_SIZE];
 	BYTE		dstDigestVal[SHA1_SIZE];
 
-	DataList	digestList;	// 僴僢僔儏/Open婰榐
+	DataList	digestList;	// ハッシュ/Open記録
 	BOOL IsUsingDigestList() {
 		return (info.flags & VERIFY_FILE) && (info.flags & LISTING_ONLY) == 0;
 	}
 	enum		CheckDigestMode { CD_NOWAIT, CD_WAIT, CD_FINISH };
 	DataList	wDigestList;
 
-	// 堏摦娭楢
-	DataList		moveList;		// 堏摦
-	DataList::Head	*moveFinPtr;	// 彂偒崬傒廔椆ID埵抲
+	// 移動関連
+	DataList		moveList;		// 移動
+	DataList::Head	*moveFinPtr;	// 書き込み終了ID位置
 
-	TLinkHashTbl	hardLinkList;	// 僴乕僪儕儞僋梡儕僗僩
+	TLinkHashTbl	hardLinkList;	// ハードリンク用リスト
 
 	static unsigned WINAPI ReadThread(void *fastCopyObj);
 	static unsigned WINAPI WriteThread(void *fastCopyObj);

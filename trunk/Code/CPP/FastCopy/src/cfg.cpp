@@ -1,9 +1,9 @@
 ﻿static char *cfg_id = 
-	"@(#)Copyright (C) 2004-2010 H.Shirouzu		cfg.cpp	ver2.00";
+	"@(#)Copyright (C) 2004-2010 H.Shirouzu		cfg.cpp	ver2.03";
 /* ========================================================================
 	Project  Name			: Fast/Force copy file and directory
 	Create					: 2004-09-15(Wed)
-	Update					: 2010-05-09(Sun)
+	Update					: 2010-09-12(Sun)
 	Copyright				: H.Shirouzu
 	Reference				: 
 	======================================================================== */
@@ -14,8 +14,7 @@
 #include <stdarg.h>
 #include <stddef.h>
 
-#define FASTCOPY_INI			"fastcopy.ini"
-#define FASTCOPY_INI_W			L"fastcopy.ini"
+#define FASTCOPY_INI			"FastCopy.ini"
 #define MAIN_SECTION			"main"
 #define SRC_HISTORY				"src_history"
 #define DST_HISTORY				"dst_history"
@@ -102,10 +101,17 @@
 #define DEFAULT_COPYFLAGS		0
 #define DEFAULT_EMPTYDIR		1
 #define DEFAULT_FORCESTART		0
+#ifdef _WIN64
+#define DEFAULT_BUFSIZE			64
+#define DEFAULT_MAXTRANSSIZE	16
+#define DEFAULT_MAXATTRSIZE		(1024 * 1024 * 1024)
+#define DEFAULT_MAXDIRSIZE		(1024 * 1024 * 1024)
+#else
 #define DEFAULT_BUFSIZE			32
 #define DEFAULT_MAXTRANSSIZE	8
 #define DEFAULT_MAXATTRSIZE		(128 * 1024 * 1024)
 #define DEFAULT_MAXDIRSIZE		(128 * 1024 * 1024)
+#endif
 #define DEFAULT_MAXOPENFILES	256
 #define DEFAULT_NBMINSIZE_NTFS	64		// nbMinSize 参照
 #define DEFAULT_NBMINSIZE_FAT	128		// nbMinSize 参照
@@ -114,41 +120,91 @@
 #define DEFAULT_WAITTICK		10
 #define JOB_MAX					1000
 #define FINACT_MAX				1000
-#define DEFAULT_FASTCOPYLOG		"fastcopy.log"
+#define DEFAULT_FASTCOPYLOG		"FastCopy.log"
 
-BOOL ConvertVirtualStoreConf(void *execDirV, void *userDirV, void *userOldDirV)
+
+/*
+	Vista以降
+*/
+#ifdef _WIN64
+BOOL ConvertToX86Dir(void *target)
 {
-	BOOL	ret = FALSE;
+	WCHAR	buf[MAX_PATH];
+	WCHAR	buf86[MAX_PATH];
+	int		len;
+
+	if (!TSHGetSpecialFolderPathV(NULL, buf, CSIDL_PROGRAM_FILES, FALSE)) return FALSE;
+	len = strlenV(buf);
+	SetChar(buf, len++, '\\');
+	SetChar(buf, len, 0);
+
+	if (strnicmpV(buf, target, len)) return FALSE;
+
+	if (!TSHGetSpecialFolderPathV(NULL, buf86, CSIDL_PROGRAM_FILESX86, FALSE)) return FALSE;
+	MakePathV(buf, buf86, MakeAddr(target, len));
+	strcpyV(target, buf);
+
+	return	 TRUE;
+}
+#endif
+
+BOOL ConvertVirtualStoreConf(void *execDirV, void *userDirV, void *virtualDirV)
+{
+#define FASTCOPY_INI_W			L"FastCopy.ini"
 	WCHAR	buf[MAX_PATH];
 	WCHAR	org_ini[MAX_PATH], usr_ini[MAX_PATH], vs_ini[MAX_PATH];
+	BOOL	is_admin = TIsUserAnAdmin();
+	BOOL	is_exists;
 
-	MakePathV(usr_ini, userDirV,    FASTCOPY_INI_W);
-	MakePathV(vs_ini,  userOldDirV, FASTCOPY_INI_W);
-	MakePathV(org_ini, execDirV,    FASTCOPY_INI_W);
+	MakePathV(usr_ini, userDirV, FASTCOPY_INI_W);
+	MakePathV(org_ini, execDirV, FASTCOPY_INI_W);
 
-	if (GetFileAttributesV(vs_ini) != 0xffffffff) {
-		ret = ::CopyFileW(vs_ini, usr_ini, TRUE);
-		if (ret) {
+#ifdef _WIN64
+	ConvertToX86Dir(org_ini);
+#endif
+
+	is_exists = GetFileAttributesV(usr_ini) != 0xffffffff;
+	 if (!is_exists) {
+		CreateDirectoryV(userDirV, NULL);
+	}
+
+	if (virtualDirV && GetChar(virtualDirV, 0)) {
+		MakePathV(vs_ini,  virtualDirV, FASTCOPY_INI_W);
+		if (GetFileAttributesV(vs_ini) != 0xffffffff) {
+			if (!is_exists) {
+				is_exists = ::CopyFileW(vs_ini, usr_ini, TRUE);
+			}
 			MakePathV(buf, userDirV, L"to_OldDir(VirtualStore).lnk");
-			SymLinkV(userOldDirV, buf);
-			goto END;
+			SymLinkV(virtualDirV, buf);
+			sprintfV(buf, L"%s.obsolete", vs_ini);
+			MoveFileW(vs_ini, buf);
+			if (GetFileAttributesV(vs_ini) != 0xffffffff) {
+				DeleteFileV(vs_ini);
+			}
 		}
 	}
 
-	if (GetFileAttributesV(org_ini) != 0xffffffff) {
-		ret = ::CopyFileW(org_ini, usr_ini, TRUE);
-		goto END;
+	if ((is_admin || !is_exists) && GetFileAttributesV(org_ini) != 0xffffffff) {
+		if (!is_exists) {
+			is_exists = ::CopyFileW(org_ini, usr_ini, TRUE);
+		}
+		if (is_admin) {
+			sprintfV(buf, L"%s.obsolete", org_ini);
+			MoveFileW(org_ini, buf);
+			if (GetFileAttributesV(org_ini) != 0xffffffff) {
+				DeleteFileV(org_ini);
+			}
+		}
 	}
 
-END:
-	if (ret) {
-		sprintfV(buf, L"%s.obsolete", vs_ini);
-		MoveFileW(vs_ini, buf);
-		sprintfV(buf, L"%s.obsolete", org_ini);
-		MoveFileW(org_ini, buf);
+	MakePathV(buf, userDirV, L"to_ExeDir.lnk");
+	if (GetFileAttributesV(buf) == 0xffffffff) {
+		SymLinkV(execDirV, buf);
 	}
-	return	ret;
+
+	return	TRUE;
 }
+
 
 /*=========================================================================
   クラス ： Cfg
@@ -158,62 +214,71 @@ END:
 =========================================================================*/
 Cfg::Cfg()
 {
-	WCHAR	buf[MAX_PATH], path[MAX_PATH], *fname = NULL;
-
-	GetModuleFileNameV(NULL, buf, MAX_PATH);
-	GetFullPathNameV(buf, MAX_PATH, path, (void **)&fname);
-
-	execPathV = strdupV(path);
-	if (fname) {
-		*fname = 0;
-		execDirV = strdupV(path);
-	}
-	else {
-		execDirV = strdupV(IS_WINNT_V ? (void *)L".\\" : (void *)".\\");
-	}
-	errLogPathV = NULL;
-
-	userDirV = userOldDirV = NULL;
-
-	if (IsWinVista() && TIsEnableUAC() && TIsVirtualizedDirV(execDirV)) {
-		if (TSHGetSpecialFolderPathV(NULL, buf, CSIDL_APPDATA, FALSE)) {
-			void	*fastcopy_v = GetLoadStrV(IDS_FASTCOPY);
-
-			MakePathV(path, buf, fastcopy_v);
-			userDirV = strdupV(path);
-
-			if (GetFileAttributesV(userDirV) == 0xffffffff) {
-				CreateDirectoryV(userDirV, NULL);
-			}
-
-			if (TMakeVirtualStorePathV(execDirV, path)) {
-				userOldDirV = strdupV(path);
-			}
-
-			MakePathV(buf, userDirV, FASTCOPY_INI_W);
-			if (GetFileAttributesV(buf) == 0xffffffff) {
-				ConvertVirtualStoreConf(execDirV, userDirV, userOldDirV);
-			}
-		}
-	}
-	if (!userDirV) userDirV = strdupV(execDirV);
-
-	char	ini_path[MAX_PATH];
-	MakePath(ini_path, toA(execDirV), FASTCOPY_INI);
-	ini.Init(ini_path);
 }
 
 Cfg::~Cfg()
 {
-	free(execPathV);
-	free(execDirV);
-	free(errLogPathV);
+	free(virtualDirV);
 	free(userDirV);
-	free(userOldDirV);
+	free(errLogPathV);
+	free(execDirV);
+	free(execPathV);
 }
 
-BOOL Cfg::ReadIni(void)
+BOOL Cfg::Init(void *user_dir, void *virtual_dir)
 {
+	WCHAR	buf[MAX_PATH], path[MAX_PATH], *fname = NULL;
+
+	GetModuleFileNameV(NULL, buf, MAX_PATH);
+	GetFullPathNameV(buf, MAX_PATH, path, (void **)&fname);
+	if (!fname) return FALSE;
+
+	execPathV = strdupV(path);
+	fname[-1] = 0; // remove '\\'
+	execDirV = strdupV(path);
+
+	errLogPathV = NULL;
+	userDirV = NULL;
+	virtualDirV = NULL;
+
+	if (IsWinVista() && TIsVirtualizedDirV(execDirV)) {
+		if (user_dir) {
+			userDirV = strdupV(user_dir);
+			if (virtual_dir) virtualDirV = strdupV(virtual_dir);
+		}
+		else {
+			WCHAR	virtual_store[MAX_PATH];
+			WCHAR	fastcopy_dir[MAX_PATH];
+			WCHAR	*fastcopy_dirname = NULL;
+
+			GetFullPathNameW(path, MAX_PATH, fastcopy_dir, &fastcopy_dirname);
+
+			TSHGetSpecialFolderPathV(NULL, buf, CSIDL_APPDATA, FALSE);
+			MakePathV(path, buf, fastcopy_dirname);
+			userDirV = strdupV(path);
+
+			strcpyV(buf, execDirV);
+#ifdef _WIN64
+			ConvertToX86Dir(buf);
+#endif
+			if (!TMakeVirtualStorePathV(buf, virtual_store)) return FALSE;
+			virtualDirV = strdupV(virtual_store);
+		}
+		ConvertVirtualStoreConf(execDirV, userDirV, virtualDirV);
+	}
+	if (!userDirV) userDirV = strdupV(execDirV);
+
+	char	ini_path[MAX_PATH];
+	MakePath(ini_path, toA(userDirV), FASTCOPY_INI);
+	ini.Init(ini_path);
+
+	return	TRUE;
+}
+
+BOOL Cfg::ReadIni(void *user_dir, void *virtual_dir)
+{
+	if (!Init(user_dir, virtual_dir)) return FALSE;
+
 	int		i, j;
 	char	key[100], *p;
 	char	*buf = new char [MAX_HISTORY_CHAR_BUF];
@@ -665,7 +730,7 @@ BOOL Cfg::EntryHistory(void **path_array, void ****history_array, int max)
 BOOL Cfg::IniStrToV(char *inipath, void *path)
 {
 	if (IS_WINNT_V) {
-		int		len = strlen(inipath) + 1;
+		int		len = (int)strlen(inipath) + 1;
 		if (*inipath == '|') {
 			hexstr2bin(inipath + 1, (BYTE *)path, len, &len);
 		}

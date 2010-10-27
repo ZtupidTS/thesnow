@@ -1,4 +1,4 @@
-ï»¿static char *twin_id = 
+static char *twin_id = 
 	"@(#)Copyright (C) 1996-2009 H.Shirouzu		twin.cpp	Ver0.97";
 /* ========================================================================
 	Project  Name			: Win32 Lightweight  Class Library Test
@@ -99,7 +99,7 @@ LRESULT TWin::WinProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 	case WM_NCDESTROY:
 		GetWindowRect(&rect);
-		if (EvNcDestroy() == FALSE)	// hWndã‚’0ã«ã™ã‚‹å‰ã«å‘¼ã³å‡ºã™
+		if (EvNcDestroy() == FALSE)	// hWnd‚ð0‚É‚·‚é‘O‚ÉŒÄ‚Ño‚·
 			DefWindowProc(uMsg, wParam, lParam);
 		done = TRUE;
 		TApp::GetApp()->DelWin(this);
@@ -133,7 +133,7 @@ LRESULT TWin::WinProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 		break;
 
 	case WM_SHOWWINDOW:
-		done = EvShowWindow(wParam, lParam);
+		done = EvShowWindow((BOOL)wParam, (int)lParam);
 		break;
 
 	case WM_GETMINMAXINFO:
@@ -184,16 +184,16 @@ LRESULT TWin::WinProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 	case WM_RBUTTONDBLCLK:
 	case WM_NCLBUTTONDBLCLK:
 	case WM_NCRBUTTONDBLCLK:
-		done = EventButton(uMsg, wParam, MAKEPOINTS(lParam));
+		done = EventButton(uMsg, (int)wParam, MAKEPOINTS(lParam));
 		break;
 
 	case WM_KEYUP:
 	case WM_KEYDOWN:
-		done = EventKey(uMsg, wParam, lParam);
+		done = EventKey(uMsg, (int)wParam, (LONG)lParam);
 		break;
 
 	case WM_ACTIVATEAPP:
-		done = EventActivateApp(wParam, lParam);
+		done = EventActivateApp((BOOL)wParam, (DWORD)lParam);
 		break;
 
 	case WM_ACTIVATE:
@@ -531,6 +531,11 @@ BOOL TWin::PostMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 	return	::PostMessage(hWnd, uMsg, wParam, lParam);
 }
 
+BOOL TWin::PostMessageW(UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+	return	::PostMessageW(hWnd, uMsg, wParam, lParam);
+}
+
 BOOL TWin::PostMessageV(UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	return	::PostMessageV(hWnd, uMsg, wParam, lParam);
@@ -541,6 +546,11 @@ LRESULT TWin::SendMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 	return	::SendMessage(hWnd, uMsg, wParam, lParam);
 }
 
+LRESULT TWin::SendMessageW(UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+	return	::SendMessageW(hWnd, uMsg, wParam, lParam);
+}
+
 LRESULT TWin::SendMessageV(UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	return	::SendMessageV(hWnd, uMsg, wParam, lParam);
@@ -549,6 +559,11 @@ LRESULT TWin::SendMessageV(UINT uMsg, WPARAM wParam, LPARAM lParam)
 LRESULT TWin::SendDlgItemMessage(int idCtl, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	return	::SendDlgItemMessage(hWnd, idCtl, uMsg, wParam, lParam);
+}
+
+LRESULT TWin::SendDlgItemMessageW(int idCtl, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+	return	::SendDlgItemMessageW(hWnd, idCtl, uMsg, wParam, lParam);
 }
 
 LRESULT TWin::SendDlgItemMessageV(int idCtl, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -628,7 +643,7 @@ BOOL TWin::SetWindowText(LPCSTR text)
 	return	::SetWindowText(hWnd, text);
 }
 
-LONG TWin::SetWindowLong(int index, LONG val)
+LONG_PTR TWin::SetWindowLong(int index, LONG_PTR val)
 {
 	return	::SetWindowLong(hWnd, index, val);
 }
@@ -638,7 +653,7 @@ WORD TWin::SetWindowWord(int index, WORD val)
 	return	::SetWindowWord(hWnd, index, val);
 }
 
-LONG TWin::GetWindowLong(int index)
+LONG_PTR TWin::GetWindowLong(int index)
 {
 	return	::GetWindowLong(hWnd, index);
 }
@@ -683,7 +698,7 @@ UINT TWin::GetDlgItemTextU8(int ctlId, char *buf, int len)
 	Wstr	wbuf(len);
 
 	*buf = 0;
-	if (::GetDlgItemTextW(hWnd, ctlId, wbuf.Buf(), len) <= 0) return 0;
+	GetDlgItemTextW(hWnd, ctlId, wbuf.Buf(), len);
 
 	return	WtoU8(wbuf, buf, len);
 }
@@ -707,7 +722,8 @@ int TWin::GetWindowTextU8(char *text, int len)
 {
 	Wstr	wbuf(len);
 
-	if (::GetWindowTextW(hWnd, wbuf.Buf(), len) <= 0) return 0;
+	wbuf.Buf()[0] = 0;
+	if (::GetWindowTextW(hWnd, wbuf.Buf(), len) < 0) return -1;
 
 	return	WtoU8(wbuf, text, len);
 }
@@ -737,7 +753,8 @@ TSubClass::TSubClass(TWin *_parent) : TWin(_parent)
 BOOL TSubClass::CreateByWnd(HWND _hWnd)
 {
 	TApp::GetApp()->AddWinByWnd(this, _hWnd);
-	return	(oldProc = (WNDPROC)::SetWindowLong(_hWnd, GWL_WNDPROC, (LONG)TApp::WinProc)) != 0;
+	oldProc = (WNDPROC)::SetWindowLong(_hWnd, GWL_WNDPROC, (LONG_PTR)TApp::WinProc);
+	return	oldProc ? TRUE : FALSE;
 }
 
 LRESULT TSubClass::DefWindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)

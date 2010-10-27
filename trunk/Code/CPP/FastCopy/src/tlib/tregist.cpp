@@ -1,4 +1,4 @@
-ï»¿static char *tregist_id = 
+static char *tregist_id = 
 	"@(#)Copyright (C) 1996-2010 H.Shirouzu		tregist.cpp	Ver0.97";
 /* ========================================================================
 	Project  Name			: Win32 Lightweight  Class Library Test
@@ -156,7 +156,7 @@ BOOL TRegistry::GetLongV(const void *subKey, long *val)
 			== ERROR_SUCCESS) {
 		return	TRUE;
 	}
-// æ˜”ã®äº’æ›æ€§ç”¨
+// Ì‚ÌŒİŠ·«—p
 	WCHAR	wbuf[100];
 	long	size_byte = sizeof(wbuf);
 
@@ -194,6 +194,17 @@ BOOL TRegistry::GetStr(LPCSTR subKey, LPSTR str, int size_byte)
 	return	TRUE;
 }
 
+BOOL TRegistry::GetStrA(LPCSTR subKey, LPSTR str, int size)
+{
+	DWORD	type = REG_SZ;
+
+	if (::RegQueryValueExA(hKey[openCnt -1], subKey, 0, &type, (BYTE *)str, (DWORD *)&size) != ERROR_SUCCESS
+	&&  ::RegQueryValueA(hKey[openCnt -1], subKey, str, (LPLONG)&size) != ERROR_SUCCESS)
+		return	FALSE;
+
+	return	TRUE;
+}
+
 BOOL TRegistry::GetStrV(const void *subKey, void *str, int size_byte)
 {
 	DWORD	type = REG_SZ;
@@ -213,6 +224,11 @@ BOOL TRegistry::SetStr(LPCSTR subKey, LPCSTR str)
 	Wstr	subKey_w(subKey, strMode), str_w(str, strMode);
 
 	return	SetStrV(subKey_w, str_w);
+}
+
+BOOL TRegistry::SetStrA(LPCSTR subKey, LPCSTR str)
+{
+	return	::RegSetValueExA(hKey[openCnt -1], subKey, 0, REG_SZ, (const BYTE *)str, (DWORD)strlen(str) +1) == ERROR_SUCCESS;
 }
 
 BOOL TRegistry::SetStrV(const void *subKey, const void *str)
@@ -316,8 +332,8 @@ BOOL TRegistry::EnumValueV(DWORD cnt, void *buf, int size, DWORD *type)
 }
 
 /*
-	subKey ã‚’æŒ‡å®šã—ãŸå ´åˆã¯ subkey ã‚’å«ã‚€ã‚­ãƒ¼ä»¥ä¸‹ã‚’å‰Šé™¤
-	subkey ãŒ NULL ã®å ´åˆã€ã‚«ãƒ¬ãƒ³ãƒˆ ã®é…ä¸‹ã‚’å‰Šé™¤
+	subKey ‚ğw’è‚µ‚½ê‡‚Í subkey ‚ğŠÜ‚ŞƒL[ˆÈ‰º‚ğíœ
+	subkey ‚ª NULL ‚Ìê‡AƒJƒŒƒ“ƒg ‚Ì”z‰º‚ğíœ
 */
 BOOL TRegistry::DeleteChildTree(LPCSTR subKey)
 {

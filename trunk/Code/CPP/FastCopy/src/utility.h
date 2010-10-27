@@ -1,7 +1,7 @@
-ï»¿/* static char *utility_id = 
+/* static char *utility_id = 
 	"@(#)Copyright (C) 2004-2010 H.Shirouzu		utility.h	Ver2.00"; */
 /* ========================================================================
-	Project  Name			: Fast Copy file and directory
+	Project  Name			: Utility
 	Create					: 2004-09-15(Wed)
 	Update					: 2010-05-09(Sun)
 	Copyright				: H.Shirouzu
@@ -32,7 +32,7 @@ public:
 	void Lock(void)		{ ::EnterCriticalSection(&cs); }
 	void UnLock(void)	{ ::LeaveCriticalSection(&cs); }
 
-	// ãƒ­ãƒƒã‚¯ã‚’å–å¾—ã—ã¦ã‹ã‚‰åˆ©ç”¨ã™ã‚‹ã“ã¨
+	// ƒƒbƒN‚ğæ“¾‚µ‚Ä‚©‚ç—˜—p‚·‚é‚±‚Æ
 	int  WaitThreads()	{ return waitCnt; }
 	int  IsWait()		{ return waitCnt ? TRUE : FALSE; }
 	void DetachThread() { max_threads--; }
@@ -203,9 +203,6 @@ public:
 void *strtok_pathV(void *str, const void *sep, void **p, BOOL remove_quote=TRUE);
 void **CommandLineToArgvV(void *cmdLine, int *_argc);
 int CALLBACK EditWordBreakProc(LPTSTR str, int cur, int len, int action);
-BOOL hexstr2bin(const char *buf, BYTE *bindata, int maxlen, int *len);
-int bin2hexstr(const BYTE *bindata, int len, char *buf);
-int bin2hexstrW(const BYTE *bindata, int len, WCHAR *buf);
 BOOL GetRootDirV(const void *path, void *root_dir);
 BOOL NetPlaceConvertV(void *src, void *dst);
 

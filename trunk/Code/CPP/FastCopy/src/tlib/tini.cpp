@@ -1,4 +1,4 @@
-﻿static char *tini_id = 
+static char *tini_id = 
 	"@(#)Copyright (C) 1996-2010 H.Shirouzu		tini.cpp	Ver0.97";
 /* ========================================================================
 	Project  Name			: Win32 Lightweight  Class Library Test
@@ -53,7 +53,7 @@ BOOL TInifile::Strip(const char *s, char *d, const char *strip_chars, const char
 		e++;
 	}
 
-	len = e - s;
+	len = (int)(e - s);
 	memmove(d, s, len);
 	d[len] = 0;
 	return	TRUE;
@@ -83,7 +83,7 @@ BOOL TInifile::Parse(const char *buf, BOOL *is_section, char *name, char *val)
 	while (*e && *e != '=') e++;
 	if (*e != '=') return FALSE;
 
-	int	len = e - p;
+	int	len = (int)(e - p);
 	memcpy(name, p, len);
 	name[len] = 0;
 
@@ -115,7 +115,7 @@ BOOL TInifile::Lock()
 
 		key = key ? key+1 : ini_file;
 
-		sprintf(buf, "%s_%x", key, MakeHash(ini_file, strlen(ini_file), 0));
+		sprintf(buf, "%s_%x", key, MakeHash(ini_file, (int)strlen(ini_file), 0));
 
 		if (!(hMutex = ::CreateMutex(NULL, FALSE, buf))) return FALSE;
 	}

@@ -17,10 +17,16 @@
 #include "fastcopy.h"
 #include "cfg.h"
 #include "miscdlg.h"
+#include "version.h"
 #include <stddef.h>
 
 
-#define FASTCOPY			"FastCopy"
+#ifdef _WIN64
+#define FASTCOPY_TITLE		"FastCopy(64bit)"
+#else
+#define FASTCOPY_TITLE		"FastCopy"
+#endif
+
 #define FASTCOPY_CLASS		"fastcopy_class"
 #define WM_FASTCOPY_MSG		(WM_USER + 100)
 #define WM_FASTCOPY_NOTIFY	(WM_USER + 101)
@@ -71,6 +77,9 @@ protected:
 
 	FastCopy		fastCopy;
 	FastCopy::Info	info;
+
+	int				orgArgc;
+	void			**orgArgv;
 	Cfg				cfg;
 	HICON			hMainIcon[MAX_FASTCOPY_ICON];
 	CopyInfo		*copyInfo;
@@ -232,6 +241,8 @@ public:
 	BOOL	RunAsAdmin(DWORD flg = 0);
 	BOOL	EnableErrLogFile(BOOL on);
 	int		CmdNameToComboIndex(void *cmd_name);
+
+	BOOL	GetRunasInfo(WCHAR **user_dir, WCHAR **virtual_dir);
 	BOOL	CommandLineExecV(int argc, void **argv);
 	BOOL	RunasSync(HWND hOrg);
 
@@ -261,10 +272,6 @@ public:
 	virtual void	InitWindow(void);
 	virtual BOOL	PreProcMsg(MSG *msg);
 };
-
-void SetVersionStr(BOOL is_runas=FALSE);
-const char *GetVersionStr(void);
-const char *GetCopyrightStr(void);
 
 #endif
 

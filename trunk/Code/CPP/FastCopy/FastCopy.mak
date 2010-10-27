@@ -12,7 +12,7 @@ CFG=FastCopy - Win32 Release
 !IF "$(CFG)" != "FastCopy - Win32 Release" && "$(CFG)" !=\
  "FastCopy - Win32 Debug" && "$(CFG)" != "shellext - Win32 Release" && "$(CFG)"\
  != "install - Win32 Release" && "$(CFG)" != "install - Win32 Debug" && "$(CFG)"\
- != "shellext64 - Win32 Release"
+ != "shellex64 - Win32 Release"
 !MESSAGE 指定された ﾋﾞﾙﾄﾞ ﾓｰﾄﾞ "$(CFG)" は正しくありません。
 !MESSAGE ｺﾏﾝﾄﾞ ﾗｲﾝ上でﾏｸﾛ 'CFG' を定義することによって
 !MESSAGE NMAKE 実行時にﾋﾞﾙﾄﾞ ﾓｰﾄﾞを指定できます。例えば:
@@ -26,7 +26,7 @@ CFG=FastCopy - Win32 Release
 !MESSAGE "shellext - Win32 Release" ("Win32 (x86) Dynamic-Link Library" 用)
 !MESSAGE "install - Win32 Release" ("Win32 (x86) Application" 用)
 !MESSAGE "install - Win32 Debug" ("Win32 (x86) Application" 用)
-!MESSAGE "shellext64 - Win32 Release" ("Win32 (x86) Dynamic-Link Library" 用)
+!MESSAGE "shellex64 - Win32 Release" ("Win32 (x86) Dynamic-Link Library" 用)
 !MESSAGE 
 !ERROR 無効な構成が指定されています。
 !ENDIF 
@@ -38,7 +38,7 @@ NULL=nul
 !ENDIF 
 ################################################################################
 # Begin Project
-# PROP Target_Last_Scanned "shellext64 - Win32 Release"
+# PROP Target_Last_Scanned "FastCopy - Win32 Release"
 
 !IF  "$(CFG)" == "FastCopy - Win32 Release"
 
@@ -75,6 +75,7 @@ CLEAN :
 	-@erase "$(INTDIR)\tregist.obj"
 	-@erase "$(INTDIR)\twin.obj"
 	-@erase "$(INTDIR)\utility.obj"
+	-@erase "$(INTDIR)\version.obj"
 	-@erase "$(OUTDIR)\FastCopy.map"
 	-@erase ".\FastCopy.exe"
 
@@ -82,10 +83,10 @@ CLEAN :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-# ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /c
-# ADD CPP /nologo /W3 /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /FAcs /c
-CPP_PROJ=/nologo /W3 /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /FAcs\
- /Fa"$(INTDIR)/" /Fp"$(INTDIR)/fastcopy.pch" /Fo"$(INTDIR)/" /c 
+# ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /YX /c
+# ADD CPP /nologo /MD /W3 /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /FAcs /YX /c
+CPP_PROJ=/nologo /MD /W3 /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /FAcs\
+ /Fa"$(INTDIR)/" /Fp"$(INTDIR)/fastcopy.pch" /YX /Fo"$(INTDIR)/" /c 
 CPP_OBJS=.\Release/
 CPP_SBRS=.\.
 
@@ -128,7 +129,7 @@ LINK32=link.exe
 LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib\
  advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comctl32.lib winmm.lib\
  /nologo /subsystem:windows /incremental:no /pdb:"$(OUTDIR)/FastCopy.pdb"\
- /map:"$(INTDIR)/FastCopy.map" /machine:I386 /out:"FastCopy.exe"
+ /map:"$(INTDIR)/FastCopy.map" /machine:I386 /out:"FastCopy.exe" 
 LINK32_OBJS= \
 	"$(INTDIR)\cfg.obj" \
 	"$(INTDIR)\FastCopy.obj" \
@@ -146,7 +147,8 @@ LINK32_OBJS= \
 	"$(INTDIR)\tmisc.obj" \
 	"$(INTDIR)\tregist.obj" \
 	"$(INTDIR)\twin.obj" \
-	"$(INTDIR)\utility.obj"
+	"$(INTDIR)\utility.obj" \
+	"$(INTDIR)\version.obj"
 
 ".\FastCopy.exe" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
     $(LINK32) @<<
@@ -190,6 +192,7 @@ CLEAN :
 	-@erase "$(INTDIR)\utility.obj"
 	-@erase "$(INTDIR)\vc40.idb"
 	-@erase "$(INTDIR)\vc40.pdb"
+	-@erase "$(INTDIR)\version.obj"
 	-@erase "$(OUTDIR)\fastcopy.exe"
 	-@erase "$(OUTDIR)\fastcopy.ilk"
 	-@erase "$(OUTDIR)\fastcopy.map"
@@ -199,10 +202,10 @@ CLEAN :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-# ADD BASE CPP /nologo /W3 /Gm /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /c
-# ADD CPP /nologo /W3 /Gm /Zi /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /c
-CPP_PROJ=/nologo /W3 /Gm /Zi /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS"\
- /Fp"$(INTDIR)/fastcopy.pch" /Fo"$(INTDIR)/" /Fd"$(INTDIR)/" /c 
+# ADD BASE CPP /nologo /W3 /Gm /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /YX /c
+# ADD CPP /nologo /MTd /W3 /Gm /Zi /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /YX /c
+CPP_PROJ=/nologo /MTd /W3 /Gm /Zi /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS"\
+ /Fp"$(INTDIR)/fastcopy.pch" /YX /Fo"$(INTDIR)/" /Fd"$(INTDIR)/" /c 
 CPP_OBJS=.\Debug/
 CPP_SBRS=.\.
 
@@ -263,7 +266,8 @@ LINK32_OBJS= \
 	"$(INTDIR)\tmisc.obj" \
 	"$(INTDIR)\tregist.obj" \
 	"$(INTDIR)\twin.obj" \
-	"$(INTDIR)\utility.obj"
+	"$(INTDIR)\utility.obj" \
+	"$(INTDIR)\version.obj"
 
 "$(OUTDIR)\fastcopy.exe" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
     $(LINK32) @<<
@@ -303,11 +307,11 @@ CLEAN :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-# ADD BASE CPP /nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /c
-# ADD CPP /nologo /W3 /O1 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /FAcs /Fp"release/shellext/shellext3.pch" /c
+# ADD BASE CPP /nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /YX /c
+# ADD CPP /nologo /MD /W3 /O1 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /FAcs /Fp"release/shellext/shellext3.pch" /YX /c
 # SUBTRACT CPP /Fr
-CPP_PROJ=/nologo /W3 /O1 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /FAcs\
- /Fa"$(INTDIR)/" /Fp"$(INTDIR)/shellext3.pch" /Fo"$(INTDIR)/" /c 
+CPP_PROJ=/nologo /MD /W3 /O1 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /FAcs\
+ /Fa"$(INTDIR)/" /Fp"$(INTDIR)/shellext3.pch" /YX /Fo"$(INTDIR)/" /c 
 CPP_OBJS=.\Release/shellext/
 CPP_SBRS=.\.
 
@@ -404,10 +408,10 @@ CLEAN :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-# ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /c
-# ADD CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /FAcs /c
-CPP_PROJ=/nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /FAcs\
- /Fa"$(INTDIR)/" /Fp"$(INTDIR)/install.pch" /Fo"$(INTDIR)/" /c 
+# ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /YX /c
+# ADD CPP /nologo /MD /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /FAcs /YX /c
+CPP_PROJ=/nologo /MD /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /FAcs\
+ /Fa"$(INTDIR)/" /Fp"$(INTDIR)/install.pch" /YX /Fo"$(INTDIR)/" /c 
 CPP_OBJS=.\Release/install/
 CPP_SBRS=.\.
 
@@ -500,6 +504,7 @@ CLEAN :
 	-@erase "$(INTDIR)\twin.obj"
 	-@erase "$(INTDIR)\vc40.idb"
 	-@erase "$(INTDIR)\vc40.pdb"
+	-@erase "$(OUTDIR)\setup.map"
 	-@erase "$(OUTDIR)\setup.pdb"
 	-@erase ".\setup.exe"
 	-@erase ".\setup.ilk"
@@ -508,10 +513,10 @@ CLEAN :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-# ADD BASE CPP /nologo /W3 /Gm /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /c
-# ADD CPP /nologo /W3 /Gm /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /c
+# ADD BASE CPP /nologo /W3 /Gm /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /YX /c
+# ADD CPP /nologo /W3 /Gm /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /YX /c
 CPP_PROJ=/nologo /MLd /W3 /Gm /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS"\
- /Fp"$(INTDIR)/install.pch" /Fo"$(INTDIR)/" /Fd"$(INTDIR)/" /c 
+ /Fp"$(INTDIR)/install.pch" /YX /Fo"$(INTDIR)/" /Fd"$(INTDIR)/" /c 
 CPP_OBJS=.\Debug/install/
 CPP_SBRS=.\.
 
@@ -549,11 +554,12 @@ BSC32_SBRS= \
 	
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /debug /machine:I386
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib comctl32.lib winmm.lib /nologo /subsystem:windows /debug /machine:I386 /out:"./setup.exe"
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib comctl32.lib winmm.lib /nologo /subsystem:windows /map /debug /machine:I386 /out:"./setup.exe"
 LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib\
  advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib\
  odbccp32.lib comctl32.lib winmm.lib /nologo /subsystem:windows /incremental:yes\
- /pdb:"$(OUTDIR)/setup.pdb" /debug /machine:I386 /out:"./setup.exe" 
+ /pdb:"$(OUTDIR)/setup.pdb" /map:"$(INTDIR)/setup.map" /debug /machine:I386\
+ /out:"./setup.exe" 
 LINK32_OBJS= \
 	"$(INTDIR)\install.obj" \
 	"$(INTDIR)\install.res" \
@@ -572,20 +578,20 @@ LINK32_OBJS= \
   $(LINK32_FLAGS) $(LINK32_OBJS)
 <<
 
-!ELSEIF  "$(CFG)" == "shellext64 - Win32 Release"
+!ELSEIF  "$(CFG)" == "shellex64 - Win32 Release"
 
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 0
-# PROP BASE Output_Dir "shellext64\shellext"
-# PROP BASE Intermediate_Dir "shellext64\shellext"
-# PROP BASE Target_Dir "shellext64"
+# PROP BASE Output_Dir "shellex64\Release"
+# PROP BASE Intermediate_Dir "shellex64\Release"
+# PROP BASE Target_Dir "shellex64"
 # PROP Use_MFC 0
 # PROP Use_Debug_Libraries 0
-# PROP Output_Dir "Release/shellext64"
-# PROP Intermediate_Dir "Release/shellext64"
-# PROP Target_Dir "shellext64"
-OUTDIR=.\Release/shellext64
-INTDIR=.\Release/shellext64
+# PROP Output_Dir "x64/shellex64"
+# PROP Intermediate_Dir "x64/shellex64"
+# PROP Target_Dir "shellex64"
+OUTDIR=.\x64/shellex64
+INTDIR=.\x64/shellex64
 
 ALL : ".\FastEx64.dll"
 
@@ -593,6 +599,7 @@ CLEAN :
 	-@erase "$(INTDIR)\shellext.obj"
 	-@erase "$(INTDIR)\shellext.res"
 	-@erase "$(INTDIR)\tapi32u8.obj"
+	-@erase "$(INTDIR)\tapi32v.obj"
 	-@erase "$(INTDIR)\tmisc.obj"
 	-@erase "$(INTDIR)\tregist.obj"
 	-@erase "$(OUTDIR)\FastEx64.exp"
@@ -604,11 +611,11 @@ CLEAN :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-# ADD BASE CPP /nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /c
-# ADD CPP /nologo /W3 /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /FAcs /c
-CPP_PROJ=/nologo /W3 /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /FAcs\
- /Fa"$(INTDIR)/" /Fp"$(INTDIR)/shellext64.pch" /Fo"$(INTDIR)/" /c 
-CPP_OBJS=.\Release/shellext64/
+# ADD BASE CPP /nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /YX /c
+# ADD CPP /nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /FAcs /YX /c
+CPP_PROJ=/nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /FAcs\
+ /Fa"$(INTDIR)/" /Fp"$(INTDIR)/shellex64.pch" /YX /Fo"$(INTDIR)/" /c 
+CPP_OBJS=.\x64/shellex64/
 CPP_SBRS=.\.
 
 .c{$(CPP_OBJS)}.obj:
@@ -640,23 +647,25 @@ RSC_PROJ=/l 0x411 /fo"$(INTDIR)/shellext.res" /d "NDEBUG"
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-BSC32_FLAGS=/nologo /o"$(OUTDIR)/shellext64.bsc" 
+BSC32_FLAGS=/nologo /o"$(OUTDIR)/shellex64.bsc" 
 BSC32_SBRS= \
 	
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /dll /machine:I386
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib winmm.lib /nologo /subsystem:windows /dll /map /machine:IX86 /def:".\src\shellext\shell64.def" /out:"FastEx64.dll" /machine:X64
-# SUBTRACT LINK32 /pdb:none
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib winmm.lib /nologo /subsystem:windows /dll /map /machine:I386 /out:"FastEx64.dll"
 LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib\
  advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib\
  odbccp32.lib winmm.lib /nologo /subsystem:windows /dll /incremental:no\
- /pdb:"$(OUTDIR)/FastEx64.pdb" /map:"$(INTDIR)/FastEx64.map" /machine:IX86\
+ /pdb:"$(OUTDIR)/FastEx64.pdb" /map:"$(INTDIR)/FastEx64.map" /machine:I386\
  /def:".\src\shellext\shell64.def" /out:"FastEx64.dll"\
- /implib:"$(OUTDIR)/FastEx64.lib" /machine:X64 
+ /implib:"$(OUTDIR)/FastEx64.lib" 
+DEF_FILE= \
+	".\src\shellext\shell64.def"
 LINK32_OBJS= \
 	"$(INTDIR)\shellext.obj" \
 	"$(INTDIR)\shellext.res" \
 	"$(INTDIR)\tapi32u8.obj" \
+	"$(INTDIR)\tapi32v.obj" \
 	"$(INTDIR)\tmisc.obj" \
 	"$(INTDIR)\tregist.obj"
 
@@ -694,6 +703,7 @@ DEP_CPP_CFG_C=\
 	".\src\tlib\tapi32v.h"\
 	".\src\tlib\tlib.h"\
 	".\src\utility.h"\
+	".\src\version.h"\
 	
 
 "$(INTDIR)\cfg.obj" : $(SOURCE) $(DEP_CPP_CFG_C) "$(INTDIR)"
@@ -725,12 +735,12 @@ DEP_CPP_FASTC=\
 
 SOURCE=.\src\FastCopy.rc
 DEP_RSC_FASTCO=\
-	".\src\FastCopy.ico"\
-	".\src\FastCopy2.ico"\
-	".\src\FastCopy3.ico"\
-	".\src\FastCopy4.ico"\
+	".\src\fastcopy.exe.manifest"\
+	".\src\fastcopy.ico"\
+	".\src\fastcopy2.ico"\
+	".\src\fastcopy3.ico"\
+	".\src\fastcopy4.ico"\
 	".\src\fcwait.ico"\
-	".\src\install\..\fastcopy.exe.manifest"\
 	
 
 !IF  "$(CFG)" == "FastCopy - Win32 Release"
@@ -766,6 +776,7 @@ DEP_CPP_MAINW=\
 	".\src\tlib\tapi32v.h"\
 	".\src\tlib\tlib.h"\
 	".\src\utility.h"\
+	".\src\version.h"\
 	
 
 "$(INTDIR)\mainwin.obj" : $(SOURCE) $(DEP_CPP_MAINW) "$(INTDIR)"
@@ -789,6 +800,7 @@ DEP_CPP_MISCD=\
 	".\src\tlib\tapi32v.h"\
 	".\src\tlib\tlib.h"\
 	".\src\utility.h"\
+	".\src\version.h"\
 	{$(INCLUDE)}"\htmlhelp.h"\
 	
 
@@ -991,6 +1003,23 @@ DEP_CPP_TINI_=\
 
 
 # End Source File
+################################################################################
+# Begin Source File
+
+SOURCE=.\src\version.cpp
+DEP_CPP_VERSI=\
+	".\src\tlib\tapi32ex.h"\
+	".\src\tlib\tapi32u8.h"\
+	".\src\tlib\tapi32v.h"\
+	".\src\tlib\tlib.h"\
+	".\src\version.h"\
+	
+
+"$(INTDIR)\version.obj" : $(SOURCE) $(DEP_CPP_VERSI) "$(INTDIR)"
+   $(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+# End Source File
 # End Target
 ################################################################################
 # Begin Target
@@ -1117,7 +1146,7 @@ DEP_CPP_TAPI3=\
 
 SOURCE=.\src\install\install.rc
 DEP_RSC_INSTA=\
-	".\src\install\..\fastcopy.exe.manifest"\
+	".\src\install\setup.exe.manifest"\
 	".\src\install\setup.ico"\
 	
 
@@ -1305,47 +1334,7 @@ DEP_CPP_TAPI3=\
 ################################################################################
 # Begin Target
 
-# Name "shellext64 - Win32 Release"
-################################################################################
-# Begin Source File
-
-SOURCE=.\src\shellext\shellext.cpp
-DEP_CPP_SHELL=\
-	".\src\shellext\shelldef.h"\
-	".\src\shellext\shellext.h"\
-	".\src\tlib\tapi32ex.h"\
-	".\src\tlib\tapi32u8.h"\
-	".\src\tlib\tapi32v.h"\
-	".\src\tlib\tlib.h"\
-	
-
-"$(INTDIR)\shellext.obj" : $(SOURCE) $(DEP_CPP_SHELL) "$(INTDIR)"
-   $(CPP) $(CPP_PROJ) $(SOURCE)
-
-
-# End Source File
-################################################################################
-# Begin Source File
-
-SOURCE=.\src\shellext\shellext.rc
-
-!IF  "$(CFG)" == "shellext64 - Win32 Release"
-
-
-"$(INTDIR)\shellext.res" : $(SOURCE) "$(INTDIR)"
-   $(RSC) /l 0x411 /fo"$(INTDIR)/shellext.res" /i "src\shellext" /d "NDEBUG"\
- $(SOURCE)
-
-
-!ENDIF 
-
-# End Source File
-################################################################################
-# Begin Source File
-
-SOURCE=.\src\shellext\shell64.def
-# PROP Exclude_From_Build 1
-# End Source File
+# Name "shellex64 - Win32 Release"
 ################################################################################
 # Begin Source File
 
@@ -1381,6 +1370,22 @@ DEP_CPP_TMISC=\
 ################################################################################
 # Begin Source File
 
+SOURCE=.\src\tlib\tapi32v.cpp
+DEP_CPP_TAPI32=\
+	".\src\tlib\tapi32ex.h"\
+	".\src\tlib\tapi32u8.h"\
+	".\src\tlib\tapi32v.h"\
+	".\src\tlib\tlib.h"\
+	
+
+"$(INTDIR)\tapi32v.obj" : $(SOURCE) $(DEP_CPP_TAPI32) "$(INTDIR)"
+   $(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+# End Source File
+################################################################################
+# Begin Source File
+
 SOURCE=.\src\tlib\tapi32u8.cpp
 DEP_CPP_TAPI3=\
 	".\src\tlib\tapi32ex.h"\
@@ -1393,6 +1398,45 @@ DEP_CPP_TAPI3=\
    $(CPP) $(CPP_PROJ) $(SOURCE)
 
 
+# End Source File
+################################################################################
+# Begin Source File
+
+SOURCE=.\src\shellext\shellext.rc
+
+!IF  "$(CFG)" == "shellex64 - Win32 Release"
+
+
+"$(INTDIR)\shellext.res" : $(SOURCE) "$(INTDIR)"
+   $(RSC) /l 0x411 /fo"$(INTDIR)/shellext.res" /i "src\shellext" /d "NDEBUG"\
+ $(SOURCE)
+
+
+!ENDIF 
+
+# End Source File
+################################################################################
+# Begin Source File
+
+SOURCE=.\src\shellext\shellext.cpp
+DEP_CPP_SHELL=\
+	".\src\shellext\shelldef.h"\
+	".\src\shellext\shellext.h"\
+	".\src\tlib\tapi32ex.h"\
+	".\src\tlib\tapi32u8.h"\
+	".\src\tlib\tapi32v.h"\
+	".\src\tlib\tlib.h"\
+	
+
+"$(INTDIR)\shellext.obj" : $(SOURCE) $(DEP_CPP_SHELL) "$(INTDIR)"
+   $(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+# End Source File
+################################################################################
+# Begin Source File
+
+SOURCE=.\src\shellext\shell64.def
 # End Source File
 # End Target
 # End Project

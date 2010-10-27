@@ -124,6 +124,7 @@ struct FinAct {
 class Cfg {
 protected:
 	TInifile	ini;
+	BOOL Init(void *user_dir, void *virtual_dir);
 	BOOL IniStrToV(char *inipath, void *path);
 	BOOL VtoIniStr(void *path, char *inipath);
 	BOOL EntryHistory(void **path_array, void ****history_array, int max);
@@ -189,7 +190,7 @@ public:
 	void	*execPathV;
 	void	*execDirV;
 	void	*userDirV;
-	void	*userOldDirV;
+	void	*virtualDirV;
 	void	*errLogPathV;	// UNICODE
 	Job		**jobArray;
 	int		jobMax;
@@ -201,7 +202,7 @@ public:
 
 	Cfg();
 	~Cfg();
-	BOOL ReadIni(void);
+	BOOL ReadIni(void *user_dir, void *virtual_dir);
 	BOOL PostReadIni(void);
 	BOOL WriteIni(void);
 	BOOL EntryPathHistory(void *src, void *dst);
