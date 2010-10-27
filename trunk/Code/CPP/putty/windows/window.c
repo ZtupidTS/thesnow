@@ -309,7 +309,7 @@ static void close_session(void)
     for (i = 0; i < lenof(popup_menus); i++) {
 	DeleteMenu(popup_menus[i].menu, IDM_RESTART, MF_BYCOMMAND);
 	InsertMenu(popup_menus[i].menu, IDM_DUPSESS, MF_BYCOMMAND | MF_ENABLED,
-		   IDM_RESTART, "&Restart Session");
+		   IDM_RESTART, TEXT("重启会话(&R)"));
     }
 }
 
@@ -434,7 +434,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		ret = cmdline_process_param(p, i+1<argc?argv[i+1]:NULL,
 					    1, &cfg);
 		if (ret == -2) {
-		    cmdline_error("option \"%s\" requires an argument", p);
+		    cmdline_error("选项 \"%s\" 需要一个参数", p);
 		} else if (ret == 2) {
 		    i++;	       /* skip next argument */
 		} else if (ret == 1) {
@@ -534,7 +534,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 			got_host = 1;
 		    }
 		} else {
-		    cmdline_error("unknown option \"%s\"", p);
+		    cmdline_error("未知选项 \"%s\"", p);
 		}
 	    }
 	}
@@ -752,24 +752,24 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    m = popup_menus[j].menu;
 
 	    AppendMenu(m, MF_SEPARATOR, 0, 0);
-	    AppendMenu(m, MF_ENABLED, IDM_SHOWLOG, "&Event Log");
+	    AppendMenu(m, MF_ENABLED, IDM_SHOWLOG, "事件日志(&E)");
 	    AppendMenu(m, MF_SEPARATOR, 0, 0);
-	    AppendMenu(m, MF_ENABLED, IDM_NEWSESS, "Ne&w Session...");
-	    AppendMenu(m, MF_ENABLED, IDM_DUPSESS, "&Duplicate Session");
+	    AppendMenu(m, MF_ENABLED, IDM_NEWSESS, "新建会话(&W)...");
+	    AppendMenu(m, MF_ENABLED, IDM_DUPSESS, "相同会话(&D)");
 	    AppendMenu(m, MF_POPUP | MF_ENABLED, (UINT) savedsess_menu,
-		       "Sa&ved Sessions");
-	    AppendMenu(m, MF_ENABLED, IDM_RECONF, "Chan&ge Settings...");
+		       "已保存会话(&V)");
+	    AppendMenu(m, MF_ENABLED, IDM_RECONF, "修改设置(&G)...");
 	    AppendMenu(m, MF_SEPARATOR, 0, 0);
-	    AppendMenu(m, MF_ENABLED, IDM_COPYALL, "C&opy All to Clipboard");
-	    AppendMenu(m, MF_ENABLED, IDM_CLRSB, "C&lear Scrollback");
-	    AppendMenu(m, MF_ENABLED, IDM_RESET, "Rese&t Terminal");
+	    AppendMenu(m, MF_ENABLED, IDM_COPYALL, "复制所有到剪切板(&O)");
+	    AppendMenu(m, MF_ENABLED, IDM_CLRSB, "清除回滚(&L)");
+	    AppendMenu(m, MF_ENABLED, IDM_RESET, "重置终端(&T)");
 	    AppendMenu(m, MF_SEPARATOR, 0, 0);
 	    AppendMenu(m, (cfg.resize_action == RESIZE_DISABLED) ?
-		       MF_GRAYED : MF_ENABLED, IDM_FULLSCREEN, "&Full Screen");
+		       MF_GRAYED : MF_ENABLED, IDM_FULLSCREEN, "全屏(&F)");
 	    AppendMenu(m, MF_SEPARATOR, 0, 0);
 	    if (has_help())
-		AppendMenu(m, MF_ENABLED, IDM_HELP, "&Help");
-	    str = dupprintf("&About %s", appname);
+		AppendMenu(m, MF_ENABLED, IDM_HELP, "帮助(&H)");
+	    str = dupprintf("关于 %s (&A)", appname);
 	    AppendMenu(m, MF_ENABLED, IDM_ABOUT, str);
 	    sfree(str);
 	}
@@ -1331,7 +1331,7 @@ debug(("general_textout: done, xn=%d\n", xn));
 
 /*
  * Initialise all the fonts we will need initially. There may be as many as
- * three or as few as one.  The other (poentially) twentyone fonts are done
+ * three or as few as one.  The other (potentially) twenty-one fonts are done
  * if/when they are needed.
  *
  * We also:
@@ -1928,8 +1928,7 @@ void notify_remote_exit(void *fe)
 	     * by a fatal error, so an error box will be coming our way and
 	     * we should not generate this informational one. */
 	    if (exitcode != INT_MAX)
-		MessageBox(hwnd, "Connection closed by remote host",
-			   appname, MB_OK | MB_ICONINFORMATION);
+		MessageBox(hwnd, TEXT("连接被远程主机关闭"),appname, MB_OK | MB_ICONINFORMATION);
 	}
     }
 }
@@ -1973,7 +1972,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    str = dupprintf("%s Exit Confirmation", appname);
 	    if (!cfg.warn_on_close || session_closed ||
 		MessageBox(hwnd,
-			   "Are you sure you want to close this session?",
+			   "您确定关闭这个会话?",
 			   str, MB_ICONWARNING | MB_OKCANCEL | MB_DEFBUTTON1)
 		== IDOK)
 		DestroyWindow(hwnd);
@@ -5019,7 +5018,7 @@ DECL_WINDOWS_FUNCTION(static, BOOL, FlashWindowEx, (PFLASHWINFO));
 
 static void init_flashwindow(void)
 {
-    HMODULE user32_module = LoadLibrary("USER32.DLL");
+    HMODULE user32_module = load_system32_dll("user32.dll");
     GET_WINDOWS_FUNCTION(user32_module, FlashWindowEx);
 }
 

@@ -1,4 +1,4 @@
-\define{versionidindex} \versionid $Id: index.but 8897 2010-03-13 14:47:14Z jacob $
+\define{versionidindex} \versionid $Id: index.but 9009 2010-09-25 16:18:02Z jacob $
 
 \IM{Unix version} Unix version of PuTTY tools
 \IM{Unix version} Linux version of PuTTY tools
@@ -845,3 +845,7 @@ saved sessions from
 \IM{logical host name} host key, caching policy
 
 \IM{web browsers} web browser
+
+\IM{GSSAPI credential delegation} GSSAPI credential delegation
+\IM{GSSAPI credential delegation} credential delegation, GSSAPI
+\IM{GSSAPI credential delegation} delegation, of GSSAPI credentials
