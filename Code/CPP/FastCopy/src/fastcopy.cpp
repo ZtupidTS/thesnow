@@ -1,9 +1,9 @@
 ﻿static char *fastcopy_id = 
-	"@(#)Copyright (C) 2004-2010 H.Shirouzu		fastcopy.cpp	ver2.00";
+	"@(#)Copyright (C) 2004-2010 H.Shirouzu		fastcopy.cpp	ver2.03";
 /* ========================================================================
 	Project  Name			: Fast Copy file and directory
 	Create					: 2004-09-15(Wed)
-	Update					: 2010-05-10(Mon)
+	Update					: 2010-09-12(Sun)
 	Copyright				: H.Shirouzu
 	Reference				: 
 	======================================================================== */
@@ -164,9 +164,7 @@ BOOL FastCopy::InitDstPath(void)
 	const void	*org_path = dstArray.Path(0), *dst_root;
 
 	// dst の確認/加工
-	if (GetChar(org_path, 1) == ':' && GetChar(org_path, 2) != '\\' ||
-		GetChar(org_path, 1) != ':' &&
-			(GetChar(org_path, 0) != '\\' || GetChar(org_path, 1) != '\\'))
+	if (GetChar(org_path, 1) == ':' && GetChar(org_path, 2) != '\\')
 		return	ConfirmErr(GetLoadStr(IDS_BACKSLASHERR), org_path, CEF_STOP|CEF_NOAPI), FALSE;
 
 	if (GetFullPathNameV(org_path, MAX_PATHLEN_V, dst, &fname) == 0)
@@ -214,9 +212,7 @@ BOOL FastCopy::InitSrcPath(int idx)
 	DWORD		cef_flg = IsStarting() ? 0 : CEF_STOP;
 
 	// src の確認/加工
-	if (GetChar(org_path, 1) == ':' && GetChar(org_path, 2) != '\\' ||
-		GetChar(org_path, 1) != ':' &&
-			(GetChar(org_path, 0) != '\\' || GetChar(org_path, 1) != '\\'))
+	if (GetChar(org_path, 1) == ':' && GetChar(org_path, 2) != '\\')
 		return	ConfirmErr(GetLoadStr(IDS_BACKSLASHERR), org_path, cef_flg|CEF_NOAPI), FALSE;
 
 	if (GetFullPathNameV(org_path, MAX_PATHLEN_V, src, &fname) == 0)
@@ -325,9 +321,7 @@ BOOL FastCopy::InitDeletePath(int idx)
 	DWORD		cef_flg = IsStarting() ? 0 : CEF_STOP;
 
 	// delete 用 path の確認/加工
-	if (GetChar(org_path, 1) == ':' && GetChar(org_path, 2) != '\\' ||
-		GetChar(org_path, 1) != ':' &&
-			(GetChar(org_path, 0) != '\\' || GetChar(org_path, 1) != '\\'))
+	if (GetChar(org_path, 1) == ':' && GetChar(org_path, 2) != '\\')
 		return	ConfirmErr(GetLoadStr(IDS_BACKSLASHERR), org_path, cef_flg|CEF_NOAPI), FALSE;
 
 	if (GetFullPathNameV(org_path, MAX_PATHLEN_V, dst, &fname) == 0)
@@ -899,8 +893,7 @@ BOOL FastCopy::IsSameContents(FileStat *srcStat, FileStat *dstStat)
 		DstRequest(DSTREQ_DIGEST);
 	}
 
-	_int64	fsize;
-	BOOL	src_ret = MakeDigest(src, &srcDigestBuf, &srcDigest, srcDigestVal, &fsize);
+	BOOL	src_ret = MakeDigest(src, &srcDigestBuf, &srcDigest, srcDigestVal);
 	BOOL	dst_ret = isSameDrv ? MakeDigest(confirmDst, &dstDigestBuf, &dstDigest, dstDigestVal)
 						: WaitDstRequest();
 	BOOL	ret = src_ret && dst_ret && memcmp(srcDigestVal, dstDigestVal,
@@ -1066,8 +1059,14 @@ BOOL FastCopy::ReadProc(int dir_len, BOOL confirm_dir)
 		}
 		total.readFiles++;
 
-		if ((ret = OpenFileProc(srcStat, dir_len)) == FALSE || srcFsType == FSTYPE_NETWORK
-		|| waitTick && openFilesCnt >= 10 || openFilesCnt >= info.maxOpenFiles) {
+#define MOVE_OPEN_MAX 10
+#define WAIT_OPEN_MAX 10
+
+		if (!(ret = OpenFileProc(srcStat, dir_len)) == FALSE
+			|| srcFsType == FSTYPE_NETWORK
+			|| info.mode == MOVE_MODE && openFilesCnt >= MOVE_OPEN_MAX
+			|| waitTick && openFilesCnt >= WAIT_OPEN_MAX
+			|| openFilesCnt >= info.maxOpenFiles) {
 			ReadMultiFilesProc(dir_len);
 			CloseMultiFilesProc();
 		}
@@ -1292,7 +1291,7 @@ BOOL FastCopy::FlushMoveList(BOOL is_finish)
 		}
 
 		cv.Lock();
-		if (runMode != RUN_DIGESTREQ) {
+		if ((info.flags & VERIFY_FILE) && runMode != RUN_DIGESTREQ) {
 			runMode = RUN_DIGESTREQ;
 			cv.Notify();
 		}
@@ -1315,7 +1314,6 @@ BOOL FastCopy::GetDirExtData(ReqBuf *req_buf, FileStat *stat)
 	WIN32_STREAM_ID	sid;
 	DWORD	size, lowSeek, highSeek;
 	void	*context = NULL;
-	int		altdata_cnt = 0;
 	BYTE	streamName[MAX_PATH * sizeof(WCHAR)];
 	BOOL	ret = TRUE;
 	BOOL	is_reparse = IsReparse(stat->dwFileAttributes) && (info.flags & DIR_REPARSE) == 0;
@@ -2340,9 +2338,10 @@ BOOL FastCopy::RDigestThreadCore(void)
 		Command cmd = req->command;
 
 		FileStat	*stat = &req->stat;
-		if (stat->FileSize() > 0 && (!IsReparse(stat->dwFileAttributes)
-		|| (info.flags & FILE_REPARSE)) && (cmd == WRITE_FILE || cmd == WRITE_BACKUP_FILE
-										|| (cmd == WRITE_FILE_CONT && fileID == stat->fileID))) {
+		if ((cmd == WRITE_FILE || cmd == WRITE_BACKUP_FILE
+				|| (cmd == WRITE_FILE_CONT && fileID == stat->fileID))
+			&& stat->FileSize() > 0 && (!IsReparse(stat->dwFileAttributes)
+			|| (info.flags & FILE_REPARSE))) {
 			cv.UnLock();
 //			Sleep(0);
 			if (fileID != stat->fileID) {
@@ -2563,7 +2562,7 @@ BOOL FastCopy::CheckAndCreateDestDir(int dst_len)
 
 			while (cur < end) {
 				if (lGetCharIncA(&cur) == '\\') {
-					parent_dst_len = cur - (const char *)dst;
+					parent_dst_len = (int)(cur - (const char *)dst);
 				}
 			}
 			if (parent_dst_len < 4) parent_dst_len = 0;
@@ -3177,7 +3176,8 @@ BOOL FastCopy::RestoreHardLinkInfo(DWORD *link_data, void *path, int base_len)
 
 BOOL FastCopy::WriteFileProc(int dst_len)
 {
-	HANDLE	fh, fh2;
+	HANDLE	fh	= INVALID_HANDLE_VALUE;
+	HANDLE	fh2	= INVALID_HANDLE_VALUE;
 	BOOL	ret = TRUE;
 	_int64	file_size = writeReq->stat.FileSize();
 	_int64	remain = file_size;
@@ -3209,7 +3209,7 @@ BOOL FastCopy::WriteFileProc(int dst_len)
 	DWORD	flg = (is_nonbuf ? FILE_FLAG_NO_BUFFERING : 0) | FILE_FLAG_SEQUENTIAL_SCAN;
 
 	if (command == WRITE_BACKUP_FILE || command == WRITE_BACKUP_ALTSTREAM) {
-		mode |= WRITE_OWNER|WRITE_DAC;
+		if (stat->acl && enableAcl) mode |= WRITE_OWNER|WRITE_DAC;
 		flg  |= FILE_FLAG_BACKUP_SEMANTICS;
 	}
 	if (is_reparse) {
@@ -3262,7 +3262,8 @@ BOOL FastCopy::WriteFileProc(int dst_len)
 	}
 	else {
 		if (is_reopen) {
-			flg &= ~FILE_FLAG_NO_BUFFERING;
+			flg &= ~(FILE_FLAG_NO_BUFFERING|FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_SEQUENTIAL_SCAN);
+			mode &= ~(WRITE_OWNER|WRITE_DAC);
 			fh2 = CreateFileV(dst, mode, share, 0, OPEN_EXISTING, flg, 0);
 		}
 
@@ -3313,7 +3314,6 @@ BOOL FastCopy::WriteFileProc(int dst_len)
 		}
 
 		if (is_reopen) {
-			::CloseHandle(fh);
 			if (fh2 == INVALID_HANDLE_VALUE && ret) {
 				fh2 = CreateFileWithRetry(dst, mode, share, 0, OPEN_EXISTING, flg, 0, 10);
 				if (fh2 == INVALID_HANDLE_VALUE) {
@@ -3323,12 +3323,11 @@ BOOL FastCopy::WriteFileProc(int dst_len)
 							MakeAddr(dst, dstPrefixLen));
 				}
 			}
-			fh = fh2;
 		}
 
 		if (ret && remain != 0) {
-			::SetFilePointer(fh, stat->nFileSizeLow, (LONG *)&stat->nFileSizeHigh, FILE_BEGIN);
-			if ((ret = ::SetEndOfFile(fh)) == FALSE) {
+			::SetFilePointer(fh2, stat->nFileSizeLow, (LONG *)&stat->nFileSizeHigh, FILE_BEGIN);
+			if ((ret = ::SetEndOfFile(fh2)) == FALSE) {
 				if (!is_stream || (info.flags & REPORT_STREAM_ERROR))
 					ConfirmErr(is_stream ? "SetEndOfFile(stream)" : "SetEndOfFile",
 						MakeAddr(dst, dstPrefixLen));
@@ -3337,6 +3336,8 @@ BOOL FastCopy::WriteFileProc(int dst_len)
 	}
 
 END2:
+	if (fh2 != INVALID_HANDLE_VALUE) ::CloseHandle(fh2);
+
 	if (ret && is_digest && !isAbort) {
 		int path_size = (dst_len + 1) * CHAR_LEN_V;
 		DataList::Head	*head = digestList.Alloc(NULL, 0, sizeof(DigestObj) + path_size);
@@ -3489,7 +3490,7 @@ BOOL FastCopy::ChangeToWriteMode(BOOL is_finish)
 
 BOOL FastCopy::AllocReqBuf(int req_size, _int64 _data_size, ReqBuf *buf)
 {
-	int		max_free = mainBuf.Buf() + mainBuf.Size() - usedOffset;
+	int		max_free = (int)(mainBuf.Buf() + mainBuf.Size() - usedOffset);
 	int		max_trans = waitTick && (info.flags & AUTOSLOW_IOLIMIT) ? MIN_BUF : maxReadSize;
 	int		data_size = (_data_size > max_trans) ? max_trans : (int)_data_size;
 	int		align_data_size = ALIGN_SIZE(data_size, 8);
@@ -3498,7 +3499,7 @@ BOOL FastCopy::AllocReqBuf(int req_size, _int64 _data_size, ReqBuf *buf)
 	BYTE	*align_offset = data_size ?
 							(BYTE *)ALIGN_SIZE((u_int)usedOffset, sectorSize) : usedOffset;
 
-	max_free -= align_offset - usedOffset;
+	max_free -= (int)(align_offset - usedOffset);
 
 	if (data_size && align_data_size + req_size < sector_data_size)
 		require_size = sector_data_size;
@@ -3582,8 +3583,9 @@ BOOL FastCopy::SendRequest(Command command, ReqBuf *buf, FileStat *stat)
 		readReq->command	= command;
 		readReq->buf		= buf->buf;
 		readReq->bufSize	= buf->bufSize;
-		if (stat)
+		if (stat) {
 			memcpy(&readReq->stat, stat, stat->minSize);
+		}
 
 		if (IsUsingDigestList()) {
 			rDigestReqList.AddObj(readReq);

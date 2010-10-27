@@ -68,9 +68,9 @@
 <body bgcolor="#eeffff">
 
 <div align="center">
-<h1 class="help_head1">FastCopy ver2.00</h1>
+<h1 class="help_head1">FastCopy ver2.03</h1>
 </div>
-<div align="right">2010/05/10 H.Shirouzu
+<div align="right">2010/09/12 H.Shirouzu
 </div>
 <center>
 <strong>Warning :</strong> This document was made with the Japanese-English translation software. <br>
@@ -109,7 +109,7 @@ I want to correct this document. (If you made corrections, please send to <a hre
 </td></tr>
 	</table>
 	<br>
-	Because Reading/Writing are processed with no OS cache at all, other applications don’t easily become slow.
+	Because Reading/Writing are processed with no OS cache at all, other applications don't easily become slow.
 	<br><br>
 	It can achieve Reading/Writing performance that is close to device limit.
 	<br><br>
@@ -170,7 +170,7 @@ I want to correct this document. (If you made corrections, please send to <a hre
 	<h3 class="help_head3">Install</h3>
 	<div class="help_sub_section">
 		Please run setup.exe, and install it in a new directory/folder. <br>
-		If you want to install in USB memory, please copy the two files “fastcopy.exe” and “fastcopy.chm” to USB memory. (In this case, shell extension can't be used.) 
+		If you want to install in USB memory, please copy the two files "fastcopy.exe" and "fastcopy.chm" to USB memory. (In this case, shell extension can't be used.) 
 
 	</div>
 
@@ -419,7 +419,7 @@ I want to correct this document. (If you made corrections, please send to <a hre
 	<br><br>
 	<strong>/cmd=(noexist_only|diff|update|sync|force_copy|move|delete) </strong>... Specify operation mode.<br>
 	(By default, diff mode is used. If delete mode is specified, then "/to=" option isn't used.)
-	<blockquote>
+	<div class="help_sub_section">
 		<table class="help_table" border="4">
 		<tr><th nowrap>cmdline</th><th>in GUI</th>
 		<tr><td nowrap><strong>noexist_only</strong></td><td>Diff (No Overwrite)</td></tr>
@@ -430,10 +430,10 @@ I want to correct this document. (If you made corrections, please send to <a hre
 		<tr><td nowrap><strong>move</strong></td><td>Move (Overwrite)</td></tr>
 		<tr><td nowrap><strong>delete</strong></td><td>Delete</td></tr>
 		</table>
-	</blockquote>
+	</div>
 	<strong>/auto_close</strong> ... Close automatically after execution is finished with no errors. 
 	<br><br>
-	<strong>/force_close</strong> ... Close automatically and compulsorily after execution is finished.
+	<strong>/force_close</strong> ... Close automatically and forcedly after execution is finished.
 	<br><br>
 	<strong>/open_window</strong> ... Don't stored in the task tray.
 	<br><br>
@@ -509,9 +509,9 @@ I want to correct this document. (If you made corrections, please send to <a hre
 <a name="warning"/>
 <h2 class="help_head2">7. Warning</h2>
 <div class="help_section">
-	In some modes, destination files that exist with the same filename in source directories, are overwritten compulsorily without confirming. <br>
-	In sync mode, destination files that don't exist will cause the same filename in source directories to be deleted compulsorily without confirming.<br>
-	In delete mode, target files and directories are deleted compulsorily without confirming. <br>
+	In some modes, destination files that exist with the same filename in source directories, are overwritten forcedly without confirming. <br>
+	In sync mode, destination files that don't exist with the same filename in source directories, are deleted forcedly without confirming.<br>
+	In delete mode, target files and directories are deleted forcedly without confirming. <br>
 	<br>
 	If FastCopy has bugs, there is a possibility of serious problem.<br>
 	Please use at your own risk. (See <a href="#license">2. License</a>)
@@ -533,8 +533,12 @@ I want to correct this document. (If you made corrections, please send to <a hre
 <a name="misc"/>
 <h2 class="help_head2">9. Misc</h2>
 <div class="help_section">
-	The setting is preserved in fastcopy.ini. <br>
-	<br>
+	The setting file(FastCopy.ini) is ... <br>
+	<div class="help_sub_section">
+	<strong>Vista or later and installed under \Program Files</strong>, it stored in \Users\(USER)\AppData\roaming\FastCopy\ (Menu File(F) -> UserDir(U))<br>
+	<strong>Other case</strong>, it stored in the same directory of FastCopy.exe <br>
+	</div>
+
 	The core routine of high performance copy is independent from GUI, you can use it(on BSD license) in your applications.<br>
 	<br>
 	If FastCopy terminated abnormally, fastcopy_exception.log is generated.<br>
@@ -554,7 +558,10 @@ I want to correct this document. (If you made corrections, please send to <a hre
 
 <table class="help_table" border="4">
 <tr><th>Version</th><th>Detail</th></tr>
-<tr><td>v2.00</td><td>Add simple compare function("listing" with CTRL button). Store fastcopy.ini and logfiles in \Users\(USER)\roming\FastCopy, if UAC is enabled and installed in \Progmram Files. Enable manual settings of Physical Drive group. Enable 32bit shell extension in 64bitOS. Fix exception when deleting Job.</td></tr>
+<tr><td>v2.03</td><td>Fix "Elevate" menu item didn't work in English UI.</td></tr>
+<tr><td>v2.02</td><td>Release x64 native version. Store fastcopy.ini and logfiles in \Users\(USER)\AppData\roaming\FastCopy, if installed in \Progmram Files in Vista or Win7(UAC on/off is unrelated). Misc refine/fix.</td></tr>
+<tr><td>v2.01</td><td>Fix not to finish "move" in same HDD rarely. Restore not to require absolute path.</td></tr>
+<tr><td>v2.00</td><td>Add simple compare function("listing" with CTRL button). Store fastcopy.ini and logfiles in \Users\(USER)\AppData\roaming\FastCopy, if UAC is enabled and installed in \Progmram Files. Enable manual settings of Physical Drive group. Enable 32bit shell extension in 64bitOS. Fix exception when deleting Job.</td></tr>
 <tr><td>v1.99r4</td><td>Adjust destination filename to source filename when both upper/lower case are different (except "overwrite all" mode). Fix showing no detail error.</td></tr>
 <tr><td>v1.99r3</td><td>Fix automatically decision of HDD mode problem.(v1.99r2 only) Improve to estimate complete time.</td></tr>
 <tr><td>v1.99r2</td><td>Add detail filelog option(/filelog). Enable filter in move mode. Speed up starting (Replace API's inifile access by original routine.) Affect filter for the files those are specified direct in Source EditBox. Modify /srcfile option when using MBCS in srcfile contents. Additionally, refinement</td></tr>

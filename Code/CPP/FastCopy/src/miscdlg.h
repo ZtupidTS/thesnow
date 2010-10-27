@@ -65,7 +65,7 @@ class ShellExt {
 public:
 	ShellExt() { hShellExtDll = NULL; }
 	~ShellExt() { if (hShellExtDll) UnLoad(); }
-	BOOL	Load(char *parent_dir, char *dll_name);
+	BOOL	Load(void *parent_dir, void *dll_name);
 	BOOL	UnLoad(void);
 	BOOL	Status(void) { return	hShellExtDll ? TRUE : FALSE; }
 	HRESULT	(WINAPI *RegisterDllProc)(void);

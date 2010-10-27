@@ -1,4 +1,4 @@
-﻿/* @(#)Copyright (C) 1996-2010 H.Shirouzu		tlib.h	Ver0.99 */
+/* @(#)Copyright (C) 1996-2010 H.Shirouzu		tlib.h	Ver0.99 */
 /* ========================================================================
 	Project  Name			: Win32 Lightweight  Class Library Test
 	Module Name				: Main Header
@@ -64,6 +64,8 @@ extern DWORD TWinVersion;	// define in tmisc.cpp
 #define ALIGN_SIZE(all_size, block_size) (((all_size) + (block_size) -1) \
 										 / (block_size) * (block_size))
 
+#define ALIGN_BLOCK(size, align_size) (((size) + (align_size) -1) / (align_size))
+
 #define BUTTON_CLASS		"BUTTON"
 #define COMBOBOX_CLASS		"COMBOBOX"
 #define EDIT_CLASS			"EDIT"
@@ -92,6 +94,9 @@ extern DWORD TWinVersion;	// define in tmisc.cpp
 #define CSIDL_WINDOWS			0x0024
 #define CSIDL_PROGRAM_FILES		0x0026
 #endif
+#ifndef CSIDL_PROGRAM_FILESX86
+#define CSIDL_PROGRAM_FILESX86	0x002a 
+#endif
 
 #ifndef CSIDL_APPDATA
 #define CSIDL_APPDATA  0x1a
@@ -117,6 +122,23 @@ extern DWORD TWinVersion;	// define in tmisc.cpp
 #ifndef PROCESS_MODE_BACKGROUND_BEGIN
 #define PROCESS_MODE_BACKGROUND_BEGIN 0x00100000
 #define PROCESS_MODE_BACKGROUND_END   0x00200000
+#endif
+
+
+#ifdef _WIN64
+#define SetClassLongA	SetClassLongPtrA
+#define SetClassLongW	SetClassLongPtrW
+#define GetClassLongA	GetClassLongPtrA
+#define GetClassLongW	GetClassLongPtrW
+#define SetWindowLongA	SetWindowLongPtrA
+#define SetWindowLongW	SetWindowLongPtrW
+#define GetWindowLongA	GetWindowLongPtrA
+#define GetWindowLongW	GetWindowLongPtrW
+#define GCL_HICON		GCLP_HICON
+#define GWL_WNDPROC		GWLP_WNDPROC
+#define DWL_MSGRESULT	DWLP_MSGRESULT
+#else
+#define DWORD_PTR		DWORD
 #endif
 
 struct WINPOS {
@@ -291,11 +313,14 @@ public:
 	virtual BOOL	SetForceForegroundWindow(void);
 	virtual BOOL	ShowWindow(int mode);
 	virtual BOOL	PostMessage(UINT uMsg, WPARAM wParam, LPARAM lParam);
+	virtual BOOL	PostMessageW(UINT uMsg, WPARAM wParam, LPARAM lParam);
 	virtual BOOL	PostMessageV(UINT uMsg, WPARAM wParam, LPARAM lParam);
 	virtual LRESULT	SendMessage(UINT uMsg, WPARAM wParam, LPARAM lParam);
+	virtual LRESULT	SendMessageW(UINT uMsg, WPARAM wParam, LPARAM lParam);
 	virtual LRESULT	SendMessageV(UINT uMsg, WPARAM wParam, LPARAM lParam);
-	virtual LONG	SendDlgItemMessage(int ctlId, UINT uMsg, WPARAM wParam, LPARAM lParam);
-	virtual LONG	SendDlgItemMessageV(int ctlId, UINT uMsg, WPARAM wParam, LPARAM lParam);
+	virtual LRESULT	SendDlgItemMessage(int ctlId, UINT uMsg, WPARAM wParam, LPARAM lParam);
+	virtual LRESULT	SendDlgItemMessageW(int ctlId, UINT uMsg, WPARAM wParam, LPARAM lParam);
+	virtual LRESULT	SendDlgItemMessageV(int ctlId, UINT uMsg, WPARAM wParam, LPARAM lParam);
 	virtual BOOL	GetWindowRect(RECT *_rect=NULL);
 	virtual BOOL	SetWindowPos(HWND hInsAfter, int x, int y, int cx, int cy, UINT fuFlags);
 	virtual HWND	SetActiveWindow(void);
@@ -308,9 +333,9 @@ public:
 	virtual int		GetWindowTextLengthV(void);
 	virtual int		GetWindowTextLengthU8(void);
 
-	virtual LONG	SetWindowLong(int index, LONG val);
+	virtual LONG_PTR SetWindowLong(int index, LONG_PTR val);
 	virtual WORD	SetWindowWord(int index, WORD val);
-	virtual LONG	GetWindowLong(int index);
+	virtual LONG_PTR GetWindowLong(int index);
 	virtual WORD	GetWindowWord(int index);
 	virtual TWin	*GetParent(void) { return parent; };
 	virtual void	SetParent(TWin *_parent) { parent = _parent; };
@@ -329,7 +354,6 @@ protected:
 	UINT	resId;
 	BOOL	modalFlg;
 	int		maxItems;
-	int		allocItems;
 	DlgItem	*dlgItems;
 
 public:
@@ -341,11 +365,8 @@ public:
 	virtual int		Exec(void);
 	virtual void	EndDialog(int);
 	UINT			ResId(void) { return resId; }
-	virtual BOOL	SetDlgItem(UINT ctl_id, int idx, DWORD flags=0);
+	virtual int		SetDlgItem(UINT ctl_id, DWORD flags=0);
 	virtual BOOL	FitDlgItems();
-	virtual void	AllocDlgItems(int _allocItems) {
-		dlgItems = new DlgItem [allocItems = _allocItems];
-	}
 
 	virtual BOOL	EvCreate(LPARAM lParam);
 	virtual BOOL	EvCommand(WORD wNotifyCode, WORD wID, LPARAM hwndCtl);
@@ -476,9 +497,9 @@ protected:
 	HKEY	hKey[MAX_KEYARRAY];
 
 public:
-	TRegistry(LPCSTR company, LPSTR appName=NULL, StrMode mode=BY_MBCS);
-	TRegistry(LPCWSTR company, LPCWSTR appName=NULL, StrMode mode=BY_MBCS);
-	TRegistry(HKEY top_key, StrMode mode=BY_MBCS);
+	TRegistry(LPCSTR company, LPSTR appName=NULL, StrMode mode=BY_UTF8);
+	TRegistry(LPCWSTR company, LPCWSTR appName=NULL, StrMode mode=BY_UTF8);
+	TRegistry(HKEY top_key, StrMode mode=BY_UTF8);
 	~TRegistry();
 
 	void	ChangeTopKey(HKEY topKey);
@@ -508,9 +529,11 @@ public:
 	BOOL	SetLongV(const void *key, long val);
 
 	BOOL	GetStr(LPCSTR key, LPSTR str, int size_byte);
+	BOOL	GetStrA(LPCSTR key, LPSTR str, int size_byte);
 	BOOL	GetStrV(const void *key, void *str, int size_byte);
 
 	BOOL	SetStr(LPCSTR key, LPCSTR str);
+	BOOL	SetStrA(LPCSTR key, LPCSTR str);
 	BOOL	SetStrV(const void *key, const void *str);
 
 	BOOL	GetByte(LPCSTR key, BYTE *data, int *size);
@@ -640,6 +663,7 @@ LPSTR GetLoadStrU8(UINT resId, HINSTANCE hI=NULL);
 LPWSTR GetLoadStrW(UINT resId, HINSTANCE hI=NULL);
 void TSetDefaultLCID(LCID id=0);
 HMODULE TLoadLibrary(LPSTR dllname);
+HMODULE TLoadLibraryV(void *dllname);
 int MakePath(char *dest, const char *dir, const char *file);
 int MakePathW(WCHAR *dest, const WCHAR *dir, const WCHAR *file);
 WCHAR lGetCharIncW(const WCHAR **str);
@@ -648,6 +672,10 @@ WCHAR lGetCharW(const WCHAR *str, int);
 WCHAR lGetCharA(const char *str, int);
 void lSetCharW(WCHAR *str, int offset, WCHAR ch);
 void lSetCharA(char *str, int offset, WCHAR ch);
+
+BOOL hexstr2bin(const char *buf, BYTE *bindata, int maxlen, int *len);
+int bin2hexstr(const BYTE *bindata, int len, char *buf);
+int bin2hexstrW(const BYTE *bindata, int len, WCHAR *buf);
 
 char *strdupNew(const char *_s);
 WCHAR *wcsdupNew(const WCHAR *_s);

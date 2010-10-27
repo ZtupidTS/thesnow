@@ -1,4 +1,4 @@
-﻿/* @(#)Copyright (C) 1996-2010 H.Shirouzu		tapi32ex.h	Ver0.99 */
+/* @(#)Copyright (C) 1996-2010 H.Shirouzu		tapi32ex.h	Ver0.99 */
 /* ========================================================================
 	Project  Name			: Win32 Lightweight  Class Library Test
 	Module Name				: Main Header
@@ -180,7 +180,9 @@ typedef unsigned int ALG_ID;
 #define AT_KEYEXCHANGE			1
 #define AT_SIGNATURE			2
 #define KP_EFFECTIVE_KEYLEN		19	// for CryptSetKeyParam
+#ifndef NTE_BAD_KEY
 #define NTE_BAD_KEY				0x80090003L
+#endif
 
 typedef struct _CRYPTOAPI_BLOB {
 	DWORD   cbData;

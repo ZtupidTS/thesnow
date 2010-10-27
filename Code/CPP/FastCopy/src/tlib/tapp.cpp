@@ -1,4 +1,4 @@
-﻿static char *tapp_id = 
+static char *tapp_id = 
 	"@(#)Copyright (C) 1996-2009 H.Shirouzu		tapp.cpp	Ver0.99";
 /* ========================================================================
 	Project  Name			: Win32 Lightweight  Class Library Test
@@ -61,7 +61,7 @@ int TApp::Run(void)
 		::DispatchMessage(&msg);
 	}
 
-	return	msg.wParam;
+	return	(int)msg.wParam;
 }
 
 BOOL TApp::PreProcMsg(MSG *msg)	// for TranslateAccel & IsDialogMessage

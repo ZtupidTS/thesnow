@@ -1,4 +1,4 @@
-ï»¿static char *tap32ex_id = 
+static char *tap32ex_id = 
 	"@(#)Copyright (C) 1996-2010 H.Shirouzu		tap32ex.cpp	Ver0.99";
 /* ========================================================================
 	Project  Name			: Win32 Lightweight  Class Library Test
@@ -403,7 +403,7 @@ int rand_data2[THASH_RAND_NUM2] = {
 };
 
 /*
-	æ‰‹æŠœããƒãƒƒã‚·ãƒ¥ç”Ÿæˆãƒ«ãƒ¼ãƒãƒ³
+	è”²‚«ƒnƒbƒVƒ…¶¬ƒ‹[ƒ`ƒ“
 */
 u_int MakeHash(const void *data, int size, DWORD iv)
 {

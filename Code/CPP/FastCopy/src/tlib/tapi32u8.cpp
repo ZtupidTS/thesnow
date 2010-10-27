@@ -1,4 +1,4 @@
-ï»¿static char *tap32u8_id = 
+static char *tap32u8_id = 
 	"@(#)Copyright (C) 1996-2010 H.Shirouzu		tap32u8.cpp	Ver0.99";
 /* ========================================================================
 	Project  Name			: Win32 Lightweight  Class Library Test
@@ -275,8 +275,8 @@ BOOL GetSaveFileNameU8(LPOPENFILENAME ofn)
 }
 
 /*
-	ãƒªãƒ³ã‚¯ã®è§£æ±º
-	ã‚ã‚‰ã‹ã˜ã‚ã€CoInitialize(NULL); ã‚’å®Ÿè¡Œã—ã¦ãŠãã“ã¨
+	ƒŠƒ“ƒN‚Ì‰ğŒˆ
+	‚ ‚ç‚©‚¶‚ßACoInitialize(NULL); ‚ğÀs‚µ‚Ä‚¨‚­‚±‚Æ
 */
 BOOL ReadLinkU8(LPCSTR src, LPSTR dest, LPSTR arg)
 {
@@ -366,7 +366,7 @@ LPSTR GetLoadStrU8(UINT resId, HINSTANCE hI)
 }
 
 /*=========================================================================
-	UCS2(W) - UTF-8(U8) - ANSI(A) ç›¸äº’å¤‰æ›
+	UCS2(W) - UTF-8(U8) - ANSI(A) ‘ŠŒİ•ÏŠ·
 =========================================================================*/
 WCHAR *U8toW(const char *src, BOOL noStatic) {
 	static	WCHAR	*_wbuf = NULL;

@@ -12,12 +12,6 @@
 #define SHELLDEF_H
 
 #define FASTCOPY		"FastCopy"
-#define SHELLEXT1_DLL	"FastCopy_shext.dll"
-#define SHELLEXT2_DLL	"FastCopy_shext2.dll"
-#define SHELLEXT3_DLL	"FastCopy_shext3.dll"
-#define SHELLEXT4_DLL	"FastCopy_shext4.dll"
-#define FCSHELLEXT1_DLL	"FastExt1.dll"
-#define FCSHELLEX64_DLL	"FastEx64.dll"
 #define FASTCOPY_EXE	"FastCopy.exe"
 #define SHELLEXT_OPT	"/fc_shell_ext1"
 

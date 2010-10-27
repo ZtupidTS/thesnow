@@ -1,4 +1,4 @@
-Ôªøstatic char *tmisc_id = 
+static char *tmisc_id = 
 	"@(#)Copyright (C) 1996-2010 H.Shirouzu		tmisc.cpp	Ver0.99";
 /* ========================================================================
 	Project  Name			: Win32 Lightweight  Class Library Test
@@ -188,8 +188,19 @@ HMODULE TLoadLibrary(LPSTR dllname)
 	return	hModule;
 }
 
+HMODULE TLoadLibraryV(void *dllname)
+{
+	HMODULE	hModule = LoadLibraryV(dllname);
+
+	if (defaultLCID) {
+		TSetThreadLocale(defaultLCID);
+	}
+
+	return	hModule;
+}
+
 /*=========================================================================
-	„Éë„ÇπÂêàÊàêÔºàANSI ÁâàÔºâ
+	ÉpÉXçáê¨ÅiANSI î≈Åj
 =========================================================================*/
 int MakePath(char *dest, const char *dir, const char *file)
 {
@@ -199,7 +210,7 @@ int MakePath(char *dest, const char *dir, const char *file)
 	if ((len = strlen(dir)) == 0)
 		return	wsprintf(dest, "%s", file);
 
-	if (dir[len -1] == '\\')	// Ë°®„Å™„Å©„ÄÅ2byteÁõÆ„Åå'\\'„ÅßÁµÇ„ÇãÊñáÂ≠óÂàóÂØæÁ≠ñ
+	if (dir[len -1] == '\\')	// ï\Ç»Ç«ÅA2byteñ⁄Ç™'\\'Ç≈èIÇÈï∂éöóÒëŒçÙ
 	{
 		if (len >= 2 && IsDBCSLeadByte(dir[len -2]) == FALSE)
 			separetor = FALSE;
@@ -215,7 +226,7 @@ int MakePath(char *dest, const char *dir, const char *file)
 }
 
 /*=========================================================================
-	„Éë„ÇπÂêàÊàêÔºàUNICODE ÁâàÔºâ
+	ÉpÉXçáê¨ÅiUNICODE î≈Åj
 =========================================================================*/
 int MakePathW(WCHAR *dest, const WCHAR *dir, const WCHAR *file)
 {
@@ -238,7 +249,7 @@ WCHAR lGetCharIncA(const char **str)
 
 	if (IsDBCSLeadByte((BYTE)ch)) {
 		ch <<= BITS_OF_BYTE;
-		ch |= *(*str)++;	// null Âà§ÂÆö„ÅØÊâãÊäú„Åç
+		ch |= *(*str)++;	// null îªíËÇÕéËî≤Ç´
 	}
 	return	ch;
 }
@@ -274,6 +285,55 @@ void lSetCharA(char *str, int offset, WCHAR ch)
 		*str++ = high_ch;
 	*str = (BYTE)ch;
 }
+
+/*=========================================================================
+	bin <-> hex
+=========================================================================*/
+inline u_char hexchar2char(u_char ch)
+{
+	if (ch >= '0' && ch <= '9')
+		return ch - '0';
+	ch = toupper(ch);
+	if (ch >= 'A' && ch <= 'Z')
+		return ch - 'A' + 10;
+	return 0;
+}
+
+BOOL hexstr2bin(const char *buf, BYTE *bindata, int maxlen, int *len)
+{
+	for (*len=0; buf[0] && buf[1] && *len < maxlen; buf+=2, (*len)++)
+	{
+		bindata[*len] = hexchar2char(buf[0]) << 4 | hexchar2char(buf[1]);
+	}
+	return	TRUE;
+}
+
+int bin2hexstr(const BYTE *bindata, int len, char *buf)
+{
+	static char *hexstr = "0123456789abcdef";
+
+	for (const BYTE *end=bindata+len; bindata < end; bindata++)
+	{
+		*buf++ = hexstr[*bindata >> 4];
+		*buf++ = hexstr[*bindata & 0x0f];
+	}
+	*buf = 0;
+	return	len * 2;
+}
+
+int bin2hexstrW(const BYTE *bindata, int len, WCHAR *buf)
+{
+	static WCHAR *hexstr = L"0123456789abcdef";
+
+	for (const BYTE *end=bindata+len; bindata < end; bindata++)
+	{
+		*buf++ = hexstr[*bindata >> 4];
+		*buf++ = hexstr[*bindata & 0x0f];
+	}
+	*buf = 0;
+	return	len * 2;
+}
+
 
 /*=========================================================================
 	Debug
@@ -316,9 +376,8 @@ void DebugU8(char *fmt,...)
 }
 #endif
 
-#ifndef _WIN64
 /*=========================================================================
-	‰æãÂ§ñÊÉÖÂ†±ÂèñÂæó
+	ó·äOèÓïÒéÊìæ
 =========================================================================*/
 static char *ExceptionTitle;
 static char *ExceptionLogFile;
@@ -328,12 +387,12 @@ static char *ExceptionLogInfo;
 
 LONG WINAPI Local_UnhandledExceptionFilter(struct _EXCEPTION_POINTERS *info)
 {
-	static char			buf[(STACKDUMP_SIZE/sizeof(DWORD)) * 10 + 100];	// 10 ... %08x + \r\n
+	static char			buf[MAX_STACKDUMP_SIZE];
 	static HANDLE		hFile;
 	static SYSTEMTIME	tm;
 	static CONTEXT		*context;
 	static DWORD		len, i, j;
-	static char			*stack;
+	static char			*stack, *esp;
 
 	hFile = ::CreateFile(ExceptionLogFile, GENERIC_WRITE, 0, 0, OPEN_ALWAYS, 0, 0);
 	::SetFilePointer(hFile, 0, 0, FILE_END);
@@ -341,6 +400,23 @@ LONG WINAPI Local_UnhandledExceptionFilter(struct _EXCEPTION_POINTERS *info)
 	context = info->ContextRecord;
 
 	len = sprintf(buf,
+#ifdef _WIN64
+		"------ %s -----\r\n"
+		" Date        : %d/%02d/%02d %02d:%02d:%02d\r\n"
+		" Code/Addr   : %p / %p\r\n"
+		" AX/BX/CX/DX : %p / %p / %p / %p\r\n"
+		" SI/DI/BP/SP : %p / %p / %p / %p\r\n"
+		" 08/09/10/11 : %p / %p / %p / %p\r\n"
+		" 12/13/14/15 : %p / %p / %p / %p\r\n"
+		"------- stack info -----\r\n"
+		, ExceptionTitle
+		, tm.wYear, tm.wMonth, tm.wDay, tm.wHour, tm.wMinute, tm.wSecond
+		, info->ExceptionRecord->ExceptionCode, info->ExceptionRecord->ExceptionAddress
+		, context->Rax, context->Rbx, context->Rcx, context->Rdx
+		, context->Rsi, context->Rdi, context->Rbp, context->Rsp
+		, context->R8,  context->R9,  context->R10, context->R11
+		, context->R12, context->R13, context->R14, context->R15
+#else
 		"------ %s -----\r\n"
 		" Date        : %d/%02d/%02d %02d:%02d:%02d\r\n"
 		" Code/Addr   : %X / %p\r\n"
@@ -352,16 +428,24 @@ LONG WINAPI Local_UnhandledExceptionFilter(struct _EXCEPTION_POINTERS *info)
 		, info->ExceptionRecord->ExceptionCode, info->ExceptionRecord->ExceptionAddress
 		, context->Eax, context->Ebx, context->Ecx, context->Edx
 		, context->Esi, context->Edi, context->Ebp, context->Esp
+#endif
 		);
 	::WriteFile(hFile, buf, len, &len, 0);
 
+#ifdef _WIN64
+		esp = (char *)context->Rsp;
+#else
+		esp = (char *)context->Esp;
+#endif
+
 	for (i=0; i < MAX_STACKDUMP_SIZE / STACKDUMP_SIZE; i++) {
-		stack = (char *)context->Esp + (i * STACKDUMP_SIZE);
+		stack = esp + (i * STACKDUMP_SIZE);
 		if (::IsBadReadPtr(stack, STACKDUMP_SIZE))
 			break;
 		len = 0;
-		for (j=0; j < STACKDUMP_SIZE / sizeof(DWORD); j++)
-			len += sprintf(buf + len, "%08x%s", ((DWORD *)stack)[j], ((j+1)%8) ? " " : "\r\n");
+		for (j=0; j < STACKDUMP_SIZE / sizeof(DWORD_PTR); j++)
+			len += sprintf(buf + len, "%p%s", ((DWORD_PTR *)stack)[j],
+							((j+1)%(32/sizeof(DWORD_PTR))) ? " " : "\r\n");
 		::WriteFile(hFile, buf, len, &len, 0);
 	}
 
@@ -388,11 +472,10 @@ BOOL InstallExceptionFilter(char *title, char *info)
 	::SetUnhandledExceptionFilter(&Local_UnhandledExceptionFilter);
 	return	TRUE;
 }
-#endif
 
 
 /*
-	nulÊñáÂ≠ó„ÇíÂøÖ„Åö‰ªò‰∏é„Åô„Çã strncpy
+	nulï∂éöÇïKÇ∏ïtó^Ç∑ÇÈ strncpy
 */
 char *strncpyz(char *dest, const char *src, int num)
 {
@@ -408,7 +491,7 @@ char *strncpyz(char *dest, const char *src, int num)
 }
 
 /*
-	Â§ßÊñáÂ≠óÂ∞èÊñáÂ≠ó„ÇíÁÑ°Ë¶ñ„Åô„Çã strncmp
+	ëÂï∂éöè¨ï∂éöÇñ≥éãÇ∑ÇÈ strncmp
 */
 int strncmpi(const char *str1, const char *str2, int num)
 {
@@ -433,7 +516,7 @@ int strncmpi(const char *str1, const char *str2, int num)
 
 
 /*=========================================================================
-	UCS2(W) - ANSI(A) Áõ∏‰∫íÂ§âÊèõ
+	UCS2(W) - ANSI(A) ëäå›ïœä∑
 =========================================================================*/
 WCHAR *AtoW(const char *src, BOOL noStatic) {
 	static	WCHAR	*_wbuf = NULL;
@@ -456,7 +539,7 @@ WCHAR *AtoW(const char *src, BOOL noStatic) {
 
 char *strdupNew(const char *_s)
 {
-	int		len = strlen(_s) + 1;
+	int		len = (int)strlen(_s) + 1;
 	char	*s = new char [len];
 	memcpy(s, _s, len);
 	return	s;
@@ -464,7 +547,7 @@ char *strdupNew(const char *_s)
 
 WCHAR *wcsdupNew(const WCHAR *_s)
 {
-	int		len = wcslen(_s) + 1;
+	int		len = (int)wcslen(_s) + 1;
 	WCHAR	*s = new WCHAR [len];
 	memcpy(s, _s, len * sizeof(WCHAR));
 	return	s;
@@ -599,7 +682,8 @@ BOOL TIsVirtualizedDirV(void *path)
 	if (!IsWinVista()) return FALSE;
 
 	WCHAR	buf[MAX_PATH];
-	DWORD	csidl[] = { CSIDL_WINDOWS, CSIDL_PROGRAM_FILES, CSIDL_COMMON_APPDATA, 0xffffffff };
+	DWORD	csidl[] = { CSIDL_WINDOWS, CSIDL_PROGRAM_FILES, CSIDL_PROGRAM_FILESX86,
+						CSIDL_COMMON_APPDATA, 0xffffffff };
 
 	for (int i=0; csidl[i] != 0xffffffff; i++) {
 		if (TSHGetSpecialFolderPathV(NULL, buf, csidl[i], FALSE)) {
@@ -610,11 +694,11 @@ BOOL TIsVirtualizedDirV(void *path)
 					return	TRUE;
 				}
 			}
-			if (i == 0 && GetChar(buf, 1) == ':') { /* check system root directory */
-				if (strnicmpV(path, buf, 3) == 0 && strchrV(MakeAddr(path, 4), '\\') == NULL) {
-					return	TRUE;
-				}
-			}
+//			if (i == 0 && GetChar(buf, 1) == ':') { /* check system root directory */
+//				if (strnicmpV(path, buf, 3) == 0 && strchrV(MakeAddr(path, 4), '\\') == NULL) {
+//					return	TRUE;
+//				}
+//			}
 		}
 	}
 
@@ -683,8 +767,8 @@ BOOL TSetThreadLocale(int lcid)
 }
 
 /*
-	„É™„É≥„ÇØ
-	„ÅÇ„Çâ„Åã„Åò„ÇÅ„ÄÅCoInitialize(NULL); „ÇíÂÆüË°å„Åó„Å¶„Åä„Åè„Åì„Å®
+	ÉäÉìÉN
+	Ç†ÇÁÇ©Ç∂ÇﬂÅACoInitialize(NULL); Çé¿çsÇµÇƒÇ®Ç≠Ç±Ç∆
 	src  ... old_path
 	dest ... new_path
 */
@@ -721,7 +805,7 @@ BOOL SymLinkV(void *src, void *dest, void *arg)
 
 BOOL ReadLinkV(void *src, void *dest, void *arg)
 {
-	IShellLink		*shellLink;		// ÂÆüÈöõ„ÅØ IShellLinkA or IShellLinkW
+	IShellLink		*shellLink;		// é¿ç€ÇÕ IShellLinkA or IShellLinkW
 	IPersistFile	*persistFile;
 	WCHAR			wbuf[MAX_PATH];
 	BOOL			ret = FALSE;
@@ -749,7 +833,7 @@ BOOL ReadLinkV(void *src, void *dest, void *arg)
 }
 
 /*
-	„É™„É≥„ÇØ„Éï„Ç°„Ç§„É´ÂâäÈô§
+	ÉäÉìÉNÉtÉ@ÉCÉãçÌèú
 */
 BOOL DeleteLinkV(void *path)
 {
@@ -765,7 +849,7 @@ BOOL DeleteLinkV(void *path)
 }
 
 /*
-	Ë¶™„Éá„Ç£„É¨„ÇØ„Éà„É™ÂèñÂæóÔºàÂøÖ„Åö„Éï„É´„Éë„Çπ„Åß„ÅÇ„Çã„Åì„Å®„ÄÇUNCÂØæÂøúÔºâ
+	êeÉfÉBÉåÉNÉgÉäéÊìæÅiïKÇ∏ÉtÉãÉpÉXÇ≈Ç†ÇÈÇ±Ç∆ÅBUNCëŒâûÅj
 */
 BOOL GetParentDirV(const void *srcfile, void *dir)
 {
@@ -777,7 +861,7 @@ BOOL GetParentDirV(const void *srcfile, void *dir)
 	if (((char *)fname - (char *)path) > 3 * CHAR_LEN_V || GetChar(path, 1) != ':')
 		SetChar(fname, -1, 0);
 	else
-		SetChar(fname, 0, 0);		// C:\ „ÅÆÂ†¥Âêà
+		SetChar(fname, 0, 0);		// C:\ ÇÃèÍçá
 
 	strcpyV(dir, path);
 	return	TRUE;

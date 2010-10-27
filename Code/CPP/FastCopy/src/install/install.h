@@ -14,6 +14,13 @@ struct InstallCfg {
 	InstMode	mode;
 	BOOL		programLink;
 	BOOL		desktopLink;
+	BOOL		runImme;
+	HWND		hOrgWnd;
+	WCHAR		*setupDir;
+	WCHAR		*appData;
+	WCHAR		*virtualDir;
+	void		*startMenu;
+	void		*deskTop;
 };
 
 class TInstSheet : public TDlg
@@ -50,6 +57,7 @@ public:
 #endif
 	BOOL	Install(void);
 	BOOL	UnInstall(void);
+	BOOL	RunAsAdmin(BOOL is_imme);
 	void	ChangeMode(void);
 	BOOL	RemoveSameLink(const char *dir, char *remove_path=NULL);
 };
@@ -88,7 +96,6 @@ public:
 };
 
 #define FASTCOPY			"FastCopy"
-
 #define FASTCOPY_EXE		"FastCopy.exe"
 #define INSTALL_EXE			"setup.exe"
 #define README_TXT			"readme.txt"
@@ -99,7 +106,15 @@ public:
 #define SHELLEXT4_DLL		"FastCopy_shext4.dll"
 #define FCSHELLEXT1_DLL		"FastExt1.dll"
 #define FCSHELLEX64_DLL		"FastEx64.dll"
+
+#ifdef _WIN64
+#define CURRENT_SHEXTDLL	FCSHELLEX64_DLL
+#define CURRENT_SHEXTDLL_EX	FCSHELLEXT1_DLL
+#else
 #define CURRENT_SHEXTDLL	FCSHELLEXT1_DLL
+#define CURRENT_SHEXTDLL_EX	FCSHELLEX64_DLL
+#endif
+
 #define UNC_PREFIX			"\\\\"
 
 #define UNINSTALL_CMDLINE	"/r"

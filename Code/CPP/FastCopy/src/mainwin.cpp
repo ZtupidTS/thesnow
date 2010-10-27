@@ -1,9 +1,9 @@
 static char *mainwin_id = 
-	"@(#)Copyright (C) 2004-2010 H.Shirouzu		mainwin.cpp	ver2.00";
+	"@(#)Copyright (C) 2004-2010 H.Shirouzu		mainwin.cpp	ver2.03";
 /* ========================================================================
 	Project  Name			: Fast/Force copy file and directory
 	Create					: 2004-09-15(Wed)
-	Update					: 2010-05-09(Sun)
+	Update					: 2010-09-12(Sun)
 	Copyright				: H.Shirouzu
 	Reference				: 
 	======================================================================== */
@@ -20,10 +20,10 @@ static char *mainwin_id =
 //#define HASHQUALITY_CHECK
 
 /*=========================================================================
-  僋儔僗 丗 TFastCopyApp
-  奣  梫 丗 傾僾儕働乕僔儑儞僋儔僗
-  愢  柧 丗 
-  拲  堄 丗 
+  クラス ： TFastCopyApp
+  概  要 ： アプリケーションクラス
+  説  明 ： 
+  注  意 ： 
 =========================================================================*/
 TFastCopyApp::TFastCopyApp(HINSTANCE _hI, LPSTR _cmdLine, int _nCmdShow)
 	: TApp(_hI, _cmdLine, _nCmdShow)
@@ -65,10 +65,10 @@ int WINAPI WinMain(HINSTANCE _hI, HINSTANCE, LPSTR arg, int show)
 }
 
 /*=========================================================================
-  僋儔僗 丗 TMainDlg
-  奣  梫 丗 儊僀儞僟僀傾儘僌
-  愢  柧 丗 
-  拲  堄 丗 
+  クラス ： TMainDlg
+  概  要 ： メインダイアログ
+  説  明 ： 
+  注  意 ： 
 =========================================================================*/
 TMainDlg::TMainDlg() : TDlg(MAIN_DIALOG), aboutDlg(this), setupDlg(&cfg, this),
 	shellExtDlg(&cfg, this), jobDlg(&cfg, this), finActDlg(&cfg, this),
@@ -77,7 +77,18 @@ TMainDlg::TMainDlg() : TDlg(MAIN_DIALOG), aboutDlg(this), setupDlg(&cfg, this),
 	, listHead(this), listView(this)
 #endif
 {
-	cfg.ReadIni();
+	WCHAR	*user_dir = NULL;
+	WCHAR	*virtual_dir = NULL;
+
+	orgArgv = CommandLineToArgvV(::GetCommandLineV(), &orgArgc);
+	if (IsWinVista() && TIsUserAnAdmin() && TIsEnableUAC()) {
+		GetRunasInfo(&user_dir, &virtual_dir);
+	}
+	if (!cfg.ReadIni(user_dir, virtual_dir)) {
+		MessageBox("Can't initialize..", "FastCopy", MB_OK);
+		PostQuitMessage(0);
+		return;
+	}
 
 	if (cfg.lcid > 0)
 		TSetDefaultLCID(cfg.lcid);
@@ -210,7 +221,7 @@ BOOL TMainDlg::SetNormalWindow(void)
 BOOL TMainDlg::MoveCenter(BOOL isShow)
 {
 	POINT	pt;
-	SIZE	sz;
+	SIZE	sz = {0, 0};
 	::GetCursorPos(&pt);
 
 	BOOL isFixPos  = !IS_INVALID_POINT(cfg.winpos);
@@ -292,7 +303,7 @@ BOOL TMainDlg::SetCopyModeList(void)
 {
 	int	idx = cfg.copyMode;
 
-	if (copyInfo == NULL) {		// 弶夞僐僺乕儌乕僪儕僗僩嶌惉
+	if (copyInfo == NULL) {		// 初回コピーモードリスト作成
 		for (int i=0; COPYINFO_LIST[i].resId; i++) {
 			COPYINFO_LIST[i].list_str = GetLoadStr(COPYINFO_LIST[i].resId);
 			COPYINFO_LIST[i].cmdline_name = GetLoadStrV(COPYINFO_LIST[i].cmdline_resId);
@@ -300,7 +311,7 @@ BOOL TMainDlg::SetCopyModeList(void)
 		copyInfo = new CopyInfo[sizeof(COPYINFO_LIST) / sizeof(CopyInfo)];
 	}
 	else {
-		idx = SendDlgItemMessage(MODE_COMBO, CB_GETCURSEL, 0, 0);
+		idx = (int)SendDlgItemMessage(MODE_COMBO, CB_GETCURSEL, 0, 0);
 		SendDlgItemMessage(MODE_COMBO, CB_RESETCONTENT, 0, 0);
 	}
 
@@ -339,7 +350,8 @@ BOOL TMainDlg::EvCreate(LPARAM lParam)
 	}
 
 	char	title[100];
-	sprintf(title, "FastCopy %s", GetVersionStr());
+	sprintf(title, "%s %s", FASTCOPY_TITLE, GetVersionStr());
+
 	InstallExceptionFilter(title, GetLoadStr(IDS_EXCEPTIONLOG));
 
 	if (IsWinVista()) {
@@ -362,15 +374,9 @@ BOOL TMainDlg::EvCreate(LPARAM lParam)
 					GetLoadStrV(IDS_ELEVATE));
 			}
 		}
-		if (TIsEnableUAC()) {
-/*			if (cfg.userOldDirV && GetFileAttributesV(cfg.userOldDirV) != 0xffffffff) {
-				::InsertMenu(::GetSubMenu(hMenu, 0), 0, MF_STRING|MF_BYPOSITION,
-					USEROLDDIR_MENUITEM, GetLoadStr(IDS_USEROLDDIR_MENU));
-			}
-*/			if (strcmpV(cfg.execDirV, cfg.userDirV) != 0) {
-				::InsertMenu(::GetSubMenu(hMenu, 0), 0, MF_STRING|MF_BYPOSITION,
-					USERDIR_MENUITEM, GetLoadStr(IDS_USERDIR_MENU));
-			}
+		if (strcmpV(cfg.execDirV, cfg.userDirV)) {
+			::InsertMenu(::GetSubMenu(hMenu, 0), 0, MF_STRING|MF_BYPOSITION,
+				USERDIR_MENUITEM, GetLoadStr(IDS_USERDIR_MENU));
 		}
 	}
 
@@ -384,7 +390,7 @@ BOOL TMainDlg::EvCreate(LPARAM lParam)
 
 	TaskBarCreateMsg = ::RegisterWindowMessage("TaskbarCreated");
 
-	// 儊僢僙乕僕僙僢僩
+	// メッセージセット
 	SetDlgItemText(STATUS_EDIT, GetLoadStr(IDS_BEHAVIOR));
 	SetDlgItemInt(BUFSIZE_EDIT, cfg.bufSize);
 
@@ -404,16 +410,16 @@ BOOL TMainDlg::EvCreate(LPARAM lParam)
 
 	SendDlgItemMessage(STATUS_EDIT, EM_SETWORDBREAKPROC, 0, (LPARAM)EditWordBreakProc);
 //	SendDlgItemMessage(ERR_EDIT, EM_SETWORDBREAKPROC, 0, (LPARAM)EditWordBreakProc);
-	SendDlgItemMessage(ERR_EDIT, EM_SETTARGETDEVICE, 0, 0);		// 愜傝曉偟
+	SendDlgItemMessage(ERR_EDIT, EM_SETTARGETDEVICE, 0, 0);		// 折り返し
 	SendDlgItemMessage(ERR_EDIT, EM_LIMITTEXT, 0, 0);
 	SendDlgItemMessage(PATH_EDIT, EM_LIMITTEXT, 0, 0);
 
-	// 僗儔僀僟僐儞僩儘乕儖
+	// スライダコントロール
 	SendDlgItemMessage(SPEED_SLIDER, TBM_SETRANGE, FALSE, MAKELONG(SPEED_SUSPEND, SPEED_FULL));
 	SetSpeedLevelLabel(this, speedLevel = cfg.speedLevel);
 
 #ifdef USE_LISTVIEW
-	// 儕僗僩價儏乕娭楢
+	// リストビュー関連
 	listView.CreateByWnd(GetDlgItem(MAIN_LIST));
 	listHead.CreateByWnd((HWND)listView.SendMessage(LVM_GETHEADER, 0, 0));
 
@@ -457,7 +463,7 @@ BOOL TMainDlg::EvCreate(LPARAM lParam)
 	pathEdit.CreateByWnd(GetDlgItem(PATH_EDIT));
 	errEdit.CreateByWnd(GetDlgItem(ERR_EDIT));
 
-	// 棜楌僙僢僩
+	// 履歴セット
 	SetPathHistory(TRUE);
 	SetFilterHistory(FALSE);
 
@@ -477,15 +483,10 @@ BOOL TMainDlg::EvCreate(LPARAM lParam)
 
 	SetExtendFilter();
 
-	int		argc;
-	void	**argv;
-
-	argv = CommandLineToArgvV(::GetCommandLineV(), &argc);
-
 	// command line mode
-	if (argc > 1) {
-		// isRunAsParent 偺応崌偼丄Child懁偐傜偺 CLOSE 傪懸偮偨傔丄帺庡廔椆偟側偄
-		if (!CommandLineExecV(argc, argv) && (!isShellExt || autoCloseLevel >= NOERR_CLOSE)
+	if (orgArgc > 1) {
+		// isRunAsParent の場合は、Child側からの CLOSE を待つため、自主終了しない
+		if (!CommandLineExecV(orgArgc, orgArgv) && (!isShellExt || autoCloseLevel >= NOERR_CLOSE)
 				&& !isRunAsParent) {
 			resultStatus = FALSE;
 			if (IsForeground() && (::GetAsyncKeyState(VK_SHIFT) & 0x8000))
@@ -538,7 +539,7 @@ BOOL TMainDlg::CancelCopy()
 BOOL TMainDlg::SwapTargetCore(const void *s, const void *d, void *out_s, void *out_d)
 {
 	void	*src_fname = NULL, *dst_fname = NULL;
-	BOOL	isSrcLastBS = GetChar(s, strlenV(s) - 1) == '\\'; // 95宯偼柍帇...
+	BOOL	isSrcLastBS = GetChar(s, strlenV(s) - 1) == '\\'; // 95系は無視...
 	BOOL	isDstLastBS = GetChar(d, strlenV(d) - 1) == '\\';
 	BOOL	isSrcRoot = FALSE;
 
@@ -564,26 +565,26 @@ BOOL TMainDlg::SwapTargetCore(const void *s, const void *d, void *out_s, void *o
 			|| (attr & FILE_ATTRIBUTE_DIRECTORY)
 				&& (!cfg.isReparse || (attr & FILE_ATTRIBUTE_REPARSE_POINT) == 0);
 
-	if (isSrcDir && !isDstLastBS) {	// dst 偵 '\\' 偑側偄応崌
+	if (isSrcDir && !isDstLastBS) {	// dst に '\\' がない場合
 		strcpyV(out_d, s);
 		strcpyV(out_s, d);
 		goto END;
 	}
 
-	if (!isDstLastBS) {	// dst 枛旜偵 '\\' 傪晅梌
+	if (!isDstLastBS) {	// dst 末尾に '\\' を付与
 		MakePathV(buf.Buf(), d, EMPTY_STR_V);
 		d = buf.Buf();
 	}
 
-	if (GetFullPathNameV(s, MAX_PATHLEN_V, out_d, &src_fname) <= 0) return	FALSE; // s傪 out_d 偵
-	if (GetFullPathNameV(d, MAX_PATHLEN_V, out_s, &dst_fname) <= 0) return	FALSE; // d傪 out_s 偵
+	if (GetFullPathNameV(s, MAX_PATHLEN_V, out_d, &src_fname) <= 0) return	FALSE; // sを out_d に
+	if (GetFullPathNameV(d, MAX_PATHLEN_V, out_s, &dst_fname) <= 0) return	FALSE; // dを out_s に
 
-	if (src_fname) {  // a:\aaa\bbb  d:\ccc\ddd\ --> d:\ccc\ddd\bbb a:\aaa\ 偵偡傞
+	if (src_fname) {  // a:\aaa\bbb  d:\ccc\ddd\ --> d:\ccc\ddd\bbb a:\aaa\ にする
 		strcpyV(MakeAddr(out_s, strlenV(out_s)), src_fname);
 		SetChar(src_fname, 0, 0);
 		goto END;
 	}
-	else if (isSrcRoot) {	// a:\  d:\xxx\  -> d:\xxx a:\ 偵偡傞
+	else if (isSrcRoot) {	// a:\  d:\xxx\  -> d:\xxx a:\ にする
 		GetRootDirV(out_s, buf.Buf());
 		if (strcmpV(out_s, buf.Buf()) && !isSrcRoot) {
 			SetChar(out_s, strlenV(out_s) -1, 0);
@@ -728,10 +729,6 @@ BOOL TMainDlg::EvCommand(WORD wNotifyCode, WORD wID, LPARAM hwndCtl)
 		::ShellExecuteV(NULL, NULL, cfg.userDirV, 0, 0, SW_SHOW);
 		return	TRUE;
 
-	case USEROLDDIR_MENUITEM:
-		::ShellExecuteV(NULL, NULL, cfg.userOldDirV, 0, 0, SW_SHOW);
-		return	TRUE;
-
 	case FIXPOS_MENUITEM:
 		if (IS_INVALID_POINT(cfg.winpos)) {
 			if (TMsgBox(this).Exec(GetLoadStr(IDS_FIXPOS_MSG), FASTCOPY, MB_OKCANCEL) == IDOK) {
@@ -804,7 +801,7 @@ BOOL TMainDlg::EvCommand(WORD wNotifyCode, WORD wID, LPARAM hwndCtl)
 		return	TRUE;
 
 	case FASTCOPYURL_MENUITEM:
-		::ShellExecute(NULL, NULL, GetLoadStr(IDS_FASTCOPYURL), NULL, NULL, SW_SHOW);
+		::ShellExecuteV(NULL, NULL, GetLoadStrV(IDS_FASTCOPYURL), NULL, NULL, SW_SHOW);
 		return	TRUE;
 
 	case AUTODISK_MENUITEM: case SAMEDISK_MENUITEM: case DIFFDISK_MENUITEM:
@@ -898,7 +895,7 @@ BOOL TMainDlg::EvSize(UINT fwSizeType, WORD nWidth, WORD nHeight)
 
 void TMainDlg::RefreshWindow(BOOL is_start_stop)
 {
-	if (!copyInfo) return;	// 捠忢偼偁傝偊側偄丅
+	if (!copyInfo) return;	// 通常はありえない。
 
 	GetWindowRect(&rect);
 	int	xdiff = (rect.right - rect.left) - (orgRect.right - orgRect.left);
@@ -995,40 +992,37 @@ void TMainDlg::RefreshWindow(BOOL is_start_stop)
 
 void TMainDlg::SetSize(void)
 {
-	AllocDlgItems(max_dlgitem);
-
-	SetDlgItem(SRC_FILE_BUTTON,	srcbutton_item);
-	SetDlgItem(DST_FILE_BUTTON,	dstbutton_item);
-	SetDlgItem(SRC_COMBO,		srccombo_item);
-	SetDlgItem(DST_COMBO,		dstcombo_item);
-	SetDlgItem(STATUS_EDIT,		status_item);
-	SetDlgItem(MODE_COMBO,		mode_item);
-	SetDlgItem(BUF_STATIC,		bufstatic_item);
-	SetDlgItem(BUFSIZE_EDIT,	bufedit_item);
-	SetDlgItem(HELP_BUTTON,		help_item);
-	SetDlgItem(IGNORE_CHECK,	ignore_item);
-	SetDlgItem(ESTIMATE_CHECK,	estimate_item);
-	SetDlgItem(VERIFY_CHECK,	verify_item);
-	SetDlgItem(SPEED_SLIDER,	speed_item);
-	SetDlgItem(SPEED_STATIC,	speedstatic_item);
-	SetDlgItem(TOPLEVEL_CHECK,	top_item);
-	SetDlgItem(LIST_BUTTON,		list_item);
-	SetDlgItem(IDOK,			ok_item);
-	SetDlgItem(ATONCE_BUTTON,	atonce_item);
-	SetDlgItem(OWDEL_CHECK,		owdel_item);
-	SetDlgItem(ACL_CHECK,		acl_item);
-	SetDlgItem(STREAM_CHECK,	stream_item);
-	SetDlgItem(SAMEDRV_STATIC,	samedrv_item);
-	SetDlgItem(INC_STATIC,		incstatic_item);
-	SetDlgItem(EXC_STATIC,		excstatic_item);
-	SetDlgItem(INCLUDE_COMBO,	inccombo_item);
-	SetDlgItem(EXCLUDE_COMBO,	exccombo_item);
-	SetDlgItem(FILTER_CHECK,	filter_item);
-	SetDlgItem(PATH_EDIT,		path_item);
-	SetDlgItem(ERR_STATIC,		errstatic_item);
-	SetDlgItem(ERRSTATUS_STATIC,errstatus_item);
-	SetDlgItem(ERR_EDIT,		erredit_item);
-	maxItems = max_dlgitem;
+	SetDlgItem(SRC_FILE_BUTTON);
+	SetDlgItem(DST_FILE_BUTTON);
+	SetDlgItem(SRC_COMBO);
+	SetDlgItem(DST_COMBO);
+	SetDlgItem(STATUS_EDIT);
+	SetDlgItem(MODE_COMBO);
+	SetDlgItem(BUF_STATIC);
+	SetDlgItem(BUFSIZE_EDIT);
+	SetDlgItem(HELP_BUTTON);
+	SetDlgItem(IGNORE_CHECK);
+	SetDlgItem(ESTIMATE_CHECK);
+	SetDlgItem(VERIFY_CHECK);
+	SetDlgItem(TOPLEVEL_CHECK);
+	SetDlgItem(LIST_BUTTON);
+	SetDlgItem(IDOK);
+	SetDlgItem(ATONCE_BUTTON);
+	SetDlgItem(OWDEL_CHECK);
+	SetDlgItem(ACL_CHECK);
+	SetDlgItem(STREAM_CHECK);
+	SetDlgItem(SPEED_SLIDER);
+	SetDlgItem(SPEED_STATIC);
+	SetDlgItem(SAMEDRV_STATIC);
+	SetDlgItem(INC_STATIC);
+	SetDlgItem(EXC_STATIC);
+	SetDlgItem(INCLUDE_COMBO);
+	SetDlgItem(EXCLUDE_COMBO);
+	SetDlgItem(FILTER_CHECK);
+	SetDlgItem(PATH_EDIT);
+	SetDlgItem(ERR_STATIC);
+	SetDlgItem(ERRSTATUS_STATIC);
+	SetDlgItem(ERR_EDIT);
 
 	GetWindowRect(&orgRect);
 }
@@ -1044,7 +1038,7 @@ BOOL TMainDlg::EvDropFiles(HDROP hDrop)
 	BOOL	isDeleteMode = GetCopyMode() == FastCopy::DELETE_MODE;
 	int		max = isDstDrop ? 1 : ::DragQueryFileV(hDrop, 0xffffffff, 0, 0), max_len;
 
-	// CTL 偑墴偝傟偰偄傞応崌丄尰嵼偺撪梕傪壛嶼
+	// CTL が押されている場合、現在の内容を加算
 	if (!isDstDrop) {
 		if (::GetAsyncKeyState(VK_CONTROL) & 0x8000) {
 			max_len = ::GetWindowTextLengthV(GetDlgItem(SRC_COMBO)) + 1;
@@ -1072,13 +1066,13 @@ BOOL TMainDlg::EvDropFiles(HDROP hDrop)
 	if (pathArray.Num() > 0) {
 		if (isDstDrop) {
 			DWORD	attr = ::GetFileAttributesV(pathArray.Path(0));
-			if (attr & FILE_ATTRIBUTE_DIRECTORY) {	// 0xffffffff 傕擣傔傞(for 95宯OS偺root懳嶔)
+			if (attr & FILE_ATTRIBUTE_DIRECTORY) {	// 0xffffffff も認める(for 95系OSのroot対策)
 				MakePathV(path, pathArray.Path(0), EMPTY_STR_V);
 				SetDlgItemTextV(DST_COMBO, path);
 			}
 		}
 		else {
-			WCHAR	*buf = new WCHAR [max_len = pathArray.GetMultiPathLen()]; // 暥帤楍楢寢梡椞堟
+			WCHAR	*buf = new WCHAR [max_len = pathArray.GetMultiPathLen()]; // 文字列連結用領域
 			if (pathArray.GetMultiPath(buf, max_len)) {
 				SetDlgItemTextV(SRC_COMBO, buf);
 			}
@@ -1109,7 +1103,7 @@ BOOL TMainDlg::EventScroll(UINT uMsg, int Code, int nPos, HWND hwndScrollBar)
 
 FastCopy::Mode TMainDlg::GetCopyMode(void)
 {
-	if (!copyInfo) return FastCopy::DIFFCP_MODE;	// 捠忢偼偁傝偊側偄丅
+	if (!copyInfo) return FastCopy::DIFFCP_MODE;	// 通常はありえない。
 
 	return	copyInfo[SendDlgItemMessage(MODE_COMBO, CB_GETCURSEL, 0, 0)].mode;
 }
@@ -1227,7 +1221,7 @@ _int64 TMainDlg::GetSizeInfo(void *buf)
 
 	if ((val = strtolV(buf, &p, 0)) < 0) return -2;
 
-	if (val == 0 && p == buf) {	// 曄姺偡傋偒悢帤偑柍偄
+	if (val == 0 && p == buf) {	// 変換すべき数字が無い
 		for (int i=0; GetChar(p, i); i++) {
 			if (!strchr(" \t\r\n", GetChar(p, i))) return -2;
 		}
@@ -1249,14 +1243,14 @@ _int64 TMainDlg::GetSizeInfo(void *buf)
 
 BOOL TMainDlg::ExecCopy(DWORD exec_flags)
 {
-	int		idx = SendDlgItemMessage(MODE_COMBO, CB_GETCURSEL, 0, 0);
+	int		idx = (int)SendDlgItemMessage(MODE_COMBO, CB_GETCURSEL, 0, 0);
 	BOOL	is_delete_mode = copyInfo[idx].mode == FastCopy::DELETE_MODE;
 	BOOL	is_filter = IsDlgButtonChecked(FILTER_CHECK);
 	BOOL	is_listing = (exec_flags & LISTING_EXEC) ? TRUE : FALSE;
 	BOOL	is_initerr_logging = (noConfirmStop && !is_listing) ? TRUE : FALSE;
 	BOOL	is_fore = IsForeground();
 
-	// 僐僺乕偲摨偠傛偆偵丄嶍彍傕攔懠幚峴偡傞
+	// コピーと同じように、削除も排他実行する
 	if (is_delete_mode && is_fore && (::GetAsyncKeyState(VK_SHIFT) & 0x8000)) forceStart = 2;
 
 	info.ignoreEvent	= (IsDlgButtonChecked(IGNORE_CHECK) ? FASTCOPY_ERROR_EVENT : 0) |
@@ -1351,7 +1345,7 @@ BOOL TMainDlg::ExecCopy(DWORD exec_flags)
 	if (!is_delete_mode)
 		dstArray.RegisterPath(dst);
 
-	// 僼傿儖僞
+	// フィルタ
 	WCHAR	from_date[MINI_BUF]=L"", to_date[MINI_BUF]=L"";
 	WCHAR	min_size[MINI_BUF]=L"", max_size[MINI_BUF]=L"";
 	WCHAR	*inc = NULL, *exc = NULL;
@@ -1388,7 +1382,7 @@ BOOL TMainDlg::ExecCopy(DWORD exec_flags)
 		}
 	}
 
-	// 妋擣梡僼傽僀儖堦棗
+	// 確認用ファイル一覧
 	if (!ret
 	|| !(ret = fastCopy.RegisterInfo(&srcArray, &dstArray, &info, &incArray, &excArray))) {
 		SetDlgItemText(STATUS_EDIT, "Error");
@@ -1403,7 +1397,7 @@ BOOL TMainDlg::ExecCopy(DWORD exec_flags)
 					info.mode == FastCopy::MOVE_MODE   ? GetLoadStrV(IDS_MOVECONFIRM) :
 					info.mode == FastCopy::SYNCCP_MODE ? GetLoadStrV(IDS_SYNCCONFIRM) :
 					info.isRenameMode ? GetLoadStrV(IDS_DUPCONFIRM): NULL;
-		int		sv_flags = info.flags;	// delete confirm 偱曄壔偟側偄偐妋擣
+		int		sv_flags = info.flags;	// delete confirm で変化しないか確認
 
 		switch (TExecConfirmDlg(&info, &cfg, this, title, isShellExt).Exec(src_list,
 				is_delete_mode ? NULL : dst)) {
@@ -1423,7 +1417,7 @@ BOOL TMainDlg::ExecCopy(DWORD exec_flags)
 		}
 
 		if (ret && is_delete_mode && info.flags != sv_flags) {
-			// flag 偑曄壔偟偰偄偨応崌偼丄嵞搊榐
+			// flag が変化していた場合は、再登録
 			ret = fastCopy.RegisterInfo(&srcArray, &dstArray, &info, &incArray, &excArray);
 		}
 	}
@@ -1481,7 +1475,7 @@ BOOL TMainDlg::ExecCopy(DWORD exec_flags)
 	delete [] src;
 
 	if (ret) {
-		SendDlgItemMessage(PATH_EDIT, EM_SETTARGETDEVICE, 0, IsListing() ? 1 : 0);	// 愜傝曉偟
+		SendDlgItemMessage(PATH_EDIT, EM_SETTARGETDEVICE, 0, IsListing() ? 1 : 0);	// 折り返し
 		SetMiniWindow();
 		SetDlgItemText(ERR_EDIT, "");
 
@@ -1698,7 +1692,7 @@ void TMainDlg::WriteLogHeader(HANDLE hFile, BOOL add_filelog)
 		startTm.wHour, startTm.wMinute, startTm.wSecond);
 
 	::WriteFile(hFile, buf, len, &len, 0);
-	::WriteFile(hFile, pathLogBuf, strlen(pathLogBuf), &len, 0);
+	::WriteFile(hFile, pathLogBuf, (DWORD)strlen(pathLogBuf), &len, 0);
 
 	if (add_filelog && *fileLogPathV) {
 		len = sprintf(buf, "<FileLog> %s\r\n", IS_WINNT_V ? cfg.isUtf8Log ?
@@ -1751,7 +1745,7 @@ BOOL TMainDlg::WriteErrLog(BOOL is_initerr)
 		if (IS_WINNT_V) {
 			WCHAR	*werr = (WCHAR *)ti.errBuf->Buf();
 			char	*err  = cfg.isUtf8Log ? WtoU8(werr) : WtoA(werr);
-			::WriteFile(hErrLog, err, strlen(err), &len, 0);
+			::WriteFile(hErrLog, err, (DWORD)strlen(err), &len, 0);
 		}
 		else {
 			::WriteFile(hErrLog, ti.errBuf->Buf(), errBufOffset, &len, 0);
@@ -1759,7 +1753,7 @@ BOOL TMainDlg::WriteErrLog(BOOL is_initerr)
 	}
 	else if (is_initerr) {
 		char *msg = "Initialize Error (Can't alloc memory or create/access DestDir)\r\n";
-		::WriteFile(hErrLog, msg, strlen(msg), &len, 0);
+		::WriteFile(hErrLog, msg, (DWORD)strlen(msg), &len, 0);
 	}
 
 	if (!is_initerr) WriteLogFooter(hErrLog);
@@ -1960,19 +1954,21 @@ BOOL TMainDlg::SetListViewItem(int idx, int subIdx, char *txt)
 
 BOOL TMainDlg::RunAsAdmin(DWORD flg)
 {
-	SHELLEXECUTEINFO	sei = {0};
+	SHELLEXECUTEINFOW	sei = {0};
 	WCHAR				buf[MAX_PATH];
+	DWORD				size = MAX_PATH;
 
-	sprintfV(buf, GetLoadStrV(IDS_RUNAS_FMT), GetLoadStrV(IDS_RUNAS_OPT), hWnd, flg);
-	sei.cbSize = sizeof(SHELLEXECUTEINFO);
-	sei.lpVerb = (char *)GetLoadStrV(IDS_RUNAS);
-	sei.lpFile = (char *)cfg.execPathV;
-	sei.lpDirectory = (char *)cfg.execDirV;
+	swprintf(buf, L"/runas=%p,%x,\"%s\",\"%s\"",
+		hWnd, flg, cfg.userDirV, cfg.virtualDirV ? cfg.virtualDirV : L"");
+	sei.cbSize = sizeof(SHELLEXECUTEINFOW);
+	sei.lpVerb = L"runas";
+	sei.lpFile = (WCHAR *)cfg.execPathV;
+	sei.lpDirectory = (WCHAR *)cfg.execDirV;
 	sei.nShow = /*SW_MAXIMIZE*/ SW_NORMAL;
-	sei.lpParameters = (char *)buf;
+	sei.lpParameters = buf;
 
 	EnableWindow(FALSE);
-	isRunAsParent = ::ShellExecuteExV(&sei);
+	isRunAsParent = ::ShellExecuteExW(&sei);
 	EnableWindow(TRUE);
 
 	return	isRunAsParent;
@@ -2064,6 +2060,35 @@ int inline strcmpiEx(void *s1, void *s2, int *len)
 	return	strnicmpV(s1, s2, *len);
 }
 
+BOOL TMainDlg::GetRunasInfo(WCHAR **user_dir, WCHAR **virtual_dir)
+{
+	WCHAR	**argv		= (WCHAR **)orgArgv;
+	WCHAR	*RUNAS_STR	= (WCHAR *)GetLoadStrV(IDS_RUNAS_OPT);
+	int		len;
+
+	while (*argv && **argv == '/') {
+		if (!strcmpiEx(*argv, RUNAS_STR, &len) == 0) {
+			WCHAR	*p = *argv + len;
+
+			if (p && (p = wcschr(p, ','))) p++;	//skip parent handle
+			if (p && (p = wcschr(p, ','))) p++;	//skip runas flg
+
+			// これ以降は、破壊取り出し
+			if (p && (p = wcstok(NULL, L"\""))) {
+				*user_dir = p;
+				p = wcstok(NULL, L",");
+				if (p && (p = wcstok(NULL, L"\""))) {
+					*virtual_dir = p; // VirtualStoreを使わない場合は通らない
+				}
+				return	TRUE;
+			}
+			break;
+		}
+		argv++;
+	}
+	return	FALSE;
+}
+
 BOOL TMainDlg::CommandLineExecV(int argc, void **argv)
 {
 	VBuf	shellExtBuf;
@@ -2129,7 +2154,7 @@ BOOL TMainDlg::CommandLineExecV(int argc, void **argv)
 	void	*dst_path	= NULL;
 	PathArray pathArray;
 
-	argc--, argv++;		// 幚峴僼傽僀儖柤偼 skip
+	argc--, argv++;		// 実行ファイル名は skip
 
 	while (*argv && GetChar(*argv, 0) == '/') {
 		if (strcmpiEx(*argv, CMD_STR, &len) == 0) {
@@ -2137,7 +2162,7 @@ BOOL TMainDlg::CommandLineExecV(int argc, void **argv)
 			if (idx == -1)
 				return	MessageBox(GetLoadStr(IDS_USAGE), "Illegal Command"), FALSE;
 
-			// 僐儅儞僪儌乕僪傪慖戰
+			// コマンドモードを選択
 			SendDlgItemMessage(MODE_COMBO, CB_SETCURSEL, idx, 0);
 		}
 		else if (strcmpiEx(*argv, JOB_STR, &len) == 0) {
@@ -2344,7 +2369,7 @@ BOOL TMainDlg::CommandLineExecV(int argc, void **argv)
 				return	FALSE;
 			if ((argv = CommandLineToArgvV(shellExtBuf.Buf(), &argc)) == NULL)
 				break;
-			continue;	// 嵞 parse
+			continue;	// 再 parse
 		}
 		else
 			return	MessageBoxV(GetLoadStrV(IDS_USAGE), *argv), FALSE;
@@ -2396,7 +2421,7 @@ BOOL TMainDlg::CommandLineExecV(int argc, void **argv)
 		if (::GetWindowTextLengthV(GetDlgItem(SRC_COMBO)) == 0
 		|| (!is_delete && ::GetWindowTextLengthV(GetDlgItem(DST_COMBO)) == 0)) {
 			is_noexec = TRUE;
-			if (isShellExt)			// 僐僺乕愭偺柍偄 shell婲摦帪偼丄autoclose 傪柍帇偡傞
+			if (isShellExt)			// コピー先の無い shell起動時は、autoclose を無視する
 				autoCloseLevel = NO_CLOSE;
 		}
 
@@ -2445,7 +2470,7 @@ BOOL TMainDlg::RunasSync(HWND hOrg)
 {
 	int		i;
 
-/* GUI忣曬傪僐僺乕 */
+/* GUI情報をコピー */
 	DWORD	copy_items[] = { SRC_COMBO, DST_COMBO, BUFSIZE_EDIT, INCLUDE_COMBO, EXCLUDE_COMBO,
 							 FROMDATE_COMBO, TODATE_COMBO, MINSIZE_COMBO, MAXSIZE_COMBO,
 							 JOBTITLE_STATIC, 0 };
@@ -2460,7 +2485,7 @@ BOOL TMainDlg::RunasSync(HWND hOrg)
 	SendDlgItemMessage(MODE_COMBO, CB_SETCURSEL,
 		::SendDlgItemMessage(hOrg, MODE_COMBO, CB_GETCURSEL, 0, 0), 0);
 
-/* Pipe 偱撪晹忣曬傪庴偗搉偟 */
+/* Pipe で内部情報を受け渡し */
 	DWORD	pid;
 	::GetWindowThreadProcessId(hOrg, &pid);
 	HANDLE	hProc = ::OpenProcess(PROCESS_DUP_HANDLE, FALSE, pid);
@@ -2477,7 +2502,7 @@ BOOL TMainDlg::RunasSync(HWND hOrg)
 	::CloseHandle(hRead);
 	::SendMessage(hOrg, WM_CLOSE, 0, 0);
 
-/* 撪晹忣曬偲GUI傪柍柕弬偵偡傞 */
+/* 内部情報とGUIを無矛盾にする */
 	SetSpeedLevelLabel(this, speedLevel);
 	UpdateMenu();
 	SetItemEnable(GetCopyMode() == FastCopy::DELETE_MODE);
@@ -2518,11 +2543,11 @@ BOOL TMainDlg::TaskTray(int nimMode, HICON hSetIcon, LPCSTR tip)
 #define SF_UNICODE                                  0x00000010
 #endif
 
-DWORD CALLBACK RichEditStreamCallBack(DWORD dwCookie, BYTE *buf, LONG cb, LONG *pcb)
+DWORD CALLBACK RichEditStreamCallBack(DWORD_PTR dwCookie, BYTE *buf, LONG cb, LONG *pcb)
 {
 	WCHAR **text = (WCHAR **)dwCookie;
 
-	int	len = wcslen(*text);
+	int	len = (int)wcslen(*text);
 	if (len * sizeof(WCHAR) > (DWORD)cb) {
 		len = cb / sizeof(WCHAR);
 	}
@@ -2541,9 +2566,8 @@ BOOL RichEditAppendText(HWND hWnd, void *text)
 	SendMessageV(hWnd, EM_SETSEL, (WPARAM)-1, (LPARAM)-1);
 
 	if (IS_WINNT_V) {
-		EDITSTREAM es = { (DWORD)&text, 0, RichEditStreamCallBack };
-		return	SendMessageV(hWnd, EM_STREAMIN, (WPARAM)(SF_TEXT|SFF_SELECTION|SF_UNICODE),
-				(LPARAM)&es);
+		EDITSTREAM es = { (DWORD_PTR)&text, 0, RichEditStreamCallBack };
+		return	SendMessageV(hWnd, EM_STREAMIN, (SF_TEXT|SFF_SELECTION|SF_UNICODE), (LPARAM)&es);
 	}
 	return	SendMessageV(hWnd, EM_REPLACESEL, 0, (LPARAM)text);
 }
@@ -2619,11 +2643,11 @@ void TMainDlg::SetFileLogInfo()
 	if (IS_WINNT_V) {
 		if (isUtf8Log) {
 			U8str	str((WCHAR *)ti.listBuf->Buf());
-			::WriteFile(hFileLog, str, strlen(str), &size, NULL);
+			::WriteFile(hFileLog, str, (int)strlen(str), &size, NULL);
 		}
 		else {
 			MBCSstr	str((WCHAR *)ti.listBuf->Buf());
-			::WriteFile(hFileLog, str, strlen(str), &size, NULL);
+			::WriteFile(hFileLog, str, (int)strlen(str), &size, NULL);
 		}
 	}
 	else {
@@ -2908,7 +2932,7 @@ BOOL TMainDlg::SetInfo(BOOL is_task_tray, BOOL is_finish_status)
 	if (IsListing()) {
 		if (is_finish_status) {
 			int offset_v = listBufOffset / CHAR_LEN_V;
-			int pathedit_len = SendDlgItemMessageV(PATH_EDIT, WM_GETTEXTLENGTH, 0, 0);
+			int pathedit_len = (int)SendDlgItemMessageV(PATH_EDIT, WM_GETTEXTLENGTH, 0, 0);
 			sprintf(buf, "Finished. (ErrorFiles : %d  ErrorDirs : %d)",
 				ti.total.errFiles, ti.total.errDirs);
 			SendDlgItemMessageV(PATH_EDIT, EM_SETSEL, offset_v, offset_v);
@@ -2959,7 +2983,7 @@ BOOL TMainDlg::SetWindowTitle()
 
 	if (!title) {
 		char	buf[128];
-		sprintf(buf, "FastCopy %s", GetVersionStr());
+		sprintf(buf, "%s %s", FASTCOPY, GetVersionStr());
 		title = (void *)_title;
 
 		if (IS_WINNT_V)	AtoW(buf, _title, 512);
@@ -3007,34 +3031,6 @@ void TMainDlg::SetItemEnable(BOOL is_delete)
 	ReflectFilterCheck();
 }
 
-static char fastcopy_version_str[32];
-static char fastcopy_copyright_str[128];
-
-void SetVersionStr(BOOL is_runas)
-{
-	sprintf(fastcopy_version_str, "%.20s%.10s", strstr(mainwin_id, "ver"),
-			is_runas && TIsUserAnAdmin() ? " (Admin)" : "");
-}
-
-const char *GetVersionStr(void)
-{
-	if (fastcopy_version_str[0] == 0)
-		SetVersionStr();
-	return	fastcopy_version_str;
-}
-
-const char *GetCopyrightStr(void)
-{
-	if (fastcopy_copyright_str[0] == 0) {
-		char *s = strchr(mainwin_id, 'C');
-		char *e = strchr(mainwin_id, '\t');
-		if (s && e && s < e) {
-			sprintf(fastcopy_copyright_str, "%.*s", e-s, s);
-		}
-	}
-	return	fastcopy_copyright_str;
-}
-
 void TMainDlg::UpdateMenu(void)
 {
 	WCHAR	buf[MAX_PATH_EX];
@@ -3045,7 +3041,7 @@ void TMainDlg::UpdateMenu(void)
 //		::DeleteMenu(hMenu, ADMIN_MENUITEM, MF_BYCOMMAND);
 //	}
 
-// 僩僢僾儗儀儖儊僯儏乕傾僀僥儉偵傾僀僐儞傪晅梌偡傞偺偼柍棟偐傕丠
+// トップレベルメニューアイテムにアイコンを付与するのは無理かも？
 //	HICON hIcon = ::LoadImage(GetModuleHandle("user32.dll"), 106, IMAGE_ICON, 16, 16, LR_DEFAULTCOLOR);
 //	::SetMenuItemBitmaps(hMenu, 0, MF_BYPOSITION, LoadBitmap(NULL, (char *)32754), LoadBitmap(NULL, (char *)32754));
 
@@ -3145,8 +3141,9 @@ void TMainDlg::SetFinAct(int idx)
 	}
 }
 
+
 #ifdef HASHQUALITY_CHECK
-//	僴僢僔儏昳幙妋擣乮僐儕僕儑儞専嵏乯
+//	ハッシュ品質確認（コリジョン検査）
 #define MAX_HASH	5000000
 
 #define THASH_RAND_NUM1 757

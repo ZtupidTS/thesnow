@@ -1,9 +1,9 @@
-Ôªøstatic char *utility_id = 
-	"@(#)Copyright (C) 2004-2010 H.Shirouzu		utility.cpp	ver2.00";
+static char *utility_id = 
+	"@(#)Copyright (C) 2004-2010 H.Shirouzu		utility.cpp	ver2.03";
 /* ========================================================================
 	Project  Name			: general routine
 	Create					: 2004-09-15(Wed)
-	Update					: 2010-05-09(Sun)
+	Update					: 2010-09-12(Sun)
 	Copyright				: H.Shirouzu
 	Reference				: 
 	======================================================================== */
@@ -11,13 +11,12 @@
 #include <stdio.h>
 #include <stddef.h>
 #include "utility.h"
-#include "resource.h"
 
 /*=========================================================================
-  „ÇØ„É©„Çπ Ôºö Condition
-  Ê¶Ç  Ë¶Å Ôºö Êù°‰ª∂Â§âÊï∞„ÇØ„É©„Çπ
-  Ë™¨  Êòé Ôºö 
-  Ê≥®  ÊÑè Ôºö 
+  ÉNÉâÉX ÅF Condition
+  äT  óv ÅF èåèïœêîÉNÉâÉX
+  ê‡  ñæ ÅF 
+  íç  à” ÅF 
 =========================================================================*/
 Condition::Condition(void)
 {
@@ -65,8 +64,8 @@ BOOL Condition::Wait(DWORD timeout)
 
 	for (wait_id=0; wait_id < max_threads && waitEvents[wait_id] != CLEAR_EVENT; wait_id++)
 		;
-	if (wait_id == max_threads) {	// ÈÄöÂ∏∏„ÅØ„ÅÇ„Çä„Åà„Å™„ÅÑ
-		MessageBox(0, "Detect too many wait threads", "FastCopy", MB_OK);
+	if (wait_id == max_threads) {	// í èÌÇÕÇ†ÇËÇ¶Ç»Ç¢
+		MessageBox(0, "Detect too many wait threads", "TLib", MB_OK);
 		return	FALSE;
 	}
 	waitEvents[wait_id] = WAIT_EVENT;
@@ -82,7 +81,7 @@ BOOL Condition::Wait(DWORD timeout)
 	return	status == WAIT_TIMEOUT ? FALSE : TRUE;
 }
 
-void Condition::Notify(void)	// ÁèæÁä∂„Åß„ÅØ„ÄÅÁú†„Å£„Å¶„ÅÑ„Çã„Çπ„É¨„ÉÉ„ÉâÂÖ®Âì°„ÇíËµ∑„Åì„Åô
+void Condition::Notify(void)	// åªèÛÇ≈ÇÕÅAñ∞Ç¡ÇƒÇ¢ÇÈÉXÉåÉbÉhëSàıÇãNÇ±Ç∑
 {
 	if (waitCnt > 0) {
 		for (int wait_id=0, done_cnt=0; wait_id < max_threads; wait_id++) {
@@ -97,10 +96,10 @@ void Condition::Notify(void)	// ÁèæÁä∂„Åß„ÅØ„ÄÅÁú†„Å£„Å¶„ÅÑ„Çã„Çπ„É¨„ÉÉ„ÉâÂÖ®Âì°
 }
 
 /*=========================================================================
-  „ÇØ„É©„Çπ Ôºö VBuf
-  Ê¶Ç  Ë¶Å Ôºö ‰ªÆÊÉ≥„É°„É¢„É™ÁÆ°ÁêÜ„ÇØ„É©„Çπ
-  Ë™¨  Êòé Ôºö 
-  Ê≥®  ÊÑè Ôºö 
+  ÉNÉâÉX ÅF VBuf
+  äT  óv ÅF âºëzÉÅÉÇÉää«óùÉNÉâÉX
+  ê‡  ñæ ÅF 
+  íç  à” ÅF 
 =========================================================================*/
 VBuf::VBuf(int _size, int _max_size, VBuf *_borrowBuf)
 {
@@ -136,7 +135,7 @@ BOOL VBuf::AllocBuf(int _size, int _max_size, VBuf *_borrowBuf)
 		borrowBuf->AddUsedSize(maxSize + PAGE_SIZE);
 	}
 	else {
-	// 1page ÂàÜ„Å†„Åë‰ΩôË®à„Å´Á¢∫‰øùÔºàbuffer over flow Ê§úÂá∫Áî®Ôºâ
+	// 1page ï™ÇæÇØó]åvÇ…ämï€Åibuffer over flow åüèoópÅj
 		if (!(buf = (BYTE *)::VirtualAlloc(NULL, maxSize + PAGE_SIZE, MEM_RESERVE, PAGE_READWRITE))) {
 			Init();
 			return	FALSE;
@@ -176,10 +175,10 @@ BOOL VBuf::Grow(int grow_size)
 }
 
 /*=========================================================================
-	Êã°Âºµ strtok()
-		"" „Å´Âá∫„Åè„Çè„Åô„Å®„ÄÅ"" „ÅÆ‰∏≠Ë∫´„ÇíÂèñ„ÇäÂá∫„Åô
-		token „ÅÆÂâçÂæå„Å´Á©∫ÁôΩ„Åå„ÅÇ„Çå„Å∞Âèñ„ÇäÈô§„Åè
-		„Åù„Çå‰ª•Â§ñ„ÅØ„ÄÅstrtok_r() „Å®Âêå„Åò
+	ägí£ strtok()
+		"" Ç…èoÇ≠ÇÌÇ∑Ç∆ÅA"" ÇÃíÜêgÇéÊÇËèoÇ∑
+		token ÇÃëOå„Ç…ãÛîíÇ™Ç†ÇÍÇŒéÊÇËèúÇ≠
+		ÇªÇÍà»äOÇÕÅAstrtok_r() Ç∆ìØÇ∂
 =========================================================================*/
 void *strtok_pathV(void *str, const void *sep, void **p, BOOL remove_quote)
 {
@@ -193,18 +192,18 @@ void *strtok_pathV(void *str, const void *sep, void **p, BOOL remove_quote)
 	if (!*p)
 		return	NULL;
 
-	// È†≠„Å†„Åó
+	// ì™ÇæÇµ
 	while (GetChar(str, 0) && (strchrV(sep, GetChar(str, 0)) || GetChar(str, 0) == ' '))
 		str = MakeAddr(str, 1);
 	if (GetChar(str, 0) == 0)
 		return	NULL;
 
-	// ÁµÇÁ´ØÊ§úÂá∫
+	// èIí[åüèo
 	void	*in = str, *out = str;
 	for ( ; GetChar(in, 0); in = MakeAddr(in, 1)) {
 		BOOL	is_set = FALSE;
 
-		if (sep == org_sep) {	// ÈÄöÂ∏∏ mode
+		if (sep == org_sep) {	// í èÌ mode
 			if (strchrV(sep, GetChar(in, 0))) {
 				break;
 			}
@@ -212,7 +211,7 @@ void *strtok_pathV(void *str, const void *sep, void **p, BOOL remove_quote)
 				if (!remove_quote) {
 					is_set = TRUE;
 				}
-				sep = quote;	// quote mode „Å´ÈÅ∑Áßª
+				sep = quote;	// quote mode Ç…ëJà⁄
 			}
 			else {
 				is_set = TRUE;
@@ -220,7 +219,7 @@ void *strtok_pathV(void *str, const void *sep, void **p, BOOL remove_quote)
 		}
 		else {					// quote mode
 			if (GetChar(in, 0) == '"') {
-				sep = org_sep;	// ÈÄöÂ∏∏ mode „Å´ÈÅ∑Áßª
+				sep = org_sep;	// í èÌ mode Ç…ëJà⁄
 				if (!remove_quote) {
 					is_set = TRUE;
 				}
@@ -237,7 +236,7 @@ void *strtok_pathV(void *str, const void *sep, void **p, BOOL remove_quote)
 	*p = GetChar(in, 0) ? MakeAddr(in, 1) : NULL;
 	SetChar(out, 0, 0);
 
-	// Êú´Â∞æ„ÅÆÁ©∫ÁôΩ„ÇíÂèñ„ÇäÈô§„Åè
+	// ññîˆÇÃãÛîíÇéÊÇËèúÇ≠
 	for (out = MakeAddr(out, -1); out >= str && GetChar(out, 0) == ' '; out = MakeAddr(out, -1))
 		SetChar(out, 0, 0);
 
@@ -245,8 +244,8 @@ void *strtok_pathV(void *str, const void *sep, void **p, BOOL remove_quote)
 }
 
 /*=========================================================================
-	„Ç≥„Éû„É≥„Éâ„É©„Ç§„É≥Ëß£ÊûêÔºàCommandLineToArgvW API „ÅÆ ANSIÁâàÔºâ
-		CommandLineToArgvW() „Å®Âêå„Åò„Åè„ÄÅËøî„ÇäÂÄ§„ÅÆÈñãÊîæ„ÅØÂëº„Å≥ÂÖÉ„Åß„Åô„Çã„Åì„Å®
+	ÉRÉ}ÉìÉhÉâÉCÉìâêÕÅiCommandLineToArgvW API ÇÃ ANSIî≈Åj
+		CommandLineToArgvW() Ç∆ìØÇ∂Ç≠ÅAï‘ÇËílÇÃäJï˙ÇÕåƒÇ—å≥Ç≈Ç∑ÇÈÇ±Ç∆
 =========================================================================*/
 void **CommandLineToArgvV(void *cmdLine, int *_argc)
 {
@@ -341,7 +340,10 @@ int PathArray::GetMultiPath(void *multi_path, int max_len,
 		BOOL	is_escape = escape_val && strchrV(pathArray[i]->path, escape_val);
 		int		need_len = pathArray[i]->len + 1 + (is_escape ? 2 : 0) + (i ? sep_len : 0);
 
-		if (max_len - total_len < need_len) break;
+		if (max_len - total_len < need_len) {
+			SetChar(multi_path, total_len, 0);
+			return -1;
+		}
 		if (i) {
 			memcpy(MakeAddr(buf, total_len), separator, sep_len * CHAR_LEN_V);
 			total_len += sep_len;
@@ -495,7 +497,7 @@ BOOL DriveMng::SetDriveID(int drvLetter)
 	int			size, idx = LetterToIndex(drvLetter);
 	DWORD		val = 0;
 
-// NT Á≥ª
+// NT ån
 	if (IS_WINNT_V) {
 		if (reg.OpenKey(MOUNTED_DEVICES)) {
 			::sprintf(reg_path, FMT_DOSDEVICES, drvLetter);
@@ -515,7 +517,7 @@ BOOL DriveMng::SetDriveID(int drvLetter)
 		return	RegisterDriveID(idx, &val, 1);
 	}
 
-// 95 Á≥ª
+// 95 ån
 	TRegistry	dynReg(HKEY_DYN_DATA);
 	char		dyn_path[MAX_PATH];
 	int			no_id_cnt = 0;
@@ -540,7 +542,7 @@ BOOL DriveMng::SetDriveID(int drvLetter)
 					val = 0;
 					if (reg.GetStr(DRIVE_LETTERS, (char *)buf, sizeof(buf))) {
 						if (*buf == 0)
-							no_id_cnt++;	// format Âæå„ÄÅreboot „Åô„Çã„Åæ„Åß registry „Å´Êú™ÂèçÊò†„Çâ„Åó„ÅÑ
+							no_id_cnt++;	// format å„ÅAreboot Ç∑ÇÈÇ‹Ç≈ registry Ç…ñ¢îΩâfÇÁÇµÇ¢
 						for (int l=0; buf[l]; l++) {
 							if (drvLetter == buf[l]) {
 								val = 1;
@@ -554,7 +556,7 @@ BOOL DriveMng::SetDriveID(int drvLetter)
 								continue;
 							if (dynReg.GetStr(HARDWARE_KEY, (char *)buf, sizeof(buf))) {
 								if (strcmp(reg_path, (char *)buf) == 0) {
-									return	RegisterDriveID(idx, buf, strlen((char *)buf));
+									return	RegisterDriveID(idx, buf, (int)strlen((char *)buf));
 								}
 							}
 							dynReg.CloseKey();
@@ -596,7 +598,7 @@ BOOL DriveMng::IsSameDrive(int drvLetter1, int drvLetter2)
 		&&	(IS_WINNT_V ? drvID[idx1].len != 1 : (drvID[idx1].len == 0 && noIdCnt == 1));
 }
 
-// „ÉØ„Éº„ÉâÂçò‰Ωç„Åß„ÅØ„Å™„Åè„ÄÅÊñáÂ≠óÂçò‰Ωç„ÅßÊäò„ÇäËøî„Åô„Åü„ÇÅ„ÅÆ EDIT Control Áî® CallBack
+// ÉèÅ[ÉhíPà Ç≈ÇÕÇ»Ç≠ÅAï∂éöíPà Ç≈ê‹ÇËï‘Ç∑ÇΩÇﬂÇÃ EDIT Control óp CallBack
 int CALLBACK EditWordBreakProc(LPTSTR str, int cur, int len, int action)
 {
 	switch (action) {
@@ -610,58 +612,9 @@ int CALLBACK EditWordBreakProc(LPTSTR str, int cur, int len, int action)
 	return	0;
 }
 
-
-/*
-	16ÈÄ≤ÊñáÂ≠óÂàó <-> „Éê„Ç§„Éä„É™Â§âÊèõ„É´„Éº„ÉÅ„É≥
-*/
-inline u_char hexchar2char(u_char ch)
-{
-	if (ch >= '0' && ch <= '9')
-		return ch - '0';
-	ch = toupper(ch);
-	if (ch >= 'A' && ch <= 'Z')
-		return ch - 'A' + 10;
-	return 0;
-}
-
-BOOL hexstr2bin(const char *buf, BYTE *bindata, int maxlen, int *len)
-{
-	for (*len=0; buf[0] && buf[1] && *len < maxlen; buf+=2, (*len)++)
-	{
-		bindata[*len] = hexchar2char(buf[0]) << 4 | hexchar2char(buf[1]);
-	}
-	return	TRUE;
-}
-
-int bin2hexstr(const BYTE *bindata, int len, char *buf)
-{
-	static char *hexstr = "0123456789abcdef";
-
-	for (const BYTE *end=bindata+len; bindata < end; bindata++)
-	{
-		*buf++ = hexstr[*bindata >> 4];
-		*buf++ = hexstr[*bindata & 0x0f];
-	}
-	*buf = 0;
-	return	len * 2;
-}
-
-int bin2hexstrW(const BYTE *bindata, int len, WCHAR *buf)
-{
-	static WCHAR *hexstr = L"0123456789abcdef";
-
-	for (const BYTE *end=bindata+len; bindata < end; bindata++)
-	{
-		*buf++ = hexstr[*bindata >> 4];
-		*buf++ = hexstr[*bindata & 0x0f];
-	}
-	*buf = 0;
-	return	len * 2;
-}
-
 BOOL GetRootDirV(const void *path, void *root_dir)
 {
-	if (GetChar(path, 0) == '\\') {	// "\\server\volname\" 4„Å§ÁõÆ„ÅÆ \ „ÇíË¶ã„Å§„Åë„Çã
+	if (GetChar(path, 0) == '\\') {	// "\\server\volname\" 4Ç¬ñ⁄ÇÃ \ Çå©Ç¬ÇØÇÈ
 		DWORD	ch;
 		int		backslash_cnt = 0, offset;
 
@@ -670,11 +623,11 @@ BOOL GetRootDirV(const void *path, void *root_dir)
 				backslash_cnt++;
 		}
 		memcpy(root_dir, path, offset * CHAR_LEN_V);
-		if (backslash_cnt < 4)					// 4„Å§„ÅÆ \ „Åå„Å™„ÅÑÂ†¥Âêà„ÅØ„ÄÅÊú´Â∞æ„Å´ \ „Çí‰ªò‰∏é
-			SetChar(root_dir, offset++, '\\');	// Ôºà\\server\volume „Å™„Å©Ôºâ
+		if (backslash_cnt < 4)					// 4Ç¬ÇÃ \ Ç™Ç»Ç¢èÍçáÇÕÅAññîˆÇ… \ Çïtó^
+			SetChar(root_dir, offset++, '\\');	// Åi\\server\volume Ç»Ç«Åj
 		SetChar(root_dir, offset, 0);	// NULL terminate
 	}
-	else {	// "C:\" Á≠â
+	else {	// "C:\" ìô
 		memcpy(root_dir, path, 3 * CHAR_LEN_V);
 		SetChar(root_dir, 3, 0);	// NULL terminate
 	}
@@ -682,24 +635,24 @@ BOOL GetRootDirV(const void *path, void *root_dir)
 }
 
 /*
-	„Éç„ÉÉ„Éà„ÉØ„Éº„ÇØ„Éó„É¨„Éº„Çπ„Çí UNC path „Å´Â§âÊèõ (src == dst ÂèØÔºâ
+	ÉlÉbÉgÉèÅ[ÉNÉvÉåÅ[ÉXÇ UNC path Ç…ïœä∑ (src == dst â¬Åj
 */
 
 BOOL NetPlaceConvertV(void *src, void *dst)
 {
-	IShellLink		*shellLink;		// VC4 „Å´„ÅØ IShellLink ANSI Áâà„Åó„ÅãÂÆöÁæ©„Åå„Å™„ÅÑ„Åü„ÇÅ„ÅÆÊö´ÂÆöÂá¶ÁΩÆ
-	IPersistFile	*persistFile;	// ÔºàÂÆüÈöõ„ÅØ NTÁ≥ª„Åß„ÅØ IShellLinkW „ÇíÂëº„Å≥Âá∫„ÅóÔºâ
+	IShellLink		*shellLink;		// VC4 Ç…ÇÕ IShellLink ANSI î≈ÇµÇ©íËã`Ç™Ç»Ç¢ÇΩÇﬂÇÃébíËèàíu
+	IPersistFile	*persistFile;	// Åié¿ç€ÇÕ NTånÇ≈ÇÕ IShellLinkW ÇåƒÇ—èoÇµÅj
 	WCHAR	wSrcBuf[MAX_PATH], wDstBuf[MAX_PATH];
 	WCHAR	*wSrc = IS_WINNT_V ? (WCHAR *)src : wSrcBuf;
 	WCHAR	*wDst = IS_WINNT_V ? wDstBuf : (WCHAR *)dst;
 	BOOL	ret = FALSE;
 	DWORD	attr, attr_mask = FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_READONLY;
 
-	if (SHGetPathFromIDListV == NULL)	// NT4.0 Á≥ª„ÅØÁÑ°Ë¶ñ
+	if (SHGetPathFromIDListV == NULL)	// NT4.0 ånÇÕñ≥éã
 		return	FALSE;
 
 	if ((attr = GetFileAttributesV(src)) == 0xffffffff || (attr & attr_mask) != attr_mask)
-		return	FALSE;	// „Éá„Ç£„É¨„ÇØ„Éà„É™„Åã„Å§ronly „Åß„Å™„ÅÑ„ÇÇ„ÅÆ„ÅØÈñ¢‰øÇ„Å™„ÅÑ
+		return	FALSE;	// ÉfÉBÉåÉNÉgÉäÇ©Ç¬ronly Ç≈Ç»Ç¢Ç‡ÇÃÇÕä÷åWÇ»Ç¢
 
 	if (SUCCEEDED(CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER,
 				  IID_IShellLinkV, (void **)&shellLink))) {
@@ -820,7 +773,7 @@ DataList::Head *DataList::Alloc(void *data, int data_size, int need_size)
 		if (top >= end) {
 			cur = (Head *)((BYTE *)top + top->alloc_size);
 			if ((BYTE *)cur + alloc_size < buf.Buf() + buf.MaxSize()) {
-				int need_grow = ((BYTE *)cur + alloc_size) - (buf.Buf() + buf.Size());
+				int need_grow = (int)(((BYTE *)cur + alloc_size) - (buf.Buf() + buf.Size()));
 				if (need_grow > 0) {
 					if (!buf.Grow(ALIGN_SIZE(need_grow, PAGE_SIZE))) {
 						MessageBox(0, "can't alloc mem", "", MB_OK);
@@ -895,12 +848,12 @@ int DataList::RemainSize()
 		BYTE *top_end = (BYTE *)top + top->alloc_size;
 
 		if (top >= end) {
-			int size1 = buf.MaxSize() - (top_end - buf.Buf());
-			int size2 = (BYTE *)end - buf.Buf();
+			int size1 = (int)(buf.MaxSize() - (top_end - buf.Buf()));
+			int size2 = (int)((BYTE *)end - buf.Buf());
 			ret = max(size1, size2);
 		}
 		else {
-			ret = (BYTE *)end - top_end;
+			ret = (int)((BYTE *)end - top_end);
 		}
 	}
 	else {
@@ -918,7 +871,7 @@ void DBGWrite(char *fmt,...)
 	static HANDLE	hDbgFile = INVALID_HANDLE_VALUE;
 
 	if (hDbgFile == INVALID_HANDLE_VALUE) {
-		hDbgFile = ::CreateFile("c:\\fastcopy_dbg.txt",
+		hDbgFile = ::CreateFile("c:\\tlib_dbg.txt",
 					GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE, 0, CREATE_ALWAYS, 0, 0);
 	}
 
@@ -935,7 +888,7 @@ void DBGWriteW(WCHAR *fmt,...)
 	static HANDLE	hDbgFile = INVALID_HANDLE_VALUE;
 
 	if (hDbgFile == INVALID_HANDLE_VALUE) {
-		hDbgFile = ::CreateFile("c:\\fastcopy_dbgw.txt",
+		hDbgFile = ::CreateFile("c:\\tlib_dbgw.txt",
 					GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE, 0, CREATE_ALWAYS, 0, 0);
 		DWORD	len = 2;
 		::WriteFile(hDbgFile, "\xff\xfe", len, &len, 0);
