@@ -36,7 +36,6 @@ if env['PLATFORM'] == 'posix': vars.AddVariables(
                  '/usr', PathVariable.PathAccept),
     PathVariable('userdir', 'Set the name of the user data directory in home',
                  '.dolphin-emu', PathVariable.PathAccept),
-    BoolVariable('opencl', 'Build with OpenCL', False),
     EnumVariable('pgo', 'Profile-Guided Optimization (generate or use)', 'none',
                  allowed_values = ('none', 'generate', 'use'), ignorecase = 2),
     BoolVariable('shared_glew', 'Use system shared libGLEW', True),
@@ -80,9 +79,6 @@ if env['flavor'] == 'release':
 elif not env['flavor'] == 'fastlog':
     env['CCFLAGS'] += ['-ggdb']
 env['CCFLAGS'] += ['-fno-exceptions', '-fno-strict-aliasing']
-if env['CCVERSION'] >= '4.2.0':
-    env['CCFLAGS'] += ['-fvisibility=hidden']
-    env['CXXFLAGS'] += ['-fvisibility-inlines-hidden']
 
 if env['lint']:
     env['CCFLAGS'] += ['-Werror']
@@ -121,35 +117,33 @@ rev = utils.GenerateRevFile(env['flavor'], '.', None)
 
 # OS X specifics
 if sys.platform == 'darwin':
-    ccld = ['-arch', 'x86_64', '-arch', 'i386', '-mmacosx-version-min=10.5']
+    ccld = ['-arch', 'x86_64', '-arch', 'i386', '-mmacosx-version-min=10.5.4']
     ccld += ['--sysroot=/Developer/SDKs/MacOSX10.5.sdk']
+    system = '/System/Library/Frameworks'
     env['CCFLAGS'] += ccld
     env['CCFLAGS'] += ['-msse3']
+    env['CCFLAGS'] += ['-iframework/Developer/SDKs/MacOSX10.5.sdk' + system]
+    env['CCFLAGS'] += ['-iframework/Developer/SDKs/MacOSX10.6.sdk' + system]
     env['CC'] = "gcc-4.2 -ObjC"
     env['CXX'] = "g++-4.2 -ObjC++"
-    env['FRAMEWORKS'] += ['AppKit', 'CoreFoundation', 'CoreServices']
-    env['FRAMEWORKS'] += ['AudioUnit', 'CoreAudio']
+    env['FRAMEWORKS'] += ['AppKit', 'Carbon', 'CoreFoundation', 'CoreServices']
+    env['FRAMEWORKS'] += ['AudioUnit', 'CoreAudio', 'WebKit']
     env['FRAMEWORKS'] += ['IOBluetooth', 'IOKit', 'OpenGL']
+    env['FRAMEWORKSFLAGS'] = ['-Xarch_i386', '-Wl,-framework,QuickTime']
+    env['LIBPATH'] += ['/usr/lib']
     env['LIBS'] = ['iconv', 'SDL']
     env['LINKFLAGS'] += ccld
-    env['LINKFLAGS'] += ['-Wl,-search_paths_first']
+    env['LINKFLAGS'] += ['-Wl,-search_paths_first', '-Wl,-Z', '-F' + system]
+    env['SHLINKFLAGS'] += ['-Wl,-undefined,dynamic_lookup']
 
-    if platform.mac_ver()[0] < '10.6.0':
-        env['HAVE_OPENCL'] = 0
-    else:
+    if platform.mac_ver()[0] >= '10.6.0':
         env['CCFLAGS'] += ['-Wextra-tokens', '-Wnewline-eof']
-        env['CCFLAGS'] += ['-iframework/Developer/SDKs/MacOSX10.5.sdk' +
-            '/System/Library/Frameworks']
-        env['CCFLAGS'] += ['-iframework/Developer/SDKs/MacOSX10.6.sdk' +
-            '/System/Library/Frameworks']
-        env['CPPDEFINES'] += [('HAVE_OPENCL', 1)]
-        env['HAVE_OPENCL'] = 1
-        env['FRAMEWORKSFLAGS'] = ['-weak_framework', 'OpenCL']
+        env['FRAMEWORKSFLAGS'] += ['-weak_framework', 'OpenCL']
 
     if env['nowx']:
         env['HAVE_WX'] = 0
     else:
-        wxenv = env.Clone(LIBPATH = '')
+        wxenv = env.Clone(CPPPATH = '', LIBPATH = '', LIBS = '')
         conf = wxenv.Configure(conf_dir = None, log_file = None,
             custom_tests = {'CheckWXConfig' : wxconfig.CheckWXConfig})
         env['HAVE_WX'] = \
@@ -161,11 +155,9 @@ if sys.platform == 'darwin':
             Exit(1)
         wxconfig.ParseWXConfig(wxenv)
         env['CPPDEFINES'] += ['__WXOSX_COCOA__']
-        env['CPPPATH'] = wxenv['CPPPATH']
-        if not wxenv['CPPDEFINES'].count('WXUSINGDLL'):
-            env['FRAMEWORKS'] = wxenv['FRAMEWORKS']
+        env['CPPPATH'] += wxenv['CPPPATH']
         env['LIBPATH'] += wxenv['LIBPATH']
-        env['LIBS'] = wxenv['LIBS']
+        env['wxconfiglibs'] = wxenv['LIBS']
 
     env['CPPPATH'] += ['#Externals']
     env['FRAMEWORKPATH'] += ['Externals/Cg']
@@ -186,13 +178,18 @@ elif sys.platform == 'win32':
     pass
 
 else:
-    env['CCFLAGS'] += ['-fPIC', '-msse2']
+    env['CCFLAGS'] += ['-fPIC', '-msse2', '-pthread']
+    if env['CCVERSION'] >= '4.2.0':
+        env['CCFLAGS'] += ['-fvisibility=hidden']
+        env['CXXFLAGS'] += ['-fvisibility-inlines-hidden']
+    env['CPPDEFINES'] += ['HAVE_CONFIG_H']
     env['CPPPATH'].insert(0, '#') # Make sure we pick up our own config.h
+    env['LINKFLAGS'] += ['-pthread']
+    env['RPATH'] = []
     if sys.platform == 'linux2':
         env['CPPDEFINES'] += [('_FILE_OFFSET_BITS', 64), '_LARGEFILE_SOURCE']
         env['CXXFLAGS'] += ['-Wno-deprecated'] # XXX <hash_map>
-    env['LINKFLAGS'] += ['-pthread', '-ldl']
-    env['RPATH'] = []
+        env['LIBS'] += ['dl']
 
     conf = env.Configure(config_h = "#config.h", custom_tests = {
         'CheckPKG'       : utils.CheckPKG,
@@ -272,11 +269,9 @@ else:
         print "Must have CgGL to build"
         Exit(1)
 
-    if env['opencl']:
-        env['HAVE_OPENCL'] = conf.CheckPKG('OpenCL')
-        conf.Define('HAVE_OPENCL', env['HAVE_OPENCL'])
-    else:
-        env['HAVE_OPENCL'] = 0
+    env['HAVE_OPENCL'] = int(conf.CheckPKG('OpenCL') and \
+                         conf.CheckCXXHeader("CL/cl.h"))
+    conf.Define('HAVE_OPENCL', env['HAVE_OPENCL'])
 
     # PGO - Profile Guided Optimization
     if env['pgo'] == 'generate':
@@ -312,7 +307,7 @@ else:
         env['data_dir'] = env['prefix'] + "/share/dolphin-emu"
         env['plugin_dir'] = env['prefix'] + '/lib/dolphin-emu'
         conf.Define('DATA_DIR', "\"" + env['data_dir'] + "/\"")
-        conf.Define('LIBS_DIR', "\"" + env['prefix'] + '/lib/' + "\"")
+        conf.Define('LIBS_DIR', "\"" + env['prefix'] + '/lib/dolphin-emu/' + "\"")
         # Setup destdir for package building
         # Warning: The program will not run from this location.
         # It is assumed the package will later install it to the prefix.
@@ -344,8 +339,6 @@ dirs = [
     'Externals/Bochs_disasm',
     #'Externals/CLRun',
     'Externals/Lua',
-    'Externals/MemcardManager',
-    'Externals/WiiUse/Src',
     'Externals/GLew',
     'Externals/LZO',
     #'Externals/OpenAL',
@@ -365,6 +358,8 @@ dirs = [
     'Source/Core/InputCommon/Src',
     'Source/Core/InputUICommon/Src',
     'Source/Core/VideoCommon/Src',
+    'Source/Core/VideoUICommon/Src',
+    'Source/Core/wiiuse/Src',
     'Source/DSPTool/Src',
     'Source/Plugins/Plugin_DSP_HLE/Src',
     'Source/Plugins/Plugin_DSP_LLE/Src',
