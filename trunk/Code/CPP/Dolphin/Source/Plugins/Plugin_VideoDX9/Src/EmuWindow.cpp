@@ -91,9 +91,16 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam )
 		s_sizing = false;
 		break;
 
-	/* Post thes mouse events to the main window, it's nessesary because in difference to the
+	/* Post the mouse events to the main window, it's nessesary because in difference to the
 	   keyboard inputs these events only appear here, not in the parent window or any other WndProc()*/
 	case WM_LBUTTONDOWN:
+		if(g_Config.b3DVision)
+		{
+			// This basically throws away the left button down input when b3DVision is activated so WX 
+			// can't get access to it, stopping focus pulling on mouse click. 
+			// (Input plugins use a different system so it doesn't cause any weirdness)
+			break;
+		}
 	case WM_LBUTTONUP:
 	case WM_LBUTTONDBLCLK:
 		PostMessage(GetParentWnd(), iMsg, wParam, lParam);
@@ -156,9 +163,9 @@ void OSDMenu(WPARAM wParam)
 	case '5':
 		OSDChoice = 3;
 		// Toggle EFB copy
-		if (g_Config.bEFBCopyDisable || g_Config.bCopyEFBToTexture)
+		if (!g_Config.bEFBCopyEnable || g_Config.bCopyEFBToTexture)
 		{
-			g_Config.bEFBCopyDisable = !g_Config.bEFBCopyDisable;
+			g_Config.bEFBCopyEnable ^= true;
 			g_Config.bCopyEFBToTexture = false;
 		}
 		else
@@ -197,7 +204,7 @@ HWND OpenWindow(HWND parent, HINSTANCE hInstance, int width, int height, const T
 
 	m_hParent = parent;
 
-	m_hWnd = CreateWindow(m_szClassName, title, WS_CHILD,
+	m_hWnd = CreateWindow(m_szClassName, title, g_ActiveConfig.b3DVision ? WS_EX_TOPMOST | WS_POPUP : WS_CHILD,
 		0, 0, width, height, m_hParent, NULL, hInstance, NULL);
 
 	return m_hWnd;

@@ -271,7 +271,7 @@ void EncodeToRamUsingShader(LPDIRECT3DPIXELSHADER9 shader, LPDIRECT3DTEXTURE9 sr
 	// Draw...
 	D3D::drawShadedTexQuad(srcTexture,&SrcRect,1,1,dstWidth,dstHeight,shader,VertexShaderCache::GetSimpleVertexShader(0));	
 	D3D::RefreshSamplerState(0, D3DSAMP_MINFILTER);
-	// .. and then readback the results.
+	// .. and then read back the results.
 	// TODO: make this less slow.
 
 	D3DLOCKED_RECT drect;
@@ -325,7 +325,7 @@ void EncodeToRam(u32 address, bool bFromZBuffer, bool bIsIntensityFmt, u32 copyf
 
 	u8 *dest_ptr = Memory_GetPtr(address);
 
-	LPDIRECT3DTEXTURE9 source_texture = bFromZBuffer ? g_framebufferManager.GetEFBDepthTexture() : g_framebufferManager.GetEFBColorTexture();
+	LPDIRECT3DTEXTURE9 source_texture = bFromZBuffer ? FramebufferManager::GetEFBDepthTexture() : FramebufferManager::GetEFBColorTexture();
 	int width = (source.right - source.left) >> bScaleByHalf;
 	int height = (source.bottom - source.top) >> bScaleByHalf;
 
@@ -344,21 +344,15 @@ void EncodeToRam(u32 address, bool bFromZBuffer, bool bIsIntensityFmt, u32 copyf
 	s32 expandedWidth = (width + blkW) & (~blkW);
 	s32 expandedHeight = (height + blkH) & (~blkH);
 
-    float MValueX = Renderer::GetTargetScaleX();
-	float MValueY = Renderer::GetTargetScaleY();
-
-	float Xstride = (float)((Renderer::GetFullTargetWidth() - Renderer::GetTargetWidth()) / 2);
-	float Ystride = (float)((Renderer::GetFullTargetHeight() - Renderer::GetTargetHeight()) / 2);
-
-	float sampleStride = bScaleByHalf?2.0f:1.0f;
-
+	float sampleStride = bScaleByHalf ? 2.f : 1.f;
+	// TODO: sampleStride scaling might be slightly off
 	TextureConversionShader::SetShaderParameters(
-		(float)expandedWidth, 
-		expandedHeight * MValueY, 
-		source.left * MValueX + Xstride , 
-		source.top * MValueY + Ystride, 
-		sampleStride * MValueX, 
-		sampleStride * MValueY,
+		(float)expandedWidth,
+		(float)Renderer::EFBToScaledY(expandedHeight), // TODO: Why do we scale this?
+		(float)(Renderer::EFBToScaledX(source.left) + Renderer::TargetStrideX()),
+		(float)(Renderer::EFBToScaledY(source.top) + Renderer::TargetStrideY()),
+		Renderer::EFBToScaledXf(sampleStride),
+		Renderer::EFBToScaledYf(sampleStride),
 		(float)Renderer::GetFullTargetWidth(),
 		(float)Renderer::GetFullTargetHeight());
 
@@ -372,14 +366,14 @@ void EncodeToRam(u32 address, bool bFromZBuffer, bool bIsIntensityFmt, u32 copyf
         cacheBytes = 64;
 
     int readStride = (expandedWidth * cacheBytes) / TexDecoder_GetBlockWidthInTexels(format);
-	Renderer::ResetAPIState();
+	g_renderer->ResetAPIState();
 	EncodeToRamUsingShader(texconv_shader, source_texture, scaledSource, dest_ptr, expandedWidth / samples, expandedHeight, readStride, true, bScaleByHalf > 0);
-	D3D::dev->SetRenderTarget(0, g_framebufferManager.GetEFBColorRTSurface());
-	D3D::dev->SetDepthStencilSurface(g_framebufferManager.GetEFBDepthRTSurface());
-	Renderer::RestoreAPIState();
+	D3D::dev->SetRenderTarget(0, FramebufferManager::GetEFBColorRTSurface());
+	D3D::dev->SetDepthStencilSurface(FramebufferManager::GetEFBDepthRTSurface());
+	g_renderer->RestoreAPIState();
 }
 
-u64 EncodeToRamFromTexture(u32 address,LPDIRECT3DTEXTURE9 source_texture,u32 SourceW, u32 SourceH,float MValueX,float MValueY,float Xstride, float Ystride , bool bFromZBuffer, bool bIsIntensityFmt, u32 copyfmt, int bScaleByHalf, const EFBRectangle& source)
+u64 EncodeToRamFromTexture(u32 address,LPDIRECT3DTEXTURE9 source_texture, u32 SourceW, u32 SourceH, bool bFromZBuffer, bool bIsIntensityFmt, u32 copyfmt, int bScaleByHalf, const EFBRectangle& source)
 {
 	u32 format = copyfmt;
 
@@ -415,15 +409,15 @@ u64 EncodeToRamFromTexture(u32 address,LPDIRECT3DTEXTURE9 source_texture,u32 Sou
 	s32 expandedWidth = (width + blkW) & (~blkW);
 	s32 expandedHeight = (height + blkH) & (~blkH);
 
-    float sampleStride = bScaleByHalf?2.0f:1.0f;
-
+    float sampleStride = bScaleByHalf ? 2.f : 1.f;
+	// TODO: sampleStride scaling might be slightly off
 	TextureConversionShader::SetShaderParameters(
-		(float)expandedWidth, 
-		expandedHeight * MValueY, 
-		source.left * MValueX + Xstride , 
-		source.top * MValueY + Ystride, 
-		sampleStride * MValueX, 
-		sampleStride * MValueY,
+		(float)expandedWidth,
+		(float)Renderer::EFBToScaledY(expandedHeight), // TODO: Why do we scale this?
+		(float)(Renderer::EFBToScaledX(source.left) + Renderer::TargetStrideX()),
+		(float)(Renderer::EFBToScaledY(source.top) + Renderer::TargetStrideY()),
+		Renderer::EFBToScaledXf(sampleStride),
+		Renderer::EFBToScaledYf(sampleStride),
 		(float)SourceW,
 		(float)SourceH);
 
@@ -438,8 +432,14 @@ u64 EncodeToRamFromTexture(u32 address,LPDIRECT3DTEXTURE9 source_texture,u32 Sou
 
     int readStride = (expandedWidth * cacheBytes) / TexDecoder_GetBlockWidthInTexels(format);
 	EncodeToRamUsingShader(texconv_shader, source_texture, scaledSource, dest_ptr, expandedWidth / samples, expandedHeight, readStride, true, bScaleByHalf > 0);
+	u64 hash = GetHash64(dest_ptr,size_in_bytes,g_ActiveConfig.iSafeTextureCache_ColorSamples);
+
+	// If the texture in RAM is already in the texture cache, do not copy it again as it has not changed.
+	if (TextureCache::Find(address, hash))
+		return hash;
+
 	TextureCache::MakeRangeDynamic(address,size_in_bytes);
-	return GetHash64(dest_ptr,size_in_bytes,g_ActiveConfig.iSafeTextureCache_ColorSamples);
+	return hash;
 }
 
 void EncodeToRamYUYV(LPDIRECT3DTEXTURE9 srcTexture, const TargetRectangle& sourceRc, u8* destAddr, int dstWidth, int dstHeight)
@@ -453,11 +453,11 @@ void EncodeToRamYUYV(LPDIRECT3DTEXTURE9 srcTexture, const TargetRectangle& sourc
 		1.0f,
 		(float)Renderer::GetFullTargetWidth(),
 		(float)Renderer::GetFullTargetHeight());
-	Renderer::ResetAPIState();
+	g_renderer->ResetAPIState();
 	EncodeToRamUsingShader(s_rgbToYuyvProgram, srcTexture, sourceRc, destAddr, dstWidth / 2, dstHeight, 0, false, false);
-	D3D::dev->SetRenderTarget(0, g_framebufferManager.GetEFBColorRTSurface());
-	D3D::dev->SetDepthStencilSurface(g_framebufferManager.GetEFBDepthRTSurface());
-	Renderer::RestoreAPIState();
+	D3D::dev->SetRenderTarget(0, FramebufferManager::GetEFBColorRTSurface());
+	D3D::dev->SetDepthStencilSurface(FramebufferManager::GetEFBDepthRTSurface());
+	g_renderer->RestoreAPIState();
 }
 
 
@@ -473,7 +473,7 @@ void DecodeToTexture(u32 xfbAddr, int srcWidth, int srcHeight, LPDIRECT3DTEXTURE
 
 	int srcFmtWidth = srcWidth / 2;
 
-	Renderer::ResetAPIState(); // reset any game specific settings
+	g_renderer->ResetAPIState(); // reset any game specific settings
 	LPDIRECT3DTEXTURE9 s_srcTexture = D3D::CreateTexture2D(srcAddr, srcFmtWidth, srcHeight, srcFmtWidth, D3DFMT_A8R8G8B8, false);
 	LPDIRECT3DSURFACE9 Rendersurf = NULL;
 	destTexture->GetSurfaceLevel(0,&Rendersurf);
@@ -528,9 +528,9 @@ void DecodeToTexture(u32 xfbAddr, int srcWidth, int srcHeight, LPDIRECT3DTEXTURE
 	D3D::RefreshSamplerState(0, D3DSAMP_MINFILTER);
 	D3D::RefreshSamplerState(0, D3DSAMP_MAGFILTER);
 	D3D::SetTexture(0,NULL);
-	D3D::dev->SetRenderTarget(0, g_framebufferManager.GetEFBColorRTSurface());
-	D3D::dev->SetDepthStencilSurface(g_framebufferManager.GetEFBDepthRTSurface());	
-	Renderer::RestoreAPIState();
+	D3D::dev->SetRenderTarget(0, FramebufferManager::GetEFBColorRTSurface());
+	D3D::dev->SetDepthStencilSurface(FramebufferManager::GetEFBDepthRTSurface());	
+	g_renderer->RestoreAPIState();
 	Rendersurf->Release();
 	s_srcTexture->Release();
 }

@@ -39,9 +39,7 @@ private:
 		LPDIRECT3DPIXELSHADER9 shader;
 		bool owns_shader;
 		int frameCount;
-#if defined(_DEBUG) || defined(DEBUGFAST)
-		std::string code;
-#endif
+
 		PSCacheEntry() : shader(NULL), owns_shader(true), frameCount(0) {}
 		void Destroy()
 		{
@@ -66,11 +64,6 @@ public:
 	static LPDIRECT3DPIXELSHADER9 GetColorCopyProgram(int SSAAMode);
 	static LPDIRECT3DPIXELSHADER9 GetDepthMatrixProgram(int SSAAMode);
 	static LPDIRECT3DPIXELSHADER9 GetClearProgram();	
-	
-#if defined(_DEBUG) || defined(DEBUGFAST)
-	static std::string GetCurrentShaderCode();
-#endif
-	static LPDIRECT3DPIXELSHADER9 CompileCgShader(const char *pstrprogram);
 };
 
 
