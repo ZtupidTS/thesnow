@@ -184,14 +184,14 @@ void LoadCodes(IniFile &ini, bool forceLoad)
 			continue;
 		}
 
-		SplitString(line, " ", pieces);
+		SplitString(line, ' ', pieces);
 
 		// Check if the AR code is decrypted
 		if (pieces.size() == 2 && pieces[0].size() == 8 && pieces[1].size() == 8)
 		{
 			AREntry op;
-			bool success_addr = TryParseUInt(std::string("0x") + pieces[0], &op.cmd_addr);
-   			bool success_val = TryParseUInt(std::string("0x") + pieces[1], &op.value);
+			bool success_addr = TryParse(std::string("0x") + pieces[0], &op.cmd_addr);
+   			bool success_val = TryParse(std::string("0x") + pieces[1], &op.value);
 			if (!(success_addr | success_val)) {
 				PanicAlert("Action Replay Error: invalid AR code line: %s", line.c_str());
 				if (!success_addr) PanicAlert("The address is invalid");
@@ -202,7 +202,7 @@ void LoadCodes(IniFile &ini, bool forceLoad)
 		}
 		else
 		{
-			SplitString(line, "-", pieces);
+			SplitString(line, '-', pieces);
 			if (pieces.size() == 3 && pieces[0].size() == 4 && pieces[1].size() == 4 && pieces[2].size() == 5) 
 			{
 				// Encrypted AR code
@@ -245,7 +245,7 @@ void LogInfo(const char *format, ...)
 			va_start(args, format);
 			CharArrayFromFormatV(temp, 512, format, args);
 			va_end(args);
-			INFO_LOG(ACTIONREPLAY, temp);
+			INFO_LOG(ACTIONREPLAY, "%s", temp);
 
 			if (logSelf)
 			{
@@ -448,7 +448,8 @@ ARCode GetARCode(size_t index)
 {
 	if (index > arCodes.size())
 	{
-		PanicAlert("GetARCode: Index is greater than ar code list size %i", index);
+		PanicAlert("GetARCode: Index is greater than "
+			"ar code list size %lu", (unsigned long)index);
 		return ARCode();
 	}
 	return arCodes[index];
@@ -458,7 +459,8 @@ void SetARCode_IsActive(bool active, size_t index)
 {
 	if (index > arCodes.size())
 	{
-		PanicAlert("SetARCode_IsActive: Index is greater than ar code list size %i", index);
+		PanicAlert("SetARCode_IsActive: Index is greater than "
+			"ar code list size %lu", (unsigned long)index);
 		return;
 	}
 	arCodes[index].active = active;
@@ -798,7 +800,7 @@ bool ZeroCode_MemoryCopy(const u32 val_last, const ARAddr addr, const u32 data)
 	else
 	{
 		LogInfo("Bad Value");
-		PanicAlert("Action Replay Error: Invalid value (&08x) in Memory Copy (%s)", (data & ~0x7FFF), current_code->name.c_str());
+		PanicAlert("Action Replay Error: Invalid value (%08x) in Memory Copy (%s)", (data & ~0x7FFF), current_code->name.c_str());
 		return false;
 	}
 	return true;

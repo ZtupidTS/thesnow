@@ -122,6 +122,7 @@ void SConfig::SaveSettings()
 	ini.Set("Display", "RenderWindowWidth",		m_LocalCoreStartupParameter.iRenderWindowWidth);
 	ini.Set("Display", "RenderWindowHeight",	m_LocalCoreStartupParameter.iRenderWindowHeight);
 	ini.Set("Display", "ProgressiveScan",		m_LocalCoreStartupParameter.bProgressive);
+	ini.Set("Display", "NTSCJ",					m_LocalCoreStartupParameter.bNTSCJ);
 
 	// Game List Control
 	ini.Set("GameList", "ListDrives",	m_ListDrives);
@@ -139,7 +140,6 @@ void SConfig::SaveSettings()
 
 	// Core
 	ini.Set("Core", "HLE_BS2",			m_LocalCoreStartupParameter.bHLE_BS2);
-	ini.Set("Core", "EnableOpenCL",		m_LocalCoreStartupParameter.bEnableOpenCL);
 	ini.Set("Core", "CPUCore",			m_LocalCoreStartupParameter.iCPUCore);
 	ini.Set("Core", "CPUThread",		m_LocalCoreStartupParameter.bCPUThread);
 	ini.Set("Core", "DSPThread",		m_LocalCoreStartupParameter.bDSPThread);
@@ -245,6 +245,7 @@ void SConfig::LoadSettings()
 		ini.Get("Display", "RenderWindowWidth",		&m_LocalCoreStartupParameter.iRenderWindowWidth, 640);
 		ini.Get("Display", "RenderWindowHeight",	&m_LocalCoreStartupParameter.iRenderWindowHeight, 480);
 		ini.Get("Display", "ProgressiveScan",		&m_LocalCoreStartupParameter.bProgressive, false);
+		ini.Get("Display", "NTSCJ",					&m_LocalCoreStartupParameter.bNTSCJ, false);
 
 		// Game List Control
 		ini.Get("GameList", "ListDrives",	&m_ListDrives,	false);
@@ -263,7 +264,6 @@ void SConfig::LoadSettings()
 
 		// Core
 		ini.Get("Core", "HLE_BS2",		&m_LocalCoreStartupParameter.bHLE_BS2,		false);
-		ini.Get("Core", "EnableOpenCL",	&m_LocalCoreStartupParameter.bEnableOpenCL,	false);
 		ini.Get("Core", "CPUCore",		&m_LocalCoreStartupParameter.iCPUCore,		1);
 		ini.Get("Core", "DSPThread",	&m_LocalCoreStartupParameter.bDSPThread,	false);
 		ini.Get("Core", "CPUThread",	&m_LocalCoreStartupParameter.bCPUThread,	true);
@@ -280,6 +280,8 @@ void SConfig::LoadSettings()
 		ini.Get("Core", "SlotB",		(int*)&m_EXIDevice[1], EXIDEVICE_MEMORYCARD_B);
 		ini.Get("Core", "SerialPort1",	(int*)&m_EXIDevice[2], EXIDEVICE_NONE);
 		ini.Get("Core", "ProfiledReJIT",&m_LocalCoreStartupParameter.bJITProfiledReJIT,			false);
+		ini.Get("Core", "TimeProfiling",&m_LocalCoreStartupParameter.bJITILTimeProfiling,		false);
+		ini.Get("Core", "OutputIR",		&m_LocalCoreStartupParameter.bJITILOutputIR,			false);
 		char sidevicenum[16];
 		for (int i = 0; i < 4; ++i)
 		{

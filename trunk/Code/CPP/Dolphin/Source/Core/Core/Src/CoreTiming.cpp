@@ -42,7 +42,6 @@ struct BaseEvent
 	s64 time;
 	u64 userdata;
 	int type;
-	bool fifoWait;
 //	Event *next;
 };
 
@@ -177,8 +176,7 @@ void DoState(PointerWrap &p)
 				prev->next = ev;
 			p.Do(ev->time);
 			p.Do(ev->type);
-			p.Do(ev->userdata);
-			p.Do(ev->fifoWait);
+			p.Do(ev->userdata);			
 			ev->next = 0;
 			prev = ev;
 			ev = ev->next;
@@ -195,8 +193,7 @@ void DoState(PointerWrap &p)
 			p.Do(more_events);
 			p.Do(ev->time);
 			p.Do(ev->type);
-			p.Do(ev->userdata);
-			p.Do(ev->fifoWait);
+			p.Do(ev->userdata);			
 			ev = ev->next;
 		}
 		more_events = 0;
@@ -219,7 +216,7 @@ u64 GetIdleTicks()
 
 // This is to be called when outside threads, such as the graphics thread, wants to
 // schedule things to be executed on the main thread.
-void ScheduleEvent_Threadsafe(int cyclesIntoFuture, int event_type, u64 userdata, bool fifoWait)
+void ScheduleEvent_Threadsafe(int cyclesIntoFuture, int event_type, u64 userdata)
 {
 	externalEventSection.Enter();
 	Event *ne = GetNewTsEvent();
@@ -227,7 +224,6 @@ void ScheduleEvent_Threadsafe(int cyclesIntoFuture, int event_type, u64 userdata
 	ne->type = event_type;
 	ne->next = 0;
 	ne->userdata = userdata;
-	ne->fifoWait = fifoWait;
 	if(!tsFirst)
 		tsFirst = ne;
 	if(tsLast)
@@ -247,7 +243,7 @@ void ScheduleEvent_Threadsafe_Immediate(int event_type, u64 userdata)
 		externalEventSection.Leave();
 	}
 	else
-		ScheduleEvent_Threadsafe(0, event_type, userdata, false);
+		ScheduleEvent_Threadsafe(0, event_type, userdata);
 }
 
 void ClearPendingEvents()
@@ -287,7 +283,6 @@ void ScheduleEvent(int cyclesIntoFuture, int event_type, u64 userdata)
 	ne->userdata = userdata;
 	ne->type = event_type;
 	ne->time = globalTimer + cyclesIntoFuture;
-	ne->fifoWait = false;
 	AddEventToQueue(ne);
 }
 
@@ -311,14 +306,20 @@ bool IsScheduled(int event_type)
 
 void RemoveEvent(int event_type)
 {
-
 	if (!first)
 		return;
-	if (first->type == event_type)
+	while(first)
 	{
-		Event *next = first->next;
-		FreeEvent(first);
-		first = next;
+		if (first->type == event_type)
+		{
+			Event *next = first->next;
+			FreeEvent(first);
+			first = next;
+		}
+		else
+		{
+			break;
+		}
 	}
 	if (!first)
 		return;
@@ -348,11 +349,18 @@ void RemoveThreadsafeEvent(int event_type)
 		externalEventSection.Leave();
 		return;
 	}
-	if (tsFirst->type == event_type)
+	while(tsFirst)
 	{
-		Event *next = tsFirst->next;
-		FreeTsEvent(tsFirst);
-		tsFirst = next;
+		if (tsFirst->type == event_type)
+		{
+			Event *next = tsFirst->next;
+			FreeTsEvent(tsFirst);
+			tsFirst = next;
+		}
+		else
+		{
+			break;
+		}
 	}
 	if (!tsFirst)
 	{
@@ -400,11 +408,13 @@ void ProcessFifoWaitEvents()
 {
 	MoveEvents();
 
+	if (!first)
+		return;
+
 	while (first)
 	{
-		if ((first->time <= globalTimer) && first->fifoWait)
+		if (first->time <= globalTimer)
 		{
-			
 			Event* evt = first;
 			first = first->next;
 			event_types[evt->type].callback(evt->userdata, (int)(globalTimer - evt->time));
@@ -414,8 +424,7 @@ void ProcessFifoWaitEvents()
 		{
 			break;
 		}
-	}
-
+	}	
 }
 
 void MoveEvents()

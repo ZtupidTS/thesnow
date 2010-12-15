@@ -19,14 +19,13 @@
 #include "CommonPaths.h"
 
 #include "WII_IPC_HLE_Device_fs.h"
+#include "WII_IPC_HLE_Device_FileIO.h"
 
 #include "StringUtil.h"
 #include "FileSearch.h"
 #include "FileUtil.h"
 
 #include "../VolumeHandler.h"
-
-extern std::string HLE_IPC_BuildFilename(const char* _pFilename, int _size);
 
 #define MAX_NAME				(12)
 
@@ -151,7 +150,8 @@ bool CWII_IPC_HLE_Device_fs::IOCtlV(u32 _CommandAddress)
 			if ((CommandBuffer.InBuffer.size() == 1) && (CommandBuffer.PayloadBuffer.size() == 1))
 			{
 				size_t numFile = FileSearch.GetFileNames().size();
-				INFO_LOG(WII_IPC_FILEIO, "\t%i Files found", numFile);
+				INFO_LOG(WII_IPC_FILEIO, "\t%lu Files found",
+					(unsigned long)numFile);
 
 				Memory::Write_U32((u32)numFile, CommandBuffer.PayloadBuffer[0].m_Address);
 			}
