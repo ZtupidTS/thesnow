@@ -14,14 +14,6 @@
 #include <string>
 #include <vector>
 
-// With Borland C++ 5.5, including <string> includes Windows.h leading to defining
-// FindText to FindTextA which makes calls here to Document::FindText fail.
-#ifdef __BORLANDC__
-#ifdef FindText
-#undef FindText
-#endif
-#endif
-
 #include "Platform.h"
 
 #include "ILexer.h"
@@ -95,7 +87,7 @@ void LexInterface::Colourise(int start, int end) {
 
 Document::Document() {
 	refCount = 0;
-#ifdef unix
+#ifdef __unix__
 	eolMode = SC_EOL_LF;
 #else
 	eolMode = SC_EOL_CRLF;
