@@ -44,9 +44,6 @@
 #ifdef _MSC_VER
 #include <direct.h>
 #endif
-#ifdef __BORLANDC__
-#include <dir.h>
-#endif
 
 #endif
 
@@ -67,7 +64,7 @@
 #include "SciTEBase.h"
 #include "Utf8_16.h"
 
-#ifdef unix
+#ifdef __unix__
 const GUI::gui_char propUserFileName[] = GUI_TEXT(".SciTEUser.properties");
 #else
 // Windows
@@ -383,7 +380,6 @@ void SciTEBase::OpenFile(int fileSize, bool suppressMessage) {
 		}
 
 	} else if (!suppressMessage) {
-//		GUI::gui_string msg = LocaliseMessage("Could not open file '^0'.", filePath.AsInternal());
 		GUI::gui_string msg = LocaliseMessage(L"不能打开文件 '^0'.", filePath.AsInternal());
 		WindowMessageBox(wSciTE, msg, MB_OK | MB_ICONWARNING);
 	}

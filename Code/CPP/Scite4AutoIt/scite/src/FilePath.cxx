@@ -48,9 +48,6 @@
 #ifdef _MSC_VER
 #include <direct.h>
 #endif
-#ifdef __BORLANDC__
-#include <dir.h>
-#endif
 #ifdef __DMC__
 #include <dir.h>
 #endif
@@ -67,7 +64,7 @@
 #include "SString.h"
 #include "FilePath.h"
 
-#ifdef unix
+#ifdef __unix__
 const GUI::gui_char pathSepString[] = "/";
 const GUI::gui_char pathSepChar = '/';
 const GUI::gui_char listSepString[] = ":";
@@ -146,7 +143,7 @@ bool FilePath::IsUntitled() const {
 bool FilePath::IsAbsolute() const {
 	if (fileName.length() == 0)
 		return false;
-#ifdef unix
+#ifdef __unix__
 	if (fileName[0] == '/')
 		return true;
 #endif
@@ -442,7 +439,7 @@ void FilePath::Remove() const {
 }
 
 #ifndef R_OK
-// Neither Borland nor Microsoft define the constants used to call access
+// Microsoft does not define the constants used to call access
 #define R_OK 4
 #endif
 

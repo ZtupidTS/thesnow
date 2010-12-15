@@ -16,14 +16,6 @@
 #include <algorithm>
 #include <memory>
 
-// With Borland C++ 5.5, including <string> includes Windows.h leading to defining
-// FindText to FindTextA which makes calls here to Document::FindText fail.
-#ifdef __BORLANDC__
-#ifdef FindText
-#undef FindText
-#endif
-#endif
-
 #include "Platform.h"
 
 #include "ILexer.h"
@@ -716,7 +708,7 @@ void Editor::SetRectangularRange() {
 			if (line == lineAnchor)
 				sel.SetSelection(range);
 			else
-				sel.AddSelection(range);
+				sel.AddSelectionWithoutTrim(range);
 		}
 	}
 }
@@ -3920,8 +3912,8 @@ void Editor::InsertPaste(SelectionPosition selStart, const char *text, int len) 
 	}
 }
 
-void Editor::ClearSelection() {
-	if (!sel.IsRectangular())
+void Editor::ClearSelection(bool retainMultipleSelections) {
+	if (!sel.IsRectangular() && !retainMultipleSelections)
 		FilterSelections();
 	UndoGroup ug(pdoc);
 	for (size_t r=0; r<sel.Count(); r++) {

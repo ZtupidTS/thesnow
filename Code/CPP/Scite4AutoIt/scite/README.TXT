@@ -42,25 +42,21 @@ The current make file only supports static linking between SciTE and Scintilla.
 
 你需要一个 C++ 编译器. Visual Studio 2008 为本软件的开发环境.
 同样支持 Mingw32 4.4.1.但未经过测试.
-For older versions of Borland C++ such as version 5.02, add the -l option.
 
 要编译 Scintilla, make in the scintilla/win32 directory
 		cd scintilla\win32
 GCC:		mingw32-make
 VS .NET:	nmake -f scintilla.mak
-VC++ 6:	nmake -f scintilla_vc6.mak
-Borland: 	make -fscintilla.mak
 		cd ..\..
 
 要编译  SciTE, use the makefiles located in the scite/win32 directory
 		cd scite\win32
 GCC:		mingw32-make
 VS .NET: 	nmake -f scite.mak
-Borland:	make -fscite.mak
 
 An executable SciTE will now be in scite\bin.
 
-The Visual C++ 6.0 project (.dsp) files are no longer supported but are left
+The Visual C++ 6.0 project (.dsp) and make files are no longer supported but are left
 in the download for people that are prepared to update them.
 
 *** GTK+/Windows version ***

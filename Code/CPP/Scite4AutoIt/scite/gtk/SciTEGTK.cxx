@@ -1854,10 +1854,7 @@ void SciTEGTK::FindInFilesResponse(int responseID) {
 			dlgFindInFiles.Destroy();
 			break;
 	}
-	GtkWidget *Widget() const {
-		return table;
-	}
-};
+}
 
 void SciTEGTK::FindInFiles() {
 	dlgFindInFiles.SetSearcher(this);
