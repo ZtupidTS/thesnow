@@ -295,6 +295,8 @@ void LoadStateCallback(u64 userdata, int cyclesLate)
 	if (!f)
 	{
 		Core::DisplayMessage("State not found", 2000);
+		// Resume the clock
+		PowerPC::Start();
 		return;
 	}
 
@@ -312,6 +314,8 @@ void LoadStateCallback(u64 userdata, int cyclesLate)
 			gameID), 2000);
 
 		fclose(f);
+		// Resume the clock
+		PowerPC::Start();
 		return;
 	}
 
@@ -326,6 +330,8 @@ void LoadStateCallback(u64 userdata, int cyclesLate)
 		if (!buffer)
 		{
 			PanicAlert("Error allocating buffer");
+			// Resume the clock
+			PowerPC::Start();
 			return;
 		}
 		while (true)
@@ -341,10 +347,12 @@ void LoadStateCallback(u64 userdata, int cyclesLate)
 			if (res != LZO_E_OK)
 			{
 				// This doesn't seem to happen anymore.
-				PanicAlert("Internal LZO Error - decompression failed (%d) (%d, %d) \n"
+				PanicAlert("Internal LZO Error - decompression failed (%d) (%li, %li) \n"
 					"Try loading the state again", res, i, new_len);
 				fclose(f);
 				delete[] buffer;
+				// Resume the clock
+				PowerPC::Start();
 				return;
 			}
 	
@@ -353,13 +361,11 @@ void LoadStateCallback(u64 userdata, int cyclesLate)
 	}
 	else
 	{
-		fseek(f, 0, SEEK_END);
-		sz = (int)(ftell(f) - sizeof(state_header));
-		fseek(f, sizeof(state_header), SEEK_SET);
+		sz = (int)(File::GetSize(f) - sizeof(state_header));
 		buffer = new u8[sz];
 		int x;
 		if ((x = (int)fread(buffer, 1, sz, f)) != (int)sz)
-			PanicAlert("wtf? %d %d", x, sz);
+			PanicAlert("wtf? %d %lu", x, (unsigned long)sz);
 	}
 
 	fclose(f);
@@ -442,7 +448,7 @@ void VerifyStateCallback(u64 userdata, int cyclesLate)
 			if (res != LZO_E_OK)
 			{
 				// This doesn't seem to happen anymore.
-				PanicAlert("Internal LZO Error - decompression failed (%d) (%d, %d) \n"
+				PanicAlert("Internal LZO Error - decompression failed (%d) (%ld, %ld) \n"
 					"Try verifying the state again", res, i, new_len);
 				fclose(f);
 				delete [] buffer;
@@ -455,13 +461,11 @@ void VerifyStateCallback(u64 userdata, int cyclesLate)
 	}
 	else
 	{
-		fseek(f, 0, SEEK_END);
-		sz = (int)(ftell(f) - sizeof(int));
-		fseek(f, sizeof(int), SEEK_SET);
+		sz = (int)(File::GetSize(f) - sizeof(int));
 		buffer = new u8[sz];
 		int x;
 		if ((x = (int)fread(buffer, 1, sz, f)) != (int)sz)
-			PanicAlert("wtf? %d %d", x, sz);
+			PanicAlert("wtf? %d %lu", x, (unsigned long)sz);
 	}
 
 	fclose(f);

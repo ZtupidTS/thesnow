@@ -344,8 +344,8 @@ u32 CWII_IPC_HLE_Device_sdio_slot0::ExecuteCommand(u32 _BufferIn, u32 _BufferInS
 		{
 			u32 size = req.bsize * req.blocks;
 
-			if (fseek(m_Card, req.arg, SEEK_SET) != 0)
-				ERROR_LOG(WII_IPC_SD, "fseek failed WTF");
+			if (fseeko(m_Card, req.arg, SEEK_SET) != 0)
+				ERROR_LOG(WII_IPC_SD, "fseeko failed WTF");
 
 			u8* buffer = new u8[size];
 
@@ -361,8 +361,10 @@ u32 CWII_IPC_HLE_Device_sdio_slot0::ExecuteCommand(u32 _BufferIn, u32 _BufferInS
 			}
 			else
 			{
-				ERROR_LOG(WII_IPC_SD, "Read Failed - read %x, error %i, eof? %i",
-					nRead, ferror(m_Card), feof(m_Card));
+				ERROR_LOG(WII_IPC_SD, "Read Failed - "
+					"read %lx, error %i, eof? %i",
+					(unsigned long)nRead,
+					ferror(m_Card), feof(m_Card));
 				rwFail = 1;
 			}
 
@@ -383,8 +385,8 @@ u32 CWII_IPC_HLE_Device_sdio_slot0::ExecuteCommand(u32 _BufferIn, u32 _BufferInS
 		{
 			u32 size = req.bsize * req.blocks;
 
-			if (fseek(m_Card, req.arg, SEEK_SET) != 0)
-				ERROR_LOG(WII_IPC_SD, "fseek failed WTF");
+			if (fseeko(m_Card, req.arg, SEEK_SET) != 0)
+				ERROR_LOG(WII_IPC_SD, "fseeko failed WTF");
 
 			u8* buffer = new u8[size];
 
@@ -396,8 +398,10 @@ u32 CWII_IPC_HLE_Device_sdio_slot0::ExecuteCommand(u32 _BufferIn, u32 _BufferInS
 			size_t nWritten = fwrite(buffer, req.bsize, req.blocks, m_Card);
 			if (nWritten != req.blocks)
 			{
-				ERROR_LOG(WII_IPC_SD, "Write Failed - wrote %x, error %i, eof? %i",
-					nWritten, ferror(m_Card), feof(m_Card));
+				ERROR_LOG(WII_IPC_SD, "Write Failed - "
+					"wrote %lx, error %i, eof? %i",
+					(unsigned long)nWritten,
+					ferror(m_Card), feof(m_Card));
 				rwFail = 1;
 			}
 

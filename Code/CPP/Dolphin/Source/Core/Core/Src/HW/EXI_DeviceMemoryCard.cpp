@@ -25,6 +25,7 @@
 #include "EXI.h"
 #include "EXI_Device.h"
 #include "EXI_DeviceMemoryCard.h"
+#include "Sram.h"
 
 #define MC_STATUS_BUSY					0x80   
 #define MC_STATUS_UNLOCKED				0x40
@@ -77,11 +78,7 @@ CEXIMemoryCard::CEXIMemoryCard(const std::string& _rName, const std::string& _rF
 	if (pFile)
 	{
 		// Measure size of the memcard file.
-		fseek(pFile, 0L, SEEK_END);
-		u64 MemFileSize = ftell(pFile);
-		fseek(pFile, 0L, SEEK_SET);
-
-		memory_card_size = (int)MemFileSize;
+		memory_card_size = (int)File::GetSize(pFile);
 		nintendo_card_id = memory_card_size / SIZE_TO_Mb;
 		memory_card_content = new u8[memory_card_size];
 		memset(memory_card_content, 0xFF, memory_card_size);
@@ -89,6 +86,8 @@ CEXIMemoryCard::CEXIMemoryCard(const std::string& _rName, const std::string& _rF
 		INFO_LOG(EXPANSIONINTERFACE, "Reading memory card %s", m_strFilename.c_str());
 		fread(memory_card_content, 1, memory_card_size, pFile);
 		fclose(pFile);
+		SetCardFlashID(memory_card_content, card_index);
+
 	}
 	else
 	{

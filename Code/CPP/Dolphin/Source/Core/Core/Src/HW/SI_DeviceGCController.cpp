@@ -29,7 +29,8 @@
 
 #include "../OnFrame.h"
 
-#include "Timer.h"
+#include "../CoreTiming.h"
+#include "SystemTimers.h"
 #include "ProcessorInterface.h"
 
 
@@ -100,11 +101,6 @@ int CSIDevice_GCController::RunBuffer(u8* _pBuffer, int _iLength)
 			iPosition = _iLength;
 			break;
 
-		// WII Something - this could be bogus
-		case 0xCE:
-			WARN_LOG(SERIALINTERFACE, "Unknown Wii SI Command");
-			break;
-
 		// DEFAULT
 		default:
 			{
@@ -133,22 +129,15 @@ bool CSIDevice_GCController::GetData(u32& _Hi, u32& _Low)
 
 	Pad::GetStatus(ISIDevice::m_iDeviceNumber, &PadStatus);
 
-	u32 netValues[2] = {0};
-	int NetPlay = 2;
 #if defined(HAVE_WX) && HAVE_WX
-	NetPlay = NetPlay_GetInput(ISIDevice::m_iDeviceNumber, PadStatus, netValues);
-#endif
-
-	if (NetPlay != 2)
+	u32 netValues[2];
+	if (NetPlay_GetInput(ISIDevice::m_iDeviceNumber, PadStatus, netValues))
 	{
-		if (NetPlay == 1)
-		{
-			_Hi  = netValues[0];	// first 4 bytes
-			_Low = netValues[1];	// last  4 bytes
-		}
-
+		_Hi  = netValues[0];	// first 4 bytes
+		_Low = netValues[1];	// last  4 bytes
 		return true;
 	}
+#endif
 
 	Frame::SetPolledDevice();
 
@@ -217,7 +206,6 @@ bool CSIDevice_GCController::GetData(u32& _Hi, u32& _Low)
 	}
 
 	// Keep track of the special button combos (embedded in controller hardware... :( )
-	// Should technically be in "gc time", but we just use host system time :)
 	EButtonCombo tempCombo;
 	if ((PadStatus.button & 0xff00) == (PAD_BUTTON_Y|PAD_BUTTON_X|PAD_BUTTON_START))
 		tempCombo = COMBO_ORIGIN;
@@ -229,12 +217,12 @@ bool CSIDevice_GCController::GetData(u32& _Hi, u32& _Low)
 	{
 		m_LastButtonCombo = tempCombo;
 		if (m_LastButtonCombo != COMBO_NONE)
-			m_TButtonComboStart = Common::Timer::GetTimeMs();
+			m_TButtonComboStart = CoreTiming::GetTicks();
 	}
 	if (m_LastButtonCombo != COMBO_NONE)
 	{
-		m_TButtonCombo = Common::Timer::GetTimeMs();
-		if ((m_TButtonCombo - m_TButtonComboStart) > 3000)
+		m_TButtonCombo = CoreTiming::GetTicks();
+		if ((m_TButtonCombo - m_TButtonComboStart) > SystemTimers::GetTicksPerSecond() * 3)
 		{
 			if (m_LastButtonCombo == COMBO_RESET)
 				ProcessorInterface::ResetButton_Tap();

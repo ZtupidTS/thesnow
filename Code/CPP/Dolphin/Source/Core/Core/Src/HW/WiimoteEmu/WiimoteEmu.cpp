@@ -251,10 +251,8 @@ Wiimote::Wiimote( const unsigned int index )
 	// tilt
 	groups.push_back(m_tilt = new Tilt("Tilt"));
 
-#ifdef USE_UDP_WIIMOTE
 	// udp 
 	groups.push_back(m_udp = new UDPWrapper(m_index, "UDP Wiimote"));
-#endif
 
 	// shake
 	groups.push_back(m_shake = new Buttons("Shake"));
@@ -265,11 +263,7 @@ Wiimote::Wiimote( const unsigned int index )
 	// extension
 	groups.push_back(m_extension = new Extension("Extension"));
 	m_extension->attachments.push_back(new WiimoteEmu::None());
-#ifdef USE_UDP_WIIMOTE
 	m_extension->attachments.push_back(new WiimoteEmu::Nunchuk(m_udp));
-#else
-	m_extension->attachments.push_back(new WiimoteEmu::Nunchuk());
-#endif
 	m_extension->attachments.push_back(new WiimoteEmu::Classic());
 	m_extension->attachments.push_back(new WiimoteEmu::Guitar());
 	m_extension->attachments.push_back(new WiimoteEmu::Drums());
@@ -345,9 +339,7 @@ bool Wiimote::Step()
 	{
 		m_buttons->GetState(&m_status.buttons, button_bitmasks);
 		m_dpad->GetState(&m_status.buttons, is_sideways ? dpad_sideways_bitmasks : dpad_bitmasks);
-#ifdef USE_UDP_WIIMOTE
 		UDPTLayer::GetButtons(m_udp, &m_status.buttons);
-#endif
 	}
 
 	// check if there is a read data request
@@ -407,9 +399,7 @@ void Wiimote::GetAccelData(u8* const data, u8* const buttons)
 	{
 		EmulateSwing(&m_accel, m_swing, is_sideways, is_upright);
 		EmulateShake(&m_accel, m_shake, m_shake_step);
-#ifdef USE_UDP_WIIMOTE
 		UDPTLayer::GetAcceleration(m_udp, &m_accel);
-#endif
 	}
 	wm_accel* dt = (wm_accel*)data;
 	accel_cal* calib = (accel_cal*)&m_eeprom[0x16];
@@ -476,9 +466,7 @@ void Wiimote::GetIRData(u8* const data, bool use_accel)
 		LowPassFilter(ir_cos,ncos,1.0f/60);
 
 		m_ir->GetState(&xx, &yy, &zz, true);
-#ifdef USE_UDP_WIIMOTE
 		UDPTLayer::GetIR(m_udp, &xx, &yy, &zz);
-#endif
 
 		Vertex v[4];
 		
@@ -843,7 +831,7 @@ void Wiimote::InterruptChannel(const u16 _channelID, const void* _pData, u32 _Si
 			break;
 
 		default :
-			PanicAlert("HidInput: HID_TYPE_DATA - param 0x%02x", hidp->type, hidp->param);
+			PanicAlert("HidInput: HID_TYPE_DATA - param 0x%02x", hidp->param);
 			break;
 		}
 		break;
@@ -863,8 +851,13 @@ void Wiimote::LoadDefaults(const ControllerInterface& ciface)
 	// TODO: finish this
 
 	// Buttons
+#ifdef __linux__
+	set_control(m_buttons, 0, "Click 1");		// A
+	set_control(m_buttons, 1, "Click 3");		// B
+#else
 	set_control(m_buttons, 0, "Click 0");		// A
 	set_control(m_buttons, 1, "Click 1");		// B
+#endif
 	//set_control(m_buttons, 2, "");		// 1
 	//set_control(m_buttons, 3, "");		// 2
 	//set_control(m_buttons, 4, "");		// -

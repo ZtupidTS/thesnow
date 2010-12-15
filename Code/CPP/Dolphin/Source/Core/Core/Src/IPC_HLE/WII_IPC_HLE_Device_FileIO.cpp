@@ -22,21 +22,63 @@
 
 #include "WII_IPC_HLE_Device_fs.h"
 #include "WII_IPC_HLE_Device_FileIO.h"
+#include <algorithm>
+#include <fstream>
 
+typedef std::pair<char, std::string> replace_t;
+typedef std::vector<replace_t> replace_v;
+static replace_v replacements;
+
+static void CreateReplacementFile(std::string &filename)
+{
+	std::ofstream replace(filename.c_str());
+	replace <<"\" __22__\n";
+	replace << "* __2a__\n";
+	//replace << "/ __2f__\n";
+	replace << ": __3a__\n";
+	replace << "< __3c__\n";
+	replace << "> __3e__\n";
+	replace << "? __3f__\n";
+	//replace <<"\\ __5c__\n";
+	replace << "| __7c__\n";
+}
+
+static void ReadReplacements()
+{
+	const std::string replace_fname = "/sys/replace";
+	std::string filename(File::GetUserPath(D_WIIROOT_IDX));
+	filename += replace_fname;
+
+	if (!File::Exists(filename.c_str()))
+		CreateReplacementFile(filename);
+
+	std::ifstream f(filename.c_str());
+	char letter;
+	std::string replacement;
+
+	while (f >> letter >> replacement && replacement.size())
+		replacements.push_back(std::make_pair(letter, replacement));
+}
 
 // This is used by several of the FileIO and /dev/fs/ functions 
 std::string HLE_IPC_BuildFilename(const char* _pFilename, int _size)
 {
-	char Buffer[128];
-	memcpy(Buffer, _pFilename, _size);
+	std::string path_full = std::string(File::GetUserPath(D_WIIROOT_IDX));
+	std::string path_wii(_pFilename);
 
-	std::string Filename = std::string(File::GetUserPath(D_WIIROOT_IDX));
-	if (Buffer[1] == '0')
-		Filename += std::string("/title");     // this looks and feel like a hack...
+	if (path_wii[1] == '0')
+		path_full += std::string("/title"); // this looks and feel like a hack...
 
-	Filename += Buffer;
+	// Replaces chars that FAT32 can't support with strings defined in /sys/replace
+	for (replace_v::const_iterator i = replacements.begin(); i != replacements.end(); ++i)
+	{
+		for (size_t j = 0; (j = path_wii.find(i->first, j)) != path_wii.npos; ++j)
+			path_wii.replace(j, 1, i->second);
+	}
 
-	return Filename;
+	path_full += path_wii;
+
+	return path_full;
 }
 
 CWII_IPC_HLE_Device_FileIO::CWII_IPC_HLE_Device_FileIO(u32 _DeviceID, const std::string& _rDeviceName) 
@@ -46,6 +88,7 @@ CWII_IPC_HLE_Device_FileIO::CWII_IPC_HLE_Device_FileIO(u32 _DeviceID, const std:
 	, m_Mode(0)
 	, m_Seek(0)
 {
+	ReadReplacements();
 }
 
 CWII_IPC_HLE_Device_FileIO::~CWII_IPC_HLE_Device_FileIO()
@@ -163,9 +206,9 @@ bool CWII_IPC_HLE_Device_FileIO::Seek(u32 _CommandAddress)
 
 	if (Mode >= 0 && Mode <= 2)
 	{
-        if (fseek(m_pFileHandle, NewSeekPosition, seek_mode[Mode]) == 0)
+        if (fseeko(m_pFileHandle, NewSeekPosition, seek_mode[Mode]) == 0)
 		{
-		    ReturnValue = (u32)ftell(m_pFileHandle);
+		    ReturnValue = (u32)ftello(m_pFileHandle);
         }
 		else
 		{
@@ -243,7 +286,7 @@ bool CWII_IPC_HLE_Device_FileIO::IOCtl(u32 _CommandAddress)
     case ISFS_IOCTL_GETFILESTATS:
         {
 			m_FileLength = (u32)File::GetSize(m_Filename.c_str());
-            u32 Position = (u32)ftell(m_pFileHandle);
+            u32 Position = (u32)ftello(m_pFileHandle);
 
             u32 BufferOut = Memory::Read_U32(_CommandAddress + 0x18);
             INFO_LOG(WII_IPC_FILEIO, "FileIO: ISFS_IOCTL_GETFILESTATS");
@@ -278,7 +321,7 @@ void CWII_IPC_HLE_Device_FileIO::DoState(PointerWrap &p)
 {
 	if (p.GetMode() == PointerWrap::MODE_WRITE)
 	{
-		m_Seek = (m_pFileHandle) ? (s32)ftell(m_pFileHandle) : 0;
+		m_Seek = (m_pFileHandle) ? (s32)ftello(m_pFileHandle) : 0;
 	}
 
 	p.Do(m_Mode);
@@ -290,7 +333,7 @@ void CWII_IPC_HLE_Device_FileIO::DoState(PointerWrap &p)
 		{
 			Open(0, m_Mode);
 			if (m_pFileHandle)
-				fseek(m_pFileHandle, m_Seek, SEEK_SET);
+				fseeko(m_pFileHandle, m_Seek, SEEK_SET);
 		}
 	}
 }

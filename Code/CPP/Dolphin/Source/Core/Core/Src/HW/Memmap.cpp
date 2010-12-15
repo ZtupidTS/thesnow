@@ -121,10 +121,10 @@ readFn64  hwReadWii64[NUMHWMEMFUN];
 
 // Default read and write functions
 template <class T>
-void HW_Default_Write(const T _Data, const u32 _Address){	ERROR_LOG(MASTER_LOG, "Illegal HW Write%i %08x", sizeof(T)*8, _Address);_dbg_assert_(MEMMAP, 0);}
+void HW_Default_Write(const T _Data, const u32 _Address){	ERROR_LOG(MASTER_LOG, "Illegal HW Write%lu %08x", (unsigned long)sizeof(T)*8, _Address);_dbg_assert_(MEMMAP, 0);}
 
 template <class T>
-void HW_Default_Read(T _Data, const u32 _Address){	ERROR_LOG(MASTER_LOG, "Illegal HW Read%i %08x", sizeof(T)*8, _Address); _dbg_assert_(MEMMAP, 0);}
+void HW_Default_Read(T _Data, const u32 _Address){	ERROR_LOG(MASTER_LOG, "Illegal HW Read%lu %08x", (unsigned long)sizeof(T)*8, _Address); _dbg_assert_(MEMMAP, 0);}
 
 #define PAGE_SHIFT 10
 #define PAGE_SIZE (1 << PAGE_SHIFT)
@@ -193,6 +193,7 @@ void InitHWMemFuncs()
 		hwWrite16[VI_START+i] = VideoInterface::Write16;
 		hwWrite32[VI_START+i] = VideoInterface::Write32;
 
+		hwRead16 [PI_START+i] = ProcessorInterface::Read16;
 		hwRead32 [PI_START+i] = ProcessorInterface::Read32;
 		hwWrite32[PI_START+i] = ProcessorInterface::Write32;
 
@@ -259,6 +260,7 @@ void InitHWMemFuncsWii()
 		hwWrite16[PE_START+i] = CPluginManager::GetInstance().GetVideo()->Video_PixelEngineWrite16;
 		hwWrite32[PE_START+i] = CPluginManager::GetInstance().GetVideo()->Video_PixelEngineWrite32;
 
+		hwRead16 [PI_START+i] = ProcessorInterface::Read16;
 		hwRead32 [PI_START+i] = ProcessorInterface::Read32;
 		hwWrite32[PI_START+i] = ProcessorInterface::Write32;
 
@@ -371,7 +373,7 @@ void DoState(PointerWrap &p)
 {
 	bool wii = SConfig::GetInstance().m_LocalCoreStartupParameter.bWii;
 	p.DoArray(m_pPhysicalRAM, RAM_SIZE);
-	p.DoArray(m_pVirtualEFB, EFB_SIZE);
+//	p.DoArray(m_pVirtualEFB, EFB_SIZE);
 	p.DoArray(m_pVirtualL1Cache, L1_CACHE_SIZE);
 	if (wii)
 		p.DoArray(m_pEXRAM, EXRAM_SIZE);
@@ -621,7 +623,7 @@ u8 *GetPointer(const u32 _Address)
 
 	case 0xCC:
 	case 0xCD:
-		_dbg_assert_msg_(MEMMAP, 0, "Memory", "GetPointer from IO Bridge doesnt work");
+		_dbg_assert_msg_(MEMMAP, 0, "GetPointer from IO Bridge doesnt work");
 		return NULL;
 	default:
 		if (bFakeVMEM)
@@ -630,7 +632,8 @@ u8 *GetPointer(const u32 _Address)
 		}
 		else
 		{
-			if (!Core::g_CoreStartupParameter.bMMU && !PanicYesNo("Unknown pointer address prefix %02X, report this to the devs: 0x%08X \n Continue?", (_Address >> 24), _Address))
+			if (!Core::g_CoreStartupParameter.bMMU &&
+				!PanicYesNo("Unknown pointer %#08x\nContinue?", _Address))
 				Crash();
 			return 0;
 		}

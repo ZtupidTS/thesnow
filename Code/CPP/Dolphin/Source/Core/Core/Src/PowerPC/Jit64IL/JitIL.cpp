@@ -25,6 +25,7 @@
 #include "../../Core.h"
 #include "../../PatchEngine.h"
 #include "../../CoreTiming.h"
+#include "../../ConfigManager.h"
 #include "../PowerPC.h"
 #include "../Profiler.h"
 #include "../PPCTables.h"
@@ -152,6 +153,106 @@ ps_adds1
 
 */
 
+
+// For profiling
+#include <time.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#include <intrin.h>
+#else
+#include <memory>
+#include <stdint.h>
+static inline uint64_t __rdtsc()
+{
+	uint32_t lo, hi;
+#ifdef _LP64
+	__asm__ __volatile__ ("xorl %%eax,%%eax \n cpuid"
+			::: "%rax", "%rbx", "%rcx", "%rdx");
+	__asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi));
+	return (uint64_t)hi << 32 | lo;
+#else
+	__asm__ __volatile__ (
+			"xor	%%eax,%%eax;"
+			"push	%%ebx;"
+			"cpuid;"
+			"pop	%%ebx;"
+			::: "%eax", "%ecx", "%edx");
+	__asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi));
+#endif
+	return (uint64_t)hi << 32 | lo;
+}
+#endif
+
+namespace JitILProfiler
+{
+	struct Block
+	{
+		u32 index;
+		u64 codeHash;
+		u64 totalElapsed;
+		u64 numberOfCalls;
+		Block() : index(0), codeHash(0), totalElapsed(0), numberOfCalls(0) { }
+	};
+	static std::vector<Block> blocks;
+	static u32 blockIndex;
+	static u64 beginTime;
+	static Block& Add(u64 codeHash)
+	{
+		const u32 _blockIndex = blocks.size();
+		blocks.push_back(Block());
+		Block& block = blocks.back();
+		block.index = _blockIndex;
+		block.codeHash = codeHash;
+		return block;
+	}
+	// These functions need to be static because they are called with
+	// ABI_CallFunction().
+	static void Begin(u32 index)
+	{
+		blockIndex = index;
+		beginTime = __rdtsc();
+	}
+	static void End()
+	{
+		const u64 endTime = __rdtsc();
+		const u64 duration = endTime - beginTime;
+		Block& block = blocks[blockIndex];
+		block.totalElapsed += duration;
+		++block.numberOfCalls;
+	}
+	struct JitILProfilerFinalizer
+	{
+		virtual ~JitILProfilerFinalizer()
+		{
+			char buffer[1024];
+			sprintf(buffer, "JitIL_profiling_%d.csv", (int)time(NULL));
+			FILE* file = fopen(buffer, "w");
+			setvbuf(file, NULL, _IOFBF, 1024 * 1024);
+			fprintf(file, "code hash,total elapsed,number of calls,elapsed per call\n");
+			for (std::vector<Block>::iterator it = blocks.begin(), itEnd = blocks.end(); it != itEnd; ++it)
+			{
+				const u64 codeHash = it->codeHash;
+				const u64 totalElapsed = it->totalElapsed;
+				const u64 numberOfCalls = it->numberOfCalls;
+				const double elapsedPerCall = totalElapsed / (double)numberOfCalls;
+				fprintf(file, "%016llx,%lld,%lld,%f\n", codeHash, totalElapsed, numberOfCalls, elapsedPerCall);
+			}
+			fclose(file);
+			file = NULL;
+		}
+	};
+	std::auto_ptr<JitILProfilerFinalizer> finalizer;
+	static void Init()
+	{
+		finalizer = std::auto_ptr<JitILProfilerFinalizer>(new JitILProfilerFinalizer);
+	}
+	static void Shutdown()
+	{
+		finalizer.reset();
+	}
+};
+
 static int CODE_SIZE = 1024*1024*32;
 
 namespace CPUCompare
@@ -194,6 +295,10 @@ void JitIL::Init()
 
 	blocks.Init();
 	asm_routines.Init();
+
+	if (SConfig::GetInstance().m_LocalCoreStartupParameter.bJITILTimeProfiling) {
+		JitILProfiler::Init();
+	}
 }
 
 void JitIL::ClearCache()
@@ -205,6 +310,10 @@ void JitIL::ClearCache()
 
 void JitIL::Shutdown()
 {
+	if (SConfig::GetInstance().m_LocalCoreStartupParameter.bJITILTimeProfiling) {
+		JitILProfiler::Shutdown();
+	}
+
 	FreeCodeSpace();
 
 	blocks.Shutdown();
@@ -292,6 +401,9 @@ void JitIL::Cleanup()
 void JitIL::WriteExit(u32 destination, int exit_num)
 {
 	Cleanup();
+	if (SConfig::GetInstance().m_LocalCoreStartupParameter.bJITILTimeProfiling) {
+		ABI_CallFunction((void *)JitILProfiler::End);
+	}
 	SUB(32, M(&CoreTiming::downcount), js.downcountAmount > 127 ? Imm32(js.downcountAmount) : Imm8(js.downcountAmount)); 
 
 	//If nobody has taken care of this yet (this can be removed when all branches are done)
@@ -318,6 +430,9 @@ void JitIL::WriteExitDestInOpArg(const Gen::OpArg& arg)
 {
 	MOV(32, M(&PC), arg);
 	Cleanup();
+	if (SConfig::GetInstance().m_LocalCoreStartupParameter.bJITILTimeProfiling) {
+		ABI_CallFunction((void *)JitILProfiler::End);
+	}
 	SUB(32, M(&CoreTiming::downcount), js.downcountAmount > 127 ? Imm32(js.downcountAmount) : Imm8(js.downcountAmount)); 
 	JMP(asm_routines.dispatcher, true);
 }
@@ -326,6 +441,9 @@ void JitIL::WriteRfiExitDestInOpArg(const Gen::OpArg& arg)
 {
 	MOV(32, M(&PC), arg);
 	Cleanup();
+	if (SConfig::GetInstance().m_LocalCoreStartupParameter.bJITILTimeProfiling) {
+		ABI_CallFunction((void *)JitILProfiler::End);
+	}
 	SUB(32, M(&CoreTiming::downcount), js.downcountAmount > 127 ? Imm32(js.downcountAmount) : Imm8(js.downcountAmount)); 
 	JMP(asm_routines.testExceptions, true);
 }
@@ -333,6 +451,9 @@ void JitIL::WriteRfiExitDestInOpArg(const Gen::OpArg& arg)
 void JitIL::WriteExceptionExit()
 {
 	Cleanup();
+	if (SConfig::GetInstance().m_LocalCoreStartupParameter.bJITILTimeProfiling) {
+		ABI_CallFunction((void *)JitILProfiler::End);
+	}
 	SUB(32, M(&CoreTiming::downcount), js.downcountAmount > 127 ? Imm32(js.downcountAmount) : Imm8(js.downcountAmount)); 
 	JMP(asm_routines.testExceptions, true);
 }
@@ -467,6 +588,25 @@ const u8* JitIL::DoJit(u32 em_address, PPCAnalyst::CodeBuffer *code_buf, JitBloc
 
 	js.rewriteStart = (u8*)GetCodePtr();
 
+	u64 codeHash = -1;
+	if (SConfig::GetInstance().m_LocalCoreStartupParameter.bJITILTimeProfiling ||
+		SConfig::GetInstance().m_LocalCoreStartupParameter.bJITILOutputIR)
+	{
+		// For profiling and IR Writer
+		for (int i = 0; i < (int)size; i++)
+		{
+			const u64 inst = ops[i].inst.hex;
+			// Ported from boost::hash
+			codeHash ^= inst + (codeHash << 6) + (codeHash >> 2);
+		}
+	}
+
+	if (SConfig::GetInstance().m_LocalCoreStartupParameter.bJITILTimeProfiling)
+	{
+		JitILProfiler::Block& block = JitILProfiler::Add(codeHash);
+		ABI_CallFunctionC((void *)JitILProfiler::Begin, block.index);
+	}
+
 	// Start up IR builder (structure that collects the
 	// instruction processed by the JIT routines)
 	ibuild.Reset();
@@ -532,6 +672,11 @@ const u8* JitIL::DoJit(u32 em_address, PPCAnalyst::CodeBuffer *code_buf, JitBloc
 #ifdef JIT_LOG_X86
 	LogGeneratedX86(size, code_buf, normalEntry, b);
 #endif
+
+	if (SConfig::GetInstance().m_LocalCoreStartupParameter.bJITILOutputIR)
+	{
+		ibuild.WriteToFile(codeHash);
+	}
 
 	return normalEntry;
 }

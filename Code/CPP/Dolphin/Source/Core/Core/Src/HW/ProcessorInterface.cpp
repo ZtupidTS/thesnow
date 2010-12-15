@@ -40,7 +40,7 @@ enum
 	PI_FIFO_RESET           = 0x18, // ??? - GXAbortFrame writes to it
 	PI_RESET_CODE           = 0x24,
 	PI_FLIPPER_REV          = 0x2C,
-	PI_UNKNOWN				= 0x30 // BS1 writes 0x0245248A to it - prolly some bootstrap thing
+	PI_FLIPPER_UNK			= 0x30 // BS1 writes 0x0245248A to it - prolly some bootstrap thing
 };
 
 
@@ -100,6 +100,13 @@ void Init()
 	m_InterruptCause = INT_CAUSE_RST_BUTTON | INT_CAUSE_VI;
 
 	toggleResetButton = CoreTiming::RegisterEvent("ToggleResetButton", &ToggleResetButtonCallback);
+}
+
+void Read16(u16& _uReturnValue, const u32 _iAddress)
+{
+	u32 word;
+	Read32(word, _iAddress & ~3);
+	_uReturnValue = word >> (_iAddress & 3) ? 16 : 0;
 }
 
 void Read32(u32& _uReturnValue, const u32 _iAddress)
@@ -190,8 +197,11 @@ void Write32(const u32 _uValue, const u32 _iAddress)
         break;
 
 	case PI_RESET_CODE:
-		NOTICE_LOG(PROCESSORINTERFACE, "Write %08x to PI_RESET_CODE", _uValue);
-		// (shuffle2) TODO :)
+		DEBUG_LOG(PROCESSORINTERFACE, "Write %08x to PI_RESET_CODE", _uValue);
+		break;
+
+	case PI_FLIPPER_UNK:
+		DEBUG_LOG(PROCESSORINTERFACE, "write %08x to unknown PI reg %08x", _uValue, _iAddress);
 		break;
 
 	default:

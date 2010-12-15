@@ -197,7 +197,7 @@ void Jit64::tri_op(int d, int a, int b, bool reversible, void (XEmitter::*op)(X6
 }
 
 void Jit64::ps_arith(UGeckoInstruction inst)
-{	
+{		
 	INSTRUCTION_START
 	JITDISABLE(Paired)
 	if (inst.Rc) {
@@ -208,12 +208,8 @@ void Jit64::ps_arith(UGeckoInstruction inst)
 	case 18: tri_op(inst.FD, inst.FA, inst.FB, false, &XEmitter::DIVPD); break; //div
 	case 20: tri_op(inst.FD, inst.FA, inst.FB, false, &XEmitter::SUBPD); break; //sub 
 	case 21: tri_op(inst.FD, inst.FA, inst.FB, true,  &XEmitter::ADDPD); break; //add
-	case 23://sel
-		Default(inst);
-		break;
-	case 24://res
-		Default(inst);
-		break;
+	case 23: Default(inst); break; //sel
+	case 24: Default(inst); break; //res
 	case 25: tri_op(inst.FD, inst.FA, inst.FC, true, &XEmitter::MULPD); break; //mul
 	default:
 		_assert_msg_(DYNA_REC, 0, "ps_arith WTF!!!");
@@ -224,7 +220,8 @@ void Jit64::ps_sum(UGeckoInstruction inst)
 {	
 	INSTRUCTION_START
 	JITDISABLE(Paired)
-	if (inst.Rc) {
+	// TODO: (inst.SUBOP5 == 10) breaks Sonic Colours (black screen) 
+	if (inst.Rc || (inst.SUBOP5 == 10)) {
 		Default(inst); return;
 	}
 	int d = inst.FD;

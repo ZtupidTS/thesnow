@@ -84,10 +84,7 @@ void Callback_VideoCopiedToXFB(bool video_update);
 void Callback_DSPLog(const TCHAR* _szMessage, int _v);
 const char *Callback_ISOName(void);
 void Callback_DSPInterrupt();
-void Callback_PADLog(const TCHAR* _szMessage);
-void Callback_WiimoteLog(const TCHAR* _szMessage, int _v);
 void Callback_WiimoteInterruptChannel(int _number, u16 _channelID, const void* _pData, u32 _Size);
-bool Callback_RendererHasFocus(void);
 
 // For keyboard shortcuts.
 void Callback_CoreMessage(int Id);
@@ -317,7 +314,12 @@ THREAD_RETURN EmuThread(void *pArg)
 
 	CPluginManager &Plugins = CPluginManager::GetInstance();
 	if (_CoreParameter.bLockThreads)
-		Common::Thread::SetCurrentThreadAffinity(2);  // Force to second core
+	{
+		if (cpu_info.num_cores > 3)
+			Common::Thread::SetCurrentThreadAffinity(4);  // Force to third, non-HT core
+		else
+			Common::Thread::SetCurrentThreadAffinity(2);  // Force to second core
+	}
 
 	INFO_LOG(OSREPORT, "Starting core = %s mode", _CoreParameter.bWii ? "Wii" : "Gamecube");
 	INFO_LOG(OSREPORT, "CPU Thread separate = %s", _CoreParameter.bCPUThread ? "Yes" : "No");
@@ -333,6 +335,7 @@ THREAD_RETURN EmuThread(void *pArg)
 	VideoInitialize.pRegisterEvent				= CoreTiming::RegisterEvent;
 	VideoInitialize.pScheduleEvent_Threadsafe	= CoreTiming::ScheduleEvent_Threadsafe;
 	VideoInitialize.pRemoveEvent				= CoreTiming::RemoveAllEvents;
+	VideoInitialize.pProcessFifoEvents			= CoreTiming::ProcessFifoWaitEvents;
 	// This is first the m_Panel handle, then it is updated to have the new window handle
 	VideoInitialize.pWindowHandle				= _CoreParameter.hMainWindow;
 	VideoInitialize.pLog						= Callback_VideoLog;
@@ -410,7 +413,7 @@ THREAD_RETURN EmuThread(void *pArg)
 		PowerPC::SetMode(PowerPC::MODE_INTERPRETER);
 
 	// Spawn the CPU thread
-	_dbg_assert_(HLE, cpuThread == NULL);
+	_dbg_assert_(OSHLE, cpuThread == NULL);
 	// ENTER THE VIDEO THREAD LOOP
 	if (_CoreParameter.bCPUThread)
 	{
@@ -692,7 +695,7 @@ bool report_slow(int skipped)
 // WARNING - THIS IS EXECUTED FROM VIDEO THREAD
 void Callback_VideoLog(const TCHAR *_szMessage, int _bDoBreak)
 {
-	INFO_LOG(VIDEO, _szMessage);
+	INFO_LOG(VIDEO, "%s", _szMessage);
 }
 
 // Should be called from GPU thread when a frame is drawn
@@ -711,9 +714,9 @@ void Callback_VideoRequestWindowSize(int& x, int& y, int& width, int& height)
 
 // Callback_DSPLog
 // WARNING - THIS MAY BE EXECUTED FROM DSP THREAD
-	void Callback_DSPLog(const TCHAR* _szMessage, int _v)
+void Callback_DSPLog(const TCHAR* _szMessage, int _v)
 {
-	GENERIC_LOG(LogTypes::AUDIO, (LogTypes::LOG_LEVELS)_v, _szMessage);
+	GENERIC_LOG(LogTypes::AUDIO, (LogTypes::LOG_LEVELS)_v, "%s", _szMessage);
 }
 
 
@@ -722,15 +725,6 @@ void Callback_VideoRequestWindowSize(int& x, int& y, int& width, int& height)
 void Callback_DSPInterrupt()
 {
 	DSP::GenerateDSPInterruptFromPlugin(DSP::INT_DSP);
-}
-
-
-// Callback_PADLog 
-//
-void Callback_PADLog(const TCHAR* _szMessage)
-{
-	// FIXME add levels
-	INFO_LOG(SERIALINTERFACE, _szMessage);
 }
 
 
@@ -750,19 +744,6 @@ const char *Callback_ISOName()
 void Callback_CoreMessage(int Id)
 {
 	Host_Message(Id);
-}
-
-// Callback_WiimoteLog
-//
-void Callback_WiimoteLog(const TCHAR* _szMessage, int _v)
-{
-	GENERIC_LOG(LogTypes::WIIMOTE, (LogTypes::LOG_LEVELS)_v, _szMessage);
-}
-
-// Check to see if the renderer window has focus
-bool Callback_RendererHasFocus(void)
-{
-	return Host_RendererHasFocus();
 }
 
 } // Core
