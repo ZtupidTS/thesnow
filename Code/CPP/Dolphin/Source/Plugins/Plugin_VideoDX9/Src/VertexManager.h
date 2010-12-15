@@ -28,6 +28,10 @@ namespace DX9
 
 class VertexManager : public ::VertexManager
 {
+public:
+	NativeVertexFormat* CreateNativeVertexFormat();
+	void GetElements(NativeVertexFormat* format, D3DVERTEXELEMENT9** elems, int* num);
+
 private:
 	void Draw(int stride);
 	// temp

@@ -40,8 +40,7 @@
 #include "TextureCache.h"
 #include "HiresTextures.h"
 #include "TextureConverter.h"
-
-#include "debugger/debugger.h"
+#include "Debugger.h"
 
 extern int frameCount;
 
@@ -64,9 +63,10 @@ bool TextureCache::TCacheEntry::Save(const char filename[])
 }
 
 void TextureCache::TCacheEntry::Load(unsigned int width, unsigned int height,
-	unsigned int expanded_width, unsigned int level)
+	unsigned int expanded_width, unsigned int level, bool autogen_mips)
 {
 	D3D::ReplaceTexture2D(texture, temp, width, height, expanded_width, d3d_fmt, swap_r_b, level);
+	// D3D9 will automatically generate mip maps if necessary
 }
 
 void TextureCache::TCacheEntry::FromRenderTarget(bool bFromZBuffer, bool bScaleByHalf,
@@ -74,8 +74,8 @@ void TextureCache::TCacheEntry::FromRenderTarget(bool bFromZBuffer, bool bScaleB
 	bool bIsIntensityFmt, u32 copyfmt)
 {
 	const LPDIRECT3DTEXTURE9 read_texture = bFromZBuffer ?
-		g_framebufferManager.GetEFBDepthTexture() :
-		g_framebufferManager.GetEFBColorTexture();
+		FramebufferManager::GetEFBDepthTexture() :
+		FramebufferManager::GetEFBColorTexture();
 
 	if (!isDynamic || g_ActiveConfig.bCopyEFBToTexture)
 	{
@@ -102,7 +102,7 @@ void TextureCache::TCacheEntry::FromRenderTarget(bool bFromZBuffer, bool bScaleB
 
 		const float* const fConstAdd = colmat + 16;		// fConstAdd is the last 4 floats of colmat
 		PixelShaderManager::SetColorMatrix(colmat, fConstAdd); // set transformation
-		TargetRectangle targetSource = Renderer::ConvertEFBRectangle(source_rect);
+		TargetRectangle targetSource = g_renderer->ConvertEFBRectangle(source_rect);
 		RECT sourcerect;
 		sourcerect.bottom = targetSource.bottom;
 		sourcerect.left = targetSource.left;
@@ -128,7 +128,7 @@ void TextureCache::TCacheEntry::FromRenderTarget(bool bFromZBuffer, bool bScaleB
 			D3D::ChangeSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
 		}
 
-		D3DFORMAT bformat = g_framebufferManager.GetEFBDepthRTSurfaceFormat();
+		D3DFORMAT bformat = FramebufferManager::GetEFBDepthRTSurfaceFormat();
 		int SSAAMode = g_ActiveConfig.iMultisampleMode;
 
 		D3D::drawShadedTexQuad(read_texture, &sourcerect, 
@@ -149,10 +149,6 @@ void TextureCache::TCacheEntry::FromRenderTarget(bool bFromZBuffer, bool bScaleB
 			read_texture,
 			Renderer::GetFullTargetWidth(), 
 			Renderer::GetFullTargetHeight(),
-			Renderer::GetTargetScaleX(),
-			Renderer::GetTargetScaleY(),
-			(float)((Renderer::GetFullTargetWidth() - Renderer::GetTargetWidth()) / 2), 
-			(float)((Renderer::GetFullTargetHeight() - Renderer::GetTargetHeight()) / 2) , 
 			bFromZBuffer, 
 			bIsIntensityFmt, 
 			copyfmt, 
@@ -163,8 +159,8 @@ void TextureCache::TCacheEntry::FromRenderTarget(bool bFromZBuffer, bool bScaleB
 	D3D::RefreshSamplerState(0, D3DSAMP_MINFILTER);
 	D3D::RefreshSamplerState(0, D3DSAMP_MAGFILTER);
 	D3D::SetTexture(0, NULL);
-	D3D::dev->SetRenderTarget(0, g_framebufferManager.GetEFBColorRTSurface());
-	D3D::dev->SetDepthStencilSurface(g_framebufferManager.GetEFBDepthRTSurface());
+	D3D::dev->SetRenderTarget(0, FramebufferManager::GetEFBColorRTSurface());
+	D3D::dev->SetDepthStencilSurface(FramebufferManager::GetEFBDepthRTSurface());
 }
 
 TextureCache::TCacheEntryBase* TextureCache::CreateTexture(unsigned int width, unsigned int height,
@@ -212,7 +208,7 @@ TextureCache::TCacheEntryBase* TextureCache::CreateTexture(unsigned int width, u
 	TCacheEntry* entry = new TCacheEntry(D3D::CreateTexture2D(temp, width, height, expanded_width, d3d_fmt, swap_r_b, tex_levels));
 	entry->swap_r_b = swap_r_b;
 	entry->d3d_fmt = d3d_fmt;
-	
+
 	return entry;
 }
 

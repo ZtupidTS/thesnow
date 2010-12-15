@@ -19,17 +19,16 @@
 #include "Atomic.h"
 #include "Thread.h"
 #include "LogManager.h"
-#include "debugger/debugger.h"
 
 #if defined(HAVE_WX) && HAVE_WX
-#include "DlgSettings.h"
-GFXConfigDialogDX *m_ConfigFrame = NULL;
+#include "VideoConfigDiag.h"
 #endif // HAVE_WX
 
 #if defined(HAVE_WX) && HAVE_WX
-#include "Debugger/Debugger.h"
+#include "DebuggerPanel.h"
 #endif // HAVE_WX
 
+#include "MainBase.h"
 #include "main.h"
 #include "VideoConfig.h"
 #include "Fifo.h"
@@ -37,6 +36,7 @@ GFXConfigDialogDX *m_ConfigFrame = NULL;
 #include "TextureCache.h"
 #include "BPStructs.h"
 #include "VertexManager.h"
+#include "FramebufferManager.h"
 #include "VertexLoaderManager.h"
 #include "VertexShaderManager.h"
 #include "PixelShaderManager.h"
@@ -45,7 +45,6 @@ GFXConfigDialogDX *m_ConfigFrame = NULL;
 #include "CommandProcessor.h"
 #include "PixelEngine.h"
 #include "OnScreenDisplay.h"
-#include "DlgSettings.h"
 #include "D3DTexture.h"
 #include "D3DUtil.h"
 #include "EmuWindow.h"
@@ -55,28 +54,6 @@ GFXConfigDialogDX *m_ConfigFrame = NULL;
 #include "DLCache.h"
 
 HINSTANCE g_hInstance = NULL;
-SVideoInitialize g_VideoInitialize;
-PLUGIN_GLOBALS* globals = NULL;
-static bool s_PluginInitialized = false;
-
-volatile u32 s_swapRequested = FALSE;
-static u32 s_efbAccessRequested = FALSE;
-static volatile u32 s_FifoShuttingDown = FALSE;
-
-static volatile struct
-{
-	u32 xfbAddr;
-	FieldType field;
-	u32 fbWidth;
-	u32 fbHeight;
-} s_beginFieldArgs;
-
-static volatile EFBAccessType s_AccessEFBType;
-
-bool IsD3D()
-{
-	return true;
-}
 
 // This is used for the functions right below here which use wxwidgets
 #if defined(HAVE_WX) && HAVE_WX
@@ -86,7 +63,7 @@ WXDLLIMPEXP_BASE void wxSetInstance(HINSTANCE hInst);
 void *DllDebugger(void *_hParent, bool Show)
 {
 #if defined(HAVE_WX) && HAVE_WX
-	return new GFXDebuggerDX9((wxWindow *)_hParent);
+	return new GFXDebuggerPanel((wxWindow*)_hParent);
 #else
 	return NULL;
 #endif
@@ -172,27 +149,55 @@ void DllAbout(HWND _hParent)
 	//DialogBox(g_hInstance,(LPCTSTR)IDD_ABOUT,_hParent,(DLGPROC)AboutProc);
 }
 
+void InitBackendInfo()
+{
+	g_Config.backend_info.APIType = API_D3D9;
+	g_Config.backend_info.bUseRGBATextures = true;
+	g_Config.backend_info.bSupportsEFBToRAM = true;
+	g_Config.backend_info.bSupportsRealXFB = true;
+	g_Config.backend_info.bSupports3DVision = true;
+	g_Config.backend_info.bAllowSignedBytes = false;
+	g_Config.backend_info.bSupportsDualSourceBlend = false;
+}
+
 void DllConfig(void *_hParent)
 {
+#if defined(HAVE_WX) && HAVE_WX
+	InitBackendInfo();
+
 	// If not initialized, only init D3D so we can enumerate resolutions.
 	if (!s_PluginInitialized)
 		D3D::Init();
-	g_Config.Load((std::string(File::GetUserPath(D_CONFIG_IDX)) + "gfx_dx9.ini").c_str());
-	g_Config.GameIniLoad(globals->game_ini);
-	UpdateActiveConfig();
-#if defined(HAVE_WX) && HAVE_WX
-	m_ConfigFrame = new GFXConfigDialogDX((wxWindow *)_hParent);
 
-	m_ConfigFrame->CreateGUIControls();
-	m_ConfigFrame->ShowModal();
-	m_ConfigFrame->Destroy();
-#endif
+	// adapters
+	g_Config.backend_info.Adapters.clear();
+	for (int i = 0; i < D3D::GetNumAdapters(); ++i)
+		g_Config.backend_info.Adapters.push_back(D3D::GetAdapter(i).ident.Description);
+
+	// aamodes
+	g_Config.backend_info.AAModes.clear();
+	if (g_Config.iAdapter < D3D::GetNumAdapters())
+	{
+		const D3D::Adapter &adapter = D3D::GetAdapter(g_Config.iAdapter);
+
+		for (int i = 0; i < (int)adapter.aa_levels.size(); ++i)
+			g_Config.backend_info.AAModes.push_back(adapter.aa_levels[i].name);
+	}
+
+
+	VideoConfigDiag *const diag = new VideoConfigDiag((wxWindow*)_hParent, "Direct3D9", "gfx_dx9");
+	diag->ShowModal();
+	diag->Destroy();
+
 	if (!s_PluginInitialized)
 		D3D::Shutdown();
+#endif
 }
 
 void Initialize(void *init)
 {
+	InitBackendInfo();
+
 	frameCount = 0;
 	SVideoInitialize *_pVideoInitialize = (SVideoInitialize*)init;
 	// Create a shortcut to _pVideoInitialize that can also update it
@@ -204,7 +209,7 @@ void Initialize(void *init)
 	UpdateProjectionHack(g_Config.iPhackvalue);	// DX9 projection hack could be disabled by commenting out this line
 	UpdateActiveConfig();
 
-	g_VideoInitialize.pWindowHandle = (void*)EmuWindow::Create((HWND)g_VideoInitialize.pWindowHandle, g_hInstance, _T("载入中 - 请稍候."));
+	g_VideoInitialize.pWindowHandle = (void*)EmuWindow::Create((HWND)g_VideoInitialize.pWindowHandle, g_hInstance, _T("Loading - Please wait."));
 	if (g_VideoInitialize.pWindowHandle == NULL)
 	{
 		ERROR_LOG(VIDEO, "An error has occurred while trying to create the window.");
@@ -212,7 +217,7 @@ void Initialize(void *init)
 	}
 	else if (FAILED(D3D::Init()))
 	{
-		MessageBox(GetActiveWindow(), _T("不能初始化 Direct3D. 请确认您已经安装了最新的 DirectX 构架."), _T("Fatal Error"), MB_OK);
+		MessageBox(GetActiveWindow(), _T("不能初始化 Direct3D. 请确认您已经安装了最新的 DirectX"), _T("Fatal Error"), MB_OK);
 		return;
 	}
 
@@ -237,7 +242,7 @@ void Video_Prepare()
 	s_swapRequested = FALSE;
 
 	// internal interfaces
-	Renderer::Init();
+	g_renderer = new DX9::Renderer;
 	g_texture_cache = new DX9::TextureCache;
 	g_vertex_manager = new DX9::VertexManager;
 	// VideoCommon
@@ -277,7 +282,7 @@ void Shutdown()
 	VertexShaderCache::Shutdown();
 	delete g_vertex_manager;
 	delete g_texture_cache;
-	Renderer::Shutdown();
+	delete g_renderer;
 	D3D::Shutdown();
 	EmuWindow::Close();
 }
@@ -291,199 +296,4 @@ void DoState(unsigned char **ptr, int mode)
 	// No need to clear shader caches
 	PointerWrap p(ptr, mode);
 	VideoCommon_DoState(p);
-}
-
-void EmuStateChange(PLUGIN_EMUSTATE newState)
-{
-	Fifo_RunLoop((newState == PLUGIN_EMUSTATE_PLAY) ? true : false);
-}
-
-// Enter and exit the video loop
-void Video_EnterLoop()
-{
-	Fifo_EnterLoop(g_VideoInitialize);
-}
-
-void Video_ExitLoop()
-{
-	Fifo_ExitLoop();
-	s_FifoShuttingDown = TRUE;
-}
-
-void Video_SetRendering(bool bEnabled)
-{
-	Fifo_SetRendering(bEnabled);
-}
-
-// Run from the graphics thread (from Fifo.cpp)
-void VideoFifo_CheckSwapRequest()
-{
-	if(g_ActiveConfig.bUseXFB)
-	{
-		if (Common::AtomicLoadAcquire(s_swapRequested))
-		{
-			EFBRectangle rc;
-			Renderer::Swap(s_beginFieldArgs.xfbAddr, s_beginFieldArgs.field, s_beginFieldArgs.fbWidth, s_beginFieldArgs.fbHeight,rc);
-			Common::AtomicStoreRelease(s_swapRequested, FALSE);
-		}
-	}
-}
-
-static inline bool addrRangesOverlap(u32 aLower, u32 aUpper, u32 bLower, u32 bUpper)
-{
-	return !((aLower >= bUpper) || (bLower >= aUpper));
-}
-
-// Run from the graphics thread (from Fifo.cpp)
-void VideoFifo_CheckSwapRequestAt(u32 xfbAddr, u32 fbWidth, u32 fbHeight)
-{
-	if (g_ActiveConfig.bUseXFB)
-	{
-		if(Common::AtomicLoadAcquire(s_swapRequested))
-		{
-			u32 aLower = xfbAddr;
-			u32 aUpper = xfbAddr + 2 * fbWidth * fbHeight;
-			u32 bLower = s_beginFieldArgs.xfbAddr;
-			u32 bUpper = s_beginFieldArgs.xfbAddr + 2 * s_beginFieldArgs.fbWidth * s_beginFieldArgs.fbHeight;
-
-			if (addrRangesOverlap(aLower, aUpper, bLower, bUpper))
-				VideoFifo_CheckSwapRequest();
-		}
-	}
-}
-
-// Run from the CPU thread (from VideoInterface.cpp)
-void Video_BeginField(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight)
-{
-	if (s_PluginInitialized && g_ActiveConfig.bUseXFB)
-	{
-		if (g_VideoInitialize.bOnThread)
-		{
-			while (Common::AtomicLoadAcquire(s_swapRequested) && !s_FifoShuttingDown)
-				//Common::SleepCurrentThread(1);
-				Common::YieldCPU();
-		}
-		else
-			VideoFifo_CheckSwapRequest();
-		s_beginFieldArgs.xfbAddr = xfbAddr;
-		s_beginFieldArgs.field = field;
-		s_beginFieldArgs.fbWidth = fbWidth;
-		s_beginFieldArgs.fbHeight = fbHeight;
-	}
-}
-
-// Run from the CPU thread (from VideoInterface.cpp)
-void Video_EndField()
-{
-	if (s_PluginInitialized)
-	{
-		Common::AtomicStoreRelease(s_swapRequested, TRUE);
-	}
-}
-
-void Video_AddMessage(const char* pstr, u32 milliseconds)
-{
-	OSD::AddMessage(pstr, milliseconds);
-}
-
-// Screenshot
-void Video_Screenshot(const char *_szFilename)
-{
-	Renderer::SetScreenshot(_szFilename);
-}
-
-static struct
-{
-	EFBAccessType type;
-	u32 x;
-	u32 y;
-	u32 Data;
-} s_accessEFBArgs;
-
-static u32 s_AccessEFBResult = 0;
-
-void VideoFifo_CheckEFBAccess()
-{
-	if (Common::AtomicLoadAcquire(s_efbAccessRequested))
-	{
-		s_AccessEFBResult = Renderer::AccessEFB(s_accessEFBArgs.type, s_accessEFBArgs.x, s_accessEFBArgs.y, s_accessEFBArgs.Data);
-
-		Common::AtomicStoreRelease(s_efbAccessRequested, FALSE);
-	}
-}
-
-u32 Video_AccessEFB(EFBAccessType type, u32 x, u32 y, u32 InputData)
-{
-	if (s_PluginInitialized)
-	{
-		s_accessEFBArgs.type = type;
-		s_accessEFBArgs.x = x;
-		s_accessEFBArgs.y = y;
-		s_accessEFBArgs.Data = InputData;
-
-		Common::AtomicStoreRelease(s_efbAccessRequested, TRUE);
-
-		if (g_VideoInitialize.bOnThread)
-		{
-			while (Common::AtomicLoadAcquire(s_efbAccessRequested) && !s_FifoShuttingDown)
-				//Common::SleepCurrentThread(1);
-				Common::YieldCPU();
-		}
-		else
-			VideoFifo_CheckEFBAccess();
-
-		return s_AccessEFBResult;
-	}
-
-	return 0;
-}
-
-void VideoFifo_CheckAsyncRequest() {
-	VideoFifo_CheckSwapRequest();
-	VideoFifo_CheckEFBAccess();
-}
-
-void Video_CommandProcessorRead16(u16& _rReturnValue, const u32 _Address)
-{
-	CommandProcessor::Read16(_rReturnValue, _Address);
-}
-
-void Video_CommandProcessorWrite16(const u16 _Data, const u32 _Address)
-{
-	CommandProcessor::Write16(_Data, _Address);
-}
-
-void Video_PixelEngineRead16(u16& _rReturnValue, const u32 _Address)
-{
-	PixelEngine::Read16(_rReturnValue, _Address);
-}
-
-void Video_PixelEngineWrite16(const u16 _Data, const u32 _Address)
-{
-	PixelEngine::Write16(_Data, _Address);
-}
-
-void Video_PixelEngineWrite32(const u32 _Data, const u32 _Address)
-{
-	PixelEngine::Write32(_Data, _Address);
-}
-
-void Video_GatherPipeBursted(void)
-{
-	CommandProcessor::GatherPipeBursted();
-}
-
-void Video_WaitForFrameFinish(void)
-{
-	CommandProcessor::WaitForFrameFinish();
-}
-
-bool Video_IsFifoBusy(void)
-{
-	return CommandProcessor::isFifoBusy;
-}
-
-void Video_AbortFrame(void)
-{
-	CommandProcessor::AbortFrame();
 }
