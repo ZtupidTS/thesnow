@@ -15,10 +15,11 @@
 // Official SVN repository and contact information can be found at
 // http://code.google.com/p/dolphin-emu/
 
-#include "Debugger.h"
+#include "DebuggerUIUtil.h"
 #include "RegisterView.h"
 #include "PowerPC/PowerPC.h"
 #include "HW/ProcessorInterface.h"
+#include "IniFile.h"
 
 // F-zero 80005e60 wtf??
 
@@ -90,7 +91,7 @@ static void SetSpecialRegValue(int reg, u32 value) {
 void CRegTable::SetValue(int row, int col, const wxString& strNewVal)
 {
 	u32 newVal = 0;
-	if (TryParseUInt(std::string(strNewVal.mb_str()), &newVal))
+	if (TryParse(std::string(strNewVal.mb_str()), &newVal))
 	{
 		if (row < 32) {
 			if (col == 1)

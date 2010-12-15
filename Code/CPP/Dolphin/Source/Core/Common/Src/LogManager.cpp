@@ -23,18 +23,6 @@
 #include "Thread.h"
 #include "FileUtil.h"
 
-void GenericLogC(int level, int type, 
-		const char *file, int line, const char* fmt, ...)
-{
-	va_list args;
-	va_start(args, fmt);
-	if (LogManager::GetInstance())
-		LogManager::GetInstance()->Log(
-			(LogTypes::LOG_LEVELS)level, (LogTypes::LOG_TYPE)type,
-			file, line, fmt, args);
-	va_end(args);
-}
-
 void GenericLog(LogTypes::LOG_LEVELS level, LogTypes::LOG_TYPE type, 
 		const char *file, int line, const char* fmt, ...)
 {
@@ -72,7 +60,7 @@ LogManager::LogManager() {
 	m_Log[LogTypes::EXPANSIONINTERFACE]	= new LogContainer("EXI",			"ExpansionInt");
 	m_Log[LogTypes::AUDIO_INTERFACE]	= new LogContainer("AI",			"AudioInt");
 	m_Log[LogTypes::POWERPC]			= new LogContainer("PowerPC",		"IBM CPU");
-	m_Log[LogTypes::HLE]				= new LogContainer("HLE",			"HLE");
+	m_Log[LogTypes::OSHLE]				= new LogContainer("HLE",			"HLE");
 	m_Log[LogTypes::DSPHLE]			    = new LogContainer("DSPHLE",		"DSP HLE");
 	m_Log[LogTypes::DSPLLE]			    = new LogContainer("DSPLLE",		"DSP LLE");
 	m_Log[LogTypes::DSP_MAIL]		    = new LogContainer("DSPMails",		"DSP Mails");

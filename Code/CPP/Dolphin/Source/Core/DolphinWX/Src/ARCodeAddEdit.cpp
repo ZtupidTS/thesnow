@@ -1,4 +1,4 @@
-// Copyright (C) 2003 Dolphin Project.
+ï»¿// Copyright (C) 2003 Dolphin Project.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -57,7 +57,7 @@ void CARCodeAddEdit::CreateGUIControls(int _selection)
 	wxStaticBoxSizer* sbEntry = new wxStaticBoxSizer(wxVERTICAL, this, _("Cheat Code"));
 	wxGridBagSizer* sgEntry = new wxGridBagSizer(0, 0);
 
-	wxStaticText* EditCheatNameText = new wxStaticText(this, ID_EDITCHEAT_NAME_TEXT, _("Ãû³Æ:"), wxDefaultPosition, wxDefaultSize);
+	wxStaticText* EditCheatNameText = new wxStaticText(this, ID_EDITCHEAT_NAME_TEXT, _("åç§°:"), wxDefaultPosition, wxDefaultSize);
 	EditCheatName = new wxTextCtrl(this, ID_EDITCHEAT_NAME, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
 	EditCheatName->SetValue(currentName);
 	EntrySelection = new wxSpinButton(this, ID_ENTRY_SELECT, wxDefaultPosition, wxDefaultSize, wxVERTICAL);
@@ -65,8 +65,8 @@ void CARCodeAddEdit::CreateGUIControls(int _selection)
 	EntrySelection->SetValue((int)(arCodes.size() - _selection));
 	EditCheatCode = new wxTextCtrl(this, ID_EDITCHEAT_CODE, wxEmptyString, wxDefaultPosition, wxSize(300, 100), wxTE_MULTILINE);
 	UpdateTextCtrl(tempEntries);
-	wxButton* bOK = new wxButton(this, wxID_OK, _("È·¶¨"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	wxButton* bCancel = new wxButton(this, wxID_CANCEL, _("È¡Ïû"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	wxButton* bOK = new wxButton(this, wxID_OK, _("ç¡®å®š"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	wxButton* bCancel = new wxButton(this, wxID_CANCEL, _("å–æ¶ˆ"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 
 	sgEntry->Add(EditCheatNameText, wxGBPosition(0, 0), wxGBSpan(1, 1), wxALIGN_CENTER|wxALL, 5);
 	sgEntry->Add(EditCheatName,		wxGBPosition(0, 1), wxGBSpan(1, 1), wxEXPAND|wxALL, 5);
@@ -112,7 +112,7 @@ void CARCodeAddEdit::SaveCheatData(wxCommandEvent& WXUNUSED (event))
 		std::vector<std::string> pieces;
 		std::string line_str = cheatValues.substr(line, cheatValues.find('\n', line) - line);
 
-		SplitString(line_str, " ", pieces);
+		SplitString(line_str, ' ', pieces);
 		
 		if (pieces.size() == 2 && pieces[0].size() == 8 && pieces[1].size() == 8)
 		{
@@ -123,7 +123,7 @@ void CARCodeAddEdit::SaveCheatData(wxCommandEvent& WXUNUSED (event))
 		}
 		else
 		{
-			SplitString(line_str, "-", pieces);
+			SplitString(line_str, '-', pieces);
 			
 			if (pieces.size() == 3 && pieces[0].size() == 4 && pieces[1].size() == 4 && pieces[2].size() == 5) 
 			{

@@ -28,6 +28,7 @@
 #include "Common.h"
 #include "VideoCommon.h"
 
+#include <vector>
 #include <string>
 
 // Log in two categories, and save three other options in the same byte
@@ -111,18 +112,18 @@ struct VideoConfig
 	bool bAnaglyphStereo;
 	int iAnaglyphStereoSeparation;
 	int iAnaglyphFocalAngle;
+	bool b3DVision;
 	
 	// Hacks
 	bool bEFBAccessEnable;
 	bool bDlistCachingEnable;
-	bool bEFBCopyDisable;  // should reverse polarity of this one :) true=disabled can be confusing
+	bool bEFBCopyEnable;
 	bool bOSDHotKey;
 	bool bHack;
 	bool bCopyEFBToTexture;	
 	bool bCopyEFBScaled;
 	bool bSafeTextureCache;
-	int iSafeTextureCache_ColorSamples;	
-	int iFIFOWatermarkTightness;
+	int iSafeTextureCache_ColorSamples;
 	int iPhackvalue;
 	bool bPhackvalue1, bPhackvalue2;
 	float fhackvalue1, fhackvalue2;
@@ -130,6 +131,7 @@ struct VideoConfig
 	float fAspectRatioHackW, fAspectRatioHackH;
 	bool bZTPSpeedHack; // The Legend of Zelda: Twilight Princess
 	bool bEnablePixelLigting;
+	bool bEnablePerPixelDepth;
 
 	int iLog; // CONF_ bits
 	int iSaveTargetId;
@@ -142,7 +144,21 @@ struct VideoConfig
 	int iAdapter;
 
 	// Static config per API
-	bool bAllowSignedBytes;
+	struct
+	{
+		API_TYPE APIType;
+
+		std::vector<std::string> Adapters; // for D3D9 and D3D11
+		std::vector<std::string> AAModes;
+		std::vector<std::string> PPShaders; // post-processing shaders
+
+		bool bUseRGBATextures; // used for D3D11 in TextureCache
+		bool bSupportsEFBToRAM;
+		bool bSupportsRealXFB;
+		bool bSupports3DVision;
+		bool bAllowSignedBytes; // D3D9 doesn't support signed bytes (?)
+		bool bSupportsDualSourceBlend; // only supported by D3D11 and OpenGL
+	} backend_info;
 };
 
 extern VideoConfig g_Config;

@@ -18,6 +18,7 @@
 // Include
 #include "Common.h"
 
+#include <wx/wx.h>
 #include <wx/button.h>
 #include <wx/textctrl.h>
 #include <wx/textdlg.h>
@@ -27,8 +28,6 @@
 #include <wx/tipwin.h>
 
 #include "Host.h"
-
-#include "Debugger.h"
 
 #include "RegisterWindow.h"
 #include "BreakpointWindow.h"

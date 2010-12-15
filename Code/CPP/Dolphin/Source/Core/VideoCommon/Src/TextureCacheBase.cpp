@@ -4,13 +4,14 @@
 #include "VideoConfig.h"
 #include "Statistics.h"
 #include "HiresTextures.h"
-#include "Render.h"
+#include "RenderBase.h"
 #include "FileUtil.h"
 #include "Profiler.h"
 
 #include "PluginSpecs.h"
 
 #include "TextureCacheBase.h"
+#include "Debugger.h"
 
 // ugly
 extern int frameCount;
@@ -119,8 +120,12 @@ void TextureCache::InvalidateRange(u32 start_address, u32 size)
 void TextureCache::MakeRangeDynamic(u32 start_address, u32 size)
 {
 	TexCache::iterator
-		iter = textures.begin(),
-		tcend = textures.end();
+		iter = textures.lower_bound(start_address),
+		tcend = textures.upper_bound(start_address + size);
+
+	if (iter != textures.begin())
+		iter--;
+
 	for (; iter != tcend; ++iter)
 	{
 		const int rangePosition = iter->second->IntersectsMemoryRange(start_address, size);
@@ -129,6 +134,16 @@ void TextureCache::MakeRangeDynamic(u32 start_address, u32 size)
 			iter->second->hash = 0;
 		}
 	}
+}
+
+bool TextureCache::Find(u32 start_address, u64 hash)
+{
+	TexCache::iterator iter = textures.lower_bound(start_address);
+
+	if (iter->second->hash == hash)
+		return true;
+
+	return false;
 }
 
 int TextureCache::TCacheEntryBase::IntersectsMemoryRange(u32 range_address, u32 range_size) const
@@ -148,7 +163,7 @@ void TextureCache::ClearRenderTargets()
 		iter = textures.begin(),
 		tcend = textures.end();
 	for (; iter!=tcend; ++iter)
-	iter->second->isRenderTarget = false;
+		iter->second->isRenderTarget = false;
 }
 
 TextureCache::TCacheEntryBase* TextureCache::Load(unsigned int stage,
@@ -247,7 +262,6 @@ TextureCache::TCacheEntryBase* TextureCache::Load(unsigned int stage,
 			hash_value = 0;
 		}
 
-		// TODO: Is the mipLevels check needed?
 		if (((entry->isRenderTarget || entry->isDynamic) && hash_value == entry->hash && address == entry->addr) 
 			|| ((address == entry->addr) && (hash_value == entry->hash) && full_format == entry->format && entry->mipLevels == maxlevel))
 		{
@@ -261,7 +275,6 @@ TextureCache::TCacheEntryBase* TextureCache::Load(unsigned int stage,
 			// Might speed up movie playback very, very slightly.
 			texture_is_dynamic = (entry->isRenderTarget || entry->isDynamic) && !g_ActiveConfig.bCopyEFBToTexture;
 
-			// TODO: Is the mipLevels check needed?
 			if (!entry->isRenderTarget &&
 				((!entry->isDynamic && width == entry->realW && height == entry->realH && full_format == entry->format && entry->mipLevels == maxlevel)
 				|| (entry->isDynamic && entry->realW == width && entry->realH == height)))
@@ -300,7 +313,7 @@ TextureCache::TCacheEntryBase* TextureCache::Load(unsigned int stage,
 
 	if (pcfmt == PC_TEX_FMT_NONE)
 		pcfmt = TexDecoder_Decode(temp, ptr, expandedWidth,
-			expandedHeight, texformat, tlutaddr, tlutfmt, !g_texture_cache->isOGL());
+			expandedHeight, texformat, tlutaddr, tlutfmt, g_ActiveConfig.backend_info.bUseRGBATextures);
 
 	isPow2 = !((width & (width - 1)) || (height & (height - 1)));
 	texLevels = (isPow2 && UseNativeMips && maxlevel) ?
@@ -317,6 +330,8 @@ TextureCache::TCacheEntryBase* TextureCache::Load(unsigned int stage,
 		// e.g. if our texture cache entry got too many mipmap levels we can limit the number of used levels by setting the appropriate render states
 		// Thus, we don't update this member for every Load, but just whenever the texture gets recreated
 		entry->mipLevels = maxlevel;
+
+		GFX_DEBUGGER_PAUSE_AT(NEXT_NEW_TEXTURE, true);
 	}
 
 	entry->addr = address;
@@ -342,7 +357,7 @@ TextureCache::TCacheEntryBase* TextureCache::Load(unsigned int stage,
 		entry->hash = *(u32*)ptr = (u32)(((double)rand() / RAND_MAX) * 0xFFFFFFFF);
 
 	// load texture
-	entry->Load(width, height, expandedWidth, 0);
+	entry->Load(width, height, expandedWidth, 0, (texLevels == 0));
 
 	// load mips
 	if (texLevels > 1 && pcfmt != PC_TEX_FMT_NONE)
@@ -362,7 +377,7 @@ TextureCache::TCacheEntryBase* TextureCache::Load(unsigned int stage,
 			expandedWidth  = (currentWidth + bsw)  & (~bsw);
 			expandedHeight = (currentHeight + bsh) & (~bsh);
 
-			TexDecoder_Decode(temp, ptr, expandedWidth, expandedHeight, texformat, tlutaddr, tlutfmt, !g_texture_cache->isOGL());
+			TexDecoder_Decode(temp, ptr, expandedWidth, expandedHeight, texformat, tlutaddr, tlutfmt, g_ActiveConfig.backend_info.bUseRGBATextures);
 			entry->Load(currentWidth, currentHeight, expandedWidth, level);
 
 			ptr += ((std::max(mipWidth, bsw) * std::max(mipHeight, bsh) * bsdepth) >> 1);
@@ -398,6 +413,8 @@ return_entry:
 	entry->frameCount = frameCount;
 	entry->Bind(stage);
 
+	GFX_DEBUGGER_PAUSE_AT(NEXT_TEXTURE_CHANGE, true);
+
 	return entry;
 }
 
@@ -415,7 +432,7 @@ void TextureCache::CopyRenderTargetToTexture(u32 address, bool bFromZBuffer,
 	{
 		// TODO: these values differ slightly from the DX9/11 values,
 		// do they need to? or can this be removed
-		if (g_texture_cache->isOGL())
+		if (g_ActiveConfig.backend_info.APIType == API_OPENGL)
 		{
 			switch(copyfmt) 
 			{
@@ -600,11 +617,8 @@ void TextureCache::CopyRenderTargetToTexture(u32 address, bool bFromZBuffer,
 	const unsigned int tex_w = (abs(source_rect.GetWidth()) >> (int)bScaleByHalf);
 	const unsigned int tex_h = (abs(source_rect.GetHeight()) >> (int)bScaleByHalf);
 
-	const float xScale = Renderer::GetTargetScaleX();
-	const float yScale = Renderer::GetTargetScaleY();
-
-	unsigned int scaled_tex_w = g_ActiveConfig.bCopyEFBScaled ? (int)(tex_w * xScale) : tex_w;
-	unsigned int scaled_tex_h = g_ActiveConfig.bCopyEFBScaled ? (int)(tex_h * yScale) : tex_h;
+	unsigned int scaled_tex_w = g_ActiveConfig.bCopyEFBScaled ? Renderer::EFBToScaledX(tex_w) : tex_w;
+	unsigned int scaled_tex_h = g_ActiveConfig.bCopyEFBScaled ? Renderer::EFBToScaledY(tex_h) : tex_h;
 
 	bool texture_is_dynamic = false;
 
@@ -654,9 +668,9 @@ void TextureCache::CopyRenderTargetToTexture(u32 address, bool bFromZBuffer,
 
 	entry->frameCount = frameCount;
 
-	Renderer::ResetAPIState(); // reset any game specific settings
+	g_renderer->ResetAPIState(); // reset any game specific settings
 
 	entry->FromRenderTarget(bFromZBuffer, bScaleByHalf, cbufid, colmat, source_rect, bIsIntensityFmt, copyfmt);
 
-	Renderer::RestoreAPIState();
+	g_renderer->RestoreAPIState();
 }

@@ -90,10 +90,12 @@ inline u64 _rotr64(u64 x, unsigned int shift){
 char* strndup (char const *s, size_t n);	
 
 // 64 bit offsets for windows
-	#define fseek _fseeki64
-	#define ftell _ftelli64
+	#define fseeko _fseeki64
+	#define ftello _ftelli64
 	#define atoll _atoi64
 	#define stat64 _stat64
+	#define fstat64 _fstat64
+	#define fileno _fileno
 
 	#if _M_IX86
 		#define Crash() {__asm int 3}

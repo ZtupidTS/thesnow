@@ -1,4 +1,4 @@
-// Copyright (C) 2003 Dolphin Project.
+﻿// Copyright (C) 2003 Dolphin Project.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -39,7 +39,7 @@ AboutDolphin::~AboutDolphin()
 
 void AboutDolphin::CreateGUIControls()
 {
-	m_Close = new wxButton(this, wxID_CLOSE, wxT("�ر�"),
+	m_Close = new wxButton(this, wxID_CLOSE, wxT("关闭"),
 		wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 
 	wxMemoryInputStream istream(dolphin_logo_png, sizeof dolphin_logo_png);

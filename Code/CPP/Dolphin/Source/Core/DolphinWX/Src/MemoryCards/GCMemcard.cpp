@@ -1,4 +1,4 @@
-// Copyright (C) 2003 Dolphin Project.
+ï»¿// Copyright (C) 2003 Dolphin Project.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -71,7 +71,7 @@ GCMemcard::GCMemcard(const char *filename)
 	fail = false;
 	if (!mcd)
 	{
-		if (!AskYesNo("\"%s\" ²»´æÔÚ.\n ´´½¨Ò»¸öÐÂµÄ 16MB ÄÚ´æ¿¨?", filename))
+		if (!AskYesNo("\"%s\" ä¸å­˜åœ¨.\n åˆ›å»ºä¸€ä¸ªæ–°çš„ 16MB å†…å­˜å¡?", filename))
 		{
 			fail = true;
 			return;
@@ -100,7 +100,7 @@ GCMemcard::GCMemcard(const char *filename)
 		}
 	}
 
-	fseek(mcd, 0, SEEK_SET);
+	fseeko(mcd, 0, SEEK_SET);
 	if (fread(&hdr, 1, BLOCK_SIZE, mcd) != BLOCK_SIZE)
 	{
 		fail = true;
@@ -191,7 +191,7 @@ GCMemcard::GCMemcard(const char *filename)
 //		bat = bat_backup; // needed?
 	}
 
-	fseek(mcd, 0xa000, SEEK_SET);
+	fseeko(mcd, 0xa000, SEEK_SET);
 
 	u16 sizeMb = BE16(hdr.SizeMb);
 	switch (sizeMb)
@@ -241,7 +241,7 @@ bool GCMemcard::Save()
 {
 	bool completeWrite = true;
 	FILE *mcd=(FILE*)mcdFile;
-	fseek(mcd, 0, SEEK_SET);
+	fseeko(mcd, 0, SEEK_SET);
 	if (fwrite(&hdr,		1, BLOCK_SIZE, mcd) != BLOCK_SIZE) completeWrite = false;
 	if (fwrite(&dir,		1, BLOCK_SIZE, mcd) != BLOCK_SIZE) completeWrite = false;
 	if (fwrite(&dir_backup, 1, BLOCK_SIZE, mcd) != BLOCK_SIZE) completeWrite = false;
@@ -816,20 +816,20 @@ u32 GCMemcard::ImportGciInternal(FILE *gci, const char *inputFile, std::string o
 		else
 			return OPENFAIL;
 	}
-	fseek(gci, offset, SEEK_SET);
+	fseeko(gci, offset, SEEK_SET);
 
 	DEntry *tempDEntry = new DEntry;
 	fread(tempDEntry, 1, DENTRY_SIZE, gci);
-	int fStart = (int) ftell(gci);
-	fseek(gci, 0, SEEK_END);
-	int length = (int) ftell(gci) - fStart;
-	fseek(gci, offset + DENTRY_SIZE, SEEK_SET);
+	int fStart = (int) ftello(gci);
+	fseeko(gci, 0, SEEK_END);
+	int length = (int) ftello(gci) - fStart;
+	fseeko(gci, offset + DENTRY_SIZE, SEEK_SET);
 
 	Gcs_SavConvert(tempDEntry, offset, length);
 
 	if (length != BE16(tempDEntry->BlockCount) * BLOCK_SIZE)
 		return LENGTHFAIL;
-	if (ftell(gci)  != offset + DENTRY_SIZE) // Verify correct file position
+	if (ftello(gci)  != offset + DENTRY_SIZE) // Verify correct file position
 		return OPENFAIL;
 	
 	u32 size = BE16((tempDEntry->BlockCount)) * BLOCK_SIZE;
@@ -846,12 +846,12 @@ u32 GCMemcard::ImportGciInternal(FILE *gci, const char *inputFile, std::string o
 			delete tempDEntry;
 			return OPENFAIL;
 		}
-		fseek(gci2, 0, SEEK_SET);
+		fseeko(gci2, 0, SEEK_SET);
 
 		if (fwrite(tempDEntry, 1, DENTRY_SIZE, gci2) != DENTRY_SIZE) 
 			completeWrite = false;
 		int fileBlocks = BE16(tempDEntry->BlockCount);
-		fseek(gci2, DENTRY_SIZE, SEEK_SET);
+		fseeko(gci2, DENTRY_SIZE, SEEK_SET);
 
 		if (fwrite(tempSaveData, 1, BLOCK_SIZE * fileBlocks, gci2) != (unsigned)(BLOCK_SIZE * fileBlocks))
 			completeWrite = false;
@@ -904,7 +904,7 @@ u32 GCMemcard::ExportGci(u8 index, const char *fileName, std::string *fileName2)
 	if (!gci) return OPENFAIL;
 	bool completeWrite = true;
 
-	fseek(gci, 0, SEEK_SET);
+	fseeko(gci, 0, SEEK_SET);
 	
 	switch(offset)
 	{
@@ -953,7 +953,7 @@ u32 GCMemcard::ExportGci(u8 index, const char *fileName, std::string *fileName2)
 		delete[] tempSaveData;
 		return NOMEMCARD;
 	}
-	fseek(gci, DENTRY_SIZE + offset, SEEK_SET);
+	fseeko(gci, DENTRY_SIZE + offset, SEEK_SET);
 	if (fwrite(tempSaveData, 1, size, gci) != size)
 		completeWrite = false;
 	fclose(gci);
@@ -1156,14 +1156,15 @@ bool GCMemcard::Format(bool sjis, bool New, int slot, u16 SizeMb, bool hdrOnly)
 	if ((SizeMb != MemCard2043Mb) || (data_size != mc_data_size)) return false;
 
 	pStream = fopen(File::GetUserPath(F_GCSRAM_IDX), "rb");
-	if (pStream == NULL)
+	if (pStream)
 	{
-		PanicAlert("Could not open SRAM file");
-		return false;
+		fread(&m_SRAM, 1, 64, pStream);
+		fclose(pStream);
 	}
-	fread(&m_SRAM, 1, 64, pStream);
-	fclose(pStream);
-
+	else
+	{
+		m_SRAM = sram_dump;
+	}
 	time = CEXIIPL::GetGCTime();
 	rand = Common::swap64(time);
 

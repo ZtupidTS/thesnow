@@ -58,7 +58,7 @@ void GetPixelShaderId(PIXELSHADERUID *uid, DSTALPHA_MODE dstAlphaMode)
 	for (int i = 0; i < 8; i += 2)
 		((u8*)&uid->values[1])[i / 2] = (bpmem.tevksel[i].hex & 0xf) | ((bpmem.tevksel[i + 1].hex & 0xf) << 4);
 
-	u32 enableZTexture = (!bpmem.zcontrol.zcomploc && bpmem.zmode.testenable && bpmem.zmode.updateenable)?1:0;
+	u32 enableZTexture = ((bpmem.ztex2.op != ZTEXTURE_DISABLE && !bpmem.zcontrol.zcomploc) || g_ActiveConfig.bEnablePerPixelDepth)? 1 : 0;
 
 	uid->values[2] = (u32)bpmem.fog.c_proj_fsel.fsel |
 				   ((u32)bpmem.fog.c_proj_fsel.proj << 3) |
@@ -415,7 +415,7 @@ char *GeneratePixelLightShader(char *p, int index, const LitChannel& chan, const
 		else if (chan.attnfunc == 1) 
 		{ // specular
 			WRITE(p, "ldir = normalize("I_PLIGHTS".lights[%d].pos.xyz);\n",index);
-			WRITE(p, "attn = (dot(_norm0,ldir) > 0.0f) ? max(0.0f, dot(_norm0, "I_PLIGHTS".lights[%d].dir.xyz)) : 0.0f;\n", index);
+			WRITE(p, "attn = (dot(_norm0,ldir) >= 0.0f) ? max(0.0f, dot(_norm0, "I_PLIGHTS".lights[%d].dir.xyz)) : 0.0f;\n", index);
 			WRITE(p, "attn = max(0.0f, dot("I_PLIGHTS".lights[%d].cosatt.xyz, float3(1,attn,attn*attn))) / dot("I_PLIGHTS".lights[%d].distatt.xyz, float3(1,attn,attn*attn));\n", index, index);
 		}
 
@@ -466,7 +466,7 @@ const char *GeneratePixelShaderCode(DSTALPHA_MODE dstAlphaMode, API_TYPE ApiType
 				nIndirectStagesUsed |= 1 << bpmem.tevind[i].bt;
 		}
 	}
-	DepthTextureEnable = bpmem.ztex2.op != ZTEXTURE_DISABLE && !bpmem.zcontrol.zcomploc && bpmem.zmode.testenable && bpmem.zmode.updateenable;
+	DepthTextureEnable = (bpmem.ztex2.op != ZTEXTURE_DISABLE && !bpmem.zcontrol.zcomploc) || g_ActiveConfig.bEnablePerPixelDepth ;
 	// Declare samplers
 
 	if(ApiType != API_D3D11)
@@ -540,13 +540,22 @@ const char *GeneratePixelShaderCode(DSTALPHA_MODE dstAlphaMode, API_TYPE ApiType
 		for (int i = 0; i < numTexgen; ++i)
 			WRITE(p, ",\n  in float3 uv%d : TEXCOORD%d", i, i);
 		WRITE(p, ",\n  in float4 clipPos : TEXCOORD%d", numTexgen);
-		WRITE(p, ",\n  in float4 Normal : TEXCOORD%d", numTexgen + 1);		
+		if(g_ActiveConfig.bEnablePixelLigting)
+			WRITE(p, ",\n  in float4 Normal : TEXCOORD%d", numTexgen + 1);		
 	}
 	else
 	{
 		// wpos is in w of first 4 texcoords
-		for (int i = 0; i < 8; ++i)
-			WRITE(p, ",\n  in float4 uv%d : TEXCOORD%d", i, i);
+		if(g_ActiveConfig.bEnablePixelLigting)
+		{
+			for (int i = 0; i < 8; ++i)
+				WRITE(p, ",\n  in float4 uv%d : TEXCOORD%d", i, i);
+		}
+		else
+		{
+			for (int i = 0; i < xfregs.numTexGens; ++i)
+				WRITE(p, ",\n  in float%d uv%d : TEXCOORD%d", i < 4 ? 4 : 3 , i, i);
+		}
 	}
 	WRITE(p, "        ) {\n");
 
@@ -721,7 +730,12 @@ const char *GeneratePixelShaderCode(DSTALPHA_MODE dstAlphaMode, API_TYPE ApiType
 		{
 			// optional perspective divides
 			if (xfregs.texcoords[i].texmtxinfo.projection == XF_TEXPROJ_STQ)
-				WRITE(p, "uv%d.xy = uv%d.xy/uv%d.z;\n", i, i, i);
+			{
+				WRITE(p, "if (uv%d.z)", i);
+				WRITE(p, "	uv%d.xy = uv%d.xy / uv%d.z;\n", i, i, i);
+				WRITE(p, "else");
+				WRITE(p, "	uv%d.xy = float2(0.0f, 0.0f);\n", i);
+			}
 			
 			WRITE(p, "uv%d.xy = uv%d.xy * "I_TEXDIMS"[%d].zw;\n", i, i, i);
 		}
@@ -802,15 +816,18 @@ const char *GeneratePixelShaderCode(DSTALPHA_MODE dstAlphaMode, API_TYPE ApiType
 		if (DepthTextureEnable)
 		{
 			// use the texture input of the last texture stage (textemp), hopefully this has been read and is in correct format...
-			if (bpmem.ztex2.op == ZTEXTURE_ADD)
-				WRITE(p, "zCoord = dot("I_ZBIAS"[0].xyzw, textemp.xyzw) + "I_ZBIAS"[1].w + zCoord;\n");
-			else
-				WRITE(p, "zCoord = dot("I_ZBIAS"[0].xyzw, textemp.xyzw) + "I_ZBIAS"[1].w;\n");
+			if (bpmem.ztex2.op != ZTEXTURE_DISABLE && !bpmem.zcontrol.zcomploc)
+			{
+				if (bpmem.ztex2.op == ZTEXTURE_ADD)
+					WRITE(p, "zCoord = dot("I_ZBIAS"[0].xyzw, textemp.xyzw) + "I_ZBIAS"[1].w + zCoord;\n");
+				else
+					WRITE(p, "zCoord = dot("I_ZBIAS"[0].xyzw, textemp.xyzw) + "I_ZBIAS"[1].w;\n");
 
-			// scale to make result from frac correct
-			WRITE(p, "zCoord = zCoord * (16777215.0f/16777216.0f);\n");
-			WRITE(p, "zCoord = frac(zCoord);\n");
-			WRITE(p, "zCoord = zCoord * (16777216.0f/16777215.0f);\n");
+				// scale to make result from frac correct
+				WRITE(p, "zCoord = zCoord * (16777215.0f/16777216.0f);\n");
+				WRITE(p, "zCoord = frac(zCoord);\n");
+				WRITE(p, "zCoord = zCoord * (16777216.0f/16777215.0f);\n");			
+			}
 			WRITE(p, "depth = zCoord;\n");
 		}
 
@@ -1310,15 +1327,20 @@ static void WriteFog(char *&p)
 	if (bpmem.fog.c_proj_fsel.proj == 0) 
 	{
 		// perspective
-		// ze = A/(B - Zs)
-		WRITE (p, "  float ze = "I_FOG"[1].x / ("I_FOG"[1].y - zCoord);\n");
+		// ze = A/(B - (Zs >> B_SHF)
+		WRITE (p, "  float ze = "I_FOG"[1].x / ("I_FOG"[1].y - (zCoord / "I_FOG"[1].w));\n");
 	}
 	else
 	{
 		// orthographic
-		// ze = a*Zs
+		// ze = a*Zs	(here, no B_SHF)
 		WRITE (p, "  float ze = "I_FOG"[1].x * zCoord;\n");
 	}
+	
+	// stuff to do!
+	// here, where we'll have to add/handle x range adjustment (if related BP register it's enabled)
+	// x_adjust = sqrt((x-center)^2 + k^2)/k
+	// ze *= x_adjust
 
 	WRITE (p, "  float fog = saturate(ze - "I_FOG"[1].z);\n");
 

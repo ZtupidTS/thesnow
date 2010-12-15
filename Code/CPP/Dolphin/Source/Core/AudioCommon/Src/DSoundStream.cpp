@@ -1,4 +1,4 @@
-// Copyright (C) 2003 Dolphin Project.
+ï»¿// Copyright (C) 2003 Dolphin Project.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@ bool DSound::CreateBuffer()
 	else
 	{
 		// Failed.
-		PanicAlert("ÉùÒô»º³åÇø´´½¨Ê§°Ü: %s", DXGetErrorString(res)); 
+		PanicAlert("å£°éŸ³ç¼“å†²åŒºåˆ›å»ºå¤±è´¥: %s", DXGetErrorString(res)); 
 		dsBuffer = NULL;
 		return false;
 	}

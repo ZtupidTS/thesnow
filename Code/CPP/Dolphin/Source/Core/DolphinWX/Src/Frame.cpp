@@ -351,6 +351,10 @@ CFrame::CFrame(wxFrame* parent,
 	for (int i = 0; i <= IDM_CODEWINDOW - IDM_LOGWINDOW; i++)
 		bFloatWindow[i] = false;
 
+#ifdef __WXGTK__
+	panic_event.Init();
+#endif
+
 	if (ShowLogWindow) SConfig::GetInstance().m_InterfaceLogWindow = true;
 
 	// Give it a console early to show potential messages from this onward
@@ -489,6 +493,10 @@ CFrame::~CFrame()
 	#endif
 
 	ClosePages();
+
+#ifdef __WXGTK__
+	panic_event.Shutdown();
+#endif
 
 	delete m_Mgr;
 }
@@ -646,6 +654,14 @@ void CFrame::OnHostMessage(wxCommandEvent& event)
 		if (SConfig::GetInstance().m_LocalCoreStartupParameter.bHideCursor)
 			m_RenderParent->SetCursor(wxCURSOR_BLANK);
 		break;
+
+#ifdef __WXGTK__
+	case IDM_PANIC:
+		bPanicResult = (wxYES == wxMessageBox(event.GetString(), 
+					wxT("Warning"), event.GetInt() ? wxYES_NO : wxOK, this));
+		panic_event.Set();
+		break;
+#endif
 
 #if defined(HAVE_X11) && HAVE_X11
 	case WM_USER_STOP:

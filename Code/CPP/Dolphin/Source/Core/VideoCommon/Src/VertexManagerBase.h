@@ -2,6 +2,8 @@
 #ifndef _VERTEXMANAGERBASE_H
 #define _VERTEXMANAGERBASE_H
 
+class NativeVertexFormat;
+
 class VertexManager
 {
 public:
@@ -34,6 +36,13 @@ public:
 	static int GetRemainingVertices(int primitive);
 
 	static void Flush();
+
+	virtual ::NativeVertexFormat* CreateNativeVertexFormat() = 0;
+
+	static u16* GetTriangleIndexBuffer() { return TIBuffer; }
+	static u16* GetLineIndexBuffer() { return LIBuffer; }
+	static u16* GetPointIndexBuffer() { return PIBuffer; }
+	static u8* GetVertexBuffer() { return LocalVBuffer; }
 
 protected:
 	// TODO: make private after Flush() is merged

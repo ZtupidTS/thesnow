@@ -26,6 +26,7 @@
 #include "FileUtil.h"
 #include "ISOFile.h"
 #include "StringUtil.h"
+#include "Hash.h"
 
 #include "Filesystem.h"
 #include "BannerLoader.h"
@@ -34,7 +35,7 @@
 #include "ChunkFile.h"
 #include "../resources/no_banner.cpp"
 
-#define CACHE_REVISION 0x10A
+#define CACHE_REVISION 0x10B
 
 #define DVD_BANNER_WIDTH 96
 #define DVD_BANNER_HEIGHT 32
@@ -178,15 +179,16 @@ void GameListItem::DoState(PointerWrap &p)
 
 std::string GameListItem::CreateCacheFilename()
 {
-	std::string Filename;
-	SplitPath(m_FileName, NULL, &Filename, NULL);
+	std::string Filename, LegalPathname, extension;
+	SplitPath(m_FileName, &LegalPathname, &Filename, &extension);
 
 	if (Filename.empty()) return Filename; // Disc Drive
-	// We add gcz to the cache file if the file is compressed to avoid it reading
-	// the uncompressed file's cache if it has the same name, but not the same ext.
-	if (DiscIO::IsCompressedBlob(m_FileName.c_str()))
-		Filename.append(".gcz");
-	Filename.append(".cache");
+
+	// Filename.extension_HashOfFolderPath_Size.cache
+	// Append hash to prevent ISO name-clashing in different folders.
+	Filename.append(StringFromFormat("%s_%x_%llx.cache",
+		extension.c_str(), HashFletcher((const u8 *)LegalPathname.c_str(), LegalPathname.size()),
+		File::GetSize(m_FileName.c_str())));
 
 	std::string fullname(std::string(File::GetUserPath(D_CACHE_IDX)));
 	fullname += Filename;

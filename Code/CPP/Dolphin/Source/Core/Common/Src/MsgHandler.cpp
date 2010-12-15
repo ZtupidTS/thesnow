@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2003 Dolphin Project.
+// Copyright (C) 2003 Dolphin Project.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -68,21 +68,6 @@ bool DefaultMsgHandler(const char* caption, const char* text, bool yes_no, int S
     if (Style == WARNING) STYLE = MB_ICONWARNING;
     
     return IDYES == MessageBox(0, text, caption, STYLE | (yes_no ? MB_YESNO : MB_OK));
-    
-#else
-    printf("%s\n", text);
-    return true;
-#endif
-}
-// Default non library depended panic alert(unicode)
-bool DefaultMsgHandler(const wchar_t* caption, const wchar_t* text, bool yes_no, int Style)
-{
-#ifdef _WIN32
-    int STYLE = MB_ICONINFORMATION;
-    if (Style == QUESTION) STYLE = MB_ICONQUESTION;
-    if (Style == WARNING) STYLE = MB_ICONWARNING;
-    
-    return IDYES == MessageBoxW(0, text, caption, STYLE | (yes_no ? MB_YESNO : MB_OK));
     
 #else
     printf("%s\n", text);

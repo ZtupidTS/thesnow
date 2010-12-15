@@ -21,7 +21,7 @@
 #include "Common.h"
 #include "Timer.h"
 
-#ifdef _WIN32
+#ifndef __APPLE__
 #include "clrun.h"
 #endif
 
@@ -46,14 +46,15 @@ bool Initialize()
 		return false;
 	int err;			// error code returned from api calls
 
-#ifdef _WIN32
+#ifdef __APPLE__
+	// If OpenCL is weakly linked and not found, its symbols will be NULL
+	if (clGetPlatformIDs == NULL)
+		return false;
+#else
 	clrInit();
 	if(!clrHasOpenCL())
 		return false;
 #endif
-	// If OpenCL is weakly linked and not found, its symbols will be NULL
-	if (clGetPlatformIDs == NULL)
-		return false;
 
 	// Connect to a compute device
 	cl_uint numPlatforms;
@@ -78,7 +79,8 @@ bool Initialize()
 		}
 
 		char pbuf[100];
-		err = clGetPlatformInfo(platforms[0], CL_PLATFORM_VENDOR, sizeof(pbuf), pbuf, NULL);
+		err = clGetPlatformInfo(platforms[0], CL_PLATFORM_VENDOR, sizeof(pbuf),
+			pbuf, NULL);
 
 		if (err != CL_SUCCESS)
 		{
@@ -95,7 +97,8 @@ bool Initialize()
 		return false;
 	}
 
-	cl_context_properties cps[3] = {CL_CONTEXT_PLATFORM, (cl_context_properties)platform, 0};
+	cl_context_properties cps[3] = {CL_CONTEXT_PLATFORM,
+		(cl_context_properties)platform, 0};
 
 	cl_context_properties* cprops = (NULL == platform) ? NULL : cps;
 
@@ -143,9 +146,10 @@ cl_command_queue GetCommandQueue()
 cl_program CompileProgram(const char *Kernel)
 {
 	u32 compileStart = Common::Timer::GetTimeMs();
-	int err;
+	cl_int err;
 	cl_program program;
-	program = clCreateProgramWithSource(OpenCL::g_context, 1, (const char **) & Kernel, NULL, &err);
+	program = clCreateProgramWithSource(OpenCL::g_context, 1,
+		(const char **) & Kernel, NULL, &err);
 	if (!program)
 	{
 		HandleCLError(err, "Error: Failed to create compute program!");
@@ -156,13 +160,14 @@ cl_program CompileProgram(const char *Kernel)
 	err = clBuildProgram(program , 0, NULL, NULL, NULL, NULL);
 	if(err != CL_SUCCESS) {
 		char *errors[16384] = {0};
-		err = clGetProgramBuildInfo(program, OpenCL::device_id, CL_PROGRAM_BUILD_LOG, sizeof(errors),
-									errors, NULL);
-		ERROR_LOG(COMMON, "Error log:\n%s\n", errors);
+		err = clGetProgramBuildInfo(program, OpenCL::device_id,
+			CL_PROGRAM_BUILD_LOG, sizeof(*errors), errors, NULL);
+		ERROR_LOG(COMMON, "Error log:\n%s\n", *errors);
 		return NULL;
 	}
 
-	NOTICE_LOG(COMMON, "OpenCL CompileProgram took %.3f seconds", (float)(Common::Timer::GetTimeMs() - compileStart) / 1000.0);
+	NOTICE_LOG(COMMON, "OpenCL CompileProgram took %.3f seconds",
+		(float)(Common::Timer::GetTimeMs() - compileStart) / 1000.0);
 	return program;
 }
 
@@ -180,7 +185,8 @@ cl_kernel CompileKernel(cl_program program, const char *Function)
 		HandleCLError(err, buffer);
 		return NULL;
 	}
-	NOTICE_LOG(COMMON, "OpenCL CompileKernel took %.3f seconds", (float)(Common::Timer::GetTimeMs() - compileStart) / 1000.0);
+	NOTICE_LOG(COMMON, "OpenCL CompileKernel took %.3f seconds",
+		(float)(Common::Timer::GetTimeMs() - compileStart) / 1000.0);
 	return kernel;
 }
 #endif

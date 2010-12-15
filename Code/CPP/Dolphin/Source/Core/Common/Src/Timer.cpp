@@ -39,7 +39,7 @@ u32 Timer::GetTimeMs()
 #else
 	struct timeval t;
 	(void)gettimeofday(&t, NULL);
-	return((u32)(t.tv_sec * 1000 + t.tv_usec / 1000));
+	return ((u32)(t.tv_sec * 1000 + t.tv_usec / 1000));
 #endif
 }
 
@@ -157,13 +157,6 @@ void Timer::RestoreResolution()
 #endif
 }
 
-#ifdef __GNUC__
-void _time64(u64* t)
-{
-	*t = 0; //TODO
-}
-#endif
-
 // Get the number of seconds since January 1 1970
 u64 Timer::GetTimeSinceJan1970()
 {
@@ -246,7 +239,7 @@ double Timer::GetDoubleTime()
 #ifdef _WIN32
 	double ms = tp.millitm / 1000.0 / 1000.0;
 #else
-	double ms = t.tv_usec / 1000.0 / 1000.0;
+	double ms = t.tv_usec / 1000000.0;
 #endif
 	double TmpTime = Seconds + ms;
 

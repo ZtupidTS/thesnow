@@ -50,6 +50,7 @@
 
 #ifdef BSD4_4
 #define stat64 stat	// XXX
+#define fstat64 fstat	// XXX
 #endif
 
 // This namespace has various generic functions related to files and paths.
@@ -180,7 +181,6 @@ bool CreateFullPath(const char *fullPath)
 
 	// safety check to ensure we have good dir seperators
 	std::string strFullPath(fullPath);
-	NormalizeDirSep(&strFullPath);
 
 	const char *position = strFullPath.c_str();
 	while (true) {
@@ -337,13 +337,32 @@ u64 GetSize(const char *filename)
 	// on windows it's actually _stat64 defined in commonFuncs
 	struct stat64 buf;
 	if (stat64(filename, &buf) == 0) {
-		DEBUG_LOG(COMMON, "GetSize: %s: %ld", filename, buf.st_size);
+		DEBUG_LOG(COMMON, "GetSize: %s: %lld",
+			filename, (long long)buf.st_size);
 		return buf.st_size;
 	}
 
 	ERROR_LOG(COMMON, "GetSize: Stat failed %s: %s",
 			  filename, GetLastErrorMsg());
 	return 0;
+}
+
+// Overloaded GetSize, accepts file descriptor
+u64 GetSize(const int fd)
+{
+	struct stat64 buf;
+	if (fstat64(fd, &buf) != 0) {
+		ERROR_LOG(COMMON, "GetSize: stat failed %i: %s",
+			fd, GetLastErrorMsg());
+		return 0;
+	}
+	return buf.st_size;
+}
+
+// Overloaded GetSize, accepts FILE*
+u64 GetSize(FILE *f)
+{
+	return GetSize(fileno(f));
 }
 
 // creates an empty file filename, returns true on success 
@@ -770,9 +789,7 @@ bool ReadFileToString(bool text_file, const char *filename, std::string &str)
 	FILE *f = fopen(filename, text_file ? "r" : "rb");
 	if (!f)
 		return false;
-	fseek(f, 0, SEEK_END);
-	size_t len = (size_t)ftell(f);
-	fseek(f, 0, SEEK_SET);
+	size_t len = (size_t)GetSize(f);
 	char *buf = new char[len + 1];
 	buf[fread(buf, 1, len, f)] = 0;
 	str = std::string(buf, len);
