@@ -175,9 +175,9 @@ THREAD_RETURN XEventThread(void *pArg)
 						case XK_5:
 							OSDChoice = 3;
 							// Toggle EFB copy
-							if (g_Config.bEFBCopyDisable || g_Config.bCopyEFBToTexture)
+							if (!g_Config.bEFBCopyEnable || g_Config.bCopyEFBToTexture)
 							{
-								g_Config.bEFBCopyDisable = !g_Config.bEFBCopyDisable;
+								g_Config.bEFBCopyEnable ^= true;
 								g_Config.bCopyEFBToTexture = false;
 							}
 							else
@@ -515,8 +515,8 @@ void OpenGL_ReportARBProgramError()
 		GLint loc = 0;
 		glGetIntegerv(GL_PROGRAM_ERROR_POSITION_ARB, &loc);
 		ERROR_LOG(VIDEO, "program error at %d: ", loc);
-		ERROR_LOG(VIDEO, (char*)pstr);
-		ERROR_LOG(VIDEO, "");
+		ERROR_LOG(VIDEO, "%s", (char*)pstr);
+		ERROR_LOG(VIDEO, "\n");
 	}
 }
 
