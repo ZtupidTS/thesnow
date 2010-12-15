@@ -26,6 +26,12 @@
 
 #include <math.h>
 
+#ifdef _DEBUG
+#define ALLOW_TEV_DUMPS 1
+#else
+#define ALLOW_TEV_DUMPS 0
+#endif
+
 void Tev::Init()
 {
     FixedConstants[0] = 0;
@@ -592,11 +598,11 @@ void Tev::Draw()
         TextureSampler::Sample(Uv[texcoordSel].s >> scaleS, Uv[texcoordSel].t >> scaleT,
 			IndirectLod[stageNum], IndirectLinear[stageNum], texmap, IndirectTex[stageNum]);
 
-#ifdef _DEBUG
+#if ALLOW_TEV_DUMPS
         if (g_Config.bDumpTevStages)
         {
             u8 stage[4] = {(u8)IndirectTex[stageNum][3], (u8)IndirectTex[stageNum][2], (u8)IndirectTex[stageNum][1], 255};
-            DebugUtil::DrawObjectBuffer(Position[0], Position[1], stage, 16+stageNum, "Ind");
+			DebugUtil::DrawTempBuffer(stage, INDIRECT + stageNum);
         }
 #endif
     }
@@ -623,6 +629,11 @@ void Tev::Draw()
             u8 texel[4];
     
 			TextureSampler::Sample(TexCoord.s, TexCoord.t, TextureLod[stageNum], TextureLinear[stageNum], texmap, texel);
+
+#if ALLOW_TEV_DUMPS
+			if (g_Config.bDumpTevTextureFetches)
+				DebugUtil::DrawTempBuffer(texel, DIRECT_TFETCH + stageNum);
+#endif
 
             int swaptable = ac.tswap * 2;            
 
@@ -673,11 +684,11 @@ void Tev::Draw()
         else
             Reg[ac.dest][ALP_C] = Clamp1024(Reg[ac.dest][ALP_C]);
 
-#ifdef _DEBUG
+#if ALLOW_TEV_DUMPS
         if (g_Config.bDumpTevStages)
         {
             u8 stage[4] = {(u8)Reg[0][0], (u8)Reg[0][1], (u8)Reg[0][2], (u8)Reg[0][3]};
-            DebugUtil::DrawObjectBuffer(Position[0], Position[1], stage, stageNum, "Stage");
+			DebugUtil::DrawTempBuffer(stage, DIRECT + stageNum);
         }
 #endif
     }
@@ -718,18 +729,26 @@ void Tev::Draw()
 		if (bpmem.fog.c_proj_fsel.proj == 0)
 		{
 			// perspective
-			// ze = A/(B - Zs)
+			// ze = A/(B - (Zs >> B_SHF))
 			s32 denom = bpmem.fog.b_magnitude - (Position[2] >> bpmem.fog.b_shift);
-			ze = bpmem.fog.a.GetA() / (float)denom;
+			//in addition downscale magnitude and zs to 0.24 bits
+			ze = (bpmem.fog.a.GetA() * 16777215.0f) / (float)denom;
 		} 
 		else 
 		{
 			// orthographic
 			// ze = a*Zs
-			ze = bpmem.fog.a.GetA() / (float)Position[2];
+			//in addition downscale zs to 0.24 bits
+			ze = bpmem.fog.a.GetA() * ((float)Position[2] / 16777215.0f);
+
 		}
 
-		ze = (ze * (float)0xffffff) - bpmem.fog.c_proj_fsel.GetC();
+		// stuff to do!
+		// here, where we'll have to add/handle x range adjustment (if related BP register it's enabled)
+		// x_adjust = sqrt((x-center)^2 + k^2)/k
+		// ze *= x_adjust
+
+		ze -= bpmem.fog.c_proj_fsel.GetC();
 
 		// clamp 0 to 1
 		float fog = (ze<0.0f) ? 0.0f : ((ze>1.0f) ? 1.0f : ze);
@@ -744,11 +763,11 @@ void Tev::Draw()
 				break;
 			case 6: // backward exp
 				fog = 1.0f - fog;
-				fog = 1.0f - pow(2.0f, -8.0f * fog);
+				fog = pow(2.0f, -8.0f * fog);
 				break;
 			case 7: // backward exp2
 				fog = 1.0f - fog;
-				fog = 1.0f - pow(2.0f, -8.0f * fog * fog);
+				fog = pow(2.0f, -8.0f * fog * fog);
 				break;
 		}
 
@@ -766,6 +785,26 @@ void Tev::Draw()
         if (!EfbInterface::ZCompare(Position[0], Position[1], Position[2]))
             return;
     }
+
+#if ALLOW_TEV_DUMPS
+	if (g_Config.bDumpTevStages)
+	{
+		for (u32 i = 0; i < bpmem.genMode.numindstages; ++i)
+			DebugUtil::CopyTempBuffer(Position[0], Position[1], INDIRECT, i, "Indirect");
+		for (u32 i = 0; i <= bpmem.genMode.numtevstages; ++i)
+			DebugUtil::CopyTempBuffer(Position[0], Position[1], DIRECT, i, "Stage");
+	}
+
+	if (g_Config.bDumpTevTextureFetches)
+	{
+		for (u32 i = 0; i <= bpmem.genMode.numtevstages; ++i)
+		{
+			TwoTevStageOrders &order = bpmem.tevorders[i >> 1];
+			if (order.getEnable(i & 1))
+				DebugUtil::CopyTempBuffer(Position[0], Position[1], DIRECT_TFETCH, i, "TFetch");
+		}
+	}
+#endif
 
     INCSTAT(stats.thisFrame.tevPixelsOut);
 

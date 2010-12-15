@@ -1,0 +1,13 @@
+# -*- python -*-
+
+Import('env')
+
+if not env['HAVE_WX']:
+	Return()
+
+files = [
+	'VideoConfigDiag.cpp',
+	'DebuggerPanel.cpp',
+	]
+
+env.StaticLibrary(env['local_libs'] + 'videouicommon', files)

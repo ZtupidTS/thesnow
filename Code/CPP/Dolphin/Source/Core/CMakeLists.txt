@@ -1,0 +1,17 @@
+add_subdirectory(AudioCommon)
+add_subdirectory(Common)
+add_subdirectory(Core)
+
+if(wxWidgets_FOUND)
+	add_subdirectory(DebuggerUICommon)
+	add_subdirectory(DebuggerWX)
+	add_subdirectory(InputUICommon)
+	add_subdirectory(VideoUICommon)
+endif()
+
+add_subdirectory(DiscIO)
+add_subdirectory(DolphinWX)
+add_subdirectory(DSPCore)
+add_subdirectory(InputCommon)
+add_subdirectory(VideoCommon)
+add_subdirectory(wiiuse)
