@@ -40,6 +40,7 @@
 #include "IndexGenerator.h"
 #include "OpcodeDecoding.h"
 #include "FileUtil.h"
+#include "Debugger.h"
 
 #include "main.h"
 
@@ -198,12 +199,12 @@ void VertexManager::vFlush()
 		{
 			// If host supports GL_ARB_blend_func_extended, we can do dst alpha in
 			// the same pass as regular rendering.
-			Renderer::SetBlendMode(true);
+			g_renderer->SetBlendMode(true);
 			ps = PixelShaderCache::SetShader(DSTALPHA_DUAL_SOURCE_BLEND, g_nativeVertexFmt->m_components);
 		}
 		else
 		{
-			Renderer::SetBlendMode(true);
+			g_renderer->SetBlendMode(true);
 			ps = PixelShaderCache::SetShader(DSTALPHA_NONE,g_nativeVertexFmt->m_components);
 		}
 	}
@@ -234,11 +235,13 @@ void VertexManager::vFlush()
 
 		Draw();
 		// restore color mask
-		Renderer::SetColorMask();
+		g_renderer->SetColorMask();
 
 		if (bpmem.blendmode.blendenable || bpmem.blendmode.subtract) 
 			glEnable(GL_BLEND);
 	}
+	GFX_DEBUGGER_PAUSE_AT(NEXT_FLUSH, true);
+
 	//s_nCurVBOIndex = (s_nCurVBOIndex + 1) % ARRAYSIZE(s_vboBuffers);
 	s_pCurBufferPointer = LocalVBuffer;
 	IndexGenerator::Start(TIBuffer,LIBuffer,PIBuffer);
@@ -265,7 +268,7 @@ void VertexManager::vFlush()
 		tr.right = Renderer::GetTargetWidth();
 		tr.top = 0;
 		tr.bottom = Renderer::GetTargetHeight();
-		Renderer::SaveRenderTarget(str, tr);
+		g_renderer->SaveScreenshot(str, tr);
 	}
 #endif
 	g_Config.iSaveTargetId++;

@@ -7,7 +7,6 @@ import sys
 name = os.sep + "Plugin_VideoOGL"
 
 files = [
-	'BPFunctions.cpp',
 	'RasterFont.cpp',
 	'Render.cpp',
 	'TextureCache.cpp',
@@ -16,20 +15,13 @@ files = [
 	'VertexShaderCache.cpp',
 	'TextureConverter.cpp',
 	'VertexManager.cpp',
-	'XFB.cpp',
 	'PostProcessing.cpp',
 	'FramebufferManager.cpp',
 	'main.cpp',
 	'GLUtil.cpp'
 	]
 
-libs = [ 'videocommon', 'GLEW', 'SOIL', 'common' ]
-
-if env['HAVE_WX']:
-	files += [
-		'GUI/ConfigDlg.cpp',
-		'Debugger/Debugger.cpp',
-		]
+libs = [ 'videocommon', 'videouicommon', 'GLEW', 'SOIL', 'common' ]
 
 if sys.platform == 'darwin' and not env['HAVE_WX']:
 	files += [ 'cocoaGL.m' ]

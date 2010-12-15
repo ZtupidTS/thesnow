@@ -199,7 +199,7 @@ TextureCache::TCacheEntryBase* TextureCache::CreateTexture(unsigned int width,
 }
 
 void TextureCache::TCacheEntry::Load(unsigned int width, unsigned int height,
-	unsigned int expanded_width, unsigned int level)
+	unsigned int expanded_width, unsigned int level, bool autogen_mips)
 {
 	//glEnable(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, texture);
@@ -210,7 +210,7 @@ void TextureCache::TCacheEntry::Load(unsigned int width, unsigned int height,
 	    if (expanded_width != width)
             glPixelStorei(GL_UNPACK_ROW_LENGTH, expanded_width);
 
-		if (bHaveMipMaps && 0 == level)
+		if (bHaveMipMaps && autogen_mips)
 		{
 			glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
 			glTexImage2D(GL_TEXTURE_2D, level, gl_iformat, width, height, 0, gl_format, gl_type, temp);
@@ -273,12 +273,8 @@ void TextureCache::TCacheEntry::FromRenderTarget(bool bFromZBuffer,	bool bScaleB
 
 	// Make sure to resolve anything we need to read from.
 	const GLuint read_texture = bFromZBuffer ?
-		g_framebufferManager.ResolveAndGetDepthTarget(source_rect) :
-		g_framebufferManager.ResolveAndGetRenderTarget(source_rect);
-
-	// TODO: move
-	const float xScale = Renderer::GetTargetScaleX();
-	const float yScale = Renderer::GetTargetScaleY();
+		FramebufferManager::ResolveAndGetDepthTarget(source_rect) :
+		FramebufferManager::ResolveAndGetRenderTarget(source_rect);
 
     GL_REPORT_ERRORD();
 
@@ -287,7 +283,7 @@ void TextureCache::TCacheEntry::FromRenderTarget(bool bFromZBuffer,	bool bScaleB
 		if (s_TempFramebuffer == 0)
 			glGenFramebuffersEXT(1, (GLuint*)&s_TempFramebuffer);
 
-		g_framebufferManager.SetFramebuffer(s_TempFramebuffer);
+		FramebufferManager::SetFramebuffer(s_TempFramebuffer);
 		// Bind texture to temporary framebuffer
 		glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_2D, texture, 0);
 		GL_REPORT_FBO_ERROR();
@@ -305,7 +301,7 @@ void TextureCache::TCacheEntry::FromRenderTarget(bool bFromZBuffer,	bool bScaleB
 		PixelShaderManager::SetColorMatrix(colmat, fConstAdd); // set transformation
 		GL_REPORT_ERRORD();
 
-		TargetRectangle targetSource = Renderer::ConvertEFBRectangle(source_rect);
+		TargetRectangle targetSource = g_renderer->ConvertEFBRectangle(source_rect);
 
 		glBegin(GL_QUADS);
 		glTexCoord2f((GLfloat)targetSource.left,  (GLfloat)targetSource.bottom); glVertex2f(-1,  1);
@@ -325,8 +321,6 @@ void TextureCache::TCacheEntry::FromRenderTarget(bool bFromZBuffer,	bool bScaleB
 		hash = TextureConverter::EncodeToRamFromTexture(
 			addr,
 			read_texture,
-			xScale,
-			yScale,
 			bFromZBuffer, 
 			bIsIntensityFmt, 
 			copyfmt, 
@@ -334,7 +328,7 @@ void TextureCache::TCacheEntry::FromRenderTarget(bool bFromZBuffer,	bool bScaleB
 			source_rect);
 	}
 
-    g_framebufferManager.SetFramebuffer(0);
+    FramebufferManager::SetFramebuffer(0);
     VertexShaderManager::SetViewportChanged();
     DisableStage(0);
 
