@@ -90,6 +90,8 @@ doopes.com##DIV#googleads
 
 !-- 其它
 ||intellitxt.com^
+|http://lh5.ggpht.com/*
+||post.rmbn.ru/cgi-bin/*
 
 !-- dapenti.com
 dapenti.com##TD.oblog_t_4
