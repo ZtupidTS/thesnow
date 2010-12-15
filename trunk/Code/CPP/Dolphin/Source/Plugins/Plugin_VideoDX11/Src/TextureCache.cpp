@@ -43,9 +43,6 @@
 namespace DX11
 {
 
-ID3D11BlendState* efbcopyblendstate = NULL;
-ID3D11RasterizerState* efbcopyraststate = NULL;
-ID3D11DepthStencilState* efbcopydepthstate = NULL;
 ID3D11Buffer* efbcopycbuf[20] = {};
 
 TextureCache::TCacheEntry::~TCacheEntry()
@@ -64,12 +61,12 @@ bool TextureCache::TCacheEntry::Save(const char filename[])
 }
 
 void TextureCache::TCacheEntry::Load(unsigned int width, unsigned int height,
-	unsigned int expanded_width, unsigned int level)
+	unsigned int expanded_width, unsigned int level, bool autogen_mips)
 {
-	// TODO: remove hax
-	if (level != 0) return;
-
 	D3D::ReplaceRGBATexture2D(texture->GetTex(), TextureCache::temp, width, height, expanded_width, level, usage);
+
+	if (autogen_mips)
+		PD3DX11FilterTexture(D3D::context, texture->GetTex(), 0, D3DX11_DEFAULT);
 }
 
 TextureCache::TCacheEntryBase* TextureCache::CreateTexture(unsigned int width,
@@ -80,18 +77,15 @@ TextureCache::TCacheEntryBase* TextureCache::CreateTexture(unsigned int width,
 	D3D11_CPU_ACCESS_FLAG cpu_access = (D3D11_CPU_ACCESS_FLAG)0;
 	D3D11_SUBRESOURCE_DATA srdata, *data = NULL;
 
-	// TODO: remove hax
-	tex_levels = 1;
-
-	if (1 == tex_levels)
+	if (tex_levels == 1)
 	{
 		usage = D3D11_USAGE_DYNAMIC;
 		cpu_access = D3D11_CPU_ACCESS_WRITE;
 
 		srdata.pSysMem = TextureCache::temp;
 		srdata.SysMemPitch = 4 * expanded_width;
-		// testing
-		//data = &srdata;
+
+		data = &srdata;
 	}
 
 	const D3D11_TEXTURE2D_DESC texdesc = CD3D11_TEXTURE2D_DESC(DXGI_FORMAT_R8G8B8A8_UNORM,
@@ -110,9 +104,6 @@ TextureCache::TCacheEntryBase* TextureCache::CreateTexture(unsigned int width,
 
 	SAFE_RELEASE(pTexture);
 
-	if (0 == tex_levels)
-		PD3DX11FilterTexture(D3D::context, entry->texture->GetTex(), 0, D3DX11_DEFAULT);
-
 	return entry;
 }
 
@@ -120,6 +111,7 @@ void TextureCache::TCacheEntry::FromRenderTarget(bool bFromZBuffer,	bool bScaleB
 	unsigned int cbufid, const float colmat[], const EFBRectangle &source_rect,
 	bool bIsIntensityFmt, u32 copyfmt)
 {
+	g_renderer->ResetAPIState();
 	// stretch picture with increased internal resolution
 	const D3D11_VIEWPORT vp = CD3D11_VIEWPORT(0.f, 0.f, (float)virtualW, (float)virtualH);
 	D3D::context->RSSetViewports(1, &vp);
@@ -136,7 +128,7 @@ void TextureCache::TCacheEntry::FromRenderTarget(bool bFromZBuffer,	bool bScaleB
 	}
 	D3D::context->PSSetConstantBuffers(0, 1, &efbcopycbuf[cbufid]);
 
-	const TargetRectangle targetSource = Renderer::ConvertEFBRectangle(source_rect);
+	const TargetRectangle targetSource = g_renderer->ConvertEFBRectangle(source_rect);
 	// TODO: try targetSource.asRECT();
 	const D3D11_RECT sourcerect = CD3D11_RECT(targetSource.left, targetSource.top, targetSource.right, targetSource.bottom);
 
@@ -146,23 +138,17 @@ void TextureCache::TCacheEntry::FromRenderTarget(bool bFromZBuffer,	bool bScaleB
 	else
 		D3D::SetPointCopySampler();
 
-	D3D::stateman->PushBlendState(efbcopyblendstate);
-	D3D::stateman->PushRasterizerState(efbcopyraststate);
-	D3D::stateman->PushDepthState(efbcopydepthstate);
-
 	D3D::context->OMSetRenderTargets(1, &texture->GetRTV(), NULL);
-	
+
 	D3D::drawShadedTexQuad(
-		(bFromZBuffer) ? g_framebufferManager.GetEFBDepthTexture()->GetSRV() : g_framebufferManager.GetEFBColorTexture()->GetSRV(),
+		(bFromZBuffer) ? FramebufferManager::GetEFBDepthTexture()->GetSRV() : FramebufferManager::GetEFBColorTexture()->GetSRV(),
 		&sourcerect, Renderer::GetFullTargetWidth(), Renderer::GetFullTargetHeight(),
-		(bFromZBuffer) ? PixelShaderCache::GetDepthMatrixProgram() : PixelShaderCache::GetColorMatrixProgram(),
+		(bFromZBuffer) ? PixelShaderCache::GetDepthMatrixProgram(true) : PixelShaderCache::GetColorMatrixProgram(true),
 		VertexShaderCache::GetSimpleVertexShader(), VertexShaderCache::GetSimpleInputLayout());
 
-	D3D::context->OMSetRenderTargets(1, &g_framebufferManager.GetEFBColorTexture()->GetRTV(), g_framebufferManager.GetEFBDepthTexture()->GetDSV());
+	D3D::context->OMSetRenderTargets(1, &FramebufferManager::GetEFBColorTexture()->GetRTV(), FramebufferManager::GetEFBDepthTexture()->GetDSV());
 	
-	D3D::stateman->PopBlendState();
-	D3D::stateman->PopDepthState();
-	D3D::stateman->PopRasterizerState();
+	g_renderer->RestoreAPIState();
 }
 
 TextureCache::TCacheEntryBase* TextureCache::CreateRenderTargetTexture(
@@ -175,56 +161,10 @@ TextureCache::TCacheEntryBase* TextureCache::CreateRenderTargetTexture(
 
 TextureCache::TextureCache()
 {
-	HRESULT hr;
-
-	D3D11_BLEND_DESC blenddesc;
-	blenddesc.AlphaToCoverageEnable = FALSE;
-	blenddesc.IndependentBlendEnable = FALSE;
-	blenddesc.RenderTarget[0].BlendEnable = FALSE;
-	blenddesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
-	blenddesc.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
-	blenddesc.RenderTarget[0].DestBlend = D3D11_BLEND_ZERO;
-	blenddesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
-	blenddesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
-	blenddesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
-	blenddesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
-	hr = D3D::device->CreateBlendState(&blenddesc, &efbcopyblendstate);
-	CHECK(hr==S_OK, "Create blend state for CopyRenderTargetToTexture");
-	D3D::SetDebugObjectName((ID3D11DeviceChild*)efbcopyblendstate, "blend state used in CopyRenderTargetToTexture");
-
-	D3D11_DEPTH_STENCIL_DESC depthdesc;
-	depthdesc.DepthEnable        = FALSE;
-	depthdesc.DepthWriteMask     = D3D11_DEPTH_WRITE_MASK_ALL;
-	depthdesc.DepthFunc          = D3D11_COMPARISON_LESS;
-	depthdesc.StencilEnable      = FALSE;
-	depthdesc.StencilReadMask    = D3D11_DEFAULT_STENCIL_READ_MASK;
-	depthdesc.StencilWriteMask   = D3D11_DEFAULT_STENCIL_WRITE_MASK;
-	hr = D3D::device->CreateDepthStencilState(&depthdesc, &efbcopydepthstate);
-	CHECK(hr==S_OK, "Create depth state for CopyRenderTargetToTexture");
-	D3D::SetDebugObjectName((ID3D11DeviceChild*)efbcopydepthstate, "depth stencil state used in CopyRenderTargetToTexture");
-
-	D3D11_RASTERIZER_DESC rastdesc;
-	rastdesc.CullMode = D3D11_CULL_NONE;
-	rastdesc.FillMode = D3D11_FILL_SOLID;
-	rastdesc.FrontCounterClockwise = false;
-	rastdesc.DepthBias = false;
-	rastdesc.DepthBiasClamp = 0;
-	rastdesc.SlopeScaledDepthBias = 0;
-	rastdesc.DepthClipEnable = false;
-	rastdesc.ScissorEnable = false;
-	rastdesc.MultisampleEnable = false;
-	rastdesc.AntialiasedLineEnable = false;
-	hr = D3D::device->CreateRasterizerState(&rastdesc, &efbcopyraststate);
-	CHECK(hr==S_OK, "Create rasterizer state for CopyRenderTargetToTexture");
-	D3D::SetDebugObjectName((ID3D11DeviceChild*)efbcopyraststate, "rasterizer state used in CopyRenderTargetToTexture");
 }
 
 TextureCache::~TextureCache()
 {
-	SAFE_RELEASE(efbcopyblendstate);
-	SAFE_RELEASE(efbcopyraststate);
-	SAFE_RELEASE(efbcopydepthstate);
-
 	for (unsigned int k = 0; k < 20; ++k)
 		SAFE_RELEASE(efbcopycbuf[k]);
 }

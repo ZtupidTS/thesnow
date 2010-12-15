@@ -40,6 +40,7 @@
 #include "XFStructs.h"
 
 #include "Globals.h"
+#include "Debugger.h"
 
 // internal state for loading vertices
 extern NativeVertexFormat *g_nativeVertexFmt;
@@ -82,15 +83,7 @@ void VertexManager::DestroyDeviceObjects()
 	SAFE_RELEASE(m_indexBuffer);
 }
 
-VertexManager::VertexManager() :
-	m_indexBufferCursor(0),
-	m_vertexBufferCursor(0),
-	m_vertexDrawOffset(0),
-	m_triangleDrawIndex(0),
-	m_lineDrawIndex(0),
-	m_pointDrawIndex(0),
-	m_indexBuffer(NULL),
-	m_vertexBuffer(NULL)
+VertexManager::VertexManager()
 {
 	CreateDeviceObjects();
 }
@@ -194,7 +187,7 @@ void VertexManager::vFlush()
 	{
 		if (usedtextures & (1 << i))
 		{
-			Renderer::SetSamplerState(i & 3, i >> 2);
+			g_renderer->SetSamplerState(i & 3, i >> 2);
 			const FourTexUnits &tex = bpmem.tex[i >> 2];
 			const TextureCache::TCacheEntryBase* tentry = TextureCache::Load(i, 
 				(tex.texImage3[i&3].image_base/* & 0x1FFFFF*/) << 5,
@@ -226,9 +219,15 @@ void VertexManager::vFlush()
 	if (!PixelShaderCache::SetShader(
 		useDstAlpha ? DSTALPHA_DUAL_SOURCE_BLEND : DSTALPHA_NONE,
 		g_nativeVertexFmt->m_components))
+	{
+		GFX_DEBUGGER_PAUSE_LOG_AT(NEXT_ERROR,true,{printf("Fail to set pixel shader\n");});
 		goto shader_fail;
+	}
 	if (!VertexShaderCache::SetShader(g_nativeVertexFmt->m_components))
+	{
+		GFX_DEBUGGER_PAUSE_LOG_AT(NEXT_ERROR,true,{printf("Fail to set pixel shader\n");});
 		goto shader_fail;
+	}
 
 	unsigned int stride = g_nativeVertexFmt->GetVertexStride();
 	g_nativeVertexFmt->SetupVertexPointers();
@@ -237,6 +236,8 @@ void VertexManager::vFlush()
 	Draw(stride);
 
 	D3D::gfxstate->Reset();
+
+	GFX_DEBUGGER_PAUSE_AT(NEXT_FLUSH, true);
 
 shader_fail:
 	ResetBuffer();

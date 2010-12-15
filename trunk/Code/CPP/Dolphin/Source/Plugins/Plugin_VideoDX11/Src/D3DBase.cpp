@@ -30,6 +30,14 @@ D3DX11FILTERTEXTURETYPE PD3DX11FilterTexture = NULL;
 D3DX11SAVETEXTURETOFILEATYPE PD3DX11SaveTextureToFileA = NULL;
 D3DX11SAVETEXTURETOFILEWTYPE PD3DX11SaveTextureToFileW = NULL;
 
+CREATEDXGIFACTORY PCreateDXGIFactory = NULL;
+HINSTANCE hDXGIDll = NULL;
+
+typedef HRESULT (WINAPI* D3D11CREATEDEVICEANDSWAPCHAIN)(IDXGIAdapter*, D3D_DRIVER_TYPE, HMODULE, UINT, CONST D3D_FEATURE_LEVEL*, UINT, UINT, CONST DXGI_SWAP_CHAIN_DESC*, IDXGISwapChain**, ID3D11Device**, D3D_FEATURE_LEVEL*, ID3D11DeviceContext**);
+D3D11CREATEDEVICE PD3D11CreateDevice = NULL;
+D3D11CREATEDEVICEANDSWAPCHAIN PD3D11CreateDeviceAndSwapChain = NULL;
+HINSTANCE hD3DDll = NULL;
+
 namespace D3D
 {
 
@@ -39,6 +47,8 @@ IDXGISwapChain* swapchain = NULL;
 D3D_FEATURE_LEVEL featlevel;
 D3DTexture2D* backbuf = NULL;
 HWND hWnd;
+
+std::vector<DXGI_SAMPLE_DESC> aa_modes; // supported AA modes of the current adapter
 
 bool bgra_textures_supported;
 
@@ -53,15 +63,42 @@ unsigned int xres, yres;
 
 bool bFrameInProgress = false;
 
-HRESULT Create(HWND wnd)
+HRESULT LoadDXGI()
 {
-	hWnd = wnd;
-	HRESULT hr;
+	if (hDXGIDll) return S_OK;
+	hDXGIDll = LoadLibraryA("dxgi.dll");
+	if (!hDXGIDll)
+	{
+		MessageBoxA(NULL, "Failed to load dxgi.dll", "Critical error", MB_OK | MB_ICONERROR);
+		return E_FAIL;
+	}
+	PCreateDXGIFactory = (CREATEDXGIFACTORY)GetProcAddress(hDXGIDll, "CreateDXGIFactory");
+	if (PCreateDXGIFactory == NULL) MessageBoxA(NULL, "GetProcAddress failed for CreateDXGIFactory!", "Critical error", MB_OK | MB_ICONERROR);
 
-	RECT client;
-	GetClientRect(hWnd, &client);
-	xres = client.right - client.left;
-	yres = client.bottom - client.top;
+	return S_OK;
+}
+
+HRESULT LoadD3D()
+{
+	if (hD3DDll) return S_OK;
+	hD3DDll = LoadLibraryA("d3d11.dll");
+	if (!hD3DDll)
+	{
+		MessageBoxA(NULL, "Failed to load d3d11.dll", "Critical error", MB_OK | MB_ICONERROR);
+		return E_FAIL;
+	}
+	PD3D11CreateDevice = (D3D11CREATEDEVICE)GetProcAddress(hD3DDll, "D3D11CreateDevice");
+	if (PD3D11CreateDevice == NULL) MessageBoxA(NULL, "GetProcAddress failed for D3D11CreateDevice!", "Critical error", MB_OK | MB_ICONERROR);
+
+	PD3D11CreateDeviceAndSwapChain = (D3D11CREATEDEVICEANDSWAPCHAIN)GetProcAddress(hD3DDll, "D3D11CreateDeviceAndSwapChain");
+	if (PD3D11CreateDeviceAndSwapChain == NULL) MessageBoxA(NULL, "GetProcAddress failed for D3D11CreateDeviceAndSwapChain!", "Critical error", MB_OK | MB_ICONERROR);
+
+	return S_OK;
+}
+
+HRESULT LoadD3DX()
+{
+	if (hD3DXDll) return S_OK;
 
 	// try to load D3DX11 first to check whether we have proper runtime support
 	// try to use the dll the plugin was compiled against first - don't bother about debug runtimes
@@ -93,11 +130,99 @@ HRESULT Create(HWND wnd)
 	PD3DX11SaveTextureToFileW = (D3DX11SAVETEXTURETOFILEWTYPE)GetProcAddress(hD3DXDll, "D3DX11SaveTextureToFileW");
 	if (PD3DX11SaveTextureToFileW == NULL) MessageBoxA(NULL, "GetProcAddress failed for D3DX11SaveTextureToFileW!", "Critical error", MB_OK | MB_ICONERROR);
 
-	// D3DX11 is fine, initialize D3D11
+	return S_OK;
+}
+
+void UnloadDXGI()
+{
+	if(hDXGIDll) FreeLibrary(hDXGIDll);
+	hDXGIDll = NULL;
+	PCreateDXGIFactory = NULL;
+}
+
+void UnloadD3DX()
+{
+	if(hD3DXDll) FreeLibrary(hD3DXDll);
+	hD3DXDll = NULL;
+	PD3DX11FilterTexture = NULL;
+	PD3DX11SaveTextureToFileA = NULL;
+	PD3DX11SaveTextureToFileW = NULL;
+}
+
+void UnloadD3D()
+{
+	if(hD3DDll) FreeLibrary(hD3DDll);
+	hD3DDll = NULL;
+	PD3D11CreateDevice = NULL;
+	PD3D11CreateDeviceAndSwapChain = NULL;
+}
+
+void EnumAAModes(IDXGIAdapter* adapter, std::vector<DXGI_SAMPLE_DESC>& aa_modes)
+{
+	aa_modes.clear();
+
+	// NOTE: D3D 10.0 doesn't support multisampled resources which are bound as depth buffers AND shader resources.
+	// Thus, we can't have MSAA with 10.0 level hardware.
+	ID3D11Device* device;
+	ID3D11DeviceContext* context;
+	D3D_FEATURE_LEVEL feat_level;
+	HRESULT hr = PD3D11CreateDevice(adapter, D3D_DRIVER_TYPE_UNKNOWN, NULL, D3D11_CREATE_DEVICE_SINGLETHREADED, supported_feature_levels, NUM_SUPPORTED_FEATURE_LEVELS, D3D11_SDK_VERSION, &device, &feat_level, &context);
+	if (FAILED(hr) || feat_level == D3D_FEATURE_LEVEL_10_0)
+	{
+		DXGI_SAMPLE_DESC desc;
+		desc.Count = 1;
+		desc.Quality = 0;
+		aa_modes.push_back(desc);
+		SAFE_RELEASE(context);
+		SAFE_RELEASE(device);
+		return;
+	}
+
+	for (int samples = 0; samples < D3D11_MAX_MULTISAMPLE_SAMPLE_COUNT; ++samples)
+	{
+		UINT quality_levels = 0;
+		device->CheckMultisampleQualityLevels(DXGI_FORMAT_R8G8B8A8_UNORM, samples, &quality_levels);
+		if (quality_levels > 0) {
+			DXGI_SAMPLE_DESC desc;
+			desc.Count = samples;
+			for (desc.Quality = 0; desc.Quality < quality_levels; ++desc.Quality)
+				aa_modes.push_back(desc);
+		}
+	}
+
+	context->Release();
+	device->Release();
+}
+
+DXGI_SAMPLE_DESC GetAAMode(int index)
+{
+	return aa_modes[index];
+}
+
+HRESULT Create(HWND wnd)
+{
+	hWnd = wnd;
+	HRESULT hr;
+
+	RECT client;
+	GetClientRect(hWnd, &client);
+	xres = client.right - client.left;
+	yres = client.bottom - client.top;
+
+	hr = LoadDXGI();
+	if (SUCCEEDED(hr)) hr = LoadD3D();
+	if (SUCCEEDED(hr)) hr = LoadD3DX();
+	if (FAILED(hr))
+	{
+		UnloadDXGI();
+		UnloadD3D();
+		return hr;
+	}
+
 	IDXGIFactory* factory;
 	IDXGIAdapter* adapter;
 	IDXGIOutput* output;
-	hr = CreateDXGIFactory(__uuidof(IDXGIFactory), (void**)&factory);
+	hr = PCreateDXGIFactory(__uuidof(IDXGIFactory), (void**)&factory);
 	if (FAILED(hr)) MessageBox(wnd, _T("Failed to create IDXGIFactory object"), _T("Dolphin Direct3D 11 plugin"), MB_OK | MB_ICONERROR);
 
 	hr = factory->EnumAdapters(g_ActiveConfig.iAdapter, &adapter);
@@ -117,7 +242,15 @@ HRESULT Create(HWND wnd)
 		if (FAILED(hr)) MessageBox(wnd, _T("Failed to enumerate outputs"), _T("Dolphin Direct3D 11 plugin"), MB_OK | MB_ICONERROR);
 	}
 
-	// this will need to be changed once multisampling gets implemented
+	// get supported AA modes
+	aa_modes.clear();
+	EnumAAModes(adapter, aa_modes);
+	if (g_Config.iMultisampleMode >= (int)aa_modes.size())
+	{
+		g_Config.iMultisampleMode = 0;
+		UpdateActiveConfig();
+	}
+
 	DXGI_SWAP_CHAIN_DESC swap_chain_desc;
 	memset(&swap_chain_desc, 0, sizeof(swap_chain_desc));
 	swap_chain_desc.BufferCount = 1;
@@ -145,7 +278,7 @@ HRESULT Create(HWND wnd)
 #else
 	D3D11_CREATE_DEVICE_FLAG device_flags = D3D11_CREATE_DEVICE_SINGLETHREADED;
 #endif
-	hr = D3D11CreateDeviceAndSwapChain(adapter, D3D_DRIVER_TYPE_UNKNOWN, NULL, device_flags,
+	hr = PD3D11CreateDeviceAndSwapChain(adapter, D3D_DRIVER_TYPE_UNKNOWN, NULL, device_flags,
 										supported_feature_levels, NUM_SUPPORTED_FEATURE_LEVELS,
 										D3D11_SDK_VERSION, &swap_chain_desc, &swapchain, &device,
 										&featlevel, &context);
@@ -192,12 +325,6 @@ HRESULT Create(HWND wnd)
 
 void Close()
 {
-	// unload D3DX11
-	FreeLibrary(hD3DXDll);
-	PD3DX11FilterTexture = NULL;
-	PD3DX11SaveTextureToFileA = NULL;
-	PD3DX11SaveTextureToFileW = NULL;
-
 	// release all bound resources
 	context->ClearState();
 	SAFE_RELEASE(backbuf);
@@ -217,11 +344,27 @@ void Close()
 		NOTICE_LOG(VIDEO, "Successfully released all device references!");
 	}
 	device = NULL;
+
+	// unload DLLs
+	UnloadD3DX();
+	UnloadD3D();
+	UnloadDXGI();
 }
 
 /* just returning the 4_0 ones here */
-const char* VertexShaderVersionString() { return "vs_4_0"; }
-const char* PixelShaderVersionString() { return "ps_4_0"; }
+const char* VertexShaderVersionString()
+{
+	if(featlevel == D3D_FEATURE_LEVEL_11_0) return "vs_5_0";
+	else if(featlevel == D3D_FEATURE_LEVEL_10_1) return "vs_4_1";
+	else /*if(featlevel == D3D_FEATURE_LEVEL_10_0)*/ return "vs_4_0";
+}
+
+const char* PixelShaderVersionString()
+{
+	if(featlevel == D3D_FEATURE_LEVEL_11_0) return "ps_5_0";
+	else if(featlevel == D3D_FEATURE_LEVEL_10_1) return "ps_4_1";
+	else /*if(featlevel == D3D_FEATURE_LEVEL_10_0)*/ return "ps_4_0";
+}
 
 D3DTexture2D* &GetBackBuffer() { return backbuf; }
 unsigned int GetBackBufferWidth() { return xres; }
@@ -235,11 +378,11 @@ unsigned int GetMaxTextureSize()
 	switch (featlevel)
 	{
 		case D3D_FEATURE_LEVEL_11_0:
-			return 16384;
+			return D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
 
 		case D3D_FEATURE_LEVEL_10_1:
 		case D3D_FEATURE_LEVEL_10_0:
-			return 8192;
+			return D3D10_REQ_TEXTURE2D_U_OR_V_DIMENSION;
 
 		case D3D_FEATURE_LEVEL_9_3:
 			return 4096;

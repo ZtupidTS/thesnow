@@ -299,7 +299,6 @@ int CD3DFont::Init()
 	CHECK(hr==S_OK, "Create font blend state");
 	D3D::SetDebugObjectName((ID3D11DeviceChild*)m_blendstate, "blend state of a CD3DFont object");
 
-	// this might need to be changed when adding multisampling support
 	D3D11_RASTERIZER_DESC rastdesc = CD3D11_RASTERIZER_DESC(D3D11_FILL_SOLID, D3D11_CULL_NONE, false, 0, 0.f, 0.f, false, false, false, false);
 	hr = D3D::device->CreateRasterizerState(&rastdesc, &m_raststate);
 	CHECK(hr==S_OK, "Create font rasterizer state");
@@ -329,7 +328,7 @@ int CD3DFont::Shutdown()
 	return S_OK;
 }
 
-int CD3DFont::DrawTextScaled(float x, float y, float size, float spacing, u32 dwColor, const char* strText, bool center)
+int CD3DFont::DrawTextScaled(float x, float y, float size, float spacing, u32 dwColor, const char* strText)
 {
 	if (!m_pVB)
 		return 0;
@@ -355,25 +354,6 @@ int CD3DFont::DrawTextScaled(float x, float y, float size, float spacing, u32 dw
 	if (FAILED(hr)) PanicAlert("Mapping vertex buffer failed, %s %d\n", __FILE__, __LINE__);
 	pVertices = (D3D::FONT2DVERTEX*)vbmap.pData;
 
-	// if center was requested, set current position as centre
-	// this is currently never used
-	if (center)
-	{
-		const char *oldText = strText;
-		float mx=0;
-		float maxx=0;
-
-		while (c = *strText++)
-		{
-			if (c == ('\n')) mx = 0;
-			if (c <  (' ') ) continue;
-			c -= 32;
-			mx += (m_fTexCoords[c][2]-m_fTexCoords[c][0])/(m_fTexCoords[0][3] - m_fTexCoords[0][1]) + spacing;
-			if (mx > maxx) maxx = mx;
-		}
-		sx -= scalex*maxx*size;
-		strText = oldText;
-	}
 	// set general pipeline state
 	D3D::stateman->PushBlendState(m_blendstate);
 	D3D::stateman->PushRasterizerState(m_raststate);
@@ -489,12 +469,12 @@ void InitUtils()
 	util_vbuf = new UtilVertexBuffer(0x4000);
 
 	float border[4] = { 0.f, 0.f, 0.f, 0.f };
-	D3D11_SAMPLER_DESC samDesc = CD3D11_SAMPLER_DESC(D3D11_FILTER_MIN_MAG_MIP_POINT, D3D11_TEXTURE_ADDRESS_BORDER, D3D11_TEXTURE_ADDRESS_BORDER, D3D11_TEXTURE_ADDRESS_BORDER, 0.f, 1, D3D11_COMPARISON_ALWAYS, border, -D3D11_FLOAT32_MAX, D3D11_FLOAT32_MAX);
+	D3D11_SAMPLER_DESC samDesc = CD3D11_SAMPLER_DESC(D3D11_FILTER_MIN_MAG_MIP_POINT, D3D11_TEXTURE_ADDRESS_BORDER, D3D11_TEXTURE_ADDRESS_BORDER, D3D11_TEXTURE_ADDRESS_BORDER, 0.f, 1, D3D11_COMPARISON_ALWAYS, border, 0.f, 0.f);
 	HRESULT hr = D3D::device->CreateSamplerState(&samDesc, &point_copy_sampler);
 	if (FAILED(hr)) PanicAlert("Failed to create sampler state at %s %d\n", __FILE__, __LINE__);
 	else SetDebugObjectName((ID3D11DeviceChild*)point_copy_sampler, "point copy sampler state");
 
-	samDesc = CD3D11_SAMPLER_DESC(D3D11_FILTER_MIN_MAG_MIP_LINEAR, D3D11_TEXTURE_ADDRESS_BORDER, D3D11_TEXTURE_ADDRESS_BORDER, D3D11_TEXTURE_ADDRESS_BORDER, 0.f, 1, D3D11_COMPARISON_ALWAYS, border, -D3D11_FLOAT32_MAX, D3D11_FLOAT32_MAX);
+	samDesc = CD3D11_SAMPLER_DESC(D3D11_FILTER_MIN_MAG_MIP_LINEAR, D3D11_TEXTURE_ADDRESS_BORDER, D3D11_TEXTURE_ADDRESS_BORDER, D3D11_TEXTURE_ADDRESS_BORDER, 0.f, 1, D3D11_COMPARISON_ALWAYS, border, 0.f, 0.f);
 	hr = D3D::device->CreateSamplerState(&samDesc, &linear_copy_sampler);
 	if (FAILED(hr)) PanicAlert("Failed to create sampler state at %s %d\n", __FILE__, __LINE__);
 	else SetDebugObjectName((ID3D11DeviceChild*)linear_copy_sampler, "linear copy sampler state");
