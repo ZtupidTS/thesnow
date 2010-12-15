@@ -106,11 +106,11 @@ void CFrame::CreateMenu()
 
 	// file menu
 	wxMenu* fileMenu = new wxMenu;
-	fileMenu->Append(wxID_OPEN, _T("打开游戏镜像(&O)...\tCtrl+O"));
+	fileMenu->Append(wxID_OPEN, _T("打开(&O)...\tCtrl+O"));
 	fileMenu->Append(IDM_CHANGEDISC, _T("Change &Disc..."));
 
 	wxMenu *externalDrive = new wxMenu;
-	fileMenu->Append(IDM_DRIVES, _T("从驱动器启动(&B)..."), externalDrive);
+	fileMenu->Append(IDM_DRIVES, _T("从DVD驱动器启动(&B)..."), externalDrive);
 	
 	drives = cdio_get_devices();
 	// Windows Limitation of 24 character drives
@@ -119,18 +119,18 @@ void CFrame::CreateMenu()
 	}
 
 	fileMenu->AppendSeparator();
-	fileMenu->Append(wxID_REFRESH, _T("刷新游戏列表(&R)"));
+	fileMenu->Append(wxID_REFRESH, _T("刷新列表(&R)"));
 	fileMenu->AppendSeparator();
-	fileMenu->Append(IDM_BROWSE, _T("选择镜像目录(&B)..."));
+	fileMenu->Append(IDM_BROWSE, _T("浏览ISO镜像(&B)..."));
 	fileMenu->AppendSeparator();
-	fileMenu->Append(wxID_EXIT, _T("退出本模拟器(&X)\tAlt+F4"));
-	m_MenuBar->Append(fileMenu, _T("游戏(&F)"));
+	fileMenu->Append(wxID_EXIT, _T("退出模拟器(&X)\tAlt+F4"));
+	m_MenuBar->Append(fileMenu, _T("文件(&F)"));
 
 	// Emulation menu
 	wxMenu* emulationMenu = new wxMenu;
 	emulationMenu->Append(IDM_PLAY, GetMenuLabel(HK_PLAY_PAUSE));
 	emulationMenu->Append(IDM_STOP, GetMenuLabel(HK_STOP));
-	emulationMenu->Append(IDM_RESET, _T("重置游戏(&R)"));
+	emulationMenu->Append(IDM_RESET, _T("重置(&R)"));
 	emulationMenu->AppendSeparator();
 	emulationMenu->Append(IDM_TOGGLE_FULLSCREEN, GetMenuLabel(HK_FULLSCREEN));	
 	emulationMenu->AppendSeparator();
@@ -139,10 +139,10 @@ void CFrame::CreateMenu()
 	emulationMenu->Append(IDM_RECORDEXPORT, _T("导出录制(&E)..."));
 	emulationMenu->AppendSeparator();
 	
-	emulationMenu->Append(IDM_FRAMESTEP, _T("帧数步进(&F)"), wxEmptyString, wxITEM_CHECK);
+	emulationMenu->Append(IDM_FRAMESTEP, _T("帧步进(&F)"), wxEmptyString, wxITEM_CHECK);
 
 	wxMenu *skippingMenu = new wxMenu;
-	emulationMenu->AppendSubMenu(skippingMenu, _T("跳帧加速(&K)"));
+	emulationMenu->AppendSubMenu(skippingMenu, _T("帧跳过(&K)"));
 	for(int i = 0; i < 10; i++)
 		skippingMenu->Append(IDM_FRAMESKIP0 + i, wxString::Format(_T("%i"), i), wxEmptyString, wxITEM_RADIO);
 
@@ -152,14 +152,14 @@ void CFrame::CreateMenu()
 	emulationMenu->AppendSeparator();
 	wxMenu *saveMenu = new wxMenu;
 	wxMenu *loadMenu = new wxMenu;
-	emulationMenu->Append(IDM_LOADSTATE, _T("载入状态(&L)"), loadMenu);
+	emulationMenu->Append(IDM_LOADSTATE, _T("载人状态(&L)"), loadMenu);
 	emulationMenu->Append(IDM_SAVESTATE, _T("保存状态(&V)"), saveMenu);
 
-	saveMenu->Append(IDM_SAVESTATEFILE, _T("保存状态文件..."));
+	saveMenu->Append(IDM_SAVESTATEFILE, _T("保存状态.."));
 	loadMenu->Append(IDM_UNDOSAVESTATE, _T("最后覆盖状态\tShift+F12"));
 	saveMenu->AppendSeparator();
 
-	loadMenu->Append(IDM_LOADSTATEFILE, _T("载入状态文件..."));
+	loadMenu->Append(IDM_LOADSTATEFILE, _T("载入状态..."));
 
 	// Reserve F11 for the "step into" function in the debugger
 	if (g_pCodeWindow)
@@ -174,15 +174,15 @@ void CFrame::CreateMenu()
 		loadMenu->Append(IDM_LOADSLOT1 + i - 1, wxString::Format(_T("插槽 %i\tF%i"), i, i));
 		saveMenu->Append(IDM_SAVESLOT1 + i - 1, wxString::Format(_T("插槽 %i\tShift+F%i"), i, i));
 	}
-	m_MenuBar->Append(emulationMenu, _T("模拟(&E)"));
+	m_MenuBar->Append(emulationMenu, _T("模拟器(&E)"));
 
 	// Options menu
 	wxMenu* pOptionsMenu = new wxMenu;
-	pOptionsMenu->Append(wxID_PREFERENCES, _T("程序设置(&N)..."));
+	pOptionsMenu->Append(wxID_PREFERENCES, _T("程序配置(&N)..."));
 	pOptionsMenu->AppendSeparator();
 	pOptionsMenu->Append(IDM_CONFIG_GFX_PLUGIN, _T("图形设置(&G)"));
 	pOptionsMenu->Append(IDM_CONFIG_DSP_PLUGIN, _T("音频设置(&D)"));
-	pOptionsMenu->Append(IDM_CONFIG_PAD_PLUGIN, _T("手柄设置(&P)"));
+	pOptionsMenu->Append(IDM_CONFIG_PAD_PLUGIN, _T("控制设置(&P)"));
 	pOptionsMenu->Append(IDM_CONFIG_WIIMOTE_PLUGIN, _T("&Wiimote 设置"));
 	if (g_pCodeWindow)
 	{
@@ -193,12 +193,12 @@ void CFrame::CreateMenu()
 
 	// Tools menu
 	wxMenu* toolsMenu = new wxMenu;
-	toolsMenu->Append(IDM_LUA, _T("新 &Lua 控制台"));
+	toolsMenu->Append(IDM_LUA, _T("新建 &Lua 控制台"));
 	toolsMenu->Append(IDM_MEMCARD, _T("内存卡管理器(GC)(&M)"));
 	toolsMenu->Append(IDM_IMPORTSAVE, _T("Wii 存档导入"));
 	toolsMenu->Append(IDM_CHEATS, _T("金手指管理器(&C)"));
 
-	toolsMenu->Append(IDM_NETPLAY, _T("开始网络游戏(&N)"));
+	toolsMenu->Append(IDM_NETPLAY, _T("开始网络对战(&N)"));
 
 	if (DiscIO::CNANDContentManager::Access().GetNANDLoader(TITLEID_SYSMENU).IsValid())
 	{
@@ -219,11 +219,11 @@ void CFrame::CreateMenu()
 	wxMenu* viewMenu = new wxMenu;
 	viewMenu->AppendCheckItem(IDM_TOGGLE_TOOLBAR, _T("显示工具栏(&T)"));
 	viewMenu->Check(IDM_TOGGLE_TOOLBAR, SConfig::GetInstance().m_InterfaceToolbar);
-	viewMenu->AppendCheckItem(IDM_TOGGLE_STATUSBAR, _T("显示状态栏 (&S)"));
+	viewMenu->AppendCheckItem(IDM_TOGGLE_STATUSBAR, _T("显示状态栏(&S)"));
 	viewMenu->Check(IDM_TOGGLE_STATUSBAR, SConfig::GetInstance().m_InterfaceStatusbar);
 	viewMenu->AppendSeparator();
 	viewMenu->AppendCheckItem(IDM_LOGWINDOW, _T("显示日志窗口(&L)"));
-	viewMenu->AppendCheckItem(IDM_CONSOLEWINDOW, _T("显示控制台(&C)"));
+	viewMenu->AppendCheckItem(IDM_CONSOLEWINDOW, _T("显示控制台窗口(&C)"));
 	viewMenu->AppendSeparator();
 
 	if (g_pCodeWindow)
@@ -232,12 +232,12 @@ void CFrame::CreateMenu()
 		viewMenu->Check(IDM_CONSOLEWINDOW, g_pCodeWindow->bShowOnStart[1]);
 
 		const wxString MenuText[] = {
-			wxT("&Registers"),
-			wxT("&Breakpoints"),
-			wxT("&Memory"),
-			wxT("&JIT"),
-			wxT("&Sound"),
-			wxT("&Video")
+			wxT("寄存器(&R)"),
+			wxT("断点(&B)"),
+			wxT("内存(&M)"),
+			wxT("编译器(&J)"),
+			wxT("音频(&S)"),
+			wxT("视频(&V)")
 		};
 
 		for (int i = IDM_REGISTERWINDOW; i <= IDM_VIDEOWINDOW; i++)
@@ -284,8 +284,8 @@ void CFrame::CreateMenu()
 	regionMenu->Check(IDM_LIST_UNK, SConfig::GetInstance().m_ListUnknown);
 	viewMenu->AppendCheckItem(IDM_LISTDRIVES, _T("显示驱动器"));
 	viewMenu->Check(IDM_LISTDRIVES, SConfig::GetInstance().m_ListDrives);
-	viewMenu->Append(IDM_PURGECACHE, _T("清理缓存"));
-	m_MenuBar->Append(viewMenu, _T("查看(&V)"));	
+	viewMenu->Append(IDM_PURGECACHE, _T("清除缓存"));
+	m_MenuBar->Append(viewMenu, _T("视图(&V)"));	
 
 	if (g_pCodeWindow) g_pCodeWindow->CreateMenu(SConfig::GetInstance().m_LocalCoreStartupParameter, m_MenuBar);
 
@@ -294,7 +294,7 @@ void CFrame::CreateMenu()
 	// Re-enable when there's something useful to display */
 	// helpMenu->Append(wxID_HELP, _T("&Help"));
 	helpMenu->Append(IDM_HELPWEBSITE, _T("Dolphin (Mod) 网站(&W)"));
-	helpMenu->Append(IDM_HELPGOOGLECODE, _T("Dolphin (Mod) &Google 代码"));
+	helpMenu->Append(IDM_HELPGOOGLECODE, _T("Dolphin (Mod) &GoogleCode"));
 	helpMenu->AppendSeparator();
 	helpMenu->Append(wxID_ABOUT, _T("关于(&A)..."));
 	m_MenuBar->Append(helpMenu, _T("帮助(&H)"));
@@ -309,19 +309,19 @@ wxString CFrame::GetMenuLabel(int Id)
 	switch (Id)
 	{
 		case HK_FULLSCREEN:
-			Label = _T("全屏显示(&F)\t");
+			Label = _T("全屏(&F)\t");
 			break;
 		case HK_PLAY_PAUSE:
 			if (Core::GetState() == Core::CORE_RUN)
-				Label = _T("暂停游戏(&P)\t");
+				Label = _T("暂停(&P)\t");
 			else
-				Label = _T("开始游戏(&P)\t");
+				Label = _T("开始(&P)\t");
 			break;
 		case HK_STOP:
-			Label = _T("停止游戏(&S)\t");
+			Label = _T("停止(&S)\t");
 			break;
 		case HK_SCREENSHOT:
-			Label = _T("Take Screenshot\t");
+			Label = _T("截图\t");
 			break;
 		case HK_WIIMOTE1_CONNECT:
 		case HK_WIIMOTE2_CONNECT:
@@ -352,7 +352,7 @@ void CFrame::PopulateToolbar(wxAuiToolBar* ToolBar)
 
 	ToolBar->AddTool(wxID_OPEN,    _T("打开"),    m_Bitmaps[Toolbar_FileOpen], _T("打开文件..."));
 	ToolBar->AddTool(wxID_REFRESH, _T("刷新"), m_Bitmaps[Toolbar_Refresh], _T("刷新游戏列表"));
-	ToolBar->AddTool(IDM_BROWSE, _T("浏览"),   m_Bitmaps[Toolbar_Browse], _T("从浏览ISO目录..."));
+	ToolBar->AddTool(IDM_BROWSE, _T("浏览"),   m_Bitmaps[Toolbar_Browse], _T("浏览 ISO 目录..."));
 	ToolBar->AddSeparator();
 	ToolBar->AddTool(IDM_PLAY, wxT("开始"),   m_Bitmaps[Toolbar_Play], _T("开始"));
 	ToolBar->AddTool(IDM_STOP, _T("停止"),   m_Bitmaps[Toolbar_Stop], _T("停止"));
@@ -360,9 +360,9 @@ void CFrame::PopulateToolbar(wxAuiToolBar* ToolBar)
 	ToolBar->AddTool(IDM_SCREENSHOT, _T("截图"),   m_Bitmaps[Toolbar_FullScreen], _T("屏幕截图"));
 	ToolBar->AddSeparator();
 	ToolBar->AddTool(wxID_PREFERENCES, _T("设置"), m_Bitmaps[Toolbar_PluginOptions], _T("设置..."));
-	ToolBar->AddTool(IDM_CONFIG_GFX_PLUGIN, _T("图形"),  m_Bitmaps[Toolbar_PluginGFX], _T("图形设置"));
+	ToolBar->AddTool(IDM_CONFIG_GFX_PLUGIN, _T("视频"),  m_Bitmaps[Toolbar_PluginGFX], _T("图形设置"));
 	ToolBar->AddTool(IDM_CONFIG_DSP_PLUGIN, _T("音频"),  m_Bitmaps[Toolbar_PluginDSP], _T("音频设置"));
-	ToolBar->AddTool(IDM_CONFIG_PAD_PLUGIN, _T("手柄"),  m_Bitmaps[Toolbar_PluginPAD], _T("手柄设置"));
+	ToolBar->AddTool(IDM_CONFIG_PAD_PLUGIN, _T("控制"),  m_Bitmaps[Toolbar_PluginPAD], _T("Gamecube 手柄设置"));
 	ToolBar->AddTool(IDM_CONFIG_WIIMOTE_PLUGIN, _T("Wiimote"),  m_Bitmaps[Toolbar_Wiimote], _T("Wiimote 设置"));
 
 	// after adding the buttons to the toolbar, must call Realize() to reflect
@@ -376,8 +376,8 @@ void CFrame::PopulateToolbarAui(wxAuiToolBar* ToolBar)
 		h = m_Bitmaps[Toolbar_FileOpen].GetHeight();
 	ToolBar->SetToolBitmapSize(wxSize(w, h));
 
-	ToolBar->AddTool(IDM_SAVE_PERSPECTIVE,	wxT("保存"),	g_pCodeWindow->m_Bitmaps[Toolbar_GotoPC], wxT("保存当前 perspective"));
-	ToolBar->AddTool(IDM_EDIT_PERSPECTIVES,	wxT("编辑"),	g_pCodeWindow->m_Bitmaps[Toolbar_GotoPC], wxT("编辑当前 perspective"));
+	ToolBar->AddTool(IDM_SAVE_PERSPECTIVE,	wxT("保存"),	g_pCodeWindow->m_Bitmaps[Toolbar_GotoPC], wxT("保存当前位置"));
+	ToolBar->AddTool(IDM_EDIT_PERSPECTIVES,	wxT("编辑"),	g_pCodeWindow->m_Bitmaps[Toolbar_GotoPC], wxT("编辑当前位置"));
 
 	ToolBar->SetToolDropDown(IDM_SAVE_PERSPECTIVE, true);
 	ToolBar->SetToolDropDown(IDM_EDIT_PERSPECTIVES, true);	
@@ -581,11 +581,11 @@ void CFrame::DoOpen(bool Boot)
 	std::string currentDir = File::GetCurrentDir();
 
 	wxString path = wxFileSelector(
-			_T("选择须载入文件"),
+			_T("选择要载入的文件"),
 			wxEmptyString, wxEmptyString, wxEmptyString,
 			wxString::Format
 			(
-					_T("所有 GC/Wii 文件 (elf, dol, gcm, iso, wad)|*.elf;*.dol;*.gcm;*.iso;*.gcz;*.wad|所有文件 (%s)|%s"),
+					_T("所有 GC/Wii 文件 (elf, dol, gcm, iso, wad)|*.elf;*.dol;*.gcm;*.iso;*.gcz;*.wad|所有文件(%s)|%s"),
 					wxFileSelectorDefaultWildcardStr,
 					wxFileSelectorDefaultWildcardStr
 			),
@@ -645,11 +645,11 @@ void CFrame::OnRecord(wxCommandEvent& WXUNUSED (event))
 void CFrame::OnPlayRecording(wxCommandEvent& WXUNUSED (event))
 {
 	wxString path = wxFileSelector(
-			_T("选择录制文件"),
+			_T("选择记录文件"),
 			wxEmptyString, wxEmptyString, wxEmptyString,
 			wxString::Format
 			(
-					_T("Dolphin TAS 电影 (*.dtm)|*.dtm|所有文件 (%s)|%s"),
+					_T("Dolphin TAS 电影 (*.dtm)|*.dtm|所有文件(%s)|%s"),
 					wxFileSelectorDefaultWildcardStr,
 					wxFileSelectorDefaultWildcardStr
 			),
@@ -815,6 +815,11 @@ void CFrame::StartGame(const std::string& filename)
 	}
 	else
 	{
+#if defined(HAVE_XDG_SCREENSAVER) && HAVE_XDG_SCREENSAVER
+		X11Utils::InhibitScreensaver(X11Utils::XDisplayFromHandle(GetHandle()),
+				X11Utils::XWindowFromHandle(GetHandle()), true);
+#endif
+
 		DoFullscreen(SConfig::GetInstance().m_LocalCoreStartupParameter.bFullscreen);
 
 #ifdef _WIN32
@@ -888,8 +893,8 @@ void CFrame::DoStop()
 		{
 			wxMessageDialog *m_StopDlg = new wxMessageDialog(
 				this,
-				wxT("是否停止当前的模拟?"),
-				wxT("请确认..."),
+				wxT("是否停止当前模拟?"),
+				wxT("请确认.."),
 				wxYES_NO | wxSTAY_ON_TOP | wxICON_EXCLAMATION,
 				wxDefaultPosition);
 
@@ -913,7 +918,12 @@ void CFrame::DoStop()
 			g_pCodeWindow->ToggleDLLWindow(IDM_VIDEOWINDOW, false);
 		}
 
-		Core::Stop();
+		BootManager::Stop();
+
+#if defined(HAVE_XDG_SCREENSAVER) && HAVE_XDG_SCREENSAVER
+		X11Utils::InhibitScreensaver(X11Utils::XDisplayFromHandle(GetHandle()),
+				X11Utils::XWindowFromHandle(GetHandle()), false);
+#endif
 
 		// Destroy the renderer frame when not rendering to main
 		m_RenderParent->Disconnect(wxID_ANY, wxEVT_SIZE,
@@ -1083,7 +1093,7 @@ void CFrame::OnHelp(wxCommandEvent& event)
 		}
 		break;
 	case IDM_HELPWEBSITE:
-		WxUtils::Launch("http://www.dolphin-emu.com/");
+		WxUtils::Launch("http://www.dolphin-emulator.com/");
 		break;
 	case IDM_HELPGOOGLECODE:
 		WxUtils::Launch("http://code.google.com/p/dolphin-emu/");
@@ -1126,11 +1136,11 @@ void CFrame::OnMemcard(wxCommandEvent& WXUNUSED (event))
 
 void CFrame::OnImportSave(wxCommandEvent& WXUNUSED (event)) 
 {
-	wxString path = wxFileSelector(_T("选择存档文件"),
+	wxString path = wxFileSelector(_T("选择保存文件"),
 			wxEmptyString, wxEmptyString, wxEmptyString,
 			wxString::Format
 			(
-					_T("Wii 存档文件|data.bin|所有文件 (%s)|%s"),
+					_T("Wii 存档文件|data.bin|所有文件(%s)|%s"),
 					wxFileSelectorDefaultWildcardStr,
 					wxFileSelectorDefaultWildcardStr
 			),
@@ -1184,7 +1194,7 @@ void CFrame::OnConnectWiimote(wxCommandEvent& event)
 		int Id = event.GetId() - IDM_CONNECT_WIIMOTE1;
 		bNoWiimoteMsg = !event.IsChecked();
 		GetUsbPointer()->AccessWiiMote(Id | 0x100)->Activate(event.IsChecked());
-		wxString msg(wxString::Format(wxT("Wiimote %i %s"), Id + 1, (event.IsChecked()) ? wxT("已连接") : wxT("已断开")));
+		wxString msg(wxString::Format(wxT("Wiimote %i %s"), Id + 1, (event.IsChecked()) ? wxT("已连接") : wxT("未连接")));
 		Core::DisplayMessage(msg.ToAscii(), 3000);
 	}
 }
@@ -1211,11 +1221,11 @@ void CFrame::OnToggleSkipIdle(wxCommandEvent& WXUNUSED (event))
 void CFrame::OnLoadStateFromFile(wxCommandEvent& WXUNUSED (event))
 {
 	wxString path = wxFileSelector(
-		_T("选择需要载入的状态"),
+		_T("选择要载入的状态"),
 		wxEmptyString, wxEmptyString, wxEmptyString,
 		wxString::Format
 		(
-		_T("所有存档状态 (sav, s##)|*.sav;*.s??|所有文件 (%s)|%s"),
+		_T("所有存档状态(sav, s##)|*.sav;*.s??|所有文件(%s)|%s"),
 		wxFileSelectorDefaultWildcardStr,
 		wxFileSelectorDefaultWildcardStr
 		),
@@ -1229,11 +1239,11 @@ void CFrame::OnLoadStateFromFile(wxCommandEvent& WXUNUSED (event))
 void CFrame::OnSaveStateToFile(wxCommandEvent& WXUNUSED (event))
 {
 	wxString path = wxFileSelector(
-		_T("Select the state to save"),
+		_T("选择要保存的状态文件"),
 		wxEmptyString, wxEmptyString, wxEmptyString,
 		wxString::Format
 		(
-		_T("所有存档状态 (sav, s##)|*.sav;*.s??|所有文件 (%s)|%s"),
+		_T("所有存档状态(sav, s##)|*.sav;*.s??|所有文件(%s)|%s"),
 		wxFileSelectorDefaultWildcardStr,
 		wxFileSelectorDefaultWildcardStr
 		),
@@ -1374,7 +1384,7 @@ void CFrame::UpdateGUI()
 		{
 			m_ToolBar->SetToolBitmap(IDM_PLAY, m_Bitmaps[Toolbar_Play]);
 			m_ToolBar->SetToolShortHelp(IDM_PLAY, _("开始"));
-			m_ToolBar->SetToolLabel(IDM_PLAY, wxT(" 开始"));
+			m_ToolBar->SetToolLabel(IDM_PLAY, wxT("开始"));
 		}
 	}
 	

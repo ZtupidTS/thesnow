@@ -88,7 +88,7 @@ struct PortableVertexDeclaration
 
 // Note that this class can't just invent arbitrary vertex formats out of its input - 
 // all the data loading code must always be made compatible.
-class NativeVertexFormat
+class NativeVertexFormat : NonCopyable
 {
 public:
 	virtual ~NativeVertexFormat() {}
@@ -99,18 +99,14 @@ public:
 
 	int GetVertexStride() const { return vertex_stride; }
 
-	static NativeVertexFormat *Create();
-
-	// TODO: move these in under private:
+	// TODO: move this under private:
 	u32 m_components;  // VB_HAS_X. Bitmask telling what vertex components are present.
-	u32 vertex_stride;
 
 protected:
 	// Let subclasses construct.
 	NativeVertexFormat() {}
 
-private:
-	DISALLOW_COPY_AND_ASSIGN(NativeVertexFormat);
+	u32 vertex_stride;
 };
 
 #endif  // _NATIVEVERTEXFORMAT_H

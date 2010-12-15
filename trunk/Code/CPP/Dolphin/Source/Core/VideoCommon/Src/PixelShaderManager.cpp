@@ -183,9 +183,10 @@ void PixelShaderManager::SetConstants()
 					bpmem.indmtx[i].col2.mf * fscale,
 					fscale * 4.0f);
 
-                PRIM_LOG("indmtx%d: scale=%f, mat=(%f %f %f; %f %f %f)\n", i,
-                    1024.0f*fscale, bpmem.indmtx[i].col0.ma * fscale, bpmem.indmtx[i].col1.mc * fscale, bpmem.indmtx[i].col2.me * fscale,
-                    bpmem.indmtx[i].col0.mb * fscale, bpmem.indmtx[i].col1.md * fscale, bpmem.indmtx[i].col2.mf * fscale, fscale);
+                PRIM_LOG("indmtx%d: scale=%f, mat=(%f %f %f; %f %f %f)\n",
+                	i, 1024.0f*fscale,
+                	bpmem.indmtx[i].col0.ma * fscale, bpmem.indmtx[i].col1.mc * fscale, bpmem.indmtx[i].col2.me * fscale,
+                	bpmem.indmtx[i].col0.mb * fscale, bpmem.indmtx[i].col1.md * fscale, bpmem.indmtx[i].col2.mf * fscale);
             }
         }
         s_nIndTexMtxChanged = 0;
@@ -201,9 +202,11 @@ void PixelShaderManager::SetConstants()
 	{
 		if(!g_ActiveConfig.bDisableFog)
 		{
-			float a = bpmem.fog.a.GetA() * ((float)(1 << (bpmem.fog.b_shift - 1)));
-			float b = ((float)bpmem.fog.b_magnitude / 8388638) * ((float)(1 << (bpmem.fog.b_shift - 1)));
-			SetPSConstant4f(C_FOG + 1, a, b, bpmem.fog.c_proj_fsel.GetC(), 0);
+			//downscale magnitude to 0.24 bits
+			float b = (float)bpmem.fog.b_magnitude / 0xFFFFFF;
+
+			float b_shf = (float)(1 << bpmem.fog.b_shift);
+			SetPSConstant4f(C_FOG + 1, bpmem.fog.a.GetA(), b, bpmem.fog.c_proj_fsel.GetC(), b_shf);
 		}
 		else
 		{

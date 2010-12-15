@@ -1,4 +1,4 @@
-// Copyright (C) 2003 Dolphin Project.
+ï»¿// Copyright (C) 2003 Dolphin Project.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -335,7 +335,7 @@ void CFrame::OnTab(wxAuiNotebookEvent& event)
 	wxMenu* MenuPopup = new wxMenu;
 
 	wxMenuItem* Item =  new wxMenuItem(MenuPopup, wxID_ANY,
-			wxT("Ñ¡Ôñ¸¡¶¯´°¿Ú"));
+			wxT("é€‰æ‹©æµ®åŠ¨çª—å£"));
 	MenuPopup->Append(Item);
 	Item->Enable(false);
 	MenuPopup->Append(new wxMenuItem(MenuPopup));
@@ -464,7 +464,7 @@ void CFrame::OnDropDownSettingsToolbar(wxAuiToolBarEvent& event)
 		wxMenu* menuPopup = new wxMenu;
 
 		wxMenuItem* Item =  new wxMenuItem(menuPopup, IDM_PERSPECTIVES_ADD_PANE,
-				wxT("Ìí¼ÓĞÂÃæ°å"));
+				wxT("æ·»åŠ æ–°é¢æ¿"));
 		menuPopup->Append(Item);
 		menuPopup->Append(new wxMenuItem(menuPopup));
 		Item = new wxMenuItem(menuPopup, IDM_TAB_SPLIT, wxT("Tab split"),
@@ -577,7 +577,7 @@ void CFrame::OnDropDownToolbarSelect(wxCommandEvent& event)
 						return;
 					else if (dlg.GetValue().Find(wxT(",")) != -1)
 					{
-						wxMessageBox(wxT("Ãû³Æ²»ÄÜº¬ÓĞĞ¡Ğ´µÄ ',' ÔÚÀïÃæ"), 
+						wxMessageBox(wxT("åç§°ä¸èƒ½å«æœ‰å°å†™çš„ ',' åœ¨é‡Œé¢"), 
 								wxT("Notice"), wxOK, this);
 						wxString Str = dlg.GetValue();
 						Str.Replace(wxT(","), wxT(""), true);
@@ -585,7 +585,7 @@ void CFrame::OnDropDownToolbarSelect(wxCommandEvent& event)
 					}
 					else if (dlg.GetValue().IsSameAs(wxT("")))
 					{
-						wxMessageBox(wxT("Ãû³Æ²»ÄÜÎª¿Õ"), 
+						wxMessageBox(wxT("åç§°ä¸èƒ½ä¸ºç©º"), 
 							wxT("Notice"), wxOK, this);
 						dlg.SetValue(DefaultValue);
 					}
@@ -811,7 +811,7 @@ void CFrame::LoadIniPerspectives()
 	ini.Load(File::GetUserPath(F_DEBUGGERCONFIG_IDX));
 	ini.Get("Perspectives", "Perspectives", &_Perspectives, "Perspective 1");
 	ini.Get("Perspectives", "Active", &ActivePerspective, 0);
-	SplitString(_Perspectives, ",", VPerspectives);
+	SplitString(_Perspectives, ',', VPerspectives);
 
 	for (u32 i = 0; i < VPerspectives.size(); i++)
 	{
@@ -833,17 +833,17 @@ void CFrame::LoadIniPerspectives()
 
 		Tmp.Perspective = wxString::FromAscii(_Perspective.c_str());
 
-		SplitString(_Width, ",", _SWidth);
-		SplitString(_Height, ",", _SHeight);
+		SplitString(_Width, ',', _SWidth);
+		SplitString(_Height, ',', _SHeight);
 		for (u32 j = 0; j < _SWidth.size(); j++)
 		{
 			int _Tmp;
-			if (TryParseInt(_SWidth[j].c_str(), &_Tmp)) Tmp.Width.push_back(_Tmp);
+			if (TryParse(_SWidth[j].c_str(), &_Tmp)) Tmp.Width.push_back(_Tmp);
 		}
 		for (u32 j = 0; j < _SHeight.size(); j++)
 		{
 			int _Tmp;
-			if (TryParseInt(_SHeight[j].c_str(), &_Tmp)) Tmp.Height.push_back(_Tmp);
+			if (TryParse(_SHeight[j].c_str(), &_Tmp)) Tmp.Height.push_back(_Tmp);
 		}
 		Perspectives.push_back(Tmp);
 	}

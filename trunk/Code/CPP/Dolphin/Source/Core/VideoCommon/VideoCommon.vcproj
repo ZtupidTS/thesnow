@@ -459,6 +459,10 @@
 			Name="Register Sections"
 			>
 			<File
+				RelativePath=".\Src\BPFunctions.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\Src\BPFunctions.h"
 				>
 			</File>
@@ -731,6 +735,38 @@
 			Name="Base"
 			>
 			<File
+				RelativePath=".\Src\Debugger.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\Src\Debugger.h"
+				>
+			</File>
+			<File
+				RelativePath=".\Src\FramebufferManagerBase.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\Src\FramebufferManagerBase.h"
+				>
+			</File>
+			<File
+				RelativePath=".\Src\MainBase.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\Src\MainBase.h"
+				>
+			</File>
+			<File
+				RelativePath=".\Src\RenderBase.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\Src\RenderBase.h"
+				>
+			</File>
+			<File
 				RelativePath=".\Src\TextureCacheBase.cpp"
 				>
 			</File>
@@ -769,10 +805,6 @@
 		</File>
 		<File
 			RelativePath=".\Src\PixelEngine.h"
-			>
-		</File>
-		<File
-			RelativePath=".\Src\Render.h"
 			>
 		</File>
 		<File

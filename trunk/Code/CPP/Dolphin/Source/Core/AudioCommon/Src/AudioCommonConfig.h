@@ -22,12 +22,14 @@
 #include "IniFile.h"
 
 // Backend Types
+#define BACKEND_NULLSOUND	"No audio output"
 #define BACKEND_COREAUDIO   "CoreAudio"
 #define BACKEND_DIRECTSOUND "DSound"
 #define BACKEND_AOSOUND     "AOSound"
 #define BACKEND_OPENAL      "OpenAL"
 #define BACKEND_ALSA        "ALSA"
 #define BACKEND_PULSEAUDIO  "Pulse"
+#define BACKEND_XAUDIO2		"XAudio2"
 
 struct AudioCommonConfig 
 {
@@ -37,8 +39,10 @@ struct AudioCommonConfig
 	int m_Volume;
 #ifdef __APPLE__
 	char sBackend[128];
+	char sFrequency[128];
 #else
 	std::string sBackend;
+	std::string sFrequency;
 #endif
 	
 	// Load from given file

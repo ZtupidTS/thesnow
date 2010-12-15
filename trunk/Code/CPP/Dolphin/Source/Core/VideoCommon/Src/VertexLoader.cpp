@@ -136,11 +136,18 @@ void LOADERDECL UpdateBoundingBox()
 	// should possibly adjust for viewport?
 	o[0] = (o[0] + 1.0f) * 320.0f;
 	o[1] = (o[1] + 1.0f) * 240.0f;
-	
+
     if (o[0] < PixelEngine::bbox[0]) PixelEngine::bbox[0] = (u16)std::max(0.0f, o[0]);
 	if (o[0] > PixelEngine::bbox[1]) PixelEngine::bbox[1] = (u16)std::min(640.0f, o[0]);
 	if (o[1] < PixelEngine::bbox[2]) PixelEngine::bbox[2] = (u16)std::max(0.0f, o[1]);
 	if (o[1] > PixelEngine::bbox[3]) PixelEngine::bbox[3] = (u16)std::min(480.0f, o[1]);
+
+	// Hardware tests bounding boxes in 2x2 blocks => left and top are even, right and bottom are odd
+	PixelEngine::bbox[0] &= ~1;
+	PixelEngine::bbox[1] |= 1;
+	PixelEngine::bbox[2] &= ~1;
+	PixelEngine::bbox[3] |= 1;
+
 	/*
 	if (GetAsyncKeyState(VK_LSHIFT)) {
 		ERROR_LOG(VIDEO, "XForm: %f %f %f to %f %f", p[0], p[1], p[2], o[0], o[1]);
@@ -183,7 +190,7 @@ VertexLoader::VertexLoader(const TVtxDesc &vtx_desc, const VAT &vtx_attr)
 	m_numLoadedVertices = 0;
 	m_VertexSize = 0;
 	m_numPipelineStages = 0;
-	m_NativeFmt = NativeVertexFormat::Create();
+	m_NativeFmt = g_vertex_manager->CreateNativeVertexFormat();
 	loop_counter = 0;
 	VertexLoader_Normal::Init();
 	VertexLoader_Position::Init();
@@ -291,7 +298,7 @@ void VertexLoader::CompileVertexTranslator()
 	vtx_decl.num_normals = 0;
 	if (m_VtxDesc.Normal != NOT_PRESENT) {
 		m_VertexSize += VertexLoader_Normal::GetSize(m_VtxDesc.Normal, m_VtxAttr.NormalFormat, m_VtxAttr.NormalElements, m_VtxAttr.NormalIndex3);
-		TPipelineFunction pFunc = VertexLoader_Normal::GetFunction(m_VtxDesc.Normal, m_VtxAttr.NormalFormat, m_VtxAttr.NormalElements, m_VtxAttr.NormalIndex3, g_Config.bAllowSignedBytes);
+		TPipelineFunction pFunc = VertexLoader_Normal::GetFunction(m_VtxDesc.Normal, m_VtxAttr.NormalFormat, m_VtxAttr.NormalElements, m_VtxAttr.NormalIndex3, g_Config.backend_info.bAllowSignedBytes);
 		if (pFunc == 0)
 		{
 			char temp[256];
@@ -308,27 +315,27 @@ void VertexLoader::CompileVertexTranslator()
 		case FORMAT_UBYTE:	
 		case FORMAT_BYTE:
 			{
-			vtx_decl.normal_gl_type = VAR_BYTE;
-			int native_size = 4;
-			if (vtx_attr.NormalFormat == FORMAT_BYTE && !g_Config.bAllowSignedBytes)
-			{
-				vtx_decl.normal_gl_type = VAR_SHORT;
-				native_size = 8;
-			}
-			vtx_decl.normal_gl_size = 4;
-			vtx_decl.normal_offset[0] = nat_offset;
-			nat_offset += native_size;
-			if (vtx_attr.NormalElements) {
-				vtx_decl.normal_offset[1] = nat_offset;
+				vtx_decl.normal_gl_type = (vtx_attr.NormalFormat == FORMAT_BYTE)? VAR_BYTE : VAR_UNSIGNED_BYTE;
+				int native_size = 4;
+				if (vtx_attr.NormalFormat == FORMAT_BYTE && !g_Config.backend_info.bAllowSignedBytes)
+				{
+					vtx_decl.normal_gl_type = VAR_SHORT;
+					native_size = 8;
+				}
+				vtx_decl.normal_gl_size = 4;
+				vtx_decl.normal_offset[0] = nat_offset;
 				nat_offset += native_size;
-				vtx_decl.normal_offset[2] = nat_offset;
-				nat_offset += native_size;
-			}
-			break;
+				if (vtx_attr.NormalElements) {
+					vtx_decl.normal_offset[1] = nat_offset;
+					nat_offset += native_size;
+					vtx_decl.normal_offset[2] = nat_offset;
+					nat_offset += native_size;
+				}
+				break;
 			}
 		case FORMAT_USHORT:
 		case FORMAT_SHORT:
-			vtx_decl.normal_gl_type = VAR_SHORT;
+			vtx_decl.normal_gl_type = (vtx_attr.NormalFormat == FORMAT_SHORT)? VAR_SHORT : VAR_UNSIGNED_SHORT;
 			vtx_decl.normal_gl_size = 4;
 			vtx_decl.normal_offset[0] = nat_offset;
 			nat_offset += 8;

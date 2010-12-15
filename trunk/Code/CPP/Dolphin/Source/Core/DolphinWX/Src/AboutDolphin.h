@@ -1,4 +1,4 @@
-// Copyright (C) 2003 Dolphin Project.
+ï»¿// Copyright (C) 2003 Dolphin Project.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -31,9 +31,9 @@ class AboutDolphin : public wxDialog
 		AboutDolphin(wxWindow *parent,
 			wxWindowID id = wxID_ANY,
 #ifndef NO_MOD
-			const wxString &title = wxT("¹ØÓÚ Dolphin"),
+			const wxString &title = wxT("å…³äºŽ Dolphin"),
 #else
-			const wxString &title = wxT("¹ØÓÚ Dolphin (MOD)"),
+			const wxString &title = wxT("å…³äºŽ Dolphin (MOD)"),
 #endif
 			const wxPoint& pos = wxDefaultPosition,
 			const wxSize& size = wxDefaultSize,

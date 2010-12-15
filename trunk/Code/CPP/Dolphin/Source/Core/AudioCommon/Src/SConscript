@@ -8,6 +8,7 @@ files = [
 	'WaveFile.cpp',
 	'Mixer.cpp',
 	'AudioCommon.cpp',
+	'NullSoundStream.cpp',
 	]
 
 if sys.platform == 'darwin':
@@ -23,5 +24,6 @@ else:
 		files += [ 'PulseAudioStream.cpp' ]
 	if sys.platform == 'win32':
 		files += [ 'DSoundStream.cpp' ]
+		files += [ 'XAudio2Stream.cpp' ]
 
 env.StaticLibrary(env['local_libs'] + 'audiocommon', files)

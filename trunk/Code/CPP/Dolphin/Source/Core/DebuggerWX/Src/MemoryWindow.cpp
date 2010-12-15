@@ -15,8 +15,6 @@
 // Official SVN repository and contact information can be found at
 // http://code.google.com/p/dolphin-emu/
 
-#include "Debugger.h"
-
 #include <wx/button.h>
 #include <wx/textctrl.h>
 #include <wx/listctrl.h>
@@ -157,13 +155,13 @@ void CMemoryWindow::SetMemoryValue(wxCommandEvent& event)
 	u32 addr;
 	u32 val;
 
-	if (!TryParseUInt(std::string("0x") + str_addr, &addr))
+	if (!TryParse(std::string("0x") + str_addr, &addr))
 	{
 		PanicAlert("Invalid Address: %s", str_addr.c_str());
 		return;
 	}
 
-	if (!TryParseUInt(std::string("0x") + str_val, &val))
+	if (!TryParse(std::string("0x") + str_val, &val))
 	{
 		PanicAlert("Invalid Value: %s", str_val.c_str());
 		return;

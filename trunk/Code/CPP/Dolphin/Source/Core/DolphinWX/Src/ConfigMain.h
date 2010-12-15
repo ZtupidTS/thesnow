@@ -1,4 +1,4 @@
-// Copyright (C) 2003 Dolphin Project.
+Ôªø// Copyright (C) 2003 Dolphin Project.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -34,9 +34,9 @@ public:
 	CConfigMain(wxWindow* parent,
 		wxWindowID id = 1,
 #ifndef NO_MOD
-		const wxString& title = wxT("Dolphin ≈‰÷√"),
+		const wxString& title = wxT("Dolphin ÈÖçÁΩÆ"),
 #else
-		const wxString& title = wxT("Dolphin (MOD) ≈‰÷√"),
+		const wxString& title = wxT("Dolphin (MOD) ÈÖçÁΩÆ"),
 #endif
 		const wxPoint& pos = wxDefaultPosition,
 		const wxSize& size = wxDefaultSize,
@@ -86,6 +86,8 @@ private:
 	wxCheckBox* Fullscreen;
 	wxCheckBox* HideCursor;
 	wxCheckBox* RenderToMain;
+	wxCheckBox* ProgressiveScan;
+	wxCheckBox* NTSCJ;
 
 	// Interface
 	wxCheckBox* ConfirmStop;
@@ -117,7 +119,6 @@ private:
 
 	// Misc
 	wxCheckBox* WiiScreenSaver;
-	wxCheckBox* WiiProgressiveScan;
 	wxCheckBox* WiiEuRGB60;
 	wxChoice* WiiAspectRatio;
 	wxChoice* WiiSystemLang;
@@ -198,6 +199,8 @@ private:
 		ID_DISPLAY_FULLSCREEN,
 		ID_DISPLAY_HIDECURSOR,
 		ID_DISPLAY_RENDERTOMAIN,
+		ID_DISPLAY_PROGSCAN,
+		ID_DISPLAY_NTSCJ,
 
 		// Interface settings
 		ID_INTERFACE_CONFIRMSTOP,
@@ -229,7 +232,6 @@ private:
 		ID_WII_BT_BAR,
 
 		ID_WII_IPL_SSV,
-		ID_WII_IPL_PGS,
 		ID_WII_IPL_E60,
 		ID_WII_IPL_AR_TEXT,
 		ID_WII_IPL_AR,

@@ -15,7 +15,8 @@
 // Official SVN repository and contact information can be found at
 // http://code.google.com/p/dolphin-emu/
 
-#include "Debugger.h"
+#include <wx/wx.h>
+
 #include "BreakpointView.h"
 #include "CodeWindow.h"
 #include "HW/Memmap.h"
@@ -195,7 +196,7 @@ void CBreakPointWindow::OnAddMemoryCheckMany()
 		{
 			std::string line = StripSpaces(*iter);
 			std::vector<std::string> pieces;
-			SplitString(line, " ", pieces); // split string
+			SplitString(line, ' ', pieces); // split string
 
 			TMemCheck MemCheck;
 			u32 sAddress = 0;

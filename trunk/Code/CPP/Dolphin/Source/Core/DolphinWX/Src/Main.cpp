@@ -65,7 +65,7 @@ LONG WINAPI MyUnhandledExceptionFilter(LPEXCEPTION_POINTERS e) {
 
 	FILE* file = NULL;
 	fopen_s(&file, "exceptioninfo.txt", "a");
-	fseek(file, 0, SEEK_END);
+	fseeko(file, 0, SEEK_END);
 	etfprint(file, "\n");
 	//etfprint(file, g_buildtime);
 	//etfprint(file, "\n");
@@ -269,10 +269,7 @@ bool DolphinApp::OnInit()
 		else
 		{
 			char *tmpChar;
-			long len;
-			fseek(workingDir, 0, SEEK_END);
-			len = ftell(workingDir);
-			fseek(workingDir, 0, SEEK_SET);
+			size_t len = (size_t)File::GetSize(workingDir);
 			tmpChar = new char[len];
 			fread(tmpChar, len, 1, workingDir);
 			fclose(workingDir);
@@ -452,9 +449,23 @@ void Host_SysMessage(const char *fmt, ...)
 
 bool wxMsgAlert(const char* caption, const char* text, bool yes_no, int /*Style*/)
 {
-	return wxYES == wxMessageBox(wxString::FromAscii(text), 
-				 wxString::FromAscii(caption),
-				 (yes_no)?wxYES_NO:wxOK);
+#ifdef __WXGTK__
+	if (wxIsMainThread())
+#endif
+		return wxYES == wxMessageBox(wxString::FromAscii(text), 
+				wxString::FromAscii(caption),
+				(yes_no) ? wxYES_NO : wxOK, main_frame);
+#ifdef __WXGTK__
+	else
+	{
+		wxCommandEvent event(wxEVT_HOST_COMMAND, IDM_PANIC);
+		event.SetString(wxString::FromAscii(text));
+		event.SetInt(yes_no);
+		main_frame->GetEventHandler()->AddPendingEvent(event);
+		main_frame->panic_event.Wait();
+		return main_frame->bPanicResult;
+	}
+#endif
 }
 
 // Accessor for the main window class

@@ -1,4 +1,4 @@
-// Copyright (C) 2003 Dolphin Project.
+ï»¿// Copyright (C) 2003 Dolphin Project.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -33,8 +33,6 @@
 #include "Frame.h"
 #include "HotkeyDlg.h"
 
-#include "../../Common/Src/OpenCL.h"
-
 #ifdef __APPLE__
 #include <ApplicationServices/ApplicationServices.h>
 #endif
@@ -42,14 +40,14 @@
 extern CFrame* main_frame;
 
 // Strings for Device Selections
-#define DEV_NONE_STR		"<Ã»ÓĞ>"
+#define DEV_NONE_STR		"<æ²¡æœ‰>"
 #define DEV_DUMMY_STR		"Dummy"
 
-#define SIDEV_STDCONT_STR	"±ê×¼¿ØÖÆÆ÷"
+#define SIDEV_STDCONT_STR	"æ ‡å‡†æ§åˆ¶å™¨"
 #define SIDEV_GBA_STR		"GBA"
 #define SIDEV_AM_BB_STR		"AM-Baseboard"
 
-#define EXIDEV_MEMCARD_STR	"¼ÇÒä¿¨"
+#define EXIDEV_MEMCARD_STR	"è®°å¿†å¡"
 #define EXIDEV_MIC_STR		"Mic"
 #define EXIDEV_BBA_STR		"BBA"
 #define EXIDEV_AM_BB_STR	"AM-Baseboard"
@@ -67,9 +65,6 @@ EVT_CHOICE(ID_FRAMELIMIT, CConfigMain::CoreSettingsChanged)
 EVT_CHECKBOX(ID_FRAMELIMIT_USEFPSFORLIMITING, CConfigMain::CoreSettingsChanged)
 
 EVT_CHECKBOX(ID_ALWAYS_HLE_BS2, CConfigMain::CoreSettingsChanged)
-#if defined(HAVE_OPENCL) && HAVE_OPENCL
-EVT_CHECKBOX(ID_ENABLE_OPENCL, CConfigMain::CoreSettingsChanged)
-#endif
 EVT_RADIOBOX(ID_CPUENGINE, CConfigMain::CoreSettingsChanged)
 EVT_CHECKBOX(ID_LOCKTHREADS, CConfigMain::CoreSettingsChanged)
 EVT_CHECKBOX(ID_DSPTHREAD, CConfigMain::CoreSettingsChanged)
@@ -81,6 +76,8 @@ EVT_TEXT(ID_DISPLAY_WINDOWHEIGHT, CConfigMain::DisplaySettingsChanged)
 EVT_CHECKBOX(ID_DISPLAY_FULLSCREEN, CConfigMain::DisplaySettingsChanged)
 EVT_CHECKBOX(ID_DISPLAY_HIDECURSOR, CConfigMain::DisplaySettingsChanged)
 EVT_CHECKBOX(ID_DISPLAY_RENDERTOMAIN, CConfigMain::DisplaySettingsChanged)
+EVT_CHECKBOX(ID_DISPLAY_PROGSCAN, CConfigMain::DisplaySettingsChanged)
+EVT_CHECKBOX(ID_DISPLAY_NTSCJ, CConfigMain::DisplaySettingsChanged)
 
 EVT_CHECKBOX(ID_INTERFACE_CONFIRMSTOP, CConfigMain::DisplaySettingsChanged)
 EVT_CHECKBOX(ID_INTERFACE_USEPANICHANDLERS, CConfigMain::DisplaySettingsChanged)
@@ -105,7 +102,6 @@ EVT_CHOICE(ID_GC_SIDEVICE3, CConfigMain::GCSettingsChanged)
 EVT_CHOICE(ID_WII_BT_BAR, CConfigMain::WiiSettingsChanged)
 
 EVT_CHECKBOX(ID_WII_IPL_SSV, CConfigMain::WiiSettingsChanged)
-EVT_CHECKBOX(ID_WII_IPL_PGS, CConfigMain::WiiSettingsChanged)
 EVT_CHECKBOX(ID_WII_IPL_E60, CConfigMain::WiiSettingsChanged)
 EVT_CHOICE(ID_WII_IPL_AR, CConfigMain::WiiSettingsChanged)
 EVT_CHOICE(ID_WII_IPL_LNG, CConfigMain::WiiSettingsChanged)
@@ -163,9 +159,6 @@ void CConfigMain::UpdateGUI()
 		EnableCheats->Disable();
 		
 		AlwaysHLE_BS2->Disable();
-#if defined(HAVE_OPENCL) && HAVE_OPENCL
-		EnableOpenCL->Disable();
-#endif
 		CPUEngine->Disable();
 		LockThreads->Disable();
 		DSPThread->Disable();
@@ -174,7 +167,9 @@ void CConfigMain::UpdateGUI()
 		// Disable stuff on DisplayPage
 		FullscreenResolution->Disable();
 		RenderToMain->Disable();
-		
+		ProgressiveScan->Disable();
+		NTSCJ->Disable();
+
 
 		// Disable stuff on GamecubePage
 		GCSystemLang->Disable();
@@ -183,7 +178,6 @@ void CConfigMain::UpdateGUI()
 		// Disable stuff on WiiPage
 		WiiSensBarPos->Disable();
 		WiiScreenSaver->Disable();
-		WiiProgressiveScan->Disable();
 		WiiEuRGB60->Disable();
 		WiiAspectRatio->Disable();
 		WiiSystemLang->Disable();
@@ -203,8 +197,8 @@ void CConfigMain::InitializeGUILists()
 {
 	// General page
 	// Framelimit
-	arrayStringFor_Framelimit.Add(wxT("¹Ø±Õ"));
-	arrayStringFor_Framelimit.Add(wxT("×Ô¶¯"));
+	arrayStringFor_Framelimit.Add(wxT("å…³é—­"));
+	arrayStringFor_Framelimit.Add(wxT("è‡ªåŠ¨"));
 	for (int i = 10; i <= 120; i += 5)	// from 10 to 120
 		arrayStringFor_Framelimit.Add(wxString::Format(wxT("%i"), i));
 
@@ -241,8 +235,8 @@ void CConfigMain::InitializeGUILists()
 	
 	// Wii page
 	// Sensorbar Position
-	arrayStringFor_WiiSensBarPos.Add(wxT("µ×²¿"));
-	arrayStringFor_WiiSensBarPos.Add(wxT("¶¥²¿"));
+	arrayStringFor_WiiSensBarPos.Add(wxT("åº•éƒ¨"));
+	arrayStringFor_WiiSensBarPos.Add(wxT("é¡¶éƒ¨"));
 	
 	// Aspect ratio
 	arrayStringFor_WiiAspectRatio.Add(wxT("4:3"));
@@ -259,41 +253,45 @@ void CConfigMain::InitializeGUILists()
 
 void CConfigMain::InitializeGUIValues()
 {
+	const SCoreStartupParameter& startup_params = SConfig::GetInstance().m_LocalCoreStartupParameter;
+
 	// General - Basic
-	CPUThread->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bCPUThread);
-	SkipIdle->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bSkipIdle);
-	EnableCheats->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bEnableCheats);
+	CPUThread->SetValue(startup_params.bCPUThread);
+	SkipIdle->SetValue(startup_params.bSkipIdle);
+	EnableCheats->SetValue(startup_params.bEnableCheats);
 	Framelimit->SetSelection(SConfig::GetInstance().m_Framelimit);
 	UseFPSForLimiting->SetValue(SConfig::GetInstance().b_UseFPS);
 
 	// General - Advanced
-	AlwaysHLE_BS2->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bHLE_BS2);
-#if defined(HAVE_OPENCL) && HAVE_OPENCL
-	EnableOpenCL->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bEnableOpenCL);
-#endif
-	CPUEngine->SetSelection(SConfig::GetInstance().m_LocalCoreStartupParameter.iCPUCore);
-	LockThreads->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bLockThreads);
-	DSPThread->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bDSPThread);
+	AlwaysHLE_BS2->SetValue(startup_params.bHLE_BS2);
+	CPUEngine->SetSelection(startup_params.iCPUCore);
+	LockThreads->SetValue(startup_params.bLockThreads);
+	DSPThread->SetValue(startup_params.bDSPThread);
 
 
 	// Display - Display
-	FullscreenResolution->SetStringSelection(wxString::FromAscii(SConfig::GetInstance().m_LocalCoreStartupParameter.strFullscreenResolution.c_str()));
-	WindowWidth->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.iRenderWindowWidth);
-	WindowHeight->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.iRenderWindowHeight);
-	Fullscreen->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bFullscreen);
-	HideCursor->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bHideCursor);
-	RenderToMain->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bRenderToMain);
+	FullscreenResolution->SetStringSelection(wxString::FromAscii(startup_params.strFullscreenResolution.c_str()));
+	WindowWidth->SetValue(startup_params.iRenderWindowWidth);
+	WindowHeight->SetValue(startup_params.iRenderWindowHeight);
+	Fullscreen->SetValue(startup_params.bFullscreen);
+	HideCursor->SetValue(startup_params.bHideCursor);
+	RenderToMain->SetValue(startup_params.bRenderToMain);
+	ProgressiveScan->SetValue(startup_params.bProgressive);
+	// A bit strange behavior, but this needs to stay in sync with the main progressive boolean
+	SConfig::GetInstance().m_SYSCONF->SetData("IPL.PGS", startup_params.bProgressive);
+	NTSCJ->SetValue(startup_params.bNTSCJ);
+
 
 	// Display - Interface
-	ConfirmStop->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bConfirmStop);
-	UsePanicHandlers->SetValue(SConfig::GetInstance().m_LocalCoreStartupParameter.bUsePanicHandlers);
-	Theme->SetSelection(SConfig::GetInstance().m_LocalCoreStartupParameter.iTheme);
+	ConfirmStop->SetValue(startup_params.bConfirmStop);
+	UsePanicHandlers->SetValue(startup_params.bUsePanicHandlers);
+	Theme->SetSelection(startup_params.iTheme);
 	// need redesign
 	InterfaceLang->SetSelection(SConfig::GetInstance().m_InterfaceLanguage);
 
 
 	// Gamecube - IPL
-	GCSystemLang->SetSelection(SConfig::GetInstance().m_LocalCoreStartupParameter.SelectedLanguage);
+	GCSystemLang->SetSelection(startup_params.SelectedLanguage);
 
 	// Gamecube - Devices
 	// Not here. They use some locals over in CreateGUIControls for initialization,
@@ -305,7 +303,6 @@ void CConfigMain::InitializeGUIValues()
 	
 	// Wii - Misc
 	WiiScreenSaver->SetValue(!!SConfig::GetInstance().m_SYSCONF->GetData<u8>("IPL.SSV"));
-	WiiProgressiveScan->SetValue(!!SConfig::GetInstance().m_SYSCONF->GetData<u8>("IPL.PGS"));
 	WiiEuRGB60->SetValue(!!SConfig::GetInstance().m_SYSCONF->GetData<u8>("IPL.E60"));
 	WiiAspectRatio->SetSelection(SConfig::GetInstance().m_SYSCONF->GetData<u8>("IPL.AR"));
 	WiiSystemLang->SetSelection(SConfig::GetInstance().m_SYSCONF->GetData<u8>("IPL.LNG"));
@@ -317,14 +314,14 @@ void CConfigMain::InitializeGUIValues()
 
 	// Paths
 	RecursiveISOPath->SetValue(SConfig::GetInstance().m_RecursiveISOFolder);
-	DefaultISO->SetPath(wxString(SConfig::GetInstance().m_LocalCoreStartupParameter.m_strDefaultGCM.c_str(), *wxConvCurrent));
-	DVDRoot->SetPath(wxString(SConfig::GetInstance().m_LocalCoreStartupParameter.m_strDVDRoot.c_str(), *wxConvCurrent));
-	ApploaderPath->SetPath(wxString(SConfig::GetInstance().m_LocalCoreStartupParameter.m_strApploader.c_str(), *wxConvCurrent));
+	DefaultISO->SetPath(wxString(startup_params.m_strDefaultGCM.c_str(), *wxConvCurrent));
+	DVDRoot->SetPath(wxString(startup_params.m_strDVDRoot.c_str(), *wxConvCurrent));
+	ApploaderPath->SetPath(wxString(startup_params.m_strApploader.c_str(), *wxConvCurrent));
 
 
 	// Plugins
-	FillChoiceBox(GraphicSelection, PLUGIN_TYPE_VIDEO, SConfig::GetInstance().m_LocalCoreStartupParameter.m_strVideoPlugin);
-	FillChoiceBox(DSPSelection, PLUGIN_TYPE_DSP, SConfig::GetInstance().m_LocalCoreStartupParameter.m_strDSPPlugin);
+	FillChoiceBox(GraphicSelection, PLUGIN_TYPE_VIDEO, startup_params.m_strVideoPlugin);
+	FillChoiceBox(DSPSelection, PLUGIN_TYPE_DSP, startup_params.m_strDSPPlugin);
 }
 
 void CConfigMain::InitializeGUITooltips()
@@ -337,9 +334,6 @@ void CConfigMain::InitializeGUITooltips()
 
 	// General - Advanced
 	DSPThread->SetToolTip(wxT("Run DSPLLE on a dedicated thread (not recommended)."));
-#if defined(HAVE_OPENCL) && HAVE_OPENCL
-	EnableOpenCL->SetToolTip(wxT("Allow videocard to accelerate texture decoding."));
-#endif
 
 	// Display - Display
 	FullscreenResolution->SetToolTip(wxT("Select resolution for fullscreen mode"));
@@ -349,6 +343,8 @@ void CConfigMain::InitializeGUITooltips()
 	HideCursor->SetToolTip(wxT("Hide the cursor when it is over the rendering window")
 		wxT("\n and the rendering window has focus."));
 	RenderToMain->SetToolTip(wxT("Render to main window."));
+	ProgressiveScan->SetToolTip(wxT("Will enable progressive scan option if supported by software."));
+	NTSCJ->SetToolTip(wxT("Required for using the Japanese ROM font."));
 
 	// Display - Interface
 	ConfirmStop->SetToolTip(wxT("Show a confirmation box before stopping a game."));
@@ -387,33 +383,30 @@ void CConfigMain::CreateGUIControls()
 	PathsPage = new wxPanel(Notebook, ID_PATHSPAGE, wxDefaultPosition, wxDefaultSize);
 	PluginsPage = new wxPanel(Notebook, ID_PLUGINPAGE, wxDefaultPosition, wxDefaultSize);
 
-	Notebook->AddPage(GeneralPage, wxT("³£¹æ"));
-	Notebook->AddPage(DisplayPage, wxT("ÏÔÊ¾"));
+	Notebook->AddPage(GeneralPage, wxT("å¸¸è§„"));
+	Notebook->AddPage(DisplayPage, wxT("æ˜¾ç¤º"));
 	Notebook->AddPage(GamecubePage, wxT("Gamecube"));
 	Notebook->AddPage(WiiPage, wxT("Wii"));
-	Notebook->AddPage(PathsPage, wxT("Â·¾¶"));
-	Notebook->AddPage(PluginsPage, wxT("²å¼ş"));
+	Notebook->AddPage(PathsPage, wxT("è·¯å¾„"));
+	Notebook->AddPage(PluginsPage, wxT("æ’ä»¶"));
 
 	// General page
 	// Core Settings - Basic
-	sbBasic = new wxStaticBoxSizer(wxVERTICAL, GeneralPage, wxT("»ù±¾ÉèÖÃ"));
-	CPUThread = new wxCheckBox(GeneralPage, ID_CPUTHREAD, wxT("ÆôÓÃ¶àºË (¼ÓËÙ)"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	SkipIdle = new wxCheckBox(GeneralPage, ID_IDLESKIP, wxT("ÆôÓÃÑÓ³Ù²½½ø (¼ÓËÙ)"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	EnableCheats = new wxCheckBox(GeneralPage, ID_ENABLECHEATS, wxT("ÆôÓÃ×÷±×"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	sbBasic = new wxStaticBoxSizer(wxVERTICAL, GeneralPage, wxT("åŸºæœ¬è®¾ç½®"));
+	CPUThread = new wxCheckBox(GeneralPage, ID_CPUTHREAD, wxT("å¯ç”¨å¤šæ ¸ (åŠ é€Ÿ)"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	SkipIdle = new wxCheckBox(GeneralPage, ID_IDLESKIP, wxT("å¯ç”¨å»¶è¿Ÿæ­¥è¿› (åŠ é€Ÿ)"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	EnableCheats = new wxCheckBox(GeneralPage, ID_ENABLECHEATS, wxT("å¯ç”¨ä½œå¼Š"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 	// Framelimit
-	wxStaticText *FramelimitText = new wxStaticText(GeneralPage, ID_FRAMELIMIT_TEXT, wxT("Ö¡ÊıÏŞÖÆ :"), wxDefaultPosition, wxDefaultSize);
+	wxStaticText *FramelimitText = new wxStaticText(GeneralPage, ID_FRAMELIMIT_TEXT, wxT("å¸§æ•°é™åˆ¶ :"), wxDefaultPosition, wxDefaultSize);
 	Framelimit = new wxChoice(GeneralPage, ID_FRAMELIMIT, wxDefaultPosition, wxDefaultSize, arrayStringFor_Framelimit, 0, wxDefaultValidator);
-	UseFPSForLimiting = new wxCheckBox(GeneralPage, ID_FRAMELIMIT_USEFPSFORLIMITING, wxT("Ê¹ÓÃ FPS ÏŞÖÆ"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	UseFPSForLimiting = new wxCheckBox(GeneralPage, ID_FRAMELIMIT_USEFPSFORLIMITING, wxT("ä½¿ç”¨ FPS é™åˆ¶"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 
 	// Core Settings - Advanced
-	sbAdvanced = new wxStaticBoxSizer(wxVERTICAL, GeneralPage, wxT("¸ß¼¶ÉèÖÃ"));
-	AlwaysHLE_BS2 = new wxCheckBox(GeneralPage, ID_ALWAYS_HLE_BS2, wxT("Ìø¹ı GC BIOS"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-#if defined(HAVE_OPENCL) && HAVE_OPENCL
-	EnableOpenCL = new wxCheckBox(GeneralPage, ID_ENABLE_OPENCL, wxT("ÆôÓÃ OpenCL"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-#endif
-	CPUEngine = new wxRadioBox(GeneralPage, ID_CPUENGINE, wxT("CPU Ä£ÄâÒıÇæ"), wxDefaultPosition, wxDefaultSize, arrayStringFor_CPUEngine, 0, wxRA_SPECIFY_ROWS);
-	LockThreads = new wxCheckBox(GeneralPage, ID_LOCKTHREADS, wxT("Ëø¶¨Ïß³Ìµ½ºËĞÄ"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	DSPThread = new wxCheckBox(GeneralPage, ID_DSPTHREAD, wxT("DSPLLE ¶ÀÁ¢Ïß³Ì"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	sbAdvanced = new wxStaticBoxSizer(wxVERTICAL, GeneralPage, wxT("é«˜çº§è®¾ç½®"));
+	AlwaysHLE_BS2 = new wxCheckBox(GeneralPage, ID_ALWAYS_HLE_BS2, wxT("è·³è¿‡ GC BIOS"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	CPUEngine = new wxRadioBox(GeneralPage, ID_CPUENGINE, wxT("CPU æ¨¡æ‹Ÿå¼•æ“"), wxDefaultPosition, wxDefaultSize, arrayStringFor_CPUEngine, 0, wxRA_SPECIFY_ROWS);
+	LockThreads = new wxCheckBox(GeneralPage, ID_LOCKTHREADS, wxT("é”å®šçº¿ç¨‹åˆ°æ ¸å¿ƒ"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	DSPThread = new wxCheckBox(GeneralPage, ID_DSPTHREAD, wxT("DSPLLE ç‹¬ç«‹çº¿ç¨‹"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 
 	// Populate the settings
 	sbBasic->Add(CPUThread, 0, wxALL, 5);
@@ -426,9 +419,6 @@ void CConfigMain::CreateGUIControls()
 	sbBasic->Add(sFramelimit, 0, wxALL | wxEXPAND, 5);
 
 	sbAdvanced->Add(AlwaysHLE_BS2, 0, wxALL, 5);
-#if defined(HAVE_OPENCL) && HAVE_OPENCL
-	sbAdvanced->Add(EnableOpenCL, 0, wxALL, 5);
-#endif
 	sbAdvanced->Add(CPUEngine, 0, wxALL, 5);
 	sbAdvanced->Add(LockThreads, 0, wxALL, 5);
 	sbAdvanced->Add(DSPThread, 0, wxALL, 5);
@@ -439,8 +429,6 @@ void CConfigMain::CreateGUIControls()
 	sGeneralPage->Add(sbAdvanced, 0, wxEXPAND | wxALL, 5);
 
 	GeneralPage->SetSizer(sGeneralPage);
-	sGeneralPage->Layout();
-	
 	
 	
 	// Display page
@@ -457,6 +445,8 @@ void CConfigMain::CreateGUIControls()
 	Fullscreen = new wxCheckBox(DisplayPage, ID_DISPLAY_FULLSCREEN, wxT("Start Renderer in Fullscreen"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 	HideCursor = new wxCheckBox(DisplayPage, ID_DISPLAY_HIDECURSOR, wxT("Hide Mouse Cursor"));
 	RenderToMain = new wxCheckBox(DisplayPage, ID_DISPLAY_RENDERTOMAIN, wxT("Render to Main Window"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	ProgressiveScan = new wxCheckBox(DisplayPage, ID_DISPLAY_PROGSCAN, wxT("Enable Progressive Scan"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	NTSCJ = new wxCheckBox(DisplayPage, ID_DISPLAY_NTSCJ, wxT("Set Console as NTSC-J"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 
 	// Interface settings
 	sbInterface = new wxStaticBoxSizer(wxVERTICAL, DisplayPage, wxT("Interface Settings"));
@@ -489,6 +479,8 @@ void CConfigMain::CreateGUIControls()
 	sbDisplay->Add(Fullscreen, 0, wxEXPAND | wxALL, 5);
 	sbDisplay->Add(HideCursor, 0, wxALL, 5);
 	sbDisplay->Add(RenderToMain, 0, wxEXPAND | wxALL, 5);
+	sbDisplay->Add(ProgressiveScan, 0, wxEXPAND | wxALL, 5);
+	sbDisplay->Add(NTSCJ, 0, wxEXPAND | wxALL, 5);
 
 	sbInterface->Add(ConfirmStop, 0, wxALL, 5);
 	sbInterface->Add(UsePanicHandlers, 0, wxALL, 5);
@@ -506,21 +498,19 @@ void CConfigMain::CreateGUIControls()
 	sDisplayPage->Add(sbInterface, 0, wxEXPAND | wxALL, 5);
 
 	DisplayPage->SetSizer(sDisplayPage);
-	sDisplayPage->Layout();
-
 
 
 	// Gamecube page
 	// IPL settings
-	sbGamecubeIPLSettings = new wxStaticBoxSizer(wxVERTICAL, GamecubePage, wxT("IPL ÉèÖÃ"));
+	sbGamecubeIPLSettings = new wxStaticBoxSizer(wxVERTICAL, GamecubePage, wxT("IPL è®¾ç½®"));
 	wxStaticText* GCSystemLangText = new wxStaticText(GamecubePage, ID_GC_SRAM_LNG_TEXT, wxT("System Language:"), wxDefaultPosition, wxDefaultSize);
 	GCSystemLang = new wxChoice(GamecubePage, ID_GC_SRAM_LNG, wxDefaultPosition, wxDefaultSize, arrayStringFor_GCSystemLang, 0, wxDefaultValidator);
 	// Device settings
 	// EXI Devices
-	wxStaticBoxSizer *sbGamecubeDeviceSettings = new wxStaticBoxSizer(wxVERTICAL, GamecubePage, wxT("Éè±¸ÉèÖÃ"));
+	wxStaticBoxSizer *sbGamecubeDeviceSettings = new wxStaticBoxSizer(wxVERTICAL, GamecubePage, wxT("è®¾å¤‡è®¾ç½®"));
 	wxStaticText* GCEXIDeviceText[3];
-	GCEXIDeviceText[0] = new wxStaticText(GamecubePage, ID_GC_EXIDEVICE_SLOTA_TEXT, wxT("²å²Û A"), wxDefaultPosition, wxDefaultSize);
-	GCEXIDeviceText[1] = new wxStaticText(GamecubePage, ID_GC_EXIDEVICE_SLOTB_TEXT, wxT("²å²Û B"), wxDefaultPosition, wxDefaultSize);
+	GCEXIDeviceText[0] = new wxStaticText(GamecubePage, ID_GC_EXIDEVICE_SLOTA_TEXT, wxT("æ’æ§½ A"), wxDefaultPosition, wxDefaultSize);
+	GCEXIDeviceText[1] = new wxStaticText(GamecubePage, ID_GC_EXIDEVICE_SLOTB_TEXT, wxT("æ’æ§½ B"), wxDefaultPosition, wxDefaultSize);
 	GCEXIDeviceText[2] = new wxStaticText(GamecubePage, ID_GC_EXIDEVICE_SP1_TEXT,	wxT("SP1   "), wxDefaultPosition, wxDefaultSize);
 	const wxString SlotDevices[] = {wxT(DEV_NONE_STR), wxT(DEV_DUMMY_STR), wxT(EXIDEV_MEMCARD_STR)
 	#if HAVE_PORTAUDIO
@@ -567,10 +557,10 @@ void CConfigMain::CreateGUIControls()
 	}
 	//SI Devices
 	wxStaticText* GCSIDeviceText[4];
-	GCSIDeviceText[0] = new wxStaticText(GamecubePage, ID_GC_SIDEVICE_TEXT, wxT("¶Ë¿Ú 1"), wxDefaultPosition, wxDefaultSize);
-	GCSIDeviceText[1] = new wxStaticText(GamecubePage, ID_GC_SIDEVICE_TEXT, wxT("¶Ë¿Ú 2"), wxDefaultPosition, wxDefaultSize);
-	GCSIDeviceText[2] = new wxStaticText(GamecubePage, ID_GC_SIDEVICE_TEXT, wxT("¶Ë¿Ú 3"), wxDefaultPosition, wxDefaultSize);
-	GCSIDeviceText[3] = new wxStaticText(GamecubePage, ID_GC_SIDEVICE_TEXT, wxT("¶Ë¿Ú 4"), wxDefaultPosition, wxDefaultSize);
+	GCSIDeviceText[0] = new wxStaticText(GamecubePage, ID_GC_SIDEVICE_TEXT, wxT("ç«¯å£ 1"), wxDefaultPosition, wxDefaultSize);
+	GCSIDeviceText[1] = new wxStaticText(GamecubePage, ID_GC_SIDEVICE_TEXT, wxT("ç«¯å£ 2"), wxDefaultPosition, wxDefaultSize);
+	GCSIDeviceText[2] = new wxStaticText(GamecubePage, ID_GC_SIDEVICE_TEXT, wxT("ç«¯å£ 3"), wxDefaultPosition, wxDefaultSize);
+	GCSIDeviceText[3] = new wxStaticText(GamecubePage, ID_GC_SIDEVICE_TEXT, wxT("ç«¯å£ 4"), wxDefaultPosition, wxDefaultSize);
 	// SIDEV_AM_BB_STR must be last!
 	const wxString SIDevices[] = {wxT(DEV_NONE_STR),wxT(SIDEV_STDCONT_STR),wxT(SIDEV_GBA_STR),wxT(SIDEV_AM_BB_STR)};
 	static const int numSIDevices = sizeof(SIDevices)/sizeof(wxString);
@@ -627,30 +617,27 @@ void CConfigMain::CreateGUIControls()
 	sGamecubePage->Add(sbGamecubeDeviceSettings, 0, wxEXPAND|wxALL, 5);
 
 	GamecubePage->SetSizer(sGamecubePage);
-	sGamecubePage->Layout();
-
 
 
 	// Wii page
 	// Wiimote Settings
-	sbWiimoteSettings = new wxStaticBoxSizer(wxHORIZONTAL, WiiPage, wxT("Wiimote ÉèÖÃ"));
-	wxStaticText* WiiSensBarPosText = new wxStaticText(WiiPage, ID_WII_BT_BAR_TEXT, wxT("Sensor Bar Î»ÖÃ:"), wxDefaultPosition, wxDefaultSize);
+	sbWiimoteSettings = new wxStaticBoxSizer(wxHORIZONTAL, WiiPage, wxT("Wiimote è®¾ç½®"));
+	wxStaticText* WiiSensBarPosText = new wxStaticText(WiiPage, ID_WII_BT_BAR_TEXT, wxT("Sensor Bar ä½ç½®:"), wxDefaultPosition, wxDefaultSize);
 	WiiSensBarPos = new wxChoice(WiiPage, ID_WII_BT_BAR, wxDefaultPosition, wxDefaultSize, arrayStringFor_WiiSensBarPos, 0, wxDefaultValidator);
 
 	// Misc Settings
-	sbWiiIPLSettings = new wxStaticBoxSizer(wxVERTICAL, WiiPage, wxT("ÆäËüÉèÖÃ"));
-	WiiScreenSaver = new wxCheckBox(WiiPage, ID_WII_IPL_SSV, wxT("ÆôÓÃÆÁÄ»±£»¤ (burn-in reduction)"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	WiiProgressiveScan = new wxCheckBox(WiiPage, ID_WII_IPL_PGS, wxT("ÆôÓÃÖğĞĞÉ¨Ãè"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	WiiEuRGB60 = new wxCheckBox(WiiPage, ID_WII_IPL_E60, wxT("Ê¹ÓÃ EuRGB60 Ä£Ê½ (PAL60)"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	wxStaticText* WiiAspectRatioText = new wxStaticText(WiiPage, ID_WII_IPL_AR_TEXT, wxT("¸ß¿í±È:"), wxDefaultPosition, wxDefaultSize);
+	sbWiiIPLSettings = new wxStaticBoxSizer(wxVERTICAL, WiiPage, wxT("å…¶å®ƒè®¾ç½®"));
+	WiiScreenSaver = new wxCheckBox(WiiPage, ID_WII_IPL_SSV, wxT("å¯ç”¨å±å¹•ä¿æŠ¤ (burn-in reduction)"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	WiiEuRGB60 = new wxCheckBox(WiiPage, ID_WII_IPL_E60, wxT("ä½¿ç”¨ EuRGB60 æ¨¡å¼ (PAL60)"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	wxStaticText* WiiAspectRatioText = new wxStaticText(WiiPage, ID_WII_IPL_AR_TEXT, wxT("é«˜å®½æ¯”:"), wxDefaultPosition, wxDefaultSize);
 	WiiAspectRatio = new wxChoice(WiiPage, ID_WII_IPL_AR, wxDefaultPosition, wxDefaultSize, arrayStringFor_WiiAspectRatio, 0, wxDefaultValidator);
-	wxStaticText* WiiSystemLangText = new wxStaticText(WiiPage, ID_WII_IPL_LNG_TEXT, wxT("ÏµÍ³ÓïÑÔ:"), wxDefaultPosition, wxDefaultSize);
+	wxStaticText* WiiSystemLangText = new wxStaticText(WiiPage, ID_WII_IPL_LNG_TEXT, wxT("ç³»ç»Ÿè¯­è¨€:"), wxDefaultPosition, wxDefaultSize);
 	WiiSystemLang = new wxChoice(WiiPage, ID_WII_IPL_LNG, wxDefaultPosition, wxDefaultSize, arrayStringFor_WiiSystemLang, 0, wxDefaultValidator);
 
 	// Device Settings
-	sbWiiDeviceSettings = new wxStaticBoxSizer(wxVERTICAL, WiiPage, wxT("Éè±¸ÉèÖÃ"));
-	WiiSDCard = new wxCheckBox(WiiPage, ID_WII_SD_CARD, wxT("²åÈë SD ¿¨"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	WiiKeyboard = new wxCheckBox(WiiPage, ID_WII_KEYBOARD, wxT("Á¬½Ó USB ¼üÅÌ"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	sbWiiDeviceSettings = new wxStaticBoxSizer(wxVERTICAL, WiiPage, wxT("è®¾å¤‡è®¾ç½®"));
+	WiiSDCard = new wxCheckBox(WiiPage, ID_WII_SD_CARD, wxT("æ’å…¥ SD å¡"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	WiiKeyboard = new wxCheckBox(WiiPage, ID_WII_KEYBOARD, wxT("è¿æ¥ USB é”®ç›˜"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 
 	// Populate the settings
 	sWiimoteSettings = new wxGridBagSizer();
@@ -660,12 +647,11 @@ void CConfigMain::CreateGUIControls()
 
 	sWiiIPLSettings = new wxGridBagSizer();
 	sWiiIPLSettings->Add(WiiScreenSaver, wxGBPosition(0, 0), wxGBSpan(1, 2), wxALL, 5);
-	sWiiIPLSettings->Add(WiiProgressiveScan, wxGBPosition(1, 0), wxGBSpan(1, 2), wxALL, 5);
-	sWiiIPLSettings->Add(WiiEuRGB60, wxGBPosition(2, 0), wxGBSpan(1, 2), wxALL, 5);
-	sWiiIPLSettings->Add(WiiAspectRatioText, wxGBPosition(3, 0), wxDefaultSpan, wxALIGN_CENTER_VERTICAL|wxALL, 5);
-	sWiiIPLSettings->Add(WiiAspectRatio, wxGBPosition(3, 1), wxDefaultSpan, wxALL, 5);
-	sWiiIPLSettings->Add(WiiSystemLangText, wxGBPosition(4, 0), wxDefaultSpan, wxALIGN_CENTER_VERTICAL|wxALL, 5);
-	sWiiIPLSettings->Add(WiiSystemLang, wxGBPosition(4, 1), wxDefaultSpan, wxALL, 5);
+	sWiiIPLSettings->Add(WiiEuRGB60, wxGBPosition(1, 0), wxGBSpan(1, 2), wxALL, 5);
+	sWiiIPLSettings->Add(WiiAspectRatioText, wxGBPosition(2, 0), wxDefaultSpan, wxALIGN_CENTER_VERTICAL|wxALL, 5);
+	sWiiIPLSettings->Add(WiiAspectRatio, wxGBPosition(2, 1), wxDefaultSpan, wxALL, 5);
+	sWiiIPLSettings->Add(WiiSystemLangText, wxGBPosition(3, 0), wxDefaultSpan, wxALIGN_CENTER_VERTICAL|wxALL, 5);
+	sWiiIPLSettings->Add(WiiSystemLang, wxGBPosition(3, 1), wxDefaultSpan, wxALL, 5);
 	sbWiiIPLSettings->Add(sWiiIPLSettings);
 
 	sbWiiDeviceSettings->Add(WiiSDCard, 0, wxALL, 5);
@@ -678,27 +664,25 @@ void CConfigMain::CreateGUIControls()
 	sWiiPage->Add(sbWiiDeviceSettings, 0, wxEXPAND|wxALL, 5);
 
 	WiiPage->SetSizer(sWiiPage);
-	sWiiPage->Layout();
-
 
 	
 	// Paths page
-	sbISOPaths = new wxStaticBoxSizer(wxVERTICAL, PathsPage, wxT("ISO Ä¿Â¼"));
+	sbISOPaths = new wxStaticBoxSizer(wxVERTICAL, PathsPage, wxT("ISO ç›®å½•"));
 	ISOPaths = new wxListBox(PathsPage, ID_ISOPATHS, wxDefaultPosition, wxDefaultSize, arrayStringFor_ISOPaths, wxLB_SINGLE, wxDefaultValidator);
-	RecursiveISOPath = new wxCheckBox(PathsPage, ID_RECURSIVEISOPATH, wxT("ËÑË÷×ÓÄ¿Â¼"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	AddISOPath = new wxButton(PathsPage, ID_ADDISOPATH, wxT("Ìí¼Ó..."), wxDefaultPosition, wxDefaultSize, 0);
-	RemoveISOPath = new wxButton(PathsPage, ID_REMOVEISOPATH, wxT("ÒÆ³ı"), wxDefaultPosition, wxDefaultSize, 0);
+	RecursiveISOPath = new wxCheckBox(PathsPage, ID_RECURSIVEISOPATH, wxT("æœç´¢å­?æŸ¯?"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	AddISOPath = new wxButton(PathsPage, ID_ADDISOPATH, wxT("æ·»åŠ ..."), wxDefaultPosition, wxDefaultSize, 0);
+	RemoveISOPath = new wxButton(PathsPage, ID_REMOVEISOPATH, wxT("ç§»é™¤"), wxDefaultPosition, wxDefaultSize, 0);
 	RemoveISOPath->Enable(false);
 
-	wxStaticText* DefaultISOText = new wxStaticText(PathsPage, ID_DEFAULTISO_TEXT, wxT("Ä¬ÈÏ ISO:"), wxDefaultPosition, wxDefaultSize);
-	DefaultISO = new wxFilePickerCtrl(PathsPage, ID_DEFAULTISO, wxEmptyString, wxT("Ñ¡ÔñÒ»¸öÄ¬ÈÏ ISO:"),
-		wxString::Format(wxT("ËùÓĞ GC/Wii ¾µÏñ (gcm, iso, gcz)|*.gcm;*.iso;*.gcz|ËùÓĞÎÄ¼ş (%s)|%s"), wxFileSelectorDefaultWildcardStr, wxFileSelectorDefaultWildcardStr),
+	wxStaticText* DefaultISOText = new wxStaticText(PathsPage, ID_DEFAULTISO_TEXT, wxT("é»˜è®¤ ISO:"), wxDefaultPosition, wxDefaultSize);
+	DefaultISO = new wxFilePickerCtrl(PathsPage, ID_DEFAULTISO, wxEmptyString, wxT("é€‰æ‹©ä¸€ä¸ªé»˜è®¤ ISO:"),
+		wxString::Format(wxT("æ‰€æœ‰ GC/Wii é•œåƒ (gcm, iso, gcz)|*.gcm;*.iso;*.gcz|æ‰€æœ‰æ–‡ä»¶ (%s)|%s"), wxFileSelectorDefaultWildcardStr, wxFileSelectorDefaultWildcardStr),
 		wxDefaultPosition, wxDefaultSize, wxFLP_USE_TEXTCTRL|wxFLP_OPEN);
-	wxStaticText* DVDRootText = new wxStaticText(PathsPage, ID_DVDROOT_TEXT, wxT("DVD ¸ùÄ¿Â¼:"), wxDefaultPosition, wxDefaultSize);
-	DVDRoot = new wxDirPickerCtrl(PathsPage, ID_DVDROOT, wxEmptyString, wxT("Ñ¡ÔñÒ»¸ö DVD ¸ùÄ¿Â¼:"), wxDefaultPosition, wxDefaultSize, wxDIRP_USE_TEXTCTRL);
+	wxStaticText* DVDRootText = new wxStaticText(PathsPage, ID_DVDROOT_TEXT, wxT("DVD æ ¹ç›®å½•:"), wxDefaultPosition, wxDefaultSize);
+	DVDRoot = new wxDirPickerCtrl(PathsPage, ID_DVDROOT, wxEmptyString, wxT("é€‰æ‹©ä¸€ä¸ª DVD æ ¹ç›®å½•:"), wxDefaultPosition, wxDefaultSize, wxDIRP_USE_TEXTCTRL);
 	wxStaticText* ApploaderPathText = new wxStaticText(PathsPage, ID_APPLOADERPATH_TEXT, wxT("Apploader:"), wxDefaultPosition, wxDefaultSize);
 	ApploaderPath = new wxFilePickerCtrl(PathsPage, ID_APPLOADERPATH, wxEmptyString, wxT("Choose file to use as apploader: (applies to discs constructed from directories only)"),
-		wxString::Format(wxT("apploader (.img)|*.img|ËùÓĞÎÄ¼ş (%s)|%s"), wxFileSelectorDefaultWildcardStr, wxFileSelectorDefaultWildcardStr),
+		wxString::Format(wxT("apploader (.img)|*.img|æ‰€æœ‰æ–‡ä»¶ (%s)|%s"), wxFileSelectorDefaultWildcardStr, wxFileSelectorDefaultWildcardStr),
 		wxDefaultPosition, wxDefaultSize, wxFLP_USE_TEXTCTRL|wxFLP_OPEN);
 
 	// Populate the settings
@@ -725,18 +709,16 @@ void CConfigMain::CreateGUIControls()
 	sPathsPage->Add(sOtherPaths, 0, wxEXPAND|wxALL, 5);
 
 	PathsPage->SetSizer(sPathsPage);
-	sPathsPage->Layout();
-
 
 	
 	// Plugins page
-	sbGraphicsPlugin = new wxStaticBoxSizer(wxHORIZONTAL, PluginsPage, wxT("Í¼ĞÎ"));
+	sbGraphicsPlugin = new wxStaticBoxSizer(wxHORIZONTAL, PluginsPage, wxT("å›¾å½¢"));
 	GraphicSelection = new wxChoice(PluginsPage, ID_GRAPHIC_CB, wxDefaultPosition, wxDefaultSize, 0, NULL, 0, wxDefaultValidator);
-	GraphicConfig = new wxButton(PluginsPage, ID_GRAPHIC_CONFIG, wxT("ÅäÖÃ..."), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	GraphicConfig = new wxButton(PluginsPage, ID_GRAPHIC_CONFIG, wxT("é…ç½®..."), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 
-	sbDSPPlugin = new wxStaticBoxSizer(wxHORIZONTAL, PluginsPage, wxT("DSPÒôÆµ"));
+	sbDSPPlugin = new wxStaticBoxSizer(wxHORIZONTAL, PluginsPage, wxT("DSPéŸ³é¢‘"));
 	DSPSelection = new wxChoice(PluginsPage, ID_DSP_CB, wxDefaultPosition, wxDefaultSize, 0, NULL, 0, wxDefaultValidator);
-	DSPConfig = new wxButton(PluginsPage, ID_DSP_CONFIG, wxT("ÅäÖÃ..."), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	DSPConfig = new wxButton(PluginsPage, ID_DSP_CONFIG, wxT("é…ç½®..."), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 
 	// Populate the settings
 	sbGraphicsPlugin->Add(GraphicSelection, 1, wxEXPAND|wxALL, 5);
@@ -751,7 +733,7 @@ void CConfigMain::CreateGUIControls()
 	sPluginsPage->Add(sbDSPPlugin, 0, wxEXPAND|wxALL, 5);
 
 	PluginsPage->SetSizer(sPluginsPage);
-	sPluginsPage->Layout();
+
 
 	m_Ok = new wxButton(this, wxID_OK);
 
@@ -783,8 +765,6 @@ void CConfigMain::OnClose(wxCloseEvent& WXUNUSED (event))
 void CConfigMain::OnOk(wxCommandEvent& WXUNUSED (event))
 {
 	Close();
-	// Sysconf saves when it gets deleted
-	//delete SConfig::GetInstance().m_SYSCONF;
 
 	// Save the config. Dolphin crashes to often to save the settings on closing only
 	SConfig::GetInstance().SaveSettings();
@@ -815,11 +795,6 @@ void CConfigMain::CoreSettingsChanged(wxCommandEvent& event)
 	case ID_ALWAYS_HLE_BS2:
 		SConfig::GetInstance().m_LocalCoreStartupParameter.bHLE_BS2 = AlwaysHLE_BS2->IsChecked();
 		break;
-#if defined(HAVE_OPENCL) && HAVE_OPENCL
-	case ID_ENABLE_OPENCL:
-		SConfig::GetInstance().m_LocalCoreStartupParameter.bEnableOpenCL = EnableOpenCL->IsChecked();
-		break;
-#endif
 	case ID_CPUENGINE:
 		SConfig::GetInstance().m_LocalCoreStartupParameter.iCPUCore = CPUEngine->GetSelection();
 		if (main_frame->g_pCodeWindow)
@@ -862,6 +837,13 @@ void CConfigMain::DisplaySettingsChanged(wxCommandEvent& event)
 		break;
 	case ID_DISPLAY_RENDERTOMAIN:
 		SConfig::GetInstance().m_LocalCoreStartupParameter.bRenderToMain = RenderToMain->IsChecked();
+		break;
+	case ID_DISPLAY_PROGSCAN:
+		SConfig::GetInstance().m_SYSCONF->SetData("IPL.PGS", ProgressiveScan->IsChecked());
+		SConfig::GetInstance().m_LocalCoreStartupParameter.bProgressive = ProgressiveScan->IsChecked();
+		break;
+	case ID_DISPLAY_NTSCJ:
+		SConfig::GetInstance().m_LocalCoreStartupParameter.bNTSCJ = NTSCJ->IsChecked();
 		break;
 	// Display - Interface
 	case ID_INTERFACE_CONFIRMSTOP:
@@ -933,11 +915,11 @@ void CConfigMain::GCSettingsChanged(wxCommandEvent& event)
 void CConfigMain::ChooseMemcardPath(std::string& strMemcard, bool isSlotA)
 {
 	std::string filename = std::string(wxFileSelector(
-		wxT("Ñ¡ÔñĞèÒª´ò¿ªµÄÎÄ¼ş"),
+		wxT("é€‰æ‹©éœ€è¦æ‰“å¼€çš„æ–‡ä»¶"),
 		wxString::From8BitData(File::GetUserPath(D_GCUSER_IDX)),
 		isSlotA ? wxT(GC_MEMCARDA) : wxT(GC_MEMCARDB),
 		wxEmptyString,
-		wxT("Gamecube ÄÚ´æ¿¨ (*.raw,*.gcp)|*.raw;*.gcp")).mb_str());
+		wxT("Gamecube å†…å­˜å¡ (*.raw,*.gcp)|*.raw;*.gcp")).mb_str());
 
 	if (!filename.empty())
 	{
@@ -1037,10 +1019,6 @@ void CConfigMain::WiiSettingsChanged(wxCommandEvent& event)
 	case ID_WII_IPL_SSV:
 		SConfig::GetInstance().m_SYSCONF->SetData("IPL.SSV", WiiScreenSaver->IsChecked());
 		break;
-	case ID_WII_IPL_PGS:
-		SConfig::GetInstance().m_SYSCONF->SetData("IPL.PGS", WiiProgressiveScan->IsChecked());
-		SConfig::GetInstance().m_LocalCoreStartupParameter.bProgressive = WiiProgressiveScan->IsChecked();
-		break;
 	case ID_WII_IPL_E60:
 		SConfig::GetInstance().m_SYSCONF->SetData("IPL.E60", WiiEuRGB60->IsChecked());
 		break;
@@ -1082,17 +1060,13 @@ void CConfigMain::AddRemoveISOPaths(wxCommandEvent& event)
 {
 	if (event.GetId() == ID_ADDISOPATH)
 	{
-		wxString dirHome;
-		wxGetHomeDir(&dirHome);
-
-		wxDirDialog dialog(this, _T("Ñ¡ÔñĞèÒªÌí¼ÓµÄÄ¿Â¼"), dirHome, wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
+		wxDirDialog dialog(this, _T("é€‰æ‹©éœ€è¦æ·»åŠ çš„ç›®å½•"), wxGetHomeDir(),
+				wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
 
 		if (dialog.ShowModal() == wxID_OK)
 		{
 			if (ISOPaths->FindString(dialog.GetPath()) != -1)
-			{
-				wxMessageBox(_("Ñ¡ÔñµÄÄ¿Â¼ÒÑ¾­´æÔÚÓÚÁĞ±í"), _("Error"), wxOK);
-			}
+				wxMessageBox(_("é€‰æ‹©çš„ç›®å½•å·²ç»å­˜åœ¨äºåˆ—è¡¨"), _("Error"), wxOK);
 			else
 			{
 				bRefreshList = true;

@@ -54,12 +54,10 @@ enum
 // If this is enabled, bounding boxes will be computed for everything drawn.
 // This can theoretically have a big speed hit in some geom heavy games. Needs more work.
 // Helps some effects in Paper Mario (but they aren't quite right yet).
-// May help Super Mario Galaxy?
 // Do testing to figure out if the speed hit is bad?
 // #define BBOX_SUPPORT
 
 extern SVideoInitialize g_VideoInitialize;
-
 
 inline u8 *Memory_GetPtr(u32 _uAddress)
 {
@@ -124,9 +122,15 @@ struct TargetRectangle : public MathUtil::Rectangle<int>
 {
 #ifdef _WIN32
 	// Only used by D3D plugin.
-	const RECT *AsRECT() const {
+	const RECT *AsRECT() const
+	{
 		// The types are binary compatible so this works.
 		return (const RECT *)this;
+	}
+	RECT *AsRECT()
+	{
+		// The types are binary compatible so this works.
+		return (RECT *)this;
 	}
 #endif
 };
@@ -142,13 +146,13 @@ struct TargetRectangle : public MathUtil::Rectangle<int>
 
 #define LOG_VTX()
 
-bool IsD3D();
-
 typedef enum
 {
 	API_OPENGL,
 	API_D3D9,
-	API_D3D11
+	API_D3D11,
+	API_GLSL,
+	API_NONE
 } API_TYPE;
 
 #endif  // _VIDEOCOMMON_H

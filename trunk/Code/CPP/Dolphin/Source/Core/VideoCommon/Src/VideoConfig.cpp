@@ -34,11 +34,18 @@ void UpdateActiveConfig()
 VideoConfig::VideoConfig()
 {
 	bRunning = false;
-	bAllowSignedBytes = !IsD3D();
-	
+
 	// Needed for the first frame, I think
 	fAspectRatioHackW = 1;
 	fAspectRatioHackH = 1;
+
+	// disable all features by default
+	backend_info.APIType = API_NONE;
+	backend_info.bAllowSignedBytes = false;
+	backend_info.bUseRGBATextures = false;
+	backend_info.bSupportsEFBToRAM = false;
+	backend_info.bSupportsRealXFB = false;
+	backend_info.bSupports3DVision = false;
 }
 
 void VideoConfig::Load(const char *ini_file)
@@ -73,6 +80,7 @@ void VideoConfig::Load(const char *ini_file)
 	iniFile.Get("Settings", "AnaglyphStereoSeparation", &iAnaglyphStereoSeparation, 200);
 	iniFile.Get("Settings", "AnaglyphFocalAngle", &iAnaglyphFocalAngle, 0);
 	iniFile.Get("Settings", "EnablePixelLigting", &bEnablePixelLigting, 0);
+	iniFile.Get("Settings", "EnablePerPixelDepth", &bEnablePerPixelDepth, 0);
 	
 	iniFile.Get("Settings", "ShowShaderErrors", &bShowShaderErrors, 0);
 	iniFile.Get("Settings", "MSAA", &iMultisampleMode, 0);
@@ -87,17 +95,19 @@ void VideoConfig::Load(const char *ini_file)
 	iniFile.Get("Settings", "DisableTexturing", &bDisableTexturing, 0);
 	iniFile.Get("Settings", "DisableFog", &bDisableFog, 0);
 	
+	iniFile.Get("Settings", "EnableOpenCL", &bEnableOpenCL, false);
+
 	iniFile.Get("Enhancements", "ForceFiltering", &bForceFiltering, 0);
 	iniFile.Get("Enhancements", "MaxAnisotropy", &iMaxAnisotropy, 1);  // NOTE - this is x in (1 << x)
 	iniFile.Get("Enhancements", "PostProcessingShader", &sPostProcessingShader, "");
+	iniFile.Get("Enhancements", "Enable3dVision", &b3DVision, false);
 	
 	iniFile.Get("Hacks", "EFBAccessEnable", &bEFBAccessEnable, true);
 	iniFile.Get("Hacks", "DlistCachingEnable", &bDlistCachingEnable,false);
-	iniFile.Get("Hacks", "EFBCopyDisable", &bEFBCopyDisable, false);
+	iniFile.Get("Hacks", "EFBCopyEnable", &bEFBCopyEnable, true);
 	iniFile.Get("Hacks", "EFBCopyDisableHotKey", &bOSDHotKey, 0);
 	iniFile.Get("Hacks", "EFBToTextureEnable", &bCopyEFBToTexture, false);
 	iniFile.Get("Hacks", "EFBScaledCopy", &bCopyEFBScaled, true);
-	iniFile.Get("Hacks", "FIFOWatermarkTightness", &iFIFOWatermarkTightness, 50);
 	iniFile.Get("Hacks", "ProjectionHack", &iPhackvalue, 0);
 
 	iniFile.Get("Hardware", "Adapter", &iAdapter, 0);
@@ -109,7 +119,6 @@ void VideoConfig::Load(const char *ini_file)
 	bool bTmp;
 	iniFile.Get("Interface", "UsePanicHandlers", &bTmp, true);
 	SetEnableAlert(bTmp);
-	iniFile.Get("Core", "EnableOpenCL", &bEnableOpenCL, false);
 }
 
 void VideoConfig::GameIniLoad(const char *ini_file)
@@ -121,8 +130,8 @@ void VideoConfig::GameIniLoad(const char *ini_file)
 		iniFile.Get("Video", "ForceFiltering", &bForceFiltering);
 	if (iniFile.Exists("Video", "MaxAnisotropy"))
 		iniFile.Get("Video", "MaxAnisotropy", &iMaxAnisotropy);  // NOTE - this is x in (1 << x)
-	if (iniFile.Exists("Video", "EFBCopyDisable"))
-		iniFile.Get("Video", "EFBCopyDisable", &bEFBCopyDisable);
+	if (iniFile.Exists("Video", "EFBCopyEnable"))
+		iniFile.Get("Video", "EFBCopyEnable", &bEFBCopyEnable);
 	if (iniFile.Exists("Video", "EFBCopyDisableHotKey"))
 		iniFile.Get("Video", "EFBCopyDisableHotKey", &bOSDHotKey);
 	if (iniFile.Exists("Video", "EFBToTextureEnable"))
@@ -145,8 +154,6 @@ void VideoConfig::GameIniLoad(const char *ini_file)
 		iniFile.Get("Video", "UseXFB", &bUseXFB);
 	if (iniFile.Exists("Video", "UseRealXFB"))
 		iniFile.Get("Video", "UseRealXFB", &bUseRealXFB);
-	if (iniFile.Exists("Video", "FIFOWatermarkTightness"))
-		iniFile.Get("Video", "FIFOWatermarkTightness", &iFIFOWatermarkTightness);
 	if (iniFile.Exists("Video", "ProjectionHack"))
 		iniFile.Get("Video", "ProjectionHack", &iPhackvalue);
 	if (iniFile.Exists("Video", "UseNativeMips"))
@@ -187,6 +194,8 @@ void VideoConfig::Save(const char *ini_file)
 	iniFile.Set("Settings", "AnaglyphStereoSeparation", iAnaglyphStereoSeparation);
 	iniFile.Set("Settings", "AnaglyphFocalAngle", iAnaglyphFocalAngle);
 	iniFile.Set("Settings", "EnablePixelLigting", bEnablePixelLigting);
+	iniFile.Set("Settings", "EnablePerPixelDepth", bEnablePerPixelDepth);
+	
 
 	iniFile.Set("Settings", "ShowEFBCopyRegions", bShowEFBCopyRegions);
 	iniFile.Set("Settings", "ShowShaderErrors", bShowShaderErrors);
@@ -199,14 +208,17 @@ void VideoConfig::Save(const char *ini_file)
 	iniFile.Set("Settings", "DisableTexturing", bDisableTexturing);
 	iniFile.Set("Settings", "DstAlphaPass", bDstAlphaPass);
 	iniFile.Set("Settings", "DisableFog", bDisableFog);
+
+	iniFile.Set("Settings", "EnableOpenCL", bEnableOpenCL);
 	
 	iniFile.Set("Enhancements", "ForceFiltering", bForceFiltering);
 	iniFile.Set("Enhancements", "MaxAnisotropy", iMaxAnisotropy);
 	iniFile.Set("Enhancements", "PostProcessingShader", sPostProcessingShader);
+	iniFile.Set("Enhancements", "Enable3dVision", b3DVision);
 	
 	iniFile.Set("Hacks", "EFBAccessEnable", bEFBAccessEnable);
 	iniFile.Set("Hacks", "DlistCachingEnable", bDlistCachingEnable);
-	iniFile.Set("Hacks", "EFBCopyDisable", bEFBCopyDisable);
+	iniFile.Set("Hacks", "EFBCopyEnable", bEFBCopyEnable);
 	iniFile.Set("Hacks", "EFBCopyDisableHotKey", bOSDHotKey);
 	iniFile.Set("Hacks", "EFBToTextureEnable", bCopyEFBToTexture);	
 	iniFile.Set("Hacks", "EFBScaledCopy", bCopyEFBScaled);

@@ -24,10 +24,8 @@
 #define	INFO_LEVEL    4  // General information.
 #define	DEBUG_LEVEL   5  // Detailed debugging - might make things slow.
 
-#ifdef __cplusplus
 namespace LogTypes
 {
-#endif
 
 enum LOG_TYPE {
 	ACTIONREPLAY,
@@ -48,7 +46,7 @@ enum LOG_TYPE {
 	EXPANSIONINTERFACE,
 	POWERPC,
 	GPFIFO,
-	HLE,
+	OSHLE,
 	MASTER_LOG,
 	MEMMAP,
 	MEMCARD_MANAGER,
@@ -86,19 +84,17 @@ enum LOG_LEVELS {
 	LDEBUG = DEBUG_LEVEL,
 };
 
-#ifdef __cplusplus
+#define LOGTYPES_LEVELS LogTypes::LOG_LEVELS
+#define LOGTYPES_TYPE LogTypes::LOG_TYPE
+
 }  // namespace
 
-void GenericLog(LogTypes::LOG_LEVELS level, LogTypes::LOG_TYPE type,
-		const char *file, int line, const char *fmt, ...);
-extern "C" {
+void GenericLog(LOGTYPES_LEVELS level, LOGTYPES_TYPE type,
+		const char *file, int line, const char *fmt, ...)
+#ifdef __GNUC__
+		__attribute__((format(printf, 5, 6)))
 #endif
-void GenericLogC(int level, int type,
-		const char *file, int line, const char *fmt, ...);
-#define GenericLog GenericLogC
-#ifdef __cplusplus
-};
-#endif
+		;
 
 #if defined LOGGING || defined _DEBUG || defined DEBUGFAST
 #define MAX_LOGLEVEL DEBUG_LEVEL
@@ -111,9 +107,11 @@ void GenericLogC(int level, int type,
 #ifdef GEKKO
 #define GENERIC_LOG(t, v, ...)
 #else
-
 // Let the compiler optimize this out
-#define GENERIC_LOG(t, v, ...) {if (v <= MAX_LOGLEVEL) {GenericLog(v, t, __FILE__, __LINE__, __VA_ARGS__);}}
+#define GENERIC_LOG(t, v, ...) { \
+	if (v <= MAX_LOGLEVEL) \
+		GenericLog(v, t, __FILE__, __LINE__, __VA_ARGS__); \
+	}
 #endif
 
 #define ERROR_LOG(t,...) { GENERIC_LOG(LogTypes::t, LogTypes::LERROR, __VA_ARGS__) }

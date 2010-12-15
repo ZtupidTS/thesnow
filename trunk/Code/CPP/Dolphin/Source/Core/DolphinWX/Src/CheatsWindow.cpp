@@ -1,4 +1,4 @@
-// Copyright (C) 2003 Dolphin Project.
+Ôªø// Copyright (C) 2003 Dolphin Project.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -121,12 +121,12 @@ void wxCheatsWindow::Init_ChildControls()
 	m_geckocode_panel = new Gecko::CodeConfigPanel(m_Notebook_Main);
 	m_Notebook_Main->AddPage(m_geckocode_panel, wxT("Gecko Codes"));
 	m_Notebook_Main->AddPage(tab_cheat_search, _T("Cheat Search"));
-	m_Notebook_Main->AddPage(m_Tab_Log, _T("º«¬º"));
+	m_Notebook_Main->AddPage(m_Tab_Log, _T("ËÆ∞ÂΩï"));
 
 	// Button Strip
-	wxButton* const button_apply = new wxButton(panel, wxID_ANY, _T("”¶”√"), wxDefaultPosition, wxDefaultSize);
+	wxButton* const button_apply = new wxButton(panel, wxID_ANY, _T("Â∫îÁî®"), wxDefaultPosition, wxDefaultSize);
 	_connect_macro_(button_apply, wxCheatsWindow::OnEvent_ApplyChanges_Press, wxEVT_COMMAND_BUTTON_CLICKED, this);
-	wxButton* const button_close = new wxButton(panel, wxID_ANY, _T("πÿ±’"), wxDefaultPosition, wxDefaultSize);
+	wxButton* const button_close = new wxButton(panel, wxID_ANY, _T("ÂÖ≥Èó≠"), wxDefaultPosition, wxDefaultSize);
 	_connect_macro_(button_close, wxCheatsWindow::OnEvent_ButtonClose_Press, wxEVT_COMMAND_BUTTON_CLICKED, this);
 	wxBoxSizer* sButtons = new wxBoxSizer(wxHORIZONTAL);
 	sButtons->Add(button_apply, 1, wxRIGHT, 5);
@@ -275,7 +275,7 @@ void wxCheatsWindow::OnEvent_CheatsList_ItemSelected(wxCommandEvent& WXUNUSED (e
 		if ((int)indexList[i].uiIndex == index)
 		{
 			ARCode code = GetARCode(i);
-			m_Label_Codename->SetLabel(wxT("√˚≥∆: ") + wxString(code.name.c_str(), *wxConvCurrent));
+			m_Label_Codename->SetLabel(wxT("ÂêçÁß∞: ") + wxString(code.name.c_str(), *wxConvCurrent));
 			char text[CHAR_MAX];
 			char* numcodes = text;
 			sprintf(numcodes, "Number of Codes: %lu", (unsigned long)code.ops.size());

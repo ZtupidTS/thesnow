@@ -202,7 +202,7 @@ void CGameListCtrl::BrowseForDirectory()
 	wxGetHomeDir(&dirHome);
 
 	// browse
-	wxDirDialog dialog(this, _("浏览需要添加的目录"), dirHome,
+	wxDirDialog dialog(this, _("浏览要添加的目录"), dirHome,
 			wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
 
 	if (dialog.ShowModal() == wxID_OK)
@@ -251,13 +251,13 @@ void CGameListCtrl::Update()
 
 		// add columns
 		InsertColumn(COLUMN_PLATFORM, _(""));
-		InsertColumn(COLUMN_BANNER, _("标题横幅"));
+		InsertColumn(COLUMN_BANNER, _("图标"));
 		InsertColumn(COLUMN_TITLE, _("标题"));
 
 		// Instead of showing the notes + the company, which is unknown with
 		// wii titles We show in the same column : company for GC games and
 		// description for wii/wad games
-		InsertColumn(COLUMN_NOTES, _("说明"));
+		InsertColumn(COLUMN_NOTES, _("备注"));
 		InsertColumn(COLUMN_COUNTRY, _(""));
 		InsertColumn(COLUMN_SIZE, _("大小"));
 		InsertColumn(COLUMN_EMULATION_STATE, _("状态"));
@@ -299,13 +299,13 @@ void CGameListCtrl::Update()
 			SConfig::GetInstance().m_ListUsa  &&
 			SConfig::GetInstance().m_ListPal))
 		{
-			errorString = wxT("不能找到任何 GC/Wii ISO.")
+			errorString = wxT("Dolphin 不能找到任何 GC/Wii ISO.")
 					wxT("双击这里浏览文件...");
 		}
 		else
 		{
-			errorString = wxT("Dolphin 当前设置为隐藏所有游戏. ")
-				wxT("双击这里显示所有游戏...");
+			errorString = wxT("Dolphin 当前设置隐藏所有游戏")
+				wxT("双击这里显示所有游戏..");
 		}
 		InsertColumn(0, _("没有找到 ISO 或者 WADS"));
 		long index = InsertItem(0, errorString);
@@ -542,10 +542,8 @@ void CGameListCtrl::ScanForISOs()
 				if (FST_Temp.children.at(j).isDirectory)
 				{
 					bool duplicate = false;
-					NormalizeDirSep(&(FST_Temp.children.at(j).physicalName));
 					for (u32 k = 0; k < Directories.size(); k++)
 					{
-						NormalizeDirSep(&Directories.at(k));
 						if (strcmp(Directories.at(k).c_str(),
 									FST_Temp.children.at(j).physicalName.c_str()) == 0)
 						{
@@ -579,8 +577,8 @@ void CGameListCtrl::ScanForISOs()
 
 	if (rFilenames.size() > 0)
 	{
-		wxProgressDialog dialog(_T("搜索 ISO 中"),
-					_T("正在扫描..."),
+		wxProgressDialog dialog(_T("扫描 ISO 中"),
+					_T("扫描中..."),
 					(int)rFilenames.size(), // range
 					this, // parent
 					wxPD_APP_MODAL |
@@ -602,7 +600,7 @@ void CGameListCtrl::ScanForISOs()
 			msg = wxString(tempstring, *wxConvCurrent);
 
 // With wxWidgets 2.9.1, each Update() sleeps for several seconds
-#ifndef __APPLE__
+#if !wxCHECK_VERSION(2, 9, 1) || wxCHECK_VERSION(2, 9, 2) 
 			// Update with the progress (i) and the message (msg)
 			bool Cont = dialog.Update(i, msg);
 			if (!Cont)
@@ -967,16 +965,16 @@ void CGameListCtrl::OnRightClick(wxMouseEvent& event)
 		if (selected_iso)
 		{
 			wxMenu* popupMenu = new wxMenu;
-			popupMenu->Append(IDM_PROPERTIES, _("属性(&P)"));
+			popupMenu->Append(IDM_PROPERTIES, _("&Properties"));
 			popupMenu->AppendSeparator();
 
 			if (selected_iso->GetPlatform() != GameListItem::GAMECUBE_DISC)
 			{
-				popupMenu->Append(IDM_OPENSAVEFOLDER, _("打开 Wii 存档文件夹(&S)"));
-				popupMenu->Append(IDM_EXPORTSAVE, _("导出 Wii 存档 (不稳定)"));
+				popupMenu->Append(IDM_OPENSAVEFOLDER, _("Open Wii &save folder"));
+				popupMenu->Append(IDM_EXPORTSAVE, _("Export Wii save (Experimental)"));
 			}
-			popupMenu->Append(IDM_OPENCONTAININGFOLDER, _("打开游戏文件夹(&C)"));
-			popupMenu->AppendCheckItem(IDM_SETDEFAULTGCM, _("设置为默认ISO(&D)"));
+			popupMenu->Append(IDM_OPENCONTAININGFOLDER, _("Open &containing folder"));
+			popupMenu->AppendCheckItem(IDM_SETDEFAULTGCM, _("Set as &default ISO"));
 
 			// First we have to decide a starting value when we append it
 			if(selected_iso->GetFileName() == SConfig::GetInstance().
@@ -984,16 +982,16 @@ void CGameListCtrl::OnRightClick(wxMouseEvent& event)
 				popupMenu->FindItem(IDM_SETDEFAULTGCM)->Check();
 
 			popupMenu->AppendSeparator();
-			popupMenu->Append(IDM_DELETEGCM, _("删除ISO(&D)..."));
+			popupMenu->Append(IDM_DELETEGCM, _("&Delete ISO..."));
 
 			if (selected_iso->GetPlatform() != GameListItem::WII_WAD)
 			{
 				if (selected_iso->IsCompressed())
-					popupMenu->Append(IDM_COMPRESSGCM, _("解压缩 ISO..."));
+					popupMenu->Append(IDM_COMPRESSGCM, _("Decompress ISO..."));
 				else
-					popupMenu->Append(IDM_COMPRESSGCM, _("压缩 ISO..."));
+					popupMenu->Append(IDM_COMPRESSGCM, _("Compress ISO..."));
 			} else
-				popupMenu->Append(IDM_INSTALLWAD, _("安装到 Wii 菜单"));
+				popupMenu->Append(IDM_INSTALLWAD, _("Install to Wii Menu"));
 
 			PopupMenu(popupMenu);
 		}
@@ -1001,10 +999,10 @@ void CGameListCtrl::OnRightClick(wxMouseEvent& event)
 	else if (GetSelectedItemCount() > 1)
 	{
 		wxMenu* popupMenu = new wxMenu;
-		popupMenu->Append(IDM_DELETEGCM, _("删除所选ISO(&D)..."));
+		popupMenu->Append(IDM_DELETEGCM, _("&Delete selected ISOs..."));
 		popupMenu->AppendSeparator();
-		popupMenu->Append(IDM_MULTICOMPRESSGCM, _("压缩所选ISO..."));
-		popupMenu->Append(IDM_MULTIDECOMPRESSGCM, _("解压缩所选ISO..."));
+		popupMenu->Append(IDM_MULTICOMPRESSGCM, _("Compress selected ISOs..."));
+		popupMenu->Append(IDM_MULTIDECOMPRESSGCM, _("Decompress selected ISOs..."));
 		PopupMenu(popupMenu);
 	}
 }
@@ -1143,8 +1141,8 @@ void CGameListCtrl::OnInstallWAD(wxCommandEvent& WXUNUSED (event))
 	if (!iso)
 		return;
 
-	wxProgressDialog dialog(_T("安装 WAD 到 Wii 菜单..."),
-		_T("工作中..."),
+	wxProgressDialog dialog(_T("Installing WAD to Wii Menu..."),
+		_T("Working..."),
 		1000, // range
 		this, // parent
 		wxPD_APP_MODAL |
@@ -1184,14 +1182,14 @@ void CGameListCtrl::CompressSelection(bool _compress)
 	wxString dirHome;
 	wxGetHomeDir(&dirHome);
 
-	wxDirDialog browseDialog(this, _("浏览输出目录"), dirHome,
+	wxDirDialog browseDialog(this, _("Browse for output directory"), dirHome,
 			wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
 	if (browseDialog.ShowModal() != wxID_OK)
 		return;
 
 	wxProgressDialog progressDialog(_compress ?
-			_("压缩 ISO 中") : _("解压缩 ISO 中"),
-			_("工作中..."),
+			_("Compressing ISO") : _("Decompressing ISO"),
+			_("Working..."),
 			1000, // range
 			this, // parent
 			wxPD_APP_MODAL |
@@ -1311,7 +1309,7 @@ void CGameListCtrl::OnCompressGCM(wxCommandEvent& WXUNUSED (event))
 		else
 		{
 			path = wxFileSelector(
-					_T("保存已解压缩的 ISO"),
+					_T("Save compressed GCM/ISO"),
 					wxString(FilePath.c_str(), *wxConvCurrent),
 					wxString(FileName.c_str(), *wxConvCurrent) + _T(".gcz"),
 					wxEmptyString,
@@ -1333,8 +1331,8 @@ void CGameListCtrl::OnCompressGCM(wxCommandEvent& WXUNUSED (event))
 				wxYES_NO) == wxNO);
 
 	wxProgressDialog dialog(iso->IsCompressed() ?
-			_T("解压缩 ISO 中") : _T("压缩 ISO 中"),
-			_T("工作中..."),
+			_T("Decompressing ISO") : _T("Compressing ISO"),
+			_T("Working..."),
 			1000, // range
 			this, // parent
 			wxPD_APP_MODAL |

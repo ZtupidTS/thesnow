@@ -1,4 +1,4 @@
-// Copyright (C) 2003 Dolphin Project.
+ï»¿// Copyright (C) 2003 Dolphin Project.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -138,40 +138,40 @@ CISOProperties::CISOProperties(const std::string fileName, wxWindow* parent, wxW
 	switch (OpenISO->GetCountry())
 	{
 	case DiscIO::IVolume::COUNTRY_EUROPE:
-		m_Country->SetValue(wxT("Å·ÖÞ"));
+		m_Country->SetValue(wxT("æ¬§æ´²"));
 		break;
 	case DiscIO::IVolume::COUNTRY_FRANCE:
-		m_Country->SetValue(wxT("·¨¹ú"));
+		m_Country->SetValue(wxT("æ³•å›½"));
 		break;
 	case DiscIO::IVolume::COUNTRY_ITALY:
-		m_Country->SetValue(wxT("Òâ´óÀû"));
+		m_Country->SetValue(wxT("æ„å¤§åˆ©"));
 		break;
 	case DiscIO::IVolume::COUNTRY_RUSSIA:
-		m_Country->SetValue(wxT("RUSSIA"));
+		m_Country->SetValue(wxT("ä¿„ç½—æ–¯"));
 		break;
 	case DiscIO::IVolume::COUNTRY_USA:
-		m_Country->SetValue(wxT("ÃÀ¹ú"));
+		m_Country->SetValue(wxT("ç¾Žå›½"));
 		m_Lang->SetSelection(0);
 		m_Lang->Disable(); // For NTSC Games, there's no multi lang
 		break;
 	case DiscIO::IVolume::COUNTRY_JAPAN:
-		m_Country->SetValue(wxT("ÈÕ±¾"));
+		m_Country->SetValue(wxT("æ—¥æœ¬"));
 		m_Lang->SetSelection(-1);
 		m_Lang->Disable(); // For NTSC Games, there's no multi lang
 		break;
 	case DiscIO::IVolume::COUNTRY_KOREA:
-		m_Country->SetValue(wxT("º«¹ú"));
+		m_Country->SetValue(wxT("éŸ©å›½"));
 		break;
 	case DiscIO::IVolume::COUNTRY_TAIWAN:
-		m_Country->SetValue(wxT("Ì¨Íå"));
+		m_Country->SetValue(wxT("å°æ¹¾"));
 		m_Lang->SetSelection(-1);
 		m_Lang->Disable(); // For NTSC Games, there's no multi lang
 		break;
 	case DiscIO::IVolume::COUNTRY_SDK:
-		m_Country->SetValue(wxT("Ã»ÓÐ¹ú¼Ò (SDK)"));
+		m_Country->SetValue(wxT("æ²¡æœ‰å›½å®¶ (SDK)"));
 		break;
 	default:
-		m_Country->SetValue(wxT("Î´Öª"));
+		m_Country->SetValue(wxT("æœªçŸ¥"));
 		break;
 	}
 	wxString temp = _T("0x") + wxString::From8BitData(OpenISO->GetMakerID().c_str());
@@ -191,7 +191,7 @@ CISOProperties::CISOProperties(const std::string fileName, wxWindow* parent, wxW
 		for (u32 i = 0; i < WiiDisc.size(); i++)
 		{
 			WiiPartition partition = WiiDisc.at(i);
-			wxTreeItemId PartitionRoot = m_Treectrl->AppendItem(RootId, wxString::Format(wxT("·ÖÇø %i"), i), 0, 0, 0);
+			wxTreeItemId PartitionRoot = m_Treectrl->AppendItem(RootId, wxString::Format(wxT("åˆ†åŒº %i"), i), 0, 0, 0);
 			CreateDirectoryTree(PartitionRoot, partition.Files, 1, partition.Files.at(0)->m_FileSize);	
 			if (i == 1)
 				m_Treectrl->Expand(PartitionRoot);
@@ -260,24 +260,24 @@ size_t CISOProperties::CreateDirectoryTree(wxTreeItemId& parent,
 
 void CISOProperties::CreateGUIControls(bool IsWad)
 {
-	m_Close = new wxButton(this, ID_CLOSE, _("¹Ø±Õ"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	EditConfig = new wxButton(this, ID_EDITCONFIG, _("±à¼­ÉèÖÃ"), wxDefaultPosition, wxDefaultSize);
+	m_Close = new wxButton(this, ID_CLOSE, _("å…³é—­"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	EditConfig = new wxButton(this, ID_EDITCONFIG, _("ç¼–è¾‘è®¾ç½®"), wxDefaultPosition, wxDefaultSize);
 	EditConfig->SetToolTip(_("This will let you Manually Edit the INI config file"));
 
 	// Notebook
 	m_Notebook = new wxNotebook(this, ID_NOTEBOOK, wxDefaultPosition, wxDefaultSize);
 	m_GameConfig = new wxPanel(m_Notebook, ID_GAMECONFIG, wxDefaultPosition, wxDefaultSize);
-	m_Notebook->AddPage(m_GameConfig, _("ÓÎÏ·ÉèÖÃ"));
+	m_Notebook->AddPage(m_GameConfig, _("æ¸¸æˆè®¾ç½®"));
 	m_PatchPage = new wxPanel(m_Notebook, ID_PATCH_PAGE, wxDefaultPosition, wxDefaultSize);
-	m_Notebook->AddPage(m_PatchPage, _("²¹¶¡"));
+	m_Notebook->AddPage(m_PatchPage, _("è¡¥ä¸"));
 	m_CheatPage = new wxPanel(m_Notebook, ID_ARCODE_PAGE, wxDefaultPosition, wxDefaultSize);
 	m_Notebook->AddPage(m_CheatPage, _("AR Codes"));
 	m_geckocode_panel = new Gecko::CodeConfigPanel(m_Notebook);
 	m_Notebook->AddPage(m_geckocode_panel, wxT("Gecko Codes"));
 	m_Information = new wxPanel(m_Notebook, ID_INFORMATION, wxDefaultPosition, wxDefaultSize);
-	m_Notebook->AddPage(m_Information, _("ÐÅÏ¢"));
+	m_Notebook->AddPage(m_Information, _("ä¿¡æ¯"));
 	m_Filesystem = new wxPanel(m_Notebook, ID_FILESYSTEM, wxDefaultPosition, wxDefaultSize);
-	m_Notebook->AddPage(m_Filesystem, _("ÎÄ¼þÏµÍ³"));
+	m_Notebook->AddPage(m_Filesystem, _("æ–‡ä»¶ç³»ç»Ÿ"));
 
 	wxBoxSizer* sButtons;
 	sButtons = new wxBoxSizer(wxHORIZONTAL);
@@ -287,17 +287,17 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 
 	
 	// GameConfig editing - Overrides and emulation state
-	sbGameConfig = new wxStaticBoxSizer(wxVERTICAL, m_GameConfig, _("Game-Specific ÉèÖÃ"));
+	sbGameConfig = new wxStaticBoxSizer(wxVERTICAL, m_GameConfig, _("Game-Specific è®¾ç½®"));
 	OverrideText = new wxStaticText(m_GameConfig, ID_OVERRIDE_TEXT, _("These settings override core Dolphin settings.\nUndetermined means the game uses Dolphin's setting."), wxDefaultPosition, wxDefaultSize);
 	// Core
-	sbCoreOverrides = new wxStaticBoxSizer(wxVERTICAL, m_GameConfig, _("ºËÐÄ"));
-	CPUThread = new wxCheckBox(m_GameConfig, ID_USEDUALCORE, _("ÆôÓÃ¶àºË¼ÆËã"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
-	SkipIdle = new wxCheckBox(m_GameConfig, ID_IDLESKIP, _("ÆôÓÃ¿ÕÏÐ²½½ø"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
-	MMU = new wxCheckBox(m_GameConfig, ID_MMU, _("ÆôÓÃ MMU"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
+	sbCoreOverrides = new wxStaticBoxSizer(wxVERTICAL, m_GameConfig, _("æ ¸å¿ƒ"));
+	CPUThread = new wxCheckBox(m_GameConfig, ID_USEDUALCORE, _("å¯ç”¨å¤šæ ¸è®¡ç®—"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
+	SkipIdle = new wxCheckBox(m_GameConfig, ID_IDLESKIP, _("å¯ç”¨ç©ºé—²æ­¥è¿›"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
+	MMU = new wxCheckBox(m_GameConfig, ID_MMU, _("å¯ç”¨ MMU"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
 	MMU->SetToolTip(wxT("Enables the Memory Management Unit, needed for some games. (ON = Compatible, OFF = Fast)"));
 	MMUBAT = new wxCheckBox(m_GameConfig, ID_MMUBAT, _("Enable BAT"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
 	MMUBAT->SetToolTip(wxT("Enables Block Address Translation (BAT); a function of the Memory Management Unit. Accurate to the hardware, but slow to emulate. (ON = Compatible, OFF = Fast)"));
-	TLBHack = new wxCheckBox(m_GameConfig, ID_TLBHACK, _("MMU ËÙ¶ÈÆÆ½â"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
+	TLBHack = new wxCheckBox(m_GameConfig, ID_TLBHACK, _("MMU é€Ÿåº¦ç ´è§£"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
 	TLBHack->SetToolTip(wxT("Fast version of the MMU.  Does not work for every game."));
 	AlternateRFI = new wxCheckBox(m_GameConfig, ID_RFI, _("Alternate RFI"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
 	AlternateRFI->SetToolTip(wxT("If a game hangs, works only in the Interpreter or Dolphin crashes, this option may fix the game."));
@@ -306,9 +306,9 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	BlockMerging = new wxCheckBox(m_GameConfig, ID_MERGEBLOCKS, _("Enable Block Merging"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
 
 	// Wii Console
-	sbWiiOverrides = new wxStaticBoxSizer(wxVERTICAL, m_GameConfig, _("Wii ¿ØÖÆÌ¨"));
-	EnableProgressiveScan = new wxCheckBox(m_GameConfig, ID_ENABLEPROGRESSIVESCAN, _("ÆôÓÃ Progressive Scan"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
-	EnableWideScreen = new wxCheckBox(m_GameConfig, ID_ENABLEWIDESCREEN, _("ÆôÓÃ¿íÆÁ"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
+	sbWiiOverrides = new wxStaticBoxSizer(wxVERTICAL, m_GameConfig, _("Wii æŽ§åˆ¶å°"));
+	EnableProgressiveScan = new wxCheckBox(m_GameConfig, ID_ENABLEPROGRESSIVESCAN, _("å¯ç”¨ Progressive Scan"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
+	EnableWideScreen = new wxCheckBox(m_GameConfig, ID_ENABLEWIDESCREEN, _("å¯ç”¨å®½å±"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
 	if (!DiscIO::IsVolumeWiiDisc(OpenISO) && !DiscIO::IsVolumeWadFile(OpenISO))
 	{
 		sbWiiOverrides->ShowItems(false);
@@ -317,44 +317,41 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	}
 	else
 	{
-		//Progressive Scan is not used by Dolphin itself,
-		//and changing it on a per-game basis would have the side-effect of changing the SysConf, 
-		//making this setting rather useless.
+		// Progressive Scan is not used by Dolphin itself, and changing it on a per-game
+		// basis would have the side-effect of changing the SysConf, making this setting
+		// rather useless.
 		EnableProgressiveScan->Disable();
 	}
 	// Video
-	sbVideoOverrides = new wxStaticBoxSizer(wxVERTICAL, m_GameConfig, _("ÊÓÆµ"));
-	ForceFiltering = new wxCheckBox(m_GameConfig, ID_FORCEFILTERING, _("Ç¿ÖÆÉ¸Ñ¡"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
-	EFBCopyDisable = new wxCheckBox(m_GameConfig, ID_EFBCOPYDISABLE, _("½ûÓÃ¸´ÖÆµ½ EFB"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
-	EFBToTextureEnable = new wxCheckBox(m_GameConfig, ID_EFBTOTEXTUREENABLE, _("ÆôÓÃ EFB µ½ ²ÄÖÊ"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
-	SafeTextureCache = new wxCheckBox(m_GameConfig, ID_SAFETEXTURECACHE, _("°²È«²ÄÖÊ»º´æ"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
+	sbVideoOverrides = new wxStaticBoxSizer(wxVERTICAL, m_GameConfig, _("è§†é¢‘"));
+	ForceFiltering = new wxCheckBox(m_GameConfig, ID_FORCEFILTERING, _("å¼ºåˆ¶ç­›é€‰"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
+	EFBCopyEnable = new wxCheckBox(m_GameConfig, ID_EFBCOPYENABLE, _("ç¦ç”¨å¤åˆ¶åˆ° EFB"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
+	EFBToTextureEnable = new wxCheckBox(m_GameConfig, ID_EFBTOTEXTUREENABLE, _("å¯ç”¨ EFB åˆ° æè´¨"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
+	SafeTextureCache = new wxCheckBox(m_GameConfig, ID_SAFETEXTURECACHE, _("å®‰å…¨æè´¨ç¼“å­˜"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
 	DstAlphaPass = new wxCheckBox(m_GameConfig, ID_DSTALPHAPASS, _("Distance Alpha Pass"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
-	UseXFB = new wxCheckBox(m_GameConfig, ID_USEXFB, _("Ê¹ÓÃ XFB"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
+	UseXFB = new wxCheckBox(m_GameConfig, ID_USEXFB, _("ä½¿ç”¨ XFB"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
 	UseZTPSpeedupHack = new wxCheckBox(m_GameConfig, ID_ZTP_SPEEDUP, _("ZTP hack"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
 	UseZTPSpeedupHack->SetToolTip(wxT("Enable this to speed up The Legend of Zelda: Twilight Princess. Disable for ANY other game."));
 	DListCache = new wxCheckBox(m_GameConfig, ID_DLISTCACHE, _("DList Cache"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
 	// Hack
 	Hacktext = new wxStaticText(m_GameConfig, ID_HACK_TEXT, _("Projection Hack for: "), wxDefaultPosition, wxDefaultSize);
 	arrayStringFor_Hack.Add(_("None"));
-	arrayStringFor_Hack.Add(_("Èû¶û´ï»Æ»è(ÀèÃ÷)¹«Ö÷²¼Â¬Ä·"));
-	arrayStringFor_Hack.Add(_("Ë÷Äá¿ËÓëºÚÆïÊ¿"));
+	arrayStringFor_Hack.Add(_("å¡žå°”è¾¾é»„æ˜(é»Žæ˜Ž)å…¬ä¸»å¸ƒå¢å§†"));
+	arrayStringFor_Hack.Add(_("ç´¢å°¼å…‹ä¸Žé»‘éª‘å£«"));
 	arrayStringFor_Hack.Add(_("Bleach Versus Crusade"));
 	arrayStringFor_Hack.Add(_("Skies of Arcadia"));
+	arrayStringFor_Hack.Add(_("Metroid Other M"));
 	Hack = new wxChoice(m_GameConfig, ID_HACK, wxDefaultPosition, wxDefaultSize, arrayStringFor_Hack, 0, wxDefaultValidator);
-
-	WMTightnessText = new wxStaticText(m_GameConfig, ID_WMTIGHTNESS_TEXT, wxT("Watermark tightness: "), wxDefaultPosition, wxDefaultSize);
-	WMTightness = new wxTextCtrl(m_GameConfig, ID_WMTIGHTNESS, wxT(""), wxDefaultPosition, wxDefaultSize, 0, wxTextValidator(wxFILTER_NUMERIC));
-	WMTightness->SetToolTip(wxT("Change this if you get lots of FIFO overflow errors. Reasonable values range from 0 to 1000."));
 
 	// Emulation State
 	sEmuState = new wxBoxSizer(wxHORIZONTAL);
-	EmuStateText = new wxStaticText(m_GameConfig, ID_EMUSTATE_TEXT, _("Ä£Äâ×´Ì¬: "), wxDefaultPosition, wxDefaultSize);
-	arrayStringFor_EmuState.Add(_("Î´ÉèÖÃ"));
-	arrayStringFor_EmuState.Add(_("Ëð»µ"));
-	arrayStringFor_EmuState.Add(_("½éÉÜ"));
-	arrayStringFor_EmuState.Add(_("¿ÉÒÔ½øÈë"));
-	arrayStringFor_EmuState.Add(_("¿ÉÒÔÔËÐÐ"));
-	arrayStringFor_EmuState.Add(_("ÍêÃÀ"));
+	EmuStateText = new wxStaticText(m_GameConfig, ID_EMUSTATE_TEXT, _("æ¨¡æ‹ŸçŠ¶æ€: "), wxDefaultPosition, wxDefaultSize);
+	arrayStringFor_EmuState.Add(_("æœªè®¾ç½®"));
+	arrayStringFor_EmuState.Add(_("æŸå"));
+	arrayStringFor_EmuState.Add(_("ä»‹ç»"));
+	arrayStringFor_EmuState.Add(_("å¯ä»¥è¿›å…¥"));
+	arrayStringFor_EmuState.Add(_("å¯ä»¥è¿è¡Œ"));
+	arrayStringFor_EmuState.Add(_("å®Œç¾Ž"));
 	EmuState = new wxChoice(m_GameConfig, ID_EMUSTATE, wxDefaultPosition, wxDefaultSize, arrayStringFor_EmuState, 0, wxDefaultValidator);
 	EmuIssues = new wxTextCtrl(m_GameConfig, ID_EMU_ISSUES, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 
@@ -372,20 +369,15 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	sbWiiOverrides->Add(EnableProgressiveScan, 0, wxEXPAND|wxLEFT, 5);
 	sbWiiOverrides->Add(EnableWideScreen, 0, wxEXPAND|wxLEFT, 5);
 	sbVideoOverrides->Add(ForceFiltering, 0, wxEXPAND|wxLEFT, 5);
-	sbVideoOverrides->Add(EFBCopyDisable, 0, wxEXPAND|wxLEFT, 5);
+	sbVideoOverrides->Add(EFBCopyEnable, 0, wxEXPAND|wxLEFT, 5);
 	sbVideoOverrides->Add(EFBToTextureEnable, 0, wxEXPAND|wxLEFT, 5);
 	sbVideoOverrides->Add(SafeTextureCache, 0, wxEXPAND|wxLEFT, 5);
 	sbVideoOverrides->Add(DstAlphaPass, 0, wxEXPAND|wxLEFT, 5);
 	sbVideoOverrides->Add(UseXFB, 0, wxEXPAND|wxLEFT, 5);
 	sbVideoOverrides->Add(UseZTPSpeedupHack, 0, wxEXPAND|wxLEFT, 5);
 	sbVideoOverrides->Add(DListCache, 0, wxEXPAND|wxLEFT, 5);
-
-	wxFlexGridSizer* fifosizer = new wxFlexGridSizer(2, 2, 0, 0);
-	fifosizer->Add(Hacktext, 0, wxLEFT, 5);
-	fifosizer->Add(Hack, 0, wxEXPAND|wxLEFT, 5);
-	fifosizer->Add(WMTightnessText, 0, wxLEFT, 5);
-	fifosizer->Add(WMTightness, 0, wxEXPAND|wxLEFT, 5);
-	sbVideoOverrides->Add(fifosizer);
+	sbVideoOverrides->Add(Hacktext, 0, wxEXPAND|wxLEFT, 5);
+	sbVideoOverrides->Add(Hack, 0, wxEXPAND|wxLEFT, 5);
 
 	sbGameConfig->Add(sbCoreOverrides, 0, wxEXPAND);
 	sbGameConfig->Add(sbWiiOverrides, 0, wxEXPAND);
@@ -396,16 +388,15 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	sEmuState->Add(EmuIssues,1,wxEXPAND);
 	sConfigPage->Add(sEmuState, 0, wxEXPAND|wxALL, 5);
 	m_GameConfig->SetSizer(sConfigPage);
-	sConfigPage->Layout();
 
 	
 	// Patches
 	sPatches = new wxBoxSizer(wxVERTICAL);
 	Patches = new wxCheckListBox(m_PatchPage, ID_PATCHES_LIST, wxDefaultPosition, wxDefaultSize, arrayStringFor_Patches, wxLB_HSCROLL, wxDefaultValidator);
 	sPatchButtons = new wxBoxSizer(wxHORIZONTAL);
-	EditPatch = new wxButton(m_PatchPage, ID_EDITPATCH, _("±à¼­..."), wxDefaultPosition, wxDefaultSize, 0);
-	AddPatch = new wxButton(m_PatchPage, ID_ADDPATCH, _("Ìí¼Ó..."), wxDefaultPosition, wxDefaultSize, 0);
-	RemovePatch = new wxButton(m_PatchPage, ID_REMOVEPATCH, _("ÒÆ³ý"), wxDefaultPosition, wxDefaultSize, 0);
+	EditPatch = new wxButton(m_PatchPage, ID_EDITPATCH, _("ç¼–è¾‘..."), wxDefaultPosition, wxDefaultSize, 0);
+	AddPatch = new wxButton(m_PatchPage, ID_ADDPATCH, _("æ·»åŠ ..."), wxDefaultPosition, wxDefaultSize, 0);
+	RemovePatch = new wxButton(m_PatchPage, ID_REMOVEPATCH, _("ç§»é™¤"), wxDefaultPosition, wxDefaultSize, 0);
 	EditPatch->Enable(false);
 	RemovePatch->Enable(false);
 
@@ -419,16 +410,15 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	sPatches->Add(sPatchButtons, 0, wxEXPAND|wxALL, 0);
 	sPatchPage->Add(sPatches, 1, wxEXPAND|wxALL, 5);
 	m_PatchPage->SetSizer(sPatchPage);
-	sPatchPage->Layout();
 
 	
 	// Action Replay Cheats
 	sCheats = new wxBoxSizer(wxVERTICAL);
 	Cheats = new wxCheckListBox(m_CheatPage, ID_CHEATS_LIST, wxDefaultPosition, wxDefaultSize, arrayStringFor_Cheats, wxLB_HSCROLL, wxDefaultValidator);
 	sCheatButtons = new wxBoxSizer(wxHORIZONTAL);
-	EditCheat = new wxButton(m_CheatPage, ID_EDITCHEAT, _("±à¼­..."), wxDefaultPosition, wxDefaultSize, 0);
-	AddCheat = new wxButton(m_CheatPage, ID_ADDCHEAT, _("Ìí¼Ó..."), wxDefaultPosition, wxDefaultSize, 0);
-	RemoveCheat = new wxButton(m_CheatPage, ID_REMOVECHEAT, _("ÒÆ³ý"), wxDefaultPosition, wxDefaultSize, 0);
+	EditCheat = new wxButton(m_CheatPage, ID_EDITCHEAT, _("ç¼–è¾‘..."), wxDefaultPosition, wxDefaultSize, 0);
+	AddCheat = new wxButton(m_CheatPage, ID_ADDCHEAT, _("æ·»åŠ ..."), wxDefaultPosition, wxDefaultSize, 0);
+	RemoveCheat = new wxButton(m_CheatPage, ID_REMOVECHEAT, _("ç§»é™¤"), wxDefaultPosition, wxDefaultSize, 0);
 	EditCheat->Enable(false);
 	RemoveCheat->Enable(false);
 
@@ -442,38 +432,37 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	sCheats->Add(sCheatButtons, 0, wxEXPAND|wxALL, 0);
 	sCheatPage->Add(sCheats, 1, wxEXPAND|wxALL, 5);
 	m_CheatPage->SetSizer(sCheatPage);
-	sCheatPage->Layout();
 
 	
-	m_NameText = new wxStaticText(m_Information, ID_NAME_TEXT, _("Ãû³Æ:"), wxDefaultPosition, wxDefaultSize);
+	m_NameText = new wxStaticText(m_Information, ID_NAME_TEXT, _("åç§°:"), wxDefaultPosition, wxDefaultSize);
 	m_Name = new wxTextCtrl(m_Information, ID_NAME, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
-	m_GameIDText = new wxStaticText(m_Information, ID_GAMEID_TEXT, _("ÓÎÏ· ID:"), wxDefaultPosition, wxDefaultSize);
+	m_GameIDText = new wxStaticText(m_Information, ID_GAMEID_TEXT, _("æ¸¸æˆ ID:"), wxDefaultPosition, wxDefaultSize);
 	m_GameID = new wxTextCtrl(m_Information, ID_GAMEID, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
-	m_CountryText = new wxStaticText(m_Information, ID_COUNTRY_TEXT, _("¹ú¼Ò:"), wxDefaultPosition, wxDefaultSize);
+	m_CountryText = new wxStaticText(m_Information, ID_COUNTRY_TEXT, _("å›½å®¶:"), wxDefaultPosition, wxDefaultSize);
 	m_Country = new wxTextCtrl(m_Information, ID_COUNTRY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
-	m_MakerIDText = new wxStaticText(m_Information, ID_MAKERID_TEXT, _("ÖÆ×÷ ID:"), wxDefaultPosition, wxDefaultSize);
+	m_MakerIDText = new wxStaticText(m_Information, ID_MAKERID_TEXT, _("åˆ¶ä½œ ID:"), wxDefaultPosition, wxDefaultSize);
 	m_MakerID = new wxTextCtrl(m_Information, ID_MAKERID, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
-	m_DateText = new wxStaticText(m_Information, ID_DATE_TEXT, _("ÈÕÆÚ:"), wxDefaultPosition, wxDefaultSize);
+	m_DateText = new wxStaticText(m_Information, ID_DATE_TEXT, _("æ—¥æœŸ:"), wxDefaultPosition, wxDefaultSize);
 	m_Date = new wxTextCtrl(m_Information, ID_DATE, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
-	m_FSTText = new wxStaticText(m_Information, ID_FST_TEXT, _("FST ´óÐ¡:"), wxDefaultPosition, wxDefaultSize);	
+	m_FSTText = new wxStaticText(m_Information, ID_FST_TEXT, _("FST å¤§å°:"), wxDefaultPosition, wxDefaultSize);	
 	m_FST = new wxTextCtrl(m_Information, ID_FST, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
 
-	m_LangText = new wxStaticText(m_Information, ID_LANG_TEXT, _("ÏÔÊ¾ÓïÑÔ:"), wxDefaultPosition, wxDefaultSize);
-	arrayStringFor_Lang.Add(_("Ó¢Óï"));
-	arrayStringFor_Lang.Add(_("µÂÓï"));
-	arrayStringFor_Lang.Add(_("·¨Óï"));
-	arrayStringFor_Lang.Add(_("Î÷°àÑÀÓï"));
-	arrayStringFor_Lang.Add(_("Òâ´óÀûÓï"));
-	arrayStringFor_Lang.Add(_("ºÉÀ¼Óï"));
+	m_LangText = new wxStaticText(m_Information, ID_LANG_TEXT, _("æ˜¾ç¤ºè¯­è¨€:"), wxDefaultPosition, wxDefaultSize);
+	arrayStringFor_Lang.Add(_("è‹±è¯­"));
+	arrayStringFor_Lang.Add(_("å¾·è¯­"));
+	arrayStringFor_Lang.Add(_("æ³•è¯­"));
+	arrayStringFor_Lang.Add(_("è¥¿ç­ç‰™è¯­"));
+	arrayStringFor_Lang.Add(_("æ„å¤§åˆ©è¯­"));
+	arrayStringFor_Lang.Add(_("è·å…°è¯­"));
 	m_Lang = new wxChoice(m_Information, ID_LANG, wxDefaultPosition, wxDefaultSize, arrayStringFor_Lang, 0, wxDefaultValidator);
 	m_Lang->SetSelection((int)SConfig::GetInstance().m_InterfaceLanguage);
-	m_ShortText = new wxStaticText(m_Information, ID_SHORTNAME_TEXT, _("¶ÌÃû³Æ:"), wxDefaultPosition, wxDefaultSize);
+	m_ShortText = new wxStaticText(m_Information, ID_SHORTNAME_TEXT, _("çŸ­åç§°:"), wxDefaultPosition, wxDefaultSize);
 	m_ShortName = new wxTextCtrl(m_Information, ID_SHORTNAME, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
-	m_MakerText = new wxStaticText(m_Information, ID_MAKER_TEXT, _("ÖÆ×÷Õß:"), wxDefaultPosition, wxDefaultSize);
+	m_MakerText = new wxStaticText(m_Information, ID_MAKER_TEXT, _("åˆ¶ä½œè€…:"), wxDefaultPosition, wxDefaultSize);
 	m_Maker = new wxTextCtrl(m_Information, ID_MAKER, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
-	m_CommentText = new wxStaticText(m_Information, ID_COMMENT_TEXT, _("×¢ÊÍ:"), wxDefaultPosition, wxDefaultSize);
+	m_CommentText = new wxStaticText(m_Information, ID_COMMENT_TEXT, _("æ³¨é‡Š:"), wxDefaultPosition, wxDefaultSize);
 	m_Comment = new wxTextCtrl(m_Information, ID_COMMENT, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE|wxTE_READONLY);
-	m_BannerText = new wxStaticText(m_Information, ID_BANNER_TEXT, _("±êÌâºá·ù:"), wxDefaultPosition, wxDefaultSize);
+	m_BannerText = new wxStaticText(m_Information, ID_BANNER_TEXT, _("æ ‡é¢˜æ¨ªå¹…:"), wxDefaultPosition, wxDefaultSize);
 	m_Banner = new wxStaticBitmap(m_Information, ID_BANNER, wxNullBitmap, wxDefaultPosition, wxSize(96, 32), 0);
 
 	// ISO Details
@@ -491,7 +480,7 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	sISODetails->Add(m_FSTText, wxGBPosition(5, 0), wxGBSpan(1, 1), wxALIGN_CENTER_VERTICAL|wxALL, 5);
 	sISODetails->Add(m_FST, wxGBPosition(5, 1), wxGBSpan(1, 1), wxEXPAND|wxALL, 5);
 	sISODetails->AddGrowableCol(1);
-	sbISODetails = new wxStaticBoxSizer(wxVERTICAL, m_Information, _("ISO ÏêÏ¸ÐÅÏ¢"));
+	sbISODetails = new wxStaticBoxSizer(wxVERTICAL, m_Information, _("ISO è¯¦ç»†ä¿¡æ¯"));
 	sbISODetails->Add(sISODetails, 0, wxEXPAND, 5);
 
 	// Banner Details
@@ -507,7 +496,7 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	sBannerDetails->Add(m_BannerText, wxGBPosition(4, 0), wxGBSpan(1, 1), wxALL, 5);
 	sBannerDetails->Add(m_Banner, wxGBPosition(4, 1), wxGBSpan(1, 1), wxEXPAND|wxALL, 5);
 	sBannerDetails->AddGrowableCol(1);
-	sbBannerDetails = new wxStaticBoxSizer(wxVERTICAL, m_Information, _("Banner ÏêÏ¸ÐÅÏ¢"));
+	sbBannerDetails = new wxStaticBoxSizer(wxVERTICAL, m_Information, _("Banner è¯¦ç»†ä¿¡æ¯"));
 	sbBannerDetails->Add(sBannerDetails, 0, wxEXPAND, 5);
 
 	wxBoxSizer* sInfoPage;
@@ -515,7 +504,6 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	sInfoPage->Add(sbISODetails, 0, wxEXPAND|wxALL, 5);
 	sInfoPage->Add(sbBannerDetails, 0, wxEXPAND|wxALL, 5);
 	m_Information->SetSizer(sInfoPage);
-	sInfoPage->Layout();
 
 	// Filesystem icons
 	m_iconList = new wxImageList(16, 16);
@@ -532,7 +520,6 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	sTreePage = new wxBoxSizer(wxVERTICAL);
 	sTreePage->Add(m_Treectrl, 1, wxEXPAND|wxALL, 5);
 	m_Filesystem->SetSizer(sTreePage);
-	sTreePage->Layout();
 
 	// It's a wad file, so we remove the FileSystem page
 	if (IsWad)
@@ -546,8 +533,8 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	sMain->Add(sButtons, 0, wxEXPAND, 5);
 	sMain->SetMinSize(wxSize(550, 600));
 
-	m_Notebook->SetMaxSize(wxSize(550, 600));
 	SetSizerAndFit(sMain);
+	Layout();
 }
 
 void CISOProperties::OnClose(wxCloseEvent& WXUNUSED (event))
@@ -566,7 +553,7 @@ void CISOProperties::OnCloseClick(wxCommandEvent& WXUNUSED (event))
 void CISOProperties::RightClickOnBanner(wxMouseEvent& event)
 {
 	wxMenu* popupMenu = new wxMenu;
-	popupMenu->Append(IDM_BNRSAVEAS, _("Áí´æÎª..."));
+	popupMenu->Append(IDM_BNRSAVEAS, _("å¦å­˜ä¸º..."));
 	PopupMenu(popupMenu);
 
 	event.Skip();
@@ -576,7 +563,7 @@ void CISOProperties::OnBannerImageSave(wxCommandEvent& WXUNUSED (event))
 {
 	wxString dirHome;
 
-	wxFileDialog dialog(this, _("Áí´æÎª..."), wxGetHomeDir(&dirHome), wxString::Format(_("%s.png"), m_GameID->GetLabel().c_str()),
+	wxFileDialog dialog(this, _("å¦å­˜ä¸º..."), wxGetHomeDir(&dirHome), wxString::Format(_("%s.png"), m_GameID->GetLabel().c_str()),
 		_("*.*"), wxFD_SAVE|wxFD_OVERWRITE_PROMPT, wxDefaultPosition, wxDefaultSize);
 	if (dialog.ShowModal() == wxID_OK)
 	{
@@ -592,16 +579,16 @@ void CISOProperties::OnRightClickOnTree(wxTreeEvent& event)
 
 	if (m_Treectrl->GetItemImage(m_Treectrl->GetSelection()) == 0
 		&& m_Treectrl->GetFirstVisibleItem() != m_Treectrl->GetSelection())
-		popupMenu->Append(IDM_EXTRACTDIR, _("½âÑ¹Ëõ·ÖÇø..."));
+		popupMenu->Append(IDM_EXTRACTDIR, _("è§£åŽ‹ç¼©åˆ†åŒº..."));
 	else if (m_Treectrl->GetItemImage(m_Treectrl->GetSelection()) == 1)
-		popupMenu->Append(IDM_EXTRACTDIR, _("½âÑ¹ËõÄ¿Â¼..."));
+		popupMenu->Append(IDM_EXTRACTDIR, _("è§£åŽ‹ç¼©ç›®å½•..."));
 	else if (m_Treectrl->GetItemImage(m_Treectrl->GetSelection()) == 2)
-		popupMenu->Append(IDM_EXTRACTFILE, _("½âÑ¹ËõÎÄ¼þ..."));
+		popupMenu->Append(IDM_EXTRACTFILE, _("è§£åŽ‹ç¼©æ–‡ä»¶..."));
 
-	popupMenu->Append(IDM_EXTRACTALL, _("½âÑ¹ËõËùÓÐÎÄ¼þ..."));
+	popupMenu->Append(IDM_EXTRACTALL, _("è§£åŽ‹ç¼©æ‰€æœ‰æ–‡ä»¶..."));
 	popupMenu->AppendSeparator();
-	popupMenu->Append(IDM_EXTRACTAPPLOADER, _("½âÑ¹Ëõ Apploader..."));
-	popupMenu->Append(IDM_EXTRACTDOL, _("½âÑ¹Ëõ DOL..."));
+	popupMenu->Append(IDM_EXTRACTAPPLOADER, _("è§£åŽ‹ç¼© Apploader..."));
+	popupMenu->Append(IDM_EXTRACTDOL, _("è§£åŽ‹ç¼© DOL..."));
 
 	PopupMenu(popupMenu);
 
@@ -616,11 +603,11 @@ void CISOProperties::OnExtractFile(wxCommandEvent& WXUNUSED (event))
 	File = m_Treectrl->GetItemText(m_Treectrl->GetSelection());
 	
 	Path = wxFileSelector(
-		wxT("µ¼³öÎÄ¼þ"),
+		wxT("å¯¼å‡ºæ–‡ä»¶"),
 		wxEmptyString, File, wxEmptyString,
 		wxString::Format
 		(
-			wxT("ËùÓÐÎÄ¼þ (%s)|%s"),
+			wxT("æ‰€æœ‰æ–‡ä»¶ (%s)|%s"),
 			wxFileSelectorDefaultWildcardStr,
 			wxFileSelectorDefaultWildcardStr
 		),
@@ -690,9 +677,9 @@ void CISOProperties::ExportDir(const char* _rFullPath, const char* _rExportFolde
 		DEBUG_LOG(DISCIO,"Dir found from %u to %u\nextracting to:\n%s",index[0],index[1],_rExportFolder);
 	}
 
-	wxString dialogTitle = index[0] ? _T("½âÑ¹ËõÄ¿Â¼") : _T("½âÑ¹ËõËùÓÐÎÄ¼þ");
+	wxString dialogTitle = index[0] ? _T("è§£åŽ‹ç¼©ç›®å½•") : _T("è§£åŽ‹ç¼©æ‰€æœ‰æ–‡ä»¶");
 	wxProgressDialog dialog(dialogTitle,
-					_T("½âÑ¹ËõÖÐ..."),
+					_T("è§£åŽ‹ç¼©ä¸­..."),
 					index[1], // range
 					this, // parent
 					wxPD_APP_MODAL | wxPD_AUTO_HIDE | wxPD_CAN_ABORT |
@@ -706,7 +693,7 @@ void CISOProperties::ExportDir(const char* _rFullPath, const char* _rExportFolde
 	{
 		dialog.SetTitle(wxString::Format(_T("%s : %d%%"), dialogTitle.c_str(),
 			(u32)(((float)(i - index[0]) / (float)(index[1] - index[0])) * 100)));
-		if (!dialog.Update(i, wxString::Format(_T("½âÑ¹Ëõ %s"), wxString(fst[i]->m_FullPath, *wxConvCurrent).c_str())))
+		if (!dialog.Update(i, wxString::Format(_T("è§£åŽ‹ç¼© %s"), wxString(fst[i]->m_FullPath, *wxConvCurrent).c_str())))
 			break;
 
 		if (fst[i]->IsDirectory())
@@ -733,11 +720,11 @@ void CISOProperties::ExportDir(const char* _rFullPath, const char* _rExportFolde
 
 			if (!File::Exists(exportName) && !FS->ExportFile(fst[i]->m_FullPath, exportName))
 			{
-				ERROR_LOG(DISCIO, "²»ÄÜµ¼³ö %s", exportName);
+				ERROR_LOG(DISCIO, "ä¸èƒ½å¯¼å‡º %s", exportName);
 			}
 			else
 			{
-				DEBUG_LOG(DISCIO, "%s ÒÑ¾­´æÔÚ", exportName);
+				DEBUG_LOG(DISCIO, "%s å·²ç»å­˜åœ¨", exportName);
 			}
 		}
 	}
@@ -746,7 +733,7 @@ void CISOProperties::ExportDir(const char* _rFullPath, const char* _rExportFolde
 void CISOProperties::OnExtractDir(wxCommandEvent& event)
 {
 	wxString Directory = m_Treectrl->GetItemText(m_Treectrl->GetSelection());
-	wxString Path = wxDirSelector(wxT("Ñ¡ÔñÒª½âÑ¹Ëõµ½µÄÎÄ¼þ¼Ð"));
+	wxString Path = wxDirSelector(wxT("é€‰æ‹©è¦è§£åŽ‹ç¼©åˆ°çš„æ–‡ä»¶å¤¹"));
 
 	if (!Path || !Directory)
 		return;
@@ -878,10 +865,10 @@ void CISOProperties::LoadGameConfig()
 	else
 		ForceFiltering->Set3StateValue(wxCHK_UNDETERMINED);
 
-	if (GameIni.Get("Video", "EFBCopyDisable", &bTemp))
-		EFBCopyDisable->Set3StateValue((wxCheckBoxState)bTemp);
+	if (GameIni.Get("Video", "EFBCopyEnable", &bTemp))
+		EFBCopyEnable->Set3StateValue((wxCheckBoxState)bTemp);
 	else
-		EFBCopyDisable->Set3StateValue(wxCHK_UNDETERMINED);
+		EFBCopyEnable->Set3StateValue(wxCHK_UNDETERMINED);
 
 	if (GameIni.Get("Video", "EFBToTextureEnable", &bTemp))
 		EFBToTextureEnable->Set3StateValue((wxCheckBoxState)bTemp);
@@ -913,15 +900,10 @@ void CISOProperties::LoadGameConfig()
 	else
 		DListCache->Set3StateValue(wxCHK_UNDETERMINED);
 
-	if (GameIni.Get("Video", "FIFOWatermarkTightness", &sTemp))
-		WMTightness->SetValue(wxString(sTemp.c_str(), *wxConvCurrent));
-	else
-		WMTightness->SetValue(wxT("50"));
-
-	GameIni.Get("Video", "ProjectionHack", &iTemp, -1);
+	GameIni.Get("Video", "ProjectionHack", &iTemp, 0/*None*/);
 	Hack->SetSelection(iTemp);
 
-	GameIni.Get("EmuState", "EmulationStateId", &iTemp, -1);
+	GameIni.Get("EmuState", "EmulationStateId", &iTemp, 0/*Not Set*/);
 	EmuState->SetSelection(iTemp);
 
 	GameIni.Get("EmuState", "EmulationIssues", &sTemp);
@@ -994,10 +976,10 @@ bool CISOProperties::SaveGameConfig()
 	else
 		GameIni.Set("Video", "ForceFiltering", ForceFiltering->Get3StateValue());
 
-	if (EFBCopyDisable->Get3StateValue() == wxCHK_UNDETERMINED)
-		GameIni.DeleteKey("Video", "EFBCopyDisable");
+	if (EFBCopyEnable->Get3StateValue() == wxCHK_UNDETERMINED)
+		GameIni.DeleteKey("Video", "EFBCopyEnable");
 	else
-		GameIni.Set("Video", "EFBCopyDisable", EFBCopyDisable->Get3StateValue());
+		GameIni.Set("Video", "EFBCopyEnable", EFBCopyEnable->Get3StateValue());
 
 	if (EFBToTextureEnable->Get3StateValue() == wxCHK_UNDETERMINED)
 		GameIni.DeleteKey("Video", "EFBToTextureEnable");
@@ -1029,25 +1011,8 @@ bool CISOProperties::SaveGameConfig()
 	else
 		GameIni.Set("Video", "DlistCachingEnable", DListCache->Get3StateValue());
 
-	if (Hack->GetSelection() == -1)
-		GameIni.DeleteKey("Video", "ProjectionHack");
-	else
-		GameIni.Set("Video", "ProjectionHack", Hack->GetSelection());
-
-	if (WMTightness->GetValue().size() == 0)
-		GameIni.DeleteKey("Video", "FIFOWatermarkTightness");
-	else
-	{
-		long val;
-		WMTightness->GetValue().ToLong(&val);
-		GameIni.Set("Video", "FIFOWatermarkTightness", (int)val);
-	}
-
-	if (EmuState->GetSelection() == -1)
-		GameIni.DeleteKey("EmuState", "EmulationStateId");
-	else
-		GameIni.Set("EmuState", "EmulationStateId", EmuState->GetSelection());
-
+	GameIni.Set("Video", "ProjectionHack", Hack->GetSelection());
+	GameIni.Set("EmuState", "EmulationStateId", EmuState->GetSelection());
 	GameIni.Set("EmuState", "EmulationIssues", (const char*)EmuIssues->GetValue().mb_str(*wxConvCurrent));
 
 	PatchList_Save();
@@ -1138,9 +1103,7 @@ void CISOProperties::PatchList_Save()
 
 		for (std::vector<PatchEngine::PatchEntry>::const_iterator iter2 = onFrame_it->entries.begin(); iter2 != onFrame_it->entries.end(); ++iter2)
 		{
-			std::string temp;
-			
-			ToStringFromFormat(&temp, "0x%08X:%s:0x%08X", iter2->address, PatchEngine::PatchTypeStrings[iter2->type], iter2->value);			
+			std::string temp = StringFromFormat("0x%08X:%s:0x%08X", iter2->address, PatchEngine::PatchTypeStrings[iter2->type], iter2->value);			
 			lines.push_back(temp);
 		}
 		++index;
@@ -1163,7 +1126,7 @@ void CISOProperties::PatchButtonClicked(wxCommandEvent& event)
 		break;
 	case ID_ADDPATCH:
 		{
-		CPatchAddEdit dlg(-1, this, 1, _("Ìí¼Ó²¹¶¡"));
+		CPatchAddEdit dlg(-1, this, 1, _("æ·»åŠ è¡¥ä¸"));
 		if (dlg.ShowModal() == wxID_OK)
 		{
 			Patches->Append(wxString(onFrame.back().name.c_str(), *wxConvCurrent));
