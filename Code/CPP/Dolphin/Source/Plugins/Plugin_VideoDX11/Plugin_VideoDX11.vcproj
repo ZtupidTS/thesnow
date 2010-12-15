@@ -58,7 +58,7 @@
 				FavorSizeOrSpeed="1"
 				OmitFramePointers="false"
 				WholeProgramOptimization="true"
-				AdditionalIncludeDirectories="../../PluginSpecs;../../Core/Common/Src;../../Core/VideoCommon/Src;../../../Externals;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc"
+				AdditionalIncludeDirectories="../../../Externals;../../PluginSpecs;../../Core/Common/Src;../../Core/VideoCommon/Src;../../Core/VideoUICommon/Src;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc"
 				PreprocessorDefinitions="_WIN32;WIN32;NDEBUG;_WINDOWS;_USRDLL;VIDEO_DIRECTX11_EXPORTS;_CRT_SECURE_NO_DEPRECATE;_SECURE_SCL=0"
 				StringPooling="true"
 				RuntimeLibrary="0"
@@ -91,7 +91,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalOptions="&quot;..\..\core\common\win32\release\common.lib&quot;"
-				AdditionalDependencies="odbc32.lib odbccp32.lib comctl32.lib dxguid.lib d3d11.lib dxgi.lib winmm.lib vfw32.lib wxbase28u.lib wxmsw28u_core.lib"
+				AdditionalDependencies="odbc32.lib odbccp32.lib comctl32.lib dxguid.lib winmm.lib vfw32.lib wxbase28u.lib wxmsw28u_core.lib"
 				OutputFile="..\..\..\Binary\Win32\Plugins\Plugin_VideoDX11.dll"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
@@ -166,7 +166,7 @@
 				FavorSizeOrSpeed="1"
 				OmitFramePointers="false"
 				WholeProgramOptimization="true"
-				AdditionalIncludeDirectories="../../../Externals;../../PluginSpecs;../../Core/Common/Src;../../Core/VideoCommon/Src;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc"
+				AdditionalIncludeDirectories="../../../Externals;../../PluginSpecs;../../Core/Common/Src;../../Core/VideoCommon/Src;../../Core/VideoUICommon/Src;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;VIDEO_DIRECTX11_EXPORTS;_CRT_SECURE_NO_DEPRECATE;_SECURE_SCL=0"
 				StringPooling="true"
 				ExceptionHandling="1"
@@ -199,7 +199,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="odbc32.lib odbccp32.lib comctl32.lib dxguid.lib d3d11.lib dxgi.lib winmm.lib vfw32.lib wxbase28u.lib wxmsw28u_core.lib"
+				AdditionalDependencies="odbc32.lib odbccp32.lib comctl32.lib dxguid.lib winmm.lib vfw32.lib wxbase28u.lib wxmsw28u_core.lib"
 				OutputFile="..\..\..\Binary\x64\Plugins\Plugin_VideoDX11.dll"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
@@ -269,7 +269,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="../../PluginSpecs;../../Core/Common/Src;../../Core/VideoCommon/Src;../../../Externals;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc"
+				AdditionalIncludeDirectories="../../../Externals;../../PluginSpecs;../../Core/Common/Src;../../Core/VideoCommon/Src;../../Core/VideoUICommon/Src;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc"
 				PreprocessorDefinitions="_WIN32;WIN32;_DEBUG;_WINDOWS;_USRDLL;VIDEO_DIRECTX11_EXPORTS;_CRT_SECURE_NO_DEPRECATE;_SECURE_SCL=0"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
@@ -297,7 +297,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalOptions="&quot;..\..\core\common\win32\debug\common.lib&quot;"
-				AdditionalDependencies="odbc32.lib odbccp32.lib comctl32.lib uuid.lib dxguid.lib d3d11.lib dxgi.lib Rpcrt4.lib winmm.lib vfw32.lib wxbase28ud.lib wxmsw28ud_core.lib"
+				AdditionalDependencies="odbc32.lib odbccp32.lib comctl32.lib uuid.lib dxguid.lib Rpcrt4.lib winmm.lib vfw32.lib wxbase28ud.lib wxmsw28ud_core.lib"
 				OutputFile="..\..\..\Binary\Win32/Plugins\Plugin_VideoDX11D.dll"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
@@ -366,7 +366,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="../../PluginSpecs;../../Core/Common/Src;../../Core/VideoCommon/Src;../../../Externals;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc"
+				AdditionalIncludeDirectories="../../../Externals;../../PluginSpecs;../../Core/Common/Src;../../Core/VideoCommon/Src;../../Core/VideoUICommon/Src;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc"
 				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;VIDEO_DIRECTX11_EXPORTS;_CRT_SECURE_NO_DEPRECATE;_SECURE_SCL=0"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
@@ -393,7 +393,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="odbc32.lib odbccp32.lib comctl32.lib uuid.lib dxguid.lib d3d11.lib dxgi.lib Rpcrt4.lib winmm.lib vfw32.lib"
+				AdditionalDependencies="odbc32.lib odbccp32.lib comctl32.lib uuid.lib dxguid.lib Rpcrt4.lib winmm.lib vfw32.lib"
 				OutputFile="..\..\..\Binary\x64\Plugins\Plugin_VideoDX11D.dll"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
@@ -468,7 +468,7 @@
 				FavorSizeOrSpeed="1"
 				OmitFramePointers="false"
 				WholeProgramOptimization="true"
-				AdditionalIncludeDirectories="../../PluginSpecs;../../Core/Common/Src;../../Core/VideoCommon/Src;../../../Externals;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc"
+				AdditionalIncludeDirectories="../../../Externals;../../PluginSpecs;../../Core/Common/Src;../../Core/VideoCommon/Src;../../Core/VideoUICommon/Src;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc"
 				PreprocessorDefinitions="_WIN32;WIN32;NDEBUG;_WINDOWS;_USRDLL;VIDEO_DIRECTX11_EXPORTS;_CRT_SECURE_NO_DEPRECATE;_SECURE_SCL=0;DEBUGFAST"
 				StringPooling="true"
 				RuntimeLibrary="0"
@@ -499,7 +499,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="odbc32.lib odbccp32.lib comctl32.lib uuid.lib dxguid.lib d3d11.lib dxgi.lib Rpcrt4.lib winmm.lib vfw32.lib"
+				AdditionalDependencies="odbc32.lib odbccp32.lib comctl32.lib uuid.lib dxguid.lib Rpcrt4.lib winmm.lib vfw32.lib"
 				OutputFile="..\..\..\Binary\Win32\Plugins\Plugin_VideoDX11DF.dll"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
@@ -576,7 +576,7 @@
 				FavorSizeOrSpeed="1"
 				OmitFramePointers="false"
 				WholeProgramOptimization="true"
-				AdditionalIncludeDirectories="../../../Externals;../../PluginSpecs;../../Core/Common/Src;../../Core/VideoCommon/Src;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc"
+				AdditionalIncludeDirectories="../../../Externals;../../PluginSpecs;../../Core/Common/Src;../../Core/VideoCommon/Src;../../Core/VideoUICommon/Src;..\..\..\Externals\wxWidgets\Include;..\..\..\Externals\wxWidgets\Include\msvc"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;VIDEO_DIRECTX11_EXPORTS;_CRT_SECURE_NO_DEPRECATE;_SECURE_SCL=0;;DEBUGFAST"
 				StringPooling="true"
 				ExceptionHandling="1"
@@ -608,7 +608,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="odbc32.lib odbccp32.lib comctl32.lib uuid.lib dxguid.lib d3d11.lib dxgi.lib Rpcrt4.lib winmm.lib vfw32.lib"
+				AdditionalDependencies="odbc32.lib odbccp32.lib comctl32.lib uuid.lib dxguid.lib Rpcrt4.lib winmm.lib vfw32.lib"
 				OutputFile="..\..\..\Binary\x64\Plugins\Plugin_VideoDX11DF.dll"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
@@ -648,67 +648,14 @@
 	</References>
 	<Files>
 		<Filter
-			Name="Resource Files"
-			Filter="ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"
-			>
-			<File
-				RelativePath=".\Src\resource.h"
-				>
-			</File>
-			<File
-				RelativePath=".\Src\Resource.rc"
-				>
-			</File>
-		</Filter>
-		<Filter
 			Name="win32"
 			>
-			<File
-				RelativePath=".\Src\W32Util\DialogManager.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\Src\W32Util\DialogManager.h"
-				>
-			</File>
 			<File
 				RelativePath=".\Src\EmuWindow.cpp"
 				>
 			</File>
 			<File
 				RelativePath=".\Src\EmuWindow.h"
-				>
-			</File>
-			<File
-				RelativePath=".\Src\W32Util\Misc.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\Src\W32Util\Misc.h"
-				>
-			</File>
-			<File
-				RelativePath=".\Src\W32Util\PropertySheet.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\Src\W32Util\PropertySheet.h"
-				>
-			</File>
-			<File
-				RelativePath=".\Src\W32Util\TabControl.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\Src\W32Util\TabControl.h"
-				>
-			</File>
-			<File
-				RelativePath=".\Src\W32Util\Thread.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\Src\W32Util\Thread.h"
 				>
 			</File>
 		</Filter>
@@ -737,6 +684,10 @@
 			</File>
 			<File
 				RelativePath=".\Src\Render.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\Src\Render.h"
 				>
 			</File>
 			<File
@@ -813,26 +764,6 @@
 			</File>
 			<File
 				RelativePath=".\Src\GfxState.h"
-				>
-			</File>
-		</Filter>
-		<Filter
-			Name="Decoder"
-			>
-			<File
-				RelativePath=".\Src\BPFunctions.cpp"
-				>
-			</File>
-		</Filter>
-		<Filter
-			Name="UI"
-			>
-			<File
-				RelativePath=".\Src\DlgSettings.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\Src\DlgSettings.h"
 				>
 			</File>
 		</Filter>

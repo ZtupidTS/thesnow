@@ -41,43 +41,21 @@
 #include "XFBConvert.h"
 #include "Render.h"
 
+#include "MainBase.h"
 #include "main.h"
-#include "resource.h"
-#include "DlgSettings.h"
+#include "VideoConfigDiag.h"
 #include "TextureCache.h"
 #include "VertexManager.h"
 #include "VertexShaderCache.h"
 #include "PixelShaderCache.h"
 #include "D3DTexture.h"
 #include "D3DUtil.h"
-#include "W32Util/Misc.h"
 #include "EmuWindow.h"
 #include "FramebufferManager.h"
 #include "DLCache.h"
+#include "DebuggerPanel.h"
 
 HINSTANCE g_hInstance = NULL;
-SVideoInitialize g_VideoInitialize;
-PLUGIN_GLOBALS* globals = NULL;
-static bool s_PluginInitialized = false;
-
-volatile u32 s_swapRequested = FALSE;
-static u32 s_efbAccessRequested = FALSE;
-static volatile u32 s_FifoShuttingDown = FALSE;
-
-static volatile struct
-{
-	u32 xfbAddr;
-	FieldType field;
-	u32 fbWidth;
-	u32 fbHeight;
-} s_beginFieldArgs;
-
-static volatile EFBAccessType s_AccessEFBType;
-
-bool IsD3D()
-{
-	return true;
-}
 
 // This is used for the functions right below here which use wxwidgets
 #if defined(HAVE_WX) && HAVE_WX
@@ -86,7 +64,11 @@ WXDLLIMPEXP_BASE void wxSetInstance(HINSTANCE hInst);
 
 void *DllDebugger(void *_hParent, bool Show)
 {
+#if defined(HAVE_WX) && HAVE_WX
+	return new GFXDebuggerPanel((wxWindow*)_hParent);
+#else
 	return NULL;
+#endif
 }
 
 #if defined(HAVE_WX) && HAVE_WX
@@ -164,18 +146,83 @@ void SetDllGlobals(PLUGIN_GLOBALS* _pPluginGlobals)
 	LogManager::SetInstance((LogManager*)globals->logManager);
 }
 
-void DllAbout(HWND _hParent)
+void InitBackendInfo()
 {
-	//DialogBox(g_hInstance,(LPCTSTR)IDD_ABOUT,_hParent,(DLGPROC)AboutProc);
+	g_Config.backend_info.APIType = API_D3D11;
+	g_Config.backend_info.bUseRGBATextures = true; // the GX formats barely match any D3D11 formats
+	g_Config.backend_info.bSupportsEFBToRAM = false;
+	g_Config.backend_info.bSupportsRealXFB = false;
+	g_Config.backend_info.bSupports3DVision = false;
+	g_Config.backend_info.bAllowSignedBytes = true;
+	g_Config.backend_info.bSupportsDualSourceBlend = true;
 }
 
 void DllConfig(void *_hParent)
 {
-	DlgSettings_Show(g_hInstance, (HWND)((wxWindow *)_hParent)->GetHandle());
+#if defined(HAVE_WX) && HAVE_WX
+	InitBackendInfo();
+
+	HRESULT hr = D3D::LoadDXGI();
+	if (SUCCEEDED(hr)) hr = D3D::LoadD3D();
+	if (FAILED(hr))
+	{
+		if (!s_PluginInitialized) D3D::UnloadDXGI();
+		return;
+	}
+
+	IDXGIFactory* factory;
+	IDXGIAdapter* ad;
+	hr = PCreateDXGIFactory(__uuidof(IDXGIFactory), (void**)&factory);
+	if (FAILED(hr))
+		PanicAlert("Failed to create IDXGIFactory object");
+
+	char tmpstr[512] = {};
+	DXGI_ADAPTER_DESC desc;
+	// adapters
+	g_Config.backend_info.Adapters.clear();
+	g_Config.backend_info.AAModes.clear();
+	while (factory->EnumAdapters((UINT)g_Config.backend_info.Adapters.size(), &ad) != DXGI_ERROR_NOT_FOUND)
+	{
+		ad->GetDesc(&desc);
+		WideCharToMultiByte(/*CP_UTF8*/CP_ACP, 0, desc.Description, -1, tmpstr, 512, 0, false);
+
+		// TODO: These don't get updated on adapter change, yet
+		if (g_Config.backend_info.Adapters.size() == g_Config.iAdapter)
+		{
+			char buf[32];
+			std::vector<DXGI_SAMPLE_DESC> modes;
+			D3D::EnumAAModes(ad, modes);
+			for (unsigned int i = 0; i < modes.size(); ++i)
+			{
+				if (i == 0) sprintf_s(buf, 32, "None");
+				else if (modes[i].Quality) sprintf_s(buf, 32, "%d samples (quality level %d)", modes[i].Count, modes[i].Quality);
+				else sprintf_s(buf, 32, "%d samples", modes[i].Count);
+				g_Config.backend_info.AAModes.push_back(buf);
+			}
+		}
+
+		g_Config.backend_info.Adapters.push_back(tmpstr);
+		ad->Release();
+	}
+
+	factory->Release();
+
+	VideoConfigDiag *const diag = new VideoConfigDiag((wxWindow*)_hParent, "Direct3D11", "gfx_dx11");
+	diag->ShowModal();
+	diag->Destroy();
+
+	if (!s_PluginInitialized)
+	{
+		D3D::UnloadDXGI();
+		D3D::UnloadD3D();
+	}
+#endif
 }
 
 void Initialize(void *init)
 {
+	InitBackendInfo();
+
 	frameCount = 0;
 	SVideoInitialize *_pVideoInitialize = (SVideoInitialize*)init;
 	// Create a shortcut to _pVideoInitialize that can also update it
@@ -214,7 +261,7 @@ void Video_Prepare()
 	s_swapRequested = FALSE;
 
 	// internal interfaces
-	Renderer::Init();
+	g_renderer = new DX11::Renderer;
 	g_texture_cache = new DX11::TextureCache;
 	g_vertex_manager = new DX11::VertexManager;
 	VertexShaderCache::Init();
@@ -259,7 +306,7 @@ void Shutdown()
 	VertexShaderCache::Shutdown();
 	delete g_vertex_manager;
 	delete g_texture_cache;
-	Renderer::Shutdown();
+	delete g_renderer;
 	EmuWindow::Close();
 
 	s_PluginInitialized = false;
@@ -274,194 +321,4 @@ void DoState(unsigned char **ptr, int mode)
 	// No need to clear shader caches
 	PointerWrap p(ptr, mode);
 	VideoCommon_DoState(p);
-}
-
-void EmuStateChange(PLUGIN_EMUSTATE newState)
-{
-	Fifo_RunLoop((newState == PLUGIN_EMUSTATE_PLAY) ? true : false);
-}
-
-// Enter and exit the video loop
-void Video_EnterLoop()
-{
-	Fifo_EnterLoop(g_VideoInitialize);
-}
-
-void Video_ExitLoop()
-{
-	Fifo_ExitLoop();
-	s_FifoShuttingDown = TRUE;
-}
-
-void Video_SetRendering(bool bEnabled)
-{
-	Fifo_SetRendering(bEnabled);
-}
-
-// Run from the graphics thread (from Fifo.cpp)
-void VideoFifo_CheckSwapRequest()
-{
-	if(g_ActiveConfig.bUseXFB)
-	{
-		if (Common::AtomicLoadAcquire(s_swapRequested))
-		{
-			EFBRectangle rc;
-			Renderer::Swap(s_beginFieldArgs.xfbAddr, s_beginFieldArgs.field, s_beginFieldArgs.fbWidth, s_beginFieldArgs.fbHeight,rc);
-			Common::AtomicStoreRelease(s_swapRequested, FALSE);
-		}
-	}
-}
-
-// Run from the graphics thread (from Fifo.cpp)
-void VideoFifo_CheckSwapRequestAt(u32 xfbAddr, u32 fbWidth, u32 fbHeight)
-{
-	if (g_ActiveConfig.bUseXFB)
-	{
-		if(Common::AtomicLoadAcquire(s_swapRequested))
-		{
-			u32 aLower = xfbAddr;
-			u32 aUpper = xfbAddr + 2 * fbWidth * fbHeight;
-			u32 bLower = s_beginFieldArgs.xfbAddr;
-			u32 bUpper = s_beginFieldArgs.xfbAddr + 2 * s_beginFieldArgs.fbWidth * s_beginFieldArgs.fbHeight;
-
-			if (addrRangesOverlap(aLower, aUpper, bLower, bUpper))
-				VideoFifo_CheckSwapRequest();
-		}
-	}
-}
-
-// Run from the CPU thread (from VideoInterface.cpp)
-void Video_BeginField(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight)
-{
-	if (s_PluginInitialized && g_ActiveConfig.bUseXFB)
-	{
-		if (g_VideoInitialize.bOnThread)
-		{
-			while (Common::AtomicLoadAcquire(s_swapRequested) && !s_FifoShuttingDown)
-				//Common::SleepCurrentThread(1);
-				Common::YieldCPU();
-		}
-		else
-			VideoFifo_CheckSwapRequest();
-		s_beginFieldArgs.xfbAddr = xfbAddr;
-		s_beginFieldArgs.field = field;
-		s_beginFieldArgs.fbWidth = fbWidth;
-		s_beginFieldArgs.fbHeight = fbHeight;
-	}
-}
-
-// Run from the CPU thread (from VideoInterface.cpp)
-void Video_EndField()
-{
-	if (s_PluginInitialized)
-	{
-		Common::AtomicStoreRelease(s_swapRequested, TRUE);
-	}
-}
-
-void Video_AddMessage(const char* pstr, u32 milliseconds)
-{
-	OSD::AddMessage(pstr, milliseconds);
-}
-
-// Screenshot
-void Video_Screenshot(const char *_szFilename)
-{
-	Renderer::SetScreenshot(_szFilename);
-}
-
-static struct
-{
-	EFBAccessType type;
-	u32 x;
-	u32 y;
-	u32 Data;
-} s_accessEFBArgs;
-
-static u32 s_AccessEFBResult = 0;
-
-void VideoFifo_CheckEFBAccess()
-{
-	if (Common::AtomicLoadAcquire(s_efbAccessRequested))
-	{
-		s_AccessEFBResult = Renderer::AccessEFB(s_accessEFBArgs.type, s_accessEFBArgs.x, s_accessEFBArgs.y, s_accessEFBArgs.Data);
-
-		Common::AtomicStoreRelease(s_efbAccessRequested, FALSE);
-	}
-}
-
-u32 Video_AccessEFB(EFBAccessType type, u32 x, u32 y, u32 InputData)
-{
-	if (s_PluginInitialized)
-	{
-		s_accessEFBArgs.type = type;
-		s_accessEFBArgs.x = x;
-		s_accessEFBArgs.y = y;
-		s_accessEFBArgs.Data = InputData;
-
-		Common::AtomicStoreRelease(s_efbAccessRequested, TRUE);
-
-		if (g_VideoInitialize.bOnThread)
-		{
-			while (Common::AtomicLoadAcquire(s_efbAccessRequested) && !s_FifoShuttingDown)
-				//Common::SleepCurrentThread(1);
-				Common::YieldCPU();
-		}
-		else
-			VideoFifo_CheckEFBAccess();
-
-		return s_AccessEFBResult;
-	}
-
-	return 0;
-}
-
-void VideoFifo_CheckAsyncRequest() {
-	VideoFifo_CheckSwapRequest();
-	VideoFifo_CheckEFBAccess();
-}
-
-void Video_CommandProcessorRead16(u16& _rReturnValue, const u32 _Address)
-{
-	CommandProcessor::Read16(_rReturnValue, _Address);
-}
-
-void Video_CommandProcessorWrite16(const u16 _Data, const u32 _Address)
-{
-	CommandProcessor::Write16(_Data, _Address);
-}
-
-void Video_PixelEngineRead16(u16& _rReturnValue, const u32 _Address)
-{
-	PixelEngine::Read16(_rReturnValue, _Address);
-}
-
-void Video_PixelEngineWrite16(const u16 _Data, const u32 _Address)
-{
-	PixelEngine::Write16(_Data, _Address);
-}
-
-void Video_PixelEngineWrite32(const u32 _Data, const u32 _Address)
-{
-	PixelEngine::Write32(_Data, _Address);
-}
-
-void Video_GatherPipeBursted(void)
-{
-	CommandProcessor::GatherPipeBursted();
-}
-
-void Video_WaitForFrameFinish(void)
-{
-	CommandProcessor::WaitForFrameFinish();
-}
-
-bool Video_IsFifoBusy(void)
-{
-	return CommandProcessor::isFifoBusy;
-}
-
-void Video_AbortFrame(void)
-{
-	CommandProcessor::AbortFrame();
 }
