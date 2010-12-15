@@ -182,7 +182,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 						int nError=GetLastError();
 						TCHAR buffer[1000];
 						_stprintf(buffer, _T("StartServiceCtrlDispatcher failed with error %d"), nError);
-						MessageBox(0, buffer, _T("µ±Æô¶¯·şÎñÊ±·¢Éú´íÎó"), MB_OK);
+						MessageBox(0, buffer, _T("å½“å¯åŠ¨æœåŠ¡æ—¶å‘ç”Ÿé”™è¯¯"), MB_OK);
 						//error occured
 					}
 					return 0;
@@ -204,7 +204,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 		
 	if (!bInstalled)
 	{
-		if (nAction==1 || nAction==5 || (nAction == 0 && MessageBox(0, _T("°²×°·şÎñÃ´?"), _T("Question"), MB_YESNO|MB_ICONQUESTION)==IDYES))
+		if (nAction==1 || nAction==5 || (nAction == 0 && MessageBox(0, _T("å®‰è£…æœåŠ¡ä¹ˆ?"), _T("Question"), MB_YESNO|MB_ICONQUESTION)==IDYES))
 		{
 			hScm=OpenSCManager(0, 0, SC_MANAGER_CREATE_SERVICE);
 			if(!hScm)
@@ -213,7 +213,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 			}
 			int nStartMode = (nAction==5)?SERVICE_AUTO_START:SERVICE_DEMAND_START;
 			if (!nAction)
-				if (MessageBox(0, _T("×Ô¶¯¿ªÊ¼·şÎñ?"), _T("Question"), MB_YESNO|MB_ICONQUESTION)==IDYES)
+				if (MessageBox(0, _T("è‡ªåŠ¨å¼€å§‹æœåŠ¡?"), _T("Question"), MB_YESNO|MB_ICONQUESTION)==IDYES)
 					nStartMode = SERVICE_AUTO_START;
 			TCHAR buffer[MAX_PATH + 3];
 			buffer[0] = '"';
@@ -222,7 +222,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 			{
 				CloseServiceHandle(hScm);
 
-				MessageBox(0, _T("Failed to get own executable path"), _T("²»ÄÜ°²×°·şÎñ"), MB_ICONSTOP);
+				MessageBox(0, _T("Failed to get own executable path"), _T("ä¸èƒ½å®‰è£…æœåŠ¡"), MB_ICONSTOP);
 				return 1;
 			}
 			buffer[written + 1] = '"';
@@ -247,7 +247,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 			return 0;
 	}
 		
-	if (dwCurrentState == SERVICE_STOPPED && (nAction==3 || (nAction == 0 && MessageBox(0, _T("Æô¶¯·şÎñ?"), _T("Question"), MB_YESNO|MB_ICONQUESTION)==IDYES)))
+	if (dwCurrentState == SERVICE_STOPPED && (nAction==3 || (nAction == 0 && MessageBox(0, _T("å¯åŠ¨æœåŠ¡?"), _T("Question"), MB_YESNO|MB_ICONQUESTION)==IDYES)))
 	{
 		SC_HANDLE hService,hScm;
 		hScm=OpenSCManager(0, 0, SC_MANAGER_ALL_ACCESS);
@@ -267,7 +267,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 		return 0;
 	}
 
-	if (dwCurrentState == SERVICE_STOPPED && (nAction==2 || (nAction == 0 && MessageBox(0, _T("Ğ¶ÔØ·şÎñ?"), _T("Question"), MB_YESNO|MB_ICONQUESTION)==IDYES)))
+	if (dwCurrentState == SERVICE_STOPPED && (nAction==2 || (nAction == 0 && MessageBox(0, _T("å¸è½½æœåŠ¡?"), _T("Question"), MB_YESNO|MB_ICONQUESTION)==IDYES)))
 	{
 		SC_HANDLE hService,hScm;
 		hScm=OpenSCManager(0, 0, SC_MANAGER_CREATE_SERVICE);
@@ -287,7 +287,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 		return 0;
 	}
 
-	if (dwCurrentState != SERVICE_STOPPED && (nAction==4 || (nAction == 0 && MessageBox(0, _T("Í£Ö¹·şÎñ?"), _T("Question"), MB_YESNO|MB_ICONQUESTION)==IDYES)))
+	if (dwCurrentState != SERVICE_STOPPED && (nAction==4 || (nAction == 0 && MessageBox(0, _T("åœæ­¢æœåŠ¡?"), _T("Question"), MB_YESNO|MB_ICONQUESTION)==IDYES)))
 	{
 		SC_HANDLE hService,hScm;
 		hScm=OpenSCManager(0, 0, SC_MANAGER_ALL_ACCESS);
@@ -564,7 +564,7 @@ int CompatMain(LPCSTR lpCmdLine)
 	else if (nAction==2 && !hWnd)
 		return 0;
 	
-	if (!hWnd && (nAction == 1 || (nAction == 0 && MessageBox(0, _T("¿ªÊ¼·şÎñ?"), _T("Question"), MB_YESNO|MB_ICONQUESTION)==IDYES)))
+	if (!hWnd && (nAction == 1 || (nAction == 0 && MessageBox(0, _T("å¼€å§‹æœåŠ¡?"), _T("Question"), MB_YESNO|MB_ICONQUESTION)==IDYES)))
 	{
 		// initialize Winsock library
 		BOOL res=TRUE;
@@ -599,7 +599,7 @@ int CompatMain(LPCSTR lpCmdLine)
 		WSACleanup();
 		return 0;
 	}		
-	else if (hWnd && (nAction == 2 || (nAction == 0 && MessageBox(0, _T("Í£Ö¹·şÎñ?"), _T("Question"), MB_YESNO|MB_ICONQUESTION)==IDYES)))
+	else if (hWnd && (nAction == 2 || (nAction == 0 && MessageBox(0, _T("åœæ­¢æœåŠ¡?"), _T("Question"), MB_YESNO|MB_ICONQUESTION)==IDYES)))
 	{
 		SendMessage(hWnd, WM_CLOSE, 0, 0);
 		if (GetLastError())
