@@ -29,7 +29,7 @@ class DSPConfigDialogHLE : public wxDialog
 public:
 	DSPConfigDialogHLE(wxWindow *parent,
 			 wxWindowID id = wxID_ANY,
-		     const wxString &title = wxT("Dolphin DSP-HLE 插件设置"),
+			 const wxString &title = wxT("Dolphin DSP-HLE 插件设置"),
 			 const wxPoint& pos = wxDefaultPosition,
 			 const wxSize& size = wxDefaultSize,
 			 long style = wxDEFAULT_DIALOG_STYLE);
@@ -46,13 +46,16 @@ private:
 	wxCheckBox* m_buttonEnableDTKMusic;
 	wxCheckBox* m_buttonEnableThrottle;
 	wxArrayString wxArrayBackends;
+	wxArrayString wxArrayRates;
 	wxChoice* m_BackendSelection;
+	wxChoice* m_FrequencySelection;
 
 	enum
 	{
 		ID_ENABLE_HLE_AUDIO,
 		ID_ENABLE_DTK_MUSIC,
 		ID_ENABLE_THROTTLE,
+		ID_FREQUENCY,
 		ID_BACKEND,
 		ID_VOLUME
 	};
