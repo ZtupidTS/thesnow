@@ -113,6 +113,7 @@ bool &Searcher::FlagFromCmd(int cmd) {
 	}
 	return notFound;
 }
+
 SciTEBase::SciTEBase(Extension *ext) : apis(true), extender(ext) {
 	codePage = 0;
 	characterSet = 0;

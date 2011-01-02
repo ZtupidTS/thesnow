@@ -203,6 +203,10 @@ SOURCE=..\lua\src\ldump.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\scintilla\lexers\LexA68k.cxx
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\scintilla\lexers\LexAbaqus.cxx
 # End Source File
 # Begin Source File
@@ -764,10 +768,6 @@ SOURCE=..\src\GUI.h
 # Begin Source File
 
 SOURCE=..\..\scintilla\Include\Platform.h
-# End Source File
-# Begin Source File
-
-SOURCE=..\..\scintilla\Win32\PlatformRes.h
 # End Source File
 # Begin Source File
 
