@@ -25,6 +25,7 @@
 				Optimization="3"
 				InlineFunctionExpansion="2"
 				OmitFramePointers="TRUE"
+				OptimizeForWindowsApplication="TRUE"
 				AdditionalIncludeDirectories="..\src;..\lua\include;..\..\scintilla\include;..\..\scintilla\src;..\..\scintilla\lexlib"
 				PreprocessorDefinitions="NDEBUG;WIN32;_WINDOWS;STATIC_BUILD;SCI_LEXER;LINK_LEXERS;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;LUA_USER_H=\&quot;scite_lua_win.h\&quot;"
 				RuntimeLibrary="0"
@@ -688,9 +689,6 @@
 			</File>
 			<File
 				RelativePath="..\..\scintilla\Include\Platform.h">
-			</File>
-			<File
-				RelativePath="..\..\scintilla\Win32\PlatformRes.h">
 			</File>
 			<File
 				RelativePath="..\..\scintilla\Include\PropSet.h">
