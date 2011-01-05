@@ -209,7 +209,7 @@ void PropSetFile::Clear() {
 
 char *PropSetFile::ToString() const {
 	std::string sval;
-	for (mapss::const_iterator it=props.begin(); it != props.end(); it++) {
+	for (mapss::const_iterator it=props.begin(); it != props.end(); ++it) {
 		sval += it->first;
 		sval += "=";
 		sval += it->second;
@@ -410,7 +410,7 @@ SString PropSetFile::GetWildUsingStart(const PropSetFile &psStart, const char *k
 		if (0 == strcmp(it->first.c_str(), keybase)) {
 			return SString(it->second.c_str());
 		}
-		it++;
+		++it;
 	}
 	if (superPS) {
 		// Failed here, so try in super property set
@@ -463,7 +463,7 @@ bool PropSetFile::GetFirst(const char *&key, const char *&val) {
 	if (it != props.end()) {
 		key = it->first.c_str();
 		val = it->second.c_str();
-		it++;
+		++it;
 		if (it != props.end()) {
 			enumnext = it->first; // GetNext will begin here ...
 		} else {
@@ -483,7 +483,7 @@ bool PropSetFile::GetNext(const char *&key, const char *&val) {
 	if (it != props.end()) {
 		key = it->first.c_str();
 		val = it->second.c_str();
-		it++;
+		++it;
 		if (it != props.end()) {
 			enumnext = it->first; // GetNext will begin here ...
 		} else {
