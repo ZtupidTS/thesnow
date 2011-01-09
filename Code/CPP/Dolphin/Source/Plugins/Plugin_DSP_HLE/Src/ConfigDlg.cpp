@@ -32,26 +32,26 @@ DSPConfigDialogHLE::DSPConfigDialogHLE(wxWindow *parent, wxWindowID id,
 		const wxString &title, const wxPoint &position, const wxSize& size, long style)
 : wxDialog(parent, id, title, position, size, style)
 {
-	wxButton *m_OK = new wxButton(this, wxID_OK, wxT("确定"),
+	wxButton *m_OK = new wxButton(this, wxID_OK, _("确定"),
 			wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 
-	wxStaticBoxSizer *sbSettings = new wxStaticBoxSizer(wxVERTICAL, this, wxT("声音设置"));
-	wxStaticBoxSizer *sbSettingsV = new wxStaticBoxSizer(wxVERTICAL, this, wxT("音量"));
+	wxStaticBoxSizer *sbSettings = new wxStaticBoxSizer(wxVERTICAL, this, _("声音设置"));
+	wxStaticBoxSizer *sbSettingsV = new wxStaticBoxSizer(wxVERTICAL, this, _("音量"));
 
 	// Create items
-	m_buttonEnableHLEAudio = new wxCheckBox(this, ID_ENABLE_HLE_AUDIO, wxT("启用 HLE 音频"),
+	m_buttonEnableHLEAudio = new wxCheckBox(this, ID_ENABLE_HLE_AUDIO, _("启用 HLE 音频"),
 			wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	m_buttonEnableDTKMusic = new wxCheckBox(this, ID_ENABLE_DTK_MUSIC, wxT("启用 DTK 音乐"),
+	m_buttonEnableDTKMusic = new wxCheckBox(this, ID_ENABLE_DTK_MUSIC, _("启用 DTK 音乐"),
 			wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	m_buttonEnableThrottle = new wxCheckBox(this, ID_ENABLE_THROTTLE, wxT("启用 Audio Throttle"),
+	m_buttonEnableThrottle = new wxCheckBox(this, ID_ENABLE_THROTTLE, _("启用 Audio Throttle"),
 			wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 
-	wxStaticText *FrequencyText = new wxStaticText(this, wxID_ANY, wxT("Sample Rate"),
+	wxStaticText *FrequencyText = new wxStaticText(this, wxID_ANY, _("Sample Rate"),
 		   	wxDefaultPosition, wxDefaultSize, 0);
 	m_FrequencySelection = new wxChoice(this, ID_FREQUENCY, wxDefaultPosition, wxSize(110, 20),
 			wxArrayRates, 0, wxDefaultValidator, wxEmptyString);
 
-	wxStaticText *BackendText = new wxStaticText(this, wxID_ANY, wxT("音频 Backend"),
+	wxStaticText *BackendText = new wxStaticText(this, wxID_ANY, _("音频 Backend"),
 		   	wxDefaultPosition, wxDefaultSize, 0);
 	m_BackendSelection = new wxChoice(this, ID_BACKEND, wxDefaultPosition, wxSize(110, 20),
 			wxArrayBackends, 0, wxDefaultValidator, wxEmptyString);
@@ -68,17 +68,13 @@ DSPConfigDialogHLE::DSPConfigDialogHLE(wxWindow *parent, wxWindowID id,
 	m_buttonEnableThrottle->SetValue(ac_Config.m_EnableThrottle ? true : false);
 
 	// Add tooltips
-	m_buttonEnableHLEAudio->SetToolTip(wxT("This is usually used to play voice and sound effects."));
-	m_buttonEnableDTKMusic->SetToolTip(wxT("This is used to play music tracks, like BGM."));
-	m_buttonEnableThrottle->SetToolTip(wxT("This is used to control game speed by sound throttle.\n")
-		wxT("Disabling this could cause abnormal game speed, such as too fast.\n")
-		wxT("But sometimes enabling this could cause constant noise.\n")
-		wxT("\nKeyboard Shortcut <TAB>:  Hold down to instantly disable Throttle."));
+	m_buttonEnableHLEAudio->SetToolTip(_("This is usually used to play voice and sound effects."));
+	m_buttonEnableDTKMusic->SetToolTip(_("This is used to play music tracks, like BGM."));
+	m_buttonEnableThrottle->SetToolTip(_("This is used to control game speed by sound throttle.\nDisabling this could cause abnormal game speed, such as too fast.\nBut sometimes enabling this could cause constant noise.\n\nKeyboard Shortcut <TAB>:  Hold down to instantly disable Throttle."));
 	m_FrequencySelection->
-		SetToolTip(wxT("Changing this will have no effect while the emulator is running!"));
+		SetToolTip(_("Changing this will have no effect while the emulator is running!"));
 	m_BackendSelection->
-		SetToolTip(wxT("Changing this will have no effect while the emulator is running!"));
-	m_volumeSlider->SetToolTip(wxT("This setting only affects DSound, OpenAL, XAudio2, and PulseAudio."));
+		SetToolTip(_("Changing this will have no effect while the emulator is running!"));
 
 	// Create sizer and add items to dialog
 	wxBoxSizer *sMain = new wxBoxSizer(wxVERTICAL);
@@ -182,6 +178,7 @@ bool DSPConfigDialogHLE::SupportsVolumeChanges(std::string backend)
 	//       but getting the backend from string etc. is probably
 	//       too much just to enable/disable a stupid slider...
 	return (backend == BACKEND_DIRECTSOUND ||
+			backend == BACKEND_COREAUDIO ||
 			backend == BACKEND_OPENAL ||
 			backend == BACKEND_XAUDIO2 ||
 			backend == BACKEND_PULSEAUDIO);
