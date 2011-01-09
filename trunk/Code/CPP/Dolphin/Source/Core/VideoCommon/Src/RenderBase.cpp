@@ -77,6 +77,8 @@ int Renderer::s_LastEFBScale;
 bool Renderer::s_skipSwap;
 bool Renderer::XFBWrited;
 
+unsigned int Renderer::prev_efb_format = (unsigned int)-1;
+
 Renderer::Renderer()
 {
 	UpdateActiveConfig();
@@ -84,10 +86,11 @@ Renderer::Renderer()
 
 Renderer::~Renderer()
 {
-
+	// invalidate previous efb format
+	prev_efb_format = (unsigned int)-1;
 }
 
-void Renderer::RenderToXFB(u32 xfbAddr, u32 fbWidth, u32 fbHeight, const EFBRectangle& sourceRc)
+void Renderer::RenderToXFB(u32 xfbAddr, u32 fbWidth, u32 fbHeight, const EFBRectangle& sourceRc, float Gamma)
 {
 	if (!fbWidth || !fbHeight)
 		return;
@@ -102,13 +105,43 @@ void Renderer::RenderToXFB(u32 xfbAddr, u32 fbWidth, u32 fbHeight, const EFBRect
 	// just use progressive.
 	if (g_ActiveConfig.bUseXFB)
 	{
-		FramebufferManagerBase::CopyToXFB(xfbAddr, fbWidth, fbHeight, sourceRc);
+		FramebufferManagerBase::CopyToXFB(xfbAddr, fbWidth, fbHeight, sourceRc,Gamma);
 	}
 	else
 	{
-		g_renderer->Swap(xfbAddr, FIELD_PROGRESSIVE, fbWidth, fbHeight,sourceRc);
+		g_renderer->Swap(xfbAddr, FIELD_PROGRESSIVE, fbWidth, fbHeight,sourceRc,Gamma);
 		Common::AtomicStoreRelease(s_swapRequested, FALSE);
 	}
+}
+
+void Renderer::CalculateTargetScale(int x, int y, int &scaledX, int &scaledY)
+{
+	switch (g_ActiveConfig.iEFBScale)
+	{
+		case 3: // 2x
+			scaledX = x * 2;
+			scaledY = y * 2;
+			break;
+		case 4: // 3x
+			scaledX = x * 3;
+			scaledY = y * 3;
+			break;
+		case 5: // 0.75x
+			scaledX = (x * 3) / 4;
+			scaledY = (y * 3) / 4;
+			break;
+		case 6: // 0.5x
+			scaledX = x / 2;
+			scaledY = y / 2;
+			break;
+		case 7: // 0.375x
+			scaledX = (x * 3) / 8;
+			scaledY = (y * 3) / 8;
+			break;
+		default:
+			scaledX = x;
+			scaledY = y;
+	};
 }
 
 // return true if target size changed
@@ -117,26 +150,24 @@ bool Renderer::CalculateTargetSize(int multiplier)
 	int newEFBWidth, newEFBHeight;
 	switch (s_LastEFBScale)
 	{
-		case 0:
+		case 0: // fractional
 			newEFBWidth = (int)(EFB_WIDTH * xScale);
 			newEFBHeight = (int)(EFB_HEIGHT * yScale);
 			break;
-		case 1:
+		case 1: // integral
 			newEFBWidth = EFB_WIDTH * (int)ceilf(xScale);
 			newEFBHeight = EFB_HEIGHT * (int)ceilf(yScale);
 			break;
 		default:
-			newEFBWidth = EFB_WIDTH * (g_ActiveConfig.iEFBScale - 1);
-			newEFBHeight = EFB_HEIGHT * (g_ActiveConfig.iEFBScale - 1);
-			break;
-	};
+			CalculateTargetScale(EFB_WIDTH, EFB_HEIGHT, newEFBWidth, newEFBHeight);
+	}
 
 	newEFBWidth *= multiplier;
 	newEFBHeight *= multiplier;
 
 	if (newEFBWidth != s_target_width || newEFBHeight != s_target_height)
 	{
-		s_Fulltarget_width  = s_target_width  = newEFBWidth;
+		s_Fulltarget_width = s_target_width  = newEFBWidth;
 		s_Fulltarget_height = s_target_height = newEFBHeight;
 		return true;
 	}
@@ -181,6 +212,15 @@ void Renderer::DrawDebugText()
 				break;
 			case 4:
 				res_text = "3x";
+				break;
+			case 5:
+				res_text = "0.75x";
+				break;
+			case 6:
+				res_text = "0.5x";
+				break;
+			case 7:
+				res_text = "0.375x";
 				break;
 			}
 

@@ -82,35 +82,153 @@ sDecoderParameter g_DecodeParametersRGBA[] = {
 bool g_Inited = false;
 cl_mem g_clsrc, g_cldst;                    // texture buffer memory objects
 
+#define HEADER_SIZE	32
+
 void TexDecoder_OpenCL_Initialize()
 {
-#if defined(HAVE_OPENCL) && HAVE_OPENCL
 	if(!g_Inited)
 	{
 		if(!OpenCL::Initialize())
 			return;
 
-		std::string code;
+		cl_int err = 1;
+		size_t binary_size = 0;
+		char *binary = NULL;
+		char *header = NULL;
+		size_t nDevices = 0;
+		cl_device_id *devices = NULL;
+		size_t *binary_sizes = NULL;
+		char **binaries = NULL;		
 		char filename[1024];
-		sprintf(filename, "%sOpenCL/TextureDecoder.cl", File::GetUserPath(D_USER_IDX));
-		if (!File::ReadFileToString(true, filename, code))
+		char dolphin_rev[HEADER_SIZE];
+
+		sprintf(filename, "%skernel.bin", File::GetUserPath(D_OPENCL_IDX));
+		snprintf(dolphin_rev, HEADER_SIZE, "%-31s", svn_rev_str);
+
+		FILE *input = NULL;
+
+		input = fopen(filename, "rb");
+		if (input == NULL)
 		{
-			ERROR_LOG(VIDEO, "Failed to load OpenCL code %s - file is missing?", filename);
-			return;
+			binary_size = 0;
+		}
+		else
+		{
+			binary_size = File::GetSize(input);
+			header = new char[HEADER_SIZE];
+			binary = new char[binary_size];
+			fread(header, sizeof(char), HEADER_SIZE, input);
+			binary_size = fread(binary, sizeof(char),
+				binary_size - HEADER_SIZE, input);
+			fclose(input);
 		}
 
-		g_program = OpenCL::CompileProgram(code.c_str());
+		if (binary_size > 0)
+		{
+			if (binary_size > HEADER_SIZE)
+			{
+				if (strncmp(header, dolphin_rev, HEADER_SIZE) == 0)
+				{
+					g_program = clCreateProgramWithBinary(OpenCL::GetContext(), 1, &OpenCL::device_id, &binary_size, (const unsigned char**)&binary, NULL, &err);
+					if (err != CL_SUCCESS)
+					{
+						OpenCL::HandleCLError(err, "clCreateProgramWithBinary");
+					}
+				
+					if (!err)
+					{
+						err = clBuildProgram(g_program, 1, &OpenCL::device_id, NULL, NULL, NULL);
+						if (err != CL_SUCCESS)
+						{
+							OpenCL::HandleCLError(err, "clBuildProgram");
+						}
+					}
+				}
+			}
+			delete header;
+			delete binary;
+		}
+
+		if (err)
+		{
+			std::string code;
+			sprintf(filename, "%sTextureDecoder.cl", File::GetUserPath(D_OPENCL_IDX));
+			if (!File::ReadFileToString(true, filename, code))
+			{
+				ERROR_LOG(VIDEO, "Failed to load OpenCL code %s - file is missing?", filename);
+				return;
+			}
+
+			g_program = OpenCL::CompileProgram(code.c_str());
+
+			err = clGetProgramInfo(g_program, CL_PROGRAM_NUM_DEVICES, sizeof(nDevices), &nDevices, NULL);
+			if (err != CL_SUCCESS)
+			{
+				OpenCL::HandleCLError(err, "clGetProgramInfo");
+			}
+			devices = (cl_device_id *)malloc( sizeof(cl_device_id) *nDevices);
+
+			err = clGetProgramInfo(g_program, CL_PROGRAM_DEVICES, sizeof(cl_device_id)*nDevices, devices, NULL);
+			if (err != CL_SUCCESS)
+			{
+				OpenCL::HandleCLError(err, "clGetProgramInfo");
+			}
+
+			binary_sizes = (size_t *)malloc(sizeof(size_t)*nDevices);
+			err = clGetProgramInfo(g_program, CL_PROGRAM_BINARY_SIZES,	sizeof(size_t)*nDevices, binary_sizes, NULL);
+			if (err != CL_SUCCESS)
+			{
+				OpenCL::HandleCLError(err, "clGetProgramInfo");
+			}
+
+			binaries = (char **)malloc(sizeof(char *)*nDevices);
+			for (u32 i = 0; i < nDevices; ++i)
+			{
+				if( binary_sizes[i] != 0 )
+				{
+					binaries[i] = (char *)malloc(HEADER_SIZE + binary_sizes[i]);
+				}
+				else
+				{
+					binaries[i] = NULL;
+				}
+			}
+			err = clGetProgramInfo( g_program, CL_PROGRAM_BINARIES,	sizeof(char *)*nDevices, binaries, NULL );
+			if (err != CL_SUCCESS)
+			{
+				OpenCL::HandleCLError(err, "clGetProgramInfo");
+			}
+
+			if (!err)
+			{
+				sprintf(filename, "%skernel.bin", File::GetUserPath(D_OPENCL_IDX));
+				FILE *output = NULL;
+				output = fopen(filename, "wb");
+
+				if (output == NULL)
+				{
+					binary_size = 0;
+				}
+				else
+				{
+					// Supporting one OpenCL device for now
+					fwrite(dolphin_rev, sizeof(char), HEADER_SIZE, output);
+					fwrite(binaries[0], sizeof(char), binary_sizes[0], output);
+					fclose(output);
+				}
+			}
+		}
 
 		for (int i = 0; i <= GX_TF_CMPR; ++i) {
 			if (g_DecodeParametersNative[i].name)
 				g_DecodeParametersNative[i].kernel =
-					OpenCL::CompileKernel(g_program,
-					g_DecodeParametersNative[i].name);
+				OpenCL::CompileKernel(g_program,
+				g_DecodeParametersNative[i].name);
 
 			if (g_DecodeParametersRGBA[i].name)
 				g_DecodeParametersRGBA[i].kernel =
-					OpenCL::CompileKernel(g_program,
-					g_DecodeParametersRGBA[i].name);
+				OpenCL::CompileKernel(g_program,
+				g_DecodeParametersRGBA[i].name);
 		}
 
 		// Allocating maximal Wii texture size in advance, so that we don't have to allocate/deallocate per texture
@@ -121,12 +239,10 @@ void TexDecoder_OpenCL_Initialize()
 
 		g_Inited = true;
 	}
-#endif
 }
 
 void TexDecoder_OpenCL_Shutdown()
 {
-#if defined(HAVE_OPENCL) && HAVE_OPENCL && !defined(DEBUG_OPENCL)
 	if (g_program)
 		clReleaseProgram(g_program);
 
@@ -145,12 +261,10 @@ void TexDecoder_OpenCL_Shutdown()
 		clReleaseMemObject(g_cldst);
 
 	g_Inited = false;
-#endif
 }
 
 PC_TexFormat TexDecoder_Decode_OpenCL(u8 *dst, const u8 *src, int width, int height, int texformat, int tlutaddr, int tlutfmt, bool rgba)
 {
-#if defined(HAVE_OPENCL) && HAVE_OPENCL
 	cl_int err;
 	sDecoderParameter& decoder = rgba ? g_DecodeParametersRGBA[texformat] : g_DecodeParametersNative[texformat];
 	if(!g_Inited || !decoder.name || !decoder.kernel || decoder.format == PC_TEX_FMT_NONE)
@@ -191,8 +305,4 @@ PC_TexFormat TexDecoder_Decode_OpenCL(u8 *dst, const u8 *src, int width, int hei
 #endif
 
 	return decoder.format;
-#else
-	return PC_TEX_FMT_NONE;
-#endif
 }
-

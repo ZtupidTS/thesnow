@@ -362,7 +362,20 @@ u64 GetSize(const int fd)
 // Overloaded GetSize, accepts FILE*
 u64 GetSize(FILE *f)
 {
-	return GetSize(fileno(f));
+	// can't use off_t here because it can be 32-bit
+	u64 pos = ftello(f);
+	if (fseeko(f, 0, SEEK_END) != 0) {
+		ERROR_LOG(COMMON, "GetSize: seek failed %p: %s",
+			  f, GetLastErrorMsg());
+		return 0;
+	}
+	u64 size = ftello(f);
+	if ((size != pos) && (fseeko(f, pos, SEEK_SET) != 0)) {
+		ERROR_LOG(COMMON, "GetSize: seek failed %p: %s",
+			  f, GetLastErrorMsg());
+		return 0;
+	}
+	return size;
 }
 
 // creates an empty file filename, returns true on success 
@@ -647,6 +660,7 @@ const char *GetUserPath(int DirIDX)
 	static char ShadersDir[MAX_PATH] = {0};
 	static char StateSavesDir[MAX_PATH] = {0};
 	static char ScreenShotsDir[MAX_PATH] = {0};
+	static char OpenCLDir[MAX_PATH] = {0};
 	static char HiresTexturesDir[MAX_PATH] = {0};
 	static char DumpDir[MAX_PATH] = {0};
 	static char DumpFramesDir[MAX_PATH] = {0};
@@ -689,6 +703,7 @@ const char *GetUserPath(int DirIDX)
 		snprintf(ShadersDir, sizeof(ShadersDir), "%s" SHADERS_DIR DIR_SEP, UserDir);
 		snprintf(StateSavesDir, sizeof(StateSavesDir), "%s" STATESAVES_DIR DIR_SEP, UserDir);
 		snprintf(ScreenShotsDir, sizeof(ScreenShotsDir), "%s" SCREENSHOTS_DIR DIR_SEP, UserDir);
+		snprintf(OpenCLDir, sizeof(OpenCLDir), "%s" OPENCL_DIR DIR_SEP, UserDir);
 		snprintf(HiresTexturesDir, sizeof(HiresTexturesDir), "%s" HIRES_TEXTURES_DIR DIR_SEP, UserDir);
 		snprintf(DumpDir, sizeof(DumpDir), "%s" DUMP_DIR DIR_SEP, UserDir);
 		snprintf(DumpFramesDir, sizeof(DumpFramesDir), "%s" DUMP_FRAMES_DIR DIR_SEP, UserDir);
@@ -732,6 +747,8 @@ const char *GetUserPath(int DirIDX)
 			return StateSavesDir;
 		case D_SCREENSHOTS_IDX:
 			return ScreenShotsDir;
+		case D_OPENCL_IDX:
+			return OpenCLDir;
 		case D_HIRESTEXTURES_IDX:
 			return HiresTexturesDir;
 		case D_DUMP_IDX:

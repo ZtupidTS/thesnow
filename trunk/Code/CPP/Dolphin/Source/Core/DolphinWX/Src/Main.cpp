@@ -43,6 +43,8 @@
 #include "BootManager.h"
 #include "Frame.h"
 
+#include <wx/intl.h>
+
 // ------------
 //  Main window
 
@@ -89,6 +91,8 @@ LONG WINAPI MyUnhandledExceptionFilter(LPEXCEPTION_POINTERS e) {
 
 bool DolphinApp::OnInit()
 {
+	InitLanguageSupport();
+
 	// Declarations and definitions
 	bool UseDebugger = false;
 	bool BatchMode = false;
@@ -136,29 +140,29 @@ bool DolphinApp::OnInit()
 	wxCmdLineEntryDesc cmdLineDesc[] =
 	{
 		{
-			wxCMD_LINE_SWITCH, _("h"), _("help"), 
-			wxT("Show this help message"),
+			wxCMD_LINE_SWITCH, _T("h"), _T("help"), 
+			_("Show this help message"),
 			wxCMD_LINE_VAL_NONE, wxCMD_LINE_OPTION_HELP
 		},
 		{
-			wxCMD_LINE_SWITCH, _("d"), _("debugger"), wxT("Opens the debugger")
+			wxCMD_LINE_SWITCH, _T("d"), _T("debugger"), _("Opens the debugger")
 		},
 		{
-			wxCMD_LINE_SWITCH, _("l"), _("logger"), wxT("Opens the logger")
+			wxCMD_LINE_SWITCH, _T("l"), _T("logger"), _("Opens the logger")
 		},
 		{
-			wxCMD_LINE_OPTION, _("e"), _("exec"), wxT("Loads the specified file (DOL, ELF, WAD, GCM, ISO)"),
+			wxCMD_LINE_OPTION, _T("e"), _T("exec"), _("Loads the specified file (DOL, ELF, WAD, GCM, ISO)"),
 			wxCMD_LINE_VAL_STRING, wxCMD_LINE_PARAM_OPTIONAL
 		},
 		{
-			wxCMD_LINE_SWITCH, _("b"), _("batch"), wxT("Exit Dolphin with emulator")
+			wxCMD_LINE_SWITCH, _T("b"), _T("batch"), _("Exit Dolphin with emulator")
 		},
 		{
-			wxCMD_LINE_OPTION, _("V"), _("video_plugin"), wxT("Specify a video plugin"),
+			wxCMD_LINE_OPTION, _T("V"), _T("video_plugin"), _("Specify a video plugin"),
 			wxCMD_LINE_VAL_STRING, wxCMD_LINE_PARAM_OPTIONAL
 		},
 		{
-			wxCMD_LINE_OPTION, _("A"), _("audio_plugin"), wxT("Specify an audio plugin"),
+			wxCMD_LINE_OPTION, _T("A"), _T("audio_plugin"), _("Specify an audio plugin"),
 			wxCMD_LINE_VAL_STRING, wxCMD_LINE_PARAM_OPTIONAL
 		},
 		{
@@ -179,18 +183,18 @@ bool DolphinApp::OnInit()
 	LoadFile = parser.Found("exec", &FileToLoad);
 	BatchMode = parser.Found("batch");
 #else
-	UseDebugger = parser.Found(wxT("debugger"));
-	UseLogger = parser.Found(wxT("logger"));
-	LoadFile = parser.Found(wxT("exec"), &FileToLoad);
-	BatchMode = parser.Found(wxT("batch"));
+	UseDebugger = parser.Found(_T("debugger"));
+	UseLogger = parser.Found(_T("logger"));
+	LoadFile = parser.Found(_T("exec"), &FileToLoad);
+	BatchMode = parser.Found(_T("batch"));
 #endif
 
 #if wxCHECK_VERSION(2, 9, 0)
 	selectVideoPlugin = parser.Found("video_plugin", &videoPluginFilename);
 	selectAudioPlugin = parser.Found("audio_plugin", &audioPluginFilename);
 #else
-	selectVideoPlugin = parser.Found(wxT("video_plugin"), &videoPluginFilename);
-	selectAudioPlugin = parser.Found(wxT("audio_plugin"), &audioPluginFilename);
+	selectVideoPlugin = parser.Found(_T("video_plugin"), &videoPluginFilename);
+	selectAudioPlugin = parser.Found(_T("audio_plugin"), &audioPluginFilename);
 #endif
 #endif // wxUSE_CMDLINE_PARSER
 
@@ -280,26 +284,21 @@ bool DolphinApp::OnInit()
 			delete [] tmpChar;
 		}
 	}
-#endif
-
-#ifdef __APPLE__
-	const char *AppSupportDir = File::GetUserPath(D_USER_IDX);
-
-	if (!File::Exists(AppSupportDir))
-	{
-		// Fresh run: create Dolphin dir and copy contents of User within the bundle to App Support
-		File::CopyDir(std::string(File::GetBundleDirectory() + DIR_SEP USERDATA_DIR DIR_SEP).c_str(), AppSupportDir);
-	}
-	else if (!File::IsDirectory(AppSupportDir))
-		PanicAlert("~/Library/Application Support/Dolphin exists, but is not a directory");
-#elif !defined _WIN32
+#else
 	//create all necessary directories in user directory
 	//TODO : detect the revision and upgrade where necessary
-	File::CopyDir(SHARED_USER_DIR CONFIG_DIR DIR_SEP, File::GetUserPath(D_CONFIG_IDX));
-	File::CopyDir(SHARED_USER_DIR GAMECONFIG_DIR DIR_SEP, File::GetUserPath(D_GAMECONFIG_IDX));
-	File::CopyDir(SHARED_USER_DIR MAPS_DIR DIR_SEP, File::GetUserPath(D_MAPS_IDX));
-	File::CopyDir(SHARED_USER_DIR SHADERS_DIR DIR_SEP, File::GetUserPath(D_SHADERS_IDX));
-	File::CopyDir(SHARED_USER_DIR WII_USER_DIR DIR_SEP, File::GetUserPath(D_WIIUSER_IDX));
+	File::CopyDir(std::string(SHARED_USER_DIR CONFIG_DIR DIR_SEP).c_str(),
+		File::GetUserPath(D_CONFIG_IDX));
+	File::CopyDir(std::string(SHARED_USER_DIR GAMECONFIG_DIR DIR_SEP).c_str(),
+		File::GetUserPath(D_GAMECONFIG_IDX));
+	File::CopyDir(std::string(SHARED_USER_DIR MAPS_DIR DIR_SEP).c_str(),
+		File::GetUserPath(D_MAPS_IDX));
+	File::CopyDir(std::string(SHARED_USER_DIR SHADERS_DIR DIR_SEP).c_str(),
+		File::GetUserPath(D_SHADERS_IDX));
+	File::CopyDir(std::string(SHARED_USER_DIR WII_USER_DIR DIR_SEP).c_str(),
+		File::GetUserPath(D_WIIUSER_IDX));
+	File::CopyDir(std::string(SHARED_USER_DIR OPENCL_DIR DIR_SEP).c_str(),
+		File::GetUserPath(D_OPENCL_IDX));
 
 	if (!File::Exists(File::GetUserPath(D_GCUSER_IDX)))
 		File::CreateFullPath(File::GetUserPath(D_GCUSER_IDX));
@@ -408,6 +407,49 @@ void DolphinApp::AfterInit(wxTimerEvent& WXUNUSED(event))
 	}
 }
 
+void DolphinApp::InitLanguageSupport()
+{
+	int language = 0;
+
+	// keep those in sync with CConfigMain::InitializeGUILists
+	const wxLanguage langIds[] =
+	{
+		wxLANGUAGE_DEFAULT,
+		wxLANGUAGE_ENGLISH,
+		wxLANGUAGE_GERMAN,
+		wxLANGUAGE_FRENCH,
+		wxLANGUAGE_ITALIAN,
+	};
+
+	IniFile ini;
+	ini.Load(File::GetUserPath(F_DOLPHINCONFIG_IDX));
+	ini.Get("Interface", "Language", &language, 0);
+
+	// Load language if possible, fall back to system default otherwise
+	if(language >= 0 && language < sizeof(langIds) / sizeof(wxLanguage) && wxLocale::IsAvailable(langIds[language]))
+	{
+		m_locale = new wxLocale(langIds[language]);
+
+#ifdef _WIN32
+		m_locale->AddCatalogLookupPathPrefix(wxT("Languages"));
+#endif
+
+		m_locale->AddCatalog(wxT("dolphin-emu"));
+
+		if(!m_locale->IsOk())
+		{
+			PanicAlert("Error loading selected language. Falling back to system default.\n");
+			delete m_locale;
+			m_locale = new wxLocale(wxLANGUAGE_DEFAULT);
+		}
+	}
+	else
+	{
+		PanicAlert("The selected language is not supported by your system. Falling back to system default.\n");
+		m_locale = new wxLocale(wxLANGUAGE_DEFAULT);
+	}
+}
+
 void DolphinApp::OnEndSession()
 {
 	SConfig::GetInstance().SaveSettings();
@@ -423,6 +465,8 @@ int DolphinApp::OnExit()
 	CPluginManager::Shutdown();
 	SConfig::Shutdown();
 	LogManager::Shutdown();
+
+	delete m_locale;
 
 	return wxApp::OnExit();
 }
@@ -558,9 +602,14 @@ void Host_UpdateMemoryView()
 void Host_SetDebugMode(bool)
 {}
 
-void Host_RequestWindowSize(int& x, int& y, int& width, int& height)
+void Host_GetRenderWindowSize(int& x, int& y, int& width, int& height)
 {
-	main_frame->OnSizeRequest(x, y, width, height);
+	main_frame->GetRenderWindowSize(x, y, width, height);
+}
+
+void Host_RequestRenderWindowSize(int& width, int& height)
+{
+	main_frame->OnRenderWindowSizeRequest(width, height);
 }
 
 void Host_SetWaitCursor(bool enable)
@@ -595,9 +644,9 @@ void Host_SetWiiMoteConnectionState(int _State)
 
 	switch(_State)
 	{
-	case 0: event.SetString(_T("Wiimote 未连接")); break;
-	case 1: event.SetString(_T("Wiimote 连接中")); break;
-	case 2: event.SetString(_T("Wiimote 已连接")); break;
+	case 0: event.SetString(_("Wiimote 未连接")); break;
+	case 1: event.SetString(_("Wiimote 连接中")); break;
+	case 2: event.SetString(_("Wiimote 已连接")); break;
 	}
 	// Update field 1 or 2
 	event.SetInt(1);
@@ -608,4 +657,9 @@ void Host_SetWiiMoteConnectionState(int _State)
 bool Host_RendererHasFocus()
 {
 	return main_frame->RendererHasFocus();
+}
+
+void Host_ConnectWiimote(int wm_idx, bool connect)
+{
+	CFrame::ConnectWiimote(wm_idx, connect);
 }

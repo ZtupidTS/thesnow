@@ -34,9 +34,9 @@ public:
 	CConfigMain(wxWindow* parent,
 		wxWindowID id = 1,
 #ifndef NO_MOD
-		const wxString& title = wxT("Dolphin 配置"),
+		const wxString& title = _("Dolphin 配置"),
 #else
-		const wxString& title = wxT("Dolphin (MOD) 配置"),
+		const wxString& title = _("Dolphin (MOD) 配置"),
 #endif
 		const wxPoint& pos = wxDefaultPosition,
 		const wxSize& size = wxDefaultSize,
@@ -116,6 +116,8 @@ private:
 
 	// Wiimote
 	wxChoice* WiiSensBarPos;
+	wxSlider* WiiSensBarSens;
+	wxCheckBox* WiimoteMotor;
 
 	// Misc
 	wxCheckBox* WiiScreenSaver;
@@ -230,6 +232,9 @@ private:
 
 		ID_WII_BT_BAR_TEXT,
 		ID_WII_BT_BAR,
+		ID_WII_BT_SENS_TEXT,
+		ID_WII_BT_SENS,
+		ID_WII_BT_MOT,
 
 		ID_WII_IPL_SSV,
 		ID_WII_IPL_E60,

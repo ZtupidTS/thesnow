@@ -110,7 +110,18 @@ CISOProperties::CISOProperties(const std::string fileName, wxWindow* parent, wxW
 
 	CreateGUIControls(DiscIO::IsVolumeWadFile(OpenISO));
 
-	GameIniFile = std::string(File::GetUserPath(D_GAMECONFIG_IDX)) + (OpenISO->GetUniqueID()) + ".ini";
+	std::string _iniFilename = OpenISO->GetUniqueID();
+	if (!_iniFilename.length())
+	{
+		char tmp[17];
+		u8 _tTitleID[8];
+		if(OpenISO->GetTitleID(_tTitleID))
+		{
+			snprintf(tmp, 17, "%016llx", Common::swap64(_tTitleID));
+			_iniFilename = tmp;
+		}
+	}
+	GameIniFile = std::string(File::GetUserPath(D_GAMECONFIG_IDX)) + _iniFilename + ".ini";
 	if (GameIni.Load(GameIniFile.c_str()))
 		LoadGameConfig();
 	else
@@ -138,49 +149,49 @@ CISOProperties::CISOProperties(const std::string fileName, wxWindow* parent, wxW
 	switch (OpenISO->GetCountry())
 	{
 	case DiscIO::IVolume::COUNTRY_EUROPE:
-		m_Country->SetValue(wxT("欧洲"));
+		m_Country->SetValue(_("欧洲"));
 		break;
 	case DiscIO::IVolume::COUNTRY_FRANCE:
-		m_Country->SetValue(wxT("法国"));
+		m_Country->SetValue(_("法国"));
 		break;
 	case DiscIO::IVolume::COUNTRY_ITALY:
-		m_Country->SetValue(wxT("意大利"));
+		m_Country->SetValue(_("意大利"));
 		break;
 	case DiscIO::IVolume::COUNTRY_RUSSIA:
-		m_Country->SetValue(wxT("俄罗斯"));
+		m_Country->SetValue(_("俄罗斯"));
 		break;
 	case DiscIO::IVolume::COUNTRY_USA:
-		m_Country->SetValue(wxT("美国"));
+		m_Country->SetValue(_("美国"));
 		m_Lang->SetSelection(0);
 		m_Lang->Disable(); // For NTSC Games, there's no multi lang
 		break;
 	case DiscIO::IVolume::COUNTRY_JAPAN:
-		m_Country->SetValue(wxT("日本"));
+		m_Country->SetValue(_("日本"));
 		m_Lang->SetSelection(-1);
 		m_Lang->Disable(); // For NTSC Games, there's no multi lang
 		break;
 	case DiscIO::IVolume::COUNTRY_KOREA:
-		m_Country->SetValue(wxT("韩国"));
+		m_Country->SetValue(_("韩国"));
 		break;
 	case DiscIO::IVolume::COUNTRY_TAIWAN:
-		m_Country->SetValue(wxT("台湾"));
+		m_Country->SetValue(_("台湾"));
 		m_Lang->SetSelection(-1);
 		m_Lang->Disable(); // For NTSC Games, there's no multi lang
 		break;
 	case DiscIO::IVolume::COUNTRY_SDK:
-		m_Country->SetValue(wxT("没有国家 (SDK)"));
+		m_Country->SetValue(_("没有国家 (SDK)"));
 		break;
 	default:
-		m_Country->SetValue(wxT("未知"));
+		m_Country->SetValue(_("未知"));
 		break;
 	}
 	wxString temp = _T("0x") + wxString::From8BitData(OpenISO->GetMakerID().c_str());
 	m_MakerID->SetValue(temp);
 	m_Date->SetValue(wxString::From8BitData(OpenISO->GetApploaderDate().c_str()));
-	m_FST->SetValue(wxString::Format(_T("%u"), OpenISO->GetFSTSize()));
+	m_FST->SetValue(wxString::Format(wxT("%u"), OpenISO->GetFSTSize()));
 
 	// Here we set all the info to be shown (be it SJIS or Ascii) + we set the window title
-	ChangeBannerDetails((int)SConfig::GetInstance().m_InterfaceLanguage);
+	ChangeBannerDetails((int)SConfig::GetInstance().m_LocalCoreStartupParameter.SelectedLanguage);
 	m_Banner->SetBitmap(OpenGameListItem->GetImage());
 	m_Banner->Connect(wxID_ANY, wxEVT_RIGHT_DOWN,
 		wxMouseEventHandler(CISOProperties::RightClickOnBanner), (wxObject*)NULL, this);
@@ -191,7 +202,7 @@ CISOProperties::CISOProperties(const std::string fileName, wxWindow* parent, wxW
 		for (u32 i = 0; i < WiiDisc.size(); i++)
 		{
 			WiiPartition partition = WiiDisc.at(i);
-			wxTreeItemId PartitionRoot = m_Treectrl->AppendItem(RootId, wxString::Format(wxT("分区 %i"), i), 0, 0, 0);
+			wxTreeItemId PartitionRoot = m_Treectrl->AppendItem(RootId, wxString::Format(_("分区 %i"), i), 0, 0, 0);
 			CreateDirectoryTree(PartitionRoot, partition.Files, 1, partition.Files.at(0)->m_FileSize);	
 			if (i == 1)
 				m_Treectrl->Expand(PartitionRoot);
@@ -273,7 +284,7 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	m_CheatPage = new wxPanel(m_Notebook, ID_ARCODE_PAGE, wxDefaultPosition, wxDefaultSize);
 	m_Notebook->AddPage(m_CheatPage, _("AR Codes"));
 	m_geckocode_panel = new Gecko::CodeConfigPanel(m_Notebook);
-	m_Notebook->AddPage(m_geckocode_panel, wxT("Gecko Codes"));
+	m_Notebook->AddPage(m_geckocode_panel, _("Gecko Codes"));
 	m_Information = new wxPanel(m_Notebook, ID_INFORMATION, wxDefaultPosition, wxDefaultSize);
 	m_Notebook->AddPage(m_Information, _("信息"));
 	m_Filesystem = new wxPanel(m_Notebook, ID_FILESYSTEM, wxDefaultPosition, wxDefaultSize);
@@ -294,15 +305,15 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	CPUThread = new wxCheckBox(m_GameConfig, ID_USEDUALCORE, _("启用多核计算"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
 	SkipIdle = new wxCheckBox(m_GameConfig, ID_IDLESKIP, _("启用空闲步进"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
 	MMU = new wxCheckBox(m_GameConfig, ID_MMU, _("启用 MMU"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
-	MMU->SetToolTip(wxT("Enables the Memory Management Unit, needed for some games. (ON = Compatible, OFF = Fast)"));
+	MMU->SetToolTip(_("Enables the Memory Management Unit, needed for some games. (ON = Compatible, OFF = Fast)"));
 	MMUBAT = new wxCheckBox(m_GameConfig, ID_MMUBAT, _("Enable BAT"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
-	MMUBAT->SetToolTip(wxT("Enables Block Address Translation (BAT); a function of the Memory Management Unit. Accurate to the hardware, but slow to emulate. (ON = Compatible, OFF = Fast)"));
+	MMUBAT->SetToolTip(_("Enables Block Address Translation (BAT); a function of the Memory Management Unit. Accurate to the hardware, but slow to emulate. (ON = Compatible, OFF = Fast)"));
 	TLBHack = new wxCheckBox(m_GameConfig, ID_TLBHACK, _("MMU 速度破解"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
-	TLBHack->SetToolTip(wxT("Fast version of the MMU.  Does not work for every game."));
+	TLBHack->SetToolTip(_("Fast version of the MMU.  Does not work for every game."));
 	AlternateRFI = new wxCheckBox(m_GameConfig, ID_RFI, _("Alternate RFI"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
-	AlternateRFI->SetToolTip(wxT("If a game hangs, works only in the Interpreter or Dolphin crashes, this option may fix the game."));
+	AlternateRFI->SetToolTip(_("If a game hangs, works only in the Interpreter or Dolphin crashes, this option may fix the game."));
 	FastDiscSpeed = new wxCheckBox(m_GameConfig, ID_DISCSPEED, _("Speed up Disc Transfer Rate"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
-	FastDiscSpeed->SetToolTip(wxT("Enable fast disc access.  Needed for a few games. (ON = Fast, OFF = Compatible)"));
+	FastDiscSpeed->SetToolTip(_("Enable fast disc access.  Needed for a few games. (ON = Fast, OFF = Compatible)"));
 	BlockMerging = new wxCheckBox(m_GameConfig, ID_MERGEBLOCKS, _("Enable Block Merging"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
 
 	// Wii Console
@@ -326,12 +337,13 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	sbVideoOverrides = new wxStaticBoxSizer(wxVERTICAL, m_GameConfig, _("视频"));
 	ForceFiltering = new wxCheckBox(m_GameConfig, ID_FORCEFILTERING, _("强制筛选"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
 	EFBCopyEnable = new wxCheckBox(m_GameConfig, ID_EFBCOPYENABLE, _("禁用复制到 EFB"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
+	EFBAccessEnable = new wxCheckBox(m_GameConfig, ID_EFBACCESSENABLE, _("启用 CPU 访问"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
 	EFBToTextureEnable = new wxCheckBox(m_GameConfig, ID_EFBTOTEXTUREENABLE, _("启用 EFB 到 材质"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
 	SafeTextureCache = new wxCheckBox(m_GameConfig, ID_SAFETEXTURECACHE, _("安全材质缓存"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
 	DstAlphaPass = new wxCheckBox(m_GameConfig, ID_DSTALPHAPASS, _("Distance Alpha Pass"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
 	UseXFB = new wxCheckBox(m_GameConfig, ID_USEXFB, _("使用 XFB"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
 	UseZTPSpeedupHack = new wxCheckBox(m_GameConfig, ID_ZTP_SPEEDUP, _("ZTP hack"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
-	UseZTPSpeedupHack->SetToolTip(wxT("Enable this to speed up The Legend of Zelda: Twilight Princess. Disable for ANY other game."));
+	UseZTPSpeedupHack->SetToolTip(_("Enable this to speed up The Legend of Zelda: Twilight Princess. Disable for ANY other game."));
 	DListCache = new wxCheckBox(m_GameConfig, ID_DLISTCACHE, _("DList Cache"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
 	// Hack
 	Hacktext = new wxStaticText(m_GameConfig, ID_HACK_TEXT, _("Projection Hack for: "), wxDefaultPosition, wxDefaultSize);
@@ -346,12 +358,12 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	// Emulation State
 	sEmuState = new wxBoxSizer(wxHORIZONTAL);
 	EmuStateText = new wxStaticText(m_GameConfig, ID_EMUSTATE_TEXT, _("模拟状态: "), wxDefaultPosition, wxDefaultSize);
-	arrayStringFor_EmuState.Add(_("未设置"));
-	arrayStringFor_EmuState.Add(_("损坏"));
-	arrayStringFor_EmuState.Add(_("介绍"));
-	arrayStringFor_EmuState.Add(_("可以进入"));
+	arrayStringFor_EmuState.Add(_("尚未设置"));
+	arrayStringFor_EmuState.Add(_("无法进入"));
+	arrayStringFor_EmuState.Add(_("可进片头"));
+	arrayStringFor_EmuState.Add(_("可进游戏"));
 	arrayStringFor_EmuState.Add(_("可以运行"));
-	arrayStringFor_EmuState.Add(_("完美"));
+	arrayStringFor_EmuState.Add(_("完美运行"));
 	EmuState = new wxChoice(m_GameConfig, ID_EMUSTATE, wxDefaultPosition, wxDefaultSize, arrayStringFor_EmuState, 0, wxDefaultValidator);
 	EmuIssues = new wxTextCtrl(m_GameConfig, ID_EMU_ISSUES, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 
@@ -370,6 +382,7 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	sbWiiOverrides->Add(EnableWideScreen, 0, wxEXPAND|wxLEFT, 5);
 	sbVideoOverrides->Add(ForceFiltering, 0, wxEXPAND|wxLEFT, 5);
 	sbVideoOverrides->Add(EFBCopyEnable, 0, wxEXPAND|wxLEFT, 5);
+	sbVideoOverrides->Add(EFBAccessEnable, 0, wxEXPAND|wxLEFT, 5);
 	sbVideoOverrides->Add(EFBToTextureEnable, 0, wxEXPAND|wxLEFT, 5);
 	sbVideoOverrides->Add(SafeTextureCache, 0, wxEXPAND|wxLEFT, 5);
 	sbVideoOverrides->Add(DstAlphaPass, 0, wxEXPAND|wxLEFT, 5);
@@ -455,7 +468,7 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	arrayStringFor_Lang.Add(_("意大利语"));
 	arrayStringFor_Lang.Add(_("荷兰语"));
 	m_Lang = new wxChoice(m_Information, ID_LANG, wxDefaultPosition, wxDefaultSize, arrayStringFor_Lang, 0, wxDefaultValidator);
-	m_Lang->SetSelection((int)SConfig::GetInstance().m_InterfaceLanguage);
+	m_Lang->SetSelection((int)SConfig::GetInstance().m_LocalCoreStartupParameter.SelectedLanguage);
 	m_ShortText = new wxStaticText(m_Information, ID_SHORTNAME_TEXT, _("短名称:"), wxDefaultPosition, wxDefaultSize);
 	m_ShortName = new wxTextCtrl(m_Information, ID_SHORTNAME, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
 	m_MakerText = new wxStaticText(m_Information, ID_MAKER_TEXT, _("制作者:"), wxDefaultPosition, wxDefaultSize);
@@ -514,7 +527,7 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	// Filesystem tree
 	m_Treectrl = new wxTreeCtrl(m_Filesystem, ID_TREECTRL, wxDefaultPosition, wxDefaultSize, wxTR_DEFAULT_STYLE, wxDefaultValidator);
 	m_Treectrl->AssignImageList(m_iconList);
-	RootId = m_Treectrl->AddRoot(wxT("Disc"), 0, 0, 0);
+	RootId = m_Treectrl->AddRoot(_("Disc"), 0, 0, 0);
 
 	wxBoxSizer* sTreePage;
 	sTreePage = new wxBoxSizer(wxVERTICAL);
@@ -563,8 +576,8 @@ void CISOProperties::OnBannerImageSave(wxCommandEvent& WXUNUSED (event))
 {
 	wxString dirHome;
 
-	wxFileDialog dialog(this, _("另存为..."), wxGetHomeDir(&dirHome), wxString::Format(_("%s.png"), m_GameID->GetLabel().c_str()),
-		_("*.*"), wxFD_SAVE|wxFD_OVERWRITE_PROMPT, wxDefaultPosition, wxDefaultSize);
+	wxFileDialog dialog(this, _("另存为..."), wxGetHomeDir(&dirHome), wxString::Format(wxT("%s.png"), m_GameID->GetLabel().c_str()),
+		wxALL_FILES_PATTERN, wxFD_SAVE|wxFD_OVERWRITE_PROMPT, wxDefaultPosition, wxDefaultSize);
 	if (dialog.ShowModal() == wxID_OK)
 	{
 		m_Banner->GetBitmap().ConvertToImage().SaveFile(dialog.GetPath());
@@ -603,14 +616,9 @@ void CISOProperties::OnExtractFile(wxCommandEvent& WXUNUSED (event))
 	File = m_Treectrl->GetItemText(m_Treectrl->GetSelection());
 	
 	Path = wxFileSelector(
-		wxT("导出文件"),
+		_("导出文件"),
 		wxEmptyString, File, wxEmptyString,
-		wxString::Format
-		(
-			wxT("所有文件 (%s)|%s"),
-			wxFileSelectorDefaultWildcardStr,
-			wxFileSelectorDefaultWildcardStr
-		),
+		wxGetTranslation(wxALL_FILES),
 		wxFD_SAVE,
 		this);
 
@@ -677,9 +685,9 @@ void CISOProperties::ExportDir(const char* _rFullPath, const char* _rExportFolde
 		DEBUG_LOG(DISCIO,"Dir found from %u to %u\nextracting to:\n%s",index[0],index[1],_rExportFolder);
 	}
 
-	wxString dialogTitle = index[0] ? _T("解压缩目录") : _T("解压缩所有文件");
+	wxString dialogTitle = index[0] ? _("解压缩目录") : _("解压缩所有文件");
 	wxProgressDialog dialog(dialogTitle,
-					_T("解压缩中..."),
+					_("解压缩中..."),
 					index[1], // range
 					this, // parent
 					wxPD_APP_MODAL | wxPD_AUTO_HIDE | wxPD_CAN_ABORT |
@@ -691,9 +699,9 @@ void CISOProperties::ExportDir(const char* _rFullPath, const char* _rExportFolde
 	// Extraction
 	for (u32 i = index[0]; i < index[1]; i++)
 	{
-		dialog.SetTitle(wxString::Format(_T("%s : %d%%"), dialogTitle.c_str(),
+		dialog.SetTitle(wxString::Format(wxT("%s : %d%%"), dialogTitle.c_str(),
 			(u32)(((float)(i - index[0]) / (float)(index[1] - index[0])) * 100)));
-		if (!dialog.Update(i, wxString::Format(_T("解压缩 %s"), wxString(fst[i]->m_FullPath, *wxConvCurrent).c_str())))
+		if (!dialog.Update(i, wxString::Format(_("解压缩 %s"), wxString(fst[i]->m_FullPath, *wxConvCurrent).c_str())))
 			break;
 
 		if (fst[i]->IsDirectory())
@@ -733,7 +741,7 @@ void CISOProperties::ExportDir(const char* _rFullPath, const char* _rExportFolde
 void CISOProperties::OnExtractDir(wxCommandEvent& event)
 {
 	wxString Directory = m_Treectrl->GetItemText(m_Treectrl->GetSelection());
-	wxString Path = wxDirSelector(wxT("选择要解压缩到的文件夹"));
+	wxString Path = wxDirSelector(_("选择要解压缩到的文件夹"));
 
 	if (!Path || !Directory)
 		return;
@@ -772,7 +780,7 @@ void CISOProperties::OnExtractDataFromHeader(wxCommandEvent& event)
 {
 	std::vector<const DiscIO::SFileInfo *> fst;
 	DiscIO::IFileSystem *FS = 0;
-	wxString Path = wxDirSelector(wxT("Choose the folder to extract to"));
+	wxString Path = wxDirSelector(_("Choose the folder to extract to"));
 
 	if (Path.empty())
 		return;
@@ -869,6 +877,11 @@ void CISOProperties::LoadGameConfig()
 		EFBCopyEnable->Set3StateValue((wxCheckBoxState)bTemp);
 	else
 		EFBCopyEnable->Set3StateValue(wxCHK_UNDETERMINED);
+
+	if (GameIni.Get("Video", "EFBAccessEnable", &bTemp))
+		EFBAccessEnable->Set3StateValue((wxCheckBoxState)bTemp);
+	else
+		EFBAccessEnable->Set3StateValue(wxCHK_UNDETERMINED);
 
 	if (GameIni.Get("Video", "EFBToTextureEnable", &bTemp))
 		EFBToTextureEnable->Set3StateValue((wxCheckBoxState)bTemp);
@@ -981,6 +994,11 @@ bool CISOProperties::SaveGameConfig()
 	else
 		GameIni.Set("Video", "EFBCopyEnable", EFBCopyEnable->Get3StateValue());
 
+	if (EFBAccessEnable->Get3StateValue() == wxCHK_UNDETERMINED)
+		GameIni.DeleteKey("Video", "EFBAccessEnable");
+	else
+		GameIni.Set("Video", "EFBAccessEnable", EFBAccessEnable->Get3StateValue());
+
 	if (EFBToTextureEnable->Get3StateValue() == wxCHK_UNDETERMINED)
 		GameIni.DeleteKey("Video", "EFBToTextureEnable");
 	else
@@ -1028,10 +1046,10 @@ void CISOProperties::OnEditConfig(wxCommandEvent& WXUNUSED (event))
 	{
 		SaveGameConfig();
 
-		wxFileType* filetype = wxTheMimeTypesManager->GetFileTypeFromExtension(_("ini"));
+		wxFileType* filetype = wxTheMimeTypesManager->GetFileTypeFromExtension(_T("ini"));
 		if(filetype == NULL) // From extension failed, trying with MIME type now
 		{
-			filetype = wxTheMimeTypesManager->GetFileTypeFromMimeType(_("text/plain"));
+			filetype = wxTheMimeTypesManager->GetFileTypeFromMimeType(_T("text/plain"));
 			if(filetype == NULL) // MIME type failed, aborting mission
 			{
 				PanicAlert("Filetype 'ini' is unknown! Will not open!");

@@ -39,7 +39,7 @@ AboutDolphin::~AboutDolphin()
 
 void AboutDolphin::CreateGUIControls()
 {
-	m_Close = new wxButton(this, wxID_CLOSE, wxT("关闭"),
+	m_Close = new wxButton(this, wxID_CLOSE, _("关闭"),
 		wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 
 	wxMemoryInputStream istream(dolphin_logo_png, sizeof dolphin_logo_png);
@@ -69,8 +69,6 @@ void AboutDolphin::CreateGUIControls()
 		"which or9 and we modified to include Gekko specifics.\n"
 		"\n"
 		"Thanks to hcs/destop for their GC ADPCM decoder.\n"
-		"\n"
-		"Thanks to Michael Laforest for the Wiiuse library.\n"
 		"\n"
 		"We are not affiliated with Nintendo in any way.\n"
 		"Gamecube and Wii are trademarks of Nintendo.\n"

@@ -102,6 +102,9 @@ include(CheckLib)
 
 include(FindOpenGL REQUIRED)
 include_directories(${OPENGL_INCLUDE_DIR})
+if(NOT OPENGL_GLU_FOUND)
+	message(FATAL_ERROR "GLU is required but not found")
+endif()
 
 include(FindALSA OPTIONAL)
 if(ALSA_FOUND)
@@ -201,6 +204,17 @@ else()
 	set(PORTAUDIO_FOUND FALSE)
 endif(PORTAUDIO)
 
+option(OPROFILING "Enable profiling" OFF)
+if(OPROFILING)
+	check_lib(OPROFILE opagent opagent.h)
+	check_lib(BFD bfd bfd.h)
+	if(OPROFILE_FOUND AND BFD_FOUND)
+		message("oprofile found, enabling profiling support")
+		add_definitions(-DUSE_OPROFILE=1)
+	else()
+		message(FATAL_ERROR "oprofile or bfd not found. Can't build profiling support.")
+	endif()
+endif()
 
 ########################################
 # Setup include directories (and make sure they are preferred over the Externals)
@@ -218,7 +232,6 @@ include_directories(Source/Core/InputCommon/Src)
 include_directories(Source/Core/InputUICommon/Src)
 include_directories(Source/Core/VideoCommon/Src)
 include_directories(Source/Core/VideoUICommon/Src)
-include_directories(Source/Core/wiiuse/Src)
 
 
 ########################################
@@ -229,7 +242,7 @@ include_directories(Source/Core/wiiuse/Src)
 #   - make sure to tell cmake to link them statically or dynamically (most
 #     should be linked statically)
 #   - place the CMakeLists.txt in the first-level subdirectory, e.g.
-#     Externals/WiiUse/CMakeLists.txt (that is: NOT in some Src/ subdirectory)
+#     Externals/CLRun/CMakeLists.txt (that is: NOT in some Src/ subdirectory)
 #
 add_subdirectory(Externals/Bochs_disasm)
 include_directories(Externals/Bochs_disasm)
@@ -297,8 +310,6 @@ if(WIN32)
 	find_library(GLEW glew32s PATHS Externals/GLew)
 	include_directories(Externals/GLew/include)
 else()
-	check_lib(GLU GLU GL/glu.h REQUIRED)
-
 	check_lib(GLEW GLEW GL/glew.h)
 	if(NOT GLEW_FOUND)
 		message("Shared GLEW not found, falling back to the static library")
@@ -329,6 +340,9 @@ if(NOT DISABLE_WX)
 
 		message("wxWidgets found, enabling GUI build")
 	else(wxWidgets_FOUND)
+		if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+			message(FATAL_ERROR "wxWidgets not found.  It is required to build the GUI")
+		endif()
 		message("Shared wxWidgets not found, falling back to the static library")
 		include_directories(Externals/wxWidgets/include)
 		add_subdirectory(Externals/wxWidgets)
@@ -342,6 +356,8 @@ endif(NOT DISABLE_WX)
 #
 file(WRITE ${PROJECT_BINARY_DIR}/Source/Core/Common/Src/svnrev.h
 	"#define SVN_REV_STR \"" ${DOLPHIN_WC_REVISION} "-" ${CMAKE_BUILD_TYPE} "\"\n")
+include_directories("${PROJECT_BINARY_DIR}/Source/Core/Common/Src")
+
 
 ########################################
 # Start compiling our code
@@ -354,6 +370,11 @@ add_subdirectory(Source)
 #
 install(DIRECTORY Data/User/ DESTINATION ${datadir}/user PATTERN .svn EXCLUDE)
 install(DIRECTORY Data/Sys/ DESTINATION ${datadir}/sys PATTERN .svn EXCLUDE)
+include(FindGettext)
+if(GETTEXT_FOUND AND NOT DISABLE_WX)
+	file(GLOB LINGUAS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} Languages/*.po) 
+	GETTEXT_CREATE_TRANSLATIONS(Languages/dolphin-emu.pot ALL ${LINGUAS})
+endif()
 if(NOT (${CMAKE_SYSTEM_NAME} MATCHES "Linux"))
 	install(FILES Data/license.txt DESTINATION ${datadir})
 endif()
@@ -378,6 +399,11 @@ endif()
 # TODO: CPACK_PACKAGE_ICON
 # TODO: CPACK_NSIS_*
 # TODO: Use CPack components for DSPSpy, etc => cpack_add_component
+
+set(CPACK_SET_DESTDIR ON)
+set(CPACK_SOURCE_GENERATOR "TGZ;TBZ2;ZIP")
+set(CPACK_SOURCE_IGNORE_FILES  "\\\\.#;/#;.*~;\\\\.swp;/\\\\.svn")
+list(APPEND CPACK_SOURCE_IGNORE_FILES "${CMAKE_BINARY_DIR}")
 
 # CPack must be included after the CPACK_* variables are set in order for those
 # variables to take effect.

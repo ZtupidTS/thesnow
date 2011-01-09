@@ -26,7 +26,7 @@
 #include "ABI.h"
 
 #define MAX_BLOCK_SIZE 250
-#define DSP_IDLE_SKIP_CYCLES 1000
+#define DSP_IDLE_SKIP_CYCLES 0x1000
 
 using namespace Gen;
 
@@ -84,7 +84,7 @@ void DSPEmitter::checkExceptions(u32 retval)
 	TEST(8, M(&g_dsp.exceptions), Imm8(0xff));
 #else
 	MOV(64, R(RAX), ImmPtr(&g_dsp.exceptions));
-	TEST(8, MDisp(RAX,0), Imm8(0xff));
+	TEST(8, MatR(RAX), Imm8(0xff));
 #endif
 	FixupBranch skipCheck = J_CC(CC_Z);
 
@@ -92,20 +92,20 @@ void DSPEmitter::checkExceptions(u32 retval)
 	MOV(16, M(&(g_dsp.pc)), Imm16(compilePC));
 #else
 	MOV(64, R(RAX), ImmPtr(&(g_dsp.pc)));
-	MOV(16, MDisp(RAX,0), Imm16(compilePC));
+	MOV(16, MatR(RAX), Imm16(compilePC));
 #endif
 
 	ABI_CallFunction((void *)&DSPCore_CheckExceptions);
 
 	//	ABI_RestoreStack(0);
 	ABI_PopAllCalleeSavedRegsAndAdjustStack();
-	MOV(32,R(EAX),Imm32(retval));
+	MOV(32, R(EAX), Imm32(retval));
 	RET();
 
 	SetJumpTarget(skipCheck);
 }
 
-void DSPEmitter::MainOpFallback(UDSPInstruction inst)
+void DSPEmitter::Default(UDSPInstruction inst)
 {
 	if (opTable[inst]->reads_pc)
 	{
@@ -116,12 +116,14 @@ void DSPEmitter::MainOpFallback(UDSPInstruction inst)
 		MOV(16, M(&(g_dsp.pc)), Imm16(compilePC + 1));
 #else
 		MOV(64, R(RAX), ImmPtr(&(g_dsp.pc)));
-		MOV(16, MDisp(RAX,0), Imm16(compilePC + 1));
+		MOV(16, MatR(RAX), Imm16(compilePC + 1));
 #endif
 	}
 
 	// Fall back to interpreter
+	SaveDSPRegs();
 	ABI_CallFunctionC16((void*)opTable[inst]->intFunc, inst);
+	LoadDSPRegs();
 }
 
 void DSPEmitter::EmitInstruction(UDSPInstruction inst)
@@ -134,7 +136,10 @@ void DSPEmitter::EmitInstruction(UDSPInstruction inst)
 		if ((inst >> 12) == 0x3) {
 			if (! extOpTable[inst & 0x7F]->jitFunc) {
 				// Fall back to interpreter
+				SaveDSPRegs();
 				ABI_CallFunctionC16((void*)extOpTable[inst & 0x7F]->intFunc, inst);
+				LoadDSPRegs();
+				INFO_LOG(DSPLLE, "Instruction not JITed(ext part): %04x\n", inst);
 				ext_is_jit = false;
 			} else {
 				(this->*extOpTable[inst & 0x7F]->jitFunc)(inst);
@@ -143,7 +148,10 @@ void DSPEmitter::EmitInstruction(UDSPInstruction inst)
 		} else {
 			if (!extOpTable[inst & 0xFF]->jitFunc) {
 				// Fall back to interpreter
+				SaveDSPRegs();
 				ABI_CallFunctionC16((void*)extOpTable[inst & 0xFF]->intFunc, inst);
+				LoadDSPRegs();
+				INFO_LOG(DSPLLE, "Instruction not JITed(ext part): %04x\n", inst);
 				ext_is_jit = false;
 			} else {
 				(this->*extOpTable[inst & 0xFF]->jitFunc)(inst);
@@ -154,7 +162,8 @@ void DSPEmitter::EmitInstruction(UDSPInstruction inst)
 	
 	// Main instruction
 	if (!opTable[inst]->jitFunc) {
-		MainOpFallback(inst);
+		Default(inst);
+		INFO_LOG(DSPLLE, "Instruction not JITed(main part): %04x\n", inst);
 	}
 	else
 	{
@@ -166,7 +175,9 @@ void DSPEmitter::EmitInstruction(UDSPInstruction inst)
 		if (!ext_is_jit) {
 			//need to call the online cleanup function because
 			//the writeBackLog gets populated at runtime
+			SaveDSPRegs();
 			ABI_CallFunction((void*)::applyWriteBackLog);
+			LoadDSPRegs();
 		} else {
 			popExtValueToReg();
 		}
@@ -178,27 +189,17 @@ void DSPEmitter::unknown_instruction(UDSPInstruction inst)
 	PanicAlert("unknown_instruction %04x - Fix me ;)", inst);
 }
 
-void DSPEmitter::Default(UDSPInstruction _inst)
+void DSPEmitter::Compile(u16 start_addr)
 {
-	EmitInstruction(_inst);
-}
+	// Remember the current block address for later
+	startAddr = start_addr;
+	unresolvedJumps[start_addr].clear();
 
-void DSPEmitter::Compile(int start_addr)
-{
 	const u8 *entryPoint = AlignCode16();
 	ABI_PushAllCalleeSavedRegsAndAdjustStack();
 	//	ABI_AlignStack(0);
 
 	/*
-	// check if there is an external interrupt
-	if (! dsp_SR_is_flag_set(SR_EXT_INT_ENABLE))
-		return;
-
-	if (! (g_dsp.cr & CR_EXTERNAL_INT)) 
-		return;
-
-	g_dsp.cr &= ~CR_EXTERNAL_INT;
-
 	// Check for other exceptions
 	if (dsp_SR_is_flag_set(SR_INT_ENABLE))
 		return;
@@ -209,15 +210,16 @@ void DSPEmitter::Compile(int start_addr)
 
 	blockLinkEntry = GetCodePtr();
 
-	ABI_CallFunction((void *)&DSPCore_CheckExternalInterrupt);
-
 	compilePC = start_addr;
 	bool fixup_pc = false;
 	blockSize[start_addr] = 0;
 
+	LoadDSPRegs();
+
 	while (compilePC < start_addr + MAX_BLOCK_SIZE)
 	{
-		checkExceptions(blockSize[start_addr]);
+		if (DSPAnalyzer::code_flags[compilePC] & DSPAnalyzer::CODE_CHECK_INT)
+			checkExceptions(blockSize[start_addr]);
 
 		UDSPInstruction inst = dsp_imem_read(compilePC);
 		const DSPOPCTemplate *opcode = GetOpTemplate(inst);
@@ -227,6 +229,9 @@ void DSPEmitter::Compile(int start_addr)
 		blockSize[start_addr]++;
 		compilePC += opcode->size;
 
+		// If the block was trying to link into itself, remove the link
+		unresolvedJumps[start_addr].remove(compilePC);
+
 		fixup_pc = true;
 
 		// Handle loop condition, only if current instruction was flagged as a loop destination
@@ -234,21 +239,21 @@ void DSPEmitter::Compile(int start_addr)
 		if (DSPAnalyzer::code_flags[compilePC-1] & DSPAnalyzer::CODE_LOOP_END)
 		{
 #ifdef _M_IX86 // All32
-			MOVZX(32, 16, EAX, M(&(g_dsp.r[DSP_REG_ST2])));
+			MOVZX(32, 16, EAX, M(&(g_dsp.r.st[2])));
 #else
 			MOV(64, R(R11), ImmPtr(&g_dsp.r));
-			MOVZX(32, 16, EAX, MDisp(R11,DSP_REG_ST2*2));
+			MOVZX(32, 16, EAX, MDisp(R11, STRUCT_OFFSET(g_dsp.r, st[2])));
 #endif
 			CMP(32, R(EAX), Imm32(0));
-			FixupBranch rLoopAddressExit = J_CC(CC_LE);
+			FixupBranch rLoopAddressExit = J_CC(CC_LE, true);
 		
 #ifdef _M_IX86 // All32
-			MOVZX(32, 16, EAX, M(&(g_dsp.r[DSP_REG_ST3])));
+			MOVZX(32, 16, EAX, M(&g_dsp.r.st[3]));
 #else
-			MOVZX(32, 16, EAX, MDisp(R11,DSP_REG_ST3*2));
+			MOVZX(32, 16, EAX, MDisp(R11, STRUCT_OFFSET(g_dsp.r, st[3])));
 #endif
 			CMP(32, R(EAX), Imm32(0));
-			FixupBranch rLoopCounterExit = J_CC(CC_LE);
+			FixupBranch rLoopCounterExit = J_CC(CC_LE, true);
 
 			if (!opcode->branch)
 			{
@@ -257,22 +262,22 @@ void DSPEmitter::Compile(int start_addr)
 				MOV(16, M(&(g_dsp.pc)), Imm16(compilePC));
 #else
 				MOV(64, R(RAX), ImmPtr(&(g_dsp.pc)));
-				MOV(16, MDisp(RAX,0), Imm16(compilePC));
+				MOV(16, MatR(RAX), Imm16(compilePC));
 #endif
 			}
 
 			// These functions branch and therefore only need to be called in the
 			// end of each block and in this order
-			ABI_CallFunction((void *)&DSPInterpreter::HandleLoop);
+			HandleLoop();
 			//		ABI_RestoreStack(0);
 			ABI_PopAllCalleeSavedRegsAndAdjustStack();
 			if (DSPAnalyzer::code_flags[start_addr] & DSPAnalyzer::CODE_IDLE_SKIP)
 			{
-				MOV(32,R(EAX),Imm32(DSP_IDLE_SKIP_CYCLES));
+				MOV(16, R(EAX), Imm16(DSP_IDLE_SKIP_CYCLES));
 			}
 			else
 			{
-				MOV(32,R(EAX),Imm32(blockSize[start_addr]));
+				MOV(16, R(EAX), Imm16(blockSize[start_addr]));
 			}	
 			RET();
 
@@ -288,14 +293,14 @@ void DSPEmitter::Compile(int start_addr)
 			{
 				break;
 			}
-			else
+			else if (!opcode->jitFunc)
 			{
 				//look at g_dsp.pc if we actually branched
 #ifdef _M_IX86 // All32
 				MOV(16, R(AX), M(&g_dsp.pc));
 #else
 				MOV(64, R(RAX), ImmPtr(&(g_dsp.pc)));
-				MOV(16, R(AX), MDisp(RAX,0));
+				MOV(16, R(AX), MatR(RAX));
 #endif
 				CMP(16, R(AX), Imm16(compilePC));
 				FixupBranch rNoBranch = J_CC(CC_Z);
@@ -305,11 +310,11 @@ void DSPEmitter::Compile(int start_addr)
 				ABI_PopAllCalleeSavedRegsAndAdjustStack();
 				if (DSPAnalyzer::code_flags[start_addr] & DSPAnalyzer::CODE_IDLE_SKIP)
 				{
-					MOV(32,R(EAX),Imm32(DSP_IDLE_SKIP_CYCLES));
+					MOV(16, R(EAX), Imm16(DSP_IDLE_SKIP_CYCLES));
 				}
 				else
 				{
-					MOV(32,R(EAX),Imm32(blockSize[start_addr]));
+					MOV(16, R(EAX), Imm16(blockSize[start_addr]));
 				}	
 				RET();
 
@@ -329,12 +334,36 @@ void DSPEmitter::Compile(int start_addr)
 		MOV(16, M(&(g_dsp.pc)), Imm16(compilePC));
 #else
 		MOV(64, R(RAX), ImmPtr(&(g_dsp.pc)));
-		MOV(16, MDisp(RAX,0), Imm16(compilePC));
+		MOV(16, MatR(RAX), Imm16(compilePC));
 #endif
 	}
 
 	blocks[start_addr] = (CompiledCode)entryPoint;
-	blockLinks[start_addr] = (CompiledCode)blockLinkEntry;
+
+	// Mark this block as a linkable destination if it does not contain
+	// any unresolved CALL's
+	if (unresolvedJumps[start_addr].empty())
+	{
+		blockLinks[start_addr] = (CompiledCode)blockLinkEntry;
+
+		for(u16 i = 0x0000; i < 0xffff; ++i)
+		{
+			if (!unresolvedJumps[i].empty())
+			{
+				// Check if there were any blocks waiting for this block to be linkable
+				unsigned int size = unresolvedJumps[i].size();
+				unresolvedJumps[i].remove(start_addr);
+				if (unresolvedJumps[i].size() < size)
+				{
+					// Mark the block to be recompiled again
+					blocks[i] = (CompiledCode)stubEntryPoint;
+					blockLinks[i] = 0;
+					blockSize[i] = 0;
+				}
+			}
+		}
+	}
+
 	if (blockSize[start_addr] == 0) 
 	{
 		// just a safeguard, should never happen anymore.
@@ -343,15 +372,17 @@ void DSPEmitter::Compile(int start_addr)
 		blockSize[start_addr] = 1;
 	}
 
+	SaveDSPRegs();
+
 	//	ABI_RestoreStack(0);
 	ABI_PopAllCalleeSavedRegsAndAdjustStack();
 	if (DSPAnalyzer::code_flags[start_addr] & DSPAnalyzer::CODE_IDLE_SKIP)
 	{
-		MOV(32,R(EAX),Imm32(DSP_IDLE_SKIP_CYCLES));
+		MOV(16, R(EAX), Imm16(DSP_IDLE_SKIP_CYCLES));
 	}
 	else
 	{
-		MOV(32,R(EAX),Imm32(blockSize[start_addr]));
+		MOV(16, R(EAX), Imm16(blockSize[start_addr]));
 	}	
 	RET();
 }
@@ -377,13 +408,13 @@ void DSPEmitter::CompileDispatcher()
 
 	// Cache pointers into registers
 #ifdef _M_IX86
-	MOV(32, R(ESI), M(&cyclesLeft));
+	MOV(16, R(ESI), M(&cyclesLeft));
 	MOV(32, R(EBX), ImmPtr(blocks));
 #else
 	// Using R12 here since it is callee save register on both
 	// linux and windows 64.
 	MOV(64, R(R12), ImmPtr(&cyclesLeft));
-	MOV(32, R(R12), MDisp(R12,0));
+	MOV(16, R(R12), MatR(R12));
 	MOV(64, R(RBX), ImmPtr(blocks));
 #endif
 
@@ -393,16 +424,16 @@ void DSPEmitter::CompileDispatcher()
 #ifdef _M_IX86
 	TEST(8, M(&g_dsp.cr), Imm8(CR_HALT));
 #else
-	MOV(64, R(R11), ImmPtr(&g_dsp.cr));
-	TEST(8, MDisp(R11,0), Imm8(CR_HALT));
+	MOV(64, R(RAX), ImmPtr(&g_dsp.cr));
+	TEST(8, MatR(RAX), Imm8(CR_HALT));
 #endif
-	FixupBranch halt = J_CC(CC_NE);
+	FixupBranch _halt = J_CC(CC_NE);
 
 #ifdef _M_IX86
 	MOVZX(32, 16, ECX, M(&g_dsp.pc));
 #else
 	MOV(64, R(RCX), ImmPtr(&g_dsp.pc));
-	MOVZX(64, 16, RCX, MDisp(RCX,0));
+	MOVZX(64, 16, RCX, MatR(RCX));
 #endif
 
 	// Execute block. Cycles executed returned in EAX.
@@ -414,15 +445,15 @@ void DSPEmitter::CompileDispatcher()
 
 	// Decrement cyclesLeft
 #ifdef _M_IX86
-	SUB(32, R(ESI), R(EAX));
+	SUB(16, R(ESI), R(EAX));
 #else
-	SUB(32, R(R12), R(EAX));
+	SUB(16, R(R12), R(EAX));
 #endif
 
 	J_CC(CC_A, dispatcherLoop);
 	
 	// DSP gave up the remaining cycles.
-	SetJumpTarget(halt);
+	SetJumpTarget(_halt);
 	//MOV(32, M(&cyclesLeft), Imm32(0));
 	ABI_PopAllCalleeSavedRegsAndAdjustStack();
 	RET();

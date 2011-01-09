@@ -18,8 +18,8 @@
 #ifndef _WII_SAVE_CRYPTED
 #define _WII_SAVE_CRYPTED
 
-#include "AES/aes.h"
 #include "StringUtil.h"
+#include "Crypto/aes.h"
 #include "Crypto/tools.h"
 #include "Crypto/md5.h"
 
@@ -42,7 +42,7 @@ public:
 	void do_sig();
 	void make_ec_cert(u8 *cert, u8 *sig, char *signer, char *name, u8 *priv,
                          u32 key_id);
-	bool getPaths(bool _export = false);
+	bool getPaths(bool forExport = false);
 	void ScanForFiles(std::string savDir, std::vector<std::string>&FilesList, u32 *_numFiles, u32 *_sizeFiles);
 
 private:

@@ -75,6 +75,8 @@
 	#define SYSDATA_DIR "Sys"
 #elif defined __APPLE__
 	#define SYSDATA_DIR "Contents/Resources/Sys"
+	#define SHARED_USER_DIR	File::GetBundleDirectory() + \
+				DIR_SEP USERDATA_DIR DIR_SEP
 #else
 	#ifdef DATA_DIR
 		#define SYSDATA_DIR DATA_DIR "sys"
@@ -100,6 +102,7 @@
 #define SHADERCACHE_DIR		"ShaderCache"
 #define STATESAVES_DIR		"StateSaves"
 #define SCREENSHOTS_DIR		"ScreenShots"
+#define OPENCL_DIR		"OpenCL"
 #define LOAD_DIR 		"Load"
 #define HIRES_TEXTURES_DIR	LOAD_DIR DIR_SEP "Textures"
 #define DUMP_DIR		"Dump"

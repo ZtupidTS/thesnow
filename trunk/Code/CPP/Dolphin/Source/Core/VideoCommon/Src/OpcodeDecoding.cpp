@@ -43,12 +43,28 @@
 #include "DataReader.h"
 
 #include "OpenCL.h"
-#if defined(HAVE_OPENCL) && HAVE_OPENCL
 #include "OpenCL/OCLTextureDecoder.h"
 #include "VideoConfig.h"
-#endif
 
 u8* g_pVideoData = 0;
+DataReadU32xNfunc DataReadU32xFuncs[16] = {
+	DataReadU32xN<1>,
+	DataReadU32xN<2>,
+	DataReadU32xN<3>,
+	DataReadU32xN<4>,
+	DataReadU32xN<5>,
+	DataReadU32xN<6>,
+	DataReadU32xN<7>,
+	DataReadU32xN<8>,
+	DataReadU32xN<9>,
+	DataReadU32xN<10>,
+	DataReadU32xN<11>,
+	DataReadU32xN<12>,
+	DataReadU32xN<13>,
+	DataReadU32xN<14>,
+	DataReadU32xN<15>,
+	DataReadU32xN<16>
+};
 
 extern u8* FAKE_GetFifoStartPtr();
 extern u8* FAKE_GetFifoEndPtr();
@@ -233,12 +249,13 @@ static void Decode()
         {
             u32 Cmd2 = DataReadU32();
             int transfer_size = ((Cmd2 >> 16) & 15) + 1;
-            u32 xf_address = Cmd2 & 0xFFFF;
+			u32 xf_address = Cmd2 & 0xFFFF;
 			// TODO - speed this up. pshufb?
-            u32 data_buffer[16];
-            for (int i = 0; i < transfer_size; i++)
-                data_buffer[i] = DataReadU32();
+			u32 data_buffer[16];
+			DataReadU32xFuncs[transfer_size-1](data_buffer);
+
             LoadXFReg(transfer_size, xf_address, data_buffer);
+
 			INCSTAT(stats.thisFrame.numXFLoads);
         }
         break;
@@ -317,7 +334,7 @@ static void DecodeSemiNop()
             u8 sub_cmd = DataReadU8();
             u32 value = DataReadU32();
             LoadCPReg(sub_cmd, value);
-			INCSTAT(stats.thisFrame.numCPLoads);
+            INCSTAT(stats.thisFrame.numCPLoads);
         }
         break;
 
@@ -328,10 +345,9 @@ static void DecodeSemiNop()
             u32 address = Cmd2 & 0xFFFF;
 			// TODO - speed this up. pshufb?
             u32 data_buffer[16];
-            for (int i = 0; i < transfer_size; i++)
-                data_buffer[i] = DataReadU32();
+            DataReadU32xFuncs[transfer_size-1](data_buffer);
             LoadXFReg(transfer_size, address, data_buffer);
-			INCSTAT(stats.thisFrame.numXFLoads);
+            INCSTAT(stats.thisFrame.numXFLoads);
         }
         break;
 
@@ -385,25 +401,21 @@ void OpcodeDecoder_Init()
 {	
 	g_pVideoData = FAKE_GetFifoStartPtr();
 
-#if defined(HAVE_OPENCL) && HAVE_OPENCL
 	if (g_Config.bEnableOpenCL)
 	{
 	    OpenCL::Initialize();
 	    TexDecoder_OpenCL_Initialize();
 	}
-#endif
 }
 
 
 void OpcodeDecoder_Shutdown()
 {
-#if defined(HAVE_OPENCL) && HAVE_OPENCL
 	if (g_Config.bEnableOpenCL)
 	{
 	    TexDecoder_OpenCL_Shutdown();
 	    OpenCL::Destroy();
 	}
-#endif
 }
 
 void OpcodeDecoder_Run(bool skipped_frame)

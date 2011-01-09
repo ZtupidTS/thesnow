@@ -15,12 +15,11 @@
 // Official SVN repository and contact information can be found at
 // http://code.google.com/p/dolphin-emu/
 
-#include "stdafx.h"
 #include "NANDContentLoader.h"
 
 #include <algorithm>
 #include <cctype> 
-#include "AES/aes.h"
+#include "Crypto/aes.h"
 #include "MathUtil.h"
 #include "FileUtil.h"
 #include "Log.h"
@@ -83,6 +82,8 @@ std::string CSharedContent::AddSharedContent(u8* _pHash)
 		memcpy(Element.FileName, c_ID, 8);
 		memcpy(Element.SHA1Hash, _pHash, 20);
 		m_Elements.push_back(Element);
+
+		File::CreateFullPath(contentMap);
 		FILE* pFile = fopen(contentMap, "ab");
 		if (pFile)
 		{
@@ -120,6 +121,7 @@ public:
 	u16 GetTitleVersion() const {return m_TileVersion;}
 	u16 GetNumEntries() const {return m_numEntries;}
 	DiscIO::IVolume::ECountry GetCountry() const;
+	u8 GetCountryChar() const {return m_Country; }
 
 private:
 
@@ -131,6 +133,7 @@ private:
 	u16 m_TileVersion;
 	u8 m_TicketView[TICKET_VIEW_SIZE];
 	u8 m_TmdHeader[TMD_HEADER_SIZE];
+	u8 m_Country;
 
 	std::vector<SNANDContent> m_Content;
 
@@ -221,6 +224,9 @@ bool CNANDContentLoader::CreateFromDirectory(const std::string& _rPath)
 	m_BootIndex = Common::swap16(pTMD + 0x01e0);
 	m_TitleID = Common::swap64(pTMD + 0x018c);
 	m_IosVersion = Common::swap16(pTMD + 0x018a);
+	m_Country = *(u8*)&m_TitleID;
+	if (m_Country == 2) // SYSMENU
+		m_Country = DiscIO::GetSysMenuRegion(m_TileVersion);
 
 	m_Content.resize(m_numEntries);
 
@@ -305,6 +311,9 @@ bool CNANDContentLoader::ParseTMD(u8* pDataApp, u32 pDataAppSize, u8* pTicket, u
 	m_BootIndex = Common::swap16(pTMD + 0x01e0);
 	m_TitleID = Common::swap64(pTMD + 0x018c);
 	m_IosVersion = Common::swap16(pTMD + 0x018a);
+	m_Country = *(u8*)&m_TitleID;
+	if (m_Country == 2) // SYSMENU
+		m_Country = DiscIO::GetSysMenuRegion(m_TileVersion);
 
 	u8* p = pDataApp;
 
@@ -339,14 +348,8 @@ DiscIO::IVolume::ECountry CNANDContentLoader::GetCountry() const
 	if (!IsValid())
 		return DiscIO::IVolume::COUNTRY_UNKNOWN;
 
-	u64 TitleID = GetTitleID();
-	char* pTitleID = (char*)&TitleID;
-
-	return CountrySwitch((u8)pTitleID[0]);
-
-
+	return CountrySwitch(m_Country);
 }
-
 
 
 CNANDContentManager CNANDContentManager::m_Instance;
@@ -403,6 +406,7 @@ cUIDsys::cUIDsys()
 		*(u64*)&(Element.titleID) = Common::swap64(TITLEID_SYSMENU);
 		*(u32*)&(Element.UID) = Common::swap32(lastUID++);
 
+		File::CreateFullPath(uidSys);
 		FILE* pFile = fopen(uidSys, "wb");
 		if (pFile)
 		{
@@ -438,6 +442,8 @@ bool cUIDsys::AddTitle(u64 _TitleID)
 		*(u64*)&(Element.titleID) = Common::swap64(_TitleID);
 		*(u32*)&(Element.UID) = Common::swap32(lastUID++);
 		m_Elements.push_back(Element);
+
+		File::CreateFullPath(uidSys);
 		FILE* pFile = fopen(uidSys, "ab");
 		if (pFile)
 		{

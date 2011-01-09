@@ -52,6 +52,7 @@ static LPDIRECT3DPIXELSHADER9 s_yuyvToRgbProgram = NULL;
 // Not all slots are taken - but who cares.
 const u32 NUM_ENCODING_PROGRAMS = 64;
 static LPDIRECT3DPIXELSHADER9 s_encodingPrograms[NUM_ENCODING_PROGRAMS];
+static bool s_encodingProgramsFailed[NUM_ENCODING_PROGRAMS];
 
 void CreateRgbToYuyvProgram()
 {
@@ -62,11 +63,14 @@ void CreateRgbToYuyvProgram()
 	"uniform sampler samp0 : register(s0);\n"	
 	"void main(\n"
 	"  out float4 ocol0 : COLOR0,\n"
-	"  in float2 uv0 : TEXCOORD0)\n"
+	"  in float2 uv0 : TEXCOORD0,\n"
+	"  in float uv2 : TEXCOORD1)\n"
 	"{\n"		
 	"  float2 uv1 = float2((uv0.x + 1.0f)/ blkDims.z, uv0.y / blkDims.w);\n"
 	"  float3 c0 = tex2D(samp0, uv0.xy / blkDims.zw).rgb;\n"
 	"  float3 c1 = tex2D(samp0, uv1).rgb;\n"
+	"  c0 = pow(c0,uv2.xxx);\n"
+	"  c1 = pow(c1,uv2.xxx);\n"
 	"  float3 y_const = float3(0.257f,0.504f,0.098f);\n"
 	"  float3 u_const = float3(-0.148f,-0.291f,0.439f);\n"
 	"  float3 v_const = float3(0.439f,-0.368f,-0.071f);\n"
@@ -121,6 +125,13 @@ LPDIRECT3DPIXELSHADER9 GetOrCreateEncodingShader(u32 format)
 
 	if (!s_encodingPrograms[format])
 	{
+		if(s_encodingProgramsFailed[format])
+		{
+			// we already failed to create a shader for this format,
+			// so instead of re-trying and showing the same error message every frame, just return.
+			return NULL;
+		}
+
 		const char* shader = TextureConversionShader::GenerateEncodingShader(format,API_D3D9);
 
 #if defined(_DEBUG) || defined(DEBUGFAST)
@@ -135,6 +146,7 @@ LPDIRECT3DPIXELSHADER9 GetOrCreateEncodingShader(u32 format)
 		s_encodingPrograms[format] = D3D::CompileAndCreatePixelShader(shader, (int)strlen(shader));
 		if (!s_encodingPrograms[format]) {
 			ERROR_LOG(VIDEO, "Failed to create encoding fragment program");
+			s_encodingProgramsFailed[format] = true;
 		}
     }
 	return s_encodingPrograms[format];
@@ -145,6 +157,7 @@ void Init()
 	for (unsigned int i = 0; i < NUM_ENCODING_PROGRAMS; i++)
 	{
 		s_encodingPrograms[i] = NULL;
+		s_encodingProgramsFailed[i] = false;
 	}
 	for (unsigned int i = 0; i < NUM_TRANSFORM_BUFFERS; i++)
 	{
@@ -194,7 +207,7 @@ void Shutdown()
 }
 
 void EncodeToRamUsingShader(LPDIRECT3DPIXELSHADER9 shader, LPDIRECT3DTEXTURE9 srcTexture, const TargetRectangle& sourceRc,
-				            u8* destAddr, int dstWidth, int dstHeight, int readStride, bool toTexture, bool linearFilter)
+				            u8* destAddr, int dstWidth, int dstHeight, int readStride, bool toTexture, bool linearFilter,float Gamma)
 {
 	HRESULT hr;		
 	u32 index =0;
@@ -269,7 +282,7 @@ void EncodeToRamUsingShader(LPDIRECT3DPIXELSHADER9 shader, LPDIRECT3DTEXTURE9 sr
 
 
 	// Draw...
-	D3D::drawShadedTexQuad(srcTexture,&SrcRect,1,1,dstWidth,dstHeight,shader,VertexShaderCache::GetSimpleVertexShader(0));	
+	D3D::drawShadedTexQuad(srcTexture,&SrcRect,1,1,dstWidth,dstHeight,shader,VertexShaderCache::GetSimpleVertexShader(0), Gamma);
 	D3D::RefreshSamplerState(0, D3DSAMP_MINFILTER);
 	// .. and then read back the results.
 	// TODO: make this less slow.
@@ -345,7 +358,6 @@ void EncodeToRam(u32 address, bool bFromZBuffer, bool bIsIntensityFmt, u32 copyf
 	s32 expandedHeight = (height + blkH) & (~blkH);
 
 	float sampleStride = bScaleByHalf ? 2.f : 1.f;
-	// TODO: sampleStride scaling might be slightly off
 	TextureConversionShader::SetShaderParameters(
 		(float)expandedWidth,
 		(float)Renderer::EFBToScaledY(expandedHeight), // TODO: Why do we scale this?
@@ -367,7 +379,7 @@ void EncodeToRam(u32 address, bool bFromZBuffer, bool bIsIntensityFmt, u32 copyf
 
     int readStride = (expandedWidth * cacheBytes) / TexDecoder_GetBlockWidthInTexels(format);
 	g_renderer->ResetAPIState();
-	EncodeToRamUsingShader(texconv_shader, source_texture, scaledSource, dest_ptr, expandedWidth / samples, expandedHeight, readStride, true, bScaleByHalf > 0);
+	EncodeToRamUsingShader(texconv_shader, source_texture, scaledSource, dest_ptr, expandedWidth / samples, expandedHeight, readStride, true, bScaleByHalf > 0,1.0f);
 	D3D::dev->SetRenderTarget(0, FramebufferManager::GetEFBColorRTSurface());
 	D3D::dev->SetDepthStencilSurface(FramebufferManager::GetEFBDepthRTSurface());
 	g_renderer->RestoreAPIState();
@@ -410,7 +422,6 @@ u64 EncodeToRamFromTexture(u32 address,LPDIRECT3DTEXTURE9 source_texture, u32 So
 	s32 expandedHeight = (height + blkH) & (~blkH);
 
     float sampleStride = bScaleByHalf ? 2.f : 1.f;
-	// TODO: sampleStride scaling might be slightly off
 	TextureConversionShader::SetShaderParameters(
 		(float)expandedWidth,
 		(float)Renderer::EFBToScaledY(expandedHeight), // TODO: Why do we scale this?
@@ -431,18 +442,20 @@ u64 EncodeToRamFromTexture(u32 address,LPDIRECT3DTEXTURE9 source_texture, u32 So
         cacheBytes = 64;
 
     int readStride = (expandedWidth * cacheBytes) / TexDecoder_GetBlockWidthInTexels(format);
-	EncodeToRamUsingShader(texconv_shader, source_texture, scaledSource, dest_ptr, expandedWidth / samples, expandedHeight, readStride, true, bScaleByHalf > 0);
+	EncodeToRamUsingShader(texconv_shader, source_texture, scaledSource, dest_ptr, expandedWidth / samples, expandedHeight, readStride, true, bScaleByHalf > 0,1.0f);
 	u64 hash = GetHash64(dest_ptr,size_in_bytes,g_ActiveConfig.iSafeTextureCache_ColorSamples);
-
-	// If the texture in RAM is already in the texture cache, do not copy it again as it has not changed.
-	if (TextureCache::Find(address, hash))
-		return hash;
+	if (g_ActiveConfig.bEFBCopyCacheEnable)
+	{
+		// If the texture in RAM is already in the texture cache, do not copy it again as it has not changed.
+		if (TextureCache::Find(address, hash))
+			return hash;
+	}
 
 	TextureCache::MakeRangeDynamic(address,size_in_bytes);
 	return hash;
 }
 
-void EncodeToRamYUYV(LPDIRECT3DTEXTURE9 srcTexture, const TargetRectangle& sourceRc, u8* destAddr, int dstWidth, int dstHeight)
+void EncodeToRamYUYV(LPDIRECT3DTEXTURE9 srcTexture, const TargetRectangle& sourceRc, u8* destAddr, int dstWidth, int dstHeight,float Gamma)
 {
 	TextureConversionShader::SetShaderParameters(
 		(float)dstWidth, 
@@ -454,7 +467,7 @@ void EncodeToRamYUYV(LPDIRECT3DTEXTURE9 srcTexture, const TargetRectangle& sourc
 		(float)Renderer::GetFullTargetWidth(),
 		(float)Renderer::GetFullTargetHeight());
 	g_renderer->ResetAPIState();
-	EncodeToRamUsingShader(s_rgbToYuyvProgram, srcTexture, sourceRc, destAddr, dstWidth / 2, dstHeight, 0, false, false);
+	EncodeToRamUsingShader(s_rgbToYuyvProgram, srcTexture, sourceRc, destAddr, dstWidth / 2, dstHeight, 0, false, false,Gamma);
 	D3D::dev->SetRenderTarget(0, FramebufferManager::GetEFBColorRTSurface());
 	D3D::dev->SetDepthStencilSurface(FramebufferManager::GetEFBDepthRTSurface());
 	g_renderer->RestoreAPIState();

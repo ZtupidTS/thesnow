@@ -132,19 +132,30 @@ set(SRCS	Src/ActionReplay.cpp
 			Src/PowerPC/JitCommon/JitCache.cpp
 			Src/PowerPC/JitCommon/Jit_Util.cpp)
 
+set(LIBS bdisasm inputcommon lua sfml-network)
+
 if(WIN32)
-	set(SRCS ${SRCS} Src/HW/BBA-TAP/TAP_Win32.cpp Src/stdafx.cpp)
+	set(SRCS ${SRCS} Src/HW/BBA-TAP/TAP_Win32.cpp Src/stdafx.cpp
+		Src/HW/WiimoteReal/IOWin.cpp)
 elseif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-	set(SRCS ${SRCS} Src/HW/BBA-TAP/TAP_Apple.cpp)
+	set(SRCS ${SRCS} Src/HW/BBA-TAP/TAP_Apple.cpp Src/HW/WiimoteReal/IOdarwin.mm)
 elseif(UNIX)
 	set(SRCS ${SRCS} Src/HW/BBA-TAP/TAP_Unix.cpp)
+	if((${CMAKE_SYSTEM_NAME} MATCHES "Linux") AND BLUEZ_FOUND)
+		set(SRCS ${SRCS} Src/HW/WiimoteReal/IONix.cpp)
+		set(LIBS ${LIBS} bluetooth)
+	else()
+		set(SRCS ${SRCS} Src/HW/WiimoteReal/IODummy.cpp)
+	endif()
 endif()
-
-set(LIBS bdisasm inputcommon lua sfml-network wiiuse)
 
 if(PORTAUDIO_FOUND)
 	set(LIBS ${LIBS} portaudio)
 endif(PORTAUDIO_FOUND)
+
+if(OPROFILE_FOUND)
+	set(LIBS ${LIBS} opagent bfd)
+endif(OPROFILE_FOUND)
 
 add_library(core STATIC ${SRCS})
 target_link_libraries(core ${LIBS})

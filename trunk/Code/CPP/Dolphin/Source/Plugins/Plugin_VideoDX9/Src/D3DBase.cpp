@@ -20,16 +20,19 @@
 #include "Render.h"
 #include "XFStructs.h"
 #include "StringUtil.h"
+#include "VideoCommon.h"
 
 // D3DX
 HINSTANCE hD3DXDll = NULL;
 D3DXSAVESURFACETOFILEATYPE PD3DXSaveSurfaceToFileA = NULL;
 D3DXSAVETEXTURETOFILEATYPE PD3DXSaveTextureToFileA = NULL;
 D3DXCOMPILESHADERTYPE PD3DXCompileShader = NULL;
+int d3dx_dll_ref = 0;
 
 typedef IDirect3D9* (WINAPI* DIRECT3DCREATE9)(UINT);
 DIRECT3DCREATE9 PDirect3DCreate9 = NULL;
 HINSTANCE hD3DDll = NULL;
+int d3d_dll_ref = 0;
 
 namespace D3D
 {
@@ -79,6 +82,22 @@ LPDIRECT3DVERTEXDECLARATION9 m_VtxDecl;
 LPDIRECT3DPIXELSHADER9 m_PixelShader;
 LPDIRECT3DVERTEXSHADER9 m_VertexShader;
 
+// Z buffer formats to be used for EFB depth surface
+D3DFORMAT DepthFormats[] = {
+	FOURCC_INTZ,
+	FOURCC_DF24,
+	FOURCC_RAWZ,
+	FOURCC_DF16,
+	D3DFMT_D24X8,
+	D3DFMT_D24X4S4,
+	D3DFMT_D24S8,
+	D3DFMT_D24FS8,
+	D3DFMT_D32,		// too much precision, but who cares
+	D3DFMT_D16,		// much lower precision, but better than nothing
+	D3DFMT_D15S1,
+};
+
+
 void Enumerate();
 
 int GetNumAdapters() { return numAdapters; }
@@ -93,6 +112,8 @@ bool IsATIDevice()
 
 HRESULT Init()
 {
+	if (d3d_dll_ref++ > 0) return S_OK;
+
 	hD3DDll = LoadLibraryA("d3d9.dll");
 	if (!hD3DDll)
 	{
@@ -105,14 +126,20 @@ HRESULT Init()
 	// Create the D3D object, which is needed to create the D3DDevice.
 	D3D = PDirect3DCreate9(D3D_SDK_VERSION);
 	if (!D3D)
+	{
+		--d3d_dll_ref;
 		return E_FAIL;
+	}
 	Enumerate();
 	return S_OK;
 }
 
 void Shutdown()
 {
-	D3D->Release();
+	if (!d3d_dll_ref) return;
+	if (--d3d_dll_ref != 0) return;
+
+	if (D3D) D3D->Release();
 	D3D = NULL;
 
 	if (hD3DDll) FreeLibrary(hD3DDll);
@@ -277,6 +304,8 @@ void Enumerate()
 // we're first trying to load the dll Dolphin was compiled with, otherwise the most up-to-date one
 HRESULT LoadD3DX9()
 {
+	if (d3dx_dll_ref++ > 0) return S_OK;
+
 	HRESULT hr = E_FAIL;
 	hD3DXDll = LoadLibraryA(StringFromFormat("d3dx9_%d.dll", D3DX_SDK_VERSION).c_str());
 	if (hD3DXDll != NULL)
@@ -325,6 +354,7 @@ HRESULT LoadD3DX9()
 	return S_OK;
 
 fail:
+	--d3dx_dll_ref;
 	FreeLibrary(hD3DXDll);
 	PD3DXCompileShader = NULL;
 	PD3DXSaveSurfaceToFileA = NULL;
@@ -334,6 +364,9 @@ fail:
 
 void UnloadD3DX9()
 {
+	if (!d3dx_dll_ref) return;
+	if (--d3dx_dll_ref != 0) return;
+
 	FreeLibrary(hD3DXDll);
 	PD3DXCompileShader = NULL;
 	PD3DXSaveSurfaceToFileA = NULL;
@@ -416,6 +449,58 @@ void Close()
 const D3DCAPS9 &GetCaps()
 {
 	return caps;
+}
+
+// returns true if size was changed
+bool FixTextureSize(int& width, int& height)
+{
+	int oldw = width, oldh = height;
+
+	// conditional nonpow2 support should work fine for us
+	if ((caps.TextureCaps & D3DPTEXTURECAPS_POW2) && !(caps.TextureCaps & D3DPTEXTURECAPS_NONPOW2CONDITIONAL))
+	{
+		// all texture dimensions need to be powers of two
+		width = (int)MakePow2((u32)width);
+		height = (int)MakePow2((u32)height);
+	}
+	if (caps.TextureCaps & D3DPTEXTURECAPS_SQUAREONLY)
+	{
+		width = height = max(width, height);
+	}
+
+	width = min(width, (int)caps.MaxTextureWidth);
+	height = min(height, (int)caps.MaxTextureHeight);
+
+	return (width != oldw) || (height != oldh);
+}
+
+// returns true if format is supported
+bool CheckTextureSupport(DWORD usage, D3DFORMAT tex_format)
+{
+	return D3D_OK == D3D->CheckDeviceFormat(cur_adapter, D3DDEVTYPE_HAL, D3DFMT_X8R8G8B8, usage, D3DRTYPE_TEXTURE, tex_format);
+}
+
+bool CheckDepthStencilSupport(D3DFORMAT target_format, D3DFORMAT depth_format)
+{
+	return D3D_OK == D3D->CheckDepthStencilMatch(cur_adapter, D3DDEVTYPE_HAL, D3DFMT_X8R8G8B8, target_format, depth_format);
+}
+
+D3DFORMAT GetSupportedDepthTextureFormat()
+{
+	for (int i = 0; i < sizeof(DepthFormats)/sizeof(D3DFORMAT); ++i)
+		if (D3D::CheckTextureSupport(D3DUSAGE_DEPTHSTENCIL, DepthFormats[i]))
+			return DepthFormats[i];
+
+	return D3DFMT_UNKNOWN;
+}
+
+D3DFORMAT GetSupportedDepthSurfaceFormat(D3DFORMAT target_format)
+{
+	for (int i = 0; i < sizeof(DepthFormats)/sizeof(D3DFORMAT); ++i)
+		if (D3D::CheckDepthStencilSupport(target_format, DepthFormats[i]))
+			return DepthFormats[i];
+
+	return D3DFMT_UNKNOWN;
 }
 
 const char *VertexShaderVersionString()

@@ -22,43 +22,11 @@
 
 #include "WII_IPC_HLE_Device_fs.h"
 #include "WII_IPC_HLE_Device_FileIO.h"
+#include "NandPaths.h"
 #include <algorithm>
-#include <fstream>
 
-typedef std::pair<char, std::string> replace_t;
-typedef std::vector<replace_t> replace_v;
-static replace_v replacements;
 
-static void CreateReplacementFile(std::string &filename)
-{
-	std::ofstream replace(filename.c_str());
-	replace <<"\" __22__\n";
-	replace << "* __2a__\n";
-	//replace << "/ __2f__\n";
-	replace << ": __3a__\n";
-	replace << "< __3c__\n";
-	replace << "> __3e__\n";
-	replace << "? __3f__\n";
-	//replace <<"\\ __5c__\n";
-	replace << "| __7c__\n";
-}
-
-static void ReadReplacements()
-{
-	const std::string replace_fname = "/sys/replace";
-	std::string filename(File::GetUserPath(D_WIIROOT_IDX));
-	filename += replace_fname;
-
-	if (!File::Exists(filename.c_str()))
-		CreateReplacementFile(filename);
-
-	std::ifstream f(filename.c_str());
-	char letter;
-	std::string replacement;
-
-	while (f >> letter >> replacement && replacement.size())
-		replacements.push_back(std::make_pair(letter, replacement));
-}
+static Common::replace_v replacements;
 
 // This is used by several of the FileIO and /dev/fs/ functions 
 std::string HLE_IPC_BuildFilename(const char* _pFilename, int _size)
@@ -66,11 +34,11 @@ std::string HLE_IPC_BuildFilename(const char* _pFilename, int _size)
 	std::string path_full = std::string(File::GetUserPath(D_WIIROOT_IDX));
 	std::string path_wii(_pFilename);
 
-	if (path_wii[1] == '0')
+	if ((path_wii.length() > 0) && (path_wii[1] == '0'))
 		path_full += std::string("/title"); // this looks and feel like a hack...
 
 	// Replaces chars that FAT32 can't support with strings defined in /sys/replace
-	for (replace_v::const_iterator i = replacements.begin(); i != replacements.end(); ++i)
+	for (Common::replace_v::const_iterator i = replacements.begin(); i != replacements.end(); ++i)
 	{
 		for (size_t j = 0; (j = path_wii.find(i->first, j)) != path_wii.npos; ++j)
 			path_wii.replace(j, 1, i->second);
@@ -88,7 +56,7 @@ CWII_IPC_HLE_Device_FileIO::CWII_IPC_HLE_Device_FileIO(u32 _DeviceID, const std:
 	, m_Mode(0)
 	, m_Seek(0)
 {
-	ReadReplacements();
+	Common::ReadReplacements(replacements);
 }
 
 CWII_IPC_HLE_Device_FileIO::~CWII_IPC_HLE_Device_FileIO()
@@ -138,17 +106,16 @@ bool CWII_IPC_HLE_Device_FileIO::Open(u32 _CommandAddress, u32 _Mode)
 
 	m_Filename = std::string(HLE_IPC_BuildFilename(m_Name.c_str(), 64));
 
-	// AyuanX: I think file must exist before we can open it
-	// otherwise it should be created by FS, not here
+	// The file must exist before we can open it
+	// It should be created by ISFS_CreateFile, not here
 	if(File::Exists(m_Filename.c_str()))
 	{
 		INFO_LOG(WII_IPC_FILEIO, "FileIO: Open %s (%s)", m_Name.c_str(), Modes[_Mode]);
 		switch(_Mode)
 		{
 		case ISFS_OPEN_READ:	m_pFileHandle = fopen(m_Filename.c_str(), "rb"); break;
+		// "r+b" is technically wrong, but OPEN_WRITE should not truncate the file as "wb" does.
 		case ISFS_OPEN_WRITE:	m_pFileHandle = fopen(m_Filename.c_str(), "r+b"); break;
-			// MK Wii gets here corrupting its saves, however using rb+ mode works fine
-			// TODO : figure it properly...
 		case ISFS_OPEN_RW:		m_pFileHandle = fopen(m_Filename.c_str(), "r+b"); break;
 		default: PanicAlert("FileIO: Unknown open mode : 0x%02x", _Mode); break;
 		}
@@ -161,7 +128,7 @@ bool CWII_IPC_HLE_Device_FileIO::Open(u32 _CommandAddress, u32 _Mode)
 
 	if (m_pFileHandle != NULL)
 	{
-		m_FileLength = (u32)File::GetSize(m_Filename.c_str());
+		m_FileLength = (u32)File::GetSize(m_pFileHandle);
 		ReturnValue = m_DeviceID;
 	}
 	else if (ReturnValue == 0)
@@ -178,63 +145,65 @@ bool CWII_IPC_HLE_Device_FileIO::Open(u32 _CommandAddress, u32 _Mode)
 
 bool CWII_IPC_HLE_Device_FileIO::Seek(u32 _CommandAddress) 
 {
-	u32 ReturnValue = 0;
+	u32 ReturnValue		= FS_INVALID_ARGUMENT;
 	s32 SeekPosition	= Memory::Read_U32(_CommandAddress + 0xC);
 	s32 Mode			= Memory::Read_U32(_CommandAddress + 0x10);  
+	u64 fileSize		= File::GetSize(m_pFileHandle);
 
-	INFO_LOG(WII_IPC_FILEIO, "FileIO: Old Seek Pos: 0x%08x, Mode: %i (%s, Length=0x%08x)", SeekPosition, Mode, m_Name.c_str(), m_FileLength);
-
-	// TODO : The following hack smells bad 
-	/* Zelda - TP Fix: It doesn't make much sense but it works in Zelda - TP and
-	   it's probably better than trying to read outside the file (it seeks to 0x6000 instead
-	   of the correct 0x2000 for the second half of the file). Could this be right
-	   or has it misunderstood the filesize somehow? My guess is that the filesize is
-	   hardcoded in to the game, and it never checks the filesize, so I don't know.
-	   Maybe it's wrong to return the seekposition when it's zero? Perhaps it wants
-	   the filesize then? - No, that didn't work either, it seeks to 0x6000 even if I return
-	   0x4000 from the first seek. */
-
-	s32 NewSeekPosition = SeekPosition;
-	if (m_FileLength > 0 && SeekPosition > (s32)m_FileLength && Mode == 0)
-	{
-		NewSeekPosition = SeekPosition % m_FileLength;
-	}
-	INFO_LOG(WII_IPC_FILEIO, "FileIO: New Seek Pos: 0x%08x, Mode: %i (%s)", NewSeekPosition, Mode, m_Name.c_str());	
+	INFO_LOG(WII_IPC_FILEIO, "FileIO: Seek Pos: 0x%08x, Mode: %i (%s, Length=0x%08llx)", SeekPosition, Mode, m_Name.c_str(), fileSize);
 
 	// Set seek mode
 	int seek_mode[3] = {SEEK_SET, SEEK_CUR, SEEK_END};
 
 	if (Mode >= 0 && Mode <= 2)
 	{
-        if (fseeko(m_pFileHandle, NewSeekPosition, seek_mode[Mode]) == 0)
+		// POSIX allows seek past EOF, the Wii does not. 
+		// TODO: Can we check this without tell'ing/seek'ing twice?
+		u64 curPos = ftello(m_pFileHandle);
+		if (fseeko(m_pFileHandle, SeekPosition, seek_mode[Mode]) == 0)
 		{
-		    ReturnValue = (u32)ftello(m_pFileHandle);
-        }
+			u64 newPos = ftello(m_pFileHandle);
+			if (newPos > fileSize) 
+			{
+				ERROR_LOG(WII_IPC_FILEIO, "FILEIO: Seek past EOF - %s", m_Name.c_str());
+				fseeko(m_pFileHandle, curPos, SEEK_SET);
+			}
+			else
+				ReturnValue = (u32)newPos;
+		}
 		else
 		{
-            ERROR_LOG(WII_IPC_FILEIO, "FILEIO: Seek failed - %s", m_Name.c_str());
-        }
+			ERROR_LOG(WII_IPC_FILEIO, "FILEIO: Seek failed - %s", m_Name.c_str());
+		}
 	}
 	else
 	{
 		PanicAlert("CWII_IPC_HLE_Device_FileIO Unsupported seek mode %i", Mode);
 	}
 
-    Memory::Write_U32(ReturnValue, _CommandAddress + 0x4);
+	Memory::Write_U32(ReturnValue, _CommandAddress + 0x4);
 
-    return true;
+	return true;
 }
 
 bool CWII_IPC_HLE_Device_FileIO::Read(u32 _CommandAddress) 
 {    
-    u32 ReturnValue = 0;
+    u32 ReturnValue = FS_EACCESS;
     u32 Address	= Memory::Read_U32(_CommandAddress + 0xC); // Read to this memory address
     u32 Size	= Memory::Read_U32(_CommandAddress + 0x10);
 
     if (m_pFileHandle != NULL)
     {
-		INFO_LOG(WII_IPC_FILEIO, "FileIO: Read 0x%x bytes to 0x%08x from %s", Size, Address, m_Name.c_str());
-        ReturnValue = (u32)fread(Memory::GetPointer(Address), 1, Size, m_pFileHandle);		
+		if (m_Mode == ISFS_OPEN_WRITE) 
+		{
+			WARN_LOG(WII_IPC_FILEIO, "FileIO: Attempted to read 0x%x bytes to 0x%08x on write-only file %s", Size, Address, m_Name.c_str());
+		}
+		else 
+		{
+			INFO_LOG(WII_IPC_FILEIO, "FileIO: Read 0x%x bytes to 0x%08x from %s", Size, Address, m_Name.c_str());
+			ReturnValue = (u32)fread(Memory::GetPointer(Address), 1, Size, m_pFileHandle);		
+			if ((ReturnValue != Size) && ferror(m_pFileHandle)) ReturnValue = FS_EACCESS;
+		}
     }
     else
     {
@@ -247,7 +216,7 @@ bool CWII_IPC_HLE_Device_FileIO::Read(u32 _CommandAddress)
 
 bool CWII_IPC_HLE_Device_FileIO::Write(u32 _CommandAddress) 
 {        
-	u32 ReturnValue = 0;
+	u32 ReturnValue = FS_EACCESS;
 	u32 Address	= Memory::Read_U32(_CommandAddress + 0xC); // Write data from this memory address
 	u32 Size	= Memory::Read_U32(_CommandAddress + 0x10);
 
@@ -255,13 +224,20 @@ bool CWII_IPC_HLE_Device_FileIO::Write(u32 _CommandAddress)
 
 	if (m_pFileHandle)
 	{
-		size_t Result = fwrite(Memory::GetPointer(Address), Size, 1, m_pFileHandle);
+		if (m_Mode == ISFS_OPEN_READ) 
+		{
+			WARN_LOG(WII_IPC_FILEIO, "FileIO: Attempted to write 0x%x bytes from 0x%08x to read-only file %s", Size, Address, m_Name.c_str());
+		}
+		else 
+		{
+			size_t Result = fwrite(Memory::GetPointer(Address), Size, 1, m_pFileHandle);
 #if MAX_LOGLEVEL >= DEBUG_LEVEL
-		_dbg_assert_msg_(WII_IPC_FILEIO, Result == 1, "fwrite failed");   
+			_dbg_assert_msg_(WII_IPC_FILEIO, Result == 1, "fwrite failed");   
 #else
-		(void)Result;
+			(void)Result;
 #endif
-	        ReturnValue = Size;
+			ReturnValue = (Result == 1) ? Size : FS_EACCESS;
+		}
 	}
 
     Memory::Write_U32(ReturnValue, _CommandAddress + 0x4);
@@ -285,7 +261,7 @@ bool CWII_IPC_HLE_Device_FileIO::IOCtl(u32 _CommandAddress)
     {
     case ISFS_IOCTL_GETFILESTATS:
         {
-			m_FileLength = (u32)File::GetSize(m_Filename.c_str());
+		    m_FileLength = (u32)File::GetSize(m_pFileHandle);
             u32 Position = (u32)ftello(m_pFileHandle);
 
             u32 BufferOut = Memory::Read_U32(_CommandAddress + 0x18);
@@ -310,11 +286,6 @@ bool CWII_IPC_HLE_Device_FileIO::IOCtl(u32 _CommandAddress)
     Memory::Write_U32(ReturnValue, _CommandAddress + 0x4);
 
     return true;
-}
-
-bool CWII_IPC_HLE_Device_FileIO::ReturnFileHandle()
-{
-	return (m_pFileHandle) ? true : false;
 }
 
 void CWII_IPC_HLE_Device_FileIO::DoState(PointerWrap &p)

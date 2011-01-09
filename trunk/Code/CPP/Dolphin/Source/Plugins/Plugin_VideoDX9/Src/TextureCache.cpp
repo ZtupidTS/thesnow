@@ -83,7 +83,7 @@ void TextureCache::TCacheEntry::FromRenderTarget(bool bFromZBuffer, bool bScaleB
 		texture->GetSurfaceLevel(0, &Rendersurf);
 		D3D::dev->SetDepthStencilSurface(NULL);
 		D3D::dev->SetRenderTarget(0, Rendersurf);
-		
+
 		D3DVIEWPORT9 vp;
 
 		// Stretch picture with increased internal resolution
@@ -100,8 +100,7 @@ void TextureCache::TCacheEntry::FromRenderTarget(bool bFromZBuffer, bool bScaleB
 		destrect.right = virtualW;
 		destrect.top = 0;
 
-		const float* const fConstAdd = colmat + 16;		// fConstAdd is the last 4 floats of colmat
-		PixelShaderManager::SetColorMatrix(colmat, fConstAdd); // set transformation
+		PixelShaderManager::SetColorMatrix(colmat); // set transformation
 		TargetRectangle targetSource = g_renderer->ConvertEFBRectangle(source_rect);
 		RECT sourcerect;
 		sourcerect.bottom = targetSource.bottom;
@@ -134,9 +133,8 @@ void TextureCache::TCacheEntry::FromRenderTarget(bool bFromZBuffer, bool bScaleB
 		D3D::drawShadedTexQuad(read_texture, &sourcerect, 
 			Renderer::GetFullTargetWidth(), Renderer::GetFullTargetHeight(),
 			virtualW, virtualH,
-			((bformat != FOURCC_RAWZ && bformat != D3DFMT_D24X8) && bFromZBuffer) ?
-				PixelShaderCache::GetDepthMatrixProgram(SSAAMode) :
-				PixelShaderCache::GetColorMatrixProgram(SSAAMode),
+			// TODO: why is D3DFMT_D24X8 singled out here? why not D3DFMT_D24X4S4/D24S8/D24FS8/D32/D16/D15S1 too, or none of them?
+			PixelShaderCache::GetDepthMatrixProgram(SSAAMode, bFromZBuffer && bformat != FOURCC_RAWZ && bformat != D3DFMT_D24X8),
 			VertexShaderCache::GetSimpleVertexShader(SSAAMode));
 
 		Rendersurf->Release();

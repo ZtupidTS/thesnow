@@ -19,7 +19,7 @@
 #ifndef WIIMOTE_REAL_H
 #define WIIMOTE_REAL_H
 
-#include "wiiuse.h"
+#include "WiimoteRealBase.h"
 #include "ChunkFile.h"
 #include "Thread.h"
 #include "FifoQueue.h"
@@ -29,51 +29,70 @@
 
 #include "../../InputCommon/Src/InputConfig.h"
 
-enum
-{
-	WIIMOTE_SRC_NONE = 0,
-	WIIMOTE_SRC_EMU = 1,
-	WIIMOTE_SRC_REAL = 2,
-	WIIMOTE_SRC_HYBRID = 3,	// emu + real
-};
+// Pointer to data, and size of data
+typedef std::pair<u8*,u8> Report;
 
 namespace WiimoteReal
 {
 
 class Wiimote
 {
-	friend class WiimoteEmu::Wiimote;
+friend class WiimoteEmu::Wiimote;
 public:
-	Wiimote(wiimote_t* const wm, const unsigned int index);
+	Wiimote(const unsigned int _index);
 	~Wiimote();
 
 	void ControlChannel(const u16 channel, const void* const data, const u32 size);
 	void InterruptChannel(const u16 channel, const void* const data, const u32 size);
 	void Update();
 
-	u8* ProcessReadQueue();
+	Report ProcessReadQueue();
 
 	bool Read();
 	bool Write();
+	bool Connect();
+	bool IsConnected();
 	void Disconnect();
 	void DisableDataReporting();
-
+	void Rumble();
 	void SendPacket(const u8 rpt_id, const void* const data, const unsigned int size);
-
-	// pointer to data, and size of data
-	typedef std::pair<u8*,u8> Report;
+	void RealDisconnect();
 
 	const unsigned int	index;
-	wiimote_t* const	wiimote;
+
+#if defined(__APPLE__)
+	IOBluetoothDevice *btd;
+	IOBluetoothL2CAPChannel *ichan;
+	IOBluetoothL2CAPChannel *cchan;
+	char input[MAX_PAYLOAD];
+	int inputlen;
+#elif defined(__linux__) && HAVE_BLUEZ
+	bdaddr_t bdaddr;					// Bluetooth address
+	int out_sock;						// Output socket
+	int in_sock;						// Input socket
+#elif defined(_WIN32)
+	char devicepath[255];				// Unique wiimote reference
+	//ULONGLONG btaddr;					// Bluetooth address
+	HANDLE dev_handle;					// HID handle
+	OVERLAPPED hid_overlap;				// Overlap handle
+	enum win_bt_stack_t stack;			// Type of bluetooth stack to use
+#endif
+	unsigned char leds;					// Currently lit leds
 
 protected:
-	u8	*m_last_data_report;
+	Report	m_last_data_report;
 	u16	m_channel;
 
 private:
 	void ClearReadQueue();
+	bool SendRequest(unsigned char report_type, unsigned char* data, int length);
+	bool Handshake();
+	void SetLEDs(int leds);
+	int IORead(unsigned char* buf);
+	int IOWrite(unsigned char* buf, int len);
 
-	Common::FifoQueue<u8*>		m_read_reports;
+	bool				m_connected;
+	Common::FifoQueue<Report>	m_read_reports;
 	Common::FifoQueue<Report>	m_write_reports;
 };
 
@@ -87,6 +106,8 @@ void Update(int _WiimoteNumber);
 void DoState(PointerWrap &p);
 void StateChange(PLUGIN_EMUSTATE newState);
 
-}; // WiiMoteReal
+int FindWiimotes(Wiimote** wm, int max_wiimotes);
+
+}; // WiimoteReal
 
 #endif

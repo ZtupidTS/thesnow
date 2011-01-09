@@ -24,10 +24,6 @@
 #include <wx/mstream.h>
 #include <wx/listctrl.h>
 #include <wx/artprov.h>
-#if defined(__APPLE__)
-//id is an objective-c++ type, wx team need to change this
-#define id toolid
-#endif
 #include <wx/aui/aui.h>
 #include <string>
 #include <vector>
@@ -131,13 +127,15 @@ class CFrame : public CRenderFrame
 		void PostEvent(wxCommandEvent& event);
 		void StatusBarMessage(const char * Text, ...);
 		void ClearStatusBar();
-		void OnSizeRequest(int& x, int& y, int& width, int& height);
+		void GetRenderWindowSize(int& x, int& y, int& width, int& height);
+		void OnRenderWindowSizeRequest(int& width, int& height);
 		void BootGame(const std::string& filename);
 		void OnRenderParentClose(wxCloseEvent& event);
 		void OnRenderParentMove(wxMoveEvent& event);
 		bool RendererHasFocus();
 		void DoFullscreen(bool bF);
 		void ToggleDisplayMode (bool bFullscreen);
+		static void ConnectWiimote(int wm_idx, bool connect);
 
 		#ifdef __WXGTK__
 		Common::Event panic_event;
@@ -315,8 +313,11 @@ class CFrame : public CRenderFrame
 		void DoToggleToolbar(bool);
 		void OnToggleStatusbar(wxCommandEvent& event);
 		void OnToggleWindow(wxCommandEvent& event);
-		void OnKeyDown(wxKeyEvent& event);
+
+		void OnKeyDown(wxKeyEvent& event); // Keyboard
 		void OnKeyUp(wxKeyEvent& event);
+
+		void OnMouse(wxMouseEvent& event); // Mouse
 		
 		void OnHostMessage(wxCommandEvent& event);
 

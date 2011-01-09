@@ -171,11 +171,8 @@ CPanel::CPanel(
 							// The Wiimote has been disconnected, we offer reconnect here.
 							wxMessageDialog *dlg = new wxMessageDialog(
 								this,
-								wxString::Format(wxT("Wiimote %i has been disconnected by system.\n")
-								wxT("Maybe this game doesn't support multi-wiimote,\n")
-								wxT("or maybe it is due to idle time out or other reason.\n\n")
-								wxT("Do you want to reconnect immediately?"), wiimote_num),
-								wxT("Reconnect Wiimote Confirm"),
+								wxString::Format(_("Wiimote %i has been disconnected by system.\nMaybe this game doesn't support multi-wiimote,\nor maybe it is due to idle time out or other reason.\nDo you want to reconnect immediately?"), wiimote_num),
+								_("Reconnect Wiimote Confirm"),
 								wxYES_NO | wxSTAY_ON_TOP | wxICON_INFORMATION, //wxICON_QUESTION,
 								wxDefaultPosition);
 
@@ -409,17 +406,17 @@ CFrame::CFrame(wxFrame* parent,
 	if (g_pCodeWindow)
 	{
 		m_Mgr->AddPane(m_Panel, wxAuiPaneInfo()
-				.Name(wxT("Pane 0")).Caption(wxT("Pane 0"))
+				.Name(_T("Pane 0")).Caption(_T("Pane 0"))
 				.CenterPane().PaneBorder(false).Show());
 		AuiFullscreen = m_Mgr->SavePerspective();
 	}
 	else
 	{
 		m_Mgr->AddPane(m_Panel, wxAuiPaneInfo()
-				.Name(wxT("Pane 0")).Caption(wxT("Pane 0")).PaneBorder(false)
+				.Name(_T("Pane 0")).Caption(_T("Pane 0")).PaneBorder(false)
 				.CaptionVisible(false).Layer(0).Center().Show());
 		m_Mgr->AddPane(CreateEmptyNotebook(), wxAuiPaneInfo()
-				.Name(wxT("Pane 1")).Caption(wxT("Logging")).CaptionVisible(true)
+				.Name(_T("Pane 1")).Caption(_("Logging")).CaptionVisible(true)
 				.Layer(0).FloatingSize(wxSize(600, 350)).CloseButton(true).Hide());
 		AuiFullscreen = m_Mgr->SavePerspective();
 	}
@@ -543,27 +540,28 @@ void CFrame::OnActive(wxActivateEvent& event)
 
 void CFrame::OnClose(wxCloseEvent& event)
 {
+	if (Core::GetState() != Core::CORE_UNINITIALIZED)
+	{
+		DoStop();
+		if (Core::GetState() != Core::CORE_UNINITIALIZED)
+			return;
+		UpdateGUI();
+	}
+
 	//Stop Dolphin from saving the minimized Xpos and Ypos
 	if(main_frame->IsIconized())
 		main_frame->Iconize(false);
 
 	// Don't forget the skip or the window won't be destroyed
 	event.Skip();
+
 	// Save GUI settings
 	if (g_pCodeWindow) SaveIniPerspectives();
-
 	// Close the log window now so that its settings are saved
-	if (!g_pCodeWindow)
-		m_LogWindow->Close();
+	else m_LogWindow->Close();
 
 	// Uninit
 	m_Mgr->UnInit();
-
-	if (Core::GetState() != Core::CORE_UNINITIALIZED)
-	{
-		DoStop();
-		UpdateGUI();
-	}
 }
 
 // Post events
@@ -642,6 +640,7 @@ void CFrame::OnHostMessage(wxCommandEvent& event)
 		if (GetStatusBar() != NULL)
 		{
 			GetStatusBar()->SetStatusText(event.GetString(), event.GetInt());
+			UpdateGUI();
 		}
 		break;
 
@@ -658,7 +657,7 @@ void CFrame::OnHostMessage(wxCommandEvent& event)
 #ifdef __WXGTK__
 	case IDM_PANIC:
 		bPanicResult = (wxYES == wxMessageBox(event.GetString(), 
-					wxT("Warning"), event.GetInt() ? wxYES_NO : wxOK, this));
+					_("Warning"), event.GetInt() ? wxYES_NO : wxOK, this));
 		panic_event.Set();
 		break;
 #endif
@@ -671,11 +670,31 @@ void CFrame::OnHostMessage(wxCommandEvent& event)
 	}
 }
 
-void CFrame::OnSizeRequest(int& x, int& y, int& width, int& height)
+void CFrame::GetRenderWindowSize(int& x, int& y, int& width, int& height)
 {
 	wxMutexGuiEnter();
 	m_RenderParent->GetSize(&width, &height);
 	m_RenderParent->GetPosition(&x, &y);
+	wxMutexGuiLeave();
+}
+
+void CFrame::OnRenderWindowSizeRequest(int& width, int& height)
+{
+	wxMutexGuiEnter();
+
+	if (IsFullScreen())
+	{
+		m_RenderParent->GetSize(&width, &height);
+	}
+	else if (SConfig::GetInstance().m_LocalCoreStartupParameter.bRenderToMain)
+	{
+		m_RenderParent->SetClientSize(width, height);
+	}
+	else
+	{
+		m_RenderParent->GetParent()->SetClientSize(width, height);
+	}
+
 	wxMutexGuiLeave();
 }
 
@@ -806,17 +825,22 @@ void CFrame::OnKeyDown(wxKeyEvent& event)
 				event.Skip();
 		}
 		else
+			// On OS X, we claim all keyboard events while
+			// emulation is running to avoid wxWidgets sounding
+			// the system beep for unhandled key events when
+			// receiving pad/wiimote keypresses which take an
+			// entirely different path through the HID subsystem.
+#ifndef __APPLE__
+			// On other platforms, we leave the key event alone
+			// so it can be passed on to the windowing system.
 			event.Skip();
+#endif
 
 		// Actually perform the wiimote connection or disconnection
 		if (WiimoteId >= 0)
 		{
-			bNoWiimoteMsg = GetMenuBar()->IsChecked(IDM_CONNECT_WIIMOTE1 + WiimoteId);
-			GetMenuBar()->Check(IDM_CONNECT_WIIMOTE1 + WiimoteId, !bNoWiimoteMsg);
-			GetUsbPointer()->AccessWiiMote(WiimoteId | 0x100)->Activate(!bNoWiimoteMsg);
-			wxString msg(wxString::Format(wxT("Wiimote %i %s"), WiimoteId + 1,
-						bNoWiimoteMsg ?  wxT("Disconnected") : wxT("Connected")));
-			Core::DisplayMessage(msg.ToAscii(), 3000);
+			bool connect = !GetMenuBar()->IsChecked(IDM_CONNECT_WIIMOTE1 + WiimoteId);
+			ConnectWiimote(WiimoteId, connect);
 		}
 
 		// Send the OSD hotkeys to the video plugin
@@ -828,12 +852,20 @@ void CFrame::OnKeyDown(wxKeyEvent& event)
 			X11Utils::SendKeyEvent(X11Utils::XDisplayFromHandle(GetHandle()), event.GetKeyCode());
 #endif
 		}
-#ifdef _WIN32
 		// Send the freelook hotkeys to the video plugin
-		if ((event.GetKeyCode() == '0', '9', 'W', 'S', 'A', 'D', 'R')
+		if ((event.GetKeyCode() == ')' || event.GetKeyCode() == '(' ||
+					event.GetKeyCode() == '0' || event.GetKeyCode() == '9' ||
+					event.GetKeyCode() == 'W' || event.GetKeyCode() == 'S' ||
+					event.GetKeyCode() == 'A' || event.GetKeyCode() == 'D' ||
+					event.GetKeyCode() == 'R')
 				&& event.GetModifiers() == wxMOD_SHIFT)
+		{
+#ifdef _WIN32
 			PostMessage((HWND)Core::GetWindowHandle(), WM_USER, WM_USER_KEYDOWN, event.GetKeyCode());
+#elif defined(HAVE_X11) && HAVE_X11
+			X11Utils::SendKeyEvent(X11Utils::XDisplayFromHandle(GetHandle()), event.GetKeyCode());
 #endif
+		}
 	}
 	else
 		event.Skip();
@@ -842,6 +874,23 @@ void CFrame::OnKeyDown(wxKeyEvent& event)
 void CFrame::OnKeyUp(wxKeyEvent& event)
 {
 	event.Skip();
+}
+
+void CFrame::OnMouse(wxMouseEvent& event)
+{
+#if defined(HAVE_X11) && HAVE_X11
+	if(Core::GetState() != Core::CORE_UNINITIALIZED)
+	{
+		if(event.Dragging())
+			X11Utils::SendMotionEvent(X11Utils::XDisplayFromHandle(GetHandle()),
+					event.GetPosition().x, event.GetPosition().y);
+		else
+			X11Utils::SendButtonEvent(X11Utils::XDisplayFromHandle(GetHandle()), event.GetButton(),
+					event.GetPosition().x, event.GetPosition().y, event.ButtonDown());
+	}
+#else
+	(void)event;
+#endif
 }
 
 void CFrame::DoFullscreen(bool bF)

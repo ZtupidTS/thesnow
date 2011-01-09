@@ -26,7 +26,7 @@
 // shader cache for every revision, graphics-related or not, which is simply annoying.
 enum
 {
-	LINEAR_DISKCACHE_VER = 6520
+	LINEAR_DISKCACHE_VER = 6777
 };
 
 // On disk format:
@@ -75,7 +75,7 @@ public:
 		Close();
 
 		// try opening for reading/writing
-		m_file.open(filename, ios_base::in | ios_base::out | ios_base::binary);
+		m_file.open(filename, ios_base::in | ios_base::out | ios_base::binary | ios_base::app);
 		
 		if (m_file.is_open() && ValidateHeader())
 		{
@@ -99,6 +99,7 @@ public:
 
 				++num_entries;
 			}
+			m_file.clear();
 
 			delete[] value;
 			return num_entries;

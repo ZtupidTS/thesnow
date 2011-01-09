@@ -61,11 +61,12 @@ void VideoConfig::Load(const char *ini_file)
 	iniFile.Get("Settings", "UseXFB", &bUseXFB, 0);
 	iniFile.Get("Settings", "UseRealXFB", &bUseRealXFB, 0);
 	iniFile.Get("Settings", "UseNativeMips", &bUseNativeMips, true);
+	iniFile.Get("Settings", "AdjustWindowSize", &bAdjustWindowSize, false);	
 	
 	iniFile.Get("Settings", "SafeTextureCache", &bSafeTextureCache, false); // Settings
 	//Safe texture cache params
-	iniFile.Get("Settings", "SafeTextureCacheColorSamples", &iSafeTextureCache_ColorSamples,512);		
-	
+	iniFile.Get("Settings", "SafeTextureCacheColorSamples", &iSafeTextureCache_ColorSamples,512);
+
 	iniFile.Get("Settings", "ShowFPS", &bShowFPS, false); // Settings
 	iniFile.Get("Settings", "OverlayStats", &bOverlayStats, false);
 	iniFile.Get("Settings", "OverlayProjStats", &bOverlayProjStats, false);
@@ -84,7 +85,7 @@ void VideoConfig::Load(const char *ini_file)
 	
 	iniFile.Get("Settings", "ShowShaderErrors", &bShowShaderErrors, 0);
 	iniFile.Get("Settings", "MSAA", &iMultisampleMode, 0);
-	iniFile.Get("Settings", "EFBScale", &iEFBScale, 0);
+	iniFile.Get("Settings", "EFBScale", &iEFBScale, 1); // integral
 	
 	iniFile.Get("Settings", "DstAlphaPass", &bDstAlphaPass, false);
 	
@@ -98,7 +99,7 @@ void VideoConfig::Load(const char *ini_file)
 	iniFile.Get("Settings", "EnableOpenCL", &bEnableOpenCL, false);
 
 	iniFile.Get("Enhancements", "ForceFiltering", &bForceFiltering, 0);
-	iniFile.Get("Enhancements", "MaxAnisotropy", &iMaxAnisotropy, 1);  // NOTE - this is x in (1 << x)
+	iniFile.Get("Enhancements", "MaxAnisotropy", &iMaxAnisotropy, 0);  // NOTE - this is x in (1 << x)
 	iniFile.Get("Enhancements", "PostProcessingShader", &sPostProcessingShader, "");
 	iniFile.Get("Enhancements", "Enable3dVision", &b3DVision, false);
 	
@@ -108,6 +109,8 @@ void VideoConfig::Load(const char *ini_file)
 	iniFile.Get("Hacks", "EFBCopyDisableHotKey", &bOSDHotKey, 0);
 	iniFile.Get("Hacks", "EFBToTextureEnable", &bCopyEFBToTexture, false);
 	iniFile.Get("Hacks", "EFBScaledCopy", &bCopyEFBScaled, true);
+	iniFile.Get("Hacks", "EFBCopyCacheEnable", &bEFBCopyCacheEnable, false);
+	iniFile.Get("Hacks", "EFBEmulateFormatChanges", &bEFBEmulateFormatChanges, true);
 	iniFile.Get("Hacks", "ProjectionHack", &iPhackvalue, 0);
 
 	iniFile.Get("Hardware", "Adapter", &iAdapter, 0);
@@ -134,6 +137,8 @@ void VideoConfig::GameIniLoad(const char *ini_file)
 		iniFile.Get("Video", "EFBCopyEnable", &bEFBCopyEnable);
 	if (iniFile.Exists("Video", "EFBCopyDisableHotKey"))
 		iniFile.Get("Video", "EFBCopyDisableHotKey", &bOSDHotKey);
+	if (iniFile.Exists("Video", "EFBAccessEnable"))
+		iniFile.Get("Video", "EFBAccessEnable", &bEFBAccessEnable);
 	if (iniFile.Exists("Video", "EFBToTextureEnable"))
 		iniFile.Get("Video", "EFBToTextureEnable", &bCopyEFBToTexture);	
 	if (iniFile.Exists("Video", "EFBScaledCopy"))
@@ -175,6 +180,7 @@ void VideoConfig::Save(const char *ini_file)
 	iniFile.Set("Settings", "UseXFB", bUseXFB);
 	iniFile.Set("Settings", "UseRealXFB", bUseRealXFB);
 	iniFile.Set("Settings", "UseNativeMips", bUseNativeMips);
+	iniFile.Set("Settings", "AdjustWindowSize", bAdjustWindowSize);	
 
 	iniFile.Set("Settings", "SafeTextureCache", bSafeTextureCache);
 	//safe texture cache params
@@ -222,8 +228,10 @@ void VideoConfig::Save(const char *ini_file)
 	iniFile.Set("Hacks", "EFBCopyDisableHotKey", bOSDHotKey);
 	iniFile.Set("Hacks", "EFBToTextureEnable", bCopyEFBToTexture);	
 	iniFile.Set("Hacks", "EFBScaledCopy", bCopyEFBScaled);
+	iniFile.Set("Hacks", "EFBCopyCacheEnable", bEFBCopyCacheEnable);
+	iniFile.Set("Hacks", "EFBEmulateFormatChanges", bEFBEmulateFormatChanges);
 	iniFile.Set("Hacks", "ProjectionHack", iPhackvalue);
-	
+
 	iniFile.Set("Hardware", "Adapter", iAdapter);
 	
 	iniFile.Save(ini_file);
