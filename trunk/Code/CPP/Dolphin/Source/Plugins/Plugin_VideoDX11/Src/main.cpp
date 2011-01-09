@@ -155,6 +155,7 @@ void InitBackendInfo()
 	g_Config.backend_info.bSupports3DVision = false;
 	g_Config.backend_info.bAllowSignedBytes = true;
 	g_Config.backend_info.bSupportsDualSourceBlend = true;
+	g_Config.backend_info.bSupportsFormatReinterpretation = false;
 }
 
 void DllConfig(void *_hParent)
@@ -166,7 +167,7 @@ void DllConfig(void *_hParent)
 	if (SUCCEEDED(hr)) hr = D3D::LoadD3D();
 	if (FAILED(hr))
 	{
-		if (!s_PluginInitialized) D3D::UnloadDXGI();
+		D3D::UnloadDXGI();
 		return;
 	}
 
@@ -211,11 +212,8 @@ void DllConfig(void *_hParent)
 	diag->ShowModal();
 	diag->Destroy();
 
-	if (!s_PluginInitialized)
-	{
-		D3D::UnloadDXGI();
-		D3D::UnloadD3D();
-	}
+	D3D::UnloadDXGI();
+	D3D::UnloadD3D();
 #endif
 }
 
@@ -310,15 +308,4 @@ void Shutdown()
 	EmuWindow::Close();
 
 	s_PluginInitialized = false;
-}
-
-void DoState(unsigned char **ptr, int mode)
-{
-	// Clear texture cache because it might have written to RAM
-	CommandProcessor::FifoCriticalEnter();
-	TextureCache::Invalidate(false);
-	CommandProcessor::FifoCriticalLeave();
-	// No need to clear shader caches
-	PointerWrap p(ptr, mode);
-	VideoCommon_DoState(p);
 }
