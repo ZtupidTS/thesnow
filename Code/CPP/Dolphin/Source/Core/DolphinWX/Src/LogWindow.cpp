@@ -72,14 +72,14 @@ void CLogWindow::CreateGUIControls()
 {
 	// Verbosity
 	wxArrayString wxLevels, wxLevelsUse;
-	wxLevels.Add(wxT("提示"));
-	wxLevels.Add(wxT("错误"));
-	wxLevels.Add(wxT("警告"));
-	wxLevels.Add(wxT("信息"));
-	wxLevels.Add(wxT("调试"));
+	wxLevels.Add(_("提示"));
+	wxLevels.Add(_("错误"));
+	wxLevels.Add(_("警告"));
+	wxLevels.Add(_("信息"));
+	wxLevels.Add(_("调试"));
 	for (int i = 0; i < MAX_LOGLEVEL; ++i)
 	   	wxLevelsUse.Add(wxString::Format(wxT("%s"), wxLevels.Item(i).c_str()));
-	m_verbosity = new wxRadioBox(this, IDM_VERBOSITY, wxT("Verbosity"),
+	m_verbosity = new wxRadioBox(this, IDM_VERBOSITY, _("Verbosity"),
 		   	wxDefaultPosition, wxDefaultSize, wxLevelsUse, 0,
 		   	wxRA_SPECIFY_ROWS, wxDefaultValidator);
 	// Don't take up so much space
@@ -89,24 +89,24 @@ void CLogWindow::CreateGUIControls()
 	m_FontChoice = new wxChoice(this, IDM_FONT,
 		   	wxDefaultPosition, wxDefaultSize, 0, NULL, 0, wxDefaultValidator);
 
-	m_FontChoice->Append(wxT("默认字体"));
-	m_FontChoice->Append(wxT("等宽字体"));
-	m_FontChoice->Append(wxT("所选字体"));
+	m_FontChoice->Append(_("默认字体"));
+	m_FontChoice->Append(_("等宽字体"));
+	m_FontChoice->Append(_("所选字体"));
 	m_FontChoice->SetSelection(0);
 	DefaultFont = GetFont();
-	MonoSpaceFont.SetNativeFontInfoUserDesc(wxT("lucida console windows-1252"));
+	MonoSpaceFont.SetNativeFontInfoUserDesc(_T("lucida console windows-1252"));
 	LogFont.push_back(DefaultFont);
 	LogFont.push_back(MonoSpaceFont);
 	LogFont.push_back(DebuggerFont);
 
 	// Options
-	wxCheckBox * m_WrapLine = new wxCheckBox(this, IDM_WRAPLINE, wxT("自动换行"));
+	wxCheckBox * m_WrapLine = new wxCheckBox(this, IDM_WRAPLINE, _("自动换行"));
 	m_writeFileCB = new wxCheckBox(this, IDM_WRITEFILE,
-		   	wxT("写入到文件"), wxDefaultPosition, wxDefaultSize, 0);
+		   	_("写入到文件"), wxDefaultPosition, wxDefaultSize, 0);
 	m_writeConsoleCB = new wxCheckBox(this, IDM_WRITECONSOLE,
-		   	wxT("写入到控制台"), wxDefaultPosition, wxDefaultSize, 0);
+		   	_("写入到控制台"), wxDefaultPosition, wxDefaultSize, 0);
 	m_writeWindowCB = new wxCheckBox(this, IDM_WRITEWINDOW,
-		   	wxT("写入到窗口 ->"), wxDefaultPosition, wxDefaultSize, 0);
+		   	_("写入到窗口 ->"), wxDefaultPosition, wxDefaultSize, 0);
 
 	m_checks = new wxCheckListBox(this, IDM_LOGCHECKS, wxDefaultPosition, wxDefaultSize);
 
@@ -121,12 +121,12 @@ void CLogWindow::CreateGUIControls()
 	sRight = new wxBoxSizer(wxVERTICAL);			// right sizer
 	sRightBottom = new wxBoxSizer(wxHORIZONTAL);	// submit row
 	// Left side: buttons (-submit), options, and log type selection
-	wxStaticBoxSizer* sbLeftOptions = new wxStaticBoxSizer(wxVERTICAL, this, wxT("选项"));
+	wxStaticBoxSizer* sbLeftOptions = new wxStaticBoxSizer(wxVERTICAL, this, _("选项"));
 
 	wxBoxSizer* sLogCtrl = new wxBoxSizer(wxHORIZONTAL);
-	sLogCtrl->Add(new wxButton(this, IDM_TOGGLEALL, wxT("切换所有"),
+	sLogCtrl->Add(new wxButton(this, IDM_TOGGLEALL, _("切换所有"),
 			   	wxDefaultPosition, wxDefaultSize, wxBU_EXACTFIT), 1);
-	sLogCtrl->Add(new wxButton(this, IDM_CLEARLOG, wxT("清除"),
+	sLogCtrl->Add(new wxButton(this, IDM_CLEARLOG, _("清除"),
 			   	wxDefaultPosition, wxDefaultSize, wxBU_EXACTFIT), 1);
 
 	sbLeftOptions->Add(m_FontChoice, 0, (wxDOWN), 1);
@@ -184,9 +184,9 @@ void CLogWindow::SaveSettings()
 
 	if (!Parent->g_pCodeWindow)
 	{
-			ini.Set("LogWindow", "x", x);
-			ini.Set("LogWindow", "y", y);
-			ini.Set("LogWindow", "pos", winpos);
+		ini.Set("LogWindow", "x", x);
+		ini.Set("LogWindow", "y", y);
+		ini.Set("LogWindow", "pos", winpos);
 	}
 	ini.Set("Options", "Verbosity", m_verbosity->GetSelection() + 1);
 	ini.Set("Options", "Font", m_FontChoice->GetSelection());
@@ -216,7 +216,7 @@ void CLogWindow::LoadSettings()
 	m_FontChoice->SetSelection(font);
 	if (m_FontChoice->GetSelection() < (int)LogFont.size())
 		m_Log->SetDefaultStyle(wxTextAttr(wxNullColour, wxNullColour, LogFont[m_FontChoice->GetSelection()]));
-	ini.Get("Options", "WriteToFile", &m_writeFile, true);
+	ini.Get("Options", "WriteToFile", &m_writeFile, false);
 	m_writeFileCB->SetValue(m_writeFile);
 	ini.Get("Options", "WriteToConsole", &m_writeConsole, true);
 	m_writeConsoleCB->SetValue(m_writeConsole);

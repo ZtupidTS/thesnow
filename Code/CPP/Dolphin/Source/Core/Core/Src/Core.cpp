@@ -53,6 +53,8 @@
 #include "HW/VideoInterface.h"
 #include "HW/SystemTimers.h"
 
+#include "IPC_HLE/WII_IPC_HLE_Device_usb.h"
+
 #include "PowerPC/PowerPC.h"
 #include "PowerPC/JitCommon/JitBase.h"
 
@@ -78,7 +80,8 @@ volatile u32 DrawnFrame = 0;
 u32 DrawnVideo = 0;
 
 // Function forwarding
-void Callback_VideoRequestWindowSize(int& x, int& y, int& width, int& height);
+void Callback_VideoGetWindowSize(int& x, int& y, int& width, int& height);
+void Callback_VideoRequestWindowSize(int& width, int& height);
 void Callback_VideoLog(const TCHAR* _szMessage, int _bDoBreak);
 void Callback_VideoCopiedToXFB(bool video_update);
 void Callback_DSPLog(const TCHAR* _szMessage, int _v);
@@ -340,6 +343,7 @@ THREAD_RETURN EmuThread(void *pArg)
 	VideoInitialize.pWindowHandle				= _CoreParameter.hMainWindow;
 	VideoInitialize.pLog						= Callback_VideoLog;
 	VideoInitialize.pSysMessage					= Host_SysMessage;
+	VideoInitialize.pGetWindowSize				= Callback_VideoGetWindowSize;
 	VideoInitialize.pRequestWindowSize			= Callback_VideoRequestWindowSize;
 	VideoInitialize.pCopiedToXFB				= Callback_VideoCopiedToXFB;
 	VideoInitialize.pPeekMessages				= NULL;
@@ -390,7 +394,14 @@ THREAD_RETURN EmuThread(void *pArg)
 
 	// Load and Init Wiimotes - only if we are booting in wii mode	
 	if (_CoreParameter.bWii)
+	{
 		Wiimote::Initialize(g_pWindowHandle);
+
+		// activate wiimotes which don't have source set to "None"
+		for (unsigned int i = 0; i != MAX_WIIMOTES; ++i)
+			if (g_wiimote_sources[i])
+				GetUsbPointer()->AccessWiiMote(i | 0x100)->Activate(true);
+	}
 
 	// The hardware is initialized.
 	g_bHwInit = true;
@@ -599,10 +610,12 @@ void VideoThrottle()
 	u32 TargetVPS = (SConfig::GetInstance().m_Framelimit > 1) ?
 		SConfig::GetInstance().m_Framelimit * 5 : VideoInterface::TargetRefreshRate;
 
-	// When frame limit is NOT off
+#ifdef _WIN32
+	// Disable the frame-limiter when the throttle (Tab) key is held down
+	if (!GetAsyncKeyState(VK_TAB))
+#endif
 	if (SConfig::GetInstance().m_Framelimit)
 	{
-		// Make the limiter a bit loose
 		u32 frametime = ((SConfig::GetInstance().b_UseFPS)? Common::AtomicLoad(DrawnFrame) : DrawnVideo) * 1000 / TargetVPS;
 
 		u32 timeDifference = (u32)Timer.GetTimeDifference();
@@ -706,10 +719,18 @@ void Callback_VideoCopiedToXFB(bool video_update)
 	Frame::FrameUpdate();
 }
 
-// Ask the host for the desired window size
-void Callback_VideoRequestWindowSize(int& x, int& y, int& width, int& height)
+// Ask the host for the window size
+void Callback_VideoGetWindowSize(int& x, int& y, int& width, int& height)
 {
-	Host_RequestWindowSize(x, y, width, height);
+	Host_GetRenderWindowSize(x, y, width, height);
+}
+
+// Suggest to the host that it sets the window to the given size.
+// The host may or may not decide to do this depending on fullscreen or not.
+// Sets width and height to the actual size of the window.
+void Callback_VideoRequestWindowSize(int& width, int& height)
+{
+	Host_RequestRenderWindowSize(width, height);
 }
 
 // Callback_DSPLog

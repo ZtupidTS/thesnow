@@ -15,8 +15,6 @@
 // Official SVN repository and contact information can be found at
 // http://code.google.com/p/dolphin-emu/
 
-#include "stdafx.h"
-
 // HyperIris: need clean code
 #include "../../Core/Src/ConfigManager.h"
 
@@ -114,7 +112,6 @@ bool CBannerLoaderGC::GetName(std::string _rName[])
 		{
 			DVDBanner2* pBanner = (DVDBanner2*)m_pBannerFile;
 
-			// u32 languageID = SConfig::GetInstance().m_InterfaceLanguage;
 			for (int i = 0; i < 6; i++)
 			{
 				char tempBuffer[65] = {0};

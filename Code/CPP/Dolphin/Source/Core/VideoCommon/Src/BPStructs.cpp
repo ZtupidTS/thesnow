@@ -38,6 +38,14 @@ u32 mapTexAddress;
 bool mapTexFound;
 int numWrites;
 
+static const float s_gammaLUT[] = 
+{
+	1.0f,
+	1.7f,
+	2.2f,
+	1.0f
+};
+
 void BPInit()
 {
 	memset(&bpmem, 0, sizeof(bpmem));
@@ -48,9 +56,9 @@ void BPInit()
 	mapTexFound = false;
 }
 
-void RenderToXFB(const BPCmd &bp, const EFBRectangle &rc, float yScale, float xfbLines, u32 xfbAddr, const u32 dstWidth, const u32 dstHeight)
+void RenderToXFB(const BPCmd &bp, const EFBRectangle &rc, float yScale, float xfbLines, u32 xfbAddr, const u32 dstWidth, const u32 dstHeight, float gamma)
 {
-	Renderer::RenderToXFB(xfbAddr, dstWidth, dstHeight, rc);
+	Renderer::RenderToXFB(xfbAddr, dstWidth, dstHeight, rc, gamma);
 }
 
 void BPWritten(const BPCmd& bp)
@@ -229,6 +237,8 @@ void BPWritten(const BPCmd& bp)
 			EFBRectangle rc;
 			rc.left = (int)bpmem.copyTexSrcXY.x;
 			rc.top = (int)bpmem.copyTexSrcXY.y;
+			
+			// Here Width+1 like Height, otherwise some textures are corrupted already since the native resolution.
 			rc.right = (int)(bpmem.copyTexSrcXY.x + bpmem.copyTexSrcWH.x + 1);
 			rc.bottom = (int)(bpmem.copyTexSrcXY.y + bpmem.copyTexSrcWH.y + 1);
 
@@ -242,8 +252,7 @@ void BPWritten(const BPCmd& bp)
 
 				CopyEFB(bp, rc, bpmem.copyTexDest << 5, 
 							bpmem.zcontrol.pixel_format == PIXELFMT_Z24, 
-							PE_copy.intensity_fmt > 0, 
-							((PE_copy.target_pixel_format / 2) + ((PE_copy.target_pixel_format & 1) * 8)), 
+							PE_copy.intensity_fmt > 0,PE_copy.tp_realFormat(),
 							PE_copy.half_scale);
 			}
 			else
@@ -271,7 +280,8 @@ void BPWritten(const BPCmd& bp)
 				RenderToXFB(bp, rc, yScale, xfbLines, 
 									 bpmem.copyTexDest << 5, 
 									 bpmem.copyMipMapStrideChannels << 4,
-									 (u32)xfbLines);
+									 (u32)xfbLines,
+									 s_gammaLUT[PE_copy.gamma]);
 			}
 
 			// Clear the rectangular region after copying it.
@@ -350,7 +360,6 @@ void BPWritten(const BPCmd& bp)
 	// ----------------------------------
 	// Display Copy Filtering Control - GX_SetCopyFilter(u8 aa,u8 sample_pattern[12][2],u8 vf,u8 vfilter[7])
 	// Fields: Destination, Frame2Field, Gamma, Source
-	// TODO: We might have to implement the gamma one, some games might need this, if they are too dark to see.
 	// ----------------------------------
 	case BPMEM_DISPLAYCOPYFILER:   // if (aa) { use sample_pattern } else { use 666666 }
 	case BPMEM_DISPLAYCOPYFILER+1: // if (aa) { use sample_pattern } else { use 666666 }
@@ -421,7 +430,12 @@ void BPWritten(const BPCmd& bp)
 		break;
 	case BPMEM_TEXINVALIDATE: // Used, if game has manual control the Texture Cache, which we don't allow
 		DEBUG_LOG(VIDEO, "BP Texture Invalid: %08x", bp.newvalue);
+		break;
+
 	case BPMEM_ZCOMPARE:      // Set the Z-Compare and EFB pixel format
+		OnPixelFormatChange(bp);
+		break;
+
 	case BPMEM_MIPMAP_STRIDE: // MipMap Stride Channel
 	case BPMEM_COPYYSCALE:    // Display Copy Y Scale
 	case BPMEM_IREF:          /* 24 RID

@@ -26,19 +26,6 @@
 #include "HW/SI_Device.h"
 #include "SysConf.h"
 
-// HyperIris: not sure but a temporary implement
-enum INTERFACE_LANGUAGE
-{
-	INTERFACE_ENGLISH = 0,
-	INTERFACE_GERMAN,
-	INTERFACE_FRENCH,
-	INTERFACE_SPANISH,
-	INTERFACE_ITALIAN,
-	INTERFACE_DUTCH,
-
-	INTERFACE_OTHER,
-};
-
 struct SConfig : NonCopyable
 {
 	// Wii Devices
@@ -64,9 +51,10 @@ struct SConfig : NonCopyable
 	std::string m_strMemoryCardB;
 	TEXIDevices m_EXIDevice[3];
 	TSIDevices m_SIDevice[4];
+	std::string m_bba_mac;
 
 	// interface language
-	INTERFACE_LANGUAGE m_InterfaceLanguage;
+	int m_InterfaceLanguage;
 	// framelimit choose
 	int m_Framelimit;
 	bool b_UseFPS;

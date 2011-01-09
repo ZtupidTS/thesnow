@@ -1,4 +1,4 @@
-// Copyright (C) 2003 Dolphin Project.
+ï»¿// Copyright (C) 2003 Dolphin Project.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ CPatchAddEdit::~CPatchAddEdit()
 
 void CPatchAddEdit::CreateGUIControls(int _selection)
 {
-	wxString currentName = wxT("<Insert name here>");
+	wxString currentName = _("<Insert name here>");
 
 	if (_selection == -1)
 	{
@@ -56,10 +56,10 @@ void CPatchAddEdit::CreateGUIControls(int _selection)
 	itCurEntry = tempEntries.begin();
 
 	wxBoxSizer* sEditPatch = new wxBoxSizer(wxVERTICAL);
-	wxStaticText* EditPatchNameText = new wxStaticText(this, ID_EDITPATCH_NAME_TEXT, _("Ãû³Æ:"), wxDefaultPosition, wxDefaultSize);
+	wxStaticText* EditPatchNameText = new wxStaticText(this, ID_EDITPATCH_NAME_TEXT, _("åç§°:"), wxDefaultPosition, wxDefaultSize);
 	EditPatchName = new wxTextCtrl(this, ID_EDITPATCH_NAME, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
 	EditPatchName->SetValue(currentName);
-	wxStaticText* EditPatchOffsetText = new wxStaticText(this, ID_EDITPATCH_OFFSET_TEXT, _("Æ«ÒÆÁ¿:"), wxDefaultPosition, wxDefaultSize);
+	wxStaticText* EditPatchOffsetText = new wxStaticText(this, ID_EDITPATCH_OFFSET_TEXT, _("åç§»é‡:"), wxDefaultPosition, wxDefaultSize);
 	EditPatchOffset = new wxTextCtrl(this, ID_EDITPATCH_OFFSET, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
 	EditPatchOffset->SetValue(wxString::Format(wxT("%08X"), tempEntries.at(0).address));
 	EntrySelection = new wxSpinButton(this, ID_ENTRY_SELECT, wxDefaultPosition, wxDefaultSize, wxVERTICAL);
@@ -68,13 +68,13 @@ void CPatchAddEdit::CreateGUIControls(int _selection)
 	wxArrayString wxArrayStringFor_EditPatchType;
 	for (int i = 0; i < 3; ++i)
 		wxArrayStringFor_EditPatchType.Add(wxString::FromAscii(PatchEngine::PatchTypeStrings[i]));
-	EditPatchType = new wxRadioBox(this, ID_EDITPATCH_TYPE, _("ÀàÐÍ"), wxDefaultPosition, wxDefaultSize, wxArrayStringFor_EditPatchType, 3, wxRA_SPECIFY_COLS, wxDefaultValidator);
+	EditPatchType = new wxRadioBox(this, ID_EDITPATCH_TYPE, _("ç±»åž‹"), wxDefaultPosition, wxDefaultSize, wxArrayStringFor_EditPatchType, 3, wxRA_SPECIFY_COLS, wxDefaultValidator);
 	EditPatchType->SetSelection((int)tempEntries.at(0).type);
-	wxStaticText* EditPatchValueText = new wxStaticText(this, ID_EDITPATCH_VALUE_TEXT, _("Öµ:"), wxDefaultPosition, wxDefaultSize);
+	wxStaticText* EditPatchValueText = new wxStaticText(this, ID_EDITPATCH_VALUE_TEXT, _("å€¼:"), wxDefaultPosition, wxDefaultSize);
 	EditPatchValue = new wxTextCtrl(this, ID_EDITPATCH_VALUE, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
 	EditPatchValue->SetValue(wxString::Format(wxT("%08X"), tempEntries.at(0).value));
-	wxButton *EntryAdd = new wxButton(this, ID_ENTRY_ADD, _("Ìí¼Ó"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	EntryRemove = new wxButton(this, ID_ENTRY_REMOVE, _("ÒÆ³ý"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	wxButton *EntryAdd = new wxButton(this, ID_ENTRY_ADD, _("æ·»åŠ "), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	EntryRemove = new wxButton(this, ID_ENTRY_REMOVE, _("ç§»é™¤"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 	if ((int)tempEntries.size() <= 1)
 		EntryRemove->Disable();
 
@@ -82,7 +82,7 @@ void CPatchAddEdit::CreateGUIControls(int _selection)
 	sEditPatchName->Add(EditPatchNameText, 0, wxALIGN_CENTER_VERTICAL|wxALL, 5);
 	sEditPatchName->Add(EditPatchName, 1, wxEXPAND|wxALL, 5);
 	sEditPatch->Add(sEditPatchName, 0, wxEXPAND);
-	sbEntry = new wxStaticBoxSizer(wxVERTICAL, this, wxString::Format(wxT("Entry 1/%d"), (int)tempEntries.size()));
+	sbEntry = new wxStaticBoxSizer(wxVERTICAL, this, wxString::Format(_("Entry 1/%d"), (int)tempEntries.size()));
 	currentItem = 1;
 	wxGridBagSizer* sgEntry = new wxGridBagSizer(0, 0);
 	sgEntry->Add(EditPatchType, wxGBPosition(0, 0), wxGBSpan(1, 2), wxEXPAND|wxALL, 5);
@@ -99,8 +99,8 @@ void CPatchAddEdit::CreateGUIControls(int _selection)
 	sbEntry->Add(sEntryAddRemove, 0, wxEXPAND);
 	sEditPatch->Add(sbEntry, 0, wxEXPAND|wxALL, 5);
 	wxBoxSizer* sEditPatchButtons = new wxBoxSizer(wxHORIZONTAL);
-	wxButton* bOK = new wxButton(this, wxID_OK, _("È·¶¨"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	wxButton* bCancel = new wxButton(this, wxID_CANCEL, _("È¡Ïû"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	wxButton* bOK = new wxButton(this, wxID_OK, wxT("ç¡®å®š"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
+	wxButton* bCancel = new wxButton(this, wxID_CANCEL, _("å–æ¶ˆ"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
 	sEditPatchButtons->Add(0, 0, 1, wxEXPAND, 5);
 	sEditPatchButtons->Add(bOK, 0, wxALL, 5);
 	sEditPatchButtons->Add(bCancel, 0, wxALL, 5);
@@ -195,7 +195,7 @@ void CPatchAddEdit::AddRemoveEntry(wxCommandEvent& event)
 
 void CPatchAddEdit::UpdateEntryCtrls(PatchEngine::PatchEntry pE)
 {
-	sbEntry->GetStaticBox()->SetLabel(wxString::Format(wxT("Entry %d/%d"), currentItem,
+	sbEntry->GetStaticBox()->SetLabel(wxString::Format(_("Entry %d/%d"), currentItem,
 									  (int)tempEntries.size()));
 	EditPatchOffset->SetValue(wxString::Format(wxT("%08X"), pE.address));
 	EditPatchType->SetSelection(pE.type);

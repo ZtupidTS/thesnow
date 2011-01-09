@@ -166,7 +166,12 @@ FramebufferManager::FramebufferManager(int targetWidth, int targetHeight, int ms
 
 	glGenFramebuffersEXT(1, &m_xfbFramebuffer);
 
-	// EFB framebuffer is currently bound.
+	// EFB framebuffer is currently bound, make sure to clear its alpha value to 1.f
+	glViewport(0, 0, m_targetWidth, m_targetHeight);
+	glScissor(0, 0, m_targetWidth, m_targetHeight);
+	glClearColor(0.f, 0.f, 0.f, 1.f);
+	glClearDepth(1.0);
+	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 }
 
 FramebufferManager::~FramebufferManager()
@@ -260,7 +265,7 @@ GLuint FramebufferManager::GetEFBDepthTexture(const EFBRectangle& sourceRc)
 	}
 }
 
-void FramebufferManager::CopyToRealXFB(u32 xfbAddr, u32 fbWidth, u32 fbHeight, const EFBRectangle& sourceRc)
+void FramebufferManager::CopyToRealXFB(u32 xfbAddr, u32 fbWidth, u32 fbHeight, const EFBRectangle& sourceRc,float Gamma)
 {
 	u8* xfb_in_ram = Memory_GetPtr(xfbAddr);
 	if (!xfb_in_ram)
@@ -322,7 +327,7 @@ void XFBSource::DecodeToTexture(u32 xfbAddr, u32 fbWidth, u32 fbHeight)
 	TextureConverter::DecodeToTexture(xfbAddr, fbWidth, fbHeight, texture);
 }
 
-void XFBSource::CopyEFB()
+void XFBSource::CopyEFB(float Gamma)
 {
 	// Copy EFB data to XFB and restore render target again
 

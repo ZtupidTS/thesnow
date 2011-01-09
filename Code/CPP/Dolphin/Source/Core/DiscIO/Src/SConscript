@@ -8,6 +8,7 @@ files = [
 	'BannerLoaderWii.cpp',
 	'Blob.cpp',
 	'CompressedBlob.cpp',
+	'CISOBlob.cpp',
 	'DriveBlob.cpp',
 	'DiscScrubber.cpp',
 	'FileBlob.cpp',
@@ -23,8 +24,6 @@ files = [
 	'FileMonitor.cpp',
 	'NANDContentLoader.cpp',
 	'WiiWad.cpp',
-	'AES/aes_cbc.c',
-	'AES/aes_core.c',
 	]
 
 libs = [

@@ -57,7 +57,7 @@ Make AA apply instantly during gameplay if possible
 #include <cstdarg>
 
 #ifdef _WIN32
-#include "OS/Win32.h"
+#include "EmuWindow.h"
 #endif
 
 #if defined(HAVE_WX) && HAVE_WX
@@ -97,17 +97,48 @@ Make AA apply instantly during gameplay if possible
 // Logging
 int GLScissorX, GLScissorY, GLScissorW, GLScissorH;
 
-#if defined(HAVE_X11) && HAVE_X11
-static volatile u32 s_doStateRequested = FALSE;
-#endif
-
-// This is used for the functions right below here which use wxwidgets
-#if defined(HAVE_WX) && HAVE_WX
 #ifdef _WIN32
-	WXDLLIMPEXP_BASE void wxSetInstance(HINSTANCE hInst);
-	extern HINSTANCE g_hInstance;
+HINSTANCE g_hInstance;
+
+#if defined(HAVE_WX) && HAVE_WX
+class wxDLLApp : public wxApp
+{
+        bool OnInit()
+        {
+                return true;
+        }
+};
+IMPLEMENT_APP_NO_MAIN(wxDLLApp) 
+WXDLLIMPEXP_BASE void wxSetInstance(HINSTANCE hInst);
 #endif
+// ------------------
+
+BOOL APIENTRY DllMain(HINSTANCE hinstDLL,       // DLL module handle
+                                          DWORD dwReason,               // reason called
+                                          LPVOID lpvReserved)   // reserved
+{
+        switch (dwReason)
+        {
+        case DLL_PROCESS_ATTACH:
+                {
+#if defined(HAVE_WX) && HAVE_WX
+                        wxSetInstance((HINSTANCE)hinstDLL);
+                        wxInitialize();
 #endif
+                }
+                break; 
+
+        case DLL_PROCESS_DETACH:
+#if defined(HAVE_WX) && HAVE_WX
+                wxUninitialize();
+#endif
+                break;
+        }
+
+        g_hInstance = hinstDLL;
+        return TRUE;
+}
+#endif // _WIN32
 
 void GetDllInfo(PLUGIN_INFO* _PluginInfo)
 {
@@ -167,6 +198,7 @@ void InitBackendInfo()
 	g_Config.backend_info.bSupports3DVision = false;
 	g_Config.backend_info.bAllowSignedBytes = true;
 	g_Config.backend_info.bSupportsDualSourceBlend = false; // supported, but broken
+	g_Config.backend_info.bSupportsFormatReinterpretation = false;
 }
 
 void DllConfig(void *_hParent)
@@ -291,54 +323,4 @@ void Shutdown()
 	OpcodeDecoder_Shutdown();
 	delete g_renderer;
 	OpenGL_Shutdown();
-}
-
-static volatile struct
-{
-	unsigned char **ptr;
-	int mode;
-} s_doStateArgs;
-
-// Run from the GPU thread on X11, CPU thread on the rest
-static void check_DoState() {
-#if defined(HAVE_X11) && HAVE_X11
-	if (Common::AtomicLoadAcquire(s_doStateRequested))
-	{
-#endif
-		// Clear all caches that touch RAM
-		TextureCache::Invalidate(false);
-		VertexLoaderManager::MarkAllDirty();
-
-		PointerWrap p(s_doStateArgs.ptr, s_doStateArgs.mode);
-		VideoCommon_DoState(p);
-
-		// Refresh state.
-		if (s_doStateArgs.mode == PointerWrap::MODE_READ)
-		{
-			BPReload();
-			RecomputeCachedArraybases();
-		}
-
-#if defined(HAVE_X11) && HAVE_X11
-		Common::AtomicStoreRelease(s_doStateRequested, FALSE);
-	}
-#endif
-}
-
-// Run from the CPU thread
-void DoState(unsigned char **ptr, int mode)
-{
-	s_doStateArgs.ptr = ptr;
-	s_doStateArgs.mode = mode;
-#if defined(HAVE_X11) && HAVE_X11
-	Common::AtomicStoreRelease(s_doStateRequested, TRUE);
-	if (g_VideoInitialize.bOnThread)
-	{
-		while (Common::AtomicLoadAcquire(s_doStateRequested) && !s_FifoShuttingDown)
-			//Common::SleepCurrentThread(1);
-			Common::YieldCPU();
-	}
-	else
-#endif
-		check_DoState();
 }

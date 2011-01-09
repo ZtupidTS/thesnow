@@ -58,7 +58,7 @@ void GetPixelShaderId(PIXELSHADERUID *uid, DSTALPHA_MODE dstAlphaMode)
 	for (int i = 0; i < 8; i += 2)
 		((u8*)&uid->values[1])[i / 2] = (bpmem.tevksel[i].hex & 0xf) | ((bpmem.tevksel[i + 1].hex & 0xf) << 4);
 
-	u32 enableZTexture = ((bpmem.ztex2.op != ZTEXTURE_DISABLE && !bpmem.zcontrol.zcomploc) || g_ActiveConfig.bEnablePerPixelDepth)? 1 : 0;
+	u32 enableZTexture = (bpmem.ztex2.op != ZTEXTURE_DISABLE && !bpmem.zcontrol.zcomploc && bpmem.zmode.testenable && bpmem.zmode.updateenable) || g_ActiveConfig.bEnablePerPixelDepth ? 1 : 0;
 
 	uid->values[2] = (u32)bpmem.fog.c_proj_fsel.fsel |
 				   ((u32)bpmem.fog.c_proj_fsel.proj << 3) |
@@ -160,7 +160,7 @@ void GetPixelShaderId(PIXELSHADERUID *uid, DSTALPHA_MODE dstAlphaMode)
 //   output is given by .outreg
 //   tevtemp is set according to swapmodetables and 
 
-static void WriteStage(char *&p, int n, API_TYPE ApiType);
+static void WriteStage(char *&p, int n, API_TYPE ApiType,int maxUniforms);
 static void SampleTexture(char *&p, const char *destination, const char *texcoords, const char *texswap, int texmap, API_TYPE ApiType);
 // static void WriteAlphaCompare(char *&p, int num, int comp);
 static bool WriteAlphaTest(char *&p, API_TYPE ApiType);
@@ -442,7 +442,7 @@ char *GeneratePixelLightShader(char *p, int index, const LitChannel& chan, const
 
 
 
-const char *GeneratePixelShaderCode(DSTALPHA_MODE dstAlphaMode, API_TYPE ApiType,u32 components)
+const char *GeneratePixelShaderCode(DSTALPHA_MODE dstAlphaMode, API_TYPE ApiType,u32 maxUniforms, u32 components)
 {
 	setlocale(LC_NUMERIC, "C"); // Reset locale for compilation
 	text[sizeof(text) - 1] = 0x7C;  // canary
@@ -466,7 +466,7 @@ const char *GeneratePixelShaderCode(DSTALPHA_MODE dstAlphaMode, API_TYPE ApiType
 				nIndirectStagesUsed |= 1 << bpmem.tevind[i].bt;
 		}
 	}
-	DepthTextureEnable = (bpmem.ztex2.op != ZTEXTURE_DISABLE && !bpmem.zcontrol.zcomploc) || g_ActiveConfig.bEnablePerPixelDepth ;
+	DepthTextureEnable = (bpmem.ztex2.op != ZTEXTURE_DISABLE && !bpmem.zcontrol.zcomploc && bpmem.zmode.testenable && bpmem.zmode.updateenable) || g_ActiveConfig.bEnablePerPixelDepth ;
 	// Declare samplers
 
 	if(ApiType != API_D3D11)
@@ -504,10 +504,13 @@ const char *GeneratePixelShaderCode(DSTALPHA_MODE dstAlphaMode, API_TYPE ApiType
 	WRITE(p, "uniform float4 "I_ALPHA"[1] : register(c%d);\n", C_ALPHA);
 	WRITE(p, "uniform float4 "I_TEXDIMS"[8] : register(c%d);\n", C_TEXDIMS);
 	WRITE(p, "uniform float4 "I_ZBIAS"[2] : register(c%d);\n", C_ZBIAS);
-	WRITE(p, "uniform float4 "I_INDTEXSCALE"[2] : register(c%d);\n", C_INDTEXSCALE);
-	WRITE(p, "uniform float4 "I_INDTEXMTX"[6] : register(c%d);\n", C_INDTEXMTX);
-	WRITE(p, "uniform float4 "I_FOG"[2] : register(c%d);\n", C_FOG);
-	if(g_ActiveConfig.bEnablePixelLigting)
+	if(C_INDTEXSCALE + 2 <= maxUniforms)
+		WRITE(p, "uniform float4 "I_INDTEXSCALE"[2] : register(c%d);\n", C_INDTEXSCALE);
+	if(C_INDTEXMTX + 6 <= maxUniforms)
+		WRITE(p, "uniform float4 "I_INDTEXMTX"[6] : register(c%d);\n", C_INDTEXMTX);
+	if(C_FOG + 2 <= maxUniforms)
+		WRITE(p, "uniform float4 "I_FOG"[2] : register(c%d);\n", C_FOG);
+	if(g_ActiveConfig.bEnablePixelLigting && C_PLIGHTS + 40 <= maxUniforms && C_PMATERIALS + 4 <= maxUniforms)
 	{
 		WRITE(p,"typedef struct { float4 col; float4 cosatt; float4 distatt; float4 pos; float4 dir; } Light;\n");
 		WRITE(p,"typedef struct { Light lights[8]; } s_"I_PLIGHTS";\n");
@@ -588,7 +591,7 @@ const char *GeneratePixelShaderCode(DSTALPHA_MODE dstAlphaMode, API_TYPE ApiType
 			"  float2 wrappedcoord, tempcoord;\n"
 			"  float4 cc0, cc1, cc2, cprev,crastemp,ckonsttemp;\n\n");
 	
-	if(g_ActiveConfig.bEnablePixelLigting)
+	if(g_ActiveConfig.bEnablePixelLigting && C_PLIGHTS + 40 <= maxUniforms && C_PMATERIALS + 4 <= maxUniforms)
 	{
 		if (xfregs.numTexGens < 7) 
 		{
@@ -748,7 +751,7 @@ const char *GeneratePixelShaderCode(DSTALPHA_MODE dstAlphaMode, API_TYPE ApiType
 		{
 			int texcoord = bpmem.tevindref.getTexCoord(i);
 
-			if (texcoord < numTexgen)
+			if (texcoord < numTexgen && C_INDTEXSCALE + 2 <= maxUniforms)
 				WRITE(p, "tempcoord = uv%d.xy * "I_INDTEXSCALE"[%d].%s;\n", texcoord, i/2, (i&1)?"zw":"xy");
 			else
 				WRITE(p, "tempcoord = float2(0.0f, 0.0f);\n");
@@ -770,7 +773,7 @@ const char *GeneratePixelShaderCode(DSTALPHA_MODE dstAlphaMode, API_TYPE ApiType
 	}
 
 	for (int i = 0; i < numStages; i++)
-		WriteStage(p, i, ApiType); //build the equation for this stage
+		WriteStage(p, i, ApiType,maxUniforms); //build the equation for this stage
 
 	if(numStages)
 	{
@@ -816,7 +819,7 @@ const char *GeneratePixelShaderCode(DSTALPHA_MODE dstAlphaMode, API_TYPE ApiType
 		if (DepthTextureEnable)
 		{
 			// use the texture input of the last texture stage (textemp), hopefully this has been read and is in correct format...
-			if (bpmem.ztex2.op != ZTEXTURE_DISABLE && !bpmem.zcontrol.zcomploc)
+			if (bpmem.ztex2.op != ZTEXTURE_DISABLE && !bpmem.zcontrol.zcomploc && bpmem.zmode.testenable && bpmem.zmode.updateenable)
 			{
 				if (bpmem.ztex2.op == ZTEXTURE_ADD)
 					WRITE(p, "zCoord = dot("I_ZBIAS"[0].xyzw, textemp.xyzw) + "I_ZBIAS"[1].w + zCoord;\n");
@@ -826,7 +829,7 @@ const char *GeneratePixelShaderCode(DSTALPHA_MODE dstAlphaMode, API_TYPE ApiType
 				// scale to make result from frac correct
 				WRITE(p, "zCoord = zCoord * (16777215.0f/16777216.0f);\n");
 				WRITE(p, "zCoord = frac(zCoord);\n");
-				WRITE(p, "zCoord = zCoord * (16777216.0f/16777215.0f);\n");			
+				WRITE(p, "zCoord = zCoord * (16777216.0f/16777215.0f);\n");
 			}
 			WRITE(p, "depth = zCoord;\n");
 		}
@@ -835,7 +838,8 @@ const char *GeneratePixelShaderCode(DSTALPHA_MODE dstAlphaMode, API_TYPE ApiType
 			WRITE(p, "  ocol0 = float4(prev.rgb, "I_ALPHA"[0].a);\n");
 		else
 		{
-			WriteFog(p);
+			if(C_FOG + 2 <= maxUniforms)
+				WriteFog(p);
 			WRITE(p, "  ocol0 = prev;\n");
 		}
 
@@ -903,7 +907,7 @@ static const char *TEVCMPAlphaOPTable[16] =
 };
 
 
-static void WriteStage(char *&p, int n, API_TYPE ApiType)
+static void WriteStage(char *&p, int n, API_TYPE ApiType,int maxUniforms)
 {
 	char *rasswap = swapModeTable[bpmem.combiners[n].alphaC.rswap];
 	char *texswap = swapModeTable[bpmem.combiners[n].alphaC.tswap];
@@ -937,18 +941,18 @@ static void WriteStage(char *&p, int n, API_TYPE ApiType)
 		// multiply by offset matrix and scale
 		if (bpmem.tevind[n].mid != 0)
 		{
-			if (bpmem.tevind[n].mid <= 3)
+			if (bpmem.tevind[n].mid <= 3 && C_INDTEXMTX + 6 <= maxUniforms)
 			{
 				int mtxidx = 2*(bpmem.tevind[n].mid-1);
 				WRITE(p, "float2 indtevtrans%d = float2(dot("I_INDTEXMTX"[%d].xyz, indtevcrd%d), dot("I_INDTEXMTX"[%d].xyz, indtevcrd%d));\n",
 					n, mtxidx, n, mtxidx+1, n);
 			}
-			else if (bpmem.tevind[n].mid <= 7 && bHasTexCoord)
+			else if (bpmem.tevind[n].mid <= 7 && bHasTexCoord && C_INDTEXMTX + 6 <= maxUniforms)
 			{ // s matrix
 				int mtxidx = 2*(bpmem.tevind[n].mid-5);
 				WRITE(p, "float2 indtevtrans%d = "I_INDTEXMTX"[%d].ww * uv%d.xy * indtevcrd%d.xx;\n", n, mtxidx, texcoord, n);
 			}
-			else if (bpmem.tevind[n].mid <= 11 && bHasTexCoord)
+			else if (bpmem.tevind[n].mid <= 11 && bHasTexCoord && C_INDTEXMTX + 6 <= maxUniforms)
 			{ // t matrix
 				int mtxidx = 2*(bpmem.tevind[n].mid-9);
 				WRITE(p, "float2 indtevtrans%d = "I_INDTEXMTX"[%d].ww * uv%d.xy * indtevcrd%d.yy;\n", n, mtxidx, texcoord, n);

@@ -21,18 +21,12 @@
 #include "Common.h"
 #include "Timer.h"
 
-#ifndef __APPLE__
-#include "clrun.h"
-#endif
-
 namespace OpenCL
 {
 
-#if defined(HAVE_OPENCL) && HAVE_OPENCL
 cl_device_id device_id = NULL;
 cl_context g_context = NULL;
 cl_command_queue g_cmdq = NULL;
-#endif
 
 bool g_bInitialized = false;
 
@@ -41,7 +35,6 @@ bool Initialize()
 	if(g_bInitialized)
 		return true;
 
-#if defined(HAVE_OPENCL) && HAVE_OPENCL
 	if(g_context)
 		return false;
 	int err;			// error code returned from api calls
@@ -127,12 +120,8 @@ bool Initialize()
 
 	g_bInitialized = true;
 	return true;
-#else
-	return false;
-#endif
 }
 
-#if defined(HAVE_OPENCL) && HAVE_OPENCL
 cl_context GetContext()
 {
 	return g_context;
@@ -150,23 +139,38 @@ cl_program CompileProgram(const char *Kernel)
 	cl_program program;
 	program = clCreateProgramWithSource(OpenCL::g_context, 1,
 		(const char **) & Kernel, NULL, &err);
+
 	if (!program)
 	{
 		HandleCLError(err, "Error: Failed to create compute program!");
-		return NULL;
 	}
 
 	// Build the program executable
 	err = clBuildProgram(program , 0, NULL, NULL, NULL, NULL);
 	if(err != CL_SUCCESS) {
-		char *errors[16384] = {0};
-		err = clGetProgramBuildInfo(program, OpenCL::device_id,
-			CL_PROGRAM_BUILD_LOG, sizeof(*errors), errors, NULL);
-		ERROR_LOG(COMMON, "Error log:\n%s\n", *errors);
+        HandleCLError(err, "Error: failed to build program");
+
+		char *buildlog = NULL;
+        size_t buildlog_size = 0;
+
+		clGetProgramBuildInfo(program, OpenCL::device_id, CL_PROGRAM_BUILD_LOG, 0, NULL, &buildlog_size);
+        buildlog = new char[buildlog_size + 1];
+        err = clGetProgramBuildInfo(program, OpenCL::device_id, CL_PROGRAM_BUILD_LOG, buildlog_size, buildlog, NULL);
+        buildlog[buildlog_size] = 0;
+        
+        if(err != CL_SUCCESS)
+        {
+            HandleCLError(err, "Error: can't get build log");
+        } else
+        {
+		    ERROR_LOG(COMMON, "Error log:\n%s\n", buildlog);
+        }
+
+        delete[] buildlog;
 		return NULL;
 	}
 
-	NOTICE_LOG(COMMON, "OpenCL CompileProgram took %.3f seconds",
+	INFO_LOG(COMMON, "OpenCL CompileProgram took %.3f seconds",
 		(float)(Common::Timer::GetTimeMs() - compileStart) / 1000.0);
 	return program;
 }
@@ -185,15 +189,13 @@ cl_kernel CompileKernel(cl_program program, const char *Function)
 		HandleCLError(err, buffer);
 		return NULL;
 	}
-	NOTICE_LOG(COMMON, "OpenCL CompileKernel took %.3f seconds",
+	INFO_LOG(COMMON, "OpenCL CompileKernel took %.3f seconds",
 		(float)(Common::Timer::GetTimeMs() - compileStart) / 1000.0);
 	return kernel;
 }
-#endif
 
 void Destroy()
 {
-#if defined(HAVE_OPENCL) && HAVE_OPENCL
 	if (g_cmdq)
 	{
 		clReleaseCommandQueue(g_cmdq);
@@ -205,13 +207,10 @@ void Destroy()
 		g_context = NULL;
 	}		
 	g_bInitialized = false;
-#endif
 }
 
 void HandleCLError(cl_int error, const char* str)
 {
-#if defined(HAVE_OPENCL) && HAVE_OPENCL
-
 	const char* name;
 	switch(error)
 	{
@@ -269,6 +268,5 @@ void HandleCLError(cl_int error, const char* str)
 	if(!str)
 		str = "";
 	ERROR_LOG(COMMON, "OpenCL error: %s %s (%d)", str, name, error);
-#endif
 	}
 }

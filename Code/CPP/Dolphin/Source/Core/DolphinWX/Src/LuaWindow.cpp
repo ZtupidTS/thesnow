@@ -1,4 +1,4 @@
-// Copyright (C) 2003 Dolphin Project.
+ï»¿// Copyright (C) 2003 Dolphin Project.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -50,7 +50,7 @@ void LuaPrint(int uid, const char *msg)
 void LuaStop(int uid, bool ok)
 {
 	if(ok)
-		g_contextMap[uid]->PrintMessage(_T("½Å±¾³É¹¦Íê³É!\n"));
+		g_contextMap[uid]->PrintMessage(_("è„šæœ¬æˆåŠŸå®Œæˆ!\n"));
 	//else // disabled because this message makes no sense in certain contexts, and there's always an earlier error message anyway.
 	//	g_contextMap[uid]->PrintMessage("Script failed.\n");
 
@@ -58,7 +58,7 @@ void LuaStop(int uid, bool ok)
 }
 
 wxLuaWindow::wxLuaWindow(wxFrame* parent, const wxPoint& pos, const wxSize& size) :
-	wxFrame(parent, wxID_ANY, _T("Lua ½Å±¾¿ØÖÆÌ¨"), pos, size, wxDEFAULT_FRAME_STYLE | wxNO_FULL_REPAINT_ON_RESIZE)
+	wxFrame(parent, wxID_ANY, _("Lua è„šæœ¬æŽ§åˆ¶å°"), pos, size, wxDEFAULT_FRAME_STYLE | wxNO_FULL_REPAINT_ON_RESIZE)
 {
 	LuaWindow_InitFirstTime();
 
@@ -112,11 +112,11 @@ void wxLuaWindow::InitGUIControls()
 	m_Tab_Log->Layout();
 
 	// Button Strip
-	m_Button_Close = new wxButton(this, ID_BUTTON_CLOSE, _T("¹Ø±Õ"), wxDefaultPosition, wxDefaultSize);
-	m_Button_LoadScript = new wxButton(this, ID_BUTTON_LOAD, _T("ÔØÈë½Å±¾..."), wxDefaultPosition, wxDefaultSize);
-	m_Button_Run = new wxButton(this, ID_BUTTON_RUN, _T("ÔËÐÐ"), wxDefaultPosition, wxDefaultSize);
-	m_Button_Stop = new wxButton(this, ID_BUTTON_STOP, _T("Í£Ö¹"), wxDefaultPosition, wxDefaultSize);
-	m_Button_Clear = new wxButton(this, ID_BUTTON_CLEAR, _T("Çå³ý"), wxDefaultPosition, wxDefaultSize);
+	m_Button_Close = new wxButton(this, ID_BUTTON_CLOSE, _("å…³é—­"), wxDefaultPosition, wxDefaultSize);
+	m_Button_LoadScript = new wxButton(this, ID_BUTTON_LOAD, _("è½½å…¥è„šæœ¬..."), wxDefaultPosition, wxDefaultSize);
+	m_Button_Run = new wxButton(this, ID_BUTTON_RUN, _("è¿è¡Œ"), wxDefaultPosition, wxDefaultSize);
+	m_Button_Stop = new wxButton(this, ID_BUTTON_STOP, _("åœæ­¢"), wxDefaultPosition, wxDefaultSize);
+	m_Button_Clear = new wxButton(this, ID_BUTTON_CLEAR, _("æ¸…é™¤"), wxDefaultPosition, wxDefaultSize);
 	wxBoxSizer* sButtons = new wxBoxSizer(wxHORIZONTAL);
 
 	m_Button_Run->Disable();
@@ -140,11 +140,11 @@ void wxLuaWindow::InitGUIControls()
 void wxLuaWindow::OnEvent_ScriptLoad_Press(wxCommandEvent&  WXUNUSED(event)) 
 {
 	wxString path = wxFileSelector(
-		_T("Select the script to load"),
+		_("é€‰æ‹©è¦è½½å…¥çš„è„šæœ¬"),
 		wxEmptyString, wxEmptyString, wxEmptyString,
 		wxString::Format
 		(
-		_T("Lua ½Å±¾ (lua)|*.lua|ËùÓÐÎÄ¼þ (%s)|%s"),
+		_T("Lua è„šæœ¬ (lua)|*.lua|æ‰€æœ‰æ–‡ä»¶ (%s)|%s"),
 		wxFileSelectorDefaultWildcardStr,
 		wxFileSelectorDefaultWildcardStr
 		),
@@ -165,7 +165,7 @@ void wxLuaWindow::OnEvent_ScriptLoad_Press(wxCommandEvent&  WXUNUSED(event))
 
 void wxLuaWindow::OnEvent_ScriptRun_Press(wxCommandEvent&  WXUNUSED(event)) 
 {
-	m_TextCtrl_Log->AppendText(wxT("ÔËÐÐ½Å±¾...\n"));
+	m_TextCtrl_Log->AppendText(_("è¿è¡Œè„šæœ¬...\n"));
 	bScriptRunning = true;
 	m_Button_LoadScript->Disable();
 	m_Button_Run->Disable();

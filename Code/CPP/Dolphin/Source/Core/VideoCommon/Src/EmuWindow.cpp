@@ -18,10 +18,10 @@
 #include <windows.h>
 
 #include "VideoConfig.h"
-#include "main.h"
 #include "EmuWindow.h"
-#include "D3DBase.h"
 #include "Fifo.h"
+#include "VertexShaderManager.h"
+#include "RenderBase.h"
 
 
 int OSDChoice = 0 , OSDTime = 0, OSDInternalW = 0, OSDInternalH = 0;
@@ -70,8 +70,86 @@ void OnKeyDown(WPARAM wParam)
 }
 // ---------------------------------------------------------------------
 
+void FreeLookInput( UINT iMsg, WPARAM wParam )
+{
+	static float debugSpeed = 1.0f;
+	static bool mouseLookEnabled = false;
+	static bool mouseMoveEnabled = false;
+	static float lastMouse[2];
+	POINT point;	
+	switch(iMsg)
+	{
+	case WM_USER_KEYDOWN:
+	case WM_KEYDOWN:
+		switch (LOWORD(wParam))
+		{
+		case '9':
+			debugSpeed /= 2.0f;
+			break;
+		case '0':
+			debugSpeed *= 2.0f;
+			break;
+		case 'W':
+			VertexShaderManager::TranslateView(0.0f, debugSpeed);
+			break;
+		case 'S':
+			VertexShaderManager::TranslateView(0.0f, -debugSpeed);
+			break;
+		case 'A':
+			VertexShaderManager::TranslateView(debugSpeed, 0.0f);
+			break;
+		case 'D':
+			VertexShaderManager::TranslateView(-debugSpeed, 0.0f);
+			break;
+		case 'R':
+			VertexShaderManager::ResetView();
+			break;
+		}
+		break;
+
+	case WM_MOUSEMOVE:
+		if (mouseLookEnabled) {
+			GetCursorPos(&point);
+			VertexShaderManager::RotateView((point.x - lastMouse[0]) / 200.0f, (point.y - lastMouse[1]) / 200.0f);
+			lastMouse[0] = point.x;
+			lastMouse[1] = point.y;
+		}
+
+		if (mouseMoveEnabled) {
+			GetCursorPos(&point);
+			VertexShaderManager::TranslateView((point.x - lastMouse[0]) / 50.0f, (point.y - lastMouse[1]) / 50.0f);
+			lastMouse[0] = point.x;
+			lastMouse[1] = point.y;
+		}
+		break;
+
+	case WM_RBUTTONDOWN:
+		GetCursorPos(&point);
+		lastMouse[0] = point.x;
+		lastMouse[1] = point.y;
+		mouseLookEnabled= true;
+		break;
+	case WM_MBUTTONDOWN:		
+		GetCursorPos(&point);
+		lastMouse[0] = point.x;
+		lastMouse[1] = point.y;
+		mouseMoveEnabled= true;
+		break;
+	case WM_RBUTTONUP:
+		mouseLookEnabled = false;
+		break;
+	case WM_MBUTTONUP:
+		mouseMoveEnabled = false;
+		break;
+	}
+}
+
+
 LRESULT CALLBACK WndProc( HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam )
 {
+	if (g_ActiveConfig.bFreeLook)
+		FreeLookInput( iMsg, wParam );
+
 	switch( iMsg )
 	{
 	case WM_PAINT:
@@ -94,7 +172,7 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam )
 	/* Post the mouse events to the main window, it's nessesary because in difference to the
 	   keyboard inputs these events only appear here, not in the parent window or any other WndProc()*/
 	case WM_LBUTTONDOWN:
-		if(g_Config.b3DVision)
+		if(g_ActiveConfig.backend_info.bSupports3DVision && g_ActiveConfig.b3DVision)
 		{
 			// This basically throws away the left button down input when b3DVision is activated so WX 
 			// can't get access to it, stopping focus pulling on mouse click. 
@@ -106,20 +184,30 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam )
 		PostMessage(GetParentWnd(), iMsg, wParam, lParam);
 		break;
 
+	// This is called when we close the window when we render to a separate window
 	case WM_CLOSE:
 		// When the user closes the window, we post an event to the main window to call Stop()
 		// Which then handles all the necessary steps to Shutdown the core + the plugins
 		if (m_hParent == NULL)
+		{
+			// Stop the game
 			PostMessage(m_hParent, WM_USER, WM_USER_STOP, 0);
+		}
 		break;
 
 	case WM_USER:
 		if (wParam == WM_USER_KEYDOWN)
+		{
 			OnKeyDown(lParam);
+			FreeLookInput(wParam, lParam);
+		}
 		else if (wParam == WIIMOTE_DISCONNECT)
+		{
 			PostMessage(m_hParent, WM_USER, wParam, lParam);
+		}
 		break;
 
+	// Called when a screensaver wants to show up while this window is active
 	case WM_SYSCOMMAND:
 		switch (wParam) 
 		{
@@ -133,6 +221,9 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam )
 	case WM_SETCURSOR:
 		PostMessage(m_hParent, WM_USER, WM_USER_SETCURSOR, 0);
 		return true;
+
+	case WM_DESTROY:
+		Shutdown();
 		break;
 	default:
 		return DefWindowProc(hWnd, iMsg, wParam, lParam);
@@ -163,14 +254,19 @@ void OSDMenu(WPARAM wParam)
 	case '5':
 		OSDChoice = 3;
 		// Toggle EFB copy
-		if (!g_Config.bEFBCopyEnable || g_Config.bCopyEFBToTexture)
+		if (!g_Config.bEFBCopyEnable)
 		{
-			g_Config.bEFBCopyEnable ^= true;
+			g_Config.bEFBCopyEnable = true;
 			g_Config.bCopyEFBToTexture = false;
+		}
+		else if (!g_Config.bCopyEFBToTexture)
+		{
+			g_Config.bCopyEFBToTexture = true;
 		}
 		else
 		{
-			g_Config.bCopyEFBToTexture = !g_Config.bCopyEFBToTexture;
+			g_Config.bEFBCopyEnable = false;
+			g_Config.bCopyEFBToTexture = false;
 		}
 		break;
 	case '6':
@@ -178,6 +274,7 @@ void OSDMenu(WPARAM wParam)
 		g_Config.bDisableFog = !g_Config.bDisableFog;
 		break;
 	case '7':
+		// TODO: Not implemented in the D3D backends, yet
 		OSDChoice = 5;
 		g_Config.bDisableLighting = !g_Config.bDisableLighting;
 		break;
@@ -204,7 +301,7 @@ HWND OpenWindow(HWND parent, HINSTANCE hInstance, int width, int height, const T
 
 	m_hParent = parent;
 
-	m_hWnd = CreateWindow(m_szClassName, title, g_ActiveConfig.b3DVision ? WS_EX_TOPMOST | WS_POPUP : WS_CHILD,
+	m_hWnd = CreateWindow(m_szClassName, title, (g_ActiveConfig.backend_info.bSupports3DVision && g_ActiveConfig.b3DVision) ? WS_EX_TOPMOST | WS_POPUP : WS_CHILD,
 		0, 0, width, height, m_hParent, NULL, hInstance, NULL);
 
 	return m_hWnd;
@@ -226,8 +323,9 @@ HWND Create(HWND hParent, HINSTANCE hInstance, const TCHAR *title)
 	// 3. Request window sizes which actually make the client area map to a common resolution
 	HWND Ret;
 	int x=0, y=0, width=640, height=480;
-	g_VideoInitialize.pRequestWindowSize(x, y, width, height);
+	g_VideoInitialize.pGetWindowSize(x, y, width, height);
 
+	 // TODO: Don't show if fullscreen
 	Ret = OpenWindow(hParent, hInstance, width, height, title);
 
 	if (Ret)

@@ -123,7 +123,7 @@ void ret(const UDSPInstruction opc)
 // location.
 void rti(const UDSPInstruction opc)
 {
-	g_dsp.r[DSP_REG_SR] = dsp_reg_load_stack(DSP_STACK_D);
+	g_dsp.r.sr = dsp_reg_load_stack(DSP_STACK_D);
 	g_dsp.pc = dsp_reg_load_stack(DSP_STACK_C);
 
 }
@@ -142,14 +142,14 @@ void halt(const UDSPInstruction opc)
 // instructions. Whenever there is value on stack $st2 and current PC is equal
 // value at $st2, then value at stack $st3 is decremented. If value is not zero
 // then PC is modified with value from call stack $st0. Otherwise values from
-// call stack $st0 and both loop stacks $st2 and $st3 are poped and execution
+// call stack $st0 and both loop stacks $st2 and $st3 are popped and execution
 // continues at next opcode.
 void HandleLoop()
 {
 	// Handle looping hardware. 
-	const u16 rCallAddress = g_dsp.r[DSP_REG_ST0];
-	const u16 rLoopAddress = g_dsp.r[DSP_REG_ST2];
-	u16& rLoopCounter = g_dsp.r[DSP_REG_ST3];
+	const u16 rCallAddress = g_dsp.r.st[0];
+	const u16 rLoopAddress = g_dsp.r.st[2];
+	u16& rLoopCounter = g_dsp.r.st[3];
 
 	if (rLoopAddress > 0 && rLoopCounter > 0)
 	{
@@ -184,7 +184,7 @@ void HandleLoop()
 void loop(const UDSPInstruction opc)
 {
 	u16 reg = opc & 0x1f;
-	u16 cnt = g_dsp.r[reg];
+	u16 cnt = dsp_op_read_reg(reg);
 	u16 loop_pc = g_dsp.pc;
 
 	if (cnt)
@@ -225,11 +225,11 @@ void loopi(const UDSPInstruction opc)
 // specified address addrA inclusive, ie. opcode at addrA is the last opcode
 // included in loop. Counter is pushed on loop stack $st3, end of block address
 // is pushed on loop stack $st2 and repeat address is pushed on call stack $st0.
-// Up to 4 nested loops is allowed.
+// Up to 4 nested loops are allowed.
 void bloop(const UDSPInstruction opc)
 {
 	u16 reg = opc & 0x1f;
-	u16 cnt = g_dsp.r[reg];
+	u16 cnt = dsp_op_read_reg(reg);
 	u16 loop_pc = dsp_fetch_code();
 
 	if (cnt)
@@ -253,7 +253,7 @@ void bloop(const UDSPInstruction opc)
 // address addrA inclusive, ie. opcode at addrA is the last opcode included in
 // loop. Counter is pushed on loop stack $st3, end of block address is pushed
 // on loop stack $st2 and repeat address is pushed on call stack $st0. Up to 4
-// nested loops is allowed.
+// nested loops are allowed.
 void bloopi(const UDSPInstruction opc)
 {
 	u16 cnt = opc & 0xff;

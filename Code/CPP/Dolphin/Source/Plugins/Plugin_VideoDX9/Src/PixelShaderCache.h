@@ -62,8 +62,10 @@ public:
 	static bool InsertByteCode(const PIXELSHADERUID &uid, const u8 *bytecode, int bytecodelen, bool activate);
 	static LPDIRECT3DPIXELSHADER9 GetColorMatrixProgram(int SSAAMode);
 	static LPDIRECT3DPIXELSHADER9 GetColorCopyProgram(int SSAAMode);
-	static LPDIRECT3DPIXELSHADER9 GetDepthMatrixProgram(int SSAAMode);
+	static LPDIRECT3DPIXELSHADER9 GetDepthMatrixProgram(int SSAAMode, bool depthConversion);
 	static LPDIRECT3DPIXELSHADER9 GetClearProgram();	
+	static LPDIRECT3DPIXELSHADER9 ReinterpRGBA6ToRGB8();
+	static LPDIRECT3DPIXELSHADER9 ReinterpRGB8ToRGBA6();
 };
 
 

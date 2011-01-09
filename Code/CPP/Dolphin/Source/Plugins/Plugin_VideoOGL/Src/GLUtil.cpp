@@ -21,11 +21,12 @@
 #include "Setup.h"
 
 #include "Render.h"
+#include "VertexShaderManager.h"
 
 #include "GLUtil.h"
 
 #if defined(_WIN32)
-#include "OS/Win32.h"
+#include "EmuWindow.h"
 static HDC hDC = NULL;       // Private GDI Device Context
 static HGLRC hRC = NULL;     // Permanent Rendering Context
 extern HINSTANCE g_hInstance;
@@ -143,18 +144,23 @@ void DestroyXWindow(void)
 	XUnmapWindow(GLWin.dpy, GLWin.win);
 	GLWin.win = 0;
 	if (GLWin.xEventThread)
-		GLWin.xEventThread->WaitForDeath();
+		delete GLWin.xEventThread;
 	GLWin.xEventThread = NULL;
 	XFreeColormap(GLWin.evdpy, GLWin.attr.colormap);
 }
 
 THREAD_RETURN XEventThread(void *pArg)
 {
+	// Free look variables
+	static bool mouseLookEnabled = false;
+	static bool mouseMoveEnabled = false;
+	static float lastMouse[2];
 	while (GLWin.win)
 	{
 		XEvent event;
 		KeySym key;
-		for (int num_events = XPending(GLWin.evdpy); num_events > 0; num_events--) {
+		for (int num_events = XPending(GLWin.evdpy); num_events > 0; num_events--)
+		{
 			XNextEvent(GLWin.evdpy, &event);
 			switch(event.type) {
 				case KeyPress:
@@ -196,6 +202,86 @@ THREAD_RETURN XEventThread(void *pArg)
 						default:
 							break;
 					}
+					if (g_Config.bFreeLook)
+					{
+						static float debugSpeed = 1.0f;
+						switch (key)
+						{
+							case XK_parenleft:
+								debugSpeed /= 2.0f;
+								break;
+							case XK_parenright:
+								debugSpeed *= 2.0f;
+								break;
+							case XK_w:
+								VertexShaderManager::TranslateView(0.0f, debugSpeed);
+								break;
+							case XK_s:
+								VertexShaderManager::TranslateView(0.0f, -debugSpeed);
+								break;
+							case XK_a:
+								VertexShaderManager::TranslateView(debugSpeed, 0.0f);
+								break;
+							case XK_d:
+								VertexShaderManager::TranslateView(-debugSpeed, 0.0f);
+								break;
+							case XK_r:
+								VertexShaderManager::ResetView();
+								break;
+						}
+					}
+					break;
+				case ButtonPress:
+					if (g_Config.bFreeLook)
+					{
+						switch (event.xbutton.button)
+						{
+							case 2: // Middle button
+								lastMouse[0] = event.xbutton.x;
+								lastMouse[1] = event.xbutton.y;
+								mouseMoveEnabled = true;
+								break;
+							case 3: // Right button
+								lastMouse[0] = event.xbutton.x;
+								lastMouse[1] = event.xbutton.y;
+								mouseLookEnabled = true;
+								break;
+						}
+					}
+					break;
+				case ButtonRelease:
+					if (g_Config.bFreeLook)
+					{
+						switch (event.xbutton.button)
+						{
+							case 2: // Middle button
+								mouseMoveEnabled = false;
+								break;
+							case 3: // Right button
+								mouseLookEnabled = false;
+								break;
+						}
+					}
+					break;
+				case MotionNotify:
+					if (g_Config.bFreeLook)
+					{
+						if (mouseLookEnabled)
+						{
+							VertexShaderManager::RotateView((event.xmotion.x - lastMouse[0]) / 200.0f,
+									(event.xmotion.y - lastMouse[1]) / 200.0f);
+							lastMouse[0] = event.xmotion.x;
+							lastMouse[1] = event.xmotion.y;
+						}
+
+						if (mouseMoveEnabled)
+						{
+							VertexShaderManager::TranslateView((event.xmotion.x - lastMouse[0]) / 50.0f,
+									(event.xmotion.y - lastMouse[1]) / 50.0f);
+							lastMouse[0] = event.xmotion.x;
+							lastMouse[1] = event.xmotion.y;
+						}
+					}
 					break;
 				case ConfigureNotify:
 					Window winDummy;
@@ -227,7 +313,7 @@ THREAD_RETURN XEventThread(void *pArg)
 bool OpenGL_Create(SVideoInitialize &_VideoInitialize, int _iwidth, int _iheight)
 {
 	int _tx, _ty, _twidth,  _theight;
-	g_VideoInitialize.pRequestWindowSize(_tx, _ty, _twidth, _theight);
+	g_VideoInitialize.pGetWindowSize(_tx, _ty, _twidth, _theight);
 
 	// Control window size and picture scaling
 	s_backbuffer_width = _twidth;
@@ -402,7 +488,7 @@ bool OpenGL_MakeCurrent()
 	return wglMakeCurrent(hDC,hRC) ? true : false;
 #elif defined(HAVE_X11) && HAVE_X11
 #if defined(HAVE_WX) && (HAVE_WX)
-	g_VideoInitialize.pRequestWindowSize(GLWin.x, GLWin.y, (int&)GLWin.width, (int&)GLWin.height);
+	g_VideoInitialize.pGetWindowSize(GLWin.x, GLWin.y, (int&)GLWin.width, (int&)GLWin.height);
 	XMoveResizeWindow(GLWin.dpy, GLWin.win, GLWin.x, GLWin.y, GLWin.width, GLWin.height);
 #endif
 	return glXMakeCurrent(GLWin.dpy, GLWin.win, GLWin.ctx);

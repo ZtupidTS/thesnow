@@ -119,7 +119,7 @@ void CMixer::PushSamples(short *samples, unsigned int num_samples)
 	if (m_throttle)
 	{
 		// The auto throttle function. This loop will put a ceiling on the CPU MHz.
-		while (Common::AtomicLoad(m_numSamples) + RESERVED_SAMPLES >= MAX_SAMPLES)
+		while (num_samples + Common::AtomicLoad(m_numSamples) > MAX_SAMPLES)
 		{
 			if (g_dspInitialize.pEmulatorState)
 			{
@@ -127,9 +127,9 @@ void CMixer::PushSamples(short *samples, unsigned int num_samples)
 					break;
 			}
 			// Shortcut key for Throttle Skipping
-			#ifdef _WIN32
+#ifdef _WIN32
 			if (GetAsyncKeyState(VK_TAB)) break;;
-			#endif
+#endif
 			SLEEP(1);
 			soundStream->Update();
 		}
@@ -158,7 +158,7 @@ void CMixer::PushSamples(short *samples, unsigned int num_samples)
 	if (m_sampleRate == 32000)
 		Common::AtomicAdd(m_numSamples, num_samples);
 	else if (m_sampleRate == 48000)
-		Common::AtomicAdd(m_numSamples, num_samples * 1.5);
+		Common::AtomicAdd(m_numSamples, num_samples * 3 / 2);
 	else
 		PanicAlert("Mixer: Unsupported sample rate.");
 

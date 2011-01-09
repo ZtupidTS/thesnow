@@ -94,8 +94,8 @@ public:
 	static int EFBToScaledY(int y) { return y * GetTargetHeight() / EFB_HEIGHT; }
 
 	// Floating point versions of the above - only use them if really necessary
-	static float EFBToScaledXf(float x) { return x * (float)GetTargetWidth() / (float)EFB_WIDTH; }
-	static float EFBToScaledYf(float y) { return y * (float)GetTargetHeight() / (float)EFB_HEIGHT; }
+	static float EFBToScaledXf(float x) { return x * ((float)GetTargetWidth() / (float)EFB_WIDTH); }
+	static float EFBToScaledYf(float y) { return y * ((float)GetTargetHeight() / (float)EFB_HEIGHT); }
 
 	// Returns the offset at which the EFB will be drawn onto the backbuffer
 	// NOTE: Never calculate this manually (e.g. to "increase accuracy"), since you might end up getting off-by-one errors.
@@ -110,7 +110,8 @@ public:
 	virtual void RenderText(const char* pstr, int left, int top, u32 color) = 0;
 
 	virtual void ClearScreen(const EFBRectangle& rc, bool colorEnable, bool alphaEnable, bool zEnable, u32 color, u32 z) = 0;
-	static void RenderToXFB(u32 xfbAddr, u32 fbWidth, u32 fbHeight, const EFBRectangle& sourceRc);
+	virtual void ReinterpretPixelData(unsigned int convtype) = 0;
+	static void RenderToXFB(u32 xfbAddr, u32 fbWidth, u32 fbHeight, const EFBRectangle& sourceRc,float Gamma = 1.0f);
 
 	virtual u32 AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data) = 0;
 
@@ -119,17 +120,21 @@ public:
 	virtual void RestoreAPIState() = 0;
 
 	// Finish up the current frame, print some stats
-	virtual void Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight, const EFBRectangle& rc) = 0;
+	virtual void Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight, const EFBRectangle& rc,float Gamma = 1.0f) = 0;
 
 	virtual void UpdateViewport() = 0;
 
 	virtual bool SaveScreenshot(const std::string &filename, const TargetRectangle &rc) = 0;
+
+	static unsigned int GetPrevPixelFormat() { return prev_efb_format; }
+	static void StorePixelFormat(unsigned int new_format) { prev_efb_format = new_format; }
 
 protected:
 
 	static Common::CriticalSection s_criticalScreenshot;
 	static std::string s_sScreenshotName;
 
+	static void CalculateTargetScale(int x, int y, int &scaledX, int &scaledY);
 	static bool CalculateTargetSize(int multiplier = 1);
 	static void CalculateXYScale(const TargetRectangle& dst_rect);
 
@@ -159,6 +164,9 @@ protected:
 
 	static bool s_skipSwap;
 	static bool XFBWrited;
+
+private:
+	static unsigned int prev_efb_format;
 };
 
 extern Renderer *g_renderer;

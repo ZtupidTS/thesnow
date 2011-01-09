@@ -29,107 +29,94 @@
 #undef CHECK
 #define CHECK(hr, Message, ...) if (FAILED(hr)) { PanicAlert(__FUNCTION__ "Failed in %s at line %d: " Message, __FILE__, __LINE__, __VA_ARGS__); }
 
+inline void GetSurface(IDirect3DTexture9* texture, IDirect3DSurface9** surface)
+{
+	if (!texture) return;
+	texture->GetSurfaceLevel(0, surface);
+}
+
 FramebufferManager::Efb FramebufferManager::s_efb;
 
 FramebufferManager::FramebufferManager()
 {
-    s_efb.color_texture = NULL;
-    s_efb.colorRead_texture = NULL;
-    s_efb.depth_texture = NULL;
-    s_efb.depthRead_texture = NULL;
-
-    s_efb.depth_surface = NULL;
-    s_efb.color_surface = NULL;
-    s_efb.color_ReadBuffer = NULL;
-    s_efb.depth_ReadBuffer = NULL;
-    s_efb.color_OffScreenReadBuffer = NULL;
-    s_efb.depth_OffScreenReadBuffer = NULL;
-
-    s_efb.color_surface_Format = D3DFMT_FORCE_DWORD;
-    s_efb.depth_surface_Format = D3DFMT_FORCE_DWORD;
-    s_efb.depth_ReadBuffer_Format = D3DFMT_FORCE_DWORD;
-
-	// Simplest possible setup to start with.
+	bool depth_textures_supported = true;
 	int target_width = Renderer::GetFullTargetWidth();
 	int target_height = Renderer::GetFullTargetHeight();
-
 	s_efb.color_surface_Format = D3DFMT_A8R8G8B8;
-	// Get the framebuffer texture
+
+	// EFB color texture - primary render target
 	HRESULT hr = D3D::dev->CreateTexture(target_width, target_height, 1, D3DUSAGE_RENDERTARGET, s_efb.color_surface_Format, 
-										 D3DPOOL_DEFAULT, &s_efb.color_texture, NULL);
-	if (s_efb.color_texture)
-	{
-		hr = s_efb.color_texture->GetSurfaceLevel(0, &s_efb.color_surface);
-	}
+										D3DPOOL_DEFAULT, &s_efb.color_texture, NULL);
+	GetSurface(s_efb.color_texture, &s_efb.color_surface);
 	CHECK(hr, "Create color texture (size: %dx%d; hr=%#x)", target_width, target_height, hr);
+
+	// Render buffer for AccessEFB (color data)
 	hr = D3D::dev->CreateTexture(1, 1, 1, D3DUSAGE_RENDERTARGET, s_efb.color_surface_Format, 
-										  D3DPOOL_DEFAULT, &s_efb.colorRead_texture, NULL);
+									D3DPOOL_DEFAULT, &s_efb.colorRead_texture, NULL);
+	GetSurface(s_efb.colorRead_texture, &s_efb.color_ReadBuffer);
 	CHECK(hr, "Create Color Read Texture (hr=%#x)", hr);
-	if (s_efb.colorRead_texture)
-	{
-		s_efb.colorRead_texture->GetSurfaceLevel(0, &s_efb.color_ReadBuffer);
-	}
-	// Create an offscreen surface that we can lock to retrieve the data
+
+	// AccessEFB - Sysmem buffer used to retrieve the pixel data from color_ReadBuffer
 	hr = D3D::dev->CreateOffscreenPlainSurface(1, 1, s_efb.color_surface_Format, D3DPOOL_SYSTEMMEM, &s_efb.color_OffScreenReadBuffer, NULL);
 	CHECK(hr, "Create offscreen color surface (hr=%#x)", hr);
 
-	// Select a Z-buffer format with hardware support
-	D3DFORMAT DepthTexFormats[5] = {
-		FOURCC_INTZ,
-		FOURCC_DF24,
-		FOURCC_RAWZ,
-		FOURCC_DF16,
-		D3DFMT_D24X8
-	};
-
-	for (int i = 0; i < 5; ++i)
+	// Select a Z-buffer texture format with hardware support
+	s_efb.depth_surface_Format = D3D::GetSupportedDepthTextureFormat();
+	if (s_efb.depth_surface_Format == D3DFMT_UNKNOWN)
 	{
-		s_efb.depth_surface_Format = DepthTexFormats[i];
-		// Create the framebuffer depth texture
+		// workaround for Intel GPUs etc: only create a depth _surface_
+		depth_textures_supported = false;
+		s_efb.depth_surface_Format = D3D::GetSupportedDepthSurfaceFormat(s_efb.color_surface_Format);
+		ERROR_LOG(VIDEO, "No supported depth texture format found, disabling Z peeks for EFB access.");
+	}
+
+	if (depth_textures_supported)
+	{
+		// EFB depth buffer - primary depth buffer
 		hr = D3D::dev->CreateTexture(target_width, target_height, 1, D3DUSAGE_DEPTHSTENCIL, s_efb.depth_surface_Format, 
 									 D3DPOOL_DEFAULT, &s_efb.depth_texture, NULL);
-		if (!FAILED(hr))
-			break;
-	}
+		GetSurface(s_efb.depth_texture, &s_efb.depth_surface);
+		CHECK(hr, "Framebuffer depth texture (size: %dx%d; hr=%#x)", target_width, target_height, hr);
 
-	CHECK(hr, "Framebuffer depth texture (size: %dx%d; hr=%#x)", target_width, target_height, hr);
-	// Get the Surface
-	if (s_efb.depth_texture)
-	{
-		s_efb.depth_texture->GetSurfaceLevel(0, &s_efb.depth_surface);
-	}
+		// Render buffer for AccessEFB (depth data)
+		D3DFORMAT DepthTexFormats[2];
+		// TODO: why is D3DFMT_D24X8 singled out here? why not D3DFMT_D24X4S4/D24S8/D24FS8/D32/D16/D15S1 too, or none of them?
+		if (s_efb.depth_surface_Format == FOURCC_RAWZ || s_efb.depth_surface_Format == D3DFMT_D24X8)
+			DepthTexFormats[0] = D3DFMT_A8R8G8B8;
+		else
+			DepthTexFormats[0] = D3DFMT_R32F;
 
-	// Create a 4x4 pixel texture to work as a buffer for peeking
-	if (s_efb.depth_surface_Format == FOURCC_RAWZ || s_efb.depth_surface_Format == D3DFMT_D24X8)
-	{
-		DepthTexFormats[0] = D3DFMT_A8R8G8B8;
-	}
-	else
-	{
-		DepthTexFormats[0] = D3DFMT_R32F;
-	}
+		DepthTexFormats[1] = D3DFMT_A8R8G8B8;
 
-	DepthTexFormats[1] = D3DFMT_A8R8G8B8;
-
-	for (int i = 0; i < 2; ++i)
-	{
-		s_efb.depth_ReadBuffer_Format = DepthTexFormats[i];
-		// Get the framebuffer Depth texture
+		for (int i = 0; i < 2; ++i)
+		{
+			if (D3D::CheckTextureSupport(D3DUSAGE_RENDERTARGET, DepthTexFormats[i]))
+			{
+				s_efb.depth_ReadBuffer_Format = DepthTexFormats[i];
+				break;
+			}
+		}
 		hr = D3D::dev->CreateTexture(4, 4, 1, D3DUSAGE_RENDERTARGET, s_efb.depth_ReadBuffer_Format, 
-									  D3DPOOL_DEFAULT, &s_efb.depthRead_texture, NULL);
-		if (!FAILED(hr))
-			break;
+									D3DPOOL_DEFAULT, &s_efb.depthRead_texture, NULL);
+		GetSurface(s_efb.depthRead_texture, &s_efb.depth_ReadBuffer);
+		CHECK(hr, "Create depth read texture (hr=%#x)", hr);
+
+		// AccessEFB - Sysmem buffer used to retrieve the pixel data from depth_ReadBuffer
+		hr = D3D::dev->CreateOffscreenPlainSurface(4, 4, s_efb.depth_ReadBuffer_Format, D3DPOOL_SYSTEMMEM, &s_efb.depth_OffScreenReadBuffer, NULL);
+		CHECK(hr, "Create depth offscreen surface (hr=%#x)", hr);
 	}
-		
-	CHECK(hr, "Create depth read texture (hr=%#x)", hr);
-	if (s_efb.depthRead_texture)
+	else if (s_efb.depth_surface_Format)
 	{
-		s_efb.depthRead_texture->GetSurfaceLevel(0, &s_efb.depth_ReadBuffer);
+		// just create a depth surface
+		hr = D3D::dev->CreateDepthStencilSurface(target_width, target_height, s_efb.depth_surface_Format, D3DMULTISAMPLE_NONE, 0, FALSE, &s_efb.depth_surface, NULL);
+		CHECK(hr, "Framebuffer depth surface (size: %dx%d; hr=%#x)", target_width, target_height, hr);
 	}
 
-	// Create an offscreen surface that we can lock to retrieve the data
-	hr = D3D::dev->CreateOffscreenPlainSurface(4, 4, s_efb.depth_ReadBuffer_Format, D3DPOOL_SYSTEMMEM, &s_efb.depth_OffScreenReadBuffer, NULL);
-	CHECK(hr, "Create depth offscreen surface (hr=%#x)", hr);
+	// ReinterpretPixelData - EFB color data will be copy-converted to this texture and the buffers are swapped then
+	hr = D3D::dev->CreateTexture(target_width, target_height, 1, D3DUSAGE_RENDERTARGET, s_efb.color_surface_Format,
+										D3DPOOL_DEFAULT, &s_efb.color_reinterpret_texture, NULL);
+	GetSurface(s_efb.color_reinterpret_texture, &s_efb.color_reinterpret_surface);
+	CHECK(hr, "Create color reinterpret texture (size: %dx%d; hr=%#x)", target_width, target_height, hr);
 }
 
 FramebufferManager::~FramebufferManager()
@@ -144,6 +131,11 @@ FramebufferManager::~FramebufferManager()
 	SAFE_RELEASE(s_efb.colorRead_texture);
 	SAFE_RELEASE(s_efb.depth_texture);
 	SAFE_RELEASE(s_efb.depthRead_texture);
+	SAFE_RELEASE(s_efb.color_reinterpret_texture);
+	SAFE_RELEASE(s_efb.color_reinterpret_surface);
+	s_efb.color_surface_Format = D3DFMT_UNKNOWN;
+	s_efb.depth_surface_Format = D3DFMT_UNKNOWN;
+	s_efb.depth_ReadBuffer_Format = D3DFMT_UNKNOWN;
 }
 
 XFBSourceBase* FramebufferManager::CreateXFBSource(unsigned int target_width, unsigned int target_height)
@@ -183,7 +175,7 @@ void XFBSource::DecodeToTexture(u32 xfbAddr, u32 fbWidth, u32 fbHeight)
 	TextureConverter::DecodeToTexture(xfbAddr, fbWidth, fbHeight, texture);
 }
 
-void FramebufferManager::CopyToRealXFB(u32 xfbAddr, u32 fbWidth, u32 fbHeight, const EFBRectangle& sourceRc)
+void FramebufferManager::CopyToRealXFB(u32 xfbAddr, u32 fbWidth, u32 fbHeight, const EFBRectangle& sourceRc,float Gamma)
 {
 	u8* xfb_in_ram = Memory_GetPtr(xfbAddr);
 	if (!xfb_in_ram)
@@ -193,10 +185,10 @@ void FramebufferManager::CopyToRealXFB(u32 xfbAddr, u32 fbWidth, u32 fbHeight, c
 	}
 
 	TargetRectangle targetRc = g_renderer->ConvertEFBRectangle(sourceRc);
-	TextureConverter::EncodeToRamYUYV(GetEFBColorTexture(), targetRc, xfb_in_ram, fbWidth, fbHeight);
+	TextureConverter::EncodeToRamYUYV(GetEFBColorTexture(), targetRc, xfb_in_ram, fbWidth, fbHeight,Gamma);
 }
 
-void XFBSource::CopyEFB()
+void XFBSource::CopyEFB(float Gamma)
 {
 	// Copy EFB data to XFB and restore render target again
 	LPDIRECT3DSURFACE9 Rendersurf = NULL;
@@ -230,7 +222,8 @@ void XFBSource::CopyEFB()
 		texWidth, 
 		texHeight, 
 		PixelShaderCache::GetColorCopyProgram( g_ActiveConfig.iMultisampleMode), 
-		VertexShaderCache::GetSimpleVertexShader( g_ActiveConfig.iMultisampleMode));
+		VertexShaderCache::GetSimpleVertexShader( g_ActiveConfig.iMultisampleMode),
+		Gamma);
 
 	D3D::RefreshSamplerState(0, D3DSAMP_MINFILTER);
 	D3D::RefreshSamplerState(0, D3DSAMP_MAGFILTER);

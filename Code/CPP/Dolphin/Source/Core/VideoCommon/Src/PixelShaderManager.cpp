@@ -210,12 +210,12 @@ void PixelShaderManager::SetConstants()
 		}
 		else
 		{
-			SetPSConstant4f(C_FOG + 1, 0.0, 1.0, 1.0, 0);
+			SetPSConstant4f(C_FOG + 1, 0.0, 1.0, 0.0, 1.0);
 		}
         s_bFogParamChanged = false;
     }
 
-	if (nLightsChanged[0] >= 0)
+	if (g_ActiveConfig.bEnablePixelLigting && nLightsChanged[0] >= 0) // config check added because the code in here was crashing for me inside SetPSConstant4f
 	{
 		// lights don't have a 1 to 1 mapping, the color component needs to be converted to 4 floats
 		int istart = nLightsChanged[0] / 0x10;
@@ -395,10 +395,10 @@ void PixelShaderManager::SetFogParamChanged()
     s_bFogParamChanged = true;
 }
 
-void PixelShaderManager::SetColorMatrix(const float* pmatrix, const float* pfConstAdd)
+void PixelShaderManager::SetColorMatrix(const float* pmatrix)
 {
-	SetMultiPSConstant4fv(C_COLORMATRIX,4,pmatrix);
-    SetPSConstant4fv(C_COLORMATRIX+4, pfConstAdd);
+	SetMultiPSConstant4fv(C_COLORMATRIX,7,pmatrix);
+	s_nColorsChanged[0] = s_nColorsChanged[1] = 15;
 }
 
 void PixelShaderManager::InvalidateXFRange(int start, int end)

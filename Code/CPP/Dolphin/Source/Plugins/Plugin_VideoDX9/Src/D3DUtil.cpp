@@ -192,9 +192,6 @@ const int TS[6][2] =
 	{D3DTSS_ALPHAARG2, D3DTA_DIFFUSE },
 };
 
-static LPDIRECT3DPIXELSHADER9 ps_old = NULL;
-static LPDIRECT3DVERTEXSHADER9 vs_old = NULL;
-
 void RestoreShaders()
 {
 	D3D::SetTexture(0, 0);
@@ -339,22 +336,6 @@ int CD3DFont::DrawTextScaled(float x, float y, float fXScale, float fYScale, flo
 	return S_OK;
 }
 
-void quad2d(float x1, float y1, float x2, float y2, u32 color, float u1, float v1, float u2, float v2)
-{ 
-	struct Q2DVertex { float x,y,z,rhw;u32 color;float u,v,w,h; } coords[4] = {
-		{x1-0.5f, y1-0.5f, 0, 1, color, u1, v1},
-		{x2-0.5f, y1-0.5f, 0, 1, color, u2, v1},
-		{x2-0.5f, y2-0.5f, 0, 1, color, u2, v2},
-		{x1-0.5f, y2-0.5f, 0, 1, color, u1, v2},
-	};
-	dev->SetPixelShader(0);
-	dev->SetVertexShader(0);
-	dev->SetVertexDeclaration(NULL);
-	dev->SetFVF(D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1);
-	dev->DrawPrimitiveUP(D3DPT_TRIANGLEFAN, 2, coords, sizeof(Q2DVertex));
-	RestoreShaders();
-}
-
 /* Explanation of texture copying via drawShadedTexQuad and drawShadedTexSubQuad:
 	From MSDN: "When rendering 2D output using pre-transformed vertices,
 				care must be taken to ensure that each texel area correctly corresponds
@@ -386,7 +367,8 @@ void drawShadedTexQuad(IDirect3DTexture9 *texture,
 					   int DestWidth,
 					   int DestHeight,
 					   IDirect3DPixelShader9 *PShader,
-					   IDirect3DVertexShader9 *Vshader)
+					   IDirect3DVertexShader9 *Vshader,
+					   float Gamma)
 {
 	float sw = 1.0f /(float) SourceWidth;
 	float sh = 1.0f /(float) SourceHeight;
@@ -396,17 +378,18 @@ void drawShadedTexQuad(IDirect3DTexture9 *texture,
 	float u2=((float)rSource->right) * sw;
 	float v1=((float)rSource->top) * sh;
 	float v2=((float)rSource->bottom) * sh;
+	float g = 1.0f/Gamma;
 
-	struct Q2DVertex { float x,y,z,rhw,u,v,w,h,L,T,R,B; } coords[4] = {
-		{-1.0f - dw,-1.0f + dh, 0.0f,1.0f, u1, v2, sw, sh,u1,v1,u2,v2},
-		{-1.0f - dw, 1.0f + dh, 0.0f,1.0f, u1, v1, sw, sh,u1,v1,u2,v2},
-		{ 1.0f - dw,-1.0f + dh, 0.0f,1.0f, u2, v2, sw, sh,u1,v1,u2,v2},
-		{ 1.0f - dw, 1.0f + dh, 0.0f,1.0f, u2, v1, sw, sh,u1,v1,u2,v2}
+	struct Q2DVertex { float x,y,z,rhw,u,v,w,h,G; } coords[4] = {
+		{-1.0f - dw,-1.0f + dh, 0.0f,1.0f, u1, v2, sw, sh, g},
+		{-1.0f - dw, 1.0f + dh, 0.0f,1.0f, u1, v1, sw, sh, g},
+		{ 1.0f - dw,-1.0f + dh, 0.0f,1.0f, u2, v2, sw, sh, g},
+		{ 1.0f - dw, 1.0f + dh, 0.0f,1.0f, u2, v1, sw, sh, g}
 	};
 	dev->SetVertexShader(Vshader);
 	dev->SetPixelShader(PShader);
 	D3D::SetTexture(0, texture);
-	dev->SetFVF(D3DFVF_XYZW | D3DFVF_TEX3 | D3DFVF_TEXCOORDSIZE4(2));
+	dev->SetFVF(D3DFVF_XYZW | D3DFVF_TEX3 |  D3DFVF_TEXCOORDSIZE1(2));
 	dev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, coords, sizeof(Q2DVertex));
 	RestoreShaders();
 }
@@ -419,7 +402,8 @@ void drawShadedTexSubQuad(IDirect3DTexture9 *texture,
 							int DestWidth,
 							int DestHeight,
 							IDirect3DPixelShader9 *PShader,
-							IDirect3DVertexShader9 *Vshader)
+							IDirect3DVertexShader9 *Vshader,
+							float Gamma)
 {
 	float sw = 1.0f /(float) SourceWidth;
 	float sh = 1.0f /(float) SourceHeight;
@@ -429,17 +413,18 @@ void drawShadedTexSubQuad(IDirect3DTexture9 *texture,
 	float u2= rSource->right * sw;
 	float v1= rSource->top * sh;
 	float v2= rSource->bottom * sh;
+	float g = 1.0f/Gamma;
 
-	struct Q2DVertex { float x,y,z,rhw,u,v,w,h,L,T,R,B; } coords[4] = {
-		{ rDest->left  - dw , rDest->top    + dh, 1.0f,1.0f, u1, v2, sw, sh,u1,v1,u2,v2},
-		{ rDest->left  - dw , rDest->bottom + dh, 1.0f,1.0f, u1, v1, sw, sh,u1,v1,u2,v2},
-		{ rDest->right - dw , rDest->top    + dh, 1.0f,1.0f, u2, v2, sw, sh,u1,v1,u2,v2},
-		{ rDest->right - dw , rDest->bottom + dh, 1.0f,1.0f, u2, v1, sw, sh,u1,v1,u2,v2}
+	struct Q2DVertex { float x,y,z,rhw,u,v,w,h,G; } coords[4] = {
+		{ rDest->left  - dw , rDest->top    + dh, 1.0f,1.0f, u1, v2, sw, sh, g},
+		{ rDest->left  - dw , rDest->bottom + dh, 1.0f,1.0f, u1, v1, sw, sh, g},
+		{ rDest->right - dw , rDest->top    + dh, 1.0f,1.0f, u2, v2, sw, sh, g},
+		{ rDest->right - dw , rDest->bottom + dh, 1.0f,1.0f, u2, v1, sw, sh, g}
 	};
 	dev->SetVertexShader(Vshader);
 	dev->SetPixelShader(PShader);
 	D3D::SetTexture(0, texture);
-	dev->SetFVF(D3DFVF_XYZW | D3DFVF_TEX3 | D3DFVF_TEXCOORDSIZE4(2));
+	dev->SetFVF(D3DFVF_XYZW | D3DFVF_TEX3 |  D3DFVF_TEXCOORDSIZE1(2));
 	dev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, coords, sizeof(Q2DVertex));
 	RestoreShaders();
 }

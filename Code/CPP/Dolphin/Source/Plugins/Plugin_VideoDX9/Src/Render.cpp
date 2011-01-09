@@ -256,7 +256,7 @@ Renderer::Renderer()
 	// Multisample Anti-aliasing hasn't been implemented yet use supersamling instead
 	int backbuffer_ms_mode = 0;
 
-	g_VideoInitialize.pRequestWindowSize(x, y, w_temp, h_temp);
+	g_VideoInitialize.pGetWindowSize(x, y, w_temp, h_temp);
 
 	for (fullScreenRes = 0; fullScreenRes < (int)D3D::GetAdapter(g_ActiveConfig.iAdapter).resolutions.size(); fullScreenRes++)
 	{
@@ -283,13 +283,16 @@ Renderer::Renderer()
 	ComputeDrawRectangle(s_backbuffer_width, s_backbuffer_height, false, &dst_rect);
 
 	CalculateXYScale(dst_rect);
-	
+
 	s_LastAA = g_ActiveConfig.iMultisampleMode;
-	int SupersampleCoeficient = s_LastAA + 1;
+	int SupersampleCoeficient = (s_LastAA % 3) + 1;
 
 	s_LastEFBScale = g_ActiveConfig.iEFBScale;
 	CalculateTargetSize(SupersampleCoeficient);
-	
+
+	// Make sure to use valid texture sizes
+	D3D::FixTextureSize(s_Fulltarget_width, s_Fulltarget_height);
+
 	s_bLastFrameDumped = false;
 	s_bAVIDumping = false;
 
@@ -317,12 +320,12 @@ Renderer::Renderer()
 	
 	D3D::dev->SetRenderTarget(0, FramebufferManager::GetEFBColorRTSurface());
 	D3D::dev->SetDepthStencilSurface(FramebufferManager::GetEFBDepthRTSurface());
-	vp.X = (s_Fulltarget_width - s_target_width) / 2;
-	vp.Y = (s_Fulltarget_height - s_target_height) / 2;
+	vp.X = TargetStrideX();
+	vp.Y = TargetStrideY();
 	vp.Width  = s_target_width;
 	vp.Height = s_target_height;
 	D3D::dev->SetViewport(&vp);
-	D3D::dev->Clear(0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0x0, 1.0f, 0);
+	D3D::dev->Clear(0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, D3DCOLOR_XRGB(0,0,0), 1.0f, 0);
 	D3D::BeginFrame();
 	D3D::SetRenderState(D3DRS_SCISSORTESTENABLE, true);
 	D3D::dev->CreateOffscreenPlainSurface(s_backbuffer_width,s_backbuffer_height, D3DFMT_X8R8G8B8, D3DPOOL_SYSTEMMEM, &ScreenShootMEMSurface, NULL );
@@ -420,6 +423,19 @@ bool Renderer::CheckForResize()
 	return false;
 }
 
+void Renderer::SetWindowSize(int width, int height)
+{
+	if (width < 1)
+		width = 1;
+	if (height < 1)
+		height = 1;
+
+	// Scale the window size by the EFB scale.
+	CalculateTargetScale(width, height, width, height);
+
+	g_VideoInitialize.pRequestWindowSize(width, height);
+}
+
 bool Renderer::SetScissorRect()
 {
 	TargetRectangle rc;
@@ -473,8 +489,9 @@ bool Renderer::SetScissorRect()
 
 void Renderer::SetColorMask()
 {
+	// Only enable alpha channel if it's supported by the current EFB format
 	DWORD color_mask = 0;
-	if (bpmem.blendmode.alphaupdate)
+	if (bpmem.blendmode.alphaupdate && (bpmem.zcontrol.pixel_format == PIXELFMT_RGBA6_Z24))
 		color_mask = D3DCOLORWRITEENABLE_ALPHA;
 	if (bpmem.blendmode.colorupdate)
 		color_mask |= D3DCOLORWRITEENABLE_RED | D3DCOLORWRITEENABLE_GREEN | D3DCOLORWRITEENABLE_BLUE;
@@ -508,6 +525,11 @@ u32 Renderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data)
 		alert_only_once = false;
 		return 0;
 	}
+
+	// if depth textures aren't supported by the hardware, just return
+	if (type == PEEK_Z)
+		if (FramebufferManager::GetEFBDepthTexture() == NULL)
+			return 0;
 
 	// We're using three surfaces here:
 	// - pEFBSurf: EFB Surface. Source surface when peeking, destination surface when poking.
@@ -550,6 +572,7 @@ u32 Renderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data)
 	RectToLock.top = targetPixelRc.top;	
 	if (type == PEEK_Z)
 	{
+		// TODO: why is D3DFMT_D24X8 singled out here? why not D3DFMT_D24X4S4/D24S8/D24FS8/D32/D16/D15S1 too, or none of them?
 		if (FramebufferManager::GetEFBDepthRTSurfaceFormat() == D3DFMT_D24X8)
 			return 0;
 
@@ -581,13 +604,14 @@ u32 Renderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data)
 		vp.MaxZ = 1.0f;
 		D3D::dev->SetViewport(&vp);
 
-		float colmat[16] = {0.0f};
-		float fConstAdd[4] = {0.0f};
+		float colmat[28] = {0.0f};
 		colmat[0] = colmat[5] = colmat[10] = 1.0f;
-		PixelShaderManager::SetColorMatrix(colmat, fConstAdd); // set transformation
+		PixelShaderManager::SetColorMatrix(colmat); // set transformation
 		LPDIRECT3DTEXTURE9 read_texture = FramebufferManager::GetEFBDepthTexture();
 		
 		D3D::ChangeSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_POINT);
+
+		D3DFORMAT bformat = FramebufferManager::GetEFBDepthRTSurfaceFormat();
 
 		D3D::drawShadedTexQuad(
 			read_texture,
@@ -595,7 +619,7 @@ u32 Renderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data)
 			Renderer::GetFullTargetWidth(),
 			Renderer::GetFullTargetHeight(),
 			4, 4,
-			(FramebufferManager::GetEFBDepthRTSurfaceFormat() == FOURCC_RAWZ) ? PixelShaderCache::GetColorMatrixProgram(0) : PixelShaderCache::GetDepthMatrixProgram(0),
+			PixelShaderCache::GetDepthMatrixProgram(0, bformat != FOURCC_RAWZ),
 			VertexShaderCache::GetSimpleVertexShader(0));
 
 		D3D::RefreshSamplerState(0, D3DSAMP_MINFILTER);
@@ -633,10 +657,19 @@ u32 Renderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data)
 			val +=	((float)(z & 0xFF)) * ffrac;
 			break;
 		};
-		z = ((u32)(val * 0xffffff));
+
 
 		pSystemBuf->UnlockRect();
 		// TODO: in RE0 this value is often off by one, which causes lighting to disappear
+		if(bpmem.zcontrol.pixel_format == PIXELFMT_RGB565_Z16)
+		{
+			// if Z is in 16 bit format you must return a 16 bit integer
+			z = ((u32)(val * 0xffff));
+		}
+		else
+		{
+			z = ((u32)(val * 0xffffff));
+		}
 		return z;
 	}
 	else if(type == PEEK_COLOR)
@@ -658,10 +691,22 @@ u32 Renderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data)
 
 		// check what to do with the alpha channel (GX_PokeAlphaRead)
 		PixelEngine::UPEAlphaReadReg alpha_read_mode;
-		PixelEngine::Read16((u16&)alpha_read_mode, PE_DSTALPHACONF);
+		PixelEngine::Read16((u16&)alpha_read_mode, PE_ALPHAREAD);
+		if (bpmem.zcontrol.pixel_format == PIXELFMT_RGBA6_Z24)
+		{
+			ret = RGBA8ToRGBA6ToRGBA8(ret);
+		}
+		else if (bpmem.zcontrol.pixel_format == PIXELFMT_RGB565_Z16)
+		{
+			ret = RGBA8ToRGB565ToRGBA8(ret);
+		}
+		if(bpmem.zcontrol.pixel_format != PIXELFMT_RGBA6_Z24)
+		{
+			ret |= 0xFF000000;
+		}
 		if(alpha_read_mode.ReadMode == 2) return ret; // GX_READ_NONE
 		else if(alpha_read_mode.ReadMode == 1) return (ret | 0xFF000000); // GX_READ_FF
-		else /*if(alpha_read_mode.ReadMode == 0)*/ return (ret & 0x00FFFFFF); // GX_READ_00
+		else return (ret & 0x00FFFFFF); // GX_READ_00
 	}
 	else //if(type == POKE_COLOR)
 	{
@@ -735,18 +780,24 @@ void Renderer::UpdateViewport()
 	}
 	if (sizeChanged)
 	{
-		D3DCAPS9 caps = D3D::GetCaps();
-		// Make sure that the requested size is actually supported by the GFX driver
-		if (Renderer::GetFullTargetWidth() > (int)caps.MaxTextureWidth || Renderer::GetFullTargetHeight() > (int)caps.MaxTextureHeight)
-		{
-			// Skip EFB recreation and viewport setting. Most likely causes glitches in this case, but prevents crashes at least
-			ERROR_LOG(VIDEO, "Tried to set a viewport which is too wide to emulate with Direct3D9. Requested EFB size is %dx%d, keeping the %dx%d EFB now\n", Renderer::GetFullTargetWidth(), Renderer::GetFullTargetHeight(), old_fulltarget_w, old_fulltarget_h);
+		const int ideal_width = s_Fulltarget_width;
+		const int ideal_height = s_Fulltarget_height;
 
-			// Fix the viewport to fit to the old EFB size
-			X *= (old_fulltarget_w-1) / (Renderer::GetFullTargetWidth()-1);
-			Y *= (old_fulltarget_h-1) / (Renderer::GetFullTargetHeight()-1);
-			Width *= (old_fulltarget_w-1) / (Renderer::GetFullTargetWidth()-1);
-			Height *= (old_fulltarget_h-1) / (Renderer::GetFullTargetHeight()-1);
+		// Make sure that the requested size is actually supported by the GFX driver
+		D3D::FixTextureSize(s_Fulltarget_width, s_Fulltarget_height);
+
+		// If the new EFB size is big enough for the requested viewport, we just recreate the internal buffer.
+		// Otherwise we use a hack to make the viewport fit into the smaller buffer by rendering at a lower resolution.
+		if (s_Fulltarget_width < ideal_width || s_Fulltarget_height < ideal_height)
+		{
+			// HACK: Skip EFB recreation and viewport setting. Most likely causes glitches in this case, but prevents crashes at least
+			ERROR_LOG(VIDEO, "Tried to set a viewport which is too wide to emulate with Direct3D9. Requested EFB size is %dx%d, keeping the %dx%d EFB now\n", ideal_width, ideal_height, old_fulltarget_w, old_fulltarget_h);
+
+			// Modify the viewport to fit to the old EFB size (effectively makes us render at a lower resolution)
+			X = X * old_fulltarget_w / ideal_width;
+			Y = Y * old_fulltarget_h / ideal_height;
+			Width = Width * old_fulltarget_w / ideal_width;
+			Height = Height * old_fulltarget_h / ideal_height;
 
 			s_Fulltarget_width = old_fulltarget_w;
 			s_Fulltarget_height = old_fulltarget_h;
@@ -755,12 +806,13 @@ void Renderer::UpdateViewport()
 		{
 			D3D::dev->SetRenderTarget(0, D3D::GetBackBufferSurface());
 			D3D::dev->SetDepthStencilSurface(D3D::GetBackBufferDepthSurface());
-			
+
 			delete g_framebuffer_manager;
 			g_framebuffer_manager = new FramebufferManager;
 
 			D3D::dev->SetRenderTarget(0, FramebufferManager::GetEFBColorRTSurface());
 			D3D::dev->SetDepthStencilSurface(FramebufferManager::GetEFBDepthRTSurface());
+			D3D::dev->Clear(0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, D3DCOLOR_XRGB(0,0,0), 1.0f, 0);
 		}
 	}
 
@@ -780,11 +832,22 @@ void Renderer::ClearScreen(const EFBRectangle& rc, bool colorEnable, bool alphaE
 {
 	// Reset rendering pipeline while keeping color masks and depth buffer settings
 	ResetAPIState();
-	SetDepthMode();
-	SetColorMask();
 
-	if (zEnable) // other depth functions don't make sense here
+	DWORD color_mask = 0;
+	if (alphaEnable)
+		color_mask = D3DCOLORWRITEENABLE_ALPHA;
+	if (colorEnable)
+		color_mask |= D3DCOLORWRITEENABLE_RED | D3DCOLORWRITEENABLE_GREEN | D3DCOLORWRITEENABLE_BLUE;
+	D3D::ChangeRenderState(D3DRS_COLORWRITEENABLE, color_mask);
+
+	if (zEnable)
+	{
+		D3D::ChangeRenderState(D3DRS_ZENABLE, TRUE);
+		D3D::ChangeRenderState(D3DRS_ZWRITEENABLE, TRUE);
 		D3D::ChangeRenderState(D3DRS_ZFUNC, D3DCMP_ALWAYS);
+	}
+	else
+		D3D::ChangeRenderState(D3DRS_ZENABLE, FALSE);
 
 	// Update the viewport for clearing the target EFB rect
 	TargetRectangle targetRc = ConvertEFBRectangle(rc);
@@ -796,15 +859,38 @@ void Renderer::ClearScreen(const EFBRectangle& rc, bool colorEnable, bool alphaE
 	vp.MinZ = 0.0;
 	vp.MaxZ = 1.0;
 	D3D::dev->SetViewport(&vp);
-	D3D::drawClearQuad((color | (alphaEnable ? 0x0 : 0xFF000000)), (z & 0xFFFFFF) / float(0xFFFFFF), PixelShaderCache::GetClearProgram(), VertexShaderCache::GetClearVertexShader());
+	D3D::drawClearQuad(color, (z & 0xFFFFFF) / float(0xFFFFFF), PixelShaderCache::GetClearProgram(), VertexShaderCache::GetClearVertexShader());
 	RestoreAPIState();
+}
+
+void Renderer::ReinterpretPixelData(unsigned int convtype)
+{
+	RECT source;
+	SetRect(&source, 0, 0, g_renderer->GetFullTargetWidth(), g_renderer->GetFullTargetHeight());
+
+	LPDIRECT3DPIXELSHADER9 pixel_shader;
+	if (convtype == 0) pixel_shader = PixelShaderCache::ReinterpRGB8ToRGBA6();
+	else if (convtype == 2) pixel_shader = PixelShaderCache::ReinterpRGBA6ToRGB8();
+	else
+	{
+		PanicAlert("Trying to reinterpret pixel data with unsupported conversion type %d", convtype);
+		return;
+	}
+
+	// convert data and set the target texture as our new EFB
+	g_renderer->ResetAPIState();
+	D3D::dev->SetRenderTarget(0, FramebufferManager::GetEFBColorReinterpretSurface());
+	D3D::drawShadedTexQuad(FramebufferManager::GetEFBColorTexture(), &source, g_renderer->GetFullTargetWidth(), g_renderer->GetFullTargetHeight(), g_renderer->GetFullTargetWidth(), g_renderer->GetFullTargetHeight(), pixel_shader, VertexShaderCache::GetSimpleVertexShader(0));
+	FramebufferManager::SwapReinterpretTexture();
+	D3D::dev->SetRenderTarget(0, FramebufferManager::GetEFBColorRTSurface());
+	g_renderer->RestoreAPIState();
 }
 
 void Renderer::SetBlendMode(bool forceUpdate)
 {
 	if (bpmem.blendmode.logicopenable && !forceUpdate)
 		return;
-	
+
 	if (bpmem.blendmode.subtract && bpmem.blendmode.blendenable)
 	{
 		D3D::SetRenderState(D3DRS_ALPHABLENDENABLE, true);
@@ -843,7 +929,7 @@ bool Renderer::SaveScreenshot(const std::string &filename, const TargetRectangle
 }
 
 // This function has the final picture. We adjust the aspect ratio here.
-void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,const EFBRectangle& rc)
+void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,const EFBRectangle& rc,float Gamma)
 {
 	if (g_bSkipCurrentFrame || (!XFBWrited && (!g_ActiveConfig.bUseXFB || !g_ActiveConfig.bUseRealXFB)) || !fbWidth || !fbHeight)
 	{
@@ -993,7 +1079,8 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 	{
 		TargetRectangle targetRc = ConvertEFBRectangle(rc);
 		LPDIRECT3DTEXTURE9 read_texture = FramebufferManager::GetEFBColorTexture();
-		D3D::drawShadedTexQuad(read_texture,targetRc.AsRECT(),Renderer::GetFullTargetWidth(),Renderer::GetFullTargetHeight(),Width,Height,PixelShaderCache::GetColorCopyProgram(g_Config.iMultisampleMode),VertexShaderCache::GetSimpleVertexShader(g_Config.iMultisampleMode));
+		D3D::drawShadedTexQuad(read_texture,targetRc.AsRECT(),Renderer::GetFullTargetWidth(),Renderer::GetFullTargetHeight(),Width,Height,PixelShaderCache::GetColorCopyProgram(g_ActiveConfig.iMultisampleMode),VertexShaderCache::GetSimpleVertexShader(g_ActiveConfig.iMultisampleMode),Gamma);		
+		
 	}
 	D3D::RefreshSamplerState(0, D3DSAMP_MINFILTER);
 	D3D::RefreshSamplerState(0, D3DSAMP_MAGFILTER);
@@ -1093,9 +1180,18 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 	DLCache::ProgressiveCleanup();
 	TextureCache::Cleanup();
 
+	// reload textures if these settings changed
+	if (g_Config.bSafeTextureCache != g_ActiveConfig.bSafeTextureCache ||
+		g_Config.bUseNativeMips != g_ActiveConfig.bUseNativeMips)
+		TextureCache::Invalidate(false);
+
 	// Enable any configuration changes
 	UpdateActiveConfig();
-	const bool WindowResized = CheckForResize();
+
+	if (g_ActiveConfig.bAdjustWindowSize)
+		SetWindowSize(fbWidth, fbHeight);
+
+	const bool windowResized = CheckForResize();
 
 	bool xfbchanged = false;
 
@@ -1112,7 +1208,7 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 
 	u32 newAA = g_ActiveConfig.iMultisampleMode;
 
-	if (xfbchanged || WindowResized || s_LastEFBScale != g_ActiveConfig.iEFBScale || s_LastAA != newAA)
+	if (xfbchanged || windowResized || s_LastEFBScale != g_ActiveConfig.iEFBScale || s_LastAA != newAA)
 	{
 		s_LastAA = newAA;
 
@@ -1120,14 +1216,14 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 
 		CalculateXYScale(dst_rect);
 		
-		int SupersampleCoeficient = s_LastAA + 1;
+		int SupersampleCoeficient = (s_LastAA % 3) + 1;
 
 		s_LastEFBScale = g_ActiveConfig.iEFBScale;
 		CalculateTargetSize(SupersampleCoeficient);
 
 		D3D::dev->SetRenderTarget(0, D3D::GetBackBufferSurface());
 		D3D::dev->SetDepthStencilSurface(D3D::GetBackBufferDepthSurface());
-		if (WindowResized)
+		if (windowResized)
 		{
 			SetupDeviceObjects();
 		}
@@ -1138,6 +1234,7 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 		}
 		D3D::dev->SetRenderTarget(0, FramebufferManager::GetEFBColorRTSurface());
 		D3D::dev->SetDepthStencilSurface(FramebufferManager::GetEFBDepthRTSurface());
+		D3D::dev->Clear(0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, D3DCOLOR_XRGB(0,0,0), 1.0f, 0);
 	}
 
 	// Place messages on the picture, then copy it to the screen

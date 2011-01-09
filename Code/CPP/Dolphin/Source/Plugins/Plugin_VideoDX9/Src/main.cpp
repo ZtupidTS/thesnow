@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2003 Dolphin Project.
+// Copyright (C) 2003 Dolphin Project.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -158,16 +158,14 @@ void InitBackendInfo()
 	g_Config.backend_info.bSupports3DVision = true;
 	g_Config.backend_info.bAllowSignedBytes = false;
 	g_Config.backend_info.bSupportsDualSourceBlend = false;
+	g_Config.backend_info.bSupportsFormatReinterpretation = true;
 }
 
 void DllConfig(void *_hParent)
 {
 #if defined(HAVE_WX) && HAVE_WX
 	InitBackendInfo();
-
-	// If not initialized, only init D3D so we can enumerate resolutions.
-	if (!s_PluginInitialized)
-		D3D::Init();
+	D3D::Init();
 
 	// adapters
 	g_Config.backend_info.Adapters.clear();
@@ -189,8 +187,7 @@ void DllConfig(void *_hParent)
 	diag->ShowModal();
 	diag->Destroy();
 
-	if (!s_PluginInitialized)
-		D3D::Shutdown();
+	D3D::Shutdown();
 #endif
 }
 
@@ -285,15 +282,4 @@ void Shutdown()
 	delete g_renderer;
 	D3D::Shutdown();
 	EmuWindow::Close();
-}
-
-void DoState(unsigned char **ptr, int mode)
-{
-	// Clear texture cache because it might have written to RAM
-	CommandProcessor::FifoCriticalEnter();
-	TextureCache::Invalidate(false);
-	CommandProcessor::FifoCriticalLeave();
-	// No need to clear shader caches
-	PointerWrap p(ptr, mode);
-	VideoCommon_DoState(p);
 }

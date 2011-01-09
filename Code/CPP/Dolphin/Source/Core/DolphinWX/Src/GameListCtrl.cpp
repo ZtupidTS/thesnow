@@ -65,7 +65,7 @@ bool operator < (const GameListItem &one, const GameListItem &other)
 			indexOne = 0;
 			break;
 		default:
-			indexOne = SConfig::GetInstance().m_InterfaceLanguage;
+			indexOne = SConfig::GetInstance().m_LocalCoreStartupParameter.SelectedLanguage;
 	}
 
 	switch (other.GetCountry())
@@ -75,10 +75,10 @@ bool operator < (const GameListItem &one, const GameListItem &other)
 			indexOther = 0;
 			break;
 		default:
-			indexOther = SConfig::GetInstance().m_InterfaceLanguage;
+			indexOther = SConfig::GetInstance().m_LocalCoreStartupParameter.SelectedLanguage;
 	}
 
-	switch(currentColumn)
+	switch (currentColumn)
 	{
 		case CGameListCtrl::COLUMN_TITLE:
 			return strcasecmp(one.GetName(indexOne).c_str(),
@@ -250,7 +250,7 @@ void CGameListCtrl::Update()
 		InitBitmaps();
 
 		// add columns
-		InsertColumn(COLUMN_PLATFORM, _(""));
+		InsertColumn(COLUMN_PLATFORM, _T(""));
 		InsertColumn(COLUMN_BANNER, _("图标"));
 		InsertColumn(COLUMN_TITLE, _("标题"));
 
@@ -258,7 +258,7 @@ void CGameListCtrl::Update()
 		// wii titles We show in the same column : company for GC games and
 		// description for wii/wad games
 		InsertColumn(COLUMN_NOTES, _("备注"));
-		InsertColumn(COLUMN_COUNTRY, _(""));
+		InsertColumn(COLUMN_COUNTRY, _T(""));
 		InsertColumn(COLUMN_SIZE, _("大小"));
 		InsertColumn(COLUMN_EMULATION_STATE, _("状态"));
 
@@ -299,13 +299,11 @@ void CGameListCtrl::Update()
 			SConfig::GetInstance().m_ListUsa  &&
 			SConfig::GetInstance().m_ListPal))
 		{
-			errorString = wxT("Dolphin 不能找到任何 GC/Wii ISO.")
-					wxT("双击这里浏览文件...");
+			errorString = _("Dolphin 不能找到任何 GC/Wii ISO.  双击这里浏览文件...");
 		}
 		else
 		{
-			errorString = wxT("Dolphin 当前设置隐藏所有游戏")
-				wxT("双击这里显示所有游戏..");
+			errorString = _("Dolphin 当前设置隐藏所有游戏.  双击这里显示所有游戏...");
 		}
 		InsertColumn(0, _("没有找到 ISO 或者 WADS"));
 		long index = InsertItem(0, errorString);
@@ -455,15 +453,15 @@ void CGameListCtrl::InsertItemInReportView(long _Index)
 			break;
 		default:
 			m_gameList.append(StringFromFormat("%s (E)\n",
-				rISOFile.GetName(SConfig::GetInstance().m_InterfaceLanguage).c_str()));
+				rISOFile.GetName(SConfig::GetInstance().m_LocalCoreStartupParameter.SelectedLanguage).c_str()));
 			SetItem(_Index, COLUMN_TITLE,
 					wxString::From8BitData(
-						rISOFile.GetName(SConfig::GetInstance().m_InterfaceLanguage).c_str()),
+						rISOFile.GetName(SConfig::GetInstance().m_LocalCoreStartupParameter.SelectedLanguage).c_str()),
 					-1);
 			SetItem(_Index, COLUMN_NOTES,
 					wxString::From8BitData(company.size() ?
 						company.c_str() :
-						rISOFile.GetDescription(SConfig::GetInstance().m_InterfaceLanguage).c_str()),
+						rISOFile.GetDescription(SConfig::GetInstance().m_LocalCoreStartupParameter.SelectedLanguage).c_str()),
 					-1);
 			break;
 		}
@@ -566,7 +564,8 @@ void CGameListCtrl::ScanForISOs()
 	if (SConfig::GetInstance().m_ListWii || SConfig::GetInstance().m_ListGC)
 	{
 		Extensions.push_back("*.iso");
-		Extensions.push_back("*.data");
+		Extensions.push_back("*.data");	//added
+		Extensions.push_back("*.ciso");
 		Extensions.push_back("*.gcz");
 	}
 	if (SConfig::GetInstance().m_ListWad)
@@ -577,8 +576,8 @@ void CGameListCtrl::ScanForISOs()
 
 	if (rFilenames.size() > 0)
 	{
-		wxProgressDialog dialog(_T("扫描 ISO 中"),
-					_T("扫描中..."),
+		wxProgressDialog dialog(_("扫描 ISO 中"),
+					_("扫描中..."),
 					(int)rFilenames.size(), // range
 					this, // parent
 					wxPD_APP_MODAL |
@@ -718,7 +717,7 @@ int wxCALLBACK wxListCompare(long item1, long item2, long sortData)
 			indexOne = 0;
 			break;
 		default:
-			indexOne = SConfig::GetInstance().m_InterfaceLanguage;
+			indexOne = SConfig::GetInstance().m_LocalCoreStartupParameter.SelectedLanguage;
 	}
 
 	switch (iso2->GetCountry())
@@ -728,7 +727,7 @@ int wxCALLBACK wxListCompare(long item1, long item2, long sortData)
 			indexOther = 0;
 			break;
 		default:
-			indexOther = SConfig::GetInstance().m_InterfaceLanguage;
+			indexOther = SConfig::GetInstance().m_LocalCoreStartupParameter.SelectedLanguage;
 	}
 
 	switch(sortData)
@@ -914,7 +913,7 @@ void CGameListCtrl::OnMouseMotion(wxMouseEvent& event)
 				toolTip = new wxEmuStateTip(this, wxString(temp, *wxConvCurrent), &toolTip);
 			}
 			else
-				toolTip = new wxEmuStateTip(this, wxT("Not Set"), &toolTip);
+				toolTip = new wxEmuStateTip(this, _("Not Set"), &toolTip);
 
 			toolTip->SetBoundingRect(wxRect(mx - GetColumnWidth(subitem),
 						my, GetColumnWidth(subitem), Rect.GetHeight()));
@@ -1047,8 +1046,9 @@ void CGameListCtrl::OnOpenSaveFolder(wxCommandEvent& WXUNUSED (event))
 	const GameListItem *iso = GetSelectedISO();
 	if (!iso)
 		return;
-	if (iso->GetWiiFSPath() != "NULL")
-		WxUtils::Explore(iso->GetWiiFSPath().c_str());
+	std::string path = iso->GetWiiFSPath();
+	if (!path.empty())
+		WxUtils::Explore(path.c_str());
 }
 
 void CGameListCtrl::OnExportSave(wxCommandEvent& WXUNUSED (event))
@@ -1098,8 +1098,7 @@ void CGameListCtrl::OnDeleteGCM(wxCommandEvent& WXUNUSED (event))
 		const GameListItem *iso = GetSelectedISO();
 		if (!iso)
 			return;
-		if (wxMessageBox(wxT("Are you sure you want to delete this file?\n")
-					wxT("It will be gone forever!"),
+		if (wxMessageBox(_("Are you sure you want to delete this file?  It will be gone forever!"),
 					wxMessageBoxCaptionStr, wxYES_NO | wxICON_EXCLAMATION) == wxYES)
 		{
 			File::Delete(iso->GetFileName().c_str());
@@ -1108,8 +1107,7 @@ void CGameListCtrl::OnDeleteGCM(wxCommandEvent& WXUNUSED (event))
 	}
 	else
 	{
-		if (wxMessageBox(wxT("Are you sure you want to delete these files?\n")
-					wxT("They will be gone forever!"),
+		if (wxMessageBox(_("Are you sure you want to delete these files?\nThey will be gone forever!"),
 					wxMessageBoxCaptionStr, wxYES_NO | wxICON_EXCLAMATION) == wxYES)
 		{
 			int selected = GetSelectedItemCount();
@@ -1141,8 +1139,8 @@ void CGameListCtrl::OnInstallWAD(wxCommandEvent& WXUNUSED (event))
 	if (!iso)
 		return;
 
-	wxProgressDialog dialog(_T("Installing WAD to Wii Menu..."),
-		_T("Working..."),
+	wxProgressDialog dialog(_("Installing WAD to Wii Menu..."),
+		_("Working..."),
 		1000, // range
 		this, // parent
 		wxPD_APP_MODAL |
@@ -1287,38 +1285,28 @@ void CGameListCtrl::OnCompressGCM(wxCommandEvent& WXUNUSED (event))
 		{
 			wxString FileType;
 			if (iso->GetPlatform() == GameListItem::WII_DISC)
-				FileType = wxT("All Wii ISO files (iso)|*.iso");
+				FileType = _("All Wii ISO files (iso)") + wxString(wxT("|*.iso"));
 			else
-				FileType = wxT("All Gamecube GCM files (gcm)|*.gcm");
+				FileType = _("All Gamecube GCM files (gcm)") + wxString(wxT("|*.gcm"));
 
 			path = wxFileSelector(
-					_T("Save decompressed GCM/ISO"),
+					_("Save decompressed GCM/ISO"),
 					wxString(FilePath.c_str(), *wxConvCurrent),
 					wxString(FileName.c_str(), *wxConvCurrent) + FileType.After('*'),
 					wxEmptyString,
-					FileType +
-					wxString::Format
-					(
-					 _T("|All files (%s)|%s"),
-					 wxFileSelectorDefaultWildcardStr,
-					 wxFileSelectorDefaultWildcardStr
-					),
+					FileType + wxT("|") + wxGetTranslation(wxALL_FILES),
 					wxFD_SAVE,
 					this);
 		}
 		else
 		{
 			path = wxFileSelector(
-					_T("Save compressed GCM/ISO"),
+					_("Save compressed GCM/ISO"),
 					wxString(FilePath.c_str(), *wxConvCurrent),
 					wxString(FileName.c_str(), *wxConvCurrent) + _T(".gcz"),
 					wxEmptyString,
-					wxString::Format
-					(
-					 _T("All compressed GC/Wii ISO files (gcz)|*.gcz|All files (%s)|%s"),
-					 wxFileSelectorDefaultWildcardStr,
-					 wxFileSelectorDefaultWildcardStr
-					),
+					_("All compressed GC/Wii ISO files (gcz)") + 
+						wxString::Format(wxT("|*.gcz|%s"), wxGetTranslation(wxALL_FILES)),
 					wxFD_SAVE,
 					this);
 		}
@@ -1331,8 +1319,8 @@ void CGameListCtrl::OnCompressGCM(wxCommandEvent& WXUNUSED (event))
 				wxYES_NO) == wxNO);
 
 	wxProgressDialog dialog(iso->IsCompressed() ?
-			_T("Decompressing ISO") : _T("Compressing ISO"),
-			_T("Working..."),
+			_("Decompressing ISO") : _("Compressing ISO"),
+			_("Working..."),
 			1000, // range
 			this, // parent
 			wxPD_APP_MODAL |

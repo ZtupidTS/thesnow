@@ -61,7 +61,7 @@
 
 #include "main.h" // Local
 #ifdef _WIN32
-#include "OS/Win32.h"
+#include "EmuWindow.h"
 #endif
 #if defined _WIN32 || defined HAVE_LIBAV
 #include "AVIDump.h"
@@ -101,7 +101,11 @@ static u32 s_blendMode;
 static Common::Thread *scrshotThread = 0;
 #endif
 
-int OSDChoice = 0 , OSDTime = 0, OSDInternalW = 0, OSDInternalH = 0;
+#ifdef _WIN32
+extern int OSDChoice, OSDTime, OSDInternalW, OSDInternalH;
+#else
+int OSDChoice, OSDTime, OSDInternalW, OSDInternalH;
+#endif
 
 namespace
 {
@@ -439,7 +443,7 @@ Renderer::Renderer()
 	glLoadIdentity();
 
 	glShadeModel(GL_SMOOTH);
-	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClearDepth(1.0f);
 	glEnable(GL_DEPTH_TEST);
 	glDisable(GL_LIGHTING);
@@ -657,8 +661,12 @@ bool Renderer::SetScissorRect()
 
 void Renderer::SetColorMask()
 {
-	GLenum ColorMask = (bpmem.blendmode.colorupdate) ? GL_TRUE : GL_FALSE;
-	GLenum AlphaMask = (bpmem.blendmode.alphaupdate) ? GL_TRUE : GL_FALSE;
+	// Only enable alpha channel if it's supported by the current EFB format
+	GLenum ColorMask = GL_FALSE, AlphaMask = GL_FALSE;
+	if (bpmem.blendmode.colorupdate)
+		ColorMask = GL_TRUE;
+	if (bpmem.blendmode.alphaupdate && (bpmem.zcontrol.pixel_format == PIXELFMT_RGBA6_Z24))
+		AlphaMask = GL_TRUE;
 	glColorMask(ColorMask,  ColorMask,  ColorMask,  AlphaMask);
 }
 
@@ -713,12 +721,17 @@ u32 Renderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data)
 			// Scale the 32-bit value returned by glReadPixels to a 24-bit
 			// value (GC uses a 24-bit Z-buffer).
 			// TODO: in RE0 this value is often off by one, which causes lighting to disappear
-			return z >> 8;
+			if(bpmem.zcontrol.pixel_format == PIXELFMT_RGB565_Z16)
+			{
+				// if Z is in 16 bit format you must return a 16 bit integer
+				z = z >> 16;
+			}
+			else
+			{
+				z = z >> 8;
+			}
+			return z;
 		}
-
-	case POKE_Z:
-		// TODO: Implement
-		break;
 
 	case PEEK_COLOR: // GXPeekARGB
 		{
@@ -746,20 +759,33 @@ u32 Renderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data)
 
 			// check what to do with the alpha channel (GX_PokeAlphaRead)
 			PixelEngine::UPEAlphaReadReg alpha_read_mode;
-			PixelEngine::Read16((u16&)alpha_read_mode, PE_DSTALPHACONF);
+			PixelEngine::Read16((u16&)alpha_read_mode, PE_ALPHAREAD);
+
+			if (bpmem.zcontrol.pixel_format == PIXELFMT_RGBA6_Z24)
+			{
+				color = RGBA8ToRGBA6ToRGBA8(color);
+			}
+			else if (bpmem.zcontrol.pixel_format == PIXELFMT_RGB565_Z16)
+			{
+				color = RGBA8ToRGB565ToRGBA8(color);
+			}
+			if(bpmem.zcontrol.pixel_format != PIXELFMT_RGBA6_Z24)
+			{
+				color |= 0xFF000000;
+			}
 			if(alpha_read_mode.ReadMode == 2) return color; // GX_READ_NONE
 			else if(alpha_read_mode.ReadMode == 1) return (color | 0xFF000000); // GX_READ_FF
 			else /*if(alpha_read_mode.ReadMode == 0)*/ return (color & 0x00FFFFFF); // GX_READ_00
 		}
 
 	case POKE_COLOR:
+	case POKE_Z:
 		// TODO: Implement. One way is to draw a tiny pixel-sized rectangle at
 		// the exact location. Note: EFB pokes are susceptible to Z-buffering
 		// and perhaps blending.
 		//WARN_LOG(VIDEOINTERFACE, "This is probably some kind of software rendering");
 		break;
 
-		// TODO: Implement POKE_Z and POKE_COLOR
 	default:
 		break;
 	}
@@ -805,36 +831,48 @@ void Renderer::UpdateViewport()
 
 void Renderer::ClearScreen(const EFBRectangle& rc, bool colorEnable, bool alphaEnable, bool zEnable, u32 color, u32 z)
 {
-	// Update the view port for clearing the picture
-	TargetRectangle targetRc = ConvertEFBRectangle(rc);
-	glViewport(targetRc.left, targetRc.bottom, targetRc.GetWidth(), targetRc.GetHeight());
+	ResetAPIState();
 
+	GLenum ColorMask = GL_FALSE, AlphaMask = GL_FALSE;
+	if (colorEnable) ColorMask = GL_TRUE;
+	if (alphaEnable) AlphaMask = GL_TRUE;
+	glColorMask(ColorMask,  ColorMask,  ColorMask,  AlphaMask);
 
-	// Always set the scissor in case it was set by the game and has not been reset
-	glScissor(targetRc.left, targetRc.bottom, targetRc.GetWidth(), targetRc.GetHeight());
-
-	VertexShaderManager::SetViewportChanged();
-
-	GLbitfield bits = 0;
-	if (colorEnable)
-	{
-		bits |= GL_COLOR_BUFFER_BIT;
-		glClearColor(
-			((color >> 16) & 0xFF) / 255.0f,
-			((color >> 8) & 0xFF) / 255.0f,
-			(color & 0xFF) / 255.0f,
-			(alphaEnable ? ((color >> 24) & 0xFF) / 255.0f : 1.0f)
-			);
-	}
 	if (zEnable)
 	{
-		bits |= GL_DEPTH_BUFFER_BIT;
-		glClearDepth((z & 0xFFFFFF) / float(0xFFFFFF));
+		glEnable(GL_DEPTH_TEST);
+		glDepthMask(GL_TRUE);
+		glDepthFunc(GL_ALWAYS);
+	}
+	else
+	{
+		glDisable(GL_DEPTH_TEST);
+		glDepthMask(GL_FALSE);
+		glDepthFunc(GL_NEVER);
 	}
 
-	glDrawBuffer(GL_COLOR_ATTACHMENT0_EXT);
-	glClear(bits);
-	SetScissorRect();
+	// Update viewport for clearing the picture
+	TargetRectangle targetRc = ConvertEFBRectangle(rc);
+	glViewport(targetRc.left, targetRc.bottom, targetRc.GetWidth(), targetRc.GetHeight());
+	glDepthRange(0.0, (float)(z & 0xFFFFFF) / float(0xFFFFFF));
+
+	glColor4f((float)((color >> 16) & 0xFF) / 255.0f,
+				(float)((color >> 8) & 0xFF) / 255.0f,
+				(float)(color & 0xFF) / 255.0f,
+				(float)((color >> 24) & 0xFF) / 255.0f);
+	glBegin(GL_QUADS);
+	glVertex3f(-1.f, -1.f, 1.f);
+	glVertex3f(-1.f,  1.f, 1.f);
+	glVertex3f( 1.f,  1.f, 1.f);
+	glVertex3f( 1.f, -1.f, 1.f);
+	glEnd();
+
+	RestoreAPIState();
+}
+
+void Renderer::ReinterpretPixelData(unsigned int convtype)
+{
+	// TODO
 }
 
 void Renderer::SetBlendMode(bool forceUpdate)
@@ -914,7 +952,7 @@ void Renderer::SetBlendMode(bool forceUpdate)
 }
 
 // This function has the final picture. We adjust the aspect ratio here.
-void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,const EFBRectangle& rc)
+void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,const EFBRectangle& rc,float Gamma)
 {
 	if (g_bSkipCurrentFrame || (!XFBWrited && (!g_ActiveConfig.bUseXFB || !g_ActiveConfig.bUseRealXFB)) || !fbWidth || !fbHeight)
 	{
@@ -1197,7 +1235,12 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 #endif
 
 	// Finish up the current frame, print some stats
+
+	if (g_ActiveConfig.bAdjustWindowSize)
+		SetWindowSize(fbWidth, fbHeight);
+
 	OpenGL_Update(); // just updates the render window position and the backbuffer size
+	
 	bool xfbchanged = false;
 
 	if (s_XFB_width != fbWidth || s_XFB_height != fbHeight)
@@ -1319,10 +1362,15 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 	GL_REPORT_ERRORD();
 	g_Config.iSaveTargetId = 0;
 
-	bool last_copy_efb_to_Texture = g_ActiveConfig.bCopyEFBToTexture;
-	UpdateActiveConfig();
-	if (last_copy_efb_to_Texture != g_ActiveConfig.bCopyEFBToTexture)
+	// reload textures if these settings changed
+	if (g_Config.bSafeTextureCache != g_ActiveConfig.bSafeTextureCache ||
+		g_Config.bUseNativeMips != g_ActiveConfig.bUseNativeMips)
+		TextureCache::Invalidate(false);
+
+	if (g_Config.bCopyEFBToTexture != g_ActiveConfig.bCopyEFBToTexture)
 		TextureCache::ClearRenderTargets();
+
+	UpdateActiveConfig();
 
 	// For testing zbuffer targets.
 	// Renderer::SetZBufferRender();
@@ -1350,17 +1398,13 @@ void Renderer::ResetAPIState()
 void Renderer::RestoreAPIState()
 {
 	// Gets us back into a more game-like state.
-
-	UpdateViewport();
-
-	if (bpmem.genMode.cullmode > 0) glEnable(GL_CULL_FACE);
-	if (bpmem.zmode.testenable)     glEnable(GL_DEPTH_TEST);
-	if (bpmem.zmode.updateenable)   glDepthMask(GL_TRUE);
-
 	glEnable(GL_SCISSOR_TEST);
+	SetGenerationMode();
 	SetScissorRect();
 	SetColorMask();
+	SetDepthMode();
 	SetBlendMode(true);
+	UpdateViewport();
 
 	VertexShaderCache::SetCurrentShader(0);
 	PixelShaderCache::SetCurrentShader(0);
@@ -1551,6 +1595,19 @@ bool Renderer::SaveScreenshot(const std::string &filename, const TargetRectangle
 #endif
 
 	return result;
+}
+
+void Renderer::SetWindowSize(int width, int height)
+{
+	if (width < 1)
+		width = 1;
+	if (height < 1)
+		height = 1;
+
+	// Scale the window size by the EFB scale.
+	CalculateTargetScale(width, height, width, height);
+
+	g_VideoInitialize.pRequestWindowSize(width, height);
 }
 
 }
