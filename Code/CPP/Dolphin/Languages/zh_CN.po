@@ -219,7 +219,7 @@ msgstr "3D Vision (需要全屏)"
 
 #: Source/Core/DolphinWX/Src/PatchAddEdit.cpp:43
 msgid "<Insert name here>"
-msgstr "<Insert name here>"
+msgstr "<在这里插入名称>"
 
 #: Source/Core/DolphinWX/Src/ConfigMain.cpp:226
 msgid "<No resolutions found>"
@@ -268,11 +268,11 @@ msgstr "加速器"
 #: Source/Core/DolphinWX/Src/ISOProperties.cpp:342
 #: Source/Core/VideoUICommon/Src/VideoConfigDiag.cpp:293
 msgid "Accurate Texture Cache"
-msgstr "Accurate Texture Cache"
+msgstr "准确纹理缓存"
 
 #: Source/Core/DolphinWX/Src/HotkeyDlg.cpp:210
 msgid "Action"
-msgstr "Action"
+msgstr "操作"
 
 #: Source/Core/VideoUICommon/Src/VideoConfigDiag.cpp:147
 msgid "Adapter:"
@@ -285,7 +285,7 @@ msgstr "添加"
 
 #: Source/Core/DolphinWX/Src/ISOProperties.cpp:1218
 msgid "Add ActionReplay Code"
-msgstr "Add ActionReplay Code"
+msgstr "添加动作回放代码"
 
 #: Source/Core/DolphinWX/Src/ISOProperties.cpp:1147
 msgid "Add Patch"
@@ -327,7 +327,7 @@ msgstr "所有 GC/Wii 镜像 (gcm, iso, ciso, gcz)"
 
 #: Source/Core/DolphinWX/Src/GameListCtrl.cpp:1289
 msgid "All Gamecube GCM files (gcm)"
-msgstr "All Gamecube GCM files (gcm)"
+msgstr "所有 Gamecube GCM 文件 (gcm)"
 
 #: Source/Core/DolphinWX/Src/FrameTools.cpp:1249
 #: Source/Core/DolphinWX/Src/FrameTools.cpp:1263
@@ -362,7 +362,7 @@ msgstr "Alternate RFI"
 
 #: Source/Core/VideoUICommon/Src/VideoConfigDiag.cpp:187
 msgid "Anisotropic Filtering:"
-msgstr "Anisotropic Filtering:"
+msgstr "各向异性过滤:"
 
 #: Source/Core/VideoUICommon/Src/VideoConfigDiag.cpp:192
 msgid "Anti-Aliasing:"
@@ -455,15 +455,15 @@ msgstr "浏览"
 
 #: Source/Core/DolphinWX/Src/GameListCtrl.cpp:205
 msgid "Browse for a directory to add"
-msgstr "Browse for a directory to add"
+msgstr "浏览要添加的目录"
 
 #: Source/Core/DolphinWX/Src/FrameTools.cpp:360
 msgid "Browse for an ISO directory..."
-msgstr "Browse for an ISO directory..."
+msgstr "浏览镜像目录"
 
 #: Source/Core/DolphinWX/Src/GameListCtrl.cpp:1182
 msgid "Browse for output directory"
-msgstr "Browse for output directory"
+msgstr "浏览输出目录"
 
 #: Source/Core/DolphinWX/Src/NetWindow.cpp:309
 msgid "Buffer:"
@@ -670,23 +670,23 @@ msgstr "连接 USB 键盘"
 #: Source/Core/DolphinWX/Src/FrameTools.cpp:333
 #, c-format
 msgid "Connect Wiimote %i"
-msgstr "Connect Wiimote %i"
+msgstr "连接 Wiimote %i"
 
 #: Source/Core/DolphinWX/Src/HotkeyDlg.cpp:195
 msgid "Connect Wiimote 1"
-msgstr "Connect Wiimote 1"
+msgstr "连接 Wiimote 1"
 
 #: Source/Core/DolphinWX/Src/HotkeyDlg.cpp:196
 msgid "Connect Wiimote 2"
-msgstr "Connect Wiimote 2"
+msgstr "连接 Wiimote 2"
 
 #: Source/Core/DolphinWX/Src/HotkeyDlg.cpp:197
 msgid "Connect Wiimote 3"
-msgstr "Connect Wiimote 3"
+msgstr "连接 Wiimote 3"
 
 #: Source/Core/DolphinWX/Src/HotkeyDlg.cpp:198
 msgid "Connect Wiimote 4"
-msgstr "Connect Wiimote 4"
+msgstr "连接 Wiimote 4"
 
 #: Source/Core/DolphinWX/Src/FrameTools.cpp:1215
 msgid "Connected"
@@ -695,7 +695,7 @@ msgstr "已连接"
 #: Source/Core/DolphinWX/Src/WiimoteConfigDiag.cpp:11
 #, c-format
 msgid "Connected to %i Wiimotes"
-msgstr "Connected to %i Wiimotes"
+msgstr "连接到 %i Wiimotes"
 
 #: Source/Core/DolphinWX/Src/Main.cpp:654
 msgid "Connecting..."
@@ -777,7 +777,7 @@ msgstr "Crop"
 
 #: Source/Core/DolphinWX/Src/ISOProperties.cpp:347
 msgid "DList Cache"
-msgstr "DList Cache"
+msgstr "DList 缓存"
 
 #: Source/Core/DolphinWX/Src/ConfigMain.cpp:742
 #: Source/Core/DolphinWX/Src/FrameTools.cpp:369
@@ -927,7 +927,7 @@ msgstr "Divide"
 
 #: Source/Core/DolphinWX/Src/FrameTools.cpp:909
 msgid "Do you want to stop the current emulation?"
-msgstr "Do you want to stop the current emulation?"
+msgstr "您确定是否停止当前模拟?"
 
 #: Source/Core/DolphinWX/Src/FrameTools.cpp:790
 msgid "Dolphin"
@@ -935,7 +935,7 @@ msgstr "Dolphin"
 
 #: Source/Core/DolphinWX/Src/FrameTools.cpp:299
 msgid "Dolphin &Web Site"
-msgstr "Dolphin &Web Site"
+msgstr "Dolphin 网站(&W)"
 
 #: Source/Core/DolphinWX/Src/ConfigMain.h:36
 msgid "Dolphin Configuration"
@@ -1241,7 +1241,7 @@ msgstr "英语"
 
 #: Source/Core/VideoUICommon/Src/VideoConfigDiag.cpp:182
 msgid "Enhancements"
-msgstr "Enhancements"
+msgstr "增强"
 
 #: Source/Core/DolphinWX/Src/FrameAui.cpp:567
 msgid "Enter a name for the new perspective:"
@@ -1455,11 +1455,11 @@ msgstr "GCPad"
 
 #: Source/Core/DolphinWX/Src/ISOProperties.cpp:452
 msgid "Game ID:"
-msgstr "Game ID:"
+msgstr "游戏 ID:"
 
 #: Source/Core/DolphinWX/Src/ISOProperties.cpp:301
 msgid "Game-Specific Settings"
-msgstr "Game-Specific Settings"
+msgstr "游戏特殊设置"
 
 #: Source/Core/DolphinWX/Src/ISOProperties.cpp:281
 msgid "GameConfig"
@@ -1492,7 +1492,7 @@ msgstr "常规"
 #: Source/Core/DolphinWX/Src/ConfigMain.cpp:265
 #: Source/Core/DolphinWX/Src/ISOProperties.cpp:465
 msgid "German"
-msgstr "German"
+msgstr "德国"
 
 #: Source/Core/DolphinWX/Src/ConfigMain.cpp:738
 #: Source/Core/DolphinWX/Src/FrameTools.cpp:368
@@ -1505,7 +1505,7 @@ msgstr "图形设置"
 
 #: Source/Core/DolphinWX/Src/CheatsWindow.cpp:206
 msgid "Greater Than"
-msgstr "Greater Than"
+msgstr "大于"
 
 #: Source/Core/DolphinWX/Src/ConfigMain.cpp:266
 msgid "Hebrew"
@@ -1642,7 +1642,7 @@ msgstr "安装到Wii菜单"
 
 #: Source/Core/DolphinWX/Src/GameListCtrl.cpp:1141
 msgid "Installing WAD to Wii Menu..."
-msgstr "Installing WAD to Wii Menu..."
+msgstr "安装 WAD 到 Wii 菜单中..."
 
 #: Source/Core/VideoUICommon/Src/VideoConfigDiag.cpp:234
 msgid "Integral [recommended]"
@@ -1654,7 +1654,7 @@ msgstr "界面设置"
 
 #: Source/Core/DolphinWX/Src/ConfigMain.cpp:218
 msgid "Interpreter (VERY slow)"
-msgstr "Interpreter (VERY slow)"
+msgstr "Interpreter (非常慢)"
 
 #: Source/Core/DolphinWX/Src/ISOProperties.cpp:363
 msgid "Intro"
@@ -1672,7 +1672,7 @@ msgstr "日本"
 
 #: Source/Core/DolphinWX/Src/ConfigMain.cpp:219
 msgid "JIT Recompiler (recommended)"
-msgstr "JIT Recompiler (recommended)"
+msgstr "JIT 重编译器 (推荐)"
 
 #: Source/Core/DolphinWX/Src/ConfigMain.cpp:220
 msgid "JITIL experimental recompiler"
@@ -1737,7 +1737,7 @@ msgstr "Left/Right-click for more options.\nMiddle-click to clear."
 
 #: Source/Core/DolphinWX/Src/CheatsWindow.cpp:207
 msgid "Less Than"
-msgstr "Less Than"
+msgstr "小于"
 
 #: Source/Core/DolphinWX/Src/InputConfigDiag.cpp:948
 msgid "Load"
@@ -1762,7 +1762,7 @@ msgstr "Load State..."
 #: Source/Core/DolphinWX/Src/FrameTools.cpp:208
 #, c-format
 msgid "Load Wii System Menu (%d %c)"
-msgstr "Load Wii System Menu (%d %c)"
+msgstr "载入 Wii 系统菜单(%d %c)"
 
 #: Source/Core/VideoUICommon/Src/VideoConfigDiag.cpp:96
 msgid "Load high-resolution textures from User/Load/Textures/<game id>/"
@@ -1785,7 +1785,7 @@ msgstr "本地"
 
 #: Source/Core/DolphinWX/Src/ConfigMain.cpp:424
 msgid "Lock threads to cores"
-msgstr "Lock threads to cores"
+msgstr "锁定线程到核心"
 
 #: Source/Core/DolphinWX/Src/LogWindow.h:57
 msgid "Log"
@@ -1798,7 +1798,7 @@ msgstr "记录中"
 
 #: Source/Core/DolphinWX/Src/LuaWindow.cpp:61
 msgid "Lua Script Console"
-msgstr "Lua Script Console"
+msgstr "lua 脚本控制台"
 
 #: Source/Core/InputUICommon/Src/WXInputBase.cpp:42
 msgid "M Button"
@@ -1823,7 +1823,7 @@ msgstr "Maker:"
 
 #: Source/Core/DolphinWX/Src/MemcardManager.cpp:226
 msgid "Memory Card"
-msgstr "Memory Card"
+msgstr "内存卡"
 
 #: Source/Core/InputUICommon/Src/WXInputBase.cpp:47
 msgid "Menu"
@@ -1853,7 +1853,7 @@ msgstr "Monospaced font"
 
 #: Source/Core/InputUICommon/Src/WXInputBase.cpp:72
 msgid "Multiply"
-msgstr "Multiply"
+msgstr "多人游戏"
 
 #: Source/Core/InputUICommon/Src/WXInputBase.cpp:126
 msgid "NP Add"
@@ -2400,7 +2400,7 @@ msgstr "Scale:"
 
 #: Source/Core/DolphinWX/Src/GameListCtrl.cpp:578
 msgid "Scanning for ISOs"
-msgstr "Scanning for ISOs"
+msgstr "扫描镜像中"
 
 #: Source/Core/DolphinWX/Src/GameListCtrl.cpp:579
 msgid "Scanning..."
@@ -2440,7 +2440,7 @@ msgstr "Select a hardware adapter to use.\nWhen in doubt, use the first one"
 
 #: Source/Core/DolphinWX/Src/MemcardManager.cpp:528
 msgid "Select a save file to import"
-msgstr "Select a save file to import"
+msgstr "选择要导入的存档"
 
 #: Source/Core/DolphinWX/Src/FrameAui.cpp:338
 msgid "Select floating windows"
@@ -2461,7 +2461,7 @@ msgstr "选择要载入的文件"
 
 #: Source/Core/DolphinWX/Src/FrameTools.cpp:1163
 msgid "Select the save file"
-msgstr "Select the save file"
+msgstr "选择一个存档文件"
 
 #: Source/Core/DolphinWX/Src/LuaWindow.cpp:138
 msgid "Select the script to load"
@@ -2511,7 +2511,7 @@ msgstr "设置"
 
 #: Source/Core/DolphinWX/Src/ConfigMain.cpp:465
 msgid "Set Console as NTSC-J"
-msgstr "Set Console as NTSC-J"
+msgstr "设置终端为 NTSC-J"
 
 #: Source/Core/DolphinWX/Src/GameListCtrl.cpp:975
 msgid "Set as &default ISO"
@@ -2552,23 +2552,23 @@ msgstr "显示 FPS"
 
 #: Source/Core/DolphinWX/Src/FrameTools.cpp:278
 msgid "Show France"
-msgstr "Show France"
+msgstr "显示法文"
 
 #: Source/Core/DolphinWX/Src/FrameTools.cpp:264
 msgid "Show GameCube"
-msgstr "Show GameCube"
+msgstr "显示 GameCube"
 
 #: Source/Core/DolphinWX/Src/FrameTools.cpp:280
 msgid "Show Italy"
-msgstr "Show Italy"
+msgstr "显示意大利"
 
 #: Source/Core/DolphinWX/Src/FrameTools.cpp:271
 msgid "Show JAP"
-msgstr "Show JAP"
+msgstr "显示日本"
 
 #: Source/Core/DolphinWX/Src/FrameTools.cpp:282
 msgid "Show Korea"
-msgstr "Show Korea"
+msgstr "显示韩国"
 
 #: Source/Core/DolphinWX/Src/ISOProperties.cpp:463
 msgid "Show Language:"
@@ -2576,7 +2576,7 @@ msgstr "显示语言:"
 
 #: Source/Core/DolphinWX/Src/FrameTools.cpp:273
 msgid "Show PAL"
-msgstr "Show PAL"
+msgstr "显示PAL"
 
 #: Source/Core/DolphinWX/Src/FrameTools.cpp:261
 msgid "Show Platforms"
@@ -2584,11 +2584,11 @@ msgstr "显示平台"
 
 #: Source/Core/DolphinWX/Src/FrameTools.cpp:270
 msgid "Show Regions"
-msgstr "Show Regions"
+msgstr "显示区域"
 
 #: Source/Core/VideoUICommon/Src/VideoConfigDiag.cpp:372
 msgid "Show Shader Errors"
-msgstr "Show Shader Errors"
+msgstr "显示阴影错误"
 
 #: Source/Core/DolphinWX/Src/FrameTools.cpp:284
 msgid "Show Taiwan"
@@ -2600,7 +2600,7 @@ msgstr "显示美国"
 
 #: Source/Core/DolphinWX/Src/FrameTools.cpp:266
 msgid "Show Wad"
-msgstr "Show Wad"
+msgstr "显示 Wad"
 
 #: Source/Core/DolphinWX/Src/FrameTools.cpp:262
 msgid "Show Wii"
@@ -2608,7 +2608,7 @@ msgstr "显示 Wii"
 
 #: Source/Core/DolphinWX/Src/ConfigMain.cpp:369
 msgid "Show a confirmation box before stopping a game."
-msgstr "Show a confirmation box before stopping a game."
+msgstr "停止游戏时显示确认对话框"
 
 #: Source/Core/DolphinWX/Src/ConfigMain.cpp:370
 msgid ""
@@ -2676,7 +2676,7 @@ msgstr "Skies of Arcadia"
 
 #: Source/Core/DolphinWX/Src/ConfigMain.cpp:422
 msgid "Skip GC BIOS"
-msgstr "Skip GC BIOS"
+msgstr "跳过 GC BIOS"
 
 #: Source/Core/DolphinWX/Src/FrameTools.cpp:174
 #: Source/Core/DolphinWX/Src/FrameTools.cpp:175
@@ -2767,7 +2767,7 @@ msgstr "停止"
 
 #: Source/Core/VideoUICommon/Src/VideoConfigDiag.cpp:164
 msgid "Stretch to Window"
-msgstr "Stretch to Window"
+msgstr "附加到窗口"
 
 #: Source/Core/InputUICommon/Src/WXInputBase.cpp:75
 msgid "Subtract"
@@ -2794,7 +2794,7 @@ msgstr "Tab split"
 #: Source/Core/DolphinWX/Src/FrameTools.cpp:327
 #: Source/Core/DolphinWX/Src/FrameTools.cpp:365
 msgid "Take Screenshot"
-msgstr "Take Screenshot"
+msgstr "截图"
 
 #: Source/Core/DolphinWX/Src/InputConfigDiag.cpp:506
 msgid "Test"
@@ -2820,11 +2820,11 @@ msgstr "The file "
 
 #: Source/Core/DolphinWX/Src/FrameAui.cpp:588
 msgid "The name can not be empty"
-msgstr "The name can not be empty"
+msgstr "名称不能为空"
 
 #: Source/Core/DolphinWX/Src/FrameAui.cpp:580
 msgid "The name can not contain the character ','"
-msgstr "The name can not contain the character ','"
+msgstr "名称不能包含字符 ','"
 
 #: Source/Core/DolphinWX/Src/ConfigMain.cpp:473
 msgid "Theme"
@@ -3102,7 +3102,7 @@ msgstr "窗口右侧"
 
 #: Source/Core/DolphinWX/Src/LogWindow.cpp:103
 msgid "Word Wrap"
-msgstr "Word Wrap"
+msgstr "自动换行"
 
 #: Source/Core/DolphinWX/Src/GameListCtrl.cpp:1142
 #: Source/Core/DolphinWX/Src/GameListCtrl.cpp:1189
