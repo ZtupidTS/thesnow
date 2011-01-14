@@ -201,6 +201,9 @@ protected:	// ScintillaBase subclass needs access to much of Editor
 	int lastXChosen;
 	int lineAnchor;
 	int originalAnchorPos;
+	int wordSelectAnchorStartPos;
+	int wordSelectAnchorEndPos;
+	int wordSelectInitialCaretPos;
 	int targetStart;
 	int targetEnd;
 	int searchFlags;
