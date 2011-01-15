@@ -25,6 +25,7 @@
 #include <rfb_win32/MsgBox.h>
 #include <rfb/ServerCore.h>
 #include <rfb/Security.h>
+#include <rfb/SecurityServer.h>
 #include <rfb/SSecurityVncAuth.h>
 #include <rfb/Password.h>
 
@@ -40,11 +41,11 @@ namespace rfb {
       AuthenticationPage(const RegKey& rk)
         : PropSheetPage(GetModuleHandle(0), MAKEINTRESOURCE(IDD_AUTHENTICATION)), regKey(rk) {}
       void initDialog() {
-        CharArray sec_types_str(Security::secTypes.getData());
-        std::list<rdr::U8> sec_types = parseSecTypes(sec_types_str.buf);
+        CharArray sec_types_str(SecurityServer::secTypes.getData());
+        std::list<rdr::U32> sec_types = parseSecTypes(sec_types_str.buf);
 
         useNone = useVNC = false;
-        std::list<rdr::U8>::iterator i;
+        std::list<rdr::U32>::iterator i;
         for (i=sec_types.begin(); i!=sec_types.end(); i++) {
           if ((*i) == secTypeNone) useNone = true;
           else if ((*i) == secTypeVncAuth) useVNC = true;
@@ -100,7 +101,6 @@ namespace rfb {
           }
           regKey.setString(_T("SecurityTypes"), _T("None"));
         }
-        regKey.setString(_T("ReverseSecurityTypes"), _T("None"));
         regKey.setBool(_T("QueryConnect"), isItemChecked(IDC_QUERY_CONNECT));
         regKey.setBool(_T("QueryOnlyIfLoggedOn"), isItemChecked(IDC_QUERY_LOGGED_ON));
         return true;

@@ -91,6 +91,11 @@ extern "C" {
 #undef public
 }
 
+#if XORG >= 110
+#define Xalloc malloc
+#define Xfree free
+#endif
+
 #define XVNCVERSION "TigerVNC 1.0.90"
 #define XVNCCOPYRIGHT ("Copyright (C) 2002-2005 RealVNC Ltd.\n" \
 		       "Copyright (C) 2000-2006 Constantin Kaplinsky\n" \
@@ -161,7 +166,6 @@ static int lastScreen = -1;
 static Bool Render = TRUE;
 
 static bool displaySpecified = false;
-static bool wellKnownSocketsCreated = false;
 static char displayNumStr[16];
 
 char *listenaddr = NULL;
@@ -287,6 +291,7 @@ ddxUseMsg()
     ErrorF("-pixelformat fmt       set pixel format (rgbNNN or bgrNNN)\n");
     ErrorF("-inetd                 has been launched from inetd\n");
     ErrorF("-interface IP_address  listen on specified interface\n");
+    ErrorF("-noclipboard           disable clipboard settings modification via vncconfig utility\n");
     ErrorF("\nVNC parameters:\n");
 
     fprintf(stderr,"\n"
@@ -565,6 +570,11 @@ ddxProcessArgument(int argc, char *argv[], int i)
 
 	return 2;
     }
+
+    if (strcmp(argv[i], "-noclipboard") == 0) {
+	noclipboard = true;
+	return 1;
+    }
     
     if (rfb::Configuration::setParam(argv[i]))
 	return 1;
@@ -630,7 +640,11 @@ vfbInstallColormap(ColormapPtr pmap)
 
 	for (i = 0; i < entries; i++)  ppix[i] = i;
 	/* XXX truecolor */
+#if XORG < 19
 	QueryColors(pmap, entries, ppix, prgb);
+#else
+	QueryColors(pmap, entries, ppix, prgb, serverClient);
+#endif
 
 	for (i = 0; i < entries; i++) { /* convert xrgbs to xColorItems */
 	    defs[i].pixel = ppix[i] & 0xff; /* change pixel to index */
@@ -829,7 +843,6 @@ static miPointerScreenFuncRec vfbPointerCursorFuncs = {
 
 static Bool vncRandRGetInfo (ScreenPtr pScreen, Rotation *rotations)
 {
-  vfbScreenInfoPtr pvfb = &vfbScreens[pScreen->myNum];
   Bool ret, gotCurrent = FALSE;
   int i;
 
@@ -878,13 +891,19 @@ static Bool vncRandRGetInfo (ScreenPtr pScreen, Rotation *rotations)
 static void
 xf86SetRootClip (ScreenPtr pScreen, Bool enable)
 {
+#if XORG < 19
     WindowPtr	pWin = WindowTable[pScreen->myNum];
+#else
+    WindowPtr	pWin = pScreen->root;
+#endif
     WindowPtr	pChild;
     Bool	WasViewable = (Bool)(pWin->viewable);
     Bool	anyMarked = FALSE;
+#if XORG < 110
     RegionPtr	pOldClip = NULL, bsExposed;
 #ifdef DO_SAVE_UNDERS
     Bool	dosave = FALSE;
+#endif
 #endif
     WindowPtr   pLayerWin;
     BoxRec	box;
@@ -943,11 +962,13 @@ xf86SetRootClip (ScreenPtr pScreen, Bool enable)
     
     if (WasViewable)
     {
+#if XORG < 110
 	if (pWin->backStorage)
 	{
 	    pOldClip = REGION_CREATE(pScreen, NullBox, 1);
 	    REGION_COPY(pScreen, pOldClip, &pWin->clipList);
 	}
+#endif
 
 	if (pWin->firstChild)
 	{
@@ -961,7 +982,7 @@ xf86SetRootClip (ScreenPtr pScreen, Bool enable)
 	    anyMarked = TRUE;
 	}
 
-#ifdef DO_SAVE_UNDERS
+#if XORG < 110 && defined(DO_SAVE_UNDERS)
 	if (DO_SAVE_UNDERS(pWin))
 	{
 	    dosave = (*pScreen->ChangeSaveUnder)(pLayerWin, pLayerWin);
@@ -972,6 +993,7 @@ xf86SetRootClip (ScreenPtr pScreen, Bool enable)
 	    (*pScreen->ValidateTree)(pWin, NullWindow, VTOther);
     }
 
+#if XORG < 110
     if (pWin->backStorage &&
 	((pWin->backingStore == Always) || WasViewable))
     {
@@ -994,11 +1016,13 @@ xf86SetRootClip (ScreenPtr pScreen, Bool enable)
 	    REGION_DESTROY(pScreen, bsExposed);
 	}
     }
+#endif
     if (WasViewable)
     {
 	if (anyMarked)
 	    (*pScreen->HandleExposures)(pWin);
-#ifdef DO_SAVE_UNDERS
+
+#if XORG < 110 && defined(DO_SAVE_UNDERS)
 	if (dosave)
 	    (*pScreen->PostChangeSaveUnder)(pLayerWin, pLayerWin);
 #endif /* DO_SAVE_UNDERS */
@@ -1176,7 +1200,9 @@ vfbScreenInit(int index, ScreenPtr pScreen, int argc, char **argv)
 
     if (!ret) return FALSE;
 
+#if XORG < 110
     miInitializeBackingStore(pScreen);
+#endif
 
     /*
      * Circumvent the backing store that was just initialised.  This amounts
@@ -1195,13 +1221,23 @@ vfbScreenInit(int index, ScreenPtr pScreen, int argc, char **argv)
     pScreen->blackPixel = pvfb->blackPixel;
     pScreen->whitePixel = pvfb->whitePixel;
 
-    if (!pvfb->pixelFormatDefined && pvfb->fb.depth == 16) {
-	pvfb->pixelFormatDefined = TRUE;
-	pvfb->rgbNotBgr = TRUE;
-	pvfb->blueBits = pvfb->redBits = 5;
-	pvfb->greenBits = 6;
+    if (!pvfb->pixelFormatDefined) {
+	switch (pvfb->fb.depth) {
+	case 16:
+	    pvfb->pixelFormatDefined = TRUE;
+	    pvfb->rgbNotBgr = TRUE;
+	    pvfb->blueBits = pvfb->redBits = 5;
+	    pvfb->greenBits = 6;
+	    break;
+	case 24:
+	case 32:
+	    pvfb->pixelFormatDefined = TRUE;
+	    pvfb->rgbNotBgr = TRUE;
+	    pvfb->blueBits = pvfb->redBits = pvfb->greenBits = 8;
+	    break;
+	}
     }
-    
+
     if (pvfb->pixelFormatDefined) {
 	VisualPtr vis = pScreen->visuals;
 	for (int i = 0; i < pScreen->numVisuals; i++) {

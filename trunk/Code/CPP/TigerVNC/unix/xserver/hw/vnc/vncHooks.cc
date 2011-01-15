@@ -72,7 +72,9 @@ typedef struct {
   CreateGCProcPtr              CreateGC;
   CopyWindowProcPtr            CopyWindow;
   ClearToBackgroundProcPtr     ClearToBackground;
+#if XORG < 110
   RestoreAreasProcPtr          RestoreAreas;
+#endif
   InstallColormapProcPtr       InstallColormap;
   StoreColorsProcPtr           StoreColors;
   DisplayCursorProcPtr         DisplayCursor;
@@ -93,11 +95,16 @@ typedef struct {
 #if XORG == 15
 static DevPrivateKey vncHooksScreenPrivateKey = &vncHooksScreenPrivateKey;
 static DevPrivateKey vncHooksGCPrivateKey = &vncHooksGCPrivateKey;
-#else
+#elif XORG < 19
 static int vncHooksScreenPrivateKeyIndex;
 static int vncHooksGCPrivateKeyIndex;
 static DevPrivateKey vncHooksScreenPrivateKey = &vncHooksScreenPrivateKeyIndex;
 static DevPrivateKey vncHooksGCPrivateKey = &vncHooksGCPrivateKeyIndex;
+#else
+static DevPrivateKeyRec vncHooksScreenKeyRec;
+static DevPrivateKeyRec vncHooksGCKeyRec;
+#define vncHooksScreenPrivateKey (&vncHooksScreenKeyRec)
+#define vncHooksGCPrivateKey (&vncHooksGCKeyRec)
 #endif
 
 #define vncHooksScreenPrivate(pScreen) \
@@ -115,7 +122,9 @@ static void vncHooksCopyWindow(WindowPtr pWin, DDXPointRec ptOldOrg,
                                RegionPtr pOldRegion);
 static void vncHooksClearToBackground(WindowPtr pWin, int x, int y, int w,
                                       int h, Bool generateExposures);
+#if XORG < 110
 static RegionPtr vncHooksRestoreAreas(WindowPtr pWin, RegionPtr prgnExposed);
+#endif
 static void vncHooksInstallColormap(ColormapPtr pColormap);
 static void vncHooksStoreColors(ColormapPtr pColormap, int ndef,
                                 xColorItem* pdef);
@@ -223,6 +232,7 @@ Bool vncHooksInit(ScreenPtr pScreen, XserverDesktop* desktop)
 {
   vncHooksScreenPtr vncHooksScreen;
 
+#if XORG < 19
   if (!dixRequestPrivate(vncHooksScreenPrivateKey, sizeof(vncHooksScreenRec))) {
     ErrorF("vncHooksInit: Allocation of vncHooksScreen failed\n");
     return FALSE;
@@ -232,6 +242,20 @@ Bool vncHooksInit(ScreenPtr pScreen, XserverDesktop* desktop)
     return FALSE;
   }
 
+#else
+  if (!dixRegisterPrivateKey(&vncHooksScreenKeyRec, PRIVATE_SCREEN,
+      sizeof(vncHooksScreenRec))) {
+    ErrorF("vncHooksInit: Allocation of vncHooksScreen failed\n");
+    return FALSE;
+  }
+  if (!dixRegisterPrivateKey(&vncHooksGCKeyRec, PRIVATE_GC,
+      sizeof(vncHooksGCRec))) {
+    ErrorF("vncHooksInit: Allocation of vncHooksGCRec failed\n");
+    return FALSE;
+  }
+
+#endif
+
   vncHooksScreen = vncHooksScreenPrivate(pScreen);
 
   vncHooksScreen->desktop = desktop;
@@ -240,7 +264,9 @@ Bool vncHooksInit(ScreenPtr pScreen, XserverDesktop* desktop)
   vncHooksScreen->CreateGC = pScreen->CreateGC;
   vncHooksScreen->CopyWindow = pScreen->CopyWindow;
   vncHooksScreen->ClearToBackground = pScreen->ClearToBackground;
+#if XORG < 110
   vncHooksScreen->RestoreAreas = pScreen->RestoreAreas;
+#endif
   vncHooksScreen->InstallColormap = pScreen->InstallColormap;
   vncHooksScreen->StoreColors = pScreen->StoreColors;
   vncHooksScreen->DisplayCursor = pScreen->DisplayCursor;
@@ -264,7 +290,9 @@ Bool vncHooksInit(ScreenPtr pScreen, XserverDesktop* desktop)
   pScreen->CreateGC = vncHooksCreateGC;
   pScreen->CopyWindow = vncHooksCopyWindow;
   pScreen->ClearToBackground = vncHooksClearToBackground;
+#if XORG < 110
   pScreen->RestoreAreas = vncHooksRestoreAreas;
+#endif
   pScreen->InstallColormap = vncHooksInstallColormap;
   pScreen->StoreColors = vncHooksStoreColors;
   pScreen->DisplayCursor = vncHooksDisplayCursor;
@@ -314,7 +342,9 @@ static Bool vncHooksCloseScreen(int i, ScreenPtr pScreen_)
   pScreen->CreateGC = vncHooksScreen->CreateGC;
   pScreen->CopyWindow = vncHooksScreen->CopyWindow;
   pScreen->ClearToBackground = vncHooksScreen->ClearToBackground;
+#if XORG < 110
   pScreen->RestoreAreas = vncHooksScreen->RestoreAreas;
+#endif
   pScreen->InstallColormap = vncHooksScreen->InstallColormap;
   pScreen->StoreColors = vncHooksScreen->StoreColors;
   pScreen->DisplayCursor = vncHooksScreen->DisplayCursor;
@@ -344,7 +374,7 @@ static Bool vncHooksCloseScreen(int i, ScreenPtr pScreen_)
 static Bool vncHooksCreateGC(GCPtr pGC)
 {
   SCREEN_UNWRAP(pGC->pScreen, CreateGC);
-    
+
   vncHooksGCPtr vncHooksGC = vncHooksGCPrivate(pGC);
 
   Bool ret = (*pScreen->CreateGC) (pGC);
@@ -367,16 +397,28 @@ static void vncHooksCopyWindow(WindowPtr pWin, DDXPointRec ptOldOrg,
 {
   SCREEN_UNWRAP(pWin->drawable.pScreen, CopyWindow);
 
+  int dx, dy;
   RegionHelper copied(pScreen, pOldRegion);
-  int dx = pWin->drawable.x - ptOldOrg.x;
-  int dy = pWin->drawable.y - ptOldOrg.y;
+
+  BoxRec screen_box = {0, 0, pScreen->width, pScreen->height};
+  RegionHelper screen_rgn(pScreen, &screen_box, 1);
+
+  dx = pWin->drawable.x - ptOldOrg.x;
+  dy = pWin->drawable.y - ptOldOrg.y;
+
+  // RFB tracks copies in terms of destination rectangle, not source.
+  // We also need to copy with changes to the Window's clipping region.
+  // Finally, make sure we don't get copies to or from regions outside
+  // the framebuffer.
+  REGION_INTERSECT(pScreen, copied.reg, copied.reg, screen_rgn.reg);
   REGION_TRANSLATE(pScreen, copied.reg, dx, dy);
-  REGION_INTERSECT(pWin->drawable.pScreen, copied.reg, copied.reg,
-                   &pWin->borderClip);
+  REGION_INTERSECT(pScreen, copied.reg, copied.reg, screen_rgn.reg);
+  REGION_INTERSECT(pScreen, copied.reg, copied.reg, &pWin->borderClip);
 
   (*pScreen->CopyWindow) (pWin, ptOldOrg, pOldRegion);
 
-  vncHooksScreen->desktop->add_copied(copied.reg, dx, dy);
+  if (REGION_NOTEMPTY(pScreen, copied.reg))
+    vncHooksScreen->desktop->add_copied(copied.reg, dx, dy);
 
   SCREEN_REWRAP(CopyWindow);
 }
@@ -408,6 +450,7 @@ static void vncHooksClearToBackground(WindowPtr pWin, int x, int y, int w,
   SCREEN_REWRAP(ClearToBackground);
 }
 
+#if XORG < 110
 // RestoreAreas - changed region is the given region
 
 static RegionPtr vncHooksRestoreAreas(WindowPtr pWin, RegionPtr pRegion)
@@ -424,6 +467,7 @@ static RegionPtr vncHooksRestoreAreas(WindowPtr pWin, RegionPtr pRegion)
 
   return result;
 }
+#endif
 
 // InstallColormap - get the new colormap
 
@@ -605,7 +649,7 @@ public:
 };
 
 
-// ValidateGC - wrap the "ops" if a drawable window or pixmap
+// ValidateGC - wrap the "ops" if a viewable window
 
 static void vncHooksValidateGC(GCPtr pGC, unsigned long changes,
                                DrawablePtr pDrawable)
@@ -617,7 +661,7 @@ static void vncHooksValidateGC(GCPtr pGC, unsigned long changes,
   (*pGC->funcs->ValidateGC) (pGC, changes, pDrawable);
 
   u.vncHooksGC->wrappedOps = 0;
-  if (pDrawable->type == DRAWABLE_WINDOW || pDrawable->type == DRAWABLE_PIXMAP) {
+  if (pDrawable->type == DRAWABLE_WINDOW && ((WindowPtr) pDrawable)->viewable) {
     u.vncHooksGC->wrappedOps = pGC->ops;
     DBGPRINT((stderr,"vncHooksValidateGC: wrapped GC ops\n"));
   }    

@@ -16,6 +16,10 @@
  * USA.
  */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include <winsock2.h>
 #include <vncviewer/UserPasswdDialog.h>
 #include <vncviewer/CConn.h>
@@ -23,10 +27,11 @@
 #include <vncviewer/resource.h>
 #include <rfb/encodings.h>
 #include <rfb/Security.h>
-#include <rfb/CSecurityNone.h>
-#include <rfb/CSecurityVncAuth.h>
 #include <rfb/CMsgWriter.h>
 #include <rfb/Configuration.h>
+#ifdef HAVE_GNUTLS
+#include <rfb/CSecurityTLS.h>
+#endif
 #include <rfb/LogWriter.h>
 #include <rfb_win32/AboutDialog.h>
 
@@ -98,10 +103,10 @@ bool CConn::initialise(network::Socket* s, bool reverse) {
   // Initialise the viewer options
   applyOptions(options);
 
-  // - Set which auth schemes we support, in order of preference
-  addSecType(secTypeVncAuth);
-  addSecType(secTypeNone);
   CSecurity::upg = this;
+#ifdef HAVE_GNUTLS
+  CSecurityTLS::msg = this;
+#endif
 
   // Start the RFB protocol
   sock = s;
@@ -478,6 +483,34 @@ CConn::close(const char* reason) {
   sock->shutdown();
 }
 
+bool CConn::showMsgBox(int flags, const char* title, const char* text)
+{
+  UINT winflags = 0;
+  int ret;
+
+  /* Translate flags */
+  if ((flags & M_OK) != 0)
+    winflags |= MB_OK;
+  if ((flags & M_OKCANCEL) != 0)
+    winflags |= MB_OKCANCEL;
+  if ((flags & M_YESNO) != 0)
+    winflags |= MB_YESNO;
+  if ((flags & M_ICONERROR) != 0)
+    winflags |= MB_ICONERROR;
+  if ((flags & M_ICONQUESTION) != 0)
+    winflags |= MB_ICONQUESTION;
+  if ((flags & M_ICONWARNING) != 0)
+    winflags |= MB_ICONWARNING;
+  if ((flags & M_ICONINFORMATION) != 0)
+    winflags |= MB_ICONINFORMATION;
+  if ((flags & M_DEFBUTTON1) != 0)
+    winflags |= MB_DEFBUTTON1;
+  if ((flags & M_DEFBUTTON2) != 0)
+    winflags |= MB_DEFBUTTON2;
+
+  ret = MessageBox(NULL, text, title, flags);
+  return (ret == IDOK || ret == IDYES) ? true : false;
+}
 
 void
 CConn::showOptionsDialog() {

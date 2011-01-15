@@ -1,6 +1,7 @@
 //Microsoft Developer Studio generated resource script.
 //
 #include "resource.h"
+#include "resdefs.h"
 
 #define APSTUDIO_READONLY_SYMBOLS
 /////////////////////////////////////////////////////////////////////////////
@@ -67,8 +68,8 @@ IDI_ICON                ICON    DISCARDABLE     "vncviewer.ico"
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,0,90,0
- PRODUCTVERSION 1,0,90,0
+ FILEVERSION __RCVERSION
+ PRODUCTVERSION __RCVERSION
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -85,15 +86,20 @@ BEGIN
         BEGIN
             VALUE "Comments", "\0"
             VALUE "CompanyName", "TigerVNC Project\0"
+            #ifdef WIN64
+            VALUE "FileDescription", "TigerVNC Viewer for Win64\0"
+            VALUE "ProductName", "TigerVNC Viewer for Win64\0"
+            #else
             VALUE "FileDescription", "TigerVNC Viewer for Win32\0"
-            VALUE "FileVersion", "1.0.90\0"
+            VALUE "ProductName", "TigerVNC Viewer for Win32\0"
+            #endif
+            VALUE "FileVersion", __RCVERSIONSTR
             VALUE "InternalName", "free4/vncviewer/win\0"
-            VALUE "LegalCopyright", "Copyright (C) 1998-2009 [many holders]\0"
+            VALUE "LegalCopyright", "Copyright (C) 1998-2010 [many holders]\0"
             VALUE "LegalTrademarks", "TigerVNC\0"
             VALUE "OriginalFilename", "vncviewer.exe\0"
             VALUE "PrivateBuild", "\0"
-            VALUE "ProductName", "TigerVNC Viewer\0"
-            VALUE "ProductVersion", "1.0.90\0"
+            VALUE "ProductVersion", __VERSIONSTR
             VALUE "SpecialBuild", "\0"
         END
     END
@@ -142,7 +148,7 @@ STYLE DS_MODALFRAME | DS_SETFOREGROUND | DS_CENTER | WS_POPUP | WS_CAPTION |
 CAPTION "VNC Viewer : Connection Details"
 FONT 8, "MS Sans Serif"
 BEGIN
-    COMBOBOX        IDC_SERVER_EDIT,85,6,105,234,CBS_DROPDOWN | 
+    COMBOBOX        IDC_SERVER_EDIT,85,15,105,234,CBS_DROPDOWN | 
                     CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "&About...",IDC_ABOUT,5,45,50,14
     PUSHBUTTON      "&Options...",IDC_OPTIONS,60,45,50,14
@@ -150,10 +156,7 @@ BEGIN
     PUSHBUTTON      "Cancel",IDCANCEL,170,45,48,14
     CONTROL         120,IDI_ICON,"Static",SS_BITMAP | SS_REALSIZEIMAGE,5,6,
                     20,20
-    RTEXT           "Server:",IDC_STATIC,43,6,37,13,SS_CENTERIMAGE
-    RTEXT           "Encryption:",IDC_STATIC,43,24,37,12,SS_CENTERIMAGE
-    COMBOBOX        IDC_SECURITY_LEVEL,85,24,105,76,CBS_DROPDOWNLIST | 
-                    CBS_SORT | WS_VSCROLL | WS_TABSTOP
+    RTEXT           "Server:",IDC_STATIC,43,15,37,13,SS_CENTERIMAGE
 END
 
 IDD_ABOUT DIALOG DISCARDABLE  0, 0, 249, 92
@@ -309,6 +312,33 @@ BEGIN
     GROUPBOX        "Defaults",IDC_STATIC,113,7,97,53
 END
 
+
+IDD_SECURITY DIALOG DISCARDABLE  0, 0, 200, 200
+STYLE DS_MODALFRAME | DS_CONTROL | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Security"
+FONT 8, "MS Sans Serif"
+BEGIN
+    CONTROL         "Extended encryption and authentication methods (VeNCrypt)",
+                    IDC_VENCRYPT, "Button", BS_AUTOCHECKBOX | WS_TABSTOP,
+                    7,10,200,15
+    GROUPBOX        "Session encryption", IDC_STATIC, 7,25,120,60
+    CONTROL         "None", IDC_ENC_NONE, "Button", BS_AUTOCHECKBOX | WS_TABSTOP,
+                    10,35,50,15
+    CONTROL         "Anonymous TLS", IDC_ENC_TLS, "Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP, 10,50,80,15
+    CONTROL         "TLS with X.509 certificates", IDC_ENC_X509, "Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP, 10,65,110,15
+    GROUPBOX        "X.509 certificates", IDC_STATIC, 7,90,170,30
+    PUSHBUTTON      "Load CA certificate", IDC_LOAD_CACERT, 10,100,80,15
+    PUSHBUTTON      "Load CRL certificate", IDC_LOAD_CRLCERT, 90,100,80,15
+    GROUPBOX        "Authentication", IDC_STATIC, 7,125,100,60
+    CONTROL         "None", IDC_AUTH_NONE, "Button", BS_AUTOCHECKBOX | WS_TABSTOP,
+                    10,135,50,15
+    CONTROL         "Standard VNC", IDC_AUTH_VNC, "Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP, 10,150,80,15
+    CONTROL         "Plaintext", IDC_AUTH_PLAIN, "Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP, 10,165,70,15
+END
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -534,7 +564,7 @@ END
 // 24
 //
 
-#ifdef _WIN64
+#ifdef WIN64
 IDR_MANIFEST            24      DISCARDABLE     "vncviewer.exe.manifest64"
 #else
 IDR_MANIFEST            24      DISCARDABLE     "vncviewer.exe.manifest"

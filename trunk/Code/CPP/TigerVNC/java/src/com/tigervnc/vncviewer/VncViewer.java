@@ -162,16 +162,6 @@ public class VncViewer extends java.applet.Applet
       connectAndAuthenticate();
       doProtocolInitialisation();
 
-      if (showControls &&
-          rfb.clientMsgCaps.isEnabled(RfbProto.VideoRectangleSelection)) {
-        buttonPanel.addSelectButton();
-      }
-
-      if (showControls &&
-          rfb.clientMsgCaps.isEnabled(RfbProto.VideoFreeze)) {
-        buttonPanel.addVideoFreezeButton();
-      }
-
       // FIXME: Use auto-scaling not only in a separate frame.
       if (options.autoScale && inSeparateFrame) {
 	Dimension screenSize;
@@ -352,33 +342,71 @@ public class VncViewer extends java.applet.Applet
 			 rfb.clientMajor + "." + rfb.clientMinor);
 
     int secType = rfb.negotiateSecurity();
-    int authType;
-    if (secType == RfbProto.SecTypeTight) {
-      showConnectionStatus("Enabling TightVNC protocol extensions");
-      rfb.setupTunneling();
-      authType = rfb.negotiateAuthenticationTight();
-    } else {
-      authType = secType;
-    }
-
-    switch (authType) {
-    case RfbProto.AuthNone:
-      showConnectionStatus("No authentication needed");
-      rfb.authenticateNone();
-      break;
-    case RfbProto.AuthVNC:
-      showConnectionStatus("Performing standard VNC authentication");
-      if (passwordParam != null) {
-        rfb.authenticateVNC(passwordParam);
-      } else {
-        String pw = askPassword();
-        rfb.authenticateVNC(pw);
-      }
-      break;
-    default:
-      throw new Exception("Unknown authentication scheme " + authType);
-    }
+    doAuthentification(secType);
   }
+
+    void doAuthentification(int secType) throws Exception {
+	switch (secType) {
+	case RfbProto.SecTypeNone:
+	    showConnectionStatus("No authentication needed");
+	    rfb.authenticateNone();
+	    break;
+	case RfbProto.SecTypeVncAuth:
+	    showConnectionStatus("Performing standard VNC authentication");
+	    if (passwordParam != null) {
+		rfb.authenticateVNC(passwordParam);
+	    } else {
+		String pw = askPassword();
+		rfb.authenticateVNC(pw);
+	    }
+	    break;
+	case RfbProto.SecTypeVeNCrypt:
+	    showConnectionStatus("VeNCrypt chooser");
+	    secType = rfb.authenticateVeNCrypt();
+	    doAuthentification(secType);
+	    break;
+	case RfbProto.SecTypePlain:
+	    showConnectionStatus("Plain authentication");
+	    {
+		String user = askUser();
+		String pw = askPassword();
+		rfb.authenticatePlain(user,pw);
+	    }
+	    break;
+	case RfbProto.SecTypeTLSNone:
+	    showConnectionStatus("TLSNone");
+	    rfb.authenticateTLS();
+	    rfb.authenticateNone();
+	    break;
+	case RfbProto.SecTypeTLSVnc:
+	    showConnectionStatus("TLSVnc");
+	    rfb.authenticateTLS();
+	    doAuthentification(RfbProto.SecTypeVncAuth);
+	    break;
+	case RfbProto.SecTypeTLSPlain:
+	    showConnectionStatus("TLSPlain");
+	    rfb.authenticateTLS();
+	    doAuthentification(RfbProto.SecTypePlain);
+	    break;
+	case RfbProto.SecTypeX509None:
+	    showConnectionStatus("X509None");
+	    rfb.authenticateX509();
+	    rfb.authenticateNone();
+	    break;
+	case RfbProto.SecTypeX509Vnc:
+	    showConnectionStatus("X509Vnc");
+	    rfb.authenticateX509();
+	    doAuthentification(RfbProto.SecTypeVncAuth);
+	    break;
+	case RfbProto.SecTypeX509Plain:
+	    showConnectionStatus("X509Plain");
+	    rfb.authenticateX509();
+	    doAuthentification(RfbProto.SecTypePlain);
+	    break;
+	default:
+	    throw new Exception("Unknown authentication scheme " + secType);
+	}
+    }
 
 
   //
@@ -428,11 +456,40 @@ public class VncViewer extends java.applet.Applet
   // Show an authentication panel.
   //
 
+  String askUser() throws Exception
+  {
+    showConnectionStatus(null);
+
+    AuthPanel authPanel = new AuthPanel(this, false);
+
+    GridBagConstraints gbc = new GridBagConstraints();
+    gbc.gridwidth = GridBagConstraints.REMAINDER;
+    gbc.anchor = GridBagConstraints.NORTHWEST;
+    gbc.weightx = 1.0;
+    gbc.weighty = 1.0;
+    gbc.ipadx = 100;
+    gbc.ipady = 50;
+    gridbag.setConstraints(authPanel, gbc);
+    vncContainer.add(authPanel);
+
+    if (inSeparateFrame) {
+      vncFrame.pack();
+    } else {
+      validate();
+    }
+
+    authPanel.moveFocusToDefaultField();
+    String pw = authPanel.getPassword();
+    vncContainer.remove(authPanel);
+
+    return pw;
+  }
+
   String askPassword() throws Exception
   {
     showConnectionStatus(null);
 
-    AuthPanel authPanel = new AuthPanel(this);
+    AuthPanel authPanel = new AuthPanel(this, true);
 
     GridBagConstraints gbc = new GridBagConstraints();
     gbc.gridwidth = GridBagConstraints.REMAINDER;
