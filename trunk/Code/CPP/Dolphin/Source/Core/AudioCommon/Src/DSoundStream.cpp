@@ -53,7 +53,7 @@ bool DSound::CreateBuffer()
 	else
 	{
 		// Failed.
-		PanicAlert("声音缓冲区创建失败: %s", DXGetErrorString(res)); 
+		PanicAlertT("声音缓冲区创建失败: %s", DXGetErrorString(res)); 
 		dsBuffer = NULL;
 		return false;
 	}
