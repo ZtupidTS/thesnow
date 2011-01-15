@@ -2,14 +2,12 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.56])
-AC_INIT([libjpeg-turbo], [1.0.0])
+AC_INIT([libjpeg-turbo], [1.0.1])
 
 AM_INIT_AUTOMAKE([-Wall foreign dist-bzip2])
 
 # Always build with prototypes
 AC_DEFINE([HAVE_PROTOTYPES], 1, [Define if your compiler supports prototypes])
-# Don't use undefined types
-AC_DEFINE([INCOMPLETE_TYPES_BROKEN], 1, [Define if you want use complete types])
 
 # Checks for programs.
 SAVED_CFLAGS=${CFLAGS}
@@ -20,6 +18,13 @@ AC_PROG_CXX
 AC_PROG_INSTALL
 AC_PROG_LIBTOOL
 AC_PROG_LN_S
+
+# Check whether compiler supports pointers to undefined structures
+AC_MSG_CHECKING(whether compiler supports pointers to undefined structures)
+AC_TRY_COMPILE([ typedef struct undefined_structure * undef_struct_ptr; ], ,
+AC_MSG_RESULT(yes),
+[AC_MSG_RESULT(no)
+AC_DEFINE([INCOMPLETE_TYPES_BROKEN],[1],[Compiler does not support pointers to undefined structures.])])
 
 if test "x${GCC}" = "xyes"; then
   if test "x${SAVED_CFLAGS}" = "x"; then
