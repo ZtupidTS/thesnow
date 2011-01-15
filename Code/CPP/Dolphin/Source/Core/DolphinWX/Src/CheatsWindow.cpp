@@ -155,9 +155,9 @@ CheatSearchTab::CheatSearchTab(wxWindow* const parent)
 	btnNextScan->Disable();
 
 	// data size radio buttons
-	size_radiobtn.rad_8 = new wxRadioButton(this, -1, wxT("8 bit"), wxDefaultPosition, wxDefaultSize, wxRB_GROUP);
-	size_radiobtn.rad_16 = new wxRadioButton(this, -1, wxT("16 bit"));
-	size_radiobtn.rad_32 = new wxRadioButton(this, -1, wxT("32 bit"));
+	size_radiobtn.rad_8 = new wxRadioButton(this, -1, _("8 bit"), wxDefaultPosition, wxDefaultSize, wxRB_GROUP);
+	size_radiobtn.rad_16 = new wxRadioButton(this, -1, _("16 bit"));
+	size_radiobtn.rad_32 = new wxRadioButton(this, -1, _("32 bit"));
 	size_radiobtn.rad_8->SetValue(true);
 
 	// data sizes groupbox
@@ -345,7 +345,7 @@ void CheatSearchTab::StartNewSearch(wxCommandEvent& WXUNUSED (event))
 	const u8* const memptr = Memory::GetPointer(0);
 	if (NULL == memptr)
 	{
-		PanicAlert("A game is not currently running.");
+		PanicAlertT("A game is not currently running.");
 	}
 	else
 	{
@@ -376,7 +376,7 @@ void CheatSearchTab::FilterCheatSearchResults(wxCommandEvent&)
 	const u8* const memptr = Memory::GetPointer(0);
 	if (NULL == memptr)
 	{
-		PanicAlert("A game is not currently running.");
+		PanicAlertT("A game is not currently running.");
 	}
 	else
 	{
@@ -431,7 +431,7 @@ void CheatSearchTab::FilterCheatSearchResults(wxCommandEvent&)
 
 				if (!x_val.ToLong(&parsed_x_val, val_base))
 				{
-					PanicAlert("You must enter a valid decimal or hex value.");
+					PanicAlertT("You must enter a valid decimal or hex value.");
 					return;
 				}
 
@@ -564,7 +564,7 @@ CreateCodeDialog::CreateCodeDialog(wxWindow* const parent, const u32 address)
 	sizer_value_label->Add(label_value, 0, wxRIGHT, 5);
 	sizer_value_label->Add(checkbox_use_hex, 0, 0, 0);
 
-	wxButton* const btn_ok = new wxButton(panel, -1, wxT("OK"));
+	wxButton* const btn_ok = new wxButton(panel, -1, _("OK"));
 	_connect_macro_(btn_ok, CreateCodeDialog::PressOK, wxEVT_COMMAND_BUTTON_CLICKED, this);
 	wxButton* const btn_cancel = new wxButton(panel, -1, _("Cancel"));
 	_connect_macro_(btn_cancel, CreateCodeDialog::PressCancel, wxEVT_COMMAND_BUTTON_CLICKED, this);
@@ -598,14 +598,14 @@ void CreateCodeDialog::PressOK(wxCommandEvent&)
 	const wxString code_name = textctrl_name->GetValue();
 	if (code_name.empty())
 	{
-		PanicAlert("You must enter a name!");
+		PanicAlertT("You must enter a name!");
 		return;
 	}
 
 	long code_value;
 	if (!textctrl_value->GetValue().ToLong(&code_value, 10 + checkbox_use_hex->GetValue()*6))
 	{
-		PanicAlert("Invalid Value!");
+		PanicAlertT("Invalid Value!");
 		return;
 	}
 

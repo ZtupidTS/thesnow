@@ -164,6 +164,11 @@ bool CBoot::BootUp()
 
 	NOTICE_LOG(BOOT, "Booting %s", _StartupPara.m_strFilename.c_str());
 
+	// HLE jump to loader (homebrew)
+	Memory::Write_U32(((1 & 0x3f) << 26) | 10, 0x80001800);
+	const u8 stubstr[] = { 'S', 'T', 'U', 'B', 'H', 'A', 'X', 'X' };
+	Memory::WriteBigEData(stubstr, 0x80001804, 8);
+
 	g_symbolDB.Clear();
 	VideoInterface::Preset(_StartupPara.bNTSC);
 	switch (_StartupPara.m_BootType)
@@ -178,7 +183,7 @@ bool CBoot::BootUp()
 		bool isoWii = DiscIO::IsVolumeWiiDisc(pVolume);
 		if (isoWii != _StartupPara.bWii)
 		{
-			PanicAlert("Warning - starting ISO in wrong console mode!");
+			PanicAlertT("Warning - starting ISO in wrong console mode!");
 		}
 
 		char gameID[7];
@@ -230,7 +235,7 @@ bool CBoot::BootUp()
 		bool dolWii = CDolLoader::IsDolWii(_StartupPara.m_strFilename.c_str());
 		if (dolWii != _StartupPara.bWii)
 		{
-			PanicAlert("Warning - starting DOL in wrong console mode!");
+			PanicAlertT("Warning - starting DOL in wrong console mode!");
 		}
 
 		bool BS2Success = false;
@@ -271,7 +276,7 @@ bool CBoot::BootUp()
 	{
 		if(!File::Exists(_StartupPara.m_strFilename.c_str()))
 		{
-			PanicAlert("The file you specified (%s) does not exist",
+			PanicAlertT("The file you specified (%s) does not exist",
 				_StartupPara.m_strFilename.c_str());
 			return false;
 		}
@@ -280,7 +285,7 @@ bool CBoot::BootUp()
 		bool elfWii = IsElfWii(_StartupPara.m_strFilename.c_str());
 		if (elfWii != _StartupPara.bWii)
 		{
-			PanicAlert("Warning - starting ELF in wrong console mode!");
+			PanicAlertT("Warning - starting ELF in wrong console mode!");
 		}			
 
 		bool BS2Success = false;
@@ -361,7 +366,7 @@ bool CBoot::BootUp()
 
 	default:
 	{
-		PanicAlert("Tried to load an unknown file type.");
+		PanicAlertT("Tried to load an unknown file type.");
 		return false;
 	}
 	}

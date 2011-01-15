@@ -553,7 +553,7 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 void CISOProperties::OnClose(wxCloseEvent& WXUNUSED (event))
 {
 	if (!SaveGameConfig())
-		PanicAlert("Could not save %s", GameIniFile.c_str());
+		PanicAlertT("Could not save %s", GameIniFile.c_str());
 
 	EndModal(bRefreshList ? wxID_OK : wxID_CANCEL);
 }
@@ -801,7 +801,7 @@ void CISOProperties::OnExtractDataFromHeader(wxCommandEvent& event)
 	}
 
 	if (!ret)
-		PanicAlert("Failed to extract to %s!", (const char *)Path.mb_str());
+		PanicAlertT("Failed to extract to %s!", (const char *)Path.mb_str());
 }
 
 void CISOProperties::SetRefresh(wxCommandEvent& event)
@@ -1052,17 +1052,17 @@ void CISOProperties::OnEditConfig(wxCommandEvent& WXUNUSED (event))
 			filetype = wxTheMimeTypesManager->GetFileTypeFromMimeType(_T("text/plain"));
 			if(filetype == NULL) // MIME type failed, aborting mission
 			{
-				PanicAlert("Filetype 'ini' is unknown! Will not open!");
+				PanicAlertT("Filetype 'ini' is unknown! Will not open!");
 				return;
 			}
 		}
 		wxString OpenCommand;
 		OpenCommand = filetype->GetOpenCommand(wxString::From8BitData(GameIniFile.c_str()));
 		if(OpenCommand.IsEmpty())
-			PanicAlert("Couldn't find open command for extension 'ini'!");
+			PanicAlertT("Couldn't find open command for extension 'ini'!");
 		else
 			if(wxExecute(OpenCommand, wxEXEC_SYNC) == -1)
-				PanicAlert("wxExecute returned -1 on application run!");
+				PanicAlertT("wxExecute returned -1 on application run!");
 
 		GameIni.Load(GameIniFile.c_str());
 		LoadGameConfig();
@@ -1248,10 +1248,10 @@ void CISOProperties::ChangeBannerDetails(int lang)
 		|| OpenGameListItem->GetCountry() == DiscIO::IVolume::COUNTRY_TAIWAN
 		|| OpenGameListItem->GetPlatform() == GameListItem::WII_WAD)
 	{
-#ifdef __linux__
-		wxCSConv SJISConv(wxFontMapper::GetEncodingName(wxFONTENCODING_EUC_JP));
-#else
+#ifdef _WIN32
 		wxCSConv SJISConv(wxFontMapper::GetEncodingName(wxFONTENCODING_SHIFT_JIS));
+#else
+		wxCSConv SJISConv(wxFontMapper::GetEncodingName(wxFONTENCODING_EUC_JP));
 #endif
 		wxString name = wxString(OpenGameListItem->GetName(0).c_str(), SJISConv);
 

@@ -40,18 +40,40 @@
 
 extern CFrame* main_frame;
 
+// keep these in sync with CConfigMain::InitializeGUILists
+static const wxLanguage langIds[] =
+{
+	wxLANGUAGE_DEFAULT,
+	wxLANGUAGE_CHINESE_SIMPLIFIED,
+	wxLANGUAGE_DANISH,
+	wxLANGUAGE_DUTCH,
+	wxLANGUAGE_ENGLISH,
+	wxLANGUAGE_FRENCH,
+	wxLANGUAGE_GERMAN,
+	wxLANGUAGE_GREEK,
+	wxLANGUAGE_HEBREW,
+	wxLANGUAGE_HUNGARIAN,
+	wxLANGUAGE_ITALIAN,
+	wxLANGUAGE_JAPANESE,
+	wxLANGUAGE_KOREAN,
+	wxLANGUAGE_NORWEGIAN_BOKMAL,
+	wxLANGUAGE_POLISH,
+	wxLANGUAGE_RUSSIAN,
+	wxLANGUAGE_SPANISH,
+};
+
 // Strings for Device Selections
-#define DEV_NONE_STR		"<没有>"
-#define DEV_DUMMY_STR		"Dummy"
+#define DEV_NONE_STR		_trans("<没有>")
+#define DEV_DUMMY_STR		_trans("Dummy")
 
-#define SIDEV_STDCONT_STR	"标准控制器"
+#define SIDEV_STDCONT_STR	_trans("标准控制器")
 #define SIDEV_GBA_STR		"GBA"
-#define SIDEV_AM_BB_STR		"AM-Baseboard"
+#define SIDEV_AM_BB_STR		_trans("AM-Baseboard")
 
-#define EXIDEV_MEMCARD_STR	"记忆卡"
-#define EXIDEV_MIC_STR		"Mic"
+#define EXIDEV_MEMCARD_STR	_trans("记忆卡")
+#define EXIDEV_MIC_STR		_trans("Mic")
 #define EXIDEV_BBA_STR		"BBA"
-#define EXIDEV_AM_BB_STR	"AM-Baseboard"
+#define EXIDEV_AM_BB_STR	_trans("AM-Baseboard")
 
 #ifdef WIN32
 //only used with xgettext to be picked up as translatable string.
@@ -258,13 +280,24 @@ void CConfigMain::InitializeGUILists()
 	arrayStringFor_WiiSystemLang.Add(_("Korean"));
 
 	// GUI language arrayStrings
-	// keep those in sync with DolphinApp::InitLanguageSupport
+	// keep these in sync with the langIds array at the beginning of this file
 	arrayStringFor_InterfaceLang.Add(_("<System>"));
+	arrayStringFor_InterfaceLang.Add(_("Chinese (Simplified)"));
+	arrayStringFor_InterfaceLang.Add(_("Danish"));
+	arrayStringFor_InterfaceLang.Add(_("Dutch"));
 	arrayStringFor_InterfaceLang.Add(_("English"));
-	arrayStringFor_InterfaceLang.Add(_("German"));
 	arrayStringFor_InterfaceLang.Add(_("French"));
+	arrayStringFor_InterfaceLang.Add(_("German"));
+	arrayStringFor_InterfaceLang.Add(_("Greek"));
+	arrayStringFor_InterfaceLang.Add(_("Hebrew"));
+	arrayStringFor_InterfaceLang.Add(_("Hungarian"));
 	arrayStringFor_InterfaceLang.Add(_("Italian"));
-
+	arrayStringFor_InterfaceLang.Add(_("Japanese"));
+	arrayStringFor_InterfaceLang.Add(_("Korean"));
+	arrayStringFor_InterfaceLang.Add(_("Norwegian Bokmaal"));
+	arrayStringFor_InterfaceLang.Add(_("Polish"));
+	arrayStringFor_InterfaceLang.Add(_("Russian"));
+	arrayStringFor_InterfaceLang.Add(_("Spanish"));
 }
 
 void CConfigMain::InitializeGUIValues()
@@ -303,8 +336,12 @@ void CConfigMain::InitializeGUIValues()
 	UsePanicHandlers->SetValue(startup_params.bUsePanicHandlers);
 	Theme->SetSelection(startup_params.iTheme);
 	// need redesign
-	InterfaceLang->SetSelection(SConfig::GetInstance().m_InterfaceLanguage);
-
+	for (unsigned int i = 0; i < sizeof(langIds) / sizeof(wxLanguage); i++)
+		if (langIds[i] == SConfig::GetInstance().m_InterfaceLanguage)
+		{
+			InterfaceLang->SetSelection(i);
+			break;
+		}
 
 	// Gamecube - IPL
 	GCSystemLang->SetSelection(startup_params.SelectedLanguage);
@@ -525,13 +562,13 @@ void CConfigMain::CreateGUIControls()
 	GCEXIDeviceText[0] = new wxStaticText(GamecubePage, ID_GC_EXIDEVICE_SLOTA_TEXT, wxT("插槽 A"), wxDefaultPosition, wxDefaultSize);
 	GCEXIDeviceText[1] = new wxStaticText(GamecubePage, ID_GC_EXIDEVICE_SLOTB_TEXT, wxT("插槽 B"), wxDefaultPosition, wxDefaultSize);
 	GCEXIDeviceText[2] = new wxStaticText(GamecubePage, ID_GC_EXIDEVICE_SP1_TEXT,	wxT("SP1   "), wxDefaultPosition, wxDefaultSize);
-	const wxString SlotDevices[] = {wxT(DEV_NONE_STR), wxT(DEV_DUMMY_STR), wxT(EXIDEV_MEMCARD_STR)
+	const wxString SlotDevices[] = {_(DEV_NONE_STR), _(DEV_DUMMY_STR), _(EXIDEV_MEMCARD_STR)
 	#if HAVE_PORTAUDIO
-		, wxT(EXIDEV_MIC_STR)
+		, _(EXIDEV_MIC_STR)
 	#endif
 	};
 	static const int numSlotDevices = sizeof(SlotDevices)/sizeof(wxString);
-	const wxString SP1Devices[] = { wxT(DEV_NONE_STR), wxT(DEV_DUMMY_STR), wxT(EXIDEV_BBA_STR), wxT(EXIDEV_AM_BB_STR) };
+	const wxString SP1Devices[] = { _(DEV_NONE_STR), _(DEV_DUMMY_STR), _(EXIDEV_BBA_STR), _(EXIDEV_AM_BB_STR) };
 	static const int numSP1Devices = sizeof(SP1Devices)/sizeof(wxString);
 	GCEXIDevice[0] = new wxChoice(GamecubePage, ID_GC_EXIDEVICE_SLOTA, wxDefaultPosition, wxDefaultSize, numSlotDevices, SlotDevices, 0, wxDefaultValidator);
 	GCEXIDevice[1] = new wxChoice(GamecubePage, ID_GC_EXIDEVICE_SLOTB, wxDefaultPosition, wxDefaultSize, numSlotDevices, SlotDevices, 0, wxDefaultValidator);
@@ -575,7 +612,7 @@ void CConfigMain::CreateGUIControls()
 	GCSIDeviceText[2] = new wxStaticText(GamecubePage, ID_GC_SIDEVICE_TEXT, wxT("端口 3"), wxDefaultPosition, wxDefaultSize);
 	GCSIDeviceText[3] = new wxStaticText(GamecubePage, ID_GC_SIDEVICE_TEXT, wxT("端口 4"), wxDefaultPosition, wxDefaultSize);
 	// SIDEV_AM_BB_STR must be last!
-	const wxString SIDevices[] = {wxT(DEV_NONE_STR),wxT(SIDEV_STDCONT_STR),wxT(SIDEV_GBA_STR),wxT(SIDEV_AM_BB_STR)};
+	const wxString SIDevices[] = {_(DEV_NONE_STR),_(SIDEV_STDCONT_STR),_(SIDEV_GBA_STR),_(SIDEV_AM_BB_STR)};
 	static const int numSIDevices = sizeof(SIDevices)/sizeof(wxString);
 	GCSIDevice[0] = new wxChoice(GamecubePage, ID_GC_SIDEVICE0, wxDefaultPosition, wxDefaultSize, numSIDevices, SIDevices, 0, wxDefaultValidator);
 	GCSIDevice[1] = new wxChoice(GamecubePage, ID_GC_SIDEVICE1, wxDefaultPosition, wxDefaultSize, numSIDevices - 1, SIDevices, 0, wxDefaultValidator);
@@ -877,10 +914,9 @@ void CConfigMain::DisplaySettingsChanged(wxCommandEvent& event)
 		main_frame->InitBitmaps();
 		break;
 	case ID_INTERFACE_LANG:
-		if (SConfig::GetInstance().m_InterfaceLanguage != InterfaceLang->GetSelection())
-			SuccessAlert("You must restart Dolphin in order for the change to take effect.");
-		SConfig::GetInstance().m_InterfaceLanguage = InterfaceLang->GetSelection();
-		bRefreshList = true;
+		if (SConfig::GetInstance().m_InterfaceLanguage != langIds[InterfaceLang->GetSelection()])
+			SuccessAlertT("You must restart Dolphin in order for the change to take effect.");
+		SConfig::GetInstance().m_InterfaceLanguage = langIds[InterfaceLang->GetSelection()];
 		break;
 	case ID_HOTKEY_CONFIG:
 		{
@@ -906,6 +942,7 @@ void CConfigMain::GCSettingsChanged(wxCommandEvent& event)
 	// Gamecube - IPL
 	case ID_GC_SRAM_LNG:
 		SConfig::GetInstance().m_LocalCoreStartupParameter.SelectedLanguage = GCSystemLang->GetSelection();
+		bRefreshList = true;
 		break;
 	// Gamecube - Devices
 	case ID_GC_EXIDEVICE_SP1:
@@ -961,8 +998,8 @@ void CConfigMain::ChooseMemcardPath(std::string& strMemcard, bool isSlotA)
 		}
 		else
 		{
-			PanicAlert("Cannot use that file as a memory card.\n"
-				"Are you trying to use the same file in both slots?");
+			PanicAlertT("Cannot use that file as a memory card.\n"
+					"Are you trying to use the same file in both slots?");
 		}
 	}
 }
@@ -1197,7 +1234,7 @@ void CConfigMain::FillChoiceBox(wxChoice* _pChoice, int _PluginType, const std::
 		if (rPluginInfo.Type == _PluginType)
 		{
 			wxString temp;
-			temp = wxString::FromAscii(rInfos[i].GetPluginInfo().Name);
+			temp = wxGetTranslation(wxString::From8BitData(rInfos[i].GetPluginInfo().Name));
 			int NewIndex = _pChoice->Append(temp, (void*)&rInfos[i]);
 
 			if (rInfos[i].GetFilename() == _SelectFilename)

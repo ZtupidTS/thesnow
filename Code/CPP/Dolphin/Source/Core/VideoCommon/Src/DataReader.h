@@ -15,10 +15,16 @@
 // Official SVN repository and contact information can be found at
 // http://code.google.com/p/dolphin-emu/
 
+
+
 #ifndef _DATAREADER_H
 #define _DATAREADER_H
 
 extern u8* g_pVideoData;
+
+#if _M_SSE >= 0x301 && !(defined __GNUC__ && !defined __SSSE3__)
+#include <tmmintrin.h>
+#endif
 
 __forceinline void DataSkip(u32 skip)
 {
@@ -64,6 +70,26 @@ __forceinline u32 DataReadU32()
 	return tmp;
 }
 
+typedef void (*DataReadU32xNfunc)(u32 *buf);
+extern DataReadU32xNfunc DataReadU32xFuncs[16];
+
+#if _M_SSE >= 0x301
+const __m128i bs_mask = _mm_set_epi32(0x0C0D0E0FL, 0x08090A0BL, 0x04050607L, 0x00010203L);
+
+template<unsigned int N>
+void DataReadU32xN_SSSE3(u32 *bufx16)
+{
+	memcpy(bufx16, g_pVideoData, sizeof(u32) * N);
+	__m128i* buf = (__m128i *)bufx16;
+	if (N>12) { _mm_store_si128(buf, _mm_shuffle_epi8(_mm_load_si128(buf), bs_mask)); buf++; }
+	if (N>8)  { _mm_store_si128(buf, _mm_shuffle_epi8(_mm_load_si128(buf), bs_mask)); buf++; }
+	if (N>4)  { _mm_store_si128(buf, _mm_shuffle_epi8(_mm_load_si128(buf), bs_mask)); buf++; }
+	_mm_store_si128(buf, _mm_shuffle_epi8(_mm_load_si128(buf), bs_mask));
+	g_pVideoData += (sizeof(u32) * N);
+}
+
+#endif
+
 template<unsigned int N>
 void DataReadU32xN(u32 *bufx16)
 {
@@ -86,9 +112,6 @@ void DataReadU32xN(u32 *bufx16)
 	if (N >= 16) bufx16[15] = Common::swap32(bufx16[15]);
 	g_pVideoData += (sizeof(u32) * N);
 }
-
-typedef void (*DataReadU32xNfunc)(u32 *buf);
-extern DataReadU32xNfunc DataReadU32xFuncs[16];
 
 __forceinline u32 DataReadU32Unswapped()
 {

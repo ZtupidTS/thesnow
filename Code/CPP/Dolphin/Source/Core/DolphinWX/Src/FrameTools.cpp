@@ -524,7 +524,7 @@ void CFrame::InitBitmaps()
 	}
 	break;
 
-	default: PanicAlert("Theme selection went wrong");
+	default: PanicAlertT("Theme selection went wrong");
 	}
 
 	// Update in case the bitmap has been updated
@@ -597,7 +597,7 @@ void CFrame::DoOpen(bool Boot)
 
 	if (currentDir != currentDir2)
 	{
-		PanicAlert("Current dir changed from %s to %s after wxFileSelector!",
+		PanicAlertT("Current dir changed from %s to %s after wxFileSelector!",
 				currentDir.c_str(), currentDir2.c_str());
 		File::SetCurrentDir(currentDir.c_str());
 	}
@@ -785,9 +785,17 @@ void CFrame::StartGame(const std::string& filename)
 	{
 		wxPoint position(SConfig::GetInstance().m_LocalCoreStartupParameter.iRenderWindowXPos,
 				SConfig::GetInstance().m_LocalCoreStartupParameter.iRenderWindowYPos);
+#ifdef __APPLE__
+		// On OS X, the render window's title bar is not visible,
+		// and the window therefore not easily moved, when the
+		// position is 0,0. Weed out the 0's from existing configs.
+		if (position == wxPoint(0, 0))
+			position = wxDefaultPosition;
+#endif
+
+		m_RenderFrame = new CRenderFrame((wxFrame*)this, wxID_ANY, _("Dolphin"), position);
 		wxSize size(SConfig::GetInstance().m_LocalCoreStartupParameter.iRenderWindowWidth,
 				SConfig::GetInstance().m_LocalCoreStartupParameter.iRenderWindowHeight);
-		m_RenderFrame = new CRenderFrame((wxFrame*)this, wxID_ANY, _("Dolphin"), position);
 		m_RenderFrame->SetClientSize(size.GetWidth(), size.GetHeight());
 		m_RenderFrame->Connect(wxID_ANY, wxEVT_CLOSE_WINDOW,
 				wxCloseEventHandler(CFrame::OnRenderParentClose),
@@ -937,6 +945,7 @@ void CFrame::DoStop()
 		X11Utils::InhibitScreensaver(X11Utils::XDisplayFromHandle(GetHandle()),
 				X11Utils::XWindowFromHandle(GetHandle()), false);
 #endif
+		m_RenderFrame->SetTitle(wxString::FromAscii(svn_rev_str));
 
 		// Destroy the renderer frame when not rendering to main
 		m_RenderParent->Disconnect(wxID_ANY, wxEVT_SIZE,
@@ -1073,7 +1082,7 @@ void CFrame::OnPluginPAD(wxCommandEvent& WXUNUSED (event))
 		Pad::Initialize(GetHandle());
 #endif
 	}
-	InputConfigDialog *const m_ConfigFrame = new InputConfigDialog(this, *pad_plugin, "Dolphin GCPad Configuration");
+	InputConfigDialog *const m_ConfigFrame = new InputConfigDialog(this, *pad_plugin, _trans("Dolphin GCPad Configuration"));
 	m_ConfigFrame->ShowModal();
 	m_ConfigFrame->Destroy();
 	if (!was_init)				// if game isn't running
@@ -1211,7 +1220,7 @@ void CFrame::ConnectWiimote(int wm_idx, bool connect)
 	if (Core::isRunning() && SConfig::GetInstance().m_LocalCoreStartupParameter.bWii)
 	{
 		GetUsbPointer()->AccessWiiMote(wm_idx | 0x100)->Activate(connect);
-		wxString msg(wxString::Format(wxT("Wiimote %i %s"), wm_idx + 1,
+		wxString msg(wxString::Format(_("Wiimote %i %s"), wm_idx + 1,
 					connect ? _("已连接") : _("未连接")));
 		Core::DisplayMessage(msg.ToAscii(), 3000);
 	}
