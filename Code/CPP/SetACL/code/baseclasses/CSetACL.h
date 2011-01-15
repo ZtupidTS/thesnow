@@ -228,16 +228,16 @@ class CTrustee
 public:
 
 							CTrustee ();
-							CTrustee (CString sTrustee, BOOL fTrusteeIsSID, DWORD nAction, BOOL fDACL, BOOL fSACL);
+							CTrustee (CString sTrustee, bool fTrusteeIsSID, DWORD nAction, bool fDACL, bool fSACL);
 	virtual				~CTrustee ();
 	DWORD					LookupSID ();							// Lookup/calculate the binary SID of a given trustee
 
 	CString				m_sTrustee;								// Name of the trustee
-	BOOL					m_fTrusteeIsSID;						// Is the trustee a (string) SID?
+	bool					m_fTrusteeIsSID;						// Is the trustee a (string) SID?
 	PSID					m_psidTrustee;							// Pointer to the binary SID
 	DWORD					m_nAction;								//	Which action(s) are to be performed on this trustee?
-	BOOL					m_fDACL;									//	Use this trustee in DACL processing?
-	BOOL					m_fSACL;									//	Use this trustee in SACL processing?
+	bool					m_fDACL;									//	Use this trustee in DACL processing?
+	bool					m_fSACL;									//	Use this trustee in SACL processing?
 	CTrustee*			m_oNewTrustee;							//	Pointer to another trustee this one should be replaced with
 
 };
@@ -257,12 +257,12 @@ public:
 
 							CDomain ();
 	virtual				~CDomain ();
-	DWORD					SetDomain (CString sDomain, DWORD nAction, BOOL fDACL, BOOL fSACL);
+	DWORD					SetDomain (CString sDomain, DWORD nAction, bool fDACL, bool fSACL);
 
 	CString				m_sDomain;								// DNS name of the domain
 	DWORD					m_nAction;								//	Which action(s) are to be performed on this domain?
-	BOOL					m_fDACL;									//	Use this domain in DACL processing?
-	BOOL					m_fSACL;									//	Use this domain in SACL processing?
+	bool					m_fDACL;									//	Use this domain in DACL processing?
+	bool					m_fSACL;									//	Use this domain in SACL processing?
 	CDomain*				m_oNewDomain;							//	Pointer to another domain this one should be replaced with
 
 };
@@ -281,13 +281,13 @@ class CACE
 public:
 
 							CACE ();
-							CACE (CTrustee* pTrustee, CString sPermission, DWORD nInheritance, BOOL fInhSpecified, ACCESS_MODE nAccessMode, DWORD nACLType);
+							CACE (CTrustee* pTrustee, CString sPermission, DWORD nInheritance, bool fInhSpecified, ACCESS_MODE nAccessMode, DWORD nACLType);
 	virtual				~CACE ();
 
 	CTrustee*			m_pTrustee;								// Pointer to instance of CTrustee which specifies the trustee
 	CString				m_sPermission;							// Permission to set for this trustee (string value)
 	DWORD					m_nInheritance;						// Inheritance flags to use
-	BOOL					m_fInhSpecified;						// Inheritance specified by caller, or do we use default (working) values?
+	bool					m_fInhSpecified;						// Inheritance specified by caller, or do we use default (working) values?
 	ACCESS_MODE			m_nAccessMode;							// Access mode: set, grant, deny,  revoke, audit_success, audit_failure
 	DWORD					m_nACLType;								// DACL or SACL
 	DWORD					m_nAccessMask;							// Permission to set for this trustee (bitmask value)
@@ -313,23 +313,26 @@ public:
 	DWORD											SetObject (CString sObjectPath, SE_OBJECT_TYPE nObjectType);	// Set the object on which all actions are to be performed
 	DWORD											SetAction (DWORD nAction);													// Set the action to be performed
 	DWORD											AddAction (DWORD nAction);													// Add an action to be performed
-	DWORD											AddACE (CString sTrustee, BOOL fTrusteeIsSID, CString sPermission, DWORD nInheritance, BOOL fInhSpecified, DWORD nAccessMode, DWORD nACLType);	// Add an ACE to a DACL or SACL
-	DWORD											AddTrustee (CString sTrustee, CString sNewTrustee, BOOL fTrusteeIsSID, BOOL fNewTrusteeIsSID, DWORD nAction, BOOL fDACL, BOOL fSACL);				// Add a trustee: used by the functions to remove/replace (a) specified trustee(s) from the ACL
-	DWORD											AddDomain (CString sDomain, CString sNewDomain, DWORD nAction, BOOL fDACL, BOOL fSACL);																			// Add a domain: used by the functions to remove/replace (a) specified domain(s) from the ACL
-	DWORD											SetOwner (CString sTrustee, BOOL fTrusteeIsSID);					// Set the owner
-	DWORD											SetPrimaryGroup (CString sTrustee, BOOL fTrusteeIsSID);			// Set the primary group
+	DWORD											AddACE (CString sTrustee, bool fTrusteeIsSID, CString sPermission, DWORD nInheritance, bool fInhSpecified, DWORD nAccessMode, DWORD nACLType);	// Add an ACE to a DACL or SACL
+	DWORD											AddTrustee (CString sTrustee, CString sNewTrustee, bool fTrusteeIsSID, bool fNewTrusteeIsSID, DWORD nAction, bool fDACL, bool fSACL);				// Add a trustee: used by the functions to remove/replace (a) specified trustee(s) from the ACL
+	DWORD											AddDomain (CString sDomain, CString sNewDomain, DWORD nAction, bool fDACL, bool fSACL);																			// Add a domain: used by the functions to remove/replace (a) specified domain(s) from the ACL
+	DWORD											SetOwner (CString sTrustee, bool fTrusteeIsSID);					// Set the owner
+	DWORD											SetPrimaryGroup (CString sTrustee, bool fTrusteeIsSID);			// Set the primary group
 	DWORD											Run ();																			// Do it: apply all settings.
 	DWORD											SetRecursion (DWORD nRecursionType);									// Should we recurse?
-	DWORD											SetObjectFlags (DWORD nDACLProtected, DWORD nSACLProtected, BOOL fDACLResetChildObjects, BOOL fSACLResetChildObjects);									// Set flags specific to the object
+	DWORD											SetObjectFlags (DWORD nDACLProtected, DWORD nSACLProtected, bool fDACLResetChildObjects, bool fSACLResetChildObjects);									// Set flags specific to the object
 	CString										GetLastErrorMessage (DWORD nError = 0);								// Return the error message generated during the last Run ()
-	DWORD											SetListOptions (DWORD nListFormat, DWORD nListWhat, BOOL fListInherited, DWORD nListNameSID);																	// Set the options for ACL listing
+	DWORD											SetListOptions (DWORD nListFormat, DWORD nListWhat, bool fListInherited, DWORD nListNameSID);																	// Set the options for ACL listing
 	DWORD											SetBackupRestoreFile (CString sBackupRestoreFile);					// Specify a (unicode) file to be used for backup/restore operations
 	DWORD											SetLogFile (CString sLogFile);											// Specify a (unicode) file to be used for logging
 	void											AddObjectFilter (CString sKeyword);										// Add a keyword to be filtered out - objects containing this keyword are not processed
-	DWORD											OpenRegKey (CString* sObjectPath, PHKEY hSubKey);					//	Open a registry key
-	DWORD											SetPrivilege (CString sPrivilege, BOOL fEnable);					// Set a privilege (user right)
-	BOOL											SetIgnoreErrors (BOOL fIgnoreError);									//	Ignore errors, do NOT stop execution (unknown consequences!)
+	DWORD											RegKeyFixPathAndOpen (CString& sObjectPath, HKEY& hSubKey, bool fFixPathOnly, REGSAM samDesired);			//	Make sure we have a valid reg path and optionally open the key
+	DWORD											SetPrivilege (CString sPrivilege, bool fEnable, bool bLogErrors);					// Set a privilege (user right)
+	bool											SetIgnoreErrors (bool fIgnoreError);									//	Ignore errors, do NOT stop execution (unknown consequences!)
 	DWORD											LogMessage (CString sMessage);											// Log a message string
+	DWORD											MapGenericRight (DWORD nAccessMask, SE_OBJECT_TYPE nObjectType);		// Map a generic right to a set of standard and specific rights
+	bool											IsACEPseudoInherited (ACCESS_ALLOWED_ACE* paceObject, bool fObjectIsContainer, PACL paclParent);						// Check if an ACE is pseudo-inherited from its parent
+	bool											IsACLPseudoProtected (PACL paclObject, bool fObjectIsContainer, PSID psidObjectOwner, PACL paclParent);				// Check if an ACL is pseudo-protected: the parent contains inheritable ACEs not present in the child
 
 public:
 
@@ -338,29 +341,29 @@ public:
 	CTypedPtrList<CPtrList, CDomain*>	m_lstDomains;																	// List that holds domains to be processed
 	CString										m_sTargetSystemName;															// Name of the computer the object path points to (empty for local system)
 	DWORD											m_nAPIError;																	// Error code of the last API function called
-	BOOL											m_fIgnoreErrors;																// Ignore errors?
+	bool											m_fIgnoreErrors;																// Ignore errors?
 
 private:
 
 	DWORD											Prepare ();																		// Prepare for execution.
 	DWORD											DetermineACEAccessMasks ();												// Set the access masks and inheritance values for all ACE
-	BOOL											CheckAction (DWORD nAction);												// Check if an action is valid
-	BOOL											CheckInheritance (DWORD nInheritance);									// Check if inheritance flags are valid
-	BOOL											CheckInhFromParent (DWORD nInheritance);								// Check if inheritance from parent flags are valid
-	BOOL											CheckACEAccessMode (DWORD nAccessMode, DWORD nACLType);			// Check if an ACE access mode (deny, set...) is valid
+	bool											CheckAction (DWORD nAction);												// Check if an action is valid
+	bool											CheckInheritance (DWORD nInheritance);									// Check if inheritance flags are valid
+	bool											CheckInhFromParent (DWORD nInheritance);								// Check if inheritance from parent flags are valid
+	bool											CheckACEAccessMode (DWORD nAccessMode, DWORD nACLType);			// Check if an ACE access mode (deny, set...) is valid
 	CACE*											CopyACE (CACE* pACE);														// Copy an existing ACE
 	DWORD											DoActionList ();																// Create a permission listing
 	DWORD											DoActionRestore ();															// Restore permissions from a file
 	DWORD											DoActionWrite ();																// Process actions that write to the SD
-	DWORD											Write2SD (CString  sObjectPath);											// Set/Add the ACEs, owner and primary group specified to the ACLs
-	DWORD											ListSD (CString sObjectPath);												// List the contents of a SD in text format
-	CString										ListACL (PACL paclACL);														// Return the contents of an ACL as a string
-	DWORD											RecurseDirs (CString  sObjectPath, DWORD (CSetACL::*funcProcess) (CString sObjectPath));		// Recurse a directory structure and call the function for every file / dir
-	DWORD											RecurseRegistry (CString  sObjectPath, DWORD (CSetACL::*funcProcess) (CString sObjectPath));	// Recurse the registry and call the function for every key
+	DWORD											Write2SD (CString  sObjectPath, bool fIsContainer);														// Set/Add the ACEs, owner and primary group specified to the ACLs
+	DWORD											ListSD (CString sObjectPath, bool fIsContainer);					// List the contents of a SD in text format
+	CString										ListACL (PACL paclObject, bool fIsContainer, PACL paclParent, DWORD& nACEsObject);											// Return the contents of an ACL as a string, additionally the number of ACEs in the ACL
+	DWORD											RecurseDirs (CString  sObjectPath, DWORD (CSetACL::*funcProcess) (CString sObjectPath, bool fIsContainer));			// Recurse a directory structure and call the function for every file / dir
+	DWORD											RecurseRegistry (CString  sObjectPath, DWORD (CSetACL::*funcProcess) (CString sObjectPath, bool fIsContainer));	// Recurse the registry and call the function for every key
 	CString										GetPermissions (ACCESS_MASK nAccessMask);								// Return a string with the permissions in an access mask
 	CString										GetACEType (BYTE nACEType);												// Return a string with the type of an ACE
-	CString										GetACEFlags (BYTE nACEFlags);												// Return a string with the flags of an ACE
-	BOOL											CheckFilterList (CString sObjectPath);									// Check whether a certain path needs to be filtered out
+	CString										GetACEFlags (BYTE nACEFlags, bool fACEIsPseudoInherited);		// Return a string with the flags of an ACE
+	bool											CheckFilterList (CString sObjectPath);									// Check whether a certain path needs to be filtered out
 	CString										GetTrusteeFromSID (PSID psidSID);										// Convert a binary SID into a trustee name
 
 private:
@@ -370,8 +373,8 @@ private:
 	DWORD											m_nAction;								// Action to be performed
 	DWORD											m_nDACLProtected;						// Set the protected (from propagation from the parent object) flag for the DACL
 	DWORD											m_nSACLProtected;						// Set the protected (from propagation from the parent object) flag for the SACL
-	BOOL											m_fDACLResetChildObjects;			// Reset permissions on child objects and enable propagation of inheritable permissions for the DACL
-	BOOL											m_fSACLResetChildObjects;			// Reset permissions on child objects and enable propagation of inheritable permissions for the SACL
+	bool											m_fDACLResetChildObjects;			// Reset permissions on child objects and enable propagation of inheritable permissions for the DACL
+	bool											m_fSACLResetChildObjects;			// Reset permissions on child objects and enable propagation of inheritable permissions for the SACL
 	DWORD											m_nRecursionType;						// Type of recursion to be performed
 	CTrustee*									m_pOwner;								// Owner to set
 	CTrustee*									m_pPrimaryGroup;						//	Primary group to set
@@ -389,22 +392,22 @@ private:
 	DWORD											m_nListFormat;							// Use SDDL format when listing permissions?
 	DWORD											m_nListWhat;							// What to list (DACL, SACL, owner, group)
 	DWORD											m_nListNameSID;						// List names, SIDs, or both?
-	BOOL											m_fListInherited;						// List inherited permissions?
+	bool											m_fListInherited;						// List inherited permissions?
 
 	CString										m_sBackupRestoreFile;				// Name of a (unicode) file to be used for backup/restore operations
 	FILE*											m_fhBackupRestoreFile;				// File handle of a (unicode) file to be used for backup/restore operations
 
-	BOOL											m_fProcessSubObjectsOnly;			//	Only process sub-objects of the object specified.
-
-	BOOL											m_fUseLowLevelWrites2SD;			// Use low-level functions (no automatic propagation of inheritance!) to write the SD?
+	bool											m_fProcessSubObjectsOnly;			//	Only process sub-objects of the object specified.
 
 	CString										m_sLogFile;								// File to use for logging
 	FILE*											m_fhLog;									// Filehandle to log file
 
-	BOOL											m_fTrusteesProcessDACL;				//	Do we need to process the DACL when dealing with trustees?
-	BOOL											m_fTrusteesProcessSACL;				//	Do we need to process the SACL when dealing with trustees?
-	BOOL											m_fDomainsProcessDACL;				//	Do we need to process the DACL when dealing with domains?
-	BOOL											m_fDomainsProcessSACL;				//	Do we need to process the SACL when dealing with domains?
+	bool											m_fTrusteesProcessDACL;				//	Do we need to process the DACL when dealing with trustees?
+	bool											m_fTrusteesProcessSACL;				//	Do we need to process the SACL when dealing with trustees?
+	bool											m_fDomainsProcessDACL;				//	Do we need to process the DACL when dealing with domains?
+	bool											m_fDomainsProcessSACL;				//	Do we need to process the SACL when dealing with domains?
+
+	CTrustee										m_WellKnownSIDCreatorOwner;		// Store the binary representation of the well-known SID of CREATOR_OWNER
 };
 
 
@@ -424,10 +427,13 @@ public:
 								CSD (CSetACL* setaclMain);
 	virtual					~CSD ();
 	DWORD						GetSD (CString sObjectPath, SE_OBJECT_TYPE nObjectType, SECURITY_INFORMATION siSecInfo);	// Get the SD and other information indicated by siSecInfo
-	DWORD						SetSD (CString sObjectPath, SE_OBJECT_TYPE nObjectType, SECURITY_INFORMATION siSecInfo, PACL paclDACL, PACL paclSACL, PSID psidOwner, PSID psidGroup);	// Set the SD and other information indicated by siSecInfo
-	DWORD						DeleteACEsByHeaderFlags (DWORD nWhere, BYTE nFlags, BOOL fFlagsSet);								//	Delete all ACEs from an ACL that have certain header flags set
+	DWORD						SetSD (CString sObjectPath, SE_OBJECT_TYPE nObjectType, SECURITY_INFORMATION siSecInfo, PACL paclDACL, PACL paclSACL, PSID psidOwner, PSID psidGroup, bool fLowLevel, bool fIsContainer);	// Set the SD and other information indicated by siSecInfo
+	DWORD						DeleteACEsByHeaderFlags (DWORD nWhere, BYTE nFlags, bool fFlagsSet);								//	Delete all ACEs from an ACL that have certain header flags set
 	DWORD						ProcessACEsOfGivenTrustees (DWORD nWhere);																//	Process (delete, replace, copy) all ACEs belonging to trustees specified
 	DWORD						ProcessACEsOfGivenDomains (DWORD nWhere);																	//	Process (delete, replace, copy) all ACEs belonging to domains specified
+	void						Reset ();																											// Clear the object
+	DWORD						DeletePseudoInheritedACEs (DWORD nWhere, bool fIsContainer, PACL paclParent, DWORD& nRemainingACEs);					// Delete all pseudo-inherited ACEs from an ACL
+	DWORD						ConvertPseudoInheritedACEsToInheritedACEs (PACL paclACL, bool fIsContainer, PACL paclParent, DWORD& nRemainingACEs);					// Delete all pseudo-inherited ACEs from an ACL
 
 public:
 
@@ -455,13 +461,11 @@ private:
 	SE_OBJECT_TYPE			m_nObjectType;						// Type of the object to be processed
 	SECURITY_INFORMATION	m_siSecInfo;						// What are we interested in (DACL, SACL, owner, group)
 	CSetACL*					m_setaclMain;						// Pointer to the main class; we need some of it's methods
-	BOOL						m_fBufSDAlloc;						// Did we allocate the buffer for the SD ourselves?
-	BOOL						m_fBufDACLAlloc;					// Did we allocate the buffer for the SD ourselves?
-	BOOL						m_fBufSACLAlloc;					// Did we allocate the buffer for the SD ourselves?
-	BOOL						m_fBufOwnerAlloc;					// Did we allocate the buffer for the SD ourselves?
-	BOOL						m_fBufGroupAlloc;					// Did we allocate the buffer for the SD ourselves?
-
-	BOOL						m_fUseLowLevelWrites2SD;		// Use low-level functions (no automatic propagation of inheritance!) to write the SD?
+	bool						m_fBufSDAlloc;						// Did we allocate the buffer for the SD ourselves?
+	bool						m_fBufDACLAlloc;					// Did we allocate the buffer for the SD ourselves?
+	bool						m_fBufSACLAlloc;					// Did we allocate the buffer for the SD ourselves?
+	bool						m_fBufOwnerAlloc;					// Did we allocate the buffer for the SD ourselves?
+	bool						m_fBufGroupAlloc;					// Did we allocate the buffer for the SD ourselves?
 
 };
 
@@ -472,6 +476,9 @@ private:
 //
 //////////////////////////////////////////////////////////////////////
 
-BOOL		Split		(CString sDelimiter, CString sInput, CStringArray* saOutput);		// Split a string into multiple parts at a given delimiter
+bool		Split		(CString sDelimiter, CString sInput, CStringArray& saOutput);		// Split a string into multiple parts at a given delimiter
 PSID		CopySID	(PSID pSID);																		// Copy a SID
-void		BuildLongUnicodePath (CString* sPath);													// Take any path any turn it into a path that is not limited to MAX_PATH, if possible
+void		BuildLongUnicodePath (CString& sPath);													// Take any path any turn it into a path that is not limited to MAX_PATH, if possible
+bool		IsDirectory (CString sPath);																// Check if a given path points to an (existing) directory
+bool		GetParentObject (CString sObject, SE_OBJECT_TYPE nObjectType, CString& sParent);	// Determine the path of an object's parent
+void		DummyFunction ();																				// Dummy used to get the module address in memory

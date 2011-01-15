@@ -238,7 +238,7 @@ void CSetACLCtrl::OnDraw (CDC* pdc, const CRect& rcBounds, const CRect& rcInvali
 
 	::DrawEdge (pdc->GetSafeHdc (), CRect (rcBounds), EDGE_RAISED, BF_RECT | BF_ADJUST);
 
-	oPictureHolder.CreateFromBitmap ((HBITMAP) oBitmap.m_hObject, NULL, FALSE);
+	oPictureHolder.CreateFromBitmap ((HBITMAP) oBitmap.m_hObject, NULL, false);
 
 	// Render the control
 	oPictureHolder.Render (pdc, rcBounds, oSourceBounds);
@@ -276,7 +276,7 @@ BOOL CSetACLCtrl::OnSetExtent(LPSIZEL lpSizeL)
 
 
 //
-// IsInvokeAllowed - Return TRUE to allow usage from script languages
+// IsInvokeAllowed - Return true to allow usage from script languages
 //
 //	See Q146120 in the MS KB
 //
@@ -284,7 +284,7 @@ BOOL CSetACLCtrl::IsInvokeAllowed(DISPID dispid)
 {
 	UNUSED_ALWAYS(dispid);		// suppress warning (unreferenced formal parameter)
 
-   return TRUE;
+   return true;
 }
 
 
@@ -297,10 +297,10 @@ VARIANT_BOOL CSetACLCtrl::SetIgnoreErrors (VARIANT_BOOL fIgnoreErrors)
 
 	if (! m_oSetACL)
 	{
-		return FALSE;
+		return false;
 	}
 
-	return (VARIANT_BOOL) m_oSetACL->SetIgnoreErrors (fIgnoreErrors);
+	return m_oSetACL->SetIgnoreErrors (fIgnoreErrors == VARIANT_TRUE);
 }
 
 
@@ -364,7 +364,7 @@ LONG CSetACLCtrl::SetObjectFlags (LONG nDACLProtected, LONG nSACLProtected, VARI
 		return RTN_ERR_INTERNAL;
 	}
 
-	return m_oSetACL->SetObjectFlags (nDACLProtected, nSACLProtected, fDACLResetChildObjects, fSACLResetChildObjects);
+	return m_oSetACL->SetObjectFlags (nDACLProtected, nSACLProtected, fDACLResetChildObjects == VARIANT_TRUE, fSACLResetChildObjects == VARIANT_TRUE);
 }
 
 
@@ -412,7 +412,7 @@ LONG CSetACLCtrl::AddACE (LPCTSTR sTrustee, VARIANT_BOOL fTrusteeIsSID, LPCTSTR 
 		return RTN_ERR_INTERNAL;
 	}
 
-	return m_oSetACL->AddACE (sTrustee, fTrusteeIsSID, sPermission, nInheritance, fInhSpecified, nAccessMode, nACLType);
+	return m_oSetACL->AddACE (sTrustee, fTrusteeIsSID == VARIANT_TRUE, sPermission, nInheritance, fInhSpecified == VARIANT_TRUE, nAccessMode, nACLType);
 }
 
 
@@ -428,7 +428,8 @@ LONG CSetACLCtrl::AddTrustee (LPCTSTR sTrustee, LPCTSTR sNewTrustee, VARIANT_BOO
 		return RTN_ERR_INTERNAL;
 	}
 
-	return m_oSetACL->AddTrustee (sTrustee, sNewTrustee, fTrusteeIsSID, fNewTrusteeIsSID, nAction, fDACL, fSACL);
+	return m_oSetACL->AddTrustee (sTrustee, sNewTrustee, fTrusteeIsSID == VARIANT_TRUE, fNewTrusteeIsSID == VARIANT_TRUE, nAction,
+		fDACL == VARIANT_TRUE, fSACL == VARIANT_TRUE);
 }
 
 
@@ -444,7 +445,7 @@ LONG CSetACLCtrl::AddDomain (LPCTSTR sDomain, LPCTSTR sNewDomain, LONG nAction, 
 		return RTN_ERR_INTERNAL;
 	}
 
-	return m_oSetACL->AddDomain (sDomain, sNewDomain, nAction, fDACL, fSACL);
+	return m_oSetACL->AddDomain (sDomain, sNewDomain, nAction, fDACL == VARIANT_TRUE, fSACL == VARIANT_TRUE);
 }
 
 
@@ -460,7 +461,7 @@ LONG CSetACLCtrl::SetOwner (LPCTSTR sTrustee, VARIANT_BOOL fTrusteeIsSID)
 		return RTN_ERR_INTERNAL;
 	}
 
-	return m_oSetACL->SetOwner (sTrustee, fTrusteeIsSID);
+	return m_oSetACL->SetOwner (sTrustee, fTrusteeIsSID == VARIANT_TRUE);
 }
 
 
@@ -476,7 +477,7 @@ LONG CSetACLCtrl::SetPrimaryGroup (LPCTSTR sTrustee, VARIANT_BOOL fTrusteeIsSID)
 		return RTN_ERR_INTERNAL;
 	}
 
-	return m_oSetACL->SetPrimaryGroup (sTrustee, fTrusteeIsSID);
+	return m_oSetACL->SetPrimaryGroup (sTrustee, fTrusteeIsSID == VARIANT_TRUE);
 }
 
 
@@ -492,7 +493,7 @@ LONG CSetACLCtrl::SetListOptions (LONG nListFormat, LONG nListWhat, VARIANT_BOOL
 		return RTN_ERR_INTERNAL;
 	}
 
-	return m_oSetACL->SetListOptions (nListFormat, nListWhat, fListInherited, nListNameSID);
+	return m_oSetACL->SetListOptions (nListFormat, nListWhat, fListInherited == VARIANT_TRUE, nListNameSID);
 }
 
 
@@ -525,7 +526,7 @@ LONG CSetACLCtrl::SetAction (LONG nAction)
 
 
 //
-// SetLogFile: Set the action to be performed. All former values are erased.
+// SetLogFile: Set the log (backup) file to use.
 //
 LONG CSetACLCtrl::SetLogFile (LPCTSTR sLogFile)
 {

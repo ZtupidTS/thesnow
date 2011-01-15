@@ -64,7 +64,7 @@ library SETACLLib
 
 		methods:
 
-			[id(1),	helpstring ("Ignore errors, do NOT stop execution (unknown consequences!)")]
+			[id(1),	helpstring ("Should execution continue if errors occur?")]
 						VARIANT_BOOL SetIgnoreErrors(VARIANT_BOOL fIgnoreErrors);
 			[id(2),	helpstring ("Set the object on which all actions are to be performed")]
 						LONG SetObject(BSTR sObjectPath, LONG nObjectType);
@@ -116,9 +116,9 @@ library SETACLLib
 	// ACL/SD information types
 	typedef enum _SDINFO
 	{
-		[helpstring ("The ACL is a DACL (permission information)")]
+		[helpstring ("Process the DACL (permission information)")]
 			ACL_DACL					=	1,
-		[helpstring ("The ACL is a SACL (auditing information)")]
+		[helpstring ("Process the SACL (auditing information)")]
 			ACL_SACL					=	2,
 		[helpstring ("Owner information")]
 			SD_OWNER					=	4,
@@ -132,7 +132,7 @@ library SETACLLib
 		[helpstring ("Add an ACE")]
 			ACTN_ADDACE				=	1,
 		[helpstring ("List the entries in the security descriptor")]
-			ACTN_LIST					=	2,
+			ACTN_LIST				=	2,
 		[helpstring ("Set the owner")]
 			ACTN_SETOWNER			=	4,
 		[helpstring ("Set the primary group")]
@@ -277,6 +277,23 @@ library SETACLLib
 			INHPARNOCOPY							=	4
 	} INHERITANCE;
 
+	// For propagation to child objects
+	typedef enum _PROPAGATION
+	{
+		[helpstring ("The specific access permissions will only be applied to the container, and will not be inherited by objects created within the container.")]
+		NO_INHERITANCE								= 0,
+		[helpstring ("The specific access permissions will only be inherited by objects created within the specific container. The access permissions will not be applied to the container itself.")]
+		SUB_OBJECTS_ONLY_INHERIT				= 1,
+		[helpstring ("The specific access permissions will be inherited by containers created within the specific container, will be applied to objects created within the container, but will not be applied to the container itself.")]
+		SUB_CONTAINERS_ONLY_INHERIT			= 2,
+		[helpstring ("Combination of SUB_OBJECTS_ONLY_INHERIT and SUB_CONTAINERS_ONLY_INHERIT.")]
+		SUB_CONTAINERS_AND_OBJECTS_INHERIT	= 3,
+		[helpstring ("Do not propogate permissions, only the direct descendent gets permissions.")]
+		INHERIT_NO_PROPAGATE						= 4,
+		[helpstring ("The specific access permissions will not affect the object they are set on but its childern only (depending on other propagation flags).")]
+		INHERIT_ONLY								= 8
+	} PROPAGATION;
+
 	// List formats
 	typedef enum _LISTFORMATS
 	{
@@ -302,13 +319,13 @@ library SETACLLib
 	// For recursion
 	typedef enum _RECURSION
 	{
-		[helpstring ("No recursion")]
+		[helpstring ("Do not recurse")]
 			RECURSE_NO								=	1,
-		[helpstring ("Recurse containers")]
+		[helpstring ("Recurse, processing containers only")]
 			RECURSE_CONT							=	2,
-		[helpstring ("Recurse objects")]
+		[helpstring ("Recurse, processing objects only")]
 			RECURSE_OBJ								=	4,
-		[helpstring ("Recurse containers and objects")]
+		[helpstring ("Recurse, processing containers and objects")]
 			RECURSE_CONT_OBJ						=	6
 	} RECURSION;
 
@@ -330,17 +347,17 @@ library SETACLLib
 	// _ACCESS_MODE
 	typedef enum _ACCESS_MODE
 	{
-		[helpstring ("Grant access (add an ACE)")]
+		[helpstring ("Adds an access allowed ACE for the specified user/group.")]
 			GRANT_ACCESS							=	1,
-		[helpstring ("Set access (replace other ACEs for the trustee specified by another ACE)")]
+		[helpstring ("Replaces all existing access allowed ACEs for the specified user/group with a new ACE.")]
 			SET_ACCESS								=	2,
-		[helpstring ("Deny access (add an access denied ACE)")]
+		[helpstring ("Adds an access denied ACE for the specified user/group.")]
 			DENY_ACCESS								=	3,
-		[helpstring ("Revoke access")]
+		[helpstring ("All existing access allowed ACEs or system audit ACEs for the specified user/group are removed.")]
 			REVOKE_ACCESS							=	4,
-		[helpstring ("Audit success")]
+		[helpstring ("Adds an audit success ACE for the specified user/group.")]
 			SET_AUDIT_SUCCESS						=	5,
-		[helpstring ("Audit failure")]
+		[helpstring ("Adds an audit failure ACE for the specified user/group.")]
 			SET_AUDIT_FAILURE						=	6
 	} ACCESS_MODE;
 

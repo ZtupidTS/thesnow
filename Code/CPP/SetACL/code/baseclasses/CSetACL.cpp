@@ -65,13 +65,17 @@ CSetACL::CSetACL (void (* funcNotify) (CString))
 	m_fListInherited				=	false;
 	m_fProcessSubObjectsOnly	=	false;
 	m_fhBackupRestoreFile		=	NULL;
-	m_fUseLowLevelWrites2SD		=	false;
 	m_fIgnoreErrors				=	false;
 	m_fhLog							=	NULL;
 	m_fTrusteesProcessDACL		=	false;
 	m_fTrusteesProcessSACL		=	false;
 	m_fDomainsProcessDACL		=	false;
 	m_fDomainsProcessSACL		=	false;
+
+	// Resolve well-known SIDs required somewhere else (for performance reasons we do that only once)
+	m_WellKnownSIDCreatorOwner.m_sTrustee			= L"S-1-3-0";
+	m_WellKnownSIDCreatorOwner.m_fTrusteeIsSID	= true;
+	m_WellKnownSIDCreatorOwner.LookupSID ();
 }
 
 
@@ -81,14 +85,14 @@ CSetACL::CSetACL (void (* funcNotify) (CString))
 CSetACL::~CSetACL ()
 {
 	// Try to disable all privileges we possibly enabled
-	SetPrivilege (SE_BACKUP_NAME, false);
-	SetPrivilege (SE_RESTORE_NAME, false);
-	SetPrivilege (SE_SECURITY_NAME, false);
-	SetPrivilege (SE_TAKE_OWNERSHIP_NAME, false);
+	SetPrivilege (SE_BACKUP_NAME, false, false);
+	SetPrivilege (SE_RESTORE_NAME, false, false);
+	SetPrivilege (SE_SECURITY_NAME, false, false);
+	SetPrivilege (SE_TAKE_OWNERSHIP_NAME, false, false);
 
 	// Free memory
-	if (m_pOwner)			delete m_pOwner;
-	if (m_pPrimaryGroup)	delete m_pPrimaryGroup;
+	if (m_pOwner)			{delete m_pOwner;				m_pOwner				= NULL;}
+	if (m_pPrimaryGroup)	{delete m_pPrimaryGroup;	m_pPrimaryGroup	= NULL;}
 
 	//
 	// Delete all entries from m_lstACEs
@@ -163,7 +167,8 @@ DWORD CSetACL::SetObject (CString sObjectPath, SE_OBJECT_TYPE nObjectType)
 	DWORD		nLocalPart;
 	HANDLE	hNetEnum;
 
-	if (sObjectPath.GetLength () >= 1 && (nObjectType == SE_FILE_OBJECT || nObjectType == SE_SERVICE || nObjectType == SE_PRINTER || nObjectType == SE_REGISTRY_KEY || nObjectType == SE_LMSHARE))
+	if (sObjectPath.GetLength () >= 1 && 
+		(nObjectType == SE_FILE_OBJECT || nObjectType == SE_SERVICE || nObjectType == SE_PRINTER || nObjectType == SE_REGISTRY_KEY || nObjectType == SE_LMSHARE))
 	{
 		m_sObjectPath	=	sObjectPath;
 		m_nObjectType	=	nObjectType;
@@ -297,7 +302,7 @@ DWORD CSetACL::SetLogFile (CString sLogFile)
 	FILE*		fhTest		=	NULL;
 
 	nErr	=	_tfopen_s (&fhTest, sLogFile, TEXT ("r"));
-	BOOL	fExists			=	(fhTest != NULL);
+	bool	fExists			=	(fhTest != NULL);
 
 	if (fhTest)	fclose (fhTest);
 
@@ -372,7 +377,7 @@ void CSetACL::AddObjectFilter (CString sKeyword)
 //
 // AddACE: Add an ACE to be processed.
 //
-DWORD CSetACL::AddACE (CString sTrustee, BOOL fTrusteeIsSID, CString sPermission, DWORD nInheritance, BOOL fInhSpecified, DWORD nAccessMode, DWORD nACLType)
+DWORD CSetACL::AddACE (CString sTrustee, bool fTrusteeIsSID, CString sPermission, DWORD nInheritance, bool fInhSpecified, DWORD nAccessMode, DWORD nACLType)
 {
 	if (sTrustee.IsEmpty ())
 	{
@@ -390,7 +395,15 @@ DWORD CSetACL::AddACE (CString sTrustee, BOOL fTrusteeIsSID, CString sPermission
 
 	if (! CheckACEAccessMode (nAccessMode, nACLType))
 	{
-		LogMessage (TEXT ("ERROR: AddACE: Invalid access mode for this ACL type specified."));
+		LogMessage (TEXT ("ERROR: AddACE: Invalid access mode for this ACL type specified (e.g. you cannot add audit ACEs to the DACL, only to the SACL)."));
+
+		return RTN_ERR_PARAMS;
+	}
+
+	// Prevent audit ACEs to be added to shares
+	if (m_nObjectType == SE_LMSHARE && (nAccessMode == SET_AUDIT_SUCCESS || nAccessMode == SET_AUDIT_FAILURE))
+	{
+		LogMessage (TEXT ("ERROR: AddACE: Audit ACEs cannot be set on shares."));
 
 		return RTN_ERR_PARAMS;
 	}
@@ -417,7 +430,7 @@ DWORD CSetACL::AddACE (CString sTrustee, BOOL fTrusteeIsSID, CString sPermission
 //
 // AddTrustee: Add a trustee to be processed.
 //
-DWORD CSetACL::AddTrustee (CString sTrustee, CString sNewTrustee, BOOL fTrusteeIsSID, BOOL fNewTrusteeIsSID, DWORD nAction, BOOL fDACL, BOOL fSACL)
+DWORD CSetACL::AddTrustee (CString sTrustee, CString sNewTrustee, bool fTrusteeIsSID, bool fNewTrusteeIsSID, DWORD nAction, bool fDACL, bool fSACL)
 {
 	if (! sTrustee.IsEmpty ())
 	{
@@ -474,7 +487,7 @@ DWORD CSetACL::AddTrustee (CString sTrustee, CString sNewTrustee, BOOL fTrusteeI
 //
 // AddDomain: Add a domain to be processed.
 //
-DWORD CSetACL::AddDomain (CString sDomain, CString sNewDomain, DWORD nAction, BOOL fDACL, BOOL fSACL)
+DWORD CSetACL::AddDomain (CString sDomain, CString sNewDomain, DWORD nAction, bool fDACL, bool fSACL)
 {
 	DWORD	nError					=	RTN_OK;
 
@@ -493,6 +506,7 @@ DWORD CSetACL::AddDomain (CString sDomain, CString sNewDomain, DWORD nAction, BO
 				LogMessage (TEXT ("ERROR: AddDomain: Domain name <") + sDomain +  TEXT ("> is probably incorrect."));
 
 				delete pDomain;
+				pDomain	=	NULL;
 
 				return nError;
 			}
@@ -507,6 +521,7 @@ DWORD CSetACL::AddDomain (CString sDomain, CString sNewDomain, DWORD nAction, BO
 					LogMessage (TEXT ("ERROR: AddDomain: Domain name <") + sNewDomain +  TEXT ("> is probably incorrect."));
 
 					delete pNewDomain;
+					pNewDomain	=	NULL;
 
 					return nError;
 				}
@@ -556,7 +571,7 @@ DWORD CSetACL::AddDomain (CString sDomain, CString sNewDomain, DWORD nAction, BO
 //
 // SetIgnoreErrors: Ignore errors, do NOT stop execution (unknown consequences!)
 //
-BOOL CSetACL::SetIgnoreErrors (BOOL fIgnoreErrors)
+bool CSetACL::SetIgnoreErrors (bool fIgnoreErrors)
 {
 	m_fIgnoreErrors	=	fIgnoreErrors;
 
@@ -567,9 +582,13 @@ BOOL CSetACL::SetIgnoreErrors (BOOL fIgnoreErrors)
 //
 // SetOwner: Set an owner to be set by Run ()
 //
-DWORD CSetACL::SetOwner (CString sTrustee, BOOL fTrusteeIsSID)
+DWORD CSetACL::SetOwner (CString sTrustee, bool fTrusteeIsSID)
 {
-	if (m_pOwner) delete m_pOwner;
+	if (m_pOwner)
+	{
+		delete m_pOwner;				
+		m_pOwner	= NULL;
+	}
 
 	if (! sTrustee.IsEmpty ())
 	{
@@ -587,9 +606,13 @@ DWORD CSetACL::SetOwner (CString sTrustee, BOOL fTrusteeIsSID)
 //
 // SetPrimaryGroup: Set the primary group to be set by Run ()
 //
-DWORD CSetACL::SetPrimaryGroup (CString sTrustee, BOOL fTrusteeIsSID)
+DWORD CSetACL::SetPrimaryGroup (CString sTrustee, bool fTrusteeIsSID)
 {
-	if (m_pPrimaryGroup) delete m_pPrimaryGroup;
+	if (m_pPrimaryGroup)
+	{
+		delete m_pPrimaryGroup;
+		m_pPrimaryGroup	= NULL;
+	}
 
 	if (! sTrustee.IsEmpty ())
 	{
@@ -627,18 +650,14 @@ DWORD CSetACL::SetRecursion (DWORD nRecursionType)
 	}
 	else if (m_nObjectType == SE_REGISTRY_KEY)
 	{
-		if (nRecursionType == RECURSE_NO || nRecursionType == RECURSE_CONT)
+		if (nRecursionType == RECURSE_CONT_OBJ)
 		{
-			m_nRecursionType	=	nRecursionType;
-
-			return RTN_OK;
+			nRecursionType	=	RECURSE_CONT;
 		}
-	}
-	else
-	{
-		m_nRecursionType	=	RECURSE_NO;
 
-		return RTN_ERR_PARAMS;
+		m_nRecursionType	=	nRecursionType;
+
+		return RTN_OK;
 	}
 
 	return RTN_OK;
@@ -648,7 +667,7 @@ DWORD CSetACL::SetRecursion (DWORD nRecursionType)
 //
 // SetObjectFlags: Set flags specific to the object
 //
-DWORD CSetACL::SetObjectFlags (DWORD nDACLProtected, DWORD nSACLProtected, BOOL fDACLResetChildObjects, BOOL fSACLResetChildObjects)
+DWORD CSetACL::SetObjectFlags (DWORD nDACLProtected, DWORD nSACLProtected, bool fDACLResetChildObjects, bool fSACLResetChildObjects)
 {
 	if (CheckInhFromParent (nDACLProtected) && CheckInhFromParent (nSACLProtected))
 	{
@@ -676,7 +695,7 @@ DWORD CSetACL::SetObjectFlags (DWORD nDACLProtected, DWORD nSACLProtected, BOOL 
 //
 // SetListOptions: Set the options for ACL listing
 //
-DWORD CSetACL::SetListOptions (DWORD nListFormat, DWORD nListWhat, BOOL fListInherited, DWORD nListNameSID)
+DWORD CSetACL::SetListOptions (DWORD nListFormat, DWORD nListWhat, bool fListInherited, DWORD nListNameSID)
 {
 	if (nListWhat > 0 && nListWhat <= (ACL_DACL + ACL_SACL + SD_OWNER + SD_GROUP) && (nListFormat == LIST_SDDL || nListFormat == LIST_CSV || nListFormat == LIST_TAB) && nListNameSID >= LIST_NAME && nListNameSID <= LIST_NAME_SID)
 	{
@@ -734,6 +753,9 @@ CString CSetACL::GetLastErrorMessage (DWORD nError)
 	//
 	FormatMessage (nFormatFlags, hModule, nError, MAKELANGID (LANG_NEUTRAL, SUBLANG_DEFAULT), sMessage.GetBuffer (1024), sizeof (TCHAR) * 1024, NULL);
 	sMessage.ReleaseBuffer ();
+
+	// Replace newlines added by FormatMessage
+	sMessage.TrimRight (L"\r\n");
 
 	// If we loaded a message source, unload it
 	if (hModule)
@@ -881,10 +903,12 @@ DWORD CSetACL::Run ()
 			if (nRunError)
 			{
 				// Get the internal error message from the resource table
+				CString sText = TEXT ("\nSetACL error message: [could not retrieve]");
 				if (sInternalError.LoadString (nRunError))
 				{
-					sErrorMessage	+=	TEXT ("\nSetACL error message: ") + sInternalError;
+					sText	=	TEXT ("\nSetACL error message: ") + sInternalError;
 				}
+				sErrorMessage += sText;
 			}
 
 			if (m_nAPIError)
@@ -910,23 +934,29 @@ DWORD CSetACL::Prepare ()
 {
 	DWORD	nError;
 
-	// Was the object path set?
+	// 
+	// Sanity checks
+	//
 	if (m_sObjectPath.IsEmpty ())
 	{
+		LogMessage (L"ERROR: The object path was not specified.");
+
+		return RTN_ERR_OBJECT_NOT_SET;
+	}
+	if (m_nObjectType == SE_UNKNOWN_OBJECT_TYPE)
+	{
+		LogMessage (L"ERROR: The object type was not specified.");
+
 		return RTN_ERR_OBJECT_NOT_SET;
 	}
 
 	// Check the type and version of the OS we are running on
 	OSVERSIONINFO osviVersion;
-
-	ZeroMemory (&osviVersion, sizeof (OSVERSIONINFO));
-
+	SecureZeroMemory (&osviVersion, sizeof (OSVERSIONINFO));
 	osviVersion.dwOSVersionInfoSize = sizeof (OSVERSIONINFO);
-
 	if (GetVersionEx (&osviVersion))
 	{
-		BOOL fVersionOK = (osviVersion.dwPlatformId == VER_PLATFORM_WIN32_NT) && (osviVersion.dwMajorVersion > 4);
-
+		bool fVersionOK = (osviVersion.dwPlatformId == VER_PLATFORM_WIN32_NT) && (osviVersion.dwMajorVersion > 4);
 		if (! fVersionOK)
 		{
 			LogMessage (TEXT ("ERROR: SetACL works only on NT based operating systems newer than NT4."));
@@ -940,15 +970,15 @@ DWORD CSetACL::Prepare ()
 	}
 
 	// Try to enable the backup privilege. This allows us to read file system objects that we do not have permission for.
-	if (SetPrivilege (SE_BACKUP_NAME, true) != RTN_OK)
+	if (SetPrivilege (SE_BACKUP_NAME, true, false) != RTN_OK)
 	{
-		LogMessage (TEXT ("INFO: Privilege 'Back up files and directories' could not be enabled. This can probably be ignored."));
+		LogMessage (TEXT ("WARNING: Privilege 'Back up files and directories' could not be enabled. SetACL's powers are restricted."));
 	}
 
 	// Also enable the restore privilege which lets us set the owner to any (!) user/group, not only administrators
-	if (SetPrivilege (SE_RESTORE_NAME, true) != RTN_OK)
+	if (SetPrivilege (SE_RESTORE_NAME, true, false) != RTN_OK)
 	{
-		LogMessage (TEXT ("INFO: Privilege 'Restore files and directories' could not be enabled. This can probably be ignored."));
+		LogMessage (TEXT ("WARNING: Privilege 'Restore files and directories' could not be enabled. SetACL's powers are restricted."));
 	}
 
 	//
@@ -1008,13 +1038,7 @@ DWORD CSetACL::Prepare ()
 	if (m_nObjectType == SE_REGISTRY_KEY)
 	{
 		HKEY hKey	=	NULL;
-
-		nError		=	OpenRegKey (&m_sObjectPath, &hKey);
-
-		if (hKey)
-		{
-			RegCloseKey (hKey);
-		}
+		nError		=	RegKeyFixPathAndOpen (m_sObjectPath, hKey, true, 0);
 
 		if (nError != RTN_OK)
 		{
@@ -1032,7 +1056,7 @@ DWORD CSetACL::Prepare ()
 	if (m_nObjectType	== SE_FILE_OBJECT)
 	{
 		// Build the "long" version of the path
-		BuildLongUnicodePath (&m_sObjectPath);
+		BuildLongUnicodePath (m_sObjectPath);
 	}
 
 	return RTN_OK;
@@ -1042,7 +1066,7 @@ DWORD CSetACL::Prepare ()
 //
 // CheckAction: Check if an action is valid
 //
-BOOL CSetACL::CheckAction (DWORD nAction)
+bool CSetACL::CheckAction (DWORD nAction)
 {
 	switch (nAction)
 	{
@@ -1067,7 +1091,7 @@ BOOL CSetACL::CheckAction (DWORD nAction)
 //
 // CheckInhFromParent: Check if inheritance from parent flags are valid
 //
-BOOL CSetACL::CheckInhFromParent (DWORD nInheritance)
+bool CSetACL::CheckInhFromParent (DWORD nInheritance)
 {
 	switch (nInheritance)
 	{
@@ -1085,7 +1109,7 @@ BOOL CSetACL::CheckInhFromParent (DWORD nInheritance)
 //
 // CheckInheritance: Check if inheritance flags are valid
 //
-BOOL CSetACL::CheckInheritance (DWORD nInheritance)
+bool CSetACL::CheckInheritance (DWORD nInheritance)
 {
 	DWORD	nAllFlags	=	SUB_OBJECTS_ONLY_INHERIT | SUB_CONTAINERS_ONLY_INHERIT | INHERIT_NO_PROPAGATE | INHERIT_ONLY;
 
@@ -1103,7 +1127,7 @@ BOOL CSetACL::CheckInheritance (DWORD nInheritance)
 //
 // CheckACEType: Check if an ACE access mode (deny, set...) is valid
 //
-BOOL CSetACL::CheckACEAccessMode (DWORD nAccessMode, DWORD nACLType)
+bool CSetACL::CheckACEAccessMode (DWORD nAccessMode, DWORD nACLType)
 {
 	if (nACLType == ACL_DACL)
 	{
@@ -1139,7 +1163,7 @@ BOOL CSetACL::CheckACEAccessMode (DWORD nAccessMode, DWORD nACLType)
 //
 // CheckFilterList: Check whether a certain path needs to be filtered out
 //
-BOOL CSetACL::CheckFilterList (CString sObjectPath)
+bool CSetACL::CheckFilterList (CString sObjectPath)
 {
 	// Ignore case when searching for keywords
 	sObjectPath.MakeLower ();
@@ -1209,7 +1233,7 @@ DWORD CSetACL::DetermineACEAccessMasks ()
 		CStringArray	asPermissions;
 
 		// Split the permission list
-		if (! Split (TEXT (","), pACE->m_sPermission, &asPermissions))
+		if (! Split (TEXT (","), pACE->m_sPermission, asPermissions))
 		{
 			return RTN_ERR_PARAMS;
 		}
@@ -1357,25 +1381,23 @@ DWORD CSetACL::DetermineACEAccessMasks ()
 				}
 				else if (asPermissions[k].CompareNoCase (TEXT ("man_docs")) == 0)
 				{
-					// We have to set two different ACEs, in order to obtain standard manage documents permissions;
-					// Only do it, if inheritance was NOT specified by the user. If it was, assume he knows what he is doing
+					// We have to set two different ACEs in order to obtain standard manage documents permissions;
 
-					if (! pACE->m_fInhSpecified)
+					if (pACE->m_fInhSpecified)
 					{
-						CACE*			pACE2			=	CopyACE (pACE);
-
-						lstACEs2Add.AddTail (pACE2);
-
-						pACE->m_nAccessMask		=	READ_CONTROL;
-						pACE->m_nInheritance		=	CONTAINER_INHERIT_ACE | INHERIT_ONLY_ACE;
-
-						pACE2->m_nAccessMask		=	MY_PRINTER_MAN_DOCS_ACCESS;
-						pACE2->m_nInheritance	=	OBJECT_INHERIT_ACE | INHERIT_ONLY_ACE;
+						// The user specified inheritance flags: warn him that is contraproductive with man_docs
+						LogMessage (L"WARNING: You specified inheritance flags, which is incompatible with man_docs. Your flags are being ignored in order to be able to set standard manage documents permissions.");
 					}
-					else
-					{
-						pACE->m_nAccessMask		|=	MY_PRINTER_MAN_DOCS_ACCESS;
-					}
+
+					CACE*			pACE2			=	CopyACE (pACE);
+
+					lstACEs2Add.AddTail (pACE2);
+
+					pACE->m_nAccessMask		=	READ_CONTROL;
+					pACE->m_nInheritance		=	CONTAINER_INHERIT_ACE | INHERIT_ONLY_ACE;
+
+					pACE2->m_nAccessMask		=	MY_PRINTER_MAN_DOCS_ACCESS;
+					pACE2->m_nInheritance	=	OBJECT_INHERIT_ACE | INHERIT_ONLY_ACE;
 				}
 				else if (asPermissions[k].CompareNoCase (TEXT ("full")) == 0)
 				{
@@ -1635,7 +1657,7 @@ DWORD CSetACL::DoActionList ()
 	}
 	else
 	{
-		nError =	ListSD (m_sObjectPath);
+		nError =	ListSD (m_sObjectPath, false);
 	}
 
 	// Close the output file
@@ -1662,7 +1684,7 @@ DWORD CSetACL::DoActionRestore ()
 	PSECURITY_DESCRIPTOR	pSDSelfRel		=	NULL;
 	PSECURITY_DESCRIPTOR	pSDAbsolute		=	NULL;
 	UINT						nRead				=	0;
-	CSD*						csdSD				=	NULL;
+	CSD						csdSD (this);
 	CString					sLineIn;
 	errno_t					nErr				= 0;
 
@@ -1724,7 +1746,8 @@ DWORD CSetACL::DoActionRestore ()
 	//
 	// Read and process the input file line by line
 	//
-	while (_fgetts (sLineIn.GetBuffer (8192), 8190, m_fhBackupRestoreFile))
+	// Buffer must be large enough for max path (~32000) + max SID
+	while (_fgetts (sLineIn.GetBuffer (64000), 64000, m_fhBackupRestoreFile))
 	{
 		sLineIn.ReleaseBuffer ();
 
@@ -1747,28 +1770,52 @@ DWORD CSetACL::DoActionRestore ()
 		SECURITY_INFORMATION	siSecInfo		=	0;
 
 		// Remove unnecessary characters from the beginning and the end
-		sLineIn.TrimRight (TEXT ("\r\n\""));
-		sLineIn.TrimLeft (TEXT ("\""));
+		sLineIn.TrimRight (TEXT ("\r\n\"\t "));
+		sLineIn.TrimLeft (TEXT ("\"\t "));
+
+		// Ignore empty lines
+		if (sLineIn.IsEmpty ())
+		{
+			continue;
+		}
 
 		// Split the line into object path, object type and SDDL string
-		DWORD nFind1	=	sLineIn.Find (TEXT ("\","));
+		DWORD nFind1	=	sLineIn.Find (L"\",");
 		sObjectPath		=	sLineIn.Left (nFind1);
-		DWORD nFind2	=	sLineIn.Find (TEXT (",\""), nFind1 + 1);
-		nObjectType		=	(SE_OBJECT_TYPE) _ttoi (sLineIn.Mid (nFind1 + 2, nFind2 - nFind1 - 1));
-		sSDDL				=	sLineIn.Right (sLineIn.GetLength () - nFind2 - 2);
+		DWORD nFind2	=	sLineIn.Find (L",\"", nFind1 + 2);
+		if (nFind2 == -1)
+		{
+			nFind2		=	sLineIn.Find (L",", nFind1 + 2);
+			nObjectType	=	(SE_OBJECT_TYPE) _ttoi (sLineIn.Mid (nFind1 + 2, nFind2 - nFind1));
+			sSDDL			=	sLineIn.Right (sLineIn.GetLength () - nFind2 - 1);
+		}
+		else
+		{
+			nObjectType	=	(SE_OBJECT_TYPE) _ttoi (sLineIn.Mid (nFind1 + 2, nFind2 - nFind1 - 1));
+			sSDDL			=	sLineIn.Right (sLineIn.GetLength () - nFind2 - 2);
+		}
 		sSDDL.MakeUpper ();
+
+		// Check if the SDDL string is empty
+		if (sSDDL.IsEmpty ())
+		{
+			// Nothing to do
+			LogMessage (L"INFO: Omitting SD of: <" + sObjectPath + L"> because neither owner, group, DACL nor SACL were backed up.");
+
+			continue;
+		}
 
 		// Check if the current path is on the filter list. If yes -> next line
 		if (CheckFilterList (sObjectPath))
 		{
 			// Notify caller of omission
-			LogMessage (TEXT ("INFO: Omitting ACL of: <" + sObjectPath + "> because a filter keyword matched."));
+			LogMessage (TEXT ("INFO: Omitting SD of: <" + sObjectPath + "> because a filter keyword matched."));
 
 			continue;
 		}
 
 		// Notify caller of progress
-		LogMessage (TEXT ("INFO: Restoring ACL of: <" + sObjectPath + ">"));
+		LogMessage (TEXT ("INFO: Restoring SD of: <" + sObjectPath + ">"));
 
 		//
 		// Which parts of the SD do we set? Also determine DACL and SACL flags.
@@ -1788,6 +1835,11 @@ DWORD CSetACL::DoActionRestore ()
 			if (nFind3 != -1)
 			{
 				sFlags		=	sSDDL.Mid (nFind + 2, nFind3 - nFind - 2);
+			}
+			else
+			{
+				// This is an empty DACL
+				sFlags		=	sSDDL.Mid (nFind + 2);
 			}
 
 			// Check for the protection flag
@@ -1813,6 +1865,11 @@ DWORD CSetACL::DoActionRestore ()
 			if (nFind3 != -1)
 			{
 				sFlags		=	sSDDL.Mid (nFind + 2, nFind3 - nFind - 2);
+			}
+			else
+			{
+				// This is an empty SACL
+				sFlags		=	sSDDL.Mid (nFind + 2);
 			}
 
 			// Check for the protection flag
@@ -1840,7 +1897,7 @@ DWORD CSetACL::DoActionRestore ()
 		{
 			if (m_fIgnoreErrors)
 			{
-				LogMessage (TEXT ("ERROR: Restoring ACL of <" + sObjectPath + ">: " + GetLastErrorMessage (GetLastError ())));
+				LogMessage (TEXT ("ERROR: Restoring SD of <" + sObjectPath + ">: " + GetLastErrorMessage (GetLastError ())));
 
 				continue;
 			}
@@ -1860,7 +1917,7 @@ DWORD CSetACL::DoActionRestore ()
 		{
 			if (m_fIgnoreErrors)
 			{
-				LogMessage (TEXT ("ERROR: Restoring ACL of <" + sObjectPath + ">: " + GetLastErrorMessage (GetLastError ())));
+				LogMessage (TEXT ("ERROR: Restoring SD of <" + sObjectPath + ">: " + GetLastErrorMessage (GetLastError ())));
 
 				continue;
 			}
@@ -1885,7 +1942,7 @@ DWORD CSetACL::DoActionRestore ()
 		{
 			if (m_fIgnoreErrors)
 			{
-				LogMessage (TEXT ("ERROR: Restoring ACL of <" + sObjectPath + ">: " + GetLastErrorMessage (GetLastError ())));
+				LogMessage (TEXT ("ERROR: Restoring SD of <" + sObjectPath + ">: " + GetLastErrorMessage (GetLastError ())));
 
 				continue;
 			}
@@ -1898,12 +1955,20 @@ DWORD CSetACL::DoActionRestore ()
 			}
 		}
 
-		// Set the SD on the object
-		csdSD				=	new CSD (this);
-		nError			=	csdSD->SetSD (sObjectPath.GetBuffer (sObjectPath.GetLength () + 1), nObjectType, siSecInfo, paclDACL, paclSACL, psidOwner, psidGroup);
-		m_nAPIError		=	csdSD->m_nAPIError;
+		// Determine if this object is a container
+		bool fIsContainer	 = false;
+		if (nObjectType == SE_FILE_OBJECT)
+		{
+			fIsContainer	= IsDirectory (sObjectPath);
+		}
+		else if (nObjectType == SE_REGISTRY_KEY)
+		{
+			fIsContainer	= true;
+		}
 
-		sObjectPath.ReleaseBuffer ();
+		// Set the SD on the object.
+		nError			=	csdSD.SetSD (sObjectPath, nObjectType, siSecInfo, paclDACL, paclSACL, psidOwner, psidGroup, false, fIsContainer);
+		m_nAPIError		=	csdSD.m_nAPIError;
 
 		if (nError != RTN_OK)
 		{
@@ -1921,8 +1986,6 @@ DWORD CSetACL::DoActionRestore ()
 			goto CleanUp;
 		}
 	}
-
-	sLineIn.ReleaseBuffer ();
 
 CleanUp:
 
@@ -1947,7 +2010,6 @@ CleanUp:
 	if (paclSACL)		{LocalFree (paclSACL);		paclSACL		=	NULL;}
 	if (psidOwner)		{LocalFree (psidOwner);		psidOwner	=	NULL;}
 	if (psidGroup)		{LocalFree (psidGroup);		psidGroup	=	NULL;}
-	if (csdSD)			{delete csdSD;}
 
 	return nError;
 }
@@ -1968,7 +2030,7 @@ DWORD CSetACL::DoActionWrite ()
 	}
 	else
 	{
-		return Write2SD (m_sObjectPath);
+		return Write2SD (m_sObjectPath, false);
 	}
 }
 
@@ -1976,167 +2038,128 @@ DWORD CSetACL::DoActionWrite ()
 //
 // RecurseDirs: Recurse a directory structure and call the function for every file / dir
 //
-DWORD CSetACL::RecurseDirs (CString sObjectPath, DWORD (CSetACL::*funcProcess) (CString sObjectPath))
+DWORD CSetACL::RecurseDirs (CString sObjectPath, DWORD (CSetACL::*funcProcess) (CString sObjectPath, bool fIsContainer))
 {
 	WIN32_FIND_DATA		FindFileData;
 	HANDLE					hFind;
-	DWORD						nError			=	RTN_OK;
-	BOOL						fRootDrive		=	false;
+	DWORD						nError				=	RTN_OK;
+	CString					sSearchPattern;
 
-	// If no recursion is desired, process only the current path
+	// Determine the container status of this object
+	bool	fIsContainer	= IsDirectory (sObjectPath);
+
+	// Process the object itself if specified
+	if (m_nRecursionType & RECURSE_NO || 
+		m_nRecursionType & RECURSE_CONT && fIsContainer ||
+		m_nRecursionType & RECURSE_OBJ && (! fIsContainer))
+	{
+		nError	=	(this->*funcProcess) (sObjectPath, fIsContainer);
+		if (nError != RTN_OK)
+		{
+			return nError;
+		}
+	}
+
+	// Check for file system root and warn the user in case
+	if (sObjectPath.Right(1) == ':' && (sObjectPath.Mid(sObjectPath.GetLength() - 3, 1) == '\\') ||
+		(sObjectPath.GetLength() == 2))
+	{
+		// The user specified a local file system root (e.g. "c:"). Permissions set on that do not persist a reboot.
+		// Also, we cannot recurse in such a case.
+		if (m_nRecursionType & RECURSE_NO)
+		{
+			LogMessage (L"WARNING: You just accessed permissions on a file system root, not on the root of the drive. These very special permissions do not persist a reboot and cannot be displayed in Explorer. You probably want to add a backslash to the path, e.g.: C:\\.");
+		}
+		else
+		{
+			LogMessage (L"WARNING: You just set permissions on a file system root, not on the root of the drive. These very special permissions do not persist a reboot and cannot be displayed in Explorer. You probably want to add a backslash to the path, e.g.: C:\\. Please note that file system roots cannot be recursed.");
+			return nError;
+		}
+	}
+
+	// If no recursion is desired, we are done here
 	if (m_nRecursionType & RECURSE_NO)
 	{
-		nError	=	(this->*funcProcess) (sObjectPath);
-
 		return nError;
-	}
-
-	// Also do that if a local file system root (ie. "c:") is to be processed
-	if (sObjectPath.GetAt (sObjectPath.GetLength () - 1) == ':')
-	{
-		if (m_nRecursionType & RECURSE_CONT || m_nRecursionType & RECURSE_OBJ)
-		{
-			LogMessage (TEXT ("WARNING: Recursion is not possible for local file system roots. You may want to append a backslash ('c:\\')."));
-		}
-		
-		nError	=	(this->*funcProcess) (sObjectPath);
-
-		return nError;
-	}
-
-	// Remove a trailing backslash to get a consistent state
-	sObjectPath.TrimRight (TEXT ("\\"));
-
-	//
-	// The path specified may be the root of a drive. FindFirstFile cannot handle that (because a drive root is no file/directory) -> we'll do it ourselves.
-	//
-	if (sObjectPath.GetAt (sObjectPath.GetLength () - 1) == ':')
-	{
-		// It is a root drive ('c:\')
-		fRootDrive		=	1;
-	}
-	else if (sObjectPath.Left (7).CompareNoCase (TEXT ("\\\\?\\UNC")) == 0)
-	{
-		// This is a UNC path - get the number of backslashes to determine whether it is a share ('\\server\share') or a directory inside a share ('\\server\share\dir')
-		DWORD	nPos		=	1;
-		DWORD nFound	=	0;
-		while ((nPos = sObjectPath.Find ('\\', nPos + 1)) != -1)
-		{
-			nFound++;
-		}
-
-		if (nFound == 3)
-		{
-			// It is a root drive ('\\?\UNC\server\share')
-			fRootDrive	=	2;
-		}
-	}
-
-	// Is the path a drive root? Process it and start to recurse, if necessary.
-	if (fRootDrive)
-	{
-		// Process the root only if specified by recursion options!
-
-		if (m_nRecursionType & RECURSE_CONT)
-		{
-			if (fRootDrive == 1)
-			{
-				// This is a local drive. Append a backslash, because c:\ is different from c:!!
-
-				// Call the function provided
-				nError	=	(this->*funcProcess) (sObjectPath + TEXT ("\\"));
-			}
-			else
-			{
-				// This is a UNC path.
-
-				// Call the function provided
-				nError	=	(this->*funcProcess) (sObjectPath);
-			}
-
-			if (nError != RTN_OK)
-			{
-				return nError;
-			}
-		}
-
-		// Modify the path so FindFirstFile will accept it
-		sObjectPath	+=	TEXT ("\\*.*");
 	}
 
 	//
 	// Start recursively processing the path
 	//
-	hFind = FindFirstFile (sObjectPath, &FindFileData);
-	if (hFind != INVALID_HANDLE_VALUE)
+	// Build a search pattern for FindFirstFile
+	sObjectPath.TrimRight ('\\');
+	sSearchPattern	= sObjectPath + L"\\*.*";
+
+	// Initiate the find operation.
+	hFind = FindFirstFile (sSearchPattern, &FindFileData);
+	if (hFind == INVALID_HANDLE_VALUE)
 	{
-		CString sDir = sObjectPath.Left (sObjectPath.ReverseFind ('\\') + 1);
-		do
+		if (m_fIgnoreErrors)
 		{
-			// The directories '.' and '..' are returned, too -> ignore
-			CString sTmp1	=	FindFileData.cFileName;
-			if (sTmp1 == TEXT (".") || sTmp1 == TEXT (".."))
+			m_nAPIError	= ERROR_SUCCESS;
+			return RTN_OK;
+		}
+		else
+		{
+			// FindFirstFile reported an error: probably an invalid path
+			m_nAPIError	=	GetLastError ();
+			return RTN_ERR_FINDFILE;
+		}
+	}
+
+	// Now loop through the results, including the first entry
+	do
+	{
+		// The directories '.' and '..' are returned, too -> ignore
+		if (_tcscmp (FindFileData.cFileName, L".") == 0 || _tcscmp (FindFileData.cFileName, L"..") == 0)
+		{
+			continue;
+		}
+
+		if (FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+		{
+			// Check if this is a directory junction or a symbolic link
+			if (FindFileData.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)
 			{
-				continue;
+				if (FindFileData.dwReserved0 == IO_REPARSE_TAG_MOUNT_POINT || FindFileData.dwReserved0 == IO_REPARSE_TAG_SYMLINK)
+				{
+					// Do not follow junctions or links when recursing!
+					continue;
+				}
 			}
 
-			if (FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+			// Now recurse down the tree
+			nError	=	RecurseDirs (sObjectPath + L"\\" + FindFileData.cFileName, funcProcess);
+			if (nError != RTN_OK)
 			{
-				if (m_nRecursionType & RECURSE_CONT)
-				{
-					// Directories are processed. Start recursion for found dirs.
-					// Process the directory...
-					nError	=	(this->*funcProcess) (sDir + FindFileData.cFileName);
-
-					if (nError != RTN_OK)
-					{
-						return nError;
-					}
-				}
-
-				// ...and continue recursion
-				nError	=	RecurseDirs (sDir + FindFileData.cFileName + TEXT ("\\*.*"), funcProcess);
-
+				return nError;
+			}
+		}
+		else
+		{
+			// This is a file: process it if requested
+			if (m_nRecursionType & RECURSE_OBJ)
+			{
+				nError	=	(this->*funcProcess) (sObjectPath + L"\\" + FindFileData.cFileName, false);
 				if (nError != RTN_OK)
 				{
 					return nError;
 				}
 			}
-
-			if (! (FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
-			{
-				// Files are processed
-				if (m_nRecursionType & RECURSE_OBJ)
-				{
-					// Process the file
-					nError	=	(this->*funcProcess) (sDir + FindFileData.cFileName);
-
-					if (nError != RTN_OK)
-					{
-						return nError;
-					}
-				}
-			}
 		}
-		while (FindNextFile (hFind, &FindFileData));
+	}
+	while (FindNextFile (hFind, &FindFileData));
 
-		FindClose (hFind);
-	}
-	else
-	{
-		// FindFirstFile reported an error: probably an invalid path
-		m_nAPIError	=	GetLastError ();
-		return RTN_ERR_FINDFILE;
-	}
+	FindClose (hFind);
 
 	return nError;
 }
 
 
 //
-// OpenRegKey: Open a registry key
+// RegKeyFixPathAndOpen: Make sure we have a valid reg path and optionally open the key
 //
-DWORD CSetACL::OpenRegKey (CString* sObjectPath, PHKEY hSubKey)
+DWORD CSetACL::RegKeyFixPathAndOpen (CString& sObjectPath, HKEY& hSubKey, bool fFixPathOnly, REGSAM samDesired)
 {
 	int								nLocalPart		=	0;
 	int								nMainKey			=	0;
@@ -2150,13 +2173,13 @@ DWORD CSetACL::OpenRegKey (CString* sObjectPath, PHKEY hSubKey)
 	CString							sLocalPath;
 
 	// No backslash at the end of the path
-	(*sObjectPath).TrimRight (TEXT ("\\"));
+	sObjectPath.TrimRight (TEXT ("\\"));
 
 	// Talk to the registry on the local or on a remote computer?
-	if ((*sObjectPath).Left (2) == TEXT ("\\\\"))
+	if (sObjectPath.Left (2) == TEXT ("\\\\"))
 	{
 		// Find end of computer name
-		nLocalPart = (*sObjectPath).Find (TEXT ("\\"), 2);
+		nLocalPart = sObjectPath.Find (TEXT ("\\"), 2);
 
 		// Nothing found? -> exit with error
 		if (nLocalPart == -1)
@@ -2165,13 +2188,13 @@ DWORD CSetACL::OpenRegKey (CString* sObjectPath, PHKEY hSubKey)
 		}
 
 		// Split into computer name and rest of path
-		sMachinePath	=	(*sObjectPath).Left (nLocalPart);
-		sLocalPath		=	(*sObjectPath).Right ((*sObjectPath).GetLength () - nLocalPart - 1);
+		sMachinePath	=	sObjectPath.Left (nLocalPart);
+		sLocalPath		=	sObjectPath.Right (sObjectPath.GetLength () - nLocalPart - 1);
 	}
 	else
 	{
 		// sMachinePath stays empty -> talk to the local machine
-		sLocalPath		=	(*sObjectPath);
+		sLocalPath		=	sObjectPath;
 	}
 
 	// Find the registry root
@@ -2192,80 +2215,32 @@ DWORD CSetACL::OpenRegKey (CString* sObjectPath, PHKEY hSubKey)
 	//
 	// Make registry paths easier to use: accept formats: machine, hklm, hkey_local_machine
 	//
-	if (sMainKey.CompareNoCase (TEXT ("hklm")) == 0)
+	if (sMainKey.CompareNoCase (TEXT ("hklm")) == 0 ||
+		sMainKey.CompareNoCase (TEXT ("hkey_local_machine")) == 0 ||
+		sMainKey.CompareNoCase (TEXT ("machine")) == 0)
 	{
 		sMainKey			=	TEXT ("machine");
-	}
-	else if (sMainKey.CompareNoCase (TEXT ("hkey_local_machine")) == 0)
-	{
-		sMainKey			=	TEXT ("machine");
-	}
-	else if (sMainKey.CompareNoCase (TEXT ("hku")) == 0)
-	{
-		sMainKey			=	TEXT ("users");
-	}
-	else if (sMainKey.CompareNoCase (TEXT ("hkey_users")) == 0)
-	{
-		sMainKey			=	TEXT ("users");
-	}
-	else if (sMainKey.CompareNoCase (TEXT ("hkcr")) == 0)
-	{
-		sMainKey			=	TEXT ("classes_root");
-	}
-	else if (sMainKey.CompareNoCase (TEXT ("hkey_classes_root")) == 0)
-	{
-		sMainKey			=	TEXT ("classes_root");
-	}
-	else if (sMainKey.CompareNoCase (TEXT ("hkcu")) == 0)
-	{
-		sMainKey			=	TEXT ("current_user");
-	}
-	else if (sMainKey.CompareNoCase (TEXT ("hkey_current_user")) == 0)
-	{
-		sMainKey			=	TEXT ("current_user");
-	}
-
-	// Build a corrected object path
-	if (sMachinePath > TEXT (""))
-	{
-		*sObjectPath	=	sMachinePath + TEXT ("\\");
-	}
-	else
-	{
-		*sObjectPath	=	TEXT ("");
-	}
-
-	*sObjectPath		+=	sMainKey;
-
-	if (sSubkeyPath > TEXT (""))
-	{
-		*sObjectPath	+=	TEXT ("\\") + sSubkeyPath;
-	}
-
-	// HKEY_CLASSES_ROOT and HKEY_CURRENT_USER cannot be used with RegConnectRegistry
-	if (sMachinePath > TEXT (""))
-	{
-		if (sMainKey.CompareNoCase (TEXT ("classes_root")) == 0 || sMainKey.CompareNoCase (TEXT ("current_user")) == 0)
-		{
-			return RTN_ERR_REG_PATH;
-		}
-	}
-
-	// Which registry hive?
-	if (sMainKey.CompareNoCase (TEXT ("machine")) == 0)
-	{
 		hMainKey			=	HKEY_LOCAL_MACHINE;
 	}
-	else if (sMainKey.CompareNoCase (TEXT ("users")) == 0)
+	else if (sMainKey.CompareNoCase (TEXT ("hku")) == 0 ||
+				sMainKey.CompareNoCase (TEXT ("hkey_users")) == 0 ||
+				sMainKey.CompareNoCase (TEXT ("users")) == 0)
 	{
+		sMainKey			=	TEXT ("users");
 		hMainKey			=	HKEY_USERS;
 	}
-	else if (sMainKey.CompareNoCase (TEXT ("classes_root")) == 0)
+	else if (sMainKey.CompareNoCase (TEXT ("hkcr")) == 0 ||
+				sMainKey.CompareNoCase (TEXT ("hkey_classes_root")) == 0 ||
+				sMainKey.CompareNoCase (TEXT ("classes_root")) == 0)
 	{
+		sMainKey			=	TEXT ("classes_root");
 		hMainKey			=	HKEY_CLASSES_ROOT;
 	}
-	else if (sMainKey.CompareNoCase (TEXT ("current_user")) == 0)
+	else if (sMainKey.CompareNoCase (TEXT ("hkcu")) == 0 ||
+				sMainKey.CompareNoCase (TEXT ("hkey_current_user")) == 0 ||
+				sMainKey.CompareNoCase (TEXT ("current_user")) == 0)
 	{
+		sMainKey			=	TEXT ("current_user");
 		hMainKey			=	HKEY_CURRENT_USER;
 	}
 	else
@@ -2273,16 +2248,48 @@ DWORD CSetACL::OpenRegKey (CString* sObjectPath, PHKEY hSubKey)
 		return RTN_ERR_REG_PATH;
 	}
 
+	// Build a corrected object path
+	if (! sMachinePath.IsEmpty ())
+	{
+		sObjectPath		=	sMachinePath + TEXT ("\\");
+	}
+	else
+	{
+		sObjectPath.Empty ();
+	}
+
+	sObjectPath			+=	sMainKey;
+
+	if (! sSubkeyPath.IsEmpty ())
+	{
+		sObjectPath		+=	TEXT ("\\") + sSubkeyPath;
+	}
+
+	// HKEY_CLASSES_ROOT and HKEY_CURRENT_USER cannot be used with RegConnectRegistry
+	if (! sMachinePath.IsEmpty ())
+	{
+		if (hMainKey != HKEY_LOCAL_MACHINE && hMainKey != HKEY_USERS)
+		{
+			return RTN_ERR_REG_PATH;
+		}
+	}
+
+	// The path is now "clean". Are we done?
+	if (fFixPathOnly)
+	{
+		return RTN_OK;
+	}
+
 	// Now we can connect to the remote registry
-	if (sMachinePath > TEXT (""))
+	if (! sMachinePath.IsEmpty ())
 	{
 		m_nAPIError		=	RegConnectRegistry (sMachinePath, hMainKey, &hRemoteKey);
-
 		if (m_nAPIError != ERROR_SUCCESS)
 		{
 			return RTN_ERR_REG_CONNECT;
 		}
 
+		// From now on, we only use the main key, but we'll keep the remote variable so we can correctly close the key later
 		hMainKey			=	hRemoteKey;
 	}
 
@@ -2291,40 +2298,45 @@ DWORD CSetACL::OpenRegKey (CString* sObjectPath, PHKEY hSubKey)
 	//
 
 	// Open the key using regular methods
-	m_nAPIError			=	RegOpenKeyEx (hRemoteKey ? hRemoteKey : hMainKey,  sSubkeyPath, 0, KEY_ENUMERATE_SUB_KEYS | KEY_EXECUTE, &hOpenStd);
+	m_nAPIError			=	RegOpenKeyEx (hMainKey,  sSubkeyPath, 0, samDesired, &hOpenStd);
 
-	// We now know the key exists. Let's try some black magic and open it like a backup program
-	if (hOpenStd && (m_nAPIError == ERROR_SUCCESS || m_nAPIError == ERROR_ACCESS_DENIED))
+	if ((hOpenStd && m_nAPIError == ERROR_SUCCESS) || m_nAPIError == ERROR_ACCESS_DENIED)
 	{
-		DWORD	nNewCreated	=	0;
-		DWORD nErrTmp	=	0;
+		// We now either know or can safely guess (access denied) that the key exists. Let's try some black magic and open it like a backup program
 
-		nErrTmp			=	RegCreateKeyEx (hRemoteKey ? hRemoteKey : hMainKey,  sSubkeyPath, 0, NULL, REG_OPTION_BACKUP_RESTORE, KEY_ENUMERATE_SUB_KEYS | KEY_EXECUTE, NULL, &hOpenBckp, &nNewCreated);
+		DWORD	nNewCreated	=	0;
+		DWORD nErrTmp		=	0;
+
+		nErrTmp				=	RegCreateKeyEx (hMainKey,  sSubkeyPath, 0, NULL, REG_OPTION_BACKUP_RESTORE, samDesired,
+														NULL, &hOpenBckp, &nNewCreated);
 
 		// Assert we did not unintentionally create a new key
 		if (nNewCreated == REG_CREATED_NEW_KEY)
 		{
-			LogMessage (TEXT ("ERROR: Critical internal error. Unintentionally the following registry key was created: <" + *sObjectPath + ">."));
+			LogMessage (TEXT ("ERROR (internal): Unintentionally the following registry key was created: <" + sObjectPath + ">."));
 
-			throw RTN_ERR_GENERAL;
+			return RTN_ERR_INTERNAL;
 		}
 
 		// Check which opened key to use (standard or with privileges)
 		if (hOpenBckp && nErrTmp == ERROR_SUCCESS)
 		{
-			*hSubKey		=	hOpenBckp;
+			hSubKey		=	hOpenBckp;
 
 			// The standard key is not needed
 			RegCloseKey (hOpenStd);
+
+			// Reset the API error
+			m_nAPIError	=	ERROR_SUCCESS;
 		}
 		else
 		{
-			*hSubKey		=	hOpenStd;
+			hSubKey		=	hOpenStd;
 		}
 	}
 
 	// The remote key is no longer needed - we have a handle to the subkey
-	if (hRemoteKey) RegCloseKey (hRemoteKey);
+	if (hRemoteKey)	{RegCloseKey (hRemoteKey);	hRemoteKey	= NULL;}
 
 	if (m_nAPIError != ERROR_SUCCESS)
 	{
@@ -2338,7 +2350,7 @@ DWORD CSetACL::OpenRegKey (CString* sObjectPath, PHKEY hSubKey)
 //
 // RecurseRegistry: Recurse the registry and call the function for every key
 //
-DWORD CSetACL::RecurseRegistry (CString  sObjectPath, DWORD (CSetACL::*funcProcess) (CString sObjectPath))
+DWORD CSetACL::RecurseRegistry (CString  sObjectPath, DWORD (CSetACL::*funcProcess) (CString sObjectPath, bool fIsContainer))
 {
 	CString							sFindKey;
 	CArray<CString, CString>	asSubKeys;
@@ -2347,16 +2359,8 @@ DWORD CSetACL::RecurseRegistry (CString  sObjectPath, DWORD (CSetACL::*funcProce
 	HKEY								hSubKey			=	NULL;
 	PFILETIME						pFileTime		=	NULL;
 
-	// Open the key
-	nError	=	OpenRegKey (&sObjectPath, &hSubKey);
-
-	if (nError != RTN_OK)
-	{
-		return nError;
-	}
-
-	// We know now that the path passed is valid -> process the current key
-	nError	=	(this->*funcProcess) (sObjectPath);
+	// Process the current key
+	nError	=	(this->*funcProcess) (sObjectPath, true);
 
 	// Stop here on error or if no recursion is desired
 	if (nError != RTN_OK || m_nRecursionType & RECURSE_NO)
@@ -2364,10 +2368,11 @@ DWORD CSetACL::RecurseRegistry (CString  sObjectPath, DWORD (CSetACL::*funcProce
 		return nError;
 	}
 
-	// Check for recursion type desired
-	if (m_nRecursionType != RECURSE_CONT)
+	// Open the key
+	nError	=	RegKeyFixPathAndOpen (sObjectPath, hSubKey, false, KEY_READ);
+	if (nError != RTN_OK)
 	{
-		RTN_ERR_PARAMS;
+		return nError;
 	}
 
 	// We have to save the subkeys since they change when setting permissions!
@@ -2408,8 +2413,10 @@ DWORD CSetACL::RecurseRegistry (CString  sObjectPath, DWORD (CSetACL::*funcProce
 //
 // Write2SD: Set/Add the ACEs, owner and primary group specified to the ACLs
 //
-DWORD CSetACL::Write2SD (CString sObjectPath)
+DWORD CSetACL::Write2SD (CString sObjectPath, bool fIsContainer)
 {
+	UNUSED_ALWAYS (fIsContainer);
+
 	EXPLICIT_ACCESS					*eaDACL					=	NULL;
 	EXPLICIT_ACCESS					*eaSACL					=	NULL;
 	PACL									paclDACLNew				=	NULL;
@@ -2419,8 +2426,8 @@ DWORD CSetACL::Write2SD (CString sObjectPath)
 	DWORD									nDACLACEs				=	0;
 	DWORD									nSACLACEs				=	0;
 	SECURITY_INFORMATION				siSecInfo				=	0;
-	BOOL									fDelInhACEsFromDACL	=	false;
-	BOOL									fDelInhACEsFromSACL	=	false;
+	bool									fDelInhACEsFromDACL	=	false;
+	bool									fDelInhACEsFromSACL	=	false;
 	CSD*									csdSD						=	NULL;
 
 
@@ -2723,20 +2730,32 @@ DWORD CSetACL::Write2SD (CString sObjectPath)
 	// Merge the existing (maybe modified) and (maybe empty) new ACL
 	//
 	m_nAPIError		=	SetEntriesInAcl (m_nDACLEntries, eaDACL, csdSD->m_paclDACL, &paclDACLNew);
-
 	if (m_nAPIError != ERROR_SUCCESS)
 	{
-		nError		=	RTN_ERR_SETENTRIESINACL;
-
+		if (m_fIgnoreErrors)
+		{
+			LogMessage (TEXT ("ERROR (ignored): SetEntriesInAcl for DACL of <" + sObjectPath + "> failed with: " + GetLastErrorMessage (m_nAPIError)));
+			nError		=	RTN_ERR_IGNORED;
+		}
+		else
+		{
+			nError		=	RTN_ERR_SETENTRIESINACL;
+		}
 		goto CleanUp;
 	}
 
 	m_nAPIError		=	SetEntriesInAcl (m_nSACLEntries, eaSACL, csdSD->m_paclSACL, &paclSACLNew);
-
 	if (m_nAPIError != ERROR_SUCCESS)
 	{
-		nError		=	RTN_ERR_SETENTRIESINACL;
-
+		if (m_fIgnoreErrors)
+		{
+			LogMessage (TEXT ("ERROR (ignored): SetEntriesInAcl for SACL of <" + sObjectPath + "> failed with: " + GetLastErrorMessage (m_nAPIError)));
+			nError		=	RTN_ERR_IGNORED;
+		}
+		else
+		{
+			nError		=	RTN_ERR_SETENTRIESINACL;
+		}
 		goto CleanUp;
 	}
 
@@ -2746,7 +2765,7 @@ DWORD CSetACL::Write2SD (CString sObjectPath)
 	// Is there anything to do?
 	if (siSecInfo)
 	{
-		nError		=	csdSD->SetSD (sObjectPath, m_nObjectType, siSecInfo, paclDACLNew, paclSACLNew, m_pOwner->m_psidTrustee, m_pPrimaryGroup->m_psidTrustee);
+		nError		=	csdSD->SetSD (sObjectPath, m_nObjectType, siSecInfo, paclDACLNew, paclSACLNew, m_pOwner->m_psidTrustee, m_pPrimaryGroup->m_psidTrustee, false, fIsContainer);
 		m_nAPIError	=	csdSD->m_nAPIError;
 	}
 
@@ -2784,17 +2803,27 @@ CleanUp:
 //
 // ListSD: List the contents of a SD in text format
 //
-DWORD CSetACL::ListSD (CString sObjectPath)
+DWORD CSetACL::ListSD (CString sObjectPath, bool fIsContainer)
 {
-	DWORD									nError			=	RTN_OK;
-	SECURITY_INFORMATION				siSecInfo		=	0;
-	LPTSTR								sSDDL				=	NULL;
+	DWORD									nError					=	RTN_OK;
+	SECURITY_INFORMATION				siSecInfo				=	0;
+	SECURITY_INFORMATION				siSecInfoParent		=	0;
+	LPTSTR								lptstrSDDL				=	NULL;
+	CString								sSDDL;
 	CString								sLineOut;
 	CString								sObjectType;
 	CString								sSD;
 	CString								sDACLControl;
 	CString								sSACLControl;
-	CSD*									csdSD				=	NULL;
+	CString								sParentPath;
+	CSD									csdSD (this);
+	CSD									csdSDParent (this);
+	DWORD									nACEs						=	0;
+	DWORD									nRemainingACEsInDACL	=	0;
+	DWORD									nRemainingACEsInSACL	=	0;
+	DWORD									nSDRevision				=	0;
+	SECURITY_DESCRIPTOR_CONTROL	sdControl;
+
 
 	// Convert the object type to a string for storage
 	sObjectType.Format (TEXT ("%d"), m_nObjectType);
@@ -2815,59 +2844,47 @@ DWORD CSetACL::ListSD (CString sObjectPath)
 	}
 
 	// Check which elements of the SD we need to process
+	// We always query the owner in order to be able to determine if CREATOR_OWNER was inherited correctly (pseudo-protection check)
 	if (m_nListWhat & ACL_DACL)
 	{
-		siSecInfo	|=	DACL_SECURITY_INFORMATION;
+		siSecInfo			|=	DACL_SECURITY_INFORMATION;
+		siSecInfoParent	|=	DACL_SECURITY_INFORMATION;
 	}
 	if (m_nListWhat & ACL_SACL)
 	{
-		siSecInfo	|=	SACL_SECURITY_INFORMATION;
-	}
-	if (m_nListWhat & SD_OWNER)
-	{
-		siSecInfo	|=	OWNER_SECURITY_INFORMATION;
+		siSecInfo			|=	SACL_SECURITY_INFORMATION;
+		siSecInfoParent	|=	SACL_SECURITY_INFORMATION;
 	}
 	if (m_nListWhat & SD_GROUP)
 	{
 		siSecInfo	|=	GROUP_SECURITY_INFORMATION;
 	}
-
+	if (m_nListWhat & SD_OWNER)
+	{
+		siSecInfo	|=	OWNER_SECURITY_INFORMATION;
+	}
 
 	//
 	// Get the SD and the SD's control information
 	//
-	csdSD				=	new CSD (this);
-
-	nError			=	csdSD->GetSD (sObjectPath, m_nObjectType, siSecInfo);
-	m_nAPIError		=	csdSD->m_nAPIError;
+	// Get the SD
+	nError			=	csdSD.GetSD (sObjectPath, m_nObjectType, siSecInfo | OWNER_SECURITY_INFORMATION);
+	m_nAPIError		=	csdSD.m_nAPIError;
 
 	if (nError != RTN_OK)
 	{
-		if (m_fIgnoreErrors)
-		{
-			LogMessage (TEXT ("ERROR (ignored): Reading the SD from <" + sObjectPath + "> failed with: " + GetLastErrorMessage (m_nAPIError)));
-			nError		=	RTN_ERR_IGNORED;
-		}
-		else
-		{
-			LogMessage (TEXT ("ERROR: Reading the SD from <" + sObjectPath + "> failed with: " + GetLastErrorMessage (m_nAPIError)));
-		}
-
 		goto CleanUp;
 	}
-	else if (csdSD->m_psdSD == NULL)
+	else if (csdSD.m_psdSD == NULL)
 	{
-		LogMessage (TEXT ("INFO: The object <" + m_sObjectPath + "> has a NULL security descriptor (granting full control to everyone) and is being ignored"));
+		LogMessage (TEXT ("INFO: The object <" + m_sObjectPath + "> has a NULL security descriptor (granting full control to everyone) and is being ignored."));
 		nError	=	RTN_ERR_IGNORED;
 
 		goto CleanUp;
 	}
 
 	// Get the SD's control information, which contains the protection flags
-	DWORD									nSDRevision	=	0;
-	SECURITY_DESCRIPTOR_CONTROL	sdControl;
-
-	if (! GetSecurityDescriptorControl (csdSD->m_psdSD, &sdControl, &nSDRevision))
+	if (! GetSecurityDescriptorControl (csdSD.m_psdSD, &sdControl, &nSDRevision))
 	{
 		nError			=	RTN_ERR_GET_SD_CONTROL;
 		m_nAPIError		=	GetLastError ();
@@ -2875,47 +2892,141 @@ DWORD CSetACL::ListSD (CString sObjectPath)
 		goto CleanUp;
 	}
 
-	// Build the SD control strings: DACL ...
+	// If DACL or SACL are protected, they need not be fetched from the parent for pseudo-inheritance checking
 	if (sdControl & SE_DACL_PROTECTED)
 	{
-		sDACLControl	=	TEXT ("(protected");
+		siSecInfoParent	&= ~DACL_SECURITY_INFORMATION;
 	}
-	else
-	{
-		sDACLControl	=	TEXT ("(not_protected");
-	}
-	if (sdControl & SE_DACL_AUTO_INHERITED)
-	{
-		sDACLControl	+=	TEXT ("+auto_inherited)");
-	}
-	else
-	{
-		sDACLControl	+=	TEXT (")");
-	}
-
 	// ... and SACL
 	if (sdControl & SE_SACL_PROTECTED)
 	{
-		sSACLControl	=	TEXT ("(protected");
-	}
-	else
-	{
-		sSACLControl	=	TEXT ("(not_protected");
-	}
-	if (sdControl & SE_SACL_AUTO_INHERITED)
-	{
-		sSACLControl	+=	TEXT ("+auto_inherited)");
-	}
-	else
-	{
-		sSACLControl	+=	TEXT (")");
+		siSecInfoParent	&= ~SACL_SECURITY_INFORMATION;
 	}
 
-	// Which list format is requested: SDDL or our own?
+	//
+	// Get the parent object's SD so we can determine pseudo-inheritance
+	//
+	if (siSecInfoParent)
+	{
+		// Get the parent object
+		if (! GetParentObject (sObjectPath, m_nObjectType, sParentPath))
+		{
+			goto DoneGettingParent;
+		}
+
+		// Get the parent's SD
+		nError			=	csdSDParent.GetSD (sParentPath, m_nObjectType, siSecInfoParent);
+		m_nAPIError		=	csdSDParent.m_nAPIError;
+
+		if (nError != RTN_OK || csdSDParent.m_psdSD == NULL)
+		{
+			// Clear the SD object
+			csdSDParent.Reset ();
+			// Reset error codes
+			nError		=	RTN_OK;
+			m_nAPIError	=	NO_ERROR;
+			goto DoneGettingParent;
+		}
+	}
+
+DoneGettingParent:
+
+	// Build the SD control strings: DACL
+	if (sdControl & SE_DACL_PRESENT)
+	{
+		if (sdControl & SE_DACL_PROTECTED)
+		{
+			sDACLControl	=	TEXT ("(protected");
+		}
+		else
+		{
+			// Check if the DACL is "pseudo-protected"
+			if (IsACLPseudoProtected (csdSD.m_paclDACL, fIsContainer, csdSD.m_psidOwner, csdSDParent.m_paclDACL))
+			{
+				sDACLControl	=	TEXT ("(pseudo_protected");
+			}
+			else
+			{
+				sDACLControl	=	TEXT ("(not_protected");
+			}
+		}
+		if (sdControl & SE_DACL_AUTO_INHERITED)
+		{
+			sDACLControl	+=	TEXT ("+auto_inherited)");
+		}
+		else
+		{
+			sDACLControl	+=	TEXT (")");
+		}
+	}
+
+	// Build the SD control strings: SACL
+	if (sdControl & SE_SACL_PRESENT)
+	{
+		if (sdControl & SE_SACL_PROTECTED)
+		{
+			sSACLControl	=	TEXT ("(protected");
+		}
+		else
+		{
+			if (IsACLPseudoProtected (csdSD.m_paclSACL, fIsContainer, csdSD.m_psidOwner, csdSDParent.m_paclSACL))
+			{
+				sSACLControl				=	TEXT ("(pseudo_protected");
+			}
+			else
+			{
+				sSACLControl	=	TEXT ("(not_protected");
+			}
+		}
+		if (sdControl & SE_SACL_AUTO_INHERITED)
+		{
+			sSACLControl	+=	TEXT ("+auto_inherited)");
+		}
+		else
+		{
+			sSACLControl	+=	TEXT (")");
+		}
+	}
+
+	//
+	// SDDL listing
+	//
 	if (m_nListFormat == LIST_SDDL)
 	{
+		if (! m_fListInherited)
+		{
+			// Remove any (pseudo-) inherited ACEs
+
+			if (siSecInfo & DACL_SECURITY_INFORMATION)
+			{
+				nError	= csdSD.DeleteACEsByHeaderFlags (ACL_DACL, INHERITED_ACE, true);
+				if (nError != RTN_OK)
+				{
+					goto CleanUp;
+				}
+				nError	= csdSD.DeletePseudoInheritedACEs (ACL_DACL, fIsContainer, csdSDParent.m_paclDACL, nRemainingACEsInDACL);
+				if (nError != RTN_OK)
+				{
+					goto CleanUp;
+				}
+			}
+			if (siSecInfo & SACL_SECURITY_INFORMATION)
+			{
+				nError	= csdSD.DeleteACEsByHeaderFlags (ACL_SACL, INHERITED_ACE, true);
+				if (nError != RTN_OK)
+				{
+					goto CleanUp;
+				}
+				nError	 = csdSD.DeletePseudoInheritedACEs (ACL_SACL, fIsContainer, csdSDParent.m_paclSACL, nRemainingACEsInSACL);
+				if (nError != RTN_OK)
+				{
+					goto CleanUp;
+				}
+			}
+		}
+
 		// Convert the SD into the SDDL format
-		if (! ConvertSecurityDescriptorToStringSecurityDescriptor (csdSD->m_psdSD, SDDL_REVISION_1, siSecInfo, &sSDDL, NULL))
+		if (! ConvertSecurityDescriptorToStringSecurityDescriptor (csdSD.m_psdSD, SDDL_REVISION_1, siSecInfo, &lptstrSDDL, NULL))
 		{
 			nError		=	RTN_ERR_CONVERT_SD;
 			m_nAPIError	=	GetLastError ();
@@ -2926,19 +3037,24 @@ DWORD CSetACL::ListSD (CString sObjectPath)
 		//
 		// Format and log the result
 		//
+		sSDDL	= lptstrSDDL;
+		if (! sSDDL.IsEmpty ())
+		{
+			sSDDL	=	L"\"" + sSDDL + L"\"";
+		}
 		if (sObjectPath.Left (1) != TEXT ("\""))
 		{
-			sLineOut		=	TEXT ("\"") + sObjectPath + TEXT ("\",") + sObjectType + TEXT (",\"") + sSDDL + TEXT ("\"");
+			sLineOut		=	L"\"" + sObjectPath + L"\"," + sObjectType + L"," + sSDDL;
 		}
 		else
 		{
-			sLineOut		=	sObjectPath + TEXT (",") + sObjectType + TEXT (",\"") + sSDDL + TEXT ("\"");
+			sLineOut		=	sObjectPath + L"," + sObjectType + L"," + sSDDL;
 		}
 	}
 	else if (m_nListFormat == LIST_CSV)
 	{
 		//
-		// A listing in csv format is desired
+		// CSV listing
 		//
 		if (sObjectPath.Left (1) != TEXT ("\""))
 		{
@@ -2950,89 +3066,160 @@ DWORD CSetACL::ListSD (CString sObjectPath)
 		}
 
 		// Process DACL if necessary
-		if (m_nListWhat & ACL_DACL && csdSD->m_paclDACL)
+		if (m_nListWhat & ACL_DACL)
 		{
-			CString sDACL			=	ListACL (csdSD->m_paclDACL);
-
-			if (! sDACL.IsEmpty ())
+			if (csdSD.m_paclDACL)
 			{
-				sSD			=	TEXT ("DACL") + sDACLControl + TEXT (":") + sDACL;
+				CString sDACL			=	ListACL (csdSD.m_paclDACL, fIsContainer, csdSDParent.m_paclDACL, nACEs);
+				if (m_nAPIError)
+				{
+					sSD			=	L"DACL" + sDACLControl + L":[error:" + GetLastErrorMessage (m_nAPIError) + L"]";
+					if (m_fIgnoreErrors)
+					{
+						m_nAPIError	=	ERROR_SUCCESS;
+						nError		=	RTN_OK;
+					}
+					else
+					{
+						nError		=	RTN_ERR_LIST_ACL;
+						goto CleanUp;
+					}
+				}
+				else
+				{
+					if (nACEs == 0)
+					{
+						sSD			=	L"DACL" + sDACLControl + L":[empty]";
+					}
+					else if (! sDACL.IsEmpty())
+					{
+						sSD			=	L"DACL" + sDACLControl + L":" + sDACL;
+					}
+				}
 			}
-
-			if (m_nAPIError)
+			else
 			{
-				nError		=	RTN_ERR_LIST_ACL;
-
-				goto CleanUp;
+				sSD					=	L"DACL" + sDACLControl + L":[NULL]";
 			}
 		}
 
 		// Process SACL if necessary
-		if (m_nListWhat & ACL_SACL && csdSD->m_paclSACL)
+		if (m_nListWhat & ACL_SACL)
 		{
-			CString sSACL			=	ListACL (csdSD->m_paclSACL);
+			sSD			+=	L";";
 
-			if (! sSD.IsEmpty () && ! sSACL.IsEmpty ())
+			if (csdSD.m_paclSACL)
 			{
-				sSD			+=	TEXT (";");
+				CString sSACL			=	ListACL (csdSD.m_paclSACL, fIsContainer, csdSDParent.m_paclSACL, nACEs);
+				if (m_nAPIError)
+				{
+					sSD			+=	L"SACL" + sSACLControl + L":[error:" + GetLastErrorMessage (m_nAPIError) + L"]";
+					if (m_fIgnoreErrors)
+					{
+						m_nAPIError	=	ERROR_SUCCESS;
+						nError		=	RTN_OK;
+					}
+					else
+					{
+						nError		=	RTN_ERR_LIST_ACL;
+						goto CleanUp;
+					}
+				}
+				else
+				{
+					if (nACEs == 0)
+					{
+						sSD			+=	L"SACL" + sSACLControl + L":[empty]";
+					}
+					else if (! sSACL.IsEmpty())
+					{
+						sSD			+=	L"SACL" + sSACLControl + L":" + sSACL;
+					}
+				}
 			}
-
-			if (! sSACL.IsEmpty ())
+			else
 			{
-				sSD			+=	TEXT ("SACL") + sSACLControl + TEXT (":") + sSACL;
-			}
-
-			if (m_nAPIError)
-			{
-				nError		=	RTN_ERR_LIST_ACL;
-
-				goto CleanUp;
+				sSD					+=	L"SACL" + sSACLControl + L":[NULL]";
 			}
 		}
 
 		// Process owner if necessary
-		if (m_nListWhat & SD_OWNER && csdSD->m_psidOwner)
+		if (m_nListWhat & SD_OWNER)
 		{
-			CString sOwner	=	GetTrusteeFromSID (csdSD->m_psidOwner);
+			sSD			+=	L";";
 
-			if (! sSD.IsEmpty () && ! sOwner.IsEmpty ())
+			if (csdSD.m_psidOwner)
 			{
-				sSD			+=	TEXT (";");
+				CString sOwner	=	GetTrusteeFromSID (csdSD.m_psidOwner);
+				if (m_nAPIError)
+				{
+					sSD			+=	L"Owner:[error:" + GetLastErrorMessage (m_nAPIError) + L"]";
+					if (m_fIgnoreErrors)
+					{
+						m_nAPIError	=	ERROR_SUCCESS;
+						nError		=	RTN_OK;
+					}
+					else
+					{
+						nError		=	RTN_ERR_LIST_ACL;
+						goto CleanUp;
+					}
+				}
+				else
+				{
+					if (sOwner.IsEmpty ())
+					{
+						sSD			+=	L"Owner:[empty]";
+					}
+					else
+					{
+						sSD			+=	L"Owner:" + sOwner;
+					}
+				}
 			}
-
-			if (! sOwner.IsEmpty ())
+			else
 			{
-				sSD			+=	TEXT ("Owner:") + sOwner;
-			}
-
-			if (m_nAPIError)
-			{
-				nError		=	RTN_ERR_LIST_ACL;
-
-				goto CleanUp;
+				sSD					+=	L"Owner:[NULL]";
 			}
 		}
 
 		// Process primary group if necessary
-		if (m_nListWhat & SD_GROUP && csdSD->m_psidGroup)
+		if (m_nListWhat & SD_GROUP)
 		{
-			CString sGroup	=	GetTrusteeFromSID (csdSD->m_psidGroup);
+			sSD			+=	L";";
 
-			if (! sSD.IsEmpty () && ! sGroup.IsEmpty ())
+			if (csdSD.m_psidGroup)
 			{
-				sSD			+=	TEXT (";");
+				CString sGroup	=	GetTrusteeFromSID (csdSD.m_psidGroup);
+				if (m_nAPIError)
+				{
+					sSD			+=	L"Group:[error:" + GetLastErrorMessage (m_nAPIError) + L"]";
+					if (m_fIgnoreErrors)
+					{
+						m_nAPIError	=	ERROR_SUCCESS;
+						nError		=	RTN_OK;
+					}
+					else
+					{
+						nError		=	RTN_ERR_LIST_ACL;
+						goto CleanUp;
+					}
+				}
+				else
+				{
+					if (sGroup.IsEmpty ())
+					{
+						sSD			+=	L"Group:[empty]";
+					}
+					else
+					{
+						sSD			+=	L"Group:" + sGroup;
+					}
+				}
 			}
-
-			if (! sGroup.IsEmpty ())
+			else
 			{
-				sSD			+=	TEXT ("Group:") + sGroup;
-			}
-
-			if (m_nAPIError)
-			{
-				nError		=	RTN_ERR_LIST_ACL;
-
-				goto CleanUp;
+				sSD					+=	L"Group:[NULL]";
 			}
 		}
 
@@ -3049,86 +3236,176 @@ DWORD CSetACL::ListSD (CString sObjectPath)
 	else if (m_nListFormat == LIST_TAB)
 	{
 		//
-		// A listing in tabular format is desired
+		// Tab format listing
 		//
 		sLineOut		=	sObjectPath + TEXT ("\n");
 		sSD			=	TEXT ("");
 
 		// Process owner if necessary
-		if (m_nListWhat & SD_OWNER && csdSD->m_psidOwner)
+		if (m_nListWhat & SD_OWNER)
 		{
-			CString sOwner	=	GetTrusteeFromSID (csdSD->m_psidOwner);
-
-			if (! sOwner.IsEmpty ())
+			if (csdSD.m_psidOwner)
 			{
-				sSD			+=	TEXT ("\n   Owner: ") + sOwner + TEXT ("\n");
+				CString sOwner	=	GetTrusteeFromSID (csdSD.m_psidOwner);
+				if (m_nAPIError)
+				{
+					sSD			+=	L"\n   Owner: [error:" + GetLastErrorMessage (m_nAPIError) + L"]\n";
+					if (m_fIgnoreErrors)
+					{
+						m_nAPIError	=	ERROR_SUCCESS;
+						nError		=	RTN_OK;
+					}
+					else
+					{
+						nError		=	RTN_ERR_LIST_ACL;
+						goto CleanUp;
+					}
+				}
+				else
+				{
+					if (sOwner.IsEmpty ())
+					{
+						sSD			+=	L"\n   Owner: [empty]\n";
+					}
+					else
+					{
+						sSD			+=	L"\n   Owner: " + sOwner + L"\n";
+					}
+				}
 			}
-
-			if (m_nAPIError)
+			else
 			{
-				nError		=	RTN_ERR_LIST_ACL;
-
-				goto CleanUp;
+				sSD					+=	L"\n   Owner: [NULL]\n";
 			}
 		}
 
 		// Process primary group if necessary
-		if (m_nListWhat & SD_GROUP && csdSD->m_psidGroup)
+		if (m_nListWhat & SD_GROUP)
 		{
-			CString sGroup	=	GetTrusteeFromSID (csdSD->m_psidGroup);
-
-			if (! sGroup.IsEmpty ())
+			if (csdSD.m_psidGroup)
 			{
-				sSD			+=	TEXT ("\n   Group: ") + sGroup + TEXT ("\n");
+				CString sGroup	=	GetTrusteeFromSID (csdSD.m_psidGroup);
+				if (m_nAPIError)
+				{
+					sSD			+=	L"\n   Group: [error:" + GetLastErrorMessage (m_nAPIError) + L"]\n";
+					if (m_fIgnoreErrors)
+					{
+						m_nAPIError	=	ERROR_SUCCESS;
+						nError		=	RTN_OK;
+					}
+					else
+					{
+						nError		=	RTN_ERR_LIST_ACL;
+						goto CleanUp;
+					}
+				}
+				else
+				{
+					if (sGroup.IsEmpty ())
+					{
+						sSD			+=	L"\n   Group: [empty]\n";
+					}
+					else
+					{
+						sSD			+=	L"\n   Group: " + sGroup + "\n";
+					}
+				}
 			}
-
-			if (m_nAPIError)
+			else
 			{
-				nError		=	RTN_ERR_LIST_ACL;
-
-				goto CleanUp;
+				sSD					+=	L"\n   Group: [NULL]\n";
 			}
 		}
 
 		// Process DACL if necessary
-		if (m_nListWhat & ACL_DACL && csdSD->m_paclDACL)
+		if (m_nListWhat & ACL_DACL)
 		{
-			CString sDACL	=	ListACL (csdSD->m_paclDACL);
-
-			sDACL.Replace (TEXT (":"), TEXT ("\n   "));
-			sDACL.Replace (TEXT (","), TEXT ("   "));
-
-			if (! sDACL.IsEmpty ())
+			if (csdSD.m_paclDACL)
 			{
-				sSD			+=	TEXT ("\n   DACL") + sDACLControl + (":\n   ") + sDACL + TEXT ("\n");
+				CString sDACL	=	ListACL (csdSD.m_paclDACL, fIsContainer, csdSDParent.m_paclDACL, nACEs);
+
+				sDACL.Replace (TEXT (":"), TEXT ("\n   "));
+				sDACL.Replace (TEXT (","), TEXT ("   "));
+
+				if (m_nAPIError)
+				{
+					sSD			+=	L"\n   DACL: [error:" + GetLastErrorMessage (m_nAPIError) + L"]\n";
+					if (m_fIgnoreErrors)
+					{
+						m_nAPIError	=	ERROR_SUCCESS;
+						nError		=	RTN_OK;
+					}
+					else
+					{
+						nError		=	RTN_ERR_LIST_ACL;
+						goto CleanUp;
+					}
+				}
+				else
+				{
+					if (nACEs == 0)
+					{
+						sSD			+=	L"\n   DACL" + sDACLControl + L":\n   [empty]\n";
+					}
+					else if (! sDACL.IsEmpty())
+					{
+						sSD			+=	L"\n   DACL" + sDACLControl + L":\n   " + sDACL + "\n";
+					}
+					else
+					{
+						sSD			+=	L"\n   DACL" + sDACLControl + L":\n   [no implicit permissions]\n";
+					}
+				}
 			}
-
-			if (m_nAPIError)
+			else
 			{
-				nError		=	RTN_ERR_LIST_ACL;
-
-				goto CleanUp;
+				sSD					+=	L"\n   DACL" + sDACLControl + L":\n   [NULL]\n";
 			}
 		}
 
 		// Process SACL if necessary
-		if (m_nListWhat & ACL_SACL && csdSD->m_paclSACL)
+		if (m_nListWhat & ACL_SACL)
 		{
-			CString sSACL	=	ListACL (csdSD->m_paclSACL);
-
-			sSACL.Replace (TEXT (":"), TEXT ("\n   "));
-			sSACL.Replace (TEXT (","), TEXT ("   "));
-
-			if (! sSACL.IsEmpty ())
+			if (csdSD.m_paclSACL)
 			{
-				sSD			+=	TEXT ("\n   SACL") + sSACLControl + (":\n   ") + sSACL + TEXT ("\n");
+				CString sSACL	=	ListACL (csdSD.m_paclSACL, fIsContainer, csdSDParent.m_paclSACL, nACEs);
+
+				sSACL.Replace (TEXT (":"), TEXT ("\n   "));
+				sSACL.Replace (TEXT (","), TEXT ("   "));
+
+				if (m_nAPIError)
+				{
+					sSD			+=	L"\n   SACL: [error:" + GetLastErrorMessage (m_nAPIError) + L"]\n";
+					if (m_fIgnoreErrors)
+					{
+						m_nAPIError	=	ERROR_SUCCESS;
+						nError		=	RTN_OK;
+					}
+					else
+					{
+						nError		=	RTN_ERR_LIST_ACL;
+						goto CleanUp;
+					}
+				}
+				else
+				{
+					if (nACEs == 0)
+					{
+						sSD			+=	L"\n   SACL" + sSACLControl + L":\n   [empty]\n";
+					}
+					else if (! sSACL.IsEmpty())
+					{
+						sSD			+=	L"\n   SACL" + sSACLControl + L":\n   " + sSACL + "\n";
+					}
+					else
+					{
+						sSD			+=	L"\n   SACL" + sSACLControl + L":\n   [no implicit permissions]\n";
+					}
+				}
 			}
-
-			if (m_nAPIError)
+			else
 			{
-				nError		=	RTN_ERR_LIST_ACL;
-
-				goto CleanUp;
+				sSD					+=	L"\n   SACL" + sSACLControl + L":\n   [NULL]\n";
 			}
 		}
 
@@ -3160,15 +3437,20 @@ DWORD CSetACL::ListSD (CString sObjectPath)
 
 CleanUp:
 
+	// Log errors
+	if (m_nAPIError)
+	{
+		LogMessage (TEXT ("ERROR: Parsing the SD of <" + sObjectPath + "> failed with: " + GetLastErrorMessage (m_nAPIError)));
+	}
+
 	// If errors are to be ignored (param "-ignoreerr" set), then do NOT return an error
-	if (nError == RTN_ERR_IGNORED)
+	if (m_fIgnoreErrors || nError == RTN_ERR_IGNORED)
 	{
 		m_nAPIError	=	ERROR_SUCCESS;
 		nError		=	RTN_OK;
 	}
 
-	if (sSDDL)			LocalFree (sSDDL);
-	if (csdSD)			delete csdSD;
+	if (lptstrSDDL)			{LocalFree (lptstrSDDL);	lptstrSDDL			= NULL;}
 
 	return nError;
 }
@@ -3180,8 +3462,8 @@ CleanUp:
 CString CSetACL::GetTrusteeFromSID (PSID psidSID)
 {
 	DWORD				nError			=	RTN_OK;
-	DWORD				nAccountName	=	1024;
-	DWORD				nDomainName		=	1024;
+	DWORD				nAccountName	=	0;
+	DWORD				nDomainName		=	0;
 	LPTSTR			pcSID				=	NULL;
 	CString			sSID;
 	CString			sDomainName;
@@ -3193,13 +3475,19 @@ CString CSetACL::GetTrusteeFromSID (PSID psidSID)
 	if (m_nListNameSID & LIST_NAME)
 	{
 		// Try to look up the account name
-		if (! LookupAccountSid (m_sTargetSystemName.IsEmpty () ? NULL : m_sTargetSystemName.GetBuffer (m_sTargetSystemName.GetLength ()), psidSID, sAccountName.GetBuffer (1024), &nAccountName, sDomainName.GetBuffer (1024), &nDomainName, &snuSidType))
+
+		// First get buffer sizes
+		LookupAccountSid (m_sTargetSystemName.IsEmpty () ? NULL : (LPCTSTR) m_sTargetSystemName, psidSID, NULL, &nAccountName, NULL, &nDomainName, &snuSidType);
+
+		// Second, look up account and domain names
+		BOOL	fOK	=	LookupAccountSid (m_sTargetSystemName.IsEmpty () ? NULL : (LPCTSTR) m_sTargetSystemName, psidSID, 
+											sAccountName.GetBuffer (nAccountName), &nAccountName, sDomainName.GetBuffer (nDomainName), &nDomainName, &snuSidType);
+		sAccountName.ReleaseBuffer ();
+		sDomainName.ReleaseBuffer ();
+
+		if (! fOK)
 		{
 			nError			=	GetLastError ();
-
-			m_sTargetSystemName.ReleaseBuffer ();
-			sAccountName.ReleaseBuffer ();
-			sDomainName.ReleaseBuffer ();
 
 			if (nError != ERROR_NONE_MAPPED)
 			{
@@ -3216,10 +3504,6 @@ CString CSetACL::GetTrusteeFromSID (PSID psidSID)
 
 			sSID					=	pcSID;
 		}
-
-		m_sTargetSystemName.ReleaseBuffer ();
-		sAccountName.ReleaseBuffer ();
-		sDomainName.ReleaseBuffer ();
 
 		// Build the trustee name string
 		if (! sDomainName.IsEmpty ())
@@ -3273,44 +3557,69 @@ CString CSetACL::GetTrusteeFromSID (PSID psidSID)
 //
 // ListACL: Return the contents of an ACL as a string
 //
-CString CSetACL::ListACL (PACL paclACL)
+CString CSetACL::ListACL (PACL paclObject, bool fIsContainer, PACL paclParent, DWORD& nACEsObject)
 {
 	ACL_SIZE_INFORMATION				asiACLSize;
-	ACCESS_ALLOWED_ACE*				paceACE			=	NULL;
+	ACCESS_ALLOWED_ACE*				paceACE						=	NULL;
 	CString								sOut;
+	CString								sTrustee;
+	CString								sPermissions;
+	CString								sFlags;
+	CString								sACEType;
+	bool									fACEIsPseudoInherited	= false;
 
 	// If this is a NULL ACL, do nothing
-	if (! paclACL)
+	if (! paclObject)
 	{
 		return sOut;
 	}
 
-	// Get the number of entries in the ACL
-	if (! GetAclInformation (paclACL, &asiACLSize, sizeof (ACL_SIZE_INFORMATION), AclSizeInformation))
+	// Get the number of entries in the object's ACL
+	if (! GetAclInformation (paclObject, &asiACLSize, sizeof (ACL_SIZE_INFORMATION), AclSizeInformation))
 	{
 		m_nAPIError	=	GetLastError ();
 		return sOut;
 	}
 
-	// Loop through the ACEs
+	// Store the number of ACEs in the object's ACL for access by the caller
+	nACEsObject	=	asiACLSize.AceCount;
+
+	// Loop through the ACEs in the object's ACL
 	for (WORD i = 0; i < asiACLSize.AceCount; i++)
 	{
-		CString			sTrustee;
-		CString			sPermissions;
-		CString			sFlags;
-		CString			sACEType;
+		sTrustee.Empty ();
+		sPermissions.Empty ();
+		sFlags.Empty ();
+		sACEType.Empty ();
+		fACEIsPseudoInherited	= false;
 
 		// Get the current ACE
-		if (! GetAce (paclACL, i, (LPVOID*) &paceACE))
+		if (! GetAce (paclObject, i, (LPVOID*) &paceACE))
 		{
 			m_nAPIError	=	GetLastError ();
 			return sOut;
 		}
 
-		// Omit inherited ACEs?
-		if (paceACE->Header.AceFlags & INHERITED_ACE && m_fListInherited == false)
+		if (! (paceACE->Header.AceFlags & INHERITED_ACE))
 		{
-			continue;
+			// If the ACE is not inherited, it might still be pseudo-inherited. Check that.
+			fACEIsPseudoInherited	= IsACEPseudoInherited (paceACE, fIsContainer, paclParent);
+		}
+
+		// Omit inherited ACEs?
+		if (! m_fListInherited)
+		{
+			if (paceACE->Header.AceFlags & INHERITED_ACE)
+			{
+				// ACE is marked as inherited
+				continue;
+			}
+
+			if (fACEIsPseudoInherited)
+			{
+				// ACE is pseudo-inherited from parent without being marked as such (sad, but very common)
+				continue;
+			}
 		}
 
 		// Find the name corresponding to the SID in the ACE
@@ -3328,7 +3637,7 @@ CString CSetACL::ListACL (PACL paclACL)
 		sACEType				=	GetACEType (paceACE->Header.AceType);
 
 		// Get the ACE flags
-		sFlags				=	GetACEFlags (paceACE->Header.AceFlags);
+		sFlags				=	GetACEFlags (paceACE->Header.AceFlags, fACEIsPseudoInherited);
 
 		sOut					+=	sTrustee + TEXT (",") + sPermissions + TEXT (",") + sACEType + TEXT (",") + sFlags + TEXT (":");
 	}
@@ -3349,7 +3658,7 @@ DWORD CSD::ProcessACEsOfGivenTrustees (DWORD nWhere)
 	ACCESS_ALLOWED_ACE*				paceACE			=	NULL;
 	DWORD									nACECount		=	0;
 	PACL									paclACL			=	NULL;
-	BOOL									fIsSACL			=	false;
+	bool									fIsSACL			=	false;
 
 	if (nWhere == ACL_DACL)
 	{
@@ -3507,7 +3816,7 @@ DWORD CSD::ProcessACEsOfGivenDomains (DWORD nWhere)
 	ACCESS_ALLOWED_ACE*				paceACE			=	NULL;
 	DWORD									nACECount		=	0;
 	PACL									paclACL			=	NULL;
-	BOOL									fIsSACL			=	false;
+	bool									fIsSACL			=	false;
 
 	if (nWhere == ACL_DACL)
 	{
@@ -3564,27 +3873,29 @@ DWORD CSD::ProcessACEsOfGivenDomains (DWORD nWhere)
 		//
 		// Get domain and trustee of the SID in the ACE
 		//
-		DWORD				nAccountName	=	1024;
-		DWORD				nDomainName		=	1024;
+		DWORD				nAccountName	=	0;
+		DWORD				nDomainName		=	0;
 		CString			sDomainName;
 		CString			sAccountName;
 		SID_NAME_USE	snuSidType;
-		LPCTSTR			lpSystemName	=	m_setaclMain->m_sTargetSystemName.IsEmpty () ? NULL : m_setaclMain->m_sTargetSystemName.GetBuffer (m_setaclMain->m_sTargetSystemName.GetLength ());
+		LPCTSTR			lpSystemName	=	m_setaclMain->m_sTargetSystemName.IsEmpty () ? NULL : (LPCTSTR) m_setaclMain->m_sTargetSystemName;
 
-		// Try to look up account and domain name
-		if (! LookupAccountSid (lpSystemName, (PSID) &(paceACE->SidStart), sAccountName.GetBuffer (1024), &nAccountName, sDomainName.GetBuffer (1024), &nDomainName, &snuSidType))
+		// Try to look up the account name
+
+		// First get buffer sizes
+		LookupAccountSid (lpSystemName, (PSID) &(paceACE->SidStart), NULL, &nAccountName, NULL, &nDomainName, &snuSidType);
+
+		// Second, look up account and domain names
+		BOOL	fOK	=	LookupAccountSid (lpSystemName, (PSID) &(paceACE->SidStart), sAccountName.GetBuffer (nAccountName), &nAccountName, 
+													sDomainName.GetBuffer (nDomainName), &nDomainName, &snuSidType);
+		sAccountName.ReleaseBuffer ();
+		sDomainName.ReleaseBuffer ();
+
+		if (! fOK)
 		{
-			m_setaclMain->m_sTargetSystemName.ReleaseBuffer ();
-			sAccountName.ReleaseBuffer ();
-			sDomainName.ReleaseBuffer ();
-
 			// Ignore SIDs that cannot be looked up
 			continue;
 		}
-
-		m_setaclMain->m_sTargetSystemName.ReleaseBuffer ();
-		sAccountName.ReleaseBuffer ();
-		sDomainName.ReleaseBuffer ();
 
 		if (snuSidType == SidTypeDeletedAccount || snuSidType == SidTypeInvalid || snuSidType == SidTypeUnknown)
 		{
@@ -3794,7 +4105,7 @@ PACL CSD::ACLReplaceACE (PACL paclACL, DWORD nACE, PSID psidNewTrustee)
 	// Copy all ACEs from the old to the new ACL; insert our new ACE at the correct position
 	//
 	// The new ACE might belong at the end of the ACL.
-	BOOL	fNewACEInserted	=	false;
+	bool	fNewACEInserted	=	false;
 	WORD	j;
 
 	for (j = 0; j < asiACLSize.AceCount; j++)
@@ -3983,7 +4294,7 @@ PACL CSD::ACLCopyACE (PACL paclACL, DWORD nACE, PSID psidNewTrustee)
 //
 // DeleteACEsByHeaderFlags: Delete all ACEs from an ACL that have certain header flags set
 //
-DWORD CSD::DeleteACEsByHeaderFlags (DWORD nWhere, BYTE nFlags, BOOL fFlagsSet)
+DWORD CSD::DeleteACEsByHeaderFlags (DWORD nWhere, BYTE nFlags, bool fFlagsSet)
 {
 	DWORD									nError			=	RTN_OK;
 	ACL_SIZE_INFORMATION				asiACLSize;
@@ -4022,7 +4333,7 @@ DWORD CSD::DeleteACEsByHeaderFlags (DWORD nWhere, BYTE nFlags, BOOL fFlagsSet)
 	// Loop through the ACEs
 	for (DWORD i = 0; i < nACECount; i++)
 	{
-		BOOL fDelete	=	false;
+		bool fDelete	=	false;
 
 		// Get the current ACE
 		if (! GetAce (paclACL, i, (LPVOID*) &paceACE))
@@ -4034,7 +4345,7 @@ DWORD CSD::DeleteACEsByHeaderFlags (DWORD nWhere, BYTE nFlags, BOOL fFlagsSet)
 		// Determine whether to delete the ACE depending on the parameters passed
 		if (fFlagsSet)
 		{
-			fDelete		=	paceACE->Header.AceFlags & nFlags;
+			fDelete		=	(paceACE->Header.AceFlags & nFlags) > 0;
 		}
 		else
 		{
@@ -4060,45 +4371,183 @@ DWORD CSD::DeleteACEsByHeaderFlags (DWORD nWhere, BYTE nFlags, BOOL fFlagsSet)
 
 
 //
+// Set the inherited flag for all pseudo-inherited ACEs
+//
+DWORD CSD::ConvertPseudoInheritedACEsToInheritedACEs (PACL paclACL, bool fIsContainer, PACL paclParent, DWORD& nRemainingACEs)
+{
+	DWORD									nError			=	RTN_OK;
+	ACL_SIZE_INFORMATION				asiACLSize;
+	ACCESS_ALLOWED_ACE*				paceACE			=	NULL;
+
+	// If this is a NULL ACL, do nothing
+	if (! paclACL)
+	{
+		return RTN_OK;
+	}
+
+	// Get the number of entries in the ACL
+	if (! GetAclInformation (paclACL, &asiACLSize, sizeof (ACL_SIZE_INFORMATION), AclSizeInformation))
+	{
+		m_nAPIError		=	GetLastError ();
+		return RTN_ERR_LOOP_ACL;
+	}
+
+	// Store the number of ACEs for our caller
+	nRemainingACEs		=	asiACLSize.AceCount;
+
+	// Loop through the ACEs
+	for (DWORD i = 0; i < nRemainingACEs; i++)
+	{
+		// Get the current ACE
+		if (! GetAce (paclACL, i, (LPVOID*) &paceACE))
+		{
+			m_nAPIError	=	GetLastError ();
+			return RTN_ERR_LOOP_ACL;
+		}
+
+		// Make this ACE inherited if it is pseudo-inherited
+		if (m_setaclMain->IsACEPseudoInherited (paceACE, fIsContainer, paclParent))
+		{
+			paceACE->Header.AceFlags |= INHERITED_ACE;
+		}
+	}
+
+	return nError;
+}
+
+
+//
+// Delete all pseudo-inherited ACEs from an ACL
+//
+DWORD CSD::DeletePseudoInheritedACEs (DWORD nWhere, bool fIsContainer, PACL paclParent, DWORD& nRemainingACEs)
+{
+	DWORD									nError			=	RTN_OK;
+	ACL_SIZE_INFORMATION				asiACLSize;
+	ACCESS_ALLOWED_ACE*				paceACE			=	NULL;
+	PACL									paclACL			=	NULL;
+
+	if (nWhere == ACL_DACL)
+	{
+		paclACL			=	m_paclDACL;
+	}
+	else if (nWhere == ACL_SACL)
+	{
+		paclACL			=	m_paclSACL;
+	}
+	else
+	{
+		return RTN_ERR_PARAMS;
+	}
+
+	// If this is a NULL ACL, do nothing
+	if (! paclACL)
+	{
+		return RTN_OK;
+	}
+
+	// Get the number of entries in the ACL
+	if (! GetAclInformation (paclACL, &asiACLSize, sizeof (ACL_SIZE_INFORMATION), AclSizeInformation))
+	{
+		m_nAPIError		=	GetLastError ();
+		return RTN_ERR_LOOP_ACL;
+	}
+
+	// Store the number of ACEs for our caller
+	nRemainingACEs		=	asiACLSize.AceCount;
+
+	// Loop through the ACEs
+	for (DWORD i = 0; i < nRemainingACEs; i++)
+	{
+		// Get the current ACE
+		if (! GetAce (paclACL, i, (LPVOID*) &paceACE))
+		{
+			m_nAPIError	=	GetLastError ();
+			return RTN_ERR_LOOP_ACL;
+		}
+
+		// Delete this ACE if it is pseudo-inherited
+		if (m_setaclMain->IsACEPseudoInherited (paceACE, fIsContainer, paclParent))
+		{
+			if (! DeleteAce (paclACL, i))
+			{
+				m_nAPIError	=	GetLastError ();
+				return RTN_ERR_DEL_ACE;
+			}
+
+			// The ACECount is now reduced by one!
+			nRemainingACEs--;
+			i--;
+		}
+	}
+
+	return nError;
+}
+
+
+//
+// Map a generic right to a set of standard and specific rights
+//
+DWORD CSetACL::MapGenericRight (DWORD nAccessMask, SE_OBJECT_TYPE nObjectType)
+{
+	// Generic mapping seem to be available for files and keys only??
+
+	// These mappings are defined in GENERIC_MAPPING. Order: read, writer, execute, all
+
+	DWORD	aGenericMappingFile[4]			= {0x120089, 0x120116, 0x1200A0, 0x1F01FF};
+	// Note: this is the newer registry mapping introduced with Vista. Older OS mapped GENERIC_EXECUTE to 0x20019 just like GENERIC_READ.
+	DWORD	aGenericMappingRegistry[4]		= {0x20019, 0x20006, 0x20039, 0xF003F};
+
+	if (nObjectType == SE_FILE_OBJECT)
+	{
+		MapGenericMask (&nAccessMask, (GENERIC_MAPPING*) aGenericMappingFile);
+	}
+	else if (nObjectType == SE_REGISTRY_KEY)
+	{
+		MapGenericMask (&nAccessMask, (GENERIC_MAPPING*) aGenericMappingRegistry);
+	}
+
+	return nAccessMask;
+}
+
+
+//
 // GetPermissions: Return a string with the permissions in an access mask
 //
 CString CSetACL::GetPermissions (ACCESS_MASK nAccessMask)
 {
 	CString	sPermissions;
-	DWORD		aGenericMappingFile[4]		=	{0x120089, 0x120116, 0x1200A0, 0x1F01FF};
-	DWORD		aGenericMappingRegistry[4]	=	{0x120019, 0x20006, 0x20019, 0xF003F};
+
+	// Map generic rights to standard plus specific rights
+	nAccessMask	= MapGenericRight (nAccessMask, m_nObjectType);
 
 	if (m_nObjectType	==	SE_FILE_OBJECT)
 	{
-		// Map generic rights to standard and specific rights
-		MapGenericMask (&nAccessMask, (GENERIC_MAPPING*) aGenericMappingFile);
-
 		// Mask out the SYNCHRONIZE flag which is not always set (ie. not on audit ACEs)
 		nAccessMask			&=	~SYNCHRONIZE;
 
 		if ((nAccessMask & MY_DIR_FULL_ACCESS) == MY_DIR_FULL_ACCESS)
 		{
-			sPermissions	=	TEXT ("full+");
+			sPermissions	+=	TEXT ("full+");
 			nAccessMask		&= ~MY_DIR_FULL_ACCESS;
 		}
 		if ((nAccessMask & MY_DIR_CHANGE_ACCESS) == MY_DIR_CHANGE_ACCESS)
 		{
-			sPermissions	=	TEXT ("change+");
+			sPermissions	+=	TEXT ("change+");
 			nAccessMask		&= ~MY_DIR_CHANGE_ACCESS;
 		}
 		if ((nAccessMask & MY_DIR_READ_EXECUTE_ACCESS) == MY_DIR_READ_EXECUTE_ACCESS)
 		{
-			sPermissions	=	TEXT ("read_execute+");
+			sPermissions	+=	TEXT ("read_execute+");
 			nAccessMask		&= ~MY_DIR_READ_EXECUTE_ACCESS;
 		}
 		if ((nAccessMask & MY_DIR_WRITE_ACCESS) == MY_DIR_WRITE_ACCESS)
 		{
-			sPermissions	=	TEXT ("write+");
+			sPermissions	+=	TEXT ("write+");
 			nAccessMask		&= ~MY_DIR_WRITE_ACCESS;
 		}
 		if ((nAccessMask & MY_DIR_READ_ACCESS) == MY_DIR_READ_ACCESS)
 		{
-			sPermissions	=	TEXT ("read+");
+			sPermissions	+=	TEXT ("read+");
 			nAccessMask		&= ~MY_DIR_READ_ACCESS;
 		}
 
@@ -4145,17 +4594,14 @@ CString CSetACL::GetPermissions (ACCESS_MASK nAccessMask)
 	}
 	else if (m_nObjectType	==	SE_REGISTRY_KEY)
 	{
-		// Map generic rights to standard and specific rights
-		MapGenericMask (&nAccessMask, (GENERIC_MAPPING*) aGenericMappingRegistry);
-
 		if ((nAccessMask & MY_REG_FULL_ACCESS) == MY_REG_FULL_ACCESS)
 		{
-			sPermissions	=	TEXT ("full+");
+			sPermissions	+=	TEXT ("full+");
 			nAccessMask		&= ~MY_REG_FULL_ACCESS;
 		}
 		if ((nAccessMask & MY_REG_READ_ACCESS) == MY_REG_READ_ACCESS)
 		{
-			sPermissions	=	TEXT ("read+");
+			sPermissions	+=	TEXT ("read+");
 			nAccessMask		&= ~MY_REG_READ_ACCESS;
 		}
 
@@ -4204,17 +4650,17 @@ CString CSetACL::GetPermissions (ACCESS_MASK nAccessMask)
 	{
 		if ((nAccessMask & MY_SVC_FULL_ACCESS) == MY_SVC_FULL_ACCESS)
 		{
-			sPermissions	=	TEXT ("full+");
+			sPermissions	+=	TEXT ("full+");
 			nAccessMask		&= ~MY_SVC_FULL_ACCESS;
 		}
 		if ((nAccessMask & MY_SVC_STARTSTOP_ACCESS) == MY_SVC_STARTSTOP_ACCESS)
 		{
-			sPermissions	=	TEXT ("start_stop+");
+			sPermissions	+=	TEXT ("start_stop+");
 			nAccessMask		&= ~MY_SVC_STARTSTOP_ACCESS;
 		}
 		if ((nAccessMask & MY_SVC_READ_ACCESS) == MY_SVC_READ_ACCESS)
 		{
-			sPermissions	=	TEXT ("read+");
+			sPermissions	+=	TEXT ("read+");
 			nAccessMask		&= ~MY_SVC_READ_ACCESS;
 		}
 
@@ -4263,17 +4709,17 @@ CString CSetACL::GetPermissions (ACCESS_MASK nAccessMask)
 	{
 		if ((nAccessMask & MY_PRINTER_MAN_PRINTER_ACCESS) == MY_PRINTER_MAN_PRINTER_ACCESS)
 		{
-			sPermissions	=	TEXT ("manage_printer+");
+			sPermissions	+=	TEXT ("manage_printer+");
 			nAccessMask		&= ~MY_PRINTER_MAN_PRINTER_ACCESS;
 		}
 		if ((nAccessMask & MY_PRINTER_MAN_DOCS_ACCESS) == MY_PRINTER_MAN_DOCS_ACCESS)
 		{
-			sPermissions	=	TEXT ("manage_documents+");
+			sPermissions	+=	TEXT ("manage_documents+");
 			nAccessMask		&= ~MY_PRINTER_MAN_DOCS_ACCESS;
 		}
 		if ((nAccessMask & MY_PRINTER_PRINT_ACCESS) == MY_PRINTER_PRINT_ACCESS)
 		{
-			sPermissions	=	TEXT ("print+");
+			sPermissions	+=	TEXT ("print+");
 			nAccessMask		&= ~MY_PRINTER_PRINT_ACCESS;
 		}
 
@@ -4312,17 +4758,17 @@ CString CSetACL::GetPermissions (ACCESS_MASK nAccessMask)
 	{
 		if ((nAccessMask & MY_SHARE_FULL_ACCESS) == MY_SHARE_FULL_ACCESS)
 		{
-			sPermissions	=	TEXT ("full+");
+			sPermissions	+=	TEXT ("full+");
 			nAccessMask		&= ~MY_SHARE_FULL_ACCESS;
 		}
 		if ((nAccessMask & MY_SHARE_CHANGE_ACCESS) == MY_SHARE_CHANGE_ACCESS)
 		{
-			sPermissions	=	TEXT ("change+");
+			sPermissions	+=	TEXT ("change+");
 			nAccessMask		&= ~MY_SHARE_CHANGE_ACCESS;
 		}
 		if ((nAccessMask & MY_SHARE_READ_ACCESS) == MY_SHARE_READ_ACCESS)
 		{
-			sPermissions	=	TEXT ("read+");
+			sPermissions	+=	TEXT ("read+");
 			nAccessMask		&= ~MY_SHARE_READ_ACCESS;
 		}
 
@@ -4432,10 +4878,12 @@ CString CSetACL::GetACEType (BYTE nACEType)
 //
 // GetACEFlags: Return a string with the flags of an ACE
 //
-CString CSetACL::GetACEFlags (BYTE nACEFlags)
+CString CSetACL::GetACEFlags (BYTE nACEFlags, bool fACEIsPseudoInherited)
 {
 	CString	sFlags;
 
+	if (fACEIsPseudoInherited)
+		 sFlags	+=	TEXT ("pseudo_inherited+");
 	if (nACEFlags & CONTAINER_INHERIT_ACE)
 		 sFlags	+=	TEXT ("container_inherit+");
 	if (nACEFlags & OBJECT_INHERIT_ACE)
@@ -4465,7 +4913,7 @@ CString CSetACL::GetACEFlags (BYTE nACEFlags)
 //
 // SetPrivilege: Enable a privilege (user right) for the current process
 //
-DWORD CSetACL::SetPrivilege (CString sPrivilege, BOOL fEnable)
+DWORD CSetACL::SetPrivilege (CString sPrivilege, bool fEnable, bool bLogErrors)
 {
 	HANDLE				hToken	=	NULL;		// handle to process token
 	TOKEN_PRIVILEGES	tkp;						// pointer to token structure
@@ -4488,14 +4936,318 @@ DWORD CSetACL::SetPrivilege (CString sPrivilege, BOOL fEnable)
 	tkp.Privileges[0].Attributes		=	(fEnable ? SE_PRIVILEGE_ENABLED : 0);
 
 	// Enable the privilege
-	if (! AdjustTokenPrivileges (hToken, FALSE, &tkp, 0, (PTOKEN_PRIVILEGES) NULL, 0) || GetLastError ())
+	if (! AdjustTokenPrivileges (hToken, false, &tkp, 0, (PTOKEN_PRIVILEGES) NULL, 0) || GetLastError ())
 	{
+		if (bLogErrors)
+		{
+			// Log in detail what went wrong
+			CString sEnDis;
+			if (fEnable)
+				sEnDis = L"Enabling";
+			else
+				sEnDis = L"Disabling";
+			LogMessage (L"ERROR: " + sEnDis + L" the privilege " + sPrivilege + L" failed with: " + GetLastErrorMessage());
+		}
+
 		CloseHandle (hToken);
 		return RTN_ERR_EN_PRIV;
 	}
 
 	CloseHandle (hToken);
 	return RTN_OK;
+}
+
+
+//
+// Check if an ACE is pseudo-inherited from its parent
+//
+bool CSetACL::IsACEPseudoInherited (ACCESS_ALLOWED_ACE* paceObject, bool fObjectIsContainer, PACL paclParent)
+{
+	ACL_SIZE_INFORMATION		asiParent;
+	ACCESS_ALLOWED_ACE*		paceParent			=	NULL;
+	DWORD							nAccessMaskChild	=	0;
+	DWORD							nAccessMaskParent	=	0;
+
+	// Check parameters
+	if (paceObject == NULL || paclParent == NULL)
+	{
+		return false;
+	}
+
+	// Get the number of entries in the parent's ACL
+	if (! GetAclInformation (paclParent, &asiParent, sizeof (ACL_SIZE_INFORMATION), AclSizeInformation))
+	{
+		return false;
+	}
+
+	// Loop through the ACEs in the parent's ACL
+	for (WORD i = 0; i < asiParent.AceCount; i++)
+	{
+		// Get the current ACE
+		if (! GetAce (paclParent, i, (LPVOID*) &paceParent))
+		{
+			continue;
+		}
+
+		// Check if the object ACE passed in and the current parent ACE pertain the same SID
+		if (! EqualSid ((PSID) &(paceObject->SidStart), (PSID) &(paceParent->SidStart)))
+		{
+			continue;
+		}
+
+		// Check if both ACEs have the same type (access allowed, denied, etc.)
+		if (paceObject->Header.AceType != paceParent->Header.AceType)
+		{
+			continue;
+		}
+
+		// Check if both ACEs have the same access mask (permission)
+		// First replace (map) generic rights with their standard+specific counterparts
+		nAccessMaskChild	= MapGenericRight (paceObject->Mask, m_nObjectType);
+		nAccessMaskParent	= MapGenericRight (paceParent->Mask, m_nObjectType);
+		// Now compare the resulting masks
+		if (nAccessMaskChild != nAccessMaskParent)
+		{
+			continue;
+		}
+
+		if (fObjectIsContainer)
+		{
+			// The object is a container (e.g. a directory or registry key)
+
+			if (((paceParent->Header.AceFlags & OBJECT_INHERIT_ACE) == false &&
+				(paceParent->Header.AceFlags & CONTAINER_INHERIT_ACE) == false))
+			{
+				// The parent object does not propagate anything
+				continue;
+			}
+
+			if (paceParent->Header.AceFlags & NO_PROPAGATE_INHERIT_ACE)
+			{
+				// This parent ACE is inheritable to child containers, but not to be propagated further ("one level only")
+
+				if ((paceObject->Header.AceFlags & OBJECT_INHERIT_ACE) == false && 
+					(paceObject->Header.AceFlags & CONTAINER_INHERIT_ACE) == false &&
+					(paceObject->Header.AceFlags & INHERIT_ONLY_ACE) == false &&
+					(paceObject->Header.AceFlags & NO_PROPAGATE_INHERIT_ACE) == false)
+				{
+					// The child does not have inheritance flags set -> this ACe is pseudo-inherited
+					return true;
+				}
+			}
+			else
+			{
+				// This parent ACE has object and/or container inherit flags set (the most common case)
+
+				// Compare the relevant inheritance flags of parent and child
+				if ((paceObject->Header.AceFlags & (OBJECT_INHERIT_ACE | CONTAINER_INHERIT_ACE | INHERIT_ONLY_ACE)) ==
+					(paceParent->Header.AceFlags & (OBJECT_INHERIT_ACE | CONTAINER_INHERIT_ACE | INHERIT_ONLY_ACE)))
+				{
+					// Flags are identical -> this ACE is pseudo-inherited
+					return true;
+				}
+			}
+
+			if (paceParent->Header.AceFlags & INHERIT_ONLY_ACE && 
+						paceParent->Header.AceFlags & CONTAINER_INHERIT_ACE)
+			{
+				// The parent has an ACE like the following: Everyone   full   allow   container_inherit+object_inherit+inherit_only
+				// One level deeper, this becomes two (!) ACEs: a copy of itself plus the following: Everyone   full   allow   no_inheritance
+
+				if ((paceObject->Header.AceFlags & OBJECT_INHERIT_ACE) == false && 
+					(paceObject->Header.AceFlags & CONTAINER_INHERIT_ACE) == false &&
+					(paceObject->Header.AceFlags & INHERIT_ONLY_ACE) == false &&
+					(paceObject->Header.AceFlags & NO_PROPAGATE_INHERIT_ACE) == false)
+				{
+					// The child does not have inheritance flags set -> this ACe is pseudo-inherited
+					return true;
+				}
+			}
+		}
+		else
+		{
+			// The object is not a container (e.g. a file)
+
+			if ((paceParent->Header.AceFlags & OBJECT_INHERIT_ACE) == false)
+			{
+				// The parent object does not propagate anything
+				continue;
+			}
+
+			// The ACE is inheritable to child objects (at least one level - NO_PROPAGATE_INHERIT_ACE is of no relevance here)
+			// -> this ACE is pseudo-inherited
+			return true;
+		}
+
+	}
+
+	return false;
+}
+
+
+//
+// Check if an ACL is pseudo-protected: the parent contains inheritable ACEs not present in the child
+//
+bool CSetACL::IsACLPseudoProtected (PACL paclObject, bool fObjectIsContainer, PSID psidObjectOwner, PACL paclParent)
+{
+	ACL_SIZE_INFORMATION		asiObject;
+	ACL_SIZE_INFORMATION		asiParent;
+	ACCESS_ALLOWED_ACE*		paceObject			=	NULL;
+	ACCESS_ALLOWED_ACE*		paceParent			=	NULL;
+	bool							fFound				=	false;
+	DWORD							nAccessMaskChild	=	0;
+	DWORD							nAccessMaskParent	=	0;
+	PSID							psidParentOrOwner	=	0;
+
+	// Check parameters
+	if (paclObject == NULL || paclParent == NULL)
+	{
+		return false;
+	}
+
+	// Get the number of entries in the object's ACL...
+	if (! GetAclInformation (paclObject, &asiObject, sizeof (ACL_SIZE_INFORMATION), AclSizeInformation))
+	{
+		return false;
+	}
+	// ...and in the parent's ACL
+	if (! GetAclInformation (paclParent, &asiParent, sizeof (ACL_SIZE_INFORMATION), AclSizeInformation))
+	{
+		return false;
+	}
+
+	//
+	// Loop through the parent's ACL and look for inheritable ACEs not present in the child
+	//
+	for (WORD i = 0; i < asiParent.AceCount; i++)
+	{
+		// Get the current parent ACE
+		if (! GetAce (paclParent, i, (LPVOID*) &paceParent))
+		{
+			continue;
+		}
+
+		// Is this an inheritable ACE?
+		if (fObjectIsContainer)
+		{
+			if (((paceParent->Header.AceFlags & OBJECT_INHERIT_ACE) == false &&
+				(paceParent->Header.AceFlags & CONTAINER_INHERIT_ACE) == false))
+			{
+				// Not an inheritable ACE
+				continue;
+			}
+		}
+		else
+		{
+			if ((paceParent->Header.AceFlags & OBJECT_INHERIT_ACE) == false)
+			{
+				// Not an inheritable ACE
+				continue;
+			}
+		}
+
+		// The parent ACE might pertain to CREATOR_OWNER. In that case it is replaced by the SID of the owner of the child.
+		// In the constellation we have here this only happens for files.
+		if (EqualSid ((PSID) &(paceParent->SidStart), m_WellKnownSIDCreatorOwner.m_psidTrustee) && fObjectIsContainer == false)
+		{
+			// CREATOR_OWNER stored in parent ACE: use the object owner's SID instead of the CREATOR_OWNER
+			psidParentOrOwner	=	psidObjectOwner;
+		}
+		else
+		{
+			// Something other than CREATOR_OWNER stored in parent ACE: use whatever is stored in the ACE
+			psidParentOrOwner	=	(PSID) &(paceParent->SidStart);
+		}
+
+		// Now loop through the child's ACEs and check if the parent's inheritable ACE is present (i.e. has been inherited)
+		fFound	= false;
+		for (WORD j = 0; j < asiObject.AceCount; j++)
+		{
+			// Get the current child ACE
+			if (! GetAce (paclObject, j, (LPVOID*) &paceObject))
+			{
+				continue;
+			}
+
+			// Check if the object ACE and the parent ACE pertain the same SID
+			if (! EqualSid ((PSID) &(paceObject->SidStart), psidParentOrOwner))
+			{
+				continue;
+			}
+
+			// Check if both ACEs have the same type (access allowed, denied, etc.)
+			if (paceObject->Header.AceType != paceParent->Header.AceType)
+			{
+				continue;
+			}
+
+			// Check if both ACEs have the same access mask (permission)
+			// First replace (map) generic rights with their standard+specific counterparts
+			nAccessMaskChild	= MapGenericRight (paceObject->Mask, m_nObjectType);
+			nAccessMaskParent	= MapGenericRight (paceParent->Mask, m_nObjectType);
+			// Now compare the resulting masks
+			if (nAccessMaskChild != nAccessMaskParent)
+			{
+				continue;
+			}
+
+			if (fObjectIsContainer)
+			{
+				// The object is a container (e.g. a directory or registry key)
+
+				if (paceParent->Header.AceFlags & NO_PROPAGATE_INHERIT_ACE)
+				{
+					// This parent ACE is inheritable to child containers, but not to be propagated further ("one level only")
+
+					if ((paceObject->Header.AceFlags & OBJECT_INHERIT_ACE) == false && 
+						(paceObject->Header.AceFlags & CONTAINER_INHERIT_ACE) == false &&
+						(paceObject->Header.AceFlags & INHERIT_ONLY_ACE) == false &&
+						(paceObject->Header.AceFlags & NO_PROPAGATE_INHERIT_ACE) == false)
+					{
+						// The child does not have inheritance flags set -> this ACe is (pseudo-) inherited
+						fFound	= true;
+						break;
+					}
+				}
+				else
+				{
+					// This parent ACE has object and/or container inherit flags set (the most common case)
+
+					// Compare the relevant inheritance flags of parent and child
+					if ((paceObject->Header.AceFlags & (OBJECT_INHERIT_ACE | CONTAINER_INHERIT_ACE)) ==
+						(paceParent->Header.AceFlags & (OBJECT_INHERIT_ACE | CONTAINER_INHERIT_ACE)))
+					{
+						// Check flag INHERIT_ONLY_ACE: if the child is inherit only, the parent must also be inherit only
+						if ((paceObject->Header.AceFlags & INHERIT_ONLY_ACE) && (! (paceParent->Header.AceFlags & INHERIT_ONLY_ACE)))
+						{
+							continue;
+						}
+
+						// Flags are identical -> this ACE is (pseudo-) inherited
+						fFound	= true;
+						break;
+					}
+				}
+			}
+			else
+			{
+				// The object is not a container (e.g. a file)
+
+				// The ACE is inheritable to child objects (at least one level - NO_PROPAGATE_INHERIT_ACE is of no relevance here)
+				// -> this ACE is (pseudo-) inherited
+				fFound	= true;
+				break;
+			}
+		}
+
+		// If the parent's inheritable ACE was not found in the child, then it is pseudo-protected
+		if (! fFound)
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 
@@ -4509,7 +5261,7 @@ DWORD CSetACL::SetPrivilege (CString sPrivilege, BOOL fEnable)
 //
 // Constructor: initialize all member variables
 //
-CTrustee::CTrustee (CString sTrustee, BOOL fTrusteeIsSID, DWORD nAction, BOOL fDACL, BOOL fSACL)
+CTrustee::CTrustee (CString sTrustee, bool fTrusteeIsSID, DWORD nAction, bool fDACL, bool fSACL)
 {
 	m_sTrustee			=	sTrustee;
 	m_fTrusteeIsSID	=	fTrusteeIsSID;
@@ -4580,27 +5332,15 @@ DWORD CTrustee::LookupSID ()
 	// The trustee is not a (string) SID. Look up the SID for the account name.
 	//
 	CString							sSystemName;
-	CString							sAccountDomain;
-	CString							sAccountName;
-	CString							sDomainName;
+	CString							sDomainNameFound;
 	SID_NAME_USE					eUse;
-	DWORD								nBufTrustee			=	4096;
-	PSID								psidTrustee			=	LocalAlloc (LPTR, nBufTrustee);
-	DWORD								nBufDomain			=	4096;
 	PDOMAIN_CONTROLLER_INFO		pdcInfo				=	NULL;
-	BOOL								fIsDomainName		=	false;
 
-	// The trustee name can have a preceding machine/domain name, or not. In the latter case the local machine or the domain it is a member of is used by the API function.
+	// The trustee name can have a preceding machine/domain name, or not. Try to isolate the machine/domain.
 	int nBackslashPos		= m_sTrustee.Find (TEXT ("\\"));
 	if (nBackslashPos != -1)
 	{
 		sSystemName			=	m_sTrustee.Left (nBackslashPos);
-		sAccountDomain		=	sSystemName;
-		sAccountName		=	m_sTrustee.Right (m_sTrustee.GetLength () - nBackslashPos - 1);
-	}
-	else
-	{
-		sAccountName		=	m_sTrustee;
 	}
 
 	//
@@ -4609,11 +5349,11 @@ DWORD CTrustee::LookupSID ()
 	if (! sSystemName.IsEmpty ())
 	{
 		// If a DC can be found, we use it. If not, the name might be a computer name.
-		if (DsGetDcName (NULL, sSystemName, NULL, NULL, DS_RETURN_FLAT_NAME, &pdcInfo) == ERROR_SUCCESS)
+		if (DsGetDcName (NULL, sSystemName, NULL, NULL, 0, &pdcInfo) == ERROR_SUCCESS)
 		{
+			// We now have the name of a domain controller.
+			// The names returned have the same format as those passed in, i.e. if we pass in DNS names, we get back DNS names, and vice versa.
 			sSystemName		=	pdcInfo->DomainControllerName;
-			sAccountDomain	=	pdcInfo->DomainName;
-			fIsDomainName	=	true;
 
 			// Remove the leading backslashes in the name
 			if (sSystemName.Left (2) == TEXT ("\\\\"))
@@ -4625,22 +5365,7 @@ DWORD CTrustee::LookupSID ()
 			if (pdcInfo)
 			{
 				NetApiBufferFree (pdcInfo);
-			}
-		}
-		else
-		{
-			// No DC was found. The system name must be a computer name. Check whether it is a DC
-			DSROLE_PRIMARY_DOMAIN_INFO_BASIC*	dsrolebasicDCInfo;
-
-			if (DsRoleGetPrimaryDomainInformation (sSystemName, DsRolePrimaryDomainInfoBasic, (PBYTE*) &dsrolebasicDCInfo) == ERROR_SUCCESS)
-			{
-				if (dsrolebasicDCInfo->MachineRole == DsRole_RoleBackupDomainController || dsrolebasicDCInfo->MachineRole == DsRole_RolePrimaryDomainController)
-				{
-					sAccountDomain	=	dsrolebasicDCInfo->DomainNameFlat;
-					fIsDomainName	=	true;
-				}
-
-				DsRoleFreeMemory (dsrolebasicDCInfo);
+				pdcInfo	=	NULL;
 			}
 		}
 	}
@@ -4648,35 +5373,36 @@ DWORD CTrustee::LookupSID ()
 	//
 	// We'll search for the account on either a DC found, a remote machine specified or on the local computer.
 	//
-	if (LookupAccountName (sSystemName.IsEmpty () ? NULL : sSystemName.GetBuffer (sSystemName.GetLength ()), sAccountName, psidTrustee, &nBufTrustee, sDomainName.GetBuffer (4096), &nBufDomain, &eUse))
+	// First get buffer sizes
+	DWORD	nBufTrustee	=	0;
+	DWORD	nBufDomain	=	0;
+	LookupAccountName (sSystemName.IsEmpty() ? NULL : (LPCTSTR) sSystemName, m_sTrustee, NULL, &nBufTrustee, NULL, &nBufDomain, &eUse);
+
+	// Second, allocate memory for the SID
+	PSID	psidTrustee	=	LocalAlloc (LPTR, nBufTrustee);
+
+	// Third, look up the name
+	if (LookupAccountName (sSystemName.IsEmpty() ? NULL : (LPCTSTR) sSystemName, m_sTrustee, psidTrustee, &nBufTrustee, 
+									sDomainNameFound.GetBuffer(nBufDomain), &nBufDomain, &eUse))
 	{
-		sSystemName.ReleaseBuffer ();
-		sDomainName.ReleaseBuffer ();
+		// We found the correct SID. Store it.
+		m_psidTrustee			=	CopySID (psidTrustee);
+	}
 
-		// The account name was found, but it might be in a trusted domain instead of the domain specified -> check the domain
-		if (sSystemName.IsEmpty () || (! fIsDomainName) || sDomainName.CompareNoCase (sAccountDomain) == 0)
-		{
-			m_psidTrustee			=	CopySID (psidTrustee);
-		}
+	// Free buffers
+	sDomainNameFound.ReleaseBuffer ();
+	if (psidTrustee)
+	{
+		LocalFree (psidTrustee);
+		psidTrustee	= NULL;
+	}
 
-		if (psidTrustee) LocalFree (psidTrustee);
-
-		if (! m_psidTrustee)
-		{
-			return RTN_ERR_LOOKUP_SID;
-		}
-		else
-		{
-			return RTN_OK;
-		}
+	if (m_psidTrustee)
+	{
+		return RTN_OK;
 	}
 	else
 	{
-		sSystemName.ReleaseBuffer ();
-		sDomainName.ReleaseBuffer ();
-
-		if (psidTrustee) LocalFree (psidTrustee);
-
 		return RTN_ERR_LOOKUP_SID;
 	}
 }
@@ -4694,7 +5420,7 @@ DWORD CTrustee::LookupSID ()
 //
 CDomain::CDomain ()
 {
-	m_sDomain			=	TEXT ("");
+	m_sDomain.Empty ();
 	m_nAction			=	0;
 	m_fDACL				=	false;
 	m_fSACL				=	false;
@@ -4713,12 +5439,12 @@ CDomain::~CDomain ()
 //
 // SetDomain: Set the domain and do some initialization
 //
-DWORD CDomain::SetDomain (CString sDomain, DWORD nAction, BOOL fDACL, BOOL fSACL)
+DWORD CDomain::SetDomain (CString sDomain, DWORD nAction, bool fDACL, bool fSACL)
 {
 	PDOMAIN_CONTROLLER_INFO		pdcInfo				=	NULL;
 
 	// Reset all member variables
-	m_sDomain			=	TEXT ("");
+	m_sDomain.Empty ();
 	m_nAction			=	0;
 	m_fDACL				=	false;
 	m_fSACL				=	false;
@@ -4769,7 +5495,7 @@ DWORD CDomain::SetDomain (CString sDomain, DWORD nAction, BOOL fDACL, BOOL fSACL
 //
 // Constructor: initialize all member variables
 //
-CACE::CACE (CTrustee* pTrustee, CString sPermission, DWORD nInheritance, BOOL fInhSpecified, ACCESS_MODE nAccessMode, DWORD nACLType)
+CACE::CACE (CTrustee* pTrustee, CString sPermission, DWORD nInheritance, bool fInhSpecified, ACCESS_MODE nAccessMode, DWORD nACLType)
 {
 	if (pTrustee)
 	{
@@ -4809,6 +5535,7 @@ CACE::~CACE ()
 	if (m_pTrustee)
 	{
 		delete m_pTrustee;
+		m_pTrustee	=	NULL;
 	}
 }
 
@@ -4841,7 +5568,6 @@ CSD::CSD (CSetACL* setaclMain)
 	m_fBufSACLAlloc			=	false;
 	m_fBufOwnerAlloc			=	false;
 	m_fBufGroupAlloc			=	false;
-	m_fUseLowLevelWrites2SD	=	false;
 }
 
 
@@ -4849,6 +5575,15 @@ CSD::CSD (CSetACL* setaclMain)
 // Destructor: clean up
 //
 CSD::~CSD ()
+{
+	Reset ();
+}
+
+
+//
+// Clear the object
+//
+void CSD::Reset ()
 {
 	DeleteBufSD ();
 	DeleteBufDACL ();
@@ -4933,7 +5668,7 @@ void CSD::DeleteBufGroup ()
 //
 DWORD CSD::GetSD (CString sObjectPath, SE_OBJECT_TYPE nObjectType, SECURITY_INFORMATION siSecInfo)
 {
-	BOOL									fSDRead			=	false;
+	bool									fSDRead			=	false;
 	BOOL									fOK				=	true;
 	DWORD									nError			=	RTN_OK;
 	DWORD									nDesiredAccess	=	READ_CONTROL;
@@ -4952,7 +5687,7 @@ DWORD CSD::GetSD (CString sObjectPath, SE_OBJECT_TYPE nObjectType, SECURITY_INFO
 	{
 		return RTN_ERR_PARAMS;
 	}
-	if (nObjectType == 0)
+	if (nObjectType == SE_UNKNOWN_OBJECT_TYPE)
 	{
 		return RTN_ERR_PARAMS;
 	}
@@ -4964,7 +5699,7 @@ DWORD CSD::GetSD (CString sObjectPath, SE_OBJECT_TYPE nObjectType, SECURITY_INFO
 	if (siSecInfo & SACL_SECURITY_INFORMATION)
 	{
 		// Enable a privilege needed to read the SACL
-		if (m_setaclMain->SetPrivilege (SE_SECURITY_NAME, true) != ERROR_SUCCESS)
+		if (m_setaclMain->SetPrivilege (SE_SECURITY_NAME, true, true) != ERROR_SUCCESS)
 		{
 			return RTN_ERR_EN_PRIV;
 		}
@@ -4978,8 +5713,9 @@ DWORD CSD::GetSD (CString sObjectPath, SE_OBJECT_TYPE nObjectType, SECURITY_INFO
 	//
 	if (m_nObjectType	==	SE_FILE_OBJECT)
 	{
-		// Get a handle to the file/dir with special backup access (privilege SeBackupName has to be enabled for this)
-		hFile		=	CreateFile (m_sObjectPath, nDesiredAccess, 0, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+		// Get a handle to the file/dir with special backup access (privilege SeBackupName has to be enabled for this).
+		// This fails, of course, if the file is locked exclusively (like, for example, hiberfil.sys).
+		hFile		=	CreateFile (m_sObjectPath, nDesiredAccess, 0, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, NULL);
 
 		if (hFile == INVALID_HANDLE_VALUE || hFile == NULL)
 		{
@@ -4994,8 +5730,7 @@ DWORD CSD::GetSD (CString sObjectPath, SE_OBJECT_TYPE nObjectType, SECURITY_INFO
 	else if (m_nObjectType == SE_REGISTRY_KEY)
 	{
 		// Open the key
-		nError	=	m_setaclMain->OpenRegKey (&m_sObjectPath, &hKey);
-
+		nError	=	m_setaclMain->RegKeyFixPathAndOpen (m_sObjectPath, hKey, false, READ_CONTROL);
 		if (nError != RTN_OK)
 		{
 			hKey		=	NULL;
@@ -5146,63 +5881,30 @@ GetSD2ndTry:
 //
 // SetSD: Set the SD and other information indicated by siSecInfo
 //
-DWORD CSD::SetSD (CString sObjectPath, SE_OBJECT_TYPE nObjectType, SECURITY_INFORMATION siSecInfo, PACL paclDACL, PACL paclSACL, PSID psidOwner, PSID psidGroup)
+DWORD CSD::SetSD (CString sObjectPath, SE_OBJECT_TYPE nObjectType, SECURITY_INFORMATION siSecInfo, 
+						PACL paclDACL, PACL paclSACL, PSID psidOwner, PSID psidGroup, bool fLowLevel, bool fIsContainer)
 {
 	DWORD									nError			=	RTN_OK;
-	DWORD									nDesiredAccess	=	WRITE_OWNER | WRITE_DAC;
 	HANDLE								hFile				=	NULL;
 	HKEY									hKey				=	NULL;
 	HANDLE								hAny				=	NULL;
+	CString								sParentPath;
+	CSD									csdSDParent(m_setaclMain);
 
 	// Check the parameters
 	if (sObjectPath.IsEmpty ())
 	{
 		return RTN_ERR_PARAMS;
 	}
-	if (nObjectType == 0)
+	if (nObjectType == SE_UNKNOWN_OBJECT_TYPE)
 	{
 		return RTN_ERR_PARAMS;
-	}
-
-	if (m_psdSD == NULL)
-	{
-		if (m_sObjectPath.IsEmpty () || m_nObjectType == 0)
-		{
-			// The SD has not yet been fetched -> get it
-			nError			=	GetSD (sObjectPath, nObjectType, siSecInfo);
-
-			if (nError)
-			{
-				return nError;
-			}
-		}
-		else
-		{
-			// The object has a NULL SD -> we have to create a new SD
-			m_psdSD			=	(PSECURITY_DESCRIPTOR) LocalAlloc (LPTR, SECURITY_DESCRIPTOR_MIN_LENGTH);
-
-			if (m_psdSD == NULL)
-			{
-				m_fBufSDAlloc	=	false;
-
-				return RTN_ERR_OUT_OF_MEMORY;
-			}
-			else
-			{
-				m_fBufSDAlloc	=	true;
-			}
-
-			if (! InitializeSecurityDescriptor (m_psdSD, SECURITY_DESCRIPTOR_REVISION))
-			{
-				return RTN_ERR_CREATE_SD;
-			}
-		}
 	}
 
 	if (siSecInfo & OWNER_SECURITY_INFORMATION)
 	{
 		// Enable a privilege needed to set the Owner
-		if (m_setaclMain->SetPrivilege (SE_TAKE_OWNERSHIP_NAME, true) != ERROR_SUCCESS)
+		if (m_setaclMain->SetPrivilege (SE_TAKE_OWNERSHIP_NAME, true, true) != ERROR_SUCCESS)
 		{
 			return RTN_ERR_EN_PRIV;
 		}
@@ -5210,114 +5912,36 @@ DWORD CSD::SetSD (CString sObjectPath, SE_OBJECT_TYPE nObjectType, SECURITY_INFO
 	if (siSecInfo & SACL_SECURITY_INFORMATION)
 	{
 		// Enable a privilege needed to read the SACL
-		if (m_setaclMain->SetPrivilege (SE_SECURITY_NAME, true) != ERROR_SUCCESS)
+		if (m_setaclMain->SetPrivilege (SE_SECURITY_NAME, true, true) != ERROR_SUCCESS)
 		{
 			return RTN_ERR_EN_PRIV;
 		}
-
-		// We need to have more access
-		nDesiredAccess	|=	ACCESS_SYSTEM_SECURITY;
-	}
-
-	// Set owner, group, DACL and SACL in the SD
-	if (siSecInfo & DACL_SECURITY_INFORMATION)
-	{
-		if (SetSecurityDescriptorDacl (m_psdSD, true, paclDACL, false))
-		{
-			if (m_paclDACL != paclDACL)
-			{
-				DeleteBufDACL ();
-
-				m_paclDACL				=	paclDACL;
-				m_fBufDACLAlloc		=	false;
-			}
-		}
-		else
-		{
-			m_nAPIError					=	GetLastError ();
-			return RTN_ERR_SET_SD_DACL;
-		}
-	}
-	if (siSecInfo & SACL_SECURITY_INFORMATION)
-	{
-		if (SetSecurityDescriptorSacl (m_psdSD, true, paclSACL, false))
-		{
-			if (m_paclSACL != paclSACL)
-			{
-				DeleteBufSACL ();
-
-				m_paclSACL				=	paclSACL;
-				m_fBufSACLAlloc		=	false;
-			}
-		}
-		else
-		{
-			m_nAPIError					=	GetLastError ();
-			return RTN_ERR_SET_SD_SACL;
-		}
-	}
-	if (siSecInfo & OWNER_SECURITY_INFORMATION)
-	{
-		if (SetSecurityDescriptorOwner (m_psdSD, psidOwner, false))
-		{
-			if (m_psidOwner != psidOwner)
-			{
-				DeleteBufOwner ();
-
-				m_psidOwner				=	psidOwner;
-				m_fBufOwnerAlloc		=	false;
-			}
-		}
-		else
-		{
-			m_nAPIError					=	GetLastError ();
-			return RTN_ERR_SET_SD_OWNER;
-		}
-	}
-	if (siSecInfo & GROUP_SECURITY_INFORMATION)
-	{
-		if (SetSecurityDescriptorGroup (m_psdSD, psidGroup, false))
-		{
-			if (m_psidGroup != psidGroup)
-			{
-				DeleteBufGroup ();
-
-				m_psidGroup				=	psidGroup;
-				m_fBufGroupAlloc		=	false;
-			}
-		}
-		else
-		{
-			m_nAPIError					=	GetLastError ();
-			return RTN_ERR_SET_SD_GROUP;
-		}
-	}
-
-	// Check: we now should have a valid SD and no error
-	if (! IsValidSecurityDescriptor (m_psdSD))
-	{
-		return RTN_ERR_INVALID_SD;
 	}
 
 	//
 	// The code below should be used only after VERY thorough consideration:
 	//
-	// It tries to set the SD using SetKernelObjectSecurity (), which is a low-level security API function
-	// and does not handle inheritance at all: permissions are not propagated to sub-objects, and the "inherited"
-	// flag of the object's ACEs is not set/cleared as necessary. Since SetACL does not do this either, this
-	// normally results in incorrect ACLs.
+	// It tries to set the SD using the flag FILE_FLAG_BACKUP_SEMANTICS, which does not handle inheritance at all: 
+	// permissions are not propagated to sub-objects, and the "inherited" flag of the object's ACEs  is not set/cleared 
+	// as necessary. Since SetACL does not do this either, this normally results in incorrect ACLs.
 	//
-	// The BIG advantage of SetKernelObjectSecurity is, given appropriate, usually admin, privileges, that it
-	// does not perform access checks but sets the SD on any object, regardless of it's current permissions and owner.
+	// The BIG advantage of FILE_FLAG_BACKUP_SEMANTICS is, that it does not perform access checks but sets 
+	// the SD on any object, regardless of it's current permissions and owner.
 	//
-	if (m_fUseLowLevelWrites2SD)
+	// There are three situations where we can safely use these low level writes: if only owner and/or 
+	// primary group are to be set (no inheritance problems with those).
+	//
+	if (fLowLevel || 	
+		(siSecInfo == OWNER_SECURITY_INFORMATION) ||
+		(siSecInfo == GROUP_SECURITY_INFORMATION) ||
+		(siSecInfo == (OWNER_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION)))
 	{
 		// Use black magic (like backup programs) to write ALL SDs even if access is (normally) denied.
 
-		if (m_nObjectType	==	SE_FILE_OBJECT)
+		if (nObjectType == SE_FILE_OBJECT)
 		{
 			// Get a handle to the file/dir with special backup access (privilege SeBackupName has to be enabled for this)
-			hFile		=	CreateFile (m_sObjectPath, nDesiredAccess, 0, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+			hFile		=	CreateFile (sObjectPath, MAXIMUM_ALLOWED, 0, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, NULL);
 
 			if (hFile == INVALID_HANDLE_VALUE || hFile == NULL)
 			{
@@ -5329,10 +5953,10 @@ DWORD CSD::SetSD (CString sObjectPath, SE_OBJECT_TYPE nObjectType, SECURITY_INFO
 				hAny		=	hFile;
 			}
 		}
-		else if (m_nObjectType == SE_REGISTRY_KEY)
+		else if (nObjectType == SE_REGISTRY_KEY)
 		{
 			// Open the key
-			nError	=	m_setaclMain->OpenRegKey (&m_sObjectPath, &hKey);
+			nError	=	m_setaclMain->RegKeyFixPathAndOpen (sObjectPath, hKey, false, WRITE_DAC);
 
 			if (nError != RTN_OK)
 			{
@@ -5350,65 +5974,83 @@ DWORD CSD::SetSD (CString sObjectPath, SE_OBJECT_TYPE nObjectType, SECURITY_INFO
 			goto SetSD2ndTry;
 		}
 
-		// Set protection and auto inheritance flags correctly in the security descriptor
-		if (siSecInfo & DACL_SECURITY_INFORMATION)
-		{
-			if (! SetSecurityDescriptorControl (m_psdSD, SE_DACL_AUTO_INHERIT_REQ | SE_DACL_AUTO_INHERITED, SE_DACL_AUTO_INHERIT_REQ | SE_DACL_AUTO_INHERITED))
-			{
-				goto SetSD2ndTry;
-			}
-		}
-		if (siSecInfo & SACL_SECURITY_INFORMATION)
-		{
-			if (! SetSecurityDescriptorControl (m_psdSD, SE_SACL_AUTO_INHERIT_REQ | SE_SACL_AUTO_INHERITED, SE_SACL_AUTO_INHERIT_REQ | SE_SACL_AUTO_INHERITED))
-			{
-				goto SetSD2ndTry;
-			}
-		}
-		if (siSecInfo & PROTECTED_DACL_SECURITY_INFORMATION)
-		{
-			if (! SetSecurityDescriptorControl (m_psdSD, SE_DACL_PROTECTED, SE_DACL_PROTECTED))
-			{
-				goto SetSD2ndTry;
-			}
-		}
-		if (siSecInfo & PROTECTED_SACL_SECURITY_INFORMATION)
-		{
-			if (! SetSecurityDescriptorControl (m_psdSD, SE_SACL_PROTECTED, SE_SACL_PROTECTED))
-			{
-				goto SetSD2ndTry;
-			}
-		}
-		if (siSecInfo & UNPROTECTED_DACL_SECURITY_INFORMATION)
-		{
-			if (! SetSecurityDescriptorControl (m_psdSD, SE_DACL_PROTECTED, 0))
-			{
-				goto SetSD2ndTry;
-			}
-		}
-		if (siSecInfo & UNPROTECTED_SACL_SECURITY_INFORMATION)
-		{
-			if (! SetSecurityDescriptorControl (m_psdSD, SE_SACL_PROTECTED, 0))
-			{
-				goto SetSD2ndTry;
-			}
-		}
-
-
-		// Set the SD
-		if (! SetKernelObjectSecurity (hAny, siSecInfo, m_psdSD))
+		// Set the SD using a handle instead of the name
+		m_nAPIError	=	SetSecurityInfo (hAny, nObjectType, siSecInfo, psidOwner, psidGroup, paclDACL, paclSACL);
+		if (m_nAPIError != ERROR_SUCCESS)
 		{
 			goto SetSD2ndTry;
 		}
 		else
 		{
-			m_nAPIError	=	ERROR_SUCCESS;
-
-			return RTN_OK;
+			nError	=	RTN_OK;
+			goto CleanUp;
 		}
-	}	// if (m_fUseLowLevelWrites2SD)
+
+	}	// if (fLowLevel)
 
 SetSD2ndTry:
+
+	// fLowLevel is set to false (the default), above procedure did not work, or this is an object type other than file system or registry: use the regular method to set the SD
+
+	//
+	// Convert all pseudo-inherited ACEs to correctly inherited ACEs
+	//
+
+	// Get the parent object's SD so we can determine pseudo-inheritance
+	if (fIsContainer && (siSecInfo & DACL_SECURITY_INFORMATION || siSecInfo & SACL_SECURITY_INFORMATION))
+	{
+		// Get the path to the parent object
+		if (GetParentObject (sObjectPath, nObjectType, sParentPath))
+		{
+			// Get the parent's SD
+			nError			=	csdSDParent.GetSD (sParentPath, nObjectType, siSecInfo);
+			m_nAPIError		=	csdSDParent.m_nAPIError;
+
+			if (nError != RTN_OK || csdSDParent.m_psdSD == NULL)
+			{
+				// Clear the SD object
+				csdSDParent.Reset ();
+				// Reset error codes
+				nError		=	RTN_OK;
+				m_nAPIError	=	NO_ERROR;
+			}
+		}
+	}
+
+	// Convert pseudo-inherited ACEs to correctly inherited ACEs
+	DWORD	nDummy	= 0;
+	if (siSecInfo & DACL_SECURITY_INFORMATION && csdSDParent.m_paclDACL)
+	{
+		nError		=	ConvertPseudoInheritedACEsToInheritedACEs (paclDACL, fIsContainer, csdSDParent.m_paclDACL, nDummy);
+		if (nError != RTN_OK)
+		{
+			goto CleanUp;
+		}
+	}
+	if (siSecInfo & SACL_SECURITY_INFORMATION && csdSDParent.m_paclSACL)
+	{
+		nError		=	ConvertPseudoInheritedACEsToInheritedACEs (paclSACL, fIsContainer, csdSDParent.m_paclSACL, nDummy);
+		if (nError != RTN_OK)
+		{
+			goto CleanUp;
+		}
+	}
+
+	//
+	// Set the SD
+	//
+	m_nAPIError	=	SetNamedSecurityInfo (sObjectPath.GetBuffer (sObjectPath.GetLength () + 1), nObjectType, siSecInfo, psidOwner, psidGroup, paclDACL, paclSACL);
+	sObjectPath.ReleaseBuffer ();
+	if (m_nAPIError != ERROR_SUCCESS)
+	{
+		nError	=	RTN_ERR_SETSECINFO;
+	}
+	else
+	{
+		nError	=	RTN_OK;
+	}
+
+CleanUp:
 
 	// Close the open handles
 	if (hFile)
@@ -5420,15 +6062,6 @@ SetSD2ndTry:
 	{
 		RegCloseKey (hKey);
 		hKey			=	NULL;
-	}
-
-	// m_fUseLowLevelWrites2SD is set to false (the default), above procedure did not work, or this is an object type other than file system or registry: use the regular method to set the SD
-	m_nAPIError	=	SetNamedSecurityInfo (m_sObjectPath.GetBuffer (m_sObjectPath.GetLength () + 1), nObjectType, siSecInfo, psidOwner, psidGroup, paclDACL, paclSACL);
-	m_sObjectPath.ReleaseBuffer ();
-
-	if (m_nAPIError != ERROR_SUCCESS)
-	{
-		nError		=	RTN_ERR_SETSECINFO;
 	}
 
 	return nError;
@@ -5445,12 +6078,12 @@ SetSD2ndTry:
 //
 // Split: Called by various CSetACL functions. Emulation of Perl's split function.
 //
-BOOL Split (CString sDelimiter, CString sInput, CStringArray* asOutput)
+bool Split (CString sDelimiter, CString sInput, CStringArray& asOutput)
 {
 	try
 	{
 		// Delete contents of the output array
-		asOutput->RemoveAll ();
+		asOutput.RemoveAll ();
 
 		// Remove leading and trailing whitespace
 		sInput.TrimLeft ();
@@ -5460,23 +6093,23 @@ BOOL Split (CString sDelimiter, CString sInput, CStringArray* asOutput)
 		int i = 0, j;
 		while ((j = sInput.Find (sDelimiter, i)) != -1)
 		{
-			asOutput->Add (sInput.Mid (i, j - i));
+			asOutput.Add (sInput.Mid (i, j - i));
 			i = j + 1;
 		}
 
 		// Is there an element left at the end?
 		if (sInput.GetLength () > i)
 		{
-			asOutput->Add (sInput.Mid (i, sInput.GetLength () - i));
+			asOutput.Add (sInput.Mid (i, sInput.GetLength () - i));
 		}
 
-		return TRUE;
+		return true;
 	}
 	catch (CMemoryException* exc)
 	{
 		exc->Delete ();
 
-		return FALSE;
+		return false;
 	}
 }
 
@@ -5512,35 +6145,191 @@ PSID CopySID (PSID pSID)
 }
 
 
-//////////////////////////////////////////////////////////////////////
 //
 // BuildLongUnicodePath: Take any path any turn it into a path that is not limited to MAX_PATH, if possible
 //
-//////////////////////////////////////////////////////////////////////
-
-
-void BuildLongUnicodePath (CString* sPath)
+void BuildLongUnicodePath (CString& sPath)
 {
 	// Check this is not already a "long" path
-	if (sPath->Left (3) == TEXT ("\\\\?"))
+	if (sPath.Left (3) == TEXT ("\\\\?"))
 	{
 		return;
 	}
 
 	#ifdef UNICODE
-		if (sPath->Left (2) == TEXT ("\\\\"))
+		if (sPath.Left (2) == TEXT ("\\\\"))
 		{
 			// This is a UNC path. Build a path in the following format: \\?\UNC\<server>\<share>
-			sPath->Insert (2, TEXT ("?\\UNC\\"));
+			sPath.Insert (2, TEXT ("?\\UNC\\"));
 		}
 		else
 		{
 			// Check this is an absolute path
-			if (sPath->Mid (1, 2) == TEXT (":\\"))
+			if (sPath.Mid (1, 2) == TEXT (":\\"))
 			{
 				// This is an absolute non-UNC. Build a path in the following format: \\?\<drive letter>:\<path>
-				sPath->Insert (0, TEXT ("\\\\?\\"));
+				sPath.Insert (0, TEXT ("\\\\?\\"));
 			}
 		}
 	#endif
+}
+
+
+//
+//	IsDirectory: Check if a given path points to an (existing) directory
+//
+bool IsDirectory (CString sPath)
+{
+	bool	fExists		= false;
+	DWORD	nAttributes	= INVALID_FILE_ATTRIBUTES;
+	
+	nAttributes	= GetFileAttributes (sPath);
+	if (nAttributes != INVALID_FILE_ATTRIBUTES)
+	{
+		if (nAttributes & FILE_ATTRIBUTE_DIRECTORY)
+		{
+			fExists	= true;
+		}
+	}
+
+	return fExists;
+}
+
+
+//
+//	GetParentObject: Determine the path of an object's parent
+//
+bool GetParentObject (CString sObject, SE_OBJECT_TYPE nObjectType, CString& sParent)
+{
+	bool	fParentPathIsDriveRoot	= false;
+
+	// Empty the out parameter
+	sParent.Empty ();
+
+	// Check parameters
+	if (sObject.IsEmpty ())
+	{
+		return false;
+	}
+	if (nObjectType != SE_FILE_OBJECT && nObjectType != SE_REGISTRY_KEY)
+	{
+		return false;
+	}
+
+	// Handle special cases
+	if (sObject.GetLength() <= 2)
+	{
+		return false;
+	}
+	if (sObject.Mid(1,1) == ':' && sObject.GetLength() == 3)
+	{
+		// This is a path like: "c:\"
+		return false;
+	}
+
+	// Trim trailing backslashes
+	sObject.TrimRight ('\\');
+
+	// Count the number of backslashes in the path
+	int	nPos				= -1;
+	DWORD nBackslashes	= 0;
+	while ((nPos = sObject.Find ('\\', nPos + 1)) != -1)
+	{
+		nBackslashes++;
+	}
+
+	if (nObjectType == SE_FILE_OBJECT)
+	{
+		if (sObject.Left(8).CompareNoCase(L"\\\\?\\UNC\\") == 0)
+		{
+			// This is a long UNC path, e.g.: \\?\UNC\<server>\<share>\dir1\dir2\file
+
+			// We can determine the parent only if it has at least 6 backslashes
+			if (nBackslashes < 6)
+			{
+				return false;
+			}
+		}
+		else if (sObject.Left(4) == L"\\\\?\\")
+		{
+			// This is a long drive letter path, e.g.: \\?\<drive letter>:\dir1\dir2\file
+
+			// We can determine the parent only if it has at least 4 backslashes
+			if (nBackslashes < 4)
+			{
+				return false;
+			}
+			if (nBackslashes == 4)
+			{
+				fParentPathIsDriveRoot	= true;
+			}
+		}
+		else if (sObject.Left(2) == L"\\\\")
+		{
+			// This is a short UNC path, e.g.: \\server\share\dir1\dir2\file
+
+			// We can determine the parent only if it has at least 4 backslashes
+			if (nBackslashes < 4)
+			{
+				return false;
+			}
+		}
+		else if (sObject.Mid(1,1) == ':')
+		{
+			// This is a short drive letter path, e.g.: c:\dir1\dir2\file
+
+			// We can determine the parent only if it has at least 1 backslash
+			if (nBackslashes < 1)
+			{
+				return false;
+			}
+			if (nBackslashes == 1)
+			{
+				fParentPathIsDriveRoot	= true;
+			}
+		}
+		else
+		{
+			// This is a relative path
+
+			// We can determine the parent only if it has at least 1 backslash
+			if (nBackslashes < 1)
+			{
+				return false;
+			}
+		}
+	}
+	else if (nObjectType == SE_REGISTRY_KEY)
+	{
+		// This is a registry path
+
+		// We can determine the parent only if it has at least 1 backslash
+		if (nBackslashes < 1)
+		{
+			return false;
+		}
+	}
+
+	// With all the checks out of the way, let's determine the parent
+	sParent		=	sObject.Left (sObject.ReverseFind('\\'));
+
+	// If the parent path is the root of a drive, we need to append a backslash
+	if (fParentPathIsDriveRoot)
+	{
+		sParent	+=	L"\\";
+	}
+
+	return true;
+}
+
+//
+// Dummy used to get the module address in memory
+//
+void DummyFunction ()
+{
+	// Do something silly just to make sure the compiler does not optimize this away
+	int i = 1;
+	int j = i + 1;
+	int k = i + j;
+	i = k;
 }
