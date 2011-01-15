@@ -1,0 +1,12 @@
+# vncviewer_unix
+vncviewer/AboutDialog.h
+vncviewer/CConn.cxx
+vncviewer/CConn.h
+vncviewer/DesktopWindow.cxx
+vncviewer/DesktopWindow.h
+vncviewer/InfoDialog.h
+vncviewer/OptionsDialog.h
+vncviewer/parameters.h
+vncviewer/PasswdDialog.h
+vncviewer/ServerDialog.h
+vncviewer/vncviewer.cxx
