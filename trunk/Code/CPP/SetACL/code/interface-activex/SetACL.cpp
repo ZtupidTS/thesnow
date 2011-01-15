@@ -111,7 +111,7 @@ STDAPI DllRegisterServer (void)
 		return ResultFromScode (SELFREG_E_TYPELIB);
 	}
 
-	if (! COleObjectFactoryEx::UpdateRegistryAll (TRUE))
+	if (! COleObjectFactoryEx::UpdateRegistryAll (true))
 	{
 		return ResultFromScode (SELFREG_E_CLASS);
 	}
@@ -132,7 +132,7 @@ STDAPI DllUnregisterServer (void)
 		return ResultFromScode (SELFREG_E_TYPELIB);
 	}
 
-	if (! COleObjectFactoryEx::UpdateRegistryAll (FALSE))
+	if (! COleObjectFactoryEx::UpdateRegistryAll (false))
 	{
 		return ResultFromScode(SELFREG_E_CLASS);
 	}

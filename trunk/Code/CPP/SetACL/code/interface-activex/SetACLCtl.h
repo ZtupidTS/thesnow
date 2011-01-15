@@ -51,7 +51,14 @@ public:
 
 	void FireMessageEvent (CString sMessage)
 	{
-		FireEvent (eventidMessageEvent, EVENT_PARAM (VTS_BSTR), sMessage.AllocSysString ());
+		// Create a BSTR from our CString
+		BSTR	bstrMessage	=	sMessage.AllocSysString ();
+
+		// Fire the event, passing the BSTR
+		FireEvent (eventidMessageEvent, EVENT_PARAM (VTS_BSTR), bstrMessage);
+
+		// Free memory
+		SysFreeString (bstrMessage);
 	}
 protected:
 	~CSetACLCtrl ();
