@@ -1,5 +1,5 @@
 //
-// ランチャーダイアログクラス
+// 繝ｩ繝ｳ繝√Ε繝ｼ繝繧､繧｢繝ｭ繧ｰ繧ｯ繝ｩ繧ｹ
 //
 #ifndef	__CLAUNCHERDLG_INCLUDED__
 #define	__CLAUNCHERDLG_INCLUDED__
@@ -17,21 +17,21 @@ using namespace std;
 class	FILELIST
 {
 public:
-	string	fname;
-	string	path;
+	wstring	fname;
+	wstring	path;
 	INT	mapper;
 	INT	prg_size;
 	INT	chr_size;
 	DWORD	crcall;
 	DWORD	crc;
-	string	info;
-	string	db;
-	string	title;
-	string	country;
-	string	manufacturer;
-	string	saledate;
-	string	price;
-	string	genre;
+	wstring	info;
+	wstring	db;
+	wstring	title;
+	wstring	country;
+	wstring	manufacturer;
+	wstring	saledate;
+	wstring	price;
+	wstring	genre;
 };
 
 class	CLauncherDlg : public CWnd
@@ -119,7 +119,7 @@ protected:
 	//
 	BOOL	m_bFileLoaded;
 
-	// ランチャーリスト番号
+	// 繝ｩ繝ｳ繝√Ε繝ｼ繝ｪ繧ｹ繝育分蜿ｷ
 	INT	m_nListSelect;
 
 	INT	m_nSortType;
@@ -139,7 +139,7 @@ protected:
 	static vector<FILELIST>	m_FileList;
 
 	// Path
-	static	CHAR		m_LaunchPath[_MAX_PATH];
+	static	TCHAR		m_LaunchPath[_MAX_PATH];
 private:
 };
 

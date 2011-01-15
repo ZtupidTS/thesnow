@@ -36,7 +36,7 @@ public:
 
 	static	void	OnKeyControl();
 protected:
-	void	OnEmulationStart( LPWSTR szFile, BOOL bChecked );
+	void	OnEmulationStart( LPCTSTR szFile, BOOL bChecked );
 
 	void	OnFullScreenGDI( BOOL bFlag );
 	void	OnShowCursor( BOOL bFlag );

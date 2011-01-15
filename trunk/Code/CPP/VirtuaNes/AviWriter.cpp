@@ -200,7 +200,7 @@ bool	CAVIWriter::WriteVideo( const WCHAR* video )
 	return	true;
 }
 
-bool	CAVIWriter::WriteAudio( const WCHAR* audio, const int length )
+bool	CAVIWriter::WriteAudio( const TCHAR* audio, const int length )
 {
 	if( !m_pAviFile )
 		return	false;
@@ -217,7 +217,7 @@ bool	CAVIWriter::WriteAudio( const WCHAR* audio, const int length )
 	return	true;
 }
 
-bool	CAVIWriter::WriteFrame( const WCHAR* video, const WCHAR* audio, const int length )
+bool	CAVIWriter::WriteFrame( const TCHAR* video, const TCHAR* audio, const int length )
 {
 	if( !WriteVideo( video ) )
 		return	false;

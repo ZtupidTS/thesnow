@@ -1,6 +1,6 @@
 #define	WIN32_LEAN_AND_MEAN
 #include <windows.h>
-
+#include <tchar.h>
 #include "VirtuaNESres.h"
 
 BOOL WINAPI DllMain( HINSTANCE hInstanceDLL, DWORD fdwReason, LPVOID lpvReserved )
@@ -13,13 +13,9 @@ INT	GetVlpVersion( void )
 	return	VIRTUANES_PLUGIN_VERSION;
 }
 
-void	GetVlpLanguage( LPWSTR lpLanguege )
+void	GetVlpLanguage( TCHAR* lpLanguege )
 {
-	wcscpy( lpLanguege, L"简体中文" );
-}
-void	GetVlpLanguage( LPSTR lpLanguege )
-{
-	strcpy( lpLanguege, "简体中文" );
+	_tcscpy( lpLanguege, _T("简体中文"));
 }
 
 LCID	GetVlpLocaleID( void )

@@ -1,4 +1,4 @@
-//
+Ôªø//
 // NES ROMDB class
 //
 #define	WIN32_LEAN_AND_MEAN
@@ -32,22 +32,22 @@ INT	ROMDATABASE::HeaderCheck( NESHEADER& hdr, DWORD crcall, DWORD crc, ROMDB& da
 	}
 
 	if( m_DataBaseList.empty() )
-		return	-2;	// ÉfÅ[É^ÉxÅ[ÉXÇ™ñ≥Ç¢
+		return	-2;	// „Éá„Éº„Çø„Éô„Éº„Çπ„ÅåÁÑ°„ÅÑ
 
 	map<DWORD, ROMDB, ROMDBCMP>::iterator it = m_DataBaseList.find( crcall );
 
 	if( it == m_DataBaseList.end() )
-		return	-1;	// ÉfÅ[É^ÉxÅ[ÉXÇ…ñ≥Ç¢
+		return	-1;	// „Éá„Éº„Çø„Éô„Éº„Çπ„Å´ÁÑ°„ÅÑ
 
 	data = (*it).second;
 
-	// àÍâûÉ`ÉFÉbÉN
+	// ‰∏ÄÂøú„ÉÅ„Çß„ÉÉ„ÇØ
 	if( data.crcall == crcall || (data.crc == crc && data.crc) ) {
 		if( hdr.control1 == data.control1 && hdr.control2 == data.control2 ) {
-			return	0;	// äÆëSìKçá
+			return	0;	// ÂÆåÂÖ®ÈÅ©Âêà
 		}
 	}
-	return	1;	// CRCÇÕàÍívÇµÇΩÇ™ÉwÉbÉ_Ç™à·Ç§
+	return	1;	// CRC„ÅØ‰∏ÄËá¥„Åó„Åü„Åå„Éò„ÉÉ„ÉÄ„ÅåÈÅï„ÅÜ
 }
 
 BOOL	ROMDATABASE::HeaderCorrect( NESHEADER& hdr, DWORD crcall, DWORD crc )
@@ -57,16 +57,16 @@ BOOL	ROMDATABASE::HeaderCorrect( NESHEADER& hdr, DWORD crcall, DWORD crc )
 	}
 
 	if( m_DataBaseList.empty() )
-		return	FALSE;	// ÉfÅ[É^ÉxÅ[ÉXÇ™ñ≥Ç¢
+		return	FALSE;	// „Éá„Éº„Çø„Éô„Éº„Çπ„ÅåÁÑ°„ÅÑ
 
 	map<DWORD, ROMDB, ROMDBCMP>::iterator it = m_DataBaseList.find( crcall );
 
 	if( it == m_DataBaseList.end() )
-		return	FALSE;	// ÉfÅ[É^ÉxÅ[ÉXÇ…ñ≥Ç¢
+		return	FALSE;	// „Éá„Éº„Çø„Éô„Éº„Çπ„Å´ÁÑ°„ÅÑ
 
 	ROMDB	data = (*it).second;
 
-	// àÍâûÉ`ÉFÉbÉN
+	// ‰∏ÄÂøú„ÉÅ„Çß„ÉÉ„ÇØ
 	if( data.crcall == crcall || (data.crc == crc && data.crc) ) {
 		hdr.control1 = data.control1;
 		hdr.control2 = data.control2;
@@ -81,98 +81,98 @@ BOOL	ROMDATABASE::HeaderCorrect( NESHEADER& hdr, DWORD crcall, DWORD crc )
 void	ROMDATABASE::LoadDatabase()
 {
 FILE*	fp = NULL;
-CHAR	buf[512];
-const UCHAR seps[] = ";\n\0";	// ÉZÉpÉåÅ[É^
+TCHAR	buf[512];
+const TCHAR seps[] = _T(";\n\0");	// „Çª„Éë„É¨„Éº„Çø
 ROMDB	db;
 
 DEBUGOUT( "Database loading...\n" );
 
-	string	Path = CPathlib::MakePathExt( (LPSTR)CApp::GetModulePath(), "nesromdb", "dat" );
+	wstring	Path = CPathlib::MakePathExt( CApp::GetModulePath(), L"nesromdb", L"dat" );
 
 DEBUGOUT( "File:%s\n", Path.c_str() );
 
 	m_DataBaseList.clear();
 
-	if( (fp = fopen( Path.c_str(), "r" )) ) {
-		while( fgets( buf, 512, fp ) ) {
-			if( buf[0] == ';' ) {	// ÉRÉÅÉìÉgÉtÉBÅ[ÉãÉhÇ∆Ç›Ç»Ç∑
+	if( (fp = _tfopen( Path.c_str(), _T("r") )) ) {
+		while( fgetws( buf, 512, fp ) ) {
+			if( buf[0] == _T(';') ) {	// „Ç≥„É°„É≥„Éà„Éï„Ç£„Éº„É´„Éâ„Å®„Åø„Å™„Åô
 				continue;
 			}
 
-			CHAR*	pToken;
+			TCHAR*	pToken;
 
 			// ALL CRC
-			if( !(pToken = (CHAR*)_mbstok( (UCHAR*)buf, seps )) )
+			if( !(pToken = _tcstok( buf, seps )) )
 				continue;
-			db.crcall = strtoul( pToken, NULL, 16 );
+			db.crcall = _tcstoul( pToken, NULL, 16 );
 			// PRG CRC
-			if( !(pToken = (CHAR*)_mbstok( NULL, seps )) )
+			if( !(pToken = _tcstok( NULL, seps )) )
 				continue;
-			db.crc = strtoul( pToken, NULL, 16 );
+			db.crc = _tcstoul( pToken, NULL, 16 );
 
 			// Title
-			if( !(pToken = (CHAR*)_mbstok( NULL, seps )) )
+			if( !(pToken = _tcstok( NULL, seps )) )
 				continue;
 			db.title = pToken;
 
 			// Control 1
-			if( !(pToken = (CHAR*)_mbstok( NULL, seps )) )
+			if( !(pToken = _tcstok( NULL, seps )) )
 				continue;
-			db.control1 = atoi( pToken );
+			db.control1 = _ttoi( pToken );
 			// Control 2
-			if( !(pToken = (CHAR*)_mbstok( NULL, seps )) )
+			if( !(pToken = _tcstok( NULL, seps )) )
 				continue;
-			db.control2 = atoi( pToken );
+			db.control2 = _ttoi( pToken );
 
 			// PRG SIZE
-			if( !(pToken = (CHAR*)_mbstok( NULL, seps )) )
+			if( !(pToken = _tcstok( NULL, seps )) )
 				continue;
-			db.prg_size = atoi( pToken );
+			db.prg_size = _ttoi( pToken );
 			// CHR SIZE
-			if( !(pToken = (CHAR*)_mbstok( NULL, seps )) )
+			if( !(pToken = _tcstok( NULL, seps )) )
 				continue;
-			db.chr_size = atoi( pToken );
+			db.chr_size = _ttoi( pToken );
 
 			// Country
-			if( !(pToken = (CHAR*)_mbstok( NULL, seps )) )
+			if( !(pToken = _tcstok( NULL, seps )) )
 				continue;
 			db.country = pToken;
 
 			db.bNTSC = TRUE;
 			// Europe (PAL???)
-			if( strcmp( pToken, "E"   ) == 0
-			 || strcmp( pToken, "Fra" ) == 0
-			 || strcmp( pToken, "Ger" ) == 0
-			 || strcmp( pToken, "Spa" ) == 0
-			 || strcmp( pToken, "Swe" ) == 0
-			 || strcmp( pToken, "Ita" ) == 0
-			 || strcmp( pToken, "Aus" ) == 0 ) {
+			if( lstrcmp( pToken, L"E"   ) == 0
+			 || lstrcmp( pToken, L"Fra" ) == 0
+			 || lstrcmp( pToken, L"Ger" ) == 0
+			 || lstrcmp( pToken, L"Spa" ) == 0
+			 || lstrcmp( pToken, L"Swe" ) == 0
+			 || lstrcmp( pToken, L"Ita" ) == 0
+			 || lstrcmp( pToken, L"Aus" ) == 0 ) {
 				db.bNTSC = FALSE;
 			}
 
 			// Manufacturer
-			if( pToken = (CHAR*)_mbstok( NULL, seps ) ) {
+			if( pToken = _tcstok( NULL, seps ) ) {
 				db.manufacturer = pToken;
 			} else {
 				db.manufacturer.erase( db.manufacturer.begin(), db.manufacturer.end() );
 			}
 
 			// Sale date
-			if( pToken = (CHAR*)_mbstok( NULL, seps ) ) {
+			if( pToken = _tcstok( NULL, seps ) ) {
 				db.saledate = pToken;
 			} else {
 				db.saledate.erase( db.saledate.begin(), db.saledate.end() );
 			}
 
 			// Price
-			if( pToken = (CHAR*)_mbstok( NULL, seps ) ) {
+			if( pToken = _tcstok( NULL, seps ) ) {
 				db.price = pToken;
 			} else {
 				db.price.erase( db.price.begin(), db.price.end() );
 			}
 
 			// Genre
-			if( pToken = (CHAR*)_mbstok( NULL, seps ) ) {
+			if( pToken = _tcstok( NULL, seps ) ) {
 				db.genre = pToken;
 			} else {
 				db.genre.erase( db.genre.begin(), db.genre.end() );

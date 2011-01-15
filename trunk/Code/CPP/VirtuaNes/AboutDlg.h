@@ -1,5 +1,5 @@
 //
-// バージョンダイアログクラス
+// 繝舌�ｼ繧ｸ繝ｧ繝ｳ繝繧､繧｢繝ｭ繧ｰ繧ｯ繝ｩ繧ｹ
 //
 #ifndef	__CABOUTDLG_INCLUDED__
 #define	__CABOUTDLG_INCLUDED__
