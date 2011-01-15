@@ -133,6 +133,10 @@ int dialogPos[2];
 vwUByte dialogOpen;         
 vwUByte initialized;
 
+HWND ichangeHWnd = NULL;        // handle to module hangling desktop changes
+static int ichangeDesk=0 ;
+static WPARAM ichangeWParam ;
+
 // vector holding icon handles for the systray
 HICON checkIcon;                // Sticky tick icon in window list
 HICON icons[vwDESKTOP_SIZE];    // 0=disabled, 1,2..=normal desks
@@ -299,6 +303,32 @@ vwKeyboardTestModifier(vwUByte modif)
     return TRUE ;
 }
 
+/* check the current position of the mouse, returns: 1 if on caption of a window, 2 if on desktop, 3 if on taskbar, 0 otherwise */
+static unsigned char
+checkMousePosition(void)
+{
+    LPARAM lParam ;
+    HWND hwnd ;
+    POINT pt ;
+    DWORD rr ;
+    
+    GetCursorPos(&pt);
+    if((hwnd=WindowFromPoint(pt)) == NULL)
+        return 0 ;
+    
+    if((hwnd == deskIconHWnd) || (hwnd == desktopHWnd))
+        return 2 ;
+    if((hwnd == taskHWnd) || (hwnd == taskbarBCHWnd))
+        return 3 ;
+    
+    lParam = (((int)(short) pt.y) << 16) | (0x0ffff & ((int)(short) pt.x)) ;
+    if((SendMessageTimeout(hwnd,WM_NCHITTEST,0,lParam,SMTO_ABORTIFHUNG|SMTO_BLOCK,50,&rr) ||
+        (Sleep(1),SendMessageTimeout(hwnd,WM_NCHITTEST,0,lParam,SMTO_ABORTIFHUNG|SMTO_BLOCK,100,&rr))) &&
+       (rr == HTCAPTION))
+        return 1 ;
+    
+    return 0 ;
+}
 /*************************************************
  * Checks if mouse button pressed on title bar (i.e. dragging window)
  * Returns 0 = no button down, 1 = left but down on window caption, 2 = Middle down on window caption
@@ -308,11 +338,7 @@ static unsigned char
 checkMouseState(int force)
 {
     static unsigned char lastState=0, lastBState=0 ;
-    unsigned char thisBState ;
-    LPARAM lParam ;
-    HWND hwnd ;
-    POINT pt ;
-    DWORD rr ;
+    unsigned char thisBState, mp ;
     
     // Check the state of mouse buttons
     if(GetSystemMetrics(SM_SWAPBUTTON))
@@ -333,33 +359,13 @@ checkMouseState(int force)
     }
     if((thisBState != lastBState) || (force && (thisBState == 1)))
     {
-        lastState = (thisBState) ? 5:0 ;
-        if((thisBState == 1) || (thisBState == 2))
-        {
-            GetCursorPos(&pt);
-            if((hwnd=WindowFromPoint(pt)) != NULL)
-            {
-                if((hwnd == deskIconHWnd) || (hwnd == desktopHWnd))
-                {
-                    if(thisBState == 2)
-                        lastState = 3 ;
-                }
-                else if((hwnd == taskHWnd) || (hwnd == taskbarBCHWnd))
-                {
-                    if(thisBState == 2)
-                        lastState = 4 ;
-                }
-                else
-                {
-                    lParam = (((int)(short) pt.y) << 16) | (0x0ffff & ((int)(short) pt.x)) ;
-                    if((SendMessageTimeout(hwnd,WM_NCHITTEST,0,lParam,SMTO_ABORTIFHUNG|SMTO_BLOCK,50,&rr) ||
-                        (Sleep(1),SendMessageTimeout(hwnd,WM_NCHITTEST,0,lParam,SMTO_ABORTIFHUNG|SMTO_BLOCK,100,&rr))) &&
-                       (rr == HTCAPTION))
-                        lastState = thisBState ;
-                }
-            }
-        }
-        vwLogVerbose((_T("Got new state %d (%d %d %d %x %d) %x %x %x\n"),(int) lastState,(int) thisBState,pt.x,pt.y,hwnd,rr,desktopHWnd,deskIconHWnd,taskHWnd)) ;
+        if(thisBState == 1)
+            lastState = (checkMousePosition() == 1) ? 1:5 ;
+        else if(thisBState == 2)
+            lastState = ((mp = checkMousePosition()) != 0) ? mp+1:5 ;
+        else
+            lastState = (thisBState) ? 5:0 ;
+        vwLogVerbose((_T("Got new state %d (%d %d)\n"),(int) lastState,(int) lastBState,(int) thisBState)) ;
         lastBState = thisBState ;
     }
     return lastState ;
@@ -437,7 +443,8 @@ vwMouseProc(LPVOID lpParameter)
             }
             else if(wlistState)
             {
-                if((mode == 0) && (wlistState == 1) && (mouseEnable & 4))
+                if((mode == 0) && (wlistState == 1) && (mouseEnable & 4) &&
+                   (checkMousePosition() > 1))
                 {
                     vwLogBasic((_T("Mouse wlist %d\n"),wlistState)) ;
                     SendMessage(hWnd, VW_MOUSEWARP, 0, MAKELPARAM(0,4)) ;
@@ -451,7 +458,7 @@ vwMouseProc(LPVOID lpParameter)
                 wmenuState = 1 ;
             else
             {
-                if((mode == 0) && (wmenuState == 1))
+                if((mode == 0) && (wmenuState == 1) && (checkMousePosition() == 1))
                 {
                     vwLogBasic((_T("Mouse wmenu %d\n"),wmenuState)) ;
                     SendMessage(hWnd, VW_MOUSEWARP, 0, MAKELPARAM(0,5)) ;
@@ -936,34 +943,50 @@ createDeskImage(int deskNo, int createDefault)
     HBITMAP oldmap;
     TCHAR fname[MAX_PATH] ;
     FILE *fp ;
-    int ret ;
+    int ww, hh, ret ;
     
     if((deskImageEnabled == 0) || (deskNo > nDesks) ||
        ((deskDC = GetDC(desktopHWnd)) == NULL) ||
        ((bitmapDC = CreateCompatibleDC(deskDC)) == NULL))
         return 0 ;
-    
     oldmap = (HBITMAP) SelectObject(bitmapDC,deskImageBitmap);
-    
+    ww = desktopWorkArea[0][2]-desktopWorkArea[0][0] + 1 ;
+    hh = desktopWorkArea[0][3]-desktopWorkArea[0][1] + 1 ;
     if(createDefault)
     {
-        /* create a default image */
+        /* Fill all using the button color (taskbar) and then draw the active desktop area (non-taskbar)
+         * the background colour, but one pixel smaller all round to creatre a boarder, this makes
+         * modules like VWPreview easier to use when only default previews are available. */
         RECT rect;
         rect.left   = 0 ;
         rect.top    = 0 ;
         rect.right  = deskImageInfo.bmiHeader.biWidth ;
         rect.bottom = deskImageInfo.bmiHeader.biHeight ;
+        FillRect(bitmapDC,&rect,(HBRUSH) (COLOR_BTNFACE+1)) ;
+        rect.left   = 1 + ((desktopWorkArea[1][0] - desktopWorkArea[0][0]) * deskImageInfo.bmiHeader.biWidth / ww) ;
+        rect.top    = 1 + ((desktopWorkArea[1][1] - desktopWorkArea[0][1]) * deskImageInfo.bmiHeader.biHeight / hh) ;
+        rect.right  = (desktopWorkArea[1][2] - desktopWorkArea[0][0]) * deskImageInfo.bmiHeader.biWidth / ww ;
+        rect.bottom = (desktopWorkArea[1][3] - desktopWorkArea[0][1]) * deskImageInfo.bmiHeader.biHeight / hh ;
         FillRect(bitmapDC,&rect,(HBRUSH) (COLOR_BACKGROUND+1)) ;
+    }
+    else if(deskImageInfo.bmiHeader.biHeight == hh)
+    {
+        BitBlt(bitmapDC,0,0,ww,hh,deskDC,desktopWorkArea[0][0],desktopWorkArea[0][1],SRCCOPY) ;
     }
     else
     {
-        /* can set to HALFTONE for better quality, but not supported on Win95/98/Me */
-        SetStretchBltMode(bitmapDC,COLORONCOLOR);
-        StretchBlt(bitmapDC,0,0,deskImageInfo.bmiHeader.biWidth,deskImageInfo.bmiHeader.biHeight,deskDC,
-                   desktopWorkArea[0][0],desktopWorkArea[0][1],desktopWorkArea[0][2]-desktopWorkArea[0][0]+1,
-                   desktopWorkArea[0][3]-desktopWorkArea[0][1]+1,SRCCOPY);    
+        /* set to HALFTONE for better quality, but not supported on Win95/98/Me */
+        if(osVersion >= OSVERSION_NT)
+        {
+            SetStretchBltMode(bitmapDC,HALFTONE) ;
+            SetBrushOrgEx(bitmapDC,0,0,0) ;
+        }
+        else
+            SetStretchBltMode(bitmapDC,COLORONCOLOR) ;
+        StretchBlt(bitmapDC,0,0,deskImageInfo.bmiHeader.biWidth,deskImageInfo.bmiHeader.biHeight,
+                   deskDC,desktopWorkArea[0][0],desktopWorkArea[0][1],ww,hh,SRCCOPY);    
     }
-
+    
     /* Create the desk_#.bmp file */ 
     GetFilename(vwFILE_COUNT,1,fname) ;
     _stprintf(fname+_tcslen(fname),_T("desk_%d.bmp"),deskNo) ;
@@ -987,14 +1010,16 @@ createDeskImage(int deskNo, int createDefault)
     }
     else
         ret = 0 ;
+    
     SelectObject(bitmapDC,oldmap);
     DeleteDC(bitmapDC);
     ReleaseDC(desktopHWnd,deskDC) ;
+    
     vwLogBasic((_T("createDeskImage: %d: %d %d - %d %d\n"),ret,deskNo,createDefault,(int) deskImageInfo.bmiHeader.biWidth,(int) deskImageInfo.bmiHeader.biHeight)) ;
     return ret ;
 }
 
-static int
+int
 disableDeskImage(int count)
 {
     if(deskImageCount <= 0)
@@ -1062,6 +1087,7 @@ enableDeskImage(int height)
             return 0 ;
         deskImageEnabled = 1 ;
     }
+    /* if first time enabled, create default images for all desks */
     if(count < 0)
     {
         /* first time enabled, create default images for all desks */
@@ -1655,31 +1681,34 @@ vwWindowSetDesk(vwWindow *win, int theDesk, vwUByte move, vwUByte setActive)
     
     ewin = (win->linkedNext != NULL) ? win:NULL ;
     do {
-        if(vwWindowIsShownNotHung(win))
-            win->zOrder[theDesk] = win->zOrder[currentDesk] ;
-        else if(win->desk != theDesk)
-            win->zOrder[theDesk] = win->zOrder[win->desk] ;
-        if(vwWindowIsNotSticky(win) && ((win->desk != theDesk) || (vwWindowIsShow(win) && (theDesk != currentDesk))))
+        if(vwWindowIsManaged(win))
         {
-            /* if temporarily show the window on this desk */ 
-            if(move > 1)
+            if(vwWindowIsShownNotHung(win))
+                win->zOrder[theDesk] = win->zOrder[currentDesk] ;
+            else if(win->desk != theDesk)
+                win->zOrder[theDesk] = win->zOrder[win->desk] ;
+            if(vwWindowIsNotSticky(win) && ((win->desk != theDesk) || (vwWindowIsShow(win) && (theDesk != currentDesk))))
             {
-                if(theDesk == currentDesk)
-                    show = vwWINSH_FLAGS_SHOW ;
+                /* if temporarily show the window on this desk */ 
+                if(move > 1)
+                {
+                    if(theDesk == currentDesk)
+                        show = vwWINSH_FLAGS_SHOW ;
+                    else
+                        show = vwWINSH_FLAGS_HIDE ;
+                }
                 else
-                    show = vwWINSH_FLAGS_HIDE ;
+                {
+                    win->desk = theDesk;
+                    if((currentDesk == theDesk) || (move == 0))
+                        show = vwWINSH_FLAGS_SHOW ;
+                    else
+                        show = vwWINSH_FLAGS_HIDE ;
+                }
+                if(!show && (activeHWnd == win->handle))
+                    setActive = TRUE ;
+                vwWindowShowHide(win,show) ;
             }
-            else
-            {
-                win->desk = theDesk;
-                if((currentDesk == theDesk) || (move == 0))
-                    show = vwWINSH_FLAGS_SHOW ;
-                else
-                    show = vwWINSH_FLAGS_HIDE ;
-            }
-            if(!show && (activeHWnd == win->handle))
-                setActive = TRUE ;
-            vwWindowShowHide(win,show) ;
         }
         win = win->linkedNext ;
     } while(win != ewin) ;
@@ -1720,26 +1749,29 @@ vwWindowSetSticky(vwWindow *win, int state)
     
     ewin = (win->linkedNext != NULL) ? win:NULL ;
     do {
-        if(state < 0) // toggle sticky state - set state so all owner windows are set correctly.
-            state = vwWindowIsSticky(win) ^ TRUE;
-        vwLogVerbose((_T("Setting Sticky: %x %x - %d -> %d\n"),(int) win->handle,
-                      (int) theWin,(int) vwWindowIsSticky(win),state)) ;
-        if(state)
+        if(vwWindowIsManaged(win))
         {
-            win->flags |= vwWINFLAGS_STICKY ;
-            // set its zOrder of all desks to its zOrder on its current desk
-            zOrder = win->zOrder[win->desk] ;
-            ii = vwDESKTOP_SIZE - 1 ;
-            do
-                win->zOrder[ii] = zOrder ;
-            while(--ii >= 0) ;
-            // if not currently set to show (i.e. was on another desktop) then make it visible
-            if(vwWindowIsNotShow(win))
-                vwWindowShowHide(win,vwWINSH_FLAGS_SHOW) ;
+            if(state < 0) // toggle sticky state - set state so all owner windows are set correctly.
+                state = vwWindowIsSticky(win) ^ TRUE;
+            vwLogVerbose((_T("Setting Sticky: %x %x - %d -> %d\n"),(int) win->handle,
+                          (int) theWin,(int) vwWindowIsSticky(win),state)) ;
+            if(state)
+            {
+                win->flags |= vwWINFLAGS_STICKY ;
+                // set its zOrder of all desks to its zOrder on its current desk
+                zOrder = win->zOrder[win->desk] ;
+                ii = vwDESKTOP_SIZE - 1 ;
+                do
+                    win->zOrder[ii] = zOrder ;
+                while(--ii >= 0) ;
+                // if not currently set to show (i.e. was on another desktop) then make it visible
+                if(vwWindowIsNotShow(win))
+                    vwWindowShowHide(win,vwWINSH_FLAGS_SHOW) ;
+            }
+            else
+                win->flags &= ~vwWINFLAGS_STICKY ;
+            win->desk = currentDesk;
         }
-        else
-            win->flags &= ~vwWINFLAGS_STICKY ;
-        win->desk = currentDesk;
         win = win->linkedNext ;
     } while(win != ewin) ;
     
@@ -1825,6 +1857,7 @@ enumWindowsProc(HWND hwnd, LPARAM lParam)
     if(vwWindowIsNotWindow(wb))
         return TRUE ;
     win = (vwWindow *) wb ;
+    vwLogVerbose((_T("Updating win %x Flgs %08x %08x %08x\n"),(int) hwnd,(int)win->flags,(int)win->exStyle,(int)style)) ;
     if(vwWindowIsNotManaged(win))
     {
         if((style & WS_VISIBLE) == 0)
@@ -1851,9 +1884,8 @@ enumWindowsProc(HWND hwnd, LPARAM lParam)
         {
             if(vwWindowIsShown(win))
             {
-                /* this window has been hidden by someone else - stop handling it
-                 * unless VirtualWin knows its not visible (which means it is
-                 * probably a hung process so keep it.) */
+                /* this window has been hidden by someone else - stop handling it unless VirtuaWin
+                 * knows its not visible (which means it is probably a hung process so keep it.) */
                 vwLogBasic((_T("Stopped managing window %8x Proc %d Flg %x %x (%08x) Desk %d\n"),
                             (int)win->handle,(int)win->processId,(int)win->flags,(int) win->exStyle,(int)style,(int)win->desk)) ;
                 vwWindowBaseUnlink(wb) ;
@@ -1873,7 +1905,7 @@ enumWindowsProc(HWND hwnd, LPARAM lParam)
     {
         if((style & WS_MINIMIZE) == 0)
         {
-            if(vwWindowIsHideByMinim(win))
+            if(vwWindowIsHideByMinim(win) || (vwWindowIsMinimized(win) && minWinHide))
             {
                 vwLogBasic((_T("Got minim-window state change: %x %d (%d) %x -> %x\n"),
                             (int) win->handle,win->desk,currentDesk,win->flags,style)) ;
@@ -1935,8 +1967,7 @@ windowListUpdate(void)
     TCHAR cname[vwCLASSNAME_MAX], wname[vwWINDOWNAME_MAX] ;
     int newDesk=0, j, hungCount=0 ;
     
-    vwLogVerbose((_T("Updating winList fgw %x tpw %x\n"),
-                (int) GetForegroundWindow(),(int) GetTopWindow(NULL))) ;
+    vwLogVerbose((_T("Updating winList fgw %x tpw %x\n"),(int) GetForegroundWindow(),(int) GetTopWindow(NULL))) ;
     /* We now own the mutex. */
     wb = windowBaseList ;
     while(wb != NULL)
@@ -2000,7 +2031,7 @@ windowListUpdate(void)
                     do {
                         if(ww->handle == owner)
                         {
-                            if(ww->flags & vwWINFLAGS_FOUND)
+                            if(vwWindowIsWindow(ww) && (ww->flags & vwWINFLAGS_FOUND) && vwWindowIsShown(ww))
                             {
                                 vwWindowLink(ww,win) ;
                                 if(vwWindowIsNotHideByHide(win) && vwWindowIsHideByHide(ww) && vwWindowIsShown(ww))
@@ -2150,7 +2181,7 @@ windowListUpdate(void)
     // difficult to differentiate between this and a genuine pop-up event.
     if(((activeHWnd = GetForegroundWindow()) == NULL) || (activeHWnd == hWnd))
         lastFGHWnd = activeHWnd = NULL ;
-    else if((activeHWnd = GetForegroundWindow()) == lastFGHWnd)
+    else if(activeHWnd == lastFGHWnd)
         activeHWnd = NULL ;
     wb = windowBaseList ;
     while(wb != NULL)
@@ -2487,28 +2518,13 @@ monitorTimerProc(HWND hwnd, UINT uMsg, UINT idEvent, DWORD dwTime)
  * Does the actual switching work 
  */
 static int
-changeDesk(int newDesk, WPARAM msgWParam)
+ichangeDeskProc(int newDesk, WPARAM msgWParam)
 {
     HWND activeHWnd, lzh ;
     vwWindow *win, *bwn ;
     vwUInt activeZOrder=0, cno, czo, bno, bzo, lno, lzo ;
     int notHung ;
     
-    if(newDesk == currentDesk)
-        // Nothing to do
-        return 0;
-    
-    /* don't bother updating last desktop or generating an image unless the
-     * user has been on the desk for at least a second */
-    if(timerCounter >= 4)
-    {
-        if(lastDesk != currentDesk)
-            lastDesk = currentDesk ;
-        if(deskImageEnabled > 0)
-            createDeskImage(currentDesk,0) ;
-    }
-    else if(lastDeskNoDelay && (lastDesk != currentDesk))
-        lastDesk = currentDesk ;
     vwLogBasic((_T("Step Desk Start: %d -> %d (%d,%x)\n"),currentDesk,newDesk,isDragging,(int)dragHWnd)) ;
     
     vwMutexLock();
@@ -2831,6 +2847,60 @@ changeDesk(int newDesk, WPARAM msgWParam)
     vwLogBasic((_T("Step Desk End (%x)\n"),(int)GetForegroundWindow())) ;
     
     return currentDesk ;
+}
+
+static VOID CALLBACK
+ichangeDeskTimeoutProc(HWND hwnd, UINT uMsg, UINT idEvent, DWORD dwTime)
+{
+    int newDesk = ichangeDesk ;
+    ichangeDesk = -1  ;
+    KillTimer(hWnd,0x29b) ;
+    
+    if((newDesk > 0) && (newDesk != currentDesk))
+        ichangeWParam = ichangeDeskProc(newDesk,ichangeWParam) ;
+    else
+        ichangeWParam = 0 ;
+    ichangeDesk = 0  ;
+}
+
+static int
+changeDesk(int newDesk, WPARAM msgWParam)
+{
+    MSG msg ;
+    
+    ichangeDesk = 0 ;
+    KillTimer(hWnd,0x29b) ;
+    
+    if(newDesk == currentDesk)
+        // Nothing to do
+        return 0;
+    
+    /* don't bother updating last desktop or generating an image unless the
+     * user has been on the desk for at least a second */
+    if(timerCounter >= 4)
+    {
+        if(lastDesk != currentDesk)
+            lastDesk = currentDesk ;
+        if(deskImageEnabled > 0)
+            createDeskImage(currentDesk,0) ;
+    }
+    else if(lastDeskNoDelay && (lastDesk != currentDesk))
+        lastDesk = currentDesk ;
+    
+    if((ichangeHWnd == NULL) || isDragging || (currentDesk > nDesks) || (newDesk > nDesks))
+        return ichangeDeskProc(newDesk,msgWParam) ;
+        
+    vwLogBasic((_T("IChange Desk: %d -> %d (%d,%x)\n"),currentDesk,newDesk,msgWParam,(int)ichangeHWnd)) ;
+    ichangeDesk = newDesk ;
+    ichangeWParam = msgWParam ;
+    PostMessage(ichangeHWnd,VW_ICHANGEDESK,currentDesk,newDesk);
+    SetTimer(hWnd, 0x29b, 250, ichangeDeskTimeoutProc);
+    while(ichangeDesk && GetMessage(&msg, NULL, 0, 0))
+    {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+    }
+    return ichangeWParam ;
 }
 
 /*************************************************
@@ -3358,7 +3428,7 @@ vwWindowShowHide(vwWindow* aWindow, vwUInt flags)
                     if(taskHWnd != NULL)
                         PostMessage(taskHWnd, RM_Shellhook, HSHELL_WINDOWCREATED, (LPARAM) aWindow->handle) ;
                 }
-                SetWindowPos(aWindow->handle,0,0,0,0,0,(SWP_SHOWWINDOW | SWP_NOZORDER | SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE)) ;
+                SetWindowPos(aWindow->handle,0,0,0,0,0,(SWP_SHOWWINDOW | SWP_NOZORDER | SWP_NOMOVE | SWP_NOSIZE | SWP_DEFERERASE | SWP_NOACTIVATE)) ;
                 /* if minimized dont show popups */
                 if(vwWindowIsNotMinimized(aWindow))
                     ShowOwnedPopups(aWindow->handle,TRUE) ;
@@ -4801,6 +4871,9 @@ wndProc(HWND aHWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 stepDelta(1) ;
                 break;
             }
+            /* reset isDragging to 0 as the call to step desk may have failed and will 
+             * result in a window being dragged on next change if left set to 1 */
+            isDragging = 0 ;
         }
         return TRUE;
         
@@ -4910,6 +4983,37 @@ wndProc(HWND aHWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         
     case VW_FOREGDWIN:
+        if(wParam == 0)
+        {
+            HWND activeHWnd=NULL ;
+            vwUInt activeZOrder=0 ;
+            vwWindow *win ;
+            
+            vwMutexLock();
+            
+            win = windowList ;
+            while(win != NULL)
+            {
+                if(vwWindowIsShow(win) && vwWindowIsShown(win) && 
+                   vwWindowIsNotMinimized(win) && (win->zOrder[currentDesk] > activeZOrder))
+                {
+                    activeHWnd = win->handle;
+                    activeZOrder = win->zOrder[currentDesk];
+                }
+                win = vwWindowGetNext(win) ;
+            }
+            setForegroundWin(activeHWnd,0) ;
+            vwMutexRelease();
+            return 1 ;
+        }
+        else if(lParam < 0)
+        {
+            int ii ;
+            if((ii=IsWindow((HWND)wParam)) != 0)
+                setForegroundWin((HWND)wParam,0);
+            return ii ;
+        }
+        else
         {
             int ii ;
             vwWindow *win ;
@@ -5069,6 +5173,27 @@ wndProc(HWND aHWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
             return TRUE ;
         }
+    
+    case VW_ICHANGEDESK:
+        if(wParam == 0)
+            return (LRESULT) ichangeHWnd ;
+        else if(wParam == 3)
+        {
+            if(ichangeDesk > 0)
+                SetTimer(hWnd, 0x29b, 1, ichangeDeskTimeoutProc);
+        }
+        else if(wParam == 1)
+        {
+            if((ichangeHWnd == NULL) || (ichangeHWnd == (HWND) lParam))
+            {
+                ichangeHWnd = (HWND) lParam ;
+                return 2 ;
+            }
+            return 1 ;
+        }
+        else if((wParam == 2) && (ichangeHWnd == (HWND) lParam))
+            ichangeHWnd = NULL ;
+        return 0 ;
         
         // End plugin messages
         
