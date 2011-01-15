@@ -78,7 +78,6 @@ bool isoFile::tryIsoType(u32 _size, s32 _offset, s32 _blockofs)
 bool isoFile::Detect( bool readType )
 {
 	char buf[32];
-	int len = m_filename.Length();
 
 	m_type = ISOTYPE_ILLEGAL;
 
@@ -245,7 +244,7 @@ void isoFile::_WriteBlock(const u8* src, uint lsn)
 void isoFile::_WriteBlockD(const u8* src, uint lsn)
 {
 	// Find and ignore blocks that have already been dumped:
-	for (uint i=0; i<m_dtablesize; ++i)
+	for (int i=0; i<m_dtablesize; ++i)
 	{
 		if (m_dtable[i] == lsn) return;
 	}
@@ -412,7 +411,9 @@ void isoFile::Open( const wxString& srcfile )
 	// (and if numparts is incremented, elsn will get assigned accordingly)
 	
 	if (!Detect())
-		throw Exception::BadStream().SetUserMsg(wxLt("Unrecognized ISO file format."));
+		throw Exception::BadStream()
+			.SetUserMsg(L"Unrecognized ISO image file format")
+			.SetDiagMsg(_("ISO mounting failed: PCSX2 is unable to identify the ISO image type."));
 
 	if (!(m_flags & ISOFLAGS_BLOCKDUMP_V2))
 	{

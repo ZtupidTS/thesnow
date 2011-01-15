@@ -111,8 +111,8 @@ class MainEmuFrame : public wxFrame,
 protected:
 	bool			m_RestartEmuOnDelete;
 
-    wxStatusBar&	m_statusbar;
-    wxStaticBitmap	m_background;
+	wxStatusBar&	m_statusbar;
+	wxStaticBitmap	m_background;
 
 	wxMenuBar&		m_menubar;
 
@@ -132,12 +132,11 @@ protected:
 
 	virtual void DispatchEvent( const PluginEventType& plugin_evt );
 	virtual void DispatchEvent( const CoreThreadStatus& status );
-	virtual void AppStatusEvent_OnSettingsLoadSave();
 	virtual void AppStatusEvent_OnSettingsApplied();
 
 public:
-    MainEmuFrame(wxWindow* parent, const wxString& title);
-    virtual ~MainEmuFrame() throw();
+	MainEmuFrame(wxWindow* parent, const wxString& title);
+	virtual ~MainEmuFrame() throw();
 
 	void OnLogBoxHidden();
 
@@ -145,6 +144,8 @@ public:
 	void UpdateIsoSrcSelection();
 	void RemoveCdvdMenu();
 	void EnableMenuItem( int id, bool enable );
+	
+	bool Destroy();
 
 protected:
 	void DoGiveHelp(const wxString& text, bool show);
@@ -162,9 +163,11 @@ protected:
 
 	void Menu_SysSettings_Click(wxCommandEvent &event);
 	void Menu_McdSettings_Click(wxCommandEvent &event);
+	void Menu_GameDatabase_Click(wxCommandEvent &event);
 	void Menu_WindowSettings_Click(wxCommandEvent &event);
 	void Menu_GSSettings_Click(wxCommandEvent &event);
 	void Menu_SelectPluginsBios_Click(wxCommandEvent &event);
+	void Menu_Language_Click(wxCommandEvent &event);
 	void Menu_ResetAllSettings_Click(wxCommandEvent &event);
 
 	void Menu_IsoBrowse_Click(wxCommandEvent &event);

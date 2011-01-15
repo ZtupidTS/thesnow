@@ -52,7 +52,7 @@ namespace Exception
 	public:
 		explicit CannotApplySettings( BaseApplicableConfigPanel* thispanel )
 		{
-			SetBothMsgs(wxLt("Cannot apply new settings, one of the settings is invalid."));
+			SetBothMsgs(pxL("Cannot apply new settings, one of the settings is invalid."));
 			m_Panel = thispanel;
 			IsVerbose = true;
 		}
@@ -139,7 +139,7 @@ protected:
 	// be called after a failed Apply (canceled due to error).
 	virtual void AppStatusEvent_OnSettingsApplied() {}
 
-	virtual void AppStatusEvent_OnSettingsLoadSave( const AppSettingsEventInfo& ) {}
+	virtual void AppStatusEvent_OnUiSettingsLoadSave( const AppSettingsEventInfo& ) {}
 	virtual void AppStatusEvent_OnExit() {}
 };
 
@@ -187,18 +187,35 @@ public:
 	void Init();
 
 	// Mandatory override: As a rule for proper interface design, all deriving classes need
-	// to implement this function.  There's no implementation of an options/settings panel
-	// that does not heed the changes of application status/settings changes. ;)
+	// to implement this OnSettingsApplied function.  There's no implementation of an options/
+	// settings panel that does not heed the changes of application status/settings changes. ;)
 	//
 	// Note: This method *will* be called automatically after a successful Apply, but will not
 	// be called after a failed Apply (canceled due to error).
 	virtual void AppStatusEvent_OnSettingsApplied()=0;
 
-	virtual void AppStatusEvent_OnSettingsLoadSave( const AppSettingsEventInfo& ) {}
+	virtual void AppStatusEvent_OnUiSettingsLoadSave( const AppSettingsEventInfo& ) {}
+	virtual void AppStatusEvent_OnVmSettingsLoadSave( const AppSettingsEventInfo& ) {}
 	virtual void AppStatusEvent_OnExit() {}
 
 protected:
 	virtual void OnSettingsApplied( wxCommandEvent& evt );
+};
+
+class BaseApplicableConfigPanel_SpecificConfig : public BaseApplicableConfigPanel
+{
+    //This class only differs from BaseApplicableConfigPanel by systematically allowing the gui to be updated
+    //from a specific config (used by the presets system to trash not g_Conf in case the user pressed "Cancel").
+    //Every panel that the Presets affect should be derived from this and not from BaseApplicableConfigPanel.
+    //
+    //Multiple inheritance would have been better (also for cases of non BaseApplicableConfigPanel which are effected by presets),
+    //but multiple inheritance sucks. So, subclass.
+    //NOTE: because ApplyConfigToGui is called manually and not via an event, it must consider manuallyPropagate and call sub panels.
+public:
+	BaseApplicableConfigPanel_SpecificConfig( wxWindow* parent, wxOrientation orient=wxVERTICAL );
+	BaseApplicableConfigPanel_SpecificConfig( wxWindow* parent, wxOrientation orient, const wxString& staticLabel );
+
+	virtual void ApplyConfigToGui(AppConfig& configToApply, bool manuallyPropagate=false)=0;
 };
 
 class ApplicableWizardPage : public wxWizardPageSimple, public IApplyState

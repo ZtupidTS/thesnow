@@ -1,4 +1,4 @@
-/*  PCSX2 - PS2 Emulator for PCs
+ï»¿/*  PCSX2 - PS2 Emulator for PCs
  *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
@@ -21,6 +21,7 @@
 #include "Panels/ConfigurationPanels.h"
 #include <wx/file.h>
 #include <wx/filepicker.h>
+#include <wx/hyperlink.h>
 
 using namespace Panels;
 using namespace pxSizerFlags;
@@ -43,130 +44,117 @@ bool ApplicableWizardPage::PrepForApply()
 
 // ----------------------------------------------------------------------------
 Panels::SettingsDirPickerPanel::SettingsDirPickerPanel( wxWindow* parent )
-	: DirPickerPanel( parent, FolderId_Settings, _("Settings"), AddAppName(_("Ñ¡Ôñ %s ÉèÖÃËùÔÚµÄÎÄ¼ş¼Ğ")) )
+	: DirPickerPanel( parent, FolderId_Settings, _("Settings"), AddAppName(_("é€‰æ‹© %s è®¾ç½®æ‰€åœ¨çš„æ–‡ä»¶å¤¹")) )
 {
-	pxSetToolTip( this, pxE( ".Tooltip:Folders:Settings",
+	pxSetToolTip( this, pxEt( "!ContextTip:Folders:Settings",
 		L"This is the folder where PCSX2 saves your settings, including settings generated "
 		L"by most plugins (some older plugins may not respect this value)."
 	) );
 
-	SetStaticDesc( pxE( ".Panel:Folders:Settings",
+	SetStaticDesc( pxE( "!Panel:Folders:Settings",
 		L"You may optionally specify a location for your PCSX2 settings here.  If the location "
 		L"contains existing PCSX2 settings, you will be given the option to import or overwrite them."
 	) );
 }
 
-// ----------------------------------------------------------------------------
-FirstTimeWizard::UsermodePage::UsermodePage( wxWizard* parent ) :
-	ApplicableWizardPage( parent )
+namespace Panels
 {
-	SetMinSize( wxSize(640, GetMinHeight()) );
-	SetSizer( new wxBoxSizer( wxVERTICAL ) );
 
-	wxPanelWithHelpers& panel( *new wxPanelWithHelpers( this, wxVERTICAL ) );	
-
-	m_dirpick_settings	= new SettingsDirPickerPanel( &panel );
-	m_panel_LangSel		= new LanguageSelectionPanel( &panel );
-	m_panel_UserSel		= new DocsFolderPickerPanel( &panel );
-
-	panel += panel.Heading(AddAppName(_("%s Æô¶¯ÓÚÒ»¸öĞÂµÄ»òÕßÎ´ÖªµÄÎÄ¼ş¼ĞÏÂÃæ,ĞèÒª½øĞĞÖØĞÂÉèÖÃ."))).Bold();
-
-	panel += m_panel_LangSel		| StdCenter();
-	panel += m_panel_UserSel		| pxExpand.Border( wxALL, 8 );
-
-	panel += 6;
-	panel += m_dirpick_settings		| SubGroup();
-
-	*this += panel					| pxExpand;
-
-	Connect( wxEVT_COMMAND_RADIOBUTTON_SELECTED,	wxCommandEventHandler(UsermodePage::OnUsermodeChanged) );
-
-	Connect( m_panel_UserSel->GetDirPickerId(), wxEVT_COMMAND_DIRPICKER_CHANGED,		wxCommandEventHandler(UsermodePage::OnCustomDirChanged) );
-}
-
-void FirstTimeWizard::UsermodePage::OnUsermodeChanged( wxCommandEvent& evt )
-{
-	evt.Skip();
-	m_panel_UserSel->Apply();
-	g_Conf->Folders.ApplyDefaults();
-	m_dirpick_settings->Reset();
-}
-
-void FirstTimeWizard::UsermodePage::OnCustomDirChanged( wxCommandEvent& evt )
-{
-	OnUsermodeChanged( evt );
-}
-
-bool FirstTimeWizard::UsermodePage::PrepForApply()
-{
-	wxDirName path( PathDefs::GetDocuments(m_panel_UserSel->GetDocsMode()) );
-
-	if( path.FileExists() )
+	class FirstTimeIntroPanel : public wxPanelWithHelpers
 	{
-		// FIXME: There's already a file by the same name.. not sure what we should do here.
-		throw Exception::BadStream( path.ToString() )
-			.SetDiagMsg(L"Targeted documents folder is already occupied by a file.")
-			.SetUserMsg(pxE( ".Error:DocsFolderFileConflict",
-				L"PCSX2 cannot create a documents folder in the requested location.  "
-				L"The path name matches an existing file.  Delete the file or change the documents location, "
-				L"and then try again."
-			));
-	}
-
-	if( !path.Exists() )
-	{
-		wxDialogWithHelpers dialog( NULL, _("´´½¨ÎÄ¼ş¼Ğ?") );
-		dialog += dialog.Heading(AddAppName(_("%s will create the following folder for documents.  You can change this setting later, at any time.")));
-		dialog += 12;
-		dialog += dialog.Heading( path.ToString() );
-
-		if( wxID_CANCEL == pxIssueConfirmation( dialog, MsgButtons().Custom(_("Create")).Cancel(), L"CreateNewFolder" ) )
-			return false;
-	}
-	path.Mkdir();
-	return true;
+	public:
+		FirstTimeIntroPanel( wxWindow* parent );
+		virtual ~FirstTimeIntroPanel() throw() {}
+	};
 }
 
-// ----------------------------------------------------------------------------
+Panels::FirstTimeIntroPanel::FirstTimeIntroPanel( wxWindow* parent )
+	: wxPanelWithHelpers( parent, wxVERTICAL )
+{
+	SetMinWidth( 600 );
+
+	FastFormatUnicode faqFile;
+	faqFile.Write( L"file:///%s/Docs/PCSX2 FAQ %u.%u.%u.pdf",
+		InstallFolder.ToString().c_str(), PCSX2_VersionHi, PCSX2_VersionMid, PCSX2_VersionLo
+	);
+
+	wxStaticBoxSizer& langSel	= *new wxStaticBoxSizer( wxVERTICAL, this, _("Language selector") );
+
+	langSel += new Panels::LanguageSelectionPanel( this ) | StdCenter();
+	langSel += Heading(_("Change the language only if you need to.\nThe system default should be fine for most operating systems."));
+	langSel += 8;
+
+	*this += langSel | StdExpand();
+	*this += GetCharHeight() * 2;
+
+	*this += Heading(AddAppName(L"Welcome to %s!")).Bold();
+	*this += GetCharHeight();
+
+	*this += Heading(AddAppName(
+		pxE( "!Wizard:Welcome",
+			L"This wizard will help guide you through configuring plugins, "
+			L"memory cards, and BIOS.  It is recommended if this is your first time installing "
+			L"%s that you view the readme and configuration guide."
+		) )
+	);
+
+	*this += GetCharHeight() * 2;
+
+	*this	+= new wxHyperlinkCtrl( this, wxID_ANY,
+		_("Configuration Guides (online)"), L"http://www.pcsx2.net/guide.php"
+	) | pxCenter.Border( wxALL, 5 );
+		
+	*this	+= new wxHyperlinkCtrl( this, wxID_ANY,
+		_("Readme / FAQ (Offline/PDF)"), faqFile.c_str()
+	) | pxCenter.Border( wxALL, 5 );
+
+}
+
+// --------------------------------------------------------------------------------------
+//  FirstTimeWizard  (implementations)
+// --------------------------------------------------------------------------------------
 FirstTimeWizard::FirstTimeWizard( wxWindow* parent )
-	: wxWizard( parent, wxID_ANY, AddAppName(_("%s µÚÒ»´ÎÊ¹ÓÃÉèÖÃ")) )
-	, m_page_usermode	( *new UsermodePage( this ) )
-	, m_page_plugins	( *new ApplicableWizardPage( this, &m_page_usermode ) )
+	: wxWizard( parent, wxID_ANY, AddAppName(_("%s ç¬¬ä¸€æ¬¡ä½¿ç”¨è®¾ç½®")) )
+	, m_page_intro		( *new ApplicableWizardPage( this ) )
+	, m_page_plugins	( *new ApplicableWizardPage( this, &m_page_intro ) )
 	, m_page_bios		( *new ApplicableWizardPage( this, &m_page_plugins ) )
 
+	, m_panel_Intro		( *new FirstTimeIntroPanel( &m_page_intro ))
 	, m_panel_PluginSel	( *new PluginSelectorPanel( &m_page_plugins ) )
 	, m_panel_BiosSel	( *new BiosSelectorPanel( &m_page_bios ) )
 {
 	// Page 2 - Plugins Panel
 	// Page 3 - Bios Panel
 
+	m_page_intro.	SetSizer( new wxBoxSizer( wxVERTICAL ) );
 	m_page_plugins.	SetSizer( new wxBoxSizer( wxVERTICAL ) );
 	m_page_bios.	SetSizer( new wxBoxSizer( wxVERTICAL ) );
 
+	m_page_intro	+= m_panel_Intro			| StdExpand();
 	m_page_plugins	+= m_panel_PluginSel		| StdExpand();
 	m_page_bios		+= m_panel_BiosSel			| StdExpand();
 
 	// Temporary tutorial message for the BIOS, needs proof-reading!!
 	m_page_bios		+= 12;
 	m_page_bios		+= new pxStaticHeading( &m_page_bios,
-		pxE( ".Wizard:Bios:Tutorial",
-			L"PCSX2 ĞèÒªÒ»¸ö *ºÏ·¨* µÄ PS2 BIOS ¿½±´À´ÔËĞĞÓÎÏ·.\n"
-			L"Äã²»ÄÜÊ¹ÓÃÒ»¸ö´Ó»¥ÁªÍø»òÕßÅóÓÑµÃµ½µÄBIOS¿½±´.\n"
-			L"Äã±ØĞë´ÓÄú *ÓµÓĞ* µÄ Playstation 2 ÖÕ¶Ë×ª´¢Ò»¸öBIOSÎÄ¼ş."
+		pxE( "!Wizard:Bios:Tutorial",
+			L"PCSX2 éœ€è¦ä¸€ä¸ª *åˆæ³•* çš„ PS2 BIOS æ‹·è´æ¥è¿è¡Œæ¸¸æˆ.\n"
+			L"ä½ ä¸èƒ½ä½¿ç”¨ä¸€ä¸ªä»äº’è”ç½‘æˆ–è€…æœ‹å‹å¾—åˆ°çš„BIOSæ‹·è´.\n"
+			L"ä½ å¿…é¡»ä»æ‚¨ *æ‹¥æœ‰* çš„ Playstation 2 ç»ˆç«¯è½¬å‚¨ä¸€ä¸ªBIOSæ–‡ä»¶."
 		)
 	) | StdExpand();
 
 	// Assign page indexes as client data
-	m_page_usermode	.SetClientData( (void*)0 );
+	m_page_intro	.SetClientData( (void*)0 );
 	m_page_plugins	.SetClientData( (void*)1 );
 	m_page_bios		.SetClientData( (void*)2 );
 
 	// Build the forward chain:
 	//  (backward chain is built during initialization above)
-	m_page_usermode	.SetNext( &m_page_plugins );
+	m_page_intro	.SetNext( &m_page_plugins );
 	m_page_plugins	.SetNext( &m_page_bios );
 
-	GetPageAreaSizer() += m_page_usermode;
+	GetPageAreaSizer() += m_page_intro;
 	GetPageAreaSizer() += m_page_plugins;
 
 	// this doesn't descent from wxDialogWithHelpers, so we need to explicitly
@@ -175,11 +163,19 @@ FirstTimeWizard::FirstTimeWizard( wxWindow* parent )
 	Connect( wxEVT_WIZARD_PAGE_CHANGED,				wxWizardEventHandler	(FirstTimeWizard::OnPageChanged) );
 	Connect( wxEVT_WIZARD_PAGE_CHANGING,			wxWizardEventHandler	(FirstTimeWizard::OnPageChanging) );
 	Connect( wxEVT_COMMAND_LISTBOX_DOUBLECLICKED,	wxCommandEventHandler	(FirstTimeWizard::OnDoubleClicked) );
+
+	Connect( pxID_RestartWizard,	wxEVT_COMMAND_BUTTON_CLICKED,	wxCommandEventHandler( FirstTimeWizard::OnRestartWizard ) );
 }
 
 FirstTimeWizard::~FirstTimeWizard() throw()
 {
 
+}
+
+void FirstTimeWizard::OnRestartWizard( wxCommandEvent& evt )
+{
+	EndModal( pxID_RestartWizard );
+	evt.Skip();
 }
 
 static void _OpenConsole()
@@ -229,7 +225,7 @@ void FirstTimeWizard::OnPageChanging( wxWizardEvent& evt )
 
 		if( page == 0 )
 		{
-			if( wxFile::Exists( GetSettingsFilename() ) )
+			if( wxFile::Exists(GetUiSettingsFilename()) || wxFile::Exists(GetVmSettingsFilename()) )
 			{
 				// Asks the user if they want to import or overwrite the existing settings.
 

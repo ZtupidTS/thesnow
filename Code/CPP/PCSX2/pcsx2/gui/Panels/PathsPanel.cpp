@@ -22,21 +22,22 @@ using namespace pxSizerFlags;
 
 static const int BetweenFolderSpace = 5;
 
-// ------------------------------------------------------------------------
 Panels::BasePathsPanel::BasePathsPanel( wxWindow* parent )
 	: wxPanelWithHelpers( parent, wxVERTICAL )
 {
 }
 
-// ------------------------------------------------------------------------
-Panels::StandardPathsPanel::StandardPathsPanel( wxWindow* parent ) :
-	BasePathsPanel( parent )
+// --------------------------------------------------------------------------------------
+//  Panels::StandardPathsPanel  (implementations)
+// --------------------------------------------------------------------------------------
+Panels::StandardPathsPanel::StandardPathsPanel( wxWindow* parent )
+	: BasePathsPanel( parent )
 {
 	*this += BetweenFolderSpace;
 	*this += (new DirPickerPanel( this, FolderId_Savestates,
 		_("存档状态:"),
 		_("选择存档状态文件夹") ))->
-		SetToolTip( pxE( ".Tooltip:Folders:Savestates",
+		SetToolTip( pxEt( "!ContextTip:Folders:Savestates",
 			L"This folder is where PCSX2 records savestates; which are recorded either by using "
 			L"menus/toolbars, or by pressing F1/F3 (load/save)."
 		)
@@ -46,7 +47,7 @@ Panels::StandardPathsPanel::StandardPathsPanel( wxWindow* parent ) :
 	*this += (new DirPickerPanel( this, FolderId_Snapshots,
 		_("屏幕截图:"),
 		_("选择屏幕截图文件夹") ))->
-		SetToolTip( pxE( ".Tooltip:Folders:Snapshots",
+		SetToolTip( pxEt( "!ContextTip:Folders:Snapshots",
 			L"This folder is where PCSX2 saves screenshots.  Actual screenshot image format and style "
 			L"may vary depending on the GS plugin being used."
 		)
@@ -56,7 +57,7 @@ Panels::StandardPathsPanel::StandardPathsPanel( wxWindow* parent ) :
 	*this += (new DirPickerPanel( this, FolderId_Logs,
 		_("日志/转储:" ),
 		_("选择日志/转储文件夹") ))->
-		SetToolTip( pxE( ".Tooltip:Folders:Logs",
+		SetToolTip( pxEt( "!ContextTip:Folders:Logs",
 			L"This folder is where PCSX2 saves its logfiles and diagnostic dumps.  Most plugins will "
 			L"also adhere to this folder, however some older plugins may ignore it."
 		)
@@ -67,7 +68,7 @@ Panels::StandardPathsPanel::StandardPathsPanel( wxWindow* parent ) :
 	*this += (new DirPickerPanel( this, FolderId_MemoryCards,
 		_("内存卡:"),
 		_("选择默认内存卡文件夹") ))->
-		SetToolTip( pxE( ".Tooltips:Folders:Memorycards",
+		SetToolTip( pxE( "!Tooltip:Folders:Memorycards",
 			L"This is the default path where PCSX2 loads or creates its memory cards, and can be "
 			L"overridden in the MemoryCard Configuration by using absolute filenames."
 		)

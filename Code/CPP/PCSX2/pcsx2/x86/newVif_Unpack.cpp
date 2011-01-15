@@ -70,6 +70,18 @@ static const __aligned16 Fnptr_VifUnpackLoop UnpackLoopTable[2][2][2] = {
 };
 // ----------------------------------------------------------------------------
 
+nVifStruct::nVifStruct()
+{
+	vifBlocks	=  NULL;
+	numBlocks	=  0;
+
+	recReserveSizeMB	= 8;
+}
+
+void reserveNewVif(int idx)
+{
+}
+
 void resetNewVif(int idx)
 {
 	// Safety Reset : Reassign all VIF structure info, just in case the VU1 pointers have
@@ -83,7 +95,9 @@ void resetNewVif(int idx)
 }
 
 void closeNewVif(int idx) {
-	if (newVifDynaRec) dVifClose(idx);
+}
+
+void releaseNewVif(int idx) {
 }
 
 static __fi u8* getVUptr(uint idx, int offset) {

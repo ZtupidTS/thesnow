@@ -46,7 +46,7 @@ void StreamException_ThrowLastError( const wxString& streamname, HANDLE result )
 
 		default:
 		{
-			throw Exception::Stream( streamname ).SetDiagMsg(wxsFormat( L"³£¹æ Win32 ÎÄ¼ş/Á÷ ´íÎó [GetLastError: %d]", error ));
+			throw Exception::BadStream( streamname ).SetDiagMsg(pxsFmt( L"å¸¸è§„ Win32 æ–‡ä»¶/æµ é”™è¯¯ [GetLastError: %d]", error ));
 		}
 	}
 }
@@ -58,7 +58,7 @@ bool StreamException_LogLastError( const wxString& streamname, const wxChar* act
 	{
 		StreamException_ThrowLastError( streamname, result );
 	}
-	catch( Exception::Stream& ex )
+	catch( Exception::BadStream& ex )
 	{
 		Console.WriteLn( Color_Yellow, L"%s: %s", action, ex.FormatDiagnosticMessage().c_str() );
 		return true;
@@ -94,7 +94,7 @@ void NTFS_CompressFile( const wxString& file, bool compressStatus )
 
 	// Fail silently -- non-compression of files and folders is not an errorable offense.
 
-	if( !StreamException_LogLastError( file, L"NTFS Ñ¹ËõÌáÊ¾", bloated_crap ) )
+	if( !StreamException_LogLastError( file, L"NTFS å‹ç¼©æç¤º", bloated_crap ) )
 	{
 		DWORD bytesReturned = 0;
 		DWORD compressMode = compressStatus ? COMPRESSION_FORMAT_DEFAULT : COMPRESSION_FORMAT_NONE;
@@ -106,7 +106,7 @@ void NTFS_CompressFile( const wxString& file, bool compressStatus )
 		);
 
 		if( !result )
-			StreamException_LogLastError( file, L"NTFS Ñ¹ËõÌáÊ¾" );
+			StreamException_LogLastError( file, L"NTFS å‹ç¼©æç¤º" );
 
 		CloseHandle( bloated_crap );
 	}

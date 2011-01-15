@@ -1,4 +1,4 @@
-/*  PCSX2 - PS2 Emulator for PCs
+ï»¿/*  PCSX2 - PS2 Emulator for PCs
  *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
@@ -27,14 +27,14 @@ using namespace pxSizerFlags;
 // --------------------------------------------------------------------------------------
 
 Panels::FramelimiterPanel::FramelimiterPanel( wxWindow* parent )
-	: BaseApplicableConfigPanel( parent )
+	: BaseApplicableConfigPanel_SpecificConfig( parent )
 {
 	SetMinWidth( 280 );
-	
-	m_check_LimiterDisable = new pxCheckBox( this, _("½ûÓÃÖ¡ÊýÏÞÖÆ"),
-		_("ÓÃÓÚÔËÐÐ»ù×¼²âÊÔ. ¿ÉÒÔÔÚÓÎÏ·ÖÐ°´ F4 ÇÐ»».") );
 
-	m_check_LimiterDisable->SetToolTip( pxE( ".Tooltip:Framelimiter:Disable",
+	m_check_LimiterDisable = new pxCheckBox( this, _("ç¦ç”¨å¸§æ•°é™åˆ¶"),
+		_("ç”¨äºŽè¿è¡ŒåŸºå‡†æµ‹è¯•. å¯ä»¥åœ¨æ¸¸æˆä¸­æŒ‰ F4 åˆ‡æ¢.") );
+
+	m_check_LimiterDisable->SetToolTip( pxEt( "!ContextTip:Framelimiter:Disable",
 		L"Note that when Framelimiting is disabled, Turbo and SlowMotion modes will not "
 		L"be available either."
 	) );
@@ -58,19 +58,19 @@ Panels::FramelimiterPanel::FramelimiterPanel( wxWindow* parent )
 	wxFlexGridSizer& s_spins( *new wxFlexGridSizer( 5 ) );
 	s_spins.AddGrowableCol( 0 );
 
-	s_spins += Label(_("»ù±¾Ö¡ÂÊÐ£×¼:"))	| StdExpand();
+	s_spins += Label(_("åŸºæœ¬å¸§çŽ‡æ ¡å‡†:"))	| StdExpand();
 	s_spins += 5;
 	s_spins += m_spin_NominalPct					| pxBorder(wxTOP, 3);
 	s_spins += Label(L"%")							| StdExpand();
 	s_spins += 5;
 
-	s_spins += Label(_("ÂýËÙÔË¶¯Ð£×¼:"))		| StdExpand();
+	s_spins += Label(_("æ…¢é€Ÿè¿åŠ¨æ ¡å‡†:"))		| StdExpand();
 	s_spins += 5;
 	s_spins += m_spin_SlomoPct						| pxBorder(wxTOP, 3);
 	s_spins += Label(L"%")							| StdExpand();
 	s_spins += 5;
 
-	s_spins	+= Label(_("Turbo Ð£×¼:"))			| StdExpand();
+	s_spins	+= Label(_("Turbo æ ¡å‡†:"))			| StdExpand();
 	s_spins	+= 5;
 	s_spins	+= m_spin_TurboPct						| pxBorder(wxTOP, 3);
 	s_spins	+= Label(L"%" )							| StdExpand();
@@ -85,13 +85,13 @@ Panels::FramelimiterPanel::FramelimiterPanel( wxWindow* parent )
 	wxFlexGridSizer& s_fps( *new wxFlexGridSizer( 5 ) );
 	s_fps.AddGrowableCol( 0 );
 
-	s_fps	+= Label(_("NTSC Ö¡ÂÊ:"))	| StdExpand();
+	s_fps	+= Label(_("NTSC å¸§çŽ‡:"))	| StdExpand();
 	s_fps	+= 5;
 	s_fps	+= m_text_BaseNtsc				| pxBorder(wxTOP, 2).Right();
 	s_fps	+= Label(_("FPS"))				| StdExpand();
 	s_fps	+= 5;
 
-	s_fps	+= Label(_("PAL Ö¡ÂÊ:"))	| StdExpand();
+	s_fps	+= Label(_("PAL å¸§çŽ‡:"))	| StdExpand();
 	s_fps	+= 5;
 	s_fps	+= m_text_BasePal				| pxBorder(wxTOP, 2).Right();
 	s_fps	+= Label(_("FPS"))				| StdExpand();
@@ -102,8 +102,8 @@ Panels::FramelimiterPanel::FramelimiterPanel( wxWindow* parent )
 
 	*this	+= 5;
 
-	//*this	+= Heading( pxE( ".Panel:Framelimiter:Heading",
-	*this	+= new pxStaticText( this, pxE( ".Panel:Framelimiter:Heading",
+	//*this	+= Heading( pxE( "!Panel:Framelimiter:Heading",
+	*this	+= new pxStaticText( this, pxE( "!Panel:Framelimiter:Heading",
 		L"The internal framelimiter regulates the speed of the virtual machine. Adjustment values below are in "
 		L"percentages of the default region-based framerate, which can also be configured below." )
 	);
@@ -113,9 +113,14 @@ Panels::FramelimiterPanel::FramelimiterPanel( wxWindow* parent )
 
 void Panels::FramelimiterPanel::AppStatusEvent_OnSettingsApplied()
 {
-	const AppConfig::GSWindowOptions& appwin( g_Conf->GSWindow );
-	const AppConfig::FramerateOptions& appfps( g_Conf->Framerate );
-	const Pcsx2Config::GSOptions& gsconf( g_Conf->EmuOptions.GS );
+    ApplyConfigToGui( *g_Conf );
+}
+
+void Panels::FramelimiterPanel::ApplyConfigToGui( AppConfig& configToApply, bool manuallyPropagate )
+{
+	const AppConfig::GSWindowOptions& appwin( configToApply.GSWindow );
+	const AppConfig::FramerateOptions& appfps( configToApply.Framerate );
+	const Pcsx2Config::GSOptions& gsconf( configToApply.EmuOptions.GS );
 
 	m_check_LimiterDisable->SetValue( !gsconf.FrameLimitEnable );
 
@@ -125,6 +130,12 @@ void Panels::FramelimiterPanel::AppStatusEvent_OnSettingsApplied()
 
 	m_text_BaseNtsc		->SetValue( gsconf.FramerateNTSC.ToString() );
 	m_text_BasePal		->SetValue( gsconf.FrameratePAL.ToString() );
+
+	m_spin_NominalPct   ->Enable(!configToApply.EnablePresets);
+	m_spin_TurboPct     ->Enable(!configToApply.EnablePresets);
+	m_spin_SlomoPct     ->Enable(!configToApply.EnablePresets);
+	m_text_BaseNtsc     ->Enable(!configToApply.EnablePresets);
+	m_text_BasePal      ->Enable(!configToApply.EnablePresets);
 }
 
 void Panels::FramelimiterPanel::Apply()
@@ -145,11 +156,11 @@ void Panels::FramelimiterPanel::Apply()
 	catch( Exception::ParseError& )
 	{
 		throw Exception::CannotApplySettings( this )
-			.SetDiagMsg(wxsFormat(
+			.SetDiagMsg(pxsFmt(
 				L"Error while parsing either NTSC or PAL framerate settings.\n\tNTSC Input = %s\n\tPAL Input  = %s",
 				m_text_BaseNtsc->GetValue().c_str(), m_text_BasePal->GetValue().c_str()
 			) )
-			.SetUserMsg(_("Error while parsing either NTSC or PAL framerate settings.  Settings must be valid floating point numerics."));
+			.SetUserMsg(_t("Error while parsing either NTSC or PAL framerate settings.  Settings must be valid floating point numerics."));
 	}
 
 	appfps.SanityCheck();
@@ -160,7 +171,7 @@ void Panels::FramelimiterPanel::Apply()
 // --------------------------------------------------------------------------------------
 
 Panels::FrameSkipPanel::FrameSkipPanel( wxWindow* parent )
-	: BaseApplicableConfigPanel( parent )
+	: BaseApplicableConfigPanel_SpecificConfig( parent )
 {
 	SetMinWidth( 280 );
 	/*m_check_EnableSkipOnTurbo = new pxCheckBox( this, _("Use Frameskip for Turbo") );
@@ -168,12 +179,12 @@ Panels::FrameSkipPanel::FrameSkipPanel( wxWindow* parent )
 	m_check_EnableSkip = new pxCheckBox( this, _("Use Frameskip"),
 		_(".") );
 
-	m_check_EnableSkip->SetToolTip( pxE( ".Tooltip:Frameskip:Disable",
+	m_check_EnableSkip->SetToolTip( pxEt( "!ContextTip:Frameskip:Disable",
 		L""
 		L""
 	) );
 
-	m_check_EnableSkipOnTurbo->SetToolTip( pxE( ".Tooltip:Frameskip:UseForTurbo",
+	m_check_EnableSkipOnTurbo->SetToolTip( pxEt( "!ContextTip:Frameskip:UseForTurbo",
 		L"Recommended option! Since frameskipping glitches typically aren't as annoying when you're "
 		L" just trying to speed through stuff."
 	) );*/
@@ -181,7 +192,7 @@ Panels::FrameSkipPanel::FrameSkipPanel( wxWindow* parent )
 	const RadioPanelItem FrameskipOptions[] =
 	{
 		RadioPanelItem(
-			_("½ûÓÃ [Ä¬ÈÏ]")
+			_("ç¦ç”¨ [é»˜è®¤]")
 		),
 
 		RadioPanelItem(
@@ -227,7 +238,7 @@ Panels::FrameSkipPanel::FrameSkipPanel( wxWindow* parent )
 
 	*this	+= s_spins	| StdExpand();
 
-	*this	+= Text( pxE( ".Panel:Frameskip:Heading",
+	*this	+= Text( pxE( "!Panel:Frameskip:Heading",
 		L"Notice: Due to PS2 hardware design, precise frame skipping is impossible. "
 		L"Enabling it will cause severe graphical errors in some games." )
 	) | StdExpand();
@@ -237,8 +248,13 @@ Panels::FrameSkipPanel::FrameSkipPanel( wxWindow* parent )
 
 void Panels::FrameSkipPanel::AppStatusEvent_OnSettingsApplied()
 {
-	const AppConfig::FramerateOptions& appfps( g_Conf->Framerate );
-	const Pcsx2Config::GSOptions& gsconf( g_Conf->EmuOptions.GS );
+    ApplyConfigToGui( *g_Conf );
+}
+
+void Panels::FrameSkipPanel::ApplyConfigToGui( AppConfig& configToApply, bool manuallyPropagate )
+{
+	const AppConfig::FramerateOptions& appfps( configToApply.Framerate );
+	const Pcsx2Config::GSOptions& gsconf( configToApply.EmuOptions.GS );
 
 	//m_check_EnableSkip		->SetValue( !appfps.SkipOnLimit );
 	//m_check_EnableSkipOnTurbo	->SetValue( !appfps.SkipOnTurbo );
@@ -247,7 +263,10 @@ void Panels::FrameSkipPanel::AppStatusEvent_OnSettingsApplied()
 
 	m_spin_FramesToDraw	->SetValue( gsconf.FramesToDraw );
 	m_spin_FramesToSkip	->SetValue( gsconf.FramesToSkip );
+
+	this->Enable(!configToApply.EnablePresets);
 }
+
 
 void Panels::FrameSkipPanel::Apply()
 {
@@ -283,24 +302,24 @@ void Panels::FrameSkipPanel::Apply()
 // --------------------------------------------------------------------------------------
 
 Panels::VideoPanel::VideoPanel( wxWindow* parent ) :
-	BaseApplicableConfigPanel( parent )
+	BaseApplicableConfigPanel_SpecificConfig( parent )
 {
 	wxPanelWithHelpers* left	= new wxPanelWithHelpers( this, wxVERTICAL );
 	wxPanelWithHelpers* right	= new wxPanelWithHelpers( this, wxVERTICAL );
 
-	m_check_SynchronousGS = new pxCheckBox( right, _("Ê¹ÓÃÍ¬²½ MTGS"),
-		_("For troubleshooting potential bugs in the MTGS only, as it is potentially very slow.")
+	m_check_SynchronousGS = new pxCheckBox( right, _("ä½¿ç”¨åŒæ­¥ MTGS"),
+		_t("For troubleshooting potential bugs in the MTGS only, as it is potentially very slow.")
 	);
 
-	m_check_DisableOutput = new pxCheckBox( right, _("½ûÓÃËùÓÐ GS Êä³ö"),
-		_("Completely disables all GS plugin activity; ideal for benchmarking EEcore components.")
+	m_check_DisableOutput = new pxCheckBox( right, _("ç¦ç”¨æ‰€æœ‰ GS è¾“å‡º"),
+		_t("Completely disables all GS plugin activity; ideal for benchmarking EEcore components.")
 	);
 
-	m_check_SynchronousGS->SetToolTip( pxE( ".Tooltip:GS:SyncMTGS",
+	m_check_SynchronousGS->SetToolTip( pxEt( "!ContextTip:GS:SyncMTGS",
 		L"Enable this if you think MTGS thread sync is causing crashes or graphical errors.")
 	) ;
 
-	m_check_DisableOutput->SetToolTip( pxE( ".Tooltip:GS:DisableOutput",
+	m_check_DisableOutput->SetToolTip( pxEt( "!ContextTip:GS:DisableOutput",
 		L"Removes any benchmark noise caused by the MTGS thread or GPU overhead.  This option is best used in conjunction with savestates: "
 		L"save a state at an ideal scene, enable this option, and re-load the savestate.\n\n"
 		L"Warning: This option can be enabled on-the-fly but typically cannot be disabled on-the-fly (video will typically be garbage)."
@@ -309,22 +328,22 @@ Panels::VideoPanel::VideoPanel( wxWindow* parent ) :
 	//GSWindowSettingsPanel* winpan = new GSWindowSettingsPanel( left );
 	//winpan->AddFrame(_("Display/Window"));
 
-	FrameSkipPanel* span = new FrameSkipPanel( right );
-	span->AddFrame(_("Ö¡Êý²½½ø"));
+	m_span = new FrameSkipPanel( right );
+	m_span->AddFrame(_("å¸§æ•°æ­¥è¿›"));
 
-	FramelimiterPanel* fpan = new FramelimiterPanel( left );
-	fpan->AddFrame(_("Ö¡ÊýÏÞÖÆ"));
+	m_fpan = new FramelimiterPanel( left );
+	m_fpan->AddFrame(_("å¸§æ•°é™åˆ¶"));
 
 	wxFlexGridSizer* s_table = new wxFlexGridSizer( 2 );
 	s_table->AddGrowableCol( 0, 1 );
 	s_table->AddGrowableCol( 1, 1 );
 
-	*right		+= span		| pxExpand;
+	*right		+= m_span		| pxExpand;
 	*right		+= 5;
 	*right		+= m_check_SynchronousGS;
 	*right		+= m_check_DisableOutput;
 
-	*left		+= fpan		| pxExpand;
+	*left		+= m_fpan		| pxExpand;
 	*left		+= 5;
 
 	*s_table	+= left		| StdExpand();
@@ -350,6 +369,21 @@ void Panels::VideoPanel::Apply()
 
 void Panels::VideoPanel::AppStatusEvent_OnSettingsApplied()
 {
-	m_check_SynchronousGS->SetValue( g_Conf->EmuOptions.GS.SynchronousMTGS );
-	m_check_DisableOutput->SetValue( g_Conf->EmuOptions.GS.DisableOutput );
+    ApplyConfigToGui(*g_Conf);
 }
+
+void Panels::VideoPanel::ApplyConfigToGui( AppConfig& configToApply, bool manuallyPropagate ){
+	
+	m_check_SynchronousGS->SetValue( configToApply.EmuOptions.GS.SynchronousMTGS );
+	m_check_DisableOutput->SetValue( configToApply.EmuOptions.GS.DisableOutput );
+
+	m_check_SynchronousGS->Enable(!configToApply.EnablePresets);
+	m_check_DisableOutput->Enable(!configToApply.EnablePresets);
+
+    if( manuallyPropagate )
+    {
+        m_span->ApplyConfigToGui( configToApply, true );
+        m_fpan->ApplyConfigToGui( configToApply, true );
+    }
+}
+

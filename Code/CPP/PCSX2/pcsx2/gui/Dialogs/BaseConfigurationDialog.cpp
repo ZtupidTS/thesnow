@@ -74,7 +74,8 @@ void BaseApplicableDialog::Init()
 void BaseApplicableDialog::OnSettingsApplied( wxCommandEvent& evt )
 {
 	evt.Skip();
-	if( evt.GetId() == GetId() ) AppStatusEvent_OnSettingsApplied();
+	if( evt.GetId() == GetId() )
+		AppStatusEvent_OnSettingsApplied();
 }
 
 
@@ -138,7 +139,7 @@ void Dialogs::BaseConfigurationDialog::AddOkCancel( wxSizer* sizer )
 	wxBitmapButton& screenshotButton( *new wxBitmapButton( this, wxID_SAVE, EmbeddedImage<res_ButtonIcon_Camera>().Get() ) );
 	screenshotButton.SetToolTip( _("保存这个设置的截图到一个 PNG 文件.") );
 
-	*m_extraButtonSizer += screenshotButton;
+	*m_extraButtonSizer += screenshotButton|pxMiddle;
 }
 
 Dialogs::BaseConfigurationDialog::~BaseConfigurationDialog() throw()
@@ -200,6 +201,7 @@ public:
 	}
 
 	// Use this to prevent the Apply buton from being re-enabled.
+	//avih: Does this work?? As far as I know Apply is always enabled...
 	void DetachApply()
 	{
 		m_apply = NULL;
@@ -222,6 +224,8 @@ void Dialogs::BaseConfigurationDialog::OnOk_Click( wxCommandEvent& evt )
 {
 	ScopedOkButtonDisabler disabler(this);
 
+	Apply();
+
 	if( m_ApplyState.ApplyAll() )
 	{
 		if( wxWindow* apply = FindWindow( wxID_APPLY ) ) apply->Disable();
@@ -235,6 +239,12 @@ void Dialogs::BaseConfigurationDialog::OnOk_Click( wxCommandEvent& evt )
 void Dialogs::BaseConfigurationDialog::OnApply_Click( wxCommandEvent& evt )
 {
 	ScopedOkButtonDisabler disabler(this);
+
+	//if current instance also holds settings that need application. Apply it.
+	//Currently only used by SysConfigDialog, which applies the preset.
+	//Needs to come before actual panels Apply since they enable/disable themselves upon Preset state,
+	//  so the preset needs to be applied first.
+	Apply();
 
 	if( m_ApplyState.ApplyAll() )
 		disabler.DetachApply();

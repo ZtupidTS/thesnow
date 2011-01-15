@@ -1,4 +1,4 @@
-/*  PCSX2 - PS2 Emulator for PCs
+ï»¿/*  PCSX2 - PS2 Emulator for PCs
  *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
@@ -21,24 +21,24 @@ using namespace pxSizerFlags;
 Panels::BaseAdvancedCpuOptions::BaseAdvancedCpuOptions( wxWindow* parent )
 	: BaseApplicableConfigPanel( parent )
 {
-	wxStaticBoxSizer*	s_round( new wxStaticBoxSizer( wxVERTICAL, this, _("»ØºÏÄ£Ê½") ) );
+	wxStaticBoxSizer*	s_round( new wxStaticBoxSizer( wxVERTICAL, this, _("å›åˆæ¨¡å¼") ) );
 	wxStaticBoxSizer*	s_clamp( new wxStaticBoxSizer( wxVERTICAL, this, _("Clamping Mode") ) );
 
-	m_Option_FTZ		= new pxCheckBox( this, _("Ë¢ĞÂµ½Áã") );
-	m_Option_DAZ		= new pxCheckBox( this, _("²»Õı³£ÎªÁã") );
+	m_Option_FTZ		= new pxCheckBox( this, _("åˆ·æ–°åˆ°é›¶") );
+	m_Option_DAZ		= new pxCheckBox( this, _("ä¸æ­£å¸¸ä¸ºé›¶") );
 
 	const RadioPanelItem RoundModeChoices[] =
 	{
-		RadioPanelItem(_("×î½ü")),
-		RadioPanelItem(_("¸ºÊı")),
-		RadioPanelItem(_("ÕıÊı")),
-		RadioPanelItem(_("Chop / Áã"))
+		RadioPanelItem(_("æœ€è¿‘")),
+		RadioPanelItem(_("è´Ÿæ•°")),
+		RadioPanelItem(_("æ­£æ•°")),
+		RadioPanelItem(_("Chop / é›¶"))
 	};
 
 	const RadioPanelItem ClampModeChoices[] =
 	{
-		RadioPanelItem(_("Ã»ÓĞ")),
-		RadioPanelItem(_("Õı³£")),
+		RadioPanelItem(_("æ²¡æœ‰")),
+		RadioPanelItem(_("æ­£å¸¸")),
 	};
 
 	m_RoundModePanel = new pxRadioPanel( this, RoundModeChoices );
@@ -99,10 +99,10 @@ Panels::AdvancedOptionsFPU::AdvancedOptionsFPU( wxWindow* parent )
 	: BaseAdvancedCpuOptions( parent )
 {
 	SetName( L"AdvancedOptionsFPU" );
-	AddFrame(_("EE/FPU ¸ß¼¶ÖØ±àÒëÑ¡Ïî"));
+	AddFrame(_("EE/FPU é«˜çº§é‡ç¼–è¯‘é€‰é¡¹"));
 
-	m_ClampModePanel->Append(_("¸½¼Ó + ±£ÁôÇ©Ãû"));
-	m_ClampModePanel->Append(_("ÍêÈ«"));
+	m_ClampModePanel->Append(_("é™„åŠ  + ä¿ç•™ç­¾å"));
+	m_ClampModePanel->Append(_("å®Œå…¨"));
 
 	m_RoundModePanel->Realize();
 	m_ClampModePanel->Realize();
@@ -113,10 +113,10 @@ Panels::AdvancedOptionsVU::AdvancedOptionsVU( wxWindow* parent )
 	: BaseAdvancedCpuOptions( parent )
 {
 	SetName( L"AdvancedOptionsVU" );
-	AddFrame(_("VU0 / VU1 ¸ß¼¶ÖØ±àÒëÑ¡Ïî"));
+	AddFrame(_("VU0 / VU1 é«˜çº§é‡ç¼–è¯‘é€‰é¡¹"));
 
-	m_ClampModePanel->Append(_("¸½¼Ó"));
-	m_ClampModePanel->Append(_("¸½¼Ó + ±£ÁôÇ©Ãû"));
+	m_ClampModePanel->Append(_("é™„åŠ "));
+	m_ClampModePanel->Append(_("é™„åŠ  + ä¿ç•™ç­¾å"));
 
 	m_RoundModePanel->Realize();
 	m_ClampModePanel->Realize();
@@ -127,20 +127,20 @@ Panels::CpuPanelEE::CpuPanelEE( wxWindow* parent )
 {
 	const RadioPanelItem tbl_CpuTypes_EE[] =
 	{
-		RadioPanelItem(_("½âÊÍ³ÌĞò"))
+		RadioPanelItem(_("è§£é‡Šç¨‹åº"))
 		.SetToolTip(_("Quite possibly the slowest thing in the universe.")),
 
-		RadioPanelItem(_("ÖØĞÂ±àÒë"))
-		.SetToolTip(_("Ö´ĞĞ¼´Ê±¶ş½øÖÆ×ª»» 64 Î» MIPS-IV »úÆ÷ÂëÎª x86»úÆ÷Âë."))
+		RadioPanelItem(_("é‡æ–°ç¼–è¯‘"))
+		.SetToolTip(_("æ‰§è¡Œå³æ—¶äºŒè¿›åˆ¶è½¬æ¢ 64 ä½ MIPS-IV æœºå™¨ç ä¸º x86æœºå™¨ç ."))
 	};
 
 	const RadioPanelItem tbl_CpuTypes_IOP[] =
 	{
-		RadioPanelItem(_("½âÊÍ³ÌĞò"))
+		RadioPanelItem(_("è§£é‡Šç¨‹åº"))
 		.SetToolTip(_("Pretty slow; provided for diagnostic purposes only.")),
 
-		RadioPanelItem(_("ÖØĞÂ±àÒë"))
-		.SetToolTip(_("Ö´ĞĞ¼´Ê±¶ş½øÖÆ×ª»»32Î» MIPS-I »úÆ÷ÂëÎª x86 »úÆ÷Âë."))
+		RadioPanelItem(_("é‡æ–°ç¼–è¯‘"))
+		.SetToolTip(_("æ‰§è¡Œå³æ—¶äºŒè¿›åˆ¶è½¬æ¢32ä½ MIPS-I æœºå™¨ç ä¸º x86 æœºå™¨ç ."))
 	};
 
 
@@ -160,7 +160,7 @@ Panels::CpuPanelEE::CpuPanelEE( wxWindow* parent )
 	s_recs.AddGrowableCol( 1, 1 );
 
 	// i18n: No point in translating PS2 CPU names :)
-	wxStaticBoxSizer& s_ee	( *new wxStaticBoxSizer( wxVERTICAL, this, L"Ö´ĞĞÒıÇæ" ) );
+	wxStaticBoxSizer& s_ee	( *new wxStaticBoxSizer( wxVERTICAL, this, L"æ‰§è¡Œå¼•æ“" ) );
 	wxStaticBoxSizer& s_iop	( *new wxStaticBoxSizer( wxVERTICAL, this, L"IOP" ) );
 
 	s_ee	+= m_panel_RecEE	| StdExpand();
@@ -174,7 +174,7 @@ Panels::CpuPanelEE::CpuPanelEE( wxWindow* parent )
 	*this	+= new AdvancedOptionsFPU( this )	| StdExpand();
 
 	*this	+= 12;
-	*this	+= new wxButton( this, wxID_DEFAULT, _("»¹Ô­Ä¬ÈÏ") ) | StdButton();
+	*this	+= new wxButton( this, wxID_DEFAULT, _("è¿˜åŸé»˜è®¤") ) | StdButton();
 
 	Connect( wxID_DEFAULT, wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( CpuPanelEE::OnRestoreDefaults ) );
 }
@@ -184,13 +184,13 @@ Panels::CpuPanelVU::CpuPanelVU( wxWindow* parent )
 {
 	const RadioPanelItem tbl_CpuTypes_VU[] =
 	{
-		RadioPanelItem(_("½âÊÍ³ÌĞò"))
+		RadioPanelItem(_("è§£é‡Šç¨‹åº"))
 		.SetToolTip(_("Vector Unit Interpreter. Slow and not very compatible. Only use for diagnostics.")),
 
-		RadioPanelItem(_("microVU ÖØ±àÒëÆ÷"))
+		RadioPanelItem(_("microVU é‡ç¼–è¯‘å™¨"))
 		.SetToolTip(_("New Vector Unit recompiler with much improved compatibility. Recommended.")),
 
-		RadioPanelItem(_("superVU ÖØ±àÒëÆ÷ [´«Í³]"))
+		RadioPanelItem(_("superVU é‡ç¼–è¯‘å™¨ [ä¼ ç»Ÿ]"))
 		.SetToolTip(_("Useful for diagnosing bugs or clamping issues in the new mVU recompiler."))
 	};
 
@@ -223,7 +223,7 @@ Panels::CpuPanelVU::CpuPanelVU( wxWindow* parent )
 	*this	+= new AdvancedOptionsVU( this )	| StdExpand();
 
 	*this	+= 12;
-	*this	+= new wxButton( this, wxID_DEFAULT, _("»¹Ô­Ä¬ÈÏ") ) | StdButton();
+	*this	+= new wxButton( this, wxID_DEFAULT, _("è¿˜åŸé»˜è®¤") ) | StdButton();
 
 	Connect( wxID_DEFAULT, wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( CpuPanelVU::OnRestoreDefaults ) );
 }
@@ -245,6 +245,11 @@ void Panels::CpuPanelEE::AppStatusEvent_OnSettingsApplied()
 	const Pcsx2Config::RecompilerOptions& recOps( g_Conf->EmuOptions.Cpu.Recompiler );
 	m_panel_RecEE->SetSelection( (int)recOps.EnableEE );
 	m_panel_RecIOP->SetSelection( (int)recOps.EnableIOP );
+
+	m_panel_RecEE->Enable(!g_Conf->EnablePresets);
+	m_panel_RecIOP->Enable(!g_Conf->EnablePresets);
+
+	this->Enable(!g_Conf->EnablePresets);
 }
 
 void Panels::CpuPanelEE::OnRestoreDefaults(wxCommandEvent &evt)
@@ -290,6 +295,10 @@ void Panels::CpuPanelVU::AppStatusEvent_OnSettingsApplied()
 		m_panel_VU1->SetSelection( recOps.EnableVU1 ? 1 : 0 );
 	else
 		m_panel_VU1->SetSelection( recOps.EnableVU1 ? 2 : 0 );
+
+	this->Enable(!g_Conf->EnablePresets);
+	m_panel_VU0->Enable(!g_Conf->EnablePresets);
+	m_panel_VU1->Enable(!g_Conf->EnablePresets);
 }
 
 void Panels::CpuPanelVU::OnRestoreDefaults(wxCommandEvent &evt)
@@ -341,6 +350,8 @@ void Panels::AdvancedOptionsFPU::AppStatusEvent_OnSettingsApplied()
 	else if( recOps.fpuExtraOverflow )	m_ClampModePanel->SetSelection( 2 );
 	else if( recOps.fpuOverflow )		m_ClampModePanel->SetSelection( 1 );
 	else								m_ClampModePanel->SetSelection( 0 );
+
+	this->Enable(!g_Conf->EnablePresets);
 }
 
 void Panels::AdvancedOptionsVU::Apply()
@@ -374,5 +385,7 @@ void Panels::AdvancedOptionsVU::AppStatusEvent_OnSettingsApplied()
 	else if( recOps.vuExtraOverflow )	m_ClampModePanel->SetSelection( 2 );
 	else if( recOps.vuOverflow )		m_ClampModePanel->SetSelection( 1 );
 	else								m_ClampModePanel->SetSelection( 0 );
+
+	this->Enable(!g_Conf->EnablePresets);
 }
 

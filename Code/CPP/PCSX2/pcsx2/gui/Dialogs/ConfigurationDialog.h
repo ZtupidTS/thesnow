@@ -58,6 +58,7 @@ namespace Dialogs
 
 		template< typename T >
 		void AddPage( const wxChar* label, int iconid );
+
 	protected:
 		void OnSettingsApplied( wxCommandEvent& evt );
 
@@ -71,6 +72,8 @@ namespace Dialogs
 		void OnSomethingChanged( wxCommandEvent& evt );
 
 		virtual wxString& GetConfSettingsTabName() const=0;
+
+		virtual void Apply() {};
 	};
 
 	// --------------------------------------------------------------------------------------
@@ -83,9 +86,33 @@ namespace Dialogs
 		SysConfigDialog(wxWindow* parent=NULL);
 		static wxString GetNameStatic() { return L"CoreSettings"; }
 		wxString GetDialogName() const { return GetNameStatic(); }
+   		void Apply();
 
 	protected:
 		virtual wxString& GetConfSettingsTabName() const { return g_Conf->SysSettingsTabName; }
+
+		pxCheckBox*		m_check_presets;
+		wxSlider*		m_slider_presets;
+		pxStaticText*	m_msg_preset;
+		void AddPresetsControl();
+		void Preset_Scroll(wxScrollEvent &event);
+		void Presets_Toggled(wxCommandEvent &event);
+		void UpdateGuiForPreset ( int presetIndex, bool presetsEnabled );
+	};
+
+	// --------------------------------------------------------------------------------------
+	//  InterfaceConfigDialog
+	// --------------------------------------------------------------------------------------
+	class InterfaceConfigDialog : public BaseConfigurationDialog
+	{
+	public:
+		virtual ~InterfaceConfigDialog() throw() {}
+		InterfaceConfigDialog(wxWindow* parent=NULL);
+		static wxString GetNameStatic() { return L"InterfaceConfig"; }
+		wxString GetDialogName() const { return GetNameStatic(); }
+
+	protected:
+		virtual wxString& GetConfSettingsTabName() const { return g_Conf->AppSettingsTabName; }
 	};
 
 	// --------------------------------------------------------------------------------------
@@ -141,7 +168,7 @@ namespace Dialogs
 		wxString GetDialogName() const { return GetNameStatic(); }
 
 	protected:
-		virtual wxString& GetConfSettingsTabName() const { return g_Conf->AppSettingsTabName; }
+		virtual wxString& GetConfSettingsTabName() const { return g_Conf->ComponentsTabName; }
 	};
 
 	// --------------------------------------------------------------------------------------

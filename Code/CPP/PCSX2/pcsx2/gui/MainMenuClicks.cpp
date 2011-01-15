@@ -48,6 +48,11 @@ void MainEmuFrame::Menu_McdSettings_Click(wxCommandEvent &event)
 	AppOpenDialog<McdConfigDialog>( this );
 }
 
+void MainEmuFrame::Menu_GameDatabase_Click(wxCommandEvent &event)
+{
+	AppOpenDialog<GameDatabaseDialog>( this );
+}
+
 void MainEmuFrame::Menu_WindowSettings_Click(wxCommandEvent &event)
 {
 	wxCommandEvent evt( pxEvt_SetSettingsPage );
@@ -67,13 +72,19 @@ void MainEmuFrame::Menu_SelectPluginsBios_Click(wxCommandEvent &event)
 	AppOpenDialog<ComponentsConfigDialog>( this );
 }
 
+void MainEmuFrame::Menu_Language_Click(wxCommandEvent &event)
+{
+	//AppOpenDialog<InterfaceConfigDialog>( this );
+	InterfaceConfigDialog(this).ShowModal();
+}
 
 static void WipeSettings()
 {
 	wxGetApp().CleanupRestartable();
 	wxGetApp().CleanupResources();
 
-	wxRemoveFile( GetSettingsFilename() );
+	wxRemoveFile( GetUiSettingsFilename() );
+	wxRemoveFile( GetVmSettingsFilename() );
 
 	// FIXME: wxRmdir doesn't seem to work here for some reason (possible file sharing issue
 	// with a plugin that leaves a file handle dangling maybe?).  But deleting the inis folder
@@ -99,7 +110,7 @@ void MainEmuFrame::Menu_ResetAllSettings_Click(wxCommandEvent &event)
 	{
 		ScopedCoreThreadPopup suspender;
 		if( !Msgbox::OkCancel( pxsFmt(
-			pxE( ".Popup:DeleteSettings",
+			pxE( "!Notice:DeleteSettings",
 				L"This command clears %s settings and allows you to re-run the First-Time Wizard.  You will need to "
 				L"manually restart %s after this operation.\n\n"
 				L"WARNING!!  Click OK to delete *ALL* settings for %s and force-close the app, losing any current emulation progress.  Are you absolutely sure?"
@@ -141,7 +152,7 @@ wxWindowID SwapOrReset_Iso( wxWindow* owner, IScopedCoreThread& core_control, co
 		dialog += dialog.GetCharHeight();
 		dialog += dialog.Heading(_("Do you want to swap discs or boot the new image (via system reset)?"));
 
-		result = pxIssueConfirmation( dialog, MsgButtons().Reset().Cancel().Custom(_("Swap Disc")), L"DragDrop.BootSwapIso" );
+		result = pxIssueConfirmation( dialog, MsgButtons().Reset().Cancel().Custom(_("Swap Disc"), "swap"), L"DragDrop.BootSwapIso" );
 		if( result == wxID_CANCEL )
 		{
 			core_control.AllowResume();
@@ -184,7 +195,7 @@ wxWindowID SwapOrReset_CdvdSrc( wxWindow* owner, CDVD_SourceType newsrc )
 			_("Do you want to swap discs or boot the new image (system reset)?")
 		);
 
-		result = pxIssueConfirmation( dialog, MsgButtons().Reset().Cancel().Custom(_("Swap Disc")), L"DragDrop.BootSwapIso" );
+		result = pxIssueConfirmation( dialog, MsgButtons().Reset().Cancel().Custom(_("Swap Disc"), "swap"), L"DragDrop.BootSwapIso" );
 
 		if( result == wxID_CANCEL )
 		{
@@ -306,7 +317,7 @@ void MainEmuFrame::_DoBootCdvd()
 
 			wxDialogWithHelpers dialog( this, _("ISO 文件未找到!") );
 			dialog += dialog.Heading(
-				_("An error occurred while trying to open the file:\n\n") + g_Conf->CurrentIso + L"\n\n" +
+				_("An error occurred while trying to open the file:") + wxString(L"\n\n") + g_Conf->CurrentIso + L"\n\n" +
 				_("错误: 配置中的 ISO 文件不存在. 点击[确定] 选择一个新的 ISO 文件.")
 			);
 
