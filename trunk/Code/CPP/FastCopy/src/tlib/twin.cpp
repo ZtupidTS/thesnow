@@ -1,4 +1,4 @@
-static char *twin_id = 
+ï»¿static char *twin_id = 
 	"@(#)Copyright (C) 1996-2009 H.Shirouzu		twin.cpp	Ver0.97";
 /* ========================================================================
 	Project  Name			: Win32 Lightweight  Class Library Test
@@ -99,7 +99,7 @@ LRESULT TWin::WinProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 	case WM_NCDESTROY:
 		GetWindowRect(&rect);
-		if (EvNcDestroy() == FALSE)	// hWnd‚ð0‚É‚·‚é‘O‚ÉŒÄ‚Ño‚·
+		if (EvNcDestroy() == FALSE)	// hWndã‚’0ã«ã™ã‚‹å‰ã«å‘¼ã³å‡ºã™
 			DefWindowProc(uMsg, wParam, lParam);
 		done = TRUE;
 		TApp::GetApp()->DelWin(this);
@@ -750,16 +750,30 @@ TSubClass::TSubClass(TWin *_parent) : TWin(_parent)
 {
 }
 
-BOOL TSubClass::CreateByWnd(HWND _hWnd)
+TSubClass::~TSubClass()
+{
+	if (oldProc && hWnd) DetachWnd();
+}
+
+BOOL TSubClass::AttachWnd(HWND _hWnd)
 {
 	TApp::GetApp()->AddWinByWnd(this, _hWnd);
-	oldProc = (WNDPROC)::SetWindowLong(_hWnd, GWL_WNDPROC, (LONG_PTR)TApp::WinProc);
+	oldProc = (WNDPROC)::SetWindowLongV(_hWnd, GWL_WNDPROC, (LONG_PTR)TApp::WinProc);
 	return	oldProc ? TRUE : FALSE;
+}
+
+BOOL TSubClass::DetachWnd()
+{
+	if (!oldProc || !hWnd) return FALSE;
+
+	::SetWindowLongV(hWnd, GWL_WNDPROC, (LONG_PTR)oldProc);
+	oldProc = NULL;
+	return	TRUE;
 }
 
 LRESULT TSubClass::DefWindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-	return	::CallWindowProc((WNDPROC)oldProc, hWnd, uMsg, wParam, lParam);
+	return	::CallWindowProcV((WNDPROC)oldProc, hWnd, uMsg, wParam, lParam);
 }
 
 TSubClassCtl::TSubClassCtl(TWin *_parent) : TSubClass(_parent)

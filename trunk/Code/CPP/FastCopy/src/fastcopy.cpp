@@ -1,9 +1,9 @@
 ﻿static char *fastcopy_id = 
-	"@(#)Copyright (C) 2004-2010 H.Shirouzu		fastcopy.cpp	ver2.03";
+	"@(#)Copyright (C) 2004-2010 H.Shirouzu		fastcopy.cpp	ver2.05";
 /* ========================================================================
 	Project  Name			: Fast Copy file and directory
 	Create					: 2004-09-15(Wed)
-	Update					: 2010-09-12(Sun)
+	Update					: 2010-11-15(Mon)
 	Copyright				: H.Shirouzu
 	Reference				: 
 	======================================================================== */
@@ -517,6 +517,17 @@ BOOL FastCopy::AllocBuf(void)
 			return	ConfirmErr("Can't alloc memory(moveList)", NULL, CEF_STOP), FALSE;
 	}
 
+	if (info.flags & WITH_ALTSTREAM) {
+		ntQueryBuf.AllocBuf(MAX_NTQUERY_BUF, MAX_NTQUERY_BUF);
+		if (!pNtQueryInformationFile) {
+			TLibInit_Ntdll();
+			if (!pNtQueryInformationFile) {
+				ConfirmErr("Can't load NtQueryInformationFile", NULL, CEF_STOP|CEF_NOAPI);
+				return FALSE;
+			}
+		}
+	}
+
 	// src/dst dir-entry/attr 用バッファ確保
 	dirStatBuf.AllocBuf(MIN_ATTR_BUF, info.maxDirSize);
 	if (info.flags & SKIP_EMPTYDIR)
@@ -546,7 +557,8 @@ BOOL FastCopy::AllocBuf(void)
 	dstStatIdxBuf.AllocBuf(MIN_ATTRIDX_BUF, MAX_ATTRIDX_BUF(info.maxAttrSize));
 
 	if (!fileStatBuf.Buf() || !dirStatBuf.Buf() || !dstStatBuf.Buf() || !dstStatIdxBuf.Buf()
-	|| (info.flags & SKIP_EMPTYDIR) && !mkdirQueueBuf.Buf() || !dstDirExtBuf.Buf()) {
+	|| (info.flags & SKIP_EMPTYDIR) && !mkdirQueueBuf.Buf() || !dstDirExtBuf.Buf()
+	|| (info.flags & WITH_ALTSTREAM) && !ntQueryBuf.Buf()) {
 		return	ConfirmErr("Can't alloc memory(misc stat)", NULL, CEF_STOP), FALSE;
 	}
 	return	TRUE;
@@ -1641,6 +1653,7 @@ BOOL FastCopy::OpenFileBackupProc(FileStat *stat, int src_len)
 	DWORD	lowSeek, highSeek;
 	void	*context = NULL;
 	int		altdata_cnt = 0;
+	BOOL	altdata_local = FALSE;
 	BYTE	streamName[MAX_PATH * sizeof(WCHAR)];
 	DWORD	share = FILE_SHARE_READ|FILE_SHARE_WRITE;
 	DWORD	flg = ((info.flags & USE_OSCACHE_READ) ? 0 :
@@ -1666,41 +1679,15 @@ BOOL FastCopy::OpenFileBackupProc(FileStat *stat, int src_len)
 			lSetCharV((LPBYTE)streamName + sid.dwStreamNameSize, 0, 0);
 		}
 
-		if (sid.dwStreamId == BACKUP_ALTERNATE_DATA && enableStream) {
-			FileStat *subStat = (FileStat *)(fileStatBuf.Buf() + fileStatBuf.UsedSize());
-
-			if (++altdata_cnt >= MAX_ALTSTREAM) {
-				if (info.flags & REPORT_STREAM_ERROR)
-					ConfirmErr("Too Many AltStream", MakeAddr(src, srcPrefixLen), CEF_NOAPI);
-				break;
+		if (sid.dwStreamId == BACKUP_ALTERNATE_DATA && enableStream && !altdata_local) {
+			ret = OpenFileBackupStreamCore(src_len, &sid.Size, streamName,
+											sid.dwStreamNameSize, &altdata_cnt);
+		}
+		else if (sid.dwStreamId == BACKUP_SPARSE_BLOCK) {
+			if (altdata_cnt == 0 && enableStream) {
+				altdata_local = ret = OpenFileBackupStreamLocal(stat, src_len, &altdata_cnt);
 			}
-			openFiles[openFilesCnt++] = subStat;
-			subStat->fileID = nextFileID++;
-			subStat->hFile = INVALID_HANDLE_VALUE;
-			subStat->nFileSizeLow = sid.Size.LowPart;
-			subStat->nFileSizeHigh = sid.Size.HighPart;
-			subStat->dwFileAttributes = 0;	// ALTSTREAM
-			subStat->renameCount = 0;
-			subStat->lastError = 0;
-			subStat->size = sid.dwStreamNameSize + CHAR_LEN_V + offsetof(FileStat, cFileName);
-			subStat->minSize = ALIGN_SIZE(subStat->size, 8);
-
-			fileStatBuf.AddUsedSize(subStat->minSize);
-			if (fileStatBuf.RemainSize() <= maxStatSize && !fileStatBuf.Grow(MIN_ATTR_BUF)) {
-				ConfirmErr("Can't alloc memory(fileStatBuf2)", NULL, CEF_STOP);
-				break;
-			}
-			memcpy(subStat->cFileName, streamName, size + CHAR_LEN_V);
-			memcpy(MakeAddr(src, src_len), subStat->cFileName, size + CHAR_LEN_V);
-
-			if ((subStat->hFile = CreateFileV(src, GENERIC_READ|READ_CONTROL, share, 0,
-									OPEN_EXISTING, flg, 0))
-					== INVALID_HANDLE_VALUE) {
-				if (info.flags & REPORT_STREAM_ERROR)
-					ConfirmErr("OpenFile(Stream)", MakeAddr(src, srcPrefixLen));
-				subStat->lastError = ::GetLastError();
-				break;
-			}
+			break; // BACKUP_SPARSE_BLOCK can't be used BackupSeek...
 		}
 		else if ((sid.dwStreamId == BACKUP_SECURITY_DATA || sid.dwStreamId == BACKUP_EA_DATA)
 		&& enableAcl) {
@@ -1717,7 +1704,7 @@ BOOL FastCopy::OpenFileBackupProc(FileStat *stat, int src_len)
 			if (fileStatBuf.RemainSize() <= maxStatSize
 			&& !fileStatBuf.Grow(ALIGN_SIZE(maxStatSize + data_size, MIN_ATTR_BUF))) {
 				ConfirmErr("Can't alloc memory(fileStat(ACL/EADATA))",
-					MakeAddr(src, srcPrefixLen), FALSE);
+					MakeAddr(src, srcPrefixLen), CEF_STOP);
 				break;
 			}
 			memcpy(data, &sid, STRMID_OFFSET);
@@ -1729,6 +1716,7 @@ BOOL FastCopy::OpenFileBackupProc(FileStat *stat, int src_len)
 			}
 			sid.Size.LowPart = 0;
 		}
+
 		if ((sid.Size.LowPart || sid.Size.HighPart)
 		&& !(ret = ::BackupSeek(stat->hFile, sid.Size.LowPart, sid.Size.HighPart,
 					&lowSeek, &highSeek, &context))) {
@@ -1746,6 +1734,79 @@ BOOL FastCopy::OpenFileBackupProc(FileStat *stat, int src_len)
 
 	return	ret;
 }
+
+
+BOOL FastCopy::OpenFileBackupStreamLocal(FileStat *stat, int src_len, int *altdata_cnt)
+{
+	IO_STATUS_BLOCK	is;
+
+	if (pNtQueryInformationFile(stat->hFile, &is, ntQueryBuf.Buf(),
+								ntQueryBuf.Size(), FileStreamInformation) < 0) {
+	 	if (info.flags & (REPORT_STREAM_ERROR))
+			ConfirmErr("NtQueryInformationFile", MakeAddr(src, srcPrefixLen));
+		return	FALSE;
+	}
+
+	BOOL	ret = TRUE;
+	FILE_STREAM_INFORMATION	*fsi, *next_fsi;
+
+	for (fsi = (FILE_STREAM_INFORMATION *)ntQueryBuf.Buf(); fsi; fsi = next_fsi) {
+		next_fsi = fsi->NextEntryOffset == 0 ? NULL :
+					(FILE_STREAM_INFORMATION *)((BYTE *)fsi + fsi->NextEntryOffset);
+
+		if (fsi->StreamName[1] == ':') continue; // skip main stream
+
+		if (!OpenFileBackupStreamCore(src_len, &fsi->StreamSize, fsi->StreamName,
+									fsi->StreamNameLength, altdata_cnt)) {
+			ret = FALSE;
+			break;
+		}
+	}
+	return	ret;
+}
+
+BOOL FastCopy::OpenFileBackupStreamCore(int src_len, LARGE_INTEGER *size, void *altname, int altnamesize, int *altdata_cnt)
+{
+	if (++(*altdata_cnt) >= MAX_ALTSTREAM) {
+		if (info.flags & REPORT_STREAM_ERROR)
+			ConfirmErr("Too Many AltStream", MakeAddr(src, srcPrefixLen), CEF_NOAPI);
+		return	FALSE;
+	}
+
+	FileStat	*subStat = (FileStat *)(fileStatBuf.Buf() + fileStatBuf.UsedSize());
+	DWORD		share = FILE_SHARE_READ|FILE_SHARE_WRITE;
+	DWORD		flg = ((info.flags & USE_OSCACHE_READ) ? 0 : FILE_FLAG_NO_BUFFERING)
+						| FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_BACKUP_SEMANTICS;
+
+	openFiles[openFilesCnt++] = subStat;
+	subStat->fileID = nextFileID++;
+	subStat->hFile = INVALID_HANDLE_VALUE;
+	subStat->nFileSizeLow = size->LowPart;
+	subStat->nFileSizeHigh = size->HighPart;
+	subStat->dwFileAttributes = 0;	// ALTSTREAM
+	subStat->renameCount = 0;
+	subStat->lastError = 0;
+	subStat->size = altnamesize + CHAR_LEN_V + offsetof(FileStat, cFileName);
+	subStat->minSize = ALIGN_SIZE(subStat->size, 8);
+
+	fileStatBuf.AddUsedSize(subStat->minSize);
+	if (fileStatBuf.RemainSize() <= maxStatSize && !fileStatBuf.Grow(MIN_ATTR_BUF)) {
+		ConfirmErr("Can't alloc memory(fileStatBuf2)", NULL, CEF_STOP);
+		return	FALSE;
+	}
+	memcpy(subStat->cFileName, altname, altnamesize + CHAR_LEN_V);
+	memcpy(MakeAddr(src, src_len), subStat->cFileName, altnamesize + CHAR_LEN_V);
+
+	if ((subStat->hFile = CreateFileV(src, GENERIC_READ|READ_CONTROL, share, 0,
+							OPEN_EXISTING, flg, 0)) == INVALID_HANDLE_VALUE) {
+		if (info.flags & REPORT_STREAM_ERROR)
+			ConfirmErr("OpenFile(Stream)", MakeAddr(src, srcPrefixLen));
+		subStat->lastError = ::GetLastError();
+		return	FALSE;
+	}
+	return	TRUE;
+}
+
 
 BOOL FastCopy::ReadMultiFilesProc(int dir_len)
 {
@@ -2403,6 +2464,9 @@ void FastCopy::SetupRandomDataBuf(void)
 		data->buf[1] = data->buf[0] + data->buf_size;
 		data->buf[2] = data->buf[1] + data->buf_size;
 		if (info.flags & OVERWRITE_PARANOIA) {
+			if (!pCryptAcquireContext) {
+				TLibInit_AdvAPI32();	// TGenRandom を使えるように
+			}
 			TGenRandom(data->buf[0], data->buf_size);	// CryptAPIのrandは遅い...
 			TGenRandom(data->buf[1], data->buf_size);
 		}
@@ -3274,7 +3338,7 @@ BOOL FastCopy::WriteFileProc(int dst_len)
 			if (!::SetEndOfFile(fh) && GetLastError() == ERROR_DISK_FULL) {
 				SetErrFileID(stat->fileID);
 				ConfirmErr(is_stream ? "SetEndOfFile(stream)" : "SetEndOfFile",
-				 MakeAddr(dst, dstPrefixLen), file_size >= info.allowContFsize ? TRUE : FALSE);
+				 MakeAddr(dst, dstPrefixLen), file_size >= info.allowContFsize ? 0 : CEF_STOP);
 				ret = FALSE;
 				goto END2;
 			}
@@ -3291,8 +3355,8 @@ BOOL FastCopy::WriteFileProc(int dst_len)
 				if (!is_stream || (info.flags & REPORT_STREAM_ERROR))
 					ConfirmErr(is_stream ? "WriteFile(stream)" : "WriteFile",
 					 MakeAddr(dst, dstPrefixLen),
-						GetLastError() != ERROR_DISK_FULL || file_size >= info.allowContFsize
-						|| is_stream);
+						(GetLastError() != ERROR_DISK_FULL || file_size >= info.allowContFsize
+						 || is_stream) ? 0 : CEF_STOP);
 				break;
 			}
 			if ((remain -= trans_size) > 0) {	// 続きがある
@@ -3329,7 +3393,7 @@ BOOL FastCopy::WriteFileProc(int dst_len)
 			::SetFilePointer(fh2, stat->nFileSizeLow, (LONG *)&stat->nFileSizeHigh, FILE_BEGIN);
 			if ((ret = ::SetEndOfFile(fh2)) == FALSE) {
 				if (!is_stream || (info.flags & REPORT_STREAM_ERROR))
-					ConfirmErr(is_stream ? "SetEndOfFile(stream)" : "SetEndOfFile",
+					ConfirmErr(is_stream ? "SetEndOfFile2(stream)" : "SetEndOfFile2",
 						MakeAddr(dst, dstPrefixLen));
 			}
 		}
@@ -3371,11 +3435,11 @@ END2:
 
 	if (ret) {
 		if (!is_stream) {
-			if (stat->dwFileAttributes &
-					(FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_READONLY|FILE_ATTRIBUTE_SYSTEM)) {
+			if (stat->isCaseChanged && !is_require_del) CaseAlignProc();
+			if (stat->dwFileAttributes /* &
+					(FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_READONLY|FILE_ATTRIBUTE_SYSTEM) */) {
 				SetFileAttributesV(dst, stat->dwFileAttributes);
 			}
-			if (stat->isCaseChanged && !is_require_del) CaseAlignProc();
 		}
 		totalFiles++;
 	}
@@ -3726,6 +3790,7 @@ BOOL FastCopy::End(void)
 
 	mainBuf.FreeBuf();
 //	baseBuf.FreeBuf();
+	ntQueryBuf.FreeBuf();
 	dstDirExtBuf.FreeBuf();
 	mkdirQueueBuf.FreeBuf();
 	dstStatIdxBuf.FreeBuf();

@@ -79,7 +79,7 @@ protected:
 
 public:
 	TBrowseDirDlg(char *_fileBuf) { fileBuf = _fileBuf; }
-	virtual BOOL	CreateByWnd(HWND _hWnd);
+	virtual BOOL	AttachWnd(HWND _hWnd);
 	virtual BOOL	EvCommand(WORD wNotifyCode, WORD wID, LPARAM hwndCtl);
 	virtual BOOL	SetFileBuf(LPARAM list);
 	BOOL	IsDirty(void) { return dirtyFlg; };

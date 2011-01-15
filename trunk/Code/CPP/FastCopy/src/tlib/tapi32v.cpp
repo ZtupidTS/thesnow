@@ -1,4 +1,4 @@
-/* @(#)Copyright (C) 1996-2010 H.Shirouzu		tapi32v.cpp	Ver0.99 */
+﻿/* @(#)Copyright (C) 1996-2010 H.Shirouzu		tapi32v.cpp	Ver0.99 */
 /* ========================================================================
 	Project  Name			: Win32 Lightweight  Class Library Test
 	Module Name				: Main Header
@@ -26,6 +26,9 @@ int (WINAPI *MessageBoxV)(HWND, const void *, const void *, UINT);
 DWORD (WINAPI *FormatMessageV)(DWORD, const void *, DWORD, DWORD, void *, DWORD, va_list *);
 HWND (WINAPI *CreateDialogParamV)(HANDLE, const void *, HWND, DLGPROC, LPARAM);
 int (WINAPI *DialogBoxParamV)(HANDLE, const void *, HWND, DLGPROC, LPARAM);
+LONG_PTR (WINAPI *GetWindowLongV)(HWND, int);
+LONG_PTR (WINAPI *SetWindowLongV)(HWND, int, LONG_PTR);
+LRESULT (WINAPI *CallWindowProcV)(WNDPROC, HWND, UINT, WPARAM, LPARAM);
 
 int (WINAPI *RegisterClassV)(const void *wc);
 HWND (WINAPI *FindWindowV)(const void *class_name, const void *window_name);
@@ -163,7 +166,10 @@ BOOL TLibInit_Win32V()
 			CreateDialogParamW;
 		DialogBoxParamV = (int (WINAPI *)(HANDLE, const void *, HWND, DLGPROC, LPARAM))
 			DialogBoxParamW;
-
+		GetWindowLongV = (LONG_PTR (WINAPI *)(HWND, int))GetWindowLongW;
+		SetWindowLongV = (LONG_PTR (WINAPI *)(HWND, int, LONG_PTR))SetWindowLongW;
+		CallWindowProcV = (LRESULT (WINAPI *)(WNDPROC, HWND, UINT, WPARAM, LPARAM))
+			CallWindowProcW;
 		RegisterClassV = (int (WINAPI *)(const void *))RegisterClassW;
 		FindWindowV = (HWND (WINAPI *)(const void *, const void *))FindWindowW;
 		CreateWindowExV = (HWND (WINAPI *)(DWORD, const void *, const void *, DWORD,
@@ -301,6 +307,10 @@ BOOL TLibInit_Win32V()
 			CreateDialogParamA;
 		DialogBoxParamV = (int (WINAPI *)(HANDLE, const void *, HWND, DLGPROC, LPARAM))
 			DialogBoxParamA;
+		GetWindowLongV = (LONG_PTR (WINAPI *)(HWND, int))GetWindowLongA;
+		SetWindowLongV = (LONG_PTR (WINAPI *)(HWND, int, LONG_PTR))SetWindowLongA;
+		CallWindowProcV = (LRESULT (WINAPI *)(WNDPROC, HWND, UINT, WPARAM, LPARAM))
+			CallWindowProcA;
 
 		RegisterClassV = (int (WINAPI *)(const void *))RegisterClassA;
 		FindWindowV = (HWND (WINAPI *)(const void *, const void *))FindWindowA;

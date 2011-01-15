@@ -237,9 +237,93 @@ extern BOOL (WINAPI *pCryptUnprotectData)
 				 PVOID pvReserved, CRYPTPROTECT_PROMPTSTRUCT* pPromptStruct, DWORD dwFlags,
 				 DATA_BLOB* pDataOut);
 
-
 #define SHA1_SIZE 20
 #define MD5_SIZE  16
+
+
+/* NTDLL */
+typedef LONG NTSTATUS, *PNTSTATUS;
+
+typedef struct _IO_STATUS_BLOCK {
+  union {
+    NTSTATUS Status;
+    PVOID    Pointer;
+  };
+  unsigned long *Information;
+} IO_STATUS_BLOCK, *PIO_STATUS_BLOCK;
+
+typedef enum _FILE_INFORMATION_CLASS {
+  FileDirectoryInformation = 1,
+  FileFullDirectoryInformation,
+  FileBothDirectoryInformation,
+  FileBasicInformation,
+  FileStandardInformation,
+  FileInternalInformation,
+  FileEaInformation,
+  FileAccessInformation,
+  FileNameInformation,
+  FileRenameInformation,
+  FileLinkInformation,
+  FileNamesInformation,
+  FileDispositionInformation,
+  FilePositionInformation,
+  FileFullEaInformation,
+  FileModeInformation,
+  FileAlignmentInformation,
+  FileAllInformation,
+  FileAllocationInformation,
+  FileEndOfFileInformation,
+  FileAlternateNameInformation,
+  FileStreamInformation,
+  FilePipeInformation,
+  FilePipeLocalInformation,
+  FilePipeRemoteInformation,
+  FileMailslotQueryInformation,
+  FileMailslotSetInformation,
+  FileCompressionInformation,
+  FileObjectIdInformation,
+  FileCompletionInformation,
+  FileMoveClusterInformation,
+  FileQuotaInformation,
+  FileReparsePointInformation,
+  FileNetworkOpenInformation,
+  FileAttributeTagInformation,
+  FileTrackingInformation,
+  FileIdBothDirectoryInformation,
+  FileIdFullDirectoryInformation,
+  FileValidDataLengthInformation,
+  FileShortNameInformation,
+  FileIoCompletionNotificationInformation,
+  FileIoStatusBlockRangeInformation,
+  FileIoPriorityHintInformation,
+  FileSfioReserveInformation,
+  FileSfioVolumeInformation,
+  FileHardLinkInformation,
+  FileProcessIdsUsingFileInformation,
+  FileNormalizedNameInformation,
+  FileNetworkPhysicalNameInformation,
+  FileIdGlobalTxDirectoryInformation,
+  FileIsRemoteDeviceInformation,
+  FileAttributeCacheInformation,
+  FileNumaNodeInformation,
+  FileStandardLinkInformation,
+  FileRemoteProtocolInformation,
+  FileMaximumInformation 
+} FILE_INFORMATION_CLASS, *PFILE_INFORMATION_CLASS;
+
+#define BACKUP_SPARSE_BLOCK 0x00000009
+
+typedef struct _FILE_STREAM_INFORMATION {
+  ULONG         NextEntryOffset;
+  ULONG         StreamNameLength;
+  LARGE_INTEGER StreamSize;
+  LARGE_INTEGER StreamAllocationSize;
+  WCHAR         StreamName[1];
+} FILE_STREAM_INFORMATION, *PFILE_STREAM_INFORMATION;
+
+extern NTSTATUS (WINAPI *pNtQueryInformationFile)(HANDLE FileHandle,
+				PIO_STATUS_BLOCK IoStatusBlock, PVOID FileInformation, ULONG Length,
+				FILE_INFORMATION_CLASS FileInformationClass);
 
 // ListView extended define for VC4
 #ifndef LVM_SETEXTENDEDLISTVIEWSTYLE
@@ -288,6 +372,7 @@ public:
 
 BOOL TLibInit_AdvAPI32();
 BOOL TLibInit_Crypt32();
+BOOL TLibInit_Ntdll();
 BOOL TGenRandom(void *buf, int len);
 
 #endif

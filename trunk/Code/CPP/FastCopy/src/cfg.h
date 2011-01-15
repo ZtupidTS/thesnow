@@ -1,9 +1,9 @@
-/* static char *cfg_id = 
-	"@(#)Copyright (C) 2005-2010 H.Shirouzu		cfg.h	Ver2.00"; */
+﻿/* static char *cfg_id = 
+	"@(#)Copyright (C) 2005-2010 H.Shirouzu		cfg.h	Ver2.04"; */
 /* ========================================================================
 	Project  Name			: Fast/Force copy file and directory
 	Create					: 2005-01-23(Sun)
-	Update					: 2010-05-09(Sun)
+	Update					: 2010-11-07(Sun)
 	Copyright				: H.Shirouzu
 	Reference				: 
 	======================================================================== */
@@ -158,6 +158,7 @@ public:
 	BOOL	enableVerify;
 	BOOL	usingMD5;
 	BOOL	enableNSA;
+	BOOL	delDirWithFilter;
 	BOOL	enableMoveAttr;
 	BOOL	serialMove;
 	BOOL	serialVerifyMove;
@@ -171,6 +172,8 @@ public:
 	BOOL	isErrLog;
 	BOOL	isUtf8Log;
 	int		fileLogMode;
+	BOOL	aclErrLog;
+	BOOL	streamErrLog;
 	BOOL	isRunasButton;
 	BOOL	isSameDirRename;
 	BOOL	shextAutoClose;

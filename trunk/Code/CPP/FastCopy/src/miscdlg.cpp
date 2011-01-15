@@ -1,9 +1,9 @@
-static char *miscdlg_id = 
-	"@(#)Copyright (C) 2005-2010 H.Shirouzu		miscdlg.cpp	ver2.03";
+Ôªøstatic char *miscdlg_id = 
+	"@(#)Copyright (C) 2005-2010 H.Shirouzu		miscdlg.cpp	ver2.05";
 /* ========================================================================
 	Project  Name			: Fast/Force copy file and directory
 	Create					: 2005-01-23(Sun)
-	Update					: 2010-09-12(Sun)
+	Update					: 2010-11-15(Mon)
 	Copyright				: H.Shirouzu
 	Reference				: 
 	======================================================================== */
@@ -11,24 +11,17 @@ static char *miscdlg_id =
 #include "mainwin.h"
 #include <stdio.h>
 
-// HtmlHelp WorkShop §Ú•§•Û•π•»©`•Î§∑§∆°¢htmlhelp.h §Ú include path §À
-// »Î§Ï§Î§≥§»°£
-#define ENABLE_HTML_HELP
-#if defined(ENABLE_HTML_HELP)
-#include <htmlhelp.h>
-#endif
-
 #include "shellext/shelldef.h"
 
 /*
-	About Dialog≥ı∆⁄ªØÑI¿Ì
+	About DialogÂàùÊúüÂåñÂá¶ÁêÜ
 */
 TAboutDlg::TAboutDlg(TWin *_parent) : TDlg(ABOUT_DIALOG, _parent)
 {
 }
 
 /*
-	Window …˙≥…ïr§Œ CallBack
+	Window ÁîüÊàêÊôÇ„ÅÆ CallBack
 */
 BOOL TAboutDlg::EvCreate(LPARAM lParam)
 {
@@ -72,7 +65,160 @@ BOOL TAboutDlg::EvCommand(WORD wNotifyCode, WORD wID, LPARAM hWndCtl)
 }
 
 /*
-	Setup Dialog≥ı∆⁄ªØÑI¿Ì
+	SetupÁî®Sheet
+*/
+BOOL TSetupSheet::Create(int _resId, Cfg *_cfg, TWin *_parent)
+{
+	cfg    = _cfg;
+	resId  = _resId;
+	parent = _parent;
+	return	TDlg::Create();
+}
+
+BOOL TSetupSheet::EvCreate(LPARAM lParam)
+{
+	if (resId == SETUP_SHEET1) {
+		SetDlgItemInt(BUFSIZE_EDIT, cfg->bufSize);
+		CheckDlgButton(IGNORE_CHECK, cfg->ignoreErr);
+		CheckDlgButton(ESTIMATE_CHECK, cfg->estimateMode);
+		CheckDlgButton(ACL_CHECK, cfg->enableAcl && IS_WINNT_V);
+		::EnableWindow(GetDlgItem(ACL_CHECK), IS_WINNT_V);
+		CheckDlgButton(STREAM_CHECK, cfg->enableStream && IS_WINNT_V);
+		::EnableWindow(GetDlgItem(STREAM_CHECK), IS_WINNT_V);
+		CheckDlgButton(VERIFY_CHECK, cfg->enableVerify);
+		CheckDlgButton(OWDEL_CHECK, cfg->enableOwdel);
+		CheckDlgButton(EXTENDFILTER_CHECK, cfg->isExtendFilter);
+		SendDlgItemMessage(SPEED_SLIDER, TBM_SETRANGE, FALSE,
+			MAKELONG(SPEED_SUSPEND, SPEED_FULL));
+		SetSpeedLevelLabel(this, cfg->speedLevel);
+	}
+	else if (resId == SETUP_SHEET2) {
+		SetDlgItemInt(MAXTRANS_EDIT, cfg->maxTransSize);
+		CheckDlgButton(READOSBUF_CHECK, cfg->isReadOsBuf);
+		SetDlgItemInt(NONBUFMINNTFS_EDIT, cfg->nbMinSizeNtfs);
+		SetDlgItemInt(NONBUFMINFAT_EDIT, cfg->nbMinSizeFat);
+		SetDlgItemText(DRIVEMAP_EDIT, cfg->driveMap);
+	}
+	else if (resId == SETUP_SHEET3) {
+		CheckDlgButton(SAMEDIR_RENAME_CHECK, cfg->isSameDirRename);
+		CheckDlgButton(EMPTYDIR_CHECK, cfg->skipEmptyDir);
+		CheckDlgButton(REPARSE_CHECK, cfg->isReparse);
+		::EnableWindow(GetDlgItem(REPARSE_CHECK), IS_WINNT_V);
+		CheckDlgButton(MOVEATTR_CHECK, cfg->enableMoveAttr);
+		CheckDlgButton(SERIALMOVE_CHECK, cfg->serialMove);
+		CheckDlgButton(SERIALVERIFYMOVE_CHECK, cfg->serialVerifyMove);
+	}
+	else if (resId == SETUP_SHEET4) {
+		CheckDlgButton(NSA_CHECK, cfg->enableNSA);
+		CheckDlgButton(DELDIR_CHECK, cfg->delDirWithFilter);
+	}
+	else if (resId == SETUP_SHEET5) {
+		SetDlgItemInt(HISTORY_EDIT, cfg->maxHistoryNext);
+		CheckDlgButton(ERRLOG_CHECK, cfg->isErrLog);
+		CheckDlgButton(UTF8LOG_CHECK, cfg->isUtf8Log && IS_WINNT_V);
+		::EnableWindow(GetDlgItem(UTF8LOG_CHECK), IS_WINNT_V);
+		CheckDlgButton(FILELOG_CHECK, cfg->fileLogMode);
+		CheckDlgButton(ACLERRLOG_CHECK, cfg->aclErrLog && IS_WINNT_V);
+		::EnableWindow(GetDlgItem(ACLERRLOG_CHECK), IS_WINNT_V);
+		CheckDlgButton(STREAMERRLOG_CHECK, cfg->streamErrLog && IS_WINNT_V);
+		::EnableWindow(GetDlgItem(STREAMERRLOG_CHECK), IS_WINNT_V);
+	}
+	else if (resId == SETUP_SHEET6) {
+		CheckDlgButton(FORCESTART_CHECK, cfg->forceStart);
+		CheckDlgButton(EXECCONFIRM_CHECK, cfg->execConfirm);
+
+		if ((cfg->lcid != -1 || GetSystemDefaultLCID() == 0x411) && IS_WINNT_V) {
+			::ShowWindow(GetDlgItem(LCID_CHECK), SW_SHOW);
+			::EnableWindow(GetDlgItem(LCID_CHECK), TRUE);
+			CheckDlgButton(LCID_CHECK, cfg->lcid == -1 || cfg->lcid == 0x411 ? FALSE : TRUE);
+		}
+	}
+
+	RECT	rc;
+	POINT	pt;
+	::GetWindowRect(parent->GetDlgItem(SETUP_LIST), &rc);
+	pt.x = rc.right;
+	pt.y = rc.top;
+	ScreenToClient(parent->hWnd, &pt);
+	SetWindowPos(0, pt.x + 10, pt.y - 2, 0, 0, SWP_NOSIZE|SWP_NOZORDER);
+
+	SetWindowLong(GWL_EXSTYLE, GetWindowLong(GWL_EXSTYLE)|WS_EX_CONTROLPARENT);
+
+	return	TRUE;
+}
+
+BOOL TSetupSheet::GetData()
+{
+	if (resId == SETUP_SHEET1) {
+		cfg->bufSize = GetDlgItemInt(BUFSIZE_EDIT);
+		cfg->ignoreErr = IsDlgButtonChecked(IGNORE_CHECK);
+		cfg->estimateMode = IsDlgButtonChecked(ESTIMATE_CHECK);
+		cfg->enableAcl = IsDlgButtonChecked(ACL_CHECK);
+		cfg->enableStream = IsDlgButtonChecked(STREAM_CHECK);
+		cfg->enableVerify = IsDlgButtonChecked(VERIFY_CHECK);
+		cfg->enableOwdel = IsDlgButtonChecked(OWDEL_CHECK);
+		cfg->isExtendFilter = IsDlgButtonChecked(EXTENDFILTER_CHECK);
+		cfg->speedLevel = (int)SendDlgItemMessage(SPEED_SLIDER, TBM_GETPOS, 0, 0);
+	}
+	else if (resId == SETUP_SHEET2) {
+		cfg->maxTransSize = GetDlgItemInt(MAXTRANS_EDIT);
+		cfg->isReadOsBuf = IsDlgButtonChecked(READOSBUF_CHECK);
+		cfg->nbMinSizeNtfs = GetDlgItemInt(NONBUFMINNTFS_EDIT);
+		cfg->nbMinSizeFat = GetDlgItemInt(NONBUFMINFAT_EDIT);
+
+		char	c, last_c = 0, buf[sizeof(cfg->driveMap)];
+		GetDlgItemText(DRIVEMAP_EDIT, buf, sizeof(buf));
+		for (int i=0; i < sizeof(buf) && (c = buf[i]); i++) {
+			if (c >= 'a' && c <= 'z') buf[i] = c = toupper(c);
+			if ((c < 'A' || c > 'Z' || strchr(buf+i+1, c)) && c != ',' || c == last_c) {
+				MessageBox(buf, "Invalid DriveGroup format");
+				return	FALSE;
+			}
+			last_c = c;
+		}
+		strcpy(cfg->driveMap, buf);
+	}
+	else if (resId == SETUP_SHEET3) {
+		cfg->isSameDirRename = IsDlgButtonChecked(SAMEDIR_RENAME_CHECK);
+		cfg->skipEmptyDir = IsDlgButtonChecked(EMPTYDIR_CHECK);
+		cfg->isReparse = IsDlgButtonChecked(REPARSE_CHECK);
+		cfg->enableMoveAttr = IsDlgButtonChecked(MOVEATTR_CHECK);
+		cfg->serialMove = IsDlgButtonChecked(SERIALMOVE_CHECK);
+		cfg->serialVerifyMove = IsDlgButtonChecked(SERIALVERIFYMOVE_CHECK);
+	}
+	else if (resId == SETUP_SHEET4) {
+		cfg->enableNSA = IsDlgButtonChecked(NSA_CHECK);
+		cfg->delDirWithFilter = IsDlgButtonChecked(DELDIR_CHECK);
+	}
+	else if (resId == SETUP_SHEET5) {
+		cfg->maxHistoryNext = GetDlgItemInt(HISTORY_EDIT);
+		cfg->isErrLog = IsDlgButtonChecked(ERRLOG_CHECK);
+		cfg->isUtf8Log = IsDlgButtonChecked(UTF8LOG_CHECK) && IS_WINNT_V;
+		cfg->fileLogMode = IsDlgButtonChecked(FILELOG_CHECK);
+		cfg->aclErrLog = IsDlgButtonChecked(ACLERRLOG_CHECK) && IS_WINNT_V;
+		cfg->streamErrLog = IsDlgButtonChecked(STREAMERRLOG_CHECK) && IS_WINNT_V;
+	}
+	else if (resId == SETUP_SHEET6) {
+		cfg->execConfirm = IsDlgButtonChecked(EXECCONFIRM_CHECK);
+		cfg->forceStart = IsDlgButtonChecked(FORCESTART_CHECK);
+
+		if (::IsWindowEnabled(GetDlgItem(LCID_CHECK))) {
+			cfg->lcid = IsDlgButtonChecked(LCID_CHECK) ? 0x409 : -1;
+		}
+	}
+
+	return	TRUE;
+}
+
+BOOL TSetupSheet::EventScroll(UINT uMsg, int Code, int nPos, HWND hwndScrollBar)
+{
+	SetSpeedLevelLabel(this);
+	return	TRUE;
+}
+
+
+/*
+	Setup DialogÂàùÊúüÂåñÂá¶ÁêÜ
 */
 TSetupDlg::TSetupDlg(Cfg *_cfg, TWin *_parent) : TDlg(SETUP_DIALOG, _parent)
 {
@@ -80,51 +226,17 @@ TSetupDlg::TSetupDlg(Cfg *_cfg, TWin *_parent) : TDlg(SETUP_DIALOG, _parent)
 }
 
 /*
-	Window …˙≥…ïr§Œ CallBack
+	Window ÁîüÊàêÊôÇ„ÅÆ CallBack
 */
 BOOL TSetupDlg::EvCreate(LPARAM lParam)
 {
-	SetDlgItemInt(BUFSIZE_EDIT, cfg->bufSize);
-	SetDlgItemInt(MAXTRANS_EDIT, cfg->maxTransSize);
-	SetDlgItemInt(NONBUFMINNTFS_EDIT, cfg->nbMinSizeNtfs);
-	SetDlgItemInt(NONBUFMINFAT_EDIT, cfg->nbMinSizeFat);
-	CheckDlgButton(READOSBUF_CHECK, cfg->isReadOsBuf);
-	SetDlgItemInt(HISTORY_EDIT, cfg->maxHistoryNext);
-	CheckDlgButton(IGNORE_CHECK, cfg->ignoreErr);
-	CheckDlgButton(ESTIMATE_CHECK, cfg->estimateMode);
-	CheckDlgButton(ERRLOG_CHECK, cfg->isErrLog);
-	CheckDlgButton(UTF8LOG_CHECK, cfg->isUtf8Log && IS_WINNT_V);
-	::EnableWindow(GetDlgItem(UTF8LOG_CHECK), IS_WINNT_V);
-	CheckDlgButton(FILELOG_CHECK, cfg->fileLogMode);
-	CheckDlgButton(OWDEL_CHECK, cfg->enableOwdel);
-	SetDlgItemText(DRIVEMAP_EDIT, cfg->driveMap);
+	setup_list.AttachWnd(GetDlgItem(SETUP_LIST));
 
-	CheckDlgButton(ACL_CHECK, cfg->enableAcl && IS_WINNT_V);
-	CheckDlgButton(STREAM_CHECK, cfg->enableStream && IS_WINNT_V);
-	CheckDlgButton(VERIFY_CHECK, cfg->enableVerify);
-	::EnableWindow(GetDlgItem(ACL_CHECK), IS_WINNT_V);
-	::EnableWindow(GetDlgItem(STREAM_CHECK), IS_WINNT_V);
-	CheckDlgButton(MOVEATTR_CHECK, cfg->enableMoveAttr);
-	CheckDlgButton(SERIALMOVE_CHECK, cfg->serialMove);
-	CheckDlgButton(SERIALVERIFYMOVE_CHECK, cfg->serialVerifyMove);
-	CheckDlgButton(EXTENDFILTER_CHECK, cfg->isExtendFilter);
-
-	CheckDlgButton(REPARSE_CHECK, cfg->isReparse);
-	::EnableWindow(GetDlgItem(REPARSE_CHECK), IS_WINNT_V);
-
-	CheckDlgButton(NSA_CHECK, cfg->enableNSA);
-	CheckDlgButton(EMPTYDIR_CHECK, cfg->skipEmptyDir);
-	CheckDlgButton(EXECCONFIRM_CHECK, cfg->execConfirm);
-	CheckDlgButton(FORCESTART_CHECK, cfg->forceStart);
-	CheckDlgButton(SAMEDIR_RENAME_CHECK, cfg->isSameDirRename);
-	SendDlgItemMessage(SPEED_SLIDER, TBM_SETRANGE, FALSE, MAKELONG(SPEED_SUSPEND, SPEED_FULL));
-	SetSpeedLevelLabel(this, cfg->speedLevel);
-
-	if (cfg->lcid != -1 || GetSystemDefaultLCID() == 0x411) {
-		::ShowWindow(GetDlgItem(LCID_CHECK), SW_SHOW);
-		::EnableWindow(GetDlgItem(LCID_CHECK), TRUE);
-		CheckDlgButton(LCID_CHECK, cfg->lcid == -1 || cfg->lcid == 0x411 ? FALSE : TRUE);
+	for (int i=0; i < MAX_SETUP_SHEET; i++) {
+		sheet[i].Create(SETUP_SHEET1 + i, cfg, this);
+		setup_list.SendMessage(LB_ADDSTRING, 0, (LPARAM)GetLoadStr(IDS_SETUP_SHEET1 + i));
 	}
+	SetSheet();
 
 	if (rect.left == CW_USEDEFAULT)
 	{
@@ -149,64 +261,36 @@ BOOL TSetupDlg::EvCommand(WORD wNotifyCode, WORD wID, LPARAM hWndCtl)
 	{
 	case IDOK:
 		{
-			char	c, last_c = 0, buf[sizeof(cfg->driveMap)];
-			GetDlgItemText(DRIVEMAP_EDIT, buf, sizeof(buf));
-			for (int i=0; i < sizeof(buf) && (c = buf[i]); i++) {
-				if (c >= 'a' && c <= 'z') buf[i] = c = toupper(c);
-				if ((c < 'A' || c > 'Z' || strchr(buf+i+1, c)) && c != ',' || c == last_c) {
-					MessageBox(buf, "Invalid DriveGroup format");
-					return	FALSE;
-				}
-				last_c = c;
+			for (int i=0; i < MAX_SETUP_SHEET; i++) {
+				sheet[i].GetData();
 			}
-			strcpy(cfg->driveMap, buf);
+			cfg->WriteIni();
+			EndDialog(wID);
 		}
-		cfg->bufSize = GetDlgItemInt(BUFSIZE_EDIT);
-		cfg->maxTransSize = GetDlgItemInt(MAXTRANS_EDIT);
-		cfg->nbMinSizeNtfs = GetDlgItemInt(NONBUFMINNTFS_EDIT);
-		cfg->nbMinSizeFat = GetDlgItemInt(NONBUFMINFAT_EDIT);
-		cfg->isReadOsBuf = IsDlgButtonChecked(READOSBUF_CHECK);
-		cfg->maxHistoryNext = GetDlgItemInt(HISTORY_EDIT);
-		cfg->ignoreErr = IsDlgButtonChecked(IGNORE_CHECK);
-		cfg->estimateMode = IsDlgButtonChecked(ESTIMATE_CHECK);
-		cfg->isErrLog = IsDlgButtonChecked(ERRLOG_CHECK);
-		cfg->isUtf8Log = IsDlgButtonChecked(UTF8LOG_CHECK) && IS_WINNT_V;
-		cfg->fileLogMode = IsDlgButtonChecked(FILELOG_CHECK);
-		cfg->enableOwdel = IsDlgButtonChecked(OWDEL_CHECK);
-		cfg->enableAcl = IsDlgButtonChecked(ACL_CHECK);
-		cfg->enableStream = IsDlgButtonChecked(STREAM_CHECK);
-		cfg->enableVerify = IsDlgButtonChecked(VERIFY_CHECK);
-		cfg->enableNSA = IsDlgButtonChecked(NSA_CHECK);
-		cfg->enableMoveAttr = IsDlgButtonChecked(MOVEATTR_CHECK);
-		cfg->serialMove = IsDlgButtonChecked(SERIALMOVE_CHECK);
-		cfg->serialVerifyMove = IsDlgButtonChecked(SERIALVERIFYMOVE_CHECK);
-		cfg->isExtendFilter = IsDlgButtonChecked(EXTENDFILTER_CHECK);
-		cfg->isReparse = IsDlgButtonChecked(REPARSE_CHECK);
-		cfg->skipEmptyDir = IsDlgButtonChecked(EMPTYDIR_CHECK);
-		cfg->execConfirm = IsDlgButtonChecked(EXECCONFIRM_CHECK);
-		cfg->forceStart = IsDlgButtonChecked(FORCESTART_CHECK);
-		cfg->isSameDirRename = IsDlgButtonChecked(SAMEDIR_RENAME_CHECK);
-		cfg->speedLevel = (int)SendDlgItemMessage(SPEED_SLIDER, TBM_GETPOS, 0, 0);
-
-		if (::IsWindowEnabled(GetDlgItem(LCID_CHECK))) {
-			cfg->lcid = IsDlgButtonChecked(LCID_CHECK) ? 0x409 : -1;
-		}
-
-		cfg->WriteIni();
-		EndDialog(wID);
 		return	TRUE;
 
 	case IDCANCEL:
 		EndDialog(wID);
 		return	TRUE;
+
+	case SETUP_LIST:
+		SetSheet();
+		return	TRUE;
 	}
 	return	FALSE;
 }
 
-BOOL TSetupDlg::EventScroll(UINT uMsg, int Code, int nPos, HWND hwndScrollBar)
+void TSetupDlg::SetSheet(int idx)
 {
-	SetSpeedLevelLabel(this);
-	return	TRUE;
+	if (idx < 0) {
+		if ((idx = (int)setup_list.SendMessage(LB_GETCURSEL, 0, 0)) < 0) {
+			idx = 0;
+			setup_list.SendMessage(LB_SETCURSEL, idx, 0);
+		}
+	}
+	for (int i=0; i < MAX_SETUP_SHEET; i++) {
+		sheet[i].Show(i == idx ? SW_SHOW : SW_HIDE);
+	}
 }
 
 
@@ -262,7 +346,7 @@ BOOL ShellExt::UnLoad(void)
 }
 
 /*
-	ShellExt Dialog≥ı∆⁄ªØÑI¿Ì
+	ShellExt DialogÂàùÊúüÂåñÂá¶ÁêÜ
 */
 TShellExtDlg::TShellExtDlg(Cfg *_cfg, TWin *_parent) : TDlg(SHELLEXT_DIALOG, _parent)
 {
@@ -270,7 +354,7 @@ TShellExtDlg::TShellExtDlg(Cfg *_cfg, TWin *_parent) : TDlg(SHELLEXT_DIALOG, _pa
 }
 
 /*
-	Window …˙≥…ïr§Œ CallBack
+	Window ÁîüÊàêÊôÇ„ÅÆ CallBack
 */
 BOOL TShellExtDlg::EvCreate(LPARAM lParam)
 {
@@ -535,37 +619,11 @@ BOOL TExecConfirmDlg::EvSize(UINT fwSizeType, WORD nWidth, WORD nHeight)
 }
 
 
-HWND ShowHelpV(HWND hOwner, void *help_dir, void *help_file, void *section)
-{
-#if defined(ENABLE_HTML_HELP)
-	static HWND (WINAPI *pHtmlHelpV)(HWND, void *, UINT, DWORD_PTR) = NULL;
-
-	if (pHtmlHelpV == NULL) {
-		DWORD		cookie=0;
-		HMODULE		hHtmlHelp = TLoadLibrary("hhctrl.ocx");
-		if (hHtmlHelp)
-			pHtmlHelpV = (HWND (WINAPI *)(HWND, void *, UINT, DWORD_PTR))
-						::GetProcAddress(hHtmlHelp, IS_WINNT_V ? "HtmlHelpW" : "HtmlHelpA");
-		if (pHtmlHelpV)
-			pHtmlHelpV(NULL, NULL, HH_INITIALIZE, (DWORD)&cookie);
-	}
-	if (pHtmlHelpV) {
-		WCHAR	path[MAX_PATH];
-
-		MakePathV(path, help_dir, help_file);
-		if (section)
-			strcpyV(MakeAddr(path, strlenV(path)), section);
-		return	pHtmlHelpV(hOwner, path, HH_DISPLAY_TOC, 0);
-	}
-#endif
-	return	NULL;
-}
-
 /*=========================================================================
-  •Ø•È•π £∫ BrowseDirDlgV
-  ∏≈  “™ £∫ •«•£•Ï•Ø•»•Í•÷•È•¶•∫”√•≥•‚•Û•¿•§•¢•Ì•∞íàèà•Ø•È•π
-  ’h  √˜ £∫ SHBrowseForFolder §Œ•µ•÷•Ø•È•πªØ
-  ◊¢  “‚ £∫ 
+  „ÇØ„É©„Çπ Ôºö BrowseDirDlgV
+  Ê¶Ç  Ë¶Å Ôºö „Éá„Ç£„É¨„ÇØ„Éà„É™„Éñ„É©„Ç¶„Ç∫Áî®„Ç≥„É¢„É≥„ÉÄ„Ç§„Ç¢„É≠„Ç∞Êã°Âºµ„ÇØ„É©„Çπ
+  Ë™¨  Êòé Ôºö SHBrowseForFolder „ÅÆ„Çµ„Éñ„ÇØ„É©„ÇπÂåñ
+  Ê≥®  ÊÑè Ôºö 
 =========================================================================*/
 BOOL BrowseDirDlgV(TWin *parentWin, UINT editCtl, void *title, int flg)
 {
@@ -669,14 +727,14 @@ BOOL TBrowseDirDlgV::Exec()
 }
 
 /*
-	BrowseDirDlg”√•≥©`•Î•–•√•Ø
+	BrowseDirDlgÁî®„Ç≥„Éº„É´„Éê„ÉÉ„ÇØ
 */
 int CALLBACK TBrowseDirDlgV::BrowseDirDlg_Proc(HWND hWnd, UINT uMsg, LPARAM lParam, LPARAM data)
 {
 	switch (uMsg)
 	{
 	case BFFM_INITIALIZED:
-		((TBrowseDirDlgV *)data)->CreateByWnd(hWnd);
+		((TBrowseDirDlgV *)data)->AttachWnd(hWnd);
 		break;
 
 	case BFFM_SELCHANGED:
@@ -688,13 +746,13 @@ int CALLBACK TBrowseDirDlgV::BrowseDirDlg_Proc(HWND hWnd, UINT uMsg, LPARAM lPar
 }
 
 /*
-	BrowseDlg”√•µ•÷•Ø•È•π…˙≥…
+	BrowseDlgÁî®„Çµ„Éñ„ÇØ„É©„ÇπÁîüÊàê
 */
-BOOL TBrowseDirDlgV::CreateByWnd(HWND _hWnd)
+BOOL TBrowseDirDlgV::AttachWnd(HWND _hWnd)
 {
-	BOOL	ret = TSubClass::CreateByWnd(_hWnd);
+	BOOL	ret = TSubClass::AttachWnd(_hWnd);
 
-// •«•£•Ï•Ø•»•Í‘O∂®
+// „Éá„Ç£„É¨„ÇØ„Éà„É™Ë®≠ÂÆö
 	DWORD	attr = GetFileAttributesV(fileBuf);
 	if (attr != 0xffffffff && (attr & FILE_ATTRIBUTE_DIRECTORY) == 0)
 		GetParentDirV(fileBuf, fileBuf);
@@ -713,7 +771,7 @@ BOOL TBrowseDirDlgV::CreateByWnd(HWND _hWnd)
 		SendMessageV(BFFM_SETSELECTION, TRUE, (LPARAM)target);
 	}
 
-// •‹•ø•Û◊˜≥…
+// „Éú„Çø„É≥‰ΩúÊàê
 	RECT	tmp_rect;
 	::GetWindowRect(GetDlgItem(IDOK), &tmp_rect);
 	POINT	pt = { tmp_rect.left, tmp_rect.top };
@@ -747,7 +805,7 @@ BOOL TBrowseDirDlgV::CreateByWnd(HWND _hWnd)
 }
 
 /*
-	BrowseDlg”√ WM_COMMAND ÑI¿Ì
+	BrowseDlgÁî® WM_COMMAND Âá¶ÁêÜ
 */
 BOOL TBrowseDirDlgV::EvCommand(WORD wNotifyCode, WORD wID, LPARAM hwndCtl)
 {
@@ -792,7 +850,7 @@ BOOL TBrowseDirDlgV::SetFileBuf(LPARAM list)
 }
 
 /*
-	”H•«•£•Ï•Ø•»•Í»°µ√£®±ÿ§∫•’•Î•—•π§«§¢§Î§≥§»°£UNCåùèÍ£©
+	Ë¶™„Éá„Ç£„É¨„ÇØ„Éà„É™ÂèñÂæóÔºàÂøÖ„Åö„Éï„É´„Éë„Çπ„Åß„ÅÇ„Çã„Åì„Å®„ÄÇUNCÂØæÂøúÔºâ
 */
 BOOL TBrowseDirDlgV::GetParentDirV(void *srcfile, void *dir)
 {
@@ -804,7 +862,7 @@ BOOL TBrowseDirDlgV::GetParentDirV(void *srcfile, void *dir)
 	if (((char *)fname - (char *)path) / CHAR_LEN_V > 3 || GetChar(path, 1) != ':')
 		SetChar(fname, -1, 0);
 	else
-		SetChar(fname, 0, 0);		// C:\ §Œàˆ∫œ
+		SetChar(fname, 0, 0);		// C:\ „ÅÆÂ†¥Âêà
 
 	strcpyV(dir, path);
 	return	TRUE;
@@ -812,10 +870,10 @@ BOOL TBrowseDirDlgV::GetParentDirV(void *srcfile, void *dir)
 
 
 /*=========================================================================
-  •Ø•È•π £∫ TInputDlgV
-  ∏≈  “™ £∫ £±––»Î¡¶•¿•§•¢•Ì•∞
-  ’h  √˜ £∫ 
-  ◊¢  “‚ £∫ 
+  „ÇØ„É©„Çπ Ôºö TInputDlgV
+  Ê¶Ç  Ë¶Å Ôºö ÔºëË°åÂÖ•Âäõ„ÉÄ„Ç§„Ç¢„É≠„Ç∞
+  Ë™¨  Êòé Ôºö 
+  Ê≥®  ÊÑè Ôºö 
 =========================================================================*/
 BOOL TInputDlgV::EvCommand(WORD wNotifyCode, WORD wID, LPARAM hwndCtl)
 {
@@ -865,7 +923,7 @@ BOOL TConfirmDlg::EvCreate(LPARAM lParam)
 }
 
 /*
-	•’•°•§•Î•¿•§•¢•Ì•∞”√ö¯”√•Î©`•¡•Û
+	„Éï„Ç°„Ç§„É´„ÉÄ„Ç§„Ç¢„É≠„Ç∞Áî®Ê±éÁî®„É´„Éº„ÉÅ„É≥
 */
 BOOL TOpenFileDlg::Exec(UINT editCtl, void *title, void *filter, void *defaultDir,
 	void *init_data)
@@ -894,7 +952,7 @@ BOOL TOpenFileDlg::Exec(UINT editCtl, void *title, void *filter, void *defaultDi
 	if (defaultDir) {
 		int			dir_len = strlenV(defaultDir), offset = dir_len + 1;
 		if (GetChar(buf, offset)) {
-			if (GetChar(buf, strlenV(buf) -1) != '\\')	// •…•È•§•÷•Î©`•»§Œ§ﬂ¿˝Õ‚
+			if (GetChar(buf, strlenV(buf) -1) != '\\')	// „Éâ„É©„Ç§„Éñ„É´„Éº„Éà„ÅÆ„Åø‰æãÂ§ñ
 				SetChar(buf, dir_len++, '\\');
 			for (; GetChar(buf, offset); offset++) {
 				offset += sprintfV(MakeAddr(buf, dir_len), FMT_STR_V, MakeAddr(buf, offset));
@@ -974,23 +1032,23 @@ UINT WINAPI TOpenFileDlg::OpenFileDlgProc(HWND hdlg, UINT msg, WPARAM wParam, LP
 {
 	switch (msg) {
 	case WM_INITDIALOG:
-		((TOpenFileDlg *)(((OPENFILENAMEW *)lParam)->lCustData))->CreateByWnd(hdlg);
+		((TOpenFileDlg *)(((OPENFILENAMEW *)lParam)->lCustData))->AttachWnd(hdlg);
 		return TRUE;
 	}
 	return FALSE;
 }
 
 /*
-	TOpenFileDlg”√•µ•÷•Ø•È•π…˙≥…
+	TOpenFileDlgÁî®„Çµ„Éñ„ÇØ„É©„ÇπÁîüÊàê
 */
-BOOL TOpenFileDlg::CreateByWnd(HWND _hWnd)
+BOOL TOpenFileDlg::AttachWnd(HWND _hWnd)
 {
-	BOOL	ret = TSubClass::CreateByWnd(::GetParent(_hWnd));
+	BOOL	ret = TSubClass::AttachWnd(::GetParent(_hWnd));
 
 	if ((flg & OFDLG_DIRSELECT) == 0)
 		return	ret;
 
-// •‹•ø•Û◊˜≥…
+// „Éú„Çø„É≥‰ΩúÊàê
 	RECT	ok_rect;
 
 	::GetWindowRect(GetDlgItem(IDOK), &ok_rect);
@@ -1017,7 +1075,7 @@ BOOL TOpenFileDlg::CreateByWnd(HWND _hWnd)
 }
 
 /*
-	BrowseDlg”√ WM_COMMAND ÑI¿Ì
+	BrowseDlgÁî® WM_COMMAND Âá¶ÁêÜ
 */
 BOOL TOpenFileDlg::EvCommand(WORD wNotifyCode, WORD wID, LPARAM hwndCtl)
 {
@@ -1033,7 +1091,7 @@ BOOL TOpenFileDlg::EvCommand(WORD wNotifyCode, WORD wID, LPARAM hwndCtl)
 
 
 /*
-	Job Dialog≥ı∆⁄ªØÑI¿Ì
+	Job DialogÂàùÊúüÂåñÂá¶ÁêÜ
 */
 TJobDlg::TJobDlg(Cfg *_cfg, TMainDlg *_parent) : TDlg(JOB_DIALOG, _parent)
 {
@@ -1042,7 +1100,7 @@ TJobDlg::TJobDlg(Cfg *_cfg, TMainDlg *_parent) : TDlg(JOB_DIALOG, _parent)
 }
 
 /*
-	Window …˙≥…ïr§Œ CallBack
+	Window ÁîüÊàêÊôÇ„ÅÆ CallBack
 */
 BOOL TJobDlg::EvCreate(LPARAM lParam)
 {
@@ -1174,7 +1232,7 @@ BOOL TJobDlg::DelJob()
 }
 
 /*
-	ΩK¡ÀÑI¿Ì‘O∂®•¿•§•¢•Ì•∞
+	ÁµÇ‰∫ÜÂá¶ÁêÜË®≠ÂÆö„ÉÄ„Ç§„Ç¢„É≠„Ç∞
 */
 TFinActDlg::TFinActDlg(Cfg *_cfg, TMainDlg *_parent) : TDlg(FINACTION_DIALOG, _parent)
 {
@@ -1382,7 +1440,7 @@ TMsgBox::~TMsgBox()
 }
 
 /*
-	Window …˙≥…ïr§Œ CallBack
+	Window ÁîüÊàêÊôÇ„ÅÆ CallBack
 */
 BOOL TMsgBox::EvCreate(LPARAM lParam)
 {
@@ -1478,7 +1536,7 @@ UINT TFinDlg::Exec(int _sec, DWORD fmtID)
 
 
 /*
-	Window …˙≥…ïr§Œ CallBack
+	Window ÁîüÊàêÊôÇ„ÅÆ CallBack
 */
 BOOL TFinDlg::EvCreate(LPARAM lParam)
 {
@@ -1533,9 +1591,9 @@ TListHeader::TListHeader(TWin *_parent) : TSubClassCtl(_parent)
 	memset(&logFont, 0, sizeof(logFont));
 }
 
-BOOL TListHeader::CreateByWnd(HWND _hWnd)
+BOOL TListHeader::AttachWnd(HWND _hWnd)
 {
-	BOOL ret = TSubClassCtl::CreateByWnd(_hWnd);
+	BOOL ret = TSubClassCtl::AttachWnd(_hWnd);
 	ChangeFontNotify();
 	return	ret;
 }
@@ -1574,8 +1632,8 @@ BOOL TListHeader::ChangeFontNotify()
 }
 
 /*
-	listview control §Œ subclassªØ
-	Focus §Ú ß§√§ø§»§≠§À§‚°¢ﬂxík…´§Úâ‰ªØ§µ§ª§ §§§ø§·§Œ–°ºöπ§
+	listview control „ÅÆ subclassÂåñ
+	Focus „ÇíÂ§±„Å£„Åü„Å®„Åç„Å´„ÇÇ„ÄÅÈÅ∏ÊäûËâ≤„ÇíÂ§âÂåñ„Åï„Åõ„Å™„ÅÑ„Åü„ÇÅ„ÅÆÂ∞èÁ¥∞Â∑•
 */
 #define INVALID_INDEX	-1
 TListViewEx::TListViewEx(TWin *_parent) : TSubClassCtl(_parent)
@@ -1614,7 +1672,7 @@ BOOL TListViewEx::EventFocus(UINT uMsg, HWND hFocusWnd)
 			SendMessage(LVM_SETITEMSTATE, itemNo, (LPARAM)&lvi);
 			focus_index = itemNo;
 		}
-		return	TRUE;	// WM_KILLFOCUS §œÅª§®§ §§
+		return	TRUE;	// WM_KILLFOCUS „ÅØ‰ºù„Åà„Å™„ÅÑ
 	}
 }
 
@@ -1655,7 +1713,7 @@ BOOL TListViewEx::EventUser(UINT uMsg, WPARAM wParam, LPARAM lParam)
 }
 
 /*
-	edit control §Œ subclassªØ
+	edit control „ÅÆ subclassÂåñ
 */
 TEditSub::TEditSub(TWin *_parent) : TSubClassCtl(_parent)
 {
@@ -1665,9 +1723,9 @@ TEditSub::TEditSub(TWin *_parent) : TSubClassCtl(_parent)
 #define EM_GETEVENTMASK			(WM_USER + 59)
 #define ENM_LINK				0x04000000
 
-BOOL TEditSub::CreateByWnd(HWND _hWnd)
+BOOL TEditSub::AttachWnd(HWND _hWnd)
 {
-	if (!TSubClassCtl::CreateByWnd(_hWnd))
+	if (!TSubClassCtl::AttachWnd(_hWnd))
 		return	FALSE;
 
 //	DWORD	evMask = SendMessage(EM_GETEVENTMASK, 0, 0) | ENM_LINK;

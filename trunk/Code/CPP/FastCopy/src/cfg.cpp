@@ -1,9 +1,9 @@
 ﻿static char *cfg_id = 
-	"@(#)Copyright (C) 2004-2010 H.Shirouzu		cfg.cpp	ver2.03";
+	"@(#)Copyright (C) 2004-2010 H.Shirouzu		cfg.cpp	ver2.05";
 /* ========================================================================
 	Project  Name			: Fast/Force copy file and directory
 	Create					: 2004-09-15(Wed)
-	Update					: 2010-09-12(Sun)
+	Update					: 2010-11-15(Mon)
 	Copyright				: H.Shirouzu
 	Reference				: 
 	======================================================================== */
@@ -38,6 +38,8 @@
 #define ISERRLOG_KEY			"is_errlog"
 #define ISUTF8LOG_KEY			"is_utf8log"
 #define FILELOGMODE_KEY			"filelog_mode"
+#define ACLERRLOG_KEY			"aclerr_log"
+#define STREAMERRLOG_KEY		"streamerr_log"
 #define ISRUNASBUTTON_KEY		"is_runas_button"
 #define ISSAMEDIRRENAME_KEY		"is_samedir_rename"
 #define BUFSIZE_KEY				"bufsize"
@@ -64,6 +66,7 @@
 #define VERIFY_KEY				"verify"
 #define USEMD5_KEY				"using_md5"
 #define NSA_KEY					"nsa_del"
+#define DELDIR_KEY				"deldir_with_filter"
 #define MOVEATTR_KEY			"move_attr"
 #define SERIALMOVE_KEY			"serial_move"
 #define SERIALVERIFYMOVE_KEY	"serial_verify_move"
@@ -234,7 +237,7 @@ BOOL Cfg::Init(void *user_dir, void *virtual_dir)
 	if (!fname) return FALSE;
 
 	execPathV = strdupV(path);
-	fname[-1] = 0; // remove '\\'
+	SetChar(fname, -1, 0); // remove '\\'
 	execDirV = strdupV(path);
 
 	errLogPathV = NULL;
@@ -325,6 +328,8 @@ BOOL Cfg::ReadIni(void *user_dir, void *virtual_dir)
 	isErrLog		= ini.GetInt(ISERRLOG_KEY, TRUE);
 	isUtf8Log		= ini.GetInt(ISUTF8LOG_KEY, FALSE);
 	fileLogMode		= ini.GetInt(FILELOGMODE_KEY, 0);
+	aclErrLog		= ini.GetInt(ACLERRLOG_KEY, FALSE);
+	streamErrLog	= ini.GetInt(STREAMERRLOG_KEY, FALSE);
 	isRunasButton	= ini.GetInt(ISRUNASBUTTON_KEY, FALSE);
 	isSameDirRename	= ini.GetInt(ISSAMEDIRRENAME_KEY, TRUE);
 	shextAutoClose	= ini.GetInt(SHEXTAUTOCLOSE_KEY, TRUE);
@@ -343,6 +348,7 @@ BOOL Cfg::ReadIni(void *user_dir, void *virtual_dir)
 	enableVerify	= ini.GetInt(VERIFY_KEY, FALSE);
 	usingMD5		= ini.GetInt(USEMD5_KEY, TRUE);
 	enableNSA		= ini.GetInt(NSA_KEY, FALSE);
+	delDirWithFilter= ini.GetInt(DELDIR_KEY, FALSE);
 	enableMoveAttr	= ini.GetInt(MOVEATTR_KEY, FALSE);
 	serialMove		= ini.GetInt(SERIALMOVE_KEY, FALSE);
 	serialVerifyMove = ini.GetInt(SERIALVERIFYMOVE_KEY, FALSE);
@@ -534,6 +540,8 @@ BOOL Cfg::WriteIni(void)
 	ini.SetInt(ISERRLOG_KEY, isErrLog);
 	ini.SetInt(ISUTF8LOG_KEY, isUtf8Log);
 	ini.SetInt(FILELOGMODE_KEY, fileLogMode);
+	ini.SetInt(ACLERRLOG_KEY, aclErrLog);
+	ini.SetInt(STREAMERRLOG_KEY, streamErrLog);
 //	ini.SetInt(ISRUNASBUTTON_KEY, isRunasButton);
 	ini.SetInt(ISSAMEDIRRENAME_KEY, isSameDirRename);
 	ini.SetInt(SHEXTAUTOCLOSE_KEY, shextAutoClose);
@@ -553,6 +561,7 @@ BOOL Cfg::WriteIni(void)
 	ini.SetInt(VERIFY_KEY, enableVerify);
 //	ini.SetInt(USEMD5_KEY, usingMD5);
 	ini.SetInt(NSA_KEY, enableNSA);
+	ini.SetInt(DELDIR_KEY, delDirWithFilter);
 	ini.SetInt(MOVEATTR_KEY, enableMoveAttr);
 	ini.SetInt(SERIALMOVE_KEY, serialMove);
 	ini.SetInt(SERIALVERIFYMOVE_KEY, serialVerifyMove);

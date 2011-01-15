@@ -13,7 +13,7 @@
 #undef APSTUDIO_READONLY_SYMBOLS
 
 /////////////////////////////////////////////////////////////////////////////
-// ⌠З√{▄Й resources
+// Ф≈╔Ф°╛Х╙· resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_JPN)
 #ifdef _WIN32
@@ -64,51 +64,51 @@ SETUP_ICON              ICON    DISCARDABLE     "setup.ico"
 INSTALL_DIALOG DIALOG DISCARDABLE  0, 0, 169, 168
 STYLE DS_MODALFRAME | WS_MINIMIZEBOX | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "FastCopy Setup"
-FONT 9, "┌l┌r ┌o┐S┐V┐b┐N"
+FONT 9, "О╪╜О╪Ё О╪╟Ц┌╢Ц┌╥Ц┐┐Ц┌╞"
 BEGIN
-    LTEXT           "",INSTALL_STATIC,0,74,168,68
-    DEFPUSHBUTTON   "┼J▌n",IDOK,55,147,59,15
-    PUSHBUTTON      "▓├▌~",IDCANCEL,120,147,43,14
-    CONTROL         "1. ▌w▓Х┐t┐H┐▀┐_┌и┐C┐⌠┐X┐g│[┐▀",SETUP_RADIO,"Button",
+    LTEXT           "",INSTALL_STATIC,0,74,168,68,NOT WS_VISIBLE
+    DEFPUSHBUTTON   "И√▀Е╖▀",IDOK,55,147,59,15
+    PUSHBUTTON      "Д╦╜Ф╜╒",IDCANCEL,120,147,43,14
+    CONTROL         "1. Ф▄┤Е╝ Ц┐∙Ц┌╘Ц┐╚Ц┐─Ц│╚Ц┌╓Ц┐ЁЦ┌╧Ц┐┬Ц┐╪Ц┐╚",SETUP_RADIO,"Button",
                     BS_AUTORADIOBUTTON | BS_NOTIFY | WS_GROUP | WS_TABSTOP,9,
                     15,106,10
-    CONTROL         "2. ┐A┐⌠┐C┐⌠┐X┐g│[┐▀",UNINSTALL_RADIO,"Button",
+    CONTROL         "2. Ц┌╒Ц┐ЁЦ┌╓Ц┐ЁЦ┌╧Ц┐┬Ц┐╪Ц┐╚",UNINSTALL_RADIO,"Button",
                     BS_AUTORADIOBUTTON | BS_NOTIFY | WS_TABSTOP,9,51,76,10
-    PUSHBUTTON      "▌Q▐ф",FILE_BUTTON,117,12,40,14
+    PUSHBUTTON      "Е▐┌Г┘╖",FILE_BUTTON,117,12,40,14
     EDITTEXT        FILE_EDIT,21,29,137,12,ES_AUTOHSCROLL
-    GROUPBOX        "┐Z┐b┐g┐A┐b┐v┐┌│[┐h",IDC_STATIC,4,3,160,65,BS_CENTER | 
+    GROUPBOX        "Ц┌╩Ц┐┐Ц┐┬Ц┌╒Ц┐┐Ц┐≈Ц┐╒Ц┐╪Ц┐┴",IDC_STATIC,4,3,160,65,BS_CENTER | 
                     WS_GROUP
 END
 
 INSTALL_SHEET DIALOG DISCARDABLE  0, 0, 168, 68
 STYLE WS_CHILD
-FONT 9, "┌l┌r ┌o┐S┐V┐b┐N"
+FONT 9, "О╪╜О╪Ё О╪╟Ц┌╢Ц┌╥Ц┐┐Ц┌╞"
 BEGIN
-    CONTROL         "┐v┐█┐O┐┴┐─┐O┐▀│[┐v┌и⌠o≤^",PROGRAM_CHECK,"Button",
+    CONTROL         "Ц┐≈Ц┐╜Ц┌╟Ц┐╘Ц┐═Ц┌╟Ц┐╚Ц┐╪Ц┐≈Ц│╚Г≥╩И▄╡",PROGRAM_CHECK,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,14,11,98,10
-    CONTROL         "┐f┐X┐N┐g┐b┐v┌и┐V┐┤│[┐g┐J┐b┐g┌П█Л░╛",DESKTOP_CHECK,
+    CONTROL         "Ц┐┤Ц┌╧Ц┌╞Ц┐┬Ц┐┐Ц┐≈Ц│╚Ц┌╥Ц┐╖Ц┐╪Ц┐┬Ц┌╚Ц┐┐Ц┐┬Ц┌▓Д╫°Ф┬░",DESKTOP_CHECK,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,26,120,10
-    GROUPBOX        "▐з█в",IDC_STATIC,5,1,159,62,BS_CENTER | WS_GROUP
-    LTEXT           "┐V┐F┐▀┼g▓ё┌м┐C┐⌠┐X┐g│[┐▀▄Ц│AFastCopy │╗ Setup┐│┐j┐┘│[ │╗ ┐V┐F┐▀┼g▓ё┐│┐j┐┘│[┌╘┌Г█s┌╒┌э┌╥│B",
+    GROUPBOX        "Х╘ЁГ╢╟",IDC_STATIC,5,1,159,62,BS_CENTER | WS_GROUP
+    LTEXT           "Ц┌╥Ц┌╖Ц┐╚Ф▀║Е╪╣Ц│╞Ц┌╓Ц┐ЁЦ┌╧Ц┐┬Ц┐╪Ц┐╚Е╬▄Ц─│FastCopy Б├▓ SetupЦ┐║Ц┐▀Ц┐╔Ц┐╪ Б├▓ Ц┌╥Ц┌╖Ц┐╚Ф▀║Е╪╣Ц┐║Ц┐▀Ц┐╔Ц┐╪Ц│▀Ц┌┴Х║▄Ц│└Ц│╬Ц│≥Ц─┌",
                     IDC_STATIC,12,40,147,20
 END
 
 INPUT_DIALOG DIALOG DISCARDABLE  0, 0, 85, 39
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "░V▀K┐f┐B┐▄┐N┐g┐┼√╪"
-FONT 9, "┌l┌r ┌o┐S┐V┐b┐N"
+CAPTION "Ф√╟Х╕▐Ц┐┤Ц┌ёЦ┐╛Ц┌╞Ц┐┬Ц┐╙Е░█"
+FONT 9, "О╪╜О╪Ё О╪╟Ц┌╢Ц┌╥Ц┐┐Ц┌╞"
 BEGIN
     EDITTEXT        INPUT_EDIT,6,4,74,13,ES_AUTOHSCROLL
-    DEFPUSHBUTTON   "█Л░╛",IDOK,11,20,37,14
-    PUSHBUTTON      "▓├▌~",IDCANCEL,53,20,23,14
+    DEFPUSHBUTTON   "Д╫°Ф┬░",IDOK,11,20,37,14
+    PUSHBUTTON      "Д╦╜Ф╜╒",IDCANCEL,53,20,23,14
 END
 
 UNINSTALL_SHEET DIALOG DISCARDABLE  0, 0, 168, 68
 STYLE DS_SYSMODAL | WS_CHILD | WS_VISIBLE
-FONT 9, "┌l┌r ┌o┐S┐V┐b┐N"
+FONT 9, "О╪╜О╪Ё О╪╟Ц┌╢Ц┌╥Ц┐┐Ц┌╞"
 BEGIN
-    GROUPBOX        "▐з█в",IDC_STATIC,5,1,159,62,BS_CENTER | WS_GROUP
-    LTEXT           "┐V┐F┐▀┼g▓ё┌П√Ё▄Ь┴╩┌╣┌╫▄Ц│A┐V┐┤│[┐g┐J┐b┐g≈ч┌П█М▐°┌╣┌э┌╥│B\r",
+    GROUPBOX        "Х╘ЁГ╢╟",IDC_STATIC,5,1,159,62,BS_CENTER | WS_GROUP
+    LTEXT           "Ц┌╥Ц┌╖Ц┐╚Ф▀║Е╪╣Ц┌▓Г└║Е┼╧Е▄√Ц│≈Ц│÷Е╬▄Ц─│Ц┌╥Ц┐╖Ц┐╪Ц┐┬Ц┌╚Ц┐┐Ц┐┬И║·Ц┌▓Е┴┼И≥╓Ц│≈Ц│╬Ц│≥Ц─┌\r",
                     IDC_STATIC,16,15,131,33
 END
 
@@ -165,24 +165,24 @@ END
 
 STRINGTABLE DISCARDABLE 
 BEGIN
-    IDS_MKDIR               "█Л░╛"
-    IDS_RMDIR               "█М▐°"
-    IDS_SETUPCOMPLETE       "┐Z┐b┐g┐A┐b┐v┌м┼╝≈╧┌╣┌э┌╣┌╫│B\r\n┐A┐⌠┐C┐⌠┐X┐g│[┐▀┌м│A┐C┐⌠┐X┐g│[┐▀░Ф┐f┐B┐▄┐N┐g┐┼┴╨┌л setup.exe ┌╘┌Г█s┌а┌д┌╜┌╬┌Ё┌╒│B\r\n\r\n FastCopy ┌П▀N⌠╝┌╣┌э┌╥┌╘│H"
-    IDS_UNINSTFIN           "┐A┐⌠┐C┐⌠┐X┐g│[┐▀│i┐V┐┤│[┐g┐J┐b┐g█М▐°/┐V┐F┐▀┼g▓ё√Ё▄Ь┴╩│j┌м┼╝≈╧┌╣┌э┌╣┌╫│B\r\n┌╗▌Х░■┌е┌╥┌╙│A┬ю▒S┌л┌╫┌ъ│AFastCopy┐t┐H┐▀┐_┌л█М▐°┌м▌Х⌠╝┌е█s┌а┌д┌╜┌╬┌Ё┌╒│B"
-    IDS_UNINSTSHEXTFIN      "\r\n\r\n┐V┐F┐▀┼g▓ё┌П┴П▐°┌╣┌э┌╣┌╫│B┌╗▌Х░■┌е┌╥┌╙│A"" fastex*.dll""┌л█М▐°┌мOS█д▀N⌠╝▄Ц┌и█s┌а┌д┌╜┌╬┌Ё┌╒│B"
-    IDS_NOTCREATEDIR        "┐f┐B┐▄┐N┐g┐┼┌╙█Л┌Й┌э┌╧┌Я"
-    IDS_NOTCREATEFILE       "┐t┐@┐C┐▀┌П┐R┐s│[┌е┌╚┌э┌╧┌Я"
-    IDS_START               "┼J▌n┌╣┌э┌╥"
-    IDS_DELAYSETUPCOMPLETE  "┐Z┐b┐g┐A┐b┐v┌м┼╝≈╧┌╣┌э┌╣┌╫│B\r\n┌╫┌╬┌╣│A┐V┐F┐▀┼g▓ё≈pdll┌м│A▌g≈p▓├┌л┌╫┌ъ│AOS█д▀N⌠╝▄Ц┌и│A▓u┌╚┼╥┌╕⌠╝█Л┌П█s┌╒┌э┌╥│B\r\n┐A┐⌠┐C┐⌠┐X┐g│[┐▀┌м│A┐C┐⌠┐X┐g│[┐▀░Ф┐f┐B┐▄┐N┐g┐┼┴╨┌л setup.exe ┌╘┌Г█s┌а┌д┌╜┌╬┌Ё┌╒│B\r\n\r\n FastCopy ┌П▀N⌠╝┌╣┌э┌╥┌╘│H"
-    IDS_ADMINCHANGE         "⌠а▄═▐╦┼i▄Ц┌и┌м│A┐Z┐b┐g┐A┐b┐v┐p┐X┌П∙о█X┌╣┌х┌╒┌е┌╜┌╬┌Ё┌╒│B\r\n∙о█X┌╣┌╫┌╒▐Й█┤┌м│Asetup.exe ┌П▀N⌠╝┌╣┌х┌╗┌╣┌д┌╜┌╬┌Ё┌╒│B"
+    IDS_MKDIR               "Д╫°Ф┬░"
+    IDS_RMDIR               "Е┴┼И≥╓"
+    IDS_SETUPCOMPLETE       "Ц┌╩Ц┐┐Ц┐┬Ц┌╒Ц┐┐Ц┐≈Ц│╞Е╝▄Д╨├Ц│≈Ц│╬Ц│≈Ц│÷Ц─┌\r\nЦ┌╒Ц┐ЁЦ┌╓Ц┐ЁЦ┌╧Ц┐┬Ц┐╪Ц┐╚Ц│╞Ц─│Ц┌╓Ц┐ЁЦ┌╧Ц┐┬Ц┐╪Ц┐╚Е┘┬Ц┐┤Ц┌ёЦ┐╛Ц┌╞Ц┐┬Ц┐╙Д╦▀Ц│╝ setup.exe Ц│▀Ц┌┴Х║▄Ц│ёЦ│╕Ц│▐Ц│═Ц│∙Ц│└Ц─┌\r\n\r\n FastCopy Ц┌▓Х╣╥Е▀∙Ц│≈Ц│╬Ц│≥Ц│▀О╪÷"
+    IDS_UNINSTFIN           "Ц┌╒Ц┐ЁЦ┌╓Ц┐ЁЦ┌╧Ц┐┬Ц┐╪Ц┐╚О╪┬Ц┌╥Ц┐╖Ц┐╪Ц┐┬Ц┌╚Ц┐┐Ц┐┬Е┴┼И≥╓/Ц┌╥Ц┌╖Ц┐╚Ф▀║Е╪╣Г└║Е┼╧Е▄√О╪┴Ц│╞Е╝▄Д╨├Ц│≈Ц│╬Ц│≈Ц│÷Ц─┌\r\nЦ│┼Ф┴▀Ф∙╟Ц│╖Ц│≥Ц│▄Ц─│Е╝┴Е┘╗Ц│╝Ц│÷Ц┌│Ц─│FastCopyЦ┐∙Ц┌╘Ц┐╚Ц┐─Ц│╝Е┴┼И≥╓Ц│╞Ф┴▀Е▀∙Ц│╖Х║▄Ц│ёЦ│╕Ц│▐Ц│═Ц│∙Ц│└Ц─┌"
+    IDS_UNINSTSHEXTFIN      "\r\n\r\nЦ┌╥Ц┌╖Ц┐╚Ф▀║Е╪╣Ц┌▓Х╖ёИ≥╓Ц│≈Ц│╬Ц│≈Ц│÷Ц─┌Ц│┼Ф┴▀Ф∙╟Ц│╖Ц│≥Ц│▄Ц─│"" fastex*.dll""Ц│╝Е┴┼И≥╓Ц│╞OSЕ├█Х╣╥Е▀∙Е╬▄Ц│╚Х║▄Ц│ёЦ│╕Ц│▐Ц│═Ц│∙Ц│└Ц─┌"
+    IDS_NOTCREATEDIR        "Ц┐┤Ц┌ёЦ┐╛Ц┌╞Ц┐┬Ц┐╙Ц│▄Д╫°Ц┌▄Ц│╬Ц│⌡Ц┌⌠"
+    IDS_NOTCREATEFILE       "Ц┐∙Ц┌║Ц┌╓Ц┐╚Ц┌▓Ц┌ЁЦ┐■Ц┐╪Ц│╖Ц│█Ц│╬Ц│⌡Ц┌⌠"
+    IDS_START               "И√▀Е╖▀Ц│≈Ц│╬Ц│≥"
+    IDS_DELAYSETUPCOMPLETE  "Ц┌╩Ц┐┐Ц┐┬Ц┌╒Ц┐┐Ц┐≈Ц│╞Е╝▄Д╨├Ц│≈Ц│╬Ц│≈Ц│÷Ц─┌\r\nЦ│÷Ц│═Ц│≈Ц─│Ц┌╥Ц┌╖Ц┐╚Ф▀║Е╪╣Г■╗dllЦ│╞Ц─│Д╫©Г■╗Д╦╜Ц│╝Ц│÷Ц┌│Ц─│OSЕ├█Х╣╥Е▀∙Е╬▄Ц│╚Ц─│Г╫╝Ц│█Ф▐⌡Ц│┬Е▀∙Д╫°Ц┌▓Х║▄Ц│└Ц│╬Ц│≥Ц─┌\r\nЦ┌╒Ц┐ЁЦ┌╓Ц┐ЁЦ┌╧Ц┐┬Ц┐╪Ц┐╚Ц│╞Ц─│Ц┌╓Ц┐ЁЦ┌╧Ц┐┬Ц┐╪Ц┐╚Е┘┬Ц┐┤Ц┌ёЦ┐╛Ц┌╞Ц┐┬Ц┐╙Д╦▀Ц│╝ setup.exe Ц│▀Ц┌┴Х║▄Ц│ёЦ│╕Ц│▐Ц│═Ц│∙Ц│└Ц─┌\r\n\r\n FastCopy Ц┌▓Х╣╥Е▀∙Ц│≈Ц│╬Ц│≥Ц│▀О╪÷"
+    IDS_ADMINCHANGE         "Г┴╧Ф╗╘Ф≤┤Ф═╪Е╬▄Ц│╚Ц│╞Ц─│Ц┌╩Ц┐┐Ц┐┬Ц┌╒Ц┐┐Ц┐≈Ц┐▒Ц┌╧Ц┌▓Е╓┴Ф⌡╢Ц│≈Ц│╙Ц│└Ц│╖Ц│▐Ц│═Ц│∙Ц│└Ц─┌\r\nЕ╓┴Ф⌡╢Ц│≈Ц│÷Ц│└Е═╢Е░┬Ц│╞Ц─│setup.exe Ц┌▓Х╣╥Е▀∙Ц│≈Ц│╙Ц│┼Ц│≈Ц│╕Ц│▐Ц│═Ц│∙Ц│└Ц─┌"
 END
 
-#endif    // ⌠З√{▄Й resources
+#endif    // Ф≈╔Ф°╛Х╙· resources
 /////////////////////////////////////////////////////////////////////////////
 
 
 /////////////////////////////////////////////////////////////////////////////
-// ┴p▄Й (╠рь╤) resources
+// Х▀╠Х╙· (О╫╠О╬▓О╬≤О╫╤) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
 #ifdef _WIN32
@@ -210,7 +210,7 @@ STYLE DS_MODALFRAME | WS_MINIMIZEBOX | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "FastCopy Setup"
 FONT 8, "Verdana"
 BEGIN
-    LTEXT           "",INSTALL_STATIC,0,74,168,68
+    LTEXT           "",INSTALL_STATIC,0,74,168,68,NOT WS_VISIBLE
     DEFPUSHBUTTON   "Start",IDOK,55,147,59,15
     PUSHBUTTON      "Close",IDCANCEL,120,147,43,14
     CONTROL         "1. Install to following directory",SETUP_RADIO,"Button",
@@ -303,7 +303,7 @@ BEGIN
     IDS_ADMINCHANGE         "Please don't change setup path after elevate\r\nIf you want to change it, please restart setup.exe."
 END
 
-#endif    // ┴p▄Й (╠рь╤) resources
+#endif    // Х▀╠Х╙· (О╫╠О╬▓О╬≤О╫╤) resources
 /////////////////////////////////////////////////////////////////////////////
 
 

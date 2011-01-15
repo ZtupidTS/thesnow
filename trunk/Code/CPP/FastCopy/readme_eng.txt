@@ -1,5 +1,5 @@
 ======================================================================
-                   FastCopy  ver2.03                   2010/09/12
+                   FastCopy  ver2.06                   2010/11/16
                                                  SHIROUZU Hiroaki
 ======================================================================
 
@@ -44,7 +44,7 @@ License:
 	THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 	---------------------------------------------------------------
 
-UsageÅF
+Usage¬ÅF
 	Please see fastcopy.chm
 
 Build:

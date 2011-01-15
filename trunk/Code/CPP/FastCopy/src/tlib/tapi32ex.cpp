@@ -46,6 +46,9 @@ BOOL (WINAPI *pCryptUnprotectData)(DATA_BLOB* pDataIn, LPWSTR* ppszDataDescr,
 	DATA_BLOB* pOptionalEntropy, PVOID pvReserved, CRYPTPROTECT_PROMPTSTRUCT* pPromptStruct,
 	DWORD dwFlags, DATA_BLOB* pDataOut);
 
+NTSTATUS (WINAPI *pNtQueryInformationFile)(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock,
+	PVOID FileInformation, ULONG Length, FILE_INFORMATION_CLASS FileInformationClass);
+
 BOOL TLibInit_AdvAPI32()
 {
 	HMODULE	advdll = ::GetModuleHandle("advapi32.dll");
@@ -112,6 +115,17 @@ BOOL TLibInit_Crypt32()
 	return	TRUE;
 }
 
+BOOL TLibInit_Ntdll()
+{
+	HINSTANCE	ntdll = ::GetModuleHandle("ntdll.dll");
+
+	pNtQueryInformationFile =
+		(NTSTATUS (WINAPI *)(HANDLE, PIO_STATUS_BLOCK, PVOID, ULONG,
+		FILE_INFORMATION_CLASS FileInformationClass))
+		::GetProcAddress(ntdll, "NtQueryInformationFile");
+
+	return	TRUE;
+}
 
 TDigest::TDigest()
 {
@@ -403,7 +417,7 @@ int rand_data2[THASH_RAND_NUM2] = {
 };
 
 /*
-	手抜きハッシュ生成ルーチン
+	謇区栢縺阪ワ繝�繧ｷ繝･逕滓�舌Ν繝ｼ繝√Φ
 */
 u_int MakeHash(const void *data, int size, DWORD iv)
 {

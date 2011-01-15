@@ -801,7 +801,6 @@ DEP_CPP_MISCD=\
 	".\src\tlib\tlib.h"\
 	".\src\utility.h"\
 	".\src\version.h"\
-	{$(INCLUDE)}"\htmlhelp.h"\
 	
 
 "$(INTDIR)\miscdlg.obj" : $(SOURCE) $(DEP_CPP_MISCD) "$(INTDIR)"
@@ -852,6 +851,7 @@ DEP_CPP_TMISC=\
 	".\src\tlib\tapi32u8.h"\
 	".\src\tlib\tapi32v.h"\
 	".\src\tlib\tlib.h"\
+	{$(INCLUDE)}"\htmlhelp.h"\
 	
 
 "$(INTDIR)\tmisc.obj" : $(SOURCE) $(DEP_CPP_TMISC) "$(INTDIR)"
@@ -1073,6 +1073,7 @@ DEP_CPP_TMISC=\
 	".\src\tlib\tapi32u8.h"\
 	".\src\tlib\tapi32v.h"\
 	".\src\tlib\tlib.h"\
+	{$(INCLUDE)}"\htmlhelp.h"\
 	
 
 "$(INTDIR)\tmisc.obj" : $(SOURCE) $(DEP_CPP_TMISC) "$(INTDIR)"
@@ -1291,6 +1292,7 @@ DEP_CPP_TMISC=\
 	".\src\tlib\tapi32u8.h"\
 	".\src\tlib\tapi32v.h"\
 	".\src\tlib\tlib.h"\
+	{$(INCLUDE)}"\htmlhelp.h"\
 	
 
 "$(INTDIR)\tmisc.obj" : $(SOURCE) $(DEP_CPP_TMISC) "$(INTDIR)"
@@ -1360,6 +1362,7 @@ DEP_CPP_TMISC=\
 	".\src\tlib\tapi32u8.h"\
 	".\src\tlib\tapi32v.h"\
 	".\src\tlib\tlib.h"\
+	{$(INCLUDE)}"\htmlhelp.h"\
 	
 
 "$(INTDIR)\tmisc.obj" : $(SOURCE) $(DEP_CPP_TMISC) "$(INTDIR)"
