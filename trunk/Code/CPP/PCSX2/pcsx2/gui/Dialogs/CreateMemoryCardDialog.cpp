@@ -1,4 +1,4 @@
-/*  PCSX2 - PS2 Emulator for PCs
+﻿/*  PCSX2 - PS2 Emulator for PCs
  *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
@@ -148,7 +148,7 @@ void Dialogs::CreateMemoryCardDialog::CreateControls()
 		GetMsg_McdNtfsCompress()
 	);
 
-	m_check_CompressNTFS->SetToolTip( pxE( ".Tooltip:ChangingNTFS",
+	m_check_CompressNTFS->SetToolTip( pxEt( "!ContextTip:ChangingNTFS",
 			L"NTFS compression can be changed manually at any time by using file properties from Windows Explorer."
 		)
 	);
@@ -161,19 +161,19 @@ void Dialogs::CreateMemoryCardDialog::CreateControls()
 	const RadioPanelItem tbl_CardSizes[] =
 	{
 		RadioPanelItem(_("8 MB [最兼容]"), _("这是索尼指定的默认大小, 并且所有游戏和BIOS版本都支持."))
-		.	SetToolTip(_("如果你希望安全可靠的内存卡,请使用这个选项."))
+		.	SetToolTip(_t("如果你希望安全可靠的内存卡,请使用这个选项."))
 		.	SetInt(8),
 
 		RadioPanelItem(_("16 MB"), _("A typical size for 3rd-party memory cards which should work with most games."))
-		.	SetToolTip(_("16 and 32 MB cards have roughly the same compatibility factor."))
+		.	SetToolTip(_t("16 and 32 MB cards have roughly the same compatibility factor."))
 		.	SetInt(16),
 
 		RadioPanelItem(_("32 MB"), _("A typical size for 3rd-party memory cards which should work with most games."))
-		.	SetToolTip(_("16 and 32 MB cards have roughly the same compatibility factor."))
+		.	SetToolTip(_t("16 and 32 MB cards have roughly the same compatibility factor."))
 		.	SetInt(32),
 
 		RadioPanelItem(_("64 MB"), _("Low compatibility warning: Yes it's very big, but may not work with many games."))
-		.	SetToolTip(_("Use at your own risk.  Erratic memory card behavior is possible (though unlikely)."))
+		.	SetToolTip(_t("Use at your own risk.  Erratic memory card behavior is possible (though unlikely)."))
 		.	SetInt(64)
 	};
 

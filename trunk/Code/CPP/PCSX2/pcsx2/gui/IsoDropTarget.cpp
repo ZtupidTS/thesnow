@@ -25,7 +25,7 @@
 
 wxString GetMsg_ConfirmSysReset()
 {
-	return pxE( ".Popup:ConfirmSysReset",
+	return pxE( "!Notice:ConfirmSysReset",
 		L"这个操作将会重置已存在 PS2 虚拟机状态; "
 		L"所有当前进度将会丢失.是否确认?"
 	);

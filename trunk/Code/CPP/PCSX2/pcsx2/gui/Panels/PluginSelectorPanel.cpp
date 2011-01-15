@@ -52,14 +52,22 @@ DEFINE_EVENT_TYPE(pxEVT_ShowStatusBar);
 typedef s32		(CALLBACK* TestFnptr)();
 typedef void	(CALLBACK* ConfigureFnptr)();
 
-static const wxString failed_separator( L"--------   ²»Ö§³ÖµÄ²å¼þ  --------" );
+static const wxString failed_separator( L"--------   ä¸æ”¯æŒçš„æ’ä»¶  --------" );
 
 namespace Exception
 {
 	class NotEnumerablePlugin : public BadStream
 	{
 	public:
-		DEFINE_STREAM_EXCEPTION( NotEnumerablePlugin, BadStream, wxLt("ÎÄ¼þ²»ÊÇÒ»¸ö PCSX2 ²å¼þ") );
+		DEFINE_STREAM_EXCEPTION( NotEnumerablePlugin, BadStream );
+
+		wxString FormatDiagnosticMessage() const
+		{
+			FastFormatUnicode retval;
+			retval.Write("æ–‡ä»¶ä¸æ˜¯ä¸€ä¸ª PCSX2 æ’ä»¶");
+			_formatDiagMsg(retval);
+			return retval;
+		}
 	};
 }
 
@@ -72,9 +80,9 @@ protected:
 	wxString			m_plugpath;
 	wxDynamicLibrary	m_plugin;
 
-	_PS2EgetLibType     m_GetLibType;
-	_PS2EgetLibName     m_GetLibName;
-	_PS2EgetLibVersion2 m_GetLibVersion2;
+	_PS2EgetLibType		m_GetLibType;
+	_PS2EgetLibName		m_GetLibName;
+	_PS2EgetLibVersion2	m_GetLibVersion2;
 
 	u32 m_type;
 
@@ -90,7 +98,7 @@ public:
 		: m_plugpath( plugpath )
 	{
 		if( !m_plugin.Load( m_plugpath ) )
-			throw Exception::BadStream( m_plugpath ).SetBothMsgs(L"ÎÄ¼þ²»ÊÇÒ»¸öÓÐÐ§µÄ¶¯Ì¬Á´½Ó¿â.");
+			throw Exception::BadStream( m_plugpath ).SetBothMsgs(L"æ–‡ä»¶ä¸æ˜¯ä¸€ä¸ªæœ‰æ•ˆçš„åŠ¨æ€é“¾æŽ¥åº“.");
 
 		wxDoNotLogInThisScope please;
 		m_GetLibType		= (_PS2EgetLibType)m_plugin.GetSymbol( L"PS2EgetLibType" );
@@ -219,7 +227,7 @@ protected:
 IMPLEMENT_DYNAMIC_CLASS(ApplyPluginsDialog, WaitForTaskDialog)
 
 ApplyPluginsDialog::ApplyPluginsDialog( BaseApplicableConfigPanel* panel )
-	: WaitForTaskDialog( _("Ó¦ÓÃÉèÖÃ...") )
+	: WaitForTaskDialog( _("åº”ç”¨è®¾ç½®...") )
 {
 	GetSysExecutorThread().PostEvent( new SysExecEvent_ApplyPlugins( this, m_sync ) );
 }
@@ -231,7 +239,7 @@ void ApplyOverValidStateEvent::InvokeEvent()
 {
 	wxDialogWithHelpers dialog( m_owner, _("Shutdown PS2 virtual machine?") );
 
-	dialog += dialog.Heading( pxE( ".Popup:PluginSelector:ConfirmShutdown",
+	dialog += dialog.Heading( pxE( "!Notice:PluginSelector:ConfirmShutdown",
 		L"Warning!  Changing plugins requires a complete shutdown and reset of the PS2 virtual machine. "
 		L"PCSX2 will attempt to save and restore the state, but if the newly selected plugins are "
 		L"incompatible the recovery may fail, and current progress will be lost."
@@ -265,7 +273,9 @@ void SysExecEvent_ApplyPlugins::InvokeEvent()
 		// FIXME : We only actually have to save plugins here, except the recovery code
 		// in SysCoreThread isn't quite set up yet to handle that (I think...) --air
 
-		memSavingState( *(buffer.Reassign(new VmStateBuffer(L"StateBuffer_ApplyNewPlugins"))) ).FreezeAll();
+		memSavingState saveme( *(buffer.Reassign(new VmStateBuffer(L"StateBuffer_ApplyNewPlugins"))) );
+		
+		saveme.FreezeAll();
 	}
 
 	ScopedCoreThreadClose closed_core;
@@ -310,7 +320,7 @@ Panels::PluginSelectorPanel::StatusPanel::StatusPanel( wxWindow* parent )
 
 	m_gauge.SetToolTip( _("I'm givin' her all she's got, Captain!") );
 
-	*this	+= Heading(_( "Ã¶¾ÙÓÐÐ§²å¼þÖÐ..." )).Bold()	| StdExpand();
+	*this	+= Heading(_( "æžšä¸¾æœ‰æ•ˆæ’ä»¶ä¸­..." )).Bold()	| StdExpand();
 	*this	+= m_gauge	| pxExpand.Border( wxLEFT | wxRIGHT, 32 );
 	*this	+= m_label	| StdExpand();
 
@@ -343,8 +353,8 @@ static const int ButtonId_Configure = 51;
 Panels::PluginSelectorPanel::ComboBoxPanel::ComboBoxPanel( PluginSelectorPanel* parent )
 	: wxPanelWithHelpers( parent, wxVERTICAL )
 	, m_FolderPicker(	*new DirPickerPanel( this, FolderId_Plugins,
-		_("²å¼þËÑË÷Â·¾¶:"),
-		_("Ñ¡ÔñÒ»¸ö PCSX2 ²å¼þÂ·¾¶") )
+		_("æ’ä»¶æœç´¢è·¯å¾„:"),
+		_("é€‰æ‹©ä¸€ä¸ª PCSX2 æ’ä»¶è·¯å¾„") )
 	)
 {
 	wxFlexGridSizer& s_plugin( *new wxFlexGridSizer( PluginId_Count, 3, 16, 10 ) );
@@ -357,7 +367,7 @@ Panels::PluginSelectorPanel::ComboBoxPanel::ComboBoxPanel( PluginSelectorPanel* 
 
 		m_combobox[pid] = new wxComboBox( this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0, NULL, wxCB_READONLY );
 
-		m_configbutton[pid] = new wxButton( this, ButtonId_Configure, L"ÉèÖÃ..." );
+		m_configbutton[pid] = new wxButton( this, ButtonId_Configure, L"è®¾ç½®..." );
 		m_configbutton[pid]->SetClientData( (void*)(int)pid );
 
 		s_plugin	+= Label( pi->GetShortname() )	| pxBorder( wxTOP | wxLEFT, 2 );
@@ -365,7 +375,7 @@ Panels::PluginSelectorPanel::ComboBoxPanel::ComboBoxPanel( PluginSelectorPanel* 
 		s_plugin	+= m_configbutton[pid];
 	} while( ++pi, pi->shortname != NULL );
 
-	m_FolderPicker.SetStaticDesc( _("µã»÷ä¯ÀÀ°´Å¥Ñ¡ÔñÒ»¸ö²»Í¬Î»ÖÃµÄ PCSX2 ²å¼þ.") );
+	m_FolderPicker.SetStaticDesc( _("ç‚¹å‡»æµè§ˆæŒ‰é’®é€‰æ‹©ä¸€ä¸ªä¸åŒä½ç½®çš„ PCSX2 æ’ä»¶.") );
 
 	*this	+= s_plugin			| pxExpand;
 	*this	+= 6;
@@ -429,8 +439,6 @@ Panels::PluginSelectorPanel::PluginSelectorPanel( wxWindow* parent )
 	Connect( wxEVT_COMMAND_COMBOBOX_SELECTED,	wxCommandEventHandler( PluginSelectorPanel::OnPluginSelected ) );
 
 	Connect( ButtonId_Configure, wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( PluginSelectorPanel::OnConfigure_Clicked ) );
-
-	AppStatusEvent_OnSettingsApplied();
 }
 
 Panels::PluginSelectorPanel::~PluginSelectorPanel() throw()
@@ -445,7 +453,7 @@ void Panels::PluginSelectorPanel::AppStatusEvent_OnSettingsApplied()
 
 static wxString GetApplyFailedMsg()
 {
-	return wxsFormat( pxE( ".Error:PluginSelector:ApplyFailed",
+	return pxsFmt( pxE( "!Notice:PluginSelector:ApplyFailed",
 		L"All plugins must have valid selections for %s to run.  If you are unable to make "
 		L"a valid selection due to missing plugins or an incomplete install of %s, then "
 		L"press cancel to close the Configuration panel."
@@ -469,7 +477,7 @@ void Panels::PluginSelectorPanel::Apply()
 
 			throw Exception::CannotApplySettings( this )
 				.SetDiagMsg(wxsFormat( L"PluginSelectorPanel: Invalid or missing selection for the %s plugin.", plugname.c_str()) )
-				.SetUserMsg(wxsFormat( L"ÇëÑ¡ÔñÒ»¸öÓÐÐ§µÄ %s ²å¼þ.", plugname.c_str() ) + L"\n\n" + GetApplyFailedMsg() );
+				.SetUserMsg(wxsFormat( L"è¯·é€‰æ‹©ä¸€ä¸ªæœ‰æ•ˆçš„ %s æ’ä»¶.", plugname.c_str() ) + L"\n\n" + GetApplyFailedMsg() );
 		}
 
 		g_Conf->BaseFilenames.Plugins[pid] = GetFilename((int)m_ComponentBoxes->Get(pid).GetClientData(sel));
@@ -634,8 +642,24 @@ void Panels::PluginSelectorPanel::OnConfigure_Clicked( wxCommandEvent& evt )
 
 	if( ConfigureFnptr configfunc = (ConfigureFnptr)dynlib.GetSymbol( tbl_PluginInfo[pid].GetShortname() + L"configure" ) )
 	{
+		
 		wxWindowDisabler disabler;
 		ScopedCoreThreadPause paused_core( new SysExecEvent_SaveSinglePlugin(pid) );
+		if (!CorePlugins.AreLoaded())
+		{
+			typedef void	(CALLBACK* SetDirFnptr)( const char* dir );
+
+			if( SetDirFnptr func = (SetDirFnptr)dynlib.GetSymbol( tbl_PluginInfo[pid].GetShortname() + L"setSettingsDir" ) )
+			{
+				func( GetSettingsFolder().ToUTF8() );
+			}
+
+			if( SetDirFnptr func = (SetDirFnptr)dynlib.GetSymbol( tbl_PluginInfo[pid].GetShortname() + L"setLogDir" ) )
+			{
+				func( GetLogFolder().ToUTF8() );
+			}
+		}
+
 		configfunc();
 	}
 }

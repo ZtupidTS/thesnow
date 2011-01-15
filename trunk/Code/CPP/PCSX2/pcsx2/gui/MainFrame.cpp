@@ -1,4 +1,4 @@
-/*  PCSX2 - PS2 Emulator for PCs
+ï»¿/*  PCSX2 - PS2 Emulator for PCs
  *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
@@ -33,12 +33,12 @@ wxMenu* MainEmuFrame::MakeStatesSubMenu( int baseid ) const
 {
 	wxMenu* mnuSubstates = new wxMenu();
 
-    for (int i = 0; i < 10; i++)
-    {
-        mnuSubstates->Append( baseid+i+1, wxsFormat(L"²å²Û %d", i) );
-    }
+	for (int i = 0; i < 10; i++)
+	{
+        mnuSubstates->Append( baseid+i+1, wxsFormat(L"æ’æ§½ %d", i) );
+	}
 	mnuSubstates->AppendSeparator();
-	mnuSubstates->Append( baseid - 1,	_("ÆäËü...") );
+	mnuSubstates->Append( baseid - 1,	_("å…¶å®ƒ...") );
 	return mnuSubstates;
 }
 
@@ -59,6 +59,29 @@ void MainEmuFrame::UpdateIsoSrcSelection()
 
 	//sMenuBar.SetLabel( MenuId_Src_Iso, wxsFormat( L"%s -> %s", _("Iso"),
 	//	exists ? Path::GetFilename(g_Conf->CurrentIso).c_str() : _("Empty") ) );
+}
+
+bool MainEmuFrame::Destroy()
+{
+	// Sigh: wxWidgets doesn't issue Destroy() calls for children windows when the parent
+	// is destroyed (it just deletes them, quite suddenly).  So let's do it for them, since
+	// our children have configuration stuff they like to do when they're closing.
+
+	for (
+		wxWindowList::const_iterator
+			i	= wxTopLevelWindows.begin(),
+			end = wxTopLevelWindows.end();
+		i != end; ++i
+		)
+	{
+		wxTopLevelWindow * const win = wx_static_cast(wxTopLevelWindow *, *i);
+		if (win == this) continue;
+		if (win->GetParent() != this) continue;
+
+		win->Destroy();
+	}
+	
+	return _parent::Destroy();
 }
 
 // ------------------------------------------------------------------------
@@ -155,7 +178,9 @@ void MainEmuFrame::ConnectMenus()
 	ConnectMenu( MenuId_Config_SysSettings,	Menu_SysSettings_Click );
 	ConnectMenu( MenuId_Config_McdSettings,	Menu_McdSettings_Click );
 	ConnectMenu( MenuId_Config_AppSettings,	Menu_WindowSettings_Click );
+	ConnectMenu( MenuId_Config_GameDatabase,Menu_GameDatabase_Click );
 	ConnectMenu( MenuId_Config_BIOS,		Menu_SelectPluginsBios_Click );
+	ConnectMenu( MenuId_Config_Language,	Menu_Language_Click );
 	ConnectMenu( MenuId_Config_ResetAll,	Menu_ResetAllSettings_Click );
 
 	ConnectMenu( MenuId_Config_Multitap0Toggle,	Menu_MultitapToggle_Click );
@@ -175,9 +200,9 @@ void MainEmuFrame::ConnectMenus()
 	ConnectMenu( MenuId_Boot_CDVD2,			Menu_BootCdvd2_Click );
 	ConnectMenu( MenuId_Boot_ELF,			Menu_OpenELF_Click );
 	ConnectMenu( MenuId_IsoBrowse,			Menu_IsoBrowse_Click );
-	ConnectMenu( MenuId_EnablePatches,      Menu_EnablePatches_Click );
-	ConnectMenu( MenuId_EnableCheats,       Menu_EnableCheats_Click );
-	ConnectMenu( MenuId_EnableHostFs,       Menu_EnableHostFs_Click );
+	ConnectMenu( MenuId_EnablePatches,		Menu_EnablePatches_Click );
+	ConnectMenu( MenuId_EnableCheats,		Menu_EnableCheats_Click );
+	ConnectMenu( MenuId_EnableHostFs,		Menu_EnableHostFs_Click );
 	ConnectMenu( MenuId_Exit,				Menu_Exit_Click );
 
 	ConnectMenu( MenuId_Sys_SuspendResume,	Menu_SuspendResume_Click );
@@ -186,11 +211,11 @@ void MainEmuFrame::ConnectMenus()
 
 	ConnectMenu( MenuId_State_LoadOther,	Menu_LoadStateOther_Click );
 
-    ConnectMenuRange(MenuId_State_Load01+1, 10, Menu_LoadStates_Click);
+	ConnectMenuRange(MenuId_State_Load01+1, 10, Menu_LoadStates_Click);
 
 	ConnectMenu( MenuId_State_SaveOther,	Menu_SaveStateOther_Click );
 
-    ConnectMenuRange(MenuId_State_Save01+1, 10, Menu_SaveStates_Click);
+	ConnectMenuRange(MenuId_State_Save01+1, 10, Menu_SaveStates_Click);
 
 	ConnectMenu( MenuId_Debug_Open,			Menu_Debug_Open_Click );
 	ConnectMenu( MenuId_Debug_MemoryDump,	Menu_Debug_MemoryDump_Click );
@@ -249,11 +274,6 @@ void MainEmuFrame::DispatchEvent( const CoreThreadStatus& status )
 	ApplyCoreStatus();
 }
 
-void MainEmuFrame::AppStatusEvent_OnSettingsLoadSave()
-{
-	// nothing to do here right now.
-}
-
 void MainEmuFrame::AppStatusEvent_OnSettingsApplied()
 {
 	ApplySettings();
@@ -271,7 +291,7 @@ static int GetPluginMenuId_Name( PluginsEnum_t pid )
 
 // ------------------------------------------------------------------------
 MainEmuFrame::MainEmuFrame(wxWindow* parent, const wxString& title)
-    : wxFrame(parent, wxID_ANY, title, wxDefaultPosition, wxDefaultSize, wxDEFAULT_FRAME_STYLE & ~(wxMAXIMIZE_BOX | wxRESIZE_BORDER) )
+	: wxFrame(parent, wxID_ANY, title, wxDefaultPosition, wxDefaultSize, wxDEFAULT_FRAME_STYLE & ~(wxMAXIMIZE_BOX | wxRESIZE_BORDER) )
 
 	, m_statusbar( *CreateStatusBar(2, 0) )
 	, m_background( this, wxID_ANY, wxGetApp().GetLogoBitmap() )
@@ -289,8 +309,8 @@ MainEmuFrame::MainEmuFrame(wxWindow* parent, const wxString& title)
 	, m_LoadStatesSubmenu( *MakeStatesSubMenu( MenuId_State_Load01 ) )
 	, m_SaveStatesSubmenu( *MakeStatesSubMenu( MenuId_State_Save01 ) )
 
-	, m_MenuItem_Console( *new wxMenuItem( &m_menuMisc, MenuId_Console, L"ÏÔÊ¾¿ØÖÆÌ¨´°¿Ú", wxEmptyString, wxITEM_CHECK ) )
-	, m_MenuItem_Console_Stdio( *new wxMenuItem( &m_menuMisc, MenuId_Console_Stdio, L"Console to Stdio", wxEmptyString, wxITEM_CHECK ) )
+	, m_MenuItem_Console( *new wxMenuItem( &m_menuMisc, MenuId_Console, _("æ˜¾ç¤ºæ§åˆ¶å°çª—å£"), wxEmptyString, wxITEM_CHECK ) )
+	, m_MenuItem_Console_Stdio( *new wxMenuItem( &m_menuMisc, MenuId_Console_Stdio, _("Console to Stdio"), wxEmptyString, wxITEM_CHECK ) )
 
 {
 	m_RestartEmuOnDelete = false;
@@ -302,13 +322,13 @@ MainEmuFrame::MainEmuFrame(wxWindow* parent, const wxString& title)
 	// Initial menubar setup.  This needs to be done first so that the menu bar's visible size
 	// can be factored into the window size (which ends up being background+status+menus)
 
-	//m_menubar.Append( &m_menuBoot,		_("¿ªÊ¼(&B)") );
-	m_menubar.Append( &m_menuSys,		_("ÏµÍ³(&S)") );
-	m_menubar.Append( &m_menuCDVD,		_("ÓÎÏ·(&V)") );
-	m_menubar.Append( &m_menuConfig,	_("ÉèÖÃ(&C)") );
-	m_menubar.Append( &m_menuMisc,		_("ÆäËü(&M)") );
+	//m_menubar.Append( &m_menuBoot,		_("å¼€å§‹(&B)") );
+	m_menubar.Append( &m_menuSys,		_("ç³»ç»Ÿ(&S)") );
+	m_menubar.Append( &m_menuCDVD,		_("æ¸¸æˆ(&V)") );
+	m_menubar.Append( &m_menuConfig,	_("è®¾ç½®(&C)") );
+	m_menubar.Append( &m_menuMisc,		_("å…¶å®ƒ(&M)") );
 #ifdef PCSX2_DEVBUILD
-	m_menubar.Append( &m_menuDebug,		_("µ÷ÊÔ(&D)") );
+	m_menubar.Append( &m_menuDebug,		_("è°ƒè¯•(&D)") );
 #endif
 	SetMenuBar( &m_menubar );
 
@@ -342,7 +362,7 @@ MainEmuFrame::MainEmuFrame(wxWindow* parent, const wxString& title)
 
 	int m_statusbar_widths[] = { (int)(backsize.GetWidth()*0.73), (int)(backsize.GetWidth()*0.25) };
 	m_statusbar.SetStatusWidths(2, m_statusbar_widths);
-	m_statusbar.SetStatusText( L"Ä¿Ç°×´Ì¬ºÜºÃ!", 0);
+	m_statusbar.SetStatusText( L"ç›®å‰çŠ¶æ€å¾ˆå¥½!", 0);
 	m_statusbar.SetStatusText( wxEmptyString, 1);
 
 	wxBoxSizer& joe( *new wxBoxSizer( wxVERTICAL ) );
@@ -364,40 +384,40 @@ MainEmuFrame::MainEmuFrame(wxWindow* parent, const wxString& title)
 	// ------------------------------------------------------------------------
 	// Some of the items in the System menu are configured by the UpdateCoreStatus() method.
 	
-	m_menuSys.Append(MenuId_Boot_CDVD,		_("³õÊ¼»¯ÖĞ..."));
+	m_menuSys.Append(MenuId_Boot_CDVD,		_("åˆå§‹åŒ–ä¸­..."));
 
-	m_menuSys.Append(MenuId_Boot_CDVD2,		_("³õÊ¼»¯ÖĞ..."));
+	m_menuSys.Append(MenuId_Boot_CDVD2,		_("åˆå§‹åŒ–ä¸­..."));
 
-	m_menuSys.Append(MenuId_Boot_ELF,		_("ÔËĞĞ ELF..."),
+	m_menuSys.Append(MenuId_Boot_ELF,		_("è¿è¡Œ ELF..."),
 		_("For running raw PS2 binaries directly"));
 
 	m_menuSys.AppendSeparator();
-	m_menuSys.Append(MenuId_Sys_SuspendResume,	_("³õÊ¼»¯ÖĞ..."));
+	m_menuSys.Append(MenuId_Sys_SuspendResume,	_("åˆå§‹åŒ–ä¸­..."));
 	m_menuSys.AppendSeparator();
 
 	//m_menuSys.Append(MenuId_Sys_Close,		_("Close"),
 	//	_("Stops emulation and closes the GS window."));
 
-	m_menuSys.Append(MenuId_Sys_LoadStates,	_("ÔØÈë×´Ì¬"), &m_LoadStatesSubmenu);
-	m_menuSys.Append(MenuId_Sys_SaveStates,	_("±£´æ×´Ì¬"), &m_SaveStatesSubmenu);
+	m_menuSys.Append(MenuId_Sys_LoadStates,	_("è½½å…¥çŠ¶æ€"), &m_LoadStatesSubmenu);
+	m_menuSys.Append(MenuId_Sys_SaveStates,	_("ä¿å­˜çŠ¶æ€"), &m_SaveStatesSubmenu);
 
 	m_menuSys.AppendSeparator();
 
-	m_menuSys.Append(MenuId_EnablePatches,	_("ÆôÓÃ²¹¶¡"),
+	m_menuSys.Append(MenuId_EnablePatches,	_("å¯ç”¨è¡¥ä¸"),
 		wxEmptyString, wxITEM_CHECK);
 
-	m_menuSys.Append(MenuId_EnableCheats,	_("ÆôÓÃ×÷±×"),
+	m_menuSys.Append(MenuId_EnableCheats,	_("å¯ç”¨ä½œå¼Š"),
 		wxEmptyString, wxITEM_CHECK);
 
-	m_menuSys.Append(MenuId_EnableHostFs,	_("ÆôÓÃÖ÷»úÎÄ¼şÏµÍ³"),
+	m_menuSys.Append(MenuId_EnableHostFs,	_("å¯ç”¨ä¸»æœºæ–‡ä»¶ç³»ç»Ÿ"),
 		wxEmptyString, wxITEM_CHECK);
 
 	m_menuSys.AppendSeparator();
 
-	m_menuSys.Append(MenuId_Sys_Shutdown,	_("¹Ø±ÕÖ÷»ú"),
+	m_menuSys.Append(MenuId_Sys_Shutdown,	_("å…³é—­ä¸»æœº"),
 		_("Wipes all internal VM states and shuts down plugins."));
 
-	m_menuSys.Append(MenuId_Exit,			_("ÍË³ö³ÌĞò"),
+	m_menuSys.Append(MenuId_Exit,			_("é€€å‡ºç¨‹åº"),
 		AddAppName(_("Closing %s may be hazardous to your health")));
 
 
@@ -405,42 +425,48 @@ MainEmuFrame::MainEmuFrame(wxWindow* parent, const wxString& title)
 	wxMenu& isoRecents( wxGetApp().GetRecentIsoMenu() );
 
 	//m_menuCDVD.AppendSeparator();
-	m_menuCDVD.Append( MenuId_IsoSelector,	_("Ñ¡Ôñ¾µÏñ"), &isoRecents );
-	m_menuCDVD.Append( GetPluginMenuId_Settings(PluginId_CDVD), _("²å¼ş²Ëµ¥"), m_PluginMenuPacks[PluginId_CDVD] );
+	m_menuCDVD.Append( MenuId_IsoSelector,	_("é€‰æ‹©é•œåƒ"), &isoRecents );
+	m_menuCDVD.Append( GetPluginMenuId_Settings(PluginId_CDVD), _("æ’ä»¶èœå•"), m_PluginMenuPacks[PluginId_CDVD] );
 
 	m_menuCDVD.AppendSeparator();
-	m_menuCDVD.Append( MenuId_Src_Iso,		_("¹âÅÌ¾µÏñ"),		_("Makes the specified ISO image the CDVD source."), wxITEM_RADIO );
-	m_menuCDVD.Append( MenuId_Src_Plugin,	_("Ê¹ÓÃ²å¼ş"),	_("Uses an external plugin as the CDVD source."), wxITEM_RADIO );
-	m_menuCDVD.Append( MenuId_Src_NoDisc,	_("²»ÓÃ¹âÅÌ"),	_("Use this to boot into your virtual PS2's BIOS configuration."), wxITEM_RADIO );
+	m_menuCDVD.Append( MenuId_Src_Iso,		_("å…‰ç›˜é•œåƒ"),		_("Makes the specified ISO image the CDVD source."), wxITEM_RADIO );
+	m_menuCDVD.Append( MenuId_Src_Plugin,	_("ä½¿ç”¨æ’ä»¶"),	_("Uses an external plugin as the CDVD source."), wxITEM_RADIO );
+	m_menuCDVD.Append( MenuId_Src_NoDisc,	_("ä¸ç”¨å…‰ç›˜"),	_("Use this to boot into your virtual PS2's BIOS configuration."), wxITEM_RADIO );
 
 	//m_menuCDVD.AppendSeparator();
 	//m_menuCDVD.Append( MenuId_SkipBiosToggle,_("Enable BOOT2 injection"),
 	//	_("Skips PS2 splash screens when booting from Iso or DVD media"), wxITEM_CHECK );
 
-    // ------------------------------------------------------------------------
+	// ------------------------------------------------------------------------
 
-	m_menuConfig.Append(MenuId_Config_SysSettings,	_("Ä£ÄâÉèÖÃ(&S)") );
-	m_menuConfig.Append(MenuId_Config_McdSettings,	_("ÄÚ´æ¿¨(&M)") );
-	m_menuConfig.Append(MenuId_Config_BIOS,			_("²å¼ş/BIOSÑ¡Ôñ(&P)...") );
+	m_menuConfig.Append(MenuId_Config_SysSettings,	_("æ¨¡æ‹Ÿè®¾ç½®(&S)") );
+	m_menuConfig.Append(MenuId_Config_McdSettings,	_("å†…å­˜å¡(&M)") );
+	m_menuConfig.Append(MenuId_Config_BIOS,			_("æ’ä»¶/BIOSé€‰æ‹©å™¨(&P)") );
+	if (IsDebugBuild)
+	{
+		m_menuConfig.Append(MenuId_Config_GameDatabase,	_("æ¸¸æˆæ•°æ®åº“ç¼–è¾‘å™¨") );
+		m_menuConfig.Append(MenuId_Config_Language,		_("å¤–è§‚...") );
+	}
+
 	m_menuConfig.AppendSeparator();
 
-	m_menuConfig.Append(MenuId_Config_GS,		_("ÊÓÆµ²å¼ş (GS)"),		m_PluginMenuPacks[PluginId_GS]);
-	m_menuConfig.Append(MenuId_Config_SPU2,		_("ÒôÆµ²å¼ş (SPU2)"),		m_PluginMenuPacks[PluginId_SPU2]);
-	m_menuConfig.Append(MenuId_Config_PAD,		_("¿ØÖÆ²å¼ş (PAD)"),	m_PluginMenuPacks[PluginId_PAD]);
+	m_menuConfig.Append(MenuId_Config_GS,		_("è§†é¢‘æ’ä»¶ (GS)"),		m_PluginMenuPacks[PluginId_GS]);
+	m_menuConfig.Append(MenuId_Config_SPU2,		_("éŸ³é¢‘æ’ä»¶ (SPU2)"),		m_PluginMenuPacks[PluginId_SPU2]);
+	m_menuConfig.Append(MenuId_Config_PAD,		_("æ§åˆ¶æ’ä»¶ (PAD)"),	m_PluginMenuPacks[PluginId_PAD]);
 	m_menuConfig.Append(MenuId_Config_DEV9,		_("Dev9"),				m_PluginMenuPacks[PluginId_DEV9]);
-	m_menuConfig.Append(MenuId_Config_USB,		_("USB²å¼ş"),				m_PluginMenuPacks[PluginId_USB]);
-	m_menuConfig.Append(MenuId_Config_FireWire,	_("»ğÏß²å¼ş"),			m_PluginMenuPacks[PluginId_FW]);
+	m_menuConfig.Append(MenuId_Config_USB,		_("USBæ’ä»¶"),				m_PluginMenuPacks[PluginId_USB]);
+	m_menuConfig.Append(MenuId_Config_FireWire,	_("ç«çº¿æ’ä»¶"),			m_PluginMenuPacks[PluginId_FW]);
 
 	m_menuConfig.AppendSeparator();
-	m_menuConfig.Append(MenuId_Config_Patches,	_("²¹¶¡ÉèÖÃ (unimplemented)"),	wxEmptyString);
+	m_menuConfig.Append(MenuId_Config_Patches,	_("è¡¥ä¸è®¾ç½® (unimplemented)"),	wxEmptyString);
 
 	m_menuConfig.AppendSeparator();
 	m_menuConfig.Append(MenuId_Config_Multitap0Toggle,	_("Multitap 1"),	wxEmptyString, wxITEM_CHECK );
 	m_menuConfig.Append(MenuId_Config_Multitap1Toggle,	_("Multitap 2"),	wxEmptyString, wxITEM_CHECK );
 
 	m_menuConfig.AppendSeparator();
-	m_menuConfig.Append(MenuId_Config_ResetAll,	_("Çå³ıËùÓĞÉèÖÃ..."),
-		AddAppName(_("Çå³ıËùÓĞ %s ÉèÖÃ²¢ÖØĞÂÔËĞĞÆô¶¯Ïòµ¼.")));
+	m_menuConfig.Append(MenuId_Config_ResetAll,	_("æ¸…é™¤æ‰€æœ‰è®¾ç½®..."),
+		AddAppName(_("æ¸…é™¤æ‰€æœ‰ %s è®¾ç½®å¹¶é‡æ–°è¿è¡Œå¯åŠ¨å‘å¯¼.")));
 
 	// ------------------------------------------------------------------------
 
@@ -456,18 +482,18 @@ MainEmuFrame::MainEmuFrame(wxWindow* parent, const wxString& title)
 	//m_menuMisc.Append(41, "Patch Browser...", wxEmptyString, wxITEM_NORMAL);
 	//m_menuMisc.Append(42, "Patch Finder...", wxEmptyString, wxITEM_NORMAL);
 
-	m_menuMisc.Append(MenuId_CDVD_Info, _T("Êä³öCDVDĞÅÏ¢"), wxEmptyString, wxITEM_CHECK);
-//	m_menuMisc.AppendSeparator();				//removed
+	m_menuMisc.Append(MenuId_CDVD_Info, _("è¾“å‡ºCDVDä¿¡æ¯"), wxEmptyString, wxITEM_CHECK);
+	m_menuMisc.AppendSeparator();
 
 	//Todo:
 	//There's a great working "open website" in the about panel. Less clutter by just using that.
 	//m_menuMisc.Append(MenuId_Website,			_("Visit Website..."),
 	//	_("Opens your web-browser to our favorite website."));
-//	m_menuMisc.Append(MenuId_About,				_("¹ØÓÚ...") );			//removed
+//	m_menuMisc.Append(MenuId_About,				_("å…³äº...") );			//removed
 #ifdef PCSX2_DEVBUILD
-	m_menuDebug.Append(MenuId_Debug_Open,		_("´ò¿ªµ÷ÊÔ´°¿Ú..."),	wxEmptyString);
-	m_menuDebug.Append(MenuId_Debug_MemoryDump,	_("ÄÚ´æ×ª´¢..."),		wxEmptyString);
-	m_menuDebug.Append(MenuId_Debug_Logging,	_("ÈÕÖ¾..."),			wxEmptyString);
+	m_menuDebug.Append(MenuId_Debug_Open,		_("æ‰“å¼€è°ƒè¯•çª—å£..."),	wxEmptyString);
+	m_menuDebug.Append(MenuId_Debug_MemoryDump,	_("å†…å­˜è½¬å‚¨..."),		wxEmptyString);
+	m_menuDebug.Append(MenuId_Debug_Logging,	_("æ—¥å¿—..."),			wxEmptyString);
 #endif
 	m_MenuItem_Console.Check( g_Conf->ProgLogBox.Visible );
 
@@ -544,20 +570,20 @@ void MainEmuFrame::ApplyCoreStatus()
 		if( !CoreThread.IsClosing() )
 		{
 			susres->Enable();
-			susres->SetText( _("ĞİÃßÖ÷»ú") );
-			susres->SetHelp( _("°²È«ÔİÍ£Ä£ÄâÆ÷²¢±£ÁôPS2×´Ì¬.") );
+			susres->SetText( _("ä¼‘çœ ä¸»æœº") );
+			susres->SetHelp( _("å®‰å…¨æš‚åœæ¨¡æ‹Ÿå™¨å¹¶ä¿ç•™PS2çŠ¶æ€.") );
 		}
 		else
 		{
 			susres->Enable(vm);
 			if( vm )
 			{
-				susres->SetText(_("»Ö¸´Ö÷»ú"));
-				susres->SetHelp(_("»Ö¸´ĞİÃßµÄÄ£ÄâÆ÷×´Ì¬."));
+				susres->SetText(_("æ¢å¤ä¸»æœº"));
+				susres->SetHelp(_("æ¢å¤ä¼‘çœ çš„æ¨¡æ‹Ÿå™¨çŠ¶æ€."));
 			}
 			else
 			{
-				susres->SetText(_("¹ÒÆğ/»Ö¸´"));
+				susres->SetText(_("æŒ‚èµ·/æ¢å¤"));
 				susres->SetHelp(_("No emulation state is active; cannot suspend or resume."));
 			}
 		}
@@ -567,7 +593,7 @@ void MainEmuFrame::ApplyCoreStatus()
 	{
 		if( vm )	
 		{
-			restart->SetText(_("ÖØÆô"));
+			restart->SetText(_("é‡å¯"));
 			restart->SetHelp(_("Simulates hardware reset of the PS2 virtual machine."));
 		}
 		else
@@ -615,7 +641,7 @@ void MainEmuFrame::ApplySettings()
 	menubar.Check( MenuId_EnablePatches, g_Conf->EmuOptions.EnablePatches );
 	menubar.Check( MenuId_EnableCheats,  g_Conf->EmuOptions.EnableCheats );
 	menubar.Check( MenuId_EnableHostFs,  g_Conf->EmuOptions.HostFs );
-	menubar.Check( MenuId_CDVD_Info,     g_Conf->EmuOptions.CdvdVerboseReads );
+	menubar.Check( MenuId_CDVD_Info,	 g_Conf->EmuOptions.CdvdVerboseReads );
 #ifdef __LINUX__
 	menubar.Check( MenuId_Console_Stdio, g_Conf->EmuOptions.ConsoleToStdio );
 #endif
@@ -640,15 +666,15 @@ void PerPluginMenuInfo::Populate( PluginsEnum_t pid )
 
 	PluginId = pid;
 
-	MyMenu.Append( GetPluginMenuId_Name(PluginId), _("Ã»ÓĞÔØÈë²å¼ş") )->Enable( false );
+	MyMenu.Append( GetPluginMenuId_Name(PluginId), _("æ²¡æœ‰è½½å…¥æ’ä»¶") )->Enable( false );
 	MyMenu.AppendSeparator();
 
 	if( PluginId == PluginId_GS )
 	{
-		MyMenu.Append( MenuId_Video_CoreSettings, _("ºËĞÄGSÉèÖÃ..."),
+		MyMenu.Append( MenuId_Video_CoreSettings, _("æ ¸å¿ƒGSè®¾ç½®..."),
 			_("Modify hardware emulation settings regulated by the PCSX2 core virtual machine.") );
 
-		MyMenu.Append( MenuId_Video_WindowSettings, _("´°¿ÚÉèÖÃ..."),
+		MyMenu.Append( MenuId_Video_WindowSettings, _("çª—å£è®¾ç½®..."),
 			_("Modify window and appearance options, including aspect ratio.") );
 
 		MyMenu.AppendSeparator();
@@ -656,8 +682,8 @@ void PerPluginMenuInfo::Populate( PluginsEnum_t pid )
 
 	// Populate options from the plugin here.
 
-	MyMenu.Append( GetPluginMenuId_Settings(PluginId), _("²å¼şÉèÖÃ..."),
-		wxsFormat( _("´ò¿ª %s ²å¼ş¸ß¼¶ÉèÖÃ¶Ô»°¿ò."), tbl_PluginInfo[pid].GetShortname().c_str() )
+	MyMenu.Append( GetPluginMenuId_Settings(PluginId), _("æ’ä»¶è®¾ç½®..."),
+		wxsFormat( _("æ‰“å¼€ %s æ’ä»¶é«˜çº§è®¾ç½®å¯¹è¯æ¡†."), tbl_PluginInfo[pid].GetShortname().c_str() )
 	);
 }
 
@@ -675,7 +701,7 @@ void PerPluginMenuInfo::OnUnloaded()
 
 	curlist.clear();
 
-	MyMenu.SetLabel( GetPluginMenuId_Name(PluginId), _("Ã»ÓĞÔØÈë²å¼ş") );
+	MyMenu.SetLabel( GetPluginMenuId_Name(PluginId), _("æ²¡æœ‰è½½å…¥æ’ä»¶") );
 	MyMenu.Enable( GetPluginMenuId_Settings(PluginId), false );
 }
 

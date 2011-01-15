@@ -265,6 +265,13 @@ static const bool doConstProp = 0; // Set to 1 to turn on vi15 const propagation
 // allowing us to know many indirect jump target addresses.
 // Makes GoW a lot slower due to extra recompilation time and extra code-gen!
 
+// Indirect Jump Caching
+static const bool doJumpCaching = 1; // Set to 1 to enable jump caching
+// Indirect jumps (JR/JALR) will remember the entry points to their previously
+// jumped-to addresses. This allows us to skip the microBlockManager::search()
+// routine that is performed every indirect jump in order to find a block within a
+// program that matches the correct pipeline state.
+
 //------------------------------------------------------------------
 // Speed Hacks (can cause infinite loops, SPS, Black Screens, etc...)
 //------------------------------------------------------------------
@@ -297,15 +304,6 @@ static const bool doConstProp = 0; // Set to 1 to turn on vi15 const propagation
 // so give it a value that makes games happy :) (SO3 is fine at 1 cycle delay)
 
 //------------------------------------------------------------------
-
-// Cache Limit Check
-#define mVUcacheCheck(ptr, start, limit) {														  \
-	uptr diff = ptr - start;																	  \
-	if (diff >= limit) {																		  \
-		DevCon.WriteLn("microVU%d: Program cache limit reached. Size = 0x%x", mVU->index, diff); \
-		mVUresizeCache(mVU, mVU->cacheSize + mVUcacheGrowBy);									  \
-	}																							  \
-}
 
 extern void mVUmergeRegs(const xmm& dest, const xmm& src,  int xyzw, bool modXYZW=false);
 extern void mVUsaveReg(const xmm& reg, xAddressVoid ptr, int xyzw, bool modXYZW);

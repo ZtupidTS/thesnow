@@ -32,7 +32,6 @@
 #include "CDVD/CDVD.h"
 #include "Patch.h"
 #include "GameDatabase.h"
-#include "SamplProf.h"
 
 using namespace R5900;	// for R5900 disasm tools
 
@@ -51,14 +50,14 @@ static const uint eeWaitCycles = 3072;
 
 bool eeEventTestIsActive = false;
 
+extern SysMainMemory& GetVmMemory();
+
 void cpuReset()
 {
-	if( GetMTGS().IsOpen() )
+	if (GetMTGS().IsOpen())
 		GetMTGS().WaitGS();		// GS better be done processing before we reset the EE, just in case.
 
-	memReset();
-	psxMemReset();
-	vuMicroMemReset();
+	GetVmMemory().ResetAll();
 
 	memzero(cpuRegs);
 	memzero(fpuRegs);
@@ -95,6 +94,11 @@ void cpuReset()
 	// run into this while testing minor binary hacked changes to ISO images, which
 	// is why I found out about this) --air
 	LastELF = L"";
+}
+
+void cpuShutdown()
+{
+	hwShutdown();
 }
 
 __ri void cpuException(u32 code, u32 bd)

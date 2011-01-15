@@ -85,14 +85,14 @@ int IPU_Fifo_Input::write(u32* pMem, int size)
 int IPU_Fifo_Input::read(void *value)
 {
 	// wait until enough data to ensure proper streaming.
-	if (g_BP.IFC < 4)
+	if (g_BP.IFC < 3)
 	{
 		// IPU FIFO is empty and DMA is waiting so lets tell the DMA we are ready to put data in the FIFO
 		if(cpuRegs.eCycle[4] == 0x9999)
 		{
 			CPU_INT( DMAC_TO_IPU, 32 );
 		}
-		
+
 		if (g_BP.IFC == 0) return 0;
 		pxAssert(g_BP.IFC > 0);
 	}
@@ -109,11 +109,11 @@ int IPU_Fifo_Output::write(const u32 *value, uint size)
 	pxAssumeMsg(size>0, "Invalid size==0 when calling IPU_Fifo_Output::write");
 
 	uint origsize = size;
-	do {
-		IPU0dma();
+	/*do {*/
+		//IPU0dma();
 	
 		uint transsize = min(size, 8 - (uint)ipuRegs.ctrl.OFC);
-		if(!transsize) break;
+		if(!transsize) return 0;
 
 		ipuRegs.ctrl.OFC = transsize;
 		size -= transsize;
@@ -124,7 +124,7 @@ int IPU_Fifo_Output::write(const u32 *value, uint size)
 			value += 4;
 			--transsize;
 		}
-	} while(true);
+	/*} while(true);*/
 
 	return origsize - size;
 }

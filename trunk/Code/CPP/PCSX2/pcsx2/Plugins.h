@@ -57,12 +57,15 @@ namespace Exception
 	// Exception thrown when a corrupted or truncated savestate is encountered.
 	class SaveStateLoadError : public BadStream
 	{
-		DEFINE_STREAM_EXCEPTION( SaveStateLoadError, BadStream, wxLt("The savestate appears to be corrupt or incomplete.") )
+		DEFINE_STREAM_EXCEPTION( SaveStateLoadError, BadStream )
+
+		virtual wxString FormatDiagnosticMessage() const;
+		virtual wxString FormatDisplayMessage() const;
 	};
 
 	class PluginError : public RuntimeError
 	{
-		DEFINE_RUNTIME_EXCEPTION( PluginError, RuntimeError, L"Generic plugin error")
+		DEFINE_RUNTIME_EXCEPTION( PluginError, RuntimeError, L"Generic plugin error!" )
 
 	public:
 		PluginsEnum_t PluginId;
@@ -323,6 +326,10 @@ public:
 	virtual bool IsInitialized( PluginsEnum_t pid ) const;
 	virtual bool IsLoaded( PluginsEnum_t pid ) const;
 	
+	virtual size_t GetFreezeSize( PluginsEnum_t pid );
+	virtual void FreezeOut( PluginsEnum_t pid, void* dest );
+	virtual void FreezeOut( PluginsEnum_t pid, pxOutputStream& outfp );
+	virtual void FreezeIn( PluginsEnum_t pid, pxInputStream& infp );
 	virtual void Freeze( PluginsEnum_t pid, SaveStateBase& state );
 	virtual bool DoFreeze( PluginsEnum_t pid, int mode, freezeData* data );
 

@@ -1,4 +1,4 @@
-/*  PCSX2 - PS2 Emulator for PCs
+ï»¿/*  PCSX2 - PS2 Emulator for PCs
  *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
@@ -23,13 +23,13 @@ using namespace pxSizerFlags;
 // --------------------------------------------------------------------------------------
 
 Panels::GSWindowSettingsPanel::GSWindowSettingsPanel( wxWindow* parent )
-	: BaseApplicableConfigPanel( parent )
+	: BaseApplicableConfigPanel_SpecificConfig( parent )
 {
 	const wxString aspect_ratio_labels[] =
 	{
-		_("ÊÊºÏ´°¿Ú/ÆÁÄ»"),
-		_("±ê×¼ (4:3)"),
-		_("¿íÆÁ (16:9)")
+		_("é€‚åˆçª—å£/å±å¹•"),
+		_("æ ‡å‡† (4:3)"),
+		_("å®½å± (16:9)")
 	};
 
 	m_combo_AspectRatio	= new wxComboBox( this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize,
@@ -41,35 +41,36 @@ Panels::GSWindowSettingsPanel::GSWindowSettingsPanel( wxWindow* parent )
 	// Linux/Mac note: Exclusive Fullscreen mode is probably Microsoft specific, though
 	// I'm not yet 100% certain of that.
 
-	m_check_SizeLock	= new pxCheckBox( this, _("½ûÓÃ´°¿Ú´óÐ¡ÖØÉè±ß¿ò") );
-	m_check_HideMouse	= new pxCheckBox( this, _("×ÜÊÇÒþ²ØÊó±ê¹â±ê") );
-	m_check_CloseGS		= new pxCheckBox( this, _("¹ÒÆðÊ±Òþ²Ø´°¿Ú") );
-	m_check_Fullscreen	= new pxCheckBox( this, _("´ò¿ªÊ±Ä¬ÈÏÈ«ÆÁÄ£Ê½") );
-	m_check_VsyncEnable	= new pxCheckBox( this, _("Ë¢ÐÂÊ±µÈ´ý³¡Í¬²½") );
-	m_check_ExclusiveFS = new pxCheckBox( this, _("Ê¹ÓÃ¶ÀÕ¼È«ÆÁÄ£Ê½(Èç¹û¿ÉÓÃ)") );
+	m_check_SizeLock	= new pxCheckBox( this, _("ç¦ç”¨çª—å£å¤§å°é‡è®¾è¾¹æ¡†") );
+	m_check_HideMouse	= new pxCheckBox( this, _("æ€»æ˜¯éšè—é¼ æ ‡å…‰æ ‡") );
+	m_check_CloseGS		= new pxCheckBox( this, _("æŒ‚èµ·æ—¶éšè—çª—å£") );
+	m_check_Fullscreen	= new pxCheckBox( this, _("æ‰“å¼€æ—¶é»˜è®¤å…¨å±æ¨¡å¼") );
+	m_check_VsyncEnable	= new pxCheckBox( this, _("åˆ·æ–°æ—¶ç­‰å¾…åœºåŒæ­¥") );
+    m_check_DclickFullscreen = new pxCheckBox( this, _("Double-click Toggles Full-Screen mode") );
+	m_check_ExclusiveFS = new pxCheckBox( this, _("ä½¿ç”¨ç‹¬å å…¨å±æ¨¡å¼(å¦‚æžœå¯ç”¨)") );
 
-	m_check_VsyncEnable->SetToolTip( pxE( ".Tooltip:Window:Vsync",
+	m_check_VsyncEnable->SetToolTip( pxEt( "!ContextTip:Window:Vsync",
 		L"Vsync eliminates screen tearing but typically has a big performance hit. "
 		L"It usually only applies to fullscreen mode, and may not work with all GS plugins."
 	) );
 
-	m_check_HideMouse->SetToolTip( pxE( ".Tooltip:Window:HideMouse",
+	m_check_HideMouse->SetToolTip( pxEt( "!ContextTip:Window:HideMouse",
 		L"Check this to force the mouse cursor invisible inside the GS window; useful if using "
 		L"the mouse as a primary control device for gaming.  By default the mouse auto-hides after "
 		L"2 seconds of inactivity."
 	) );
 
-	m_check_Fullscreen->SetToolTip( pxE( ".Tooltip:Window:Fullscreen",
+	m_check_Fullscreen->SetToolTip( pxEt( "!ContextTip:Window:Fullscreen",
 		L"Enables automatic mode switch to fullscreen when starting or resuming emulation. "
 		L"You can still toggle fullscreen display at any time using alt-enter."
 	) );
 
-	m_check_ExclusiveFS->SetToolTip( pxE( ".Tooltip:Window:FullscreenExclusive",
+	m_check_ExclusiveFS->SetToolTip( pxEt( "!ContextTip:Window:FullscreenExclusive",
 		L"Fullscreen Exclusive Mode may look better on older CRTs and might be a little faster on older video cards, "
 		L"but typically can lead to memory leaks or random crashes when entering/leaving fullscreen mode."
 	) );
 
-	m_check_CloseGS->SetToolTip( pxE( ".Tooltip:Window:HideGS",
+	m_check_CloseGS->SetToolTip( pxEt( "!ContextTip:Window:HideGS",
 		L"Completely closes the often large and bulky GS window when pressing "
 		L"ESC or suspending the emulator."
 	) );
@@ -86,9 +87,9 @@ Panels::GSWindowSettingsPanel::GSWindowSettingsPanel( wxWindow* parent )
 	//s_AspectRatio.AddGrowableCol( 0 );
 	s_AspectRatio.AddGrowableCol( 1 );
 
-	s_AspectRatio += Label(_("¸ß¿í±È:"))		| pxMiddle;
+	s_AspectRatio += Label(_("é«˜å®½æ¯”:"))		| pxMiddle;
 	s_AspectRatio += m_combo_AspectRatio			| pxExpand;
-	s_AspectRatio += Label(_("×Ô¶¨Òå´°¿Ú´óÐ¡:"))| pxMiddle;
+	s_AspectRatio += Label(_("è‡ªå®šä¹‰çª—å£å¤§å°:"))| pxMiddle;
 	s_AspectRatio += s_customsize					| pxAlignRight;
 
 	*this += s_AspectRatio				| StdExpand();
@@ -98,6 +99,8 @@ Panels::GSWindowSettingsPanel::GSWindowSettingsPanel( wxWindow* parent )
 	*this += new wxStaticLine( this )	| StdExpand();
 
 	*this += m_check_Fullscreen;
+    *this += m_check_DclickFullscreen;;
+
 	*this += m_check_ExclusiveFS;
 	*this += m_check_VsyncEnable;
 
@@ -110,7 +113,12 @@ Panels::GSWindowSettingsPanel::GSWindowSettingsPanel( wxWindow* parent )
 
 void Panels::GSWindowSettingsPanel::AppStatusEvent_OnSettingsApplied()
 {
-	const AppConfig::GSWindowOptions& conf( g_Conf->GSWindow );
+    ApplyConfigToGui( *g_Conf );
+}
+
+void Panels::GSWindowSettingsPanel::ApplyConfigToGui( AppConfig& configToApply, bool manuallyPropagate )
+{
+	const AppConfig::GSWindowOptions& conf( configToApply.GSWindow );
 
 	m_check_CloseGS		->SetValue( conf.CloseOnEsc );
 	m_check_Fullscreen	->SetValue( conf.DefaultToFullscreen );
@@ -119,10 +127,14 @@ void Panels::GSWindowSettingsPanel::AppStatusEvent_OnSettingsApplied()
 
 	m_combo_AspectRatio	->SetSelection( (int)conf.AspectRatio );
 
-	m_check_VsyncEnable	->SetValue( g_Conf->EmuOptions.GS.VsyncEnable );
+	m_check_VsyncEnable	->SetValue( configToApply.EmuOptions.GS.VsyncEnable );
+
+    m_check_DclickFullscreen ->SetValue ( conf.IsToggleFullscreenOnDoubleClick );
 
 	m_text_WindowWidth	->SetValue( wxsFormat( L"%d", conf.WindowSize.GetWidth() ) );
 	m_text_WindowHeight	->SetValue( wxsFormat( L"%d", conf.WindowSize.GetHeight() ) );
+
+	m_check_VsyncEnable->Enable(!configToApply.EnablePresets);
 }
 
 void Panels::GSWindowSettingsPanel::Apply()
@@ -138,6 +150,8 @@ void Panels::GSWindowSettingsPanel::Apply()
 	appconf.AspectRatio		= (AspectRatioType)m_combo_AspectRatio->GetSelection();
 
 	gsconf.VsyncEnable		= m_check_VsyncEnable->GetValue();
+
+    appconf.IsToggleFullscreenOnDoubleClick = m_check_DclickFullscreen->GetValue();
 
 	long xr, yr;
 

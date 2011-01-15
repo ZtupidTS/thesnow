@@ -109,7 +109,7 @@ else(Subversion_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/.svn")
     file(WRITE ${CMAKE_BINARY_DIR}/pcsx2/svnrev.h "#define SVN_REV 0 \n#define SVN_MODS 0")
 endif(Subversion_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/.svn")
 
-# variable with sources of this executable
+# Main pcsx2 source
 set(pcsx2Sources
 	Cache.cpp
 	COP0.cpp
@@ -177,7 +177,7 @@ set(pcsx2Sources
 	VUmicroMem.cpp
 	VUops.cpp)
 
-# variable with sources of this executable
+# Main pcsx2 header
 set(pcsx2Headers
 	Cache.h
 	cheatscpp.h
@@ -274,13 +274,13 @@ set(pcsx2DebugToolsHeaders
 
 # gui sources
 set(pcsx2GuiSources
-	gui/AdvancedDialog.cpp
 	gui/AppAssert.cpp
 	gui/AppConfig.cpp
 	gui/AppCorePlugins.cpp
 	gui/AppCoreThread.cpp
 	gui/AppEventSources.cpp
 	gui/AppGameDatabase.cpp
+	gui/AppUserMode.cpp
 	gui/AppInit.cpp
 	gui/AppMain.cpp
 	gui/AppRes.cpp
@@ -292,6 +292,7 @@ set(pcsx2GuiSources
 	gui/Dialogs/AssertionDialog.cpp
 	gui/Panels/BaseApplicableConfigPanel.cpp
 	gui/Panels/MemoryCardListView.cpp
+	gui/Panels/ThemeSelectorPanel.cpp
 	gui/Dialogs/BaseConfigurationDialog.cpp
 	gui/Dialogs/BiosSelectorDialog.cpp
 	gui/Dialogs/ConfirmationDialogs.cpp
@@ -338,7 +339,6 @@ set(pcsx2GuiSources
 
 # gui headers
 set(pcsx2GuiHeaders
-	gui/AdvancedDialog.h
 	gui/App.h
 	gui/ApplyState.h
 	gui/AppAccelerators.h
@@ -365,6 +365,26 @@ set(pcsx2GuiHeaders
 	gui/RecentIsoList.h
 	)
 
+# Warning: the declaration of the .h are mandatory in case of resources files. It will ensure the creation
+# from the bin2cpp tools at the good moment (ie .h must be created before the pcsx2 compilation)
+# Gui resources headers
+set(pcsx2GuiResources
+    gui/Resources/AppIcon16.h
+    gui/Resources/AppIcon32.h
+    gui/Resources/AppIcon64.h
+    gui/Resources/BackgroundLogo.h
+    gui/Resources/ConfigIcon_Appearance.h
+    gui/Resources/ButtonIcon_Camera.h
+    gui/Resources/ConfigIcon_Cpu.h
+    gui/Resources/ConfigIcon_Gamefixes.h
+    gui/Resources/ConfigIcon_MemoryCard.h
+    gui/Resources/ConfigIcon_Paths.h
+    gui/Resources/ConfigIcon_Plugins.h
+    gui/Resources/ConfigIcon_Speedhacks.h
+    gui/Resources/ConfigIcon_Video.h
+    gui/Resources/Dualshock.h
+    )
+
 # IPU sources
 set(pcsx2IPUSources
 	IPU/IPU.cpp
@@ -383,7 +403,6 @@ set(pcsx2IPUHeaders
 
 # Linux sources
 set(pcsx2LinuxSources
-	Linux/LnxHostSys.cpp
 	Linux/LnxKeyCodes.cpp)
 
 # Linux headers
@@ -432,7 +451,7 @@ set(pcsx2SystemSources
 
 # System headers
 set(pcsx2SystemHeaders
-	System/PageFaultSource.h
+	System/RecTypes.h
 	System/SysThreads.h)
 
 # Utilities sources
@@ -542,7 +561,6 @@ set(pcsx2x86Headers
 	x86/microVU_Tables.inl
 	x86/microVU_Upper.inl
 	x86/newVif.h
-	x86/newVif_BlockBuffer.h
 	x86/newVif_HashBucket.h
 	x86/newVif_UnpackSSE.h
 	x86/sVU_Compare.h
@@ -572,6 +590,7 @@ set(Common
 	${pcsx2DebugToolsSources}
 	${pcsx2DebugToolsSources}
 	${pcsx2GuiSources}
+    ${pcsx2GuiResources}
 	${pcsx2GuiHeaders}
 	${pcsx2IPUSources}
 	${pcsx2IPUHeaders}
@@ -622,8 +641,21 @@ add_executable(${Output}
 			   ${Common}
 			   ${Platform})
 
-# add dependencies
-add_dependencies(${Output} Resources)
+# Generate the resources files
+add_custom_command(OUTPUT   "gui/Resources/AppIcon16.h"               COMMAND   bin2cpp   "${PROJECT_SOURCE_DIR}/pcsx2/gui/Resources/AppIcon16.png")
+add_custom_command(OUTPUT   "gui/Resources/AppIcon32.h"               COMMAND   bin2cpp   "${PROJECT_SOURCE_DIR}/pcsx2/gui/Resources/AppIcon32.png")
+add_custom_command(OUTPUT   "gui/Resources/AppIcon64.h"               COMMAND   bin2cpp   "${PROJECT_SOURCE_DIR}/pcsx2/gui/Resources/AppIcon64.png")
+add_custom_command(OUTPUT   "gui/Resources/BackgroundLogo.h"          COMMAND   bin2cpp   "${PROJECT_SOURCE_DIR}/pcsx2/gui/Resources/BackgroundLogo.png")
+add_custom_command(OUTPUT   "gui/Resources/ButtonIcon_Camera.h"       COMMAND   bin2cpp   "${PROJECT_SOURCE_DIR}/pcsx2/gui/Resources/ButtonIcon_Camera.png")
+add_custom_command(OUTPUT   "gui/Resources/ConfigIcon_Appearance.h"   COMMAND   bin2cpp   "${PROJECT_SOURCE_DIR}/pcsx2/gui/Resources/ConfigIcon_Appearance.png")
+add_custom_command(OUTPUT   "gui/Resources/ConfigIcon_Cpu.h"          COMMAND   bin2cpp   "${PROJECT_SOURCE_DIR}/pcsx2/gui/Resources/ConfigIcon_Cpu.png")
+add_custom_command(OUTPUT   "gui/Resources/ConfigIcon_Gamefixes.h"    COMMAND   bin2cpp   "${PROJECT_SOURCE_DIR}/pcsx2/gui/Resources/ConfigIcon_Gamefixes.png")
+add_custom_command(OUTPUT   "gui/Resources/ConfigIcon_MemoryCard.h"   COMMAND   bin2cpp   "${PROJECT_SOURCE_DIR}/pcsx2/gui/Resources/ConfigIcon_MemoryCard.png")
+add_custom_command(OUTPUT   "gui/Resources/ConfigIcon_Paths.h"        COMMAND   bin2cpp   "${PROJECT_SOURCE_DIR}/pcsx2/gui/Resources/ConfigIcon_Paths.png")
+add_custom_command(OUTPUT   "gui/Resources/ConfigIcon_Plugins.h"      COMMAND   bin2cpp   "${PROJECT_SOURCE_DIR}/pcsx2/gui/Resources/ConfigIcon_Plugins.png")
+add_custom_command(OUTPUT   "gui/Resources/ConfigIcon_Speedhacks.h"   COMMAND   bin2cpp   "${PROJECT_SOURCE_DIR}/pcsx2/gui/Resources/ConfigIcon_Speedhacks.png")
+add_custom_command(OUTPUT   "gui/Resources/ConfigIcon_Video.h"        COMMAND   bin2cpp   "${PROJECT_SOURCE_DIR}/pcsx2/gui/Resources/ConfigIcon_Video.png")
+add_custom_command(OUTPUT   "gui/Resources/Dualshock.h"               COMMAND   bin2cpp   "${PROJECT_SOURCE_DIR}/pcsx2/gui/Resources/Dualshock.jpg")
 
 # link target with project internal libraries
 target_link_libraries(${Output} Utilities x86emitter)

@@ -31,6 +31,7 @@
 #include "Resources/ConfigIcon_Paths.h"
 #include "Resources/ConfigIcon_Plugins.h"
 #include "Resources/ConfigIcon_MemoryCard.h"
+#include "Resources/ConfigIcon_Appearance.h"
 
 #include "Resources/AppIcon16.h"
 #include "Resources/AppIcon32.h"
@@ -80,13 +81,13 @@ pxAppResources::~pxAppResources() throw() {}
 
 wxMenu& Pcsx2App::GetRecentIsoMenu()
 {
-	pxAssert( !!m_RecentIsoList->Menu );
+	if (!m_RecentIsoList) m_RecentIsoList = new RecentIsoList();
 	return *m_RecentIsoList->Menu;
 }
 
 RecentIsoManager& Pcsx2App::GetRecentIsoManager()
 {
-	pxAssert( !!m_RecentIsoList->Manager );
+	if (!m_RecentIsoList) m_RecentIsoList = new RecentIsoList();
 	return *m_RecentIsoList->Manager;
 }
 
@@ -184,6 +185,7 @@ wxImageList& Pcsx2App::GetImgList_Config()
 		FancyLoadMacro( MemoryCard );
 		FancyLoadMacro( Video );
 		FancyLoadMacro( Cpu );
+		FancyLoadMacro( Appearance );
 	}
 	return *images;
 }
