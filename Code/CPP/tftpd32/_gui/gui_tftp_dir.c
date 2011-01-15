@@ -8,9 +8,14 @@
 //////////////////////////////////////////////////////
 
 
-#include "../_common/headers.h"
+#include "headers.h"
 
 
+#ifdef _M_X64
+#  define TFTPD_DIR_TITLE  "Tftpd64: directory"
+#else
+#  define TFTPD_DIR_TITLE  "Tftpd32: directory"
+#endif
 
 
 // Start an explorer window, directory is Tftpd32's default directory
@@ -94,7 +99,7 @@ int wItem = (int) LOWORD (wParam);
         case IDC_LB_SHDIR :
            if (HIWORD(wParam) == LBN_SELCHANGE)
            {char szLine [256], *p ;
-            int n = SendMessage ((HWND) lParam, LB_GETCURSEL, 0, 0);
+            int n = (int) SendMessage ((HWND) lParam, LB_GETCURSEL, 0, 0);
              SendMessage ((HWND) lParam, LB_GETTEXT, n, (LPARAM) szLine);
              if (SendMessage ((HWND) lParam, LB_GETTEXTLEN, n, 0) >= sizeof szLine)
                        break;
@@ -124,9 +129,9 @@ return FALSE;
 
 /////////////////////////////////////////
 // Dir window callback
-int CALLBACK ShDirProc (HWND hWnd, UINT message, WPARAM wParam, LONG lParam)
+LRESULT CALLBACK ShDirProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-static const int tTabs[] = { 90, 115 };
+static const int tTabs[] = { 90, 125 };
 struct S_DirectoryContent *pDir = (struct S_DirectoryContent *) lParam;
 HWND hLBWnd = GetDlgItem (hWnd, IDC_LB_SHDIR);
 int Ark;
@@ -134,6 +139,9 @@ int Ark;
   switch (message)
   {
        case WM_INITDIALOG :
+	   	   // Set the window name to either tftpd32 or tftpd64
+	       SetWindowText (hWnd, TFTPD_DIR_TITLE);
+
            ListBox_SetTabStops ( hLBWnd, SizeOfTab(tTabs), tTabs );
            ListBox_ResetContent ( hLBWnd );
            for ( Ark=0 ;  Ark < pDir->nb ;  Ark++ )

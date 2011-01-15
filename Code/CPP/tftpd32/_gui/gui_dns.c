@@ -5,7 +5,7 @@
 //
 //////////////////////////////////////////////////////
 
-#include "../_common/headers.h"
+#include "headers.h"
 #include <commctrl.h>
 
 

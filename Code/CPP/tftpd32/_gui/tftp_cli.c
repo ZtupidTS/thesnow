@@ -8,7 +8,7 @@
 //////////////////////////////////////////////////////
 
 
-#include "../_common/headers.h"
+#include "headers.h"
 #include <commdlg.h>
 
 
@@ -512,7 +512,7 @@ static WNDPROC fEditBoxProc;
 
 
 // Hook designed to insert the name of the dragged file into the edit control
-long CALLBACK TftpClientFileNameProc (HWND hWnd, UINT message, WPARAM wParam, LONG lParam)
+LRESULT CALLBACK TftpClientFileNameProc (HWND hWnd, UINT message, WPARAM wParam, LONG lParam)
 {
 char szFileName [MAX_PATH];
 static HANDLE hDrop;
@@ -591,7 +591,7 @@ return CallWindowProc (fEditBoxProc, hWnd, message, wParam, lParam);
 /////////////////////////////
 // Fenetre Background gestion des appels TCP
 //
-int CALLBACK TftpClientProc (HWND hWnd, UINT message, WPARAM wParam, LONG lParam)
+LRESULT CALLBACK TftpClientProc (HWND hWnd, UINT message, WPARAM wParam, LONG lParam)
 {
 DWORD          nbWrt;
 struct tftphdr *tpr, *tps;
@@ -626,7 +626,8 @@ HWND            hCBWnd, hParentWnd;
 
       // edittext IDC_CLIENT_FILE will accept dropped file (works only because it is on the top in Z-Order
        DragAcceptFiles (GetDlgItem (hParentWnd, IDC_CLIENT_LOCALFILE), TRUE);
-          fEditBoxProc = (WNDPROC) SetWindowLong (GetDlgItem (hParentWnd, IDC_CLIENT_LOCALFILE), GWL_WNDPROC, (LONG) TftpClientFileNameProc);
+          // fEditBoxProc = (WNDPROC) SetWindowLong (GetDlgItem (hParentWnd, IDC_CLIENT_LOCALFILE), GWL_WNDPROC, (LONG) TftpClientFileNameProc);
+          fEditBoxProc = (WNDPROC) SetWindowLongPtr (GetDlgItem (hParentWnd, IDC_CLIENT_LOCALFILE), GWLP_WNDPROC, (LONG_PTR) TftpClientFileNameProc);
 //    SetWindowLong (GetDlgItem (hParentWnd, IDC_CLIENT_FILE), GWL_USERDATA, (LONG) TftpClientFileNameProc);
          break;
 

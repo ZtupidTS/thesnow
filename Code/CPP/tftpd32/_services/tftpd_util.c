@@ -3,7 +3,7 @@
 // source released under European Union Public License
 //
 
-#include "../_common/headers.h"
+#include "headers.h"
 #include "tftpd_functions.h"
 
 //////////////////////////////////////////

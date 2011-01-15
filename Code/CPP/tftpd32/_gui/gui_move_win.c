@@ -8,7 +8,7 @@
 
 
 
-#include "../_common/headers.h"
+#include "headers.h"
 
 #define TOOLBAR_HEIGHT  0        // pas de fenêtre Toolbar
 
@@ -61,7 +61,7 @@ tResize [] =
     { IDC_LV_TFTP,           6,  49, 210,  80,    0,  0, 10, 10, TAB_TFTP_SERVER },
 // EVENTS VIEWER
     { IDC_LB_LOG,                 6,  49, 210,  68,    0,  0, 10, 10, TAB_EVENTS_VIEWER },
-    { IDC_CURRENT_ACTION,       135, 123,  76,  12,    2, 10,  8,  0, TAB_EVENTS_VIEWER },
+//    { IDC_CURRENT_ACTION,       135, 123,  76,  12,    2, 10,  8,  0, TAB_EVENTS_VIEWER },
     { IDC_TXT_CURACTION,         85, 125,  70,   9,    2, 10,  8,  0, TAB_EVENTS_VIEWER },
     { IDC_TFTP_CLEAR,             6, 123,  32,  12,    0, 10,  0,  0, TAB_EVENTS_VIEWER },
     { IDC_TFTP_COPYTOCLIP,       40, 123,  32,  12,    0, 10,  0,  0, TAB_EVENTS_VIEWER },
@@ -87,25 +87,8 @@ tResize [] =
     { IDC_CLIENT_BREAK_BUTTON,  147, 116,  25,  12,    0,  0,  0,  0, TAB_TFTP_CLIENT },
     { IDC_TEXT_TFTPCLIENT_HELP,  10, 135, 162,  24,    0,  0,  0,  0, 0 },
 // DHCP SERVER
-    { IDC_TXT_ADDRESS_POOL,      10,  53, 75,   10,    0,  0,  0,  0, TAB_DHCP_SERVER },
-    { IDC_TXT_POOL_SIZE,         10,  64, 60,   10,    0,  0,  0,  0, TAB_DHCP_SERVER },
-    { IDC_TXT_BOOT_FILE,         10,  75, 65,   10,    0,  0,  0,  0, TAB_DHCP_SERVER },
-    { IDC_TXT_DNS_SERVER,        10,  86, 65,   10,    0,  0,  0,  0, TAB_DHCP_SERVER },
-    { IDC_TXT_DEFAULT_ROUTER,    10,  97, 60,   10,    0,  0,  0,  0, TAB_DHCP_SERVER },
-    { IDC_TXT_MASK,              10, 108, 65,   10,    0,  0,  0,  0, TAB_DHCP_SERVER },
-    { IDC_TXT_DOMAINNAME,        10, 119, 65,   10,    0,  0,  0,  0, TAB_DHCP_SERVER },
-    { IDC_TXT_ADDOPTION,         10, 130, 65,   10,    0,  0,  0,  0, TAB_DHCP_SERVER },
-    { IDC_DHCP_ADDRESS_POOL,     85,  53, 70,   10,    0,  0,  0,  0, TAB_DHCP_SERVER },
-    { IDC_DHCP_POOL_SIZE,        85,  64, 20,   10,    0,  0,  0,  0, TAB_DHCP_SERVER },
-    { IDC_DHCP_BOOT_FILE,        85,  75, 70,   10,    0,  0,  0,  0, TAB_DHCP_SERVER },
-    { IDC_DHCP_DNS_SERVER,       85,  86, 70,   10,    0,  0,  0,  0, TAB_DHCP_SERVER },
-    { IDC_DHCP_DEFAULT_ROUTER,   85,  97, 70,   10,    0,  0,  0,  0, TAB_DHCP_SERVER },
-    { IDC_DHCP_MASK,             85, 108, 70,   10,    0,  0,  0,  0, TAB_DHCP_SERVER },
-    { IDC_DHCP_DOMAINNAME,       85, 119, 70,   10,    0,  0,  0,  0, TAB_DHCP_SERVER },
-    { IDC_DHCP_ADDOPTION_NB,     85, 130, 20,   10,    0,  0,  0,  0, TAB_DHCP_SERVER },
-    { IDC_DHCP_ADDOPTION_VALUE, 115, 130, 40,   10,    0,  0,  0,  0, TAB_DHCP_SERVER },
-    { IDC_DHCP_OK,              165,  54, 20,   85,    0,  0,  0,  0, TAB_DHCP_SERVER },
-	{ IDC_LV_DHCP,               10, 140,200,   -5,    0,  0, 10, 10, TAB_DHCP_SERVER },
+	{ IDC_LV_DHCP,                6,  49, 210,  68,    0,  0, 10, 10, TAB_DHCP_SERVER },
+
 // SYSLOG SERVER
     { IDC_LB_SYSLOG,             6, 49, 210,  68,    0,  0, 10, 10, TAB_SYSLOG_SERVER },
     { IDC_SYSLOG_CLEAR,         16, 122, 70,  12,    0, 10,  0,  0, TAB_SYSLOG_SERVER },
@@ -121,7 +104,7 @@ tResize [] =
 
 }; // tResize
 
-static RECT SizeInit =    {40, 30, 40+227, 30+176 };
+static RECT SizeInit =    {40, 30, 40+230, 30+180 };
 static RECT RectMinMax  = { 0, 0, 200, 192 };
 static RECT RectTftpClient =  { 10, 50, 154, 53 };
 
@@ -152,9 +135,9 @@ int  InflateX, InflateY;       // tenth
       bConvert2Physique = TRUE;
       for (Ark=0 ; Ark<SizeOfTab(tResize) ; Ark++)
            MapDialogRect (hDlgWnd, (LPRECT) & tResize[Ark].x);
-           MapDialogRect (hDlgWnd, & SizeInit);
-           MapDialogRect (hDlgWnd, & RectMinMax);
-     MapDialogRect (hDlgWnd, & RectTftpClient);
+      MapDialogRect (hDlgWnd, & SizeInit);
+      MapDialogRect (hDlgWnd, & RectMinMax);
+      MapDialogRect (hDlgWnd, & RectTftpClient);
    } 
 
   if (bInit)
@@ -261,7 +244,7 @@ return TRUE;
 
 ///////////////////////////////////////////////
 // Tab control has changed : hide/show controls
-int TR_ChangeTabControl (HWND hDlgWnd)
+LRESULT TR_ChangeTabControl (HWND hDlgWnd)
 {
 HWND   hTabWnd = GetDlgItem (hDlgWnd, IDC_TAB_OPTION);
 DWORD  nCurOnglet = TabCtrl_GetCurSel (hTabWnd);

@@ -16,6 +16,8 @@
 #include <time.h>
 
 #include "tcp4u.h"
+#include "..\log\logtomonitor.h"
+
 
 struct in_addr Tcp4uGetIPAddr (LPCSTR szHost)
 {
@@ -92,6 +94,7 @@ fd_set          ReadMask;   /* select mask                    */
 DWORD           dummy;
 
   if (s==INVALID_SOCKET)  return TCP4U_ERROR;
+
   FD_ZERO (& ReadMask);     /* mise a zero du masque */
   FD_SET (s, & ReadMask);   /* Attente d'evenement en lecture */
 
@@ -110,9 +113,12 @@ DWORD           dummy;
                                 break;
   }
   /* s+1 normally unused but better for a lot of bugged TCP Stacks */
-  Rc = select ((int) s+1, & ReadMask, NULL, NULL, pTO);
+  Rc = select (s+1, & ReadMask, NULL, NULL, pTO);
   if (Rc<0) 
+  {
+	 LogToMonitor ("select returns error %d\n", WSAGetLastError());
      return  TCP4U_ERROR;
+  }
   if (Rc==0)
      return  TCP4U_TIMEOUT;  /* timeout en reception           */
 
@@ -124,6 +130,7 @@ DWORD           dummy;
   switch (Rc)
   {
        case SOCKET_ERROR : 
+		 	  LogToMonitor ("recv returns error %d\n", WSAGetLastError());
               nUpRc = TCP4U_ERROR ; 
               break;
        case 0            : 
@@ -168,11 +175,14 @@ unsigned short usSize = htons (uBufSize);
   if (hLogFile!=INVALID_HANDLE_VALUE)    WriteFile (hLogFile, szBuf, uBufSize, &dummy, NULL);
 
   // send msg length
-  send (s, (char *) & usSize, sizeof usSize, 0);
-  for ( Total = 0, Rc = 1 ;  Total < uBufSize  &&  Rc > 0 ;  Total += Rc)
+  Rc = send (s, (char *) & usSize, sizeof usSize, 0);
+  for ( Total = 0 ;  Total < uBufSize  &&  Rc > 0 ;  Total += Rc)
   {
       Rc = send (s, & szBuf[Total], uBufSize-Total, 0);
   }
+  if (Rc<0) 
+		LogToMonitor ("send returns error %d\n", WSAGetLastError());
+ 
 return Total>=uBufSize ? TCP4U_SUCCESS :  TCP4U_ERROR;
 } /* TcpPPSend */
 

@@ -11,7 +11,7 @@
 //////////////////////////////////////////////////////
 
 
-#include "../_common/headers.h"
+#include "headers.h"
 #include <process.h>
 
 #include "threading.h"
@@ -262,9 +262,12 @@ int Ark;
 			if (Ark==0) Sleep (200); 
 		} // process all threads
   }
-  Sleep (200); // time to let services init
-  // let the GUI run
-  SendMsgRequest (C_SERVICES_STARTED, NULL, 0, FALSE, FALSE);
+  for ( Ark=0 ;  Ark<5 ; Ark++ )
+  {
+     Sleep (200*Ark); // time to let services init
+     // start the GUI !
+     SendMsgRequest (C_SERVICES_STARTED, NULL, 0, FALSE, FALSE);
+  }
 return TRUE;
 } // StartWorkerThreads
 

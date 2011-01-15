@@ -8,7 +8,7 @@
 //////////////////////////////////////////////////////
 
 
-#include "../_common/headers.h"
+#include "headers.h"
 
 //////////////////////////////////////////////////////
 //
@@ -39,7 +39,7 @@ int                   Rc;
      {
          CMsgBox (NULL, 
 				  GetLastError()==WSAVERNOTSUPPORTED ?
-					    "错误: Tftpd32 需要 winsock 2以上的版本" :
+					    "错误: Tftpd32 需要 winsock 2 以上的版本" :
 						"错误: 不能初始化 Winsocket", 
 				   APPLICATION, 
 				   MB_OK | MB_ICONERROR);

@@ -9,7 +9,7 @@
 //////////////////////////////////////////////////////
 
 
-#include "../_common/headers.h"
+#include "headers.h"
 #include <shlobj.h>
 
 //////////////////////////////////////////////
@@ -39,7 +39,8 @@ LPITEMIDLIST  lpItem;
    memset (& BrowseInfo, 0, sizeof BrowseInfo);
    // GetCurrentDirectory (MAX_PATH, szBrowsePath);
    BrowseInfo.hwndOwner  = hWnd;
-   BrowseInfo.ulFlags    = BIF_RETURNONLYFSDIRS;
+   // 2010-08-13 : Change proposed by Nathan Alderson BIF_USENEWUI
+   BrowseInfo.ulFlags    = BIF_RETURNONLYFSDIRS | BIF_USENEWUI;
    BrowseInfo.lParam     = (LPARAM) szBrowsePath;
    if (bOpenCurDir)   BrowseInfo.lpfn = BrowseCallbackProc;
    lpItem = SHBrowseForFolder (& BrowseInfo);

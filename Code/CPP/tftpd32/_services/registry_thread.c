@@ -11,7 +11,7 @@
 //
 //////////////////////////////////////////////////////
 
-#include "../_common/headers.h"
+#include "headers.h"
 
 #include "threading.h"
 

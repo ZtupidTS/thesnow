@@ -15,6 +15,7 @@
 #include <time.h>
 
 #include "tcp4u.h"
+#include "../log/LogToMonitor.h"
 
 
 // send data using Udp

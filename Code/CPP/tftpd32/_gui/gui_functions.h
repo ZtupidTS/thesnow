@@ -44,6 +44,11 @@ enum {
 
 	   WM_CLOSE_2ND,
 	   WM_CLOSE_3RD,
+	   
+	   WM_ESC_EDITBOX,
+	   WM_TAB_EDITBOX,
+	   WM_ENTER_EDITBOX,
+	   
        WM_ANYBODY_HERE =(WM_APP + 591),
     };  // main window
 
@@ -127,17 +132,17 @@ enum {
 /////////////////////////////////////////////////////////
 // Windows and Dialogs
 // long CALLBACK TftpAddIPProc (HWND hWnd, UINT message, WPARAM wParam, LONG lParam);
-int  CALLBACK AboutProc (HWND hWnd, UINT message, WPARAM wParam, LONG lParam);
-int  CALLBACK TftpClientProc (HWND hWnd, UINT message, WPARAM wParam, LONG lParam);
-int  CALLBACK SettingsProc (HWND hWnd, UINT message, WPARAM wParam, LONG lParam);
-int  CALLBACK ShDirProc (HWND hWnd, UINT message, WPARAM wParam, LONG lParam);
-int  CALLBACK BrowseProc (HWND hWnd, UINT message, WPARAM wParam, LONG lParam);
-long CALLBACK MsgBoxCbk (HWND hWnd, UINT message, WPARAM wParam, LONG lParam);
-long CALLBACK AsyncSaveKeyProc (HWND hWnd, UINT message, WPARAM wParam, LONG lParam);
-int CALLBACK WndProc (HWND hWnd, UINT message, WPARAM wParam, LONG lParam);
+LRESULT  CALLBACK AboutProc (HWND hWnd, UINT message, WPARAM wParam, LONG lParam);
+LRESULT  CALLBACK TftpClientProc (HWND hWnd, UINT message, WPARAM wParam, LONG lParam);
+LRESULT  CALLBACK SettingsProc (HWND hWnd, UINT message, WPARAM wParam, LONG lParam);
+LRESULT  CALLBACK ShDirProc (HWND hWnd, UINT message, WPARAM wParam, LONG lParam);
+LRESULT  CALLBACK BrowseProc (HWND hWnd, UINT message, WPARAM wParam, LONG lParam);
+LRESULT  CALLBACK MsgBoxCbk (HWND hWnd, UINT message, WPARAM wParam, LONG lParam);
+LRESULT  CALLBACK AsyncSaveKeyProc (HWND hWnd, UINT message, WPARAM wParam, LONG lParam);
+LRESULT  CALLBACK WndProc (HWND hWnd, UINT message, WPARAM wParam, LONG lParam);
 
 
-int  TR_ChangeTabControl (HWND hDlgWnd);
+LRESULT  TR_ChangeTabControl (HWND hDlgWnd);
 int  TR_InitTabControl (HWND hDlgWnd);
 
 int  FillCBLocalIP (HWND hCBWnd, BOOL bShowPassive, const char *szAddress);
@@ -185,7 +190,7 @@ void Gui_UpdateGaugeWindow (const struct S_TftpGui *pTftpGui, time_t dNow);
 
 // exported by gui_recvmsg.c
 const struct S_TftpGui *Gui_GetFirstGuiItem (void);
-int Gui_GetMessage (HWND hWnd, SOCKET sService, int bBlocking);
+int Gui_GetMessage (HWND hWnd, SOCKET sService, int bBlocking, int nMsgType);
 int Gui_AbortTftpTransfer (SOCKET sService, DWORD dwTransferId);
 
 
@@ -219,7 +224,7 @@ int Gui_DestroySettings (SOCKET sService);
 int Gui_RequestIPInterfaces (SOCKET sService);
 int Gui_RequestListDirectory (SOCKET sService);
 
-int Gui_GetMessage (HWND hWnd, SOCKET sService, int bBlocking);
+int Gui_GetMessage (HWND hWnd, SOCKET sService, int bBlocking, int nMsgType);
 
 // gui_bootpd_settings
 int Gui_LoadDHCPConfig (HWND hWnd);

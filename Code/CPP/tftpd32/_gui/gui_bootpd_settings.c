@@ -8,7 +8,7 @@
 //
 //////////////////////////////////////////////////////
 
-#include "../_common/headers.h"
+#include "headers.h"
 #include <stdio.h>          // sscanf is used
 
 
@@ -91,10 +91,12 @@ INT   Ark;
      sNewParamDHCP.nPoolSize = GetDlgItemInt (hMainWnd, IDC_DHCP_POOL_SIZE, NULL, FALSE);
      if (sNewParamDHCP.nPoolSize == 0)   MY_WARNING ("DHCP 池为空\nDHCP 服务器将只能分配\n静态地址");
 
-     sGuiParamDHCP = sNewParamDHCP;
-
- 
-return TRUE;
+	 if (memcmp (& sGuiParamDHCP, & sNewParamDHCP, sizeof sNewParamDHCP) !=0)
+	 {
+		sGuiParamDHCP = sNewParamDHCP;
+		return TRUE;
+	 }
+return FALSE;
 } // Gui_DHCPSaveConfig
 
 

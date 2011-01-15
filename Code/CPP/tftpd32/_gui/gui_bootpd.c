@@ -22,7 +22,7 @@
 #else
 // TFTPD32's compilation
 #  pragma message ("                  Tftpd32 compilation")
-#  include "../_common/headers.h"
+#  include "headers.h"
 #endif
 
 #include <stdio.h>          // sscanf is used

@@ -19,7 +19,7 @@
 
 // #define DEB_TEST
 
-#include "../_common/headers.h"
+#include "headers.h"
 #include <process.h>
 #include <stdio.h>
 

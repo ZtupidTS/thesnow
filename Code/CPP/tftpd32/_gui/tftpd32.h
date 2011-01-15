@@ -1,9 +1,18 @@
 /* Weditres generated include file. Do NOT edit */
 #ifdef STANDALONE_EDITION
-#  define   APP_TITLE              "Tftpd32 by Ph. Jounin"
+#  ifdef _M_X64
+#     define   APP_TITLE              "Tftpd64 by Ph. Jounin"
+#  else
+#     define   APP_TITLE              "Tftpd32 by Ph. Jounin"
+#  endif
 #elif defined SERVICE_EDITION
-#  define   APP_TITLE              "Tftpd32 Service Edition by Ph. Jounin"
+#  ifdef _M_X64
+#     define   APP_TITLE              "Tftpd64 Service Edition by Ph. Jounin"
+#  else
+#     define   APP_TITLE              "Tftpd32 Service Edition by Ph. Jounin"
+#  endif
 #endif
+
 
 #define    IDC_BOOTP_NBFIELDS  3
 #define   IDC_BOOTP_NBRAWS    4
@@ -22,34 +31,38 @@
 #define IDD_DIALOG_ABOUT    103
 #define IDD_TFTPD_CLIENT    104
 #define IDD_DIALOG_SETTINGS 107
+
 #define IDD_DIALOG_GAUGE    108
 #define IDD_DIALOG_SHDIR    110
 #define IDD_DIALOG_BROWSE   111
 #define IDI_TFTPD32KILL     112
 
+#define IDD_DIALOG_SETTINGS_TFTP 120
+#define IDD_DIALOG_SETTINGS_DHCP 121
+
 ////////////////////////////////////////////////////////////
 // BASKET
 ////////////////////////////////////////////////////////////
 
-#define    IDC_TAB_OPTION      1000
-#define    IDC_ABOUT_BUTTON    1002
-#define    IDC_SETTINGS_BUTTON 1004
-#define    IDC_SHDIR_BUTTON    1005
-#define    IDC_TFTPD_HELP      1007
-#define    IDC_CB_IP           1008
-#define    IDC_TXT_ADDRESS     1009
-#define    IDC_TXT_BASEDIR     1010
-#define    IDC_BROWSE_BUTTON   1012
-#define    IDC_BASE_DIRECTORY  1013
-#define    IDC_ABOUT_TFTPD32   1014
-#define    IDC_TFTPD_STRING    1015
-#define    IDC_CB_DIR          1016
+#define    IDC_TAB_OPTION      4000
+#define    IDC_ABOUT_BUTTON    4002
+#define    IDC_SETTINGS_BUTTON 4004
+#define    IDC_SHDIR_BUTTON    4005
+#define    IDC_TFTPD_HELP      4007
+#define    IDC_CB_IP           4008
+#define    IDC_TXT_ADDRESS     4009
+#define    IDC_TXT_BASEDIR     4010
+#define    IDC_BROWSE_BUTTON   4012
+#define    IDC_BASE_DIRECTORY  4013
+#define    IDC_ABOUT_TFTPD32   4014
+#define    IDC_TFTPD_STRING    4015
+#define    IDC_CB_DIR          4016
 
 ////////////////////////////////////////////////////////////
 // MAIN LIST BOX
 ////////////////////////////////////////////////////////////
 
-#define   IDC_LB_LOG      1100
+#define   IDC_LB_LOG      4100
 
 
 
@@ -57,10 +70,19 @@
 // SETTINGS
 ////////////////////////////////////////////////////////////
 
+#define IDC_TAB_SETTINGS    1199
+#define IDC_GRP_TFTP        1210
+#define IDC_GRP_GLOBAL      1211
+#define IDC_GRP_SYSLOG      1212
+#define IDC_GRP_TFTP_SEC    1213
+#define IDC_GRP_TFTP_CFG    1214
+#define IDC_GRP_TFTP_ADVANCED 1215
+#define IDC_GRP_DHCP         1216
+#define IDC_GRP_DHCP_POOL         1217
 
-#define IDC_TRF_PROGRESS    1200
-#define    IDC_FILE_SIZE       1201
-#define    IDC_FILE_STATS      1202
+#define IDC_TRF_PROGRESS    1280
+#define    IDC_FILE_SIZE       1281
+#define    IDC_FILE_STATS      1282
 #define    IDC_RADIO_SECNONE       1290
 #define    IDC_RADIO_SECSTD        1291
 #define    IDC_RADIO_SECHIGH       1292
@@ -91,9 +113,16 @@
 #define    IDC_CHECK_MD5           1331
 #define    IDC_CHECK_VROOT         1350
 #define    IDC_BUTTON_DEFAULT      1351
-#define    IDC_CHECK_PIPE_SYSLOG   1354
 #define    IDC_SYSLOG_FILE         1352
 #define    IDC_LOCAL_PORTS         1353
+#define    IDC_CHECK_PIPE_SYSLOG   1354
+#define    IDC_TXT_SYSLOGTOFILE    1355
+#define    IDC_TXT_TFTP_TIMEOUT    1356
+#define    IDC_TXT_TFTP_RETRANSMIT 1357
+#define    IDC_TXT_TFTP_PORT       1358
+#define    IDC_TXT_TFTP_PORTS	   1359
+#define    IDC_TXT_WINSIZE		   1360
+
 #define    IDC_DIR_TEXT            1402
 #define    IDC_CHECK_PERS_LEASES   1403
 #define    IDC_CHECK_LOCALIP_DHCP  1404
@@ -108,7 +137,7 @@
 
 #define IDC_TXT_CURACTION   1501
 #define    IDC_TFTP_CLEAR      1502
-#define    IDC_CURRENT_ACTION  1503
+// #define    IDC_CURRENT_ACTION  1503
 #define    IDC_TFTP_COPYTOCLIP 1504
 #define   IDC_LV_TFTP          1505
 
