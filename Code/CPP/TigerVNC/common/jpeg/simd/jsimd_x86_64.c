@@ -18,7 +18,7 @@
 #include "../jsimd.h"
 #include "../jdct.h"
 #include "../jsimddct.h"
-#include "simd/jsimd.h"
+#include "jsimd.h"
 
 /*
  * In the PIC cases, we have no guarantee that constants will keep
@@ -260,7 +260,7 @@ jsimd_h2v2_fancy_upsample (j_decompress_ptr cinfo,
                            JSAMPARRAY input_data,
                            JSAMPARRAY * output_data_ptr)
 {
-  jsimd_h2v1_fancy_upsample_sse2(cinfo->max_v_samp_factor,
+  jsimd_h2v2_fancy_upsample_sse2(cinfo->max_v_samp_factor,
                                  compptr->downsampled_width,
                                  input_data, output_data_ptr);
 }
