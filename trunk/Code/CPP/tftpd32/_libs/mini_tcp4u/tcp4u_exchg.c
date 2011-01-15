@@ -65,7 +65,11 @@ int Ark;
 	Rc = TcpPPSend ( s, (char *) & Out1, sizeof Out1, INVALID_FILE_HANDLE );
 	if (Rc<0) return Rc;			
 	Rc = TcpPPRecv ( s, (char *) & In1, sizeof In1, 10, INVALID_FILE_HANDLE );
-	if (Rc<0) return Rc;
+	if (Rc<0) 
+	{int Ark = WSAGetLastError ();
+	    LogToMonitor ("Error %d receiving on socket %d\n", Ark, s);
+		return Rc;
+	}
 	/* verify version */
 	if (In1.version != nVersion) return TCP4U_VERSION_ERROR;
 	/* 'crypt' challenge */

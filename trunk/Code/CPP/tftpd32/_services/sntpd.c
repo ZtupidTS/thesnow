@@ -8,7 +8,7 @@
 //////////////////////////////////////////////////////
 
 
-#include "../_common/headers.h"
+#include "headers.h"
 #include <process.h>
 
 #include "threading.h"

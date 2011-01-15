@@ -7,7 +7,7 @@
 //////////////////////////////////////////////////////
 
 
-#include "../_common/headers.h"
+#include "headers.h"
 
 
 #define TFTP_MIN_VERT_GAUGE  3

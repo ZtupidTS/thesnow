@@ -6,7 +6,7 @@
 //////////////////////////////////////////////////////
 
 
-#include "../_common/headers.h"
+#include "headers.h"
 #include <process.h>
 #include <stdio.h>
 
@@ -33,12 +33,12 @@ char       szBuf[LOGSIZE + 30];
    while ( SendMessage (hListBox, LB_GETCOUNT, 0, 0) > (long) dwMaxMsg )
       SendMessage (hListBox, LB_DELETESTRING, 0, 0);
 
-    Ark = SendMessage (hListBox, LB_ADDSTRING, 0, (LPARAM) szTxt);
+    Ark = (int) SendMessage (hListBox, LB_ADDSTRING, 0, (LPARAM) szTxt);
 
     // extent horizontal scrollbar
     dwMaxExtent = 0;
     hDC = GetDC (hListBox);
-    for (Ark= SendMessage (hListBox, LB_GETCOUNT, 0, 0);
+    for (Ark= (int) SendMessage (hListBox, LB_GETCOUNT, 0, 0);
          Ark>=0 ;
          Ark --)
          {

@@ -7,7 +7,7 @@
 //////////////////////////////////////////////////////
 
 
-#include "../_common/headers.h"
+#include "headers.h"
 
 // as global variables, we have the settings both general and DHCP)
 struct S_DHCP_Param  sGuiParamDHCP;
@@ -30,6 +30,7 @@ BOOL GetHourglass (void) { return g_hourglass; }
 			  
 // id of system Menu (SYSMENU)
 enum { IDM_TFTP_HIDE = 0x1000, IDM_TFTP_EXPLORER, IDM_STOP_SERVICES, IDM_START_SERVICES, IDM_RESTART_SERVICES };     // should be under 0xF000
+
 
 
 ///////////////////////////////
@@ -66,6 +67,33 @@ return NULL;
 //
 //////////////////////////////////////////////////////
 
+/* ------------------------------------------------- */
+/* The control of the edit box IDC_CB_DIR            */
+/* just intercept ESC & ENTER Key from edit box ctrl */
+/* ------------------------------------------------- */
+static WNDPROC lpfnCBDirEditWndProc; // original wndproc for the combo box 
+LRESULT CALLBACK CBDirSubClassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
+{ 
+HWND hwndMain = GetParent (GetParent (hwnd));
+    switch (msg) 
+    { 
+        case WM_KEYDOWN: 
+            break;  
+        case WM_KEYUP: 
+        case WM_CHAR: 
+            switch (wParam) 
+            { 
+				// send message to main evant loop
+                case VK_TAB: 
+                case VK_ESCAPE: SendMessage(hwndMain, WM_ESC_EDITBOX, 0, (LPARAM) hwnd); 
+					            return 0;
+                case VK_RETURN: SendMessage(hwndMain, WM_ENTER_EDITBOX, 0, (LPARAM) hwnd); 
+                                return 0; 
+            } 
+    } 
+    // Call the original window procedure for default processing. 
+    return CallWindowProc(lpfnCBDirEditWndProc, hwnd, msg, wParam, lParam); 
+}  // CBDirSubClassProc
 
 
 /* ------------------------------------------------- */
@@ -92,6 +120,20 @@ return Ark;
 } // ChangeIPAddress
 
 
+static int SubClassCombo (HWND hMainWnd, int nId, WNDPROC cbk)
+{
+HWND hWndEdit, hWndCBBox;
+POINT pt={5,5};
+    // subclass the edit box part of the combo box IDC_CB_DIR
+    // code copied from MSDN "Creating a Combo Box Toolbar"
+	hWndCBBox = GetDlgItem (hMainWnd, nId);
+	hWndEdit = ChildWindowFromPoint(hWndCBBox, pt);
+    // lpfnCBDirEditWndProc = (WNDPROC) SetWindowLong (hWndEdit, GWL_WNDPROC, (DWORD) cbk); 
+    lpfnCBDirEditWndProc = (WNDPROC) SetWindowLongPtr (hWndEdit, GWLP_WNDPROC,(LONG_PTR) cbk); 
+return 0;
+} // SubClassCombo
+
+
 
 /* ------------------------------------------------- */
 /* VM_COMMAND                                        */
@@ -103,7 +145,8 @@ HWND        hSSWindow;
 
    // Our "manual" subclassing :
    // If the button belongs to a sub window, we forward the message
-   hSSWindow =  (HWND) GetWindowLong (GetDlgItem (hWnd, wItem), GWL_USERDATA);
+   // hSSWindow =  (HWND) GetWindowLong (GetDlgItem (hWnd, wItem), GWL_USERDATA);
+   hSSWindow =  (HWND) GetWindowLongPtr (GetDlgItem (hWnd, wItem), (LONG_PTR)GWLP_USERDATA);
    if (hSSWindow!=NULL)
    {
        PostMessage (hSSWindow, WM_COMMAND, wParam, lParam);
@@ -129,13 +172,15 @@ HWND        hSSWindow;
        case IDC_ABOUT_BUTTON :
            OpenNewDialogBox (hWnd,
                              IDD_DIALOG_ABOUT,
-                             AboutProc, 
+                             (DLGPROC) AboutProc, 
                              0, 
                              NULL );
            break;
 
        case IDC_SHDIR_BUTTON :
            // Ask directory content to the service
+		   // dialog window will be displayed once the 
+		   // message C_REPLY_DIRECTORY_CONTENT is rcvd
            Gui_RequestListDirectory (sService);
            break;
 
@@ -148,7 +193,8 @@ HWND        hSSWindow;
        case IDC_SETTINGS_BUTTON :
             OpenNewDialogBox (hWnd,
                               IDD_DIALOG_SETTINGS,
-                              SettingsProc, 0, NULL);
+                              (DLGPROC) SettingsProc, 
+							  0, NULL);
              break;
 
        // unselect the selected line as soon as the window loses its focus
@@ -176,24 +222,29 @@ HWND        hSSWindow;
                 PostMessage (hWnd, WM_TFTP_CHG_WORKING_DIR, 0, 0);
 		  }
          break;
-
+#ifdef ALL_RELEASES_UNTIL_3_35
 	  // DHCP controls
       case IDC_DHCP_OK :
                if (Gui_DHCPSaveConfig (hWnd))
                   CMsgBox (hWnd, "DHCP 设置成功保存", APPLICATION, MB_OK);
                PostMessage (hWnd, WM_SAVE_DHCP_SETTINGS, 0, 0);
                break;
-               
-      case ID_DELETE_ASSIGNATION :
-           { LVITEM LvItem;
-		     HWND    hListV   = GetDlgItem (hWnd, IDC_LV_DHCP);
+#endif
 
-             LvItem.iItem = ListView_GetNextItem (hListV, -1, LVNI_FOCUSED);
-             LvItem.iSubItem =0;
-             LvItem.mask = LVIF_PARAM;
-             if ( ListView_GetItem (hListV, & LvItem) )
-                 PostMessage ( hWnd, WM_DELETE_ASSIGNATION, 0, LvItem.lParam );
-           }
+      case ID_DELETE_ASSIGNATION :
+           { 
+		     HWND    hListV   = GetDlgItem (hWnd, IDC_LV_DHCP);
+			 int  Ark;
+			 // bug fixed by Colin : do nothing unless GetNextItem is successfull
+             if ( (Ark = ListView_GetNextItem (hListV, -1, LVNI_FOCUSED)) != -1) 
+			 {LVITEM LvItem;
+			 	 LvItem.iItem = Ark;
+				 LvItem.iSubItem =0;
+                 LvItem.mask = LVIF_PARAM;
+                 if ( ListView_GetItem (hListV, & LvItem) )
+                     PostMessage ( hWnd, WM_DELETE_ASSIGNATION, 0, LvItem.lParam );
+			 } // ListView_GetNextItem succesfull
+           } //ID_DELETE_ASSIGNATION
            break;
 
 	   // Syslog controls
@@ -236,7 +287,8 @@ static int Handle_VM_Notify (HWND hDlgWnd, WPARAM wParam, LPNMHDR pnmh)
 WORD wItem = LOWORD (wParam);
 HWND        hSSWindow;
 
-    hSSWindow =  (HWND) GetWindowLong (GetDlgItem (hDlgWnd, wItem), GWL_USERDATA);
+    // hSSWindow =  (HWND) GetWindowLong (GetDlgItem (hDlgWnd, wItem), GWL_USERDATA);
+    hSSWindow =  (HWND) GetWindowLongPtr (GetDlgItem (hDlgWnd, wItem), (LONG_PTR)GWLP_USERDATA);
 
     // The "manual" subclassing
     // If the button belongs to a sub window, we forward the message
@@ -273,7 +325,8 @@ HWND        hSSWindow;
 		   switch (pnmh->code)
 		   {
 				case NM_CUSTOMDRAW :
-					  SetWindowLong (hDlgWnd, DWL_MSGRESULT, (LONG) ProcessCustomDraw ( (LPARAM) pnmh) );
+					  // SetWindowLong (hDlgWnd, DWL_MSGRESULT, (LONG) ProcessCustomDraw ( (LPARAM) pnmh) );
+					  SetWindowLongPtr (hDlgWnd, DWLP_MSGRESULT, (LONG_PTR)ProcessCustomDraw ( (LPARAM) pnmh) );
 					  return TRUE;
 
 				case LVN_COLUMNCLICK :  // unused since our ListView does not support sorting
@@ -288,7 +341,8 @@ HWND        hSSWindow;
 		   {
 			   // alternate background colors
 				case NM_CUSTOMDRAW :
-					   SetWindowLong (hDlgWnd, DWL_MSGRESULT, (LONG) ProcessCustomDraw ( (LPARAM) pnmh) );
+					   // SetWindowLong (hDlgWnd, DWL_MSGRESULT, (LONG) ProcessCustomDraw ( (LPARAM) pnmh) );
+					   SetWindowLongPtr (hDlgWnd, DWLP_MSGRESULT,(LONG_PTR) ProcessCustomDraw ( (LPARAM) pnmh) );
 					   return TRUE;
 
 				case LVN_COLUMNCLICK :  // unused
@@ -324,11 +378,17 @@ HWND hNW;
 
       if (sGuiSettings.uServices & TFTPD32_TFTP_CLIENT)
       {
-       hNW = CreateBckgWindow (hWnd, WM_INITCLIENT, TftpClientProc, TFTP_CLIENT_CLASS, APPLICATION);
+       hNW = CreateBckgWindow (hWnd, WM_INITCLIENT, (WNDPROC) TftpClientProc, TFTP_CLIENT_CLASS, APPLICATION);
+#ifdef ONLY32BITS
        SetWindowLong (GetDlgItem (hWnd, IDC_CLIENT_BROWSE),      GWL_USERDATA, (LONG) hNW);
        SetWindowLong (GetDlgItem (hWnd, IDC_CLIENT_GET_BUTTON),  GWL_USERDATA, (LONG) hNW);
        SetWindowLong (GetDlgItem (hWnd, IDC_CLIENT_SEND_BUTTON), GWL_USERDATA, (LONG) hNW);
        SetWindowLong (GetDlgItem (hWnd, IDC_CLIENT_BREAK_BUTTON),GWL_USERDATA, (LONG) hNW);
+#endif
+	   SetWindowLongPtr (GetDlgItem (hWnd, IDC_CLIENT_BROWSE),      GWLP_USERDATA, (LONG_PTR) hNW);
+       SetWindowLongPtr (GetDlgItem (hWnd, IDC_CLIENT_GET_BUTTON),  GWLP_USERDATA, (LONG_PTR) hNW);
+       SetWindowLongPtr (GetDlgItem (hWnd, IDC_CLIENT_SEND_BUTTON), GWLP_USERDATA, (LONG_PTR) hNW);
+       SetWindowLongPtr (GetDlgItem (hWnd, IDC_CLIENT_BREAK_BUTTON),GWLP_USERDATA, (LONG_PTR) hNW);
      }
 
 return 0;
@@ -378,7 +438,8 @@ int Tftpd32InitGui (HWND hWnd, HICON *phIcon, HMENU *phMenu)
 	// WM_RESIZE_MAIN_WINDOW
    // Inits Windows : Register our (beautiful) Icon 
      *phIcon = LoadIcon  (GetWindowInstance(hWnd), MAKEINTRESOURCE (IDI_TFTPD32));
-     SetClassLong (hWnd, GCL_HICON, (LONG) *phIcon );
+     // SetClassLong (hWnd, GCL_HICON, (LONG) *phIcon );
+     SetClassLongPtr (hWnd, GCLP_HICON, (LONG_PTR) *phIcon );
      // Add the Hide Sysmenu item
      *phMenu = GetSystemMenu (hWnd, FALSE);
      if (*phMenu != NULL)
@@ -407,12 +468,13 @@ int Tftpd32InitGui (HWND hWnd, HICON *phIcon, HMENU *phMenu)
      TrayMessage (hWnd, NIM_ADD, *phIcon, TASKTRAY_ID, WM_NOTIFYTASKTRAY);
 
      Button_Enable (GetDlgItem (hWnd, IDC_SETTINGS_BUTTON), FALSE);
+
      // Deactivate Browse Button
      if ( IsGuiConnectedToRemoteService () )
         Button_Enable (GetDlgItem (hWnd, IDC_BROWSE_BUTTON), FALSE);
-     SetDlgItemText (hWnd, IDC_CURRENT_ACTION, "获取服务器地址");
 
-     // Creates List Views
+
+    // Creates List Views
     InitTftpd32ListView (GetDlgItem (hWnd, IDC_LV_TFTP),   tColTftp, SizeOfTab (tColTftp), LVS_EX_FULLROWSELECT);
     InitTftpd32ListView (GetDlgItem (hWnd, IDC_LV_DHCP),   tColDhcp, SizeOfTab (tColDhcp), LVS_EX_FULLROWSELECT);
     InitTftpd32ListView (GetDlgItem (hWnd, IDC_LB_SYSLOG), tColsysLog, SizeOfTab (tColsysLog), LVS_EX_FULLROWSELECT);
@@ -430,12 +492,11 @@ return TRUE;
 /* ------------------------------------------------- */
 /* Main CallBack                                     */
 /* ------------------------------------------------- */
-int CALLBACK WndProc (HWND hWnd, UINT message, WPARAM wParam, LONG lParam)
+LRESULT CALLBACK WndProc (HWND hWnd, UINT message, WPARAM wParam, LONG lParam)
 {
 static HICON    hIcon;
 static HMENU     hMenu;
 int       Rc;
-HWND      hCBWnd;
 
   switch (message)
   {
@@ -450,8 +511,9 @@ HWND      hCBWnd;
 
         case WM_INIT_DISPLAY :
              ShowWindow (hWnd, TRUE);
-             hCBWnd = GetDlgItem (hWnd, IDC_CB_DIR);
-
+#ifdef STANDALONE_EDITION
+			 SubClassCombo (hWnd, IDC_CB_DIR, CBDirSubClassProc);
+#endif
              if (sGuiSettings.WinSize>0)
                    SendDlgItemMessage (hWnd, IDC_LB_LOG, LB_ADDSTRING,
                                            0, (LPARAM) "Warning: Anticipation window in use");
@@ -468,11 +530,6 @@ HWND      hCBWnd;
        ////////////////////////////////
        // Message sent by Tftp server
        case WM_DISPLAY_LISTEN :
-           {char szText[128];
-              wsprintf (szText, "监听于端口 %d", sGuiSettings.Port);
-              SetDlgItemText (hWnd, IDC_CURRENT_ACTION, szText);
-           }
-
            if (sGuiSettings.bHide)
            {
              // this command moves the app off the screen without hiding it
@@ -493,7 +550,7 @@ HWND      hCBWnd;
        // message received from daemon
        case WM_RECV_FROM_THREAD :
             WSAAsyncSelect(sService, hWnd, 0, 0);
-            Rc = Gui_GetMessage (hWnd, sService, TRUE);
+            Rc = Gui_GetMessage (hWnd, sService, TRUE, 0);
 			if (Rc == TCP4U_SOCKETCLOSED)
 				PostMessage (hWnd, WM_SOCKET_CLOSED, 0, 0);
 			else if (Rc<0)
@@ -561,6 +618,34 @@ HWND      hCBWnd;
 	  case WM_START_SERVICES :
 		  Gui_StartAllServices (sService);
 		  break;
+
+	  // The edit box of the combo box IDC_CB_DIR has been modified 
+	  // Change working directory
+      case WM_ENTER_EDITBOX :
+		  {char sz [MAX_PATH];
+			   sz[MAX_PATH-1] = 0;
+			   GetWindowText  ( (HWND) lParam, sz, sizeof sz - 1);
+			   if (strcmp (sGuiSettings.szWorkingDirectory, sz)!=0)
+			   {
+				   if ( IsValidDirectory (sz) )  
+				   {
+						strcpy (sGuiSettings.szWorkingDirectory, sz);
+						PostMessage (hWnd, WM_TFTP_CHG_WORKING_DIR, 0, 0);
+						CMsgBox (hWnd, "New base directory : %s", "Tftpd32", MB_OK, sz);
+		   		   }
+				   else 
+				   {
+					   PostMessage (hWnd, WM_ESC_EDITBOX, 0, lParam);
+					   CMsgBox (hWnd, "Invalid Directory : %s", "Tftpd32", MB_OK, sz);
+				   }
+			   } // text has been modified
+		  }
+		  break;
+	  case WM_ESC_EDITBOX :
+		  // restore previous settings
+ 		  ComboBox_SetText ((HWND) lParam, sGuiSettings.szWorkingDirectory);
+		  break;
+
 
 #ifdef OLD_CODE          
        ////////////////////////////////
@@ -682,7 +767,7 @@ HWND      hCBWnd;
 
        case WM_TIMER :
             KillTimer (hWnd, wParam);
-            PostMessage (hWnd, wParam, 0, 0);
+            PostMessage (hWnd, (UINT) wParam, 0, 0);
             break;
 
 	   case WM_SETCURSOR:
@@ -690,7 +775,8 @@ HWND      hCBWnd;
 		   if (GetHourglass())
 		   {
 			   SetCursor(LoadCursor(NULL, IDC_WAIT));
-			   SetWindowLong(hWnd, DWL_MSGRESULT, TRUE);
+			   // SetWindowLong(hWnd, DWL_MSGRESULT, TRUE);
+			   SetWindowLongPtr(hWnd, DWLP_MSGRESULT, TRUE);
 			   return TRUE;
 		   }
            break;
@@ -734,11 +820,17 @@ HWND hPrevWnd;
 int InitsConsoleConnection (const char *szHost)
 {
 int Rc;
-    // conect to console, service may have passed port
-	// through sSguiSettings structure
-	sService = TcpConnect (szHost, 
-						   "tftpd32", 
-						   sGuiSettings.uConsolePort==0 ? TFTPD32_TCP_PORT : sGuiSettings.uConsolePort);
+int Ark=0;
+	do
+	{
+	    // conect to console, service may have passed port
+		// through sSguiSettings structure
+		sService = TcpConnect (szHost, 
+							   "tftpd32", 
+							   sGuiSettings.uConsolePort==0 ? TFTPD32_TCP_PORT : sGuiSettings.uConsolePort);
+		if (sService==INVALID_SOCKET) { Rc = GetLastError ();  Sleep (500); }
+	}
+	while (Ark++<=3 && sService==INVALID_SOCKET);
 
 	if (sService != INVALID_SOCKET) LogToMonitor ("已连接到控制台\n");
 	else 
@@ -769,16 +861,16 @@ LogToMonitor ( "GUI 版本检查成功\n" );             // permament listening 
 
 #ifdef STANDALONE_EDITION
 	 // Standalone edition shoud wait for services to be started
-	 Gui_GetMessage (NULL, sService, TRUE);
+	 Gui_GetMessage (NULL, sService, TRUE, C_SERVICES_STARTED);
 #endif
 
 	// services should be started : ask settings and what is started
      Gui_AskTFTPSettings (sService);
-	 Gui_GetMessage (NULL, sService, TRUE);
+	 Gui_GetMessage (NULL, sService, TRUE, C_TFTP_RPLY_SETTINGS);
      Gui_AskDHCPSettings (sService); 
-	 Gui_GetMessage (NULL, sService, TRUE);
+	 Gui_GetMessage (NULL, sService, TRUE, C_DHCP_RPLY_SETTINGS);
 	 Gui_RequestRunningServices (sService);
-	 Gui_GetMessage (NULL, sService, TRUE);
+	 Gui_GetMessage (NULL, sService, TRUE, C_REPLY_GET_SERVICES);
 
 return 1;     
 } // InitsConsoleConnection 
@@ -818,7 +910,7 @@ INITCOMMONCONTROLSEX  InitCtrls;
      if (! InitsConsoleConnection (szConsoleHost)) return 0;
 
      // starts GUI
-     OpenNewDialogBox (NULL, IDD_TFTPD32, WndProc, 0, hInstance);
+     OpenNewDialogBox (NULL, IDD_TFTPD32, (DLGPROC) WndProc, 0, hInstance);
 
      UnregisterClass (TFTPD32_ADDIP_CLASS, hInstance);
      UnregisterClass (TFTP_CLIENT_CLASS, hInstance);

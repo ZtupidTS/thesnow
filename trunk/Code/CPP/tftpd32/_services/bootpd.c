@@ -22,14 +22,14 @@
 #else
 // TFTPD32's compilation
 #  // pragma message ("                  Tftpd32 compilation")
-#  include "../_common/headers.h"
+#  include "headers.h"
 #endif
 
 #include <stdio.h>          // sscanf is used
 #include <process.h>        // endthread + beginthread
 #include <iphlpapi.h>
 
-#include "../_libs/ping_api/ping_api.h"
+#include "_libs/ping_api/ping_api.h"
 #include "threading.h"
 #include "bootpd_functions.h"
 
@@ -82,6 +82,7 @@ struct S_DhcpOptions
 {
    unsigned nDHCPOpt;
    char     nLen;
+   int      nServices;
 } ; // struct S_DhcpOptions
 
 
@@ -343,7 +344,7 @@ return NULL;
 } // DHCP_IPAllocate2
 
 
-struct LL_IP *DHCP_IPAllocate(struct in_addr *pPreviousAddr, const unsigned char *pMac, int nMacLen)
+struct LL_IP *DHCP_IPAllocate(int nDhcpType, struct in_addr *pPreviousAddr, const unsigned char *pMac, int nMacLen)
 {
 int Rc=1;
 struct LL_IP *pCurIP;
@@ -352,9 +353,12 @@ int dummy_maclen = sizeof dummy_mac;
   do
   {
      pCurIP = DHCP_IPAllocate2 (pPreviousAddr, pMac, nMacLen);
-     if (pCurIP!=NULL  &&  sSettings.bPing)
+	 // 2010/09/27  Colin from Shangai points out that ICMP check should be done only for DISCOVER
+     if (pCurIP!=NULL  &&  sSettings.bPing  && nDhcpType==DHCPDISCOVER)
      {
-       // Send an ARP request --> frees the ARP cache
+	   
+       // frees the ARP cache and send an ARP request 
+	   ArpDeleteHost (pCurIP->dwIP);
        SendARP(pCurIP->dwIP.s_addr, 0, dummy_mac, &dummy_maclen);
        Rc =    PingApi (&pCurIP->dwIP, DHCP_PINGTIMEOUT, NULL)==PINGAPI_TIMEOUT
             && PingApi (&pCurIP->dwIP, DHCP_PINGTIMEOUT, NULL)==PINGAPI_TIMEOUT
@@ -383,31 +387,36 @@ int             Ark, Evan;
 char            sz[256];
 static struct S_DhcpOptions sDhcpOpt [] =       // 0 for unspecified
 {
-    DHO_DHCP_MESSAGE_TYPE,      1,
-    DHO_DHCP_SERVER_IDENTIFIER, 4,
-    DHO_SUBNET_MASK,            4,
-    DHO_ROUTERS,                4,
-    DHO_DOMAIN_NAME_SERVERS,    4,
-    DHO_LOG_SERVERS,            4,
-    DHO_NETBIOS_NAME_SERVERS,   4,
-    DHO_DHCP_LEASE_TIME,        4,
-    DHO_DHCP_RENEWAL_TIME,      4,
-    DHO_DHCP_REBINDING_TIME,    4,
-    DHO_BOOT_SIZE,              0,
-    DHO_DOMAIN_NAME,            0,
-    DHO_CUSTOM,                 0,
-    DHO_END,                    0,
+    DHO_DHCP_MESSAGE_TYPE,      1,	  ~TFTPD32_NONE,
+    DHO_DHCP_SERVER_IDENTIFIER, 4,	  ~TFTPD32_NONE,
+    DHO_SUBNET_MASK,            4,	  ~TFTPD32_NONE,
+    DHO_ROUTERS,                4,	  ~TFTPD32_NONE,
+    DHO_DOMAIN_NAME_SERVERS,    4,	  ~TFTPD32_NONE,
+    DHO_LOG_SERVERS,            4,	   TFTPD32_SYSLOG_SERVER,
+    DHO_NETBIOS_NAME_SERVERS,   4,	  ~TFTPD32_NONE,
+    DHO_DHCP_LEASE_TIME,        4,	  ~TFTPD32_NONE,
+    DHO_DHCP_RENEWAL_TIME,      4,	  ~TFTPD32_NONE,
+    DHO_DHCP_REBINDING_TIME,    4,	  ~TFTPD32_NONE,
+    DHO_BOOT_SIZE,              0,	   TFTPD32_TFTP_SERVER,
+    DHO_DOMAIN_NAME,            0,	  ~TFTPD32_NONE,
+    DHO_CUSTOM,                 0,	  ~TFTPD32_NONE,
+    DHO_END,                    0,	  ~TFTPD32_NONE,
 };
 
 	//Always pack the magic cookie again, just in case it was corrupted
 	*(DWORD*)(pDhcpPkt->options) = * (DWORD*) DHCP_OPTIONS_COOKIE;
 
+	// pNearest points on the "good" LAN interface
    pNearest = FindNearestServerAddress (&pDhcpPkt->yiaddr, & sParamDHCP.dwMask, FALSE);
    //HACK -- If we are the bootp server, we are also the tftpserver
    if (sSettings.uServices & TFTPD32_TFTP_SERVER) 
       pDhcpPkt->siaddr = *pNearest;   // Next server (TFTP server is enabled)
    for (Ark=0 ; Ark<SizeOfTab(sDhcpOpt) ; Ark++)
    {
+	 // skip if linked to a service which is not started (change suggested by Colin)
+	 if (! (sSettings.uServices & sDhcpOpt[Ark].nServices)) 
+			continue;
+
      if (sDhcpOpt[Ark].nLen!=0) 
      {
         *pOpt++ = (unsigned char) sDhcpOpt[Ark].nDHCPOpt ; 
@@ -416,8 +425,7 @@ static struct S_DhcpOptions sDhcpOpt [] =       // 0 for unspecified
       switch (sDhcpOpt[Ark].nDHCPOpt)
       {
        case DHO_DHCP_MESSAGE_TYPE       :  * pOpt = (unsigned char) nDhcpType ; break ; 
-       case DHO_LOG_SERVERS             :  if (! (sSettings.uServices & TFTPD32_SYSLOG_SERVER) ) break;
-                                           // else fallthrough
+       case DHO_LOG_SERVERS             :  // fallthrough
        case DHO_DHCP_SERVER_IDENTIFIER  :  * (DWORD *) pOpt = pNearest->s_addr; break ;
        case DHO_SUBNET_MASK             :  * (DWORD *) pOpt = sParamDHCP.dwMask.s_addr; break ;
        case DHO_ROUTERS                 :  * (DWORD *) pOpt = (sParamDHCP.dwGateway.s_addr == 0xffffffff ? pDhcpPkt->yiaddr.s_addr : sParamDHCP.dwGateway.s_addr); break ;
@@ -481,8 +489,8 @@ return (int) (pOpt - (unsigned char*) pDhcpPkt);
 
 int ProcessDHCPMessage (struct dhcp_packet *pDhcpPkt, int *pSize)
 {
-unsigned char *p;
-struct LL_IP  *pCurIP, *pProposedIP;
+unsigned char *p=NULL;
+struct LL_IP  *pCurIP=NULL, *pProposedIP=NULL;	// Thanks Sam Leitch !
 int            Ark, nDhcpType = 0;
 struct in_addr sRequestedAddr;
 DWORD sStaticIP;
@@ -531,7 +539,7 @@ DWORD sStaticIP;
                    pDhcpPkt->ciaddr = * (struct in_addr *) p;
                    LOG (5, "Client requested address %s", inet_ntoa (pDhcpPkt->ciaddr));
               }
-              pProposedIP  = DHCP_IPAllocate (& pDhcpPkt->ciaddr, pDhcpPkt->chaddr, pDhcpPkt->hlen);
+              pProposedIP  = DHCP_IPAllocate (nDhcpType, & pDhcpPkt->ciaddr, pDhcpPkt->chaddr, pDhcpPkt->hlen);
               if (pProposedIP == NULL)
               {
                   LOG (1, "no more address or address previously allocated by another server");
@@ -539,15 +547,15 @@ DWORD sStaticIP;
               }
               pDhcpPkt->yiaddr.s_addr = pProposedIP->dwIP.s_addr;
               LOG (2, "%s: proposed address %s", IsDHCP(*pDhcpPkt) ? "DHCP" : "BOOTP", inet_ntoa (pProposedIP->dwIP) );
+
+              //If this is a bootp, there is no other response from the client.  
+              //Since we don't want leases expiring (or being mistaken for unAcked DHCP offers),
+              //set renewed to a distant time
+              if(nDhcpType == 0  &&  sStaticIP == INADDR_NONE)     // patched by Rolf Offermanns
+                  ForceRenewTime(pProposedIP, 0x66666666);         // fixed by Sam Leitch
             } // dynamically assigned address
 
-            //If this is a bootp, there is no other response from the client.  
-            //Since we don't want leases expiring (or being mistaken for unAcked DHCP offers),
-            //set renewed to a distant time
-            if(nDhcpType == 0)
-               ForceRenewTime(pProposedIP, 0x66666666);         
-
-             // populate the packet to be returned
+            // populate the packet to be returned
             pDhcpPkt->op = BOOTREPLY;
             // translate $IP$ and $MAC$ from boot file name
             TranslateExp (sParamDHCP.szBootFile, pDhcpPkt->file, pDhcpPkt->yiaddr, pDhcpPkt->chaddr);
@@ -595,7 +603,7 @@ DWORD sStaticIP;
 			if (bSERVER)
 			{
 
-				pProposedIP  = DHCP_IPAllocate (& pDhcpPkt->ciaddr, pDhcpPkt->chaddr, pDhcpPkt->hlen);
+				pProposedIP  = DHCP_IPAllocate (nDhcpType, & pDhcpPkt->ciaddr, pDhcpPkt->chaddr, pDhcpPkt->hlen);
 				if (pProposedIP == NULL)
 				{
 					  LOG (1, "no more addresses or address previously allocated by another server");
@@ -651,7 +659,7 @@ DWORD sStaticIP;
 
 			 if(NO_ERROR == SendARP(pDhcpPkt->ciaddr.s_addr, 0, mac, &maclen))
 			 {
-				pProposedIP  = DHCP_IPAllocate (& pDhcpPkt->ciaddr, (unsigned char*)mac, maclen);
+				pProposedIP  = DHCP_IPAllocate (nDhcpType, & pDhcpPkt->ciaddr, (unsigned char*)mac, maclen);
 				if (pProposedIP)
 				{
 					if (pProposedIP->tAllocated==0) SetAllocTime(pProposedIP);
@@ -701,7 +709,7 @@ void ArpAndAdd (struct in_addr *paddr)
 
 	 if(NO_ERROR == SendARP(paddr->s_addr, 0, mac, &maclen))
 	 {
-		struct LL_IP* pProposedIP  = DHCP_IPAllocate (paddr, (unsigned char*)mac, maclen);
+		struct LL_IP* pProposedIP  = DHCP_IPAllocate (DHCPDISCOVER, paddr, (unsigned char*)mac, maclen);
 		if (pProposedIP)
 		{
 			if (pProposedIP->tAllocated==0) SetAllocTime(pProposedIP);
@@ -933,6 +941,8 @@ int True = 1;
            if (!bUniCast)  SockFrom.sin_addr.s_addr = htonl (INADDR_NONE);
 
 		   // Added : DHCP relay detection --> send replies to port 67 and 68
+		   // Colin and others point ourt that this is wrong. I guess they are right.
+		   // However it should not be an issue and i am sure that the host receive an address !
            if (sDhcpPkt.giaddr.s_addr!=htonl(INADDR_ANY)  || sDhcpPkt.giaddr.s_addr!=htonl(INADDR_NONE))
            {
 			  // sends to port 67

@@ -7,7 +7,7 @@
 //
 //////////////////////////////////////////////////////
 
-#include "../_common/headers.h"
+#include "headers.h"
 
 
 struct LL_TftpInfo *DoDebugSendBlock (struct LL_TftpInfo *pTftp)

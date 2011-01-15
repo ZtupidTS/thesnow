@@ -13,7 +13,7 @@
 // some shortcurts
 
 #include <stdio.h>
-#include "../_common/headers.h"
+#include "headers.h"
 
 
 static struct

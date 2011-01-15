@@ -7,7 +7,7 @@
 //
 
 
-#include "../_common/headers.h"
+#include "headers.h"
 
 
 static struct S_TftpGui *pTftpGuiFirst=NULL;
@@ -267,6 +267,9 @@ struct S_ConsoleMsg *pmsg = & sMsg;
 int Rc;
 int Ark;
 static int bFirstTime=TRUE;
+
+ do
+ {
    Rc = TcpPPRecv (sService, (char *) & sMsg, sizeof sMsg, bBlocking ? 10 : TCP4U_DONTWAIT, 0);
    if (Rc >= sizeof pmsg->type)
    {
@@ -376,6 +379,8 @@ LogToMonitor ("GUI 得到未知消息 %d, 长度 %d\n", pmsg->type, Rc);
             
         }
     } // if Rc>0
+  } // do until error, or msgtype ok (if blocking)
+  while ( Rc>0 &&  bBlocking && (nMsgType!=pmsg->type && nMsgType>0) );
 return Rc;        
 } // GuiGetMessage
 

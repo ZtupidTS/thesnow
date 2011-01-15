@@ -15,7 +15,7 @@
 #include <winsvc.h>
 #include <stdio.h>
 #include "service stuff.h"
-#include "../_libs/log/LogToMonitor.h"
+#include "_libs/log/LogToMonitor.h"
 
 
 static SERVICE_STATUS_HANDLE   sshStatusHandle;

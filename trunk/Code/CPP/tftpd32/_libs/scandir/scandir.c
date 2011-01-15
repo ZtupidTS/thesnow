@@ -33,7 +33,7 @@ WIN32_FIND_DATA  FindData;
 FILETIME    FtLocal;
 SYSTEMTIME  SysTime;
 char        szLine [256], szFileSpec [_MAX_PATH + 5];
-char        szDate [sizeof "jj/mm/aa"];
+char        szDate [sizeof "jj/mm/aaaa"];
 HANDLE      hFind;
 
     szFileSpec [_MAX_PATH - 1] = 0;
@@ -52,7 +52,7 @@ HANDLE      hFind;
                       & SysTime,
                       NULL,
                       szDate, sizeof szDate);
-       szDate [sizeof "jj/mm/aa" - 1]=0;    // truncate date
+       szDate [sizeof "jj/mm/aaaa" - 1]=0;    // truncate date
        FindData.cFileName[62] = 0;      // truncate file name if needed
 	   // dialog structure allow up to 64 char
        wsprintf (szLine, "%s\t%s\t%d",

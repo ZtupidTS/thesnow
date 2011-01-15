@@ -10,7 +10,7 @@
 //////////////////////////////////////////////////////
 
 
-#include "../_common/headers.h"
+#include "headers.h"
 #include <process.h>
 #include "threading.h"
 
@@ -35,7 +35,7 @@ char sz[_MAX_PATH];
 
     // starts worker threads
     StartWorkerThreads (FALSE);
-
+	LogToMonitor ("Worker threads started\n");
 } // StartTftpd32Services
 
 void StopTftpd32Services (void)

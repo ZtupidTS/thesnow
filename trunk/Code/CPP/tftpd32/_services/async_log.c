@@ -8,7 +8,7 @@
 //////////////////////////////////////////////////////
 
 
-#include "../_common/headers.h"
+#include "headers.h"
 #include <stdio.h>
 #include <stdlib.h>
 

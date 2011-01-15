@@ -12,7 +12,7 @@
 #include <winsock.h>
 #include <time.h>
 #include <stdio.h>
-#include "../_common/bootpd_util.h"
+#include "bootpd_util.h"
 
 #ifndef MSVC
 #  define sscanf_s sscanf

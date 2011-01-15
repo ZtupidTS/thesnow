@@ -9,7 +9,7 @@
 //
 //////////////////////////////////////////////////////
 
-#include "../_common/headers.h"
+#include "headers.h"
 #include "threading.h"
 
 static struct S_IPAddressList old_if;

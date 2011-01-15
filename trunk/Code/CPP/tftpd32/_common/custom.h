@@ -61,7 +61,7 @@ extern const int g_VERSION;
 //////////////////////////
 
 #  define SYSLOG_PORT           514
-#  define SYSLOG_MAXMSG        1024
+#  define SYSLOG_MAXMSG        5120
 #  define DNS_MAXMSG           1024
 
 #define  LOOPBACK_STRING        "127.0.0.1"

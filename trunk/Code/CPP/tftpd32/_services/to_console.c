@@ -9,7 +9,7 @@
 //////////////////////////////////////////////////////
 
 
-#include "../_common/headers.h"
+#include "headers.h"
 #include <process.h>
 #include <stdio.h>
 
@@ -321,7 +321,7 @@ int    Rc;
 			}
 			// free listening socket
 			WSACloseEvent (tEvents [0]);
-		    closesocket (sListen); 
+		    // closesocket (sListen); 
 		} // sListen OK
 		if (sDlg==INVALID_SOCKET && tThreads[TH_CONSOLE].gRunning) Sleep (1000);
 	}

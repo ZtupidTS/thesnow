@@ -43,7 +43,7 @@ LRESULT CALLBACK LVProc (HWND hWnd, UINT message, WPARAM wParam, LONG lParam)
 
        case WM_TIMER :
             KillTimer(hWnd, wParam);
-            PostMessage (hWnd, wParam, 0, 0);
+            PostMessage (hWnd, (UINT) wParam, 0, 0);
             break;
    }
 return CallWindowProc (wpOrigLVProc, hWnd, message, wParam, lParam);
@@ -72,8 +72,9 @@ LVCOLUMN lvc;
 
 	SetViewMode (hListV, LVS_REPORT, dwExtStyle);
 	// subclass LV Item
-    wpOrigLVProc = (PVOID)SetWindowLong (hListV, GWL_WNDPROC, (LONG) LVProc);
-	
+    // wpOrigLVProc = (PVOID)SetWindowLong (hListV, GWL_WNDPROC, (LONG) LVProc);
+    wpOrigLVProc = (WNDPROC) SetWindowLongPtr(hListV, GWLP_WNDPROC, (LONG_PTR)LVProc);
+
 	for (Ark = 0; Ark < nb; Ark++)
 	{
 		lvc.mask = LVCF_TEXT | LVCF_FMT | LVCF_WIDTH | LVCF_SUBITEM;

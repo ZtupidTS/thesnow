@@ -10,7 +10,7 @@
 
 
 
-#define TFTPD32_TCP_PORT    1994
+#define TFTPD32_TCP_PORT    2994
 #define LOGSIZE              512
 
 enum e_Types

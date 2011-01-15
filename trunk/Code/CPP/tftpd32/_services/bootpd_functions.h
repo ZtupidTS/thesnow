@@ -34,3 +34,4 @@ void Dhcp_Send_Leases (const struct LL_IP *tIP[], int nbLeases);
 void DHCPDestroyItem (struct LL_IP *pCur);
 
 int TranslateParam2Value (void *buffer, int len, const char *opt_val, struct in_addr ip, const char *tMac);
+int ArpDeleteHost(struct in_addr addr);

@@ -15,7 +15,7 @@
 
 // #define DEB_TEST
 
-#include "../_common/headers.h"
+#include "headers.h"
 #include <process.h>
 #include <stdio.h>
 
@@ -80,7 +80,7 @@ BOOL          bForward = (    strstr (szFile, "..")==NULL
             if (bForward  && op_code==TFTP_RRQ) return TRUE;
            SetLastError (ERROR_DIRECTORY);
             return FALSE;
-    } // type de sécurit?
+    } // type de sécurité
 return FALSE;
 } // SecAllowSecurity
 
@@ -152,7 +152,7 @@ char *p;
     }
     if (szFile[1] == ':')   szFile[0] = toupper (szFile[0]);
     // Si option Virtual Root : Suppression de '\\'
-    // sera trait??partir du répertoire courant
+    // sera traité à partir du répertoire courant
   if (sSettings.bVirtualRoot  && szFile[0] == '\\')
       memmove (szFile, szFile+1, lstrlen (szFile));
 } // SecFileName
@@ -760,7 +760,7 @@ struct tftphdr *tp;
              //////////////////////////////////////////////
              // read the message
              //////////////////////////////////////////////
-             if (Rc<sizeof TFTP_ACK_HEADERSIZE)
+             if (Rc<TFTP_ACK_HEADERSIZE)
              {
                   LOG (1, "rcvd packet too short");
              }

@@ -1156,6 +1156,7 @@
 #define WM_DDE_FIRST                    0x03E0
 #define IDC_TAB_OPTION                  1000
 #define IDC_TAB1                        1000
+#define IDC_TAB_SETTINGS                1000
 #define IDC_ABOUT_BUTTON                1002
 #define IDC_SETTINGS_BUTTON             1004
 #define IDC_SHDIR_BUTTON                1005
@@ -1602,7 +1603,6 @@
 #define PWR_FAIL                        -1
 #define UNICODE_NOCHAR                  0xFFFF
 #define HTTRANSPARENT                   -1
-#define IDC_STATIC                      -1
 
 // Next default values for new objects
 // 
