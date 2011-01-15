@@ -1,5 +1,5 @@
 //
-// AVIïœä∑É_ÉCÉAÉçÉOÉNÉâÉX
+// AVIâ‰ìQ•¿•§•¢•Ì•∞•Ø•È•π
 //
 #ifndef	__CAVICONVDLG_INCLUDED__
 #define	__CAVICONVDLG_INCLUDED__
@@ -59,10 +59,10 @@ protected:
 	LPBYTE	m_lpScreen;
 	LPBYTE	m_lpSound;
 
-	WCHAR	m_szTitle[256];
-	WCHAR	m_szRomFile[_MAX_PATH];
-	WCHAR	m_szMovieFile[_MAX_PATH];
-	WCHAR	m_szAviFile[_MAX_PATH];
+	TCHAR	m_szTitle[256];
+	TCHAR	m_szRomFile[_MAX_PATH];
+	TCHAR	m_szMovieFile[_MAX_PATH];
+	TCHAR	m_szAviFile[_MAX_PATH];
 
 	// Thread
 	volatile BOOL	m_bThreadExit;
@@ -70,7 +70,7 @@ protected:
 	HANDLE	m_hThread;
 	DWORD	m_dwThreadID;
 
-	static	WCHAR	g_szErrorMessage[256];
+	static	TCHAR	g_szErrorMessage[256];
 	static	DWORD WINAPI	ThreadProc( LPVOID lpVoid );
 
 

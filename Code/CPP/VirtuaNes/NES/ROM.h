@@ -104,9 +104,9 @@ public:
 	BYTE	GetNSF_SIZE()	{ return NSF_PAGE_SIZE; }
 
 	// ROM Paths
-	const WCHAR*	GetRomPath() { return path; }
-	const WCHAR*	GetRomName() { return name; }
-	const WCHAR*	GetFullPathName() { return fullpath; }
+	const TCHAR*	GetRomPath() { return path; }
+	const TCHAR*	GetRomName() { return name; }
+	const TCHAR*	GetFullPathName() { return fullpath; }
 
 	// File check
 	// 0:ERROR 1:HEADER OK -1:BAD HEADER

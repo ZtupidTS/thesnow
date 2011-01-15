@@ -24,8 +24,8 @@ protected:
 
 	void	SetControlEnable( BOOL bEnable );
 
-	void	AddRecentPort( LPCSTR lpszPort );
-	void	AddRecentHost( LPCSTR lpszPort );
+	void	AddRecentPort( LPCTSTR lpszPort );
+	void	AddRecentHost( LPCTSTR lpszPort );
 
 	// Message map
 	DLG_MESSAGE_MAP()

@@ -14,7 +14,7 @@ public:
 	CAVIWriter();
 	virtual	~CAVIWriter();
 
-	bool	Open( const WCHAR* fname );
+	bool	Open( const TCHAR* fname );
 	void	Close();
 
 	bool	IsAviRecord() { return m_pAviFile?true:false; }
@@ -25,9 +25,9 @@ public:
 	void	SetAudioFormat( const DWORD rate, const WORD bits, const INT channels );
 	void	SetFrameRate( const DWORD scale, const DWORD rate );
 
-	bool	WriteVideo( const WCHAR* video );
-	bool	WriteAudio( const WCHAR* audio, const int length );
-	bool	WriteFrame( const WCHAR* video, const WCHAR* audio, const int length );
+	bool	WriteVideo( const TCHAR* video );
+	bool	WriteAudio( const TCHAR* audio, const int length );
+	bool	WriteFrame( const TCHAR* video, const TCHAR* audio, const int length );
 
 protected:
 private:

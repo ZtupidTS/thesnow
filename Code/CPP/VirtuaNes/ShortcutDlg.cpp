@@ -202,20 +202,20 @@ DLGMSG	CShortcutDlg::OnTimer( DLGMSGPARAM )
 				m_bCancelMode = FALSE;
 				::SetWindowText( m_hWnd, m_szWindowTitle );
 			} else {
-				string	str;
+				wstring	str;
 				WORD	keyex = 0;
 				if( !DirectInput.m_Sw[DIK_ESCAPE] ) {
 					if( DirectInput.m_Sw[DIK_LMENU] || DirectInput.m_Sw[DIK_RMENU] ) {
 						keyex |= CCfgShortCut::K_ALT;
-						str = str + "Alt+";
+						str = str + L"Alt+";
 					}
 					if( DirectInput.m_Sw[DIK_LCONTROL] || DirectInput.m_Sw[DIK_RCONTROL] ) {
 						keyex |= CCfgShortCut::K_CTRL;
-						str = str + "Ctrl+";
+						str = str + L"Ctrl+";
 					}
 					if( DirectInput.m_Sw[DIK_LSHIFT] || DirectInput.m_Sw[DIK_RSHIFT] ) {
 						keyex |= CCfgShortCut::K_SHIFT;
-						str = str + "Shift+";
+						str = str + L"Shift+";
 					}
 				}
 

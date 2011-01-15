@@ -29,12 +29,12 @@ public:
 	BYTE	prg_size;
 	BYTE	chr_size;
 
-	string	title;
-	string	country;
-	string	manufacturer;
-	string	saledate;
-	string	price;
-	string	genre;
+	wstring	title;
+	wstring	country;
+	wstring	manufacturer;
+	wstring	saledate;
+	wstring	price;
+	wstring	genre;
 
 	BOOL	bNTSC;		// NTSC:TRUE  PAL:FALSE
 };

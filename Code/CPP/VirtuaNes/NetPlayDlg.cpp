@@ -1,5 +1,5 @@
 //
-// ÉoÅ[ÉWÉáÉìÉ_ÉCÉAÉçÉOÉNÉâÉX
+// „Éê„Éº„Ç∏„Éß„É≥„ÉÄ„Ç§„Ç¢„É≠„Ç∞„ÇØ„É©„Çπ
 //
 //
 #define WIN32_LEAN_AND_MEAN
@@ -70,17 +70,17 @@ void	CNetPlayDlg::SetControlEnable( BOOL bEnable )
 	}
 }
 
-void	CNetPlayDlg::AddRecentPort( LPCSTR lpszPort )
+void	CNetPlayDlg::AddRecentPort( LPCTSTR lpszPort )
 {
-	// ÉäÉXÉgÇ…Ç†ÇÈÇ©Ç«Ç§Ç©
+	// „É™„Çπ„Éà„Å´„ÅÇ„Çã„Åã„Å©„ÅÜ„Åã
 	BOOL	bFound = FALSE;
 	INT	i, j;
 	for( i = 0; i < 16; i++ ) {
-		if( ::strlen(Config.netplay.szRecentPort[i]) <= 0 )
+		if( ::lstrlen(Config.netplay.szRecentPort[i]) <= 0 )
 			break;
 	}
 	for( j = 0; j < i; j++ ) {
-		if( ::strcmp( Config.netplay.szRecentPort[j], lpszPort ) == 0 ) {
+		if( ::lstrcmp( Config.netplay.szRecentPort[j], lpszPort ) == 0 ) {
 			bFound = TRUE;
 			break;
 		}
@@ -88,26 +88,26 @@ void	CNetPlayDlg::AddRecentPort( LPCSTR lpszPort )
 	if( j == 16 )
 		j--;
 	for( ; j > 0; j-- ) {
-		::lstrcpyA( Config.netplay.szRecentPort[j], Config.netplay.szRecentPort[j-1] );
+		::lstrcpy( Config.netplay.szRecentPort[j], Config.netplay.szRecentPort[j-1] );
 	}
-	::strcpy( Config.netplay.szRecentPort[0], lpszPort );
+	::lstrcpy( Config.netplay.szRecentPort[0], lpszPort );
 	if( !bFound ) {
 		Config.netplay.nRecentPort++;
 	}
 }
 
 
-void	CNetPlayDlg::AddRecentHost( LPCSTR lpszHost )
+void	CNetPlayDlg::AddRecentHost( LPCTSTR lpszHost )
 {
-	// ÉäÉXÉgÇ…Ç†ÇÈÇ©Ç«Ç§Ç©
+	// „É™„Çπ„Éà„Å´„ÅÇ„Çã„Åã„Å©„ÅÜ„Åã
 	BOOL	bFound = FALSE;
 	INT	i, j;
 	for( i = 0; i < 16; i++ ) {
-		if( ::strlen(Config.netplay.szRecentHost[i]) <= 0 )
+		if( ::lstrlen(Config.netplay.szRecentHost[i]) <= 0 )
 			break;
 	}
 	for( j = 0; j < i; j++ ) {
-		if( ::strcmp( Config.netplay.szRecentHost[j], lpszHost ) == 0 ) {
+		if( ::lstrcmp( Config.netplay.szRecentHost[j], lpszHost ) == 0 ) {
 			bFound = TRUE;
 			break;
 		}
@@ -115,9 +115,9 @@ void	CNetPlayDlg::AddRecentHost( LPCSTR lpszHost )
 	if( j == 16 )
 		j--;
 	for( ; j > 0; j-- ) {
-		::lstrcpyA( Config.netplay.szRecentHost[j], Config.netplay.szRecentHost[j-1] );
+		::lstrcpy( Config.netplay.szRecentHost[j], Config.netplay.szRecentHost[j-1] );
 	}
-	::strcpy( Config.netplay.szRecentHost[0], lpszHost );
+	::lstrcpy( Config.netplay.szRecentHost[0], lpszHost );
 	if( !bFound ) {
 		Config.netplay.nRecentHost++;
 	}
@@ -128,14 +128,14 @@ DLGMSG	CNetPlayDlg::OnInitDialog( DLGMSGPARAM )
 //	DEBUGOUT( "CNetPlayDlg::OnInitDialog\n" );
 
 	INT	i;
-	// É|Å[Ég
+	// „Éù„Éº„Éà
 	::SendDlgItemMessage( m_hWnd, IDC_NET_PORT_COMBO, CB_RESETCONTENT, 0, 0 ); 
 	for( i = 0; i < Config.netplay.nRecentPort; i++ ) {
 		::SendDlgItemMessage( m_hWnd, IDC_NET_PORT_COMBO, CB_INSERTSTRING, -1, (LPARAM)Config.netplay.szRecentPort[i] );
 	}
 	::SendDlgItemMessage( m_hWnd, IDC_NET_PORT_COMBO, CB_SETCURSEL, 0, 0 ); 
 
-	// ÉåÉCÉeÉìÉV
+	// „É¨„Ç§„ÉÜ„É≥„Ç∑
 	::SendDlgItemMessage( m_hWnd, IDC_NET_LATENCY_COMBO, CB_RESETCONTENT, 0, 0 ); 
 	for( i = 0; i < 9; i++ ) {
 		CHAR	szStr[64];
@@ -144,15 +144,15 @@ DLGMSG	CNetPlayDlg::OnInitDialog( DLGMSGPARAM )
 	}
 	::SendDlgItemMessage( m_hWnd, IDC_NET_LATENCY_COMBO, CB_SETCURSEL, 0, 0 ); 
 
-	// ÉzÉXÉgÉäÉXÉg
+	// „Éõ„Çπ„Éà„É™„Çπ„Éà
 	::SendDlgItemMessage( m_hWnd, IDC_NET_HOST_COMBO, CB_RESETCONTENT, 0, 0 ); 
 	for( i = 0; i < Config.netplay.nRecentHost; i++ ) {
 		::SendDlgItemMessage( m_hWnd, IDC_NET_HOST_COMBO, CB_INSERTSTRING, -1, (LPARAM)Config.netplay.szRecentHost[i] );
 	}
 	::SendDlgItemMessage( m_hWnd, IDC_NET_HOST_COMBO, CB_SETCURSEL, 0, 0 ); 
 
-	// ÉjÉbÉNÉlÅ[ÉÄ
-	::SetDlgItemTextA( m_hWnd, IDC_NET_NICKNAME, Config.netplay.szNick );
+	// „Éã„ÉÉ„ÇØ„Éç„Éº„É†
+	::SetDlgItemText( m_hWnd, IDC_NET_NICKNAME, Config.netplay.szNick );
 
 	::EnableWindow( ::GetDlgItem( m_hWnd, IDC_NET_HOST_COMBO ), FALSE );
 
@@ -177,7 +177,7 @@ DEBUGOUT( "CNetPlayDlg::OnNetwordHostByName [%08X][%08X]\n", wParam, lParam );
 
 DEBUGOUT( "Host:%s\n", pHost );
 
-		// ÉGÉâÅ[Ç∆Ç©ÇªÇÃëºÇ‡ÇÎÇ‡ÇÎÇÇ±ÇÃÉEÉCÉìÉhÉEÇ≈éÛÇØéÊÇÈà◊
+		// „Ç®„É©„Éº„Å®„Åã„Åù„ÅÆ‰ªñ„ÇÇ„Çç„ÇÇ„Çç„Çí„Åì„ÅÆ„Ç¶„Ç§„É≥„Éâ„Ç¶„ÅßÂèó„ÅëÂèñ„ÇãÁÇ∫
 		NetPlay.SetMsgWnd( m_hWnd );
 
 		if( NetPlay.Connect( FALSE, pHost, m_uPort ) ) {
@@ -212,25 +212,25 @@ BOOL	bRet = FALSE;
 DWORD	dwCRC;
 INT	i;
 
-	// ÉjÉbÉNÉlÅ[ÉÄÇï€ë∂
-	CHAR	szNick[_MAX_PATH+1];
-	::GetWindowTextA( ::GetDlgItem( m_hWnd, IDC_NET_NICKNAME ), szNick, _MAX_PATH );
-	::lstrcpyA( Config.netplay.szNick, szNick );
+	// „Éã„ÉÉ„ÇØ„Éç„Éº„É†„Çí‰øùÂ≠ò
+	TCHAR	szNick[_MAX_PATH+1];
+	::GetWindowText( ::GetDlgItem( m_hWnd, IDC_NET_NICKNAME ), szNick, _MAX_PATH );
+	::lstrcpy( Config.netplay.szNick, szNick );
 
-	// ç≈ãﬂégÇ¡ÇΩÉ|Å[ÉgÇÃçXêV
-	CHAR	szPort[_MAX_PATH+1];
-	::GetWindowTextA( ::GetDlgItem( m_hWnd, IDC_NET_PORT_COMBO ), szPort, _MAX_PATH );
+	// ÊúÄËøë‰Ωø„Å£„Åü„Éù„Éº„Éà„ÅÆÊõ¥Êñ∞
+	TCHAR	szPort[_MAX_PATH+1];
+	::GetWindowText( ::GetDlgItem( m_hWnd, IDC_NET_PORT_COMBO ), szPort, _MAX_PATH );
 	AddRecentPort( szPort );
 
-	// í êMÉåÉCÉeÉìÉVÇÃåvë™
-	CHAR	str[256];
-	::wsprintfA( str, "VirtuaNES version %01d.%01d%01d",
+	// ÈÄö‰ø°„É¨„Ç§„ÉÜ„É≥„Ç∑„ÅÆË®àÊ∏¨
+	TCHAR	str[256];
+	::wsprintf( str, _T("VirtuaNES version %01d.%01d%01d"),
 		    (VIRTUANES_VERSION&0xF00)>>8,
 		    (VIRTUANES_VERSION&0x0F0)>>4,
 		    (VIRTUANES_VERSION&0x00F) );
 
 	dwStartTime = ::timeGetTime();
-	for( i = 0; i < ::strlen(str); i++ ) {
+	for( i = 0; i < ::lstrlen(str); i++ ) {
 		if( NetPlay.Send( (BYTE)str[i] ) ) {
 			goto	_accept_error;
 		}
@@ -245,9 +245,9 @@ INT	i;
 	}
 	dwEndTime = ::timeGetTime()-dwStartTime;
 
-	DEBUGOUT( "Server: Transfer Bytes: %d byte / Time: %d ms\n", ::strlen(str), dwEndTime );
+	DEBUGOUT( "Server: Transfer Bytes: %d byte / Time: %d ms\n", ::lstrlen(str), dwEndTime );
 
-	// ÉCÉÅÅ[ÉWÇÃCRCÇämîF
+	// „Ç§„É°„Éº„Ç∏„ÅÆCRC„ÇíÁ¢∫Ë™ç
 	NES*	pNes;
 	if( !(pNes = Emu.GetNES()) ) {
 		goto	_accept_error;
@@ -269,7 +269,7 @@ INT	i;
 		}
 	}
 
-	// ÉåÉCÉeÉìÉVê›íË
+	// „É¨„Ç§„ÉÜ„É≥„Ç∑Ë®≠ÂÆö
 	nServerLatency = m_nNetLatency;
 	if( nServerLatency < 0 ) {
 		nServerLatency = 0;
@@ -326,27 +326,27 @@ INT	nLatency;
 DWORD	dwCRC;
 INT	i;
 
-	// ÉjÉbÉNÉlÅ[ÉÄÇï€ë∂
-	CHAR	szNick[_MAX_PATH+1];
-	::GetWindowTextA( ::GetDlgItem( m_hWnd, IDC_NET_NICKNAME ), szNick, _MAX_PATH );
-	::lstrcpyA( Config.netplay.szNick, szNick );
+	// „Éã„ÉÉ„ÇØ„Éç„Éº„É†„Çí‰øùÂ≠ò
+	TCHAR	szNick[_MAX_PATH+1];
+	::GetWindowText( ::GetDlgItem( m_hWnd, IDC_NET_NICKNAME ), szNick, _MAX_PATH );
+	::lstrcpy( Config.netplay.szNick, szNick );
 DEBUGOUT( "cnn Nick:%s\n", szNick );
 
-	// ç≈ãﬂégÇ¡ÇΩÉ|Å[ÉgÇÃçXêV
-	CHAR	szHost[_MAX_PATH+1];
-	::GetWindowTextA( ::GetDlgItem( m_hWnd, IDC_NET_HOST_COMBO ), szHost, _MAX_PATH );
+	// ÊúÄËøë‰Ωø„Å£„Åü„Éù„Éº„Éà„ÅÆÊõ¥Êñ∞
+	TCHAR	szHost[_MAX_PATH+1];
+	::GetWindowText( ::GetDlgItem( m_hWnd, IDC_NET_HOST_COMBO ), szHost, _MAX_PATH );
 DEBUGOUT( "cnn Host:%s\n", szHost );
 	AddRecentHost( szHost );
 
-	// í êMÉåÉCÉeÉìÉVÇÃåvë™
-	CHAR	str[256];
-	::wsprintfA( str, "VirtuaNES version %01d.%01d%01d",
+	// ÈÄö‰ø°„É¨„Ç§„ÉÜ„É≥„Ç∑„ÅÆË®àÊ∏¨
+	TCHAR	str[256];
+	::wsprintf( str, _T("VirtuaNES version %01d.%01d%01d"),
 		    (VIRTUANES_VERSION&0xF00)>>8,
 		    (VIRTUANES_VERSION&0x0F0)>>4,
 		    (VIRTUANES_VERSION&0x00F) );
 
 	dwStartTime = ::timeGetTime();
-	for( i = 0; i < ::strlen(str); i++ ) {
+	for( i = 0; i < ::lstrlen(str); i++ ) {
 		if( NetPlay.Send( (BYTE)str[i] ) ) {
 			goto	_connect_error;
 		}
@@ -361,9 +361,9 @@ DEBUGOUT( "cnn Host:%s\n", szHost );
 	}
 	dwEndTime = ::timeGetTime()-dwStartTime;
 
-	DEBUGOUT( "Client: Transfer Bytes: %d byte / Time: %d ms\n", ::strlen(str), dwEndTime );
+	DEBUGOUT( "Client: Transfer Bytes: %d byte / Time: %d ms\n", ::lstrlen(str), dwEndTime );
 
-	// ÉCÉÅÅ[ÉWÇÃCRCÇämîF
+	// „Ç§„É°„Éº„Ç∏„ÅÆCRC„ÇíÁ¢∫Ë™ç
 	NES*	pNes;
 	if( !(pNes = Emu.GetNES()) ) {
 		goto	_connect_error;
@@ -464,7 +464,7 @@ DLGCMD	CNetPlayDlg::OnConnect( DLGCMDPARAM )
 	CHAR	szNick[_MAX_PATH+1];
 
 	if( IsBTNCHECK(IDC_NET_SERVER) ) {
-	// ÉTÅ[ÉoÅ[
+	// „Çµ„Éº„Éê„Éº
 		::GetWindowTextA( ::GetDlgItem( m_hWnd, IDC_NET_PORT_COMBO ), szPort, _MAX_PATH );
 		::GetWindowTextA( ::GetDlgItem( m_hWnd, IDC_NET_NICKNAME ), szNick, _MAX_PATH );
 
@@ -480,7 +480,7 @@ DLGCMD	CNetPlayDlg::OnConnect( DLGCMDPARAM )
 DEBUGOUT( "Server Port:%d\n", m_uPort );
 DEBUGOUT( "Latency    :%d\n", m_nNetLatency );
 	} else {
-	// ÉNÉâÉCÉAÉìÉg
+	// „ÇØ„É©„Ç§„Ç¢„É≥„Éà
 		::GetWindowTextA( ::GetDlgItem( m_hWnd, IDC_NET_HOST_COMBO ), szHost, _MAX_PATH );
 		::GetWindowTextA( ::GetDlgItem( m_hWnd, IDC_NET_NICKNAME ), szNick, _MAX_PATH );
 
@@ -524,7 +524,7 @@ DEBUGOUT( "Host:%s Port:%d\n", szHostName, m_uPort );
 	}
 
 	if( IsBTNCHECK(IDC_NET_SERVER) ) {
-		// ÉGÉâÅ[Ç∆Ç©ÇªÇÃëºÇ‡ÇÎÇ‡ÇÎÇÇ±ÇÃÉEÉCÉìÉhÉEÇ≈éÛÇØéÊÇÈà◊
+		// „Ç®„É©„Éº„Å®„Åã„Åù„ÅÆ‰ªñ„ÇÇ„Çç„ÇÇ„Çç„Çí„Åì„ÅÆ„Ç¶„Ç§„É≥„Éâ„Ç¶„ÅßÂèó„ÅëÂèñ„ÇãÁÇ∫
 		NetPlay.SetMsgWnd( m_hWnd );
 
 		if( NetPlay.Connect( TRUE, szHostName, m_uPort ) ) {
@@ -542,7 +542,7 @@ DEBUGOUT( "Host:%s Port:%d\n", szHostName, m_uPort );
 		INT	ret = NetPlay.ASyncHostCheck( m_hWnd, szHostName );
 
 		if( ret == 0 ) {
-			// ÉGÉâÅ[Ç∆Ç©ÇªÇÃëºÇ‡ÇÎÇ‡ÇÎÇÇ±ÇÃÉEÉCÉìÉhÉEÇ≈éÛÇØéÊÇÈà◊
+			// „Ç®„É©„Éº„Å®„Åã„Åù„ÅÆ‰ªñ„ÇÇ„Çç„ÇÇ„Çç„Çí„Åì„ÅÆ„Ç¶„Ç§„É≥„Éâ„Ç¶„ÅßÂèó„ÅëÂèñ„ÇãÁÇ∫
 			NetPlay.SetMsgWnd( m_hWnd );
 
 			if( NetPlay.Connect( FALSE, szHostName, m_uPort ) ) {

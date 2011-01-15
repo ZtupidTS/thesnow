@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #define	DIRECTINPUT_VERSION	0x0700
 #include <dinput.h>
-
+#include <tchar.h>
 #include <string>
 using namespace std;
 
@@ -199,7 +199,7 @@ public:
 	DWORD	dwDisplayRate;
 
 	BOOL	bPaletteFile;
-	WCHAR	szPaletteFile[_MAX_PATH];
+	TCHAR	szPaletteFile[_MAX_PATH];
 
 	void	Default() {
 		bAspect		= FALSE;
@@ -612,9 +612,9 @@ public:
 	INT	nSortType;
 
 	BYTE	bFolderUse[16];
-	CHAR	szFolder[16][_MAX_PATH];
+	TCHAR	szFolder[16][_MAX_PATH];
 
-	CHAR	szLastSelect[_MAX_PATH];
+	TCHAR	szLastSelect[_MAX_PATH];
 
 	void	Default() {
 		rcWindowPos.left = rcWindowPos.right =
@@ -646,7 +646,7 @@ public:
 class	CCfgExtraSound
 {
 public:
-	WCHAR	szExtSoundFile[ ESF_FILE_MAX ][ MAX_PATH ];
+	TCHAR	szExtSoundFile[ ESF_FILE_MAX ][ MAX_PATH ];
 
 	void	Default() {
 		for( INT i = 0; i < ESF_FILE_MAX; i++ ) {
@@ -661,22 +661,22 @@ public:
 	RECT	rcChatPos;
 
 	INT	nRecentPort, nRecentHost;
-	CHAR	szRecentPort[16][_MAX_PATH+1];
-	CHAR	szRecentHost[16][_MAX_PATH+1];
-	CHAR	szNick[_MAX_PATH+1];
+	TCHAR	szRecentPort[16][_MAX_PATH+1];
+	TCHAR	szRecentHost[16][_MAX_PATH+1];
+	TCHAR	szNick[_MAX_PATH+1];
 
 	void	Default() {
 		rcChatPos.left = rcChatPos.right =
 		rcChatPos.top = rcChatPos.bottom = 0;
 
-		::lstrcpyA( szNick, "NoName" );
+		::lstrcpy( szNick, _T("NoName") );
 
 		for( INT i = 0; i < 16; i++ ) {
-			szRecentPort[i][0] = '\0';
-			szRecentHost[i][0] = '\0';
+			szRecentPort[i][0] = _T('\0');
+			szRecentHost[i][0] = _T('\0');
 		}
-		::lstrcpyA( szRecentPort[0], "10000" );
-		::lstrcpyA( szRecentHost[0], "localhost:10000" );
+		::lstrcpy( szRecentPort[0], _T("10000") );
+		::lstrcpy( szRecentHost[0], _T("localhost:10000") );
 
 		nRecentPort = 1;
 		nRecentHost = 1;

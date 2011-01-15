@@ -7,8 +7,8 @@
 // _tWinMainからの引数そのまま
 HINSTANCE CApp::m_hInstance = NULL;
 HINSTANCE CApp::m_hPrevInstance = NULL;
-//LPTSTR	CApp::m_lpCmdLine = NULL;
-LPWSTR	CApp::m_lpCmdLine = NULL;
+LPTSTR	CApp::m_lpCmdLine = NULL;
+
 
 INT	CApp::m_nCmdShow = 0;
 
@@ -20,10 +20,10 @@ HWND	CApp::m_hWnd = NULL;
 HMENU	CApp::m_hMenu = NULL;
 
 // プログラムのパス(起動時のパス)
-WCHAR	CApp::m_szModulePath[_MAX_PATH];
+TCHAR	CApp::m_szModulePath[_MAX_PATH];
 
 // エラーストリング(テンポラリ)
-WCHAR	szErrorString[256];
+TCHAR	szErrorString[256];
 
 // エラー処理用
 INT	CApp::m_ErrorStringTableID[] = {
@@ -60,7 +60,7 @@ INT	CApp::m_ErrorStringTableID[] = {
 	0,
 };
 
-WCHAR	CApp::m_ErrorString[ERRORSTRING_MAX][256];
+TCHAR	CApp::m_ErrorString[ERRORSTRING_MAX][256];
 
 void	CApp::LoadErrorString()
 {
@@ -72,12 +72,12 @@ void	CApp::LoadErrorString()
 	}
 }
 
-WCHAR*	CApp::GetErrorString( INT nID )
+TCHAR*	CApp::GetErrorString( INT nID )
 {
 	for( INT i = 0; m_ErrorStringTableID[i]; i++ ) {
 		if( m_ErrorStringTableID[i] == nID )
 			return	m_ErrorString[i];
 	}
-	return	L"";	// NULL ストリングとして渡す
+	return	_T("");	// NULL ストリングとして渡す
 }
 
