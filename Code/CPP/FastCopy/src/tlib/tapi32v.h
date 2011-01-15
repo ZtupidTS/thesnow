@@ -1,4 +1,4 @@
-/* @(#)Copyright (C) 1996-2010 H.Shirouzu		tapi32v.h	Ver0.99 */
+﻿/* @(#)Copyright (C) 1996-2010 H.Shirouzu		tapi32v.h	Ver0.99 */
 /* ========================================================================
 	Project  Name			: Win32 Lightweight  Class Library Test
 	Module Name				: Main Header
@@ -45,6 +45,10 @@ extern int (WINAPI *MessageBoxV)(HWND, const void *, const void *, UINT);
 extern DWORD (WINAPI *FormatMessageV)(DWORD, const void *, DWORD, DWORD, void *, DWORD, va_list*);
 extern HWND (WINAPI *CreateDialogParamV)(HANDLE, const void *, HWND, DLGPROC, LPARAM);
 extern int (WINAPI *DialogBoxParamV)(HANDLE, const void *, HWND, DLGPROC, LPARAM);
+extern LONG_PTR (WINAPI *GetWindowLongV)(HWND, int);
+extern LONG_PTR (WINAPI *SetWindowLongV)(HWND, int, LONG_PTR);
+extern LRESULT (WINAPI *CallWindowProcV)(WNDPROC, HWND, UINT, WPARAM, LPARAM);
+
 #define CreateDialogV(hInstance, lpTemplate, hWndParent, lpDialogFunc) \
 		CreateDialogParamV(hInstance, lpTemplate, hWndParent, lpDialogFunc, 0L)
 #define DialogBoxV(hInstance, lpTemplate, hWndParent, lpDialogFunc) \

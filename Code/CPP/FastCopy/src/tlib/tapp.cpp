@@ -1,4 +1,4 @@
-static char *tapp_id = 
+﻿static char *tapp_id = 
 	"@(#)Copyright (C) 1996-2009 H.Shirouzu		tapp.cpp	Ver0.99";
 /* ========================================================================
 	Project  Name			: Win32 Lightweight  Class Library Test
@@ -27,7 +27,6 @@ TApp::TApp(HINSTANCE _hI, LPSTR _cmdLine, int _nCmdShow)
 	hash			= new TWinHashTbl(MAX_TAPPWIN_HASH);
 
 	InitInstanceForLoadStr(hI);
-	TLibInit_AdvAPI32();
 	TLibInit_Win32V();
 
 #if ENGLISH_TEST

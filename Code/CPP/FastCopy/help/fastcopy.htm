@@ -1,6 +1,6 @@
 <html lang="ja">
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=Shift_JIS">
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
 <title>FastCopy Help</title>
 
 <style type="text/css">
@@ -67,433 +67,433 @@
 <body bgcolor="#eeffff">
 
 <div align="center">
-<h1 class="help_head1">FastCopy ver2.03</h1>
+<h1 class="help_head1">FastCopy ver2.06</h1>
 </div>
 <div class="help_all">
 
-<div align="right">2010/09/12 H.Shirouzu (敀悈孾復)</div>
+<div align="right">2010/11/16 H.Shirouzu (白水啓章)</div>
 
 <a name="index"/>
 <h2 class="help_head2">Index</h2>
 <div class="help_section">
-	<a href="#about">1. 奣梫</a><br>
-	<a href="#license">2. 儔僀僙儞僗仌柶愑</a><br>
-	<a href="#environment">3. 摦嶌娐嫬</a><br>
-	<a href="#install">4. 僀儞僗僩乕儖丒傾儞僀儞僗僩乕儖</a><br>
-	<a href="#usage">5. 巊梡朄仌夋柺愢柧</a><br>
-	<a href="#cmdline">6. 僐儅儞僪儔僀儞儌乕僪</a><br>
-	<a href="#warning">7. 拲堄乮婋尟側偲偙傠乯</a><br>
-	<a href="#contact">8. 嵟怴斉仌楢棈愭</a><br>
-	<a href="#misc">9. 偦偺懠</a><br>
+	<a href="#about">1. 概要</a><br>
+	<a href="#license">2. ライセンス＆免責</a><br>
+	<a href="#environment">3. 動作環境</a><br>
+	<a href="#install">4. インストール・アンインストール</a><br>
+	<a href="#usage">5. 使用法＆画面説明</a><br>
+	<a href="#cmdline">6. コマンドラインモード</a><br>
+	<a href="#warning">7. 注意（危険なところ）</a><br>
+	<a href="#contact">8. 最新版＆連絡先</a><br>
+	<a href="#misc">9. その他</a><br>
 	<a href="#todo">10. ToDo</a><br>
-	<a href="#history">11. 棜楌</a><br>
+	<a href="#history">11. 履歴</a><br>
 </div>
 
 <a name="about"/>
-<h2 class="help_head2">1. 奣梫</h2>
+<h2 class="help_head2">1. 概要</h2>
 <div class="help_section">
-	<strong>Windows宯嵟懍(?)</strong> 偺僼傽僀儖僐僺乕仌嶍彍僣乕儖偱偡丅
+	<strong>Windows系最速(?)</strong> のファイルコピー＆削除ツールです。
 	<br><br>
-	NT宯OS 偺応崌丄UNICODE 偱偟偐昞尰偱偒側偄僼傽僀儖柤傗
-	MAX_PATH(260暥帤) 傪墇偊偨埵抲偺僼傽僀儖傕僐僺乕乮仌嶍彍乯偱偒傑偡丅
+	NT系OS の場合、UNICODE でしか表現できないファイル名や
+	MAX_PATH(260文字) を越えた位置のファイルもコピー（＆削除）できます。
 	<br><br>
 	<a name="disk_mode"/>
-	帺摦揑偵丄僐僺乕尦偲僐僺乕愭偑丄摨堦偺暔棟HDD or 暿HDD 偐傪敾掕
-	偟偨屻丄埲壓偺摦嶌傪峴偄傑偡丅
+	自動的に、コピー元とコピー先が、同一の物理HDD or 別HDD かを判定
+	した後、以下の動作を行います。
 	<table class="help_table" border="4">
-		<tr><td nowrap><strong>暿HDD娫</strong></td><td>儅儖僠僗儗僢僪偱丄撉傒崬傒偲彂偒崬傒傪暲楍偵峴偆</td></tr>
-		<tr><td nowrap><strong>摨堦HDD娫</strong></td><td>僐僺乕尦偐傜乮僶僢僼傽偑堦攖偵側傞傑偱乯楢懕
-		撉傒崬傒屻丄僐僺乕愭偵楢懕偟偰彂偒崬傓</td></tr>
+		<tr><td nowrap><strong>別HDD間</strong></td><td>マルチスレッドで、読み込みと書き込みを並列に行う</td></tr>
+		<tr><td nowrap><strong>同一HDD間</strong></td><td>コピー元から（バッファが一杯になるまで）連続
+		読み込み後、コピー先に連続して書き込む</td></tr>
 	</table>
 	<br>
-	Read/Write 傕丄OS 偺僉儍僢僔儏傪慡偔巊傢側偄偨傔丄懠偺僾儘僙僗
-	乮傾僾儕働乕僔儑儞乯偑廳偔側傝偵偔偔側偭偰偄傑偡丅
+	Read/Write も、OS のキャッシュを全く使わないため、他のプロセス
+	（アプリケーション）が重くなりにくくなっています。
 	<br><br>
-	壜擻側尷傝戝偒側扨埵偱 Read/Write 偡傞偨傔丄僨僶僀僗偺尷奅
-	偵嬤偄僷僼僅乕儅儞僗偑弌傑偡丅
+	可能な限り大きな単位で Read/Write するため、デバイスの限界
+	に近いパフォーマンスが出ます。
 	<br><br>
-	Include/Exclude 僼傿儖僞乮UNIX儚僀儖僪僇乕僪宍幃乯偑巜掕壜擻偱偡丅
+	Include/Exclude フィルタ（UNIXワイルドカード形式）が指定可能です。
 	<br><br>
-	MFC 摍偺僼儗乕儉儚乕僋傪巊傢偢丄Win32API 偩偗偱嶌偭偰偄傑偡
-	偺偱丄寉検仌僐儞僷僋僩仌寉夣偵摦嶌偟傑偡丅
+	MFC 等のフレームワークを使わず、Win32API だけで作っています
+	ので、軽量＆コンパクト＆軽快に動作します。
 	<br><br>
-	慡僜乕僗僐乕僪偼 BSD 儔僀僙儞僗偱岞奐偟偰偄傑偡偺偱丄VC++ 摍
-	傪偍帩偪偱偁傟偽丄偛帺桼偵僇僗僞儅僀僘偟偰偺棙梡傕壜擻偱偡丅
+	全ソースコードは BSD ライセンスで公開していますので、VC++ 等
+	をお持ちであれば、ご自由にカスタマイズしての利用も可能です。
 </div>
 
 <a name="license"/>
-<h2 class="help_head2">2. 儔僀僙儞僗仌柶愑</h2>
+<h2 class="help_head2">2. ライセンス＆免責</h2>
 <div class="help_section">
 	<div class="help_license">
 	<strong>Copyright 2004-2010 SHIROUZU Hiroaki All rights reserved.</strong><br>
 	<br>
-	僜乕僗僐乕僪宍幃偱偁傟僶僀僫儕宍幃偱偁傟丄曄峏偺桳柍偵娭傢傜偢丄埲壓偺忦審傪枮偨偡尷傝偵偍偄偰丄嵞攝晍偍傛傃巊梡傪嫋壜偟傑偡:<br>
+	ソースコード形式であれバイナリ形式であれ、変更の有無に関わらず、以下の条件を満たす限りにおいて、再配布および使用を許可します:<br>
 	<div class="help_license_cond">
-	 1. 僜乕僗僐乕僪宍幃偱嵞攝晍偡傞応崌丄忋婰挊嶌尃昞帵丄杮忦審彂丄偍傛傃壓婰柶愑昞帵傪昁偢娷傔偰偔偩偝偄丅<br>
+	 1. ソースコード形式で再配布する場合、上記著作権表示、本条件書、および下記免責表示を必ず含めてください。<br>
 	<br>
-	 2. 僶僀僫儕宍幃偱嵞攝晍偡傞応崌丄忋婰挊嶌尃昞帵丄杮忦審彂丄偍傛傃壓婰柶愑昞帵傪丄攝晍暔偲偲傕偵採嫙偝傟傞暥彂媦傃懠偺帒椏偵昁偢娷傔偰偔偩偝偄丅
+	 2. バイナリ形式で再配布する場合、上記著作権表示、本条件書、および下記免責表示を、配布物とともに提供される文書及び他の資料に必ず含めてください。
 	</div>
 	<div class="help_license">
-	<strong>SHIROUZU Hiroaki 偍傛傃峷專幰偼丄杮僜僼僩僂僃傾偺巊梡/棙梡偵傛傞偄偐側傞懝幐偵懳偟偰傕丄愑擟傪晧偄傑偣傫丅</strong>
+	<strong>SHIROUZU Hiroaki および貢献者は、本ソフトウェアの使用/利用によるいかなる損失に対しても、責任を負いません。</strong>
 	</div>
 	</div>
 </div>
 
 <a name="environment"/>
-<h2 class="help_head2">3. 摦嶌娐嫬</h2>
+<h2 class="help_head2">3. 動作環境</h2>
 <div class="help_section">
 	Windows 98/Me/NT/2000/XP/2003/Vista/2008/Win7<br>
-	乮MFCXX.dll 偼昁梫偁傝傑偣傫乯<br>
+	（MFCXX.dll は必要ありません）<br>
 </div>
 
 <a name="install"/>
-<h2 class="help_head2">4. 僀儞僗僩乕儖丒傾儞僀儞僗僩乕儖</h2>
+<h2 class="help_head2">4. インストール・アンインストール</h2>
 <div class="help_section">
-	<h3 class="help_head3">僀儞僗僩乕儖</h3>
+	<h3 class="help_head3">インストール</h3>
 	<div class="help_sub_section">
-		setup.exe 傪幚峴偟偰丄擟堄偺僨傿儗僋僩儕偵僀儞僗僩乕儖偟偰偔偩偝偄丅<br>
-		乮僀儞僗僩乕儖僨傿儗僋僩儕傊偺僐僺乕偲丄僔儑乕僩僇僢僩偺嶌惉傪峴偄傑偡乯<br>
-		USB 儊儌儕摍偵奿擺偟偰巊梡偡傞応崌偼丄fastcopy.exe, fastcopy.chm 偺傒傪僐僺乕偟偰偍巊偄偔偩偝偄丅乮偙偺応崌丄僔僃儖奼挘偼巊偊傑偣傫乯
+		setup.exe を実行して、任意のディレクトリにインストールしてください。<br>
+		（インストールディレクトリへのコピーと、ショートカットの作成を行います）<br>
+		USB メモリ等に格納して使用する場合は、fastcopy.exe, fastcopy.chm のみをコピーしてお使いください。（この場合、シェル拡張は使えません）
 	</div>
 
-	<h3 class="help_head3">傾儞僀儞僗僩乕儖</h3>
+	<h3 class="help_head3">アンインストール</h3>
 	<div class="help_sub_section">
-		僀儞僗僩乕儖僨傿儗僋僩儕偺 setup.exe 傪巊偭偰傾儞僀儞僗僩乕儖偡傞偙偲偑偱偒傑偡丅<br>
-		乮僔儑乕僩僇僢僩偺嶍彍偲僔僃儖奼挘偺夝彍傪峴偄傑偡乯<br>
-		側偍丄僔僃儖奼挘傪峴偭偰偄偨応崌丄姰慡側嶍彍偼 OS嵞婲摦屻偵側傝傑偡丅<br>
+		インストールディレクトリの setup.exe を使ってアンインストールすることができます。<br>
+		（ショートカットの削除とシェル拡張の解除を行います）<br>
+		なお、シェル拡張を行っていた場合、完全な削除は OS再起動後になります。<br>
 	</div>
 </div>
 
 <a name="usage"/>
-<h2 class="help_head2">5. 巊梡朄仌夋柺愢柧</h2>
+<h2 class="help_head2">5. 使用法＆画面説明</h2>
 <div class="help_section">
-	僂傿儞僪僂偺嵟彫壔偱丄僞僗僋僩儗僀偵奿擺偟傑偡丅<br>
-	乮偝傜偵丄僐僺乕摦嶌拞偼丄傾僀僐儞偑夞揮偟傑偡乯<br>
-	夋柺愢柧偼丄埲壓偺捠傝偱偡丅
+	ウィンドウの最小化で、タスクトレイに格納します。<br>
+	（さらに、コピー動作中は、アイコンが回転します）<br>
+	画面説明は、以下の通りです。
 
 	<h3 class="help_head3">Source / DestDir</h3>
 	<div class="help_sub_section">
-		Source(僐僺乕尦) 偲 DestDir(僐僺乕愭僨傿儗僋僩儕) 傪巜掕偟傑偡丅<br>
-		乮僨僼僅儖僩偱偼丄夁嫀10悽戙暘婰壇偟傑偡乯<br>
-		Source 傪暋悢巜掕乮僪儔僢僌仌僪儘僢僾壜乯偡傞応崌偼丄僙儈僐儘儞偱嬫愗傝傑偡丅<br>
-		乮側偍丄僙儈僐儘儞傪娷傓僷僗柤偼丄""偱妵偭偰巜掕偟傑偡乯<br>
+		Source(コピー元) と DestDir(コピー先ディレクトリ) を指定します。<br>
+		（デフォルトでは、過去10世代分記憶します）<br>
+		Source を複数指定（ドラッグ＆ドロップ可）する場合は、セミコロンで区切ります。<br>
+		（なお、セミコロンを含むパス名は、""で括って指定します）<br>
 		<br>
-		Source 傊偺僪儔僢僌仌僪儘僢僾帪偵 CTL僉乕傪墴偟偰偄傞応崌丄尰嵼偺 Source 撪梕偵捛壛偡傞宍偵側傝傑偡丅乮墴偟偰偄側偄応崌偼丄尰嵼偺 Source 撪梕偼僋儕傾偝傟傑偡乯<br>
-		傑偨丄DestDir 擖椡棑傊偺乮僨傿儗僋僩儕偺乯僪儘僢僾傕壜擻偱偡丅
+		Source へのドラッグ＆ドロップ時に CTLキーを押している場合、現在の Source 内容に追加する形になります。（押していない場合は、現在の Source 内容はクリアされます）<br>
+		また、DestDir 入力欄への（ディレクトリの）ドロップも可能です。
 
 		<a name="backslash_behavior"/>
-		<h4 class="help_head4">DestDir 巜掕偺枛旜偵 '\' 偑偁傞偐偳偆偐偵傛傞嫇摦偺堘偄</h4>
+		<h4 class="help_head4">DestDir 指定の末尾に '\' があるかどうかによる挙動の違い</h4>
 		<div class="help_mini_section">
-			<strong>Source 巜掕偑侾僨傿儗僋僩儕偺傒偱丄DestDir 巜掕偺枛旜偵 '\' 偑側偄応崌</strong><br>
+			<strong>Source 指定が１ディレクトリのみで、DestDir 指定の末尾に '\' がない場合</strong><br>
 			<div class="help_mini_section2">
-			Source 僨傿儗僋僩儕帺懱偼僐僺乕偣偢丄Source 僨傿儗僋僩儕攝壓偺撪梕傪
-			DestDir 攝壓偵僐僺乕偟傑偡丅<br>
-			乮DestDir\SourceDir偺拞恎乯
+			Source ディレクトリ自体はコピーせず、Source ディレクトリ配下の内容を
+			DestDir 配下にコピーします。<br>
+			（DestDir\SourceDirの中身）
 			</div>
 			<br>
-			<strong>偦傟埲奜偺応崌</strong><br>
+			<strong>それ以外の場合</strong><br>
 			<div class="help_mini_section2">
-			Source 僨傿儗僋僩儕帺懱傪娷傔偰丄DestDir 攝壓偵僐僺乕偟傑偡丅<br>
-			乮DestDir\SourceDir\SourceDir偺拞恎乯
+			Source ディレクトリ自体を含めて、DestDir 配下にコピーします。<br>
+			（DestDir\SourceDir\SourceDirの中身）
 			</div>
 		</div>
 	</div>
 
-	<h3 class="help_head3">摦嶌儌乕僪</h3>
+	<h3 class="help_head3">動作モード</h3>
 	<div class="help_sub_section">
 		<table class="help_table" border="4">
-		<tr><th>儌乕僪</th><th>摦嶌撪梕</th>
-		<tr><td nowrap><strong>嵎暘乮忋彂偒側偟乯</strong></td>
-		  <td>摨偠僼傽僀儖柤偑偁傞応崌丄僐僺乕偟傑偣傫丅</td></tr>
-		<tr class="tr_default"><td nowrap><strong>嵎暘乮僒僀僘丒擔晅乯</strong></td>
-		  <td>摨偠僼傽僀儖柤偑偁傞応崌丄僒僀僘傕偟偔偼擔晅偑堘偆応崌偺傒丄僐僺乕偟傑偡丅乮僨僼僅儖僩乯</td></tr>
-		<tr><td nowrap><strong>嵎暘乮嵟怴擔晅乯</strong></td>
-		  <td>摨偠僼傽僀儖柤偑偁傞応崌丄擔晅偑怴偟偄応崌偺傒丄僐僺乕偟傑偡丅</td></tr>
-		<tr><td nowrap><strong>僐僺乕乮慡忋彂偒乯</strong></td>
-		  <td>忢偵忋彂偒僐僺乕偟傑偡丅</td></tr>
-		<tr><td nowrap><strong>摨婜乮僒僀僘丒擔晅乯</strong></td>
-		  <td>摨偠僼傽僀儖柤偑偁傞応崌丄僒僀僘傕偟偔偼擔晅偑堘偆応崌偺傒丄僐僺乕偟傑偡丅
-		  偝傜偵僐僺乕尦偵懚嵼偟側偄丄僐僺乕愭僼傽僀儖乮仌僨傿儗僋僩儕乯傪偡傋偰嫮惂嶍彍偟傑偡丅</td></tr>
-		<tr><td nowrap><strong>堏摦乮慡忋彂偒乯</strong></td>
-		  <td>忋彂偒僐僺乕偟偨忋偱丄僐僺乕尦傪慡嶍彍偟傑偡丅乮堦斒愝掕偵偰丄堏摦乮僒僀僘丒擔晅乯偵曄峏偡傞偙偲偑偱偒傑偡乯</td></tr>
-		<tr><td nowrap><strong>慡嶍彍</strong></td>
-		  <td>巜掕偝傟偨僼傽僀儖乮仌僨傿儗僋僩儕乯傪慡偰嫮惂嶍彍乮亖撉傒庢傝愱梡懏惈偑偮偄偨僼傽僀儖傕懏惈傪僋儕傾偟偨屻丄嶍彍乯偟傑偡丅</td></tr>
+		<tr><th>モード</th><th>動作内容</th>
+		<tr><td nowrap><strong>差分（上書きなし）</strong></td>
+		  <td>同じファイル名がある場合、コピーしません。</td></tr>
+		<tr class="tr_default"><td nowrap><strong>差分（サイズ・日付）</strong></td>
+		  <td>同じファイル名がある場合、サイズもしくは日付が違う場合のみ、コピーします。（デフォルト）</td></tr>
+		<tr><td nowrap><strong>差分（最新日付）</strong></td>
+		  <td>同じファイル名がある場合、日付が新しい場合のみ、コピーします。</td></tr>
+		<tr><td nowrap><strong>コピー（全上書き）</strong></td>
+		  <td>常に上書きコピーします。</td></tr>
+		<tr><td nowrap><strong>同期（サイズ・日付）</strong></td>
+		  <td>同じファイル名がある場合、サイズもしくは日付が違う場合のみ、コピーします。
+		  さらにコピー元に存在しない、コピー先ファイル（＆ディレクトリ）をすべて強制削除します。</td></tr>
+		<tr><td nowrap><strong>移動（全上書き）</strong></td>
+		  <td>上書きコピーした上で、コピー元を全削除します。（一般設定にて、移動（サイズ・日付）に変更することができます）</td></tr>
+		<tr><td nowrap><strong>全削除</strong></td>
+		  <td>指定されたファイル（＆ディレクトリ）を全て強制削除（＝読み取り専用属性がついたファイルも属性をクリアした後、削除）します。</td></tr>
 		</table>
 	</div>
 
-	<h3 class="help_head3">儃僞儞仌僆僾僔儑儞巜掕</h3>
+	<h3 class="help_head3">ボタン＆オプション指定</h3>
 	<div class="help_sub_section">
 		<table class="help_table" border="4">
-		<tr><td nowrap><strong>幚峴</strong></td>
-		<td>僐僺乕摦嶌傪幚峴偟傑偡丅幚峴拞偼丄拞抐...儃僞儞偵曄壔偟傑偡丅<br><strong>乮側偍丄CTL僉乕傪墴偟側偑傜幚峴傪墴偡偲丄僜乕僗堦棗偑昞帵偝傟偨妋擣僟僀傾儘僌偑弌偰偒傑偡乯</strong></td></tr>
-		<tr><td nowrap><strong>儕僗僩傾僢僾</strong></td>
-		<td>僐僺乕仌嶍彍偝傟傞乮梊掕偺乯僼傽僀儖傪丄儕僗僩傾僢僾偟偰昞帵偟傑偡丅摢偵 '+' 偼嶌惉丒峏怴偝傟丄'-' 偼嶍彍偝傟傑偡丅<br><strong>乮側偍丄CTL僉乕傪墴偟側偑傜儕僗僩傾僢僾傪墴偡乮儃僞儞柤乽儕僗僩傾僢僾乿仺乽儕僗僩傾僢僾+V乿乯偲丄僗僉僢僾懳徾乮偨偩偟僼傿儖僞彍奜偼彍偔乯偺僼傽僀儖儁傾偵偮偄偰丄撉傒崬傒仌僴僢僔儏抣斾妑傪峴偄傑偡乯</td></tr>
-		<tr><td nowrap><strong>Buffer 巜掕</strong></td>
-		<td>Read/Write 偵巊偆丄僶僢僼傽僒僀僘傪 MB 扨埵偱巜掕偟傑偡丅</td></tr>
-		<tr><td nowrap><strong>懍搙僐儞僩儘乕儖</strong></td>
-		<td>嵟戝(Full Speed)丄帺摦懍搙惂尷(Auto Slow)(*1)丄懍搙巜掕(90%乣10%)丄掆巭(Suspend) 傪巜掕偡傞偙偲偑偱偒傑偡丅廳偄偲姶偠傞応崌偼乽帺摦懍搙惂尷乿傪帋偡偲椙偄偱偟傚偆乮儅僂僗傗嵟慜柺僂傿儞僪僂偺曄壔傪専抦偡傞偲丄堦掕帪娫丄抶偔偟傑偡乯丅傑偨乽嵟戝乿埲奜偺応崌偼丄僾儘僙僗桪愭搙僋儔僗傪乽掅乿偵棊偲偟傑偡丅乮<a href="#job">僕儑僽娗棟</a>偱偺曐懚崁栚懳徾偵偼側傝傑偣傫乯</td></tr>
-		<tr><td nowrap><strong>僄儔乕帪宲懕</strong></td>
-		<td>Read/Write/Delete摍偱丄僄儔乕偑敪惗偟偰傕丄拞抐偣偢丄壜擻側尷傝摦嶌傪懕偗傑偡丅<br>
-		乮偨偩偟丄僄儔乕昞帵棑傗僄儔乕儘僌偵偼巆傝傑偡乯</td></tr>
-		<tr><td nowrap><strong>儀儕僼傽僀</strong></td>
-		<td>MD5(or SHA-1) 偵傛傞彂偒崬傒僨乕僞偺儀儕僼傽僀傪峴偄傑偡丅乮SHA-1 傪棙梡偡傞応崌偼丄fastcopy.ini 偺 [main] 偵 using_MD5=0 傪愝掕偟傑偡乯<br>
-		 側偍丄嬶懱揑偵偼丄師偺傛偆側斾妑傪峴偄傑偡丅<br>
-		 Read(Src) -> MD5(Src) -> Write(Dst) -> Read(Dst) -> MD5(Dst) -> MD5斾妑(Src/Dst) <br>
-		 乮奺僗僥乕僕偑丄暋悢偺僼傽僀儖傪屪偭偨僷僀僾儔僀儞偺傛偆偵暲楍偟偰張棟偝傟傑偡乯
+		<tr><td nowrap><strong>実行</strong></td>
+		<td>コピー動作を実行します。実行中は、中断...ボタンに変化します。<br><strong>（なお、CTLキーを押しながら実行を押すと、ソース一覧が表示された確認ダイアログが出てきます）</strong></td></tr>
+		<tr><td nowrap><strong>リストアップ</strong></td>
+		<td>コピー＆削除される（予定の）ファイルを、リストアップして表示します。頭に '+' は作成・更新され、'-' は削除されます。<br><strong>（なお、CTLキーを押しながらリストアップを押す（ボタン名「リストアップ」→「リストアップ+V」）と、スキップ対象（ただしフィルタ除外は除く）のファイルペアについて、読み込み＆ハッシュ値比較を行います）</td></tr>
+		<tr><td nowrap><strong>Buffer 指定</strong></td>
+		<td>Read/Write に使う、バッファサイズを MB 単位で指定します。</td></tr>
+		<tr><td nowrap><strong>速度コントロール</strong></td>
+		<td>最大(Full Speed)、自動速度制限(Auto Slow)(*1)、速度指定(90%～10%)、停止(Suspend) を指定することができます。重いと感じる場合は「自動速度制限」を試すと良いでしょう（マウスや最前面ウィンドウの変化を検知すると、一定時間、遅くします）。また「最大」以外の場合は、プロセス優先度クラスを「低」に落とします。（<a href="#job">ジョブ管理</a>での保存項目対象にはなりません）</td></tr>
+		<tr><td nowrap><strong>エラー時継続</strong></td>
+		<td>Read/Write/Delete等で、エラーが発生しても、中断せず、可能な限り動作を続けます。<br>
+		（ただし、エラー表示欄やエラーログには残ります）</td></tr>
+		<tr><td nowrap><strong>ベリファイ</strong></td>
+		<td>MD5(or SHA-1) による書き込みデータのベリファイを行います。（SHA-1 を利用する場合は、fastcopy.ini の [main] に using_MD5=0 を設定します）<br>
+		 なお、具体的には、次のような比較を行います。<br>
+		 Read(Src) -> MD5(Src) -> Write(Dst) -> Read(Dst) -> MD5(Dst) -> MD5比較(Src/Dst) <br>
+		 （各ステージが、複数のファイルを跨ったパイプラインのように並列して処理されます）
 		 </td></tr>
-		<tr><td nowrap><strong>姰椆帪娫梊應</strong></td>
-		<td>僐僺乕奐巒慜偵丄僐僺乕尦偺憤僼傽僀儖悢丒憤僼傽僀儖僒僀僘傪挷傋傞偙偲偱丄姰椆帪娫傪梊應偟傑偡丅
-乮側偍丄嶍彍儌乕僪偱偺梊應偼偱偒傑偣傫丅傑偨丄堏摦儌乕僪偺応崌丄嶍彍帪娫偼梊應偵娷傫偱偄傑偣傫乯</td></tr>
+		<tr><td nowrap><strong>完了時間予測</strong></td>
+		<td>コピー開始前に、コピー元の総ファイル数・総ファイルサイズを調べることで、完了時間を予測します。
+（なお、削除モードでの予測はできません。また、移動モードの場合、削除時間は予測に含んでいません）</td></tr>
 		<tr><td nowrap><strong>Top</strong></td>
-		<td>忢偵嵟慜柺偵昞帵偟傑偡丅</td></tr>
-		<tr><td nowrap><strong>捈偪偵奐巒</strong></td>
-		<td>懠偺 FastCopy 偑幚峴拞偺応崌偵丄偦偺姰椆傪懸偮偙偲側偔丄捈偪偵幚峴傪奐巒偟傑偡丅乮側偍丄懠偺 FastCopy 偑僐僺乕丒堏摦拞偱側偄応崌丄偙偺儃僞儞偼尰傟傑偣傫乯</strong></td></tr>
-		<tr><td nowrap><strong>乽?乿</strong></td>
-		<td>僿儖僾傪昞帵偟傑偡丅</td></tr>
+		<td>常に最前面に表示します。</td></tr>
+		<tr><td nowrap><strong>直ちに開始</strong></td>
+		<td>他の FastCopy が実行中の場合に、その完了を待つことなく、直ちに実行を開始します。（なお、他の FastCopy がコピー・移動中でない場合、このボタンは現れません）</strong></td></tr>
+		<tr><td nowrap><strong>「?」</strong></td>
+		<td>ヘルプを表示します。</td></tr>
 		</table>
-		乮*1)FastCopy 偑傾僋僥傿僽偱側偄忬懺偱儅僂僗堏摦傪専弌偡傞偲懍搙惂尷偟傑偡丅嬶懱揑偵偼丄I/O 摦嶌偺崌娫偵僂僃僀僩傪擖傟傞丄僾儘僙僗桪愭搙傪壓偘傞丄I/O桪愭搙傪壓偘傞(Vista偺傒)丄嵟戝I/O僒僀僘傪1MB偵掅壓偝偣傞丄摍偵傛傝摦嶌懍搙傪惂尷偟傑偡丅側偍丄摦嶌撪梕偼丄彨棃丄曄峏偝傟傞壜擻惈偑偁傝傑偡<br>
+		（*1)FastCopy がアクティブでない状態でマウス移動を検出すると速度制限します。具体的には、I/O 動作の合間にウェイトを入れる、プロセス優先度を下げる、I/O優先度を下げる(Vistaのみ)、最大I/Oサイズを1MBに低下させる、等により動作速度を制限します。なお、動作内容は、将来、変更される可能性があります<br>
 
 		<br>
 		<a name="options"/>
 		<table class="help_table" border="4">
-		<tr><td><strong>ACL懏惈</strong></td>
-		<td>NTFS 偺傾僋僙僗僐儞僩儘乕儖儕僗僩(ACL)傪僐僺乕偟傑偡</td></tr>
-		<tr><td><strong>暃師Stream</strong></td>
-		<td>NTFS 偺暃師僗僩儕乕儉(Alternate Stream)傪僐僺乕偟傑偡</td></tr>
-		<tr><td><strong>暅尦柍岠壔乮忋彂偒屻偵嶍彍乯</strong></td>
-		<td>嶍彍偡傞慜偵丄懳徾僼傽僀儖傪儕僱乕儉偟偨屻丄儔儞僟儉僨乕僞偱忋彂偒偡傞偙偲偱丄嶍彍僼傽僀儖偺暅尦傪幚幙揑偵柍岠壔偟傑偡丅側偍丄暃師僗僩儕乕儉偺忋彂偒偼峴偄傑偣傫丅愝掕偱乽NSA 曽幃乿傪慖戰偟偰偄偨応崌偼丄俀夞儔儞僟儉側僨乕僞偱忋彂偒偟偨屻丄嵟屻偵 0 偱忋彂偒偟傑偡丅乮側偍丄暅尦偱偒側偄偲偄偆曐徹偼偁傝傑偣傫偺偱偛拲堄乯</td></tr>
+		<tr><td><strong>ACL属性</strong></td>
+		<td>NTFS のアクセスコントロールリスト(ACL)をコピーします</td></tr>
+		<tr><td><strong>副次Stream</strong></td>
+		<td>NTFS の副次ストリーム(Alternate Stream)をコピーします</td></tr>
+		<tr><td><strong>復元無効化（上書き後に削除）</strong></td>
+		<td>削除する前に、対象ファイルをリネームした後、ランダムデータで上書きすることで、削除ファイルの復元を実質的に無効化します。なお、副次ストリームの上書きは行いません。設定で「NSA 方式」を選択していた場合は、２回ランダムなデータで上書きした後、最後に 0 で上書きします。（なお、復元できないという保証はありませんのでご注意）</td></tr>
 		</table>
 		<br>
 		<a name="filter"/>
 		<table class="help_table" border="4">
 		<tr><td><strong>Filter</strong></td>
-		<td>奺庬僼傿儖僞偺桳岠乛柍岠傪巜掕偟傑偡丅側偍丄堏摦儌乕僪偱偼丄僼傿儖僞巜掕偼柍帇偝傟傑偡丅</td></tr>
+		<td>各種フィルタの有効／無効を指定します。なお、移動モードでは、フィルタ指定は無視されます。</td></tr>
 		<tr><td><strong>Include</strong></td>
-		<td>巜掕暥帤楍乮<a href="#wild_card">UNIX儚僀儖僪僇乕僪宍幃</a>壜乯偵儅僢僠偡傞僼傽僀儖偺傒傪僐僺乕懳徾偵偟傑偡丅暋悢巜掕偡傞応崌偼丄僙儈僐儘儞偱嬫愗傝傑偡丅僨傿儗僋僩儕傪巜掕偡傞応崌偼丄暥帤楍偺枛旜偵 '\' 傪晅梌偟傑偡丅乮椺丗 *.txt; My Folder[0-9]\乯<br>僼傽僀儖傑偨偼僨傿儗僋僩儕偵懳偟偰丄偦傟偧傟柧帵揑側巜掕偑側偄応崌偼丄* 傕偟偔偼 *\ 傪巜掕偟偨傕偺偲尒側偟傑偡丅<br>側偍丄嶍彍儌乕僪亄僼傽僀儖偵懳偡傞 Include巜掕傪偟偨応崌丄僨傿儗僋僩儕偼嶍彍偝傟傑偣傫丅</td></tr>
+		<td>指定文字列（<a href="#wild_card">UNIXワイルドカード形式</a>可）にマッチするファイルのみをコピー対象にします。複数指定する場合は、セミコロンで区切ります。ディレクトリを指定する場合は、文字列の末尾に '\' を付与します。（例： *.txt; My Folder[0-9]\）<br>ファイルまたはディレクトリに対して、それぞれ明示的な指定がない場合は、* もしくは *\ を指定したものと見なします。<br>なお、削除モード＋ファイルに対する Include指定をした場合、ディレクトリは削除されません。</td></tr>
 		<tr><td><strong>Exclude</strong></td>
-		<td>Include 偺斀懳偱丄儅僢僠偡傞僼傽僀儖丒僨傿儗僋僩儕傪彍奜偟傑偡丅</td></tr>
-		<tr><td colspan="2"><strong>埲壓偺僼傿儖僞偼丄愝掕仺奼挘僼傿儖僞昞帵傪桳岠偵偟偨応崌偺傒昞帵偝傟傑偡</strong></td></tr>
+		<td>Include の反対で、マッチするファイル・ディレクトリを除外します。</td></tr>
+		<tr><td colspan="2"><strong>以下のフィルタは、設定→拡張フィルタ表示を有効にした場合のみ表示されます</strong></td></tr>
 		<tr><td><strong>FromDate</strong></td>
-		<td>巜掕擔帪乮<a href="#date_filter">彂幃</a>乯埲崀偺峏怴僞僀儉僗僞儞僾傪帩偮僼傽僀儖傪懳徾偲偟傑偡丅<br>
-		彂幃偼愨懳擔晅巜掕("20090101")埲奜偵丄憡懳擔晅傕<a href="#date_filter">壜擻</a>偱偡(10擔慜: '-10D')</td></tr>
+		<td>指定日時（<a href="#date_filter">書式</a>）以降の更新タイムスタンプを持つファイルを対象とします。<br>
+		書式は絶対日付指定("20090101")以外に、相対日付も<a href="#date_filter">可能</a>です(10日前: '-10D')</td></tr>
 		<tr><td><strong>ToDate</strong></td>
-		<td>巜掕擔帪埲慜偺峏怴僞僀儉僗僞儞僾傪帩偮僼傽僀儖傪懳徾偲偟傑偡丅</td></tr>
+		<td>指定日時以前の更新タイムスタンプを持つファイルを対象とします。</td></tr>
 		<tr><td><strong>MinSize</strong></td>
-		<td>巜掕僒僀僘埲忋偺僼傽僀儖傪懳徾偲偟傑偡丅枛旜偵 K/M/G/T 傪晅梌偡傞偙偲偱丄僒僀僘偺棯婰昞婰壜擻偱偡丅</td></tr>
+		<td>指定サイズ以上のファイルを対象とします。末尾に K/M/G/T を付与することで、サイズの略記表記可能です。</td></tr>
 		<tr><td><strong>MaxSize</strong></td>
-		<td>巜掕僒僀僘埲壓偺僼傽僀儖傪懳徾偲偟傑偡丅</td></tr>
+		<td>指定サイズ以下のファイルを対象とします。</td></tr>
 		</table>
 		<br>
 		<a name="wild_card"/>
-		<strong>Include / Exclude 僼傿儖僞巜掕偱巊梡壜擻側儚僀儖僪僇乕僪彂幃</strong>
+		<strong>Include / Exclude フィルタ指定で使用可能なワイルドカード書式</strong>
 		<table class="help_table" border="4">
-		<tr><td>*</td><td>0暥帤埲忋偺擟堄偺暥帤</td>
-		<tr><td>?</td><td>1暥帤偺擟堄偺暥帤</td>
-		<tr><td>[abc]</td><td>abc 偺偳傟偐 1暥帤</td>
-		<tr><td>[!abc]</td><td>abc 偺偳傟偐 1暥帤埲奜丅'!' 偺戙傢傝偵 '^' 偱傕壜</td>
-		<tr><td>[a-z]</td><td>a-z 傑偱偺擟堄偺1暥帤</td>
-		<tr><td>\</td><td>僄僗働乕僾暥帤乮側偍丄枛旜偺 \ 偩偗偼僨傿儗僋僩儕傪昞偟傑偡乯</td>
+		<tr><td>*</td><td>0文字以上の任意の文字</td>
+		<tr><td>?</td><td>1文字の任意の文字</td>
+		<tr><td>[abc]</td><td>abc のどれか 1文字</td>
+		<tr><td>[!abc]</td><td>abc のどれか 1文字以外。'!' の代わりに '^' でも可</td>
+		<tr><td>[a-z]</td><td>a-z までの任意の1文字</td>
+		<tr><td>\</td><td>エスケープ文字（なお、末尾の \ だけはディレクトリを表します）</td>
 		</table>
-		<strong>乮拲堄丗彨棃揑偵丄僼傿儖僞巜掕宍幃偼戝暆偵曄峏偝傟傞偐傕偟傟傑偣傫乯</strong>
+		<strong>（注意：将来的に、フィルタ指定形式は大幅に変更されるかもしれません）</strong>
 		<br><br>
 
 		<a name="date_filter"/>
-		<strong>FromDate/ToDate 僼傿儖僞巜掕偺彂幃</strong>
+		<strong>FromDate/ToDate フィルタ指定の書式</strong>
 		<table class="help_table" border="4">
-		<tr><td>愨懳擔帪巜掕</td><td>擔帪傪 YYYYMMDD 偱巜掕</td>
-		<tr><td>憡懳擔帪巜掕</td><td>-10D乮10擔慜乯側偳偺傛偆偵丄"+|- 悢帤 W|D|h|m|s" 偺彂幃偱巜掕偟傑偡丅<br>W|D|h|m|s 偼偦傟偧傟丄廡丄擔丄帪丄暘丄昩傪昞偟傑偡丅<br><strong>乮戝暥帤彫暥帤傪嬫暿偟傑偡乯</strong></td>
+		<tr><td>絶対日時指定</td><td>日時を YYYYMMDD で指定</td>
+		<tr><td>相対日時指定</td><td>-10D（10日前）などのように、"+|- 数字 W|D|h|m|s" の書式で指定します。<br>W|D|h|m|s はそれぞれ、週、日、時、分、秒を表します。<br><strong>（大文字小文字を区別します）</strong></td>
 		</table>
 	</div>
 
 	<a name="reparse"/>
-	<h3 class="help_head3">僕儍儞僋僔儑儞丒僔儞儃儕僢僋儕儞僋</h3>
+	<h3 class="help_head3">ジャンクション・シンボリックリンク</h3>
 	<div class="help_sub_section">
-		v1.70偐傜丄僕儍儞僋僔儑儞乮娷傓儅僂儞僩億僀儞僩乯丒僔儞儃儕僢僋儕儞僋傪擣幆偡傞傛偆偵側傝傑偟偨丅<br>
+		v1.70から、ジャンクション（含むマウントポイント）・シンボリックリンクを認識するようになりました。<br>
 		<table class="help_table" border="4">
-		<tr><th>儌乕僪</th><th>摦嶌撪梕</th>
-		<tr><td nowrap><strong>嵎暘丒僐僺乕</strong></td>
-		  <td>僨僼僅儖僩偱偼丄僕儍儞僋僔儑儞丒僔儞儃儕僢僋儕儞僋帺懱傪僐僺乕偟傑偡丅愝掕仌僐儅儞僪儔僀儞偵傛傝丄巜偟帵偡愭偺攝壓傪僐僺乕偡傞宍偵傕偱偒傑偡丅</td></tr>
-		<tr><td nowrap><strong>堏摦</strong></td>
-		  <td>忢偵丄僕儍儞僋僔儑儞丒僔儞儃儕僢僋儕儞僋帺懱傪堏摦偟傑偡丅</td></tr>
-		<tr><td nowrap><strong>嶍彍</strong></td>
-		  <td>忢偵丄僕儍儞僋僔儑儞丒僔儞儃儕僢僋儕儞僋帺懱傪嶍彍偟傑偡丅</td></tr>
+		<tr><th>モード</th><th>動作内容</th>
+		<tr><td nowrap><strong>差分・コピー</strong></td>
+		  <td>デフォルトでは、ジャンクション・シンボリックリンク自体をコピーします。設定＆コマンドラインにより、指し示す先の配下をコピーする形にもできます。</td></tr>
+		<tr><td nowrap><strong>移動</strong></td>
+		  <td>常に、ジャンクション・シンボリックリンク自体を移動します。</td></tr>
+		<tr><td nowrap><strong>削除</strong></td>
+		  <td>常に、ジャンクション・シンボリックリンク自体を削除します。</td></tr>
 		</table>
 	</div>
 
 	<a name="hardlink"/>
-	<h3 class="help_head3">僴乕僪儕儞僋</h3>
+	<h3 class="help_head3">ハードリンク</h3>
 	<div class="help_sub_section">
-		v1.95偐傜丄<a href="#linkdest">/linkdest</a> 傪巜掕偟偰婲摦偟偨偲偒偺傒丄僴乕僪儕儞僋傪嵞尰偡傞偙偲偑壜擻偵側傝傑偟偨丅<br>
-		乮幚峴帪偺 TotalFiles: 昞帵偑丄"僼傽僀儖悢乮僨傿儗僋僩儕悢乯" 偐傜 "僼傽僀儖悢/僴乕僪儕儞僋悢乮僨傿儗僋僩儕悢乯" 偵曄壔偟傑偡乯<br>
+		v1.95から、<a href="#linkdest">/linkdest</a> を指定して起動したときのみ、ハードリンクを再現することが可能になりました。<br>
+		（実行時の TotalFiles: 表示が、"ファイル数（ディレクトリ数）" から "ファイル数/ハードリンク数（ディレクトリ数）" に変化します）<br>
 		<br>
-		拲堄揰偼埲壓偺俀偮偱偡丅<br>
-		侾丏僴乕僪儕儞僋幚懱1枩僼傽僀儖偁偨傝丄2-4MB掱搙儊儌儕傪徚旓偟傑偡乮僷僗挿偵埶懚乯丅<br>
-		俀丏嵎暘僐僺乕摦嶌偑抶偔側傝傑偡丅乮儕儞僋僇僂儞僞庢摼梡偵僗僉僢僾懳徾偺僼傽僀儖傕僆乕僾儞偡傞偨傔乯丅<br>
+		注意点は以下の２つです。<br>
+		１．ハードリンク実体1万ファイルあたり、2-4MB程度メモリを消費します（パス長に依存）。<br>
+		２．差分コピー動作が遅くなります。（リンクカウンタ取得用にスキップ対象のファイルもオープンするため）。<br>
 		<br>
-		/linkdest 巜掕偟偨応崌丄<a href="#recreate">/recreate</a> 僆僾僔儑儞憡摉偺摦嶌偑忢偵桳岠偵側傝傑偡丅<br>
-		忢帪丄僴乕僪儕儞僋嵞尰傪桳岠偵偟偨偄応崌丄fastcopy.ini [main] linkdest=1 偵偟傑偡丅<br>
-		傑偨丄linkdest=2 偲偡傞偲丄僗僉僢僾懳徾僼傽僀儖傕僴乕僪儕儞僋専嵏懳徾偵娷傔傑偡丅
+		/linkdest 指定した場合、<a href="#recreate">/recreate</a> オプション相当の動作が常に有効になります。<br>
+		常時、ハードリンク再現を有効にしたい場合、fastcopy.ini [main] linkdest=1 にします。<br>
+		また、linkdest=2 とすると、スキップ対象ファイルもハードリンク検査対象に含めます。
 	</div>
 
 	<a name="job"/>
-	<h3 class="help_head3">僕儑僽娗棟 仺 僕儑僽捛壛丒嶍彍</h3>
+	<h3 class="help_head3">ジョブ管理 → ジョブ追加・削除</h3>
 	<div class="help_sub_section">
-		儊僀儞僂傿儞僪僂偺婰弎撪梕傪丄僕儑僽偲偄偆扨埵偱丄曐懚仌屇傃弌偟偱偒傞傛偆偵偟傑偡丅
+		メインウィンドウの記述内容を、ジョブという単位で、保存＆呼び出しできるようにします。
 		<table class="help_table" border="4">
-		<tr><td nowrap><strong>捛壛丒峏怴</strong></td>
-		<td>儊僀儞僂傿儞僪僂撪梕乮Source/DestDir, 僐儅儞僪儌乕僪, 僼傿儖僞巜掕丄僶僢僼傽巜掕丄僄儔乕帪宲懕僆僾僔儑儞丄姰椆帪娫梊應丄帺摦/摨堦/暿HDD儌乕僪乯偵僕儑僽柤傪晅偗偰曐懚丒峏怴偟傑偡丅</td></tr>
-		<tr><td nowrap><strong>嶍彍</strong></td>
-		<td>慖戰偟偨僕儑僽傪嶍彍偟傑偡丅</td></tr>
+		<tr><td nowrap><strong>追加・更新</strong></td>
+		<td>メインウィンドウ内容（Source/DestDir, コマンドモード, フィルタ指定、バッファ指定、エラー時継続オプション、完了時間予測、自動/同一/別HDDモード）にジョブ名を付けて保存・更新します。</td></tr>
+		<tr><td nowrap><strong>削除</strong></td>
+		<td>選択したジョブを削除します。</td></tr>
 		</table>
 	</div>
 
-	<h3 class="help_head3">愝掕 仺 堦斒愝掕</h3>
+	<h3 class="help_head3">設定 → 一般設定</h3>
 	<div class="help_sub_section">
-		FastCopy 偺堦斒愝掕乮奺庬僨僼僅儖僩抣丄I/O僷儔儊乕僞丄儘僌婰榐摍乯傪峴偄傑偡丅
+		FastCopy の一般設定（各種デフォルト値、I/Oパラメータ、ログ記録等）を行います。
 	</div>
 
-	<h3 class="help_head3">愝掕 仺 僔僃儖奼挘愝掕</h3>
+	<h3 class="help_head3">設定 → シェル拡張設定</h3>
 	<div class="help_sub_section">
-		Explorer 偺塃僋儕僢僋儊僯儏乕偵丄FastCopy 偺僐僺乕丒嶍彍儊僯儏乕傪搊榐/夝彍偟傑偡丅<br>
+		Explorer の右クリックメニューに、FastCopy のコピー・削除メニューを登録/解除します。<br>
 	</div>
 
-	<h3 class="help_head3">愝掕 仺 帺摦/摨堦/暿HDD儌乕僪</h3>
+	<h3 class="help_head3">設定 → 自動/同一/別HDDモード</h3>
 	<div class="help_sub_section">
-		<a href="#disk_mode">帺摦/摨堦/暿HDD儌乕僪</a>傪巜掕偟傑偡乮僨僼僅儖僩偼帺摦乯丅側偍丄CTL+K 偱奺儌乕僪偵丄弴師丄愗傝懼偊偡傞偙偲傕偱偒傑偡丅<br>
+		<a href="#disk_mode">自動/同一/別HDDモード</a>を指定します（デフォルトは自動）。なお、CTL+K で各モードに、順次、切り替えすることもできます。<br>
 	</div>
 
-	<h3 class="help_head3">愝掕 仺 Source 佁 DestDir 偺岎姺</h3>
+	<h3 class="help_head3">設定 → Source ⇔ DestDir の交換</h3>
 	<div class="help_sub_section">
-		憡屳偵摨婜偟偨偄応崌側偳偺偨傔偵丄Source 偲 DestDir 偺撪梕傪岎姺偟傑偡丅偦偺嵺丄<a href="#backslash_behavior">枛旜偺 '\' 偺桳柍偵傛傞嫇摦偺堘偄</a>側偳傪摜傑偊偰丄僷僗撪梕傪昁梫偵墳偠偰壛岺偟傑偡丅乮椺偊偽丄Source: C:\AAA\BBB丄DestDir: D:\CCC\ 偺応崌丄Source: D:\CCC\BBB丄DestDir: C:\AAA\ 偲側傝傑偡乯<br>
-		側偍丄Source 偑暋悢巜掕偝傟偰偄傞応崌偼丄棙梡偱偒傑偣傫丅<br>
-		CTL+ALT+S 偱傕幚峴壜擻偱偡丅
+		相互に同期したい場合などのために、Source と DestDir の内容を交換します。その際、<a href="#backslash_behavior">末尾の '\' の有無による挙動の違い</a>などを踏まえて、パス内容を必要に応じて加工します。（例えば、Source: C:\AAA\BBB、DestDir: D:\CCC\ の場合、Source: D:\CCC\BBB、DestDir: C:\AAA\ となります）<br>
+		なお、Source が複数指定されている場合は、利用できません。<br>
+		CTL+ALT+S でも実行可能です。
 	</div>
 
-	<h3 class="help_head3">愝掕 仺 廔椆帪張棟</h3>
+	<h3 class="help_head3">設定 → 終了時処理</h3>
 	<div class="help_sub_section">
-		廔椆帪張棟傪慖戰偟傑偡丅昗弨丄僗僞儞僶僀丄媥巭丄僔儍僢僩僟僂儞偑僨僼僅儖僩偱梡堄偝傟偰偄傑偡丅<br>
-		偝傜偵僒僂儞僪愝掕傗僐儅儞僪幚峴側偳傪捛壛偡傞偙偲偑偱偒傑偡丅怴偟偄廔椆帪張棟傪捛壛偡傞偙偲傕壜擻偱偡丅<br>
+		終了時処理を選択します。標準、スタンバイ、休止、シャットダウンがデフォルトで用意されています。<br>
+		さらにサウンド設定やコマンド実行などを追加することができます。新しい終了時処理を追加することも可能です。<br>
 	</div>
 </div>
 
 
 <a name="cmdline"/>
-<h2 class="help_head2">6. 僐儅儞僪儔僀儞儌乕僪</h2>
+<h2 class="help_head2">6. コマンドラインモード</h2>
 <div class="help_section">
-	婎杮揑側彂幃偼丄埲壓偺捠傝偱偡丅<br><br>
-	丂<strong>fastcopy.exe [/僆僾僔儑儞椶] file1 file2 ... [/to=dest_dir]</strong><br>
-	丂乮側偍丄GUI 儌乕僪偲堘偄丄嬫愗傝暥帤偼嬻敀暥帤偵側傝傑偡丅廬偄丄嬻敀暥帤傪娷傓僷僗柤偼丄"" 偱妵偭偰巜掕偟偰偔偩偝偄丅乯<br>
+	基本的な書式は、以下の通りです。<br><br>
+	　<strong>fastcopy.exe [/オプション類] file1 file2 ... [/to=dest_dir]</strong><br>
+	　（なお、GUI モードと違い、区切り文字は空白文字になります。従い、空白文字を含むパス名は、"" で括って指定してください。）<br>
 	<br>
-	巜掕壜擻側僆僾僔儑儞偼丄埲壓偺捠傝偱偡丅
-	乮側偍丄'=' 偺慜屻偵偼嬻敀傪擖傟側偄偱壓偝偄乯
+	指定可能なオプションは、以下の通りです。
+	（なお、'=' の前後には空白を入れないで下さい）
 	<br><br>
-	<strong>/cmd=(noexist_only|diff|update|sync|force_copy|move|delete) </strong>... 摦嶌儌乕僪巜掕丅<br>
-	丂乮cmd 巜掕徣棯帪偼 diff 儌乕僪丅delete 巜掕帪偼丄/to=dest_dir 偼巊偄傑偣傫乯
+	<strong>/cmd=(noexist_only|diff|update|sync|force_copy|move|delete) </strong>... 動作モード指定。<br>
+	　（cmd 指定省略時は diff モード。delete 指定時は、/to=dest_dir は使いません）
 	<div class="help_sub_section">
 
 		<table class="help_table" border="4">
-		<tr><th nowrap>cmdline</th><th>GUI偱偺昞婰</th>
-		<tr><td nowrap><strong>noexist_only</strong></td><td>嵎暘乮忋彂偒側偟乯</td></tr>
-		<tr class="tr_default"><td nowrap><strong>diff</strong></td><td>嵎暘乮僒僀僘丒擔晅乯</td></tr>
-		<tr><td nowrap><strong>update</strong></td><td>嵎暘乮嵟怴擔晅乯</td></tr>
-		<tr><td nowrap><strong>force_copy</strong></td><td>僐僺乕乮慡忋彂偒乯</td></tr>
-		<tr><td nowrap><strong>sync</strong></td><td>摨婜乮僒僀僘丒擔晅乯</td></tr>
-		<tr><td nowrap><strong>move</strong></td><td>堏摦乮慡忋彂偒乯</td></tr>
-		<tr><td nowrap><strong>delete</strong></td><td>慡嶍彍</td></tr>
+		<tr><th nowrap>cmdline</th><th>GUIでの表記</th>
+		<tr><td nowrap><strong>noexist_only</strong></td><td>差分（上書きなし）</td></tr>
+		<tr class="tr_default"><td nowrap><strong>diff</strong></td><td>差分（サイズ・日付）</td></tr>
+		<tr><td nowrap><strong>update</strong></td><td>差分（最新日付）</td></tr>
+		<tr><td nowrap><strong>force_copy</strong></td><td>コピー（全上書き）</td></tr>
+		<tr><td nowrap><strong>sync</strong></td><td>同期（サイズ・日付）</td></tr>
+		<tr><td nowrap><strong>move</strong></td><td>移動（全上書き）</td></tr>
+		<tr><td nowrap><strong>delete</strong></td><td>全削除</td></tr>
 		</table>
 	</div>
-	<strong>/auto_close</strong> ... 僐僺乕廔椆屻丄帺摦揑偵廔椆偟傑偡
+	<strong>/auto_close</strong> ... コピー終了後、自動的に終了します
 	<br><br>
-	<strong>/force_close</strong> ... 僐僺乕廔椆屻丄僄儔乕偑敪惗偟偰偄偨応崌傕丄嫮惂揑偵廔椆偟傑偡
+	<strong>/force_close</strong> ... コピー終了後、エラーが発生していた場合も、強制的に終了します
 	<br><br>
-	<strong>/open_window</strong> ... 僞僗僋僩儗僀偵奿擺偟傑偣傫乮捈偪偵幚峴奐巒偟側偄応崌偼巜掕晄梫乯
+	<strong>/open_window</strong> ... タスクトレイに格納しません（直ちに実行開始しない場合は指定不要）
 	<br><br>
-	<strong>/estimate</strong> ... 僐僺乕姰椆帪娫梊應傪峴偄傑偡
+	<strong>/estimate</strong> ... コピー完了時間予測を行います
 	<br><br>
-	<strong>/no_exec</strong> ... 僷儔儊乕僞傪儊僀儞僂傿儞僪僂偵僙僢僩偟傑偡偑丄幚峴偼偟傑偣傫
+	<strong>/no_exec</strong> ... パラメータをメインウィンドウにセットしますが、実行はしません
 	<br><br>
-	<strong>/no_confirm_del</strong> ... /delete 帪偵丄摦嶌奐巒偺栤偄崌傢偣傪偟傑偣傫
+	<strong>/no_confirm_del</strong> ... /delete 時に、動作開始の問い合わせをしません
 	<br><br>
-	<strong>/no_confirm_stop</strong> ... 宲懕晄擻僄儔乕敪惗帪偵傕丄僄儔乕傪弌偟傑偣傫
+	<strong>/no_confirm_stop</strong> ... 継続不能エラー発生時にも、エラーを出しません
 	<br><br>
-	<strong>/error_stop</strong> ... 僄儔乕敪惗帪偵僟僀傾儘僌傪弌偟丄懕峴偡傞偐傪栤偄崌傢偣傑偡乮/error_stop=FALSE 偱梷巭乯
+	<strong>/error_stop</strong> ... エラー発生時にダイアログを出し、続行するかを問い合わせます（/error_stop=FALSE で抑止）
 	<br><br>
-	<strong>/bufsize=N(MB)</strong> ... 僶僢僼傽僒僀僘傪 MB 扨埵偱巜掕偟傑偡
+	<strong>/bufsize=N(MB)</strong> ... バッファサイズを MB 単位で指定します
 	<br><br>
-	<strong>/log</strong> ... 儘僌僼傽僀儖(fastcopy.log) 偵儘僌傪弌椡偟傑偡乮/log=FALSE 偱梷巭乯
+	<strong>/log</strong> ... ログファイル(fastcopy.log) にログを出力します（/log=FALSE で抑止）
 	<br><br>
-	<strong>/logfile=儘僌僼傽僀儖柤</strong> ... 儘僌僼傽僀儖柤傪巜掕偟傑偡
+	<strong>/logfile=ログファイル名</strong> ... ログファイル名を指定します
 	<br><br>
-	<strong>/filelog</strong> ... 徻嵶僼傽僀儖儘僌傪婰榐偟傑偡丅FastCopy/Log 僼僅儖僟攝壓偵丄擔晅.log 偲偄偆宍幃偱曐懚偝傟傑偡丅儀儕僼傽僀帪偼僴僢僔儏抣乮捠忢 MD5丄愝掕偵傛偭偰 SHA1乯傕婰榐偝傟傑偡丅乮/filelog=filename 偱巜掕僼傽僀儖偵曐懚壜擻丅偨偩偟丄摨偠僼傽僀儖傪巜掕偟偰丄摨帪偵暋悢偺 FastCopy 傪幚峴偟偨応崌丄儘僌弌椡偑岎屳偵崿偠傞壜擻惈偑偁傝傑偡乯
+	<strong>/filelog</strong> ... 詳細ファイルログを記録します。FastCopy/Log フォルダ配下に、日付.log という形式で保存されます。ベリファイ時はハッシュ値（通常 MD5、設定によって SHA1）も記録されます。（/filelog=filename で指定ファイルに保存可能。ただし、同じファイルを指定して、同時に複数の FastCopy を実行した場合、ログ出力が交互に混じる可能性があります）
 	<br><br>
-	<strong>/utf8</strong> ... UTF-8偱儘僌傪婰榐偟傑偡
+	<strong>/utf8</strong> ... UTF-8でログを記録します
 	<br><br>
-	<strong>/skip_empty_dir</strong> ... 僼傿儖僞巜掕帪丄嬻僨傿儗僋僩儕傪僐僺乕偟傑偣傫乮/skip_empty_dir=FALSE 偱梷巭乯
+	<strong>/skip_empty_dir</strong> ... フィルタ指定時、空ディレクトリをコピーしません（/skip_empty_dir=FALSE で抑止）
 	<br><br>
-	<strong>/job=僕儑僽柤</strong> ... 帠慜偵搊榐偟偰偁傞僕儑僽傪巜掕偟傑偡
+	<strong>/job=ジョブ名</strong> ... 事前に登録してあるジョブを指定します
 	<br><br>
-	<strong>/force_start</strong> ... 懠偺 FastCopy 偑僐僺乕幚峴拞偺応崌傕捈偪偵幚峴偟傑偡乮/force_start=FALSE 偱梷巭乯
+	<strong>/force_start</strong> ... 他の FastCopy がコピー実行中の場合も直ちに実行します（/force_start=FALSE で抑止）
 	<br><br>
-	<strong>/disk_mode=(auto|same|diff)</strong> ... <a href="#disk_mode">帺摦/摨堦/暿HDD儌乕僪</a>傪巜掕偟傑偡丅乮僨僼僅儖僩: auto乯
+	<strong>/disk_mode=(auto|same|diff)</strong> ... <a href="#disk_mode">自動/同一/別HDDモード</a>を指定します。（デフォルト: auto）
 	<br><br>
-	<strong>/speed=(full|autoslow|9-1(90%-10%)|suspend) </strong> ... 懍搙僐儞僩儘乕儖傪峴偄傑偡丅
+	<strong>/speed=(full|autoslow|9-1(90%-10%)|suspend) </strong> ... 速度コントロールを行います。
 	<br><br>
-	<strong>/srcfile="files.txt"</strong> ... Source撪梕傪僼傽僀儖偱巜掕偟傑偡丅侾峴偵侾僼傽僀儖傪婰弎偟傑偡丅乮側偍丄戝検偺僼傽僀儖傪巜掕偡傞偲丄Source僐儞儃儃僢僋僗偺昞帵/嵞昤夋偵旕忢偵帪娫偑妡偐傝傑偡乯
+	<strong>/srcfile="files.txt"</strong> ... Source内容をファイルで指定します。１行に１ファイルを記述します。（なお、大量のファイルを指定すると、Sourceコンボボックスの表示/再描画に非常に時間が掛かります）
 	<br><br>
-	<strong>/srcfile_w="files.txt"</strong> ... /srcfile= 偲摨條偱偡偑丄UNICODE 偱婰弎偟傑偡丅
+	<strong>/srcfile_w="files.txt"</strong> ... /srcfile= と同様ですが、UNICODE で記述します。
 	<br><br>
-	<strong>/include="..."</strong> ... Include 僼傿儖僞傪巜掕偟傑偡乮<a href="#filter">徻嵶</a>乯
+	<strong>/include="..."</strong> ... Include フィルタを指定します（<a href="#filter">詳細</a>）
 	<br><br>
-	<strong>/exclude="..."</strong> ... Exclude 僼傿儖僞傪巜掕偟傑偡乮<a href="#filter">徻嵶</a>乯
+	<strong>/exclude="..."</strong> ... Exclude フィルタを指定します（<a href="#filter">詳細</a>）
 	<br><br>
-	<strong>/from_date="..."</strong> ... 峏怴擔晅僼傿儖僞乮嵟屆乯傪巜掕偟傑偡乮<a href="#filter">徻嵶</a>乯
+	<strong>/from_date="..."</strong> ... 更新日付フィルタ（最古）を指定します（<a href="#filter">詳細</a>）
 	<br><br>
-	<strong>/to_date="..."</strong> ... 峏怴擔晅僼傿儖僞乮嵟怴乯傪巜掕偟傑偡乮<a href="#filter">徻嵶</a>乯
+	<strong>/to_date="..."</strong> ... 更新日付フィルタ（最新）を指定します（<a href="#filter">詳細</a>）
 	<br><br>
-	<strong>/min_size="..."</strong> ... 僒僀僘僼傿儖僞乮嵟彫乯傪巜掕偟傑偡乮<a href="#filter">徻嵶</a>乯
+	<strong>/min_size="..."</strong> ... サイズフィルタ（最小）を指定します（<a href="#filter">詳細</a>）
 	<br><br>
-	<strong>/max_size="..."</strong> ... 僒僀僘僼傿儖僞乮嵟戝乯傪巜掕偟傑偡乮<a href="#filter">徻嵶</a>乯
+	<strong>/max_size="..."</strong> ... サイズフィルタ（最大）を指定します（<a href="#filter">詳細</a>）
 	<br><br>
-	<strong>/wipe_del</strong> ... 嶍彍儌乕僪帪偵丄僼傽僀儖傪嶍彍偡傞慜偵忋彂偒仌儕僱乕儉偟偰丄暅尦傪柍岠偵偟傑偡乮/wipe_del=FALSE 偱梷巭乯
+	<strong>/wipe_del</strong> ... 削除モード時に、ファイルを削除する前に上書き＆リネームして、復元を無効にします（/wipe_del=FALSE で抑止）
 	<br><br>
-	<strong>/acl</strong> ... 傾僋僙僗僐儞僩儘乕儖儕僗僩(ACL)傪僐僺乕偟傑偡乮NTFS偺傒桳岠乯乮/acl=FALSE 偱梷巭乯
+	<strong>/acl</strong> ... アクセスコントロールリスト(ACL)をコピーします（NTFSのみ有効）（/acl=FALSE で抑止）
 	<br><br>
-	<strong>/stream</strong> ... 暃師僗僩儕乕儉傪僐僺乕偟傑偡乮NTFS偺傒桳岠乯乮/stream=FALSE 偱梷巭乯
+	<strong>/stream</strong> ... 副次ストリームをコピーします（NTFSのみ有効）（/stream=FALSE で抑止）
 	<br><br>
-	<strong>/reparse</strong> ... 僕儍儞僋僔儑儞丒儅僂儞僩億僀儞僩丒僔儞儃儕僢僋儕儞僋傪乮攝壓偱偼側偔乯偦傟帺懱傪僐僺乕偟傑偡乮/reparse=FALSE 偱攝壓傪僐僺乕乯乮<a href="#reparse">徻嵶</a>乯
+	<strong>/reparse</strong> ... ジャンクション・マウントポイント・シンボリックリンクを（配下ではなく）それ自体をコピーします（/reparse=FALSE で配下をコピー）（<a href="#reparse">詳細</a>）
 	<br><br>
-	<strong>/verify</strong> ... MD5(or SHA-1) 偵傛傞彂偒崬傒僨乕僞偺儀儕僼傽僀傪峴偄傑偡乮/verify=FALSE 偱梷巭乯
+	<strong>/verify</strong> ... MD5(or SHA-1) による書き込みデータのベリファイを行います（/verify=FALSE で抑止）
 	<br><br>
 	<a name="linkdest"/>
-	<strong>/linkdest</strong> ... 僴乕僪儕儞僋傪壜擻側尷傝嵞尰偟傑偡丅徻嵶偼 <a href="#hardlink">偙偪傜傪嶲徠</a> 偔偩偝偄丅
+	<strong>/linkdest</strong> ... ハードリンクを可能な限り再現します。詳細は <a href="#hardlink">こちらを参照</a> ください。
 	<br><br>
 	<a name="recreate"/>
-	<strong>/recreate</strong> ... 僼傽僀儖峏怴偺嫇摦傪丄婛懚僼傽僀儖偺忋彂偒偐傜丄婛懚僼傽僀儖嶍彍仌嵞惗惉偵曄峏偟傑偡丅乮/linkdest 巜掕帪偵偼丄/recreate巜掕偺桳柍偵娭傢傜偢丄偙偺摦嶌傪峴偄傑偡乯忢帪丄偙偺摦嶌傪桳岠偵偟偨偄応崌丄fastcopy.ini [main] recreate=1 偵偟傑偡丅
+	<strong>/recreate</strong> ... ファイル更新の挙動を、既存ファイルの上書きから、既存ファイル削除＆再生成に変更します。（/linkdest 指定時には、/recreate指定の有無に関わらず、この動作を行います）常時、この動作を有効にしたい場合、fastcopy.ini [main] recreate=1 にします。
 	<br><br>
-	<strong>/postproc=廔椆帪張棟柤</strong> ... 帠慜偵搊榐偟偰偁傞廔椆帪張棟柤傪巜掕偟傑偡丅乮/postproc=FALSE 偱梷巭乯
+	<strong>/postproc=終了時処理名</strong> ... 事前に登録してある終了時処理名を指定します。（/postproc=FALSE で抑止）
 	<br><br>
-	椺乯 C:\test 攝壓傪 D:\Backup Folder 偵嵎暘僐僺乕偡傞応崌<br>
-		丂fastcopy.exe /cmd=diff C:\test /to="D:\Backup Folder\"
+	例） C:\test 配下を D:\Backup Folder に差分コピーする場合<br>
+		　fastcopy.exe /cmd=diff C:\test /to="D:\Backup Folder\"
 </div>
 
 
 <a name="warning"/>
-<h2 class="help_head2">7. 拲堄乮婋尟側偲偙傠乯</h2>
+<h2 class="help_head2">7. 注意（危険なところ）</h2>
 <div class="help_section">
-	僐僺乕愭僼傽僀儖偼丄摦嶌儌乕僪偵墳偠偰丄栤偄崌傢偣側偟偵丄嫮惂揑偵忋彂偒偡傞偙偲偑偁傝傑偡丅<br>
-	摨婜儌乕僪偱偼丄忬嫷偵墳偠偰丄僐僺乕愭偺僼傽僀儖仌僨傿儗僋僩儕傪嫮惂嶍彍偟傑偡丅<br>
-	嶍彍儌乕僪偱偼丄僼傽僀儖仌僨傿儗僋僩儕傪忢偵嫮惂嶍彍偟傑偡丅<br>
-	乮嫮惂嶍彍亖撉傒庢傝愱梡懏惈偑偮偄偰偄傞応崌丄偦傟傪僋儕傾偟偰偐傜嶍彍乯<br>
+	コピー先ファイルは、動作モードに応じて、問い合わせなしに、強制的に上書きすることがあります。<br>
+	同期モードでは、状況に応じて、コピー先のファイル＆ディレクトリを強制削除します。<br>
+	削除モードでは、ファイル＆ディレクトリを常に強制削除します。<br>
+	（強制削除＝読み取り専用属性がついている場合、それをクリアしてから削除）<br>
 	<br>
-	枩堦僶僌偑偁傟偽丄斶嶴側寢壥偵側傞壜擻惈偑偁傝傑偡丅<br>
-	乮乽<a href="#license">2. 儔僀僙儞僗仌柶愑</a>乿傪弉撉偺偙偲乯
+	万一バグがあれば、悲惨な結果になる可能性があります。<br>
+	（「<a href="#license">2. ライセンス＆免責</a>」を熟読のこと）
 </div>
 
 
 <a name="contact"/>
-<h2 class="help_head2">8. 嵟怴斉仌楢棈愭</h2>
+<h2 class="help_head2">8. 最新版＆連絡先</h2>
 <div class="help_section">
-	埲壓偺 URL 偵嵟怴斉仌宖帵斅偑偁傝傑偡丅<br>
+	以下の URL に最新版＆掲示板があります。<br>
 	<a href="http://ipmsg.org/tools/fastcopy.html">
 	http://ipmsg.org/tools/fastcopy.html</a>
 	<br>
@@ -502,111 +502,114 @@
 
 
 <a name="misc"/>
-<h2 class="help_head2">9. 偦偺懠</h2>
+<h2 class="help_head2">9. その他</h2>
 <div class="help_section">
-	<li>愝掕僼傽僀儖(FastCopy.ini)偍傛傃儘僌僼傽僀儖偼丄<br>
+	<li>設定ファイル(FastCopy.ini)およびログファイルは、<br>
 	<div class="help_sub_section">
-	<strong>Vista埲崀偐偮 \Program Files 攝壓偵僀儞僗僩乕儖偟偨応崌</strong>丄\Users\(USER)\AppData\roaming\FastCopy\ 攝壓偵乮儊僯儏乕偺僼傽僀儖(F) 仺 UserDir(U)乯曐懚偟傑偡丅<br>
-	<strong>偦傟埲奜偺応崌</strong>丄FastCopy.exe 偺懚嵼偡傞僼僅儖僟偵曐懚偝傟傑偡丅<br>
+	<strong>Vista以降かつ \Program Files 配下にインストールした場合</strong>、\Users\(USER)\AppData\roaming\FastCopy\ 配下に（メニューのファイル(F) → UserDir(U)）保存します。<br>
+	<strong>それ以外の場合</strong>、FastCopy.exe の存在するフォルダに保存されます。<br>
 	</div>
-	<li><strong>懠偺傾僾儕働乕僔儑儞摍傊偺慻傒崬傒偵偮偄偰</strong><br>
+	<li><strong>他のアプリケーション等への組み込みについて</strong><br>
 	<div class="help_sub_section">
-	崅懍僐僺乕偺僐傾晹暘(fastcopy.cpp/h)偼丄GUI 晹暘偐傜撈棫偝偣偰嶌偭偰偁傝傑偡丅<br>
-	BSD儔僀僙儞僗偵婎偯偄偰丄偛帺桼偵偍巊偄偔偩偝偄丅
+	高速コピーのコア部分(fastcopy.cpp/h)は、GUI 部分から独立させて作ってあります。<br>
+	BSDライセンスに基づいて、ご自由にお使いください。
 	</div>
-	<li>枩堦丄堎忢廔椆乮椺奜乯偟偨応崌丄fastcopy_exception.log 偑惗惉偝傟傑偡丅
-	乮嶌幰偵憲傞偲丄昳幙岦忋偺偨傔偺庤偑偐傝偵側傝傑偡乯
+	<li>万一、異常終了（例外）した場合、fastcopy_exception.log が生成されます。
+	（作者に送ると、品質向上のための手がかりになります）
 </div>
 
 <a name="todo"/>
 <h2 class="help_head2">10. ToDo</h2>
 <div class="help_section">
-	<li>僱僢僩儚乕僋懳墳乮俀偮偺PC偵擖傟偨 fastcopy 摨巑偱崅懍揮憲乯
-	<li>娙堈斾妑偺崅懍壔
+	<li>ネットワーク対応（２つのPCに入れた fastcopy 同士で高速転送）
+	<li>簡易比較の高速化
 </div>
 
 
 <a name="history"/>
-<h2 class="help_head2">11. 棜楌</h2>
+<h2 class="help_head2">11. 履歴</h2>
 <div class="help_section">
 
 <table class="help_table" border="4">
-<tr><th>Version</th><th>愢柧</th></tr>
-<tr><td>v2.03</td><td>塸岅UI帪偵乽摿尃乿儊僯儏乕崁栚偑岠偐側偄栤戣傪廋惓丅偦偺懠儕僼傽僀儞</td></tr>
-<tr><td>v2.02</td><td>x64 僱僀僥傿僽斉傪儕儕乕僗丅Vista埲崀偱 \Program Files 攝壓偵僀儞僗僩乕儖偟偨応崌丄UAC娐嫬偱側偔偰傕 fastcopy.ini 傗儘僌僼傽僀儖傪 \Users\(USER)\AppData\roaming\FastCopy 攝壓偵曐懚偡傞傛偆偵曄峏丅僙儈僐儘儞傪娷傓僼傽僀儖柤傪巜掕偡傞偲僄儔乕偑弌傞応崌偑偁偭偨偺傪廋惓丅偦偺懠丄廋惓仌儕僼傽僀儞丅</td></tr>
-<tr><td>v2.01</td><td>摨堦HDD撪偱偺戝検堏摦偑姰椆偟側偄偙偲偑偁偭偨偺傪廋惓丅Source/DestDir巜掕偵愨懳僷僗傪昁梫偲偟側偄宍偵栠偟偨丅</td></tr>
-<tr><td>v2.00</td><td>娙堈斾妑婡擻偺捛壛乮CTL僉乕傪墴偟側偑傜乽儕僗僩傾僢僾乿乯丅UAC桳岠側娐嫬偱 \Program Files 攝壓偵僀儞僗僩乕儖偟偨応崌丄fastcopy.ini 傗儘僌僼傽僀儖傪 \Users\(USER)\AppData\roaming\FastCopy 攝壓偵曐懚偡傞傛偆偵曄峏丅暔棟HDD僌儖乕僾傪庤摦愝掕傪壜擻偵丅DestDir巜掕偺拞娫僼僅儖僟偑懚嵼偟側偄応崌偼嶌惉偡傞傛偆偵丅64bitOS偱偺32bit僔僃儖奼挘偵懳墳丅僕儑僽娗棟嶍彍帪偺椺奜敪惗傪廋惓丅</td></tr>
-<tr><td>v1.99r4</td><td>僐僺乕愭偵丄戝暥帤彫暥帤偺堘偆僼傽僀儖柤偑懚嵼偡傞応崌偵丄僐僺乕尦偵崌傢偣傞傛偆偵曄峏乮慡忋彂偒埲奜乯丅徻嵶僄儔乕偑昞帵偝傟側偄偙偲偑偁偭偨偺傪廋惓</td></tr>
-<tr><td>v1.99r3</td><td>摨堦HDD撪偺暿僷乕僥傿僔儑儞娫僐僺乕偑丄暿HDD儌乕僪偵岆敾掕偝傟傞栤戣偺廋惓(v.199r2偺傒)丅帪娫梊應偺惛搙傪彮偟岦忋丅</td></tr>
-<tr><td>v1.99r2</td><td>徻嵶僼傽僀儖儘僌婡擻(/filelog)傪捛壛乮儀儕僼傽僀帪偼僴僢僔儏抣(Default:MD5)傕弌椡乯丅堏摦儌乕僪偱偺僼傿儖僞乕婡擻傪棙梡壜擻偵丅婲摦傪崅懍壔乮ini僼傽僀儖傪撈帺儔僀僽儔儕宱桼偺傾僋僙僗偵曄峏乯丅Source偱捈愙巜掕偟偨僼傽僀儖偵懳偟偰傕丄僼傿儖僞偑岠偔傛偆偵曄峏丅/srcfile 偱 MBCS暥帤傪巊偊側偐偭偨栤戣傪廋惓丅偦偺懠儕僼傽僀儞丅</td></tr>
-<tr><td>v1.98</td><td>奼挘乮僒僀僘仌峏怴擔晅乯僼傿儖僞傪捛壛乮愝掕仺奼挘僼傿儖僞昞帵乯</td></tr>
-<tr><td>v1.97</td><td>廔椆帪張棟愝掕帪偺僒僂儞僪嵞惗偑峴傢傟側偄偙偲偑偁偭偨偺傪廋惓丅偦偺懠儕僼傽僀儞</td></tr>
-<tr><td>v1.96</td><td>僴乕僪儕儞僋嵞尰僆僾僔儑儞巜掕帪(/linkdest)丄僼傽僀儖峏怴偺摦嶌傪丄婛懚僼傽僀儖傪忋彂偒仺嶍彍仌嵞嶌惉偵曄峏偟偨丅傑偨丄僴乕僪儕儞僋嵞尰僆僾僔儑儞巜掕偵娭傢傜偢丄僼傽僀儖峏怴摦嶌傪嶍彍仌嵞嶌惉偵偡傞僆僾僔儑儞(/recreate)傪捛壛</td></tr>
-<tr><td>v1.95</td><td>僴乕僪儕儞僋傪嵞尰偡傞僆僾僔儑儞(/linkdest)偺捛壛丅廔椆帪張棟捠抦僟僀傾儘僌偑嵟慜柺昞帵偝傟傞傛偆偵曄峏丅僐僺乕廔椆帪偵晄惓側儊儌儕奐曻傪偡傞偙偲偑偁偭偨偺傪廋惓(v1.93-v1.94)丅ACL/Stream偺僐僺乕偵幐攕偡傞偙偲偑偁偭偨偺傪廋惓丅</td></tr>
-<tr><td>v1.94</td><td>僿儖僾僼傽僀儖偑奐偐側偐偭偨偺傪廋惓(v1.93偺傒)</td></tr>
-<tr><td>v1.93</td><td>廔椆帪張棟愝掕乮Shutdown丄僐儅儞僪幚峴摍傪壜擻偵乯傪捛壛丅乽儘僌傪奐偔乿儊僯儏乕傪捛壛丅僼傽僀儖偵傛傞Source巜掕僆僾僔儑儞乮/srcfile=乯傪捛壛丅僕儑僽娗棟偱乽嶍彍儌乕僪乿傪乽堏摦儌乕僪乿偲偟偰曐懚偟偰偄偨偺傪廋惓乮v1.80-v1.92乯丅僀儞僗僩乕儔偺僔儑乕僩僇僢僩嶌惉僆僾僔儑儞偑岠偄偰偄側偐偭偨偺傪廋惓乮v1.92偺傒乯</td></tr>
-<tr><td>v1.92</td><td>僔僃儖奼挘偵乽僞僗僋僩儗僀偱幚峴乿僆僾僔儑儞傪捛壛丅僄儔乕敪惗帪偵丄僐僺乕愭偵晄姰慡側僼傽僀儖偑巆傞偙偲偑偁偭偨偺傪廋惓丅塸岅儌乕僪偺昞婰傪彮偟夵慞</td></tr>
-<tr><td>v1.91</td><td>塸岅UI儌乕僪偺捛壛丅暅尦柍岠壔晅偒嶍彍偵幐攕偡傞偙偲偑偁偭偨偺傪廋惓丅儀儕僼傽僀晅偒堏摦帪偵丄婬偵張棟偑恑傑側偔側傞壜擻惈偑偁偭偨偺傪廋惓丅僨傿儗僋僩儕慖戰僟僀傾儘僌偱僱僢僩儚乕僋僪儔僀僽偑尒偊側偔側偭偰偄偨偺傪廋惓丅</td></tr>
-<tr><td>v1.90</td><td>儀儕僼傽僀摦嶌偺崅懍壔乮I/O 偲僴僢僔儏寁嶼傪暿僗儗僢僪壔偟偰暲楍張棟乯丅儀儕僼傽僀梡僴僢僔儏傾儖僑儕僘儉偵 MD5 傪捛壛偟丄MD5傪僨僼僅儖僩偵曄峏乮fastcopy.ini 偱 [main] using_MD5 = 0 偲偡傟偽 SHA-1 傪棙梡乯丅僂傿儞僪僂偺埵抲仌僒僀僘屌掕婡擻丄偍傛傃丄Source 佁 DestDir 岎姺婡擻傪捛壛丅</td></tr>
-<tr><td>v1.84</td><td>僼傿儖僞暥帤楍搊榐偱丄乮庬椶偛偲偺乯搊榐暥帤悢崌寁偑62*n暥帤乮儊僞暥帤傪彍偔乯偺嫬奅偱廔傢傞暥帤楍偑搊榐偝傟側偐偭偨偺傪廋惓丅</td></tr>
-<tr><td>v1.83</td><td>撉傒崬傒懁OS僉儍僢僔儏棙梡ON偺応崌傕丄儀儕僼傽僀梡撉傒崬傒帪偼柍岠壔偡傞傛偆偵偟偨</td></tr>
-<tr><td>v1.82</td><td>撉傒崬傒懁OS僉儍僢僔儏傪棙梡偡傞僆僾僔儑儞捛壛乮OS僉儍僢僔儏偵嵹偭偰偄傞僼傽僀儖偼崅懍撉傒崬傒偝傟傞偑丄偦偆偱側偄応崌丄柍懯偵OS僉儍僢僔儏傪棙梡偟偰懠偺壖憐儊儌儕傪僗儚僢僾傾僂僩偝偣傞尨場偵側傞偺偱丄昗弨偱偼旕悇彠乯</td></tr>
-<tr><td>v1.81</td><td>儀儕僼傽僀晅偒堏摦偱儀儕僼傽僀僄儔乕偑敪惗偡傞偲廔椆偟側偄応崌偑偁偭偨偺傪廋惓</td></tr>
-<tr><td>v1.80</td><td>彂偒崬傒僨乕僞偺儀儕僼傽僀(SHA-1)僆僾僔儑儞傪捛壛丅僔僃儖奼挘偱偺乽揬傝晅偗乿傪僒億乕僩丅堏摦乮慡忋彂偒乯傪乮僒僀僘丒擔晅乯偵曄峏偡傞僆僾僔儑儞偺捛壛丅拃師堏摦僆僾僔儑儞偺捛壛丅堏摦儌乕僪帪偵堦晹偱僄儔乕偑敪惗偟偨応崌偵傕丄惓忢偵僐僺乕偱偒偨僼傽僀儖偵偮偄偰偼嶍彍傪宲懕偡傞摦嶌偵曄峏丅嵟戝IO僒僀僘愝掕偑戝偒偡偓傞応崌乮=ERROR_NO_SYSTEM_RESOURCES敪惗帪乯偵丄帺摦揑偵IO僒僀僘傪棊偲偟偰宲懕壜擻偵偟偨丅廔椆梊應傪庒姳夵慞丅宲懕晄擻帪傕妋擣僟僀傾儘僌傪弌偝側偄僆僾僔儑儞(/no_confirm_stop)傪捛壛丅僾儘僙僗偺栠傝抣偵偮偄偰丄僄儔乕敪惗帪偵偼 -1 傪曉偡傛偆偵偟偨</td></tr>
-<tr><td>v1.71</td><td>Win2000/Me/98 偱僔僃儖奼挘搊榐帪偵堎忢廔椆偡傞偙偲偑偁偭偨偺傪廋惓</td></tr>
-<tr><td>v1.70</td><td>僕儍儞僋僔儑儞仌僔儞儃儕僢僋儕儞僋偵懳墳乮僨僼僅儖僩偱偼攝壓偱偼側偔丄儕儞僋帺懱傪僐僺乕丅嶍彍偱偼忢偵儕儞僋偩偗傪嶍彍乯丅Vista UAC乮摿尃徃奿乯懳墳丅64bit斉僔僃儖奼挘DLL摨崼丅僄儔乕儘僌偺UTF-8弌椡僆僾僔儑儞捛壛丅暅尦柍岠壔嶍彍偱傕僴乕僪儕儞僋偝傟偰偄傞僼傽僀儖応崌偼忋彂偒側偟偺嶍彍偵丅儘僌僼傽僀儖柤巜掕僆僾僔儑儞(/logfile=)捛壛丅僄儔乕儘僌椞堟偑彫偝偔側偭偰偄偨偺傪廋惓丅偦偺懠儕僼傽僀儞丅</td></tr>
-<tr><td>v1.63</td><td>include/exclude僼傿儖僞偺忋尷暥帤悢傪62->2048暥帤偵曄峏丅偦偺懠丄儕僼傽僀儞</td></tr>
-<tr><td>v1.62</td><td>v1.60,v1.61偱丄僐僺乕愭僼傽僀儖嶌惉僄儔乕偑敪惗偡傞応崌偑偁偭偨偺傪廋惓</td></tr>
-<tr><td>v1.61</td><td>v1.60偱丄src 僼傿乕儖僪偺擖椡偑8192暥帤傪挻偊偰偄偨応崌偵丄幚峴帪偵 8192暥帤偵愗傝媗傔傜傟偰偟傑偆栤戣傪廋惓</td></tr>
-<tr><td>v1.60</td><td>NTFS 傾僋僙僗僐儞僩儘乕儖儕僗僩(ACL)丄暃師僗僩儕乕儉偺僒億乕僩丅嶍彍帪偺暅尦柍岠壔僆僾僔儑儞乮扨弮忋彂偒仌NSA曽幃乯捛壛丅帺摦懍搙惂尷傪僗儔僀僟僐儞僩儘乕儖偵曄峏乮僼儖僗僺乕僪偐傜姰慡掆巭傑偱丄12抜奒偺僐儞僩儘乕儖乯丅帺摦懍搙惂尷帪偵僾儘僙僗桪愭搙僋儔僗傪挷惍丅</td></tr>
-<tr><td>v1.55</td><td>僞僗僋僩儗僀幚峴帪偺栤偄崌傢偣僟僀傾儘僌偑嵍忋偵弌偰偄偨偺傪廋惓(v1.53埲崀)</td></tr>
-<tr><td>v1.54</td><td>NT4.0偱摦嶌偡傞傛偆偵廋惓</td></tr>
-<tr><td>v1.53</td><td>僐儅儞僪儔僀儞偱僞僗僋僩儗僀幚峴偡傞応崌偼丄僼僅乕僇僗傪扗傢側偄傛偆偵廋惓丅儅儖僠儌僯僞巊梡帪偵丄儅僂僗偺懚嵼偡傞儌僯僞懁偵僂傿儞僪僂傪弌偡傛偆偵曄峏丅/error_stop偑岠偄偰偄側偐偭偨偺傪廋惓(v1.52偺傒)丅</td></tr>
-<tr><td>v1.52</td><td>帺摦懍搙惂尷婡擻偺捛壛丅堦晹偺 UDF僼傽僀儖僔僗僥儉偱丄摨堦僞僀儉僗僞儞僾敾掕偑昁梫埲忋偵尩偟偔側偭偰偄偨偺傪廋惓丅僐儅儞僪儔僀儞僆僾僔儑儞偺梷巭巜掕乮=FALSE乯偑桳岠偵摥偄偰偄側偐偭偨偺傪廋惓</td></tr>
-<tr><td>v1.51</td><td>姰椆帪娫梊應婡擻棙梡帪偵丄堎側傞暋悢偺僨傿儗僋僩儕傪src偵巜掕偡傞偲棊偪傞偙偲偑偁偭偨偺傪廋惓</td></tr>
-<tr><td>v1.50</td><td>摨婜儌乕僪偱偺僼傿儖僞巜掕傪壜擻偵丅偦偺懠丄儕僼傽僀儞</td></tr>
-<tr><td>v1.40</td><td>僕儑僽娗棟婡擻偺捛壛丅張棟撪梕偺帠慜儕僗僩傾僢僾婡擻偺捛壛丅懡廳幚峴惂屼僆僾僔儑儞偺捛壛丅僼傿儖僞巜掕帪偵丄嬻僨傿儗僋僩儕傪嶌惉偟側偄僆僾僔儑儞傪捛壛丅帺摦/摨堦/暿HDD儌乕僪巜掕偺捛壛丅儊僀儞僂傿儞僪僂偺儕僒僀僘傪壜擻偵丅API僄儔乕偺愢柧昞帵丅偦偺懠丄儕僼傽僀儞</td></tr>
-<tr><td>v1.32</td><td>僐儅儞僪儔僀儞帪偵 Include/Exclude僼傿儖僞偑柍岠偵側偭偰偄偨偺傪廋惓丅偦偺懠丄儕僼傽僀儞</td></tr>
-<tr><td>v1.31</td><td>Include/Exclude僼傿儖僞偱丄懡悢偺巜掕傪偟偨応崌偵丄幚峴捈屻偵棊偪傞偙偲偑偁偭偨偺傪廋惓</td></tr>
-<tr><td>v1.30</td><td>Include/Exclude僼傿儖僞婡擻捛壛丅摨堦僨傿儗僋僩儕撪偱僪儔僢僌仌僪儘僢僾偟偨応崌丄暋惢傪嶌惉壜擻偵丅Source慖戰偱僼傽僀儖慖戰僟僀傾儘僌捛壛丅偝傜偵庒姳偺崅懍壔丅僔僃儖宱桼婲摦亄僉儍儞僙儖偟偨応崌丄嶍彍儌乕僪埲奜偼帺摦廔椆偟側偄傛偆偵丅偦偺懠儕僼傽僀儞丅</td></tr>
-<tr><td>v1.21</td><td>堦晹娐嫬偱僔僃儖奼挘儊僯儏乕偑弌側偄尰徾乮v1.20偱僄儞僶僌乯傪廋惓</td></tr>
-<tr><td>v1.20</td><td>僐僺乕姰椆帪娫梊應婡擻捛壛丅僔僃儖奼挘偱丄暋悢僼傽僀儖慖戰亄奐偔偑婡擻偟側偄偙偲偑偁偭偨偺傪廋惓丅偦偺懠儕僼傽僀儞</td></tr>
-<tr><td>v1.12</td><td>僔僃儖奼挘偺僒僽儊僯儏乕壔僆僾僔儑儞捛壛丅僔僃儖宱桼偱戝検偺僼傽僀儖傪慖戰偟偨応崌偵屌傑傞偙偲偑偁偭偨偺傪廋惓(v1.10-1.11 偺傒)丅僱僢僩儚乕僋僾儗乕僗偱偺僔僃儖奼挘偺嫇摦傪曄峏丅偦偺懠儕僼傽僀儞</td></tr>
-<tr><td>v1.11</td><td>堦晹娐嫬偱丄幚峴偑奐巒偱偒側偄栤戣傪廋惓</td></tr>
-<tr><td>v1.10</td><td>儊僀儞僂傿儞僪僂偺UNICODE壔乮UNICODE僼傽僀儖柤偺僪儔僢僌仌僪儘僢僾摍偵懳墳乯丅僙儈僐儘儞傪娷傓僷僗柤偺僼傽僀儖傪僪儔僢僌仌僪儘僢僾偟偨応崌丄僷僗柤傪""偱埻傓傛偆偵曄峏丅僔僃儖婲摦幚峴帪偺妋擣僟僀傾儘僌傪弌偝側偄儌乕僪捛壛丅僔僃儖奼挘桳岠帪偵丄僗僞乕僩儊僯儏乕攝壓偺僨傿儗僋僩儕偑奐偗側偔側傞偙偲偑偁偭偨偺傪廋惓丅偦偺懠儕僼傽僀儞丅</td></tr>
-<tr><td>v1.00</td><td>堏摦儌乕僪偺僒億乕僩丅僔僃儖奼挘婡擻捛壛丅嵟慜柺僆僾僔儑儞捛壛丅僄儔乕儘僌徻嵶壔丅/force_close 僆僾僔儑儞捛壛丅儊僀儞儊僯儏乕仌愝掕僟僀傾儘僌捛壛丅塸岅OS懳墳丅偦偺懠儕僼傽僀儞丅</td></tr>
-<tr><td>v0.99</td><td>摨堦HDD撪偺暿僪儔僀僽儗僞乕傪暿HDD儌乕僪偲尒側偡偙偲偑偁偭偨乮v0.90埲崀偱僄儞僶僌乯偺傪廋惓丅DestDir 傊偺僪儔僢僌仌僪儘僢僾傪壜擻偵丅昞帵娭學偺廋惓丄偦偺懠儕僼傽僀儞丅</td></tr>
-<tr><td>v0.98</td><td>嶍彍拞偺僉儍儞僙儖偑岠偐側偄偙偲偑偁偭偨偺傪廋惓</td></tr>
-<tr><td>v0.97</td><td>僄儔乕儘僌昞帵捛壛丅儘僌僼傽僀儖僆僾僔儑儞捛壛丅僪儔僢僌仌僪儘僢僾帪偺嫇摦傪曄峏</td></tr>
-<tr><td>v0.96</td><td>崅懍嶍彍儌乕僪捛壛丅僐儅儞僪儔僀儞儌乕僪偱偺僞僗僋僩儗僀奿擺忦審傪曄峏</td></tr>
-<tr><td>v0.95</td><td>僿儖僾偑奐偐側偄偙偲偑偁偭偨偺傪廋惓</td></tr>
-<tr><td>v0.94</td><td>愝掕曐懚愭傪儗僕僗僩儕偐傜 ini 僼傽僀儖偵曄峏丅DestDir 偵儖乕僩傪巜掕偡傞偲棊偪傞偙偲偑偁偭偨偺傪廋惓</td></tr>
-<tr><td>v0.93</td><td>僨僶僢僌梡儖乕僠儞偑巆偭偰偄偨偺傪嶍彍</td></tr>
-<tr><td>v0.92</td><td>僆僾僔儑儞愝掕傪曐懚偡傞傛偆偵偟偨丅僐僺乕愭僨傿儗僋僩儕偑嬻偺応崌偵棊偪傞偙偲偑偁偭偨偺傪廋惓</td></tr>
-<tr><td>v0.91</td><td>撪晹儕僼傽僀儞丅</td></tr>
-<tr><td>v0.90</td><td>僐僺乕尦偺暋悢巜掕偍傛傃僪儔僢僌仌僪儘僢僾巜掕傪壜擻偵丅
-      僐儅儞僪儔僀儞帪丄僞僗僋僩儗僀儌乕僪傪僨僼僅儖僩偵丅
-      傑傟偵梋暘偵峏怴偑敪惗偡傞応崌偑偁偭偨偺傪廋惓丅</td></tr>
-<tr><td>v0.88</td><td>僐儅儞僪儔僀儞儌乕僪丄僞僗僋僩儗僀奿擺丄
-      僩儗僀撪傾僀僐儞傾僋僔儑儞(?)丄庤敳偒僿儖僾偺捛壛丅</td></tr>
-<tr><td>v0.87</td><td>棜楌偺曐懚仌奺庬愝掕曐懚丅</td></tr>
-<tr><td>v0.86</td><td>摨婜儌乕僪偺捛壛丅</td></tr>
-<tr><td>v0.85</td><td>僼傽僀儖柤斾妑偱戝暥帤彫暥帤偺嬫暿傪偟側偄傛偆廋惓丅</td></tr>
-<tr><td>v0.84</td><td>FAT/Samba偱偺摨堦擔晅敾掕偺廋惓丅偦偺懠廋惓丅</td></tr>
-<tr><td>v0.83</td><td>Update乮忋彂偒偼丄擔晅偑怴偟偄僼傽僀儖偺傒乯儌乕僪捛壛丅</td></tr>
-<tr><td>v0.82</td><td>src 偵儚僀儖僪僇乕僪巜掕偑巊偊側偔側偭偰偄偨偺傪廋惓丅</td></tr>
-<tr><td>v0.81</td><td>src/dst僨傿儗僋僩儕僄儞僩儕庢摼傪暲楍摦嶌乮暿HDD儌乕僪乯丅</td></tr>
-<tr><td>v0.80</td><td>嵎暘僐僺乕儌乕僪捛壛丅</td></tr>
-<tr><td>v0.70</td><td>摨堦HDD丄暿HDD 儌乕僪偺帺摦敾掕丅</td></tr>
-<tr><td>v0.66</td><td>堦晹僶僌僼傿僋僗丅</td></tr>
-<tr><td>v0.65</td><td>僪儔僀僽僞僀僾偱摦嶌傪曄壔丅僄儔乕張棟捛壛丅</td></tr>
-<tr><td>v0.64</td><td>婬偵僨僢僪儘僢僋傪婲偙偡壜擻惈傪敪尒偟偨偺偱廋惓丅</td></tr>
-<tr><td>v0.63</td><td>Cancel 儃僞儞偺摦嶌傪乽R/W Thread 傪 Suspend 偟偨忋
-      偱妋擣乿偵曄峏丅僼傽僀儖柤昞帵偼儚乕僪儔僢僾側偟偵丅</td></tr>
-<tr><td>v0.62</td><td>NT宯偱暔棟儊儌儕儘僢僋傪僨僼僅儖僩偵偡傞偺傪傗傔傞丅</td></tr>
-<tr><td>v0.61</td><td>僗僥乕僞僗椞堟傪 EDIT_BOX 偵曄峏乮僐僺乕壜擻偵乯丅</td></tr>
-<tr><td>v0.60</td><td>98宯偱摦嶌偡傞傛偆偵廋惓丅僄儔乕柍帇僠僃僢僋捛壛丅</td></tr>
-<tr><td>v0.50</td><td>兛斉僼傽乕僗僩儕儕乕僗丅 (2004/09/27)</td></tr>
+<tr><th>Version</th><th>説明</th></tr>
+<tr><td>v2.06</td><td>ベリファイ時にエラーとなることがあったのを修正(v2.05のみ)。</td></tr>
+<tr><td>v2.05</td><td>Win98で設定が保存できない問題を修正。ACL/副次Streamエラーの記録を選択可能に。</td></tr>
+<tr><td>v2.04</td><td>特権昇格後にもドラッグ＆ドロップできるように。FastCopyシェル拡張DLLを日本語フォルダ内においた場合にシェル拡張が利用できなかった問題を修正。設定ダイアログ＆その他リファイン</td></tr>
+<tr><td>v2.03</td><td>英語UI時に「特権」メニュー項目が効かない問題を修正。その他リファイン</td></tr>
+<tr><td>v2.02</td><td>x64 ネイティブ版をリリース。Vista以降で \Program Files 配下にインストールした場合、UAC環境でなくても fastcopy.ini やログファイルを \Users\(USER)\AppData\roaming\FastCopy 配下に保存するように変更。セミコロンを含むファイル名を指定するとエラーが出る場合があったのを修正。その他、修正＆リファイン。</td></tr>
+<tr><td>v2.01</td><td>同一HDD内での大量移動が完了しないことがあったのを修正。Source/DestDir指定に絶対パスを必要としない形に戻した。</td></tr>
+<tr><td>v2.00</td><td>簡易比較機能の追加（CTLキーを押しながら「リストアップ」）。UAC有効な環境で \Program Files 配下にインストールした場合、fastcopy.ini やログファイルを \Users\(USER)\AppData\roaming\FastCopy 配下に保存するように変更。物理HDDグループを手動設定を可能に。DestDir指定の中間フォルダが存在しない場合は作成するように。64bitOSでの32bitシェル拡張に対応。ジョブ管理削除時の例外発生を修正。</td></tr>
+<tr><td>v1.99r4</td><td>コピー先に、大文字小文字の違うファイル名が存在する場合に、コピー元に合わせるように変更（全上書き以外）。詳細エラーが表示されないことがあったのを修正</td></tr>
+<tr><td>v1.99r3</td><td>同一HDD内の別パーティション間コピーが、別HDDモードに誤判定される問題の修正(v.199r2のみ)。時間予測の精度を少し向上。</td></tr>
+<tr><td>v1.99r2</td><td>詳細ファイルログ機能(/filelog)を追加（ベリファイ時はハッシュ値(Default:MD5)も出力）。移動モードでのフィルター機能を利用可能に。起動を高速化（iniファイルを独自ライブラリ経由のアクセスに変更）。Sourceで直接指定したファイルに対しても、フィルタが効くように変更。/srcfile で MBCS文字を使えなかった問題を修正。その他リファイン。</td></tr>
+<tr><td>v1.98</td><td>拡張（サイズ＆更新日付）フィルタを追加（設定→拡張フィルタ表示）</td></tr>
+<tr><td>v1.97</td><td>終了時処理設定時のサウンド再生が行われないことがあったのを修正。その他リファイン</td></tr>
+<tr><td>v1.96</td><td>ハードリンク再現オプション指定時(/linkdest)、ファイル更新の動作を、既存ファイルを上書き→削除＆再作成に変更した。また、ハードリンク再現オプション指定に関わらず、ファイル更新動作を削除＆再作成にするオプション(/recreate)を追加</td></tr>
+<tr><td>v1.95</td><td>ハードリンクを再現するオプション(/linkdest)の追加。終了時処理通知ダイアログが最前面表示されるように変更。コピー終了時に不正なメモリ開放をすることがあったのを修正(v1.93-v1.94)。ACL/Streamのコピーに失敗することがあったのを修正。</td></tr>
+<tr><td>v1.94</td><td>ヘルプファイルが開かなかったのを修正(v1.93のみ)</td></tr>
+<tr><td>v1.93</td><td>終了時処理設定（Shutdown、コマンド実行等を可能に）を追加。「ログを開く」メニューを追加。ファイルによるSource指定オプション（/srcfile=）を追加。ジョブ管理で「削除モード」を「移動モード」として保存していたのを修正（v1.80-v1.92）。インストーラのショートカット作成オプションが効いていなかったのを修正（v1.92のみ）</td></tr>
+<tr><td>v1.92</td><td>シェル拡張に「タスクトレイで実行」オプションを追加。エラー発生時に、コピー先に不完全なファイルが残ることがあったのを修正。英語モードの表記を少し改善</td></tr>
+<tr><td>v1.91</td><td>英語UIモードの追加。復元無効化付き削除に失敗することがあったのを修正。ベリファイ付き移動時に、稀に処理が進まなくなる可能性があったのを修正。ディレクトリ選択ダイアログでネットワークドライブが見えなくなっていたのを修正。</td></tr>
+<tr><td>v1.90</td><td>ベリファイ動作の高速化（I/O とハッシュ計算を別スレッド化して並列処理）。ベリファイ用ハッシュアルゴリズムに MD5 を追加し、MD5をデフォルトに変更（fastcopy.ini で [main] using_MD5 = 0 とすれば SHA-1 を利用）。ウィンドウの位置＆サイズ固定機能、および、Source ⇔ DestDir 交換機能を追加。</td></tr>
+<tr><td>v1.84</td><td>フィルタ文字列登録で、（種類ごとの）登録文字数合計が62*n文字（メタ文字を除く）の境界で終わる文字列が登録されなかったのを修正。</td></tr>
+<tr><td>v1.83</td><td>読み込み側OSキャッシュ利用ONの場合も、ベリファイ用読み込み時は無効化するようにした</td></tr>
+<tr><td>v1.82</td><td>読み込み側OSキャッシュを利用するオプション追加（OSキャッシュに載っているファイルは高速読み込みされるが、そうでない場合、無駄にOSキャッシュを利用して他の仮想メモリをスワップアウトさせる原因になるので、標準では非推奨）</td></tr>
+<tr><td>v1.81</td><td>ベリファイ付き移動でベリファイエラーが発生すると終了しない場合があったのを修正</td></tr>
+<tr><td>v1.80</td><td>書き込みデータのベリファイ(SHA-1)オプションを追加。シェル拡張での「貼り付け」をサポート。移動（全上書き）を（サイズ・日付）に変更するオプションの追加。逐次移動オプションの追加。移動モード時に一部でエラーが発生した場合にも、正常にコピーできたファイルについては削除を継続する動作に変更。最大IOサイズ設定が大きすぎる場合（=ERROR_NO_SYSTEM_RESOURCES発生時）に、自動的にIOサイズを落として継続可能にした。終了予測を若干改善。継続不能時も確認ダイアログを出さないオプション(/no_confirm_stop)を追加。プロセスの戻り値について、エラー発生時には -1 を返すようにした</td></tr>
+<tr><td>v1.71</td><td>Win2000/Me/98 でシェル拡張登録時に異常終了することがあったのを修正</td></tr>
+<tr><td>v1.70</td><td>ジャンクション＆シンボリックリンクに対応（デフォルトでは配下ではなく、リンク自体をコピー。削除では常にリンクだけを削除）。Vista UAC（特権昇格）対応。64bit版シェル拡張DLL同梱。エラーログのUTF-8出力オプション追加。復元無効化削除でもハードリンクされているファイル場合は上書きなしの削除に。ログファイル名指定オプション(/logfile=)追加。エラーログ領域が小さくなっていたのを修正。その他リファイン。</td></tr>
+<tr><td>v1.63</td><td>include/excludeフィルタの上限文字数を62->2048文字に変更。その他、リファイン</td></tr>
+<tr><td>v1.62</td><td>v1.60,v1.61で、コピー先ファイル作成エラーが発生する場合があったのを修正</td></tr>
+<tr><td>v1.61</td><td>v1.60で、src フィールドの入力が8192文字を超えていた場合に、実行時に 8192文字に切り詰められてしまう問題を修正</td></tr>
+<tr><td>v1.60</td><td>NTFS アクセスコントロールリスト(ACL)、副次ストリームのサポート。削除時の復元無効化オプション（単純上書き＆NSA方式）追加。自動速度制限をスライダコントロールに変更（フルスピードから完全停止まで、12段階のコントロール）。自動速度制限時にプロセス優先度クラスを調整。</td></tr>
+<tr><td>v1.55</td><td>タスクトレイ実行時の問い合わせダイアログが左上に出ていたのを修正(v1.53以降)</td></tr>
+<tr><td>v1.54</td><td>NT4.0で動作するように修正</td></tr>
+<tr><td>v1.53</td><td>コマンドラインでタスクトレイ実行する場合は、フォーカスを奪わないように修正。マルチモニタ使用時に、マウスの存在するモニタ側にウィンドウを出すように変更。/error_stopが効いていなかったのを修正(v1.52のみ)。</td></tr>
+<tr><td>v1.52</td><td>自動速度制限機能の追加。一部の UDFファイルシステムで、同一タイムスタンプ判定が必要以上に厳しくなっていたのを修正。コマンドラインオプションの抑止指定（=FALSE）が有効に働いていなかったのを修正</td></tr>
+<tr><td>v1.51</td><td>完了時間予測機能利用時に、異なる複数のディレクトリをsrcに指定すると落ちることがあったのを修正</td></tr>
+<tr><td>v1.50</td><td>同期モードでのフィルタ指定を可能に。その他、リファイン</td></tr>
+<tr><td>v1.40</td><td>ジョブ管理機能の追加。処理内容の事前リストアップ機能の追加。多重実行制御オプションの追加。フィルタ指定時に、空ディレクトリを作成しないオプションを追加。自動/同一/別HDDモード指定の追加。メインウィンドウのリサイズを可能に。APIエラーの説明表示。その他、リファイン</td></tr>
+<tr><td>v1.32</td><td>コマンドライン時に Include/Excludeフィルタが無効になっていたのを修正。その他、リファイン</td></tr>
+<tr><td>v1.31</td><td>Include/Excludeフィルタで、多数の指定をした場合に、実行直後に落ちることがあったのを修正</td></tr>
+<tr><td>v1.30</td><td>Include/Excludeフィルタ機能追加。同一ディレクトリ内でドラッグ＆ドロップした場合、複製を作成可能に。Source選択でファイル選択ダイアログ追加。さらに若干の高速化。シェル経由起動＋キャンセルした場合、削除モード以外は自動終了しないように。その他リファイン。</td></tr>
+<tr><td>v1.21</td><td>一部環境でシェル拡張メニューが出ない現象（v1.20でエンバグ）を修正</td></tr>
+<tr><td>v1.20</td><td>コピー完了時間予測機能追加。シェル拡張で、複数ファイル選択＋開くが機能しないことがあったのを修正。その他リファイン</td></tr>
+<tr><td>v1.12</td><td>シェル拡張のサブメニュー化オプション追加。シェル経由で大量のファイルを選択した場合に固まることがあったのを修正(v1.10-1.11 のみ)。ネットワークプレースでのシェル拡張の挙動を変更。その他リファイン</td></tr>
+<tr><td>v1.11</td><td>一部環境で、実行が開始できない問題を修正</td></tr>
+<tr><td>v1.10</td><td>メインウィンドウのUNICODE化（UNICODEファイル名のドラッグ＆ドロップ等に対応）。セミコロンを含むパス名のファイルをドラッグ＆ドロップした場合、パス名を""で囲むように変更。シェル起動実行時の確認ダイアログを出さないモード追加。シェル拡張有効時に、スタートメニュー配下のディレクトリが開けなくなることがあったのを修正。その他リファイン。</td></tr>
+<tr><td>v1.00</td><td>移動モードのサポート。シェル拡張機能追加。最前面オプション追加。エラーログ詳細化。/force_close オプション追加。メインメニュー＆設定ダイアログ追加。英語OS対応。その他リファイン。</td></tr>
+<tr><td>v0.99</td><td>同一HDD内の別ドライブレターを別HDDモードと見なすことがあった（v0.90以降でエンバグ）のを修正。DestDir へのドラッグ＆ドロップを可能に。表示関係の修正、その他リファイン。</td></tr>
+<tr><td>v0.98</td><td>削除中のキャンセルが効かないことがあったのを修正</td></tr>
+<tr><td>v0.97</td><td>エラーログ表示追加。ログファイルオプション追加。ドラッグ＆ドロップ時の挙動を変更</td></tr>
+<tr><td>v0.96</td><td>高速削除モード追加。コマンドラインモードでのタスクトレイ格納条件を変更</td></tr>
+<tr><td>v0.95</td><td>ヘルプが開かないことがあったのを修正</td></tr>
+<tr><td>v0.94</td><td>設定保存先をレジストリから ini ファイルに変更。DestDir にルートを指定すると落ちることがあったのを修正</td></tr>
+<tr><td>v0.93</td><td>デバッグ用ルーチンが残っていたのを削除</td></tr>
+<tr><td>v0.92</td><td>オプション設定を保存するようにした。コピー先ディレクトリが空の場合に落ちることがあったのを修正</td></tr>
+<tr><td>v0.91</td><td>内部リファイン。</td></tr>
+<tr><td>v0.90</td><td>コピー元の複数指定およびドラッグ＆ドロップ指定を可能に。
+      コマンドライン時、タスクトレイモードをデフォルトに。
+      まれに余分に更新が発生する場合があったのを修正。</td></tr>
+<tr><td>v0.88</td><td>コマンドラインモード、タスクトレイ格納、
+      トレイ内アイコンアクション(?)、手抜きヘルプの追加。</td></tr>
+<tr><td>v0.87</td><td>履歴の保存＆各種設定保存。</td></tr>
+<tr><td>v0.86</td><td>同期モードの追加。</td></tr>
+<tr><td>v0.85</td><td>ファイル名比較で大文字小文字の区別をしないよう修正。</td></tr>
+<tr><td>v0.84</td><td>FAT/Sambaでの同一日付判定の修正。その他修正。</td></tr>
+<tr><td>v0.83</td><td>Update（上書きは、日付が新しいファイルのみ）モード追加。</td></tr>
+<tr><td>v0.82</td><td>src にワイルドカード指定が使えなくなっていたのを修正。</td></tr>
+<tr><td>v0.81</td><td>src/dstディレクトリエントリ取得を並列動作（別HDDモード）。</td></tr>
+<tr><td>v0.80</td><td>差分コピーモード追加。</td></tr>
+<tr><td>v0.70</td><td>同一HDD、別HDD モードの自動判定。</td></tr>
+<tr><td>v0.66</td><td>一部バグフィクス。</td></tr>
+<tr><td>v0.65</td><td>ドライブタイプで動作を変化。エラー処理追加。</td></tr>
+<tr><td>v0.64</td><td>稀にデッドロックを起こす可能性を発見したので修正。</td></tr>
+<tr><td>v0.63</td><td>Cancel ボタンの動作を「R/W Thread を Suspend した上
+      で確認」に変更。ファイル名表示はワードラップなしに。</td></tr>
+<tr><td>v0.62</td><td>NT系で物理メモリロックをデフォルトにするのをやめる。</td></tr>
+<tr><td>v0.61</td><td>ステータス領域を EDIT_BOX に変更（コピー可能に）。</td></tr>
+<tr><td>v0.60</td><td>98系で動作するように修正。エラー無視チェック追加。</td></tr>
+<tr><td>v0.50</td><td>α版ファーストリリース。 (2004/09/27)</td></tr>
 </table>
 </div>
 </div>

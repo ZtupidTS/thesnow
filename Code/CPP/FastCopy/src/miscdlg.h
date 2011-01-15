@@ -1,9 +1,9 @@
 ﻿/* static char *miscdlg_id = 
-	"@(#)Copyright (C) 2005-2010 H.Shirouzu		miscdlg.h	Ver2.00"; */
+	"@(#)Copyright (C) 2005-2010 H.Shirouzu		miscdlg.h	Ver2.04"; */
 /* ========================================================================
 	Project  Name			: Fast/Force copy file and directory
 	Create					: 2005-01-23(Sun)
-	Update					: 2010-05-09(Sun)
+	Update					: 2010-11-07(Sun)
 	Copyright				: H.Shirouzu
 	Reference				: 
 	======================================================================== */
@@ -49,14 +49,29 @@ public:
 	virtual BOOL	EvSize(UINT fwSizeType, WORD nWidth, WORD nHeight);
 };
 
+class TSetupSheet : public TDlg {
+protected:
+	Cfg	*cfg;
+
+public:
+	TSetupSheet() { cfg = NULL; }
+	BOOL Create(int resid, Cfg *_cfg, TWin *_parent);
+	BOOL GetData();
+	virtual BOOL	EvCreate(LPARAM lParam);
+	virtual BOOL	EventScroll(UINT uMsg, int Code, int nPos, HWND hwndScrollBar);
+};
+
+#define MAX_SETUP_SHEET	6
 class TSetupDlg : public TDlg {
-	Cfg		*cfg;
+	Cfg			*cfg;
+	TSubClass	setup_list;
+	TSetupSheet	sheet[MAX_SETUP_SHEET];
+
 public:
 	TSetupDlg(Cfg *_cfg, TWin *_parent = NULL);
 	virtual BOOL	EvCommand(WORD wNotifyCode, WORD wID, LPARAM hwndCtl);
 	virtual BOOL	EvCreate(LPARAM lParam);
-	virtual BOOL	EventScroll(UINT uMsg, int Code, int nPos, HWND hwndScrollBar);
-
+	void	SetSheet(int idx=-1);
 };
 
 class ShellExt {
@@ -90,8 +105,6 @@ public:
 	BOOL	ReflectStatus(void);
 };
 
-HWND ShowHelpV(HWND hOwner, void *help_dir, void *help_file, void *section=NULL);
-
 enum	DirFileMode { DIRSELECT, RELOAD, FILESELECT, SELECT_EXIT };
 
 class TBrowseDirDlgV : public TSubClass
@@ -108,7 +121,7 @@ protected:
 public:
 	TBrowseDirDlgV(void *title, void *_fileBuf, int _flg, TWin *parentWin);
 	virtual ~TBrowseDirDlgV();
-	virtual BOOL	CreateByWnd(HWND _hWnd);
+	virtual BOOL	AttachWnd(HWND _hWnd);
 	virtual BOOL	EvCommand(WORD wNotifyCode, WORD wID, LPARAM hwndCtl);
 	virtual BOOL	SetFileBuf(LPARAM list);
 	virtual BOOL	Exec();
@@ -150,7 +163,7 @@ public:
 		parent = _parent; hook = _hook; openMode = _openMode; flg = _flg;
 	}
 	static UINT WINAPI OpenFileDlgProc(HWND hdlg, UINT msg, WPARAM wParam, LPARAM lParam);
-	virtual BOOL CreateByWnd(HWND _hWnd);
+	virtual BOOL AttachWnd(HWND _hWnd);
 	virtual BOOL EvCommand(WORD wNotifyCode, WORD wID, LPARAM hwndCtl);
 	virtual BOOL Exec(void *target, void *title=NULL, void *filter=NULL, void *defaultDir=NULL);
 	virtual BOOL Exec(UINT editCtl, void *title=NULL, void *filter=NULL, void *defaultDir=NULL,
@@ -227,7 +240,7 @@ protected:
 
 public:
 	TListHeader(TWin *_parent);
-	virtual BOOL	CreateByWnd(HWND _hWnd);
+	virtual BOOL	AttachWnd(HWND _hWnd);
 	virtual BOOL	EventUser(UINT uMsg, WPARAM wParam, LPARAM lParam);
 	virtual BOOL	ChangeFontNotify(void);
 };
@@ -251,7 +264,7 @@ class TEditSub : public TSubClassCtl {
 public:
 	TEditSub(TWin *_parent);
 
-	virtual BOOL	CreateByWnd(HWND _hWnd);
+	virtual BOOL	AttachWnd(HWND _hWnd);
 	virtual int		ExGetText(void *buf, int max_len, DWORD flags=GT_USECRLF, UINT codepage=CP_UTF8);
 	virtual BOOL	ExSetText(const void *buf, int max_len=-1, DWORD flags=ST_DEFAULT, UINT codepage=CP_UTF8);
 

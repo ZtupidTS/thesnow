@@ -1,4 +1,4 @@
-/* @(#)Copyright (C) 1996-2010 H.Shirouzu		tlib.h	Ver0.99 */
+﻿/* @(#)Copyright (C) 1996-2010 H.Shirouzu		tlib.h	Ver0.99 */
 /* ========================================================================
 	Project  Name			: Win32 Lightweight  Class Library Test
 	Module Name				: Main Header
@@ -28,6 +28,8 @@
 
 #include <windows.h>
 #include <windowsx.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "commctrl.h"
 #include <regstr.h>
@@ -87,6 +89,10 @@ extern DWORD TWinVersion;	// define in tmisc.cpp
 #define COLOR_3DFACE            COLOR_BTNFACE
 #define EM_SETBKGNDCOLOR		(WM_USER + 67)
 #define EM_SETTARGETDEVICE		(WM_USER + 72)
+#endif
+
+#ifndef WM_COPYGLOBALDATA
+#define WM_COPYGLOBALDATA	0x0049
 #endif
 
 #ifndef CSIDL_PROGRAM_FILES
@@ -357,7 +363,7 @@ protected:
 	DlgItem	*dlgItems;
 
 public:
-	TDlg(UINT	resid, TWin *_parent = NULL);
+	TDlg(UINT	resid=0, TWin *_parent = NULL);
 	virtual ~TDlg();
 
 	virtual BOOL	Create(HINSTANCE hI = NULL);
@@ -383,8 +389,10 @@ protected:
 
 public:
 	TSubClass(TWin *_parent = NULL);
+	virtual ~TSubClass();
 
-	virtual BOOL	CreateByWnd(HWND _hWnd);
+	virtual BOOL	AttachWnd(HWND _hWnd);
+	virtual BOOL	DetachWnd();
 	virtual	LRESULT	DefWindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam);
 };
 
@@ -673,9 +681,12 @@ WCHAR lGetCharA(const char *str, int);
 void lSetCharW(WCHAR *str, int offset, WCHAR ch);
 void lSetCharA(char *str, int offset, WCHAR ch);
 
-BOOL hexstr2bin(const char *buf, BYTE *bindata, int maxlen, int *len);
+_int64 hex2ll(char *buf);
 int bin2hexstr(const BYTE *bindata, int len, char *buf);
 int bin2hexstrW(const BYTE *bindata, int len, WCHAR *buf);
+int bin2hexstr_bigendian(const BYTE *bin, int len, char *buf);
+BOOL hexstr2bin(const char *buf, BYTE *bindata, int maxlen, int *len);
+BOOL hexstr2bin_bigendian(const char *buf, BYTE *bindata, int maxlen, int *len);
 
 char *strdupNew(const char *_s);
 WCHAR *wcsdupNew(const WCHAR *_s);
@@ -695,6 +706,7 @@ BOOL TIsVirtualizedDirV(void *path);
 BOOL TMakeVirtualStorePathV(void *org_path, void *buf);
 BOOL TSetPrivilege(LPSTR pszPrivilege, BOOL bEnable);
 BOOL TSetThreadLocale(int lcid);
+BOOL TChangeWindowMessageFilter(UINT msg, DWORD flg);
 
 BOOL InstallExceptionFilter(char *title, char *info);
 void Debug(char *fmt,...);
@@ -705,6 +717,7 @@ BOOL SymLinkV(void *src, void *dest, void *arg=L"");
 BOOL ReadLinkV(void *src, void *dest, void *arg=NULL);
 BOOL DeleteLinkV(void *path);
 BOOL GetParentDirV(const void *srcfile, void *dir);
+HWND ShowHelpV(HWND hOwner, void *help_dir, void *help_file, void *section=NULL);
 
 #include "tapi32u8.h"
 

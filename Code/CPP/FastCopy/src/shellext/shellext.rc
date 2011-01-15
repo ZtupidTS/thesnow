@@ -13,7 +13,7 @@
 #undef APSTUDIO_READONLY_SYMBOLS
 
 /////////////////////////////////////////////////////////////////////////////
-// ì˙ñ{åÍ resources
+// Êó•Êú¨Ë™û resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_JPN)
 #ifdef _WIN32
@@ -54,8 +54,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 2,0,3,0
- PRODUCTVERSION 2,0,3,0
+ FILEVERSION 2,0,6,0
+ PRODUCTVERSION 2,0,6,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -73,12 +73,12 @@ BEGIN
             VALUE "Comments", "http://ipmsg.org/tools/fastcopy.html\0"
             VALUE "CompanyName", "SHIROUZU Hiroaki\0"
             VALUE "FileDescription", "Shell Extension for FastCopy\0"
-            VALUE "FileVersion", "2, 0, 3, 0\0"
+            VALUE "FileVersion", "2, 0, 6, 0\0"
             VALUE "InternalName", "Shell Extension for FastCopy\0"
             VALUE "LegalCopyright", "Copyright (C) 2004-2010 SHIROUZU Hiroaki All rights reserved.\0"
             VALUE "OriginalFilename", "fastext1.dll\0"
             VALUE "ProductName", "Shell Extension for FastCopy\0"
-            VALUE "ProductVersion", "2, 0, 3, 0\0"
+            VALUE "ProductVersion", "2, 0, 6, 0\0"
         END
     END
     BLOCK "VarFileInfo"
@@ -97,19 +97,19 @@ END
 
 STRINGTABLE DISCARDABLE 
 BEGIN
-    IDS_RIGHTCOPY           "ÉRÉsÅ[ (FastCopy)"
-    IDS_RIGHTDEL            "çÌèú  (FastCopy)"
-    IDS_DDCOPY              "ÉRÉsÅ[ (FastCopy)"
-    IDS_DDMOVE              "à⁄ìÆ  (FastCopy)"
-    IDS_RIGHTPASTE          "ì\ÇËïtÇØ (FastCopy)"
+    IDS_RIGHTCOPY           "„Ç≥„Éî„Éº (FastCopy)"
+    IDS_RIGHTDEL            "ÂâäÈô§  (FastCopy)"
+    IDS_DDCOPY              "„Ç≥„Éî„Éº (FastCopy)"
+    IDS_DDMOVE              "ÁßªÂãï  (FastCopy)"
+    IDS_RIGHTPASTE          "Ë≤º„Çä‰ªò„Åë (FastCopy)"
 END
 
-#endif    // ì˙ñ{åÍ resources
+#endif    // Êó•Êú¨Ë™û resources
 /////////////////////////////////////////////////////////////////////////////
 
 
 /////////////////////////////////////////////////////////////////////////////
-// âpåÍ (±“ÿ∂) resources
+// Ëã±Ë™û (ÔΩ±ÔæíÔæòÔΩ∂) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
 #ifdef _WIN32
@@ -131,7 +131,7 @@ BEGIN
     IDS_RIGHTPASTE          "Paste (FastCopy)"
 END
 
-#endif    // âpåÍ (±“ÿ∂) resources
+#endif    // Ëã±Ë™û (ÔΩ±ÔæíÔæòÔΩ∂) resources
 /////////////////////////////////////////////////////////////////////////////
 
 

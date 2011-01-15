@@ -200,7 +200,7 @@ HMODULE TLoadLibraryV(void *dllname)
 }
 
 /*=========================================================================
-	ÉpÉXçáê¨ÅiANSI î≈Åj
+	„Éë„ÇπÂêàÊàêÔºàANSI ÁâàÔºâ
 =========================================================================*/
 int MakePath(char *dest, const char *dir, const char *file)
 {
@@ -210,7 +210,7 @@ int MakePath(char *dest, const char *dir, const char *file)
 	if ((len = strlen(dir)) == 0)
 		return	wsprintf(dest, "%s", file);
 
-	if (dir[len -1] == '\\')	// ï\Ç»Ç«ÅA2byteñ⁄Ç™'\\'Ç≈èIÇÈï∂éöóÒëŒçÙ
+	if (dir[len -1] == '\\')	// Ë°®„Å™„Å©„ÄÅ2byteÁõÆ„Åå'\\'„ÅßÁµÇ„ÇãÊñáÂ≠óÂàóÂØæÁ≠ñ
 	{
 		if (len >= 2 && IsDBCSLeadByte(dir[len -2]) == FALSE)
 			separetor = FALSE;
@@ -226,7 +226,7 @@ int MakePath(char *dest, const char *dir, const char *file)
 }
 
 /*=========================================================================
-	ÉpÉXçáê¨ÅiUNICODE î≈Åj
+	„Éë„ÇπÂêàÊàêÔºàUNICODE ÁâàÔºâ
 =========================================================================*/
 int MakePathW(WCHAR *dest, const WCHAR *dir, const WCHAR *file)
 {
@@ -249,7 +249,7 @@ WCHAR lGetCharIncA(const char **str)
 
 	if (IsDBCSLeadByte((BYTE)ch)) {
 		ch <<= BITS_OF_BYTE;
-		ch |= *(*str)++;	// null îªíËÇÕéËî≤Ç´
+		ch |= *(*str)++;	// null Âà§ÂÆö„ÅØÊâãÊäú„Åç
 	}
 	return	ch;
 }
@@ -289,6 +289,9 @@ void lSetCharA(char *str, int offset, WCHAR ch)
 /*=========================================================================
 	bin <-> hex
 =========================================================================*/
+static char  *hexstr   =  "0123456789abcdef";
+static WCHAR *hexstr_w = L"0123456789abcdef";
+
 inline u_char hexchar2char(u_char ch)
 {
 	if (ch >= '0' && ch <= '9')
@@ -310,8 +313,6 @@ BOOL hexstr2bin(const char *buf, BYTE *bindata, int maxlen, int *len)
 
 int bin2hexstr(const BYTE *bindata, int len, char *buf)
 {
-	static char *hexstr = "0123456789abcdef";
-
 	for (const BYTE *end=bindata+len; bindata < end; bindata++)
 	{
 		*buf++ = hexstr[*bindata >> 4];
@@ -323,15 +324,54 @@ int bin2hexstr(const BYTE *bindata, int len, char *buf)
 
 int bin2hexstrW(const BYTE *bindata, int len, WCHAR *buf)
 {
-	static WCHAR *hexstr = L"0123456789abcdef";
-
 	for (const BYTE *end=bindata+len; bindata < end; bindata++)
 	{
-		*buf++ = hexstr[*bindata >> 4];
-		*buf++ = hexstr[*bindata & 0x0f];
+		*buf++ = hexstr_w[*bindata >> 4];
+		*buf++ = hexstr_w[*bindata & 0x0f];
 	}
 	*buf = 0;
 	return	len * 2;
+}
+
+/* little-endian binary to hexstr */
+int bin2hexstr_bigendian(const BYTE *bindata, int len, char *buf)
+{
+	int		sv_len = len;
+	while (len-- > 0)
+	{
+		*buf++ = hexstr[bindata[len] >> 4];
+		*buf++ = hexstr[bindata[len] & 0x0f];
+	}
+	*buf = 0;
+	return	sv_len * 2;
+}
+
+BOOL hexstr2bin_bigendian(const char *buf, BYTE *bindata, int maxlen, int *len)
+{
+	*len = 0;
+	for (int buflen = (int)strlen(buf); buflen >= 2 && *len < maxlen; buflen-=2, (*len)++)
+	{
+		bindata[*len] = hexchar2char(buf[buflen-1]) | hexchar2char(buf[buflen-2]) << 4;
+	}
+	return	TRUE;
+}
+
+/*
+	16ÈÄ≤ -> long long
+*/
+_int64 hex2ll(char *buf)
+{
+	_int64	ret = 0;
+
+	for ( ; *buf; buf++)
+	{
+		if (*buf >= '0' && *buf <= '9')
+			ret = (ret << 4) | (*buf - '0');
+		else if (toupper(*buf) >= 'A' && toupper(*buf) <= 'F')
+			ret = (ret << 4) | (toupper(*buf) - 'A' + 10);
+		else continue;
+	}
+	return	ret;
 }
 
 
@@ -377,7 +417,7 @@ void DebugU8(char *fmt,...)
 #endif
 
 /*=========================================================================
-	ó·äOèÓïÒéÊìæ
+	‰æãÂ§ñÊÉÖÂ†±ÂèñÂæó
 =========================================================================*/
 static char *ExceptionTitle;
 static char *ExceptionLogFile;
@@ -475,7 +515,7 @@ BOOL InstallExceptionFilter(char *title, char *info)
 
 
 /*
-	nulï∂éöÇïKÇ∏ïtó^Ç∑ÇÈ strncpy
+	nulÊñáÂ≠ó„ÇíÂøÖ„Åö‰ªò‰∏é„Åô„Çã strncpy
 */
 char *strncpyz(char *dest, const char *src, int num)
 {
@@ -491,7 +531,7 @@ char *strncpyz(char *dest, const char *src, int num)
 }
 
 /*
-	ëÂï∂éöè¨ï∂éöÇñ≥éãÇ∑ÇÈ strncmp
+	Â§ßÊñáÂ≠óÂ∞èÊñáÂ≠ó„ÇíÁÑ°Ë¶ñ„Åô„Çã strncmp
 */
 int strncmpi(const char *str1, const char *str2, int num)
 {
@@ -516,7 +556,7 @@ int strncmpi(const char *str1, const char *str2, int num)
 
 
 /*=========================================================================
-	UCS2(W) - ANSI(A) ëäå›ïœä∑
+	UCS2(W) - ANSI(A) Áõ∏‰∫íÂ§âÊèõ
 =========================================================================*/
 WCHAR *AtoW(const char *src, BOOL noStatic) {
 	static	WCHAR	*_wbuf = NULL;
@@ -766,9 +806,29 @@ BOOL TSetThreadLocale(int lcid)
 	return ::SetThreadLocale(lcid);
 }
 
+BOOL TChangeWindowMessageFilter(UINT msg, DWORD flg)
+{
+	static BOOL	once = FALSE;
+	static BOOL	(WINAPI *pChangeWindowMessageFilter)(UINT, DWORD);
+	static BOOL	ret = FALSE;
+
+	if (!once) {
+		pChangeWindowMessageFilter = (BOOL (WINAPI *)(UINT, DWORD))
+			GetProcAddress(::GetModuleHandle("user32"), "ChangeWindowMessageFilter");
+		once = TRUE;
+	}
+
+	if (pChangeWindowMessageFilter) {
+		ret = pChangeWindowMessageFilter(msg, flg);
+	}
+
+	return	ret;
+}
+
+
 /*
-	ÉäÉìÉN
-	Ç†ÇÁÇ©Ç∂ÇﬂÅACoInitialize(NULL); Çé¿çsÇµÇƒÇ®Ç≠Ç±Ç∆
+	„É™„É≥„ÇØ
+	„ÅÇ„Çâ„Åã„Åò„ÇÅ„ÄÅCoInitialize(NULL); „ÇíÂÆüË°å„Åó„Å¶„Åä„Åè„Åì„Å®
 	src  ... old_path
 	dest ... new_path
 */
@@ -805,7 +865,7 @@ BOOL SymLinkV(void *src, void *dest, void *arg)
 
 BOOL ReadLinkV(void *src, void *dest, void *arg)
 {
-	IShellLink		*shellLink;		// é¿ç€ÇÕ IShellLinkA or IShellLinkW
+	IShellLink		*shellLink;		// ÂÆüÈöõ„ÅØ IShellLinkA or IShellLinkW
 	IPersistFile	*persistFile;
 	WCHAR			wbuf[MAX_PATH];
 	BOOL			ret = FALSE;
@@ -833,7 +893,7 @@ BOOL ReadLinkV(void *src, void *dest, void *arg)
 }
 
 /*
-	ÉäÉìÉNÉtÉ@ÉCÉãçÌèú
+	„É™„É≥„ÇØ„Éï„Ç°„Ç§„É´ÂâäÈô§
 */
 BOOL DeleteLinkV(void *path)
 {
@@ -849,7 +909,7 @@ BOOL DeleteLinkV(void *path)
 }
 
 /*
-	êeÉfÉBÉåÉNÉgÉäéÊìæÅiïKÇ∏ÉtÉãÉpÉXÇ≈Ç†ÇÈÇ±Ç∆ÅBUNCëŒâûÅj
+	Ë¶™„Éá„Ç£„É¨„ÇØ„Éà„É™ÂèñÂæóÔºàÂøÖ„Åö„Éï„É´„Éë„Çπ„Åß„ÅÇ„Çã„Åì„Å®„ÄÇUNCÂØæÂøúÔºâ
 */
 BOOL GetParentDirV(const void *srcfile, void *dir)
 {
@@ -861,11 +921,44 @@ BOOL GetParentDirV(const void *srcfile, void *dir)
 	if (((char *)fname - (char *)path) > 3 * CHAR_LEN_V || GetChar(path, 1) != ':')
 		SetChar(fname, -1, 0);
 	else
-		SetChar(fname, 0, 0);		// C:\ ÇÃèÍçá
+		SetChar(fname, 0, 0);		// C:\ „ÅÆÂ†¥Âêà
 
 	strcpyV(dir, path);
 	return	TRUE;
 }
 
 
+
+// HtmlHelp WorkShop „Çí„Ç§„É≥„Çπ„Éà„Éº„É´„Åó„Å¶„ÄÅhtmlhelp.h „Çí include path „Å´
+// ÂÖ•„Çå„Çã„Åì„Å®„ÄÇ
+#define ENABLE_HTML_HELP
+#if defined(ENABLE_HTML_HELP)
+#include <htmlhelp.h>
+#endif
+
+HWND ShowHelpV(HWND hOwner, void *help_dir, void *help_file, void *section)
+{
+#if defined(ENABLE_HTML_HELP)
+	static HWND (WINAPI *pHtmlHelpV)(HWND, void *, UINT, DWORD_PTR) = NULL;
+
+	if (pHtmlHelpV == NULL) {
+		DWORD		cookie=0;
+		HMODULE		hHtmlHelp = TLoadLibrary("hhctrl.ocx");
+		if (hHtmlHelp)
+			pHtmlHelpV = (HWND (WINAPI *)(HWND, void *, UINT, DWORD_PTR))
+						::GetProcAddress(hHtmlHelp, IS_WINNT_V ? "HtmlHelpW" : "HtmlHelpA");
+		if (pHtmlHelpV)
+			pHtmlHelpV(NULL, NULL, HH_INITIALIZE, (DWORD)&cookie);
+	}
+	if (pHtmlHelpV) {
+		WCHAR	path[MAX_PATH];
+
+		MakePathV(path, help_dir, help_file);
+		if (section)
+			strcpyV(MakeAddr(path, strlenV(path)), section);
+		return	pHtmlHelpV(hOwner, path, HH_DISPLAY_TOC, 0);
+	}
+#endif
+	return	NULL;
+}
 

@@ -1,4 +1,4 @@
-//{{NO_DEPENDENCIES}}
+﻿//{{NO_DEPENDENCIES}}
 // Microsoft Developer Studio generated include file.
 // Used by FastCopy.rc
 //
@@ -67,6 +67,18 @@
 #define IDS_PASTE                       103
 #define IDS_DEL                         104
 #define IDS_SELECTALL                   105
+#define IDS_SETUP_SHEET1                106
+#define IDS_SETUP_SHEET2                107
+#define IDS_SETUP_SHEET3                108
+#define IDS_SETUP_SHEET4                109
+#define IDS_SETUP_SHEET5                110
+#define IDS_SETUP_SHEET6                111
+#define SETUP_SHEET1                    202
+#define SETUP_SHEET2                    203
+#define SETUP_SHEET3                    204
+#define SETUP_SHEET4                    205
+#define SETUP_SHEET5                    206
+#define SETUP_SHEET6                    207
 #define IDS_FASTCOPY                    1000
 #define IDS_USAGE                       1001
 #define IDS_CMD_NOEXIST_ONLY            1080
@@ -126,12 +138,12 @@
 #define IDS_WIPEDEL_OPT                 1139
 #define IDS_SRCFILE_OPT                 1140
 #define IDS_SRCFILEW_OPT                1141
+#define IDS_FINACT_OPT                  1142
 #define IDS_NOTEPAD                     1146
 #define IDS_LINKDEST_OPT                1147
 #define IDS_RECREATE_OPT                1148
 #define IDS_FROMDATE_OPT                1149
 #define IDS_TODATE_OPT                  1150
-#define IDS_FINACT_OPT                  1142
 #define IDS_MINSIZE_OPT                 1151
 #define IDS_MAXSIZE_OPT                 1152
 #define IDS_STANDBY                     1153
@@ -142,11 +154,15 @@
 #define IDS_FALSE                       1158
 #define IDS_FILELOGNAME                 1159
 #define IDS_FILELOG_SUBDIR              1160
+#define SETTING_LIST                    1160
 #define IDS_FULLSPEED_DISP              1161
 #define IDS_AUTOSLOW_DISP               1162
+#define SETUP_SHEET_BASE                1162
 #define IDS_SUSPEND_DISP                1163
+#define SETUP_LIST                      1163
 #define IDS_RATE_DISP                   1164
-
+#define STREAMERRLOG_CHECK              1164
+#define ACLERRLOG_CHECK                 1165
 #define MAIN_DIALOG                     2331
 #define INPUT_DIALOG                    2332
 #define SETUP_DIALOG                    2333
@@ -227,6 +243,7 @@
 #define SERIALMOVE_CHECK                3081
 #define JOB_COMBO                       3082
 #define EXTENDFILTER_CHECK              3082
+#define DELDIR_CHECK                    3082
 #define JOBTITLE_STATIC                 3083
 #define JOB_STATIC                      3084
 #define JOBDEL_BUTTON                   3085
@@ -275,7 +292,6 @@
 #define DIRSELECT_BUTTON                3336
 #define MKDIR_BUTTON                    3380
 #define RMDIR_BUTTON                    3381
-
 #define FASTCOPY_ICON                   4000
 #define FASTCOPY2_ICON                  4001
 #define FASTCOPY3_ICON                  4002
@@ -317,9 +333,9 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        199
+#define _APS_NEXT_RESOURCE_VALUE        208
 #define _APS_NEXT_COMMAND_VALUE         30030
-#define _APS_NEXT_CONTROL_VALUE         1160
+#define _APS_NEXT_CONTROL_VALUE         1166
 #define _APS_NEXT_SYMED_VALUE           2382
 #endif
 #endif
