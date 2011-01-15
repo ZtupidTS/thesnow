@@ -1,4 +1,4 @@
-/*
+Ôªø/*
  * windlg.c - dialogs for PuTTY(tel), including the configuration dialog.
  */
 
@@ -167,7 +167,7 @@ static int CALLBACK LicenceProc(HWND hwnd, UINT msg,
     switch (msg) {
       case WM_INITDIALOG:
 	{
-	    TCHAR *str = dupprintf("%s –Ìø…–≠“È", appname);
+	    TCHAR *str = dupprintf("%s ËÆ∏ÂèØÂçèËÆÆ", appname);
 	    SetWindowText(hwnd, str);
 	    sfree(str);
 	}
@@ -194,7 +194,7 @@ static int CALLBACK AboutProc(HWND hwnd, UINT msg,
 
     switch (msg) {
       case WM_INITDIALOG:
-	str = dupprintf("πÿ”⁄ %s", appname);
+	str = dupprintf("ÂÖ≥‰∫é %s", appname);
 	SetWindowText(hwnd, str);
 	sfree(str);
 	SetDlgItemText(hwnd, IDA_TEXT1, appname);
@@ -418,7 +418,7 @@ static int CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
 	    r.top = 3;
 	    r.bottom = r.top + 10;
 	    MapDialogRect(hwnd, &r);
-	    tvstatic = CreateWindowEx(0, TEXT("STATIC"), TEXT("∑÷¿‡(&G):"),
+	    tvstatic = CreateWindowEx(0, TEXT("STATIC"), TEXT("ÂàÜÁ±ª(&G):"),
 				      WS_CHILD | WS_VISIBLE,
 				      r.left, r.top,
 				      r.right - r.left, r.bottom - r.top,
@@ -649,6 +649,7 @@ int do_config(void)
     dp.wintitle = dupprintf("%s Configuration", appname);
     dp.errtitle = dupprintf("%s Error", appname);
     dp.data = &cfg;
+    dlg_auto_set_fixed_pitch_flag(&dp);
     dp.shortcuts['g'] = TRUE;	       /* the treeview: `Cate&gory' */
 
     ret =
@@ -682,6 +683,7 @@ int do_reconfig(HWND hwnd, int protcfginfo)
     dp.wintitle = dupprintf("%s Reconfiguration", appname);
     dp.errtitle = dupprintf("%s Error", appname);
     dp.data = &cfg;
+    dlg_auto_set_fixed_pitch_flag(&dp);
     dp.shortcuts['g'] = TRUE;	       /* the treeview: `Cate&gory' */
 
     ret = SaneDialogBox(hinst, MAKEINTRESOURCE(IDD_MAINBOX), NULL,
@@ -828,7 +830,7 @@ int verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 int askalg(void *frontend, const char *algtype, const char *algname,
 	   void (*callback)(void *ctx, int result), void *ctx)
 {
-    static const char mbtitle[] = "%s ∞≤»´æØ∏Ê";
+    static const char mbtitle[] = "%s ÂÆâÂÖ®Ë≠¶Âëä";
     static const char msg[] =
 	"The first %s supported by the server\n"
 	"is %.64s, which is below the configured\n"

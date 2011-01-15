@@ -1,4 +1,4 @@
-/*
+ï»¿/*
  * config.c - the platform-independent parts of the PuTTY
  * configuration box.
  */
@@ -10,10 +10,10 @@
 #include "dialog.h"
 #include "storage.h"
 
-#define PRINTER_DISABLED_STRING "ÎŞ (´òÓ¡ÒÑ½ûÓÃ)"
+#define PRINTER_DISABLED_STRING "æ—  (æ‰“å°å·²ç¦ç”¨)"
 
-#define HOST_BOX_TITLE "Ö÷»úÃû³Æ(»ò IP µØÖ·)"
-#define PORT_BOX_TITLE "¶Ë¿Ú"
+#define HOST_BOX_TITLE "ä¸»æœºåç§°(æˆ– IP åœ°å€)"
+#define PORT_BOX_TITLE "ç«¯å£"
 
 static void config_host_handler(union control *ctrl, void *dlg,
 				void *data, int event)
@@ -52,7 +52,7 @@ static void config_port_handler(union control *ctrl, void *dlg,
     char buf[80];
 
     /*
-     * This function works just like the standard edit box handler,
+     * This function works similarly to the standard edit box handler,
      * only it has to choose the control's label and text from two
      * different places depending on the protocol.
      */
@@ -66,7 +66,11 @@ static void config_port_handler(union control *ctrl, void *dlg,
 	    sprintf(buf, "%d", cfg->serspeed);
 	} else {
 	    dlg_label_change(ctrl, dlg, PORT_BOX_TITLE);
-	    sprintf(buf, "%d", cfg->port);
+	    if (cfg->port != 0)
+		sprintf(buf, "%d", cfg->port);
+	    else
+		/* Display an (invalid) port of 0 as blank */
+		buf[0] = '\0';
 	}
 	dlg_editbox_set(ctrl, dlg, buf);
     } else if (event == EVENT_VALCHANGE) {
@@ -118,15 +122,16 @@ void config_protocolbuttons_handler(union control *ctrl, void *dlg,
 	    Backend *nb = backend_from_proto(cfg->protocol);
 	    assert(ob);
 	    assert(nb);
-	    /* Iff the user hasn't changed the port from the protocol
-	     * default (if any), update it with the new protocol's
-	     * default.
-	     * (XXX: this isn't perfect; a default can become permanent
-	     * by going via the serial backend. However, it helps with
-	     * the common case of tabbing through the controls in order
-	     * and setting a non-default port.) */
-	    if (cfg->port == ob->default_port &&
-		cfg->port > 0 && nb->default_port > 0)
+	    /* Iff the user hasn't changed the port from the old protocol's
+	     * default, update it with the new protocol's default.
+	     * (This includes a "default" of 0, implying that there is no
+	     * sensible default for that protocol; in this case it's
+	     * displayed as a blank.)
+	     * This helps with the common case of tabbing through the
+	     * controls in order and setting a non-default port before
+	     * getting to the protocol; we want that non-default port
+	     * to be preserved. */
+	    if (cfg->port == ob->default_port)
 		cfg->port = nb->default_port;
 	}
 	dlg_refresh(hp->host, dlg);
@@ -367,9 +372,9 @@ static void sshbug_handler(union control *ctrl, void *dlg,
     if (event == EVENT_REFRESH) {
 	dlg_update_start(ctrl, dlg);
 	dlg_listbox_clear(ctrl, dlg);
-	dlg_listbox_addwithid(ctrl, dlg, "×Ô¶¯", AUTO);
-	dlg_listbox_addwithid(ctrl, dlg, "¹Ø±Õ", FORCE_OFF);
-	dlg_listbox_addwithid(ctrl, dlg, "ÆôÓÃ", FORCE_ON);
+	dlg_listbox_addwithid(ctrl, dlg, "è‡ªåŠ¨", AUTO);
+	dlg_listbox_addwithid(ctrl, dlg, "å…³é—­", FORCE_OFF);
+	dlg_listbox_addwithid(ctrl, dlg, "å¯ç”¨", FORCE_ON);
 	switch (*(int *)ATOFFSET(data, ctrl->listbox.context.i)) {
 	  case AUTO:      dlg_listbox_select(ctrl, dlg, 0); break;
 	  case FORCE_OFF: dlg_listbox_select(ctrl, dlg, 1); break;
@@ -410,7 +415,7 @@ static int load_selected_session(struct sessionsaver_data *ssd,
 	dlg_beep(dlg);
 	return 0;
     }
-    isdef = !strcmp(ssd->sesslist.sessions[i], "Ä¬ÈÏÉèÖÃ");
+    isdef = !strcmp(ssd->sesslist.sessions[i], "é»˜è®¤è®¾ç½®");
     load_settings(ssd->sesslist.sessions[i], cfg);
     if (!isdef) {
 	strncpy(savedsession, ssd->sesslist.sessions[i],
@@ -503,14 +508,14 @@ static void sessionsaver_handler(union control *ctrl, void *dlg,
 		dlg_end(dlg, 1);       /* it's all over, and succeeded */
 	    }
 	} else if (ctrl == ssd->savebutton) {
-	    int isdef = !strcmp(savedsession, "Ä¬ÈÏÉèÖÃ");
+	    int isdef = !strcmp(savedsession, "é»˜è®¤è®¾ç½®");
 	    if (!savedsession[0]) {
 		int i = dlg_listbox_index(ssd->listbox, dlg);
 		if (i < 0) {
 		    dlg_beep(dlg);
 		    return;
 		}
-		isdef = !strcmp(ssd->sesslist.sessions[i], "Ä¬ÈÏÉèÖÃ");
+		isdef = !strcmp(ssd->sesslist.sessions[i], "é»˜è®¤è®¾ç½®");
 		if (!isdef) {
 		    strncpy(savedsession, ssd->sesslist.sessions[i],
 			    SAVEDSESSION_LEN);
@@ -1160,13 +1165,13 @@ void setup_config_box(struct controlbox *b, int midsession,
     s = ctrl_getset(b, "", "", "");
     ctrl_columns(s, 5, 20, 20, 20, 20, 20);
     ssd->okbutton = ctrl_pushbutton(s,
-				    (midsession ? "Ó¦ÓÃ(A)" : "´ò¿ª(O)"),
+				    (midsession ? "åº”ç”¨(A)" : "æ‰“å¼€(O)"),
 				    (char)(midsession ? 'a' : 'o'),
 				    HELPCTX(no_help),
 				    sessionsaver_handler, P(ssd));
     ssd->okbutton->button.isdefault = TRUE;
     ssd->okbutton->generic.column = 3;
-    ssd->cancelbutton = ctrl_pushbutton(s, "È¡Ïû(C)", 'c', HELPCTX(no_help),
+    ssd->cancelbutton = ctrl_pushbutton(s, "å–æ¶ˆ(C)", 'c', HELPCTX(no_help),
 					sessionsaver_handler, P(ssd));
     ssd->cancelbutton->button.iscancel = TRUE;
     ssd->cancelbutton->generic.column = 4;
@@ -1176,16 +1181,16 @@ void setup_config_box(struct controlbox *b, int midsession,
     /*
      * The Session panel.
      */
-    str = dupprintf("ÄúµÄ %s »á»°µÄ»ù±¾ÉèÖÃ", appname);
-    ctrl_settitle(b, "»á»°", str);
+    str = dupprintf("æ‚¨çš„ %s ä¼šè¯çš„åŸºæœ¬è®¾ç½®", appname);
+    ctrl_settitle(b, "ä¼šè¯", str);
     sfree(str);
 
     if (!midsession) {
 	struct hostport *hp = (struct hostport *)
 	    ctrl_alloc(b, sizeof(struct hostport));
 
-	s = ctrl_getset(b, "»á»°", "hostport",
-			"Ö¸¶¨Ò»¸öÄúÏëÁ¬½Óµ½µÄÄ¿±êµØÖ·");
+	s = ctrl_getset(b, "ä¼šè¯", "hostport",
+			"æŒ‡å®šä¸€ä¸ªæ‚¨æƒ³è¿æ¥åˆ°çš„ç›®æ ‡åœ°å€");
 	ctrl_columns(s, 2, 75, 25);
 	c = ctrl_editbox(s, HOST_BOX_TITLE, 'n', 100,
 			 HELPCTX(session_hostname),
@@ -1200,7 +1205,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	ctrl_columns(s, 1, 100);
 
 	if (!backend_from_proto(PROT_SSH)) {
-	    ctrl_radiobuttons(s, "Á¬½ÓÀàĞÍ:", NO_SHORTCUT, 3,
+	    ctrl_radiobuttons(s, "è¿æ¥ç±»å‹:", NO_SHORTCUT, 3,
 			      HELPCTX(session_hostname),
 			      config_protocolbuttons_handler, P(hp),
 			      "Raw", 'w', I(PROT_RAW),
@@ -1208,7 +1213,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 			      "Rlogin", 'i', I(PROT_RLOGIN),
 			      NULL);
 	} else {
-	    ctrl_radiobuttons(s, "Á¬½ÓÀàĞÍ:", NO_SHORTCUT, 4,
+	    ctrl_radiobuttons(s, "è¿æ¥ç±»å‹:", NO_SHORTCUT, 4,
 			      HELPCTX(session_hostname),
 			      config_protocolbuttons_handler, P(hp),
 			      "Raw", 'w', I(PROT_RAW),
@@ -1222,12 +1227,12 @@ void setup_config_box(struct controlbox *b, int midsession,
     /*
      * The Load/Save panel is available even in mid-session.
      */
-    s = ctrl_getset(b, "»á»°", "savedsessions",
-		    midsession ? "±£´æµ±Ç°»á»°ÉèÖÃ" :
-		    "ÔØÈë,±£´æ»òÕßÉ¾³ıÒ»¸ö´¢´æµÄ»á»°");
+    s = ctrl_getset(b, "ä¼šè¯", "savedsessions",
+		    midsession ? "ä¿å­˜å½“å‰ä¼šè¯è®¾ç½®" :
+		    "è½½å…¥,ä¿å­˜æˆ–è€…åˆ é™¤ä¸€ä¸ªå‚¨å­˜çš„ä¼šè¯");
     ctrl_columns(s, 2, 75, 25);
     get_sesslist(&ssd->sesslist, TRUE);
-    ssd->editbox = ctrl_editbox(s, "ÒÑ±£´æ»á»°(E)", 'e', 100,
+    ssd->editbox = ctrl_editbox(s, "å·²ä¿å­˜ä¼šè¯(E)", 'e', 100,
 				HELPCTX(session_saved),
 				sessionsaver_handler, P(ssd), P(NULL));
     ssd->editbox->generic.column = 0;
@@ -1241,7 +1246,7 @@ void setup_config_box(struct controlbox *b, int midsession,
     ssd->listbox->generic.column = 0;
     ssd->listbox->listbox.height = 7;
     if (!midsession) {
-	ssd->loadbutton = ctrl_pushbutton(s, "ÔØÈë(L)", 'l',
+	ssd->loadbutton = ctrl_pushbutton(s, "è½½å…¥(L)", 'l',
 					  HELPCTX(session_saved),
 					  sessionsaver_handler, P(ssd));
 	ssd->loadbutton->generic.column = 1;
@@ -1253,12 +1258,12 @@ void setup_config_box(struct controlbox *b, int midsession,
 	ssd->loadbutton = NULL;
     }
     /* "Save" button is permitted mid-session. */
-    ssd->savebutton = ctrl_pushbutton(s, "±£´æ(V)", 'v',
+    ssd->savebutton = ctrl_pushbutton(s, "ä¿å­˜(V)", 'v',
 				      HELPCTX(session_saved),
 				      sessionsaver_handler, P(ssd));
     ssd->savebutton->generic.column = 1;
     if (!midsession) {
-	ssd->delbutton = ctrl_pushbutton(s, "É¾³ı(D)", 'd',
+	ssd->delbutton = ctrl_pushbutton(s, "åˆ é™¤(D)", 'd',
 					 HELPCTX(session_saved),
 					 sessionsaver_handler, P(ssd));
 	ssd->delbutton->generic.column = 1;
@@ -1268,21 +1273,21 @@ void setup_config_box(struct controlbox *b, int midsession,
     }
     ctrl_columns(s, 1, 100);
 
-    s = ctrl_getset(b, "»á»°", "otheropts", NULL);
-    c = ctrl_radiobuttons(s, "ÍË³öÊ±¹Ø±Õ´°¿Ú:", 'x', 4,
+    s = ctrl_getset(b, "ä¼šè¯", "otheropts", NULL);
+    c = ctrl_radiobuttons(s, "é€€å‡ºæ—¶å…³é—­çª—å£:", 'x', 4,
 			  HELPCTX(session_coe),
 			  dlg_stdradiobutton_handler,
 			  I(offsetof(Config, close_on_exit)),
-			  "×ÜÊÇ", I(FORCE_ON),
-			  "´Ó²»", I(FORCE_OFF),
-			  "Ö»µ±ÍêÕûÍË³öÊ±", I(AUTO), NULL);
+			  "æ€»æ˜¯", I(FORCE_ON),
+			  "ä»ä¸", I(FORCE_OFF),
+			  "åªå½“å®Œæ•´é€€å‡ºæ—¶", I(AUTO), NULL);
 
     /*
      * The Session/Logging panel.
      */
-    ctrl_settitle(b, "»á»°/ÈÕÖ¾", "¿ØÖÆ»á»°ÈÕÖ¾Ñ¡Ïî");
+    ctrl_settitle(b, "ä¼šè¯/æ—¥å¿—", "æ§åˆ¶ä¼šè¯æ—¥å¿—é€‰é¡¹");
 
-    s = ctrl_getset(b, "»á»°/ÈÕÖ¾", "main", NULL);
+    s = ctrl_getset(b, "ä¼šè¯/æ—¥å¿—", "main", NULL);
     /*
      * The logging buttons change depending on whether SSH packet
      * logging can sensibly be available.
@@ -1291,48 +1296,48 @@ void setup_config_box(struct controlbox *b, int midsession,
 	char *sshlogname, *sshrawlogname;
 	if ((midsession && protocol == PROT_SSH) ||
 	    (!midsession && backend_from_proto(PROT_SSH))) {
-	    sshlogname = "SSH °ü¹ü";
-	    sshrawlogname = "SSH °ü¹üÓë raw Êı¾İ";
+	    sshlogname = "SSH åŒ…è£¹";
+	    sshrawlogname = "SSH åŒ…è£¹ä¸ raw æ•°æ®";
         } else {
 	    sshlogname = NULL;	       /* this will disable both buttons */
 	    sshrawlogname = NULL;      /* this will just placate optimisers */
         }
-	ctrl_radiobuttons(s, "»á»°ÈÕÖ¾:", NO_SHORTCUT, 2,
+	ctrl_radiobuttons(s, "ä¼šè¯æ—¥å¿—:", NO_SHORTCUT, 2,
 			  HELPCTX(logging_main),
 			  loggingbuttons_handler,
 			  I(offsetof(Config, logtype)),
-			  "Ã»ÓĞ(T)", 't', I(LGTYP_NONE),
-			  "¿É´òÓ¡Êä³ö(P)", 'p', I(LGTYP_ASCII),
-			  "ËùÓĞ»á»°Êä³ö(L)", 'l', I(LGTYP_DEBUG),
+			  "æ²¡æœ‰(T)", 't', I(LGTYP_NONE),
+			  "å¯æ‰“å°è¾“å‡º(P)", 'p', I(LGTYP_ASCII),
+			  "æ‰€æœ‰ä¼šè¯è¾“å‡º(L)", 'l', I(LGTYP_DEBUG),
 			  sshlogname, 's', I(LGTYP_PACKETS),
 			  sshrawlogname, 'r', I(LGTYP_SSHRAW),
 			  NULL);
     }
-    ctrl_filesel(s, "ÈÕÖ¾ÎÄ¼şÃû:", 'f',
-		 NULL, TRUE, "Ö¸¶¨Ò»¸ö»á»°ÈÕÖ¾ÎÄ¼şÃû",
+    ctrl_filesel(s, "æ—¥å¿—æ–‡ä»¶å:", 'f',
+		 NULL, TRUE, "æŒ‡å®šä¸€ä¸ªä¼šè¯æ—¥å¿—æ–‡ä»¶å",
 		 HELPCTX(logging_filename),
 		 dlg_stdfilesel_handler, I(offsetof(Config, logfilename)));
-    ctrl_text(s, "(ÈÕÖ¾ÎÄ¼ş¿ÉÒÔ°üÀ¨ &Y, &M, &D À´Ö¸¶¨ÈÕÆÚ,"
-	      " &T À´Ö¸¶¨Ê±¼ä, »òÕß &H À´Ö¸¶¨Ö÷»úÃû)",
+    ctrl_text(s, "(æ—¥å¿—æ–‡ä»¶å¯ä»¥åŒ…æ‹¬ &Y, &M, &D æ¥æŒ‡å®šæ—¥æœŸ,"
+	      " &T æ¥æŒ‡å®šæ—¶é—´, æˆ–è€… &H æ¥æŒ‡å®šä¸»æœºå)",
 	      HELPCTX(logging_filename));
-    ctrl_radiobuttons(s, "µ±Ò»¸öÈÕÖ¾ÎÄ¼şÒÑ¾­´æÔÚ,Äú»áÔõÃ´°ì(E):", 'e', 1,
+    ctrl_radiobuttons(s, "å½“ä¸€ä¸ªæ—¥å¿—æ–‡ä»¶å·²ç»å­˜åœ¨,æ‚¨ä¼šæ€ä¹ˆåŠ(E):", 'e', 1,
 		      HELPCTX(logging_exists),
 		      dlg_stdradiobutton_handler, I(offsetof(Config,logxfovr)),
-		      "×ÜÊÇ¸²¸Ç´ËÎÄ¼ş", I(LGXF_OVR),
-		      "×ÜÊÇ¸½¼ÓÔÚÄ©Î²", I(LGXF_APN),
-		      "Ã¿´Î³öÏÖÑ¯ÎÊÎÒ", I(LGXF_ASK), NULL);
+		      "æ€»æ˜¯è¦†ç›–æ­¤æ–‡ä»¶", I(LGXF_OVR),
+		      "æ€»æ˜¯é™„åŠ åœ¨æœ«å°¾", I(LGXF_APN),
+		      "æ¯æ¬¡å‡ºç°è¯¢é—®æˆ‘", I(LGXF_ASK), NULL);
     ctrl_checkbox(s, "Flush log file frequently", 'u',
 		 HELPCTX(logging_flush),
 		 dlg_stdcheckbox_handler, I(offsetof(Config,logflush)));
 
     if ((midsession && protocol == PROT_SSH) ||
 	(!midsession && backend_from_proto(PROT_SSH))) {
-	s = ctrl_getset(b, "»á»°/ÈÕÖ¾", "ssh",
-			"Ö¸¶¨ SSH °ü¹üÈÕÖ¾Ñ¡Ïî");
-	ctrl_checkbox(s, "ºöÂÔÒÑÖªÃÜÂë¶Î", 'k',
+	s = ctrl_getset(b, "ä¼šè¯/æ—¥å¿—", "ssh",
+			"æŒ‡å®š SSH åŒ…è£¹æ—¥å¿—é€‰é¡¹");
+	ctrl_checkbox(s, "å¿½ç•¥å·²çŸ¥å¯†ç æ®µ", 'k',
 		      HELPCTX(logging_ssh_omit_password),
 		      dlg_stdcheckbox_handler, I(offsetof(Config,logomitpass)));
-	ctrl_checkbox(s, "ºöÂÔ»á»°Êı¾İ", 'd',
+	ctrl_checkbox(s, "å¿½ç•¥ä¼šè¯æ•°æ®", 'd',
 		      HELPCTX(logging_ssh_omit_data),
 		      dlg_stdcheckbox_handler, I(offsetof(Config,logomitdata)));
     }
@@ -1340,9 +1345,9 @@ void setup_config_box(struct controlbox *b, int midsession,
     /*
      * The Terminal panel.
      */
-    ctrl_settitle(b, "ÖÕ¶Ë", "¿ØÖÆÖÕ¶ËÄ£ÄâÑ¡Ïî");
+    ctrl_settitle(b, "ç»ˆç«¯", "æ§åˆ¶ç»ˆç«¯æ¨¡æ‹Ÿé€‰é¡¹");
 
-    s = ctrl_getset(b, "ÖÕ¶Ë", "general", "Set various terminal options");
+    s = ctrl_getset(b, "ç»ˆç«¯", "general", "Set various terminal options");
     ctrl_checkbox(s, "Auto wrap mode initially on", 'w',
 		  HELPCTX(terminal_autowrap),
 		  dlg_stdcheckbox_handler, I(offsetof(Config,wrap_mode)));
@@ -1366,7 +1371,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 		 dlg_stdeditbox_handler, I(offsetof(Config,answerback)),
 		 I(sizeof(((Config *)0)->answerback)));
 
-    s = ctrl_getset(b, "ÖÕ¶Ë", "ldisc", "Line discipline options");
+    s = ctrl_getset(b, "ç»ˆç«¯", "ldisc", "Line discipline options");
     ctrl_radiobuttons(s, "Local echo:", 'l', 3,
 		      HELPCTX(terminal_localecho),
 		      dlg_stdradiobutton_handler,I(offsetof(Config,localecho)),
@@ -1380,7 +1385,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 		      "Force on", I(FORCE_ON),
 		      "Force off", I(FORCE_OFF), NULL);
 
-    s = ctrl_getset(b, "ÖÕ¶Ë", "printing", "Remote-controlled printing");
+    s = ctrl_getset(b, "ç»ˆç«¯", "printing", "Remote-controlled printing");
     ctrl_combobox(s, "Printer to send ANSI printer output to:", 'p', 100,
 		  HELPCTX(terminal_printing),
 		  printerbox_handler, P(NULL), P(NULL));
@@ -1388,10 +1393,10 @@ void setup_config_box(struct controlbox *b, int midsession,
     /*
      * The Terminal/Keyboard panel.
      */
-    ctrl_settitle(b, "ÖÕ¶Ë/¼üÅÌ",
+    ctrl_settitle(b, "ç»ˆç«¯/é”®ç›˜",
 		  "Options controlling the effects of keys");
 
-    s = ctrl_getset(b, "ÖÕ¶Ë/¼üÅÌ", "mappings",
+    s = ctrl_getset(b, "ç»ˆç«¯/é”®ç›˜", "mappings",
 		    "Change the sequences sent by:");
     ctrl_radiobuttons(s, "The Backspace key", 'b', 2,
 		      HELPCTX(keyboard_backspace),
@@ -1410,7 +1415,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 		      "ESC[n~", I(0), "Linux", I(1), "Xterm R6", I(2),
 		      "VT400", I(3), "VT100+", I(4), "SCO", I(5), NULL);
 
-    s = ctrl_getset(b, "ÖÕ¶Ë/¼üÅÌ", "appkeypad",
+    s = ctrl_getset(b, "ç»ˆç«¯/é”®ç›˜", "appkeypad",
 		    "Application keypad settings:");
     ctrl_radiobuttons(s, "Initial state of cursor keys:", 'r', 3,
 		      HELPCTX(keyboard_appcursor),
@@ -1426,10 +1431,10 @@ void setup_config_box(struct controlbox *b, int midsession,
     /*
      * The Terminal/Bell panel.
      */
-    ctrl_settitle(b, "ÖÕ¶Ë/Bell",
+    ctrl_settitle(b, "ç»ˆç«¯/Bell",
 		  "Options controlling the terminal bell");
 
-    s = ctrl_getset(b, "ÖÕ¶Ë/Bell", "style", "Set the style of bell");
+    s = ctrl_getset(b, "ç»ˆç«¯/Bell", "style", "Set the style of bell");
     ctrl_radiobuttons(s, "Action to happen when a bell occurs:", 'b', 1,
 		      HELPCTX(bell_style),
 		      dlg_stdradiobutton_handler, I(offsetof(Config, beep)),
@@ -1437,7 +1442,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 		      "Make default system alert sound", I(BELL_DEFAULT),
 		      "Visual bell (flash window)", I(BELL_VISUAL), NULL);
 
-    s = ctrl_getset(b, "ÖÕ¶Ë/Bell", "overload",
+    s = ctrl_getset(b, "ç»ˆç«¯/Bell", "overload",
 		    "Control the bell overload behaviour");
     ctrl_checkbox(s, "Bell is temporarily disabled when over-used", 'd',
 		  HELPCTX(bell_overload),
@@ -1459,10 +1464,10 @@ void setup_config_box(struct controlbox *b, int midsession,
     /*
      * The Terminal/Features panel.
      */
-    ctrl_settitle(b, "ÖÕ¶Ë/Features",
+    ctrl_settitle(b, "ç»ˆç«¯/Features",
 		  "Enabling and disabling advanced terminal features");
 
-    s = ctrl_getset(b, "ÖÕ¶Ë/Features", "main", NULL);
+    s = ctrl_getset(b, "ç»ˆç«¯/Features", "main", NULL);
     ctrl_checkbox(s, "Disable application cursor keys mode", 'u',
 		  HELPCTX(features_application),
 		  dlg_stdcheckbox_handler, I(offsetof(Config,no_applic_c)));
@@ -1507,10 +1512,10 @@ void setup_config_box(struct controlbox *b, int midsession,
      * The Window panel.
      */
     str = dupprintf("Options controlling %s's window", appname);
-    ctrl_settitle(b, "´°¿Ú", str);
+    ctrl_settitle(b, "çª—å£", str);
     sfree(str);
 
-    s = ctrl_getset(b, "´°¿Ú", "size", "Set the size of the window");
+    s = ctrl_getset(b, "çª—å£", "size", "Set the size of the window");
     ctrl_columns(s, 2, 50, 50);
     c = ctrl_editbox(s, "Columns", 'm', 100,
 		     HELPCTX(window_size),
@@ -1522,7 +1527,7 @@ void setup_config_box(struct controlbox *b, int midsession,
     c->generic.column = 1;
     ctrl_columns(s, 1, 100);
 
-    s = ctrl_getset(b, "´°¿Ú", "scrollback",
+    s = ctrl_getset(b, "çª—å£", "scrollback",
 		    "Control the scrollback in the window");
     ctrl_editbox(s, "Lines of scrollback", 's', 50,
 		 HELPCTX(window_scrollback),
@@ -1545,10 +1550,10 @@ void setup_config_box(struct controlbox *b, int midsession,
      * The Window/Appearance panel.
      */
     str = dupprintf("Configure the appearance of %s's window", appname);
-    ctrl_settitle(b, "´°¿Ú/Appearance", str);
+    ctrl_settitle(b, "çª—å£/Appearance", str);
     sfree(str);
 
-    s = ctrl_getset(b, "´°¿Ú/Appearance", "cursor",
+    s = ctrl_getset(b, "çª—å£/Appearance", "cursor",
 		    "Adjust the use of the cursor");
     ctrl_radiobuttons(s, "Cursor appearance:", NO_SHORTCUT, 3,
 		      HELPCTX(appearance_cursor),
@@ -1561,19 +1566,19 @@ void setup_config_box(struct controlbox *b, int midsession,
 		  HELPCTX(appearance_cursor),
 		  dlg_stdcheckbox_handler, I(offsetof(Config,blink_cur)));
 
-    s = ctrl_getset(b, "´°¿Ú/Appearance", "font",
+    s = ctrl_getset(b, "çª—å£/Appearance", "font",
 		    "Font settings");
     ctrl_fontsel(s, "Font used in the terminal window", 'n',
 		 HELPCTX(appearance_font),
 		 dlg_stdfontsel_handler, I(offsetof(Config, font)));
 
-    s = ctrl_getset(b, "´°¿Ú/Appearance", "mouse",
+    s = ctrl_getset(b, "çª—å£/Appearance", "mouse",
 		    "Adjust the use of the mouse pointer");
     ctrl_checkbox(s, "Hide mouse pointer when typing in window", 'p',
 		  HELPCTX(appearance_hidemouse),
 		  dlg_stdcheckbox_handler, I(offsetof(Config,hide_mouseptr)));
 
-    s = ctrl_getset(b, "´°¿Ú/Appearance", "border",
+    s = ctrl_getset(b, "çª—å£/Appearance", "border",
 		    "Adjust the window border");
     ctrl_editbox(s, "Gap between text and window edge:", 'e', 20,
 		 HELPCTX(appearance_border),
@@ -1584,10 +1589,10 @@ void setup_config_box(struct controlbox *b, int midsession,
      * The Window/Behaviour panel.
      */
     str = dupprintf("Configure the behaviour of %s's window", appname);
-    ctrl_settitle(b, "´°¿Ú/Behaviour", str);
+    ctrl_settitle(b, "çª—å£/Behaviour", str);
     sfree(str);
 
-    s = ctrl_getset(b, "´°¿Ú/Behaviour", "title",
+    s = ctrl_getset(b, "çª—å£/Behaviour", "title",
 		    "Adjust the behaviour of the window title");
     ctrl_editbox(s, "Window title:", 't', 100,
 		 HELPCTX(appearance_title),
@@ -1598,7 +1603,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 		  dlg_stdcheckbox_handler,
 		  I(CHECKBOX_INVERT | offsetof(Config,win_name_always)));
 
-    s = ctrl_getset(b, "´°¿Ú/Behaviour", "main", NULL);
+    s = ctrl_getset(b, "çª—å£/Behaviour", "main", NULL);
     ctrl_checkbox(s, "Warn before closing window", 'w',
 		  HELPCTX(behaviour_closewarn),
 		  dlg_stdcheckbox_handler, I(offsetof(Config,warn_on_close)));
@@ -1606,22 +1611,22 @@ void setup_config_box(struct controlbox *b, int midsession,
     /*
      * The Window/Translation panel.
      */
-    ctrl_settitle(b, "´°¿Ú/Translation",
+    ctrl_settitle(b, "çª—å£/Translation",
 		  "Options controlling character set translation");
 
-    s = ctrl_getset(b, "´°¿Ú/Translation", "trans",
+    s = ctrl_getset(b, "çª—å£/Translation", "trans",
 		    "Character set translation");
     ctrl_combobox(s, "Remote character set:",
 		  'r', 100, HELPCTX(translation_codepage),
 		  codepage_handler, P(NULL), P(NULL));
 
-    s = ctrl_getset(b, "´°¿Ú/Translation", "tweaks", NULL);
+    s = ctrl_getset(b, "çª—å£/Translation", "tweaks", NULL);
     ctrl_checkbox(s, "Treat CJK ambiguous characters as wide", 'w',
 		  HELPCTX(translation_cjk_ambig_wide),
 		  dlg_stdcheckbox_handler, I(offsetof(Config,cjk_ambig_wide)));
 
     str = dupprintf("Adjust how %s handles line drawing characters", appname);
-    s = ctrl_getset(b, "´°¿Ú/Translation", "linedraw", str);
+    s = ctrl_getset(b, "çª—å£/Translation", "linedraw", str);
     sfree(str);
     ctrl_radiobuttons(s, "Handling of line drawing characters:", NO_SHORTCUT,1,
 		      HELPCTX(translation_linedraw),
@@ -1637,9 +1642,9 @@ void setup_config_box(struct controlbox *b, int midsession,
     /*
      * The Window/Selection panel.
      */
-    ctrl_settitle(b, "´°¿Ú/Selection", "Options controlling copy and paste");
+    ctrl_settitle(b, "çª—å£/Selection", "Options controlling copy and paste");
 	
-    s = ctrl_getset(b, "´°¿Ú/Selection", "mouse",
+    s = ctrl_getset(b, "çª—å£/Selection", "mouse",
 		    "Control use of mouse");
     ctrl_checkbox(s, "Shift overrides application's use of mouse", 'p',
 		  HELPCTX(selection_shiftdrag),
@@ -1653,7 +1658,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 		      "Normal", 'n', I(0),
 		      "Rectangular block", 'r', I(1), NULL);
 
-    s = ctrl_getset(b, "´°¿Ú/Selection", "charclass",
+    s = ctrl_getset(b, "çª—å£/Selection", "charclass",
 		    "Control the select-one-word-at-a-time mode");
     ccd = (struct charclass_data *)
 	ctrl_alloc(b, sizeof(struct charclass_data));
@@ -1681,9 +1686,9 @@ void setup_config_box(struct controlbox *b, int midsession,
     /*
      * The Window/Colours panel.
      */
-    ctrl_settitle(b, "´°¿Ú/Colours", "Options controlling use of colours");
+    ctrl_settitle(b, "çª—å£/Colours", "Options controlling use of colours");
 
-    s = ctrl_getset(b, "´°¿Ú/Colours", "general",
+    s = ctrl_getset(b, "çª—å£/Colours", "general",
 		    "General options for colour usage");
     ctrl_checkbox(s, "Allow terminal to specify ANSI colours", 'i',
 		  HELPCTX(colours_ansi),
@@ -1696,7 +1701,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 		  dlg_stdcheckbox_handler, I(offsetof(Config,bold_colour)));
 
     str = dupprintf("Adjust the precise colours %s displays", appname);
-    s = ctrl_getset(b, "´°¿Ú/Colours", "adjust", str);
+    s = ctrl_getset(b, "çª—å£/Colours", "adjust", str);
     sfree(str);
     ctrl_text(s, "Select a colour from the list, and then click the"
 	      " Modify button to change its appearance.",
@@ -1729,9 +1734,9 @@ void setup_config_box(struct controlbox *b, int midsession,
      * passed a protocol < 0.
      */
     if (protocol >= 0) {
-	ctrl_settitle(b, "Á¬½Ó", "Options controlling the connection");
+	ctrl_settitle(b, "è¿æ¥", "Options controlling the connection");
 
-	s = ctrl_getset(b, "Á¬½Ó", "keepalive",
+	s = ctrl_getset(b, "è¿æ¥", "keepalive",
 			"Sending of null packets to keep session active");
 	ctrl_editbox(s, "Seconds between keepalives (0 to turn off)", 'k', 20,
 		     HELPCTX(connection_keepalive),
@@ -1739,7 +1744,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 		     I(-1));
 
 	if (!midsession) {
-	    s = ctrl_getset(b, "Á¬½Ó", "tcp",
+	    s = ctrl_getset(b, "è¿æ¥", "tcp",
 			    "Low-level TCP connection options");
 	    ctrl_checkbox(s, "Disable Nagle's algorithm (TCP_NODELAY option)",
 			  'n', HELPCTX(connection_nodelay),
@@ -1750,7 +1755,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 			  dlg_stdcheckbox_handler,
 			  I(offsetof(Config,tcp_keepalives)));
 #ifndef NO_IPV6
-	    s = ctrl_getset(b, "Á¬½Ó", "ipversion",
+	    s = ctrl_getset(b, "è¿æ¥", "ipversion",
 			  "Internet protocol version");
 	    ctrl_radiobuttons(s, NULL, NO_SHORTCUT, 3,
 			  HELPCTX(connection_ipversion),
@@ -1766,7 +1771,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 		char *label = backend_from_proto(PROT_SSH) ?
 		    "Logical name of remote host (e.g. for SSH key lookup):" :
 		    "Logical name of remote host:";
-		s = ctrl_getset(b, "Á¬½Ó", "identity",
+		s = ctrl_getset(b, "è¿æ¥", "identity",
 				"Logical name of remote host");
 		ctrl_editbox(s, label, 'm', 100,
 			     HELPCTX(connection_loghost),
@@ -1780,9 +1785,9 @@ void setup_config_box(struct controlbox *b, int midsession,
 	 * decide on data to send to the server.
 	 */
 	if (!midsession) {
-	    ctrl_settitle(b, "Á¬½Ó/Data", "Data to send to the server");
+	    ctrl_settitle(b, "è¿æ¥/Data", "Data to send to the server");
 
-	    s = ctrl_getset(b, "Á¬½Ó/Data", "login",
+	    s = ctrl_getset(b, "è¿æ¥/Data", "login",
 			    "Login details");
 	    ctrl_editbox(s, "Auto-login username", 'u', 50,
 			 HELPCTX(connection_username),
@@ -1805,7 +1810,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 		sfree(userlabel);
 	    }
 
-	    s = ctrl_getset(b, "Á¬½Ó/Data", "term",
+	    s = ctrl_getset(b, "è¿æ¥/Data", "term",
 			    "Terminal details");
 	    ctrl_editbox(s, "Terminal-type string", 't', 50,
 			 HELPCTX(connection_termtype),
@@ -1816,7 +1821,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 			 dlg_stdeditbox_handler, I(offsetof(Config,termspeed)),
 			 I(sizeof(((Config *)0)->termspeed)));
 
-	    s = ctrl_getset(b, "Á¬½Ó/Data", "env",
+	    s = ctrl_getset(b, "è¿æ¥/Data", "env",
 			    "Environment variables");
 	    ctrl_columns(s, 2, 80, 20);
 	    ed = (struct environ_data *)
@@ -1854,10 +1859,10 @@ void setup_config_box(struct controlbox *b, int midsession,
 	/*
 	 * The Connection/Proxy panel.
 	 */
-	ctrl_settitle(b, "Á¬½Ó/Proxy",
+	ctrl_settitle(b, "è¿æ¥/Proxy",
 		      "Options controlling proxy usage");
 
-	s = ctrl_getset(b, "Á¬½Ó/Proxy", "basics", NULL);
+	s = ctrl_getset(b, "è¿æ¥/Proxy", "basics", NULL);
 	ctrl_radiobuttons(s, "Proxy type:", 't', 3,
 			  HELPCTX(proxy_type),
 			  dlg_stdradiobutton_handler,
@@ -1924,10 +1929,10 @@ void setup_config_box(struct controlbox *b, int midsession,
 	/*
 	 * The Connection/Telnet panel.
 	 */
-	ctrl_settitle(b, "Á¬½Ó/Telnet",
+	ctrl_settitle(b, "è¿æ¥/Telnet",
 		      "Options controlling Telnet connections");
 
-	s = ctrl_getset(b, "Á¬½Ó/Telnet", "protocol",
+	s = ctrl_getset(b, "è¿æ¥/Telnet", "protocol",
 			"Telnet protocol adjustments");
 
 	if (!midsession) {
@@ -1959,10 +1964,10 @@ void setup_config_box(struct controlbox *b, int midsession,
 	/*
 	 * The Connection/Rlogin panel.
 	 */
-	ctrl_settitle(b, "Á¬½Ó/Rlogin",
+	ctrl_settitle(b, "è¿æ¥/Rlogin",
 		      "Options controlling Rlogin connections");
 
-	s = ctrl_getset(b, "Á¬½Ó/Rlogin", "data",
+	s = ctrl_getset(b, "è¿æ¥/Rlogin", "data",
 			"Data to send to the server");
 	ctrl_editbox(s, "Local username:", 'l', 50,
 		     HELPCTX(rlogin_localuser),
@@ -1981,11 +1986,11 @@ void setup_config_box(struct controlbox *b, int midsession,
 	/*
 	 * The Connection/SSH panel.
 	 */
-	ctrl_settitle(b, "Á¬½Ó/SSH",
+	ctrl_settitle(b, "è¿æ¥/SSH",
 		      "Options controlling SSH connections");
 
 	if (midsession && protcfginfo == 1) {
-	    s = ctrl_getset(b, "Á¬½Ó/SSH", "disclaimer", NULL);
+	    s = ctrl_getset(b, "è¿æ¥/SSH", "disclaimer", NULL);
 	    ctrl_text(s, "Nothing on this panel may be reconfigured in mid-"
 		      "session; it is only here so that sub-panels of it can "
 		      "exist without looking strange.", HELPCTX(no_help));
@@ -1993,14 +1998,14 @@ void setup_config_box(struct controlbox *b, int midsession,
 
 	if (!midsession) {
 
-	    s = ctrl_getset(b, "Á¬½Ó/SSH", "data",
+	    s = ctrl_getset(b, "è¿æ¥/SSH", "data",
 			    "Data to send to the server");
 	    ctrl_editbox(s, "Remote command:", 'r', 100,
 			 HELPCTX(ssh_command),
 			 dlg_stdeditbox_handler, I(offsetof(Config,remote_cmd)),
 			 I(sizeof(((Config *)0)->remote_cmd)));
 
-	    s = ctrl_getset(b, "Á¬½Ó/SSH", "protocol", "Protocol options");
+	    s = ctrl_getset(b, "è¿æ¥/SSH", "protocol", "Protocol options");
 	    ctrl_checkbox(s, "Don't start a shell or command at all", 'n',
 			  HELPCTX(ssh_noshell),
 			  dlg_stdcheckbox_handler,
@@ -2008,7 +2013,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	}
 
 	if (!midsession || protcfginfo != 1) {
-	    s = ctrl_getset(b, "Á¬½Ó/SSH", "protocol", "Protocol options");
+	    s = ctrl_getset(b, "è¿æ¥/SSH", "protocol", "Protocol options");
 
 	    ctrl_checkbox(s, "Enable compression", 'e',
 			  HELPCTX(ssh_compress),
@@ -2017,7 +2022,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	}
 
 	if (!midsession) {
-	    s = ctrl_getset(b, "Á¬½Ó/SSH", "protocol", "Protocol options");
+	    s = ctrl_getset(b, "è¿æ¥/SSH", "protocol", "Protocol options");
 
 	    ctrl_radiobuttons(s, "Preferred SSH protocol version:", NO_SHORTCUT, 4,
 			      HELPCTX(ssh_protocol),
@@ -2030,7 +2035,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	}
 
 	if (!midsession || protcfginfo != 1) {
-	    s = ctrl_getset(b, "Á¬½Ó/SSH", "encryption", "Encryption options");
+	    s = ctrl_getset(b, "è¿æ¥/SSH", "encryption", "Encryption options");
 	    c = ctrl_draglist(s, "Encryption cipher selection policy:", 's',
 			      HELPCTX(ssh_ciphers),
 			      cipherlist_handler, P(NULL));
@@ -2048,17 +2053,17 @@ void setup_config_box(struct controlbox *b, int midsession,
 	 * we're using SSH-2 or haven't decided yet.)
 	 */
 	if (protcfginfo != 1) {
-	    ctrl_settitle(b, "Á¬½Ó/SSH/Kex",
+	    ctrl_settitle(b, "è¿æ¥/SSH/Kex",
 			  "Options controlling SSH key exchange");
 
-	    s = ctrl_getset(b, "Á¬½Ó/SSH/Kex", "main",
+	    s = ctrl_getset(b, "è¿æ¥/SSH/Kex", "main",
 			    "Key exchange algorithm options");
 	    c = ctrl_draglist(s, "Algorithm selection policy:", 's',
 			      HELPCTX(ssh_kexlist),
 			      kexlist_handler, P(NULL));
 	    c->listbox.height = 5;
 
-	    s = ctrl_getset(b, "Á¬½Ó/SSH/Kex", "repeat",
+	    s = ctrl_getset(b, "è¿æ¥/SSH/Kex", "repeat",
 			    "Options controlling key re-exchange");
 
 	    ctrl_editbox(s, "Max minutes before rekey (0 for no limit)", 't', 20,
@@ -2080,16 +2085,20 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    /*
 	     * The Connection/SSH/Auth panel.
 	     */
-	    ctrl_settitle(b, "Á¬½Ó/SSH/Auth",
+	    ctrl_settitle(b, "è¿æ¥/SSH/Auth",
 			  "Options controlling SSH authentication");
 
-	    s = ctrl_getset(b, "Á¬½Ó/SSH/Auth", "main", NULL);
+	    s = ctrl_getset(b, "è¿æ¥/SSH/Auth", "main", NULL);
 	    ctrl_checkbox(s, "Bypass authentication entirely (SSH-2 only)", 'b',
 			  HELPCTX(ssh_auth_bypass),
 			  dlg_stdcheckbox_handler,
 			  I(offsetof(Config,ssh_no_userauth)));
+	    ctrl_checkbox(s, "Display pre-authentication banner (SSH-2 only)",
+			  'd', HELPCTX(ssh_auth_banner),
+			  dlg_stdcheckbox_handler,
+			  I(offsetof(Config,ssh_show_banner)));
 
-	    s = ctrl_getset(b, "Á¬½Ó/SSH/Auth", "methods",
+	    s = ctrl_getset(b, "è¿æ¥/SSH/Auth", "methods",
 			    "Authentication methods");
 	    ctrl_checkbox(s, "Attempt authentication using Pageant", 'p',
 			  HELPCTX(ssh_auth_pageant),
@@ -2104,7 +2113,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 			  dlg_stdcheckbox_handler,
 			  I(offsetof(Config,try_ki_auth)));
 
-	    s = ctrl_getset(b, "Á¬½Ó/SSH/Auth", "params",
+	    s = ctrl_getset(b, "è¿æ¥/SSH/Auth", "params",
 			    "Authentication parameters");
 	    ctrl_checkbox(s, "Allow agent forwarding", 'f',
 			  HELPCTX(ssh_auth_agentfwd),
@@ -2178,15 +2187,15 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    /*
 	     * The Connection/SSH/TTY panel.
 	     */
-	    ctrl_settitle(b, "Á¬½Ó/SSH/TTY", "Remote terminal settings");
+	    ctrl_settitle(b, "è¿æ¥/SSH/TTY", "Remote terminal settings");
 
-	    s = ctrl_getset(b, "Á¬½Ó/SSH/TTY", "sshtty", NULL);
+	    s = ctrl_getset(b, "è¿æ¥/SSH/TTY", "sshtty", NULL);
 	    ctrl_checkbox(s, "Don't allocate a pseudo-terminal", 'p',
 			  HELPCTX(ssh_nopty),
 			  dlg_stdcheckbox_handler,
 			  I(offsetof(Config,nopty)));
 
-	    s = ctrl_getset(b, "Á¬½Ó/SSH/TTY", "ttymodes",
+	    s = ctrl_getset(b, "è¿æ¥/SSH/TTY", "ttymodes",
 			    "Terminal modes");
 	    td = (struct ttymodes_data *)
 		ctrl_alloc(b, sizeof(struct ttymodes_data));
@@ -2244,10 +2253,10 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    /*
 	     * The Connection/SSH/X11 panel.
 	     */
-	    ctrl_settitle(b, "Á¬½Ó/SSH/X11",
+	    ctrl_settitle(b, "è¿æ¥/SSH/X11",
 			  "Options controlling SSH X11 forwarding");
 
-	    s = ctrl_getset(b, "Á¬½Ó/SSH/X11", "x11", "X11 forwarding");
+	    s = ctrl_getset(b, "è¿æ¥/SSH/X11", "x11", "X11 forwarding");
 	    ctrl_checkbox(s, "Enable X11 forwarding", 'e',
 			  HELPCTX(ssh_tunnels_x11),
 			  dlg_stdcheckbox_handler,I(offsetof(Config,x11_forward)));
@@ -2266,10 +2275,10 @@ void setup_config_box(struct controlbox *b, int midsession,
 	/*
 	 * The Tunnels panel _is_ still available in mid-session.
 	 */
-	ctrl_settitle(b, "Á¬½Ó/SSH/Tunnels",
+	ctrl_settitle(b, "è¿æ¥/SSH/Tunnels",
 		      "Options controlling SSH port forwarding");
 
-	s = ctrl_getset(b, "Á¬½Ó/SSH/Tunnels", "portfwd",
+	s = ctrl_getset(b, "è¿æ¥/SSH/Tunnels", "portfwd",
 			"Port forwarding");
 	ctrl_checkbox(s, "Local ports accept connections from other hosts",'t',
 		      HELPCTX(ssh_tunnels_portfwd_localhost),
@@ -2339,10 +2348,10 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    /*
 	     * The Connection/SSH/Bugs panel.
 	     */
-	    ctrl_settitle(b, "Á¬½Ó/SSH/Bugs",
+	    ctrl_settitle(b, "è¿æ¥/SSH/Bugs",
 			  "Workarounds for SSH server bugs");
 
-	    s = ctrl_getset(b, "Á¬½Ó/SSH/Bugs", "main",
+	    s = ctrl_getset(b, "è¿æ¥/SSH/Bugs", "main",
 			    "Detection of known bugs in SSH servers");
 	    ctrl_droplist(s, "Chokes on SSH-1 ignore messages", 'i', 20,
 			  HELPCTX(ssh_bugs_ignore1),
