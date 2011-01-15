@@ -258,7 +258,7 @@ bool NetPlay::StartGame(const std::string &path)
 {
 	if (m_is_running)
 	{
-		PanicAlert("Game is already running!");
+		PanicAlertT("Game is already running!");
 		return false;
 	}
 
@@ -288,7 +288,7 @@ bool NetPlay::StopGame()
 
 	if (false == m_is_running)
 	{
-		PanicAlert("Game isn't running!");
+		PanicAlertT("Game isn't running!");
 		return false;
 	}
 

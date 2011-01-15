@@ -54,7 +54,7 @@ SCoreStartupParameter::SCoreStartupParameter()
   SelectedLanguage(0), bWii(false),
   bConfirmStop(false), bHideCursor(false), 
   bAutoHideCursor(false), bUsePanicHandlers(true),
-  iRenderWindowXPos(0), iRenderWindowYPos(0),
+  iRenderWindowXPos(-1), iRenderWindowYPos(-1),
   iRenderWindowWidth(640), iRenderWindowHeight(480),
   bFullscreen(false), bRenderToMain(false),
   bProgressive(false),
@@ -91,27 +91,11 @@ void SCoreStartupParameter::LoadDefaults()
 	bJITOff = false; // debugger only settings
 	bJITLoadStoreOff = false;
 	bJITLoadStoreFloatingOff = false;
-	bJITLoadStorePairedOff = false;
+	bJITLoadStorePairedOff = false;		// XXX not 64-bit clean
 	bJITFloatingPointOff = false;
 	bJITIntegerOff = false;
 	bJITPairedOff = false;
 	bJITSystemRegistersOff = false;
-#ifdef __APPLE__
-	// These are required for the JIT cores to work in OSX
-	// Older revs (~4854) Only required LoadStorePaired to be turned off
-	// Newer revs (~4890) require both turned off
-	#ifdef _M_X64
-	// These work fine in 32bit OSX
-	// Since the reason why 64bit OSX fails out is due to casting (u32)(u64)
-	// Since all 64bit applications are above the 32bit memory boundary
-	bJITLoadStorePairedOff = true;
-	#endif
-	//#elif defined(__linux__)
-	// Similar to OSX, something with LoadStorePaired seems to cause
-	// crashes on linux. Only Win32 seems to be forgiving enough to 
-	// not do anything funny...(FIXME)
-	//	bJITLoadStorePairedOff = true;
-#endif
 
 	m_strName = "NONE";
 	m_strUniqueID = "00000000";
@@ -130,7 +114,7 @@ bool SCoreStartupParameter::AutoSetup(EBootBS2 _BootBS2)
 			// that gave an incorrect file name 
 			if (!bootDrive && !File::Exists(m_strFilename.c_str()))
 			{
-				PanicAlert("The specified file \"%s\" does not exist", m_strFilename.c_str());
+				PanicAlertT("The specified file \"%s\" does not exist", m_strFilename.c_str());
 				return false;
 			}
 			
@@ -147,11 +131,14 @@ bool SCoreStartupParameter::AutoSetup(EBootBS2 _BootBS2)
 				DiscIO::IVolume* pVolume = DiscIO::CreateVolumeFromFilename(m_strFilename.c_str());
 				if (pVolume == NULL)
 				{
-					PanicAlert(bootDrive ?
-						"Could not read \"%s\".  There is no disc in the drive, or it is not a GC/Wii backup.  "
-						"Please note that original Gamecube and Wii discs cannot be read by most PC DVD drives." :
-						"\"%s\" is an invalid GCM/ISO file, or is not a GC/Wii ISO."
-						, m_strFilename.c_str());
+					if (bootDrive)
+						PanicAlertT("Could not read \"%s\".  "
+								"There is no disc in the drive, or it is not a GC/Wii backup.  "
+								"Please note that original Gamecube and Wii discs cannot be read "
+								"by most PC DVD drives.", m_strFilename.c_str());
+					else
+						PanicAlertT("\"%s\" is an invalid GCM/ISO file, or is not a GC/Wii ISO.",
+								m_strFilename.c_str());
 					return false;
 				}
 				m_strName = pVolume->GetName();
@@ -183,7 +170,7 @@ bool SCoreStartupParameter::AutoSetup(EBootBS2 _BootBS2)
 					break;
 				
 				default:
-					if (PanicYesNo("Your GCM/ISO file seems to be invalid (invalid country)."
+					if (PanicYesNoT("Your GCM/ISO file seems to be invalid (invalid country)."
 								   "\nContinue with PAL region?"))
 					{
 						bNTSC = false;
@@ -218,7 +205,7 @@ bool SCoreStartupParameter::AutoSetup(EBootBS2 _BootBS2)
 					//WAD is valid yet cannot be booted. Install instead.
 					bool installed = CBoot::Install_WiiWAD(m_strFilename.c_str());
 					if (installed)
-						SuccessAlert("The WAD has been installed successfully");
+						SuccessAlertT("The WAD has been installed successfully");
 					return false; //do not boot
 				}
 
@@ -281,7 +268,7 @@ bool SCoreStartupParameter::AutoSetup(EBootBS2 _BootBS2)
 			}
 			else
 			{
-				PanicAlert("Could not recognize ISO file %s", m_strFilename.c_str());
+				PanicAlertT("Could not recognize ISO file %s", m_strFilename.c_str());
 				return false;
 			}
 		}
@@ -356,7 +343,7 @@ void SCoreStartupParameter::CheckMemcardPath(std::string& memcardPath, std::stri
 				// If the old file exists we are polite and ask if we should copy it
 				std::string oldFilename = filename;
 				filename.replace(filename.size()-4, 4, ext);
-				if (PanicYesNo("Memory Card filename in Slot %c is incorrect\n"
+				if (PanicYesNoT("Memory Card filename in Slot %c is incorrect\n"
 					"Region not specified\n\n"
 					"Slot %c path was changed to\n"
 					"%s\n"
@@ -364,7 +351,7 @@ void SCoreStartupParameter::CheckMemcardPath(std::string& memcardPath, std::stri
 					isSlotA ? 'A':'B', isSlotA ? 'A':'B', filename.c_str()))
 				{
 					if (!File::Copy(oldFilename.c_str(), filename.c_str()))
-						PanicAlert("Copy failed");
+						PanicAlertT("Copy failed");
 				}
 			}
 			memcardPath = filename; // Always correct the path!

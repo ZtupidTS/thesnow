@@ -175,7 +175,7 @@ bool Init()
 {
 	if (g_EmuThread != NULL)
 	{
-		PanicAlert("Emu Thread already running");
+		PanicAlertT("Emu Thread already running");
 		return false;
 	}
 
@@ -277,7 +277,7 @@ THREAD_RETURN CpuThread(void *pArg)
 			// Let's run under memory watch
 			EMM::InstallExceptionHandler();
 		#else
-			PanicAlert("32-bit platforms do not support fastmem yet. Report this bug.");
+			PanicAlertT("32-bit platforms do not support fastmem yet. Report this bug.");
 		#endif
 	}
 
@@ -413,10 +413,6 @@ THREAD_RETURN EmuThread(void *pArg)
 	PowerPC::SetMode(PowerPC::MODE_INTERPRETER);
 	CBoot::BootUp();
 
-	if (g_pUpdateFPSDisplay != NULL)
-		g_pUpdateFPSDisplay(("Loading " + _CoreParameter.m_strFilename).c_str());
-	Host_UpdateTitle(("Loading " + _CoreParameter.m_strFilename).c_str());
-
 	// Setup our core, but can't use dynarec if we are compare server
 	if (_CoreParameter.iCPUCore && (!_CoreParameter.bRunCompareServer || _CoreParameter.bRunCompareClient))
 		PowerPC::SetMode(PowerPC::MODE_JIT);
@@ -435,10 +431,6 @@ THREAD_RETURN EmuThread(void *pArg)
 		cpuThread = new Common::Thread(CpuThread, pArg);
 		Common::SetCurrentThreadName("Video thread");
 
-		if (g_pUpdateFPSDisplay != NULL)
-			g_pUpdateFPSDisplay(("Loaded " + _CoreParameter.m_strFilename).c_str());
-		Host_UpdateTitle(("Loaded " + _CoreParameter.m_strFilename).c_str());
-
 		// Update the window again because all stuff is initialized
 		Host_UpdateDisasmDialog();
 		Host_UpdateMainFrame();
@@ -454,10 +446,6 @@ THREAD_RETURN EmuThread(void *pArg)
 
 		cpuThread = new Common::Thread(CpuThread, pArg);
 		Common::SetCurrentThreadName("Emuthread - Idle");
-
-		if (g_pUpdateFPSDisplay != NULL)
-			g_pUpdateFPSDisplay(("Loaded " + _CoreParameter.m_strFilename).c_str());
-		Host_UpdateTitle(("Loaded " + _CoreParameter.m_strFilename).c_str());
 
 		// Update the window again because all stuff is initialized
 		Host_UpdateDisasmDialog();
@@ -548,7 +536,7 @@ void SetState(EState _State)
 		CCPU::EnableStepping(false);
 		break;
 	default:
-		PanicAlert("Invalid state");
+		PanicAlertT("Invalid state");
 		break;
 	}
 }
@@ -671,14 +659,22 @@ void VideoThrottle()
 		#endif
 
 		// This is our final "frame counter" string
-		std::string SMessage = StringFromFormat("%s | %s", SSettings.c_str(), SFPS.c_str());
+		std::string SMessage = StringFromFormat("%s | %s",
+			SSettings.c_str(), SFPS.c_str());
+		std::string TMessage = StringFromFormat("%s | ", svn_rev_str) +
+			SMessage;
 
 		// Show message
 		if (g_pUpdateFPSDisplay != NULL)
 			g_pUpdateFPSDisplay(SMessage.c_str()); 
-		Host_UpdateTitle(SMessage.c_str());
 
-		Host_UpdateStatusBar(SMessage.c_str());
+		if (_CoreParameter.bRenderToMain &&
+			SConfig::GetInstance().m_InterfaceStatusbar) {
+			Host_UpdateStatusBar(SMessage.c_str());
+			Host_UpdateTitle(svn_rev_str);
+		} else
+			Host_UpdateTitle(TMessage.c_str());
+		
 
 		// Reset counter
 		Timer.Update();

@@ -645,7 +645,7 @@ void CFrame::OnHostMessage(wxCommandEvent& event)
 		break;
 
 	case IDM_UPDATETITLE:
-		if (!SConfig::GetInstance().m_LocalCoreStartupParameter.bRenderToMain && m_RenderFrame)
+		if (m_RenderFrame != NULL)
 			m_RenderFrame->SetTitle(event.GetString());
 		break;
 
@@ -662,11 +662,9 @@ void CFrame::OnHostMessage(wxCommandEvent& event)
 		break;
 #endif
 
-#if defined(HAVE_X11) && HAVE_X11
 	case WM_USER_STOP:
 		DoStop();
 		break;
-#endif
 	}
 }
 

@@ -56,6 +56,7 @@ END_EVENT_TABLE()
 
 #include <wx/stdpaths.h>
 bool wxMsgAlert(const char*, const char*, bool, int);
+std::string wxStringTranslator(const char *);
 
 CFrame* main_frame = NULL;
 
@@ -104,98 +105,60 @@ bool DolphinApp::OnInit()
 	wxString audioPluginFilename;
 
 #if wxUSE_CMDLINE_PARSER // Parse command lines
-#if wxCHECK_VERSION(2, 9, 0)
 	wxCmdLineEntryDesc cmdLineDesc[] =
 	{
 		{
-			wxCMD_LINE_SWITCH, "h", "help", "Show this help message",
-			wxCMD_LINE_VAL_NONE, wxCMD_LINE_OPTION_HELP
-		},
-		{
-			wxCMD_LINE_SWITCH, "d", "debugger", "Opens the debugger"
-		},
-		{
-			wxCMD_LINE_SWITCH, "l", "logger", "Opens the logger"
-		},
-		{
-			wxCMD_LINE_OPTION, "e", "exec", "Loads the specified file (DOL, ELF, WAD, GCM, ISO)",
-			wxCMD_LINE_VAL_STRING, wxCMD_LINE_PARAM_OPTIONAL
-		},
-		{
-			wxCMD_LINE_SWITCH, "b", "batch", "Exit Dolphin with emulator"
-		},
-		{
-			wxCMD_LINE_OPTION, "V", "video_plugin","Specify a video plugin",
-			wxCMD_LINE_VAL_STRING, wxCMD_LINE_PARAM_OPTIONAL
-		},
-		{
-			wxCMD_LINE_OPTION, "A", "audio_plugin","Specify an audio plugin",
-			wxCMD_LINE_VAL_STRING, wxCMD_LINE_PARAM_OPTIONAL
-		},
-		{
-			wxCMD_LINE_NONE
-		}
-	};
-#else
-	wxCmdLineEntryDesc cmdLineDesc[] =
-	{
-		{
-			wxCMD_LINE_SWITCH, _T("h"), _T("help"), 
+			wxCMD_LINE_SWITCH, wxS("h"), wxS("help"),
 			_("Show this help message"),
 			wxCMD_LINE_VAL_NONE, wxCMD_LINE_OPTION_HELP
 		},
 		{
-			wxCMD_LINE_SWITCH, _T("d"), _T("debugger"), _("Opens the debugger")
+			wxCMD_LINE_SWITCH, wxS("d"), wxS("debugger"),
+			_("Opens the debugger")
 		},
 		{
-			wxCMD_LINE_SWITCH, _T("l"), _T("logger"), _("Opens the logger")
+			wxCMD_LINE_SWITCH, wxS("l"), wxS("logger"),
+			_("Opens the logger")
 		},
 		{
-			wxCMD_LINE_OPTION, _T("e"), _T("exec"), _("Loads the specified file (DOL, ELF, WAD, GCM, ISO)"),
+			wxCMD_LINE_OPTION, wxS("e"), wxS("exec"),
+			_("Loads the specified file (DOL, ELF, WAD, GCM, ISO)"),
 			wxCMD_LINE_VAL_STRING, wxCMD_LINE_PARAM_OPTIONAL
 		},
 		{
-			wxCMD_LINE_SWITCH, _T("b"), _T("batch"), _("Exit Dolphin with emulator")
+			wxCMD_LINE_SWITCH, wxS("b"), wxS("batch"),
+			_("Exit Dolphin with emulator")
 		},
 		{
-			wxCMD_LINE_OPTION, _T("V"), _T("video_plugin"), _("Specify a video plugin"),
+			wxCMD_LINE_OPTION, wxS("V"), wxS("video_plugin"),
+			_("Specify a video plugin"),
 			wxCMD_LINE_VAL_STRING, wxCMD_LINE_PARAM_OPTIONAL
 		},
 		{
-			wxCMD_LINE_OPTION, _T("A"), _T("audio_plugin"), _("Specify an audio plugin"),
+			wxCMD_LINE_OPTION, wxS("A"), wxS("audio_plugin"),
+			_("Specify an audio plugin"),
 			wxCMD_LINE_VAL_STRING, wxCMD_LINE_PARAM_OPTIONAL
 		},
 		{
 			wxCMD_LINE_NONE
 		}
 	};
-#endif
+
 	// Gets the command line parameters
 	wxCmdLineParser parser(cmdLineDesc, argc, argv);
-
 	if (parser.Parse() != 0)
 	{
 		return false;
 	} 
-#if wxCHECK_VERSION(2, 9, 0)
-	UseDebugger = parser.Found("debugger");
-	UseLogger = parser.Found("logger");
-	LoadFile = parser.Found("exec", &FileToLoad);
-	BatchMode = parser.Found("batch");
-#else
-	UseDebugger = parser.Found(_T("debugger"));
-	UseLogger = parser.Found(_T("logger"));
-	LoadFile = parser.Found(_T("exec"), &FileToLoad);
-	BatchMode = parser.Found(_T("batch"));
-#endif
 
-#if wxCHECK_VERSION(2, 9, 0)
-	selectVideoPlugin = parser.Found("video_plugin", &videoPluginFilename);
-	selectAudioPlugin = parser.Found("audio_plugin", &audioPluginFilename);
-#else
-	selectVideoPlugin = parser.Found(_T("video_plugin"), &videoPluginFilename);
-	selectAudioPlugin = parser.Found(_T("audio_plugin"), &audioPluginFilename);
-#endif
+	UseDebugger = parser.Found(wxT("debugger"));
+	UseLogger = parser.Found(wxT("logger"));
+	LoadFile = parser.Found(wxT("exec"), &FileToLoad);
+	BatchMode = parser.Found(wxT("batch"));
+	selectVideoPlugin = parser.Found(wxT("video_plugin"),
+		&videoPluginFilename);
+	selectAudioPlugin = parser.Found(wxT("audio_plugin"),
+		&audioPluginFilename);
 #endif // wxUSE_CMDLINE_PARSER
 
 #if defined _DEBUG && defined _WIN32
@@ -204,21 +167,22 @@ bool DolphinApp::OnInit()
 	_CrtSetDbgFlag(tmpflag);
 #endif
 
-	// Register message box handler
-#ifndef _WIN32
+	// Register message box and translation handlers
 	RegisterMsgAlertHandler(&wxMsgAlert);
-#endif
+	RegisterStringTranslator(&wxStringTranslator);
 
 	// "ExtendedTrace" looks freakin dangerous!!!
 #ifdef _WIN32
 	EXTENDEDTRACEINITIALIZE(".");
 	SetUnhandledExceptionFilter(&MyUnhandledExceptionFilter);
+#else
+	wxHandleFatalExceptions(true);
 #endif
 
 	// TODO: if First Boot
 	if (!cpu_info.bSSE2) 
 	{
-		PanicAlert("Hi,\n\nDolphin requires that your CPU has support for SSE2 extensions.\n"
+		PanicAlertT("Hi,\n\nDolphin requires that your CPU has support for SSE2 extensions.\n"
 				"Unfortunately your CPU does not support them, so Dolphin will not run.\n\n"
 				"Sayonara!\n");
 		return false;
@@ -238,12 +202,12 @@ bool DolphinApp::OnInit()
 		FILE* workingDir = fopen(tmp, "r");
 		if (!workingDir)
 		{
-			if (PanicYesNo("Dolphin has not been configured with an install location,\nKeep Dolphin portable?"))
+			if (PanicYesNoT("Dolphin has not been configured with an install location,\nKeep Dolphin portable?"))
 			{
 				FILE* portable = fopen((std::string(File::GetUserPath(D_CONFIG_IDX)) + "portable").c_str(), "w");
 				if (!portable)
 				{
-					PanicAlert("Portable Setting could not be saved\n Are you running Dolphin from read only media or from a directory that dolphin is not located in?");
+					PanicAlertT("Portable Setting could not be saved\n Are you running Dolphin from read only media or from a directory that dolphin is not located in?");
 				}
 				else
 				{
@@ -254,11 +218,11 @@ bool DolphinApp::OnInit()
 			{
 				char CWD[1024];
 				sprintf(CWD, "%s", (const char*)wxGetCwd().mb_str());
-				if (PanicYesNo("Set install location to:\n %s ?", CWD))
+				if (PanicYesNoT("Set install location to:\n %s ?", CWD))
 				{
 					FILE* workingDirF = fopen(tmp, "w");
 					if (!workingDirF)
-						PanicAlert("Install directory could not be saved");
+						PanicAlertT("Install directory could not be saved");
 					else
 					{
 						fwrite(CWD, ((std::string)CWD).size()+1, 1, workingDirF);
@@ -267,7 +231,7 @@ bool DolphinApp::OnInit()
 					}
 				}
 				else
-					PanicAlert("Relaunch Dolphin from the install directory and save from there");
+					PanicAlertT("Relaunch Dolphin from the install directory and save from there");
 			}
 		}
 		else
@@ -409,26 +373,16 @@ void DolphinApp::AfterInit(wxTimerEvent& WXUNUSED(event))
 
 void DolphinApp::InitLanguageSupport()
 {
-	int language = 0;
-
-	// keep those in sync with CConfigMain::InitializeGUILists
-	const wxLanguage langIds[] =
-	{
-		wxLANGUAGE_DEFAULT,
-		wxLANGUAGE_ENGLISH,
-		wxLANGUAGE_GERMAN,
-		wxLANGUAGE_FRENCH,
-		wxLANGUAGE_ITALIAN,
-	};
+	unsigned int language = 0;
 
 	IniFile ini;
 	ini.Load(File::GetUserPath(F_DOLPHINCONFIG_IDX));
-	ini.Get("Interface", "Language", &language, 0);
+	ini.Get("Interface", "Language", &language, wxLANGUAGE_DEFAULT);
 
 	// Load language if possible, fall back to system default otherwise
-	if(language >= 0 && language < sizeof(langIds) / sizeof(wxLanguage) && wxLocale::IsAvailable(langIds[language]))
+	if(wxLocale::IsAvailable(language))
 	{
-		m_locale = new wxLocale(langIds[language]);
+		m_locale = new wxLocale(language);
 
 #ifdef _WIN32
 		m_locale->AddCatalogLookupPathPrefix(wxT("Languages"));
@@ -438,14 +392,14 @@ void DolphinApp::InitLanguageSupport()
 
 		if(!m_locale->IsOk())
 		{
-			PanicAlert("Error loading selected language. Falling back to system default.\n");
+			PanicAlertT("Error loading selected language. Falling back to system default.");
 			delete m_locale;
 			m_locale = new wxLocale(wxLANGUAGE_DEFAULT);
 		}
 	}
 	else
 	{
-		PanicAlert("The selected language is not supported by your system. Falling back to system default.\n");
+		PanicAlertT("The selected language is not supported by your system. Falling back to system default.");
 		m_locale = new wxLocale(wxLANGUAGE_DEFAULT);
 	}
 }
@@ -469,6 +423,11 @@ int DolphinApp::OnExit()
 	delete m_locale;
 
 	return wxApp::OnExit();
+}
+
+void DolphinApp::OnFatalException()
+{
+	WiimoteReal::Shutdown();
 }
 
 
@@ -496,20 +455,25 @@ bool wxMsgAlert(const char* caption, const char* text, bool yes_no, int /*Style*
 #ifdef __WXGTK__
 	if (wxIsMainThread())
 #endif
-		return wxYES == wxMessageBox(wxString::FromAscii(text), 
-				wxString::FromAscii(caption),
+		return wxYES == wxMessageBox(wxString::FromUTF8(text), 
+				wxString::FromUTF8(caption),
 				(yes_no) ? wxYES_NO : wxOK, main_frame);
 #ifdef __WXGTK__
 	else
 	{
 		wxCommandEvent event(wxEVT_HOST_COMMAND, IDM_PANIC);
-		event.SetString(wxString::FromAscii(text));
+		event.SetString(wxString::FromUTF8(text));
 		event.SetInt(yes_no);
 		main_frame->GetEventHandler()->AddPendingEvent(event);
 		main_frame->panic_event.Wait();
 		return main_frame->bPanicResult;
 	}
 #endif
+}
+
+std::string wxStringTranslator(const char *text)
+{
+	return (const char *)wxString(wxGetTranslation(wxString::From8BitData(text))).ToUTF8();
 }
 
 // Accessor for the main window class
