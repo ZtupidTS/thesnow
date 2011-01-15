@@ -1,7 +1,0 @@
-; ScreenHooks.def : Declares the module parameters for the DLL.
-
-LIBRARY      "ScreenHooks"
-; DESCRIPTION  'WinVNC 3.0 Hook Library'
-
-SECTIONS
-	.SharedData read write shared
