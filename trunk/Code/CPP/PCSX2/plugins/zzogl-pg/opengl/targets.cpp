@@ -23,17 +23,20 @@
 
 #include "Mem.h"
 #include "x86.h"
-#include "zerogs.h"
 #include "targets.h"
 #include "ZZoglShaders.h"
+#include "ZZClut.h"
+#include <math.h>
+#include "ZZoglVB.h"
+
 #ifdef ZEROGS_SSE2
 #include <emmintrin.h>
 #endif
 
+const float g_filog32 = 0.999f / (32.0f * logf(2.0f));
 #define RHA
 //#define RW
 
-using namespace ZeroGS;
 extern int g_TransferredToGPU;
 extern bool g_bUpdateStencil;
 
@@ -47,18 +50,21 @@ extern int s_nResolved;
 extern u32 g_nResolve;
 extern bool g_bSaveTrans;
 
-namespace ZeroGS
-{
 CRenderTargetMngr s_RTs, s_DepthRTs;
 CBitwiseTextureMngr s_BitwiseTextures;
 CMemoryTargetMngr g_MemTargs;
-}
 
 //extern u32 s_ptexCurSet[2];
 bool g_bSaveZUpdate = 0;
 
 int VALIDATE_THRESH = 8;
 u32 TEXDESTROY_THRESH = 16;
+#define FORCE_TEXDESTROY_THRESH (3) // destroy texture after FORCE_TEXDESTROY_THRESH frames
+
+void _Resolve(const void* psrc, int fbp, int fbw, int fbh, int psm, u32 fbm, bool mode);
+void SetWriteDepth();
+bool IsWriteDepth();
+bool IsWriteDestAlphaTest();
 
 // ------------------------- Useful inlines ------------------------------------
 
@@ -91,7 +97,7 @@ inline void DestroyAllTargetsHelper(void* ptr)
 // returns false if creating texture was unsuccessful
 // fbh and fdb should be properly shifted before calling this!
 // We should ignore framebuffer trouble here, as we put textures of different sizes to it.
-inline bool ZeroGS::CRenderTarget::InitialiseDefaultTexture(u32 *ptr_p, int fbw, int fbh)
+inline bool CRenderTarget::InitialiseDefaultTexture(u32 *ptr_p, int fbw, int fbh)
 {
 	glGenTextures(1, ptr_p);
 	glBindTexture(GL_TEXTURE_RECTANGLE_NV, *ptr_p);
@@ -109,7 +115,7 @@ inline bool ZeroGS::CRenderTarget::InitialiseDefaultTexture(u32 *ptr_p, int fbw,
 // Draw 4 triangles from binded array using only stencil buffer
 inline void FillOnlyStencilBuffer()
 {
-	if (ZeroGS::IsWriteDestAlphaTest() && !(conf.settings().no_stencil))
+	if (IsWriteDestAlphaTest() && !(conf.settings().no_stencil))
 	{
 		glColorMask(0, 0, 0, 0);
 		glEnable(GL_ALPHA_TEST);
@@ -125,7 +131,7 @@ inline void FillOnlyStencilBuffer()
 
 // used for transformation from vertex position in GS window.coords (I hope)
 // to view coordinates (in range 0, 1).
-inline float4 ZeroGS::CRenderTarget::DefaultBitBltPos()
+inline float4 CRenderTarget::DefaultBitBltPos()
 {
 	float4 v = float4(1, -1, 0.5f / (float)RW(fbw), 0.5f / (float)RH(fbh));
 	v *= 1.0f / 32767.0f;
@@ -135,7 +141,7 @@ inline float4 ZeroGS::CRenderTarget::DefaultBitBltPos()
 
 // Used to transform texture coordinates from GS (when 0,0 is upper left) to
 // OpenGL (0,0 - lower left).
-inline float4 ZeroGS::CRenderTarget::DefaultBitBltTex()
+inline float4 CRenderTarget::DefaultBitBltTex()
 {
 	// I really sure that -0.5 is correct, because OpenGL have no half-offset
 	// issue, DirectX known for.
@@ -153,19 +159,19 @@ inline void BindToSample(u32 *p_ptr)
 ////////////////////
 // Render Targets //
 ////////////////////
-ZeroGS::CRenderTarget::CRenderTarget() : ptex(0), ptexFeedback(0), psys(NULL)
+CRenderTarget::CRenderTarget() : ptex(0), ptexFeedback(0), psys(NULL)
 {
 	FUNCLOG
 	nUpdateTarg = 0;
 }
 
-ZeroGS::CRenderTarget::~CRenderTarget()
+CRenderTarget::~CRenderTarget()
 {
 	FUNCLOG
 	Destroy();
 }
 
-bool ZeroGS::CRenderTarget::Create(const frameInfo& frame)
+bool CRenderTarget::Create(const frameInfo& frame)
 {
 	FUNCLOG
 	Resolve();
@@ -208,7 +214,7 @@ bool ZeroGS::CRenderTarget::Create(const frameInfo& frame)
 	return true;
 }
 
-void ZeroGS::CRenderTarget::Destroy()
+void CRenderTarget::Destroy()
 {
 	FUNCLOG
 	created = 1;
@@ -218,7 +224,7 @@ void ZeroGS::CRenderTarget::Destroy()
 	SAFE_RELEASE_TEX(ptexFeedback);
 }
 
-void ZeroGS::CRenderTarget::SetTarget(int fbplocal, const Rect2& scissor, int context)
+void CRenderTarget::SetTarget(int fbplocal, const Rect2& scissor, int context)
 {
 	FUNCLOG
 	int dy = 0;
@@ -261,7 +267,7 @@ void ZeroGS::CRenderTarget::SetTarget(int fbplocal, const Rect2& scissor, int co
 	scissorrect.h = RH(scissorrect.h);
 }
 
-void ZeroGS::CRenderTarget::SetViewport()
+void CRenderTarget::SetViewport()
 {
 	FUNCLOG
 	glViewport(0, 0, RW(fbw), RH(fbh));
@@ -272,7 +278,7 @@ inline bool NotResolveHelper()
 	return ((s_nResolved > 8 && (2 * s_nResolved > fFPS - 10)) || (conf.settings().no_target_resolve));
 }
 
-void ZeroGS::CRenderTarget::Resolve()
+void CRenderTarget::Resolve()
 {
 	FUNCLOG
 
@@ -281,7 +287,7 @@ void ZeroGS::CRenderTarget::Resolve()
 		// flush if necessary
 		FlushIfNecesary(this) ;
 
-		if ((IsDepth() && !ZeroGS::IsWriteDepth()) || NotResolveHelper())
+		if ((IsDepth() && !IsWriteDepth()) || NotResolveHelper())
 		{
 			// don't resolve if depths aren't used
 			status = TS_Resolved;
@@ -314,7 +320,7 @@ void ZeroGS::CRenderTarget::Resolve()
 	}
 }
 
-void ZeroGS::CRenderTarget::Resolve(int startrange, int endrange)
+void CRenderTarget::Resolve(int startrange, int endrange)
 {
 	FUNCLOG
 
@@ -387,7 +393,7 @@ void ZeroGS::CRenderTarget::Resolve(int startrange, int endrange)
 	}
 }
 
-void ZeroGS::CRenderTarget::Update(int context, ZeroGS::CRenderTarget* pdepth)
+void CRenderTarget::Update(int context, CRenderTarget* pdepth)
 {
 	FUNCLOG
 
@@ -469,6 +475,9 @@ void ZeroGS::CRenderTarget::Update(int context, ZeroGS::CRenderTarget* pdepth)
 		texframe.tw = fbw;
 		texframe.th = fbh;
 		texframe.psm = psm;
+        // FIXME some field are not initialized...
+        // in particular the clut related one
+        assert(!PSMT_ISCLUT(psm));
 
 		// write color and zero out stencil buf, always 0 context!
 		// force bilinear if using AA
@@ -488,7 +497,7 @@ void ZeroGS::CRenderTarget::Update(int context, ZeroGS::CRenderTarget* pdepth)
 
 		if (conf.wireframe()) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-		if (ZeroGS::IsWriteDestAlphaTest())
+		if (IsWriteDestAlphaTest())
 		{
 			glEnable(GL_STENCIL_TEST);
 			glStencilFunc(GL_ALWAYS, 0, 0xff);
@@ -510,17 +519,17 @@ void ZeroGS::CRenderTarget::Update(int context, ZeroGS::CRenderTarget* pdepth)
 	glEnable(GL_SCISSOR_TEST);
 
 	if (conf.wireframe()) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	if (conf.mrtdepth && pdepth != NULL && ZeroGS::IsWriteDepth()) pdepth->SetRenderTarget(1);
+	if (conf.mrtdepth && pdepth != NULL && IsWriteDepth()) pdepth->SetRenderTarget(1);
 
 	status = TS_Resolved;
 
 	// reset since settings changed
 	vb[0].bVarsTexSync = 0;
 
-	ZeroGS::ResetAlphaVariables();
+//	ResetAlphaVariables();
 }
 
-void ZeroGS::CRenderTarget::ConvertTo32()
+void CRenderTarget::ConvertTo32()
 {
 	FUNCLOG
 
@@ -568,7 +577,7 @@ void ZeroGS::CRenderTarget::ConvertTo32()
 
 	// assume depth already set !?
 	FBTexture(0, ptexConv);
-	ZeroGS::ResetRenderTarget(1);
+	ResetRenderTarget(1);
 
 	BindToSample(&ptex);
 	ZZshGLSetTextureParameter(ppsConvert16to32.prog, ppsConvert16to32.sFinal, ptex, "Convert 16 to 32.Final");
@@ -613,7 +622,7 @@ void ZeroGS::CRenderTarget::ConvertTo32()
 	status = TS_Resolved;
 
 	// TODO, reset depth?
-	if (ZeroGS::icurctx >= 0)
+	if (icurctx >= 0)
 	{
 		// reset since settings changed
 		vb[icurctx].bVarsTexSync = 0;
@@ -623,7 +632,7 @@ void ZeroGS::CRenderTarget::ConvertTo32()
 	vb[0].bVarsTexSync = 0;
 }
 
-void ZeroGS::CRenderTarget::ConvertTo16()
+void CRenderTarget::ConvertTo16()
 {
 	FUNCLOG
 
@@ -669,7 +678,7 @@ void ZeroGS::CRenderTarget::ConvertTo16()
 
 	// assume depth already set !?
 	FBTexture(0, ptexConv);
-	ZeroGS::ResetRenderTarget(1);
+	ResetRenderTarget(1);
 	GL_REPORT_ERRORD();
 
 	BindToSample(&ptex);
@@ -719,7 +728,7 @@ void ZeroGS::CRenderTarget::ConvertTo16()
 	status = TS_Resolved;
 
 	// TODO, reset depth?
-	if (ZeroGS::icurctx >= 0)
+	if (icurctx >= 0)
 	{
 		// reset since settings changed
 		vb[icurctx].bVarsTexSync = 0;
@@ -729,7 +738,7 @@ void ZeroGS::CRenderTarget::ConvertTo16()
 	vb[0].bVarsTexSync = 0;
 }
 
-void ZeroGS::CRenderTarget::_CreateFeedback()
+void CRenderTarget::_CreateFeedback()
 {
 	FUNCLOG
 
@@ -797,7 +806,7 @@ void ZeroGS::CRenderTarget::_CreateFeedback()
 	status |= TS_FeedbackReady;
 
 	// TODO, reset depth?
-	if (ZeroGS::icurctx >= 0)
+	if (icurctx >= 0)
 	{
 		// reset since settings changed
 		vb[icurctx].bVarsTexSync = 0;
@@ -806,7 +815,7 @@ void ZeroGS::CRenderTarget::_CreateFeedback()
 	GL_REPORT_ERRORD();
 }
 
-void ZeroGS::CRenderTarget::SetRenderTarget(int targ)
+void CRenderTarget::SetRenderTarget(int targ)
 {
 	FUNCLOG
 
@@ -817,16 +826,16 @@ void ZeroGS::CRenderTarget::SetRenderTarget(int targ)
 		//ERROR_LOG_SPAM("The Framebuffer is not complete. Glitches could appear onscreen.\n");
 }
 
-ZeroGS::CDepthTarget::CDepthTarget() : CRenderTarget(), pdepth(0), pstencil(0), icount(0) {}
+CDepthTarget::CDepthTarget() : CRenderTarget(), pdepth(0), pstencil(0), icount(0) {}
 
-ZeroGS::CDepthTarget::~CDepthTarget()
+CDepthTarget::~CDepthTarget()
 {
 	FUNCLOG
 
 	Destroy();
 }
 
-bool ZeroGS::CDepthTarget::Create(const frameInfo& frame)
+bool CDepthTarget::Create(const frameInfo& frame)
 {
 	FUNCLOG
 
@@ -871,7 +880,7 @@ bool ZeroGS::CDepthTarget::Create(const frameInfo& frame)
 	return true;
 }
 
-void ZeroGS::CDepthTarget::Destroy()
+void CDepthTarget::Destroy()
 {
 	FUNCLOG
 
@@ -903,11 +912,11 @@ void ZeroGS::CDepthTarget::Destroy()
 
 extern int g_nDepthUsed; // > 0 if depth is used
 
-void ZeroGS::CDepthTarget::Resolve()
+void CDepthTarget::Resolve()
 {
 	FUNCLOG
 
-	if (g_nDepthUsed > 0 && conf.mrtdepth && !(status&TS_Virtual) && ZeroGS::IsWriteDepth() && !(conf.settings().no_depth_resolve))
+	if (g_nDepthUsed > 0 && conf.mrtdepth && !(status&TS_Virtual) && IsWriteDepth() && !(conf.settings().no_depth_resolve))
 		CRenderTarget::Resolve();
 	else
 	{
@@ -919,15 +928,15 @@ void ZeroGS::CDepthTarget::Resolve()
 
 	if (!(status&TS_Virtual))
 	{
-		ZeroGS::SetWriteDepth();
+		SetWriteDepth();
 	}
 }
 
-void ZeroGS::CDepthTarget::Resolve(int startrange, int endrange)
+void CDepthTarget::Resolve(int startrange, int endrange)
 {
 	FUNCLOG
 
-	if (g_nDepthUsed > 0 && conf.mrtdepth && !(status&TS_Virtual) && ZeroGS::IsWriteDepth())
+	if (g_nDepthUsed > 0 && conf.mrtdepth && !(status&TS_Virtual) && IsWriteDepth())
 	{
 		CRenderTarget::Resolve(startrange, endrange);
 	}
@@ -942,11 +951,11 @@ void ZeroGS::CDepthTarget::Resolve(int startrange, int endrange)
 
 	if (!(status&TS_Virtual))
 	{
-		ZeroGS::SetWriteDepth();
+		SetWriteDepth();
 	}
 }
 
-void ZeroGS::CDepthTarget::Update(int context, ZeroGS::CRenderTarget* prndr)
+void CDepthTarget::Update(int context, CRenderTarget* prndr)
 {
 	FUNCLOG
 
@@ -960,10 +969,13 @@ void ZeroGS::CDepthTarget::Update(int context, ZeroGS::CRenderTarget* prndr)
 	texframe.tw = fbw;
 	texframe.th = fbh;
 	texframe.psm = psm;
+    // FIXME some field are not initialized...
+    // in particular the clut related one
+    assert(!PSMT_ISCLUT(psm));
 
 	DisableAllgl();
 
-	ZeroGS::VB& curvb = vb[context];
+	VB& curvb = vb[context];
 
 	if (curvb.test.zte == 0) return;
 
@@ -1036,7 +1048,7 @@ void ZeroGS::CDepthTarget::Update(int context, ZeroGS::CRenderTarget* prndr)
 
 	status = TS_Resolved;
 
-	if (!ZeroGS::IsWriteDepth())
+	if (!IsWriteDepth())
 	{
 		ResetRenderTarget(1);
 	}
@@ -1054,7 +1066,7 @@ void ZeroGS::CDepthTarget::Update(int context, ZeroGS::CRenderTarget* prndr)
 #endif
 }
 
-void ZeroGS::CDepthTarget::SetDepthStencilSurface()
+void CDepthTarget::SetDepthStencilSurface()
 {
 	FUNCLOG
 	TextureRect(GL_DEPTH_ATTACHMENT_EXT, pdepth);
@@ -1085,7 +1097,7 @@ void ZeroGS::CDepthTarget::SetDepthStencilSurface()
 	}
 }
 
-void ZeroGS::CRenderTargetMngr::Destroy()
+void CRenderTargetMngr::Destroy()
 {
 	FUNCLOG
 
@@ -1104,7 +1116,7 @@ void ZeroGS::CRenderTargetMngr::Destroy()
 	mapDummyTargs.clear();
 }
 
-void ZeroGS::CRenderTargetMngr::DestroyAllTargs(int start, int end, int fbw)
+void CRenderTargetMngr::DestroyAllTargs(int start, int end, int fbw)
 {
 	FUNCLOG
 
@@ -1166,14 +1178,14 @@ void ZeroGS::CRenderTargetMngr::DestroyAllTargs(int start, int end, int fbw)
 	}
 }
 
-void ZeroGS::CRenderTargetMngr::DestroyTarg(CRenderTarget* ptarg)
+void CRenderTargetMngr::DestroyTarg(CRenderTarget* ptarg)
 {
 	FUNCLOG
 	DestroyAllTargetsHelper(ptarg) ;
 	delete ptarg;
 }
 
-void ZeroGS::CRenderTargetMngr::DestroyIntersecting(CRenderTarget* prndr)
+void CRenderTargetMngr::DestroyIntersecting(CRenderTarget* prndr)
 {
 	FUNCLOG
 	assert(prndr != NULL);
@@ -1221,7 +1233,7 @@ inline bool CheckWidthIsSame(const frameInfo& frame, CRenderTarget* ptarg)
 		return (2 * frame.fbw == ptarg->fbw);
 }
 
-void ZeroGS::CRenderTargetMngr::PrintTargets()
+void CRenderTargetMngr::PrintTargets()
 {
 #ifdef _DEBUG
 	for (MAPTARGETS::iterator it1 = mapDummyTargs.begin(); it1 != mapDummyTargs.end(); ++it1)
@@ -1232,7 +1244,7 @@ void ZeroGS::CRenderTargetMngr::PrintTargets()
 #endif
 }
 
-bool ZeroGS::CRenderTargetMngr::isFound(const frameInfo& frame, MAPTARGETS::iterator& it, u32 opts, u32 key, int maxposheight)
+bool CRenderTargetMngr::isFound(const frameInfo& frame, MAPTARGETS::iterator& it, u32 opts, u32 key, int maxposheight)
 {
 	// only enforce height if frame.fbh <= 0x1c0
 	bool bfound = it != mapTargets.end();
@@ -1286,7 +1298,7 @@ bool ZeroGS::CRenderTargetMngr::isFound(const frameInfo& frame, MAPTARGETS::iter
 	return bfound;
 }
 
-CRenderTarget* ZeroGS::CRenderTargetMngr::GetTarg(const frameInfo& frame, u32 opts, int maxposheight)
+CRenderTarget* CRenderTargetMngr::GetTarg(const frameInfo& frame, u32 opts, int maxposheight)
 {
 	FUNCLOG
 
@@ -1441,7 +1453,7 @@ CRenderTarget* ZeroGS::CRenderTargetMngr::GetTarg(const frameInfo& frame, u32 op
 
 		if (besttarg != 0 && pbesttarg->fbw != frame.fbw)
 		{
-//			printf ("A %d %d %d %d\n", frame.psm, frame.fbw, pbesttarg->psm, pbesttarg->fbw);
+			//ZZLog::Debug_Log("A %d %d %d %d\n", frame.psm, frame.fbw, pbesttarg->psm, pbesttarg->fbw);
 
 			vb[0].frame.fbw = pbesttarg->fbw;
 			// Something should be here, but what?
@@ -1594,7 +1606,7 @@ CRenderTarget* ZeroGS::CRenderTargetMngr::GetTarg(const frameInfo& frame, u32 op
 	return ptarg;
 }
 
-ZeroGS::CRenderTargetMngr::MAPTARGETS::iterator ZeroGS::CRenderTargetMngr::GetOldestTarg(MAPTARGETS& m)
+CRenderTargetMngr::MAPTARGETS::iterator CRenderTargetMngr::GetOldestTarg(MAPTARGETS& m)
 {
 	FUNCLOG
 
@@ -1614,7 +1626,7 @@ ZeroGS::CRenderTargetMngr::MAPTARGETS::iterator ZeroGS::CRenderTargetMngr::GetOl
 	return itmaxtarg;
 }
 
-void ZeroGS::CRenderTargetMngr::GetTargs(int start, int end, list<ZeroGS::CRenderTarget*>& listTargets) const
+void CRenderTargetMngr::GetTargs(int start, int end, list<CRenderTarget*>& listTargets) const
 {
 	FUNCLOG
 
@@ -1624,7 +1636,7 @@ void ZeroGS::CRenderTargetMngr::GetTargs(int start, int end, list<ZeroGS::CRende
 	}
 }
 
-void ZeroGS::CRenderTargetMngr::Resolve(int start, int end)
+void CRenderTargetMngr::Resolve(int start, int end)
 {
 	FUNCLOG
 
@@ -1635,93 +1647,14 @@ void ZeroGS::CRenderTargetMngr::Resolve(int start, int end)
 	}
 }
 
-void ZeroGS::CMemoryTargetMngr::Destroy()
+void CMemoryTargetMngr::Destroy()
 {
 	FUNCLOG
 	listTargets.clear();
 	listClearedTargets.clear();
 }
 
-int memcmp_clut16(u16* pSavedBuffer, u16* pClutBuffer, int clutsize)
-{
-	FUNCLOG
-	assert((clutsize&31) == 0);
-
-	// left > 0 only when csa < 16
-	int left = 0;
-	if (((u32)(uptr)pClutBuffer & 2) == 0)
-	{
-		left = (((u32)(uptr)pClutBuffer & 0x3ff) / 2) + clutsize - 512;
-		clutsize -= left;
-	}
-
-	while (clutsize > 0)
-	{
-		for (int i = 0; i < 16; ++i)
-		{
-			if (pSavedBuffer[i] != pClutBuffer[2*i]) return 1;
-		}
-
-		clutsize -= 32;
-		pSavedBuffer += 16;
-		pClutBuffer += 32;
-	}
-
-	if (left > 0)
-	{
-		pClutBuffer = (u16*)(g_pbyGSClut + 2);
-
-		while (left > 0)
-		{
-			for (int i = 0; i < 16; ++i)
-			{
-				if (pSavedBuffer[i] != pClutBuffer[2*i]) return 1;
-			}
-
-			left -= 32;
-
-			pSavedBuffer += 16;
-			pClutBuffer += 32;
-		}
-	}
-
-	return 0;
-}
-
-bool ZeroGS::CMemoryTarget::ValidateClut(const tex0Info& tex0)
-{
-	FUNCLOG
-	assert(tex0.psm == psm && PSMT_ISCLUT(psm) && cpsm == tex0.cpsm);
-
-	int nClutOffset = 0, clutsize = 0;
-	int entries = PSMT_IS8CLUT(tex0.psm) ? 256 : 16;
-
-	if (PSMT_IS32BIT(tex0.cpsm))   // 32 bit
-	{
-		nClutOffset = 64 * tex0.csa;
-		clutsize = min(entries, 256 - tex0.csa * 16) * 4;
-	}
-	else
-	{
-		nClutOffset = 32 * (tex0.csa & 15) + (tex0.csa >= 16 ? 2 : 0);
-		clutsize = min(entries, 512 - tex0.csa * 16) * 2;
-	}
-
-	assert(clutsize == clut.size());
-
-	if (PSMT_IS32BIT(cpsm))
-	{
-		if (memcmp_mmx(&clut[0], g_pbyGSClut + nClutOffset, clutsize)) return false;
-	}
-	else
-	{
-		if (memcmp_clut16((u16*)&clut[0], (u16*)(g_pbyGSClut + nClutOffset), clutsize)) return false;
-	}
-
-	return true;
-}
-
-bool ZeroGS::CMemoryTarget::ValidateTex(const tex0Info& tex0, int starttex, int endtex, bool bDeleteBadTex)
+bool CMemoryTarget::ValidateTex(const tex0Info& tex0, int starttex, int endtex, bool bDeleteBadTex)
 {
 	FUNCLOG
 
@@ -1781,119 +1714,12 @@ bool ZeroGS::CMemoryTarget::ValidateTex(const tex0Info& tex0, int starttex, int 
 	return false;
 }
 
-// used to build clut textures (note that this is for both 16 and 32 bit cluts)
-template <class T>
-static __forceinline void BuildClut(u32 psm, u32 height, T* pclut, u8* psrc, T* pdst)
-{
-	switch (psm)
-	{
-		case PSMT8:
-			for (u32 i = 0; i < height; ++i)
-			{
-				for (int j = 0; j < GPU_TEXWIDTH / 2; ++j)
-				{
-					pdst[0] = pclut[psrc[0]];
-					pdst[1] = pclut[psrc[1]];
-					pdst[2] = pclut[psrc[2]];
-					pdst[3] = pclut[psrc[3]];
-					pdst[4] = pclut[psrc[4]];
-					pdst[5] = pclut[psrc[5]];
-					pdst[6] = pclut[psrc[6]];
-					pdst[7] = pclut[psrc[7]];
-					pdst += 8;
-					psrc += 8;
-				}
-			}
-			break;
-
-		case PSMT4:
-			for (u32 i = 0; i < height; ++i)
-			{
-				for (int j = 0; j < GPU_TEXWIDTH; ++j)
-				{
-					pdst[0] = pclut[psrc[0] & 15];
-					pdst[1] = pclut[psrc[0] >> 4];
-					pdst[2] = pclut[psrc[1] & 15];
-					pdst[3] = pclut[psrc[1] >> 4];
-					pdst[4] = pclut[psrc[2] & 15];
-					pdst[5] = pclut[psrc[2] >> 4];
-					pdst[6] = pclut[psrc[3] & 15];
-					pdst[7] = pclut[psrc[3] >> 4];
-
-					pdst += 8;
-					psrc += 4;
-				}
-			}
-			break;
-
-		case PSMT8H:
-			for (u32 i = 0; i < height; ++i)
-			{
-				for (int j = 0; j < GPU_TEXWIDTH / 8; ++j)
-				{
-					pdst[0] = pclut[psrc[3]];
-					pdst[1] = pclut[psrc[7]];
-					pdst[2] = pclut[psrc[11]];
-					pdst[3] = pclut[psrc[15]];
-					pdst[4] = pclut[psrc[19]];
-					pdst[5] = pclut[psrc[23]];
-					pdst[6] = pclut[psrc[27]];
-					pdst[7] = pclut[psrc[31]];
-					pdst += 8;
-					psrc += 32;
-				}
-			}
-			break;
-
-		case PSMT4HH:
-			for (u32 i = 0; i < height; ++i)
-			{
-				for (int j = 0; j < GPU_TEXWIDTH / 8; ++j)
-				{
-					pdst[0] = pclut[psrc[3] >> 4];
-					pdst[1] = pclut[psrc[7] >> 4];
-					pdst[2] = pclut[psrc[11] >> 4];
-					pdst[3] = pclut[psrc[15] >> 4];
-					pdst[4] = pclut[psrc[19] >> 4];
-					pdst[5] = pclut[psrc[23] >> 4];
-					pdst[6] = pclut[psrc[27] >> 4];
-					pdst[7] = pclut[psrc[31] >> 4];
-					pdst += 8;
-					psrc += 32;
-				}
-			}
-			break;
-
-		case PSMT4HL:
-			for (u32 i = 0; i < height; ++i)
-			{
-				for (int j = 0; j < GPU_TEXWIDTH / 8; ++j)
-				{
-					pdst[0] = pclut[psrc[3] & 15];
-					pdst[1] = pclut[psrc[7] & 15];
-					pdst[2] = pclut[psrc[11] & 15];
-					pdst[3] = pclut[psrc[15] & 15];
-					pdst[4] = pclut[psrc[19] & 15];
-					pdst[5] = pclut[psrc[23] & 15];
-					pdst[6] = pclut[psrc[27] & 15];
-					pdst[7] = pclut[psrc[31] & 15];
-					pdst += 8;
-					psrc += 32;
-				}
-			}
-			break;
-
-		default:
-			assert(0);
-	}
-}
-
 #define TARGET_THRESH 0x500
 
 extern int g_MaxTexWidth, g_MaxTexHeight; // Maximum height & width of supported texture.
 
 //#define SORT_TARGETS
-inline list<CMemoryTarget>::iterator ZeroGS::CMemoryTargetMngr::DestroyTargetIter(list<CMemoryTarget>::iterator& it)
+inline list<CMemoryTarget>::iterator CMemoryTargetMngr::DestroyTargetIter(list<CMemoryTarget>::iterator& it)
 {
 	// find the target and destroy
 	list<CMemoryTarget>::iterator itprev = it;
@@ -1908,50 +1734,37 @@ inline list<CMemoryTarget>::iterator ZeroGS::CMemoryTargetMngr::DestroyTargetIte
 	return it;
 }
 
-int ZeroGS::CMemoryTargetMngr::CompareTarget(list<CMemoryTarget>::iterator& it, const tex0Info& tex0, int clutsize, int nClutOffset)
+// Compare target to current texture info
+// Not same format -> 1
+// Same format, not same data (clut only) -> 2
+// identical -> 0
+int CMemoryTargetMngr::CompareTarget(list<CMemoryTarget>::iterator& it, const tex0Info& tex0, int clutsize)
 {
 	if (PSMT_ISCLUT(it->psm) != PSMT_ISCLUT(tex0.psm))
-	{
 		return 1;
-	}
 
-	if (PSMT_ISCLUT(tex0.psm))
-	{
-		assert(it->clut.size() > 0);
-
-		if (it->psm != tex0.psm || it->cpsm != tex0.cpsm || it->clut.size() != clutsize)
-		{
+	if (PSMT_ISCLUT(tex0.psm)) {
+		if (it->psm != tex0.psm || it->cpsm != tex0.cpsm || it->clutsize != clutsize)
 			return 1;
+
+		if	(PSMT_IS32BIT(tex0.cpsm)) {
+			if (Cmp_ClutBuffer_SavedClut<u32>((u32*)&it->clut[0], tex0.csa, clutsize))
+				return 2;
+		} else {
+			if (Cmp_ClutBuffer_SavedClut<u16>((u16*)&it->clut[0], tex0.csa, clutsize))
+				return 2;
 		}
 
-		if	(PSMT_IS32BIT(tex0.cpsm))
-		{
-			if (memcmp_mmx(&it->clut[0], g_pbyGSClut + nClutOffset, clutsize))
-			{
-				return 2;
-			}
-		}
-		else
-		{
-			if (memcmp_clut16((u16*)&it->clut[0], (u16*)(g_pbyGSClut + nClutOffset), clutsize))
-			{
-				return 2;
-			}
-		}
-
-	}
-	else
+	} else {
 		if (PSMT_IS16BIT(tex0.psm) != PSMT_IS16BIT(it->psm))
-		{
 			return 1;
-		}
+    }
 
 	return 0;
 }
 
-void ZeroGS::CMemoryTargetMngr::GetClutVariables(int& nClutOffset, int& clutsize, const tex0Info& tex0)
+void CMemoryTargetMngr::GetClutVariables(int& clutsize, const tex0Info& tex0)
 {
-	nClutOffset = 0;
 	clutsize = 0;
 
 	if (PSMT_ISCLUT(tex0.psm))
@@ -1959,19 +1772,13 @@ void ZeroGS::CMemoryTargetMngr::GetClutVariables(int& nClutOffset, int& clutsize
 		int entries = PSMT_IS8CLUT(tex0.psm) ? 256 : 16;
 
 		if (PSMT_IS32BIT(tex0.cpsm))
-		{
-			nClutOffset = 64 * tex0.csa;
 			clutsize = min(entries, 256 - tex0.csa * 16) * 4;
-		}
 		else
-		{
-			nClutOffset = 64 * (tex0.csa & 15) + (tex0.csa >= 16 ? 2 : 0);
 			clutsize = min(entries, 512 - tex0.csa * 16) * 2;
-		}
 	}
 }
 
-void ZeroGS::CMemoryTargetMngr::GetMemAddress(int& start, int& end,  const tex0Info& tex0)
+void CMemoryTargetMngr::GetMemAddress(int& start, int& end,  const tex0Info& tex0)
 {
 	int nbStart, nbEnd;
 	GetRectMemAddress(nbStart, nbEnd, tex0.psm, 0, 0, tex0.tw, tex0.th, tex0.tbp0, tex0.tbw);
@@ -1984,7 +1791,7 @@ void ZeroGS::CMemoryTargetMngr::GetMemAddress(int& start, int& end,  const tex0I
 
 }
 
-ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::SearchExistTarget(int start, int end, int nClutOffset, int clutsize, const tex0Info& tex0, int forcevalidate)
+CMemoryTarget* CMemoryTargetMngr::SearchExistTarget(int start, int end, int clutsize, const tex0Info& tex0, int forcevalidate)
 {
 	for (list<CMemoryTarget>::iterator it = listTargets.begin(); it != listTargets.end();)
 	{
@@ -1992,7 +1799,7 @@ ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::SearchExistTarget(int start, i
 		if (it->starty <= start && it->starty + it->height >= end)
 		{
 
-			int res = CompareTarget(it, tex0, clutsize, nClutOffset);
+			int res = CompareTarget(it, tex0, clutsize);
 
 			if (res == 1)
 			{
@@ -2003,9 +1810,8 @@ ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::SearchExistTarget(int start, i
 					if (listTargets.size() == 0) break;
 				}
 				else
-				{
 					++it;
-				}
+
 				continue;
 			}
 			else if (res == 2)
@@ -2018,20 +1824,17 @@ ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::SearchExistTarget(int start, i
 			{
 				// do more validation checking. delete if not been used for a while
 
-				if (!it->ValidateTex(tex0, start, end, curstamp > it->usedstamp + 3))
+				if (!it->ValidateTex(tex0, start, end, curstamp > it->usedstamp + FORCE_TEXDESTROY_THRESH))
 				{
 
 					if (it->height <= 0)
 					{
 						it = DestroyTargetIter(it);
 
-						if (listTargets.size() == 0)
-							break;
+						if (listTargets.size() == 0) break;
 					}
 					else
-					{
 						++it;
-					}
 
 					continue;
 				}
@@ -2055,7 +1858,7 @@ ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::SearchExistTarget(int start, i
 	return NULL;
 }
 
-ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::ClearedTargetsSearch(int fmt, int widthmult, int channels, int height)
+CMemoryTarget* CMemoryTargetMngr::ClearedTargetsSearch(int fmt, int widthmult, int channels, int height)
 {
 	CMemoryTarget* targ = NULL;
 
@@ -2096,25 +1899,32 @@ ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::ClearedTargetsSearch(int fmt, 
 	return targ;
 }
 
-ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::GetMemoryTarget(const tex0Info& tex0, int forcevalidate)
+CMemoryTarget* CMemoryTargetMngr::GetMemoryTarget(const tex0Info& tex0, int forcevalidate)
 {
 	FUNCLOG
-	int start, end, nClutOffset, clutsize;
+	int start, end, clutsize;
 
-	GetClutVariables(nClutOffset, clutsize, tex0);
+	GetClutVariables(clutsize, tex0);
 	GetMemAddress(start, end, tex0);
 
-	ZeroGS::CMemoryTarget* it = SearchExistTarget(start, end, nClutOffset, clutsize, tex0, forcevalidate);
+	CMemoryTarget* it = SearchExistTarget(start, end, clutsize, tex0, forcevalidate);
 
 	if (it != NULL) return it;
 
 	// couldn't find so create
 	CMemoryTarget* targ;
 
-	u32 fmt = GL_UNSIGNED_BYTE;
-
-	// RGBA16 storage format
-	if (PSMT_ISHALF_STORAGE(tex0)) fmt = GL_UNSIGNED_SHORT_1_5_5_5_REV;
+	u32 fmt;
+    u32 internal_fmt;
+	if (PSMT_ISHALF_STORAGE(tex0)) {
+        // RGBA_5551 storage format
+        fmt = GL_UNSIGNED_SHORT_1_5_5_5_REV;
+        internal_fmt = GL_RGB5_A1;
+    } else {
+        // RGBA_8888 storage format
+        fmt = GL_UNSIGNED_BYTE;
+        internal_fmt = GL_RGBA;
+    }
 
 	int widthmult = 1, channels = 1;
 
@@ -2130,50 +1940,6 @@ ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::GetMemoryTarget(const tex0Info
 
 	targ = ClearedTargetsSearch(fmt, widthmult, channels, end - start);
 
-	// fill local clut
-	if (PSMT_ISCLUT(tex0.psm))
-	{
-		assert(clutsize > 0);
-
-		targ->cpsm = tex0.cpsm;
-		targ->clut.reserve(256*4); // no matter what
-		targ->clut.resize(clutsize);
-
-		if (PSMT_IS32BIT(tex0.cpsm))
-		{
-			memcpy_amd(&targ->clut[0], g_pbyGSClut + nClutOffset, clutsize);
-		}
-		else
-		{
-			u16* pClutBuffer = (u16*)(g_pbyGSClut + nClutOffset);
-			u16* pclut = (u16*) & targ->clut[0];
-			int left = ((u32)nClutOffset & 2) ? 0 : ((nClutOffset & 0x3ff) / 2) + clutsize - 512;
-
-			if (left > 0) clutsize -= left;
-
-			while (clutsize > 0)
-			{
-				pclut[0] = pClutBuffer[0];
-				pclut++;
-				pClutBuffer += 2;
-				clutsize -= 2;
-			}
-
-			if (left > 0)
-			{
-				pClutBuffer = (u16*)(g_pbyGSClut + 2);
-
-				while (left > 0)
-				{
-					pclut[0] = pClutBuffer[0];
-					left -= 2;
-					pClutBuffer += 2;
-					pclut++;
-				}
-			}
-		}
-	}
-
 	if (targ->ptex != NULL)
 	{
 		assert(end - start <= targ->realheight && targ->fmt == fmt && targ->widthmult == widthmult);
@@ -2184,10 +1950,7 @@ ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::GetMemoryTarget(const tex0Info
 		targ->psm = tex0.psm;
 		targ->cpsm = tex0.cpsm;
 		targ->height = end - start;
-	}
-
-	if (targ->ptex == NULL)
-	{
+	} else {
 		// not initialized yet
 		targ->fmt = fmt;
 		targ->realy = targ->starty = start;
@@ -2223,116 +1986,130 @@ ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::GetMemoryTarget(const tex0Info
 
 	if (PSMT_ISCLUT(tex0.psm))
 	{
+		assert(clutsize > 0);
+
+        // Local clut parameter
+		targ->cpsm = tex0.cpsm;
+
+        // Allocate a local clut array
+        targ->clutsize = clutsize;
+        if(targ->clut == NULL)
+            targ->clut = (u8*)_aligned_malloc(clutsize, 16);
+        else {
+            // In case it could occured
+            // realloc would be better but you need to get it from libutilies first
+            // _aligned_realloc is brought in from ScopedAlloc.h now. --arcum42
+            _aligned_free(targ->clut);
+            targ->clut = (u8*)_aligned_malloc(clutsize, 16);
+        }
+
+        // texture parameter
 		ptexdata = (u8*)_aligned_malloc(CLUT_PIXEL_SIZE(tex0.cpsm) * targ->texH * targ->texW, 16);
 		has_data = true;
 
 		u8* psrc = (u8*)(MemoryAddress(targ->realy));
 
+        // Fill a local clut then build the real texture
 		if (PSMT_IS32BIT(tex0.cpsm))
 		{
-			u32* pclut = (u32*) & targ->clut[0];
-			u32* pdst = (u32*)ptexdata;
-
-			BuildClut<u32>(tex0.psm, targ->height, pclut, psrc, pdst);
+            ClutBuffer_to_Array<u32>((u32*)targ->clut, tex0.csa, clutsize);
+			Build_Clut_Texture<u32>(tex0.psm, targ->height, (u32*)targ->clut, psrc, (u32*)ptexdata);
 		}
 		else
 		{
-			u16* pclut = (u16*) & targ->clut[0];
-			u16* pdst = (u16*)ptexdata;
-
-			BuildClut<u16>(tex0.psm, targ->height, pclut, psrc, pdst);
+            ClutBuffer_to_Array<u16>((u16*)targ->clut, tex0.csa, clutsize);
+			Build_Clut_Texture<u16>(tex0.psm, targ->height, (u16*)targ->clut, psrc, (u16*)ptexdata);
 		}
+
+        assert(targ->clutsize > 0);
 	}
-	else
-	{
-		if (tex0.psm == PSMT16Z || tex0.psm == PSMT16SZ)
-		{
-			ptexdata = (u8*)_aligned_malloc(4 * targ->texH * targ->texW, 16);
-			has_data = true;
+	else if (tex0.psm == PSMT16Z || tex0.psm == PSMT16SZ)
+    {
+        ptexdata = (u8*)_aligned_malloc(4 * targ->texH * targ->texW, 16);
+        has_data = true;
 
-			// needs to be 8 bit, use xmm for unpacking
-			u16* dst = (u16*)ptexdata;
-			u16* src = (u16*)(MemoryAddress(targ->realy));
+        // needs to be 8 bit, use xmm for unpacking
+        u16* dst = (u16*)ptexdata;
+        u16* src = (u16*)(MemoryAddress(targ->realy));
 
-#if defined(ZEROGS_SSE2)
-			assert(((u32)(uptr)dst) % 16 == 0);
-            // FIXME Uncomment to test intrinsic versions (instead of asm)
-            // perf improvement vs asm:
-            // 1/ gcc updates both pointer with 1 addition
-            // 2/ Bypass the cache for the store
+#ifdef ZEROGS_SSE2
+        assert(((u32)(uptr)dst) % 16 == 0);
+        // FIXME Uncomment to test intrinsic versions (instead of asm)
+        // perf improvement vs asm:
+        // 1/ gcc updates both pointer with 1 addition
+        // 2/ Bypass the cache for the store
 #define NEW_INTRINSIC_VERSION
 #ifdef NEW_INTRINSIC_VERSION
 
-            __m128i zero_128 = _mm_setzero_si128();
-            // NOTE: future performance improvement
-            // SSE4.1 support uncacheable load 128bits. Maybe it can
-            // avoid some cache pollution
-            // NOTE2: I create multiple _n variable to mimic the previous ASM behavior
-            // but I'm not sure there are real gains.
-			for (int i = targ->height * GPU_TEXWIDTH/16 ; i > 0 ; --i)
-            {
-                // Convert 16 bits pixels to 32bits (zero extended)
-                // Batch 64 bytes (32 pixels) at once.
-                __m128i pixels_1 = _mm_load_si128((__m128i*)src);
-                __m128i pixels_2 = _mm_load_si128((__m128i*)(src+8));
-                __m128i pixels_3 = _mm_load_si128((__m128i*)(src+16));
-                __m128i pixels_4 = _mm_load_si128((__m128i*)(src+24));
+        __m128i zero_128 = _mm_setzero_si128();
+        // NOTE: future performance improvement
+        // SSE4.1 support uncacheable load 128bits. Maybe it can
+        // avoid some cache pollution
+        // NOTE2: I create multiple _n variable to mimic the previous ASM behavior
+        // but I'm not sure there are real gains.
+        for (int i = targ->height * GPU_TEXWIDTH/16 ; i > 0 ; --i)
+        {
+            // Convert 16 bits pixels to 32bits (zero extended)
+            // Batch 64 bytes (32 pixels) at once.
+            __m128i pixels_1 = _mm_load_si128((__m128i*)src);
+            __m128i pixels_2 = _mm_load_si128((__m128i*)(src+8));
+            __m128i pixels_3 = _mm_load_si128((__m128i*)(src+16));
+            __m128i pixels_4 = _mm_load_si128((__m128i*)(src+24));
 
-                __m128i pix_low_1 = _mm_unpacklo_epi16(pixels_1, zero_128);
-                __m128i pix_high_1 = _mm_unpackhi_epi16(pixels_1, zero_128);
-                __m128i pix_low_2 = _mm_unpacklo_epi16(pixels_2, zero_128);
-                __m128i pix_high_2 = _mm_unpackhi_epi16(pixels_2, zero_128);
+            __m128i pix_low_1 = _mm_unpacklo_epi16(pixels_1, zero_128);
+            __m128i pix_high_1 = _mm_unpackhi_epi16(pixels_1, zero_128);
+            __m128i pix_low_2 = _mm_unpacklo_epi16(pixels_2, zero_128);
+            __m128i pix_high_2 = _mm_unpackhi_epi16(pixels_2, zero_128);
 
-                // Note: bypass cache
-                _mm_stream_si128((__m128i*)dst, pix_low_1);
-                _mm_stream_si128((__m128i*)(dst+8), pix_high_1);
-                _mm_stream_si128((__m128i*)(dst+16), pix_low_2);
-                _mm_stream_si128((__m128i*)(dst+24), pix_high_2);
+            // Note: bypass cache
+            _mm_stream_si128((__m128i*)dst, pix_low_1);
+            _mm_stream_si128((__m128i*)(dst+8), pix_high_1);
+            _mm_stream_si128((__m128i*)(dst+16), pix_low_2);
+            _mm_stream_si128((__m128i*)(dst+24), pix_high_2);
 
-                __m128i pix_low_3 = _mm_unpacklo_epi16(pixels_3, zero_128);
-                __m128i pix_high_3 = _mm_unpackhi_epi16(pixels_3, zero_128);
-                __m128i pix_low_4 = _mm_unpacklo_epi16(pixels_4, zero_128);
-                __m128i pix_high_4 = _mm_unpackhi_epi16(pixels_4, zero_128);
+            __m128i pix_low_3 = _mm_unpacklo_epi16(pixels_3, zero_128);
+            __m128i pix_high_3 = _mm_unpackhi_epi16(pixels_3, zero_128);
+            __m128i pix_low_4 = _mm_unpacklo_epi16(pixels_4, zero_128);
+            __m128i pix_high_4 = _mm_unpackhi_epi16(pixels_4, zero_128);
 
-                // Note: bypass cache
-                _mm_stream_si128((__m128i*)(dst+32), pix_low_3);
-                _mm_stream_si128((__m128i*)(dst+40), pix_high_3);
-                _mm_stream_si128((__m128i*)(dst+48), pix_low_4);
-                _mm_stream_si128((__m128i*)(dst+56), pix_high_4);
+            // Note: bypass cache
+            _mm_stream_si128((__m128i*)(dst+32), pix_low_3);
+            _mm_stream_si128((__m128i*)(dst+40), pix_high_3);
+            _mm_stream_si128((__m128i*)(dst+48), pix_low_4);
+            _mm_stream_si128((__m128i*)(dst+56), pix_high_4);
 
-                src += 32;
-                dst += 64;
-            }
-            // It is advise to use a fence instruction after non temporal move (mm_stream) instruction...
-            // store fence insures that previous store are finish before execute new one.
-            _mm_sfence();
+            src += 32;
+            dst += 64;
+        }
+        // It is advise to use a fence instruction after non temporal move (mm_stream) instruction...
+        // store fence insures that previous store are finish before execute new one.
+        _mm_sfence();
 #else
-			SSE2_UnswizzleZ16Target(dst, src, targ->height * GPU_TEXWIDTH / 16);
+        SSE2_UnswizzleZ16Target(dst, src, targ->height * GPU_TEXWIDTH / 16);
 #endif
 #else // ZEROGS_SSE2
 
-			for (int i = 0; i < targ->height; ++i)
-			{
-				for (int j = 0; j < GPU_TEXWIDTH; ++j)
-				{
-					dst[0] = src[0];
-					dst[1] = 0;
-					dst[2] = src[1];
-					dst[3] = 0;
-					dst += 4;
-					src += 2;
-				}
-			}
+        for (int i = 0; i < targ->height; ++i)
+        {
+            for (int j = 0; j < GPU_TEXWIDTH; ++j)
+            {
+                dst[0] = src[0];
+                dst[1] = 0;
+                dst[2] = src[1];
+                dst[3] = 0;
+                dst += 4;
+                src += 2;
+            }
+        }
 
 #endif // ZEROGS_SSE2
-		}
-		else
-		{
-			ptexdata = targ->ptex->memptr;
-			// We really don't want to deallocate memptr. As a reminder...
-			has_data = false;
-		}
-	}
+    }
+    else
+    {
+        ptexdata = targ->ptex->memptr;
+        // We really don't want to deallocate memptr. As a reminder...
+        has_data = false;
+    }
 
 	// create the texture
 	GL_REPORT_ERRORD();
@@ -2343,10 +2120,7 @@ ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::GetMemoryTarget(const tex0Info
 
 	glBindTexture(GL_TEXTURE_RECTANGLE_NV, targ->ptex->tex);
 
-	if (fmt == GL_UNSIGNED_BYTE)
-		TextureRect(GL_RGBA, targ->texW, targ->texH, GL_RGBA, fmt, ptexdata);
-	else
-		TextureRect(GL_RGB5_A1, targ->texW, targ->texH, GL_RGBA, fmt, ptexdata);
+    TextureRect(internal_fmt, targ->texW, targ->texH, GL_RGBA, fmt, ptexdata);
 
 	while (glGetError() != GL_NO_ERROR)
 	{
@@ -2368,7 +2142,7 @@ ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::GetMemoryTarget(const tex0Info
 			DestroyOldest();
 		}
 
-		TextureRect(GL_RGBA, targ->texW, targ->texH, GL_RGBA, fmt, ptexdata);
+        TextureRect(internal_fmt, targ->texW, targ->texH, GL_RGBA, fmt, ptexdata);
 	}
 
 	setRectWrap(GL_CLAMP);
@@ -2376,12 +2150,10 @@ ZeroGS::CMemoryTarget* ZeroGS::CMemoryTargetMngr::GetMemoryTarget(const tex0Info
 
 	assert(tex0.psm != 0xd);
 
-	if (PSMT_ISCLUT(tex0.psm)) assert(targ->clut.size() > 0);
-
 	return targ;
 }
 
-void ZeroGS::CMemoryTargetMngr::ClearRange(int nbStartY, int nbEndY)
+void CMemoryTargetMngr::ClearRange(int nbStartY, int nbEndY)
 {
 	FUNCLOG
 	int starty = nbStartY / (4 * GPU_TEXWIDTH);
@@ -2453,13 +2225,13 @@ void ZeroGS::CMemoryTargetMngr::ClearRange(int nbStartY, int nbEndY)
 //  }
 }
 
-void ZeroGS::CMemoryTargetMngr::DestroyCleared()
+void CMemoryTargetMngr::DestroyCleared()
 {
 	FUNCLOG
 
 	for (list<CMemoryTarget>::iterator it = listClearedTargets.begin(); it != listClearedTargets.end();)
 	{
-		if (it->usedstamp < curstamp - 2)
+		if (it->usedstamp < curstamp - (FORCE_TEXDESTROY_THRESH -1))
 		{
 			it = listClearedTargets.erase(it);
 			continue;
@@ -2468,12 +2240,12 @@ void ZeroGS::CMemoryTargetMngr::DestroyCleared()
 		++it;
 	}
 
-	if ((curstamp % 3) == 0)
+	if ((curstamp % FORCE_TEXDESTROY_THRESH) == 0)
 	{
-		// purge old targets every 3 frames
+		// purge old targets every FORCE_TEXDESTROY_THRESH frames
 		for (list<CMemoryTarget>::iterator it = listTargets.begin(); it != listTargets.end();)
 		{
-			if (it->usedstamp < curstamp - 3)
+			if (it->usedstamp < curstamp - FORCE_TEXDESTROY_THRESH)
 			{
 				it = listTargets.erase(it);
 				continue;
@@ -2486,7 +2258,7 @@ void ZeroGS::CMemoryTargetMngr::DestroyCleared()
 	++curstamp;
 }
 
-void ZeroGS::CMemoryTargetMngr::DestroyOldest()
+void CMemoryTargetMngr::DestroyOldest()
 {
 	FUNCLOG
 
@@ -2509,7 +2281,7 @@ void ZeroGS::CMemoryTargetMngr::DestroyOldest()
 //////////////////////////////////////
 // Texture Mngr For Bitwise AND Ops //
 //////////////////////////////////////
-void ZeroGS::CBitwiseTextureMngr::Destroy()
+void CBitwiseTextureMngr::Destroy()
 {
 	FUNCLOG
 
@@ -2521,7 +2293,7 @@ void ZeroGS::CBitwiseTextureMngr::Destroy()
 	mapTextures.clear();
 }
 
-u32 ZeroGS::CBitwiseTextureMngr::GetTexInt(u32 bitvalue, u32 ptexDoNotDelete)
+u32 CBitwiseTextureMngr::GetTexInt(u32 bitvalue, u32 ptexDoNotDelete)
 {
 	FUNCLOG
 
@@ -2591,7 +2363,7 @@ u32 ZeroGS::CBitwiseTextureMngr::GetTexInt(u32 bitvalue, u32 ptexDoNotDelete)
 	return ptex;
 }
 
-void ZeroGS::CRangeManager::RangeSanityCheck()
+void CRangeManager::RangeSanityCheck()
 {
 #ifdef _DEBUG
 	// sanity check
@@ -2604,7 +2376,7 @@ void ZeroGS::CRangeManager::RangeSanityCheck()
 #endif
 }
 
-void ZeroGS::CRangeManager::Insert(int start, int end)
+void CRangeManager::Insert(int start, int end)
 {
 	FUNCLOG
 	int imin = 0, imax = (int)ranges.size(), imid;
@@ -2757,9 +2529,6 @@ void ZeroGS::CRangeManager::Insert(int start, int end)
 	RangeSanityCheck();
 }
 
-namespace ZeroGS
-{
-
 CRangeManager s_RangeMngr; // manages overwritten memory
 
 void ResolveInRange(int start, int end)
@@ -2890,7 +2659,7 @@ void FlushTransferRanges(const tex0Info* ptex)
 
 				// get start of left-most boundry page
 				int targstart, targend;
-				ZeroGS::GetRectMemAddress(targstart, targend, ptarg->psm, 0, 0, ptarg->fbw, ptarg->fbh & ~(m_Blocks[ptarg->psm].height - 1), ptarg->fbp, ptarg->fbw);
+				GetRectMemAddress(targstart, targend, ptarg->psm, 0, 0, ptarg->fbw, ptarg->fbh & ~(m_Blocks[ptarg->psm].height - 1), ptarg->fbp, ptarg->fbw);
 
 				if (start >= targend)
 				{
@@ -2930,7 +2699,7 @@ void FlushTransferRanges(const tex0Info* ptex)
 			}
 		}
 
-		ZeroGS::g_MemTargs.ClearRange(start, end);
+		g_MemTargs.ClearRange(start, end);
 	}
 
 	s_RangeMngr.Clear();
@@ -2972,16 +2741,16 @@ void FlushTransferRanges(const tex0Info* ptex)
 
 #endif
 
+#ifdef __LINUX__
 //#define LOG_RESOLVE_PROFILE
+#endif
 
 template <typename Tdst, bool do_conversion>
 inline void Resolve_32_Bit(const void* psrc, int fbp, int fbw, int fbh, const int psm, u32 fbm)
 {
     u32 mask, imask;
 #ifdef LOG_RESOLVE_PROFILE
-#ifdef __LINUX__
      u32 startime = timeGetPreciseTime();
-#endif
 #endif
 
     if (PSMT_ISHALF(psm)) /* 16 bit */
@@ -3057,14 +2826,13 @@ inline void Resolve_32_Bit(const void* psrc, int fbp, int fbw, int fbh, const in
         src -= raw_size;
     }
 #ifdef LOG_RESOLVE_PROFILE
-#ifdef __LINUX__
     ZZLog::Dev_Log("*** 32 bits: execution time %d", timeGetPreciseTime()-startime);
-#endif
 #endif
 }
 
 static const __aligned16 unsigned int pixel_5b_mask[4] = {0x0000001F, 0x0000001F, 0x0000001F, 0x0000001F};
 
+#ifdef ZEROGS_SSE2
 // The function process 2*2 pixels in 32bits. And 2*4 pixels in 16bits
 template <u32 psm, u32 size, u32 pageTable[size][64], bool null_second_line, u32 INDEX>
 __forceinline void update_8pixels_sse2(u32* src, u32* basepage, u32 i_msk, u32 j, u32 pix_mask, u32 src_pitch)
@@ -3295,9 +3063,7 @@ void Resolve_32_Bit_sse2(const void* psrc, int fbp, int fbw, int fbh, u32 fbm)
 {
     // Note a basic implementation was done in Resolve_32_Bit function
 #ifdef LOG_RESOLVE_PROFILE
-#ifdef __LINUX__
     u32 startime = timeGetPreciseTime();
-#endif
 #endif
     u32 pix_mask;
     if (PSMT_ISHALF(psm)) /* 16 bit format */
@@ -3371,11 +3137,10 @@ void Resolve_32_Bit_sse2(const void* psrc, int fbp, int fbw, int fbh, u32 fbm)
     }
 
 #ifdef LOG_RESOLVE_PROFILE
-#ifdef __LINUX__
     ZZLog::Dev_Log("*** 32 bits: execution time %d", timeGetPreciseTime()-startime);
 #endif
-#endif
 }
+#endif
 
 void _Resolve(const void* psrc, int fbp, int fbw, int fbh, int psm, u32 fbm, bool mode = true)
 {
@@ -3754,5 +3519,3 @@ void _Resolve(const void* psrc, int fbp, int fbw, int fbh, int psm, u32 fbm, boo
 }
 
 #endif
-
-} // End of namespece ZeroGS

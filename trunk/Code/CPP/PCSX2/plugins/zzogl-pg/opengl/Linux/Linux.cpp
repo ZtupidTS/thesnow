@@ -24,7 +24,6 @@
 
 #include "GS.h"
 #include "Linux.h"
-#include "zerogs.h"
 #include "GLWin.h"
 
 #include <map>
@@ -235,7 +234,8 @@ void DisplayAdvancedDialog()
 				 
 	dialog = gtk_dialog_new();
 	gtk_window_set_title(GTK_WINDOW(dialog), "ZZOgl PG Advanced Config");
-	gtk_window_set_default_size(GTK_WINDOW(dialog), 600, 600);
+	// A good value for the heigh will be 1000 instead of 800 but I'm afraid that some people still uses small screen...
+	gtk_window_set_default_size(GTK_WINDOW(dialog), 600, 800);
 	gtk_window_set_modal(GTK_WINDOW(dialog), true);
 	
 	advanced_box = gtk_vbox_new(false, 5);
@@ -252,7 +252,7 @@ void DisplayAdvancedDialog()
 	
 	gtk_box_pack_start(GTK_BOX(advanced_box), advanced_scroll, true, true, 2);
 	
-	gtk_container_add(GTK_CONTAINER(GTK_DIALOG(dialog)->vbox), advanced_frame);
+	gtk_container_add(GTK_CONTAINER(gtk_dialog_get_content_area(GTK_DIALOG(dialog))), advanced_frame);
 
 	gtk_widget_show_all(dialog);
 
@@ -401,7 +401,7 @@ void DisplayDialog()
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widescreen_check), (conf.widescreen()));
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dis_hacks_check), (conf.disableHacks));
 
-	gtk_container_add(GTK_CONTAINER(GTK_DIALOG(dialog)->vbox), main_frame);
+	gtk_container_add(GTK_CONTAINER(gtk_dialog_get_content_area(GTK_DIALOG(dialog))), main_frame);
 	g_signal_connect_swapped(GTK_OBJECT (advanced_button), "clicked", G_CALLBACK(DisplayAdvancedDialog), advanced_button);
 	tempHacks = conf.hacks;
 	gtk_widget_show_all(dialog);
@@ -495,7 +495,7 @@ void *SysLoadSym(void *lib, char *sym)
 {
 	void *ret = dlsym(lib, sym);
 
-	if (ret == NULL) printf("null: %s\n", sym);
+	if (ret == NULL) ZZLog::Debug_Log("null: %s", sym);
 
 	return dlsym(lib, sym);
 }

@@ -38,7 +38,7 @@ ConsoleLogSource_Threading::ConsoleLogSource_Threading()
 	static const TraceLogDescriptor myDesc =
 	{
 		L"pxThread",	L"pxThread",
-		wxLt("Threading activity: start, detach, sync, deletion, etc.")
+		pxLt("Threading activity: start, detach, sync, deletion, etc.")
 	};
 
 	m_Descriptor = &myDesc;
@@ -405,7 +405,8 @@ void Threading::pxThread::RethrowException() const
 	// after.
 
 	ScopedExcept ptr( const_cast<pxThread*>(this)->m_except.DetachPtr() );
-	if( ptr ) ptr->Rethrow();
+	if (ptr)
+		ptr->Rethrow();
 }
 
 static bool m_BlockDeletions = false;

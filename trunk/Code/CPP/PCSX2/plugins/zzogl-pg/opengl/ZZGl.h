@@ -26,7 +26,8 @@
 // Need this before gl.h
 #ifdef _WIN32
 
-#include <windows.h>
+#include "Utilities/RedtapeWindows.h"
+
 #include <GL/gl.h>
 #include <GL/glext.h>
 #include "glprocs.h"
@@ -77,8 +78,6 @@ extern u32 s_stencilfunc, s_stencilref, s_stencilmask;
 
 // global alpha blending settings
 extern GLenum g_internalRGBAFloat16Fmt;
-
-extern const GLenum primtype[8];
 
 #define SAFE_RELEASE_TEX(x) { if( (x) != 0 ) { glDeleteTextures(1, &(x)); x = 0; } }
 
