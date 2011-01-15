@@ -19,11 +19,10 @@
 
 #include "GS.h"
 #include "Mem.h"
-#include "zerogs.h"
 #include "GifTransfer.h"
 
 #ifdef _DEBUG
-static int count = 0;
+static int path1_count = 0;
 #endif
 
 static int nPath3Hack = 0;
@@ -168,7 +167,7 @@ template<int index> void _GSgifTransfer(const u32 *pMem, u32 size)
 					switch (gs.imageTransfer)
 					{
 						case 0:
-							ZeroGS::TransferHostLocal(pMem, len * 4);
+							TransferHostLocal(pMem, len * 4);
 							break;
 
 						case 1:
@@ -176,11 +175,11 @@ template<int index> void _GSgifTransfer(const u32 *pMem, u32 size)
 							// a GIFtag operation.  They're an entirely separate process that can only be
 							// done through the ReverseFIFO transfer (aka ReadFIFO). --air
 							assert(0);
-							//ZeroGS::TransferLocalHost(pMem, len);
+							//TransferLocalHost(pMem, len);
 							break;
 
 						case 2:
-							//ZeroGS::TransferLocalLocal();
+							//TransferLocalLocal();
 							break;
 
 						case 3:
@@ -242,8 +241,8 @@ void CALLBACK GSgifTransfer1(u32 *pMem, u32 addr)
 	//ZZLog::GS_Log("GSgifTransfer1 0x%x (mode %d).", addr, path->mode);
 
 #ifdef _DEBUG
-	ZZLog::Prim_Log("count: %d\n", count);
-	count++;
+	ZZLog::Prim_Log("count: %d\n", path1_count);
+	path1_count++;
 #endif
 
 	_GSgifTransfer<0>((u32*)((u8*)pMem + addr), (0x4000 - addr) / 16);

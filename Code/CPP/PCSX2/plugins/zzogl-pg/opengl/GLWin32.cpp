@@ -18,11 +18,11 @@
  */
 
 #include "GS.h"
-#include "zerogs.h"
 #include "GLWin.h"
 
 #ifdef GL_WIN32_WINDOW
 
+HWND		GShwnd = NULL;
 HDC			hDC = NULL;	 // Private GDI Device Context
 HGLRC		hRC = NULL;	 // Permanent Rendering Context
 
@@ -47,14 +47,14 @@ LRESULT WINAPI MsgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		case WM_SIZE:
 			nWindowWidth = lParam & 0xffff;
 			nWindowHeight = lParam >> 16;
-			ZeroGS::ChangeWindowSize(nWindowWidth, nWindowHeight);
+			GLWin.UpdateWindowSize(nWindowWidth, nWindowHeight);
 			break;
 
 		case WM_SIZING:
 			// if button is 0, then just released so can resize
 			if (GetSystemMetrics(SM_SWAPBUTTON) ? !GetAsyncKeyState(VK_RBUTTON) : !GetAsyncKeyState(VK_LBUTTON))
 			{
-				ZeroGS::SetChangeDeviceSize(nWindowWidth, nWindowHeight);
+				SetDeviceSize(nWindowWidth, nWindowHeight);
 			}
 			break;
 
@@ -89,7 +89,7 @@ bool GLWindow::CreateWindow(void *pDisplay)
 	wc.hCursor		= LoadCursor(NULL, IDC_ARROW);				// Load The Arrow Pointer
 	wc.hbrBackground	= (HBRUSH)GetStockObject(BLACK_BRUSH);	// No Background Required For GL
 	wc.lpszMenuName		= NULL;									// We Don't Want A Menu
-	wc.lpszClassName	= "PS2EMU_ZEROGS";						// Set The Class Name
+	wc.lpszClassName	= L"PS2EMU_ZEROGS";						// Set The Class Name
 
 	RegisterClassEx(&wc);
 
@@ -110,8 +110,8 @@ bool GLWindow::CreateWindow(void *pDisplay)
 	GetWindowRect(GetDesktopWindow(), &rcdesktop);
 
 	GShwnd = CreateWindowEx(	dwExStyle,				// Extended Style For The Window
-					"PS2EMU_ZEROGS",				// Class Name
-					"ZZOgl",					// Window Title
+					L"PS2EMU_ZEROGS",				// Class Name
+					L"ZZOgl",					// Window Title
 					dwStyle,				// Selected Window Style
 					(rcdesktop.right - (rc.right - rc.left)) / 2,  // Window Position
 					(rcdesktop.bottom - (rc.bottom - rc.top)) / 2, // Window Position
@@ -122,7 +122,11 @@ bool GLWindow::CreateWindow(void *pDisplay)
 					hInstance,				// Instance
 					NULL);					// Don't Pass Anything To WM_CREATE
 
-	if (GShwnd == NULL) return false;
+	if (GShwnd == NULL) 
+	{
+		ZZLog::Error_Log("Failed to create window. Exiting...");
+		return false;
+	}
 
 	if (pDisplay != NULL) *(HWND*)pDisplay = GShwnd;
 
@@ -135,6 +139,7 @@ bool GLWindow::CreateWindow(void *pDisplay)
 
 	SetFocus(GShwnd);
 
+	if (pDisplay == NULL) ZZLog::Error_Log("Failed to create window. Exiting...");
 	return (pDisplay != NULL);
 }
 
@@ -144,12 +149,12 @@ bool GLWindow::ReleaseContext()
 	{
 		if (!wglMakeCurrent(NULL, NULL))				 // Are We Able To Release The DC And RC Contexts?
 		{
-			MessageBox(NULL, "Release Of DC And RC Failed.", "SHUTDOWN ERROR", MB_OK | MB_ICONINFORMATION);
+			MessageBox(NULL, L"Release Of DC And RC Failed.", L"SHUTDOWN ERROR", MB_OK | MB_ICONINFORMATION);
 		}
 
 		if (!wglDeleteContext(hRC))					 // Are We Able To Delete The RC?
 		{
-			MessageBox(NULL, "Release Rendering Context Failed.", "SHUTDOWN ERROR", MB_OK | MB_ICONINFORMATION);
+			MessageBox(NULL, L"Release Rendering Context Failed.", L"SHUTDOWN ERROR", MB_OK | MB_ICONINFORMATION);
 		}
 
 		hRC = NULL;									 // Set RC To NULL
@@ -157,7 +162,7 @@ bool GLWindow::ReleaseContext()
 
 	if (hDC && !ReleaseDC(GShwnd, hDC))				 // Are We Able To Release The DC
 	{
-		MessageBox(NULL, "Release Device Context Failed.", "SHUTDOWN ERROR", MB_OK | MB_ICONINFORMATION);
+		MessageBox(NULL, L"Release Device Context Failed.", L"SHUTDOWN ERROR", MB_OK | MB_ICONINFORMATION);
 		hDC = NULL;									 // Set DC To NULL
 	}
 
@@ -184,8 +189,8 @@ bool GLWindow::DisplayWindow(int _width, int _height)
 
 	if (conf.fullscreen())
 	{
-		nBackbufferWidth = rcdesktop.right - rcdesktop.left;
-		nBackbufferHeight = rcdesktop.bottom - rcdesktop.top;
+		backbuffer.w = rcdesktop.right - rcdesktop.left;
+		backbuffer.h = rcdesktop.bottom - rcdesktop.top;
 
 		dwExStyle = WS_EX_APPWINDOW;
 		dwStyle = WS_POPUP;
@@ -195,6 +200,8 @@ bool GLWindow::DisplayWindow(int _width, int _height)
 	{
 		dwExStyle = WS_EX_APPWINDOW | WS_EX_WINDOWEDGE;
 		dwStyle = WS_OVERLAPPEDWINDOW;
+		backbuffer.w = _width;
+		backbuffer.h = _height;
 	}
 	dwStyle |= WS_CLIPSIBLINGS | WS_CLIPCHILDREN;
 
@@ -202,8 +209,8 @@ bool GLWindow::DisplayWindow(int _width, int _height)
 
 	rc.left = 0;
 	rc.top = 0;
-	rc.right = nBackbufferWidth;
-	rc.bottom = nBackbufferHeight;
+	rc.right = backbuffer.h;
+	rc.bottom = backbuffer.h;
 	AdjustWindowRectEx(&rc, dwStyle, false, dwExStyle);
 	int X = (rcdesktop.right - rcdesktop.left) / 2 - (rc.right - rc.left) / 2;
 	int Y = (rcdesktop.bottom - rcdesktop.top) / 2 - (rc.bottom - rc.top) / 2;
@@ -218,8 +225,8 @@ bool GLWindow::DisplayWindow(int _width, int _height)
 		DEVMODE dmScreenSettings;
 		memset(&dmScreenSettings, 0, sizeof(dmScreenSettings));
 		dmScreenSettings.dmSize = sizeof(dmScreenSettings);
-		dmScreenSettings.dmPelsWidth	= nBackbufferWidth;
-		dmScreenSettings.dmPelsHeight   = nBackbufferHeight;
+		dmScreenSettings.dmPelsWidth	= backbuffer.w;
+		dmScreenSettings.dmPelsHeight   = backbuffer.h;
 		dmScreenSettings.dmBitsPerPel   = 32;
 		dmScreenSettings.dmFields = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT;
 
@@ -227,7 +234,10 @@ bool GLWindow::DisplayWindow(int _width, int _height)
 
 		if (ChangeDisplaySettings(&dmScreenSettings, CDS_FULLSCREEN) != DISP_CHANGE_SUCCESSFUL)
 		{
-			if (MessageBox(NULL, "The Requested Fullscreen Mode Is Not Supported By\nYour Video Card. Use Windowed Mode Instead?", "NeHe GL", MB_YESNO | MB_ICONEXCLAMATION) == IDYES)
+			if (MessageBox(NULL,
+					L"The Requested Fullscreen Mode Is Not Supported By\nYour Video Card. Use Windowed Mode Instead?",
+					L"NeHe GL",
+					MB_YESNO | MB_ICONEXCLAMATION) == IDYES)
 				conf.setFullscreen(false);
 			else
 				return false;
@@ -264,31 +274,31 @@ bool GLWindow::DisplayWindow(int _width, int _height)
 
 	if (!(hDC = GetDC(GShwnd)))
 	{
-		MessageBox(NULL, "(1) Can't Create A GL Device Context.", "ERROR", MB_OK | MB_ICONEXCLAMATION);
+		MessageBox(NULL, L"(1) Can't Create A GL Device Context.", L"ERROR", MB_OK | MB_ICONEXCLAMATION);
 		return false;
 	}
 
 	if (!(PixelFormat = ChoosePixelFormat(hDC, &pfd)))
 	{
-		MessageBox(NULL, "(2) Can't Find A Suitable PixelFormat.", "ERROR", MB_OK | MB_ICONEXCLAMATION);
+		MessageBox(NULL, L"(2) Can't Find A Suitable PixelFormat.", L"ERROR", MB_OK | MB_ICONEXCLAMATION);
 		return false;
 	}
 
 	if (!SetPixelFormat(hDC, PixelFormat, &pfd))
 	{
-		MessageBox(NULL, "(3) Can't Set The PixelFormat.", "ERROR", MB_OK | MB_ICONEXCLAMATION);
+		MessageBox(NULL, L"(3) Can't Set The PixelFormat.", L"ERROR", MB_OK | MB_ICONEXCLAMATION);
 		return false;
 	}
 
 	if (!(hRC = wglCreateContext(hDC)))
 	{
-		MessageBox(NULL, "(4) Can't Create A GL Rendering Context.", "ERROR", MB_OK | MB_ICONEXCLAMATION);
+		MessageBox(NULL, L"(4) Can't Create A GL Rendering Context.", L"ERROR", MB_OK | MB_ICONEXCLAMATION);
 		return false;
 	}
 
 	if (!wglMakeCurrent(hDC, hRC))
 	{
-		MessageBox(NULL, "(5) Can't Activate The GL Rendering Context.", "ERROR", MB_OK | MB_ICONEXCLAMATION);
+		MessageBox(NULL, L"(5) Can't Activate The GL Rendering Context.", L"ERROR", MB_OK | MB_ICONEXCLAMATION);
 		return false;
 	}
 
@@ -300,19 +310,91 @@ bool GLWindow::DisplayWindow(int _width, int _height)
 void GLWindow::SwapGLBuffers()
 {
 	static u32 lastswaptime = 0;
+
+	if (glGetError() != GL_NO_ERROR) ZZLog::Debug_Log("glError before swap!");
+
 	SwapBuffers(hDC);
-	//glClear(GL_COLOR_BUFFER_BIT);
 	lastswaptime = timeGetTime();
 }
 
 void GLWindow::SetTitle(char *strtitle)
 {
-	if (!conf.fullscreen()) SetWindowText(GShwnd, strtitle);
+	if (!conf.fullscreen()) SetWindowText(GShwnd, wxString::FromUTF8(strtitle));
 }
 
 void GLWindow::ResizeCheck()
 {
 
 }
+
+
+extern void ChangeDeviceSize(int nNewWidth, int nNewHeight);
+
+void GLWindow::ProcessEvents()
+{
+	MSG msg;
+
+	ZeroMemory(&msg, sizeof(msg));
+
+	while (1)
+	{
+		if (PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE))
+		{
+			switch (msg.message)
+			{
+				case WM_KEYDOWN :
+					int my_KeyEvent = msg.wParam;
+					bool my_bShift = !!(GetKeyState(VK_SHIFT) & 0x8000);
+
+					switch (msg.wParam)
+					{
+						case VK_F5:
+						case VK_F6:
+						case VK_F7:
+						case VK_F9:
+							OnFKey(msg.wParam - VK_F1 + 1, my_bShift);
+							break;
+
+						case VK_ESCAPE:
+
+							if (conf.fullscreen())
+							{
+								// destroy that msg
+								conf.setFullscreen(false);
+								ChangeDeviceSize(conf.width, conf.height);
+								UpdateWindow(GShwnd);
+								continue; // so that msg doesn't get sent
+							}
+							else
+							{
+								SendMessage(GShwnd, WM_DESTROY, 0, 0);
+								return;
+							}
+
+							break;
+					}
+
+					break;
+			}
+
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
+		else
+		{
+			break;
+		}
+	}
+
+	if ((GetKeyState(VK_MENU) & 0x8000) && (GetKeyState(VK_RETURN) & 0x8000))
+	{
+		conf.zz_options.fullscreen = !conf.zz_options.fullscreen;
+
+		SetDeviceSize(
+			(conf.fullscreen()) ? 1280 : conf.width,
+			(conf.fullscreen()) ? 960 : conf.height);
+	}
+}
+
 
 #endif

@@ -20,8 +20,9 @@
 
 #define g_MaxPath 255			// 255 is safer with antiquated Win32 ASCII APIs.
 
-//////////////////////////////////////////////////////////////////////////////////////////
-//
+// --------------------------------------------------------------------------------------
+//  wxDirName
+// --------------------------------------------------------------------------------------
 class wxDirName : protected wxFileName
 {
 public:
@@ -53,6 +54,7 @@ public:
 
 	void Clear() { wxFileName::Clear(); }
 
+	wxCharBuffer ToUTF8() const { return GetPath().ToUTF8(); }
 	wxCharBuffer ToAscii() const { return GetPath().ToAscii(); }
 	wxString ToString() const { return GetPath(); }
 
@@ -101,6 +103,8 @@ public:
 
 	wxFileName operator+( const wxFileName& right ) const	{ return Combine( right ); }
 	wxDirName operator+( const wxDirName& right )  const	{ return Combine( right ); }
+	wxFileName operator+( const wxString& right )  const	{ return Combine( wxFileName(right) ); }
+	wxFileName operator+( const char* right )  const		{ return Combine( wxFileName(fromUTF8(right)) ); }
 
 	bool operator==(const wxDirName& filename) const { return SameAs(filename); }
 	bool operator!=(const wxDirName& filename) const { return !SameAs(filename); }
@@ -121,7 +125,7 @@ public:
 // --------------------------------------------------------------------------------------
 // Cross-platform utilities for manipulation of paths and filenames.  Mostly these fall
 // back on wxWidgets APIs internally, but are still helpful because some of wx's file stuff
-// has minor glitches, or requies sloppy wxFileName typecasting.
+// has minor glitches, or requires sloppy wxFileName typecasting.
 //
 namespace Path
 {
@@ -130,6 +134,7 @@ namespace Path
 
 	extern wxString Normalize( const wxString& srcpath );
 	extern wxString Normalize( const wxDirName& srcpath );
+	extern wxString MakeAbsolute( const wxString& srcpath );
 
 	extern wxString	Combine( const wxString& srcPath, const wxString& srcFile );
 	extern wxString	Combine( const wxDirName& srcPath, const wxFileName& srcFile );
