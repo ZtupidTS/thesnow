@@ -1,4 +1,4 @@
-/*
+ï»¿/*
  * cmdline.c - command-line parsing shared between many of the
  * PuTTY applications
  */
@@ -172,6 +172,7 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
 	 * saved. */
 	do_defaults(value, cfg);
 	loaded_session = TRUE;
+	cmdline_session_name = dupstr(value);
 	return 2;
     }
     if (!strcmp(p, "-ssh")) {
@@ -316,7 +317,7 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
 	command = NULL;
 	fp = fopen(filename, "r");
 	if (!fp) {
-	    cmdline_error("²»ÄÜ´ò¿ªÃüÁîÎÄ¼ş \"%s\"", filename);
+	    cmdline_error("ä¸èƒ½æ‰“å¼€å‘½ä»¤æ–‡ä»¶ \"%s\"", filename);
 	    return ret;
 	}
 	do {

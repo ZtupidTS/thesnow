@@ -1,4 +1,4 @@
-/*
+ï»¿/*
  * window.c - the PuTTY(tel) main program, which runs a PuTTY terminal
  * emulator and backend in a window.
  */
@@ -99,7 +99,7 @@ static int process_clipdata(HGLOBAL clipdata, int unicode);
 /* Window layout information */
 static void reset_window(int);
 static int extra_width, extra_height;
-static int font_width, font_height, font_dualwidth;
+static int font_width, font_height, font_dualwidth, font_varpitch;
 static int offset_width, offset_height;
 static int was_zoomed = 0;
 static int prev_rows, prev_cols;
@@ -309,7 +309,7 @@ static void close_session(void)
     for (i = 0; i < lenof(popup_menus); i++) {
 	DeleteMenu(popup_menus[i].menu, IDM_RESTART, MF_BYCOMMAND);
 	InsertMenu(popup_menus[i].menu, IDM_DUPSESS, MF_BYCOMMAND | MF_ENABLED,
-		   IDM_RESTART, TEXT("ÖØÆô»á»°(&R)"));
+		   IDM_RESTART, TEXT("é‡å¯ä¼šè¯(&R)"));
     }
 }
 
@@ -317,6 +317,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 {
     WNDCLASS wndclass;
     MSG msg;
+    HRESULT hr;
     int guess_width, guess_height;
 
     hinst = inst;
@@ -355,6 +356,18 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     init_flashwindow();
 
     /*
+     * Initialize COM.
+     */
+    hr = CoInitialize(NULL);
+    if (hr != S_OK && hr != S_FALSE) {
+        char *str = dupprintf("%s Fatal Error", appname);
+	MessageBox(NULL, "Failed to initialize COM subsystem",
+		   str, MB_OK | MB_ICONEXCLAMATION);
+	sfree(str);
+	return 1;
+    }
+
+    /*
      * Process the command line.
      */
     {
@@ -381,14 +394,21 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
 	/*
 	 * Process a couple of command-line options which are more
-	 * easily dealt with before the line is broken up into
-	 * words. These are the soon-to-be-defunct @sessionname and
-	 * the internal-use-only &sharedmemoryhandle, neither of
-	 * which are combined with anything else.
+	 * easily dealt with before the line is broken up into words.
+	 * These are the old-fashioned but convenient @sessionname and
+	 * the internal-use-only &sharedmemoryhandle, neither of which
+	 * are combined with anything else.
 	 */
 	while (*p && isspace(*p))
 	    p++;
 	if (*p == '@') {
+            /*
+             * An initial @ means that the whole of the rest of the
+             * command line should be treated as the name of a saved
+             * session, with _no quoting or escaping_. This makes it a
+             * very convenient means of automated saved-session
+             * launching, via IDM_SAVEDSESS or Windows 7 jump lists.
+             */
 	    int i = strlen(p);
 	    while (i > 1 && isspace(p[i - 1]))
 		i--;
@@ -434,7 +454,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		ret = cmdline_process_param(p, i+1<argc?argv[i+1]:NULL,
 					    1, &cfg);
 		if (ret == -2) {
-		    cmdline_error("Ñ¡Ïî \"%s\" ÐèÒªÒ»¸ö²ÎÊý", p);
+		    cmdline_error("é€‰é¡¹ \"%s\" éœ€è¦ä¸€ä¸ªå‚æ•°", p);
 		} else if (ret == 2) {
 		    i++;	       /* skip next argument */
 		} else if (ret == 1) {
@@ -534,7 +554,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 			got_host = 1;
 		    }
 		} else {
-		    cmdline_error("Î´ÖªÑ¡Ïî \"%s\"", p);
+		    cmdline_error("æœªçŸ¥é€‰é¡¹ \"%s\"", p);
 		}
 	    }
 	}
@@ -752,24 +772,24 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    m = popup_menus[j].menu;
 
 	    AppendMenu(m, MF_SEPARATOR, 0, 0);
-	    AppendMenu(m, MF_ENABLED, IDM_SHOWLOG, "ÊÂ¼þÈÕÖ¾(&E)");
+	    AppendMenu(m, MF_ENABLED, IDM_SHOWLOG, "äº‹ä»¶æ—¥å¿—(&E)");
 	    AppendMenu(m, MF_SEPARATOR, 0, 0);
-	    AppendMenu(m, MF_ENABLED, IDM_NEWSESS, "ÐÂ½¨»á»°(&W)...");
-	    AppendMenu(m, MF_ENABLED, IDM_DUPSESS, "ÏàÍ¬»á»°(&D)");
+	    AppendMenu(m, MF_ENABLED, IDM_NEWSESS, "æ–°å»ºä¼šè¯(&W)...");
+	    AppendMenu(m, MF_ENABLED, IDM_DUPSESS, "ç›¸åŒä¼šè¯(&D)");
 	    AppendMenu(m, MF_POPUP | MF_ENABLED, (UINT) savedsess_menu,
-		       "ÒÑ±£´æ»á»°(&V)");
-	    AppendMenu(m, MF_ENABLED, IDM_RECONF, "ÐÞ¸ÄÉèÖÃ(&G)...");
+		       "å·²ä¿å­˜ä¼šè¯(&V)");
+	    AppendMenu(m, MF_ENABLED, IDM_RECONF, "ä¿®æ”¹è®¾ç½®(&G)...");
 	    AppendMenu(m, MF_SEPARATOR, 0, 0);
-	    AppendMenu(m, MF_ENABLED, IDM_COPYALL, "¸´ÖÆËùÓÐµ½¼ôÇÐ°å(&O)");
-	    AppendMenu(m, MF_ENABLED, IDM_CLRSB, "Çå³ý»Ø¹ö(&L)");
-	    AppendMenu(m, MF_ENABLED, IDM_RESET, "ÖØÖÃÖÕ¶Ë(&T)");
+	    AppendMenu(m, MF_ENABLED, IDM_COPYALL, "å¤åˆ¶æ‰€æœ‰åˆ°å‰ªåˆ‡æ¿(&O)");
+	    AppendMenu(m, MF_ENABLED, IDM_CLRSB, "æ¸…é™¤å›žæ»š(&L)");
+	    AppendMenu(m, MF_ENABLED, IDM_RESET, "é‡ç½®ç»ˆç«¯(&T)");
 	    AppendMenu(m, MF_SEPARATOR, 0, 0);
 	    AppendMenu(m, (cfg.resize_action == RESIZE_DISABLED) ?
-		       MF_GRAYED : MF_ENABLED, IDM_FULLSCREEN, "È«ÆÁ(&F)");
+		       MF_GRAYED : MF_ENABLED, IDM_FULLSCREEN, "å…¨å±(&F)");
 	    AppendMenu(m, MF_SEPARATOR, 0, 0);
 	    if (has_help())
-		AppendMenu(m, MF_ENABLED, IDM_HELP, "°ïÖú(&H)");
-	    str = dupprintf("¹ØÓÚ %s (&A)", appname);
+		AppendMenu(m, MF_ENABLED, IDM_HELP, "å¸®åŠ©(&H)");
+	    str = dupprintf("å…³äºŽ %s (&A)", appname);
 	    AppendMenu(m, MF_ENABLED, IDM_ABOUT, str);
 	    sfree(str);
 	}
@@ -866,6 +886,9 @@ void cleanup_exit(int code)
 #endif
     }
     shutdown_help();
+
+    /* Clean up COM. */
+    CoUninitialize();
 
     exit(code);
 }
@@ -1237,7 +1260,6 @@ static void exact_textout(HDC hdc, int x, int y, CONST RECT *lprc,
     gcpr.lpGlyphs = (void *)buffer;
     gcpr.lpClass = (void *)classbuffer;
     gcpr.nGlyphs = cbCount;
-
     GetCharacterPlacementW(hdc, lpString, cbCount, 0, &gcpr,
 			   FLI_MASK | GCP_CLASSIN | GCP_DIACRITIC);
 
@@ -1260,15 +1282,7 @@ static void general_textout(HDC hdc, int x, int y, CONST RECT *lprc,
 			    CONST INT *lpDx, int opaque)
 {
     int i, j, xp, xn;
-    RECT newrc;
-
-#ifdef FIXME_REMOVE_BEFORE_CHECKIN
-int k;
-debug(("general_textout: %d,%d", x, y));
-for(k=0;k<cbCount;k++)debug((" U+%04X", lpString[k]));
-debug(("\n           rect: [%d,%d %d,%d]", lprc->left, lprc->top, lprc->right, lprc->bottom));
-debug(("\n"));
-#endif
+    int bkmode = 0, got_bkmode = FALSE;
 
     xp = xn = x;
 
@@ -1289,44 +1303,56 @@ debug(("\n"));
 	 * function.
 	 */
 	if (rtl) {
-	    newrc.left = lprc->left + xp - x;
-	    newrc.right = lprc->left + xn - x;
-	    newrc.top = lprc->top;
-	    newrc.bottom = lprc->bottom;
-#ifdef FIXME_REMOVE_BEFORE_CHECKIN
-{
-int k;
-debug(("  exact_textout: %d,%d", xp, y));
-for(k=0;k<j-i;k++)debug((" U+%04X", lpString[i+k]));
-debug(("\n           rect: [%d,%d %d,%d]\n", newrc.left, newrc.top, newrc.right, newrc.bottom));
-}
-#endif
-	    exact_textout(hdc, xp, y, &newrc, lpString+i, j-i, lpDx+i, opaque);
+	    exact_textout(hdc, xp, y, lprc, lpString+i, j-i,
+                          font_varpitch ? NULL : lpDx+i, opaque);
 	} else {
-#ifdef FIXME_REMOVE_BEFORE_CHECKIN
-{
-int k;
-debug(("  ExtTextOut   : %d,%d", xp, y));
-for(k=0;k<j-i;k++)debug((" U+%04X", lpString[i+k]));
-debug(("\n           rect: [%d,%d %d,%d]\n", newrc.left, newrc.top, newrc.right, newrc.bottom));
-}
-#endif
-	    newrc.left = lprc->left + xp - x;
-	    newrc.right = lprc->left + xn - x;
-	    newrc.top = lprc->top;
-	    newrc.bottom = lprc->bottom;
 	    ExtTextOutW(hdc, xp, y, ETO_CLIPPED | (opaque ? ETO_OPAQUE : 0),
-			&newrc, lpString+i, j-i, lpDx+i);
+			lprc, lpString+i, j-i,
+                        font_varpitch ? NULL : lpDx+i);
 	}
 
 	i = j;
 	xp = xn;
+
+        bkmode = GetBkMode(hdc);
+        got_bkmode = TRUE;
+        SetBkMode(hdc, TRANSPARENT);
+        opaque = FALSE;
     }
 
-#ifdef FIXME_REMOVE_BEFORE_CHECKIN
-debug(("general_textout: done, xn=%d\n", xn));
-#endif
-    assert(xn - x >= lprc->right - lprc->left);
+    if (got_bkmode)
+        SetBkMode(hdc, bkmode);
+}
+
+static int get_font_width(HDC hdc, const TEXTMETRIC *tm)
+{
+    int ret;
+    /* Note that the TMPF_FIXED_PITCH bit is defined upside down :-( */
+    if (!(tm->tmPitchAndFamily & TMPF_FIXED_PITCH)) {
+        ret = tm->tmAveCharWidth;
+    } else {
+#define FIRST '0'
+#define LAST '9'
+        ABCFLOAT widths[LAST-FIRST + 1];
+        int j;
+
+        font_varpitch = TRUE;
+        font_dualwidth = TRUE;
+        if (GetCharABCWidthsFloat(hdc, FIRST, LAST, widths)) {
+            ret = 0;
+            for (j = 0; j < lenof(widths); j++) {
+                int width = (int)(0.5 + widths[j].abcfA +
+                                  widths[j].abcfB + widths[j].abcfC);
+                if (ret < width)
+                    ret = width;
+            }
+        } else {
+            ret = tm->tmMaxCharWidth;
+        }
+#undef FIRST
+#undef LAST
+    }
+    return ret;
 }
 
 /*
@@ -1395,11 +1421,18 @@ static void init_fonts(int pick_width, int pick_height)
 
     GetObject(fonts[FONT_NORMAL], sizeof(LOGFONT), &lfont);
 
+    /* Note that the TMPF_FIXED_PITCH bit is defined upside down :-( */
+    if (!(tm.tmPitchAndFamily & TMPF_FIXED_PITCH)) {
+        font_varpitch = FALSE;
+        font_dualwidth = (tm.tmAveCharWidth != tm.tmMaxCharWidth);
+    } else {
+        font_varpitch = TRUE;
+        font_dualwidth = TRUE;
+    }
     if (pick_width == 0 || pick_height == 0) {
 	font_height = tm.tmHeight;
-	font_width = tm.tmAveCharWidth;
+        font_width = get_font_width(hdc, &tm);
     }
-    font_dualwidth = (tm.tmAveCharWidth != tm.tmMaxCharWidth);
 
 #ifdef RDB_DEBUG_PATCH
     debug(23, "Primary font H=%d, AW=%d, MW=%d",
@@ -1486,7 +1519,7 @@ static void init_fonts(int pick_width, int pick_height)
     for (i = 0; i < 3; i++) {
 	if (fonts[i]) {
 	    if (SelectObject(hdc, fonts[i]) && GetTextMetrics(hdc, &tm))
-		fontsize[i] = tm.tmAveCharWidth + 256 * tm.tmHeight;
+		fontsize[i] = get_font_width(hdc, &tm) + 256 * tm.tmHeight;
 	    else
 		fontsize[i] = -i;
 	} else
@@ -1555,7 +1588,7 @@ static void another_font(int fontno)
 	CreateFont(font_height * (1 + !!(fontno & FONT_HIGH)), x, 0, 0, w,
 		   FALSE, u, FALSE, c, OUT_DEFAULT_PRECIS,
 		   CLIP_DEFAULT_PRECIS, FONT_QUALITY(cfg.font_quality),
-		   FIXED_PITCH | FF_DONTCARE, s);
+		   DEFAULT_PITCH | FF_DONTCARE, s);
 
     fontflag[fontno] = 1;
 }
@@ -1928,7 +1961,7 @@ void notify_remote_exit(void *fe)
 	     * by a fatal error, so an error box will be coming our way and
 	     * we should not generate this informational one. */
 	    if (exitcode != INT_MAX)
-		MessageBox(hwnd, TEXT("Á¬½Ó±»Ô¶³ÌÖ÷»ú¹Ø±Õ"),appname, MB_OK | MB_ICONINFORMATION);
+		MessageBox(hwnd, TEXT("è¿žæŽ¥è¢«è¿œç¨‹ä¸»æœºå…³é—­"),appname, MB_OK | MB_ICONINFORMATION);
 	}
     }
 }
@@ -1949,6 +1982,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
     static int ignore_clip = FALSE;
     static int need_backend_resize = FALSE;
     static int fullscr_on_max = FALSE;
+    static int processed_resize = FALSE;
     static UINT last_mousemove = 0;
 
     switch (message) {
@@ -1972,7 +2006,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    str = dupprintf("%s Exit Confirmation", appname);
 	    if (!cfg.warn_on_close || session_closed ||
 		MessageBox(hwnd,
-			   "ÄúÈ·¶¨¹Ø±ÕÕâ¸ö»á»°?",
+			   "æ‚¨ç¡®å®šå…³é—­è¿™ä¸ªä¼šè¯?",
 			   str, MB_ICONWARNING | MB_OKCANCEL | MB_DEFBUTTON1)
 		== IDOK)
 		DestroyWindow(hwnd);
@@ -2043,7 +2077,6 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 					   / MENU_SAVED_STEP) + 1;
 		    if (sessno < (unsigned)sesslist.nsessions) {
 			char *session = sesslist.sessions[sessno];
-			/* XXX spaces? quotes? "-load"? */
 			cl = dupprintf("putty @%s", session);
 			inherit_handles = FALSE;
 			freecl = TRUE;
@@ -2626,7 +2659,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	 * 1) Keep the sizetip uptodate
 	 * 2) Make sure the window size is _stepped_ in units of the font size.
 	 */
-	if (cfg.resize_action != RESIZE_FONT && !is_alt_pressed()) {
+        if (cfg.resize_action == RESIZE_TERM ||
+            (cfg.resize_action == RESIZE_EITHER && !is_alt_pressed())) {
 	    int width, height, w, h, ew, eh;
 	    LPRECT r = (LPRECT) lParam;
 
@@ -2732,12 +2766,35 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 			  cfg.win_name_always ? window_name : icon_name);
 	if (wParam == SIZE_RESTORED || wParam == SIZE_MAXIMIZED)
 	    SetWindowText(hwnd, window_name);
-        if (wParam == SIZE_RESTORED)
+        if (wParam == SIZE_RESTORED) {
+            processed_resize = FALSE;
             clear_full_screen();
+            if (processed_resize) {
+                /*
+                 * Inhibit normal processing of this WM_SIZE; a
+                 * secondary one was triggered just now by
+                 * clear_full_screen which contained the correct
+                 * client area size.
+                 */
+                return 0;
+            }
+        }
         if (wParam == SIZE_MAXIMIZED && fullscr_on_max) {
             fullscr_on_max = FALSE;
+            processed_resize = FALSE;
             make_full_screen();
+            if (processed_resize) {
+                /*
+                 * Inhibit normal processing of this WM_SIZE; a
+                 * secondary one was triggered just now by
+                 * make_full_screen which contained the correct client
+                 * area size.
+                 */
+                return 0;
+            }
         }
+
+        processed_resize = TRUE;
 
 	if (cfg.resize_action == RESIZE_DISABLED) {
 	    /* A resize, well it better be a minimize. */
@@ -2749,55 +2806,57 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    width = LOWORD(lParam);
 	    height = HIWORD(lParam);
 
-	    if (!resizing) {
-		if (wParam == SIZE_MAXIMIZED && !was_zoomed) {
-		    was_zoomed = 1;
-		    prev_rows = term->rows;
-		    prev_cols = term->cols;
-		    if (cfg.resize_action == RESIZE_TERM) {
-			w = width / font_width;
-			if (w < 1) w = 1;
-			h = height / font_height;
-			if (h < 1) h = 1;
+            if (wParam == SIZE_MAXIMIZED && !was_zoomed) {
+                was_zoomed = 1;
+                prev_rows = term->rows;
+                prev_cols = term->cols;
+                if (cfg.resize_action == RESIZE_TERM) {
+                    w = width / font_width;
+                    if (w < 1) w = 1;
+                    h = height / font_height;
+                    if (h < 1) h = 1;
 
-			term_size(term, h, w, cfg.savelines);
-		    }
-		    reset_window(0);
-		} else if (wParam == SIZE_RESTORED && was_zoomed) {
-		    was_zoomed = 0;
-		    if (cfg.resize_action == RESIZE_TERM)
-			term_size(term, prev_rows, prev_cols, cfg.savelines);
-		    if (cfg.resize_action != RESIZE_FONT)
-			reset_window(2);
-		    else
-			reset_window(0);
-		}
-		/* This is an unexpected resize, these will normally happen
-		 * if the window is too large. Probably either the user
-		 * selected a huge font or the screen size has changed.
-		 *
-		 * This is also called with minimize.
-		 */
-		else reset_window(-1);
-	    }
+                    term_size(term, h, w, cfg.savelines);
+                }
+                reset_window(0);
+            } else if (wParam == SIZE_RESTORED && was_zoomed) {
+                was_zoomed = 0;
+                if (cfg.resize_action == RESIZE_TERM) {
+                    w = (width-cfg.window_border*2) / font_width;
+                    if (w < 1) w = 1;
+                    h = (height-cfg.window_border*2) / font_height;
+                    if (h < 1) h = 1;
+                    term_size(term, h, w, cfg.savelines);
+                    reset_window(2);
+                } else if (cfg.resize_action != RESIZE_FONT)
+                    reset_window(2);
+                else
+                    reset_window(0);
+            } else if (wParam == SIZE_MINIMIZED) {
+                /* do nothing */
+	    } else if (cfg.resize_action == RESIZE_TERM ||
+                       (cfg.resize_action == RESIZE_EITHER &&
+                        !is_alt_pressed())) {
+                w = (width-cfg.window_border*2) / font_width;
+                if (w < 1) w = 1;
+                h = (height-cfg.window_border*2) / font_height;
+                if (h < 1) h = 1;
 
-	    /*
-	     * Don't call back->size in mid-resize. (To prevent
-	     * massive numbers of resize events getting sent
-	     * down the connection during an NT opaque drag.)
-	     */
-	    if (resizing) {
-		if (cfg.resize_action != RESIZE_FONT && !is_alt_pressed()) {
+                if (resizing) {
+                    /*
+                     * Don't call back->size in mid-resize. (To
+                     * prevent massive numbers of resize events
+                     * getting sent down the connection during an NT
+                     * opaque drag.)
+                     */
 		    need_backend_resize = TRUE;
-		    w = (width-cfg.window_border*2) / font_width;
-		    if (w < 1) w = 1;
-		    h = (height-cfg.window_border*2) / font_height;
-		    if (h < 1) h = 1;
-
 		    cfg.height = h;
 		    cfg.width = w;
-	        } else 
-		    reset_window(0);
+                } else {
+                    term_size(term, h, w, cfg.savelines);
+                }
+            } else {
+                reset_window(0);
 	    }
 	}
 	sys_cursor_update();
@@ -3148,7 +3207,11 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
     int force_manual_underline = 0;
     int fnt_width, char_width;
     int text_adjust = 0;
-    static int *IpDx = 0, IpDxLEN = 0;
+    int xoffset = 0;
+    int maxlen, remaining, opaque;
+    static int *lpDx = NULL;
+    static int lpDx_len = 0;
+    int *lpDx_maybe;
 
     lattr &= LATTR_MODE;
 
@@ -3156,17 +3219,6 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 
     if (attr & ATTR_WIDE)
 	char_width *= 2;
-
-    if (len > IpDxLEN || IpDx[0] != char_width) {
-	int i;
-	if (len > IpDxLEN) {
-	    sfree(IpDx);
-	    IpDx = snewn(len + 16, int);
-	    IpDxLEN = (len + 16);
-	}
-	for (i = 0; i < IpDxLEN; i++)
-	    IpDx[i] = char_width;
-    }
 
     /* Only want the left half of double width lines */
     if (lattr != LATTR_NORM && x*2 >= term->cols)
@@ -3288,111 +3340,167 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
     if (line_box.right > font_width*term->cols+offset_width)
 	line_box.right = font_width*term->cols+offset_width;
 
-    /* We're using a private area for direct to font. (512 chars.) */
-    if (ucsdata.dbcs_screenfont && (text[0] & CSET_MASK) == CSET_ACP) {
-	/* Ho Hum, dbcs fonts are a PITA! */
-	/* To display on W9x I have to convert to UCS */
-	static wchar_t *uni_buf = 0;
-	static int uni_len = 0;
-	int nlen, mptr;
-	if (len > uni_len) {
-	    sfree(uni_buf);
-	    uni_len = len;
-	    uni_buf = snewn(uni_len, wchar_t);
-	}
-
-	for(nlen = mptr = 0; mptr<len; mptr++) {
-	    uni_buf[nlen] = 0xFFFD;
-	    if (IsDBCSLeadByteEx(ucsdata.font_codepage, (BYTE) text[mptr])) {
-		char dbcstext[2];
-		dbcstext[0] = text[mptr] & 0xFF;
-		dbcstext[1] = text[mptr+1] & 0xFF;
-		IpDx[nlen] += char_width;
-	        MultiByteToWideChar(ucsdata.font_codepage, MB_USEGLYPHCHARS,
-				    dbcstext, 2, uni_buf+nlen, 1);
-		mptr++;
-	    }
-	    else
-	    {
-		char dbcstext[1];
-		dbcstext[0] = text[mptr] & 0xFF;
-	        MultiByteToWideChar(ucsdata.font_codepage, MB_USEGLYPHCHARS,
-				    dbcstext, 1, uni_buf+nlen, 1);
-	    }
-	    nlen++;
-	}
-	if (nlen <= 0)
-	    return;		       /* Eeek! */
-
-	ExtTextOutW(hdc, x,
-		    y - font_height * (lattr == LATTR_BOT) + text_adjust,
-		    ETO_CLIPPED | ETO_OPAQUE, &line_box, uni_buf, nlen, IpDx);
-	if (bold_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
-	    SetBkMode(hdc, TRANSPARENT);
-	    ExtTextOutW(hdc, x - 1,
-			y - font_height * (lattr ==
-					   LATTR_BOT) + text_adjust,
-			ETO_CLIPPED, &line_box, uni_buf, nlen, IpDx);
-	}
-
-	IpDx[0] = -1;
-    } else if (DIRECT_FONT(text[0])) {
-	static char *directbuf = NULL;
-	static int directlen = 0;
-	int i;
-	if (len > directlen) {
-	    directlen = len;
-	    directbuf = sresize(directbuf, directlen, char);
-	}
-
-	for (i = 0; i < len; i++)
-	    directbuf[i] = text[i] & 0xFF;
-
-	ExtTextOut(hdc, x,
-		   y - font_height * (lattr == LATTR_BOT) + text_adjust,
-		   ETO_CLIPPED | ETO_OPAQUE, &line_box, directbuf, len, IpDx);
-	if (bold_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
-	    SetBkMode(hdc, TRANSPARENT);
-
-	    /* GRR: This draws the character outside it's box and can leave
-	     * 'droppings' even with the clip box! I suppose I could loop it
-	     * one character at a time ... yuk. 
-	     * 
-	     * Or ... I could do a test print with "W", and use +1 or -1 for this
-	     * shift depending on if the leftmost column is blank...
-	     */
-	    ExtTextOut(hdc, x - 1,
-		       y - font_height * (lattr ==
-					  LATTR_BOT) + text_adjust,
-		       ETO_CLIPPED, &line_box, directbuf, len, IpDx);
-	}
+    if (font_varpitch) {
+        /*
+         * If we're using a variable-pitch font, we unconditionally
+         * draw the glyphs one at a time and centre them in their
+         * character cells (which means in particular that we must
+         * disable the lpDx mechanism). This gives slightly odd but
+         * generally reasonable results.
+         */
+        xoffset = char_width / 2;
+        SetTextAlign(hdc, TA_TOP | TA_CENTER | TA_NOUPDATECP);
+        lpDx_maybe = NULL;
+        maxlen = 1;
     } else {
-	/* And 'normal' unicode characters */
-	static WCHAR *wbuf = NULL;
-	static int wlen = 0;
-	int i;
+        /*
+         * In a fixed-pitch font, we draw the whole string in one go
+         * in the normal way.
+         */
+        xoffset = 0;
+        SetTextAlign(hdc, TA_TOP | TA_LEFT | TA_NOUPDATECP);
+        lpDx_maybe = lpDx;
+        maxlen = len;
+    }
 
-	if (wlen < len) {
-	    sfree(wbuf);
-	    wlen = len;
-	    wbuf = snewn(wlen, WCHAR);
-	}
+    opaque = TRUE;                     /* start by erasing the rectangle */
+    for (remaining = len; remaining > 0;
+         text += len, remaining -= len, x += char_width * len) {
+        len = (maxlen < remaining ? maxlen : remaining);
 
-	for (i = 0; i < len; i++)
-	    wbuf[i] = text[i];
+        if (len > lpDx_len) {
+            if (len > lpDx_len) {
+                lpDx_len = len * 9 / 8 + 16;
+                lpDx = sresize(lpDx, lpDx_len, int);
+            }
+        }
+        {
+            int i;
+            for (i = 0; i < len; i++)
+                lpDx[i] = char_width;
+        }
 
-	/* print Glyphs as they are, without Windows' Shaping*/
-	general_textout(hdc, x, y - font_height * (lattr == LATTR_BOT) + text_adjust,
-			&line_box, wbuf, len, IpDx, !(attr & TATTR_COMBINING));
+        /* We're using a private area for direct to font. (512 chars.) */
+        if (ucsdata.dbcs_screenfont && (text[0] & CSET_MASK) == CSET_ACP) {
+            /* Ho Hum, dbcs fonts are a PITA! */
+            /* To display on W9x I have to convert to UCS */
+            static wchar_t *uni_buf = 0;
+            static int uni_len = 0;
+            int nlen, mptr;
+            if (len > uni_len) {
+                sfree(uni_buf);
+                uni_len = len;
+                uni_buf = snewn(uni_len, wchar_t);
+            }
 
-	/* And the shadow bold hack. */
-	if (bold_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
-	    SetBkMode(hdc, TRANSPARENT);
-	    ExtTextOutW(hdc, x - 1,
-			y - font_height * (lattr ==
-					   LATTR_BOT) + text_adjust,
-			ETO_CLIPPED, &line_box, wbuf, len, IpDx);
-	}
+            for(nlen = mptr = 0; mptr<len; mptr++) {
+                uni_buf[nlen] = 0xFFFD;
+                if (IsDBCSLeadByteEx(ucsdata.font_codepage,
+                                     (BYTE) text[mptr])) {
+                    char dbcstext[2];
+                    dbcstext[0] = text[mptr] & 0xFF;
+                    dbcstext[1] = text[mptr+1] & 0xFF;
+                    lpDx[nlen] += char_width;
+                    MultiByteToWideChar(ucsdata.font_codepage, MB_USEGLYPHCHARS,
+                                        dbcstext, 2, uni_buf+nlen, 1);
+                    mptr++;
+                }
+                else
+                {
+                    char dbcstext[1];
+                    dbcstext[0] = text[mptr] & 0xFF;
+                    MultiByteToWideChar(ucsdata.font_codepage, MB_USEGLYPHCHARS,
+                                        dbcstext, 1, uni_buf+nlen, 1);
+                }
+                nlen++;
+            }
+            if (nlen <= 0)
+                return;		       /* Eeek! */
+
+            ExtTextOutW(hdc, x + xoffset,
+                        y - font_height * (lattr == LATTR_BOT) + text_adjust,
+                        ETO_CLIPPED | (opaque ? ETO_OPAQUE : 0),
+                        &line_box, uni_buf, nlen,
+                        lpDx_maybe);
+            if (bold_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
+                SetBkMode(hdc, TRANSPARENT);
+                ExtTextOutW(hdc, x + xoffset - 1,
+                            y - font_height * (lattr ==
+                                               LATTR_BOT) + text_adjust,
+                            ETO_CLIPPED, &line_box, uni_buf, nlen, lpDx_maybe);
+            }
+
+            lpDx[0] = -1;
+        } else if (DIRECT_FONT(text[0])) {
+            static char *directbuf = NULL;
+            static int directlen = 0;
+            int i;
+            if (len > directlen) {
+                directlen = len;
+                directbuf = sresize(directbuf, directlen, char);
+            }
+
+            for (i = 0; i < len; i++)
+                directbuf[i] = text[i] & 0xFF;
+
+            ExtTextOut(hdc, x + xoffset,
+                       y - font_height * (lattr == LATTR_BOT) + text_adjust,
+                       ETO_CLIPPED | (opaque ? ETO_OPAQUE : 0),
+                       &line_box, directbuf, len, lpDx_maybe);
+            if (bold_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
+                SetBkMode(hdc, TRANSPARENT);
+
+                /* GRR: This draws the character outside its box and
+                 * can leave 'droppings' even with the clip box! I
+                 * suppose I could loop it one character at a time ...
+                 * yuk.
+                 * 
+                 * Or ... I could do a test print with "W", and use +1
+                 * or -1 for this shift depending on if the leftmost
+                 * column is blank...
+                 */
+                ExtTextOut(hdc, x + xoffset - 1,
+                           y - font_height * (lattr ==
+                                              LATTR_BOT) + text_adjust,
+                           ETO_CLIPPED, &line_box, directbuf, len, lpDx_maybe);
+            }
+        } else {
+            /* And 'normal' unicode characters */
+            static WCHAR *wbuf = NULL;
+            static int wlen = 0;
+            int i;
+
+            if (wlen < len) {
+                sfree(wbuf);
+                wlen = len;
+                wbuf = snewn(wlen, WCHAR);
+            }
+
+            for (i = 0; i < len; i++)
+                wbuf[i] = text[i];
+
+            /* print Glyphs as they are, without Windows' Shaping*/
+            general_textout(hdc, x + xoffset,
+                            y - font_height * (lattr==LATTR_BOT) + text_adjust,
+                            &line_box, wbuf, len, lpDx,
+                            opaque && !(attr & TATTR_COMBINING));
+
+            /* And the shadow bold hack. */
+            if (bold_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
+                SetBkMode(hdc, TRANSPARENT);
+                ExtTextOutW(hdc, x + xoffset - 1,
+                            y - font_height * (lattr ==
+                                               LATTR_BOT) + text_adjust,
+                            ETO_CLIPPED, &line_box, wbuf, len, lpDx_maybe);
+            }
+        }
+
+        /*
+         * If we're looping round again, stop erasing the background
+         * rectangle.
+         */
+        SetBkMode(hdc, TRANSPARENT);
+        opaque = FALSE;
     }
     if (lattr != LATTR_TOP && (force_manual_underline ||
 			       (und_mode == UND_LINE

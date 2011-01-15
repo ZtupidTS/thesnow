@@ -1,4 +1,4 @@
-\define{versionidconfig} \versionid $Id: config.but 9009 2010-09-25 16:18:02Z jacob $
+\define{versionidconfig} \versionid $Id: config.but 9063 2010-12-29 14:11:25Z simon $
 
 \C{config} Configuring PuTTY
 
@@ -1030,7 +1030,9 @@ the terminal will stay the same, and the \i{font size} will change.
 
 \b \q{Change font size when maximised}: when the window is resized,
 the number of rows and columns will change, \e{except} when the window
-is \i{maximise}d (or restored), when the font size will change.
+is \i{maximise}d (or restored), when the font size will change. (In
+this mode, holding down the Alt key while resizing will also cause the
+font size to change.)
 
 \b \q{Forbid resizing completely}: the terminal will refuse to be
 resized at all.
@@ -1094,10 +1096,15 @@ works in any of the cursor modes.
 \cfg{winhelp-topic}{appearance.font}
 
 This option allows you to choose what font, in what \I{font size}size,
-the PuTTY terminal window uses to display the text in the session. You
-will be offered a choice from all the fixed-width fonts installed on the
-system. (VT100-style terminal handling can only deal with fixed-width
-fonts.)
+the PuTTY terminal window uses to display the text in the session.
+
+By default, you will be offered a choice from all the fixed-width
+fonts installed on the system, since VT100-style terminal handling
+expects a fixed-width font. If you tick the box marked \q{Allow
+selection of variable-pitch fonts}, however, PuTTY will offer
+variable-width fonts as well: if you select one of these, the font
+will be coerced into fixed-size character cells, which will probably
+not look very good (but can work OK with some fonts).
 
 \S{config-mouseptr} \q{Hide \i{mouse pointer} when typing in window}
 
@@ -2466,6 +2473,21 @@ unwanted username prompts, you could try checking this option.
 
 This option only affects SSH-2 connections. SSH-1 connections always
 require an authentication step.
+
+\S{config-ssh-banner} \q{Display pre-authentication banner}
+
+\cfg{winhelp-topic}{ssh.auth.banner}
+
+SSH-2 servers can provide a message for clients to display to the
+prospective user before the user logs in; this is sometimes known as a
+pre-authentication \q{\i{banner}}. Typically this is used to provide
+information about the server and legal notices.
+
+By default, PuTTY displays this message before prompting for a
+password or similar credentials (although, unfortunately, not before
+prompting for a login name, due to the nature of the protocol design).
+By unchecking this option, display of the banner can be suppressed
+entirely.
 
 \S{config-ssh-tryagent} \q{Attempt authentication using Pageant}
 
