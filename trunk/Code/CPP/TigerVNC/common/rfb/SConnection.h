@@ -26,7 +26,7 @@
 #include <rdr/InStream.h>
 #include <rdr/OutStream.h>
 #include <rfb/SMsgHandler.h>
-#include <rfb/Security.h>
+#include <rfb/SecurityServer.h>
 #include <rfb/SSecurity.h>
 
 namespace rfb {
@@ -156,8 +156,6 @@ namespace rfb {
       RFBSTATE_UNINITIALISED,
       RFBSTATE_PROTOCOL_VERSION,
       RFBSTATE_SECURITY_TYPE,
-      RFBSTATE_TIGHT_TUNN_TYPE,
-      RFBSTATE_TIGHT_AUTH_TYPE,
       RFBSTATE_SECURITY,
       RFBSTATE_QUERYING,
       RFBSTATE_INITIALISATION,
@@ -179,19 +177,12 @@ namespace rfb {
     void processSecurityMsg();
     void processInitMsg();
 
-    // These functions add support for TightVNC protocol extensions.
-    void offerTunneling();
-    void processTunnelTypeMsg();
-    void offerAuthentication();
-    void processAuthTypeMsg();
-    void sendInteractionCaps();
-
     int defaultMajorVersion, defaultMinorVersion;
     rdr::InStream* is;
     rdr::OutStream* os;
     SMsgReader* reader_;
     SMsgWriter* writer_;
-    Security *security;
+    SecurityServer *security;
     SSecurity* ssecurity;
     stateEnum state_;
     bool reverseConnection;

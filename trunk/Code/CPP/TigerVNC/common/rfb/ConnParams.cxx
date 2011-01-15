@@ -27,7 +27,7 @@
 using namespace rfb;
 
 ConnParams::ConnParams()
-  : majorVersion(0), minorVersion(0), tightExtensionsEnabled(false),
+  : majorVersion(0), minorVersion(0),
     width(0), height(0), useCopyRect(false),
     supportsLocalCursor(false), supportsLocalXCursor(false),
     supportsDesktopResize(false), supportsExtendedDesktopSize(false),
@@ -129,7 +129,7 @@ void ConnParams::setEncodings(int nEncodings, const rdr::S32* encodings)
 	       encodings[i] <= pseudoEncodingQualityLevel9) {
       noJpeg = false;
       qualityLevel = encodings[i] - pseudoEncodingQualityLevel0;
-    } else if (encodings[i] <= encodingMax && Encoder::supported(encodings[i]))
+    } else if (Encoder::supported(encodings[i]))
       currentEncoding_ = encodings[i];
   }
 }
