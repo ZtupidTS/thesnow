@@ -29,7 +29,7 @@ class DSPConfigDialogLLE : public wxDialog
 public:
 	DSPConfigDialogLLE(wxWindow *parent,
 		     wxWindowID id = wxID_ANY,
-		     const wxString &title = wxT("Dolphin DSP-LLE 插件设置"),
+		     const wxString &title = _("Dolphin DSP-LLE 插件设置"),
 		     const wxPoint& pos = wxDefaultPosition,
 		     const wxSize& size = wxDefaultSize,
 		     long style = wxDEFAULT_DIALOG_STYLE);
