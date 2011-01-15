@@ -28,7 +28,7 @@
 #include <rfb/CMsgHandler.h>
 #include <rfb/CSecurity.h>
 #include <rfb/util.h>
-#include <rfb/Security.h>
+#include <rfb/SecurityClient.h>
 
 namespace rfb {
 
@@ -58,17 +58,6 @@ namespace rfb {
     // streams).  Ownership of the streams remains with the caller
     // (i.e. SConnection will not delete them).
     void setStreams(rdr::InStream* is, rdr::OutStream* os);
-
-    // addSecType() should be called once for each security type which the
-    // client supports.  The order in which they're added is such that the
-    // first one is most preferred.
-    void addSecType(rdr::U8 secType);
-
-    // setClientSecTypeOrder() determines whether the client should obey
-    // the server's security type preference, by picking the first server security
-    // type that the client supports, or whether it should pick the first type
-    // that the server supports, from the client-supported list of types.
-    void setClientSecTypeOrder(bool clientOrder);
 
     // setShared sets the value of the shared flag which will be sent to the
     // server upon initialisation.
@@ -142,10 +131,10 @@ namespace rfb {
 
     stateEnum state() { return state_; }
 
-    CSecurity *csecurity; /* Windows viewer needs it exported. */
+    CSecurity *csecurity;
+    SecurityClient *security;
   protected:
     void setState(stateEnum s) { state_ = s; }
-    Security *security;
 
   private:
     void processVersionMsg();
@@ -163,10 +152,6 @@ namespace rfb {
     CMsgWriter* writer_;
     bool deleteStreamsWhenDone;
     bool shared;
-    enum { maxSecTypes = 8 };
-    int nSecTypes;
-    rdr::U8 secTypes[maxSecTypes];
-    bool clientSecTypeOrder;
     stateEnum state_;
 
     CharArray serverName;
