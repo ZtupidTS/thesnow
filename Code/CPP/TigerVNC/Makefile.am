@@ -18,3 +18,9 @@ endif
 
 dmg: all
 	sh $(srcdir)/release/makemacpkg ${PACKAGE_NAME} ${VERSION} ${BUILD} ${srcdir}
+
+EXTRA_DIST = CMakeLists.txt cmakescripts/getdate.bat LICENCE.TXT \
+	doc java media release
+
+dist-hook:
+	rm -rf `find $(distdir) -name .svn`

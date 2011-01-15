@@ -30,6 +30,9 @@ extern "C" {
 #define public c_public
 #define class c_class
 #include "inputstr.h"
+#if XORG >= 110
+#include "inpututils.h"
+#endif
 #include "mi.h"
 #ifndef XKB_IN_SERVER
 #define XKB_IN_SERVER
@@ -59,6 +62,10 @@ extern _X_EXPORT DevPrivateKey CoreDevicePrivateKey;
 #undef public
 #undef class
 }
+
+#if XORG >= 110
+#define Xfree free
+#endif
 
 using namespace rdr;
 using namespace rfb;
@@ -140,6 +147,9 @@ InputDevice::InputDevice(rfb::VNCServerST *_server)
 void InputDevice::PointerButtonAction(int buttonMask)
 {
 	int i, n;
+#if XORG >= 110
+	ValuatorMask mask;
+#endif
 
 	initInputDevice();
 
@@ -147,8 +157,14 @@ void InputDevice::PointerButtonAction(int buttonMask)
 		if ((buttonMask ^ oldButtonMask) & (1 << i)) {
 			int action = (buttonMask & (1<<i)) ?
 				     ButtonPress : ButtonRelease;
+#if XORG < 110
 			n = GetPointerEvents(eventq, pointerDev, action, i + 1,
 					     POINTER_RELATIVE, 0, 0, NULL);
+#else
+			valuator_mask_set_range(&mask, 0, 0, NULL);
+			n = GetPointerEvents(eventq, pointerDev, action, i + 1,
+					     POINTER_RELATIVE, &mask);
+#endif
 			enqueueEvents(pointerDev, n);
 
 		}
@@ -160,6 +176,9 @@ void InputDevice::PointerButtonAction(int buttonMask)
 void InputDevice::PointerMove(const rfb::Point &pos)
 {
 	int n, valuators[2];
+#if XORG >= 110
+	ValuatorMask mask;
+#endif
 
 	if (pos.equals(cursorPos))
 		return;
@@ -168,8 +187,14 @@ void InputDevice::PointerMove(const rfb::Point &pos)
 
 	valuators[0] = pos.x;
 	valuators[1] = pos.y;
+#if XORG < 110
 	n = GetPointerEvents(eventq, pointerDev, MotionNotify, 0, POINTER_ABSOLUTE, 0,
 			     2, valuators);
+#else
+	valuator_mask_set_range(&mask, 0, 2, valuators);
+	n = GetPointerEvents(eventq, pointerDev, MotionNotify, 0, POINTER_ABSOLUTE,
+			     &mask);
+#endif
 	enqueueEvents(pointerDev, n);
 
 	cursorPos = pos;
@@ -271,6 +296,19 @@ void InputDevice::initInputDevice(void)
 #endif
 }
 
+static inline void pressKey(DeviceIntPtr dev, int kc, bool down, const char *msg)
+{
+	int action;
+	unsigned int n;
+
+	if (msg != NULL)
+		vlog.debug("%s %d %s", msg, kc, down ? "down" : "up");
+
+	action = down ? KeyPress : KeyRelease;
+	n = GetKeyboardEvents(eventq, dev, action, kc);
+	enqueueEvents(dev, n);
+}
+
 #define IS_PRESSED(keyc, keycode) \
 	((keyc)->down[(keycode) >> 3] & (1 << ((keycode) & 7)))
 
@@ -294,15 +332,14 @@ public:
 	~ModifierState()
 	{
 		for (int i = 0; i < nKeys; i++)
-			generateXKeyEvent(keys[i], !pressed);
+			pressKey(dev, keys[i], !pressed, "fake keycode");
 		delete [] keys;
 	}
 
 	void press()
 	{
-		int state, index, maxKeysPerMod, keycode;
+		int state, maxKeysPerMod, keycode;
 #if XORG >= 17
-		int ret;
 		KeyCode *modmap = NULL;
 
 		state = XkbStateFieldFromRec(&dev->u.master->key->xkbInfo->state);
@@ -317,6 +354,12 @@ public:
 		if (generate_modkeymap(serverClient, dev, &modmap,
 				       &maxKeysPerMod) != Success) {
 			vlog.error("generate_modkeymap failed");
+			return;
+		}
+
+		if (maxKeysPerMod == 0) {
+			vlog.debug("Keyboard has no modifiers");
+			xfree(modmap);
 			return;
 		}
 
@@ -335,7 +378,6 @@ public:
 		int state, maxKeysPerMod;
 		KeyClassPtr keyc;
 #if XORG >= 17
-		int ret;
 		KeyCode *modmap = NULL;
 
 		keyc = dev->u.master->key;
@@ -351,6 +393,12 @@ public:
 		if (generate_modkeymap(serverClient, dev, &modmap,
 				       &maxKeysPerMod) != Success) {
 			vlog.error("generate_modkeymap failed");
+			return;
+		}
+
+		if (maxKeysPerMod == 0) {
+			vlog.debug("Keyboard has no modifiers");
+			xfree(modmap);
 			return;
 		}
 #else
@@ -379,20 +427,8 @@ private:
 		if (keycode) {
 			if (!keys) keys = new int[maxKeysPerMod];
 			keys[nKeys++] = keycode;
-			generateXKeyEvent(keycode, down);
+			pressKey(dev, keycode, down, "fake keycode");
 		}
-	}
-
-	void generateXKeyEvent(int keycode, bool down)
-	{
-		int n, action;
-
-		action = down ? KeyPress : KeyRelease;
-		n = GetKeyboardEvents(eventq, dev, action, keycode);
-		enqueueEvents(dev, n);
-
-		vlog.debug("fake keycode %d %s", keycode,
-			   down ? "down" : "up");
 	}
 
 	int modIndex;
@@ -486,15 +522,17 @@ static struct altKeysym_t {
 
 void InputDevice::keyEvent(rdr::U32 keysym, bool down)
 {
+#if XORG < 17
 	DeviceIntPtr master;
+#endif
 	KeyClassPtr keyc;
 	KeySymsPtr keymap = NULL;
 	KeySym *map = NULL;
 	KeyCode minKeyCode, maxKeyCode;
 	KeyCode *modmap = NULL;
 	int mapWidth;
-	unsigned int i, n;
-	int j, k, action, state, maxKeysPerMod;
+	unsigned int i;
+	int j, k, state, maxKeysPerMod;
 
 	initInputDevice();
 
@@ -527,6 +565,9 @@ void InputDevice::keyEvent(rdr::U32 keysym, bool down)
 		xfree(keymap);
 		return;
 	}
+
+	if (maxKeysPerMod == 0)
+		vlog.debug("Keyboard has no modifiers");
 
 	state = XkbStateFieldFromRec(&keyc->xkbInfo->state);
 #else
@@ -563,11 +604,13 @@ void InputDevice::keyEvent(rdr::U32 keysym, bool down)
 ModeSwitchFound:
 
 	int col = 0;
-	if ((state & (1 << ShiftMapIndex)) != 0)
-		col |= 1;
-	if (modeSwitchMapIndex != 0 &&
-	    ((state & (1 << modeSwitchMapIndex))) != 0)
-		col |= 2;
+	if (maxKeysPerMod != 0) {
+		if ((state & (1 << ShiftMapIndex)) != 0)
+			col |= 1;
+		if (modeSwitchMapIndex != 0 &&
+		    ((state & (1 << modeSwitchMapIndex))) != 0)
+			col |= 2;
+	}
 
 	int kc = KeysymToKeycode(keymap, keysym, &col);
 
@@ -579,7 +622,8 @@ ModeSwitchFound:
 	 * We never get ISO_Left_Tab here because it's already been translated
 	 * in VNCSConnectionST.
 	 */
-	if (keysym == XK_Tab && ((state & (1 << ShiftMapIndex))) != 0)
+	if (maxKeysPerMod != 0 && keysym == XK_Tab &&
+	    ((state & (1 << ShiftMapIndex))) != 0)
 		col |= 1;
 
 	if (kc == 0) {
@@ -660,25 +704,31 @@ ModeSwitchFound:
 		}
 	}
 
-	ModifierState shift(keyboardDev, ShiftMapIndex);
-	ModifierState modeSwitch(keyboardDev, modeSwitchMapIndex);
-	if (down) {
-		if (col & 1)
-			shift.press();
-		else
-			shift.release();
-		if (modeSwitchMapIndex) {
-			if (col & 2)
-				modeSwitch.press();
+	if (maxKeysPerMod != 0) {
+		ModifierState shift(keyboardDev, ShiftMapIndex);
+		ModifierState modeSwitch(keyboardDev, modeSwitchMapIndex);
+		if (down) {
+			if (col & 1)
+				shift.press();
 			else
-				modeSwitch.release();
+				shift.release();
+			if (modeSwitchMapIndex) {
+				if (col & 2)
+					modeSwitch.press();
+				else
+					modeSwitch.release();
+			}
 		}
-	}
+		/*
+		 * Ensure ModifierState objects are not destroyed before
+		 * pressKey call, otherwise fake modifier keypress can be lost.
+		 */
+		pressKey(keyboardDev, kc, down, "keycode");
+	} else
+		pressKey(keyboardDev, kc, down, "keycode");
 
-	vlog.debug("keycode %d %s", kc, down ? "down" : "up");
-	action = down ? KeyPress : KeyRelease;
-	n = GetKeyboardEvents(eventq, keyboardDev, action, kc);
-	enqueueEvents(keyboardDev, n);
+
+        FREE_MAPS;
 	
 	/*
 	 * When faking a modifier we are putting a keycode (which can
@@ -768,6 +818,7 @@ static KeyCode KeysymToKeycode(KeySymsPtr keymap, KeySym ks, int* col)
 	return 0;
 }
 
+#if XORG < 17
 /* Fairly standard US PC Keyboard */
 
 #define MIN_KEY 8
@@ -935,6 +986,7 @@ static Bool GetMappings(KeySymsPtr pKeySyms, CARD8 *pModMap)
 
 	return TRUE;
 }
+#endif
 
 static void keyboardBell(int percent, DeviceIntPtr device, pointer ctrl,
 			 int class_)
@@ -945,8 +997,10 @@ static void keyboardBell(int percent, DeviceIntPtr device, pointer ctrl,
 
 static int keyboardProc(DeviceIntPtr pDevice, int onoff)
 {
+#if XORG < 17
 	KeySymsRec keySyms;
 	CARD8 modMap[MAP_LENGTH];
+#endif
 	DevicePtr pDev = (DevicePtr)pDevice;
 
 	switch (onoff) {

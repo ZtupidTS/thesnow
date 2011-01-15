@@ -1,6 +1,11 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_PREREQ([2.57])
+
+dnl Modify also RCVERSION variable when modifying release
 AC_INIT([tigervnc], [1.0.90], [http://www.tigervnc.org])
+RCVERSION="1,0,90,0"
+AC_SUBST([RCVERSION])
+
 BUILD=`date +%Y%m%d`
 AC_CONFIG_AUX_DIR([.])
 AM_INIT_AUTOMAKE([-Wall foreign dist-bzip2])
@@ -35,14 +40,20 @@ esac
 
 BUILD_WIN=
 case "$host_os" in
-mingw*)
+mingw32*)
 	CPPFLAGS="$CPPFLAGS -DWINVER=0x0500 -D_WIN32_IE=0x0500"
 	CXXFLAGS="$CXXFLAGS -mthreads"
 	BUILD_WIN=yes
 	AC_CHECK_TOOL([WINDRES], windres, [AC_MSG_ERROR(windres not found)])
 	;;
+mingw*)
+	AC_MSG_ERROR(["Only 32bit MinGW builds are supported"])
+	;;
 esac
 AM_CONDITIONAL([BUILD_WIN], [test "x$BUILD_WIN" = xyes])
+if test "x$BUILD_WIN" = xyes; then
+	AC_DEFINE([BUILD_WIN],1,[is it a windows build])
+fi
 
 dnl FIXME: Check for MIT-SHM properly, add a corresponding --with option.
 if test "$USE_MITSHM" = yes; then
@@ -73,14 +84,49 @@ AC_ARG_ENABLE([gnutls],
 	AS_HELP_STRING([--enable-gnutls],
 		       [build in GNUTLS based encryption support (default yes)]),
 	[enable_gnutls="$enableval"], [enable_gnutls=yes])
+AC_ARG_VAR(GNUTLS_CFLAGS, [Custom C compiler flags for using GnuTLS, e.g. -I{GnuTLS directory}/include])
+AC_ARG_VAR(GNUTLS_LDFLAGS, [Custom linker flags for using GnuTLS, e.g. -L{GnuTLS directory}/lib -lgnutls])
+
 GNUTLS_LIBS=
 if test "x$enable_gnutls" = xyes; then
-	AC_CHECK_LIB([gnutls], [gnutls_global_init],
-		     [GNUTLS_LIBS='-lgnutls'
-		      AC_DEFINE([HAVE_GNUTLS], 1, [Is gnutls present? ])])
+	if test "x$GNUTLS_LDFLAGS" = "x"; then
+		GNUTLS_LDFLAGS='-lgnutls -lgcrypt -lgpg-error -lz'
+		AC_CHECK_LIB([tasn1], [asn1_create_element], [GNUTLS_LDFLAGS="${GNUTLS_LDFLAGS} -ltasn1"])
+	fi
+	SAVE_LIBS=${LIBS}
+	LIBS="${LIBS} ${GNUTLS_LDFLAGS}"
+	SAVE_CPPFLAGS=${CPPFLAGS}
+	CPPFLAGS="${CPPFLAGS} ${GNUTLS_CFLAGS}"
+	AC_MSG_CHECKING([for GnuTLS library])
+	AC_LINK_IFELSE(AC_LANG_CALL([], gnutls_global_init),
+		       [GNUTLS_LIBS=${GNUTLS_LDFLAGS}
+			AC_DEFINE(HAVE_GNUTLS, 1, [Is gnutls present? ])
+			AC_MSG_RESULT(yes)], AC_MSG_RESULT(no))
+	AC_MSG_CHECKING([for gnutls_transport_set_global_errno() function])
+	AC_LINK_IFELSE(AC_LANG_CALL([], gnutls_transport_set_global_errno),
+		       AC_MSG_RESULT(yes),
+		       [AC_DEFINE(HAVE_OLD_GNUTLS, 1, [Does gnutls lack the gnutls_transport_set_global_errno() function? ])
+			AC_MSG_RESULT(no)])
+	LIBS=${SAVE_LIBS}
 fi
 AC_SUBST([GNUTLS_LIBS])
 AM_CONDITIONAL([HAVE_GNUTLS], [ ! test "x$GNUTLS_LIBS" = x ])
+
+AC_ARG_ENABLE([pam],
+	AS_HELP_STRING([--enable-pam],
+		       [build in support for authenticating users using PAM (default yes)]),
+	[enable_pam="$enableval"], [enable_pam=yes])
+
+PAM_LIBS=
+if test "x$enable_pam" = xyes; then
+	AC_CHECK_LIB([pam], [pam_start], 
+		     [AC_CHECK_HEADER([security/pam_appl.h],
+				     [PAM_LIBS='-lpam'
+				      AC_DEFINE(HAVE_PAM, 1, [PAM available])],
+				     [], [#include <stdio.h>])])
+fi
+AC_SUBST([PAM_LIBS])
+AM_CONDITIONAL([HAVE_PAM], [ ! test "x$PAM_LIBS" = x ])
 
 VNCCONFIG_DIR='vncconfig'
 AC_ARG_ENABLE([vncconfig],
@@ -194,5 +240,6 @@ win/vncviewer/Makefile
 win/rfb_win32/Makefile
 win/vncconfig/Makefile
 win/winvnc/Makefile
+win/resdefs.h
 po/Makefile.in
 ])

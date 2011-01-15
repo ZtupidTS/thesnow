@@ -255,7 +255,8 @@ char* XserverDesktop::substitute(const char* varName)
     struct utsname uts;
     uname(&uts);
     char* str = new char[256];
-    strncat(str, uts.nodename, 240);
+    strncpy(str, uts.nodename, 240);
+    str[239] = '\0'; /* Ensure string is zero-terminated */
     strcat(str, ":");
     strncat(str, display, 10);
     return str;
@@ -765,8 +766,14 @@ void XserverDesktop::grabRegion(const rfb::Region& region)
   region.get_rects(&rects);
   for (i = rects.begin(); i != rects.end(); i++) {
     for (int y = i->tl.y; y < i->br.y; y++) {
-      (*pScreen->GetImage) ((DrawablePtr)WindowTable[pScreen->myNum],
-                            i->tl.x, y, i->width(), 1,
+      DrawablePtr pDrawable;
+#if XORG < 19
+      pDrawable = (DrawablePtr) WindowTable[pScreen->myNum];
+#else
+      pDrawable = (DrawablePtr) pScreen->root;
+#endif
+
+      (*pScreen->GetImage) (pDrawable, i->tl.x, y, i->width(), 1,
                             ZPixmap, (unsigned long)~0L,
                             ((char*)data
                              + y * bytesPerRow + i->tl.x * bytesPerPixel));
