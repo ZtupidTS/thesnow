@@ -19,6 +19,13 @@
 #include "Atomic.h"
 #include "Mixer.h"
 #include "AudioCommon.h"
+#include "CPUDetect.h"
+
+#if _M_SSE >= 0x301 && !(defined __GNUC__ && !defined __SSSE3__)
+#include <tmmintrin.h>
+#endif
+
+static const __m128i sr_mask = _mm_set_epi32(0x0C0D0E0FL, 0x08090A0BL, 0x04050607L, 0x00010203L);
 
 // Executed from sound stream thread
 unsigned int CMixer::Mix(short* samples, unsigned int numSamples)
@@ -53,8 +60,23 @@ unsigned int CMixer::Mix(short* samples, unsigned int numSamples)
 		// Do re-sampling if needed
 		if (m_sampleRate == 32000)
 		{
-			for (unsigned int i = 0; i < numLeft * 2; i++)
-				samples[i] = Common::swap16(m_buffer[(m_indexR + i) & INDEX_MASK]);
+#if _M_SSE >= 0x301
+			if (cpu_info.bSSSE3 && !((numLeft * 2) % 8))
+			{
+				for (unsigned int i = 0; i < numLeft * 2; i += 8)
+				{
+					_mm_storeu_si128((__m128i *)&samples[i], _mm_shuffle_epi8(_mm_loadu_si128((__m128i *)&m_buffer[(m_indexR + i) & INDEX_MASK]), sr_mask));
+				}
+			}
+			else
+#endif
+			{
+				for (unsigned int i = 0; i < numLeft * 2; i+=2)
+				{
+					samples[i] = Common::swap16(m_buffer[(m_indexR + i + 1) & INDEX_MASK]);
+					samples[i+1] = Common::swap16(m_buffer[(m_indexR + i) & INDEX_MASK]);
+				}
+			}
 			m_indexR += numLeft * 2;
 		}
 		else //linear interpolation
@@ -75,12 +97,12 @@ unsigned int CMixer::Mix(short* samples, unsigned int numSamples)
 				s16 l1 = Common::swap16(m_buffer[m_indexR & INDEX_MASK]); //current
 				s16 l2 = Common::swap16(m_buffer[m_indexR2 & INDEX_MASK]); //next
 				int sampleL = ((l1 << 16) + (l2 - l1) * (u16)frac)  >> 16;	
-				samples[i]   = sampleL;			
+				samples[i+1] = sampleL;			
 				
 				s16 r1 = Common::swap16(m_buffer[(m_indexR + 1) & INDEX_MASK]); //current
 				s16 r2 = Common::swap16(m_buffer[(m_indexR2 + 1) & INDEX_MASK]); //next
 				int sampleR = ((r1 << 16) + (r2 - r1) * (u16)frac)  >> 16;
-				samples[i+1] = sampleR;
+				samples[i] = sampleR;
 
 				frac += ratio;
 				m_indexR += 2 * (u16)(frac >> 16);
@@ -160,7 +182,7 @@ void CMixer::PushSamples(short *samples, unsigned int num_samples)
 	else if (m_sampleRate == 48000)
 		Common::AtomicAdd(m_numSamples, num_samples * 3 / 2);
 	else
-		PanicAlert("Mixer: Unsupported sample rate.");
+		PanicAlertT("Mixer: Unsupported sample rate.");
 
 	return;
 }
