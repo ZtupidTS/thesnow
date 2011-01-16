@@ -1,5 +1,6 @@
 #include <windows.h>
-
+//关闭4996 函数不安全警告
+#pragma warning(disable:4996)
 /* AKS - Don't know a better place to put these */
 #define FTP_BUFSIZ 4096
 
