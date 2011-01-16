@@ -2215,15 +2215,6 @@
 				>
 			</File>
 		</Filter>
-		<File
-			RelativePath=".\CreateCertificateDlg.htm"
-			DeploymentContent="true"
-			>
-		</File>
-		<File
-			RelativePath="ReadMe.txt"
-			>
-		</File>
 	</Files>
 	<Globals>
 		<Global
