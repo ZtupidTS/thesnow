@@ -717,7 +717,7 @@ void CFrame::OnRenderParentResize(wxSizeEvent& event)
 		if (!SConfig::GetInstance().m_LocalCoreStartupParameter.bRenderToMain &&
 		    !RendererIsFullscreen() && !m_RenderFrame->IsMaximized() && !m_RenderFrame->IsIconized())
 		{
-			m_RenderFrame->GetSize(&width, &height);
+			m_RenderFrame->GetClientSize(&width, &height);
 			SConfig::GetInstance().m_LocalCoreStartupParameter.iRenderWindowWidth = width;
 			SConfig::GetInstance().m_LocalCoreStartupParameter.iRenderWindowHeight = height;
 		}
@@ -769,15 +769,12 @@ void CFrame::StartGame(const std::string& filename)
 		m_ToolBar->EnableTool(IDM_PLAY, false);
 	GetMenuBar()->FindItem(IDM_PLAY)->Enable(false);
 
-	// Game has been started, hide the game list
-	if (m_GameListCtrl->IsShown())
-	{
-		m_GameListCtrl->Disable();
-		m_GameListCtrl->Hide();
-	}
-
 	if (SConfig::GetInstance().m_LocalCoreStartupParameter.bRenderToMain)
 	{
+		// Game has been started, hide the game list
+		m_GameListCtrl->Disable();
+		m_GameListCtrl->Hide();
+
 		m_RenderParent = m_Panel;
 		m_RenderFrame = this;
 	}
@@ -990,6 +987,9 @@ void CFrame::DoStop()
 		// If batch mode was specified on the command-line, exit now.
 		if (m_bBatchMode)
 			Close(true);
+
+		m_GameListCtrl->Enable();
+		m_GameListCtrl->Show();
 	}
 }
 
@@ -1220,8 +1220,8 @@ void CFrame::ConnectWiimote(int wm_idx, bool connect)
 	if (Core::isRunning() && SConfig::GetInstance().m_LocalCoreStartupParameter.bWii)
 	{
 		GetUsbPointer()->AccessWiiMote(wm_idx | 0x100)->Activate(connect);
-		wxString msg(wxString::Format(_("Wiimote %i %s"), wm_idx + 1,
-					connect ? _("已连接") : _("未连接")));
+		wxString msg(wxString::Format(wxT("Wiimote %i %s"), wm_idx + 1,
+					connect ? wxT("已连接") : wxT("未连接")));
 		Core::DisplayMessage(msg.ToAscii(), 3000);
 	}
 }

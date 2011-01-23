@@ -96,7 +96,6 @@ bool DolphinApp::OnInit()
 
 	// Declarations and definitions
 	bool UseDebugger = false;
-	bool BatchMode = false;
 	bool UseLogger = false;
 	bool selectVideoPlugin = false;
 	bool selectAudioPlugin = false;
@@ -175,7 +174,7 @@ bool DolphinApp::OnInit()
 #ifdef _WIN32
 	EXTENDEDTRACEINITIALIZE(".");
 	SetUnhandledExceptionFilter(&MyUnhandledExceptionFilter);
-#else
+#elif wxUSE_ON_FATAL_EXCEPTION
 	wxHandleFatalExceptions(true);
 #endif
 
@@ -321,34 +320,43 @@ bool DolphinApp::OnInit()
 				wxPoint(x, y), wxSize(w, h),
 				UseDebugger, BatchMode, UseLogger);
 	SetTopWindow(main_frame);
+	main_frame->SetMinSize(wxSize(400, 300));
 
 #if defined HAVE_X11 && HAVE_X11
 	XInitThreads();
 #endif 
 
-	// Postpone final actions until event handler is running
+	// Postpone final actions until event handler is running.
+	// Updating the game list makes use of wxProgressDialog which may
+	// only be run after OnInit() when the event handler is running.
 	m_afterinit = new wxTimer(this, wxID_ANY);
 	m_afterinit->Start(1, wxTIMER_ONE_SHOT);
 
 	return true;
 }
 
+void DolphinApp::MacOpenFile(const wxString &fileName)
+{
+	FileToLoad = fileName;
+	LoadFile = true;
+
+	if (m_afterinit == NULL)
+		main_frame->BootGame(std::string(FileToLoad.mb_str()));
+}
+
 void DolphinApp::AfterInit(wxTimerEvent& WXUNUSED(event))
 {
 	delete m_afterinit;
+	m_afterinit = NULL;
 
-	// Updating the game list makes use of wxProgressDialog which may
-	// only be run after OnInit() when the event handler is running.
-	main_frame->UpdateGameList();
-
-	// Check the autoboot options:
+	if (!BatchMode)
+		main_frame->UpdateGameList();
 
 	// First check if we have an exec command line.
 	if (LoadFile && FileToLoad != wxEmptyString)
 	{
 		main_frame->BootGame(std::string(FileToLoad.mb_str()));
 	}
-
 	// If we have selected Automatic Start, start the default ISO,
 	// or if no default ISO exists, start the last loaded ISO
 	else if (main_frame->g_pCodeWindow)

@@ -48,12 +48,12 @@ DSPConfigDialogHLE::DSPConfigDialogHLE(wxWindow *parent, wxWindowID id,
 
 	wxStaticText *FrequencyText = new wxStaticText(this, wxID_ANY, _("Sample Rate"),
 		   	wxDefaultPosition, wxDefaultSize, 0);
-	m_FrequencySelection = new wxChoice(this, ID_FREQUENCY, wxDefaultPosition, wxSize(110, 20),
+	m_FrequencySelection = new wxChoice(this, ID_FREQUENCY, wxDefaultPosition, wxDefaultSize,
 			wxArrayRates, 0, wxDefaultValidator, wxEmptyString);
 
 	wxStaticText *BackendText = new wxStaticText(this, wxID_ANY, _("音频 Backend"),
 		   	wxDefaultPosition, wxDefaultSize, 0);
-	m_BackendSelection = new wxChoice(this, ID_BACKEND, wxDefaultPosition, wxSize(110, 20),
+	m_BackendSelection = new wxChoice(this, ID_BACKEND, wxDefaultPosition, wxDefaultSize,
 			wxArrayBackends, 0, wxDefaultValidator, wxEmptyString);
 
 	m_volumeSlider = new wxSlider(this, ID_VOLUME, ac_Config.m_Volume, 1, 100,
@@ -90,13 +90,10 @@ DSPConfigDialogHLE::DSPConfigDialogHLE(wxWindow *parent, wxWindowID id,
 	sFrequency->Add(FrequencyText, 0, wxALIGN_LEFT|wxALL, 1);
 	sFrequency->Add(m_FrequencySelection, 0, wxALL, 1);
 
-	m_FrequencySelection->Append(wxString::FromAscii("48,000 Hz"));
-	m_FrequencySelection->Append(wxString::FromAscii("32,000 Hz"));
-	#ifdef __APPLE__
-	int num = m_FrequencySelection->FindString(wxString::FromAscii(ac_Config.sFrequency));
-	#else
-	int num = m_FrequencySelection->FindString(wxString::FromAscii(ac_Config.sFrequency.c_str()));
-	#endif
+	m_FrequencySelection->Append(_("48,000 Hz"));
+	m_FrequencySelection->Append(_("32,000 Hz"));
+	int num = m_FrequencySelection->\
+		FindString(wxString::FromAscii(ac_Config.sFrequency.c_str()));
 	m_FrequencySelection->SetSelection(num);
 
 	sbSettings->Add(sFrequency, 0, wxALL, 7);
@@ -127,11 +124,8 @@ void DSPConfigDialogHLE::AddBackend(const char* backend)
 {
 	// Update values
 	m_BackendSelection->Append(wxString::FromAscii(backend));
-#ifdef __APPLE__
-	int num = m_BackendSelection->FindString(wxString::FromAscii(ac_Config.sBackend));
-#else
-	int num = m_BackendSelection->FindString(wxString::FromAscii(ac_Config.sBackend.c_str()));
-#endif
+	int num = m_BackendSelection->\
+		FindString(wxString::FromAscii(ac_Config.sBackend.c_str()));
 	m_BackendSelection->SetSelection(num);
 }
 
@@ -158,13 +152,8 @@ void DSPConfigDialogHLE::SettingsChanged(wxCommandEvent& event)
 	ac_Config.m_EnableDTKMusic = m_buttonEnableDTKMusic->GetValue();
 	ac_Config.m_EnableThrottle = m_buttonEnableThrottle->GetValue();
 
-#ifdef __APPLE__
-	strncpy(ac_Config.sBackend, m_BackendSelection->GetStringSelection().mb_str(), 128);
-	strncpy(ac_Config.sFrequency, m_FrequencySelection->GetStringSelection().mb_str(), 128);
-#else
 	ac_Config.sBackend = m_BackendSelection->GetStringSelection().mb_str();
 	ac_Config.sFrequency = m_FrequencySelection->GetStringSelection().mb_str();
-#endif
 	ac_Config.Update();
 	g_Config.Save();
 

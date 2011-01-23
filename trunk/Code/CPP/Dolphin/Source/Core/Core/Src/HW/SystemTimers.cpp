@@ -81,11 +81,6 @@ namespace SystemTimers
 
 u32 CPU_CORE_CLOCK  = 486000000u;             // 486 mhz (its not 485, stop bugging me!)
 
-u32 fakeDecStartValue;
-u64 fakeDecStartTicks;
-u64 fakeTBStartValue;
-u64 fakeTBStartTicks;
-
 /*
 Gamecube						MHz
 flipper <-> ARAM bus:			81 (DSP)
@@ -166,7 +161,8 @@ void DSPCallback(u64 userdata, int cyclesLate)
 
 void AudioDMACallback(u64 userdata, int cyclesLate)
 {
-	int period = CPU_CORE_CLOCK / (AudioInterface::GetAIDSampleRate() * 4 / 32);
+	int fields = SConfig::GetInstance().m_LocalCoreStartupParameter.bVBeam?2:1;
+	int period = CPU_CORE_CLOCK / (AudioInterface::GetAIDSampleRate() * 4 / 32 * fields);
 	DSP::UpdateAudioDMA();  // Push audio to speakers.
 	CoreTiming::ScheduleEvent(period - cyclesLate, et_AudioDMA);
 }
@@ -205,8 +201,8 @@ void DecrementerSet()
 	CoreTiming::RemoveEvent(et_Dec);
 	if ((decValue & 0x80000000) == 0)
 	{
-		fakeDecStartTicks = CoreTiming::GetTicks();
-		fakeDecStartValue = decValue;
+		CoreTiming::SetFakeDecStartTicks(CoreTiming::GetTicks());
+		CoreTiming::SetFakeDecStartValue(decValue);
 		
 		CoreTiming::ScheduleEvent(decValue * TIMER_RATIO, et_Dec);
 	}
@@ -214,18 +210,18 @@ void DecrementerSet()
 
 u32 GetFakeDecrementer()
 {
-	return (fakeDecStartValue - (u32)((CoreTiming::GetTicks() - fakeDecStartTicks) / TIMER_RATIO));
+	return (CoreTiming::GetFakeDecStartValue() - (u32)((CoreTiming::GetTicks() - CoreTiming::GetFakeDecStartTicks()) / TIMER_RATIO));
 }
 
 void TimeBaseSet()
 {
-	fakeTBStartTicks = CoreTiming::GetTicks();
-	fakeTBStartValue = *((u64 *)&TL);
+	CoreTiming::SetFakeTBStartTicks(CoreTiming::GetTicks());
+	CoreTiming::SetFakeTBStartValue(*((u64 *)&TL));
 }
 
 u64 GetFakeTimeBase()
 {
-	return fakeTBStartValue + ((CoreTiming::GetTicks() - fakeTBStartTicks) / TIMER_RATIO);
+	return CoreTiming::GetFakeTBStartValue() + ((CoreTiming::GetTicks() - CoreTiming::GetFakeTBStartTicks()) / TIMER_RATIO);
 }
 
 // For DC watchdog hack
@@ -263,7 +259,8 @@ void Init()
 		// PS: When this period is tweaked, the FreqDividerMote
 		// in WII_IPC_HLE_Device_usb.cpp should also be tweaked accordingly
 		// to guarantee WiiMote updates at a fixed 100Hz
-		IPC_HLE_PERIOD = GetTicksPerSecond() / 1500;
+		int fields = SConfig::GetInstance().m_LocalCoreStartupParameter.bVBeam?2:1;
+		IPC_HLE_PERIOD = GetTicksPerSecond() / (1500 * fields);
 	}
 	else
 	{
@@ -284,11 +281,11 @@ void Init()
 
 	Common::Timer::IncreaseResolution();
 	// store and convert localtime at boot to timebase ticks
-	fakeTBStartValue = (u64)(CPU_CORE_CLOCK / TIMER_RATIO) * (u64)CEXIIPL::GetGCTime();
-	fakeTBStartTicks = CoreTiming::GetTicks();
+	CoreTiming::SetFakeTBStartValue((u64)(CPU_CORE_CLOCK / TIMER_RATIO) * (u64)CEXIIPL::GetGCTime());
+	CoreTiming::SetFakeTBStartTicks(CoreTiming::GetTicks());
 
-	fakeDecStartValue = 0xFFFFFFFF;
-	fakeDecStartTicks = CoreTiming::GetTicks();
+	CoreTiming::SetFakeDecStartValue(0xFFFFFFFF);
+	CoreTiming::SetFakeDecStartTicks(CoreTiming::GetTicks());
 
 	et_Dec = CoreTiming::RegisterEvent("DecCallback", DecrementerCallback);
 	et_AI = CoreTiming::RegisterEvent("AICallback", AICallback);

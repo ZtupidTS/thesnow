@@ -41,6 +41,7 @@ DSPCoreState core_state = DSPCORE_STOP;
 u16 cyclesLeft = 0;
 DSPEmitter *jit = NULL;
 Common::Event step_event;
+Common::CriticalSection ExtIntCriticalSection;
 
 static bool LoadRom(const char *fname, int size_in_words, u16 *rom)
 {
@@ -191,7 +192,15 @@ void DSPCore_SetException(u8 level)
 	g_dsp.exceptions |= 1 << level;
 }
 
-// Comming from the CPU
+// Notify that an external interrupt is pending (used by thread mode)
+void DSPCore_SetExternalInterrupt(bool val)
+{
+	ExtIntCriticalSection.Enter();
+	g_dsp.external_interrupt_waiting = val;
+	ExtIntCriticalSection.Leave();
+}
+
+// Coming from the CPU
 void DSPCore_CheckExternalInterrupt()
 {
 	if (! dsp_SR_is_flag_set(SR_EXT_INT_ENABLE))
@@ -241,19 +250,22 @@ int DSPCore_RunCycles(int cycles)
 {
 	if (jit)
 	{
-		// DSPCore_CheckExceptions();
-		// DSPCore_CheckExternalInterrupt();
 		cyclesLeft = cycles;
-
 		CompiledCode pExecAddr = (CompiledCode)jit->enterDispatcher;
 		pExecAddr();
 
-		// To use the C++ dispatcher, uncomment the line below and comment out the two lines above
-		//jit->RunForCycles(cyclesLeft);
+		if (g_dsp.external_interrupt_waiting)
+		{
+			DSPCore_CheckExternalInterrupt();
+			DSPCore_CheckExceptions();
+			DSPCore_SetExternalInterrupt(false);
+		}
+
 		return cyclesLeft;
 	}
 
-	while (cycles > 0) {
+	while (cycles > 0)
+	{
 	reswitch:
 		switch (core_state)
 		{

@@ -58,8 +58,10 @@ static const wxLanguage langIds[] =
 	wxLANGUAGE_KOREAN,
 	wxLANGUAGE_NORWEGIAN_BOKMAL,
 	wxLANGUAGE_POLISH,
+	wxLANGUAGE_PORTUGUESE_BRAZILIAN,
 	wxLANGUAGE_RUSSIAN,
 	wxLANGUAGE_SPANISH,
+	wxLANGUAGE_TURKISH,
 };
 
 // Strings for Device Selections
@@ -74,6 +76,9 @@ static const wxLanguage langIds[] =
 #define EXIDEV_MIC_STR		_trans("Mic")
 #define EXIDEV_BBA_STR		"BBA"
 #define EXIDEV_AM_BB_STR	_trans("AM-Baseboard")
+#define EXIDEV_GECKO_STR	"USBGecko"
+
+#define CSTR_TRANS(a)		wxString(wxGetTranslation(wxT(a))).mb_str()
 
 #ifdef WIN32
 //only used with xgettext to be picked up as translatable string.
@@ -296,8 +301,10 @@ void CConfigMain::InitializeGUILists()
 	arrayStringFor_InterfaceLang.Add(_("Korean"));
 	arrayStringFor_InterfaceLang.Add(_("Norwegian Bokmaal"));
 	arrayStringFor_InterfaceLang.Add(_("Polish"));
+	arrayStringFor_InterfaceLang.Add(_("Portuguese (Brazilian)"));
 	arrayStringFor_InterfaceLang.Add(_("Russian"));
 	arrayStringFor_InterfaceLang.Add(_("Spanish"));
+	arrayStringFor_InterfaceLang.Add(_("Turkish"));
 }
 
 void CConfigMain::InitializeGUIValues()
@@ -562,7 +569,7 @@ void CConfigMain::CreateGUIControls()
 	GCEXIDeviceText[0] = new wxStaticText(GamecubePage, ID_GC_EXIDEVICE_SLOTA_TEXT, wxT("插槽 A"), wxDefaultPosition, wxDefaultSize);
 	GCEXIDeviceText[1] = new wxStaticText(GamecubePage, ID_GC_EXIDEVICE_SLOTB_TEXT, wxT("插槽 B"), wxDefaultPosition, wxDefaultSize);
 	GCEXIDeviceText[2] = new wxStaticText(GamecubePage, ID_GC_EXIDEVICE_SP1_TEXT,	wxT("SP1   "), wxDefaultPosition, wxDefaultSize);
-	const wxString SlotDevices[] = {_(DEV_NONE_STR), _(DEV_DUMMY_STR), _(EXIDEV_MEMCARD_STR)
+	const wxString SlotDevices[] = {_(DEV_NONE_STR), _(DEV_DUMMY_STR), _(EXIDEV_MEMCARD_STR), _(EXIDEV_GECKO_STR)
 	#if HAVE_PORTAUDIO
 		, _(EXIDEV_MIC_STR)
 	#endif
@@ -589,13 +596,16 @@ void CConfigMain::CreateGUIControls()
 			isMemcard = GCEXIDevice[i]->SetStringSelection(SlotDevices[2]);
 			break;
 		case EXIDEVICE_MIC:
-			GCEXIDevice[i]->SetStringSelection(SlotDevices[3]);
+			GCEXIDevice[i]->SetStringSelection(SlotDevices[4]);
 			break;
 		case EXIDEVICE_ETH:
 			GCEXIDevice[i]->SetStringSelection(SP1Devices[2]);
 			break;
 		case EXIDEVICE_AM_BASEBOARD:
 			GCEXIDevice[i]->SetStringSelection(SP1Devices[3]);
+			break;
+		case EXIDEVICE_GECKO:
+			GCEXIDevice[i]->SetStringSelection(SlotDevices[3]);
 			break;
 		case EXIDEVICE_DUMMY:
 		default:
@@ -697,7 +707,7 @@ void CConfigMain::CreateGUIControls()
 	sWiimoteSettings->Add(WiiSensBarPosText, wxGBPosition(0, 0), wxDefaultSpan, wxALIGN_CENTER_VERTICAL|wxALL, 5);
 	sWiimoteSettings->Add(WiiSensBarPos, wxGBPosition(0, 1), wxDefaultSpan, wxALL, 5);
 	sWiimoteSettings->Add(WiiSensBarSensText, wxGBPosition(1, 0), wxDefaultSpan, wxALIGN_CENTER_VERTICAL|wxALL, 5);
-	sWiimoteSettings->Add(WiiSensBarSens, wxGBPosition(1, 1), wxDefaultSpan, wxALL, 5);
+	sWiimoteSettings->Add(WiiSensBarSens, wxGBPosition(1, 1), wxDefaultSpan, wxEXPAND|wxALL, 5);
 	sWiimoteSettings->Add(WiimoteMotor, wxGBPosition(2, 0), wxGBSpan(1, 2), wxALL, 5);
 	sbWiimoteSettings->Add(sWiimoteSettings);
 
@@ -974,7 +984,7 @@ void CConfigMain::ChooseMemcardPath(std::string& strMemcard, bool isSlotA)
 {
 	std::string filename = std::string(wxFileSelector(
 		_("选择需要打开的文件"),
-		wxString::From8BitData(File::GetUserPath(D_GCUSER_IDX)),
+		wxString::FromUTF8(File::GetUserPath(D_GCUSER_IDX)),
 		isSlotA ? wxT(GC_MEMCARDA) : wxT(GC_MEMCARDB),
 		wxEmptyString,
 		_("Gamecube 内存卡 (*.raw,*.gcp)") + wxString(wxT("|*.raw;*.gcp"))).mb_str());
@@ -1007,11 +1017,11 @@ void CConfigMain::ChooseMemcardPath(std::string& strMemcard, bool isSlotA)
 void CConfigMain::ChooseSIDevice(std::string deviceName, int deviceNum)
 {
 	TSIDevices tempType;
-	if (!deviceName.compare(SIDEV_STDCONT_STR))
+	if (!deviceName.compare(CSTR_TRANS(SIDEV_STDCONT_STR)))
 		tempType = SI_GC_CONTROLLER;
 	else if (!deviceName.compare(SIDEV_GBA_STR))
 		tempType = SI_GBA;
-	else if (!deviceName.compare(SIDEV_AM_BB_STR))
+	else if (!deviceName.compare(CSTR_TRANS(SIDEV_AM_BB_STR)))
 		tempType = SI_AM_BASEBOARD;
 	else
 		tempType = SI_NONE;
@@ -1029,15 +1039,17 @@ void CConfigMain::ChooseEXIDevice(std::string deviceName, int deviceNum)
 {
 	TEXIDevices tempType;
 
-	if (!deviceName.compare(EXIDEV_MEMCARD_STR))
+	if (!deviceName.compare(CSTR_TRANS(EXIDEV_MEMCARD_STR)))
 		tempType = deviceNum ? EXIDEVICE_MEMORYCARD_B : EXIDEVICE_MEMORYCARD_A;
-	else if (!deviceName.compare(EXIDEV_MIC_STR))
+	else if (!deviceName.compare(CSTR_TRANS(EXIDEV_MIC_STR)))
 		tempType = EXIDEVICE_MIC;
 	else if (!deviceName.compare(EXIDEV_BBA_STR))
 		tempType = EXIDEVICE_ETH;
-	else if (!deviceName.compare(EXIDEV_AM_BB_STR))
+	else if (!deviceName.compare(CSTR_TRANS(EXIDEV_AM_BB_STR)))
 		tempType = EXIDEVICE_AM_BASEBOARD;
-	else if (!deviceName.compare(DEV_NONE_STR))
+	else if (!deviceName.compare(EXIDEV_GECKO_STR))
+		tempType = EXIDEVICE_GECKO;
+	else if (!deviceName.compare(CSTR_TRANS(DEV_NONE_STR)))
 		tempType = EXIDEVICE_NONE;
 	else
 		tempType = EXIDEVICE_DUMMY;
@@ -1234,7 +1246,7 @@ void CConfigMain::FillChoiceBox(wxChoice* _pChoice, int _PluginType, const std::
 		if (rPluginInfo.Type == _PluginType)
 		{
 			wxString temp;
-			temp = wxGetTranslation(wxString::From8BitData(rInfos[i].GetPluginInfo().Name));
+			temp = wxGetTranslation(wxString::FromUTF8(rInfos[i].GetPluginInfo().Name));
 			int NewIndex = _pChoice->Append(temp, (void*)&rInfos[i]);
 
 			if (rInfos[i].GetFilename() == _SelectFilename)
