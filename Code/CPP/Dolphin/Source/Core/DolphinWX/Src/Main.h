@@ -25,17 +25,20 @@ class CFrame;
 class DolphinApp : public wxApp
 {
 public:
+	CFrame* GetCFrame();
+
+private:
 	bool OnInit();
 	void OnEndSession();
 	int OnExit();
 	void OnFatalException();
-	CFrame* GetCFrame();
 	void InitLanguageSupport();
+	void MacOpenFile(const wxString &fileName);
 
-private:
 	DECLARE_EVENT_TABLE()
 
 	wxTimer *m_afterinit;
+	bool BatchMode;
 	bool LoadFile;
 	wxString FileToLoad;
 	wxLocale *m_locale;

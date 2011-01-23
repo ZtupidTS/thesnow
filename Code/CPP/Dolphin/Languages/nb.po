@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Dolphin Emu\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2011-01-14 20:15-0600\n"
+"POT-Creation-Date: 2011-01-19 21:01-0600\n"
 "PO-Revision-Date: 2011-01-09 13:11+0100\n"
 "Last-Translator: Christer (Chriztr) <chriztr@gmail.com>\n"
 "Language-Team: Norwegian <e-k-nut@hotmail.com>\n"
@@ -86,7 +86,7 @@ msgstr ""
 msgid "%s failed to open"
 msgstr "Velg en fil å åpne"
 
-#: Source/Core/DSPCore/Src/DSPCore.cpp:78
+#: Source/Core/DSPCore/Src/DSPCore.cpp:79
 #, c-format
 msgid ""
 "%s has an incorrect hash.\n"
@@ -275,6 +275,10 @@ msgstr ""
 msgid "32 bit"
 msgstr ""
 
+#: Source/Plugins/Plugin_DSP_HLE/Src/ConfigDlg.cpp:94
+msgid "32,000 Hz"
+msgstr ""
+
 #: Source/Core/Core/Src/Core.cpp:280
 msgid "32-bit platforms do not support fastmem yet. Report this bug."
 msgstr ""
@@ -282,6 +286,10 @@ msgstr ""
 #: Source/Core/VideoUICommon/Src/VideoConfigDiag.cpp:223
 msgid "3D Vision (Requires Fullscreen)"
 msgstr "&3D Vision (Krever fullskjerm)"
+
+#: Source/Plugins/Plugin_DSP_HLE/Src/ConfigDlg.cpp:93
+msgid "48,000 Hz"
+msgstr ""
 
 #: Source/Core/DolphinWX/Src/CheatsWindow.cpp:158
 msgid "8 bit"
@@ -291,11 +299,11 @@ msgstr ""
 msgid "<Insert name here>"
 msgstr "<Sett inn navn her>"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:248
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:251
 msgid "<No resolutions found>"
 msgstr "<Ingen oppløsning funnet>"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:66
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:68
 msgid "<Nothing>"
 msgstr ""
 
@@ -303,7 +311,7 @@ msgstr ""
 msgid "<Press Key>"
 msgstr "<Trykk Knapp>"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:284
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:287
 msgid "<System>"
 msgstr ""
 
@@ -358,8 +366,8 @@ msgstr ""
 "\n"
 "Du må fremme TCP-porten til verten!!"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:71
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:76
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:73
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:78
 msgid "AM-Baseboard"
 msgstr ""
 
@@ -463,7 +471,7 @@ msgid "Adapter:"
 msgstr "Adapter:"
 
 #: Source/Core/DolphinWX/Src/PatchAddEdit.cpp:76
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:73
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:73
 msgid "Add"
 msgstr "Legg Til"
 
@@ -479,7 +487,7 @@ msgstr "Legg til Patch"
 msgid "Add new pane"
 msgstr "Legg til ny rute"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:729
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:737
 #: Source/Core/DolphinWX/Src/ISOProperties.cpp:411
 #: Source/Core/DolphinWX/Src/ISOProperties.cpp:433
 msgid "Add..."
@@ -509,7 +517,7 @@ msgstr ""
 msgid "Advanced"
 msgstr "Avansert"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:454
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:459
 msgid "Advanced Settings"
 msgstr "Avanserte Innstillinger"
 
@@ -517,7 +525,7 @@ msgstr "Avanserte Innstillinger"
 msgid "All GC/Wii files (elf, dol, gcm, iso, ciso, wad)"
 msgstr "Alle GC/Wii-filer (elf, dol, gcm, iso, ciso, wad)"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:735
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:743
 msgid "All GC/Wii images (gcm, iso, ciso, gcz)"
 msgstr "Alle GC/Wii-bildefiler (gcm, iso, ciso, wad)"
 
@@ -538,7 +546,7 @@ msgstr "Alle Wii ISO-filer (iso)"
 msgid "All compressed GC/Wii ISO files (gcz)"
 msgstr "Alle komprimerte GC/Wii-filer (gcz)"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:82
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:85
 msgid "All files (*.*)|*.*"
 msgstr "Alle filer (*.*)|*.*"
 
@@ -578,7 +586,7 @@ msgstr ""
 msgid "Apploader unable to load from file"
 msgstr ""
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:739
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:747
 msgid "Apploader:"
 msgstr "Applikasjonslaster:"
 
@@ -607,7 +615,7 @@ msgstr ""
 "Er du sikker på at du vil slette denne filen?\n"
 "Den vil bli borte for alltid!"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:685
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:693
 #: Source/Core/VideoUICommon/Src/VideoConfigDiag.cpp:169
 msgid "Aspect Ratio:"
 msgstr "Aspektforhold:"
@@ -626,7 +634,7 @@ msgstr "Audio Backend"
 msgid "AudioCommon: Error opening AO device.\n"
 msgstr ""
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:235
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:238
 msgid "Auto"
 msgstr "Automatisk"
 
@@ -634,7 +642,7 @@ msgstr "Automatisk"
 msgid "Auto [recommended]"
 msgstr "Automatisk [anbefalt]"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:27
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:27
 msgid "Back"
 msgstr "Tilbake"
 
@@ -678,7 +686,7 @@ msgstr "Banner"
 msgid "Basic"
 msgstr "Grunnleggende"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:444
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:449
 msgid "Basic Settings"
 msgstr "Grunnleggende Innstillinger"
 
@@ -712,13 +720,13 @@ msgstr "NP Venstre"
 msgid "Blue Right"
 msgstr "NP Høyre"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:268
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:271
 msgid "Bottom"
 msgstr "Bunn"
 
-#: Source/Core/DolphinWX/Src/InputConfigDiag.cpp:244
+#: Source/Core/DolphinWX/Src/InputConfigDiag.cpp:243
 #, c-format
-msgid "Bound Controls: %u"
+msgid "Bound Controls: %lu"
 msgstr ""
 
 #: Source/Core/DolphinWX/Src/ISOProperties.cpp:362
@@ -754,7 +762,7 @@ msgstr "Knapper"
 msgid "C-Stick"
 msgstr ""
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:456
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:461
 msgid "CPU Emulator Engine"
 msgstr "CPU Emulator Motor"
 
@@ -787,9 +795,9 @@ msgid "Can't open %s, it has a missing function"
 msgstr ""
 
 #: Source/Core/DolphinWX/Src/PatchAddEdit.cpp:103
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:41
 #: Source/Core/DolphinWX/Src/CheatsWindow.cpp:569
 #: Source/Core/DolphinWX/Src/ARCodeAddEdit.cpp:69
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:41
 msgid "Cancel"
 msgstr "Avbryt"
 
@@ -800,11 +808,11 @@ msgstr "Avbryt"
 msgid "Cannot open %s"
 msgstr ""
 
-#: Source/Core/Core/Src/CoreTiming.cpp:117
+#: Source/Core/Core/Src/CoreTiming.cpp:122
 msgid "Cannot unregister events with events pending"
 msgstr ""
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:1001
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:1009
 msgid ""
 "Cannot use that file as a memory card.\n"
 "Are you trying to use the same file in both slots?"
@@ -827,7 +835,7 @@ msgstr ""
 msgid "Cant read from DVD_Plugin - DVD-Interface: Fatal Error"
 msgstr ""
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:49
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:49
 msgid "Caps Lock"
 msgstr "Caps Lock"
 
@@ -847,7 +855,7 @@ msgstr "Endre &Disk..."
 msgid "Change Game"
 msgstr "Endre Spill"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:411
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:416
 msgid ""
 "Change the language of the user interface.\n"
 "Requires restart."
@@ -877,23 +885,23 @@ msgstr "Juksekodesøk"
 msgid "Cheats Manager"
 msgstr "Juksekode Manager"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:285
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:288
 msgid "Chinese (Simplified)"
 msgstr ""
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:738
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:746
 msgid "Choose a DVD root directory:"
 msgstr "Velg en DVD-rotmappe"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:734
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:742
 msgid "Choose a default ISO:"
 msgstr "Velg en standard ISO:"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:1127
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:1137
 msgid "Choose a directory to add"
 msgstr "Velg en mappe å legge til"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:976
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:984
 msgid "Choose a file to open"
 msgstr "Velg en fil å åpne"
 
@@ -901,7 +909,7 @@ msgstr "Velg en fil å åpne"
 msgid "Choose a memory card:"
 msgstr "Velg et minnekort:"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:740
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:748
 msgid ""
 "Choose file to use as apploader: (applies to discs constructed from "
 "directories only)"
@@ -923,14 +931,14 @@ msgid "Classic"
 msgstr ""
 
 #: Source/Core/DolphinWX/Src/InputConfigDiag.cpp:505
-#: Source/Core/DolphinWX/Src/InputConfigDiag.cpp:936
+#: Source/Core/DolphinWX/Src/InputConfigDiag.cpp:933
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:43
 #: Source/Core/DolphinWX/Src/LogWindow.cpp:129
 #: Source/Core/DolphinWX/Src/LuaWindow.cpp:114
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:43
 msgid "Clear"
 msgstr "Tøm"
 
-#: Source/Core/Core/Src/CoreTiming.cpp:165
+#: Source/Core/Core/Src/CoreTiming.cpp:174
 msgid "Clear failed."
 msgstr ""
 
@@ -961,7 +969,7 @@ msgstr "Kodeinfo"
 msgid "Code: "
 msgstr "Kode:"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:134
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:134
 msgid "Command"
 msgstr "Kommando"
 
@@ -990,8 +998,8 @@ msgstr "Komprimerer ISO"
 msgid "Config"
 msgstr "Konfig"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:773
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:777
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:781
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:785
 msgid "Config..."
 msgstr "Konfigurasjon..."
 
@@ -1001,7 +1009,7 @@ msgstr "Konfigurasjon..."
 msgid "Configure"
 msgstr "Konfigurer"
 
-#: Source/Core/DolphinWX/Src/InputConfigDiag.cpp:118
+#: Source/Core/DolphinWX/Src/InputConfigDiag.cpp:117
 msgid "Configure Control"
 msgstr "Konfigurer Kontroller"
 
@@ -1020,7 +1028,7 @@ msgstr "Konfigurer..."
 msgid "Confirm File Overwrite"
 msgstr "Bekreft filoverskrivning"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:502
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:507
 msgid "Confirm On Stop"
 msgstr "Bekreft ved stans"
 
@@ -1029,7 +1037,7 @@ msgstr "Bekreft ved stans"
 msgid "Connect"
 msgstr "Koble til"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:693
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:701
 msgid "Connect USB Keyboard"
 msgstr "Koble til USB-tastatur"
 
@@ -1054,16 +1062,12 @@ msgstr "Koble til Wiikontroll 3"
 msgid "Connect Wiimote 4"
 msgstr "Koble til Wiikontroll 4"
 
-#: Source/Core/DolphinWX/Src/FrameTools.cpp:1224
-msgid "Connected"
-msgstr "Tilkoblet"
-
 #: Source/Core/DolphinWX/Src/WiimoteConfigDiag.cpp:11
 #, fuzzy, c-format
 msgid "Connected to %i Wiimotes"
 msgstr "Koblet til . Wiikontroller"
 
-#: Source/Core/DolphinWX/Src/Main.cpp:612
+#: Source/Core/DolphinWX/Src/Main.cpp:613
 msgid "Connecting..."
 msgstr "Kobler til..."
 
@@ -1071,7 +1075,7 @@ msgstr "Kobler til..."
 msgid "Console"
 msgstr "Konsoll"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:46
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:46
 msgid "Control"
 msgstr "Kontroll"
 
@@ -1178,21 +1182,21 @@ msgstr "Lag AR-kode"
 msgid "Create new perspective"
 msgstr "Lag nytt perspektiv"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:409
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:414
 msgid "Created by KDE-Look.org"
 msgstr "Laget av KDE-Look.org"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:406
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:411
 msgid ""
 "Created by Milosz Wlazlo [miloszwl@miloszwl.com, miloszwl.deviantart.com]"
 msgstr ""
 "Laget av Milosz Wlazlo [miloszwl@miloszwl.com, miloszwl.deviantart.com]"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:407
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:412
 msgid "Created by VistaIcons.com"
 msgstr "Laget av VistaIcons.com"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:408
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:413
 msgid "Created by black_rider and published on ForumW.org > Web Developments"
 msgstr "Laget av black_rider og publisert på ForumW.org > Web Developments"
 
@@ -1221,7 +1225,7 @@ msgstr ""
 msgid "DList Cache"
 msgstr "DList Cache"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:775
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:783
 #: Source/Core/DolphinWX/Src/FrameTools.cpp:369
 msgid "DSP"
 msgstr "DSP"
@@ -1230,15 +1234,15 @@ msgstr "DSP"
 msgid "DSP settings"
 msgstr "Innstillinger for DSP"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:458
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:463
 msgid "DSPLLE on thread"
 msgstr "DSPLLE på CPU-tråd"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:737
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:745
 msgid "DVD Root:"
 msgstr "DVD-rot:"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:286
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:289
 #, fuzzy
 msgid "Danish"
 msgstr "Spansk"
@@ -1268,7 +1272,7 @@ msgstr ""
 msgid "Debug"
 msgstr "Debug"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:76
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:76
 msgid "Decimal"
 msgstr "Desimal"
 
@@ -1285,11 +1289,11 @@ msgstr "Dekomprimer valgte ISO-filer..."
 msgid "Decompressing ISO"
 msgstr "Dekomprimerer ISO"
 
-#: Source/Core/DolphinWX/Src/InputConfigDiag.cpp:935
+#: Source/Core/DolphinWX/Src/InputConfigDiag.cpp:932
 msgid "Default"
 msgstr "Standard"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:733
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:741
 msgid "Default ISO:"
 msgstr "Standard ISO:"
 
@@ -1297,8 +1301,8 @@ msgstr "Standard ISO:"
 msgid "Default font"
 msgstr "Standard tekst-font"
 
-#: Source/Core/DolphinWX/Src/InputConfigDiag.cpp:949
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:32
+#: Source/Core/DolphinWX/Src/InputConfigDiag.cpp:946
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:32
 msgid "Delete"
 msgstr "Slett"
 
@@ -1322,13 +1326,13 @@ msgid ""
 "buffer. Clamp."
 msgstr ""
 
-#: Source/Core/DolphinWX/Src/InputConfigDiag.cpp:134
+#: Source/Core/DolphinWX/Src/InputConfigDiag.cpp:133
 #: Source/Core/DolphinWX/Src/InputConfigDiag.cpp:918
 msgid "Device"
 msgstr "Innretning"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:560
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:691
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:565
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:699
 msgid "Device Settings"
 msgstr "Innstillinger for device"
 
@@ -1407,11 +1411,7 @@ msgstr "Disk"
 msgid "Disc Read Error"
 msgstr ""
 
-#: Source/Core/DolphinWX/Src/FrameTools.cpp:1224
-msgid "Disconnected"
-msgstr "Frakoblet"
-
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:436
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:441
 msgid "Display"
 msgstr "Visning"
 
@@ -1419,7 +1419,7 @@ msgstr "Visning"
 msgid "Distance Alpha Pass"
 msgstr "Avstand Alpha Pass"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:77
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:77
 #, fuzzy
 msgid "Divide"
 msgstr "Del"
@@ -1460,14 +1460,6 @@ msgstr ""
 
 #: Source/Plugins/Plugin_DSP_LLE/Src/DSPConfigDlgLLE.h:32
 msgid "Dolphin DSP-LLE Plugin Settings"
-msgstr ""
-
-#: Source/Plugins/Plugin_VideoDX11/Src/main.cpp:164
-msgid "Dolphin Direct3D11"
-msgstr ""
-
-#: Source/Plugins/Plugin_VideoDX9/Src/main.cpp:163
-msgid "Dolphin Direct3D9"
 msgstr ""
 
 #: Source/Core/DolphinWX/Src/WiimoteConfigDiag.cpp:93
@@ -1520,7 +1512,7 @@ msgstr ""
 "Dolphin er satt til å gjemme alle spill. Dobbeltklikk her for å vise alle "
 "spill..."
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:55
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:55
 #: Source/Core/InputCommon/Src/ControllerEmu.cpp:275
 msgid "Down"
 msgstr "Ned"
@@ -1538,7 +1530,7 @@ msgstr ""
 msgid "Drums"
 msgstr ""
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:67
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:69
 msgid "Dummy"
 msgstr ""
 
@@ -1559,8 +1551,8 @@ msgstr "Dump teksturer"
 msgid "Dump game textures to User/Dump/Textures/<game id>/"
 msgstr "Dump spillteksturer til User/Dump/Textures/<game id>/"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:263
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:287
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:266
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:290
 #: Source/Core/DolphinWX/Src/ISOProperties.cpp:469
 msgid "Dutch"
 msgstr "Nederlansk"
@@ -1651,7 +1643,7 @@ msgstr "Emulert Wiikontroll"
 msgid "Emulation State: "
 msgstr "Emulasjonsstatus:"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:485
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:490
 msgid "Emulator Display Settings"
 msgstr "Innstillinger for Emulasjonsvisning"
 
@@ -1686,7 +1678,7 @@ msgstr "Aktiver Block Merging"
 msgid "Enable CPU Access"
 msgstr "Aktiver CPU Access"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:447
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:452
 msgid "Enable Cheats"
 msgstr "Aktiver Juksekoder"
 
@@ -1709,7 +1701,7 @@ msgstr "Aktiver Display List Caching"
 msgid "Enable Dual Core"
 msgstr "Aktiver Dobbelkjerne"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:445
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:450
 #, fuzzy
 msgid "Enable Dual Core (speedup)"
 msgstr "Aktiver Dobbelkjerne (for bedre ytelse)"
@@ -1731,7 +1723,7 @@ msgstr "Aktiver Snarveistaster"
 msgid "Enable Idle Skipping"
 msgstr "Aktiver Idle Skipping"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:446
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:451
 msgid "Enable Idle Skipping (speedup)"
 msgstr "Aktiver Idle Skipping (for bedre ytelse)"
 
@@ -1748,13 +1740,13 @@ msgstr "Aktiver MMU"
 msgid "Enable OpenCL"
 msgstr "Aktiver OpenCL"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:497
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:502
 #: Source/Core/DolphinWX/Src/ISOProperties.cpp:321
 #, fuzzy
 msgid "Enable Progressive Scan"
 msgstr "Aktiver Progressiv Skanning"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:683
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:691
 msgid "Enable Screen Saver (burn-in reduction)"
 msgstr "Aktiver Skjermsparer (reduserer for brent bilde)"
 
@@ -1853,12 +1845,12 @@ msgstr ""
 "Tillater Memory Management Unit (MMU), som trengs for noen spill. (PÅ = "
 "Kompitabelt, AV = Raskt)"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:50
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:50
 msgid "End"
 msgstr "Slutt"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:258
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:288
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:261
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:291
 #: Source/Core/DolphinWX/Src/ISOProperties.cpp:464
 msgid "English"
 msgstr "Engelsk"
@@ -1885,7 +1877,7 @@ msgstr "Entry 1/%d"
 msgid "Equal"
 msgstr "Lik"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:1133
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:1143
 #: Source/Core/DolphinWX/Src/LogWindow.cpp:76
 #: Source/Core/DolphinWX/Src/ISOProperties.cpp:143
 msgid "Error"
@@ -1906,7 +1898,7 @@ msgid ""
 "Error loading plugin %s: can't find file. Please re-select your plugins."
 msgstr ""
 
-#: Source/Core/DolphinWX/Src/Main.cpp:395
+#: Source/Core/DolphinWX/Src/Main.cpp:396
 #: Source/Plugins/Plugin_VideoDX9/Src/main.cpp:79
 #: Source/Plugins/Plugin_DSP_HLE/Src/main.cpp:88
 #: Source/Plugins/Plugin_DSP_LLE/Src/main.cpp:80
@@ -1915,7 +1907,7 @@ msgstr ""
 msgid "Error loading selected language. Falling back to system default."
 msgstr ""
 
-#: Source/Core/Core/Src/OnFrame.cpp:229
+#: Source/Core/Core/Src/OnFrame.cpp:168
 #, c-format
 msgid "Error opening file %s for recording"
 msgstr ""
@@ -1927,7 +1919,7 @@ msgid ""
 "fonts correctly, or crash."
 msgstr ""
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:30
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:30
 msgid "Escape"
 msgstr "Escape"
 
@@ -1940,7 +1932,7 @@ msgstr ""
 msgid "Exception handler - access below memory space. %08llx%08llx"
 msgstr ""
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:58
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:58
 msgid "Execute"
 msgstr "Kjør"
 
@@ -2051,7 +2043,7 @@ msgstr ""
 msgid "Failed to extract to %s!"
 msgstr ""
 
-#: Source/Core/DSPCore/Src/DSPCore.cpp:63
+#: Source/Core/DSPCore/Src/DSPCore.cpp:64
 #, c-format
 msgid "Failed to load DSP ROM: %s"
 msgstr ""
@@ -2251,7 +2243,7 @@ msgstr "Desimal"
 msgid "Frame S&kipping"
 msgstr "Frame S&kipping"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:449
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:454
 msgid "Framelimit :"
 msgstr "Framelimit :"
 
@@ -2259,8 +2251,8 @@ msgstr "Framelimit :"
 msgid "Free Look"
 msgstr "Fri Utkikk"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:260
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:289
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:263
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:292
 #: Source/Core/DolphinWX/Src/ISOProperties.cpp:466
 msgid "French"
 msgstr "Fransk"
@@ -2273,7 +2265,7 @@ msgstr ""
 msgid "FullScr"
 msgstr "FullSkj"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:486
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:491
 msgid "Fullscreen Display Resolution:"
 msgstr "Fullskjermvisningsoppløsning:"
 
@@ -2319,11 +2311,11 @@ msgstr "Spill-spesifikke Innstillinger"
 msgid "GameConfig"
 msgstr "SpillKonfigurasjon"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:437
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:442
 msgid "Gamecube"
 msgstr "GameCube"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:980
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:988
 #: Source/Core/DolphinWX/Src/MemcardManager.cpp:219
 msgid "Gamecube Memory Cards (*.raw,*.gcp)"
 msgstr "GameCube-minnekort (*.raw,*.gcp)"
@@ -2344,13 +2336,13 @@ msgid ""
 "(either a bad code or the code type is not yet supported.)"
 msgstr ""
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:435
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:440
 #: Source/Core/VideoUICommon/Src/VideoConfigDiag.cpp:125
 msgid "General"
 msgstr "Generelt"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:259
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:290
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:262
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:293
 #: Source/Core/DolphinWX/Src/ISOProperties.cpp:465
 msgid "German"
 msgstr "Tysk"
@@ -2360,7 +2352,7 @@ msgstr "Tysk"
 msgid "GetARCode: Index is greater than ar code list size %lu"
 msgstr ""
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:771
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:779
 #: Source/Core/DolphinWX/Src/FrameTools.cpp:368
 msgid "Graphics"
 msgstr "Grafikk"
@@ -2373,7 +2365,7 @@ msgstr "Innstillinger for grafikk"
 msgid "Greater Than"
 msgstr "Større Enn"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:291
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:294
 msgid "Greek"
 msgstr ""
 
@@ -2402,7 +2394,7 @@ msgstr ""
 msgid "Header checksum failed"
 msgstr ""
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:292
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:295
 msgid "Hebrew"
 msgstr ""
 
@@ -2411,7 +2403,7 @@ msgstr ""
 msgid "Height"
 msgstr "Høyre"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:61
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:61
 msgid "Help"
 msgstr "Hjelp"
 
@@ -2429,11 +2421,11 @@ msgstr ""
 msgid "Hide"
 msgstr ""
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:495
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:500
 msgid "Hide Mouse Cursor"
 msgstr "Gjem musepeker"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:396
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:401
 msgid ""
 "Hide the cursor when it is over the rendering window\n"
 " and the rendering window has focus."
@@ -2441,7 +2433,7 @@ msgstr ""
 "Gjem musepekeren når den er over renderingsvinduet\n"
 " og renderingsvinduet er i fokus."
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:51
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:51
 msgid "Home"
 msgstr "Hjem"
 
@@ -2454,12 +2446,12 @@ msgstr "Vert"
 msgid "Hotkey Configuration"
 msgstr "Konfigurer Snarveistaster"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:516
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:521
 #: Source/Core/DolphinWX/Src/HotkeyDlg.cpp:206
 msgid "Hotkeys"
 msgstr "Snarveistaster"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:293
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:296
 msgid "Hungarian"
 msgstr ""
 
@@ -2485,7 +2477,7 @@ msgstr ""
 msgid "IOCTL_ES_READCONTENT - bad destination"
 msgstr ""
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:555
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:560
 msgid "IPL Settings"
 msgstr "Innstillinger for IPL"
 
@@ -2497,7 +2489,7 @@ msgstr ""
 msgid "IR Pointer"
 msgstr "IR-peker"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:677
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:685
 msgid "IR Sensitivity:"
 msgstr "IR-sensitivitet:"
 
@@ -2505,7 +2497,7 @@ msgstr "IR-sensitivitet:"
 msgid "ISO Details"
 msgstr "ISO-detaljer"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:726
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:734
 msgid "ISO Directories"
 msgstr "ISO-mapper"
 
@@ -2525,7 +2517,7 @@ msgstr ""
 "Hvis et spill fryser til, fungerer kun i Interpreter-modus, eller Dolphin "
 "krasjer, kan dette alternativet muligens fikse spillet."
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:386
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:391
 #, fuzzy
 msgid ""
 "If you set Framelimit higher than game full speed (NTSC:60, PAL:50),\n"
@@ -2588,7 +2580,7 @@ msgstr "Inndata"
 msgid "Input Source"
 msgstr "Kilde For Inndata"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:60
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:60
 #, fuzzy
 msgid "Insert"
 msgstr "Sett Inn"
@@ -2597,7 +2589,7 @@ msgstr "Sett Inn"
 msgid "Insert Encrypted or Decrypted code here..."
 msgstr "Sett Inn Kryptert eller Dekryptert kode her..."
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:692
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:700
 msgid "Insert SD Card"
 msgstr "Sett inn SD-kort"
 
@@ -2630,7 +2622,7 @@ msgstr "Installer WAD til Wii Meny..."
 msgid "Integral [recommended]"
 msgstr "Heltallig [anbefalt]"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:501
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:506
 msgid "Interface Settings"
 msgstr "Innstillinger for kontrollpanel"
 
@@ -2656,7 +2648,7 @@ msgstr ""
 msgid "Internal LZO Error - lzo_init() failed"
 msgstr ""
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:240
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:243
 msgid "Interpreter (VERY slow)"
 msgstr "Interpreter (VELDIG treg)"
 
@@ -2677,7 +2669,7 @@ msgstr ""
 msgid "Invalid bat.map or dir entry"
 msgstr ""
 
-#: Source/Core/Core/Src/CoreTiming.cpp:535
+#: Source/Core/Core/Src/CoreTiming.cpp:544
 #, c-format
 msgid "Invalid event type %i"
 msgstr ""
@@ -2694,7 +2686,7 @@ msgid ""
 " You may need to redump this game."
 msgstr ""
 
-#: Source/Core/Core/Src/OnFrame.cpp:295
+#: Source/Core/Core/Src/OnFrame.cpp:234
 msgid "Invalid recording file"
 msgstr ""
 
@@ -2702,8 +2694,8 @@ msgstr ""
 msgid "Invalid state"
 msgstr ""
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:262
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:294
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:265
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:297
 #: Source/Core/DolphinWX/Src/ISOProperties.cpp:468
 msgid "Italian"
 msgstr "Italiensk"
@@ -2712,16 +2704,16 @@ msgstr "Italiensk"
 msgid "JAPAN"
 msgstr "JAPAN"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:241
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:244
 msgid "JIT Recompiler (recommended)"
 msgstr "JIT Rekompilerer (anbefalt)"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:242
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:245
 msgid "JITIL experimental recompiler"
 msgstr "JITIL eksperimentiell rekompilerer"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:277
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:295
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:280
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:298
 msgid "Japanese"
 msgstr "Japansk"
 
@@ -2743,8 +2735,8 @@ msgstr ""
 msgid "Key"
 msgstr "Tast"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:280
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:296
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:283
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:299
 msgid "Korean"
 msgstr "Koreansk"
 
@@ -2753,7 +2745,7 @@ msgstr "Koreansk"
 msgid "L"
 msgstr ""
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:39
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:39
 msgid "L Button"
 msgstr "L-Knappen"
 
@@ -2762,7 +2754,7 @@ msgstr "L-Knappen"
 msgid "L-Analog"
 msgstr ""
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:512
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:517
 msgid "Language:"
 msgstr "Språk:"
 
@@ -2775,10 +2767,14 @@ msgstr "Siste Overskrevne Save State:"
 msgid "Last Saved State"
 msgstr "Siste Save State:"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:52
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:52
 #: Source/Core/InputCommon/Src/ControllerEmu.cpp:276
 msgid "Left"
 msgstr "Venstre"
+
+#: Source/Core/Core/Src/HW/WiimoteEmu/Attachment/Classic.cpp:60
+msgid "Left Stick"
+msgstr ""
 
 #: Source/Core/DolphinWX/Src/InputConfigDiag.cpp:712
 #, fuzzy
@@ -2803,7 +2799,7 @@ msgstr ""
 msgid "Less Than"
 msgstr "Mindre Enn"
 
-#: Source/Core/DolphinWX/Src/InputConfigDiag.cpp:947
+#: Source/Core/DolphinWX/Src/InputConfigDiag.cpp:944
 msgid "Load"
 msgstr "Last inn"
 
@@ -2852,7 +2848,7 @@ msgstr "Laster den spesifiserte filen (DOL, ELF, WAD, GCM, ISO)"
 msgid "Local"
 msgstr "Lokal"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:457
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:462
 msgid "Lock threads to cores"
 msgstr "Lås CPU-tråder til kjerner"
 
@@ -2873,7 +2869,7 @@ msgstr ""
 msgid "Lua Script Console"
 msgstr "Lua Script-Konsoll"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:42
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:42
 #, fuzzy
 msgid "M Button"
 msgstr "M-knapp"
@@ -2923,7 +2919,7 @@ msgid ""
 " Card size is invalid (%04X)"
 msgstr ""
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:73
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:75
 #: Source/Core/DolphinWX/Src/MemcardManager.cpp:226
 msgid "Memory Card"
 msgstr "Minnekort"
@@ -2939,7 +2935,7 @@ msgid ""
 "Would you like to copy the old file to this new location?\n"
 msgstr ""
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:47
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:47
 msgid "Menu"
 msgstr "Meny"
 
@@ -2947,7 +2943,7 @@ msgstr "Meny"
 msgid "Metroid Other M"
 msgstr "Metroid Other M"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:74
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:76
 #, fuzzy
 msgid "Mic"
 msgstr "Diverse"
@@ -2956,7 +2952,7 @@ msgstr "Diverse"
 msgid "Misc"
 msgstr "Diverse"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:682
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:690
 msgid "Misc Settings"
 msgstr "Diverse Innstillinger"
 
@@ -2990,91 +2986,91 @@ msgstr ""
 msgid "Motor"
 msgstr ""
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:72
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:72
 msgid "Multiply"
 msgstr "Multipliser"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:126
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:126
 msgid "NP Add"
 msgstr "NP Legg Til"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:121
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:121
 msgid "NP Begin"
 msgstr "NP Begynn"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:129
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:129
 msgid "NP Decimal"
 msgstr "NP Desimal"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:123
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:123
 msgid "NP Delete"
 msgstr "NP Slett"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:130
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:130
 msgid "NP Divide"
 msgstr "NP Divider"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:117
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:117
 msgid "NP Down"
 msgstr "NP Ned"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:120
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:120
 msgid "NP End"
 msgstr "NP Slutt"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:108
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:108
 msgid "NP Enter"
 msgstr "NP Enter"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:124
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:124
 msgid "NP Equal"
 msgstr "NP Erlik"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:113
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:113
 msgid "NP Home"
 msgstr "NP Home"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:122
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:122
 msgid "NP Insert"
 msgstr "NP Insert"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:114
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:114
 msgid "NP Left"
 msgstr "NP Venstre"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:125
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:125
 msgid "NP Multiply"
 msgstr "NP Multipliser"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:119
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:119
 msgid "NP Page Down"
 msgstr "NP Page Down"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:118
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:118
 msgid "NP Page Up"
 msgstr "NP Page Up"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:116
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:116
 msgid "NP Right"
 msgstr "NP Høyre"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:127
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:127
 msgid "NP Separator"
 msgstr "NP Separatør"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:106
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:106
 msgid "NP Space"
 msgstr "NP Mellomrom"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:128
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:128
 msgid "NP Subtract"
 msgstr "NP Trekk Fra"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:107
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:107
 msgid "NP Tab"
 msgstr "NP Tab"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:115
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:115
 msgid "NP Up"
 msgstr "NP Opp"
 
@@ -3154,7 +3150,7 @@ msgstr "Ingen"
 msgid "Normal"
 msgstr "Normal"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:297
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:300
 msgid "Norwegian Bokmaal"
 msgstr ""
 
@@ -3169,7 +3165,7 @@ msgstr "Ikke Lik"
 msgid "Not Set"
 msgstr "Ikke Satt"
 
-#: Source/Core/DolphinWX/Src/Main.cpp:611
+#: Source/Core/DolphinWX/Src/Main.cpp:612
 msgid "Not connected"
 msgstr "Ikke tilkoblet"
 
@@ -3190,7 +3186,7 @@ msgstr "Notater:"
 msgid "Notice"
 msgstr "Merknad"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:102
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:102
 msgid "Num Lock"
 msgstr "Num Lock"
 
@@ -3217,7 +3213,7 @@ msgstr "Nunchuk Aksellerasjon"
 msgid "OK"
 msgstr "OK"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:234
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:237
 msgid "Off"
 msgstr "Av"
 
@@ -3259,11 +3255,6 @@ msgstr ""
 #, c-format
 msgid "OpenAL: can't open device %s"
 msgstr ""
-
-#: Source/Plugins/Plugin_VideoOGL/Src/main.cpp:246
-#, fuzzy
-msgid "OpenGL"
-msgstr "Åpne"
 
 #: Source/Core/DolphinWX/Src/Main.cpp:117
 msgid "Opens the debugger"
@@ -3318,11 +3309,11 @@ msgstr "Kontroll"
 msgid "Pads"
 msgstr ""
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:105
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:105
 msgid "Page Down"
 msgstr "Page Down"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:104
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:104
 msgid "Page Up"
 msgstr "Page Up"
 
@@ -3330,7 +3321,7 @@ msgstr "Page Up"
 msgid "Pair Up"
 msgstr "Pair Up"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:35
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:35
 msgid "Paragraph"
 msgstr "Paragraf"
 
@@ -3343,14 +3334,14 @@ msgstr "Partisjon %i"
 msgid "Patches"
 msgstr "Patcher"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:439
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:444
 #, fuzzy
 msgid "Paths"
 msgstr "Mappestier"
 
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:48
 #: Source/Core/DolphinWX/Src/FrameTools.cpp:1401
 #: Source/Core/DolphinWX/Src/FrameTools.cpp:1402
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:48
 msgid "Pause"
 msgstr "Pause"
 
@@ -3397,15 +3388,15 @@ msgstr "Vennligst bekreft..."
 msgid "Please create a perspective before saving"
 msgstr "Vennlisght lag et persektiv før du lagrer"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:440
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:445
 msgid "Plugins"
 msgstr "Programvareutvidelser"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:36
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:36
 msgid "Plus-Minus"
 msgstr "Pluss-Minus"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:298
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:301
 #, fuzzy
 msgid "Polish"
 msgstr "Engelsk"
@@ -3420,6 +3411,10 @@ msgid ""
 "Portable Setting could not be saved\n"
 " Are you running Dolphin from read only media or from a directory that "
 "dolphin is not located in?"
+msgstr ""
+
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:302
+msgid "Portuguese (Brazilian)"
 msgstr ""
 
 #: Source/Core/VideoUICommon/Src/VideoConfigDiag.cpp:438
@@ -3438,7 +3433,7 @@ msgstr "Forrige Side"
 msgid "Previous Value"
 msgstr "Forrige Verdi"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:57
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:57
 msgid "Print"
 msgstr "Print"
 
@@ -3476,7 +3471,7 @@ msgstr "Avslutt"
 msgid "R"
 msgstr ""
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:40
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:40
 msgid "R Button"
 msgstr "R-knappen"
 
@@ -3535,7 +3530,7 @@ msgstr ""
 "Dette gjør det gjengitte bildet ser mindre klumpete, men også tungt senker "
 "ytelsen."
 
-#: Source/Core/DolphinWX/Src/InputConfigDiag.cpp:926
+#: Source/Core/DolphinWX/Src/InputConfigDiag.cpp:923
 #: Source/Core/DolphinWX/Src/FrameTools.cpp:359
 #: Source/Core/DolphinWX/Src/WiimoteConfigDiag.cpp:40
 msgid "Refresh"
@@ -3550,7 +3545,7 @@ msgid "Relaunch Dolphin from the install directory and save from there"
 msgstr ""
 
 #: Source/Core/DolphinWX/Src/PatchAddEdit.cpp:77
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:730
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:738
 #: Source/Core/DolphinWX/Src/ISOProperties.cpp:412
 #: Source/Core/DolphinWX/Src/ISOProperties.cpp:434
 msgid "Remove"
@@ -3564,11 +3559,11 @@ msgstr ""
 "Render scenen som en wireframe.\n"
 "Dette er kun nyttig for feilsøking."
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:496
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:501
 msgid "Render to Main Window"
 msgstr "Render til Hovedvindu."
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:397
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:402
 msgid "Render to main window."
 msgstr "Render til hovedvindu."
 
@@ -3576,11 +3571,11 @@ msgstr "Render til hovedvindu."
 msgid "Rendering"
 msgstr "Renderer"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:399
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:404
 msgid "Required for using the Japanese ROM font."
 msgstr "Kreves for å bruke den japanske ROM-fonten."
 
-#: Source/Core/DolphinWX/Src/InputConfigDiag.cpp:938
+#: Source/Core/DolphinWX/Src/InputConfigDiag.cpp:935
 msgid "Reset"
 msgstr "Restart"
 
@@ -3588,13 +3583,18 @@ msgstr "Restart"
 msgid "Results"
 msgstr "Resultater"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:29
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:29
 msgid "Return"
 msgstr "Tilbake"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:54
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:54
 #: Source/Core/InputCommon/Src/ControllerEmu.cpp:277
 msgid "Right"
+msgstr "Høyre"
+
+#: Source/Core/Core/Src/HW/WiimoteEmu/Attachment/Classic.cpp:61
+#, fuzzy
+msgid "Right Stick"
 msgstr "Høyre"
 
 #: Source/Core/Core/Src/HW/WiimoteEmu/WiimoteEmu.cpp:270
@@ -3606,7 +3606,7 @@ msgstr ""
 msgid "Run"
 msgstr "Kjør"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:389
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:394
 msgid "Run DSPLLE on a dedicated thread (not recommended)."
 msgstr "Kjør DSPLLE på en dedikert CPU-tråd (ikke anbefalt)."
 
@@ -3615,7 +3615,7 @@ msgstr "Kjør DSPLLE på en dedikert CPU-tråd (ikke anbefalt)."
 msgid "Running script...\n"
 msgstr "Kjører skript...\n"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:299
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:303
 msgid "Russian"
 msgstr ""
 
@@ -3633,8 +3633,8 @@ msgstr "Sikker"
 msgid "Sample Rate"
 msgstr "Prøveratio"
 
-#: Source/Core/DolphinWX/Src/InputConfigDiag.cpp:948
-#: Source/Core/DolphinWX/Src/InputConfigDiag.cpp:994
+#: Source/Core/DolphinWX/Src/InputConfigDiag.cpp:945
+#: Source/Core/DolphinWX/Src/InputConfigDiag.cpp:991
 #: Source/Core/DolphinWX/Src/FrameTools.cpp:384
 msgid "Save"
 msgstr "Lagre"
@@ -3665,7 +3665,7 @@ msgstr "Lagre nåværende perspektiv"
 msgid "Save decompressed GCM/ISO"
 msgstr "Lagre dekomprimert GCM/ISO"
 
-#: Source/Core/Core/Src/OnFrame.cpp:342
+#: Source/Core/Core/Src/OnFrame.cpp:281
 #, c-format
 msgid "Savestate movie %s is corrupted, movie recording stopping..."
 msgstr ""
@@ -3687,7 +3687,7 @@ msgstr "Søker..."
 msgid "ScrShot"
 msgstr "SkjDump"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:103
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:103
 msgid "Scroll Lock"
 msgstr "Scroll Lock"
 
@@ -3695,7 +3695,7 @@ msgstr "Scroll Lock"
 msgid "Search Filter"
 msgstr "Søkefilter"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:728
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:736
 msgid "Search Subfolders"
 msgstr "Søk i Undermapper"
 
@@ -3706,7 +3706,7 @@ msgid "Section %s not found in SYSCONF"
 msgstr ""
 
 #: Source/Core/DolphinWX/Src/InputConfigDiag.cpp:508
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:56
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:56
 msgid "Select"
 msgstr "Velg"
 
@@ -3731,7 +3731,7 @@ msgstr "Velg en lagringsfil å importere"
 msgid "Select floating windows"
 msgstr "Velg flytvindu"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:392
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:397
 msgid "Select resolution for fullscreen mode"
 msgstr "Velg oppløsning for fullskjermsmodus"
 
@@ -3785,17 +3785,17 @@ msgstr "Valgt font"
 msgid "Send"
 msgstr "Send"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:675
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:683
 #, fuzzy
 msgid "Sensor Bar Position:"
 msgstr "Sensorbarposisjon:"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:74
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:74
 #, fuzzy
 msgid "Separator"
 msgstr "Separatør"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:415
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:420
 msgid ""
 "Serial Port 1 - This is the port which devices such as the net adapter use"
 msgstr "Serieport 1 - Dette er porten som enheter som nettadapter bruker"
@@ -3804,7 +3804,7 @@ msgstr "Serieport 1 - Dette er porten som enheter som nettadapter bruker"
 msgid "Set"
 msgstr "Sett"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:498
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:503
 msgid "Set Console as NTSC-J"
 msgstr "Sett konsoll til NTSC-J"
 
@@ -3922,11 +3922,11 @@ msgstr "Vis WAD"
 msgid "Show Wii"
 msgstr "Vis Wii"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:402
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:407
 msgid "Show a confirmation box before stopping a game."
 msgstr "Vis en bekreftelsesboks før spill stoppes."
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:403
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:408
 msgid ""
 "Show a message box when a potentially serious error has occured.\n"
 "Disabling this may avoid annoying and non-fatal messages, but it may also "
@@ -3991,7 +3991,7 @@ msgstr ""
 msgid "Sideways Wiimote"
 msgstr "Ekte Wiikontroll"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:278
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:281
 msgid "Simplified Chinese"
 msgstr "Simplifisert Kinesisk"
 
@@ -4003,7 +4003,7 @@ msgstr "Størrelse"
 msgid "Skies of Arcadia"
 msgstr "Skies of Arcadia"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:455
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:460
 msgid "Skip GC BIOS"
 msgstr "Dropp GC BIOS"
 
@@ -4012,7 +4012,7 @@ msgstr "Dropp GC BIOS"
 msgid "Slot"
 msgstr "Slot"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:59
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:59
 msgid "Snapshot"
 msgstr "Stillbilde"
 
@@ -4035,13 +4035,13 @@ msgstr ""
 msgid "Sound buffer creation failed: %s"
 msgstr ""
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:31
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:31
 #, fuzzy
 msgid "Space"
 msgstr "Mellomrom"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:261
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:300
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:264
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:304
 #: Source/Core/DolphinWX/Src/ISOProperties.cpp:467
 msgid "Spanish"
 msgstr "Spansk"
@@ -4087,13 +4087,13 @@ msgstr "Øk diskoverføringshatighet"
 msgid "Square Stick"
 msgstr ""
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:69
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:71
 msgid "Standard Controller"
 msgstr ""
 
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:38
 #: Source/Core/DolphinWX/Src/NetWindow.cpp:303
 #: Source/Core/Core/Src/HW/GCPadEmu.cpp:49
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:38
 msgid "Start"
 msgstr "Start"
 
@@ -4106,11 +4106,11 @@ msgstr "Start &NetPlay"
 msgid "Start Re&cording"
 msgstr "Begynn &Opptak"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:494
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:499
 msgid "Start Renderer in Fullscreen"
 msgstr "Start rendereren i Fullskjerm"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:395
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:400
 msgid "Start the rendering window in fullscreen mode."
 msgstr "Start renderingsvinduet i fullskermsmodus."
 
@@ -4138,7 +4138,7 @@ msgstr "Strekk til Vindu"
 msgid "Strum"
 msgstr ""
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:75
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:75
 msgid "Subtract"
 msgstr "Trekk Fra"
 
@@ -4156,8 +4156,8 @@ msgstr "Velg lagringsfil"
 msgid "Swing"
 msgstr ""
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:556
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:687
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:561
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:695
 msgid "System Language:"
 msgstr "Systemspråk:"
 
@@ -4165,7 +4165,7 @@ msgstr "Systemspråk:"
 msgid "TAIWAN"
 msgstr "TAIWAN"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:28
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:28
 msgid "Tab"
 msgstr "Tab"
 
@@ -4213,7 +4213,7 @@ msgstr ""
 msgid "The checksum was successfully fixed"
 msgstr ""
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:1133
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:1143
 msgid "The chosen directory is already in the list"
 msgstr "Den valgte mappen finnes allerede i listen"
 
@@ -4252,7 +4252,7 @@ msgstr "navnet kan ikke inneholde tegnet ','"
 msgid "The save you are trying to copy has an invalid file size"
 msgstr ""
 
-#: Source/Core/DolphinWX/Src/Main.cpp:402
+#: Source/Core/DolphinWX/Src/Main.cpp:403
 #: Source/Plugins/Plugin_VideoDX9/Src/main.cpp:86
 #: Source/Plugins/Plugin_DSP_HLE/Src/main.cpp:95
 #: Source/Plugins/Plugin_DSP_LLE/Src/main.cpp:87
@@ -4288,7 +4288,7 @@ msgstr ""
 msgid "The value is invalid"
 msgstr ""
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:506
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:511
 msgid "Theme"
 msgstr "Tema"
 
@@ -4316,7 +4316,7 @@ msgid ""
 "Replay itself."
 msgstr ""
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:419
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:424
 msgid "This could cause slow down in Wii Menu and some games."
 msgstr "Dette kan føre til ytelsesreduksjon i Wii Meny og noen spill."
 
@@ -4345,7 +4345,7 @@ msgstr ""
 msgid "This is usually used to play voice and sound effects."
 msgstr "Dette formatet brukes vanligvis til å spille stemme- og lyd- effekter."
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:385
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:390
 msgid ""
 "This splits the Video and CPU threads, so they can be run on separate "
 "cores.\n"
@@ -4385,11 +4385,11 @@ msgstr "Vipp Mellom Vindu/Fullskjerm"
 msgid "Toggle all"
 msgstr "Vipp alle alternativer"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:269
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:272
 msgid "Top"
 msgstr "Topp"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:279
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:282
 msgid "Traditional Chinese"
 msgstr "Tradisjonell Kinesisk"
 
@@ -4414,6 +4414,10 @@ msgstr ""
 msgid ""
 "Trying to read from invalid SYSCONF\n"
 "Wiimote bt ids are not available"
+msgstr ""
+
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:305
+msgid "Turkish"
 msgstr ""
 
 #: Source/Core/Core/Src/HW/WiimoteEmu/Attachment/Turntable.cpp:29
@@ -4482,7 +4486,7 @@ msgid ""
 "Continue?"
 msgstr ""
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:53
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:53
 #: Source/Core/InputCommon/Src/ControllerEmu.cpp:274
 msgid "Up"
 msgstr "Opp"
@@ -4497,11 +4501,11 @@ msgstr "Oppdater"
 msgid "Upright Wiimote"
 msgstr "UDP Wii-kontroll"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:684
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:692
 msgid "Use EuRGB60 Mode (PAL60)"
 msgstr "Bruk EuRGB60-modus (PAL60)"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:451
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:456
 msgid "Use FPS  For Limiting"
 msgstr "Bruk FPS (Bilder-per-sekund) for begrensning"
 
@@ -4510,7 +4514,7 @@ msgstr "Bruk FPS (Bilder-per-sekund) for begrensning"
 msgid "Use Hex"
 msgstr "Bruk Hex"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:503
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:508
 msgid "Use Panic Handlers"
 msgstr "Bruk panikkadvarslere"
 
@@ -4662,7 +4666,7 @@ msgstr "Widescreen Hack"
 msgid "Width"
 msgstr ""
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:438
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:443
 msgid "Wii"
 msgstr "Wii"
 
@@ -4692,11 +4696,6 @@ msgstr "Wiikontroll"
 msgid "Wiimote "
 msgstr "Wiikontroll"
 
-#: Source/Core/DolphinWX/Src/FrameTools.cpp:1223
-#, fuzzy, c-format
-msgid "Wiimote %i %s"
-msgstr "Wiikontroll"
-
 #: Source/Core/DolphinWX/Src/Frame.cpp:174
 #, c-format
 msgid ""
@@ -4710,15 +4709,15 @@ msgstr ""
 "eller kanskje den koblet seg fra pga. inaktivitet.\n"
 "Vil du koble til igjen øyeblikkelig?"
 
-#: Source/Core/DolphinWX/Src/Main.cpp:613
+#: Source/Core/DolphinWX/Src/Main.cpp:614
 msgid "Wiimote Connected"
 msgstr "Wiikontroll tilkoblet"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:679
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:687
 msgid "Wiimote Motor"
 msgstr "Wiikontroll-motor"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:674
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:682
 msgid "Wiimote Settings"
 msgstr "Innstillinger for Wii-kontroll"
 
@@ -4726,31 +4725,31 @@ msgstr "Innstillinger for Wii-kontroll"
 msgid "Wiimote settings"
 msgstr "Innstillinger for Wii-kontroll"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:398
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:403
 msgid "Will enable progressive scan option if supported by software."
 msgstr "Vil aktivere progressiv scan, om det støttes av programvaren."
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:488
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:493
 msgid "Window Size:"
 msgstr "Vindusstørrelse:"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:394
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:399
 msgid "Window height for windowed mode"
 msgstr "Vindushøyde for vindusmodus"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:393
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:398
 msgid "Window width for windowed mode"
 msgstr "Vinduslengde for vindusmodus"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:131
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:131
 msgid "Windows Left"
 msgstr "Windows Venstre"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:133
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:133
 msgid "Windows Menu"
 msgstr "Windows Meny"
 
-#: Source/Core/InputUICommon/Src/WXInputBase.cpp:132
+#: Source/Core/DolphinWX/Src/WXInputBase.cpp:132
 msgid "Windows Right"
 msgstr "Windows Høyre"
 
@@ -4819,7 +4818,7 @@ msgstr ""
 msgid "You must enter a valid profile name."
 msgstr ""
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:918
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:926
 msgid "You must restart Dolphin in order for the change to take effect."
 msgstr ""
 
@@ -4862,7 +4861,7 @@ msgstr "[ venter ]"
 msgid "^ ADD"
 msgstr "^ LEGG TIL"
 
-#: Source/Core/DolphinWX/Src/ConfigMain.cpp:741
+#: Source/Core/DolphinWX/Src/ConfigMain.cpp:749
 msgid "apploader (.img)"
 msgstr "applikasjonslaster (.img)"
 
@@ -4902,3 +4901,33 @@ msgstr ""
 #, fuzzy
 msgid "| OR"
 msgstr "| ELLER"
+
+#, fuzzy
+#~ msgid "AOSound"
+#~ msgstr "&Lyd"
+
+#~ msgid "Connected"
+#~ msgstr "Tilkoblet"
+
+#, fuzzy
+#~ msgid "CoreAudio"
+#~ msgstr "Kjerne"
+
+#, fuzzy
+#~ msgid "DSound"
+#~ msgstr "&Lyd"
+
+#~ msgid "Disconnected"
+#~ msgstr "Frakoblet"
+
+#, fuzzy
+#~ msgid "OpenAL"
+#~ msgstr "Åpne"
+
+#, fuzzy
+#~ msgid "OpenGL"
+#~ msgstr "Åpne"
+
+#, fuzzy
+#~ msgid "Wiimote %i %s"
+#~ msgstr "Wiikontroll"

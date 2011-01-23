@@ -494,7 +494,7 @@ bool OpenGL_MakeCurrent()
 {
 	// connect the glx-context to the window
 #if defined(USE_WX) && USE_WX
-	GLWin.glCanvas->SetCurrent(*GLWin.glCtxt);
+	return GLWin.glCanvas->SetCurrent(*GLWin.glCtxt);
 #elif defined(__APPLE__)
 	[GLWin.cocoaCtx makeCurrentContext];
 #elif defined(_WIN32)
@@ -572,7 +572,8 @@ void OpenGL_Update()
 void OpenGL_Shutdown()
 {
 #if defined(USE_WX) && USE_WX
-	delete GLWin.glCanvas;
+	GLWin.glCanvas->Hide();
+	delete GLWin.glCtxt;
 #elif defined(__APPLE__)
         [GLWin.cocoaWin close];
         [GLWin.cocoaCtx clearDrawable];

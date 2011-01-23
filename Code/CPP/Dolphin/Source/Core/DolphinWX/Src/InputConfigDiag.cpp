@@ -19,10 +19,9 @@
 #include "UDPConfigDiag.h"
 
 #define _connect_macro_(b, f, c, s)	(b)->Connect(wxID_ANY, (c), wxCommandEventHandler(f), (wxObject*)0, (wxEvtHandler*)s)
-#define WXSTR_FROM_STR(s)	(wxString::From8BitData((s).c_str()))
-#define WXTSTR_FROM_CSTR(s)	(wxGetTranslation(wxString::From8BitData(s)))
-// ToAscii was causing probs with some extended ascii characters, To8BitData seems to work
-#define STR_FROM_WXSTR(w)	(std::string((w).To8BitData()))
+#define WXSTR_FROM_STR(s)	(wxString::FromUTF8((s).c_str()))
+#define WXTSTR_FROM_CSTR(s)	(wxGetTranslation(wxString::FromUTF8(s)))
+#define STR_FROM_WXSTR(w)	(std::string((w).ToUTF8()))
 
 void GamepadPage::ConfigUDPWii(wxCommandEvent &event)
 {
@@ -241,7 +240,8 @@ void ControlDialog::UpdateGUI()
 	textctrl->SetValue(WXSTR_FROM_STR(control_reference->expression));
 
 	// updates the "bound controls:" label
-	m_bound_label->SetLabel(wxString::Format(_("Bound Controls: %u"), control_reference->BoundCount()));
+	m_bound_label->SetLabel(wxString::Format(_("Bound Controls: %lu"),
+		(unsigned long)control_reference->BoundCount()));
 };
 
 void GamepadPage::UpdateGUI()
@@ -918,10 +918,7 @@ GamepadPage::GamepadPage(wxWindow* parent, InputPlugin& plugin, const unsigned i
 	wxStaticBoxSizer* const device_sbox = new wxStaticBoxSizer(wxHORIZONTAL, this, _("Device"));
 
 	device_cbox = new wxComboBox(this, -1, wxT(""), wxDefaultPosition, wxSize(64,-1));
-#ifndef __APPLE__
-	// causes a crash with some OS X wxWidgets
 	device_cbox->ToggleWindowStyle(wxTE_PROCESS_ENTER);
-#endif
 
 	wxButton* refresh_button = new wxButton(this, -1, _("Refresh"), wxDefaultPosition, wxSize(60,-1));
 

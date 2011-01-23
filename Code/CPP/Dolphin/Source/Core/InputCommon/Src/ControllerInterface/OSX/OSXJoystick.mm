@@ -60,8 +60,15 @@ Joystick::Joystick(IOHIDDeviceRef device)
 			(IOHIDElementRef)CFArrayGetValueAtIndex(axes, i);
 			//DeviceElementDebugPrint(e, NULL);
 
-			AddInput(new Axis(e, Axis::negative));
-			AddInput(new Axis(e, Axis::positive));
+			if (IOHIDElementGetUsage(e) == kHIDUsage_GD_Hatswitch) {
+				AddInput(new Hat(e, Hat::up));
+				AddInput(new Hat(e, Hat::right));
+				AddInput(new Hat(e, Hat::down));
+				AddInput(new Hat(e, Hat::left));
+			} else {
+				AddInput(new Axis(e, Axis::negative));
+				AddInput(new Axis(e, Axis::positive));
+			}
 		}
 		CFRelease(axes);
 	}
@@ -159,22 +166,17 @@ Joystick::Axis::Axis(IOHIDElementRef element, direction dir)
 	case kHIDUsage_GD_Wheel:
 		description = "Wheel";
 		break;
-	case kHIDUsage_GD_Hatswitch:
-		description = "Hat";
-		break;
 	case kHIDUsage_Csmr_ACPan:
 		description = "Pan";
 		break;
-	default:
-		WARN_LOG(PAD, "Unknown axis type 0x%x, using it anyway...",
-			IOHIDElementGetUsage(m_element));
 	}
 
 	m_name = std::string("Axis ") + description;
 	m_name.append((m_direction == positive) ? "+" : "-");
 
-	m_neutral = (IOHIDElementGetLogicalMax(m_element) -
+	m_neutral = (IOHIDElementGetLogicalMax(m_element) +
 		IOHIDElementGetLogicalMin(m_element)) / 2.;
+	m_scale = 1 / fabs(IOHIDElementGetLogicalMax(m_element) - m_neutral);
 }
 
 ControlState Joystick::Axis::GetState(IOHIDDeviceRef device) const
@@ -185,18 +187,91 @@ ControlState Joystick::Axis::GetState(IOHIDDeviceRef device) const
 	{
 		float position = IOHIDValueGetIntegerValue(value);
 
-		//NSLog(@"%s %f %f", m_name.c_str(), m_neutral, position);
-
 		if (m_direction == positive && position > m_neutral)
-			return (position - m_neutral) / m_neutral;
+			return (position - m_neutral) * m_scale;
 		if (m_direction == negative && position < m_neutral)
-			return (m_neutral - position) / m_neutral;
-        }
- 
-        return 0;
+			return (m_neutral - position) * m_scale;
+	}
+
+	return 0;
 }
 
 std::string Joystick::Axis::GetName() const
+{
+	return m_name;
+}
+
+Joystick::Hat::Hat(IOHIDElementRef element, direction dir)
+	: m_element(element)
+	, m_direction(dir)
+{
+	switch (dir) {
+	case up:
+		m_name = "Up";
+		break;
+	case right:
+		m_name = "Right";
+		break;
+	case down:
+		m_name = "Down";
+		break;
+	case left:
+		m_name = "Left";
+		break;
+	default:
+		m_name = "unk";
+	}
+}
+
+ControlState Joystick::Hat::GetState(IOHIDDeviceRef device) const
+{
+	IOHIDValueRef value;
+	int position;
+
+	if (IOHIDDeviceGetValue(device, m_element, &value) == kIOReturnSuccess)
+	{
+		position = IOHIDValueGetIntegerValue(value);
+
+		switch (position) {
+		case 0:
+			if (m_direction == up)
+				return 1;
+			break;
+		case 1:
+			if (m_direction == up || m_direction == right)
+				return 1;
+			break;
+		case 2:
+			if (m_direction == right)
+				return 1;
+			break;
+		case 3:
+			if (m_direction == right || m_direction == down)
+				return 1;
+			break;
+		case 4:
+			if (m_direction == down)
+				return 1;
+			break;
+		case 5:
+			if (m_direction == down || m_direction == left)
+				return 1;
+			break;
+		case 6:
+			if (m_direction == left)
+				return 1;
+			break;
+		case 7:
+			if (m_direction == left || m_direction == up)
+				return 1;
+			break;
+		};
+	}
+
+	return 0;
+}
+
+std::string Joystick::Hat::GetName() const
 {
 	return m_name;
 }
