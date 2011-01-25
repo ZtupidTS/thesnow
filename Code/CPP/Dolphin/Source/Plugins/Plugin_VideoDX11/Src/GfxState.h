@@ -33,31 +33,9 @@ public:
 	EmuGfxState();
 	~EmuGfxState();
 
-	void SetVShader(ID3D11VertexShader* shader, D3DBlob* bcode);
-	void SetPShader(ID3D11PixelShader* shader);
-	void SetInputElements(const D3D11_INPUT_ELEMENT_DESC* elems, UINT num);
-	void SetShaderResource(unsigned int stage, ID3D11ShaderResourceView* srv);
-
 	void ApplyState();            // apply current state
 	void Reset();
 
-	// blend state
-	void SetAlphaBlendEnable(bool enable);
-	void SetRenderTargetWriteMask(UINT8 mask);
-	void SetSrcBlend(D3D11_BLEND val);
-	void SetDestBlend(D3D11_BLEND val);
-	void SetBlendOp(D3D11_BLEND_OP val);
-
-	void SetDstAlpha(bool enable);
-
-	// sampler states
-	void SetSamplerFilter(DWORD stage, D3D11_FILTER filter);
-
-	// TODO: add methods for changing the other states instead of modifying them directly
-
-	D3D11_SAMPLER_DESC samplerdesc[8];
-	D3D11_RASTERIZER_DESC rastdesc;
-	D3D11_DEPTH_STENCIL_DESC depthdesc;
 
 	float psconstants[C_PENVCONST_END*4];
 	float vsconstants[C_VENVCONST_END*4];
@@ -65,23 +43,8 @@ public:
 	bool pscbufchanged;
 
 private:
-	ID3D11VertexShader* vertexshader;
-	D3DBlob* vsbytecode;
-	ID3D11PixelShader* pixelshader;
-	D3DBlob* psbytecode;
-	bool vshaderchanged;
-
 	ID3D11Buffer* vscbuf;
 	ID3D11Buffer* pscbuf;
-
-	ID3D11InputLayout* inp_layout;
-	D3D11_INPUT_ELEMENT_DESC inp_elems[32];
-	int num_inp_elems;
-
-	ID3D11ShaderResourceView* shader_resources[8];
-	D3D11_BLEND_DESC blenddesc;
-
-	bool m_useDstAlpha;
 
 	bool apply_called;
 };

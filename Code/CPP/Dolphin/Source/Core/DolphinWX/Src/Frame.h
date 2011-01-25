@@ -128,7 +128,7 @@ class CFrame : public CRenderFrame
 		void StatusBarMessage(const char * Text, ...);
 		void ClearStatusBar();
 		void GetRenderWindowSize(int& x, int& y, int& width, int& height);
-		void OnRenderWindowSizeRequest(int& width, int& height);
+		void OnRenderWindowSizeRequest(int width, int height);
 		void BootGame(const std::string& filename);
 		void OnRenderParentClose(wxCloseEvent& event);
 		void OnRenderParentMove(wxMoveEvent& event);

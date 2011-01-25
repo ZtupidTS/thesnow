@@ -1236,8 +1236,7 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 
 	// Finish up the current frame, print some stats
 
-	if (g_ActiveConfig.bAdjustWindowSize)
-		SetWindowSize(fbWidth, fbHeight);
+	SetWindowSize(fbWidth, fbHeight);
 
 	OpenGL_Update(); // just updates the render window position and the backbuffer size
 	

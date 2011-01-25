@@ -24,6 +24,10 @@ public:
 	void SetSamplerState(int stage,int texindex);
 	void SetInterlacingMode();
 
+	// TODO: Fix confusing names (see ResetAPIState and RestoreAPIState)
+	void ApplyState(bool bUseDstAlpha);
+	void RestoreState();
+
 	void RenderText(const char* pstr, int left, int top, u32 color);
 
 	u32 AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data);
