@@ -139,7 +139,7 @@ void CFrame::CreateMenu()
 	emulationMenu->Append(IDM_RECORDEXPORT, _("导出录制(&E)..."));
 	emulationMenu->AppendSeparator();
 	
-	emulationMenu->Append(IDM_FRAMESTEP, _("帧步进(&F)"), wxEmptyString, wxITEM_CHECK);
+	emulationMenu->Append(IDM_FRAMESTEP, _("&Frame Advance"), wxEmptyString, wxITEM_CHECK);
 
 	wxMenu *skippingMenu = new wxMenu;
 	emulationMenu->AppendSubMenu(skippingMenu, _("帧跳过(&K)"));
@@ -723,7 +723,7 @@ void CFrame::OnRenderParentResize(wxSizeEvent& event)
 		}
 #if defined(HAVE_X11) && HAVE_X11
 		int x, y;
-		m_RenderParent->GetSize(&width, &height);
+		m_RenderParent->GetClientSize(&width, &height);
 		m_RenderParent->GetPosition(&x, &y);
 		X11Utils::SendClientEvent(X11Utils::XDisplayFromHandle(GetHandle()),
 				"RESIZE", x, y, width, height);
@@ -987,6 +987,12 @@ void CFrame::DoStop()
 		// If batch mode was specified on the command-line, exit now.
 		if (m_bBatchMode)
 			Close(true);
+
+		// If using auto size with render to main, reset the application size.
+		if (SConfig::GetInstance().m_LocalCoreStartupParameter.bRenderToMain &&
+				SConfig::GetInstance().m_LocalCoreStartupParameter.bRenderWindowAutoSize)
+			SetSize(SConfig::GetInstance().m_LocalCoreStartupParameter.iWidth,
+					SConfig::GetInstance().m_LocalCoreStartupParameter.iHeight);
 
 		m_GameListCtrl->Enable();
 		m_GameListCtrl->Show();

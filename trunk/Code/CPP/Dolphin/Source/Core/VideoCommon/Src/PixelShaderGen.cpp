@@ -570,6 +570,8 @@ const char *GeneratePixelShaderCode(DSTALPHA_MODE dstAlphaMode, API_TYPE ApiType
 			WRITE(p, "ocol0 = 0;\n");
 			if(DepthTextureEnable)
 				WRITE(p, "depth = 1.f;\n");
+			if(dstAlphaMode == DSTALPHA_DUAL_SOURCE_BLEND)
+				WRITE(p, "ocol1 = 0;\n");
 			WRITE(p, "discard;\n");
 			if(ApiType != API_D3D11)
 				WRITE(p, "return;\n");
@@ -801,6 +803,8 @@ const char *GeneratePixelShaderCode(DSTALPHA_MODE dstAlphaMode, API_TYPE ApiType
 		WRITE(p, "ocol0 = 0;\n");
 		if(DepthTextureEnable)
 			WRITE(p, "depth = 1.f;\n");
+		if(dstAlphaMode == DSTALPHA_DUAL_SOURCE_BLEND)
+				WRITE(p, "ocol1 = 0;\n");
 		WRITE(p, "discard;\n");
 		if(ApiType != API_D3D11)
 			WRITE(p, "return;\n");

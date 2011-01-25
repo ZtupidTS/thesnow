@@ -858,9 +858,18 @@ void Renderer::ReinterpretPixelData(unsigned int convtype)
 	// convert data and set the target texture as our new EFB
 	g_renderer->ResetAPIState();
 	D3D::dev->SetRenderTarget(0, FramebufferManager::GetEFBColorReinterpretSurface());
+	D3DVIEWPORT9 vp;
+	vp.X = 0;
+	vp.Y = 0;
+	vp.Width  = g_renderer->GetFullTargetWidth();
+	vp.Height = g_renderer->GetFullTargetHeight();
+	vp.MinZ = 0.0;
+	vp.MaxZ = 1.0;
+	D3D::dev->SetViewport(&vp);
+	D3D::ChangeSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_POINT);
 	D3D::drawShadedTexQuad(FramebufferManager::GetEFBColorTexture(), &source, g_renderer->GetFullTargetWidth(), g_renderer->GetFullTargetHeight(), g_renderer->GetFullTargetWidth(), g_renderer->GetFullTargetHeight(), pixel_shader, VertexShaderCache::GetSimpleVertexShader(0));
 	FramebufferManager::SwapReinterpretTexture();
-	D3D::dev->SetRenderTarget(0, FramebufferManager::GetEFBColorRTSurface());
+	D3D::RefreshSamplerState(0, D3DSAMP_MINFILTER);	
 	g_renderer->RestoreAPIState();
 }
 
@@ -1166,8 +1175,7 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 	// Enable any configuration changes
 	UpdateActiveConfig();
 
-	if (g_ActiveConfig.bAdjustWindowSize)
-		SetWindowSize(fbWidth, fbHeight);
+	SetWindowSize(fbWidth, fbHeight);
 
 	const bool windowResized = CheckForResize();
 
@@ -1250,6 +1258,25 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 	//	      GetTargetWidth(), GetTargetHeight());
 	g_VideoInitialize.pCopiedToXFB(XFBWrited || (g_ActiveConfig.bUseXFB && g_ActiveConfig.bUseRealXFB));
 	XFBWrited = false;
+}
+
+void Renderer::ApplyState(bool bUseDstAlpha)
+{
+	if (bUseDstAlpha)
+	{
+		D3D::ChangeRenderState(D3DRS_COLORWRITEENABLE, D3DCOLORWRITEENABLE_ALPHA);
+		D3D::ChangeRenderState(D3DRS_ALPHABLENDENABLE, false);
+	}
+}
+
+void Renderer::RestoreState()
+{
+	D3D::RefreshRenderState(D3DRS_COLORWRITEENABLE);
+	D3D::RefreshRenderState(D3DRS_ALPHABLENDENABLE);
+
+	// TODO: Enable this code. Caused glitches for me however (neobrain)
+//	for (unsigned int i = 0; i < 8; ++i)
+//		D3D::dev->SetTexture(i, NULL);
 }
 
 // ALWAYS call RestoreAPIState for each ResetAPIState call you're doing

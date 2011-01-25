@@ -297,7 +297,7 @@ THREAD_RETURN XEventThread(void *pArg)
 						g_VideoInitialize.pCoreMessage(WM_USER_STOP);
 					if ((unsigned long) event.xclient.data.l[0] == XInternAtom(GLWin.evdpy, "RESIZE", False))
 						XMoveResizeWindow(GLWin.evdpy, GLWin.win, event.xclient.data.l[1],
-							   	event.xclient.data.l[2], event.xclient.data.l[3], event.xclient.data.l[4]);
+								event.xclient.data.l[2], event.xclient.data.l[3], event.xclient.data.l[4]);
 					break;
 				default:
 					break;
