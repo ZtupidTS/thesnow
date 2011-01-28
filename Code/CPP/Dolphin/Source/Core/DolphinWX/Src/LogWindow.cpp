@@ -49,11 +49,17 @@ CLogWindow::CLogWindow(CFrame *parent, wxWindowID id, const wxPoint& pos,
 	, Parent(parent) , m_LogAccess(true)
 	, m_Log(NULL), m_cmdline(NULL), m_FontChoice(NULL)
 	, m_LogSection(1)
+	, m_SJISConv(*(wxCSConv*)wxConvCurrent)
 {
 #ifdef _WIN32
-	m_SJISConv = new wxCSConv(wxFontMapper::GetEncodingName(wxFONTENCODING_SHIFT_JIS));
+		static bool validCP932 = ::IsValidCodePage(932) != 0;
+		if (validCP932)
+		{
+			m_SJISConv = wxCSConv(wxFontMapper::GetEncodingName(wxFONTENCODING_SHIFT_JIS));
+		}
+		WARN_LOG(COMMON, "Cannot Convert from Charset Windows Japanese cp 932");
 #else
-	m_SJISConv = new wxCSConv(wxFontMapper::GetEncodingName(wxFONTENCODING_EUC_JP));
+		m_SJISConv = wxCSConv(wxFontMapper::GetEncodingName(wxFONTENCODING_EUC_JP));
 #endif
 
 	m_LogManager = LogManager::GetInstance();
@@ -159,7 +165,6 @@ CLogWindow::~CLogWindow()
 	}
 	m_LogTimer->Stop();
 	delete m_LogTimer;
-	delete m_SJISConv;
 }
 
 void CLogWindow::OnClose(wxCloseEvent& event)
@@ -540,6 +545,6 @@ void CLogWindow::Log(LogTypes::LOG_LEVELS level, const char *text)
 	m_LogSection.Enter();
 	if (msgQueue.size() >= 100)
 		msgQueue.pop();
-	msgQueue.push(std::pair<u8, wxString>((u8)level, wxString(text, *m_SJISConv)));
+	msgQueue.push(std::pair<u8, wxString>((u8)level, wxString(text, m_SJISConv)));
 	m_LogSection.Leave();
 }

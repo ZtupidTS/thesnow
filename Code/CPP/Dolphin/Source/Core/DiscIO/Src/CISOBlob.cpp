@@ -15,10 +15,6 @@
 // Official SVN repository and contact information can be found at
 // http://code.google.com/p/dolphin-emu/
 
-#ifdef _WIN32
-#include "stdafx.h"
-#endif
-
 #include "Blob.h"
 #include "CISOBlob.h"
 
@@ -45,8 +41,8 @@ CISOFileReader* CISOFileReader::Create(const char* filename)
 {
 	if (IsCISOBlob(filename))
 	{
-		FILE* file_ = fopen(filename, "rb");
-		return new CISOFileReader(file_);
+		FILE* f = fopen(filename, "rb");
+		return new CISOFileReader(f);
 	}
 	else
 		return NULL;

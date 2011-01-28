@@ -18,7 +18,6 @@
 #include <math.h>
 #include <locale.h>
 
-#include "Profiler.h"
 #include "NativeVertexFormat.h"
 
 #include "BPMemory.h"
@@ -81,7 +80,6 @@ const char *GenerateVertexShaderCode(u32 components, API_TYPE api_type)
 {
 	setlocale(LC_NUMERIC, "C"); // Reset locale for compilation
 	text[sizeof(text) - 1] = 0x7C;  // canary
-	DVSTARTPROFILE();
 
 	_assert_(bpmem.genMode.numtexgens == xfregs.numTexGens);
 	_assert_(bpmem.genMode.numcolchans == xfregs.nNumChans);
@@ -412,7 +410,11 @@ const char *GenerateVertexShaderCode(u32 components, API_TYPE api_type)
 					WRITE(p, "ldir = normalize("I_LIGHTS".lights[%d].pos.xyz - pos.xyz);\n", texinfo.embosslightshift);
 					WRITE(p, "o.tex%d.xyz = o.tex%d.xyz + float3(dot(ldir, _norm1), dot(ldir, _norm2), 0.0f);\n", i, texinfo.embosssourceshift);
 				}
-				else _assert_(0); // should have normals
+				else
+				{
+					_assert_(0); // should have normals
+					WRITE(p, "o.tex%d.xyz = o.tex%d.xyz;\n", i, texinfo.embosssourceshift);
+				}
 
 				break;
 			case XF_TEXGEN_COLOR_STRGBC0:

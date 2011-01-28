@@ -15,41 +15,30 @@
 // Official SVN repository and contact information can be found at
 // http://code.google.com/p/dolphin-emu/
 
-#include <list>
+#include <math.h>
+#include <strsafe.h>
 
-#include "StringUtil.h"
-#include "Common.h"
-#include "Atomic.h"
-#include "FileUtil.h"
-#include "Thread.h"
 #include "Timer.h"
-#include "Statistics.h"
-
-#include "VideoConfig.h"
-#include "main.h"
-#include "VertexManager.h"
-#include "PixelEngine.h"
-#include "Render.h"
-#include "OpcodeDecoding.h"
-#include "BPStructs.h"
-#include "XFStructs.h"
-#include "D3DUtil.h"
-#include "VertexShaderManager.h"
-#include "PixelShaderManager.h"
-#include "VertexShaderCache.h"
-#include "PixelShaderCache.h"
-#include "VertexLoaderManager.h"
-#include "TextureCache.h"
-#include "EmuWindow.h"
-#include "AVIDump.h"
-#include "OnScreenDisplay.h"
-#include "FramebufferManager.h"
-#include "Fifo.h"
-#include "DLCache.h"
 
 #include "Debugger.h"
+#include "DLCache.h"
+#include "EmuWindow.h"
+#include "Fifo.h"
+#include "OnScreenDisplay.h"
+#include "PixelEngine.h"
+#include "Statistics.h"
+#include "VertexShaderManager.h"
+#include "VideoConfig.h"
 
-#include <strsafe.h>
+#include "D3DBase.h"
+#include "D3DUtil.h"
+#include "FramebufferManager.h"
+#include "GfxState.h"
+#include "PixelShaderCache.h"
+#include "Render.h"
+#include "TextureCache.h"
+#include "VertexShaderCache.h"
+
 
 static int s_fps = 0;
 
@@ -72,8 +61,6 @@ struct
 	D3D11_DEPTH_STENCIL_DESC depthdc;
 	D3D11_RASTERIZER_DESC rastdc;
 } gx_state;
-
-bool reset_called = false;
 
 // State translation lookup tables
 static const D3D11_BLEND d3dSrcFactors[8] =
@@ -392,8 +379,6 @@ Renderer::Renderer()
 	D3D::context->RSSetViewports(1, &vp);
 	D3D::context->OMSetRenderTargets(1, &FramebufferManager::GetEFBColorTexture()->GetRTV(), FramebufferManager::GetEFBDepthTexture()->GetDSV());
 	D3D::BeginFrame();
-
-	reset_called = false;
 }
 
 Renderer::~Renderer()
@@ -1145,21 +1130,16 @@ void Renderer::ResetAPIState()
 	D3D::stateman->PushBlendState(resetblendstate);
 	D3D::stateman->PushDepthState(resetdepthstate);
 	D3D::stateman->PushRasterizerState(resetraststate);
-	reset_called = true;
 }
 
 void Renderer::RestoreAPIState()
 {
 	// Gets us back into a more game-like state.
-	if (reset_called)
-	{
-		D3D::stateman->PopBlendState();
-		D3D::stateman->PopDepthState();
-		D3D::stateman->PopRasterizerState();
-	}
+	D3D::stateman->PopBlendState();
+	D3D::stateman->PopDepthState();
+	D3D::stateman->PopRasterizerState();
 	UpdateViewport();
 	SetScissorRect();
-	reset_called = false;
 }
 
 void Renderer::ApplyState(bool bUseDstAlpha)
@@ -1232,6 +1212,9 @@ void Renderer::ApplyState(bool bUseDstAlpha)
 		SetBlendMode(false);
 		SetLogicOpMode();
 	}
+
+	D3D::context->PSSetConstantBuffers(0, 1, &PixelShaderCache::GetConstantBuffer());
+	D3D::context->VSSetConstantBuffers(0, 1, &VertexShaderCache::GetConstantBuffer());
 
 	D3D::context->PSSetShader(PixelShaderCache::GetActiveShader(), NULL, 0);
 	D3D::context->VSSetShader(VertexShaderCache::GetActiveShader(), NULL, 0);

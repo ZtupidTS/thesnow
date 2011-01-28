@@ -1,4 +1,4 @@
-// Copyright (C) 2003 Dolphin Project.
+﻿// Copyright (C) 2003 Dolphin Project.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -14,6 +14,8 @@
 
 // Official SVN repository and contact information can be found at
 // http://code.google.com/p/dolphin-emu/
+
+#include <CoreServices/CoreServices.h>
 
 #include "CoreAudioSoundStream.h"
 

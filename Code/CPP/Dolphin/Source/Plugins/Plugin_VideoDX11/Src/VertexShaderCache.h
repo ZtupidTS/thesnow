@@ -18,9 +18,12 @@
 #ifndef _VERTEXSHADERCACHE_H
 #define _VERTEXSHADERCACHE_H
 
-#include "D3DBase.h"
-#include "VertexShaderGen.h"
 #include <map>
+
+#include "D3DBase.h"
+#include "D3DBlob.h"
+
+class VERTEXSHADERUID;
 
 class VertexShaderCache
 {
@@ -32,6 +35,7 @@ public:
 
 	static ID3D11VertexShader* GetActiveShader() { return last_entry->shader; }
 	static D3DBlob* GetActiveShaderBytecode() { return last_entry->bytecode; }
+	static ID3D11Buffer* &GetConstantBuffer();
 
 	static ID3D11VertexShader* GetSimpleVertexShader();
 	static ID3D11VertexShader* GetClearVertexShader();

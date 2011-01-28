@@ -1249,10 +1249,17 @@ void CISOProperties::ChangeBannerDetails(int lang)
 		|| OpenGameListItem->GetPlatform() == GameListItem::WII_WAD)
 	{
 #ifdef _WIN32
-		wxCSConv SJISConv(wxFontMapper::GetEncodingName(wxFONTENCODING_SHIFT_JIS));
+		wxCSConv SJISConv(*(wxCSConv*)wxConvCurrent);
+		static bool validCP932 = ::IsValidCodePage(932) != 0;
+		if (validCP932)
+		{
+			SJISConv = wxCSConv(wxFontMapper::GetEncodingName(wxFONTENCODING_SHIFT_JIS));
+		}
+		WARN_LOG(COMMON, "Cannot Convert from Charset Windows Japanese cp 932");
 #else
 		wxCSConv SJISConv(wxFontMapper::GetEncodingName(wxFONTENCODING_EUC_JP));
 #endif
+
 		wxString name = wxString(OpenGameListItem->GetName(0).c_str(), SJISConv);
 
 		// Updates the informations shown in the window

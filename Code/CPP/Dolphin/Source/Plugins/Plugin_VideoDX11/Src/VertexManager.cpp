@@ -15,32 +15,21 @@
 // Official SVN repository and contact information can be found at
 // http://code.google.com/p/dolphin-emu/
 
-#include "Common.h"
-#include "FileUtil.h"
-
 #include "D3DBase.h"
-#include "D3DShader.h"
-#include "D3DUtil.h"
-#include "Fifo.h"
-#include "Statistics.h"
-#include "Profiler.h"
-#include "FramebufferManager.h"
-#include "VertexManager.h"
-#include "OpcodeDecoding.h"
-#include "IndexGenerator.h"
-#include "VertexShaderManager.h"
-#include "VertexShaderCache.h"
-#include "PixelShaderManager.h"
 #include "PixelShaderCache.h"
-#include "NativeVertexFormat.h"
-#include "TextureCache.h"
-#include "main.h"
+#include "VertexManager.h"
+#include "VertexShaderCache.h"
 
-#include "BPStructs.h"
-#include "XFStructs.h"
-
-#include "Globals.h"
+#include "BPMemory.h"
 #include "Debugger.h"
+#include "IndexGenerator.h"
+#include "MainBase.h"
+#include "PixelShaderManager.h"
+#include "RenderBase.h"
+#include "Statistics.h"
+#include "TextureCacheBase.h"
+#include "VertexShaderManager.h"
+#include "VideoConfig.h"
 
 // internal state for loading vertices
 extern NativeVertexFormat *g_nativeVertexFmt;
@@ -169,8 +158,6 @@ void VertexManager::vFlush()
 	Flushed=true;
 	VideoFifo_CheckEFBAccess();
 
-	DVSTARTPROFILE();
-
 	u32 usedtextures = 0;
 	for (u32 i = 0; i < (u32)bpmem.genMode.numtevstages + 1; ++i)
 		if (bpmem.tevorders[i / 2].getEnable(i & 1))
@@ -228,7 +215,6 @@ void VertexManager::vFlush()
 	unsigned int stride = g_nativeVertexFmt->GetVertexStride();
 	g_nativeVertexFmt->SetupVertexPointers();
 
-	D3D::gfxstate->ApplyState();
 	g_renderer->ApplyState(useDstAlpha);
 	LoadBuffers();
 	Draw(stride);
@@ -236,7 +222,6 @@ void VertexManager::vFlush()
 	GFX_DEBUGGER_PAUSE_AT(NEXT_FLUSH, true);
 
 	g_renderer->RestoreState();
-	D3D::gfxstate->Reset();
 
 shader_fail:
 	ResetBuffer();

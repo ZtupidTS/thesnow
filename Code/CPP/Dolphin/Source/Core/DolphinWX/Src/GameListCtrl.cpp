@@ -399,11 +399,19 @@ void CGameListCtrl::InsertItemInReportView(long _Index)
 	// title: 0xFF0000
 	// company: 0x007030
 	int ImageIndex = -1;
+
 #ifdef _WIN32
-	wxCSConv SJISConv(wxFontMapper::GetEncodingName(wxFONTENCODING_SHIFT_JIS));
+		wxCSConv SJISConv(*(wxCSConv*)wxConvCurrent);
+		static bool validCP932 = ::IsValidCodePage(932) != 0;
+		if (validCP932)
+		{
+			SJISConv = wxCSConv(wxFontMapper::GetEncodingName(wxFONTENCODING_SHIFT_JIS));
+		}
+		WARN_LOG(COMMON, "Cannot Convert from Charset Windows Japanese cp 932");
 #else
-	wxCSConv SJISConv(wxFontMapper::GetEncodingName(wxFONTENCODING_EUC_JP));
+		wxCSConv SJISConv(wxFontMapper::GetEncodingName(wxFONTENCODING_EUC_JP));
 #endif
+
 	GameListItem& rISOFile = m_ISOFiles[_Index];
 	m_gamePath.append(rISOFile.GetFileName() + '\n');
 
@@ -1218,8 +1226,8 @@ void CGameListCtrl::CompressSelection(bool _compress)
 
 				if (wxFileExists(wxString::FromAscii(OutputFileName.c_str())) &&
 						wxMessageBox(
-							_("The file ") + wxString::FromAscii(OutputFileName.c_str()) +
-							_(" already exists.\nDo you wish to replace it?"), 
+							wxString::Format(_("The file %s already exists.\nDo you wish to replace it?"),
+								OutputFileName.c_str()), 
 							_("Confirm File Overwrite"),
 							wxYES_NO) == wxNO)
 					continue;
@@ -1246,8 +1254,8 @@ void CGameListCtrl::CompressSelection(bool _compress)
 
 				if (wxFileExists(wxString::FromAscii(OutputFileName.c_str())) &&
 						wxMessageBox(
-							_("The file ") + wxString::FromAscii(OutputFileName.c_str()) +
-							_(" already exists.\nDo you wish to replace it?"), 
+							wxString::Format(_("The file %s already exists.\nDo you wish to replace it?"),
+								OutputFileName.c_str()), 
 							_("Confirm File Overwrite"),
 							wxYES_NO) == wxNO)
 					continue;
@@ -1312,7 +1320,7 @@ void CGameListCtrl::OnCompressGCM(wxCommandEvent& WXUNUSED (event))
 			return;
 	} while (wxFileExists(path) &&
 			wxMessageBox(
-				_("The file ") + path + _(" already exists.\nDo you wish to replace it?"), 
+				wxString::Format(_("The file %s already exists.\nDo you wish to replace it?"), path.c_str()), 
 				_("Confirm File Overwrite"),
 				wxYES_NO) == wxNO);
 
