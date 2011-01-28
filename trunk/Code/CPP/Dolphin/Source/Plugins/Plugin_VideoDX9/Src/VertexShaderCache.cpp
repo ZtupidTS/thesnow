@@ -25,7 +25,6 @@
 #include "D3DBase.h"
 #include "D3DShader.h"
 #include "Statistics.h"
-#include "Profiler.h"
 #include "VideoConfig.h"
 #include "VertexShaderCache.h"
 #include "VertexLoader.h"
@@ -207,8 +206,6 @@ void VertexShaderCache::Shutdown()
 
 bool VertexShaderCache::SetShader(u32 components)
 {
-	DVSTARTPROFILE();
-
 	VERTEXSHADERUID uid;
 	GetVertexShaderId(&uid, components);
 	if (uid == last_vertex_shader_uid && vshaders[uid].frameCount == frameCount)

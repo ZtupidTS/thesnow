@@ -40,13 +40,7 @@ namespace WiimoteReal
 bool g_real_wiimotes_initialized = false;
 unsigned int g_wiimotes_found = 0;
 
-volatile bool	g_run_wiimote_thread = false;
-Common::Thread	*g_wiimote_threads[MAX_WIIMOTES] = {};
 Common::CriticalSection		g_refresh_critsec;
-
-THREAD_RETURN WiimoteThreadFunc(void* arg);
-void StartWiimoteThreads();
-void StopWiimoteThreads();
 
 Wiimote *g_wiimotes[MAX_WIIMOTES];
 
@@ -307,6 +301,46 @@ bool Wiimote::SendRequest(unsigned char report_type, unsigned char* data, int le
 	return (IOWrite(buffer, length + 2) != 0);
 }
 
+void Wiimote::StartThread(Wiimote *wiimote)
+{
+	wiimote->ThreadFunc();
+}
+
+void Wiimote::ThreadFunc()
+{
+#ifdef __APPLE__
+	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+#endif
+
+	char thname[] = "Wiimote # Thread";
+	thname[8] = (char)('1' + index);
+	Common::SetCurrentThreadName(thname);
+
+	// rumble briefly
+	Rumble();
+
+	Host_ConnectWiimote(index, true);
+
+	// main loop
+	while (IsConnected())
+	{
+		// hopefully this is alright
+		while (Write()) {}
+
+#ifndef __APPLE__
+		// sleep if there was nothing to read
+		if (false == Read())
+#endif
+			Common::SleepCurrentThread(1);
+	}
+
+	Host_ConnectWiimote(index, false);
+
+#ifdef __APPLE__
+	[pool release];
+#endif
+}
+
 #ifndef _WIN32
 // Connect all discovered wiimotes
 // Return the number of wiimotes that successfully connected.
@@ -385,8 +419,6 @@ unsigned int Initialize()
 
 	DEBUG_LOG(WIIMOTE, "Connected to %i Real Wiimotes", g_wiimotes_found);
 
-	StartWiimoteThreads();
-
 	return g_wiimotes_found;
 }
 
@@ -397,8 +429,6 @@ void Shutdown(void)
 
 	// Uninitialized
 	g_real_wiimotes_initialized = false;
-
-	StopWiimoteThreads();
 
 	// Delete wiimotes
 	for (unsigned int i = 0; i < MAX_WIIMOTES; ++i)
@@ -412,6 +442,12 @@ void Shutdown(void)
 // This is called from the GUI thread
 void Refresh()
 {
+#ifdef _WIN32
+	g_refresh_critsec.Enter();
+	Shutdown();
+	Initialize();
+	g_refresh_critsec.Leave();
+#else
 	// Make sure real wiimotes have been initialized
 	if (!g_real_wiimotes_initialized)
 	{
@@ -435,34 +471,27 @@ void Refresh()
 		{
 			delete g_wiimotes[i];
 			g_wiimotes[i] = NULL;
-			delete g_wiimote_threads[i];
-			g_wiimote_threads[i] = NULL;
 			--g_wiimotes_found;
 		}
 
-	// Don't scan for wiimotes if we don't want any more
-	if (wanted_wiimotes <= g_wiimotes_found)
+	// Scan for wiimotes if we want more
+	if (wanted_wiimotes > g_wiimotes_found)
 	{
-		g_refresh_critsec.Leave();
-		return;
+		// Scan for wiimotes
+		unsigned int num_wiimotes = FindWiimotes(g_wiimotes, wanted_wiimotes);
+
+		DEBUG_LOG(WIIMOTE, "Found %i Real Wiimotes, %i wanted", num_wiimotes, wanted_wiimotes);
+
+		// Connect newly found wiimotes.
+		int num_new_wiimotes = ConnectWiimotes(g_wiimotes);
+
+		DEBUG_LOG(WIIMOTE, "Connected to %i additional Real Wiimotes", num_new_wiimotes);
+
+		g_wiimotes_found = num_wiimotes;
 	}
 
-	// Scan for wiimotes
-	unsigned int num_wiimotes = FindWiimotes(g_wiimotes, wanted_wiimotes);
-
-	DEBUG_LOG(WIIMOTE, "Found %i Real Wiimotes, %i wanted", num_wiimotes, wanted_wiimotes);
-
-#ifndef _WIN32
-	// Connect newly found wiimotes.
-	int num_new_wiimotes = ConnectWiimotes(g_wiimotes);
-
-	DEBUG_LOG(WIIMOTE, "Connected to %i additional Real Wiimotes", num_new_wiimotes);
-#endif
-	g_wiimotes_found = num_wiimotes;
-
 	g_refresh_critsec.Leave();
-
-	StartWiimoteThreads();
+#endif
 }
 
 void InterruptChannel(int _WiimoteNumber, u16 _channelID, const void* _pData, u32 _Size)
@@ -504,63 +533,6 @@ void StateChange(PLUGIN_EMUSTATE newState)
 	// TODO: disable/enable auto reporting, maybe
 
 	//g_refresh_critsec.Leave();	// leave
-}
-
-void StartWiimoteThreads()
-{
-	g_run_wiimote_thread = true;
-	for (unsigned int i = 0; i < MAX_WIIMOTES; ++i)
-		if (g_wiimotes[i] && !g_wiimote_threads[i])
-			g_wiimote_threads[i] = new Common::Thread(WiimoteThreadFunc, g_wiimotes[i]);
-}
-
-void StopWiimoteThreads()
-{
-	g_run_wiimote_thread = false;
-	for (unsigned int i = 0; i < MAX_WIIMOTES; ++i)
-		if (g_wiimote_threads[i])
-		{
-			delete g_wiimote_threads[i];
-			g_wiimote_threads[i] = NULL;
-		}
-}
-
-THREAD_RETURN WiimoteThreadFunc(void* arg)
-{
-#ifdef __APPLE__
-	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-#endif
-
-	Wiimote* const wiimote = (Wiimote*)arg;
-
-	char thname[] = "Wiimote # Thread";
-	thname[8] = (char)('1' + wiimote->index);
-	Common::SetCurrentThreadName(thname);
-
-	// rumble briefly
-	wiimote->Rumble();
-
-	Host_ConnectWiimote(wiimote->index, true);
-
-	// main loop
-	while (g_run_wiimote_thread && wiimote->IsConnected())
-	{
-		// hopefully this is alright
-		while (wiimote->Write()) {}
-
-#ifndef __APPLE__
-		// sleep if there was nothing to read
-		if (false == wiimote->Read())
-#endif
-			Common::SleepCurrentThread(1);
-	}
-
-	Host_ConnectWiimote(wiimote->index, false);
-
-#ifdef __APPLE__
-	[pool release];
-#endif
-	return 0;
 }
 
 }; // end of namespace

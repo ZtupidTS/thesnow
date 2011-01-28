@@ -17,14 +17,12 @@
 
 #pragma once
 
-#include "Common.h"
-#include "LinearDiskCache.h"
-#include "D3DBase.h"
-
 #include <map>
 
-#include "PixelShaderGen.h"
-#include "VertexShaderGen.h"
+#include <d3d11.h>
+
+class PIXELSHADERUID;
+enum DSTALPHA_MODE;
 
 class PixelShaderCache
 {
@@ -36,6 +34,7 @@ public:
 	static bool InsertByteCode(const PIXELSHADERUID &uid, const void* bytecode, unsigned int bytecodelen);
 
 	static ID3D11PixelShader* GetActiveShader() { return last_entry->shader; }
+	static ID3D11Buffer* &GetConstantBuffer();
 
 	static ID3D11PixelShader* GetColorMatrixProgram(bool multisampled);
 	static ID3D11PixelShader* GetColorCopyProgram(bool multisampled);

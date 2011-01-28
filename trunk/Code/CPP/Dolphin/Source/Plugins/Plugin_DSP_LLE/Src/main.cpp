@@ -46,7 +46,7 @@ DSPConfigDialogLLE* m_ConfigFrame = NULL;
 
 PLUGIN_GLOBALS* globals = NULL;
 DSPInitialize g_dspInitialize;
-Common::Thread *g_hDSPThread = NULL;
+std::thread g_hDSPThread;
 SoundStream *soundStream = NULL;
 bool g_InitMixer = false;
 
@@ -169,16 +169,15 @@ void DoState(unsigned char **ptr, int mode)
 	PointerWrap p(ptr, mode);
 	p.Do(g_InitMixer);
 
-// Enable this when the HLE is fixed to save/load the same amount of data,
-// no matter how bogus, so that one can switch LLE->HLE. The other way is unlikely to work very well.
-#if 0
 	p.Do(g_dsp.r);
 	p.Do(g_dsp.pc);
+#if PROFILE
 	p.Do(g_dsp.err_pc);
+#endif
 	p.Do(g_dsp.cr);
 	p.Do(g_dsp.reg_stack_ptr);
 	p.Do(g_dsp.exceptions);
-	p.Do(g_dsp.exceptions_in_progress);
+	p.Do(g_dsp.external_interrupt_waiting);
 	for (int i = 0; i < 4; i++) {
 		p.Do(g_dsp.reg_stack[i]);
 	}
@@ -187,9 +186,12 @@ void DoState(unsigned char **ptr, int mode)
 	p.Do(g_dsp.ifx_regs);
 	p.Do(g_dsp.mbox[0]);
 	p.Do(g_dsp.mbox[1]);
-	p.DoArray(g_dsp.iram, DSP_IRAM_BYTE_SIZE);
-	p.DoArray(g_dsp.dram, DSP_DRAM_BYTE_SIZE);
-#endif
+	UnWriteProtectMemory(g_dsp.iram, DSP_IRAM_BYTE_SIZE, false);
+	p.DoArray(g_dsp.iram, DSP_IRAM_SIZE);
+	WriteProtectMemory(g_dsp.iram, DSP_IRAM_BYTE_SIZE, false);
+	p.DoArray(g_dsp.dram, DSP_DRAM_SIZE);
+	p.Do(cyclesLeft);
+	p.Do(cycle_count);
 }
 
 void EmuStateChange(PLUGIN_EMUSTATE newState)
@@ -209,13 +211,13 @@ void *DllDebugger(void *_hParent, bool Show)
 
 
 // Regular thread
-THREAD_RETURN dsp_thread(void* lpParameter)
+void dsp_thread()
 {
 	while (bIsRunning)
 	{
 		int cycles = (int)cycle_count;
 		if (cycles > 0) {
-			if (jit) 
+			if (dspjit) 
 				DSPCore_RunCycles(cycles);
 			else
 				DSPInterpreter::RunCycles(cycles);
@@ -224,7 +226,6 @@ THREAD_RETURN dsp_thread(void* lpParameter)
 		}
 		// yield?
 	}
-	return 0;
 }
 
 void DSP_DebugBreak()
@@ -274,7 +275,7 @@ void Initialize(void *init)
 
 	if (g_dspInitialize.bOnThread)
 	{
-		g_hDSPThread = new Common::Thread(dsp_thread, NULL);
+		g_hDSPThread = std::thread(dsp_thread);
 	}
 
 #if defined(HAVE_WX) && HAVE_WX
@@ -289,8 +290,7 @@ void DSP_StopSoundStream()
 	bIsRunning = false;
 	if (g_dspInitialize.bOnThread)
 	{
-		delete g_hDSPThread;
-		g_hDSPThread = NULL;
+		g_hDSPThread.join();
 	}
 }
 

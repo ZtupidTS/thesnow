@@ -21,7 +21,6 @@
 #include "D3DBase.h"
 #include "Fifo.h"
 #include "Statistics.h"
-#include "Profiler.h"
 #include "VertexManager.h"
 #include "OpcodeDecoding.h"
 #include "IndexGenerator.h"
@@ -116,8 +115,6 @@ void VertexManager::vFlush()
 	Flushed = true;
 	VideoFifo_CheckEFBAccess();
 
-	DVSTARTPROFILE();
-
 	u32 usedtextures = 0;
 	for (u32 i = 0; i < (u32)bpmem.genMode.numtevstages + 1; ++i)
 		if (bpmem.tevorders[i / 2].getEnable(i & 1))
@@ -173,7 +170,9 @@ void VertexManager::vFlush()
 
 	Draw(stride);
 
-	if (bpmem.dstalpha.enable && bpmem.blendmode.alphaupdate)
+	bool useDstAlpha = bpmem.dstalpha.enable && bpmem.blendmode.alphaupdate &&
+						bpmem.zcontrol.pixel_format == PIXELFMT_RGBA6_Z24;
+	if (useDstAlpha)
 	{
 		DWORD write = 0;
 		if (!PixelShaderCache::SetShader(DSTALPHA_ALPHA_PASS, g_nativeVertexFmt->m_components))

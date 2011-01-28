@@ -33,7 +33,6 @@
 
 #include "CommonPaths.h"
 #include "VideoConfig.h"
-#include "Profiler.h"
 #include "Statistics.h"
 #include "ImageWrite.h"
 #include "PixelEngine.h"
@@ -98,7 +97,7 @@ static bool s_bHaveCoverageMSAA = false;
 static u32 s_blendMode;
 
 #if defined(HAVE_WX) && HAVE_WX
-static Common::Thread *scrshotThread = 0;
+static std::thread scrshotThread;
 #endif
 
 #ifdef _WIN32
@@ -311,8 +310,14 @@ Renderer::Renderer()
 	s_backbuffer_height = (int)OpenGL_GetBackbufferHeight();
 
 	// Handle VSync on/off
+#ifdef __APPLE__
+	int swapInterval = g_ActiveConfig.bVSync ? 1 : 0;
 #if defined USE_WX && USE_WX
-	// TODO: FILL IN
+	NSOpenGLContext *ctx = GLWin.glCtxt->GetWXGLContext();
+#else
+	NSOpenGLContext *ctx = GLWin.cocoaCtx;
+#endif
+	[ctx setValues: &swapInterval forParameter: NSOpenGLCPSwapInterval];
 #elif defined _WIN32
 	if (WGLEW_EXT_swap_control)
 		wglSwapIntervalEXT(g_ActiveConfig.bVSync ? 1 : 0);
@@ -490,8 +495,8 @@ Renderer::~Renderer()
 #endif
 
 #if defined(HAVE_WX) && HAVE_WX
-	if (scrshotThread)
-		delete scrshotThread;
+	if (scrshotThread.joinable())
+		scrshotThread.join();
 #endif
 
 	delete g_framebuffer_manager;
@@ -974,7 +979,6 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 
 	ResetAPIState();
 
-	DVSTARTPROFILE();
 	TargetRectangle dst_rect;
 	ComputeDrawRectangle(s_backbuffer_width, s_backbuffer_height, true, &dst_rect);
 
@@ -1309,21 +1313,6 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 		glEnable(GL_BLEND);
 	GL_REPORT_ERRORD();
 
-#if defined(DVPROFILE)
-	if (g_bWriteProfile)
-	{
-		//g_bWriteProfile = 0;
-		static int framenum = 0;
-		const int UPDATE_FRAMES = 8;
-		if (++framenum >= UPDATE_FRAMES)
-		{
-			DVProfWrite("prof.txt", UPDATE_FRAMES);
-			DVProfClear();
-			framenum = 0;
-		}
-	}
-#endif
-
 	// Copy the rendered frame to the real window
 	OpenGL_SwapBuffers();
 
@@ -1496,10 +1485,8 @@ void Renderer::FlipImageData(u8 *data, int w, int h)
 }
 
 #if defined(HAVE_WX) && HAVE_WX
-THREAD_RETURN TakeScreenshot(void *pArgs)
+void TakeScreenshot(ScrStrct* threadStruct)
 {
-	ScrStrct *threadStruct = (ScrStrct *)pArgs;
-
 	// These will contain the final image size
 	float FloatW = (float)threadStruct->W;
 	float FloatH = (float)threadStruct->H;
@@ -1538,8 +1525,6 @@ THREAD_RETURN TakeScreenshot(void *pArgs)
 	OSD::AddMessage(StringFromFormat("Saved %i x %i %s", (int)FloatW, (int)FloatH,
 		threadStruct->filename.c_str()).c_str(), 2000);
 	delete threadStruct;
-
-	return 0;
 }
 #endif
 
@@ -1569,20 +1554,17 @@ bool Renderer::SaveScreenshot(const std::string &filename, const TargetRectangle
 	// Create wxImage
 	wxImage *a = new wxImage(W, H, data);
 
-	if (scrshotThread)
-	{
-		delete scrshotThread;
-		scrshotThread = NULL;
-	}
+	if (scrshotThread.joinable())
+		scrshotThread.join();
 
 	ScrStrct *threadStruct = new ScrStrct;
 	threadStruct->filename = filename;
 	threadStruct->img = a;
 	threadStruct->H = H; threadStruct->W = W;
 
-	scrshotThread = new Common::Thread(TakeScreenshot, threadStruct);
+	scrshotThread = std::thread(TakeScreenshot, threadStruct);
 #ifdef _WIN32
-	scrshotThread->SetPriority(THREAD_PRIORITY_BELOW_NORMAL);
+	SetThreadPriority(scrshotThread.native_handle(), THREAD_PRIORITY_BELOW_NORMAL);
 #endif
 	bool result = true;
 

@@ -108,7 +108,7 @@ void UpdateFPSDisplay(const char *text)
 }
 
 #if defined(HAVE_X11) && HAVE_X11
-THREAD_RETURN XEventThread(void *pArg);
+void XEventThread();
 
 void CreateXWindow (void)
 {
@@ -137,20 +137,18 @@ void CreateXWindow (void)
 	XMapRaised(GLWin.evdpy, GLWin.win);
 	XSync(GLWin.evdpy, True);
 
-	GLWin.xEventThread = new Common::Thread(XEventThread, NULL);
+	GLWin.xEventThread = std::thread(XEventThread);
 }
 
 void DestroyXWindow(void)
 {
 	XUnmapWindow(GLWin.dpy, GLWin.win);
 	GLWin.win = 0;
-	if (GLWin.xEventThread)
-		delete GLWin.xEventThread;
-	GLWin.xEventThread = NULL;
+	GLWin.xEventThread.join();
 	XFreeColormap(GLWin.evdpy, GLWin.attr.colormap);
 }
 
-THREAD_RETURN XEventThread(void *pArg)
+void XEventThread()
 {
 	// Free look variables
 	static bool mouseLookEnabled = false;
@@ -305,7 +303,6 @@ THREAD_RETURN XEventThread(void *pArg)
 		}
 		Common::SleepCurrentThread(20);
 	}
-	return 0;
 }
 #endif
 
@@ -327,8 +324,9 @@ bool OpenGL_Create(SVideoInitialize &_VideoInitialize, int _iwidth, int _iheight
 	GLWin.panel = (wxPanel *)g_VideoInitialize.pWindowHandle;
 	GLWin.glCanvas = new wxGLCanvas(GLWin.panel, wxID_ANY, NULL,
 		wxPoint(0, 0), wxSize(_twidth, _theight));
-	GLWin.glCtxt = new wxGLContext(GLWin.glCanvas);
 	GLWin.glCanvas->Show(true);
+	if (GLWin.glCtxt == NULL) // XXX dirty hack
+		GLWin.glCtxt = new wxGLContext(GLWin.glCanvas);
 
 #elif defined(__APPLE__)
 	NSOpenGLPixelFormatAttribute attr[2] = { NSOpenGLPFADoubleBuffer, 0 };
@@ -573,7 +571,8 @@ void OpenGL_Shutdown()
 {
 #if defined(USE_WX) && USE_WX
 	GLWin.glCanvas->Hide();
-	delete GLWin.glCtxt;
+	// XXX GLWin.glCanvas->Destroy();
+	// XXX delete GLWin.glCtxt;
 #elif defined(__APPLE__)
         [GLWin.cocoaWin close];
         [GLWin.cocoaCtx clearDrawable];

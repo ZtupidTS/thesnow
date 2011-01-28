@@ -35,7 +35,7 @@ typedef std::pair<u8*,u8> Report;
 namespace WiimoteReal
 {
 
-class Wiimote
+class Wiimote : NonCopyable
 {
 friend class WiimoteEmu::Wiimote;
 public:
@@ -90,8 +90,11 @@ private:
 	void SetLEDs(int leds);
 	int IORead(unsigned char* buf);
 	int IOWrite(unsigned char* buf, int len);
+	static void StartThread(Wiimote *wiimote);
+	void ThreadFunc();
 
 	bool				m_connected;
+	std::thread			m_wiimote_thread;
 	Common::FifoQueue<Report>	m_read_reports;
 	Common::FifoQueue<Report>	m_write_reports;
 };
