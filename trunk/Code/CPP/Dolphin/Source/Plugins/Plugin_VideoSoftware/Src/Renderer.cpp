@@ -16,6 +16,7 @@
 // http://code.google.com/p/dolphin-emu/
 
 #include "Common.h"
+#include "Core.h"
 
 #include "GLUtil.h"
 #include "Renderer.h"
@@ -29,17 +30,13 @@ static GLuint s_RenderTarget = 0;
 
 RasterFont* s_pfont = NULL;
 
-void Renderer::Init(SVideoInitialize *_pVideoInitialize)
+void Renderer::Init()
 {
-    if (!OpenGL_Create(g_VideoInitialize, 640, 480)) // 640x480 will be the default if all else fails
+    if (!OpenGL_Create(640, 480)) // 640x480 will be the default if all else fails
 	{
-        g_VideoInitialize.pLog("Renderer::Create failed\n", TRUE);
+		Core::Callback_VideoLog("Renderer::Create failed\n", TRUE);
         return;
     }
-
-	_pVideoInitialize->pPeekMessages = g_VideoInitialize.pPeekMessages;
-    _pVideoInitialize->pUpdateFPSDisplay = g_VideoInitialize.pUpdateFPSDisplay;
-    _pVideoInitialize->pWindowHandle = g_VideoInitialize.pWindowHandle;    
 }
 
 void Renderer::Shutdown()
@@ -125,7 +122,7 @@ void Renderer::DrawDebugText()
 	char *p = debugtext_buffer;
 	p[0] = 0;
 
-	if (g_Config.bShowStats) 
+	if (g_SWVideoConfig.bShowStats) 
 	{
         p+=sprintf(p,"Objects: %i\n",stats.thisFrame.numDrawnObjects);
         p+=sprintf(p,"Primatives: %i\n",stats.thisFrame.numPrimatives);

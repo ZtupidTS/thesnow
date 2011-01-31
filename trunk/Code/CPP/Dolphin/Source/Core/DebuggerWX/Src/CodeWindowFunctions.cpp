@@ -37,6 +37,8 @@
 #include "BreakpointWindow.h"
 #include "MemoryWindow.h"
 #include "JitWindow.h"
+#include "DebuggerPanel.h"
+#include "DSPDebugWindow.h"
 #include "FileUtil.h"
 
 #include "CodeWindow.h"
@@ -58,7 +60,6 @@
 #include "PowerPC/JitCommon/JitBase.h"
 #include "PowerPC/JitCommon/JitCache.h" // for ClearCache()
 
-#include "PluginManager.h"
 #include "ConfigManager.h"
 
 extern "C"  // Bitmaps
@@ -425,9 +426,9 @@ void CCodeWindow::OpenPages()
 	if (bShowOnStart[IDM_JITWINDOW - IDM_LOGWINDOW])
 		ToggleJitWindow(true);
 	if (bShowOnStart[IDM_SOUNDWINDOW - IDM_LOGWINDOW])
-		ToggleDLLWindow(IDM_SOUNDWINDOW, true);
+		ToggleSoundWindow(true);
 	if (bShowOnStart[IDM_VIDEOWINDOW - IDM_LOGWINDOW])
-		ToggleDLLWindow(IDM_VIDEOWINDOW, true);
+		ToggleVideoWindow(true);
 }
 
 void CCodeWindow::ToggleCodeWindow(bool bShow)
@@ -512,55 +513,39 @@ void CCodeWindow::ToggleJitWindow(bool bShow)
 	}
 }
 
-// Notice: This windows docking will produce several wx debugging messages for plugin
-// windows when ::GetWindowRect and ::DestroyWindow fails in wxApp::CleanUp() for the
-// plugin.
 
-// Toggle Sound Debugging Window
-void CCodeWindow::ToggleDLLWindow(int Id, bool bShow)
+void CCodeWindow::ToggleSoundWindow(bool bShow)
 {
-	std::string DLLName;
-	int PluginType;
-	wxPanel *Win;
-
-	switch(Id)
-	{
-		case IDM_SOUNDWINDOW:
-			DLLName = SConfig::GetInstance().m_LocalCoreStartupParameter.m_strDSPPlugin.c_str();
-			PluginType = PLUGIN_TYPE_DSP;
-			break;
-		case IDM_VIDEOWINDOW:
-			DLLName = SConfig::GetInstance().m_LocalCoreStartupParameter.m_strVideoPlugin.c_str();
-			PluginType = PLUGIN_TYPE_VIDEO;
-			break;
-		default:
-			PanicAlert("CCodeWindow::ToggleDLLWindow called with invalid Id");
-			return;
-	}
-
+	GetMenuBar()->FindItem(IDM_SOUNDWINDOW)->Check(bShow);
 	if (bShow)
 	{
-		// Show window
-		Win = (wxPanel *)CPluginManager::GetInstance().OpenDebug(Parent,
-				DLLName.c_str(), (PLUGIN_TYPE)PluginType, bShow);
-
-		if (Win)
-		{
-			Win->Show();
-			Win->SetId(Id);
-			Parent->DoAddPage(Win,
-				   	iNbAffiliation[Id - IDM_LOGWINDOW],
-				   	Parent->bFloatWindow[Id - IDM_LOGWINDOW]);
-		}
+		if (!m_SoundWindow)
+		   	m_SoundWindow = new DSPDebuggerLLE(Parent, IDM_SOUNDWINDOW);
+		Parent->DoAddPage(m_SoundWindow,
+			   	iNbAffiliation[IDM_SOUNDWINDOW - IDM_LOGWINDOW],
+			   	Parent->bFloatWindow[IDM_SOUNDWINDOW - IDM_LOGWINDOW]);
 	}
-	else
+	else // Close
 	{
-		Win = (wxPanel *)FindWindowById(Id);
-		if (Win)
-		{
-			Parent->DoRemovePage(Win, false);
-			Win->Destroy();
-		}
+		Parent->DoRemovePage(m_SoundWindow, false);
+		m_SoundWindow = NULL;
 	}
-	GetMenuBar()->FindItem(Id)->Check(bShow && !!Win);
+}
+
+void CCodeWindow::ToggleVideoWindow(bool bShow)
+{
+	GetMenuBar()->FindItem(IDM_VIDEOWINDOW)->Check(bShow);
+	if (bShow)
+	{
+		if (!m_VideoWindow)
+		   	m_VideoWindow = new GFXDebuggerPanel(Parent, IDM_VIDEOWINDOW);
+		Parent->DoAddPage(m_VideoWindow,
+			   	iNbAffiliation[IDM_VIDEOWINDOW - IDM_LOGWINDOW],
+			   	Parent->bFloatWindow[IDM_VIDEOWINDOW - IDM_LOGWINDOW]);
+	}
+	else // Close
+	{
+		Parent->DoRemovePage(m_VideoWindow, false);
+		m_VideoWindow = NULL;
+	}
 }

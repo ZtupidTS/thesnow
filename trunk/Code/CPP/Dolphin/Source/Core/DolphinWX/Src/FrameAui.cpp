@@ -27,7 +27,6 @@
 #include "Globals.h" // Local
 #include "Frame.h"
 #include "ConfigMain.h"
-#include "PluginManager.h"
 #include "CheatsWindow.h"
 #include "AboutDolphin.h"
 #include "GameListCtrl.h"
@@ -195,10 +194,10 @@ void CFrame::OnToggleWindow(wxCommandEvent& event)
 			g_pCodeWindow->ToggleJitWindow(bShow);
 			break;
 		case IDM_SOUNDWINDOW:
-			g_pCodeWindow->ToggleDLLWindow(IDM_SOUNDWINDOW, bShow);
+			g_pCodeWindow->ToggleSoundWindow(bShow);
 			break;
 		case IDM_VIDEOWINDOW:
-			g_pCodeWindow->ToggleDLLWindow(IDM_VIDEOWINDOW, bShow);
+			g_pCodeWindow->ToggleVideoWindow(bShow);
 			break;
 	}
 }
@@ -216,8 +215,8 @@ void CFrame::ClosePages()
 		g_pCodeWindow->ToggleBreakPointWindow(false);
 		g_pCodeWindow->ToggleMemoryWindow(false);
 		g_pCodeWindow->ToggleJitWindow(false);
-		g_pCodeWindow->ToggleDLLWindow(IDM_SOUNDWINDOW, false);
-		g_pCodeWindow->ToggleDLLWindow(IDM_VIDEOWINDOW, false);
+		g_pCodeWindow->ToggleSoundWindow(false);
+		g_pCodeWindow->ToggleVideoWindow(false);
 	}
 }
 
@@ -257,9 +256,9 @@ void CFrame::OnNotebookPageClose(wxAuiNotebookEvent& event)
 	if (Ctrl->GetPage(event.GetSelection())->GetId() == IDM_MEMORYWINDOW)
 		g_pCodeWindow->ToggleMemoryWindow(false);
 	if (Ctrl->GetPage(event.GetSelection())->GetId() == IDM_SOUNDWINDOW)
-		g_pCodeWindow->ToggleDLLWindow(IDM_SOUNDWINDOW, false);
+		g_pCodeWindow->ToggleSoundWindow(false);
 	if (Ctrl->GetPage(event.GetSelection())->GetId() == IDM_VIDEOWINDOW)
-		g_pCodeWindow->ToggleDLLWindow(IDM_VIDEOWINDOW, false);
+		g_pCodeWindow->ToggleVideoWindow(false);
 }
 
 void CFrame::OnFloatingPageClosed(wxCloseEvent& event)

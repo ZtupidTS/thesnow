@@ -4,8 +4,6 @@ Import('env')
 import os
 import sys
 
-name = os.sep + "Plugin_VideoSoftware"
-
 files = [
 	'BPMemLoader.cpp',
 	'Clipper.cpp',
@@ -28,9 +26,8 @@ files = [
 	'TextureEncoder.cpp',
 	'TextureSampler.cpp',
 	'TransformUnit.cpp',
-	'VertexFormatConverter.cpp',
 	'VertexLoader.cpp',
-	'VideoConfig.cpp',
+	'SWVideoConfig.cpp',
 	'XFMemLoader.cpp',
 	]
 
@@ -40,6 +37,4 @@ if env['HAVE_WX']:
 if sys.platform == 'win32':
 	files += [ 'Win32.cpp' ]
 
-libs = [ 'videocommon', 'GLEW', 'SOIL', 'common' ]
-
-env.SharedLibrary(env['plugin_dir'] + name, files, LIBS = env['LIBS'] + libs)
+env.StaticLibrary(env['local_libs'] + 'plugin_videosoftware', files)

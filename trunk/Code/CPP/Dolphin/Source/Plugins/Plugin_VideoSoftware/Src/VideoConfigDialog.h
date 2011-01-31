@@ -21,7 +21,7 @@
 #include <vector>
 #include <string>
 
-#include "VideoConfig.h"
+#include "SWVideoConfig.h"
 
 #include <wx/wx.h>
 #include <wx/textctrl.h>
@@ -76,7 +76,7 @@ protected:
 	void Event_ClickClose(wxCommandEvent&);
 	void Event_Close(wxCloseEvent&);
 
-	VideoConfig& vconfig;
+	SWVideoConfig& vconfig;
 	std::string ininame;
 };
 

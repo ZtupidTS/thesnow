@@ -31,6 +31,10 @@
 #include "BPMemory.h"
 #include "XFMemory.h"
 #include "Debugger.h"
+#include "ConfigManager.h"
+
+namespace DX9
+{
 
 VertexShaderCache::VSCache VertexShaderCache::vshaders;
 const VertexShaderCache::VSCacheEntry *VertexShaderCache::last_entry;
@@ -50,35 +54,6 @@ LPDIRECT3DVERTEXSHADER9 VertexShaderCache::GetSimpleVertexShader(int level)
 LPDIRECT3DVERTEXSHADER9 VertexShaderCache::GetClearVertexShader()
 {
 	return ClearVertexShader;
-}
-
-void SetVSConstant4f(unsigned int const_number, float f1, float f2, float f3, float f4)
-{
-	const float f[4] = { f1, f2, f3, f4 };
-	D3D::dev->SetVertexShaderConstantF(const_number, f, 1);
-}
-
-void SetVSConstant4fv(unsigned int const_number, const float *f)
-{
-	D3D::dev->SetVertexShaderConstantF(const_number, f, 1);
-}
-
-void SetMultiVSConstant3fv(unsigned int const_number, unsigned int count, const float *f)
-{
-	float buf[4*C_VENVCONST_END];
-	for (unsigned int i = 0; i < count; i++)
-	{
-		buf[4*i  ] = *f++;
-		buf[4*i+1] = *f++;
-		buf[4*i+2] = *f++;
-		buf[4*i+3] = 0.f;
-	}
-	D3D::dev->SetVertexShaderConstantF(const_number, buf, count);
-}
-
-void SetMultiVSConstant4fv(unsigned int const_number, unsigned int count, const float *f)
-{
-	D3D::dev->SetVertexShaderConstantF(const_number, f, count);
 }
 
 // this class will load the precompiled shaders into our cache
@@ -172,7 +147,7 @@ void VertexShaderCache::Init()
 	SETSTAT(stats.numVertexShadersAlive, 0);
 
 	char cache_filename[MAX_PATH];
-	sprintf(cache_filename, "%sdx9-%s-vs.cache", File::GetUserPath(D_SHADERCACHE_IDX), globals->unique_id);
+	sprintf(cache_filename, "%sdx9-%s-vs.cache", File::GetUserPath(D_SHADERCACHE_IDX), SConfig::GetInstance().m_LocalCoreStartupParameter.m_strUniqueID.c_str());
 	VertexShaderCacheInserter inserter;
 	g_vs_disk_cache.OpenAndRead(cache_filename, inserter);
 }
@@ -271,3 +246,34 @@ bool VertexShaderCache::InsertByteCode(const VERTEXSHADERUID &uid, const u8 *byt
 	}
 	return false;
 }
+
+void Renderer::SetVSConstant4f(unsigned int const_number, float f1, float f2, float f3, float f4)
+{
+	const float f[4] = { f1, f2, f3, f4 };
+	DX9::D3D::dev->SetVertexShaderConstantF(const_number, f, 1);
+}
+
+void Renderer::SetVSConstant4fv(unsigned int const_number, const float *f)
+{
+	DX9::D3D::dev->SetVertexShaderConstantF(const_number, f, 1);
+}
+
+void Renderer::SetMultiVSConstant3fv(unsigned int const_number, unsigned int count, const float *f)
+{
+	float buf[4*C_VENVCONST_END];
+	for (unsigned int i = 0; i < count; i++)
+	{
+		buf[4*i  ] = *f++;
+		buf[4*i+1] = *f++;
+		buf[4*i+2] = *f++;
+		buf[4*i+3] = 0.f;
+	}
+	DX9::D3D::dev->SetVertexShaderConstantF(const_number, buf, count);
+}
+
+void Renderer::SetMultiVSConstant4fv(unsigned int const_number, unsigned int count, const float *f)
+{
+	DX9::D3D::dev->SetVertexShaderConstantF(const_number, f, count);
+}
+
+}  // namespace DX9

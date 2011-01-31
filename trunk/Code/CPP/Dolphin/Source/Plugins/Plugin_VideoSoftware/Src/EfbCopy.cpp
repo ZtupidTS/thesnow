@@ -22,12 +22,13 @@
 #include "Renderer.h"
 #include "TextureEncoder.h"
 #include "Statistics.h"
-#include "VideoConfig.h"
+#include "SWVideoConfig.h"
 #include "DebugUtil.h"
 #include "HwRasterizer.h"
 #include "CommandProcessor.h"
 #include "GLUtil.h"
-
+#include "HW/Memmap.h"
+#include "Core.h"
 
 namespace EfbCopy
 {
@@ -35,7 +36,7 @@ namespace EfbCopy
     {
         OpenGL_Update(); // just updates the render window position and the backbuffer size	
 
-		if (!g_Config.bHwRasterizer)
+		if (!g_SWVideoConfig.bHwRasterizer)
         {
             // copy to open gl for rendering
             EfbInterface::UpdateColorTexture();
@@ -48,9 +49,9 @@ namespace EfbCopy
 
     void CopyToRam()
     {
-        if (!g_Config.bHwRasterizer)
+        if (!g_SWVideoConfig.bHwRasterizer)
 		{
-			u8 *dest_ptr = g_VideoInitialize.pGetMemoryPointer(bpmem.copyTexDest << 5);
+			u8 *dest_ptr = Memory::GetPointer(bpmem.copyTexDest << 5);
 
 			TextureEncoder::Encode(dest_ptr);
 		}
@@ -85,7 +86,7 @@ namespace EfbCopy
             if (bpmem.triggerEFBCopy.copy_to_xfb)
             {
                 CopyToXfb();
-                g_VideoInitialize.pCopiedToXFB(false);
+                Core::Callback_VideoCopiedToXFB(false);
 
                 stats.frameCount++;
             }
@@ -96,7 +97,7 @@ namespace EfbCopy
 
             if (bpmem.triggerEFBCopy.clear)
             {
-                if (g_Config.bHwRasterizer)
+                if (g_SWVideoConfig.bHwRasterizer)
                     HwRasterizer::Clear();
                 else
                     ClearEfb();
@@ -107,7 +108,7 @@ namespace EfbCopy
             if (bpmem.triggerEFBCopy.copy_to_xfb)
             {
                 // no frame rendered but tell that a frame has finished for frame skip counter
-                g_VideoInitialize.pCopiedToXFB(false);
+                Core::Callback_VideoCopiedToXFB(false);
             }
         }
     }    

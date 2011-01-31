@@ -19,9 +19,8 @@ set(SRCS	Src/BPMemLoader.cpp
 			Src/TextureEncoder.cpp
 			Src/TextureSampler.cpp
 			Src/TransformUnit.cpp
-			Src/VertexFormatConverter.cpp
 			Src/VertexLoader.cpp
-			Src/VideoConfig.cpp
+			Src/SWVideoConfig.cpp
 			Src/XFMemLoader.cpp)
 
 if(wxWidgets_FOUND)
@@ -44,8 +43,5 @@ elseif(NOT (${CMAKE_SYSTEM_NAME} MATCHES "Darwin"))
 	set(LIBS	${LIBS} clrun)
 endif()
 
-add_library(Plugin_VideoSoftware MODULE ${SRCS})
-target_link_libraries(Plugin_VideoSoftware ${LIBS})
-install(TARGETS Plugin_VideoSoftware
-	LIBRARY DESTINATION ${plugindir}
-	RUNTIME DESTINATION ${plugindir})
+add_library(videosoftware STATIC ${SRCS})
+target_link_libraries(videosoftware ${LIBS})

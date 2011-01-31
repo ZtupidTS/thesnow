@@ -26,6 +26,15 @@
 #include "Globals.h"
 #include "VertexShaderCache.h"
 
+#include "ConfigManager.h"
+
+// See comment near the bottom of this file
+static unsigned int vs_constant_offset_table[C_VENVCONST_END];
+float vsconstants[C_VENVCONST_END*4];
+bool vscbufchanged = true;
+
+namespace DX11 {
+
 VertexShaderCache::VSCache VertexShaderCache::vshaders;
 const VertexShaderCache::VSCacheEntry *VertexShaderCache::last_entry;
 
@@ -41,42 +50,7 @@ ID3D11VertexShader* VertexShaderCache::GetClearVertexShader() { return ClearVert
 ID3D11InputLayout* VertexShaderCache::GetSimpleInputLayout() { return SimpleLayout; }
 ID3D11InputLayout* VertexShaderCache::GetClearInputLayout() { return ClearLayout; }
 
-float vsconstants[C_VENVCONST_END*4];
-bool vscbufchanged = true;
 ID3D11Buffer* vscbuf = NULL;
-
-// maps the constant numbers to float indices in the constant buffer
-unsigned int vs_constant_offset_table[C_VENVCONST_END];
-void SetVSConstant4f(unsigned int const_number, float f1, float f2, float f3, float f4)
-{
-	vsconstants[vs_constant_offset_table[const_number]  ] = f1;
-	vsconstants[vs_constant_offset_table[const_number]+1] = f2;
-	vsconstants[vs_constant_offset_table[const_number]+2] = f3;
-	vsconstants[vs_constant_offset_table[const_number]+3] = f4;
-	vscbufchanged = true;
-}
-
-void SetVSConstant4fv(unsigned int const_number, const float* f)
-{
-	memcpy(&vsconstants[vs_constant_offset_table[const_number]], f, sizeof(float)*4);
-	vscbufchanged = true;
-}
-
-void SetMultiVSConstant3fv(unsigned int const_number, unsigned int count, const float* f)
-{
-	for (unsigned int i = 0; i < count; i++)
-	{
-		memcpy(&vsconstants[vs_constant_offset_table[const_number+i]], f+3*i, sizeof(float)*3);
-		vsconstants[vs_constant_offset_table[const_number+i]+3] = 0.f;		
-	}
-	vscbufchanged = true;
-}
-
-void SetMultiVSConstant4fv(unsigned int const_number, unsigned int count, const float* f)
-{
-	memcpy(&vsconstants[vs_constant_offset_table[const_number]], f, sizeof(float)*4*count);
-	vscbufchanged = true;
-}
 
 ID3D11Buffer* &VertexShaderCache::GetConstantBuffer()
 {
@@ -196,7 +170,7 @@ void VertexShaderCache::Init()
 	SETSTAT(stats.numVertexShadersAlive, 0);
 
 	char cache_filename[MAX_PATH];
-	sprintf(cache_filename, "%sdx11-%s-vs.cache", File::GetUserPath(D_SHADERCACHE_IDX), globals->unique_id);
+	sprintf(cache_filename, "%sdx11-%s-vs.cache", File::GetUserPath(D_SHADERCACHE_IDX), SConfig::GetInstance().m_LocalCoreStartupParameter.m_strUniqueID.c_str());
 	VertexShaderCacheInserter inserter;
 	g_vs_disk_cache.OpenAndRead(cache_filename, inserter);
 }
@@ -292,3 +266,39 @@ bool VertexShaderCache::InsertByteCode(const VERTEXSHADERUID &uid, D3DBlob* bcod
 	return true;
 }
 
+// These are "callbacks" from VideoCommon and thus must be outside namespace DX11.
+// This will have to be changed when we merge.
+
+// maps the constant numbers to float indices in the constant buffer
+void Renderer::SetVSConstant4f(unsigned int const_number, float f1, float f2, float f3, float f4)
+{
+	vsconstants[vs_constant_offset_table[const_number]  ] = f1;
+	vsconstants[vs_constant_offset_table[const_number]+1] = f2;
+	vsconstants[vs_constant_offset_table[const_number]+2] = f3;
+	vsconstants[vs_constant_offset_table[const_number]+3] = f4;
+	vscbufchanged = true;
+}
+
+void Renderer::SetVSConstant4fv(unsigned int const_number, const float* f)
+{
+	memcpy(&vsconstants[vs_constant_offset_table[const_number]], f, sizeof(float)*4);
+	vscbufchanged = true;
+}
+
+void Renderer::SetMultiVSConstant3fv(unsigned int const_number, unsigned int count, const float* f)
+{
+	for (unsigned int i = 0; i < count; i++)
+	{
+		memcpy(&vsconstants[vs_constant_offset_table[const_number+i]], f+3*i, sizeof(float)*3);
+		vsconstants[vs_constant_offset_table[const_number+i]+3] = 0.f;		
+	}
+	vscbufchanged = true;
+}
+
+void Renderer::SetMultiVSConstant4fv(unsigned int const_number, unsigned int count, const float* f)
+{
+	memcpy(&vsconstants[vs_constant_offset_table[const_number]], f, sizeof(float)*4*count);
+	vscbufchanged = true;
+}
+
+}  // namespace DX11

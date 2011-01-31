@@ -35,11 +35,15 @@ Core::GetWindowHandle().
 #include "FileUtil.h"
 #include "FileSearch.h"
 #include "Timer.h"
+#include "VideoBackendBase.h"
+
+#ifdef __APPLE__
+#include <ApplicationServices/ApplicationServices.h>
+#endif
 
 #include "Globals.h" // Local
 #include "Frame.h"
 #include "ConfigMain.h"
-#include "PluginManager.h"
 #include "MemcardManager.h"
 #include "CheatsWindow.h"
 #include "LuaWindow.h"
@@ -308,7 +312,12 @@ void CFrame::CreateMenu()
 
 wxString CFrame::GetMenuLabel(int Id)
 {
-	wxString Label;
+	int hotkey = SConfig::GetInstance().\
+		m_LocalCoreStartupParameter.iHotkey[Id];
+	int hotkeymodifier = SConfig::GetInstance().\
+		m_LocalCoreStartupParameter.iHotkeyModifier[Id];
+	wxString Hotkey, Label, Modifier;
+
 	switch (Id)
 	{
 		case HK_FULLSCREEN:
@@ -335,14 +344,20 @@ wxString CFrame::GetMenuLabel(int Id)
 			break;
 	}
 
-	wxString Modifier = InputCommon::WXKeymodToString
-		(SConfig::GetInstance().m_LocalCoreStartupParameter.iHotkeyModifier[Id]);
-	wxString Hotkey = InputCommon::WXKeyToString
-		(SConfig::GetInstance().m_LocalCoreStartupParameter.iHotkey[Id]);
+	// wxWidgets only accepts Ctrl/Alt/Shift as menu accelerator
+	// modifiers. On OS X, "Ctrl+" is mapped to the Command key.
+#ifdef __APPLE__
+	if (hotkeymodifier & wxMOD_CMD)
+		hotkeymodifier |= wxMOD_CONTROL;
+#endif
+	hotkeymodifier &= wxMOD_CONTROL | wxMOD_ALT | wxMOD_SHIFT;
+	
+	Modifier = InputCommon::WXKeymodToString(hotkeymodifier);
+	Hotkey = InputCommon::WXKeyToString(hotkey);
 	if (Modifier.Len() + Hotkey.Len() > 0)
 		Label += '\t';
 
-	return Label + Modifier + (Modifier.Len() ? _T("+") : _T("")) + Hotkey;
+	return Label + Modifier + Hotkey;
 }
 
 
@@ -757,6 +772,41 @@ void CFrame::ToggleDisplayMode(bool bFullscreen)
 	}
 #elif defined(HAVE_XRANDR) && HAVE_XRANDR
 	m_XRRConfig->ToggleDisplayMode(bFullscreen);
+#elif defined __APPLE__
+	if (!bFullscreen) {
+		CGRestorePermanentDisplayConfiguration();
+		CGDisplayRelease(CGMainDisplayID());
+		return;
+	}
+
+	CFArrayRef modes = CGDisplayAvailableModes(CGMainDisplayID());
+	for (CFIndex i = 0; i < CFArrayGetCount(modes); i++)
+	{
+		CFDictionaryRef mode;
+		CFNumberRef ref;
+		int x, y, w, h, d;
+
+		sscanf(SConfig::GetInstance().m_LocalCoreStartupParameter.\
+			strFullscreenResolution.c_str(), "%dx%d", &x, &y);
+
+		mode = (CFDictionaryRef)CFArrayGetValueAtIndex(modes, i);
+		ref = (CFNumberRef)CFDictionaryGetValue(mode, kCGDisplayWidth);
+		CFNumberGetValue(ref, kCFNumberIntType, &w);
+		ref = (CFNumberRef)CFDictionaryGetValue(mode, kCGDisplayHeight);
+		CFNumberGetValue(ref, kCFNumberIntType, &h);
+		ref = (CFNumberRef)CFDictionaryGetValue(mode,
+			kCGDisplayBitsPerPixel);
+		CFNumberGetValue(ref, kCFNumberIntType, &d);
+
+		if (CFDictionaryContainsKey(mode, kCGDisplayModeIsStretched))
+			continue;
+		if (w != x || h != y || d != 32)
+			continue;;
+
+		CGDisplayCapture(CGMainDisplayID());
+		CGDisplaySwitchToMode(CGMainDisplayID(), mode);
+	}
+
 #endif
 }
 
@@ -928,14 +978,6 @@ void CFrame::DoStop()
 		if(Frame::IsPlayingInput() || Frame::IsRecordingInput())
 			Frame::EndPlayInput();
 
-		// These windows cause segmentation faults if they are open when the emulator
-		// stops.  It has something to do with the the wxAuiManager update.
-		if (g_pCodeWindow)
-		{
-			g_pCodeWindow->ToggleDLLWindow(IDM_SOUNDWINDOW, false);
-			g_pCodeWindow->ToggleDLLWindow(IDM_VIDEOWINDOW, false);
-		}
-
 		BootManager::Stop();
 
 #if defined(HAVE_XDG_SCREENSAVER) && HAVE_XDG_SCREENSAVER
@@ -971,7 +1013,7 @@ void CFrame::DoStop()
 				(wxObject*)0, this);
 		if (SConfig::GetInstance().m_LocalCoreStartupParameter.bHideCursor)
 			m_RenderParent->SetCursor(wxCURSOR_ARROW);
-		DoFullscreen(FALSE);
+		DoFullscreen(false);
 		if (!SConfig::GetInstance().m_LocalCoreStartupParameter.bRenderToMain)
 			m_RenderFrame->Destroy();
 		m_RenderParent = NULL;
@@ -1043,34 +1085,16 @@ void CFrame::OnConfigMain(wxCommandEvent& WXUNUSED (event))
 
 void CFrame::OnPluginGFX(wxCommandEvent& WXUNUSED (event))
 {
-	#ifdef _WIN32
-	Disable(); // Fake a modal dialog
-	#endif
-	CPluginManager::GetInstance().OpenConfig(
-			this,
-			SConfig::GetInstance().m_LocalCoreStartupParameter.m_strVideoPlugin.c_str(),
-			PLUGIN_TYPE_VIDEO
-			);
-	#ifdef _WIN32
-	Enable();
-	Raise();
-	#endif
+	if (g_video_backend)
+		g_video_backend->ShowConfig(this);
 }
 
 void CFrame::OnPluginDSP(wxCommandEvent& WXUNUSED (event))
 {
-	#ifdef _WIN32
-	Disable(); // Fake a modal dialog
-	#endif
-	CPluginManager::GetInstance().OpenConfig(
-			this,
-			SConfig::GetInstance().m_LocalCoreStartupParameter.m_strDSPPlugin.c_str(),
-			PLUGIN_TYPE_DSP
-			);
-	#ifdef _WIN32
-	Enable();
-	Raise();
-	#endif
+	CConfigMain ConfigMain(this);
+	ConfigMain.SetSelectedTab(CConfigMain::ID_AUDIOPAGE);
+	if (ConfigMain.ShowModal() == wxID_OK)
+		m_GameListCtrl->Update();
 }
 
 void CFrame::OnPluginPAD(wxCommandEvent& WXUNUSED (event))

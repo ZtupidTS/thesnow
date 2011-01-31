@@ -20,7 +20,7 @@
 
 #include "Common.h"
 #include "MathUtil.h"
-#include "pluginspecs_video.h"
+#include "VideoBackendBase.h"
 
 #if defined(_MSC_VER) && !defined(__x86_64__) && !defined(_M_X64)
 void * memcpy_amd(void *dest, const void *src, size_t n);
@@ -56,52 +56,6 @@ enum
 // Helps some effects in Paper Mario (but they aren't quite right yet).
 // Do testing to figure out if the speed hit is bad?
 // #define BBOX_SUPPORT
-
-extern SVideoInitialize g_VideoInitialize;
-
-inline u8 *Memory_GetPtr(u32 _uAddress)
-{
-	return g_VideoInitialize.pGetMemoryPointer(_uAddress);
-}
-
-inline u8 Memory_Read_U8(u32 _uAddress)
-{
-	return *(u8*)g_VideoInitialize.pGetMemoryPointer(_uAddress);
-}
-
-inline u16 Memory_Read_U16(u32 _uAddress)
-{
-	return Common::swap16(*(u16*)g_VideoInitialize.pGetMemoryPointer(_uAddress));
-}
-
-inline u32 Memory_Read_U32(u32 _uAddress)
-{
-	return Common::swap32(*(u32*)g_VideoInitialize.pGetMemoryPointer(_uAddress));
-}
-
-inline u8* Memory_Read_U8_Ptr(u32 _uAddress)
-{
-	return (u8*)g_VideoInitialize.pGetMemoryPointer(_uAddress);
-}
-
-inline u16* Memory_Read_U16_Unswapped_Ptr(u32 _uAddress)
-{
-	return (u16*)g_VideoInitialize.pGetMemoryPointer(_uAddress);
-}
-
-inline u32* Memory_Read_U32_Unswapped_Ptr(u32 _uAddress)
-{
-	return (u32*)g_VideoInitialize.pGetMemoryPointer(_uAddress);
-}
-
-
-inline float Memory_Read_Float(u32 _uAddress)
-{
-	union {u32 i; float f;} temp;
-	temp.i = Memory_Read_U32(_uAddress);
-	return temp.f;
-}
-
 
 // Logging
 // ----------
@@ -165,14 +119,10 @@ inline u32 RGBA8ToRGBA6ToRGBA8(u32 src)
 
 inline u32 RGBA8ToRGB565ToRGBA8(u32 src)
 {
-	u32 color = src;
-	u32 dstr5 = (color & 0xFF0000) >> 19;
-	u32 dstg6 = (color & 0xFF00) >> 10;
-	u32 dstb5 = (color & 0xFF) >> 3;
-	u32 dstr8 = (dstr5 << 3) | (dstr5 >> 2);
-	u32 dstg8 = (dstg6 << 2) | (dstg6 >> 4);
-	u32 dstb8 = (dstb5 << 3) | (dstb5 >> 2);
-	color = 0xFF000000 | (dstr8 << 16) | (dstg8 << 8) | dstb8;
+	u32 color = (src & 0xF8FCF8);
+	color |= (color >> 5) & 0x070007;
+	color |= (color >> 6) & 0x000300;
+	color |= 0xFF000000;
 	return color;
 }
 

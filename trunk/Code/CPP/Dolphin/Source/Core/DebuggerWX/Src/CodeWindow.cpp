@@ -55,7 +55,6 @@
 #include "PowerPC/JitCommon/JitBase.h"
 #include "PowerPC/JitCommon/JitCache.h" // for ClearCache()
 
-#include "PluginManager.h"
 #include "ConfigManager.h"
 
 extern "C"  // Bitmaps
@@ -140,6 +139,8 @@ CCodeWindow::CCodeWindow(const SCoreStartupParameter& _LocalCoreStartupParameter
 	, m_BreakpointWindow(NULL)
 	, m_MemoryWindow(NULL)
 	, m_JitWindow(NULL)
+	, m_SoundWindow(NULL)
+	, m_VideoWindow(NULL)
 	, codeview(NULL)
 {
 	InitBitmaps();

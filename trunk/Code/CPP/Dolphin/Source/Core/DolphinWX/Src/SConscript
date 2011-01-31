@@ -5,21 +5,16 @@ import os
 import sys
 from SconsTests import utils
 
-files = [
-	'BootManager.cpp',
-	]
+files = ['BootManager.cpp']
+ldflags = []
+libs = []
 
-libs = [
-	'core', 'lzo2', 'discio', 'bdisasm',
-	'inputcommon', 'common', 'lua', 'z', 'sfml-network',
-	]
+if not env['HAVE_WX']:
+	files += ['MainNoGUI.cpp']
+else:
+	files += ['Main.cpp']
 
-wxlibs = [ ]
-
-ldflags = [ ]
-
-if env['HAVE_WX']:
-	files += [
+	libfiles = [
 		'AboutDolphin.cpp',
 		'ARCodeAddEdit.cpp',
 		'GeckoCodeDiag.cpp',
@@ -37,7 +32,6 @@ if env['HAVE_WX']:
 		'ISOProperties.cpp',
 		'PatchAddEdit.cpp',
 		'CheatsWindow.cpp',
-		'Main.cpp',
 		'MemcardManager.cpp',
 		'MemoryCards/GCMemcard.cpp',
 		'MemoryCards/WiiSaveCrypted.cpp',
@@ -51,23 +45,28 @@ if env['HAVE_WX']:
 		'WxUtils.cpp',
 		]
 
-	wxlibs += [ 'debwx', 'debugger_ui_util' ]
-else:
-	files += [
-		'MainNoGUI.cpp',
-		]
+	env.StaticLibrary(env['local_libs'] + "dolphinwx", libfiles)
+
+	libs += ['debwx', 'debugger_ui_util', 'dolphinwx']
+
+libs += ['core', 'common', 'discio', 'plugin_videoogl'] # 'plugin_videosoftware'
+if env['HAVE_WX']:
+	libs += ['videouicommon']
+libs += ['audiocommon', 'inputcommon', 'videocommon']
+libs += ['GLEW', 'SOIL', 'bdisasm', 'lua', 'lzo2', 'sfml-network', 'z']
 
 if sys.platform == 'win32':
 	files += [ "stdafx.cpp" ]
 elif sys.platform == 'darwin':
-	ldflags += [ '-Wl,-pagezero_size,0x1000' ]
-	ldflags += [ '-Wl,-ObjC' ] # XXX Hack to include wxGLCanvas
-	libs += [ 'iconv' ]
+	ldflags += [ '-Xarch_i386', '-Wl,-framework,QuickTime' ]
+	ldflags += [ '-weak_framework', 'OpenCL' ]
+
 	exe = '#' + env['prefix'] + '/Dolphin.app/Contents/MacOS/Dolphin'
 
 	if env['HAVE_WX']:
-		wxlibs += env['wxconfiglibs']
+		libs += env['wxconfiglibs']
 	else:
+		libs += [ 'iconv' ]
 		exe += 'NoGUI'
 
 	env.Install('#' + env['prefix'] + '/Dolphin.app/Contents/' +
@@ -103,7 +102,7 @@ elif sys.platform == 'darwin':
 		Value(dict(
 		CFBundleExecutable = 'Dolphin',
 		CFBundleIconFile = 'Dolphin.icns',
-		CFBundleIdentifier = 'com.dolphin-emu.dolphin',
+		CFBundleIdentifier = 'com.dolphin-emulator.dolphin',
 		CFBundlePackageType = 'APPL',
 		CFBundleShortVersionString =
 			utils.GenerateRevFile('', Dir('#None').abspath, None),
@@ -122,7 +121,7 @@ elif sys.platform == 'darwin':
 		"find $SOURCES -name .svn -exec rm -rf {} +")
 else:
 	files += [ 'X11Utils.cpp' ]
-	libs += [ 'SDL' ]
+	libs += [ 'SDL', 'clrun' ]
 	if env['HAVE_WX']:
 		exe = env['binary_dir'] + '/dolphin-emu'
 	else:
@@ -130,7 +129,6 @@ else:
 	env.InstallAs(env['data_dir'] + '/sys', '#Data/Sys')
 	env.InstallAs(env['data_dir'] + '/user', '#Data/User')
 
-libs = wxlibs + libs + env['LIBS']
 linkflags = ldflags + env['LINKFLAGS']
 
-env.Program(exe, files, LIBS = libs, LINKFLAGS = linkflags)
+env.Program(exe, files, LIBS = libs + env['LIBS'], LINKFLAGS = linkflags)
