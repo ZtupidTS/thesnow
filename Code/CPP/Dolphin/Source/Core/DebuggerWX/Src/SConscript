@@ -11,6 +11,8 @@ files = [
 	"BreakpointWindow.cpp",
 	"CodeWindow.cpp",
 	"CodeWindowFunctions.cpp",
+	"DSPDebugWindow.cpp",
+	"DSPRegisterView.cpp",
 	"MemoryCheckDlg.cpp",
 	"MemoryWindow.cpp",
 	"RegisterWindow.cpp",
@@ -18,9 +20,4 @@ files = [
 	"JitWindow.cpp",
 	]
 
-libs = [
-	'common',
-	'debugger_ui_util'
-	]
-
-env.StaticLibrary(env['local_libs'] + "debwx", files, LIBS = libs)
+env.StaticLibrary(env['local_libs'] + "debwx", files)

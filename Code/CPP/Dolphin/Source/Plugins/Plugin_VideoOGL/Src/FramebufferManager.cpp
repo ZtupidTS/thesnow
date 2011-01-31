@@ -20,8 +20,12 @@
 
 #include "TextureConverter.h"
 #include "Render.h"
+#include "HW/Memmap.h"
 
-extern bool s_bHaveFramebufferBlit; // comes from Render.cpp
+namespace OGL
+{
+
+extern bool s_bHaveFramebufferBlit; // comes from Render.cpp. ugly.
 
 int FramebufferManager::m_targetWidth;
 int FramebufferManager::m_targetHeight;
@@ -267,7 +271,7 @@ GLuint FramebufferManager::GetEFBDepthTexture(const EFBRectangle& sourceRc)
 
 void FramebufferManager::CopyToRealXFB(u32 xfbAddr, u32 fbWidth, u32 fbHeight, const EFBRectangle& sourceRc,float Gamma)
 {
-	u8* xfb_in_ram = Memory_GetPtr(xfbAddr);
+	u8* xfb_in_ram = Memory::GetPointer(xfbAddr);
 	if (!xfb_in_ram)
 	{
 		WARN_LOG(VIDEO, "Tried to copy to invalid XFB address");
@@ -401,3 +405,5 @@ void FramebufferManager::GetTargetSize(unsigned int *width, unsigned int *height
 	*width = m_targetWidth;
 	*height = m_targetHeight;
 }
+
+}  // namespace OGL

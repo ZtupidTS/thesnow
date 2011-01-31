@@ -26,6 +26,86 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="resources\toolbar_add_breakpoint.c">
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">CompileAsCpp</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='DebugFast|Win32'">CompileAsCpp</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">CompileAsCpp</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">CompileAsCpp</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='DebugFast|x64'">CompileAsCpp</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">CompileAsCpp</CompileAs>
+    </ClCompile>
+    <ClCompile Include="resources\toolbar_add_memorycheck.c">
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">CompileAsCpp</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='DebugFast|Win32'">CompileAsCpp</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">CompileAsCpp</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">CompileAsCpp</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='DebugFast|x64'">CompileAsCpp</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">CompileAsCpp</CompileAs>
+    </ClCompile>
+    <ClCompile Include="resources\toolbar_delete.c">
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">CompileAsCpp</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='DebugFast|Win32'">CompileAsCpp</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">CompileAsCpp</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">CompileAsCpp</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='DebugFast|x64'">CompileAsCpp</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">CompileAsCpp</CompileAs>
+    </ClCompile>
+    <ClCompile Include="resources\toolbar_pause.c">
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">CompileAsCpp</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='DebugFast|Win32'">CompileAsCpp</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">CompileAsCpp</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">CompileAsCpp</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='DebugFast|x64'">CompileAsCpp</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">CompileAsCpp</CompileAs>
+    </ClCompile>
+    <ClCompile Include="resources\toolbar_play.c">
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">CompileAsCpp</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='DebugFast|Win32'">CompileAsCpp</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">CompileAsCpp</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">CompileAsCpp</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='DebugFast|x64'">CompileAsCpp</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">CompileAsCpp</CompileAs>
+    </ClCompile>
+    <ClCompile Include="Src\BreakpointDlg.cpp" />
+    <ClCompile Include="Src\BreakpointView.cpp" />
+    <ClCompile Include="Src\BreakpointWindow.cpp" />
+    <ClCompile Include="Src\CodeWindow.cpp" />
+    <ClCompile Include="Src\CodeWindowFunctions.cpp" />
+    <ClCompile Include="Src\DSPDebugWindow.cpp" />
+    <ClCompile Include="Src\DSPRegisterView.cpp" />
+    <ClCompile Include="Src\JitWindow.cpp" />
+    <ClCompile Include="Src\MemoryCheckDlg.cpp" />
+    <ClCompile Include="Src\MemoryWindow.cpp" />
+    <ClCompile Include="Src\RegisterView.cpp" />
+    <ClCompile Include="Src\RegisterWindow.cpp" />
+    <ClCompile Include="Src\stdafx.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='DebugFast|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='DebugFast|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Src\BreakpointDlg.h" />
+    <ClInclude Include="Src\BreakpointView.h" />
+    <ClInclude Include="Src\BreakpointWindow.h" />
+    <ClInclude Include="Src\CodeWindow.h" />
+    <ClInclude Include="Src\DSPDebugWindow.h" />
+    <ClInclude Include="Src\DSPRegisterView.h" />
+    <ClInclude Include="Src\JitWindow.h" />
+    <ClInclude Include="Src\MemoryCheckDlg.h" />
+    <ClInclude Include="Src\MemoryWindow.h" />
+    <ClInclude Include="Src\RegisterView.h" />
+    <ClInclude Include="Src\RegisterWindow.h" />
+    <ClInclude Include="Src\stdafx.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="CMakeLists.txt" />
+    <None Include="Src\SConscript" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{518F8625-9BFD-402F-AACB-01CE9A1CED8A}</ProjectGuid>
     <RootNamespace>Debugger</RootNamespace>
@@ -127,7 +207,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\Common\Src;..\Core\Src;..\DebuggerUICommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\include;..\..\..\Externals\Bochs_disasm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\Common\Src;..\Core\Src;..\DebuggerUICommon\Src;..\VideoCommon\Src;..\VideoUICommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\include;..\..\..\Externals\Bochs_disasm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_SECURE_SCL=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <PrecompiledHeader>Use</PrecompiledHeader>
@@ -141,7 +221,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\Common\Src;..\Core\Src;..\DebuggerUICommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\include;..\..\..\Externals\Bochs_disasm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\Common\Src;..\Core\Src;..\DebuggerUICommon\Src;..\VideoCommon\Src;..\VideoUICommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\include;..\..\..\Externals\Bochs_disasm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_SECURE_SCL=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <PrecompiledHeader>Use</PrecompiledHeader>
@@ -157,7 +237,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <AdditionalIncludeDirectories>..\Common\Src;..\Core\Src;..\DebuggerUICommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\include;..\..\..\Externals\Bochs_disasm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\Common\Src;..\Core\Src;..\DebuggerUICommon\Src;..\VideoCommon\Src;..\VideoUICommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\include;..\..\..\Externals\Bochs_disasm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_SECURE_SCL=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <PrecompiledHeader>Use</PrecompiledHeader>
@@ -175,7 +255,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <AdditionalIncludeDirectories>..\Common\Src;..\Core\Src;..\DebuggerUICommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\include;..\..\..\Externals\Bochs_disasm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\Common\Src;..\Core\Src;..\DebuggerUICommon\Src;..\VideoCommon\Src;..\VideoUICommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\include;..\..\..\Externals\Bochs_disasm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>DEBUGFAST;_SECURE_SCL=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <PrecompiledHeader>Use</PrecompiledHeader>
@@ -193,11 +273,12 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <AdditionalIncludeDirectories>..\Common\Src;..\Core\Src;..\DebuggerUICommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\include;..\..\..\Externals\Bochs_disasm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\Common\Src;..\Core\Src;..\DebuggerUICommon\Src;..\VideoCommon\Src;..\VideoUICommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\include;..\..\..\Externals\Bochs_disasm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_SECURE_SCL=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <ForcedIncludeFiles>stdafx.h</ForcedIncludeFiles>
+      <PrecompiledHeaderFile>StdAfx.h</PrecompiledHeaderFile>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -211,7 +292,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <AdditionalIncludeDirectories>..\Common\Src;..\Core\Src;..\DebuggerUICommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\include;..\..\..\Externals\Bochs_disasm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\Common\Src;..\Core\Src;..\DebuggerUICommon\Src;..\VideoCommon\Src;..\VideoUICommon\Src;..\..\PluginSpecs;..\..\..\Externals\wxWidgets\include;..\..\..\Externals\Bochs_disasm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>DEBUGFAST;_SECURE_SCL=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <PrecompiledHeader>Use</PrecompiledHeader>
@@ -223,42 +304,6 @@
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClCompile Include="Src\BreakpointDlg.cpp" />
-    <ClCompile Include="Src\BreakpointView.cpp" />
-    <ClCompile Include="Src\BreakpointWindow.cpp" />
-    <ClCompile Include="Src\CodeWindow.cpp" />
-    <ClCompile Include="Src\CodeWindowFunctions.cpp" />
-    <ClCompile Include="Src\JitWindow.cpp" />
-    <ClCompile Include="Src\MemoryCheckDlg.cpp" />
-    <ClCompile Include="Src\MemoryWindow.cpp" />
-    <ClCompile Include="Src\RegisterView.cpp" />
-    <ClCompile Include="Src\RegisterWindow.cpp" />
-    <ClCompile Include="Src\stdafx.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='DebugFast|Win32'">Create</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='DebugFast|x64'">Create</PrecompiledHeader>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="Src\BreakpointDlg.h" />
-    <ClInclude Include="Src\BreakpointView.h" />
-    <ClInclude Include="Src\BreakpointWindow.h" />
-    <ClInclude Include="Src\CodeWindow.h" />
-    <ClInclude Include="Src\Debugger.h" />
-    <ClInclude Include="Src\JitWindow.h" />
-    <ClInclude Include="Src\MemoryCheckDlg.h" />
-    <ClInclude Include="Src\MemoryWindow.h" />
-    <ClInclude Include="Src\RegisterView.h" />
-    <ClInclude Include="Src\RegisterWindow.h" />
-    <ClInclude Include="Src\stdafx.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="Src\SConscript" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

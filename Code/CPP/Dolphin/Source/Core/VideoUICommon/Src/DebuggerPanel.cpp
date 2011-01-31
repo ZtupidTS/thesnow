@@ -19,14 +19,13 @@
 #include "IniFile.h"
 #include "DebuggerPanel.h"
 #include "FileUtil.h"
+#include "../../Core/Src/ConfigManager.h"
 
 #include "VideoConfig.h"
 #include "TextureCacheBase.h"
 #include "PixelShaderGen.h"
 #include "VertexShaderGen.h"
 #include "NativeVertexFormat.h"
-
-extern PLUGIN_GLOBALS* globals;
 
 BEGIN_EVENT_TABLE(GFXDebuggerPanel, wxPanel)
 	EVT_CLOSE(GFXDebuggerPanel::OnClose)
@@ -42,11 +41,17 @@ BEGIN_EVENT_TABLE(GFXDebuggerPanel, wxPanel)
 	EVT_BUTTON(ID_CLEAR_PIXEL_SHADER_CACHE,GFXDebuggerPanel::OnClearPixelShaderCacheButton)
 END_EVENT_TABLE()
 
+GFXDebuggerBase *g_pdebugger = NULL;
+volatile bool GFXDebuggerPauseFlag = false;
+volatile PauseEvent GFXDebuggerToPauseAtNext = NOT_PAUSE;
+volatile int GFXDebuggerEventToPauseCount = 0;
 
 GFXDebuggerPanel::GFXDebuggerPanel(wxWindow *parent, wxWindowID id, const wxPoint &position,
 									const wxSize& size, long style, const wxString &title)
 	: wxPanel(parent, id, position, size, style, title)
 {
+	g_pdebugger = this;
+
 	CreateGUIControls();
 
 	LoadSettings();
@@ -54,6 +59,7 @@ GFXDebuggerPanel::GFXDebuggerPanel(wxWindow *parent, wxWindowID id, const wxPoin
 
 GFXDebuggerPanel::~GFXDebuggerPanel()
 {
+	g_pdebugger = NULL;
 	GFXDebuggerPauseFlag = false;
 }
 
@@ -131,8 +137,6 @@ static const int numPauseEventMap = sizeof(pauseEventMap)/sizeof(PauseEventMap);
 
 void GFXDebuggerPanel::CreateGUIControls()
 {
-	g_pdebugger = this;
-
 	// Basic settings
 	CenterOnParent();
 
@@ -249,7 +253,7 @@ void GFXDebuggerPanel::OnPauseAtNextFrameButton(wxCommandEvent& event)
 void GFXDebuggerPanel::OnDumpButton(wxCommandEvent& event)
 {
 	char dump_path[MAX_PATH];
-	sprintf(dump_path, "%sDebug/%s/", File::GetUserPath(D_DUMP_IDX), globals->unique_id);
+	sprintf(dump_path, "%sDebug/%s/", File::GetUserPath(D_DUMP_IDX), SConfig::GetInstance().m_LocalCoreStartupParameter.m_strUniqueID.c_str());
 	if (!File::CreateFullPath(dump_path))
 		return;
 

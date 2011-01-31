@@ -31,7 +31,6 @@
 #include "Globals.h" // Local
 #include "Frame.h"
 #include "ConfigMain.h"
-#include "PluginManager.h"
 #include "CheatsWindow.h"
 #include "AboutDolphin.h"
 #include "GameListCtrl.h"
@@ -45,6 +44,8 @@
 #include "IPC_HLE/WII_IPC_HLE_Device_usb.h"
 #include "State.h"
 #include "VolumeHandler.h"
+
+#include "VideoBackendBase.h"
 
 #include <wx/datetime.h> // wxWidgets
 
@@ -349,6 +350,7 @@ CFrame::CFrame(wxFrame* parent,
 
 #ifdef __WXGTK__
 	panic_event.Init();
+	keystate_event.Init();
 #endif
 
 	if (ShowLogWindow) SConfig::GetInstance().m_InterfaceLogWindow = true;
@@ -428,9 +430,6 @@ CFrame::CFrame(wxFrame* parent,
 	m_LogWindow->Hide();
 	m_LogWindow->Disable();
 
-	// Create list of available plugins for the configuration window
-	CPluginManager::GetInstance().ScanForPlugins();
-
 	// Setup perspectives
 	if (g_pCodeWindow)
 	{
@@ -492,6 +491,7 @@ CFrame::~CFrame()
 
 #ifdef __WXGTK__
 	panic_event.Shutdown();
+	keystate_event.Shutdown();
 #endif
 
 	delete m_Mgr;
@@ -661,6 +661,10 @@ void CFrame::OnHostMessage(wxCommandEvent& event)
 		bPanicResult = (wxYES == wxMessageBox(event.GetString(), 
 					_("Warning"), event.GetInt() ? wxYES_NO : wxOK, this));
 		panic_event.Set();
+		break;
+	case IDM_KEYSTATE:
+		bKeyStateResult = wxGetKeyState(wxKeyCode(event.GetInt()));
+		keystate_event.Set();
 		break;
 #endif
 

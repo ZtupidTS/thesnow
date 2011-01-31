@@ -31,7 +31,6 @@
 #include "Setup.h"
 
 #include "Host.h" // Core
-#include "PluginManager.h"
 #include "HW/Wiimote.h"
 
 #include "Globals.h" // Local
@@ -42,6 +41,8 @@
 #include "ExtendedTrace.h"
 #include "BootManager.h"
 #include "Frame.h"
+
+#include "VideoBackendBase.h"
 
 #include <wx/intl.h>
 
@@ -283,16 +284,14 @@ bool DolphinApp::OnInit()
 
 	LogManager::Init();
 	SConfig::Init();
-	CPluginManager::Init();
+	VideoBackend::PopulateList();
 	WiimoteReal::LoadSettings();
 
 	if (selectVideoPlugin && videoPluginFilename != wxEmptyString)
 		SConfig::GetInstance().m_LocalCoreStartupParameter.m_strVideoPlugin =
 			std::string(videoPluginFilename.mb_str());
 
-	if (selectAudioPlugin && audioPluginFilename != wxEmptyString)
-		SConfig::GetInstance().m_LocalCoreStartupParameter.m_strDSPPlugin =
-			std::string(audioPluginFilename.mb_str());
+	VideoBackend::ActivateBackend(SConfig::GetInstance().m_LocalCoreStartupParameter.m_strVideoPlugin);
 
 	// Enable the PNG image handler for screenshots
 	wxImage::AddHandler(new wxPNGHandler);
@@ -424,7 +423,7 @@ int DolphinApp::OnExit()
 	if (SConfig::GetInstance().m_WiiAutoUnpair)
 		WiimoteReal::UnPair();
 #endif
-	CPluginManager::Shutdown();
+	VideoBackend::ClearList();
 	SConfig::Shutdown();
 	LogManager::Shutdown();
 
@@ -442,8 +441,6 @@ void DolphinApp::OnFatalException()
 // ------------
 // Talk to GUI
 
-
-// g_VideoInitialize.pSysMessage() goes here
 void Host_SysMessage(const char *fmt, ...) 
 {
 	va_list list;
@@ -568,11 +565,20 @@ void Host_UpdateBreakPointView()
 	}
 }
 
-void Host_UpdateMemoryView()
-{}
-
-void Host_SetDebugMode(bool)
-{}
+bool Host_GetKeyState(int keycode)
+{
+#ifdef _WIN32
+	return GetAsyncKeyState(keycode);
+#elif defined __WXGTK__
+	wxCommandEvent event(wxEVT_HOST_COMMAND, IDM_KEYSTATE);
+	event.SetInt(keycode);
+	main_frame->GetEventHandler()->AddPendingEvent(event);
+	main_frame->keystate_event.Wait();
+	return main_frame->bKeyStateResult;
+#else
+	return wxGetKeyState(wxKeyCode(keycode));
+#endif
+}
 
 void Host_GetRenderWindowSize(int& x, int& y, int& width, int& height)
 {

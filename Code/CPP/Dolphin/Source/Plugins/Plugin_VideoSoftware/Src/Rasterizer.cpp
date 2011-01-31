@@ -24,7 +24,7 @@
 #include "XFMemLoader.h"
 #include "Tev.h"
 #include "Statistics.h"
-#include "VideoConfig.h"
+#include "SWVideoConfig.h"
 
 
 #define BLOCK_SIZE 2
@@ -116,11 +116,9 @@ inline void Draw(s32 x, s32 y, s32 xi, s32 yi)
 	float dx = vertexOffsetX + (float)(x - vertex0X);
 	float dy = vertexOffsetY + (float)(y - vertex0Y);
 
-	float zFloat = 1.0f + ZSlope.GetValue(dx, dy);
-	if (zFloat < 0.0f || zFloat > 1.0f)
+	s32 z = (s32)ZSlope.GetValue(dx, dy);
+	if (z < 0 || z > 0x00ffffff)
 		return;
-
-	s32 z = (s32)(zFloat * 0x00ffffff);
 
 	if (bpmem.zcontrol.zcomploc && bpmem.zmode.testenable)
 	{
@@ -139,7 +137,14 @@ inline void Draw(s32 x, s32 y, s32 xi, s32 yi)
 	for (unsigned int i = 0; i < bpmem.genMode.numcolchans; i++)
 	{
 		for(int comp = 0; comp < 4; comp++)
-			tev.Color[i][comp] = (u8)ColorSlopes[i][comp].GetValue(dx, dy);
+		{
+			u16 color = (u16)ColorSlopes[i][comp].GetValue(dx, dy);
+
+			// clamp color value to 0
+			u16 mask = ~(color >> 8);
+
+			tev.Color[i][comp] = color & mask;
+		}
 	}
 
 	// tex coords
@@ -252,14 +257,13 @@ void BuildBlock(s32 blockX, s32 blockY)
 			// tex coords
 			for (unsigned int i = 0; i < bpmem.genMode.numtexgens; i++)
 			{
-				float projection;
+				float projection = invW;
 				if (xfregs.texMtxInfo[i].projection)
 				{
 					float q = TexSlopes[i][2].GetValue(dx, dy) * invW;
-					projection = invW / q;
+					if (q != 0.0f)
+						projection = invW / q;
 				}
-				else
-					projection = invW;
 
 				pixel.Uv[i][0] = TexSlopes[i][0].GetValue(dx, dy) * projection;
 				pixel.Uv[i][1] = TexSlopes[i][1].GetValue(dx, dy) * projection;
@@ -296,7 +300,7 @@ void DrawTriangleFrontFace(OutputVertexData *v0, OutputVertexData *v1, OutputVer
 {
     INCSTAT(stats.thisFrame.numTrianglesDrawn);
 
-    if (g_Config.bHwRasterizer)
+    if (g_SWVideoConfig.bHwRasterizer)
     {
         HwRasterizer::DrawTriangleFrontFace(v0, v1, v2);
         return;

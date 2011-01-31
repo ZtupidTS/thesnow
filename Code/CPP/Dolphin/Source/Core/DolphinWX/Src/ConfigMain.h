@@ -20,6 +20,7 @@
 
 #include <wx/wx.h>
 #include <wx/gbsizer.h>
+#include <wx/spinbutt.h>
 #include <wx/notebook.h>
 #include <wx/filepicker.h>
 #include "ConfigManager.h"
@@ -47,21 +48,110 @@ public:
 	void CloseClick(wxCommandEvent& event);
 	void OnSelectionChanged(wxCommandEvent& event);
 	void OnConfig(wxCommandEvent& event);
+	void SetSelectedTab(int tab);
 
 	bool bRefreshList;
 
-private:
-	wxNotebook* Notebook;
-	wxPanel* GeneralPage;
-	wxPanel* GamecubePage;
-	wxPanel* DisplayPage;
-	wxPanel* WiiPage;
-	wxPanel* PathsPage;
-	wxPanel* PluginsPage;
+	enum
+	{
+		ID_NOTEBOOK = 1000,
+		ID_GENERALPAGE,
+		ID_DISPLAYPAGE,
+		ID_AUDIOPAGE,
+		ID_GAMECUBEPAGE,
+		ID_WIIPAGE,
+		ID_PATHSPAGE,
+	};
 
-	wxBoxSizer* sGeneralPage; // General Settings
-	wxStaticBoxSizer* sbBasic, *sbAdvanced; // Basic and Advanced sections
-	
+private:
+	enum
+	{
+		ID_CPUTHREAD = 1010,
+		ID_IDLESKIP,
+		ID_ENABLECHEATS,
+		ID_FRAMELIMIT,
+		ID_FRAMELIMIT_USEFPSFORLIMITING,
+		
+		ID_ALWAYS_HLE_BS2,
+		ID_ENABLE_OPENCL,
+		ID_CPUENGINE,
+		ID_LOCKTHREADS,
+		ID_DSPTHREAD,
+
+		ID_DISPLAY_FULLSCREENRES,
+		ID_DISPLAY_WINDOWWIDTH,
+		ID_DISPLAY_WINDOWHEIGHT,
+		ID_DISPLAY_AUTOSIZE,
+		ID_DISPLAY_FULLSCREEN,
+		ID_DISPLAY_HIDECURSOR,
+		ID_DISPLAY_RENDERTOMAIN,
+		ID_DISPLAY_PROGSCAN,
+		ID_DISPLAY_NTSCJ,
+
+		// Audio Settings
+		ID_DSPENGINE,
+		ID_ENABLE_HLE_AUDIO,
+		ID_ENABLE_DTK_MUSIC,
+		ID_ENABLE_THROTTLE,
+		ID_FREQUENCY,
+		ID_BACKEND,
+		ID_VOLUME,
+
+		// Interface settings
+		ID_INTERFACE_CONFIRMSTOP,
+		ID_INTERFACE_USEPANICHANDLERS,
+		ID_INTERFACE_THEME,
+		ID_INTERFACE_LANG,
+		ID_HOTKEY_CONFIG,
+
+		ID_GC_SRAM_LNG,
+
+		ID_GC_EXIDEVICE_SLOTA,
+		ID_GC_EXIDEVICE_SLOTA_PATH,
+		ID_GC_EXIDEVICE_SLOTB,
+		ID_GC_EXIDEVICE_SLOTB_PATH,
+		ID_GC_EXIDEVICE_SP1,
+		ID_GC_SIDEVICE0,
+		ID_GC_SIDEVICE1,
+		ID_GC_SIDEVICE2,
+		ID_GC_SIDEVICE3,
+
+
+		ID_WII_BT_BAR,
+		ID_WII_BT_SENS,
+		ID_WII_BT_MOT,
+
+		ID_WII_IPL_SSV,
+		ID_WII_IPL_E60,
+		ID_WII_IPL_AR,
+		ID_WII_IPL_LNG,
+
+		ID_WII_SD_CARD,
+		ID_WII_KEYBOARD,
+
+
+		ID_ISOPATHS,
+		ID_RECURSIVEISOPATH,
+		ID_ADDISOPATH,
+		ID_REMOVEISOPATH,
+
+		ID_DEFAULTISO,
+		ID_DVDROOT,
+		ID_APPLOADERPATH,
+
+
+		ID_GRAPHIC_CB,
+		ID_GRAPHIC_CONFIG,
+		ID_GRAPHIC_ABOUT,
+
+		ID_DSP_CB,
+		ID_DSP_CONFIG,
+		ID_DSP_ABOUT,
+	};
+
+	wxNotebook* Notebook;
+	wxPanel* PathsPage;
+
 	// Basic
 	wxCheckBox* CPUThread;
 	wxCheckBox* SkipIdle;
@@ -89,6 +179,17 @@ private:
 	wxCheckBox* RenderToMain;
 	wxCheckBox* ProgressiveScan;
 	wxCheckBox* NTSCJ;
+
+	// Audio
+	wxBoxSizer* sAudioPage; // GC settings
+	wxRadioBox* DSPEngine;
+	wxSlider*	VolumeSlider;
+	wxStaticText* VolumeText;    
+    wxCheckBox*	EnableDTKMusic;
+    wxCheckBox*	EnableThrottle;
+	wxArrayString wxArrayBackends;
+	wxChoice*	BackendSelection;
+	wxChoice*	FrequencySelection;
 
 	// Interface
 	wxCheckBox* ConfirmStop;
@@ -146,17 +247,9 @@ private:
 	wxDirPickerCtrl* DVDRoot;
 	wxFilePickerCtrl* ApploaderPath;
 
-
-	wxBoxSizer* sPluginsPage; // Plugins settings
-	wxStaticBoxSizer* sbGraphicsPlugin, *sbDSPPlugin;  // Graphics, DSP sections
-
 	// Graphics
 	wxChoice* GraphicSelection;
 	wxButton* GraphicConfig;
-
-	// DSP
-	wxChoice* DSPSelection;
-	wxButton* DSPConfig;
 
 	wxButton* m_Ok;
 
@@ -164,6 +257,7 @@ private:
 
 	wxArrayString arrayStringFor_Framelimit;
 	wxArrayString arrayStringFor_CPUEngine;
+	wxArrayString arrayStringFor_DSPEngine;
 	wxArrayString arrayStringFor_FullscreenResolution;
 	wxArrayString arrayStringFor_Themes;
 	wxArrayString arrayStringFor_InterfaceLang;
@@ -172,92 +266,6 @@ private:
 	wxArrayString arrayStringFor_WiiAspectRatio;
 	wxArrayString arrayStringFor_WiiSystemLang;
 	wxArrayString arrayStringFor_ISOPaths;
-
-	enum
-	{
-		ID_NOTEBOOK = 1000,
-		ID_GENERALPAGE,
-		ID_DISPLAYPAGE,
-		ID_GAMECUBEPAGE,
-		ID_WIIPAGE,
-		ID_PATHSPAGE,
-		ID_PLUGINPAGE,
-
-		ID_CPUTHREAD,
-		ID_IDLESKIP,
-		ID_ENABLECHEATS,
-		ID_FRAMELIMIT,
-		ID_FRAMELIMIT_USEFPSFORLIMITING,
-		
-		ID_ALWAYS_HLE_BS2,
-		ID_ENABLE_OPENCL,
-		ID_CPUENGINE,
-		ID_LOCKTHREADS,
-		ID_DSPTHREAD,
-
-
-		ID_DISPLAY_FULLSCREENRES,
-		ID_DISPLAY_WINDOWWIDTH,
-		ID_DISPLAY_WINDOWHEIGHT,
-		ID_DISPLAY_AUTOSIZE,
-		ID_DISPLAY_FULLSCREEN,
-		ID_DISPLAY_HIDECURSOR,
-		ID_DISPLAY_RENDERTOMAIN,
-		ID_DISPLAY_PROGSCAN,
-		ID_DISPLAY_NTSCJ,
-
-		// Interface settings
-		ID_INTERFACE_CONFIRMSTOP,
-		ID_INTERFACE_USEPANICHANDLERS,
-		ID_INTERFACE_THEME,
-		ID_INTERFACE_LANG,
-		ID_HOTKEY_CONFIG,
-
-
-		ID_GC_SRAM_LNG,
-
-		ID_GC_EXIDEVICE_SLOTA,
-		ID_GC_EXIDEVICE_SLOTA_PATH,
-		ID_GC_EXIDEVICE_SLOTB,
-		ID_GC_EXIDEVICE_SLOTB_PATH,
-		ID_GC_EXIDEVICE_SP1,
-		ID_GC_SIDEVICE0,
-		ID_GC_SIDEVICE1,
-		ID_GC_SIDEVICE2,
-		ID_GC_SIDEVICE3,
-
-
-		ID_WII_BT_BAR,
-		ID_WII_BT_SENS,
-		ID_WII_BT_MOT,
-
-		ID_WII_IPL_SSV,
-		ID_WII_IPL_E60,
-		ID_WII_IPL_AR,
-		ID_WII_IPL_LNG,
-
-		ID_WII_SD_CARD,
-		ID_WII_KEYBOARD,
-
-
-		ID_ISOPATHS,
-		ID_RECURSIVEISOPATH,
-		ID_ADDISOPATH,
-		ID_REMOVEISOPATH,
-
-		ID_DEFAULTISO,
-		ID_DVDROOT,
-		ID_APPLOADERPATH,
-
-
-		ID_GRAPHIC_CB,
-		ID_GRAPHIC_CONFIG,
-		ID_GRAPHIC_ABOUT,
-
-		ID_DSP_CB,
-		ID_DSP_CONFIG,
-		ID_DSP_ABOUT,
-	};
 
 	void InitializeGUILists();
 	void InitializeGUIValues();
@@ -273,6 +281,10 @@ private:
 	void AddResolutions();
 	void OnSpin(wxSpinEvent& event);
 
+	void AudioSettingsChanged(wxCommandEvent& event);
+	bool SupportsVolumeChanges(std::string backend);
+	void AddAudioBackends();
+
 	void GCSettingsChanged(wxCommandEvent& event);
 	void ChooseMemcardPath(std::string& strMemcard, bool isSlotA);
 	void ChooseSIDevice(std::string deviceName, int deviceNum);
@@ -287,9 +299,6 @@ private:
 	void DVDRootChanged(wxFileDirPickerEvent& event);
 	void ApploaderPathChanged(wxFileDirPickerEvent& WXUNUSED (event));
 
-	void FillChoiceBox(wxChoice* _pChoice, int _PluginType, const std::string& _SelectFilename);
-	void CallConfig(wxChoice* _pChoice);
-	bool GetFilename(wxChoice* _pChoice, std::string& _rFilename);
 	DECLARE_EVENT_TABLE();
 };
 #endif

@@ -23,53 +23,12 @@
 #include <wx/dialog.h>
 #include <wx/aboutdlg.h>
 
-#include "VideoConfig.h"
+#include "ConfigManager.h"
+#include "SWVideoConfig.h"
 #include "main.h"
 #include "Win32.h"
 
 #include "StringUtil.h"
-
-
-HINSTANCE g_hInstance;
-
-#if defined(HAVE_WX) && HAVE_WX
-class wxDLLApp : public wxApp
-{
-	bool OnInit()
-	{
-		return true;
-	}
-};
-IMPLEMENT_APP_NO_MAIN(wxDLLApp) 
-WXDLLIMPEXP_BASE void wxSetInstance(HINSTANCE hInst);
-#endif
-// ------------------
-
-BOOL APIENTRY DllMain(HINSTANCE hinstDLL,	// DLL module handle
-					  DWORD dwReason,		// reason called
-					  LPVOID lpvReserved)	// reserved
-{
-	switch (dwReason)
-	{
-	case DLL_PROCESS_ATTACH:
-		{
-#if defined(HAVE_WX) && HAVE_WX
-			wxSetInstance((HINSTANCE)hinstDLL);
-			wxInitialize();
-#endif
-		}
-		break; 
-
-	case DLL_PROCESS_DETACH:
-#if defined(HAVE_WX) && HAVE_WX
-			wxUninitialize();
-#endif
-		break;
-	}
-
-	g_hInstance = hinstDLL;
-	return TRUE;
-}
 
 // ----------------------
 // The rendering window
@@ -80,10 +39,14 @@ namespace EmuWindow
 HWND m_hWnd = NULL; // The new window that is created here
 HWND m_hParent = NULL;
 
-HINSTANCE m_hInstance = NULL;
 WNDCLASSEX wndClass;
 const TCHAR m_szClassName[] = _T("DolphinEmuWnd");
 int g_winstyle;
+
+static void*& VideoWindowHandle()
+{
+	return SConfig::GetInstance().m_LocalCoreStartupParameter.hMainWindow;
+}
 
 // ------------------------------------------
 /* Invisible cursor option. In the lack of a predefined IDC_BLANK we make
@@ -129,7 +92,7 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam )
 		{
 		case VK_RETURN:
 			// Pressing Alt+Enter switch FullScreen/Windowed
-			if (m_hParent == NULL && !g_Config.renderToMainframe)
+			if (m_hParent == NULL && !g_SWVideoConfig.renderToMainframe)
 			{
 				ToggleFullscreen(hWnd);
 			}
@@ -146,7 +109,7 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam )
 		switch (LOWORD( wParam ))
 		{
 		case VK_ESCAPE:
-			if (g_Config.bFullscreen)
+			if (g_SWVideoConfig.bFullscreen)
 			{
 				// Pressing Esc switches to Windowed mode from Fullscreen mode
 				ToggleFullscreen(hWnd);
@@ -195,14 +158,14 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam )
 		if (m_hParent == NULL)
 		{
 			// Take it out of fullscreen and stop the game
-			if( g_Config.bFullscreen )
+			if( g_SWVideoConfig.bFullscreen )
 				ToggleFullscreen(m_hParent);
 			PostMessage(m_hParent, WM_USER, WM_USER_STOP, 0);
 		}
 		break;
 
 	case WM_DESTROY:
-		Shutdown();
+		g_video_backend->Shutdown();
 		break;
 
 	// Called when a screensaver wants to show up while this window is active
@@ -241,10 +204,10 @@ HWND OpenWindow(HWND parent, HINSTANCE hInstance, int width, int height, const T
 	wndClass.lpszClassName = m_szClassName;
 	wndClass.hIconSm = LoadIcon( NULL, IDI_APPLICATION );
 
-	m_hInstance = hInstance;
+	//m_hInstance = hInstance;
 	RegisterClassEx( &wndClass );
 
-	CreateCursors(m_hInstance);
+	CreateCursors(/*m_hInstance*/GetModuleHandle(0));
 
 	// Create child window
 	if (parent)
@@ -262,7 +225,7 @@ HWND OpenWindow(HWND parent, HINSTANCE hInstance, int width, int height, const T
 	// Create new separate window
 	else
 	{
-		DWORD style = g_Config.bFullscreen ? WS_POPUP : WS_OVERLAPPEDWINDOW;
+		DWORD style = g_SWVideoConfig.bFullscreen ? WS_POPUP : WS_OVERLAPPEDWINDOW;
 
 		RECT rc = {0, 0, width, height};
 		AdjustWindowRect(&rc, style, false);
@@ -275,7 +238,7 @@ HWND OpenWindow(HWND parent, HINSTANCE hInstance, int width, int height, const T
 		rc.top = (1024 - h)/2;
 		rc.bottom = rc.top + h;
 
-		m_hParent = (HWND)g_VideoInitialize.pWindowHandle;
+		m_hParent = (HWND)VideoWindowHandle();
 
 		m_hWnd = CreateWindow(m_szClassName, title,
 			style,
@@ -294,10 +257,10 @@ void ToggleFullscreen(HWND hParent)
 	if (m_hParent == NULL)
 	{ 
 		int	w_fs = 640, h_fs = 480;
-		if (g_Config.bFullscreen)
+		if (g_SWVideoConfig.bFullscreen)
 		{
 			// Get out of fullscreen
-			g_Config.bFullscreen = false;
+			g_SWVideoConfig.bFullscreen = false;
 			RECT rc = {0, 0, w_fs, h_fs};
 
 			// FullScreen -> Desktop
@@ -336,7 +299,7 @@ void ToggleFullscreen(HWND hParent)
 			
 			// Set new window style -> PopUp
 			SetWindowLong(hParent, GWL_STYLE, WS_POPUP);
-			g_Config.bFullscreen = true;
+			g_SWVideoConfig.bFullscreen = true;
 			ShowCursor(FALSE);
 
 			// SetWindowPos to the upper-left corner of the screen
@@ -364,7 +327,7 @@ void Close()
 {
 	if (!m_hParent)
 		DestroyWindow(m_hWnd);
-	UnregisterClass(m_szClassName, m_hInstance);
+	UnregisterClass(m_szClassName, /*m_hInstance*/GetModuleHandle(0));
 }
 
 // ------------------------------------------

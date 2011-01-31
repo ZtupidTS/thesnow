@@ -4,8 +4,6 @@ Import('env')
 import os
 import sys
 
-name = os.sep + "Plugin_VideoOGL"
-
 files = [
 	'RasterFont.cpp',
 	'Render.cpp',
@@ -21,9 +19,4 @@ files = [
 	'GLUtil.cpp'
 	]
 
-libs = [ 'videocommon', 'GLEW', 'SOIL', 'common' ]
-
-if env['HAVE_WX']:
-	libs += [ 'videouicommon' ]
-
-env.SharedLibrary(env['plugin_dir'] + name, files, LIBS = env['LIBS'] + libs)
+env.StaticLibrary(env['local_libs'] + 'plugin_videoogl', files)

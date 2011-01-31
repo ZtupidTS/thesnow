@@ -22,10 +22,6 @@
 #include "XFMemory.h"
 #include "PixelShaderGen.h"
 
-void SetPSConstant4f(unsigned int const_number, float f1, float f2, float f3, float f4);
-void SetPSConstant4fv(unsigned int const_number, const float *f);
-void SetMultiPSConstant4fv(unsigned int const_number, unsigned int count, const float *f);
-
 // The non-API dependent parts.
 class PixelShaderManager
 {
@@ -51,9 +47,11 @@ public:
 	static void SetTexCoordChanged(u8 texmapid);
 	static void SetFogColorChanged();
 	static void SetFogParamChanged();
+	static void SetFogRangeAdjustChanged();
 	static void SetColorMatrix(const float* pmatrix);
 	static void InvalidateXFRange(int start, int end);
 	static void SetMaterialColor(int index, u32 data);
+	
 };
 
 

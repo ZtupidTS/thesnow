@@ -20,8 +20,7 @@
 #define _GLINIT_H_
 
 #include <string>
-#include "VideoConfig.h"
-#include "pluginspecs_video.h"
+#include "SWVideoConfig.h"
 
 #ifdef _WIN32
 #define GLEW_STATIC
@@ -78,7 +77,7 @@ extern GLWindow GLWin;
 // Public OpenGL util
 
 // Initialization / upkeep
-bool OpenGL_Create(SVideoInitialize &_VideoInitialize, int _width, int _height);
+bool OpenGL_Create(int _width, int _height);
 void OpenGL_Shutdown();
 void OpenGL_Update();
 bool OpenGL_MakeCurrent();

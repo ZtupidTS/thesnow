@@ -6,6 +6,7 @@ set(LIBS	core
 			bdisasm
 			inputcommon
 			common
+			audiocommon
 			lua
 			z
 			sfml-network

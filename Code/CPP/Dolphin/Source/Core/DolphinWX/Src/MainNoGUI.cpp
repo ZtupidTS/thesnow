@@ -40,7 +40,7 @@
 #include "PowerPC/PowerPC.h"
 #include "HW/Wiimote.h"
 
-#include "PluginManager.h"
+#include "VideoBackendBase.h"
 #include "ConfigManager.h"
 #include "LogManager.h"
 #include "BootManager.h"
@@ -76,9 +76,10 @@ void Host_UpdateMainFrame()
 
 void Host_UpdateBreakPointView(){}
 
-void Host_UpdateMemoryView(){}
-
-void Host_SetDebugMode(bool){}
+bool Host_GetKeyState(int keycode)
+{
+	return false;
+}
 
 void Host_GetRenderWindowSize(int& x, int& y, int& width, int& height)
 {
@@ -259,11 +260,6 @@ void X11_MainLoop()
 
 int main(int argc, char* argv[])
 {
-#ifdef __APPLE__
-	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-	NSEvent *event = [[NSEvent alloc] init];	
-	ProcessSerialNumber psn;
-#endif
 	int ch, help = 0;
 	struct option longopts[] = {
 		{ "exec",	no_argument,	NULL,	'e' },
@@ -299,44 +295,41 @@ int main(int argc, char* argv[])
 	updateMainFrameEvent.Init();
 	LogManager::Init();
 	SConfig::Init();
-	CPluginManager::Init();
-	CPluginManager::GetInstance().ScanForPlugins();
+	VideoBackend::PopulateList();
+	VideoBackend::ActivateBackend(SConfig::GetInstance().
+		m_LocalCoreStartupParameter.m_strVideoPlugin);
 	WiimoteReal::LoadSettings();
 
 	// No use running the loop when booting fails
 	if (BootManager::BootCore(argv[optind]))
 	{
 #ifdef __APPLE__
-	GetCurrentProcess(&psn);
-	TransformProcessType(&psn, kProcessTransformToForegroundApplication);
-	SetFrontProcess(&psn);
-
-	if (NSApp == nil) {
+		NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+		NSEvent *event = [[NSEvent alloc] init];	
 		[NSApplication sharedApplication];
-		//TODO : Create menu
+		[NSApp activateIgnoringOtherApps: YES];
 		[NSApp finishLaunching];
-	}
 
-	while (running)
-	{
-		event = [NSApp nextEventMatchingMask: NSAnyEventMask
-			untilDate: [NSDate distantFuture]
-			inMode: NSDefaultRunLoopMode dequeue: YES];
-
-		if ([event type] == NSKeyDown &&
-			[event modifierFlags] & NSCommandKeyMask &&
-			[[event characters] UTF8String][0] == 'q')
+		while (running)
 		{
-			Core::Stop();
-			break;
-		}
+			event = [NSApp nextEventMatchingMask: NSAnyEventMask
+				untilDate: [NSDate distantFuture]
+				inMode: NSDefaultRunLoopMode dequeue: YES];
+	
+			if ([event type] == NSKeyDown &&
+				[event modifierFlags] & NSCommandKeyMask &&
+				[[event characters] UTF8String][0] == 'q')
+			{
+				Core::Stop();
+				break;
+			}
+	
+			if ([event type] != NSKeyDown)
+				[NSApp sendEvent: event];
+		}	
 
-		if ([event type] != NSKeyDown)
-			[NSApp sendEvent: event];
-	}	
-
-	[event release];
-	[pool release];
+		[event release];
+		[pool release];
 #elif defined HAVE_X11 && HAVE_X11
 		XInitThreads();
 		X11_MainLoop();
@@ -348,7 +341,7 @@ int main(int argc, char* argv[])
 
 	updateMainFrameEvent.Shutdown();
 	WiimoteReal::Shutdown();
-	CPluginManager::Shutdown();
+	VideoBackend::ClearList();
 	SConfig::Shutdown();
 	LogManager::Shutdown();
 

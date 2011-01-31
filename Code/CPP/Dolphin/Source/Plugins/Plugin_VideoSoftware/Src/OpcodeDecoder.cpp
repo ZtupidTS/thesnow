@@ -28,6 +28,8 @@
 #include "Statistics.h"
 #include "DebugUtil.h"
 #include "CommandProcessor.h"
+#include "SWVideoConfig.h"
+#include "HW/Memmap.h"
 
 typedef void (*DecodingFunction)(u32);
 DecodingFunction currentFunction = NULL;
@@ -48,7 +50,11 @@ void DecodePrimitiveStream(u32 iBufferSize)
 {
     u32 vertexSize = vertexLoader.GetVertexSize();
 
-    if(g_bSkipCurrentFrame)
+	bool skipPrimitives = g_bSkipCurrentFrame ||
+		 stats.thisFrame.numDrawnObjects < g_SWVideoConfig.drawStart ||
+		 stats.thisFrame.numDrawnObjects >= g_SWVideoConfig.drawEnd;
+
+    if (skipPrimitives)
     {
         while (streamSize > 0 && iBufferSize >= vertexSize)
         {
@@ -91,7 +97,7 @@ void ExecuteDisplayList(u32 addr, u32 count)
 {
     u8 *videoDataSave = g_pVideoData;
 
-    u8 *dlStart = g_VideoInitialize.pGetMemoryPointer(addr);
+    u8 *dlStart = Memory::GetPointer(addr);
 
     g_pVideoData = dlStart;
 

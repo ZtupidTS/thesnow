@@ -20,26 +20,16 @@
 
 #include "VertexShaderGen.h"
 
-enum
-{
-	PROJECTION_HACK_NONE = 0,
-	PROJECTION_HACK_ZELDA_TP_BLOOM_HACK = 1,
-	PROJECTION_HACK_SONIC_AND_THE_BLACK_KNIGHT = 2,
-	PROJECTION_HACK_BLEACH_VERSUS_CRUSADE = 3,
-	PROJECTION_HACK_SKIES_OF_ARCADIA = 4,
-	PROJECTION_HACK_METROID_OTHER_M = 5,
-};
-
 struct ProjectionHack
 {
-	bool enabled;
+	float sign;
 	float value;
 	ProjectionHack() { }
-	ProjectionHack(bool new_enabled, float new_value)
-		: enabled(new_enabled), value(new_value) {}
+	ProjectionHack(float new_sign, float new_value)
+		: sign(new_sign), value(new_value) {}
 };
 
-void UpdateProjectionHack(int hackIdx);
+void UpdateProjectionHack(int iParams[], std::string sParams[]);
 
 // The non-API dependent parts.
 class VertexShaderManager
@@ -64,11 +54,5 @@ public:
 	static void RotateView(float x, float y);
 	static void ResetView();
 };
-
-void SetVSConstant4f(unsigned int const_number, float f1, float f2, float f3, float f4);
-void SetVSConstant4fv(unsigned int const_number, const float *f);
-void SetMultiVSConstant3fv(unsigned int const_number, unsigned int count, const float *f);
-void SetMultiVSConstant4fv(unsigned int const_number, unsigned int count, const float *f);
-
 
 #endif // _VERTEXSHADERMANAGER_H

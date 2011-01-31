@@ -110,7 +110,6 @@ void VideoConfig::Load(const char *ini_file)
 	iniFile.Get("Hacks", "EFBScaledCopy", &bCopyEFBScaled, true);
 	iniFile.Get("Hacks", "EFBCopyCacheEnable", &bEFBCopyCacheEnable, false);
 	iniFile.Get("Hacks", "EFBEmulateFormatChanges", &bEFBEmulateFormatChanges, true);
-	iniFile.Get("Hacks", "ProjectionHack", &iPhackvalue, 0);
 
 	iniFile.Get("Hardware", "Adapter", &iAdapter, 0);
 	if (iAdapter == -1)
@@ -159,7 +158,17 @@ void VideoConfig::GameIniLoad(const char *ini_file)
 	if (iniFile.Exists("Video", "UseRealXFB"))
 		iniFile.Get("Video", "UseRealXFB", &bUseRealXFB);
 	if (iniFile.Exists("Video", "ProjectionHack"))
-		iniFile.Get("Video", "ProjectionHack", &iPhackvalue);
+		iniFile.Get("Video", "ProjectionHack", &iPhackvalue[0], 0);
+	if (iniFile.Exists("Video", "PH_SZNear"))
+		iniFile.Get("Video", "PH_SZNear", &iPhackvalue[1], 0);
+	if (iniFile.Exists("Video", "PH_SZFar"))
+		iniFile.Get("Video", "PH_SZFar", &iPhackvalue[2], 0);
+	if (iniFile.Exists("Video", "PH_ExtraParam"))
+		iniFile.Get("Video", "PH_ExtraParam", &iPhackvalue[3], 0);
+	if (iniFile.Exists("Video", "PH_ZNear"))
+		iniFile.Get("Video", "PH_ZNear", &sPhackvalue[0], "");
+	if (iniFile.Exists("Video", "PH_ZFar"))
+		iniFile.Get("Video", "PH_ZFar", &sPhackvalue[1], "");
 	if (iniFile.Exists("Video", "UseNativeMips"))
 		iniFile.Get("Video", "UseNativeMips", &bUseNativeMips);
 	if (iniFile.Exists("Video", "ZTPSpeedupHack"))
@@ -228,12 +237,14 @@ void VideoConfig::Save(const char *ini_file)
 	iniFile.Set("Hacks", "EFBScaledCopy", bCopyEFBScaled);
 	iniFile.Set("Hacks", "EFBCopyCacheEnable", bEFBCopyCacheEnable);
 	iniFile.Set("Hacks", "EFBEmulateFormatChanges", bEFBEmulateFormatChanges);
-	iniFile.Set("Hacks", "ProjectionHack", iPhackvalue);
 
 	iniFile.Set("Hardware", "Adapter", iAdapter);
 	
 	iniFile.Save(ini_file);
 }
+
+// TODO: remove
+extern bool g_aspect_wide;
 
 // TODO: Figure out a better place for this function.
 void ComputeDrawRectangle(int backbuffer_width, int backbuffer_height, bool flip, TargetRectangle *rc)
@@ -249,7 +260,7 @@ void ComputeDrawRectangle(int backbuffer_width, int backbuffer_height, bool flip
 	
 	// Handle aspect ratio.
 	// Default to auto.
-	bool use16_9 = g_VideoInitialize.bAutoAspectIs16_9;
+	bool use16_9 = g_aspect_wide;
 	
 	// Update aspect ratio hack values
 	// Won't take effect until next frame

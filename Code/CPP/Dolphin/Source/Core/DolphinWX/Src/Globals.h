@@ -19,8 +19,8 @@
 // This file holds global data for DolphinWx and DebuggerWx
 
 
-#ifndef _GLOBALS_H
-#define _GLOBALS_H
+#ifndef _WX_GLOBALS_H
+#define _WX_GLOBALS_H
 
 #ifndef NO_MOD
 #define NO_MOD
@@ -242,6 +242,7 @@ enum
 	IDM_UPDATETITLE,
 	IDM_UPDATEBREAKPOINTS,
 	IDM_PANIC,
+	IDM_KEYSTATE,
 	IDM_HOST_MESSAGE,
 
 	IDM_MPANEL, ID_STATUSBAR,
@@ -277,4 +278,4 @@ enum
 
 extern const wxEventType wxEVT_HOST_COMMAND;
 
-#endif // _GLOBALS_H
+#endif // _WX_GLOBALS_H

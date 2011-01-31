@@ -26,6 +26,7 @@
 #include "DataReader.h"
 #include "Statistics.h"
 #include "OpcodeDecoding.h"   // For the GX_ constants.
+#include "HW/Memmap.h"
 
 #include "XFMemory.h"
 #include "CPMemory.h"
@@ -67,12 +68,16 @@ struct ReferencedDataRegion
 		start_address(NULL),
 		size(0),
 		MustClean(false),
+		ReferencedArray(-1),
+		ReferencedArrayStride(0),
 		NextRegion(NULL)
 	{}
 	u64 hash;
 	u8* start_address;
 	u32 size;
 	bool MustClean;
+	int ReferencedArray;
+	u32 ReferencedArrayStride;
 	ReferencedDataRegion* NextRegion;
 
 	int IntersectsMemoryRange(u8* range_address, u32 range_size)
@@ -142,7 +147,7 @@ struct CachedDisplayList
 		BufferCount++;
 	}
 
-	void InsertOverlapingRegion(u8* RegionStartAddress, u32 Size)
+	void InsertOverlapingRegion(u8* RegionStartAddress, u32 Size,int referencedArray,int referencedArrayStride)
 	{
 		ReferencedDataRegion* NewRegion = FindOverlapingRegion(RegionStartAddress, Size);
 		if(NewRegion)
@@ -155,7 +160,7 @@ struct CachedDisplayList
 			}
 			if(RegionStartAddress + Size > NewRegion->start_address + NewRegion->size)
 			{
-				NewRegion->size += (RegionStartAddress + Size) - (NewRegion->start_address + NewRegion->size);
+				NewRegion->size += (u32)((RegionStartAddress + Size) - (NewRegion->start_address + NewRegion->size));
 				RegionChanged = true;
 			}
 			if(RegionChanged)
@@ -168,6 +173,9 @@ struct CachedDisplayList
 			NewRegion->size = Size;
 			NewRegion->start_address = RegionStartAddress; 
 			NewRegion->hash = GetHash64(RegionStartAddress, Size, DL_HASH_STEPS);					
+			NewRegion->ReferencedArray = referencedArray;
+			NewRegion->ReferencedArrayStride = referencedArrayStride;
+
 			InsertRegion(NewRegion);
 		}
 	}
@@ -179,6 +187,10 @@ struct CachedDisplayList
 		{
 			if(Current->hash)
 			{
+				if(Current->ReferencedArray != -1 && (cached_arraybases[Current->ReferencedArray] != Current->start_address || arraystrides[Current->ReferencedArray] != Current->ReferencedArrayStride))
+				{
+					return false;	
+				}
 				if(Current->hash != GetHash64(Current->start_address,  Current->size, DL_HASH_STEPS))
 					return false;
 			}
@@ -270,9 +282,9 @@ u8 AnalyzeAndRunDisplayList(u32 address, int	 size, CachedDisplayList *dl)
 	int num_draw_call = 0;
 	u8 result = 0;
 	u8* old_pVideoData = g_pVideoData;
-	u8* startAddress = Memory_GetPtr(address);
+	u8* startAddress = Memory::GetPointer(address);
 
-	// Avoid the crash if Memory_GetPtr failed ..
+	// Avoid the crash if Memory::GetPointer failed ..
 	if (startAddress != 0)
 	{
 		g_pVideoData = startAddress;
@@ -406,9 +418,9 @@ u8 AnalyzeAndRunDisplayList(u32 address, int	 size, CachedDisplayList *dl)
 bool CompileAndRunDisplayList(u32 address, int size, CachedDisplayList *dl)
 {
 	u8* old_pVideoData = g_pVideoData;
-	u8* startAddress = Memory_GetPtr(address);
+	u8* startAddress = Memory::GetPointer(address);
 
-	// Avoid the crash if Memory_GetPtr failed ..
+	// Avoid the crash if Memory::GetPointer failed ..
 	if (startAddress != 0)
 	{
 		g_pVideoData = startAddress;
@@ -571,7 +583,7 @@ bool CompileAndRunDisplayList(u32 address, int size, CachedDisplayList *dl)
 						{
 							u8* saddr = cached_arraybases[i];
 							int arraySize = arraystrides[i] * ((tc[i] == 2)? numVertices : ((numVertices < 1024)? 2 * numVertices : numVertices));
-							dl->InsertOverlapingRegion(saddr, arraySize);
+							dl->InsertOverlapingRegion(saddr, arraySize,i,arraystrides[i]);
 						}
 					}
 				}
@@ -696,7 +708,7 @@ bool HandleDisplayList(u32 address, u32 size)
 		{
 		case DLCache::DLPASS_COMPILE:
 			// First, check that the hash is the same as the last time.
-			if (dl.dl_hash != GetHash64(Memory_GetPtr(address), size, 0))
+			if (dl.dl_hash != GetHash64(Memory::GetPointer(address), size, 0))
 			{
 				// PanicAlert("uncachable %08x", address);
 				dl.uncachable = true;				
@@ -711,7 +723,7 @@ bool HandleDisplayList(u32 address, u32 size)
 				dl.check--;
 				if (dl.check <= 0)
 				{
-					if (dl.dl_hash != GetHash64(Memory_GetPtr(address), size, 0) || !dl.CheckRegions()) 
+					if (dl.dl_hash != GetHash64(Memory::GetPointer(address), size, 0) || !dl.CheckRegions()) 
 					{
 						dl.uncachable = true;
 						dl.check = 60;
@@ -749,7 +761,7 @@ bool HandleDisplayList(u32 address, u32 size)
 	DLCache::CachedDisplayList dl;
 	
 	u8 dlvatused = DLCache::AnalyzeAndRunDisplayList(address, size, &dl);
-	dl.dl_hash = GetHash64(Memory_GetPtr(address), size,0);
+	dl.dl_hash = GetHash64(Memory::GetPointer(address), size,0);
 	dl.pass = DLCache::DLPASS_COMPILE;
 	dl.check = 1;
 	dl.next_check = 1;
