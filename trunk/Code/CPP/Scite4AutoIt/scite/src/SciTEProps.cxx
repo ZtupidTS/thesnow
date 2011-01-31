@@ -452,11 +452,13 @@ SString SciTEBase::ExtensionFileName() {
 }
 
 void SciTEBase::ForwardPropertyToEditor(const char *key) {
-	SString value = props.GetExpanded(key);
-	wEditor.CallString(SCI_SETPROPERTY,
-	                 reinterpret_cast<uptr_t>(key), value.c_str());
-	wOutput.CallString(SCI_SETPROPERTY,
-	                 reinterpret_cast<uptr_t>(key), value.c_str());
+	if (props.Exists(key)) {
+		SString value = props.GetExpanded(key);
+		wEditor.CallString(SCI_SETPROPERTY,
+						 reinterpret_cast<uptr_t>(key), value.c_str());
+		wOutput.CallString(SCI_SETPROPERTY,
+						 reinterpret_cast<uptr_t>(key), value.c_str());
+	}
 }
 
 void SciTEBase::DefineMarker(int marker, int markerType, Colour fore, Colour back) {
@@ -546,6 +548,11 @@ static const char *propertiesToForward[] = {
 	"fold.comment.yaml",
 	"fold.compact",
 	"fold.cpp.comment.explicit",
+	"fold.cpp.comment.multiline",
+	"fold.cpp.explicit.anywhere",
+	"fold.cpp.explicit.end",
+	"fold.cpp.explicit.start",
+	"fold.cpp.syntax.based",
 	"fold.directive",
 	"fold.html",
 	"fold.html.preprocessor",
@@ -556,7 +563,6 @@ static const char *propertiesToForward[] = {
 	"fold.preprocessor",
 	"fold.quotes.nimrod",
 	"fold.quotes.python",
-	"fold.sql.exists",
 	"fold.sql.only.begin",
 	"fold.verilog.flags",
 	"html.tags.case.sensitive",
@@ -577,6 +583,7 @@ static const char *propertiesToForward[] = {
 	"lexer.python.strings.b",
 	"lexer.python.strings.over.newline",
 	"lexer.python.strings.u",
+	"lexer.sql.allow.dotted.word",
 	"lexer.sql.backticks.identifier",
 	"lexer.sql.fold.at.else",
 	"lexer.sql.numbersign.comment",

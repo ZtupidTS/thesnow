@@ -25,7 +25,6 @@
 #include "Scintilla.h"
 #include "SciLexer.h"
 
-#include "PropSetSimple.h"
 #include "WordList.h"
 #include "LexAccessor.h"
 #include "Accessor.h"
@@ -38,8 +37,11 @@
 using namespace Scintilla;
 #endif
 
-static inline bool IsAWordChar(int ch) {
-	return (ch < 0x80) && (isalnum(ch) || ch == '_');
+static inline bool IsAWordChar(int ch, bool sqlAllowDottedWord) {
+	if (!sqlAllowDottedWord)
+		return (ch < 0x80) && (isalnum(ch) || ch == '_');
+	else
+		return (ch < 0x80) && (isalnum(ch) || ch == '_' || ch == '.');
 }
 
 static inline bool IsAWordStart(int ch) {
@@ -169,20 +171,20 @@ struct OptionsSQL {
 	bool foldComment;
 	bool foldCompact;
 	bool foldOnlyBegin;
-	bool foldSqlExists;
 	bool sqlBackticksIdentifier;
 	bool sqlNumbersignComment;
 	bool sqlBackslashEscapes;
+	bool sqlAllowDottedWord;
 	OptionsSQL() {
 		fold = false;
 		foldAtElse = false;
 		foldComment = false;
 		foldCompact = false;
 		foldOnlyBegin = false;
-		foldSqlExists = false;
 		sqlBackticksIdentifier = false;
 		sqlNumbersignComment = false;
 		sqlBackslashEscapes = false;
+		sqlAllowDottedWord = false;
 	}
 };
 
@@ -211,9 +213,6 @@ struct OptionSetSQL : public OptionSet<OptionsSQL> {
 
 		DefineProperty("fold.sql.only.begin", &OptionsSQL::foldOnlyBegin);
 
-		DefineProperty("fold.sql.exists", &OptionsSQL::foldSqlExists,
-		               "Enables \"EXISTS\" to end a fold as is started by \"IF\" in \"DROP TABLE IF EXISTS\".");
-
 		DefineProperty("lexer.sql.backticks.identifier", &OptionsSQL::sqlBackticksIdentifier);
 
 		DefineProperty("lexer.sql.numbersign.comment", &OptionsSQL::sqlNumbersignComment,
@@ -221,6 +220,10 @@ struct OptionSetSQL : public OptionSet<OptionsSQL> {
 
 		DefineProperty("sql.backslash.escapes", &OptionsSQL::sqlBackslashEscapes,
 		               "Enables backslash as an escape character in SQL.");
+
+		DefineProperty("lexer.sql.allow.dotted.word", &OptionsSQL::sqlAllowDottedWord,
+		               "Set to 1 to colourise recognized words with dots "
+		               "(recommended for Oracle PL/SQL objects).");
 
 		DefineWordListSets(sqlWordListDesc);
 	}
@@ -351,7 +354,7 @@ void SCI_METHOD LexerSQL::Lex(unsigned int startPos, int length, int initStyle, 
 			}
 			break;
 		case SCE_SQL_IDENTIFIER:
-			if (!IsAWordChar(sc.ch)) {
+			if (!IsAWordChar(sc.ch, options.sqlAllowDottedWord)) {
 				int nextState = SCE_SQL_DEFAULT;
 				char s[1000];
 				sc.GetCurrentLowered(s, sizeof(s));
@@ -662,11 +665,9 @@ void SCI_METHOD LexerSQL::Fold(unsigned int startPos, int length, int initStyle,
 				levelNext++;
 				sqlStatesCurrentLine = sqlStates.IntoDeclareBlock(sqlStatesCurrentLine, false);
 			} else if ((strcmp(s, "end") == 0) ||
-			           // DROP TABLE IF EXISTS or CREATE TABLE IF NOT EXISTS
-			           (options.foldSqlExists && (strcmp(s, "exists") == 0)) ||
-			           //  SQL Anywhere permits IF ... ELSE ... ENDIF
-			           //      will only be active if "endif" appears in the
-			           //		keyword list.
+			           // SQL Anywhere permits IF ... ELSE ... ENDIF
+			           // will only be active if "endif" appears in the
+			           // keyword list.
 			           (strcmp(s, "endif") == 0)) {
 				endFound = true;
 				levelNext--;
@@ -690,7 +691,11 @@ void SCI_METHOD LexerSQL::Fold(unsigned int startPos, int length, int initStyle,
 				sqlStatesCurrentLine = sqlStates.IgnoreWhen(sqlStatesCurrentLine, true);
 			} else if ((!options.foldOnlyBegin) && !sqlStates.IsIntoDeclareBlock(sqlStatesCurrentLine) && strcmp(s, "exception") == 0) {
 				sqlStatesCurrentLine = sqlStates.IntoExceptionBlock(sqlStatesCurrentLine, true);
-			} else if ((!options.foldOnlyBegin) && strcmp (s, "declare") == 0) {
+			} else if ((!options.foldOnlyBegin) &&
+			           (strcmp(s, "declare") == 0 ||
+			            strcmp(s, "function") == 0 ||
+			            strcmp(s, "procedure") == 0 ||
+			            strcmp(s, "package") == 0)) {
 				sqlStatesCurrentLine = sqlStates.IntoDeclareBlock(sqlStatesCurrentLine, true);
 			}
 		}
