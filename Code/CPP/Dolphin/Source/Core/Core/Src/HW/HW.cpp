@@ -31,7 +31,6 @@
 #include "AudioInterface.h"
 #include "VideoInterface.h"
 #include "WII_IPC.h"
-#include "../PluginManager.h"
 #include "../ConfigManager.h"
 #include "../CoreTiming.h"
 #include "SystemTimers.h"
@@ -53,7 +52,7 @@ namespace HW
 		SerialInterface::Init();
 		ProcessorInterface::Init();
 		Memory::Init();
-		DSP::Init();
+		DSP::Init(SConfig::GetInstance().m_LocalCoreStartupParameter.bDSPHLE);
 		DVDInterface::Init();
 		GPFifo::Init();
 		ExpansionInterface::Init();

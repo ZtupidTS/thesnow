@@ -118,32 +118,20 @@ rev = utils.GenerateRevFile(env['flavor'], '.', None)
 # OS X specifics
 if sys.platform == 'darwin':
     ccld = ['-arch', 'x86_64', '-arch', 'i386', '-mmacosx-version-min=10.5.4']
-    ccld += ['--sysroot=/Developer/SDKs/MacOSX10.5.sdk']
-    system = '/System/Library/Frameworks'
     env['CCFLAGS'] += ccld
     env['CCFLAGS'] += ['-Wextra-tokens', '-Wnewline-eof']
-    env['CCFLAGS'] += ['-Xarch_i386', '-msse3', '-Xarch_x86_64', '-mssse3']
     env['CCFLAGS'] += ['-march=core2', '-mdynamic-no-pic']
-    env['CCFLAGS'] += ['-iframework/Developer/SDKs/MacOSX10.5.sdk' + system]
-    env['CCFLAGS'] += ['-iframework/Developer/SDKs/MacOSX10.6.sdk' + system]
-    #env['CC'] = 'clang'
-    #env['CC'] = 'gcc'
-    env['CC'] = 'llvm-gcc'
-    #env['CXX'] = 'clang++'
-    #env['CXX'] = 'g++'
-    env['CXX'] = 'llvm-g++'
+    env['CCFLAGS'] += ['-Xarch_i386', '-msse3', '-Xarch_x86_64', '-mssse3']
+    env['CC'] = '/Developer/usr/bin/llvm-gcc'
+    env['CXX'] = '/Developer/usr/bin/llvm-g++'
     env['CXXFLAGS'] += ['-x', 'objective-c++']
     env['FRAMEWORKS'] += ['AppKit', 'Carbon', 'CoreFoundation', 'CoreServices']
     env['FRAMEWORKS'] += ['AudioToolbox', 'AudioUnit', 'CoreAudio', 'WebKit']
     env['FRAMEWORKS'] += ['IOBluetooth', 'IOKit', 'OpenGL']
-    env['FRAMEWORKSFLAGS'] = ['-weak_framework', 'OpenCL']
-    env['FRAMEWORKSFLAGS'] += ['-Xarch_i386', '-Wl,-framework,QuickTime']
-    env['LIBPATH'] += ['/usr/lib']
     env['LINKFLAGS'] += ccld
-    env['LINKFLAGS'] += ['-Wl,-search_paths_first', '-Wl,-Z', '-F' + system]
-    env['SHCCFLAGS'] = env['CCFLAGS'] # Get rid of the -fPIC added in gcc.py
-    env['SHLINKFLAGS'] += ['-Wl,-undefined,dynamic_lookup']
-    env['SHLINKFLAGS'] += ['-Xarch_i386', '-Wl,-read_only_relocs,suppress']
+    env['LINKFLAGS'] += ['-Wl,-dead_strip']
+    env['LINKFLAGS'] += ['-Wl,-pagezero_size,0x1000']
+    env['LINKFLAGS'] += ['-Wl,-search_paths_first']
 
     if env['nowx']:
         env['HAVE_WX'] = 0
@@ -161,7 +149,7 @@ if sys.platform == 'darwin':
         wxconfig.ParseWXConfig(wxenv)
         env['CPPDEFINES'] += ['__WXOSX_COCOA__']
         env['CPPPATH'] += wxenv['CPPPATH']
-        env['LIBPATH'] += wxenv['LIBPATH']
+        #env['LIBPATH'] += wxenv['LIBPATH']
         env['wxconfiglibs'] = wxenv['LIBS']
 
     env['CPPPATH'] += ['#Externals']
@@ -171,7 +159,6 @@ if sys.platform == 'darwin':
     env['shared_zlib'] = True
 
     env['data_dir'] = '#' + env['prefix'] + '/Dolphin.app/Contents/Resources'
-    env['plugin_dir'] = '#' + env['prefix'] + '/Dolphin.app/Contents/PlugIns'
 
     if env['bundle']:
         app = env['prefix'] + '/Dolphin.app'
@@ -184,7 +171,7 @@ elif sys.platform == 'win32':
     pass
 
 else:
-    env['CCFLAGS'] += ['-fPIC', '-msse2', '-pthread']
+    env['CCFLAGS'] += ['-msse2', '-pthread']
     if env['CCVERSION'] >= '4.2.0':
         env['CCFLAGS'] += ['-fvisibility=hidden']
         env['CXXFLAGS'] += ['-fvisibility-inlines-hidden']
@@ -300,14 +287,12 @@ else:
     if env['install'] == 'local':
         env['binary_dir'] = '#' + env['prefix']
         env['data_dir'] = '#' + env['prefix']
-        env['plugin_dir'] = '#' + env['prefix'] + '/plugins'
         if env['bundle']:
             env.Tar(tarname, env['prefix'])
     else:
         env['prefix'] = Dir(env['prefix']).abspath
         env['binary_dir'] = env['prefix'] + '/bin'
         env['data_dir'] = env['prefix'] + "/share/dolphin-emu"
-        env['plugin_dir'] = env['prefix'] + '/lib/dolphin-emu'
         conf.Define('DATA_DIR', "\"" + env['data_dir'] + "/\"")
         conf.Define('LIBS_DIR', "\"" + env['prefix'] + '/lib/dolphin-emu/' + "\"")
         # Setup destdir for package building
@@ -317,7 +302,6 @@ else:
             env['destdir'] = Dir(env['destdir']).abspath
             env['binary_dir'] = env['destdir'] + env['binary_dir']
             env['data_dir'] = env['destdir'] + env['data_dir']
-            env['plugin_dir'] = env['destdir'] + env['plugin_dir']
             env['prefix'] = env['destdir'] + env['prefix']
             if env['bundle']:
                 env.Command(tarname + env['TARSUFFIX'], env['prefix'],
@@ -343,7 +327,6 @@ dirs = [
     'Externals/Lua',
     'Externals/GLew',
     'Externals/LZO',
-    #'Externals/OpenAL',
     'Externals/SDL',
     'Externals/SOIL',
     'Externals/SFML/src',
@@ -352,7 +335,6 @@ dirs = [
     'Source/Core/AudioCommon/Src',
     'Source/Core/Common/Src',
     'Source/Core/Core/Src',
-    'Source/Core/DSPCore/Src',
     'Source/Core/DebuggerUICommon/Src',
     'Source/Core/DebuggerWX/Src',
     'Source/Core/DiscIO/Src',
@@ -361,12 +343,8 @@ dirs = [
     'Source/Core/VideoCommon/Src',
     'Source/Core/VideoUICommon/Src',
     'Source/DSPTool/Src',
-    'Source/Plugins/Plugin_DSP_HLE/Src',
-    'Source/Plugins/Plugin_DSP_LLE/Src',
-    #'Source/Plugins/Plugin_VideoDX11/Src',
-    #'Source/Plugins/Plugin_VideoDX9/Src',
     'Source/Plugins/Plugin_VideoOGL/Src',
-    'Source/Plugins/Plugin_VideoSoftware/Src',
+    #'Source/Plugins/Plugin_VideoSoftware/Src',
     'Source/UnitTests',
     ]
 

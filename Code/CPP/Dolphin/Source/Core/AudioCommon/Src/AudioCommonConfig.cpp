@@ -16,10 +16,20 @@
 // http://code.google.com/p/dolphin-emu/
 
 #include "AudioCommon.h"
+#include "CommonPaths.h"
+#include "FileUtil.h"
+
 AudioCommonConfig ac_Config;
 
+// This shouldn't be a global, at least not here.
+SoundStream *soundStream;
+
 // Load from given file
-void AudioCommonConfig::Load(IniFile &file) {
+void AudioCommonConfig::Load()
+{
+	IniFile file;
+	file.Load(std::string(File::GetUserPath(F_DSPCONFIG_IDX)).c_str());
+
 	file.Get("Config", "EnableDTKMusic", &m_EnableDTKMusic, true);
 	file.Get("Config", "EnableThrottle", &m_EnableThrottle, true);
 	file.Get("Config", "EnableJIT", &m_EnableJIT, true);
@@ -37,13 +47,19 @@ void AudioCommonConfig::Load(IniFile &file) {
 }
 
 // Set the values for the file
-void AudioCommonConfig::Set(IniFile &file) {
+void AudioCommonConfig::SaveSettings()
+{
+	IniFile file;
+	file.Load(std::string(File::GetUserPath(F_DSPCONFIG_IDX)).c_str());
+
 	file.Set("Config", "EnableDTKMusic", m_EnableDTKMusic);
 	file.Set("Config", "EnableThrottle", m_EnableThrottle);
 	file.Set("Config", "EnableJIT", m_EnableJIT);
 	file.Set("Config", "Backend", sBackend);
 	file.Set("Config", "Frequency", sFrequency);
 	file.Set("Config", "Volume", m_Volume);
+
+	file.Save((std::string(File::GetUserPath(F_DSPCONFIG_IDX)).c_str()));
 }
 
 // Update according to the values (stream/mixer)

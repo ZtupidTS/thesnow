@@ -18,11 +18,14 @@
 #include "Common.h"
 #include "Thread.h"
 
-#include "../PluginManager.h"
+#include "../PluginDSP.h"
 #include "../PowerPC/PowerPC.h"
 #include "../Host.h"
 #include "../Core.h"
 #include "CPU.h"
+#include "DSP.h"
+
+#include "VideoBackendBase.h"
 
 namespace
 {
@@ -114,16 +117,15 @@ void CCPU::EnableStepping(const bool _bStepping)
 	if (_bStepping)
 	{
 		PowerPC::Pause();
-		// TODO(ector): why a sleep?
-		Host_SetDebugMode(true);
-		CPluginManager::GetInstance().EmuStateChange(PLUGIN_EMUSTATE_PAUSE);
+		g_video_backend->EmuStateChange(PLUGIN_EMUSTATE_PAUSE);
+		DSP::GetPlugin()->DSP_ClearAudioBuffer(true);
 	}
 	else
 	{
-		Host_SetDebugMode(false);
 		PowerPC::Start();
 		m_StepEvent.Set();
-		CPluginManager::GetInstance().EmuStateChange(PLUGIN_EMUSTATE_PLAY);
+		g_video_backend->EmuStateChange(PLUGIN_EMUSTATE_PLAY);
+		DSP::GetPlugin()->DSP_ClearAudioBuffer(false);
 	}
 }
 

@@ -8,6 +8,7 @@ def createVersion(env, target, source):
 	from SconsTests import utils
 	utils.GenerateRevFile(env['flavor'], source[0].path, target[0].path)
 
+Execute(Delete('svnrev.h'))
 env.Command('svnrev.h', 'svnrev_template.h',
 	[Delete('${TARGET.srcpath}'), createVersion])
 
@@ -18,7 +19,6 @@ files = [
 	"ColorUtil.cpp",
 	"ConsoleListener.cpp",
 	"CPUDetect.cpp",
-	"DynamicLibrary.cpp",
 	"FileSearch.cpp",
 	"FileUtil.cpp",
 	"Hash.cpp",
@@ -30,10 +30,6 @@ files = [
 	"Misc.cpp",
 	"MsgHandler.cpp",
 	"NandPaths.cpp",
-	"OpenCL.cpp",
-	"Plugin.cpp",
-	"PluginDSP.cpp",
-	"PluginVideo.cpp",
 	"SDCardUtil.cpp",
 	"StringUtil.cpp",
 	"SymbolDB.cpp",
@@ -42,6 +38,7 @@ files = [
 	"Thunk.cpp",
 	"Timer.cpp",
 	"Version.cpp",
+	"VideoBackendBase.cpp",
 	"x64Emitter.cpp",
 	"x64Analyzer.cpp",
 	"Crypto/aes_cbc.cpp",

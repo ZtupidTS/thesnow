@@ -18,11 +18,11 @@
 #include "OnFrame.h"
 
 #include "Core.h"
-#include "PluginManager.h"
 #include "Thread.h"
 #include "FileUtil.h"
 #include "PowerPC/PowerPC.h"
 #include "HW/SI.h"
+#include "VideoBackendBase.h"
 
 Common::CriticalSection cs_frameSkip;
 
@@ -77,7 +77,7 @@ void SetFrameSkipping(unsigned int framesToSkip)
 	// Don't forget to re-enable rendering in case it wasn't...
 	// as this won't be changed anymore when frameskip is turned off
 	if (framesToSkip == 0)
-		CPluginManager::GetInstance().GetVideo()->Video_SetRendering(true);
+		g_video_backend->Video_SetRendering(true);
 	
 	cs_frameSkip.Leave();
 }
@@ -110,7 +110,7 @@ void FrameSkipping()
 	if (g_frameSkipCounter > g_framesToSkip || Core::report_slow(g_frameSkipCounter) == false)
 		g_frameSkipCounter = 0;
 	
-	CPluginManager::GetInstance().GetVideo()->Video_SetRendering(!g_frameSkipCounter);
+	g_video_backend->Video_SetRendering(!g_frameSkipCounter);
 	
 	cs_frameSkip.Leave();
 }
@@ -130,13 +130,13 @@ bool IsUsingPad(int controller)
 	switch (controller)
 	{
 	case 0:
-		return g_numPads & 0x01;
+		return (g_numPads & 0x01) != 0;
 	case 1:
-		return g_numPads & 0x02;
+		return (g_numPads & 0x02) != 0;
 	case 2:
-		return g_numPads & 0x04;
+		return (g_numPads & 0x04) != 0;
 	case 3:
-		return g_numPads & 0x08;
+		return (g_numPads & 0x08) != 0;
 	default:
 		return false;
 	}

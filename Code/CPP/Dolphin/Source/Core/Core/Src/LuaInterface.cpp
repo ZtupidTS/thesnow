@@ -27,11 +27,13 @@
 #include "Core.h"
 #include "State.h"
 #include "ConfigManager.h"
-#include "PluginManager.h"
+#include "HW/DSP.h"
 #include "HW/Memmap.h"
 #include "Host.h"
 #include "PowerPC/PowerPC.h"
 #include "CoreTiming.h"
+#include "PluginDSP.h"
+#include "VideoBackendBase.h"
 
 extern "C" {
 #include "lua.h"
@@ -1373,14 +1375,14 @@ DEFINE_LUA_FUNCTION(emulua_frameadvance, "")
 
 	// run 1 frame
 	if(info.speedMode == SPEEDMODE_MAXIMUM)
-		CPluginManager::GetInstance().GetVideo()->Video_SetRendering(false);
+		g_video_backend->Video_SetRendering(false);
 	if(Core::GetState() == Core::CORE_PAUSE)
 		Core::SetState(Core::CORE_RUN);
 	PowerPC::RunLoop();
 
 	// continue as normal
 	if(info.speedMode == SPEEDMODE_MAXIMUM)
-		CPluginManager::GetInstance().GetVideo()->Video_SetRendering(true);
+		g_video_backend->Video_SetRendering(true);
 	Frame::SetFrameStopping(false);
 	*PowerPC::GetStatePtr() = PowerPC::CPU_RUNNING;
 
@@ -2802,6 +2804,7 @@ DEFINE_LUA_FUNCTION(emulua_loadrom, "filename")
 		game_ini.Get("Core", "TLBHack",				&StartUp.iTLBHack, StartUp.iTLBHack);
 		game_ini.Get("Core", "VBeam",				&StartUp.bVBeam, StartUp.bVBeam);
 		game_ini.Get("Core", "FastDiscSpeed",	&StartUp.bFastDiscSpeed, StartUp.bFastDiscSpeed);
+		game_ini.Get("Core", "DSPHLE",			&StartUp.bDSPHLE, StartUp.bDSPHLE);
 		// Wii settings
 		if (StartUp.bWii)
 		{
@@ -2956,8 +2959,7 @@ DEFINE_LUA_FUNCTION(movie_close, "")
 
 DEFINE_LUA_FUNCTION(sound_clear, "")
 {
-	if(CPluginManager::GetInstance().GetDSP())
-		CPluginManager::GetInstance().GetDSP()->DSP_ClearAudioBuffer();
+	DSP::GetPlugin()->DSP_ClearAudioBuffer(false);
 	return 0;
 }
 
