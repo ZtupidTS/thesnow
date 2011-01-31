@@ -6,8 +6,6 @@ import sys
 files = [
 	"ActionReplay.cpp",
 	"ARDecrypt.cpp",
-	"GeckoCode.cpp",
-	"GeckoCodeConfig.cpp",
 	"ConfigManager.cpp",
 	"Console.cpp",
 	"Core.cpp",
@@ -17,7 +15,7 @@ files = [
 	"OnFrame.cpp",
 	"MemTools.cpp",
 	"PatchEngine.cpp",
-	"PluginManager.cpp",
+	"PluginDSP.cpp",
 	"LuaInterface.cpp",
 	"State.cpp",
 	"Tracer.cpp",
@@ -31,12 +29,63 @@ files = [
 	"Debugger/Debugger_SymbolMap.cpp",
 	"Debugger/Dump.cpp",
 	"Debugger/PPCDebugInterface.cpp",
+	"DSP/assemble.cpp",
+	"DSP/disassemble.cpp",
+	"DSP/DSPAccelerator.cpp",
+	"DSP/DSPIntCCUtil.cpp",
+	"DSP/DSPIntExtOps.cpp",
+	"DSP/DSPHWInterface.cpp",
+	"DSP/DSPMemoryMap.cpp",
+	"DSP/DSPStacks.cpp",
+	"DSP/DSPAnalyzer.cpp",
+	"DSP/DspIntArithmetic.cpp",
+	"DSP/DspIntBranch.cpp",
+	"DSP/DspIntLoadStore.cpp",
+	"DSP/DspIntMisc.cpp",
+	"DSP/DspIntMultiplier.cpp",
+	"DSP/DSPEmitter.cpp",
+	"DSP/DSPCodeUtil.cpp",
+	"DSP/LabelMap.cpp",
+	"DSP/DSPInterpreter.cpp",
+	"DSP/DSPCore.cpp",
+	"DSP/DSPTables.cpp",
+	"DSP/Jit/DSPJitExtOps.cpp",
+	"DSP/Jit/DSPJitBranch.cpp",
+	"DSP/Jit/DSPJitUtil.cpp",
+	"DSP/Jit/DSPJitCCUtil.cpp",
+	"DSP/Jit/DSPJitArithmetic.cpp",
+	"DSP/Jit/DSPJitLoadStore.cpp",
+	"DSP/Jit/DSPJitMultiplier.cpp",
+	"DSP/Jit/DSPJitMisc.cpp",
+	"DSP/Jit/DSPJitRegCache.cpp",
+	"GeckoCode.cpp",
+	"GeckoCodeConfig.cpp",
 	"HLE/HLE.cpp",
 	"HLE/HLE_Misc.cpp",
 	"HLE/HLE_OS.cpp",
 	"HW/AudioInterface.cpp",
 	"HW/CPU.cpp",
 	"HW/DSP.cpp",
+	"HW/DSPHLE/UCodes/UCode_AX.cpp",
+	"HW/DSPHLE/UCodes/UCode_AXWii.cpp",
+	"HW/DSPHLE/UCodes/UCode_CARD.cpp",
+	"HW/DSPHLE/UCodes/UCode_InitAudioSystem.cpp",
+	"HW/DSPHLE/UCodes/UCode_ROM.cpp",
+	"HW/DSPHLE/UCodes/UCodes.cpp",
+	"HW/DSPHLE/UCodes/UCode_GBA.cpp",
+	"HW/DSPHLE/UCodes/UCode_Zelda.cpp",
+	"HW/DSPHLE/UCodes/UCode_Zelda_ADPCM.cpp",
+	"HW/DSPHLE/UCodes/UCode_Zelda_Synth.cpp",
+	"HW/DSPHLE/UCodes/UCode_Zelda_Voice.cpp",
+	"HW/DSPHLE/HLEMixer.cpp",
+	"HW/DSPHLE/MailHandler.cpp",
+	"HW/DSPHLE/DSPHLE.cpp",
+	"HW/DSPLLE/DSPDebugInterface.cpp",
+	"HW/DSPLLE/DSPHost.cpp",
+	"HW/DSPLLE/DSPSymbols.cpp",
+	"HW/DSPLLE/DSPLLEGlobals.cpp",
+	"HW/DSPLLE/DSPLLE.cpp",
+	"HW/DSPLLE/DSPLLETools.cpp",
 	"HW/DVDInterface.cpp",
 	"HW/EXI.cpp",
 	"HW/EXI_Channel.cpp",
@@ -139,18 +188,13 @@ files = [
 	"PowerPC/Jit64/Jit64_Tables.cpp",
 	]
 
-libs = [
-	'bdisasm',
-	'inputcommon',
-	'lua',
-	'sfml-network',
-	]
-
 if sys.platform == 'win32':
 	files += [ "HW/BBA-TAP/TAP_Win32.cpp", "stdafx.cpp", "HW/WiimoteReal/IOWin.cpp" ]
 elif sys.platform == 'darwin':
 	files += [ "HW/BBA-TAP/TAP_Apple.cpp", "HW/WiimoteReal/IOdarwin.mm" ]
+elif sys.platform == 'linux2' and env['HAVE_BLUEZ']:
+	files += [ "HW/BBA-TAP/TAP_Unix.cpp", "HW/WiimoteReal/IODummy.cpp" ]
 else:
-	files += [ "HW/BBA-TAP/TAP_Unix.cpp", "HW/WiimoteReal/IONix.cpp" ]
+	files += [ "HW/BBA-TAP/TAP_Unix.cpp", "HW/WiimoteReal/IODummy.cpp" ]
 
-env.StaticLibrary(env['local_libs'] + 'core', files, LIBS = libs)
+env.StaticLibrary(env['local_libs'] + 'core', files)

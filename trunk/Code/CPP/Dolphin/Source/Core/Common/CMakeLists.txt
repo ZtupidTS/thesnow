@@ -4,7 +4,6 @@ set(SRCS	Src/ABI.cpp
 			Src/ColorUtil.cpp
 			Src/ConsoleListener.cpp
 			Src/CPUDetect.cpp
-			Src/DynamicLibrary.cpp
 			Src/FileSearch.cpp
 			Src/FileUtil.cpp
 			Src/Hash.cpp
@@ -16,10 +15,6 @@ set(SRCS	Src/ABI.cpp
 			Src/Misc.cpp
 			Src/MsgHandler.cpp
 			Src/NandPaths.cpp
-			Src/OpenCL.cpp
-			Src/Plugin.cpp
-			Src/PluginDSP.cpp
-			Src/PluginVideo.cpp
 			Src/SDCardUtil.cpp
 			Src/StringUtil.cpp
 			Src/SymbolDB.cpp
@@ -28,6 +23,7 @@ set(SRCS	Src/ABI.cpp
 			Src/Thunk.cpp
 			Src/Timer.cpp
 			Src/Version.cpp
+			Src/VideoBackendBase.cpp
 			Src/x64Analyzer.cpp
 			Src/x64Emitter.cpp
 			Src/Crypto/aes_cbc.cpp
@@ -44,7 +40,4 @@ endif(WIN32)
 enable_precompiled_headers(Src/stdafx.h Src/stdafx.cpp SRCS)
 
 add_library(common STATIC ${SRCS})
-target_link_libraries(common ${CMAKE_DL_LIBS} ${CMAKE_THREAD_LIBS_INIT})
-if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-	add_definitions(-fPIC)
-endif()
+target_link_libraries(common clrun ${CMAKE_DL_LIBS} ${CMAKE_THREAD_LIBS_INIT})

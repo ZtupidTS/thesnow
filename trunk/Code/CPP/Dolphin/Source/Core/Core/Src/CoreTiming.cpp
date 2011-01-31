@@ -22,7 +22,7 @@
 #include "CoreTiming.h"
 #include "Core.h"
 #include "StringUtil.h"
-#include "PluginManager.h"
+#include "VideoBackendBase.h"
 
 #define MAX_SLICE_LENGTH 20000
 
@@ -68,7 +68,7 @@ u64 fakeDecStartTicks;
 u64 fakeTBStartValue;
 u64 fakeTBStartTicks;
 
-Common::CriticalSection externalEventSection;
+static Common::CriticalSection externalEventSection;
 
 void (*advanceCallback)(int cyclesExecuted) = NULL;
 
@@ -520,7 +520,7 @@ void Idle()
 	//When the FIFO is processing data we must not advance because in this way
 	//the VI will be desynchronized. So, We are waiting until the FIFO finish and 
 	//while we process only the events required by the FIFO.
-	while (CPluginManager::GetInstance().GetVideo()->Video_IsFifoBusy())
+	while (g_video_backend->Video_IsFifoBusy())
 	{
 		ProcessFifoWaitEvents();		
 		Common::YieldCPU();

@@ -12,7 +12,7 @@ set(SRCS	Src/ActionReplay.cpp
 			Src/MemTools.cpp
 			Src/OnFrame.cpp
 			Src/PatchEngine.cpp
-			Src/PluginManager.cpp
+			Src/PluginDSP.cpp
 			Src/State.cpp
 			Src/stdafx.cpp
 			Src/Tracer.cpp
@@ -26,12 +26,61 @@ set(SRCS	Src/ActionReplay.cpp
 			Src/Debugger/Debugger_SymbolMap.cpp
 			Src/Debugger/Dump.cpp
 			Src/Debugger/PPCDebugInterface.cpp
+			Src/DSP/assemble.cpp
+			Src/DSP/disassemble.cpp
+			Src/DSP/DSPAccelerator.cpp
+			Src/DSP/DSPIntCCUtil.cpp
+			Src/DSP/DSPIntExtOps.cpp
+			Src/DSP/DSPHWInterface.cpp
+			Src/DSP/DSPMemoryMap.cpp
+			Src/DSP/DSPStacks.cpp
+			Src/DSP/DSPAnalyzer.cpp
+			Src/DSP/DspIntArithmetic.cpp
+			Src/DSP/DspIntBranch.cpp
+			Src/DSP/DspIntLoadStore.cpp
+			Src/DSP/DspIntMisc.cpp
+			Src/DSP/DspIntMultiplier.cpp
+			Src/DSP/DSPEmitter.cpp
+			Src/DSP/DSPCodeUtil.cpp
+			Src/DSP/LabelMap.cpp
+			Src/DSP/DSPInterpreter.cpp
+			Src/DSP/DSPCore.cpp
+			Src/DSP/DSPTables.cpp
+			Src/DSP/Jit/DSPJitRegCache.cpp
+			Src/DSP/Jit/DSPJitExtOps.cpp
+			Src/DSP/Jit/DSPJitBranch.cpp
+			Src/DSP/Jit/DSPJitCCUtil.cpp
+			Src/DSP/Jit/DSPJitArithmetic.cpp
+			Src/DSP/Jit/DSPJitLoadStore.cpp
+			Src/DSP/Jit/DSPJitMultiplier.cpp
+			Src/DSP/Jit/DSPJitUtil.cpp
+			Src/DSP/Jit/DSPJitMisc.cpp
 			Src/HLE/HLE.cpp
 			Src/HLE/HLE_Misc.cpp
 			Src/HLE/HLE_OS.cpp
 			Src/HW/AudioInterface.cpp
 			Src/HW/CPU.cpp
 			Src/HW/DSP.cpp
+			Src/HW/DSPHLE/UCodes/UCode_AX.cpp
+			Src/HW/DSPHLE/UCodes/UCode_AXWii.cpp
+			Src/HW/DSPHLE/UCodes/UCode_CARD.cpp
+			Src/HW/DSPHLE/UCodes/UCode_InitAudioSystem.cpp
+			Src/HW/DSPHLE/UCodes/UCode_ROM.cpp
+			Src/HW/DSPHLE/UCodes/UCodes.cpp
+			Src/HW/DSPHLE/UCodes/UCode_GBA.cpp
+			Src/HW/DSPHLE/UCodes/UCode_Zelda.cpp
+			Src/HW/DSPHLE/UCodes/UCode_Zelda_ADPCM.cpp
+			Src/HW/DSPHLE/UCodes/UCode_Zelda_Voice.cpp
+			Src/HW/DSPHLE/UCodes/UCode_Zelda_Synth.cpp
+			Src/HW/DSPHLE/HLEMixer.cpp
+			Src/HW/DSPHLE/MailHandler.cpp
+			Src/HW/DSPHLE/DSPHLE.cpp
+			Src/HW/DSPLLE/DSPDebugInterface.cpp
+			Src/HW/DSPLLE/DSPHost.cpp
+			Src/HW/DSPLLE/DSPSymbols.cpp
+			Src/HW/DSPLLE/DSPLLEGlobals.cpp
+			Src/HW/DSPLLE/DSPLLE.cpp
+			Src/HW/DSPLLE/DSPLLETools.cpp
 			Src/HW/DVDInterface.cpp
 			Src/HW/EXI_Channel.cpp
 			Src/HW/EXI.cpp
@@ -133,7 +182,7 @@ set(SRCS	Src/ActionReplay.cpp
 			Src/PowerPC/JitCommon/JitCache.cpp
 			Src/PowerPC/JitCommon/Jit_Util.cpp)
 
-set(LIBS bdisasm inputcommon lua sfml-network)
+set(LIBS bdisasm inputcommon videoogl lua sfml-network)
 
 if(WIN32)
 	set(SRCS ${SRCS} Src/HW/BBA-TAP/TAP_Win32.cpp Src/stdafx.cpp
@@ -160,4 +209,3 @@ endif(OPROFILE_FOUND)
 
 add_library(core STATIC ${SRCS})
 target_link_libraries(core ${LIBS})
-

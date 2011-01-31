@@ -20,10 +20,6 @@
 #include <windows.h>
 #endif
 
-#ifdef __APPLE__
-#import <Foundation/NSAutoreleasePool.h>
-#endif
-
 #include "Setup.h" // Common
 #include "Atomic.h"
 #include "Thread.h"
@@ -58,8 +54,9 @@
 #include "PowerPC/PowerPC.h"
 #include "PowerPC/JitCommon/JitBase.h"
 
-#include "PluginManager.h"
+#include "PluginDSP.h"
 #include "ConfigManager.h"
+#include "VideoBackendBase.h"
 
 #include "VolumeHandler.h"
 #include "FileMonitor.h"
@@ -71,6 +68,9 @@
 #include "State.h"
 #include "OnFrame.h"
 
+// TODO: ugly, remove
+bool g_aspect_wide;
+
 namespace Core
 {
 
@@ -80,19 +80,10 @@ volatile u32 DrawnFrame = 0;
 u32 DrawnVideo = 0;
 
 // Function forwarding
-void Callback_VideoGetWindowSize(int& x, int& y, int& width, int& height);
-void Callback_VideoRequestWindowSize(int& width, int& height);
-void Callback_VideoLog(const TCHAR* _szMessage, int _bDoBreak);
-void Callback_VideoCopiedToXFB(bool video_update);
 void Callback_DSPLog(const TCHAR* _szMessage, int _v);
 const char *Callback_ISOName(void);
 void Callback_DSPInterrupt();
 void Callback_WiimoteInterruptChannel(int _number, u16 _channelID, const void* _pData, u32 _Size);
-
-// For keyboard shortcuts.
-void Callback_CoreMessage(int Id);
-TPeekMessages Callback_PeekMessages = NULL;
-TUpdateFPSDisplay g_pUpdateFPSDisplay = NULL;
 
 // Function declarations
 void EmuThread();
@@ -134,14 +125,12 @@ bool PanicAlertToVideo(const char* text, bool yes_no)
 
 void DisplayMessage(const std::string &message, int time_in_ms)
 {
-	CPluginManager::GetInstance().GetVideo()->Video_AddMessage(message.c_str(),
-															   time_in_ms);
+	g_video_backend->Video_AddMessage(message.c_str(), time_in_ms);
 }
 
 void DisplayMessage(const char *message, int time_in_ms)
 {
-	CPluginManager::GetInstance().GetVideo()->Video_AddMessage(message, 
-															   time_in_ms);
+	g_video_backend->Video_AddMessage(message, time_in_ms);
 }
 
 void Callback_DebuggerBreak()
@@ -166,7 +155,7 @@ bool isRunning()
 
 bool IsRunningInCurrentThread()
 {
-	return isRunning() && ((cpuThread.joinable()) || cpuThread.get_id() == std::this_thread::get_id());
+	return isRunning() && ((!cpuThread.joinable()) || cpuThread.get_id() == std::this_thread::get_id());
 }
 
 // This is called from the GUI thread. See the booting call schedule in
@@ -179,18 +168,10 @@ bool Init()
 		return false;
 	}
 
-	// Get a handle to the current instance of the plugin manager
-	CPluginManager &pManager = CPluginManager::GetInstance();
-	SCoreStartupParameter &_CoreParameter = SConfig::GetInstance().m_LocalCoreStartupParameter;
-
-	g_CoreStartupParameter = _CoreParameter;
+	g_CoreStartupParameter = SConfig::GetInstance().m_LocalCoreStartupParameter;
 
 	// FIXME DEBUG_LOG(BOOT, dump_params());
 	Host_SetWaitCursor(true);
-
-	// Load all needed plugins 
-	if (!pManager.InitPlugins())
-		return false;
 
 	emuThreadGoing.Init();
 
@@ -210,7 +191,7 @@ void Stop()  // - Hammertime!
 {
 	const SCoreStartupParameter& _CoreParameter = SConfig::GetInstance().m_LocalCoreStartupParameter;
 	g_bStopping = true;
-	CPluginManager::GetInstance().EmuStateChange(PLUGIN_EMUSTATE_STOP);
+	g_video_backend->EmuStateChange(PLUGIN_EMUSTATE_STOP);
 
 	WARN_LOG(CONSOLE, "Stop [Main Thread]\t\t---- Shutting down ----");	
 
@@ -229,7 +210,7 @@ void Stop()  // - Hammertime!
 		// concurrently with the rest of the commands in this function. We no
 		// longer rely on Postmessage.
 		NOTICE_LOG(CONSOLE, "%s", StopMessage(true, "Wait for Video Loop to exit ...").c_str());
-		CPluginManager::GetInstance().GetVideo()->Video_ExitLoop();
+		g_video_backend->Video_ExitLoop();
 
 		// Wait until the CPU finishes exiting the main run loop
 		cpuRunloopQuit.Wait();
@@ -249,11 +230,6 @@ void Stop()  // - Hammertime!
 
 void CpuThread()
 {
-#ifdef __APPLE__
-	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-#endif
-
-	CPluginManager &Plugins = CPluginManager::GetInstance();
 	const SCoreStartupParameter& _CoreParameter = SConfig::GetInstance().m_LocalCoreStartupParameter;
 
 	if (_CoreParameter.bCPUThread)
@@ -262,7 +238,7 @@ void CpuThread()
 	}
 	else
 	{
-		CPluginManager::GetInstance().GetVideo()->Video_Prepare();
+		g_video_backend->Video_Prepare();
 		Common::SetCurrentThreadName("CPU-GPU thread");
 	}
 
@@ -286,14 +262,11 @@ void CpuThread()
 	// So we have to call the shutdown from the thread that started it.
 	if (!_CoreParameter.bCPUThread)
 	{
-		Plugins.ShutdownVideoPlugin();
+		g_video_backend->Shutdown();
 	}
 
 	cpuRunloopQuit.Set();
 
-#ifdef __APPLE__
-	[pool release];
-#endif
 	return;
 }
 
@@ -302,10 +275,6 @@ void CpuThread()
 // Call browser: Init():g_EmuThread(). See the BootManager.cpp file description for a complete call schedule.
 void EmuThread()
 {
-#ifdef __APPLE__
-	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-#endif
-
 	Host_UpdateMainFrame(); // Disable any menus or buttons at boot
 
 	cpuRunloopQuit.Init();
@@ -313,7 +282,6 @@ void EmuThread()
 	Common::SetCurrentThreadName("Emuthread - starting");
 	const SCoreStartupParameter& _CoreParameter = SConfig::GetInstance().m_LocalCoreStartupParameter;
 
-	CPluginManager &Plugins = CPluginManager::GetInstance();
 	if (_CoreParameter.bLockThreads)
 	{
 		if (cpu_info.num_cores > 3)
@@ -329,64 +297,21 @@ void EmuThread()
 
 	emuThreadGoing.Set();
 
-	// Load the VideoPlugin
-	SVideoInitialize VideoInitialize;
-	VideoInitialize.pGetMemoryPointer			= Memory::GetPointer;
-	VideoInitialize.pSetInterrupt				= ProcessorInterface::SetInterrupt;
-	VideoInitialize.pRegisterEvent				= CoreTiming::RegisterEvent;
-	VideoInitialize.pScheduleEvent_Threadsafe	= CoreTiming::ScheduleEvent_Threadsafe;
-	VideoInitialize.pRemoveEvent				= CoreTiming::RemoveAllEvents;
-	VideoInitialize.pProcessFifoEvents			= CoreTiming::ProcessFifoWaitEvents;
-	// This is first the m_Panel handle, then it is updated to have the new window handle
-	VideoInitialize.pWindowHandle				= _CoreParameter.hMainWindow;
-	VideoInitialize.pLog						= Callback_VideoLog;
-	VideoInitialize.pSysMessage					= Host_SysMessage;
-	VideoInitialize.pGetWindowSize				= Callback_VideoGetWindowSize;
-	VideoInitialize.pRequestWindowSize			= Callback_VideoRequestWindowSize;
-	VideoInitialize.pCopiedToXFB				= Callback_VideoCopiedToXFB;
-	VideoInitialize.pPeekMessages				= NULL;
-	VideoInitialize.pUpdateFPSDisplay			= NULL;
-	VideoInitialize.pMemoryBase					= Memory::base;
-	VideoInitialize.pCoreMessage				= Callback_CoreMessage;
-	VideoInitialize.bWii						= _CoreParameter.bWii;
-	VideoInitialize.bOnThread					= _CoreParameter.bCPUThread;
-	VideoInitialize.Fifo_CPUBase				= &ProcessorInterface::Fifo_CPUBase;
-	VideoInitialize.Fifo_CPUEnd					= &ProcessorInterface::Fifo_CPUEnd;
-	VideoInitialize.Fifo_CPUWritePointer		= &ProcessorInterface::Fifo_CPUWritePointer;
-	bool aspectWide = _CoreParameter.bWii;
-	if (aspectWide) 
+	g_aspect_wide = _CoreParameter.bWii;
+	if (g_aspect_wide) 
 	{
 		IniFile gameIni;
 		gameIni.Load(_CoreParameter.m_strGameIni.c_str());
-		gameIni.Get("Wii", "Widescreen", &aspectWide, !!SConfig::GetInstance().m_SYSCONF->GetData<u8>("IPL.AR"));
+		gameIni.Get("Wii", "Widescreen", &g_aspect_wide, !!SConfig::GetInstance().m_SYSCONF->GetData<u8>("IPL.AR"));
 	}
-	VideoInitialize.bAutoAspectIs16_9			= aspectWide;
 
-	Plugins.GetVideo()->Initialize(&VideoInitialize); // Call the dll
+	// _CoreParameter.hMainWindow is first the m_Panel handle, then it is updated to have the new window handle,
+	// within g_video_backend->Initialize()
+	// TODO: that's ugly, change Initialize() to take m_Panel and return the new window handle
+	g_video_backend->Initialize();
+	g_pWindowHandle = _CoreParameter.hMainWindow;
 
-	// Under linux, this is an X11 Window, not a HWND!
-	g_pWindowHandle			= VideoInitialize.pWindowHandle;
-	Callback_PeekMessages	= VideoInitialize.pPeekMessages;
-	g_pUpdateFPSDisplay		= VideoInitialize.pUpdateFPSDisplay;
-
-	// Load and init DSPPlugin	
-	DSPInitialize dspInit;
-	dspInit.hWnd					= g_pWindowHandle;
-	dspInit.pARAM_Read_U8			= (u8  (__cdecl *)(const u32))DSP::ReadARAM; 
-	dspInit.pARAM_Write_U8			= (void (__cdecl *)(const u8, const u32))DSP::WriteARAM; 
-	dspInit.pGetARAMPointer			= DSP::GetARAMPtr;
-	dspInit.pGetMemoryPointer		= Memory::GetPointer;
-	dspInit.pLog					= Callback_DSPLog;
-	dspInit.pName					= Callback_ISOName;
-	dspInit.pDebuggerBreak			= Callback_DebuggerBreak;
-	dspInit.pGenerateDSPInterrupt	= Callback_DSPInterrupt;
-	dspInit.pGetAudioStreaming		= AudioInterface::Callback_GetStreaming;
-	dspInit.pGetSampleRate			= AudioInterface::Callback_GetSampleRate;
-	dspInit.pEmulatorState			= (int *)PowerPC::GetStatePtr();
-	dspInit.bWii					= _CoreParameter.bWii;
-	dspInit.bOnThread				= _CoreParameter.bDSPThread;
-
-	Plugins.GetDSP()->Initialize((void *)&dspInit);
+	DSP::GetPlugin()->Initialize(g_pWindowHandle, _CoreParameter.bWii, _CoreParameter.bDSPThread);
 	
 	Pad::Initialize(g_pWindowHandle);
 
@@ -425,7 +350,7 @@ void EmuThread()
 		// This thread, after creating the EmuWindow, spawns a CPU thread,
 		// and then takes over and becomes the video thread
 
-		Plugins.GetVideo()->Video_Prepare(); // wglMakeCurrent
+		g_video_backend->Video_Prepare(); // wglMakeCurrent
 		cpuThread = std::thread(CpuThread);
 		Common::SetCurrentThreadName("Video thread");
 
@@ -433,7 +358,7 @@ void EmuThread()
 		Host_UpdateDisasmDialog();
 		Host_UpdateMainFrame();
 
-		Plugins.GetVideo()->Video_EnterLoop();
+		g_video_backend->Video_EnterLoop();
 	}
 	else // SingleCore mode
 	{
@@ -453,8 +378,7 @@ void EmuThread()
 		// then we lose the powerdown check. ... unless powerdown sends a message :P
 		while (PowerPC::GetState() != PowerPC::CPU_POWERDOWN)
 		{
-			if (Callback_PeekMessages)
-				Callback_PeekMessages();
+			g_video_backend->PeekMessages();
 			Common::SleepCurrentThread(20);
 		}
 
@@ -484,7 +408,7 @@ void EmuThread()
 
 	// Stop audio thread - Actually this does nothing on HLE plugin.
 	// But stops the DSP Interpreter on LLE plugin.
-	Plugins.GetDSP()->DSP_StopSoundStream();
+	DSP::GetPlugin()->DSP_StopSoundStream();
 	
 	// We must set up this flag before executing HW::Shutdown()
 	g_bHwInit = false;
@@ -495,11 +419,10 @@ void EmuThread()
 	WARN_LOG(CONSOLE, "%s", StopMessage(false, "Shutting down plugins").c_str());
 	// In single core mode, this has already been called.
 	if (_CoreParameter.bCPUThread)
-		Plugins.ShutdownVideoPlugin();
+		g_video_backend->Shutdown();
 
 	Pad::Shutdown();
 	Wiimote::Shutdown();
-	Plugins.ShutdownPlugins();
 
 	NOTICE_LOG(CONSOLE, "%s", StopMessage(false, "Plugins shutdown").c_str());
 
@@ -508,10 +431,6 @@ void EmuThread()
 
 	cpuRunloopQuit.Shutdown();
 	g_bStopping = false;
-
-#ifdef __APPLE__
-	[pool release];
-#endif
 }
 
 // Set or get the running state
@@ -575,7 +494,7 @@ void ScreenShot(const std::string& name)
 	bool bPaused = (GetState() == CORE_PAUSE);
 
 	SetState(CORE_PAUSE);
-	CPluginManager::GetInstance().GetVideo()->Video_Screenshot(name.c_str());
+	g_video_backend->Video_Screenshot(name.c_str());
 	if(!bPaused)
 		SetState(CORE_RUN);
 }
@@ -592,11 +511,8 @@ void VideoThrottle()
 	u32 TargetVPS = (SConfig::GetInstance().m_Framelimit > 1) ?
 		SConfig::GetInstance().m_Framelimit * 5 : VideoInterface::TargetRefreshRate;
 
-#ifdef _WIN32
 	// Disable the frame-limiter when the throttle (Tab) key is held down
-	if (!GetAsyncKeyState(VK_TAB))
-#endif
-	if (SConfig::GetInstance().m_Framelimit)
+	if (SConfig::GetInstance().m_Framelimit && !Host_GetKeyState('\t'))
 	{
 		u32 frametime = ((SConfig::GetInstance().b_UseFPS)? Common::AtomicLoad(DrawnFrame) : DrawnVideo) * 1000 / TargetVPS;
 
@@ -659,8 +575,7 @@ void VideoThrottle()
 			SMessage;
 
 		// Show message
-		if (g_pUpdateFPSDisplay != NULL)
-			g_pUpdateFPSDisplay(SMessage.c_str()); 
+		g_video_backend->UpdateFPSDisplay(SMessage.c_str()); 
 
 		if (_CoreParameter.bRenderToMain &&
 			SConfig::GetInstance().m_InterfaceStatusbar) {
@@ -696,7 +611,7 @@ bool report_slow(int skipped)
 
 // Callback_VideoLog
 // WARNING - THIS IS EXECUTED FROM VIDEO THREAD
-void Callback_VideoLog(const TCHAR *_szMessage, int _bDoBreak)
+void Callback_VideoLog(const char *_szMessage, int _bDoBreak)
 {
 	INFO_LOG(VIDEO, "%s", _szMessage);
 }

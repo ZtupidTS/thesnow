@@ -61,7 +61,6 @@ IPC_HLE_PERIOD: For the Wiimote this is the call schedule:
 #include "Atomic.h"
 #include "../PatchEngine.h"
 #include "SystemTimers.h"
-#include "../PluginManager.h"
 #include "../HW/DSP.h"
 #include "../HW/AudioInterface.h"
 #include "../HW/VideoInterface.h"
@@ -71,9 +70,10 @@ IPC_HLE_PERIOD: For the Wiimote this is the call schedule:
 #include "../CoreTiming.h"
 #include "../ConfigManager.h"
 #include "../IPC_HLE/WII_IPC_HLE.h"
+#include "../PluginDSP.h"
 #include "Thread.h"
 #include "Timer.h"
-
+#include "VideoBackendBase.h"
 
 
 namespace SystemTimers
@@ -227,7 +227,7 @@ u64 GetFakeTimeBase()
 // For DC watchdog hack
 void FakeGPWatchdogCallback(u64 userdata, int cyclesLate)
 {
-	CPluginManager::GetInstance().GetVideo()->Video_WaitForFrameFinish();  // lock CPUThread until frame finish
+	g_video_backend->Video_WaitForFrameFinish();  // lock CPUThread until frame finish
 	CoreTiming::ScheduleEvent(VideoInterface::GetTicksPerFrame() - cyclesLate, et_FakeGPWD);
 }
 
@@ -241,16 +241,11 @@ void PatchEngineCallback(u64 userdata, int cyclesLate)
 
 void Init()
 {
-	PLUGIN_INFO DSPType;
-	(*CPluginManager::GetInstance().GetDSP()).GetInfo(DSPType);
-	std::string DSPName(DSPType.Name);
-	bool UsingDSPLLE = (DSPName.find("LLE") != std::string::npos) || (DSPName.find("lle") != std::string::npos);
-
 	if (SConfig::GetInstance().m_LocalCoreStartupParameter.bWii)
 	{
 		CPU_CORE_CLOCK = 729000000u;
 
-		if (!UsingDSPLLE)
+		if (!DSP::GetPlugin()->IsLLE())
 			DSP_PERIOD = (int)(GetTicksPerSecond() * 0.003f);
 
 		// AyuanX: TO BE TWEAKED
@@ -266,11 +261,11 @@ void Init()
 	{
 		CPU_CORE_CLOCK = 486000000u;
 
-		if (!UsingDSPLLE)
+		if (!DSP::GetPlugin()->IsLLE())
 			DSP_PERIOD = (int)(GetTicksPerSecond() * 0.005f);
 	}
 
-	if (UsingDSPLLE)
+	if (DSP::GetPlugin()->IsLLE())
 		DSP_PERIOD = 12000; // TO BE TWEAKED
 
 	// This is the biggest question mark.

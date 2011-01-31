@@ -45,9 +45,14 @@
     <PreBuildEvent>
       <Command>cscript /nologo /E:VBScript "make_svnrev.h.vbs"</Command>
     </PreBuildEvent>
+    <CustomBuild>
+      <Command>
+      </Command>
+      <Outputs>dummy</Outputs>
+    </CustomBuild>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <None Include="make_svnrev.h.vbs" />
+    <CustomBuild Include="make_svnrev.h.vbs" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
