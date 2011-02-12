@@ -642,6 +642,7 @@ static gint messageBoxKey(GtkWidget *w, GdkEventKey *event, gpointer p) {
 
 static void messageBoxDestroy(GtkWidget *, gpointer *) {
 	messageBoxDialog = 0;
+	messageBoxResult = 0;
 }
 
 static void messageBoxOK(GtkWidget *, gpointer p) {
