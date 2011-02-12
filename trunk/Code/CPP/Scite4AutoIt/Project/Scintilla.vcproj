@@ -226,6 +226,10 @@
 				Name="LEX"
 				>
 				<File
+					RelativePath="..\Scintilla\lexers\LexA68k.cxx"
+					>
+				</File>
+				<File
 					RelativePath="..\Scintilla\lexers\LexAbaqus.cxx"
 					>
 				</File>
@@ -406,6 +410,10 @@
 					>
 				</File>
 				<File
+					RelativePath="..\Scintilla\lexers\LexModula.cxx"
+					>
+				</File>
+				<File
 					RelativePath="..\Scintilla\lexers\LexMPT.cxx"
 					>
 				</File>
@@ -561,6 +569,10 @@
 			>
 			<File
 				RelativePath="..\Scintilla\include\Platform.h"
+				>
+			</File>
+			<File
+				RelativePath="..\Scintilla\lexlib\SparseState.h"
 				>
 			</File>
 		</Filter>

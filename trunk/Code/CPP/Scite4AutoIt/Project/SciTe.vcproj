@@ -47,7 +47,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalOptions="/MACHINE:I386"
-				AdditionalDependencies="imm32.lib comctl32.lib uxtheme.lib"
+				AdditionalDependencies="imm32.lib comctl32.lib uxtheme.lib Msimg32.lib"
 				OutputFile="$(SolutionDir)$(ConfigurationName)\Bin\$(ProjectName).exe"
 				LinkIncremental="1"
 				GenerateDebugInformation="true"
@@ -92,7 +92,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalOptions="/MACHINE:I386"
-				AdditionalDependencies="imm32.lib comctl32.lib uxtheme.lib"
+				AdditionalDependencies="imm32.lib comctl32.lib uxtheme.lib Msimg32.lib"
 				OutputFile="$(SolutionDir)$(ConfigurationName)\Bin\$(ProjectName).exe"
 				GenerateDebugInformation="false"
 				OptimizeReferences="2"
@@ -142,7 +142,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalOptions="/MACHINE:I386"
-				AdditionalDependencies="imm32.lib comctl32.lib uxtheme.lib"
+				AdditionalDependencies="imm32.lib comctl32.lib uxtheme.lib Msimg32.lib"
 				OutputFile="$(SolutionDir)$(ConfigurationName)\Bin\$(ProjectName).exe"
 				GenerateDebugInformation="false"
 				OptimizeReferences="2"
@@ -193,7 +193,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="imm32.lib comctl32.lib uxtheme.lib"
+				AdditionalDependencies="imm32.lib comctl32.lib uxtheme.lib Msimg32.lib"
 				OutputFile="$(SolutionDir)$(ConfigurationName)\Bin\$(ProjectName).exe"
 				LinkIncremental="1"
 				GenerateDebugInformation="true"
@@ -241,7 +241,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="imm32.lib comctl32.lib uxtheme.lib"
+				AdditionalDependencies="imm32.lib comctl32.lib uxtheme.lib Msimg32.lib"
 				OutputFile="$(SolutionDir)$(ConfigurationName)\Bin\$(ProjectName).exe"
 				GenerateDebugInformation="false"
 				OptimizeReferences="2"
@@ -295,7 +295,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="imm32.lib comctl32.lib uxtheme.lib"
+				AdditionalDependencies="imm32.lib comctl32.lib uxtheme.lib Msimg32.lib"
 				OutputFile="$(SolutionDir)$(ConfigurationName)\Bin\$(ProjectName).exe"
 				GenerateDebugInformation="false"
 				OptimizeReferences="2"
@@ -312,7 +312,7 @@
 				Name="VCPostBuildEventTool"
 				CommandLine="md &quot;$(SolutionDir)Bin\属性文件&quot;&#x0D;&#x0A;copy &quot;$(TargetDir)*.dll&quot; &quot;$(SolutionDir)Bin\*.dll&quot; /y&#x0D;&#x0A;copy &quot;$(TargetDir)*.exe&quot; &quot;$(SolutionDir)Bin\*.exe&quot; /y&#x0D;&#x0A;copy &quot;$(SolutionDir)Properties\*.properties&quot; &quot;$(SolutionDir)Bin\属性文件\*.properties&quot; /y&#x0D;&#x0A;copy &quot;$(SolutionDir)Properties\*.txt&quot; &quot;$(SolutionDir)Bin\*.properties&quot; /y&#x0D;&#x0A;&#x0D;&#x0A;"
 			/>
-		</Configuration>	
+		</Configuration>
 	</Configurations>
 	<References>
 	</References>
@@ -386,6 +386,10 @@
 				</File>
 				<File
 					RelativePath="..\Scintilla\src\KeyMap.cxx"
+					>
+				</File>
+				<File
+					RelativePath="..\Scintilla\lexers\LexA68k.cxx"
 					>
 				</File>
 				<File
@@ -566,6 +570,10 @@
 				</File>
 				<File
 					RelativePath="..\Scintilla\lexers\LexMMIXAL.cxx"
+					>
+				</File>
+				<File
+					RelativePath="..\Scintilla\lexers\LexModula.cxx"
 					>
 				</File>
 				<File
@@ -973,6 +981,10 @@
 					>
 				</File>
 				<File
+					RelativePath="..\SciTe\src\StringHelpers.cxx"
+					>
+				</File>
+				<File
 					RelativePath="..\SciTe\src\StringList.cxx"
 					>
 				</File>
@@ -1021,10 +1033,6 @@
 				Name="SciLexer"
 				>
 				<File
-					RelativePath="..\Scintilla\Include\Accessor.h"
-					>
-				</File>
-				<File
 					RelativePath="..\Scintilla\src\AutoComplete.h"
 					>
 				</File>
@@ -1040,98 +1048,74 @@
 					RelativePath="..\Scintilla\src\ContractionState.h"
 					>
 				</File>
-			<File
-				RelativePath="..\Scintilla\src\Document.h"
-				>
-			</File>
-			<File
-				RelativePath="..\Scintilla\src\DocumentAccessor.h"
-				>
-			</File>
-			<File
-				RelativePath="..\Scintilla\src\Editor.h"
-				>
-			</File>
-			<File
-				RelativePath="..\Scintilla\src\ExternalLexer.h"
-				>
-			</File>
-			<File
-				RelativePath="..\Scintilla\src\Indicator.h"
-				>
-			</File>
-			<File
-				RelativePath="..\Scintilla\src\KeyMap.h"
-				>
-			</File>
-			<File
-				RelativePath="..\Scintilla\Include\KeyWords.h"
-				>
-			</File>
-			<File
-				RelativePath="..\Scintilla\src\LineMarker.h"
-				>
-			</File>
-			<File
-				RelativePath="..\Scintilla\Include\Platform.h"
-				>
-			</File>
-			<File
-				RelativePath="..\Scintilla\Win32\PlatformRes.h"
-				>
-			</File>
-			<File
-				RelativePath="..\Scintilla\Include\PropSet.h"
-				>
-			</File>
-			<File
-				RelativePath="..\Scintilla\src\RESearch.h"
-				>
-			</File>
-			<File
-				RelativePath="..\Scintilla\Include\SciLexer.h"
-				>
-			</File>
-			<File
-				RelativePath="..\Scintilla\Include\Scintilla.h"
-				>
-			</File>
-			<File
-				RelativePath="..\Scintilla\src\ScintillaBase.h"
-				>
-			</File>
-			<File
-				RelativePath="..\Scintilla\src\Style.h"
-				>
-			</File>
-			<File
-				RelativePath="..\Scintilla\src\StyleContext.h"
-				>
-			</File>
-			<File
-				RelativePath="..\Scintilla\src\SVector.h"
-				>
-			</File>
-			<File
-				RelativePath="..\Scintilla\src\UniConversion.h"
-				>
-			</File>
-			<File
-				RelativePath="..\Scintilla\src\ViewStyle.h"
-				>
-			</File>
-			<File
-				RelativePath="..\Scintilla\Include\WinDefs.h"
-				>
-			</File>
-			<File
-				RelativePath="..\Scintilla\Include\WindowAccessor.h"
-				>
-			</File>
-			<File
-				RelativePath="..\Scintilla\src\XPM.h"
-				>
-			</File>
+				<File
+					RelativePath="..\Scintilla\src\Document.h"
+					>
+				</File>
+				<File
+					RelativePath="..\Scintilla\src\Editor.h"
+					>
+				</File>
+				<File
+					RelativePath="..\Scintilla\src\ExternalLexer.h"
+					>
+				</File>
+				<File
+					RelativePath="..\Scintilla\src\Indicator.h"
+					>
+				</File>
+				<File
+					RelativePath="..\Scintilla\src\KeyMap.h"
+					>
+				</File>
+				<File
+					RelativePath="..\Scintilla\src\LineMarker.h"
+					>
+				</File>
+				<File
+					RelativePath="..\Scintilla\Include\Platform.h"
+					>
+				</File>
+				<File
+					RelativePath="..\Scintilla\src\RESearch.h"
+					>
+				</File>
+				<File
+					RelativePath="..\Scintilla\Include\SciLexer.h"
+					>
+				</File>
+				<File
+					RelativePath="..\Scintilla\Include\Scintilla.h"
+					>
+				</File>
+				<File
+					RelativePath="..\Scintilla\src\ScintillaBase.h"
+					>
+				</File>
+				<File
+					RelativePath="..\Scintilla\lexlib\SparseState.h"
+					>
+				</File>
+				<File
+					RelativePath="..\Scintilla\src\Style.h"
+					>
+				</File>
+				<File
+					RelativePath="..\Scintilla\src\SVector.h"
+					>
+				</File>
+				<File
+					RelativePath="..\Scintilla\src\UniConversion.h"
+					>
+				</File>
+				<File
+					RelativePath="..\Scintilla\src\ViewStyle.h"
+					>
+				</File>
+				<File
+					RelativePath="..\Scintilla\src\XPM.h"
+					>
+				</File>
 			</Filter>
 			<Filter
 				Name="SciTe"
@@ -1182,6 +1166,10 @@
 				</File>
 				<File
 					RelativePath="..\SciTe\src\SString.h"
+					>
+				</File>
+				<File
+					RelativePath="..\SciTe\src\StringHelpers.h"
 					>
 				</File>
 				<File
