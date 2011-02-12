@@ -154,14 +154,15 @@ $(PROPFILE)\inno.properties $(PROPFILE)\kix.properties \
 $(PROPFILE)\latex.properties $(PROPFILE)\lisp.properties \
 $(PROPFILE)\lot.properties $(PROPFILE)\lout.properties $(PROPFILE)\lua.properties \
 $(PROPFILE)\matlab.properties $(PROPFILE)\metapost.properties \
-$(PROPFILE)\mmixal.properties $(PROPFILE)\nimrod.properties \
-$(PROPFILE)\nncrontab.properties $(PROPFILE)\nsis.properties \
-$(PROPFILE)\opal.properties $(PROPFILE)\others.properties \
-$(PROPFILE)\pascal.properties $(PROPFILE)\perl.properties \
-$(PROPFILE)\pov.properties $(PROPFILE)\powerpro.properties \
-$(PROPFILE)\powershell.properties $(PROPFILE)\ps.properties \
-$(PROPFILE)\purebasic.properties $(PROPFILE)\python.properties \
-$(PROPFILE)\r.properties $(PROPFILE)\rebol.properties $(PROPFILE)\ruby.properties \
+$(PROPFILE)\mmixal.properties $(PROPFILE)\modula3.properties \
+$(PROPFILE)\nimrod.properties $(PROPFILE)\nncrontab.properties \
+$(PROPFILE)\nsis.properties $(PROPFILE)\opal.properties \
+$(PROPFILE)\others.properties $(PROPFILE)\pascal.properties \
+$(PROPFILE)\perl.properties $(PROPFILE)\pov.properties \
+$(PROPFILE)\powerpro.properties $(PROPFILE)\powershell.properties \
+$(PROPFILE)\ps.properties $(PROPFILE)\purebasic.properties \
+$(PROPFILE)\python.properties $(PROPFILE)\r.properties \
+$(PROPFILE)\rebol.properties $(PROPFILE)\ruby.properties \
 $(PROPFILE)\scriptol.properties $(PROPFILE)\smalltalk.properties \
 $(PROPFILE)\sorcins.properties $(PROPFILE)\specman.properties \
 $(PROPFILE)\spice.properties $(PROPFILE)\sql.properties \
