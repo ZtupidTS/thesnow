@@ -8,7 +8,7 @@
 #AutoIt3Wrapper_Res_Description=							;详细信息
 #AutoIt3Wrapper_Res_Fileversion=							;文件版本
 #AutoIt3Wrapper_Res_FileVersion_AutoIncrement=p				;自动更新版本  
-#AutoIt3Wrapper_Res_LegalCopyright= 						;版权
+#AutoIt3Wrapper_Res_LegalCopyright= thesnoW						;版权
 #AutoIt3Wrapper_Change2CUI=N                   				;修改输出的程序为CUI(控制台程序)
 ;#AutoIt3Wrapper_Res_Field=AutoIt Version|%AutoItVer%		;自定义资源段
 ;#AutoIt3Wrapper_Run_Tidy=                   				;脚本整理
@@ -42,7 +42,7 @@ While 1
     If @error Then ExitLoop
     
 ;~     MsgBox(4096, "文件:", $file)
-RunWait('bmp2ico.exe ' & $file & '.ico ' & $file)
+RunWait('bmp2ico.bin ' & $file & '.ico ' & $file)
 WEnd
 
 ; 关闭搜索句柄
