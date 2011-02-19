@@ -66,8 +66,16 @@ const GUI::gui_char menuAccessIndicator[] = GUI_TEXT("&");
 #include "SciTEBase.h"
 #include "Extra.h"
 void SciTEBase::SetImportMenu() {
+//added ↓
+	HWND SciTEWinHWND= (HWND)SciTEBase::wSciTE.GetID();
+	HMENU hmenu = ::GetSubMenu(GetMenu(SciTEWinHWND), menuOptions);
+	HMENU hmenuPop=	CreatePopupMenu();
+	AppendMenu(hmenu, MF_STRING | MF_POPUP, (UINT) hmenuPop,L"打开导入文件[&I]"); 
+	hmenu=hmenuPop;
+//added	↑
 	for (int i = 0; i < importMax; i++) {
-		DestroyMenuItem(menuOptions, importCmdID + i);
+//		DestroyMenuItem(menuOptions, importCmdID + i);		//removeed
+		DeleteMenu(hmenu, importCmdID + i, MF_BYCOMMAND);	//added
 	}
 	if (importFiles[0].IsSet()) {
 		for (int stackPos = 0; stackPos < importMax; stackPos++) {
@@ -77,8 +85,9 @@ void SciTEBase::SetImportMenu() {
 				GUI::gui_string entry = L"打开";
 				entry += GUI_TEXT(" ");
 				entry += importFiles[stackPos].Name().AsInternal();
-//				entry += GUI_TEXT(" 文件");
-				SetMenuItem(menuOptions, IMPORT_START + stackPos, itemID, entry.c_str());
+				entry += GUI_TEXT(" 文件");
+//				SetMenuItem(menuOptions, IMPORT_START + stackPos, itemID, entry.c_str());	//mod
+				::InsertMenuW(hmenu, IMPORT_START + stackPos, MF_BYPOSITION, itemID, entry.c_str());
 			}
 		}
 	}
@@ -775,7 +784,10 @@ void SciTEBase::ReadProperties() {
 	props.Set("SciteDefaultHome", homepath.AsUTF8().c_str());
 	homepath = GetSciteUserHome();
 	props.Set("SciteUserHome", homepath.AsUTF8().c_str());
-
+//
+	homepath = GetAutoItPath();
+	props.Set("AutoItPath", homepath.AsUTF8().c_str());
+//
 	for (size_t i=0; propertiesToForward[i]; i++) {
 		ForwardPropertyToEditor(propertiesToForward[i]);
 	}
@@ -1502,6 +1514,10 @@ void SciTEBase::ReadPropertiesInitial() {
 	props.Set("SciteDefaultHome", homepath.AsUTF8().c_str());
 	homepath = GetSciteUserHome();
 	props.Set("SciteUserHome", homepath.AsUTF8().c_str());
+	//	added
+	homepath = GetAutoItPath();
+	props.Set("AutoItPath", homepath.AsUTF8().c_str());
+	//
 }
 
 FilePath SciTEBase::GetDefaultPropertiesFileName() {

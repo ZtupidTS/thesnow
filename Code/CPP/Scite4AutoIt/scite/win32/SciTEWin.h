@@ -405,6 +405,7 @@ protected:
 	virtual FilePath GetDefaultDirectory();
 	virtual FilePath GetSciteDefaultHome();
 	virtual FilePath GetSciteUserHome();
+	virtual FilePath GetAutoItPath();	//added
 
 //	virtual void SetFileProperties(PropSetFile &ps);	//renamed ↓
 	virtual void SetFileAttrib(PropSetFile &ps);

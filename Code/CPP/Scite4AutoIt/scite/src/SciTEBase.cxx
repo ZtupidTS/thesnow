@@ -2998,7 +2998,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		wEditor.Call(SCI_SETCODEPAGE, codePage);
 		break;
 	case IDM_ENCODING_CHT:					
-//		CurrentBuffer()->unicodeMode = static_cast<UniMode>(cmdID - IDM_ENCODING_DEFAULT);
+		CurrentBuffer()->unicodeMode = static_cast<UniMode>(cmdID - IDM_ENCODING_DEFAULT);
 		codePage=SC_CP_BIG5;
 		wEditor.Call(SCI_SETCODEPAGE, codePage);
 		break;
@@ -3337,8 +3337,8 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		break;
 	//add start ↓
 	case IDM_EDITORCONFIG:					//打开配置工具
-		::MessageBox(0,TEXT("注意:此功能可能导致设置文件混乱,请小心使用."),TEXT("警告!"),0);
-		::ShellExecuteA(0,"open","SciTEConfig\\sciteconfig.exe","acn",GetSciteDefaultHome().AsUTF8().c_str(),SW_SHOW);
+		::MessageBox(NULL,TEXT("注意:此功能可能导致设置文件混乱,请小心使用."),TEXT("警告!"),MB_OK|MB_ICONWARNING|MB_TOPMOST);
+		::ShellExecute(0,TEXT("open"),TEXT("SciTEConfig\\sciteconfig.exe"),TEXT("acn"),GetSciteDefaultHome().AsInternal(),SW_SHOW);
 		break;
 	//add end ↑
 	case IDM_WRAP:
@@ -3575,7 +3575,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		DONATE_MSG();
 		SelectionIntoProperties();
 		if (props.Get("command.scite.donate")=="") {
-			::MessageBoxW((HWND)wSciTE.GetID(),L"艹,谁把这个项目的定义删除了.",L"我擦,出错了.",MB_OK|MB_ICONERROR);
+			::MessageBox((HWND)wSciTE.GetID(),TEXT("艹,谁把这个项目的定义删除了."),TEXT("我擦,出错了."),MB_OK|MB_ICONERROR);
 		}else {
 			AddCommand(props.Get("command.scite.donate"), "",
 				SubsystemType(props.Get("command.scite.help.subsystem")[0]));
@@ -3589,7 +3589,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 	case IDM_README:{
 		SelectionIntoProperties();
 		if (props.Get("command.scite.readme")=="") {
-		::MessageBoxW((HWND)wSciTE.GetID(),L"艹,谁把这个说明的定义删除了.",L"我擦,出错了.",MB_OK|MB_ICONERROR);
+		::MessageBox((HWND)wSciTE.GetID(),TEXT("艹,谁把这个说明的定义删除了."),TEXT("我擦,出错了."),MB_OK|MB_ICONERROR);
 		}else {
 		AddCommand(props.Get("command.scite.readme"), "",
 		SubsystemType(props.Get("command.scite.help.subsystem")[0]));
@@ -4164,7 +4164,7 @@ void SciTEBase::PerformOne(char *action) {
 			FilePath dirTarget(GUI::StringFromUTF8(arg));
 			if (!dirTarget.SetWorkingDirectory()) {
 //				GUI::gui_string msg = LocaliseMessage("Invalid directory '^0'.", dirTarget.AsInternal());
-				GUI::gui_string msg = LocaliseMessage(L"无效目录 '^0'.", dirTarget.AsInternal());
+				GUI::gui_string msg = LocaliseMessage(TEXT("无效目录 '^0'."), dirTarget.AsInternal());
 				WindowMessageBox(wSciTE, msg, MB_OK | MB_ICONWARNING);
 			}
 		} else if (isprefix(action, "enumproperties:")) {

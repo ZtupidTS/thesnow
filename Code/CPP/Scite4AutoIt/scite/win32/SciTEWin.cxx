@@ -419,7 +419,21 @@ static FilePath GetSciTEPath(FilePath home) {
 		return FilePath(path);
 	}
 }
+//added
+FilePath SciTEWin::GetAutoItPath() {
+	GUI::gui_char *home = _wgetenv(GUI_TEXT("AutoIt_HOME"));
+	wchar_t homes[MAX_PATH];
+	if (!home)
+	{
+		wcscpy(homes,GetSciteDefaultHome().AsInternal());
+		wcscat(homes,GUI_TEXT("\\.."));
+		wcscpy(homes,FilePath(homes).AbsolutePath().AsInternal());
+		home=homes;
+	}
 
+	return FilePath(home);
+}
+//
 FilePath SciTEWin::GetDefaultDirectory() {
 	GUI::gui_char *home = _wgetenv(GUI_TEXT("SciTE_HOME"));
 	return GetSciTEPath(home);
@@ -432,9 +446,17 @@ FilePath SciTEWin::GetSciteDefaultHome() {
 
 FilePath SciTEWin::GetSciteUserHome() {
 	GUI::gui_char *home = _wgetenv(GUI_TEXT("SciTE_HOME"));
+	wchar_t homes[MAX_PATH];	//added
 	if (!home)
 		//home = _wgetenv(GUI_TEXT("USERPROFILE"));
-		  home = _wgetenv(GUI_TEXT("APPDATA"));
+		::GetModuleFileNameW(0, homes, ELEMENTS(homes));
+		// Remove the SciTE.exe
+		GUI::gui_char *lastSlash = wcsrchr(homes, pathSepChar);
+		if (lastSlash)
+			*lastSlash = '\0';
+		wcscat(homes,GUI_TEXT("\\UserHome\0"));
+		CreateDirectory(homes,NULL);
+		home=homes;
 		//
 	return GetSciTEPath(home);
 }
