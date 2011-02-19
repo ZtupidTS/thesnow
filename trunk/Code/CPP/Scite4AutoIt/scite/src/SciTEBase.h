@@ -217,7 +217,7 @@ public:
 	}
 	GUI::gui_string Text(const char *s, bool retainIfNotFound=true);
 //add start ↓
-//	GUI::gui_string Text(const wchar_t *s, bool retainIfNotFound=true);
+//	GUI::gui_string Text(const WCHAR *s, bool retainIfNotFound=true);
 //add end   ↑
 	void SetMissing(const SString &missing_) {
 		missing = missing_;
@@ -553,6 +553,7 @@ protected:
 	virtual FilePath GetDefaultDirectory() = 0;
 	virtual FilePath GetSciteDefaultHome() = 0;
 	virtual FilePath GetSciteUserHome() = 0;
+	virtual FilePath GetAutoItPath() = 0;	//added
 	FilePath GetDefaultPropertiesFileName();
 	FilePath GetUserPropertiesFileName();
 	FilePath GetDirectoryPropertiesFileName();

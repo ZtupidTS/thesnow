@@ -1,10 +1,11 @@
 ﻿// SciTE - Scintilla based Text Editor
-/** @file SciTEBase.cxx
- ** Platform independent base class of editor.
+/** @file About.cxx
+ ** About SciTe editor.
  **/
 // Copyright 1998-2010 by Neil Hodgson <neilh@scintilla.org>
 // The License.txt file describes the conditions under which this software may be distributed.
 
+/*
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
@@ -12,16 +13,17 @@
 #include <fcntl.h>
 #include <stdarg.h>
 #include <sys/stat.h>
+*/
 #include <time.h>
 #include "About.h"
 #ifdef _MSC_VER
 #pragma warning(disable: 4786)
 #endif
 
-#include <string>
+//#include <string>
 #include <vector>
 #include <map>
-#include <algorithm>
+//#include <algorithm>
 
 #if !defined(GTK)
 #undef _WIN32_WINNT
@@ -479,9 +481,9 @@ static void UTF8FromUCS2(const wchar_t *uptr, unsigned int tlen, char *putf, uns
 */
 
 void DONATE_MSG(){
-		wchar_t *msg = 
-			L"如果您愿意捐助thesnoW的汉化/论坛(硬盘或者RMB),请联系:\n"
-			L"thegfw#Gmail.com,thesnoW#QQ.com\n\n"
-			L"当然,互联网是免费的.我知道您没看到这个对话框里面的内容.嘿嘿.\n";
-		::MessageBoxW(0, msg,L"我点到什么东西了?", MB_OK | MB_ICONWARNING);
+		TCHAR *msg = 
+			TEXT("如果您愿意捐助thesnoW的汉化/论坛(硬盘或者RMB),请联系:\n")
+			TEXT("thegfw#Gmail.com,thesnoW#QQ.com\n\n")
+			TEXT("当然,互联网是免费的.我知道您是不小心点到这个对话框的.囧.\n");
+		MessageBox(0, msg,TEXT("我点到什么东西了?"), MB_OK | MB_ICONWARNING);
 };
