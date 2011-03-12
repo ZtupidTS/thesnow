@@ -15,7 +15,7 @@
 #include "VideoBackendBase.h"
 #include "ConfigManager.h"
 
-bool s_PluginInitialized = false;
+bool s_BackendInitialized = false;
 
 volatile u32 s_swapRequested = false;
 u32 s_efbAccessRequested = false;
@@ -39,20 +39,20 @@ static struct
 
 static u32 s_AccessEFBResult = 0;
 
-void VideoBackendHLE::EmuStateChange(PLUGIN_EMUSTATE newState)
+void VideoBackendHLE::EmuStateChange(EMUSTATE_CHANGE newState)
 {
-	Fifo_RunLoop((newState == PLUGIN_EMUSTATE_PLAY) ? true : false);
+	EmulatorState((newState == EMUSTATE_CHANGE_PLAY) ? true : false);
 }
 
 // Enter and exit the video loop
 void VideoBackendHLE::Video_EnterLoop()
 {
-	Fifo_EnterLoop();
+	RunGpuLoop();
 }
 
 void VideoBackendHLE::Video_ExitLoop()
 {
-	Fifo_ExitLoop();
+	ExitGpuLoop();
 	s_FifoShuttingDown = true;
 }
 
@@ -70,7 +70,7 @@ void VideoFifo_CheckSwapRequest()
 		{
 			EFBRectangle rc;
 			g_renderer->Swap(s_beginFieldArgs.xfbAddr, s_beginFieldArgs.field, s_beginFieldArgs.fbWidth, s_beginFieldArgs.fbHeight,rc);
-			Common::AtomicStoreRelease(s_swapRequested, FALSE);
+			Common::AtomicStoreRelease(s_swapRequested, false);
 		}
 	}
 }
@@ -96,7 +96,7 @@ void VideoFifo_CheckSwapRequestAt(u32 xfbAddr, u32 fbWidth, u32 fbHeight)
 // Run from the CPU thread (from VideoInterface.cpp)
 void VideoBackendHLE::Video_BeginField(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight)
 {
-	if (s_PluginInitialized && g_ActiveConfig.bUseXFB)
+	if (s_BackendInitialized && g_ActiveConfig.bUseXFB)
 	{
 		if (!SConfig::GetInstance().m_LocalCoreStartupParameter.bCPUThread)
 			VideoFifo_CheckSwapRequest();
@@ -110,15 +110,20 @@ void VideoBackendHLE::Video_BeginField(u32 xfbAddr, FieldType field, u32 fbWidth
 // Run from the CPU thread (from VideoInterface.cpp)
 void VideoBackendHLE::Video_EndField()
 {
-	if (s_PluginInitialized)
+	if (s_BackendInitialized)
 	{
-		Common::AtomicStoreRelease(s_swapRequested, TRUE);
+		Common::AtomicStoreRelease(s_swapRequested, true);
 	}
 }
 
 void VideoBackendHLE::Video_AddMessage(const char* pstr, u32 milliseconds)
 {
 	OSD::AddMessage(pstr, milliseconds);
+}
+
+void VideoBackendHLE::Video_ClearMessages()
+{
+	OSD::ClearMessages();
 }
 
 // Screenshot
@@ -134,20 +139,20 @@ void VideoFifo_CheckEFBAccess()
 	{
 		s_AccessEFBResult = g_renderer->AccessEFB(s_accessEFBArgs.type, s_accessEFBArgs.x, s_accessEFBArgs.y, s_accessEFBArgs.Data);
 
-		Common::AtomicStoreRelease(s_efbAccessRequested, FALSE);
+		Common::AtomicStoreRelease(s_efbAccessRequested, false);
 	}
 }
 
 u32 VideoBackendHLE::Video_AccessEFB(EFBAccessType type, u32 x, u32 y, u32 InputData)
 {
-	if (s_PluginInitialized)
+	if (s_BackendInitialized)
 	{
 		s_accessEFBArgs.type = type;
 		s_accessEFBArgs.x = x;
 		s_accessEFBArgs.y = y;
 		s_accessEFBArgs.Data = InputData;
 
-		Common::AtomicStoreRelease(s_efbAccessRequested, TRUE);
+		Common::AtomicStoreRelease(s_efbAccessRequested, true);
 
 		if (SConfig::GetInstance().m_LocalCoreStartupParameter.bCPUThread)
 		{
@@ -164,7 +169,7 @@ u32 VideoBackendHLE::Video_AccessEFB(EFBAccessType type, u32 x, u32 y, u32 Input
 	return 0;
 }
 
-static volatile u32 s_doStateRequested = FALSE;
+static volatile u32 s_doStateRequested = false;
  
 static volatile struct
 {
@@ -174,14 +179,13 @@ static volatile struct
 
 // Depending on the threading mode (DC/SC) this can be called 
 // from either the GPU thread or the CPU thread
-static void check_DoState() {
+void VideoFifo_CheckStateRequest()
+{
 	if (Common::AtomicLoadAcquire(s_doStateRequested))
 	{
 		// Clear all caches that touch RAM
-		CommandProcessor::FifoCriticalEnter();
 		TextureCache::Invalidate(false);
 		VertexLoaderManager::MarkAllDirty();
-		CommandProcessor::FifoCriticalLeave();
 
 		PointerWrap p(s_doStateArgs.ptr, s_doStateArgs.mode);
 		VideoCommon_DoState(p);
@@ -193,7 +197,7 @@ static void check_DoState() {
 			RecomputeCachedArraybases();
 		}
 
-		Common::AtomicStoreRelease(s_doStateRequested, FALSE);
+		Common::AtomicStoreRelease(s_doStateRequested, false);
 	}
 }
 
@@ -202,7 +206,7 @@ void VideoBackendHLE::DoState(PointerWrap& p)
 {
 	s_doStateArgs.ptr = p.ptr;
 	s_doStateArgs.mode = p.mode;
-	Common::AtomicStoreRelease(s_doStateRequested, TRUE);
+	Common::AtomicStoreRelease(s_doStateRequested, true);
 	if (SConfig::GetInstance().m_LocalCoreStartupParameter.bCPUThread)
 	{
 		while (Common::AtomicLoadAcquire(s_doStateRequested) && !s_FifoShuttingDown)
@@ -210,14 +214,18 @@ void VideoBackendHLE::DoState(PointerWrap& p)
 			Common::YieldCPU();
 	}
 	else
-		check_DoState();
+		VideoFifo_CheckStateRequest();
+}
+
+void VideoBackendHLE::RunLoop(bool enable)
+{
+	VideoCommon_RunLoop(enable);
 }
 
 void VideoFifo_CheckAsyncRequest()
 {
 	VideoFifo_CheckSwapRequest();
 	VideoFifo_CheckEFBAccess();
-	check_DoState();
 }
 
 void VideoBackend::Video_GatherPipeBursted()
@@ -225,14 +233,9 @@ void VideoBackend::Video_GatherPipeBursted()
 	CommandProcessor::GatherPipeBursted();
 }
 
-void VideoBackendHLE::Video_WaitForFrameFinish()
+bool VideoBackendHLE::Video_IsPossibleWaitingSetDrawDone()
 {
-	CommandProcessor::WaitForFrameFinish();
-}
-
-bool VideoBackendHLE::Video_IsFifoBusy()
-{
-	return CommandProcessor::isFifoBusy;
+	return CommandProcessor::isPossibleWaitingSetDrawDone;
 }
 
 void VideoBackendHLE::Video_AbortFrame()

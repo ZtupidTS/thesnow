@@ -25,7 +25,6 @@
 #include "HW/Memmap.h"
 #include "ConfigManager.h"
 
-bool textureChanged[8];
 const bool renderFog = false;
 namespace BPFunctions
 {
@@ -78,18 +77,20 @@ void SetColorMask(const BPCmd &bp)
 	g_renderer->SetColorMask();
 }
 
-void CopyEFB(const BPCmd &bp, const EFBRectangle &rc, const u32 &address, const bool &fromZBuffer, const bool &isIntensityFmt, const u32 &copyfmt, const int &scaleByHalf)
+void CopyEFB(u32 dstAddr, unsigned int dstFormat, unsigned int srcFormat,
+	const EFBRectangle& srcRect, bool isIntensity, bool scaleByHalf)
 {
 	// bpmem.zcontrol.pixel_format to PIXELFMT_Z24 is when the game wants to copy from ZBuffer (Zbuffer uses 24-bit Format)
 	if (g_ActiveConfig.bEFBCopyEnable)
 	{
-		TextureCache::CopyRenderTargetToTexture(address, fromZBuffer, isIntensityFmt, copyfmt, !!scaleByHalf, rc);
+		TextureCache::CopyRenderTargetToTexture(dstAddr, dstFormat, srcFormat,
+			srcRect, isIntensity, scaleByHalf);
 	}
 }
 
 /* Explanation of the magic behind ClearScreen:
 	There's numerous possible formats for the pixel data in the EFB.
-	However, in the HW accelerated plugins we're always using RGBA8
+	However, in the HW accelerated backends we're always using RGBA8
 	for the EFB format, which causes some problems:
 	- We're using an alpha channel although the game doesn't
 	- If the actual EFB format is RGBA6_Z24 or R5G6B5_Z16, we are using more bits per channel than the native HW
@@ -140,6 +141,10 @@ void OnPixelFormatChange(const BPCmd &bp)
 {
 	int convtype = -1;
 
+	// TODO : Check for Z compression format change
+	// When using 16bit Z, the game may enable a special compression format which we need to handle
+	// If we don't, Z values will be completely screwed up, currently only Star Wars:RS2 uses that.
+
 	/*
 	 * When changing the EFB format, the pixel data won't get converted to the new format but stays the same.
 	 * Since we are always using an RGBA8 buffer though, this causes issues in some games.
@@ -149,13 +154,14 @@ void OnPixelFormatChange(const BPCmd &bp)
 		!g_ActiveConfig.backend_info.bSupportsFormatReinterpretation)
 		return;
 
-	unsigned int new_format = bpmem.zcontrol.pixel_format;
-	unsigned int old_format = Renderer::GetPrevPixelFormat();
+	u32 old_format = Renderer::GetPrevPixelFormat();
+	u32 new_format = bpmem.zcontrol.pixel_format;
 
 	// no need to reinterpret pixel data in these cases
 	if (new_format == old_format || old_format == (unsigned int)-1)
 		goto skip;
 
+	// Check for pixel format changes
 	switch (old_format)
 	{
 		case PIXELFMT_RGB8_Z24:
@@ -182,20 +188,25 @@ void OnPixelFormatChange(const BPCmd &bp)
 			if (new_format == PIXELFMT_RGB8_Z24 ||
 				new_format == PIXELFMT_Z24)
 				convtype = 4;
-			else if (new_format == PIXELFMT_RGB565_Z16)
+			else if (new_format == PIXELFMT_RGBA6_Z24)
 				convtype = 5;
 			break;
 
 		default:
 			break;
 	}
+
 	if (convtype == -1)
 	{
-		PanicAlert("Unhandled EFB format change: %d to %d\n", old_format, new_format);
+		ERROR_LOG(VIDEO, "Unhandled EFB format change: %d to %d\n", old_format, new_format);
 		goto skip;
 	}
+
 	g_renderer->ReinterpretPixelData(convtype);
+
 skip:
+	DEBUG_LOG(VIDEO, "pixelfmt: pixel=%d, zc=%d", new_format, bpmem.zcontrol.zformat);
+
 	Renderer::StorePixelFormat(new_format);
 }
 

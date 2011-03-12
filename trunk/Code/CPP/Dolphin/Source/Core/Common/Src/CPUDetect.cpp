@@ -36,31 +36,37 @@ static inline void do_cpuid(unsigned int *eax, unsigned int *ebx,
 						    unsigned int *ecx, unsigned int *edx)
 {
 #ifdef _LP64
-	__asm__("cpuid"
-			: "=a" (*eax),
-			  "=b" (*ebx),
-			"=c" (*ecx),
-			"=d" (*edx)
-			: "a"  (*eax)
-			);
+	// Note: EBX is reserved on Mac OS X and in PIC on Linux, so it has to
+	// restored at the end of the asm block.
+	__asm__ (
+		"mov   %%rbx,%%rdi;"
+		"cpuid;"
+		"movl  %%ebx,%1;"
+		"mov   %%rdi,%%rbx;"
+		: "=a" (*eax),
+		  "=g" (*ebx),
+		  "=c" (*ecx),
+		  "=d" (*edx)
+		: "a"  (*eax)
+		: "rdi", "rbx"
+		);
 #else
-	// Note: EBX is reserved on Mac OS X and in PIC on Linux, so it has to be
-	//       restored at the end of the asm block.
 	__asm__(
-			"pushl  %%ebx;"
-			"cpuid;"
-			"movl   %%ebx,%1;"
-			"popl   %%ebx;"
-			: "=a" (*eax),
-			  "=r" (*ebx),
-			  "=c" (*ecx),
-			  "=d" (*edx)
-			: "a"  (*eax)
-			);
+		"movl   %%ebx,%%edi;"
+		"cpuid;"
+		"movl   %%ebx,%1;"
+		"movl   %%edi,%%ebx;"
+		: "=a" (*eax),
+		  "=g" (*ebx),
+		  "=c" (*ecx),
+		  "=d" (*edx)
+		: "a"  (*eax)
+		: "edi", "ebx"
+		);
 #endif
 }
 
-void __cpuid(int info[4], int x)
+static void __cpuid(int info[4], int x)
 {
 	unsigned int eax = x, ebx = 0, ecx = 0, edx = 0;
 	do_cpuid(&eax, &ebx, &ecx, &edx);
@@ -133,20 +139,21 @@ void CPUInfo::Detect()
 	strcpy(brand_string, cpu_string);
 	
 	// Detect family and other misc stuff.
-	HTT = false;
+	bool ht = false;
+	HTT = ht;
 	logical_cpu_count = 1;
 	if (max_std_fn >= 1) {
 		__cpuid(cpu_id, 0x00000001);
 		logical_cpu_count = (cpu_id[1] >> 16) & 0xFF;
-		// HTT is valid for intel processors only.
-		HTT = ((cpu_id[3] >> 28) & 1) && vendor == VENDOR_INTEL;
+		ht = (cpu_id[3] >> 28) & 1;
+
 		if ((cpu_id[3] >> 25) & 1) bSSE = true;
 		if ((cpu_id[3] >> 26) & 1) bSSE2 = true;
 		if ((cpu_id[2])       & 1) bSSE3 = true;
 		if ((cpu_id[2] >> 9)  & 1) bSSSE3 = true;
 		if ((cpu_id[2] >> 19) & 1) bSSE4_1 = true;
 		if ((cpu_id[2] >> 20) & 1) bSSE4_2 = true;
-		if ((cpu_id[2] >> 29) & 1) bAVX = true;
+		if ((cpu_id[2] >> 28) & 1) bAVX = true;
 		if ((cpu_id[2] >> 25) & 1) bAES = true;
 	}
 	if (max_ex_fn >= 0x80000004) {
@@ -166,29 +173,30 @@ void CPUInfo::Detect()
 		if (cpu_id[2] & 2) cmp_legacy = true; //wtf is this?
 		if ((cpu_id[3] >> 29) & 1) bLongMode = true;
 	}
+
+	num_cores = (logical_cpu_count == 0) ? 1 : logical_cpu_count;
+	
 	if (max_ex_fn >= 0x80000008) {
 		// Get number of cores. This is a bit complicated. Following AMD manual here.
 		__cpuid(cpu_id, 0x80000008);
 		int apic_id_core_id_size = (cpu_id[2] >> 12) & 0xF;
 		if (apic_id_core_id_size == 0) {
-			// New mechanism for modern CPUs.
-			num_cores = logical_cpu_count;
-			if (HTT) {
-				__cpuid(cpu_id, 0x00000004);
-				int cores_x_package = ((cpu_id[0] >> 26) & 0x3F) + 1;
-				cores_x_package = ((logical_cpu_count % cores_x_package) == 0) ? cores_x_package : 1;
-				num_cores = (cores_x_package > 1) ? cores_x_package : num_cores;
-				logical_cpu_count /= cores_x_package;
+			if (ht) {
+				// New mechanism for modern Intel CPUs.
+				if (vendor == VENDOR_INTEL) {
+					__cpuid(cpu_id, 0x00000004);
+					int cores_x_package = ((cpu_id[0] >> 26) & 0x3F) + 1;
+					HTT = (cores_x_package < logical_cpu_count);
+					cores_x_package = ((logical_cpu_count % cores_x_package) == 0) ? cores_x_package : 1;
+					num_cores = (cores_x_package > 1) ? cores_x_package : num_cores;
+					logical_cpu_count /= cores_x_package;
+				}
 			}
 		} else {
 			// Use AMD's new method.
 			num_cores = (cpu_id[2] & 0xFF) + 1;
 		}
-	} else {
-		// Wild guess
-		if (logical_cpu_count)
-			num_cores = logical_cpu_count;
-	}
+	} 
 }
 
 // Turn the cpu info into a string we can show
@@ -200,7 +208,7 @@ std::string CPUInfo::Summarize()
 	else
 	{
 		sum = StringFromFormat("%s, %i cores", cpu_string, num_cores);
-		if (HTT) sum += StringFromFormat(" (%i logical IDs per physical core)", logical_cpu_count);
+		if (HTT) sum += StringFromFormat(" (%i logical threads per physical core)", logical_cpu_count);
 	}
 	if (bSSE) sum += ", SSE";
 	if (bSSE2) sum += ", SSE2";
@@ -208,6 +216,7 @@ std::string CPUInfo::Summarize()
 	if (bSSSE3) sum += ", SSSE3";
 	if (bSSE4_1) sum += ", SSE4.1";
 	if (bSSE4_2) sum += ", SSE4.2";
+	if (HTT) sum += ", HTT";
 	if (bAVX) sum += ", AVX";
 	if (bAES) sum += ", AES";
 	if (bLongMode) sum += ", 64-bit support";

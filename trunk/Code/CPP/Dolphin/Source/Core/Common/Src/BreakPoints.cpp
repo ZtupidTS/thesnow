@@ -16,48 +16,64 @@
 // http://code.google.com/p/dolphin-emu/
 
 #include "Common.h"
-
 #include "DebugInterface.h"
 #include "BreakPoints.h"
-
-void TMemCheck::Action(DebugInterface *debug_interface, u32 iValue, u32 addr, bool write, int size, u32 pc)
-{
-	if ((write && OnWrite) || (!write && OnRead))
-	{
-		if (Log)
-		{
-			INFO_LOG(MEMMAP, "CHK %08x %s%i %08x at %08x (%s)",
-				debug_interface->getPC(),
-				write ? "Write" : "Read", size*8, iValue, addr, // address
-				debug_interface->getDescription(addr).c_str() // symbol map description
-				);
-		}
-		if (Break)
-			debug_interface->breakNow();
-	}
-}
+#include <sstream>
 
 bool BreakPoints::IsAddressBreakPoint(u32 _iAddress)
 {
-	std::vector<TBreakPoint>::iterator iter;
-	for (iter = m_BreakPoints.begin(); iter != m_BreakPoints.end(); ++iter)
-		if ((*iter).iAddress == _iAddress)
+	for (TBreakPoints::iterator i = m_BreakPoints.begin(); i != m_BreakPoints.end(); ++i)
+		if (i->iAddress == _iAddress)
 			return true;
 	return false;
 }
 
 bool BreakPoints::IsTempBreakPoint(u32 _iAddress)
 {
-	std::vector<TBreakPoint>::iterator iter;
-
-	for (iter = m_BreakPoints.begin(); iter != m_BreakPoints.end(); ++iter)
-		if ((*iter).iAddress == _iAddress && (*iter).bTemporary)
+	for (TBreakPoints::iterator i = m_BreakPoints.begin(); i != m_BreakPoints.end(); ++i)
+		if (i->iAddress == _iAddress && i->bTemporary)
 			return true;
-
 	return false;
 }
 
-bool BreakPoints::Add(u32 em_address, bool temp)
+BreakPoints::TBreakPointsStr BreakPoints::GetStrings() const
+{
+	TBreakPointsStr bps;
+	for (TBreakPoints::const_iterator i = m_BreakPoints.begin();
+		i != m_BreakPoints.end(); ++i)
+	{
+		if (!i->bTemporary)
+		{
+			std::stringstream bp;
+			bp << std::hex << i->iAddress << " " << (i->bOn ? "n" : "");
+			bps.push_back(bp.str());
+		}
+	}
+
+	return bps;
+}
+
+void BreakPoints::AddFromStrings(const TBreakPointsStr& bps)
+{
+	for (TBreakPointsStr::const_iterator i = bps.begin(); i != bps.end(); ++i)
+	{
+		TBreakPoint bp;
+		std::stringstream bpstr;
+		bpstr << std::hex << *i;
+		bpstr >> bp.iAddress;
+		bp.bOn = i->find("n") != i->npos;
+		bp.bTemporary = false;
+		Add(bp);
+	}
+}
+
+void BreakPoints::Add(const TBreakPoint& bp)
+{
+	if (!IsAddressBreakPoint(bp.iAddress))
+		m_BreakPoints.push_back(bp);
+}
+
+void BreakPoints::Add(u32 em_address, bool temp)
 {
 	if (!IsAddressBreakPoint(em_address)) // only add new addresses
 	{
@@ -67,88 +83,109 @@ bool BreakPoints::Add(u32 em_address, bool temp)
 		pt.iAddress = em_address;
 
 		m_BreakPoints.push_back(pt);
-		return true;
-	} else {
-		return false;
 	}
 }
 
-bool BreakPoints::Remove(u32 _iAddress)
+void BreakPoints::Remove(u32 _iAddress)
 {
-	std::vector<TBreakPoint>::iterator iter;
-	for (iter = m_BreakPoints.begin(); iter != m_BreakPoints.end(); ++iter)
+	for (TBreakPoints::iterator i = m_BreakPoints.begin(); i != m_BreakPoints.end(); ++i)
 	{
-		if ((*iter).iAddress == _iAddress)
+		if (i->iAddress == _iAddress)
 		{
-			m_BreakPoints.erase(iter);
-			return true;
+			m_BreakPoints.erase(i);
+			return;
 		}
 	}
-	return false;
 }
 
-void BreakPoints::Clear()
+
+MemChecks::TMemChecksStr MemChecks::GetStrings() const
 {
-	m_BreakPoints.clear();
+	TMemChecksStr mcs;
+	for (TMemChecks::const_iterator i = m_MemChecks.begin();
+		i != m_MemChecks.end(); ++i)
+	{
+		std::stringstream mc;
+		mc << std::hex << i->StartAddress;
+		mc << " " << (i->bRange ? i->EndAddress : i->StartAddress) << " " <<
+			(i->bRange ? "n" : "") << (i->OnRead ? "r" : "") <<
+			(i->OnWrite ? "w" : "") << (i->Log ? "l" : "") << (i->Break ? "p" : "");
+		mcs.push_back(mc.str());
+	}
+
+	return mcs;
 }
 
-void BreakPoints::DeleteByAddress(u32 _Address)
+void MemChecks::AddFromStrings(const TMemChecksStr& mcs)
 {
-    // first check breakpoints
-    {
-        std::vector<TBreakPoint>::iterator iter;
-        for (iter = m_BreakPoints.begin(); iter != m_BreakPoints.end(); ++iter)
-        {
-            if ((*iter).iAddress == _Address)
-            {
-                m_BreakPoints.erase(iter);
-                return;
-            } 
-        }
-    }
+	for (TMemChecksStr::const_iterator i = mcs.begin(); i != mcs.end(); ++i)
+	{
+		TMemCheck mc;
+		std::stringstream mcstr;
+		mcstr << std::hex << *i;
+		mcstr >> mc.StartAddress;
+		mc.bRange	= i->find("n") != i->npos;
+		mc.OnRead	= i->find("r") != i->npos;
+		mc.OnWrite	= i->find("w") != i->npos;
+		mc.Log		= i->find("l") != i->npos;
+		mc.Break	= i->find("p") != i->npos;
+		if (mc.bRange)
+			mcstr >> mc.EndAddress;
+		else
+			mc.EndAddress = mc.StartAddress;
+		Add(mc);
+	}
 }
 
 void MemChecks::Add(const TMemCheck& _rMemoryCheck)
 {
-	m_MemChecks.push_back(_rMemoryCheck);
+	if (GetMemCheck(_rMemoryCheck.StartAddress) == 0)
+		m_MemChecks.push_back(_rMemoryCheck);
 }
 
+void MemChecks::Remove(u32 _Address)
+{
+	for (TMemChecks::iterator i = m_MemChecks.begin(); i != m_MemChecks.end(); ++i)
+	{
+		if (i->StartAddress == _Address)
+		{
+			m_MemChecks.erase(i);
+			return;
+		}
+	}
+}
 
 TMemCheck *MemChecks::GetMemCheck(u32 address)
 {
-	std::vector<TMemCheck>::iterator iter;
-	for (iter = m_MemChecks.begin(); iter != m_MemChecks.end(); ++iter)
+	for (TMemChecks::iterator i = m_MemChecks.begin(); i != m_MemChecks.end(); ++i)
 	{
-		if ((*iter).bRange)
+		if (i->bRange)
 		{
-			if (address >= (*iter).StartAddress && address <= (*iter).EndAddress)
-				return &(*iter);
+			if (address >= i->StartAddress && address <= i->EndAddress)
+				return &(*i);
 		}
-		else
-		{
-			if ((*iter).StartAddress == address)
-				return &(*iter);
-		}
+		else if (i->StartAddress == address)
+			return &(*i);
 	}
 
-	//none found
+	// none found
 	return 0;
 }
 
-void MemChecks::Clear()
+void TMemCheck::Action(DebugInterface *debug_interface, u32 iValue, u32 addr,
+						bool write, int size, u32 pc)
 {
-	m_MemChecks.clear();
-}
-
-void MemChecks::DeleteByAddress(u32 _Address)
-{
-    std::vector<TMemCheck>::iterator iter;
-    for (iter = m_MemChecks.begin(); iter != m_MemChecks.end(); ++iter)
-    {
-        if ((*iter).StartAddress == _Address)
-        {
-            m_MemChecks.erase(iter);
-			return;
-        }
-    }
+	if ((write && OnWrite) || (!write && OnRead))
+	{
+		if (Log)
+		{
+			INFO_LOG(MEMMAP, "CHK %08x (%s) %s%i %0*x at %08x (%s)",
+				pc, debug_interface->getDescription(pc).c_str(),
+				write ? "Write" : "Read", size*8, size*2, iValue, addr,
+				debug_interface->getDescription(addr).c_str()
+				);
+		}
+		if (Break)
+			debug_interface->breakNow();
+	}
 }

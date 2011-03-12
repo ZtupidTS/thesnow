@@ -21,8 +21,6 @@
 #include <string>
 #include <vector>
 
-#include "PluginSpecs.h"
-
 #include "ChunkFile.h"
 
 enum FieldType
@@ -51,12 +49,13 @@ struct SCPFifoStruct
 	volatile u32 CPWritePointer;
 	volatile u32 CPReadPointer;
 	volatile u32 CPBreakpoint;
-
+	volatile u32 SafeCPReadPointer;
 	// Super Monkey Ball Adventure require this.
 	// Because the read&check-PEToken-loop stays in its JITed block I suppose.
 	// So no possiblity to ack the Token irq by the scheduler until some sort of PPC watchdog do its mess.
 	volatile u16 PEToken;
 
+	volatile u32 bFF_GPLinkEnable;
 	volatile u32 bFF_GPReadEnable;
 	volatile u32 bFF_BPEnable;
 	volatile u32 bFF_BPInt;
@@ -73,6 +72,7 @@ struct SCPFifoStruct
 
 	// for GP watchdog hack
 	volatile u32 Fake_GPWDToken; // cicular incrementer
+	volatile u32 isGpuReadingData;
 };
 
 class VideoBackend
@@ -80,16 +80,17 @@ class VideoBackend
 public:
 	virtual ~VideoBackend() {}
 
-	virtual void EmuStateChange(PLUGIN_EMUSTATE) = 0;
+	virtual void EmuStateChange(EMUSTATE_CHANGE) = 0;
 
 	virtual void UpdateFPSDisplay(const char*) = 0;
 
 	virtual unsigned int PeekMessages() = 0;
 
-	virtual void Initialize() = 0;
+	virtual bool Initialize(void *&) = 0;
 	virtual void Shutdown() = 0;
 
 	virtual void DoState(PointerWrap &p) = 0;
+	virtual void RunLoop(bool enable) = 0;
 
 	virtual std::string GetName() = 0;
 
@@ -106,14 +107,14 @@ public:
 	virtual u32 Video_AccessEFB(EFBAccessType, u32, u32, u32) = 0;
 
 	virtual void Video_AddMessage(const char* pstr, unsigned int milliseconds) = 0;
+	virtual void Video_ClearMessages() = 0;
 	virtual bool Video_Screenshot(const char* filename) = 0;
 
 	virtual void Video_SetRendering(bool bEnabled) = 0;
 
 	static void Video_GatherPipeBursted();
 
-	virtual void Video_WaitForFrameFinish() = 0;
-	virtual bool Video_IsFifoBusy() = 0;
+	virtual bool Video_IsPossibleWaitingSetDrawDone() = 0;
 	virtual void Video_AbortFrame() = 0;
 
 	static void PopulateList();
@@ -128,8 +129,9 @@ extern VideoBackend* g_video_backend;
 class VideoBackendHLE : public VideoBackend
 {
 	void DoState(PointerWrap &p);
+	void RunLoop(bool enable);
 
-	void EmuStateChange(PLUGIN_EMUSTATE);
+	void EmuStateChange(EMUSTATE_CHANGE);
 
 	void Video_EnterLoop();
 	void Video_ExitLoop();
@@ -138,12 +140,12 @@ class VideoBackendHLE : public VideoBackend
 	u32 Video_AccessEFB(EFBAccessType, u32, u32, u32);
 
 	void Video_AddMessage(const char* pstr, unsigned int milliseconds);
+	void Video_ClearMessages();
 	bool Video_Screenshot(const char* filename);
 
 	void Video_SetRendering(bool bEnabled);
 
-	void Video_WaitForFrameFinish();
-	bool Video_IsFifoBusy();
+	bool Video_IsPossibleWaitingSetDrawDone();
 	void Video_AbortFrame();
 };
 

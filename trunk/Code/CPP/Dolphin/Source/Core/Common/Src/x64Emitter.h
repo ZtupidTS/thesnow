@@ -37,7 +37,8 @@ enum X64Reg
 	R12 = 12,R13 = 13,R14 = 14,R15 = 15,
 
 	AL = 0, BL = 3, CL = 1, DL = 2,
-	AH = 4, BH = 7, CH = 5, DH = 6,
+	SIL = 6, DIL = 7, BPL = 5, SPL = 4,
+	AH = 0x104, BH = 0x107, CH = 0x105, DH = 0x106,
 
 	AX = 0, BX = 3, CX = 1, DX = 2,
 	SI = 6, DI = 7, BP = 5, SP = 4,
@@ -113,17 +114,17 @@ struct OpArg
 	{
 		operandReg = 0;
 		scale = (u8)_scale;
-		offsetOrBaseReg = (u8)rmReg;
-		indexReg = (u8)scaledReg;
+		offsetOrBaseReg = (u16)rmReg;
+		indexReg = (u16)scaledReg;
 		//if scale == 0 never mind offseting
 		offset = _offset;
 	}
-	void WriteRex(XEmitter *emit, bool op64, int customOp = -1) const;
+	void WriteRex(XEmitter *emit, int opBits, int bits, int customOp = -1) const;
 	void WriteRest(XEmitter *emit, int extraBytes=0, X64Reg operandReg=(X64Reg)0xFF) const;
 	void WriteSingleByteOp(XEmitter *emit, u8 op, X64Reg operandReg, int bits);
 	// This one is public - must be written to
 	u64 offset;  // use RIP-relative as much as possible - 64-bit immediates are not available.
-	u8 operandReg;
+	u16 operandReg;
 
 	void WriteNormalOp(XEmitter *emit, bool toRM, NormalOp op, const OpArg &operand, int bits) const;
 	bool IsImm() const {return scale == SCALE_IMM8 || scale == SCALE_IMM16 || scale == SCALE_IMM32 || scale == SCALE_IMM64;}
@@ -162,8 +163,8 @@ struct OpArg
 	}
 private:
 	u8 scale;
-	u8 offsetOrBaseReg;
-	u8 indexReg;
+	u16 offsetOrBaseReg;
+	u16 indexReg;
 };
 
 inline OpArg M(void *ptr)	    {return OpArg((u64)ptr, (int)SCALE_RIP);}
@@ -624,6 +625,7 @@ public:
 	void ABI_CallFunctionCCC(void *func, u32 param1, u32 param2, u32 param3);
 	void ABI_CallFunctionCCP(void *func, u32 param1, u32 param2, void *param3);
 	void ABI_CallFunctionCCCP(void *func, u32 param1, u32 param2,u32 param3, void *param4);
+	void ABI_CallFunctionPPC(void *func, void *param1, void *param2,u32 param3);
 	void ABI_CallFunctionAC(void *func, const Gen::OpArg &arg1, u32 param2);
 	void ABI_CallFunctionA(void *func, const Gen::OpArg &arg1);
 

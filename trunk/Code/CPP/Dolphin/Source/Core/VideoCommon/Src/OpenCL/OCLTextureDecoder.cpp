@@ -51,13 +51,13 @@ sDecoderParameter g_DecodeParametersNative[] = {
 	/* GX_TF_RGB565 */ { "DecodeRGB565", NULL,    2, 2, 4, 4, PC_TEX_FMT_RGB565 },
 	/* GX_TF_RGB5A3 */ { "DecodeRGB5A3", NULL,    2, 4, 4, 4, PC_TEX_FMT_BGRA32 },
 	/* GX_TF_RGBA8  */ { "DecodeRGBA8",  NULL,    4, 4, 4, 4, PC_TEX_FMT_BGRA32 },
-	/* 7            */ { NULL },
-	/* GX_TF_C4     */ { NULL },
-	/* GX_TF_C8     */ { NULL },
-	/* GX_TF_C14X2  */ { NULL },
-	/* B            */ { NULL },
-	/* C            */ { NULL },
-	/* D            */ { NULL },
+	/* 7            */ { NULL,           NULL,    0, 0, 0, 0, PC_TEX_FMT_NONE },
+	/* GX_TF_C4     */ { NULL,           NULL,    0, 0, 0, 0, PC_TEX_FMT_NONE },
+	/* GX_TF_C8     */ { NULL,           NULL,    0, 0, 0, 0, PC_TEX_FMT_NONE },
+	/* GX_TF_C14X2  */ { NULL,           NULL,    0, 0, 0, 0, PC_TEX_FMT_NONE },
+	/* B            */ { NULL,           NULL,    0, 0, 0, 0, PC_TEX_FMT_NONE },
+	/* C            */ { NULL,           NULL,    0, 0, 0, 0, PC_TEX_FMT_NONE },
+	/* D            */ { NULL,           NULL,    0, 0, 0, 0, PC_TEX_FMT_NONE },
 	/* GX_TF_CMPR   */ { "DecodeCMPR",   NULL, 0.5f, 4, 8, 8, PC_TEX_FMT_BGRA32 },
 };
 
@@ -69,13 +69,13 @@ sDecoderParameter g_DecodeParametersRGBA[] = {
 	/* GX_TF_RGB565 */ { "DecodeRGB565_RGBA", NULL,    2, 4, 4, 4, PC_TEX_FMT_RGBA32 },
 	/* GX_TF_RGB5A3 */ { "DecodeRGB5A3_RGBA", NULL,    2, 4, 4, 4, PC_TEX_FMT_RGBA32 },
 	/* GX_TF_RGBA8  */ { "DecodeRGBA8_RGBA",  NULL,    4, 4, 4, 4, PC_TEX_FMT_RGBA32 },
-	/* 7            */ { NULL },
-	/* GX_TF_C4     */ { NULL },
-	/* GX_TF_C8     */ { NULL },
-	/* GX_TF_C14X2  */ { NULL },
-	/* B            */ { NULL },
-	/* C            */ { NULL },
-	/* D            */ { NULL },
+	/* 7            */ { NULL,                NULL,    0, 0, 0, 0, PC_TEX_FMT_NONE },
+	/* GX_TF_C4     */ { NULL,                NULL,    0, 0, 0, 0, PC_TEX_FMT_NONE },
+	/* GX_TF_C8     */ { NULL,                NULL,    0, 0, 0, 0, PC_TEX_FMT_NONE },
+	/* GX_TF_C14X2  */ { NULL,                NULL,    0, 0, 0, 0, PC_TEX_FMT_NONE },
+	/* B            */ { NULL,                NULL,    0, 0, 0, 0, PC_TEX_FMT_NONE },
+	/* C            */ { NULL,                NULL,    0, 0, 0, 0, PC_TEX_FMT_NONE },
+	/* D            */ { NULL,                NULL,    0, 0, 0, 0, PC_TEX_FMT_NONE },
 	/* GX_TF_CMPR   */ { "DecodeCMPR_RGBA",   NULL, 0.5f, 4, 8, 8, PC_TEX_FMT_RGBA32 },
 };
 
@@ -99,28 +99,26 @@ void TexDecoder_OpenCL_Initialize()
 		cl_device_id *devices = NULL;
 		size_t *binary_sizes = NULL;
 		char **binaries = NULL;		
-		char filename[1024];
+		std::string filename;
 		char dolphin_rev[HEADER_SIZE];
 
-		sprintf(filename, "%skernel.bin", File::GetUserPath(D_OPENCL_IDX));
+		filename = File::GetUserPath(D_OPENCL_IDX) + "kernel.bin";
 		snprintf(dolphin_rev, HEADER_SIZE, "%-31s", svn_rev_str);
 
-		FILE *input = NULL;
-
-		input = fopen(filename, "rb");
-		if (input == NULL)
+		{
+		File::IOFile input(filename, "rb");
+		if (!input)
 		{
 			binary_size = 0;
 		}
 		else
 		{
-			binary_size = File::GetSize(input);
+			binary_size = input.GetSize();
 			header = new char[HEADER_SIZE];
 			binary = new char[binary_size];
-			fread(header, sizeof(char), HEADER_SIZE, input);
-			binary_size = fread(binary, sizeof(char),
-				binary_size - HEADER_SIZE, input);
-			fclose(input);
+			input.ReadBytes(header, HEADER_SIZE);
+			input.ReadBytes(binary, binary_size);
+		}
 		}
 
 		if (binary_size > 0)
@@ -152,10 +150,10 @@ void TexDecoder_OpenCL_Initialize()
 		if (err)
 		{
 			std::string code;
-			sprintf(filename, "%sTextureDecoder.cl", File::GetUserPath(D_OPENCL_IDX));
-			if (!File::ReadFileToString(true, filename, code))
+			filename = File::GetUserPath(D_OPENCL_IDX) + "TextureDecoder.cl";
+			if (!File::ReadFileToString(true, filename.c_str(), code))
 			{
-				ERROR_LOG(VIDEO, "Failed to load OpenCL code %s - file is missing?", filename);
+				ERROR_LOG(VIDEO, "Failed to load OpenCL code %s - file is missing?", filename.c_str());
 				return;
 			}
 
@@ -201,20 +199,18 @@ void TexDecoder_OpenCL_Initialize()
 
 			if (!err)
 			{
-				sprintf(filename, "%skernel.bin", File::GetUserPath(D_OPENCL_IDX));
-				FILE *output = NULL;
-				output = fopen(filename, "wb");
+				filename = File::GetUserPath(D_OPENCL_IDX) + "kernel.bin";
 
-				if (output == NULL)
+				File::IOFile output(filename, "wb");
+				if (!output)
 				{
 					binary_size = 0;
 				}
 				else
 				{
 					// Supporting one OpenCL device for now
-					fwrite(dolphin_rev, sizeof(char), HEADER_SIZE, output);
-					fwrite(binaries[0], sizeof(char), binary_sizes[0], output);
-					fclose(output);
+					output.WriteBytes(dolphin_rev, HEADER_SIZE);
+					output.WriteBytes(binaries[0], binary_sizes[0]);
 				}
 			}
 		}

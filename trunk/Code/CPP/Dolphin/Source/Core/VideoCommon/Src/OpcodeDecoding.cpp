@@ -90,8 +90,8 @@ DataReadU32xNfunc DataReadU32xFuncs[16] = {
 	DataReadU32xN<16>
 };
 
-extern u8* FAKE_GetFifoStartPtr();
-extern u8* FAKE_GetFifoEndPtr();
+extern u8* GetVideoBufferStartPtr();
+extern u8* GetVideoBufferEndPtr();
 
 static void Decode();
 
@@ -124,7 +124,7 @@ void InterpretDisplayList(u32 address, u32 size)
 	g_pVideoData = old_pVideoData;
 }
 
-// Defer to plugin-specific DL cache.
+// Defer to backend-specific DL cache.
 extern bool HandleDisplayList(u32 address, u32 size);
 
 void ExecuteDisplayList(u32 address, u32 size)
@@ -135,7 +135,7 @@ void ExecuteDisplayList(u32 address, u32 size)
 
 bool FifoCommandRunnable()
 {
-	u32 buffer_size = (u32)(FAKE_GetFifoEndPtr() - g_pVideoData);
+	u32 buffer_size = (u32)(GetVideoBufferEndPtr() - g_pVideoData);
     if (buffer_size == 0)
 		return false;  // can't peek
 
@@ -213,7 +213,7 @@ bool FifoCommandRunnable()
 				"* Some other sort of bug\n\n"
 				"Dolphin will now likely crash or hang. Enjoy." , cmd_byte);
 			Host_SysMessage(szTemp);
-			Core::Callback_VideoLog(szTemp, TRUE);
+			Core::Callback_VideoLog(szTemp);
 			{
                 SCPFifoStruct &fifo = CommandProcessor::fifo;
 
@@ -238,7 +238,7 @@ bool FifoCommandRunnable()
 					,fifo.bFF_Breakpoint ? "true" : "false");
 
 				Host_SysMessage(szTmp);
-				Core::Callback_VideoLog(szTmp, TRUE);
+				Core::Callback_VideoLog(szTmp);
 			}
         }
         break;
@@ -420,7 +420,7 @@ static void DecodeSemiNop()
 
 void OpcodeDecoder_Init()
 {	
-	g_pVideoData = FAKE_GetFifoStartPtr();
+	g_pVideoData = GetVideoBufferStartPtr();
 
 #if _M_SSE >= 0x301
 	if (cpu_info.bSSSE3)

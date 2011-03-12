@@ -33,10 +33,7 @@ struct SConfig : NonCopyable
 	bool m_WiiKeyboard;
 	bool m_WiiAutoReconnect[4];
 	bool m_WiiAutoUnpair;
-
-	// hard coded default plugins ...
-	std::string m_DefaultGFXPlugin;
-	std::string m_DefaultDSPPlugin;
+	bool m_WiimoteReconnectOnLoad;
 
 	// name of the last used filename
 	std::string m_LastFilename;
@@ -49,6 +46,10 @@ struct SConfig : NonCopyable
 
 	std::string m_strMemoryCardA;
 	std::string m_strMemoryCardB;
+	// eject and reload the memory card on state
+	// in ZTP and other games if the save file has been deleted from the memory card
+	//this is necessary to save after loading a savestate
+	bool b_reloadMCOnState;
 	TEXIDevices m_EXIDevice[3];
 	TSIDevices m_SIDevice[4];
 	std::string m_bba_mac;
@@ -62,6 +63,7 @@ struct SConfig : NonCopyable
 	bool m_InterfaceToolbar;
 	bool m_InterfaceStatusbar;
 	bool m_InterfaceLogWindow;
+	bool m_InterfaceLogConfigWindow;
 	bool m_InterfaceConsole;
 
 	bool m_ListDrives;

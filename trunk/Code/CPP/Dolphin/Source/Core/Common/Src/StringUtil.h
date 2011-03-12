@@ -45,16 +45,15 @@ std::string ArrayToString(const u8 *data, u32 size, int line_len = 20, bool spac
 
 std::string StripSpaces(const std::string &s);
 std::string StripQuotes(const std::string &s);
-std::string StripNewline(const std::string &s);
 
 // Thousand separator. Turns 12345678 into 12,345,678
 template <typename I>
 std::string ThousandSeparate(I value, int spaces = 0)
 {
 	std::ostringstream oss;
-#ifdef __APPLE__
-	oss.imbue(std::locale());
-#else
+
+// std::locale("") seems to be broken on many platforms
+#if defined _WIN32 || (defined __linux__ && !defined __clang__)
 	oss.imbue(std::locale(""));
 #endif
 	oss << std::setw(spaces) << value;
@@ -69,7 +68,7 @@ bool TryParse(const std::string &str, bool *output);
 bool TryParse(const std::string &str, u32 *output);
 
 template <typename N>
-bool TryParse(const std::string &str, N *const output)
+static bool TryParse(const std::string &str, N *const output)
 {
 	std::istringstream iss(str);
 	
@@ -92,9 +91,10 @@ void SplitString(const std::string& str, char delim, std::vector<std::string>& o
 
 // "C:/Windows/winhelp.exe" to "C:/Windows/", "winhelp", ".exe"
 bool SplitPath(const std::string& full_path, std::string* _pPath, std::string* _pFilename, std::string* _pExtension);
-// "C:/Windows/winhelp.exe" to "winhelp.exe"
-std::string PathToFilename(const std::string &Path);
 
 void BuildCompleteFilename(std::string& _CompleteFilename, const std::string& _Path, const std::string& _Filename);
+std::string ReplaceAll(std::string result, const std::string& src, const std::string& dest);
+std::string UriDecode(const std::string & sSrc);
+std::string UriEncode(const std::string & sSrc);
 
 #endif // _STRINGUTIL_H_

@@ -34,6 +34,7 @@
 #include "../ConfigManager.h"
 #include "VolumeCreator.h"
 #include "Boot.h"
+#include "HLE/HLE.h"
 
 void CBoot::RunFunction(u32 _iAddr)
 {
@@ -84,7 +85,7 @@ bool CBoot::EmulatedBS2_GC()
 	// HIO checks this
 	//Memory::Write_U16(0x8200,     0x000030e6);	// Console type
 
-	Memory::Write_U32(((1 & 0x3f) << 26) | 1, 0x81300000);		// HLE OSReport for Apploader
+	HLE::Patch(0x81300000, "OSReport"); // HLE OSReport for Apploader
 
 	// Load Apploader to Memory - The apploader is hardcoded to begin at 0x2440 on the disc,
 	// but the size can differ between discs. Compare with yagcd chap 13.
@@ -204,16 +205,16 @@ bool CBoot::SetupWiiMemory(unsigned int _CountryCode)
 		break;
 	}
 
-	FILE* pTmp = fopen(filename.c_str(), "rb");
+	{
+	File::IOFile pTmp(filename, "rb");
 	if (!pTmp)
 	{
 		PanicAlertT("SetupWiiMem: Cant find setting file");	
 		return false;
 	}
 
-	fread(Memory::GetPointer(0x3800), 256, 1, pTmp);
-	fclose(pTmp);
-
+	pTmp.ReadBytes(Memory::GetPointer(0x3800), 256);
+	}
 
 	/*
 	Set hardcoded global variables to Wii memory. These are partly collected from
@@ -258,10 +259,12 @@ bool CBoot::SetupWiiMemory(unsigned int _CountryCode)
 	Memory::Write_U32(0x93b00000, 0x00003134);		// IOS MEM2 high
 	Memory::Write_U32(0x00000011, 0x00003138);		// Console type
 	// 40 is copied from 88 after running apploader
-	Memory::Write_U32(0x00062507, 0x00003144);		// IOS date in USA format
+	Memory::Write_U32(0x00090204, 0x00003140);		// IOS revision (IOS9, v2.4)
+	Memory::Write_U32(0x00062507, 0x00003144);		// IOS date in USA format (June 25, 2007)
 	Memory::Write_U16(0x0113,     0x0000315e);		// Apploader
 	Memory::Write_U32(0x0000FF16, 0x00003158);		// DDR ram vendor code
 	Memory::Write_U32(0x00000000, 0x00003160);		// Init semaphore (sysmenu waits for this to clear)
+	Memory::Write_U32(0x00090204, 0x00003188);		// Expected IOS revision
 
 	Memory::Write_U8(0x80, 0x0000315c);				// OSInit
 	Memory::Write_U16(0x0000, 0x000030e0);			// PADInit
@@ -310,7 +313,7 @@ bool CBoot::EmulatedBS2_Wii()
 		Memory::Write_U32(0x4c000064,	0x80000800);	// write default FPU Handler:		rfi
 		Memory::Write_U32(0x4c000064,	0x80000C00);	// write default Syscall Handler:	rfi
 
-		Memory::Write_U32(((1 & 0x3f) << 26) | 1, 0x81300000);		// HLE OSReport for Apploader
+		HLE::Patch(0x81300000, "OSReport");				// HLE OSReport for Apploader
 
 		PowerPC::ppcState.gpr[1] = 0x816ffff0;			// StackPointer
 

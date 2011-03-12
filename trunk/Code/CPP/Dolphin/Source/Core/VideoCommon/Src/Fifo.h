@@ -30,20 +30,21 @@ extern volatile bool g_bSkipCurrentFrame;
 
 void Fifo_Init();
 void Fifo_Shutdown();
-
-void Fifo_SendFifoData(u8* _uData, u32 len);
-
-// These two are for dual core mode only.
-void Fifo_EnterLoop();
-void Fifo_ExitLoop();
-void Fifo_ExitLoopNonBlocking();
-void Fifo_RunLoop(bool run);
-bool AtBreakpoint();
 void Fifo_DoState(PointerWrap &f);
+
+void ReadDataFromFifo(u8* _uData, u32 len);
+
+void RunGpu();
+void RunGpuLoop();
+void ExitGpuLoop();
+void EmulatorState(bool running);
+bool AtBreakpoint();
 void ResetVideoBuffer();
 void Fifo_SetRendering(bool bEnabled);
 
-// Implemented by the Video Plugin
+
+// Implemented by the Video Backend
 void VideoFifo_CheckAsyncRequest();
+void VideoFifo_CheckStateRequest();
 
 #endif // _FIFO_H

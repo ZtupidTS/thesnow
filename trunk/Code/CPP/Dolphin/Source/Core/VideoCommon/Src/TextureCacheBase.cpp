@@ -7,8 +7,6 @@
 #include "RenderBase.h"
 #include "FileUtil.h"
 
-#include "PluginSpecs.h"
-
 #include "TextureCacheBase.h"
 #include "Debugger.h"
 #include "ConfigManager.h"
@@ -19,14 +17,16 @@ extern int frameCount;
 
 enum
 {
-	TEMP_SIZE = (1024 * 1024 * 4),
+	TEMP_SIZE = (2048 * 2048 * 4),
 	TEXTURE_KILL_THRESHOLD = 200,
 };
 
 TextureCache *g_texture_cache;
 
-u8 *TextureCache::temp;
+ GC_ALIGNED16(u8 *TextureCache::temp) = NULL;
+
 TextureCache::TexCache TextureCache::textures;
+bool TextureCache::DeferredInvalidate;
 
 TextureCache::TCacheEntryBase::~TCacheEntryBase()
 {
@@ -43,9 +43,12 @@ TextureCache::TCacheEntryBase::~TCacheEntryBase()
 
 TextureCache::TextureCache()
 {
-	temp = (u8*)AllocateMemoryPages(TEMP_SIZE);
+	if (!temp)
+		temp =(u8*) AllocateAlignedMemory(TEMP_SIZE,16);
 	TexDecoder_SetTexFmtOverlayOptions(g_ActiveConfig.bTexFmtOverlayEnable, g_ActiveConfig.bTexFmtOverlayCenter);
-	HiresTextures::Init(SConfig::GetInstance().m_LocalCoreStartupParameter.m_strUniqueID.c_str());
+    if(g_ActiveConfig.bHiresTextures && !g_ActiveConfig.bDumpTextures)
+		HiresTextures::Init(SConfig::GetInstance().m_LocalCoreStartupParameter.m_strUniqueID.c_str());
+	SetHash64Function(g_ActiveConfig.bHiresTextures || g_ActiveConfig.bDumpTextures);
 }
 
 void TextureCache::Invalidate(bool shutdown)
@@ -61,14 +64,26 @@ void TextureCache::Invalidate(bool shutdown)
 	}
 
 	textures.clear();
-	HiresTextures::Shutdown();
+	if(g_ActiveConfig.bHiresTextures && !g_ActiveConfig.bDumpTextures)
+		HiresTextures::Init(SConfig::GetInstance().m_LocalCoreStartupParameter.m_strUniqueID.c_str());
+	SetHash64Function(g_ActiveConfig.bHiresTextures || g_ActiveConfig.bDumpTextures);
+	
+	DeferredInvalidate = false;
+}
+
+void TextureCache::InvalidateDefer()
+{
+	DeferredInvalidate = true;
 }
 
 TextureCache::~TextureCache()
 {
 	Invalidate(true);
-	FreeMemoryPages(temp, TEMP_SIZE);
-	temp = NULL;
+	if (temp)
+	{
+		FreeAlignedMemory(temp);
+		temp = NULL;
+	}
 }
 
 void TextureCache::Cleanup()
@@ -185,10 +200,9 @@ TextureCache::TCacheEntryBase* TextureCache::Load(unsigned int stage,
 	unsigned int texLevels;
 	PC_TexFormat pcfmt = PC_TEX_FMT_NONE;
 
-	// someone who understands this var could rename it :p
-	const bool isC4_C8_C14X2 = (texformat == GX_TF_C4 || texformat == GX_TF_C8 || texformat == GX_TF_C14X2);
+	const bool isPaletteTexture = (texformat == GX_TF_C4 || texformat == GX_TF_C8 || texformat == GX_TF_C14X2);
 
-	if (isC4_C8_C14X2)
+	if (isPaletteTexture)
 		full_format = texformat | (tlutfmt << 16);
 
 	// hires texture loading and texture dumping require accurate hashes
@@ -196,7 +210,7 @@ TextureCache::TCacheEntryBase* TextureCache::Load(unsigned int stage,
 	{
 		texHash = GetHash64(ptr, texture_size, g_ActiveConfig.iSafeTextureCache_ColorSamples);
 
-		if (isC4_C8_C14X2)
+		if (isPaletteTexture)
 		{
 			// WARNING! texID != address now => may break CopyRenderTargetToTexture (cf. TODO up)
 			// tlut size can be up to 32768B (GX_TF_C14X2) but Safer == Slower.
@@ -230,7 +244,7 @@ TextureCache::TCacheEntryBase* TextureCache::Load(unsigned int stage,
 				{
 					hash_value = GetHash64(ptr, texture_size, g_ActiveConfig.iSafeTextureCache_ColorSamples);
 
-					if (isC4_C8_C14X2)
+					if (isPaletteTexture)
 					{
 						hash_value ^= GetHash64(&texMem[tlutaddr], palette_size,
 							g_ActiveConfig.iSafeTextureCache_ColorSamples);
@@ -287,7 +301,7 @@ TextureCache::TCacheEntryBase* TextureCache::Load(unsigned int stage,
 		unsigned int newWidth = width;
 		unsigned int newHeight = height;
 
-		sprintf(texPathTemp, "%s_%08llx_%i", SConfig::GetInstance().m_LocalCoreStartupParameter.m_strUniqueID.c_str(), texHash, texformat);
+		sprintf(texPathTemp, "%s_%08x_%i", SConfig::GetInstance().m_LocalCoreStartupParameter.m_strUniqueID.c_str(), (u32) (texHash & 0x00000000FFFFFFFFLL), texformat);
 		pcfmt = HiresTextures::GetHiresTex(texPathTemp, &newWidth, &newHeight, texformat, temp);
 
 		if (pcfmt != PC_TEX_FMT_NONE)
@@ -381,14 +395,16 @@ TextureCache::TCacheEntryBase* TextureCache::Load(unsigned int stage,
 	if (g_ActiveConfig.bDumpTextures)
 	{
 		char szTemp[MAX_PATH];
-		char szDir[MAX_PATH];
+		std::string szDir = File::GetUserPath(D_DUMPTEXTURES_IDX) +
+			SConfig::GetInstance().m_LocalCoreStartupParameter.m_strUniqueID;
 
 		// make sure that the directory exists
-		sprintf(szDir, "%s%s", File::GetUserPath(D_DUMPTEXTURES_IDX), SConfig::GetInstance().m_LocalCoreStartupParameter.m_strUniqueID.c_str());
 		if (false == File::Exists(szDir) || false == File::IsDirectory(szDir))
-			File::CreateDir(szDir);
+			File::CreateDir(szDir.c_str());
 
-		sprintf(szTemp, "%s/%s_%08llx_%i.png", szDir, SConfig::GetInstance().m_LocalCoreStartupParameter.m_strUniqueID.c_str(), texHash, texformat);
+		sprintf(szTemp, "%s/%s_%08x_%i.png", szDir.c_str(),
+				SConfig::GetInstance().m_LocalCoreStartupParameter.m_strUniqueID.c_str(),
+				(u32) (texHash & 0x00000000FFFFFFFFLL), texformat);
 
 		if (false == File::Exists(szTemp))
 			entry->Save(szTemp);
@@ -407,8 +423,8 @@ return_entry:
 	return entry;
 }
 
-void TextureCache::CopyRenderTargetToTexture(u32 address, bool bFromZBuffer,
-	bool bIsIntensityFmt, u32 copyfmt, bool bScaleByHalf, const EFBRectangle &source_rect)
+void TextureCache::CopyRenderTargetToTexture(u32 dstAddr, unsigned int dstFormat, unsigned int srcFormat,
+	const EFBRectangle& srcRect, bool isIntensity, bool scaleByHalf)
 {
 	float colmat[28] = {0};
 	float *const fConstAdd = colmat + 16;
@@ -417,9 +433,9 @@ void TextureCache::CopyRenderTargetToTexture(u32 address, bool bFromZBuffer,
 	ColorMask[4] = ColorMask[5] = ColorMask[6] = ColorMask[7] = 1.0f / 255.0f;
 	unsigned int cbufid = -1;
 
-	if (bFromZBuffer)
+	if (srcFormat == PIXELFMT_Z24)
 	{
-		switch (copyfmt)
+		switch (dstFormat)
 		{
 		case 0: // Z4				
 			colmat[3] = colmat[7] = colmat[11] = colmat[15] = 1.0f;
@@ -462,17 +478,17 @@ void TextureCache::CopyRenderTargetToTexture(u32 address, bool bFromZBuffer,
 			break;
 
 		default:
-			ERROR_LOG(VIDEO, "Unknown copy zbuf format: 0x%x", copyfmt);
+			ERROR_LOG(VIDEO, "Unknown copy zbuf format: 0x%x", dstFormat);
 			colmat[2] = colmat[5] = colmat[8] = 1.0f;
 			cbufid = 7;
 			break;
 		}
 		
 	}
-	else if (bIsIntensityFmt) 
+	else if (isIntensity) 
 	{
 		fConstAdd[0] = fConstAdd[1] = fConstAdd[2] = 16.0f/255.0f;
-		switch (copyfmt) 
+		switch (dstFormat) 
 		{
 		case 0: // I4
 		case 1: // I8
@@ -484,11 +500,11 @@ void TextureCache::CopyRenderTargetToTexture(u32 address, bool bFromZBuffer,
 			colmat[4] = 0.257f; colmat[5] = 0.504f; colmat[6] = 0.098f;
 			colmat[8] = 0.257f; colmat[9] = 0.504f; colmat[10] = 0.098f;
 
-			if (copyfmt < 2 || copyfmt == 8) 
+			if (dstFormat < 2 || dstFormat == 8) 
 			{
 				colmat[12] = 0.257f; colmat[13] = 0.504f; colmat[14] = 0.098f;
 				fConstAdd[3] = 16.0f/255.0f;
-				if (copyfmt == 0)
+				if (dstFormat == 0)
 				{
 					ColorMask[0] = ColorMask[1] = ColorMask[2] = 15.0f;
 					ColorMask[4] = ColorMask[5] = ColorMask[6] = 1.0f / 15.0f;
@@ -502,7 +518,7 @@ void TextureCache::CopyRenderTargetToTexture(u32 address, bool bFromZBuffer,
 			else// alpha
 			{
 				colmat[15] = 1;
-				if (copyfmt == 2)
+				if (dstFormat == 2)
 				{
 					ColorMask[0] = ColorMask[1] = ColorMask[2] = ColorMask[3] = 15.0f;
 					ColorMask[4] = ColorMask[5] = ColorMask[6] = ColorMask[7] = 1.0f / 15.0f;
@@ -517,7 +533,7 @@ void TextureCache::CopyRenderTargetToTexture(u32 address, bool bFromZBuffer,
 			break;
 
 		default:
-			ERROR_LOG(VIDEO, "Unknown copy intensity format: 0x%x", copyfmt);
+			ERROR_LOG(VIDEO, "Unknown copy intensity format: 0x%x", dstFormat);
 			colmat[0] = colmat[5] = colmat[10] = colmat[15] = 1.0f;
 			cbufid = 23;
 			break;
@@ -525,7 +541,7 @@ void TextureCache::CopyRenderTargetToTexture(u32 address, bool bFromZBuffer,
 	}
 	else
 	{
-		switch (copyfmt) 
+		switch (dstFormat) 
 		{
 		case 0: // R4
 			colmat[0] = colmat[4] = colmat[8] = colmat[12] = 1;
@@ -598,22 +614,22 @@ void TextureCache::CopyRenderTargetToTexture(u32 address, bool bFromZBuffer,
 			break;
 
 		default:
-			ERROR_LOG(VIDEO, "Unknown copy color format: 0x%x", copyfmt);
+			ERROR_LOG(VIDEO, "Unknown copy color format: 0x%x", dstFormat);
 			colmat[0] = colmat[5] = colmat[10] = colmat[15] = 1.0f;
 			cbufid = 23;
 			break;
 		}
 	}
 
-	const unsigned int tex_w = (abs(source_rect.GetWidth()) >> (int)bScaleByHalf);
-	const unsigned int tex_h = (abs(source_rect.GetHeight()) >> (int)bScaleByHalf);
+	const unsigned int tex_w = scaleByHalf ? srcRect.GetWidth()/2 : srcRect.GetWidth();
+	const unsigned int tex_h = scaleByHalf ? srcRect.GetHeight()/2 : srcRect.GetHeight();
 
 	unsigned int scaled_tex_w = g_ActiveConfig.bCopyEFBScaled ? Renderer::EFBToScaledX(tex_w) : tex_w;
 	unsigned int scaled_tex_h = g_ActiveConfig.bCopyEFBScaled ? Renderer::EFBToScaledY(tex_h) : tex_h;
 
 	bool texture_is_dynamic = false;
 
-	TCacheEntryBase *entry = textures[address];
+	TCacheEntryBase *entry = textures[dstAddr];
 	if (entry)
 	{
 		if ((entry->isRenderTarget && entry->virtualW == scaled_tex_w && entry->virtualH == scaled_tex_h) 
@@ -638,9 +654,9 @@ void TextureCache::CopyRenderTargetToTexture(u32 address, bool bFromZBuffer,
 	if (NULL == entry)
 	{
 		// create the texture
-		textures[address] = entry = g_texture_cache->CreateRenderTargetTexture(scaled_tex_w, scaled_tex_h);
+		textures[dstAddr] = entry = g_texture_cache->CreateRenderTargetTexture(scaled_tex_w, scaled_tex_h);
 
-		entry->addr = address;
+		entry->addr = dstAddr;
 		entry->hash = 0;
 
 		entry->realW = tex_w;
@@ -649,7 +665,7 @@ void TextureCache::CopyRenderTargetToTexture(u32 address, bool bFromZBuffer,
 		entry->virtualW = scaled_tex_w;
 		entry->virtualH = scaled_tex_h;
 
-		entry->format = copyfmt;
+		entry->format = dstFormat;
 		entry->mipLevels = 0;
 
 		entry->isRenderTarget = true;
@@ -661,7 +677,7 @@ void TextureCache::CopyRenderTargetToTexture(u32 address, bool bFromZBuffer,
 
 	g_renderer->ResetAPIState(); // reset any game specific settings
 
-	entry->FromRenderTarget(bFromZBuffer, bScaleByHalf, cbufid, colmat, source_rect, bIsIntensityFmt, copyfmt);
+	entry->FromRenderTarget(dstAddr, dstFormat, srcFormat, srcRect, isIntensity, scaleByHalf, cbufid, colmat);
 
 	g_renderer->RestoreAPIState();
 }

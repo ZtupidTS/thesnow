@@ -19,23 +19,17 @@
 
 #include "CoreAudioSoundStream.h"
 
-OSStatus callback(void *inRefCon, AudioUnitRenderActionFlags *ioActionFlags,
-			const AudioTimeStamp *inTimeStamp, UInt32 inBusNumber,
-			UInt32 inNumberFrames, AudioBufferList *ioData)
+OSStatus CoreAudioSound::callback(void *inRefCon,
+	AudioUnitRenderActionFlags *ioActionFlags,
+	const AudioTimeStamp *inTimeStamp, UInt32 inBusNumber,
+	UInt32 inNumberFrames, AudioBufferList *ioData)
 {
 	for (UInt32 i = 0; i < ioData->mNumberBuffers; i++)
-	{
-		((CoreAudioSound *)inRefCon)-> \
-			RenderSamples(ioData->mBuffers[i].mData,
-					ioData->mBuffers[i].mDataByteSize);
-	}
+		((CoreAudioSound *)inRefCon)->m_mixer->
+			Mix((short *)ioData->mBuffers[i].mData,
+				ioData->mBuffers[i].mDataByteSize / 4);
 
 	return noErr;
-}
-
-void CoreAudioSound::RenderSamples(void *target, UInt32 size)
-{
-	m_mixer->Mix((short *)target, size / 4);
 }
 
 CoreAudioSound::CoreAudioSound(CMixer *mixer) : SoundStream(mixer)
@@ -52,15 +46,14 @@ bool CoreAudioSound::Start()
 	AURenderCallbackStruct callback_struct;
 	AudioStreamBasicDescription format;
 	ComponentDescription desc;
-	UInt32 enableIO = 1;
+	Component component;
 
 	desc.componentType = kAudioUnitType_Output;
 	desc.componentSubType = kAudioUnitSubType_DefaultOutput;
 	desc.componentFlags = 0;
 	desc.componentFlagsMask = 0;
 	desc.componentManufacturer = kAudioUnitManufacturer_Apple;
-
-	Component component = FindNextComponent(NULL, &desc);
+	component = FindNextComponent(NULL, &desc);
 	if (component == NULL) {
 		ERROR_LOG(AUDIO, "error finding audio component");
 		return false;
@@ -71,11 +64,6 @@ bool CoreAudioSound::Start()
 		ERROR_LOG(AUDIO, "error opening audio component");
 		return false;
 	}
-
-	AudioUnitSetProperty(audioUnit,
-				kAudioOutputUnitProperty_EnableIO,
-				kAudioUnitScope_Output, 0, &enableIO,
-				sizeof enableIO);
 
 	FillOutASBDForLPCM(format, m_mixer->GetSampleRate(),
 				2, 16, 16, false, false, false);

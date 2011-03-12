@@ -86,20 +86,8 @@ private:
 	#define GC_ALIGNED16_DECL(x) __declspec(align(16)) x
 	#define GC_ALIGNED64_DECL(x) __declspec(align(64)) x
 
-// Since they are always around on windows
+// Since it is always around on windows
 	#define HAVE_WX 1
-	#define HAVE_OPENAL 1
-
-// it is VERY DANGEROUS to mix _SECURE_SCL=0 and _SECURE_SCL=1 compiled libraries.
-// You will get bizarre crash bugs whenever you use STL.
-	namespace
-	{
-		#ifndef _SECURE_SCL
-			#error Please define _SECURE_SCL=0 in the project settings
-		#else
-			CompileTimeAssert<_SECURE_SCL==0> volatile EnsureNoSecureSCL;
-		#endif
-	}
 
 // Debug definitions
 	#if defined(_DEBUG)
@@ -156,7 +144,27 @@ private:
 #elif __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 3)
 #define _M_SSE 0x301
 #elif _MSC_VER >= 1500 // Visual Studio 2008
-#define _M_SSE 0x401
+#define _M_SSE 0x402
 #endif
+
+// Host communication.
+enum HOST_COMM
+{
+	// Begin at 10 in case there is already messages with wParam = 0, 1, 2 and so on
+	WM_USER_PAUSE = 10,
+	WM_USER_STOP,
+	WM_USER_CREATE,
+	WM_USER_SETCURSOR,
+	WM_USER_KEYDOWN,
+	WIIMOTE_DISCONNECT // Disconnect Wiimote
+};
+
+// Used for notification on emulation state
+enum EMUSTATE_CHANGE
+{
+	EMUSTATE_CHANGE_PLAY = 1,
+	EMUSTATE_CHANGE_PAUSE,
+	EMUSTATE_CHANGE_STOP
+};
 
 #endif // _COMMON_H_

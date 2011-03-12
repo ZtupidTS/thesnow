@@ -22,8 +22,8 @@
 // at the start of every frame. Noone should ever change members of g_ActiveConfig 
 // directly.
 
-#ifndef _PLUGIN_VIDEO_CONFIG_H_
-#define _PLUGIN_VIDEO_CONFIG_H_
+#ifndef _VIDEO_CONFIG_H_
+#define _VIDEO_CONFIG_H_
 
 #include "Common.h"
 #include "VideoCommon.h"
@@ -64,7 +64,9 @@ struct VideoConfig
 	VideoConfig();
 	void Load(const char *ini_file);
 	void GameIniLoad(const char *ini_file);
+	void VerifyValidity();
 	void Save(const char *ini_file);
+	void GameIniSave(const char* default_ini, const char* game_ini);
 	void UpdateProjectionHack();
 
 	// General
@@ -90,6 +92,7 @@ struct VideoConfig
 
 	// Information
 	bool bShowFPS;
+	bool bShowInputDisplay;
 	bool bOverlayStats;
 	bool bOverlayProjStats;
 	bool bTexFmtOverlayEnable;
@@ -108,6 +111,7 @@ struct VideoConfig
 	bool bHiresTextures;
 	bool bDumpEFBTarget;
 	bool bDumpFrames;
+	bool bUseFFV1;
 	bool bFreeLook;
 	bool bAnaglyphStereo;
 	int iAnaglyphStereoSeparation;
@@ -170,4 +174,4 @@ void UpdateActiveConfig();
 
 void ComputeDrawRectangle(int backbuffer_width, int backbuffer_height, bool flip, TargetRectangle *rc);
 
-#endif  // _PLUGIN_VIDEO_CONFIG_H_
+#endif  // _VIDEO_CONFIG_H_

@@ -31,24 +31,68 @@ static const struct {
 	const int	DefaultModifier;
 } g_HKData[] = {
 #ifdef __APPLE__
-	{ "ToggleFullscreen",	 70 /* 'F' */,		0x08 /* wxMOD_CMD */ },
-	{ "PlayPause",		 80 /* 'P' */,		0x08 /* wxMOD_CMD */ },
-	{ "Stop",		 87 /* 'W' */,		0x08 /* wxMOD_CMD */ },
-	{ "Screenshot",		 83 /* 'S' */,		0x08 /* wxMOD_CMD */ },
-	{ "Wiimote1Connect", 	 49 /* '1' */,		0x08 /* wxMOD_CMD */ },
-	{ "Wiimote2Connect", 	 50 /* '2' */,		0x08 /* wxMOD_CMD */ },
-	{ "Wiimote3Connect", 	 51 /* '3' */,		0x08 /* wxMOD_CMD */ },
-	{ "Wiimote4Connect", 	 52 /* '4' */,		0x08 /* wxMOD_CMD */ },
+	{ "Open",		79 /* 'O' */,		8 /* wxMOD_CMD */ },
+	{ "ChangeDisc",		0,			0 /* wxMOD_NONE */ },
+	{ "RefreshList",	0,			0 /* wxMOD_NONE */ },
+
+	{ "PlayPause",		80 /* 'P' */,		8 /* wxMOD_CMD */ },
+	{ "Stop",		87 /* 'W' */,		8 /* wxMOD_CMD */ },
+	{ "Reset",		0,			0 /* wxMOD_NONE */ },
+	{ "FrameAdvance",	0,			0 /* wxMOD_NONE */ },
+
+	{ "StartRecording",	0,			0 /* wxMOD_NONE */ },
+	{ "PlayRecording",	0,			0 /* wxMOD_NONE */ },
+	{ "ExportRecording",	0,			0 /* wxMOD_NONE */ },
+	{ "Readonlymode",	0,			0 /* wxMOD_NONE */ },
+
+	{ "ToggleFullscreen",	70 /* 'F' */,		8 /* wxMOD_CMD */ },
+	{ "Screenshot",		83 /* 'S' */,		8 /* wxMOD_CMD */ },
+
+	{ "Wiimote1Connect",	49 /* '1' */,		8 /* wxMOD_CMD */ },
+	{ "Wiimote2Connect",	50 /* '2' */,		8 /* wxMOD_CMD */ },
+	{ "Wiimote3Connect",	51 /* '3' */,		8 /* wxMOD_CMD */ },
+	{ "Wiimote4Connect",	52 /* '4' */,		8 /* wxMOD_CMD */ },
 #else
-	{ "ToggleFullscreen",	 13 /* WXK_RETURN */,	0x01 /* wxMOD_ALT */ },
-	{ "PlayPause",		349 /* WXK_F10 */,	0x00 /* wxMOD_NONE*/ },
-	{ "Stop",		 27 /* WXK_ESCAPE */,	0x00 /* wxMOD_NONE*/ },
-	{ "Screenshot",		348 /* WXK_F9 */,	0x00 /* wxMOD_NONE*/ },
-	{ "Wiimote1Connect", 	344 /* WXK_F5 */,	0x01 /* wxMOD_ALT */ },
-	{ "Wiimote2Connect", 	345 /* WXK_F6 */,	0x01 /* wxMOD_ALT */ },
-	{ "Wiimote3Connect", 	346 /* WXK_F7 */,	0x01 /* wxMOD_ALT */ },
-	{ "Wiimote4Connect", 	347 /* WXK_F8 */,	0x01 /* wxMOD_ALT */ },
+	{ "Open",		79 /* 'O' */,		2 /* wxMOD_CONTROL */},
+	{ "ChangeDisc",		0,			0 /* wxMOD_NONE */ },
+	{ "RefreshList",	0,			0 /* wxMOD_NONE */ },
+
+	{ "PlayPause",		349 /* WXK_F10 */,	0 /* wxMOD_NONE */ },
+	{ "Stop",		27 /* WXK_ESCAPE */,	0 /* wxMOD_NONE */ },
+	{ "Reset",		0,			0 /* wxMOD_NONE */ },
+	{ "FrameAdvance",	0,			0 /* wxMOD_NONE */ },
+
+	{ "StartRecording",	0,			0 /* wxMOD_NONE */ },
+	{ "PlayRecording",	0,			0 /* wxMOD_NONE */ },
+	{ "ExportRecording",	0,			0 /* wxMOD_NONE */ },
+	{ "Readonlymode",	0,			0 /* wxMOD_NONE */ },
+
+	{ "ToggleFullscreen",	13 /* WXK_RETURN */,	1 /* wxMOD_ALT */ },
+	{ "Screenshot",		348 /* WXK_F9 */,	0 /* wxMOD_NONE */ },
+
+	{ "Wiimote1Connect",	344 /* WXK_F5 */,	1 /* wxMOD_ALT */ },
+	{ "Wiimote2Connect",	345 /* WXK_F6 */,	1 /* wxMOD_ALT */ },
+	{ "Wiimote3Connect",	346 /* WXK_F7 */,	1 /* wxMOD_ALT */ },
+	{ "Wiimote4Connect",	347 /* WXK_F8 */,	1 /* wxMOD_ALT */ },
 #endif
+
+	{ "LoadStateSlot1",	340 /* WXK_F1 */,	0 /* wxMOD_NONE */ },
+	{ "LoadStateSlot2",	341 /* WXK_F2 */,	0 /* wxMOD_NONE */ },
+	{ "LoadStateSlot3",	342 /* WXK_F3 */,	0 /* wxMOD_NONE */ },
+	{ "LoadStateSlot4",	343 /* WXK_F4 */,	0 /* wxMOD_NONE */ },
+	{ "LoadStateSlot5",	344 /* WXK_F5 */,	0 /* wxMOD_NONE */ },
+	{ "LoadStateSlot6",	345 /* WXK_F6 */,	0 /* wxMOD_NONE */ },
+	{ "LoadStateSlot7",	346 /* WXK_F7 */,	0 /* wxMOD_NONE */ },
+	{ "LoadStateSlot8",	347 /* WXK_F8 */,	0 /* wxMOD_NONE */ },
+
+	{ "SaveStateSlot1",	340 /* WXK_F1 */,	4 /* wxMOD_SHIFT */ },
+	{ "SaveStateSlot2",	341 /* WXK_F2 */,	4 /* wxMOD_SHIFT */ },
+	{ "SaveStateSlot3",	342 /* WXK_F3 */,	4 /* wxMOD_SHIFT */ },
+	{ "SaveStateSlot4",	343 /* WXK_F4 */,	4 /* wxMOD_SHIFT */ },
+	{ "SaveStateSlot5",	344 /* WXK_F5 */,	4 /* wxMOD_SHIFT */ },
+	{ "SaveStateSlot6",	345 /* WXK_F6 */,	4 /* wxMOD_SHIFT */ },
+	{ "SaveStateSlot7",	346 /* WXK_F7 */,	4 /* wxMOD_SHIFT */ },
+	{ "SaveStateSlot8",	347 /* WXK_F8 */,	4 /* wxMOD_SHIFT */ },
 };
 
 SConfig::SConfig()
@@ -80,7 +124,7 @@ SConfig::~SConfig()
 
 void SConfig::SaveSettings()
 {
-	NOTICE_LOG(BOOT, "Saving settings to %s", File::GetUserPath(F_DOLPHINCONFIG_IDX));
+	NOTICE_LOG(BOOT, "Saving settings to %s", File::GetUserPath(F_DOLPHINCONFIG_IDX).c_str());
 	IniFile ini;
 	ini.Load(File::GetUserPath(F_DOLPHINCONFIG_IDX)); // load first to not kill unknown stuff
 
@@ -113,10 +157,11 @@ void SConfig::SaveSettings()
 	ini.Set("Interface", "ShowToolbar",			m_InterfaceToolbar);
 	ini.Set("Interface", "ShowStatusbar",		m_InterfaceStatusbar);
 	ini.Set("Interface", "ShowLogWindow",		m_InterfaceLogWindow);
+	ini.Set("Interface", "ShowLogConfigWindow",	m_InterfaceLogConfigWindow);
 	ini.Set("Interface", "ShowConsole",			m_InterfaceConsole);
 
 	// Hotkeys
-	for (int i = HK_FULLSCREEN; i < NUM_HOTKEYS; i++)
+	for (int i = 0; i < NUM_HOTKEYS; i++)
 	{
 		ini.Set("Hotkeys", g_HKData[i].IniText, m_LocalCoreStartupParameter.iHotkey[i]);
 		ini.Set("Hotkeys", (std::string(g_HKData[i].IniText) + "Modifier").c_str(),
@@ -164,6 +209,7 @@ void SConfig::SaveSettings()
 	ini.Set("Core", "SelectedLanguage",	m_LocalCoreStartupParameter.SelectedLanguage);
 	ini.Set("Core", "MemcardA",			m_strMemoryCardA);
 	ini.Set("Core", "MemcardB",			m_strMemoryCardB);
+	ini.Set("Core", "ReloadMemcardOnState",	b_reloadMCOnState);
 	ini.Set("Core", "SlotA",			m_EXIDevice[0]);
 	ini.Set("Core", "SlotB",			m_EXIDevice[1]);
 	ini.Set("Core", "SerialPort1",		m_EXIDevice[2]);
@@ -177,14 +223,14 @@ void SConfig::SaveSettings()
 
 	ini.Set("Core", "WiiSDCard", m_WiiSDCard);
 	ini.Set("Core", "WiiKeyboard", m_WiiKeyboard);
+	ini.Set("Core", "WiimoteReconnectOnLoad", m_WiimoteReconnectOnLoad);
 	ini.Set("Core", "RunCompareServer",	m_LocalCoreStartupParameter.bRunCompareServer);
 	ini.Set("Core", "RunCompareClient",	m_LocalCoreStartupParameter.bRunCompareClient);
 	ini.Set("Core", "FrameLimit",		m_Framelimit);
 	ini.Set("Core", "UseFPS",		b_UseFPS);
 
-	// Plugins
-	// TODO: change key name, it's no longer a plugin
-	ini.Set("Core", "GFXPlugin",	m_LocalCoreStartupParameter.m_strVideoPlugin);
+	// GFX Backend
+	ini.Set("Core", "GFXBackend",	m_LocalCoreStartupParameter.m_strVideoBackend);
 
 	ini.Save(File::GetUserPath(F_DOLPHINCONFIG_IDX));
 	m_SYSCONF->Save();
@@ -193,13 +239,9 @@ void SConfig::SaveSettings()
 
 void SConfig::LoadSettings()
 {
-	INFO_LOG(BOOT, "Loading Settings from %s", File::GetUserPath(F_DOLPHINCONFIG_IDX));
+	INFO_LOG(BOOT, "Loading Settings from %s", File::GetUserPath(F_DOLPHINCONFIG_IDX).c_str());
 	IniFile ini;
 	ini.Load(File::GetUserPath(F_DOLPHINCONFIG_IDX));
-
-	// Hard coded defaults
-	m_DefaultGFXPlugin = DEFAULT_GFX_PLUGIN;
-	m_DefaultDSPPlugin = DEFAULT_DSP_PLUGIN;
 
 	// General
 	{
@@ -238,10 +280,11 @@ void SConfig::LoadSettings()
 		ini.Get("Interface", "ShowToolbar",			&m_InterfaceToolbar,							true);
 		ini.Get("Interface", "ShowStatusbar",		&m_InterfaceStatusbar,							true);
 		ini.Get("Interface", "ShowLogWindow",		&m_InterfaceLogWindow,							false);
+		ini.Get("Interface", "ShowLogConfigWindow",	&m_InterfaceLogConfigWindow,					false);
 		ini.Get("Interface", "ShowConsole",			&m_InterfaceConsole,							false);
 
 		// Hotkeys
-		for (int i = HK_FULLSCREEN; i < NUM_HOTKEYS; i++)
+		for (int i = 0; i < NUM_HOTKEYS; i++)
 		{
 			ini.Get("Hotkeys", g_HKData[i].IniText,
 					&m_LocalCoreStartupParameter.iHotkey[i], g_HKData[i].DefaultKey);
@@ -291,6 +334,7 @@ void SConfig::LoadSettings()
 		ini.Get("Core", "SelectedLanguage", &m_LocalCoreStartupParameter.SelectedLanguage,		0);
 		ini.Get("Core", "MemcardA",		&m_strMemoryCardA);
 		ini.Get("Core", "MemcardB",		&m_strMemoryCardB);
+		ini.Get("Core", "ReloadMemcardOnState",	&b_reloadMCOnState, true);
 		ini.Get("Core", "SlotA",		(int*)&m_EXIDevice[0], EXIDEVICE_MEMORYCARD_A);
 		ini.Get("Core", "SlotB",		(int*)&m_EXIDevice[1], EXIDEVICE_NONE);
 		ini.Get("Core", "SerialPort1",	(int*)&m_EXIDevice[2], EXIDEVICE_NONE);
@@ -307,6 +351,7 @@ void SConfig::LoadSettings()
 
 		ini.Get("Core", "WiiSDCard",		&m_WiiSDCard,									false);
 		ini.Get("Core", "WiiKeyboard",		&m_WiiKeyboard,									false);
+		ini.Get("Core", "WiimoteReconnectOnLoad",	&m_WiimoteReconnectOnLoad,							true);
 		ini.Get("Core", "RunCompareServer",	&m_LocalCoreStartupParameter.bRunCompareServer,	false);
 		ini.Get("Core", "RunCompareClient",	&m_LocalCoreStartupParameter.bRunCompareClient,	false);
 		ini.Get("Core", "MMU",				&m_LocalCoreStartupParameter.bMMU,				false);
@@ -317,9 +362,8 @@ void SConfig::LoadSettings()
 		ini.Get("Core", "FrameLimit",		&m_Framelimit,									1); // auto frame limit by default
 		ini.Get("Core", "UseFPS",			&b_UseFPS,										false); // use vps as default
 
-		// Plugins
-		// TODO: change key name, it's no longer a plugin
-		ini.Get("Core", "GFXPlugin",  &m_LocalCoreStartupParameter.m_strVideoPlugin,	m_DefaultGFXPlugin.c_str());
+		// GFX Backend
+		ini.Get("Core", "GFXBackend",  &m_LocalCoreStartupParameter.m_strVideoBackend, "");
 	}
 
 	m_SYSCONF = new SysConf();
@@ -328,14 +372,14 @@ void SConfig::LoadSettingsWii()
 {
 	IniFile ini;
 	//Wiimote configs
-	ini.Load((std::string(File::GetUserPath(D_CONFIG_IDX)) + "Dolphin.ini").c_str());
+	ini.Load((File::GetUserPath(D_CONFIG_IDX) + "Dolphin.ini"));
 	for (int i = 0; i < 4; i++)
 	{
 		char SectionName[32];
 		sprintf(SectionName, "Wiimote%i", i + 1);
 		ini.Get(SectionName, "AutoReconnectRealWiimote", &m_WiiAutoReconnect[i], false);
 	}
-		ini.Load((std::string(File::GetUserPath(D_CONFIG_IDX)) + "wiimote.ini").c_str());
+		ini.Load((File::GetUserPath(D_CONFIG_IDX) + "wiimote.ini"));
 		ini.Get("Real", "Unpair", &m_WiiAutoUnpair, false);
 		
 }

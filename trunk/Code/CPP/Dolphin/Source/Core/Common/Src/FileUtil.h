@@ -18,6 +18,8 @@
 #ifndef _FILEUTIL_H_
 #define _FILEUTIL_H_
 
+#include <fstream>
+#include <cstdio>
 #include <string>
 #include <vector>
 #include <string.h>
@@ -42,6 +44,7 @@ enum {
 	D_HIRESTEXTURES_IDX,
 	D_DUMP_IDX,
 	D_DUMPFRAMES_IDX,
+	D_DUMPAUDIO_IDX,
 	D_DUMPTEXTURES_IDX,
 	D_DUMPDSP_IDX,
 	D_LOGS_IDX,
@@ -56,6 +59,7 @@ enum {
 	F_RAMDUMP_IDX,
 	F_ARAMDUMP_IDX,
 	F_GCSRAM_IDX,
+	NUM_PATH_INDICES
 };
 
 namespace File
@@ -72,13 +76,13 @@ struct FSTEntry
 };
 
 // Returns true if file filename exists
-bool Exists(const char *filename);
+bool Exists(const std::string &filename);
 
 // Returns true if filename is a directory
-bool IsDirectory(const char *filename);
+bool IsDirectory(const std::string &filename);
 
 // Returns the size of filename (64bit)
-u64 GetSize(const char *filename);
+u64 GetSize(const std::string &filename);
 
 // Overloaded GetSize, accepts file descriptor
 u64 GetSize(const int fd);
@@ -87,49 +91,46 @@ u64 GetSize(const int fd);
 u64 GetSize(FILE *f);
 
 // Returns true if successful, or path already exists.
-bool CreateDir(const char *filename);
+bool CreateDir(const std::string &filename);
 
 // Creates the full path of fullPath returns true on success
-bool CreateFullPath(const char *fullPath);
+bool CreateFullPath(const std::string &fullPath);
 
 // Deletes a given filename, return true on success
 // Doesn't supports deleting a directory
-bool Delete(const char *filename);
+bool Delete(const std::string &filename);
 
 // Deletes a directory filename, returns true on success
-bool DeleteDir(const char *filename);
+bool DeleteDir(const std::string &filename);
 
 // renames file srcFilename to destFilename, returns true on success 
-bool Rename(const char *srcFilename, const char *destFilename);
+bool Rename(const std::string &srcFilename, const std::string &destFilename);
 
 // copies file srcFilename to destFilename, returns true on success 
-bool Copy(const char *srcFilename, const char *destFilename);
+bool Copy(const std::string &srcFilename, const std::string &destFilename);
 
 // creates an empty file filename, returns true on success 
-bool CreateEmptyFile(const char *filename);
+bool CreateEmptyFile(const std::string &filename);
 
 // Scans the directory tree gets, starting from _Directory and adds the
 // results into parentEntry. Returns the number of files+directories found
-u32 ScanDirectoryTree(const char *directory, FSTEntry& parentEntry);
+u32 ScanDirectoryTree(const std::string &directory, FSTEntry& parentEntry);
 
 // deletes the given directory and anything under it. Returns true on success.
-bool DeleteDirRecursively(const char *directory);
+bool DeleteDirRecursively(const std::string &directory);
 
 // Returns the current directory
 std::string GetCurrentDir();
 
 // Create directory and copy contents (does not overwrite existing files)
-void CopyDir(const char *source_path, const char *dest_path);
+void CopyDir(const std::string &source_path, const std::string &dest_path);
 
 // Set the current directory to given directory
-bool SetCurrentDir(const char *directory);
+bool SetCurrentDir(const std::string &directory);
 
 // Returns a pointer to a string with a Dolphin data dir in the user's home
 // directory. To be used in "multi-user" mode (that is, installed).
-const char *GetUserPath(int DirIDX);
-
-// Returns the path to where the plugins are
-std::string GetPluginsDirectory();
+std::string &GetUserPath(const unsigned int DirIDX);
 
 // Returns the path to where the sys file are
 std::string GetSysDirectory();
@@ -140,6 +141,77 @@ std::string GetBundleDirectory();
 
 bool WriteStringToFile(bool text_file, const std::string &str, const char *filename);
 bool ReadFileToString(bool text_file, const char *filename, std::string &str);
+
+// simple wrapper for cstdlib file functions to
+// hopefully will make error checking easier
+// and make forgetting an fclose() harder
+class IOFile : NonCopyable
+{
+public:
+	IOFile();
+	IOFile(std::FILE* file);
+	IOFile(const std::string& filename, const char openmode[]);
+
+	~IOFile();
+
+	bool Open(const std::string& filename, const char openmode[]);
+	bool Close();
+
+	template <typename T>
+	bool ReadArray(T* data, size_t length)
+	{
+		if (!IsOpen() || length != std::fread(data, sizeof(T), length, m_file))
+			m_good = false;
+
+		return m_good;
+	}
+
+	template <typename T>
+	bool WriteArray(const T* data, size_t length)
+	{
+		if (!IsOpen() || length != std::fwrite(data, sizeof(T), length, m_file))
+			m_good = false;
+
+		return m_good;
+	}
+
+	bool ReadBytes(void* data, size_t length)
+	{
+		return ReadArray(reinterpret_cast<char*>(data), length);
+	}
+
+	bool WriteBytes(const void* data, size_t length)
+	{
+		return WriteArray(reinterpret_cast<const char*>(data), length);
+	}
+
+	bool IsOpen() { return NULL != m_file; }
+
+	// m_good is set to false when a read, write or other function fails
+	bool IsGood() {	return m_good; }
+	operator void*() { return m_good ? m_file : NULL; }
+
+	std::FILE* ReleaseHandle();
+
+	std::FILE* GetHandle() { return m_file; }
+
+	void SetHandle(std::FILE* file);
+
+	bool Seek(s64 off, int origin);
+	u64 Tell();
+	u64 GetSize();
+	bool Resize(u64 size);
+	bool Flush();
+
+	// clear error state
+	void Clear() { m_good = true; std::clearerr(m_file); }
+
+private:
+	IOFile& operator=(const IOFile&) /*= delete*/;
+
+	std::FILE* m_file;
+	bool m_good;
+};
 
 }  // namespace
 

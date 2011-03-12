@@ -1,4 +1,4 @@
-// Copyright (C) 2003-2009 Dolphin Project.
+// Copyright (C) 2003 Dolphin Project.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -15,23 +15,21 @@
 // Official SVN repository and contact information can be found at
 // http://code.google.com/p/dolphin-emu/
 
-#ifndef _RENDERER_H_
-#define _RENDERER_H_
+#include "DSPEmulator.h"
 
-#include "CommonTypes.h"
+#include "HW/DSPLLE/DSPLLE.h"
+#include "HW/DSPHLE/DSPHLE.h"
 
-namespace Renderer
+DSPEmulator *CreateDSPEmulator(bool HLE) 
 {
-    void Init();
-    void Prepare();
-    void Shutdown();
+	ac_Config.Load();
 
-    void RenderText(const char* pstr, int left, int top, u32 color);
-    void DrawDebugText();
-
-    void DrawTexture(u8 *texture, int width, int height);
-
-    void SwapBuffer();
+	if (HLE)
+	{
+		return new DSPHLE();
+	}
+	else
+	{
+		return new DSPLLE();
+	}
 }
-
-#endif

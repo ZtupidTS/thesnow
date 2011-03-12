@@ -21,34 +21,9 @@
 // Make sure we pick up USER_DIR if set in config.h
 #include "Common.h"
 
-// Library suffix/prefix
-#ifdef _WIN32
-	#define PLUGIN_PREFIX ""
-	#define PLUGIN_SUFFIX ".dll"
-#elif defined __APPLE__
-	#define PLUGIN_PREFIX "lib"
-	#define PLUGIN_SUFFIX ".dylib"
-#else
-	#define PLUGIN_PREFIX "lib"
-	#define PLUGIN_SUFFIX ".so"
-#endif
-
 // Directory seperators, do we need this?
 #define DIR_SEP "/"
 #define DIR_SEP_CHR '/'
-
-// Location of the plugins
-#ifdef _WIN32
-	#define PLUGINS_DIR "Plugins"
-#elif defined __APPLE__
-	#define PLUGINS_DIR "Contents/PlugIns"
-#else
-	#ifdef LIBS_DIR
-		#define PLUGINS_DIR LIBS_DIR
-	#else
-		#define PLUGINS_DIR "plugins"
-	#endif
-#endif
 
 // The user data dir
 #define ROOT_DIR "."
@@ -108,6 +83,7 @@
 #define DUMP_DIR		"Dump"
 #define DUMP_TEXTURES_DIR	DUMP_DIR DIR_SEP "Textures"
 #define DUMP_FRAMES_DIR		DUMP_DIR DIR_SEP "Frames"
+#define DUMP_AUDIO_DIR		DUMP_DIR DIR_SEP "Audio"
 #define DUMP_DSP_DIR		DUMP_DIR DIR_SEP "DSP"
 #define LOGS_DIR		"Logs"
 #define MAIL_LOGS_DIR		LOGS_DIR DIR_SEP "Mail"
@@ -130,11 +106,6 @@
 // Files in the directory returned by GetUserPath(D_DUMP_IDX)
 #define RAM_DUMP	"ram.raw"
 #define ARAM_DUMP	"aram.raw"
-
-// Plugin files
-#define DEFAULT_GFX_PLUGIN	PLUGIN_PREFIX "Plugin_VideoOGL" PLUGIN_SUFFIX
-#define DEFAULT_DSP_PLUGIN	PLUGIN_PREFIX "Plugin_DSP_HLE" PLUGIN_SUFFIX
-#define DEFAULT_WIIMOTE_PLUGIN	PLUGIN_PREFIX "Plugin_Wiimote" PLUGIN_SUFFIX
 
 // Sys files
 #define TOTALDB		"totaldb.dsy"

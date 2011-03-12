@@ -36,9 +36,10 @@ struct AudioCommonConfig
 	bool m_EnableDTKMusic;
 	bool m_EnableThrottle;
 	bool m_EnableJIT;
+	bool m_DumpAudio;
 	int m_Volume;
 	std::string sBackend;
-	std::string sFrequency;
+	int iFrequency;
 	
 	// Load from given file
 	void Load();

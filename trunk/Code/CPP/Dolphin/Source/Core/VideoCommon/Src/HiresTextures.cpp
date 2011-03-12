@@ -33,17 +33,19 @@ std::map<std::string, std::string> textureMap;
 
 void Init(const char *gameCode)
 {
+	textureMap.clear();
+
 	CFileSearch::XStringVector Directories;
-	//Directories.push_back(std::string(File::GetUserPath(D_HIRESTEXTURES_IDX)));
+	//Directories.push_back(File::GetUserPath(D_HIRESTEXTURES_IDX));
 	char szDir[MAX_PATH];
-	sprintf(szDir,"%s%s",File::GetUserPath(D_HIRESTEXTURES_IDX),gameCode);
+	sprintf(szDir, "%s%s", File::GetUserPath(D_HIRESTEXTURES_IDX).c_str(), gameCode);
 	Directories.push_back(std::string(szDir));
 	
 
 	for (u32 i = 0; i < Directories.size(); i++)
 	{
 		File::FSTEntry FST_Temp;
-		File::ScanDirectoryTree(Directories.at(i).c_str(), FST_Temp);
+		File::ScanDirectoryTree(Directories[i], FST_Temp);
 		for (u32 j = 0; j < FST_Temp.children.size(); j++)
 		{
 			if (FST_Temp.children.at(j).isDirectory)
@@ -51,7 +53,7 @@ void Init(const char *gameCode)
 				bool duplicate = false;
 				for (u32 k = 0; k < Directories.size(); k++)
 				{
-					if (strcmp(Directories.at(k).c_str(), FST_Temp.children.at(j).physicalName.c_str()) == 0)
+					if (strcmp(Directories[k].c_str(), FST_Temp.children.at(j).physicalName.c_str()) == 0)
 					{
 						duplicate = true;
 						break;
@@ -86,11 +88,6 @@ void Init(const char *gameCode)
 				textureMap.insert(std::map<std::string, std::string>::value_type(FileName, rFilenames[i]));
 		}
 	}
-}
-
-void Shutdown()
-{
-	textureMap.clear();
 }
 
 PC_TexFormat GetHiresTex(const char *fileName, unsigned int *pWidth, unsigned int *pHeight, int texformat, u8 *data)
