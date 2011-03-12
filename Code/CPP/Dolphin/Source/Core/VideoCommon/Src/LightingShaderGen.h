@@ -1,4 +1,4 @@
-// Copyright (C) 2003-2009 Dolphin Project.
+// Copyright (C) 2003 Dolphin Project.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -15,24 +15,9 @@
 // Official SVN repository and contact information can be found at
 // http://code.google.com/p/dolphin-emu/
 
-#include "Statistics.h"
+#ifndef _LIGHTINGSHADERGEN_H_
+#define _LIGHTINGSHADERGEN_H_
 
-Statistics stats;
+char *GenerateLightingShader(char *p, int components, const char* materialsName, const char* lightsName, const char* inColorName, const char* dest);
 
-template <class T>
-void Xchg(T& a, T&b)
-{
-	T c = a;
-	a = b;
-	b = c;
-}
-
-Statistics::Statistics()
-{
-    frameCount = 0;
-}
-
-void Statistics::ResetFrame()
-{
-	memset(&thisFrame, 0, sizeof(ThisFrame));
-}
+#endif // _LIGHTINGSHADERGEN_H_

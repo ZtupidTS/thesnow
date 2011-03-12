@@ -29,9 +29,14 @@
 //void UpdateFPSDisplay(const char *text);
 extern NativeVertexFormat *g_nativeVertexFmt;
 
+GFXDebuggerBase *g_pdebugger = NULL;
+volatile bool GFXDebuggerPauseFlag = false;
+volatile PauseEvent GFXDebuggerToPauseAtNext = NOT_PAUSE;
+volatile int GFXDebuggerEventToPauseCount = 0;
+
 void GFXDebuggerUpdateScreen()
 {
-	// TODO: Implement this in a plugin-independent way
+	// TODO: Implement this in a backend-independent way
 /*	// update screen
 	if (D3D::bFrameInProgress)
 	{
@@ -115,7 +120,7 @@ void GFXDebuggerBase::DumpPixelShader(const char* path)
 	}
 
 	File::CreateEmptyFile(filename);
-	File::WriteStringToFile(true, output.c_str(), filename);
+	File::WriteStringToFile(true, output, filename);
 }
 
 void GFXDebuggerBase::DumpVertexShader(const char* path)

@@ -96,7 +96,7 @@ void BPWritten(const BPCmd& bp)
 	//}
 
 	// FIXME: Hangs load-state, but should fix graphic-heavy games state loading
-	//s_bpCritical.Enter();
+	//std::lock_guard<std::mutex> lk(s_bpCritical);
 
 	// BEGIN ZTP SPEEDUP HACK CHANGES
 	// This hunk of code disables the usual pipeline flush for certain BP Writes
@@ -217,11 +217,11 @@ void BPWritten(const BPCmd& bp)
 		}
 		break;
 	case BPMEM_PE_TOKEN_ID: // Pixel Engine Token ID
-		PixelEngine::SetToken(static_cast<u16>(bp.newvalue & 0xFFFF), FALSE);
+		PixelEngine::SetToken(static_cast<u16>(bp.newvalue & 0xFFFF), false);
 		DEBUG_LOG(VIDEO, "SetPEToken 0x%04x", (bp.newvalue & 0xFFFF));
 		break;
 	case BPMEM_PE_TOKEN_INT_ID: // Pixel Engine Interrupt Token ID
-		PixelEngine::SetToken(static_cast<u16>(bp.newvalue & 0xFFFF), TRUE);
+		PixelEngine::SetToken(static_cast<u16>(bp.newvalue & 0xFFFF), true);
 		DEBUG_LOG(VIDEO, "SetPEToken + INT 0x%04x", (bp.newvalue & 0xFFFF));
 		break;
 	// ------------------------
@@ -248,10 +248,9 @@ void BPWritten(const BPCmd& bp)
 				if (GetConfig(CONFIG_SHOWEFBREGIONS))
 					stats.efb_regions.push_back(rc);
 
-				CopyEFB(bp, rc, bpmem.copyTexDest << 5, 
-							bpmem.zcontrol.pixel_format == PIXELFMT_Z24, 
-							PE_copy.intensity_fmt > 0,PE_copy.tp_realFormat(),
-							PE_copy.half_scale);
+				CopyEFB(bpmem.copyTexDest << 5, PE_copy.tp_realFormat(),
+					bpmem.zcontrol.pixel_format, rc, PE_copy.intensity_fmt,
+					PE_copy.half_scale);
 			}
 			else
 			{
@@ -632,9 +631,6 @@ void BPWritten(const BPCmd& bp)
 				break;
 			}
 	}
-
-	// FIXME: Hangs load-state, but should fix graphic-heavy games state loading
-	//s_bpCritical.Leave();
 }
 }
 

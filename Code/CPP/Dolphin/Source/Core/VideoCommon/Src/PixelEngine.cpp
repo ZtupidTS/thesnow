@@ -30,7 +30,7 @@
 #include "PixelEngine.h"
 #include "CommandProcessor.h"
 #include "HW/ProcessorInterface.h"
-
+#include "DLCache.h"
 namespace PixelEngine
 {
 
@@ -135,10 +135,11 @@ void DoState(PointerWrap &p)
 	p.Do(m_AlphaModeConf);
 	p.Do(m_AlphaRead);
 	p.Do(m_Control);
-	p.Do(CommandProcessor::fifo.PEToken);
 
 	p.Do(g_bSignalTokenInterrupt);
 	p.Do(g_bSignalFinishInterrupt);
+	p.Do(interruptSetToken);
+	p.Do(interruptSetFinish);
 	
 	p.Do(bbox);
 	p.Do(bbox_active);
@@ -324,7 +325,6 @@ void UpdateTokenInterrupt(bool active)
 
 void UpdateFinishInterrupt(bool active)
 {
-
 	if(interruptSetFinish != active)
 	{
 		ProcessorInterface::SetInterrupt(INT_CAUSE_PE_FINISH, active);
@@ -343,12 +343,13 @@ void SetToken_OnMainThread(u64 userdata, int cyclesLate)
 	//{
 		g_bSignalTokenInterrupt = true;	
 		//_dbg_assert_msg_(PIXELENGINE, (CommandProcessor::fifo.PEToken == (userdata&0xFFFF)), "WTF? BPMEM_PE_TOKEN_INT_ID's token != BPMEM_PE_TOKEN_ID's token" );
-		INFO_LOG(PIXELENGINE, "VIDEO Plugin raises INT_CAUSE_PE_TOKEN (btw, token: %04x)", CommandProcessor::fifo.PEToken);
+		INFO_LOG(PIXELENGINE, "VIDEO Backend raises INT_CAUSE_PE_TOKEN (btw, token: %04x)", CommandProcessor::fifo.PEToken);
 		UpdateInterrupts();
 		CommandProcessor::interruptTokenWaiting = false;
+		IncrementCheckContextId();
 	//}
 	//else
-	//	LOGV(PIXELENGINE, 1, "VIDEO Plugin wrote token: %i", CommandProcessor::fifo.PEToken);
+	//	LOGV(PIXELENGINE, 1, "VIDEO Backend wrote token: %i", CommandProcessor::fifo.PEToken);
 }
 
 void SetFinish_OnMainThread(u64 userdata, int cyclesLate)
@@ -356,6 +357,7 @@ void SetFinish_OnMainThread(u64 userdata, int cyclesLate)
 	g_bSignalFinishInterrupt = 1;	
 	UpdateInterrupts();
 	CommandProcessor::interruptFinishWaiting = false;
+	CommandProcessor::isPossibleWaitingSetDrawDone = false;
 }
 
 // SetToken
@@ -365,8 +367,7 @@ void SetToken(const u16 _token, const int _bSetTokenAcknowledge)
 	// TODO?: set-token-value and set-token-INT could be merged since set-token-INT own the token value.
 	if (_bSetTokenAcknowledge) // set token INT
 	{
-		// This seems smelly...
-		CommandProcessor::IncrementGPWDToken(); // for DC watchdog hack since PEToken seems to be a frame-finish too
+
 		Common::AtomicStore(*(volatile u32*)&CommandProcessor::fifo.PEToken, _token);
 		CommandProcessor::interruptTokenWaiting = true;
 		CoreTiming::ScheduleEvent_Threadsafe(0, et_SetTokenOnMainThread, _token | (_bSetTokenAcknowledge << 16));
@@ -380,16 +381,17 @@ void SetToken(const u16 _token, const int _bSetTokenAcknowledge)
 		// 4-byte padded.
         Common::AtomicStore(*(volatile u32*)&CommandProcessor::fifo.PEToken, _token);
 	}
+	IncrementCheckContextId();
 }
 
 // SetFinish
 // THIS IS EXECUTED FROM VIDEO THREAD (BPStructs.cpp) when a new frame has been drawn
 void SetFinish()
 {
-	CommandProcessor::IncrementGPWDToken(); // for DC watchdog hack
 	CommandProcessor::interruptFinishWaiting = true;
 	CoreTiming::ScheduleEvent_Threadsafe(0, et_SetFinishOnMainThread, 0);
 	INFO_LOG(PIXELENGINE, "VIDEO Set Finish");
+	IncrementCheckContextId();
 }
 
 //This function is used in CommandProcessor when write CTRL_REGISTER and the new fifo is attached.

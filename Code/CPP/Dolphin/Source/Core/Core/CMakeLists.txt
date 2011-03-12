@@ -1,18 +1,21 @@
 set(SRCS	Src/ActionReplay.cpp
 			Src/ARDecrypt.cpp
+			Src/BootManager.cpp
 			Src/ConfigManager.cpp
 			Src/Console.cpp
 			Src/Core.cpp
 			Src/CoreParameter.cpp
 			Src/CoreRerecording.cpp
 			Src/CoreTiming.cpp
+			Src/DSPEmulator.cpp
 			Src/GeckoCodeConfig.cpp
 			Src/GeckoCode.cpp
-			Src/LuaInterface.cpp
 			Src/MemTools.cpp
+			Src/NetPlay.cpp
+			Src/NetPlayClient.cpp
+			Src/NetPlayServer.cpp
 			Src/OnFrame.cpp
 			Src/PatchEngine.cpp
-			Src/PluginDSP.cpp
 			Src/State.cpp
 			Src/stdafx.cpp
 			Src/Tracer.cpp
@@ -121,7 +124,7 @@ set(SRCS	Src/ActionReplay.cpp
 			Src/HW/WiimoteEmu/Attachment/Turntable.cpp
 			Src/HW/WiimoteEmu/EmuSubroutines.cpp
 			Src/HW/WiimoteEmu/Encryption.cpp
-			#Src/HW/WiimoteEmu/Speaker.cpp
+			Src/HW/WiimoteEmu/Speaker.cpp
 			Src/HW/WiimoteReal/WiimoteReal.cpp
 			Src/IPC_HLE/WII_IPC_HLE.cpp
 			Src/IPC_HLE/WII_IPC_HLE_Device_DI.cpp
@@ -182,7 +185,7 @@ set(SRCS	Src/ActionReplay.cpp
 			Src/PowerPC/JitCommon/JitCache.cpp
 			Src/PowerPC/JitCommon/Jit_Util.cpp)
 
-set(LIBS bdisasm inputcommon videoogl lua sfml-network)
+set(LIBS bdisasm inputcommon videoogl videosoftware sfml-network)
 
 if(WIN32)
 	set(SRCS ${SRCS} Src/HW/BBA-TAP/TAP_Win32.cpp Src/stdafx.cpp

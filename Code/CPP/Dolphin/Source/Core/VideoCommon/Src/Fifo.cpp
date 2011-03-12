@@ -27,13 +27,12 @@
 #include "HW/Memmap.h"
 
 volatile bool g_bSkipCurrentFrame = false;
-volatile bool g_EFBAccessRequested = false;
 extern u8* g_pVideoData;
 
 namespace
 {
-static volatile bool fifoStateRun = false;
-static volatile bool EmuRunning = false;
+static volatile bool GpuRunningState = false;
+static volatile bool EmuRunningState = false;
 static u8 *videoBuffer;
 // STATE_TO_SAVE
 static int size = 0;
@@ -41,7 +40,6 @@ static int size = 0;
 
 void Fifo_DoState(PointerWrap &p) 
 {
-	CommandProcessor::FifoCriticalEnter();
 
     p.DoArray(videoBuffer, FIFO_SIZE);
     p.Do(size);
@@ -49,27 +47,27 @@ void Fifo_DoState(PointerWrap &p)
 	p.Do(pos); // read or write offset (depends on the mode afaik)
 	g_pVideoData = &videoBuffer[pos]; // overwrite g_pVideoData -> expected no change when load ss and change when save ss
 
-	CommandProcessor::FifoCriticalLeave();
 }
 
 void Fifo_Init()
-{
+{	
     videoBuffer = (u8*)AllocateMemoryPages(FIFO_SIZE);
-	fifoStateRun = false;
+	size = 0;
+	GpuRunningState = false;
 }
 
 void Fifo_Shutdown()
 {
-	if (fifoStateRun) PanicAlert("Fifo shutting down while active");
+	if (GpuRunningState) PanicAlert("Fifo shutting down while active");
     FreeMemoryPages(videoBuffer, FIFO_SIZE);
 }
 
-u8* FAKE_GetFifoStartPtr()
+u8* GetVideoBufferStartPtr()
 {
     return videoBuffer;
 }
 
-u8* FAKE_GetFifoEndPtr()
+u8* GetVideoBufferEndPtr()
 {
 	return &videoBuffer[size];
 }
@@ -79,36 +77,27 @@ void Fifo_SetRendering(bool enabled)
 	g_bSkipCurrentFrame = !enabled;
 }
 
-// Executed from another thread, no the graphics thread!
-// Basically, all it does is set a flag so that the loop will eventually exit, then
-// waits for the event to be set, which happens when the loop does exit.
-// If we look stuck in here, then the video thread is stuck in something and won't exit
-// the loop. Switch to the video thread and investigate.
-void Fifo_ExitLoop()
-{
-	Fifo_ExitLoopNonBlocking();
-	EmuRunning = true;
-}
-
 // May be executed from any thread, even the graphics thread.
 // Created to allow for self shutdown.
-void Fifo_ExitLoopNonBlocking()
+void ExitGpuLoop()
 {
 	// This should break the wait loop in CPU thread
 	CommandProcessor::fifo.bFF_GPReadEnable = false;
-	CommandProcessor::SetFifoIdleFromVideoPlugin();
+	SCPFifoStruct &fifo = CommandProcessor::fifo;
+	while(fifo.isGpuReadingData) Common::YieldCPU();
 	// Terminate GPU thread loop
-	fifoStateRun = false;
-	EmuRunning = true;
+	GpuRunningState = false;
+	EmuRunningState = true;
 }
 
-void Fifo_RunLoop(bool run)
+void EmulatorState(bool running)
 {
-	EmuRunning = run;
+	EmuRunningState = running;
 }
 
-// Description: Fifo_EnterLoop() sends data through this function.
-void Fifo_SendFifoData(u8* _uData, u32 len)
+
+// Description: RunGpuLoop() sends data through this function.
+void ReadDataFromFifo(u8* _uData, u32 len)
 {
     if (size + len >= FIFO_SIZE)
     {
@@ -135,78 +124,66 @@ void ResetVideoBuffer()
 
 // Description: Main FIFO update loop
 // Purpose: Keep the Core HW updated about the CPU-GPU distance
-void Fifo_EnterLoop()
+void RunGpuLoop()
 {
-	fifoStateRun = true;
-	SCPFifoStruct &_fifo = CommandProcessor::fifo;
-	s32 distToSend;
+	GpuRunningState = true;
+	SCPFifoStruct &fifo = CommandProcessor::fifo;
 
-	while (fifoStateRun)
+	while (GpuRunningState)
 	{
 		g_video_backend->PeekMessages();
 
 		VideoFifo_CheckAsyncRequest();
-
-		// check if we are able to run this buffer		
-		
-		CommandProcessor::SetStatus();
-
-		while (!CommandProcessor::interruptWaiting && _fifo.bFF_GPReadEnable &&
-			_fifo.CPReadWriteDistance && (!AtBreakpoint() || CommandProcessor::OnOverflow))
+				
+		CommandProcessor::SetCpStatus();
+		// check if we are able to run this buffer	
+		while (!CommandProcessor::interruptWaiting && fifo.bFF_GPReadEnable &&
+			fifo.CPReadWriteDistance && (!AtBreakpoint() || CommandProcessor::OnOverflow))
 		{
-			// while the FIFO is processing data we activate this for sync with emulator thread.
+			if (!GpuRunningState) break;
+
+			fifo.isGpuReadingData = true;
+			CommandProcessor::isPossibleWaitingSetDrawDone = fifo.bFF_GPLinkEnable;
 			
-			CommandProcessor::isFifoBusy = true;
-
-			if (!fifoStateRun) break;
-
-			CommandProcessor::FifoCriticalEnter();
-
-			// Create pointer to video data and send it to the VideoPlugin
-			u32 readPtr = _fifo.CPReadPointer;
+			u32 readPtr = fifo.CPReadPointer;
 			u8 *uData = Memory::GetPointer(readPtr);
 
-			distToSend = 32;
-
-			if (readPtr == _fifo.CPEnd) 
-				readPtr = _fifo.CPBase;
-			else
-				readPtr += 32;
+			if (readPtr == fifo.CPEnd) readPtr = fifo.CPBase;
+				else readPtr += 32;
 			
-			_assert_msg_(COMMANDPROCESSOR, (s32)_fifo.CPReadWriteDistance - distToSend >= 0 ,
-			"Negative fifo.CPReadWriteDistance = %i in FIFO Loop !\nThat can produce inestabilty in the game. Please report it.", _fifo.CPReadWriteDistance - distToSend);
+			_assert_msg_(COMMANDPROCESSOR, (s32)fifo.CPReadWriteDistance - 32 >= 0 ,
+			"Negative fifo.CPReadWriteDistance = %i in FIFO Loop !\nThat can produce inestabilty in the game. Please report it.", fifo.CPReadWriteDistance - 32);
 			
-			// Execute new instructions found in uData
-			Fifo_SendFifoData(uData, distToSend);	
+			ReadDataFromFifo(uData, 32);	
 			
 			OpcodeDecoder_Run(g_bSkipCurrentFrame);	
 
-			Common::AtomicStore(_fifo.CPReadPointer, readPtr);
-			Common::AtomicAdd(_fifo.CPReadWriteDistance, -distToSend);						
-		    			
-			CommandProcessor::SetStatus();
-
-			CommandProcessor::FifoCriticalLeave();
+			Common::AtomicStore(fifo.CPReadPointer, readPtr);
+			Common::AtomicAdd(fifo.CPReadWriteDistance, -32);						
+			if((GetVideoBufferEndPtr() - g_pVideoData) == 0)
+				Common::AtomicStore(fifo.SafeCPReadPointer, fifo.CPReadPointer);
+			CommandProcessor::SetCpStatus();
 		
 			// This call is pretty important in DualCore mode and must be called in the FIFO Loop.
 			// If we don't, s_swapRequested or s_efbAccessRequested won't be set to false
 			// leading the CPU thread to wait in Video_BeginField or Video_AccessEFB thus slowing things down.
-			VideoFifo_CheckAsyncRequest();					
+			VideoFifo_CheckAsyncRequest();		
+			CommandProcessor::isPossibleWaitingSetDrawDone = false;
 		}
+		
+		fifo.isGpuReadingData = false;
+		
 
-		CommandProcessor::isFifoBusy = false;
-		CommandProcessor::SetFifoIdleFromVideoPlugin();
-
-		if (EmuRunning)
+		if (EmuRunningState)
 			Common::YieldCPU();
 		else
 		{
 			// While the emu is paused, we still handle async request such as Savestates then sleep.
-			while (!EmuRunning)
+			while (!EmuRunningState)
 			{
 				g_video_backend->PeekMessages();
-				VideoFifo_CheckAsyncRequest();
-				Common::SleepCurrentThread(10);
+				VideoFifo_CheckStateRequest();
+				Common::SleepCurrentThread(1);
 			}
 		}
 	}
@@ -215,6 +192,29 @@ void Fifo_EnterLoop()
 
 bool AtBreakpoint()
 {
-	SCPFifoStruct &_fifo = CommandProcessor::fifo;
-	return _fifo.bFF_BPEnable && (_fifo.CPReadPointer == _fifo.CPBreakpoint);
+	SCPFifoStruct &fifo = CommandProcessor::fifo;
+	return fifo.bFF_BPEnable && (fifo.CPReadPointer == fifo.CPBreakpoint);
+}
+
+void RunGpu()
+{
+		SCPFifoStruct &fifo = CommandProcessor::fifo;
+		while (fifo.bFF_GPReadEnable && fifo.CPReadWriteDistance && !AtBreakpoint() )
+		{
+			u8 *uData = Memory::GetPointer(fifo.CPReadPointer);			
+			
+			SaveSSEState();
+			LoadDefaultSSEState();
+			ReadDataFromFifo(uData, 32);				
+			OpcodeDecoder_Run(g_bSkipCurrentFrame);	
+			LoadSSEState();
+
+			//DEBUG_LOG(COMMANDPROCESSOR, "Fifo wraps to base");
+
+			if (fifo.CPReadPointer == fifo.CPEnd) fifo.CPReadPointer = fifo.CPBase;
+				else fifo.CPReadPointer += 32;
+
+			fifo.CPReadWriteDistance -= 32;											
+		}
+		CommandProcessor::SetCpStatus();
 }

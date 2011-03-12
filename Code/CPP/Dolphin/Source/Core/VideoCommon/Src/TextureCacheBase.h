@@ -7,6 +7,7 @@
 #include "VideoCommon.h"
 #include "TextureDecoder.h"
 #include "BPMemory.h"
+#include "Thread.h"
 
 #include "CommonTypes.h"
 
@@ -62,9 +63,10 @@ public:
 
 		virtual void Load(unsigned int width, unsigned int height,
 			unsigned int expanded_width, unsigned int level, bool autogen_mips = false) = 0;
-		virtual void FromRenderTarget(bool bFromZBuffer, bool bScaleByHalf,
-			unsigned int cbufid, const float *colmat, const EFBRectangle &source_rect,
-			bool bIsIntensityFmt, u32 copyfmt) = 0;
+		virtual void FromRenderTarget(u32 dstAddr, unsigned int dstFormat,
+			unsigned int srcFormat, const EFBRectangle& srcRect,
+			bool isIntensity, bool scaleByHalf, unsigned int cbufid,
+			const float *colmat) = 0;
 
 		int IntersectsMemoryRange(u32 range_address, u32 range_size) const;
 	};
@@ -74,6 +76,7 @@ public:
 	static void Cleanup();
 
 	static void Invalidate(bool shutdown);
+	static void InvalidateDefer();
 	static void InvalidateRange(u32 start_address, u32 size);
 	static void MakeRangeDynamic(u32 start_address, u32 size);
 	static void ClearRenderTargets();	// currently only used by OGL
@@ -85,13 +88,15 @@ public:
 
 	static TCacheEntryBase* Load(unsigned int stage, u32 address, unsigned int width, unsigned int height,
 		int format, unsigned int tlutaddr, int tlutfmt, bool UseNativeMips, unsigned int maxlevel);
-	static void CopyRenderTargetToTexture(u32 address, bool bFromZBuffer, bool bIsIntensityFmt,
-		u32 copyfmt, bool bScaleByHalf, const EFBRectangle &source_rect);
+	static void CopyRenderTargetToTexture(u32 dstAddr, unsigned int dstFormat, unsigned int srcFormat,
+		const EFBRectangle& srcRect, bool isIntensity, bool scaleByHalf);
+
+	static bool DeferredInvalidate;
 
 protected:
 	TextureCache();
 
-	static u8 *temp;
+	static  GC_ALIGNED16(u8 *temp);
 
 private:
 	typedef std::map<u32, TCacheEntryBase*> TexCache;

@@ -25,7 +25,6 @@
 u8 DSPHost_ReadHostMemory(u32 addr) { return 0; }
 void DSPHost_WriteHostMemory(u8 value, u32 addr) {}
 bool DSPHost_OnThread() { return false; }
-bool DSPHost_Running() { return true; }
 u32 DSPHost_CodeLoaded(const u8 *ptr, int size) {return 0x1337c0de;}
 void DSPHost_InterruptRequest() {}
 void DSPHost_UpdateDebugger() {}
@@ -281,7 +280,7 @@ int main(int argc, const char *argv[])
 				return 1;
 			}
 			input_name = argv[i];
-			if (!File::Exists(input_name.c_str()))
+			if (!File::Exists(input_name))
 			{
 				printf("ERROR: Input path does not exist.\n");
 				return 1;

@@ -18,6 +18,11 @@
 #ifndef _VIDEOCOMMON_H
 #define _VIDEOCOMMON_H
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
+
 #include "Common.h"
 #include "MathUtil.h"
 #include "VideoBackendBase.h"
@@ -75,7 +80,7 @@ struct EFBRectangle : public MathUtil::Rectangle<int>
 struct TargetRectangle : public MathUtil::Rectangle<int>
 {
 #ifdef _WIN32
-	// Only used by D3D plugin.
+	// Only used by D3D backend.
 	const RECT *AsRECT() const
 	{
 		// The types are binary compatible so this works.

@@ -33,8 +33,6 @@
 #include "VertexManagerBase.h"
 
 #include "RenderBase.h"
-
-static float GC_ALIGNED16(s_fMaterials[16]);
 float GC_ALIGNED16(g_fProjectionMatrix[16]);
 
 // track changes
@@ -142,62 +140,6 @@ void UpdateProjectionHack(int iPhackvalue[], std::string sPhackvalue[])
 	g_ProjHack1 = ProjectionHack(fhacksign1, fhackvalue1);
 	g_ProjHack2 = ProjectionHack(fhacksign2, fhackvalue2);
 	g_ProjHack3 = bProjHack3;
-
-/*	
-	case PROJECTION_HACK_ZELDA_TP_BLOOM_HACK:
-		bPhackvalue1 = 1;
-		bProjHack1 = 1;
-		break;
-	case PROJECTION_HACK_SONIC_AND_THE_BLACK_KNIGHT:
-		bPhackvalue1 = 1;
-		fhackvalue1 = 0.00002f;
-		bPhackvalue2 = 1;
-		fhackvalue2 = 1.999980f;
-		break;
-	case PROJECTION_HACK_BLEACH_VERSUS_CRUSADE:
-		bPhackvalue2 = 1;
-		fhackvalue2 = 0.5f;
-		bPhackvalue1 = 0;
-		bProjHack1 = 0;
-		break;
-	case PROJECTION_HACK_SKIES_OF_ARCADIA:
-		bPhackvalue1 = 1;
-		fhackvalue1 = 0.04f;
-		bPhackvalue2 = 0;
-		bProjHack1 = 0;
-		break;
-	case PROJECTION_HACK_METROID_OTHER_M:  //temp fix for black screens during cut scenes
-		bPhackvalue3 = 1;
-		break;
-	// Unused - kept for reference
-	case PROJECTION_HACK_FINAL_FANTASY_CC_ECHO_OF_TIME:
-		bPhackvalue1 = 1;
-		fhackvalue1 = 0.8f;
-		bPhackvalue2 = 1;
-		fhackvalue2 = 1.2f;
-		bProjHack1 = 0;
-		break;
-	case PROJECTION_HACK_HARVESTMOON_MM:
-		bPhackvalue1 = 1;
-		fhackvalue1 = 0.0075f;
-		bPhackvalue2 = 0;
-		bProjHack1 = 0;
-		break;
-	case PROJECTION_HACK_BATEN_KAITOS:
-		bPhackvalue1 = 1;
-		fhackvalue1 = 0.0026f;
-		bPhackvalue2 = 1;
-		fhackvalue2 = 1.9974f;
-		bProjHack1 = 1;
-		break;
-	case PROJECTION_HACK_BATEN_KAITOS_ORIGIN:
-		bPhackvalue1 = 1;
-		fhackvalue1 = 0.0012f;
-		bPhackvalue2 = 1;
-		fhackvalue2 = 1.9988f;
-		bProjHack1 = 1;
-		break;
-*/
 }
 
 void VertexShaderManager::Init()
@@ -293,9 +235,23 @@ void VertexShaderManager::SetConstants()
 
 	if (nMaterialsChanged)
 	{
+		float GC_ALIGNED16(material[4]);
+		float NormalizationCoef = 1 / 255.0f;
+
 		for (int i = 0; i < 4; ++i)
+		{
 			if (nMaterialsChanged & (1 << i))
-				SetVSConstant4fv(C_MATERIALS + i, &s_fMaterials[4 * i]);
+			{
+				u32 data = *(xfregs.ambColor + i);
+
+				material[0] = ((data >> 24) & 0xFF) * NormalizationCoef;
+				material[1] = ((data >> 16) & 0xFF) * NormalizationCoef;
+				material[2] = ((data >>  8) & 0xFF) * NormalizationCoef;
+				material[3] = ( data        & 0xFF) * NormalizationCoef;
+
+				SetVSConstant4fv(C_MATERIALS + i, material);
+			}
+		}
 
 		nMaterialsChanged = 0;
 	}
@@ -586,47 +542,19 @@ void VertexShaderManager::SetTexMatrixChangedB(u32 Value)
 	}
 }
 
-void VertexShaderManager::SetViewport(float* _Viewport, int constantIndex)
-{
-	if(constantIndex <= 0)
-	{
-		memcpy(xfregs.rawViewport, _Viewport, sizeof(xfregs.rawViewport));
-	}
-	else
-	{
-		xfregs.rawViewport[constantIndex] = _Viewport[0];
-	}
-	bViewportChanged = true;
-}
-
 void VertexShaderManager::SetViewportChanged()
 {
 	bViewportChanged = true;
 }
 
-void VertexShaderManager::SetProjection(float* _pProjection, int constantIndex)
+void VertexShaderManager::SetProjectionChanged()
 {
-	if(constantIndex <= 0)
-	{
-		memcpy(xfregs.rawProjection, _pProjection, sizeof(xfregs.rawProjection));
-	}
-	else
-	{
-		xfregs.rawProjection[constantIndex] = _pProjection[0];
-	}
 	bProjectionChanged = true;
 }
 
-void VertexShaderManager::SetMaterialColor(int index, u32 data)
+void VertexShaderManager::SetMaterialColorChanged(int index)
 {
-	int ind = index * 4;
-
 	nMaterialsChanged  |= (1 << index);
-	float NormalizationCoef = 1 / 255.0f;
-	s_fMaterials[ind++] = ((data >> 24) & 0xFF) * NormalizationCoef;
-	s_fMaterials[ind++] = ((data >> 16) & 0xFF) * NormalizationCoef;
-	s_fMaterials[ind++] = ((data >>  8) & 0xFF) * NormalizationCoef;
-	s_fMaterials[ind]   = ( data        & 0xFF) * NormalizationCoef;
 }
 
 void VertexShaderManager::TranslateView(float x, float y)

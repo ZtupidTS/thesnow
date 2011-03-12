@@ -31,7 +31,7 @@
 #include "Core.h" // for bWii
 
 SCoreStartupParameter::SCoreStartupParameter()
-: hInstance(0), hMainWindow(0),
+: hInstance(0),
   bJITNoBlockCache(false), bJITBlockLinking(true),
   bJITOff(false),
   bJITLoadStoreOff(false), bJITLoadStorelXzOff(false),
@@ -114,7 +114,7 @@ bool SCoreStartupParameter::AutoSetup(EBootBS2 _BootBS2)
 			bool bootDrive = cdio_is_cdrom(m_strFilename);
 			// Check if the file exist, we may have gotten it from a --elf command line
 			// that gave an incorrect file name 
-			if (!bootDrive && !File::Exists(m_strFilename.c_str()))
+			if (!bootDrive && !File::Exists(m_strFilename))
 			{
 				PanicAlertT("The specified file \"%s\" does not exist", m_strFilename.c_str());
 				return false;
@@ -206,7 +206,7 @@ bool SCoreStartupParameter::AutoSetup(EBootBS2 _BootBS2)
 				if (ContentLoader.GetContentByIndex(ContentLoader.GetBootIndex()) == NULL)
 				{
 					//WAD is valid yet cannot be booted. Install instead.
-					bool installed = CBoot::Install_WiiWAD(m_strFilename.c_str());
+					u64 installed = CBoot::Install_WiiWAD(m_strFilename.c_str());
 					if (installed)
 						SuccessAlertT("The WAD has been installed successfully");
 					return false; //do not boot
@@ -305,7 +305,7 @@ bool SCoreStartupParameter::AutoSetup(EBootBS2 _BootBS2)
 		m_strBootROM = File::GetSysDirectory() + GC_SYS_DIR + DIR_SEP + Region + DIR_SEP GC_IPL;
 		if (!bHLE_BS2)
 		{
-			if (!File::Exists(m_strBootROM.c_str()))
+			if (!File::Exists(m_strBootROM))
 			{
 				WARN_LOG(BOOT, "bootrom file %s not found - using HLE.", m_strBootROM.c_str());
 				bHLE_BS2 = true;
@@ -328,7 +328,7 @@ void SCoreStartupParameter::CheckMemcardPath(std::string& memcardPath, std::stri
 	{
 		// Use default memcard path if there is no user defined name
 		std::string defaultFilename = isSlotA ? GC_MEMCARDA : GC_MEMCARDB;
-		memcardPath = std::string(File::GetUserPath(D_GCUSER_IDX)) + defaultFilename + ext;
+		memcardPath = File::GetUserPath(D_GCUSER_IDX) + defaultFilename + ext;
 	}
 	else
 	{
@@ -341,7 +341,7 @@ void SCoreStartupParameter::CheckMemcardPath(std::string& memcardPath, std::stri
 		if (!hasregion)
 		{
 			// filename doesn't have region in the extension
-			if (File::Exists(filename.c_str()))
+			if (File::Exists(filename))
 			{
 				// If the old file exists we are polite and ask if we should copy it
 				std::string oldFilename = filename;
@@ -353,7 +353,7 @@ void SCoreStartupParameter::CheckMemcardPath(std::string& memcardPath, std::stri
 					"Would you like to copy the old file to this new location?\n",
 					isSlotA ? 'A':'B', isSlotA ? 'A':'B', filename.c_str()))
 				{
-					if (!File::Copy(oldFilename.c_str(), filename.c_str()))
+					if (!File::Copy(oldFilename, filename))
 						PanicAlertT("Copy failed");
 				}
 			}

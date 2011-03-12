@@ -93,7 +93,7 @@ std::string CBoot::GenerateMapFilename()
 			u64 TitleID = Loader.GetTitleID();
 			char tmpBuffer[32];
 			sprintf(tmpBuffer, "%08x_%08x", (u32)(TitleID >> 32) & 0xFFFFFFFF , (u32)TitleID & 0xFFFFFFFF );
-			return std::string(File::GetUserPath(D_MAPS_IDX)) + std::string(tmpBuffer) + ".map";
+			return File::GetUserPath(D_MAPS_IDX) + std::string(tmpBuffer) + ".map";
 		}
 		break;
 	}
@@ -102,7 +102,7 @@ std::string CBoot::GenerateMapFilename()
 	case SCoreStartupParameter::BOOT_DOL:
 		return _StartupPara.m_strFilename.substr(0, _StartupPara.m_strFilename.size()-4) + ".map";
 	default:
-		return std::string(File::GetUserPath(D_MAPS_IDX)) + _StartupPara.GetUniqueID() + ".map";
+		return File::GetUserPath(D_MAPS_IDX) + _StartupPara.GetUniqueID() + ".map";
 	}
 
     return std::string("unknown map");
@@ -164,7 +164,7 @@ bool CBoot::BootUp()
 	NOTICE_LOG(BOOT, "Booting %s", _StartupPara.m_strFilename.c_str());
 
 	// HLE jump to loader (homebrew)
-	Memory::Write_U32(((1 & 0x3f) << 26) | 10, 0x80001800);
+	HLE::Patch(0x80001800, "HBReload");
 	const u8 stubstr[] = { 'S', 'T', 'U', 'B', 'H', 'A', 'X', 'X' };
 	Memory::WriteBigEData(stubstr, 0x80001804, 8);
 
@@ -274,7 +274,7 @@ bool CBoot::BootUp()
 	// ELF
 	case SCoreStartupParameter::BOOT_ELF:
 	{
-		if(!File::Exists(_StartupPara.m_strFilename.c_str()))
+		if(!File::Exists(_StartupPara.m_strFilename))
 		{
 			PanicAlertT("The file you specified (%s) does not exist",
 				_StartupPara.m_strFilename.c_str());

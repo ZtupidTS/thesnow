@@ -22,23 +22,52 @@
 #include <string>
 
 enum Hotkey {
-	HK_FULLSCREEN,
+	HK_OPEN,
+	HK_CHANGE_DISC,
+	HK_REFRESH_LIST,
+
 	HK_PLAY_PAUSE,
 	HK_STOP,
+	HK_RESET,
+	HK_FRAME_ADVANCE,
+
+	HK_START_RECORDING,
+	HK_PLAY_RECORDING,
+	HK_EXPORT_RECORDING,
+	HK_READ_ONLY_MODE,
+
+	HK_FULLSCREEN,
 	HK_SCREENSHOT,
+
 	HK_WIIMOTE1_CONNECT,
 	HK_WIIMOTE2_CONNECT,
 	HK_WIIMOTE3_CONNECT,
 	HK_WIIMOTE4_CONNECT,
+
+	HK_LOAD_STATE_SLOT_1,
+	HK_LOAD_STATE_SLOT_2,
+	HK_LOAD_STATE_SLOT_3,
+	HK_LOAD_STATE_SLOT_4,
+	HK_LOAD_STATE_SLOT_5,
+	HK_LOAD_STATE_SLOT_6,
+	HK_LOAD_STATE_SLOT_7,
+	HK_LOAD_STATE_SLOT_8,
+
+	HK_SAVE_STATE_SLOT_1,
+	HK_SAVE_STATE_SLOT_2,
+	HK_SAVE_STATE_SLOT_3,
+	HK_SAVE_STATE_SLOT_4,
+	HK_SAVE_STATE_SLOT_5,
+	HK_SAVE_STATE_SLOT_6,
+	HK_SAVE_STATE_SLOT_7,
+	HK_SAVE_STATE_SLOT_8,
+
 	NUM_HOTKEYS,
 };
 
 struct SCoreStartupParameter
 {
 	void* hInstance;  // HINSTANCE but we don't want to include <windows.h>
-
-	// Windows/GUI related
-	void* hMainWindow;
 
 	// Settings
 	bool bEnableDebugging;
@@ -128,9 +157,9 @@ struct SCoreStartupParameter
 	};
 	EBootType m_BootType;
 
-	// files
-	std::string m_strVideoPlugin;
+	std::string m_strVideoBackend;
 
+	// files
 	std::string m_strFilename;
 	std::string m_strBootROM;
 	std::string m_strSRAM;

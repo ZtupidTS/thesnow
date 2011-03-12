@@ -86,7 +86,7 @@ void LoadPatchSection(const char *section, std::vector<Patch> &patches, IniFile 
 
 			std::string::size_type loc = line.find_first_of('=', 0);
 			if (loc != std::string::npos)
-				line.at(loc) = ':';
+				line[loc] = ':';
 
 			std::vector<std::string> items;
 			SplitString(line, ':', items);
@@ -154,7 +154,7 @@ int GetSpeedhackCycles(const u32 addr)
 void LoadPatches(const char *gameID)
 {
 	IniFile ini;
-	std::string filename = std::string(File::GetUserPath(D_GAMECONFIG_IDX)) + gameID + ".ini";
+	std::string filename = File::GetUserPath(D_GAMECONFIG_IDX) + gameID + ".ini";
 	if (ini.Load(filename.c_str())) {
 		LoadPatchSection("OnFrame", onFrame, ini);
 		ActionReplay::LoadCodes(ini, false);

@@ -16,6 +16,7 @@
 // http://code.google.com/p/dolphin-emu/
 
 #include "AudioCommon.h"
+#include "FileUtil.h"
 #include "Mixer.h"
 #include "NullSoundStream.h"
 #include "DSoundStream.h"
@@ -30,10 +31,6 @@ namespace AudioCommon
 {	
 	SoundStream *InitSoundStream(CMixer *mixer, void *hWnd) 
 	{
-		// This looks evil.
-		if (!mixer)
-			mixer = new CMixer();
-
 		std::string backend = ac_Config.sBackend;
 		if (backend == BACKEND_OPENAL           && OpenALStream::isValid()) 
 			soundStream = new OpenALStream(mixer);
@@ -57,12 +54,13 @@ namespace AudioCommon
 			ac_Config.Update();
 			if (soundStream->Start())
 			{
-				// Start the sound recording
-				/*
-				  if (ac_Config.record) {
-				  soundStream->StartLogAudio(FULL_DUMP_DIR g_Config.recordFile);
-				  }
-				*/
+				if (ac_Config.m_DumpAudio)
+				{
+					std::string audio_file_name = File::GetUserPath(D_DUMPAUDIO_IDX) + "audiodump.wav";
+					File::CreateFullPath(audio_file_name);
+					mixer->StartLogAudio(audio_file_name.c_str());
+				}
+
 				return soundStream;
 			}
 			PanicAlertT("Could not initialize backend %s.", backend.c_str());
@@ -81,12 +79,14 @@ namespace AudioCommon
 		if (soundStream) 
 		{
 			soundStream->Stop();
-			soundStream->StopLogAudio();
+			if (ac_Config.m_DumpAudio)
+				soundStream->GetMixer()->StopLogAudio();
+				//soundStream->StopLogAudio();
 			delete soundStream;
 			soundStream = NULL;
 		}
 
-		NOTICE_LOG(DSPHLE, "Done shutting down sound stream");	
+		INFO_LOG(DSPHLE, "Done shutting down sound stream");	
 	}
 
 	std::vector<std::string> GetSoundBackends() 

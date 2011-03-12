@@ -16,6 +16,8 @@
 // http://code.google.com/p/dolphin-emu/
 
 #include "AVIDump.h"
+#include "HW/VideoInterface.h" //for TargetRefreshRate
+#include "VideoConfig.h"
 
 #ifdef _WIN32
 
@@ -61,7 +63,7 @@ bool AVIDump::CreateFile()
 	m_totalBytes = 0;
 	m_frameCount = 0;
 	char movie_file_name[255];
-	sprintf(movie_file_name, "%sframedump%d.avi", File::GetUserPath(D_DUMPFRAMES_IDX), m_fileCount);
+	sprintf(movie_file_name, "%sframedump%d.avi", File::GetUserPath(D_DUMPFRAMES_IDX).c_str(), m_fileCount);
 	// Create path
 	File::CreateFullPath(movie_file_name);
 
@@ -189,8 +191,7 @@ bool AVIDump::SetVideoFormat()
 	memset(&m_header, 0, sizeof(m_header));
 	m_header.fccType = streamtypeVIDEO;
 	m_header.dwScale = 1;
-	// TODO: Decect FPS using NTSC/PAL
-	m_header.dwRate = 60;
+	m_header.dwRate = VideoInterface::TargetRefreshRate;
 	m_header.dwSuggestedBufferSize  = m_bitmap.biSizeImage;
 
 	return SUCCEEDED(AVIFileCreateStream(m_file, &m_stream, &m_header));
@@ -243,7 +244,8 @@ bool AVIDump::CreateFile()
 
 	s_FormatContext = avformat_alloc_context();
 	snprintf(s_FormatContext->filename, sizeof(s_FormatContext->filename), "%s",
-			StringFromFormat("%sframedump0.avi", File::GetUserPath(D_DUMPFRAMES_IDX)).c_str());
+			(File::GetUserPath(D_DUMPFRAMES_IDX) + "framedump0.avi").c_str());
+	File::CreateFullPath(s_FormatContext->filename);
 
 	if (!(s_FormatContext->oformat = av_guess_format("avi", NULL, NULL)) ||
 			!(s_Stream = av_new_stream(s_FormatContext, 0)))
@@ -252,14 +254,19 @@ bool AVIDump::CreateFile()
 		return false;
 	}
 
+	if (g_Config.bUseFFV1)
+	{
+		s_FormatContext->oformat->video_codec = CODEC_ID_FFV1;
+	}
+
 	s_Stream->codec->codec_id = s_FormatContext->oformat->video_codec;
 	s_Stream->codec->codec_type = AVMEDIA_TYPE_VIDEO;
 	s_Stream->codec->bit_rate = 400000;
 	s_Stream->codec->width = s_width;
 	s_Stream->codec->height = s_height;
-	s_Stream->codec->time_base = (AVRational){1, 30};
+	s_Stream->codec->time_base = (AVRational){1, VideoInterface::TargetRefreshRate};
 	s_Stream->codec->gop_size = 12;
-	s_Stream->codec->pix_fmt = PIX_FMT_YUV420P;
+	s_Stream->codec->pix_fmt = (g_Config.bUseFFV1) ? PIX_FMT_BGRA : PIX_FMT_YUV420P;
 
 	av_set_parameters(s_FormatContext, NULL);
 
@@ -271,7 +278,7 @@ bool AVIDump::CreateFile()
 	}
 
 	if(!(s_SwsContext = sws_getContext(s_width, s_height, PIX_FMT_BGR24, s_width, s_height,
-					PIX_FMT_YUV420P, SWS_BICUBIC, NULL, NULL, NULL)))
+					s_Stream->codec->pix_fmt, SWS_BICUBIC, NULL, NULL, NULL)))
 	{
 		CloseFile();
 		return false;
@@ -280,10 +287,10 @@ bool AVIDump::CreateFile()
 	s_BGRFrame = avcodec_alloc_frame();
 	s_YUVFrame = avcodec_alloc_frame();
 
-	s_size = avpicture_get_size(PIX_FMT_YUV420P, s_width, s_height);
+	s_size = avpicture_get_size(s_Stream->codec->pix_fmt, s_width, s_height);
 
 	s_YUVBuffer = new uint8_t[s_size];
-	avpicture_fill((AVPicture *)s_YUVFrame, s_YUVBuffer, PIX_FMT_YUV420P, s_width, s_height);
+	avpicture_fill((AVPicture *)s_YUVFrame, s_YUVBuffer, s_Stream->codec->pix_fmt, s_width, s_height);
 
 	s_OutBuffer = new uint8_t[s_size];
 

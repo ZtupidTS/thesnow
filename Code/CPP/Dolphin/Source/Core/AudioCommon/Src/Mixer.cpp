@@ -31,8 +31,6 @@
 #include <tmmintrin.h>
 #endif
 
-static const __m128i sr_mask = _mm_set_epi32(0x0C0D0E0FL, 0x08090A0BL, 0x04050607L, 0x00010203L);
-
 // Executed from sound stream thread
 unsigned int CMixer::Mix(short* samples, unsigned int numSamples)
 {
@@ -64,6 +62,10 @@ unsigned int CMixer::Mix(short* samples, unsigned int numSamples)
 		if (m_sampleRate == 32000)
 		{
 #if _M_SSE >= 0x301
+			static const __m128i sr_mask =
+				_mm_set_epi32(0x0C0D0E0FL, 0x08090A0BL,
+					0x04050607L, 0x00010203L);
+
 			if (cpu_info.bSSSE3 && !((numLeft * 2) % 8))
 			{
 				for (unsigned int i = 0; i < numLeft * 2; i += 8)
@@ -123,15 +125,29 @@ unsigned int CMixer::Mix(short* samples, unsigned int numSamples)
 	if (numSamples > numLeft)
 		memset(&samples[numLeft * 2], 0, (numSamples - numLeft) * 4);
 
-	// Add the DSPHLE sound, re-sampling is done inside
-	Premix(samples, numSamples);
+	//when logging, also throttle HLE audio
+	if (m_logAudio) {
+		if (m_AIplaying) {
+			Premix(samples, numLeft);
 
-	// Add the DTK Music
-	if (m_EnableDTKMusic)
-	{
-		// Re-sampling is done inside
-		AudioInterface::Callback_GetStreaming(samples, numSamples, m_sampleRate);
+			if (m_EnableDTKMusic)
+				AudioInterface::Callback_GetStreaming(samples, numLeft, m_sampleRate);
+
+			g_wave_writer.AddStereoSamples(samples, numLeft);
+		}
 	}
+	else { 	//or mix as usual
+		// Add the DSPHLE sound, re-sampling is done inside
+		Premix(samples, numSamples);
+
+		// Add the DTK Music
+		if (m_EnableDTKMusic)
+		{
+			// Re-sampling is done inside
+			AudioInterface::Callback_GetStreaming(samples, numSamples, m_sampleRate);
+		}
+	}
+
 
 	Common::AtomicAdd(m_numSamples, -(s32)numLeft);
 
@@ -178,10 +194,8 @@ void CMixer::PushSamples(const short *samples, unsigned int num_samples)
 
 	if (m_sampleRate == 32000)
 		Common::AtomicAdd(m_numSamples, num_samples);
-	else if (m_sampleRate == 48000)
+	else // Assume 48000 otherwise
 		Common::AtomicAdd(m_numSamples, num_samples * 3 / 2);
-	else
-		PanicAlertT("Mixer: Unsupported sample rate.");
 
 	return;
 }

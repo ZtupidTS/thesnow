@@ -20,6 +20,7 @@
 #include <assert.h>
 #include <locale.h>
 
+#include "LightingShaderGen.h"
 #include "PixelShaderGen.h"
 #include "XFMemory.h"  // for texture projection mode
 #include "BPMemory.h"
@@ -41,7 +42,7 @@ void GetPixelShaderId(PIXELSHADERUID *uid, DSTALPHA_MODE dstAlphaMode)
 		if (bpmem.tevorders[i/2].getEnable(i & 1))
 		{
 			int texcoord = bpmem.tevorders[i / 2].getTexCoord(i & 1);
-			if (xfregs.texcoords[texcoord].texmtxinfo.projection)
+			if (xfregs.texMtxInfo[i].projection)
 				projtexcoords |= 1 << texcoord;
 		}
 	}
@@ -66,12 +67,12 @@ void GetPixelShaderId(PIXELSHADERUID *uid, DSTALPHA_MODE dstAlphaMode)
 	if(g_ActiveConfig.bEnablePixelLigting && g_ActiveConfig.backend_info.bSupportsPixelLighting)
 	{
 		for (int i = 0; i < 2; ++i) {
-			uid->values[3 + i] = xfregs.colChans[i].color.enablelighting ?
-				(u32)xfregs.colChans[i].color.hex :
-				(u32)xfregs.colChans[i].color.matsource;
-			uid->values[3 + i] |= (xfregs.colChans[i].alpha.enablelighting ?
-				(u32)xfregs.colChans[i].alpha.hex :
-				(u32)xfregs.colChans[i].alpha.matsource) << 15;
+			uid->values[3 + i] = xfregs.color[i].enablelighting ?
+				(u32)xfregs.color[i].hex :
+				(u32)xfregs.color[i].matsource;
+			uid->values[3 + i] |= (xfregs.alpha[i].enablelighting ?
+				(u32)xfregs.alpha[i].hex :
+				(u32)xfregs.alpha[i].matsource) << 15;
 		}
 	}
 	uid->values[4] |= (g_ActiveConfig.bEnablePixelLigting && g_ActiveConfig.backend_info.bSupportsPixelLighting) << 31;
@@ -379,68 +380,6 @@ static void BuildSwapModeTable()
 	}
 }
 
-char *GeneratePixelLightShader(char *p, int index, const LitChannel& chan, const char *dest, int coloralpha)
-{
-	const char* swizzle = "xyzw";
-	if (coloralpha == 1 ) swizzle = "xyz";
-	else if (coloralpha == 2 ) swizzle = "w";
-
-	if (!(chan.attnfunc & 1)) {
-		// atten disabled
-		switch (chan.diffusefunc) {
-			case LIGHTDIF_NONE:
-				WRITE(p, "%s.%s += "I_PLIGHTS".lights[%d].col.%s;\n", dest, swizzle, index, swizzle);
-				break;
-			case LIGHTDIF_SIGN:
-			case LIGHTDIF_CLAMP:
-				WRITE(p, "ldir = normalize("I_PLIGHTS".lights[%d].pos.xyz - pos.xyz);\n", index);
-				WRITE(p, "%s.%s += %sdot(ldir, _norm0)) * "I_PLIGHTS".lights[%d].col.%s;\n",
-					dest, swizzle, chan.diffusefunc != LIGHTDIF_SIGN ? "max(0.0f," :"(", index, swizzle);
-				break;
-			default: _assert_(0);
-		}
-	}
-	else { // spec and spot
-		
-		if (chan.attnfunc == 3) 
-		{ // spot
-			WRITE(p, "ldir = "I_PLIGHTS".lights[%d].pos.xyz - pos.xyz;\n", index);
-			WRITE(p, "dist2 = dot(ldir, ldir);\n"
-				"dist = sqrt(dist2);\n"
-				"ldir = ldir / dist;\n"
-				"attn = max(0.0f, dot(ldir, "I_PLIGHTS".lights[%d].dir.xyz));\n",index);
-			WRITE(p, "attn = max(0.0f, dot("I_PLIGHTS".lights[%d].cosatt.xyz, float3(1.0f, attn, attn*attn))) / dot("I_PLIGHTS".lights[%d].distatt.xyz, float3(1.0f,dist,dist2));\n", index, index);
-		}
-		else if (chan.attnfunc == 1) 
-		{ // specular
-			WRITE(p, "ldir = normalize("I_PLIGHTS".lights[%d].pos.xyz);\n",index);
-			WRITE(p, "attn = (dot(_norm0,ldir) >= 0.0f) ? max(0.0f, dot(_norm0, "I_PLIGHTS".lights[%d].dir.xyz)) : 0.0f;\n", index);
-			WRITE(p, "attn = max(0.0f, dot("I_PLIGHTS".lights[%d].cosatt.xyz, float3(1,attn,attn*attn))) / dot("I_PLIGHTS".lights[%d].distatt.xyz, float3(1,attn,attn*attn));\n", index, index);
-		}
-
-		switch (chan.diffusefunc)
-		{
-			case LIGHTDIF_NONE:
-				WRITE(p, "%s.%s += attn * "I_PLIGHTS".lights[%d].col.%s;\n", dest, swizzle, index, swizzle);
-				break;
-			case LIGHTDIF_SIGN:
-			case LIGHTDIF_CLAMP:
-				WRITE(p, "%s.%s += attn * %sdot(ldir, _norm0)) * "I_PLIGHTS".lights[%d].col.%s;\n",
-					dest, 
-					swizzle, 
-					chan.diffusefunc != LIGHTDIF_SIGN ? "max(0.0f," :"(", 
-					index, 
-					swizzle);
-				break;
-			default: _assert_(0);
-		}
-	}
-	WRITE(p, "\n");	
-	return p;
-}
-
-
-
 const char *GeneratePixelShaderCode(DSTALPHA_MODE dstAlphaMode, API_TYPE ApiType, u32 components)
 {
 	setlocale(LC_NUMERIC, "C"); // Reset locale for compilation
@@ -552,7 +491,7 @@ const char *GeneratePixelShaderCode(DSTALPHA_MODE dstAlphaMode, API_TYPE ApiType
 		}
 		else
 		{
-			for (int i = 0; i < xfregs.numTexGens; ++i)
+			for (unsigned int i = 0; i < xfregs.numTexGen.numTexGens; ++i)
 				WRITE(p, ",\n  in float%d uv%d : TEXCOORD%d", i < 4 ? 4 : 3 , i, i);
 		}
 	}
@@ -591,7 +530,7 @@ const char *GeneratePixelShaderCode(DSTALPHA_MODE dstAlphaMode, API_TYPE ApiType
 	
 	if(g_ActiveConfig.bEnablePixelLigting && g_ActiveConfig.backend_info.bSupportsPixelLighting)
 	{
-		if (xfregs.numTexGens < 7) 
+		if (xfregs.numTexGen.numTexGens < 7) 
 		{
 			WRITE(p,"float3 _norm0 = normalize(Normal.xyz);\n\n");
 			WRITE(p,"float3 pos = float3(clipPos.x,clipPos.y,Normal.w);\n");
@@ -606,113 +545,8 @@ const char *GeneratePixelShaderCode(DSTALPHA_MODE dstAlphaMode, API_TYPE ApiType
 		WRITE(p, "float4 mat, lacc;\n"
 		"float3 ldir, h;\n"
 		"float dist, dist2, attn;\n");
-		// lights/colors
-		for (int j = 0; j < xfregs.nNumChans; j++)
-		{
-			const LitChannel& color = xfregs.colChans[j].color;
-			const LitChannel& alpha = xfregs.colChans[j].alpha;
-
-			WRITE(p, "{\n");
-			
-			if (color.matsource) {// from vertex
-				if (components & (VB_HAS_COL0 << j))
-					WRITE(p, "mat = colors_%d;\n", j);
-				else if (components & VB_HAS_COL0)
-					WRITE(p, "mat = colors_0;\n");
-				else
-					WRITE(p, "mat = float4(1.0f, 1.0f, 1.0f, 1.0f);\n");
-			}
-			else // from color
-				WRITE(p, "mat = "I_PMATERIALS".C%d;\n", j+2);
-
-				if (color.enablelighting) {
-				if (color.ambsource) { // from vertex
-					if (components & (VB_HAS_COL0<<j) )
-						WRITE(p, "lacc = colors_%d;\n", j);
-					else if (components & VB_HAS_COL0 )
-						WRITE(p, "lacc = colors_0;\n");
-					else
-						WRITE(p, "lacc = float4(0.0f, 0.0f, 0.0f, 0.0f);\n");
-				}
-				else // from color
-					WRITE(p, "lacc = "I_PMATERIALS".C%d;\n", j);
-			}
-			else
-			{
-				WRITE(p, "lacc = float4(1.0f, 1.0f, 1.0f, 1.0f);\n");
-			}
-
-			// check if alpha is different
-			if (alpha.matsource != color.matsource) {
-				if (alpha.matsource) {// from vertex
-					if (components & (VB_HAS_COL0<<j))
-						WRITE(p, "mat.w = colors_%d.w;\n", j);
-					else if (components & VB_HAS_COL0)
-						WRITE(p, "mat.w = colors_0.w;\n");
-					else WRITE(p, "mat.w = 1.0f;\n");
-				}
-				else // from color
-					WRITE(p, "mat.w = "I_PMATERIALS".C%d.w;\n", j+2);
-			}
-
-			if (alpha.enablelighting)
-			{
-				if (alpha.ambsource) {// from vertex
-					if (components & (VB_HAS_COL0<<j) )
-						WRITE(p, "lacc.w = colors_%d.w;\n", j);
-					else if (components & VB_HAS_COL0 )
-						WRITE(p, "lacc.w = colors_0.w;\n");
-					else
-						WRITE(p, "lacc.w = 0.0f;\n");
-				}
-				else // from color
-					WRITE(p, "lacc.w = "I_PMATERIALS".C%d.w;\n", j);
-			}
-			else
-			{
-				WRITE(p, "lacc.w = 1.0f;\n");
-			}			
-
-			if(color.enablelighting && alpha.enablelighting)
-			{
-				// both have lighting, test if they use the same lights
-				int mask = 0;
-				if(color.lightparams == alpha.lightparams)
-				{
-					mask = color.GetFullLightMask() & alpha.GetFullLightMask();
-					if(mask)
-					{
-						for (int i = 0; i < 8; ++i)
-						{
-							if (mask & (1<<i))
-								p = GeneratePixelLightShader(p, i, color, "lacc", 3);
-						}
-					}
-				}
-
-				// no shared lights
-				for (int i = 0; i < 8; ++i)
-				{
-					if (!(mask&(1<<i)) && (color.GetFullLightMask() & (1<<i)))
-						p = GeneratePixelLightShader(p, i, color, "lacc", 1);
-					if (!(mask&(1<<i)) && (alpha.GetFullLightMask() & (1<<i)))
-						p = GeneratePixelLightShader(p, i, alpha, "lacc", 2);
-				}
-			}
-			else if (color.enablelighting || alpha.enablelighting)
-			{
-				// lights are disabled on one channel so process only the active ones
-				LitChannel workingchannel = color.enablelighting ? color : alpha;
-				int coloralpha = color.enablelighting ? 1 : 2;
-				for (int i = 0; i < 8; ++i)
-				{
-					if (workingchannel.GetFullLightMask() & (1<<i))
-						p = GeneratePixelLightShader(p, i, workingchannel, "lacc", coloralpha);
-				}
-			}			
-			WRITE(p, "colors_%d = mat * saturate(lacc);\n", j);
-			WRITE(p, "}\n");
-		}
+		
+		p = GenerateLightingShader(p, components, I_PMATERIALS, I_PLIGHTS, "colors_", "colors_");
 	}
 
 	if (numTexgen < 7)
@@ -730,7 +564,7 @@ const char *GeneratePixelShaderCode(DSTALPHA_MODE dstAlphaMode, API_TYPE ApiType
 		for (int i = 0; i < numTexgen; ++i)
 		{
 			// optional perspective divides
-			if (xfregs.texcoords[i].texmtxinfo.projection == XF_TEXPROJ_STQ)
+			if (xfregs.texMtxInfo[i].projection == XF_TEXPROJ_STQ)
 			{
 				WRITE(p, "if (uv%d.z)", i);
 				WRITE(p, "	uv%d.xy = uv%d.xy / uv%d.z;\n", i, i, i);

@@ -180,6 +180,11 @@ ControlState Joystick::Axis::GetState(IOHIDDeviceRef device) const
 
 	if (IOHIDDeviceGetValue(device, m_element, &value) == kIOReturnSuccess)
 	{
+		// IOHIDValueGetIntegerValue() crashes when trying
+		// to convert unusually large element values.
+		if (IOHIDValueGetLength(value) > 2)
+			return 0;
+
 		float position = IOHIDValueGetIntegerValue(value);
 
 		if (m_direction == positive && position > m_neutral)

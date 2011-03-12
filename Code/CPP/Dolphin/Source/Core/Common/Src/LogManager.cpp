@@ -36,9 +36,8 @@ void GenericLog(LogTypes::LOG_LEVELS level, LogTypes::LOG_TYPE type,
 
 LogManager *LogManager::m_logManager = NULL;
 
-LogManager::LogManager() {
-	logMutex = new Common::CriticalSection(1);
-
+LogManager::LogManager()
+{
 	// create log files
 	m_Log[LogTypes::MASTER_LOG]			= new LogContainer("*",				"Master Log");
 	m_Log[LogTypes::BOOT]				= new LogContainer("BOOT",			"Boot");
@@ -64,12 +63,12 @@ LogManager::LogManager() {
 	m_Log[LogTypes::DSPHLE]			    = new LogContainer("DSPHLE",		"DSP HLE");
 	m_Log[LogTypes::DSPLLE]			    = new LogContainer("DSPLLE",		"DSP LLE");
 	m_Log[LogTypes::DSP_MAIL]		    = new LogContainer("DSPMails",		"DSP Mails");
-	m_Log[LogTypes::VIDEO]			    = new LogContainer("Video",			"Video Plugin");
-	m_Log[LogTypes::AUDIO]			    = new LogContainer("Audio",			"Audio Plugin");
+	m_Log[LogTypes::VIDEO]			    = new LogContainer("Video",			"Video Backend");
+	m_Log[LogTypes::AUDIO]			    = new LogContainer("Audio",			"Audio Emulator");
 	m_Log[LogTypes::DYNA_REC]			= new LogContainer("JIT",			"Dynamic Recompiler");
 	m_Log[LogTypes::CONSOLE]			= new LogContainer("CONSOLE",		"Dolphin Console");
 	m_Log[LogTypes::OSREPORT]			= new LogContainer("OSREPORT",		"OSReport");			
-	m_Log[LogTypes::WIIMOTE]			= new LogContainer("Wiimote",		"Wiimote Plugin");			
+	m_Log[LogTypes::WIIMOTE]			= new LogContainer("Wiimote",		"Wiimote");			
 	m_Log[LogTypes::WII_IOB]			= new LogContainer("WII_IOB",		"WII IO Bridge");
 	m_Log[LogTypes::WII_IPC]			= new LogContainer("WII_IPC",		"WII IPC");
 	m_Log[LogTypes::WII_IPC_HLE]		= new LogContainer("WII_IPC_HLE",	"WII IPC HLE");
@@ -84,7 +83,7 @@ LogManager::LogManager() {
 	m_Log[LogTypes::MEMCARD_MANAGER]	= new LogContainer("MemCard Manager", "MemCard Manager");
 	m_Log[LogTypes::NETPLAY]			= new LogContainer("NETPLAY",		"Netplay");
 
-	m_fileLog = new FileLogListener(File::GetUserPath(F_MAINLOG_IDX));
+	m_fileLog = new FileLogListener(File::GetUserPath(F_MAINLOG_IDX).c_str());
 	m_consoleLog = new ConsoleListener();
 
 	for (int i = 0; i < LogTypes::NUMBER_OF_LOGS; ++i) {
@@ -105,7 +104,6 @@ LogManager::~LogManager() {
 
 	delete m_fileLog;
 	delete m_consoleLog;
-	delete logMutex;
 }
 
 void LogManager::Log(LogTypes::LOG_LEVELS level, LogTypes::LOG_TYPE type, 
@@ -127,15 +125,14 @@ void LogManager::Log(LogTypes::LOG_LEVELS level, LogTypes::LOG_TYPE type,
 			file, line, level_to_char[(int)level],
 			log->getShortName(), temp);
 
-	logMutex->Enter();
+	std::lock_guard<std::mutex> lk(logMutex);
 	log->trigger(level, msg);
-	logMutex->Leave();
 }
 
-void LogManager::removeListener(LogTypes::LOG_TYPE type, LogListener *listener) {
-	logMutex->Enter();
+void LogManager::removeListener(LogTypes::LOG_TYPE type, LogListener *listener)
+{
+	std::lock_guard<std::mutex> lk(logMutex);
 	m_Log[type]->removeListener(listener);
-	logMutex->Leave();
 }
 
 void LogManager::Init()
@@ -179,22 +176,16 @@ void LogContainer::trigger(LogTypes::LOG_LEVELS level, const char *msg) {
 	}
 }
 
-FileLogListener::FileLogListener(const char *filename) {
-	m_filename = strndup(filename, 255);
-	m_logfile = fopen(filename, "a+");
+FileLogListener::FileLogListener(const char *filename)
+{
+	m_logfile.open(filename, std::ios::app);
 	setEnable(true);
 }
 
-FileLogListener::~FileLogListener() {
-	free(m_filename);
-	if (m_logfile)
-		fclose(m_logfile);
-}
-
-void FileLogListener::Log(LogTypes::LOG_LEVELS, const char *msg) {
+void FileLogListener::Log(LogTypes::LOG_LEVELS, const char *msg)
+{
 	if (!m_enable || !isValid())
 		return;
 
-   	fwrite(msg, strlen(msg) * sizeof(char), 1, m_logfile);
-	fflush(m_logfile);
+	m_logfile << msg << std::flush;
 }

@@ -30,7 +30,7 @@ namespace CommandProcessor
 {
 
 extern SCPFifoStruct fifo; //This one is shared between gfx thread and emulator thread.
-extern volatile bool isFifoBusy; //This one is used for sync gfx thread and emulator thread.
+extern volatile bool isPossibleWaitingSetDrawDone; //This one is used for sync gfx thread and emulator thread.
 extern volatile bool interruptSet;
 extern volatile bool interruptWaiting;
 extern volatile bool interruptTokenWaiting;
@@ -151,27 +151,17 @@ void Write16(const u16 _Data, const u32 _Address);
 void Read32(u32& _rReturnValue, const u32 _Address);
 void Write32(const u32 _Data, const u32 _Address);
 
-// for CGPFIFO
-void CatchUpGPU();
-void SetStatus();
+void SetCpStatus();
 void GatherPipeBursted();
-void UpdateFifoRegister();
 void UpdateInterrupts(u64 userdata);
-void UpdateInterruptsFromVideoPlugin(u64 userdata);
-void UpdateInterruptsScMode();
-void SetFifoIdleFromVideoPlugin();
+void UpdateInterruptsFromVideoBackend(u64 userdata);
 
 bool AllowIdleSkipping();
 
-// for DC GP watchdog hack
-void IncrementGPWDToken();
-void WaitForFrameFinish();
-
-void FifoCriticalEnter();
-void FifoCriticalLeave();
-
+void SetCpControlRegister();
+void SetCpStatusRegister();
 void SetOverflowStatusFromGatherPipe();
-void ProcessFifoToLoWatemark();
+void ProcessFifoToLoWatermark();
 void ProcessFifoAllDistance();
 void ProcessFifoEvents();
 void AbortFrame();

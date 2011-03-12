@@ -110,28 +110,28 @@ void FreeLookInput( UINT iMsg, WPARAM wParam )
 		if (mouseLookEnabled) {
 			GetCursorPos(&point);
 			VertexShaderManager::RotateView((point.x - lastMouse[0]) / 200.0f, (point.y - lastMouse[1]) / 200.0f);
-			lastMouse[0] = point.x;
-			lastMouse[1] = point.y;
+			lastMouse[0] = (float)point.x;
+			lastMouse[1] = (float)point.y;
 		}
 
 		if (mouseMoveEnabled) {
 			GetCursorPos(&point);
 			VertexShaderManager::TranslateView((point.x - lastMouse[0]) / 50.0f, (point.y - lastMouse[1]) / 50.0f);
-			lastMouse[0] = point.x;
-			lastMouse[1] = point.y;
+			lastMouse[0] = (float)point.x;
+			lastMouse[1] = (float)point.y;
 		}
 		break;
 
 	case WM_RBUTTONDOWN:
 		GetCursorPos(&point);
-		lastMouse[0] = point.x;
-		lastMouse[1] = point.y;
+		lastMouse[0] = (float)point.x;
+		lastMouse[1] = (float)point.y;
 		mouseLookEnabled= true;
 		break;
 	case WM_MBUTTONDOWN:		
 		GetCursorPos(&point);
-		lastMouse[0] = point.x;
-		lastMouse[1] = point.y;
+		lastMouse[0] = (float)point.x;
+		lastMouse[1] = (float)point.y;
 		mouseMoveEnabled= true;
 		break;
 	case WM_RBUTTONUP:
@@ -186,7 +186,7 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam )
 	// This is called when we close the window when we render to a separate window
 	case WM_CLOSE:
 		// When the user closes the window, we post an event to the main window to call Stop()
-		// Which then handles all the necessary steps to Shutdown the core + the plugins
+		// Which then handles all the necessary steps to Shutdown the core
 		if (m_hParent == NULL)
 		{
 			// Stop the game
@@ -221,9 +221,6 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam )
 		PostMessage(m_hParent, WM_USER, WM_USER_SETCURSOR, 0);
 		return true;
 
-	case WM_DESTROY:
-		g_video_backend->Shutdown();
-		break;
 	default:
 		return DefWindowProc(hWnd, iMsg, wParam, lParam);
 	}
@@ -336,8 +333,7 @@ HWND Create(HWND hParent, HINSTANCE hInstance, const TCHAR *title)
 
 void Close()
 {
-	if (m_hParent == NULL)
-		DestroyWindow(m_hWnd);
+	DestroyWindow(m_hWnd);
 	UnregisterClass(m_szClassName, m_hInstance);
 }
 

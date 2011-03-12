@@ -31,6 +31,7 @@
 #include "MainBase.h"
 #include "VideoConfig.h"
 #include "FramebufferManagerBase.h"
+#include "TextureCacheBase.h"
 #include "Fifo.h"
 #include "Timer.h"
 #include "StringUtil.h"
@@ -42,10 +43,10 @@
 int frameCount;
 int OSDChoice, OSDTime;
 
-Renderer *g_renderer;
+Renderer *g_renderer = NULL;
 
 bool s_bLastFrameDumped = false;
-Common::CriticalSection Renderer::s_criticalScreenshot;
+std::mutex Renderer::s_criticalScreenshot;
 std::string Renderer::s_sScreenshotName;
 
 volatile bool Renderer::s_bScreenshot;
@@ -107,7 +108,12 @@ void Renderer::RenderToXFB(u32 xfbAddr, u32 fbWidth, u32 fbHeight, const EFBRect
 	else
 	{
 		g_renderer->Swap(xfbAddr, FIELD_PROGRESSIVE, fbWidth, fbHeight,sourceRc,Gamma);
-		Common::AtomicStoreRelease(s_swapRequested, FALSE);
+		Common::AtomicStoreRelease(s_swapRequested, false);
+	}
+	
+	if (TextureCache::DeferredInvalidate)
+	{
+		TextureCache::Invalidate(false);
 	}
 }
 
@@ -162,10 +168,13 @@ bool Renderer::CalculateTargetSize(int multiplier)
 	newEFBWidth *= multiplier;
 	newEFBHeight *= multiplier;
 
+	s_Fulltarget_width = newEFBWidth;
+	s_Fulltarget_height = newEFBHeight;
+
 	if (newEFBWidth != s_target_width || newEFBHeight != s_target_height)
 	{
-		s_Fulltarget_width = s_target_width  = newEFBWidth;
-		s_Fulltarget_height = s_target_height = newEFBHeight;
+		s_target_width  = newEFBWidth;
+		s_target_height = newEFBHeight;
 		return true;
 	}
 	return false;
@@ -173,10 +182,9 @@ bool Renderer::CalculateTargetSize(int multiplier)
 
 void Renderer::SetScreenshot(const char *filename)
 {
-	s_criticalScreenshot.Enter();
+	std::lock_guard<std::mutex> lk(s_criticalScreenshot);
 	s_sScreenshotName = filename;
 	s_bScreenshot = true;
-	s_criticalScreenshot.Leave();
 }
 
 // Create On-Screen-Messages

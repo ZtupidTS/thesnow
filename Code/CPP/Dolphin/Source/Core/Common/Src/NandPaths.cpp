@@ -26,7 +26,8 @@ namespace Common
 std::string CreateTicketFileName(u64 _titleID)
 {
 	char TicketFilename[1024];
-	sprintf(TicketFilename, "%sticket/%08x/%08x.tik", File::GetUserPath(D_WIIUSER_IDX), (u32)(_titleID >> 32), (u32)_titleID);
+	sprintf(TicketFilename, "%sticket/%08x/%08x.tik",
+			File::GetUserPath(D_WIIUSER_IDX).c_str(), (u32)(_titleID >> 32), (u32)_titleID);
 
 	return TicketFilename;
 }
@@ -34,7 +35,8 @@ std::string CreateTicketFileName(u64 _titleID)
 std::string CreateTitleDataPath(u64 _titleID)
 {
 	char path[1024];
-	sprintf(path, "%stitle/%08x/%08x/data", File::GetUserPath(D_WIIUSER_IDX), (u32)(_titleID >> 32), (u32)_titleID);
+	sprintf(path, "%stitle/%08x/%08x/data",
+			File::GetUserPath(D_WIIUSER_IDX).c_str(), (u32)(_titleID >> 32), (u32)_titleID);
 
 	return path;
 }
@@ -42,27 +44,22 @@ std::string CreateTitleDataPath(u64 _titleID)
 std::string CreateTitleContentPath(u64 _titleID)
 {
 	char ContentPath[1024];
-	sprintf(ContentPath, "%stitle/%08x/%08x/content", File::GetUserPath(D_WIIUSER_IDX), (u32)(_titleID >> 32), (u32)_titleID);
+	sprintf(ContentPath, "%stitle/%08x/%08x/content",
+			File::GetUserPath(D_WIIUSER_IDX).c_str(), (u32)(_titleID >> 32), (u32)_titleID);
 
 	return ContentPath;
 }
 
 bool CheckTitleTMD(u64 _titleID)
 {
-	std::string TitlePath;
-	TitlePath = CreateTitleContentPath(_titleID) + "/title.tmd";
-	if (File::Exists(TitlePath.c_str()))
+	const std::string TitlePath = CreateTitleContentPath(_titleID) + "/title.tmd";
+	if (File::Exists(TitlePath))
 	{
-		FILE* pTMDFile = fopen(TitlePath.c_str(), "rb");
-		if(pTMDFile)
-		{
-			u64 TitleID = 0xDEADBEEFDEADBEEFULL;
-			fseeko(pTMDFile, 0x18C, SEEK_SET);
-			fread(&TitleID, 8, 1, pTMDFile);
-			fclose(pTMDFile);
-			if (_titleID == Common::swap64(TitleID))
-				return true;
-		}
+		File::IOFile pTMDFile(TitlePath, "rb");
+		u64 TitleID = 0;
+		pTMDFile.Seek(0x18C, SEEK_SET);
+		if (pTMDFile.ReadArray(&TitleID, 1) && _titleID == Common::swap64(TitleID))
+			return true;
 	}
 	INFO_LOG(DISCIO, "Invalid or no tmd for title %08x %08x", (u32)(_titleID >> 32), (u32)(_titleID & 0xFFFFFFFF));
 	return false;
@@ -70,19 +67,14 @@ bool CheckTitleTMD(u64 _titleID)
 
 bool CheckTitleTIK(u64 _titleID)
 {
-	std::string TikPath = Common::CreateTicketFileName(_titleID);	
-	if (File::Exists(TikPath.c_str()))
+	const std::string TikPath = Common::CreateTicketFileName(_titleID);	
+	if (File::Exists(TikPath))
 	{
-		FILE* pTIKFile = fopen(TikPath.c_str(), "rb");
-		if(pTIKFile)
-		{
-			u64 TitleID = 0xDEADBEEFDEADBEEFULL;
-			fseeko(pTIKFile, 0x1dC, SEEK_SET);
-			fread(&TitleID, 8, 1, pTIKFile);
-			fclose(pTIKFile);
-			if (_titleID == Common::swap64(TitleID))
-				return true;
-		}
+		File::IOFile pTIKFile(TikPath, "rb");
+		u64 TitleID = 0;
+		pTIKFile.Seek(0x1dC, SEEK_SET);
+		if (pTIKFile.ReadArray(&TitleID, 1) && _titleID == Common::swap64(TitleID))
+			return true;
 	}
 	INFO_LOG(DISCIO, "Invalid or no tik for title %08x %08x", (u32)(_titleID >> 32), (u32)(_titleID & 0xFFFFFFFF));
 	return false;
@@ -109,7 +101,7 @@ void ReadReplacements(replace_v& replacements)
 	std::string filename(File::GetUserPath(D_WIIROOT_IDX));
 	filename += replace_fname;
 
-	if (!File::Exists(filename.c_str()))
+	if (!File::Exists(filename))
 		CreateReplacementFile(filename);
 
 	std::ifstream f(filename.c_str());

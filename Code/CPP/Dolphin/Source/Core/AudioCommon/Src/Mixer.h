@@ -18,6 +18,8 @@
 #ifndef _MIXER_H_
 #define _MIXER_H_
 
+#include "WaveFile.h"
+
 // 16 bit Stereo
 #define MAX_SAMPLES			(1024 * 8)
 #define INDEX_MASK			(MAX_SAMPLES * 2 - 1)
@@ -32,6 +34,7 @@ public:
 		, m_bits(16)
 		, m_channels(2)
 		, m_HLEready(false)
+		, m_logAudio(0)
 		, m_numSamples(0)
 		, m_indexW(0)
 		, m_indexR(0)
@@ -63,14 +66,40 @@ public:
 	void SetHLEReady(bool ready) { m_HLEready = ready;}
 	// ---------------------
 
+
+	virtual void StartLogAudio(const char *filename) {
+		if (! m_logAudio) {
+			m_logAudio = true;
+			g_wave_writer.Start(filename, GetSampleRate());
+			g_wave_writer.SetSkipSilence(false);
+			NOTICE_LOG(DSPHLE, "Starting Audio logging");
+		} else {
+			WARN_LOG(DSPHLE, "Audio logging already started");
+		}
+	}
+
+	virtual void StopLogAudio() {
+		if (m_logAudio) {
+			m_logAudio = false;
+			g_wave_writer.Stop();
+			NOTICE_LOG(DSPHLE, "Stopping Audio logging");
+		} else {
+			WARN_LOG(DSPHLE, "Audio logging already stopped");
+		}
+	}
+
+
 protected:
 	unsigned int m_sampleRate;
 	unsigned int m_aiSampleRate;
 	unsigned int m_dacSampleRate;
 	int m_bits;
 	int m_channels;
+
+	WaveFileWriter g_wave_writer;
 	
 	bool m_HLEready;
+	bool m_logAudio;
 
 	bool m_EnableDTKMusic;
 	bool m_throttle;

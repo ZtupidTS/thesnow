@@ -19,7 +19,8 @@
 #define __FRAME_H
 
 #include "Common.h"
-#include "GCPadStatus.h"
+#include "FileUtil.h"
+#include "../../InputCommon/Src/GCPadStatus.h"
 
 #include <string>
 
@@ -40,9 +41,10 @@ struct ControllerState {
 	bool Start:1, A:1, B:1, X:1, Y:1, Z:1;		// Binary buttons, 6 bits
 	bool DPadUp:1, DPadDown:1,					// Binary D-Pad buttons, 4 bits
 		DPadLeft:1, DPadRight:1;
-	bool reserved:6;							// Reserved bits used for padding, 6 bits
+	bool L:1, R:1;					// Binary triggers, 2 bits
+	bool reserved:4;							// Reserved bits used for padding, 4 bits
 
-	u8   L, R;									// Triggers, 16 bits
+	u8   TriggerL, TriggerR;									// Triggers, 16 bits
 	u8   AnalogStickX, AnalogStickY;			// Main Stick, 16 bits
 	u8   CStickX, CStickY;						// Sub-Stick, 16 bits
 	
@@ -50,14 +52,15 @@ struct ControllerState {
 #pragma pack(pop)
 
 // Global declarations
-extern bool g_bFrameStep, g_bPolled;
+extern bool g_bFrameStep, g_bPolled, g_bReadOnly;
 extern PlayMode g_playMode;
 
 extern unsigned int g_framesToSkip, g_frameSkipCounter;
 
 extern int g_numPads;
 extern ControllerState *g_padStates;
-extern FILE *g_recordfd;
+extern char g_playingFile[256];
+extern File::IOFile g_recordfd;
 extern std::string g_recordFile;
 
 extern u64 g_frameCounter, g_lagCounter;
@@ -80,9 +83,9 @@ struct DTMHeader {
     u32 numRerecords;		// Number of rerecords/'cuts' of this TAS
     u8  author[32];			// Author's name (encoded in UTF-8)
     
-    u8  videoPlugin[16];	// UTF-8 representation of the video plugin
-    u8  audioPlugin[16];	// UTF-8 representation of the audio plugin
-    u8  padPlugin[16];		// UTF-8 representation of the input plugin
+    u8  videoBackend[16];	// UTF-8 representation of the video backend
+    u8  audioEmulator[16];	// UTF-8 representation of the audio emulator
+    u8  padBackend[16];		// UTF-8 representation of the input backend
 
     u8	padding[7];		// Padding to align the header to 1024 bits
 
@@ -96,13 +99,17 @@ void SetPolledDevice();
 
 bool IsAutoFiring();
 bool IsRecordingInput();
+bool IsRecordingInputFromSaveState();
 bool IsPlayingInput();
 
 bool IsUsingPad(int controller);
-void ChangePads();
+bool IsUsingWiimote(int wiimote);
+void ChangePads(bool instantly = false);
+void ChangeWiiPads();
 
 void SetFrameStepping(bool bEnabled);
 void SetFrameStopping(bool bEnabled);
+void SetReadOnly(bool bEnabled);
 
 void SetFrameSkipping(unsigned int framesToSkip);
 int FrameSkippingFactor();
@@ -110,13 +117,16 @@ void FrameSkipping();
 
 bool BeginRecordingInput(int controllers);
 void RecordInput(SPADStatus *PadStatus, int controllerID);
+void RecordWiimote(int wiimote, u8* data, s8 size);
 
 bool PlayInput(const char *filename);
 void LoadInput(const char *filename);
 void PlayController(SPADStatus *PadStatus, int controllerID);
-void EndPlayInput();
+bool PlayWiimote(int wiimote, u8* data, s8 &size);
+void EndPlayInput(bool cont);
 void SaveRecording(const char *filename);
 
+std::string GetInputDisplay();
 };
 
 #endif // __FRAME_H

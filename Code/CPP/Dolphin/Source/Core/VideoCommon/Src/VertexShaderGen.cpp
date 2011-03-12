@@ -22,6 +22,7 @@
 
 #include "BPMemory.h"
 #include "CPMemory.h"
+#include "LightingShaderGen.h"
 #include "VertexShaderGen.h"
 #include "VideoConfig.h"
 
@@ -32,31 +33,31 @@ VERTEXSHADERUID  last_vertex_shader_uid;
 void GetVertexShaderId(VERTEXSHADERUID *uid, u32 components)
 {
 	uid->values[0] = components |
-		(xfregs.numTexGens << 23) |
-		(xfregs.nNumChans << 27) |
-		((u32)xfregs.bEnableDualTexTransform << 29);
+		(xfregs.numTexGen.numTexGens << 23) |
+		(xfregs.numChan.numColorChans << 27) |
+		(xfregs.dualTexTrans.enabled << 29);
 
 	for (int i = 0; i < 2; ++i) {
-		uid->values[1+i] = xfregs.colChans[i].color.enablelighting ?
-			(u32)xfregs.colChans[i].color.hex :
-			(u32)xfregs.colChans[i].color.matsource;
-		uid->values[1+i] |= (xfregs.colChans[i].alpha.enablelighting ?
-			(u32)xfregs.colChans[i].alpha.hex :
-			(u32)xfregs.colChans[i].alpha.matsource) << 15;
+		uid->values[1+i] = xfregs.color[i].enablelighting ?
+			(u32)xfregs.color[i].hex :
+			(u32)xfregs.color[i].matsource;
+		uid->values[1+i] |= (xfregs.alpha[i].enablelighting ?
+			(u32)xfregs.alpha[i].hex :
+			(u32)xfregs.alpha[i].matsource) << 15;
 	}
 	uid->values[2] |= (g_ActiveConfig.bEnablePixelLigting && g_ActiveConfig.backend_info.bSupportsPixelLighting) << 31;
 	u32 *pcurvalue = &uid->values[3];
-	for (int i = 0; i < xfregs.numTexGens; ++i) {
-		TexMtxInfo tinfo = xfregs.texcoords[i].texmtxinfo;
+	for (unsigned int i = 0; i < xfregs.numTexGen.numTexGens; ++i) {
+		TexMtxInfo tinfo = xfregs.texMtxInfo[i];
 		if (tinfo.texgentype != XF_TEXGEN_EMBOSS_MAP)
 			tinfo.hex &= 0x7ff;
 		if (tinfo.texgentype != XF_TEXGEN_REGULAR)
 			tinfo.projection = 0;
 
 		u32 val = ((tinfo.hex >> 1) & 0x1ffff);
-		if (xfregs.bEnableDualTexTransform && tinfo.texgentype == XF_TEXGEN_REGULAR) {
+		if (xfregs.dualTexTrans.enabled && tinfo.texgentype == XF_TEXGEN_REGULAR) {
 			// rewrite normalization and post index
-			val |= ((u32)xfregs.texcoords[i].postmtxinfo.index << 17) | ((u32)xfregs.texcoords[i].postmtxinfo.normalize << 23);
+			val |= ((u32)xfregs.postMtxInfo[i].index << 17) | ((u32)xfregs.postMtxInfo[i].normalize << 23);
 		}
 
 		switch (i & 3) {
@@ -72,24 +73,20 @@ static char text[16384];
 
 #define WRITE p+=sprintf
 
-#define LIGHTS_POS ""
-
-char *GenerateLightShader(char *p, int index, const LitChannel& chan, const char *dest, int coloralpha);
-
 const char *GenerateVertexShaderCode(u32 components, API_TYPE api_type)
 {
 	setlocale(LC_NUMERIC, "C"); // Reset locale for compilation
 	text[sizeof(text) - 1] = 0x7C;  // canary
 
-	_assert_(bpmem.genMode.numtexgens == xfregs.numTexGens);
-	_assert_(bpmem.genMode.numcolchans == xfregs.nNumChans);
+	_assert_(bpmem.genMode.numtexgens == xfregs.numTexGen.numTexGens);
+	_assert_(bpmem.genMode.numcolchans == xfregs.numChan.numColorChans);
 	
 	bool is_d3d = (api_type == API_D3D9 || api_type == API_D3D11);
 	u32 lightMask = 0;
-	if (xfregs.nNumChans > 0)
-		lightMask |= xfregs.colChans[0].color.GetFullLightMask() | xfregs.colChans[0].alpha.GetFullLightMask();
-	if (xfregs.nNumChans > 1)
-		lightMask |= xfregs.colChans[1].color.GetFullLightMask() | xfregs.colChans[1].alpha.GetFullLightMask();
+	if (xfregs.numChan.numColorChans > 0)
+		lightMask |= xfregs.color[0].GetFullLightMask() | xfregs.alpha[0].GetFullLightMask();
+	if (xfregs.numChan.numColorChans > 1)
+		lightMask |= xfregs.color[1].GetFullLightMask() | xfregs.alpha[1].GetFullLightMask();
 
 	char *p = text;
 	WRITE(p, "//Vertex Shader: comp:%x, \n", components);
@@ -110,12 +107,12 @@ const char *GenerateVertexShaderCode(u32 components, API_TYPE api_type)
 	WRITE(p, "  float4 colors_0 : COLOR0;\n");
 	WRITE(p, "  float4 colors_1 : COLOR1;\n");
 
-	if (xfregs.numTexGens < 7) {
-		for (int i = 0; i < xfregs.numTexGens; ++i)
+	if (xfregs.numTexGen.numTexGens < 7) {
+		for (unsigned int i = 0; i < xfregs.numTexGen.numTexGens; ++i)
 			WRITE(p, "  float3 tex%d : TEXCOORD%d;\n", i, i);
-		WRITE(p, "  float4 clipPos : TEXCOORD%d;\n", xfregs.numTexGens);
+		WRITE(p, "  float4 clipPos : TEXCOORD%d;\n", xfregs.numTexGen.numTexGens);
 		if(g_ActiveConfig.bEnablePixelLigting && g_ActiveConfig.backend_info.bSupportsPixelLighting)
-			WRITE(p, "  float4 Normal : TEXCOORD%d;\n", xfregs.numTexGens + 1);
+			WRITE(p, "  float4 Normal : TEXCOORD%d;\n", xfregs.numTexGen.numTexGens + 1);
 	} else {
 		// clip position is in w of first 4 texcoords
 		if(g_ActiveConfig.bEnablePixelLigting && g_ActiveConfig.backend_info.bSupportsPixelLighting)
@@ -125,7 +122,7 @@ const char *GenerateVertexShaderCode(u32 components, API_TYPE api_type)
 		}
 		else
 		{
-			for (int i = 0; i < xfregs.numTexGens; ++i)
+			for (unsigned int i = 0; i < xfregs.numTexGen.numTexGens; ++i)
 				WRITE(p, "  float%d tex%d : TEXCOORD%d;\n", i < 4 ? 4 : 3 , i, i);
 		}
 	}	
@@ -231,121 +228,17 @@ const char *GenerateVertexShaderCode(u32 components, API_TYPE api_type)
 	"float3 ldir, h;\n"
 	"float dist, dist2, attn;\n");
 
-	if(xfregs.nNumChans == 0)
+	if(xfregs.numChan.numColorChans == 0)
 	{
 		if (components & VB_HAS_COL0)
 			WRITE(p, "o.colors_0 = color0;\n");
 		else
 			WRITE(p, "o.colors_0 = float4(1.0f, 1.0f, 1.0f, 1.0f);\n");		
 	}
-	// lights/colors
-	for (int j = 0; j < xfregs.nNumChans; j++)
-	{
-		const LitChannel& color = xfregs.colChans[j].color;
-		const LitChannel& alpha = xfregs.colChans[j].alpha;
+	
+	p = GenerateLightingShader(p, components, I_MATERIALS, I_LIGHTS, "color", "o.colors_");
 
-		WRITE(p, "{\n");
-		
-		if (color.matsource) {// from vertex
-			if (components & (VB_HAS_COL0 << j))
-				WRITE(p, "mat = color%d;\n", j);
-			else if (components & VB_HAS_COL0)
-				WRITE(p, "mat = color0;\n");
-			else
-				WRITE(p, "mat = float4(1.0f, 1.0f, 1.0f, 1.0f);\n");
-		}
-		else // from color
-			WRITE(p, "mat = "I_MATERIALS".C%d;\n", j+2);
-
-		if (color.enablelighting) {
-			if (color.ambsource) { // from vertex
-				if (components & (VB_HAS_COL0<<j) )
-					WRITE(p, "lacc = color%d;\n", j);
-				else if (components & VB_HAS_COL0 )
-					WRITE(p, "lacc = color0;\n");
-				else
-					WRITE(p, "lacc = float4(0.0f, 0.0f, 0.0f, 0.0f);\n");
-			}
-			else // from color
-				WRITE(p, "lacc = "I_MATERIALS".C%d;\n", j);
-		}
-		else
-		{
-			WRITE(p, "lacc = float4(1.0f, 1.0f, 1.0f, 1.0f);\n");
-		}
-
-		// check if alpha is different
-		if (alpha.matsource != color.matsource) {
-			if (alpha.matsource) {// from vertex
-				if (components & (VB_HAS_COL0<<j))
-					WRITE(p, "mat.w = color%d.w;\n", j);
-				else if (components & VB_HAS_COL0)
-					WRITE(p, "mat.w = color0.w;\n");
-				else WRITE(p, "mat.w = 1.0f;\n");
-			}
-			else // from color
-				WRITE(p, "mat.w = "I_MATERIALS".C%d.w;\n", j+2);
-		}
-
-		if (alpha.enablelighting)
-		{
-			if (alpha.ambsource) {// from vertex
-				if (components & (VB_HAS_COL0<<j) )
-					WRITE(p, "lacc.w = color%d.w;\n", j);
-				else if (components & VB_HAS_COL0 )
-					WRITE(p, "lacc.w = color0.w;\n");
-				else
-					WRITE(p, "lacc.w = 0.0f;\n");
-			}
-			else // from color
-				WRITE(p, "lacc.w = "I_MATERIALS".C%d.w;\n", j);
-		}
-		else
-		{
-			WRITE(p, "lacc.w = 1.0f;\n");
-		}	
-		
-		if(color.enablelighting && alpha.enablelighting)
-		{
-			// both have lighting, test if they use the same lights
-			int mask = 0;
-			if(color.lightparams == alpha.lightparams)
-			{
-				mask = color.GetFullLightMask() & alpha.GetFullLightMask();
-				if(mask)
-				{
-					for (int i = 0; i < 8; ++i)
-					{
-						if (mask & (1<<i))
-							p = GenerateLightShader(p, i, color, "lacc", 3);
-					}
-				}
-			}
-
-			// no shared lights
-			for (int i = 0; i < 8; ++i)
-			{
-				if (!(mask&(1<<i)) && (color.GetFullLightMask() & (1<<i)))
-					p = GenerateLightShader(p, i, color, "lacc", 1);
-				if (!(mask&(1<<i)) && (alpha.GetFullLightMask() & (1<<i)))
-					p = GenerateLightShader(p, i, alpha, "lacc", 2);
-			}
-		}
-		else if (color.enablelighting || alpha.enablelighting)
-		{
-			// lights are disabled on one channel so process only the active ones
-			LitChannel workingchannel = color.enablelighting ? color : alpha;
-			int coloralpha = color.enablelighting ? 1 : 2;
-			for (int i = 0; i < 8; ++i)
-			{
-				if (workingchannel.GetFullLightMask() & (1<<i))
-					p = GenerateLightShader(p, i, workingchannel, "lacc", coloralpha);
-			}
-		}
-		WRITE(p, "o.colors_%d = mat * saturate(lacc);\n", j);
-		WRITE(p, "}\n");
-	}	
-	if(xfregs.nNumChans < 2)
+	if(xfregs.numChan.numColorChans < 2)
 	{
 		if (components & VB_HAS_COL1)
 			WRITE(p, "o.colors_1 = color1;\n");
@@ -363,8 +256,8 @@ const char *GenerateVertexShaderCode(u32 components, API_TYPE api_type)
 
 	// transform texcoords
 	WRITE(p, "float4 coord = float4(0.0f, 0.0f, 1.0f, 1.0f);\n");
-	for (int i = 0; i < xfregs.numTexGens; ++i) {
-		TexMtxInfo& texinfo = xfregs.texcoords[i].texmtxinfo;
+	for (unsigned int i = 0; i < xfregs.numTexGen.numTexGens; ++i) {
+		TexMtxInfo& texinfo = xfregs.texMtxInfo[i];
 
 		WRITE(p, "{\n");
 		WRITE(p, "coord = float4(0.0f, 0.0f, 1.0f, 1.0f);\n");
@@ -443,8 +336,10 @@ const char *GenerateVertexShaderCode(u32 components, API_TYPE api_type)
 				break;
 		}
 
-		if (xfregs.bEnableDualTexTransform && texinfo.texgentype == XF_TEXGEN_REGULAR) { // only works for regular tex gen types?
-			int postidx = xfregs.texcoords[i].postmtxinfo.index;
+		if (xfregs.dualTexTrans.enabled && texinfo.texgentype == XF_TEXGEN_REGULAR) { // only works for regular tex gen types?
+			const PostMtxInfo& postInfo = xfregs.postMtxInfo[i];
+
+			int postidx = postInfo.index;
 			WRITE(p, "float4 P0 = "I_POSTTRANSFORMMATRICES".T[%d].t;\n"
 				"float4 P1 = "I_POSTTRANSFORMMATRICES".T[%d].t;\n"
 				"float4 P2 = "I_POSTTRANSFORMMATRICES".T[%d].t;\n",
@@ -460,7 +355,7 @@ const char *GenerateVertexShaderCode(u32 components, API_TYPE api_type)
 			}
 			else
 			{
-				if (xfregs.texcoords[i].postmtxinfo.normalize)
+				if (postInfo.normalize)
 					WRITE(p, "o.tex%d.xyz = normalize(o.tex%d.xyz);\n", i, i);
 
 				// multiply by postmatrix
@@ -472,7 +367,7 @@ const char *GenerateVertexShaderCode(u32 components, API_TYPE api_type)
 	}
 
 	// clipPos/w needs to be done in pixel shader, not here
-	if (xfregs.numTexGens < 7) {
+	if (xfregs.numTexGen.numTexGens < 7) {
 		WRITE(p, "o.clipPos = float4(pos.x,pos.y,o.pos.z,o.pos.w);\n");
 	} else {
 		WRITE(p, "o.tex0.w = pos.x;\n");
@@ -483,13 +378,13 @@ const char *GenerateVertexShaderCode(u32 components, API_TYPE api_type)
 
 	if(g_ActiveConfig.bEnablePixelLigting && g_ActiveConfig.backend_info.bSupportsPixelLighting)
 	{
-		if (xfregs.numTexGens < 7) {
+		if (xfregs.numTexGen.numTexGens < 7) {
 			WRITE(p, "o.Normal = float4(_norm0.x,_norm0.y,_norm0.z,pos.z);\n");
 		} else {
 			WRITE(p, "o.tex4.w = _norm0.x;\n");
 			WRITE(p, "o.tex5.w = _norm0.y;\n");
 			WRITE(p, "o.tex6.w = _norm0.z;\n");
-			if (xfregs.numTexGens < 8)
+			if (xfregs.numTexGen.numTexGens < 8)
 				WRITE(p, "o.tex7 = pos.xyzz;\n");
 			else
 				WRITE(p, "o.tex7.w = pos.z;\n");
@@ -535,65 +430,4 @@ const char *GenerateVertexShaderCode(u32 components, API_TYPE api_type)
 		PanicAlert("VertexShader generator - buffer too small, canary has been eaten!");
 	setlocale(LC_NUMERIC, ""); // restore locale
 	return text;
-}
-
-// coloralpha - 1 if color, 2 if alpha
-char *GenerateLightShader(char *p, int index, const LitChannel& chan, const char *dest, int coloralpha)
-{
-	const char* swizzle = "xyzw";
-	if (coloralpha == 1 ) swizzle = "xyz";
-	else if (coloralpha == 2 ) swizzle = "w";
-
-	if (!(chan.attnfunc & 1)) {
-		// atten disabled
-		switch (chan.diffusefunc) {
-			case LIGHTDIF_NONE:
-				WRITE(p, "%s.%s += "I_LIGHTS".lights[%d].col.%s;\n", dest, swizzle, index, swizzle);
-				break;
-			case LIGHTDIF_SIGN:
-			case LIGHTDIF_CLAMP:
-				WRITE(p, "ldir = normalize("I_LIGHTS".lights[%d].pos.xyz - pos.xyz);\n", index);
-				WRITE(p, "%s.%s += %sdot(ldir, _norm0)) * "I_LIGHTS".lights[%d].col.%s;\n",
-					dest, swizzle, chan.diffusefunc != LIGHTDIF_SIGN ? "max(0.0f," :"(", index, swizzle);
-				break;
-			default: _assert_(0);
-		}
-	}
-	else { // spec and spot
-		
-		if (chan.attnfunc == 3) 
-		{ // spot
-			WRITE(p, "ldir = "I_LIGHTS".lights[%d].pos.xyz - pos.xyz;\n", index);
-			WRITE(p, "dist2 = dot(ldir, ldir);\n"
-				"dist = sqrt(dist2);\n"
-				"ldir = ldir / dist;\n"
-				"attn = max(0.0f, dot(ldir, "I_LIGHTS".lights[%d].dir.xyz));\n",index);
-			WRITE(p, "attn = max(0.0f, dot("I_LIGHTS".lights[%d].cosatt.xyz, float3(1.0f, attn, attn*attn))) / dot("I_LIGHTS".lights[%d].distatt.xyz, float3(1.0f,dist,dist2));\n", index, index);
-		}
-		else if (chan.attnfunc == 1) 
-		{ // specular
-			WRITE(p, "ldir = normalize("I_LIGHTS".lights[%d].pos.xyz);\n",index);
-			WRITE(p, "attn = (dot(_norm0,ldir) >= 0.0f) ? max(0.0f, dot(_norm0, "I_LIGHTS".lights[%d].dir.xyz)) : 0.0f;\n", index);
-			WRITE(p, "attn = max(0.0f, dot("I_LIGHTS".lights[%d].cosatt.xyz, float3(1,attn,attn*attn))) / dot("I_LIGHTS".lights[%d].distatt.xyz, float3(1,attn,attn*attn));\n", index, index);
-		}
-
-		switch (chan.diffusefunc)
-		{
-			case LIGHTDIF_NONE:
-				WRITE(p, "%s.%s += attn * "I_LIGHTS".lights[%d].col.%s;\n", dest, swizzle, index, swizzle);
-				break;
-			case LIGHTDIF_SIGN:
-			case LIGHTDIF_CLAMP:
-				WRITE(p, "%s.%s += attn * %sdot(ldir, _norm0)) * "I_LIGHTS".lights[%d].col.%s;\n",
-					dest, 
-					swizzle, 
-					chan.diffusefunc != LIGHTDIF_SIGN ? "max(0.0f," :"(", 
-					index, 
-					swizzle);
-				break;
-			default: _assert_(0);
-		}
-	}
-	WRITE(p, "\n");	
-	return p;
 }

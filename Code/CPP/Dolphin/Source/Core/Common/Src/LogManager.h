@@ -20,10 +20,11 @@
 
 #include "Log.h"
 #include "StringUtil.h"
+#include "Thread.h"
+#include "FileUtil.h"
 
 #include <vector>
 #include <string.h>
-#include <stdio.h>
 
 #define	MAX_MESSAGES 8000   
 #define MAX_MSGLEN  1024
@@ -40,7 +41,6 @@ public:
 class FileLogListener : public LogListener {
 public:
 	FileLogListener(const char *filename);
-	~FileLogListener();
 
 	void Log(LogTypes::LOG_LEVELS, const char *msg);
 
@@ -59,8 +59,7 @@ public:
 	const char *getName() const { return "file"; }
 
 private:
-	char *m_filename;
-	FILE *m_logfile;
+	std::ofstream m_logfile;
 	bool m_enable;
 };
 
@@ -102,16 +101,11 @@ private:
 
 class ConsoleListener;
 
-// Avoid <windows.h> include through Thread.h
-namespace Common {
-	class CriticalSection;
-}
-
 class LogManager : NonCopyable
 {
 private:
 	LogContainer* m_Log[LogTypes::NUMBER_OF_LOGS];
-	Common::CriticalSection *logMutex;
+	std::mutex logMutex;
 	FileLogListener *m_fileLog;
 	ConsoleListener *m_consoleLog;
 	static LogManager *m_logManager;  // Singleton. Ugh.

@@ -19,12 +19,13 @@
 
 // TODO: ugly
 #ifdef _WIN32
-#include "../Plugins/Plugin_VideoDX9/Src/VideoBackend.h"
-#include "../Plugins/Plugin_VideoDX11/Src/VideoBackend.h"
+#include "../../../Plugins/Plugin_VideoDX9/Src/VideoBackend.h"
+#include "../../../Plugins/Plugin_VideoDX11/Src/VideoBackend.h"
 #endif
-#include "../Plugins/Plugin_VideoOGL/Src/VideoBackend.h"
-//#include "../Plugins/Plugin_VideoSoftware/Src/VideoBackend.h"
-
+#include "../../../Plugins/Plugin_VideoOGL/Src/VideoBackend.h"
+#ifndef _WIN32
+#include "../../../Plugins/Plugin_VideoSoftware/Src/VideoBackend.h"
+#endif
 std::vector<VideoBackend*> g_available_video_backends;
 VideoBackend* g_video_backend = NULL;
 
@@ -36,9 +37,11 @@ void VideoBackend::PopulateList()
 	g_available_video_backends.push_back(new DX11::VideoBackend);
 #endif
 	g_available_video_backends.push_back(new OGL::VideoBackend);
-	//g_available_video_backends.push_back(new SW::VideoBackend);
-
+#ifndef _WIN32
+	g_available_video_backends.push_back(new SW::VideoBackend);
+#endif
 	g_video_backend = g_available_video_backends.front();
+
 }
 
 void VideoBackend::ClearList()
