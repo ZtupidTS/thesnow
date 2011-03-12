@@ -19,18 +19,14 @@ set(LIBS	videocommon
 			${X11_LIBRARIES})
 
 if(wxWidgets_FOUND)
-	set(LIBS	videouicommon ${LIBS} ${wxWidgets_LIBRARIES})
+	set(LIBS	${LIBS} ${wxWidgets_LIBRARIES})
 endif(wxWidgets_FOUND)
-
-if((${CMAKE_SYSTEM_NAME} MATCHES "Darwin") AND NOT wxWidgets_FOUND)
-	set(SRCS	${SRCS} Src/cocoaGL.m)
-endif()
 
 if(APPLE OR WIN32 OR ${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 	set(LIBS	${LIBS} Cg CgGL)
 endif()
 
-if(WIN32 OR ${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 	set(LIBS	${LIBS} clrun)
 endif()
 

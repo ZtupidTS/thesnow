@@ -95,27 +95,27 @@ void VertexManager::vFlush()
 	Flushed=true;
 	VideoFifo_CheckEFBAccess();
 #if defined(_DEBUG) || defined(DEBUGFAST) 
-	PRIM_LOG("frame%d:\n texgen=%d, numchan=%d, dualtex=%d, ztex=%d, cole=%d, alpe=%d, ze=%d", g_ActiveConfig.iSaveTargetId, xfregs.numTexGens,
-		xfregs.nNumChans, (int)xfregs.bEnableDualTexTransform, bpmem.ztex2.op,
+	PRIM_LOG("frame%d:\n texgen=%d, numchan=%d, dualtex=%d, ztex=%d, cole=%d, alpe=%d, ze=%d", g_ActiveConfig.iSaveTargetId, xfregs.numTexGen.numTexGens,
+		xfregs.numChan.numColorChans, xfregs.dualTexTrans.enabled, bpmem.ztex2.op,
 		bpmem.blendmode.colorupdate, bpmem.blendmode.alphaupdate, bpmem.zmode.updateenable);
 
-	for (int i = 0; i < xfregs.nNumChans; ++i) 
+	for (unsigned int i = 0; i < xfregs.numChan.numColorChans; ++i) 
 	{
-		LitChannel* ch = &xfregs.colChans[i].color;
+		LitChannel* ch = &xfregs.color[i];
 		PRIM_LOG("colchan%d: matsrc=%d, light=0x%x, ambsrc=%d, diffunc=%d, attfunc=%d", i, ch->matsource, ch->GetFullLightMask(), ch->ambsource, ch->diffusefunc, ch->attnfunc);
-		ch = &xfregs.colChans[i].alpha;
+		ch = &xfregs.alpha[i];
 		PRIM_LOG("alpchan%d: matsrc=%d, light=0x%x, ambsrc=%d, diffunc=%d, attfunc=%d", i, ch->matsource, ch->GetFullLightMask(), ch->ambsource, ch->diffusefunc, ch->attnfunc);
 	}
 
-	for (int i = 0; i < xfregs.numTexGens; ++i) 
+	for (unsigned int i = 0; i < xfregs.numTexGen.numTexGens; ++i) 
 	{
-		TexMtxInfo tinfo = xfregs.texcoords[i].texmtxinfo;
+		TexMtxInfo tinfo = xfregs.texMtxInfo[i];
 		if (tinfo.texgentype != XF_TEXGEN_EMBOSS_MAP) tinfo.hex &= 0x7ff;
 		if (tinfo.texgentype != XF_TEXGEN_REGULAR) tinfo.projection = 0;
 
 		PRIM_LOG("txgen%d: proj=%d, input=%d, gentype=%d, srcrow=%d, embsrc=%d, emblght=%d, postmtx=%d, postnorm=%d",
 			i, tinfo.projection, tinfo.inputform, tinfo.texgentype, tinfo.sourcerow, tinfo.embosssourceshift, tinfo.embosslightshift,
-			xfregs.texcoords[i].postmtxinfo.index, xfregs.texcoords[i].postmtxinfo.normalize);
+			xfregs.postMtxInfo[i].index, xfregs.postMtxInfo[i].normalize);
 	}
 
 	PRIM_LOG("pixel: tev=%d, ind=%d, texgen=%d, dstalpha=%d, alphafunc=0x%x", bpmem.genMode.numtevstages+1, bpmem.genMode.numindstages,
@@ -166,7 +166,8 @@ void VertexManager::vFlush()
 				{
 					// save the textures
 					char strfile[255];
-					sprintf(strfile, "%stex%.3d_%d.tga", File::GetUserPath(D_DUMPFRAMES_IDX), g_Config.iSaveTargetId, i);
+					sprintf(strfile, "%stex%.3d_%d.tga",
+							File::GetUserPath(D_DUMPFRAMES_IDX).c_str(), g_Config.iSaveTargetId, i);
 					tentry->Save(strfile);
 				}
 			}
@@ -245,10 +246,10 @@ void VertexManager::vFlush()
 	{
 		// save the shaders
 		char strfile[255];
-		sprintf(strfile, "%sps%.3d.txt", File::GetUserPath(D_DUMPFRAMES_IDX), g_ActiveConfig.iSaveTargetId);
+		sprintf(strfile, "%sps%.3d.txt", File::GetUserPath(D_DUMPFRAMES_IDX).c_str(), g_ActiveConfig.iSaveTargetId);
 		std::ofstream fps(strfile);
 		fps << ps->strprog.c_str();
-		sprintf(strfile, "%svs%.3d.txt", File::GetUserPath(D_DUMPFRAMES_IDX), g_ActiveConfig.iSaveTargetId);
+		sprintf(strfile, "%svs%.3d.txt", File::GetUserPath(D_DUMPFRAMES_IDX).c_str(), g_ActiveConfig.iSaveTargetId);
 		std::ofstream fvs(strfile);
 		fvs << vs->strprog.c_str();
 	}
@@ -256,7 +257,7 @@ void VertexManager::vFlush()
 	if (g_ActiveConfig.iLog & CONF_SAVETARGETS) 
 	{
 		char str[128];
-		sprintf(str, "%starg%.3d.tga", File::GetUserPath(D_DUMPFRAMES_IDX), g_ActiveConfig.iSaveTargetId);
+		sprintf(str, "%starg%.3d.tga", File::GetUserPath(D_DUMPFRAMES_IDX).c_str(), g_ActiveConfig.iSaveTargetId);
 		TargetRectangle tr;
 		tr.left = 0;
 		tr.right = Renderer::GetTargetWidth();

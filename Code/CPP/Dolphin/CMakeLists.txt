@@ -4,27 +4,23 @@
 cmake_minimum_required(VERSION 2.6)
 project(dolphin-emu)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/CMakeTests)
-
 set(DOLPHIN_IS_STABLE FALSE)
-set(bindir		${CMAKE_INSTALL_PREFIX}/bin					CACHE PATH "bindir")
-set(libdir		${CMAKE_INSTALL_PREFIX}/lib${LIB_SUFFIX}	CACHE PATH "libdir")
-set(plugindir	${libdir}/dolphin-emu						CACHE PATH "plugindir")
-set(datadir		${CMAKE_INSTALL_PREFIX}/share/dolphin-emu	CACHE PATH "datadir")
 
 # Set up paths
+set(bindir		${CMAKE_INSTALL_PREFIX}/bin					CACHE PATH "bindir")
+set(datadir		${CMAKE_INSTALL_PREFIX}/share/dolphin-emu	CACHE PATH "datadir")
 set(userdir ".dolphin-emu" CACHE STRING "User directory")
 add_definitions(-DUSER_DIR="${userdir}")
 add_definitions(-DDATA_DIR="${datadir}/")
-add_definitions(-DLIBS_DIR="${plugindir}")
 
-# These just set where the binary files will be built.  The program will not
-# execute from here.  You must run "make install" to install these to the
-# proper location as defined above.
+# Set where the binary files will be built.  The program will not execute from
+# here.  You must run "make install" to install these to the proper location
+# as defined above.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/Binaries)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/Binaries/plugins)
 
 # Precompiled header support for MSVC:
-# Call this after setting the source list (and don't add the source file used to generate the pch file, this will be done here automatically)
+# Call this after setting the source list (and don't add the source file used
+# to generate the pch file, this will be done here automatically)
 function(enable_precompiled_headers PRECOMPILED_HEADER SOURCE_FILE SOURCE_VARIABLE_NAME)
 	if(MSVC)
 		set(files ${${SOURCE_VARIABLE_NAME}})
@@ -33,15 +29,19 @@ function(enable_precompiled_headers PRECOMPILED_HEADER SOURCE_FILE SOURCE_VARIAB
 		get_filename_component(pch_basename ${PRECOMPILED_HEADER} NAME_WE)
 		set(pch_abs ${CMAKE_CURRENT_SOURCE_DIR}/${PRECOMPILED_HEADER})
 		set(pch_unity ${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE_FILE})
-		set_source_files_properties(${pch_unity}  PROPERTIES COMPILE_FLAGS "/Yc\"${pch_abs}\"")
+		set_source_files_properties(${pch_unity}  PROPERTIES COMPILE_FLAGS
+			"/Yc\"${pch_abs}\"")
 
 		# Update properties of source files to use the precompiled header.
-		# Additionally, force the inclusion of the precompiled header at beginning of each source file.
+		# Additionally, force the inclusion of the precompiled header at
+		# beginning of each source file.
 		foreach(source_file ${files} )
-			set_source_files_properties(${source_file} PROPERTIES COMPILE_FLAGS "/Yu\"${pch_abs}\" /FI\"${pch_abs}\"")
+			set_source_files_properties(${source_file} PROPERTIES COMPILE_FLAGS
+				"/Yu\"${pch_abs}\" /FI\"${pch_abs}\"")
 		endforeach(source_file)
 
-		# Finally, update the source file collection to contain the precompiled header translation unit
+		# Finally, update the source file collection to contain the
+		# precompiled header translation unit
 		set(${SOURCE_VARIABLE_NAME} ${pch_unity} ${${SOURCE_VARIABLE_NAME}} PARENT_SCOPE)
 	endif(MSVC)
 endfunction(enable_precompiled_headers)
@@ -84,6 +84,26 @@ if(UNIX AND NOT APPLE)
 	endif(VISIBILITY_HIDDEN)
 endif()
 
+if (APPLE)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -x objective-c++")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -x objective-c")
+	FIND_LIBRARY(ATB_LIBRARY AudioToolbox)
+	FIND_LIBRARY(AU_LIBRARY AudioUnit)		
+	FIND_LIBRARY(CARBON_LIBRARY Carbon)
+	FIND_LIBRARY(COCOA_LIBRARY Cocoa)
+	FIND_LIBRARY(COREAUDIO_LIBRARY CoreAudio)
+	FIND_LIBRARY(COREFUND_LIBRARY CoreFoundation)
+	FIND_LIBRARY(CORESERV_LIBRARY CoreServices)
+	FIND_LIBRARY(IOB_LIBRARY IOBluetooth)
+	FIND_LIBRARY(IOK_LIBRARY IOKit)		
+	FIND_LIBRARY(OGL_LIBRARY OpenGL)
+	FIND_LIBRARY(WEBKIT_LIBRARY WebKit)		
+	SET(EXTRA_LIBS ${ATB_LIBRARY} ${AU_LIBRARY} ${CARBON_LIBRARY}
+		${COCOA_LIBRARY} ${COREAUDIO_LIBRARY} ${COREFUND_LIBRARY}
+		${CORESERV_LIBRARY} ${IOB_LIBRARY} ${IOK_LIBRARY} ${OGL_LIBRARY}
+		${WEBKIT_LIBRARY})
+endif()
+ 
 if(WIN32)
 	add_definitions(-D_SECURE_SCL=0)
 	add_definitions(-D_CRT_SECURE_NO_WARNINGS)
@@ -113,24 +133,30 @@ endif()
 ########################################
 # Dependency checking
 #
-# NOTES:
-# There are numerous possible cases:
-# - dependency may be required or optional
-# - dependency may be already installed (but optionally the bundled one may be used)
-# 
-# TODO: We should have a number of options for optional dependencies (disable,
-# force bundled, bundled or native, force native).  For example the OpenGL
-# plugin defaults to force native, so we error out if no GL libs are found.
-# The user is free to explicitly disable it though.  Stuff which is likely to
-# be needed by users is optional defaulting to ON, other stuff (like e.g.
-# sound backends) is completely optional.
+# TODO: We should have options for dependencies included in the externals to
+# override autodetection of system libraries and force the usage of the
+# externals.
 
 include(CheckLib)
 
-include(FindOpenGL REQUIRED)
+include(FindOpenGL)
 include_directories(${OPENGL_INCLUDE_DIR})
 if(NOT OPENGL_GLU_FOUND)
 	message(FATAL_ERROR "GLU is required but not found")
+endif()
+
+option(OPENMP "Enable OpenMP parallelization" ON)
+if(OPENMP)
+	include(FindOpenMP OPTIONAL)
+	if(OPENMP_FOUND)
+		message("OpenMP parallelization enabled")
+		add_definitions("${OpenMP_CXX_FLAGS}")
+		set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_CXX_FLAGS}")
+	endif()
+endif()
+if(NOT OPENMP_FOUND)
+	add_definitions(-Wno-unknown-pragmas)
+	message("OpenMP parallelization disabled")
 endif()
 
 include(FindALSA OPTIONAL)
@@ -246,7 +272,6 @@ endif()
 ########################################
 # Setup include directories (and make sure they are preferred over the Externals)
 #
-include_directories(Source/PluginSpecs)
 include_directories(Source/Core/AudioCommon/Src)
 include_directories(Source/Core/Common/Src)
 include_directories(Source/Core/Core/Src)
@@ -271,12 +296,6 @@ include_directories(Source/Core/VideoUICommon/Src)
 #
 add_subdirectory(Externals/Bochs_disasm)
 include_directories(Externals/Bochs_disasm)
-
-# TODO: Try using the native lib first
-# To use the native lib for Lua the dolphin code will need to be changed.
-# Currently the file lstate.h is improperly included.
-add_subdirectory(Externals/Lua)
-include_directories(Externals/Lua)
 
 check_lib(LZO lzo2 lzo/lzo1x.h QUIET)
 if(LZO_FOUND)
@@ -368,7 +387,7 @@ if(NOT DISABLE_WX)
 					VERSION_EQUAL 2.8.2)
 				check_lib(GTK2 gtk+-2.0 gtk.h REQUIRED)
 			else()
-				include(FindGTK2 REQUIRED)
+				include(FindGTK2)
 				if(GTK2_FOUND)
 					include_directories(${GTK2_INCLUDE_DIRS})
 				endif()

@@ -21,7 +21,7 @@
 #include <map>
 
 #include "BPMemLoader.h"
-#include "GLUtil.h"
+#include "../../Plugin_VideoOGL/Src/GLUtil.h"
 
 struct OutputVertexData;
 

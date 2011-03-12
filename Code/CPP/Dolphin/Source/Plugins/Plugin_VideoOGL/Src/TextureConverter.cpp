@@ -125,7 +125,7 @@ FRAGMENTSHADER &GetOrCreateEncodingShader(u32 format)
 		if (g_ActiveConfig.iLog & CONF_SAVESHADERS && shader) {
 			static int counter = 0;
 			char szTemp[MAX_PATH];
-			sprintf(szTemp, "%senc_%04i.txt", File::GetUserPath(D_DUMP_IDX), counter++);
+			sprintf(szTemp, "%senc_%04i.txt", File::GetUserPath(D_DUMP_IDX).c_str(), counter++);
 
 			SaveData(szTemp, shader);
 		}
@@ -146,10 +146,13 @@ void Init()
 	glBindRenderbufferEXT(GL_RENDERBUFFER_EXT, s_dstRenderBuffer);
 	glRenderbufferStorageEXT(GL_RENDERBUFFER_EXT, GL_RGBA, renderBufferWidth, renderBufferHeight);
 
+	s_srcTextureWidth = 0;
+	s_srcTextureHeight = 0;
+
 	glGenTextures(1, &s_srcTexture);
 	glBindTexture(GL_TEXTURE_RECTANGLE_ARB, s_srcTexture);
 	glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
 	CreateRgbToYuyvProgram();
 	CreateYuyvToRgbProgram();

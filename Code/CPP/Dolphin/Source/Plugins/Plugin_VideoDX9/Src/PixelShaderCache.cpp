@@ -107,10 +107,10 @@ LPDIRECT3DPIXELSHADER9 PixelShaderCache::ReinterpRGBA6ToRGB8()
 		"			out float4 ocol0 : COLOR0,\n"
 		"			in float2 uv0 : TEXCOORD0){\n"
 		"	ocol0 = tex2D(samp0,uv0);\n"
-		"	float4 src6 = floor(ocol0 * 63.f);\n"
-		"	ocol0.r = src6.r*4.f + floor(src6.g/16.f);\n" // dst8r = (src6r<<2)|(src6g>>4);
-		"	ocol0.g = frac(src6.g/16.f)*16.f*16.f+floor(src6.b/4.f);\n" // dst8g = ((src6g&0xF)<<4)|(src6b>>2);
-		"	ocol0.b = frac(src6.b/4.f)*4.f*64.f+src6.a;\n" // dst8b = ((src6b&0x3)<<6)|src6a;
+		"	float4 src6 = round(ocol0 * 63.f);\n"
+		"	ocol0.r = floor(src6.r*4.f) + floor(src6.g/16.f);\n" // dst8r = (src6r<<2)|(src6g>>4);
+		"	ocol0.g = frac(src6.g/16.f)*16.f*16.f + floor(src6.b/4.f);\n" // dst8g = ((src6g&0xF)<<4)|(src6b>>2);
+		"	ocol0.b = frac(src6.b/4.f)*4.f*64.f + src6.a;\n" // dst8b = ((src6b&0x3)<<6)|src6a;
 		"	ocol0.a = 255.f;\n"
 		"	ocol0 /= 255.f;\n"
 		"}\n"
@@ -129,10 +129,10 @@ LPDIRECT3DPIXELSHADER9 PixelShaderCache::ReinterpRGB8ToRGBA6()
 		"			out float4 ocol0 : COLOR0,\n"
 		"			in float2 uv0 : TEXCOORD0){\n"
 		"	ocol0 = tex2D(samp0,uv0);\n"
-		"	float4 src8 = trunc(ocol0*255.f);\n"
-		"	ocol0.r = (src8.r/4.f);\n" // dst6r = src8r>>2;
-		"	ocol0.g = frac(src8.r/4.f)*4.f*16.f + (src8.g/16.f);\n" // dst6g = ((src8r&0x3)<<4)|(src8g>>4);
-		"	ocol0.b = frac(src8.g/16.f)*16.f*4.f + (src8.b/64.f);\n" // dst6b = ((src8g&0xF)<<2)|(src8b>>6);
+		"	float4 src8 = round(ocol0*255.f);\n"
+		"	ocol0.r = floor(src8.r/4.f);\n" // dst6r = src8r>>2;
+		"	ocol0.g = frac(src8.r/4.f)*4.f*16.f + floor(src8.g/16.f);\n" // dst6g = ((src8r&0x3)<<4)|(src8g>>4);
+		"	ocol0.b = frac(src8.g/16.f)*16.f*4.f + floor(src8.b/64.f);\n" // dst6b = ((src8g&0xF)<<2)|(src8b>>6);
 		"	ocol0.a = frac(src8.b/64.f)*64.f;\n" // dst6a = src8b&0x3F;
 		"	ocol0 /= 63.f;\n"
 		"}\n"
@@ -146,8 +146,8 @@ LPDIRECT3DPIXELSHADER9 PixelShaderCache::ReinterpRGB8ToRGBA6()
 					"in float2 uv0 : TEXCOORD0){\n"
 			"float4 temp1 = float4(1.0f/4.0f,1.0f/16.0f,1.0f/64.0f,0.0f);\n"
 			"float4 temp2 = float4(1.0f,64.0f,255.0f,1.0f/63.0f);\n"
-			"float4 src8 = floor(tex2D(samp0,uv0)*temp2.z) * temp1;\n"
-			"ocol0 = (frac(src8.wxyz) * temp2.xyyy + src8) * temp2.w;\n"
+			"float4 src8 = round(tex2D(samp0,uv0)*temp2.z) * temp1;\n"
+			"ocol0 = (frac(src8.wxyz) * temp2.xyyy + floor(src8)) * temp2.w;\n"
 		"}\n"
 	};
 	if (!s_rgb8_to_rgba6) s_rgb8_to_rgba6 = D3D::CompileAndCreatePixelShader(code, (int)strlen(code));
@@ -199,9 +199,10 @@ static LPDIRECT3DPIXELSHADER9 CreateCopyShader(int copyMatrixType, int depthConv
 
 	if(depthConversionType != DEPTH_CONVERSION_TYPE_NONE)
 	{
-		// Here, we need to downscale texcol a bit since frac(1.0) will indeed return 0.0f, ceil() takes care of restoring the precision
-		WRITE(p, "float4 EncodedDepth = frac((texcol.r * (16777215.0f/16777216.0f)) * float4(1.0f,256.0f,256.0f*256.0f,1.0f));\n"
-		         "texcol = ceil(EncodedDepth * float4(255.0f,255.0f,255.0f,15.0f)) / float4(255.0f,255.0f,255.0f,15.0f);\n");
+		// Watch out for the fire fumes effect in Metroid it's really sensitive to this,
+		// the lighting in RE0 is also way beyond sensitive since the "good value" is hardcoded and Dolphin is almost always off.
+		WRITE(p, "float4 EncodedDepth = frac(texcol.r * (16777215.f/16777216.f) * float4(1.0f,256.0f,256.0f*256.0f,1.0f));\n"
+		         "texcol = floor(EncodedDepth * float4(256.f,256.f,256.f,15.0f)) / float4(255.0f,255.0f,255.0f,15.0f);\n");
 	}
 	else
 	{
@@ -269,13 +270,14 @@ void PixelShaderCache::Init()
 	Clear();
 
 	if (!File::Exists(File::GetUserPath(D_SHADERCACHE_IDX)))
-		File::CreateDir(File::GetUserPath(D_SHADERCACHE_IDX));
+		File::CreateDir(File::GetUserPath(D_SHADERCACHE_IDX).c_str());
 
 	SETSTAT(stats.numPixelShadersCreated, 0);
 	SETSTAT(stats.numPixelShadersAlive, 0);
 
 	char cache_filename[MAX_PATH];
-	sprintf(cache_filename, "%sdx9-%s-ps.cache", File::GetUserPath(D_SHADERCACHE_IDX), SConfig::GetInstance().m_LocalCoreStartupParameter.m_strUniqueID.c_str());
+	sprintf(cache_filename, "%sdx9-%s-ps.cache", File::GetUserPath(D_SHADERCACHE_IDX).c_str(),
+		SConfig::GetInstance().m_LocalCoreStartupParameter.m_strUniqueID.c_str());
 	PixelShaderCacheInserter inserter;
 	g_ps_disk_cache.OpenAndRead(cache_filename, inserter);
 }
@@ -361,7 +363,7 @@ bool PixelShaderCache::SetShader(DSTALPHA_MODE dstAlphaMode, u32 components)
 	if (g_ActiveConfig.iLog & CONF_SAVESHADERS && code) {	
 		static int counter = 0;
 		char szTemp[MAX_PATH];
-		sprintf(szTemp, "%sps_%04i.txt", File::GetUserPath(D_DUMP_IDX), counter++);
+		sprintf(szTemp, "%sps_%04i.txt", File::GetUserPath(D_DUMP_IDX).c_str(), counter++);
 		
 		SaveData(szTemp, code);
 	}
@@ -375,7 +377,7 @@ bool PixelShaderCache::SetShader(DSTALPHA_MODE dstAlphaMode, u32 components)
 			PanicAlert("Failed to compile Pixel Shader:\n\n%s", code);
 			static int counter = 0;
 			char szTemp[MAX_PATH];
-			sprintf(szTemp, "%sBADps_%04i.txt", File::GetUserPath(D_DUMP_IDX), counter++);			
+			sprintf(szTemp, "%sBADps_%04i.txt", File::GetUserPath(D_DUMP_IDX).c_str(), counter++);			
 			SaveData(szTemp, code);
 		}
 		GFX_DEBUGGER_PAUSE_AT(NEXT_ERROR, true);

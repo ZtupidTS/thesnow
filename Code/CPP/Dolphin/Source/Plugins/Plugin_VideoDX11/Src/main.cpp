@@ -29,10 +29,9 @@
 #include "VideoConfig.h"
 #include "VertexLoaderManager.h"
 #include "VertexShaderManager.h"
-#include "XFBConvert.h"
 #include "Core.h"
 
-#include "DebuggerPanel.h"
+#include "Debugger/DebuggerPanel.h"
 #include "DLCache.h"
 #include "EmuWindow.h"
 #include "FileUtil.h"
@@ -52,11 +51,6 @@
 
 namespace DX11
 {
-
-void*& VideoWindowHandle()
-{
-	return SConfig::GetInstance().m_LocalCoreStartupParameter.hMainWindow;
-}
 
 unsigned int VideoBackend::PeekMessages()
 {
@@ -78,19 +72,6 @@ void VideoBackend::UpdateFPSDisplay(const char *text)
 	SetWindowTextA(EmuWindow::GetWnd(), temp);
 }
 
-//void GetDllInfo(PLUGIN_INFO* _PluginInfo)
-//{
-//	_PluginInfo->Version = 0x0100;
-//	//_PluginInfo->Type = PLUGIN_TYPE_VIDEO;
-//#ifdef DEBUGFAST
-//	sprintf_s(_PluginInfo->Name, 100, "Dolphin Direct3D11 (DebugFast)");
-//#elif defined _DEBUG
-//	sprintf_s(_PluginInfo->Name, 100, "Dolphin Direct3D11 (Debug)");
-//#else
-//	sprintf_s(_PluginInfo->Name, 100, "Dolphin Direct3D11");
-//#endif
-//}
-
 std::string VideoBackend::GetName()
 {
 	return "Direct3D11";
@@ -100,12 +81,12 @@ void InitBackendInfo()
 {
 	g_Config.backend_info.APIType = API_D3D11;
 	g_Config.backend_info.bUseRGBATextures = true; // the GX formats barely match any D3D11 formats
-	g_Config.backend_info.bSupportsEFBToRAM = false;
-	g_Config.backend_info.bSupportsRealXFB = false;
+	g_Config.backend_info.bSupportsEFBToRAM = true;
+	g_Config.backend_info.bSupportsRealXFB = true;
 	g_Config.backend_info.bSupports3DVision = false;
 	g_Config.backend_info.bAllowSignedBytes = true;
 	g_Config.backend_info.bSupportsDualSourceBlend = true;
-	g_Config.backend_info.bSupportsFormatReinterpretation = false;
+	g_Config.backend_info.bSupportsFormatReinterpretation = true;
 	g_Config.backend_info.bSupportsPixelLighting = true;
 }
 
@@ -159,36 +140,41 @@ void VideoBackend::ShowConfig(void *_hParent)
 
 	factory->Release();
 
+	// Clear ppshaders string vector
+	g_Config.backend_info.PPShaders.clear();
+
 	VideoConfigDiag *const diag = new VideoConfigDiag((wxWindow*)_hParent, _trans("Direct3D11"), "gfx_dx11");
 	diag->ShowModal();
 	diag->Destroy();
 
+	g_Config.backend_info.Adapters.clear();
 	DX11::D3D::UnloadDXGI();
 	DX11::D3D::UnloadD3D();
 #endif
 }
 
-void VideoBackend::Initialize()
+bool VideoBackend::Initialize(void *&window_handle)
 {
 	InitBackendInfo();
 
 	frameCount = 0;
-	InitXFBConvTables();
 
-	g_Config.Load((std::string(File::GetUserPath(D_CONFIG_IDX)) + "gfx_dx11.ini").c_str());
+	g_Config.Load((File::GetUserPath(D_CONFIG_IDX) + "gfx_dx11.ini").c_str());
 	g_Config.GameIniLoad(SConfig::GetInstance().m_LocalCoreStartupParameter.m_strGameIni.c_str());
 	UpdateProjectionHack(g_Config.iPhackvalue, g_Config.sPhackvalue);
 	UpdateActiveConfig();
 
-	VideoWindowHandle() = (void*)EmuWindow::Create((HWND)VideoWindowHandle(), GetModuleHandle(0), _T("Loading - Please wait."));
-	if (VideoWindowHandle() == NULL)
+	window_handle = (void*)EmuWindow::Create((HWND)window_handle, GetModuleHandle(0), _T("Loading - Please wait."));
+	if (window_handle == NULL)
 	{
 		ERROR_LOG(VIDEO, "An error has occurred while trying to create the window.");
-		return;
+		return false;
 	}
 
-	OSD::AddMessage("Dolphin Direct3D11 Video Plugin.", 5000);
-	s_PluginInitialized = true;
+	OSD::AddMessage("Dolphin Direct3D11 Video Backend.", 5000);
+	s_BackendInitialized = true;
+
+	return true;
 }
 
 void VideoBackend::Video_Prepare()
@@ -223,31 +209,33 @@ void VideoBackend::Video_Prepare()
 
 void VideoBackend::Shutdown()
 {
-	s_PluginInitialized = false;
+	s_BackendInitialized = false;
 
-	s_efbAccessRequested = FALSE;
-	s_FifoShuttingDown = FALSE;
-	s_swapRequested = FALSE;
+	if (g_renderer)
+	{
+		s_efbAccessRequested = FALSE;
+		s_FifoShuttingDown = FALSE;
+		s_swapRequested = FALSE;
 
-	// VideoCommon
-	DLCache::Shutdown();
-	Fifo_Shutdown();
-	CommandProcessor::Shutdown();
-	PixelShaderManager::Shutdown();
-	VertexShaderManager::Shutdown();
-	OpcodeDecoder_Shutdown();
-	VertexLoaderManager::Shutdown();
+		// VideoCommon
+		DLCache::Shutdown();
+		Fifo_Shutdown();
+		CommandProcessor::Shutdown();
+		PixelShaderManager::Shutdown();
+		VertexShaderManager::Shutdown();
+		OpcodeDecoder_Shutdown();
+		VertexLoaderManager::Shutdown();
 
-	// internal interfaces
-	D3D::ShutdownUtils();
-	PixelShaderCache::Shutdown();
-	VertexShaderCache::Shutdown();
-	delete g_vertex_manager;
-	delete g_texture_cache;
-	delete g_renderer;
+		// internal interfaces
+		D3D::ShutdownUtils();
+		PixelShaderCache::Shutdown();
+		VertexShaderCache::Shutdown();
+		delete g_vertex_manager;
+		delete g_texture_cache;
+		delete g_renderer;
+		g_renderer = NULL;
+	}
 	EmuWindow::Close();
-
-	s_PluginInitialized = false;
 }
 
 }

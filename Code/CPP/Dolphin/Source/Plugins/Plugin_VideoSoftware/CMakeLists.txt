@@ -1,25 +1,23 @@
 set(SRCS	Src/BPMemLoader.cpp
 			Src/Clipper.cpp
-			Src/CommandProcessor.cpp
+			Src/SWCommandProcessor.cpp
 			Src/CPMemLoader.cpp
 			Src/DebugUtil.cpp
 			Src/EfbCopy.cpp
 			Src/EfbInterface.cpp
-			Src/GLUtil.cpp
 			Src/HwRasterizer.cpp
-			Src/main.cpp
+			Src/SWmain.cpp
 			Src/OpcodeDecoder.cpp
-			Src/PixelEngine.cpp
+			Src/SWPixelEngine.cpp
 			Src/Rasterizer.cpp
-			Src/RasterFont.cpp
-			Src/Renderer.cpp
+			Src/SWRenderer.cpp
 			Src/SetupUnit.cpp
-			Src/Statistics.cpp
+			Src/SWStatistics.cpp
 			Src/Tev.cpp
 			Src/TextureEncoder.cpp
 			Src/TextureSampler.cpp
 			Src/TransformUnit.cpp
-			Src/VertexLoader.cpp
+			Src/SWVertexLoader.cpp
 			Src/SWVideoConfig.cpp
 			Src/XFMemLoader.cpp)
 
@@ -35,11 +33,11 @@ set(LIBS	videocommon
 			${X11_LIBRARIES}
 			${wxWidgets_LIBRARIES})
 
-if((${CMAKE_SYSTEM_NAME} MATCHES "Darwin") AND NOT wxWidgets_FOUND)
-	set(SRCS	${SRCS} Src/cocoaGL.m)
-elseif(WIN32)
+if(WIN32)
 	set(SRCS ${SRCS} Src/Win32.cpp)
-elseif(NOT (${CMAKE_SYSTEM_NAME} MATCHES "Darwin"))
+endif()
+
+if(NOT (${CMAKE_SYSTEM_NAME} MATCHES "Darwin"))
 	set(LIBS	${LIBS} clrun)
 endif()
 
