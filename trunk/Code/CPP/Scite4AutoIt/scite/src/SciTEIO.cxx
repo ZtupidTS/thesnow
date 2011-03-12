@@ -20,10 +20,13 @@
 #include <vector>
 #include <map>
 
-#if defined(GTK)
+#if defined(__unix__)
 
 #include <unistd.h>
+
+#if defined(GTK)
 #include <gtk/gtk.h>
+#endif
 
 #else
 
@@ -338,7 +341,7 @@ void SciTEBase::OpenFile(int fileSize, bool suppressMessage) {
 		wEditor.Call(SCI_CLEARALL);
 		char data[blockSize];
 		size_t lenFile = fread(data, 1, sizeof(data), fp);
-		UniMode codingCookie = CodingCookieValue(data, lenFile);
+		UniMode umCodingCookie = CodingCookieValue(data, lenFile);
 		wEditor.Call(SCI_ALLOCATE, fileSize + 1000);
 		SString languageOverride;
 		bool firstBlock = true;
@@ -363,7 +366,7 @@ void SciTEBase::OpenFile(int fileSize, bool suppressMessage) {
 		            static_cast<int>(convert.getEncoding()));
 		// Check the first two lines for coding cookies
 		if (CurrentBuffer()->unicodeMode == uni8Bit) {
-			CurrentBuffer()->unicodeMode = codingCookie;
+			CurrentBuffer()->unicodeMode = umCodingCookie;
 		}
 		if (CurrentBuffer()->unicodeMode != uni8Bit) {
 			// Override the code page if Unicode
@@ -954,7 +957,7 @@ void SciTEBase::OpenFromStdin(bool UseOutputPane) {
 		wEditor.Call(SCI_CLEARALL);
 	}
 	size_t lenFile = fread(data, 1, sizeof(data), stdin);
-	UniMode codingCookie = CodingCookieValue(data, lenFile);
+	UniMode umCodingCookie = CodingCookieValue(data, lenFile);
 	while (lenFile > 0) {
 		lenFile = convert.convert(data, lenFile);
 		if (UseOutputPane) {
@@ -978,7 +981,7 @@ void SciTEBase::OpenFromStdin(bool UseOutputPane) {
 	            static_cast<int>(convert.getEncoding()));
 	// Check the first two lines for coding cookies
 	if (CurrentBuffer()->unicodeMode == uni8Bit) {
-		CurrentBuffer()->unicodeMode = codingCookie;
+		CurrentBuffer()->unicodeMode = umCodingCookie;
 	}
 	if (CurrentBuffer()->unicodeMode != uni8Bit) {
 		// Override the code page if Unicode
