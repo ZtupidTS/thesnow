@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2003 Dolphin Project.
+// Copyright (C) 2003 Dolphin Project.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -134,7 +134,12 @@ HRESULT Init()
 		--d3d_dll_ref;
 		return E_FAIL;
 	}
+
+	// Init the caps structure using data from the currently selected device
+	int adapter = g_Config.iAdapter;
+	D3D->GetDeviceCaps((adapter >= 0 && adapter < std::min(MAX_ADAPTERS, numAdapters)) ? adapter : D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, &caps);
 	Enumerate();
+
 	return S_OK;
 }
 
@@ -407,7 +412,7 @@ HRESULT Create(int adapter, HWND wnd, int _resolution, int aa_mode, bool auto_de
 		{
 			MessageBox(wnd,
 				_T("初始化 Direct3D 失败."),
-				_T("Dolphin Direct3D 插件"), MB_OK | MB_ICONERROR);
+				_T("Dolphin Direct3D 后端"), MB_OK | MB_ICONERROR);
 			return E_FAIL;
 		}
 	}

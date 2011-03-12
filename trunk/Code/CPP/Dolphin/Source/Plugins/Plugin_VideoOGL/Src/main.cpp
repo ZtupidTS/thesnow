@@ -17,7 +17,7 @@
 
 
 
-// OpenGL Plugin Documentation
+// OpenGL Backend Documentation
 /* 
 
 1.1 Display settings
@@ -63,7 +63,7 @@ Make AA apply instantly during gameplay if possible
 
 #if defined(HAVE_WX) && HAVE_WX
 #include "VideoConfigDiag.h"
-#include "DebuggerPanel.h"
+#include "Debugger/DebuggerPanel.h"
 #endif // HAVE_WX
 
 #include "MainBase.h"
@@ -83,7 +83,6 @@ Make AA apply instantly during gameplay if possible
 #include "PixelShaderManager.h"
 #include "VertexShaderCache.h"
 #include "VertexShaderManager.h"
-#include "XFBConvert.h"
 #include "CommandProcessor.h"
 #include "PixelEngine.h"
 #include "TextureConverter.h"
@@ -97,9 +96,6 @@ Make AA apply instantly during gameplay if possible
 #include "VideoState.h"
 #include "VideoBackend.h"
 #include "ConfigManager.h"
-
-// Logging
-int GLScissorX, GLScissorY, GLScissorW, GLScissorH;
 
 namespace OGL
 {
@@ -126,7 +122,7 @@ void GetShaders(std::vector<std::string> &shaders)
         }
         else
         {
-                File::CreateDir(File::GetUserPath(D_SHADERS_IDX));
+                File::CreateDir(File::GetUserPath(D_SHADERS_IDX).c_str());
         }
 }
 
@@ -161,32 +157,26 @@ void VideoBackend::ShowConfig(void *_hParent)
 #endif
 }
 
-void VideoBackend::Initialize()
+bool VideoBackend::Initialize(void *&window_handle)
 {
 	InitBackendInfo();
 
 	frameCount = 0;
-	InitXFBConvTables();
 
-	g_Config.Load((std::string(File::GetUserPath(D_CONFIG_IDX)) + "gfx_opengl.ini").c_str());
+	g_Config.Load((File::GetUserPath(D_CONFIG_IDX) + "gfx_opengl.ini").c_str());
 	g_Config.GameIniLoad(SConfig::GetInstance().m_LocalCoreStartupParameter.m_strGameIni.c_str());
 
 	g_Config.UpdateProjectionHack();
-#if defined _WIN32
-	// Enable support for PNG screenshots.
-	wxImage::AddHandler( new wxPNGHandler );
-#endif
+
 	UpdateActiveConfig();
 
-	if (!OpenGL_Create(640, 480))
-	{
-		return;
-	}
+	if (!OpenGL_Create(window_handle))
+		return false;
 
-	OSD::AddMessage("Dolphin OpenGL Video Plugin.", 5000);
-	s_PluginInitialized = true;
+	OSD::AddMessage("Dolphin OpenGL Video Backend.", 5000);
+	s_BackendInitialized = true;
 
-	return;
+	return true;
 }
 
 // This is called after Initialize() from the Core
@@ -194,17 +184,12 @@ void VideoBackend::Initialize()
 void VideoBackend::Video_Prepare()
 {
 	OpenGL_MakeCurrent();
-	//if (!Renderer::Init()) {
-	//	g_VideoInitialize.pLog("Renderer::Create failed\n", TRUE);
-	//	PanicAlert("Can't create opengl renderer. You might be missing some required opengl extensions, check the logs for more info");
-	//	exit(1);
-	//}
 
 	g_renderer = new Renderer;
 
-	s_efbAccessRequested = FALSE;
-	s_FifoShuttingDown = FALSE;
-	s_swapRequested = FALSE;
+	s_efbAccessRequested = false;
+	s_FifoShuttingDown = false;
+	s_swapRequested = false;
 
 	CommandProcessor::Init();
 	PixelEngine::Init();
@@ -225,37 +210,37 @@ void VideoBackend::Video_Prepare()
 	TextureConverter::Init();
 	DLCache::Init();
 
-	// Notify the core that the video plugin is ready
+	// Notify the core that the video backend is ready
 	Core::Callback_CoreMessage(WM_USER_CREATE);
-
-	s_PluginInitialized = true;
-	INFO_LOG(VIDEO, "Video plugin initialized.");
-
 }
 
 void VideoBackend::Shutdown()
 {
-	s_PluginInitialized = false;
+	s_BackendInitialized = false;
 
-	s_efbAccessRequested = FALSE;
-	s_FifoShuttingDown = FALSE;
-	s_swapRequested = FALSE;
-	DLCache::Shutdown();
-	Fifo_Shutdown();
-	OGL::PostProcessing::Shutdown();
+	if (g_renderer)
+	{
+		s_efbAccessRequested = false;
+		s_FifoShuttingDown = false;
+		s_swapRequested = false;
+		DLCache::Shutdown();
+		Fifo_Shutdown();
+		PostProcessing::Shutdown();
 
-	// The following calls are NOT Thread Safe
-	// And need to be called from the video thread
-	OGL::TextureConverter::Shutdown();
-	VertexLoaderManager::Shutdown();
-	OGL::VertexShaderCache::Shutdown();
-	VertexShaderManager::Shutdown();
-	PixelShaderManager::Shutdown();
-	OGL::PixelShaderCache::Shutdown();
-	delete g_vertex_manager;
-	delete g_texture_cache;
-	OpcodeDecoder_Shutdown();
-	delete g_renderer;
+		// The following calls are NOT Thread Safe
+		// And need to be called from the video thread
+		TextureConverter::Shutdown();
+		VertexLoaderManager::Shutdown();
+		VertexShaderCache::Shutdown();
+		VertexShaderManager::Shutdown();
+		PixelShaderManager::Shutdown();
+		PixelShaderCache::Shutdown();
+		delete g_vertex_manager;
+		delete g_texture_cache;
+		OpcodeDecoder_Shutdown();
+		delete g_renderer;
+		g_renderer = NULL;
+	}
 	OpenGL_Shutdown();
 }
 

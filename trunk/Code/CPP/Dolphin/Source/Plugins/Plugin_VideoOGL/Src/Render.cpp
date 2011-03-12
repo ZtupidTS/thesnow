@@ -58,6 +58,7 @@
 #include "Fifo.h"
 #include "Debugger.h"
 #include "Core.h"
+#include "OnFrame.h"
 
 #include "main.h" // Local
 #ifdef _WIN32
@@ -110,7 +111,7 @@ RasterFont* s_pfont = NULL;
 #if defined _WIN32 || defined HAVE_LIBAV
 static bool s_bAVIDumping = false;
 #else
-static FILE* f_pFrameDump;
+static File::IOFile f_pFrameDump;
 #endif
 
 // 1 for no MSAA. Use s_MSAASamples > 1 to check for MSAA.
@@ -192,6 +193,15 @@ void HandleCgError(CGcontext ctx, CGerror err, void* appdata)
 // Init functions
 Renderer::Renderer()
 {
+	OSDInternalW = 0;
+	OSDInternalH = 0;
+
+	s_fps=0;
+
+#if defined _WIN32 || defined HAVE_LIBAV
+	s_bAVIDumping = false;
+#endif
+
 	bool bSuccess = true;
 	s_blendMode = 0;
 	s_MSAACoverageSamples = 0;
@@ -501,10 +511,15 @@ Renderer::~Renderer()
 
 #if defined _WIN32 || defined HAVE_LIBAV
 	if(s_bAVIDumping)
+	{
 		AVIDump::Stop();
+		s_bLastFrameDumped = false;
+		s_bAVIDumping = false;
+	}
 #else
-	if(f_pFrameDump != NULL)
-		fclose(f_pFrameDump);
+	if (f_pFrameDump.IsOpen())
+		f_pFrameDump.Close();
+	s_bLastFrameDumped = false;
 #endif
 }
 
@@ -520,6 +535,9 @@ void Renderer::DrawDebugInfo()
 
 	if (g_ActiveConfig.bShowFPS)
 		p+=sprintf(p, "FPS: %d\n", s_fps);
+
+	if (g_ActiveConfig.bShowInputDisplay)
+		p+=sprintf(p, "%s", Frame::GetInputDisplay().c_str());
 
 	if (g_ActiveConfig.bShowEFBCopyRegions)
 	{
@@ -957,8 +975,16 @@ void Renderer::SetBlendMode(bool forceUpdate)
 // This function has the final picture. We adjust the aspect ratio here.
 void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,const EFBRectangle& rc,float Gamma)
 {
+	static u8 *data = NULL;
+	static int w = 0, h = 0;
 	if (g_bSkipCurrentFrame || (!XFBWrited && (!g_ActiveConfig.bUseXFB || !g_ActiveConfig.bUseRealXFB)) || !fbWidth || !fbHeight)
 	{
+		if (g_ActiveConfig.bDumpFrames && data)
+		#ifdef _WIN32
+			AVIDump::AddFrame((char *) data);
+		#elif defined HAVE_LIBAV
+			AVIDump::AddFrame(data);
+		#endif
 		Core::Callback_VideoCopiedToXFB(false);
 		return;
 	}
@@ -971,6 +997,12 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 	const XFBSourceBase* const* xfbSourceList = FramebufferManager::GetXFBSource(xfbAddr, fbWidth, fbHeight, xfbCount);
 	if ((!xfbSourceList || xfbCount == 0) && g_ActiveConfig.bUseXFB && !g_ActiveConfig.bUseRealXFB)
 	{
+		if (g_ActiveConfig.bDumpFrames && data)
+		#ifdef _WIN32
+			AVIDump::AddFrame((char *) data);
+		#elif defined HAVE_LIBAV
+			AVIDump::AddFrame(data);
+		#endif
 		Core::Callback_VideoCopiedToXFB(false);
 		return;
 	}
@@ -979,9 +1011,6 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 
 	TargetRectangle dst_rect;
 	ComputeDrawRectangle(s_backbuffer_width, s_backbuffer_height, true, &dst_rect);
-
-	// Make sure that the wireframe setting doesn't screw up the screen copy.
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 	// Textured triangles are necessary because of post-processing shaders
 
@@ -1117,29 +1146,29 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 	glBindTexture(GL_TEXTURE_RECTANGLE_ARB, 0);
 	OGL::TextureCache::DisableStage(0);
 
-	// Wireframe
-	if (g_ActiveConfig.bWireFrame)
-		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
 	// Save screenshot
 	if (s_bScreenshot)
 	{
-		s_criticalScreenshot.Enter();
+		std::lock_guard<std::mutex> lk(s_criticalScreenshot);
 		SaveScreenshot(s_sScreenshotName, dst_rect);
 		// Reset settings
 		s_sScreenshotName.clear();
 		s_bScreenshot = false;
-		s_criticalScreenshot.Leave();
 	}
 
 	// Frame dumps are handled a little differently in Windows
 #if defined _WIN32 || defined HAVE_LIBAV
 	if (g_ActiveConfig.bDumpFrames)
 	{
-		s_criticalScreenshot.Enter();
-		int w = dst_rect.GetWidth();
-		int h = dst_rect.GetHeight();
-		u8 *data = new u8[3 * w * h];
+		std::lock_guard<std::mutex> lk(s_criticalScreenshot);
+		if (!data || w != dst_rect.GetWidth() ||
+		             h != dst_rect.GetHeight())
+		{
+			if (data) delete[] data;
+			w = dst_rect.GetWidth();
+			h = dst_rect.GetHeight();
+			data = new u8[3 * w * h];
+		}
 		glPixelStorei(GL_PACK_ALIGNMENT, 1);
 		glReadPixels(dst_rect.left, dst_rect.bottom, w, h, GL_BGR, GL_UNSIGNED_BYTE, data);
 		if (GL_REPORT_ERROR() == GL_NO_ERROR && w > 0 && h > 0)
@@ -1157,7 +1186,7 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 				{
 					OSD::AddMessage(StringFromFormat(
 								"Dumping Frames to \"%sframedump0.avi\" (%dx%d RGB24)",
-								File::GetUserPath(D_DUMPFRAMES_IDX), w, h).c_str(), 2000);
+								File::GetUserPath(D_DUMPFRAMES_IDX).c_str(), w, h).c_str(), 2000);
 				}
 			}
 			if (s_bAVIDumping)
@@ -1174,14 +1203,17 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 		}
 		else
 			NOTICE_LOG(VIDEO, "Error reading framebuffer");
-
-		delete[] data;
-		s_criticalScreenshot.Leave();
 	}
 	else
 	{
 		if (s_bLastFrameDumped && s_bAVIDumping)
 		{
+			if (data)
+			{
+				delete[] data;
+				data = NULL;
+				w = h = 0;
+			}
 			AVIDump::Stop();
 			s_bAVIDumping = false;
 			OSD::AddMessage("Stop dumping frames", 2000);
@@ -1191,47 +1223,43 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 #else
 	if (g_ActiveConfig.bDumpFrames)
 	{
-		s_criticalScreenshot.Enter();
-		char movie_file_name[255];
-		int w = dst_rect.GetWidth();
-		int h = dst_rect.GetHeight();
-		u8 *data = new u8[3 * w * h];
+		std::lock_guard<std::mutex> lk(s_criticalScreenshot);
+		std::string movie_file_name;
+		w = dst_rect.GetWidth();
+		h = dst_rect.GetHeight();
+		data = new u8[3 * w * h];
 		glPixelStorei(GL_PACK_ALIGNMENT, 1);
 		glReadPixels(dst_rect.left, dst_rect.bottom, w, h, GL_BGR, GL_UNSIGNED_BYTE, data);
 		if (GL_REPORT_ERROR() == GL_NO_ERROR)
 		{
 			if (!s_bLastFrameDumped)
 			{
-				sprintf(movie_file_name, "%sframedump.raw", File::GetUserPath(D_DUMPFRAMES_IDX));
-				f_pFrameDump = fopen(movie_file_name, "wb");
-				if (f_pFrameDump == NULL)
+				movie_file_name = File::GetUserPath(D_DUMPFRAMES_IDX) + "framedump.raw";
+				f_pFrameDump.Open(movie_file_name, "wb");
+				if (!f_pFrameDump)
 					OSD::AddMessage("Error opening framedump.raw for writing.", 2000);
 				else
 				{
 					char msg [255];
-					sprintf(msg, "Dumping Frames to \"%s\" (%dx%d RGB24)", movie_file_name, w, h);
+					sprintf(msg, "Dumping Frames to \"%s\" (%dx%d RGB24)", movie_file_name.c_str(), w, h);
 					OSD::AddMessage(msg, 2000);
 				}
 			}
-			if (f_pFrameDump != NULL)
+			if (f_pFrameDump)
 			{
 				FlipImageData(data, w, h);
-				fwrite(data, w * 3, h, f_pFrameDump);
-				fflush(f_pFrameDump);
+				f_pFrameDump.WriteBytes(data, w * 3 * h);
+				f_pFrameDump.Flush();
 			}
 			s_bLastFrameDumped = true;
 		}
 
 		delete[] data;
-		s_criticalScreenshot.Leave();
 	}
 	else
 	{
-		if (s_bLastFrameDumped && f_pFrameDump != NULL)
-		{
-			fclose(f_pFrameDump);
-			f_pFrameDump = NULL;
-		}
+		if (s_bLastFrameDumped)
+			f_pFrameDump.Close();
 		s_bLastFrameDumped = false;
 	}
 #endif
@@ -1379,6 +1407,9 @@ void Renderer::ResetAPIState()
 	glDisable(GL_BLEND);
 	glDepthMask(GL_FALSE);
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+
+	// make sure to disable wireframe when drawing the clear quad
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 }
 
 void Renderer::RestoreAPIState()
@@ -1391,6 +1422,9 @@ void Renderer::RestoreAPIState()
 	SetDepthMode();
 	SetBlendMode(true);
 	UpdateViewport();
+
+	if (g_ActiveConfig.bWireFrame)
+ 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 	VertexShaderCache::SetCurrentShader(0);
 	PixelShaderCache::SetCurrentShader(0);

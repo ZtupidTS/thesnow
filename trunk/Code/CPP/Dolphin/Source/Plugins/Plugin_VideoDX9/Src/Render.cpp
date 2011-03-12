@@ -51,6 +51,7 @@
 #include "DLCache.h"
 #include "Debugger.h"
 #include "Core.h"
+#include "OnFrame.h"
 
 namespace DX9
 {
@@ -691,10 +692,11 @@ u32 Renderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data)
 	{
 		// TODO: Speed this up by batching pokes?
 		ResetAPIState();
-		D3D::drawColorQuad(poke_data, (float)RectToLock.left   * 2.f / (float)Renderer::GetFullTargetWidth()  - 1.f,
-									- (float)RectToLock.top    * 2.f / (float)Renderer::GetFullTargetHeight() + 1.f,
-									  (float)RectToLock.right  * 2.f / (float)Renderer::GetFullTargetWidth()  - 1.f,
-									- (float)RectToLock.bottom * 2.f / (float)Renderer::GetFullTargetHeight() + 1.f);
+		D3D::drawColorQuad(GetFullTargetWidth(), GetFullTargetHeight(), poke_data,
+							  (float)RectToLock.left   * 2.f / (float)Renderer::GetFullTargetWidth()  - 1.f,
+							- (float)RectToLock.top    * 2.f / (float)Renderer::GetFullTargetHeight() + 1.f,
+							  (float)RectToLock.right  * 2.f / (float)Renderer::GetFullTargetWidth()  - 1.f,
+							- (float)RectToLock.bottom * 2.f / (float)Renderer::GetFullTargetHeight() + 1.f);
 		RestoreAPIState();
 		return 0;
 	}
@@ -838,7 +840,7 @@ void Renderer::ClearScreen(const EFBRectangle& rc, bool colorEnable, bool alphaE
 	vp.MinZ = 0.0;
 	vp.MaxZ = 1.0;
 	D3D::dev->SetViewport(&vp);
-	D3D::drawClearQuad(color, (z & 0xFFFFFF) / float(0xFFFFFF), PixelShaderCache::GetClearProgram(), VertexShaderCache::GetClearVertexShader());
+	D3D::drawClearQuad(GetFullTargetWidth(), GetFullTargetHeight(), color, (z & 0xFFFFFF) / float(0xFFFFFF), PixelShaderCache::GetClearProgram(), VertexShaderCache::GetClearVertexShader());
 	RestoreAPIState();
 }
 
@@ -919,6 +921,8 @@ bool Renderer::SaveScreenshot(const std::string &filename, const TargetRectangle
 // This function has the final picture. We adjust the aspect ratio here.
 void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,const EFBRectangle& rc,float Gamma)
 {
+	static char* data = 0;
+	static int w = 0, h = 0;
 	if (g_bSkipCurrentFrame || (!XFBWrited && (!g_ActiveConfig.bUseXFB || !g_ActiveConfig.bUseRealXFB)) || !fbWidth || !fbHeight)
 	{
 		Core::Callback_VideoCopiedToXFB(false);
@@ -978,7 +982,7 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 		vp.MinZ = 0.0f;
 		vp.MaxZ = 1.0f;
 		D3D::dev->SetViewport(&vp);
-		D3D::drawClearQuad(0, 1.0, PixelShaderCache::GetClearProgram(), VertexShaderCache::GetClearVertexShader());
+		D3D::drawClearQuad(GetFullTargetWidth(), GetFullTargetHeight(), 0, 1.0, PixelShaderCache::GetClearProgram(), VertexShaderCache::GetClearVertexShader());
 	}
 	else
 	{
@@ -1090,10 +1094,9 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 	// Save screenshot
 	if (s_bScreenshot)
 	{
-		s_criticalScreenshot.Enter();
+		std::lock_guard<std::mutex> lk(s_criticalScreenshot);
 		SaveScreenshot(s_sScreenshotName, dst_rect);
 		s_bScreenshot = false;
-		s_criticalScreenshot.Leave();
 	}
 	if (g_ActiveConfig.bDumpFrames)
 	{
@@ -1110,7 +1113,8 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 			else
 			{
 				char msg [255];
-				sprintf_s(msg,255, "Dumping Frames to \"%sframedump0.avi\" (%dx%d RGB24)", File::GetUserPath(D_DUMPFRAMES_IDX), s_recordWidth, s_recordHeight);
+				sprintf_s(msg,255, "Dumping Frames to \"%sframedump0.avi\" (%dx%d RGB24)",
+						File::GetUserPath(D_DUMPFRAMES_IDX).c_str(), s_recordWidth, s_recordHeight);
 				OSD::AddMessage(msg, 2000);
 			}
 		}
@@ -1119,10 +1123,15 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 			D3DLOCKED_RECT rect;
 			if (SUCCEEDED(ScreenShootMEMSurface->LockRect(&rect, dst_rect.AsRECT(), D3DLOCK_NO_DIRTY_UPDATE | D3DLOCK_NOSYSLOCK | D3DLOCK_READONLY)))
 			{
-				char* data = (char*)malloc(3 * s_recordWidth * s_recordHeight);
+				if (!data || w != s_recordWidth || h != s_recordHeight)
+				{
+					free(data);
+					data = (char*)malloc(3 * s_recordWidth * s_recordHeight);
+					w = s_recordWidth;
+					h = s_recordHeight;
+				}
 				formatBufferDump((const char*)rect.pBits, data, s_recordWidth, s_recordHeight, rect.Pitch);
 				AVIDump::AddFrame(data);
-				free(data);
 				ScreenShootMEMSurface->UnlockRect();
 			}
 		}
@@ -1132,6 +1141,12 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 	{
 		if (s_bLastFrameDumped && s_bAVIDumping)
 		{
+			if (data)
+			{
+				free(data);
+				data = 0;
+				w = h = 0;
+			}
 			AVIDump::Stop();
 			s_bAVIDumping = false;
 			OSD::AddMessage("Stop dumping frames to AVI", 2000);
@@ -1144,7 +1159,14 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 	{
 		char fps[20];
 		StringCchPrintfA(fps, 20, "FPS: %d\n", s_fps);
-		D3D::font.DrawTextScaled(0, 30, 20, 20, 0.0f, 0xFF00FFFF, fps);
+		D3D::font.DrawTextScaled(0, 0, 20, 20, 0.0f, 0xFF00FFFF, fps);
+	}
+
+	if (g_ActiveConfig.bShowInputDisplay)
+	{
+		char inputDisplay[1000];
+		StringCchPrintfA(inputDisplay, 1000, Frame::GetInputDisplay().c_str());
+		D3D::font.DrawTextScaled(0, 30, 20, 20, 0.0f, 0xFF00FFFF, inputDisplay);
 	}
 	Renderer::DrawDebugText();
 
@@ -1282,6 +1304,7 @@ void Renderer::RestoreState()
 // ALWAYS call RestoreAPIState for each ResetAPIState call you're doing
 void Renderer::ResetAPIState()
 {
+	D3D::SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
 	D3D::SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
 	D3D::SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
 	D3D::SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
@@ -1294,15 +1317,18 @@ void Renderer::ResetAPIState()
 void Renderer::RestoreAPIState()
 {
 	// Gets us back into a more game-like state.
+	D3D::SetRenderState(D3DRS_FILLMODE, g_ActiveConfig.bWireFrame ? D3DFILL_WIREFRAME : D3DFILL_SOLID);
 	D3D::SetRenderState(D3DRS_SCISSORTESTENABLE, TRUE);
 	UpdateViewport();
 	SetScissorRect();
-	if (bpmem.zmode.testenable)
+	if (bpmem.zmode.testenable) {
 		D3D::SetRenderState(D3DRS_ZENABLE, TRUE);
-	if (bpmem.zmode.updateenable)
-		D3D::SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
+		if (bpmem.zmode.updateenable)
+			D3D::SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
+	}
 	SetColorMask();
 	SetLogicOpMode();
+	SetGenerationMode();
 }
 
 void Renderer::SetGenerationMode()
@@ -1322,7 +1348,7 @@ void Renderer::SetDepthMode()
 	{
 		// if the test is disabled write is disabled too
 		D3D::SetRenderState(D3DRS_ZENABLE, FALSE);
-		D3D::SetRenderState(D3DRS_ZWRITEENABLE, FALSE);  // ??
+		D3D::SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
 	}
 }
 
@@ -1376,7 +1402,7 @@ void Renderer::SetSamplerState(int stage, int texindex)
 	if (texindex)
 		stage += 4;
 	
-	if (mag == D3DTEXF_LINEAR && min == D3DTEXF_LINEAR && g_ActiveConfig.iMaxAnisotropy > 1)
+	if (mag == D3DTEXF_LINEAR && min == D3DTEXF_LINEAR && g_ActiveConfig.iMaxAnisotropy)
 	{
 		min = D3DTEXF_ANISOTROPIC;
 	}

@@ -25,6 +25,10 @@
 namespace DX11
 {
 
+HINSTANCE hD3DCompilerDll = NULL;
+D3DREFLECT PD3DReflect = NULL;
+int d3dcompiler_dll_ref = 0;
+
 HINSTANCE hD3DXDll = NULL;
 D3DX11COMPILEFROMMEMORYTYPE PD3DX11CompileFromMemory = NULL;
 D3DX11FILTERTEXTURETYPE PD3DX11FilterTexture = NULL;
@@ -112,8 +116,8 @@ HRESULT LoadD3DX()
 	if (hD3DXDll) return S_OK;
 
 	// try to load D3DX11 first to check whether we have proper runtime support
-	// try to use the dll the plugin was compiled against first - don't bother about debug runtimes
-	hD3DXDll = LoadLibraryA(StringFromFormat("d3dx11_%d.dll", D3DX11_SDK_VERSION).c_str());
+	// try to use the dll the backend was compiled against first - don't bother about debug runtimes
+	hD3DXDll = LoadLibraryA(D3DX11_DLL_A);
 	if (!hD3DXDll)
 	{
 		// if that fails, use the dll which should be available in every SDK which officially supports DX11.
@@ -140,6 +144,35 @@ HRESULT LoadD3DX()
 
 	PD3DX11SaveTextureToFileW = (D3DX11SAVETEXTURETOFILEWTYPE)GetProcAddress(hD3DXDll, "D3DX11SaveTextureToFileW");
 	if (PD3DX11SaveTextureToFileW == NULL) MessageBoxA(NULL, "GetProcAddress failed for D3DX11SaveTextureToFileW!", "Critical error", MB_OK | MB_ICONERROR);
+
+	return S_OK;
+}
+
+HRESULT LoadD3DCompiler()
+{
+	if (d3dcompiler_dll_ref++ > 0) return S_OK;
+	if (hD3DCompilerDll) return S_OK;
+
+	// try to load D3DCompiler first to check whether we have proper runtime support
+	// try to use the dll the backend was compiled against first - don't bother about debug runtimes
+	hD3DCompilerDll = LoadLibraryA(D3DCOMPILER_DLL_A);
+	if (!hD3DCompilerDll)
+	{
+		// if that fails, use the dll which should be available in every SDK which officially supports DX11.
+		hD3DCompilerDll = LoadLibraryA("D3DCompiler_42.dll");
+		if (!hD3DCompilerDll)
+		{
+			MessageBoxA(NULL, "Failed to load D3DCompiler_42.dll, update your DX11 runtime, please", "Critical error", MB_OK | MB_ICONERROR);
+			return E_FAIL;
+		}
+		else
+		{
+			NOTICE_LOG(VIDEO, "Successfully loaded D3DCompiler_42.dll. If you're having trouble, try updating your DX runtime first.");
+		}
+	}
+
+	PD3DReflect = (D3DREFLECT)GetProcAddress(hD3DCompilerDll, "D3DReflect");
+	if (PD3DReflect == NULL) MessageBoxA(NULL, "GetProcAddress failed for D3DReflect!", "Critical error", MB_OK | MB_ICONERROR);
 
 	return S_OK;
 }
@@ -175,6 +208,16 @@ void UnloadD3D()
 	hD3DDll = NULL;
 	PD3D11CreateDevice = NULL;
 	PD3D11CreateDeviceAndSwapChain = NULL;
+}
+
+void UnloadD3DCompiler()
+{
+	if (!d3dcompiler_dll_ref) return;
+	if (--d3dcompiler_dll_ref != 0) return;
+
+	if (hD3DCompilerDll) FreeLibrary(hD3DCompilerDll);
+	hD3DCompilerDll = NULL;
+	PD3DReflect = NULL;
 }
 
 void EnumAAModes(IDXGIAdapter* adapter, std::vector<DXGI_SAMPLE_DESC>& aa_modes)
@@ -232,10 +275,13 @@ HRESULT Create(HWND wnd)
 	hr = LoadDXGI();
 	if (SUCCEEDED(hr)) hr = LoadD3D();
 	if (SUCCEEDED(hr)) hr = LoadD3DX();
+	if (SUCCEEDED(hr)) hr = LoadD3DCompiler();
 	if (FAILED(hr))
 	{
 		UnloadDXGI();
 		UnloadD3D();
+		UnloadD3DX();
+		UnloadD3DCompiler();
 		return hr;
 	}
 
@@ -243,14 +289,14 @@ HRESULT Create(HWND wnd)
 	IDXGIAdapter* adapter;
 	IDXGIOutput* output;
 	hr = PCreateDXGIFactory(__uuidof(IDXGIFactory), (void**)&factory);
-	if (FAILED(hr)) MessageBox(wnd, _T("Failed to create IDXGIFactory object"), _T("Dolphin Direct3D 11 plugin"), MB_OK | MB_ICONERROR);
+	if (FAILED(hr)) MessageBox(wnd, _T("Failed to create IDXGIFactory object"), _T("Dolphin Direct3D 11 backend"), MB_OK | MB_ICONERROR);
 
 	hr = factory->EnumAdapters(g_ActiveConfig.iAdapter, &adapter);
 	if (FAILED(hr))
 	{
 		// try using the first one
 		hr = factory->EnumAdapters(0, &adapter);
-		if (FAILED(hr)) MessageBox(wnd, _T("Failed to enumerate adapters"), _T("Dolphin Direct3D 11 plugin"), MB_OK | MB_ICONERROR);
+		if (FAILED(hr)) MessageBox(wnd, _T("Failed to enumerate adapters"), _T("Dolphin Direct3D 11 backend"), MB_OK | MB_ICONERROR);
 	}
 
 	// TODO: Make this configurable
@@ -259,7 +305,7 @@ HRESULT Create(HWND wnd)
 	{
 		// try using the first one
 		hr = adapter->EnumOutputs(0, &output);
-		if (FAILED(hr)) MessageBox(wnd, _T("Failed to enumerate outputs"), _T("Dolphin Direct3D 11 plugin"), MB_OK | MB_ICONERROR);
+		if (FAILED(hr)) MessageBox(wnd, _T("Failed to enumerate outputs"), _T("Dolphin Direct3D 11 backend"), MB_OK | MB_ICONERROR);
 	}
 
 	// get supported AA modes
@@ -287,7 +333,7 @@ HRESULT Create(HWND wnd)
 	mode_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	mode_desc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
 	hr = output->FindClosestMatchingMode(&mode_desc, &swap_chain_desc.BufferDesc, NULL);
-	if (FAILED(hr)) MessageBox(wnd, _T("Failed to find a supported video mode"), _T("Dolphin Direct3D 11 plugin"), MB_OK | MB_ICONERROR);
+	if (FAILED(hr)) MessageBox(wnd, _T("Failed to find a supported video mode"), _T("Dolphin Direct3D 11 backend"), MB_OK | MB_ICONERROR);
 
 	// forcing buffer resolution to xres and yres.. TODO: The new video mode might not actually be supported!
 	swap_chain_desc.BufferDesc.Width = xres;
@@ -304,7 +350,7 @@ HRESULT Create(HWND wnd)
 										&featlevel, &context);
 	if (FAILED(hr) || !device || !context || !swapchain)
 	{
-		MessageBox(wnd, _T("Failed to initialize Direct3D.\nMake sure your video card supports at least D3D 10.0"), _T("Dolphin Direct3D 11 plugin"), MB_OK | MB_ICONERROR);
+		MessageBox(wnd, _T("Failed to initialize Direct3D.\nMake sure your video card supports at least D3D 10.0"), _T("Dolphin Direct3D 11 backend"), MB_OK | MB_ICONERROR);
 		SAFE_RELEASE(device);
 		SAFE_RELEASE(context);
 		SAFE_RELEASE(swapchain);
@@ -319,7 +365,7 @@ HRESULT Create(HWND wnd)
 	hr = swapchain->GetBuffer(0, IID_ID3D11Texture2D, (void**)&buf);
 	if (FAILED(hr))
 	{
-		MessageBox(wnd, _T("Failed to get swapchain buffer"), _T("Dolphin Direct3D 11 plugin"), MB_OK | MB_ICONERROR);
+		MessageBox(wnd, _T("Failed to get swapchain buffer"), _T("Dolphin Direct3D 11 backend"), MB_OK | MB_ICONERROR);
 		SAFE_RELEASE(device);
 		SAFE_RELEASE(context);
 		SAFE_RELEASE(swapchain);
@@ -431,7 +477,7 @@ void Reset()
 	HRESULT hr = swapchain->GetBuffer(0, IID_ID3D11Texture2D, (void**)&buf);
 	if (FAILED(hr))
 	{
-		MessageBox(hWnd, _T("Failed to get swapchain buffer"), _T("Dolphin Direct3D 11 plugin"), MB_OK | MB_ICONERROR);
+		MessageBox(hWnd, _T("Failed to get swapchain buffer"), _T("Dolphin Direct3D 11 backend"), MB_OK | MB_ICONERROR);
 		SAFE_RELEASE(device);
 		SAFE_RELEASE(context);
 		SAFE_RELEASE(swapchain);

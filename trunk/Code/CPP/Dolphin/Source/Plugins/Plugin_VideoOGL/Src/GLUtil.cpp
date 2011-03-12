@@ -48,7 +48,7 @@ void OpenGL_SwapBuffers()
 #if defined(USE_WX) && USE_WX
 	GLWin.glCanvas->SwapBuffers();
 #elif defined(__APPLE__)
-        [GLWin.cocoaCtx flushBuffer];
+	[GLWin.cocoaCtx flushBuffer];
 #elif defined(_WIN32)
 	SwapBuffers(hDC);
 #elif defined(HAVE_X11) && HAVE_X11
@@ -82,11 +82,6 @@ void OpenGL_SetWindowText(const char *text)
 #endif
 }
 
-static void*& VideoWindowHandle()
-{
-	return SConfig::GetInstance().m_LocalCoreStartupParameter.hMainWindow;
-}
-
 namespace OGL
 {
 
@@ -105,7 +100,7 @@ unsigned int VideoBackend::PeekMessages()
 	}
 	return TRUE;
 #else
-	return FALSE;
+	return false;
 #endif
 }
 
@@ -122,15 +117,9 @@ void VideoBackend::UpdateFPSDisplay(const char *text)
 #if defined(HAVE_X11) && HAVE_X11
 void XEventThread();
 
-void CreateXWindow (void)
+void CreateXWindow(void)
 {
 	Atom wmProtocols[1];
-
-	// use evdpy to create the window, so that connection gets the events
-	// the colormap needs to be created on the same display, because it
-	// is a client side structure, as well as wmProtocols(or so it seems)
-	// GLWin.win is a xserver global window handle, so it can be used by both
-	// display connections
 
 	// Setup window attributes
 	GLWin.attr.colormap = XCreateColormap(GLWin.evdpy,
@@ -141,7 +130,8 @@ void CreateXWindow (void)
 
 	// Create the window
 	GLWin.win = XCreateWindow(GLWin.evdpy, GLWin.parent,
-			GLWin.x, GLWin.y, GLWin.width, GLWin.height, 0, GLWin.vi->depth, InputOutput, GLWin.vi->visual,
+			GLWin.x, GLWin.y, GLWin.width, GLWin.height, 0,
+			GLWin.vi->depth, InputOutput, GLWin.vi->visual,
 			CWBorderPixel | CWBackPixel | CWColormap | CWEventMask, &GLWin.attr);
 	wmProtocols[0] = XInternAtom(GLWin.evdpy, "WM_DELETE_WINDOW", True);
 	XSetWMProtocols(GLWin.evdpy, GLWin.win, wmProtocols, 1);
@@ -156,7 +146,8 @@ void DestroyXWindow(void)
 {
 	XUnmapWindow(GLWin.dpy, GLWin.win);
 	GLWin.win = 0;
-	GLWin.xEventThread.join();
+	if (GLWin.xEventThread.joinable())
+		GLWin.xEventThread.join();
 	XFreeColormap(GLWin.evdpy, GLWin.attr.colormap);
 }
 
@@ -303,11 +294,14 @@ void XEventThread()
 					s_backbuffer_height = GLWin.height;
 					break;
 				case ClientMessage:
-					if ((unsigned long) event.xclient.data.l[0] == XInternAtom(GLWin.evdpy, "WM_DELETE_WINDOW", False))
+					if ((unsigned long) event.xclient.data.l[0] ==
+							XInternAtom(GLWin.evdpy, "WM_DELETE_WINDOW", False))
 						Core::Callback_CoreMessage(WM_USER_STOP);
-					if ((unsigned long) event.xclient.data.l[0] == XInternAtom(GLWin.evdpy, "RESIZE", False))
-						XMoveResizeWindow(GLWin.evdpy, GLWin.win, event.xclient.data.l[1],
-								event.xclient.data.l[2], event.xclient.data.l[3], event.xclient.data.l[4]);
+					if ((unsigned long) event.xclient.data.l[0] ==
+							XInternAtom(GLWin.evdpy, "RESIZE", False))
+						XMoveResizeWindow(GLWin.evdpy, GLWin.win,
+								event.xclient.data.l[1], event.xclient.data.l[2],
+								event.xclient.data.l[3], event.xclient.data.l[4]);
 					break;
 				default:
 					break;
@@ -320,9 +314,9 @@ void XEventThread()
 
 // Create rendering window.
 //		Call browser: Core.cpp:EmuThread() > main.cpp:Video_Initialize()
-bool OpenGL_Create(int _iwidth, int _iheight)
+bool OpenGL_Create(void *&window_handle)
 {
-	int _tx, _ty, _twidth,  _theight;
+	int _tx, _ty, _twidth, _theight;
 	Core::Callback_VideoGetWindowSize(_tx, _ty, _twidth, _theight);
 
 	// Control window size and picture scaling
@@ -330,7 +324,7 @@ bool OpenGL_Create(int _iwidth, int _iheight)
 	s_backbuffer_height = _theight;
 
 #if defined(USE_WX) && USE_WX
-	GLWin.panel = (wxPanel *)VideoWindowHandle();
+	GLWin.panel = (wxPanel *)window_handle;
 	GLWin.glCanvas = new wxGLCanvas(GLWin.panel, wxID_ANY, NULL,
 		wxPoint(0, 0), wxSize(_twidth, _theight));
 	GLWin.glCanvas->Show(true);
@@ -338,11 +332,13 @@ bool OpenGL_Create(int _iwidth, int _iheight)
 		GLWin.glCtxt = new wxGLContext(GLWin.glCanvas);
 
 #elif defined(__APPLE__)
+	NSRect size;
+	NSUInteger style = NSMiniaturizableWindowMask;
 	NSOpenGLPixelFormatAttribute attr[2] = { NSOpenGLPFADoubleBuffer, 0 };
 	NSOpenGLPixelFormat *fmt = [[NSOpenGLPixelFormat alloc]
 		initWithAttributes: attr];
 	if (fmt == nil) {
-		printf("failed to create pixel format\n");
+		ERROR_LOG(VIDEO, "failed to create pixel format");
 		return NULL;
 	}
 
@@ -350,21 +346,36 @@ bool OpenGL_Create(int _iwidth, int _iheight)
 		initWithFormat: fmt shareContext: nil];
 	[fmt release];
 	if (GLWin.cocoaCtx == nil) {
-		printf("failed to create context\n");
+		ERROR_LOG(VIDEO, "failed to create context");
 		return NULL;
 	}
 
-        GLWin.cocoaWin = [[NSWindow alloc]
-		initWithContentRect: NSMakeRect(50, 50, _twidth, _theight)
-		styleMask: NSTitledWindowMask | NSResizableWindowMask
-		backing: NSBackingStoreBuffered defer: FALSE];
-        [GLWin.cocoaWin setReleasedWhenClosed: YES];
-        [GLWin.cocoaWin makeKeyAndOrderFront: nil];
+	if (SConfig::GetInstance().m_LocalCoreStartupParameter.bFullscreen) {
+		size = [[NSScreen mainScreen] frame];
+		style |= NSBorderlessWindowMask;
+	} else {
+		size = NSMakeRect(_tx, _ty, _twidth, _theight);
+		style |= NSResizableWindowMask | NSTitledWindowMask;
+	}
+
+	GLWin.cocoaWin = [[NSWindow alloc] initWithContentRect: size
+		styleMask: style backing: NSBackingStoreBuffered defer: NO];
+	if (GLWin.cocoaWin == nil) {
+		ERROR_LOG(VIDEO, "failed to create window");
+		return NULL;
+	}
+
+	if (SConfig::GetInstance().m_LocalCoreStartupParameter.bFullscreen) {
+		CGDisplayCapture(CGMainDisplayID());
+		[GLWin.cocoaWin setLevel: CGShieldingWindowLevel()];
+	}
+
 	[GLWin.cocoaCtx setView: [GLWin.cocoaWin contentView]];
+	[GLWin.cocoaWin makeKeyAndOrderFront: nil];
 
 #elif defined(_WIN32)
-	VideoWindowHandle() = (void*)EmuWindow::Create((HWND)VideoWindowHandle(), GetModuleHandle(0), _T("Please wait..."));
-	if (VideoWindowHandle() == NULL)
+	window_handle = (void*)EmuWindow::Create((HWND)window_handle, GetModuleHandle(0), _T("Please wait..."));
+	if (window_handle == NULL)
 	{
 		Host_SysMessage("failed to create window");
 		return false;
@@ -373,26 +384,26 @@ bool OpenGL_Create(int _iwidth, int _iheight)
 	// Show the window
 	EmuWindow::Show();
 
-	PIXELFORMATDESCRIPTOR pfd =              // pfd Tells Windows How We Want Things To Be
+	PIXELFORMATDESCRIPTOR pfd =         // pfd Tells Windows How We Want Things To Be
 	{
-		sizeof(PIXELFORMATDESCRIPTOR),              // Size Of This Pixel Format Descriptor
-		1,                                          // Version Number
-		PFD_DRAW_TO_WINDOW |                        // Format Must Support Window
-			PFD_SUPPORT_OPENGL |                        // Format Must Support OpenGL
-			PFD_DOUBLEBUFFER,                           // Must Support Double Buffering
-		PFD_TYPE_RGBA,                              // Request An RGBA Format
-		32,                                         // Select Our Color Depth
-		0, 0, 0, 0, 0, 0,                           // Color Bits Ignored
-		0,                                          // 8bit Alpha Buffer
-		0,                                          // Shift Bit Ignored
-		0,                                          // No Accumulation Buffer
-		0, 0, 0, 0,                                 // Accumulation Bits Ignored
-		24,                                         // 24Bit Z-Buffer (Depth Buffer)  
-		8,                                          // 8bit Stencil Buffer
-		0,                                          // No Auxiliary Buffer
-		PFD_MAIN_PLANE,                             // Main Drawing Layer
-		0,                                          // Reserved
-		0, 0, 0                                     // Layer Masks Ignored
+		sizeof(PIXELFORMATDESCRIPTOR),  // Size Of This Pixel Format Descriptor
+		1,                              // Version Number
+		PFD_DRAW_TO_WINDOW |            // Format Must Support Window
+			PFD_SUPPORT_OPENGL |        // Format Must Support OpenGL
+			PFD_DOUBLEBUFFER,           // Must Support Double Buffering
+		PFD_TYPE_RGBA,                  // Request An RGBA Format
+		32,                             // Select Our Color Depth
+		0, 0, 0, 0, 0, 0,               // Color Bits Ignored
+		0,                              // 8bit Alpha Buffer
+		0,                              // Shift Bit Ignored
+		0,                              // No Accumulation Buffer
+		0, 0, 0, 0,                     // Accumulation Bits Ignored
+		24,                             // 24Bit Z-Buffer (Depth Buffer)  
+		8,                              // 8bit Stencil Buffer
+		0,                              // No Auxiliary Buffer
+		PFD_MAIN_PLANE,                 // Main Drawing Layer
+		0,                              // Reserved
+		0, 0, 0                         // Layer Masks Ignored
 	};
 
 	GLuint      PixelFormat;            // Holds The Results After Searching For A Match
@@ -401,7 +412,7 @@ bool OpenGL_Create(int _iwidth, int _iheight)
 		PanicAlert("(1) Can't create an OpenGL Device context. Fail.");
 		return false;
 	}
-	if (!(PixelFormat = ChoosePixelFormat(hDC,&pfd))) {
+	if (!(PixelFormat = ChoosePixelFormat(hDC, &pfd))) {
 		PanicAlert("(2) Can't find a suitable PixelFormat.");
 		return false;
 	}
@@ -448,7 +459,7 @@ bool OpenGL_Create(int _iwidth, int _iheight)
 
 	GLWin.dpy = XOpenDisplay(0);
 	GLWin.evdpy = XOpenDisplay(0);
-	GLWin.parent = (Window)VideoWindowHandle();
+	GLWin.parent = (Window)window_handle;
 	GLWin.screen = DefaultScreen(GLWin.dpy);
 	if (GLWin.parent == 0)
 		GLWin.parent = RootWindow(GLWin.dpy, GLWin.screen);
@@ -463,7 +474,7 @@ bool OpenGL_Create(int _iwidth, int _iheight)
 		GLWin.vi = glXChooseVisual(GLWin.dpy, GLWin.screen, attrListSgl);
 		if (GLWin.vi != NULL)
 		{
-			ERROR_LOG(VIDEO, "Only Singlebuffered Visual!");
+			ERROR_LOG(VIDEO, "Only single buffered visual!");
 		}
 		else
 		{
@@ -471,19 +482,19 @@ bool OpenGL_Create(int _iwidth, int _iheight)
 			if (GLWin.vi == NULL)
 			{
 				ERROR_LOG(VIDEO, "Could not choose visual (glXChooseVisual)");
-				exit(0);
+				return false;
 			}
 		}
 	}
 	else
-		NOTICE_LOG(VIDEO, "Got Doublebuffered Visual!");
+		NOTICE_LOG(VIDEO, "Got double buffered visual!");
 
 	// Create a GLX context.
 	GLWin.ctx = glXCreateContext(GLWin.dpy, GLWin.vi, 0, GL_TRUE);
 	if (!GLWin.ctx)
 	{
-		PanicAlert("Couldn't Create GLX context.Quit");
-		exit(0); // TODO: Don't bring down entire Emu
+		PanicAlert("Unable to create GLX context.");
+		return false;
 	}
 
 	GLWin.x = _tx;
@@ -492,9 +503,9 @@ bool OpenGL_Create(int _iwidth, int _iheight)
 	GLWin.height = _theight;
 
 	CreateXWindow();
-	VideoWindowHandle() = (void *)GLWin.win;
+	window_handle = (void *)GLWin.win;
 #endif
-	return false;
+	return true;
 }
 
 bool OpenGL_MakeCurrent()
@@ -505,11 +516,13 @@ bool OpenGL_MakeCurrent()
 #elif defined(__APPLE__)
 	[GLWin.cocoaCtx makeCurrentContext];
 #elif defined(_WIN32)
-	return wglMakeCurrent(hDC,hRC) ? true : false;
+	return wglMakeCurrent(hDC, hRC) ? true : false;
 #elif defined(HAVE_X11) && HAVE_X11
 #if defined(HAVE_WX) && (HAVE_WX)
-	Core::Callback_VideoGetWindowSize(GLWin.x, GLWin.y, (int&)GLWin.width, (int&)GLWin.height);
-	XMoveResizeWindow(GLWin.dpy, GLWin.win, GLWin.x, GLWin.y, GLWin.width, GLWin.height);
+	Core::Callback_VideoGetWindowSize(GLWin.x, GLWin.y,
+			(int&)GLWin.width, (int&)GLWin.height);
+	XMoveResizeWindow(GLWin.dpy, GLWin.win, GLWin.x, GLWin.y,
+			GLWin.width, GLWin.height);
 #endif
 	return glXMakeCurrent(GLWin.dpy, GLWin.win, GLWin.ctx);
 #endif
@@ -565,7 +578,9 @@ void OpenGL_Update()
 	int height = rcWindow.bottom - rcWindow.top;
 
 	// If we are rendering to a child window
-	if (EmuWindow::GetParentWnd() != 0 && (s_backbuffer_width != width || s_backbuffer_height != height) && width >= 4 && height >= 4)
+	if (EmuWindow::GetParentWnd() != 0 &&
+			(s_backbuffer_width != width || s_backbuffer_height != height) &&
+			width >= 4 && height >= 4)
 	{
 		::MoveWindow(EmuWindow::GetWnd(), 0, 0, width, height, FALSE);
 		s_backbuffer_width = width;
@@ -574,8 +589,7 @@ void OpenGL_Update()
 #endif
 }
 
-
-// Close plugin
+// Close backend
 void OpenGL_Shutdown()
 {
 #if defined(USE_WX) && USE_WX
@@ -583,31 +597,25 @@ void OpenGL_Shutdown()
 	// XXX GLWin.glCanvas->Destroy();
 	// XXX delete GLWin.glCtxt;
 #elif defined(__APPLE__)
-        [GLWin.cocoaWin close];
-        [GLWin.cocoaCtx clearDrawable];
-        [GLWin.cocoaCtx release];
+	[GLWin.cocoaWin close];
+	[GLWin.cocoaCtx clearDrawable];
+	[GLWin.cocoaCtx release];
 #elif defined(_WIN32)
-	if (hRC)                                            // Do We Have A Rendering Context?
+	if (hRC)
 	{
-		if (!wglMakeCurrent(NULL,NULL))                 // Are We Able To Release The DC And RC Contexts?
-		{
-			// [F|RES]: if this fails i dont see the message box and
-			// cant get out of the modal state so i disable it.
-			// This function fails only if i render to main window
-			// MessageBox(NULL,"Release Of DC And RC Failed.", "SHUTDOWN ERROR", MB_OK | MB_ICONINFORMATION);
-		}
+		if (!wglMakeCurrent(NULL, NULL))
+			NOTICE_LOG(VIDEO, "Could not release drawing context.");
 
-		if (!wglDeleteContext(hRC))                     // Are We Able To Delete The RC?
-		{
+		if (!wglDeleteContext(hRC))
 			ERROR_LOG(VIDEO, "Release Rendering Context Failed.");
-		}
-		hRC = NULL;                                       // Set RC To NULL
+
+		hRC = NULL;
 	}
 
-	if (hDC && !ReleaseDC(EmuWindow::GetWnd(), hDC))      // Are We Able To Release The DC
+	if (hDC && !ReleaseDC(EmuWindow::GetWnd(), hDC))
 	{
 		ERROR_LOG(VIDEO, "Release Device Context Failed.");
-		hDC = NULL;                                       // Set DC To NULL
+		hDC = NULL;
 	}
 	EmuWindow::Close();
 #elif defined(HAVE_X11) && HAVE_X11
@@ -629,7 +637,8 @@ GLuint OpenGL_ReportGLError(const char *function, const char *file, int line)
 	GLint err = glGetError();
 	if (err != GL_NO_ERROR)
 	{
-		ERROR_LOG(VIDEO, "%s:%d: (%s) OpenGL error 0x%x - %s\n", file, line, function, err, gluErrorString(err));
+		ERROR_LOG(VIDEO, "%s:%d: (%s) OpenGL error 0x%x - %s\n",
+				file, line, function, err, gluErrorString(err));
 	}
 	return err;
 }
@@ -655,15 +664,30 @@ bool OpenGL_ReportFBOError(const char *function, const char *file, int line)
 		const char *error = "-";
 		switch (fbo_status)
 		{
-			case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT_EXT:          error = "INCOMPLETE_ATTACHMENT_EXT"; break;
-			case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT_EXT:  error = "INCOMPLETE_MISSING_ATTACHMENT_EXT"; break;
-			case GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS_EXT:          error = "INCOMPLETE_DIMENSIONS_EXT"; break;
-			case GL_FRAMEBUFFER_INCOMPLETE_FORMATS_EXT:             error = "INCOMPLETE_FORMATS_EXT"; break;
-			case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER_EXT:         error = "INCOMPLETE_DRAW_BUFFER_EXT"; break;
-			case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER_EXT:         error = "INCOMPLETE_READ_BUFFER_EXT"; break;
-			case GL_FRAMEBUFFER_UNSUPPORTED_EXT:                    error = "UNSUPPORTED_EXT"; break;
+			case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT_EXT:
+				error = "INCOMPLETE_ATTACHMENT_EXT";
+				break;
+			case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT_EXT:
+				error = "INCOMPLETE_MISSING_ATTACHMENT_EXT";
+				break;
+			case GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS_EXT:
+				error = "INCOMPLETE_DIMENSIONS_EXT";
+				break;
+			case GL_FRAMEBUFFER_INCOMPLETE_FORMATS_EXT:
+				error = "INCOMPLETE_FORMATS_EXT";
+				break;
+			case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER_EXT:
+				error = "INCOMPLETE_DRAW_BUFFER_EXT";
+				break;
+			case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER_EXT:
+				error = "INCOMPLETE_READ_BUFFER_EXT";
+				break;
+			case GL_FRAMEBUFFER_UNSUPPORTED_EXT:
+				error = "UNSUPPORTED_EXT";
+				break;
 		}
-		ERROR_LOG(VIDEO, "%s:%d: (%s) OpenGL FBO error - %s\n", file, line, function, error);
+		ERROR_LOG(VIDEO, "%s:%d: (%s) OpenGL FBO error - %s\n",
+				file, line, function, error);
 		return false;
 	}
 	return true;

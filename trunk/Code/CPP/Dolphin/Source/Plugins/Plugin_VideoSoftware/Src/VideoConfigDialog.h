@@ -15,8 +15,8 @@
 // Official SVN repository and contact information can be found at
 // http://code.google.com/p/dolphin-emu/
 
-#ifndef _PLUGIN_VIDEOSOFTWARE_CONFIG_DIAG_H_
-#define _PLUGIN_VIDEOSOFTWARE_CONFIG_DIAG_H_
+#ifndef _VIDEOSOFTWARE_CONFIG_DIAG_H_
+#define _VIDEOSOFTWARE_CONFIG_DIAG_H_
 
 #include <vector>
 #include <string>
@@ -32,40 +32,6 @@
 #include <wx/notebook.h>
 #include <wx/panel.h>
 #include <wx/spinctrl.h>
-
-template <typename W>
-class BoolSetting : public W
-{
-public:
-	BoolSetting(wxWindow* parent, const wxString& label, bool &setting, bool reverse = false, long style = 0);
-
-	void UpdateValue(wxCommandEvent& ev)
-	{
-		m_setting = (ev.GetInt() != 0) ^ m_reverse;
-		ev.Skip();
-	}
-private:
-	bool& m_setting;
-	const bool m_reverse;
-};
-
-template <typename T>
-class IntegerSetting : public wxSpinCtrl
-{
-public:
-	IntegerSetting(wxWindow* parent, const wxString& label, T& setting, int minVal, int maxVal, long style = 0);
-
-	void UpdateValue(wxCommandEvent& ev)
-	{
-		m_setting = ev.GetInt();
-		ev.Skip();
-	}
-private:
-	T& m_setting;
-};
-
-typedef BoolSetting<wxCheckBox> SettingCheckBox;
-typedef IntegerSetting<u32> U32Setting;
 
 class VideoConfigDialog : public wxDialog
 {

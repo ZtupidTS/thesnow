@@ -20,7 +20,7 @@
 #include "Tev.h"
 #include "EfbInterface.h"
 #include "TextureSampler.h"
-#include "Statistics.h"
+#include "SWStatistics.h"
 #include "SWVideoConfig.h"
 #include "DebugUtil.h"
 
@@ -133,7 +133,7 @@ inline s16 Clamp1024(s16 in)
      return in>1023?1023:(in<-1024?-1024:in);
 }
 
-inline void Tev::SetRasColor(int colorChan, int swaptable)
+void Tev::SetRasColor(int colorChan, int swaptable)
 {
     switch(colorChan)
     {
@@ -581,7 +581,7 @@ void Tev::Draw()
     _assert_(Position[0] >= 0 && Position[0] < EFB_WIDTH);
     _assert_(Position[1] >= 0 && Position[1] < EFB_HEIGHT);
 
-    INCSTAT(stats.thisFrame.tevPixelsIn);
+    INCSTAT(swstats.thisFrame.tevPixelsIn);
 
     for (unsigned int stageNum = 0; stageNum < bpmem.genMode.numindstages; stageNum++)
     {
@@ -810,7 +810,7 @@ void Tev::Draw()
 	}
 #endif
 
-    INCSTAT(stats.thisFrame.tevPixelsOut);
+    INCSTAT(swstats.thisFrame.tevPixelsOut);
 
     EfbInterface::BlendTev(Position[0], Position[1], output);
 }

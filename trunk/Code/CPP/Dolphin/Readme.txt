@@ -27,10 +27,10 @@ Usage: Dolphin [-h] [-d] [-l] [-e <str>] [-b] [-V <str>] [-A <str>]
   -h, --help                	Show this help message
   -d, --debugger            	Opens the debugger
   -l, --logger              	Opens the logger
-  -e, --exec=<str>          	Loads the specified file (DOL, ELF, WAD, GCM, ISO)
+  -e, --exec=<str>          	Loads the specified file (DOL,ELF,WAD,GCM,ISO)
   -b, --batch             	Exit Dolphin with emulator
-  -V, --video_plugin=<str>  	Specify a video plugin
-  -A, --audio_plugin=<str>  	Specify an audio plugin
+  -V, --video_backend=<str>  	Specify a video plugin
+  -A, --audio_emulation=<str>  	Low level (LLE) or high level (HLE) audio
 
 [Libraries]
 Cg: Cg Shading API (http://developer.nvidia.com/object/cg_toolkit.html)
@@ -40,10 +40,10 @@ Cg: Cg Shading API (http://developer.nvidia.com/object/cg_toolkit.html)
 Plugin_DSP_HLE: High Level DSP Emulation
 Plugin_DSP_LLE: Low Level DSP Emulation
 
-[Video Plugins]
-Plugin_VideoDX9: Render with Direct3D 9
-Plugin_VideoDX11: Render with Direct3D 11
-Plugin_VideoOGL: Render with OpenGL + Cg Shader Language
+[Video Backends]
+Direct3D9: Render with Direct3D 9
+Direct3D11: Render with Direct3D 11
+OpenGL: Render with OpenGL + Cg Shader Language
 
 [Sys Files]
 totaldb.dsy: Database of symbols (for devs only)

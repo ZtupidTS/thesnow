@@ -23,8 +23,12 @@
 #include "PixelShaderCache.h"
 #include "Render.h"
 #include "VertexShaderCache.h"
+#include "XFBEncoder.h"
+#include "HW/Memmap.h"
 
 namespace DX11 {
+
+static XFBEncoder s_xfbEncoder;
 
 FramebufferManager::Efb FramebufferManager::m_efb;
 
@@ -77,6 +81,17 @@ FramebufferManager::FramebufferManager()
 	D3D::SetDebugObjectName((ID3D11DeviceChild*)m_efb.color_tex->GetTex(), "EFB color texture");
 	D3D::SetDebugObjectName((ID3D11DeviceChild*)m_efb.color_tex->GetSRV(), "EFB color texture shader resource view");
 	D3D::SetDebugObjectName((ID3D11DeviceChild*)m_efb.color_tex->GetRTV(), "EFB color texture render target view");
+
+	// Temporary EFB color texture - used in ReinterpretPixelData
+	texdesc = CD3D11_TEXTURE2D_DESC(DXGI_FORMAT_R8G8B8A8_UNORM, target_width, target_height, 1, 1, D3D11_BIND_SHADER_RESOURCE|D3D11_BIND_RENDER_TARGET, D3D11_USAGE_DEFAULT, 0, 1, 0);
+	hr = D3D::device->CreateTexture2D(&texdesc, NULL, &buf);
+	CHECK(hr==S_OK, "create EFB color temp texture (size: %dx%d; hr=%#x)", target_width, target_height, hr);
+	m_efb.color_temp_tex = new D3DTexture2D(buf, (D3D11_BIND_FLAG)(D3D11_BIND_SHADER_RESOURCE|D3D11_BIND_RENDER_TARGET), DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_UNKNOWN, DXGI_FORMAT_R8G8B8A8_UNORM);
+	CHECK(m_efb.color_temp_tex!=NULL, "create EFB color temp texture (size: %dx%d)", target_width, target_height);
+	SAFE_RELEASE(buf);
+	D3D::SetDebugObjectName((ID3D11DeviceChild*)m_efb.color_temp_tex->GetTex(), "EFB color temp texture");
+	D3D::SetDebugObjectName((ID3D11DeviceChild*)m_efb.color_temp_tex->GetSRV(), "EFB color temp texture shader resource view");
+	D3D::SetDebugObjectName((ID3D11DeviceChild*)m_efb.color_temp_tex->GetRTV(), "EFB color temp texture render target view");
 
 	// AccessEFB - Sysmem buffer used to retrieve the pixel data from color_tex
 	texdesc = CD3D11_TEXTURE2D_DESC(DXGI_FORMAT_R8G8B8A8_UNORM, 1, 1, 1, 1, 0, D3D11_USAGE_STAGING, D3D11_CPU_ACCESS_READ);
@@ -133,11 +148,16 @@ FramebufferManager::FramebufferManager()
 		m_efb.resolved_color_tex = NULL;
 		m_efb.resolved_depth_tex = NULL;
 	}
+
+	s_xfbEncoder.Init();
 }
 
 FramebufferManager::~FramebufferManager()
 {
+	s_xfbEncoder.Shutdown();
+
 	SAFE_RELEASE(m_efb.color_tex);
+	SAFE_RELEASE(m_efb.color_temp_tex);
 	SAFE_RELEASE(m_efb.color_staging_buf);
 	SAFE_RELEASE(m_efb.resolved_color_tex);
 	SAFE_RELEASE(m_efb.depth_tex);
@@ -148,8 +168,8 @@ FramebufferManager::~FramebufferManager()
 
 void FramebufferManager::CopyToRealXFB(u32 xfbAddr, u32 fbWidth, u32 fbHeight, const EFBRectangle& sourceRc,float Gamma)
 {
-	// TODO
-	PanicAlert("CopyToRealXFB not implemented, yet\n");
+	u8* dst = Memory::GetPointer(xfbAddr);
+	s_xfbEncoder.Encode(dst, fbWidth, fbHeight, sourceRc, Gamma);
 }
 
 XFBSourceBase* FramebufferManager::CreateXFBSource(unsigned int target_width, unsigned int target_height)
@@ -185,8 +205,8 @@ void XFBSource::Draw(const MathUtil::Rectangle<float> &sourcerc,
 
 void XFBSource::DecodeToTexture(u32 xfbAddr, u32 fbWidth, u32 fbHeight)
 {
-	// TODO:
-	PanicAlert("RealXFB not implemented, yet\n");
+	// DX11's XFB decoder does not use this function.
+	// YUYV data is decoded in Render::Swap.
 }
 
 void XFBSource::CopyEFB(float Gamma)
