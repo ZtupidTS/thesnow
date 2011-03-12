@@ -21,13 +21,13 @@
 #include "Thread.h"
 #include "SoundStream.h"
 #include "DSPLLEGlobals.h" // Local
-#include "../../PluginDSP.h"
+#include "../../DSPEmulator.h"
 
-class DSPLLE : public PluginDSP {
+class DSPLLE : public DSPEmulator {
 public:
 	DSPLLE();
 
-	virtual void Initialize(void *hWnd, bool bWii, bool bDSPThread);
+	virtual bool Initialize(void *hWnd, bool bWii, bool bDSPThread);
 	virtual void Shutdown();
 	virtual bool IsLLE() { return true; }
 
@@ -43,7 +43,6 @@ public:
 	virtual void DSP_Update(int cycles);
 	virtual void DSP_StopSoundStream();
 	virtual void DSP_ClearAudioBuffer(bool mute);
-	void DSP_DebugBreak();
 
 private:
 	static void dsp_thread(DSPLLE* lpParameter);

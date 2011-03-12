@@ -26,6 +26,7 @@
 #include "VolumeCreator.h"
 #include "Filesystem.h"
 #include "ISOProperties.h"
+#include "PHackSettings.h"
 #include "PatchAddEdit.h"
 #include "ARCodeAddEdit.h"
 #include "GeckoCodeDiag.h"
@@ -49,6 +50,7 @@ DiscIO::IFileSystem *pFileSystem = NULL;
 
 std::vector<PatchEngine::Patch> onFrame;
 std::vector<ActionReplay::ARCode> arCodes;
+PHackData PHack_Data;
 
 
 BEGIN_EVENT_TABLE(CISOProperties, wxDialog)
@@ -57,6 +59,7 @@ BEGIN_EVENT_TABLE(CISOProperties, wxDialog)
 	EVT_BUTTON(ID_EDITCONFIG, CISOProperties::OnEditConfig)
 	EVT_CHOICE(ID_EMUSTATE, CISOProperties::SetRefresh)
 	EVT_CHOICE(ID_EMU_ISSUES, CISOProperties::SetRefresh)
+	EVT_BUTTON(ID_PHSETTINGS, CISOProperties::PHackButtonClicked)
 	EVT_LISTBOX(ID_PATCHES_LIST, CISOProperties::ListSelectionChanged)
 	EVT_BUTTON(ID_EDITPATCH, CISOProperties::PatchButtonClicked)
 	EVT_BUTTON(ID_ADDPATCH, CISOProperties::PatchButtonClicked)
@@ -116,6 +119,7 @@ CISOProperties::CISOProperties(const std::string fileName, wxWindow* parent, wxW
 	CreateGUIControls(DiscIO::IsVolumeWadFile(OpenISO));
 
 	std::string _iniFilename = OpenISO->GetUniqueID();
+
 	if (!_iniFilename.length())
 	{
 		char tmp[17];
@@ -126,21 +130,21 @@ CISOProperties::CISOProperties(const std::string fileName, wxWindow* parent, wxW
 			_iniFilename = tmp;
 		}
 	}
-	GameIniFile = std::string(File::GetUserPath(D_GAMECONFIG_IDX)) + _iniFilename + ".ini";
+	GameIniFile = File::GetUserPath(D_GAMECONFIG_IDX) + _iniFilename + ".ini";
 	if (GameIni.Load(GameIniFile.c_str()))
 		LoadGameConfig();
 	else
 	{
 		// Will fail out if GameConfig folder doesn't exist
-		FILE *f = fopen(GameIniFile.c_str(), "w");
+		std::ofstream f(GameIniFile.c_str());
 		if (f)
 		{
-			fprintf(f, "# %s - %s\n", OpenISO->GetUniqueID().c_str(), OpenISO->GetName().c_str());
-			fprintf(f, "[Core] Values set here will override the main dolphin settings.\n");
-			fprintf(f, "[EmuState] The Emulation State. 1 is worst, 5 is best, 0 is not set.\n");
-			fprintf(f, "[OnFrame] Add memory patches to be applied every frame here.\n");
-			fprintf(f, "[ActionReplay] Add action replay cheats here.\n");
-			fclose(f);
+			f << "# " << OpenISO->GetUniqueID() << " - " << OpenISO->GetName() << '\n'
+				<< "[Core] Values set here will override the main dolphin settings.\n"
+				<< "[EmuState] The Emulation State. 1 is worst, 5 is best, 0 is not set.\n"
+				<< "[OnFrame] Add memory patches to be applied every frame here.\n"
+				<< "[ActionReplay] Add action replay cheats here.\n";
+			f.close();
 		}
 		if (GameIni.Load(GameIniFile.c_str()))
 			LoadGameConfig();
@@ -303,10 +307,8 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 
 	
 	// GameConfig editing - Overrides and emulation state
-	sbGameConfig = new wxStaticBoxSizer(wxVERTICAL, m_GameConfig, _("Game-Specific 设置"));
 	OverrideText = new wxStaticText(m_GameConfig, ID_OVERRIDE_TEXT, _("These settings override core Dolphin settings.\nUndetermined means the game uses Dolphin's setting."), wxDefaultPosition, wxDefaultSize);
 	// Core
-	sbCoreOverrides = new wxStaticBoxSizer(wxVERTICAL, m_GameConfig, _("核心"));
 	CPUThread = new wxCheckBox(m_GameConfig, ID_USEDUALCORE, _("启用多核计算"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
 	SkipIdle = new wxCheckBox(m_GameConfig, ID_IDLESKIP, _("启用空闲步进"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
 	MMU = new wxCheckBox(m_GameConfig, ID_MMU, _("启用 MMU"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
@@ -323,53 +325,19 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 	DSPHLE = new wxCheckBox(m_GameConfig, ID_AUDIO_DSP_HLE, _("DSP HLE emulation (fast)"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
 
 	// Wii Console
-	sbWiiOverrides = new wxStaticBoxSizer(wxVERTICAL, m_GameConfig, _("Wii 控制台"));
 	EnableProgressiveScan = new wxCheckBox(m_GameConfig, ID_ENABLEPROGRESSIVESCAN, _("启用 Progressive Scan"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
 	EnableWideScreen = new wxCheckBox(m_GameConfig, ID_ENABLEWIDESCREEN, _("启用宽屏"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
-	if (!DiscIO::IsVolumeWiiDisc(OpenISO) && !DiscIO::IsVolumeWadFile(OpenISO))
-	{
-		sbWiiOverrides->ShowItems(false);
- 		EnableProgressiveScan->Hide();
- 		EnableWideScreen->Hide();
-	}
-	else
-	{
-		// Progressive Scan is not used by Dolphin itself, and changing it on a per-game
-		// basis would have the side-effect of changing the SysConf, making this setting
-		// rather useless.
-		EnableProgressiveScan->Disable();
-	}
 	// Video
-	sbVideoOverrides = new wxStaticBoxSizer(wxVERTICAL, m_GameConfig, _("视频"));
-	ForceFiltering = new wxCheckBox(m_GameConfig, ID_FORCEFILTERING, _("强制筛选"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
-	EFBCopyEnable = new wxCheckBox(m_GameConfig, ID_EFBCOPYENABLE, _("禁用复制到 EFB"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
-	EFBAccessEnable = new wxCheckBox(m_GameConfig, ID_EFBACCESSENABLE, _("启用 CPU 访问"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
-	EFBToTextureEnable = new wxCheckBox(m_GameConfig, ID_EFBTOTEXTUREENABLE, _("启用 EFB 到 材质"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
-	SafeTextureCache = new wxCheckBox(m_GameConfig, ID_SAFETEXTURECACHE, _("安全材质缓存"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
-	DstAlphaPass = new wxCheckBox(m_GameConfig, ID_DSTALPHAPASS, _("Distance Alpha Pass"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
-	UseXFB = new wxCheckBox(m_GameConfig, ID_USEXFB, _("使用 XFB"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
 	UseZTPSpeedupHack = new wxCheckBox(m_GameConfig, ID_ZTP_SPEEDUP, _("ZTP hack"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
 	UseZTPSpeedupHack->SetToolTip(_("Enable this to speed up The Legend of Zelda: Twilight Princess. Disable for ANY other game."));
-	DListCache = new wxCheckBox(m_GameConfig, ID_DLISTCACHE, _("DList Cache"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER, wxDefaultValidator);
+	
 	// Hack
-	sbPHackSettings = new wxStaticBoxSizer(wxVERTICAL, m_GameConfig, _("Custom Projection Hack"));
-	PHackEnable = new wxCheckBox(m_GameConfig, ID_PHACKENABLE, _("Enable"), wxDefaultPosition, wxDefaultSize, wxCHK_2STATE, wxDefaultValidator);
-	PHackEnable->SetToolTip(_("Customize some Orthographic Projection parameters."));
-	szrPHackSettings = new wxFlexGridSizer(3,5,5);
-	PHackZNearText = new wxStaticText(m_GameConfig, ID_PHACK_ZNear_TEXT, _("zNear Correction: "), wxDefaultPosition, wxDefaultSize);
-	PHackZNear = new wxTextCtrl(m_GameConfig, ID_PHACK_ZNear, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	PHackZNear->SetToolTip(_("Adds the specified value to zNear Parameter.\nTwo ways to express the floating point values.\nExample: entering '\'200'\' or '\'0.0002'\' directly, it produces equal effects, the acquired value will be '\'0.0002'\'.\nValues: (0->+/-Integer) or (0->+/-FP[6 digits of precision])\n\nNOTE: Check LogWindow/Console for the acquired values."));
-	PHackSZNear = new wxCheckBox(m_GameConfig, ID_PHACK_SZNear, _("(-)+zNear"), wxDefaultPosition, wxDefaultSize, wxCHK_2STATE, wxDefaultValidator);
-	PHackSZNear->SetToolTip(_("Changes sign to zNear Parameter (after correction)"));
-	PHackZFarText = new wxStaticText(m_GameConfig, ID_PHACK_ZFar_TEXT, _("zFar Correction: "), wxDefaultPosition, wxDefaultSize);
-	PHackZFar = new wxTextCtrl(m_GameConfig, ID_PHACK_ZFar, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator);
-	PHackZFar->SetToolTip(_("Adds the specified value to zFar Parameter.\nTwo ways to express the floating point values.\nExample: entering '\'200'\' or '\'0.0002'\' directly, it produces equal effects, the acquired value will be '\'0.0002'\'.\nValues: (0->+/-Integer) or (0->+/-FP[6 digits of precision])\n\nNOTE: Check LogWindow/Console for the acquired values."));
-	PHackSZFar = new wxCheckBox(m_GameConfig, ID_PHACK_SZFar, _("(-)+zFar"), wxDefaultPosition, wxDefaultSize, wxCHK_2STATE, wxDefaultValidator);
-	PHackSZFar->SetToolTip(_("Changes sign to zFar Parameter (after correction)"));
-	PHackExP = new wxCheckBox(m_GameConfig, ID_PHACK_ExP, _("Extra Parameter"), wxDefaultPosition, wxDefaultSize, wxCHK_2STATE, wxDefaultValidator);
-	PHackExP->SetToolTip(_("Extra Parameter useful in '\'Metroid: Other M'\' only."));
+	szrPHackSettings = new wxFlexGridSizer(0);
+	PHackEnable = new wxCheckBox(m_GameConfig, ID_PHACKENABLE, _("Custom Projection Hack"), wxDefaultPosition, wxDefaultSize, wxCHK_2STATE, wxDefaultValidator);
+	PHackEnable->SetToolTip(_("Enables Custom Projection Hack"));
+	PHSettings = new wxButton(m_GameConfig, ID_PHSETTINGS, _("Settings..."), wxDefaultPosition, wxDefaultSize, 0);
+	PHSettings->SetToolTip(_("Customize some Orthographic Projection parameters."));
 
-	// Emulation State
 	sEmuState = new wxBoxSizer(wxHORIZONTAL);
 	EmuStateText = new wxStaticText(m_GameConfig, ID_EMUSTATE_TEXT, _("模拟状态: "), wxDefaultPosition, wxDefaultSize);
 	arrayStringFor_EmuState.Add(_("尚未设置"));
@@ -383,40 +351,42 @@ void CISOProperties::CreateGUIControls(bool IsWad)
 
 	wxBoxSizer* sConfigPage;
 	sConfigPage = new wxBoxSizer(wxVERTICAL);
-	sbGameConfig->Add(OverrideText, 0, wxEXPAND|wxALL, 5);
-	sbCoreOverrides->Add(CPUThread, 0, wxEXPAND|wxLEFT, 5);
-	sbCoreOverrides->Add(SkipIdle, 0, wxEXPAND|wxLEFT, 5);
-	sbCoreOverrides->Add(MMU, 0, wxEXPAND|wxLEFT, 5);
-	sbCoreOverrides->Add(MMUBAT, 0, wxEXPAND|wxLEFT, 5);
-	sbCoreOverrides->Add(TLBHack, 0, wxEXPAND|wxLEFT, 5);
-	sbCoreOverrides->Add(VBeam, 0, wxEXPAND|wxLEFT, 5);
-	sbCoreOverrides->Add(FastDiscSpeed, 0, wxEXPAND|wxLEFT, 5);	
-	sbCoreOverrides->Add(BlockMerging, 0, wxEXPAND|wxLEFT, 5);
-	sbCoreOverrides->Add(DSPHLE, 0, wxEXPAND|wxLEFT, 5);
-	sbWiiOverrides->Add(EnableProgressiveScan, 0, wxEXPAND|wxLEFT, 5);
-	sbWiiOverrides->Add(EnableWideScreen, 0, wxEXPAND|wxLEFT, 5);
-	sbVideoOverrides->Add(ForceFiltering, 0, wxEXPAND|wxLEFT, 5);
-	sbVideoOverrides->Add(EFBCopyEnable, 0, wxEXPAND|wxLEFT, 5);
-	sbVideoOverrides->Add(EFBAccessEnable, 0, wxEXPAND|wxLEFT, 5);
-	sbVideoOverrides->Add(EFBToTextureEnable, 0, wxEXPAND|wxLEFT, 5);
-	sbVideoOverrides->Add(SafeTextureCache, 0, wxEXPAND|wxLEFT, 5);
-	sbVideoOverrides->Add(DstAlphaPass, 0, wxEXPAND|wxLEFT, 5);
-	sbVideoOverrides->Add(UseXFB, 0, wxEXPAND|wxLEFT, 5);
-	sbVideoOverrides->Add(UseZTPSpeedupHack, 0, wxEXPAND|wxLEFT, 5);
-	sbVideoOverrides->Add(DListCache, 0, wxEXPAND|wxLEFT, 5);
-	sbVideoOverrides->AddSpacer(5);
-	sbVideoOverrides->Add(sbPHackSettings, 0, wxEXPAND);
-	sbPHackSettings->Add(PHackEnable, 0, wxEXPAND|wxLEFT, 5);
-	sbPHackSettings->AddSpacer(15);
-	sbPHackSettings->Add(szrPHackSettings, 0, wxEXPAND|wxLEFT, 5);
-	szrPHackSettings->Add(PHackZNearText, 0, wxALIGN_CENTER_VERTICAL);
-	szrPHackSettings->Add(PHackZNear, 1, wxEXPAND);
-	szrPHackSettings->Add(PHackSZNear, 0, wxEXPAND|wxLEFT, 5);
-	szrPHackSettings->Add(PHackZFarText, 0, wxALIGN_CENTER_VERTICAL);
-	szrPHackSettings->Add(PHackZFar, 1, wxEXPAND);
-	szrPHackSettings->Add(PHackSZFar, 0, wxEXPAND|wxLEFT, 5);
-	szrPHackSettings->Add(PHackExP, 0, wxEXPAND|wxTOP, 5);
+	sbCoreOverrides = new wxStaticBoxSizer(wxVERTICAL, m_GameConfig, _("Core"));
+	sbCoreOverrides->Add(CPUThread, 0, wxLEFT, 5);
+	sbCoreOverrides->Add(SkipIdle, 0, wxLEFT, 5);
+	sbCoreOverrides->Add(MMU, 0, wxLEFT, 5);
+	sbCoreOverrides->Add(MMUBAT, 0, wxLEFT, 5);
+	sbCoreOverrides->Add(TLBHack, 0, wxLEFT, 5);
+	sbCoreOverrides->Add(VBeam, 0, wxLEFT, 5);
+	sbCoreOverrides->Add(FastDiscSpeed, 0, wxLEFT, 5);	
+	sbCoreOverrides->Add(BlockMerging, 0, wxLEFT, 5);
+	sbCoreOverrides->Add(DSPHLE, 0, wxLEFT, 5);
 
+	sbWiiOverrides = new wxStaticBoxSizer(wxVERTICAL, m_GameConfig, _("Wii Console"));
+	if (!DiscIO::IsVolumeWiiDisc(OpenISO) && !DiscIO::IsVolumeWadFile(OpenISO))
+	{
+		sbWiiOverrides->ShowItems(false);
+		EnableProgressiveScan->Hide();
+		EnableWideScreen->Hide();
+	}
+	else
+	{
+		// Progressive Scan is not used by Dolphin itself, and changing it on a per-game
+		// basis would have the side-effect of changing the SysConf, making this setting
+		// rather useless.
+		EnableProgressiveScan->Disable();
+	}
+	sbWiiOverrides->Add(EnableProgressiveScan, 0, wxLEFT, 5);
+	sbWiiOverrides->Add(EnableWideScreen, 0, wxLEFT, 5);
+
+	sbVideoOverrides = new wxStaticBoxSizer(wxVERTICAL, m_GameConfig, _("Video"));
+	sbVideoOverrides->Add(UseZTPSpeedupHack, 0, wxLEFT, 5);
+	szrPHackSettings->Add(PHackEnable, 0, wxALIGN_CENTER_VERTICAL|wxLEFT, 5);
+	szrPHackSettings->Add(PHSettings, 0, wxLEFT, 5);
+
+	sbVideoOverrides->Add(szrPHackSettings, 0, wxEXPAND);
+	sbGameConfig = new wxStaticBoxSizer(wxVERTICAL, m_GameConfig, _("Game-Specific Settings"));
+	sbGameConfig->Add(OverrideText, 0, wxEXPAND|wxALL, 5);
 	sbGameConfig->Add(sbCoreOverrides, 0, wxEXPAND);
 	sbGameConfig->Add(sbWiiOverrides, 0, wxEXPAND);
 	sbGameConfig->Add(sbVideoOverrides, 0, wxEXPAND);
@@ -581,13 +551,7 @@ void CISOProperties::OnCheckBoxClicked(wxCommandEvent& event)
 	
 	if (event.GetId() == ID_PHACKENABLE)
 	{
-		PHackSZNear->Enable(choice);
-		PHackSZFar->Enable(choice);
-		PHackZNearText->Enable(choice);
-		PHackZNear->Enable(choice);
-		PHackZFarText->Enable(choice);
-		PHackZFar->Enable(choice);
-		PHackExP->Enable(choice);
+		PHSettings->Enable(choice);
 	}
 }
 
@@ -909,87 +873,27 @@ void CISOProperties::LoadGameConfig()
 	else
 		EnableProgressiveScan->Set3StateValue(wxCHK_UNDETERMINED);
 
+	// ??
 	if (GameIni.Get("Wii", "Widescreen", &bTemp))
 		EnableWideScreen->Set3StateValue((wxCheckBoxState)bTemp);
 	else
 		EnableWideScreen->Set3StateValue(wxCHK_UNDETERMINED);
-
-	if (GameIni.Get("Video", "ForceFiltering", &bTemp))
-		ForceFiltering->Set3StateValue((wxCheckBoxState)bTemp);
-	else
-		ForceFiltering->Set3StateValue(wxCHK_UNDETERMINED);
-
-	if (GameIni.Get("Video", "EFBCopyEnable", &bTemp))
-		EFBCopyEnable->Set3StateValue((wxCheckBoxState)bTemp);
-	else
-		EFBCopyEnable->Set3StateValue(wxCHK_UNDETERMINED);
-
-	if (GameIni.Get("Video", "EFBAccessEnable", &bTemp))
-		EFBAccessEnable->Set3StateValue((wxCheckBoxState)bTemp);
-	else
-		EFBAccessEnable->Set3StateValue(wxCHK_UNDETERMINED);
-
-	if (GameIni.Get("Video", "EFBToTextureEnable", &bTemp))
-		EFBToTextureEnable->Set3StateValue((wxCheckBoxState)bTemp);
-	else
-		EFBToTextureEnable->Set3StateValue(wxCHK_UNDETERMINED);
-
-	if (GameIni.Get("Video", "SafeTextureCache", &bTemp))
-		SafeTextureCache->Set3StateValue((wxCheckBoxState)bTemp);
-	else
-		SafeTextureCache->Set3StateValue(wxCHK_UNDETERMINED);
-
-	if (GameIni.Get("Video", "DstAlphaPass", &bTemp))
-		DstAlphaPass->Set3StateValue((wxCheckBoxState)bTemp);
-	else
-		DstAlphaPass->Set3StateValue(wxCHK_UNDETERMINED);
-
-	if (GameIni.Get("Video", "UseXFB", &bTemp))
-		UseXFB->Set3StateValue((wxCheckBoxState)bTemp);
-	else
-		UseXFB->Set3StateValue(wxCHK_UNDETERMINED);
 
 	if (GameIni.Get("Video", "ZTPSpeedupHack", &bTemp))
 		UseZTPSpeedupHack->Set3StateValue((wxCheckBoxState)bTemp);
 	else
 		UseZTPSpeedupHack->Set3StateValue(wxCHK_UNDETERMINED);
 
-	if (GameIni.Get("Video", "DlistCachingEnable", &bTemp))
-		DListCache->Set3StateValue((wxCheckBoxState)bTemp);
-	else
-		DListCache->Set3StateValue(wxCHK_UNDETERMINED);
-
 	GameIni.Get("Video", "ProjectionHack", &bTemp);
 	PHackEnable->Set3StateValue((wxCheckBoxState)bTemp);
-	PHackSZNear->Enable(bTemp);
-	PHackSZFar->Enable(bTemp);
-	PHackZNearText->Enable(bTemp);
-	PHackZNear->Enable(bTemp);
-	PHackZFarText->Enable(bTemp);
-	PHackZFar->Enable(bTemp);
-	PHackExP->Enable(bTemp);
+	PHSettings->Enable(bTemp);
+	
+	GameIni.Get("Video", "PH_SZNear", &PHack_Data.PHackSZNear);
+	GameIni.Get("Video", "PH_SZFar", &PHack_Data.PHackSZFar);
+	GameIni.Get("Video", "PH_ExtraParam", &PHack_Data.PHackExP);
 
-	GameIni.Get("Video", "PH_SZNear", &bTemp);
-	PHackSZNear->Set3StateValue((wxCheckBoxState)bTemp);
-	GameIni.Get("Video", "PH_SZFar", &bTemp);
-	PHackSZFar->Set3StateValue((wxCheckBoxState)bTemp);
-	GameIni.Get("Video", "PH_ExtraParam", &bTemp);
-	PHackExP->Set3StateValue((wxCheckBoxState)bTemp);
-
-	GameIni.Get("Video", "PH_ZNear", &sTemp);
-	if (!sTemp.empty())
-	{
-		PHackZNear->SetValue(wxString(sTemp.c_str(), *wxConvCurrent));
-		bRefreshList = true;
-	}
-
-	GameIni.Get("Video", "PH_ZFar", &sTemp);
-	if (!sTemp.empty())
-	{
-		PHackZFar->SetValue(wxString(sTemp.c_str(), *wxConvCurrent));
-		bRefreshList = true;
-	}
-
+	GameIni.Get("Video", "PH_ZNear", &PHack_Data.PHZNear);
+	GameIni.Get("Video", "PH_ZFar", &PHack_Data.PHZFar);
 
 	GameIni.Get("EmuState", "EmulationStateId", &iTemp, 0/*Not Set*/);
 	EmuState->SetSelection(iTemp);
@@ -1064,58 +968,19 @@ bool CISOProperties::SaveGameConfig()
 	else
 		GameIni.Set("Wii", "Widescreen", EnableWideScreen->Get3StateValue());
 
-	if (ForceFiltering->Get3StateValue() == wxCHK_UNDETERMINED)
-		GameIni.DeleteKey("Video", "ForceFiltering");
-	else
-		GameIni.Set("Video", "ForceFiltering", ForceFiltering->Get3StateValue());
-
-	if (EFBCopyEnable->Get3StateValue() == wxCHK_UNDETERMINED)
-		GameIni.DeleteKey("Video", "EFBCopyEnable");
-	else
-		GameIni.Set("Video", "EFBCopyEnable", EFBCopyEnable->Get3StateValue());
-
-	if (EFBAccessEnable->Get3StateValue() == wxCHK_UNDETERMINED)
-		GameIni.DeleteKey("Video", "EFBAccessEnable");
-	else
-		GameIni.Set("Video", "EFBAccessEnable", EFBAccessEnable->Get3StateValue());
-
-	if (EFBToTextureEnable->Get3StateValue() == wxCHK_UNDETERMINED)
-		GameIni.DeleteKey("Video", "EFBToTextureEnable");
-	else
-		GameIni.Set("Video", "EFBToTextureEnable", EFBToTextureEnable->Get3StateValue());
-
-	if (SafeTextureCache->Get3StateValue() == wxCHK_UNDETERMINED)
-		GameIni.DeleteKey("Video", "SafeTextureCache");
-	else
-		GameIni.Set("Video", "SafeTextureCache", SafeTextureCache->Get3StateValue());
-
-	if (DstAlphaPass->Get3StateValue() == wxCHK_UNDETERMINED)
-		GameIni.DeleteKey("Video", "DstAlphaPass");
-	else
-		GameIni.Set("Video", "DstAlphaPass", DstAlphaPass->Get3StateValue());
-
-	if (UseXFB->Get3StateValue() == wxCHK_UNDETERMINED)
-		GameIni.DeleteKey("Video", "UseXFB");
-	else
-		GameIni.Set("Video", "UseXFB", UseXFB->Get3StateValue());
-
 	if (UseZTPSpeedupHack->Get3StateValue() == wxCHK_UNDETERMINED)
 		GameIni.DeleteKey("Video", "ZTPSpeedupHack");
 	else
 		GameIni.Set("Video", "ZTPSpeedupHack", UseZTPSpeedupHack->Get3StateValue());
 
-	if (DListCache->Get3StateValue() == wxCHK_UNDETERMINED)
-		GameIni.DeleteKey("Video", "DlistCachingEnable");
-	else
-		GameIni.Set("Video", "DlistCachingEnable", DListCache->Get3StateValue());
-
 	GameIni.Set("Video", "ProjectionHack", PHackEnable->Get3StateValue());
-	GameIni.Set("Video", "PH_SZNear", PHackSZNear->Get3StateValue());
-	GameIni.Set("Video", "PH_SZFar", PHackSZFar->Get3StateValue());
-	GameIni.Set("Video", "PH_ExtraParam", PHackExP->Get3StateValue());
 
-	GameIni.Set("Video", "PH_ZNear", (const char*)PHackZNear->GetValue().mb_str(*wxConvCurrent));
-	GameIni.Set("Video", "PH_ZFar", (const char*)PHackZFar->GetValue().mb_str(*wxConvCurrent));
+	GameIni.Set("Video", "PH_SZNear", PHack_Data.PHackSZNear ? 1 : 0);
+	GameIni.Set("Video", "PH_SZFar", PHack_Data.PHackSZFar ? 1 : 0);
+	GameIni.Set("Video", "PH_ExtraParam", PHack_Data.PHackExP ? 1 : 0);
+
+	GameIni.Set("Video", "PH_ZNear", PHack_Data.PHZNear);
+	GameIni.Set("Video", "PH_ZFar", PHack_Data.PHZFar);
 
 	GameIni.Set("EmuState", "EmulationStateId", EmuState->GetSelection());
 	GameIni.Set("EmuState", "EmulationIssues", (const char*)EmuIssues->GetValue().mb_str(*wxConvCurrent));
@@ -1222,6 +1087,17 @@ void CISOProperties::PatchList_Save()
 	}
 	GameIni.SetLines("OnFrame", lines);
 	lines.clear();
+}
+
+void CISOProperties::PHackButtonClicked(wxCommandEvent& event)
+{
+	if (event.GetId() == ID_PHSETTINGS)
+	{
+		::PHack_Data = PHack_Data;
+		CPHackSettings dlg(this, 1);
+		if (dlg.ShowModal() == wxID_OK)
+			PHack_Data = ::PHack_Data;
+	}
 }
 
 void CISOProperties::PatchButtonClicked(wxCommandEvent& event)
@@ -1349,7 +1225,10 @@ void CISOProperties::ChangeBannerDetails(int lang)
 		{
 			SJISConv = wxCSConv(wxFontMapper::GetEncodingName(wxFONTENCODING_SHIFT_JIS));
 		}
-		WARN_LOG(COMMON, "Cannot Convert from Charset Windows Japanese cp 932");
+		else
+		{
+			WARN_LOG(COMMON, "Cannot Convert from Charset Windows Japanese cp 932");
+		}
 #else
 		wxCSConv SJISConv(wxFontMapper::GetEncodingName(wxFONTENCODING_EUC_JP));
 #endif

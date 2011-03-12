@@ -56,8 +56,8 @@ static void ReJitConditional(const UDSPInstruction opc, DSPEmitter& emitter)
 		emitter.TEST(16, R(EAX), Imm16(1));
 
 		//LE: problem in here, half the tests fail
-		skipCode2 = emitter.J_CC(CC_NE);
-		//skipCode2 = emitter.J_CC((CCFlags)(CC_NE - (cond & 1)));
+		skipCode2 = emitter.J_CC(CC_NE, true);
+		//skipCode2 = emitter.J_CC((CCFlags)(CC_NE - (cond & 1)), true);
 		emitter.dsp_op_read_reg(DSP_REG_SR, RAX);
 		emitter.TEST(16, R(EAX), Imm16(SR_ARITH_ZERO));
 		break;
@@ -94,7 +94,7 @@ static void ReJitConditional(const UDSPInstruction opc, DSPEmitter& emitter)
 		break;
 		//c2 = emitter.gpr;
 		//emitter.TEST(16, R(EAX), Imm16(SR_OVER_S32 | SR_TOP2BITS));
-		//skipCode2 = emitter.J_CC((CCFlags)(CC_E + (cond & 1)));
+		//skipCode2 = emitter.J_CC((CCFlags)(CC_E + (cond & 1)), true);
 		//emitter.TEST(16, R(EAX), Imm16(SR_ARITH_ZERO));
 		//break;
 	}
@@ -107,7 +107,7 @@ static void ReJitConditional(const UDSPInstruction opc, DSPEmitter& emitter)
 		break;
 	}
 	DSPJitRegCache c1(emitter.gpr);
-	FixupBranch skipCode = cond == 0xe ? emitter.J_CC(CC_E) : emitter.J_CC((CCFlags)(CC_NE - (cond & 1)));
+	FixupBranch skipCode = cond == 0xe ? emitter.J_CC(CC_E,true) : emitter.J_CC((CCFlags)(CC_NE - (cond & 1)),true);
 	jitCode(opc,emitter);
 	emitter.gpr.flushRegs(c1);
 	emitter.SetJumpTarget(skipCode);
@@ -121,7 +121,8 @@ static void ReJitConditional(const UDSPInstruction opc, DSPEmitter& emitter)
 
 static void WriteBranchExit(DSPEmitter& emitter)
 {
-	emitter.SaveDSPRegs();
+	DSPJitRegCache c(emitter.gpr);
+	emitter.gpr.saveRegs();
 	if (DSPAnalyzer::code_flags[emitter.startAddr] & DSPAnalyzer::CODE_IDLE_SKIP)
 	{
 		emitter.MOV(16, R(EAX), Imm16(0x1000));
@@ -131,6 +132,8 @@ static void WriteBranchExit(DSPEmitter& emitter)
 		emitter.MOV(16, R(EAX), Imm16(emitter.blockSize[emitter.startAddr]));
 	}
 	emitter.JMP(emitter.returnDispatcher, true);
+	emitter.gpr.loadRegs(false);
+	emitter.gpr.flushRegs(c,false);
 }
 
 static void WriteBlockLink(DSPEmitter& emitter, u16 dest)
@@ -141,22 +144,13 @@ static void WriteBlockLink(DSPEmitter& emitter, u16 dest)
 		if (emitter.blockLinks[dest] != 0 )
 		{
 			emitter.gpr.flushRegs();
-#ifdef _M_IX86 // All32
 			// Check if we have enough cycles to execute the next block
-			emitter.MOV(16, R(ESI), M(&cyclesLeft));
-			emitter.CMP(16, R(ESI), Imm16(emitter.blockSize[emitter.startAddr] + emitter.blockSize[dest]));
+			emitter.MOV(16, R(ECX), M(&cyclesLeft));
+			emitter.CMP(16, R(ECX), Imm16(emitter.blockSize[emitter.startAddr] + emitter.blockSize[dest]));
 			FixupBranch notEnoughCycles = emitter.J_CC(CC_BE);
 
-			emitter.SUB(16, R(ESI), Imm16(emitter.blockSize[emitter.startAddr]));
-			emitter.MOV(16, M(&cyclesLeft), R(ESI));
-#else
-			// Check if we have enough cycles to execute the next block
-			emitter.MOV(64, R(R12), ImmPtr(&cyclesLeft));
-			emitter.CMP(16, MatR(R12), Imm16(emitter.blockSize[emitter.startAddr] + emitter.blockSize[dest]));
-			FixupBranch notEnoughCycles = emitter.J_CC(CC_BE);
-
-			emitter.SUB(16, MatR(R12), Imm16(emitter.blockSize[emitter.startAddr]));
-#endif
+			emitter.SUB(16, R(ECX), Imm16(emitter.blockSize[emitter.startAddr]));
+			emitter.MOV(16, M(&cyclesLeft), R(ECX));
 			emitter.JMP(emitter.blockLinks[dest], true);
 			emitter.SetJumpTarget(notEnoughCycles);
 		}
@@ -177,12 +171,7 @@ void r_jcc(const UDSPInstruction opc, DSPEmitter& emitter)
 	// If the block is unconditional, attempt to link block
 	if (opcode->uncond_branch)
 		WriteBlockLink(emitter, dest);
-#ifdef _M_IX86 // All32
 	emitter.MOV(16, M(&(g_dsp.pc)), Imm16(dest));
-#else
-	emitter.MOV(64, R(RAX), ImmPtr(&(g_dsp.pc)));
-	emitter.MOV(16, MatR(RAX), Imm16(dest));
-#endif
 	WriteBranchExit(emitter);
 }
 // Generic jmp implementation
@@ -194,12 +183,7 @@ void r_jcc(const UDSPInstruction opc, DSPEmitter& emitter)
 // NOTE: Cannot use Default(opc) here because of the need to write branch exit
 void DSPEmitter::jcc(const UDSPInstruction opc)
 {
-#ifdef _M_IX86 // All32
 	MOV(16, M(&(g_dsp.pc)), Imm16(compilePC + 2));
-#else
-	MOV(64, R(RAX), ImmPtr(&(g_dsp.pc)));
-	MOV(16, MatR(RAX), Imm16(compilePC + 2));
-#endif
 	ReJitConditional<r_jcc>(opc, *this);
 }
 
@@ -209,12 +193,7 @@ void r_jmprcc(const UDSPInstruction opc, DSPEmitter& emitter)
 	//reg can only be DSP_REG_ARx and DSP_REG_IXx now,
 	//no need to handle DSP_REG_STx.
 	emitter.dsp_op_read_reg(reg, RAX, NONE);
-#ifdef _M_IX86 // All32
 	emitter.MOV(16, M(&g_dsp.pc), R(EAX));
-#else
-	emitter.MOV(64, R(RSI), ImmPtr(&(g_dsp.pc)));
-	emitter.MOV(16, MatR(RSI), R(RAX));
-#endif
 	WriteBranchExit(emitter);
 }
 // Generic jmpr implementation
@@ -224,12 +203,7 @@ void r_jmprcc(const UDSPInstruction opc, DSPEmitter& emitter)
 // NOTE: Cannot use Default(opc) here because of the need to write branch exit
 void DSPEmitter::jmprcc(const UDSPInstruction opc)
 {
-#ifdef _M_IX86 // All32
 	MOV(16, M(&g_dsp.pc), Imm16(compilePC + 1));
-#else
-	MOV(64, R(RAX), ImmPtr(&(g_dsp.pc)));
-	MOV(16, MatR(RAX), Imm16(compilePC + 1));
-#endif
 	ReJitConditional<r_jmprcc>(opc, *this);
 }
 
@@ -243,12 +217,7 @@ void r_call(const UDSPInstruction opc, DSPEmitter& emitter)
 	// If the block is unconditional, attempt to link block
 	if (opcode->uncond_branch)
 		WriteBlockLink(emitter, dest);
-#ifdef _M_IX86 // All32
 	emitter.MOV(16, M(&(g_dsp.pc)), Imm16(dest));
-#else
-	emitter.MOV(64, R(RAX), ImmPtr(&(g_dsp.pc)));
-	emitter.MOV(16, MatR(RAX), Imm16(dest));
-#endif
 	WriteBranchExit(emitter);
 }
 // Generic call implementation
@@ -261,12 +230,7 @@ void r_call(const UDSPInstruction opc, DSPEmitter& emitter)
 // NOTE: Cannot use Default(opc) here because of the need to write branch exit
 void DSPEmitter::call(const UDSPInstruction opc)
 {
-#ifdef _M_IX86 // All32
 	MOV(16, M(&(g_dsp.pc)), Imm16(compilePC + 2));
-#else
-	MOV(64, R(RAX), ImmPtr(&(g_dsp.pc)));
-	MOV(16, MatR(RAX), Imm16(compilePC + 2));
-#endif
 	ReJitConditional<r_call>(opc, *this);
 }
 
@@ -276,12 +240,7 @@ void r_callr(const UDSPInstruction opc, DSPEmitter& emitter)
 	emitter.MOV(16, R(DX), Imm16(emitter.compilePC + 1));
 	emitter.dsp_reg_store_stack(DSP_STACK_C);
 	emitter.dsp_op_read_reg(reg, RAX, NONE);
-#ifdef _M_IX86 // All32
 	emitter.MOV(16, M(&g_dsp.pc), R(EAX));
-#else
-	emitter.MOV(64, R(RSI), ImmPtr(&(g_dsp.pc)));
-	emitter.MOV(16, MatR(RSI), R(RAX));
-#endif
 	WriteBranchExit(emitter);
 }
 // Generic callr implementation
@@ -293,23 +252,13 @@ void r_callr(const UDSPInstruction opc, DSPEmitter& emitter)
 // NOTE: Cannot use Default(opc) here because of the need to write branch exit
 void DSPEmitter::callr(const UDSPInstruction opc)
 {
-#ifdef _M_IX86 // All32
 	MOV(16, M(&g_dsp.pc), Imm16(compilePC + 1));
-#else
-	MOV(64, R(RAX), ImmPtr(&(g_dsp.pc)));
-	MOV(16, MatR(RAX), Imm16(compilePC + 1));
-#endif
 	ReJitConditional<r_callr>(opc, *this);
 }
 
 void r_ifcc(const UDSPInstruction opc, DSPEmitter& emitter)
 {
-#ifdef _M_IX86 // All32
 	emitter.MOV(16, M(&g_dsp.pc), Imm16(emitter.compilePC + 1));
-#else
-	emitter.MOV(64, R(RAX), ImmPtr(&(g_dsp.pc)));
-	emitter.MOV(16, MatR(RAX), Imm16(emitter.compilePC + 1));
-#endif
 }
 // Generic if implementation
 // IFcc
@@ -318,12 +267,7 @@ void r_ifcc(const UDSPInstruction opc, DSPEmitter& emitter)
 // NOTE: Cannot use Default(opc) here because of the need to write branch exit
 void DSPEmitter::ifcc(const UDSPInstruction opc)
 {
-#ifdef _M_IX86 // All32
 	MOV(16, M(&g_dsp.pc), Imm16((compilePC + 1) + opTable[compilePC + 1]->size));
-#else
-	MOV(64, R(RAX), ImmPtr(&(g_dsp.pc)));
-	MOV(16, MatR(RAX), Imm16((compilePC + 1) + opTable[compilePC + 1]->size));
-#endif
 	ReJitConditional<r_ifcc>(opc, *this);
 	WriteBranchExit(*this);
 }
@@ -331,12 +275,7 @@ void DSPEmitter::ifcc(const UDSPInstruction opc)
 void r_ret(const UDSPInstruction opc, DSPEmitter& emitter)
 {
 	emitter.dsp_reg_load_stack(DSP_STACK_C);
-#ifdef _M_IX86 // All32
 	emitter.MOV(16, M(&g_dsp.pc), R(DX));
-#else
-	emitter.MOV(64, R(RAX), ImmPtr(&(g_dsp.pc)));
-	emitter.MOV(16, MatR(RAX), R(DX));
-#endif
 	WriteBranchExit(emitter);
 }
 
@@ -348,12 +287,7 @@ void r_ret(const UDSPInstruction opc, DSPEmitter& emitter)
 // NOTE: Cannot use Default(opc) here because of the need to write branch exit
 void DSPEmitter::ret(const UDSPInstruction opc)
 {
-#ifdef _M_IX86 // All32
 	MOV(16, M(&g_dsp.pc), Imm16(compilePC + 1));
-#else
-	MOV(64, R(RAX), ImmPtr(&(g_dsp.pc)));
-	MOV(16, MatR(RAX), Imm16(compilePC + 1));
-#endif
 	ReJitConditional<r_ret>(opc, *this);
 }
 
@@ -369,12 +303,7 @@ void DSPEmitter::rti(const UDSPInstruction opc)
 	dsp_op_write_reg(DSP_REG_SR, RDX);
 //	g_dsp.pc = dsp_reg_load_stack(DSP_STACK_C);
 	dsp_reg_load_stack(DSP_STACK_C);
-#ifdef _M_IX86 // All32
 	MOV(16, M(&g_dsp.pc), R(DX));
-#else
-	MOV(64, R(RAX), ImmPtr(&(g_dsp.pc)));
-	MOV(16, MatR(RAX), R(DX));
-#endif
 }
 
 // HALT
@@ -382,20 +311,10 @@ void DSPEmitter::rti(const UDSPInstruction opc)
 // Stops execution of DSP code. Sets bit DSP_CR_HALT in register DREG_CR.
 void DSPEmitter::halt(const UDSPInstruction opc)
 {
-#ifdef _M_IX86 // All32
 	OR(16, M(&g_dsp.cr), Imm16(4));
-#else
-	MOV(64, R(RAX), ImmPtr(&g_dsp.cr));
-	OR(16, MatR(RAX), Imm16(4));
-#endif
 	//	g_dsp.pc = dsp_reg_load_stack(DSP_STACK_C);
 	dsp_reg_load_stack(DSP_STACK_C);
-#ifdef _M_IX86 // All32
 	MOV(16, M(&g_dsp.pc), R(DX));
-#else
-	MOV(64, R(RAX), ImmPtr(&(g_dsp.pc)));
-	MOV(16, MatR(RAX), R(DX));
-#endif
 }
 
 // LOOP handling: Loop stack is used to control execution of repeated blocks of
@@ -406,48 +325,32 @@ void DSPEmitter::halt(const UDSPInstruction opc)
 // continues at next opcode.
 void DSPEmitter::HandleLoop()
 {
-#ifdef _M_IX86 // All32
 	MOVZX(32, 16, EAX, M(&g_dsp.r.st[2]));
 	MOVZX(32, 16, ECX, M(&g_dsp.r.st[3]));
-#else
-	// MOV(64, R(R11), ImmPtr(&g_dsp.r));
-	MOVZX(32, 16, EAX, MDisp(R11, STRUCT_OFFSET(g_dsp.r, st[2])));
-	MOVZX(32, 16, ECX, MDisp(R11, STRUCT_OFFSET(g_dsp.r, st[3])));
-#endif
 
 	CMP(32, R(RCX), Imm32(0));
 	FixupBranch rLoopCntG = J_CC(CC_LE, true);
 	CMP(16, R(RAX), Imm16(compilePC - 1));
 	FixupBranch rLoopAddrG = J_CC(CC_NE, true);
 
-#ifdef _M_IX86 // All32
 	SUB(16, M(&(g_dsp.r.st[3])), Imm16(1));
 	CMP(16, M(&(g_dsp.r.st[3])), Imm16(0));
-#else
-	SUB(16, MDisp(R11, STRUCT_OFFSET(g_dsp.r, st[3])), Imm16(1));
-	CMP(16, MDisp(R11, STRUCT_OFFSET(g_dsp.r, st[3])), Imm16(0));
-#endif
-	
+
 	FixupBranch loadStack = J_CC(CC_LE, true);
-#ifdef _M_IX86 // All32
 	MOVZX(32, 16, ECX, M(&(g_dsp.r.st[0])));
 	MOV(16, M(&g_dsp.pc), R(RCX));
-#else
-	MOVZX(32, 16, RCX, MDisp(R11, STRUCT_OFFSET(g_dsp.r, st[0])));
-	MOV(64, R(RAX), ImmPtr(&(g_dsp.pc)));
-	MOV(16, MatR(RAX), R(RCX));
-#endif
 	FixupBranch loopUpdated = J(true);
 
 	SetJumpTarget(loadStack);
+	DSPJitRegCache c(gpr);
 	dsp_reg_load_stack(0);
 	dsp_reg_load_stack(2);
 	dsp_reg_load_stack(3);
+	gpr.flushRegs(c);
 
 	SetJumpTarget(loopUpdated);
 	SetJumpTarget(rLoopAddrG);
 	SetJumpTarget(rLoopCntG);
-
 }
 
 // LOOP $R
@@ -466,20 +369,17 @@ void DSPEmitter::loop(const UDSPInstruction opc)
 	u16 loop_pc = compilePC + 1;
 
 	CMP(16, R(EDX), Imm16(0));
+	DSPJitRegCache c(gpr);
 	FixupBranch cnt = J_CC(CC_Z, true);
 	dsp_reg_store_stack(3);
 	MOV(16, R(RDX), Imm16(compilePC + 1));
 	dsp_reg_store_stack(0);
 	MOV(16, R(RDX), Imm16(loop_pc));
 	dsp_reg_store_stack(2);
+	gpr.flushRegs(c);
 
 	SetJumpTarget(cnt);
-#ifdef _M_IX86 // All32
 	MOV(16, M(&(g_dsp.pc)), Imm16(compilePC + 1));
-#else
-	MOV(64, R(RAX), ImmPtr(&(g_dsp.pc)));
-	MOV(16, MatR(RAX), Imm16(compilePC + 1));
-#endif
 }
 
 // LOOPI #I
@@ -504,12 +404,7 @@ void DSPEmitter::loopi(const UDSPInstruction opc)
 		MOV(16, R(RDX), Imm16(cnt));
 		dsp_reg_store_stack(3);
 
-#ifdef _M_IX86 // All32
 		MOV(16, M(&(g_dsp.pc)), Imm16(compilePC + 1));
-#else
-		MOV(64, R(RAX), ImmPtr(&(g_dsp.pc)));
-		MOV(16, MatR(RAX), Imm16(compilePC + 1));
-#endif
 	}
 }
 
@@ -531,30 +426,21 @@ void DSPEmitter::bloop(const UDSPInstruction opc)
 	u16 loop_pc = dsp_imem_read(compilePC + 1);
 
 	CMP(16, R(EDX), Imm16(0));
+	DSPJitRegCache c(gpr);
 	FixupBranch cnt = J_CC(CC_Z, true);
 	dsp_reg_store_stack(3);
 	MOV(16, R(RDX), Imm16(compilePC + 2));
 	dsp_reg_store_stack(0);
 	MOV(16, R(RDX), Imm16(loop_pc));
 	dsp_reg_store_stack(2);
-#ifdef _M_IX86 // All32
 	MOV(16, M(&(g_dsp.pc)), Imm16(compilePC + 2));
-#else
-	MOV(64, R(RAX), ImmPtr(&(g_dsp.pc)));
-	MOV(16, MatR(RAX), Imm16(compilePC + 2));
-#endif
-	FixupBranch exit = J();
+	gpr.flushRegs(c,true);
+	FixupBranch exit = J(true);
 
 	SetJumpTarget(cnt);
 	//		g_dsp.pc = loop_pc;
 	//		dsp_skip_inst();
-#ifdef _M_IX86 // All32
 	MOV(16, M(&g_dsp.pc), Imm16(loop_pc + opTable[loop_pc]->size));
-#else
-	MOV(64, R(RAX), ImmPtr(&(g_dsp.pc)));
-	MOV(16, MatR(RAX), Imm16(loop_pc + opTable[loop_pc]->size));
-#endif
-	DSPJitRegCache c(gpr);
 	WriteBranchExit(*this);
 	gpr.flushRegs(c,false);
 	SetJumpTarget(exit);
@@ -584,23 +470,13 @@ void DSPEmitter::bloopi(const UDSPInstruction opc)
 		MOV(16, R(RDX), Imm16(cnt));
 		dsp_reg_store_stack(3);
 
-#ifdef _M_IX86 // All32
 		MOV(16, M(&(g_dsp.pc)), Imm16(compilePC + 2));
-#else
-		MOV(64, R(RAX), ImmPtr(&(g_dsp.pc)));
-		MOV(16, MatR(RAX), Imm16(compilePC + 2));
-#endif
 	}
 	else
 	{
 //		g_dsp.pc = loop_pc;
 //		dsp_skip_inst();
-#ifdef _M_IX86 // All32
 		MOV(16, M(&g_dsp.pc), Imm16(loop_pc + opTable[loop_pc]->size));
-#else
-		MOV(64, R(RAX), ImmPtr(&(g_dsp.pc)));
-		MOV(16, MatR(RAX), Imm16(loop_pc + opTable[loop_pc]->size));
-#endif
 		WriteBranchExit(*this);
 	}
 }

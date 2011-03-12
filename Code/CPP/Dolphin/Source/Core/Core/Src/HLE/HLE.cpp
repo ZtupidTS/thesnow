@@ -45,7 +45,6 @@ struct SPatch
 {
 	char m_szPatchName[128];
 	TPatchFunction PatchFunction;
-	int returnType;
 };
 
 static const SPatch OSPatches[] = 
@@ -53,12 +52,14 @@ static const SPatch OSPatches[] =
 	{ "FAKE_TO_SKIP_0",					HLE_Misc::UnimplementedFunction },
 
 	// speedup
-	//{ "OSProtectRange",					HLE_Misc::UnimplementedFunctionFalse },
+	//{ "OSProtectRange",				HLE_Misc::UnimplementedFunctionFalse },
 	//{ "THPPlayerGetState",			HLE_Misc:THPPlayerGetState },
 
 
 	// debug out is very nice ;)
 	{ "OSReport",						HLE_OS::HLE_GeneralDebugPrint	},
+	{ "DEBUGPrint",						HLE_OS::HLE_GeneralDebugPrint	},
+	{ "WUD_DEBUGPrint",					HLE_OS::HLE_GeneralDebugPrint	},
 	{ "OSPanic",						HLE_OS::HLE_OSPanic				},
 	{ "vprintf",						HLE_OS::HLE_GeneralDebugPrint	},
 	{ "printf",							HLE_OS::HLE_GeneralDebugPrint	},
@@ -92,7 +93,7 @@ static const SPatch OSPatches[] =
 	//	{ "GXPeekARGB",					HLE_Misc::GXPeekARGB},
 
 	// Name doesn't matter, installed in CBoot::BootUp()
-	{ "HBReload",					HLE_Misc::HBReload			},
+	{ "HBReload",						HLE_Misc::HBReload			},
 };
 
 static const SPatch OSBreakPoints[] =

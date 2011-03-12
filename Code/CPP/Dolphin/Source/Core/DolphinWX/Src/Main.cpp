@@ -36,8 +36,8 @@
 #include "Globals.h" // Local
 #include "Main.h"
 #include "ConfigManager.h"
-#include "CodeWindow.h"
-#include "JitWindow.h"
+#include "Debugger/CodeWindow.h"
+#include "Debugger/JitWindow.h"
 #include "ExtendedTrace.h"
 #include "BootManager.h"
 #include "Frame.h"
@@ -67,27 +67,34 @@ CFrame* main_frame = NULL;
 LONG WINAPI MyUnhandledExceptionFilter(LPEXCEPTION_POINTERS e) {
 	//EnterCriticalSection(&g_uefcs);
 
-	FILE* file = NULL;
-	fopen_s(&file, "exceptioninfo.txt", "a");
-	fseeko(file, 0, SEEK_END);
-	etfprint(file, "\n");
+	File::IOFile file("exceptioninfo.txt", "a");
+	file.Seek(0, SEEK_END);
+	etfprint(file.GetHandle(), "\n");
 	//etfprint(file, g_buildtime);
 	//etfprint(file, "\n");
 	//dumpCurrentDate(file);
-	etfprintf(file, "Unhandled Exception\n  Code: 0x%08X\n",
+	etfprintf(file.GetHandle(), "Unhandled Exception\n  Code: 0x%08X\n",
 		e->ExceptionRecord->ExceptionCode);
 #ifndef _M_X64
-	STACKTRACE2(file, e->ContextRecord->Eip, e->ContextRecord->Esp, e->ContextRecord->Ebp);
+	STACKTRACE2(file.GetHandle(), e->ContextRecord->Eip, e->ContextRecord->Esp, e->ContextRecord->Ebp);
 #else
-	STACKTRACE2(file, e->ContextRecord->Rip, e->ContextRecord->Rsp, e->ContextRecord->Rbp);
+	STACKTRACE2(file.GetHandle(), e->ContextRecord->Rip, e->ContextRecord->Rsp, e->ContextRecord->Rbp);
 #endif
-	fclose(file);
+	file.Close();
 	_flushall();
 
 	//LeaveCriticalSection(&g_uefcs);
 	return EXCEPTION_CONTINUE_SEARCH;
 }
 #endif
+
+bool DolphinApp::Initialize(int& c, wxChar **v)
+{
+#if defined HAVE_X11 && HAVE_X11
+	XInitThreads();
+#endif 
+	return wxApp::Initialize(c, v);
+}
 
 // The `main program' equivalent that creates the main window and return the main frame 
 
@@ -98,11 +105,11 @@ bool DolphinApp::OnInit()
 	// Declarations and definitions
 	bool UseDebugger = false;
 	bool UseLogger = false;
-	bool selectVideoPlugin = false;
-	bool selectAudioPlugin = false;
+	bool selectVideoBackend = false;
+	bool selectAudioEmulation = false;
 
-	wxString videoPluginFilename;
-	wxString audioPluginFilename;
+	wxString videoBackendName;
+	wxString audioEmulationName;
 
 #if wxUSE_CMDLINE_PARSER // Parse command lines
 	wxCmdLineEntryDesc cmdLineDesc[] =
@@ -114,33 +121,36 @@ bool DolphinApp::OnInit()
 		},
 		{
 			wxCMD_LINE_SWITCH, wxS("d"), wxS("debugger"),
-			_("Opens the debugger")
+			_("Opens the debugger"),
+			wxCMD_LINE_VAL_NONE, wxCMD_LINE_PARAM_OPTIONAL
 		},
 		{
 			wxCMD_LINE_SWITCH, wxS("l"), wxS("logger"),
-			_("Opens the logger")
+			_("Opens the logger"),
+			wxCMD_LINE_VAL_NONE, wxCMD_LINE_PARAM_OPTIONAL
 		},
 		{
 			wxCMD_LINE_OPTION, wxS("e"), wxS("exec"),
-			_("Loads the specified file (DOL, ELF, WAD, GCM, ISO)"),
+			_("Loads the specified file (DOL,ELF,GCM,ISO,WAD)"),
 			wxCMD_LINE_VAL_STRING, wxCMD_LINE_PARAM_OPTIONAL
 		},
 		{
 			wxCMD_LINE_SWITCH, wxS("b"), wxS("batch"),
-			_("Exit Dolphin with emulator")
+			_("Exit Dolphin with emulator"),
+			wxCMD_LINE_VAL_NONE, wxCMD_LINE_PARAM_OPTIONAL
 		},
 		{
-			wxCMD_LINE_OPTION, wxS("V"), wxS("video_plugin"),
-			_("Specify a video plugin"),
+			wxCMD_LINE_OPTION, wxS("V"), wxS("video_backend"),
+			_("Specify a video backend"),
 			wxCMD_LINE_VAL_STRING, wxCMD_LINE_PARAM_OPTIONAL
 		},
 		{
-			wxCMD_LINE_OPTION, wxS("A"), wxS("audio_plugin"),
-			_("Specify an audio plugin"),
+			wxCMD_LINE_OPTION, wxS("A"), wxS("audio_emulation"),
+			_("Low level (LLE) or high level (HLE) audio"),
 			wxCMD_LINE_VAL_STRING, wxCMD_LINE_PARAM_OPTIONAL
 		},
 		{
-			wxCMD_LINE_NONE
+			wxCMD_LINE_NONE, NULL, NULL, NULL, wxCMD_LINE_VAL_NONE, 0
 		}
 	};
 
@@ -155,10 +165,11 @@ bool DolphinApp::OnInit()
 	UseLogger = parser.Found(wxT("logger"));
 	LoadFile = parser.Found(wxT("exec"), &FileToLoad);
 	BatchMode = parser.Found(wxT("batch"));
-	selectVideoPlugin = parser.Found(wxT("video_plugin"),
-		&videoPluginFilename);
-	selectAudioPlugin = parser.Found(wxT("audio_plugin"),
-		&audioPluginFilename);
+	selectVideoBackend = parser.Found(wxT("video_backend"),
+		&videoBackendName);
+	// TODO:  This currently has no effect.  Implement or delete.
+	selectAudioEmulation = parser.Found(wxT("audio_emulation"),
+		&audioEmulationName);
 #endif // wxUSE_CMDLINE_PARSER
 
 #if defined _DEBUG && defined _WIN32
@@ -190,7 +201,7 @@ bool DolphinApp::OnInit()
 
 #ifdef _WIN32
 	// Keep the user config dir free unless user wants to save the working dir
-	if (!File::Exists((std::string(File::GetUserPath(D_CONFIG_IDX)) + "portable").c_str()))
+	if (!File::Exists(File::GetUserPath(D_CONFIG_IDX) + "portable"))
 	{
 		char tmp[1024];
 		sprintf(tmp, "%s/.dolphin%swd", (const char*)wxStandardPaths::Get().GetUserConfigDir().mb_str(),
@@ -199,19 +210,15 @@ bool DolphinApp::OnInit()
 #else
 			"x64");
 #endif
-		FILE* workingDir = fopen(tmp, "r");
+		std::ifstream workingDir(tmp);
 		if (!workingDir)
 		{
 			if (PanicYesNoT("Dolphin has not been configured with an install location,\nKeep Dolphin portable?"))
 			{
-				FILE* portable = fopen((std::string(File::GetUserPath(D_CONFIG_IDX)) + "portable").c_str(), "w");
+				std::ofstream portable((File::GetUserPath(D_CONFIG_IDX) + "portable").c_str());
 				if (!portable)
 				{
 					PanicAlertT("Portable Setting could not be saved\n Are you running Dolphin from read only media or from a directory that dolphin is not located in?");
-				}
-				else
-				{
-					fclose(portable);
 				}
 			}
 			else
@@ -220,14 +227,12 @@ bool DolphinApp::OnInit()
 				sprintf(CWD, "%s", (const char*)wxGetCwd().mb_str());
 				if (PanicYesNoT("Set install location to:\n %s ?", CWD))
 				{
-					FILE* workingDirF = fopen(tmp, "w");
+					std::ofstream workingDirF(tmp);
 					if (!workingDirF)
 						PanicAlertT("Install directory could not be saved");
 					else
 					{
-						fwrite(CWD, ((std::string)CWD).size()+1, 1, workingDirF);
-						fwrite("", 1, 1, workingDirF); //seems to be needed on linux
-						fclose(workingDirF);
+						workingDirF << CWD << '\n';
 					}
 				}
 				else
@@ -236,33 +241,29 @@ bool DolphinApp::OnInit()
 		}
 		else
 		{
-			char *tmpChar;
-			size_t len = (size_t)File::GetSize(workingDir);
-			tmpChar = new char[len];
-			fread(tmpChar, len, 1, workingDir);
-			fclose(workingDir);
-			if (!wxSetWorkingDirectory(wxString::From8BitData(tmpChar)))
+			std::string tmpChar;
+			std::getline(workingDir, tmpChar);
+			if (!wxSetWorkingDirectory(wxString::From8BitData(tmpChar.c_str())))
 			{
 				INFO_LOG(CONSOLE, "set working directory failed");
 			}
-			delete [] tmpChar;
 		}
 	}
 #else
 	//create all necessary directories in user directory
 	//TODO : detect the revision and upgrade where necessary
-	File::CopyDir(std::string(SHARED_USER_DIR CONFIG_DIR DIR_SEP).c_str(),
-		File::GetUserPath(D_CONFIG_IDX));
-	File::CopyDir(std::string(SHARED_USER_DIR GAMECONFIG_DIR DIR_SEP).c_str(),
-		File::GetUserPath(D_GAMECONFIG_IDX));
-	File::CopyDir(std::string(SHARED_USER_DIR MAPS_DIR DIR_SEP).c_str(),
-		File::GetUserPath(D_MAPS_IDX));
-	File::CopyDir(std::string(SHARED_USER_DIR SHADERS_DIR DIR_SEP).c_str(),
-		File::GetUserPath(D_SHADERS_IDX));
-	File::CopyDir(std::string(SHARED_USER_DIR WII_USER_DIR DIR_SEP).c_str(),
-		File::GetUserPath(D_WIIUSER_IDX));
-	File::CopyDir(std::string(SHARED_USER_DIR OPENCL_DIR DIR_SEP).c_str(),
-		File::GetUserPath(D_OPENCL_IDX));
+	File::CopyDir(std::string(SHARED_USER_DIR CONFIG_DIR DIR_SEP),
+			File::GetUserPath(D_CONFIG_IDX));
+	File::CopyDir(std::string(SHARED_USER_DIR GAMECONFIG_DIR DIR_SEP),
+			File::GetUserPath(D_GAMECONFIG_IDX));
+	File::CopyDir(std::string(SHARED_USER_DIR MAPS_DIR DIR_SEP),
+			File::GetUserPath(D_MAPS_IDX));
+	File::CopyDir(std::string(SHARED_USER_DIR SHADERS_DIR DIR_SEP),
+			File::GetUserPath(D_SHADERS_IDX));
+	File::CopyDir(std::string(SHARED_USER_DIR WII_USER_DIR DIR_SEP),
+			File::GetUserPath(D_WIIUSER_IDX));
+	File::CopyDir(std::string(SHARED_USER_DIR OPENCL_DIR DIR_SEP),
+			File::GetUserPath(D_OPENCL_IDX));
 
 	if (!File::Exists(File::GetUserPath(D_GCUSER_IDX)))
 		File::CreateFullPath(File::GetUserPath(D_GCUSER_IDX));
@@ -287,11 +288,11 @@ bool DolphinApp::OnInit()
 	VideoBackend::PopulateList();
 	WiimoteReal::LoadSettings();
 
-	if (selectVideoPlugin && videoPluginFilename != wxEmptyString)
-		SConfig::GetInstance().m_LocalCoreStartupParameter.m_strVideoPlugin =
-			std::string(videoPluginFilename.mb_str());
+	if (selectVideoBackend && videoBackendName != wxEmptyString)
+		SConfig::GetInstance().m_LocalCoreStartupParameter.m_strVideoBackend =
+			std::string(videoBackendName.mb_str());
 
-	VideoBackend::ActivateBackend(SConfig::GetInstance().m_LocalCoreStartupParameter.m_strVideoPlugin);
+	VideoBackend::ActivateBackend(SConfig::GetInstance().m_LocalCoreStartupParameter.m_strVideoBackend);
 
 	// Enable the PNG image handler for screenshots
 	wxImage::AddHandler(new wxPNGHandler);
@@ -303,15 +304,18 @@ bool DolphinApp::OnInit()
 	int w = SConfig::GetInstance().m_LocalCoreStartupParameter.iWidth;
 	int h = SConfig::GetInstance().m_LocalCoreStartupParameter.iHeight;
 
-	// The following is not needed in linux.  Linux window managers do not allow windows to
-	// be created off the desktop.
+	// The following is not needed with X11, where window managers
+	// do not allow windows to be created off the desktop.
 #ifdef _WIN32
 	// Out of desktop check
 	HWND hDesktop = GetDesktopWindow();
 	RECT rc;
 	GetWindowRect(hDesktop, &rc);
 	if (rc.right < x + w || rc.bottom < y + h)
-		x = y = -1;
+		x = y = wxDefaultCoord;
+#elif defined __APPLE__
+	if (y < 1)
+		y = wxDefaultCoord;
 #endif
 
 	main_frame = new CFrame((wxFrame*)NULL, wxID_ANY,
@@ -320,10 +324,6 @@ bool DolphinApp::OnInit()
 				UseDebugger, BatchMode, UseLogger);
 	SetTopWindow(main_frame);
 	main_frame->SetMinSize(wxSize(400, 300));
-
-#if defined HAVE_X11 && HAVE_X11
-	XInitThreads();
-#endif 
 
 	// Postpone final actions until event handler is running.
 	// Updating the game list makes use of wxProgressDialog which may
@@ -363,14 +363,13 @@ void DolphinApp::AfterInit(wxTimerEvent& WXUNUSED(event))
 		if (main_frame->g_pCodeWindow->AutomaticStart())
 		{
 			if(!SConfig::GetInstance().m_LocalCoreStartupParameter.m_strDefaultGCM.empty()
-					&& File::Exists(SConfig::GetInstance().m_LocalCoreStartupParameter.
-						m_strDefaultGCM.c_str()))
+					&& File::Exists(SConfig::GetInstance().m_LocalCoreStartupParameter.m_strDefaultGCM))
 			{
 				main_frame->BootGame(SConfig::GetInstance().m_LocalCoreStartupParameter.
 						m_strDefaultGCM);
 			}
 			else if(!SConfig::GetInstance().m_LastFilename.empty()
-					&& File::Exists(SConfig::GetInstance().m_LastFilename.c_str()))
+					&& File::Exists(SConfig::GetInstance().m_LastFilename))
 			{
 				main_frame->BootGame(SConfig::GetInstance().m_LastFilename);
 			}	
@@ -409,11 +408,6 @@ void DolphinApp::InitLanguageSupport()
 		PanicAlertT("The selected language is not supported by your system. Falling back to system default.");
 		m_locale = new wxLocale(wxLANGUAGE_DEFAULT);
 	}
-}
-
-void DolphinApp::OnEndSession()
-{
-	SConfig::GetInstance().SaveSettings();
 }
 
 int DolphinApp::OnExit()
@@ -462,7 +456,7 @@ bool wxMsgAlert(const char* caption, const char* text, bool yes_no, int /*Style*
 #endif
 		return wxYES == wxMessageBox(wxString::FromUTF8(text), 
 				wxString::FromUTF8(caption),
-				(yes_no) ? wxYES_NO : wxOK, main_frame);
+				(yes_no) ? wxYES_NO : wxOK, wxGetActiveWindow());
 #ifdef __WXGTK__
 	else
 	{
@@ -491,6 +485,24 @@ void Host_Message(int Id)
 {
 	wxCommandEvent event(wxEVT_HOST_COMMAND, Id);
 	main_frame->GetEventHandler()->AddPendingEvent(event);
+}
+
+#ifdef _WIN32
+extern "C" HINSTANCE wxGetInstance();
+void* Host_GetInstance()
+{
+	return (void*)wxGetInstance();
+}
+#else
+void* Host_GetInstance()
+{
+	return NULL;
+}
+#endif
+
+void* Host_GetRenderHandle()
+{
+    return main_frame->GetRenderHandle();
 }
 
 // OK, this thread boundary is DANGEROUS on linux
@@ -533,7 +545,8 @@ void Host_UpdateDisasmDialog()
 
 void Host_ShowJitResults(unsigned int address)
 {
-	CJitWindow::ViewAddr(address);
+	if (main_frame->g_pCodeWindow && main_frame->g_pCodeWindow->m_JitWindow)
+		main_frame->g_pCodeWindow->m_JitWindow->ViewAddr(address);
 }
 
 void Host_UpdateMainFrame()
@@ -552,6 +565,7 @@ void Host_UpdateTitle(const char* title)
 	wxCommandEvent event(wxEVT_HOST_COMMAND, IDM_UPDATETITLE);
 	event.SetString(wxString::FromAscii(title));
 	main_frame->GetEventHandler()->AddPendingEvent(event);
+	Host_UpdateMainFrame();
 }
 
 void Host_UpdateBreakPointView()
@@ -570,11 +584,15 @@ bool Host_GetKeyState(int keycode)
 #ifdef _WIN32
 	return GetAsyncKeyState(keycode);
 #elif defined __WXGTK__
-	wxCommandEvent event(wxEVT_HOST_COMMAND, IDM_KEYSTATE);
-	event.SetInt(keycode);
-	main_frame->GetEventHandler()->AddPendingEvent(event);
-	main_frame->keystate_event.Wait();
-	return main_frame->bKeyStateResult;
+	std::unique_lock<std::mutex> lk(main_frame->keystate_lock, std::defer_lock);
+	if (!lk.try_lock())
+		return false;
+
+	bool key_pressed;
+	if (!wxIsMainThread()) wxMutexGuiEnter();
+	key_pressed = wxGetKeyState(wxKeyCode(keycode));
+	if (!wxIsMainThread()) wxMutexGuiLeave();
+	return key_pressed;
 #else
 	return wxGetKeyState(wxKeyCode(keycode));
 #endif
@@ -587,7 +605,26 @@ void Host_GetRenderWindowSize(int& x, int& y, int& width, int& height)
 
 void Host_RequestRenderWindowSize(int width, int height)
 {
-	main_frame->OnRenderWindowSizeRequest(width, height);
+	wxCommandEvent event(wxEVT_HOST_COMMAND, IDM_WINDOWSIZEREQUEST);
+	event.SetClientData(new std::pair<int, int>(width, height));
+	main_frame->GetEventHandler()->AddPendingEvent(event);
+}
+
+void Host_SetStartupDebuggingParameters()
+{
+	SCoreStartupParameter& StartUp = SConfig::GetInstance().m_LocalCoreStartupParameter;
+	if (main_frame->g_pCodeWindow)
+	{    
+		StartUp.bBootToPause = main_frame->g_pCodeWindow->BootToPause();
+		StartUp.bAutomaticStart = main_frame->g_pCodeWindow->AutomaticStart();
+		StartUp.bJITNoBlockCache = main_frame->g_pCodeWindow->JITNoBlockCache();
+		StartUp.bJITBlockLinking = main_frame->g_pCodeWindow->JITBlockLinking();
+	}
+	else
+	{
+		StartUp.bBootToPause = false;
+	}
+	StartUp.bEnableDebugging = main_frame->g_pCodeWindow ? true : false; // RUNNING_DEBUG
 }
 
 void Host_SetWaitCursor(bool enable)

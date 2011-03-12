@@ -1,12 +1,22 @@
+// Copyright (C) 2003 Dolphin Project.
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, version 2.0.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License 2.0 for more details.
+
+// A copy of the GPL 2.0 should have been included with the program.
+// If not, see http://www.gnu.org/licenses/
+
+// Official SVN repository and contact information can be found at
+// http://code.google.com/p/dolphin-emu/
+
 #ifndef _CONEMU_WIIMOTE_H_
 #define _CONEMU_WIIMOTE_H_
-
-//#define USE_WIIMOTE_EMU_SPEAKER
-
-//#include <Core.h>
-//#include <HW/StreamADPCM.h>
-// just used to get the OpenAL includes :p
-//#include <OpenALStream.h>
 
 #include "../../Core.h"
 
@@ -40,7 +50,12 @@ struct ReportFeatures
 struct AccelData
 {
 	double x,y,z;
-};	
+};
+
+struct ADPCMState
+{
+	s32 predictor, step;
+};
 
 extern const ReportFeatures reporting_mode_features[];
 
@@ -123,10 +138,7 @@ private:
 	void ReadData(const wm_read_data* const rd);
 	void WriteData(const wm_write_data* const wd);
 	void SendReadDataReply(ReadRequest& _request);
-
-#ifdef USE_WIIMOTE_EMU_SPEAKER
 	void SpeakerData(wm_speaker_data* sd);
-#endif
 
 	// control groups
 	Buttons		*m_buttons, *m_dpad, *m_shake;
@@ -160,25 +172,12 @@ private:
 
 	wm_status_report		m_status;
 
+	ADPCMState m_adpcm_state;
+
 	// read data request queue
 	// maybe it isn't actualy a queue
 	// maybe read requests cancel any current requests
 	std::queue< ReadRequest >	m_read_requests;
-
-#ifdef USE_WIIMOTE_EMU_SPEAKER
-	// speaker stuff
-	struct SoundBuffer
-	{
-		s16* samples;
-		ALuint buffer;
-	};
-	std::queue<SoundBuffer>	m_audio_buffers;
-	ALuint					m_audio_source;
-	struct
-	{
-		int		hist1p, hist2p;
-	}	m_channel_status;
-#endif
 
 	wiimote_key		m_ext_key;
 
@@ -232,11 +231,17 @@ private:
 
 	struct SpeakerReg
 	{
-		u16		unknown;
+		u8		unused_0;
+		u8		unk_1;
 		u8		format;
+		// seems to always play at 6khz no matter what this is set to?
+		// or maybe it only applies to pcm input
 		u16		sample_rate;
 		u8		volume;
-		u8		unk[4];
+		u8		unk_6;
+		u8		unk_7;
+		u8		play;
+		u8		unk_9;
 
 	}	m_reg_speaker;
 };

@@ -23,12 +23,14 @@
 #include "VolumeHandler.h"
 #include "ISOProperties.h"
 #include "HW/Memmap.h"
+#include "Frame.h"
 
 #define _connect_macro_(b, f, c, s)	(b)->Connect(wxID_ANY, (c), wxCommandEventHandler(f), (wxObject*)0, (wxEvtHandler*)s)
 
 #define MAX_CHEAT_SEARCH_RESULTS_DISPLAY	256
 
 extern std::vector<ActionReplay::ARCode> arCodes;
+extern CFrame* main_frame;
 
 // meh
 static wxCheatsWindow *g_cheat_window;
@@ -49,7 +51,7 @@ wxCheatsWindow::wxCheatsWindow(wxWindow* const parent)
 	const DiscIO::IVolume* const vol = VolumeHandler::GetVolume();
 	if (vol)
 	{
-		m_gameini_path = std::string(File::GetUserPath(D_GAMECONFIG_IDX)) + vol->GetUniqueID() + ".ini";
+		m_gameini_path = File::GetUserPath(D_GAMECONFIG_IDX) + vol->GetUniqueID() + ".ini";
 		m_gameini.Load(m_gameini_path);
 		m_geckocode_panel->LoadCodes(m_gameini);
 	}
@@ -57,6 +59,11 @@ wxCheatsWindow::wxCheatsWindow(wxWindow* const parent)
 
 	Center();
 	Show();
+}
+
+wxCheatsWindow::~wxCheatsWindow()
+{
+	main_frame->g_CheatsWindow = NULL;
 }
 
 void wxCheatsWindow::Init_ChildControls()
@@ -385,14 +392,14 @@ void CheatSearchTab::FilterCheatSearchResults(wxCommandEvent&)
 			e = search_results.end();
 		std::vector<CheatSearchResult>	filtered_results;
 
-		int filter_mask = 0;
+
 		// determine the selected filter
 		// 1 : equal
 		// 2 : greater-than
 		// 4 : less-than
 
 		const int filters[] = {7, 6, 1, 2, 4};
-		filter_mask = filters[search_type->GetSelection()];
+		int filter_mask = filters[search_type->GetSelection()];
 
 		if (value_x_radiobtn.rad_oldvalue->GetValue())	// using old value comparison
 		{
@@ -419,19 +426,12 @@ void CheatSearchTab::FilterCheatSearchResults(wxCommandEvent&)
 			// parse the user entered x value
 			if (filter_mask != 7) // don't need the value for the "None" filter
 			{
-				long parsed_x_val = 0;
-				int val_base = 10;
-
+				unsigned long parsed_x_val = 0;
 				wxString x_val = textctrl_value_x->GetLabel();
-				if (wxT("0x") == x_val.substr(0,2))
-				{
-					//x_val = x_val.substr(2);	// wxwidgets seems fine parsing a "0x0000" string
-					val_base = 16;
-				}
 
-				if (!x_val.ToLong(&parsed_x_val, val_base))
+				if (!x_val.ToULong(&parsed_x_val, 0))
 				{
-					PanicAlertT("You must enter a valid decimal or hex value.");
+					PanicAlertT("You must enter a valid decimal, hexadecimal or octal value.");
 					return;
 				}
 
@@ -488,7 +488,8 @@ void CheatSearchTab::UpdateCheatSearchResultsList()
 {
 	lbox_search_results->Clear();
 
-	wxString count_label = _("Count:") + wxString::Format(wxT(" %i"), search_results.size());
+	wxString count_label = _("Count:") + wxString::Format(wxT(" %lu"),
+		(unsigned long)search_results.size());
 	if (search_results.size() > MAX_CHEAT_SEARCH_RESULTS_DISPLAY)
 	{
 		count_label += _(" (too many to display)");

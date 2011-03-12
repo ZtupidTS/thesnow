@@ -30,11 +30,11 @@
 #include "../VolumeHandler.h"
 
 // Disc transfer rate measured in bytes per second
-#define DISC_TRANSFER_RATE_GC (3125 * 1024)
-#define DISC_TRANSFER_RATE_WII (7926 * 1024)
+static const u32 DISC_TRANSFER_RATE_GC = 3125 * 1024;
+static const u32 DISC_TRANSFER_RATE_WII = 7926 * 1024;
 
-// Disc access time measured in seconds
-#define DISC_ACCESS_TIME (128 / 1000)
+// Disc access time measured in milliseconds
+static const u32 DISC_ACCESS_TIME_MS = 128;
 
 namespace DVDInterface
 {
@@ -215,7 +215,7 @@ static unsigned char media_buffer[0x40];
 
 // Needed because data and streaming audio access needs to be managed by the "drive"
 // (both requests can happen at the same time, audio takes precedence)
-Common::CriticalSection dvdread_section;
+static std::mutex dvdread_section;
 
 static int ejectDisc;
 static int insertDisc;
@@ -345,10 +345,8 @@ void ClearCoverInterrupt()
 bool DVDRead(u32 _iDVDOffset, u32 _iRamAddress, u32 _iLength)
 {
 	// We won't need the crit sec when DTK streaming has been rewritten correctly.
-	dvdread_section.Enter();
-	bool retval = VolumeHandler::ReadToPtr(Memory::GetPointer(_iRamAddress), _iDVDOffset, _iLength);
-	dvdread_section.Leave();
-	return retval;
+	std::lock_guard<std::mutex> lk(dvdread_section);
+	return VolumeHandler::ReadToPtr(Memory::GetPointer(_iRamAddress), _iDVDOffset, _iLength);
 }
 
 bool DVDReadADPCM(u8* _pDestBuffer, u32 _iNumSamples)
@@ -360,9 +358,10 @@ bool DVDReadADPCM(u8* _pDestBuffer, u32 _iNumSamples)
 		return false;
 	}
 	_iNumSamples &= ~31;
-	dvdread_section.Enter();
+	{
+	std::lock_guard<std::mutex> lk(dvdread_section);
 	VolumeHandler::ReadToPtr(_pDestBuffer, AudioPos, _iNumSamples);
-	dvdread_section.Leave();
+	}
 
 	//
 	// FIX THIS
@@ -467,7 +466,7 @@ void Write32(const u32 _iValue, const u32 _iAddress)
 				{
 					u64 ticksUntilTC = m_DILENGTH.Length * 
 						(SystemTimers::GetTicksPerSecond() / (SConfig::GetInstance().m_LocalCoreStartupParameter.bWii?DISC_TRANSFER_RATE_WII:DISC_TRANSFER_RATE_GC)) + 
-						(SystemTimers::GetTicksPerSecond() * DISC_ACCESS_TIME);
+						(SystemTimers::GetTicksPerSecond() * DISC_ACCESS_TIME_MS / 1000);
 					CoreTiming::ScheduleEvent((int)ticksUntilTC, tc);
 				}
 				else

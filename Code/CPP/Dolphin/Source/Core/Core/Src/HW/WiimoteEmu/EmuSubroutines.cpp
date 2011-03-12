@@ -43,7 +43,7 @@
 #include "Attachment/Attachment.h"
 
 /* Bit shift conversions */
-u32 swap24(const u8* src)
+static u32 swap24(const u8* src)
 {
 	return (src[0] << 16) | (src[1] << 8) | src[2];
 }
@@ -118,7 +118,7 @@ void Wiimote::HidOutputReport(const wm_report* const sr, const bool send_ack)
 		break;
 
 	case WM_SPEAKER_ENABLE : // 0x14
-		//INFO_LOG(WIIMOTE, "WM Speaker Enable: 0x%02x", sr->data[0]);
+		//ERROR_LOG(WIIMOTE, "WM Speaker Enable: %02x", sr->enable);
 		//PanicAlert( "WM Speaker Enable: %d", sr->data[0] );
 		m_status.speaker = sr->enable;
 		if (false == sr->ack)
@@ -140,21 +140,21 @@ void Wiimote::HidOutputReport(const wm_report* const sr, const bool send_ack)
 		break;
 
 	case WM_WRITE_SPEAKER_DATA : // 0x18
-#ifdef USE_WIIMOTE_EMU_SPEAKER
-		SpeakerData((wm_speaker_data*)sr->data);
-#endif
-		// TODO: Does this need an ack?
+		{
+		//wm_speaker_data *spkz = (wm_speaker_data*)sr->data;
+		//ERROR_LOG(WIIMOTE, "WM_WRITE_SPEAKER_DATA len:%x %s", spkz->length,
+		//	ArrayToString(spkz->data, spkz->length, 100, false).c_str());
+		Wiimote::SpeakerData((wm_speaker_data*)sr->data);
+		}
 		return;	// no ack
 		break;
 
 	case WM_SPEAKER_MUTE : // 0x19
-		//INFO_LOG(WIIMOTE, "WM Speaker Mute: 0x%02x", sr->data[0]);
+		//ERROR_LOG(WIIMOTE, "WM Speaker Mute: %02x", sr->enable);
 		//PanicAlert( "WM Speaker Mute: %d", sr->data[0] & 0x04 );
-#ifdef USE_WIIMOTE_EMU_SPEAKER
 		// testing
-		if (sr->data[0] & 0x04)
-			memset(&m_channel_status, 0, sizeof(m_channel_status));
-#endif
+		//if (sr->data[0] & 0x04)
+		//	memset(&m_channel_status, 0, sizeof(m_channel_status));
 		m_speaker_mute = sr->enable;
 		if (false == sr->ack)
 			return;
@@ -248,14 +248,14 @@ void Wiimote::RequestStatus(const wm_request_status* const rs)
 	{
 		using namespace WiimoteReal;
 
-		g_refresh_critsec.Enter();
+		std::lock_guard<std::mutex> lk(g_refresh_lock);
+
 		if (g_wiimotes[m_index])
 		{
 			wm_request_status rpt;
 			rpt.rumble = 0;
 			g_wiimotes[m_index]->SendPacket(WM_REQUEST_STATUS, &rpt, sizeof(rpt));
 		}
-		g_refresh_critsec.Leave();
 
 		return;
 	}
@@ -298,7 +298,7 @@ void Wiimote::WriteData(const wm_write_data* const wd)
 			{
 				// writing the whole mii block each write :/
 				std::ofstream file;
-				file.open( (std::string(File::GetUserPath(D_WIIUSER_IDX)) + "mii.bin").c_str(), std::ios::binary | std::ios::out);
+				file.open((File::GetUserPath(D_WIIUSER_IDX) + "mii.bin").c_str(), std::ios::binary | std::ios::out);
 				file.write((char*)m_eeprom + 0x0FCA, 0x02f0);
 				file.close();
 			}
@@ -357,6 +357,14 @@ void Wiimote::WriteData(const wm_write_data* const wd)
 			}
 			else
 				return;	// TODO: generate a writedata error reply
+
+			/* TODO?
+			if (region_ptr == &m_reg_speaker)
+			{
+				ERROR_LOG(WIIMOTE, "Write to speaker reg %x %s", address,
+					ArrayToString(wd->data, wd->size, 100, false).c_str());
+			}
+			*/
 
 			if (&m_reg_ext == region_ptr)
 			{
@@ -431,7 +439,7 @@ void Wiimote::ReadData(const wm_read_data* const rd)
 			{
 				// reading the whole mii block :/
 				std::ifstream file;
-				file.open((std::string(File::GetUserPath(D_WIIUSER_IDX)) + "mii.bin").c_str(), std::ios::binary | std::ios::in);
+				file.open((File::GetUserPath(D_WIIUSER_IDX) + "mii.bin").c_str(), std::ios::binary | std::ios::in);
 				file.read((char*)m_eeprom + 0x0FCA, 0x02f0);
 				file.close();
 			}

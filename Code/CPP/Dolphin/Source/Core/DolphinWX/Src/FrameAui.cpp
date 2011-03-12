@@ -15,35 +15,14 @@
 // Official SVN repository and contact information can be found at
 // http://code.google.com/p/dolphin-emu/
 
-#include "Setup.h" // Common
-
-#include "NetWindow.h"
-
 #include "Common.h" // Common
-#include "FileUtil.h"
-#include "FileSearch.h"
-#include "Timer.h"
+#include "ConsoleListener.h"
 
 #include "Globals.h" // Local
 #include "Frame.h"
-#include "ConfigMain.h"
-#include "CheatsWindow.h"
-#include "AboutDolphin.h"
-#include "GameListCtrl.h"
-#include "BootManager.h"
 #include "LogWindow.h"
-#include "WxUtils.h"
 
 #include "ConfigManager.h" // Core
-#include "ConsoleListener.h"
-#include "Core.h"
-#include "OnFrame.h"
-#include "HW/DVDInterface.h"
-#include "State.h"
-#include "VolumeHandler.h"
-#include "NANDContentLoader.h"
-
-#include <wx/datetime.h> // wxWidgets
 
 // ------------
 // Aui events
@@ -63,14 +42,17 @@ void CFrame::OnPaneClose(wxAuiManagerEvent& event)
 
 	if (!g_pCodeWindow)
 	{
-		if ((nb->GetPage(0)->GetId() == IDM_LOGWINDOW || 
-					nb->GetPage(0)->GetId() == IDM_CONSOLEWINDOW))
+		if (nb->GetPage(0)->GetId() == IDM_LOGWINDOW || 
+				nb->GetPage(0)->GetId() == IDM_LOGCONFIGWINDOW ||
+				nb->GetPage(0)->GetId() == IDM_CONSOLEWINDOW)
 		{
 			// Closing a pane containing the logwindow or a console closes both
 			SConfig::GetInstance().m_InterfaceConsole = false;
 			SConfig::GetInstance().m_InterfaceLogWindow = false;
+			SConfig::GetInstance().m_InterfaceLogConfigWindow = false;
 			ToggleConsole(false);
 			ToggleLogWindow(false);
+			ToggleLogConfigWindow(false);
 		}
 	}
 	else
@@ -115,6 +97,30 @@ void CFrame::ToggleLogWindow(bool bShow)
 		TogglePane();
 }
 
+void CFrame::ToggleLogConfigWindow(bool bShow)
+{
+	GetMenuBar()->FindItem(IDM_LOGCONFIGWINDOW)->Check(bShow);
+
+	if (bShow)
+	{
+		if (!m_LogConfigWindow)
+			m_LogConfigWindow = new LogConfigWindow(this, m_LogWindow, IDM_LOGCONFIGWINDOW);
+		const int nbIndex = IDM_LOGCONFIGWINDOW - IDM_LOGWINDOW;
+		DoAddPage(m_LogConfigWindow,
+				g_pCodeWindow ? g_pCodeWindow->iNbAffiliation[nbIndex] : 0,
+				g_pCodeWindow ? bFloatWindow[nbIndex] : false);
+	}
+	else
+	{
+		DoRemovePage(m_LogConfigWindow, false);
+		m_LogConfigWindow = NULL;
+	}
+
+	// Hide or Show the pane
+	if (!g_pCodeWindow)
+		TogglePane();
+}
+
 void CFrame::ToggleConsole(bool bShow)
 {
 #ifdef _WIN32
@@ -142,9 +148,10 @@ void CFrame::ToggleConsole(bool bShow)
 		ConsoleWin->Reparent(ConsoleParent);
 
 		ConsoleParent->Enable();
+		const int nbIndex = IDM_CONSOLEWINDOW - IDM_LOGWINDOW;
 		DoAddPage(ConsoleParent,
-				g_pCodeWindow ? g_pCodeWindow->iNbAffiliation[1] : 0,
-				g_pCodeWindow ? bFloatWindow[1] : false);
+				g_pCodeWindow ? g_pCodeWindow->iNbAffiliation[nbIndex] : 0,
+				g_pCodeWindow ? bFloatWindow[nbIndex] : false);
 	}
 	else // Hide
 	{
@@ -175,6 +182,11 @@ void CFrame::OnToggleWindow(wxCommandEvent& event)
 			if (!g_pCodeWindow)
 				SConfig::GetInstance().m_InterfaceLogWindow = bShow;
 			ToggleLogWindow(bShow);
+			break;
+		case IDM_LOGCONFIGWINDOW:
+			if (!g_pCodeWindow)
+				SConfig::GetInstance().m_InterfaceLogConfigWindow = bShow;
+			ToggleLogConfigWindow(bShow);
 			break;
 		case IDM_CONSOLEWINDOW:
 			if (!g_pCodeWindow)
@@ -207,6 +219,7 @@ void CFrame::OnToggleWindow(wxCommandEvent& event)
 void CFrame::ClosePages()
 {
 	ToggleLogWindow(false);
+	ToggleLogConfigWindow(false);
 	ToggleConsole(false);
 	if (g_pCodeWindow)
 	{
@@ -245,6 +258,8 @@ void CFrame::OnNotebookPageClose(wxAuiNotebookEvent& event)
 
 	if (Ctrl->GetPage(event.GetSelection())->GetId() == IDM_LOGWINDOW)
 		ToggleLogWindow(false);
+	if (Ctrl->GetPage(event.GetSelection())->GetId() == IDM_LOGCONFIGWINDOW)
+		ToggleLogConfigWindow(false);
 	if (Ctrl->GetPage(event.GetSelection())->GetId() == IDM_CONSOLEWINDOW)
 		ToggleConsole(false);
 	if (Ctrl->GetPage(event.GetSelection())->GetId() == IDM_REGISTERWINDOW)
@@ -410,7 +425,7 @@ void CFrame::DoRemovePage(wxWindow *Win, bool bHide)
 			Win->Reparent(this);
 		}
 		else
-			Win->Close();
+			Win->Destroy();
 		Parent->Destroy();
 	}
 	else
@@ -427,7 +442,7 @@ void CFrame::DoRemovePage(wxWindow *Win, bool bHide)
 					Win->Reparent(this);
 				}
 				else
-					Win->Close();
+					Win->Destroy();
 			}
 		}
 	}

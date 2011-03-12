@@ -124,6 +124,7 @@ BEGIN_EVENT_TABLE(CGameListCtrl, wxListCtrl)
 	EVT_LIST_COL_BEGIN_DRAG(LIST_CTRL, CGameListCtrl::OnColBeginDrag)
 	EVT_LIST_COL_CLICK(LIST_CTRL, CGameListCtrl::OnColumnClick)
 	EVT_MENU(IDM_PROPERTIES, CGameListCtrl::OnProperties)
+	EVT_MENU(IDM_GAMEWIKI, CGameListCtrl::OnWiki)
 	EVT_MENU(IDM_OPENCONTAININGFOLDER, CGameListCtrl::OnOpenContainingFolder)
 	EVT_MENU(IDM_OPENSAVEFOLDER, CGameListCtrl::OnOpenSaveFolder)
 	EVT_MENU(IDM_EXPORTSAVE, CGameListCtrl::OnExportSave)
@@ -381,8 +382,7 @@ void CGameListCtrl::OnPaintDrawImages(wxPaintEvent& event)
 				m_imageListSmall->Draw(m_FlagImageIndex[rISOFile.GetCountry()],
 						dc, flagOffset, itemY);
 
-				ini.Load((std::string(File::GetUserPath(D_GAMECONFIG_IDX)) +
-							(rISOFile.GetUniqueID()) + ".ini").c_str());
+				ini.Load(File::GetUserPath(D_GAMECONFIG_IDX) + rISOFile.GetUniqueID() + ".ini");
 				ini.Get("EmuState", "EmulationStateId", &nState);
 				m_imageListSmall->Draw(m_EmuStateImageIndex[nState],
 						dc, stateOffset, itemY);
@@ -407,7 +407,10 @@ void CGameListCtrl::InsertItemInReportView(long _Index)
 		{
 			SJISConv = wxCSConv(wxFontMapper::GetEncodingName(wxFONTENCODING_SHIFT_JIS));
 		}
-		WARN_LOG(COMMON, "Cannot Convert from Charset Windows Japanese cp 932");
+		else
+		{
+			WARN_LOG(COMMON, "Cannot Convert from Charset Windows Japanese cp 932");
+		}
 #else
 		wxCSConv SJISConv(wxFontMapper::GetEncodingName(wxFONTENCODING_EUC_JP));
 #endif
@@ -486,8 +489,7 @@ void CGameListCtrl::InsertItemInReportView(long _Index)
 #ifndef _WIN32
 	// Load the INI file for columns that read from it
 	IniFile ini;
-	ini.Load((std::string(File::GetUserPath(D_GAMECONFIG_IDX)) +
-				(rISOFile.GetUniqueID()) + ".ini").c_str());
+	ini.Load(File::GetUserPath(D_GAMECONFIG_IDX) + rISOFile.GetUniqueID() + ".ini");
 
 	// Emulation status
 	int nState;
@@ -542,16 +544,16 @@ void CGameListCtrl::ScanForISOs()
 		for (u32 i = 0; i < Directories.size(); i++)
 		{
 			File::FSTEntry FST_Temp;
-			File::ScanDirectoryTree(Directories.at(i).c_str(), FST_Temp);
+			File::ScanDirectoryTree(Directories[i], FST_Temp);
 			for (u32 j = 0; j < FST_Temp.children.size(); j++)
 			{
-				if (FST_Temp.children.at(j).isDirectory)
+				if (FST_Temp.children[j].isDirectory)
 				{
 					bool duplicate = false;
 					for (u32 k = 0; k < Directories.size(); k++)
 					{
-						if (strcmp(Directories.at(k).c_str(),
-									FST_Temp.children.at(j).physicalName.c_str()) == 0)
+						if (strcmp(Directories[k].c_str(),
+									FST_Temp.children[j].physicalName.c_str()) == 0)
 						{
 							duplicate = true;
 							break;
@@ -559,7 +561,7 @@ void CGameListCtrl::ScanForISOs()
 					}
 					if (!duplicate)
 						Directories.push_back(
-								FST_Temp.children.at(j).physicalName.c_str());
+								FST_Temp.children[j].physicalName.c_str());
 				}
 			}
 		}
@@ -693,11 +695,16 @@ void CGameListCtrl::OnColBeginDrag(wxListEvent& event)
 
 const GameListItem *CGameListCtrl::GetISO(int index) const
 {
+	if (index >= (int)m_ISOFiles.size()) return NULL;
 	return &m_ISOFiles[index];
 }
 
 CGameListCtrl *caller;
+#if wxCHECK_VERSION(2, 9, 0)
+int wxCALLBACK wxListCompare(long item1, long item2, wxIntPtr sortData)
+#else
 int wxCALLBACK wxListCompare(long item1, long item2, long sortData)
+#endif
 {
 	// return 1 if item1 > item2
 	// return -1 if item1 < item2
@@ -772,9 +779,9 @@ int wxCALLBACK wxListCompare(long item1, long item2, long sortData)
 		case CGameListCtrl::COLUMN_EMULATION_STATE:
 			IniFile ini;
 			int nState1 = 0, nState2 = 0;
-			std::string GameIni1 = std::string(File::GetUserPath(D_GAMECONFIG_IDX)) +
+			std::string GameIni1 = File::GetUserPath(D_GAMECONFIG_IDX) +
 				iso1->GetUniqueID() + ".ini";
-			std::string GameIni2 = std::string(File::GetUserPath(D_GAMECONFIG_IDX)) +
+			std::string GameIni2 = File::GetUserPath(D_GAMECONFIG_IDX) +
 				iso2->GetUniqueID() + ".ini";
 
 			ini.Load(GameIni1.c_str());
@@ -834,7 +841,11 @@ void CGameListCtrl::OnKeyPress(wxListEvent& event)
 
 		wxString text = bleh.GetText();
 
-		if (text.MakeUpper().at(0) == event.GetKeyCode())
+#ifdef __WXGTK__
+		if (text.MakeLower()[0] == event.GetKeyCode())
+#else
+		if (text.MakeUpper()[0] == event.GetKeyCode())
+#endif
 		{
 			if (lastKey == event.GetKeyCode() && Loop < sLoop)
 			{
@@ -873,12 +884,25 @@ void CGameListCtrl::OnMouseMotion(wxMouseEvent& event)
 	long item = HitTest(event.GetPosition(), flags, &subitem);
 	static int lastItem = -1;
 
+	if (GetColumnCount() <= 1)
+		return;
+
 	if (item != wxNOT_FOUND)
 	{
+		wxRect Rect;
+#ifdef __WXMSW__
 		if (subitem == COLUMN_EMULATION_STATE)
+#else
+		// The subitem parameter of HitTest is only implemented for wxMSW.  On
+		// all other platforms it will always be -1.  Check the x position
+		// instead.
+		GetItemRect(item, Rect);
+		if (Rect.GetX() + Rect.GetWidth() - GetColumnWidth(COLUMN_EMULATION_STATE) < event.GetX())
+#endif
 		{
 			if (toolTip || lastItem == item || this != FindFocus())
 			{
+				if (lastItem != item) lastItem = -1;
 				event.Skip();
 				return;
 			}
@@ -886,8 +910,7 @@ void CGameListCtrl::OnMouseMotion(wxMouseEvent& event)
 			const GameListItem& rISO = m_ISOFiles[GetItemData(item)];
 
 			IniFile ini;
-			ini.Load((std::string(File::GetUserPath(D_GAMECONFIG_IDX)) +
-						(rISO.GetUniqueID()) + ".ini").c_str());
+			ini.Load(File::GetUserPath(D_GAMECONFIG_IDX) + rISO.GetUniqueID() + ".ini");
 
 			// Emulation status
 			std::string emuState[5] = {
@@ -903,13 +926,6 @@ void CGameListCtrl::OnMouseMotion(wxMouseEvent& event)
 			ini.Get("EmuState", "EmulationStateId", &nState);
 			ini.Get("EmuState", "EmulationIssues", &issues, "");
 
-			// Get item Coords then convert from wxWindow coord to Screen coord
-			wxRect Rect;
-			this->GetItemRect(item, Rect);
-			int mx = Rect.GetWidth();
-			int my = Rect.GetY();
-			this->ClientToScreen(&mx, &my);
-
 			// Show a tooltip containing the EmuState and the state description
 			if (nState > 0 && nState < 6)
 			{
@@ -921,14 +937,27 @@ void CGameListCtrl::OnMouseMotion(wxMouseEvent& event)
 			else
 				toolTip = new wxEmuStateTip(this, _("Not Set"), &toolTip);
 
-			toolTip->SetBoundingRect(wxRect(mx - GetColumnWidth(subitem),
-						my, GetColumnWidth(subitem), Rect.GetHeight()));
-			toolTip->SetPosition(wxPoint(mx - GetColumnWidth(subitem),
+			// Get item Coords
+			GetItemRect(item, Rect);
+			int mx = Rect.GetWidth();
+			int my = Rect.GetY();
+#ifndef __WXMSW__
+			// For some reason the y position does not account for the header
+			// row, so subtract the y position of the first visible item.
+			GetItemRect(GetTopItem(), Rect);
+			my -= Rect.GetY();
+#endif
+			// Convert to screen coordinates
+			ClientToScreen(&mx, &my);
+			toolTip->SetBoundingRect(wxRect(mx - GetColumnWidth(COLUMN_EMULATION_STATE),
+						my, GetColumnWidth(COLUMN_EMULATION_STATE), Rect.GetHeight()));
+			toolTip->SetPosition(wxPoint(mx - GetColumnWidth(COLUMN_EMULATION_STATE),
 						my - 5 + Rect.GetHeight()));
-
 			lastItem = item;
 		}
 	}
+	if (!toolTip)
+		lastItem = -1;
 
 	event.Skip();
 }
@@ -971,6 +1000,7 @@ void CGameListCtrl::OnRightClick(wxMouseEvent& event)
 		{
 			wxMenu* popupMenu = new wxMenu;
 			popupMenu->Append(IDM_PROPERTIES, _("&Properties"));
+			popupMenu->Append(IDM_GAMEWIKI, _("&Wiki"));
 			popupMenu->AppendSeparator();
 
 			if (selected_iso->GetPlatform() != GameListItem::GAMECUBE_DISC)
@@ -1107,7 +1137,7 @@ void CGameListCtrl::OnDeleteGCM(wxCommandEvent& WXUNUSED (event))
 		if (wxMessageBox(_("Are you sure you want to delete this file?  It will be gone forever!"),
 					wxMessageBoxCaptionStr, wxYES_NO | wxICON_EXCLAMATION) == wxYES)
 		{
-			File::Delete(iso->GetFileName().c_str());
+			File::Delete(iso->GetFileName());
 			Update();
 		}
 	}
@@ -1121,7 +1151,7 @@ void CGameListCtrl::OnDeleteGCM(wxCommandEvent& WXUNUSED (event))
 			for (int i = 0; i < selected; i++)
 			{
 				const GameListItem *iso = GetSelectedISO();
-				File::Delete(iso->GetFileName().c_str());
+				File::Delete(iso->GetFileName());
 			}
 			Update();
 		}
@@ -1137,6 +1167,22 @@ void CGameListCtrl::OnProperties(wxCommandEvent& WXUNUSED (event))
 	ISOProperties.Center();
 	if(ISOProperties.ShowModal() == wxID_OK)
 		Update();
+}
+
+void CGameListCtrl::OnWiki(wxCommandEvent& WXUNUSED (event))
+{
+	const GameListItem *iso = GetSelectedISO();
+	if (!iso)
+		return;
+
+	std::string wikiUrl = "http://api.dolphin-emulator.com/wiki.html?id=[GAME_ID]&name=[GAME_NAME]";
+	wikiUrl = ReplaceAll(wikiUrl, "[GAME_ID]", UriEncode(iso->GetUniqueID()));
+	if (UriEncode(iso->GetName(0)).length() < 100)
+		wikiUrl = ReplaceAll(wikiUrl, "[GAME_NAME]", UriEncode(iso->GetName(0)));
+	else
+		wikiUrl = ReplaceAll(wikiUrl, "[GAME_NAME]", "");
+
+	WxUtils::Launch(wikiUrl.c_str());
 }
 
 void CGameListCtrl::OnInstallWAD(wxCommandEvent& WXUNUSED (event))

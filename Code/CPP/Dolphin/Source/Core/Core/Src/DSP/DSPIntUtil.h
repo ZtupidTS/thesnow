@@ -38,12 +38,12 @@
 // --- SR
 // ---------------------------------------------------------------------------------------
 
-inline void dsp_SR_set_flag(int flag)
+static inline void dsp_SR_set_flag(int flag)
 {
 	g_dsp.r.sr |= flag;
 }
 
-inline bool dsp_SR_is_flag_set(int flag)
+static inline bool dsp_SR_is_flag_set(int flag)
 {
 	return (g_dsp.r.sr & flag) != 0;
 }
@@ -52,7 +52,7 @@ inline bool dsp_SR_is_flag_set(int flag)
 // --- AR increments, decrements
 // ---------------------------------------------------------------------------------------
 
-inline u16 dsp_increase_addr_reg(u16 reg, s16 _ix)
+static inline u16 dsp_increase_addr_reg(u16 reg, s16 _ix)
 {
 	u32 ar = g_dsp.r.ar[reg];
 	u32 wr = g_dsp.r.wr[reg];
@@ -75,7 +75,7 @@ inline u16 dsp_increase_addr_reg(u16 reg, s16 _ix)
 	return nar;
 }
 
-inline u16 dsp_decrease_addr_reg(u16 reg, s16 _ix) 
+static inline u16 dsp_decrease_addr_reg(u16 reg, s16 _ix) 
 {
 	u32 ar = g_dsp.r.ar[reg];
 	u32 wr = g_dsp.r.wr[reg];
@@ -98,7 +98,7 @@ inline u16 dsp_decrease_addr_reg(u16 reg, s16 _ix)
 	return nar;
 }
 
-inline u16 dsp_increment_addr_reg(u16 reg) 
+static inline u16 dsp_increment_addr_reg(u16 reg) 
 {
 	u32 ar = g_dsp.r.ar[reg];
 	u32 wr = g_dsp.r.wr[reg];
@@ -110,7 +110,7 @@ inline u16 dsp_increment_addr_reg(u16 reg)
 	return nar;
 }
 
-inline u16 dsp_decrement_addr_reg(u16 reg) 
+static inline u16 dsp_decrement_addr_reg(u16 reg) 
 {
 	u32 ar = g_dsp.r.ar[reg];
 	u32 wr = g_dsp.r.wr[reg];
@@ -127,9 +127,10 @@ inline u16 dsp_decrement_addr_reg(u16 reg)
 // --- reg
 // ---------------------------------------------------------------------------------------
 
-inline u16 dsp_op_read_reg(int reg)
+static inline u16 dsp_op_read_reg(int _reg)
 {
-	switch (reg & 0x1f) {
+	int reg = _reg & 0x1f;
+	switch (reg) {
 	case DSP_REG_ST0:
 	case DSP_REG_ST1:
 	case DSP_REG_ST2:
@@ -177,9 +178,10 @@ inline u16 dsp_op_read_reg(int reg)
 	}
 }
 
-inline void dsp_op_write_reg(int reg, u16 val)
+static inline void dsp_op_write_reg(int _reg, u16 val)
 {
-	switch (reg & 0x1f) {
+	int reg = _reg & 0x1f;
+	switch (reg) {
 	// 8-bit sign extended registers. Should look at prod.h too...
 	case DSP_REG_ACH0:
 	case DSP_REG_ACH1:
@@ -238,7 +240,7 @@ inline void dsp_op_write_reg(int reg, u16 val)
 	}
 }
 
-inline void dsp_conditional_extend_accum(int reg) 
+static inline void dsp_conditional_extend_accum(int reg) 
 {
 	switch (reg) 
 	{
@@ -258,7 +260,7 @@ inline void dsp_conditional_extend_accum(int reg)
 // --- prod
 // ---------------------------------------------------------------------------------------
 
-inline s64 dsp_get_long_prod()
+static inline s64 dsp_get_long_prod()
 {
 #if PROFILE
 	ProfilerAddDelta(g_dsp.err_pc, 1);
@@ -274,7 +276,7 @@ inline s64 dsp_get_long_prod()
 	return val;
 }
 
-inline s64 dsp_get_long_prod_round_prodl()
+static inline s64 dsp_get_long_prod_round_prodl()
 {
 	s64 prod = dsp_get_long_prod();
 
@@ -358,6 +360,27 @@ inline s16 dsp_get_acc_m(int _reg)
 inline s16 dsp_get_acc_h(int _reg)
 {
 	return g_dsp.r.ac[_reg].h;
+}
+
+inline u16 dsp_op_read_reg_and_saturate(u8 _reg)
+{
+	if (g_dsp.r.sr & SR_40_MODE_BIT)
+	{
+		s64 acc = dsp_get_long_acc(_reg);
+	
+		if (acc != (s32)acc) 
+		{
+			//NOTICE_LOG(DSPLLE,"LIMIT: 0x%x", g_dsp.pc);
+			if (acc > 0)
+				return 0x7fff;
+			else 
+				return 0x8000;
+		}
+		else
+			return g_dsp.r.ac[_reg].m;
+	}
+	else
+		return g_dsp.r.ac[_reg].m;
 }
 
 // ---------------------------------------------------------------------------------------

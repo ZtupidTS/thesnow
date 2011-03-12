@@ -31,6 +31,7 @@
 #include "DSPHost.h"
 #include "DSPAnalyzer.h"
 #include "MemoryUtil.h"
+#include "FileUtil.h"
 
 #include "DSPHWInterface.h"
 #include "DSPIntUtil.h"
@@ -41,16 +42,16 @@ DSPCoreState core_state = DSPCORE_STOP;
 u16 cyclesLeft = 0;
 DSPEmitter *dspjit = NULL;
 Common::Event step_event;
-Common::CriticalSection ExtIntCriticalSection;
+static std::mutex ExtIntCriticalSection;
 
 static bool LoadRom(const char *fname, int size_in_words, u16 *rom)
 {
-	FILE *pFile = fopen(fname, "rb");
+	File::IOFile pFile(fname, "rb");
 	const size_t size_in_bytes = size_in_words * sizeof(u16);
 	if (pFile)
 	{
-		fread(rom, 1, size_in_bytes, pFile);
-		fclose(pFile);
+		pFile.ReadArray(rom, size_in_words);
+		pFile.Close();
 	
 		// Byteswap the rom.
 		for (int i = 0; i < size_in_words; i++)
@@ -61,7 +62,7 @@ static bool LoadRom(const char *fname, int size_in_words, u16 *rom)
 		return true;
 	}
 
-	PanicAlertT("Failed to load DSP ROM: %s", fname);
+	PanicAlertT("Failed to load DSP ROM:\n%s\nThis file is required to use DSP LLE", fname);
 	return false;
 }
 
@@ -87,6 +88,14 @@ static bool VerifyRoms(const char *irom_filename, const char *coef_filename)
 	return true;
 }
 
+static void DSPCore_FreeMemoryPages()
+{
+	FreeMemoryPages(g_dsp.irom, DSP_IROM_BYTE_SIZE);
+	FreeMemoryPages(g_dsp.iram, DSP_IRAM_BYTE_SIZE);
+	FreeMemoryPages(g_dsp.dram, DSP_DRAM_BYTE_SIZE);
+	FreeMemoryPages(g_dsp.coef, DSP_COEF_BYTE_SIZE);
+}
+
 bool DSPCore_Init(const char *irom_filename, const char *coef_filename,
 				  bool bUsingJIT)
 {
@@ -104,10 +113,13 @@ bool DSPCore_Init(const char *irom_filename, const char *coef_filename,
 	memset(g_dsp.coef, 0, DSP_COEF_BYTE_SIZE);
 
 	// Try to load real ROM contents.
-	LoadRom(irom_filename, DSP_IROM_SIZE, g_dsp.irom);
-	LoadRom(coef_filename, DSP_COEF_SIZE, g_dsp.coef);
-	if (!VerifyRoms(irom_filename, coef_filename))
+	if (!LoadRom(irom_filename, DSP_IROM_SIZE, g_dsp.irom) ||
+			!LoadRom(coef_filename, DSP_COEF_SIZE, g_dsp.coef) ||
+			!VerifyRoms(irom_filename, coef_filename))
+	{
+		DSPCore_FreeMemoryPages();
 		return false;
+	}
 
 	memset(&g_dsp.r,0,sizeof(g_dsp.r));
 
@@ -154,8 +166,6 @@ bool DSPCore_Init(const char *irom_filename, const char *coef_filename,
 
 	DSPAnalyzer::Analyze();
 
-	step_event.Init();
-
 	core_state = DSPCORE_RUNNING;
 
 	return true;
@@ -163,17 +173,16 @@ bool DSPCore_Init(const char *irom_filename, const char *coef_filename,
 
 void DSPCore_Shutdown()
 {
+	if (core_state == DSPCORE_STOP)
+		return;
+
 	core_state = DSPCORE_STOP;
 
 	if(dspjit) {
 		delete dspjit;
 		dspjit = NULL;
 	}
-	step_event.Shutdown();
-	FreeMemoryPages(g_dsp.irom, DSP_IROM_BYTE_SIZE);
-	FreeMemoryPages(g_dsp.iram, DSP_IRAM_BYTE_SIZE);
-	FreeMemoryPages(g_dsp.dram, DSP_DRAM_BYTE_SIZE);
-	FreeMemoryPages(g_dsp.coef, DSP_COEF_BYTE_SIZE);
+	DSPCore_FreeMemoryPages();
 }
 
 void DSPCore_Reset()
@@ -195,9 +204,8 @@ void DSPCore_SetException(u8 level)
 // Notify that an external interrupt is pending (used by thread mode)
 void DSPCore_SetExternalInterrupt(bool val)
 {
-	ExtIntCriticalSection.Enter();
+	std::lock_guard<std::mutex> lk(ExtIntCriticalSection);
 	g_dsp.external_interrupt_waiting = val;
-	ExtIntCriticalSection.Leave();
 }
 
 // Coming from the CPU
@@ -250,16 +258,16 @@ int DSPCore_RunCycles(int cycles)
 {
 	if (dspjit)
 	{
-		cyclesLeft = cycles;
-		DSPCompiledCode pExecAddr = (DSPCompiledCode)dspjit->enterDispatcher;
-		pExecAddr();
-
 		if (g_dsp.external_interrupt_waiting)
 		{
 			DSPCore_CheckExternalInterrupt();
 			DSPCore_CheckExceptions();
 			DSPCore_SetExternalInterrupt(false);
 		}
+
+		cyclesLeft = cycles;
+		DSPCompiledCode pExecAddr = (DSPCompiledCode)dspjit->enterDispatcher;
+		pExecAddr();
 
 		return cyclesLeft;
 	}

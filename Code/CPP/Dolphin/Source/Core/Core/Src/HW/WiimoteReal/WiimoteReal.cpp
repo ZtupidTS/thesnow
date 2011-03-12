@@ -22,7 +22,6 @@
 #include "IniFile.h"
 #include "StringUtil.h"
 #include "Timer.h"
-#include "../../Host.h"
 
 #include "WiimoteReal.h"
 
@@ -36,7 +35,7 @@ namespace WiimoteReal
 bool g_real_wiimotes_initialized = false;
 unsigned int g_wiimotes_found = 0;
 
-Common::CriticalSection		g_refresh_critsec;
+std::mutex g_refresh_lock;
 
 Wiimote *g_wiimotes[MAX_WIIMOTES];
 
@@ -160,13 +159,19 @@ void Wiimote::InterruptChannel(const u16 channel, const void* const data, const 
 	//	//((wm_report_mode*)(data + 2))->continuous = false;
 	//}
 
+ 	if (rpt.first[0] == 0xa2 && rpt.first[1] == 0x18 && rpt.second == 23)
+	{
+		m_audio_reports.Push(rpt);
+ 		return;
+ 	}
+
 	m_write_reports.Push(rpt);
 }
 
 bool Wiimote::Read()
 {
 	Report rpt;
-
+	
 	rpt.first = new unsigned char[MAX_PAYLOAD];
 	rpt.second = IORead(rpt.first);
 
@@ -183,15 +188,23 @@ bool Wiimote::Read()
 bool Wiimote::Write()
 {
 	Report rpt;
+	bool audio_written = false;
+	
+	if (m_audio_reports.Pop(rpt))
+	{
+		IOWrite(rpt.first, rpt.second);
+		delete[] rpt.first;
+		audio_written = true;
+	}
+
 	if (m_write_reports.Pop(rpt))
 	{
 		IOWrite(rpt.first, rpt.second);
 		delete[] rpt.first;
-
 		return true;
-	}
+	}	
 
-	return false;
+	return audio_written;
 }
 
 // Returns the next report that should be sent
@@ -306,22 +319,23 @@ void Wiimote::ThreadFunc()
 	// rumble briefly
 	Rumble();
 
-	Host_ConnectWiimote(index, true);
-
 	// main loop
 	while (IsConnected())
 	{
-		// hopefully this is alright
+#ifdef __APPLE__
 		while (Write()) {}
-
-#ifndef __APPLE__
-		// sleep if there was nothing to read
-		if (false == Read())
+		Common::SleepCurrentThread(1);
+#else
+		bool read = false;
+		while (Write() || (read = true, Read()))
+		{
+			if (m_audio_reports.Size() && !read)
+				Read();
+			Common::SleepCurrentThread(m_audio_reports.Size() ? 5 : 2);
+			read = false;
+		}
 #endif
-			Common::SleepCurrentThread(1);
 	}
-
-	Host_ConnectWiimote(index, false);
 }
 
 #ifndef _WIN32
@@ -351,7 +365,7 @@ static int ConnectWiimotes(Wiimote** wm)
 
 void LoadSettings()
 {
-	std::string ini_filename = (std::string(File::GetUserPath(D_CONFIG_IDX)) + WIIMOTE_INI_NAME ".ini" );
+	std::string ini_filename = File::GetUserPath(D_CONFIG_IDX) + WIIMOTE_INI_NAME ".ini";
 
 	IniFile inifile;
 	inifile.Load(ini_filename);
@@ -425,11 +439,11 @@ void Shutdown(void)
 // This is called from the GUI thread
 void Refresh()
 {
+	std::lock_guard<std::mutex> lk(g_refresh_lock);
+
 #ifdef _WIN32
-	g_refresh_critsec.Enter();
 	Shutdown();
 	Initialize();
-	g_refresh_critsec.Leave();
 #else
 	// Make sure real wiimotes have been initialized
 	if (!g_real_wiimotes_initialized)
@@ -443,8 +457,6 @@ void Refresh()
 	for (unsigned int i = 0; i < MAX_WIIMOTES; ++i)
 		if (WIIMOTE_SRC_REAL & g_wiimote_sources[i])
 			++wanted_wiimotes;
-
-	g_refresh_critsec.Enter();
 
 	// Remove wiimotes that are paired with slots no longer configured for a
 	// real wiimote or that are disconnected
@@ -472,50 +484,40 @@ void Refresh()
 
 		g_wiimotes_found = num_wiimotes;
 	}
-
-	g_refresh_critsec.Leave();
 #endif
 }
 
 void InterruptChannel(int _WiimoteNumber, u16 _channelID, const void* _pData, u32 _Size)
 {
-	g_refresh_critsec.Enter();
+	std::lock_guard<std::mutex> lk(g_refresh_lock);
 
 	if (g_wiimotes[_WiimoteNumber])
 		g_wiimotes[_WiimoteNumber]->InterruptChannel(_channelID, _pData, _Size);
-
-	g_refresh_critsec.Leave();
 }
 
 void ControlChannel(int _WiimoteNumber, u16 _channelID, const void* _pData, u32 _Size)
 {
-	g_refresh_critsec.Enter();
+	std::lock_guard<std::mutex> lk(g_refresh_lock);
 
 	if (g_wiimotes[_WiimoteNumber])
 		g_wiimotes[_WiimoteNumber]->ControlChannel(_channelID, _pData, _Size);
-
-	g_refresh_critsec.Leave();
 }
 
 
 // Read the Wiimote once
 void Update(int _WiimoteNumber)
 {
-	g_refresh_critsec.Enter();
+	std::lock_guard<std::mutex> lk(g_refresh_lock);
 
 	if (g_wiimotes[_WiimoteNumber])
 		g_wiimotes[_WiimoteNumber]->Update();
-
-	g_refresh_critsec.Leave();
 }
 
-void StateChange(PLUGIN_EMUSTATE newState)
+void StateChange(EMUSTATE_CHANGE newState)
 {
-	//g_refresh_critsec.Enter();	// enter
+	//std::lock_guard<std::mutex> lk(g_refresh_lock);
 
 	// TODO: disable/enable auto reporting, maybe
-
-	//g_refresh_critsec.Leave();	// leave
 }
 
 }; // end of namespace

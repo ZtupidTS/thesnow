@@ -1,38 +1,126 @@
+// Copyright (C) 2003 Dolphin Project.
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, version 2.0.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License 2.0 for more details.
+
+// A copy of the GPL 2.0 should have been included with the program.
+// If not, see http://www.gnu.org/licenses/
+
+// Official SVN repository and contact information can be found at
+// http://code.google.com/p/dolphin-emu/
+
 #include "WiimoteEmu.h"
 
-#ifdef USE_WIIMOTE_EMU_SPEAKER
+//#define WIIMOTE_SPEAKER_DUMP
+#ifdef WIIMOTE_SPEAKER_DUMP
+#include <fstream>
+#include "WaveFile.h"
+#include <stdlib.h>
+#include "FileUtil.h"
+#endif
 
 namespace WiimoteEmu
 {
 
-void Wiimote::SpeakerData(wm_speaker_data* sd)
-{
-	SoundBuffer sb;
-	sb.samples = new s16[sd->length * 2];
+// Yamaha ADPCM decoder code based on The ffmpeg Project (Copyright (s) 2001-2003)
 
-	s16* s = sb.samples;
-	const u8* const e = sd->data + sd->length;
-	for ( const u8* i = sd->data; i<e; ++i )
-	{
-		*s++ = NGCADPCM::ADPDecodeSample(*i & 0x0F, sd->data[0] & 0x0F, &m_channel_status.hist1p, &m_channel_status.hist2p);
-		*s++ = NGCADPCM::ADPDecodeSample(*i >> 4, sd->data[0] >> 4, &m_channel_status.hist1p, &m_channel_status.hist2p);
+static const s32 yamaha_difflookup[] = {
+	1, 3, 5, 7, 9, 11, 13, 15,
+	-1, -3, -5, -7, -9, -11, -13, -15
+};
+
+static const s32 yamaha_indexscale[] = {
+	230, 230, 230, 230, 307, 409, 512, 614,
+	230, 230, 230, 230, 307, 409, 512, 614
+};
+
+static u16 av_clip16(s32 a)
+{
+	if ((a+32768) & ~65535) return (a>>31) ^ 32767;
+	else                    return a;
+}
+
+static s32 av_clip(s32 a, s32 amin, s32 amax)
+{
+	if      (a < amin) return amin;
+	else if (a > amax) return amax;
+	else               return a;
+}
+
+static s16 adpcm_yamaha_expand_nibble(ADPCMState& s, u8 nibble)
+{
+	if(!s.step) {
+		s.predictor = 0;
+		s.step = 0;
 	}
 
-	alGenBuffers(1, &sb.buffer);
-	// TODO make this not always 3000
-	alBufferData(sb.buffer, AL_FORMAT_MONO16, sb.samples, (sd->length * sizeof(short) * 2), 3360);
-	// testing
-	//alBufferData(sb.buffer, AL_FORMAT_MONO16, sb.samples, (sd->length * sizeof(short) * 2), 48000/m_reg_speaker->sample_rate);
-	alSourceQueueBuffers(m_audio_source, 1, &sb.buffer);
-
-	ALint state;
-	alGetSourcei(m_audio_source, AL_SOURCE_STATE, &state);
-	if (AL_PLAYING != state)
-		alSourcePlay(m_audio_source);
-
-	m_audio_buffers.push(sb);
+	s.predictor += (s.step * yamaha_difflookup[nibble]) / 8;
+	s.predictor = av_clip16(s.predictor);
+	s.step = (s.step * yamaha_indexscale[nibble]) >> 8;
+	s.step = av_clip(s.step, 127, 24576);
+	return s.predictor;
 }
 
-}
+#ifdef WIIMOTE_SPEAKER_DUMP
+std::ofstream ofile;
+WaveFileWriter wav;
 
+void stopdamnwav(){wav.Stop();ofile.close();}
 #endif
+
+void Wiimote::SpeakerData(wm_speaker_data* sd)
+{
+	// TODO consider using static max size instead of new
+	s16 *samples = new s16[sd->length * 2];
+
+	if (m_reg_speaker.format == 0x40)
+	{
+		// 8 bit PCM
+		for (int i = 0; i < sd->length; ++i)
+		{
+			samples[i] = (s16)(s8)sd->data[i];
+		}
+	}
+	else if (m_reg_speaker.format == 0x00)
+	{
+		// 4 bit Yamaha ADPCM (same as dreamcast)
+		for (int i = 0; i < sd->length; ++i)
+		{
+			samples[i * 2] = adpcm_yamaha_expand_nibble(m_adpcm_state, (sd->data[i] >> 4) & 0xf);
+			samples[i * 2 + 1] = adpcm_yamaha_expand_nibble(m_adpcm_state, sd->data[i] & 0xf);
+		}
+	}
+
+#ifdef WIIMOTE_SPEAKER_DUMP
+	std::stringstream name;
+	static int num = 0;
+
+	if (num == 0)
+	{
+		File::Delete("rmtdump.wav");
+		File::Delete("rmtdump.bin");
+		atexit(stopdamnwav);
+		ofile.open("rmtdump.bin", ofile.binary | ofile.out);
+		wav.Start("rmtdump.wav", 6000/*Common::swap16(m_reg_speaker.sample_rate)*/);
+	}
+	wav.AddMonoSamples(samples, sd->length*2);
+	if (ofile.good())
+	{
+		for (int i = 0; i < sd->length; i++)
+		{
+			ofile << sd->data[i];
+		}
+	}
+	num++;
+#endif
+
+	delete[] samples;
+}
+
+}

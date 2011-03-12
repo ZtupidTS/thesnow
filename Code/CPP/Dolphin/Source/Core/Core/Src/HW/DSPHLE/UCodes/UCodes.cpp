@@ -94,12 +94,12 @@ IUCode* UCodeFactory(u32 _CRC, DSPHLE *dsp_hle, bool bWii)
 	default:
 		if (bWii)
 		{
-			PanicAlert("DSPHLE: Unknown ucode (CRC = %08x) - forcing AXWii.\n\nTry LLE plugin if this is homebrew.", _CRC);
+			PanicAlert("DSPHLE: Unknown ucode (CRC = %08x) - forcing AXWii.\n\nTry LLE emulator if this is homebrew.", _CRC);
 			return new CUCode_AXWii(dsp_hle, _CRC);
 		}
 		else
 		{
-			PanicAlert("DSPHLE: Unknown ucode (CRC = %08x) - forcing AX.\n\nTry LLE plugin if this is homebrew.", _CRC);
+			PanicAlert("DSPHLE: Unknown ucode (CRC = %08x) - forcing AX.\n\nTry LLE emulator if this is homebrew.", _CRC);
 			return new CUCode_AX(dsp_hle);
 		}
 	}
@@ -146,14 +146,11 @@ void IUCode::PrepareBootUCode(u32 mail)
 
 #if defined(_DEBUG) || defined(DEBUGFAST)
 		char binFile[MAX_PATH];
-		sprintf(binFile, "%sDSP_UC_%08X.bin", File::GetUserPath(D_DUMPDSP_IDX), ector_crc);
+		sprintf(binFile, "%sDSP_UC_%08X.bin", File::GetUserPath(D_DUMPDSP_IDX).c_str(), ector_crc);
 
-		FILE* pFile = fopen(binFile, "wb");
+		File::IOFile pFile(binFile, "wb");
 		if (pFile)
-		{
-			fwrite((u8*)Memory::GetPointer(m_NextUCode.iram_mram_addr), m_NextUCode.iram_size, 1, pFile);
-			fclose(pFile);
-		}
+		pFile.WriteArray((u8*)Memory::GetPointer(m_NextUCode.iram_mram_addr), m_NextUCode.iram_size);
 #endif
 
 		DEBUG_LOG(DSPHLE, "PrepareBootUCode 0x%08x", ector_crc);

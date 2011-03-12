@@ -93,6 +93,7 @@ private:
 		ID_ENABLE_HLE_AUDIO,
 		ID_ENABLE_DTK_MUSIC,
 		ID_ENABLE_THROTTLE,
+		ID_DUMP_AUDIO,
 		ID_FREQUENCY,
 		ID_BACKEND,
 		ID_VOLUME,
@@ -119,7 +120,9 @@ private:
 
 		ID_WII_BT_BAR,
 		ID_WII_BT_SENS,
+		ID_WII_BT_SPKV,
 		ID_WII_BT_MOT,
+		ID_WII_WIIMOTE_RECONNECT,
 
 		ID_WII_IPL_SSV,
 		ID_WII_IPL_E60,
@@ -185,8 +188,9 @@ private:
 	wxRadioBox* DSPEngine;
 	wxSlider*	VolumeSlider;
 	wxStaticText* VolumeText;    
-    wxCheckBox*	EnableDTKMusic;
-    wxCheckBox*	EnableThrottle;
+	wxCheckBox*	EnableDTKMusic;
+	wxCheckBox*	EnableThrottle;
+	wxCheckBox*	DumpAudio;
 	wxArrayString wxArrayBackends;
 	wxChoice*	BackendSelection;
 	wxChoice*	FrequencySelection;
@@ -219,7 +223,9 @@ private:
 	// Wiimote
 	wxChoice* WiiSensBarPos;
 	wxSlider* WiiSensBarSens;
+	wxSlider* WiimoteSpkVolume;
 	wxCheckBox* WiimoteMotor;
+	wxCheckBox* WiimoteReconnectOnLoad;
 
 	// Misc
 	wxCheckBox* WiiScreenSaver;
@@ -282,7 +288,6 @@ private:
 	void OnSpin(wxSpinEvent& event);
 
 	void AudioSettingsChanged(wxCommandEvent& event);
-	bool SupportsVolumeChanges(std::string backend);
 	void AddAudioBackends();
 
 	void GCSettingsChanged(wxCommandEvent& event);
@@ -299,6 +304,9 @@ private:
 	void DVDRootChanged(wxFileDirPickerEvent& event);
 	void ApploaderPathChanged(wxFileDirPickerEvent& WXUNUSED (event));
 
+private:
 	DECLARE_EVENT_TABLE();
+
+	static bool SupportsVolumeChanges(std::string backend);
 };
 #endif

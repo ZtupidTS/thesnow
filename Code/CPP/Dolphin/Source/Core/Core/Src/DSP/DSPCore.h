@@ -165,8 +165,8 @@
 #define SR_EXT_INT_ENABLE	0x0800 // Appears in zelda - seems to disable external interupts
 #define SR_1000				0x1000 // unknown
 #define SR_MUL_MODIFY		0x2000 // 1 = normal. 0 = x2   (M0, M2)
-#define SR_40_MODE_BIT		0x4000 // 0 = "16", 1 = "40"  (SET16, SET40)  Controls sign extension when loading mid accums.
-#define SR_MUL_UNSIGNED		0x8000 // 0 = normal. 1 = unsigned  (CLR15, SET15) If set, treats operands as unsigned. Tested with mulx only so far.
+#define SR_40_MODE_BIT		0x4000 // 0 = "16", 1 = "40"  (SET16, SET40)  Controls sign extension when loading mid accums and data saturation for stores from mid accums.
+#define SR_MUL_UNSIGNED		0x8000 // 0 = normal. 1 = unsigned  (CLR15, SET15) If set, treats ax?.l as unsigned.
 
 // This should be the bits affected by CMP. Does not include logic zero.
 #define SR_CMP_MASK		0x3f
@@ -225,7 +225,7 @@ struct SDSP
 	
 	// This is NOT the same cr as r.cr.
 	// This register is shared with the main emulation, see DSP.cpp
-	// The plugin has control over 0x0C07 of this reg.
+	// The engine has control over 0x0C07 of this reg.
 	// Bits are defined in a struct in DSP.cpp.
 	u16 cr;
 
@@ -249,7 +249,7 @@ struct SDSP
 	volatile u16 mbox[2][2];
 
 	// Mutex protecting the mailbox.
-	Common::CriticalSection g_CriticalSection;
+	//std::mutex g_CriticalSection;
 
 	// Accelerator / DMA / other hardware registers. Not GPRs.
 	u16 ifx_regs[256];

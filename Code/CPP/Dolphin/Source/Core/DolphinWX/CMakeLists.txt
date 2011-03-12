@@ -1,5 +1,3 @@
-set(SRCS	Src/BootManager.cpp)
-
 set(LIBS	core
 			lzo2
 			discio
@@ -7,7 +5,6 @@ set(LIBS	core
 			inputcommon
 			common
 			audiocommon
-			lua
 			z
 			sfml-network
 			SDL
@@ -16,45 +13,55 @@ set(LIBS	core
 			${X11_LIBRARIES})
 
 if(wxWidgets_FOUND)
-	set(SRCS	${SRCS}
+	set(SRCS	Src/ARCodeAddEdit.cpp
 				Src/AboutDolphin.cpp
-				Src/ARCodeAddEdit.cpp
 				Src/CheatsWindow.cpp
 				Src/ConfigMain.cpp
+				Src/Debugger/BreakpointDlg.cpp
+				Src/Debugger/BreakpointView.cpp
+				Src/Debugger/BreakpointWindow.cpp
+				Src/Debugger/CodeView.cpp
+				Src/Debugger/CodeWindow.cpp
+				Src/Debugger/CodeWindowFunctions.cpp
+				Src/Debugger/DSPDebugWindow.cpp
+				Src/Debugger/DSPRegisterView.cpp
+				Src/Debugger/DebuggerPanel.cpp
+				Src/Debugger/DebuggerUIUtil.cpp
+				Src/Debugger/JitWindow.cpp
+				Src/Debugger/MemoryCheckDlg.cpp
+				Src/Debugger/MemoryView.cpp
+				Src/Debugger/MemoryWindow.cpp
+				Src/Debugger/RegisterView.cpp
+				Src/Debugger/RegisterWindow.cpp
 				Src/Frame.cpp
 				Src/FrameAui.cpp
 				Src/FrameTools.cpp
 				Src/GameListCtrl.cpp
 				Src/GeckoCodeDiag.cpp
 				Src/HotkeyDlg.cpp
-				Src/InputConfigDiag.cpp
-				Src/InputConfigDiagBitmaps.cpp
 				Src/ISOFile.cpp
 				Src/ISOProperties.cpp
+				Src/InputConfigDiag.cpp
+				Src/InputConfigDiagBitmaps.cpp
+				Src/LogConfigWindow.cpp
 				Src/LogWindow.cpp
-				Src/LuaWindow.cpp
 				Src/Main.cpp
 				Src/MemcardManager.cpp
 				Src/MemoryCards/GCMemcard.cpp
-				Src/NetPlay.cpp
-				Src/NetPlayClient.cpp
-				Src/NetPlayServer.cpp
+				Src/MemoryCards/WiiSaveCrypted.cpp
 				Src/NetWindow.cpp
+				Src/PHackSettings.cpp
 				Src/PatchAddEdit.cpp
 				Src/UDPConfigDiag.cpp
-				Src/WiimoteConfigDiag.cpp
-				Src/MemoryCards/WiiSaveCrypted.cpp
+				Src/VideoConfigDiag.cpp
 				Src/WXInputBase.cpp
+				Src/WiimoteConfigDiag.cpp
 				Src/WxUtils.cpp)
 
-	set(WXLIBS	debwx
-				debugger_ui_util
-				${wxWidgets_LIBRARIES}
+	set(WXLIBS ${wxWidgets_LIBRARIES}
 				${GTK2_LIBRARIES})
-
-else(wxWidgets_FOUND)
-	set(SRCS	${SRCS}
-				Src/MainNoGUI.cpp)
+else()
+	set(SRCS	Src/MainNoGUI.cpp)
 endif()
 
 if(WIN32)
@@ -72,15 +79,13 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD" OR
 	set(LIBS ${LIBS} usbhid)
 endif()
 
-set(EXEGUI dolphin-emu)
-set(EXENOGUI dolphin-emu-nogui)
-
 if(wxWidgets_FOUND)
-	add_executable(${EXEGUI} ${SRCS})
-	target_link_libraries(${EXEGUI} ${LIBS} ${WXLIBS})
-	install(TARGETS ${EXEGUI} RUNTIME DESTINATION ${bindir})
+	set(DOLPHIN_EXE dolphin-emu)
 else()
-	add_executable(${EXENOGUI} ${SRCS})
-	target_link_libraries(${EXENOGUI} ${LIBS})
-	install(TARGETS ${EXENOGUI} RUNTIME DESTINATION ${bindir})
+	set(DOLPHIN_EXE dolphin-emu-nogui)
 endif()
+
+add_executable(${DOLPHIN_EXE} ${SRCS})
+target_link_libraries(${DOLPHIN_EXE} ${LIBS} ${WXLIBS})
+install(TARGETS ${DOLPHIN_EXE} RUNTIME DESTINATION ${bindir})
+

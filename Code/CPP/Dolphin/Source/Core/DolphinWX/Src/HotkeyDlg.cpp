@@ -15,13 +15,15 @@
 // Official SVN repository and contact information can be found at
 // http://code.google.com/p/dolphin-emu/
 
+#include <wx/notebook.h>
+
 #include "HotkeyDlg.h"
 #include "ConfigManager.h"
 
 BEGIN_EVENT_TABLE(HotkeyConfigDialog,wxDialog)
 	EVT_CLOSE(HotkeyConfigDialog::OnClose)
 	EVT_BUTTON(ID_CLOSE, HotkeyConfigDialog::CloseClick)
-	EVT_COMMAND_RANGE(HK_FULLSCREEN, NUM_HOTKEYS - 1,
+	EVT_COMMAND_RANGE(0, NUM_HOTKEYS - 1,
 		   	wxEVT_COMMAND_BUTTON_CLICKED, HotkeyConfigDialog::OnButtonClick)
 	EVT_TIMER(IDTM_BUTTON, HotkeyConfigDialog::OnButtonTimer)
 END_EVENT_TABLE()
@@ -184,54 +186,118 @@ void HotkeyConfigDialog::OnButtonClick(wxCommandEvent& event)
 	DoGetButtons(ClickedButton->GetId());
 }
 
+#define HOTKEY_NUM_COLUMNS 2
+
 void HotkeyConfigDialog::CreateHotkeyGUIControls(void)
 {
-	static const wxChar* hkText[] =
+	const wxString pageNames[] =
 	{
-		_("Toggle Fullscreen"),
+		_("General"),
+		_("State Saves")
+	};
+
+	const wxString hkText[] =
+	{
+		_("Open"),
+		_("Change Disc"),
+		_("Refresh List"),
+
 		_("Play/Pause"),
 		_("Stop"),
+		_("Reset"),
+		_("Frame Advance"),
+
+		_("Start Recording"),
+		_("Play Recording"),
+		_("Export Recording"),
+		_("Read-only mode"),
+
+		_("Toggle Fullscreen"),
 		_("Take Screenshot"),
+
 		_("Connect Wiimote 1"),
 		_("Connect Wiimote 2"),
 		_("Connect Wiimote 3"),
-		_("Connect Wiimote 4")
+		_("Connect Wiimote 4"),
+
+		_("Load State Slot 1"),
+		_("Load State Slot 2"),
+		_("Load State Slot 3"),
+		_("Load State Slot 4"),
+		_("Load State Slot 5"),
+		_("Load State Slot 6"),
+		_("Load State Slot 7"),
+		_("Load State Slot 8"),
+
+		_("Save State Slot 1"),
+		_("Save State Slot 2"),
+		_("Save State Slot 3"),
+		_("Save State Slot 4"),
+		_("Save State Slot 5"),
+		_("Save State Slot 6"),
+		_("Save State Slot 7"),
+		_("Save State Slot 8")
 	};
+
+	const int page_breaks[3] = {HK_OPEN, HK_LOAD_STATE_SLOT_1, NUM_HOTKEYS};
 
 	// Configuration controls sizes
 	wxSize size(100,20);
 	// A small type font
 	wxFont m_SmallFont(7, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
 
-	wxStaticBoxSizer *sHotkeys = new wxStaticBoxSizer(wxVERTICAL, this, _("Hotkeys"));
+	wxNotebook *Notebook = new wxNotebook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize);
 
-	// Header line
-	wxBoxSizer *HeaderSizer = new wxBoxSizer(wxHORIZONTAL);
-	wxStaticText *StaticTextHeader = new wxStaticText(this, wxID_ANY, _("Action"));
-	HeaderSizer->Add(StaticTextHeader, 1, wxALL, 2);
-	HeaderSizer->AddStretchSpacer();
-	StaticTextHeader = new wxStaticText(this, wxID_ANY, _("Key"), wxDefaultPosition, size);
-	HeaderSizer->Add(StaticTextHeader, 0, wxALL, 2);
-	sHotkeys->Add(HeaderSizer, 0, wxEXPAND | wxALL, 1);
-
-	for (int i = 0; i < NUM_HOTKEYS; i++)
+	for (int j = 0; j < 2; j++)
 	{
-		// Text for the action
-		wxStaticText *stHotkeys = new wxStaticText(this, wxID_ANY, hkText[i]);
+		wxPanel *Page = new wxPanel(Notebook, wxID_ANY, wxDefaultPosition, wxDefaultSize);
+		Notebook->AddPage(Page, pageNames[j]);
 
-		// Key selection button
-		m_Button_Hotkeys[i] = new wxButton(this, HK_FULLSCREEN + i, wxEmptyString,
-				wxDefaultPosition, size);
-		m_Button_Hotkeys[i]->SetFont(m_SmallFont);
-		SetButtonText(i,
-				InputCommon::WXKeyToString(SConfig::GetInstance().m_LocalCoreStartupParameter.iHotkey[i]),
-				InputCommon::WXKeymodToString(SConfig::GetInstance().m_LocalCoreStartupParameter.iHotkeyModifier[i]));
+		wxGridBagSizer *sHotkeys = new wxGridBagSizer();
 
-		wxBoxSizer *sHotkey = new wxBoxSizer(wxHORIZONTAL);
-		sHotkey->Add(stHotkeys, 1, wxALIGN_LEFT | wxALL, 2);
-		sHotkey->AddStretchSpacer();
-		sHotkey->Add(m_Button_Hotkeys[i], 0, wxALL, 2);
-		sHotkeys->Add(sHotkey, 0, wxEXPAND | wxALL, 1);
+		// Header line
+		for (int i = 0; i < HOTKEY_NUM_COLUMNS; i++)
+		{
+			wxBoxSizer *HeaderSizer = new wxBoxSizer(wxHORIZONTAL);
+			wxStaticText *StaticTextHeader = new wxStaticText(Page, wxID_ANY, _("Action"));
+			HeaderSizer->Add(StaticTextHeader, 1, wxALL, 2);
+			StaticTextHeader = new wxStaticText(Page, wxID_ANY, _("Key"), wxDefaultPosition, size);
+			HeaderSizer->Add(StaticTextHeader, 0, wxALL, 2);	
+			sHotkeys->Add(HeaderSizer, wxGBPosition(0, i), wxDefaultSpan, wxEXPAND | wxLEFT, (i > 0) ? 30 : 1);
+		}
+
+		int column_break = (page_breaks[j+1] + page_breaks[j] + 1) / 2;
+		
+		for (int i = page_breaks[j]; i < page_breaks[j+1]; i++)
+		{
+			// Text for the action
+			wxStaticText *stHotkeys = new wxStaticText(Page, wxID_ANY, hkText[i]);
+
+			// Key selection button
+			m_Button_Hotkeys[i] = new wxButton(Page, i, wxEmptyString,
+					wxDefaultPosition, size);
+			m_Button_Hotkeys[i]->SetFont(m_SmallFont);
+			m_Button_Hotkeys[i]->SetToolTip(_("Left click to detect hotkeys.\nEnter space to clear."));
+			SetButtonText(i,
+					InputCommon::WXKeyToString(SConfig::GetInstance().m_LocalCoreStartupParameter.iHotkey[i]),
+					InputCommon::WXKeymodToString(
+						SConfig::GetInstance().m_LocalCoreStartupParameter.iHotkeyModifier[i]));
+
+			wxBoxSizer *sHotkey = new wxBoxSizer(wxHORIZONTAL);
+			sHotkey->Add(stHotkeys, 1, wxALIGN_LEFT | wxALIGN_CENTER_VERTICAL | wxALL, 2);
+			sHotkey->Add(m_Button_Hotkeys[i], 0, wxALL, 2);
+			sHotkeys->Add(sHotkey,
+					wxGBPosition((i < column_break) ? i - page_breaks[j] + 1 : i - column_break + 1,
+						(i < column_break) ? 0 : 1),
+					wxDefaultSpan, wxEXPAND | wxLEFT, (i < column_break) ? 1 : 30);
+		}
+
+		wxStaticBoxSizer *sHotkeyBox = new wxStaticBoxSizer(wxVERTICAL, Page, _("Hotkeys"));
+		sHotkeyBox->Add(sHotkeys);
+
+		wxBoxSizer* const sPage = new wxBoxSizer(wxVERTICAL);
+		sPage->Add(sHotkeyBox, 0, wxEXPAND | wxALL, 5);
+		Page->SetSizer(sPage);
 	}
 
 	m_Close = new wxButton(this, ID_CLOSE, _("Close"));
@@ -240,7 +306,7 @@ void HotkeyConfigDialog::CreateHotkeyGUIControls(void)
 	sButtons->Add(m_Close, 0, (wxLEFT), 5);	
 
 	wxBoxSizer *sMainSizer = new wxBoxSizer(wxVERTICAL);
-	sMainSizer->Add(sHotkeys, 0, wxEXPAND | wxALL, 5);
+	sMainSizer->Add(Notebook, 0, wxEXPAND | wxALL, 5);
 	sMainSizer->Add(sButtons, 0, wxEXPAND | (wxLEFT | wxRIGHT | wxDOWN), 5);
 	SetSizer(sMainSizer);
 	Layout();

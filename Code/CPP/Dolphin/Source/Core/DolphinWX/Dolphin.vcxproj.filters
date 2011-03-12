@@ -12,15 +12,6 @@
     <ClCompile Include="Src\MemoryCards\WiiSaveCrypted.cpp">
       <Filter>GUI\Saves</Filter>
     </ClCompile>
-    <ClCompile Include="Src\NetPlay.cpp">
-      <Filter>GUI\NetPlay</Filter>
-    </ClCompile>
-    <ClCompile Include="Src\NetPlayClient.cpp">
-      <Filter>GUI\NetPlay</Filter>
-    </ClCompile>
-    <ClCompile Include="Src\NetPlayServer.cpp">
-      <Filter>GUI\NetPlay</Filter>
-    </ClCompile>
     <ClCompile Include="Src\NetWindow.cpp">
       <Filter>GUI\NetPlay</Filter>
     </ClCompile>
@@ -66,9 +57,6 @@
     <ClCompile Include="Src\LogWindow.cpp">
       <Filter>GUI</Filter>
     </ClCompile>
-    <ClCompile Include="Src\LuaWindow.cpp">
-      <Filter>GUI</Filter>
-    </ClCompile>
     <ClCompile Include="Src\MemcardManager.cpp">
       <Filter>GUI</Filter>
     </ClCompile>
@@ -81,11 +69,65 @@
     <ClCompile Include="Src\WiimoteConfigDiag.cpp">
       <Filter>GUI</Filter>
     </ClCompile>
-    <ClCompile Include="Src\BootManager.cpp">
-      <Filter>Misc</Filter>
-    </ClCompile>
     <ClCompile Include="Src\ISOFile.cpp">
       <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\PHackSettings.cpp">
+      <Filter>GUI</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Debugger\DebuggerUIUtil.cpp">
+      <Filter>GUI\Debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\VideoConfigDiag.cpp">
+      <Filter>GUI\Video</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Debugger\CodeView.cpp">
+      <Filter>GUI\Debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Debugger\MemoryView.cpp">
+      <Filter>GUI\Debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Debugger\DebuggerPanel.cpp">
+      <Filter>GUI\Video</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Debugger\BreakpointDlg.cpp">
+      <Filter>GUI\Debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Debugger\BreakpointWindow.cpp">
+      <Filter>GUI\Debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Debugger\CodeWindow.cpp">
+      <Filter>GUI\Debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Debugger\CodeWindowFunctions.cpp">
+      <Filter>GUI\Debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Debugger\DSPDebugWindow.cpp">
+      <Filter>GUI\Debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Debugger\JitWindow.cpp">
+      <Filter>GUI\Debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Debugger\MemoryCheckDlg.cpp">
+      <Filter>GUI\Debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Debugger\MemoryWindow.cpp">
+      <Filter>GUI\Debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Debugger\RegisterWindow.cpp">
+      <Filter>GUI\Debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Debugger\RegisterView.cpp">
+      <Filter>GUI\Debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Debugger\DSPRegisterView.cpp">
+      <Filter>GUI\Debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Debugger\BreakpointView.cpp">
+      <Filter>GUI\Debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\LogConfigWindow.cpp">
+      <Filter>GUI</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -100,9 +142,6 @@
       <Filter>GUI\Saves</Filter>
     </ClInclude>
     <ClInclude Include="Src\NetWindow.h">
-      <Filter>GUI\NetPlay</Filter>
-    </ClInclude>
-    <ClInclude Include="Src\NetPlay.h">
       <Filter>GUI\NetPlay</Filter>
     </ClInclude>
     <ClInclude Include="Src\InputConfigDiag.h">
@@ -141,9 +180,6 @@
     <ClInclude Include="Src\LogWindow.h">
       <Filter>GUI</Filter>
     </ClInclude>
-    <ClInclude Include="Src\LuaWindow.h">
-      <Filter>GUI</Filter>
-    </ClInclude>
     <ClInclude Include="Src\MemcardManager.h">
       <Filter>GUI</Filter>
     </ClInclude>
@@ -156,14 +192,65 @@
     <ClInclude Include="Src\WiimoteConfigDiag.h">
       <Filter>GUI</Filter>
     </ClInclude>
-    <ClInclude Include="Src\BootManager.h">
-      <Filter>Misc</Filter>
-    </ClInclude>
     <ClInclude Include="Src\ISOFile.h">
       <Filter>Misc</Filter>
     </ClInclude>
     <ClInclude Include="resource.h">
       <Filter>Resources</Filter>
+    </ClInclude>
+    <ClInclude Include="Src\PHackSettings.h">
+      <Filter>GUI</Filter>
+    </ClInclude>
+    <ClInclude Include="Src\Debugger\DebuggerUIUtil.h">
+      <Filter>GUI\Debugger</Filter>
+    </ClInclude>
+    <ClInclude Include="Src\VideoConfigDiag.h">
+      <Filter>GUI\Video</Filter>
+    </ClInclude>
+    <ClInclude Include="Src\Debugger\CodeView.h">
+      <Filter>GUI\Debugger</Filter>
+    </ClInclude>
+    <ClInclude Include="Src\Debugger\MemoryView.h">
+      <Filter>GUI\Debugger</Filter>
+    </ClInclude>
+    <ClInclude Include="Src\Debugger\DebuggerPanel.h">
+      <Filter>GUI\Video</Filter>
+    </ClInclude>
+    <ClInclude Include="Src\Debugger\BreakpointDlg.h">
+      <Filter>GUI\Debugger</Filter>
+    </ClInclude>
+    <ClInclude Include="Src\Debugger\BreakpointWindow.h">
+      <Filter>GUI\Debugger</Filter>
+    </ClInclude>
+    <ClInclude Include="Src\Debugger\CodeWindow.h">
+      <Filter>GUI\Debugger</Filter>
+    </ClInclude>
+    <ClInclude Include="Src\Debugger\DSPDebugWindow.h">
+      <Filter>GUI\Debugger</Filter>
+    </ClInclude>
+    <ClInclude Include="Src\Debugger\JitWindow.h">
+      <Filter>GUI\Debugger</Filter>
+    </ClInclude>
+    <ClInclude Include="Src\Debugger\MemoryCheckDlg.h">
+      <Filter>GUI\Debugger</Filter>
+    </ClInclude>
+    <ClInclude Include="Src\Debugger\MemoryWindow.h">
+      <Filter>GUI\Debugger</Filter>
+    </ClInclude>
+    <ClInclude Include="Src\Debugger\RegisterWindow.h">
+      <Filter>GUI\Debugger</Filter>
+    </ClInclude>
+    <ClInclude Include="Src\Debugger\RegisterView.h">
+      <Filter>GUI\Debugger</Filter>
+    </ClInclude>
+    <ClInclude Include="Src\Debugger\DSPRegisterView.h">
+      <Filter>GUI\Debugger</Filter>
+    </ClInclude>
+    <ClInclude Include="Src\Debugger\BreakpointView.h">
+      <Filter>GUI\Debugger</Filter>
+    </ClInclude>
+    <ClInclude Include="Src\LogConfigWindow.h">
+      <Filter>GUI</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -191,6 +278,12 @@
     </Filter>
     <Filter Include="Resources">
       <UniqueIdentifier>{9dd3ef96-b03a-4c14-9d35-6a4850acd430}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GUI\Debugger">
+      <UniqueIdentifier>{8ab1ce40-f5e7-47b8-9706-59c924af4eaa}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GUI\Video">
+      <UniqueIdentifier>{ff5180be-244f-4c0e-8a35-bd4bffb6a343}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

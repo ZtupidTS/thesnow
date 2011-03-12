@@ -29,15 +29,16 @@
 #include <vector>
 
 #include "CDUtils.h"
-#include "CodeWindow.h"
+#include "Debugger/CodeWindow.h"
 #include "LogWindow.h"
+#include "LogConfigWindow.h"
 #if defined(HAVE_X11) && HAVE_X11
 #include "X11Utils.h"
 #endif
 
 // A shortcut to access the bitmaps
 #define wxGetBitmapFromMemory(name) _wxGetBitmapFromMemory(name, sizeof(name))
-inline wxBitmap _wxGetBitmapFromMemory(const unsigned char* data, int length)
+static inline wxBitmap _wxGetBitmapFromMemory(const unsigned char* data, int length)
 {
 	wxMemoryInputStream is(data, length);
 	return(wxBitmap(wxImage(is, wxBITMAP_TYPE_ANY, -1), -1));
@@ -45,9 +46,12 @@ inline wxBitmap _wxGetBitmapFromMemory(const unsigned char* data, int length)
 
 // Class declarations
 class CGameListCtrl;
+class GameListItem;
 class CLogWindow;
+class NetPlaySetupDiag;
+class wxCheatsWindow;
 
-// The CPanel class to receive MSWWindowProc messages from the video plugin.
+// The CPanel class to receive MSWWindowProc messages from the video backend.
 class CPanel : public wxPanel
 {
 	public:
@@ -114,6 +118,8 @@ class CFrame : public CRenderFrame
 
 		// These have to be public		
 		CCodeWindow* g_pCodeWindow;
+		NetPlaySetupDiag* g_NetPlaySetupDiag;
+		wxCheatsWindow* g_CheatsWindow;
 		void InitBitmaps();
 		void DoPause();
 		void DoStop();
@@ -123,6 +129,7 @@ class CFrame : public CRenderFrame
 		void UpdateGUI();
 		void UpdateGameList();
 		void ToggleLogWindow(bool bShow);
+		void ToggleLogConfigWindow(bool bShow);
 		void ToggleConsole(bool bShow);		
 		void PostEvent(wxCommandEvent& event);
 		void StatusBarMessage(const char * Text, ...);
@@ -137,11 +144,12 @@ class CFrame : public CRenderFrame
 		void ToggleDisplayMode (bool bFullscreen);
 		static void ConnectWiimote(int wm_idx, bool connect);
 
+		const CGameListCtrl *GetGameListCtrl() const;
+
 		#ifdef __WXGTK__
 		Common::Event panic_event;
 		bool bPanicResult;
-		Common::Event keystate_event;
-		bool bKeyStateResult;
+		std::mutex keystate_lock;
 		#endif
 
 		#if defined(HAVE_XRANDR) && HAVE_XRANDR
@@ -171,6 +179,7 @@ class CFrame : public CRenderFrame
 		CRenderFrame* m_RenderFrame;
 		wxPanel* m_RenderParent;
 		CLogWindow* m_LogWindow;
+		LogConfigWindow* m_LogConfigWindow;
 		bool UseDebugger;
 		bool m_bBatchMode;
 		bool m_bEdit;
@@ -190,10 +199,10 @@ class CFrame : public CRenderFrame
 			Toolbar_Pause,
 			Toolbar_Screenshot,
 			Toolbar_FullScreen,
-			Toolbar_PluginOptions,
-			Toolbar_PluginGFX,
-			Toolbar_PluginDSP,
-			Toolbar_PluginPAD,
+			Toolbar_ConfigMain,
+			Toolbar_ConfigGFX,
+			Toolbar_ConfigDSP,
+			Toolbar_ConfigPAD,
 			Toolbar_Wiimote,			
 			Toolbar_Help,
 			EToolbar_Max
@@ -283,6 +292,7 @@ class CFrame : public CRenderFrame
 		void OnRecord(wxCommandEvent& event);
 		void OnPlayRecording(wxCommandEvent& event);
 		void OnRecordExport(wxCommandEvent& event);
+		void OnRecordReadOnly(wxCommandEvent& event);
 		void OnChangeDisc(wxCommandEvent& event);
 		void OnScreenshot(wxCommandEvent& event);
 		void OnActive(wxActivateEvent& event);
@@ -299,10 +309,11 @@ class CFrame : public CRenderFrame
 		void OnFrameStep(wxCommandEvent& event);
 		
 		void OnConfigMain(wxCommandEvent& event); // Options
-		void OnPluginGFX(wxCommandEvent& event);
-		void OnPluginDSP(wxCommandEvent& event);
-		void OnPluginPAD(wxCommandEvent& event);
-		void OnPluginWiimote(wxCommandEvent& event);
+		void OnConfigGFX(wxCommandEvent& event);
+		void OnConfigDSP(wxCommandEvent& event);
+		void OnConfigPAD(wxCommandEvent& event);
+		void OnConfigWiimote(wxCommandEvent& event);
+		void OnConfigHotkey(wxCommandEvent& event);
 
 		void OnToggleFullscreen(wxCommandEvent& event);
 		void OnToggleDualCore(wxCommandEvent& event);
@@ -325,7 +336,6 @@ class CFrame : public CRenderFrame
 
 		void OnMemcard(wxCommandEvent& event); // Misc
 		void OnImportSave(wxCommandEvent& event);
-		void OnOpenLuaWindow(wxCommandEvent& event);
 
 		void OnNetPlay(wxCommandEvent& event);
 
@@ -343,6 +353,7 @@ class CFrame : public CRenderFrame
 		DECLARE_EVENT_TABLE();
 };
 
+int GetCmdForHotkey(unsigned int key);
 
 #endif  // __FRAME_H_
 

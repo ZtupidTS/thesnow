@@ -49,9 +49,8 @@ DSPDisassembler::DSPDisassembler(const AssemblerSettings &settings)
 DSPDisassembler::~DSPDisassembler()
 {
 	// Some old code for logging unknown ops.
-	char filename[MAX_PATH];
-	sprintf(filename, "%sUnkOps.txt", File::GetUserPath(D_DUMPDSP_IDX));
-	FILE *uo = fopen(filename, "w");
+	std::string filename = File::GetUserPath(D_DUMPDSP_IDX) + "UnkOps.txt";
+	File::IOFile uo(filename, "w");
 	if (!uo)
 		return;
 
@@ -62,18 +61,17 @@ DSPDisassembler::~DSPDisassembler()
 		if (iter->second > 0)
 		{
 			count++;
-			fprintf(uo, "OP%04x\t%d", iter->first, iter->second);
+			fprintf(uo.GetHandle(), "OP%04x\t%d", iter->first, iter->second);
 			for (int j = 15; j >= 0; j--)  // print op bits
 			{
 				if ((j & 0x3) == 3)
-					fprintf(uo, "\tb");
-				fprintf(uo, "%d", (iter->first >> j) & 0x1);
+					fprintf(uo.GetHandle(), "\tb");
+				fprintf(uo.GetHandle(), "%d", (iter->first >> j) & 0x1);
 			}
-			fprintf(uo, "\n");
+			fprintf(uo.GetHandle(), "\n");
 		}
 	}
-	fprintf(uo, "Unknown opcodes count: %d\n", count);
-	fclose(uo);
+	fprintf(uo.GetHandle(), "Unknown opcodes count: %d\n", count);
 }
 
 bool DSPDisassembler::Disassemble(int start_pc, const std::vector<u16> &code, int base_addr, std::string &text)
@@ -81,9 +79,10 @@ bool DSPDisassembler::Disassemble(int start_pc, const std::vector<u16> &code, in
 	const char *tmp1 = "tmp1.bin";
 
 	// First we have to dump the code to a bin file.
-	FILE *f = fopen(tmp1, "wb");
-	fwrite(&code[0], 1, code.size() * 2, f);
-	fclose(f);
+	{
+	File::IOFile f(tmp1, "wb");
+	f.WriteArray(&code[0], code.size());
+	}
 
 	// Run the two passes.
 	return DisFile(tmp1, base_addr, 1, text) && DisFile(tmp1, base_addr, 2, text);
@@ -223,7 +222,7 @@ bool DSPDisassembler::DisOpcode(const u16 *binbuf, int base_addr, int pass, u16 
 			break;
 		}
 	}
-	const DSPOPCTemplate fake_op = {"CW",		0x0000, 0x0000, nop, NULL, 1, 1, {{P_VAL, 2, 0, 0, 0xffff}}, false};
+	const DSPOPCTemplate fake_op = {"CW",		0x0000, 0x0000, nop, NULL, 1, 1, {{P_VAL, 2, 0, 0, 0xffff}}, false, false, false, false, false};
 	if (!opc)
 		opc = &fake_op;
 
@@ -336,25 +335,25 @@ bool DSPDisassembler::DisOpcode(const u16 *binbuf, int base_addr, int pass, u16 
 
 bool DSPDisassembler::DisFile(const char* name, int base_addr, int pass, std::string &output)
 {
-	FILE* in = fopen(name, "rb");
-	if (in == NULL)
+	File::IOFile in(name, "rb");
+	if (!in)
 	{
 		printf("gd_dis_file: No input\n");
 		return false;
 	}
 
-	int size = (int)File::GetSize(in) & ~1;
-	u16 *binbuf = new u16[size / 2];
-	fread(binbuf, 1, size, in);
-	fclose(in);
+	const int size = ((int)in.GetSize() & ~1) / 2;
+	u16 *const binbuf = new u16[size];
+	in.ReadArray(binbuf, size);
+	in.Close();
 
 	// Actually do the disassembly.
-	for (u16 pc = 0; pc < (size / 2);)
+	for (u16 pc = 0; pc < size;)
 	{
 		DisOpcode(binbuf, base_addr, pass, &pc, output);
 		if (pass == 2)
 			output.append("\n");
 	}
-	delete [] binbuf;
+	delete[] binbuf;
 	return true;
 }
