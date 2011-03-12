@@ -12,5 +12,5 @@ files = [
 	'stb_image_aug.c'
 	]
 
-env.StaticLibrary(env['local_libs'] + "SOIL", files)
 env['CPPPATH'] += ['#Externals/SOIL']
+env['LIBS'] += env.StaticLibrary('SOIL', files)

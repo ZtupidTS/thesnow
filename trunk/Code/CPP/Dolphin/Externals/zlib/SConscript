@@ -1,8 +1,12 @@
 # -*- python -*-
 
 Import('env')
+import sys
 
 if env.has_key('shared_zlib') and env['shared_zlib']:
+	Return()
+
+if sys.platform == 'darwin':
 	Return()
 
 files = [
@@ -10,7 +14,10 @@ files = [
 	'compress.c',
 	'crc32.c',
 	'deflate.c',
-	'gzio.c',
+	'gzclose.c',
+	'gzlib.c',
+	'gzread.c',
+	'gzwrite.c',
 	'infback.c',
 	'inffast.c',
 	'inflate.c',
@@ -20,5 +27,5 @@ files = [
 	'zutil.c',
 	]
 
-env.StaticLibrary(env['local_libs'] + "z", files)
 env['CPPPATH'] += ['#Externals/zlib']
+env['LIBS'] += env.StaticLibrary('z', files)
