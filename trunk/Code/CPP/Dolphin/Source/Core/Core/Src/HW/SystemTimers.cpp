@@ -70,7 +70,7 @@ IPC_HLE_PERIOD: For the Wiimote this is the call schedule:
 #include "../CoreTiming.h"
 #include "../ConfigManager.h"
 #include "../IPC_HLE/WII_IPC_HLE.h"
-#include "../PluginDSP.h"
+#include "../DSPEmulator.h"
 #include "Thread.h"
 #include "Timer.h"
 #include "VideoBackendBase.h"
@@ -224,13 +224,6 @@ u64 GetFakeTimeBase()
 	return CoreTiming::GetFakeTBStartValue() + ((CoreTiming::GetTicks() - CoreTiming::GetFakeTBStartTicks()) / TIMER_RATIO);
 }
 
-// For DC watchdog hack
-void FakeGPWatchdogCallback(u64 userdata, int cyclesLate)
-{
-	g_video_backend->Video_WaitForFrameFinish();  // lock CPUThread until frame finish
-	CoreTiming::ScheduleEvent(VideoInterface::GetTicksPerFrame() - cyclesLate, et_FakeGPWD);
-}
-
 void PatchEngineCallback(u64 userdata, int cyclesLate)
 {
 	// Patch mem and run the Action Replay
@@ -245,7 +238,7 @@ void Init()
 	{
 		CPU_CORE_CLOCK = 729000000u;
 
-		if (!DSP::GetPlugin()->IsLLE())
+		if (!DSP::GetDSPEmulator()->IsLLE())
 			DSP_PERIOD = (int)(GetTicksPerSecond() * 0.003f);
 
 		// AyuanX: TO BE TWEAKED
@@ -261,11 +254,11 @@ void Init()
 	{
 		CPU_CORE_CLOCK = 486000000u;
 
-		if (!DSP::GetPlugin()->IsLLE())
+		if (!DSP::GetDSPEmulator()->IsLLE())
 			DSP_PERIOD = (int)(GetTicksPerSecond() * 0.005f);
 	}
 
-	if (DSP::GetPlugin()->IsLLE())
+	if (DSP::GetDSPEmulator()->IsLLE())
 		DSP_PERIOD = 12000; // TO BE TWEAKED
 
 	// This is the biggest question mark.
@@ -289,8 +282,6 @@ void Init()
 	et_DSP = CoreTiming::RegisterEvent("DSPCallback", DSPCallback);
 	et_AudioDMA = CoreTiming::RegisterEvent("AudioDMACallback", AudioDMACallback);
 	et_IPC_HLE = CoreTiming::RegisterEvent("IPC_HLE_UpdateCallback", IPC_HLE_UpdateCallback);
-	// Always register this. Increases chances of DC/SC save state compatibility.
-	et_FakeGPWD = CoreTiming::RegisterEvent("FakeGPWatchdogCallback", FakeGPWatchdogCallback);
 	et_PatchEngine = CoreTiming::RegisterEvent("PatchEngine", PatchEngineCallback);
 
 	CoreTiming::ScheduleEvent(AI_PERIOD, et_AI);
@@ -298,10 +289,6 @@ void Init()
 	CoreTiming::ScheduleEvent(DSP_PERIOD, et_DSP);
 	CoreTiming::ScheduleEvent(VideoInterface::GetTicksPerFrame(), et_SI);
 	CoreTiming::ScheduleEvent(AUDIO_DMA_PERIOD, et_AudioDMA);
-
-	// For DC watchdog hack
-	if (SConfig::GetInstance().m_LocalCoreStartupParameter.bCPUThread)
-		CoreTiming::ScheduleEvent(VideoInterface::GetTicksPerFrame(), et_FakeGPWD);
 
 	CoreTiming::ScheduleEvent(VideoInterface::GetTicksPerFrame(), et_PatchEngine);
 

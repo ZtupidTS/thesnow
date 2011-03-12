@@ -32,14 +32,14 @@ bool DumpDSPCode(const u8 *code_be, int size_in_bytes, u32 crc)
 {
 	char binFile[MAX_PATH];
 	char txtFile[MAX_PATH];
-	sprintf(binFile, "%sDSP_UC_%08X.bin", File::GetUserPath(D_DUMPDSP_IDX), crc);
-	sprintf(txtFile, "%sDSP_UC_%08X.txt", File::GetUserPath(D_DUMPDSP_IDX), crc);
+	sprintf(binFile, "%sDSP_UC_%08X.bin", File::GetUserPath(D_DUMPDSP_IDX).c_str(), crc);
+	sprintf(txtFile, "%sDSP_UC_%08X.txt", File::GetUserPath(D_DUMPDSP_IDX).c_str(), crc);
 
-	FILE* pFile = fopen(binFile, "wb");
+	File::IOFile pFile(binFile, "wb");
 	if (pFile)
 	{
-		fwrite(code_be, size_in_bytes, 1, pFile);
-		fclose(pFile);
+		pFile.WriteBytes(code_be, size_in_bytes);
+		pFile.Close();
 	}
 	else
 	{
@@ -70,19 +70,16 @@ bool DumpDSPCode(const u8 *code_be, int size_in_bytes, u32 crc)
 // TODO make this useful :p
 bool DumpCWCode(u32 _Address, u32 _Length)
 {
-	char filename[256];
-	sprintf(filename, "%sDSP_UCode.bin", File::GetUserPath(D_DUMPDSP_IDX));
-	FILE* pFile = fopen(filename, "wb");
+	std::string filename = File::GetUserPath(D_DUMPDSP_IDX) + "DSP_UCode.bin";
+	File::IOFile pFile(filename, "wb");
 
-	if (pFile != NULL)
+	if (pFile)
 	{
-		for (size_t i = _Address; i < _Address + _Length; i++)
+		for (size_t i = _Address; i != _Address + _Length; ++i)
 		{
 			u16 val = g_dsp.iram[i];
-			fprintf(pFile, "    cw 0x%04x \n", val);
+			fprintf(pFile.GetHandle(), "    cw 0x%04x \n", val);
 		}
-
-		fclose(pFile);
 		return true;
 	}
 

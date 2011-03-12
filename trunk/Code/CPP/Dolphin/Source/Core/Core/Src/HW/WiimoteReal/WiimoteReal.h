@@ -98,9 +98,10 @@ private:
 	std::thread			m_wiimote_thread;
 	Common::FifoQueue<Report>	m_read_reports;
 	Common::FifoQueue<Report>	m_write_reports;
+	Common::FifoQueue<Report>	m_audio_reports;
 };
 
-extern Common::CriticalSection	g_refresh_critsec;
+extern std::mutex g_refresh_lock;
 extern Wiimote *g_wiimotes[4];
 
 void InterruptChannel(int _WiimoteNumber, u16 _channelID, const void* _pData, u32 _Size);
@@ -108,7 +109,7 @@ void ControlChannel(int _WiimoteNumber, u16 _channelID, const void* _pData, u32 
 void Update(int _WiimoteNumber);
 
 void DoState(PointerWrap &p);
-void StateChange(PLUGIN_EMUSTATE newState);
+void StateChange(EMUSTATE_CHANGE newState);
 
 int FindWiimotes(Wiimote** wm, int max_wiimotes);
 

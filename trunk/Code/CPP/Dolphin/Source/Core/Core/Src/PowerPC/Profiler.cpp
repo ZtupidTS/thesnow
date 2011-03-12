@@ -25,6 +25,7 @@
 #endif
 
 #include "PPCSymbolDB.h"
+#include "FileUtil.h"
 
 namespace Profiler
 {
@@ -38,12 +39,12 @@ struct BlockStat
 	int blockNum;
 	u64 cost;
 
-	bool operator <(const BlockStat &other) const {
-		return cost > other.cost;
-	}
+	bool operator <(const BlockStat &other) const
+	{ return cost > other.cost; }
 };
 
-void WriteProfileResults(const char *filename) {
+void WriteProfileResults(const char *filename)
+{
 	std::vector<BlockStat> stats;
 	stats.reserve(jit->GetBlockCache()->GetNumBlocks());
 	u64 cost_sum = 0;
@@ -55,13 +56,14 @@ void WriteProfileResults(const char *filename) {
 	for (int i = 0; i < jit->GetBlockCache()->GetNumBlocks(); i++)
 	{
 		const JitBlock *block = jit->GetBlockCache()->GetBlock(i);
-		u64 cost = block->originalSize * (block->runCount / 4);		// rough heuristic. mem instructions should cost more.
+		// Rough heuristic.  Mem instructions should cost more.
+		u64 cost = block->originalSize * (block->runCount / 4);
 #ifdef _WIN32
-		u64 timecost = block->ticCounter;					// Indeed ;)
+		u64 timecost = block->ticCounter;
 #endif
-		if (block->runCount >= 1) {  // Todo: tweak.
+		// Todo: tweak.
+		if (block->runCount >= 1)
 			stats.push_back(BlockStat(i, cost));
-		}
 		cost_sum += cost;
 #ifdef _WIN32
 		timecost_sum += timecost;
@@ -69,12 +71,13 @@ void WriteProfileResults(const char *filename) {
 	}
 
 	sort(stats.begin(), stats.end());
-	FILE *f = fopen(filename, "w");
-	if (!f) {
+	File::IOFile f(filename, "w");
+	if (!f)
+	{
 		PanicAlert("failed to open %s", filename);
 		return;
 	}
-	fprintf(f, "origAddr\tblkName\tcost\ttimeCost\tpercent\ttimePercent\tOvAllinBlkTime(ms)\tblkCodeSize\n");
+	fprintf(f.GetHandle(), "origAddr\tblkName\tcost\ttimeCost\tpercent\ttimePercent\tOvAllinBlkTime(ms)\tblkCodeSize\n");
 	for (unsigned int i = 0; i < stats.size(); i++)
 	{
 		const JitBlock *block = jit->GetBlockCache()->GetBlock(stats[i].blockNum);
@@ -84,15 +87,16 @@ void WriteProfileResults(const char *filename) {
 			double percent = 100.0 * (double)stats[i].cost / (double)cost_sum;
 #ifdef _WIN32 
 			double timePercent = 100.0 * (double)block->ticCounter / (double)timecost_sum;
-			fprintf(f, "%08x\t%s\t%llu\t%llu\t%.2lf\t%llf\t%lf\t%i\n", 
-				block->originalAddress, name.c_str(), stats[i].cost, block->ticCounter, percent, timePercent, (double)block->ticCounter*1000.0/(double)countsPerSec, block->codeSize);
+			fprintf(f.GetHandle(), "%08x\t%s\t%llu\t%llu\t%.2lf\t%llf\t%lf\t%i\n", 
+					block->originalAddress, name.c_str(), stats[i].cost,
+					block->ticCounter, percent, timePercent,
+					(double)block->ticCounter*1000.0/(double)countsPerSec, block->codeSize);
 #else
-			fprintf(f, "%08x\t%s\t%llu\t???\t%.2lf\t???\t???\t%i\n", 
-				block->originalAddress, name.c_str(), stats[i].cost,  /*block->ticCounter.QuadPart,*/ percent, /*timePercent, (double)block->ticCounter.QuadPart*1000.0/(double)countsPerSec.QuadPart,*/ block->codeSize);
+			fprintf(f.GetHandle(), "%08x\t%s\t%llu\t???\t%.2lf\t???\t???\t%i\n", 
+					block->originalAddress, name.c_str(), stats[i].cost,  percent, block->codeSize);
 #endif
 		}
 	}
-	fclose(f);
 }
 
 }  // namespace

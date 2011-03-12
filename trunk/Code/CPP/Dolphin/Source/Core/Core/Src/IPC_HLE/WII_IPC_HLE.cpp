@@ -133,18 +133,28 @@ void Shutdown()
 
 void SetDefaultContentFile(const std::string& _rFilename)
 {
-	CWII_IPC_HLE_Device_es* pDevice = (CWII_IPC_HLE_Device_es*)AccessDeviceByID(GetDeviceIDByName(std::string("/dev/es")));
+	CWII_IPC_HLE_Device_es* pDevice =
+		(CWII_IPC_HLE_Device_es*)AccessDeviceByID(GetDeviceIDByName(std::string("/dev/es")));
 	if (pDevice)
 		pDevice->LoadWAD(_rFilename);
 }
 
 void ES_DIVerify(u8 *_pTMD, u32 _sz)
 {
-	CWII_IPC_HLE_Device_es* pDevice = (CWII_IPC_HLE_Device_es*)AccessDeviceByID(GetDeviceIDByName(std::string("/dev/es")));
+	CWII_IPC_HLE_Device_es* pDevice =
+		(CWII_IPC_HLE_Device_es*)AccessDeviceByID(GetDeviceIDByName(std::string("/dev/es")));
 	if (pDevice)
 		pDevice->ES_DIVerify(_pTMD, _sz);
 	else
 		ERROR_LOG(WII_IPC_ES, "DIVerify called but /dev/es is not available");
+}
+
+void SDIO_EventNotify()
+{
+	CWII_IPC_HLE_Device_sdio_slot0 *pDevice =
+		(CWII_IPC_HLE_Device_sdio_slot0*)AccessDeviceByID(GetDeviceIDByName(std::string("/dev/sdio/slot0")));
+	if (pDevice)
+		pDevice->EventNotify();
 }
 
 int GetDeviceIDByName(const std::string& _rDeviceName)
@@ -199,14 +209,14 @@ void CopySettingsFile(std::string& DeviceName)
 	else
 		Source += "setting-eur.txt";
 
-	std::string Target = std::string(File::GetUserPath(D_WIIUSER_IDX)) + DeviceName;
+	std::string Target = File::GetUserPath(D_WIIUSER_IDX) + DeviceName;
 
 	// Check if the target dir exists, otherwise create it
 	std::string TargetDir = Target.substr(0, Target.find_last_of(DIR_SEP));
-	if (!File::IsDirectory(TargetDir.c_str()))
-		File::CreateFullPath(Target.c_str());
+	if (!File::IsDirectory(TargetDir))
+		File::CreateFullPath(Target);
 
-	if (File::Copy(Source.c_str(), Target.c_str()))
+	if (File::Copy(Source, Target))
 	{
 		INFO_LOG(WII_IPC_FILEIO, "FS: Copied %s to %s", Source.c_str(), Target.c_str());
 	}

@@ -51,8 +51,6 @@ DSPLLE::DSPLLE() {
 
 void DSPLLE::DoState(PointerWrap &p)
 {
-	p.Do(m_InitMixer);
-
 	p.Do(g_dsp.r);
 	p.Do(g_dsp.pc);
 #if PROFILE
@@ -79,64 +77,48 @@ void DSPLLE::DoState(PointerWrap &p)
 }
 
 // Regular thread
-void DSPLLE::dsp_thread(DSPLLE *lpParameter)
+void DSPLLE::dsp_thread(DSPLLE *dsp_lle)
 {
-	DSPLLE *dsp_lle = (DSPLLE *)lpParameter;
+	Common::SetCurrentThreadName("DSP thread");
+
 	while (dsp_lle->m_bIsRunning)
 	{
 		int cycles = (int)dsp_lle->m_cycle_count;
 		if (cycles > 0) {
-			if (dspjit) 
+			if (dspjit)
+			{
 				DSPCore_RunCycles(cycles);
+			}
 			else
+			{
 				DSPInterpreter::RunCycles(cycles);
-
-			Common::AtomicAdd(dsp_lle->m_cycle_count, -cycles);
+			}
+			Common::AtomicStore(dsp_lle->m_cycle_count, 0);
 		}
-		// yield?
+		else
+			Common::YieldCPU();
 	}
 }
 
-void DSPLLE::DSP_DebugBreak()
-{
-#if defined(HAVE_WX) && HAVE_WX
-	// if (m_DebuggerFrame)
-	//  	m_DebuggerFrame->DebugBreak();
-#endif
-}
-
-void DSPLLE::Initialize(void *hWnd, bool bWii, bool bDSPThread)
+bool DSPLLE::Initialize(void *hWnd, bool bWii, bool bDSPThread)
 {
 	m_hWnd = hWnd;
 	m_bWii = bWii;
 	m_bDSPThread = bDSPThread;
 	m_InitMixer = false;
-	bool bCanWork = true;
-	char irom_file[MAX_PATH];
-	char coef_file[MAX_PATH];
 
-	snprintf(irom_file, MAX_PATH, "%s%s",
-		File::GetSysDirectory().c_str(), GC_SYS_DIR DIR_SEP DSP_IROM);
+	std::string irom_file = File::GetSysDirectory() + GC_SYS_DIR DIR_SEP DSP_IROM;
+	std::string coef_file = File::GetSysDirectory() + GC_SYS_DIR DIR_SEP DSP_COEF;
+
 	if (!File::Exists(irom_file))
-		snprintf(irom_file, MAX_PATH, "%s%s",
-			File::GetUserPath(D_GCUSER_IDX), DIR_SEP DSP_IROM);
-	snprintf(coef_file, MAX_PATH, "%s%s",
-		File::GetSysDirectory().c_str(), GC_SYS_DIR DIR_SEP DSP_COEF);
+		irom_file = File::GetUserPath(D_GCUSER_IDX) + DSP_IROM;
 	if (!File::Exists(coef_file))
-		snprintf(coef_file, MAX_PATH, "%s%s",
-			File::GetUserPath(D_GCUSER_IDX), DIR_SEP DSP_COEF);
-	bCanWork = DSPCore_Init(irom_file, coef_file, AudioCommon::UseJIT());
+		coef_file = File::GetUserPath(D_GCUSER_IDX) + DSP_COEF;
+	if (!DSPCore_Init(irom_file.c_str(), coef_file.c_str(), AudioCommon::UseJIT()))
+		return false;
 
 	g_dsp.cpu_ram = Memory::GetPointer(0);
 	DSPCore_Reset();
-
-	if (!bCanWork)
-	{
-		DSPCore_Shutdown();
-		// No way to shutdown Core from here? Hardcore shutdown!
-		exit(EXIT_FAILURE);
-		return;
-	}
 
 	m_bIsRunning = true;
 
@@ -145,9 +127,9 @@ void DSPLLE::Initialize(void *hWnd, bool bWii, bool bDSPThread)
 	if (m_bDSPThread)
 		m_hDSPThread = std::thread(dsp_thread, this);
 
-#if defined(HAVE_WX) && HAVE_WX
 	Host_RefreshDSPDebuggerWindow();
-#endif
+
+	return true;
 }
 
 void DSPLLE::DSP_StopSoundStream()
@@ -171,7 +153,7 @@ u16 DSPLLE::DSP_WriteControlRegister(u16 _uFlag)
 	UDSPControl Temp(_uFlag);
 	if (!m_InitMixer)
 	{
-		if (!Temp.DSPHalt && Temp.DSPInit)
+		if (!Temp.DSPHalt)
 		{
 			unsigned int AISampleRate, DACSampleRate;
 			AudioInterface::Callback_GetSampleRate(AISampleRate, DACSampleRate);
@@ -261,8 +243,10 @@ void DSPLLE::DSP_WriteMailBoxLow(bool _CPUMailbox, u16 _uLowMail)
 
 void DSPLLE::DSP_Update(int cycles)
 {
-	unsigned int dsp_cycles = cycles / 6;  //(jit?20:6);
+	int dsp_cycles = cycles / 6;
 
+	if (dsp_cycles <= 0)
+		return;
 // Sound stream update job has been handled by AudioDMA routine, which is more efficient
 /*
 	// This gets called VERY OFTEN. The soundstream update might be expensive so only do it 200 times per second or something.
@@ -289,10 +273,10 @@ void DSPLLE::DSP_Update(int cycles)
 	}
 	else
 	{
-		// Wait for dsp thread to catch up reasonably. Note: this logic should be thought through.
-		while (m_cycle_count > dsp_cycles)
+		// Wait for dsp thread to complete its cycle. Note: this logic should be thought through.
+		while (m_cycle_count != 0)
 			;
-		Common::AtomicAdd(m_cycle_count, dsp_cycles);
+		Common::AtomicStore(m_cycle_count, dsp_cycles);
 	}
 }
 

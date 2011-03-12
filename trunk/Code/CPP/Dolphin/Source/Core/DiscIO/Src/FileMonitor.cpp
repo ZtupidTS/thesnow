@@ -101,7 +101,7 @@ void CheckFile(std::string File, u64 Size)
 	std::string Str = StringFromFormat("%s kB %s", ThousandSeparate(Size, 7).c_str(), File.c_str());
 	if (ShowSound(File))
 	{
-		NOTICE_LOG(FILEMON, "%s", Str.c_str());
+		INFO_LOG(FILEMON, "%s", Str.c_str());
 	}
 	else
 	{
@@ -127,7 +127,7 @@ void FindFilename(u64 offset)
 		FileAccess = false;
 		ReadGC(SConfig::GetInstance().m_LastFilename);
 		ISOFile = SConfig::GetInstance().m_LastFilename;
-		NOTICE_LOG(FILEMON, "Opening '%s'", ISOFile.c_str());
+		INFO_LOG(FILEMON, "Opening '%s'", ISOFile.c_str());
 		return;
 	}
 

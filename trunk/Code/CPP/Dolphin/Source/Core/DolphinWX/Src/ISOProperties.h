@@ -37,6 +37,15 @@
 #include "ActionReplay.h"
 #include "GeckoCodeDiag.h"
 
+struct PHackData
+{
+	bool PHackSZNear;
+	bool PHackSZFar;
+	bool PHackExP;
+	std::string PHZNear;
+	std::string PHZFar;
+};
+
 class CISOProperties : public wxDialog
 {
 	public:
@@ -55,6 +64,8 @@ class CISOProperties : public wxDialog
 		void ActionReplayList_Load();
 		bool SaveGameConfig();
 
+		PHackData PHack_Data;
+
 	private:
 
 		DECLARE_EVENT_TABLE();
@@ -63,7 +74,6 @@ class CISOProperties : public wxDialog
 		wxStaticBoxSizer *sbCoreOverrides;
 		wxStaticBoxSizer *sbWiiOverrides;
 		wxStaticBoxSizer *sbVideoOverrides;
-		wxStaticBoxSizer *sbPHackSettings;
 		wxBoxSizer *sEmuState;
 		wxBoxSizer *sPatches;
 		wxBoxSizer *sPatchButtons;
@@ -90,11 +100,8 @@ class CISOProperties : public wxDialog
 		// Wii
 		wxCheckBox *EnableProgressiveScan, *EnableWideScreen;
 		// Video
-		wxCheckBox *ForceFiltering,
-			*EFBCopyEnable, *EFBAccessEnable, *EFBToTextureEnable,
-			*SafeTextureCache, *DstAlphaPass, *UseXFB, *UseZTPSpeedupHack,
-			*DListCache, *PHackEnable, *PHackSZNear, *PHackSZFar, *PHackExP;
-		wxStaticText *Hacktext;
+		wxCheckBox *UseZTPSpeedupHack, *PHackEnable;
+		wxButton *PHSettings;
 
 		wxButton *EditConfig;
 		wxStaticText *EmuStateText;
@@ -128,16 +135,12 @@ class CISOProperties : public wxDialog
 		wxStaticText *m_MakerText;
 		wxStaticText *m_CommentText;
 		wxStaticText *m_BannerText;
-		wxStaticText *PHackZNearText;
-		wxStaticText *PHackZFarText;
 		wxTextCtrl *m_Name;
 		wxTextCtrl *m_GameID;
 		wxTextCtrl *m_Country;
 		wxTextCtrl *m_MakerID;
 		wxTextCtrl *m_Date;
 		wxTextCtrl *m_FST;
-		wxTextCtrl *PHackZNear;
-		wxTextCtrl *PHackZFar;
 		wxArrayString arrayStringFor_Lang;
 		wxChoice *m_Lang;
 		wxTextCtrl *m_ShortName;
@@ -176,23 +179,9 @@ class CISOProperties : public wxDialog
 			ID_DISCSPEED,
 			ID_MERGEBLOCKS,
 			ID_AUDIO_DSP_HLE,
-			ID_FORCEFILTERING,
-			ID_EFBCOPYENABLE,
-			ID_EFBACCESSENABLE,
-			ID_EFBTOTEXTUREENABLE,
-			ID_SAFETEXTURECACHE,
-			ID_DSTALPHAPASS,
-			ID_USEXFB,
 			ID_ZTP_SPEEDUP,
-			ID_DLISTCACHE,
 			ID_PHACKENABLE,
-			ID_PHACK_SZNear,
-			ID_PHACK_SZFar,
-			ID_PHACK_ZNear_TEXT,
-			ID_PHACK_ZNear,
-			ID_PHACK_ZFar_TEXT,
-			ID_PHACK_ZFar,
-			ID_PHACK_ExP,
+			ID_PHSETTINGS,
 			ID_ENABLEPROGRESSIVESCAN,
 			ID_ENABLEWIDESCREEN,
 			ID_EDITCONFIG,
@@ -260,6 +249,7 @@ class CISOProperties : public wxDialog
 		void SetRefresh(wxCommandEvent& event);
 		void OnChangeBannerLang(wxCommandEvent& event);
 		void OnCheckBoxClicked(wxCommandEvent& event);
+		void PHackButtonClicked(wxCommandEvent& event);
 
 		GameListItem *OpenGameListItem;
 

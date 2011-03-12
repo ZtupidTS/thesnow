@@ -115,6 +115,11 @@ void ResetRegisters()
 	ppcState.npc = 0;
 	ppcState.Exceptions = 0;
 
+	for (int i = 0; i < 8; i++)
+	{
+		ppcState.cr_fast[i] = 0;
+	}
+
 	TL = 0;
 	TU = 0;
 	SystemTimers::TimeBaseSet();
@@ -183,7 +188,7 @@ void Init(int cpu_core)
 
 	if (cpu_core_base != interpreter)
 	{
-		jit = dynamic_cast<JitBase*>(cpu_core_base);
+		jit = static_cast<JitBase*>(cpu_core_base);
 		jit->Init();
 		mode = MODE_JIT;
 	}
@@ -435,12 +440,4 @@ void UpdateFPRF(double dvalue)
 	FPSCR.FPRF = MathUtil::ClassifyDouble(dvalue);
 	//if (FPSCR.FPRF == 0x11)
 	//	PanicAlert("QNAN alert");
-}
-
-void UpdateFEX() {
-	FPSCR.FEX = (FPSCR.XX & FPSCR.XE) |
-		        (FPSCR.ZX & FPSCR.ZE) |
-				(FPSCR.UX & FPSCR.UE) |
-				(FPSCR.OX & FPSCR.OE) |
-				(FPSCR.VX & FPSCR.VE);
 }

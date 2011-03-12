@@ -235,7 +235,7 @@ void PrintObject(const T &Obj)
 	CompileTimeAssert<sizeof(ZeldaVoicePB) == 0x180> ensure_zpb_size_correct;
 	(void)ensure_zpb_size_correct;
 
-	for(int i = 0; i < sizeof(T); i++) {
+	for (size_t i = 0; i < sizeof(T); i++) {
 		if((i > 0) && ((i & 1) == 0))
 			ss << " ";
 
@@ -746,7 +746,7 @@ ContinueWithBlock:
 // size is in stereo samples.
 void CUCode_Zelda::MixAdd(short *_Buffer, int _Size)
 {
-	m_csMix.Enter();
+	std::lock_guard<std::mutex> lk(m_csMix);
 	// Safety check
 	if (_Size > 256 * 1024 - 8)
 		_Size = 256 * 1024 - 8;
@@ -793,5 +793,4 @@ void CUCode_Zelda::MixAdd(short *_Buffer, int _Size)
 
 		_Buffer += 2;
 	}
-	m_csMix.Leave();
 }

@@ -39,9 +39,9 @@
 #include <tmmintrin.h>
 #endif
 
-void gdsp_do_dma();
+static void gdsp_do_dma();
 
-Common::CriticalSection g_CriticalSection;
+static std::mutex g_CriticalSection;
 
 void gdsp_ifx_init()
 {
@@ -56,35 +56,34 @@ void gdsp_ifx_init()
 	g_dsp.mbox[1][1] = 0;
 }
 
-
 u32 gdsp_mbox_peek(u8 mbx)
 {
+	std::unique_lock<std::mutex> lk(g_CriticalSection, std::defer_lock);
 	if (DSPHost_OnThread())
-		g_CriticalSection.Enter();
-	u32 value = ((g_dsp.mbox[mbx][0] << 16) | g_dsp.mbox[mbx][1]);
-	if (DSPHost_OnThread())
-		g_CriticalSection.Leave();
-	return value;
+		lk.lock();
+
+	return ((g_dsp.mbox[mbx][0] << 16) | g_dsp.mbox[mbx][1]);
 }
 
 void gdsp_mbox_write_h(u8 mbx, u16 val)
 {
+	std::unique_lock<std::mutex> lk(g_CriticalSection, std::defer_lock);
 	if (DSPHost_OnThread())
-		g_CriticalSection.Enter();
-	g_dsp.mbox[mbx][0] = val & 0x7fff;
-	if (DSPHost_OnThread())
-		g_CriticalSection.Leave();
-}
+		lk.lock();
 
+	g_dsp.mbox[mbx][0] = val & 0x7fff;
+}
 
 void gdsp_mbox_write_l(u8 mbx, u16 val)
 {
+	{
+	std::unique_lock<std::mutex> lk(g_CriticalSection, std::defer_lock);
 	if (DSPHost_OnThread())
-		g_CriticalSection.Enter();
+		lk.lock();
+
 	g_dsp.mbox[mbx][1]  = val;
 	g_dsp.mbox[mbx][0] |= 0x8000;
-	if (DSPHost_OnThread())
-		g_CriticalSection.Leave();
+	}
 
 #if defined(_DEBUG) || defined(DEBUGFAST)
 	if (mbx == GDSP_MBOX_DSP)
@@ -96,24 +95,27 @@ void gdsp_mbox_write_l(u8 mbx, u16 val)
 #endif
 }
 
-
 u16 gdsp_mbox_read_h(u8 mbx)
 {
+	std::unique_lock<std::mutex> lk(g_CriticalSection, std::defer_lock);
+	if (DSPHost_OnThread())
+		lk.lock();
+
 	return g_dsp.mbox[mbx][0];  // TODO: mask away the top bit?
 }
 
 
 u16 gdsp_mbox_read_l(u8 mbx)
 {
+	u16 val;
+	{
+	std::unique_lock<std::mutex> lk(g_CriticalSection, std::defer_lock);
 	if (DSPHost_OnThread())
-		g_CriticalSection.Enter();
+		lk.lock();
 
-	u16 val = g_dsp.mbox[mbx][1];
+	val = g_dsp.mbox[mbx][1];
 	g_dsp.mbox[mbx][0] &= ~0x8000;
-
-
-	if (DSPHost_OnThread())
-		g_CriticalSection.Leave();
+	}
 
 #if defined(_DEBUG) || defined(DEBUGFAST)
 	if (mbx == GDSP_MBOX_DSP)
@@ -126,7 +128,6 @@ u16 gdsp_mbox_read_l(u8 mbx)
 
 	return val;
 }
-
 
 void gdsp_ifx_write(u32 addr, u32 val)
 {
@@ -241,7 +242,7 @@ u16 gdsp_ifx_read(u16 addr)
 	}
 }
 
-void gdsp_idma_in(u16 dsp_addr, u32 addr, u32 size)
+static void gdsp_idma_in(u16 dsp_addr, u32 addr, u32 size)
 {
 	UnWriteProtectMemory(g_dsp.iram, DSP_IRAM_BYTE_SIZE, false);
 
@@ -263,8 +264,7 @@ void gdsp_idma_in(u16 dsp_addr, u32 addr, u32 size)
 	DSPAnalyzer::Analyze();
 }
 
-
-void gdsp_idma_out(u16 dsp_addr, u32 addr, u32 size)
+static void gdsp_idma_out(u16 dsp_addr, u32 addr, u32 size)
 {
 	ERROR_LOG(DSPLLE, "*** idma_out IRAM_DSP (0x%04x) -> RAM (0x%08x) : size (0x%08x)", dsp_addr / 2, addr, size);
 }
@@ -272,7 +272,7 @@ void gdsp_idma_out(u16 dsp_addr, u32 addr, u32 size)
 static const __m128i s_mask = _mm_set_epi32(0x0E0F0C0DL, 0x0A0B0809L, 0x06070405L, 0x02030001L);
 
 // TODO: These should eat clock cycles.
-void gdsp_ddma_in(u16 dsp_addr, u32 addr, u32 size)
+static void gdsp_ddma_in(u16 dsp_addr, u32 addr, u32 size)
 {
 	u8* dst = ((u8*)g_dsp.dram);
 
@@ -295,8 +295,7 @@ void gdsp_ddma_in(u16 dsp_addr, u32 addr, u32 size)
 	INFO_LOG(DSPLLE, "*** ddma_in RAM (0x%08x) -> DRAM_DSP (0x%04x) : size (0x%08x)", addr, dsp_addr / 2, size);
 }
 
-
-void gdsp_ddma_out(u16 dsp_addr, u32 addr, u32 size)
+static void gdsp_ddma_out(u16 dsp_addr, u32 addr, u32 size)
 {
 	const u8* src = ((const u8*)g_dsp.dram);
 
@@ -320,7 +319,7 @@ void gdsp_ddma_out(u16 dsp_addr, u32 addr, u32 size)
 	INFO_LOG(DSPLLE, "*** ddma_out DRAM_DSP (0x%04x) -> RAM (0x%08x) : size (0x%08x)", dsp_addr / 2, addr, size);
 }
 
-void gdsp_do_dma()
+static void gdsp_do_dma()
 {
 	u16 ctl;
 	u32 addr;

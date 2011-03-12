@@ -78,7 +78,7 @@ CUCode_Zelda::CUCode_Zelda(DSPHLE *dsp_hle, u32 _CRC)
 	else
 	{
 		m_rMailHandler.PushMail(DSP_INIT);
-		DSP::GenerateDSPInterruptFromPlugin(DSP::INT_DSP);
+		DSP::GenerateDSPInterruptFromDSPEmu(DSP::INT_DSP);
 		m_rMailHandler.PushMail(0xF3551111); // handshake
 	}
 
@@ -116,13 +116,13 @@ void CUCode_Zelda::Update(int cycles)
 	if (!IsLightVersion()) 
 	{
 		if (m_rMailHandler.GetNextMail() == DSP_FRAME_END)
-			DSP::GenerateDSPInterruptFromPlugin(DSP::INT_DSP);
+			DSP::GenerateDSPInterruptFromDSPEmu(DSP::INT_DSP);
 	}
 
 	if (NeedsResumeMail())
 	{
 		m_rMailHandler.PushMail(DSP_RESUME);
-		DSP::GenerateDSPInterruptFromPlugin(DSP::INT_DSP);
+		DSP::GenerateDSPInterruptFromDSPEmu(DSP::INT_DSP);
 	}
 }
 
@@ -143,7 +143,7 @@ void CUCode_Zelda::HandleMail_LightVersion(u32 _uMail)
 
 	if (m_bSyncCmdPending)
 	{
-		DSP::GenerateDSPInterruptFromPlugin(DSP::INT_DSP);
+		DSP::GenerateDSPInterruptFromDSPEmu(DSP::INT_DSP);
 		m_CurBuffer++;
 
 		if (m_CurBuffer == m_NumBuffers)
@@ -206,13 +206,13 @@ void CUCode_Zelda::HandleMail_SMSVersion(u32 _uMail)
 				m_CurBuffer++;
 
 				m_rMailHandler.PushMail(DSP_SYNC);
-				DSP::GenerateDSPInterruptFromPlugin(DSP::INT_DSP);
+				DSP::GenerateDSPInterruptFromDSPEmu(DSP::INT_DSP);
 				m_rMailHandler.PushMail(0xF355FF00 | m_CurBuffer);
 
 				if (m_CurBuffer == m_NumBuffers)
 				{
 					m_rMailHandler.PushMail(DSP_FRAME_END);
-					//	DSP::GenerateDSPInterruptFromPlugin(DSP::INT_DSP);
+					//	DSP::GenerateDSPInterruptFromDSPEmu(DSP::INT_DSP);
 
 					soundStream->GetMixer()->SetHLEReady(true);
 					DEBUG_LOG(DSPHLE, "Update the SoundThread to be in sync");
@@ -333,7 +333,7 @@ void CUCode_Zelda::HandleMail_NormalVersion(u32 _uMail)
 				m_CurBuffer++;
 
 				m_rMailHandler.PushMail(DSP_SYNC);
-				DSP::GenerateDSPInterruptFromPlugin(DSP::INT_DSP);
+				DSP::GenerateDSPInterruptFromDSPEmu(DSP::INT_DSP);
 				m_rMailHandler.PushMail(0xF355FF00 | m_CurBuffer);
 					
 				m_CurVoice = 0;
@@ -561,7 +561,7 @@ void CUCode_Zelda::ExecuteList()
 	else
 	{
 		m_rMailHandler.PushMail(DSP_SYNC);
-		DSP::GenerateDSPInterruptFromPlugin(DSP::INT_DSP);
+		DSP::GenerateDSPInterruptFromDSPEmu(DSP::INT_DSP);
 		m_rMailHandler.PushMail(0xF3550000 | Sync);
 	}
 }
@@ -570,7 +570,7 @@ void CUCode_Zelda::ExecuteList()
 void CUCode_Zelda::DoState(PointerWrap &p)
 {
 	// It's bad if we try to save during Mix()
-	m_csMix.Enter();
+	std::lock_guard<std::mutex> lk(m_csMix);
 
 	p.Do(m_CRC);
 
@@ -618,6 +618,4 @@ void CUCode_Zelda::DoState(PointerWrap &p)
 	p.Do(m_UploadSetupInProgress);
 
 	m_rMailHandler.DoState(p);
-
-	m_csMix.Leave();
 }

@@ -21,15 +21,15 @@
 #include "AudioCommon.h"
 #include "SoundStream.h"
 #include "MailHandler.h"
-#include "../../PluginDSP.h"
+#include "../../DSPEmulator.h"
 
 class IUCode;
 
-class DSPHLE : public PluginDSP {
+class DSPHLE : public DSPEmulator {
 public:
 	DSPHLE();
 
-	virtual void Initialize(void *hWnd, bool bWii, bool bDSPThread);
+	virtual bool Initialize(void *hWnd, bool bWii, bool bDSPThread);
 	virtual void Shutdown();
 	virtual bool IsLLE() { return false; }
 

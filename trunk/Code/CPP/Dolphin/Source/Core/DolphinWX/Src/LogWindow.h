@@ -27,15 +27,9 @@ enum
 {
 	IDM_LOG,
 	IDM_CLEARLOG,
-	IDM_LOGCHECKS,
-	IDM_OPTIONS,
 	IDM_TOGGLEALL,
 	IDM_WRAPLINE,
-	IDM_WRITEFILE,
-	IDM_WRITECONSOLE,
-	IDM_WRITEWINDOW,
 	IDTM_UPDATELOG,
-	IDM_VERBOSITY,
 	IDM_FONT,
 	IDM_SUBMITCMD
 };
@@ -59,7 +53,6 @@ public:
 	~CLogWindow();
 
 	void SaveSettings();
-	void LoadSettings();
 	void Log(LogTypes::LOG_LEVELS, const char *text);
 
 	int x, y, winpos;
@@ -69,21 +62,17 @@ private:
 	wxFont DefaultFont, MonoSpaceFont;
 	std::vector<wxFont> LogFont;
 	wxTimer *m_LogTimer;
-	FileLogListener *m_fileLog;
-	ConsoleListener *m_console;
 	LogManager *m_LogManager;
 	std::queue<std::pair<u8, wxString> > msgQueue;
 	bool m_writeFile, m_writeConsole, m_writeWindow, m_LogAccess;
 
 	// Controls
-	wxBoxSizer *sUber, *sLeft, *sRight, *sRightBottom;
+	wxBoxSizer *sBottom;
 	wxTextCtrl *m_Log, *m_cmdline;
-	wxChoice * m_FontChoice;
-	wxCheckBox *m_writeFileCB, *m_writeConsoleCB, *m_writeWindowCB;
-	wxCheckListBox* m_checks;
-	wxRadioBox *m_verbosity;
+	wxChoice *m_FontChoice;
+	wxCheckBox *m_WrapLine;
 
-	Common::CriticalSection m_LogSection;
+	std::mutex m_LogSection;
 
 	wxCSConv m_SJISConv;
 
@@ -91,18 +80,15 @@ private:
 
 	wxTextCtrl * CreateTextCtrl(wxPanel* parent, wxWindowID id = wxID_ANY, long Style = NULL);
 	void CreateGUIControls();
-	void PopulateRight(); void UnPopulateRight();
+	void PopulateBottom();
+	void UnPopulateBottom();
 	void OnClose(wxCloseEvent& event);
 	void OnSize(wxSizeEvent& event);
 	void OnSubmit(wxCommandEvent& event);
-	void OnOptionsCheck(wxCommandEvent& event);
-	void OnLogCheck(wxCommandEvent& event);
+	void OnFontChange(wxCommandEvent& event);
+	void OnWrapLineCheck(wxCommandEvent& event);
 	void OnClear(wxCommandEvent& event);
-	void OnToggleAll(wxCommandEvent& event);
 	void OnLogTimer(wxTimerEvent& WXUNUSED(event));
-
-	void ToggleLog(int _logType, bool enable);
-	void UpdateChecks();
 	void UpdateLog();
 
 	// LogListener

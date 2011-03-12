@@ -1,3 +1,19 @@
+// Copyright (C) 2003 Dolphin Project.
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, version 2.0.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License 2.0 for more details.
+
+// A copy of the GPL 2.0 should have been included with the program.
+// If not, see http://www.gnu.org/licenses/
+
+// Official SVN repository and contact information can be found at
+// http://code.google.com/p/dolphin-emu/
 
 #include "Attachment/Classic.h"
 #include "Attachment/Nunchuk.h"
@@ -19,6 +35,8 @@
 inline double round(double x) { return (x-floor(x))>0.5 ? ceil(x) : floor(x); } //because damn MSVSC doesen't comply to C99
 
 #include "MatrixMath.h"
+
+#include "../../OnFrame.h"
 
 namespace WiimoteEmu
 {
@@ -280,32 +298,6 @@ Wiimote::Wiimote( const unsigned int index )
 	m_options->settings.push_back(new ControlGroup::Setting(_trans("Background Input"), false));
 	m_options->settings.push_back(new ControlGroup::Setting(_trans("Sideways Wiimote"), false));
 	m_options->settings.push_back(new ControlGroup::Setting(_trans("Upright Wiimote"), false));
-	
-#ifdef USE_WIIMOTE_EMU_SPEAKER
-	// set up speaker stuff
-	// this doesnt belong here
-
-	// TODO: i never clean up any of this audio stuff
-
-	if (0 == m_index)	// very dumb
-	{
-		ALCdevice* pDevice;
-		ALchar DeviceName[] = "DirectSound3D";
-		pDevice = alcOpenDevice(DeviceName);
-		ALCcontext* pContext;
-		pContext = alcCreateContext(pDevice, NULL);
-		alcMakeContextCurrent(pContext);
-	}
-
-	alListener3f(AL_POSITION, 0.0, 0.0, 0.0);
-	alListener3f(AL_VELOCITY, 0.0, 0.0, 0.0);
-	alListener3f(AL_DIRECTION, 0.0, 0.0, 0.0);
-
-	alGenSources(1, &m_audio_source);
-	alSourcef(m_audio_source, AL_PITCH, 1.0);
-	alSourcef(m_audio_source, AL_GAIN, 1.0);
-	alSourcei(m_audio_source, AL_LOOPING, false);
-#endif
 
 	// --- reset eeprom/register/values to default ---
 	Reset();
@@ -632,142 +624,123 @@ void Wiimote::Update()
 	if (Step())
 		return;
 
-	// ----speaker----
-#ifdef USE_WIIMOTE_EMU_SPEAKER
-
-	ALint processed = 0;
-	alGetSourcei(m_audio_source, AL_BUFFERS_PROCESSED, &processed);
-
-	while (processed--)
-	{
-		//PanicAlert("Buffer Processed");
-		alSourceUnqueueBuffers(m_audio_source, 1, &m_audio_buffers.front().buffer);
-		alDeleteBuffers(1, &m_audio_buffers.front().buffer);
-		delete[] m_audio_buffers.front().samples;
-		m_audio_buffers.pop();
-	}
-
-	// testing speaker crap
-	//m_rumble->controls[0]->control_ref->State( m_speaker_data.size() > 0 );
-	//if ( m_speaker_data.size() )
-		//m_speaker_data.pop();
-
-	//while ( m_speaker_data.size() )
-	//{
-	//	std::ofstream file;
-	//	file.open( "test.pcm", std::ios::app | std::ios::out | std::ios::binary );
-	//	file.put(m_speaker_data.front());
-	//	file.close();
-	//	m_speaker_data.pop();
-	//}
-#endif
-
 	u8 data[MAX_PAYLOAD];
 	memset(data, 0, sizeof(data));
-	data[0] = 0xA1;
-	data[1] = m_reporting_mode;
-
+	
 	// figure out what data we need
-	const ReportFeatures& rptf = reporting_mode_features[m_reporting_mode - WM_REPORT_CORE];
-	s8 rptf_size = rptf.size;
+	s8 rptf_size = MAX_PAYLOAD;
 
-	// core buttons
-	if (rptf.core)
-		GetCoreData(data + rptf.core);
+	Frame::SetPolledDevice();
 
-	// acceleration
-	if (rptf.accel)
-		GetAccelData(data + rptf.accel, rptf.core?(data+rptf.core):NULL);
-
-	// IR
-	if (rptf.ir)
-		GetIRData(data + rptf.ir, (rptf.accel != 0)); 
-
-	// extension
-	if (rptf.ext)
-		GetExtData(data + rptf.ext);
-
-	// hybrid wiimote stuff
-	if (WIIMOTE_SRC_HYBRID == g_wiimote_sources[m_index])
+	if (!Frame::IsPlayingInput() || !Frame::PlayWiimote(m_index, data, rptf_size))
 	{
-		using namespace WiimoteReal;
+		const ReportFeatures& rptf = reporting_mode_features[m_reporting_mode - WM_REPORT_CORE];
+		rptf_size = rptf.size;
 
-		g_refresh_critsec.Enter();
-		if (g_wiimotes[m_index])
+		data[0] = 0xA1;
+		data[1] = m_reporting_mode;
+	
+		// core buttons
+		if (rptf.core)
+			GetCoreData(data + rptf.core);
+	
+		// acceleration
+		if (rptf.accel)
+			GetAccelData(data + rptf.accel, rptf.core?(data+rptf.core):NULL);
+	
+		// IR
+		if (rptf.ir)
+			GetIRData(data + rptf.ir, (rptf.accel != 0)); 
+	
+		// extension
+		if (rptf.ext)
+			GetExtData(data + rptf.ext);
+	
+		// hybrid wiimote stuff
+		if (WIIMOTE_SRC_HYBRID == g_wiimote_sources[m_index])
 		{
-			Report rpt = g_wiimotes[m_index]->ProcessReadQueue();
-			const u8 *real_data = rpt.first;
-			if (real_data)
+			using namespace WiimoteReal;
+	
+			std::lock_guard<std::mutex> lk(g_refresh_lock);
+			if (g_wiimotes[m_index])
 			{
-				switch (real_data[1])
+				Report rpt = g_wiimotes[m_index]->ProcessReadQueue();
+				const u8 *real_data = rpt.first;
+				if (real_data)
 				{
-					// use data reports
-				default:
-					if (real_data[1] >= WM_REPORT_CORE)
+					switch (real_data[1])
 					{
-						const ReportFeatures& real_rptf = reporting_mode_features[real_data[1] - WM_REPORT_CORE];
-
-						// force same report type from real-wiimote
-						if (&real_rptf != &rptf)
-							rptf_size = 0;
-
-						// core
-						// mix real-buttons with emu-buttons in the status struct, and in the report
-						if (real_rptf.core && rptf.core)
+						// use data reports
+					default:
+						if (real_data[1] >= WM_REPORT_CORE)
 						{
-							m_status.buttons |= *(wm_core*)(real_data + real_rptf.core);
-							*(wm_core*)(data + rptf.core) = m_status.buttons;
+							const ReportFeatures& real_rptf = reporting_mode_features[real_data[1] - WM_REPORT_CORE];
+	
+							// force same report type from real-wiimote
+							if (&real_rptf != &rptf)
+								rptf_size = 0;
+	
+							// core
+							// mix real-buttons with emu-buttons in the status struct, and in the report
+							if (real_rptf.core && rptf.core)
+							{
+								m_status.buttons |= *(wm_core*)(real_data + real_rptf.core);
+								*(wm_core*)(data + rptf.core) = m_status.buttons;
+							}
+	
+							// accel
+							// use real-accel data always i guess
+							if (real_rptf.accel && rptf.accel)
+								memcpy(data + rptf.accel, real_data + real_rptf.accel, sizeof(wm_accel));
+	
+							// ir
+							// TODO
+	
+							// ext
+							// use real-ext data if an emu-extention isn't chosen
+							if (real_rptf.ext && rptf.ext && (0 == m_extension->switch_extension))
+								memcpy(data + rptf.ext, real_data + real_rptf.ext, sizeof(wm_extension));
 						}
-
-						// accel
-						// use real-accel data always i guess
-						if (real_rptf.accel && rptf.accel)
-							memcpy(data + rptf.accel, real_data + real_rptf.accel, sizeof(wm_accel));
-
-						// ir
-						// TODO
-
-						// ext
-						// use real-ext data if an emu-extention isn't chosen
-						if (real_rptf.ext && rptf.ext && (0 == m_extension->switch_extension))
-							memcpy(data + rptf.ext, real_data + real_rptf.ext, sizeof(wm_extension));
-					}
-					else if (WM_ACK_DATA != real_data[1] || m_extension->active_extension > 0)
-						rptf_size = 0;
-					else
-						// use real-acks if an emu-extension isn't chosen
+						else if (WM_ACK_DATA != real_data[1] || m_extension->active_extension > 0)
+							rptf_size = 0;
+						else
+							// use real-acks if an emu-extension isn't chosen
+							rptf_size = -1;
+						break;
+	
+						// use all status reports, after modification of the extension bit
+					case WM_STATUS_REPORT :
+						//if (m_extension->switch_extension)
+							//((wm_status_report*)(real_data + 2))->extension = (m_extension->active_extension > 0);
+						if (m_extension->active_extension)
+							((wm_status_report*)(real_data + 2))->extension = 1;
 						rptf_size = -1;
-					break;
-
-					// use all status reports, after modification of the extension bit
-				case WM_STATUS_REPORT :
-					//if (m_extension->switch_extension)
-						//((wm_status_report*)(real_data + 2))->extension = (m_extension->active_extension > 0);
-					if (m_extension->active_extension)
-						((wm_status_report*)(real_data + 2))->extension = 1;
-					rptf_size = -1;
-					break;
-
-					// use all read-data replies
-				case WM_READ_DATA_REPLY:
-					rptf_size = -1;
-					break;
-
+						break;
+	
+						// use all read-data replies
+					case WM_READ_DATA_REPLY:
+						rptf_size = -1;
+						break;
+	
+					}
+	
+					// copy over report from real-wiimote
+					if (-1 == rptf_size)
+					{
+						memcpy(data, real_data, rpt.second);
+						rptf_size = rpt.second;
+					}
+	
+					if (real_data != g_wiimotes[m_index]->\
+						m_last_data_report.first)
+						delete[] real_data;
 				}
-
-				// copy over report from real-wiimote
-				if (-1 == rptf_size)
-				{
-					memcpy(data, real_data, rpt.second);
-					rptf_size = rpt.second;
-				}
-
-				if (real_data != g_wiimotes[m_index]->\
-					m_last_data_report.first)
-					delete[] real_data;
 			}
 		}
-		g_refresh_critsec.Leave();
+		if (Frame::IsRecordingInput())
+		{
+			Frame::RecordWiimote(m_index, data, rptf_size);
+		}
 	}
 
 	// don't send a data report if auto reporting is off

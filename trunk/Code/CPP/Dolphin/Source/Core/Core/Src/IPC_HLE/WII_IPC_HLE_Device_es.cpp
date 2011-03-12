@@ -56,6 +56,8 @@
 #include "../Boot/Boot_DOL.h"
 #include "NandPaths.h"
 #include "CommonPaths.h"
+#include "IPC_HLE/WII_IPC_HLE_Device_usb.h"
+
 CWII_IPC_HLE_Device_es::CWII_IPC_HLE_Device_es(u32 _DeviceID, const std::string& _rDeviceName) 
     : IWII_IPC_HLE_Device(_DeviceID, _rDeviceName)
     , m_pContentLoader(NULL)
@@ -445,11 +447,11 @@ bool CWII_IPC_HLE_Device_es::IOCtlV(u32 _CommandAddress)
 			std::string TicketFilename = Common::CreateTicketFileName(TitleID);
 
             u32 ViewCount = 0;
-            if (File::Exists(TicketFilename.c_str()))
+            if (File::Exists(TicketFilename))
             {
                 const u32 SIZE_OF_ONE_TICKET = 676;
 
-                u32 FileSize = (u32)(File::GetSize(TicketFilename.c_str()));
+                u32 FileSize = (u32)(File::GetSize(TicketFilename));
                 _dbg_assert_msg_(WII_IPC_ES, (FileSize % SIZE_OF_ONE_TICKET) == 0, "IOCTL_ES_GETVIEWCNT ticket file size seems to be wrong");
 
                 ViewCount = FileSize / SIZE_OF_ONE_TICKET;
@@ -481,21 +483,18 @@ bool CWII_IPC_HLE_Device_es::IOCtlV(u32 _CommandAddress)
 			u32 maxViews = Memory::Read_U32(Buffer.InBuffer[1].m_Address);
 
 			std::string TicketFilename = Common::CreateTicketFileName(TitleID);
-			if (File::Exists(TicketFilename.c_str()))
+			if (File::Exists(TicketFilename))
 			{
 				const u32 SIZE_OF_ONE_TICKET = 676;
-				FILE* pFile = fopen(TicketFilename.c_str(), "rb");
+				File::IOFile pFile(TicketFilename, "rb");
 				if (pFile)
 				{
-					unsigned int View = 0;
 					u8 Ticket[SIZE_OF_ONE_TICKET];
-					while (View < maxViews && fread(Ticket, SIZE_OF_ONE_TICKET, 1, pFile) == 1)
+					for (unsigned int View = 0; View != maxViews && pFile.ReadBytes(Ticket, SIZE_OF_ONE_TICKET); ++View)
 					{
 						Memory::Write_U32(View, Buffer.PayloadBuffer[0].m_Address + View * 0xD8);
 						Memory::WriteBigEData(Ticket+0x1D0, Buffer.PayloadBuffer[0].m_Address + 4 + View * 0xD8, 212);
-						View++;
 					}
-					fclose(pFile);
 				}
 			}
 			else
@@ -582,19 +581,80 @@ bool CWII_IPC_HLE_Device_es::IOCtlV(u32 _CommandAddress)
 		WARN_LOG(WII_IPC_ES, "IOCTL_ES_GETCONSUMPTION:%d", Memory::Read_U32(_CommandAddress+4));
 		return true;
 
-    case IOCTL_ES_GETSTOREDTMD:
+	case IOCTL_ES_DELETETICKET:
+		{
+			u64 TitleID = Memory::Read_U64(Buffer.InBuffer[0].m_Address);
+			INFO_LOG(WII_IPC_ES, "IOCTL_ES_DELETETICKET: title: %08x/%08x", (u32)(TitleID >> 32), (u32)TitleID);
+			if (File::Delete(Common::CreateTicketFileName(TitleID)))
+			{
+				Memory::Write_U32(0, _CommandAddress + 0x4);
+			}
+			else
+			{
+				// Presumably return -1017 when delete fails
+				Memory::Write_U32(ES_PARAMTER_SIZE_OR_ALIGNMENT, _CommandAddress + 0x4);
+			}
+		}
+		break;
+	case IOCTL_ES_DELETETITLECONTENT:
+		{
+			u64 TitleID = Memory::Read_U64(Buffer.InBuffer[0].m_Address);
+			INFO_LOG(WII_IPC_ES, "IOCTL_ES_DELETETITLECONTENT: title: %08x/%08x", (u32)(TitleID >> 32), (u32)TitleID);
+			if (DiscIO::CNANDContentManager::Access().RemoveTitle(TitleID))
+			{
+				Memory::Write_U32(0, _CommandAddress + 0x4);
+			}
+			else
+			{
+				// Presumably return -1017 when title not installed TODO verify
+				Memory::Write_U32(ES_PARAMTER_SIZE_OR_ALIGNMENT, _CommandAddress + 0x4);
+			}
+				
+		} 
+    case IOCTL_ES_GETSTOREDTMDSIZE:
         {
-            _dbg_assert_msg_(WII_IPC_ES, Buffer.NumberInBuffer == 2, "IOCTL_ES_GETSTOREDTMD no in buffer");
-            _dbg_assert_msg_(WII_IPC_ES, Buffer.NumberPayloadBuffer == 1, "IOCTL_ES_GETSTOREDTMD no out buffer");
+            _dbg_assert_msg_(WII_IPC_ES, Buffer.NumberInBuffer == 1, "IOCTL_ES_GETSTOREDTMDSIZE no in buffer");
+           // _dbg_assert_msg_(WII_IPC_ES, Buffer.NumberPayloadBuffer == 1, "IOCTL_ES_ES_GETSTOREDTMDSIZE no out buffer");
 
             u64 TitleID = Memory::Read_U64(Buffer.InBuffer[0].m_Address);
-            u32 MaxCount = Memory::Read_U32(Buffer.InBuffer[1].m_Address);
+            const DiscIO::INANDContentLoader& Loader = DiscIO::CNANDContentManager::Access().GetNANDLoader(TitleID);
+
+            _dbg_assert_(WII_IPC_ES, Loader.IsValid());
+            u32 TMDCnt = 0;
+            if (Loader.IsValid())
+            {
+				TMDCnt += DiscIO::INANDContentLoader::TMD_HEADER_SIZE;
+                TMDCnt += (u32)Loader.GetContentSize() * DiscIO::INANDContentLoader::CONTENT_HEADER_SIZE; 
+            }
+            if(Buffer.NumberPayloadBuffer)
+				Memory::Write_U32(TMDCnt, Buffer.PayloadBuffer[0].m_Address);
+
+            Memory::Write_U32(0, _CommandAddress + 0x4);
+
+            INFO_LOG(WII_IPC_ES, "IOCTL_ES_GETSTOREDTMDSIZE: title: %08x/%08x (view size %i)", (u32)(TitleID >> 32), (u32)TitleID, TMDCnt);
+            return true;
+        }
+        break;
+	case IOCTL_ES_GETSTOREDTMD:
+        {
+            _dbg_assert_msg_(WII_IPC_ES, Buffer.NumberInBuffer > 0, "IOCTL_ES_GETSTOREDTMD no in buffer");
+            // requires 1 inbuffer and no outbuffer, presumably outbuffer required when second inbuffer is used for maxcount (allocated mem?)
+			// called with 1 inbuffer after deleting a titleid
+			//_dbg_assert_msg_(WII_IPC_ES, Buffer.NumberPayloadBuffer == 1, "IOCTL_ES_GETSTOREDTMD no out buffer");
+
+			u64 TitleID = Memory::Read_U64(Buffer.InBuffer[0].m_Address);
+			u32 MaxCount = 0;
+			if (Buffer.NumberInBuffer > 1)
+			{
+				// TODO: actually use this param in when writing to the outbuffer :/ 
+				MaxCount = Memory::Read_U32(Buffer.InBuffer[1].m_Address);
+			}
             const DiscIO::INANDContentLoader& Loader = DiscIO::CNANDContentManager::Access().GetNANDLoader(TitleID);            
 
 
             INFO_LOG(WII_IPC_ES, "IOCTL_ES_GETSTOREDTMD: title: %08x/%08x   buffersize: %i", (u32)(TitleID >> 32), (u32)TitleID, MaxCount);
 
-            if (Loader.IsValid())
+            if (Loader.IsValid() && Buffer.NumberPayloadBuffer)
             {
                 u32 Address = Buffer.PayloadBuffer[0].m_Address;
 
@@ -614,30 +674,6 @@ bool CWII_IPC_HLE_Device_es::IOCtlV(u32 _CommandAddress)
 
             INFO_LOG(WII_IPC_ES, "IOCTL_ES_GETSTOREDTMD: title: %08x/%08x (buffer size: %i)", (u32)(TitleID >> 32), (u32)TitleID, MaxCount);
             return true;            
-        }
-        break;
-
-    case IOCTL_ES_GETSTOREDTMDSIZE:
-        {
-            _dbg_assert_msg_(WII_IPC_ES, Buffer.NumberInBuffer == 1, "IOCTL_ES_GETSTOREDTMDSIZE no in buffer");
-            _dbg_assert_msg_(WII_IPC_ES, Buffer.NumberPayloadBuffer == 1, "IOCTL_ES_ES_GETSTOREDTMDSIZE no out buffer");
-
-            u64 TitleID = Memory::Read_U64(Buffer.InBuffer[0].m_Address);
-            const DiscIO::INANDContentLoader& Loader = DiscIO::CNANDContentManager::Access().GetNANDLoader(TitleID);
-
-            _dbg_assert_(WII_IPC_ES, Loader.IsValid());
-            u32 TMDCnt = 0;
-            if (Loader.IsValid())
-            {
-				TMDCnt += DiscIO::INANDContentLoader::TMD_HEADER_SIZE;
-                TMDCnt += (u32)Loader.GetContentSize() * DiscIO::INANDContentLoader::CONTENT_HEADER_SIZE; 
-            }
-            Memory::Write_U32(TMDCnt, Buffer.PayloadBuffer[0].m_Address);
-
-            Memory::Write_U32(0, _CommandAddress + 0x4);
-
-            INFO_LOG(WII_IPC_ES, "IOCTL_ES_GETSTOREDTMDSIZE: title: %08x/%08x (view size %i)", (u32)(TitleID >> 32), (u32)TitleID, TMDCnt);
-            return true;
         }
         break;
 
@@ -699,9 +735,25 @@ bool CWII_IPC_HLE_Device_es::IOCtlV(u32 _CommandAddress)
 					{
 						LoadWAD(Common::CreateTitleContentPath(TitleID));
 						CDolLoader DolLoader(pContent->m_pData, pContent->m_Size);
+						DolLoader.Load(); // TODO: Check why sysmenu does not load the DOL correctly
 						PC = DolLoader.GetEntryPoint() | 0x80000000;
 						IOSv = ContentLoader.GetIosVersion();
 						bSuccess = true;
+						// Reset the connection of all connected wiimotes
+						// ugly haxx
+						static CWII_IPC_HLE_Device_usb_oh1_57e_305* s_Usb = GetUsbPointer();
+						for (unsigned int i = 0; i < 4; i++)
+						{
+							if (s_Usb->m_WiiMotes[i].IsConnected())
+							{
+								s_Usb->m_WiiMotes[i].Activate(false);
+								s_Usb->m_WiiMotes[i].Activate(true);
+							}
+							else
+							{
+								s_Usb->m_WiiMotes[i].Activate(false);
+							}
+						}
 					}
 				}
 			}
@@ -800,26 +852,20 @@ u32 CWII_IPC_HLE_Device_es::ES_DIVerify(u8* _pTMD, u32 _sz)
 	{
 		return -1;
 	}
-	std::string contentPath,
-				dataPath,
-				tmdPath;
-	contentPath = Common::CreateTitleContentPath(tmdTitleID) + DIR_SEP;
-	dataPath	= Common::CreateTitleDataPath(tmdTitleID) + DIR_SEP;
-	tmdPath = contentPath + "/title.tmd";
+	std::string tmdPath,
+				dataPath;
 
-	File::CreateFullPath(contentPath.c_str());
-	File::CreateFullPath(dataPath.c_str());
-	if(!File::Exists(tmdPath.c_str()))
+	tmdPath = Common::CreateTitleContentPath(tmdTitleID) + DIR_SEP + "title.tmd";
+	dataPath	= Common::CreateTitleDataPath(tmdTitleID) + DIR_SEP;
+
+	File::CreateFullPath(tmdPath);
+	File::CreateFullPath(dataPath);
+	if(!File::Exists(tmdPath))
 	{
-		FILE* _pTMDFile = fopen(tmdPath.c_str(), "wb");
-		if (_pTMDFile)
-		{
-			if (fwrite(_pTMD, _sz, 1, _pTMDFile) != 1)
-				ERROR_LOG(WII_IPC_ES, "DIVerify failed to write disc tmd to nand");
-			fclose(_pTMDFile);
-		}
+		File::IOFile _pTMDFile(tmdPath, "wb");
+		if (!_pTMDFile.WriteBytes(_pTMD, _sz))
+			ERROR_LOG(WII_IPC_ES, "DIVerify failed to write disc tmd to nand");
 	}
 	DiscIO::cUIDsys::AccessInstance().AddTitle(tmdTitleID);
 	return 0;
 }
-

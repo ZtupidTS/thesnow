@@ -56,7 +56,7 @@ DriveReader::DriveReader(const char *drive)
 	#endif
 #else
 	SectorReader::SetSectorSize(2048);
-	file_ = fopen(drive, "rb");
+	file_.Open(drive, "rb");
 	if (file_)
 	{
 #endif
@@ -81,9 +81,7 @@ DriveReader::~DriveReader()
 		hDisc = INVALID_HANDLE_VALUE;
 	}
 #else
-	if (file_)
-		fclose(file_);
-	file_ = 0;
+	file_.Close();
 #endif	
 }
 
@@ -100,7 +98,7 @@ DriveReader *DriveReader::Create(const char *drive)
 
 void DriveReader::GetBlock(u64 block_num, u8 *out_ptr)
 {
-	u8 * lpSector = new u8[m_blocksize];
+	u8* const lpSector = new u8[m_blocksize];
 #ifdef _WIN32
 	u32 NotUsed;
 	u64 offset = m_blocksize * block_num;
@@ -110,8 +108,8 @@ void DriveReader::GetBlock(u64 block_num, u8 *out_ptr)
 	if (!ReadFile(hDisc, lpSector, m_blocksize, (LPDWORD)&NotUsed, NULL))
 		PanicAlertT("Disc Read Error");
 #else
-	fseeko(file_, m_blocksize*block_num, SEEK_SET);
-	fread(lpSector, 1, m_blocksize, file_);
+	file_.Seek(m_blocksize * block_num, SEEK_SET);
+	file_.ReadBytes(lpSector, m_blocksize);
 #endif
 	memcpy(out_ptr, lpSector, m_blocksize);
 	delete[] lpSector;
@@ -131,8 +129,8 @@ bool DriveReader::ReadMultipleAlignedBlocks(u64 block_num, u64 num_blocks, u8 *o
 		return false;
 	}
 #else
-	fseeko(file_, m_blocksize*block_num, SEEK_SET);
-	if(fread(out_ptr, 1, m_blocksize * num_blocks, file_) != m_blocksize * num_blocks)
+	fseeko(file_.GetHandle(), m_blocksize*block_num, SEEK_SET);
+	if(fread(out_ptr, 1, m_blocksize * num_blocks, file_.GetHandle()) != m_blocksize * num_blocks)
 		return false;
 #endif
 	return true;

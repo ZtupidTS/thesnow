@@ -42,6 +42,7 @@ SRAM sram_dump = {{
 	0x00, 0x00
 }};
 
+#if 0
 // german
 SRAM sram_dump_german = {{ 
 	0x1F, 0x66,
@@ -66,22 +67,23 @@ SRAM sram_dump_german = {{
 	0x00, 0x00,
 	0x00, 0x00
 }};
+#endif
 
 void initSRAM()
 {
-	FILE *file = fopen(SConfig::GetInstance().m_LocalCoreStartupParameter.m_strSRAM.c_str(), "rb");
-    if (file != NULL)
-    {
-        if (fread(&g_SRAM, 1, 64, file) < 64) {
-	    ERROR_LOG(EXPANSIONINTERFACE,  "EXI IPL-DEV: Could not read all of SRAM");
-	    g_SRAM = sram_dump;
+	File::IOFile file(SConfig::GetInstance().m_LocalCoreStartupParameter.m_strSRAM, "rb");
+	if (file)
+	{
+		if (!file.ReadArray(&g_SRAM, 1))
+		{
+			ERROR_LOG(EXPANSIONINTERFACE,  "EXI IPL-DEV: Could not read all of SRAM");
+			g_SRAM = sram_dump;
+		}
 	}
-        fclose(file);
-    }
-    else
-    {
-	    g_SRAM = sram_dump;
-    }
+	else
+	{
+		g_SRAM = sram_dump;
+	}
 }
 
 void SetCardFlashID(u8* buffer, u8 card_index)

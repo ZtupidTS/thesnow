@@ -1,5 +1,3 @@
-#import <CoreServices/CoreServices.h>
-extern "C" OSErr UpdateSystemActivity(UInt8 activity);
 #define BLUETOOTH_VERSION_USE_CURRENT
 #import <IOBluetooth/IOBluetooth.h>
 
@@ -72,7 +70,7 @@ extern "C" OSErr UpdateSystemActivity(UInt8 activity);
 
 	(void)wm->Read();
 
-	(void)UpdateSystemActivity(1);
+	(void)UpdateSystemActivity(UsrActivity);
 }
 
 - (void) l2capChannelClosed: (IOBluetoothL2CAPChannel *) l2capChannel
@@ -133,7 +131,7 @@ int FindWiimotes(Wiimote **wm, int max_wiimotes)
 		majorDeviceClass: kBluetoothDeviceClassMajorPeripheral
 		minorDeviceClass: kBluetoothDeviceClassMinorPeripheral2Joystick
 		];
-	[bti setUpdateNewDeviceNames: FALSE];
+	[bti setUpdateNewDeviceNames: NO];
 
 	if ([bti start] == kIOReturnSuccess)
 		[bti retain];

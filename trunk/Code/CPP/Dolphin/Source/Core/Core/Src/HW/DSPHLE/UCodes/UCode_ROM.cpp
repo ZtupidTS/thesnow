@@ -100,14 +100,10 @@ void CUCode_Rom::BootUCode()
 
 #if defined(_DEBUG) || defined(DEBUGFAST)
 	char binFile[MAX_PATH];
-	sprintf(binFile, "%sDSP_UC_%08X.bin", File::GetUserPath(D_DUMPDSP_IDX), ector_crc);
+	sprintf(binFile, "%sDSP_UC_%08X.bin", File::GetUserPath(D_DUMPDSP_IDX).c_str(), ector_crc);
 
-	FILE* pFile = fopen(binFile, "wb");
-	if (pFile)
-	{
-		fwrite((u8*)Memory::GetPointer(m_CurrentUCode.m_RAMAddress), m_CurrentUCode.m_Length, 1, pFile);
-		fclose(pFile);
-	}
+	File::IOFile pFile(binFile, "wb");
+	pFile.WriteArray((u8*)Memory::GetPointer(m_CurrentUCode.m_RAMAddress), m_CurrentUCode.m_Length);
 #endif
 
 	DEBUG_LOG(DSPHLE, "CurrentUCode SOURCE Addr: 0x%08x", m_CurrentUCode.m_RAMAddress);

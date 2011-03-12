@@ -97,10 +97,6 @@ BEGIN_EVENT_TABLE(CMemcardManager, wxDialog)
 	EVT_MENU_RANGE(COLUMN_BANNER, NUMBER_OF_COLUMN, CMemcardManager::OnMenuChange)
 END_EVENT_TABLE()
 
-BEGIN_EVENT_TABLE(CMemcardManager::CMemcardListCtrl, wxListCtrl)
-	EVT_RIGHT_DOWN(CMemcardManager::CMemcardListCtrl::OnRightClick)
-END_EVENT_TABLE()
-
 CMemcardManager::CMemcardManager(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& position, const wxSize& size, long style)
 	: wxDialog(parent, id, title, position, size, style)
 {
@@ -111,7 +107,7 @@ CMemcardManager::CMemcardManager(wxWindow* parent, wxWindowID id, const wxString
 	{
 		itemsPerPage = 16;
 		mcmSettings.usePages = true;
-		for (int i = 0; i < NUMBER_OF_COLUMN; i++)
+		for (int i = COLUMN_BANNER; i < NUMBER_OF_COLUMN; i++)
 		{
 			mcmSettings.column[i] = (i <= COLUMN_FIRSTBLOCK)? true:false;
 		}
@@ -191,7 +187,7 @@ void CMemcardManager::CreateGUIControls()
 
 	m_ConvertToGci = new wxButton(this, ID_CONVERTTOGCI, _("Convert to GCI"));
 	
-	for (int slot = SLOT_A; slot < SLOT_B + 1; slot++)
+	for (int slot = SLOT_A; slot <= SLOT_B; slot++)
 	{
 		m_CopyFrom[slot]	= new wxButton(this, ID_COPYFROM_A + slot,
 			wxString::Format(_("%1$sCopy%1$s"), ARROW[slot ? 0 : 1]));
@@ -215,7 +211,7 @@ void CMemcardManager::CreateGUIControls()
 		sPages[slot]->Add(m_NextPage[slot], 0, wxEXPAND|wxALL, 1);
 
 		m_MemcardPath[slot] = new wxFilePickerCtrl(this, ID_MEMCARDPATH_A + slot,
-			 wxString::From8BitData(File::GetUserPath(D_GCUSER_IDX)), _("选择内存卡:"),
+			 wxString::From8BitData(File::GetUserPath(D_GCUSER_IDX).c_str()), _("选择内存卡:"),
 		_("Gamecube 内存卡 (*.raw,*.gcp)") + wxString(wxT("|*.raw;*.gcp")), wxDefaultPosition, wxDefaultSize, wxFLP_USE_TEXTCTRL|wxFLP_OPEN);
 	
 		m_MemcardList[slot] = new CMemcardListCtrl(this, ID_MEMCARDLIST_A + slot, wxDefaultPosition, wxSize(350,400),
@@ -256,7 +252,7 @@ void CMemcardManager::CreateGUIControls()
 	Fit();
 	Center();
 
-	for (int i = SLOT_A; i < SLOT_B + 1; i++)
+	for (int i = SLOT_A; i <= SLOT_B; i++)
 	{
 		m_PrevPage[i]->Disable();
 		m_NextPage[i]->Disable();
@@ -274,7 +270,7 @@ void CMemcardManager::CreateGUIControls()
 
 void CMemcardManager::OnClose(wxCloseEvent& WXUNUSED (event))
 {
-	Destroy();
+	EndModal(wxID_OK);
 }
 
 void CMemcardManager::OnPathChange(wxFileDirPickerEvent& event)
@@ -538,7 +534,7 @@ void CMemcardManager::CopyDeleteClick(wxCommandEvent& event)
 		{
 			wxString temp2 = wxFileSelector(_("保存 GCI 为.."),
 				wxEmptyString, wxEmptyString, wxT(".gci"),
-				_("GCI 文件(*.gci)|*.gci"),
+				_("GCI 文件(*.gci)") + wxString(_T("|*.gci")),
 				wxFD_OVERWRITE_PROMPT|wxFD_SAVE);
 			if (temp2.empty()) break;
 			fileName2 = temp2.mb_str();
@@ -573,7 +569,7 @@ void CMemcardManager::CopyDeleteClick(wxCommandEvent& event)
 			{
 				if (!CopyDeleteSwitch(memoryCard[slot]->ExportGci(index, fileName.mb_str(), NULL), -1))
 				{
-					File::Delete(fileName.mb_str());
+					File::Delete(std::string(fileName.mb_str()));
 				}
 			}
 		}
@@ -586,7 +582,7 @@ void CMemcardManager::CopyDeleteClick(wxCommandEvent& event)
 		mpath = m_MemcardPath[slot]->GetPath().mb_str();
 		SplitPath(mpath, &path1, &path2, NULL);
 		path1 += path2;
-		File::CreateDir(path1.c_str());
+		File::CreateDir(path1);
 		if(PanicYesNoT("Warning: This will overwrite any existing saves that are in the folder:\n"
 					"%s\nand have the same name as a file on your memcard\nContinue?", path1.c_str()))
 		for (int i = 0; i < DIRLEN; i++)
@@ -758,7 +754,7 @@ bool CMemcardManager::ReloadMemcard(const char *fileName, int card)
 
 	delete[] images;
 	// Automatic column width and then show the list
-	for (int i = 0; i < NUMBER_OF_COLUMN; i++)
+	for (int i = COLUMN_BANNER; i <= COLUMN_FIRSTBLOCK; i++)
 	{
 		if (mcmSettings.column[i])
 			m_MemcardList[card]->SetColumnWidth(i, wxLIST_AUTOSIZE);
@@ -767,7 +763,7 @@ bool CMemcardManager::ReloadMemcard(const char *fileName, int card)
 	}
 
 	m_MemcardList[card]->Show();
-	wxLabel.Printf(wxT("%d Free Blocks; %d Free Dir Entries"),
+	wxLabel.Printf(_("%u Free Blocks; %u Free Dir Entries"),
 		memoryCard[card]->GetFreeBlocks(), DIRLEN - nFiles);
 	t_Status[card]->SetLabel(wxLabel);
 
@@ -812,13 +808,15 @@ void CMemcardManager::CMemcardListCtrl::OnRightClick(wxMouseEvent& event)
 		
 		popupMenu->AppendSeparator();
 
-		popupMenu->AppendCheckItem(COLUMN_BANNER, _("显示存档LOGO"));
+//		popupMenu->AppendCheckItem(COLUMN_BANNER, _("显示存档LOGO"));
 		popupMenu->AppendCheckItem(COLUMN_TITLE, _("显示存档标题"));
 		popupMenu->AppendCheckItem(COLUMN_COMMENT, _("Show save comment"));
 		popupMenu->AppendCheckItem(COLUMN_ICON, _("显示存档图标"));
 		popupMenu->AppendCheckItem(COLUMN_BLOCKS, _("Show save blocks"));
+		popupMenu->AppendCheckItem(COLUMN_FIRSTBLOCK, _("Show first block"));
 
-		for (int i = COLUMN_BANNER; i <= COLUMN_BLOCKS; i++)
+//		for (int i = COLUMN_BANNER; i <= COLUMN_FIRSTBLOCK; i++)
+		for (int i = COLUMN_TITLE; i <= COLUMN_FIRSTBLOCK; i++)
 		{
 			popupMenu->FindItem(i)->Check(__mcmSettings.column[i]);
 		}
