@@ -245,6 +245,7 @@ bool SciTEWin::OpenDialog(FilePath directory, const GUI::gui_char *filter) {
 		ofn.Flags |=
 		    OFN_EXPLORER |
 		    OFN_PATHMUSTEXIST |
+		    OFN_NOCHANGEDIR |
 		    OFN_ALLOWMULTISELECT;
 	}
 	if (::GetOpenFileNameW(&ofn)) {
@@ -285,7 +286,7 @@ FilePath SciTEWin::ChooseSaveName(FilePath directory, const char *title, const G
 		ofn.nMaxFile = ELEMENTS(saveName);
 		GUI::gui_string translatedTitle = localiser.Text(title);
 		ofn.lpstrTitle = translatedTitle.c_str();
-		ofn.Flags = OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT;
+		ofn.Flags = OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
 		ofn.lpstrFilter = filter;
 		ofn.lpstrInitialDir = directory.AsInternal();
 
@@ -397,7 +398,7 @@ void SciTEWin::LoadSessionDialog() {
 //	GUI::gui_string translatedTitle = localiser.Text("载入会话");	//mod
 //	ofn.lpstrTitle = translatedTitle.c_str();
 	ofn.lpstrTitle = L"载入会话";
-	ofn.Flags = OFN_HIDEREADONLY;
+	ofn.Flags = OFN_HIDEREADONLY | OFN_NOCHANGEDIR;
 	if (::GetOpenFileNameW(&ofn)) {
 		LoadSessionFile(openName);
 		RestoreSession();

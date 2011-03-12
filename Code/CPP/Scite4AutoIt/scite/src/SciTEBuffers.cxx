@@ -19,10 +19,13 @@
 #include <vector>
 #include <map>
 
-#if defined(GTK)
+#if defined(__unix__)
 
 #include <unistd.h>
+
+#if defined(GTK)
 #include <gtk/gtk.h>
+#endif
 
 #else
 
@@ -398,6 +401,7 @@ void SciTEBase::RestoreRecentMenu() {
 void SciTEBase::RestoreSession() {
 	// Comment next line if you don't want to close all buffers before restoring session
 	CloseAllBuffers(true);
+//	SString recentFilePath;		//added
 
 	int curr = -1;
 	for (int i = 0; i < bufferMax; i++) {
@@ -408,8 +412,9 @@ void SciTEBase::RestoreSession() {
 
 		propKey = IndexPropKey("buffer", i, "position");
 		int pos = propsSession.GetInt(propKey.c_str());
-
+//		recentFilePath=propStr.c_str();		//added
 		if (!AddFileToBuffer(GUI::StringFromUTF8(propStr.c_str()), pos - 1))
+//		if (!AddFileToBuffer(recentFilePath.w_str(), pos - 1))
 			continue;
 
 		propKey = IndexPropKey("buffer", i, "current");
@@ -484,7 +489,11 @@ void SciTEBase::SaveSessionFile(const GUI::gui_char *sessionName) {
 		fprintf(sessionFile, "position.height=%d\n", height);
 		fprintf(sessionFile, "position.maximize=%d\n", maximize);
 	}
-
+//added
+//	wchar_t  recentFilePathW[MAX_PATH];
+//	char	recentFilePathA[MAX_PATH];
+//	DWORD	isize=0;
+//added
 	if (defaultSession && props.GetInt("save.recent")) {
 		SString propKey;
 		int j = 0;
@@ -495,7 +504,13 @@ void SciTEBase::SaveSessionFile(const GUI::gui_char *sessionName) {
 		for (int i = fileStackMax - 1; i >= 0; i--) {
 			if (recentFileStack[i].IsSet()) {
 				propKey = IndexPropKey("mru", j++, "path");
+//added
+//				wcscpy(recentFilePathW,recentFileStack[i].AsInternal());
+//				isize=WideCharToMultiByte(CP_ACP,NULL,recentFilePathW,-1,NULL,NULL,NULL,NULL);
+//				WideCharToMultiByte(CP_ACP,0,recentFilePathW,isize,recentFilePathA,isize,NULL,NULL);
+//added
 				fprintf(sessionFile, "%s=%s\n", propKey.c_str(), recentFileStack[i].AsUTF8().c_str());
+//				fprintf(sessionFile, "%s=%s\n", propKey.c_str(), recentFilePathA);
 			}
 		}
 	}
@@ -505,8 +520,14 @@ void SciTEBase::SaveSessionFile(const GUI::gui_char *sessionName) {
 		for (int i = 0; i < buffers.length; i++) {
 			if (buffers.buffers[i].IsSet() && !buffers.buffers[i].IsUntitled()) {
 				SString propKey = IndexPropKey("buffer", i, "path");
-				fprintf(sessionFile, "\n%s=%s\n", propKey.c_str(), buffers.buffers[i].AsUTF8().c_str());
+				//added
+//				wcscpy(recentFilePathW,buffers.buffers[i].AsInternal());
+//				isize=WideCharToMultiByte(CP_ACP,NULL,recentFilePathW,-1,NULL,NULL,NULL,NULL);
+//				WideCharToMultiByte(CP_ACP,0,recentFilePathW,isize,recentFilePathA,isize,NULL,NULL);
+				//added
 
+				fprintf(sessionFile, "\n%s=%s\n", propKey.c_str(), buffers.buffers[i].AsUTF8().c_str());
+//				fprintf(sessionFile, "\n%s=%s\n", propKey.c_str(), recentFilePathA);
 				SetDocumentAt(i);
 				int pos = wEditor.Call(SCI_GETCURRENTPOS) + 1;
 				propKey = IndexPropKey("buffer", i, "position");
@@ -932,7 +953,7 @@ void SciTEBase::SetFileStackMenu() {
 			if (recentFileStack[stackPos].IsSet()) {
 				GUI::gui_char entry[MAX_PATH + 20];
 				entry[0] = '\0';
-#if !defined(GTK)
+#if defined(WIN32)
 
 #if defined(_MSC_VER) && (_MSC_VER > 1200)
 				swprintf(entry, ELEMENTS(entry), GUI_TEXT("&%d "), (stackPos + 1) % 10);

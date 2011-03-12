@@ -23,10 +23,13 @@
 #include <map>
 #include <algorithm>
 
-#if defined(GTK)
+#if defined(__unix__)
 
 #include <unistd.h>
+
+#if defined(GTK)
 #include <gtk/gtk.h>
+#endif
 
 #else
 
@@ -907,10 +910,10 @@ int SciTEBase::IncrementSearchMode() {
 	return 0;
 }
 
-int SciTEBase::FindInTarget(const char *findWhat, int lenFind, int startPosition, int endPosition) {
+int SciTEBase::FindInTarget(const char *findWhatText, int lenFind, int startPosition, int endPosition) {
 	wEditor.Call(SCI_SETTARGETSTART, startPosition);
 	wEditor.Call(SCI_SETTARGETEND, endPosition);
-	int posFind = wEditor.CallString(SCI_SEARCHINTARGET, lenFind, findWhat);
+	int posFind = wEditor.CallString(SCI_SEARCHINTARGET, lenFind, findWhatText);
 	while (findInStyle && posFind != -1 && findStyle != wEditor.Call(SCI_GETSTYLEAT, posFind)) {
 		if (startPosition < endPosition) {
 			wEditor.Call(SCI_SETTARGETSTART, posFind + 1);
@@ -919,7 +922,7 @@ int SciTEBase::FindInTarget(const char *findWhat, int lenFind, int startPosition
 			wEditor.Call(SCI_SETTARGETSTART, startPosition);
 			wEditor.Call(SCI_SETTARGETEND, posFind + 1);
 		}
-		posFind = wEditor.CallString(SCI_SEARCHINTARGET, lenFind, findWhat);
+		posFind = wEditor.CallString(SCI_SEARCHINTARGET, lenFind, findWhatText);
 	}
 	return posFind;
 }
@@ -4029,7 +4032,7 @@ void SciTEBase::CheckMenus() {
 		EnableAMenuItem(IDM_TOOLS + toolItem, !jobQueue.IsExecuting());
 	EnableAMenuItem(IDM_STOPEXECUTE, jobQueue.IsExecuting());
 	if (buffers.size > 0) {
-#if !defined(GTK)
+#if defined(WIN32)
 		// Tab Bar
 #ifndef TCM_DESELECTALL
 #define TCM_DESELECTALL TCM_FIRST+50
@@ -4331,14 +4334,15 @@ bool SciTEBase::RecordMacroCommand(SCNotification *notification) {
 		char *t;
 		bool handled;
 		t = (char*)(notification->lParam);
+		SString sWParam(static_cast<size_t>(notification->wParam));
 		if (t != NULL) {
 			//format : "<message>;<wParam>;1;<text>"
 			szMessage = new char[50 + strlen(t) + 4];
-			sprintf(szMessage, "%d;%ld;1;%s", notification->message, notification->wParam, t);
+			sprintf(szMessage, "%d;%s;1;%s", notification->message, sWParam.c_str(), t);
 		} else {
 			//format : "<message>;<wParam>;0;"
 			szMessage = new char[50];
-			sprintf(szMessage, "%d;%ld;0;", notification->message, notification->wParam);
+			sprintf(szMessage, "%d;%s;0;", notification->message, sWParam.c_str());
 		}
 		handled = extender->OnMacro("macro:record", szMessage);
 		delete []szMessage;

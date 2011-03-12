@@ -285,4 +285,7 @@
 #define IDBM_BACKSLASH 104
 #define IDBM_AROUND 105
 #define IDBM_UP 106
+
+//ICON
+#define IDI_ICON            108
 #endif

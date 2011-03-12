@@ -26,10 +26,13 @@
 
 #include "GUI.h"
 
-#if defined(GTK)
+#if defined(__unix__)
 
 #include <unistd.h>
+
+#if defined(GTK)
 #include <gtk/gtk.h>
+#endif
 
 const GUI::gui_char menuAccessIndicator[] = GUI_TEXT("_");
 
@@ -131,7 +134,7 @@ const GUI::gui_char propDirectoryFileName[] = GUI_TEXT("SciTEDirectory.propertie
 Read global and user properties files.
 */
 void SciTEBase::ReadGlobalPropFile() {
-#ifdef __unix__
+#if defined(__unix__)
 	extern char **environ;
 	char **e=environ;
 #else
@@ -488,12 +491,12 @@ static int FileLength(const char *path) {
 }
 
 void SciTEBase::ReadAPI(const SString &fileNameForExtension) {
-	SString apisFileNames = props.GetNewExpand("api.",
+	SString sApiFileNames = props.GetNewExpand("api.",
 	                        fileNameForExtension.c_str());
-	size_t nameLength = apisFileNames.length();
+	size_t nameLength = sApiFileNames.length();
 	if (nameLength) {
-		apisFileNames.substitute(';', '\0');
-		const char *apiFileName = apisFileNames.c_str();
+		sApiFileNames.substitute(';', '\0');
+		const char *apiFileName = sApiFileNames.c_str();
 		const char *nameEnd = apiFileName + nameLength;
 
 		int tlen = 0;    // total api length
@@ -508,7 +511,7 @@ void SciTEBase::ReadAPI(const SString &fileNameForExtension) {
 		if (tlen > 0) {
 			char *buffer = apis.Allocate(tlen);
 			if (buffer) {
-				apiFileName = apisFileNames.c_str();
+				apiFileName = sApiFileNames.c_str();
 				tlen = 0;
 				while (apiFileName < nameEnd) {
 					FILE *fp = fopen(apiFileName, "rb");
@@ -1502,7 +1505,7 @@ void SciTEBase::ReadPropertiesInitial() {
 	// end load the user defined short cut props
 
 
-#if !defined(GTK)
+#if defined(WIN32)
 
 	if (tabMultiLine) {	// Windows specific!
 		long wl = ::GetWindowLong(reinterpret_cast<HWND>(wTabBar.GetID()), GWL_STYLE);
