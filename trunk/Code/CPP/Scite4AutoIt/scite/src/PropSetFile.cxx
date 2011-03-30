@@ -120,17 +120,17 @@ bool PropSetFile::Exists(const char *key) const {
 }
 
 SString PropSetFile::Get(const char *key) const {
-	mapss::const_iterator keyPos = props.find(std::string(key));
-	if (keyPos != props.end()) {
-		return SString(keyPos->second.c_str());
-	} else {
-		if (superPS) {
-			// Failed here, so try in base property set
-			return superPS->Get(key);
-		} else {
-			return "";
+	const std::string sKey(key);
+	const PropSetFile *psf = this;
+	while (psf) {
+		mapss::const_iterator keyPos = psf->props.find(sKey);
+		if (keyPos != psf->props.end()) {
+			return SString(keyPos->second.c_str());
 		}
+		// Failed here, so try in base property set
+		psf = psf->superPS;
 	}
+	return "";
 }
 
 // There is some inconsistency between GetExpanded("foo") and Expand("$(foo)").
@@ -390,49 +390,51 @@ static bool startswith(const std::string &s, const char *keybase) {
 }
 
 SString PropSetFile::GetWildUsingStart(const PropSetFile &psStart, const char *keybase, const char *filename) {
-	mapss::iterator it = props.lower_bound(std::string(keybase));
-	while ((it != props.end()) && startswith(it->first, keybase)) {
-		const char *orgkeyfile = it->first.c_str() + strlen(keybase);
-		char *keyptr = NULL;
+	const std::string sKeybase(keybase);
+	const size_t lenKeybase = strlen(keybase);
+	const PropSetFile *psf = this;
+	while (psf) {
+		mapss::const_iterator it = psf->props.lower_bound(sKeybase);
+		while ((it != psf->props.end()) && startswith(it->first, keybase)) {
+			const char *orgkeyfile = it->first.c_str() + lenKeybase;
+			char *keyptr = NULL;
 
-		if (strncmp(orgkeyfile, "$(", 2) == 0) {
-			const char *cpendvar = strchr(orgkeyfile, ')');
-			if (cpendvar) {
-				SString var(orgkeyfile, 2, cpendvar-orgkeyfile);
-				SString s = psStart.GetExpanded(var.c_str());
-				keyptr = StringDup(s.c_str());
+			if (strncmp(orgkeyfile, "$(", 2) == 0) {
+				const char *cpendvar = strchr(orgkeyfile, ')');
+				if (cpendvar) {
+					SString var(orgkeyfile, 2, cpendvar-orgkeyfile);
+					SString s = psStart.GetExpanded(var.c_str());
+					keyptr = StringDup(s.c_str());
+				}
 			}
-		}
-		const char *keyfile = keyptr;
+			const char *keyfile = keyptr;
 
-		if (keyfile == NULL)
-			keyfile = orgkeyfile;
+			if (keyfile == NULL)
+				keyfile = orgkeyfile;
 
-		for (;;) {
-			const char *del = strchr(keyfile, ';');
-			if (del == NULL)
-				del = keyfile + strlen(keyfile);
-			if (MatchWild(keyfile, del - keyfile, filename, caseSensitiveFilenames)) {
-				delete []keyptr;
+			for (;;) {
+				const char *del = strchr(keyfile, ';');
+				if (del == NULL)
+					del = keyfile + strlen(keyfile);
+				if (MatchWild(keyfile, del - keyfile, filename, caseSensitiveFilenames)) {
+					delete []keyptr;
+					return SString(it->second.c_str());
+				}
+				if (*del == '\0')
+					break;
+				keyfile = del + 1;
+			}
+			delete []keyptr;
+
+			if (0 == strcmp(it->first.c_str(), keybase)) {
 				return SString(it->second.c_str());
 			}
-			if (*del == '\0')
-				break;
-			keyfile = del + 1;
+			++it;
 		}
-		delete []keyptr;
-
-		if (0 == strcmp(it->first.c_str(), keybase)) {
-			return SString(it->second.c_str());
-		}
-		++it;
+		// Failed here, so try in base property set
+		psf = psf->superPS;
 	}
-	if (superPS) {
-		// Failed here, so try in super property set
-		return static_cast<PropSetFile *>(superPS)->GetWildUsingStart(psStart, keybase, filename);
-	} else {
-		return "";
-	}
+	return "";
 }
 
 SString PropSetFile::GetWild(const char *keybase, const char *filename) {
@@ -797,16 +799,16 @@ char *SContainer::StringAllocate(lenpos_t len) {
 	}
 }
 
-char *SContainer::StringAllocate(const char *s, lenpos_t len) {
-	if (s == 0) {
+char *SContainer::StringAllocate(const char *sValue, lenpos_t len) {
+	if (sValue == 0) {
 		return 0;
 	}
 	if (len == measure_length) {
-		len = strlen(s);
+		len = strlen(sValue);
 	}
 	char *sNew = new char[len + 1];
 	if (sNew) {
-		memcpy(sNew, s, len);
+		memcpy(sNew, sValue, len);
 		sNew[len] = '\0';
 	}
 	return sNew;

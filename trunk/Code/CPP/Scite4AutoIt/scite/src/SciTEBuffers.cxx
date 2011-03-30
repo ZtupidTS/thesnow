@@ -865,21 +865,23 @@ void SciTEBase::EndStackedTabbing() {
 
 void SciTEBase::BuffersMenu() {
 	UpdateBuffersCurrent();
-	DestroyMenuItem(menuBuffers, IDM_BUFFERSEP);
+	if (buffers.size <= 1) {
+        DestroyMenuItem(menuBuffers, IDM_BUFFERSEP);
+    }
 	RemoveAllTabs();
 
 	int pos;
-	for (pos = 0; pos < bufferMax; pos++) {
+	for (pos = buffers.length; pos < bufferMax; pos++) {
 		DestroyMenuItem(menuBuffers, IDM_BUFFER + pos);
 	}
 	if (buffers.size > 1) {
-		int menuStart = 5;
+		int menuStart = 4;
 		SetMenuItem(menuBuffers, menuStart, IDM_BUFFERSEP, GUI_TEXT(""));
 		for (pos = 0; pos < buffers.length; pos++) {
 			int itemID = bufferCmdID + pos;
 			GUI::gui_string entry;
 			GUI::gui_string titleTab;
-#if !defined(GTK)
+#if defined(WIN32)
 
 			if (pos < 10) {
 				GUI::gui_string sPos = GUI::StringFromInteger((pos + 1) % 10);
@@ -896,7 +898,7 @@ void SciTEBase::BuffersMenu() {
 				titleTab += untitled;
 			} else {
 				GUI::gui_string path = buffers.buffers[pos].AsInternal();
-#if !defined(GTK)
+#if defined(WIN32)
 				// Handle '&' characters in path, since they are interpreted in
 				// menues and tab names.
 				size_t amp = 0;
