@@ -638,11 +638,15 @@ int CPermissions::CheckDirectoryPermissions(LPCTSTR username, CStdString dirname
 
 	//Check if dir + dirname is a valid path
 	int res2 = GetRealDirectory(dir + _T("/") + dirname, user, directory, truematch);
+
+	if (!res2)
+		physicalDir = directory.dir;
+	
 	if (!res2 && op&DOP_CREATE)
 		res |= PERMISSION_DOESALREADYEXIST;
 	else if (!(res2 & PERMISSION_NOTFOUND))
 		return res | res2;
-	
+
 	// check dir attributes
 	DWORD nAttributes = GetFileAttributes(physicalDir);
 	if (nAttributes==0xFFFFFFFF && !(op&DOP_CREATE))
@@ -1999,7 +2003,7 @@ void CPermissions::ReadSettings()
 
 		ReadSpeedLimits(pGroup, group);
 
-		if (m_GroupsList.size() < 20000)
+		if (m_GroupsList.size() < 200000)
 			m_GroupsList.push_back(group);
 	}
 		
@@ -2115,7 +2119,7 @@ void CPermissions::ReadSettings()
 			
 		ReadSpeedLimits(pUser, user);
 
-		if (m_UsersList.size() < 20000)
+		if (m_UsersList.size() < 200000)
 			m_UsersList.push_back(user);
 	}
 	COptions::FreeXML(pXML, false);

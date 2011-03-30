@@ -1,4 +1,4 @@
-// FileZilla Server - a Windows ftp server
+﻿// FileZilla Server - a Windows ftp server
 
 // Copyright (C) 2002-2004 - Tim Kosse <tim.kosse@gmx.de>
 
@@ -273,7 +273,7 @@ int CAdminSocket::ParseRecvBuffer()
 
 	if ((m_pRecvBuffer[0]&0x03) != 0)
 	{
-		SendCommand(_T("Protocol error: Unknown command type, closing connection."), 1);
+		SendCommand(_T("协议错误: 未知命令类型, 关闭连接."), 1);
 		Close();
 		m_pAdminInterface->Remove(this);
 		return -1;
@@ -284,7 +284,7 @@ int CAdminSocket::ParseRecvBuffer()
 		memcpy(&len, m_pRecvBuffer+1, 4);
 		if (len > 0xFFFFFF)
 		{
-			SendCommand(_T("Protocol error: Invalid data length, closing connection."), 1);
+			SendCommand(_T("协议错误: 无效数据长度, 关闭连接."), 1);
 			Close();
 			m_pAdminInterface->Remove(this);
 			return -1;
@@ -298,14 +298,14 @@ int CAdminSocket::ParseRecvBuffer()
 			{
 				if (nID)
 				{
-					SendCommand(_T("Protocol error: Not authenticated, closing connection."), 1);
+					SendCommand(_T("协议错误: 未认证, 关闭连接."), 1);
 					Close();
 					m_pAdminInterface->Remove(this);
 					return -1;
 				}
 				if (len != 16)
 				{
-					SendCommand(_T("Protocol error: Auth data len invalid, closing connection."), 1);
+					SendCommand(_T("协议错误: 认证数据长度无效, 关闭连接."), 1);
 					Close();
 					m_pAdminInterface->Remove(this);
 					return -1;
@@ -316,7 +316,7 @@ int CAdminSocket::ParseRecvBuffer()
 				CStdString pass = options.GetOption(OPTION_ADMINPASS);
 				if (pass.GetLength() < 6)
 				{
-					SendCommand(_T("Protocol error: Server misconfigured, admin password not set correctly"), 1);
+					SendCommand(_T("协议错误: 服务器配置错误, 管理密码未正确设置"), 1);
 					Close();
 					m_pAdminInterface->Remove(this);
 					return -1;
@@ -324,7 +324,7 @@ int CAdminSocket::ParseRecvBuffer()
 				char* utf8 = ConvToNetwork(pass);
 				if (!utf8)
 				{
-					SendCommand(_T("Failed to convert password to UTF-8"), 1);
+					SendCommand(_T("转换密码为 UTF-8 编码失败"), 1);
 					Close();
 					m_pAdminInterface->Remove(this);
 					return -1;
@@ -337,7 +337,7 @@ int CAdminSocket::ParseRecvBuffer()
 				if (memcmp(m_pRecvBuffer + 5, digest, 16))
 				{
 					delete [] digest;
-					SendCommand(_T("Protocol error: Auth failed, closing connection."), 1);
+					SendCommand(_T("协议错误: 认证失败, 关闭连接."), 1);
 					Close();
 					m_pAdminInterface->Remove(this);
 					return -1;

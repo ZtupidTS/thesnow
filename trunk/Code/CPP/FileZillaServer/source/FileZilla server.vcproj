@@ -170,9 +170,9 @@
 				PrecompiledHeaderThrough="stdafx.h"
 				PrecompiledHeaderFile=".\Release/FileZilla server.pch"
 				AssemblerOutput="2"
-				AssemblerListingLocation=".\Release\ASM/"
-				ObjectFile=".\Release\OBJ/"
-				ProgramDataBaseFileName=".\Release\DB/"
+				AssemblerListingLocation=".\Release\ASM\"
+				ObjectFile=".\Release\OBJ\"
+				ProgramDataBaseFileName=".\Release\DB\"
 				WarningLevel="3"
 				SuppressStartupBanner="true"
 				DebugInformationFormat="3"
@@ -1747,31 +1747,7 @@
 			Filter="ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"
 			>
 			<File
-				RelativePath="res\empty.ico"
-				>
-			</File>
-			<File
 				RelativePath="res\FileZilla server.ico"
-				>
-			</File>
-			<File
-				RelativePath="res\green.ico"
-				>
-			</File>
-			<File
-				RelativePath="res\icon1.ico"
-				>
-			</File>
-			<File
-				RelativePath="res\red.ico"
-				>
-			</File>
-			<File
-				RelativePath="res\Toolbar.bmp"
-				>
-			</File>
-			<File
-				RelativePath="res\yellow.ico"
 				>
 			</File>
 		</Filter>

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="9.00"
@@ -157,9 +157,9 @@
 				PrecompiledHeaderThrough="stdafx.h"
 				PrecompiledHeaderFile=".\Release/FileZilla Server Interface.pch"
 				AssemblerOutput="2"
-				AssemblerListingLocation=".\Release\ASM/"
-				ObjectFile=".\Release\OBJ/"
-				ProgramDataBaseFileName=".\Release\DB/"
+				AssemblerListingLocation=".\Release\ASM\"
+				ObjectFile=".\Release\OBJ\"
+				ProgramDataBaseFileName=".\Release\DB\"
 				WarningLevel="3"
 				SuppressStartupBanner="true"
 				DebugInformationFormat="3"

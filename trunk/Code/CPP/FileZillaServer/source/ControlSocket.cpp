@@ -1,4 +1,4 @@
-// FileZilla Server - a Windows ftp server
+﻿// FileZilla Server - a Windows ftp server
 
 // Copyright (C) 2002-2004 - Tim Kosse <tim.kosse@gmx.de>
 
@@ -134,7 +134,7 @@ void CControlSocket::OnReceive(int nErrorCode)
 		{
 			//Control connection has been closed
 			Close();
-			SendStatus(_T("disconnected."), 0);
+			SendStatus(_T("已断开."), 0);
 			m_pOwner->PostThreadMessage(WM_FILEZILLA_THREADMSG, FTM_DELSOCKET, m_userid);
 		}
 		return;
@@ -205,7 +205,7 @@ void CControlSocket::OnReceive(int nErrorCode)
 		{
 			//Control connection has been closed
 			Close();
-			SendStatus(_T("disconnected."), 0);
+			SendStatus(_T("已断开."), 0);
 			m_pOwner->PostThreadMessage(WM_FILEZILLA_THREADMSG, FTM_DELSOCKET, m_userid);
 
 			delete [] buffer;
@@ -297,7 +297,7 @@ void CControlSocket::SendStatus(LPCTSTR status, int type)
 	if (!m_status.loggedon)
 	{
 		msg->user = new TCHAR[16];
-		_tcscpy(msg->user, _T("(not logged in)"));
+		_tcscpy(msg->user, _T("(未登录)"));
 	}
 	else
 	{
@@ -320,11 +320,11 @@ BOOL CControlSocket::Send(LPCTSTR str, bool sendStatus /*=true*/)
 	int len;
 	if (m_useUTF8)
 	{
-		char* utf8 = ConvToNetwork(str);
+		char* utf8 = ConvToNetwork(str);	//W2A
 		if (!utf8)
 		{
 			Close();
-			SendStatus(_T("Failed to convert reply to UTF-8"), 1);
+			SendStatus(_T("转换回复到 UTF-8 编码失败"), 1);
 			m_pOwner->PostThreadMessage(WM_FILEZILLA_THREADMSG, FTM_DELSOCKET, m_userid);
 
 			return false;
@@ -342,7 +342,7 @@ BOOL CControlSocket::Send(LPCTSTR str, bool sendStatus /*=true*/)
 		if (local == "")
 		{
 			Close();
-			SendStatus(_T("Failed to convert reply to local charset"), 1);
+			SendStatus(_T("转换回复到本地字符集失败"), 1);
 			m_pOwner->PostThreadMessage(WM_FILEZILLA_THREADMSG, FTM_DELSOCKET, m_userid);
 
 			return false;
@@ -401,7 +401,7 @@ BOOL CControlSocket::Send(LPCTSTR str, bool sendStatus /*=true*/)
 	{
 		delete [] buffer;
 		Close();
-		SendStatus(_T("could not send reply, disconnected."), 0);
+		SendStatus(_T("不能发送回复, 已断开."), 0);
 		m_pOwner->PostThreadMessage(WM_FILEZILLA_THREADMSG, FTM_DELSOCKET, m_userid);
 		return FALSE;
 	}
@@ -437,7 +437,7 @@ BOOL CControlSocket::Send(LPCTSTR str, bool sendStatus /*=true*/)
 void CControlSocket::OnClose(int nErrorCode)
 {
 	Close();
-	SendStatus(_T("disconnected."), 0);
+	SendStatus(_T("已断开."), 0);
 	m_pOwner->PostThreadMessage(WM_FILEZILLA_THREADMSG, FTM_DELSOCKET, m_userid);
 	CAsyncSocketEx::OnClose(nErrorCode);
 }
@@ -662,7 +662,7 @@ void CControlSocket::ParseCommand()
 					break;
 				}
 			}
-			Send(_T("331 Password required for ") + args);
+			Send(_T("331 PLZ Enter the password for ") + args);
 		}
 		break;
 	case COMMAND_PASS:
@@ -690,7 +690,7 @@ void CControlSocket::ParseCommand()
 			}
 		}
 		else if (DoUserLogin(args))
-			Send(_T("230 Logged on"));
+			Send(_T("230 You have Logged. Welcome!"));
 		break;
 	case COMMAND_QUIT:
 		m_bQuitCommand = TRUE;
@@ -1255,7 +1255,6 @@ void CControlSocket::ParseCommand()
 		}
 	case COMMAND_STOR:
 		{
-			Send(_T("550 ��ʼ����."));
 			if (m_transferstatus.pasv == -1)
 			{
 				Send(_T("503 Bad sequence of commands."));
@@ -1615,7 +1614,7 @@ void CControlSocket::ParseCommand()
 		break;
 		}
 	case COMMAND_SYST:
-		Send(_T("215 UNIX emulated by FileZilla"));
+		Send(_T("215 UNIX emulated FTP Server on Windows"));
 		break;
 	case COMMAND_NOOP:
 	case COMMAND_NOP:
@@ -3033,7 +3032,7 @@ void CControlSocket::OnSend(int nErrorCode)
 		if (!numsent || numsent == SOCKET_ERROR)
 		{
 			Close();
-			SendStatus(_T("could not send reply, disconnected."), 0);
+			SendStatus(_T("不能发送回复, 已断开."), 0);
 			m_pOwner->PostThreadMessage(WM_FILEZILLA_THREADMSG, FTM_DELSOCKET, m_userid);
 
 			delete [] m_pSendBuffer;
@@ -3099,7 +3098,7 @@ BOOL CControlSocket::DoUserLogin(LPCTSTR password, bool skipPass /*=false*/)
 		int nMaxUsers = (int)m_pOwner->m_pOptions->GetOptionVal(OPTION_MAXUSERS);
 		if (m_pOwner->GetGlobalNumConnections()>nMaxUsers&&nMaxUsers)
 		{
-			SendStatus(_T("Refusing connection. Reason: Max. connection count reached."), 1);
+			SendStatus(_T("拒绝连接. 理由: 已达到最大连接数."), 1);
 			Send(_T("421 Too many users are connected, please try again later."));
 			ForceClose(-1);
 			return FALSE;
@@ -3108,7 +3107,7 @@ BOOL CControlSocket::DoUserLogin(LPCTSTR password, bool skipPass /*=false*/)
 	if (user.GetUserLimit() && GetUserCount(m_status.user)>=user.GetUserLimit())
 	{
 			CStdString str;
-			str.Format(_T("Refusing connection. Reason: Max. connection count reached for the user \"%s\"."), m_status.user);
+			str.Format(_T("拒绝连接. 理由: 已达到用户 \"%s\" 的最大连接数."), m_status.user);
 			SendStatus(str,1);
 			Send(_T("421 Too many users logged in for this account. Try again later."));
 			ForceClose(-1);
@@ -3395,7 +3394,7 @@ int CControlSocket::OnLayerCallback(std::list<t_callbackMsg>& callbacks)
 		if (m_pSslLayer && iter->pLayer == m_pSslLayer)
 		{
 			if (iter->nType == LAYERCALLBACK_LAYERSPECIFIC && iter->nParam1 == SSL_INFO && iter->nParam2 == SSL_INFO_ESTABLISHED)
-				SendStatus(_T("SSL connection established"), 0);
+				SendStatus(_T("SSL 连接已建立"), 0);
 			else if (iter->nType == LAYERCALLBACK_LAYERSPECIFIC && iter->nParam1 == SSL_INFO && iter->nParam2 == SSL_INFO_SHUTDOWNCOMPLETE)
 			{
 				if (m_shutdown)
@@ -3426,7 +3425,7 @@ int CControlSocket::OnLayerCallback(std::list<t_callbackMsg>& callbacks)
 		{
 			if (iter->str)
 			{
-				CStdString str = "SSL warning: ";
+				CStdString str = "SSL 警告: ";
 				str += iter->str;
 
 				SendStatus(str, 1);
@@ -3455,15 +3454,15 @@ bool CControlSocket::InitImplicitSsl()
 	res = m_pSslLayer->SetCertKeyFile(m_pOwner->m_pOptions->GetOption(OPTION_SSLCERTFILE), m_pOwner->m_pOptions->GetOption(OPTION_SSLKEYFILE), m_pOwner->m_pOptions->GetOption(OPTION_SSLKEYPASS), &error);
 #endif
 	if (res == SSL_FAILURE_LOADDLLS)
-		SendStatus(_T("Failed to load SSL libraries"), 1);
+		SendStatus(_T("载入 SSL 库失败"), 1);
 	else if (res == SSL_FAILURE_INITSSL)
-		SendStatus(_T("Failed to initialize SSL libraries"), 1);
+		SendStatus(_T("初始化 SSL 库失败"), 1);
 	else if (res == SSL_FAILURE_VERIFYCERT)
 	{
 		if (error != _T(""))
 			SendStatus(error, 1);
 		else
-			SendStatus(_T("Failed to set certificate and private key"), 1);
+			SendStatus(_T("设置证书与私钥失败"), 1);
 	}
 	if (res)
 	{
@@ -3476,9 +3475,9 @@ bool CControlSocket::InitImplicitSsl()
 
 	int code = m_pSslLayer->InitSSLConnection(false);
 	if (code == SSL_FAILURE_LOADDLLS)
-		SendStatus(_T("Failed to load SSL libraries"), 1);
+		SendStatus(_T("载入 SSL 库失败"), 1);
 	else if (code == SSL_FAILURE_INITSSL)
-		SendStatus(_T("Failed to initialize SSL library"), 1);
+		SendStatus(_T("初始化 SSL 库失败"), 1);
 
 	if (!code)
 		return true;
@@ -3490,7 +3489,7 @@ bool CControlSocket::InitImplicitSsl()
 
 	//Close socket
 	Close();
-	SendStatus(_T("disconnected."), 0);
+	SendStatus(_T("已断开."), 0);
 	m_pOwner->PostThreadMessage(WM_FILEZILLA_THREADMSG, FTM_DELSOCKET, m_userid);
 
 	return false;
