@@ -420,7 +420,10 @@ void SciTEBase::SetOneStyle(GUI::ScintillaWindow &win, int style, const StyleDef
 }
 
 void SciTEBase::SetStyleFor(GUI::ScintillaWindow &win, const char *lang) {
-	for (int style = 0; style <= STYLE_MAX; style++) {
+	int maxStyle = (1 << win.Call(SCI_GETSTYLEBITS)) - 1;
+	if (maxStyle < STYLE_LASTPREDEFINED)
+		maxStyle = STYLE_LASTPREDEFINED;
+	for (int style = 0; style <= maxStyle; style++) {
 		if (style != STYLE_DEFAULT) {
 			char key[200];
 			sprintf(key, "style.%s.%0d", lang, style);
@@ -1364,8 +1367,10 @@ void SciTEBase::SetPropertiesInitial() {
 }
 
 GUI::gui_string Localization::Text(const char *s, bool retainIfNotFound) {
+	const char *utfEllipse = "\xe2\x80\xa6";	// A UTF-8 ellipse
 	SString translation = s;
 	int ellipseIndicator = translation.remove("...");
+	int utfEllipseIndicator = translation.remove(utfEllipse);
 	char menuAccessIndicatorChar[2] = "!";
 	menuAccessIndicatorChar[0] = static_cast<char>(menuAccessIndicator[0]);
 	int accessKeyPresent = translation.remove(menuAccessIndicatorChar);
@@ -1375,6 +1380,8 @@ GUI::gui_string Localization::Text(const char *s, bool retainIfNotFound) {
 	if (translation.length()) {
 		if (ellipseIndicator)
 			translation += "...";
+		if (utfEllipseIndicator)
+			translation += utfEllipse;
 		if (0 == accessKeyPresent) {
 #if !defined(GTK)
 			// Following codes are required because accelerator is not always
