@@ -338,6 +338,7 @@ protected:
 	GUI::Window wStatusBar;
 	GUI::Window wTabBar;
 	GUI::Menu popup;
+	HMENU hmenuPop;		//added by SetImportMenu
 	bool tbVisible;
 	bool tabVisible;
 	bool tabHideOne; // Hide tab bar if one buffer is opened only
