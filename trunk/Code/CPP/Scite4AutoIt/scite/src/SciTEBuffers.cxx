@@ -1171,6 +1171,36 @@ void SciTEBase::SetToolsMenu() {
 		SetMenuItemLocalised(menuTools, menuPos, IDM_MACROSTOPRECORD,
 		        "停止录制宏[&T]", "Ctrl+Shift+F9");
 	}
+//added		↓
+	SString MenuText;
+	if (props.GetWild("command.compile.name.", FileNameExt().AsUTF8().c_str()).size()!=0)
+	{
+		MenuText=props.GetNewExpand("command.compile.name.", FileNameExt().AsUTF8().c_str());
+		SetMenuItemLocalised(menuTools,IDM_COMPILE,IDM_COMPILE,MenuText.c_str(),MenuText.c_str());
+	}
+	else
+	{
+		SetMenuItem(menuTools,IDM_COMPILE,IDM_COMPILE,L"编译程序(&C)\tCtrl+F7");
+	}
+	if (props.GetWild("command.build.name.", FileNameExt().AsUTF8().c_str()).size()!=0)
+	{
+		MenuText=props.GetNewExpand("command.build.name.", FileNameExt().AsUTF8().c_str());
+		SetMenuItemLocalised(menuTools,IDM_BUILD,IDM_BUILD,MenuText.c_str(),MenuText.c_str());
+	}
+	else
+	{
+		SetMenuItem(menuTools,IDM_BUILD,IDM_BUILD,L"构建程序(&B)\tF7");
+	}
+	if (props.GetWild("command.go.name.", FileNameExt().AsUTF8().c_str()).size()!=0)
+	{
+		MenuText=props.GetNewExpand("command.go.name.", FileNameExt().AsUTF8().c_str());
+		SetMenuItemLocalised(menuTools,IDM_GO,IDM_GO,MenuText.c_str(),MenuText.c_str());
+	}
+	else
+	{
+		SetMenuItem(menuTools,IDM_GO,IDM_GO,L"运行程序(&G)\tF5");
+	}
+//added		↑
 }
 //子系统类型
 JobSubsystem SciTEBase::SubsystemType(char c) {

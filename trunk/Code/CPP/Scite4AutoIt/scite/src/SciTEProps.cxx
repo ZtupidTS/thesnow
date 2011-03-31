@@ -72,14 +72,23 @@ void SciTEBase::SetImportMenu() {
 //added ↓
 	HWND SciTEWinHWND= (HWND)SciTEBase::wSciTE.GetID();
 	HMENU hmenu = ::GetSubMenu(GetMenu(SciTEWinHWND), menuOptions);
-	HMENU hmenuPop=	CreatePopupMenu();
-	AppendMenu(hmenu, MF_STRING | MF_POPUP, (UINT) hmenuPop,L"打开导入文件[&I]"); 
+	if (hmenuPop)
+	{
+		DestroyMenu(hmenuPop);
+		hmenuPop=CreatePopupMenu();
+	}
+	else
+	{
+		hmenuPop=CreatePopupMenu();
+		AppendMenu(hmenu, MF_STRING | MF_POPUP, (UINT) hmenuPop,L"打开导入文件[&I]"); 
+	}
 	hmenu=hmenuPop;
 //added	↑
+/*
 	for (int i = 0; i < importMax; i++) {
-//		DestroyMenuItem(menuOptions, importCmdID + i);		//removeed
-		DeleteMenu(hmenu, importCmdID + i, MF_BYCOMMAND);	//added
+		DestroyMenuItem(menuOptions, importCmdID + i);
 	}
+*/
 	if (importFiles[0].IsSet()) {
 		for (int stackPos = 0; stackPos < importMax; stackPos++) {
 			int itemID = importCmdID + stackPos;
