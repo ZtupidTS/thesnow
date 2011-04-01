@@ -60,6 +60,14 @@ class Style : public FontSpecification, public FontMeasurements {
 public:
 	ColourPair fore;
 	ColourPair back;
+//---
+	bool aliasOfDefaultFont;
+	bool bold;
+	bool italic;
+	int size;
+	const char *fontName;
+	int characterSet;
+//---
 	bool eolFilled;
 	bool underline;
 	enum ecaseForced {caseMixed, caseUpper, caseLower};
@@ -67,9 +75,16 @@ public:
 	bool visible;
 	bool changeable;
 	bool hotspot;
-
 	FontAlias font;
-
+//	Font font;		//---
+	int sizeZoomed;
+	unsigned int lineHeight;
+	unsigned int ascent;
+	unsigned int descent;
+	unsigned int externalLeading;
+	unsigned int aveCharWidth;
+	unsigned int spaceWidth;
+//---
 	Style();
 	Style(const Style &source);
 	~Style();
@@ -82,6 +97,10 @@ public:
 		   bool visible_, bool changeable_, bool hotspot_);
 	void ClearTo(const Style &source);
 	void Copy(Font &font_, const FontMeasurements &fm_);
+//---	
+	bool EquivalentFontTo(const Style *other) const;
+	void Realise(Surface &surface, int zoomLevel, Style *defaultStyle = 0, int extraFontFlag = 0);
+//---
 	bool IsProtected() const { return !(changeable && visible);}
 };
 
