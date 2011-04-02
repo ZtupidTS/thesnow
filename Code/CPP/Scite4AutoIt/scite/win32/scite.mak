@@ -149,10 +149,11 @@ $(PROPFILE)\css.properties $(PROPFILE)\d.properties $(PROPFILE)\eiffel.propertie
 $(PROPFILE)\erlang.properties $(PROPFILE)\escript.properties \
 $(PROPFILE)\flagship.properties $(PROPFILE)\forth.properties \
 $(PROPFILE)\fortran.properties $(PROPFILE)\freebasic.properties \
-$(PROPFILE)\gap.properties $(PROPFILE)\html.properties \
-$(PROPFILE)\inno.properties $(PROPFILE)\kix.properties \
-$(PROPFILE)\latex.properties $(PROPFILE)\lisp.properties \
-$(PROPFILE)\lot.properties $(PROPFILE)\lout.properties $(PROPFILE)\lua.properties \
+$(PROPFILE)\gap.properties $(PROPFILE)\haskell.properties \
+$(PROPFILE)\html.properties $(PROPFILE)\inno.properties \
+$(PROPFILE)\kix.properties $(PROPFILE)\latex.properties \
+$(PROPFILE)\lisp.properties $(PROPFILE)\lot.properties \
+$(PROPFILE)\lout.properties $(PROPFILE)\lua.properties \
 $(PROPFILE)\matlab.properties $(PROPFILE)\metapost.properties \
 $(PROPFILE)\mmixal.properties $(PROPFILE)\modula3.properties \
 $(PROPFILE)\nimrod.properties $(PROPFILE)\nncrontab.properties \
