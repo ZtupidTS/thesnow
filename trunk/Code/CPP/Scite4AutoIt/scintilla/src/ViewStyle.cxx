@@ -117,10 +117,10 @@ FontRealised *FontRealised::Find(const FontSpecification &fs) {
 void FontRealised::FindMaxAscentDescent(unsigned int &maxAscent, unsigned int &maxDescent) {
 	FontRealised *fr = this;
 	while (fr) {
-		if (maxAscent < ascent)
-			maxAscent = ascent;
-		if (maxDescent < descent)
-			maxDescent = descent;
+		if (maxAscent < fr->ascent)
+			maxAscent = fr->ascent;
+		if (maxDescent < fr->descent)
+			maxDescent = fr->descent;
 		fr = fr->frNext;
 	}
 }
@@ -362,21 +362,36 @@ void ViewStyle::CreateFont(const FontSpecification &fs) {
 }
 
 void ViewStyle::Refresh(Surface &surface) {
+	delete frFirst;
+	frFirst = NULL;
 	selbar.desired = Platform::Chrome();
 	selbarlight.desired = Platform::ChromeHighlight();
-	styles[STYLE_DEFAULT].Realise(surface, zoomLevel, NULL, extraFontFlag);
-	maxAscent = styles[STYLE_DEFAULT].ascent;
-	maxDescent = styles[STYLE_DEFAULT].descent;
+
+	for (unsigned int i=0; i<stylesSize; i++) {
+		styles[i].extraFontFlag = extraFontFlag;
+	}
+
+	CreateFont(styles[STYLE_DEFAULT]);
+	for (unsigned int j=0; j<stylesSize; j++) {
+		CreateFont(styles[j]);
+	}
+
+	frFirst->Realise(surface, zoomLevel);
+
+	for (unsigned int k=0; k<stylesSize; k++) {
+		FontRealised *fr = frFirst->Find(styles[k]);
+		styles[k].Copy(fr->font, *fr);
+	}
+	maxAscent = 1;
+	maxDescent = 1;
+	frFirst->FindMaxAscentDescent(maxAscent, maxDescent);
+	maxAscent += extraAscent;
+	maxDescent += extraDescent;
+	lineHeight = maxAscent + maxDescent;
+
 	someStylesProtected = false;
 	someStylesForceCase = false;
 	for (unsigned int l=0; l<stylesSize; l++) {
-		if (l != STYLE_DEFAULT) {
-			styles[l].Realise(surface, zoomLevel, &styles[STYLE_DEFAULT], extraFontFlag);
-			if (maxAscent < styles[l].ascent)
-				maxAscent = styles[l].ascent;
-			if (maxDescent < styles[l].descent)
-				maxDescent = styles[l].descent;
-		}
 		if (styles[l].IsProtected()) {
 			someStylesProtected = true;
 		}
@@ -384,10 +399,7 @@ void ViewStyle::Refresh(Surface &surface) {
 			someStylesForceCase = true;
 		}
 	}
-	maxAscent += extraAscent;
-	maxDescent += extraDescent;
 
-	lineHeight = maxAscent + maxDescent;
 	aveCharWidth = styles[STYLE_DEFAULT].aveCharWidth;
 	spaceWidth = styles[STYLE_DEFAULT].spaceWidth;
 

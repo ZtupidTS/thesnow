@@ -871,11 +871,11 @@ void SciTEBase::BuffersMenu() {
 	RemoveAllTabs();
 
 	int pos;
-	for (pos = 0; pos < bufferMax; pos++) {		//dont't delete
+	for (pos = buffers.length; pos < bufferMax; pos++) {
 		DestroyMenuItem(menuBuffers, IDM_BUFFER + pos);
 	}
 	if (buffers.size > 1) {
-		int menuStart = 5;			//dont't delete
+		int menuStart = 4;
 		SetMenuItem(menuBuffers, menuStart, IDM_BUFFERSEP, GUI_TEXT(""));
 		for (pos = 0; pos < buffers.length; pos++) {
 			int itemID = bufferCmdID + pos;
