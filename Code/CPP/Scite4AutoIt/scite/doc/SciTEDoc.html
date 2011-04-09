@@ -1876,12 +1876,20 @@ NameError: mistake
 	<td>Allow folding for heredocs in scripts embedded in HTML. The default is off.</td>
 	</tr>
 	<tr>
+	<td>fold.perl.at.else</td>
+	<td>This option enables Perl folding on a "} else {" line of an if statement.</td>
+	</tr>
+	<tr>
+	<td>fold.perl.comment.explicit</td>
+	<td>Set to 0 to disable explicit folding.</td>
+	</tr>
+	<tr>
 	<td>fold.perl.package</td>
-	<td>Enable folding packages when using the Perl lexer.</td>
+	<td>Set to 0 to disable folding packages when using the Perl lexer.</td>
 	</tr>
 	<tr>
 	<td>fold.perl.pod</td>
-	<td>Enable folding Pod blocks when using the Perl lexer.</td>
+	<td>Set to 0 to disable folding Pod blocks when using the Perl lexer.</td>
 	</tr>
 	<tr>
 	<td>fold.preprocessor</td>
@@ -1890,6 +1898,10 @@ NameError: mistake
 	<tr>
 	<td>fold.quotes.python</td>
 	<td>This option enables folding multi-line quoted strings when using the Python lexer.</td>
+	</tr>
+	<tr>
+	<td>fold.sql.at.else</td>
+	<td>This option enables SQL folding on a "ELSE" and "ELSIF" line of an IF statement.</td>
 	</tr>
 	<tr>
 	<td>html.tags.case.sensitive</td>
@@ -1906,6 +1918,10 @@ NameError: mistake
 	<tr>
 	<td>lexer.cpp.track.preprocessor</td>
 	<td>Set to 1 to interpret #if/#else/#endif to grey out code that is not active.</td>
+	</tr>
+	<tr>
+	<td>lexer.cpp.triplequoted.strings</td>
+	<td>Set to 1 to enable highlighting of triple-quoted strings.</td>
 	</tr>
 	<tr>
 	<td>lexer.cpp.update.preprocessor</td>
@@ -1954,10 +1970,6 @@ NameError: mistake
 	<tr>
 	<td>lexer.sql.allow.dotted.word</td>
 	<td>Set to 1 to colourise recognized words with dots (recommended for Oracle PL/SQL objects).</td>
-	</tr>
-	<tr>
-	<td>lexer.sql.fold.at.else</td>
-	<td>This option enables SQL folding on a "ELSE" and "ELSIF"line of an IF statement.</td>
 	</tr>
 	<tr>
 	<td>lexer.sql.numbersign.comment</td>
@@ -3114,6 +3126,24 @@ groupundo - yes or no
         <td>
         For HTML, XML, Lua and C++ and similar files, turning this option on leads to blank lines following the
         end of an element folding with that element. Defaults to on.
+        </td>
+      </tr>
+      <tr>
+        <td>
+          fold.highlight<br />
+        </td>
+        <td>
+        Set to 1 to enable highlight for current folding block (smallest one that contains the caret).
+	By default, it's disable. Note : The highlight is enabled only when fold.symbols equals
+	to 2 (round headers) or 3 (square headers).
+        </td>
+      </tr>
+      <tr>
+        <td>
+          fold.highlight.colour<br />
+        </td>
+        <td>
+        Define the colour of highlight. The colour by default is red (#FF0000).
         </td>
       </tr>
       <tr>

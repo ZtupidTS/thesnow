@@ -302,7 +302,7 @@ public:
 	// Alias another font - caller guarantees not to Release
 	void SetID(FontID fid_) { fid = fid_; }
 	friend class Surface;
-        friend class SurfaceImpl;
+	friend class SurfaceImpl;
 };
 
 /**
@@ -412,8 +412,8 @@ public:
 	void SetTitle(const char *s);
 	PRectangle GetMonitorRect(Point pt);
 #if PLAT_MACOSX
-	void SetWindow(void *ref) { windowRef = ref; };
-	void SetControl(void *_control) { control = _control; };
+	void SetWindow(void *ref) { windowRef = ref; }
+	void SetControl(void *_control) { control = _control; }
 #endif
 private:
 	Cursor cursorLast;
