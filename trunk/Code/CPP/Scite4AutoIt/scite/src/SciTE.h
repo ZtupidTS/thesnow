@@ -84,7 +84,8 @@
 #define IDM_FINDNEXTBACKSEL	214
 #define IDM_FINDINFILES		215
 #define IDM_REPLACE			216
-#define IDM_EDITORCONFIG	217		//added ±‡º≠∆˜…Ë÷√
+#define IDM_SELECTION_FOR_FIND  217
+#define IDM_EDITORCONFIG	218		//added ±‡º≠∆˜…Ë÷√
 #define IDM_GOTO			220
 #define IDM_BOOKMARK_NEXT	221
 #define IDM_BOOKMARK_TOGGLE	222
