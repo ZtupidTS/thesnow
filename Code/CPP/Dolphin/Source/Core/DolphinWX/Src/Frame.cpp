@@ -32,7 +32,6 @@
 #include "Frame.h"
 #include "ConfigMain.h"
 #include "CheatsWindow.h"
-#include "AboutDolphin.h"
 #include "GameListCtrl.h"
 #include "BootManager.h"
 #include "ConsoleListener.h"
@@ -128,17 +127,8 @@ CPanel::CPanel(
 		case WM_USER:
 			switch(wParam)
 			{
-			// Pause
-			case WM_USER_PAUSE:
-				main_frame->DoPause();
-				break;
-
-			// Stop
 			case WM_USER_STOP:
 				main_frame->DoStop();
-				break;
-
-			case WM_USER_CREATE:
 				break;
 
 			case WM_USER_SETCURSOR:
@@ -152,39 +142,36 @@ CPanel::CPanel(
 			case WIIMOTE_DISCONNECT:
 				if (SConfig::GetInstance().m_LocalCoreStartupParameter.bWii)
 				{
-					if (main_frame->bNoWiimoteMsg)
-						main_frame->bNoWiimoteMsg = false;
+					const int wiimote_idx = lParam;
+					const int wiimote_num = wiimote_idx + 1;
+
+					//Auto reconnect if option is turned on.
+					//TODO: Make this only auto reconnect wiimotes that have the option activated.
+					SConfig::GetInstance().LoadSettingsWii();//Make sure we are using the newest settings.
+					if (SConfig::GetInstance().m_WiiAutoReconnect[wiimote_idx])
+					{
+						GetUsbPointer()->AccessWiiMote(wiimote_idx | 0x100)->Activate(true);
+						NOTICE_LOG(WIIMOTE, "Wiimote %i has been auto-reconnected...", wiimote_num);
+					}
 					else
 					{
-						int wiimote_idx = lParam;
-						int wiimote_num = wiimote_idx + 1;
-						//Auto reconnect if option is turned on.
-						//TODO: Make this only auto reconnect wiimotes that have the option activated.
-						SConfig::GetInstance().LoadSettingsWii();//Make sure we are using the newest settings.
-						if (SConfig::GetInstance().m_WiiAutoReconnect[wiimote_idx])
-						{
+						// The Wiimote has been disconnected, we offer reconnect here.
+						wxMessageDialog *dlg = new wxMessageDialog(
+							this,
+							wxString::Format(_("Wiimote %i has been disconnected by system.\nMaybe this game doesn't support multi-wiimote,\nor maybe it is due to idle time out or other reason.\nDo you want to reconnect immediately?"), wiimote_num),
+							_("Reconnect Wiimote Confirm"),
+							wxYES_NO | wxSTAY_ON_TOP | wxICON_INFORMATION, //wxICON_QUESTION,
+							wxDefaultPosition);
+
+						if (dlg->ShowModal() == wxID_YES)
 							GetUsbPointer()->AccessWiiMote(wiimote_idx | 0x100)->Activate(true);
-							NOTICE_LOG(WIIMOTE, "Wiimote %i has been auto-reconnected...", wiimote_num);
-						}
-						else
-						{
-							// The Wiimote has been disconnected, we offer reconnect here.
-							wxMessageDialog *dlg = new wxMessageDialog(
-								this,
-								wxString::Format(_("Wiimote %i has been disconnected by system.\nMaybe this game doesn't support multi-wiimote,\nor maybe it is due to idle time out or other reason.\nDo you want to reconnect immediately?"), wiimote_num),
-								_("Reconnect Wiimote Confirm"),
-								wxYES_NO | wxSTAY_ON_TOP | wxICON_INFORMATION, //wxICON_QUESTION,
-								wxDefaultPosition);
 
-							if (dlg->ShowModal() == wxID_YES)
-								GetUsbPointer()->AccessWiiMote(wiimote_idx | 0x100)->Activate(true);
-
-							dlg->Destroy();
-						}
+						dlg->Destroy();
 					}
 				}
 			}
 			break;
+
 		default:
 			// By default let wxWidgets do what it normally does with this event
 			return wxPanel::MSWWindowProc(nMsg, wParam, lParam);
@@ -285,6 +272,7 @@ EVT_MENU(IDM_CHEATS, CFrame::OnShow_CheatsWindow)
 EVT_MENU(IDM_CHANGEDISC, CFrame::OnChangeDisc)
 EVT_MENU(IDM_INSTALLWAD, CFrame::OnLoadWiiMenu)
 EVT_MENU(IDM_LOAD_WII_MENU, CFrame::OnLoadWiiMenu)
+EVT_MENU(IDM_FIFOPLAYER, CFrame::OnFifoPlayer)
 
 EVT_MENU(IDM_TOGGLE_FULLSCREEN, CFrame::OnToggleFullscreen)
 EVT_MENU(IDM_TOGGLE_DUALCORE, CFrame::OnToggleDualCore)
@@ -342,11 +330,11 @@ CFrame::CFrame(wxFrame* parent,
 		long style)
 	: CRenderFrame(parent, id, title, pos, size, style)
 	, g_pCodeWindow(NULL), g_NetPlaySetupDiag(NULL), g_CheatsWindow(NULL)
-	, bRenderToMain(false), bNoWiimoteMsg(false)
 	, m_ToolBar(NULL), m_ToolBarDebug(NULL), m_ToolBarAui(NULL)
 	, m_GameListCtrl(NULL), m_Panel(NULL)
 	, m_RenderFrame(NULL), m_RenderParent(NULL)
-	, m_LogWindow(NULL), m_LogConfigWindow(NULL), UseDebugger(_UseDebugger)
+	, m_LogWindow(NULL), m_LogConfigWindow(NULL)
+	, m_FifoPlayerDlg(NULL), UseDebugger(_UseDebugger)
 	, m_bBatchMode(_BatchMode), m_bEdit(false), m_bTabSplit(false), m_bNoDocking(false)
 	, m_bGameLoading(false)
 {
@@ -356,7 +344,7 @@ CFrame::CFrame(wxFrame* parent,
 	if (ShowLogWindow) SConfig::GetInstance().m_InterfaceLogWindow = true;
 
 	// Give it a console early to show potential messages from this onward
-	ConsoleListener *Console = LogManager::GetInstance()->getConsoleListener();
+	ConsoleListener *Console = LogManager::GetInstance()->GetConsoleListener();
 	if (SConfig::GetInstance().m_InterfaceConsole) Console->Open();
 
 	// Start debugging mazimized
@@ -399,23 +387,14 @@ CFrame::CFrame(wxFrame* parent,
 	// Could just check for wxWidgets version if it becomes a problem.
 	m_Mgr = new wxAuiManager(this, wxAUI_MGR_DEFAULT | wxAUI_MGR_LIVE_RESIZE);
 
-	if (g_pCodeWindow)
-	{
-		m_Mgr->AddPane(m_Panel, wxAuiPaneInfo()
-				.Name(_T("Pane 0")).Caption(_T("Pane 0"))
-				.CenterPane().PaneBorder(false).Show());
-		AuiFullscreen = m_Mgr->SavePerspective();
-	}
-	else
-	{
-		m_Mgr->AddPane(m_Panel, wxAuiPaneInfo()
-				.Name(_T("Pane 0")).Caption(_T("Pane 0")).PaneBorder(false)
-				.CaptionVisible(false).Layer(0).Center().Show());
+	m_Mgr->AddPane(m_Panel, wxAuiPaneInfo()
+			.Name(_T("Pane 0")).Caption(_T("Pane 0")).PaneBorder(false)
+			.CaptionVisible(false).Layer(0).Center().Show());
+	if (!g_pCodeWindow)
 		m_Mgr->AddPane(CreateEmptyNotebook(), wxAuiPaneInfo()
 				.Name(_T("Pane 1")).Caption(_("Logging")).CaptionVisible(true)
 				.Layer(0).FloatingSize(wxSize(600, 350)).CloseButton(true).Hide());
-		AuiFullscreen = m_Mgr->SavePerspective();
-	}
+	AuiFullscreen = m_Mgr->SavePerspective();
 
 	// Create toolbar
 	RecreateToolbar();
@@ -450,6 +429,8 @@ CFrame::CFrame(wxFrame* parent,
 	// Create cursors
 	#ifdef _WIN32
 		CreateCursor();
+		SetToolTip(wxT(""));
+		GetToolTip()->SetAutoPop(25000);
 	#endif
 
 	#if defined(HAVE_XRANDR) && HAVE_XRANDR
@@ -549,7 +530,12 @@ void CFrame::OnClose(wxCloseEvent& event)
 	// Save GUI settings
 	if (g_pCodeWindow) SaveIniPerspectives();
 	// Close the log window now so that its settings are saved
-	else m_LogWindow->Close();
+	else
+	{
+		m_LogWindow->Close();
+		m_LogWindow = NULL;
+	}
+
 
 	// Uninit
 	m_Mgr->UnInit();
@@ -596,6 +582,13 @@ void CFrame::OnResize(wxSizeEvent& event)
 		SConfig::GetInstance().m_LocalCoreStartupParameter.iWidth = GetSize().GetWidth();
 		SConfig::GetInstance().m_LocalCoreStartupParameter.iHeight = GetSize().GetHeight();
 	}
+
+	// Make sure the logger pane is a sane size
+	if (!g_pCodeWindow && m_LogWindow && m_Mgr->GetPane(_T("Pane 1")).IsShown() &&
+			!m_Mgr->GetPane(_T("Pane 1")).IsFloating() &&
+			(m_LogWindow->x > GetClientRect().GetWidth() ||
+			 m_LogWindow->y > GetClientRect().GetHeight()))
+		ShowResizePane();
 }
 
 // Host messages
@@ -603,22 +596,10 @@ void CFrame::OnResize(wxSizeEvent& event)
 #ifdef _WIN32
 WXLRESULT CFrame::MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, WXLPARAM lParam)
 {
-	switch (nMsg)
-	{
-	case WM_SYSCOMMAND:
-		switch (wParam & 0xFFF0)
-		{
-		case SC_SCREENSAVE:
-		case SC_MONITORPOWER:
-			break;
-		default:
-			return wxFrame::MSWWindowProc(nMsg, wParam, lParam);
-		}
-		break;
-	default:
+	if (WM_SYSCOMMAND == nMsg && (SC_SCREENSAVE == wParam || SC_MONITORPOWER == wParam))
+		return 0;
+	else
 		return wxFrame::MSWWindowProc(nMsg, wParam, lParam);
-	}
-	return 0;
 }
 #endif
 
@@ -684,7 +665,6 @@ void CFrame::GetRenderWindowSize(int& x, int& y, int& width, int& height)
 void CFrame::OnRenderWindowSizeRequest(int width, int height)
 {
 	if (Core::GetState() == Core::CORE_UNINITIALIZED ||
-			!SConfig::GetInstance().m_LocalCoreStartupParameter.bRenderToMain ||
 			!SConfig::GetInstance().m_LocalCoreStartupParameter.bRenderWindowAutoSize || 
 			RendererIsFullscreen() || m_RenderFrame->IsMaximized())
 		return;
@@ -693,8 +673,10 @@ void CFrame::OnRenderWindowSizeRequest(int width, int height)
 	m_RenderFrame->GetClientSize(&old_width, &old_height);
 
 	// Add space for the log/console/debugger window
-	if ((SConfig::GetInstance().m_InterfaceLogWindow || SConfig::GetInstance().m_InterfaceConsole ||
-				SConfig::GetInstance().m_InterfaceLogConfigWindow) &&
+	if (SConfig::GetInstance().m_LocalCoreStartupParameter.bRenderToMain &&
+			(SConfig::GetInstance().m_InterfaceLogWindow ||
+			 SConfig::GetInstance().m_InterfaceConsole ||
+			 SConfig::GetInstance().m_InterfaceLogConfigWindow) &&
 			!m_Mgr->GetPane(wxT("Pane 1")).IsFloating())
 	{
 		switch (m_Mgr->GetPane(wxT("Pane 1")).dock_direction)
@@ -869,7 +851,8 @@ int GetCmdForHotkey(unsigned int key)
 
 void CFrame::OnKeyDown(wxKeyEvent& event)
 {
-	if(Core::GetState() != Core::CORE_UNINITIALIZED)
+	if(Core::GetState() != Core::CORE_UNINITIALIZED &&
+			RendererHasFocus())
 	{
 		int WiimoteId = -1;
 		// Toggle fullscreen
@@ -886,7 +869,7 @@ void CFrame::OnKeyDown(wxKeyEvent& event)
 			DoStop();
 		// Screenshot hotkey
 		else if (IsHotkey(event, HK_SCREENSHOT))
-			Core::ScreenShot();
+			Core::SaveScreenShot();
 		// Wiimote connect and disconnect hotkeys
 		else if (IsHotkey(event, HK_WIIMOTE1_CONNECT))
 			WiimoteId = 0;
@@ -901,20 +884,20 @@ void CFrame::OnKeyDown(wxKeyEvent& event)
 		{
 			int slot_number = event.GetKeyCode() - WXK_F1 + 1;
 			if (event.GetModifiers() == wxMOD_NONE)
-				State_Load(slot_number);
+				State::Load(slot_number);
 			else if (event.GetModifiers() == wxMOD_SHIFT)
-				State_Save(slot_number);
+				State::Save(slot_number);
 			else
 				event.Skip();
 		}*/
 		else if (event.GetKeyCode() == WXK_F11 && event.GetModifiers() == wxMOD_NONE)
-			State_LoadLastSaved();
+			State::LoadLastSaved();
 		else if (event.GetKeyCode() == WXK_F12)
 		{
 			if (event.GetModifiers() == wxMOD_NONE)
-				State_UndoSaveState();
+				State::UndoSaveState();
 			else if (event.GetModifiers() == wxMOD_SHIFT)
-				State_UndoLoadState();
+				State::UndoLoadState();
 			else
 				event.Skip();
 		}

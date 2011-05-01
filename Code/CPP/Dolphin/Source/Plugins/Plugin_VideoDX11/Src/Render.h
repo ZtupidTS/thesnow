@@ -3,6 +3,7 @@
 #define _RENDER_H_
 
 #include "RenderBase.h"
+#include "Television.h"
 
 namespace DX11
 {
@@ -28,6 +29,9 @@ public:
 	void ApplyState(bool bUseDstAlpha);
 	void RestoreState();
 
+	void ApplyCullDisable();
+	void RestoreCull();
+
 	void RenderText(const char* pstr, int left, int top, u32 color);
 
 	u32 AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data);
@@ -48,7 +52,6 @@ public:
 	bool SaveScreenshot(const std::string &filename, const TargetRectangle &rc);
 
 	static bool CheckForResize();
-	static void SetWindowSize(int width, int height);
 
 	void SetPSConstant4f(unsigned int const_number, float f1, float f2, float f3, float f4);
 	void SetPSConstant4fv(unsigned int const_number, const float *f);
@@ -58,6 +61,9 @@ public:
 	void SetVSConstant4fv(unsigned int const_number, const float *f);
 	void SetMultiVSConstant3fv(unsigned int const_number, unsigned int count, const float *f);
 	void SetMultiVSConstant4fv(unsigned int const_number, unsigned int count, const float *f);
+
+private:
+	std::unique_ptr<Television> m_television;
 };
 
 }

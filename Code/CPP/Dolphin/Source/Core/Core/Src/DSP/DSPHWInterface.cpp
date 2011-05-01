@@ -23,6 +23,7 @@
 
    ====================================================================*/
 
+#include "Atomic.h"
 #include "Thread.h"
 #include "MemoryUtil.h"
 
@@ -41,8 +42,6 @@
 
 static void gdsp_do_dma();
 
-static std::mutex g_CriticalSection;
-
 void gdsp_ifx_init()
 {
 	for (int i = 0; i < 256; i++)
@@ -50,83 +49,68 @@ void gdsp_ifx_init()
 		g_dsp.ifx_regs[i] = 0;
 	}
 
-	g_dsp.mbox[0][0] = 0;
-	g_dsp.mbox[0][1] = 0;
-	g_dsp.mbox[1][0] = 0;
-	g_dsp.mbox[1][1] = 0;
+	g_dsp.mbox[0] = 0;
+	g_dsp.mbox[1] = 0;
 }
 
 u32 gdsp_mbox_peek(u8 mbx)
 {
-	std::unique_lock<std::mutex> lk(g_CriticalSection, std::defer_lock);
-	if (DSPHost_OnThread())
-		lk.lock();
-
-	return ((g_dsp.mbox[mbx][0] << 16) | g_dsp.mbox[mbx][1]);
+	return Common::AtomicLoad(g_dsp.mbox[mbx]);
 }
 
 void gdsp_mbox_write_h(u8 mbx, u16 val)
 {
-	std::unique_lock<std::mutex> lk(g_CriticalSection, std::defer_lock);
-	if (DSPHost_OnThread())
-		lk.lock();
-
-	g_dsp.mbox[mbx][0] = val & 0x7fff;
+	const u32 new_value = (Common::AtomicLoadAcquire(g_dsp.mbox[mbx]) & 0xffff) | (val << 16);
+	Common::AtomicStoreRelease(g_dsp.mbox[mbx], new_value & ~0x80000000);
 }
 
 void gdsp_mbox_write_l(u8 mbx, u16 val)
 {
-	{
-	std::unique_lock<std::mutex> lk(g_CriticalSection, std::defer_lock);
-	if (DSPHost_OnThread())
-		lk.lock();
-
-	g_dsp.mbox[mbx][1]  = val;
-	g_dsp.mbox[mbx][0] |= 0x8000;
-	}
+	const u32 new_value = (Common::AtomicLoadAcquire(g_dsp.mbox[mbx]) & ~0xffff) | val;
+	Common::AtomicStoreRelease(g_dsp.mbox[mbx], new_value | 0x80000000);
 
 #if defined(_DEBUG) || defined(DEBUGFAST)
 	if (mbx == GDSP_MBOX_DSP)
 	{
-		NOTICE_LOG(DSP_MAIL, "DSP(WM) B:%i M:0x%08x (pc=0x%04x)", mbx, gdsp_mbox_peek(GDSP_MBOX_DSP), g_dsp.pc);
+		INFO_LOG(DSP_MAIL, "DSP(WM) B:%i M:0x%08x (pc=0x%04x)", mbx, gdsp_mbox_peek(GDSP_MBOX_DSP), g_dsp.pc);
 	} else {
-		NOTICE_LOG(DSP_MAIL, "CPU(WM) B:%i M:0x%08x (pc=0x%04x)", mbx, gdsp_mbox_peek(GDSP_MBOX_CPU), g_dsp.pc);
+		INFO_LOG(DSP_MAIL, "CPU(WM) B:%i M:0x%08x (pc=0x%04x)", mbx, gdsp_mbox_peek(GDSP_MBOX_CPU), g_dsp.pc);
 	}
 #endif
 }
 
 u16 gdsp_mbox_read_h(u8 mbx)
 {
-	std::unique_lock<std::mutex> lk(g_CriticalSection, std::defer_lock);
-	if (DSPHost_OnThread())
-		lk.lock();
+	if (init_hax && mbx)
+	{
+		return 0x8054;
+	}
 
-	return g_dsp.mbox[mbx][0];  // TODO: mask away the top bit?
+	return (u16)(Common::AtomicLoad(g_dsp.mbox[mbx]) >> 16); // TODO: mask away the top bit?
 }
-
 
 u16 gdsp_mbox_read_l(u8 mbx)
 {
-	u16 val;
-	{
-	std::unique_lock<std::mutex> lk(g_CriticalSection, std::defer_lock);
-	if (DSPHost_OnThread())
-		lk.lock();
+	const u32 value = Common::AtomicLoadAcquire(g_dsp.mbox[mbx]);
+	Common::AtomicStoreRelease(g_dsp.mbox[mbx], value & ~0x80000000);
 
-	val = g_dsp.mbox[mbx][1];
-	g_dsp.mbox[mbx][0] &= ~0x8000;
+	if (init_hax && mbx)
+	{
+		init_hax = false;
+		DSPCore_Reset();
+		return 0x4348;
 	}
 
 #if defined(_DEBUG) || defined(DEBUGFAST)
 	if (mbx == GDSP_MBOX_DSP)
 	{
-		NOTICE_LOG(DSP_MAIL, "DSP(RM) B:%i M:0x%08x (pc=0x%04x)", mbx, gdsp_mbox_peek(GDSP_MBOX_DSP), g_dsp.pc);
+		INFO_LOG(DSP_MAIL, "DSP(RM) B:%i M:0x%08x (pc=0x%04x)", mbx, gdsp_mbox_peek(GDSP_MBOX_DSP), g_dsp.pc);
 	} else {
-		NOTICE_LOG(DSP_MAIL, "CPU(RM) B:%i M:0x%08x (pc=0x%04x)", mbx, gdsp_mbox_peek(GDSP_MBOX_CPU), g_dsp.pc);
+		INFO_LOG(DSP_MAIL, "CPU(RM) B:%i M:0x%08x (pc=0x%04x)", mbx, gdsp_mbox_peek(GDSP_MBOX_CPU), g_dsp.pc);
 	}
-#endif	
+#endif
 
-	return val;
+	return (u16)value;
 }
 
 void gdsp_ifx_write(u32 addr, u32 val)
@@ -249,7 +233,6 @@ static void gdsp_idma_in(u16 dsp_addr, u32 addr, u32 size)
 	u8* dst = ((u8*)g_dsp.iram);
 	for (u32 i = 0; i < size; i += 2)
 	{ 
-		// TODO : this may be different on Wii.
 		*(u16*)&dst[dsp_addr + i] = Common::swap16(*(const u16*)&g_dsp.cpu_ram[(addr + i) & 0x0fffffff]);
 	}
 	WriteProtectMemory(g_dsp.iram, DSP_IRAM_BYTE_SIZE, false);

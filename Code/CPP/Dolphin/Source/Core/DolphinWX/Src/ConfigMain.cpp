@@ -51,6 +51,8 @@ extern CFrame* main_frame;
 static const wxLanguage langIds[] =
 {
 	wxLANGUAGE_DEFAULT,
+	wxLANGUAGE_ARABIC,
+	wxLANGUAGE_CATALAN,
 	wxLANGUAGE_CHINESE_SIMPLIFIED,
 	wxLANGUAGE_CHINESE_TRADITIONAL,
 	wxLANGUAGE_CZECH,
@@ -212,7 +214,7 @@ void CConfigMain::SetSelectedTab(int tab)
 	switch (tab)
 	{
 	case ID_AUDIOPAGE:
-		this->Notebook->SetSelection(2);
+		Notebook->SetSelection(2);
 		break;
 	}
 }
@@ -322,6 +324,8 @@ void CConfigMain::InitializeGUILists()
 	// GUI language arrayStrings
 	// keep these in sync with the langIds array at the beginning of this file
 	arrayStringFor_InterfaceLang.Add(_("<System>"));
+	arrayStringFor_InterfaceLang.Add(_("Arabic"));
+	arrayStringFor_InterfaceLang.Add(_("Catalan"));
 	arrayStringFor_InterfaceLang.Add(_("Chinese (Simplified)"));
 	arrayStringFor_InterfaceLang.Add(_("Chinese (Traditional)"));
 	arrayStringFor_InterfaceLang.Add(_("Czech"));
@@ -530,7 +534,7 @@ void CConfigMain::InitializeGUIValues()
 	// video backend list
 	for (std::vector<VideoBackend*>::const_iterator it = g_available_video_backends.begin(); it != g_available_video_backends.end(); ++it)
 	{
-		GraphicSelection->AppendString(wxString::FromUTF8((*it)->GetName().c_str()));
+		GraphicSelection->AppendString(wxGetTranslation(wxString::FromUTF8((*it)->GetName().c_str())));
 		if (*it == g_video_backend)
 			GraphicSelection->Select(it - g_available_video_backends.begin());
 	}
@@ -925,31 +929,23 @@ void CConfigMain::CreateGUIControls()
 	sPathsPage->Add(sOtherPaths, 0, wxEXPAND|wxALL, 5);
 	PathsPage->SetSizer(sPathsPage);
 
-	m_Ok = new wxButton(this, wxID_OK);
-
-	wxBoxSizer* sButtons = new wxBoxSizer(wxHORIZONTAL);
-	sButtons->Add(0, 0, 1, wxEXPAND, 5);
-	sButtons->Add(m_Ok, 0, wxALL, 5);
-
 	wxBoxSizer* sMain = new wxBoxSizer(wxVERTICAL);
 	sMain->Add(Notebook, 1, wxEXPAND|wxALL, 5);
-	sMain->Add(sButtons, 0, wxEXPAND, 5);
+	sMain->Add(CreateButtonSizer(wxOK), 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 5);
 
 	InitializeGUIValues();
 	InitializeGUITooltips();
 
 	UpdateGUI();
 
-	SetSizer(sMain);
-	Layout();
-
-	Fit();
+	SetSizerAndFit(sMain);
 	Center();
+	SetFocus();
 }
 
 void CConfigMain::OnClose(wxCloseEvent& WXUNUSED (event))
 {
-	EndModal((bRefreshList) ? wxID_OK : wxID_CLOSE);
+	EndModal((bRefreshList) ? wxID_OK : wxID_CANCEL);
 }
 
 void CConfigMain::OnOk(wxCommandEvent& WXUNUSED (event))
@@ -1060,12 +1056,11 @@ void CConfigMain::DisplaySettingsChanged(wxCommandEvent& event)
 		break;
 	case ID_HOTKEY_CONFIG:
 		{
-			HotkeyConfigDialog *m_HotkeyDialog = new HotkeyConfigDialog(this);
-			m_HotkeyDialog->ShowModal();
-			m_HotkeyDialog->Destroy();
-			// Update the GUI in case menu accelerators were changed
-			main_frame->UpdateGUI();
+			HotkeyConfigDialog m_HotkeyDialog(this);
+			m_HotkeyDialog.ShowModal();
 		}
+		// Update the GUI in case menu accelerators were changed
+		main_frame->UpdateGUI();
 		break;
 	}
 }

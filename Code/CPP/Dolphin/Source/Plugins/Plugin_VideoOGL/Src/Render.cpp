@@ -59,6 +59,7 @@
 #include "Debugger.h"
 #include "Core.h"
 #include "OnFrame.h"
+#include "Host.h"
 
 #include "main.h" // Local
 #ifdef _WIN32
@@ -829,12 +830,12 @@ void Renderer::UpdateViewport()
 	int scissorYOff = bpmem.scissorOffset.y << 1;
 
 	// TODO: ceil, floor or just cast to int?
-	int X = EFBToScaledX((int)ceil(xfregs.rawViewport[3] - xfregs.rawViewport[0] - (float)scissorXOff));
-	int Y = EFBToScaledY((int)ceil((float)EFB_HEIGHT - xfregs.rawViewport[4] + xfregs.rawViewport[1] + (float)scissorYOff));
-	int Width = EFBToScaledX((int)ceil(2.0f * xfregs.rawViewport[0]));
-	int Height = EFBToScaledY((int)ceil(-2.0f * xfregs.rawViewport[1]));
-	double GLNear = (xfregs.rawViewport[5] - xfregs.rawViewport[2]) / 16777216.0f;
-	double GLFar = xfregs.rawViewport[5] / 16777216.0f;
+	int X = EFBToScaledX((int)ceil(xfregs.viewport.xOrig - xfregs.viewport.wd - (float)scissorXOff));
+	int Y = EFBToScaledY((int)ceil((float)EFB_HEIGHT - xfregs.viewport.yOrig + xfregs.viewport.ht + (float)scissorYOff));
+	int Width = EFBToScaledX((int)ceil(2.0f * xfregs.viewport.wd));
+	int Height = EFBToScaledY((int)ceil(-2.0f * xfregs.viewport.ht));
+	double GLNear = (xfregs.viewport.farZ - xfregs.viewport.zRange) / 16777216.0f;
+	double GLFar = xfregs.viewport.farZ / 16777216.0f;
 	if (Width < 0)
 	{
 		X += Width;
@@ -983,7 +984,7 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 		#ifdef _WIN32
 			AVIDump::AddFrame((char *) data);
 		#elif defined HAVE_LIBAV
-			AVIDump::AddFrame(data);
+			AVIDump::AddFrame(data, w, h);
 		#endif
 		Core::Callback_VideoCopiedToXFB(false);
 		return;
@@ -1001,7 +1002,7 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 		#ifdef _WIN32
 			AVIDump::AddFrame((char *) data);
 		#elif defined HAVE_LIBAV
-			AVIDump::AddFrame(data);
+			AVIDump::AddFrame(data, w, h);
 		#endif
 		Core::Callback_VideoCopiedToXFB(false);
 		return;
@@ -1195,7 +1196,7 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 					AVIDump::AddFrame((char *) data);
 				#else
 					FlipImageData(data, w, h);
-					AVIDump::AddFrame(data);
+					AVIDump::AddFrame(data, w, h);
 				#endif
 			}
 
@@ -1481,7 +1482,7 @@ void Renderer::SetDitherMode()
 
 void Renderer::SetLineWidth()
 {
-	float fratio = xfregs.rawViewport[0] != 0 ?
+	float fratio = xfregs.viewport.wd != 0 ?
 		((float)Renderer::GetTargetWidth() / EFB_WIDTH) : 1.0f;
 	if (bpmem.lineptwidth.linesize > 0)
 		// scale by ratio of widths
@@ -1570,7 +1571,7 @@ bool Renderer::SaveScreenshot(const std::string &filename, const TargetRectangle
 {
 	u32 W = back_rc.GetWidth();
 	u32 H = back_rc.GetHeight();
-	u8 *data = new u8[3 * W * H];
+	u8 *data = (u8 *)malloc((sizeof(u8) * 3 * W * H));
 	glPixelStorei(GL_PACK_ALIGNMENT, 1);
 
 	glReadPixels(back_rc.left, back_rc.bottom, W, H, GL_RGB, GL_UNSIGNED_BYTE, data);
@@ -1578,6 +1579,7 @@ bool Renderer::SaveScreenshot(const std::string &filename, const TargetRectangle
 	// Show failure message
 	if (GL_REPORT_ERROR() != GL_NO_ERROR)
 	{
+		free(data);
 		OSD::AddMessage("Error capturing or saving screenshot.", 2000);
 		return false;
 	}
@@ -1607,23 +1609,10 @@ bool Renderer::SaveScreenshot(const std::string &filename, const TargetRectangle
 
 #else
 	bool result = SaveTGA(filename.c_str(), W, H, data);
-	delete[] data;
+	free(data);
 #endif
 
 	return result;
-}
-
-void Renderer::SetWindowSize(int width, int height)
-{
-	if (width < 1)
-		width = 1;
-	if (height < 1)
-		height = 1;
-
-	// Scale the window size by the EFB scale.
-	CalculateTargetScale(width, height, width, height);
-
-	Core::Callback_VideoRequestWindowSize(width, height);
 }
 
 }

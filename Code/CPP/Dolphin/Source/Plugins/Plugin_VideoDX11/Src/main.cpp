@@ -30,6 +30,7 @@
 #include "VertexLoaderManager.h"
 #include "VertexShaderManager.h"
 #include "Core.h"
+#include "Host.h"
 
 #include "Debugger/DebuggerPanel.h"
 #include "DLCache.h"
@@ -81,10 +82,7 @@ void InitBackendInfo()
 {
 	g_Config.backend_info.APIType = API_D3D11;
 	g_Config.backend_info.bUseRGBATextures = true; // the GX formats barely match any D3D11 formats
-	g_Config.backend_info.bSupportsEFBToRAM = true;
-	g_Config.backend_info.bSupportsRealXFB = true;
 	g_Config.backend_info.bSupports3DVision = false;
-	g_Config.backend_info.bAllowSignedBytes = true;
 	g_Config.backend_info.bSupportsDualSourceBlend = true;
 	g_Config.backend_info.bSupportsFormatReinterpretation = true;
 	g_Config.backend_info.bSupportsPixelLighting = true;
@@ -123,9 +121,8 @@ void VideoBackend::ShowConfig(void *_hParent)
 		if (g_Config.backend_info.Adapters.size() == g_Config.iAdapter)
 		{
 			char buf[32];
-			std::vector<DXGI_SAMPLE_DESC> modes;
-			DX11::D3D::EnumAAModes(ad, modes);
-			for (unsigned int i = 0; i < modes.size(); ++i)
+			auto const modes = DX11::D3D::EnumAAModes(ad);
+			for (size_t i = 0; i < modes.size(); ++i)
 			{
 				if (i == 0) sprintf_s(buf, 32, "None");
 				else if (modes[i].Quality) sprintf_s(buf, 32, "%d samples (quality level %d)", modes[i].Count, modes[i].Quality);
@@ -143,9 +140,8 @@ void VideoBackend::ShowConfig(void *_hParent)
 	// Clear ppshaders string vector
 	g_Config.backend_info.PPShaders.clear();
 
-	VideoConfigDiag *const diag = new VideoConfigDiag((wxWindow*)_hParent, _trans("Direct3D11"), "gfx_dx11");
-	diag->ShowModal();
-	diag->Destroy();
+	VideoConfigDiag diag((wxWindow*)_hParent, _trans("Direct3D11"), "gfx_dx11");
+	diag.ShowModal();
 
 	g_Config.backend_info.Adapters.clear();
 	DX11::D3D::UnloadDXGI();
@@ -171,7 +167,6 @@ bool VideoBackend::Initialize(void *&window_handle)
 		return false;
 	}
 
-	OSD::AddMessage("Dolphin Direct3D11 Video Backend.", 5000);
 	s_BackendInitialized = true;
 
 	return true;
@@ -204,7 +199,7 @@ void VideoBackend::Video_Prepare()
 	DLCache::Init();
 
 	// Tell the host that the window is ready
-	Core::Callback_CoreMessage(WM_USER_CREATE);
+	Host_Message(WM_USER_CREATE);
 }
 
 void VideoBackend::Shutdown()
@@ -235,7 +230,6 @@ void VideoBackend::Shutdown()
 		delete g_renderer;
 		g_renderer = NULL;
 	}
-	EmuWindow::Close();
 }
 
 }

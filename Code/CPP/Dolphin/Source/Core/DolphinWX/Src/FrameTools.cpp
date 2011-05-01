@@ -51,6 +51,7 @@ Core::GetWindowHandle().
 #include "BootManager.h"
 #include "LogWindow.h"
 #include "LogConfigWindow.h"
+#include "FifoPlayerDlg.h"
 #include "WxUtils.h"
 
 #include "ConfigManager.h" // Core
@@ -205,11 +206,23 @@ void CFrame::CreateMenu()
 
 	toolsMenu->Append(IDM_INSTALLWAD, _("安装 WAD 菜单"));
 
-	int sysmenuVersion = DiscIO::CNANDContentManager::Access().GetNANDLoader(TITLEID_SYSMENU).GetTitleVersion();
-	char sysmenuRegion = DiscIO::CNANDContentManager::Access().GetNANDLoader(TITLEID_SYSMENU).GetCountryChar();
+	const DiscIO::INANDContentLoader & SysMenu_Loader = DiscIO::CNANDContentManager::Access().GetNANDLoader(TITLEID_SYSMENU, true);
+	if (SysMenu_Loader.IsValid())
+	{
+		int sysmenuVersion = SysMenu_Loader.GetTitleVersion();
+		char sysmenuRegion = SysMenu_Loader.GetCountryChar();
+				
+		toolsMenu->Append(IDM_LOAD_WII_MENU)->SetItemLabel(wxString::Format(_("载入 Wii 系统菜单 %d%c"), sysmenuVersion, sysmenuRegion));
+	}
+	else
+	{		
+		toolsMenu->Append(IDM_LOAD_WII_MENU, _("载入 Wii 系统菜单"));
+		toolsMenu->Enable(IDM_LOAD_WII_MENU, false);
+	}
 
-	toolsMenu->Append(IDM_LOAD_WII_MENU, wxString::Format(_("载入 Wii 系统菜单 %d%c"), sysmenuVersion, sysmenuRegion));
-	toolsMenu->Enable(IDM_LOAD_WII_MENU, DiscIO::CNANDContentManager::Access().GetNANDLoader(TITLEID_SYSMENU).IsValid());
+
+	
+	toolsMenu->Append(IDM_FIFOPLAYER, _("Fifo Player"));
 
 	toolsMenu->AppendSeparator();
 	toolsMenu->AppendCheckItem(IDM_CONNECT_WIIMOTE1, GetMenuLabel(HK_WIIMOTE1_CONNECT));
@@ -664,7 +677,7 @@ void CFrame::DoOpen(bool Boot)
 			_("选择要载入的文件"),
 			wxEmptyString, wxEmptyString, wxEmptyString,
 			_("所有 GC/Wii 文件 (elf, dol, gcm, iso, ciso, gcz, wad)") +
-			wxString::Format(wxT("|*.elf;*.dol;*.gcm;*.iso;*.ciso;*.gcz;*.wad|%s"),
+			wxString::Format(wxT("|*.elf;*.dol;*.gcm;*.iso;*.ciso;*.gcz;*.wad;*.dff|%s"),
 				wxGetTranslation(wxALL_FILES)),
 			wxFD_OPEN | wxFD_FILE_MUST_EXIST,
 			this);
@@ -922,8 +935,13 @@ void CFrame::StartGame(const std::string& filename)
 		m_RenderFrame->Show();
 	}
 
+	wxBeginBusyCursor();
+
+	DoFullscreen(SConfig::GetInstance().m_LocalCoreStartupParameter.bFullscreen);
+
 	if (!BootManager::BootCore(filename))
 	{
+		DoFullscreen(false);
 		// Destroy the renderer frame when not rendering to main
 		if (!SConfig::GetInstance().m_LocalCoreStartupParameter.bRenderToMain)
 			m_RenderFrame->Destroy();
@@ -937,8 +955,6 @@ void CFrame::StartGame(const std::string& filename)
 		X11Utils::InhibitScreensaver(X11Utils::XDisplayFromHandle(GetHandle()),
 				X11Utils::XWindowFromHandle(GetHandle()), true);
 #endif
-
-		DoFullscreen(SConfig::GetInstance().m_LocalCoreStartupParameter.bFullscreen);
 
 #ifdef _WIN32
 		::SetFocus((HWND)m_RenderParent->GetHandle());
@@ -971,13 +987,14 @@ void CFrame::StartGame(const std::string& filename)
 				wxSizeEventHandler(CFrame::OnRenderParentResize),
 				(wxObject*)0, this);
 	}
+
+	wxEndBusyCursor();
 }
 
 void CFrame::OnBootDrive(wxCommandEvent& event)
 {
 	BootGame(drives[event.GetId()-IDM_DRIVE1]);
 }
-
 
 // Refresh the file list and browse for a favorites directory
 void CFrame::OnRefresh(wxCommandEvent& WXUNUSED (event))
@@ -994,7 +1011,7 @@ void CFrame::OnBrowse(wxCommandEvent& WXUNUSED (event))
 // Create screenshot
 void CFrame::OnScreenshot(wxCommandEvent& WXUNUSED (event))
 {
-	Core::ScreenShot();
+	Core::SaveScreenShot();
 }
 
 // Pause the emulation
@@ -1023,7 +1040,7 @@ void CFrame::DoStop()
 	{
 #if defined __WXGTK__
 		wxMutexGuiLeave();
-		std::lock_guard<std::mutex> lk(keystate_lock);
+		std::lock_guard<std::recursive_mutex> lk(keystate_lock);
 		wxMutexGuiEnter();
 #endif
 		// Ask for confirmation in case the user accidentally clicked Stop / Escape
@@ -1048,7 +1065,9 @@ void CFrame::DoStop()
 		if(Frame::IsPlayingInput() || Frame::IsRecordingInput())
 			Frame::EndPlayInput(false);
 
+		wxBeginBusyCursor();
 		BootManager::Stop();
+		wxEndBusyCursor();
 
 #if defined(HAVE_XDG_SCREENSAVER) && HAVE_XDG_SCREENSAVER
 		X11Utils::InhibitScreensaver(X11Utils::XDisplayFromHandle(GetHandle()),
@@ -1336,14 +1355,18 @@ void CFrame::OnLoadWiiMenu(wxCommandEvent& event)
 		u64 titleID = CBoot::Install_WiiWAD(path.mb_str());
 		if (titleID == TITLEID_SYSMENU)
 		{
-			const DiscIO::INANDContentLoader & _Loader = DiscIO::CNANDContentManager::Access().GetNANDLoader(TITLEID_SYSMENU, true);
-			if (_Loader.IsValid())
+			const DiscIO::INANDContentLoader & SysMenu_Loader = DiscIO::CNANDContentManager::Access().GetNANDLoader(TITLEID_SYSMENU, true);
+			if (SysMenu_Loader.IsValid())
 			{
-				int sysmenuVersion = _Loader.GetTitleVersion();
-				char sysmenuRegion = _Loader.GetCountryChar();
+				int sysmenuVersion = SysMenu_Loader.GetTitleVersion();
+				char sysmenuRegion = SysMenu_Loader.GetCountryChar();
 				
 				GetMenuBar()->FindItem(IDM_LOAD_WII_MENU)->Enable();
 				GetMenuBar()->FindItem(IDM_LOAD_WII_MENU)->SetItemLabel(wxString::Format(_("Load Wii System Menu %d%c"), sysmenuVersion, sysmenuRegion));
+			}
+			else
+			{
+				GetMenuBar()->FindItem(IDM_LOAD_WII_MENU)->Enable(false);
 			}
 		}
 
@@ -1351,9 +1374,22 @@ void CFrame::OnLoadWiiMenu(wxCommandEvent& event)
 	
 }
 
+void CFrame::OnFifoPlayer(wxCommandEvent& WXUNUSED (event))
+{
+	if (m_FifoPlayerDlg)
+	{
+		m_FifoPlayerDlg->Show();
+		m_FifoPlayerDlg->SetFocus();
+	}
+	else
+	{
+		m_FifoPlayerDlg = new FifoPlayerDlg(this);
+	}
+}
+
 void CFrame::ConnectWiimote(int wm_idx, bool connect)
 {
-	if (Core::isRunning() && SConfig::GetInstance().m_LocalCoreStartupParameter.bWii)
+	if (Core::IsRunning() && SConfig::GetInstance().m_LocalCoreStartupParameter.bWii)
 	{
 		GetUsbPointer()->AccessWiiMote(wm_idx | 0x100)->Activate(connect);
 		wxString msg(wxString::Format(wxT("Wiimote %i %s"), wm_idx + 1,
@@ -1396,8 +1432,8 @@ void CFrame::OnLoadStateFromFile(wxCommandEvent& WXUNUSED (event))
 		wxFD_OPEN | wxFD_PREVIEW | wxFD_FILE_MUST_EXIST,
 		this);
 
-	if(!path.IsEmpty())
-		State_LoadAs((const char*)path.mb_str());
+	if (!path.IsEmpty())
+		State::LoadAs((const char*)path.mb_str());
 }
 
 void CFrame::OnSaveStateToFile(wxCommandEvent& WXUNUSED (event))
@@ -1410,23 +1446,23 @@ void CFrame::OnSaveStateToFile(wxCommandEvent& WXUNUSED (event))
 		wxFD_SAVE,
 		this);
 
-	if(! path.IsEmpty())
-		State_SaveAs((const char*)path.mb_str());
+	if (!path.IsEmpty())
+		State::SaveAs((const char*)path.mb_str());
 }
 
 void CFrame::OnLoadLastState(wxCommandEvent& WXUNUSED (event))
 {
-	State_LoadLastSaved();
+	State::LoadLastSaved();
 }
 
 void CFrame::OnUndoLoadState(wxCommandEvent& WXUNUSED (event))
 {
-	State_UndoLoadState();
+	State::UndoLoadState();
 }
 
 void CFrame::OnUndoSaveState(wxCommandEvent& WXUNUSED (event))
 {
-	State_UndoSaveState();
+	State::UndoSaveState();
 }
 
 
@@ -1434,14 +1470,14 @@ void CFrame::OnLoadState(wxCommandEvent& event)
 {
 	int id = event.GetId();
 	int slot = id - IDM_LOADSLOT1 + 1;
-	State_Load(slot);
+	State::Load(slot);
 }
 
 void CFrame::OnSaveState(wxCommandEvent& event)
 {
 	int id = event.GetId();
 	int slot = id - IDM_SAVESLOT1 + 1;
-	State_Save(slot);
+	State::Save(slot);
 }
 
 void CFrame::OnFrameSkip(wxCommandEvent& event)
@@ -1461,7 +1497,7 @@ void CFrame::OnFrameSkip(wxCommandEvent& event)
 void CFrame::UpdateGUI()
 {
 	// Save status
-	bool Initialized = Core::isRunning();
+	bool Initialized = Core::IsRunning();
 	bool Running = Core::GetState() == Core::CORE_RUN;
 	bool Paused = Core::GetState() == Core::CORE_PAUSE;
 

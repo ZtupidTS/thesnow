@@ -57,12 +57,16 @@ LPDIRECT3DVERTEXSHADER9 VertexShaderCache::GetClearVertexShader()
 }
 
 // this class will load the precompiled shaders into our cache
-class VertexShaderCacheInserter : public LinearDiskCacheReader<VERTEXSHADERUID, u8>
+class VertexShaderCacheInserter
 {
 public:
-	void Read(const VERTEXSHADERUID &key, const u8 *value, u32 value_size)
+	template <typename F>
+	void operator()(const VERTEXSHADERUID& key, u32 value_size, F get_data) const
 	{
-		VertexShaderCache::InsertByteCode(key, value, value_size, false);
+		std::unique_ptr<u8[]> value(new u8[value_size]);
+		get_data(value.get());
+
+		VertexShaderCache::InsertByteCode(key, value.get(), value_size, false);
 	}
 };
 
@@ -71,9 +75,9 @@ void VertexShaderCache::Init()
 	char* vProg = new char[2048];
 	sprintf(vProg,"struct VSOUTPUT\n"
 						"{\n"
-						   "float4 vPosition : POSITION;\n"
-						   "float2 vTexCoord : TEXCOORD0;\n"
-						   "float vTexCoord1 : TEXCOORD1;\n"
+							"float4 vPosition : POSITION;\n"
+							"float2 vTexCoord : TEXCOORD0;\n"
+							"float vTexCoord1 : TEXCOORD1;\n"
 						"};\n"
 						"VSOUTPUT main(float4 inPosition : POSITION,float2 inTEX0 : TEXCOORD0,float2 inTEX1 : TEXCOORD1,float inTEX2 : TEXCOORD2)\n"
 						"{\n"
@@ -88,8 +92,8 @@ void VertexShaderCache::Init()
 
 	sprintf(vProg,"struct VSOUTPUT\n"
 						"{\n"
-						   "float4 vPosition   : POSITION;\n"
-						   "float4 vColor0   : COLOR0;\n"						   
+							"float4 vPosition   : POSITION;\n"
+							"float4 vColor0   : COLOR0;\n"
 						"};\n"
 						"VSOUTPUT main(float4 inPosition : POSITION,float4 inColor0: COLOR0)\n"
 						"{\n"
@@ -100,40 +104,40 @@ void VertexShaderCache::Init()
 						"}\n");
 
 	ClearVertexShader = D3D::CompileAndCreateVertexShader(vProg, (int)strlen(vProg));
-	
 	sprintf(vProg,	"struct VSOUTPUT\n"
 						"{\n"
-						   "float4 vPosition   : POSITION;\n"
-						   "float4 vTexCoord   : TEXCOORD0;\n"
-						   "float vTexCoord1   : TEXCOORD1;\n"						   
+							"float4 vPosition   : POSITION;\n"
+							"float2 vTexCoord   : TEXCOORD0;\n"
+							"float vTexCoord1   : TEXCOORD1;\n"
 						"};\n"
-						"VSOUTPUT main(float4 inPosition : POSITION,float2 inTEX0 : TEXCOORD0,float2 inTEX1 : TEXCOORD1,float inTEX2 : TEXCOORD2)\n"
+						"VSOUTPUT main(float4 inPosition : POSITION,float2 inTEX0 : TEXCOORD0,float2 inInvTexSize : TEXCOORD1,float inTEX2 : TEXCOORD2)\n"
 						"{\n"
-						   "VSOUTPUT OUT;"
-						   "OUT.vPosition = inPosition;\n"
-						   "OUT.vTexCoord  = inTEX0.xyyx;\n"
-						   "OUT.vTexCoord1 = inTEX2;\n"
-						   "return OUT;\n"
+							"VSOUTPUT OUT;"
+							"OUT.vPosition = inPosition;\n"
+							// HACK: Scale the texture coordinate range from (0,width) to (0,width-1), otherwise the linear filter won't average our samples correctly
+							"OUT.vTexCoord  = inTEX0 * (float2(1.f,1.f) / inInvTexSize - float2(1.f,1.f)) * inInvTexSize;\n"
+							"OUT.vTexCoord1 = inTEX2;\n"
+							"return OUT;\n"
 						"}\n");
-	SimpleVertexShader[1] = D3D::CompileAndCreateVertexShader(vProg, (int)strlen(vProg));	
+	SimpleVertexShader[1] = D3D::CompileAndCreateVertexShader(vProg, (int)strlen(vProg));
 
 	sprintf(vProg,	"struct VSOUTPUT\n"
 						"{\n"
-						   "float4 vPosition   : POSITION;\n"
-						   "float4 vTexCoord   : TEXCOORD0;\n"
-						   "float  vTexCoord1   : TEXCOORD1;\n"
-						   "float4 vTexCoord2   : TEXCOORD2;\n"   
-						   "float4 vTexCoord3   : TEXCOORD3;\n"						   
+							"float4 vPosition   : POSITION;\n"
+							"float4 vTexCoord   : TEXCOORD0;\n"
+							"float  vTexCoord1   : TEXCOORD1;\n"
+							"float4 vTexCoord2   : TEXCOORD2;\n"   
+							"float4 vTexCoord3   : TEXCOORD3;\n"
 						"};\n"
 						"VSOUTPUT main(float4 inPosition : POSITION,float2 inTEX0 : TEXCOORD0,float2 inTEX1 : TEXCOORD1,float inTEX2 : TEXCOORD2)\n"
 						"{\n"
-						   "VSOUTPUT OUT;"
-						   "OUT.vPosition = inPosition;\n"
-						   "OUT.vTexCoord  = inTEX0.xyyx;\n"
-						   "OUT.vTexCoord1 = inTEX2.x;\n"
-						   "OUT.vTexCoord2 = inTEX0.xyyx + (float4(-1.0f,-0.5f, 1.0f,-0.5f) * inTEX1.xyyx);\n"
-						   "OUT.vTexCoord3 = inTEX0.xyyx + (float4( 1.0f, 0.5f,-1.0f, 0.5f) * inTEX1.xyyx);\n"						   
-						   "return OUT;\n"
+							"VSOUTPUT OUT;"
+							"OUT.vPosition = inPosition;\n"
+							"OUT.vTexCoord  = inTEX0.xyyx;\n"
+							"OUT.vTexCoord1 = inTEX2.x;\n"
+							"OUT.vTexCoord2 = inTEX0.xyyx + (float4(-1.0f,-0.5f, 1.0f,-0.5f) * inTEX1.xyyx);\n"
+							"OUT.vTexCoord3 = inTEX0.xyyx + (float4( 1.0f, 0.5f,-1.0f, 0.5f) * inTEX1.xyyx);\n"	
+							"return OUT;\n"
 						"}\n");
 	SimpleVertexShader[2] = D3D::CompileAndCreateVertexShader(vProg, (int)strlen(vProg));	
 	
@@ -148,9 +152,9 @@ void VertexShaderCache::Init()
 
 	char cache_filename[MAX_PATH];
 	sprintf(cache_filename, "%sdx9-%s-vs.cache", File::GetUserPath(D_SHADERCACHE_IDX).c_str(),
-			SConfig::GetInstance().m_LocalCoreStartupParameter.m_strUniqueID.c_str());
-	VertexShaderCacheInserter inserter;
-	g_vs_disk_cache.OpenAndRead(cache_filename, inserter);
+		SConfig::GetInstance().m_LocalCoreStartupParameter.m_strUniqueID.c_str());
+
+	g_vs_disk_cache.OpenAndRead(cache_filename, VertexShaderCacheInserter());
 }
 
 void VertexShaderCache::Clear()

@@ -38,29 +38,6 @@ class AboutDolphin : public wxDialog
 			const wxPoint& pos = wxDefaultPosition,
 			const wxSize& size = wxDefaultSize,
 			long style = wxDEFAULT_DIALOG_STYLE);
-		virtual ~AboutDolphin();
-		void CloseClick(wxCommandEvent& event);
-
-	private:
-		DECLARE_EVENT_TABLE();
-
-		wxBoxSizer *sMain;
-		wxBoxSizer *sButtons;
-		wxBoxSizer *sMainHor;
-		wxBoxSizer *sInfo;
-
-		wxButton *m_Close;
-		wxStaticText *Message;
-		wxStaticBitmap *sbDolphinLogo;
-
-		enum
-		{
-			ID_LOGO = 1000,
-			ID_MESSAGE
-		};
-
-		void OnClose(wxCloseEvent& event);
-		void CreateGUIControls();
 };
 
 #endif //_ABOUTDOLPHIN_H_

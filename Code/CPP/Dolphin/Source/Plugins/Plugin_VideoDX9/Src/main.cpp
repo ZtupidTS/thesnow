@@ -53,6 +53,7 @@
 #include "DLCache.h"
 #include "IniFile.h"
 #include "Core.h"
+#include "Host.h"
 
 #include "ConfigManager.h"
 #include "VideoBackend.h"
@@ -88,15 +89,13 @@ std::string VideoBackend::GetName()
 void InitBackendInfo()
 {
 	g_Config.backend_info.APIType = API_D3D9;
-	g_Config.backend_info.bUseRGBATextures = true;
-	g_Config.backend_info.bSupportsEFBToRAM = true;
-	g_Config.backend_info.bSupportsRealXFB = true;
+	g_Config.backend_info.bUseRGBATextures = false;
 	g_Config.backend_info.bSupports3DVision = true;
-	g_Config.backend_info.bAllowSignedBytes = false;
 	g_Config.backend_info.bSupportsDualSourceBlend = false;
 	g_Config.backend_info.bSupportsFormatReinterpretation = true;
-	int shaderModel = ((DX9::D3D::GetCaps().PixelShaderVersion >> 8) & 0xFF);
-	int maxConstants = (shaderModel < 3) ? 32 : ((shaderModel < 4) ? 224 : 65536);	
+	
+	const int shaderModel = ((DX9::D3D::GetCaps().PixelShaderVersion >> 8) & 0xFF);
+	const int maxConstants = (shaderModel < 3) ? 32 : ((shaderModel < 4) ? 224 : 65536);	
 	g_Config.backend_info.bSupportsPixelLighting = C_PLIGHTS + 40 <= maxConstants && C_PMATERIALS + 4 <= maxConstants;
 }
 
@@ -124,9 +123,8 @@ void VideoBackend::ShowConfig(void* parent)
 	// Clear ppshaders string vector
 	g_Config.backend_info.PPShaders.clear();
 	
-	VideoConfigDiag *const diag = new VideoConfigDiag((wxWindow*)parent, _trans("Direct3D9"), "gfx_dx9");
-	diag->ShowModal();
-	diag->Destroy();
+	VideoConfigDiag diag((wxWindow*)parent, _trans("Direct3D9"), "gfx_dx9");
+	diag.ShowModal();
 
 	g_Config.backend_info.Adapters.clear();
 	DX9::D3D::Shutdown();
@@ -141,7 +139,8 @@ bool VideoBackend::Initialize(void *&window_handle)
 
 	g_Config.Load((File::GetUserPath(D_CONFIG_IDX) + "gfx_dx9.ini").c_str());
 	g_Config.GameIniLoad(SConfig::GetInstance().m_LocalCoreStartupParameter.m_strGameIni.c_str());
-	UpdateProjectionHack(g_Config.iPhackvalue, g_Config.sPhackvalue);	// DX9 projection hack could be disabled by commenting out this line
+
+	UpdateProjectionHack(g_Config.iPhackvalue, g_Config.sPhackvalue);
 	UpdateActiveConfig();
 
 	window_handle = (void*)EmuWindow::Create((HWND)window_handle, GetModuleHandle(0), _T("Loading - Please wait."));
@@ -156,7 +155,6 @@ bool VideoBackend::Initialize(void *&window_handle)
 		return false;
 	}
 
-	OSD::AddMessage("Dolphin Direct3D9 Video Backend.", 5000);
 	s_BackendInitialized = true;
 
 	return true;
@@ -185,7 +183,7 @@ void VideoBackend::Video_Prepare()
 	DLCache::Init();
 
 	// Notify the core that the video backend is ready
-	Core::Callback_CoreMessage(WM_USER_CREATE);
+	Host_Message(WM_USER_CREATE);
 }
 
 void VideoBackend::Shutdown()
@@ -216,7 +214,6 @@ void VideoBackend::Shutdown()
 		g_renderer = NULL;
 	}
 	D3D::Shutdown();
-	EmuWindow::Close();
 }
 
 }

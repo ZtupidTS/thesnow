@@ -18,6 +18,7 @@
 #ifndef __GAMELIST_CTRL_H_
 #define __GAMELIST_CTRL_H_
 
+#include <memory>
 #include <vector>
 
 #include <wx/listctrl.h>
@@ -52,7 +53,7 @@ public:
 
 	void BrowseForDirectory();
 	const GameListItem *GetSelectedISO();
-	const GameListItem *GetISO(int index) const;
+	const GameListItem *GetISO(size_t index) const;
 
 	enum
 	{
@@ -71,7 +72,16 @@ private:
 	std::vector<int> m_FlagImageIndex;
 	std::vector<int> m_PlatformImageIndex;
 	std::vector<int> m_EmuStateImageIndex;
-	std::vector<GameListItem> m_ISOFiles;
+	std::vector<GameListItem*> m_ISOFiles;
+
+	void ClearIsoFiles()
+	{
+		while (!m_ISOFiles.empty())	// so lazy
+		{
+			delete m_ISOFiles.back();
+			m_ISOFiles.pop_back();
+		}
+	}
 
 	// NetPlay string for the gamelist
 	std::string m_gameList;
@@ -85,7 +95,7 @@ private:
 	void InsertItemInReportView(long _Index);
 	void SetBackgroundColor();
 	void ScanForISOs();
-
+	
 	DECLARE_EVENT_TABLE()
 
 	// events

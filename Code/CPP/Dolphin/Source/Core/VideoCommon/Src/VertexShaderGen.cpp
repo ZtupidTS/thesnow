@@ -45,7 +45,7 @@ void GetVertexShaderId(VERTEXSHADERUID *uid, u32 components)
 			(u32)xfregs.alpha[i].hex :
 			(u32)xfregs.alpha[i].matsource) << 15;
 	}
-	uid->values[2] |= (g_ActiveConfig.bEnablePixelLigting && g_ActiveConfig.backend_info.bSupportsPixelLighting) << 31;
+	uid->values[2] |= (g_ActiveConfig.bEnablePixelLighting && g_ActiveConfig.backend_info.bSupportsPixelLighting) << 31;
 	u32 *pcurvalue = &uid->values[3];
 	for (unsigned int i = 0; i < xfregs.numTexGen.numTexGens; ++i) {
 		TexMtxInfo tinfo = xfregs.texMtxInfo[i];
@@ -72,6 +72,37 @@ void GetVertexShaderId(VERTEXSHADERUID *uid, u32 components)
 static char text[16384];
 
 #define WRITE p+=sprintf
+
+char* GenerateVSOutputStruct(char* p, u32 components, API_TYPE api_type)
+{
+	WRITE(p, "struct VS_OUTPUT {\n");
+	WRITE(p, "  float4 pos : POSITION;\n");
+	WRITE(p, "  float4 colors_0 : COLOR0;\n");
+	WRITE(p, "  float4 colors_1 : COLOR1;\n");
+
+	if (xfregs.numTexGen.numTexGens < 7) {
+		for (unsigned int i = 0; i < xfregs.numTexGen.numTexGens; ++i)
+			WRITE(p, "  float3 tex%d : TEXCOORD%d;\n", i, i);
+		WRITE(p, "  float4 clipPos : TEXCOORD%d;\n", xfregs.numTexGen.numTexGens);
+		if(g_ActiveConfig.bEnablePixelLighting && g_ActiveConfig.backend_info.bSupportsPixelLighting)
+			WRITE(p, "  float4 Normal : TEXCOORD%d;\n", xfregs.numTexGen.numTexGens + 1);
+	} else {
+		// clip position is in w of first 4 texcoords
+		if(g_ActiveConfig.bEnablePixelLighting && g_ActiveConfig.backend_info.bSupportsPixelLighting)
+		{
+			for (int i = 0; i < 8; ++i)
+				WRITE(p, "  float4 tex%d : TEXCOORD%d;\n", i, i);
+		}
+		else
+		{
+			for (unsigned int i = 0; i < xfregs.numTexGen.numTexGens; ++i)
+				WRITE(p, "  float%d tex%d : TEXCOORD%d;\n", i < 4 ? 4 : 3 , i, i);
+		}
+	}	
+	WRITE(p, "};\n");
+
+	return p;
+}
 
 const char *GenerateVertexShaderCode(u32 components, API_TYPE api_type)
 {
@@ -102,31 +133,7 @@ const char *GenerateVertexShaderCode(u32 components, API_TYPE api_type)
 		"typedef struct { float4 T0, T1, T2, T3; } s_"I_PROJECTION";\n"
 		);
 
-	WRITE(p, "struct VS_OUTPUT {\n");
-	WRITE(p, "  float4 pos : POSITION;\n");
-	WRITE(p, "  float4 colors_0 : COLOR0;\n");
-	WRITE(p, "  float4 colors_1 : COLOR1;\n");
-
-	if (xfregs.numTexGen.numTexGens < 7) {
-		for (unsigned int i = 0; i < xfregs.numTexGen.numTexGens; ++i)
-			WRITE(p, "  float3 tex%d : TEXCOORD%d;\n", i, i);
-		WRITE(p, "  float4 clipPos : TEXCOORD%d;\n", xfregs.numTexGen.numTexGens);
-		if(g_ActiveConfig.bEnablePixelLigting && g_ActiveConfig.backend_info.bSupportsPixelLighting)
-			WRITE(p, "  float4 Normal : TEXCOORD%d;\n", xfregs.numTexGen.numTexGens + 1);
-	} else {
-		// clip position is in w of first 4 texcoords
-		if(g_ActiveConfig.bEnablePixelLigting && g_ActiveConfig.backend_info.bSupportsPixelLighting)
-		{
-			for (int i = 0; i < 8; ++i)
-				WRITE(p, "  float4 tex%d : TEXCOORD%d;\n", i, i);
-		}
-		else
-		{
-			for (unsigned int i = 0; i < xfregs.numTexGen.numTexGens; ++i)
-				WRITE(p, "  float%d tex%d : TEXCOORD%d;\n", i < 4 ? 4 : 3 , i, i);
-		}
-	}	
-	WRITE(p, "};\n");
+	p = GenerateVSOutputStruct(p, components, api_type);
 
 	// uniforms
 
@@ -176,8 +183,10 @@ const char *GenerateVertexShaderCode(u32 components, API_TYPE api_type)
 	}
 	WRITE(p, "  float4 rawpos : POSITION) {\n");
 	WRITE(p, "VS_OUTPUT o;\n");	
+
 	// transforms
-	if (components & VB_HAS_POSMTXIDX) {
+	if (components & VB_HAS_POSMTXIDX)
+	{
 		if (api_type == API_D3D9)
 		{
 			WRITE(p, "int4 indices = D3DCOLORtoUBYTE4(blend_indices);\n");
@@ -376,7 +385,7 @@ const char *GenerateVertexShaderCode(u32 components, API_TYPE api_type)
 		WRITE(p, "o.tex3.w = o.pos.w;\n");
 	}
 
-	if(g_ActiveConfig.bEnablePixelLigting && g_ActiveConfig.backend_info.bSupportsPixelLighting)
+	if(g_ActiveConfig.bEnablePixelLighting && g_ActiveConfig.backend_info.bSupportsPixelLighting)
 	{
 		if (xfregs.numTexGen.numTexGens < 7) {
 			WRITE(p, "o.Normal = float4(_norm0.x,_norm0.y,_norm0.z,pos.z);\n");
@@ -398,9 +407,12 @@ const char *GenerateVertexShaderCode(u32 components, API_TYPE api_type)
 
 	//write the true depth value, if the game uses depth textures pixel shaders will override with the correct values
 	//if not early z culling will improve speed
-	if (is_d3d) {
+	if (is_d3d)
+	{
 		WRITE(p, "o.pos.z = "I_DEPTHPARAMS".x * o.pos.w + o.pos.z * "I_DEPTHPARAMS".y;\n");
-	} else {
+	}
+	else
+	{
 	    // this results in a scale from -1..0 to -1..1 after perspective
 	    // divide
 	    WRITE(p, "o.pos.z = o.pos.w + o.pos.z * 2.0f;\n");

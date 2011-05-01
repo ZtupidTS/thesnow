@@ -41,7 +41,6 @@ DSPEmitter::DSPEmitter() : gpr(*this), storeIndex(-1), storeIndex2(-1)
 	blocks = new DSPCompiledCode[MAX_BLOCKS];
 	blockLinks = new Block[MAX_BLOCKS];
 	blockSize = new u16[MAX_BLOCKS];
-	unresolvedJumps = new std::list<u16>[MAX_BLOCKS];
 	
 	compileSR = 0;
 	compileSR |= SR_INT_ENABLE;
@@ -97,6 +96,14 @@ void DSPEmitter::checkExceptions(u32 retval)
 	SetJumpTarget(skipCheck);
 }
 
+bool DSPEmitter::FlagsNeeded()
+{
+	if (DSPAnalyzer::code_flags[compilePC] & DSPAnalyzer::CODE_UPDATE_SR) 
+		return true; 
+	else
+		return false;
+}
+
 void DSPEmitter::Default(UDSPInstruction inst)
 {
 	if (opTable[inst]->reads_pc)
@@ -109,6 +116,7 @@ void DSPEmitter::Default(UDSPInstruction inst)
 
 	// Fall back to interpreter
 	gpr.pushRegs();
+	_assert_msg_(DSPLLE, opTable[inst]->intFunc, "No function for %04x",inst);
 	ABI_CallFunctionC16((void*)opTable[inst]->intFunc, inst);
 	gpr.popRegs();
 }
@@ -169,11 +177,6 @@ void DSPEmitter::EmitInstruction(UDSPInstruction inst)
 			popExtValueToReg();
 		}
 	}
-}
-
-void DSPEmitter::unknown_instruction(UDSPInstruction inst)
-{
-	PanicAlert("unknown_instruction %04x - Fix me ;)", inst);
 }
 
 void DSPEmitter::Compile(u16 start_addr)
@@ -368,7 +371,7 @@ void DSPEmitter::CompileDispatcher()
 	FixupBranch exceptionExit;
 	if (DSPHost_OnThread())
 	{
-		CMP(8, M(&g_dsp.external_interrupt_waiting), Imm8(0));
+		CMP(8, M(const_cast<bool*>(&g_dsp.external_interrupt_waiting)), Imm8(0));
 		exceptionExit = J_CC(CC_NE);
 	}
 

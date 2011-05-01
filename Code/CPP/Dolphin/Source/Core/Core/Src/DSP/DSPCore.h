@@ -164,9 +164,9 @@
 #define SR_400				0x0400 // unknown
 #define SR_EXT_INT_ENABLE	0x0800 // Appears in zelda - seems to disable external interupts
 #define SR_1000				0x1000 // unknown
-#define SR_MUL_MODIFY		0x2000 // 1 = normal. 0 = x2   (M0, M2)
+#define SR_MUL_MODIFY		0x2000 // 1 = normal. 0 = x2   (M0, M2) (Free mul by 2)
 #define SR_40_MODE_BIT		0x4000 // 0 = "16", 1 = "40"  (SET16, SET40)  Controls sign extension when loading mid accums and data saturation for stores from mid accums.
-#define SR_MUL_UNSIGNED		0x8000 // 0 = normal. 1 = unsigned  (CLR15, SET15) If set, treats ax?.l as unsigned.
+#define SR_MUL_UNSIGNED		0x8000 // 0 = normal. 1 = unsigned  (CLR15, SET15) If set, treats ax?.l as unsigned (MULX family only).
 
 // This should be the bits affected by CMP. Does not include logic zero.
 #define SR_CMP_MASK		0x3f
@@ -231,7 +231,7 @@ struct SDSP
 
 	u8 reg_stack_ptr[4];
 	u8 exceptions;   // pending exceptions
-	bool external_interrupt_waiting;
+	volatile bool external_interrupt_waiting;
 
 	// DSP hardware stacks. They're mapped to a bunch of registers, such that writes
 	// to them push and reads pop.
@@ -246,10 +246,7 @@ struct SDSP
 	u64 step_counter;
 
 	// Mailbox.
-	volatile u16 mbox[2][2];
-
-	// Mutex protecting the mailbox.
-	//std::mutex g_CriticalSection;
+	volatile u32 mbox[2];
 
 	// Accelerator / DMA / other hardware registers. Not GPRs.
 	u16 ifx_regs[256];
@@ -269,6 +266,7 @@ extern SDSP g_dsp;
 extern DSPBreakpoints dsp_breakpoints;
 extern DSPEmitter *dspjit;
 extern u16 cyclesLeft;
+extern bool init_hax;
 
 bool DSPCore_Init(const char *irom_filename, const char *coef_filename,
 				  bool bUsingJIT);

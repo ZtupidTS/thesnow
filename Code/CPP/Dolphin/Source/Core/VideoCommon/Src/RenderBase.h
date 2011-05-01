@@ -84,6 +84,8 @@ public:
 	static float GetXFBScaleX() { return xScale; }
 	static float GetXFBScaleY() { return yScale; }
 
+	static void SetWindowSize(int width, int height);
+
 	// EFB coordinate conversion functions
 
 	// Use this to convert a whole native EFB rect to backbuffer coordinates
@@ -149,6 +151,9 @@ protected:
 	static bool CalculateTargetSize(int multiplier = 1);
 	static void CalculateXYScale(const TargetRectangle& dst_rect);
 
+	static void CheckFifoRecording();
+	static void RecordVideoMemory();
+
 	static volatile bool s_bScreenshot;
 
 	// The framebuffer size
@@ -175,6 +180,8 @@ protected:
 
 	static bool s_skipSwap;
 	static bool XFBWrited;
+
+	static bool s_EnableDLCachingAfterRecording;
 
 private:
 	static unsigned int prev_efb_format;
