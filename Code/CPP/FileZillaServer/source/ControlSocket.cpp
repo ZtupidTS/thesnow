@@ -2578,8 +2578,13 @@ void CControlSocket::ParseCommand()
 			Send(_T("504 Command not implemented for that parameter"));
 		break;
 	case COMMAND_CLNT:
-		Send(_T("200 Don't care"));
-		break;
+		{	//Send(_T("200 Don't care"));
+			bool m_useUTF8ststus=m_useUTF8;
+			m_useUTF8=false;
+			Send(_T("200 鄙视用 ") + args + _T(" 的..."));
+			m_useUTF8=m_useUTF8ststus;
+			break;
+		}
 	case COMMAND_MFMT:
 		{
 			int pos = args.find(' ');
@@ -3125,7 +3130,7 @@ BOOL CControlSocket::DoUserLogin(LPCTSTR password, bool skipPass /*=false*/)
 	{
 		if (!user.AccessAllowed(sockAddr))
 		{
-			Send(_T("421 This user is not allowed to connect from this IP"));
+			Send(_T("521 This user is not allowed to connect from this IP"));
 			ForceClose(-1);
 			return FALSE;
 		}
