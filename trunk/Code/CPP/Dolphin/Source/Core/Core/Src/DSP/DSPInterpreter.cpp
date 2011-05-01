@@ -35,25 +35,24 @@ namespace DSPInterpreter {
 
 volatile u32 gdsp_running;
 
-// NOTE: These have nothing to do with g_dsp.r[DSP_REG_CR].
+// NOTE: These have nothing to do with g_dsp.r.cr !
 
-// Hm, should instructions that change CR use this? Probably not (but they
-// should call UpdateCachedCR())
-void WriteCR(u16 val)
+void WriteCR(u16 val) 
 {
 	// reset
 	if (val & 1)
 	{
+		INFO_LOG(DSPLLE,"DSP_CONTROL RESET");
 		DSPCore_Reset();
 		val &= ~1;
 	}
-	// init - can reset and init be done at the same time?
+	// init
 	else if (val == 4)
 	{
-		// this looks like a hack! OSInitAudioSystem ucode
-		// should send this mail - not dsp core itself
-		gdsp_mbox_write_h(GDSP_MBOX_DSP, 0x8054);
-		gdsp_mbox_write_l(GDSP_MBOX_DSP, 0x4348);
+		// HAX!
+		// OSInitAudioSystem ucode should send this mail - not dsp core itself
+		INFO_LOG(DSPLLE,"DSP_CONTROL INIT");
+		init_hax = true;
 		val |= 0x800;
 	}
 
@@ -61,7 +60,6 @@ void WriteCR(u16 val)
 	g_dsp.cr = val;
 }
 
-// Hm, should instructions that read CR use this? (Probably not).
 u16 ReadCR()
 {
 	if (g_dsp.pc & 0x8000)
@@ -105,32 +103,25 @@ void Step()
 }
 
 // Used by thread mode.
-//void Run()
-//{
-//	int checkInterrupt = 0;
-//	gdsp_running = true;
-//	while (!(g_dsp.cr & CR_HALT) && gdsp_running)
-//	{
-//		if (jit)
-//			jit->RunForCycles(1);
-//		else {
-//			// Automatically let the other threads work if we're idle skipping
-//			if(DSPAnalyzer::code_flags[g_dsp.pc] & DSPAnalyzer::CODE_IDLE_SKIP)
-//				Common::YieldCPU();
-//			
-//			Step();
-//			
-//			// Turns out the less you check for external interrupts, the more 
-//			// sound you hear, and it becomes slower
-//			checkInterrupt++;
-//			if(checkInterrupt == 500) { // <-- Arbitrary number. TODO: tweak
-//				DSPCore_CheckExternalInterrupt();
-//				checkInterrupt = 0;
-//			}
-//		}
-//	}
-//	gdsp_running = false;
-//}
+int RunCyclesThread(int cycles)
+{
+	while (true)
+	{
+		if (g_dsp.cr & CR_HALT)
+			return 0; 
+
+		if (g_dsp.external_interrupt_waiting)
+		{
+			DSPCore_CheckExternalInterrupt();
+			DSPCore_SetExternalInterrupt(false);
+		}
+
+		Step();
+		cycles--;
+		if (cycles < 0)
+			return 0;
+	}
+}
 
 // This one has basic idle skipping, and checks breakpoints.
 int RunCyclesDebug(int cycles)
@@ -149,14 +140,6 @@ int RunCyclesDebug(int cycles)
 		cycles--;
 		if (cycles < 0)
 			return 0;
-	}
-
-	// In thread mode, process external interrupts
-	if (g_dsp.external_interrupt_waiting)
-	{
-		DSPCore_CheckExternalInterrupt();
-		DSPCore_CheckExceptions();
-		DSPCore_SetExternalInterrupt(false);
 	}
 
 	while (true)
@@ -193,7 +176,6 @@ int RunCyclesDebug(int cycles)
 			cycles--;
 			if (cycles < 0)
 				return 0;
-
 			// We don't bother directly supporting pause - if the main emu pauses,
 			// it just won't call this function anymore.
 		}
@@ -213,14 +195,6 @@ int RunCycles(int cycles)
 		cycles--;
 		if (cycles < 0)
 			return 0;
-	}
-
-	// In thread mode, process external interrupts
-	if (g_dsp.external_interrupt_waiting)
-	{
-		DSPCore_CheckExternalInterrupt();
-		DSPCore_CheckExceptions();
-		DSPCore_SetExternalInterrupt(false);
 	}
 
 	while (true)

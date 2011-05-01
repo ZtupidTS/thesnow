@@ -21,6 +21,7 @@
 #include <wx/fontmap.h>
 
 #include <algorithm>
+#include <memory>
 
 #include "FileSearch.h"
 #include "StringUtil.h"
@@ -29,7 +30,6 @@
 #include "Blob.h"
 #include "Core.h"
 #include "ISOProperties.h"
-#include "IniFile.h"
 #include "FileUtil.h"
 #include "CDUtils.h"
 #include "WxUtils.h"
@@ -136,7 +136,6 @@ BEGIN_EVENT_TABLE(CGameListCtrl, wxListCtrl)
 	EVT_MENU(IDM_INSTALLWAD, CGameListCtrl::OnInstallWAD)
 END_EVENT_TABLE()
 
-
 CGameListCtrl::CGameListCtrl(wxWindow* parent, const wxWindowID id, const
 		wxPoint& pos, const wxSize& size, long style)
 	: wxListCtrl(parent, id, pos, size, style), toolTip(0)
@@ -147,6 +146,8 @@ CGameListCtrl::~CGameListCtrl()
 {
 	if (m_imageListSmall)
 		delete m_imageListSmall;
+
+	ClearIsoFiles();
 }
 
 void CGameListCtrl::InitBitmaps()
@@ -276,7 +277,7 @@ void CGameListCtrl::Update()
 		for (int i = 0; i < (int)m_ISOFiles.size(); i++)
 		{
 			InsertItemInReportView(i);
-			if (m_ISOFiles[i].IsCompressed())
+			if (m_ISOFiles[i]->IsCompressed())
 				SetItemTextColour(i, wxColour(0xFF0000));
 		}
 
@@ -352,41 +353,39 @@ std::string CGameListCtrl::GetGameNames() const
 // This draws our icons on top of the gamelist, it's only used on Windows
 void CGameListCtrl::OnPaintDrawImages(wxPaintEvent& event)
 {
-	int i = 0, nState = 0;
-	IniFile ini;
-	wxRect itemRect;
 	wxPaintDC dc(this);
 
 	// Calls the default drawing code
 	wxControl::OnPaint(event);
 
 	// Draw the flags, platform icons and emustate icons on top if there's games to show
-	if (m_ISOFiles.size() != 0)
+	if (m_ISOFiles.empty())
+		return;
+
+	// Retrieve the topmost shown item and get drawing offsets
+	const long
+		top_item = GetTopItem(),
+		bottom_item = std::min(top_item + GetCountPerPage() + 2, (long)GetItemCount());
+
+	int flagOffset = GetColumnWidth(0) + GetColumnWidth(1) +
+		GetColumnWidth(2) + GetColumnWidth(3);
+	int stateOffset = flagOffset + GetColumnWidth(4) + GetColumnWidth(5);
+
+	// Only redraw shown lines
+	for (long i = top_item; i != bottom_item; ++i)
 	{
-		// Retrieve the topmost shown item and get drawing offsets
-		long top = GetTopItem();
-		int flagOffset = GetColumnWidth(0) + GetColumnWidth(1) +
-			GetColumnWidth(2) + GetColumnWidth(3);
-		int stateOffset = flagOffset + GetColumnWidth(4) + GetColumnWidth(5);
-
-		// Only redraw shown lines
-		for (i = top; i < top + GetCountPerPage() + 2; i++)
+		wxRect itemRect;
+		if (GetItemRect(i, itemRect))
 		{
-			if (GetItemRect(i, itemRect))
-			{
-				int itemY = itemRect.GetTop();
-				const GameListItem& rISOFile = m_ISOFiles[GetItemData(i)];
+			const int itemY = itemRect.GetTop();
+			const GameListItem& rISOFile = *m_ISOFiles[GetItemData(i)];
 
-				m_imageListSmall->Draw(m_PlatformImageIndex[rISOFile.GetPlatform()],
-						dc, itemRect.GetX()+3, itemY);
-				m_imageListSmall->Draw(m_FlagImageIndex[rISOFile.GetCountry()],
-						dc, flagOffset, itemY);
-
-				ini.Load(File::GetUserPath(D_GAMECONFIG_IDX) + rISOFile.GetUniqueID() + ".ini");
-				ini.Get("EmuState", "EmulationStateId", &nState);
-				m_imageListSmall->Draw(m_EmuStateImageIndex[nState],
-						dc, stateOffset, itemY);
-			}
+			m_imageListSmall->Draw(m_PlatformImageIndex[rISOFile.GetPlatform()],
+					dc, itemRect.GetX()+3, itemY);
+			m_imageListSmall->Draw(m_FlagImageIndex[rISOFile.GetCountry()],
+					dc, flagOffset, itemY);
+			m_imageListSmall->Draw(m_EmuStateImageIndex[rISOFile.GetEmuState()],
+					dc, stateOffset, itemY);
 		}
 	}
 }
@@ -415,7 +414,7 @@ void CGameListCtrl::InsertItemInReportView(long _Index)
 		wxCSConv SJISConv(wxFontMapper::GetEncodingName(wxFONTENCODING_EUC_JP));
 #endif
 
-	GameListItem& rISOFile = m_ISOFiles[_Index];
+	GameListItem& rISOFile = *m_ISOFiles[_Index];
 	m_gamePath.append(rISOFile.GetFileName() + '\n');
 
 	// Insert a first row with the platform image, that will be used as the Index
@@ -487,16 +486,8 @@ void CGameListCtrl::InsertItemInReportView(long _Index)
 	}
 
 #ifndef _WIN32
-	// Load the INI file for columns that read from it
-	IniFile ini;
-	ini.Load(File::GetUserPath(D_GAMECONFIG_IDX) + rISOFile.GetUniqueID() + ".ini");
-
-	// Emulation status
-	int nState;
-	ini.Get("EmuState", "EmulationStateId", &nState);
-
 	// Emulation state
-	SetItemColumnImage(_Index, COLUMN_EMULATION_STATE, m_EmuStateImageIndex[nState]);
+	SetItemColumnImage(_Index, COLUMN_EMULATION_STATE, m_EmuStateImageIndex[rISOFile.GetEmuState()]);
 
 	// Country
 	SetItemColumnImage(_Index, COLUMN_COUNTRY, m_FlagImageIndex[rISOFile.GetCountry()]);
@@ -536,7 +527,8 @@ void CGameListCtrl::SetBackgroundColor()
 
 void CGameListCtrl::ScanForISOs()
 {
-	m_ISOFiles.clear();
+	ClearIsoFiles();
+
 	CFileSearch::XStringVector Directories(SConfig::GetInstance().m_ISOFolder);
 
 	if (SConfig::GetInstance().m_RecursiveISOFolder)
@@ -613,7 +605,9 @@ void CGameListCtrl::ScanForISOs()
 			if (!Cont)
 				break;
 
-			GameListItem ISOFile(rFilenames[i]);
+			std::auto_ptr<GameListItem> iso_file(new GameListItem(rFilenames[i]));
+			const GameListItem& ISOFile = *iso_file;
+
 			if (ISOFile.IsValid())
 			{
 				bool list = true;
@@ -666,21 +660,21 @@ void CGameListCtrl::ScanForISOs()
 				}
 
 				if (list)
-					m_ISOFiles.push_back(ISOFile);
+					m_ISOFiles.push_back(iso_file.release());
 			}
 		}
 	}
 
 	if (SConfig::GetInstance().m_ListDrives)
 	{
-		std::vector<std::string> drives = cdio_get_devices();
-		GameListItem * Drive[24];
-		// Another silly Windows limitation of 24 drive letters
-		for (u32 i = 0; i < drives.size() && i < 24; i++)
+		const std::vector<std::string> drives = cdio_get_devices();
+
+		for (std::vector<std::string>::const_iterator iter = drives.begin(); iter != drives.end(); ++iter)
 		{
-			Drive[i] = new GameListItem(drives[i].c_str());
-			if (Drive[i]->IsValid())
-				m_ISOFiles.push_back(*Drive[i]);
+			std::auto_ptr<GameListItem> gli(new GameListItem(*iter));
+
+			if (gli->IsValid())
+				m_ISOFiles.push_back(gli.release());
 		}
 	}
 
@@ -693,10 +687,12 @@ void CGameListCtrl::OnColBeginDrag(wxListEvent& event)
 		event.Veto();
 }
 
-const GameListItem *CGameListCtrl::GetISO(int index) const
+const GameListItem *CGameListCtrl::GetISO(size_t index) const
 {
-	if (index >= (int)m_ISOFiles.size()) return NULL;
-	return &m_ISOFiles[index];
+	if (index < m_ISOFiles.size())
+		return m_ISOFiles[index];
+	else
+		return NULL;
 }
 
 CGameListCtrl *caller;
@@ -776,24 +772,21 @@ int wxCALLBACK wxListCompare(long item1, long item2, long sortData)
 			if(iso1->GetPlatform() < iso2->GetPlatform())
 				return -1 * t;
 			return 0;
+
 		case CGameListCtrl::COLUMN_EMULATION_STATE:
-			IniFile ini;
-			int nState1 = 0, nState2 = 0;
-			std::string GameIni1 = File::GetUserPath(D_GAMECONFIG_IDX) +
-				iso1->GetUniqueID() + ".ini";
-			std::string GameIni2 = File::GetUserPath(D_GAMECONFIG_IDX) +
-				iso2->GetUniqueID() + ".ini";
+		{
+			const int
+				nState1 = iso1->GetEmuState(),
+				nState2 = iso2->GetEmuState();
 
-			ini.Load(GameIni1.c_str());
-			ini.Get("EmuState", "EmulationStateId", &nState1);
-			ini.Load(GameIni2.c_str());
-			ini.Get("EmuState", "EmulationStateId", &nState2);
-
-			if(nState1 > nState2)
+			if (nState1 > nState2)
 				return  1 * t;
-			if(nState1 < nState2)
+			if (nState1 < nState2)
 				return -1 * t;
-			return 0;
+			else
+				return 0;
+		}
+			break;
 	}
 
 	return 0;
@@ -881,7 +874,7 @@ void CGameListCtrl::OnMouseMotion(wxMouseEvent& event)
 {
 	int flags;
 	long subitem = 0;
-	long item = HitTest(event.GetPosition(), flags, &subitem);
+	const long item = HitTest(event.GetPosition(), flags, &subitem);
 	static int lastItem = -1;
 
 	if (GetColumnCount() <= 1)
@@ -907,30 +900,19 @@ void CGameListCtrl::OnMouseMotion(wxMouseEvent& event)
 				return;
 			}
 
-			const GameListItem& rISO = m_ISOFiles[GetItemData(item)];
-
-			IniFile ini;
-			ini.Load(File::GetUserPath(D_GAMECONFIG_IDX) + rISO.GetUniqueID() + ".ini");
-
 			// Emulation status
-			std::string emuState[5] = {
-				"Broken",
-				"Intro",
-				"In-Game",
-				"Playable",
-				"Perfect"
-			};
-			std::string issues;
+			static const char* const emuState[] = { "Broken", "Intro", "In-Game", "Playable", "Perfect" };
 
-			int nState;
-			ini.Get("EmuState", "EmulationStateId", &nState);
-			ini.Get("EmuState", "EmulationIssues", &issues, "");
+			const GameListItem& rISO = *m_ISOFiles[GetItemData(item)];
+
+			const int emu_state = rISO.GetEmuState();
+			const std::string& issues = rISO.GetIssues();
 
 			// Show a tooltip containing the EmuState and the state description
-			if (nState > 0 && nState < 6)
+			if (emu_state > 0 && emu_state < 6)
 			{
 				char temp[2048];
-				sprintf(temp, "^ %s%s%s", emuState[nState -1].c_str(),
+				sprintf(temp, "^ %s%s%s", emuState[emu_state - 1],
 						issues.size() > 0 ? " :\n" : "", issues.c_str());
 				toolTip = new wxEmuStateTip(this, wxString(temp, *wxConvCurrent), &toolTip);
 			}
@@ -979,7 +961,7 @@ void CGameListCtrl::OnLeftClick(wxMouseEvent& event)
 }
 
 void CGameListCtrl::OnRightClick(wxMouseEvent& event)
-{
+{	
 	// Focus the clicked item.
 	int flags;
 	long item = HitTest(event.GetPosition(), flags);
@@ -992,7 +974,6 @@ void CGameListCtrl::OnRightClick(wxMouseEvent& event)
 		}
 		SetItemState(item, wxLIST_STATE_FOCUSED, wxLIST_STATE_FOCUSED);
 	}
-
 	if (GetSelectedItemCount() == 1)
 	{
 		const GameListItem *selected_iso = GetSelectedISO();
@@ -1052,7 +1033,7 @@ const GameListItem * CGameListCtrl::GetSelectedISO()
 	{
 		long item = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
 		if (item == wxNOT_FOUND)
-			return new GameListItem("");
+			return new GameListItem("");	// TODO: wtf is this
 		else
 		{
 			// Here is a little workaround for multiselections:
@@ -1062,7 +1043,7 @@ const GameListItem * CGameListCtrl::GetSelectedISO()
 			if (GetSelectedItemCount() > 1)
 				SetItemState(item, 0, wxLIST_STATE_SELECTED);
 
-			return &m_ISOFiles[GetItemData(item)];
+			return m_ISOFiles[GetItemData(item)];
 		}
 	}
 }
@@ -1164,7 +1145,6 @@ void CGameListCtrl::OnProperties(wxCommandEvent& WXUNUSED (event))
 	if (!iso)
 		return;
 	CISOProperties ISOProperties(iso->GetFileName(), this);
-	ISOProperties.Center();
 	if(ISOProperties.ShowModal() == wxID_OK)
 		Update();
 }

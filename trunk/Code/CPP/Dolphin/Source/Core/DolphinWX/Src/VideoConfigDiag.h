@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <string>
+#include <map>
 
 #include "VideoConfig.h"
 
@@ -62,8 +63,6 @@ private:
 	int &m_setting;
 };
 
-class CGameListCtrl;
-
 class VideoConfigDiag : public wxDialog
 {
 public:
@@ -73,9 +72,18 @@ protected:
 	void Event_Backend(wxCommandEvent &ev) { ev.Skip(); } // TODO: Query list of supported AA modes
 	void Event_Adapter(wxCommandEvent &ev) { ev.Skip(); } // TODO
 
-	void Event_StcSafe(wxCommandEvent &ev) { vconfig.iSafeTextureCache_ColorSamples = 0; ev.Skip(); }
-	void Event_StcNormal(wxCommandEvent &ev) { vconfig.iSafeTextureCache_ColorSamples = 512; ev.Skip(); }
-	void Event_StcFast(wxCommandEvent &ev) { vconfig.iSafeTextureCache_ColorSamples = 128; ev.Skip(); }
+	void Event_Stc(wxCommandEvent &ev)
+	{
+		int samples[] = { 0, 512, 128 };
+		if (ev.GetInt() < 3)
+		{
+			vconfig.iSafeTextureCache_ColorSamples = samples[ev.GetInt()];
+			vconfig.bSafeTextureCache = true;
+		}
+		else vconfig.bSafeTextureCache = false;
+
+		ev.Skip();
+	}
 
 	void Event_PPShader(wxCommandEvent &ev)
 	{
@@ -90,92 +98,66 @@ protected:
 	void Event_ClickClose(wxCommandEvent&);
 	void Event_Close(wxCloseEvent&);
 
-	void Event_OnProfileChange(wxCommandEvent& ev);
+	// Enables/disables UI elements depending on current config
+	void OnUpdateUI(wxUpdateUIEvent& ev)
+	{
+		// Anti-aliasing
+		choice_aamode->Enable(vconfig.backend_info.AAModes.size() > 1);
+		text_aamode->Enable(vconfig.backend_info.AAModes.size() > 1);
 
-	// Enables/disables UI elements depending on current config - if appropriate also updates g_Config
-	void OnUpdateUI(wxUpdateUIEvent& ev);
+		// pixel lighting
+		pixel_lighting->Enable(vconfig.backend_info.bSupportsPixelLighting);
 
-	// Refresh UI values from current config (used when reloading config)
-	void SetUIValuesFromConfig();
+		// 3D vision
+		_3d_vision->Show(vconfig.backend_info.bSupports3DVision);
 
-	// Don't mess with keeping two comboboxes in sync, use only one CB instead..
-	SettingChoice* profile_cb; // "General" tab
-	wxStaticText* profile_text; // "Advanced" tab
+		// EFB copy
+		efbcopy_texture->Enable(vconfig.bEFBCopyEnable);
+		efbcopy_ram->Enable(vconfig.bEFBCopyEnable);
+		cache_efb_copies->Enable(vconfig.bEFBCopyEnable && !vconfig.bCopyEFBToTexture);
 
-	wxChoice* choice_adapter;
-	wxChoice* choice_aspect;
-	SettingCheckBox* widescreen_hack;
-	SettingCheckBox* vsync;
+		// EFB format change emulation
+		emulate_efb_format_changes->Enable(vconfig.backend_info.bSupportsFormatReinterpretation);
 
-	SettingChoice* anisotropic_filtering;
+		// XFB
+		virtual_xfb->Enable(vconfig.bUseXFB);
+		real_xfb->Enable(vconfig.bUseXFB);
+
+		ev.Skip();
+	}
+
+	// Creates controls and connects their enter/leave window events to Evt_Enter/LeaveControl
+	SettingCheckBox* CreateCheckBox(wxWindow* parent, const wxString& label, const wxString& description, bool &setting, bool reverse = false, long style = 0);
+	SettingChoice* CreateChoice(wxWindow* parent, int& setting, const wxString& description, int num = 0, const wxString choices[] = NULL, long style = 0);
+	SettingRadioButton* CreateRadioButton(wxWindow* parent, const wxString& label, const wxString& description, bool &setting, bool reverse = false, long style = 0);
+
+	// Same as above but only connects enter/leave window events
+	wxControl* RegisterControl(wxControl* const control, const wxString& description);
+
+	void Evt_EnterControl(wxMouseEvent& ev);
+	void Evt_LeaveControl(wxMouseEvent& ev);
+	void CreateDescriptionArea(wxPanel* const page, wxBoxSizer* const sizer);
+
 	wxStaticText* text_aamode;
 	SettingChoice* choice_aamode;
 
-	SettingCheckBox* native_mips;
-	SettingCheckBox* efb_scaled_copy;
 	SettingCheckBox* pixel_lighting;
-	SettingCheckBox* pixel_depth;
-	SettingCheckBox* force_filtering;
+
 	SettingCheckBox* _3d_vision;
 
-	wxChoice* choice_efbscale;
-	SettingCheckBox* efbaccess_enable;
-	SettingCheckBox* emulate_efb_format_changes;
-
-	SettingCheckBox* efbcopy_enable;
 	SettingRadioButton* efbcopy_texture;
 	SettingRadioButton* efbcopy_ram;
 	SettingCheckBox* cache_efb_copies;
+	SettingCheckBox* emulate_efb_format_changes;
 
-	SettingCheckBox* stc_enable;
-	wxRadioButton* stc_safe;
-	wxRadioButton* stc_normal;
-	wxRadioButton* stc_fast;
-
-	SettingCheckBox* wireframe;
-	SettingCheckBox* disable_lighting;
-	SettingCheckBox* disable_textures;
-	SettingCheckBox* disable_fog;
-	SettingCheckBox* disable_dst_alpha;
-
-	SettingCheckBox* show_fps;
-	SettingCheckBox* overlay_stats;
-	SettingCheckBox* overlay_proj_stats;
-	SettingCheckBox* texfmt_overlay;
-	SettingCheckBox* efb_copy_regions;
-	SettingCheckBox* show_shader_errors;
-	SettingCheckBox* show_input_display;
-
-	SettingCheckBox* enable_xfb;
 	SettingRadioButton* virtual_xfb;
 	SettingRadioButton* real_xfb;
 
-	SettingCheckBox* dump_textures;
-	SettingCheckBox* hires_textures;
-	SettingCheckBox* dump_efb;
-	SettingCheckBox* dump_frames;
-	SettingCheckBox* free_look;
-	SettingCheckBox* frame_dumps_via_ffv1;
+	std::map<wxWindow*, wxString> ctrl_descs; // maps setting controls to their descriptions
+	std::map<wxWindow*, wxStaticText*> desc_texts; // maps dialog tabs (which are the parents of the setting controls) to their description text objects
 
-	SettingCheckBox* crop;
-	SettingCheckBox* opencl;
-	SettingCheckBox* dlcache;
-	SettingCheckBox* hotkeys;
-
-	wxChoice* choice_ppshader;
-
-	// TODO: Add options for
-	//vconfig.bTexFmtOverlayCenter
-	//vconfig.bAnaglyphStereo
-	//vconfig.iAnaglyphStereoSeparation
-	//vconfig.iAnaglyphFocalAngle
-	//vconfig.bShowEFBCopyRegions
-	//vconfig.iCompileDLsLevel
-
-	VideoConfig vconfig;
+	VideoConfig &vconfig;
 	std::string ininame;
-	int cur_profile;
-	const CGameListCtrl *GameListCtrl;
 };
 
 #endif

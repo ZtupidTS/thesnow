@@ -22,6 +22,7 @@
 #include "VideoConfigDialog.h"
 #endif // HAVE_WX
 
+
 #include "SWCommandProcessor.h"
 #include "OpcodeDecoder.h"
 #include "SWVideoConfig.h"
@@ -31,22 +32,24 @@
 #include "Clipper.h"
 #include "Rasterizer.h"
 #include "SWRenderer.h"
-#include "../../../Core/VideoCommon/Src/LookUpTables.h"
 #include "HwRasterizer.h"
 #include "LogManager.h"
 #include "EfbInterface.h"
 #include "DebugUtil.h"
 #include "FileUtil.h"
 #include "VideoBackend.h"
-#include "../../../Core/VideoCommon/Src/Fifo.h"
 #include "Core.h"
 
 namespace SW
 {
 
-std::string VideoBackend::GetName()
+static volatile bool fifoStateRun = false;
+static volatile bool emuRunningState = false;
+
+
+std::string VideoSoftware::GetName()
 {
-	return "Software Renderer";
+	return _trans("Software Renderer");
 }
 
 void *DllDebugger(void *_hParent, bool Show)
@@ -54,22 +57,21 @@ void *DllDebugger(void *_hParent, bool Show)
 	return NULL;
 }
 
-void VideoBackend::ShowConfig(void *_hParent)
+void VideoSoftware::ShowConfig(void *_hParent)
 {
 #if defined(HAVE_WX) && HAVE_WX
-	VideoConfigDialog* const diag = new VideoConfigDialog((wxWindow*)_hParent, "Software", "gfx_software");
-	diag->ShowModal();
-	diag->Destroy();
+	VideoConfigDialog diag((wxWindow*)_hParent, "Software", "gfx_software");
+	diag.ShowModal();
 #endif
 }
 
-bool VideoBackend::Initialize(void *&window_handle)
+bool VideoSoftware::Initialize(void *&window_handle)
 {
     g_SWVideoConfig.Load((File::GetUserPath(D_CONFIG_IDX) + "gfx_software.ini").c_str());
 
 	if (!OpenGL_Create(window_handle))
 	{
-		Core::Callback_VideoLog("SWRenderer::Create failed\n");
+		INFO_LOG(VIDEO, "%s", "SWRenderer::Create failed\n");
 		return false;
 	}
 
@@ -87,26 +89,28 @@ bool VideoBackend::Initialize(void *&window_handle)
 	return true;
 }
 
-void VideoBackend::DoState(PointerWrap&)
+void VideoSoftware::DoState(PointerWrap&)
 {
 }
 
-void VideoBackend::RunLoop(bool enable)
+void VideoSoftware::RunLoop(bool enable)
 {
+	emuRunningState = enable;
 }
 
-void VideoBackend::EmuStateChange(EMUSTATE_CHANGE newState)
+void VideoSoftware::EmuStateChange(EMUSTATE_CHANGE newState)
 {
+	emuRunningState = (newState == EMUSTATE_CHANGE_PLAY) ? true : false;
 }
 
-void VideoBackend::Shutdown()
+void VideoSoftware::Shutdown()
 {
 	SWRenderer::Shutdown();
 	OpenGL_Shutdown();
 }
 
 // This is called after Video_Initialize() from the Core
-void VideoBackend::Video_Prepare()
+void VideoSoftware::Video_Prepare()
 {    
     SWRenderer::Prepare();
 
@@ -114,16 +118,16 @@ void VideoBackend::Video_Prepare()
 }
 
 // Run from the CPU thread (from VideoInterface.cpp)
-void VideoBackend::Video_BeginField(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight)
+void VideoSoftware::Video_BeginField(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight)
 {	
 }
 
 // Run from the CPU thread (from VideoInterface.cpp)
-void VideoBackend::Video_EndField()
+void VideoSoftware::Video_EndField()
 {
 }
 
-u32 VideoBackend::Video_AccessEFB(EFBAccessType type, u32 x, u32 y, u32 InputData)
+u32 VideoSoftware::Video_AccessEFB(EFBAccessType type, u32 x, u32 y, u32 InputData)
 {
 	u32 value = 0;
 
@@ -153,7 +157,7 @@ u32 VideoBackend::Video_AccessEFB(EFBAccessType type, u32 x, u32 y, u32 InputDat
     return value;
 }
 
-bool VideoBackend::Video_Screenshot(const char *_szFilename)
+bool VideoSoftware::Video_Screenshot(const char *_szFilename)
 {
 	return false;
 }
@@ -161,41 +165,85 @@ bool VideoBackend::Video_Screenshot(const char *_szFilename)
 // -------------------------------
 // Enter and exit the video loop
 // -------------------------------
-void VideoBackend::Video_EnterLoop()
+void VideoSoftware::Video_EnterLoop()
 {
-	EmulatorState(true);
+    fifoStateRun = true;
+
+	while (fifoStateRun)
+	{
+		g_video_backend->PeekMessages();
+
+		if (!SWCommandProcessor::RunBuffer())
+		{
+			Common::YieldCPU();
+		}
+
+		while (!emuRunningState && fifoStateRun)
+		{
+			g_video_backend->PeekMessages();
+			Common::SleepCurrentThread(1);
+		}
+	}	
 }
 
-void VideoBackend::Video_ExitLoop()
+void VideoSoftware::Video_ExitLoop()
 {
-	ExitGpuLoop();
+    fifoStateRun = false;
 }
 
-void VideoBackend::Video_AddMessage(const char* pstr, u32 milliseconds)
-{	
+// TODO : could use the OSD class in video common, we would need to implement the Renderer class
+//        however most of it is useless for the SW backend so we could as well move it to its own class
+void VideoSoftware::Video_AddMessage(const char* pstr, u32 milliseconds)
+{
 }
-
-void VideoBackend::Video_ClearMessages()
+void VideoSoftware::Video_ClearMessages()
 {
 }
 
-void VideoBackend::Video_SetRendering(bool bEnabled)
+void VideoSoftware::Video_SetRendering(bool bEnabled)
 {
-	Fifo_SetRendering(bEnabled);
+	SWCommandProcessor::SetRendering(bEnabled);
 }
 
+void VideoSoftware::Video_GatherPipeBursted()
+{
+	SWCommandProcessor::GatherPipeBursted();
+}
 
-bool VideoBackend::Video_IsPossibleWaitingSetDrawDone(void)
+bool VideoSoftware::Video_IsPossibleWaitingSetDrawDone(void)
 {
 	return false;
 }
 
-void VideoBackend::Video_AbortFrame(void)
+void VideoSoftware::Video_AbortFrame(void)
 {
 }
 
+readFn16 VideoSoftware::Video_CPRead16()
+{
+	return SWCommandProcessor::Read16;
+}
+writeFn16 VideoSoftware::Video_CPWrite16()
+{
+	return SWCommandProcessor::Write16;
+}
+
+readFn16  VideoSoftware::Video_PERead16()
+{
+	return SWPixelEngine::Read16;
+}
+writeFn16 VideoSoftware::Video_PEWrite16()
+{
+	return SWPixelEngine::Write16;
+}
+writeFn32 VideoSoftware::Video_PEWrite32()
+{
+	return SWPixelEngine::Write32;
+}
+
+
 // Draw messages on top of the screen
-unsigned int VideoBackend::PeekMessages()
+unsigned int VideoSoftware::PeekMessages()
 {
 #ifdef _WIN32
 	// TODO: peekmessage
@@ -214,7 +262,7 @@ unsigned int VideoBackend::PeekMessages()
 }
 
 // Show the current FPS
-void VideoBackend::UpdateFPSDisplay(const char *text)
+void VideoSoftware::UpdateFPSDisplay(const char *text)
 {
 	char temp[100];
 	snprintf(temp, sizeof temp, "%s | Software | %s", svn_rev_str, text);

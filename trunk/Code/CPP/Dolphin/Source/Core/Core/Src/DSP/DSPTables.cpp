@@ -27,8 +27,9 @@
 void nop(const UDSPInstruction opc)
 {
 	// The real nop is 0. Anything else is bad.
-	if (opc)
-		DSPInterpreter::unknown(opc);
+	if (opc) {
+		ERROR_LOG(DSPLLE, "LLE: Unrecognized opcode 0x%04x", opc);
+	}
 }
  
 const DSPOPCTemplate opcodes[] =
@@ -184,10 +185,10 @@ const DSPOPCTemplate opcodes[] =
 	{"ILRRN",	0x021c, 0xfefc, DSPInterpreter::ilrrn,   &DSPEmitter::ilrrn,  1, 2, {{P_ACCM, 1, 0, 8, 0x0100},    {P_PRG, 1, 0, 0, 0x0003}},                               false, false, false, false, false},
 
 	// LOOPS
-	{"LOOP",	0x0040, 0xffe0, DSPInterpreter::loop,    &DSPEmitter::loop,   1, 1, {{P_REG, 1, 0, 0, 0x001f}},                                                             false, true, false, true, false},
-	{"BLOOP",	0x0060, 0xffe0, DSPInterpreter::bloop,   &DSPEmitter::bloop,  2, 2, {{P_REG, 1, 0, 0, 0x001f},     {P_ADDR_I, 2, 1, 0, 0xffff}},                            false, true, false, true, false},
-	{"LOOPI",	0x1000, 0xff00, DSPInterpreter::loopi,   &DSPEmitter::loopi,  1, 1, {{P_IMM, 1, 0, 0, 0x00ff}},                                                             false, true, false, true, false},
-	{"BLOOPI",	0x1100, 0xff00, DSPInterpreter::bloopi,  &DSPEmitter::bloopi, 2, 2, {{P_IMM, 1, 0, 0, 0x00ff},     {P_ADDR_I, 2, 1, 0, 0xffff}},                            false, true, false, true, false},
+	{"LOOP",	0x0040, 0xffe0, DSPInterpreter::loop,    &DSPEmitter::loop,   1, 1, {{P_REG, 1, 0, 0, 0x001f}},                                                             false, true, true, true, false},
+	{"BLOOP",	0x0060, 0xffe0, DSPInterpreter::bloop,   &DSPEmitter::bloop,  2, 2, {{P_REG, 1, 0, 0, 0x001f},     {P_ADDR_I, 2, 1, 0, 0xffff}},                            false, true, true, true, false},
+	{"LOOPI",	0x1000, 0xff00, DSPInterpreter::loopi,   &DSPEmitter::loopi,  1, 1, {{P_IMM, 1, 0, 0, 0x00ff}},                                                             false, true, true, true, false},
+	{"BLOOPI",	0x1100, 0xff00, DSPInterpreter::bloopi,  &DSPEmitter::bloopi, 2, 2, {{P_IMM, 1, 0, 0, 0x00ff},     {P_ADDR_I, 2, 1, 0, 0xffff}},                            false, true, true, true, false},
 
 	// load and store value pointed by indexing reg and increment; LRR/SRR variants
 	{"LRR",		0x1800, 0xff80, DSPInterpreter::lrr,     &DSPEmitter::lrr,    1, 2, {{P_REG, 1, 0, 0, 0x001f},     {P_PRG, 1, 0, 5, 0x0060}},                               false, false, false, false, false},
@@ -300,7 +301,7 @@ const DSPOPCTemplate opcodes[] =
 };
 
 const DSPOPCTemplate cw = 
-	{"CW",		0x0000, 0x0000, NULL, NULL, 1, 1, {{P_VAL, 2, 0, 0, 0xffff}}, false, false, false, false, false};
+	{"CW",		0x0000, 0x0000, nop, NULL, 1, 1, {{P_VAL, 2, 0, 0, 0xffff}}, false, false, false, false, false};
 
 // extended opcodes
 
@@ -327,6 +328,11 @@ const DSPOPCTemplate opcodes_ext[] =
 	{"SLM",		0x008a, 0x00ce, DSPInterpreter::Ext::slm,  &DSPEmitter::slm,  1, 2, {{P_ACCM, 1, 0, 0, 0x0001}, {P_REG18, 1, 0, 4, 0x0030}}, false, false, false, false, false},
 	{"LSNM",	0x008c, 0x00ce, DSPInterpreter::Ext::lsnm, &DSPEmitter::lsnm, 1, 2, {{P_REG18, 1, 0, 4, 0x0030}, {P_ACCM, 1, 0, 0, 0x0001}}, false, false, false, false, false},
 	{"SLNM",	0x008e, 0x00ce, DSPInterpreter::Ext::slnm, &DSPEmitter::slnm, 1, 2, {{P_ACCM, 1, 0, 0, 0x0001}, {P_REG18, 1, 0, 4, 0x0030}}, false, false, false, false, false},
+
+	{"LDAX",	0x00c3, 0x00cf, DSPInterpreter::Ext::ldax,   &DSPEmitter::ldax,   1, 2, {{P_AX, 1, 0, 4, 0x0010}, {P_PRG, 1, 0, 5, 0x0020}}, false, false, false, false, false},
+	{"LDAXN",	0x00c7, 0x00cf, DSPInterpreter::Ext::ldaxn,  &DSPEmitter::ldaxn,  1, 2, {{P_AX, 1, 0, 4, 0x0010}, {P_PRG, 1, 0, 5, 0x0020}}, false, false, false, false, false},
+	{"LDAXM",	0x00cb, 0x00cf, DSPInterpreter::Ext::ldaxm,  &DSPEmitter::ldaxm,  1, 2, {{P_AX, 1, 0, 4, 0x0010}, {P_PRG, 1, 0, 5, 0x0020}}, false, false, false, false, false},
+	{"LDAXNM",	0x00cf, 0x00cf, DSPInterpreter::Ext::ldaxnm, &DSPEmitter::ldaxnm, 1, 2, {{P_AX, 1, 0, 4, 0x0010}, {P_PRG, 1, 0, 5, 0x0020}}, false, false, false, false, false},
 
 	{"LD",		0x00c0, 0x00cc, DSPInterpreter::Ext::ld,   &DSPEmitter::ld,   1, 3, {{P_REGM18, 1, 0, 4, 0x0020}, {P_REGM19, 1, 0, 3, 0x0010}, {P_PRG, 1, 0, 0, 0x0003}}, false, false, false, false, false},
 	{"LDN",		0x00c4, 0x00cc, DSPInterpreter::Ext::ldn,  &DSPEmitter::ldn,  1, 3, {{P_REGM18, 1, 0, 4, 0x0020}, {P_REGM19, 1, 0, 3, 0x0010}, {P_PRG, 1, 0, 0, 0x0003}}, false, false, false, false, false},
@@ -526,22 +532,27 @@ const DSPOPCTemplate *GetOpTemplate(const UDSPInstruction &inst)
 void InitInstructionTable()
 {
 	// ext op table
-	for (int i = 0; i < EXT_OPTABLE_SIZE; i++) 
+	for (int i = 0; i < EXT_OPTABLE_SIZE; i++)
 		extOpTable[i] = &cw;
 
-	for (int i = 0; i < EXT_OPTABLE_SIZE; i++)  
+	for (int i = 0; i < EXT_OPTABLE_SIZE; i++)
     {
 		for (int j = 0; j < opcodes_ext_size; j++)
 		{
 			u16 mask = opcodes_ext[j].opcode_mask;
-			if ((mask & i) == opcodes_ext[j].opcode) 
+			if ((mask & i) == opcodes_ext[j].opcode)
 			{
-				if (extOpTable[i] == &cw) 
+				if (extOpTable[i] == &cw)
 					extOpTable[i] = &opcodes_ext[j];
 				else
-					ERROR_LOG(DSPLLE, "opcode ext table place %d already in use for %s", i, opcodes_ext[j].name); 	
+				{
+					//if the entry already in the table
+					//is a strict subset, allow it
+					if ((extOpTable[i]->opcode_mask | opcodes_ext[j].opcode_mask) != extOpTable[i]->opcode_mask)
+						ERROR_LOG(DSPLLE, "opcode ext table place %d already in use by %s when inserting %s", i, extOpTable[i]->name, opcodes_ext[j].name);
+				}
 			}
-		}   
+		}
 	}
 
 	// op table

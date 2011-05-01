@@ -45,8 +45,7 @@ may be redirected here (for example to Read_U32()).
 #include "WII_IPC.h"
 #include "../ConfigManager.h"
 #include "../Debugger/Debugger_SymbolMap.h"
-#include "CommandProcessor.h"
-#include "PixelEngine.h"
+#include "VideoBackendBase.h"
 
 namespace Memory
 {
@@ -180,12 +179,12 @@ void InitHWMemFuncs()
 
 	for (int i = 0; i < BLOCKSIZE; i++)
 	{
-		hwRead16 [CP_START+i] = CommandProcessor::Read16;
-		hwWrite16[CP_START+i] = CommandProcessor::Write16;
+		hwRead16 [CP_START+i] = g_video_backend->Video_CPRead16();
+		hwWrite16[CP_START+i] = g_video_backend->Video_CPWrite16();
  
-		hwRead16 [PE_START+i] = PixelEngine::Read16;
-		hwWrite16[PE_START+i] = PixelEngine::Write16;
-		hwWrite32[PE_START+i] = PixelEngine::Write32;
+		hwRead16 [PE_START+i] = g_video_backend->Video_PERead16();
+		hwWrite16[PE_START+i] = g_video_backend->Video_PEWrite16();
+		hwWrite32[PE_START+i] = g_video_backend->Video_PEWrite32();
 
 		hwRead8  [VI_START+i] = VideoInterface::Read8;
 		hwRead16 [VI_START+i] = VideoInterface::Read16;
@@ -253,12 +252,12 @@ void InitHWMemFuncsWii()
 	// MI, PI, DSP are still mapped to 0xCCxxxxxx
 	for (int i = 0; i < BLOCKSIZE; i++)
 	{
-		hwRead16 [CP_START+i] = CommandProcessor::Read16;
-		hwWrite16[CP_START+i] = CommandProcessor::Write16;
+		hwRead16 [CP_START+i] = g_video_backend->Video_CPRead16();
+		hwWrite16[CP_START+i] = g_video_backend->Video_CPWrite16();
  
-		hwRead16 [PE_START+i] = PixelEngine::Read16;
-		hwWrite16[PE_START+i] = PixelEngine::Write16;
-		hwWrite32[PE_START+i] = PixelEngine::Write32;
+		hwRead16 [PE_START+i] = g_video_backend->Video_PERead16();
+		hwWrite16[PE_START+i] = g_video_backend->Video_PEWrite16();
+		hwWrite32[PE_START+i] = g_video_backend->Video_PEWrite32();
 
 		hwRead16 [PI_START+i] = ProcessorInterface::Read16;
 		hwRead32 [PI_START+i] = ProcessorInterface::Read32;
@@ -347,7 +346,7 @@ static const MemoryView views[] =
 };
 static const int num_views = sizeof(views) / sizeof(MemoryView);
 
-bool Init()
+void Init()
 {
 	bool wii = SConfig::GetInstance().m_LocalCoreStartupParameter.bWii;
 	bFakeVMEM = SConfig::GetInstance().m_LocalCoreStartupParameter.iTLBHack == 1;
@@ -366,7 +365,6 @@ bool Init()
 	INFO_LOG(MEMMAP, "Memory system initialized. RAM at %p (mirrors at 0 @ %p, 0x80000000 @ %p , 0xC0000000 @ %p)",
 		m_pRAM, m_pPhysicalRAM, m_pVirtualCachedRAM, m_pVirtualUncachedRAM);
 	m_IsInitialized = true;
-	return true;
 }
 
 void DoState(PointerWrap &p)
@@ -379,7 +377,7 @@ void DoState(PointerWrap &p)
 		p.DoArray(m_pEXRAM, EXRAM_SIZE);
 }
 
-bool Shutdown()
+void Shutdown()
 {
 	m_IsInitialized = false;
 	u32 flags = 0;
@@ -389,7 +387,6 @@ bool Shutdown()
 	g_arena.ReleaseSpace();
 	base = NULL;
 	INFO_LOG(MEMMAP, "Memory system shut down.");
-	return true;
 }
 
 void Clear()

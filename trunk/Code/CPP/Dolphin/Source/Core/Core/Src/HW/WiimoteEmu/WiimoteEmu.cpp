@@ -29,6 +29,7 @@
 #include "Timer.h"
 #include "Common.h"
 #include "../../Host.h"
+#include "../../ConfigManager.h"
 
 #include "UDPTLayer.h"
 
@@ -299,6 +300,9 @@ Wiimote::Wiimote( const unsigned int index )
 	m_options->settings.push_back(new ControlGroup::Setting(_trans("Sideways Wiimote"), false));
 	m_options->settings.push_back(new ControlGroup::Setting(_trans("Upright Wiimote"), false));
 
+	// TODO: This value should probably be re-read if SYSCONF gets changed
+	m_sensor_bar_on_top = (bool)SConfig::GetInstance().m_SYSCONF->GetData<u8>("BT.BAR");
+
 	// --- reset eeprom/register/values to default ---
 	Reset();
 }
@@ -474,7 +478,8 @@ void Wiimote::GetIRData(u8* const data, bool use_accel)
 		for (int i=0; i<4; i++)
 		{
 			v[i].x=xx*(bndright-bndleft)/2+(bndleft+bndright)/2;
-			v[i].y=yy*(bndup-bnddown)/2+(bndup+bnddown)/2;
+			if (m_sensor_bar_on_top) v[i].y=yy*(bndup-bnddown)/2+(bndup+bnddown)/2;
+			else v[i].y=yy*(bndup-bnddown)/2-(bndup+bnddown)/2;
 			v[i].z=0;
 		}
 
@@ -856,11 +861,9 @@ void Wiimote::InterruptChannel(const u16 _channelID, const void* _pData, u32 _Si
 
 void Wiimote::LoadDefaults(const ControllerInterface& ciface)
 {
-	#define set_control(group, num, str)	(group)->controls[num]->control_ref->expression = (str)
-
 	ControllerEmu::LoadDefaults(ciface);
 
-	// TODO: finish this
+	#define set_control(group, num, str)	(group)->controls[num]->control_ref->expression = (str)
 
 	// Buttons
 #if defined HAVE_X11 && HAVE_X11
@@ -870,14 +873,19 @@ void Wiimote::LoadDefaults(const ControllerInterface& ciface)
 	set_control(m_buttons, 0, "Click 0");		// A
 	set_control(m_buttons, 1, "Click 1");		// B
 #endif
-	//set_control(m_buttons, 2, "");		// 1
-	//set_control(m_buttons, 3, "");		// 2
-	//set_control(m_buttons, 4, "");		// -
-	//set_control(m_buttons, 5, "");		// +
-	//set_control(m_buttons, 6, "");		// Start
+	set_control(m_buttons, 2, "1");		// 1
+	set_control(m_buttons, 3, "2");		// 2
+	set_control(m_buttons, 4, "Q");		// -
+	set_control(m_buttons, 5, "E");		// +
+
+#ifdef _WIN32
+	set_control(m_buttons, 6, "RETURN");		// Home
+#else
+	set_control(m_buttons, 6, "Return");		// Home
+#endif
 
 	// Shake
-	for (unsigned int i=0; i<3; ++i)
+	for (size_t i = 0; i != 3; ++i)
 		set_control(m_shake, i, "Click 2");
 
 	// IR
@@ -904,6 +912,12 @@ void Wiimote::LoadDefaults(const ControllerInterface& ciface)
 	set_control(m_dpad, 3, "Right");	// Right
 #endif
 
+	// ugly stuff
+	// enable nunchuk
+	m_extension->switch_extension = 1;
+
+	// set nunchuk defaults
+	m_extension->attachments[1]->LoadDefaults(ciface);
 }
 
 }

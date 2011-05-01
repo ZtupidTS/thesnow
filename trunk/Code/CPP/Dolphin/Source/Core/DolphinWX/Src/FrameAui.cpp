@@ -29,6 +29,14 @@
 
 void CFrame::OnManagerResize(wxAuiManagerEvent& event)
 {
+	if (!g_pCodeWindow && m_LogWindow &&
+			m_Mgr->GetPane(_T("Pane 1")).IsShown() &&
+			!m_Mgr->GetPane(_T("Pane 1")).IsFloating())
+	{
+		m_LogWindow->x = m_Mgr->GetPane(_T("Pane 1")).rect.GetWidth();
+		m_LogWindow->y = m_Mgr->GetPane(_T("Pane 1")).rect.GetHeight();
+		m_LogWindow->winpos = m_Mgr->GetPane(_T("Pane 1")).dock_direction;
+	}
 	event.Skip();
 	ResizeConsole();
 }
@@ -76,6 +84,9 @@ void CFrame::OnPaneClose(wxAuiManagerEvent& event)
 
 void CFrame::ToggleLogWindow(bool bShow)
 {
+	if (!m_LogWindow)
+		return;
+
 	GetMenuBar()->FindItem(IDM_LOGWINDOW)->Check(bShow);
 
 	if (bShow)
@@ -131,7 +142,7 @@ void CFrame::ToggleConsole(bool bShow)
 		// If the console doesn't exist, we create it
 		if (!GetConsoleWindow())
 		{
-			ConsoleListener *Console = LogManager::GetInstance()->getConsoleListener();
+			ConsoleListener *Console = LogManager::GetInstance()->GetConsoleListener();
 			Console->Open();
 		}
 		else
@@ -378,6 +389,32 @@ void CFrame::OnAllowNotebookDnD(wxAuiNotebookEvent& event)
 	ResizeConsole();
 }
 
+void CFrame::ShowResizePane()
+{
+	if (!m_LogWindow) return;
+
+	// Make sure the size is sane
+	if (m_LogWindow->x > GetClientRect().GetWidth())
+		m_LogWindow->x = GetClientRect().GetWidth() / 2;
+	if (m_LogWindow->y > GetClientRect().GetHeight())
+		m_LogWindow->y = GetClientRect().GetHeight() / 2;
+
+	wxAuiPaneInfo &pane = m_Mgr->GetPane(wxT("Pane 1"));
+
+	// Hide first otherwise a resize doesn't work
+	pane.Hide();
+	m_Mgr->Update();
+
+	pane.BestSize(m_LogWindow->x, m_LogWindow->y)
+		.MinSize(m_LogWindow->x, m_LogWindow->y)
+		.Direction(m_LogWindow->winpos).Show();
+	m_Mgr->Update();
+
+	// Reset the minimum size of the pane
+	pane.MinSize(-1, -1);
+	m_Mgr->Update();
+}
+
 void CFrame::TogglePane()
 {
 	// Get the first notebook
@@ -391,22 +428,11 @@ void CFrame::TogglePane()
 	{
 		if (NB->GetPageCount() == 0)
 		{
-			m_LogWindow->x = m_Mgr->GetPane(_T("Pane 1")).rect.GetWidth();
-			m_LogWindow->y = m_Mgr->GetPane(_T("Pane 1")).rect.GetHeight();
-			m_LogWindow->winpos = m_Mgr->GetPane(_T("Pane 1")).dock_direction;
 			m_Mgr->GetPane(_T("Pane 1")).Hide();
+			m_Mgr->Update();
 		}
 		else
-		{
-			m_Mgr->GetPane(_T("Pane 1")).BestSize(m_LogWindow->x, m_LogWindow->y)
-				.MinSize(m_LogWindow->x, m_LogWindow->y)
-				.Direction(m_LogWindow->winpos).Show();
-			m_Mgr->Update();
-
-			// Reset the minimum size of the pane
-			m_Mgr->GetPane(_T("Pane 1")).MinSize(-1, -1);
-		}
-		m_Mgr->Update();
+			ShowResizePane();
 	}
 }
 
@@ -721,7 +747,7 @@ void CFrame::ResizeConsole()
 		/*max out the width in the word wrap mode*/ 100;
 	int WindowHeight = InternalHeight + MenuBar;
 	// Resize buffer
-	ConsoleListener* Console = LogManager::GetInstance()->getConsoleListener();
+	ConsoleListener* Console = LogManager::GetInstance()->GetConsoleListener();
 	Console->PixelSpace(0,0, InternalWidth, InternalHeight, false);
 	// Move the window to hide the border
 	MoveWindow(GetConsoleWindow(), -Border-wxBorder, -MenuBar-wxBorder,

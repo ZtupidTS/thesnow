@@ -40,13 +40,14 @@ public:
 	Block m_compiledCode;
 
 	void EmitInstruction(UDSPInstruction inst);
-	void unknown_instruction(UDSPInstruction inst);
 	void ClearIRAM();
 
 	void CompileDispatcher();
 	Block CompileStub();
 	void Compile(u16 start_addr);
 	void ClearCallFlag();
+
+	bool FlagsNeeded();
 
 	void Default(UDSPInstruction inst);
 
@@ -96,9 +97,13 @@ public:
 	void s(const UDSPInstruction opc);
 	void sn(const UDSPInstruction opc);
 	void ld(const UDSPInstruction opc);
+	void ldax(const UDSPInstruction opc);
 	void ldn(const UDSPInstruction opc);
+	void ldaxn(const UDSPInstruction opc);
 	void ldm(const UDSPInstruction opc);
+	void ldaxm(const UDSPInstruction opc);
 	void ldnm(const UDSPInstruction opc);
+	void ldaxnm(const UDSPInstruction opc);
 	void mv(const UDSPInstruction opc);
 	void dr(const UDSPInstruction opc);
 	void ir(const UDSPInstruction opc);
@@ -116,6 +121,7 @@ public:
 	void dsp_conditional_extend_accum(int reg);
 	void dsp_conditional_extend_accum_imm(int reg, u16 val);
 	void dsp_op_read_reg(int reg, Gen::X64Reg host_dreg, DSPJitSignExtend extend = NONE);
+	void dsp_op_read_reg_and_saturate(int reg, Gen::X64Reg host_dreg, DSPJitSignExtend extend = NONE);
 
 	// Commands
 	void dar(const UDSPInstruction opc);
@@ -259,7 +265,7 @@ public:
 	u16 startAddr;
 	Block *blockLinks;
 	u16 *blockSize;
-	std::list<u16> *unresolvedJumps;
+	std::list<u16> unresolvedJumps[MAX_BLOCKS];
 
 	DSPJitRegCache gpr;
 private:

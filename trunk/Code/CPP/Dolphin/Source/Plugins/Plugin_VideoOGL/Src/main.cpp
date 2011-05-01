@@ -92,6 +92,7 @@ Make AA apply instantly during gameplay if possible
 #include "DLCache.h"
 #include "FramebufferManager.h"
 #include "Core.h"
+#include "Host.h"
 
 #include "VideoState.h"
 #include "VideoBackend.h"
@@ -130,10 +131,7 @@ void InitBackendInfo()
 {
 	g_Config.backend_info.APIType = API_OPENGL;
 	g_Config.backend_info.bUseRGBATextures = false;
-	g_Config.backend_info.bSupportsEFBToRAM = true;
-	g_Config.backend_info.bSupportsRealXFB = true;
 	g_Config.backend_info.bSupports3DVision = false;
-	g_Config.backend_info.bAllowSignedBytes = true;
 	g_Config.backend_info.bSupportsDualSourceBlend = false; // supported, but broken
 	g_Config.backend_info.bSupportsFormatReinterpretation = false;
 	g_Config.backend_info.bSupportsPixelLighting = true;
@@ -151,9 +149,8 @@ void VideoBackend::ShowConfig(void *_hParent)
 	// pp shaders
 	GetShaders(g_Config.backend_info.PPShaders);
 
-	VideoConfigDiag *const diag = new VideoConfigDiag((wxWindow*)_hParent, "OpenGL", "gfx_opengl");
-	diag->ShowModal();
-	diag->Destroy();
+	VideoConfigDiag diag((wxWindow*)_hParent, "OpenGL", "gfx_opengl");
+	diag.ShowModal();
 #endif
 }
 
@@ -173,7 +170,6 @@ bool VideoBackend::Initialize(void *&window_handle)
 	if (!OpenGL_Create(window_handle))
 		return false;
 
-	OSD::AddMessage("Dolphin OpenGL Video Backend.", 5000);
 	s_BackendInitialized = true;
 
 	return true;
@@ -211,7 +207,7 @@ void VideoBackend::Video_Prepare()
 	DLCache::Init();
 
 	// Notify the core that the video backend is ready
-	Core::Callback_CoreMessage(WM_USER_CREATE);
+	Host_Message(WM_USER_CREATE);
 }
 
 void VideoBackend::Shutdown()

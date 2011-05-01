@@ -40,9 +40,9 @@ SDSP g_dsp;
 DSPBreakpoints dsp_breakpoints;
 DSPCoreState core_state = DSPCORE_STOP;
 u16 cyclesLeft = 0;
+bool init_hax = false;
 DSPEmitter *dspjit = NULL;
 Common::Event step_event;
-static std::mutex ExtIntCriticalSection;
 
 static bool LoadRom(const char *fname, int size_in_words, u16 *rom)
 {
@@ -62,7 +62,15 @@ static bool LoadRom(const char *fname, int size_in_words, u16 *rom)
 		return true;
 	}
 
-	PanicAlertT("Failed to load DSP ROM:\n%s\nThis file is required to use DSP LLE", fname);
+	PanicAlertT(
+		"Failed to load DSP ROM:\t%s\n"
+		"\n"
+		"This file is required to use DSP LLE.\n"
+		"It is not included with Dolphin as it contains copyrighted data.\n"
+		"Use DSPSpy to dump the file from your physical console.\n"
+		"\n"
+		"You may use the DSP HLE engine which does not require ROM dumps.\n"
+		"(Choose it from the \"Audio\" tab of the configuration dialog.)", fname);
 	return false;
 }
 
@@ -164,10 +172,7 @@ bool DSPCore_Init(const char *irom_filename, const char *coef_filename,
 	if(bUsingJIT) 
 		dspjit = new DSPEmitter();
 
-	DSPAnalyzer::Analyze();
-
 	core_state = DSPCORE_RUNNING;
-
 	return true;
 }
 
@@ -193,7 +198,8 @@ void DSPCore_Reset()
 	g_dsp.r.wr[1] = 0xffff;
 	g_dsp.r.wr[2] = 0xffff;
 	g_dsp.r.wr[3] = 0xffff;
-	
+
+	DSPAnalyzer::Analyze();
 }
 
 void DSPCore_SetException(u8 level)
@@ -204,7 +210,6 @@ void DSPCore_SetException(u8 level)
 // Notify that an external interrupt is pending (used by thread mode)
 void DSPCore_SetExternalInterrupt(bool val)
 {
-	std::lock_guard<std::mutex> lk(ExtIntCriticalSection);
 	g_dsp.external_interrupt_waiting = val;
 }
 
@@ -274,7 +279,6 @@ int DSPCore_RunCycles(int cycles)
 
 	while (cycles > 0)
 	{
-	reswitch:
 		switch (core_state)
 		{
 		case DSPCORE_RUNNING:
@@ -289,7 +293,7 @@ int DSPCore_RunCycles(int cycles)
 		case DSPCORE_STEPPING:
 			step_event.Wait();
 			if (core_state != DSPCORE_STEPPING)
-				goto reswitch;
+				continue;
 
 			DSPInterpreter::Step();
 			cycles--;

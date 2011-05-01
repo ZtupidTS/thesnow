@@ -24,6 +24,7 @@
 #include "RenderBase.h"
 #include "VideoBackendBase.h"
 #include "Core.h"
+#include "Host.h"
 
 namespace EmuWindow
 {
@@ -173,9 +174,9 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam )
 	case WM_LBUTTONDOWN:
 		if(g_ActiveConfig.backend_info.bSupports3DVision && g_ActiveConfig.b3DVision)
 		{
-			// This basically throws away the left button down input when b3DVision is activated so WX 
-			// can't get access to it, stopping focus pulling on mouse click. 
-			// (Input plugins use a different system so it doesn't cause any weirdness)
+			// This basically throws away the left button down input when b3DVision is activated so WX
+			// can't get access to it, stopping focus pulling on mouse click.
+			// (Input plugins use a different system so it doesn't cause too much weirdness)
 			break;
 		}
 	case WM_LBUTTONUP:
@@ -190,7 +191,7 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam )
 		if (m_hParent == NULL)
 		{
 			// Stop the game
-			PostMessage(m_hParent, WM_USER, WM_USER_STOP, 0);
+			//PostMessage(m_hParent, WM_USER, WM_USER_STOP, 0);
 		}
 		break;
 
@@ -198,7 +199,7 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam )
 		if (wParam == WM_USER_KEYDOWN)
 		{
 			OnKeyDown(lParam);
-			FreeLookInput(wParam, lParam);
+			FreeLookInput((u32)wParam, lParam);
 		}
 		else if (wParam == WIIMOTE_DISCONNECT)
 		{
@@ -319,7 +320,7 @@ HWND Create(HWND hParent, HINSTANCE hInstance, const TCHAR *title)
 	// 3. Request window sizes which actually make the client area map to a common resolution
 	HWND Ret;
 	int x=0, y=0, width=640, height=480;
-	Core::Callback_VideoGetWindowSize(x, y, width, height);
+	Host_GetRenderWindowSize(x, y, width, height);
 
 	 // TODO: Don't show if fullscreen
 	Ret = OpenWindow(hParent, hInstance, width, height, title);

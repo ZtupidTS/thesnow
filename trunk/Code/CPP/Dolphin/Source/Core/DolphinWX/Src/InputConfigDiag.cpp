@@ -26,10 +26,8 @@
 void GamepadPage::ConfigUDPWii(wxCommandEvent &event)
 {
 	UDPWrapper* const wrp = ((UDPConfigButton*)event.GetEventObject())->wrapper;
-	wxDialog * diag = new UDPConfigDiag(this, wrp);
-	diag->Center();
-	diag->ShowModal();
-	diag->Destroy();
+	UDPConfigDiag diag(this, wrp);
+	diag.ShowModal();
 }
 
 void GamepadPage::ConfigExtension(wxCommandEvent& event)
@@ -39,21 +37,21 @@ void GamepadPage::ConfigExtension(wxCommandEvent& event)
 	// show config diag, if "none" isn't selected
 	if (ex->switch_extension)
 	{
-		wxDialog* const dlg = new wxDialog(this, -1, WXTSTR_FROM_CSTR(ex->attachments[ex->switch_extension]->GetName().c_str()), wxDefaultPosition);
-		wxPanel* const pnl = new wxPanel(dlg, -1, wxDefaultPosition);
-		wxBoxSizer* const pnl_szr = new wxBoxSizer(wxHORIZONTAL);
+		wxDialog dlg(this, -1,
+			WXTSTR_FROM_CSTR(ex->attachments[ex->switch_extension]->GetName().c_str()),
+			wxDefaultPosition, wxDefaultSize);
 
+		wxBoxSizer* const main_szr = new wxBoxSizer(wxVERTICAL);
 		const std::size_t orig_size = control_groups.size();
 
-		ControlGroupsSizer* const szr = new ControlGroupsSizer(ex->attachments[ex->switch_extension], pnl, this, &control_groups);
-		pnl->SetSizerAndFit(szr);	// needed
-		pnl_szr->Add(pnl, 0, wxLEFT, 5);
-		dlg->SetSizerAndFit(pnl_szr);	// needed
+		ControlGroupsSizer* const szr =
+			new ControlGroupsSizer(ex->attachments[ex->switch_extension], &dlg, this, &control_groups);
+		main_szr->Add(szr, 0, wxLEFT, 5);
+		main_szr->Add(dlg.CreateButtonSizer(wxOK), 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 5);
+		dlg.SetSizerAndFit(main_szr);
+		dlg.Center();
 
-		dlg->Center();
-
-		dlg->ShowModal();
-		dlg->Destroy();
+		dlg.ShowModal();
 
 		// remove the new groups that were just added, now that the window closed
 		control_groups.resize(orig_size);
@@ -140,6 +138,7 @@ ControlDialog::ControlDialog(GamepadPage* const parent, InputPlugin& plugin, Con
 	SetSizerAndFit(szr);	// needed
 
 	UpdateGUI();
+	SetFocus();
 }
 
 ControlButton::ControlButton(wxWindow* const parent, ControllerInterface::ControlReference* const _ref, const unsigned int width, const std::string& label)
@@ -191,10 +190,10 @@ void InputConfigDialog::UpdateControlReferences()
 		(*i)->controller->UpdateReferences(g_controller_interface);
 }
 
-void InputConfigDialog::ClickSave(wxCommandEvent&)
+void InputConfigDialog::ClickSave(wxCommandEvent& event)
 {
 	m_plugin.SaveConfig();
-	Close();
+	event.Skip();
 }
 
 void ControlDialog::UpdateListContents()
@@ -541,15 +540,14 @@ wxStaticBoxSizer* ControlDialog::CreateControlChooser(wxWindow* const parent, wx
 	ctrls_sizer->Add(control_lbox, 1, wxEXPAND, 0);
 	ctrls_sizer->Add(button_sizer, 0, wxEXPAND, 0);
 
-	wxBoxSizer* const bottom_btns_sizer = new wxBoxSizer(wxHORIZONTAL);
-	bottom_btns_sizer->Add(clear_button, 0, wxLEFT, 5);
-	bottom_btns_sizer->AddStretchSpacer(1);
-	bottom_btns_sizer->Add(set_button, 0, wxRIGHT, 5);
+	wxSizer* const bottom_btns_sizer = CreateButtonSizer(wxOK);
+	bottom_btns_sizer->Prepend(set_button, 0, wxRIGHT, 5);
+	bottom_btns_sizer->Prepend(clear_button, 0, wxLEFT, 5);
 
 	main_szr->Add(range_sizer, 0, wxEXPAND|wxLEFT|wxRIGHT, 5);
 	main_szr->Add(ctrls_sizer, 0, wxEXPAND|wxLEFT|wxRIGHT|wxBOTTOM, 5);
 	main_szr->Add(textctrl, 1, wxEXPAND|wxLEFT|wxRIGHT|wxBOTTOM, 5);
-	main_szr->Add(bottom_btns_sizer, 0, wxEXPAND|wxBOTTOM, 5);
+	main_szr->Add(bottom_btns_sizer, 0, wxEXPAND|wxBOTTOM|wxRIGHT, 5);
 	main_szr->Add(m_bound_label, 0, wxCENTER, 0);
 
 	UpdateListContents();
@@ -974,24 +972,19 @@ InputConfigDialog::InputConfigDialog(wxWindow* const parent, InputPlugin& plugin
 	UpdateDeviceComboBox();
 	UpdateProfileComboBox();
 
-	wxButton* const close_button = new wxButton(this, -1, _("Save"));
+	wxButton* const close_button = new wxButton(this, wxID_OK, _("Save"));
 	_connect_macro_(close_button, InputConfigDialog::ClickSave, wxEVT_COMMAND_BUTTON_CLICKED, this);
-	_connect_macro_(close_button, InputConfigDialog::ClickSave, wxEVT_COMMAND_BUTTON_CLICKED, this);
+	wxButton* const cancel_button = new wxButton(this, wxID_CANCEL, _("Cancel"));
 
-	wxBoxSizer* btns = new wxBoxSizer(wxHORIZONTAL);
-	//btns->Add(new wxStaticText(this, -1, wxString::FromAscii(ver.c_str())), 0, wxLEFT|wxTOP, 5);
-	btns->AddStretchSpacer();
-	btns->Add(close_button, 0, 0, 0);
+	wxSizer* btns = CreateButtonSizer(wxNO_DEFAULT);
+	btns->Add(cancel_button);
+	btns->Add(close_button);
 
 	wxBoxSizer* const szr = new wxBoxSizer(wxVERTICAL);
 	szr->Add(m_pad_notebook, 0, wxEXPAND|wxTOP|wxLEFT|wxRIGHT, 5);
 	szr->Add(btns, 0, wxEXPAND|wxALL, 5);
 
-	SetSizerAndFit(szr);	// needed
-
-	// not needed here it seems, but it cant hurt
-	//Layout();
-
+	SetSizerAndFit(szr);
 	Center();
 
 	// live preview update timer

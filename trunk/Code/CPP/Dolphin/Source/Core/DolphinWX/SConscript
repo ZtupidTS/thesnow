@@ -3,7 +3,6 @@
 Import('env')
 import os
 import sys
-from SconsTests import utils
 
 if env['nowx']:
 	files = ['Src/MainNoGUI.cpp']
@@ -29,6 +28,7 @@ else:
 		'Src/Debugger/MemoryWindow.cpp',
 		'Src/Debugger/RegisterView.cpp',
 		'Src/Debugger/RegisterWindow.cpp',
+		'Src/FifoPlayerDlg.cpp',
 		'Src/Frame.cpp',
 		'Src/FrameAui.cpp',
 		'Src/FrameTools.cpp',
@@ -88,9 +88,9 @@ elif sys.platform == 'darwin':
 	languages = [] 
 	msgfmt = env.WhereIs('msgfmt')
 	if not msgfmt == None:
-		po_files = Glob('#Languages/*.po', strings = True)
+		po_files = Glob('#Languages/po/*.po', strings = True)
 		for po in po_files:
-			index_lo = po.find('Languages/') + len('Languages/')
+			index_lo = po.find('Languages/po/') + len('Languages/po/')
 			index_hi = po.find('.po')
 			lang = po[index_lo:index_hi]
 			lproj = os.sep + lang + '.lproj'
@@ -113,8 +113,7 @@ elif sys.platform == 'darwin':
 		CFBundleIdentifier = 'com.dolphin-emulator.dolphin',
 		CFBundleLocalizations = languages,
 		CFBundlePackageType = 'APPL',
-		CFBundleShortVersionString =
-			utils.GenerateRevFile('', Dir('#None').abspath, None),
+		CFBundleShortVersionString = env['svnrev'],
 		CFBundleVersion = '3.0',
 		LSMinimumSystemVersion = '10.5.4',
 		LSRequiresCarbon = True,

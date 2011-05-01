@@ -164,6 +164,8 @@ xcopy "$(SolutionDir)..\Externals\SDL\$(PlatformName)\*.dll" "$(TargetDir)" /e /
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
       <AdditionalIncludeDirectories>..\Common\Src;..\VideoCommon\Src;..\AudioCommon\Src;..\Core\Src;..\Core\Src\PowerPC\JitCommon;..\DebuggerWX\Src;..\..\..\Externals\Bochs_disasm;..\InputCommon\Src;..\DiscIO\Src;..\..\..\Externals\SFML\include;..\..\..\Externals\wxWidgets\include;..\..\..\Externals\CLRun\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OpenMPSupport>
+      </OpenMPSupport>
     </ClCompile>
     <Link />
     <PostBuildEvent>
@@ -192,6 +194,8 @@ xcopy "$(SolutionDir)..\Externals\SDL\$(PlatformName)\*.dll" "$(TargetDir)" /e /
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
       <AdditionalIncludeDirectories>..\Common\Src;..\VideoCommon\Src;..\AudioCommon\Src;..\Core\Src;..\Core\Src\PowerPC\JitCommon;..\DebuggerWX\Src;..\..\..\Externals\Bochs_disasm;..\InputCommon\Src;..\DiscIO\Src;..\..\..\Externals\SFML\include;..\..\..\Externals\wxWidgets\include;..\..\..\Externals\CLRun\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OpenMPSupport>
+      </OpenMPSupport>
     </ClCompile>
     <Link />
     <PostBuildEvent>
@@ -232,6 +236,7 @@ xcopy "$(SolutionDir)..\Externals\SDL\$(PlatformName)\*.dll" "$(TargetDir)" /e /
     <ClCompile Include="Src\Debugger\DebuggerUIUtil.cpp" />
     <ClCompile Include="Src\Debugger\DSPDebugWindow.cpp" />
     <ClCompile Include="Src\Debugger\DSPRegisterView.cpp" />
+    <ClCompile Include="Src\FifoPlayerDlg.cpp" />
     <ClCompile Include="Src\Frame.cpp" />
     <ClCompile Include="Src\FrameAui.cpp" />
     <ClCompile Include="Src\FrameTools.cpp" />
@@ -294,6 +299,7 @@ xcopy "$(SolutionDir)..\Externals\SDL\$(PlatformName)\*.dll" "$(TargetDir)" /e /
     <ClInclude Include="Src\Debugger\DebuggerUIUtil.h" />
     <ClInclude Include="Src\Debugger\DSPDebugWindow.h" />
     <ClInclude Include="Src\Debugger\DSPRegisterView.h" />
+    <ClInclude Include="Src\FifoPlayerDlg.h" />
     <ClInclude Include="Src\Frame.h" />
     <ClInclude Include="Src\GameListCtrl.h" />
     <ClInclude Include="Src\GeckoCodeDiag.h" />
@@ -362,6 +368,9 @@ xcopy "$(SolutionDir)..\Externals\SDL\$(PlatformName)\*.dll" "$(TargetDir)" /e /
     </ProjectReference>
     <ProjectReference Include="..\..\Plugins\Plugin_VideoOGL\Plugin_VideoOGL.vcxproj">
       <Project>{1909cd2d-1707-456f-86ca-0df42a727c99}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Plugins\Plugin_VideoSoftware\Plugin_VideoSoftware.vcxproj">
+      <Project>{9e9da440-e9ad-413c-b648-91030e792211}</Project>
     </ProjectReference>
     <ProjectReference Include="..\AudioCommon\AudioCommon.vcxproj">
       <Project>{37d007bd-d66c-4eaf-b56c-bd1aac340a05}</Project>

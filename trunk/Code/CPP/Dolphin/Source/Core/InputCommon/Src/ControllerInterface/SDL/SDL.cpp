@@ -30,11 +30,11 @@ void Init( std::vector<ControllerInterface::Device*>& devices )
 		for(int i = 0; i < SDL_NumJoysticks(); ++i)
 		{
 			SDL_Joystick* dev = SDL_JoystickOpen(i);
-			if ( dev )
+			if (dev)
 			{
 				Joystick* js = new Joystick(dev, i, name_counts[SDL_JoystickName(i)]++);
 				// only add if it has some inputs/outputs
-				if ( js->Inputs().size() || js->Outputs().size() )
+				if (js->Inputs().size() || js->Outputs().size())
 					devices.push_back( js );
 				else
 					delete js;
@@ -71,31 +71,29 @@ Joystick::Joystick(SDL_Joystick* const joystick, const int sdl_index, const unsi
 #endif
 
 	// get buttons
-	for ( int i = 0; i < SDL_JoystickNumButtons( m_joystick ); ++i )
-	{
-		AddInput( new Button( i ) );
-	}
+	for (u8 i = 0; i != SDL_JoystickNumButtons(m_joystick); ++i)
+		AddInput(new Button(i, m_joystick));
 	
 	// get hats
-	for ( int i = 0; i < SDL_JoystickNumHats( m_joystick ); ++i )
+	for (u8 i = 0; i != SDL_JoystickNumHats(m_joystick); ++i)
 	{
 		// each hat gets 4 input instances associated with it, (up down left right)
-		for ( unsigned int d = 0; d < 4; ++d )
-			AddInput( new Hat( i, d ) );
+		for (u8 d = 0; d != 4; ++d)
+			AddInput(new Hat(i, m_joystick, d));
 	}
 
 	// get axes
-	for ( int i = 0; i < SDL_JoystickNumAxes( m_joystick ); ++i )
+	for (u8 i = 0; i != SDL_JoystickNumAxes(m_joystick); ++i)
 	{
 		// each axis gets a negative and a positive input instance associated with it
-		AddInput( new Axis( i, -32768 ) );
-		AddInput( new Axis( i, 32767 ) );
+		AddInput(new Axis(i, m_joystick, -32768));
+		AddInput(new Axis(i, m_joystick, 32767));
 	}
 
 #ifdef USE_SDL_HAPTIC
 	// try to get supported ff effects
 	m_haptic = SDL_HapticOpenFromJoystick( m_joystick );
-	if ( m_haptic  )
+	if (m_haptic)
 	{
 		//SDL_HapticSetGain( m_haptic, 1000 );
 		//SDL_HapticSetAutocenter( m_haptic, 0 );
@@ -103,17 +101,17 @@ Joystick::Joystick(SDL_Joystick* const joystick, const int sdl_index, const unsi
 		const unsigned int supported_effects = SDL_HapticQuery( m_haptic );
 
 		// constant effect
-		if ( supported_effects & SDL_HAPTIC_CONSTANT )
+		if (supported_effects & SDL_HAPTIC_CONSTANT)
 		{
-			AddOutput( new ConstantEffect( m_state_out.size() ) );
-			m_state_out.push_back( EffectIDState() );
+			m_state_out.push_back(EffectIDState());
+			AddOutput(new ConstantEffect(m_state_out.back()));
 		}
 
 		// ramp effect
-		if ( supported_effects & SDL_HAPTIC_RAMP )
+		if (supported_effects & SDL_HAPTIC_RAMP)
 		{
-			AddOutput( new RampEffect( m_state_out.size() ) );
-			m_state_out.push_back( EffectIDState() );
+			m_state_out.push_back(EffectIDState());
+			AddOutput(new RampEffect(m_state_out.back()));
 		}
 	}
 #endif
@@ -123,22 +121,23 @@ Joystick::Joystick(SDL_Joystick* const joystick, const int sdl_index, const unsi
 Joystick::~Joystick()
 {
 #ifdef USE_SDL_HAPTIC
-	if ( m_haptic )
+	if (m_haptic)
 	{	
 		// stop/destroy all effects
-		SDL_HapticStopAll( m_haptic );
-		std::vector<EffectIDState>::iterator i = m_state_out.begin(),
+		SDL_HapticStopAll(m_haptic);
+		std::list<EffectIDState>::iterator
+			i = m_state_out.begin(),
 			e = m_state_out.end();
-		for ( ; i!=e; ++i )
-			if ( i->id != -1 )
-				SDL_HapticDestroyEffect( m_haptic, i->id );
+		for ( ; i != e; ++i)
+			if (i->id != -1)
+				SDL_HapticDestroyEffect(m_haptic, i->id);
 		// close haptic first
-		SDL_HapticClose( m_haptic );
+		SDL_HapticClose(m_haptic);
 	}
 #endif
 
 	// close joystick
-	SDL_JoystickClose( m_joystick );
+	SDL_JoystickClose(m_joystick);
 }
 
 #ifdef USE_SDL_HAPTIC
@@ -152,50 +151,38 @@ std::string Joystick::RampEffect::GetName() const
 	return "Ramp";
 }
 
-void Joystick::ConstantEffect::SetState( const ControlState state, Joystick::EffectIDState* const effect )
+void Joystick::ConstantEffect::SetState(const ControlState state)
 {
-	if ( state )
+	if (state)
 	{
-		effect->effect.type = SDL_HAPTIC_CONSTANT;
-		effect->effect.constant.length = SDL_HAPTIC_INFINITY;
+		m_effect.effect.type = SDL_HAPTIC_CONSTANT;
+		m_effect.effect.constant.length = SDL_HAPTIC_INFINITY;
 	}
 	else
-		effect->effect.type = 0;
+		m_effect.effect.type = 0;
 
-	Sint16 old = effect->effect.constant.level;
-	effect->effect.constant.level = state * 0x7FFF;
-	if ( old != effect->effect.constant.level )
-		effect->changed = true;
+	const Sint16 old = m_effect.effect.constant.level;
+	m_effect.effect.constant.level = state * 0x7FFF;
+	if (old != m_effect.effect.constant.level)
+		m_effect.changed = true;
 }
 
-void Joystick::RampEffect::SetState( const ControlState state, Joystick::EffectIDState* const effect )
+void Joystick::RampEffect::SetState(const ControlState state)
 {
-	if ( state )
+	if (state)
 	{
-		effect->effect.type = SDL_HAPTIC_RAMP;
-		effect->effect.ramp.length = SDL_HAPTIC_INFINITY;
+		m_effect.effect.type = SDL_HAPTIC_RAMP;
+		m_effect.effect.ramp.length = SDL_HAPTIC_INFINITY;
 	}
 	else
-		effect->effect.type = 0;
+		m_effect.effect.type = 0;
 	
-	Sint16 old = effect->effect.ramp.start;
-	effect->effect.ramp.start = state * 0x7FFF;
-	if ( old != effect->effect.ramp.start )
-		effect->changed = true;
+	const Sint16 old = m_effect.effect.ramp.start;
+	m_effect.effect.ramp.start = state * 0x7FFF;
+	if (old != m_effect.effect.ramp.start)
+		m_effect.changed = true;
 }
 #endif
-
-ControlState Joystick::GetInputState(const ControllerInterface::Device::Input* input) const
-{
-	return ((Input*)input)->GetState( m_joystick );
-}
-
-void Joystick::SetOutputState(const ControllerInterface::Device::Output* output, const ControlState state)
-{
-#ifdef USE_SDL_HAPTIC
-	((Output*)output)->SetState( state, &m_state_out[ ((Output*)output)->m_index ] );
-#endif
-}
 
 bool Joystick::UpdateInput()
 {
@@ -208,31 +195,34 @@ bool Joystick::UpdateInput()
 bool Joystick::UpdateOutput()
 {
 #ifdef USE_SDL_HAPTIC
-	std::vector<EffectIDState>::iterator i = m_state_out.begin(),
+	std::list<EffectIDState>::iterator
+		i = m_state_out.begin(),
 		e = m_state_out.end();
-	for ( ; i!=e; ++i )
-		if ( i->changed )	// if SetState was called on this output
+	for ( ; i != e; ++i)
+	{
+		if (i->changed)	// if SetState was called on this output
 		{
-			if ( -1 == i->id )	// effect isn't currently uploaded
+			if (-1 == i->id)	// effect isn't currently uploaded
 			{
-				if ( i->effect.type )		// if outputstate is >0  this would be true
-					if ( (i->id = SDL_HapticNewEffect( m_haptic, &i->effect )) > -1 )	// upload the effect
-						SDL_HapticRunEffect( m_haptic, i->id, 1 );	// run the effect
+				if (i->effect.type)		// if outputstate is >0  this would be true
+					if ((i->id = SDL_HapticNewEffect( m_haptic, &i->effect )) > -1)	// upload the effect
+						SDL_HapticRunEffect(m_haptic, i->id, 1);	// run the effect
 			}
 			else	// effect is already uploaded
 			{
-				if ( i->effect.type )	// if ouputstate >0
-					SDL_HapticUpdateEffect( m_haptic, i->id, &i->effect );	// update the effect
+				if (i->effect.type)	// if ouputstate >0
+					SDL_HapticUpdateEffect(m_haptic, i->id, &i->effect);	// update the effect
 				else
 				{
-					SDL_HapticStopEffect( m_haptic, i->id );	// else, stop and remove the effect
-					SDL_HapticDestroyEffect( m_haptic, i->id );
+					SDL_HapticStopEffect(m_haptic, i->id);	// else, stop and remove the effect
+					SDL_HapticDestroyEffect(m_haptic, i->id);
 					i->id = -1;	// mark it as not uploaded
 				}
 			}
 
 			i->changed = false;
 		}
+	}
 #endif
 	return true;
 }
@@ -255,14 +245,14 @@ int Joystick::GetId() const
 std::string Joystick::Button::GetName() const
 {
 	std::ostringstream ss;
-	ss << "Button " << m_index;
+	ss << "Button " << (int)m_index;
 	return ss.str();
 }
 
 std::string Joystick::Axis::GetName() const
 {
 	std::ostringstream ss;
-	ss << "Axis " << m_index << (m_range<0 ? '-' : '+');
+	ss << "Axis " << (int)m_index << (m_range<0 ? '-' : '+');
 	return ss.str();
 }
 
@@ -275,22 +265,20 @@ std::string Joystick::Hat::GetName() const
 	return tmpstr;
 }
 
-ControlState Joystick::Button::GetState( SDL_Joystick* const js ) const
+ControlState Joystick::Button::GetState() const
 {
-	return SDL_JoystickGetButton( js, m_index );
+	return SDL_JoystickGetButton(m_js, m_index);
 }
 
-ControlState Joystick::Axis::GetState( SDL_Joystick* const js ) const
+ControlState Joystick::Axis::GetState() const
 {
-	return std::max( 0.0f, ControlState(SDL_JoystickGetAxis( js, m_index )) / m_range );
+	return std::max(0.0f, ControlState(SDL_JoystickGetAxis(m_js, m_index)) / m_range);
 }
 
-ControlState Joystick::Hat::GetState( SDL_Joystick* const js ) const
+ControlState Joystick::Hat::GetState() const
 {
-	return (SDL_JoystickGetHat( js, m_index ) & ( 1 << m_direction )) > 0;
+	return (SDL_JoystickGetHat(m_js, m_index) & (1 << m_direction)) > 0;
 }
-
-
 
 }
 }

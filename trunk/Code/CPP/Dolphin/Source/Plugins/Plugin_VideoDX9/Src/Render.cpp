@@ -26,6 +26,7 @@
 #include "Thread.h"
 #include "Timer.h"
 #include "Statistics.h"
+#include "Host.h"
 
 #include "VideoConfig.h"
 #include "main.h"
@@ -258,7 +259,7 @@ Renderer::Renderer()
 	// Multisample Anti-aliasing hasn't been implemented yet use supersamling instead
 	int backbuffer_ms_mode = 0;
 
-	Core::Callback_VideoGetWindowSize(x, y, w_temp, h_temp);
+	Host_GetRenderWindowSize(x, y, w_temp, h_temp);
 
 	for (fullScreenRes = 0; fullScreenRes < (int)D3D::GetAdapter(g_ActiveConfig.iAdapter).resolutions.size(); fullScreenRes++)
 	{
@@ -423,19 +424,6 @@ bool Renderer::CheckForResize()
 	}
 	
 	return false;
-}
-
-void Renderer::SetWindowSize(int width, int height)
-{
-	if (width < 1)
-		width = 1;
-	if (height < 1)
-		height = 1;
-
-	// Scale the window size by the EFB scale.
-	CalculateTargetScale(width, height, width, height);
-
-	Core::Callback_VideoRequestWindowSize(width, height);
 }
 
 bool Renderer::SetScissorRect()
@@ -719,10 +707,10 @@ void Renderer::UpdateViewport()
 	int scissorYOff = bpmem.scissorOffset.y << 1;
 
 	// TODO: ceil, floor or just cast to int?
-	int X = EFBToScaledX((int)ceil(xfregs.rawViewport[3] - xfregs.rawViewport[0] - scissorXOff)) + TargetStrideX();
-	int Y = EFBToScaledY((int)ceil(xfregs.rawViewport[4] + xfregs.rawViewport[1] - scissorYOff)) + TargetStrideY();
-	int Width = EFBToScaledX((int)ceil(2.0f * xfregs.rawViewport[0]));
-	int Height = EFBToScaledY((int)ceil(-2.0f * xfregs.rawViewport[1]));
+	int X = EFBToScaledX((int)ceil(xfregs.viewport.xOrig - xfregs.viewport.wd - scissorXOff)) + TargetStrideX();
+	int Y = EFBToScaledY((int)ceil(xfregs.viewport.yOrig + xfregs.viewport.ht - scissorYOff)) + TargetStrideY();
+	int Width = EFBToScaledX((int)ceil(2.0f * xfregs.viewport.wd));
+	int Height = EFBToScaledY((int)ceil(-2.0f * xfregs.viewport.ht));
 	if (Width < 0)
 	{
 		X += Width;
@@ -759,6 +747,8 @@ void Renderer::UpdateViewport()
 			sizeChanged = true;
 		}
 	}
+
+	// TODO: If the size hasn't changed for X frames, we should probably shrink the EFB texture for performance reasons
 	if (sizeChanged)
 	{
 		const int ideal_width = s_Fulltarget_width;
@@ -804,8 +794,8 @@ void Renderer::UpdateViewport()
 	vp.Height = Height;
 	
 	// Some games set invalids values for z min and z max so fix them to the max an min alowed and let the shaders do this work
-	vp.MinZ = 0.0f; // (xfregs.rawViewport[5] - xfregs.rawViewport[2]) / 16777216.0f;
-	vp.MaxZ = 1.0f; // xfregs.rawViewport[5] / 16777216.0f;
+	vp.MinZ = 0.0f; // (xfregs.viewport.farZ - xfregs.viewport.zRange) / 16777216.0f;
+	vp.MaxZ = 1.0f; // xfregs.viewport.farZ / 16777216.0f;
 	D3D::dev->SetViewport(&vp);
 }
 
@@ -925,6 +915,8 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 	static int w = 0, h = 0;
 	if (g_bSkipCurrentFrame || (!XFBWrited && (!g_ActiveConfig.bUseXFB || !g_ActiveConfig.bUseRealXFB)) || !fbWidth || !fbHeight)
 	{
+		if (g_ActiveConfig.bDumpFrames && data)
+			AVIDump::AddFrame(data);
 		Core::Callback_VideoCopiedToXFB(false);
 		return;
 	}
@@ -1375,7 +1367,7 @@ void Renderer::SetDitherMode()
 void Renderer::SetLineWidth()
 {
 	// We can't change line width in D3D unless we use ID3DXLine
-	float fratio = xfregs.rawViewport[0] != 0 ? Renderer::EFBToScaledXf(1.f) : 1.0f;
+	float fratio = xfregs.viewport.wd != 0 ? Renderer::EFBToScaledXf(1.f) : 1.0f;
 	float psize = bpmem.lineptwidth.linesize * fratio / 6.0f;
 	D3D::SetRenderState(D3DRS_POINTSIZE, *((DWORD*)&psize));
 }

@@ -25,7 +25,6 @@
 namespace DSPInterpreter {
 
 void Step();
-void Run();
 
 // See: DspIntBranch.cpp
 void HandleLoop();
@@ -33,6 +32,7 @@ void HandleLoop();
 // If these simply return the same number of cycles as was passed into them,
 // chances are that the DSP is halted.
 // The difference between them is that the debug one obeys breakpoints.
+int RunCyclesThread(int cycles);
 int RunCycles(int cycles);
 int RunCyclesDebug(int cycles);
 
@@ -45,7 +45,6 @@ u16  ReadCR();
 typedef void (*DSPInterpreterFunc)(const UDSPInstruction opc);
 
 // All the opcode functions.
-void unknown(const UDSPInstruction opc);
 void call(const UDSPInstruction opc);
 void callr(const UDSPInstruction opc);
 void ifcc(const UDSPInstruction opc);

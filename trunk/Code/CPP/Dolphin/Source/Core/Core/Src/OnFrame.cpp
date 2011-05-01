@@ -52,7 +52,7 @@ int g_numPads = 0;
 ControllerState g_padState;
 File::IOFile g_recordfd;
 
-u64 g_frameCounter = 0, g_lagCounter = 0, g_totalFrameCount = 0;
+u32 g_frameCounter = 0, g_lagCounter = 0, g_totalFrameCount = 0, g_InputCounter = 0;
 bool g_bRecordingFromSaveState = false;
 bool g_bPolled = false;
 
@@ -91,6 +91,11 @@ void FrameUpdate()
 		FrameSkipping();
 	
 	g_bPolled = false;
+}
+
+void InputUpdate()
+{
+	g_InputCounter++;
 }
 
 void SetFrameSkipping(unsigned int framesToSkip)
@@ -139,7 +144,7 @@ void FrameSkipping()
 		std::lock_guard<std::mutex> lk(cs_frameSkip);
 
 		g_frameSkipCounter++;
-		if (g_frameSkipCounter > g_framesToSkip || Core::report_slow(g_frameSkipCounter) == false)
+		if (g_frameSkipCounter > g_framesToSkip || Core::ShouldSkipFrame(g_frameSkipCounter) == false)
 			g_frameSkipCounter = 0;
 		
 		g_video_backend->Video_SetRendering(!g_frameSkipCounter);
@@ -200,12 +205,12 @@ bool BeginRecordingInput(int controllers)
 	if(File::Exists(g_recordFile))
 		File::Delete(g_recordFile);
 
-	if (Core::isRunning())
+	if (Core::IsRunning())
 	{
 		const std::string stateFilename = g_recordFile + ".sav";
 		if(File::Exists(stateFilename))
 			File::Delete(stateFilename);
-		State_SaveAs(stateFilename.c_str());
+		State::SaveAs(stateFilename.c_str());
 		g_bRecordingFromSaveState = true;
 	}
 
@@ -223,7 +228,7 @@ bool BeginRecordingInput(int controllers)
 	
 	g_frameCounter = 0;
 	g_lagCounter = 0;
-	
+	g_InputCounter = 0;
 	g_playMode = MODE_RECORDING;
 	
 	Core::DisplayMessage("Starting movie recording", 2000);
@@ -337,7 +342,7 @@ void RecordWiimote(int wiimote, u8 *data, s8 size)
 {
 	if(!IsRecordingInput() || !IsUsingWiimote(wiimote))
 		return;
-
+	g_InputCounter++;
 	g_recordfd.WriteArray(&size, 1);
 	g_recordfd.WriteArray(data, 1);
 }
@@ -423,7 +428,8 @@ void LoadInput(const char *filename)
 	
 	g_frameCounter = header.frameCount;
 	g_totalFrameCount = header.frameCount;
-	
+	g_InputCounter = header.InputCount;
+
 	g_numPads = header.numControllers;
 	
 	ChangePads(true);
@@ -539,7 +545,7 @@ bool PlayWiimote(int wiimote, u8 *data, s8 &size)
 	s8 count = 0;
 	if(!IsPlayingInput() || !IsUsingWiimote(wiimote))
 		return false;
-
+	g_InputCounter++;
 	g_recordfd.ReadArray(&count, 1);
 	size = (count > size) ? size : count;
 	
@@ -579,7 +585,7 @@ void EndPlayInput(bool cont)
 
 void SaveRecording(const char *filename)
 {
-	const off_t size = g_recordfd.Tell();
+	const u64 size = g_recordfd.Tell();
 
 	// NOTE: Eventually this will not happen in
 	// read-only mode, but we need a way for the save state to
@@ -601,6 +607,7 @@ void SaveRecording(const char *filename)
 		header.frameCount = g_frameCounter;
 		header.lagCount = g_lagCounter; 
 		header.numRerecords = g_rerecords;
+		header.InputCount = g_InputCounter;
 		
 		// TODO
 		header.uniqueID = 0; 
