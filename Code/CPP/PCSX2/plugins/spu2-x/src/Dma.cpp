@@ -274,7 +274,7 @@ void V_Core::PlainDMAWrite(u16 *pMem, u32 size)
 
 			if ((Cores[i].IRQEnable && (Cores[i].IRQA >= TSA)) || (Cores[i].IRQA < TDA))
 			{
-				ConLog("DMAwrite Core %d: IRQ Called (IRQ passed). IRQA = %x Cycles = %d\n", i, Cores[i].IRQA, Cycles );
+				//ConLog("DMAwrite Core %d: IRQ Called (IRQ passed). IRQA = %x Cycles = %d\n", i, Cores[i].IRQA, Cycles );
 				SetIrqCall(i);
 			}
 		}
@@ -302,7 +302,7 @@ void V_Core::PlainDMAWrite(u16 *pMem, u32 size)
 
 			if( Cores[i].IRQEnable && (Cores[i].IRQA >= TSA) && (Cores[i].IRQA < TDA) )
 			{
-				ConLog("DMAwrite Core %d: IRQ Called (IRQ passed). IRQA = %x Cycles = %d\n", i, Cores[i].IRQA, Cycles );
+				//ConLog("DMAwrite Core %d: IRQ Called (IRQ passed). IRQA = %x Cycles = %d\n", i, Cores[i].IRQA, Cycles );
 				SetIrqCall(i);
 			}
 		}
@@ -403,7 +403,10 @@ void V_Core::DoDMAwrite(u16* pMem, u32 size)
 	}
 
 	if( IsDevBuild )
+	{
 		DebugCores[Index].lastsize = size;
+		DebugCores[Index].dmaFlag = 2;
+	}
 
 	TSA &= ~7;
 
@@ -518,7 +521,10 @@ s32 V_Core::NewDmaWrite(u32* data, u32 bytesLeft, u32* bytesProcessed)
 	}
 
 	if( IsDevBuild )
+	{
 		DebugCores[Index].lastsize = bytesLeft;
+		DebugCores[Index].dmaFlag = 1;
+	}
 
 	TSA &= ~7;
 
@@ -527,7 +533,6 @@ s32 V_Core::NewDmaWrite(u32* data, u32 bytesLeft, u32* bytesProcessed)
 	if(adma_enable)
 	{
 		TSA&=0x1fff;
-		//Console.Error("* SPU2-X: AutoDMA transfers not supported yet! (core %d)\n", Index);
 
 		if(MsgAutoDMA() && DmaStarting) ConLog("* SPU2-X: DMA%c AutoDMA Transfer of %d bytes to %x (%02x %x %04x).\n",
 			GetDmaIndexChar(), bytesLeft<<1, TSA, DMABits, AutoDMACtrl, (~Regs.ATTR)&0x7fff);
