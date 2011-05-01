@@ -129,6 +129,7 @@ bool isoFile::Detect( bool readType )
 	m_blockofs	= 0;
 	m_type		= ISOTYPE_AUDIO;
 
+	//BUG: This also detects a memory-card-file as a valid Audio-CD ISO... -avih
 	return true;
 }
 
@@ -412,8 +413,8 @@ void isoFile::Open( const wxString& srcfile )
 	
 	if (!Detect())
 		throw Exception::BadStream()
-			.SetUserMsg(L"Unrecognized ISO image file format")
-			.SetDiagMsg(_("ISO mounting failed: PCSX2 is unable to identify the ISO image type."));
+			.SetUserMsg(_("Unrecognized ISO image file format"))
+			.SetDiagMsg(L"ISO mounting failed: PCSX2 is unable to identify the ISO image type.");
 
 	if (!(m_flags & ISOFLAGS_BLOCKDUMP_V2))
 	{
@@ -525,8 +526,11 @@ void _IsoPart::Read( void* dest, size_t size )
 	// must always use the explicit check against the number of bytes read to determine
 	// end-of-stream conditions.
 
+	// Throwing exceptions here ends emulation. 
+	// We should let the game decide what to do with missing data though.
 	if ((size_t)handle->LastRead() < size)
-		throw Exception::EndOfStream( filename );
+		Console.Warning( "ISO read problem (Bad game rip?)" );
+		//throw Exception::EndOfStream( filename );
 }
 
 void _IsoPart::Seek(wxFileOffset pos, wxSeekMode mode)

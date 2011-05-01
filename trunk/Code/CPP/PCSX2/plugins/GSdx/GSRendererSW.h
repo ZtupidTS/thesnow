@@ -31,6 +31,7 @@ protected:
 	GSRasterizerList m_rl;
 	GSTextureCacheSW* m_tc;
 	GSTexture* m_texture[2];
+	uint8* m_output;
 	bool m_reset;
 
 	void Reset();
@@ -41,19 +42,12 @@ protected:
 	void Draw();
 	void InvalidateVideoMem(const GIFRegBITBLTBUF& BITBLTBUF, const GSVector4i& r);
 
-	void GetScanlineParam(GSScanlineParam& p, GS_PRIM_CLASS primclass);
+	bool GetScanlineGlobalData(GSScanlineGlobalData& gd);
 
 public:
-	GSRendererSW();
+	GSRendererSW(int threads);
 	virtual ~GSRendererSW();
 
-	template<uint32 prim>
-	void DrawingKick( bool skip );
-
-	void DoVertexKick();
-
-	void InvalidateTextureCache()
-	{
-		m_tc->RemoveAll();
-	}
+	template<uint32 prim, uint32 tme, uint32 fst> 
+	void VertexKick(bool skip);
 };

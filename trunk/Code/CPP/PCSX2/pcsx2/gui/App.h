@@ -86,11 +86,12 @@ enum MenuIdentifiers
 	MenuId_Src_NoDisc,
 	MenuId_Boot_Iso,			// Opens submenu with Iso browser, and recent isos.
 	MenuId_IsoSelector,			// Contains a submenu of selectable "favorite" isos
-	MenuId_IsoBrowse,			// Open dialog, runs selected iso.
+	MenuId_RecentIsos_reservedStart,
+	MenuId_IsoBrowse = MenuId_RecentIsos_reservedStart + 100,			// Open dialog, runs selected iso.
 	MenuId_Boot_CDVD,
 	MenuId_Boot_CDVD2,
 	MenuId_Boot_ELF,
-	MenuId_Boot_Recent,			// Menu populated with recent source bootings
+	//MenuId_Boot_Recent,			// Menu populated with recent source bootings
 
 
 	MenuId_Sys_SuspendResume,	// suspends/resumes active emulation, retains plugin states
@@ -98,6 +99,7 @@ enum MenuIdentifiers
 	MenuId_Sys_Shutdown,		// Closes virtual machine, shuts down plugins, wipes states.
 	MenuId_Sys_LoadStates,		// Opens load states submenu
 	MenuId_Sys_SaveStates,		// Opens save states submenu
+	MenuId_EnableBackupStates,	// Checkbox to enable/disables savestates backup
 	MenuId_EnablePatches,
 	MenuId_EnableCheats,
 	MenuId_EnableHostFs,
@@ -105,7 +107,8 @@ enum MenuIdentifiers
 	MenuId_State_Load,
 	MenuId_State_LoadOther,
 	MenuId_State_Load01,		// first of many load slots
-	MenuId_State_Save = MenuId_State_Load01+20,
+	MenuId_State_LoadBackup = MenuId_State_Load01+20,
+	MenuId_State_Save,
 	MenuId_State_SaveOther,
 	MenuId_State_Save01,		// first of many save slots
 
@@ -149,7 +152,6 @@ enum MenuIdentifiers
 	MenuId_Profiler,			// Enable profiler
 	MenuId_Console,				// Enable console
 	MenuId_Console_Stdio,		// Enable Stdio
-	MenuId_CDVD_Info,
 
 	// Debug Subsection
 	MenuId_Debug_Open,			// opens the debugger window / starts a debug session
@@ -544,7 +546,7 @@ public:
 	bool TestUserPermissionsRights( const wxDirName& testFolder, wxString& createFailedStr, wxString& accessFailedStr );
 	void EstablishAppUserMode();
 
-	wxConfigBase* ReadUserModeSettings();
+	wxConfigBase* OpenInstallSettingsFile();
 	wxConfigBase* TestForPortableInstall();
 
 	bool HasPendingSaves() const;

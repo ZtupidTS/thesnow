@@ -37,7 +37,7 @@ static wxString i18n_GetBetterLanguageName( const wxLanguageInfo* info )
 	{
 		case wxLANGUAGE_CHINESE:				return L"Chinese (Traditional)";
 		case wxLANGUAGE_CHINESE_TRADITIONAL:	return L"Chinese (Traditional)";
-		case wxLANGUAGE_CHINESE_TAIWAN:			return L"Chinese (Traditional, Taiwan)";
+		case wxLANGUAGE_CHINESE_TAIWAN:			return L"Chinese (Traditional)";
 		case wxLANGUAGE_CHINESE_HONGKONG:		return L"Chinese (Traditional, Hong Kong)";
 		case wxLANGUAGE_CHINESE_MACAU:			return L"Chinese (Traditional, Macau)";
 	}
@@ -60,6 +60,7 @@ LangPackEnumeration::LangPackEnumeration()
 {
 	wxLangId = wxLANGUAGE_DEFAULT;
 	englishName = L" System Default";		// left-side space forces it to sort to the front of the lists
+	englishName += _(" (default)");
 	canonicalName = L"default";
 
 	int sysLang = wxLocale::GetSystemLanguage();
@@ -71,8 +72,9 @@ LangPackEnumeration::LangPackEnumeration()
 	//	englishName += L" [" + i18n_GetBetterLanguageName(info) + L"]";
 }
 
-static void i18n_DoPackageCheck( wxLanguage wxLangId, LangPackList& langs )
+static void i18n_DoPackageCheck( wxLanguage wxLangId, LangPackList& langs, bool& valid_stat )
 {
+	valid_stat = false;
 	if( i18n_IsLegacyLanguageId( wxLangId ) ) return;
 
 	// note: wx preserves the current locale for us, so creating a new locale and deleting
@@ -85,7 +87,10 @@ static void i18n_DoPackageCheck( wxLanguage wxLangId, LangPackList& langs )
 
 	if ((locale->GetLanguage() == wxLANGUAGE_ENGLISH_US) ||
 		(locale->IsOk() && locale->AddCatalog( L"pcsx2_Main", wxLANGUAGE_UNKNOWN, NULL )) )
+	{
 		langs.push_back( LangPackEnumeration( wxLangId ) );
+		valid_stat = true;
+	}
 }
 
 // Finds all valid PCSX2 language packs, and enumerates them for configuration selection.
@@ -105,10 +110,11 @@ void i18n_EnumeratePackages( LangPackList& langs )
 {
 	wxDoNotLogInThisScope here;		// wx generates verbose errors if languages don't exist, so disable them here.
 	langs.push_back( LangPackEnumeration() );
+	bool valid_stat_dummy;
 
 	for( int li=wxLANGUAGE_UNKNOWN+1; li<wxLANGUAGE_USER_DEFINED; ++li )
 	{
-		i18n_DoPackageCheck( (wxLanguage)li, langs );
+		i18n_DoPackageCheck( (wxLanguage)li, langs, valid_stat_dummy );
 	}
 
 	// Brilliant.  Because someone in the wx world didn't think to move wxLANGUAGE_USER_DEFINED
@@ -144,6 +150,37 @@ bool i18n_SetLanguage( const wxString& langCode )
 }
 #endif
 
+// Multiple language ID are actually mostly identical languages. In case a translation is not
+// yet provided for the dialect fallback to the main one. It would reduce the burden of the
+// translators and reduce the language pack.
+static wxLanguage i18n_FallbackToAnotherLang( wxLanguage wxLangId )
+{
+	// if some translations are provided, do not change the language
+	LangPackList dummy_lang;
+	bool valid_stat = false;
+	i18n_DoPackageCheck(wxLangId, dummy_lang, valid_stat);
+	if (valid_stat) return wxLangId;
+
+	switch(wxLangId)
+	{
+		case wxLANGUAGE_CHINESE_HONGKONG  : 
+		case wxLANGUAGE_CHINESE_MACAU     : return wxLANGUAGE_CHINESE_TRADITIONAL;
+		case wxLANGUAGE_CHINESE_SINGAPORE : return wxLANGUAGE_CHINESE_SIMPLIFIED;
+		case wxLANGUAGE_SWEDISH_FINLAND   : return wxLANGUAGE_SWEDISH;
+		case wxLANGUAGE_PORTUGUESE        : return wxLANGUAGE_PORTUGUESE_BRAZILIAN;
+		// Overkill 9000?
+		case wxLANGUAGE_GERMAN_AUSTRIAN   :
+		case wxLANGUAGE_GERMAN_BELGIUM    :
+		case wxLANGUAGE_GERMAN_LIECHTENSTEIN :
+		case wxLANGUAGE_GERMAN_LUXEMBOURG :
+		case wxLANGUAGE_GERMAN_SWISS      :
+                                            return wxLANGUAGE_GERMAN;
+		
+		default                           : break;
+	}
+	return wxLangId;
+}
+
 // This method sets the requested language, based on wxLanguage id and an optional 'confirmation'
 // canonical code.  If the canonical code is provided, it is used to confirm that the ID matches
 // the intended language/dialect.  If the ID and canonical do not match, this method will use
@@ -164,6 +201,13 @@ bool i18n_SetLanguage( const wxString& langCode )
 bool i18n_SetLanguage( wxLanguage wxLangId, const wxString& langCode )
 {
 	const wxLanguageInfo* info = wxLocale::GetLanguageInfo(wxLangId);
+
+	// Check if you can load a similar language in case the current one is not yet provided
+	if (info) {
+		wxLanguage LangId_fallback = i18n_FallbackToAnotherLang((wxLanguage)info->Language);
+		if (LangId_fallback != (wxLanguage)info->Language)
+			info = wxLocale::GetLanguageInfo(LangId_fallback);
+	}
 
 	// note: language canonical name mismatch probably means wxWidgets version changed since 
 	// the user's ini file was provided.  Missing/invalid ID probably means the same thing.
@@ -221,7 +265,7 @@ bool i18n_SetLanguage( wxLanguage wxLangId, const wxString& langCode )
 		L"pcsx2_Iconized",
 		L"pcsx2_Tertiary",
 #ifdef PCSX2_DEVBUILD
-		L"pcsx2_devel"
+		L"pcsx2_Devel"
 #endif
 	};
 	
@@ -244,4 +288,16 @@ bool i18n_SetLanguage( wxLanguage wxLangId, const wxString& langCode )
 
 	locale.DetachPtr();
 	return true;
+}
+
+// This method sets the lookup path to search l10n files
+void i18n_SetLanguagePath()
+{
+	// default location for windows
+	wxLocale::AddCatalogLookupPathPrefix( wxGetCwd() );
+	// additional location for linux
+#ifdef __LINUX__
+	wxLocale::AddCatalogLookupPathPrefix( PathDefs::GetLangs().ToString() );
+#endif
+
 }

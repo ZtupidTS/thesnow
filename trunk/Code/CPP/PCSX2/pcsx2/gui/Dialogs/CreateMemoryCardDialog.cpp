@@ -18,14 +18,13 @@
 #include "System.h"
 
 #include "MemoryCardFile.h"
-
-#include <wx/filepicker.h>
+//#include <wx/filepicker.h>
 #include <wx/ffile.h>
 
 using namespace pxSizerFlags;
 
 extern wxString GetMsg_McdNtfsCompress();
-
+/*
 wxFilePickerCtrl* CreateMemoryCardFilePicker( wxWindow* parent, uint portidx, uint slotidx, const wxString& filename=wxEmptyString )
 {
 	return new wxFilePickerCtrl( parent, wxID_ANY, filename,
@@ -36,15 +35,15 @@ wxFilePickerCtrl* CreateMemoryCardFilePicker( wxWindow* parent, uint portidx, ui
 	);
 
 }
-
-Dialogs::CreateMemoryCardDialog::CreateMemoryCardDialog( wxWindow* parent, uint slot, const wxDirName& mcdpath, const wxString& mcdfile )
-	: wxDialogWithHelpers( parent, _("创建一个新内存卡") )
-	, m_mcdpath( mcdpath.IsOk() ? mcdpath : (wxDirName)g_Conf->Mcd[slot].Filename.GetPath() )
-	, m_mcdfile( mcdfile.IsEmpty() ? g_Conf->Mcd[slot].Filename.GetFullName() : mcdfile )
+*/
+Dialogs::CreateMemoryCardDialog::CreateMemoryCardDialog( wxWindow* parent, const wxDirName& mcdpath, const wxString& suggested_mcdfileName)
+	: wxDialogWithHelpers( parent, _("创建一个新内存卡文件") )
+	, m_mcdpath( mcdpath )
+	, m_mcdfile( suggested_mcdfileName )//suggested_and_result_mcdfileName.IsEmpty() ? g_Conf->Mcd[slot].Filename.GetFullName()
 {
+
 	SetMinWidth( 472 );
-	m_filepicker	= NULL;
-	m_slot			= slot;
+	//m_filepicker	= NULL;
 
 	CreateControls();
 
@@ -65,44 +64,58 @@ Dialogs::CreateMemoryCardDialog::CreateMemoryCardDialog( wxWindow* parent, uint 
 
 	//s_padding += Heading(_("Select the size for your new memory card."));
 
-	if( m_filepicker )
-		s_padding += m_filepicker			| StdExpand();
-	else
+//	if( m_filepicker )
+//		s_padding += m_filepicker			| StdExpand();
+//	else
 	{
-		s_padding += Heading( _( "新内存卡将被保存到:" ) )					| StdExpand();
-		s_padding += Heading( (m_mcdpath + m_mcdfile).GetFullPath() ).Unwrapped()	| StdExpand();
+		s_padding += Heading( _( "新内存卡文件:" ) )					| StdExpand();
+		s_padding += Heading( wxString(_("于目录:    ")) + (m_mcdpath + m_mcdfile).GetPath() ).Unwrapped()	| StdExpand();
+
+		wxBoxSizer& s_filename( *new wxBoxSizer(wxHORIZONTAL) );
+		s_filename += Heading( _("选择文件名: ")).SetMinWidth(150);
+		m_text_filenameInput->SetMinSize(wxSize(150,20));
+		m_text_filenameInput->SetValue ((m_mcdpath + m_mcdfile).GetName());
+		s_filename += m_text_filenameInput;
+		s_filename += Heading( L".ps2" );
+
+		s_padding += s_filename | wxALIGN_LEFT;
+
 	}
-	
+
 	s_padding += m_radio_CardSize			| StdExpand();
 	#ifdef __WXMSW__
 	if( m_check_CompressNTFS )
 		s_padding += m_check_CompressNTFS	| StdExpand();
 	#endif
-	
+
 	s_padding += 12;
 	s_padding += s_buttons	| StdCenter();
 
 	*this += s_padding | StdExpand();
 
-	Connect( wxID_OK,		wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( CreateMemoryCardDialog::OnOk_Click ) );
-}
+	Connect( wxID_OK,							wxEVT_COMMAND_BUTTON_CLICKED,	wxCommandEventHandler( CreateMemoryCardDialog::OnOk_Click ) );
+	Connect( m_text_filenameInput->GetId(),		wxEVT_COMMAND_TEXT_ENTER,		wxCommandEventHandler( CreateMemoryCardDialog::OnOk_Click ) );
 
+	m_text_filenameInput->SetFocus();
+	m_text_filenameInput->SelectAll();
+}
+/*
 wxDirName Dialogs::CreateMemoryCardDialog::GetPathToMcds() const
 {
 	return m_filepicker ? (wxDirName)m_filepicker->GetPath() : m_mcdpath;
 }
-
+*/
 // When this GUI is moved into the FileMemoryCard plugin (where it eventually belongs),
 // this function will be removed and the MemoryCardFile::Create() function will be used
 // instead.
-static bool CreateIt( const wxString& mcdFile, uint sizeInMB )
+bool Dialogs::CreateMemoryCardDialog::CreateIt( const wxString& mcdFile, uint sizeInMB )
 {
 	//int enc[16] = {0x77,0x7f,0x7f,0x77,0x7f,0x7f,0x77,0x7f,0x7f,0x77,0x7f,0x7f,0,0,0,0};
 
 	u8	m_effeffs[528*16];
 	memset8<0xff>( m_effeffs );
 
-	Console.WriteLn( L"(FileMcd) Creating new %uMB memory card: " + mcdFile, sizeInMB );
+	Console.WriteLn( L"(FileMcd) Creating new %uMB memory card: '%s'", sizeInMB, mcdFile.c_str() );
 
 	wxFFile fp( mcdFile, L"wb" );
 	if( !fp.IsOpened() ) return false;
@@ -114,6 +127,7 @@ static bool CreateIt( const wxString& mcdFile, uint sizeInMB )
 		if( fp.Write( m_effeffs, sizeof(m_effeffs) ) == 0 )
 			return false;
 	}
+
 	return true;
 }
 
@@ -125,18 +139,34 @@ void Dialogs::CreateMemoryCardDialog::OnOk_Click( wxCommandEvent& evt )
 #ifdef __WXMSW__
 	g_Conf->McdCompressNTFS = m_check_CompressNTFS->GetValue();
 #endif
+	result_createdMcdFilename=L"_INVALID_FILE_NAME_";
+	wxString composedName = m_text_filenameInput->GetValue().Trim() + L".ps2";
 
+	wxString errMsg;
+	if( !isValidNewFilename(composedName, m_mcdpath, errMsg, 5) )
+	{
+		wxString message;
+		message.Printf(_("Error (%s)"), errMsg.c_str());
+		Msgbox::Alert( message, _("Create memory card") );
+		m_text_filenameInput->SetFocus();
+		m_text_filenameInput->SelectAll();
+		return;
+	}
+
+	wxString fullPath=(m_mcdpath + composedName).GetFullPath();
 	if( !CreateIt(
-		m_filepicker		? m_filepicker->GetPath()					: (m_mcdpath + m_mcdfile).GetFullPath(),
+		fullPath,
 		m_radio_CardSize	? m_radio_CardSize->SelectedItem().SomeInt	: 8
 	) )
 	{
 		Msgbox::Alert(
-			_("错误: 内存卡不能创建."),
-			_("内存卡创建错误")
+			_("错误: 内存卡文件不能创建."),
+			_("创建内存卡")
 		);
 		return;
 	}
+
+	result_createdMcdFilename = composedName;
 	EndModal( wxID_OK );
 }
 
@@ -157,6 +187,8 @@ void Dialogs::CreateMemoryCardDialog::CreateControls()
 	// the option, it remains checked for future dialog.  If the user unchecks it, ditto.
 	m_check_CompressNTFS->SetValue( g_Conf->McdCompressNTFS );
 	#endif
+
+	m_text_filenameInput = new wxTextCtrl( this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_PROCESS_ENTER);
 
 	const RadioPanelItem tbl_CardSizes[] =
 	{

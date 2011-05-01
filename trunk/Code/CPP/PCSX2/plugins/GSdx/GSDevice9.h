@@ -67,14 +67,13 @@ struct GSVertexShader9
 
 class GSDevice9 : public GSDeviceDX
 {
-	GSTexture* Create(int type, int w, int h, bool msaa, int format);
+	GSTexture* CreateSurface(int type, int w, int h, bool msaa, int format);
 
-	void DoMerge(GSTexture* st[2], GSVector4* sr, GSVector4* dr, GSTexture* dt, bool slbg, bool mmod, const GSVector4& c);
+	void DoMerge(GSTexture* st[2], GSVector4* sr, GSTexture* dt, GSVector4* dr, bool slbg, bool mmod, const GSVector4& c);
 	void DoInterlace(GSTexture* st, GSTexture* dt, int shader, bool linear, float yoffset = 0);
 
 	//
 
-	//DDCAPS m_ddcaps; // Unreferenced
 	D3DCAPS9 m_d3dcaps;
 	D3DPRESENT_PARAMETERS m_pp;
 	CComPtr<IDirect3D9> m_d3d;
@@ -137,7 +136,7 @@ public: // TODO
 		Direct3DBlendState9 bs;
 	} m_date;
 
-	void SetupDATE(GSTexture* rt, GSTexture* ds, const GSVertexPT1 (&iaVertices)[4], bool datm);
+	void SetupDATE(GSTexture* rt, GSTexture* ds, const GSVertexPT1* vertices, bool datm);
 
 	// Shaders...
 
@@ -160,7 +159,7 @@ public:
 	bool IsLost(bool update);
 	void Flip();
 
-	void SetVsync(bool enable);
+	void SetVSync(bool enable);
 
 	void BeginScene();
 	void DrawPrimitive();
@@ -214,7 +213,8 @@ public:
 	bool HasStencil() { return m_depth_format == D3DFMT_D24S8; }
 	bool HasDepth32() { return m_depth_format != D3DFMT_D24S8; }
 
-	static uint GetMaxDepth(uint msaaCount);
+	static uint32 GetMaxDepth(uint32 msaaCount);
 	static void ForceValidMsaaConfig();
 
 };
+

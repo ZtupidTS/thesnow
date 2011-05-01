@@ -564,7 +564,7 @@ __fi int GIFPath::ParseTagQuick(GIF_PATH pathidx, const u8* pMem, u32 size)
 					//  split time to EE and other processors, and then resume the kick's DMA later.  
 					//  ... yea, not happening for a while. ;) -- air
 
-					Console.Warning("GIFTAG error, size exceeded VU memory size %x", startSize);
+					Console.Warning("GIFTAG warning, size exceeded VU memory size %x", startSize);
 					nloop	= 0;
 					const_cast<GIFTAG&>(tag).EOP = 1;
 				}
@@ -631,6 +631,8 @@ __fi int GIFPath::CopyTag(const u128* pMem128, u32 size)
 	uint& ringpos = GetMTGS().m_packet_writepos;
 	const uint original_ringpos = ringpos;
 
+	
+
 	u32	startSize =  size;						// Start Size
 
 	while (size > 0) {
@@ -639,7 +641,7 @@ __fi int GIFPath::CopyTag(const u128* pMem128, u32 size)
 			SetTag<Aligned>((u8*)pMem128);
 			copyTag();
 
-			GifTagLog("\tSetTag: %ls", tag.ToString().c_str());
+			GifTagLog("\tSetTag: %ls Path %d", tag.ToString().c_str(), pathidx + 1);
 
 			if(nloop > 0)
 			{
@@ -654,30 +656,21 @@ __fi int GIFPath::CopyTag(const u128* pMem128, u32 size)
 						else GSTransferStatus.PTH2 = TRANSFER_MODE;
 						break;
 					case GIF_PATH_3:
-						if(vif1Regs.mskpath3 == 1 && GSTransferStatus.PTH3 == STOPPED_MODE) 
-						{
-							GSTransferStatus.PTH3 = IDLE_MODE;
-							
-						}
-						else
-						{
-							if(tag.FLG & 2)	GSTransferStatus.PTH3 = IMAGE_MODE;
-							else GSTransferStatus.PTH3 = TRANSFER_MODE;
-						}
+						if(tag.FLG & 2)	GSTransferStatus.PTH3 = IMAGE_MODE;
+						else GSTransferStatus.PTH3 = TRANSFER_MODE;
 						break;
 				}
-				
-			}	
-			if(GSTransferStatus.PTH3 < PENDINGSTOP_MODE || pathidx != 2)
-			{
 				gifRegs.stat.OPH = true;
 				gifRegs.stat.APATH = pathidx + 1;	
-			}
+			}			
+			
+			
 
-			if(pathidx == GIF_PATH_3) 
+			if(nloop == 0 && tag.EOP) 
 			{
 				break;
 			}
+			
 		}
 		else
 		{
@@ -694,7 +687,7 @@ __fi int GIFPath::CopyTag(const u128* pMem128, u32 size)
 				case GIF_PATH_3:
 					if(tag.FLG & 2)	GSTransferStatus.PTH3 = IMAGE_MODE;
 					else GSTransferStatus.PTH3 = TRANSFER_MODE;
-
+					
 					break;
 			}
 			gifRegs.stat.APATH = pathidx + 1;
@@ -809,13 +802,28 @@ __fi int GIFPath::CopyTag(const u128* pMem128, u32 size)
 				case GIF_FLG_IMAGE2:
 				{
 					GifTagLog("IMAGE Mode EOP %x", tag.EOP);
-					int len = aMin(size, nloop);
+					if(pathidx == GIF_PATH_3 && gifRegs.stat.IMT)
+					{
+						//Size or Nloop can be smaller, before we enforce a maximum packet size of 8, we need to know which is true.
+						int len = aMin(size, nloop);
+						len = aMin(len, 8);
+						MemCopy_WrappedDest( pMem128, RingBuffer.m_Ring, ringpos, RingBufferSize, len );
 
-					MemCopy_WrappedDest( pMem128, RingBuffer.m_Ring, ringpos, RingBufferSize, len );
+						pMem128 += len;
+						size -= len;
+						nloop -= len;
+						break;
+					}
+					else
+					{
 
-					pMem128 += len;
-					size -= len;
-					nloop -= len;
+						int len = aMin(size, nloop);
+						MemCopy_WrappedDest( pMem128, RingBuffer.m_Ring, ringpos, RingBufferSize, len );
+
+						pMem128 += len;
+						size -= len;
+						nloop -= len;
+					}					
 				}
 				break;
 			}
@@ -841,7 +849,7 @@ __fi int GIFPath::CopyTag(const u128* pMem128, u32 size)
 					//  split time to EE and other processors, and then resume the kick's DMA later.  
 					//  ... yea, not happening for a while. ;) -- air
 
-					Console.Warning("GIFTAG error, size exceeded VU memory size %x", startSize);
+					Console.Warning("GIFTAG warning, size exceeded VU memory size %x", startSize);
 					nloop	= 0;
 					const_cast<GIFTAG&>(tag).EOP = 1;
 
@@ -852,30 +860,8 @@ __fi int GIFPath::CopyTag(const u128* pMem128, u32 size)
 				}
 			}
 		}
+		if (tag.EOP && !nloop) break;
 
-		if (tag.EOP && !nloop)
-		{
-			if (CSRreg.FINISH)
-			{
-				// IMPORTANT: only signal FINISH if ALL THREE paths are stopped (nloop is zero and EOP is set)
-				// FINISH is *not* a per-path register, and it seems to pretty clearly indicate that all active
-				// drawing *and* image transfer actions must be finished before the IRQ raises.
-
-				if(gifRegs.stat.P1Q || gifRegs.stat.P2Q || gifRegs.stat.P3Q) 					
-				{
-					//GH3 and possibly others have path data queued waiting for another path to finish! we need to check they are done too
-					//DevCon.Warning("Early FINISH signal! P1 %x P2 %x P3 %x", gifRegs.stat.P1Q, gifRegs.stat.P2Q, gifRegs.stat.P3Q);
-				}
-				else if (!(GSIMR&0x200) && !s_gifPath.path[0].IsActive() && !s_gifPath.path[1].IsActive() && !s_gifPath.path[2].IsActive())
-				{
-					gsIrq();
-				}
-			}
-			
-			// [TODO] : DMAC Arbitration rights should select the next queued GIF transfer here.
-			
-			break;
-		}
 		if(SIGNAL_IMR_Pending == true)
 		{
 			//DevCon.Warning("Path %x", pathidx + 1);
@@ -895,13 +881,30 @@ __fi int GIFPath::CopyTag(const u128* pMem128, u32 size)
 				GSTransferStatus.PTH1 = STOPPED_MODE;
 				break;
 			case GIF_PATH_2:
-				GSTransferStatus.PTH2 = STOPPED_MODE;
+				GSTransferStatus.PTH2 = PENDINGSTOP_MODE;
 				break;
 			case GIF_PATH_3:				
 				//For huge chunks we may have delay problems, so we need to stall it till the interrupt, else we get desync (Lemmings)
-				if(size > 8) GSTransferStatus.PTH3 = PENDINGSTOP_MODE;
-				else  GSTransferStatus.PTH3 = STOPPED_MODE;
+				GSTransferStatus.PTH3 = PENDINGSTOP_MODE;
+				MSKPATH3_LOG("Path3 Finishing GIFTag packet");
 				break;
+		}
+
+		if (CSRreg.FINISH)
+		{
+			// IMPORTANT: only signal FINISH if ALL THREE paths are stopped (nloop is zero and EOP is set)
+			// FINISH is *not* a per-path register, and it seems to pretty clearly indicate that all active
+			// drawing *and* image transfer actions must be finished before the IRQ raises.
+
+			if(gifRegs.stat.P1Q || gifRegs.stat.P2Q || gifRegs.stat.P3Q) 					
+			{
+				//GH3 and possibly others have path data queued waiting for another path to finish! we need to check they are done too
+				//DevCon.Warning("Early FINISH signal! P1 %x P2 %x P3 %x", gifRegs.stat.P1Q, gifRegs.stat.P2Q, gifRegs.stat.P3Q);
+			}
+			else if (!(GSIMR&0x200) && !s_gifPath.path[0].IsActive() && !s_gifPath.path[1].IsActive() && !s_gifPath.path[2].IsActive())
+			{
+				gsIrq();
+			}
 		}
 	}
 	else if( nloop == 0)
@@ -917,7 +920,8 @@ __fi int GIFPath::CopyTag(const u128* pMem128, u32 size)
 				GSTransferStatus.PTH2 = WAITING_MODE;
 				break;
 			case GIF_PATH_3:
-				if(GSTransferStatus.PTH3 < IDLE_MODE) GSTransferStatus.PTH3 = WAITING_MODE;
+				//Required, if GIF_FIFO writes NOP to GIF Tag it can leave it set waiting which causes VIF FlushA to fail
+				if(GSTransferStatus.PTH3 < PENDINGSTOP_MODE) GSTransferStatus.PTH3 = WAITING_MODE;
 				break;	
 		}
 	}

@@ -26,73 +26,57 @@
 #include "GSVertexSW.h"
 #include "GSVertexHW.h"
 #include "GSFunctionMap.h"
-#include "xbyak/xbyak.h"
-#include "xbyak/xbyak_util.h"
 
 class GSState;
 
-__aligned16 class GSVertexTrace
+__aligned(class, 32) GSVertexTrace
 {
-	struct Vertex {GSVector4i c; GSVector4 p, t;};
+public:
+	struct Vertex {GSVector4i c; GSVector4 p, t;}; // t.xy * 0x10000
 	struct VertexAlpha {int min, max; bool valid;};
 
-	typedef void (*VertexTracePtr)(const void* v, int count, Vertex& min, Vertex& max);
+private:
+	typedef void (*VertexTracePtr)(int count, const void* v, Vertex& min, Vertex& max);
 
-	class CGSW : public Xbyak::CodeGenerator
+	class CGSW : public GSCodeGenerator
 	{
 	public:
-		CGSW(uint32 key, void* ptr, size_t maxsize);
+		CGSW(const void* param, uint32 key, void* code, size_t maxsize);
 	};
 
-	class GSVertexTraceMapSW : public GSCodeGeneratorFunctionMap<CGSW, uint32, VertexTracePtr>
+	class CGHW9 : public GSCodeGenerator
 	{
 	public:
-		GSVertexTraceMapSW() : GSCodeGeneratorFunctionMap("VertexTraceSW") {}
-		CGSW* Create(uint32 key, void* ptr, size_t maxsize) {return new CGSW(key, ptr, maxsize);}
+		CGHW9(const void* param, uint32 key, void* code, size_t maxsize);
 	};
 
-	class CGHW9 : public Xbyak::CodeGenerator
-	{
-		Xbyak::util::Cpu m_cpu;
-
-	public:
-		CGHW9(uint32 key, void* ptr, size_t maxsize);
-	};
-
-	class GSVertexTraceMapHW9 : public GSCodeGeneratorFunctionMap<CGHW9, uint32, VertexTracePtr>
+	class CGHW11 : public GSCodeGenerator
 	{
 	public:
-		GSVertexTraceMapHW9() : GSCodeGeneratorFunctionMap("VertexTraceHW9") {}
-		CGHW9* Create(uint32 key, void* ptr, size_t maxsize) {return new CGHW9(key, ptr, maxsize);}
+		CGHW11(const void* param, uint32 key, void* code, size_t maxsize);
 	};
 
-	class CGHW11 : public Xbyak::CodeGenerator
-	{
-		Xbyak::util::Cpu m_cpu;
-
-	public:
-		CGHW11(uint32 key, void* ptr, size_t maxsize);
-	};
-
-	class GSVertexTraceMapHW11 : public GSCodeGeneratorFunctionMap<CGHW11, uint32, VertexTracePtr>
-	{
-	public:
-		GSVertexTraceMapHW11() : GSCodeGeneratorFunctionMap("VertexTraceHW11") {}
-		CGHW11* Create(uint32 key, void* ptr, size_t maxsize) {return new CGHW11(key, ptr, maxsize);}
-	};
-
-	GSVertexTraceMapSW m_map_sw;
-	GSVertexTraceMapHW9 m_map_hw9;
-	GSVertexTraceMapHW11 m_map_hw11;
-
-	uint32 Hash(GS_PRIM_CLASS primclass);
+	GSCodeGeneratorFunctionMap<CGSW, uint32, VertexTracePtr> m_map_sw;
+	GSCodeGeneratorFunctionMap<CGHW9, uint32, VertexTracePtr> m_map_hw9;
+	GSCodeGeneratorFunctionMap<CGHW11, uint32, VertexTracePtr> m_map_hw11;
 
 	const GSState* m_state;
 
+	uint32 Hash(GS_PRIM_CLASS primclass);
+
+	void UpdateLOD();
+
+	static const GSVector4 s_minmax;
+
 public:
 	GS_PRIM_CLASS m_primclass;
-	Vertex m_min, m_max; // t.xy * 0x10000
-	VertexAlpha m_alpha; // source alpha range after tfx, GSRenderer::GetAlphaMinMax() updates it
+
+	Vertex m_min;
+	Vertex m_max;
+
+	// source alpha range after tfx, GSRenderer::GetAlphaMinMax() updates it
+
+	VertexAlpha m_alpha; 
 
 	union
 	{
@@ -101,10 +85,19 @@ public:
 		struct {uint32 rgba:16, xyzf:4, stq:4;};
 	} m_eq;
 
+	union 
+	{
+		struct {uint32 mmag:1, mmin:1, linear:1;};
+	} m_filter;
+
+	GSVector2 m_lod; // x = min, y = max
+
 	GSVertexTrace(const GSState* state);
 
 	void Update(const GSVertexSW* v, int count, GS_PRIM_CLASS primclass);
 	void Update(const GSVertexHW9* v, int count, GS_PRIM_CLASS primclass);
 	void Update(const GSVertexHW11* v, int count, GS_PRIM_CLASS primclass);
 	void Update(const GSVertexNull* v, int count, GS_PRIM_CLASS primclass) {}
+
+	bool IsLinear() const {return m_filter.linear;}
 };

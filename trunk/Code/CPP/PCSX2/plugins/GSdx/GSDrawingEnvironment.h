@@ -23,9 +23,7 @@
 
 #include "GS.h"
 
-#pragma pack(push, 1)
-
-__aligned16 class GSDrawingEnvironment
+__aligned(class, 32) GSDrawingEnvironment
 {
 public:
 	GIFRegPRIM			PRIM;
@@ -87,5 +85,3 @@ public:
 		dimx[6] = dimx[7].xxzzlh();
 	}
 };
-
-#pragma pack(pop)

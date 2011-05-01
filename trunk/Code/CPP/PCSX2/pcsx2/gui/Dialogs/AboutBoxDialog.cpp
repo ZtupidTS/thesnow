@@ -1,4 +1,4 @@
-/*  PCSX2 - PS2 Emulator for PCs
+Ôªø/*  PCSX2 - PS2 Emulator for PCs
  *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
@@ -32,37 +32,38 @@ using namespace pxSizerFlags;
 // --------------------------------------------------------------------------------------
 
 Dialogs::AboutBoxDialog::AboutBoxDialog( wxWindow* parent )
-	: wxDialogWithHelpers( parent, AddAppName(_("πÿ”⁄ %s")), pxDialogFlags().Resize().MinWidth( 460 ) )
+	: wxDialogWithHelpers( parent, AddAppName(_("ÂÖ≥‰∫é %s")), pxDialogFlags().Resize().MinWidth( 460 ) )
 	, m_bitmap_dualshock( this, wxID_ANY, wxBitmap( EmbeddedImage<res_Dualshock>().Get() ),
 		wxDefaultPosition, wxDefaultSize, wxBORDER_SUNKEN
 	)
 {
 	// [TODO] : About box should be upgraded to use scrollable read-only text boxes.
 	
-	static const wxString LabelAuthors = fromUTF8(
-		"Arcum42, Refraction, drk||raziel, cottonvibes, gigaherz, "
-		"rama, Jake.Stine, saqib, pseudonym, gregory.hainaut"
-		"\n\n"
-		"Previous versions: Alexey silinov, Aumatt, "
-		"Florin, goldfinger, Linuzappz, loser, "
-		"Nachbrenner, shadow, Zerofrog, tmkk"
-		"\n\n"
-		"Betatesting: Bositman, ChaosCode, "
-		"CKemu, crushtest, GeneralPlot, "
-		"Krakatos, Parotaku, Rudy_X"
-		"\n\n"
-		"Webmasters: CKemu, Falcon4ever"
-	);
+	wxString LabelAuthors = wxsFormat(
+		L"Arcum42, avih, Refraction, drk||raziel, cottonvibes, gigaherz, "
+		L"rama, Jake.Stine, saqib, pseudonym, gregory.hainaut"
+		L"\n\n"
+		L"%s: Alexey silinov, Aumatt, "
+		L"Florin, goldfinger, Linuzappz, loser, "
+		L"Nachbrenner, shadow, Zerofrog, tmkk"
+		L"\n\n"
+		L"%s: Bositman, ChaosCode, "
+		L"CKemu, crushtest, GeneralPlot, "
+		L"Krakatos, Parotaku, Rudy_X"
+		L"\n\n"
+		L"%s: CKemu, Falcon4ever",
+		_("Previous versions"), _("Betatesting"), _("Webmasters"));
 
-	static const wxString LabelGreets = fromUTF8(
-		"Hiryu and Sjeep (libcdvd / iso filesystem), nneeve (fpu and vu), n1ckname (compilation guides)"
-		"\n\n"
-		"Plugin Specialists: ChickenLiver (Lilypad), Efp (efp), "
-		"Gabest (Gsdx, Cdvdolio, Xpad),  Zeydlitz (ZZogl)"
-		"\n\n"
-		"Special thanks to: black_wd, Belmont, BGome, _Demo_, Dreamtime, "
-		"F|RES, MrBrown, razorblade, Seta-san, Skarmeth, feal87, Athos"
-	);
+
+	wxString LabelGreets = wxsFormat( 
+		L"Hiryu and Sjeep (libcdvd / iso filesystem), nneeve (fpu and vu), n1ckname (compilation guides), Shadow Lady"
+		L"\n\n"
+			L"%s: ChickenLiver (Lilypad), Efp (efp), "
+		L"Gabest (Gsdx, Cdvdolio, Xpad),  Zeydlitz (ZZogl)"
+		L"\n\n"
+			L"%s: black_wd, Belmont, BGome, _Demo_, Dreamtime, "
+			L"F|RES, Jake.Stine, MrBrown, razorblade, Seta-san, Skarmeth, feal87, Athos",
+			_("Plugin Specialists"), _("Special thanks to"));
 
 	// This sizer holds text of the authors and a logo!
 	wxFlexGridSizer& AuthLogoSizer = *new wxFlexGridSizer( 2, 0, StdPadding );
@@ -78,9 +79,9 @@ Dialogs::AboutBoxDialog::AboutBoxDialog( wxWindow* parent )
 	pxStaticText& label_auth	= Text( LabelAuthors ).SetMinWidth(240);
 	pxStaticText& label_greets	= Text( LabelGreets ).SetMinWidth(200);
 
-	aboutUs		+= Heading(L"Developers").Bold()	| StdExpand();
+	aboutUs		+= Heading(_("ÂºÄÂèëËÄÖ")).Bold()	| StdExpand();
 	aboutUs		+= label_auth						| StdExpand();
-	contribs	+= Heading(L"Contributors").Bold()	| StdExpand();
+	contribs	+= Heading(_("ËµûÂä©ËÄÖ")).Bold()	| StdExpand();
 	contribs	+= label_greets						| StdExpand();
 
 	AuthLogoSizer	+= aboutUs		| StdExpand();
@@ -94,19 +95,19 @@ Dialogs::AboutBoxDialog::AboutBoxDialog( wxWindow* parent )
 
 	*this	+= StdPadding;
 	*this	+= Text(wxGetApp().GetAppName()).Bold();
-	*this	+= Text(_("Playstation 2 ƒ£ƒ‚∆˜"));
+	*this	+= Text(_("Playstation 2 Ê®°ÊãüÂô®"));
 	*this	+= AuthLogoSizer						| StdExpand();
 
 	*this	+= new wxHyperlinkCtrl( this, wxID_ANY,
-		_("PCSX2 πŸ∑ΩÕ¯’æ”Î¬€Ã≥"), L"http://www.pcsx2.net"
+		_("PCSX2 ÂÆòÊñπÁΩëÁ´ô‰∏éËÆ∫Âùõ"), L"http://www.pcsx2.net"
 	) | pxProportion(1).Center().Border( wxALL, 3 );
 
 	*this	+= new wxHyperlinkCtrl( this, wxID_ANY,
-		_("PCSX2 πŸ∑Ω SVN Repository ”⁄ Googlecode"), L"http://code.google.com/p/pcsx2"
+		_("PCSX2 ÂÆòÊñπ SVN Repository ‰∫é Googlecode"), L"http://code.google.com/p/pcsx2"
 	) | pxProportion(1).Center().Border( wxALL, 3 );
 
 	*this	+= ContribSizer											| StdExpand();
-	*this	+= new wxButton( this, wxID_OK, L"Œ“÷™µ¿¡À")	| StdCenter();
+	*this	+= new wxButton( this, wxID_OK, _("ÊàëÁü•ÈÅì‰∫Ü"))	| StdCenter();
 
 	int bestHeight = GetBestSize().GetHeight();
 	if( bestHeight < 400 ) bestHeight = 400;

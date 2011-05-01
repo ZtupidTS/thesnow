@@ -23,56 +23,16 @@
 #include "GSdx.h"
 #include "GSSettingsDlg.h"
 #include "GSUtil.h"
+#include "GSDevice9.h"
+#include "GSDevice11.h"
 #include "resource.h"
 
-#include "GSDevice9.h"
-
-GSSetting GSSettingsDlg::g_renderers[] =
-{
-	{0, "Direct3D9 (硬件)", ""},
-	{1, "Direct3D9 (软件)", ""},
-	{2, "Direct3D9 (Null)", ""},
-	{3, "Direct3D%d    ", "硬件"},
-	{4, "Direct3D%d    ", "软件"},
-	{5, "Direct3D%d    ", "Null"},
-	{12, "Null (软件)", ""},
-	{13, "Null (Null)", ""},
-};
-
-GSSetting GSSettingsDlg::g_interlace[] =
-{
-	{0, "无", ""},
-	{1, "交织 tff", "锯齿"},
-	{2, "交织 bff", "锯齿"},
-	{3, "Bob tff", "如果摇晃使用混合"},
-	{4, "Bob bff", "如果摇晃使用混合"},
-	{5, "混合 tff", "轻微模糊, 1/2 fps"},
-	{6, "混合 bff", "轻微模糊, 1/2 fps"},
-};
-
-GSSetting GSSettingsDlg::g_aspectratio[] =
-{
-	{0, "拉伸", ""},
-	{1, "4:3", ""},
-	{2, "16:9", ""},
-};
-
-GSSetting GSSettingsDlg::g_upscale_multiplier[] =
-{
-	{1, "自定义", ""},
-	{2, "2x 内部", ""},
-	{3, "3x 内部", ""},
-	{4, "4x 内部", ""},
-	{5, "5x 内部", ""},
-	{6, "6x 内部", ""},
-};
-
-GSSettingsDlg::GSSettingsDlg( bool isOpen2 )
+GSSettingsDlg::GSSettingsDlg(bool isOpen2)
 	: GSDialog(isOpen2 ? IDD_CONFIG2 : IDD_CONFIG)
 	, m_IsOpen2(isOpen2)
 {
 }
-bool allowHacks = false;
+
 void GSSettingsDlg::OnInit()
 {
 	__super::OnInit();
@@ -88,7 +48,9 @@ void GSSettingsDlg::OnInit()
 		ComboBoxAppend(IDC_RESOLUTION, "请选择...", (LPARAM)&m_modes.back(), true);
 
 		CComPtr<IDirect3D9> d3d;
+
 		d3d.Attach(Direct3DCreate9(D3D_SDK_VERSION));
+		
 		if(d3d)
 		{
 			uint32 w = theApp.GetConfig("ModeWidth", 0);
@@ -111,25 +73,30 @@ void GSSettingsDlg::OnInit()
 		}
 	}
 
-	bool isdx11avail_config = GSUtil::IsDirect3D11Available();
+	D3D_FEATURE_LEVEL level;
+
+	GSUtil::CheckDirect3D11Level(level);
 
 	vector<GSSetting> renderers;
 
-	for(size_t i = 0; i < countof(g_renderers); i++)
+	for(size_t i = 0; i < theApp.m_gs_renderers.size(); i++)
 	{
+		GSSetting r = theApp.m_gs_renderers[i];
+
 		if(i >= 3 && i <= 5)
 		{
-			if(!isdx11avail_config) continue;
-			g_renderers[i].name = std::string("Direct3D") + (GSUtil::HasD3D11Features() ? "11" : "10");
+			if(level < D3D_FEATURE_LEVEL_10_0) continue;
+
+			r.name = std::string("Direct3D") + (level >= D3D_FEATURE_LEVEL_11_0 ? "11" : "10");
 		}
 
-		renderers.push_back(g_renderers[i]);
+		renderers.push_back(r);
 	}
 
-	ComboBoxInit(IDC_RENDERER, &renderers[0], renderers.size(), theApp.GetConfig("Renderer", 0));
-	ComboBoxInit(IDC_INTERLACE, g_interlace, countof(g_interlace), theApp.GetConfig("Interlace", 0));
-	ComboBoxInit(IDC_ASPECTRATIO, g_aspectratio, countof(g_aspectratio), theApp.GetConfig("AspectRatio", 1));
-	ComboBoxInit(IDC_UPSCALE_MULTIPLIER, g_upscale_multiplier, countof(g_upscale_multiplier), theApp.GetConfig("upscale_multiplier", 1));
+	ComboBoxInit(IDC_RENDERER, renderers, theApp.GetConfig("Renderer", 0));
+	ComboBoxInit(IDC_INTERLACE, theApp.m_gs_interlace, theApp.GetConfig("Interlace", 0));
+	ComboBoxInit(IDC_ASPECTRATIO, theApp.m_gs_aspectratio, theApp.GetConfig("AspectRatio", 1));
+	ComboBoxInit(IDC_UPSCALE_MULTIPLIER, theApp.m_gs_upscale_multiplier, theApp.GetConfig("upscale_multiplier", 1));
 
 	CheckDlgButton(m_hWnd, IDC_WINDOWED, theApp.GetConfig("windowed", 1));
 	CheckDlgButton(m_hWnd, IDC_FILTER, theApp.GetConfig("filter", 2));
@@ -151,10 +118,13 @@ void GSSettingsDlg::OnInit()
 	SendMessage(GetDlgItem(m_hWnd, IDC_RESY), UDM_SETRANGE, 0, MAKELPARAM(8192, 256));
 	SendMessage(GetDlgItem(m_hWnd, IDC_RESY), UDM_SETPOS, 0, MAKELPARAM(theApp.GetConfig("resy", 1024), 0));
 
-	int r=theApp.GetConfig("Renderer", 0);
-	if (r>=0 && r<=2){//DX9
+	int r = theApp.GetConfig("Renderer", 0);
+
+	if(r >= 0 && r <= 2) // DX9
+	{
 		GSDevice9::ForceValidMsaaConfig();
-		m_lastValidMsaa=theApp.GetConfig("msaa", 0);
+
+		m_lastValidMsaa = theApp.GetConfig("msaa", 0);
 	}
 
 	SendMessage(GetDlgItem(m_hWnd, IDC_MSAA), UDM_SETRANGE, 0, MAKELPARAM(16, 0));
@@ -168,19 +138,26 @@ void GSSettingsDlg::OnInit()
 
 bool GSSettingsDlg::OnCommand(HWND hWnd, UINT id, UINT code)
 {
-	if(id == IDC_MSAAEDIT && code == EN_CHANGE)//validate and possibly warn user when changing msaa
-	{//post change
+	if(id == IDC_MSAAEDIT && code == EN_CHANGE) // validate and possibly warn user when changing msaa
+	{
+		//post change
+
 		bool dx9 = false;
+
 		INT_PTR i;
+
 		if(ComboBoxGetSelData(IDC_RENDERER, i))
+		{
 			dx9 = i >= 0 && i <= 2;
+		}
 
-		if (dx9){
+		if(dx9)
+		{
+			uint32 requestedMsaa = (int)SendMessage(GetDlgItem(m_hWnd, IDC_MSAA), UDM_GETPOS, 0, 0); // valid from OnCommand?
+			uint32 derivedDepth = GSDevice9::GetMaxDepth(requestedMsaa);
 
-			uint requestedMsaa= (int)SendMessage(GetDlgItem(m_hWnd, IDC_MSAA), UDM_GETPOS, 0, 0);//valid from OnCommand?
-			uint derivedDepth=GSDevice9::GetMaxDepth(requestedMsaa);
-
-			if (derivedDepth==0){
+			if(derivedDepth == 0)
+			{
 				//FIXME: Ugly UI: HW AA is currently a uint spinbox but usually only some values are supported (e.g. only 2/4/8 or a similar set).
 				//       Better solution would be to use a drop-down with only valid msaa values such that we don't need this. Maybe some day.
 				//       Known bad behavior: When manually deleting a HW AA value to put another instead (e.g. 2 -> delete -> 4)
@@ -189,28 +166,43 @@ bool GSSettingsDlg::OnCommand(HWND hWnd, UINT id, UINT code)
 				//							 z bits than 0, even if it's not different than the previous value (i.e. 2 in our example) z bits.
 				
 				//Find valid msaa values, regardless of derived z buffer bits
-				string supportedAa="";
-				for (int i=2; i<=16; i++)
-					if (GSDevice9::GetMaxDepth(i)){
-						if (supportedAa.length()) supportedAa+="/";
+
+				string supportedAa = "";
+				
+				for(int i = 2; i <= 16; i++)
+				{
+					if(GSDevice9::GetMaxDepth(i))
+					{
+						if(supportedAa.length()) supportedAa += "/";
+
 						supportedAa += format("%d", i);
 					}
+				}
 				
-				if (!supportedAa.length())
-					supportedAa="None";
+				if(!supportedAa.length())
+				{
+					supportedAa = "None";
+				}
 
-				string s=format("AA=%d is not supported.\nSupported AA values: %s.", (int)requestedMsaa, supportedAa.c_str());
-				MessageBox(hWnd, s.c_str(),"Warning", MB_OK|MB_ICONWARNING);
-				SendMessage(GetDlgItem(m_hWnd, IDC_MSAA), UDM_SETPOS, 0, requestedMsaa=m_lastValidMsaa);//revert value from inside OnCommand? is this OK?
-					
-			} else if (derivedDepth < GSDevice9::GetMaxDepth(m_lastValidMsaa)){
-				string s=format("AA=%d will force GSdx to degrade Z buffer\nfrom 32 to 24 bit, which will probably cause glitches\n(changing 'Logarithmic Z' might help some).\n\nContinue?", (int)requestedMsaa);
-				//s+= format("\nlastMsaa=%d, lastDepth=%d, newMsaa=%d, newDepth=%d", (int)m_lastValidMsaa, (int)GSDevice9::GetMaxDepth(m_lastValidMsaa), (int)requestedMsaa, (int)GSDevice9::GetMaxDepth(requestedMsaa));
-				if (IDOK!=MessageBox(hWnd, s.c_str(), "Warning", MB_OKCANCEL|MB_ICONWARNING))
-					SendMessage(GetDlgItem(m_hWnd, IDC_MSAA), UDM_SETPOS, 0, requestedMsaa=m_lastValidMsaa);//revert value from inside OnCommand? is this OK?
+				string s = format("AA=%d is not supported.\nSupported AA values: %s.", (int)requestedMsaa, supportedAa.c_str());
 
+				MessageBox(hWnd, s.c_str(),"Warning", MB_OK | MB_ICONWARNING);
+
+				SendMessage(GetDlgItem(m_hWnd, IDC_MSAA), UDM_SETPOS, 0, requestedMsaa = m_lastValidMsaa); // revert value from inside OnCommand? is this OK?
 			}
-			m_lastValidMsaa=requestedMsaa;
+			else if(derivedDepth < GSDevice9::GetMaxDepth(m_lastValidMsaa))
+			{
+				string s = format("AA=%d will force GSdx to degrade Z buffer\nfrom 32 to 24 bit, which will probably cause glitches\n(changing 'Logarithmic Z' might help some).\n\nContinue?", (int)requestedMsaa);
+
+				//s+= format("\nlastMsaa=%d, lastDepth=%d, newMsaa=%d, newDepth=%d", (int)m_lastValidMsaa, (int)GSDevice9::GetMaxDepth(m_lastValidMsaa), (int)requestedMsaa, (int)GSDevice9::GetMaxDepth(requestedMsaa));
+
+				if(IDOK != MessageBox(hWnd, s.c_str(), "Warning", MB_OKCANCEL|MB_ICONWARNING))
+				{
+					SendMessage(GetDlgItem(m_hWnd, IDC_MSAA), UDM_SETPOS, 0, requestedMsaa=m_lastValidMsaa); // revert value from inside OnCommand? is this OK?
+				}
+			}
+
+			m_lastValidMsaa = requestedMsaa;
 
 			UpdateControls();
 		}
@@ -280,9 +272,6 @@ bool GSSettingsDlg::OnCommand(HWND hWnd, UINT id, UINT code)
 		theApp.SetConfig("UserHacks_AlphaHack", (int)IsDlgButtonChecked(m_hWnd, IDC_ALPHAHACK));
 		theApp.SetConfig("UserHacks_HalfPixelOffset", (int)IsDlgButtonChecked(m_hWnd, IDC_OFFSETHACK));
 		theApp.SetConfig("UserHacks_SkipDraw", (int)SendMessage(GetDlgItem(m_hWnd, IDC_SKIPDRAWHACK), UDM_GETPOS, 0, 0));
-
-		bool allowHacks = !!theApp.GetConfig("allowHacks", 0);
-		theApp.SetConfig("allowHacks", allowHacks);
 	}
 
 	return __super::OnCommand(hWnd, id, code);
@@ -295,36 +284,34 @@ void GSSettingsDlg::UpdateControls()
 
 	bool allowHacks = !!theApp.GetConfig("allowHacks", 0);
 
-	int scaling=1;//in case reading the combo doesn't work, enable the custom res control anyway
-	if (ComboBoxGetSelData(IDC_UPSCALE_MULTIPLIER, i)){
-		scaling=(int)i;
+	int scaling = 1; // in case reading the combo doesn't work, enable the custom res control anyway
+
+	if(ComboBoxGetSelData(IDC_UPSCALE_MULTIPLIER, i))
+	{
+		scaling = (int)i;
 	}
 
 	if(ComboBoxGetSelData(IDC_RENDERER, i))
 	{
-		bool dx9 = i >= 0 && i <= 2;
-		bool dx10 = i >= 3 && i <= 5;
-		bool dx11 = i >= 6 && i <= 8;
-		bool ogl = i >= 9 && i <= 12;
-		bool hw = i == 0 || i == 3 || i == 6 || i == 9;
-		bool sw = i == 1 || i == 4 || i == 7 || i == 10;
+		bool dx9 = (i / 3) == 0;
+		bool dx11 = (i / 3) == 1;
+		bool hw = (i % 3) == 0;
+		bool sw = (i % 3) == 1;
 		bool native = !!IsDlgButtonChecked(m_hWnd, IDC_NATIVERES);
 
 		ShowWindow(GetDlgItem(m_hWnd, IDC_LOGO9), dx9 ? SW_SHOW : SW_HIDE);
-		ShowWindow(GetDlgItem(m_hWnd, IDC_LOGO10), dx10 ? SW_SHOW : SW_HIDE);
-		// TODO: ShowWindow(GetDlgItem(m_hWnd, IDC_LOGO11), dx11 ? SW_SHOW : SW_HIDE);
-		// TODO: ShowWindow(GetDlgItem(m_hWnd, IDC_LOGO_OGL), ogl ? SW_SHOW : SW_HIDE);
+		ShowWindow(GetDlgItem(m_hWnd, IDC_LOGO11), dx11 ? SW_SHOW : SW_HIDE);
 
 		EnableWindow(GetDlgItem(m_hWnd, IDC_WINDOWED), dx9);
-		EnableWindow(GetDlgItem(m_hWnd, IDC_RESX), hw && !native && scaling==1);
-		EnableWindow(GetDlgItem(m_hWnd, IDC_RESX_EDIT), hw && !native && scaling==1);
-		EnableWindow(GetDlgItem(m_hWnd, IDC_RESY), hw && !native && scaling==1);
-		EnableWindow(GetDlgItem(m_hWnd, IDC_RESY_EDIT), hw && !native && scaling==1);
+		EnableWindow(GetDlgItem(m_hWnd, IDC_RESX), hw && !native && scaling == 1);
+		EnableWindow(GetDlgItem(m_hWnd, IDC_RESX_EDIT), hw && !native && scaling == 1);
+		EnableWindow(GetDlgItem(m_hWnd, IDC_RESY), hw && !native && scaling == 1);
+		EnableWindow(GetDlgItem(m_hWnd, IDC_RESY_EDIT), hw && !native && scaling == 1);
 		EnableWindow(GetDlgItem(m_hWnd, IDC_UPSCALE_MULTIPLIER), hw && !native);
 		EnableWindow(GetDlgItem(m_hWnd, IDC_NATIVERES), hw);
 		EnableWindow(GetDlgItem(m_hWnd, IDC_FILTER), hw && !native);
 		EnableWindow(GetDlgItem(m_hWnd, IDC_PALTEX), hw);
-		EnableWindow(GetDlgItem(m_hWnd, IDC_LOGZ), dx9 && hw && GSDevice9::GetMaxDepth(m_lastValidMsaa)<32);
+		EnableWindow(GetDlgItem(m_hWnd, IDC_LOGZ), dx9 && hw && GSDevice9::GetMaxDepth(m_lastValidMsaa) < 32);
 		EnableWindow(GetDlgItem(m_hWnd, IDC_FBA), dx9 && hw);
 		EnableWindow(GetDlgItem(m_hWnd, IDC_AA1), sw);
 		EnableWindow(GetDlgItem(m_hWnd, IDC_SWTHREADS_EDIT), sw);
@@ -332,16 +319,16 @@ void GSSettingsDlg::UpdateControls()
 		EnableWindow(GetDlgItem(m_hWnd, IDC_MSAAEDIT), hw);
 		EnableWindow(GetDlgItem(m_hWnd, IDC_MSAA), hw);
 
-		//ShowWindow(GetDlgItem(m_hWnd, IDC_USERHACKS), allowHacks && hw)?SW_SHOW:SW_HIDE;  //Don't disable the "Hacks" frame
-		ShowWindow(GetDlgItem(m_hWnd, IDC_MSAAEDIT), allowHacks && hw)?SW_SHOW:SW_HIDE;
-		ShowWindow(GetDlgItem(m_hWnd, IDC_MSAA), allowHacks && hw)?SW_SHOW:SW_HIDE;
-		ShowWindow(GetDlgItem(m_hWnd, IDC_STATIC_TEXT_HWAA), allowHacks && hw)?SW_SHOW:SW_HIDE;
+		//ShowWindow(GetDlgItem(m_hWnd, IDC_USERHACKS), allowHacks && hw) ? SW_SHOW : SW_HIDE;  //Don't disable the "Hacks" frame
+		ShowWindow(GetDlgItem(m_hWnd, IDC_MSAAEDIT), allowHacks && hw) ? SW_SHOW : SW_HIDE;
+		ShowWindow(GetDlgItem(m_hWnd, IDC_MSAA), allowHacks && hw) ? SW_SHOW : SW_HIDE;
+		ShowWindow(GetDlgItem(m_hWnd, IDC_STATIC_TEXT_HWAA), allowHacks && hw) ? SW_SHOW : SW_HIDE;
 		
-		ShowWindow(GetDlgItem(m_hWnd, IDC_ALPHAHACK), allowHacks && hw)?SW_SHOW:SW_HIDE;
-		ShowWindow(GetDlgItem(m_hWnd, IDC_OFFSETHACK), allowHacks && hw)?SW_SHOW:SW_HIDE;
+		ShowWindow(GetDlgItem(m_hWnd, IDC_ALPHAHACK), allowHacks && hw) ? SW_SHOW : SW_HIDE;
+		ShowWindow(GetDlgItem(m_hWnd, IDC_OFFSETHACK), allowHacks && hw) ? SW_SHOW : SW_HIDE;
 		
-		ShowWindow(GetDlgItem(m_hWnd, IDC_SKIPDRAWHACKEDIT), allowHacks && hw)?SW_SHOW:SW_HIDE;
-		ShowWindow(GetDlgItem(m_hWnd, IDC_SKIPDRAWHACK), allowHacks && hw)?SW_SHOW:SW_HIDE;
-		ShowWindow(GetDlgItem(m_hWnd, IDC_STATIC_TEXT_SKIPDRAW), allowHacks && hw)?SW_SHOW:SW_HIDE;
+		ShowWindow(GetDlgItem(m_hWnd, IDC_SKIPDRAWHACKEDIT), allowHacks && hw) ? SW_SHOW : SW_HIDE;
+		ShowWindow(GetDlgItem(m_hWnd, IDC_SKIPDRAWHACK), allowHacks && hw) ? SW_SHOW : SW_HIDE;
+		ShowWindow(GetDlgItem(m_hWnd, IDC_STATIC_TEXT_SKIPDRAW), allowHacks && hw) ? SW_SHOW : SW_HIDE;
 	}
 }

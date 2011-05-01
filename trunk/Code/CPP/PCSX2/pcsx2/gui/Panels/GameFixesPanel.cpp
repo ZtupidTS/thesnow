@@ -83,6 +83,21 @@ Panels::GameFixesPanel::GameFixesPanel( wxWindow* parent )
 				L" * Growlanser II and III\n"
 				L" * Wizardry"
 			)
+		},
+		{
+			_("Ignore DMAC writes when it is busy."),
+			pxEt( "!ContextTip:Gamefixes:DMA Busy hack",
+				L"Known to affect following games:\n"
+				L" * Mana Khemia 1 (Going \"off campus\")\n"
+			)
+		},
+		{
+			_("Simulate VIF1 FIFO read ahead. Fixes slow loading games."),
+			pxEt( "!ContextTip:Gamefixes:VIF1 FIFO hack",
+				L"Known to affect following games:\n"
+				L" * Test Drive Unlimited\n"
+				L" * Transformers"
+			)
 		}
 	};
 
@@ -92,11 +107,12 @@ Panels::GameFixesPanel::GameFixesPanel( wxWindow* parent )
 		m_checkbox[i]->SetToolTip( check_text[i].tooltip );
 	}
 
-	m_check_Enable = new pxCheckBox( this, _("启用游戏修正"),
+	m_check_Enable = new pxCheckBox( this, _("启用游戏修正 [不推荐]"),
 		pxE( "!Panel:Gamefixes:Compat Warning",
-			L"Gamefixes can fix wrong emulation in some games. However "
-			L"it can cause compatibility or performance issues in other games.  You "
-			L"will need to turn off fixes manually when changing games."
+			L"Gamefixes can work around wrong emulation in some titles. \n"
+			L"They may also cause compatibility or performance issues. \n\n"
+			L"It's better to enable 'Automatic game fixes' at the main menu instead, and leave this page empty. \n"
+			L"('Automatic' means: selectively use specific tested fixes for specific games)"
 		)
 	);
 
@@ -145,7 +161,7 @@ void Panels::GameFixesPanel::AppStatusEvent_OnSettingsApplied()
 	ApplyConfigToGui( *g_Conf );
 }
 
-void Panels::GameFixesPanel::ApplyConfigToGui( AppConfig& configToApply, bool manuallyPropagate )
+void Panels::GameFixesPanel::ApplyConfigToGui( AppConfig& configToApply, int flags )
 {
 	const Pcsx2Config::GamefixOptions& opts( configToApply.EmuOptions.Gamefixes );
 	for (GamefixId i=GamefixId_FIRST; i < pxEnumEnd; ++i)

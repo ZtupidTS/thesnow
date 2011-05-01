@@ -28,14 +28,19 @@ endif(Linux)
 ## Use cmake package to find module
 find_package(ALSA)
 find_package(BZip2)
+find_package(Gettext) # translation tool
 find_package(JPEG)
 find_package(OpenGL)
 # Tell cmake that we use SDL as a library and not as an application
-set(SDL_BUILDING_LIBRARY TRUE)
-find_package(SDL)
+if(NOT FORCE_INTERNAL_SDL)
+    set(SDL_BUILDING_LIBRARY TRUE)
+    find_package(SDL)
+endif(NOT FORCE_INTERNAL_SDL)
 find_package(Subversion)
 # The requierement of wxWidgets is checked in SelectPcsx2Plugins module
 # Does not requier the module (allow to compile non-wx plugins)
+# Force the unicode build (the variable is only supported on cmake 2.8.3 and above)
+set(wxWidgets_CONFIG_OPTIONS "--unicode=yes")
 find_package(wxWidgets COMPONENTS base core adv)
 if(NOT FORCE_INTERNAL_ZLIB)
     find_package(ZLIB)
@@ -79,6 +84,16 @@ if(NOT SOUNDTOUCH_FOUND OR FORCE_INTERNAL_SOUNDTOUCH)
     include_directories(${PROJECT_SOURCE_DIR}/3rdparty/soundtouch_linux_include)
     message(STATUS "Use internal pcsx2 SoundTouch library")
 endif(NOT SOUNDTOUCH_FOUND OR FORCE_INTERNAL_SOUNDTOUCH)
+
+if(NOT SDL_FOUND OR FORCE_INTERNAL_SDL)
+	# use project one
+    set(projectSDL TRUE)
+	set(SDL_FOUND TRUE)
+    # Set path
+    set(SDL_LIBRARY pcsx2_SDL)
+    include_directories(${PROJECT_SOURCE_DIR}/3rdparty/SDL-1.3.0-5387/include)
+    message(STATUS "Use internal pcsx2 SDL library")
+endif(NOT SDL_FOUND OR FORCE_INTERNAL_SDL)
 
 #----------------------------------------
 #		    Use system include (if not 3rdparty one)
@@ -131,9 +146,9 @@ if(PORTAUDIO_FOUND)
 endif(PORTAUDIO_FOUND)
 
 # SDL
-if(SDL_FOUND)
+if(SDL_FOUND AND NOT projectSDL)
 	include_directories(${SDL_INCLUDE_DIR})
-endif(SDL_FOUND)
+endif(SDL_FOUND AND NOT projectSDL)
 
 # SoundTouch
 if(SOUNDTOUCH_FOUND AND NOT projectSoundTouch)

@@ -80,8 +80,8 @@ __fi void VifUnpackSSE_Dynarec::SetMasks(int cS) const {
 	u32 m1 =  m0 & 0xaaaaaaaa;
 	u32 m2 =(~m1>>1) &  m0;
 	u32 m3 = (m1>>1) & ~m0;
-	if((m2&&(doMask||isFill))||doMode) { xMOVAPS(xmmRow, ptr128[&vif.MaskRow]); }
-	if (m3&&(doMask||isFill)) {
+	if((m2&&doMask)||doMode) { xMOVAPS(xmmRow, ptr128[&vif.MaskRow]); }
+	if (m3&&doMask) {
 		xMOVAPS(xmmCol0, ptr128[&vif.MaskCol]);
 		if ((cS>=2) && (m3&0x0000ff00)) xPSHUF.D(xmmCol1, xmmCol0, _v1);
 		if ((cS>=3) && (m3&0x00ff0000)) xPSHUF.D(xmmCol2, xmmCol0, _v2);
@@ -182,12 +182,18 @@ void VifUnpackSSE_Dynarec::CompileRoutine() {
 			if (++vCL == blockSize) vCL = 0;
 		}
 		else if (isFill) {
+			//Filling doesn't need anything fancy, it's pretty much a normal write, just doesnt increment the source.
 			//DevCon.WriteLn("filling mode!");
-			VifUnpackSSE_Dynarec fill( VifUnpackSSE_Dynarec::FillingWrite( *this ) );
-			fill.xUnpack(upkNum);
-			fill.xMovDest();
+			xUnpack(upkNum);
+			xMovDest();
 
 			dstIndirect += 16;
+
+			if( IsUnmaskedOp() ) {
+				++destReg;
+				++workReg;
+			}
+
 			vNum--;
 			if (++vCL == blockSize) vCL = 0;
 		}
@@ -203,7 +209,6 @@ void VifUnpackSSE_Dynarec::CompileRoutine() {
 
 _vifT static __fi u8* dVifsetVUptr(uint cl, uint wl, bool isFill) {
 	vifStruct& vif			= GetVifX;
-	VIFregisters& vifRegs	= vifXRegs;
 	const VURegs& VU		= vuRegs[idx];
 	const uint vuMemLimit	= idx ? 0x4000 : 0x1000;
 
@@ -266,7 +271,7 @@ _vifT __fi void dVifUnpack(const u8* data, bool isFill) {
 	VIFregisters& vifRegs	= vifXRegs;
 
 	const u8	upkType		= (vif.cmd & 0x1f) | (vif.usn << 5);
-	const int	doMask		= (vif.cmd & 0x10);
+	const int	doMask		= isFill? 1 : (vif.cmd & 0x10);
 
 	_vBlock.upkType = upkType;
 	_vBlock.num		= (u8&)vifRegs.num;

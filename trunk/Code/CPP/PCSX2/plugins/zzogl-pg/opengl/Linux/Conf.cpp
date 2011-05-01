@@ -23,10 +23,12 @@
 #include <unistd.h>
 #include <string.h>
 #include "GS.h"
+#include "Utilities/Path.h"
 
 void SaveConfig()
 {
-	const std::string iniFile(s_strIniPath + "zzogl-pg.ini");
+	const wxString iniFile_s(Path::Combine(s_strIniPath, L"zzogl-pg.ini"));
+	std::string iniFile = std::string(iniFile_s.mb_str());
 	
 	FILE* f = fopen(iniFile.c_str(), "w");
 
@@ -66,7 +68,9 @@ void LoadConfig()
 	conf.height = 600;
 	conf.disableHacks = 0;
 
-	const std::string iniFile(s_strIniPath + "zzogl-pg.ini");
+	const wxString iniFile_s(Path::Combine(s_strIniPath, L"zzogl-pg.ini"));
+	std::string iniFile = std::string(iniFile_s.mb_str());
+
 	FILE* f = fopen(iniFile.c_str(), "r");
 
 	if (f == NULL)

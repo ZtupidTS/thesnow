@@ -19,14 +19,16 @@
  *
  */
 
-#include "StdAfx.h"
+#include "stdafx.h"
 #include "GSClut.h"
 #include "GSLocalMemory.h"
+
+#define CLUT_ALLOC_SIZE (2 * 4096)
 
 GSClut::GSClut(GSLocalMemory* mem)
 	: m_mem(mem)
 {
-	uint8* p = (uint8*)VirtualAlloc(NULL, 2 * 4096, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+	uint8* p = (uint8*)vmalloc(CLUT_ALLOC_SIZE, false);
 
 	m_clut = (uint16*)&p[0]; // 1k + 1k for buffer overruns (sfex: PSM == PSM_PSMT8, CPSM == PSM_PSMCT32, CSA != 0)
 	m_buff32 = (uint32*)&p[2048]; // 1k
@@ -88,7 +90,7 @@ GSClut::GSClut(GSLocalMemory* mem)
 
 GSClut::~GSClut()
 {
-	VirtualFree(m_clut, 0, MEM_RELEASE);
+	vmfree(m_clut, CLUT_ALLOC_SIZE);
 }
 
 void GSClut::Invalidate()
@@ -107,7 +109,7 @@ bool GSClut::WriteTest(const GIFRegTEX0& TEX0, const GIFRegTEXCLUT& TEXCLUT)
 	case 4: if(m_CBP[0] == TEX0.CBP) return false; m_CBP[0] = TEX0.CBP; break;
 	case 5: if(m_CBP[1] == TEX0.CBP) return false; m_CBP[1] = TEX0.CBP; break;
 	case 6: ASSERT(0); return false; // ffx2 menu
-	case 7: ASSERT(0); return false;
+	case 7: ASSERT(0); return false; // ford mustang racing
 	default: __assume(0);
 	}
 
@@ -126,7 +128,7 @@ void GSClut::Write(const GIFRegTEX0& TEX0, const GIFRegTEXCLUT& TEXCLUT)
 
 void GSClut::WriteCLUT32_I8_CSM1(const GIFRegTEX0& TEX0, const GIFRegTEXCLUT& TEXCLUT)
 {
-	ALIGN_STACK(16);
+	ALIGN_STACK(32);
 
 	ASSERT(TEX0.CSA == 0);
 
@@ -135,7 +137,7 @@ void GSClut::WriteCLUT32_I8_CSM1(const GIFRegTEX0& TEX0, const GIFRegTEXCLUT& TE
 
 void GSClut::WriteCLUT32_I4_CSM1(const GIFRegTEX0& TEX0, const GIFRegTEXCLUT& TEXCLUT)
 {
-	ALIGN_STACK(16);
+	ALIGN_STACK(32);
 
 	ASSERT(TEX0.CSA < 16);
 

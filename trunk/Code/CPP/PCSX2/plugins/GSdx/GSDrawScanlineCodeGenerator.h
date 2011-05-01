@@ -22,56 +22,66 @@
 #pragma once
 
 #include "GSScanlineEnvironment.h"
-#include "xbyak/xbyak.h"
-#include "xbyak/xbyak_util.h"
+#include "GSFunctionMap.h"
 
 using namespace Xbyak;
 
-class GSDrawScanlineCodeGenerator : public CodeGenerator
+class GSDrawScanlineCodeGenerator : public GSCodeGenerator
 {
 	void operator = (const GSDrawScanlineCodeGenerator&);
 
 	static const GSVector4i m_test[8];
+	static const GSVector4 m_log2_coef[4];
 
-	util::Cpu m_cpu;
-
-	GSScanlineEnvironment& m_env;
 	GSScanlineSelector m_sel;
+	GSScanlineLocalData& m_local;
 
 	void Generate();
 
-	void Init(int params);
+	void Init();
 	void Step();
 	void TestZ(const Xmm& temp1, const Xmm& temp2);
 	void SampleTexture();
 	void Wrap(const Xmm& uv0);
 	void Wrap(const Xmm& uv0, const Xmm& uv1);
+	void SampleTextureLOD();
+	void WrapLOD(const Xmm& uv0);
+	void WrapLOD(const Xmm& uv0, const Xmm& uv1);
 	void AlphaTFX();
+	void ReadMask();
 	void TestAlpha();
 	void ColorTFX();
 	void Fog();
 	void ReadFrame();
 	void TestDestAlpha();
+	void WriteMask();
 	void WriteZBuf();
 	void AlphaBlend();
-	void WriteFrame(int params);
+	void WriteFrame();
 
+	#if defined(_M_AMD64) || defined(_WIN64)
+	void ReadPixel(const Xmm& dst, const Reg64& addr);
+	void WritePixel(const Xmm& src, const Reg64& addr, const Reg8& mask, bool fast, int psm, int fz);
+	void WritePixel(const Xmm& src, const Reg64& addr, uint8 i, int psm);
+	#else
 	void ReadPixel(const Xmm& dst, const Reg32& addr);
-	void WritePixel(const Xmm& src, const Xmm& temp, const Reg32& addr, const Reg8& mask, bool fast, int psm);
-	void WritePixel(const Xmm& src, const Xmm& temp, const Reg32& addr, uint8 i, int psm);
-	void ReadTexel(const Xmm& dst, const Xmm& addr, const Xmm& temp1, const Xmm& temp2);
+	void WritePixel(const Xmm& src, const Reg32& addr, const Reg8& mask, bool fast, int psm, int fz);
+	void WritePixel(const Xmm& src, const Reg32& addr, uint8 i, int psm);
+	#endif
+
+	void ReadTexel(int pixels, int mip_offset = 0);
 	void ReadTexel(const Xmm& dst, const Xmm& addr, uint8 i);
 
-	template<int shift> void modulate16(const Xmm& a, const Operand& f);
-	template<int shift> void lerp16(const Xmm& a, const Xmm& b, const Xmm& f);
+	void modulate16(const Xmm& a, const Operand& f, int shift);
+	void lerp16(const Xmm& a, const Xmm& b, const Xmm& f, int shift);
 	void mix16(const Xmm& a, const Xmm& b, const Xmm& temp);
 	void clamp16(const Xmm& a, const Xmm& temp);
 	void alltrue();
-	void blend8(const Xmm& a, const Xmm& b);
 	void blend(const Xmm& a, const Xmm& b, const Xmm& mask);
-	void blend8r(const Xmm& b, const Xmm& a);
 	void blendr(const Xmm& b, const Xmm& a, const Xmm& mask);
+	void blend8(const Xmm& a, const Xmm& b);
+	void blend8r(const Xmm& b, const Xmm& a);
 
 public:
-	GSDrawScanlineCodeGenerator(GSScanlineEnvironment& env, uint64 key, void* ptr, size_t maxsize);
+	GSDrawScanlineCodeGenerator(void* param, uint64 key, void* code, size_t maxsize);
 };

@@ -35,13 +35,8 @@ protected:
 	void OnInit();
 	bool OnCommand(HWND hWnd, UINT id, UINT code);
 
-	uint m_lastValidMsaa; //used to revert to previous dialog value if the user changed to invalid one, or lesser one and canceled
+	uint32 m_lastValidMsaa; // used to revert to previous dialog value if the user changed to invalid one, or lesser one and canceled
 
 public:
-	GSSettingsDlg( bool isOpen2 );
-
-	static GSSetting g_renderers[];
-	static GSSetting g_interlace[];
-	static GSSetting g_aspectratio[];
-	static GSSetting g_upscale_multiplier[];
+	GSSettingsDlg(bool isOpen2);
 };

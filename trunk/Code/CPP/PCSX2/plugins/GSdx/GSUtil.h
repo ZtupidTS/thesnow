@@ -22,28 +22,26 @@
 #pragma once
 
 #include "GS.h"
-#include "GSLocalMemory.h"
 
 class GSUtil
 {
 public:
+	static const char* GetLibName();
+
 	static GS_PRIM_CLASS GetPrimClass(uint32 prim);
 
 	static bool HasSharedBits(uint32 spsm, uint32 dpsm);
 	static bool HasSharedBits(uint32 sbp, uint32 spsm, uint32 dbp, uint32 dpsm);
 	static bool HasCompatibleBits(uint32 spsm, uint32 dpsm);
 
-	static bool CheckDirectX();
 	static bool CheckSSE();
 
+#ifdef _WINDOWS
+
+	static bool CheckDirectX();
+	static bool CheckDirect3D11Level(D3D_FEATURE_LEVEL& level);
 	static void UnloadDynamicLibraries();
-	static char* GetLibName();
 
-	// These should probably be located more closely to their respective DX9/DX11 driver files,
-	// and not here in GSUtil (which should be DirectX independent, generally speaking) --air
-
-	static void* GetDX9Proc( const char* methodname );
-	static bool IsDirect3D11Available();
-	static bool HasD3D11Features();
+#endif
 };
 

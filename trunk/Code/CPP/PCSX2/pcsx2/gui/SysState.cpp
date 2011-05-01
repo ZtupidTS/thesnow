@@ -323,7 +323,7 @@ protected:
 		if( !SysHasValidState() )
 			throw Exception::RuntimeError()
 				.SetDiagMsg(L"SysExecEvent_DownloadState: Cannot freeze/download an invalid VM state!")
-				.SetUserMsg(L"There is no active virtual machine state to download or save." );
+				.SetUserMsg(_("There is no active virtual machine state to download or save." ));
 
 		memSavingState saveme( m_dest_list->GetBuffer() );
 		ArchiveEntry internals( EntryFilename_InternalStructures );
@@ -670,17 +670,17 @@ void StateCopy_SaveToSlot( uint num )
 	StateCopy_SaveToFile( file );
 }
 
-void StateCopy_LoadFromSlot( uint slot )
+void StateCopy_LoadFromSlot( uint slot, bool isFromBackup )
 {
-	wxString file( SaveStateBase::GetFilename( slot ) );
+	wxString file( SaveStateBase::GetFilename( slot ) + wxString( isFromBackup?L".backup":L"" ) );
 
 	if( !wxFileExists( file ) )
 	{
-		Console.Warning( "Savestate slot %d is empty.", slot );
+		Console.Warning( L"Savestate slot %d%s is empty.", slot, isFromBackup?L" (backup)":L"" );
 		return;
 	}
 
-	Console.WriteLn( Color_StrongGreen, "Loading savestate from slot %d...", slot );
+	Console.WriteLn( Color_StrongGreen, L"Loading savestate from slot %d...%s", slot, wxString( isFromBackup?L" (backup)":L"" ).c_str() );
 	Console.Indent().WriteLn( Color_StrongGreen, L"filename: %s", file.c_str() );
 
 	StateCopy_LoadFromFile( file );

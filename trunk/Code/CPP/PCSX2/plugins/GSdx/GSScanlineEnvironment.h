@@ -63,6 +63,10 @@ union GSScanlineSelector
 		uint32 dthe:1; // 45
 		uint32 sprite:1; // 46
 		uint32 edge:1; // 47
+
+		uint32 tw:3; // 48 (encodes values between 3 -> 10, texture cache makes sure it is at least 3)
+		uint32 lcm:1; // 49
+		uint32 mmin:2; // 50
 	};
 
 	struct
@@ -83,10 +87,10 @@ union GSScanlineSelector
 
 	uint64 key;
 
-	operator uint32() {return lo;}
-	operator uint64() {return key;}
+	operator uint32() const {return lo;}
+	operator uint64() const {return key;}
 
-	bool IsSolidRect()
+	bool IsSolidRect() const
 	{
 		return sprite
 			&& iip == 0
@@ -99,47 +103,66 @@ union GSScanlineSelector
 	}
 };
 
-__aligned16 struct GSScanlineParam
+__aligned(struct, 32) GSScanlineGlobalData // per batch variables, this is like a pixel shader constant buffer
 {
 	GSScanlineSelector sel;
 
+	// - the data of vm, tex, clut, dimx may change, multi-threaded drawing must be finished before that happens (an idea: remember which pages are used, sync when something needs to read or write them)
+	// - tex is a cached texture, it may be recycled to free up memory, its absolute address cannot be compiled into code
+	// - row and column pointers are allocated once and never change or freed, thier address can be used directly
+	// - if in the future drawing does not have to be synchronized per batch, the rest of GSRasterizerData should be copied here, too (scissor, prim type, vertices)
+
 	void* vm;
-	const void* tex;
+	const void* tex[7];
 	const uint32* clut;
-	uint32 tw;
+	const GSVector4i* dimx; 
 
-	GSOffset* fbo;
-	GSOffset* zbo;
-	GSPixelOffset4* fzbo;
-
-	uint32 fm, zm;
-};
-
-__aligned16 struct GSScanlineEnvironment
-{
-	void* vm;
-	const void* tex;
-	const uint32* clut;
-	uint32 tw;
-
-	int* fbr;
-	int* zbr;
-	int* fbc;
-	int* zbc;
-	GSVector2i* fzbr;
-	GSVector2i* fzbc;
-
-	GSVector4i* dimx;
+	const int* fbr;
+	const int* zbr;
+	const int* fbc;
+	const int* zbc;
+	const GSVector2i* fzbr;
+	const GSVector2i* fzbc;
 
 	GSVector4i fm, zm;
-	struct {GSVector4i min, max, mask, invmask;} t; // [u] x 4 [v] x 4
+	struct {GSVector4i min, max, minmax, mask, invmask;} t; // [u] x 4 [v] x 4
 	GSVector4i aref;
 	GSVector4i afix;
 	GSVector4i frb, fga;
+	GSVector4 mxl;
+	GSVector4 k; // TEX1.K * 0x10000
+	GSVector4 l; // TEX1.L * -0x10000
+	struct {GSVector4i i, f;} lod; // lcm == 1
+};
 
-	struct {GSVector4 z, s, t, q; GSVector4i rb, ga, f, si, ti, _pad[7];} d[4];
-	struct {GSVector4 z, stq; GSVector4i c, f, st;} d4;
+__aligned(struct, 32) GSScanlineLocalData // per prim variables, each thread has its own
+{
+	struct skip {GSVector4 z, s, t, q; GSVector4i rb, ga, f, _pad;} d[4];
+	struct step {GSVector4 z, stq; GSVector4i c, f;} d4;
 	struct {GSVector4i rb, ga;} c;
 	struct {GSVector4i z, f;} p;
-	struct {GSVector4i z, f, s, t, q, rb, ga, zs, zd, uf, vf, cov;} temp;
+
+	// these should be stored on stack as normal local variables (no free regs to use, esp cannot be saved to anywhere, and we need an aligned stack)
+
+	struct 
+	{
+		GSVector4i z, f;
+		GSVector4i s, t, q;
+		GSVector4i rb, ga;
+		GSVector4i zs, zd;
+		GSVector4i uf, vf;
+		GSVector4i cov;
+
+		// mipmapping
+
+		struct {GSVector4i i, f;} lod;
+		GSVector4i uv[2];
+		GSVector4i uv_minmax[2];
+		GSVector4i trb, tga;
+		GSVector4i test;
+	} temp; 
+
+	//
+
+	const GSScanlineGlobalData* gd;
 };

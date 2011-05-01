@@ -22,16 +22,79 @@
 #include "stdafx.h"
 #include "GS.h"
 #include "GSUtil.h"
-#include "svnrev.h"
 #include "xbyak/xbyak_util.h"
 
-static struct GSUtilMaps
+#ifdef _WINDOWS
+#include "svnrev.h"
+#else
+#define SVN_REV 0
+#define SVN_MODS 0
+#endif
+
+const char* GSUtil::GetLibName()
 {
+	// TODO: critsec
+
+	static string str;
+
+	if(str.empty())
+	{
+		str = "GSdx";
+
+		#ifdef _WINDOWS
+		str += format(" %d", SVN_REV);
+		if(SVN_MODS) str += "m";
+		#endif
+
+		#if _M_AMD64
+		str += " 64-bit";
+		#endif
+
+		list<string> sl;
+
+		// TODO: linux (gcc)
+
+		#ifdef __INTEL_COMPILER
+		sl.push_back(format("Intel C++ %d.%02d", __INTEL_COMPILER / 100, __INTEL_COMPILER % 100));
+		#elif _MSC_VER
+		sl.push_back(format("MSVC %d.%02d", _MSC_VER / 100, _MSC_VER % 100));
+		#elif __GNUC__
+		sl.push_back(format("GCC %d.%d.%d", __GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__));
+		#endif
+
+		#if _M_SSE >= 0x500
+		sl.push_back("AVX");
+		#elif _M_SSE >= 0x402
+		sl.push_back("SSE42");
+		#elif _M_SSE >= 0x401
+		sl.push_back("SSE41");
+		#elif _M_SSE >= 0x301
+		sl.push_back("SSSE3");
+		#elif _M_SSE >= 0x200
+		sl.push_back("SSE2");
+		#elif _M_SSE >= 0x100
+		sl.push_back("SSE");
+		#endif
+
+		for(list<string>::iterator i = sl.begin(); i != sl.end(); )
+		{
+			if(i == sl.begin()) str += " (";
+			str += *i;
+			str += ++i != sl.end() ? ", " : ")";
+		}
+	}
+
+	return str.c_str();
+}
+
+static class GSUtilMaps
+{
+public:
 	uint8 PrimClassField[8];
 	uint32 CompatibleBitsField[64][2];
 	uint32 SharedBitsField[64][2];
 
-	struct GSUtilMaps()
+	GSUtilMaps()
 	{
 		PrimClassField[GS_POINTLIST] = GS_POINT_CLASS;
 		PrimClassField[GS_LINELIST] = GS_LINE_CLASS;
@@ -98,6 +161,35 @@ bool GSUtil::HasCompatibleBits(uint32 spsm, uint32 dpsm)
 	return (s_maps.CompatibleBitsField[spsm][dpsm >> 5] & (1 << (dpsm & 0x1f))) != 0;
 }
 
+bool GSUtil::CheckSSE()
+{
+	Xbyak::util::Cpu cpu;
+	Xbyak::util::Cpu::Type type;
+
+	#if _M_SSE >= 0x500
+	type = Xbyak::util::Cpu::tAVX;
+	#elif _M_SSE >= 0x402
+	type = Xbyak::util::Cpu::tSSE42;
+	#elif _M_SSE >= 0x401
+	type = Xbyak::util::Cpu::tSSE41;
+	#elif _M_SSE >= 0x301
+	type = Xbyak::util::Cpu::tSSSE3;
+	#elif _M_SSE >= 0x200
+	type = Xbyak::util::Cpu::tSSE2;
+	#endif
+
+	if(!cpu.has(type))
+	{
+		fprintf(stderr, "This CPU does not support SSE %d.%02d", _M_SSE >> 8, _M_SSE & 0xff);
+
+		return false;
+	}
+
+	return true;
+}
+
+#ifdef _WINDOWS
+
 bool GSUtil::CheckDirectX()
 {
 	OSVERSIONINFOEX version;
@@ -106,17 +198,11 @@ bool GSUtil::CheckDirectX()
 
 	if(GetVersionEx((OSVERSIONINFO*)&version))
 	{
-		printf("Windows %d.%d.%d",
-			version.dwMajorVersion,
-			version.dwMinorVersion,
-			version.dwBuildNumber);
+		printf("Windows %d.%d.%d", version.dwMajorVersion, version.dwMinorVersion, version.dwBuildNumber);
 
 		if(version.wServicePackMajor > 0)
 		{
-			printf(" (%s %d.%d)",
-				version.szCSDVersion,
-				version.wServicePackMajor,
-				version.wServicePackMinor);
+			printf(" (%s %d.%d)", version.szCSDVersion, version.wServicePackMajor, version.wServicePackMinor);
 		}
 
 		printf("\n");
@@ -162,79 +248,125 @@ bool GSUtil::CheckDirectX()
 	return true;
 }
 
-bool GSUtil::CheckSSE()
+// ---------------------------------------------------------------------------------
+//  DX11 Detection (includes DXGI detection and dynamic library method bindings)
+// ---------------------------------------------------------------------------------
+//  Code 'Borrowed' from Microsoft's DXGI sources -- Modified to suit our needs. --air
+
+typedef HRESULT (WINAPI * FNPTR_CREATEDXGIFACTORY)(REFIID, void**);
+
+typedef HRESULT (WINAPI * FNPTR_D3D11CREATEDEVICEANDSWAPCHAIN) (
+	__in   IDXGIAdapter *pAdapter,
+	__in   D3D_DRIVER_TYPE DriverType,
+	__in   HMODULE Software,
+	__in   UINT Flags,
+	__in   const D3D_FEATURE_LEVEL *pFeatureLevels,
+	__in   UINT FeatureLevels,
+	__in   UINT SDKVersion,
+	__in   const DXGI_SWAP_CHAIN_DESC *pSwapChainDesc,
+	__out  IDXGISwapChain **ppSwapChain,
+	__out  ID3D11Device **ppDevice,
+	__out  D3D_FEATURE_LEVEL *pFeatureLevel,
+	__out  ID3D11DeviceContext **ppImmediateContext
+);
+
+static HMODULE					s_hModD3D11 = NULL;
+static PFN_D3D11_CREATE_DEVICE	s_DynamicD3D11CreateDevice = NULL;
+static HMODULE					s_hModDXGI = NULL;
+static FNPTR_CREATEDXGIFACTORY	s_DynamicCreateDXGIFactory = NULL;
+static long						s_D3D11Checked = 0;
+static D3D_FEATURE_LEVEL		s_D3D11Level = (D3D_FEATURE_LEVEL)0;
+
+static bool DXUTDelayLoadDXGI()
 {
-	Xbyak::util::Cpu cpu;
-	Xbyak::util::Cpu::Type type;
-
-	#if _M_SSE >= 0x402
-	type = Xbyak::util::Cpu::tSSE42;
-	#elif _M_SSE >= 0x401
-	type = Xbyak::util::Cpu::tSSE41;
-	#elif _M_SSE >= 0x301
-	type = Xbyak::util::Cpu::tSSSE3;
-	#elif _M_SSE >= 0x200
-	type = Xbyak::util::Cpu::tSSE2;
-	#endif
-
-	if(!cpu.has(type))
+	if(s_DynamicD3D11CreateDevice == NULL)
 	{
-		string s = format("您的 CPU 不支持 SSE %d.%02d", _M_SSE >> 8, _M_SSE & 0xff);
+		s_hModDXGI = LoadLibrary("dxgi.dll");
 
-		MessageBox(GetActiveWindow(), s.c_str(), "GSdx", MB_OK);
+		if(s_hModDXGI != NULL)
+		{
+			s_DynamicCreateDXGIFactory = (FNPTR_CREATEDXGIFACTORY)GetProcAddress(s_hModDXGI, "CreateDXGIFactory");
+		}
 
-		return false;
+		// If DXGI isn't installed then this system isn't even capable of DX11 support; so no point
+		// in checking for DX11 DLLs.
+			
+		if(s_DynamicCreateDXGIFactory == NULL) 
+		{
+			return false;
+		}
+
+		s_hModD3D11 = LoadLibrary("d3d11.dll");
+		
+		if(s_hModD3D11 == NULL) 
+		{
+			s_hModD3D11 = LoadLibrary("d3d11_beta.dll");
+		}
+
+		if(s_hModD3D11 != NULL)
+		{
+			s_DynamicD3D11CreateDevice	= (PFN_D3D11_CREATE_DEVICE)GetProcAddress(s_hModD3D11, "D3D11CreateDevice");
+		}
+
+		if(s_DynamicD3D11CreateDevice == NULL)
+		{
+			return false;
+		}
 	}
 
-	return true;
+	CComPtr<IDXGIFactory> f;
+
+	return s_DynamicCreateDXGIFactory(__uuidof(IDXGIFactory), (LPVOID*)&f) == S_OK && f != NULL;
 }
 
-typedef IDirect3D9* (WINAPI * LPDIRECT3DCREATE9) (UINT);
-
-static HMODULE				s_hModD3D9 = NULL;
-static LPDIRECT3DCREATE9	s_DynamicDirect3DCreate9 = NULL;
-
-
-char* GSUtil::GetLibName()
+bool GSUtil::CheckDirect3D11Level(D3D_FEATURE_LEVEL& level)
 {
-	static string str;
+	HRESULT hr;
 
-	str = format("GSdx %d", SVN_REV);
+	level = (D3D_FEATURE_LEVEL)0;
 
-	if(SVN_MODS) str += "m";
-
-	#if _M_AMD64
-	str += " 64-bit";
-	#endif
-
-	list<string> sl;
-
-	// TODO: gcc
-
-	#ifdef __INTEL_COMPILER
-	sl.push_back(format("Intel C++ %d.%02d", __INTEL_COMPILER / 100, __INTEL_COMPILER % 100));
-	#elif _MSC_VER
-	sl.push_back(format("MSVC %d.%02d", _MSC_VER / 100, _MSC_VER % 100));
-	#endif
-
-	#if _M_SSE >= 0x402
-	sl.push_back("SSE42");
-	#elif _M_SSE >= 0x401
-	sl.push_back("SSE41");
-	#elif _M_SSE >= 0x301
-	sl.push_back("SSSE3");
-	#elif _M_SSE >= 0x200
-	sl.push_back("SSE2");
-	#elif _M_SSE >= 0x100
-	sl.push_back("SSE");
-	#endif
-
-	for(list<string>::iterator i = sl.begin(); i != sl.end(); )
+	if(!_interlockedbittestandset(&s_D3D11Checked, 0)) // thread safety...
 	{
-		if(i == sl.begin()) str += " (";
-		str += *i;
-		str += ++i != sl.end() ? ", " : ")";
+		if(!DXUTDelayLoadDXGI())
+		{
+			UnloadDynamicLibraries();
+
+			return false;
+		}
+		
+		const D3D_FEATURE_LEVEL levels[] =
+		{
+			D3D_FEATURE_LEVEL_11_0,
+			D3D_FEATURE_LEVEL_10_1,
+			D3D_FEATURE_LEVEL_10_0,
+			D3D_FEATURE_LEVEL_9_3,
+			D3D_FEATURE_LEVEL_9_2,
+			D3D_FEATURE_LEVEL_9_1,
+		};
+
+		CComPtr<ID3D11Device> dev;
+		CComPtr<ID3D11DeviceContext> ctx;
+
+		hr = s_DynamicD3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, D3D11_CREATE_DEVICE_SINGLETHREADED, levels, countof(levels), D3D11_SDK_VERSION, &dev, &level, &ctx);
+
+		s_D3D11Level = level;
 	}
 
-	return (char*)str.c_str();
+	level = s_D3D11Level;
+
+	return SUCCEEDED(hr) && level >= D3D_FEATURE_LEVEL_9_1;
 }
+
+void GSUtil::UnloadDynamicLibraries()
+{
+	s_DynamicD3D11CreateDevice = NULL;
+	s_DynamicCreateDXGIFactory = NULL;
+
+	if(s_hModD3D11) FreeLibrary(s_hModD3D11);
+	if(s_hModDXGI) FreeLibrary(s_hModDXGI);
+
+	s_hModD3D11 = NULL;
+	s_hModDXGI = NULL;
+}
+
+#endif

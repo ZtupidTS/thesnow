@@ -24,21 +24,29 @@
 
 #include <wx/iconbndl.h>
 
-#if _MSC_VER
+#if _MSC_VER || defined(LINUX_PRINT_SVN_NUMBER)
 #	include "svnrev.h"
 #endif
 
 // ------------------------------------------------------------------------
-wxMenu* MainEmuFrame::MakeStatesSubMenu( int baseid ) const
+wxMenu* MainEmuFrame::MakeStatesSubMenu( int baseid, int loadBackupId ) const
 {
 	wxMenu* mnuSubstates = new wxMenu();
 
 	for (int i = 0; i < 10; i++)
 	{
-        mnuSubstates->Append( baseid+i+1, wxsFormat(L"插槽 %d", i) );
+        mnuSubstates->Append( baseid+i+1, wxsFormat(_("插槽 %d"), i) );
 	}
-	mnuSubstates->AppendSeparator();
-	mnuSubstates->Append( baseid - 1,	_("其它...") );
+	if( loadBackupId>=0 )
+	{
+		mnuSubstates->AppendSeparator();
+
+		wxMenuItem* m = mnuSubstates->Append( loadBackupId,	_("Backup") );
+		m->Enable( false );
+		States_registerLoadBackupMenuItem( m );
+	}
+
+	//mnuSubstates->Append( baseid - 1,	_("Other...") );
 	return mnuSubstates;
 }
 
@@ -56,6 +64,8 @@ void MainEmuFrame::UpdateIsoSrcSelection()
 	}
 	sMenuBar.Check( cdsrc, true );
 	m_statusbar.SetStatusText( CDVD_SourceLabels[g_Conf->CdvdSource], 1 );
+
+	EnableCdvdPluginSubmenu( cdsrc == MenuId_Src_Plugin );
 
 	//sMenuBar.SetLabel( MenuId_Src_Iso, wxsFormat( L"%s -> %s", _("Iso"),
 	//	exists ? Path::GetFilename(g_Conf->CurrentIso).c_str() : _("Empty") ) );
@@ -200,6 +210,7 @@ void MainEmuFrame::ConnectMenus()
 	ConnectMenu( MenuId_Boot_CDVD2,			Menu_BootCdvd2_Click );
 	ConnectMenu( MenuId_Boot_ELF,			Menu_OpenELF_Click );
 	ConnectMenu( MenuId_IsoBrowse,			Menu_IsoBrowse_Click );
+	ConnectMenu( MenuId_EnableBackupStates, Menu_EnableBackupStates_Click );
 	ConnectMenu( MenuId_EnablePatches,		Menu_EnablePatches_Click );
 	ConnectMenu( MenuId_EnableCheats,		Menu_EnableCheats_Click );
 	ConnectMenu( MenuId_EnableHostFs,		Menu_EnableHostFs_Click );
@@ -209,11 +220,13 @@ void MainEmuFrame::ConnectMenus()
 	ConnectMenu( MenuId_Sys_Restart,		Menu_SysReset_Click );
 	ConnectMenu( MenuId_Sys_Shutdown,		Menu_SysShutdown_Click );
 
-	ConnectMenu( MenuId_State_LoadOther,	Menu_LoadStateOther_Click );
+	//ConnectMenu( MenuId_State_LoadOther,	Menu_LoadStateOther_Click );
 
 	ConnectMenuRange(MenuId_State_Load01+1, 10, Menu_LoadStates_Click);
+	ConnectMenu( MenuId_State_LoadBackup,	Menu_LoadStates_Click );
+	
 
-	ConnectMenu( MenuId_State_SaveOther,	Menu_SaveStateOther_Click );
+	//ConnectMenu( MenuId_State_SaveOther,	Menu_SaveStateOther_Click );
 
 	ConnectMenuRange(MenuId_State_Save01+1, 10, Menu_SaveStates_Click);
 
@@ -223,7 +236,6 @@ void MainEmuFrame::ConnectMenus()
 
 	ConnectMenu( MenuId_Console,			Menu_ShowConsole );
 	ConnectMenu( MenuId_Console_Stdio,		Menu_ShowConsole_Stdio );
-	ConnectMenu( MenuId_CDVD_Info,			Menu_PrintCDVD_Info );
 
 	ConnectMenu( MenuId_About,				Menu_ShowAboutBox );
 }
@@ -279,7 +291,7 @@ void MainEmuFrame::AppStatusEvent_OnSettingsApplied()
 	ApplySettings();
 }
 
-static int GetPluginMenuId_Settings( PluginsEnum_t pid )
+int GetPluginMenuId_Settings( PluginsEnum_t pid )
 {
 	return MenuId_PluginBase_Settings + ((int)pid * PluginMenuId_Interval);
 }
@@ -306,7 +318,7 @@ MainEmuFrame::MainEmuFrame(wxWindow* parent, const wxString& title)
 	, m_menuMisc	( *new wxMenu() )
 	, m_menuDebug	( *new wxMenu() )
 
-	, m_LoadStatesSubmenu( *MakeStatesSubMenu( MenuId_State_Load01 ) )
+	, m_LoadStatesSubmenu( *MakeStatesSubMenu( MenuId_State_Load01, MenuId_State_LoadBackup ) )
 	, m_SaveStatesSubmenu( *MakeStatesSubMenu( MenuId_State_Save01 ) )
 
 	, m_MenuItem_Console( *new wxMenuItem( &m_menuMisc, MenuId_Console, _("显示控制台窗口"), wxEmptyString, wxITEM_CHECK ) )
@@ -362,8 +374,8 @@ MainEmuFrame::MainEmuFrame(wxWindow* parent, const wxString& title)
 
 	int m_statusbar_widths[] = { (int)(backsize.GetWidth()*0.73), (int)(backsize.GetWidth()*0.25) };
 	m_statusbar.SetStatusWidths(2, m_statusbar_widths);
-	m_statusbar.SetStatusText( L"目前状态很好!", 0);
-	m_statusbar.SetStatusText( wxEmptyString, 1);
+	//m_statusbar.SetStatusText( L"目前状态很好!", 0);
+	m_statusbar.SetStatusText( wxEmptyString, 0);
 
 	wxBoxSizer& joe( *new wxBoxSizer( wxVERTICAL ) );
 	joe.Add( &m_background );
@@ -401,10 +413,13 @@ MainEmuFrame::MainEmuFrame(wxWindow* parent, const wxString& title)
 	m_menuSys.Append(MenuId_Sys_LoadStates,	_("载入状态"), &m_LoadStatesSubmenu);
 	m_menuSys.Append(MenuId_Sys_SaveStates,	_("保存状态"), &m_SaveStatesSubmenu);
 
+	m_menuSys.Append(MenuId_EnableBackupStates,	_("Backup before save"),
+		wxEmptyString, wxITEM_CHECK);
+
 	m_menuSys.AppendSeparator();
 
-	m_menuSys.Append(MenuId_EnablePatches,	_("启用补丁"),
-		wxEmptyString, wxITEM_CHECK);
+	m_menuSys.Append(MenuId_EnablePatches,	_("Automatic Gamefixes"),
+		_("Automatically applies needed Gamefixes to known problematic games"), wxITEM_CHECK);
 
 	m_menuSys.Append(MenuId_EnableCheats,	_("启用作弊"),
 		wxEmptyString, wxITEM_CHECK);
@@ -442,11 +457,9 @@ MainEmuFrame::MainEmuFrame(wxWindow* parent, const wxString& title)
 	m_menuConfig.Append(MenuId_Config_SysSettings,	_("模拟设置(&S)") );
 	m_menuConfig.Append(MenuId_Config_McdSettings,	_("内存卡(&M)") );
 	m_menuConfig.Append(MenuId_Config_BIOS,			_("插件/BIOS选择器(&P)") );
-	if (IsDebugBuild)
-	{
-		m_menuConfig.Append(MenuId_Config_GameDatabase,	_("游戏数据库编辑器") );
-		m_menuConfig.Append(MenuId_Config_Language,		_("外观...") );
-	}
+	if (IsDebugBuild) m_menuConfig.Append(MenuId_Config_GameDatabase,	_("游戏数据库编辑器") );
+	// Empty menu
+	// m_menuConfig.Append(MenuId_Config_Language,		_("外观...") );
 
 	m_menuConfig.AppendSeparator();
 
@@ -457,8 +470,8 @@ MainEmuFrame::MainEmuFrame(wxWindow* parent, const wxString& title)
 	m_menuConfig.Append(MenuId_Config_USB,		_("USB插件"),				m_PluginMenuPacks[PluginId_USB]);
 	m_menuConfig.Append(MenuId_Config_FireWire,	_("火线插件"),			m_PluginMenuPacks[PluginId_FW]);
 
-	m_menuConfig.AppendSeparator();
-	m_menuConfig.Append(MenuId_Config_Patches,	_("补丁设置 (unimplemented)"),	wxEmptyString);
+	//m_menuConfig.AppendSeparator();
+	//m_menuConfig.Append(MenuId_Config_Patches,	_("Patches (unimplemented)"),	wxEmptyString);
 
 	m_menuConfig.AppendSeparator();
 	m_menuConfig.Append(MenuId_Config_Multitap0Toggle,	_("Multitap 1"),	wxEmptyString, wxITEM_CHECK );
@@ -482,7 +495,6 @@ MainEmuFrame::MainEmuFrame(wxWindow* parent, const wxString& title)
 	//m_menuMisc.Append(41, "Patch Browser...", wxEmptyString, wxITEM_NORMAL);
 	//m_menuMisc.Append(42, "Patch Finder...", wxEmptyString, wxITEM_NORMAL);
 
-	m_menuMisc.Append(MenuId_CDVD_Info, _("输出CDVD信息"), wxEmptyString, wxITEM_CHECK);
 	m_menuMisc.AppendSeparator();
 
 	//Todo:
@@ -491,9 +503,9 @@ MainEmuFrame::MainEmuFrame(wxWindow* parent, const wxString& title)
 	//	_("Opens your web-browser to our favorite website."));
 //	m_menuMisc.Append(MenuId_About,				_("关于...") );			//removed
 #ifdef PCSX2_DEVBUILD
-	m_menuDebug.Append(MenuId_Debug_Open,		_("打开调试窗口..."),	wxEmptyString);
-	m_menuDebug.Append(MenuId_Debug_MemoryDump,	_("内存转储..."),		wxEmptyString);
-	m_menuDebug.Append(MenuId_Debug_Logging,	_("日志..."),			wxEmptyString);
+	//m_menuDebug.Append(MenuId_Debug_Open,		_("Open Debug Window..."),	wxEmptyString);
+	//m_menuDebug.Append(MenuId_Debug_MemoryDump,	_("Memory Dump..."),		wxEmptyString);
+	m_menuDebug.Append(MenuId_Debug_Logging,	_("Logging..."),			wxEmptyString);
 #endif
 	m_MenuItem_Console.Check( g_Conf->ProgLogBox.Visible );
 
@@ -570,8 +582,8 @@ void MainEmuFrame::ApplyCoreStatus()
 		if( !CoreThread.IsClosing() )
 		{
 			susres->Enable();
-			susres->SetText( _("休眠主机") );
-			susres->SetHelp( _("安全暂停模拟器并保留PS2状态.") );
+			susres->SetText(_("暂停主机"));
+			susres->SetHelp(_("安全暂停模拟器并保留PS2状态."));
 		}
 		else
 		{
@@ -583,7 +595,7 @@ void MainEmuFrame::ApplyCoreStatus()
 			}
 			else
 			{
-				susres->SetText(_("挂起/恢复"));
+				susres->SetText(_("粘贴/恢复"));
 				susres->SetHelp(_("No emulation state is active; cannot suspend or resume."));
 			}
 		}
@@ -622,35 +634,57 @@ void MainEmuFrame::ApplyCoreStatus()
 		if( vm )
 		{
 			cdvd2->SetText(_("Reboot CDVD (fast)"));
-			cdvd2->SetHelp(_("Reboot using BOOT2 injection (skips splash screens)"));
+			cdvd2->SetHelp(_("Reboot using fast BOOT (skips splash screens)"));
 		}
 		else
 		{
 			cdvd2->SetText(_("Boot CDVD (fast)"));
-			cdvd2->SetHelp(_("Use BOOT2 injection to skip PS2 startup and splash screens"));
+			cdvd2->SetHelp(_("Use fast boot to skip PS2 startup and splash screens"));
 		}
 	}
 
 	menubar.Enable( MenuId_Sys_Shutdown, SysHasValidState() || CorePlugins.AreAnyInitialized() );
 }
 
+//Apply a config to the menu such that the menu reflects it properly
 void MainEmuFrame::ApplySettings()
+{
+	ApplyConfigToGui(*g_Conf);
+}
+
+//MainEmuFrame needs to be aware which items are affected by presets if AppConfig::APPLY_FLAG_FROM_PRESET is on.
+//currently only EnablePatches is affected when the settings come from a preset.
+void MainEmuFrame::ApplyConfigToGui(AppConfig& configToApply, int flags)
 {
 	wxMenuBar& menubar( *GetMenuBar() );
 
-	menubar.Check( MenuId_EnablePatches, g_Conf->EmuOptions.EnablePatches );
-	menubar.Check( MenuId_EnableCheats,  g_Conf->EmuOptions.EnableCheats );
-	menubar.Check( MenuId_EnableHostFs,  g_Conf->EmuOptions.HostFs );
-	menubar.Check( MenuId_CDVD_Info,	 g_Conf->EmuOptions.CdvdVerboseReads );
+	menubar.Check(	MenuId_EnablePatches, configToApply.EmuOptions.EnablePatches );
+	menubar.Enable(	MenuId_EnablePatches, !configToApply.EnablePresets );
+
+	if ( !(flags & AppConfig::APPLY_FLAG_FROM_PRESET) )
+	{//these should not be affected by presets
+		menubar.Check( MenuId_EnableBackupStates, configToApply.EmuOptions.BackupSavestate );
+		menubar.Check( MenuId_EnableCheats,  configToApply.EmuOptions.EnableCheats );
+		menubar.Check( MenuId_EnableHostFs,  configToApply.EmuOptions.HostFs );
 #ifdef __LINUX__
-	menubar.Check( MenuId_Console_Stdio, g_Conf->EmuOptions.ConsoleToStdio );
+		menubar.Check( MenuId_Console_Stdio, configToApply.EmuOptions.ConsoleToStdio );
 #endif
 
-	menubar.Check( MenuId_Config_Multitap0Toggle, g_Conf->EmuOptions.MultitapPort0_Enabled );
-	menubar.Check( MenuId_Config_Multitap1Toggle, g_Conf->EmuOptions.MultitapPort1_Enabled );
+		menubar.Check( MenuId_Config_Multitap0Toggle, configToApply.EmuOptions.MultitapPort0_Enabled );
+		menubar.Check( MenuId_Config_Multitap1Toggle, configToApply.EmuOptions.MultitapPort1_Enabled );
+	}
 
-	UpdateIsoSrcSelection();
+	UpdateIsoSrcSelection();	//shouldn't be affected by presets but updates from g_Conf anyway and not from configToApply, so no problem here.
 }
+
+//write pending preset settings from the gui to g_Conf,
+//	without triggering an overall "settingsApplied" event.
+void MainEmuFrame::CommitPreset_noTrigger()
+{
+	wxMenuBar& menubar( *GetMenuBar() );
+	g_Conf->EmuOptions.EnablePatches = menubar.IsChecked( MenuId_EnablePatches );
+}
+
 
 // ------------------------------------------------------------------------
 //   "Extensible" Plugin Menus

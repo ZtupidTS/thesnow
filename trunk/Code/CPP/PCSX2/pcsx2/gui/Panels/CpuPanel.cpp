@@ -19,13 +19,10 @@
 using namespace pxSizerFlags;
 
 Panels::BaseAdvancedCpuOptions::BaseAdvancedCpuOptions( wxWindow* parent )
-	: BaseApplicableConfigPanel( parent )
+	: BaseApplicableConfigPanel_SpecificConfig( parent )
 {
 	wxStaticBoxSizer*	s_round( new wxStaticBoxSizer( wxVERTICAL, this, _("回合模式") ) );
 	wxStaticBoxSizer*	s_clamp( new wxStaticBoxSizer( wxVERTICAL, this, _("Clamping Mode") ) );
-
-	m_Option_FTZ		= new pxCheckBox( this, _("刷新到零") );
-	m_Option_DAZ		= new pxCheckBox( this, _("不正常为零") );
 
 	const RadioPanelItem RoundModeChoices[] =
 	{
@@ -55,27 +52,16 @@ Panels::BaseAdvancedCpuOptions::BaseAdvancedCpuOptions( wxWindow* parent )
 
 	wxFlexGridSizer& grid = *new wxFlexGridSizer( 4 );
 
-	// Clever proportions selected for a fairly nice spacing, with the third
-	// column serving as a buffer between static box and a pair of checkboxes.
+	// Clever proportions selected for a fairly nice spacing.
 
-	grid.AddGrowableCol( 0, 17 );
-	grid.AddGrowableCol( 1, 22 );
-	grid.AddGrowableCol( 2, 1 );
-	grid.AddGrowableCol( 3, 19 );
-
-	wxBoxSizer& s_daz( *new wxBoxSizer( wxVERTICAL ) );
-	s_daz	+= 12;
-	s_daz	+= m_Option_FTZ;
-	s_daz	+= m_Option_DAZ;
-	s_daz	+= 4;
+	grid.AddGrowableCol( 0, 22 ); // round mode box size
+	grid.AddGrowableCol( 1, 22 ); // clamp mode box size
 
 	*s_round+= m_RoundModePanel		| StdExpand();
 	*s_clamp+= m_ClampModePanel		| StdExpand();
 
 	grid	+= s_round				| SubGroup();
 	grid	+= s_clamp				| SubGroup();
-	grid	+= new wxBoxSizer( wxVERTICAL );		// spacer column!
-	grid	+= &s_daz				| pxExpand;
 
 	*this	+= grid					| StdExpand();
 }
@@ -90,9 +76,6 @@ void Panels::BaseAdvancedCpuOptions::RestoreDefaults()
 {
 	m_RoundModePanel->SetSelection( 3 );		// Roundmode chop
 	m_ClampModePanel->SetSelection( 1 );		// clamp mode normal
-
-	m_Option_DAZ->SetValue(true);
-	m_Option_FTZ->SetValue(true);
 }
 
 Panels::AdvancedOptionsFPU::AdvancedOptionsFPU( wxWindow* parent )
@@ -123,8 +106,12 @@ Panels::AdvancedOptionsVU::AdvancedOptionsVU( wxWindow* parent )
 }
 
 Panels::CpuPanelEE::CpuPanelEE( wxWindow* parent )
-	: BaseApplicableConfigPanel( parent )
+	: BaseApplicableConfigPanel_SpecificConfig( parent )
 {
+	*this	+= Text( pxE( "!Panel:EE/IOP:Heading",
+		L"Notice: Most games are fine with the default options. ")
+	) | StdExpand();
+
 	const RadioPanelItem tbl_CpuTypes_EE[] =
 	{
 		RadioPanelItem(_("解释程序"))
@@ -164,14 +151,20 @@ Panels::CpuPanelEE::CpuPanelEE( wxWindow* parent )
 	wxStaticBoxSizer& s_iop	( *new wxStaticBoxSizer( wxVERTICAL, this, L"IOP" ) );
 
 	s_ee	+= m_panel_RecEE	| StdExpand();
+	s_ee   += m_check_EECacheEnable = new pxCheckBox( this, _("Enable EE Cache - Interpreter Only! (Slower)") );
 	s_iop	+= m_panel_RecIOP	| StdExpand();
 
 	s_recs	+= s_ee				| SubGroup();
 	s_recs	+= s_iop			| SubGroup();
 
+	
 	*this	+= &s_recs							| StdExpand();
+	
+	// move following line down so EE and VU panels look more uniform. 
+	// Use an empty Label (std expanded) so it work with custom font sizes, too.
+	//*this	+= Label(_(""))  | StdExpand();
 	*this	+= new wxStaticLine( this )			| pxExpand.Border(wxALL, 18);
-	*this	+= new AdvancedOptionsFPU( this )	| StdExpand();
+	*this	+= (m_advancedOptsFpu = new AdvancedOptionsFPU( this ))	| StdExpand();
 
 	*this	+= 12;
 	*this	+= new wxButton( this, wxID_DEFAULT, _("还原默认") ) | StdButton();
@@ -180,8 +173,12 @@ Panels::CpuPanelEE::CpuPanelEE( wxWindow* parent )
 }
 
 Panels::CpuPanelVU::CpuPanelVU( wxWindow* parent )
-	: BaseApplicableConfigPanel( parent )
+	: BaseApplicableConfigPanel_SpecificConfig( parent )
 {
+	*this	+= Text( pxE( "!Panel:VUs:Heading",
+		L"Notice: Most games are fine with the default options. ")
+	) | StdExpand();
+
 	const RadioPanelItem tbl_CpuTypes_VU[] =
 	{
 		RadioPanelItem(_("解释程序"))
@@ -220,7 +217,7 @@ Panels::CpuPanelVU::CpuPanelVU( wxWindow* parent )
 
 	*this	+= &s_recs							| StdExpand();
 	*this	+= new wxStaticLine( this )			| pxExpand.Border(wxALL, 18);
-	*this	+= new AdvancedOptionsVU( this )	| StdExpand();
+	*this	+= ( m_advancedOptsVu=new AdvancedOptionsVU( this ))	| StdExpand();
 
 	*this	+= 12;
 	*this	+= new wxButton( this, wxID_DEFAULT, _("还原默认") ) | StdButton();
@@ -231,25 +228,37 @@ Panels::CpuPanelVU::CpuPanelVU( wxWindow* parent )
 void Panels::CpuPanelEE::Apply()
 {
 	Pcsx2Config::RecompilerOptions& recOps( g_Conf->EmuOptions.Cpu.Recompiler );
-	recOps.EnableEE		= !!m_panel_RecEE->GetSelection();
-	recOps.EnableIOP	= !!m_panel_RecIOP->GetSelection();
+	recOps.EnableEE		  = !!m_panel_RecEE->GetSelection();
+	recOps.EnableIOP	  = !!m_panel_RecIOP->GetSelection();
+	recOps.EnableEECache  = m_check_EECacheEnable	->GetValue();
 }
 
 void Panels::CpuPanelEE::AppStatusEvent_OnSettingsApplied()
 {
+	ApplyConfigToGui( *g_Conf );
+}
+
+void Panels::CpuPanelEE::ApplyConfigToGui( AppConfig& configToApply, int flags ){
 	m_panel_RecEE->Enable( x86caps.hasStreamingSIMD2Extensions );
 
 	// IOP rec should work fine on any CPU. :D
 	//m_panel_RecIOP->Enable( x86caps.hasStreamingSIMD2Extensions );
 
-	const Pcsx2Config::RecompilerOptions& recOps( g_Conf->EmuOptions.Cpu.Recompiler );
+	const Pcsx2Config::RecompilerOptions& recOps( configToApply.EmuOptions.Cpu.Recompiler );
 	m_panel_RecEE->SetSelection( (int)recOps.EnableEE );
 	m_panel_RecIOP->SetSelection( (int)recOps.EnableIOP );
 
-	m_panel_RecEE->Enable(!g_Conf->EnablePresets);
-	m_panel_RecIOP->Enable(!g_Conf->EnablePresets);
+	m_panel_RecEE->Enable(!configToApply.EnablePresets);
+	m_panel_RecIOP->Enable(!configToApply.EnablePresets);
 
-	this->Enable(!g_Conf->EnablePresets);
+	m_check_EECacheEnable ->SetValue(recOps.EnableEECache);
+
+	this->Enable(!configToApply.EnablePresets);
+
+	if( flags & AppConfig::APPLY_FLAG_MANUALLY_PROPAGATE )
+	{
+		m_advancedOptsFpu->ApplyConfigToGui( configToApply, true );
+	}
 }
 
 void Panels::CpuPanelEE::OnRestoreDefaults(wxCommandEvent &evt)
@@ -276,6 +285,11 @@ void Panels::CpuPanelVU::Apply()
 
 void Panels::CpuPanelVU::AppStatusEvent_OnSettingsApplied()
 {
+	ApplyConfigToGui( *g_Conf );
+}
+
+void Panels::CpuPanelVU::ApplyConfigToGui( AppConfig& configToApply, int flags )
+{
 	m_panel_VU0->Enable( x86caps.hasStreamingSIMD2Extensions );
 	m_panel_VU1->Enable( x86caps.hasStreamingSIMD2Extensions );
 
@@ -285,7 +299,7 @@ void Panels::CpuPanelVU::AppStatusEvent_OnSettingsApplied()
 	m_panel_VU1->EnableItem( 1, x86caps.hasStreamingSIMD2Extensions );
 	m_panel_VU1->EnableItem( 2, x86caps.hasStreamingSIMD2Extensions );
 
-	Pcsx2Config::RecompilerOptions& recOps( g_Conf->EmuOptions.Cpu.Recompiler );
+	Pcsx2Config::RecompilerOptions& recOps( configToApply.EmuOptions.Cpu.Recompiler );
 	if( recOps.UseMicroVU0 )
 		m_panel_VU0->SetSelection( recOps.EnableVU0 ? 1 : 0 );
 	else
@@ -296,10 +310,16 @@ void Panels::CpuPanelVU::AppStatusEvent_OnSettingsApplied()
 	else
 		m_panel_VU1->SetSelection( recOps.EnableVU1 ? 2 : 0 );
 
-	this->Enable(!g_Conf->EnablePresets);
-	m_panel_VU0->Enable(!g_Conf->EnablePresets);
-	m_panel_VU1->Enable(!g_Conf->EnablePresets);
+	this->Enable(!configToApply.EnablePresets);
+	m_panel_VU0->Enable(!configToApply.EnablePresets);
+	m_panel_VU1->Enable(!configToApply.EnablePresets);
+
+	if ( flags & AppConfig::APPLY_FLAG_MANUALLY_PROPAGATE )
+	{
+		m_advancedOptsVu->ApplyConfigToGui( configToApply, true );
+	}
 }
+
 
 void Panels::CpuPanelVU::OnRestoreDefaults(wxCommandEvent &evt)
 {
@@ -315,8 +335,8 @@ void Panels::CpuPanelVU::OnRestoreDefaults(wxCommandEvent &evt)
 void Panels::BaseAdvancedCpuOptions::ApplyRoundmode( SSE_MXCSR& mxcsr )
 {
 	mxcsr.RoundingControl	= m_RoundModePanel->GetSelection();
-	mxcsr.DenormalsAreZero	= m_Option_DAZ->GetValue();
-	mxcsr.FlushToZero		= m_Option_FTZ->GetValue();
+	mxcsr.DenormalsAreZero	= 1;
+	mxcsr.FlushToZero		= 1;
 }
 
 void Panels::AdvancedOptionsFPU::Apply()
@@ -338,11 +358,13 @@ void Panels::AdvancedOptionsFPU::Apply()
 
 void Panels::AdvancedOptionsFPU::AppStatusEvent_OnSettingsApplied()
 {
-	const Pcsx2Config::CpuOptions& cpuOps( g_Conf->EmuOptions.Cpu );
-	const Pcsx2Config::RecompilerOptions& recOps( cpuOps.Recompiler );
+	ApplyConfigToGui( *g_Conf );
+}
 
-	m_Option_FTZ->SetValue( cpuOps.sseMXCSR.FlushToZero );
-	m_Option_DAZ->SetValue( cpuOps.sseMXCSR.DenormalsAreZero );
+void Panels::AdvancedOptionsFPU::ApplyConfigToGui( AppConfig& configToApply, int flags )
+{
+	const Pcsx2Config::CpuOptions& cpuOps( configToApply.EmuOptions.Cpu );
+	const Pcsx2Config::RecompilerOptions& recOps( cpuOps.Recompiler );
 
 	m_RoundModePanel->SetSelection( cpuOps.sseMXCSR.RoundingControl );
 
@@ -351,7 +373,7 @@ void Panels::AdvancedOptionsFPU::AppStatusEvent_OnSettingsApplied()
 	else if( recOps.fpuOverflow )		m_ClampModePanel->SetSelection( 1 );
 	else								m_ClampModePanel->SetSelection( 0 );
 
-	this->Enable(!g_Conf->EnablePresets);
+	this->Enable(!configToApply.EnablePresets);
 }
 
 void Panels::AdvancedOptionsVU::Apply()
@@ -373,11 +395,13 @@ void Panels::AdvancedOptionsVU::Apply()
 
 void Panels::AdvancedOptionsVU::AppStatusEvent_OnSettingsApplied()
 {
-	const Pcsx2Config::CpuOptions& cpuOps( g_Conf->EmuOptions.Cpu );
-	const Pcsx2Config::RecompilerOptions& recOps( cpuOps.Recompiler );
+	ApplyConfigToGui( *g_Conf );
+}
 
-	m_Option_FTZ->SetValue( cpuOps.sseVUMXCSR.FlushToZero );
-	m_Option_DAZ->SetValue( cpuOps.sseVUMXCSR.DenormalsAreZero );
+void Panels::AdvancedOptionsVU::ApplyConfigToGui( AppConfig& configToApply, int flags )
+{
+	const Pcsx2Config::CpuOptions& cpuOps( configToApply.EmuOptions.Cpu );
+	const Pcsx2Config::RecompilerOptions& recOps( cpuOps.Recompiler );
 
 	m_RoundModePanel->SetSelection( cpuOps.sseVUMXCSR.RoundingControl );
 
@@ -386,6 +410,5 @@ void Panels::AdvancedOptionsVU::AppStatusEvent_OnSettingsApplied()
 	else if( recOps.vuOverflow )		m_ClampModePanel->SetSelection( 1 );
 	else								m_ClampModePanel->SetSelection( 0 );
 
-	this->Enable(!g_Conf->EnablePresets);
+	this->Enable(!configToApply.EnablePresets);
 }
-

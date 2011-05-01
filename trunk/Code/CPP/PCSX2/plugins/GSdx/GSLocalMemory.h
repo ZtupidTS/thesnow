@@ -21,8 +21,6 @@
 
 #pragma once
 
-#pragma warning(disable: 4100) // warning C4100: 'TEXA' : unreferenced formal parameter
-
 #include "GS.h"
 #include "GSTables.h"
 #include "GSVector.h"
@@ -39,7 +37,7 @@ struct GSOffset
 
 	struct
 	{
-		int row[2048]; // yn (n = 0 1 2 ...)
+		int row[4096]; // yn (n = 0 1 2 ...) NOTE: this wraps around above 2048, only transfers should address the upper half (dark cloud 2 inventing)
 		int* col[8]; // rowOffset*
 	} pixel;
 
@@ -72,37 +70,33 @@ public:
 	typedef void (GSLocalMemory::*readTexture)(const GSOffset* RESTRICT o, const GSVector4i& r, uint8* dst, int dstpitch, const GIFRegTEXA& TEXA);
 	typedef void (GSLocalMemory::*readTextureBlock)(uint32 bp, uint8* dst, int dstpitch, const GIFRegTEXA& TEXA) const;
 
-	typedef union
+	__aligned(struct, 128) psm_t
 	{
-		struct
-		{
-			pixelAddress pa, bn;
-			readPixel rp;
-			readPixelAddr rpa;
-			writePixel wp;
-			writePixelAddr wpa;
-			readTexel rt;
-			readTexelAddr rta;
-			writeFrameAddr wfa;
-			writeImage wi;
-			readImage ri;
-			readTexture rtx, rtxP;
-			readTextureBlock rtxb, rtxbP;
-			uint16 bpp, trbpp, pal, fmt;
-			GSVector2i bs, pgs;
-			int* rowOffset[8];
-			short* blockOffset;
-		};
-
-		uint8 dummy[128];
-
-	} psm_t;
+		pixelAddress pa, bn;
+		readPixel rp;
+		readPixelAddr rpa;
+		writePixel wp;
+		writePixelAddr wpa;
+		readTexel rt;
+		readTexelAddr rta;
+		writeFrameAddr wfa;
+		writeImage wi;
+		readImage ri;
+		readTexture rtx, rtxP;
+		readTextureBlock rtxb, rtxbP;
+		uint16 bpp, trbpp, pal, fmt;
+		GSVector2i bs, pgs;
+		int* rowOffset[8];
+		short* blockOffset;
+	};
 
 	static psm_t m_psm[64];
 
 	static const int m_vmsize = 1024 * 1024 * 4;
 
-	union {uint8* m_vm8; uint16* m_vm16; uint32* m_vm32;};
+	uint8* m_vm8; 
+	uint16* m_vm16; 
+	uint32* m_vm32;
 
 	GSClut m_clut;
 
@@ -116,14 +110,14 @@ protected:
 	static uint32 pageOffset8[32][64][128];
 	static uint32 pageOffset4[32][128][128];
 
-	static int rowOffset32[2048];
-	static int rowOffset32Z[2048];
-	static int rowOffset16[2048];
-	static int rowOffset16S[2048];
-	static int rowOffset16Z[2048];
-	static int rowOffset16SZ[2048];
-	static int rowOffset8[2][2048];
-	static int rowOffset4[2][2048];
+	static int rowOffset32[4096];
+	static int rowOffset32Z[4096];
+	static int rowOffset16[4096];
+	static int rowOffset16S[4096];
+	static int rowOffset16Z[4096];
+	static int rowOffset16SZ[4096];
+	static int rowOffset8[2][4096];
+	static int rowOffset4[2][4096];
 
 	static short blockOffset32[256];
 	static short blockOffset32Z[256];
@@ -152,6 +146,7 @@ protected:
 
 	hash_map<uint32, GSOffset*> m_omap;
 	hash_map<uint32, GSPixelOffset4*> m_po4map;
+	hash_map<uint32, list<GSVector2i>*> m_p2tmap;
 
 public:
 	GSLocalMemory();
@@ -159,6 +154,7 @@ public:
 
 	GSOffset* GetOffset(uint32 bp, uint32 bw, uint32 psm);
 	GSPixelOffset4* GetPixelOffset4(const GIFRegFRAME& FRAME, const GIFRegZBUF& ZBUF);
+	list<GSVector2i>* GetPage2TileMap(const GIFRegTEX0& TEX0);
 
 	// address
 
@@ -179,14 +175,14 @@ public:
 
 	static uint32 BlockNumber8(int x, int y, uint32 bp, uint32 bw)
 	{
-		ASSERT((bw & 1) == 0);
+		// ASSERT((bw & 1) == 0); // allowed for mipmap levels
 
 		return bp + ((y >> 1) & ~0x1f) * (bw >> 1) + ((x >> 2) & ~0x1f) + blockTable8[(y >> 4) & 3][(x >> 4) & 7];
 	}
 
 	static uint32 BlockNumber4(int x, int y, uint32 bp, uint32 bw)
 	{
-		ASSERT((bw & 1) == 0);
+		// ASSERT((bw & 1) == 0); // allowed for mipmap levels
 
 		return bp + ((y >> 2) & ~0x1f) * (bw >> 1) + ((x >> 2) & ~0x1f) + blockTable4[(y >> 4) & 7][(x >> 5) & 3];
 	}
@@ -297,6 +293,7 @@ public:
 	{
 		uint32 page = (bp >> 5) + (y >> 5) * bw + (x >> 6);
 		uint32 word = (page << 11) + pageOffset32[bp & 0x1f][y & 0x1f][x & 0x3f];
+
 		return word;
 	}
 
@@ -304,6 +301,7 @@ public:
 	{
 		uint32 page = (bp >> 5) + (y >> 6) * bw + (x >> 6);
 		uint32 word = (page << 12) + pageOffset16[bp & 0x1f][y & 0x3f][x & 0x3f];
+
 		return word;
 	}
 
@@ -311,22 +309,27 @@ public:
 	{
 		uint32 page = (bp >> 5) + (y >> 6) * bw + (x >> 6);
 		uint32 word = (page << 12) + pageOffset16S[bp & 0x1f][y & 0x3f][x & 0x3f];
+
 		return word;
 	}
 
 	static __forceinline uint32 PixelAddress8(int x, int y, uint32 bp, uint32 bw)
 	{
-		ASSERT((bw & 1) == 0);
+		// ASSERT((bw & 1) == 0); // allowed for mipmap levels
+
 		uint32 page = (bp >> 5) + (y >> 6) * (bw >> 1) + (x >> 7);
 		uint32 word = (page << 13) + pageOffset8[bp & 0x1f][y & 0x3f][x & 0x7f];
+
 		return word;
 	}
 
 	static __forceinline uint32 PixelAddress4(int x, int y, uint32 bp, uint32 bw)
 	{
-		ASSERT((bw & 1) == 0);
+		// ASSERT((bw & 1) == 0); // allowed for mipmap levels
+
 		uint32 page = (bp >> 5) + (y >> 7) * (bw >> 1) + (x >> 7);
 		uint32 word = (page << 14) + pageOffset4[bp & 0x1f][y & 0x7f][x & 0x7f];
+
 		return word;
 	}
 
@@ -334,6 +337,7 @@ public:
 	{
 		uint32 page = (bp >> 5) + (y >> 5) * bw + (x >> 6);
 		uint32 word = (page << 11) + pageOffset32Z[bp & 0x1f][y & 0x1f][x & 0x3f];
+
 		return word;
 	}
 
@@ -341,6 +345,7 @@ public:
 	{
 		uint32 page = (bp >> 5) + (y >> 6) * bw + (x >> 6);
 		uint32 word = (page << 12) + pageOffset16Z[bp & 0x1f][y & 0x3f][x & 0x3f];
+
 		return word;
 	}
 
@@ -348,6 +353,7 @@ public:
 	{
 		uint32 page = (bp >> 5) + (y >> 6) * bw + (x >> 6);
 		uint32 word = (page << 12) + pageOffset16SZ[bp & 0x1f][y & 0x3f][x & 0x3f];
+
 		return word;
 	}
 
@@ -891,7 +897,6 @@ public:
 
 	//
 
-	HRESULT SaveBMP(const string& fn, uint32 bp, uint32 bw, uint32 psm, int w, int h);
+	void SaveBMP(const string& fn, uint32 bp, uint32 bw, uint32 psm, int w, int h);
 };
 
-#pragma warning(default: 4244)
