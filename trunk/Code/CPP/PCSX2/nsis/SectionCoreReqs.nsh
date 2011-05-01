@@ -26,11 +26,12 @@
   ; ------------------------------------------
   ; (Binaries, shared DLLs, null plugins, game database, languages, etc)
 
-  ; Note that v3 pthreads is compatible with v4 pthreads, so we just copy v4 oover both
-  ; filenames.  This allows many older plugin versions to continue to work.  (note that
-  ; v3 will be removed for 0.9.8).
+  ; Note that v3 pthreads is compatible with v4 pthreads, so we just copy v4 over both
+  ; filenames.  This allows many older plugin versions to continue to work.
 
     File                                            ..\bin\w32pthreads.v4.dll
+    File                                            ..\bin\SDL.dll
+  ; See above comment.
     File           /oname=w32pthreads.v3.dll        ..\bin\w32pthreads.v4.dll
     File                                            ..\bin\GameIndex.dbf
 
@@ -60,9 +61,6 @@
     File ..\bin\Plugins\CDVDnull.dll
   !insertmacro UNINSTALL.LOG_CLOSE_INSTALL
   
-  ; In 0.9.7 there is only English, so including the other mo files (for now) is pointless.
-  ; This code will be re-enabled when the new GUI is translated.
-  
   !if ${INC_LANGS} > 0
     SetOutPath $INSTDIR\Langs
     !insertmacro UNINSTALL.LOG_OPEN_INSTALL
@@ -75,9 +73,6 @@
   ;         -- Registry Section --
   ; ------------------------------------------
 
-  ; Write the installation path into the registry
-  WriteRegStr HKLM Software\PCSX2 "Install_Dir" "$INSTDIR"
-  
   ; Write the uninstall keys for Windows
   WriteRegStr   HKLM "${INSTDIR_REG_KEY}"  "DisplayName"      "PCSX2 - Playstation 2 Emulator"
   WriteRegStr   HKLM "${INSTDIR_REG_KEY}"  "UninstallString"  "${UNINST_EXE}"
