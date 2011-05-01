@@ -69,7 +69,7 @@ void GSDevice9::SetupIA(const void* vertices, int count, int prim)
 
 void GSDevice9::SetupVS(VSSelector sel, const VSConstantBuffer* cb)
 {
-	hash_map< uint32, GSVertexShader9 >::const_iterator i = m_vs.find(sel);
+	hash_map<uint32, GSVertexShader9>::const_iterator i = m_vs.find(sel);
 
 	if(i == m_vs.end())
 	{
@@ -110,6 +110,7 @@ void GSDevice9::SetupVS(VSSelector sel, const VSConstantBuffer* cb)
 	}
 
 	VSSetShader(i->second.vs, (const float*)cb, sizeof(*cb) / sizeof(GSVector4));
+
 	IASetInputLayout(i->second.il);
 }
 
@@ -283,36 +284,43 @@ void GSDevice9::SetupOM(OMDepthStencilSelector dssel, OMBlendSelector bsel, uint
 		{
 			int i = ((bsel.a * 3 + bsel.b) * 3 + bsel.c) * 3 + bsel.d;
 
-			bs->BlendOp = blendMapD3D9[i].op;
-			bs->SrcBlend = blendMapD3D9[i].src;
-			bs->DestBlend = blendMapD3D9[i].dst;
+			bs->BlendOp = (D3DBLENDOP)m_blendMapD3D9[i].op;
+			bs->SrcBlend = (D3DBLEND)m_blendMapD3D9[i].src;
+			bs->DestBlend = (D3DBLEND)m_blendMapD3D9[i].dst;
 			bs->BlendOpAlpha = D3DBLENDOP_ADD;
 			bs->SrcBlendAlpha = D3DBLEND_ONE;
 			bs->DestBlendAlpha = D3DBLEND_ZERO;
 
 			// Not very good but I don't wanna write another 81 row table
-			if (bsel.negative) {
-				if (bs->BlendOp == D3DBLENDOP_ADD)
+
+			if(bsel.negative)
+			{
+				if(bs->BlendOp == D3DBLENDOP_ADD)
+				{
 					bs->BlendOp = D3DBLENDOP_REVSUBTRACT;
-				else if (bs->BlendOp == D3DBLENDOP_REVSUBTRACT)
+				}
+				else if(bs->BlendOp == D3DBLENDOP_REVSUBTRACT)
+				{
 					bs->BlendOp = D3DBLENDOP_ADD;
+				}
 				else
 					; // god knows, best just not to mess with it for now
 			}
 
-			if(blendMapD3D9[i].bogus == 1)
+			if(m_blendMapD3D9[i].bogus == 1)
 			{
 				(bsel.a == 0 ? bs->SrcBlend : bs->DestBlend) = D3DBLEND_ONE;
 
 				const string afixstr = format("%d >> 7", afix);
 				const char *col[3] = {"Cs", "Cd", "0"};
 				const char *alpha[3] = {"As", "Ad", afixstr.c_str()};
-				printf("Impossible blend for D3D: (%s - %s) * %s + %s\n",
-					col[bsel.a], col[bsel.b], alpha[bsel.c], col[bsel.d]);
+
+				printf("Impossible blend for D3D: (%s - %s) * %s + %s\n", col[bsel.a], col[bsel.b], alpha[bsel.c], col[bsel.d]);
 			}
 		}
 
 		// this is not a typo; dx9 uses BGRA rather than the gs native RGBA, unlike dx10
+
 		if(bsel.wr) bs->RenderTargetWriteMask |= D3DCOLORWRITEENABLE_BLUE;
 		if(bsel.wg) bs->RenderTargetWriteMask |= D3DCOLORWRITEENABLE_GREEN;
 		if(bsel.wb) bs->RenderTargetWriteMask |= D3DCOLORWRITEENABLE_RED;

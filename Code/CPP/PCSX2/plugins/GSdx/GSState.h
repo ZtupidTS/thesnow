@@ -28,7 +28,6 @@
 #include "GSVertex.h"
 #include "GSVertexList.h"
 #include "GSUtil.h"
-#include "GSDirtyRect.h"
 #include "GSPerfMon.h"
 #include "GSVector.h"
 #include "GSDevice.h"
@@ -36,17 +35,11 @@
 #include "GSAlignedClass.h"
 #include "GSDump.h"
 
-// Set this to 1 to enable a switch statement instead of a LUT for the packed register handler
-// in the GifTransfer code.  Switch statement is probably faster, but it isn't fully implemented
-// yet (not properly supporting frameskipping).
-#define UsePackedRegSwitch 0
-
-class GSState : public GSAlignedClass<16>
+class GSState : public GSAlignedClass<32>
 {
-#if !UsePackedRegSwitch
 	typedef void (GSState::*GIFPackedRegHandler)(const GIFPackedReg* r);
+
 	GIFPackedRegHandler m_fpGIFPackedRegHandlers[16];
-#endif
 
 	void GIFPackedRegHandlerNull(const GIFPackedReg* r);
 	void GIFPackedRegHandlerRGBA(const GIFPackedReg* r);
@@ -62,7 +55,7 @@ class GSState : public GSAlignedClass<16>
 
 	GIFRegHandler m_fpGIFRegHandlers[256];
 
-	void ApplyTEX0( uint i, GIFRegTEX0& TEX0 );
+	void ApplyTEX0(int i, GIFRegTEX0& TEX0);
 	void ApplyPRIM(const GIFRegPRIM& PRIM);
 
 	void GIFRegHandlerNull(const GIFReg* r);
@@ -136,33 +129,43 @@ class GSState : public GSAlignedClass<16>
 protected:
 	bool IsBadFrame(int& skip, int UserHacks_SkipDraw);
 
-	typedef void (GSState::*DrawingKickPtr)(bool skip);
+	typedef void (GSState::*VertexKickPtr)(bool skip);
 
-	DrawingKickPtr m_dk[8];
+	VertexKickPtr m_vk[8][2][2];
+	VertexKickPtr m_vkf;
 
-	template<class T> void InitVertexKick()
+	#define InitVertexKick3(T, P, N, M) \
+		m_vk[P][N][M] = (VertexKickPtr)(void (T::*)(bool))&T::VertexKick<P, N, M>;
+
+	#define InitVertexKick2(T, P) \
+		InitVertexKick3(T, P, 0, 0) \
+		InitVertexKick3(T, P, 0, 1) \
+		InitVertexKick3(T, P, 1, 0) \
+		InitVertexKick3(T, P, 1, 1) \
+
+	#define InitVertexKick(T) \
+		InitVertexKick2(T, GS_POINTLIST) \
+		InitVertexKick2(T, GS_LINELIST) \
+		InitVertexKick2(T, GS_LINESTRIP) \
+		InitVertexKick2(T, GS_TRIANGLELIST) \
+		InitVertexKick2(T, GS_TRIANGLESTRIP) \
+		InitVertexKick2(T, GS_TRIANGLEFAN) \
+		InitVertexKick2(T, GS_SPRITE) \
+		InitVertexKick2(T, GS_INVALID) \
+
+	void UpdateVertexKick()
 	{
-		m_dk[GS_POINTLIST]			= (DrawingKickPtr)&T::DrawingKick<GS_POINTLIST>;
-		m_dk[GS_LINELIST]			= (DrawingKickPtr)&T::DrawingKick<GS_LINELIST>;
-		m_dk[GS_LINESTRIP]			= (DrawingKickPtr)&T::DrawingKick<GS_LINESTRIP>;
-		m_dk[GS_TRIANGLELIST]		= (DrawingKickPtr)&T::DrawingKick<GS_TRIANGLELIST>;
-		m_dk[GS_TRIANGLESTRIP]		= (DrawingKickPtr)&T::DrawingKick<GS_TRIANGLESTRIP>;
-		m_dk[GS_TRIANGLEFAN]		= (DrawingKickPtr)&T::DrawingKick<GS_TRIANGLEFAN>;
-		m_dk[GS_SPRITE]				= (DrawingKickPtr)&T::DrawingKick<GS_SPRITE>;
-		m_dk[GS_INVALID]			= &GSState::DrawingKickNull;
+		m_vkf = m_vk[PRIM->PRIM][PRIM->TME][PRIM->FST];
 	}
 
-	void DrawingKickNull(bool skip)
+	void VertexKickNull(bool skip)
 	{
 		ASSERT(0);
 	}
 
-	virtual void DoVertexKick()=0;
-
-	__fi void VertexKick(bool skip)
+	void VertexKick(bool skip)
 	{
-		DoVertexKick();
-		(this->*m_dk[PRIM->PRIM])(skip);
+		(this->*m_vkf)(skip);
 	}
 
 public:
@@ -204,7 +207,6 @@ public:
 	virtual void ResetPrim() = 0;
 	virtual void InvalidateVideoMem(const GIFRegBITBLTBUF& BITBLTBUF, const GSVector4i& r) {}
 	virtual void InvalidateLocalMem(const GIFRegBITBLTBUF& BITBLTBUF, const GSVector4i& r) {}
-	virtual void InvalidateTextureCache() {}
 
 	void Move();
 	void Write(const uint8* mem, int len);
@@ -221,6 +223,6 @@ public:
 	void SetFrameSkip(int skip);
 	void SetRegsMem(uint8* basemem);
 	void SetIrqCallback(void (*irq)());
-	void SetMultithreaded(bool isMT=true);
+	void SetMultithreaded(bool mt = true);
 };
 

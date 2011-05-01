@@ -19,12 +19,11 @@
  *
  */
 
-#include "StdAfx.h"
+#include "stdafx.h"
 #include "GSRenderer.h"
 
 GSRenderer::GSRenderer()
 	: GSState()
-	, m_tex_buff( (uint8*)_aligned_malloc(1024 * 1024 * sizeof(uint32), 16) )
 	, m_vt(this)
 	, m_dev(NULL)
 	, m_shader(0)
@@ -35,23 +34,14 @@ GSRenderer::GSRenderer()
 	m_aspectratio = theApp.GetConfig("aspectratio", 1);
 	m_filter = theApp.GetConfig("filter", 1);
 	m_vsync = !!theApp.GetConfig("vsync", 0);
-	m_nativeres = !!theApp.GetConfig("nativeres", 0);
-
-	m_upscale_multiplier = theApp.GetConfig("upscale_multiplier", 1);
-	if(m_nativeres) m_upscale_multiplier = 1;
-	else if (m_upscale_multiplier > 6) m_upscale_multiplier = 1;
-
 	m_aa1 = !!theApp.GetConfig("aa1", 0);
-
-	if(m_nativeres) m_filter = 2;
+	m_mipmap = !!theApp.GetConfig("mipmap", 1);
 
 	s_n = 0;
 	s_dump = !!theApp.GetConfig("dump", 0);
 	s_save = !!theApp.GetConfig("save", 0);
 	s_savez = !!theApp.GetConfig("savez", 0);
 	s_saven = theApp.GetConfig("saven", 0);
-
-	InitializeCriticalSection(&m_pGSsetTitle_Crit);
 }
 
 GSRenderer::~GSRenderer()
@@ -61,19 +51,12 @@ GSRenderer::~GSRenderer()
 		m_dev->Reset(1, 1, GSDevice::Windowed);
 	}*/
 
-	_aligned_free( m_tex_buff );
-
 	delete m_dev;
-	DeleteCriticalSection(&m_pGSsetTitle_Crit);
 }
 
 bool GSRenderer::CreateWnd(const string& title, int w, int h)
 {
-	if(!m_wnd.Create(title.c_str(), w, h))
-	{
-		return false;
-	}
-	return true;
+	return m_wnd.Create(title.c_str(), w, h);
 }
 
 bool GSRenderer::CreateDevice(GSDevice* dev)
@@ -87,9 +70,16 @@ bool GSRenderer::CreateDevice(GSDevice* dev)
 	}
 
 	m_dev = dev;
-	m_dev->SetVsync( m_vsync && m_framelimit );
+	m_dev->SetVSync(m_vsync && m_framelimit);
 
 	return true;
+}
+
+void GSRenderer::ResetDevice()
+{
+    ResetPrim();
+
+    if(m_dev) m_dev->Reset(1, 1);
 }
 
 bool GSRenderer::Merge(int field)
@@ -220,13 +210,6 @@ bool GSRenderer::Merge(int field)
 			r.bottom = r.top + y;
 		}
 
-		// Breaks the blur filter, and actually makes games blurry again.
-		// This might have to do with earlier changes to device size detection.
-		/*if(blurdetected && i == 1)
-		{
-			r += GSVector4i(0, 1).xyxy();
-		}*/
-
 		GSVector4 scale = GSVector4(tex[i]->GetScale()).xyxy();
 
 		src[i] = GSVector4(r) * scale / GSVector4(tex[i]->GetSize()).xyxy();
@@ -261,6 +244,13 @@ bool GSRenderer::Merge(int field)
 
 	if(tex[0] || tex[1])
 	{
+		if(tex[0] == tex[1] && !slbg && (src[0] == src[1] & dst[0] == dst[1]).alltrue())
+		{
+			// the two outputs are identical, skip drawing one of them (the one that is alpha blended)
+
+			tex[0] = NULL;
+		}
+
 		GSVector4 c = GSVector4((int)m_regs->BGCOLOR.R, (int)m_regs->BGCOLOR.G, (int)m_regs->BGCOLOR.B, (int)m_regs->PMODE.ALP) / 255;
 
 		m_dev->Merge(tex, src, dst, fs, slbg, mmod, c);
@@ -280,15 +270,16 @@ bool GSRenderer::Merge(int field)
 void GSRenderer::SetFrameLimit(bool limit)
 {
 	m_framelimit = limit;
-	if( m_dev ) m_dev->SetVsync(m_vsync && m_framelimit);
+
+	if(m_dev) m_dev->SetVSync(m_vsync && m_framelimit);
 }
 
-void GSRenderer::SetVsync(bool enabled)
+void GSRenderer::SetVSync(bool enabled)
 {
 	m_vsync = enabled;
-	if( m_dev ) m_dev->SetVsync(m_vsync);
-}
 
+	if(m_dev) m_dev->SetVSync(m_vsync);
+}
 
 void GSRenderer::VSync(int field)
 {
@@ -327,14 +318,17 @@ void GSRenderer::VSync(int field)
 #else
 		if (m_wnd.IsManaged())
 #endif
-		{//GSdx owns the window's title, be verbose.
+		{
+			//GSdx owns the window's title, be verbose.
+
 			string s2 = m_regs->SMODE2.INT ? (string("Interlaced ") + (m_regs->SMODE2.FFMD ? "(frame)" : "(field)")) : "Progressive";
+
 			s = format(
-				"%I64d | %d x %d | %.2f fps (%d%%) | %s - %s | %s | %d/%d/%d | %d%% CPU | %.2f | %.2f",
+				"%lld | %d x %d | %.2f fps (%d%%) | %s - %s | %s | %d/%d/%d | %d%% CPU | %.2f | %.2f",
 				m_perfmon.GetFrame(), r.width(), r.height(), fps, (int)(100.0 * fps / GetFPS()),
 				s2.c_str(),
-				GSSettingsDlg::g_interlace[m_interlace].name.c_str(),
-				GSSettingsDlg::g_aspectratio[m_aspectratio].name.c_str(),
+				theApp.m_gs_interlace[m_interlace].name.c_str(),
+				theApp.m_gs_aspectratio[m_aspectratio].name.c_str(),
 				(int)m_perfmon.Get(GSPerfMon::Quad),
 				(int)m_perfmon.Get(GSPerfMon::Prim),
 				(int)m_perfmon.Get(GSPerfMon::Draw),
@@ -353,21 +347,17 @@ void GSRenderer::VSync(int field)
 		}
 		else
 		{
-			//Satisfy PCSX2's request for title info: minimal verbosity due to more external title text
-			s = format(
-				"%dx%d | %s",
-				r.width(), r.height(),
-				GSSettingsDlg::g_interlace[m_interlace].name.c_str()
-			);
-		}
+			// Satisfy PCSX2's request for title info: minimal verbosity due to more external title text
 
+			s = format("%dx%d | %s", r.width(), r.height(), theApp.m_gs_interlace[m_interlace].name.c_str());
+		}
 
 		if(m_capture.IsCapturing())
 		{
 			s += " | 记录中...";
 		}
 
-		if (m_wnd.IsManaged())
+		if(m_wnd.IsManaged())
 		{
 			m_wnd.SetWindowText(s.c_str());
 		}
@@ -378,15 +368,12 @@ void GSRenderer::VSync(int field)
 			// be noticeable).  Besides, these locks are extremely short -- overhead of conditional
 			// is way more expensive than just waiting for the CriticalSection in 1 of 10,000,000 tries. --air
 
-			EnterCriticalSection(&m_pGSsetTitle_Crit);
+			GSAutoLock lock(&m_pGSsetTitle_Crit);
 
-			strncpy(m_GStitleInfoBuffer, s.c_str(), ArraySize(m_GStitleInfoBuffer)-1);
-			m_GStitleInfoBuffer[sizeof(m_GStitleInfoBuffer)-1] = 0;// make sure null terminated even if text overflows
+			strncpy(m_GStitleInfoBuffer, s.c_str(), countof(m_GStitleInfoBuffer) - 1);
 
-			LeaveCriticalSection(&m_pGSsetTitle_Crit);
+			m_GStitleInfoBuffer[sizeof(m_GStitleInfoBuffer) - 1] = 0; // make sure null terminated even if text overflows
 		}
-
-		
 	}
 	else
 	{
@@ -408,7 +395,15 @@ void GSRenderer::VSync(int field)
 
 	if(!m_snapshot.empty())
 	{
-		if(!m_dump && (::GetAsyncKeyState(VK_SHIFT) & 0x8000))
+		bool shift = false;
+
+		#ifdef _WINDOWS
+
+		shift = !!(::GetAsyncKeyState(VK_SHIFT) & 0x8000);
+
+		#endif
+
+		if(!m_dump && shift)
 		{
 			GSFreezeData fd;
 			fd.size = 0;
@@ -433,7 +428,15 @@ void GSRenderer::VSync(int field)
 	{
 		if(m_dump)
 		{
-			m_dump.VSync(field, !(::GetAsyncKeyState(VK_CONTROL) & 0x8000), m_regs);
+            bool control = false;
+
+            #ifdef _WINDOWS
+
+            control = !!(::GetAsyncKeyState(VK_CONTROL) & 0x8000);
+
+            #endif
+
+	    	m_dump.VSync(field, !control, m_regs);
 		}
 	}
 
@@ -493,7 +496,7 @@ void GSRenderer::KeyEvent(GSKeyEventData* e)
 {
 	if(e->type == KEYPRESS)
 	{
-		// TODO: linux
+	    #ifdef _WINDOWS
 
 		int step = (::GetAsyncKeyState(VK_SHIFT) & 0x8000) ? -1 : 1;
 
@@ -501,39 +504,51 @@ void GSRenderer::KeyEvent(GSKeyEventData* e)
 		{
 		case VK_F5:
 			m_interlace = (m_interlace + 7 + step) % 7;
+			printf("GSdx: Set deinterlace mode to %d (%s).\n", (int)m_interlace, theApp.m_gs_interlace.at(m_interlace).name.c_str());
 			return;
 		case VK_F6:
-			m_aspectratio = (m_aspectratio + 3 + step) % 3;
+			if( m_wnd.IsManaged() )
+				m_aspectratio = (m_aspectratio + 3 + step) % 3;
 			return;
 		case VK_F7:
 			m_shader = (m_shader + 3 + step) % 3;
+			printf("GSdx: Set shader %d (%s).\n", (int)m_shader);
 			return;
 		case VK_DELETE:
 			m_aa1 = !m_aa1;
+			printf("GSdx: (Software) aa1 is now %s.\n", m_aa1 ? "enabled" : "disabled");
+			return;
+		case VK_INSERT:
+			m_mipmap = !m_mipmap;
+			printf("GSdx: (Software) mipmapping is now %s.\n", m_mipmap ? "enabled" : "disabled");
 			return;
 		}
+
+		#else
+
+		// TODO: linux
+
+		#endif
 	}
 }
 
-void GSRenderer::GetTextureMinMax(GSVector4i& r, bool linear)
+void GSRenderer::GetTextureMinMax(GSVector4i& r, const GIFRegTEX0& TEX0, const GIFRegCLAMP& CLAMP, bool linear)
 {
-	const GSDrawingContext* context = m_context;
-
-	int tw = context->TEX0.TW;
-	int th = context->TEX0.TH;
+	int tw = TEX0.TW;
+	int th = TEX0.TH;
 
 	int w = 1 << tw;
 	int h = 1 << th;
 
 	GSVector4i tr(0, 0, w, h);
 
-	int wms = context->CLAMP.WMS;
-	int wmt = context->CLAMP.WMT;
+	int wms = CLAMP.WMS;
+	int wmt = CLAMP.WMT;
 
-	int minu = (int)context->CLAMP.MINU;
-	int minv = (int)context->CLAMP.MINV;
-	int maxu = (int)context->CLAMP.MAXU;
-	int maxv = (int)context->CLAMP.MAXV;
+	int minu = (int)CLAMP.MINU;
+	int minv = (int)CLAMP.MINV;
+	int maxu = (int)CLAMP.MAXU;
+	int maxv = (int)CLAMP.MAXV;
 
 	GSVector4i vr = tr;
 
@@ -611,7 +626,7 @@ void GSRenderer::GetTextureMinMax(GSVector4i& r, bool linear)
 			if(vr.x < uv.x) vr.x = uv.x;
 			if(vr.z > uv.z + 1) vr.z = uv.z + 1;
 			break;
-		case CLAMP_REGION_REPEAT: // TODO
+		case CLAMP_REGION_REPEAT:
 			break;
 		default:
 			__assume(0);
@@ -627,9 +642,7 @@ void GSRenderer::GetTextureMinMax(GSVector4i& r, bool linear)
 			if(vr.y < uv.y) vr.y = uv.y;
 			if(vr.w > uv.w + 1) vr.w = uv.w + 1;
 			break;
-		case CLAMP_REGION_REPEAT: // TODO
-			//Xenosaga 2 and 3 use it
-			//printf("gsdx: CLAMP_REGION_REPEAT not implemented, please report\n");
+		case CLAMP_REGION_REPEAT:
 			break;
 		default:
 			__assume(0);
@@ -781,37 +794,6 @@ bool GSRenderer::TryAlphaTest(uint32& fm, uint32& zm)
 	}
 
 	return true;
-}
-
-bool GSRenderer::IsLinear()
-{
-	const GIFRegTEX1& TEX1 = m_context->TEX1;
-
-	bool mmin = TEX1.IsMinLinear();
-	bool mmag = TEX1.IsMagLinear();
-
-	if(mmag == mmin || TEX1.MXL == 0) // MXL == 0 => MMIN ignored, tested it on ps2
-	{
-		return mmag;
-	}
-	// if FST => assume Q = 1.0f (should not, but Q is very often bogus, 0 or DEN)
-	// Fixme : Why should Q be bogus?
-	if(!TEX1.LCM && !PRIM->FST)
-	{
-		float K = (float)TEX1.K / 16;
-		float f = (float)(1 << TEX1.L) / log(2.0f);
-
-		// TODO: abs(Qmin) may not be <= abs(Qmax), check the sign
-
-		float LODmin = K + log(1.0f / abs(m_vt.m_max.t.z)) * f;
-		float LODmax = K + log(1.0f / abs(m_vt.m_min.t.z)) * f;
-
-		return LODmax <= 0 ? mmag : LODmin > 0 ? mmin : mmag || mmin;
-	}
-	else
-	{
-		return TEX1.K <= 0 ? mmag : TEX1.K > 0 ? mmin : mmag || mmin;
-	}
 }
 
 bool GSRenderer::IsOpaque()

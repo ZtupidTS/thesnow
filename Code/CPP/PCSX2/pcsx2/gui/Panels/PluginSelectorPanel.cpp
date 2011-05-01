@@ -367,7 +367,7 @@ Panels::PluginSelectorPanel::ComboBoxPanel::ComboBoxPanel( PluginSelectorPanel* 
 
 		m_combobox[pid] = new wxComboBox( this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0, NULL, wxCB_READONLY );
 
-		m_configbutton[pid] = new wxButton( this, ButtonId_Configure, L"设置..." );
+		m_configbutton[pid] = new wxButton( this, ButtonId_Configure, _("设置...") );
 		m_configbutton[pid]->SetClientData( (void*)(int)pid );
 
 		s_plugin	+= Label( pi->GetShortname() )	| pxBorder( wxTOP | wxLEFT, 2 );
@@ -375,7 +375,8 @@ Panels::PluginSelectorPanel::ComboBoxPanel::ComboBoxPanel( PluginSelectorPanel* 
 		s_plugin	+= m_configbutton[pid];
 	} while( ++pi, pi->shortname != NULL );
 
-	m_FolderPicker.SetStaticDesc( _("点击浏览按钮选择一个不同位置的 PCSX2 插件.") );
+//	if (InstallationMode != InstallMode_Portable)
+		m_FolderPicker.SetStaticDesc( _("点击浏览按钮选择一个不同位置的 PCSX2 插件.") );
 
 	*this	+= s_plugin			| pxExpand;
 	*this	+= 6;
@@ -456,7 +457,7 @@ static wxString GetApplyFailedMsg()
 	return pxsFmt( pxE( "!Notice:PluginSelector:ApplyFailed",
 		L"All plugins must have valid selections for %s to run.  If you are unable to make "
 		L"a valid selection due to missing plugins or an incomplete install of %s, then "
-		L"press cancel to close the Configuration panel."
+		L"press Cancel to close the Configuration panel."
 	), pxGetAppName().c_str(), pxGetAppName().c_str() );
 }
 
@@ -476,8 +477,8 @@ void Panels::PluginSelectorPanel::Apply()
 			wxString plugname( pi->GetShortname() );
 
 			throw Exception::CannotApplySettings( this )
-				.SetDiagMsg(wxsFormat( L"PluginSelectorPanel: Invalid or missing selection for the %s plugin.", plugname.c_str()) )
-				.SetUserMsg(wxsFormat( L"请选择一个有效的 %s 插件.", plugname.c_str() ) + L"\n\n" + GetApplyFailedMsg() );
+				.SetDiagMsg(pxsFmt( L"PluginSelectorPanel: Invalid or missing selection for the %s plugin.", plugname.c_str()) )
+				.SetUserMsg(pxsFmt( _("为 %s 选择一个有效的插件."), plugname.c_str() ) + L"\n\n" + GetApplyFailedMsg() );
 		}
 
 		g_Conf->BaseFilenames.Plugins[pid] = GetFilename((int)m_ComponentBoxes->Get(pid).GetClientData(sel));
@@ -644,6 +645,7 @@ void Panels::PluginSelectorPanel::OnConfigure_Clicked( wxCommandEvent& evt )
 	{
 		
 		wxWindowDisabler disabler;
+		wxDoNotLogInThisScope quiettime;
 		ScopedCoreThreadPause paused_core( new SysExecEvent_SaveSinglePlugin(pid) );
 		if (!CorePlugins.AreLoaded())
 		{
@@ -651,12 +653,12 @@ void Panels::PluginSelectorPanel::OnConfigure_Clicked( wxCommandEvent& evt )
 
 			if( SetDirFnptr func = (SetDirFnptr)dynlib.GetSymbol( tbl_PluginInfo[pid].GetShortname() + L"setSettingsDir" ) )
 			{
-				func( GetSettingsFolder().ToUTF8() );
+				func( GetSettingsFolder().ToString().mb_str(wxConvFile) );
 			}
 
 			if( SetDirFnptr func = (SetDirFnptr)dynlib.GetSymbol( tbl_PluginInfo[pid].GetShortname() + L"setLogDir" ) )
 			{
-				func( GetLogFolder().ToUTF8() );
+				func( GetLogFolder().ToString().mb_str(wxConvFile) );
 			}
 		}
 

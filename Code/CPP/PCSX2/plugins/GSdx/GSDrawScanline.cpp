@@ -19,166 +19,61 @@
  *
  */
 
-#include "StdAfx.h"
+#include "stdafx.h"
 #include "GSDrawScanline.h"
 #include "GSTextureCacheSW.h"
 
-GSDrawScanline::GSDrawScanline(GSState* state, int id)
-	: m_state(state)
-	, m_id(id)
-	, m_sp(m_env)
-	, m_ds(m_env)
+GSDrawScanline::GSDrawScanline()
+	: m_sp_map("GSSetupPrim", &m_local)
+	, m_ds_map("GSDrawScanline", &m_local)
 {
-	memset(&m_env, 0, sizeof(m_env));
+	memset(&m_local, 0, sizeof(m_local));
+
+	m_local.gd = &m_global;
 }
 
 GSDrawScanline::~GSDrawScanline()
 {
 }
 
-void GSDrawScanline::BeginDraw(const GSRasterizerData* data, Functions* f)
+void GSDrawScanline::BeginDraw(const void* param)
 {
-	GSDrawingEnvironment& env = m_state->m_env;
-	GSDrawingContext* context = m_state->m_context;
+	memcpy(&m_global, param, sizeof(m_global));
 
-	const GSScanlineParam* p = (const GSScanlineParam*)data->param;
-
-	m_sel = p->sel;
-
-	m_env.vm = p->vm;
-	m_env.fbr = p->fbo->pixel.row;
-	m_env.zbr = p->zbo->pixel.row;
-	m_env.fbc = p->fbo->pixel.col[0];
-	m_env.zbc = p->zbo->pixel.col[0];
-	m_env.fzbr = p->fzbo->row;
-	m_env.fzbc = p->fzbo->col;
-	m_env.fm = GSVector4i(p->fm);
-	m_env.zm = GSVector4i(p->zm);
-	m_env.aref = GSVector4i((int)context->TEST.AREF);
-	m_env.afix = GSVector4i((int)context->ALPHA.FIX << 7).xxzzlh();
-	m_env.frb = GSVector4i((int)env.FOGCOL.u32[0] & 0x00ff00ff);
-	m_env.fga = GSVector4i((int)(env.FOGCOL.u32[0] >> 8) & 0x00ff00ff);
-	m_env.dimx = env.dimx;
-
-	if(m_sel.fpsm == 1)
+	if(m_global.sel.mmin && m_global.sel.lcm)
 	{
-		m_env.fm |= GSVector4i::xff000000();
-	}
-	else if(m_sel.fpsm == 2)
-	{
-		GSVector4i rb = m_env.fm & 0x00f800f8;
-		GSVector4i ga = m_env.fm & 0x8000f800;
+		GSVector4i v = m_global.t.minmax.srl16(m_global.lod.i.x);
 
-		m_env.fm = (ga >> 16) | (rb >> 9) | (ga >> 6) | (rb >> 3) | GSVector4i::xffff0000();
+		v = v.upl16(v);
+
+		m_local.temp.uv_minmax[0] = v.upl32(v);
+		m_local.temp.uv_minmax[1] = v.uph32(v);
 	}
 
-	if(m_sel.zpsm == 1)
-	{
-		m_env.zm |= GSVector4i::xff000000();
-	}
-	else if(m_sel.zpsm == 2)
-	{
-		m_env.zm |= GSVector4i::xffff0000();
-	}
+	m_ds = m_ds_map[m_global.sel];
 
-	if(m_sel.atst == ATST_LESS)
-	{
-		m_sel.atst = ATST_LEQUAL;
-
-		m_env.aref -= GSVector4i::x00000001();
-	}
-	else if(m_sel.atst == ATST_GREATER)
-	{
-		m_sel.atst = ATST_GEQUAL;
-
-		m_env.aref += GSVector4i::x00000001();
-	}
-
-	if(m_sel.tfx != TFX_NONE)
-	{
-		m_env.tex = p->tex;
-		m_env.clut = p->clut;
-		m_env.tw = p->tw;
-
-		unsigned short tw = (unsigned short)(1 << context->TEX0.TW);
-		unsigned short th = (unsigned short)(1 << context->TEX0.TH);
-
-		switch(context->CLAMP.WMS)
-		{
-		case CLAMP_REPEAT:
-			m_env.t.min.u16[0] = tw - 1;
-			m_env.t.max.u16[0] = 0;
-			m_env.t.mask.u32[0] = 0xffffffff;
-			break;
-		case CLAMP_CLAMP:
-			m_env.t.min.u16[0] = 0;
-			m_env.t.max.u16[0] = tw - 1;
-			m_env.t.mask.u32[0] = 0;
-			break;
-		case CLAMP_REGION_CLAMP:
-			m_env.t.min.u16[0] = std::min<int>(context->CLAMP.MINU, tw - 1);
-			m_env.t.max.u16[0] = std::min<int>(context->CLAMP.MAXU, tw - 1);
-			m_env.t.mask.u32[0] = 0;
-			break;
-		case CLAMP_REGION_REPEAT:
-			m_env.t.min.u16[0] = context->CLAMP.MINU;
-			m_env.t.max.u16[0] = context->CLAMP.MAXU;
-			m_env.t.mask.u32[0] = 0xffffffff;
-			break;
-		default:
-			__assume(0);
-		}
-
-		switch(context->CLAMP.WMT)
-		{
-		case CLAMP_REPEAT:
-			m_env.t.min.u16[4] = th - 1;
-			m_env.t.max.u16[4] = 0;
-			m_env.t.mask.u32[2] = 0xffffffff;
-			break;
-		case CLAMP_CLAMP:
-			m_env.t.min.u16[4] = 0;
-			m_env.t.max.u16[4] = th - 1;
-			m_env.t.mask.u32[2] = 0;
-			break;
-		case CLAMP_REGION_CLAMP:
-			m_env.t.min.u16[4] = std::min<int>(context->CLAMP.MINV, th - 1);
-			m_env.t.max.u16[4] = std::min<int>(context->CLAMP.MAXV, th - 1); // ffx anima summon scene, when the anchor appears (th = 256, maxv > 256)
-			m_env.t.mask.u32[2] = 0;
-			break;
-		case CLAMP_REGION_REPEAT:
-			m_env.t.min.u16[4] = context->CLAMP.MINV;
-			m_env.t.max.u16[4] = context->CLAMP.MAXV;
-			m_env.t.mask.u32[2] = 0xffffffff;
-			break;
-		default:
-			__assume(0);
-		}
-
-		m_env.t.min = m_env.t.min.xxxxlh();
-		m_env.t.max = m_env.t.max.xxxxlh();
-		m_env.t.mask = m_env.t.mask.xxzz();
-		m_env.t.invmask = ~m_env.t.mask;
-	}
-
-	//
-
-	f->ssl = m_ds[m_sel];
-
-	if(m_sel.aa1)// && (m_state->m_perfmon.GetFrame() & 0x40))
+	if(m_global.sel.aa1)
 	{
 		GSScanlineSelector sel;
 
-		sel.key = m_sel.key;
+		sel.key = m_global.sel.key;
 		sel.zwrite = 0;
 		sel.edge = 1;
 
-		f->ssle = m_ds[sel];
+		m_de = m_ds_map[sel];
+	}
+	else
+	{
+		m_de = NULL;
 	}
 
-	if(m_sel.IsSolidRect())
+	if(m_global.sel.IsSolidRect())
 	{
-		f->sr = (DrawSolidRectPtr)&GSDrawScanline::DrawSolidRect;
+		m_dr = (DrawRectPtr)&GSDrawScanline::DrawRect;
+	}
+	else
+	{
+		m_dr = NULL;
 	}
 
 	// doesn't need all bits => less functions generated
@@ -187,25 +82,25 @@ void GSDrawScanline::BeginDraw(const GSRasterizerData* data, Functions* f)
 
 	sel.key = 0;
 
-	sel.iip = m_sel.iip;
-	sel.tfx = m_sel.tfx;
-	sel.tcc = m_sel.tcc;
-	sel.fst = m_sel.fst;
-	sel.fge = m_sel.fge;
-	sel.sprite = m_sel.sprite;
-	sel.fb = m_sel.fb;
-	sel.zb = m_sel.zb;
-	sel.zoverflow = m_sel.zoverflow;
+	sel.iip = m_global.sel.iip;
+	sel.tfx = m_global.sel.tfx;
+	sel.tcc = m_global.sel.tcc;
+	sel.fst = m_global.sel.fst;
+	sel.fge = m_global.sel.fge;
+	sel.sprite = m_global.sel.sprite;
+	sel.fb = m_global.sel.fb;
+	sel.zb = m_global.sel.zb;
+	sel.zoverflow = m_global.sel.zoverflow;
 
-	f->ssp = m_sp[sel];
+	m_sp = m_sp_map[sel];
 }
 
-void GSDrawScanline::EndDraw(const GSRasterizerStats& stats)
+void GSDrawScanline::EndDraw(const GSRasterizerStats& stats, uint64 frame)
 {
-	m_ds.UpdateStats(stats, m_state->m_perfmon.GetFrame());
+	m_ds_map.UpdateStats(stats, frame);
 }
 
-void GSDrawScanline::DrawSolidRect(const GSVector4i& r, const GSVertexSW& v)
+void GSDrawScanline::DrawRect(const GSVector4i& r, const GSVertexSW& v)
 {
 	ASSERT(r.y >= 0);
 	ASSERT(r.w >= 0);
@@ -214,56 +109,62 @@ void GSDrawScanline::DrawSolidRect(const GSVector4i& r, const GSVertexSW& v)
 
 	uint32 m;
 
-	m = m_env.zm.u32[0];
+	m = m_global.zm.u32[0];
 
 	if(m != 0xffffffff)
 	{
+		const int* zbr = m_global.zbr;
+		const int* zbc = m_global.zbc;
+
 		uint32 z = (uint32)v.p.z;
 
-		if(m_sel.zpsm != 2)
+		if(m_global.sel.zpsm != 2)
 		{
 			if(m == 0)
 			{
-				DrawSolidRectT<uint32, false>(m_env.zbr, m_env.zbc, r, z, m);
+				DrawRectT<uint32, false>(zbr, zbc, r, z, m);
 			}
 			else
 			{
-				DrawSolidRectT<uint32, true>(m_env.zbr, m_env.zbc, r, z, m);
+				DrawRectT<uint32, true>(zbr, zbc, r, z, m);
 			}
 		}
 		else
 		{
 			if(m == 0)
 			{
-				DrawSolidRectT<uint16, false>(m_env.zbr, m_env.zbc, r, z, m);
+				DrawRectT<uint16, false>(zbr, zbc, r, z, m);
 			}
 			else
 			{
-				DrawSolidRectT<uint16, true>(m_env.zbr, m_env.zbc, r, z, m);
+				DrawRectT<uint16, true>(zbr, zbc, r, z, m);
 			}
 		}
 	}
 
-	m = m_env.fm.u32[0];
+	m = m_global.fm.u32[0];
 
 	if(m != 0xffffffff)
 	{
+		const int* fbr = m_global.fbr;
+		const int* fbc = m_global.fbc;
+
 		uint32 c = (GSVector4i(v.c) >> 7).rgba32();
 
-		if(m_state->m_context->FBA.FBA)
+		if(m_global.sel.fba)
 		{
 			c |= 0x80000000;
 		}
 
-		if(m_sel.fpsm != 2)
+		if(m_global.sel.fpsm != 2)
 		{
 			if(m == 0)
 			{
-				DrawSolidRectT<uint32, false>(m_env.fbr, m_env.fbc, r, c, m);
+				DrawRectT<uint32, false>(fbr, fbc, r, c, m);
 			}
 			else
 			{
-				DrawSolidRectT<uint32, true>(m_env.fbr, m_env.fbc, r, c, m);
+				DrawRectT<uint32, true>(fbr, fbc, r, c, m);
 			}
 		}
 		else
@@ -272,18 +173,18 @@ void GSDrawScanline::DrawSolidRect(const GSVector4i& r, const GSVertexSW& v)
 
 			if(m == 0)
 			{
-				DrawSolidRectT<uint16, false>(m_env.fbr, m_env.fbc, r, c, m);
+				DrawRectT<uint16, false>(fbr, fbc, r, c, m);
 			}
 			else
 			{
-				DrawSolidRectT<uint16, true>(m_env.fbr, m_env.fbc, r, c, m);
+				DrawRectT<uint16, true>(fbr, fbc, r, c, m);
 			}
 		}
 	}
 }
 
 template<class T, bool masked>
-void GSDrawScanline::DrawSolidRectT(const int* RESTRICT row, const int* RESTRICT col, const GSVector4i& r, uint32 c, uint32 m)
+void GSDrawScanline::DrawRectT(const int* RESTRICT row, const int* RESTRICT col, const GSVector4i& r, uint32 c, uint32 m)
 {
 	if(m == 0xffffffff) return;
 
@@ -298,7 +199,7 @@ void GSDrawScanline::DrawSolidRectT(const int* RESTRICT row, const int* RESTRICT
 
 	color = color.andnot(mask);
 
-	GSVector4i br = r.ralign<GSVector4i::Inside>(GSVector2i(8 * 4 / sizeof(T), 8));
+	GSVector4i br = r.ralign<Align_Inside>(GSVector2i(8 * 4 / sizeof(T), 8));
 
 	if(!br.rempty())
 	{
@@ -324,9 +225,11 @@ void GSDrawScanline::FillRect(const int* RESTRICT row, const int* RESTRICT col, 
 {
 	if(r.x >= r.z) return;
 
+	T* vm = (T*)m_global.vm;
+
 	for(int y = r.y; y < r.w; y++)
 	{
-		T* RESTRICT d = &((T*)m_env.vm)[row[y]];
+		T* RESTRICT d = &vm[row[y]];
 
 		for(int x = r.x; x < r.z; x++)
 		{
@@ -340,9 +243,11 @@ void GSDrawScanline::FillBlock(const int* RESTRICT row, const int* RESTRICT col,
 {
 	if(r.x >= r.z) return;
 
+	T* vm = (T*)m_global.vm;
+
 	for(int y = r.y; y < r.w; y += 8)
 	{
-		T* RESTRICT d = &((T*)m_env.vm)[row[y]];
+		T* RESTRICT d = &vm[row[y]];
 
 		for(int x = r.x; x < r.z; x += 8 * 4 / sizeof(T))
 		{
@@ -357,30 +262,4 @@ void GSDrawScanline::FillBlock(const int* RESTRICT row, const int* RESTRICT col,
 			}
 		}
 	}
-}
-
-//
-
-GSDrawScanline::GSSetupPrimMap::GSSetupPrimMap(GSScanlineEnvironment& env)
-	: GSCodeGeneratorFunctionMap("GSSetupPrim")
-	, m_env(env)
-{
-}
-
-GSSetupPrimCodeGenerator* GSDrawScanline::GSSetupPrimMap::Create(uint64 key, void* ptr, size_t maxsize)
-{
-	return new GSSetupPrimCodeGenerator(m_env, key, ptr, maxsize);
-}
-
-//
-
-GSDrawScanline::GSDrawScanlineMap::GSDrawScanlineMap(GSScanlineEnvironment& env)
-	: GSCodeGeneratorFunctionMap("GSDrawScanline")
-	, m_env(env)
-{
-}
-
-GSDrawScanlineCodeGenerator* GSDrawScanline::GSDrawScanlineMap::Create(uint64 key, void* ptr, size_t maxsize)
-{
-	return new GSDrawScanlineCodeGenerator(m_env, key, ptr, maxsize);
 }

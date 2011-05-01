@@ -1,4 +1,4 @@
-/*  PCSX2 - PS2 Emulator for PCs
+ï»¿/*  PCSX2 - PS2 Emulator for PCs
  *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
@@ -100,18 +100,19 @@ Panels::BiosSelectorPanel::BiosSelectorPanel( wxWindow* parent )
 
 	m_ComboBox		= new wxListBox( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, 0, NULL, wxLB_SINGLE | wxLB_SORT | wxLB_NEEDED_SB );
 	m_FolderPicker	= new DirPickerPanel( this, FolderId_Bios,
-		_("BIOS ËÑË÷Â·¾¶:"),						// static box label
-		_("Ñ¡Ôñ PS2 BIOS ROMËùÔÚµÄÎÄ¼ş¼Ğ")		// dir picker popup label
+		_("BIOS æœç´¢è·¯å¾„:"),						// static box label
+		_("é€‰æ‹© PS2 BIOS ROMæ‰€åœ¨çš„æ–‡ä»¶å¤¹")		// dir picker popup label
 	);
 
 	m_ComboBox->SetFont( wxFont( m_ComboBox->GetFont().GetPointSize()+1, wxFONTFAMILY_MODERN, wxNORMAL, wxNORMAL, false, L"Lucida Console" ) );
 	m_ComboBox->SetMinSize( wxSize( wxDefaultCoord, std::max( m_ComboBox->GetMinSize().GetHeight(), 96 ) ) );
 	
-	m_FolderPicker->SetStaticDesc( _("Click the Browse button to select a different folder where PCSX2 will look for PS2 BIOS roms.") );
+	//if (InstallationMode != InstallMode_Portable)
+		m_FolderPicker->SetStaticDesc( _("Click the Browse button to select a different folder where PCSX2 will look for PS2 BIOS roms.") );
 
-	wxButton* refreshButton = new wxButton( this, wxID_ANY, _("Ë¢ĞÂÁĞ±í") );
+	wxButton* refreshButton = new wxButton( this, wxID_ANY, _("åˆ·æ–°åˆ—è¡¨") );
 
-	*this	+= Label(_("Ñ¡ÔñÒ»¸ö BIOS ROM:"));
+	*this	+= Label(_("é€‰æ‹©ä¸€ä¸ª BIOS ROM:"));
 	*this	+= m_ComboBox		| StdExpand();
 	*this	+= refreshButton	| pxBorder(wxLEFT, StdPadding);
 	*this	+= 8;
@@ -133,10 +134,10 @@ void Panels::BiosSelectorPanel::Apply()
 	if( sel == wxNOT_FOUND )
 	{
 		throw Exception::CannotApplySettings(this)
-			.SetDiagMsg(L"ÓÃ»§Ñ¡ÔñÁËÒ»¸öÎŞĞ§ BIOS.")
+			.SetDiagMsg(L"ç”¨æˆ·é€‰æ‹©äº†ä¸€ä¸ªæ— æ•ˆ BIOS.")
 			.SetUserMsg( pxE( "!Notice:BIOS:InvalidSelection",
-				L"ÇëÑ¡ÔñÒ»¸öÓĞĞ§ BIOS. Èç¹ûÄú²»ÄÜÑ¡ÔñÒ»¸öÓĞĞ§µÄBIOS,"
-				L"Çë°´È¡Ïû¹Ø±ÕÕâ¸öÉèÖÃÃæ°å."
+				L"è¯·é€‰æ‹©ä¸€ä¸ªæœ‰æ•ˆ BIOS. å¦‚æœæ‚¨ä¸èƒ½é€‰æ‹©ä¸€ä¸ªæœ‰æ•ˆçš„BIOS,"
+				L"è¯·æŒ‰å–æ¶ˆå…³é—­è¿™ä¸ªè®¾ç½®é¢æ¿."
 			) );
 	}
 

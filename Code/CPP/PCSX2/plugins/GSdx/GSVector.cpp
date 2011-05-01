@@ -19,33 +19,17 @@
  *
  */
 
-#include "StdAfx.h"
+#include "stdafx.h"
 #include "GSVector.h"
 
 const GSVector4 GSVector4::m_ps0123(0.0f, 1.0f, 2.0f, 3.0f);
 const GSVector4 GSVector4::m_ps4567(4.0f, 5.0f, 6.0f, 7.0f);
-const GSVector4 GSVector4::m_x3f800000(_mm_castsi128_ps(_mm_set1_epi32(0x3f800000)));
+const GSVector4 GSVector4::m_half(0.5f);
+const GSVector4 GSVector4::m_one(1.0f);
+const GSVector4 GSVector4::m_two(2.0f);
+const GSVector4 GSVector4::m_four(4.0f);
 const GSVector4 GSVector4::m_x4b000000(_mm_castsi128_ps(_mm_set1_epi32(0x4b000000)));
-
-GSVector4i::GSVector4i(const GSVector4& v)
-{
-	m = _mm_cvttps_epi32(v);
-}
-
-GSVector4::GSVector4(const GSVector4i& v)
-{
-	m = _mm_cvtepi32_ps(v);
-}
-
-GSVector4i GSVector4i::cast(const GSVector4& v)
-{
-	return GSVector4i(_mm_castps_si128(v.m));
-}
-
-GSVector4 GSVector4::cast(const GSVector4i& v)
-{
-	return GSVector4(_mm_castsi128_ps(v.m));
-}
+const GSVector4 GSVector4::m_x4f800000(_mm_castsi128_ps(_mm_set1_epi32(0x4f800000)));
 
 GSVector4i GSVector4i::fit(int arx, int ary) const
 {
@@ -81,15 +65,15 @@ GSVector4i GSVector4i::fit(int arx, int ary) const
 	return r;
 }
 
+static const int s_ar[][2] = {{0, 0}, {4, 3}, {16, 9}};
+
 GSVector4i GSVector4i::fit(int preset) const
 {
 	GSVector4i r;
 
-	static const int ar[][2] = {{0, 0}, {4, 3}, {16, 9}};
-
-	if(preset > 0 && preset < countof(ar))
+	if(preset > 0 && preset < countof(s_ar))
 	{
-		r = fit(ar[preset][0], ar[preset][1]);
+		r = fit(s_ar[preset][0], s_ar[preset][1]);
 	}
 	else
 	{

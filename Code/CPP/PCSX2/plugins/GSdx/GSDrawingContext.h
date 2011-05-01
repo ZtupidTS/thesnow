@@ -24,9 +24,7 @@
 #include "GS.h"
 #include "GSLocalMemory.h"
 
-#pragma pack(push, 1)
-
-__aligned16 class GSDrawingContext
+__aligned(class, 32) GSDrawingContext
 {
 public:
 	GIFRegXYOFFSET	XYOFFSET;
@@ -43,7 +41,7 @@ public:
 	GIFRegFRAME		FRAME;
 	GIFRegZBUF		ZBUF;
 
-	__aligned16 struct
+	__aligned(struct, 32)
 	{
 		GSVector4i dx10;
 		GSVector4 dx9;
@@ -121,5 +119,3 @@ public:
 		return ZBUF.ZMSK == 0 && TEST.ZTE != 0; // ZTE == 0 is bug on the real hardware, write is blocked then
 	}
 };
-
-#pragma pack(pop)

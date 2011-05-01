@@ -26,7 +26,6 @@
 #include "GSState.h"
 #include "GSVertexTrace.h"
 #include "GSVertexList.h"
-#include "GSSettingsDlg.h"
 #include "GSCapture.h"
 
 class GSRenderer : public GSState
@@ -42,13 +41,10 @@ protected:
 	int m_interlace;
 	int m_aspectratio;
 	int m_filter;
-	int m_upscale_multiplier;
 	bool m_vsync;
-	bool m_nativeres;
 	bool m_aa1;
+	bool m_mipmap;
 	bool m_framelimit;
-
-	uint8* m_tex_buff;
 
 	virtual GSTexture* GetOutput(int i) = 0;
 
@@ -56,10 +52,9 @@ protected:
 
 	// following functions need m_vt to be initialized
 
-	void GetTextureMinMax(GSVector4i& r, bool linear);
+	void GetTextureMinMax(GSVector4i& r, const GIFRegTEX0& TEX0, const GIFRegCLAMP& CLAMP, bool linear);
 	void GetAlphaMinMax();
 	bool TryAlphaTest(uint32& fm, uint32& zm);
-	bool IsLinear();
 	bool IsOpaque();
 
 public:
@@ -78,38 +73,23 @@ public:
 
 	virtual bool CreateWnd(const string& title, int w, int h);
 	virtual bool CreateDevice(GSDevice* dev);
-	virtual void ResetDevice()
-	{
-		InvalidateTextureCache();
-		ResetPrim();
-		if( m_dev ) m_dev->Reset(1, 1);
-	}
+	virtual void ResetDevice();
 	virtual void VSync(int field);
 	virtual bool MakeSnapshot(const string& path);
 	virtual void KeyEvent(GSKeyEventData* e);
-	virtual bool CanUpscale()
-	{
-		return !m_nativeres && m_regs->PMODE.EN != 0; // upscale ratio depends on the display size, with no output it may not be set correctly (ps2 logo to game transition)
-	}
-	virtual int upscale_Multiplier()
-	{
-		return m_upscale_multiplier;
-	}
-
-	void SetAspectRatio(int aspect)  { m_aspectratio = aspect; }
-	void SetVsync(bool enabled);
+	virtual bool CanUpscale() {return false;}
+	virtual int GetUpscaleMultiplier() {return 1;}
+	void SetAspectRatio(int aspect) {m_aspectratio = aspect;}
+	void SetVSync(bool enabled);
 	void SetFrameLimit(bool limit);
 	virtual void SetExclusive(bool isExcl) {}
 
 	virtual void BeginCapture();
 	virtual void EndCapture();
 
-	// TODO : Implement proper locking here *if needed*  (not sure yet if it is) --air
-	uint8* GetTextureBufferLock() { return m_tex_buff; }
-	void ReleaseTextureBufferLock() { }
-
 public:
-	CRITICAL_SECTION m_pGSsetTitle_Crit;
+	GSCritSec m_pGSsetTitle_Crit;
+
 	char m_GStitleInfoBuffer[128];
 };
 
@@ -126,7 +106,7 @@ protected:
 		m_count = 0;
 		m_vl.RemoveAll();
 
-		__super::Reset();
+		GSRenderer::Reset();
 	}
 
 	void ResetPrim()
@@ -157,13 +137,22 @@ protected:
 
 	void GrowVertexBuffer()
 	{
-		m_maxcount = max(10000, m_maxcount * 3/2);
-		m_vertices = (Vertex*)_aligned_realloc(m_vertices, sizeof(Vertex) * m_maxcount, 16);
-		m_maxcount -= 100;
+		int maxcount = std::max<int>(m_maxcount * 3 / 2, 10000);
+		Vertex* vertices = (Vertex*)_aligned_malloc(sizeof(Vertex) * maxcount, 16);
+
+	    if(m_vertices != NULL)
+		{
+			memcpy(vertices, m_vertices, sizeof(Vertex) * m_maxcount);
+			_aligned_free(m_vertices);
+		}
+
+		m_vertices = vertices;
+		m_maxcount = maxcount - 100;
 	}
 
 	// Returns a pointer to the drawing vertex. Can return NULL!
-	template<uint32 prim> __fi Vertex* BaseDrawingKick(int& count)
+
+	template<uint32 prim> __forceinline Vertex* DrawingKick(bool skip, int& count)
 	{
 		switch(prim)
 		{
@@ -237,7 +226,7 @@ protected:
 			__assume(0);
 		}
 
-		return v;
+		return !skip ? v : NULL;
 	}
 
 	virtual void Draw() = 0;

@@ -27,50 +27,34 @@
 
 DocsModeType			DocsFolderMode = DocsFolder_User;
 bool					UseDefaultSettingsFolder = true;
-bool					UseDefaultLogFolder = true;
 bool					UseDefaultPluginsFolder = true;
 bool					UseDefaultThemesFolder = true;
 
 
 wxDirName				CustomDocumentsFolder;
 wxDirName				SettingsFolder;
-wxDirName               LogFolder;
 
 wxDirName				InstallFolder;
 wxDirName				PluginsFolder;
 wxDirName				ThemesFolder;
 
-enum UserLocalDataType
-{
-	// Use the system defined user local data folder (typically an area outside the user's
-	// documents folder, but within user read/write permissions zoning; such that it does not
-	// clutter user document space).
-	UserLocalFolder_System,
-
-	// Uses the directory containing PCSX2.exe, or the current working directory (if the PCSX2
-	// directory could not be determined).  This is considered 'portable' mode, and is typically
-	// detected by PCSX2 on application startup, by looking for a pcsx2_portable.ini file in
-	// said locations.
-	UserLocalFolder_Portable,
-};
-
 // The UserLocalData folder can be redefined depending on whether or not PCSX2 is in
 // "portable install" mode or not.  when PCSX2 has been configured for portable install, the
 // UserLocalData folder is the current working directory.
 //
-static UserLocalDataType		UserLocalDataMode;
+InstallationModeType		InstallationMode;
 
 static wxFileName GetPortableIniPath()
 {
 	wxString programFullPath = wxStandardPaths::Get().GetExecutablePath();
 	wxDirName programDir( wxFileName(programFullPath).GetPath() );
 
-	return programDir + "pcsx2_portable.ini";
+	return programDir + "portable.ini";
 }
 
 static wxString GetMsg_PortableModeRights()
 {
-	return pxE( "!Error:PortableModeRights",
+	return pxE( "!Notice:PortableModeRights",
 		L"Please ensure that these folders are created and that your user account is granted "
 		L"write permissions to them -- or re-run PCSX2 with elevated (administrator) rights, which "
 		L"should grant PCSX2 the ability to create the necessary folders itself.  If you "
@@ -132,7 +116,7 @@ bool Pcsx2App::TestUserPermissionsRights( const wxDirName& testFolder, wxString&
 //
 wxConfigBase* Pcsx2App::TestForPortableInstall()
 {
-	UserLocalDataMode = UserLocalFolder_System;
+	InstallationMode = InstallMode_Registered;
 
 	const wxFileName portableIniFile( GetPortableIniPath() );
 	const wxDirName portableDocsFolder( portableIniFile.GetPath() );
@@ -191,60 +175,45 @@ wxConfigBase* Pcsx2App::TestForPortableInstall()
 				break;
 				
 				case pxID_CUSTOM:
-					// Pretend like the portable ini was never found!
+					wxDialogWithHelpers dialog2( NULL, AddAppName(_("%s is switching to local install mode.")) );
+					dialog2 += dialog2.Heading( _("Try to remove the file called \"portable.ini\" from your installation directory manually." ) );
+					dialog2 += 6;
+					pxIssueConfirmation( dialog2, MsgButtons().OK() );
+					conf_portable.DetachPtr(); // Not sure but can't hurt
+					
 					return NULL;
 			}
 
 		}
 	
-		// Success -- all user-based folders have write access.  PCSX2 should be
-		// able to run error-free!
+		// Success -- all user-based folders have write access.  PCSX2 should be able to run error-free!
+		// Force-set the custom documents mode, and set the 
 
-		UserLocalDataMode = UserLocalFolder_Portable;
+		InstallationMode = InstallMode_Portable;
+		DocsFolderMode = DocsFolder_Custom;
+		CustomDocumentsFolder = portableDocsFolder;
 		return conf_portable.DetachPtr();
 	}
 	
 	return NULL;
 }
 
-// Removes both portable ini and user local ini entry conforming to this instance of PCSX2.
+// Reset RunWizard so the FTWizard is run again on next PCSX2 start.
 void Pcsx2App::WipeUserModeSettings()
 {	
-	if (UserLocalDataMode == UserLocalFolder_Portable)
+	if (InstallationMode == InstallMode_Portable)
 	{
-		// Remove the user local portable ini definition (if possible).
-		// If the user does not have admin rights to the PCSX2 folder, removing the file may fail.
-		// PCSX2 does checks for admin rights on start-up if the file is found, though,
-		// so there should (in theory) be no sane way for this to error if we're running
-		// in portable mode.
-
+		// Remove the portable.ini entry "RunWizard" conforming to this instance of PCSX2.
 		wxFileName portableIniFile( GetPortableIniPath() );
-		if (portableIniFile.FileExists())
-			wxRemoveFile(portableIniFile.GetFullPath());
+		ScopedPtr<wxFileConfig> conf_portable( OpenFileConfig( portableIniFile.GetFullPath() ) );
+		conf_portable->DeleteEntry(L"RunWizard");
 	}
-	
-	// Remove the user-local ini entry conforming to this instance of PCSX2.
-	// Remove this regardless if PCSX2 is in portable mode, since otherwise these settings
-	// would be used when the user restarts PCSX2, and that might be undesirable.
-
-	wxDirName usrlocaldir = PathDefs::GetUserLocalDataDir();
-	if( !usrlocaldir.Exists() ) return;
-
-	wxString cwd( Path::Normalize( wxGetCwd() ) );
-#ifdef __WXMSW__
-	cwd.MakeLower();
-#endif
-	u32 hashres = HashTools::Hash( (char*)cwd.c_str(), cwd.Length()*sizeof(wxChar) );
-
-	wxFileName usermodefile( FilenameDefs::GetUsermodeConfig() );
-	usermodefile.SetPath( usrlocaldir.ToString() );
-	ScopedPtr<wxFileConfig> conf_usermode( OpenFileConfig( usermodefile.GetFullPath() ) );
-
-	FastFormatUnicode groupname;
-	groupname.Write( L"CWD.%08x", hashres );
-	Console.WriteLn( "(UserMode) Removing entry:" );
-	Console.Indent().WriteLn( L"Path: %s\nHash:%s", cwd.c_str(), groupname.c_str() );
-	conf_usermode->DeleteGroup( groupname );
+	else 
+	{
+		// Remove the registry entry "RunWizard" conforming to this instance of PCSX2.
+		ScopedPtr<wxConfigBase> conf_install( OpenInstallSettingsFile() );
+		conf_install->DeleteEntry(L"RunWizard");
+	}
 }
 
 static void DoFirstTimeWizard()
@@ -264,7 +233,7 @@ static void DoFirstTimeWizard()
 	}
 }
 
-wxConfigBase* Pcsx2App::ReadUserModeSettings()
+wxConfigBase* Pcsx2App::OpenInstallSettingsFile()
 {
 	// Implementation Notes:
 	//
@@ -304,7 +273,7 @@ void Pcsx2App::EstablishAppUserMode()
 
 	conf_install = TestForPortableInstall();
 	if (!conf_install)
-		conf_install = ReadUserModeSettings();	
+		conf_install = OpenInstallSettingsFile();	
 
 	conf_install->SetRecordDefaults(false);
 

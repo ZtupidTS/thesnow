@@ -32,10 +32,11 @@ class GSRendererHW : public GSRendererT<Vertex>
 {
 	int m_width;
 	int m_height;
-	int m_upscale_multiplier;
-	int m_UserHacks_SkipDraw;
 	int m_skip;
 	bool m_reset;
+	bool m_nativeres;
+	int m_upscale_multiplier;
+	int m_userhacks_skipdraw;
 
 	#pragma region hacks
 
@@ -74,7 +75,7 @@ class GSRendererHW : public GSRendererT<Vertex>
 						int y = ((int)m_vertices[i].p.y - oy) >> 4;
 
 						// video[y * 448 + x] = m_vertices[i].c0;
-						video[(y << 8) + (y << 7) + (y << 6) + x] = m_vertices[i].c0;
+						video[(y << 8) + (y << 7) + (y << 6) + x] = m_vertices[i]._c0();
 					}
 
 					return false;
@@ -140,9 +141,9 @@ class GSRendererHW : public GSRendererT<Vertex>
 
 		for(int i = 0, j = m_count; i < j; i++)
 		{
-			if(m_vertices[i].r == 0 && m_vertices[i].g != 0 && m_vertices[i].b != 0)
+			if(m_vertices[i]._r() == 0 && m_vertices[i]._g() != 0 && m_vertices[i]._b() != 0)
 			{
-				m_vertices[i].r = (m_vertices[i].g + m_vertices[i].b) / 2;
+				m_vertices[i]._r() = (m_vertices[i]._g() + m_vertices[i]._b()) / 2;
 			}
 		}
 
@@ -184,7 +185,7 @@ class GSRendererHW : public GSRendererT<Vertex>
 		uint32 FBW = m_context->FRAME.FBW;
 		uint32 FPSM = m_context->FRAME.PSM;
 
-		if(FBP == 0x01800 && FPSM == PSM_PSMZ24)
+		if((FBP == 0x01500 || FBP == 0x01800) && FPSM == PSM_PSMZ24)	//0x1800 pal, 0x1500 ntsc
 		{
 			// instead of just simply drawing a full height 512x512 sprite to clear the z buffer,
 			// it uses a 512x256 sprite only, yet it is still able to fill the whole surface with zeros,
@@ -244,6 +245,22 @@ class GSRendererHW : public GSRendererT<Vertex>
 		return true;
 	}
 
+	bool OI_SpidermanWoS(GSTexture* rt, GSTexture* ds, GSTextureCache::Source* t)
+	{
+		uint32 FBP = m_context->FRAME.Block();
+		uint32 FPSM = m_context->FRAME.PSM;
+
+		if((FBP == 0x025a0 || FBP == 0x02a60) && FPSM == PSM_PSMCT32)
+		{
+			//only top half of the screen clears
+			m_dev->ClearDepth(ds, 0);
+
+			return false;
+		}
+
+		return true;
+	}
+
 	bool OI_PointListPalette(GSTexture* rt, GSTexture* ds, GSTextureCache::Source* t)
 	{
 		if(m_vt.m_primclass == GS_POINT_CLASS && !PRIM->TME)
@@ -257,9 +274,11 @@ class GSRendererHW : public GSRendererT<Vertex>
 				{
 					for(int i = 0; i < 16; i++)
 					{
-						m_vertices[i].a = m_vertices[i].a >= 0x80 ? 0xff : m_vertices[i].a * 2;
+						uint8 a = m_vertices[i]._a();
 
-						m_mem.WritePixel32(i & 7, i >> 3, m_vertices[i].c0, FBP, FBW);
+						m_vertices[i]._a() = a >= 0x80 ? 0xff : a * 2;
+
+						m_mem.WritePixel32(i & 7, i >> 3, m_vertices[i]._c0(), FBP, FBW);
 					}
 
 					m_mem.m_clut.Invalidate();
@@ -270,9 +289,11 @@ class GSRendererHW : public GSRendererT<Vertex>
 				{
 					for(int i = 0; i < 256; i++)
 					{
-						m_vertices[i].a = m_vertices[i].a >= 0x80 ? 0xff : m_vertices[i].a * 2;
+						uint8 a = m_vertices[i]._a();
+						
+						m_vertices[i]._a() = a >= 0x80 ? 0xff : a * 2;
 
-						m_mem.WritePixel32(i & 15, i >> 4, m_vertices[i].c0, FBP, FBW);
+						m_mem.WritePixel32(i & 15, i >> 4, m_vertices[i]._c0(), FBP, FBW);
 					}
 
 					m_mem.m_clut.Invalidate();
@@ -420,6 +441,7 @@ class GSRendererHW : public GSRendererT<Vertex>
 			m_oi_list.push_back(HackEntry<OI_Ptr>(CRC::GodOfWar2, CRC::RegionCount, &GSRendererHW::OI_GodOfWar2));
 			m_oi_list.push_back(HackEntry<OI_Ptr>(CRC::SimpsonsGame, CRC::RegionCount, &GSRendererHW::OI_SimpsonsGame));
 			m_oi_list.push_back(HackEntry<OI_Ptr>(CRC::RozenMaidenGebetGarden, CRC::RegionCount, &GSRendererHW::OI_RozenMaidenGebetGarden));
+			m_oi_list.push_back(HackEntry<OI_Ptr>(CRC::SpidermanWoS, CRC::RegionCount, &GSRendererHW::OI_SpidermanWoS));
 
 			m_oo_list.push_back(HackEntry<OO_Ptr>(CRC::DBZBT2, CRC::RegionCount, &GSRendererHW::OO_DBZBT2));
 			m_oo_list.push_back(HackEntry<OO_Ptr>(CRC::MajokkoALaMode2, CRC::RegionCount, &GSRendererHW::OO_MajokkoALaMode2));
@@ -479,13 +501,10 @@ protected:
 		}
 	}
 
-	void InvalidateTextureCache()
-	{
-		m_tc->RemoveAll();
-	}
-
 	void ResetDevice()
 	{
+		m_tc->RemoveAll();
+
 		__super::ResetDevice();
 	}
 
@@ -511,7 +530,7 @@ protected:
 			{
 				if(s_save && s_n >= s_saven)
 				{
-					t->Save(format("c:\\temp2\\_%05d_f%I64d_fr%d_%05x_%d.bmp", s_n, m_perfmon.GetFrame(), i, (int)TEX0.TBP0, (int)TEX0.PSM));
+					t->Save(format("c:\\temp2\\_%05d_f%lld_fr%d_%05x_%d.bmp", s_n, m_perfmon.GetFrame(), i, (int)TEX0.TBP0, (int)TEX0.PSM));
 				}
 
 				s_n++;
@@ -537,7 +556,7 @@ protected:
 
 	void Draw()
 	{
-		if(IsBadFrame(m_skip, m_UserHacks_SkipDraw)) return;
+		if(IsBadFrame(m_skip, m_userhacks_skipdraw)) return;
 
 		GSDrawingEnvironment& env = m_env;
 		GSDrawingContext* context = m_context;
@@ -564,7 +583,7 @@ protected:
 
 			GSVector4i r;
 
-			GetTextureMinMax(r, IsLinear());
+			GetTextureMinMax(r, context->TEX0, context->CLAMP, m_vt.IsLinear());
 
 			tex = m_tc->LookupSource(context->TEX0, env.TEXA, r);
 
@@ -579,7 +598,7 @@ protected:
 
 			if(s_save && s_n >= s_saven && tex)
 			{
-				s = format("c:\\temp2\\_%05d_f%I64d_tex_%05x_%d_%d%d_%02x_%02x_%02x_%02x.dds",
+				s = format("c:\\temp2\\_%05d_f%lld_tex_%05x_%d_%d%d_%02x_%02x_%02x_%02x.dds",
 					s_n, frame, (int)context->TEX0.TBP0, (int)context->TEX0.PSM,
 					(int)context->CLAMP.WMS, (int)context->CLAMP.WMT,
 					(int)context->CLAMP.MINU, (int)context->CLAMP.MAXU,
@@ -589,7 +608,7 @@ protected:
 
 				if(tex->m_palette)
 				{
-					s = format("c:\\temp2\\_%05d_f%I64d_tpx_%05x_%d.dds", s_n, frame, context->TEX0.CBP, context->TEX0.CPSM);
+					s = format("c:\\temp2\\_%05d_f%lld_tpx_%05x_%d.dds", s_n, frame, context->TEX0.CBP, context->TEX0.CPSM);
 
 					tex->m_palette->Save(s, true);
 				}
@@ -599,14 +618,14 @@ protected:
 
 			if(s_save && s_n >= s_saven)
 			{
-				s = format("c:\\temp2\\_%05d_f%I64d_rt0_%05x_%d.bmp", s_n, frame, context->FRAME.Block(), context->FRAME.PSM);
+				s = format("c:\\temp2\\_%05d_f%lld_rt0_%05x_%d.bmp", s_n, frame, context->FRAME.Block(), context->FRAME.PSM);
 
 				rt->m_texture->Save(s);
 			}
 
 			if(s_savez && s_n >= s_saven)
 			{
-				s = format("c:\\temp2\\_%05d_f%I64d_rz0_%05x_%d.bmp", s_n, frame, context->ZBUF.Block(), context->ZBUF.PSM);
+				s = format("c:\\temp2\\_%05d_f%lld_rz0_%05x_%d.bmp", s_n, frame, context->ZBUF.Block(), context->ZBUF.PSM);
 
 				ds->m_texture->Save(s);
 			}
@@ -682,14 +701,14 @@ protected:
 
 			if(s_save && s_n >= s_saven)
 			{
-				s = format("c:\\temp2\\_%05d_f%I64d_rt1_%05x_%d.bmp", s_n, frame, context->FRAME.Block(), context->FRAME.PSM);
+				s = format("c:\\temp2\\_%05d_f%lld_rt1_%05x_%d.bmp", s_n, frame, context->FRAME.Block(), context->FRAME.PSM);
 
 				rt->m_texture->Save(s);
 			}
 
 			if(s_savez && s_n >= s_saven)
 			{
-				s = format("c:\\temp2\\_%05d_f%I64d_rz1_%05x_%d.bmp", s_n, frame, context->ZBUF.Block(), context->ZBUF.PSM);
+				s = format("c:\\temp2\\_%05d_f%lld_rz1_%05x_%d.bmp", s_n, frame, context->ZBUF.Block(), context->ZBUF.PSM);
 
 				ds->m_texture->Save(s);
 			}
@@ -707,7 +726,12 @@ protected:
 			return false;
 		}
 
-		return __super::CanUpscale();
+		return !m_nativeres && m_regs->PMODE.EN != 0; // upscale ratio depends on the display size, with no output it may not be set correctly (ps2 logo to game transition)
+	}
+
+	int GetUpscaleMultiplier()
+	{
+		return m_upscale_multiplier;
 	}
 
 public:
@@ -716,24 +740,35 @@ public:
 		, m_tc(tc)
 		, m_width(1024)
 		, m_height(1024)
-		, m_upscale_multiplier(1)
 		, m_skip(0)
 		, m_reset(false)
-		, m_UserHacks_SkipDraw (0)
+		, m_upscale_multiplier(1)
 	{
-		if(!m_nativeres)
+		m_nativeres = !!theApp.GetConfig("nativeres", 0);
+		m_upscale_multiplier = theApp.GetConfig("upscale_multiplier", 1);
+		m_userhacks_skipdraw = theApp.GetConfig("UserHacks_SkipDraw", 0);
+
+		if(m_nativeres)
+		{
+			m_filter = 2;
+		}
+		else
 		{
 			m_width = theApp.GetConfig("resx", m_width);
 			m_height = theApp.GetConfig("resy", m_height);
+
 			m_upscale_multiplier = theApp.GetConfig("upscale_multiplier", m_upscale_multiplier);
-			if (m_upscale_multiplier > 6) m_upscale_multiplier = 1; //use the normal upscale math
-			if (m_upscale_multiplier > 1)
+
+			if(m_upscale_multiplier > 6)
 			{
-				m_width  = 640 * m_upscale_multiplier; //512 is also common, but this is not always detected right.
-				m_height = 512 * m_upscale_multiplier; //448 is also common, but this is not always detected right.
+				m_upscale_multiplier = 1; // use the normal upscale math
+			}
+			else if(m_upscale_multiplier > 1)
+			{
+				m_width = 640 * m_upscale_multiplier; // 512 is also common, but this is not always detected right.
+				m_height = 512 * m_upscale_multiplier; // 448 is also common, but this is not always detected right.
 			}
 		}
-		m_UserHacks_SkipDraw = theApp.GetConfig("UserHacks_SkipDraw", m_UserHacks_SkipDraw);
 	}
 
 	virtual ~GSRendererHW()

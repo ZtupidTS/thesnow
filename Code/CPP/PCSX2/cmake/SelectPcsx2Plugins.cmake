@@ -5,6 +5,7 @@ set(msg_dep_common_libs "check these libraries -> wxWidgets (>=2.8.10), sparseha
 set(msg_dep_pcsx2       "check these libraries -> wxWidgets (>=2.8.10), gtk2 (>=2.16), zlib (>=1.2.4), pcsx2 common libs")
 set(msg_dep_cdvdiso     "check these libraries -> bzip2 (>=1.0.5)")
 set(msg_dep_zerogs      "check these libraries -> glew (>=1.5), opengl, X11, nvidia-cg-toolkit (>=2.1)")
+set(msg_dep_gsdx        "check these libraries -> opengl, X11, pcsx2 SDL")
 set(msg_dep_zzogl       "check these libraries -> glew (>=1.5), jpeg (>=6.2), opengl, X11, nvidia-cg-toolkit (>=2.1), pcsx2 common libs")
 set(msg_dep_onepad      "check these libraries -> sdl (>=1.2)")
 set(msg_dep_zeropad     "check these libraries -> sdl (>=1.2)")
@@ -102,6 +103,22 @@ set(FWnull TRUE)
 #			GSnull
 #---------------------------------------
 set(GSnull TRUE)
+#---------------------------------------
+
+#---------------------------------------
+#			GSdx
+#---------------------------------------
+# requires: -OpenGL
+#			-X11
+#           -PCSX2 SDL
+#---------------------------------------
+if(OPENGL_FOUND AND X11_FOUND AND projectSDL)
+    set(GSdx TRUE)
+else(OPENGL_FOUND AND X11_FOUND AND projectSDL)
+	set(GSdx FALSE)
+    message(STATUS "Skip build of GSdx: miss some dependencies")
+    message(STATUS "${msg_dep_gsdx}")
+endif(OPENGL_FOUND AND X11_FOUND AND projectSDL)
 #---------------------------------------
 
 #---------------------------------------
@@ -225,7 +242,6 @@ set(cdvdGigaherz FALSE)
 set(CDVDisoEFP FALSE)
 set(CDVDolio FALSE)
 set(CDVDpeops FALSE)
-set(GSdx FALSE)
 set(LilyPad FALSE)
 set(PeopsSPU2 FALSE)
 set(SSSPSXPAD FALSE)

@@ -24,24 +24,6 @@
 #include "GSDeviceDX.h"
 #include "GSTexture11.h"
 
-typedef HRESULT     (WINAPI * FnPtr_CreateDXGIFactory)(REFIID, void ** );
-
-typedef HRESULT  (WINAPI * FnPtr_D3D11CreateDeviceAndSwapChain) (
-	__in   IDXGIAdapter *pAdapter,
-	__in   D3D_DRIVER_TYPE DriverType,
-	__in   HMODULE Software,
-	__in   UINT Flags,
-	__in   const D3D_FEATURE_LEVEL *pFeatureLevels,
-	__in   UINT FeatureLevels,
-	__in   UINT SDKVersion,
-	__in   const DXGI_SWAP_CHAIN_DESC *pSwapChainDesc,
-	__out  IDXGISwapChain **ppSwapChain,
-	__out  ID3D11Device **ppDevice,
-	__out  D3D_FEATURE_LEVEL *pFeatureLevel,
-	__out  ID3D11DeviceContext **ppImmediateContext
-);
-
-
 struct GSVertexShader11
 {
 	CComPtr<ID3D11VertexShader> vs;
@@ -50,9 +32,9 @@ struct GSVertexShader11
 
 class GSDevice11 : public GSDeviceDX
 {
-	GSTexture* Create(int type, int w, int h, bool msaa, int format);
+	GSTexture* CreateSurface(int type, int w, int h, bool msaa, int format);
 
-	void DoMerge(GSTexture* st[2], GSVector4* sr, GSVector4* dr, GSTexture* dt, bool slbg, bool mmod, const GSVector4& c);
+	void DoMerge(GSTexture* st[2], GSVector4* sr, GSTexture* dt, GSVector4* dr, bool slbg, bool mmod, const GSVector4& c);
 	void DoInterlace(GSTexture* st, GSTexture* dt, int shader, bool linear, float yoffset = 0);
 
 	//
@@ -121,7 +103,7 @@ public: // TODO
 		CComPtr<ID3D11BlendState> bs;
 	} m_date;
 
-	void SetupDATE(GSTexture* rt, GSTexture* ds, const GSVertexPT1 (&iaVertices)[4], bool datm);
+	void SetupDATE(GSTexture* rt, GSTexture* ds, const GSVertexPT1* vertices, bool datm);
 
 	// Shaders...
 
@@ -139,12 +121,13 @@ public: // TODO
 	VSConstantBuffer m_vs_cb_cache;
 	PSConstantBuffer m_ps_cb_cache;
 
+	bool CreateTextureFX();
+
 public:
 	GSDevice11();
 	virtual ~GSDevice11();
 
 	bool Create(GSWnd* wnd);
-	bool CreateTextureFX();
 	bool Reset(int w, int h);
 	void Flip();
 
@@ -203,3 +186,4 @@ public:
 	HRESULT CompileShader(uint32 id, const string& entry, D3D11_SHADER_MACRO* macro, ID3D11GeometryShader** gs);
 	HRESULT CompileShader(uint32 id, const string& entry, D3D11_SHADER_MACRO* macro, ID3D11PixelShader** ps);
 };
+

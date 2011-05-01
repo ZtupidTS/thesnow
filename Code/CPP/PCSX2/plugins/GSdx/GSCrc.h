@@ -26,7 +26,7 @@ class CRC
 public:
 	enum Title
 	{
-		None,
+		NoTitle,
 		MetalSlug6,
 		TomoyoAfter,
 		Clannad,
@@ -52,6 +52,8 @@ public:
 		OnePieceGrandBattle,
 		ICO,
 		GT4,
+		GT3,
+		GTConcept,
 		WildArms5,
 		WildArms4,
 		Manhunt2,
@@ -81,12 +83,30 @@ public:
 		SMTDDS1,
 		SMTDDS2,
 		RozenMaidenGebetGarden,
+		SuikodenTactics,
+		TenchuWoH,
+		TenchuFS,
+		Sly3,
+		Sly2,
+		DemonStone,
+		BigMuthaTruckers,
+		TimeSplitters2,
+		ReZ,
+		LordOfTheRingsTwoTowers,
+		RedDeadRevolver,
+		SpidermanWoS,
+		HeavyMetalThunder,
+		SilentHill3,
+		SilentHill2,
+		BleachBladeBattlers,
+		CastlevaniaCoD,
+		CastlevaniaLoI,
 		TitleCount,
 	};
 
 	enum Region
 	{
-		Unknown,
+		NoRegion,
 		US,
 		EU,
 		JP,
@@ -97,6 +117,7 @@ public:
 		IT,
 		ES,
 		ASIA,
+		KO,
 		RegionCount,
 	};
 

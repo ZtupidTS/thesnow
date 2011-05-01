@@ -1,10 +1,29 @@
+/*
+ *	Copyright (C) 2007-2009 Gabest
+ *	http://www.gabest.org
+ *
+ *  This Program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2, or (at your option)
+ *  any later version.
+ *
+ *  This Program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with GNU Make; see the file COPYING.  If not, write to
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+ *  http://www.gnu.org/copyleft/gpl.html
+ *
+ */
+
 // stdafx.h : include file for standard system include files,
 // or project specific include files that are used frequently, but
 // are changed infrequently
 
 #pragma once
-
-#pragma warning(disable: 4996 4995 4324 4100 4101 4201)
 
 #ifdef _WINDOWS
 
@@ -39,30 +58,89 @@
 #include <commdlg.h>
 #include <shellapi.h>
 #include <atlbase.h>
+#include <d3d11.h>
+#include <d3dx11.h>
+#include <d3d9.h>
+#include <d3dx9.h>
+
+#define D3DCOLORWRITEENABLE_RGBA (D3DCOLORWRITEENABLE_RED | D3DCOLORWRITEENABLE_GREEN | D3DCOLORWRITEENABLE_BLUE | D3DCOLORWRITEENABLE_ALPHA)
+#define D3D11_SHADER_MACRO D3D10_SHADER_MACRO
+#define ID3D11Blob ID3D10Blob
 
 #endif
 
 // stdc
 
+#include <stddef.h>
+#include <stdio.h>
+#include <stdarg.h>
 #include <math.h>
+#include <float.h>
 #include <time.h>
+#include <limits.h>
 
 #include <cstring>
 #include <string>
 #include <vector>
 #include <list>
 #include <map>
-#include <hash_map>
-#include <hash_set>
+#include <set>
 #include <algorithm>
-
-// Let's take advantage of the work that's already been done on making things cross-platform by bringing this in.
-#include "Pcsx2Defs.h"
 
 using namespace std;
 
 #ifdef _WINDOWS
+
+#include <hash_map>
+#include <hash_set>
+
 using namespace stdext;
+
+#define vsnprintf _vsnprintf
+#define snprintf _snprintf
+
+#define DIRECTORY_SEPARATOR '\\'
+
+#else
+
+#define _BACKWARD_BACKWARD_WARNING_H
+
+#define hash_map map
+#define hash_set set
+
+//#include <ext/hash_map>
+//#include <ext/hash_set>
+
+//using namespace __gnu_cxx;
+
+#define DIRECTORY_SEPARATOR '/'
+
+#endif
+
+#ifdef _MSC_VER
+
+    #define __aligned(t, n) __declspec(align(n)) t
+
+    #define EXPORT_C_(type) extern "C" __declspec(dllexport) type __stdcall
+    #define EXPORT_C EXPORT_C_(void)
+
+#else
+
+    #define __aligned(t, n) t __attribute__((aligned(n)))
+    #define __fastcall __attribute__((fastcall))
+
+    #define EXPORT_C_(type) extern "C" __attribute__((stdcall,externally_visible,visibility("default"))) type
+    #define EXPORT_C EXPORT_C_(void)
+
+    #ifdef __GNUC__
+
+        #include "assert.h"
+        #define __forceinline __inline__ __attribute__((always_inline,unused))
+        // #define __forceinline __inline__ __attribute__((__always_inline__,__gnu_inline__))
+        #define __assume(c) ((void)0)
+
+    #endif
+
 #endif
 
 extern string format(const char* fmt, ...);
@@ -89,48 +167,40 @@ typedef signed long long int64;
 
 #define countof(a) (sizeof(a) / sizeof(a[0]))
 
-#define EXPORT_C extern "C" __declspec(dllexport) void __stdcall
-#define EXPORT_C_(type) extern "C" __declspec(dllexport) type __stdcall
-
-#define ALIGN_STACK(n) __aligned(n) int __dummy;
+#define ALIGN_STACK(n) __aligned(int, n) __dummy;
 
 #ifndef RESTRICT
-	#ifdef __INTEL_COMPILER
-		#define RESTRICT restrict
-	#elif _MSC_VER >= 1400 // TODO: gcc
-		#define RESTRICT __restrict
-	#else
-		#define RESTRICT
-	#endif
+
+    #ifdef __INTEL_COMPILER
+
+        #define RESTRICT restrict
+
+    #elif _MSC_VER >= 1400 // TODO: gcc
+
+        #define RESTRICT __restrict
+
+    #else
+
+        #define RESTRICT
+
+    #endif
+
 #endif
 
-#if defined(_DEBUG) && defined(_MSC_VER)
+#if defined(_DEBUG) //&& defined(_MSC_VER)
+
 	#include <assert.h>
 	#define ASSERT assert
+
 #else
+
 	#define ASSERT(exp) ((void)0)
+
 #endif
 
 #ifdef __x86_64__
+
 	#define _M_AMD64
-#endif
-
-#ifdef _WINDOWS
-
-// directx
-
-#include <d3d11.h>
-#include <d3dx11.h>
-#include <d3d9.h>
-#include <d3dx9.h>
-
-#define D3DCOLORWRITEENABLE_RGBA (D3DCOLORWRITEENABLE_RED | D3DCOLORWRITEENABLE_GREEN | D3DCOLORWRITEENABLE_BLUE | D3DCOLORWRITEENABLE_ALPHA)
-
-#define USE_UPSCALE_HACKS //Hacks intended to fix upscaling / rendering glitches in HW renderers
-
-// dxsdk beta missing these:
-#define D3D11_SHADER_MACRO D3D10_SHADER_MACRO
-#define ID3D11Blob ID3D10Blob
 
 #endif
 
@@ -153,7 +223,7 @@ typedef signed long long int64;
 
 	#define MXCSR (_MM_DENORMALS_ARE_ZERO | _MM_MASK_MASK | _MM_ROUND_NEAREST | _MM_FLUSH_ZERO_ON)
 
-	#if _MSC_VER < 1500
+	#if defined(_MSC_VER) && _MSC_VER < 1500
 
 	__forceinline __m128i _mm_castps_si128(__m128 a) {return *(__m128i*)&a;}
 	__forceinline __m128 _mm_castsi128_ps(__m128i a) {return *(__m128*)&a;}
@@ -194,5 +264,69 @@ typedef signed long long int64;
 
 #endif
 
+#if _M_SSE >= 0x500
+
+	#include <immintrin.h>
+
+#endif
+
 #undef min
 #undef max
+#undef abs
+
+#if !defined(_MSC_VER)
+
+#if !defined(HAVE_ALIGNED_MALLOC)
+
+extern void* _aligned_malloc(size_t size, size_t alignment);
+extern void _aligned_free(void* p);
+
+#endif
+
+// http://svn.reactos.org/svn/reactos/trunk/reactos/include/crt/mingw32/intrin_x86.h?view=markup
+// - the other intrin_x86.h of pcsx2 is not up to date, its _interlockedbittestandreset simply does not work.
+
+__forceinline unsigned char _BitScanForward(unsigned long* const Index, const unsigned long Mask)
+{
+    __asm__("bsfl %[Mask], %[Index]" : [Index] "=r" (*Index) : [Mask] "mr" (Mask));
+    return Mask ? 1 : 0;
+}
+
+__forceinline unsigned char _interlockedbittestandreset(volatile long* a, const long b)
+{
+    unsigned char retval;
+    __asm__("lock; btrl %[b], %[a]; setb %b[retval]" : [retval] "=q" (retval), [a] "+m" (*a) : [b] "Ir" (b) : "memory");
+    return retval;
+}
+
+__forceinline unsigned char _interlockedbittestandset(volatile long* a, const long b)
+{
+	unsigned char retval;
+	__asm__("lock; btsl %[b], %[a]; setc %b[retval]" : [retval] "=q" (retval), [a] "+m" (*a) : [b] "Ir" (b) : "memory");
+	return retval;
+}
+
+#ifdef __GNUC__
+
+__forceinline unsigned long long __rdtsc()
+{
+    #if defined(__amd64__) || defined(__x86_64__)
+    unsigned long long low, high;
+    __asm__ __volatile__("rdtsc" : "=a"(low), "=d"(high));
+    return low | (high << 32);
+    #else
+    unsigned long long retval;
+    __asm__ __volatile__("rdtsc" : "=A"(retval));
+    return retval;
+    #endif
+}
+
+#endif
+
+#endif
+
+extern void* vmalloc(size_t size, bool code);
+extern void vmfree(void* ptr, size_t size);
+
+#define USE_UPSCALE_HACKS // Hacks intended to fix upscaling / rendering glitches in HW renderers
+

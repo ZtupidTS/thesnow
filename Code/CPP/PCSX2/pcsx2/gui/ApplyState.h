@@ -184,6 +184,10 @@ public:
 	// If no exceptions are thrown, then the operation is assumed a success. :)
 	virtual void Apply()=0;
 
+	//Enable the apply button manually if required (in case the auto-trigger doesn't kick in, e.g. when clicking a button)
+	void SomethingChanged();
+
+
 	void Init();
 
 	// Mandatory override: As a rule for proper interface design, all deriving classes need
@@ -197,6 +201,8 @@ public:
 	virtual void AppStatusEvent_OnUiSettingsLoadSave( const AppSettingsEventInfo& ) {}
 	virtual void AppStatusEvent_OnVmSettingsLoadSave( const AppSettingsEventInfo& ) {}
 	virtual void AppStatusEvent_OnExit() {}
+
+	virtual bool IsSpecificConfig(){return false;} //lame RTTI
 
 protected:
 	virtual void OnSettingsApplied( wxCommandEvent& evt );
@@ -212,10 +218,12 @@ class BaseApplicableConfigPanel_SpecificConfig : public BaseApplicableConfigPane
     //but multiple inheritance sucks. So, subclass.
     //NOTE: because ApplyConfigToGui is called manually and not via an event, it must consider manuallyPropagate and call sub panels.
 public:
+	virtual bool IsSpecificConfig(){return true;};
 	BaseApplicableConfigPanel_SpecificConfig( wxWindow* parent, wxOrientation orient=wxVERTICAL );
 	BaseApplicableConfigPanel_SpecificConfig( wxWindow* parent, wxOrientation orient, const wxString& staticLabel );
 
-	virtual void ApplyConfigToGui(AppConfig& configToApply, bool manuallyPropagate=false)=0;
+	//possible flags are: AppConfig: APPLY_FLAG_MANUALLY_PROPAGATE and APPLY_FLAG_IS_FROM_PRESET
+	virtual void ApplyConfigToGui(AppConfig& configToApply, int flags=0)=0;
 };
 
 class ApplicableWizardPage : public wxWizardPageSimple, public IApplyState

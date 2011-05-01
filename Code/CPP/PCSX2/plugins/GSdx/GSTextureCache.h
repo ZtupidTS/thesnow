@@ -22,6 +22,7 @@
 #pragma once
 
 #include "GSRenderer.h"
+#include "GSDirtyRect.h"
 
 class GSTextureCache
 {
@@ -39,7 +40,7 @@ public:
 		FMT_8,
 	};
 
-	class Surface : public GSAlignedClass<16>
+	class Surface : public GSAlignedClass<32>
 	{
 	protected:
 		GSRenderer* m_renderer;
@@ -49,9 +50,10 @@ public:
 		GIFRegTEX0 m_TEX0;
 		GIFRegTEXA m_TEXA;
 		int m_age;
+		uint8* m_temp;
 
 	public:
-		explicit Surface(GSRenderer* r);
+		Surface(GSRenderer* r, uint8* temp);
 		virtual ~Surface();
 
 		virtual void Update();
@@ -72,12 +74,14 @@ public:
 		int m_fmt;
 		bool m_target;
 		bool m_complete;
+		bool m_repeating;
+		list<GSVector2i>* m_p2t;
 
 	public:
-		explicit Source(GSRenderer* r);
+		Source(GSRenderer* r, const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA, uint8* temp);
 		virtual ~Source();
 
-		virtual void Update(const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA, const GSVector4i& rect);
+		virtual void Update(const GSVector4i& rect);
 	};
 
 	class Target : public Surface
@@ -89,17 +93,14 @@ public:
 		GSVector4i m_valid;
 
 	public:
-		explicit Target(GSRenderer* r);
+		Target(GSRenderer* r, const GIFRegTEX0& TEX0, uint8* temp);
 
 		virtual void Update();
 	};
 
-protected:
-	GSRenderer* m_renderer;
-	bool m_paltex;
-
-	struct SourceMap
+	class SourceMap
 	{
+	public:
 		hash_set<Source*> m_surfaces;
 		list<Source*> m_map[MAX_PAGES];
 		uint32 m_pages[16];
@@ -110,10 +111,14 @@ protected:
 		void Add(Source* s, const GIFRegTEX0& TEX0, const GSOffset* o);
 		void RemoveAll();
 		void RemoveAt(Source* s);
+	};
 
-	} m_src;
-
+protected:
+	GSRenderer* m_renderer;
+	SourceMap m_src;
 	list<Target*> m_dst[2];
+	bool m_paltex;
+	uint8* m_temp;
 
 	virtual Source* CreateSource(const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA, Target* t = NULL);
 	virtual Target* CreateTarget(const GIFRegTEX0& TEX0, int w, int h, int type);

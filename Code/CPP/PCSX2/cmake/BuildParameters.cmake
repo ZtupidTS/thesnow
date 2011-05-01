@@ -5,10 +5,14 @@
 # Use all         internal lib: -DFORCE_INTERNAL_ALL=TRUE
 # Use soundtouch  internal lib: -DFORCE_INTERNAL_SOUNDTOUCH=TRUE
 # Use zlib        internal lib: -DFORCE_INTERNAL_ZLIB=TRUE
+# Use sdl1.3      internal lib: -DFORCE_INTERNAL_SDL=TRUE # Not supported yet
+### Miscellaneous
+# Select install dir of l10n  : -DL10N_PORTABLE=TRUE(bin/Langs)|FALSE(FHS, /usr...)
 ### Add some flags to the build process
 # control C flags             : -DUSER_CMAKE_C_FLAGS="cflags"
 # control C++ flags           : -DUSER_CMAKE_CXX_FLAGS="cxxflags"
 # control link flags          : -DUSER_CMAKE_LD_FLAGS="ldflags"
+# Special mode to ease package: -DPACKAGE_MODE=TRUE
 #-------------------------------------------------------------------------------
 
 #-------------------------------------------------------------------------------
@@ -113,11 +117,19 @@ endif(DEFINED USER_CMAKE_CXX_FLAGS)
 string(STRIP "${CMAKE_CXX_FLAGS} -m32 -msse -msse2 -march=i686 -pthread" CMAKE_CXX_FLAGS)
 
 #-------------------------------------------------------------------------------
+# By default use the standard compilation mode
+#-------------------------------------------------------------------------------
+if(NOT DEFINED PACKAGE_MODE)
+    set(PACKAGE_MODE FALSE)
+endif(NOT DEFINED PACKAGE_MODE)
+
+#-------------------------------------------------------------------------------
 # Select library system vs 3rdparty
 #-------------------------------------------------------------------------------
 if(FORCE_INTERNAL_ALL)
     set(FORCE_INTERNAL_SOUNDTOUCH TRUE)
     set(FORCE_INTERNAL_ZLIB TRUE)
+    set(FORCE_INTERNAL_SDL TRUE)
 endif(FORCE_INTERNAL_ALL)
 
 if(NOT DEFINED FORCE_INTERNAL_SOUNDTOUCH)
@@ -131,3 +143,15 @@ endif(NOT DEFINED FORCE_INTERNAL_SOUNDTOUCH)
 if(NOT DEFINED FORCE_INTERNAL_ZLIB)
     set(FORCE_INTERNAL_ZLIB FALSE)
 endif(NOT DEFINED FORCE_INTERNAL_ZLIB)
+
+if(NOT DEFINED FORCE_INTERNAL_SDL)
+    set(FORCE_INTERNAL_SDL FALSE)
+endif(NOT DEFINED FORCE_INTERNAL_SDL)
+
+#-------------------------------------------------------------------------------
+# Select library system vs 3rdparty
+#-------------------------------------------------------------------------------
+if(NOT DEFINED L10N_PORTABLE)
+    set(L10N_PORTABLE TRUE)
+    message(STATUS "Install localization file in bin/Langs by default")
+endif(NOT DEFINED L10N_PORTABLE)

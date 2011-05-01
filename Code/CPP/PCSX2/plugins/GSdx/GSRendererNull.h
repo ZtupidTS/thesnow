@@ -22,7 +22,6 @@
 #pragma once
 
 #include "GSRenderer.h"
-#include "GSDeviceNull.h"
 
 class GSRendererNull : public GSRendererT<GSVertexNull>
 {
@@ -40,13 +39,10 @@ public:
 	GSRendererNull()
 		: GSRendererT<GSVertexNull>()
 	{
-		InitVertexKick<GSRendererNull>();
+		InitVertexKick(GSRendererNull);
 	}
 
-	virtual ~GSRendererNull() {}
-
-	template<uint32 prim>
-	void DrawingKick( bool skip ) {}
-
-	void DoVertexKick() {}
+	template<uint32 prim, uint32 tme, uint32 fst> void VertexKick(bool skip)
+	{
+	}
 };

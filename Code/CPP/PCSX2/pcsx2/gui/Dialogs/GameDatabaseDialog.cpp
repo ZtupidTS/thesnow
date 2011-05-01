@@ -21,7 +21,7 @@ using namespace Panels;
 using namespace pxSizerFlags;
 
 Dialogs::GameDatabaseDialog::GameDatabaseDialog(wxWindow* parent)
-	: BaseConfigurationDialog( parent, AddAppName(_("游戏数据库 - %s")), 580 )
+	: BaseConfigurationDialog( parent, AddAppName(_("Game database - %s")), 580 )
 {
 	ScopedBusyCursor busy( Cursor_ReallyBusy );
 	*this += new GameDatabasePanel(this) | StdExpand();

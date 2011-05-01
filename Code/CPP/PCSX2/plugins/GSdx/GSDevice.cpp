@@ -19,7 +19,7 @@
  *
  */
 
-#include "StdAfx.h"
+#include "stdafx.h"
 #include "GSdx.h"
 #include "GSDevice.h"
 
@@ -35,11 +35,6 @@ GSDevice::GSDevice()
 	, m_frame(0)
 {
 	memset(&m_vertices, 0, sizeof(m_vertices));
-
-	m_msaa = theApp.GetConfig("msaa", 0);
-
-	m_msaa_desc.Count = 1;
-	m_msaa_desc.Quality = 0;
 }
 
 GSDevice::~GSDevice()
@@ -104,19 +99,19 @@ void GSDevice::Present(const GSVector4i& r, int shader)
 	{
 		static int s_shader[3] = {0, 5, 6}; // FIXME
 
-		StretchRect(m_current, m_backbuffer, GSVector4(r), s_shader[shader]);
+		Present(m_current, m_backbuffer, GSVector4(r), s_shader[shader]);
 	}
 
 	Flip();
 }
 
-GSTexture* GSDevice::Fetch(int type, int w, int h, bool msaa, int format)
+void GSDevice::Present(GSTexture* st, GSTexture* dt, const GSVector4& dr, int shader)
 {
-	if(m_msaa < 2)
-	{
-		msaa = false;
-	}
+	StretchRect(st, dt, dr, shader);
+}
 
+GSTexture* GSDevice::FetchSurface(int type, int w, int h, bool msaa, int format)
+{
 	GSVector2i size(w, h);
 
 	for(list<GSTexture*>::iterator i = m_pool.begin(); i != m_pool.end(); i++)
@@ -131,7 +126,7 @@ GSTexture* GSDevice::Fetch(int type, int w, int h, bool msaa, int format)
 		}
 	}
 
-	return Create(type, w, h, msaa, format);
+	return CreateSurface(type, w, h, msaa, format);
 }
 
 void GSDevice::EndScene()
@@ -145,8 +140,11 @@ void GSDevice::Recycle(GSTexture* t)
 	if(t)
 	{
 		t->last_frame_used = m_frame;
+
 		m_pool.push_front(t);
+
 		//printf("%d\n",m_pool.size());
+
 		while(m_pool.size() > 300)
 		{
 			delete m_pool.back();
@@ -159,31 +157,33 @@ void GSDevice::Recycle(GSTexture* t)
 void GSDevice::AgePool()
 {
 	m_frame++;
-	while (m_pool.size() > 20 && m_frame - m_pool.back()->last_frame_used > 10)
+
+	while(m_pool.size() > 20 && m_frame - m_pool.back()->last_frame_used > 10)
 	{
 		delete m_pool.back();
+
 		m_pool.pop_back();
 	}
 }
 
 GSTexture* GSDevice::CreateRenderTarget(int w, int h, bool msaa, int format)
 {
-	return Fetch(GSTexture::RenderTarget, w, h, msaa, format);
+	return FetchSurface(GSTexture::RenderTarget, w, h, msaa, format);
 }
 
 GSTexture* GSDevice::CreateDepthStencil(int w, int h, bool msaa, int format)
 {
-	return Fetch(GSTexture::DepthStencil, w, h, msaa, format);
+	return FetchSurface(GSTexture::DepthStencil, w, h, msaa, format);
 }
 
 GSTexture* GSDevice::CreateTexture(int w, int h, int format)
 {
-	return Fetch(GSTexture::Texture, w, h, false, format);
+	return FetchSurface(GSTexture::Texture, w, h, false, format);
 }
 
 GSTexture* GSDevice::CreateOffscreen(int w, int h, int format)
 {
-	return Fetch(GSTexture::Offscreen, w, h, false, format);
+	return FetchSurface(GSTexture::Offscreen, w, h, false, format);
 }
 
 void GSDevice::StretchRect(GSTexture* st, GSTexture* dt, const GSVector4& dr, int shader, bool linear)
@@ -201,6 +201,7 @@ void GSDevice::Merge(GSTexture* st[2], GSVector4* sr, GSVector4* dr, const GSVec
 	if(!m_merge || !(m_merge->GetSize() == fs))
 	{
 		Recycle(m_merge);
+
 		m_merge = CreateRenderTarget(fs.x, fs.y, false);
 	}
 
@@ -222,7 +223,7 @@ void GSDevice::Merge(GSTexture* st[2], GSVector4* sr, GSVector4* dr, const GSVec
 			}
 		}
 
-		DoMerge(tex, sr, dr, m_merge, slbg, mmod, c);
+		DoMerge(tex, sr, m_merge, dr, slbg, mmod, c);
 
 		for(int i = 0; i < countof(tex); i++)
 		{
@@ -245,6 +246,7 @@ void GSDevice::Interlace(const GSVector2i& ds, int field, int mode, float yoffse
 	if(!m_weavebob || !(m_weavebob->GetSize() == ds))
 	{
 		delete m_weavebob;
+
 		m_weavebob = CreateRenderTarget(ds.x, ds.y, false);
 	}
 
@@ -261,6 +263,7 @@ void GSDevice::Interlace(const GSVector2i& ds, int field, int mode, float yoffse
 			if(!m_blend || !(m_blend->GetSize() == ds))
 			{
 				delete m_blend;
+
 				m_blend = CreateRenderTarget(ds.x, ds.y, false);
 			}
 
@@ -303,45 +306,3 @@ bool GSDevice::ResizeTexture(GSTexture** t, int w, int h)
 	return t2 != NULL;
 }
 
-bool GSDevice::SetFeatureLevel(D3D_FEATURE_LEVEL level, bool compat_mode)
-{
-	m_shader.level = level;
-
-	switch(level)
-	{
-	case D3D_FEATURE_LEVEL_9_1:
-	case D3D_FEATURE_LEVEL_9_2:
-		m_shader.model = "0x200";
-		m_shader.vs = compat_mode ? "vs_4_0_level_9_1" : "vs_2_0";
-		m_shader.ps = compat_mode ? "ps_4_0_level_9_1" : "ps_2_0";
-		break;
-	case D3D_FEATURE_LEVEL_9_3:
-		m_shader.model = "0x300";
-		m_shader.vs = compat_mode ? "vs_4_0_level_9_3" : "vs_3_0";
-		m_shader.ps = compat_mode ? "ps_4_0_level_9_3" : "ps_3_0";
-		break;
-	case D3D_FEATURE_LEVEL_10_0:
-		m_shader.model = "0x400";
-		m_shader.vs = "vs_4_0";
-		m_shader.gs = "gs_4_0";
-		m_shader.ps = "ps_4_0";
-		break;
-	case D3D_FEATURE_LEVEL_10_1:
-		m_shader.model = "0x401";
-		m_shader.vs = "vs_4_1";
-		m_shader.gs = "gs_4_1";
-		m_shader.ps = "ps_4_1";
-		break;
-	case D3D_FEATURE_LEVEL_11_0:
-		m_shader.model = "0x500";
-		m_shader.vs = "vs_5_0";
-		m_shader.gs = "gs_5_0";
-		m_shader.ps = "ps_5_0";
-		break;
-	default:
-		ASSERT(0);
-		return false;
-	}
-
-	return true;
-}

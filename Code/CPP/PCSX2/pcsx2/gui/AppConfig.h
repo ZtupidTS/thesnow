@@ -50,13 +50,11 @@ namespace PathDefs
 
 extern DocsModeType		DocsFolderMode;				// 
 extern bool				UseDefaultSettingsFolder;	// when TRUE, pcsx2 derives the settings folder from the DocsFolderMode
-extern bool				UseDefaultLogFolder;
 extern bool				UseDefaultPluginsFolder;
 extern bool				UseDefaultThemesFolder;
 
 extern wxDirName		CustomDocumentsFolder;		// allows the specification of a custom home folder for PCSX2 documents files.
 extern wxDirName		SettingsFolder;				// dictates where the settings folder comes from, *if* UseDefaultSettingsFolder is FALSE.
-extern wxDirName		LogFolder;
 
 extern wxDirName		InstallFolder;
 extern wxDirName		PluginsFolder;
@@ -66,6 +64,26 @@ extern wxDirName GetSettingsFolder();
 extern wxString  GetVmSettingsFilename();
 extern wxString  GetUiSettingsFilename();
 extern wxDirName GetLogFolder();
+
+enum InstallationModeType
+{
+	// Use the user defined folder selections.  These can be anywhere on a user's hard drive,
+	// though by default the binaries (plugins, themes) are located in Install_Dir (registered
+	// by the installer), and the user files (screenshots, inis) are in the user's documents
+	// folder.  All folders are changable within the GUI.
+	InstallMode_Registered,
+
+	// In this mode, both Install_Dir and UserDocuments folders default the directory containing
+	// PCSX2.exe, or the current working directory (if the PCSX2 directory could not be determined).
+	// Folders cannot be changed from within the gui, however the fixed defaults can be manually
+	// specified in the portable.ini by power users/devs.
+	//
+	// This mode is typically enabled by the presence of a 'portable.ini' in the folder.
+	InstallMode_Portable,
+};
+bool IsPortable();
+
+extern InstallationModeType	InstallationMode;
 
 enum AspectRatioType
 {
@@ -111,7 +129,8 @@ public:
 				UseDefaultSnapshots:1,
 				UseDefaultSavestates:1,
 				UseDefaultMemoryCards:1,
-				UseDefaultLogs:1;
+				UseDefaultLogs:1,
+				UseDefaultLangs:1;
 		BITFIELD_END
 
 		wxDirName
@@ -119,6 +138,7 @@ public:
 			Snapshots,
 			Savestates,
 			MemoryCards,
+			Langs,
 			Logs;
 
 		wxDirName RunIso;		// last used location for Iso loading.
@@ -169,6 +189,11 @@ public:
 		bool		DisableScreenSaver;
 
 		AspectRatioType AspectRatio;
+		Fixed100	Zoom;
+		Fixed100	StretchY;
+		Fixed100	OffsetX;
+		Fixed100	OffsetY;
+
 
 		wxSize		WindowSize;
 		wxPoint		WindowPos;
@@ -287,9 +312,20 @@ public:
 	void LoadSaveRootItems( IniInterface& ini );
 	void LoadSaveMemcards( IniInterface& ini );
 
-	static int  GeMaxPresetIndex();
+	static int  GetMaxPresetIndex();
     static bool isOkGetPresetTextAndColor(int n, wxString& label, wxColor& c);
+	
 	bool        IsOkApplyPreset(int n);
+
+
+	//The next 2 flags are used with ApplyConfigToGui which the presets system use:
+	
+	//Indicates that the scope is only for preset-related items.
+	static const int APPLY_FLAG_FROM_PRESET			= 0x01;
+
+	//Indicates that the change should manually propagate to sub items because it's called directly and not as an event.
+	//Currently used by some panels which contain sub-panels which are affected by presets.
+	static const int APPLY_FLAG_MANUALLY_PROPAGATE	= 0x02;
 
 };
 

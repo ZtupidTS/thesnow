@@ -19,14 +19,16 @@
  *
  */
 
-#include "StdAfx.h"
+#include "stdafx.h"
 #include "GSdx.h"
 #include "GSWnd.h"
 
+#ifdef _WINDOWS
+
 GSWnd::GSWnd()
 	: m_hWnd(NULL)
-	, m_IsManaged(true)
-	, m_HasFrame(true)
+	, m_managed(true)
+	, m_frame(true)
 {
 }
 
@@ -42,13 +44,13 @@ LRESULT CALLBACK GSWnd::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM l
 	{
 		wnd = (GSWnd*)((LPCREATESTRUCT)lParam)->lpCreateParams;
 
-		SetWindowLongPtr(hWnd, GWL_USERDATA, (LONG_PTR)wnd);
+		SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)wnd);
 
 		wnd->m_hWnd = hWnd;
 	}
 	else
 	{
-		wnd = (GSWnd*)GetWindowLongPtr(hWnd, GWL_USERDATA);
+		wnd = (GSWnd*)GetWindowLongPtr(hWnd, GWLP_USERDATA);
 	}
 
 	if(wnd == NULL)
@@ -77,12 +79,12 @@ LRESULT GSWnd::OnMessage(UINT message, WPARAM wParam, LPARAM lParam)
 		break;
 	}
 
-	return DefWindowProc(m_hWnd, message, wParam, lParam);
+	return DefWindowProc((HWND)m_hWnd, message, wParam, lParam);
 }
 
 bool GSWnd::Create(const string& title, int w, int h)
 {
-	if(m_hWnd) return true;
+	if(m_hWnd) return false;
 
 	WNDCLASS wc;
 
@@ -133,34 +135,31 @@ bool GSWnd::Create(const string& title, int w, int h)
 
 	m_hWnd = CreateWindow(wc.lpszClassName, title.c_str(), style, r.left, r.top, r.width(), r.height(), NULL, NULL, wc.hInstance, (LPVOID)this);
 
-	if(!m_hWnd)
-	{
-		return false;
-	}
-
-	return true;
+	return m_hWnd != NULL;
 }
 
-bool GSWnd::Attach(HWND hWnd, bool isManaged)
+bool GSWnd::Attach(void* handle, bool managed)
 {
 	// TODO: subclass
 
-	m_hWnd = hWnd;
-	m_IsManaged = isManaged;
+	m_hWnd = (HWND)handle;
+	m_managed = managed;
 
 	return true;
 }
 
 void GSWnd::Detach()
 {
-	if(m_hWnd && m_IsManaged)
+	if(m_hWnd && m_managed)
 	{
 		// close the window, since it's under GSdx care.  It's not taking messages anyway, and
 		// that means its big, ugly, and in the way.
+
 		DestroyWindow(m_hWnd);
 	}
+
 	m_hWnd = NULL;
-	m_IsManaged = true;
+	m_managed = true;
 }
 
 GSVector4i GSWnd::GetClientRect()
@@ -174,44 +173,258 @@ GSVector4i GSWnd::GetClientRect()
 
 // Returns FALSE if the window has no title, or if th window title is under the strict
 // management of the emulator.
+
 bool GSWnd::SetWindowText(const char* title)
 {
-	if( !m_IsManaged ) return false;
+	if(!m_managed) return false;
 
 	::SetWindowText(m_hWnd, title);
 
-	return m_HasFrame;
+	return m_frame;
 }
 
 void GSWnd::Show()
 {
-	if( !m_IsManaged ) return;
-
-	//SetWindowPos(&wndTop, 0, 0, 0, 0, SWP_NOMOVE|SWP_NOSIZE);
+	if(!m_managed) return;
 
 	SetForegroundWindow(m_hWnd);
-
 	ShowWindow(m_hWnd, SW_SHOWNORMAL);
-
 	UpdateWindow(m_hWnd);
 }
 
 void GSWnd::Hide()
 {
-	if( !m_IsManaged ) return;
+	if(!m_managed) return;
 
 	ShowWindow(m_hWnd, SW_HIDE);
 }
 
 void GSWnd::HideFrame()
 {
-	if( !m_IsManaged ) return;
+	if(!m_managed) return;
 
 	SetWindowLong(m_hWnd, GWL_STYLE, GetWindowLong(m_hWnd, GWL_STYLE) & ~(WS_CAPTION|WS_THICKFRAME));
-
 	SetWindowPos(m_hWnd, NULL, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
-
 	SetMenu(m_hWnd, NULL);
 
-	m_HasFrame = false;
+	m_frame = false;
 }
+
+#else
+
+/*
+GSWnd::GSWnd()
+	: m_display(NULL)
+	, m_window(0)
+	, m_managed(true)
+	, m_frame(true)
+{
+}
+
+GSWnd::~GSWnd()
+{
+	if(m_display != NULL)
+	{
+		if(m_window != 0)
+		{
+			XDestroyWindow(m_display, m_window);
+		}
+
+		XCloseDisplay(m_display);
+	}
+}
+
+bool GSWnd::Create(const string& title, int w, int h)
+{
+	if(m_display != NULL) return false;
+
+	if(!XInitThreads()) return false;
+
+	m_display = XOpenDisplay(0);
+
+	if(m_display == NULL) return false;
+
+	m_window = XCreateSimpleWindow(m_display, RootWindow(m_display, 0), 0, 0, 640, 480, 0, BlackPixel(m_display, 0), BlackPixel(m_display, 0));
+
+	XFlush(m_display);
+
+	return true;
+}
+
+GSVector4i GSWnd::GetClientRect()
+{
+	int x, y;
+	unsigned int w, h;
+	unsigned int border, depth;
+	Window root;
+
+	XLockDisplay(m_display);
+	XGetGeometry(m_display, m_window, &root, &x, &y, &w, &h, &border, &depth);
+	XUnlockDisplay(m_display);
+
+	return GSVector4i(0, 0, w, h);
+}
+
+// Returns FALSE if the window has no title, or if th window title is under the strict
+// management of the emulator.
+
+bool GSWnd::SetWindowText(const char* title)
+{
+	if(!m_managed) return false;
+
+        XTextProperty p;
+
+        p.value = (unsigned char*)title;
+        p.encoding = XA_STRING;
+        p.format = 8;
+        p.nitems = strlen(title);
+
+        XSetWMName(m_display, m_window, &p);
+        XFlush(m_display);
+
+	return m_frame;
+}
+
+void GSWnd::Show()
+{
+	if(!m_managed) return;
+
+	XMapWindow(m_display, m_window);
+	XFlush(m_display);
+}
+
+void GSWnd::Hide()
+{
+	if(!m_managed) return;
+
+	XUnmapWindow(m_display, m_window);
+	XFlush(m_display);
+}
+
+void GSWnd::HideFrame()
+{
+	if(!m_managed) return;
+
+	// TODO
+
+	m_frame = false;
+}
+*/
+
+GSWnd::GSWnd()
+	: m_window(NULL)
+{
+}
+
+GSWnd::~GSWnd()
+{
+	if(m_window != NULL)
+	{
+		SDL_DestroyWindow(m_window);
+		m_window = NULL;
+	}
+}
+
+// Actually the destructor is not called when there is a GSclose or GSshutdown
+// The window still need to be closed
+void GSWnd::Detach()
+{
+	if(m_window != NULL)
+	{
+		SDL_DestroyWindow(m_window);
+		m_window = NULL;
+	}
+}
+
+bool GSWnd::Create(const string& title, int w, int h)
+{
+	if(m_window != NULL) return false;
+
+	if(w <= 0 || h <= 0) {
+		w = theApp.GetConfig("ModeWidth", 640);
+		h = theApp.GetConfig("ModeHeight", 480);
+	}
+
+#ifdef _LINUX
+	// When you reconfigure the plugins during the play, SDL is shutdown so SDL_GetNumVideoDisplays return 0
+	// and the plugins is badly closed. NOTE: SDL is initialized in SDL_CreateWindow.
+	//
+	// I'm not sure this sanity check is still useful, normally (I hope) SDL_CreateWindow will return a null
+	// hence a false for this current function.
+	// For the moment do an init -- Gregory
+	if(!SDL_WasInit(SDL_INIT_VIDEO))
+		if(SDL_Init(SDL_INIT_VIDEO) < 0) return false;
+
+    // Sanity check; if there aren't any video displays available, we can't create a window.
+    if (SDL_GetNumVideoDisplays() <= 0) return false;
+#endif
+
+	m_window = SDL_CreateWindow(title.c_str(), 100, 100, w, h, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+
+	return (m_window != NULL);
+}
+
+Display* GSWnd::GetDisplay()
+{
+	SDL_SysWMinfo wminfo;
+
+	memset(&wminfo, 0, sizeof(wminfo));
+
+	wminfo.version.major = SDL_MAJOR_VERSION;
+	wminfo.version.minor = SDL_MINOR_VERSION;
+
+	SDL_GetWindowWMInfo(m_window, &wminfo);
+
+	return wminfo.subsystem == SDL_SYSWM_X11 ? wminfo.info.x11.display : NULL;
+}
+
+GSVector4i GSWnd::GetClientRect()
+{
+	// Get all SDL events. It refreshes the window parameter do not ask why.
+	// Anyway it allow to properly resize the window surface
+	// FIXME: it does not feel a good solution -- Gregory
+	SDL_PumpEvents();
+
+	int h = 480;
+	int w = 640;
+	if (m_window) SDL_GetWindowSize(m_window, &w, &h);
+
+	return GSVector4i(0, 0, w, h);
+}
+
+// Returns FALSE if the window has no title, or if th window title is under the strict
+// management of the emulator.
+
+bool GSWnd::SetWindowText(const char* title)
+{
+	// Do not find anyway to check the current fullscreen status
+	// Better than nothing heuristic, check the window position. Fullscreen = (0,0)
+	// if(!(m_window->flags & SDL_WINDOW_FULLSCREEN) ) // Do not compile
+	//
+	// Same as GetClientRect. We call SDL_PumpEvents to refresh x and y value
+	// FIXME: it does not feel a good solution -- Gregory
+	SDL_PumpEvents();
+	int x,y = 0;
+	SDL_GetWindowPosition(m_window, &x, &y);
+	if ( x && y )
+	SDL_SetWindowTitle(m_window, title);
+
+	return true;
+}
+
+void GSWnd::Show()
+{
+	SDL_ShowWindow(m_window);
+}
+
+void GSWnd::Hide()
+{
+	SDL_HideWindow(m_window);
+}
+
+void GSWnd::HideFrame()
+{
+	// TODO
+}
+
+#endif

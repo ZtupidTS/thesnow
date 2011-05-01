@@ -77,6 +77,7 @@ enum GIF_REG
 	GIF_REG_CLAMP_1	= 0x08,
 	GIF_REG_CLAMP_2	= 0x09,
 	GIF_REG_FOG		= 0x0a,
+	GIF_REG_INVALID	= 0x0b,
 	GIF_REG_XYZF3	= 0x0c,
 	GIF_REG_XYZ3	= 0x0d,
 	GIF_REG_A_D		= 0x0e,
@@ -814,7 +815,7 @@ union
 	};
 };
 REG_END2
-	__forceinline bool IsRepeating() {return ((uint32)1 << TW) > (TBW << 6);}
+	__forceinline bool IsRepeating() {return (1 << TW) > (int)(TBW << 6) || (PSM == PSM_PSMT8 || PSM == PSM_PSMT4) && TBW == 1;}
 REG_END2
 
 REG64_(GIFReg, TEX1)
@@ -1077,7 +1078,7 @@ REG128_SET(GIFPackedReg)
 	GIFPackedNOP	NOP;
 REG_SET_END
 
-__aligned16 struct GIFPath
+__aligned(struct, 32) GIFPath
 {
 	GIFTag tag;
 	uint32 reg;
@@ -1107,8 +1108,11 @@ __aligned16 struct GIFPath
 		if((++reg & 0xf) == nreg)
 		{
 			reg = 0;
+
 			if(--nloop == 0)
+			{
 				return false;
+			}
 		}
 
 		return true;

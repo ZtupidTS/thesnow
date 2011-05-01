@@ -71,12 +71,12 @@ void Pcsx2App::DetectCpuAndUserMode()
 			.SetUserMsg(_("SSE extensions are not available.  PCSX2 requires a cpu that supports the SSE instruction set."));
 	}
 
-	if (!TestForPortableInstall())
-	{
-		ReadUserModeSettings();		//mod for admin mode by thesnoW
-	}
+	EstablishAppUserMode();
 
-	AppConfig_OnChangedSettingsFolder();
+	// force unload plugins loaded by the wizard.  If we don't do this the recompilers might
+	// fail to allocate the memory they need to function.
+	ShutdownPlugins();
+	UnloadPlugins();
 }
 
 void Pcsx2App::OpenMainFrame()
@@ -99,7 +99,7 @@ void Pcsx2App::OpenProgramLog()
 {
 	if( AppRpc_TryInvokeAsync( &Pcsx2App::OpenProgramLog ) ) return;
 
-	if( ConsoleLogFrame* frame = GetProgramLog() )
+	if( /*ConsoleLogFrame* frame =*/ GetProgramLog() )
 	{
 		//pxAssume( );
 		return;
@@ -252,6 +252,7 @@ void Pcsx2App::OnInitCmdLine( wxCmdLineParser& parser )
 	parser.AddOption( wxEmptyString,L"cfgpath",		_("修改配置文件路径"), wxCMD_LINE_VAL_STRING );
 	parser.AddOption( wxEmptyString,L"cfg",			_("指定要使用的 PCSX2 设置文件"), wxCMD_LINE_VAL_STRING );
 	parser.AddSwitch( wxEmptyString,L"forcewiz",	AddAppName(_("强制 %s 启动第一次运行向导")) );
+	parser.AddSwitch( wxEmptyString,L"portable",	_("enables portable mode operation (requires admin/root access)") );
 
 	const PluginInfo* pi = tbl_PluginInfo; do {
 		parser.AddOption( wxEmptyString, pi->GetShortname().Lower(),
@@ -344,6 +345,7 @@ bool Pcsx2App::OnCmdLineParsed( wxCmdLineParser& parser )
 
 	Startup.NoFastBoot		= parser.Found(L"fullboot");
 	Startup.ForceWizard		= parser.Found(L"forcewiz");
+	Startup.PortableMode	= parser.Found(L"portable");
 
 	if( parser.GetParamCount() >= 1 )
 	{
@@ -421,7 +423,7 @@ bool Pcsx2App::OnInit()
 	if( !_parent::OnInit() ) return false;
 	Console.WriteLn("Command line parsed!");
 
-	wxLocale::AddCatalogLookupPathPrefix( wxGetCwd() );
+	i18n_SetLanguagePath();
 
 #define pxAppMethodEventHandler(func) \
 	(wxObjectEventFunction)(wxEventFunction)wxStaticCastEvent(pxInvokeAppMethodEventFunction, &func )
@@ -611,7 +613,7 @@ void Pcsx2App::CleanupOnExit()
 void Pcsx2App::CleanupResources()
 {
 	ScopedBusyCursor cursor( Cursor_ReallyBusy );
-	delete wxConfigBase::Set( NULL );
+	//delete wxConfigBase::Set( NULL );
 
 	while( wxGetLocale() != NULL )
 		delete wxGetLocale();
@@ -666,6 +668,8 @@ protected:
 Pcsx2App::Pcsx2App() 
 	: SysExecutorThread( new SysEvtHandler() )
 {
+	// Warning: Do not delete this comment block! Gettext will parse it to allow
+	// the translation of some wxWidget internal strings. -- greg
 	#if 0
 	{
 		// Some common labels provided by wxWidgets.  wxWidgets translation files are chucked full
@@ -677,14 +681,18 @@ Pcsx2App::Pcsx2App()
 		_("&Cancel");
 		_("&Apply");
 		_("&Next >");
-		_("&Back >");
+		_("< &Back");
 		_("&Back");
 		_("&Finish");
-
+		_("&Yes");
+		_("&No");
+		_("Browse");
 		_("&Save");
 		_("Save &As...");
 		_("&Help");
 		_("&Home");
+
+		_("Show about dialog")
 	}
 	#endif
 
