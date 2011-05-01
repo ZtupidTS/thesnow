@@ -60,7 +60,7 @@ void CListenSocket::OnAccept(int nErrorCode)
 		CStdString str;
 		str.Format(_T("Failure in CListenSocket::OnAccept(%d) - call to CAsyncSocketEx::Accept failed, errorcode %d"), nErrorCode, nError);
 		SendStatus(str, 1);
-		SendStatus(_T("If you use a firewall, please check your firewall configuration"), 1);
+		SendStatus(_T("如果您使用防火墙, 请检查您的防火墙设置"), 1);
 		return;
 	}
 
