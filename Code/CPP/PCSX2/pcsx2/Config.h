@@ -51,6 +51,8 @@ enum GamefixId
 	Fix_EETiming,
 	Fix_SkipMpeg,
 	Fix_OPHFlag,
+	Fix_DMABusy,
+	Fix_VIFFIFO,
 
 	GamefixId_COUNT
 };
@@ -223,6 +225,8 @@ struct Pcsx2Config
 				StackFrameChecks:1,
 				PreBlockCheckEE	:1,
 				PreBlockCheckIOP:1;
+			bool
+				EnableEECache   :1;
 		BITFIELD_END
 
 		RecompilerOptions();
@@ -277,6 +281,7 @@ struct Pcsx2Config
 		bool	FrameLimitEnable;
 		bool	FrameSkipEnable;
 		bool	VsyncEnable;
+		bool	ManagedVsync;
 
 		// The region mode controls the default Maximum/Minimum FPS settings and also
 		// regulates the vsync rates (which in turn control the IOP's SPU2 tick sync and ensure
@@ -303,6 +308,7 @@ struct Pcsx2Config
 				OpEqu( FrameSkipEnable )		&&
 				OpEqu( FrameLimitEnable )		&&
 				OpEqu( VsyncEnable )			&&
+				OpEqu( ManagedVsync )			&&
 
 				OpEqu( LimitScalar )			&&
 				OpEqu( FramerateNTSC )			&&
@@ -335,7 +341,9 @@ struct Pcsx2Config
 				IPUWaitHack     :1,		// FFX FMV, makes GIF flush before doing IPU work. Fixes bad graphics overlay.
 				EETimingHack	:1,		// General purpose timing hack.
 				SkipMPEGHack	:1,		// Skips MPEG videos (Katamari and other games need this)
-				OPHFlagHack		:1;		// Skips MPEG videos (Katamari and other games need this)
+				OPHFlagHack		:1,		// Bleach Blade Battlers
+				DMABusyHack		:1,		// Denies writes to the DMAC when it's busy. This is correct behaviour but bad timing can cause problems.
+				VIFFIFOHack		:1;     // Pretends to fill the non-existant VIF FIFO Buffer.
 		BITFIELD_END
 
 		GamefixOptions();
@@ -369,8 +377,7 @@ struct Pcsx2Config
 				IntcStat		:1,		// tells Pcsx2 to fast-forward through intc_stat waits.
 				WaitLoop		:1,		// enables constant loop detection and fast-forwarding
 				vuFlagHack		:1,		// microVU specific flag hack
-				vuBlockHack		:1,		// microVU specific block flag no-propagation hack
-				vuMinMax		:1;		// microVU specific MinMax hack
+				vuBlockHack		:1;		// microVU specific block flag no-propagation hack
 		BITFIELD_END
 
 		u8	EECycleRate;		// EE cycle rate selector (1.0, 1.5, 2.0)
@@ -467,6 +474,7 @@ TraceLogFilters&				SetTraceConfig();
 #define CHECK_MICROVU0				(EmuConfig.Cpu.Recompiler.UseMicroVU0)
 #define CHECK_MICROVU1				(EmuConfig.Cpu.Recompiler.UseMicroVU1)
 #define CHECK_EEREC					(EmuConfig.Cpu.Recompiler.EnableEE && GetCpuProviders().IsRecAvailable_EE())
+#define CHECK_CACHE					(EmuConfig.Cpu.Recompiler.EnableEECache)
 #define CHECK_IOPREC				(EmuConfig.Cpu.Recompiler.EnableIOP && GetCpuProviders().IsRecAvailable_IOP())
 
 //------------ SPECIAL GAME FIXES!!! ---------------
@@ -479,7 +487,9 @@ TraceLogFilters&				SetTraceConfig();
 #define CHECK_IPUWAITHACK			(EmuConfig.Gamefixes.IPUWaitHack)	 // Special Fix For FFX
 #define CHECK_EETIMINGHACK			(EmuConfig.Gamefixes.EETimingHack)	 // Fix all scheduled events to happen in 1 cycle.
 #define CHECK_SKIPMPEGHACK			(EmuConfig.Gamefixes.SkipMPEGHack)	 // Finds sceMpegIsEnd pattern to tell the game the mpeg is finished (Katamari and a lot of games need this)
-#define CHECK_OPHFLAGHACK			(EmuConfig.Gamefixes.OPHFlagHack)
+#define CHECK_OPHFLAGHACK			(EmuConfig.Gamefixes.OPHFlagHack)	 // Bleach Blade Battlers
+#define CHECK_DMABUSYHACK			(EmuConfig.Gamefixes.DMABusyHack)    // Denies writes to the DMAC when it's busy. This is correct behaviour but bad timing can cause problems.
+#define CHECK_VIFFIFOHACK			(EmuConfig.Gamefixes.VIFFIFOHack)    // Pretends to fill the non-existant VIF FIFO Buffer.
 
 //------------ Advanced Options!!! ---------------
 #define CHECK_VU_OVERFLOW			(EmuConfig.Cpu.Recompiler.vuOverflow)

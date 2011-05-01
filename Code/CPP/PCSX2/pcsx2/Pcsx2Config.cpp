@@ -64,7 +64,6 @@ void Pcsx2Config::SpeedhackOptions::LoadSave( IniInterface& ini )
 	IniBitBool( WaitLoop );
 	IniBitBool( vuFlagHack );
 	IniBitBool( vuBlockHack );
-	IniBitBool( vuMinMax );
 }
 
 void Pcsx2Config::ProfilerOptions::LoadSave( IniInterface& ini )
@@ -88,6 +87,7 @@ Pcsx2Config::RecompilerOptions::RecompilerOptions()
 	// All recs are enabled by default.
 
 	EnableEE	= true;
+	EnableEECache = false;
 	EnableIOP	= true;
 	EnableVU0	= true;
 	EnableVU1	= true;
@@ -145,6 +145,7 @@ void Pcsx2Config::RecompilerOptions::LoadSave( IniInterface& ini )
 
 	IniBitBool( EnableEE );
 	IniBitBool( EnableIOP );
+	IniBitBool( EnableEECache );
 	IniBitBool( EnableVU0 );
 	IniBitBool( EnableVU1 );
 
@@ -200,6 +201,7 @@ Pcsx2Config::GSOptions::GSOptions()
 	FrameLimitEnable		= true;
 	FrameSkipEnable			= false;
 	VsyncEnable				= false;
+	ManagedVsync			= false;
 
 	SynchronousMTGS			= false;
 	DisableOutput			= false;
@@ -225,6 +227,7 @@ void Pcsx2Config::GSOptions::LoadSave( IniInterface& ini )
 	IniEntry( FrameLimitEnable );
 	IniEntry( FrameSkipEnable );
 	IniEntry( VsyncEnable );
+	IniEntry( ManagedVsync );
 
 	IniEntry( LimitScalar );
 	IniEntry( FramerateNTSC );
@@ -248,7 +251,9 @@ const wxChar *const tbl_GamefixNames[] =
 	L"IpuWait",
 	L"EETiming",
 	L"SkipMpeg",
-	L"OPHFlag"
+	L"OPHFlag",
+	L"DMABusy",
+	L"VIFFIFO"
 };
 
 const __fi wxChar* EnumToString( GamefixId id )
@@ -305,6 +310,8 @@ void Pcsx2Config::GamefixOptions::Set( GamefixId id, bool enabled )
 		case Fix_EETiming:		EETimingHack		= enabled;	break;
 		case Fix_SkipMpeg:		SkipMPEGHack		= enabled;	break;
 		case Fix_OPHFlag:		OPHFlagHack			= enabled;  break;
+		case Fix_DMABusy:		DMABusyHack			= enabled;  break;
+		case Fix_VIFFIFO:		VIFFIFOHack			= enabled;  break;
 
 		jNO_DEFAULT;
 	}
@@ -325,8 +332,10 @@ bool Pcsx2Config::GamefixOptions::Get( GamefixId id ) const
 		case Fix_EETiming:		return EETimingHack;
 		case Fix_SkipMpeg:		return SkipMPEGHack;
 		case Fix_OPHFlag:		return OPHFlagHack;
+		case Fix_DMABusy:		return DMABusyHack;
+		case Fix_VIFFIFO:		return VIFFIFOHack;
 		
-		jNO_DEFAULT
+		jNO_DEFAULT;
 	}
 	return false;		// unreachable, but we still need to suppress warnings >_<
 }
@@ -345,6 +354,8 @@ void Pcsx2Config::GamefixOptions::LoadSave( IniInterface& ini )
 	IniBitBool( EETimingHack );
 	IniBitBool( SkipMPEGHack );
 	IniBitBool( OPHFlagHack );
+	IniBitBool( DMABusyHack );
+	IniBitBool( VIFFIFOHack );
 }
 
 Pcsx2Config::Pcsx2Config()

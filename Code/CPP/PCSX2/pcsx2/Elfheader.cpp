@@ -169,7 +169,7 @@ ElfObject::ElfObject( const wxString& srcfile, uint hdrsize )
 
 void ElfObject::initElfHeaders()
 {
-	Console.WriteLn( L"Initializing Elf: %d bytes", data.GetSizeInBytes());
+	DevCon.WriteLn( L"Initializing Elf: %d bytes", data.GetSizeInBytes());
 
 	if ( header.e_phnum > 0 )
 		proghead = (ELF_PHR*)&data[header.e_phoff];
@@ -265,7 +265,7 @@ static wxString GetMsg_InvalidELF()
 	return
 		_("Cannot load ELF binary image.  The file may be corrupt or incomplete.") + 
 		wxString(L"\n\n") +
-		_("If loading from an ISO image, this error may be caused by an unsupported ISO image type or bug in PCSX2 ISO image support.");
+		_("If loading from an ISO image, this error may be caused by an unsupported ISO image type or a bug in PCSX2 ISO image support.");
 }
 
 

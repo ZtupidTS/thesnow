@@ -38,7 +38,7 @@ static __fi bool WriteEEtoFifo()
 	// There's some data ready to transfer into the fifo..
 
 	SIF_LOG("Sif 1: Write EE to Fifo");
-	const int writeSize = min((s32)sif1dma.qwc, sif1.fifo.free() >> 2);
+	const int writeSize = min((s32)sif1dma.qwc, sif1.fifo.sif_free() >> 2);
 
 	tDMA_TAG *ptag;
 
@@ -126,6 +126,7 @@ static __fi bool ProcessEETag()
 
 		case TAG_REF:
 		case TAG_REFS:
+			if(ptag->ID == TAG_REFS && dmacRegs.ctrl.STD == STD_SIF1) DevCon.Warning("SIF1 Drain Stall Control not implemented");
 			sif1dma.madr = ptag[1]._u32;
 			sif1dma.tadr += 16;
 			break;
@@ -241,7 +242,7 @@ static __fi void HandleEETransfer()
 	}
 	else
 	{
-		if (sif1.fifo.free() > 0)
+		if (sif1.fifo.sif_free() > 0)
 		{
 			WriteEEtoFifo();
 		}
@@ -280,7 +281,7 @@ static __fi void Sif1End()
 	psHu32(SBUS_F240) &= ~0x40;
 	psHu32(SBUS_F240) &= ~0x4000;
 
-	SIF_LOG("SIF1 DMA end...");
+	DMA_LOG("SIF1 DMA End");
 }
 
 // Transfer EE to IOP, putting data in the fifo as an intermediate step.
@@ -296,7 +297,7 @@ __fi void SIF1Dma()
 
 		if (sif1.ee.busy)
 		{
-			if(sif1.fifo.free() > 0 || (sif1.ee.end == true && sif1dma.qwc == 0)) 
+			if(sif1.fifo.sif_free() > 0 || (sif1.ee.end == true && sif1dma.qwc == 0)) 
 			{
 				BusyCheck++;
 				HandleEETransfer();
