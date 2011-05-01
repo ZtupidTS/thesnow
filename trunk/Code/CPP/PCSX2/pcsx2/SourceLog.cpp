@@ -131,7 +131,7 @@ SysConsoleLogPack::SysConsoleLogPack()
 static const SysTraceLogDescriptor
 TLD_SIF = {
 	L"SIF",			L"SIF (EE <-> IOP)",
-	pxDt(""),
+	L"",
 	"SIF"
 };
 
@@ -216,6 +216,12 @@ TLD_EE_VIFcode = {
 	L"VIFcodes",	L"VIFcodes",
 	pxDt("All VIFcode processing; command, tag style, interrupts."),
 	"VIF"
+},
+
+TLD_EE_MSKPATH3 = {
+	L"MSKPATH3",	L"MSKPATH3",
+	pxDt("All processing involved in Path3 Masking"),
+	"MSKPATH3"
 },
 
 TLD_EE_SPR = {
@@ -335,6 +341,7 @@ SysTraceLogPack::EE_PACK::EE_PACK()
 	, Memory	(&TLD_EE_Memory)
 	, GIFtag	(&TLD_EE_GIFtag)
 	, VIFcode	(&TLD_EE_VIFcode)
+	, MSKPATH3	(&TLD_EE_MSKPATH3)
 
 	, R5900		(&TLD_EE_R5900)
 	, COP0		(&TLD_EE_COP0)

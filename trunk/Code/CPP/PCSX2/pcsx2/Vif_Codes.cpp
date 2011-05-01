@@ -74,9 +74,9 @@ static __fi void vuExecMicro(int idx, u32 addr) {
 	if (!idx) vu0ExecMicro(addr);
 	else	  vu1ExecMicro(addr);
 
-	if(!idx) { g_vu0Cycles += (VU0.cycle-startcycles) * BIAS; g_packetsizeonvu = vif0.vifpacketsize; }
-	else     { g_vu1Cycles += (VU1.cycle-startcycles) * BIAS; g_packetsizeonvu = vif1.vifpacketsize; }
-	//DevCon.Warning("Ran VU%x, VU0 Cycles %x, VU1 Cycles %x", idx, g_vu0Cycles, g_vu1Cycles);
+	if(!idx) { g_vu0Cycles += (VU0.cycle-startcycles); g_packetsizeonvu = vif0.vifpacketsize; }
+	else     { g_vu1Cycles += (VU1.cycle-startcycles); g_packetsizeonvu = vif1.vifpacketsize; }
+	//DevCon.Warning("Ran VU%x, VU0 Cycles %x, VU1 Cycles %x, start %x cycle %x", idx, g_vu0Cycles, g_vu1Cycles, startcycles, VU1.cycle);
 	GetVifX.vifstalled = true;
 }
 
@@ -90,15 +90,22 @@ void Vif1MskPath3() {
 
 	if (!vif1Regs.mskpath3)
 	{
+		MSKPATH3_LOG("Disabling Path3 Mask");
 		//if(GSTransferStatus.PTH3 > TRANSFER_MODE && gif->chcr.STR) GSTransferStatus.PTH3 = TRANSFER_MODE;
 		//DevCon.Warning("Mask off");
 		//if(GSTransferStatus.PTH3 >= PENDINGSTOP_MODE) GSTransferStatus.PTH3 = IDLE_MODE;
 		if(gifRegs.stat.P3Q) 
 		{
-			gsInterrupt();//gsInterrupt();
+			MSKPATH3_LOG("Path3 Waiting to Transfer, triggering");
+			gsInterrupt();
 		}
 	
-	}// else if(!gif->chcr.STR && GSTransferStatus.PTH3 == IDLE_MODE) GSTransferStatus.PTH3 = STOPPED_MODE;//else DevCon.Warning("Mask on");
+	} 
+	else 
+	{
+		MSKPATH3_LOG("Path3 Mask Enabled");
+	}
+	// else if(!gif->chcr.STR && GSTransferStatus.PTH3 == IDLE_MODE) GSTransferStatus.PTH3 = STOPPED_MODE;//else DevCon.Warning("Mask on");
 
 	schedulepath3msk = 0;
 }
@@ -137,9 +144,11 @@ template<int idx> __fi int _vifCode_Direct(int pass, const u8* data, bool isDire
 	pass2 {
 		vif1Only();
 
-		if (GSTransferStatus.PTH3 < IDLE_MODE || gifRegs.stat.P1Q == true)
+		//Only check if Path 1 or 3 are busy, else we dont care :D
+		if (GSTransferStatus.PTH3 < STOPPED_MODE || gifRegs.stat.P1Q == true)
 		{
-			if(gifRegs.stat.APATH == GIF_APATH2 || ((GSTransferStatus.PTH3 <= IMAGE_MODE && gifRegs.stat.IMT && (vif1.cmd & 0x7f) == 0x50)) && gifRegs.stat.P1Q == false)
+			//If currently transferring PATH2, or GIF is in image mode (or waiting) and we are using DIRECT command and path1 isnt waiting 
+			if(gifRegs.stat.APATH == GIF_APATH2 || ((GSTransferStatus.PTH3 <= IMAGE_MODE && (vif1.cmd & 0x7f) == 0x50) && gifRegs.stat.P1Q == false))
 			{
 				//Do nothing, allow it
 				vif1Regs.stat.VGW = false;
@@ -147,6 +156,7 @@ template<int idx> __fi int _vifCode_Direct(int pass, const u8* data, bool isDire
 			}
 			else
 			{
+				//Using Direct/HL while Path3 is busy or Path 1 is busy
 				//DevCon.Warning("Stall DIRECT/HL %x P3 %x APATH %x P1Q %x", vif1.cmd, GSTransferStatus.PTH3, gifRegs.stat.APATH, gifRegs.stat.P1Q);
 				vif1Regs.stat.VGW = true; // PATH3 is in image mode (DIRECTHL), or busy (BOTH no IMT)
 				vif1.GifWaitState = 0;
@@ -190,19 +200,16 @@ template<int idx> __fi int _vifCode_Direct(int pass, const u8* data, bool isDire
 			// only seems to happen on TTE mode transfers with their split-64-bit packets, there shouldn't
 			// be any need to worry about queuing more than 16 bytes of data,
 			//
-
-			
-
-			ret = 0;
 			minSize = aMin(minSize, 4-partial_count);
+			
 			for( uint i=0; i<(minSize & 3); ++i)
 			{
 				partial_write[partial_count++] = ((u32*)data)[i];
-				ret++;
+				
 			}
 
 			pxAssume( partial_count <= 4 );
-			
+						
 			if (partial_count == 4)
 			{
 				GetMTGS().PrepDataPacket(GIF_PATH_2, 1);
@@ -210,6 +217,8 @@ template<int idx> __fi int _vifCode_Direct(int pass, const u8* data, bool isDire
 				GetMTGS().SendDataPacket();
 				partial_count = 0;
 			}
+
+			ret = minSize;
 		}
 		else
 		{
@@ -232,7 +241,9 @@ template<int idx> __fi int _vifCode_Direct(int pass, const u8* data, bool isDire
 		{
 			vif1.cmd = 0;
 		}
+
 		vif1.vifstalled    = true;
+
 		return ret;
 	}
 	return 0;
@@ -264,10 +275,10 @@ vifOp(vifCode_FlushA) {
 	pass1 {
 		vifFlush(idx);
 		// Gif is already transferring so wait for it.
-		if (gifRegs.stat.P1Q || GSTransferStatus.PTH3 <= PENDINGSTOP_MODE) {
+		if (gifRegs.stat.P1Q || GSTransferStatus.PTH3 < STOPPED_MODE) {
 			//DevCon.Warning("VIF FlushA Wait MSK = %x", vif1Regs.mskpath3);
 			//
-			
+			MSKPATH3_LOG("Waiting for Path3 to Flush");
 			//DevCon.WriteLn("FlushA path3 Wait! PTH3 MD %x STR %x", GSTransferStatus.PTH3, gif->chcr.STR);
 			vif1Regs.stat.VGW = true;
 			vifX.GifWaitState  = 1;
@@ -376,17 +387,15 @@ vifOp(vifCode_MSCNT) {
 // ToDo: FixMe
 vifOp(vifCode_MskPath3) {
 	vif1Only();
-	pass1 {
-		//I Hate the timing sensitivity of this stuff
-		if (vif1ch.chcr.STR && vif1.lastcmd != 0x13) {
-			schedulepath3msk = 0x10 | ((vif1Regs.code >> 15) & 0x1);			
-		}
-		else 
-		{
-			schedulepath3msk = (vif1Regs.code >> 15) & 0x1;
-			Vif1MskPath3();
-		}
-		if(vif1ch.chcr.STR)vif1.vifstalled = true;
+	pass1 {		
+		MSKPATH3_LOG("Direct MSKPATH3");
+
+		schedulepath3msk = 0x10 | (vif1Regs.code >> 15) & 0x1;
+
+
+		if(vif1ch.chcr.STR && vif1.lastcmd != 0x13)vif1.vifstalled = true;
+		else Vif1MskPath3();
+
 		vif1.cmd = 0;
 	}
 	pass3 { VifCodeLog("MskPath3"); }
