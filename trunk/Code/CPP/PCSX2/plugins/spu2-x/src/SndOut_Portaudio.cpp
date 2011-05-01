@@ -291,9 +291,21 @@ public:
 	{
 		wxString api( L"EMPTYEMPTYEMPTY" );
 		m_Device = L"EMPTYEMPTYEMPTY";
+#ifdef __LINUX__
+		// By default on linux use the ALSA API (+99% users) -- Gregory
+		CfgReadStr( L"PORTAUDIO", L"HostApi", api, L"ALSA" );
+#else
 		CfgReadStr( L"PORTAUDIO", L"HostApi", api, L"Unknown" );
+#endif
 		CfgReadStr( L"PORTAUDIO", L"Device", m_Device, L"default" );
 
+		SetApiSettings(api);
+
+		m_WasapiExclusiveMode = CfgReadBool( L"PORTAUDIO", L"Wasapi_Exclusive_Mode", false);
+	}
+
+	void SetApiSettings(wxString api)
+	{
 		m_ApiId = -1;
 		if(api == L"InDevelopment") m_ApiId = paInDevelopment; /* use while developing support for a new host API */
 		if(api == L"DirectSound")	m_ApiId = paDirectSound;
@@ -309,8 +321,6 @@ public:
 		if(api == L"JACK")			m_ApiId = paJACK;
 		if(api == L"WASAPI")		m_ApiId = paWASAPI;
 		if(api == L"AudioScienceHPI") m_ApiId = paAudioScienceHPI;
-
-		m_WasapiExclusiveMode = CfgReadBool( L"PORTAUDIO", L"Wasapi_Exclusive_Mode", false);
 	}
 
 	void WriteSettings() const

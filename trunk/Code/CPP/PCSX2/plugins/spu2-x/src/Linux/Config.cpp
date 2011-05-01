@@ -32,7 +32,7 @@ int AutoDMAPlayRate[2] = {0,0};
 // Default settings.
 
 // MIXING
-int Interpolation = 1;
+int Interpolation = 4;
 /* values:
 		0: no interpolation (use nearest)
 		1. linear interpolation
@@ -44,11 +44,13 @@ int Interpolation = 1;
 bool EffectsDisabled = false;
 int ReverbBoost = 0;
 bool postprocess_filter_enabled = 1;
+bool _visual_debug_enabled = false; // windows only feature
 
 // OUTPUT
 u32 OutputModule = 0;
 int SndOutLatencyMS = 300;
 int SynchMode = 0; // Time Stretch, Async or Disabled
+static u32 OutputAPI = 0;
 
 /*****************************************************************************/
 
@@ -62,13 +64,20 @@ void ReadSettings()
 		return;
 	}
 	
-	Interpolation = CfgReadInt( L"MIXING",L"Interpolation", 1 );
+	Interpolation = CfgReadInt( L"MIXING",L"Interpolation", 4 );
 	EffectsDisabled = CfgReadBool( L"MIXING", L"Disable_Effects", false );
 	ReverbBoost = CfgReadInt( L"MIXING",L"Reverb_Boost", 0 );
 
 	wxString temp;
 	CfgReadStr( L"OUTPUT", L"Output_Module", temp, PortaudioOut->GetIdent() );
 	OutputModule = FindOutputModuleById( temp.c_str() );// find the driver index of this module
+
+	// find current API
+	CfgReadStr( L"PORTAUDIO", L"HostApi", temp, L"ALSA" );
+	OutputAPI = -1;
+	if (temp == L"ALSA") OutputAPI = 0;
+	if (temp == L"OSS")  OutputAPI = 1;
+	if (temp == L"JACK") OutputAPI = 2;
 
 	SndOutLatencyMS = CfgReadInt(L"OUTPUT",L"Latency", 300);
 	SynchMode = CfgReadInt( L"OUTPUT", L"Synch_Mode", 0);
@@ -135,6 +144,7 @@ void DisplayDialog()
 
     GtkWidget *output_frame, *output_box;
     GtkWidget *mod_label, *mod_box;
+    GtkWidget *api_label, *api_box;
     GtkWidget *latency_label, *latency_slide;
     GtkWidget *sync_label, *sync_box;
     GtkWidget *advanced_button;
@@ -153,10 +163,10 @@ void DisplayDialog()
     int_label = gtk_label_new ("Interpolation:");
     int_box = gtk_combo_box_new_text ();
     gtk_combo_box_append_text(GTK_COMBO_BOX(int_box), "0 - Nearest (fastest/bad quality)");
-    gtk_combo_box_append_text(GTK_COMBO_BOX(int_box), "1 - Linear (simple/nice)");
-    gtk_combo_box_append_text(GTK_COMBO_BOX(int_box), "2 - Cubic (slower/good highs)");
-    gtk_combo_box_append_text(GTK_COMBO_BOX(int_box), "3 - Hermite (slower/better highs)");
-    gtk_combo_box_append_text(GTK_COMBO_BOX(int_box), "4 - Catmull-Rom (slow/hq)");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(int_box), "1 - Linear (simple/okay sound)");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(int_box), "2 - Cubic (artificial highs)");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(int_box), "3 - Hermite (better highs)");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(int_box), "4 - Catmull-Rom (PS2-like/slow)");
     gtk_combo_box_set_active(GTK_COMBO_BOX(int_box), Interpolation);
 
     effects_check = gtk_check_button_new_with_label("Disable Effects Processing");
@@ -178,6 +188,14 @@ void DisplayDialog()
     gtk_combo_box_append_text(GTK_COMBO_BOX(mod_box), "1 - PortAudio (cross-platform)");
     //gtk_combo_box_append_text(GTK_COMBO_BOX(mod_box), "2 - Alsa (probably doesn't work)");
     gtk_combo_box_set_active(GTK_COMBO_BOX(mod_box), OutputModule);
+
+    api_label = gtk_label_new ("PortAudio API:");
+    api_box = gtk_combo_box_new_text ();
+	// In order to keep it the menu light, I only put linux major api
+    gtk_combo_box_append_text(GTK_COMBO_BOX(api_box), "0 - ALSA (recommended)");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(api_box), "1 - OSS (legacy)");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(api_box), "2 - JACK");
+    gtk_combo_box_set_active(GTK_COMBO_BOX(api_box), OutputAPI);
 
     latency_label = gtk_label_new ("Latency:");
     latency_slide = gtk_hscale_new_with_range(LATENCY_MIN, LATENCY_MAX, 5);
@@ -214,6 +232,8 @@ void DisplayDialog()
 
 	gtk_container_add(GTK_CONTAINER(output_box), mod_label);
 	gtk_container_add(GTK_CONTAINER(output_box), mod_box);
+	gtk_container_add(GTK_CONTAINER(output_box), api_label);
+	gtk_container_add(GTK_CONTAINER(output_box), api_box);
 	gtk_container_add(GTK_CONTAINER(output_box), sync_label);
 	gtk_container_add(GTK_CONTAINER(output_box), sync_box);
 	gtk_container_add(GTK_CONTAINER(output_box), latency_label);
@@ -247,6 +267,16 @@ void DisplayDialog()
 
     	if (gtk_combo_box_get_active(GTK_COMBO_BOX(mod_box)) != -1)
 			OutputModule = gtk_combo_box_get_active(GTK_COMBO_BOX(mod_box));
+
+    	if (gtk_combo_box_get_active(GTK_COMBO_BOX(api_box)) != -1) {
+			OutputAPI = gtk_combo_box_get_active(GTK_COMBO_BOX(api_box));
+			switch(OutputAPI) {
+				case 0: PortaudioOut->SetApiSettings(L"ALSA"); break;
+				case 1: PortaudioOut->SetApiSettings(L"OSS"); break;
+				case 2: PortaudioOut->SetApiSettings(L"JACK"); break;
+				default: PortaudioOut->SetApiSettings(L"Unknown");
+			}
+		}
 
     	SndOutLatencyMS = gtk_range_get_value(GTK_RANGE(latency_slide));
     	

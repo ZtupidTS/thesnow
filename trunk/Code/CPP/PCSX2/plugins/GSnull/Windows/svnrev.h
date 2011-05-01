@@ -29,5 +29,5 @@
 //
 // TortoiseSVN can be downloaded from http://tortoisesvn.tigris.org
 
-#define SVN_REV 4139
+#define SVN_REV 4488
 #define SVN_MODS 1

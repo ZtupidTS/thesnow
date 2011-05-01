@@ -369,9 +369,10 @@ __forceinline void TimeUpdate(u32 cClocks)
 		lClocks = cClocks - dClocks;
 	}
 
-	// Uncomment for a visual debug display showing all core's activity!
-	// Also need to uncomment a few lines in SPU2open
-	//UpdateDebugDialog();
+	// Visual debug display showing all core's activity! Disabled via #define on release builds.
+#ifdef __WIN32__
+	UpdateDebugDialog();
+#endif
 
 	if( SynchMode == 1 ) // AsyncMix on
 		SndBuffer::UpdateTempoChangeAsyncMixing();
@@ -382,7 +383,7 @@ __forceinline void TimeUpdate(u32 cClocks)
 	{
 		if(has_to_call_irq)
 		{
-			ConLog("* SPU2-X: Irq Called (%04x) at cycle %d.\n", Spdif.Info, Cycles);
+			//ConLog("* SPU2-X: Irq Called (%04x) at cycle %d.\n", Spdif.Info, Cycles);
 			has_to_call_irq=false;
 			if(_irqcallback) _irqcallback();
 		}
@@ -931,7 +932,7 @@ static void __fastcall RegWrite_Core( u16 value )
 			{
 				// When we have exact cycle update info from the Pcsx2 IOP unit, then use
 				// the more accurate delayed initialization system.
-				ConLog( "* SPU2-X: Runtime core%d reset\n", core );
+				ConLog( "* SPU2-X: Core%d reset bit set\n", core );
 
 				// Async mixing can cause a scheduled reset to happen untimely, ff12 hates it and dies.
 				// So do the next best thing and reset the core directly.
@@ -943,6 +944,7 @@ static void __fastcall RegWrite_Core( u16 value )
 				else
 				{
 					thiscore.Reset(thiscore.Index);
+					return;
 				}
 			}
 
@@ -977,8 +979,8 @@ static void __fastcall RegWrite_Core( u16 value )
 			}
 			if(thiscore.IRQEnable!=irqe)
 			{
-				ConLog("* SPU2-X: IRQ %s at cycle %d. Current IRQA = %x\n",
-					((thiscore.IRQEnable==0)?"disabled":"enabled"), Cycles, thiscore.IRQA);
+				//ConLog("* SPU2-X: IRQ %s at cycle %d. Current IRQA = %x\n",
+				//	((thiscore.IRQEnable==0)?"disabled":"enabled"), Cycles, thiscore.IRQA);
 				
 				if(!thiscore.IRQEnable)
 					Spdif.Info &= ~(4 << thiscore.Index);
