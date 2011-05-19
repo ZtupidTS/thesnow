@@ -355,16 +355,18 @@ int Document::GetFoldParent(int line) {
 	}
 }
 
-void Document::GetHighlightDelimiters(int line, HighlightDelimiter &highlightDelimiter) {
+void Document::GetHighlightDelimiters(HighlightDelimiter &highlightDelimiter, int line, int topLine, int bottomLine) {
+	int noNeedToParseBefore = Platform::Minimum(line, topLine) - 1;
+	int noNeedToParseAfter = Platform::Maximum(line, bottomLine) + 1;
 	int endLine = LineFromPosition(Length());
-	int beginFoldBlock = -1;
+	int beginFoldBlock = noNeedToParseBefore;
 	int endFoldBlock = -1;
-	int beginMarginCorrectlyDrawnZone = -1;
-	int endMarginCorrectlyDrawnZone = endLine + 1;
+	int beginMarginCorrectlyDrawnZone = noNeedToParseBefore;
+	int endMarginCorrectlyDrawnZone = noNeedToParseAfter;
 	int endOfTailOfWhiteFlag = -1; //endOfTailOfWhiteFlag points the last SC_FOLDLEVELWHITEFLAG if follow a fold block. Otherwise endOfTailOfWhiteFlag points end of fold block.
 	int level = GetLevel(line);
 	int levelNumber = -1;
-	int lineLookLevel = -1;
+	int lineLookLevel = 0;
 	int lineLookLevelNumber = -1;
 	int lineLook = line;
 	bool beginFoldBlockFound = false;
@@ -375,7 +377,7 @@ void Document::GetHighlightDelimiters(int line, HighlightDelimiter &highlightDel
 	/*******************************************************************************/
 	/*      search backward (beginFoldBlock & beginMarginCorrectlyDrawnZone)       */
 	/*******************************************************************************/
-	for (endOfTailOfWhiteFlag = line; lineLook >= 0 && (!beginFoldBlockFound || !beginMarginCorrectlyDrawnZoneFound); --lineLook) {
+	for (endOfTailOfWhiteFlag = line; (lineLook > noNeedToParseBefore || (lineLookLevel & SC_FOLDLEVELWHITEFLAG)) && (!beginFoldBlockFound || !beginMarginCorrectlyDrawnZoneFound); --lineLook) {
 		lineLookLevel = GetLevel(lineLook);
 		if (levelNumber != -1) {
 			lineLookLevelNumber = lineLookLevel & SC_FOLDLEVELNUMBERMASK;
@@ -395,7 +397,8 @@ void Document::GetHighlightDelimiters(int line, HighlightDelimiter &highlightDel
 					beginMarginCorrectlyDrawnZone = lineLook - 1;
 				}
 			} else 	if (!beginFoldBlockFound && lineLookLevelNumber == SC_FOLDLEVELBASE) {
-				beginFoldBlockFound = true; //beginFoldBlock already set to -1.
+				beginFoldBlockFound = true;
+				beginFoldBlock = -1;
 			}
 		} else if (!(lineLookLevel & SC_FOLDLEVELWHITEFLAG)) {
 			endOfTailOfWhiteFlag = lineLook - 1;
@@ -421,7 +424,7 @@ void Document::GetHighlightDelimiters(int line, HighlightDelimiter &highlightDel
 	} else {
 		lineLook = line;
 	}
-	for (; lineLook <= endLine && (!endFoldBlockFound || !endMarginCorrectlyDrawnZoneFound); ++lineLook) {
+	for (; lineLook < noNeedToParseAfter && (!endFoldBlockFound || !endMarginCorrectlyDrawnZoneFound); ++lineLook) {
 		lineLookLevel = GetLevel(lineLook);
 		lineLookLevelNumber = lineLookLevel & SC_FOLDLEVELNUMBERMASK;
 		if (!endFoldBlockFound && !(lineLookLevel & SC_FOLDLEVELWHITEFLAG) && lineLookLevelNumber < levelNumber) {
@@ -708,6 +711,55 @@ bool SCI_METHOD Document::IsDBCSLeadByte(char ch) const {
 				((uch >= 0xE0) && (uch <= 0xF9));
 	}
 	return false;
+}
+
+inline bool IsSpaceOrTab(int ch) {
+	return ch == ' ' || ch == '\t';
+}
+
+// Need to break text into segments near lengthSegment but taking into
+// account the encoding to not break inside a UTF-8 or DBCS character
+// and also trying to avoid breaking inside a pair of combining characters.
+// The segment length must always be long enough (more than 4 bytes)
+// so that there will be at least one whole character to make a segment.
+// For UTF-8, text must consist only of valid whole characters.
+// In preference order from best to worst:
+//   1) Break after space
+//   2) Break before punctuation
+//   3) Break after whole character
+
+int Document::SafeSegment(const char *text, int length, int lengthSegment) {
+	if (length <= lengthSegment)
+		return length;
+	int lastSpaceBreak = -1;
+	int lastPunctuationBreak = -1;
+	int lastEncodingAllowedBreak = -1;
+	for (int j=0; j < lengthSegment;) {
+		unsigned char ch = static_cast<unsigned char>(text[j]);
+		if (j > 0) {
+			if (IsSpaceOrTab(text[j - 1]) && !IsSpaceOrTab(text[j])) {
+				lastSpaceBreak = j;
+			}
+			if (ch < 'A') {
+				lastPunctuationBreak = j;
+			}
+		}
+		lastEncodingAllowedBreak = j;
+
+		if (dbcsCodePage == SC_CP_UTF8) {
+			j += (ch < 0x80) ? 1 : BytesFromLead(ch);
+		} else if (dbcsCodePage) {
+			j += IsDBCSLeadByte(ch) ? 2 : 1;
+		} else {
+			j++;
+		}
+	}
+	if (lastSpaceBreak >= 0) {
+		return lastSpaceBreak;
+	} else if (lastPunctuationBreak >= 0) {
+		return lastPunctuationBreak;
+	}
+	return lastEncodingAllowedBreak;
 }
 
 void Document::ModifiedAt(int pos) {
@@ -2051,6 +2103,12 @@ long BuiltinRegex::FindText(Document *doc, int minPos, int maxPos, const char *s
 		// the start position is at end of line or between line end characters.
 		lineRangeStart++;
 		startPos = doc->LineStart(lineRangeStart);
+	} else if ((increment == -1) &&
+	           (startPos <= doc->LineStart(lineRangeStart)) &&
+	           (lineRangeStart > lineRangeEnd)) {
+		// the start position is at beginning of line.
+		lineRangeStart--;
+		startPos = doc->LineEnd(lineRangeStart);
 	}
 	int pos = -1;
 	int lenRet = 0;
@@ -2088,7 +2146,8 @@ long BuiltinRegex::FindText(Document *doc, int minPos, int maxPos, const char *s
 		if (success) {
 			pos = search.bopat[0];
 			lenRet = search.eopat[0] - search.bopat[0];
-			if (increment == -1) {
+			// There can be only one start of a line, so no need to look for last match in line
+			if ((increment == -1) && (s[0] != '^')) {
 				// Check for the last match on this line.
 				int repetitions = 1000;	// Break out of infinite loop
 				while (success && (search.eopat[0] <= endOfLine) && (repetitions--)) {

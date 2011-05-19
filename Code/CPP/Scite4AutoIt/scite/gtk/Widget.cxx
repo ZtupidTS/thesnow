@@ -18,6 +18,13 @@
 #include "StringHelpers.h"
 #include "Widget.h"
 
+// Key names are longer for GTK+ 3
+#if GTK_CHECK_VERSION(3,0,0)
+#define GKEY_Escape GDK_KEY_Escape
+#else
+#define GKEY_Escape GDK_Escape
+#endif
+
 WBase::operator GtkWidget*() {
 	return GTK_WIDGET(GetID());
 }
@@ -65,7 +72,11 @@ void WEntry::SetText(const GUI::gui_char *text) {
 }
 
 void WComboBoxEntry::Create() {
+#if GTK_CHECK_VERSION(3,0,0)
+	SetID(gtk_combo_box_text_new_with_entry());
+#else
 	SetID(gtk_combo_box_entry_new_text());
+#endif
 }
 
 GtkEntry *WComboBoxEntry::Entry() {
@@ -88,12 +99,28 @@ bool WComboBoxEntry::HasFocusOnSelfOrChild() {
 	return HasFocus() || IS_WIDGET_FOCUSSED(Entry());
 }
 
+void WComboBoxEntry::RemoveText(int position) {
+#if GTK_CHECK_VERSION(3,0,0)
+	gtk_combo_box_text_remove(GTK_COMBO_BOX_TEXT(GetID()), position);
+#else
+	gtk_combo_box_remove_text(GTK_COMBO_BOX(GetID()), position);
+#endif
+}
+
+void WComboBoxEntry::AppendText(const char *text) {
+#if GTK_CHECK_VERSION(3,0,0)
+	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(GetID()), text);
+#else
+	gtk_combo_box_append_text(GTK_COMBO_BOX(GetID()), text);
+#endif
+}
+
 void WComboBoxEntry::FillFromMemory(const std::vector<std::string> &mem, bool useTop) {
 	for (int i = 0; i < 10; i++) {
-		gtk_combo_box_remove_text(GTK_COMBO_BOX(GetID()), 0);
+		RemoveText(0);
 	}
 	for (size_t i = 0; i < mem.size(); i++) {
-		gtk_combo_box_append_text(GTK_COMBO_BOX(GetID()), mem[i].c_str());
+		AppendText(mem[i].c_str());
 	}
 	if (useTop) {
 		gtk_entry_set_text(Entry(), mem[0].c_str());
@@ -203,7 +230,11 @@ void WCheckDraw::Create(const char **xpmImage, GUI::gui_string toolTip, GtkStyle
 	g_signal_connect(G_OBJECT(da), "enter-notify-event", G_CALLBACK(MouseEnterLeave), this);
 	g_signal_connect(G_OBJECT(da), "leave-notify-event", G_CALLBACK(MouseEnterLeave), this);
 	g_signal_connect(G_OBJECT(da), "key-press-event", G_CALLBACK(KeyDown), this);
+#if GTK_CHECK_VERSION(3,0,0)
+	g_signal_connect(G_OBJECT(da), "draw", G_CALLBACK(DrawEvent), this);
+#else
 	g_signal_connect(G_OBJECT(da), "expose-event", G_CALLBACK(ExposeEvent), this);
+#endif
 }
 
 bool WCheckDraw::Active() {
@@ -252,6 +283,69 @@ gboolean WCheckDraw::MouseEnterLeave(GtkWidget */*widget*/, GdkEventCrossing *ev
 	pcd->InvalidateAll();
 	return FALSE;
 }
+
+#if GTK_CHECK_VERSION(3,0,0)
+
+gboolean WCheckDraw::Draw(GtkWidget *widget, cairo_t *cr) {
+	GtkAllocation allocation;
+	gtk_widget_get_allocation(widget, &allocation);
+	GdkWindow *window = gtk_widget_get_window(widget);
+	pStyle = gtk_style_attach(pStyle, window);
+
+	int heightOffset = (allocation.height - checkButtonWidth) / 2;
+	if (heightOffset < 0)
+		heightOffset = 0;
+
+	bool active = isActive;
+	GtkStateType state = active ? GTK_STATE_ACTIVE : GTK_STATE_NORMAL;
+	GtkShadowType shadow = GTK_SHADOW_IN;
+	if (over) {
+		state = GTK_STATE_PRELIGHT;
+		shadow = GTK_SHADOW_OUT;
+	}
+	if (active || over)
+		gtk_paint_box(pStyle,
+			cr,
+			state,
+			shadow,
+			widget, const_cast<char *>("button"),
+			0, 0,
+			allocation.width, allocation.height);
+
+	if (HasFocus()) {
+		// Draw focus inset by 2 pixels
+		gtk_paint_focus(pStyle,
+			cr,
+			state,
+			widget, const_cast<char *>("button"),
+			2, 2,
+			allocation.width-4, allocation.height-4);
+	}
+
+	GdkColor fore = pStyle->fg[GTK_STATE_NORMAL];
+	// Give it an alpha channel
+	GdkPixbuf *pbAlpha = gdk_pixbuf_add_alpha(pbGrey, TRUE, 0xff, 0xff, 0);
+	// Convert the grey to alpha and make black
+	GreyToAlpha(pbAlpha, fore);
+
+	int activeOffset = active ? 1 : 0;
+	int xOffset = 1 + 2 + activeOffset;
+	int yOffset = 3 + heightOffset + activeOffset;
+	gdk_cairo_set_source_pixbuf(cr, pbAlpha, xOffset, yOffset);
+	cairo_rectangle(cr,
+		xOffset, yOffset,
+		checkIconWidth, checkIconWidth);
+	cairo_fill(cr);
+	g_object_unref(pbAlpha);
+
+	return TRUE;
+}
+
+gboolean WCheckDraw::DrawEvent(GtkWidget *widget, cairo_t *cr, WCheckDraw *pcd) {
+	return pcd->Draw(widget, cr);
+}
+
+#else
 
 gboolean WCheckDraw::Expose(GtkWidget *widget, GdkEventExpose */*event*/) {
 	pStyle = gtk_style_attach(pStyle, widget->window);
@@ -312,6 +406,8 @@ gboolean WCheckDraw::ExposeEvent(GtkWidget *widget, GdkEventExpose *event, WChec
 	return pcd->Expose(widget, event);
 }
 
+#endif
+
 WTable::WTable(int rows_, int columns_) :
 	rows(rows_), columns(columns_), next(0) {
 	SetID(gtk_table_new(rows, columns, FALSE));
@@ -362,7 +458,7 @@ void Dialog::Display(GtkWidget *parent, bool modal) {
 	if (parent) {
 		gtk_window_set_transient_for(GTK_WINDOW(GetID()), GTK_WINDOW(parent));
 	}
-	g_signal_connect(GTK_OBJECT(GetID()), "destroy", G_CALLBACK(SignalDestroy), this);
+	g_signal_connect(G_OBJECT(GetID()), "destroy", G_CALLBACK(SignalDestroy), this);
 	gtk_widget_show_all(GTK_WIDGET(GetID()));
 	if (modal) {
 		while (Created()) {
@@ -377,6 +473,14 @@ GtkWidget *Dialog::ResponseButton(const GUI::gui_string &text, int responseID) {
 
 void Dialog::Present() {
 	gtk_window_present(GTK_WINDOW(GetID()));
+}
+
+GtkWidget *Dialog::ContentArea() {
+#if GTK_CHECK_VERSION(3,0,0)
+	return gtk_dialog_get_content_area(GTK_DIALOG(GetID()));
+#else
+	return GTK_DIALOG(GetID())->vbox;
+#endif
 }
 
 void Dialog::SignalDestroy(GtkWidget *, Dialog *d) {
@@ -410,7 +514,7 @@ bool Strip::KeyDown(GdkEventKey *event) {
 	bool retVal = false;
 
 	if (visible) {
-		if (event->keyval == GDK_Escape) {
+		if (event->keyval == GKEY_Escape) {
 			Close();
 			return true;
 		}

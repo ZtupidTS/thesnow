@@ -1478,12 +1478,30 @@ void SciTEWin::DropFiles(HDROP hdrop) {
 	// If drag'n'drop inside the SciTE window but outside
 	// Scintilla, hdrop is null, and an exception is generated!
 	if (hdrop) {
+		bool tempFilesSyncLoad = props.GetInt("temp.files.sync.load") != 0;
+		GUI::gui_char tempDir[MAX_PATH];
+		DWORD tempDirLen = ::GetTempPath(MAX_PATH, tempDir);
+		bool isTempFile = false;
 		int filesDropped = ::DragQueryFile(hdrop, 0xffffffff, NULL, 0);
 		// Append paths to dropFilesQueue, to finish drag operation soon
 		for (int i = 0; i < filesDropped; ++i) {
 			GUI::gui_char pathDropped[MAX_PATH];
 			::DragQueryFileW(hdrop, i, pathDropped, ELEMENTS(pathDropped));
-			dropFilesQueue.push_back(pathDropped);
+			// Only do this for the first file in the drop op
+			// as all are coming from the same drag location
+			if (i == 0 && tempFilesSyncLoad) {
+				// check if file's parent dir is temp
+				if (::wcsncmp(tempDir, pathDropped, tempDirLen) == 0) {
+					isTempFile = true;
+				}
+			}
+			if (isTempFile) {
+				if (!Open(pathDropped)) {
+					break;
+				}
+			} else {
+				dropFilesQueue.push_back(pathDropped);
+			}
 		}
 		::DragFinish(hdrop);
 		// Put SciTE to forefront
@@ -1496,7 +1514,7 @@ void SciTEWin::DropFiles(HDROP hdrop) {
 		::SetForegroundWindow(MainHWND());
 		// Post message to ourself for opening the files so we can finish the drop message and
 		// the drop source will respond when open operation takes long time (opening big files...)
-		if (filesDropped > 0) {
+		if (!dropFilesQueue.empty()) {
 			::PostMessage(MainHWND(), SCITE_DROP, 0, 0);
 		}
 	}
@@ -2052,13 +2070,11 @@ LRESULT ContentWin::WndProc(UINT iMessage, WPARAM wParam, LPARAM lParam) {
 			::GetCursorPos(reinterpret_cast<POINT *>(&ptCursor));
 			GUI::Point ptClient = ptCursor;
 			::ScreenToClient(pSciTEWin->MainHWND(), reinterpret_cast<POINT *>(&ptClient));
-			if ((ptClient.y > (pSciTEWin->visHeightTools + pSciTEWin->visHeightTab)) && (ptClient.y < pSciTEWin->visHeightTools + pSciTEWin->visHeightTab + pSciTEWin->visHeightEditor)) {
-				GUI::Rectangle rcScintilla = pSciTEWin->wEditor.GetPosition();
-				GUI::Rectangle rcOutput = pSciTEWin->wOutput.GetPosition();
-				if (!rcScintilla.Contains(ptCursor) && !rcOutput.Contains(ptCursor)) {
-					::SetCursor(::LoadCursor(NULL, pSciTEWin->splitVertical ? IDC_SIZEWE : IDC_SIZENS));
-					return TRUE;
-				}
+			GUI::Rectangle rcScintilla = pSciTEWin->wEditor.GetPosition();
+			GUI::Rectangle rcOutput = pSciTEWin->wOutput.GetPosition();
+			if (!rcScintilla.Contains(ptCursor) && !rcOutput.Contains(ptCursor)) {
+				::SetCursor(::LoadCursor(NULL, pSciTEWin->splitVertical ? IDC_SIZEWE : IDC_SIZENS));
+				return TRUE;
 			}
 		}
 		return ::DefWindowProc(Hwnd(), iMessage, wParam, lParam);

@@ -550,6 +550,7 @@ val INDIC_STRIKE=4
 val INDIC_HIDDEN=5
 val INDIC_BOX=6
 val INDIC_ROUNDBOX=7
+val INDIC_STRAIGHTBOX=8
 val INDIC_MAX=31
 val INDIC_CONTAINER=8
 val INDIC0_MASK=0x20
@@ -1446,8 +1447,14 @@ fun int LineLength=2350(int line,)
 # Highlight the characters at two positions.
 fun void BraceHighlight=2351(position pos1, position pos2)
 
+# Use specified indicator to highlight matching braces instead of changing their style.
+fun void BraceHighlightIndicator=2498(bool useBraceHighlightIndicator, int indicator)
+
 # Highlight the character at a position indicating there is no matching brace.
 fun void BraceBadLight=2352(position pos,)
+
+# Use specified indicator to highlight non matching brace instead of changing its style.
+fun void BraceBadLightIndicator=2499(bool useBraceBadLightIndicator, int indicator)
 
 # Find the position of a matching brace or INVALID_POSITION if no match.
 fun position BraceMatch=2353(position pos,)
@@ -1889,6 +1896,12 @@ set void IndicSetAlpha=2523(int indicator, int alpha)
 
 # Get the alpha fill colour of the given indicator.
 get int IndicGetAlpha=2524(int indicator,)
+
+# Set the alpha outline colour of the given indicator.
+set void IndicSetOutlineAlpha=2558(int indicator, int alpha)
+
+# Get the alpha outline colour of the given indicator.
+get int IndicGetOutlineAlpha=2559(int indicator,)
 
 # Set extra ascent for each line
 set void SetExtraAscent=2525(int extraAscent,)

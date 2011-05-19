@@ -917,7 +917,7 @@
 				Name="SciTe"
 				>
 				<File
-					RelativePath="..\SciTe\src\About.cxx"
+					RelativePath="..\SciTe\src\Credits.cxx"
 					>
 				</File>
 				<File
@@ -1120,10 +1120,6 @@
 			<Filter
 				Name="SciTe"
 				>
-				<File
-					RelativePath="..\SciTe\src\About.h"
-					>
-				</File>
 				<File
 					RelativePath="..\SciTe\Win32\DirectorExtension.h"
 					>

@@ -67,8 +67,10 @@
 #include "SciTEBase.h"
 #include "Utf8_16.h"
 
-#ifdef __unix__
+#if defined(GTK)
 const GUI::gui_char propUserFileName[] = GUI_TEXT(".SciTEUser.properties");
+#elif defined(__APPLE__)
+const GUI::gui_char propUserFileName[] = GUI_TEXT("org.scintilla.SciTEUser.properties");
 #else
 // Windows
 const GUI::gui_char propUserFileName[] = GUI_TEXT("用户设置.properties");	//moded
@@ -1143,6 +1145,15 @@ static bool IsWordCharacter(int ch) {
 	return (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z')  || (ch >= '0' && ch <= '9')  || (ch == '_');
 }
 
+bool SciTEBase::GrepIntoDirectory(const FilePath &directory) {
+    const GUI::gui_char *sDirectory = directory.AsInternal();
+#ifdef __APPLE__
+    if (strcmp(sDirectory, "build") == 0)
+        return false;
+#endif
+    return sDirectory[0] != '.';
+}
+
 void SciTEBase::GrepRecursive(GrepFlags gf, FilePath baseDir, const char *searchString, const GUI::gui_char *fileTypes) {
 	FilePathSet directories;
 	FilePathSet files;
@@ -1150,6 +1161,8 @@ void SciTEBase::GrepRecursive(GrepFlags gf, FilePath baseDir, const char *search
 	size_t searchLength = strlen(searchString);
 	SString os;
 	for (size_t i = 0; i < files.Length(); i ++) {
+		if (jobQueue.Cancelled())
+			return;
 		FilePath fPath = files.At(i);
 		if (fPath.Matches(fileTypes)) {
 			//OutputAppendStringSynchronised(i->AsInternal());
@@ -1192,7 +1205,7 @@ void SciTEBase::GrepRecursive(GrepFlags gf, FilePath baseDir, const char *search
 	}
 	for (size_t j = 0; j < directories.Length(); j++) {
 		FilePath fPath = directories.At(j);
-		if ((gf & grepDot) || (fPath.Name().AsInternal()[0] != '.')) {
+		if ((gf & grepDot) || GrepIntoDirectory(fPath.Name())) {
 			GrepRecursive(gf, fPath, searchString, fileTypes);
 		}
 	}

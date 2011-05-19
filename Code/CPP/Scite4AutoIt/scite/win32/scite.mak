@@ -53,9 +53,9 @@ CCFLAGS=$(CCFLAGS) $(CXXNDEBUG)
 INCLUDEDIRS=-I../../scintilla/include -I../../scintilla/win32 -I../src
 
 OBJS=\
-	About.obj \
 	Extra.obj \
 	SciTEBase.obj \
+	Credits.obj \
 	FilePath.obj \
 	SciTEBuffers.obj \
 	SciTEIO.obj \
@@ -79,9 +79,9 @@ OBJS=\
 LEXLIB=..\..\scintilla\win32\Lexers.lib
 
 OBJSSTATIC=\
-	About.obj \
 	Extra.obj \
 	SciTEBase.obj \
+	Credits.obj \
 	FilePath.obj \
 	SciTEBuffers.obj \
 	SciTEIO.obj \
@@ -431,9 +431,8 @@ PropSetFile.obj: \
 	../src/SString.h \
 	../src/FilePath.h \
 	../src/PropSetFile.h
-About.obj: \
-	../src/About.cxx \
-	../src/About.h \
+SciTEBase.obj: \
+	../src/SciTEBase.cxx \
 	../../scintilla/include/Scintilla.h \
 	../../scintilla/include/SciLexer.h \
 	../src/GUI.h \
@@ -451,10 +450,9 @@ About.obj: \
 Extra.obj: \
 	../src/Extra.h\
 	../src/Extra.cxx
-SciTEBase.obj: \
-	../src/SciTEBase.cxx \
+Credits.obj: \
+	../src/Credits.cxx \
 	../../scintilla/include/Scintilla.h \
-	../../scintilla/include/SciLexer.h \
 	../src/GUI.h \
 	../src/SString.h \
 	../src/StringHelpers.h \
