@@ -2343,6 +2343,8 @@ void Platform_Initialise(void *hInstance) {
 }
 
 void Platform_Finalise() {
+	if (reverseArrowCursor != NULL)
+		::DestroyCursor(reverseArrowCursor);
 	ListBoxX_Unregister();
 	::DeleteCriticalSection(&crPlatformLock);
 }

@@ -2,7 +2,7 @@
 /** @file SciTEProps.cxx
  ** Properties management.
  **/
-// Copyright 1998-2004 by Neil Hodgson <neilh@scintilla.org>
+// Copyright 1998-2011 by Neil Hodgson <neilh@scintilla.org>
 // The License.txt file describes the conditions under which this software may be distributed.
 
 #include <stdlib.h>
@@ -67,7 +67,7 @@ const GUI::gui_char menuAccessIndicator[] = GUI_TEXT("&");
 #include "Mutex.h"
 #include "JobQueue.h"
 #include "SciTEBase.h"
-#include "Extra.h"
+HMENU hmenuPop;	//added by SetImportMenu
 void SciTEBase::SetImportMenu() {
 //added ↓
 	HWND SciTEWinHWND= (HWND)SciTEBase::wSciTE.GetID();
@@ -1296,6 +1296,34 @@ void SciTEBase::ReadProperties() {
 	wEditor.Call(SCI_SETENDATLASTLINE, props.GetInt("end.at.last.line", 1));
 	wEditor.Call(SCI_SETCARETSTICKY, props.GetInt("caret.sticky", 0));
 
+	// Clear all previous indicators.
+	wEditor.Call(SCI_SETINDICATORCURRENT, indicatorHightlightCurrentWord);
+	wEditor.Call(SCI_INDICATORCLEARRANGE, 0, wEditor.Call(SCI_GETLENGTH));
+	wOutput.Call(SCI_SETINDICATORCURRENT, indicatorHightlightCurrentWord);
+	wOutput.Call(SCI_INDICATORCLEARRANGE, 0, wOutput.Call(SCI_GETLENGTH));
+	currentWordHighlight.statesOfDelay = currentWordHighlight.noDelay;
+
+	currentWordHighlight.isEnabled = props.GetInt("highlight.current.word", 0) == 1;
+	if (currentWordHighlight.isEnabled) {
+		SString highlightCurrentWordColourString = props.Get("highlight.current.word.colour");
+		if (highlightCurrentWordColourString.length() == 0) {
+			// Set default colour for highlight.
+			highlightCurrentWordColourString = "#FFFF00";
+		}
+		Colour highlightCurrentWordColour = ColourFromString(highlightCurrentWordColourString);
+
+		wEditor.Call(SCI_INDICSETSTYLE, indicatorHightlightCurrentWord, INDIC_ROUNDBOX);
+		wEditor.Call(SCI_INDICSETFORE, indicatorHightlightCurrentWord, highlightCurrentWordColour);
+		wEditor.Call(SCI_INDICSETALPHA,indicatorHightlightCurrentWord, 100);
+		wEditor.Call(SCI_INDICSETUNDER, indicatorHightlightCurrentWord, true);
+		wOutput.Call(SCI_INDICSETSTYLE, indicatorHightlightCurrentWord, INDIC_ROUNDBOX);
+		wOutput.Call(SCI_INDICSETFORE, indicatorHightlightCurrentWord, highlightCurrentWordColour);
+		wOutput.Call(SCI_INDICSETALPHA,indicatorHightlightCurrentWord, 100);
+		wOutput.Call(SCI_INDICSETUNDER, indicatorHightlightCurrentWord, true);
+		currentWordHighlight.isOnlyWithSameStyle = props.GetInt("highlight.current.word.by.style", 0) == 1;
+		HighlightCurrentWord(true);
+	}
+
 	if (extender) {
 		FilePath defaultDir = GetDefaultDirectory();
 		FilePath scriptPath;
@@ -1333,7 +1361,7 @@ void SciTEBase::ReadFontProperties() {
 		for (int i = 0; i < STYLE_MAX; i++) {
 			sprintf(key, "style.lpeg.%0d", i);
 			wEditor.Send(SCI_PRIVATELEXERCALL, i - STYLE_MAX, reinterpret_cast<sptr_t>(propStr));
-			props.Set(key, static_cast<const char*>(propStr));
+			props.Set(key, static_cast<const char *>(propStr));
 		}
 		languageName = "lpeg";
 	}

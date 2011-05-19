@@ -22,7 +22,7 @@ template< int commandNumber >
 class CommandSignal {
 public:
 	void Attach(GtkWidget *w, CommandHandler *object, const char *sigName="clicked") {
-		gtk_signal_connect(GTK_OBJECT(w), sigName, GtkSignalFunc(Function), object);
+		g_signal_connect(G_OBJECT(w), sigName, G_CALLBACK(Function), object);
 	}
 	static void Function(GtkWidget */*w*/, CommandHandler *object) {
 		object->PerformCommand(commandNumber);
@@ -79,6 +79,8 @@ public:
 	const GUI::gui_char *Text();
 	void SetText(const GUI::gui_char *text);
 	bool HasFocusOnSelfOrChild();
+	void RemoveText(int position);
+	void AppendText(const char *text);
 	void FillFromMemory(const std::vector<std::string> &mem, bool useTop = false);
 };
 
@@ -105,8 +107,13 @@ class WCheckDraw : public WBase {
 	static gint ButtonsPress(GtkWidget *widget, GdkEventButton *event, WCheckDraw *pcd);
 	static gboolean MouseEnterLeave(GtkWidget *widget, GdkEventCrossing *event, WCheckDraw *pcd);
 	static gboolean KeyDown(GtkWidget *widget, GdkEventKey *event, WCheckDraw *pcd);
+#if GTK_CHECK_VERSION(3,0,0)
+	gboolean Draw(GtkWidget *widget, cairo_t *cr);
+	static gboolean DrawEvent(GtkWidget *widget, cairo_t *cr, WCheckDraw *pcd);
+#else
 	gboolean Expose(GtkWidget *widget, GdkEventExpose *event);
 	static gboolean ExposeEvent(GtkWidget *widget, GdkEventExpose *event, WCheckDraw *pcd);
+#endif
 public:
 	WCheckDraw();
 	~WCheckDraw();
@@ -138,6 +145,7 @@ public:
 	void Display(GtkWidget *parent = 0, bool modal=true);
 	GtkWidget *ResponseButton(const GUI::gui_string &text, int responseID);
 	void Present();
+	GtkWidget *ContentArea();
 
 private:
 	static void SignalDestroy(GtkWidget *, Dialog *d);

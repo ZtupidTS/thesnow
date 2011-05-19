@@ -275,6 +275,7 @@ public:
 	bool NextCharacter(int &pos, int moveDir);	// Returns true if pos changed
 	int SCI_METHOD CodePage() const;
 	bool SCI_METHOD IsDBCSLeadByte(char ch) const;
+	int SafeSegment(const char *text, int length, int lengthSegment);
 
 	// Gateways to modifying document
 	void ModifiedAt(int pos);
@@ -340,7 +341,7 @@ public:
 	void ClearLevels();
 	int GetLastChild(int lineParent, int level=-1);
 	int GetFoldParent(int line);
-	void GetHighlightDelimiters(int line, HighlightDelimiter &hDelimiter);
+	void GetHighlightDelimiters(HighlightDelimiter &hDelimiter, int line, int topLine, int bottomLine);
 
 	void Indent(bool forwards);
 	int ExtendWordSelect(int pos, int delta, bool onlyWordCharacters=false);

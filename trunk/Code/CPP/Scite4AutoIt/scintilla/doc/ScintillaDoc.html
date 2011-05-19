@@ -79,7 +79,7 @@
 
     <h1>Scintilla Documentation</h1>
 
-    <p>Last edited 4/April/2011 NH</p>
+    <p>Last edited 12/May/2011 NH</p>
 
     <p>There is <a class="jump" href="Design.html">an overview of the internal design of
     Scintilla</a>.<br />
@@ -625,10 +625,9 @@ struct Sci_TextRange {
       </tbody>
     </table>
 
-    <p>If <code>SCFIND_REGEXP</code> is not included in the <code>searchFlags</code>, you can
+    <p>You can
     search backwards to find the previous occurrence of a search string by setting the end of the
-    search range before the start. If <code>SCFIND_REGEXP</code> is included, searches are always
-    from a lower position to a higher position, even if the search range is backwards.</p>
+    search range before the start.</p>
 
     <p>In a regular expression, special characters interpreted are:</p>
 
@@ -722,6 +721,8 @@ struct Sci_TextRange {
       </tbody>
     </table>
 
+    <p>Regular expressions will only match ranges within a single line, never matching over multiple lines.</p>
+
     <p><b id="SCI_FINDTEXT">SCI_FINDTEXT(int searchFlags, <a class="jump"
     href="#Sci_TextToFind">Sci_TextToFind</a> *ttf)</b><br />
      This message searches for text in the document. It does not use or move the current selection.
@@ -730,9 +731,8 @@ struct Sci_TextRange {
 
     <p>The <code>Sci_TextToFind</code> structure is defined in <code>Scintilla.h</code>; set
     <code>chrg.cpMin</code> and <code>chrg.cpMax</code> with the range of positions in the document
-    to search. If <code>SCFIND_REGEXP</code> is not included in the flags, you can search backwards by
-    setting <code>chrg.cpMax</code> less than <code>chrg.cpMin</code>. If <code>SCFIND_REGEXP</code>
-    is included, the search is always forwards (even if <code>chrg.cpMax</code> is less than <code>chrg.cpMin</code>).
+    to search. You can search backwards by
+    setting <code>chrg.cpMax</code> less than <code>chrg.cpMin</code>.
     Set the <code>lpstrText</code> member of <code>Sci_TextToFind</code> to point at a zero terminated
     text string holding the search pattern. If your language makes the use of <code>Sci_TextToFind</code>
     difficult, you should consider using <code>SCI_SEARCHINTARGET</code> instead.</p>
@@ -772,9 +772,7 @@ struct Sci_TextToFind {
 
     <p><code>SCI_SEARCHNEXT</code> and <code>SCI_SEARCHPREV</code> search for the next and previous
     occurrence of the zero terminated search string pointed at by text. The search is modified by
-    the <a class="jump" href="#searchFlags"><code>searchFlags</code></a>. If you request a regular
-    expression, <code>SCI_SEARCHPREV</code> finds the first occurrence of the search string in the
-    document, not the previous one before the anchor point.</p>
+    the <a class="jump" href="#searchFlags"><code>searchFlags</code></a>. </p>
 
     <p>The return value is -1 if nothing is found, otherwise the return value is the start position
     of the matching text. The selection is updated to show the matched text, but is not scrolled
@@ -3089,6 +3087,8 @@ struct Sci_TextToFind {
     <code><a class="message" href="#SCI_BRACEHIGHLIGHT">SCI_BRACEHIGHLIGHT(int pos1, int
     pos2)</a><br />
      <a class="message" href="#SCI_BRACEBADLIGHT">SCI_BRACEBADLIGHT(int pos1)</a><br />
+     <a class="message" href="#SCI_BRACEHIGHLIGHTINDICATOR">SCI_BRACEHIGHLIGHTINDICATOR(bool useBraceHighlightIndicator, int indicatorNumber)</a><br />
+     <a class="message" href="#SCI_BRACEBADLIGHTINDICATOR">SCI_BRACEBADLIGHTINDICATOR(bool useBraceBadLightIndicator, int indicatorNumber)</a><br />
      <a class="message" href="#SCI_BRACEMATCH">SCI_BRACEMATCH(int position, int
     maxReStyle)</a><br />
     </code>
@@ -3106,6 +3106,12 @@ struct Sci_TextToFind {
     badlighting style</a>, style <code>STYLE_BRACEBAD</code> (35), can be used to show the brace
     that is unmatched. Using a position of <code>INVALID_POSITION</code> (-1) removes the
     highlight.</p>
+
+    <p><b id="#SCI_BRACEHIGHLIGHTINDICATOR">SCI_BRACEHIGHLIGHTINDICATOR(bool useBraceHighlightIndicator, int indicatorNumber)</b><br />
+     Use specified indicator to highlight matching braces instead of changing their style.</p>
+
+    <p><b id="#SCI_BRACEBADLIGHTINDICATOR">SCI_BRACEBADLIGHTINDICATOR(bool useBraceBadLightIndicator, int indicatorNumber)</b><br />
+     Use specified indicator to highlight non matching brace instead of changing its style.</p>
 
     <p><b id="SCI_BRACEMATCH">SCI_BRACEMATCH(int pos, int maxReStyle)</b><br />
      The <code>SCI_BRACEMATCH</code> message finds a corresponding matching brace given
@@ -3557,6 +3563,8 @@ struct Sci_TextToFind {
      <a class="message" href="#SCI_INDICGETFORE">SCI_INDICGETFORE(int indicatorNumber)</a><br />
      <a class="message" href="#SCI_INDICSETALPHA">SCI_INDICSETALPHA(int indicatorNumber, int alpha)</a><br />
      <a class="message" href="#SCI_INDICGETALPHA">SCI_INDICGETALPHA(int indicatorNumber)</a><br />
+     <a class="message" href="#SCI_INDICSETOUTLINEALPHA">SCI_INDICSETOUTLINEALPHA(int indicatorNumber, int alpha)</a><br />
+     <a class="message" href="#SCI_INDICGETOUTLINEALPHA">SCI_INDICGETOUTLINEALPHA(int indicatorNumber)</a><br />
      <a class="message" href="#SCI_INDICSETUNDER">SCI_INDICSETUNDER(int indicatorNumber, bool under)</a><br />
      <a class="message" href="#SCI_INDICGETUNDER">SCI_INDICGETUNDER(int indicatorNumber)</a><br />
     </code>
@@ -3641,10 +3649,22 @@ struct Sci_TextToFind {
           <td align="center">7</td>
 
           <td>A rectangle with rounded corners around the text using translucent drawing with the
-              interior more transparent than the border. You can use
-              <a class="message" href="#SCI_INDICSETALPHA">SCI_INDICSETALPHA</a>
-              to control the alpha transparency value. The default alpha value is 30.
-	</td>
+              interior usually more transparent than the border. You can use
+              <a class="message" href="#SCI_INDICSETALPHA">SCI_INDICSETALPHA</a> and
+			  <a class="message" href="#SCI_INDICSETOUTLINEALPHA">SCI_INDICSETOUTLINEALPHA</a>
+              to control the alpha transparency values. The default alpha values are 30 for fill colour and 50 for outline colour.</td>
+        </tr>
+
+        <tr>
+          <td align="left"><code>INDIC_STRAIGHTBOX</code></td>
+
+          <td align="center">8</td>
+
+          <td>A rectangle around the text using translucent drawing with the
+              interior usually more transparent than the border. You can use
+              <a class="message" href="#SCI_INDICSETALPHA">SCI_INDICSETALPHA</a> and
+			  <a class="message" href="#SCI_INDICSETOUTLINEALPHA">SCI_INDICSETOUTLINEALPHA</a>
+              to control the alpha transparency values. The default alpha values are 30 for fill colour and 50 for outline colour.</td>
         </tr>
       </tbody>
     </table>
@@ -3665,7 +3685,14 @@ struct Sci_TextToFind {
     <p><b id="SCI_INDICSETALPHA">SCI_INDICSETALPHA(int indicatorNumber, int alpha)</b><br />
      <b id="SCI_INDICGETALPHA">SCI_INDICGETALPHA(int indicatorNumber)</b><br />
      These two messages set and get the alpha transparency used for drawing the
-     fill color of the INDIC_ROUNDBOX rectangle. The alpha value can range from
+     fill colour of the INDIC_ROUNDBOX and INDIC_STRAIGHTBOX rectangle. The alpha value can range from
+     0 (completely transparent) to 255 (no transparency).
+     </p>
+
+    <p><b id="SCI_INDICSETOUTLINEALPHA">SCI_INDICSETOUTLINEALPHA(int indicatorNumber, int alpha)</b><br />
+     <b id="SCI_INDICGETOUTLINEALPHA">SCI_INDICGETOUTLINEALPHA(int indicatorNumber)</b><br />
+     These two messages set and get the alpha transparency used for drawing the
+     outline colour of the INDIC_ROUNDBOX and INDIC_STRAIGHTBOX rectangle. The alpha value can range from
      0 (completely transparent) to 255 (no transparency).
      </p>
 
@@ -3685,8 +3712,8 @@ struct Sci_TextToFind {
     <b id="SCI_SETINDICATORCURRENT">SCI_SETINDICATORCURRENT(int indicator)</b><br />
     <b id="SCI_GETINDICATORCURRENT">SCI_GETINDICATORCURRENT</b><br />
     These two messages set and get the indicator that will be affected by calls to
-    <a class="message" href="#SCI_INDICATORFILLRANGE">SCI_INDICATORFILLRANGE</a> and
-    <a class="message" href="#SCI_INDICATORCLEARRANGE">SCI_INDICATORCLEARRANGE</a>.
+    <a class="message" href="#SCI_INDICATORFILLRANGE">SCI_INDICATORFILLRANGE(int position, int fillLength)</a> and
+    <a class="message" href="#SCI_INDICATORCLEARRANGE">SCI_INDICATORCLEARRANGE(int position, int clearLength)</a>.
     </p>
 
     <p>
@@ -5826,7 +5853,7 @@ href="#SCI_POSITIONFROMLINE">SCI_POSITIONFROMLINE</a>(lineNumber);
     <p><b id="SCN_UPDATEUI">SCN_UPDATEUI</b><br />
      Either the text or styling of the document has changed or the selection range or scroll position has changed.
      Now would be a good time to update any container UI elements that depend on document or view state.
-     The <code>updated</code> field is set to the bit set of things changed since the previous notiication.</p>
+     The <code>updated</code> field is set to the bit set of things changed since the previous notification.</p>
     <table cellpadding="1" cellspacing="2" border="0" summary="Modify notification type flags">
       <tbody>
         <tr>

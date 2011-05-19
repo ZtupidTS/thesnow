@@ -2,7 +2,7 @@
 /** @file SciTEBase.cxx
  ** Platform independent base class of editor.
  **/
-// Copyright 1998-2010 by Neil Hodgson <neilh@scintilla.org>
+// Copyright 1998-2011 by Neil Hodgson <neilh@scintilla.org>
 // The License.txt file describes the conditions under which this software may be distributed.
 
 #include <stdlib.h>
@@ -69,9 +69,8 @@
 #include "SciTE.h"
 #include "Mutex.h"
 #include "JobQueue.h"
-#include "SciTEBase.h"
-#include "About.h"
 
+#include "SciTEBase.h"
 
 Searcher::Searcher() {
 	wholeWord = false;
@@ -242,7 +241,7 @@ void SciTEBase::CallChildren(unsigned int msg, uptr_t wParam, sptr_t lParam) {
 	wEditor.Call(msg, wParam, lParam);
 	wOutput.Call(msg, wParam, lParam);
 }
-/*
+
 SString SciTEBase::GetTranslationToAbout(const char * const propname, bool retainIfNotFound) {
 #if !defined(GTK)
 	return SString(GUI::UTF8FromString(localiser.Text(propname, retainIfNotFound)).c_str());
@@ -252,83 +251,6 @@ SString SciTEBase::GetTranslationToAbout(const char * const propname, bool retai
 #endif
 }
 
-void SciTEBase::SetAboutMessage(GUI::ScintillaWindow &wsci, const char *appTitle) {
-	if (wsci.Created()) {
-		wsci.Send(SCI_SETSTYLEBITS, 7, 0);
-		wsci.Send(SCI_STYLERESETDEFAULT, 0, 0);
-		int fontSize = 15;
-#if defined(GTK)
-		wsci.Send(SCI_STYLESETFONT, STYLE_DEFAULT,
-		        reinterpret_cast<uptr_t>("!Serif"));
-		fontSize = 14;
-#endif
-
-		wsci.Send(SCI_SETCODEPAGE, SC_CP_UTF8, 0);
-
-		wsci.Send(SCI_STYLESETSIZE, STYLE_DEFAULT, fontSize);
-		wsci.Send(SCI_STYLESETBACK, STYLE_DEFAULT, ColourRGB(0xff, 0xff, 0xff));
-		wsci.Send(SCI_STYLECLEARALL, 0, 0);
-
-		SetAboutStyle(wsci, 0, ColourRGB(0xff, 0xff, 0xff));
-		wsci.Send(SCI_STYLESETSIZE, 0, fontSize);
-		wsci.Send(SCI_STYLESETBACK, 0, ColourRGB(0, 0, 0x80));
-		AddStyledText(wsci, appTitle, 0);
-		AddStyledText(wsci, "\n", 0);
-		SetAboutStyle(wsci, 1, ColourRGB(0, 0, 0));
-		int trsSty = 5; // define the stylenumber to assign font for translators.
-		SString translator = GetTranslationToAbout("TranslationCredit", false);
-		SetAboutStyle(wsci, trsSty, ColourRGB(0, 0, 0));
-#if !defined(GTK)
-		// On Windows Me (maybe 9x also), we must assign another font to display translation.
-		if (translator.length()) {
-			SString fontBase = props.GetExpanded("font.translators");
-			StyleDefinition sd(fontBase.c_str());
-			if (sd.specified & StyleDefinition::sdFont) {
-				wsci.Send(SCI_STYLESETFONT, trsSty,
-				        reinterpret_cast<uptr_t>(sd.font.c_str()));
-			}
-			if (sd.specified & StyleDefinition::sdSize) {
-				wsci.Send(SCI_STYLESETSIZE, trsSty, sd.size);
-			}
-		}
-#endif
-		AddStyledText(wsci, GetTranslationToAbout("Version").c_str(), trsSty);
-		AddStyledText(wsci, " 2.25\n", 1);
-		AddStyledText(wsci, "    " __DATE__ " " __TIME__ "\n", 1);
-		SetAboutStyle(wsci, 2, ColourRGB(0, 0, 0));
-		wsci.Send(SCI_STYLESETITALIC, 2, 1);
-		AddStyledText(wsci, GetTranslationToAbout("by").c_str(), trsSty);
-		AddStyledText(wsci, " Neil Hodgson.\n", 2);
-		SetAboutStyle(wsci, 3, ColourRGB(0, 0, 0));
-		AddStyledText(wsci, "December 1998-March 2011.\n", 3);
-		SetAboutStyle(wsci, 4, ColourRGB(0, 0x7f, 0x7f));
-		AddStyledText(wsci, "http://www.scintilla.org\n", 4);
-		AddStyledText(wsci, "Lua scripting language by TeCGraf, PUC-Rio\n", 3);
-		AddStyledText(wsci, "    http://www.lua.org\n", 4);
-		if (translator.length()) {
-			AddStyledText(wsci, translator.c_str(), trsSty);
-			AddStyledText(wsci, "\n", 5);
-		}
-		AddStyledText(wsci, GetTranslationToAbout("Contributors:").c_str(), trsSty);
-		srand(static_cast<unsigned>(time(0)));
-		for (unsigned int co = 0;co < ELEMENTS(contributors);co++) {
-			int colourIndex = 50 + (co % 78);
-			AddStyledText(wsci, "\n    ", colourIndex);
-			AddStyledText(wsci, contributors[co], colourIndex);
-		}
-		int r = rand() % 256;
-		int g = rand() % 256;
-		int b = rand() % 256;
-		for (unsigned int sty = 0;sty < 78; sty++) {
-			HackColour(r);
-			HackColour(g);
-			HackColour(b);
-			SetAboutStyle(wsci, sty + 50, ColourRGB(r, g, b));
-		}
-		wsci.Send(SCI_SETREADONLY, 1, 0);
-	}
-}
-*/
 void SciTEBase::ViewWhitespace(bool view) {
 	if (view && indentationWSVisible)
 		wEditor.Call(SCI_SETVIEWWS, SCWS_VISIBLEALWAYS);
@@ -793,6 +715,54 @@ bool SciTEBase::islexerwordcharforsel(char ch) {
 		return wordCharacters.contains(ch);
 	else
 		return iswordcharforsel(ch);
+}
+
+void SciTEBase::HighlightCurrentWord(bool highlight) {
+	if (!currentWordHighlight.isEnabled)
+		return;
+	GUI::ScintillaWindow &wCurrent = wOutput.HasFocus() ? wOutput : wEditor;
+	// Remove old indicators if any exist.
+	wCurrent.Call(SCI_SETINDICATORCURRENT, indicatorHightlightCurrentWord);
+	int lenDoc = wCurrent.Call(SCI_GETLENGTH);
+	wCurrent.Call(SCI_INDICATORCLEARRANGE, 0, lenDoc);
+	if (!highlight)
+		return;
+	// Get start & end selection.
+	int selStart = wCurrent.Call(SCI_GETSELECTIONSTART);
+	int selEnd = wCurrent.Call(SCI_GETSELECTIONEND);
+	bool noUserSelection = selStart == selEnd;
+	SString wordToFind = RangeExtendAndGrab(wCurrent, selStart, selEnd,
+	        &SciTEBase::islexerwordcharforsel);
+	if (wordToFind.length() == 0 || wordToFind.contains('\n') || wordToFind.contains('\r'))
+		return; // No highlight when no selection or multi-lines selection.
+	if (noUserSelection && currentWordHighlight.statesOfDelay == currentWordHighlight.noDelay) {
+		// Manage delay before highlight when no user selection but there is word at the caret.
+		currentWordHighlight.statesOfDelay = currentWordHighlight.delay;
+		// Reset timer
+		currentWordHighlight.elapsedTimes.Duration(true);
+		return;
+	}
+	// Get style of the current word to highlight only word with same style.
+	int selectedStyle = wCurrent.Call(SCI_GETSTYLEAT, selStart);
+
+	// Case sensitive & whole word only.
+	wCurrent.Call(SCI_SETSEARCHFLAGS, SCFIND_MATCHCASE | SCFIND_WHOLEWORD);
+	wCurrent.Call(SCI_SETTARGETSTART, 0);
+	wCurrent.Call(SCI_SETTARGETEND, lenDoc);
+	// Find the first occurrence of word.
+	int indexOf = wCurrent.CallString(SCI_SEARCHINTARGET,
+	        wordToFind.length(), wordToFind.c_str());
+	while (indexOf != -1 && indexOf < lenDoc) {
+		if (!currentWordHighlight.isOnlyWithSameStyle || selectedStyle ==
+		        wCurrent.Call(SCI_GETSTYLEAT, indexOf)) {
+			wCurrent.Call(SCI_INDICATORFILLRANGE, indexOf, wordToFind.length());
+		}
+		// Try to find next occurrence of word.
+		wCurrent.Call(SCI_SETTARGETSTART, indexOf + wordToFind.length() + 1);
+		wCurrent.Call(SCI_SETTARGETEND, lenDoc);
+		indexOf = wCurrent.CallString(SCI_SEARCHINTARGET, wordToFind.length(),
+		        wordToFind.c_str());
+	}
 }
 
 SString SciTEBase::GetRange(GUI::ScintillaWindow &win, int selStart, int selEnd) {
@@ -1678,7 +1648,7 @@ bool SciTEBase::StartAutoCompleteWord(bool onlyOneWord) {
 	SString root = line.substr(startword, current - startword);
 	int doclen = LengthDocument();
 	Sci_TextToFind ft = {{0, 0}, 0, {0, 0}};
-	ft.lpstrText = const_cast<char*>(root.c_str());
+	ft.lpstrText = const_cast<char *>(root.c_str());
 	ft.chrg.cpMin = 0;
 	ft.chrg.cpMax = doclen;
 	ft.chrgText.cpMin = 0;
@@ -2337,7 +2307,7 @@ void SciTEBase::SetTextProperties(
 	} else if (selLastLine == selFirstLine) {
 		sprintf(temp, "%d", 1);
 	} else if ((wEditor.Call(SCI_GETCOLUMN, caretPos) == 0 && (selAnchor <= caretPos)) ||
-	        ((wEditor.Call( SCI_GETCOLUMN, selAnchor) == 0) && (selAnchor > caretPos ))) {
+	        ((wEditor.Call(SCI_GETCOLUMN, selAnchor) == 0) && (selAnchor > caretPos ))) {
 		sprintf(temp, "%d", selLastLine - selFirstLine);
 	} else {
 		sprintf(temp, "%d", selLastLine - selFirstLine + 1);
@@ -2452,7 +2422,7 @@ void SciTEBase::ConvertIndentation(int tabSize, int useTabs) {
 
 bool SciTEBase::RangeIsAllWhitespace(int start, int end) {
 	TextReader acc(wEditor);
-	for (int i = start;i < end;i++) {
+	for (int i = start; i < end; i++) {
 		if ((acc[i] != ' ') && (acc[i] != '\t'))
 			return false;
 	}
@@ -2612,6 +2582,40 @@ void SciTEBase::AutomaticIndentation(char ch) {
 	int thisLineStart = wEditor.Call(SCI_POSITIONFROMLINE, curLine);
 	int indentSize = wEditor.Call(SCI_GETINDENT);
 	int indentBlock = IndentOfBlock(curLine - 1);
+
+	if ((wEditor.Call(SCI_GETLEXER) == SCLEX_PYTHON) &&
+			(props.GetInt("indent.python.colon") == 1)) {
+		int eolMode = wEditor.Call(SCI_GETEOLMODE);
+		int eolChar = (eolMode == SC_EOL_CR ? '\r' : '\n');
+		int eolChars = (eolMode == SC_EOL_CRLF ? 2 : 1);
+		int prevLineStart = wEditor.Call(SCI_POSITIONFROMLINE, curLine - 1);
+		int prevIndentPos = GetLineIndentPosition(curLine - 1);
+		int indentExisting = GetLineIndentation(curLine);
+
+		if (ch == eolChar) {
+			// Find last noncomment, nonwhitespace character on previous line
+			int character = 0;
+			int style = 0;
+			for (int p = selStart - eolChars - 1; p > prevLineStart; p--) {
+				style = wEditor.Call(SCI_GETSTYLEAT, p);
+				if (style != SCE_P_DEFAULT && style != SCE_P_COMMENTLINE &&
+						style != SCE_P_COMMENTBLOCK) {
+					character = wEditor.Call(SCI_GETCHARAT, p);
+					break;
+				}
+			}
+			indentBlock = GetLineIndentation(curLine - 1);
+			if (style == SCE_P_OPERATOR && character == ':') {
+				SetLineIndentation(curLine, indentBlock + indentSize);
+			} else if (selStart == prevIndentPos + eolChars) {
+				// Preserve the indentation of preexisting text beyond the caret
+				SetLineIndentation(curLine, indentBlock + indentExisting);
+			} else {
+				SetLineIndentation(curLine, indentBlock);
+			}
+		}
+		return;
+	}
 
 	if (blockEnd.IsSingleChar() && ch == blockEnd.words[0]) {	// Dedent maybe
 		if (!indentClosing) {
@@ -2807,8 +2811,8 @@ SString SciTEBase::FindOpenXmlTag(const char sel[], int nSize) {
 		// Smallest tag is "<p>" which is 3 characters
 		return strRet;
 	}
-	const char* pBegin = &sel[0];
-	const char* pCur = &sel[nSize - 1];
+	const char *pBegin = &sel[0];
+	const char *pCur = &sel[nSize - 1];
 
 	pCur--; // Skip past the >
 	while (pCur > pBegin) {
@@ -2946,6 +2950,14 @@ void SciTEBase::SetLineNumberWidth() {
 		wEditor.Call(SCI_SETMARGINWIDTHN, 0, 0);
 	}
 }
+
+void DONATE_MSG(){
+		TCHAR *msg = 
+			TEXT("如果您愿意捐助thesnoW的汉化/论坛(硬盘或者RMB),请联系:\n")
+			TEXT("thegfw#Gmail.com,thesnoW#QQ.com\n\n")
+			TEXT("当然,互联网是免费的.我知道您是不小心点到这个对话框的.囧.\n");
+		MessageBox(0, msg,TEXT("我点到什么东西了?"), MB_OK | MB_ICONWARNING);
+};
 
 void SciTEBase::MenuCommand(int cmdID, int source) {
 	GUI::gui_string sfile;
@@ -3890,6 +3902,19 @@ void SciTEBase::NewLineInOutput() {
 void SciTEBase::Notify(SCNotification *notification) {
 	bool handled = false;
 	switch (notification->nmhdr.code) {
+	case SCN_PAINTED:
+		// Manage delay before highlight when no user selection but there is word at the caret.
+		// So the Delay is based on the blinking of caret, scroll...
+		// If currentWordHighlight.statesOfDelay == currentWordHighlight.delay,
+		// then there is word at the caret without selection, and need some delay.
+		if (currentWordHighlight.statesOfDelay == currentWordHighlight.delay) {
+			if (currentWordHighlight.elapsedTimes.Duration() >= 0.5) {
+				currentWordHighlight.statesOfDelay = currentWordHighlight.delayJustEnded;
+				HighlightCurrentWord(true);
+				(wOutput.HasFocus() ? wOutput : wEditor).InvalidateAll();
+			}
+		}
+		break;
 	case SCEN_SETFOCUS:
 	case SCEN_KILLFOCUS:
 		CheckMenus();
@@ -3974,6 +3999,14 @@ void SciTEBase::Notify(SCNotification *notification) {
 		}
 		if (CurrentBuffer()->findMarks == Buffer::fmModified) {
 			RemoveFindMarks();
+		}
+		if (notification->updated & (SC_UPDATE_SELECTION | SC_UPDATE_CONTENT)) {
+			if (notification->updated & SC_UPDATE_SELECTION)
+				currentWordHighlight.statesOfDelay = currentWordHighlight.noDelay; // Selection has just been updated, so delay is disabled.
+			if (currentWordHighlight.statesOfDelay != currentWordHighlight.delayJustEnded)
+				HighlightCurrentWord(notification->updated != SC_UPDATE_CONTENT);
+			else
+				currentWordHighlight.statesOfDelay = currentWordHighlight.delayAlreadyElapsed;
 		}
 		break;
 
@@ -4401,7 +4434,7 @@ bool SciTEBase::RecordMacroCommand(SCNotification *notification) {
 		char *szMessage;
 		char *t;
 		bool handled;
-		t = (char*)(notification->lParam);
+		t = (char *)(notification->lParam);
 		SString sWParam(static_cast<size_t>(notification->wParam));
 		if (t != NULL) {
 			//format : "<message>;<wParam>;1;<text>"
@@ -4501,6 +4534,7 @@ void SciTEBase::ExecuteMacroCommand(const char *command) {
 
 	uptr_t message = ReadNum(nextarg);
 	strncpy(params, nextarg, 3);
+	params[3] = '\0';
 	nextarg += 4;
 	if (*(params + 1) == 'R') {
 		// in one function wParam is a string  : void SetProperty(string key,string name)

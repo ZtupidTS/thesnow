@@ -2,7 +2,7 @@
 /** @file SciTEBase.h
  ** Definition of platform independent base class of editor.
  **/
-// Copyright 1998-2010 by Neil Hodgson <neilh@scintilla.org>
+// Copyright 1998-2011 by Neil Hodgson <neilh@scintilla.org>
 // The License.txt file describes the conditions under which this software may be distributed.
 
 extern const GUI::gui_char appName[];
@@ -209,6 +209,24 @@ struct StyleAndWords {
 	bool IsSingleChar() { return words.length() == 1; }
 };
 
+struct CurrentWordHighlight {
+	enum {
+		noDelay,            // No delay, and no word at the caret.
+		delay,              // Delay before to highlight the word at the caret.
+		delayJustEnded,     // Delay has just ended. This state allows to ignore next HighlightCurrentWord (SCN_UPDATEUI and SC_UPDATE_CONTENT for setting indicators).
+		delayAlreadyElapsed // Delay has already elapsed, word at the caret and occurrences are (or have to be) highlighted.
+	} statesOfDelay;
+	bool isEnabled;
+	GUI::ElapsedTime elapsedTimes;
+	bool isOnlyWithSameStyle;
+
+	CurrentWordHighlight() {
+		statesOfDelay = noDelay;
+		isEnabled = false;
+		isOnlyWithSameStyle = false;
+	}
+};
+
 class Localization : public PropSetFile, public ILocalize {
 	SString missing;
 public:
@@ -291,7 +309,7 @@ protected:
 	FilePath importFiles[importMax];
 	enum { importCmdID = IDM_IMPORT };
 
-	enum { indicatorMatch = INDIC_CONTAINER };
+	enum { indicatorMatch = INDIC_CONTAINER, indicatorHightlightCurrentWord };
 	enum { markerBookmark = 1 };
 	ComboMemory memFiles;
 	ComboMemory memDirectory;
@@ -338,7 +356,6 @@ protected:
 	GUI::Window wStatusBar;
 	GUI::Window wTabBar;
 	GUI::Menu popup;
-	HMENU hmenuPop;		//added by SetImportMenu
 	bool tbVisible;
 	bool tabVisible;
 	bool tabHideOne; // Hide tab bar if one buffer is opened only
@@ -774,7 +791,7 @@ protected:
 	void StopRecordMacro();
 	void StartPlayMacro();
 	bool RecordMacroCommand(SCNotification *notification);
-	void ExecuteMacroCommand(const char * command);
+	void ExecuteMacroCommand(const char *command);
 	void AskMacroList();
 	bool StartMacroList(const char *words);
 	void ContinueMacroList(const char *stxt);
@@ -786,6 +803,7 @@ protected:
 	    grepNone = 0, grepWholeWord = 1, grepMatchCase = 2, grepStdOut = 4,
 	    grepDot = 8, grepBinary = 16
 	};
+	virtual bool GrepIntoDirectory(const FilePath &directory);
 	void GrepRecursive(GrepFlags gf, FilePath baseDir, const char *searchString, const GUI::gui_char *fileTypes);
 	void InternalGrep(GrepFlags gf, const GUI::gui_char *directory, const GUI::gui_char *files, const char *search);
 	void EnumProperties(const char *action);
@@ -811,6 +829,9 @@ protected:
 	bool iswordcharforsel(char ch);
 	bool isfilenamecharforsel(char ch);
 	bool islexerwordcharforsel(char ch);
+
+	CurrentWordHighlight currentWordHighlight;
+	void HighlightCurrentWord(bool highlight);
 public:
 
 	enum { maxParam = 4 };

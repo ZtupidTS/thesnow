@@ -263,6 +263,7 @@ typedef sptr_t (*SciFnDirect)(sptr_t ptr, unsigned int iMessage, uptr_t wParam, 
 #define INDIC_HIDDEN 5
 #define INDIC_BOX 6
 #define INDIC_ROUNDBOX 7
+#define INDIC_STRAIGHTBOX 8
 #define INDIC_MAX 31
 #define INDIC_CONTAINER 8
 #define INDIC0_MASK 0x20
@@ -572,7 +573,9 @@ typedef sptr_t (*SciFnDirect)(sptr_t ptr, unsigned int iMessage, uptr_t wParam, 
 #define SCI_MOVECARETINSIDEVIEW 2401
 #define SCI_LINELENGTH 2350
 #define SCI_BRACEHIGHLIGHT 2351
+#define SCI_BRACEHIGHLIGHTINDICATOR 2498
 #define SCI_BRACEBADLIGHT 2352
+#define SCI_BRACEBADLIGHTINDICATOR 2499
 #define SCI_BRACEMATCH 2353
 #define SCI_GETVIEWEOL 2355
 #define SCI_SETVIEWEOL 2356
@@ -725,6 +728,8 @@ typedef sptr_t (*SciFnDirect)(sptr_t ptr, unsigned int iMessage, uptr_t wParam, 
 #define SCI_GETKEYSUNICODE 2522
 #define SCI_INDICSETALPHA 2523
 #define SCI_INDICGETALPHA 2524
+#define SCI_INDICSETOUTLINEALPHA 2558
+#define SCI_INDICGETOUTLINEALPHA 2559
 #define SCI_SETEXTRAASCENT 2525
 #define SCI_GETEXTRAASCENT 2526
 #define SCI_SETEXTRADESCENT 2527
