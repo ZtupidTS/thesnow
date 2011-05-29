@@ -2960,7 +2960,6 @@ void DONATE_MSG(){
 };
 
 void SciTEBase::MenuCommand(int cmdID, int source) {
-	GUI::gui_string sfile;
 	switch (cmdID) {
 	case IDM_NEW:
 		// For the New command, the "are you sure" question is always asked as this gives
@@ -3002,6 +3001,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 	case IDM_OPENDIR:
 		if (!filePath.IsUntitled())
 		{
+			GUI::gui_string sfile;
 			sfile=L"\x2fselect,";
 			sfile += filePath.AsInternal();
 			ShellExecute(NULL,L"OPEN",L"Explorer.exe",sfile.c_str(),L"",SW_SHOW);
@@ -3079,78 +3079,6 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		}
 		wEditor.Call(SCI_SETCODEPAGE, codePage);
 		break;
-//----added
-	case IDM_ENCODING_Arabic:					
-		CurrentBuffer()->unicodeMode = static_cast<UniMode>(cmdID - IDM_ENCODING_DEFAULT);
-		codePage=SC_CP_Arabic;
-		wEditor.Call(SCI_SETCODEPAGE, codePage);
-		break;
-	case IDM_ENCODING_Baltic:					
-		CurrentBuffer()->unicodeMode = static_cast<UniMode>(cmdID - IDM_ENCODING_DEFAULT);
-		codePage=SC_CP_Baltic;
-		wEditor.Call(SCI_SETCODEPAGE, codePage);
-		break;
-	case IDM_ENCODING_CHS:					
-		CurrentBuffer()->unicodeMode = static_cast<UniMode>(cmdID - IDM_ENCODING_DEFAULT);
-		codePage=SC_CP_GBK;
-		wEditor.Call(SCI_SETCODEPAGE, codePage);
-		break;
-	case IDM_ENCODING_CHT:					
-		CurrentBuffer()->unicodeMode = static_cast<UniMode>(cmdID - IDM_ENCODING_DEFAULT);
-		codePage=SC_CP_BIG5;
-		wEditor.Call(SCI_SETCODEPAGE, codePage);
-		break;
-	case IDM_ENCODING_Cyrillic:					
-		CurrentBuffer()->unicodeMode = static_cast<UniMode>(cmdID - IDM_ENCODING_DEFAULT);
-		codePage=SC_CP_Cyrillic;
-		wEditor.Call(SCI_SETCODEPAGE, codePage);
-		break;
-	case IDM_ENCODING_Greek:					
-		CurrentBuffer()->unicodeMode = static_cast<UniMode>(cmdID - IDM_ENCODING_DEFAULT);
-		codePage=SC_CP_Greek;
-		wEditor.Call(SCI_SETCODEPAGE, codePage);
-		break;
-	case IDM_ENCODING_Hebrew:					
-		CurrentBuffer()->unicodeMode = static_cast<UniMode>(cmdID - IDM_ENCODING_DEFAULT);
-		codePage=SC_CP_Hebrew;
-		wEditor.Call(SCI_SETCODEPAGE, codePage);
-		break;
-	case IDM_ENCODING_Latin1:					
-		CurrentBuffer()->unicodeMode = static_cast<UniMode>(cmdID - IDM_ENCODING_DEFAULT);
-		codePage=SC_CP_Latin1;
-		wEditor.Call(SCI_SETCODEPAGE, codePage);
-		break;
-	case IDM_ENCODING_Latin2:					
-		CurrentBuffer()->unicodeMode = static_cast<UniMode>(cmdID - IDM_ENCODING_DEFAULT);
-		codePage=SC_CP_Latin2;
-		wEditor.Call(SCI_SETCODEPAGE, codePage);
-		break;
-	case IDM_ENCODING_Latin5:					
-		CurrentBuffer()->unicodeMode = static_cast<UniMode>(cmdID - IDM_ENCODING_DEFAULT);
-		codePage=SC_CP_Latin5;
-		wEditor.Call(SCI_SETCODEPAGE, codePage);
-		break;
-	case IDM_ENCODING_Japanese:					
-		CurrentBuffer()->unicodeMode = static_cast<UniMode>(cmdID - IDM_ENCODING_DEFAULT);
-		codePage=SC_CP_Japanese;
-		wEditor.Call(SCI_SETCODEPAGE, codePage);
-		break;
-	case IDM_ENCODING_Korean:					
-		CurrentBuffer()->unicodeMode = static_cast<UniMode>(cmdID - IDM_ENCODING_DEFAULT);
-		codePage=SC_CP_Korean;
-		wEditor.Call(SCI_SETCODEPAGE, codePage);
-		break;
-	case IDM_ENCODING_VietNam:					
-		CurrentBuffer()->unicodeMode = static_cast<UniMode>(cmdID - IDM_ENCODING_DEFAULT);
-		codePage=SC_CP_VietNam;
-		wEditor.Call(SCI_SETCODEPAGE, codePage);
-		break;
-	case IDM_ENCODING_Thai:					
-		CurrentBuffer()->unicodeMode = static_cast<UniMode>(cmdID - IDM_ENCODING_DEFAULT);
-		codePage=SC_CP_Thai;
-		wEditor.Call(SCI_SETCODEPAGE, codePage);
-		break;
-//----added
 	case IDM_NEXTFILESTACK:
 		if (buffers.size > 1 && props.GetInt("buffers.zorder.switching")) {
 			NextInStack(); // next most recently selected buffer
