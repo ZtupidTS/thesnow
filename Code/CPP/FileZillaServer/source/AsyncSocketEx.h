@@ -136,11 +136,9 @@ public:
 
 	//Gets the address of the peer socket to which the socket is connected.
 	BOOL GetPeerName( CStdString& rPeerAddress, UINT& rPeerPort );
-	BOOL GetPeerName( SOCKADDR* lpSockAddr, int* lpSockAddrLen );
 
 	//Gets the local name for a socket.
 	BOOL GetSockName( CStdString& rSocketAddress, UINT& rSocketPort );
-	BOOL GetSockName( SOCKADDR* lpSockAddr, int* lpSockAddrLen );
 
 	//Retrieves a socket option.
 	BOOL GetSockOpt(int nOptionName, void* lpOptionValue, int* lpOptionLen, int nLevel = SOL_SOCKET);
@@ -329,6 +327,10 @@ protected:
 	// Pending callbacks
 	std::list<t_callbackMsg> m_pendingCallbacks;
 #endif // NOLAYERS
+
+private:
+	BOOL GetPeerName( SOCKADDR* lpSockAddr, int* lpSockAddrLen );
+	BOOL GetSockName( SOCKADDR* lpSockAddr, int* lpSockAddrLen );
 };
 
 #ifndef NOLAYERS

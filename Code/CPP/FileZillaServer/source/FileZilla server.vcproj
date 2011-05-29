@@ -49,9 +49,10 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
+				AdditionalOptions="/w44996"
 				Optimization="0"
 				AdditionalIncludeDirectories="&quot;$(ProjectDir)includes&quot;;&quot;C:\dev\libraries\zlib-1.2.3&quot;"
-				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;SERVICE"
+				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;SERVICE;_SCL_SECURE_NO_WARNINGS"
 				MinimalRebuild="false"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
@@ -79,6 +80,7 @@
 				Name="VCPreLinkEventTool"
 				Description="Terminate service..."
 				CommandLine="if EXIST &quot;$(OutDir)\FileZilla Server.exe&quot; &quot;$(OutDir)\FileZilla Server.exe&quot; /stop&#x0D;&#x0A;if EXIST &quot;$(OutDir)\FileZilla Server.exe&quot; &quot;$(OutDir)\FileZilla Server.exe&quot; /compat /stop&#x0D;&#x0A;if EXIST &quot;$(OutDir)\FileZilla Server.exe&quot; &quot;$(OutDir)\FileZilla Server.exe&quot; /uninstall&#x0D;&#x0A;"
+				ExcludedFromBuild="true"
 			/>
 			<Tool
 				Name="VCLinkerTool"
@@ -118,6 +120,7 @@
 			<Tool
 				Name="VCPostBuildEventTool"
 				CommandLine="&quot;$(OutDir)\FileZilla Server.exe&quot; /stop&#x0D;&#x0A;&quot;$(OutDir)\FileZilla Server.exe&quot; /uninstall&#x0D;&#x0A;"
+				ExcludedFromBuild="true"
 			/>
 		</Configuration>
 		<Configuration

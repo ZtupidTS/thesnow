@@ -29,10 +29,10 @@ public:
 
 	void PurgeOutdated();
 
-	bool IsBanned(const DWORD ip);
+	bool IsBanned(const CStdString& ip);
 
 	// Returns true if address got banned
-	bool RegisterAttempt(const DWORD ip);
+	bool RegisterAttempt(const CStdString& ip);
 
 protected:
 
@@ -44,8 +44,8 @@ protected:
 		time_t time;
 	};
 
-	static std::map<DWORD, time_t> m_banMap;
-	static std::map<DWORD, t_attemptInfo> m_attemptMap;
+	static std::map<CStdString, time_t> m_banMap;
+	static std::map<CStdString, t_attemptInfo> m_attemptMap;
 
 	static CCriticalSectionWrapper m_sync;
 

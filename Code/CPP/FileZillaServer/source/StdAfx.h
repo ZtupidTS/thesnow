@@ -102,7 +102,7 @@ typedef struct
 
 typedef struct
 {
-	TCHAR ip[16];
+	TCHAR ip[40];
 	LPTSTR user;
 	SYSTEMTIME time;
 	UINT userid;
@@ -119,7 +119,7 @@ typedef struct
 	CStdString user;
 
 	// Set only by USERCONTROL_CONNOP_ADD messages
-	TCHAR ip[16];
+	TCHAR ip[40];
 	unsigned int port;
 	CServerThread *pThread;
 
@@ -133,7 +133,7 @@ typedef struct
 
 struct t_connectiondata_add
 {
-	TCHAR ip[16];
+	TCHAR ip[40];
 	unsigned int port;
 	CServerThread *pThread;
 };

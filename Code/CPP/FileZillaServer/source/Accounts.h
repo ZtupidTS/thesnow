@@ -51,7 +51,7 @@ public:
 	virtual int GetCurrentSpeedLimit(sltype type) const;
 	virtual bool BypassServerSpeedLimit(sltype type) const;
 
-	bool AccessAllowed(SOCKADDR_IN sockAddr) const;
+	bool AccessAllowed(const CStdString& ip) const;
 
 	virtual t_group& t_group::operator=(const t_group &a);
 

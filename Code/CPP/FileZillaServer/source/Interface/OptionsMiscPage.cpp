@@ -57,7 +57,7 @@ void COptionsMiscPage::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_OPTIONS_TRANSFERBUFFERSIZE, m_TransferBufferSize);
 	DDV_MaxChars(pDX, m_TransferBufferSize, 6);
 	DDX_Text(pDX, IDC_OPTIONS_TRANSFERBUFFERSIZE2, m_TransferBufferSize2);
-	DDV_MaxChars(pDX, m_TransferBufferSize2, 6);
+	DDV_MaxChars(pDX, m_TransferBufferSize2, 8);
 	DDX_Check(pDX, IDC_SHAREWRITE, m_bSharedWrite);
 	DDX_Check(pDX, IDC_ACTIVE_IGNORELOCAL, m_bActiveIgnoreLocal);
 	//}}AFX_DATA_MAP

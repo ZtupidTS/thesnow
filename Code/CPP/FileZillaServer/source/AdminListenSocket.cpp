@@ -35,8 +35,7 @@ void CAdminListenSocket::OnAccept(int nErrorCode)
 	{
 		//Validate IP address
 		CStdString ip = ConvFromLocal(inet_ntoa(sockAddr.sin_addr));
-		unsigned int nIp = htonl(sockAddr.sin_addr.s_addr);
-		if (ip != _T("127.0.0.1"))
+		if (!IsLocalhost(ip))
 		{
 			COptions options;
 			bool allowed = false;
@@ -52,7 +51,7 @@ void CAdminListenSocket::OnAccept(int nErrorCode)
 				ips = ips.Mid(pos + 1);
 				pos = ips.Find(' ');
 
-				if ((allowed = MatchesFilter(filter, nIp, ip)))
+				if ((allowed = MatchesFilter(filter, ip)))
 					break;
 			}
 

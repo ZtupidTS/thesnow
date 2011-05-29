@@ -1,5 +1,5 @@
-<p align="center"><b><u>FileZilla Server version 0.9.37 beta</u></b></p>
-<p align="center">Copyright 2001-2010<br>
+<p align="center"><b><u>FileZilla Server version 0.9.38 beta</u></b></p>
+<p align="center">Copyright 2001-2011<br>
 by <a href="mailto:Tim.Kosse@gmx.de">Tim Kosse</a><a href="http://sourceforge.net/projects/filezilla/"><br>
 http://sourceforge.net/projects/filezilla/</a></p>
 <p align="left"><u><b>Features:</b></u></p>
@@ -67,6 +67,26 @@ as restoring it to normal size.</p>
 </table>
 <p align="left"><b><u>Version History:</u></b></p>
 <p>For a more detailed list of changes, please have a look at the CVS changelog located at <a href="http://filezilla-project.org/changelog.php?type=2">http://filezilla-project.org/changelog.php?type=2</a>.</p>
+<p><b>Version 0.9.37</b></p>
+<blockquote>
+  <u>New features:</u>
+  <ul>
+    <li>IPv6 support</li>
+  </ul>
+  <u>Incompatible changes:</u>
+  <ul>
+    <li>Range, wildcard, regular expression and dot-decimal notation subnet IP address filters have been removed. These filter rules need to be recreated using CIDR notation.</li>
+  </ul>
+  <u>Fixed bugs:</u>
+  <ul>
+    <li>Upon /reload-config, notify all running instances, not just the first found.</li>
+    <li>Report correct physical path of aliases in administration interface</li>
+    <li>Fix reply code on permanent bans, not of 5yz type</li>
+    <li>Increased default size of socket buffers</li>
+    <li>Fix a crash when entering invalid IP filters</li>
+    <li>Fixed a crash when a connection closes</li>
+  </ul>
+</blockquote
 <p><b>Version 0.9.37</b></p>
 <blockquote>
   <u>Fixed bugs:</u>

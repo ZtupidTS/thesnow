@@ -78,7 +78,7 @@ public:
 	 */
 	void GetNotifications(std::list<CServerThread::t_Notification>& list);
 
-	void AntiHammerIncrease(DWORD ip);
+	void AntiHammerIncrease(const CStdString& ip);
 	
 	CHashThread& GetHashThread();
 
@@ -132,7 +132,7 @@ protected:
 
 	int m_nNotificationMessageId;
 
-	static std::map<DWORD, int> m_antiHammerInfo;
+	static std::map<CStdString, int> m_antiHammerInfo;
 	int m_antiHammerTimer;
 
 	static CHashThread* m_hashThread;

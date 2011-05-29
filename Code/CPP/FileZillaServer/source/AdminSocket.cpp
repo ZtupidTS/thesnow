@@ -25,6 +25,7 @@
 #include "AdminInterface.h"
 #include "OptionTypes.h"
 #include "misc\md5.h"
+#include "iputils.h"
 #include "Options.h"
 #include "version.h"
 
@@ -75,14 +76,11 @@ BOOL CAdminSocket::Init()
 	memcpy(p, &PROTOCOL_VERSION, 4);
 	p+=4;
 
-	SOCKADDR_IN sockAddr;
-	memset(&sockAddr, 0, sizeof(sockAddr));
-
-	int nSockAddrLen = sizeof(sockAddr);
-	
 	COptions options;
 	CStdString pass = options.GetOption(OPTION_ADMINPASS);
-	if (GetPeerName((SOCKADDR*)&sockAddr, &nSockAddrLen) && sockAddr.sin_addr.S_un.S_addr == 0x0100007f && pass == _T(""))
+	CStdString peerAddress;
+	UINT port = 0;
+	if (GetPeerName(peerAddress, port) && IsLocalhost(peerAddress) && pass == _T(""))
 	{
 		BOOL res = Send(buffer, p-buffer) == p - buffer;
 		delete [] buffer;
@@ -196,11 +194,17 @@ void CAdminSocket::OnReceive(int nErrorCode)
 		if (m_nRecvBufferLen-m_nRecvBufferPos < (BUFSIZE/4))
 		{
 			unsigned char *tmp=m_pRecvBuffer;
-			m_nRecvBufferLen += BUFSIZE;
+			m_nRecvBufferLen *= 2;
 			m_pRecvBuffer = new unsigned char[m_nRecvBufferLen];
 			memcpy(m_pRecvBuffer, tmp, m_nRecvBufferPos);
 			delete [] tmp;
 		}
+		int parseResult;
+		while ((parseResult = ParseRecvBuffer()) > 0);
+
+		if (parseResult == -1)
+			return;
+
 		numread = Receive(m_pRecvBuffer + m_nRecvBufferPos, m_nRecvBufferLen - m_nRecvBufferPos);
 	}
 	if (numread == 0)

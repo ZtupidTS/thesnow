@@ -469,17 +469,14 @@ bool t_group::IsEnabled() const
 	}
 }
 
-bool t_group::AccessAllowed(SOCKADDR_IN sockAddr) const
+bool t_group::AccessAllowed(const CStdString& ip) const
 {
-	unsigned int ip = htonl(sockAddr.sin_addr.s_addr);
-	CStdString ipStr = ConvFromLocal(inet_ntoa(sockAddr.sin_addr));
-
 	bool disallowed = false;
 
 	std::list<CStdString>::const_iterator iter;
 	for (iter = disallowedIPs.begin(); iter != disallowedIPs.end(); iter++)
 	{
-		if (disallowed = MatchesFilter(*iter, ip, ipStr))
+		if (disallowed = MatchesFilter(*iter, ip))
 			break;
 	}
 
@@ -488,18 +485,18 @@ bool t_group::AccessAllowed(SOCKADDR_IN sockAddr) const
 		if (!pOwner)
 			return true;
 
-		if (pOwner->AccessAllowed(sockAddr))
+		if (pOwner->AccessAllowed(ip))
 			return true;
 	}
 
 	for (iter = allowedIPs.begin(); iter != allowedIPs.end(); iter++)
 	{
-		if (MatchesFilter(*iter, ip, ipStr))
+		if (MatchesFilter(*iter, ip))
 			return true;
 	}
 
 	if (pOwner && !disallowed)
-		return pOwner->AccessAllowed(sockAddr);
+		return pOwner->AccessAllowed(ip);
 
 	return false;
 }
