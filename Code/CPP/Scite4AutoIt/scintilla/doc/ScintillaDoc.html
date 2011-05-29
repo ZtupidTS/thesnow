@@ -79,7 +79,7 @@
 
     <h1>Scintilla Documentation</h1>
 
-    <p>Last edited 12/May/2011 NH</p>
+    <p>Last edited 21/May/2011 NH</p>
 
     <p>There is <a class="jump" href="Design.html">an overview of the internal design of
     Scintilla</a>.<br />
@@ -1112,6 +1112,8 @@ struct Sci_TextToFind {
      <a class="message" href="#SCI_TEXTWIDTH">SCI_TEXTWIDTH(int styleNumber, const char *text)</a><br />
      <a class="message" href="#SCI_TEXTHEIGHT">SCI_TEXTHEIGHT(int line)</a><br />
      <a class="message" href="#SCI_CHOOSECARETX">SCI_CHOOSECARETX</a><br />
+     <a class="message" href="#SCI_MOVESELECTEDLINESUP">SCI_MOVESELECTEDLINESUP</a><br />
+     <a class="message" href="#SCI_MOVESELECTEDLINESDOWN">SCI_MOVESELECTEDLINESDOWN</a><br />
     </code>
 
     <p><b id="SCI_GETTEXTLENGTH">SCI_GETTEXTLENGTH</b><br />
@@ -1456,6 +1458,16 @@ struct Sci_TextToFind {
     user and this value is then used when moving vertically such as by using the up and down keys.
     This message sets the current x position of the caret as the remembered value.</p>
 
+    <p><b id="SCI_MOVESELECTEDLINESUP">SCI_MOVESELECTEDLINESUP</b><br />
+     Move the selected lines up one line, shifting the line above after the selection.
+     The selection will be automatically extended to the beginning of the selection's first line and the end of the seletion's last line.
+     If nothing was selected, the line the cursor is currently at will be selected.</p>
+
+    <p><b id="SCI_MOVESELECTEDLINESDOWN">SCI_MOVESELECTEDLINESDOWN</b><br />
+     Move the selected lines down one line, shifting the line below before the selection.
+     The selection will be automatically extended to the beginning of the selection's first line and the end of the seletion's last line.
+     If nothing was selected, the line the cursor is currently at will be selected.</p>
+
     <h2 id="MultipleSelectionAndVirtualSpace">Multiple Selection and Virtual Space</h2>
 
     <code>
@@ -1547,7 +1559,8 @@ struct Sci_TextToFind {
     <p>
     <b id="SCI_SETMULTIPLESELECTION">SCI_SETMULTIPLESELECTION(bool multipleSelection)</b><br />
     <b id="SCI_GETMULTIPLESELECTION">SCI_GETMULTIPLESELECTION</b><br />
-     Enable or disable multiple selection.</p>
+     Enable or disable multiple selection. When multiple selection is disabled, it is not possible to select
+     multiple ranges by holding down the Ctrl key while dragging with the mouse.</p>
 
     <p>
     <b id="SCI_SETADDITIONALSELECTIONTYPING">SCI_SETADDITIONALSELECTIONTYPING(bool additionalSelectionTyping)</b><br />
@@ -4336,6 +4349,12 @@ struct Sci_TextToFind {
 
           <td><code>SCI_VERTICALCENTRECARET</code></td>
 
+        </tr>
+
+        <tr>
+          <td><code>SCI_MOVESELECTEDLINESUP</code></td>
+
+          <td><code>SCI_MOVESELECTEDLINESDOWN</code></td>
         </tr>
      </tbody>
     </table>
