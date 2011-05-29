@@ -27,6 +27,7 @@
 #include "AsyncGssSocketLayer.h"
 #include "AsyncSslSocketLayer.h"
 #include "Permissions.h"
+#include "iputils.h"
 
 #ifdef _DEBUG
 #undef THIS_FILE
@@ -47,7 +48,7 @@ CTransferSocket::CTransferSocket(CControlSocket *pOwner)
 	m_nBufferPos = NULL;
 	m_pBuffer = NULL;
 	m_pDirListing = NULL;
-	bAccepted = FALSE;
+	m_bAccepted = FALSE;
 
 	m_bSentClose = FALSE;
 
@@ -703,7 +704,7 @@ void CTransferSocket::OnAccept(int nErrorCode)
 	SOCKET socket=tmp.Detach();
 	Close();
 	Attach(socket);
-	bAccepted=TRUE;
+	m_bAccepted = TRUE;
 
 	int size = (int)m_pOwner->m_pOwner->m_pOptions->GetOptionVal(OPTION_BUFFERSIZE2);
 	if (size > 0)
@@ -888,7 +889,7 @@ void CTransferSocket::OnReceive(int nErrorCode)
 
 void CTransferSocket::PasvTransfer()
 {
-	if(bAccepted)
+	if (m_bAccepted)
 		if (!m_bStarted)
 			InitTransfer(FALSE);
 	if (m_premature_send)
@@ -900,74 +901,80 @@ void CTransferSocket::PasvTransfer()
 
 BOOL CTransferSocket::InitTransfer(BOOL bCalledFromSend)
 {
-	if (m_nMode==TRANSFERMODE_RECEIVE)
-	{ //Uploads from client
-		if (!m_pOwner->m_pOwner->m_pOptions->GetOptionVal(OPTION_INFXP))
-		{ //Check if the IP of the remote machine is valid
-			CStdString OwnerIP,TransferIP;
+	int optAllowServerToServer, optStrictFilter;
 
-			SOCKADDR_IN sockAddr;
-			memset(&sockAddr, 0, sizeof(sockAddr));
-			int nSockAddrLen = sizeof(sockAddr);
-			BOOL bResult = m_pOwner->GetSockName((SOCKADDR*)&sockAddr, &nSockAddrLen);
-			if (bResult)
-				OwnerIP = inet_ntoa(sockAddr.sin_addr);
-
-			memset(&sockAddr, 0, sizeof(sockAddr));
-			nSockAddrLen = sizeof(sockAddr);
-			bResult = GetSockName((SOCKADDR*)&sockAddr, &nSockAddrLen);
-			if (bResult)
-				TransferIP = inet_ntoa(sockAddr.sin_addr);
-
-			if (!m_pOwner->m_pOwner->m_pOptions->GetOptionVal(OPTION_NOINFXPSTRICT))
-			{
-				OwnerIP.Left(OwnerIP.ReverseFind('.'));
-				TransferIP.Left(OwnerIP.ReverseFind('.'));
-			}
-			if (OwnerIP != TransferIP && OwnerIP != _T("127.0.0.1") && TransferIP != _T("127.0.0.1"))
-			{
-				EndTransfer(5);
-				return FALSE;
-			}
-		}
-		AsyncSelect(FD_READ|FD_CLOSE);
+	if (m_nMode == TRANSFERMODE_RECEIVE)
+	{
+		optAllowServerToServer = OPTION_INFXP;
+		optStrictFilter = OPTION_NOINFXPSTRICT;
 	}
 	else
-	{ //Send files or directory listing to client
-		if (!m_pOwner->m_pOwner->m_pOptions->GetOptionVal(OPTION_OUTFXP))
-		{ //Check if remote IP is valid
-			CStdString OwnerIP, TransferIP;
+	{
+		optAllowServerToServer = OPTION_OUTFXP;
+		optStrictFilter = OPTION_NOOUTFXPSTRICT;
+	}
 
-			SOCKADDR_IN sockAddr;
-			memset(&sockAddr, 0, sizeof(sockAddr));
-			int nSockAddrLen = sizeof(sockAddr);
-			BOOL bResult = m_pOwner->GetSockName((SOCKADDR*)&sockAddr, &nSockAddrLen);
-			if (bResult)
-				OwnerIP = inet_ntoa(sockAddr.sin_addr);
+	if (!m_pOwner->m_pOwner->m_pOptions->GetOptionVal(optAllowServerToServer))
+	{ //Check if the IP of the remote machine is valid
+		CStdString OwnerIP, TransferIP;
+		UINT port = 0;
 
-			memset(&sockAddr, 0, sizeof(sockAddr));
-			nSockAddrLen = sizeof(sockAddr);
-			bResult = GetSockName((SOCKADDR*)&sockAddr, &nSockAddrLen);
-			if (bResult)
-				TransferIP = inet_ntoa(sockAddr.sin_addr);
+		SOCKADDR_IN sockAddr;
+		memset(&sockAddr, 0, sizeof(sockAddr));
+		int nSockAddrLen = sizeof(sockAddr);
+		if (!m_pOwner->GetSockName(OwnerIP, port))
+		{
+			EndTransfer(5);
+			return FALSE;
+		}
 
-			if (!m_pOwner->m_pOwner->m_pOptions->GetOptionVal(OPTION_NOOUTFXPSTRICT))
+		if (!GetSockName(TransferIP, port))
+		{
+			EndTransfer(5);
+			return FALSE;
+		}
+
+		if (!IsLocalhost(OwnerIP) && !IsLocalhost(TransferIP))
+		{
+			
+			if (GetFamily() == AF_INET6)
 			{
-				OwnerIP.Left(OwnerIP.ReverseFind('.'));
-				TransferIP.Left(OwnerIP.ReverseFind('.'));
+				OwnerIP = GetIPV6LongForm(OwnerIP);
+				TransferIP = GetIPV6LongForm(TransferIP);
 			}
-			if (OwnerIP != TransferIP && OwnerIP != _T("127.0.0.1") && TransferIP != _T("127.0.0.1"))
+			
+			if (!m_pOwner->m_pOwner->m_pOptions->GetOptionVal(optStrictFilter))
+			{
+				if (GetFamily() == AF_INET6)
+				{
+					// Assume a /64
+					OwnerIP = OwnerIP.Left(20);
+					TransferIP = TransferIP.Left(20);
+				}
+				else
+				{
+					// Assume a /24
+					OwnerIP = OwnerIP.Left(OwnerIP.ReverseFind('.'));
+					TransferIP = TransferIP.Left(TransferIP.ReverseFind('.'));
+				}
+			}
+
+			if (OwnerIP != TransferIP)
 			{
 				EndTransfer(5);
 				return FALSE;
 			}
 		}
-		AsyncSelect(FD_WRITE|FD_CLOSE);
 	}
 
-	if (bAccepted)
+	if (m_nMode == TRANSFERMODE_RECEIVE)
+		AsyncSelect(FD_READ|FD_CLOSE);
+	else
+		AsyncSelect(FD_WRITE|FD_CLOSE);
+	
+	if (m_bAccepted)
 	{
-		CStdString str= _T("150 Connection accepted");
+		CStdString str = _T("150 Connection accepted");
 		if (m_nRest)
 			str.Format(_T("150 Connection accepted, restarting at offset %I64d"), m_nRest);
 		m_pOwner->Send(str);

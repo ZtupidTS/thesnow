@@ -20,8 +20,14 @@
 #define CStdString CString
 #endif
 
-bool IsValidAddressFilter(CStdString& filter, bool allowWildcards = true);
-bool MatchesFilter(const CStdString& filter, unsigned int ip, LPCTSTR pIp);
-bool MatchesRegExp(const CStdString& filter, unsigned int addr);
-bool IsUnroutableIP(unsigned int ip);
+bool IsLocalhost(const CStdString& ip);
+bool IsValidAddressFilter(CStdString& filter);
+bool MatchesFilter(CStdString filter, CStdString ip);
+bool IsIpAddress(const CStdString& address);
+
+// Also verifies that it is a correct IPv6 address
+CStdString GetIPV6LongForm(CStdString short_address);
+CStdString GetIPV6ShortForm(const CStdString& ip);
+bool IsRoutableAddress(const CStdString& address);
+
 bool ParseIPFilter(CStdString in, std::list<CStdString>* output = 0);

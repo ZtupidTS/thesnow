@@ -34,6 +34,7 @@ public:
 protected:
 	BOOL CreateListenSocket();
 	BOOL CreateAdminListenSocket();
+	int DoCreateAdminListenSocket(UINT port, LPCTSTR addr, int family);
 	void OnTimer(UINT nIDEvent);
 	BOOL ToggleActive(int nServerState);
 	unsigned int GetNextThreadNotificationID();

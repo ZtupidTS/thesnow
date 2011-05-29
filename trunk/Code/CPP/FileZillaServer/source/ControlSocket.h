@@ -122,6 +122,7 @@ protected:
 		int port;
 		CTransferSocket *socket;
 		bool usedResolvedIP;
+		int family;
 	} m_transferstatus;
 
 	CStdString RenName;

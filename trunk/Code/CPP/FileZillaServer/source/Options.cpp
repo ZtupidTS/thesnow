@@ -214,8 +214,8 @@ void COptions::SetOption(int nOptionID, _int64 value, bool save /*=true*/)
 			value = 32768;
 		break;
 	case OPTION_BUFFERSIZE2:
-		if (value < 256 || value > (1024*1024*1024))
-			value = 65536;
+		if (value < 256 || value > (1024*1024*128))
+			value = 262144;
 		break;
 	case OPTION_CUSTOMPASVIPTYPE:
 		if (value < 0 || value > 2)
@@ -473,7 +473,7 @@ void COptions::SetOption(int nOptionID, LPCTSTR value, bool save /*=true*/)
 			}
 			str = _T("");
 			for (std::list<CStdString>::iterator iter = ipBindList.begin(); iter!=ipBindList.end(); iter++)
-				if (*iter != _T("127.0.0.1"))
+				if (*iter != _T("127.0.0.1") && *iter != _T("::1"))
 					str += *iter + _T(" ");
 
 			str.TrimRight(_T(" "));
@@ -523,6 +523,7 @@ void COptions::SetOption(int nOptionID, LPCTSTR value, bool save /*=true*/)
 			std::list<CStdString> ipBindList;
 			for (unsigned int i = 0; i<_tcslen(value); i++)
 			{
+				// FIXME
 				TCHAR cur = value[i];
 				if ((cur < '0' || cur > '9') && cur != '.')
 				{

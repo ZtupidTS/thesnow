@@ -23,6 +23,7 @@
 #include "stdafx.h"
 #include "AdminSocket.h"
 #include "MainFrm.h"
+#include "../iputils.h"
 #include "../OptionTypes.h"
 #include "../platform.h"
 #include "../misc\md5.h"
@@ -489,5 +490,5 @@ bool CAdminSocket::IsLocal()
 	if (!GetPeerName(ip, port))
 		return false;
 
-	return ip == _T("127.0.0.1");
+	return IsLocalhost(ip);
 }

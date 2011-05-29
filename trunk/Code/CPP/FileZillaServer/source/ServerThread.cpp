@@ -20,6 +20,7 @@
 //
 
 #include "stdafx.h"
+#include "iputils.h"
 #include "ServerThread.h"
 #include "ControlSocket.h"
 #include "transfersocket.h"
@@ -39,7 +40,7 @@ std::map<int, t_socketdata> CServerThread::m_userids;
 CCriticalSectionWrapper CServerThread::m_GlobalThreadsync;
 std::map<CStdString, int> CServerThread::m_userIPs;
 std::list<CServerThread*> CServerThread::m_sInstanceList;
-std::map<DWORD, int> CServerThread::m_antiHammerInfo;
+std::map<CStdString, int> CServerThread::m_antiHammerInfo;
 CHashThread* CServerThread::m_hashThread = 0;
 
 /////////////////////////////////////////////////////////////////////////////
@@ -182,14 +183,21 @@ int CServerThread::CalcUserID()
 void CServerThread::AddNewSocket(SOCKET sockethandle, bool ssl)
 {
 	CControlSocket *socket = new CControlSocket(this);
-	socket->Attach(sockethandle);
+	if (!socket->Attach(sockethandle))
+	{
+		socket->SendStatus(_T("Failed to attach socket."), 1);
+		closesocket(sockethandle);
+		return;
+	}
 
-	SOCKADDR_IN sockAddr;
-	memset(&sockAddr, 0, sizeof(sockAddr));
-	int nSockAddrLen = sizeof(sockAddr);
-	BOOL bResult = socket->GetPeerName((SOCKADDR*)&sockAddr, &nSockAddrLen);
-	if (bResult)
-		socket->m_RemoteIP = inet_ntoa(sockAddr.sin_addr);
+	CStdString ip;
+	UINT port = 0;
+	if (socket->GetPeerName(ip, port))
+	{
+		if (socket->GetFamily() == AF_INET6)
+			ip = GetIPV6ShortForm(ip);
+		socket->m_RemoteIP = ip;
+	}
 	else
 	{
 		socket->m_RemoteIP = _T("ip unknown");
@@ -218,7 +226,7 @@ void CServerThread::AddNewSocket(SOCKET sockethandle, bool ssl)
 	m_userids[userid] = data;
 
 	// Check if remote IP is blocked due to hammering
-	std::map<DWORD, int>::iterator iter = m_antiHammerInfo.find(sockAddr.sin_addr.s_addr);
+	std::map<CStdString, int>::const_iterator iter = m_antiHammerInfo.find(ip);
 	if (iter != m_antiHammerInfo.end() && iter->second > 10)
 		socket->AntiHammerIncrease(25); // ~6 secs delay
 	LeaveCritSection(m_GlobalThreadsync);
@@ -233,7 +241,7 @@ void CServerThread::AddNewSocket(SOCKET sockethandle, bool ssl)
 	op->userid = userid;
 	conndata->pThread = this;
 
-	conndata->port = ntohs(sockAddr.sin_port);
+	conndata->port = port;
 	_tcscpy(conndata->ip, socket->m_RemoteIP);
 
 	SendNotification(FSM_CONNECTIONDATA, (LPARAM)op);
@@ -893,11 +901,11 @@ void CServerThread::GetNotifications(std::list<CServerThread::t_Notification>& l
 	LeaveCritSection(m_threadsync);
 }
 
-void CServerThread::AntiHammerIncrease(DWORD ip)
+void CServerThread::AntiHammerIncrease(const CStdString& ip)
 {
 	EnterCritSection(m_GlobalThreadsync);
 
-	std::map<DWORD, int>::iterator iter = m_antiHammerInfo.find(ip);
+	std::map<CStdString, int>::iterator iter = m_antiHammerInfo.find(ip);
 	if (iter != m_antiHammerInfo.end())
 	{
 		if (iter->second < 20)
@@ -907,7 +915,7 @@ void CServerThread::AntiHammerIncrease(DWORD ip)
 	}
 	if (m_antiHammerInfo.size() >= 1000)
 	{
-		std::map<DWORD, int>::iterator best = m_antiHammerInfo.begin();
+		std::map<CStdString, int>::iterator best = m_antiHammerInfo.begin();
 		for (iter = m_antiHammerInfo.begin(); iter != m_antiHammerInfo.end(); iter++)
 		{
 			if (iter->second < best->second)
@@ -915,7 +923,7 @@ void CServerThread::AntiHammerIncrease(DWORD ip)
 		}
 		m_antiHammerInfo.erase(best);
 	}
-	m_antiHammerInfo.insert(std::map<DWORD, int>::value_type(ip, 1));
+	m_antiHammerInfo.insert(std::make_pair(ip, 1));
 
 	LeaveCritSection(m_GlobalThreadsync);
 }
@@ -924,13 +932,17 @@ void CServerThread::AntiHammerDecrease()
 {
 	EnterCritSection(m_GlobalThreadsync);
 
-	std::map<DWORD, int> newMap;
-	for (std::map<DWORD, int>::iterator iter = m_antiHammerInfo.begin(); iter != m_antiHammerInfo.end(); iter++)
+	std::map<CStdString, int>::iterator iter = m_antiHammerInfo.begin();
+	while (iter != m_antiHammerInfo.end())
 	{
 		if (iter->second > 1)
-			newMap.insert(std::map<DWORD, int>::value_type(iter->first, iter->second - 1));
+		{
+			--(iter->second);
+			++iter;
+		}
+		else
+			m_antiHammerInfo.erase(iter++);
 	}
-	m_antiHammerInfo = newMap;
 	
 	LeaveCritSection(m_GlobalThreadsync);
 }

@@ -33,6 +33,8 @@ CHashThread::~CHashThread()
 	delete [] m_hash;
 	m_sync.Unlock();
 
+	WaitForSingleObject(m_hThread, INFINITE);
+
 	CloseHandle(m_hThread);
 }
 

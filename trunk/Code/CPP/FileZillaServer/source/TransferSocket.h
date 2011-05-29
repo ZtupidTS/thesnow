@@ -96,7 +96,7 @@ protected:
 	char *m_pBuffer;
 	char *m_pBuffer2; // Used by zlib transfers
 	unsigned int m_nBufferPos;
-	BOOL bAccepted;
+	BOOL m_bAccepted;
 	SYSTEMTIME m_LastActiveTime;
 	bool m_wasActiveSinceCheck;
 	CAsyncGssSocketLayer* m_pGssLayer;

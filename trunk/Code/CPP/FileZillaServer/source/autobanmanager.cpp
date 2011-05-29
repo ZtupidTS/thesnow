@@ -21,8 +21,8 @@
 #include "Options.h"
 
 int CAutoBanManager::m_refCount = 0;
-std::map<DWORD, time_t> CAutoBanManager::m_banMap;
-std::map<DWORD, CAutoBanManager::t_attemptInfo> CAutoBanManager::m_attemptMap;
+std::map<CStdString, time_t> CAutoBanManager::m_banMap;
+std::map<CStdString, CAutoBanManager::t_attemptInfo> CAutoBanManager::m_attemptMap;
 
 CCriticalSectionWrapper CAutoBanManager::m_sync;
 
@@ -46,7 +46,7 @@ CAutoBanManager::~CAutoBanManager()
 	m_sync.Unlock();
 }
 
-bool CAutoBanManager::IsBanned(const DWORD ip)
+bool CAutoBanManager::IsBanned(const CStdString& ip)
 {
 	bool enabled = m_pOptions->GetOptionVal(OPTION_AUTOBAN_ENABLE) != 0;
 	if (!enabled)
@@ -59,7 +59,7 @@ bool CAutoBanManager::IsBanned(const DWORD ip)
 	return banned;
 }
 
-bool CAutoBanManager::RegisterAttempt(const DWORD ip)
+bool CAutoBanManager::RegisterAttempt(const CStdString& ip)
 {
 	bool enabled = m_pOptions->GetOptionVal(OPTION_AUTOBAN_ENABLE) != 0;
 	if (!enabled)
@@ -75,7 +75,7 @@ bool CAutoBanManager::RegisterAttempt(const DWORD ip)
 		return true;
 	}
 
-	std::map<DWORD, t_attemptInfo>::iterator iter = m_attemptMap.find(ip);
+	std::map<CStdString, t_attemptInfo>::iterator iter = m_attemptMap.find(ip);
 	if (iter == m_attemptMap.end())
 	{
 		t_attemptInfo info;
@@ -115,13 +115,13 @@ void CAutoBanManager::PurgeOutdated()
 	time_t now = time(0);
 
 	m_sync.Lock();
-	std::map<DWORD, time_t>::iterator iter = m_banMap.begin();
+	std::map<CStdString, time_t>::iterator iter = m_banMap.begin();
 	while (iter != m_banMap.end())
 	{
 		const time_t diff = now - iter->second;
 		if (diff > banTime)
 		{
-			std::map<DWORD, time_t>::iterator remove = iter++;
+			std::map<CStdString, time_t>::iterator remove = iter++;
 			m_banMap.erase(remove);
 		}
 		else
@@ -129,13 +129,13 @@ void CAutoBanManager::PurgeOutdated()
 	}
 
 	{
-		std::map<DWORD, t_attemptInfo>::iterator iter = m_attemptMap.begin();
+		std::map<CStdString, t_attemptInfo>::iterator iter = m_attemptMap.begin();
 		while (iter != m_attemptMap.end())
 		{
 			const time_t diff = now - iter->second.time;
 			if (diff > banTime)
 			{
-				std::map<DWORD, t_attemptInfo>::iterator remove = iter++;
+				std::map<CStdString, t_attemptInfo>::iterator remove = iter++;
 				m_attemptMap.erase(remove);
 			}
 			else

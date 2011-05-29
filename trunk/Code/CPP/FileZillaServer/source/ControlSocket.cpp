@@ -53,6 +53,7 @@ CControlSocket::CControlSocket(CServerThread *pOwner)
 	m_transferstatus.pasv = -1;
 	m_transferstatus.rest = 0;
 	m_transferstatus.type = -1;
+	m_transferstatus.family = AF_UNSPEC;
 	m_bWaitGoOffline = FALSE;
 	GetSystemTime(&m_LastTransferTime);
 	GetSystemTime(&m_LastCmdTime);
@@ -760,6 +761,12 @@ void CControlSocket::ParseCommand()
 		break;
 	case COMMAND_PORT:
 		{
+			if (GetFamily() != AF_INET)
+			{
+				Send(_T("500 You are connected using IPv6. PORT is only for IPv4. You have to use the EPRT command instead."));
+				break;
+			}
+
 			if (m_transferstatus.socket)
 			{
 				SendTransferinfoNotification();
@@ -835,34 +842,37 @@ void CControlSocket::ParseCommand()
 
 			if (m_pOwner->m_pOptions->GetOptionVal(OPTION_ACTIVE_IGNORELOCAL))
 			{
-				SOCKADDR_IN sockAddr;
-				memset(&sockAddr, 0, sizeof(sockAddr));
-				int nSockAddrLen = sizeof(sockAddr);
-				BOOL bResult = GetPeerName((SOCKADDR*)&sockAddr, &nSockAddrLen);
-				if (bResult)
+				CStdString peerAddr;
+				UINT peerPort = 0;
+				if (GetPeerName(peerAddr, peerPort))
 				{
-					unsigned int remoteIP = htonl(sockAddr.sin_addr.s_addr);
-			
-					res = htonl(res);
-					if (IsUnroutableIP(res) && !IsUnroutableIP(remoteIP))
-						ip = inet_ntoa(sockAddr.sin_addr);
+					if (!IsRoutableAddress(ip) && IsRoutableAddress(peerAddr))
+						ip = peerAddr;
 				}
 			}
 
 			m_transferstatus.ip = ip;
 			m_transferstatus.port = port;
 			m_transferstatus.pasv = 0;
+			m_transferstatus.family = AF_INET;
 			Send(_T("200 Port command successful"));
 			break;
 		}
 	case COMMAND_PASV:
 	case COMMAND_PASVSMC:
 		{
+			if (GetFamily() != AF_INET)
+			{
+				Send(_T("500 You are connected using IPv6. PASV is only for IPv4. You have to use the EPSV command instead."));
+				break;
+			}
+
 			if (m_transferstatus.socket)
 			{
 				SendTransferinfoNotification();
 				delete m_transferstatus.socket;
 			}
+			m_transferstatus.family = AF_INET;
 			m_transferstatus.socket = new CTransferSocket(this);
 
 			unsigned int retries = 3;
@@ -927,23 +937,29 @@ void CControlSocket::ParseCommand()
 			}
 
 			//Now retrieve the port
-			SOCKADDR_IN sockAddr;
-			memset(&sockAddr, 0, sizeof(sockAddr));
-
-			int nSockAddrLen = sizeof(sockAddr);
-			BOOL bResult = m_transferstatus.socket->GetSockName((SOCKADDR*)&sockAddr, &nSockAddrLen);
-			if (bResult)
-				port = ntohs(sockAddr.sin_port);
-			//Reformat the ip
-			pasvIP.Replace(_T("."), _T(","));
-			//Put the answer together
-			CStdString str;
-			if (nCommandID == COMMAND_PASVSMC)
-				str.Format(_T("227 Warning: Router with P@SW bug detected. Entering Passive Mode (%s,%d,%d)"), pasvIP, port / 256, port % 256);
+			CStdString dummy;
+			if (m_transferstatus.socket->GetSockName(dummy, port))
+			{
+				//Reformat the ip
+				pasvIP.Replace(_T("."), _T(","));
+				//Put the answer together
+				CStdString str;
+				if (nCommandID == COMMAND_PASVSMC)
+					str.Format(_T("227 Warning: Router with P@SW bug detected. Entering Passive Mode (%s,%d,%d)"), pasvIP, port / 256, port % 256);
+				else
+					str.Format(_T("227 Entering Passive Mode (%s,%d,%d)"), pasvIP, port / 256, port % 256);
+				Send(str);
+				m_transferstatus.pasv = 1;
+			}
 			else
-				str.Format(_T("227 Entering Passive Mode (%s,%d,%d)"), pasvIP, port / 256, port % 256);
-			Send(str);
-			m_transferstatus.pasv = 1;
+			{
+				delete m_transferstatus.socket;
+				m_transferstatus.socket = NULL;
+				Send(_T("421 Can't create socket"));
+				m_transferstatus.pasv = -1;
+				break;
+			}
+			
 			break;
 		}
 	case COMMAND_TYPE:
@@ -1392,7 +1408,7 @@ void CControlSocket::ParseCommand()
 				Send(_T("550 File not found"));
 			else
 			{
-				bool success = DeleteFile(physicalFile);
+				bool success = DeleteFile(physicalFile) == TRUE;
 				if (!success && GetLastError() == ERROR_ACCESS_DENIED)
 				{
 					DWORD attr = GetFileAttributes(physicalFile);
@@ -1401,7 +1417,7 @@ void CControlSocket::ParseCommand()
 						attr &= ~FILE_ATTRIBUTE_READONLY;
 						SetFileAttributes(physicalFile, attr);
 
-						success = DeleteFile(physicalFile);
+						success = DeleteFile(physicalFile) == TRUE;
 					}
 				}
 				if (!success)
@@ -1898,6 +1914,7 @@ void CControlSocket::ParseCommand()
 				SendTransferinfoNotification();
 				delete m_transferstatus.socket;
 			}
+			m_transferstatus.family = (GetFamily() == AF_INET) ? 1 : 2;
 			m_transferstatus.socket = new CTransferSocket(this);
 
 			unsigned int port = 0;
@@ -1918,7 +1935,7 @@ void CControlSocket::ParseCommand()
 					port = customPort;
 					++customPort;
 				}
-				if (m_transferstatus.socket->Create(port, SOCK_STREAM, FD_ACCEPT))
+				if (m_transferstatus.socket->Create(port, SOCK_STREAM, FD_ACCEPT, 0, GetFamily()))
 				{
 					break;
 				}
@@ -1947,18 +1964,22 @@ void CControlSocket::ParseCommand()
 			}
 
 			//Now retrieve the port
-			SOCKADDR_IN sockAddr;
-			memset(&sockAddr, 0, sizeof(sockAddr));
-
-			int nSockAddrLen = sizeof(sockAddr);
-			BOOL bResult = m_transferstatus.socket->GetSockName((SOCKADDR*)&sockAddr, &nSockAddrLen);
-			if (bResult)
-				port = ntohs(sockAddr.sin_port);
-			//Put the answer together
-			CStdString str;
-			str.Format(_T("229 Entering Extended Passive Mode (|||%d|)"), port);
-			Send(str);
-			m_transferstatus.pasv=1;
+			CStdString dummy;
+			if (m_transferstatus.socket->GetSockName(dummy, port))
+			{
+				//Put the answer together
+				CStdString str;
+				str.Format(_T("229 Entering Extended Passive Mode (|||%d|)"), port);
+				Send(str);
+				m_transferstatus.pasv=1;
+			}
+			else
+			{
+				delete m_transferstatus.socket;
+				m_transferstatus.socket=0;
+				Send(_T("421 Can't create socket"));
+				m_transferstatus.pasv = -1;
+			}
 			break;
 		}
 	case COMMAND_EPRT:
@@ -1986,9 +2007,14 @@ void CControlSocket::ParseCommand()
 				break;
 			}
 			int protocol = _ttoi(args.Left(pos));
-			if (protocol != 1)
+
+			bool ipv6Allowed = m_pOwner->m_pOptions->GetOptionVal(OPTION_DISABLE_IPV6) == 0;
+			if (protocol != 1 && (protocol != 2 || !ipv6Allowed))
 			{
-				Send(_T("522 Extended Port Failure - unknown network protocol. Supported protocols: (1)"));
+				if (ipv6Allowed)
+					Send(_T("522 Extended Port Failure - unknown network protocol. Supported protocols: (1,2)"));
+				else
+					Send(_T("522 Extended Port Failure - unknown network protocol. Supported protocols: (1)"));
 				m_transferstatus.pasv = -1;
 				break;
 			}
@@ -2002,15 +2028,28 @@ void CControlSocket::ParseCommand()
 				break;
 			}
 			CStdString ip = args.Left(pos);
-#ifdef _UNICODE
-			if (inet_addr(ConvToLocal(ip)) == INADDR_NONE)
-#else
-			if (inet_addr(ip) == INADDR_NONE)
-#endif
+			if (protocol == 1)
 			{
-				Send(_T("501 Syntax error"));
-				m_transferstatus.pasv = -1;
-				break;
+#ifdef _UNICODE
+				if (inet_addr(ConvToLocal(ip)) == INADDR_NONE)
+#else
+				if (inet_addr(ip) == INADDR_NONE)
+#endif
+				{
+					Send(_T("501 Syntax error, not a valid IPv4 address"));
+					m_transferstatus.pasv = -1;
+					break;
+				}
+			}
+			else
+			{
+				ip = GetIPV6LongForm(ip);
+				if (ip.IsEmpty())
+				{
+					Send(_T("501 Syntax error, not a valid IPv6 address"));
+					m_transferstatus.pasv = -1;
+					break;
+				}
 			}
 			args = args.Mid(pos + 1);
 
@@ -2031,6 +2070,7 @@ void CControlSocket::ParseCommand()
 
 			m_transferstatus.port = port;
 			m_transferstatus.ip = ip;
+			m_transferstatus.family = (protocol == 1) ? AF_INET : AF_INET6;
 
 			m_transferstatus.pasv = 0;
 			Send(_T("200 Port command successful"));
@@ -3074,14 +3114,9 @@ BOOL CControlSocket::DoUserLogin(LPCTSTR password, bool skipPass /*=false*/)
 	if (!m_pOwner->m_pPermissions->CheckUserLogin(m_status.user, password, user, skipPass))
 	{
 		AntiHammerIncrease(2);
-		SOCKADDR_IN sockAddr;
-		memset(&sockAddr, 0, sizeof(sockAddr));
-		int nSockAddrLen = sizeof(sockAddr);
-		BOOL bResult = GetPeerName((SOCKADDR*)&sockAddr, &nSockAddrLen);
-		if (bResult)
-			m_pOwner->AntiHammerIncrease(sockAddr.sin_addr.s_addr);
+		m_pOwner->AntiHammerIncrease(m_RemoteIP);
 
-		if (m_pOwner->m_pAutoBanManager->RegisterAttempt(htonl(sockAddr.sin_addr.s_addr)))
+		if (m_pOwner->m_pAutoBanManager->RegisterAttempt(m_RemoteIP))
 		{
 			Send(_T("421 Temporarily banned for too many failed login attempts"));
 			ForceClose(-1);
@@ -3119,37 +3154,35 @@ BOOL CControlSocket::DoUserLogin(LPCTSTR password, bool skipPass /*=false*/)
 			return FALSE;
 	}
 
-	CStdString ip;
-	unsigned int nPort;
+	CStdString peerIP;
+	UINT port = 0;
 
-	SOCKADDR_IN sockAddr;
-	memset(&sockAddr, 0, sizeof(sockAddr));
-	int nSockAddrLen = sizeof(sockAddr);
-	BOOL bResult = GetPeerName((SOCKADDR*)&sockAddr, &nSockAddrLen);
+	BOOL bResult = GetPeerName(peerIP, port);
 	if (bResult)
 	{
-		if (!user.AccessAllowed(sockAddr))
+		if (!user.AccessAllowed(peerIP))
 		{
 			Send(_T("521 This user is not allowed to connect from this IP"));
 			ForceClose(-1);
 			return FALSE;
 		}
-		nPort = ntohs(sockAddr.sin_port);
-#ifdef _UNICODE
-		ip = ConvFromLocal(inet_ntoa(sockAddr.sin_addr));
-#else
-		ip = inet_ntoa(sockAddr.sin_addr);
-#endif
+	}
+	else
+	{
+		SendStatus(_T("Could not get peer name"), 1);
+		Send(_T("421 Refusing connection. Could not get peer name."));
+		ForceClose(-1);
+		return FALSE;
 	}
 
-	int count = m_pOwner->GetIpCount(ip);
+	int count = m_pOwner->GetIpCount(peerIP);
 	if (user.GetIpLimit() && count >= user.GetIpLimit())
 	{
 		CStdString str;
 		if (count==1)
-			str.Format(_T("Refusing connection. Reason: No more connections allowed from this IP. (%s already connected once)"), ip);
+			str.Format(_T("Refusing connection. Reason: No more connections allowed from this IP. (%s already connected once)"), peerIP.c_str());
 		else
-			str.Format(_T("Refusing connection. Reason: No more connections allowed from this IP. (%s already connected %d times)"), ip, count);
+			str.Format(_T("Refusing connection. Reason: No more connections allowed from this IP. (%s already connected %d times)"), peerIP.c_str(), count);
 		SendStatus(str, 1);
 		Send(_T("421 Refusing connection. No more connections allowed from your IP."));
 		ForceClose(-1);
@@ -3164,7 +3197,7 @@ BOOL CControlSocket::DoUserLogin(LPCTSTR password, bool skipPass /*=false*/)
 		return FALSE;
 	}
 
-	m_status.ip = ip;
+	m_status.ip = peerIP;
 
 	count = GetUserCount(user.user);
 	if (user.GetUserLimit() && count >= user.GetUserLimit())
@@ -3178,7 +3211,7 @@ BOOL CControlSocket::DoUserLogin(LPCTSTR password, bool skipPass /*=false*/)
 		return FALSE;
 	}
 
-	m_pOwner->IncIpCount(ip);
+	m_pOwner->IncIpCount(peerIP);
 	IncUserCount(m_status.user);
 	m_status.loggedon = TRUE;
 
@@ -3261,26 +3294,20 @@ BOOL CControlSocket::CreateTransferSocket(CTransferSocket *pTransferSocket)
 	 */
 	bool bFallback = false;
 	BOOL bCreated = FALSE;
-	// Get local port
-	SOCKADDR_IN sockAddr;
-	int nSockAddrLen = sizeof(sockAddr);
-	memset(&sockAddr, 0, sizeof(sockAddr));
 
 	// Fix: Formerly, the data connection would always be opened using the server's default (primary) IP.
 	// This would cause Windows Firewall to freak out if control connection was opened on a secondary IP.
 	// When using Active FTP behind Windows Firewall, no connection could be made. This fix ensures the data
 	// socket is on the same IP as the control socket.
 	CStdString controlIP;
-	BOOL bResult = this->GetSockName((SOCKADDR*)&sockAddr, &nSockAddrLen);
-	if (bResult)
-		controlIP = inet_ntoa(sockAddr.sin_addr);
+	UINT controlPort = 0;
+	BOOL bResult = this->GetSockName(controlIP, controlPort);
 
-	if (GetSockName((SOCKADDR *)&sockAddr, &nSockAddrLen))
+	if (bResult)
 	{
-		int nPort = ntohs(sockAddr.sin_port);
 		// Try create control conn. port - 1
-		if (nPort > 1)
-			if (pTransferSocket->Create(nPort - 1, SOCK_STREAM, FD_CONNECT, controlIP, AF_INET, true))
+		if (controlPort > 1)
+			if (pTransferSocket->Create(controlPort - 1, SOCK_STREAM, FD_CONNECT, controlIP, m_transferstatus.family, true))
 				bCreated = TRUE;
 	}
 	if (!bCreated)
@@ -3288,7 +3315,7 @@ BOOL CControlSocket::CreateTransferSocket(CTransferSocket *pTransferSocket)
 creation_fallback:
 		bFallback = true;
 		// Let the OS find a valid port
-		if (!pTransferSocket->Create(0, SOCK_STREAM, FD_CONNECT, controlIP))
+		if (!pTransferSocket->Create(0, SOCK_STREAM, FD_CONNECT, controlIP, m_transferstatus.family, true))
 		{
 			// Give up
 			Send(_T("421 Can't create socket"));
@@ -3323,31 +3350,14 @@ creation_fallback:
 
 bool CControlSocket::CheckIpForZlib()
 {
-	SOCKADDR_IN sockAddr;
-	memset(&sockAddr, 0, sizeof(sockAddr));
-	int nSockAddrLen = sizeof(sockAddr);
-	BOOL bResult = GetPeerName((SOCKADDR*)&sockAddr, &nSockAddrLen);
+	CStdString peerIP;
+	UINT port = 0;
+	BOOL bResult = GetPeerName(peerIP, port);
 	if (!bResult)
-		return true;
+		return false;
 
-	unsigned int ip = htonl(sockAddr.sin_addr.s_addr);
-#ifdef _UNICODE
-	CStdString pIp = ConvFromLocal(inet_ntoa(sockAddr.sin_addr));
-#else
-	CStdString pIp = inet_ntoa(sockAddr.sin_addr);
-#endif
-
-	if (!m_pOwner->m_pOptions->GetOptionVal(OPTION_MODEZ_ALLOWLOCAL))
-	{
-		if (ip >= 0x0A000000 && ip <= 0x0AFFFFFF)
-			return false;
-		if (ip >= 0xAC100000 && ip <= 0xAC1FFFFF)
-			return false;
-		if (ip >= 0xC0A80000 && ip <= 0xC0A80000)
-			return false;
-		if (ip == 0x7F000001)
-			return false;
-	}
+	if (!m_pOwner->m_pOptions->GetOptionVal(OPTION_MODEZ_ALLOWLOCAL) && !IsRoutableAddress(peerIP))
+		return false;
 
 	CStdString ips = m_pOwner->m_pOptions->GetOption(OPTION_MODEZ_DISALLOWED_IPS);
 	ips += " ";
@@ -3359,7 +3369,7 @@ bool CControlSocket::CheckIpForZlib()
 		ips = ips.Mid(pos + 1);
 		pos = ips.Find(' ');
 
-		if (MatchesFilter(blockedIP, ip, pIp))
+		if (MatchesFilter(blockedIP, peerIP))
 			return false;
 	}
 
@@ -3510,22 +3520,17 @@ bool CControlSocket::CanQuit()
 CStdString CControlSocket::GetPassiveIP()
 {
 	//Get the ip of the control socket
-	SOCKADDR_IN sockAddr;
-	memset(&sockAddr, 0, sizeof(sockAddr));
-	int nSockAddrLen = sizeof(sockAddr);
-	BOOL bValidSockAddr = GetSockName((SOCKADDR*)&sockAddr, &nSockAddrLen);
+	CStdString localIP;
+	UINT localPort;
+	BOOL bValidSockAddr = GetSockName(localIP, localPort);
 
 	//Get peer ip
-	SOCKADDR_IN peerAddr;
-	memset(&peerAddr, 0, sizeof(peerAddr));
-	int nPeerAddrLen = sizeof(peerAddr);
-	BOOL bResult = GetPeerName((SOCKADDR*)&peerAddr, &nPeerAddrLen);
-	unsigned int peerIP = 0;
+	CStdString peerIP;
+	UINT peerPort = 0;
+	BOOL bResult = GetPeerName(peerIP, peerPort);
 	if (bResult)
 	{
-		peerIP = htonl(peerAddr.sin_addr.s_addr);
-
-		if (m_pOwner->m_pOptions->GetOptionVal(OPTION_NOEXTERNALIPONLOCAL) && IsUnroutableIP(peerIP))
+		if (m_pOwner->m_pOptions->GetOptionVal(OPTION_NOEXTERNALIPONLOCAL) && !IsRoutableAddress(peerIP))
 		{
 			// Remote IP address from an unroutable subnet
 			
@@ -3535,25 +3540,13 @@ CStdString CControlSocket::GetPassiveIP()
 			// Note that in a NAT-in-NAT environment, the external IP address specified will either
 			// be the worldwide one or the NAT one. Either external or single-NATed users won't be able
 			// to use passive mode.
-			if ((peerIP >> 24) == (sockAddr.sin_addr.s_addr & 0xFF))
-			{
-				m_transferstatus.usedResolvedIP = false;
+			m_transferstatus.usedResolvedIP = false;
 
-				if (!bValidSockAddr)
-					return _T("");
-				return inet_ntoa(sockAddr.sin_addr);
-			}
+			if (!bValidSockAddr)
+				return _T("");
+			return localIP;
 		}
 	}
-
-	CStdString localIP;
-	if (bValidSockAddr)
-#ifdef _UNICODE
-		localIP = ConvFromLocal(inet_ntoa(sockAddr.sin_addr));
-#else
-		localIP = inet_ntoa(sockAddr.sin_addr);
-#endif
-
 
 	if (m_pOwner->m_pOptions->GetOptionVal(OPTION_CUSTOMPASVIPTYPE))
 	{

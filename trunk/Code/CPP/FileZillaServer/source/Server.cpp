@@ -721,8 +721,6 @@ BOOL CServer::ProcessCommand(CAdminSocket *pAdminSocket, int nID, unsigned char 
 
 						USES_CONVERSION;
 
-						unsigned int nIP = ntohl(inet_addr(T2CA(iter->second.ip)));
-
 						int pos = ips.Find(' ');
 						while (pos != -1)
 						{
@@ -730,7 +728,7 @@ BOOL CServer::ProcessCommand(CAdminSocket *pAdminSocket, int nID, unsigned char 
 							ips = ips.Mid(pos + 1);
 							pos = ips.Find(' ');
 
-							if (MatchesFilter(blockedIP, nIP, iter->second.ip))
+							if (MatchesFilter(blockedIP, iter->second.ip))
 								break;
 						}
 						if (pos == -1)
@@ -786,10 +784,13 @@ BOOL CServer::ProcessCommand(CAdminSocket *pAdminSocket, int nID, unsigned char 
 				int nAdminListenPort = (int)m_pOptions->GetOptionVal(OPTION_ADMINPORT);
 				CStdString adminIpBindings = m_pOptions->GetOption(OPTION_ADMINIPBINDINGS);
 				
-				SOCKADDR_IN sockAddr;
-				memset(&sockAddr, 0, sizeof(sockAddr));
-				int nSockAddrLen = sizeof(sockAddr);	
-				BOOL bLocal = pAdminSocket->GetPeerName((SOCKADDR*)&sockAddr, &nSockAddrLen) && sockAddr.sin_addr.S_un.S_addr == 0x0100007f;
+				CStdString peerIP;
+				UINT port = 0;
+				bool bLocal = false;
+				if (!pAdminSocket->GetPeerName(peerIP, port))
+					return FALSE;
+				else
+					bLocal = IsLocalhost(peerIP);
 
 				if (!m_pOptions->ParseOptionsCommand(pData, nDataLength, bLocal))
 				{
@@ -1200,52 +1201,83 @@ void CServer::OnTimer(UINT nIDEvent)
 	m_pFileLogger->CheckLogFile();
 }
 
+int CServer::DoCreateAdminListenSocket(UINT port, LPCTSTR addr, int family)
+{
+	CAdminListenSocket *pAdminListenSocket = new CAdminListenSocket(m_pAdminInterface);
+	if (!pAdminListenSocket->Create(port, SOCK_STREAM, FD_ACCEPT, addr, family))
+	{
+		delete pAdminListenSocket;
+		return 0;
+	}
+
+	if (!pAdminListenSocket->Listen())
+	{
+		delete pAdminListenSocket;
+		return 0;
+	}
+
+	if (!port)
+	{
+		CStdString ip;
+		BOOL bResult = pAdminListenSocket->GetSockName(ip, port);
+		if (!bResult)
+		{
+			delete pAdminListenSocket;
+			return 0;
+		}
+	}
+	
+	m_AdminListenSocketList.push_back(pAdminListenSocket);
+	return port;
+}
+
 BOOL CServer::CreateAdminListenSocket()
 {
 	CStdString ipBindings = (m_pOptions ? m_pOptions->GetOption(OPTION_ADMINIPBINDINGS) : _T(""));
 	int nAdminPort = (m_pOptions ? (int)m_pOptions->GetOptionVal(OPTION_ADMINPORT) : 14147);
-	CAdminListenSocket *pAdminListenSocket = new CAdminListenSocket(m_pAdminInterface);
-	BOOL bError = FALSE;
-	if (!pAdminListenSocket->Create(nAdminPort, SOCK_STREAM, FD_ACCEPT, (ipBindings != _T("*")) ? _T("127.0.0.1") : NULL))
+
+	CStdString error;
+
+	if (!DoCreateAdminListenSocket(nAdminPort, (ipBindings != _T("*")) ? _T("127.0.0.1") : NULL, AF_INET))
 	{
-		CStdString str;
-		if (!pAdminListenSocket->Create(0, SOCK_STREAM, FD_ACCEPT, _T("127.0.0.1")))
+		int p = DoCreateAdminListenSocket(nAdminPort, _T("127.0.0.1"), AF_INET6);
+		if (!p)
 		{
-			delete pAdminListenSocket;
-			pAdminListenSocket = NULL;
-			str.Format(_T("Failed to create listen socket for admin interface on port %d, the admin interface has been disabled."), nAdminPort);
+			CStdString str;
+			str.Format(_T("Failed to create listen socket for admin interface on port %d for IPv4, the IPv4 admin interface has been disabled."), nAdminPort);
+			ShowStatus(str, 1);
+			error += _T("\n") + str;
 		}
 		else
 		{
-			SOCKADDR_IN sockAddr;
-			memset(&sockAddr, 0, sizeof(sockAddr));
-			int nSockAddrLen = sizeof(sockAddr);
-			BOOL bResult = pAdminListenSocket->GetSockName((SOCKADDR*)&sockAddr, &nSockAddrLen);
-			if (bResult)
-			{
-				int nPort = ntohs(sockAddr.sin_port);
-				str.Format(_T("Failed to create listen socket for admin interface on port %d, for this session the admin interface is available on port %d."), nAdminPort, nPort);
-				nAdminPort = nPort;
-			}
-			else
-			{
-				delete pAdminListenSocket;
-				pAdminListenSocket = NULL;
-				str.Format(_T("Failed to create listen socket for admin interface on port %d, the admin interface has been disabled."), nAdminPort);
-			}
+			CStdString str;
+			str.Format(_T("Failed to create listen socket for admin interface on port %d for IPv4, for this session the IPv4 admin interface is available on port %u."), p);
+			ShowStatus(str, 1);
+			error += _T("\n") + str;
 		}
-		MessageBox(0, str, _T("FileZilla Server Error"), MB_ICONEXCLAMATION | MB_SERVICE_NOTIFICATION);
-	}
-	if (pAdminListenSocket)
-	{
-		VERIFY(pAdminListenSocket->Listen());
-		m_AdminListenSocketList.push_back(pAdminListenSocket);
 	}
 
-	if (!bError && ipBindings != _T("*"))
+	if (!DoCreateAdminListenSocket(nAdminPort, (ipBindings != _T("*")) ? _T("::1") : NULL, AF_INET6))
 	{
-		BOOL bError = FALSE;
-		CStdString str = _T("Failed to bind the admin interface to the following IPs:");
+		int p = DoCreateAdminListenSocket(nAdminPort, _T("127.0.0.1"), AF_INET6);
+		if (!p)
+		{
+			CStdString str;
+			str.Format(_T("Failed to create listen socket for admin interface on port %d for IPv6, the IPv6 admin interface has been disabled."), nAdminPort);
+			ShowStatus(str, 1);
+			error += _T("\n") + str;
+		}
+		else
+		{
+			CStdString str;
+			str.Format(_T("Failed to create listen socket for admin interface on port %d for IPv6, for this session the IPv6 admin interface is available on port %u."), p);
+			ShowStatus(str, 1);
+			error += _T("\n") + str;
+		}
+	}
+
+	if (ipBindings != _T("*"))
+	{
 		if (ipBindings != _T(""))
 			ipBindings += _T(" ");
 		while (ipBindings != _T(""))
@@ -1259,15 +1291,19 @@ BOOL CServer::CreateAdminListenSocket()
 			if (!pAdminListenSocket->Create(nAdminPort, SOCK_STREAM, FD_ACCEPT, ip) || !pAdminListenSocket->Listen())
 			{
 				delete pAdminListenSocket;
-				bError = TRUE;
-				str += _T("\n") + ip;
+				error += _T("\n") + ip;
 			}
 			else
 				m_AdminListenSocketList.push_back(pAdminListenSocket);
 		}
-		if (bError)
-			MessageBox(0, str, _T("FileZilla Server Error"), MB_ICONEXCLAMATION | MB_SERVICE_NOTIFICATION);
 	}
+
+	if (!error.IsEmpty())
+	{
+		 error = _T("Failed to bind the admin interface to the following addresses:") + error;
+		 MessageBox(0, error, _T("FileZilla Server Error"), MB_ICONEXCLAMATION | MB_SERVICE_NOTIFICATION);
+	}
+
 	return !m_AdminListenSocketList.empty();
 }
 
@@ -1307,18 +1343,33 @@ BOOL CServer::CreateListenSocket()
 			CListenSocket *pListenSocket = new CListenSocket(this, ssl);
 			pListenSocket->m_pThreadList = &m_ThreadArray;
 	
-			if (!pListenSocket->Create(nPort, SOCK_STREAM, FD_ACCEPT, NULL) || !pListenSocket->Listen())
+			if (!pListenSocket->Create(nPort, SOCK_STREAM, FD_ACCEPT, NULL, AF_INET) || !pListenSocket->Listen())
 			{
 				delete pListenSocket;
 				pListenSocket = NULL;
-				str.Format(_T("Failed to create listen socket on port %d"), nPort);
+				str.Format(_T("Failed to create listen socket on port %d for IPv4"), nPort);
 				ShowStatus(str, 1);
 			}
 			else
 				m_ListenSocketList.push_back(pListenSocket);
+
+			if (!m_pOptions->GetOptionVal(OPTION_DISABLE_IPV6))
+			{
+				CListenSocket *pListenSocket = new CListenSocket(this, ssl);
+				pListenSocket->m_pThreadList = &m_ThreadArray;
+		
+				if (!pListenSocket->Create(nPort, SOCK_STREAM, FD_ACCEPT, NULL, AF_INET6) || !pListenSocket->Listen())
+				{
+					delete pListenSocket;
+					pListenSocket = NULL;
+					str.Format(_T("Failed to create listen socket on port %d for IPv6"), nPort);
+					ShowStatus(str, 1);
+				}
+				else
+					m_ListenSocketList.push_back(pListenSocket);
+			}
 		}
-	
-		if (ipBindings != _T("*"))
+		else
 		{
 			BOOL bError = FALSE;
 			CStdString str;

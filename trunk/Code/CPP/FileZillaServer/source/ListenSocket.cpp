@@ -120,24 +120,15 @@ void CListenSocket::SendStatus(CStdString status, int type)
 
 bool CListenSocket::AccessAllowed(CAsyncSocketEx &socket) const
 {
-	SOCKADDR_IN sockAddr;
-	memset(&sockAddr, 0, sizeof(sockAddr));
-	int nSockAddrLen = sizeof(sockAddr);
-	BOOL bResult = socket.GetPeerName((SOCKADDR*)&sockAddr, &nSockAddrLen);
+	CStdString peerIP;
+	UINT port = 0;
+	BOOL bResult = socket.GetPeerName(peerIP, port);
 	if (!bResult)
 		return true;
 
-	unsigned int ip = htonl(sockAddr.sin_addr.s_addr);
-#ifdef _UNICODE
-	CStdString pIp = ConvFromLocal(inet_ntoa(sockAddr.sin_addr));
-#else
-	CStdString pIp = inet_ntoa(sockAddr.sin_addr);
-#endif
-
-	
 	if (m_pServer->m_pAutoBanManager)
 	{
-		if (m_pServer->m_pAutoBanManager->IsBanned(ip))
+		if (m_pServer->m_pAutoBanManager->IsBanned(peerIP))
 			return false;
 	}
 
@@ -154,7 +145,7 @@ bool CListenSocket::AccessAllowed(CAsyncSocketEx &socket) const
 		ips = ips.Mid(pos + 1);
 		pos = ips.Find(' ');
 
-		if ((disallowed = MatchesFilter(blockedIP, ip, pIp)))
+		if ((disallowed = MatchesFilter(blockedIP, peerIP)))
 			break;
 	}
 
@@ -171,7 +162,7 @@ bool CListenSocket::AccessAllowed(CAsyncSocketEx &socket) const
 		ips = ips.Mid(pos + 1);
 		pos = ips.Find(' ');
 
-		if (MatchesFilter(blockedIP, ip, pIp))
+		if (MatchesFilter(blockedIP, peerIP))
 			return true;
 	}
 

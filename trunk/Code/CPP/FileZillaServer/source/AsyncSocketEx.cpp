@@ -1575,7 +1575,15 @@ BOOL CAsyncSocketEx::Attach(SOCKET hSocket, long lEvent /*= FD_READ | FD_WRITE |
 		return FALSE;
 
 	VERIFY(InitAsyncSocketExInstance());
-	m_SocketData.hSocket=hSocket;
+	m_SocketData.hSocket = hSocket;
+
+	sockaddr_storage addr;
+	memset(&addr, 0, sizeof(sockaddr_storage));
+	int len = sizeof(addr);
+	if (getsockname(m_SocketData.hSocket, reinterpret_cast<sockaddr*>(&addr), &len) != 0)
+		return FALSE;
+	m_SocketData.nFamily = addr.ss_family;
+
 	AttachHandle(hSocket);
 
 #ifndef NOLAYERS
