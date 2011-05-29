@@ -973,7 +973,7 @@ BOOL SciTEWin::FindMessage(HWND hDlg, UINT message, WPARAM wParam) {
 			return FALSE;
 		 }
 		 else if (ControlIDOfCommand(wParam) == IDMSDN) {
-			findWhat = dlg.ItemTextU(IDFINDWHAT).c_str();
+			findWhat = dlg.ItemTextU(IDFINDWHAT);
 			wchar_t msdn[2048]= L"http://social.msdn.microsoft.com/Search/en-US/?Refinement=86&Query=";
 			::ShellExecute(NULL,NULL, wcscat(msdn,findWhat.w_str()),NULL,NULL,SW_SHOW);
 			::EndDialog(hDlg, IDCANCEL);
@@ -981,14 +981,14 @@ BOOL SciTEWin::FindMessage(HWND hDlg, UINT message, WPARAM wParam) {
 			return FALSE;
 		 }
 		 else if (ControlIDOfCommand(wParam) == IDICIBA) {
-			findWhat = dlg.ItemTextU(IDFINDWHAT).c_str();
+			findWhat = dlg.ItemTextU(IDFINDWHAT);
 			wchar_t iciba[2048]= L"http://www.iciba.com/";
 			::ShellExecute(NULL,NULL, wcscat(iciba,findWhat.w_str()),NULL,NULL,SW_SHOW);
 			::EndDialog(hDlg, IDCANCEL);
 			wFindReplace.Destroy();
 			return FALSE;
 		 }
-//add end		
+//add end
 	}
 
 	return FALSE;

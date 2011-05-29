@@ -45,21 +45,6 @@
 #define IDM_ENCODING_UTF8	153
 #define IDM_ENCODING_UCOOKIE	154
 //add--¡ý
-#define IDM_ENCODING_Arabic 155
-#define IDM_ENCODING_Baltic 156
-#define IDM_ENCODING_CHS	157
-#define IDM_ENCODING_CHT	158
-#define IDM_ENCODING_Cyrillic	159
-#define IDM_ENCODING_Greek		160
-#define IDM_ENCODING_Hebrew		161
-#define IDM_ENCODING_Latin1		162
-#define IDM_ENCODING_Latin2		163
-#define IDM_ENCODING_Latin5		164
-#define IDM_ENCODING_Japanese	165
-#define	IDM_ENCODING_Korean		166
-#define IDM_ENCODING_VietNam	167
-#define IDM_ENCODING_Thai		168
-
 #define IDM_OPENDIR			200
 //add--¡ü
 
