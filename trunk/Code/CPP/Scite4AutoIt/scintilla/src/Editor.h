@@ -335,6 +335,9 @@ protected:	// ScintillaBase subclass needs access to much of Editor
 	virtual void ScrollText(int linesToMove);
 	void HorizontalScrollTo(int xPos);
 	void VerticalCentreCaret();
+	void MoveSelectedLines(int lineDelta);
+	void MoveSelectedLinesUp();
+	void MoveSelectedLinesDown();
 	void MoveCaretInsideView(bool ensureVisible=true);
 	int DisplayFromPosition(int pos);
 
@@ -536,7 +539,6 @@ protected:	// ScintillaBase subclass needs access to much of Editor
 	virtual bool ValidCodePage(int /* codePage */) const { return true; }
 	int WrapCount(int line);
 	void AddStyledText(char *buffer, int appendLength);
-
 	virtual sptr_t DefWndProc(unsigned int iMessage, uptr_t wParam, sptr_t lParam) = 0;
 	void StyleSetMessage(unsigned int iMessage, uptr_t wParam, sptr_t lParam);
 	sptr_t StyleGetMessage(unsigned int iMessage, uptr_t wParam, sptr_t lParam);
