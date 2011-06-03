@@ -400,7 +400,7 @@ void COptions::SetOption(int nOptionID, LPCTSTR value, bool save /*=true*/)
 			for (unsigned int i = 0; i<_tcslen(value); i++)
 			{
 				TCHAR cur = value[i];
-				if ((cur < '0' || cur > '9') && cur != '.')
+				if ((cur < '0' || cur > '9') && cur != '.' && cur != ':')
 				{
 					if (sub == _T("") && cur == '*')
 					{
@@ -411,31 +411,8 @@ void COptions::SetOption(int nOptionID, LPCTSTR value, bool save /*=true*/)
 
 					if (sub != _T(""))
 					{
-						//Parse IP
-						SOCKADDR_IN sockAddr;
-						memset(&sockAddr,0,sizeof(sockAddr));
-
-						sockAddr.sin_family = AF_INET;
-#ifdef _UNICODE
-						sockAddr.sin_addr.s_addr = inet_addr(ConvToLocal(sub));
-#else
-						sockAddr.sin_addr.s_addr = inet_addr(sub);
-#endif
-
-						if (sockAddr.sin_addr.s_addr != INADDR_NONE)
-						{
-#ifdef _UNICODE
-							sub = ConvFromLocal(inet_ntoa(sockAddr.sin_addr));
-#else
-							sub = inet_ntoa(sockAddr.sin_addr);
-#endif
-							std::list<CStdString>::iterator iter;
-							for (iter = ipBindList.begin(); iter!=ipBindList.end(); iter++)
-								if (*iter==sub)
-									break;
-							if (iter == ipBindList.end())
-								ipBindList.push_back(sub);
-						}
+						if (IsIpAddress(sub))
+							ipBindList.push_back(sub);
 						sub = _T("");
 					}
 				}
@@ -444,36 +421,12 @@ void COptions::SetOption(int nOptionID, LPCTSTR value, bool save /*=true*/)
 			}
 			if (sub != _T(""))
 			{
-				//Parse IP
-				SOCKADDR_IN sockAddr;
-				memset(&sockAddr,0,sizeof(sockAddr));
-
-				sockAddr.sin_family = AF_INET;
-#ifdef _UNICODE
-				sockAddr.sin_addr.s_addr = inet_addr(ConvToLocal(sub));
-#else
-				sockAddr.sin_addr.s_addr = inet_addr(sub);
-#endif
-
-				if (sockAddr.sin_addr.s_addr != INADDR_NONE)
-				{
-#ifdef _UNICODE
-					sub = ConvFromLocal(inet_ntoa(sockAddr.sin_addr));
-#else
-					sub = inet_ntoa(sockAddr.sin_addr);
-#endif
-					std::list<CStdString>::iterator iter;
-					for (iter = ipBindList.begin(); iter!=ipBindList.end(); iter++)
-						if (*iter==sub)
-							break;
-					if (iter == ipBindList.end())
-						ipBindList.push_back(sub);
-				}
-				sub = _T("");
+				if (IsIpAddress(sub))
+					ipBindList.push_back(sub);
 			}
 			str = _T("");
 			for (std::list<CStdString>::iterator iter = ipBindList.begin(); iter!=ipBindList.end(); iter++)
-				if (*iter != _T("127.0.0.1") && *iter != _T("::1"))
+				if (!IsLocalhost(*iter))
 					str += *iter + _T(" ");
 
 			str.TrimRight(_T(" "));
@@ -525,7 +478,7 @@ void COptions::SetOption(int nOptionID, LPCTSTR value, bool save /*=true*/)
 			{
 				// FIXME
 				TCHAR cur = value[i];
-				if ((cur < '0' || cur > '9') && cur != '.')
+				if ((cur < '0' || cur > '9') && cur != '.' && cur != ':')
 				{
 					if (sub == _T("") && cur == '*')
 					{
@@ -536,30 +489,8 @@ void COptions::SetOption(int nOptionID, LPCTSTR value, bool save /*=true*/)
 
 					if (sub != _T(""))
 					{
-						//Parse IP
-						SOCKADDR_IN sockAddr;
-						memset(&sockAddr, 0, sizeof(sockAddr));
-
-						sockAddr.sin_family = AF_INET;
-#ifdef _UNICODE
-						sockAddr.sin_addr.s_addr = inet_addr(ConvToLocal(sub));
-#else
-						sockAddr.sin_addr.s_addr = inet_addr(sub);
-#endif
-						if (sockAddr.sin_addr.s_addr != INADDR_NONE)
-						{
-#ifdef _UNICODE
-							sub = ConvFromLocal(inet_ntoa(sockAddr.sin_addr));
-#else
-							sub = inet_ntoa(sockAddr.sin_addr);
-#endif
-							std::list<CStdString>::iterator iter;
-							for (iter = ipBindList.begin(); iter != ipBindList.end(); iter++)
-								if (*iter == sub)
-									break;
-							if (iter == ipBindList.end())
-								ipBindList.push_back(sub);
-						}
+						if (IsIpAddress(sub))
+							ipBindList.push_back(sub);
 						sub = _T("");
 					}
 				}
@@ -568,31 +499,8 @@ void COptions::SetOption(int nOptionID, LPCTSTR value, bool save /*=true*/)
 			}
 			if (sub != _T(""))
 			{
-				//Parse IP
-				SOCKADDR_IN sockAddr;
-				memset(&sockAddr,0,sizeof(sockAddr));
-
-				sockAddr.sin_family = AF_INET;
-#ifdef _UNICODE
-				sockAddr.sin_addr.s_addr = inet_addr(ConvToLocal(sub));
-#else
-				sockAddr.sin_addr.s_addr = inet_addr(sub);
-#endif
-				if (sockAddr.sin_addr.s_addr != INADDR_NONE)
-				{
-#ifdef _UNICODE
-					sub = ConvFromLocal(inet_ntoa(sockAddr.sin_addr));
-#else
-					sub = inet_ntoa(sockAddr.sin_addr);
-#endif
-					std::list<CStdString>::iterator iter;
-					for (iter = ipBindList.begin(); iter != ipBindList.end(); iter++)
-						if (*iter == sub)
-							break;
-					if (iter == ipBindList.end())
-						ipBindList.push_back(sub);
-				}
-				sub = _T("");
+				if (IsIpAddress(sub))
+					ipBindList.push_back(sub);
 			}
 
 			if (ipBindList.empty())

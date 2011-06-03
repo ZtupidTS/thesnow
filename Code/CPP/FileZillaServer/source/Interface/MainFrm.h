@@ -82,7 +82,9 @@ public:
 
 	virtual ~CMainFrame();
 
-protected:  // Eingebundene Elemente der Steuerleiste
+protected:
+	void DoConnect();
+
 	CAdminSocket *m_pAdminSocket;
 	int m_nServerState;
 	CStatusView* m_pStatusPane;

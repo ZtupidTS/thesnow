@@ -23,6 +23,7 @@
 #include "FileZilla server.h"
 #include "misc/led.h"
 #include "MainFrm.h"
+#include "../iputils.h"
 #include "../platform.h"
 #include "statusview.h"
 #include "usersdlg.h"
@@ -221,13 +222,7 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 	m_pAdminSocket = new CAdminSocket(this);
 	ShowStatus("Connecting to server...", 0);
-	m_pAdminSocket->Create();
-	m_pAdminSocket->m_Password = m_pOptions->GetOption(IOPTION_LASTSERVERPASS);
-	if (!m_pAdminSocket->Connect(m_pOptions->GetOption(IOPTION_LASTSERVERADDRESS), (UINT)m_pOptions->GetOptionVal(IOPTION_LASTSERVERPORT)) && WSAGetLastError() != WSAEWOULDBLOCK)
-	{
-		ShowStatus(_T("Error, could not connect to server"), 1);
-		CloseAdminSocket();
-	}
+	DoConnect();
 
 	return 0;
 }
@@ -674,13 +669,7 @@ void CMainFrame::OnTimer(UINT_PTR nIDEvent)
 
 		m_pAdminSocket = new CAdminSocket(this);
 		ShowStatus("Reconnecting to server...", 0);
-		m_pAdminSocket->m_Password = m_pOptions->GetOption(IOPTION_LASTSERVERPASS);
-		m_pAdminSocket->Create();
-		if (!m_pAdminSocket->Connect(m_pOptions->GetOption(IOPTION_LASTSERVERADDRESS), (UINT)m_pOptions->GetOptionVal(IOPTION_LASTSERVERPORT)) && WSAGetLastError()!=WSAEWOULDBLOCK)
-		{
-			ShowStatus(_T("Error, could not connect to server"), 1);
-			CloseAdminSocket();
-		}
+		DoConnect();
 	}
 
 	CFrameWnd::OnTimer(nIDEvent);
@@ -1123,13 +1112,7 @@ void CMainFrame::OnFileConnect()
 		CloseAdminSocket(false);
 		m_pAdminSocket = new CAdminSocket(this);
 		ShowStatus("Connecting to server...", 0);
-		m_pAdminSocket->m_Password = m_pOptions->GetOption(IOPTION_LASTSERVERPASS);
-		m_pAdminSocket->Create();
-		if (!m_pAdminSocket->Connect(m_pOptions->GetOption(IOPTION_LASTSERVERADDRESS), (UINT)m_pOptions->GetOptionVal(IOPTION_LASTSERVERPORT)) && WSAGetLastError()!=WSAEWOULDBLOCK)
-		{
-			ShowStatus(_T("Error, could not connect to server"), 1);
-			CloseAdminSocket();
-		}
+		DoConnect();
 	}
 }
 
@@ -1259,6 +1242,8 @@ void CMainFrame::OnAdminInterfaceConnected()
 	UINT port;
 	if (m_pAdminSocket->GetPeerName(ip, port))
 	{
+		if (ip.Find(':') != -1)
+			ip = GetIPV6ShortForm(ip);
 		SetWindowText(title + _T(" (") + ip + _T(")"));
 	}
 }
@@ -1344,4 +1329,22 @@ void CMainFrame::OnUpdateDisplaySortByAccount(CCmdUI* pCmdUI)
 void CMainFrame::OnUpdateDisplaySortByIP(CCmdUI* pCmdUI)
 {
 	pCmdUI->SetRadio(GetUsersPane()->m_pListCtrl->GetSortColumn() == 3);
+}
+
+void CMainFrame::DoConnect()
+{
+	int family;
+	if (!GetIPV6LongForm(m_pOptions->GetOption(IOPTION_LASTSERVERADDRESS)).IsEmpty())
+		family = AF_INET6;
+	else
+		family = AF_INET;
+
+	m_pAdminSocket->Create(0, SOCK_STREAM, FD_READ | FD_WRITE | FD_OOB | FD_ACCEPT | FD_CONNECT | FD_CLOSE, 0, family);
+
+	m_pAdminSocket->m_Password = m_pOptions->GetOption(IOPTION_LASTSERVERPASS);
+	if (!m_pAdminSocket->Connect(m_pOptions->GetOption(IOPTION_LASTSERVERADDRESS), (UINT)m_pOptions->GetOptionVal(IOPTION_LASTSERVERPORT)) && WSAGetLastError() != WSAEWOULDBLOCK)
+	{
+		ShowStatus(_T("Error, could not connect to server"), 1);
+		CloseAdminSocket();
+	}
 }
