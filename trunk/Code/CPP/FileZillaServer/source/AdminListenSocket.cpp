@@ -31,35 +31,42 @@ void CAdminListenSocket::OnAccept(int nErrorCode)
 	memset(&sockAddr, 0, sizeof(sockAddr));
 	int nSockAddrLen = sizeof(sockAddr);
 	
-	if (Accept(*pSocket, (SOCKADDR*)&sockAddr, &nSockAddrLen))
+	if (Accept(*pSocket))
 	{
 		//Validate IP address
-		CStdString ip = ConvFromLocal(inet_ntoa(sockAddr.sin_addr));
-		if (!IsLocalhost(ip))
+		CStdString ip;
+		UINT port = 0;
+
+		bool allowed = false;
+		if (pSocket->GetPeerName(ip, port))
 		{
-			COptions options;
-			bool allowed = false;
-
-			// Get the list of IP filter rules.
-			CStdString ips = options.GetOption(OPTION_ADMINIPADDRESSES);
-			ips += _T(" ");
-
-			int pos = ips.Find(' ');
-			while (pos != -1)
+			if (!IsLocalhost(ip))
 			{
-				CStdString filter = ips.Left(pos);
-				ips = ips.Mid(pos + 1);
-				pos = ips.Find(' ');
+				COptions options;
 
-				if ((allowed = MatchesFilter(filter, ip)))
-					break;
-			}
+				// Get the list of IP filter rules.
+				CStdString ips = options.GetOption(OPTION_ADMINIPADDRESSES);
+				ips += _T(" ");
 
-			if (!allowed)
-			{
-				delete pSocket;
-				return;
+				int pos = ips.Find(' ');
+				while (pos != -1)
+				{
+					CStdString filter = ips.Left(pos);
+					ips = ips.Mid(pos + 1);
+					pos = ips.Find(' ');
+
+					if ((allowed = MatchesFilter(filter, ip)))
+						break;
+				}
 			}
+			else
+				allowed = true;
+		}
+
+		if (!allowed)
+		{
+			delete pSocket;
+			return;
 		}
 
 		pSocket->AsyncSelect();

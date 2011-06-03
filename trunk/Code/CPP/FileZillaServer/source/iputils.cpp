@@ -23,7 +23,7 @@ bool IsLocalhost(const CStdString& ip)
 {
 	if (ip.Left(4) == _T("127."))
 		return true;
-	if (ip == _T("::1"))
+	if (GetIPV6ShortForm(ip) == _T("::1"))
 		return true;
 
 	return false;

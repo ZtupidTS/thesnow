@@ -925,7 +925,14 @@ BOOL CServer::ProcessCommand(CAdminSocket *pAdminSocket, int nID, unsigned char 
 								CStdString ip = ipBindings.Left(pos);
 								ipBindings = ipBindings.Mid(pos+1);
 								CAdminListenSocket *pAdminListenSocket = new CAdminListenSocket(m_pAdminInterface);
-								if (!pAdminListenSocket->Create((int)m_pOptions->GetOptionVal(OPTION_ADMINPORT), SOCK_STREAM, FD_ACCEPT, ip) || !pAdminListenSocket->Listen())
+
+								int family;
+								if (ip.Find(':') != -1)
+									family = AF_INET6;
+								else
+									family = AF_INET;
+
+								if (!pAdminListenSocket->Create((int)m_pOptions->GetOptionVal(OPTION_ADMINPORT), SOCK_STREAM, FD_ACCEPT, ip, family) || !pAdminListenSocket->Listen())
 								{
 									bError = TRUE;
 									str += _T(" ") + ip;
@@ -1257,22 +1264,25 @@ BOOL CServer::CreateAdminListenSocket()
 		}
 	}
 
-	if (!DoCreateAdminListenSocket(nAdminPort, (ipBindings != _T("*")) ? _T("::1") : NULL, AF_INET6))
+	if (!m_pOptions->GetOptionVal(OPTION_DISABLE_IPV6))
 	{
-		int p = DoCreateAdminListenSocket(nAdminPort, _T("127.0.0.1"), AF_INET6);
-		if (!p)
+		if (!DoCreateAdminListenSocket(nAdminPort, (ipBindings != _T("*")) ? _T("::1") : NULL, AF_INET6))
 		{
-			CStdString str;
-			str.Format(_T("Failed to create listen socket for admin interface on port %d for IPv6, the IPv6 admin interface has been disabled."), nAdminPort);
-			ShowStatus(str, 1);
-			error += _T("\n") + str;
-		}
-		else
-		{
-			CStdString str;
-			str.Format(_T("Failed to create listen socket for admin interface on port %d for IPv6, for this session the IPv6 admin interface is available on port %u."), p);
-			ShowStatus(str, 1);
-			error += _T("\n") + str;
+			int p = DoCreateAdminListenSocket(nAdminPort, _T("127.0.0.1"), AF_INET6);
+			if (!p)
+			{
+				CStdString str;
+				str.Format(_T("Failed to create listen socket for admin interface on port %d for IPv6, the IPv6 admin interface has been disabled."), nAdminPort);
+				ShowStatus(str, 1);
+				error += _T("\n") + str;
+			}
+			else
+			{
+				CStdString str;
+				str.Format(_T("Failed to create listen socket for admin interface on port %d for IPv6, for this session the IPv6 admin interface is available on port %u."), p);
+				ShowStatus(str, 1);
+				error += _T("\n") + str;
+			}
 		}
 	}
 
@@ -1288,7 +1298,14 @@ BOOL CServer::CreateAdminListenSocket()
 			CStdString ip = ipBindings.Left(pos);
 			ipBindings = ipBindings.Mid(pos+1);
 			CAdminListenSocket *pAdminListenSocket = new CAdminListenSocket(m_pAdminInterface);
-			if (!pAdminListenSocket->Create(nAdminPort, SOCK_STREAM, FD_ACCEPT, ip) || !pAdminListenSocket->Listen())
+
+			int family;
+			if (ip.Find(':') != -1)
+				family = AF_INET6;
+			else
+				family = AF_INET;
+
+			if (!pAdminListenSocket->Create(nAdminPort, SOCK_STREAM, FD_ACCEPT, ip, family) || !pAdminListenSocket->Listen())
 			{
 				delete pAdminListenSocket;
 				error += _T("\n") + ip;
@@ -1383,8 +1400,15 @@ BOOL CServer::CreateListenSocket()
 				CStdString ip = ipBindings.Left(pos);
 				ipBindings = ipBindings.Mid(pos + 1);
 				CListenSocket *pListenSocket = new CListenSocket(this, ssl);
-				pListenSocket->m_pThreadList = &m_ThreadArray;	
-				if (!pListenSocket->Create(nPort, SOCK_STREAM, FD_ACCEPT, ip) || !pListenSocket->Listen())
+				pListenSocket->m_pThreadList = &m_ThreadArray;
+				
+				int family;
+				if (ip.Find(':') != -1)
+					family = AF_INET6;
+				else
+					family = AF_INET;
+
+				if (!pListenSocket->Create(nPort, SOCK_STREAM, FD_ACCEPT, ip, family) || !pListenSocket->Listen())
 				{
 					delete pListenSocket;
 					bError = TRUE;
