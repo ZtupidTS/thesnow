@@ -59,14 +59,14 @@ void CAdminSocket::OnConnect(int nErrorCode)
 	{
 		if (!m_nConnectionState)
 		{
-			m_pMainFrame->ShowStatus(_T("Connected, waiting for authentication"), 0);
+			m_pMainFrame->ShowStatus(_T("已连接,等待服务器认证"), 0);
 			m_nConnectionState = 1;
 		}
 		m_pMainFrame->OnAdminInterfaceConnected();
 	}
 	else
 	{
-		m_pMainFrame->ShowStatus(_T("Error, could not connect to server"), 1);
+		m_pMainFrame->ShowStatus(_T("错误, 无法连接到服务器"), 1);
 		Close();
 	}
 }
@@ -82,7 +82,7 @@ void CAdminSocket::OnReceive(int nErrorCode)
 	
 	if (!m_nConnectionState)
 	{
-		m_pMainFrame->ShowStatus(_T("Connected, waiting for authentication"), 0);
+		m_pMainFrame->ShowStatus(_T("已连接,等待服务器认证"), 0);
 		m_nConnectionState = 1;
 	}
 
@@ -154,7 +154,7 @@ void CAdminSocket::OnSend(int nErrorCode)
 void CAdminSocket::Close()
 {
 	if (m_nConnectionState)
-		m_pMainFrame->ShowStatus(_T("Connection to server closed."), 1);
+		m_pMainFrame->ShowStatus(_T("断开与服务器的连接."), 1);
 	m_nConnectionState = 0;
 	if (!m_bClosed)
 	{

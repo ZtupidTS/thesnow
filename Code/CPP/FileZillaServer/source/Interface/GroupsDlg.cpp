@@ -50,10 +50,10 @@ CGroupsDlg::CGroupsDlg(CWnd* pParent, bool localConnection)
 	m_pSharedFoldersPage = new CGroupsDlgSharedFolders(this);
 	m_pIpFilterPage = new CGroupsDlgIpFilter(this);
 	
-	AddPage(*m_pGeneralPage, _T("常规"));
-	AddPage(*m_pSharedFoldersPage, _T("共享文件夹"));
+	AddPage(*m_pGeneralPage, _T("常规设置"));
+	AddPage(*m_pSharedFoldersPage, _T("共享目录"));
 	AddPage(*m_pSpeedLimitPage, _T("速度限制"));
-	AddPage(*m_pIpFilterPage, _T("IP 过滤"));
+	AddPage(*m_pIpFilterPage, _T("地址过滤"));
 }
 
 CGroupsDlg::~CGroupsDlg()

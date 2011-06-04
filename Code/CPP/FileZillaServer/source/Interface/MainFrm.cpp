@@ -221,7 +221,7 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		return 0;
 
 	m_pAdminSocket = new CAdminSocket(this);
-	ShowStatus("Connecting to server...", 0);
+	ShowStatus("正在连接到服务器...", 0);
 	DoConnect();
 
 	return 0;
@@ -398,14 +398,14 @@ void CMainFrame::OnActive()
 	{
 		if (!GetUsersPane()->m_pListCtrl->GetItemCount())
 		{
-			if (AfxMessageBox(_T("请确认使服务器离线!"), MB_YESNO | MB_ICONQUESTION) != IDYES)
+			if (AfxMessageBox(_T("请确认使服务器进入离线模式!"), MB_YESNO | MB_ICONQUESTION) != IDYES)
 				return;
 			int nServerState = m_nServerState | STATE_GOOFFLINE_NOW;
 			unsigned char buffer[2];
 			buffer[0] = nServerState / 256;
 			buffer[1] = nServerState % 256;
 			SendCommand(2, buffer, 2);
-			ShowStatus(_T("Server is going offline..."), 0);
+			ShowStatus(_T("服务器正在进入离线模式..."), 0);
 			return;
 		}
 		else
@@ -420,7 +420,7 @@ void CMainFrame::OnActive()
 				buffer[0] = nServerState / 256;
 				buffer[1] = nServerState % 256;
 				SendCommand(2, buffer, 2);
-				ShowStatus(_T("Server is going offline..."), 0);
+				ShowStatus(_T("服务器正在进入离线模式..."), 0);
 				return;
 			}
 			if (dlg.m_nRadio == 1)
@@ -430,7 +430,7 @@ void CMainFrame::OnActive()
 				buffer[0] = nServerState / 256;
 				buffer[1] = nServerState % 256;
 				SendCommand(2, buffer, 2);
-				ShowStatus(_T("Server is going offline..."), 0);				
+				ShowStatus(_T("服务器正在进入离线模式..."), 0);				
 				return;
 			}				
 			else
@@ -440,7 +440,7 @@ void CMainFrame::OnActive()
 				buffer[0] = nServerState / 256;
 				buffer[1] = nServerState % 256;
 				SendCommand(2, buffer, 2);
-				ShowStatus(_T("Server is going offline..."), 0);
+				ShowStatus(_T("服务器正在进入离线模式..."), 0);
 				return;
 			}
 		}
@@ -554,14 +554,14 @@ void CMainFrame::OnLock()
 	}
 	else
 	{
-		if (AfxMessageBox(_T("Do you really want to lock the server? No new connenctions will be accepted while locked."), MB_YESNO|MB_ICONQUESTION)!=IDYES)
+		if (AfxMessageBox(_T("是否锁定服务器? 锁定后所有新连接将不再接受."), MB_YESNO|MB_ICONQUESTION)!=IDYES)
 			return;
 		int nServerState = m_nServerState | STATE_LOCKED;
 		unsigned char buffer[2];
 		buffer[0] = nServerState / 256;
 		buffer[1] = nServerState % 256;
 		SendCommand(2, buffer, 2);
-		ShowStatus("Server locked", 0);	
+		ShowStatus("服务器已锁定", 0);	
 	}	
 }
 
@@ -668,7 +668,7 @@ void CMainFrame::OnTimer(UINT_PTR nIDEvent)
 			return;
 
 		m_pAdminSocket = new CAdminSocket(this);
-		ShowStatus("Reconnecting to server...", 0);
+		ShowStatus("正在重新连接到服务器...", 0);
 		DoConnect();
 	}
 
@@ -712,7 +712,7 @@ void CMainFrame::OnMenuEditUsers()
 	}
 	m_nEdit |= 1;
 	SendCommand(6, 0, 0);
-	ShowStatus(_T("Retrieving account settings, please wait..."), 0);
+	ShowStatus(_T("重新解析账号设置,请稍候..."), 0);
 }
 
 void CMainFrame::OnMenuEditGroups() 
@@ -724,7 +724,7 @@ void CMainFrame::OnMenuEditGroups()
 	}
 	m_nEdit |= 2;
 	SendCommand(6, 0, 0);
-	ShowStatus(_T("Retrieving account settings, please wait..."), 0);
+	ShowStatus(_T("重新解析账号设置,请稍候..."), 0);
 }
 
 void CMainFrame::ShowStatus(const CString& status, int nType)
@@ -749,7 +749,7 @@ void CMainFrame::ParseReply(int nReplyID, unsigned char *pData, int nDataLength)
 	{
 	case 0:
 		{
-			ShowStatus(_T("Logged on"), 0);
+			ShowStatus(_T("已成功登录"), 0);
 			SendCommand(2);
 			unsigned char buffer = USERCONTROL_GETLIST;
 			SendCommand(3, &buffer, 1);
@@ -783,12 +783,12 @@ void CMainFrame::ParseReply(int nReplyID, unsigned char *pData, int nDataLength)
 		if (nDataLength == 1)
 		{
 			if (*pData == 0)
-				ShowStatus(_T("Done sending settings."), 0);
+				ShowStatus(_T("发送设置完成."), 0);
 			else if (*pData == 1)
-				ShowStatus(_T("Could not change settings"), 1);
+				ShowStatus(_T("无法修改设置"), 1);
 			break;
 		}
-		ShowStatus(_T("Done retrieving settings"), 0);
+		ShowStatus(_T("设置解析完成"), 0);
 		if (nDataLength<2)
 			ShowStatus(_T("Protocol error: Unexpected data length"), 1);
 		else
@@ -818,12 +818,12 @@ void CMainFrame::ParseReply(int nReplyID, unsigned char *pData, int nDataLength)
 		if (nDataLength == 1)
 		{
 			if (*pData == 0)
-				ShowStatus(_T("Done sending account settings."), 0);
+				ShowStatus(_T("账号设置发送完成."), 0);
 			else if (*pData == 1)
-				ShowStatus(_T("Could not change account settings"), 1);
+				ShowStatus(_T("不能修改账号设置"), 1);
 			break;
 		}
-		ShowStatus(_T("Done retrieving account settings"), 0);
+		ShowStatus(_T("账号设置解析完成"), 0);
 		if (nDataLength<2)
 			ShowStatus(_T("Protocol error: Unexpected data length"), 1);
 		else
@@ -1038,7 +1038,7 @@ BOOL CMainFrame::SendCommand(int nType)
 	if (!m_pAdminSocket->SendCommand(nType))
 	{
 		CloseAdminSocket();
-		ShowStatus("Error: Connection to server lost...", 1);
+		ShowStatus("错误: 无法连接到服务器...", 1);
 		return FALSE;
 	}
 	return TRUE;
@@ -1051,7 +1051,7 @@ BOOL CMainFrame::SendCommand(int nType, void *pData, int nDataLength)
 	if (!m_pAdminSocket->SendCommand(nType, pData, nDataLength))
 	{
 		CloseAdminSocket();
-		ShowStatus("Error: Connection to server lost...", 1);
+		ShowStatus("错误: 无法连接到服务器...", 1);
 		return FALSE;
 	}
 	return TRUE;
@@ -1068,7 +1068,7 @@ void CMainFrame::CloseAdminSocket(bool shouldReconnect /*=true*/)
 
 		CString title;
 		title.LoadString(IDR_MAINFRAME);
-		SetWindowText(title + _T(" (disconnected)"));
+		SetWindowText(title + _T(" (已断开)"));
 	}
 	m_nEdit = 0;
 
@@ -1087,7 +1087,7 @@ void CMainFrame::CloseAdminSocket(bool shouldReconnect /*=true*/)
 			m_nReconnectCount++;
 			if (m_nReconnectCount < 15)
 			{
-				ShowStatus("Trying to reconnect in 5 seconds", 0);
+				ShowStatus("尝试5秒后重新连接", 0);
 				m_nReconnectTimerID = SetTimer(7779, 5000, 0);
 			}
 			else
@@ -1111,7 +1111,7 @@ void CMainFrame::OnFileConnect()
 	{
 		CloseAdminSocket(false);
 		m_pAdminSocket = new CAdminSocket(this);
-		ShowStatus("Connecting to server...", 0);
+		ShowStatus("连接到服务器中...", 0);
 		DoConnect();
 	}
 }
@@ -1179,11 +1179,11 @@ LRESULT CMainFrame::DefWindowProc(UINT message, WPARAM wParam, LPARAM lParam)
 				if (m_pOptionsDlg->GetAsCommand(&pBuffer, &dwBufferLength))
 				{
 					SendCommand(5, pBuffer, dwBufferLength);
-					ShowStatus(_T("Sending settings, please wait..."), 0);
+					ShowStatus(_T("发送设置中, 请等待..."), 0);
 					delete [] pBuffer;
 				}
 				else
-					ShowStatus(_T("Could not serialize settings, too much data."), 1);
+					ShowStatus(_T("无法序列号设置, 数据过于庞大."), 1);
 			}
 			delete m_pOptionsDlg;
 			m_pOptionsDlg = 0;
@@ -1199,7 +1199,7 @@ LRESULT CMainFrame::DefWindowProc(UINT message, WPARAM wParam, LPARAM lParam)
 				if (m_pUsersDlg->GetAsCommand(&pBuffer, &dwBufferLength))
 				{
 					SendCommand(6, pBuffer, dwBufferLength);
-					ShowStatus(_T("Sending account settings, please wait..."), 0);
+					ShowStatus(_T("发送账号设置中, 请等待..."), 0);
 					delete [] pBuffer;
 				}
 			}
@@ -1217,7 +1217,7 @@ LRESULT CMainFrame::DefWindowProc(UINT message, WPARAM wParam, LPARAM lParam)
 				if (m_pGroupsDlg->GetAsCommand(&pBuffer, &dwBufferLength))
 				{
 					SendCommand(6, pBuffer, dwBufferLength);
-					ShowStatus(_T("Sending account settings, please wait..."), 0);
+					ShowStatus(_T("发送设置中, 请等待..."), 0);
 					delete [] pBuffer;
 				}
 			}
@@ -1344,7 +1344,7 @@ void CMainFrame::DoConnect()
 	m_pAdminSocket->m_Password = m_pOptions->GetOption(IOPTION_LASTSERVERPASS);
 	if (!m_pAdminSocket->Connect(m_pOptions->GetOption(IOPTION_LASTSERVERADDRESS), (UINT)m_pOptions->GetOptionVal(IOPTION_LASTSERVERPORT)) && WSAGetLastError() != WSAEWOULDBLOCK)
 	{
-		ShowStatus(_T("Error, could not connect to server"), 1);
+		ShowStatus(_T("错误, 无法连接到服务器"), 1);
 		CloseAdminSocket();
 	}
 }

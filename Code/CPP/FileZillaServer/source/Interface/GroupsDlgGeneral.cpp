@@ -103,12 +103,12 @@ CString CGroupsDlgGeneral::Validate()
 	if (_ttoi(m_MaxConnCount)<0 || _ttoi(m_MaxConnCount)>999999999)
 	{
 		m_cMaxConnCount.SetFocus();
-		return _T("The maximum user count has to be between 0 and 999999999!");
+		return _T("最大用户数设置区间为 0 到 999999999!");
 	}
 	if (_ttoi(m_MaxConnCount)<0 || _ttoi(m_MaxConnCount)>999999999)
 	{
 		m_cIpLimit.SetFocus();
-		return _T("The maximum user limit per IP has to be between 0 and 999999999!");
+		return _T("每 IP 最大用户限制数设置区间为 0 到 999999999!");
 	}
 	return _T("");
 }

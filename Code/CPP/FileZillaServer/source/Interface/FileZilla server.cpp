@@ -144,6 +144,7 @@ public:
 	CStatic	m_cVersion;
 	CHyperLink m_mail;
 	CHyperLink m_homepage;
+	CHyperLink m_googlecode;
 	//}}AFX_DATA
 
 	CHyperLink m_cDonate;
@@ -175,6 +176,7 @@ void CAboutDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_VERSION, m_cVersion);
 	DDX_Control(pDX, IDC_MAIL, m_mail);
 	DDX_Control(pDX, IDC_HOMEPAGE, m_homepage);
+	DDX_Control(pDX, IDC_GOOGLECODE, m_googlecode);
 	//}}AFX_DATA_MAP
 }
 
@@ -203,16 +205,21 @@ BOOL CAboutDlg::OnInitDialog()
 	CDialog::OnInitDialog();
 	
 	m_homepage.ModifyLinkStyle(0, CHyperLink::StyleUseHover);
-	m_homepage.SetColors(0xFF0000, 0xFF0000, 
-				   0xFF0000, 0xFF);
+	m_homepage.SetColors(0xFF0000, 0xFF0000,0xFF0000, 0xFF);
+
+	m_googlecode.ModifyLinkStyle(0, CHyperLink::StyleUseHover);
+	m_googlecode.SetColors(0xFF0000, 0xFF0000,0xFF0000, 0xFF);
+	m_googlecode.SetURL(_T("http://code.google.com/p/thesnow/"));
+
 	m_mail.ModifyLinkStyle(0, CHyperLink::StyleUseHover);
-	m_mail.SetColors(0xFF0000, 0xFF0000, 
-				   0xFF0000, 0xFF);
+	m_mail.SetColors(0xFF0000, 0xFF0000,0xFF0000, 0xFF);
 	m_mail.SetURL("mailto:Tim.Kosse@gmx.de");
 
 	m_cDonate.SubclassDlgItem(IDC_DONATE, this, _T("https://www.paypal.com/xclick/business=Tim.Kosse%40gmx.de&item_name=FileZilla&cn=Enter+your+comments+here&tax=0&currency_code=USD"));
 	
 	m_cVersion.SetWindowText(GetVersionString());
+
+
 	return TRUE;  // return TRUE unless you set the focus to a control
 	              // EXCEPTION: OCX-Eigenschaftenseiten sollten FALSE zurückgeben
 }
