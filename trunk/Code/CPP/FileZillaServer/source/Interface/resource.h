@@ -264,6 +264,7 @@
 #define ID_BANTIME                      1203
 #define IDC_BANTYPE1                    1204
 #define IDC_BANTYPE2                    1205
+#define IDC_GOOGLECODE					1206
 #define ID_ACTIVE                       32768
 #define ID_DIRMENU_ADD                  32769
 #define ID_DIRMENU_REMOVE               32770

@@ -89,7 +89,7 @@ void CConnectDialog::OnOK()
 
 	if (m_ServerAddress == _T(""))
 	{
-		AfxMessageBox(_T("请输入一个服务器地址."), MB_ICONEXCLAMATION);
+		AfxMessageBox(_T("请输入一个FileZilla FTP服务器地址."), MB_ICONEXCLAMATION);
 		return;
 	}
 

@@ -17,8 +17,8 @@
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_DEU)
 #ifdef _WIN32
-LANGUAGE LANG_GERMAN, SUBLANG_GERMAN
-#pragma code_page(1252)
+LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
+#pragma code_page(936)
 #endif //_WIN32
 
 #ifdef APSTUDIO_INVOKED
@@ -76,22 +76,22 @@ VS_VERSION_INFO VERSIONINFO
 BEGIN
     BLOCK "StringFileInfo"
     BEGIN
-        BLOCK "040704b0"
+        BLOCK "080404b0"
         BEGIN
-            VALUE "Comments", "Open Source FTP server for Windows"
-            VALUE "CompanyName", "FileZilla Project"
-            VALUE "FileDescription", "FileZilla Server"
+            VALUE "Comments", "开源 FTP 服务器 for Windows"
+            VALUE "CompanyName", "FileZilla 项目"
+            VALUE "FileDescription", "FileZilla 服务器"
             VALUE "FileVersion", "0, 9, 37, 0"
-            VALUE "InternalName", "FileZilla Server"
-            VALUE "LegalCopyright", "Copyright (C) 2001-2010"
+            VALUE "InternalName", "FileZilla 服务器"
+            VALUE "LegalCopyright", "Copyright (C) 2001-2011"
             VALUE "OriginalFilename", "FileZilla server.EXE"
-            VALUE "ProductName", "FileZilla Server"
+            VALUE "ProductName", "FileZilla 服务器"
             VALUE "ProductVersion", "0, 9, 37, 0"
         END
     END
     BLOCK "VarFileInfo"
     BEGIN
-        VALUE "Translation", 0x407, 1200
+        VALUE "Translation", 0x804, 1200
     END
 END
 

@@ -67,13 +67,13 @@ void CGenerateCertificateDlg::OnOK()
 	UpdateData(TRUE);
 	if (m_country.GetLength() != 2)
 	{
-		AfxMessageBox(_T("Please enter the 2 digit country code"));
+		AfxMessageBox(_T("请输入两位数字国家代码"));
 		return;
 	}
 
 	if (m_file == _T(""))
 	{
-		AfxMessageBox(_T("Please enter a filename"));
+		AfxMessageBox(_T("请输入一个文件名"));
 		return;
 	}
 
@@ -91,15 +91,15 @@ void CGenerateCertificateDlg::OnOK()
 		(unsigned char*)T2CA(m_state), (unsigned char*)T2CA(m_city), (unsigned char*)T2CA(m_organization), (unsigned char*)T2CA(m_unit),
 		(unsigned char*)T2CA(m_cname), (unsigned char*)T2CA(m_email), error))
 	{
-		AfxMessageBox(_T("Certificate generated successfully."));
+		AfxMessageBox(_T("证书创建成功."));
 		EndDialog(IDOK);
 	}
 	else
 	{
 		if (error != _T(""))
-			AfxMessageBox(_T("Certificate could not be generated.\nReason: ") + error);
+			AfxMessageBox(_T("证书无法生成.\n理由: ") + error);
 		else
-			AfxMessageBox(_T("Certificate could not be generated."));
+			AfxMessageBox(_T("证书无法生成."));
 	}
 }
 

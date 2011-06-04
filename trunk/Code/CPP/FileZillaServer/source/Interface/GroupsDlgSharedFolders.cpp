@@ -150,7 +150,7 @@ CString CGroupsDlgSharedFolders::Validate()
 		if (iter->dir == _T("") || iter->dir == _T("/") || iter->dir == _T("\\"))
 		{
 			m_cDirs.SetFocus();
-			return _T("At least one shared directory is not a valid local path.");
+			return _T("至少有一个路径不是一个有效的本地路径.");
 		}
 
 		if (iter->bIsHome)
@@ -332,7 +332,7 @@ void CGroupsDlgSharedFolders::OnDirmenuAdd()
 	dir.bIsHome = m_cDirs.GetItemCount()?FALSE:TRUE;
 
 	pGroup->permissions.push_back(dir);
-	int nItem = m_cDirs.InsertItem(LVIF_TEXT |LVIF_PARAM|LVIF_IMAGE, 0, _T("<new directory>"), 0, 0, dir.bIsHome?1:0, pGroup->permissions.size()-1);
+	int nItem = m_cDirs.InsertItem(LVIF_TEXT |LVIF_PARAM|LVIF_IMAGE, 0, _T("<新建目录>"), 0, 0, dir.bIsHome?1:0, pGroup->permissions.size()-1);
 	m_cDirs.SetItemState(nItem, LVIS_SELECTED,LVIS_SELECTED);
 	m_cDirs.SetItemState(nItem, LVIS_SELECTED,LVIS_SELECTED);
 	OnDblclkDirs(0, 0);	
@@ -610,7 +610,7 @@ void CGroupsDlgSharedFolders::OnDirmenuEditAliases()
 
 	if (pGroup->permissions[index].bIsHome)
 	{
-		AfxMessageBox(_T("Can't set aliases for home dir, this would create a recursive directory structure."));
+		AfxMessageBox(_T("不能设置主目录别名,它将会创建一个递归目录结构."));
 		return;
 	}
 
