@@ -194,7 +194,7 @@ protected:	// ScintillaBase subclass needs access to much of Editor
 	int dwellDelay;
 	int ticksToDwell;
 	bool dwelling;
-	enum { selChar, selWord, selLine } selectionType;
+	enum { selChar, selWord, selSubLine, selWholeLine } selectionType;
 	Point ptMouseLast;
 	enum { ddNone, ddInitial, ddDragging } inDragDrop;
 	bool dropWentOutside;
@@ -202,7 +202,7 @@ protected:	// ScintillaBase subclass needs access to much of Editor
 	SelectionPosition posDrop;
 	int hotSpotClickPos;
 	int lastXChosen;
-	int lineAnchor;
+	int lineAnchorPos;
 	int originalAnchorPos;
 	int wordSelectAnchorStartPos;
 	int wordSelectAnchorEndPos;
@@ -492,7 +492,7 @@ protected:	// ScintillaBase subclass needs access to much of Editor
 	bool PointInSelection(Point pt);
 	bool PointInSelMargin(Point pt);
 	Window::Cursor GetMarginCursor(Point pt);
-	void LineSelection(int lineCurrent_, int lineAnchor_);
+	void LineSelection(int lineCurrentPos_, int lineAnchorPos_, bool wholeLine);
 	void WordSelection(int pos);
 	void DwellEnd(bool mouseMoved);
 	void MouseLeave();
@@ -539,6 +539,7 @@ protected:	// ScintillaBase subclass needs access to much of Editor
 	virtual bool ValidCodePage(int /* codePage */) const { return true; }
 	int WrapCount(int line);
 	void AddStyledText(char *buffer, int appendLength);
+
 	virtual sptr_t DefWndProc(unsigned int iMessage, uptr_t wParam, sptr_t lParam) = 0;
 	void StyleSetMessage(unsigned int iMessage, uptr_t wParam, sptr_t lParam);
 	sptr_t StyleGetMessage(unsigned int iMessage, uptr_t wParam, sptr_t lParam);

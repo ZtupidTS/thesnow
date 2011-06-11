@@ -7,7 +7,7 @@
 
 #include "SciTEWin.h"
 // need this header for SHBrowseForFolder
-#include <Shlobj.h>
+#include <shlobj.h>
 #include "Extra.h"
 /**
  * Flash the given window for the asked @a duration to visually warn the user.
@@ -895,9 +895,10 @@ void DialogFindReplace::FillFields() {
 		SetCheck(pSearcher->reverseFind ? IDDIRECTIONUP : IDDIRECTIONDOWN, true);
 	}
 	if (advanced) {
-		SetCheck(IDFINDSTYLE, pSearcher->findInStyle);
+		SetCheck(IDFINDINSTYLE, pSearcher->findInStyle);
 	}
 }
+
 BOOL SciTEWin::FindMessage(HWND hDlg, UINT message, WPARAM wParam) {
 	HWND hTT[9];	//added
 	// Avoid getting dialog items before set up or during tear down.
@@ -954,7 +955,7 @@ BOOL SciTEWin::FindMessage(HWND hDlg, UINT message, WPARAM wParam) {
 			if (ControlIDOfCommand(wParam) == IDMARKALL){
 				MarkAll();
 			}
-			FindNext(reverseFind);
+			FindNext(reverseFind ^ IsKeyDown(VK_SHIFT));
 			return TRUE;
 		} else if (ControlIDOfCommand(wParam) == IDFINDINSTYLE) {
 			if (FindReplaceAdvanced()) {
@@ -998,7 +999,7 @@ BOOL CALLBACK SciTEWin::FindDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM l
 	return Caller(hDlg, message, lParam)->FindMessage(hDlg, message, wParam);
 }
 
-BOOL SciTEWin::HandleReplaceCommand(int cmd) {
+BOOL SciTEWin::HandleReplaceCommand(int cmd, bool reverseFind) {
 	if (!wFindReplace.GetID())
 		return TRUE;
 	HWND hwndFR = reinterpret_cast<HWND>(wFindReplace.GetID());
@@ -1011,7 +1012,7 @@ BOOL SciTEWin::HandleReplaceCommand(int cmd) {
 
 	int replacements = 0;
 	if (cmd == IDOK) {
-		FindNext(false);
+		FindNext(reverseFind);
 	} else if (cmd == IDREPLACE) {
 		ReplaceOnce();
 	} else if ((cmd == IDREPLACEALL) || (cmd == IDREPLACEINSEL)) {
@@ -1065,7 +1066,7 @@ BOOL SciTEWin::ReplaceMessage(HWND hDlg, UINT message, WPARAM wParam) {
 			}
 			return TRUE;
 		} else {
-			return HandleReplaceCommand(ControlIDOfCommand(wParam));
+			return HandleReplaceCommand(ControlIDOfCommand(wParam), IsKeyDown(VK_SHIFT));
 		}
 	}
 

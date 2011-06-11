@@ -1151,15 +1151,16 @@ void SciTEWin::ShellExec(const SString &cmd, const char *dir) {
 	}
 	DWORD rc = GetLastError();
 
-	SString errormsg("执行命令发生错误:\n命令:\n\"");
+	SString errormsg("执行命令时发生错误,请检查您的SciTe配置:\n\n执行命令:\n");
 	errormsg += mycmdcopy;
 	if (myparams != NULL) {
-		errormsg += "\" 参数:\n\"";
+		errormsg += "\n\n 执行参数:\n";
 		errormsg += myparams;
+		errormsg += "\n\n 详细信息:";
 	}
-	errormsg += "\"\n";
-	GUI::gui_string sErrorMsg = GUI::StringFromUTF8(errormsg.c_str()) + GetErrorMessage(rc);
-	WindowMessageBox(wSciTE, sErrorMsg, MB_OK);
+	errormsg += "\n";
+	GUI::gui_string sErrorMsg = errormsg.w_str() + GetErrorMessage(rc);
+	WindowMessageBox(wSciTE, sErrorMsg, MB_OK|MB_ICONINFORMATION);
 
 	delete []mycmdcopy;
 }
@@ -2905,19 +2906,19 @@ bool FindStrip::KeyDown(WPARAM key) {
 	switch (key) {
 	case VK_RETURN:
 		if (IsChild(Hwnd(), ::GetFocus())) {
-			Next(false);
+			Next(false, IsKeyDown(VK_SHIFT));
 			return true;
 		}
 	}
 	return false;
 }
 
-void FindStrip::Next(bool markAll) {
+void FindStrip::Next(bool markAll, bool invertDirection) {
 	pSearcher->SetFind(ControlText(wText).c_str());
 	if (markAll){
 		pSearcher->MarkAll();
 	}
-	pSearcher->FindNext(pSearcher->reverseFind);
+	pSearcher->FindNext(pSearcher->reverseFind ^ invertDirection);
 	if (pSearcher->closeFind) {
 		visible = false;
 		pSearcher->UIClosed();
@@ -2949,7 +2950,7 @@ bool FindStrip::Command(WPARAM wParam) {
 		return false;
 	int control = ControlIDOfCommand(wParam);
 	if ((control == IDOK) || (control == IDMARKALL)) {
-		Next(control == IDMARKALL);
+		Next(control == IDMARKALL, false);
 		return true;
 	} else {
 		pSearcher->FlagFromCmd(control) = !pSearcher->FlagFromCmd(control);
@@ -3180,9 +3181,9 @@ bool ReplaceStrip::KeyDown(WPARAM key) {
 	case VK_RETURN:
 		if (IsChild(Hwnd(), ::GetFocus())) {
 			if (IsSameOrChild(wButtonFind, ::GetFocus()))
-				HandleReplaceCommand(IDOK);
+				HandleReplaceCommand(IDOK, IsKeyDown(VK_SHIFT));
 			else if (IsSameOrChild(wReplace, ::GetFocus()))
-				HandleReplaceCommand(IDOK);
+				HandleReplaceCommand(IDOK, IsKeyDown(VK_SHIFT));
 			else if (IsSameOrChild(wButtonReplace, ::GetFocus()))
 				HandleReplaceCommand(IDREPLACE);
 			else if (IsSameOrChild(wButtonReplaceAll, ::GetFocus()))
@@ -3190,7 +3191,7 @@ bool ReplaceStrip::KeyDown(WPARAM key) {
 			else if (IsSameOrChild(wButtonReplaceInSelection, ::GetFocus()))
 				HandleReplaceCommand(IDREPLACEINSEL);
 			else
-				HandleReplaceCommand(IDOK);
+				HandleReplaceCommand(IDOK, IsKeyDown(VK_SHIFT));
 			return true;
 		}
 	}
@@ -3217,7 +3218,7 @@ void ReplaceStrip::ShowPopup() {
 	popup.Show(pt, *this);
 }
 
-void ReplaceStrip::HandleReplaceCommand(int cmd) {
+void ReplaceStrip::HandleReplaceCommand(int cmd, bool reverseFind) {
 	pSearcher->SetFind(ControlText(wText).c_str());
 	if (cmd != IDOK) {
 		pSearcher->SetReplace(ControlText(wReplace).c_str());
@@ -3225,7 +3226,7 @@ void ReplaceStrip::HandleReplaceCommand(int cmd) {
 	//int replacements = 0;
 	if (cmd == IDOK) {
 		if (pSearcher->FindHasText()) {
-			pSearcher->FindNext(false);
+			pSearcher->FindNext(reverseFind);
 		}
 	} else if (cmd == IDREPLACE) {
 		pSearcher->ReplaceOnce();

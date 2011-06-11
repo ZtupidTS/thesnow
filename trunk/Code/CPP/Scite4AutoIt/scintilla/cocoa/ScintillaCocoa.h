@@ -122,6 +122,7 @@ protected:
   
   virtual void Initialise();
   virtual void Finalise();
+  virtual CaseFolder *CaseFolderForEncoding();
   virtual std::string CaseMapString(const std::string &s, int caseMapping);
 public:
   ScintillaCocoa(NSView* view);
@@ -160,6 +161,8 @@ public:
   virtual bool CanPaste();
   virtual void Paste();
   virtual void Paste(bool rectangular);
+  void CTPaint(void* gc, NSRect rc);
+  void CallTipMouseDown(NSPoint pt);
   virtual void CreateCallTipWindow(PRectangle rc);
   virtual void AddToPopUp(const char *label, int cmd = 0, bool enabled = true);
   virtual void ClaimSelection();
@@ -199,10 +202,7 @@ public:
   virtual NSMenu* CreateContextMenu(NSEvent* event);
   void HandleCommand(NSInteger command);
 
-//    virtual OSStatus ActiveStateChanged();
-//
-//    virtual void CallTipClick();
- 
+  virtual void ActiveStateChanged(bool isActive);
 };
 
 
