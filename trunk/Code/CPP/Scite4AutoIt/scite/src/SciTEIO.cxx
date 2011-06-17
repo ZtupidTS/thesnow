@@ -740,8 +740,10 @@ int SciTEBase::SaveIfUnsureAll(bool forceQuestion) {
 	}
 	// Release all the extra documents
 	for (int j = 0; j < buffers.size; j++) {
-		if (buffers.buffers[j].doc)
+		if (buffers.buffers[j].doc) {
 			wEditor.Call(SCI_RELEASEDOCUMENT, 0, buffers.buffers[j].doc);
+			buffers.buffers[j].doc = 0;
+		}
 	}
 	// Initial document will be deleted when editor deleted
 	return IDYES;

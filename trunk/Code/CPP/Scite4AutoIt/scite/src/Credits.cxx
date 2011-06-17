@@ -5,6 +5,7 @@
 // Copyright 1998-2011 by Neil Hodgson <neilh@scintilla.org>
 // The License.txt file describes the conditions under which this software may be distributed.
 
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -300,6 +301,8 @@ const char *contributors[] = {
             "Adobe",
             "Elizabeth A. Irizarry",
             "Mike Schroeder",
+            "Morten MacFly",
+            "Jaime Gimeno",
         };
 
 // AddStyledText only called from About so static size buffer is OK
