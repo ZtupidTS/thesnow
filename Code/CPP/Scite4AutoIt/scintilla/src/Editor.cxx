@@ -159,6 +159,7 @@ Editor::Editor() {
 	verticalScrollBarVisible = true;
 	endAtLastLine = true;
 	caretSticky = SC_CARETSTICKY_OFF;
+	marginOptions = SC_MARGINOPTION_NONE;
 	multipleSelection = false;
 	additionalSelectionTyping = false;
 	multiPasteMode = SC_MULTIPASTE_ONCE;
@@ -2928,6 +2929,8 @@ void Editor::DrawLine(Surface *surface, ViewStyle &vsDraw, int line, int lineVis
 	if (vsDraw.edgeState == EDGE_LINE) {
 		int edgeX = theEdge * vsDraw.spaceWidth;
 		rcSegment.left = edgeX + xStart;
+		if ((ll->wrapIndent != 0) && (lineStart != 0))
+			rcSegment.left -= ll->wrapIndent;
 		rcSegment.right = rcSegment.left + 1;
 		surface->FillRectangle(rcSegment, vsDraw.edgecolour.allocated);
 	}
@@ -4302,6 +4305,10 @@ void Editor::DelCharBack(bool allowLineStartDeletion) {
 
 void Editor::NotifyFocus(bool) {}
 
+void Editor::SetCtrlID(int identifier) {
+	ctrlID = identifier; 
+}
+
 void Editor::NotifyStyleToNeeded(int endStyleNeeded) {
 	SCNotification scn = {0};
 	scn.nmhdr.code = SCN_STYLENEEDED;
@@ -5509,10 +5516,8 @@ int Editor::KeyDefault(int, int) {
 	return 0;
 }
 
-int Editor::KeyDown(int key, bool shift, bool ctrl, bool alt, bool *consumed) {
+int Editor::KeyDownWithModifiers(int key, int modifiers, bool *consumed) {
 	DwellEnd(false);
-	int modifiers = (shift ? SCI_SHIFT : 0) | (ctrl ? SCI_CTRL : 0) |
-	        (alt ? SCI_ALT : 0);
 	int msg = kmap.Find(key, modifiers);
 	if (msg) {
 		if (consumed)
@@ -5523,6 +5528,12 @@ int Editor::KeyDown(int key, bool shift, bool ctrl, bool alt, bool *consumed) {
 			*consumed = false;
 		return KeyDefault(key, modifiers);
 	}
+}
+
+int Editor::KeyDown(int key, bool shift, bool ctrl, bool alt, bool *consumed) {
+	int modifiers = (shift ? SCI_SHIFT : 0) | (ctrl ? SCI_CTRL : 0) |
+	        (alt ? SCI_ALT : 0);
+	return KeyDownWithModifiers(key, modifiers, consumed);
 }
 
 void Editor::SetWhitespaceVisible(int view) {
@@ -6195,7 +6206,7 @@ void Editor::ButtonDown(Point pt, unsigned int curTime, bool shift, bool ctrl, b
 			if (!shift) {
 				// Single click in margin: select whole line or only subline if word wrap is enabled
 				lineAnchorPos = newPos.Position();
-				selectionType = (wrapState != eWrapNone) ? selSubLine : selWholeLine;
+				selectionType = ((wrapState != eWrapNone) && (marginOptions & SC_MARGINOPTION_SUBLINESELECT)) ? selSubLine : selWholeLine;
 				LineSelection(lineAnchorPos, lineAnchorPos, selectionType == selWholeLine);
 			} else {
 				// Single shift+click in margin: select from line anchor to clicked line
@@ -6208,7 +6219,7 @@ void Editor::ButtonDown(Point pt, unsigned int curTime, bool shift, bool ctrl, b
 				// Otherwise, if there's a non empty selection, reset selection type only if it differs from selSubLine and selWholeLine.
 				// This ensures that we continue selecting in the same selection mode.
 				if (sel.Empty()	|| (selectionType != selSubLine && selectionType != selWholeLine))
-					selectionType = (wrapState != eWrapNone) ? selSubLine : selWholeLine;
+					selectionType = ((wrapState != eWrapNone) && (marginOptions & SC_MARGINOPTION_SUBLINESELECT)) ? selSubLine : selWholeLine;
 				LineSelection(newPos.Position(), lineAnchorPos, selectionType == selWholeLine);
 			}
 
@@ -7476,6 +7487,10 @@ sptr_t Editor::WndProc(unsigned int iMessage, uptr_t wParam, sptr_t lParam) {
 
 	case SCI_GETSELECTIONEND:
 		return sel.LimitsForRectangularElseMain().end.Position();
+
+	case SCI_SETEMPTYSELECTION:
+		SetEmptySelection(wParam);
+		break;
 
 	case SCI_SETPRINTMAGNIFICATION:
 		printMagnification = wParam;
@@ -8797,6 +8812,13 @@ sptr_t Editor::WndProc(unsigned int iMessage, uptr_t wParam, sptr_t lParam) {
 	case SCI_MARGINGETSTYLEOFFSET:
 		return vs.marginStyleOffset;
 
+	case SCI_SETMARGINOPTIONS:
+		marginOptions = wParam;
+		break;
+
+	case SCI_GETMARGINOPTIONS:
+		return marginOptions;
+
 	case SCI_MARGINSETTEXT:
 		pdoc->MarginSetText(wParam, CharPtrFromSPtr(lParam));
 		break;
@@ -9111,6 +9133,13 @@ sptr_t Editor::WndProc(unsigned int iMessage, uptr_t wParam, sptr_t lParam) {
 	case SCI_CHANGELEXERSTATE:
 		pdoc->ChangeLexerState(wParam, lParam);
 		break;
+	
+	case SCI_SETIDENTIFIER:
+		SetCtrlID(wParam);
+		break;
+	
+	case SCI_GETIDENTIFIER:
+		return GetCtrlID();
 
 	default:
 		return DefWndProc(iMessage, wParam, lParam);
