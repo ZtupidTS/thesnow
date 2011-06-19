@@ -4,10 +4,6 @@
 !coding: utf-8, expires: 3 days
 !----GNU LGPL Licensed, NO WARRANTY but Best Wishes----
 
-!-- nod32 key 站点
-naoz.cn##TABLE.adszone
-naoz.cn##A[href="http://ucweb6.net.cn/"]
-
 !-- CSDN
 csdn.net##*#AD21789
 csdn.net##TABLE[style="font-size: 12px; line-height: 18px; width: 165px; height: 117px; background-color: rgb(205, 211, 218);"]
