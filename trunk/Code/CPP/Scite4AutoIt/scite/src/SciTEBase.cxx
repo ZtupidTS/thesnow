@@ -745,6 +745,9 @@ void SciTEBase::HighlightCurrentWord(bool highlight) {
 	// Get style of the current word to highlight only word with same style.
 	int selectedStyle = wCurrent.Call(SCI_GETSTYLEAT, selStart);
 
+	// Manage word with DBCS.
+	wordToFind = EncodeString(wordToFind);
+
 	// Case sensitive & whole word only.
 	wCurrent.Call(SCI_SETSEARCHFLAGS, SCFIND_MATCHCASE | SCFIND_WHOLEWORD);
 	wCurrent.Call(SCI_SETTARGETSTART, 0);
@@ -1057,8 +1060,8 @@ int SciTEBase::FindNext(bool reverseDirection, bool showWarnings) {
 		havefound = false;
 		if (showWarnings) {
 			WarnUser(warnNotFound);
-//			FindMessageBox("Can not find the string '^0'.",
-			FindMessageBox(L"不能找到字符串 '^0'.",&findWhat);
+			FindMessageBox(L"不能找到字符串 '^0'.",
+				&findWhat);
 		}
 	} else {
 		havefound = true;
@@ -1957,7 +1960,6 @@ bool SciTEBase::StartBlockComment() {
 	if (comment == "") { // user friendly error message box
 		GUI::gui_string sBase = GUI::StringFromUTF8(base.c_str());
 		GUI::gui_string error = LocaliseMessage(
-//		            "Block comment variable '^0' is not defined in SciTE *.properties!", sBase.c_str());
 		            L"区域注释变量 '^0' 没有在 SciTE *.properties 中定义!", sBase.c_str());
 		WindowMessageBox(wSciTE, error, MB_OK | MB_ICONWARNING);
 		return true;
@@ -2058,7 +2060,6 @@ bool SciTEBase::StartBoxComment() {
 		GUI::gui_string sMiddle = GUI::StringFromUTF8(middle_base.c_str());
 		GUI::gui_string sEnd = GUI::StringFromUTF8(end_base.c_str());
 		GUI::gui_string error = LocaliseMessage(
-//		            "Box comment variables '^0', '^1' and '^2' are not defined in SciTE *.properties!",
 		            L"区域注释变量 '^0', '^1' 和 '^2' 没有在 SciTE *.properties 中定义!",
 		            sStart.c_str(), sMiddle.c_str(), sEnd.c_str());
 		WindowMessageBox(wSciTE, error, MB_OK | MB_ICONWARNING);
@@ -3079,6 +3080,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		}
 		wEditor.Call(SCI_SETCODEPAGE, codePage);
 		break;
+
 	case IDM_NEXTFILESTACK:
 		if (buffers.size > 1 && props.GetInt("buffers.zorder.switching")) {
 			NextInStack(); // next most recently selected buffer
