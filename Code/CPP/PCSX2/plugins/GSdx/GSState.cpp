@@ -25,6 +25,10 @@
 //#define DISABLE_BITMASKING
 //#define DISABLE_COLCLAMP
 //#define DISABLE_DATE
+//see stdafx.h for #define HW_NO_TEXTURE_CACHE and #define NO_CRC_HACKS
+
+//#define Offset_ST  // Fixes Persona3 mini map alignment which is off even in software rendering
+//#define Offset_UV  // Fixes / breaks various titles
 
 GSState::GSState()
 	: m_version(6)
@@ -431,6 +435,12 @@ __forceinline void GSState::GIFPackedRegHandlerSTQ(const GIFPackedReg* r)
 	#endif
 
 	m_q = r->STQ.Q;
+	
+#ifdef Offset_ST
+	GIFRegTEX0 TEX0 = m_context->TEX0;
+	m_v.ST.S -= 0.02f * m_q / (1 << TEX0.TW);
+	m_v.ST.T -= 0.02f * m_q / (1 << TEX0.TH);
+#endif
 }
 
 __forceinline void GSState::GIFPackedRegHandlerUV(const GIFPackedReg* r)
@@ -446,6 +456,11 @@ __forceinline void GSState::GIFPackedRegHandlerUV(const GIFPackedReg* r)
 	m_v.UV.V = r->UV.V;
 
 	#endif
+
+#ifdef Offset_UV
+	m_v.UV.U = min((uint16)m_v.UV.U, (uint16)(m_v.UV.U - 4U));
+	m_v.UV.V = min((uint16)m_v.UV.V, (uint16)(m_v.UV.V - 4U));
+#endif
 }
 
 __forceinline void GSState::GIFPackedRegHandlerXYZF2(const GIFPackedReg* r)
@@ -529,11 +544,22 @@ __forceinline void GSState::GIFRegHandlerRGBAQ(const GIFReg* r)
 __forceinline void GSState::GIFRegHandlerST(const GIFReg* r)
 {
 	m_v.ST = (GSVector4i)r->ST;
+
+#ifdef Offset_ST
+	GIFRegTEX0 TEX0 = m_context->TEX0;
+	m_v.ST.S -= 0.02f * m_q / (1 << TEX0.TW);
+	m_v.ST.T -= 0.02f * m_q / (1 << TEX0.TH);
+#endif
 }
 
 __forceinline void GSState::GIFRegHandlerUV(const GIFReg* r)
 {
 	m_v.UV.u32[0] = r->UV.u32[0] & 0x3fff3fff;
+
+#ifdef Offset_UV
+	m_v.UV.U = min((uint16)m_v.UV.U, (uint16)(m_v.UV.U - 4U));
+	m_v.UV.V = min((uint16)m_v.UV.V, (uint16)(m_v.UV.V - 4U));
+#endif
 }
 
 void GSState::GIFRegHandlerXYZF2(const GIFReg* r)
@@ -1922,6 +1948,10 @@ bool GSC_MetalGearSolid3(const GSFrameInfo& fi, int& skip)
 		{
 			skip = 0;
 		}
+		else if(!fi.TME && fi.FBP == fi.TBP0 && fi.FBP == 0x2000 && fi.FPSM == PSM_PSMCT32 && fi.TPSM == PSM_PSMCT24)
+		{
+			skip = 119;
+		}
 	}
 
 	return true;
@@ -1948,17 +1978,40 @@ bool GSC_DBZBT3(const GSFrameInfo& fi, int& skip)
 {
 	if(skip == 0)
 	{
-		if(fi.TME && fi.FBP == 0x01c00 && fi.FPSM == PSM_PSMCT32 && (fi.TBP0 == 0x00000 || fi.TBP0 == 0x00e00) && fi.TPSM == PSM_PSMT8H)
+		if(fi.TME && fi.FBP == 0x01c00 && fi.FPSM == PSM_PSMCT32 && (fi.TBP0 == 0x00000 || fi.TBP0 == 0x00e00 || fi.TBP0 == 0x01000) && fi.TPSM == PSM_PSMT8H)
 		{
-			skip = 24; // blur
+			//not needed anymore?
+			//skip = 24; // blur
 		}
-		else if(fi.TME && (fi.FBP == 0x00000 || fi.FBP == 0x00e00) && fi.FPSM == PSM_PSMCT32 && fi.TPSM == PSM_PSMT8H)
+		else if(fi.TME && (fi.FBP == 0x00000 || fi.FBP == 0x00e00 || fi.FBP == 0x01000) && fi.FPSM == PSM_PSMCT32 && fi.TPSM == PSM_PSMT8H)
 		{
-			skip = 28; // outline
+			if(fi.FBMSK == 0x00000)
+			{
+				skip = 28; // outline
+			}
+			if(fi.FBMSK == 0x00FFFFFF)
+			{
+				skip = 1;
+			}
+		}
+		else if(fi.TME && (fi.FBP == 0x00000 || fi.FBP == 0x00e00 || fi.FBP == 0x01000) && fi.FPSM == PSM_PSMCT16 && fi.TPSM == PSM_PSMZ16)
+		{
+			skip = 5;
+		}
+		else if(fi.TME && fi.FPSM == fi.TPSM && fi.TBP0 == 0x03f00 && fi.TPSM == PSM_PSMCT32)
+		{
+			if (fi.FBP == 0x03400)
+			{
+				skip = 1;	//PAL
+			}
+			if(fi.FBP == 0x02e00)
+			{
+				skip = 3;	//NTSC
+			}
 		}
 	}
 
-	return true;
+    return true;
 }
 
 bool GSC_SFEX3(const GSFrameInfo& fi, int& skip)
@@ -2319,9 +2372,9 @@ bool GSC_GodOfWar(const GSFrameInfo& fi, int& skip)
 {
 	if(skip == 0)
 	{
-		if(fi.TME && fi.FBP == 0x00000 && fi.FPSM == PSM_PSMCT16 && fi.TBP0 == 0x00000 && fi.TPSM == PSM_PSMCT16)
+		if(fi.TME && fi.FBP == 0x00000 && fi.FPSM == PSM_PSMCT16 && fi.TBP0 == 0x00000 && fi.TPSM == PSM_PSMCT16 && fi.FBMSK == 0x03FFF)
 		{
-			skip = 30;
+			skip = 1000;
 		}
 		else if(fi.TME && fi.FBP == 0x00000 && fi.FPSM == PSM_PSMCT32 && fi.TBP0 == 0x00000 && fi.TPSM == PSM_PSMCT32 && fi.FBMSK == 0xff000000)
 		{
@@ -2330,6 +2383,13 @@ bool GSC_GodOfWar(const GSFrameInfo& fi, int& skip)
 		else if(fi.FBP == 0x00000 && fi.FPSM == PSM_PSMCT32 && fi.TPSM == PSM_PSMT8 && ((fi.TZTST == 2 && fi.FBMSK == 0x00FFFFFF) || (fi.TZTST == 1 && fi.FBMSK == 0x00FFFFFF) || (fi.TZTST == 3 && fi.FBMSK == 0xFF000000)))
 		{
 			skip = 1; // wall of fog
+		}
+	}
+	else
+	{
+		if(fi.TME && fi.FBP == 0x00000 && fi.FPSM == PSM_PSMCT16)
+		{
+			skip = 3;
 		}
 	}
 
@@ -2342,19 +2402,28 @@ bool GSC_GodOfWar2(const GSFrameInfo& fi, int& skip)
 	{
 		if(fi.TME)
 		{
-			if(fi.FBP == 0x00100 && fi.FPSM == PSM_PSMCT16 && fi.TBP0 == 0x00100 && fi.TPSM == PSM_PSMCT16 // ntsc
+			if( (fi.FBP == 0x00100 && fi.FPSM == PSM_PSMCT16 && fi.TBP0 == 0x00100 && fi.TPSM == PSM_PSMCT16 // ntsc
 				|| fi.FBP == 0x02100 && fi.FPSM == PSM_PSMCT16 && fi.TBP0 == 0x02100 && fi.TPSM == PSM_PSMCT16) // pal
+				&& (GSUtil::HasSharedBits(fi.FBP, fi.FPSM, fi.TBP0, fi.TPSM)) )
 			{
-				skip = 29; // shadows
+				skip = 1000; // shadows
 			}
 			if(fi.FBP == 0x00100 && fi.FPSM == PSM_PSMCT32 && (fi.TBP0 & 0x03000) == 0x03000
 				&& (fi.TPSM == PSM_PSMT8 || fi.TPSM == PSM_PSMT4)
-				&& ((fi.TZTST == 2 && fi.FBMSK == 0x00FFFFFF) || (fi.TZTST == 1 && fi.FBMSK == 0x00FFFFFF) || (fi.TZTST == 3 && fi.FBMSK == 0xFF000000))){
+				&& ((fi.TZTST == 2 && fi.FBMSK == 0x00FFFFFF) || (fi.TZTST == 1 && fi.FBMSK == 0x00FFFFFF) || (fi.TZTST == 3 && fi.FBMSK == 0xFF000000)))
+			{
 					skip = 1; // wall of fog
 			}
 		}
 	}
-
+	else
+	{
+		if(fi.TME && (fi.FBP == 0x00100 || fi.FBP == 0x02100) && fi.FPSM == PSM_PSMCT16)
+		{
+			skip = 3;
+		}
+	}
+	
 	return true;
 }
 
@@ -2681,13 +2750,14 @@ bool GSC_TimeSplitters2(const GSFrameInfo& fi, int& skip)
 
 bool GSC_ReZ(const GSFrameInfo& fi, int& skip)
 {
-	if(skip == 0)
+	//not needed anymore
+	/*if(skip == 0)
 	{
 		if(fi.TME && (fi.FBP == 0x00000 || fi.FBP == 0x008c0 || fi.FBP == 0x00a00) && fi.FPSM == fi.TPSM && fi.TPSM == PSM_PSMCT32)
 		{
 			skip = 1; 
 		}
-	}
+	}*/
 
 	return true;
 }
@@ -2790,6 +2860,30 @@ bool GSC_Castlevania(const GSFrameInfo& fi, int& skip)
 	return true;
 }
 
+bool GSC_Black(const GSFrameInfo& fi, int& skip)
+{
+	if(skip == 0)
+	{
+		if(fi.TME /*&& (fi.FBP == 0x00000 || fi.FBP == 0x008c0)*/ && fi.FPSM == PSM_PSMCT16 && (fi.TBP0 == 0x01a40 || fi.TBP0 == 0x01b80 || fi.TBP0 == 0x030c0) && fi.TPSM == PSM_PSMZ16 || (GSUtil::HasSharedBits(fi.FBP, fi.FPSM, fi.TBP0, fi.TPSM)))
+		{
+			skip = 5;
+		}
+	}
+	else
+	{
+		if(fi.TME && (fi.FBP == 0x00000 || fi.FBP == 0x008c0 || fi.FBP == 0x0a00 ) && fi.FPSM == PSM_PSMCT32 && fi.TPSM == PSM_PSMT4)
+		{
+			skip = 0;
+		}
+		else if(!fi.TME && fi.FBP == fi.TBP0 && fi.FPSM == PSM_PSMCT32 && fi.TPSM == PSM_PSMT8H)
+		{
+			skip = 0;
+		}
+	}
+	
+	return true;
+}
+
 bool GSState::IsBadFrame(int& skip, int UserHacks_SkipDraw)
 {
 	GSFrameInfo fi;
@@ -2862,6 +2956,7 @@ bool GSState::IsBadFrame(int& skip, int UserHacks_SkipDraw)
 		map[CRC::BleachBladeBattlers] = GSC_BleachBladeBattlers;
 		map[CRC::CastlevaniaCoD] = GSC_Castlevania;
 		map[CRC::CastlevaniaLoI] = GSC_Castlevania;
+		map[CRC::Black] = GSC_Black;
 	}
 
 	// TODO: just set gsc in SetGameCRC once

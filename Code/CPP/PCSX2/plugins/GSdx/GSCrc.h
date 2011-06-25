@@ -101,6 +101,8 @@ public:
 		BleachBladeBattlers,
 		CastlevaniaCoD,
 		CastlevaniaLoI,
+		Black,
+		TyTasmanianTiger,
 		TitleCount,
 	};
 

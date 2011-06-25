@@ -22,7 +22,7 @@
 #define IDC_DEBUG                       1009
 #define IDC_DEBUG_ENABLE                1010
 #define IDC_INTERPOLATE                 1011
-#define IDC_REVERB_BOOST                1012
+#define IDC_REVERB_MODE                 1012
 #define IDC_OUTPUT                      1013
 #define IDC_BUFFERS_SLIDER              1014
 #define IDC_SPEAKERS                    1015
@@ -57,6 +57,8 @@
 #define IDC_SYNCHMODE                   1064
 #define IDC_DEBUG_OTHERS                1065
 #define IDC_DEBUG_VISUAL                1066
+#define IDC_VOLUME_LABEL                1067
+#define IDC_VOLUME_SLIDER               1068
 
 // Next default values for new objects
 //
