@@ -1,4 +1,4 @@
-// SciTE - Scintilla based Text Editor
+﻿// SciTE - Scintilla based Text Editor
 /** @file Credits.cxx
  ** Display a list of contributors in the about box.
  **/
@@ -30,7 +30,7 @@
 
 #include "SciTEBase.h"
 
-// ����������(UTF-8����)
+// 捐助者名称(UTF-8编码)
 const char *contributors[] = {
             "Atsuo Ishimoto",
             "Mark Hammond",
@@ -371,21 +371,25 @@ void SciTEBase::SetAboutMessage(GUI::ScintillaWindow &wsci, const char *appTitle
 			}
 		}
 #endif
-		AddStyledText(wsci, GetTranslationToAbout("Version").c_str(), trsSty);
+		AddStyledText(wsci, GUI::UTF8FromString(L"程序版本: ").c_str(), trsSty);
+//		AddStyledText(wsci, GetTranslationToAbout("Version").c_str(), trsSty);
 		AddStyledText(wsci, " 2.27\n", 1);
-		AddStyledText(wsci, " Build On: " __DATE__ " " __TIME__ "\n", 1);
+		AddStyledText(wsci, GUI::UTF8FromString(L"编译时间: ").c_str(), 1);
+		AddStyledText(wsci, " " __DATE__ " " __TIME__ "\n", 1);
 		SetAboutStyle(wsci, 2, ColourRGB(0, 0, 0));
 		wsci.Send(SCI_STYLESETITALIC, 2, 1);
-		AddStyledText(wsci, GetTranslationToAbout("by").c_str(), trsSty);
+		AddStyledText(wsci, GUI::UTF8FromString(L"程序作者: ").c_str(), trsSty);
 		AddStyledText(wsci, " Neil Hodgson.\n", 2);
 		SetAboutStyle(wsci, 3, ColourRGB(0, 0, 0));
-		AddStyledText(wsci, "December 1998-June 2011.\n", 3);
+		AddStyledText(wsci, GUI::UTF8FromString(L"版权所有: ").c_str(), trsSty);
+		AddStyledText(wsci, " December 1998-June 2011.\n", 3);
 		SetAboutStyle(wsci, 4, ColourRGB(0, 0x7f, 0x7f));
-		AddStyledText(wsci, "http://www.scintilla.org\n", 4);
-		AddStyledText(wsci, "Lua scripting language by TeCGraf, PUC-Rio\n", 3);
+		AddStyledText(wsci, GUI::UTF8FromString(L"官方网站: ").c_str(), trsSty);
+		AddStyledText(wsci, " http://www.scintilla.org\n", 4);
+		AddStyledText(wsci, GUI::UTF8FromString(L"Lua 脚本语言扩展由 TeCGraf, PUC-Rio维护\n").c_str(), 3);
 		AddStyledText(wsci, "    http://www.lua.org\n", 4);
 		SetAboutStyle(wsci, 5, ColourRGB(0, 0, 0));
-		AddStyledText(wsci, "This Chinese version by thesnoW\n", 3);
+		AddStyledText(wsci, GUI::UTF8FromString(L"此中文化版本由 thesnoW 维护\n").c_str(), 3);
 #ifdef AUTOIT
 		AddStyledText(wsci, "    http://www.AutoitX.com\n", 4);
 #else
@@ -395,7 +399,7 @@ void SciTEBase::SetAboutMessage(GUI::ScintillaWindow &wsci, const char *appTitle
 			AddStyledText(wsci, translator.c_str(), trsSty);
 			AddStyledText(wsci, "\n", 5);
 		}
-		AddStyledText(wsci, GetTranslationToAbout("Contributors:").c_str(), trsSty);
+		AddStyledText(wsci, GUI::UTF8FromString(L"官方赞助者:").c_str(), trsSty);
 		srand(static_cast<unsigned>(time(0)));
 		for (unsigned int co = 0;co < ELEMENTS(contributors);co++) {
 			int colourIndex = 50 + (co % 78);
@@ -412,5 +416,6 @@ void SciTEBase::SetAboutMessage(GUI::ScintillaWindow &wsci, const char *appTitle
 			SetAboutStyle(wsci, sty + 50, ColourRGB(r, g, b));
 		}
 		wsci.Send(SCI_SETREADONLY, 1, 0);
+		wsci.Send(SCI_SETSCROLLWIDTH,200);
 	}
 }
