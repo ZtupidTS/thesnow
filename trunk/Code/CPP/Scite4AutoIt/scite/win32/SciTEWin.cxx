@@ -761,21 +761,23 @@ DWORD SciTEWin::ExecuteOne(const Job &jobToRun, bool &seenOutput) {
 	if (jobToRun.jobType == jobGrep) {
 		// jobToRun.command is "(w|~)(c|~)(d|~)(b|~)\0files\0text"
 		const char *grepCmd = jobToRun.command.c_str();
-		GrepFlags gf = grepNone;
-		if (*grepCmd == 'w')
-			gf = static_cast<GrepFlags>(gf | grepWholeWord);
-		grepCmd++;
-		if (*grepCmd == 'c')
-			gf = static_cast<GrepFlags>(gf | grepMatchCase);
-		grepCmd++;
-		if (*grepCmd == 'd')
-			gf = static_cast<GrepFlags>(gf | grepDot);
-		grepCmd++;
-		if (*grepCmd == 'b')
-			gf = static_cast<GrepFlags>(gf | grepBinary);
-		const char *findFiles = grepCmd + 2;
-		const char *findWhat = findFiles + strlen(findFiles) + 1;
-		InternalGrep(gf, jobToRun.directory.AsInternal(), GUI::StringFromUTF8(findFiles).c_str(), findWhat);
+		if (*grepCmd) {
+			GrepFlags gf = grepNone;
+			if (*grepCmd == 'w')
+				gf = static_cast<GrepFlags>(gf | grepWholeWord);
+			grepCmd++;
+			if (*grepCmd == 'c')
+				gf = static_cast<GrepFlags>(gf | grepMatchCase);
+			grepCmd++;
+			if (*grepCmd == 'd')
+				gf = static_cast<GrepFlags>(gf | grepDot);
+			grepCmd++;
+			if (*grepCmd == 'b')
+				gf = static_cast<GrepFlags>(gf | grepBinary);
+			const char *findFiles = grepCmd + 2;
+			const char *findWhat = findFiles + strlen(findFiles) + 1;
+			InternalGrep(gf, jobToRun.directory.AsInternal(), GUI::StringFromUTF8(findFiles).c_str(), findWhat);
+		}
 		return exitcode;
 	}
 
@@ -1150,16 +1152,17 @@ void SciTEWin::ShellExec(const SString &cmd, const char *dir) {
 		return;
 	}
 	DWORD rc = GetLastError();
-
-	SString errormsg("执行命令时发生错误,请检查您的SciTe配置:\n\n执行命令:\n");
-	errormsg += mycmdcopy;
+	GUI::gui_string errormsg(L"执行命令时发生错误,请检查您的SciTe配置:\n\n执行命令:\n");
+	errormsg += GUI::StringFromUTF8(mycmdcopy).c_str();
+	errormsg += L"\n\n 工作目录:\n";
+	errormsg += sDir.c_str();
 	if (myparams != NULL) {
-		errormsg += "\n\n 执行参数:\n";
-		errormsg += myparams;
-		errormsg += "\n\n 详细信息:";
+		errormsg += L"\n\n 执行参数:\n";
+		errormsg += sMyparams.c_str();
+		errormsg += L"\n\n 错误信息:";
 	}
-	errormsg += "\n";
-	GUI::gui_string sErrorMsg = errormsg.w_str() + GetErrorMessage(rc);
+	errormsg += L"\n";
+	GUI::gui_string sErrorMsg = errormsg.c_str() + GetErrorMessage(rc);
 	WindowMessageBox(wSciTE, sErrorMsg, MB_OK|MB_ICONINFORMATION);
 
 	delete []mycmdcopy;
