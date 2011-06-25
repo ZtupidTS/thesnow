@@ -6,9 +6,13 @@ SET(FIND_LIBRARY_USE_LIB64_PATHS FALSE)
 
 ## Linux only libraries
 if(Linux)
-    # Most plugins (if not all) and PCSX2 core need gtk2, so 
-    # set the required flags
-    find_package(GTK2 REQUIRED gtk)
+    # Most plugins (if not all) and PCSX2 core need gtk2, so set the required flags
+    #
+    # Warning: because of multiarch Ubuntu move /usr/lib/glib-2.0/include/glibconfig.h to /usr/lib/i386-linux-gnu/glib-2.0/include/glibconfig.h
+    # So as temporary work around, I copy the FindGTK2 module inside pcsx2 and add the /usr/lib/i386-linux-gnu path... -- Gregory
+    #
+    # find_package(GTK2 REQUIRED gtk)
+    find_package(GTK2_pcsx2 REQUIRED gtk)
     if(GTK2_FOUND)
         # From version 2.21.3 gtk moved gdk-pixbuf into a separate module
         # Cmake need to be fixed. For the moment uses a manual detection.
@@ -37,10 +41,12 @@ if(NOT FORCE_INTERNAL_SDL)
     find_package(SDL)
 endif(NOT FORCE_INTERNAL_SDL)
 find_package(Subversion)
-# The requierement of wxWidgets is checked in SelectPcsx2Plugins module
-# Does not requier the module (allow to compile non-wx plugins)
+# The requirement of wxWidgets is checked in SelectPcsx2Plugins module
+# Does not require the module (allow to compile non-wx plugins)
 # Force the unicode build (the variable is only supported on cmake 2.8.3 and above)
-set(wxWidgets_CONFIG_OPTIONS "--unicode=yes")
+# Warning do not put any double-quote for the argument...
+# set(wxWidgets_CONFIG_OPTIONS --unicode=yes --debug=yes) # In case someone want to debug inside wx
+set(wxWidgets_CONFIG_OPTIONS --unicode=yes)
 find_package(wxWidgets COMPONENTS base core adv)
 if(NOT FORCE_INTERNAL_ZLIB)
     find_package(ZLIB)
@@ -165,10 +171,18 @@ if(wxWidgets_FOUND)
     if(Linux)
         # Force the use of 32 bit library configuration on
         # 64 bits machine with 32 bits library in /usr/lib32
-        if(CMAKE_SIZEOF_VOID_P MATCHES "8" AND EXISTS "/usr/lib32")
-            STRING(REGEX REPLACE "/usr/lib/wx" "/usr/lib32/wx"
-                wxWidgets_INCLUDE_DIRS "${wxWidgets_INCLUDE_DIRS}")
-        endif(CMAKE_SIZEOF_VOID_P MATCHES "8" AND EXISTS "/usr/lib32")
+        if(CMAKE_SIZEOF_VOID_P MATCHES "8")
+            if (EXISTS "/usr/lib32")
+                # Debian/ubuntu. 64b in /usr/lib and 32b in /usr/lib32
+                STRING(REGEX REPLACE "/usr/lib/wx" "/usr/lib32/wx" wxWidgets_INCLUDE_DIRS "${wxWidgets_INCLUDE_DIRS}")
+                # I'm sure someone did it! 64b in /usr/lib64 and 32b in /usr/lib32
+                STRING(REGEX REPLACE "/usr/lib64/wx" "/usr/lib32/wx" wxWidgets_INCLUDE_DIRS "${wxWidgets_INCLUDE_DIRS}")
+            endif (EXISTS "/usr/lib32")
+            if (EXISTS "/usr/lib")
+                # Fedora/Open suse. 64b in /usr/lib64 and 32b in /usr/lib
+                STRING(REGEX REPLACE "/usr/lib64/wx" "/usr/lib/wx" wxWidgets_INCLUDE_DIRS "${wxWidgets_INCLUDE_DIRS}")
+            endif (EXISTS "/usr/lib")
+        endif(CMAKE_SIZEOF_VOID_P MATCHES "8")
     endif(Linux)
 
 	include(${wxWidgets_USE_FILE})
