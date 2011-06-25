@@ -680,6 +680,9 @@ BOOL CUsersListCtrl::ParseUserControlCommand(unsigned char *pData, DWORD dwDataL
 
 				if (pConnectionData->columnText[COLUMN_USER] == _T(""))
 					pConnectionData->columnText[COLUMN_USER] = _T("(未登录)");
+				else
+					pConnectionData->itemImages[COLUMN_ID] = 4;
+
 				
 				pConnectionData->itemImages[COLUMN_TRANSFERINIT] = pConnectionData->transferMode;
 				pConnectionData->columnText[COLUMN_TRANSFERINIT] = m_showPhysical ? pConnectionData->physicalFile : pConnectionData->logicalFile;

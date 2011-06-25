@@ -1554,7 +1554,7 @@ void CPermissions::ReadIpFilter(TiXmlElement *pXML, t_group &group)
 				if (ip == _T(""))
 					continue;
 
-				if (group.disallowedIPs.size() >= 20000)
+				if (group.disallowedIPs.size() >= 30000)
 					break;
 
 				if (ip == _T("*"))
@@ -1574,7 +1574,7 @@ void CPermissions::ReadIpFilter(TiXmlElement *pXML, t_group &group)
 				if (ip == _T(""))
 					continue;
 
-				if (group.allowedIPs.size() >= 20000)
+				if (group.allowedIPs.size() >= 30000)
 					break;
 
 				if (ip == _T("*"))

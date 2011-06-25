@@ -1304,7 +1304,7 @@ void CAsyncSslSocketLayer::apps_ssl_info_callback(const SSL *s, int where, int r
 	if (!cur)
 	{
 		m_sCriticalSection.Unlock();
-		MessageBox(0, _T("不能查询 SSL 会话!"), _T("Critical error"), MB_ICONEXCLAMATION);
+		//MessageBox(0, _T("不能查询 SSL 会话!"), _T("Critical error"), MB_ICONEXCLAMATION);
 		return;
 	}
 	else
@@ -1885,7 +1885,7 @@ int CAsyncSslSocketLayer::verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 	if (!cur)
 	{
 		m_sCriticalSection.Unlock();
-		MessageBox(0, _T("Can't lookup SSL session!"), _T("Critical error"), MB_ICONEXCLAMATION);
+		//MessageBox(0, _T("Can't lookup SSL session!"), _T("Critical error"), MB_ICONEXCLAMATION);
 		return 1;
 	}
 	else

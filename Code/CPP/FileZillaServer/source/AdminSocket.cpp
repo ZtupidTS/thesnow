@@ -184,7 +184,7 @@ void CAdminSocket::OnReceive(int nErrorCode)
 		return;
 	}
 	int numread = Receive(m_pRecvBuffer + m_nRecvBufferPos, m_nRecvBufferLen - m_nRecvBufferPos);
-	while (numread > 0)
+	if (numread > 0)
 	{
 		SYSTEMTIME sTime;
 		GetSystemTime(&sTime);
@@ -204,8 +204,6 @@ void CAdminSocket::OnReceive(int nErrorCode)
 
 		if (parseResult == -1)
 			return;
-
-		numread = Receive(m_pRecvBuffer + m_nRecvBufferPos, m_nRecvBufferLen - m_nRecvBufferPos);
 	}
 	if (numread == 0)
 	{
