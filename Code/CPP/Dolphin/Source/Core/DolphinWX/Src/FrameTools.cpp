@@ -56,7 +56,7 @@ Core::GetWindowHandle().
 
 #include "ConfigManager.h" // Core
 #include "Core.h"
-#include "OnFrame.h"
+#include "Movie.h"
 #include "HW/CPU.h"
 #include "PowerPC/PowerPC.h"
 #include "HW/DVDInterface.h"
@@ -64,7 +64,7 @@ Core::GetWindowHandle().
 #include "HW/GCPad.h"
 #include "HW/Wiimote.h"
 #include "IPC_HLE/WII_IPC_HLE_Device_usb.h"
-#include "IPC_HLE/WII_IPC_HLE_Device_FileIO.h"
+//#include "IPC_HLE/WII_IPC_HLE_Device_FileIO.h"
 #include "State.h"
 #include "VolumeHandler.h"
 #include "NANDContentLoader.h"
@@ -72,6 +72,7 @@ Core::GetWindowHandle().
 #include "WiimoteConfigDiag.h"
 #include "InputConfigDiag.h"
 #include "HotkeyDlg.h"
+#include "TASInputDlg.h"
 
 #include <wx/datetime.h> // wxWidgets
 
@@ -134,12 +135,13 @@ void CFrame::CreateMenu()
 	emulationMenu->Append(IDM_STOP, GetMenuLabel(HK_STOP));
 	emulationMenu->Append(IDM_RESET, GetMenuLabel(HK_RESET));
 	emulationMenu->AppendSeparator();
-	emulationMenu->Append(IDM_TOGGLE_FULLSCREEN, GetMenuLabel(HK_FULLSCREEN));	
+	emulationMenu->Append(IDM_TOGGLE_FULLSCREEN, GetMenuLabel(HK_FULLSCREEN));
 	emulationMenu->AppendSeparator();
 	emulationMenu->Append(IDM_RECORD, GetMenuLabel(HK_START_RECORDING));
 	emulationMenu->Append(IDM_PLAYRECORD, GetMenuLabel(HK_PLAY_RECORDING));
 	emulationMenu->Append(IDM_RECORDEXPORT, GetMenuLabel(HK_EXPORT_RECORDING));
 	emulationMenu->Append(IDM_RECORDREADONLY, GetMenuLabel(HK_READ_ONLY_MODE), wxEmptyString, wxITEM_CHECK);
+	emulationMenu->Append(IDM_TASINPUT, _("TAS Input"));
 	emulationMenu->Check(IDM_RECORDREADONLY, true);
 	emulationMenu->AppendSeparator();
 	
@@ -188,11 +190,11 @@ void CFrame::CreateMenu()
 	pOptionsMenu->Append(IDM_CONFIG_DSP_EMULATOR, _("音频设置(&D)"));
 	pOptionsMenu->Append(IDM_CONFIG_PAD_PLUGIN, _("控制设置(&P)"));
 	pOptionsMenu->Append(IDM_CONFIG_WIIMOTE_PLUGIN, _("&Wiimote 设置"));
-	pOptionsMenu->Append(IDM_CONFIG_HOTKEYS, _("&Hotkey Settings"));
+	pOptionsMenu->Append(IDM_CONFIG_HOTKEYS, _("热键设置(&H)"));
 	if (g_pCodeWindow)
 	{
 		pOptionsMenu->AppendSeparator();
-		g_pCodeWindow->CreateMenuOptions(pOptionsMenu);	
+		g_pCodeWindow->CreateMenuOptions(pOptionsMenu);
 	}
 	m_MenuBar->Append(pOptionsMenu, _("选项(&O)"));
 
@@ -204,24 +206,9 @@ void CFrame::CreateMenu()
 
 	toolsMenu->Append(IDM_NETPLAY, _("开始网络对战(&N)"));
 
-	toolsMenu->Append(IDM_INSTALLWAD, _("安装 WAD 菜单"));
+	toolsMenu->Append(IDM_MENU_INSTALLWAD, _("安装 WAD 菜单"));
+	UpdateWiiMenuChoice(toolsMenu->Append(IDM_LOAD_WII_MENU, wxT("Dummy string to keep wxw happy")));
 
-	const DiscIO::INANDContentLoader & SysMenu_Loader = DiscIO::CNANDContentManager::Access().GetNANDLoader(TITLEID_SYSMENU, true);
-	if (SysMenu_Loader.IsValid())
-	{
-		int sysmenuVersion = SysMenu_Loader.GetTitleVersion();
-		char sysmenuRegion = SysMenu_Loader.GetCountryChar();
-				
-		toolsMenu->Append(IDM_LOAD_WII_MENU)->SetItemLabel(wxString::Format(_("载入 Wii 系统菜单 %d%c"), sysmenuVersion, sysmenuRegion));
-	}
-	else
-	{		
-		toolsMenu->Append(IDM_LOAD_WII_MENU, _("载入 Wii 系统菜单"));
-		toolsMenu->Enable(IDM_LOAD_WII_MENU, false);
-	}
-
-
-	
 	toolsMenu->Append(IDM_FIFOPLAYER, _("Fifo Player"));
 
 	toolsMenu->AppendSeparator();
@@ -473,7 +460,7 @@ void CFrame::PopulateToolbarAui(wxAuiToolBar* ToolBar)
 	ToolBar->AddTool(IDM_EDIT_PERSPECTIVES,	_("编辑"),	g_pCodeWindow->m_Bitmaps[Toolbar_GotoPC], _("编辑当前位置"));
 
 	ToolBar->SetToolDropDown(IDM_SAVE_PERSPECTIVE, true);
-	ToolBar->SetToolDropDown(IDM_EDIT_PERSPECTIVES, true);	
+	ToolBar->SetToolDropDown(IDM_EDIT_PERSPECTIVES, true);
 
 	ToolBar->Realize();
 }
@@ -677,7 +664,7 @@ void CFrame::DoOpen(bool Boot)
 			_("选择要载入的文件"),
 			wxEmptyString, wxEmptyString, wxEmptyString,
 			_("所有 GC/Wii 文件 (elf, dol, gcm, iso, ciso, gcz, wad)") +
-			wxString::Format(wxT("|*.elf;*.dol;*.gcm;*.iso;*.ciso;*.gcz;*.wad;*.dff|%s"),
+			wxString::Format(wxT("|*.elf;*.dol;*.gcm;*.iso;*.ciso;*.gcz;*.wad;*.dff;*.tmd|%s"),
 				wxGetTranslation(wxALL_FILES)),
 			wxFD_OPEN | wxFD_FILE_MUST_EXIST,
 			this);
@@ -707,12 +694,17 @@ void CFrame::DoOpen(bool Boot)
 
 void CFrame::OnRecordReadOnly(wxCommandEvent& event)
 {
-	Frame::SetReadOnly(event.IsChecked());
+	Movie::SetReadOnly(event.IsChecked());
+}
+
+void CFrame::OnTASInput(wxCommandEvent& event)
+{
+	g_TASInputDlg->Show(true);
 }
 
 void CFrame::OnFrameStep(wxCommandEvent& event)
 {
-	Frame::SetFrameStepping(event.IsChecked());
+	Movie::SetFrameStepping(event.IsChecked());
 }
 
 void CFrame::OnChangeDisc(wxCommandEvent& WXUNUSED (event))
@@ -732,7 +724,7 @@ void CFrame::OnRecord(wxCommandEvent& WXUNUSED (event))
 			controllers |= (1 << (i + 4));
 	}
 
-	if(Frame::BeginRecordingInput(controllers))
+	if(Movie::BeginRecordingInput(controllers))
 		BootGame(std::string(""));
 }
 
@@ -749,7 +741,7 @@ void CFrame::OnPlayRecording(wxCommandEvent& WXUNUSED (event))
 	if(path.IsEmpty())
 		return;
 
-	if(Frame::PlayInput(path.mb_str()))
+	if(Movie::PlayInput(path.mb_str()))
 		BootGame(std::string(""));
 }
 
@@ -951,7 +943,7 @@ void CFrame::StartGame(const std::string& filename)
 	}
 	else
 	{
-#if defined(HAVE_XDG_SCREENSAVER) && HAVE_XDG_SCREENSAVER
+#if defined(HAVE_X11) && HAVE_X11
 		X11Utils::InhibitScreensaver(X11Utils::XDisplayFromHandle(GetHandle()),
 				X11Utils::XWindowFromHandle(GetHandle()), true);
 #endif
@@ -961,7 +953,7 @@ void CFrame::StartGame(const std::string& filename)
 #else
 		m_RenderParent->SetFocus();
 #endif
-
+		
 		wxTheApp->Connect(wxID_ANY, wxEVT_KEY_DOWN, // Keyboard
 				wxKeyEventHandler(CFrame::OnKeyDown),
 				(wxObject*)0, this);
@@ -1036,7 +1028,9 @@ void CFrame::DoPause()
 // Stop the emulation
 void CFrame::DoStop()
 {
-	if (Core::GetState() != Core::CORE_UNINITIALIZED)
+	m_bGameLoading = false;
+	if (Core::GetState() != Core::CORE_UNINITIALIZED ||
+			m_RenderParent != NULL)
 	{
 #if defined __WXGTK__
 		wxMutexGuiLeave();
@@ -1060,16 +1054,16 @@ void CFrame::DoStop()
 		}
 
 		// TODO: Show the author/description dialog here
-		if(Frame::IsRecordingInput())
+		if(Movie::IsRecordingInput())
 			DoRecordingSave();
-		if(Frame::IsPlayingInput() || Frame::IsRecordingInput())
-			Frame::EndPlayInput(false);
+		if(Movie::IsPlayingInput() || Movie::IsRecordingInput())
+			Movie::EndPlayInput(false);
 
 		wxBeginBusyCursor();
 		BootManager::Stop();
 		wxEndBusyCursor();
 
-#if defined(HAVE_XDG_SCREENSAVER) && HAVE_XDG_SCREENSAVER
+#if defined(HAVE_X11) && HAVE_X11
 		X11Utils::InhibitScreensaver(X11Utils::XDisplayFromHandle(GetHandle()),
 				X11Utils::XWindowFromHandle(GetHandle()), false);
 #endif
@@ -1107,8 +1101,6 @@ void CFrame::DoStop()
 			m_RenderFrame->Destroy();
 		m_RenderParent = NULL;
 
-		UpdateGUI();
-
 		// Clean framerate indications from the status bar.
 		GetStatusBar()->SetStatusText(wxT(" "), 0);
 
@@ -1127,6 +1119,7 @@ void CFrame::DoStop()
 
 		m_GameListCtrl->Enable();
 		m_GameListCtrl->Show();
+		UpdateGUI();
 	}
 }
 
@@ -1142,13 +1135,13 @@ void CFrame::DoRecordingSave()
 			wxEmptyString, wxEmptyString, wxEmptyString,
 			_("Dolphin TAS Movies (*.dtm)") + 
 				wxString::Format(wxT("|*.dtm|%s"), wxGetTranslation(wxALL_FILES)),
-			wxFD_SAVE | wxFD_PREVIEW,
+			wxFD_SAVE | wxFD_PREVIEW | wxFD_OVERWRITE_PROMPT,
 			this);
 
 	if(path.IsEmpty())
 		return;
 	
-	Frame::SaveRecording(path.mb_str());
+	Movie::SaveRecording(path.mb_str());
 	
 	if (!paused)
 		DoPause();
@@ -1156,7 +1149,6 @@ void CFrame::DoRecordingSave()
 
 void CFrame::OnStop(wxCommandEvent& WXUNUSED (event))
 {
-	m_bGameLoading = false;
 	DoStop();
 }
 
@@ -1326,52 +1318,81 @@ void CFrame::OnShow_CheatsWindow(wxCommandEvent& WXUNUSED (event))
 		g_CheatsWindow->Raise();
 }
 
-void CFrame::OnLoadWiiMenu(wxCommandEvent& event)
+void CFrame::OnLoadWiiMenu(wxCommandEvent& WXUNUSED(event))
 {
-	if (event.GetId() == IDM_LOAD_WII_MENU)
+	BootGame(Common::GetTitleContentPath(TITLEID_SYSMENU));
+}
+
+void CFrame::OnInstallWAD(wxCommandEvent& event)
+{
+	std::string fileName;
+
+	switch(event.GetId())
 	{
-		HLE_IPC_CreateVirtualFATFilesystem();
-		BootGame(Common::CreateTitleContentPath(TITLEID_SYSMENU));
+	case IDM_LIST_INSTALLWAD:
+	{
+		const GameListItem *iso = m_GameListCtrl->GetSelectedISO();
+		if (!iso)
+			return;
+		fileName = iso->GetFileName();
+		break;
 	}
-	else
+	case IDM_MENU_INSTALLWAD:
 	{
-		
 		wxString path = wxFileSelector(
 			_("Select a Wii WAD file to install"),
 			wxEmptyString, wxEmptyString, wxEmptyString,
 			_T("Wii WAD file (*.wad)|*.wad"),
 			wxFD_OPEN | wxFD_PREVIEW | wxFD_FILE_MUST_EXIST,
 			this);
+		fileName = path.mb_str();
+		break;
+	}
+	default:
+		return;
+	}
 
-		wxProgressDialog dialog(_("Installing WAD..."),
+	wxProgressDialog dialog(_("Installing WAD..."),
 		_("Working..."),
 		1000, // range
 		this, // parent
 		wxPD_APP_MODAL |
+		wxPD_ELAPSED_TIME |
+		wxPD_ESTIMATED_TIME |
+		wxPD_REMAINING_TIME |
 		wxPD_SMOOTH // - makes indeterminate mode bar on WinXP very small
 		);
-		
-		dialog.CenterOnParent();
-		u64 titleID = CBoot::Install_WiiWAD(path.mb_str());
-		if (titleID == TITLEID_SYSMENU)
-		{
-			const DiscIO::INANDContentLoader & SysMenu_Loader = DiscIO::CNANDContentManager::Access().GetNANDLoader(TITLEID_SYSMENU, true);
-			if (SysMenu_Loader.IsValid())
-			{
-				int sysmenuVersion = SysMenu_Loader.GetTitleVersion();
-				char sysmenuRegion = SysMenu_Loader.GetCountryChar();
-				
-				GetMenuBar()->FindItem(IDM_LOAD_WII_MENU)->Enable();
-				GetMenuBar()->FindItem(IDM_LOAD_WII_MENU)->SetItemLabel(wxString::Format(_("Load Wii System Menu %d%c"), sysmenuVersion, sysmenuRegion));
-			}
-			else
-			{
-				GetMenuBar()->FindItem(IDM_LOAD_WII_MENU)->Enable(false);
-			}
-		}
 
+	dialog.CenterOnParent();
+
+	u64 titleID = DiscIO::CNANDContentManager::Access().Install_WiiWAD(fileName);
+	if (titleID == TITLEID_SYSMENU)
+	{
+		UpdateWiiMenuChoice();
 	}
-	
+}
+
+
+void CFrame::UpdateWiiMenuChoice(wxMenuItem *WiiMenuItem)
+{
+	if (!WiiMenuItem)
+	{
+		WiiMenuItem = GetMenuBar()->FindItem(IDM_LOAD_WII_MENU);
+	}
+
+	const DiscIO::INANDContentLoader & SysMenu_Loader = DiscIO::CNANDContentManager::Access().GetNANDLoader(TITLEID_SYSMENU, true);
+	if (SysMenu_Loader.IsValid())
+	{
+		int sysmenuVersion = SysMenu_Loader.GetTitleVersion();
+		char sysmenuRegion = SysMenu_Loader.GetCountryChar();
+		WiiMenuItem->Enable();
+		WiiMenuItem->SetItemLabel(wxString::Format(_("Load Wii System Menu %d%c"), sysmenuVersion, sysmenuRegion));
+	}
+	else
+	{
+		WiiMenuItem->Enable(false);
+		WiiMenuItem->SetItemLabel(_("Load Wii System Menu"));
+	}
 }
 
 void CFrame::OnFifoPlayer(wxCommandEvent& WXUNUSED (event))
@@ -1452,39 +1473,48 @@ void CFrame::OnSaveStateToFile(wxCommandEvent& WXUNUSED (event))
 
 void CFrame::OnLoadLastState(wxCommandEvent& WXUNUSED (event))
 {
-	State::LoadLastSaved();
+	if (Core::GetState() != Core::CORE_UNINITIALIZED)
+		State::LoadLastSaved();
 }
 
 void CFrame::OnUndoLoadState(wxCommandEvent& WXUNUSED (event))
 {
-	State::UndoLoadState();
+	if (Core::GetState() != Core::CORE_UNINITIALIZED)
+		State::UndoLoadState();
 }
 
 void CFrame::OnUndoSaveState(wxCommandEvent& WXUNUSED (event))
 {
-	State::UndoSaveState();
+	if (Core::GetState() != Core::CORE_UNINITIALIZED)
+		State::UndoSaveState();
 }
 
 
 void CFrame::OnLoadState(wxCommandEvent& event)
 {
-	int id = event.GetId();
-	int slot = id - IDM_LOADSLOT1 + 1;
-	State::Load(slot);
+	if (Core::GetState() != Core::CORE_UNINITIALIZED)
+	{
+		int id = event.GetId();
+		int slot = id - IDM_LOADSLOT1 + 1;
+		State::Load(slot);
+	}
 }
 
 void CFrame::OnSaveState(wxCommandEvent& event)
 {
-	int id = event.GetId();
-	int slot = id - IDM_SAVESLOT1 + 1;
-	State::Save(slot);
+	if (Core::GetState() != Core::CORE_UNINITIALIZED)
+	{
+		int id = event.GetId();
+		int slot = id - IDM_SAVESLOT1 + 1;
+		State::Save(slot);
+	}
 }
 
 void CFrame::OnFrameSkip(wxCommandEvent& event)
 {
 	int amount = event.GetId() - IDM_FRAMESKIP0;
 
-	Frame::SetFrameSkipping((unsigned int)amount);
+	Movie::SetFrameSkipping((unsigned int)amount);
 }
 
 
@@ -1521,9 +1551,9 @@ void CFrame::UpdateGUI()
 	// Emulation
 	GetMenuBar()->FindItem(IDM_STOP)->Enable(Running || Paused);
 	GetMenuBar()->FindItem(IDM_RESET)->Enable(Running || Paused);
-	GetMenuBar()->FindItem(IDM_RECORD)->Enable(!Frame::IsRecordingInput());
+	GetMenuBar()->FindItem(IDM_RECORD)->Enable(!Movie::IsRecordingInput());
 	GetMenuBar()->FindItem(IDM_PLAYRECORD)->Enable(!Initialized);
-	GetMenuBar()->FindItem(IDM_RECORDEXPORT)->Enable(Frame::IsRecordingInput());
+	GetMenuBar()->FindItem(IDM_RECORDEXPORT)->Enable(Movie::IsRecordingInput());
 	GetMenuBar()->FindItem(IDM_FRAMESTEP)->Enable(Running || Paused);
 	GetMenuBar()->FindItem(IDM_SCREENSHOT)->Enable(Running || Paused);
 	GetMenuBar()->FindItem(IDM_TOGGLE_FULLSCREEN)->Enable(Running || Paused);
@@ -1578,7 +1608,7 @@ void CFrame::UpdateGUI()
 		}
 	}
 	
-	if (!Initialized)
+	if (!Initialized && !m_bGameLoading)
 	{
 		if (m_GameListCtrl->IsEnabled())
 		{
@@ -1586,15 +1616,15 @@ void CFrame::UpdateGUI()
 			if (!SConfig::GetInstance().m_LocalCoreStartupParameter.m_strDefaultGCM.empty())
 			{
 				if (m_ToolBar)
-					m_ToolBar->EnableTool(IDM_PLAY, true);					
+					m_ToolBar->EnableTool(IDM_PLAY, true);
 				GetMenuBar()->FindItem(IDM_PLAY)->Enable(true);
 			}
 			// Prepare to load last selected file, enable play button
 			else if (!SConfig::GetInstance().m_LastFilename.empty()
-			&& wxFileExists(wxString(SConfig::GetInstance().m_LastFilename.c_str(), wxConvUTF8)))
+					&& wxFileExists(wxString(SConfig::GetInstance().m_LastFilename.c_str(), wxConvUTF8)))
 			{
 				if (m_ToolBar)
-					m_ToolBar->EnableTool(IDM_PLAY, true);					
+					m_ToolBar->EnableTool(IDM_PLAY, true);
 				GetMenuBar()->FindItem(IDM_PLAY)->Enable(true);
 			}
 			else
@@ -1606,24 +1636,21 @@ void CFrame::UpdateGUI()
 			}
 		}
 
-		if (m_GameListCtrl && !m_bGameLoading)
+		// Game has not started, show game list
+		if (!m_GameListCtrl->IsShown())
 		{
-			// Game has not started, show game list
-			if (!m_GameListCtrl->IsShown())
-			{
-				m_GameListCtrl->Enable();
-				m_GameListCtrl->Show();
-			}
-			// Game has been selected but not started, enable play button
-			if (m_GameListCtrl->GetSelectedISO() != NULL && m_GameListCtrl->IsEnabled() && !m_bGameLoading)
-			{
-				if (m_ToolBar)
-					m_ToolBar->EnableTool(IDM_PLAY, true);
-				GetMenuBar()->FindItem(IDM_PLAY)->Enable(true);				
-			}
+			m_GameListCtrl->Enable();
+			m_GameListCtrl->Show();
+		}
+		// Game has been selected but not started, enable play button
+		if (m_GameListCtrl->GetSelectedISO() != NULL && m_GameListCtrl->IsEnabled())
+		{
+			if (m_ToolBar)
+				m_ToolBar->EnableTool(IDM_PLAY, true);
+			GetMenuBar()->FindItem(IDM_PLAY)->Enable(true);
 		}
 	}
-	else
+	else if (Initialized)
 	{
 		// Game has been loaded, enable the pause button
 		if (m_ToolBar)

@@ -22,7 +22,7 @@
 #include "StringUtil.h"
 #include "Thread.h"
 #include "CoreTiming.h"
-#include "OnFrame.h"
+#include "Movie.h"
 #include "HW/Wiimote.h"
 #include "HW/DSP.h"
 #include "HW/HW.h"
@@ -65,7 +65,7 @@ static std::vector<u8> g_current_buffer;
 static std::thread g_save_thread;
 
 // Don't forget to increase this after doing changes on the savestate system 
-static const int STATE_VERSION = 4;
+static const int STATE_VERSION = 5;
 
 struct StateHeader
 {
@@ -235,8 +235,10 @@ void SaveFileStateCallback(u64 userdata, int cyclesLate)
 	p.SetMode(PointerWrap::MODE_WRITE);
 	DoState(p);
 	
-	if ((Frame::IsRecordingInput() || Frame::IsPlayingInput()) && !Frame::IsRecordingInputFromSaveState())
-		Frame::SaveRecording(StringFromFormat("%s.dtm", g_current_filename.c_str()).c_str());
+	if ((Movie::IsRecordingInput() || Movie::IsPlayingInput()) && !Movie::IsRecordingInputFromSaveState())
+		Movie::SaveRecording((g_current_filename + ".dtm").c_str());
+	else if (!Movie::IsRecordingInput() && !Movie::IsPlayingInput())
+		File::Delete(g_current_filename + ".dtm");
 
 	Core::DisplayMessage("Saving State...", 1000);
 
@@ -343,9 +345,9 @@ void LoadFileStateCallback(u64 userdata, int cyclesLate)
 			Core::DisplayMessage("Unable to Load : Can't load state from other revisions !", 4000);
 	
 		if (File::Exists(g_current_filename + ".dtm"))
-			Frame::LoadInput((g_current_filename + ".dtm").c_str());
-		else if (!Frame::IsRecordingInputFromSaveState())
-			Frame::EndPlayInput(false);
+			Movie::LoadInput((g_current_filename + ".dtm").c_str());
+		else if (!Movie::IsRecordingInputFromSaveState())
+			Movie::EndPlayInput(false);
 	}
 
 	g_op_in_progress = false;

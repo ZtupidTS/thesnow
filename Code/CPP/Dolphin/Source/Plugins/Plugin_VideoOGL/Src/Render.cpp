@@ -58,7 +58,7 @@
 #include "Fifo.h"
 #include "Debugger.h"
 #include "Core.h"
-#include "OnFrame.h"
+#include "Movie.h"
 #include "Host.h"
 
 #include "main.h" // Local
@@ -118,6 +118,7 @@ static File::IOFile f_pFrameDump;
 // 1 for no MSAA. Use s_MSAASamples > 1 to check for MSAA.
 static int s_MSAASamples = 1;
 static int s_MSAACoverageSamples = 0;
+static int s_LastMultisampleMode = 0;
 
 bool s_bHaveFramebufferBlit = false; // export to FramebufferManager.cpp
 static bool s_bHaveCoverageMSAA = false;
@@ -191,6 +192,55 @@ void HandleCgError(CGcontext ctx, CGerror err, void* appdata)
 }
 #endif
 
+int GetNumMSAASamples(int MSAAMode)
+{
+	// required for MSAA
+	if (!s_bHaveFramebufferBlit)
+		return 1;
+
+	switch (MSAAMode)
+	{
+		case MULTISAMPLE_OFF:
+			return 1;
+
+		case MULTISAMPLE_2X:
+			return 2;
+
+		case MULTISAMPLE_4X:
+		case MULTISAMPLE_CSAA_8X:
+		case MULTISAMPLE_CSAA_16X:
+			return 4;
+
+		case MULTISAMPLE_8X:
+		case MULTISAMPLE_CSAA_8XQ:
+		case MULTISAMPLE_CSAA_16XQ:
+			return 8;
+
+		default:
+			return 1;
+	}
+}
+
+int GetNumMSAACoverageSamples(int MSAAMode)
+{
+	if (!s_bHaveCoverageMSAA)
+		return 0;
+
+	switch (g_ActiveConfig.iMultisampleMode)
+	{
+		case MULTISAMPLE_CSAA_8X:
+		case MULTISAMPLE_CSAA_8XQ:
+			return 8;
+
+		case MULTISAMPLE_CSAA_16X:
+		case MULTISAMPLE_CSAA_16XQ:
+			return 16;
+
+		default:
+			return 0;
+	}
+}
+
 // Init functions
 Renderer::Renderer()
 {
@@ -198,50 +248,10 @@ Renderer::Renderer()
 	OSDInternalH = 0;
 
 	s_fps=0;
-
+	s_blendMode = 0;
 #if defined _WIN32 || defined HAVE_LIBAV
 	s_bAVIDumping = false;
 #endif
-
-	bool bSuccess = true;
-	s_blendMode = 0;
-	s_MSAACoverageSamples = 0;
-	GLint numvertexattribs = 0;
-
-	switch (g_ActiveConfig.iMultisampleMode)
-	{
-		case MULTISAMPLE_OFF:
-			s_MSAASamples = 1;
-			break;
-		case MULTISAMPLE_2X:
-			s_MSAASamples = 2;
-			break;
-		case MULTISAMPLE_4X:
-			s_MSAASamples = 4;
-			break;
-		case MULTISAMPLE_8X:
-			s_MSAASamples = 8;
-			break;
-		case MULTISAMPLE_CSAA_8X:
-			s_MSAASamples = 4;
-			s_MSAACoverageSamples = 8;
-			break;
-		case MULTISAMPLE_CSAA_8XQ:
-			s_MSAASamples = 8;
-			s_MSAACoverageSamples = 8;
-			break;
-		case MULTISAMPLE_CSAA_16X:
-			s_MSAASamples = 4;
-			s_MSAACoverageSamples = 16;
-			break;
-		case MULTISAMPLE_CSAA_16XQ:
-			s_MSAASamples = 8;
-			s_MSAACoverageSamples = 16;
-			break;
-		default:
-			s_MSAASamples = 1;
-			break;
-	}
 
 #if defined HAVE_CG && HAVE_CG
 	g_cgcontext = cgCreateContext();
@@ -268,6 +278,8 @@ Renderer::Renderer()
 				glGetString(GL_RENDERER),
 				glGetString(GL_VERSION)).c_str(), 5000);
 
+	bool bSuccess = true;
+	GLint numvertexattribs = 0;
 	glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &numvertexattribs);
 	if (numvertexattribs < 11)
 	{
@@ -299,17 +311,11 @@ Renderer::Renderer()
 	}
 
 	s_bHaveFramebufferBlit = strstr(ptoken, "GL_EXT_framebuffer_blit") != NULL;
-	if (!s_bHaveFramebufferBlit)
-	{
-		// MSAA ain't gonna work. turn it off if enabled.
-		s_MSAASamples = 1;
-	}
-
 	s_bHaveCoverageMSAA = strstr(ptoken, "GL_NV_framebuffer_multisample_coverage") != NULL;
-	if (!s_bHaveCoverageMSAA)
-	{
-		s_MSAACoverageSamples = 0;
-	}
+
+	s_LastMultisampleMode = g_ActiveConfig.iMultisampleMode;
+	s_MSAASamples = GetNumMSAASamples(s_LastMultisampleMode);
+	s_MSAACoverageSamples = GetNumMSAACoverageSamples(s_LastMultisampleMode);
 
 	if (!bSuccess)
 		return;	// TODO: fail
@@ -538,7 +544,7 @@ void Renderer::DrawDebugInfo()
 		p+=sprintf(p, "FPS: %d\n", s_fps);
 
 	if (g_ActiveConfig.bShowInputDisplay)
-		p+=sprintf(p, "%s", Frame::GetInputDisplay().c_str());
+		p+=sprintf(p, "%s", Movie::GetInputDisplay().c_str());
 
 	if (g_ActiveConfig.bShowEFBCopyRegions)
 	{
@@ -619,10 +625,10 @@ void Renderer::RenderText(const char *text, int left, int top, u32 color)
 TargetRectangle Renderer::ConvertEFBRectangle(const EFBRectangle& rc)
 {
 	TargetRectangle result;
-	result.left   = EFBToScaledX(rc.left) + TargetStrideX();
-	result.top    = EFBToScaledY(EFB_HEIGHT - rc.top) + TargetStrideY();
-	result.right  = EFBToScaledX(rc.right) - (TargetStrideX() * 2);
-	result.bottom = EFBToScaledY(EFB_HEIGHT - rc.bottom) - (TargetStrideY() * 2);
+	result.left   = EFBToScaledX(rc.left);
+	result.top    = EFBToScaledY(EFB_HEIGHT - rc.top);
+	result.right  = EFBToScaledX(rc.right);
+	result.bottom = EFBToScaledY(EFB_HEIGHT - rc.bottom);
 	return result;
 }
 
@@ -816,7 +822,7 @@ u32 Renderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data)
 }
 
 // Called from VertexShaderManager
-void Renderer::UpdateViewport()
+void Renderer::UpdateViewport(Matrix44& vpCorrection)
 {
 	// reversed gxsetviewport(xorig, yorig, width, height, nearz, farz)
 	// [0] = width/2
@@ -826,8 +832,8 @@ void Renderer::UpdateViewport()
 	// [4] = yorig + height/2 + 342
 	// [5] = 16777215 * farz
 
-	int scissorXOff = bpmem.scissorOffset.x << 1;
-	int scissorYOff = bpmem.scissorOffset.y << 1;
+	int scissorXOff = bpmem.scissorOffset.x * 2;
+	int scissorYOff = bpmem.scissorOffset.y * 2;
 
 	// TODO: ceil, floor or just cast to int?
 	int X = EFBToScaledX((int)ceil(xfregs.viewport.xOrig - xfregs.viewport.wd - (float)scissorXOff));
@@ -846,6 +852,10 @@ void Renderer::UpdateViewport()
 		Y += Height;
 		Height *= -1;
 	}
+
+	// OpenGL does not require any viewport correction matrix
+	Matrix44::LoadIdentity(vpCorrection);
+
 	// Update the view port
 	glViewport(X, Y, Width, Height);
 	glDepthRange(GLNear, GLFar);
@@ -1016,8 +1026,15 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 	// Textured triangles are necessary because of post-processing shaders
 
 	// Disable all other stages
-	for (int i = 1; i < 8; ++i)
-		OGL::TextureCache::DisableStage(i);
+	for (int i = 0; i < 8; ++i)
+	{
+		glActiveTexture(GL_TEXTURE0 + i);
+		glDisable(GL_TEXTURE_2D);
+		glDisable(GL_TEXTURE_RECTANGLE_ARB);
+	}
+	
+	// Render to the real buffer now.
+	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0); // switch to the window backbuffer
 
 	// Update GLViewPort
 	glViewport(dst_rect.left, dst_rect.bottom, dst_rect.GetWidth(), dst_rect.GetHeight());
@@ -1025,13 +1042,6 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 	GL_REPORT_ERRORD();
 
 	// Copy the framebuffer to screen.
-
-	// Texture map s_xfbTexture onto the main buffer
-	glActiveTexture(GL_TEXTURE0);
-	glEnable(GL_TEXTURE_RECTANGLE_ARB);
-	// Use linear filtering.
-	glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
 	// We must call ApplyShader here even if no post proc is selected - it takes
 	// care of disabling it in that case. It returns false in case of no post processing.
@@ -1041,9 +1051,14 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 
 	if(g_ActiveConfig.bUseXFB)
 	{
+		glActiveTexture(GL_TEXTURE0);
+		glEnable(GL_TEXTURE_RECTANGLE_ARB);
+
+		// Use linear filtering.
+		glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
 		// draw each xfb source
-		// Render to the real buffer now.
-		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0); // switch to the window backbuffer
 
 		for (u32 i = 0; i < xfbCount; ++i)
 		{
@@ -1090,21 +1105,27 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 			sourceRc.bottom = xfbSource->sourceRc.bottom;
 
 			xfbSource->Draw(sourceRc, drawRc, 0, 0);
-
-			// We must call ApplyShader here even if no post proc is selected.
-			// It takes care of disabling it in that case. It returns false in
-			// case of no post processing.
-			if (applyShader)
-				PixelShaderCache::DisableShader();
 		}
+
+		// We must call ApplyShader here even if no post proc is selected.
+		// It takes care of disabling it in that case. It returns false in
+		// case of no post processing.
+		if (applyShader)
+			PixelShaderCache::DisableShader();
 	}
 	else
 	{
 		TargetRectangle targetRc = ConvertEFBRectangle(rc);
 		GLuint read_texture = FramebufferManager::ResolveAndGetRenderTarget(rc);
-		// Render to the real buffer now.
-		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0); // switch to the window backbuffer
+
+		glActiveTexture(GL_TEXTURE0);
+		glEnable(GL_TEXTURE_RECTANGLE_ARB);
 		glBindTexture(GL_TEXTURE_RECTANGLE_ARB, read_texture);
+
+		// Use linear filtering.
+		glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
 		if (applyShader)
 		{
 			glBegin(GL_QUADS);
@@ -1142,10 +1163,10 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 			glVertex2f( 1, -1);
 			glEnd();
 		}
-	}
 
-	glBindTexture(GL_TEXTURE_RECTANGLE_ARB, 0);
-	OGL::TextureCache::DisableStage(0);
+		glBindTexture(GL_TEXTURE_RECTANGLE_ARB, 0);
+		glDisable(GL_TEXTURE_RECTANGLE_ARB);
+	}
 
 	// Save screenshot
 	if (s_bScreenshot)
@@ -1270,7 +1291,7 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 	SetWindowSize(fbWidth, fbHeight);
 
 	OpenGL_Update(); // just updates the render window position and the backbuffer size
-	
+
 	bool xfbchanged = false;
 
 	if (s_XFB_width != fbWidth || s_XFB_height != fbHeight)
@@ -1295,14 +1316,18 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 		s_LastEFBScale = g_ActiveConfig.iEFBScale;
 	}
 
-	if (xfbchanged || WindowResized)
+	if (xfbchanged || WindowResized || (s_LastMultisampleMode != g_ActiveConfig.iMultisampleMode))
 	{
 		ComputeDrawRectangle(s_backbuffer_width, s_backbuffer_height, false, &dst_rect);
 
 		CalculateXYScale(dst_rect);
 
-		if (CalculateTargetSize())
+		if (CalculateTargetSize() || (s_LastMultisampleMode != g_ActiveConfig.iMultisampleMode))
 		{
+			s_LastMultisampleMode = g_ActiveConfig.iMultisampleMode;
+			s_MSAASamples = GetNumMSAASamples(s_LastMultisampleMode);
+			s_MSAACoverageSamples = GetNumMSAACoverageSamples(s_LastMultisampleMode);
+
 			delete g_framebuffer_manager;
 			g_framebuffer_manager = new FramebufferManager(s_target_width, s_target_height,
 				s_MSAASamples, s_MSAACoverageSamples);
@@ -1356,7 +1381,7 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 
 	// Clean out old stuff from caches. It's not worth it to clean out the shader caches.
 	DLCache::ProgressiveCleanup();
-	TextureCache::Cleanup();
+	//TextureCache::Cleanup();
 
 	frameCount++;
 
@@ -1378,12 +1403,12 @@ void Renderer::Swap(u32 xfbAddr, FieldType field, u32 fbWidth, u32 fbHeight,cons
 	g_Config.iSaveTargetId = 0;
 
 	// reload textures if these settings changed
-	if (g_Config.bSafeTextureCache != g_ActiveConfig.bSafeTextureCache ||
-		g_Config.bUseNativeMips != g_ActiveConfig.bUseNativeMips)
-		TextureCache::Invalidate(false);
+	//if (g_Config.bSafeTextureCache != g_ActiveConfig.bSafeTextureCache ||
+	//	g_Config.bUseNativeMips != g_ActiveConfig.bUseNativeMips)
+	//	TextureCache::Invalidate(false);
 
-	if (g_Config.bCopyEFBToTexture != g_ActiveConfig.bCopyEFBToTexture)
-		TextureCache::ClearRenderTargets();
+	//if (g_Config.bCopyEFBToTexture != g_ActiveConfig.bCopyEFBToTexture)
+	//	TextureCache::ClearRenderTargets();
 
 	UpdateActiveConfig();
 
@@ -1422,7 +1447,7 @@ void Renderer::RestoreAPIState()
 	SetColorMask();
 	SetDepthMode();
 	SetBlendMode(true);
-	UpdateViewport();
+	VertexShaderManager::SetViewportChanged();
 
 	if (g_ActiveConfig.bWireFrame)
  		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);

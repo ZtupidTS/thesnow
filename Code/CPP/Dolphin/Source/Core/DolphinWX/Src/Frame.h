@@ -33,6 +33,8 @@
 #include "Debugger/CodeWindow.h"
 #include "LogWindow.h"
 #include "LogConfigWindow.h"
+#include "TASInputDlg.h"
+#include "Movie.h"
 #if defined(HAVE_X11) && HAVE_X11
 #include "X11Utils.h"
 #endif
@@ -118,6 +120,7 @@ public:
 	CCodeWindow* g_pCodeWindow;
 	NetPlaySetupDiag* g_NetPlaySetupDiag;
 	wxCheatsWindow* g_CheatsWindow;
+	TASInputDlg* g_TASInputDlg;
 
 	void InitBitmaps();
 	void DoPause();
@@ -139,6 +142,7 @@ public:
 	bool RendererHasFocus();
 	void DoFullscreen(bool bF);
 	void ToggleDisplayMode (bool bFullscreen);
+	void UpdateWiiMenuChoice(wxMenuItem *WiiMenuItem=NULL);
 	static void ConnectWiimote(int wm_idx, bool connect);
 
 	const CGameListCtrl *GetGameListCtrl() const;
@@ -292,6 +296,7 @@ private:
 	void OnPlayRecording(wxCommandEvent& event);
 	void OnRecordExport(wxCommandEvent& event);
 	void OnRecordReadOnly(wxCommandEvent& event);
+	void OnTASInput(wxCommandEvent& event);
 	void OnChangeDisc(wxCommandEvent& event);
 	void OnScreenshot(wxCommandEvent& event);
 	void OnActive(wxActivateEvent& event);
@@ -340,6 +345,7 @@ private:
 
 	void OnShow_CheatsWindow(wxCommandEvent& event);
 	void OnLoadWiiMenu(wxCommandEvent& event);
+	void OnInstallWAD(wxCommandEvent& event);
 	void OnFifoPlayer(wxCommandEvent& event);
 	void OnConnectWiimote(wxCommandEvent& event);
 	void GameListChanged(wxCommandEvent& event);
@@ -354,6 +360,9 @@ private:
 };
 
 int GetCmdForHotkey(unsigned int key);
+
+// For TASInputDlg
+void TASManipFunction(SPADStatus *PadStatus, int controllerID);
 
 #endif  // __FRAME_H_
 

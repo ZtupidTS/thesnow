@@ -44,7 +44,7 @@ SCoreStartupParameter::SCoreStartupParameter()
   bJITILTimeProfiling(false), bJITILOutputIR(false),
   bEnableFPRF(false), 
   bCPUThread(true), bDSPThread(false), bDSPHLE(true),
-  bSkipIdle(true), bNTSC(false), bNTSCJ(false),
+  bSkipIdle(true), bNTSC(false), bForceNTSCJ(false),
   bHLE_BS2(true), bUseFastMem(false),
   bLockThreads(false),
   bEnableCheats(false),
@@ -52,7 +52,7 @@ SCoreStartupParameter::SCoreStartupParameter()
   bRunCompareServer(false), bRunCompareClient(false),
   bMMU(false), bMMUBAT(false), iTLBHack(0), bVBeam(false),
   bFastDiscSpeed(false),
-  SelectedLanguage(0), bWii(false),
+  SelectedLanguage(0), bWii(false), bDisableWiimoteSpeaker(false),
   bConfirmStop(false), bHideCursor(false), 
   bAutoHideCursor(false), bUsePanicHandlers(true),
   iRenderWindowXPos(-1), iRenderWindowYPos(-1),
@@ -99,6 +99,8 @@ void SCoreStartupParameter::LoadDefaults()
 	bJITIntegerOff = false;
 	bJITPairedOff = false;
 	bJITSystemRegistersOff = false;
+
+	bDisableWiimoteSpeaker = false;
 
 	m_strName = "NONE";
 	m_strUniqueID = "00000000";
@@ -222,7 +224,7 @@ bool SCoreStartupParameter::AutoSetup(EBootBS2 _BootBS2)
 				if (ContentLoader.GetContentByIndex(ContentLoader.GetBootIndex()) == NULL)
 				{
 					//WAD is valid yet cannot be booted. Install instead.
-					u64 installed = CBoot::Install_WiiWAD(m_strFilename.c_str());
+					u64 installed = DiscIO::CNANDContentManager::Access().Install_WiiWAD(m_strFilename);
 					if (installed)
 						SuccessAlertT("The WAD has been installed successfully");
 					return false; //do not boot

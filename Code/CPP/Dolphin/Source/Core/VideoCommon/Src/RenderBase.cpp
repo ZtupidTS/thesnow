@@ -62,10 +62,6 @@ volatile bool Renderer::s_bScreenshot;
 int Renderer::s_target_width;
 int Renderer::s_target_height;
 
-// The custom resolution
-int Renderer::s_Fulltarget_width;
-int Renderer::s_Fulltarget_height;
-
 // TODO: Add functionality to reinit all the render targets when the window is resized.
 int Renderer::s_backbuffer_width;
 int Renderer::s_backbuffer_height;
@@ -121,10 +117,10 @@ void Renderer::RenderToXFB(u32 xfbAddr, u32 fbWidth, u32 fbHeight, const EFBRect
 		Common::AtomicStoreRelease(s_swapRequested, false);
 	}
 	
-	if (TextureCache::DeferredInvalidate)
-	{
-		TextureCache::Invalidate(false);
-	}
+	//if (TextureCache::DeferredInvalidate)
+	//{
+	//	TextureCache::Invalidate(false);
+	//}
 }
 
 void Renderer::CalculateTargetScale(int x, int y, int &scaledX, int &scaledY)
@@ -180,8 +176,8 @@ bool Renderer::CalculateTargetSize(int multiplier)
 
 	if (newEFBWidth != s_target_width || newEFBHeight != s_target_height)
 	{
-		s_Fulltarget_width = s_target_width  = newEFBWidth;
-		s_Fulltarget_height = s_target_height = newEFBHeight;
+		s_target_width = newEFBWidth;
+		s_target_height = newEFBHeight;
 		return true;
 	}
 	return false;
@@ -253,8 +249,17 @@ void Renderer::DrawDebugText()
 				break;
 			}
 
-			const char* const efbcopy_text = g_ActiveConfig.bEFBCopyEnable ?
-				(g_ActiveConfig.bCopyEFBToTexture ? "to Texture" : "to RAM") : "Disabled";
+			const char* efbcopy_text = "Disabled";
+			if (g_ActiveConfig.bEFBCopyEnable)
+			{
+				// TODO: Decide what names to use for these things
+				if (g_ActiveConfig.bEFBCopyVirtualEnable && g_ActiveConfig.bEFBCopyRAMEnable)
+					efbcopy_text = "to Virtual Lookaside and RAM";
+				else if (g_ActiveConfig.bEFBCopyRAMEnable)
+					efbcopy_text = "to RAM";
+				else if (g_ActiveConfig.bEFBCopyVirtualEnable)
+					efbcopy_text = "to Virtual Lookaside";
+			}
 
 			// The rows
 			const std::string lines[] =
@@ -375,7 +380,7 @@ void Renderer::RecordVideoMemory()
 	FifoRecorder::GetInstance().SetVideoMemory(bpMem, cpMem, xfMem, xfRegs, sizeof(XFRegisters) / 4);
 }
 
-void UpdateViewport()
+void UpdateViewport(Matrix44& vpCorrection)
 {
-	g_renderer->UpdateViewport();
+	g_renderer->UpdateViewport(vpCorrection);
 }

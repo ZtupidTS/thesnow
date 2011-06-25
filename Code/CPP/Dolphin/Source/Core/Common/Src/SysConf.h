@@ -67,9 +67,9 @@ struct SSysConfEntry
 	bool SetArrayData(u8* buffer, u16 bufferSize)
 	{
 
-		if (buffer && bufferSize == dataLength)
+		if (buffer && bufferSize <= dataLength)
 		{
-			memcpy(data, buffer, dataLength);
+			memcpy(data, buffer, bufferSize);
 			return true;
 		}
 		return false;
@@ -177,6 +177,8 @@ public:
 	bool SaveToFile(const char* filename);
 	bool LoadFromFile(const char* filename);
 	bool Reload();
+	// This function is used when the NAND root is changed
+	void UpdateLocation();
 
 private:
 	bool LoadFromFileInternal(FILE *fh);

@@ -3,7 +3,6 @@
 #define _RENDER_H_
 
 #include "RenderBase.h"
-#include "Television.h"
 
 namespace DX11
 {
@@ -47,7 +46,7 @@ public:
 
 	void ReinterpretPixelData(unsigned int convtype);
 
-	void UpdateViewport();
+	void UpdateViewport(Matrix44& vpCorrection);
 
 	bool SaveScreenshot(const std::string &filename, const TargetRectangle &rc);
 
@@ -61,9 +60,6 @@ public:
 	void SetVSConstant4fv(unsigned int const_number, const float *f);
 	void SetMultiVSConstant3fv(unsigned int const_number, unsigned int count, const float *f);
 	void SetMultiVSConstant4fv(unsigned int const_number, unsigned int count, const float *f);
-
-private:
-	std::unique_ptr<Television> m_television;
 };
 
 }

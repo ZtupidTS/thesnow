@@ -25,6 +25,7 @@
 #include "FileSearch.h"
 #include "FileUtil.h"
 #include "NandPaths.h"
+#include "ChunkFile.h"
 
 #include "../VolumeHandler.h"
 
@@ -49,26 +50,6 @@ bool CWII_IPC_HLE_Device_fs::Open(u32 _CommandAddress, u32 _Mode)
 		std::string Path = File::GetUserPath(D_WIIUSER_IDX) + "tmp";
 	    File::DeleteDirRecursively(Path);
 	    File::CreateDir(Path.c_str());
-	}
-
-	// create home directory
-    if (VolumeHandler::IsValid())
-	{
-		char Path[260+1];
-		u32 TitleID, GameID;
-		VolumeHandler::RAWReadToPtr((u8*)&TitleID, 0x0F8001DC, 4);
-		
-		TitleID = Common::swap32(TitleID);
-		GameID = VolumeHandler::Read32(0);
-
-        _dbg_assert_(WII_IPC_FILEIO, GameID != 0);
-		if (GameID == 0) GameID = 0xF00DBEEF;
-		if (TitleID == 0) TitleID = 0x00010000;
-
-		snprintf(Path, sizeof(Path), "%stitle/%08x/%08x/data/nocopy/",
-				File::GetUserPath(D_WIIUSER_IDX).c_str(), TitleID, GameID);
-
-		File::CreateFullPath(Path);
 	}
 
 	Memory::Write_U32(GetDeviceID(), _CommandAddress+4);
@@ -178,7 +159,7 @@ bool CWII_IPC_HLE_Device_fs::IOCtlV(u32 _CommandAddress)
 					std::string FileName = name + ext;
 
 					// Decode entities of invalid file system characters so that
-					// games (such as HB:HBP) will be able to find what they expect.
+					// games (such as HP:HBP) will be able to find what they expect.
 					for (Common::replace_v::const_iterator it = replacements.begin(); it != replacements.end(); ++it)
 					{
 						for (size_t j = 0; (j = FileName.find(it->second, j)) != FileName.npos; ++j)
@@ -209,20 +190,34 @@ bool CWII_IPC_HLE_Device_fs::IOCtlV(u32 _CommandAddress)
 			// this command sucks because it asks of the number of used 
 			// fsBlocks and inodes
 			// It should be correct, but don't count on it...
-			std::string path(HLE_IPC_BuildFilename((const char*)Memory::GetPointer(CommandBuffer.InBuffer[0].m_Address), CommandBuffer.InBuffer[0].m_Size));
+			const char *relativepath = (const char*)Memory::GetPointer(CommandBuffer.InBuffer[0].m_Address);
+			std::string path(HLE_IPC_BuildFilename(relativepath, CommandBuffer.InBuffer[0].m_Size));
 			u32 fsBlocks = 0;
 			u32 iNodes = 0;
 
 			INFO_LOG(WII_IPC_FILEIO, "IOCTL_GETUSAGE %s", path.c_str());
 			if (File::IsDirectory(path))
 			{
-				File::FSTEntry parentDir;
-				iNodes = File::ScanDirectoryTree(path, parentDir);
+				// LPFaint99: After I found that setting the number of inodes to the number of children + 1 for the directory itself
+				// I decided to compare with sneek which has the following 2 special cases which are
+				// Copyright (C) 2009-2011  crediar http://code.google.com/p/sneek/
+				if ((memcmp(relativepath, "/title/00010001", 16 ) == 0 ) ||
+					(memcmp(relativepath, "/title/00010005", 16) == 0 ))
+				{
+					fsBlocks = 23; // size is size/0x4000
+					iNodes = 42; // empty folders return a FileCount of 1
+				}
+				else
+				{
+					File::FSTEntry parentDir;
+					// add one for the folder itself, allows some games to create their save files
+					// R8XE52 (Jurassic: The Hunted), STEETR (Tetris Party Deluxe) now create their saves with this change
+					iNodes = 1 + File::ScanDirectoryTree(path, parentDir);
 
-				u64 totalSize = ComputeTotalFileSize(parentDir); // "Real" size, to be converted to nand blocks
+					u64 totalSize = ComputeTotalFileSize(parentDir); // "Real" size, to be converted to nand blocks
 
-				fsBlocks = (u32)(totalSize / (16 * 1024));  // one bock is 16kb
-
+					fsBlocks = (u32)(totalSize / (16 * 1024));  // one bock is 16kb
+				}
 				ReturnValue = FS_RESULT_OK;
 
 				INFO_LOG(WII_IPC_FILEIO, "FS: fsBlock: %i, iNodes: %i", fsBlocks, iNodes);
@@ -503,4 +498,97 @@ s32 CWII_IPC_HLE_Device_fs::ExecuteCommand(u32 _Parameter, u32 _BufferIn, u32 _B
 	}
 
 	return FS_RESULT_FATAL;
+}
+
+void CWII_IPC_HLE_Device_fs::DoState(PointerWrap& p)
+{
+	// handle /tmp
+
+	std::string Path = File::GetUserPath(D_WIIUSER_IDX) + "tmp";
+	if (p.GetMode() == PointerWrap::MODE_READ)
+	{
+		File::DeleteDirRecursively(Path);
+		File::CreateDir(Path.c_str());
+
+		//now restore from the stream
+		while(1) {
+			char type = 0;
+			p.Do(type);
+			if (!type)
+				break;
+			std::string filename;
+			p.Do(filename);
+			std::string name = Path + DIR_SEP + filename;
+			switch(type)
+			{
+			case 'd':
+			{
+				File::CreateDir(name.c_str());
+				break;
+			}
+			case 'f':
+			{
+				u32 size = 0;
+				p.Do(size);
+
+				File::IOFile handle(name, "wb");
+				char buf[65536];
+				u32 count = size;
+				while(count > 65536) {
+					p.DoArray(&buf[0], 65536);
+					handle.WriteArray(&buf[0], 65536);
+					count -= 65536;
+				}
+				p.DoArray(&buf[0], count);
+				handle.WriteArray(&buf[0], count);
+				break;
+			}
+			}
+		}
+	}
+	else
+	{
+		//recurse through tmp and save dirs and files
+
+		File::FSTEntry parentEntry;
+		File::ScanDirectoryTree(Path, parentEntry);
+		std::deque<File::FSTEntry> todo;
+		todo.insert(todo.end(), parentEntry.children.begin(),
+			    parentEntry.children.end());
+
+		while(!todo.empty())
+		{
+			File::FSTEntry &entry = todo.front();
+			std::string name = entry.physicalName;
+			name.erase(0,Path.length()+1);
+			char type = entry.isDirectory?'d':'f';
+			p.Do(type);
+			p.Do(name);
+			if (entry.isDirectory)
+			{
+				todo.insert(todo.end(), entry.children.begin(),
+					    entry.children.end());
+			}
+			else
+			{
+				u32 size = entry.size;
+				p.Do(size);
+
+				File::IOFile handle(entry.physicalName, "rb");
+				char buf[65536];
+				u32 count = size;
+				while(count > 65536) {
+					handle.ReadArray(&buf[0], 65536);
+					p.DoArray(&buf[0], 65536);
+					count -= 65536;
+				}
+				handle.ReadArray(&buf[0], count);
+				p.DoArray(&buf[0], count);
+			}
+			todo.pop_front();
+		}
+
+		char type = 0;
+		p.Do(type);
+	}
 }

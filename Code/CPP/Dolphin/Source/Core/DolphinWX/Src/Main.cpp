@@ -200,60 +200,13 @@ bool DolphinApp::OnInit()
 	}
 
 #ifdef _WIN32
-	// Keep the user config dir free unless user wants to save the working dir
-	if (!File::Exists(File::GetUserPath(D_CONFIG_IDX) + "portable"))
+	if (!wxSetWorkingDirectory(wxString(File::GetExeDirectory().c_str(), *wxConvCurrent)))
 	{
-		char tmp[1024];
-		sprintf(tmp, "%s/.dolphin%swd", (const char*)wxStandardPaths::Get().GetUserConfigDir().mb_str(),
-#ifdef _M_IX86
-			"x32");
-#else
-			"x64");
-#endif
-		std::ifstream workingDir(tmp);
-		if (!workingDir)
-		{
-			if (PanicYesNoT("Dolphin has not been configured with an install location,\nKeep Dolphin portable?"))
-			{
-				std::ofstream portable((File::GetUserPath(D_CONFIG_IDX) + "portable").c_str());
-				if (!portable)
-				{
-					PanicAlertT("Portable Setting could not be saved\n Are you running Dolphin from read only media or from a directory that dolphin is not located in?");
-				}
-			}
-			else
-			{
-				char CWD[1024];
-				sprintf(CWD, "%s", (const char*)wxGetCwd().mb_str());
-				if (PanicYesNoT("Set install location to:\n %s ?", CWD))
-				{
-					std::ofstream workingDirF(tmp);
-					if (!workingDirF)
-						PanicAlertT("Install directory could not be saved");
-					else
-					{
-						workingDirF << CWD << '\n';
-					}
-				}
-				else
-					PanicAlertT("Relaunch Dolphin from the install directory and save from there");
-			}
-		}
-		else
-		{
-			std::string tmpChar;
-			std::getline(workingDir, tmpChar);
-			if (!wxSetWorkingDirectory(wxString::From8BitData(tmpChar.c_str())))
-			{
-				INFO_LOG(CONSOLE, "set working directory failed");
-			}
-		}
+		INFO_LOG(CONSOLE, "set working directory failed");
 	}
 #else
 	//create all necessary directories in user directory
 	//TODO : detect the revision and upgrade where necessary
-	File::CopyDir(std::string(SHARED_USER_DIR CONFIG_DIR DIR_SEP),
-			File::GetUserPath(D_CONFIG_IDX));
 	File::CopyDir(std::string(SHARED_USER_DIR GAMECONFIG_DIR DIR_SEP),
 			File::GetUserPath(D_GAMECONFIG_IDX));
 	File::CopyDir(std::string(SHARED_USER_DIR MAPS_DIR DIR_SEP),
@@ -265,6 +218,8 @@ bool DolphinApp::OnInit()
 	File::CopyDir(std::string(SHARED_USER_DIR OPENCL_DIR DIR_SEP),
 			File::GetUserPath(D_OPENCL_IDX));
 
+	if (!File::Exists(File::GetUserPath(D_CONFIG_IDX)))
+		File::CreateFullPath(File::GetUserPath(D_CONFIG_IDX));
 	if (!File::Exists(File::GetUserPath(D_GCUSER_IDX)))
 		File::CreateFullPath(File::GetUserPath(D_GCUSER_IDX));
 	if (!File::Exists(File::GetUserPath(D_CACHE_IDX)))
