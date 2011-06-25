@@ -180,9 +180,8 @@ struct V_Voice
 	s32 PV1;
 
 // Last outputted audio value, used for voice modulation.
-	u32 OutX;
-	u32 NextCrest; // temp value for Crest calculation
-	u32 PrevAmp;  // temp value for Crest calculation (abs of last value)
+	s32 OutX;
+	s32 NextCrest; // temp value for Crest calculation
 
 // SBuffer now points directly to an ADPCM cache entry.
 	s16 *SBuffer;
@@ -408,6 +407,8 @@ struct V_Core
 	V_ReverbBuffers	RevBuffers;		// buffer pointers for reverb, pre-calculated and pre-clipped.
 	u32				EffectsStartA;
 	u32				EffectsEndA;
+	u32				ExtEffectsStartA;
+	u32				ExtEffectsEndA;
 	u32				ReverbX;
 
 	// Current size of the effects buffer.  Pre-caculated when the effects start
@@ -422,7 +423,6 @@ struct V_Core
 	// from this for the odd Ts.
 	StereoOut32		LastEffect;
 
-	u8				InitDelay;
 	u8				CoreEnabled;
 
 	u8				AttrBit0;
@@ -440,6 +440,7 @@ struct V_Core
 	StereoOut32 downbuf[8];
 	StereoOut32 upbuf[8];
 	int			dbpos, ubpos;
+	bool FakeReverbActive;
 
 	// HACK -- This is a temp buffer which is (or isn't?) used to circumvent some memory
 	// corruption that originates elsewhere in the plugin. >_<  The actual ADMA buffer
@@ -451,13 +452,13 @@ struct V_Core
 // ----------------------------------------------------------------------------------
 
 	// uninitialized constructor
-	V_Core() : Index( -1 ), DMAPtr( NULL ) {}
+	V_Core() : Index( -1 ), DMAPtr( NULL ), FakeReverbActive(false) {}
 	V_Core( int idx );			// our badass constructor
 	~V_Core() throw();
 
-	void	Reset( int index );
 	void	Init( int index );
 	void	UpdateEffectsBufferSize();
+	void	AnalyzeReverbPreset();
 
 	s32		EffectsBufferIndexer( s32 offset ) const;
 	void	UpdateFeedbackBuffersA();
@@ -473,6 +474,7 @@ struct V_Core
 	StereoOut32 Mix( const VoiceMixSet& inVoices, const StereoOut32& Input, const StereoOut32& Ext );
 	void		Reverb_AdvanceBuffer();
 	StereoOut32 DoReverb( const StereoOut32& Input );
+	StereoOut32 DoReverb_Fake( const StereoOut32& Input );
 	s32			RevbGetIndexer( s32 offset );
 
 	StereoOut32 ReadInput();

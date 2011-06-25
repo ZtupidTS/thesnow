@@ -22,10 +22,9 @@
 #ifndef __JOYSTICK_H__
 #define __JOYSTICK_H__
 
-#ifdef __LINUX__
-#include <SDL/SDL.h>
-#else
-#include <SDL.h>
+#include "SDL.h"
+#if SDL_VERSION_ATLEAST(1,3,0)
+#include "SDL_haptic.h"
 #endif
 
 #include "onepad.h"
@@ -36,7 +35,17 @@ class JoystickInfo
 {
 	public:
 		JoystickInfo() : devname(""), _id(-1), numbuttons(0), numaxes(0), numhats(0), axisrange(0x7fff),
-		 deadzone(2000), pad(-1), vbuttonstate(NULL), vaxisstate(NULL), vhatstate(NULL), joy(NULL) {}
+		 deadzone(1500), pad(-1), joy(NULL) {
+			 vbuttonstate.clear();
+			 vaxisstate.clear();
+			 vhatstate.clear();
+#if SDL_VERSION_ATLEAST(1,3,0)
+			 haptic = NULL;
+			 for (int i = 0 ; i < 2 ; i++)
+				 haptic_effect_id[i] = -1;
+#endif
+		 }
+
 		~JoystickInfo()
 		{
 			Destroy();
@@ -49,15 +58,16 @@ class JoystickInfo
 		// opens handles to all possible joysticks
 		static void EnumerateJoysticks(vector<JoystickInfo*>& vjoysticks);
 
+		void InitHapticEffect();
+		static void DoHapticEffect(int type, int pad, int force);
+
 		bool Init(int id); // opens a handle and gets information
-		void Assign(int pad); // assigns a joystick to a pad
 
 		void TestForce();
 
-		bool PollButtons(int &jbutton, u32 &pkey);
-		bool PollAxes(int &axis_id, u32 &pkey);
-		bool PollHats(int &jbutton, int &dir, u32 &pkey);
-		bool PollPOV(int &axis_id, bool &sign, u32 &pkey);
+		bool PollButtons(u32 &pkey);
+		bool PollAxes(u32 &pkey);
+		bool PollHats(u32 &pkey);
 
 		const string& GetName()
 		{
@@ -79,17 +89,12 @@ class JoystickInfo
 			return numhats;
 		}
 
-		int GetId()
-		{
-			return _id;
-		}
-
 		int GetPAD()
 		{
 			return pad;
 		}
 
-		int GetDeadzone(/*int axis*/)
+		int GetDeadzone()
 		{
 			return deadzone;
 		}
@@ -134,9 +139,10 @@ class JoystickInfo
 		{
 			return joy;
 		}
-		int GetAxisFromKey(int pad, int index);
-	private:
 
+		int GetAxisFromKey(int pad, int index);
+
+	private:
 		string devname; // pretty device name
 		int _id;
 		int numbuttons, numaxes, numhats;
@@ -145,7 +151,12 @@ class JoystickInfo
 
 		vector<int> vbuttonstate, vaxisstate, vhatstate;
 
-		SDL_Joystick* joy;
+		SDL_Joystick*		joy;
+#if SDL_VERSION_ATLEAST(1,3,0)
+		SDL_Haptic*   		haptic;
+		SDL_HapticEffect	haptic_effect_data[2];
+		int   				haptic_effect_id[2];
+#endif
 };
 
 

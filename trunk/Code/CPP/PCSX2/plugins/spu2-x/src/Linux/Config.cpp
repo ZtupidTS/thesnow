@@ -42,7 +42,8 @@ int Interpolation = 4;
 */
 
 bool EffectsDisabled = false;
-int ReverbBoost = 0;
+float FinalVolume;
+int ReverbMode = 0;
 bool postprocess_filter_enabled = 1;
 bool _visual_debug_enabled = false; // windows only feature
 
@@ -66,7 +67,9 @@ void ReadSettings()
 	
 	Interpolation = CfgReadInt( L"MIXING",L"Interpolation", 4 );
 	EffectsDisabled = CfgReadBool( L"MIXING", L"Disable_Effects", false );
-	ReverbBoost = CfgReadInt( L"MIXING",L"Reverb_Boost", 0 );
+	FinalVolume = ((float)CfgReadInt( L"MIXING", L"FinalVolume", 100 )) / 100;
+		if ( FinalVolume > 1.0f) FinalVolume = 1.0f;
+	ReverbMode = CfgReadInt( L"MIXING",L"Reverb_Mode", 0 );
 
 	wxString temp;
 	CfgReadStr( L"OUTPUT", L"Output_Module", temp, PortaudioOut->GetIdent() );
@@ -107,7 +110,8 @@ void WriteSettings()
 	
 	CfgWriteInt(L"MIXING",L"Interpolation",Interpolation);
 	CfgWriteBool(L"MIXING",L"Disable_Effects",EffectsDisabled);
-	CfgWriteInt(L"MIXING",L"Reverb_Boost",ReverbBoost);
+	CfgWriteInt(L"MIXING",L"FinalVolume",(int)(FinalVolume * 100 +0.5f));
+	CfgWriteInt(L"MIXING",L"Reverb_Mode",ReverbMode);
 
 	CfgWriteStr(L"OUTPUT",L"Output_Module", mods[OutputModule]->GetIdent() );
 	CfgWriteInt(L"OUTPUT",L"Latency", SndOutLatencyMS);
@@ -171,13 +175,11 @@ void DisplayDialog()
 
     effects_check = gtk_check_button_new_with_label("Disable Effects Processing");
 
-    reverb_label = gtk_label_new ("Reverb Boost Factor:");
+    reverb_label = gtk_label_new ("Reverb Mode Selection:");
     reverb_box = gtk_combo_box_new_text ();
-    gtk_combo_box_append_text(GTK_COMBO_BOX(reverb_box), "1X - Normal Reverb Volume");
-    gtk_combo_box_append_text(GTK_COMBO_BOX(reverb_box), "2X - Reverb Volume x 2");
-    gtk_combo_box_append_text(GTK_COMBO_BOX(reverb_box), "4X - Reverb Volume x 4");
-    gtk_combo_box_append_text(GTK_COMBO_BOX(reverb_box), "8X - Reverb Volume x 8");
-    gtk_combo_box_set_active(GTK_COMBO_BOX(reverb_box), ReverbBoost);
+    gtk_combo_box_append_text(GTK_COMBO_BOX(reverb_box), "SPU2 Reverb");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(reverb_box), "Custom Reverb");
+    gtk_combo_box_set_active(GTK_COMBO_BOX(reverb_box), ReverbMode);
 
     debug_check = gtk_check_button_new_with_label("Enable Debug Options");
 	debug_button = gtk_button_new_with_label("Debug...");
@@ -244,6 +246,7 @@ void DisplayDialog()
 	gtk_container_add(GTK_CONTAINER(main_box), output_frame);
 
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(effects_check), EffectsDisabled);
+	//FinalVolume;
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(debug_check), DebugEnabled);
 
     gtk_container_add (GTK_CONTAINER(gtk_dialog_get_content_area(GTK_DIALOG(dialog))), main_frame);
@@ -261,9 +264,10 @@ void DisplayDialog()
     		Interpolation = gtk_combo_box_get_active(GTK_COMBO_BOX(int_box));
 
     	EffectsDisabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(effects_check));
-
-    	if (gtk_combo_box_get_active(GTK_COMBO_BOX(reverb_box)) != -1)
-			ReverbBoost = gtk_combo_box_get_active(GTK_COMBO_BOX(reverb_box));
+		//FinalVolume;
+    	
+		if (gtk_combo_box_get_active(GTK_COMBO_BOX(reverb_box)) != -1)
+			ReverbMode = gtk_combo_box_get_active(GTK_COMBO_BOX(reverb_box));
 
     	if (gtk_combo_box_get_active(GTK_COMBO_BOX(mod_box)) != -1)
 			OutputModule = gtk_combo_box_get_active(GTK_COMBO_BOX(mod_box));
