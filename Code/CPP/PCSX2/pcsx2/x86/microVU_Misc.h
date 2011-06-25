@@ -81,6 +81,13 @@ static const uint _DTbit_ = 0; //( _Dbit_ | _Tbit_ ) // ToDo: Implement this stu
 static const uint divI = 0x1040000;
 static const uint divD = 0x2080000;
 
+static const char branchSTR[16][8] = {
+	"None",  "B",     "BAL",   "IBEQ",
+	"IBGEZ", "IBGTZ", "IBLEZ", "IBLTZ",
+	"IBNE",  "JR",    "JALR",  "N/A",
+	"N/A",   "N/A",   "N/A",   "N/A"
+};
+
 //------------------------------------------------------------------
 // Helper Macros
 //------------------------------------------------------------------
@@ -227,6 +234,11 @@ typedef u32 (__fastcall *mVUCall)(void*, void*);
 #define shuffleSS(x) ((x==1)?(0x27):((x==2)?(0xc6):((x==4)?(0xe1):(0xe4))))
 #define clampE       CHECK_VU_EXTRA_OVERFLOW
 #define elif		 else if
+#define varPrint(x)  DevCon.WriteLn(#x " = %d", (int)x)
+
+#define blockCreate(addr) {												\
+	if  (!mVUblocks[addr]) mVUblocks[addr] = new microBlockManager();	\
+}
 
 #define branchAddr (																	\
 	pxAssumeDev((iPC & 1) == 0, "microVU: Expected Lower Op for valid branch addr."),	\
@@ -272,7 +284,7 @@ typedef u32 (__fastcall *mVUCall)(void*, void*);
 #endif
 
 //------------------------------------------------------------------
-// Optimization Options
+// Optimization / Debug Options
 //------------------------------------------------------------------
 
 // Reg Alloc
@@ -290,6 +302,31 @@ static const bool noFlagOpts = 0; // Set to 1 to disable all flag setting optimi
 // an Upper Instruction updates them. It also always transfers the 4 possible
 // flag instances between blocks...
 
+// Multiple Flag Instances
+static const bool doSFlagInsts = 1; // Set to 1 to enable multiple status flag instances
+static const bool doMFlagInsts = 1; // Set to 1 to enable multiple mac    flag instances
+static const bool doCFlagInsts = 1; // Set to 1 to enable multiple clip   flag instances
+// This is the correct behavior of the VU's. Due to the pipeline of the VU's
+// there can be up to 4 different instances of values to keep track of
+// for the 3 different types of flags: Status, Mac, Clip flags.
+// Setting one of these to 0 acts as if there is only 1 instance of the
+// corresponding flag, which may be useful when debugging flag pipeline bugs.
+
+static const int doFullFlagOpt = 0; // Set above 0 to enable full flag optimization
+// This attempts to eliminate some flag shuffling at the end of blocks, but
+// can end up creating more recompiled code. The max amount of times this optimization
+// is performed per block can be set by changing the doFullFlagOpt value to be that limit.
+// i.e. setting doFullFlagOpt to 2 will recompile the current block at-most 2 times with
+// the full flag optimization.
+// Note: This optimization doesn't really seem to be benefitial and is buggy...
+
+// Branch in Branch Delay Slots
+static const bool doBranchInDelaySlot = 1; // Set to 1 to enable evil-branches
+// This attempts to emulate the correct behavior for branches in branch delay
+// slots. It is evil that games do this, and handling the different possible
+// cases is tricky and bug prone. If this option is disabled then the second
+// branch is treated as a NOP and effectively ignored.
+
 // Constant Propagation
 static const bool doConstProp = 0; // Set to 1 to turn on vi15 const propagation
 // Enables Constant Propagation for Jumps based on vi15 'link-register'
@@ -303,12 +340,22 @@ static const bool doJumpCaching = 1; // Set to 1 to enable jump caching
 // routine that is performed every indirect jump in order to find a block within a
 // program that matches the correct pipeline state.
 
+// Indirect Jumps are part of same cached microProgram
+static const bool doJumpAsSameProgram = 0; // Set to 1 to treat jumps as same program
+// Enabling this treats indirect jumps (JR/JALR) as part of the same microProgram
+// when determining the valid ranges for the microProgram cache. Disabling this
+// counts indirect jumps as separate cached microPrograms which generally leads
+// to more microPrograms being cached, but the programs created are smaller and
+// the overall cache usage ends up being more optimal; it can also help prevent
+// constant recompilation problems in certain games.
+// Note: You MUST disable doJumpCaching if you enable this option.
+
 //------------------------------------------------------------------
 // Speed Hacks (can cause infinite loops, SPS, Black Screens, etc...)
 //------------------------------------------------------------------
 
 // Status Flag Speed Hack
-#define CHECK_VU_FLAGHACK	(EmuConfig.Speedhacks.vuFlagHack)
+#define CHECK_VU_FLAGHACK  (EmuConfig.Speedhacks.vuFlagHack)
 // This hack only updates the Status Flag on blocks that will read it.
 // Most blocks do not read status flags, so this is a big speedup.
 
