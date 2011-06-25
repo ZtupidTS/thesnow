@@ -476,7 +476,6 @@ void COptions::SetOption(int nOptionID, LPCTSTR value, bool save /*=true*/)
 			std::list<CStdString> ipBindList;
 			for (unsigned int i = 0; i<_tcslen(value); i++)
 			{
-				// FIXME
 				TCHAR cur = value[i];
 				if ((cur < '0' || cur > '9') && cur != '.' && cur != ':')
 				{

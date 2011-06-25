@@ -1247,7 +1247,7 @@ BOOL CServer::CreateAdminListenSocket()
 
 	if (!DoCreateAdminListenSocket(nAdminPort, (ipBindings != _T("*")) ? _T("127.0.0.1") : NULL, AF_INET))
 	{
-		int p = DoCreateAdminListenSocket(nAdminPort, _T("127.0.0.1"), AF_INET6);
+		int p = DoCreateAdminListenSocket(nAdminPort, _T("127.0.0.1"), AF_INET);
 		if (!p)
 		{
 			CStdString str;
@@ -1315,11 +1315,12 @@ BOOL CServer::CreateAdminListenSocket()
 		}
 	}
 
+	/* Disabled since appareantly MessageBox freezes the server on Windows Server 2003.
 	if (!error.IsEmpty())
 	{
-		 error = _T("Failed to bind the admin interface to the following addresses:") + error;
-		 MessageBox(0, error, _T("FileZilla Server Error"), MB_ICONEXCLAMATION | MB_SERVICE_NOTIFICATION);
-	}
+		error = _T("Failed to bind the admin interface to the following addresses:") + error;
+		MessageBox(0, error, _T("FileZilla Server Error"), MB_ICONEXCLAMATION | MB_SERVICE_NOTIFICATION);
+	}*/
 
 	return !m_AdminListenSocketList.empty();
 }

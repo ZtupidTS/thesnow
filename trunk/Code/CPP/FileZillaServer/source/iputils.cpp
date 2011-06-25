@@ -70,6 +70,42 @@ int DigitHexToDecNum(TCHAR c)
 		return c - '0';
 }
 
+static unsigned long const prefixMasksV4[] = {
+	0x00000000u,
+	0x80000000u,
+	0xc0000000u,
+	0xe0000000u,
+	0xf0000000u,
+	0xf8000000u,
+	0xfc000000u,
+	0xfe000000u,
+	0xff000000u,
+	0xff800000u,
+	0xffc00000u,
+	0xffe00000u,
+	0xfff00000u,
+	0xfff80000u,
+	0xfffc0000u,
+	0xfffe0000u,
+	0xffff0000u,
+	0xffff8000u,
+	0xffffc000u,
+	0xffffe000u,
+	0xfffff000u,
+	0xfffff800u,
+	0xfffffc00u,
+	0xfffffe00u,
+	0xffffff00u,
+	0xffffff80u,
+	0xffffffc0u,
+	0xffffffe0u,
+	0xfffffff0u,
+	0xfffffff8u,
+	0xfffffffcu,
+	0xfffffffeu,
+	0xffffffffu
+};
+
 bool MatchesFilter(CStdString filter, CStdString ip)
 {
 	// A single asterix matches all IPs.
@@ -83,10 +119,10 @@ bool MatchesFilter(CStdString filter, CStdString ip)
 		// CIDR filter
 		int prefixLength = _ttoi(filter.Mid(pos+1));
 
-		CStdString left = GetIPV6LongForm(filter.Left(pos));
 		if (ip.Find(':') != -1)
 		{
 			// IPv6 address
+			CStdString left = GetIPV6LongForm(filter.Left(pos));
 			if (left.Find(':') == -1)
 				return false;
 			ip = GetIPV6LongForm(ip);
@@ -125,23 +161,22 @@ bool MatchesFilter(CStdString filter, CStdString ip)
 		}
 		else
 		{
+			if (prefixLength < 0)
+				prefixLength = 0;
+			else if (prefixLength > 32)
+				prefixLength = 32;
+
 			// IPv4 address
+			CStdString left = filter.Left(pos);
 			if (left.Find(':') != -1)
 				return false;
 
 			unsigned long i = ntohl(inet_addr(ConvToLocal(ip)));
 			unsigned long f = ntohl(inet_addr(ConvToLocal(left)));
 
-			while (prefixLength--)
-			{
-				if ((i & 0x80000000u) != (f & 0x80000000))
-					return false;
-
-				i <<= 1;
-				f <<= 1;
-			}
-
-			return true;
+			i &= prefixMasksV4[prefixLength];
+			f &= prefixMasksV4[prefixLength];
+			return i == f;
 		}
 	}
 	else
@@ -408,7 +443,7 @@ bool IsIpAddress(const CStdString& address)
 
 	int segment = 0;
 	int dotcount = 0;
-	for (int i = 0; i < address.GetLength(); i++)
+	for (int i = 0; i < address.GetLength(); ++i)
 	{
 		const TCHAR& c = address[i];
 		if (c == '.')

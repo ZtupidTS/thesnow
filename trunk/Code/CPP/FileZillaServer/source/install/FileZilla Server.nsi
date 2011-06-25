@@ -14,10 +14,29 @@
 ;--------------------------------
 ;Product Info
 
-  !define PRODUCT_NAME "FileZilla Server"
-  !define PRODUCT_VERSION "beta 0.9.37"
+  !define PRODUCT_NAME  "FileZilla Server"
+  !define VERSION_MAJOR "0"
+  !define VERSION_MINOR "9"
+  !define VERSION_MICRO "39"
+  !define VERSION_NANO  "0"
+  !define PRODUCT_VERSION "beta 0.9.39"
+  !define VERSION_FULL  "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_MICRO}.${VERSION_NANO}"
+  !define PUBLISHER    "FileZilla Project"
+  !define WEBSITE_URL  "http://filezilla-project.org/"
   !define PRODUCT_UNINSTALL "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
   Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
+
+;--------------------------------
+;Installer's VersionInfo
+
+  VIProductVersion                   "${VERSION_FULL}"
+  VIAddVersionKey "CompanyName"      "${PUBLISHER}"
+  VIAddVersionKey "ProductName"      "${PRODUCT_NAME}" 
+  VIAddVersionKey "ProductVersion"   "${PRODUCT_VERSION}"
+  VIAddVersionKey "FileDescription"  "${PRODUCT_NAME}"
+  VIAddVersionKey "FileVersion"      "${PRODUCT_VERSION}"
+  VIAddVersionKey "LegalCopyright"   "${PUBLISHER}"
+  VIAddVersionKey "OriginalFilename" "FileZilla_Server-${VERSION_MAJOR}_${VERSION_MINOR}_${VERSION_MICRO}.exe"
 
 ;StartOptions Page strings
 LangString StartOptionsTitle ${LANG_ENGLISH} ": Server startup settings"
@@ -52,7 +71,7 @@ LangString StartOptionsTitle ${LANG_ENGLISH} ": Server startup settings"
 ;More
 
   ;General
-  OutFile "../../FileZilla_Server.exe"
+  OutFile "../../FileZilla_Server-${VERSION_MAJOR}_${VERSION_MINOR}_${VERSION_MICRO}.exe"
 
   ;Installation types
   InstType "Standard"
@@ -86,6 +105,8 @@ LangString StartOptionsTitle ${LANG_ENGLISH} ": Server startup settings"
 ;--------------------------------
 ;Installer Sections
 
+Var GetInstalledSize.total
+
 Section "-default files"
   SectionIn 1 2 3 4
 
@@ -98,9 +119,25 @@ Section "-default files"
   File "..\..\readme.htm"
   File "..\..\legal.htm"
   File "..\..\license.txt"
+
   ; Write the uninstall keys for Windows
-  WriteRegStr HKLM "${PRODUCT_UNINSTALL}" "DisplayName" "FileZilla Server (remove only)"
-  WriteRegStr HKLM "${PRODUCT_UNINSTALL}" "UninstallString" '"$INSTDIR\uninstall.exe"'
+  WriteRegStr   HKLM "${PRODUCT_UNINSTALL}" "DisplayName"     "FileZilla Server"
+  WriteRegStr   HKLM "${PRODUCT_UNINSTALL}" "DisplayIcon"     "$INSTDIR\FileZilla server.exe"
+  WriteRegStr   HKLM "${PRODUCT_UNINSTALL}" "DisplayVersion"  "${PRODUCT_VERSION}"
+  WriteRegStr   HKLM "${PRODUCT_UNINSTALL}" "HelpLink"        "${WEBSITE_URL}"
+  WriteRegStr   HKLM "${PRODUCT_UNINSTALL}" "InstallLocation" "$INSTDIR"
+  WriteRegStr   HKLM "${PRODUCT_UNINSTALL}" "URLInfoAbout"    "${WEBSITE_URL}"
+  WriteRegStr   HKLM "${PRODUCT_UNINSTALL}" "URLUpdateInfo"   "${WEBSITE_URL}"
+  WriteRegStr   HKLM "${PRODUCT_UNINSTALL}" "UninstallString" "$INSTDIR\uninstall.exe"
+  WriteRegStr   HKLM "${PRODUCT_UNINSTALL}" "Publisher"       "${PUBLISHER}"
+  WriteRegDWORD HKLM "${PRODUCT_UNINSTALL}" "VersionMajor"    "${VERSION_MAJOR}"
+  WriteRegDWORD HKLM "${PRODUCT_UNINSTALL}" "VersionMinor"    "${VERSION_MINOR}"
+  WriteRegDWORD HKLM "${PRODUCT_UNINSTALL}" "NoModify"        "1"
+  WriteRegDWORD HKLM "${PRODUCT_UNINSTALL}" "NoRepair"        "1"
+
+  Call GetInstalledSize
+  WriteRegDWORD HKLM "${PRODUCT_UNINSTALL}" "EstimatedSize"  "$GetInstalledSize.total" ; Create/Write the reg key with the dword value
+
   WriteUninstaller "$INSTDIR\Uninstall.exe"
 
 SectionEnd
@@ -165,41 +202,41 @@ SectionEnd
 
 Section "Source Code" SecSourceCode
 SectionIn 2
-  SetOutPath $INSTDIR\source
+  SetOutPath "$INSTDIR\source"
   File "..\*.cpp"
   File "..\*.h"
   File "..\FileZilla Server.sln"
   File "..\FileZilla Server.vcproj"
   File "..\FileZilla Server.rc"
-  SetOutPath $INSTDIR\source\res
+  SetOutPath "$INSTDIR\source\res"
   File "..\res\*.ico"
-  SetOutPath $INSTDIR\source\misc
+  SetOutPath "$INSTDIR\source\misc"
   File "..\misc\*.h"
   File "..\misc\*.cpp"
-  SetOutPath $INSTDIR\source\hash_algorithms
+  SetOutPath "$INSTDIR\source\hash_algorithms"
   File "..\hash_algorithms\*.h"
   File "..\hash_algorithms\*.c"
-  SetOutPath $INSTDIR\source\interface
+  SetOutPath "$INSTDIR\source\interface"
   File "..\interface\*.cpp"
   File "..\interface\*.h"
   File "..\interface\FileZilla Server Interface.vcproj"
   File "..\interface\FileZilla Server.rc"
-  SetOutPath $INSTDIR\source\interface\res
+  SetOutPath "$INSTDIR\source\interface\res"
   File "..\interface\res\*.bmp"
   File "..\interface\res\*.ico"
   File "..\interface\res\*.rc2"
   File "..\interface\res\manifest.xml"
-  SetOutPath $INSTDIR\source\interface\misc
+  SetOutPath "$INSTDIR\source\interface\misc"
   File "..\interface\misc\*.h"
   File "..\interface\misc\*.cpp"
-  SetOutPath $INSTDIR\source\install
+  SetOutPath "$INSTDIR\source\install"
   File "FileZilla Server.nsi"
   File "StartupOptions.ini"
   File "InterfaceOptions.ini"
   File "uninstall.ico"
-  SetOutPath $INSTDIR\source\includes\openssl
+  SetOutPath "$INSTDIR\source\includes\openssl"
   File "..\includes\openssl\*.h"
-  SetOutPath $INSTDIR\source\tinyxml
+  SetOutPath "$INSTDIR\source\tinyxml"
   File "..\tinyxml\*.h"
   File "..\tinyxml\*.cpp"
 SectionEnd
@@ -464,6 +501,22 @@ Function .onSelChange
 
   IntOp $prevSel $R1 & 1
 
+FunctionEnd
+
+Function GetInstalledSize
+  Push $0
+  Push $1
+  StrCpy $GetInstalledSize.total 0
+  ${ForEach} $1 0 256 + 1
+    ${if} ${SectionIsSelected} $1
+      SectionGetSize $1 $0
+      IntOp $GetInstalledSize.total $GetInstalledSize.total + $0
+    ${Endif}
+  ${Next}
+  Pop $1
+  Pop $0
+  IntFmt $GetInstalledSize.total "0x%08X" $GetInstalledSize.total
+  Push $GetInstalledSize.total
 FunctionEnd
 
 ;--------------------------------

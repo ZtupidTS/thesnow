@@ -1,4 +1,4 @@
-<p align="center"><b><u>FileZilla Server version 0.9.38 beta</u></b></p>
+<p align="center"><b><u>FileZilla Server version 0.9.39 beta</u></b></p>
 <p align="center">Copyright 2001-2011<br>
 by <a href="mailto:Tim.Kosse@gmx.de">Tim Kosse</a><a href="http://sourceforge.net/projects/filezilla/"><br>
 http://sourceforge.net/projects/filezilla/</a></p>
@@ -60,14 +60,23 @@ as restoring it to normal size.</p>
     <td>server is locked</td>
   </tr>
   <tr>
-    <td>flashing  yellow-green</td>
+    <td>flashing yellow-green</td>
     <td></td>
     <td>server is locked and clients are still connected</td>
   </tr>
 </table>
 <p align="left"><b><u>Version History:</u></b></p>
 <p>For a more detailed list of changes, please have a look at the CVS changelog located at <a href="http://filezilla-project.org/changelog.php?type=2">http://filezilla-project.org/changelog.php?type=2</a>.</p>
-<p><b>Version 0.9.37</b></p>
+<p><b>Version 0.9.39</b></p>
+<blockquote>
+  <u>Fixed bugs:</u>
+  <ul>
+    <li>Do not attempt to display a message box if creating an administration interface binding fails. This freezes the service on some machines.</li>
+    <li>On FTP over TLS connections, the socket address family was not initialized from the underlaying socket</li>
+    <li>Fix a bug in IPv4 address filters and increase their performance</li>
+  </ul>
+</blockquote
+<p><b>Version 0.9.38</b></p>
 <blockquote>
   <u>New features:</u>
   <ul>
@@ -85,6 +94,7 @@ as restoring it to normal size.</p>
     <li>Increased default size of socket buffers</li>
     <li>Fix a crash when entering invalid IP filters</li>
     <li>Fixed a crash when a connection closes</li>
+    <li>Updated to most recent OpenSSL version</li>
   </ul>
 </blockquote
 <p><b>Version 0.9.37</b></p>

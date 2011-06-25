@@ -1720,6 +1720,8 @@ BOOL CAsyncSocketEx::AddLayer(CAsyncSocketExLayer *pLayer)
 {
 	ASSERT(pLayer);
 
+	pLayer->m_nFamily = m_SocketData.nFamily;
+
 	if (m_pFirstLayer)
 	{
 		ASSERT(m_pLastLayer);
