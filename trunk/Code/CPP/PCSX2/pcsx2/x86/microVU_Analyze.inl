@@ -441,13 +441,27 @@ __ri int mVUbranchCheck(mV) {
 	if (!mVUcount) return 0;
 	incPC(-2);
 	if (mVUlow.branch) {
-		mVUlow.badBranch  = 1;
-		incPC(2);
-		mVUlow.evilBranch = 1;
-		mVUregs.blockType = 2;
-		mVUregs.needExactMatch |= 7; // This might not be necessary, but w/e...
-		DevCon.Warning("microVU%d Warning: Branch in Branch delay slot! [%04x]", mVU.index, xPC);
-		return 1;
+		u32 branchType = mVUlow.branch;
+		if (doBranchInDelaySlot) {
+			mVUlow.badBranch  = 1;
+			incPC(2);
+			mVUlow.evilBranch = 1;
+			mVUregs.blockType = 2;
+			mVUregs.needExactMatch |= 7; // This might not be necessary, but w/e...
+			mVUregs.flagInfo   = 0;
+			mVUregs.fullFlags0 = 0;
+			mVUregs.fullFlags1 = 0;
+			DevCon.Warning("microVU%d Warning: %s in %s delay slot! [%04x]", mVU.index,
+							branchSTR[mVUlow.branch&0xf], branchSTR[branchType&0xf], xPC);
+			return 1;
+		}
+		else {
+			incPC(2);
+			mVUlow.isNOP = 1;
+			DevCon.Warning("microVU%d Warning: %s in %s delay slot! [%04x]", mVU.index,
+							branchSTR[mVUlow.branch&0xf], branchSTR[branchType&0xf], xPC);
+			return 0;
+		}
 	}
 	incPC(2);
 	return 0;
@@ -455,7 +469,7 @@ __ri int mVUbranchCheck(mV) {
 
 __fi void mVUanalyzeCondBranch1(mV, int Is) {
 	analyzeVIreg1(mVU, Is, mVUlow.VI_read[0]);
-	if (!mVUstall && !mVUbranchCheck(mVU)) { 
+	if (!mVUbranchCheck(mVU) && !mVUstall) { 
 		analyzeBranchVI(mVU, Is, mVUlow.memReadIs);
 	}
 }
@@ -463,7 +477,7 @@ __fi void mVUanalyzeCondBranch1(mV, int Is) {
 __fi void mVUanalyzeCondBranch2(mV, int Is, int It) {
 	analyzeVIreg1(mVU, Is, mVUlow.VI_read[0]);
 	analyzeVIreg1(mVU, It, mVUlow.VI_read[1]);
-	if (!mVUstall && !mVUbranchCheck(mVU)) {
+	if (!mVUbranchCheck(mVU) && !mVUstall) {
 		analyzeBranchVI(mVU, Is, mVUlow.memReadIs);
 		analyzeBranchVI(mVU, It, mVUlow.memReadIt);
 	}
@@ -478,8 +492,8 @@ __fi void mVUanalyzeNormBranch(mV, int It, bool isBAL) {
 }
 
 __ri void mVUanalyzeJump(mV, int Is, int It, bool isJALR) {
-	mVUbranchCheck(mVU);
 	mVUlow.branch = (isJALR) ? 10 : 9;
+	mVUbranchCheck(mVU);
 	if (mVUconstReg[Is].isValid && doConstProp) {
 		mVUlow.constJump.isValid  = 1;
 		mVUlow.constJump.regValue = mVUconstReg[Is].regValue;
