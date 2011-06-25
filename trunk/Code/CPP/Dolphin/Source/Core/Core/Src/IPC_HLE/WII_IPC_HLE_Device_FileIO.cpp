@@ -51,8 +51,9 @@ std::string HLE_IPC_BuildFilename(const char* _pFilename, int _size)
 
 void HLE_IPC_CreateVirtualFATFilesystem()
 {
-	const std::string cdbPath = Common::CreateTitleDataPath(TITLEID_SYSMENU) + "/cdb.vff";
-	if (!File::Exists(cdbPath))
+	const int cdbSize = 0x01400000;
+	const std::string cdbPath = Common::GetTitleDataPath(TITLEID_SYSMENU) + "cdb.vff";
+	if ((int)File::GetSize(cdbPath) < cdbSize)
 	{
 		// cdb.vff is a virtual Fat filesystem created on first launch of sysmenu
 		// we create it here as it is faster ~3 minutes for me when sysmenu does it ~1 second created here
@@ -67,15 +68,16 @@ void HLE_IPC_CreateVirtualFATFilesystem()
 			cdbFile.Seek(0x14020, SEEK_SET);
 			cdbFile.WriteBytes(cdbFAT, 0x4);
 			// 20 MiB file
-			cdbFile.Seek(0x01400000 - 1, SEEK_SET);
+			cdbFile.Seek(cdbSize - 1, SEEK_SET);
 			// write the final 0 to 0 file from the second FAT to 20 MiB
 			cdbFile.WriteBytes(cdbHDR + 14, 1);
-			
 			if (!cdbFile.IsGood())
 			{
 				cdbFile.Close();
 				File::Delete(cdbPath);
 			}
+			cdbFile.Flush();
+			cdbFile.Close();
 		}
 	}
 }
@@ -85,7 +87,6 @@ CWII_IPC_HLE_Device_FileIO::CWII_IPC_HLE_Device_FileIO(u32 _DeviceID, const std:
 	, m_pFileHandle(NULL)
 	, m_FileLength(0)
 	, m_Mode(0)
-	, m_Seek(0)
 {
 	Common::ReadReplacements(replacements);
 }
@@ -102,10 +103,9 @@ bool CWII_IPC_HLE_Device_FileIO::Close(u32 _CommandAddress, bool _bForce)
 
 	m_FileLength = 0;
 	m_Mode = 0;
-	m_Seek = 0;
 
 	// Close always return 0 for success
-	if (!_bForce)
+	if (_CommandAddress && !_bForce)
 		Memory::Write_U32(0, _CommandAddress + 4);
 	m_Active = false;
 	return true;
@@ -119,7 +119,7 @@ bool CWII_IPC_HLE_Device_FileIO::Open(u32 _CommandAddress, u32 _Mode)
 	// close the file handle if we get a reopen
 	m_pFileHandle.Close();
 	
-	const char* const Modes[] =
+	static const char* const Modes[] =
 	{
 		"Unk Mode",
 		"Read only",
@@ -156,7 +156,7 @@ bool CWII_IPC_HLE_Device_FileIO::Open(u32 _CommandAddress, u32 _Mode)
 	}
 	else
 	{
-		WARN_LOG(WII_IPC_FILEIO, "FileIO: Open failed - File doesn't exist %s", m_Filename.c_str());
+		WARN_LOG(WII_IPC_FILEIO, "FileIO: Open (%s) failed - File doesn't exist %s", Modes[_Mode], m_Filename.c_str());
 		ReturnValue = FS_FILE_NOT_EXIST;
 	}
 
@@ -207,6 +207,9 @@ bool CWII_IPC_HLE_Device_FileIO::Seek(u32 _CommandAddress)
 		}
 		else
 		{
+			// Must clear the failbits, since subsequent seeks don't care about
+			// past failure on Wii
+			m_pFileHandle.Clear();
 			ERROR_LOG(WII_IPC_FILEIO, "FILEIO: Seek failed - %s", m_Name.c_str());
 		}
 	}
@@ -321,20 +324,24 @@ bool CWII_IPC_HLE_Device_FileIO::IOCtl(u32 _CommandAddress)
 
 void CWII_IPC_HLE_Device_FileIO::DoState(PointerWrap &p)
 {
-	if (p.GetMode() == PointerWrap::MODE_WRITE)
-	{
-		m_Seek = (m_pFileHandle) ? (s32)m_pFileHandle.Tell() : 0;
-	}
+	bool have_file_handle = m_pFileHandle;
+	s32 seek = (have_file_handle) ? (s32)m_pFileHandle.Tell() : 0;
 
+	p.Do(have_file_handle);
 	p.Do(m_Mode);
-	p.Do(m_Seek);
+	p.Do(seek);
 
 	if (p.GetMode() == PointerWrap::MODE_READ)
 	{
-		if (m_Mode)
+		if (have_file_handle)
 		{
 			Open(0, m_Mode);
-			m_pFileHandle.Seek(m_Seek, SEEK_SET);
+			_dbg_assert_msg_(WII_IPC_HLE, m_pFileHandle, "bad filehandle");
 		}
+		else
+			Close(0, true);
 	}
+
+	if (have_file_handle)
+		m_pFileHandle.Seek(seek, SEEK_SET);
 }

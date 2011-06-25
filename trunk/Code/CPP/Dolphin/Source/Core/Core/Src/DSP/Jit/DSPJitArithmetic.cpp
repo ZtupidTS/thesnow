@@ -957,7 +957,6 @@ void DSPEmitter::inc(const UDSPInstruction opc)
 	else
 	{
 		set_long_acc(dreg);
-		Update_SR_Register64_Carry(EAX, tmp1);//why is this still done?
 	}
 	gpr.putXReg(tmp1);
 #else
@@ -1239,12 +1238,10 @@ void DSPEmitter::abs(const UDSPInstruction opc)
 	get_long_acc(dreg);
 //	if (acc < 0) acc = 0 - acc;
 	CMP(64, R(RAX), Imm8(0));
-	FixupBranch lessThan = J_CC(CC_L);
+	FixupBranch GreaterThanOrEqual = J_CC(CC_GE);
 	NEG(64, R(RAX));
 	set_long_acc(dreg);
-	SetJumpTarget(lessThan);
-//	dsp_set_long_acc(dreg, acc);
-	set_long_acc(dreg);
+	SetJumpTarget(GreaterThanOrEqual);
 //	Update_SR_Register64(dsp_get_long_acc(dreg));
 	if (FlagsNeeded())
 	{

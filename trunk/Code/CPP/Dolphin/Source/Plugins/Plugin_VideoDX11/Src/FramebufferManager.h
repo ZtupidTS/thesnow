@@ -18,12 +18,9 @@
 #ifndef _FBMANAGER_D3D_H_
 #define _FBMANAGER_D3D_H_
 
-#include "d3d11.h"
-
 #include "FramebufferManagerBase.h"
 
 #include "D3DTexture.h"
-#include "XFBEncoder.h"
 
 namespace DX11 {
 
@@ -61,16 +58,15 @@ namespace DX11 {
 
 struct XFBSource : public XFBSourceBase
 {
-	XFBSource(std::unique_ptr<D3DTexture2D>&& _tex)
-		: tex(std::move(_tex))
-	{}
+	XFBSource(D3DTexture2D *_tex) : tex(_tex) {}
+	~XFBSource() { tex->Release(); }
 
 	void Draw(const MathUtil::Rectangle<float> &sourcerc,
 		const MathUtil::Rectangle<float> &drawrc, int width, int height) const;
 	void DecodeToTexture(u32 xfbAddr, u32 fbWidth, u32 fbHeight);
 	void CopyEFB(float Gamma);
 
-	std::unique_ptr<D3DTexture2D> const tex;
+	D3DTexture2D* const tex;
 };
 
 class FramebufferManager : public FramebufferManagerBase
@@ -79,22 +75,24 @@ public:
 	FramebufferManager();
 	~FramebufferManager();
 
-	static D3DTexture2D* GetEFBColorTexture() { return m_efb.color_tex.get(); }
-	static ID3D11Texture2D* GetEFBColorStagingBuffer() { return m_efb.color_staging_buf; }
-
-	static D3DTexture2D* GetEFBDepthTexture() { return m_efb.depth_tex.get(); }
-	static D3DTexture2D* GetEFBDepthReadTexture() { return m_efb.depth_read_texture.get(); }
-	static ID3D11Texture2D* GetEFBDepthStagingBuffer() { return m_efb.depth_staging_buf; }
-
+	static D3DTexture2D* GetEFBColorTexture();
 	static D3DTexture2D* GetResolvedEFBColorTexture();
-	static D3DTexture2D* GetResolvedEFBDepthTexture();
+	static D3DTexture2D* GetRealEFBColorTexture();
 
-	static D3DTexture2D* GetEFBColorTempTexture() { return m_efb.color_temp_tex.get(); }
-	
-	static void SwapReinterpretTexture()
-	{
-		std::swap(m_efb.color_temp_tex, m_efb.color_tex);
-	}
+	static D3DTexture2D* GetEFBDepthTexture();
+	static D3DTexture2D* GetResolvedEFBDepthTexture();
+	static D3DTexture2D* GetRealEFBDepthTexture();
+
+	static D3DTexture2D* GetEFBColorTempTexture();
+	static void SwapReinterpretTexture();
+
+	void SetColorDirty() { ++m_colorTime; }
+	void SetDepthDirty() { ++m_depthTime; }
+
+	// Read color at EFB pixel x,y
+	u32 ReadColorAt(unsigned int x, unsigned int y);
+	// Read depth at EFB pixel x,y
+	float ReadDepthAt(unsigned int x, unsigned int y);
 
 private:
 	XFBSourceBase* CreateXFBSource(unsigned int target_width, unsigned int target_height);
@@ -102,22 +100,28 @@ private:
 
 	void CopyToRealXFB(u32 xfbAddr, u32 fbWidth, u32 fbHeight, const EFBRectangle& sourceRc,float Gamma);
 
-	static struct Efb
-	{
-		std::unique_ptr<D3DTexture2D> color_tex;
-		SharedPtr<ID3D11Texture2D> color_staging_buf;
+	D3DTexture2D* m_colorTex;
+	long m_colorTime;
+	D3DTexture2D* m_resolvedColorTex;
+	long m_resolvedColorTime;
+	D3DTexture2D* m_realColorTex;
+	long m_realColorTime;
+	ID3D11Texture2D* m_colorAccessStage;
+	long m_colorAccessTime;
 
-		std::unique_ptr<D3DTexture2D> depth_tex;
-		SharedPtr<ID3D11Texture2D> depth_staging_buf;
-		std::unique_ptr<D3DTexture2D> depth_read_texture;
+	D3DTexture2D* m_depthTex;
+	long m_depthTime;
+	D3DTexture2D* m_resolvedDepthTex;
+	long m_resolvedDepthTime;
+	D3DTexture2D* m_realDepthTex;
+	long m_realDepthTime;
+	ID3D11Texture2D* m_depthAccessStage;
+	long m_depthAccessTime;
 
-		std::unique_ptr<D3DTexture2D> color_temp_tex;
-
-		std::unique_ptr<D3DTexture2D> resolved_color_tex;
-		std::unique_ptr<D3DTexture2D> resolved_depth_tex;
-	} m_efb;
-
-	XFBEncoder m_xfbEncoder;
+	D3DTexture2D* m_colorTempTex;
+	
+	ID3D11PixelShader* m_realColorShader;
+	ID3D11PixelShader* m_realDepthShader;
 };
 
 }  // namespace DX11

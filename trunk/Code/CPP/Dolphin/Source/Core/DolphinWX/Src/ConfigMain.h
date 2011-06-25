@@ -71,22 +71,12 @@ private:
 		ID_ENABLECHEATS,
 		ID_FRAMELIMIT,
 		ID_FRAMELIMIT_USEFPSFORLIMITING,
-		
-		ID_ALWAYS_HLE_BS2,
-		ID_ENABLE_OPENCL,
+
 		ID_CPUENGINE,
 		ID_LOCKTHREADS,
 		ID_DSPTHREAD,
 
-		ID_DISPLAY_FULLSCREENRES,
-		ID_DISPLAY_WINDOWWIDTH,
-		ID_DISPLAY_WINDOWHEIGHT,
-		ID_DISPLAY_AUTOSIZE,
-		ID_DISPLAY_FULLSCREEN,
-		ID_DISPLAY_HIDECURSOR,
-		ID_DISPLAY_RENDERTOMAIN,
-		ID_DISPLAY_PROGSCAN,
-		ID_DISPLAY_NTSCJ,
+		ID_NTSCJ,
 
 		// Audio Settings
 		ID_DSPENGINE,
@@ -106,6 +96,7 @@ private:
 		ID_HOTKEY_CONFIG,
 
 		ID_GC_SRAM_LNG,
+		ID_GC_ALWAYS_HLE_BS2,
 
 		ID_GC_EXIDEVICE_SLOTA,
 		ID_GC_EXIDEVICE_SLOTA_PATH,
@@ -117,12 +108,6 @@ private:
 		ID_GC_SIDEVICE2,
 		ID_GC_SIDEVICE3,
 
-
-		ID_WII_BT_BAR,
-		ID_WII_BT_SENS,
-		ID_WII_BT_SPKV,
-		ID_WII_BT_MOT,
-		ID_WII_WIIMOTE_RECONNECT,
 
 		ID_WII_IPL_SSV,
 		ID_WII_IPL_E60,
@@ -141,11 +126,7 @@ private:
 		ID_DEFAULTISO,
 		ID_DVDROOT,
 		ID_APPLOADERPATH,
-
-
-		ID_GRAPHIC_CB,
-		ID_GRAPHIC_CONFIG,
-		ID_GRAPHIC_ABOUT,
+		ID_NANDROOT,
 
 		ID_DSP_CB,
 		ID_DSP_CONFIG,
@@ -163,25 +144,16 @@ private:
 	wxCheckBox* UseFPSForLimiting;
 	
 	// Advanced
-	wxCheckBox* AlwaysHLE_BS2;
 	wxCheckBox* EnableOpenCL;
 	wxRadioBox* CPUEngine;
 	wxCheckBox* DSPThread;
 	wxCheckBox* LockThreads;
+	wxCheckBox* _NTSCJ;
 
 
 	wxBoxSizer* sDisplayPage; // Display settings
-	wxStaticBoxSizer* sbDisplay, *sbInterface; // Display and Interface sections
+	wxStaticBoxSizer* sbInterface; // Display and Interface sections
 
-	// Display
-	wxChoice* FullscreenResolution;
-	wxSpinCtrl* WindowWidth, *WindowHeight;
-	wxCheckBox* WindowAutoSize;
-	wxCheckBox* Fullscreen;
-	wxCheckBox* HideCursor;
-	wxCheckBox* RenderToMain;
-	wxCheckBox* ProgressiveScan;
-	wxCheckBox* NTSCJ;
 
 	// Audio
 	wxBoxSizer* sAudioPage; // GC settings
@@ -209,6 +181,7 @@ private:
 
 	// IPL
 	wxChoice* GCSystemLang;
+	wxCheckBox* GCAlwaysHLE_BS2;
 
 	// Device
 	wxChoice* GCEXIDevice[3];
@@ -217,15 +190,8 @@ private:
 
 
 	wxBoxSizer* sWiiPage; // Wii settings
-	wxStaticBoxSizer* sbWiimoteSettings, *sbWiiIPLSettings, *sbWiiDeviceSettings; // Wiimote, Misc and Device sections
-	wxGridBagSizer* sWiimoteSettings, *sWiiIPLSettings;
-
-	// Wiimote
-	wxChoice* WiiSensBarPos;
-	wxSlider* WiiSensBarSens;
-	wxSlider* WiimoteSpkVolume;
-	wxCheckBox* WiimoteMotor;
-	wxCheckBox* WiimoteReconnectOnLoad;
+	wxStaticBoxSizer* /*sbWiimoteSettings, **/sbWiiIPLSettings, *sbWiiDeviceSettings; // Wiimote, Misc and Device sections
+	wxGridBagSizer* /*sWiimoteSettings, **/sWiiIPLSettings;
 
 	// Misc
 	wxCheckBox* WiiScreenSaver;
@@ -248,10 +214,11 @@ private:
 	wxButton* AddISOPath;
 	wxButton* RemoveISOPath;
 
-	// DefaultISO, DVD Root, Apploader
+	// DefaultISO, DVD Root, Apploader, NANDPath
 	wxFilePickerCtrl* DefaultISO;
 	wxDirPickerCtrl* DVDRoot;
 	wxFilePickerCtrl* ApploaderPath;
+	wxDirPickerCtrl* NANDRoot;
 
 	// Graphics
 	wxChoice* GraphicSelection;
@@ -284,7 +251,6 @@ private:
 	void CoreSettingsChanged(wxCommandEvent& event);
 
 	void DisplaySettingsChanged(wxCommandEvent& event);
-	void AddResolutions();
 	void OnSpin(wxSpinEvent& event);
 
 	void AudioSettingsChanged(wxCommandEvent& event);
@@ -296,6 +262,8 @@ private:
 	void ChooseEXIDevice(std::string deviceName, int deviceNum);
 
 	void WiiSettingsChanged(wxCommandEvent& event);
+	// Change from IPL.LNG value to country code
+	inline u8 GetSADRCountryCode(int language);
 
 	void ISOPathsSelectionChanged(wxCommandEvent& event);
 	void RecursiveDirectoryChanged(wxCommandEvent& event);
@@ -303,6 +271,7 @@ private:
 	void DefaultISOChanged(wxFileDirPickerEvent& event);
 	void DVDRootChanged(wxFileDirPickerEvent& event);
 	void ApploaderPathChanged(wxFileDirPickerEvent& WXUNUSED (event));
+	void NANDRootChanged(wxFileDirPickerEvent& event);
 
 private:
 	DECLARE_EVENT_TABLE();

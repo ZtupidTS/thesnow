@@ -133,7 +133,6 @@ BEGIN_EVENT_TABLE(CGameListCtrl, wxListCtrl)
 	EVT_MENU(IDM_MULTICOMPRESSGCM, CGameListCtrl::OnMultiCompressGCM)
 	EVT_MENU(IDM_MULTIDECOMPRESSGCM, CGameListCtrl::OnMultiDecompressGCM)
 	EVT_MENU(IDM_DELETEGCM, CGameListCtrl::OnDeleteGCM)
-	EVT_MENU(IDM_INSTALLWAD, CGameListCtrl::OnInstallWAD)
 END_EVENT_TABLE()
 
 CGameListCtrl::CGameListCtrl(wxWindow* parent, const wxWindowID id, const
@@ -595,13 +594,9 @@ void CGameListCtrl::ScanForISOs()
 			std::string FileName;
 			SplitPath(rFilenames[i], NULL, &FileName, NULL);
 
-			wxString msg;
-			char tempstring[128];
-			sprintf(tempstring,"Scanning %s", FileName.c_str());
-			msg = wxString(tempstring, *wxConvCurrent);
-
-			// Update with the progress (i) and the message (msg)
-			bool Cont = dialog.Update(i, msg);
+			// Update with the progress (i) and the message
+			bool Cont = dialog.Update(i,
+					wxString::Format(_("Scanning %s"), wxString(FileName.c_str(), *wxConvCurrent).c_str()));
 			if (!Cont)
 				break;
 
@@ -1007,7 +1002,7 @@ void CGameListCtrl::OnRightClick(wxMouseEvent& event)
 				else
 					popupMenu->Append(IDM_COMPRESSGCM, _("Compress ISO..."));
 			} else
-				popupMenu->Append(IDM_INSTALLWAD, _("Install to Wii Menu"));
+				popupMenu->Append(IDM_LIST_INSTALLWAD, _("Install to Wii Menu"));
 
 			PopupMenu(popupMenu);
 		}
@@ -1163,28 +1158,6 @@ void CGameListCtrl::OnWiki(wxCommandEvent& WXUNUSED (event))
 		wikiUrl = ReplaceAll(wikiUrl, "[GAME_NAME]", "");
 
 	WxUtils::Launch(wikiUrl.c_str());
-}
-
-void CGameListCtrl::OnInstallWAD(wxCommandEvent& WXUNUSED (event))
-{
-	const GameListItem *iso = GetSelectedISO();
-	if (!iso)
-		return;
-
-	wxProgressDialog dialog(_("Installing WAD to Wii Menu..."),
-		_("Working..."),
-		1000, // range
-		this, // parent
-		wxPD_APP_MODAL |
-		wxPD_ELAPSED_TIME |
-		wxPD_ESTIMATED_TIME |
-		wxPD_REMAINING_TIME |
-		wxPD_SMOOTH // - makes indeterminate mode bar on WinXP very small
-		);
-
-	dialog.CenterOnParent();
-
-	CBoot::Install_WiiWAD(iso->GetFileName().c_str());
 }
 
 void CGameListCtrl::MultiCompressCB(const char* text, float percent, void* arg)

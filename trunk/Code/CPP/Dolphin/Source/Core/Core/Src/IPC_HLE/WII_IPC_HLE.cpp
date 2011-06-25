@@ -71,7 +71,7 @@ typedef std::map<u32, std::string> TFileNameMap;
 TFileNameMap g_FileNameMap;
 u32 g_LastDeviceID;
 
-typedef std::queue<u32> ipc_msg_queue;
+typedef std::deque<u32> ipc_msg_queue;
 static ipc_msg_queue request_queue;	// ppc -> arm
 static ipc_msg_queue reply_queue;	// arm -> ppc
 
@@ -120,8 +120,8 @@ void Reset(bool _bHard)
 	g_DeviceMap.erase(itr, g_DeviceMap.end());
 	g_FileNameMap.clear();
 
-	request_queue = std::queue<u32>();
-	reply_queue = std::queue<u32>();
+	request_queue.clear();
+	reply_queue.clear();
 
     g_LastDeviceID = IPC_FIRST_FILEIO_ID;
 }
@@ -200,54 +200,25 @@ IWII_IPC_HLE_Device* CreateFileIO(u32 _DeviceID, const std::string& _rDeviceName
 	return pDevice;
 }
 
-// Try to make sure the game is always reading the setting.txt file we provide
-void CopySettingsFile(std::string& DeviceName)
-{
-	std::string Source = File::GetSysDirectory() + WII_SYS_DIR + DIR_SEP;
-	if(SConfig::GetInstance().m_LocalCoreStartupParameter.bNTSC)
-		Source += "setting-usa.txt";
-	else
-		Source += "setting-eur.txt";
-
-	std::string Target = File::GetUserPath(D_WIIUSER_IDX) + DeviceName;
-
-	// Check if the target dir exists, otherwise create it
-	std::string TargetDir = Target.substr(0, Target.find_last_of(DIR_SEP));
-	if (!File::IsDirectory(TargetDir))
-		File::CreateFullPath(Target);
-
-	if (File::Copy(Source, Target))
-	{
-		INFO_LOG(WII_IPC_FILEIO, "FS: Copied %s to %s", Source.c_str(), Target.c_str());
-	}
-	else
-	{
-		ERROR_LOG(WII_IPC_FILEIO, "Could not copy %s to %s", Source.c_str(), Target.c_str());
-		PanicAlertT("Could not copy %s to %s", Source.c_str(), Target.c_str());
-	}
-}
 
 void DoState(PointerWrap &p)
 {
 	p.Do(g_LastDeviceID);
 
-	// Currently only USB device needs to be saved
-	IWII_IPC_HLE_Device* pDevice = AccessDeviceByID(GetDeviceIDByName(std::string("/dev/usb/oh1/57e/305")));
-	if (pDevice)
-		pDevice->DoState(p);
-	else
-		PanicAlert("WII_IPC_HLE: Save/Load State failed, Device /dev/usb/oh1/57e/305 doesn't exist!");
-
-	TFileNameMap::const_iterator itr;
 	if (p.GetMode() == PointerWrap::MODE_READ)
 	{	
+		TFileNameMap::const_iterator itr;
 		// Delete file Handles
 		itr = g_FileNameMap.begin();
 		while (itr != g_FileNameMap.end())
 		{
-			if (g_DeviceMap[itr->first])
-				delete g_DeviceMap[itr->first];
-			g_DeviceMap.erase(itr->first);
+			TDeviceMap::const_iterator devitr = g_DeviceMap.find(itr->first);
+			if (devitr != g_DeviceMap.end())
+			{
+				if (devitr->second)
+					delete devitr->second;
+				g_DeviceMap.erase(itr->first);
+			}
 			++itr;
 		}
 		// Load file names
@@ -265,10 +236,26 @@ void DoState(PointerWrap &p)
 		p.Do(g_FileNameMap);
 	}
 
-	itr = g_FileNameMap.begin();
-	while (itr != g_FileNameMap.end())
+	p.Do(request_queue);
+	p.Do(reply_queue);
+
+
+	TDeviceMap::const_iterator itr;
+	//first, all the real devices
+	//(because we need fs to be deserialized first)
+	itr = g_DeviceMap.begin();
+	while (itr != g_DeviceMap.end())
 	{
-		g_DeviceMap[itr->first]->DoState(p);
+		if (itr->second->IsHardware())
+			itr->second->DoState(p);
+		++itr;
+	}
+	//then all the files
+	itr = g_DeviceMap.begin();
+	while (itr != g_DeviceMap.end())
+	{
+		if (!itr->second->IsHardware())
+			itr->second->DoState(p);
 		++itr;
 	}
 }
@@ -291,10 +278,6 @@ void ExecuteCommand(u32 _Address)
 			//   generate a DeviceID to be used for access to this device until it is Closed.
             std::string DeviceName;
             Memory::GetString(DeviceName, Memory::Read_U32(_Address + 0xC));
-
-			// The game may try to read setting.txt here, in that case copy it so it can read it
-			if (DeviceName.find("setting.txt") != std::string::npos)
-				CopySettingsFile(DeviceName);
 
             u32 Mode = Memory::Read_U32(_Address + 0x10);
             DeviceID = GetDeviceIDByName(DeviceName);
@@ -423,13 +406,13 @@ void ExecuteCommand(u32 _Address)
 // Happens AS SOON AS IPC gets a new pointer!
 void EnqRequest(u32 _Address)
 {
-	request_queue.push(_Address);
+	request_queue.push_back(_Address);
 }
 
 // Called when IOS module has some reply
 void EnqReply(u32 _Address)
 {
-	reply_queue.push(_Address);
+	reply_queue.push_back(_Address);
 }
 
 // This is called every IPC_HLE_PERIOD from SystemTimers.cpp
@@ -447,7 +430,7 @@ void Update()
 		INFO_LOG(WII_IPC_HLE, "||-- Acknowledge IPC Request @ 0x%08x", request_queue.front());
 
 		ExecuteCommand(request_queue.front());
-		request_queue.pop();
+		request_queue.pop_front();
 
 #if MAX_LOGLEVEL >= DEBUG_LEVEL
 		Dolphin_Debugger::PrintCallstack(LogTypes::WII_IPC_HLE, LogTypes::LDEBUG);
@@ -458,7 +441,7 @@ void Update()
 	{
 		WII_IPCInterface::GenerateReply(reply_queue.front());
 		INFO_LOG(WII_IPC_HLE, "<<-- Reply to IPC Request @ 0x%08x", reply_queue.front());
-		reply_queue.pop();
+		reply_queue.pop_front();
 	}
 }
 

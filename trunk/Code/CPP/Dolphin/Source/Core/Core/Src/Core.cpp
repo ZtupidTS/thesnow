@@ -71,7 +71,7 @@
 #include "LogManager.h"
 
 #include "State.h"
-#include "OnFrame.h"
+#include "Movie.h"
 
 // TODO: ugly, remove
 bool g_aspect_wide;
@@ -208,7 +208,11 @@ bool Init()
 void Stop()  // - Hammertime!
 {
 	if (PowerPC::GetState() == PowerPC::CPU_POWERDOWN)
+	{
+		if (g_EmuThread.joinable())
+			g_EmuThread.join();
 		return;
+	}
 
 	const SCoreStartupParameter& _CoreParameter =
 		SConfig::GetInstance().m_LocalCoreStartupParameter;
@@ -257,7 +261,7 @@ void Stop()  // - Hammertime!
 		SConfig::GetInstance().m_SYSCONF->Reload();
 
 	INFO_LOG(CONSOLE, "Stop [Main Thread]\t\t---- Shutdown complete ----");
-	Frame::g_InputCounter = 0;
+	Movie::g_InputCounter = 0;
 	g_bStopping = false;
 }
 
@@ -346,6 +350,7 @@ void EmuThread()
 	if (!g_video_backend->Initialize(g_pWindowHandle))
 	{
 		PanicAlert("Failed to initialize video backend!");
+		Host_Message(WM_USER_STOP);
 		return;
 	}
 
@@ -357,6 +362,7 @@ void EmuThread()
 		HW::Shutdown();
 		g_video_backend->Shutdown();
 		PanicAlert("Failed to initialize DSP emulator!");
+		Host_Message(WM_USER_STOP);
 		return;
 	}
 
@@ -555,7 +561,7 @@ void VideoThrottle()
 
 	// Update info per second
 	u32 ElapseTime = (u32)Timer.GetTimeDifference();
-	if ((ElapseTime >= 1000 && DrawnVideo > 0) || Frame::g_bFrameStep)
+	if ((ElapseTime >= 1000 && DrawnVideo > 0) || Movie::g_bFrameStep)
 	{
 		SCoreStartupParameter& _CoreParameter = SConfig::GetInstance().m_LocalCoreStartupParameter;
 
@@ -593,8 +599,8 @@ void VideoThrottle()
 
 		#else	// Summary information
 		std::string SFPS;
-		if (Frame::g_recordfd)
-			SFPS = StringFromFormat("VI: %u - Frame: %u - FPS: %u - VPS: %u - SPEED: %u%%", Frame::g_frameCounter, Frame::g_InputCounter, FPS, VPS, Speed);
+		if (Movie::IsPlayingInput() || Movie::IsRecordingInput())
+			SFPS = StringFromFormat("VI: %u - Frame: %u - FPS: %u - VPS: %u - SPEED: %u%%", Movie::g_frameCounter, Movie::g_InputCounter, FPS, VPS, Speed);
 		else
 			SFPS = StringFromFormat("FPS: %u - VPS: %u - SPEED: %u%%", FPS, VPS, Speed);
 		#endif
@@ -646,7 +652,7 @@ void Callback_VideoCopiedToXFB(bool video_update)
 {
 	if(video_update)
 		Common::AtomicIncrement(DrawnFrame);
-	Frame::FrameUpdate();
+	Movie::FrameUpdate();
 }
 
 // Callback_ISOName: Let the DSP emulator get the game name
