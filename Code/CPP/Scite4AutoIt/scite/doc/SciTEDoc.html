@@ -639,7 +639,7 @@ NameError: mistake
       </tr>
     </table>
     <p class="windowsonly">
-       On Windows, a search can be performed in the opposite direction by 
+       On Windows, a search can be performed in the opposite direction by
        using Shift+Enter in the Find or Replace strips or dialogs.
     </p>
     <h3 id="Abbreviations">
@@ -1862,10 +1862,6 @@ NameError: mistake
 	<td>This option enables folding multi-line comments and explicit fold points when using the C++ lexer. Explicit fold points allows adding extra folding by placing a //{ comment at the start and a //} at the end of a section that should fold.</td>
 	</tr>
 	<tr>
-	<td>fold.comment.python</td>
-	<td>This option enables folding multi-line comments when using the Python lexer.</td>
-	</tr>
-	<tr>
 	<td>fold.cpp.comment.explicit</td>
 	<td>Set this property to 0 to disable folding explicit fold points when fold.comment=1.</td>
 	</tr>
@@ -2004,6 +2000,10 @@ NameError: mistake
 	<tr>
 	<td>lexer.props.allow.initial.spaces</td>
 	<td>For properties files, set to 0 to style all lines that start with whitespace in the default style. This is not suitable for SciTE .properties files which use indentation for flow control but can be used for RFC2822 text where indentation is used for continuation lines.</td>
+	</tr>
+	<tr>
+	<td>lexer.python.keywords2.no.sub.identifiers</td>
+	<td>When enabled, it will not style keywords2 items that are used as a sub-identifier. Example: when set, will not highlight "foo.open" when "open" is a keywords2 item.</td>
 	</tr>
 	<tr>
 	<td>lexer.python.literals.binary</td>
