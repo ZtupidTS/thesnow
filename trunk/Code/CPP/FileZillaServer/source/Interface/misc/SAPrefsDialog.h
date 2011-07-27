@@ -118,7 +118,7 @@ protected:
 	afx_msg void OnGetdispinfoPageTree(NMHDR* pNMHDR, LRESULT* pResult);
 	afx_msg void OnPhelp();
 	//}}AFX_MSG
-	afx_msg long OnChangePage(UINT, LONG);
+	afx_msg LONG_PTR OnChangePage(WPARAM, LPARAM);
 	DECLARE_MESSAGE_MAP()
 
 	std::vector<pageStruct *> m_pages;

@@ -276,7 +276,7 @@ HTREEITEM CSAPrefsDialog::FindHTREEItemForDlg(CSAPrefsSubDlg *pParent)
 
 /////////////////////////////////////////////////////////////////////////////
 
-LONG CSAPrefsDialog::OnChangePage(UINT u, LONG l)
+LONG_PTR CSAPrefsDialog::OnChangePage(WPARAM u, LPARAM l)
 {
    if (ShowPage(u))
    {
