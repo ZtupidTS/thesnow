@@ -81,11 +81,11 @@ struct vifStruct {
 	u8 inprogress;
 	u32 lastcmd;
 	u8 dmamode;
-	u8 GifWaitState; // 0 = General PATH checking, 1 = Flush path 3, 2 == Wait for VU1
+	u8 Unused_GifWaitState; // Only here for saved state compatibility
+	//u8 GifWaitState; // 0 = General PATH checking, 1 = Flush path 3, 2 == Wait for VU1
 };
 
 extern __aligned16 vifStruct  vif0, vif1;
-extern u8		  schedulepath3msk;
 
 _vifT extern u32 vifRead32(u32 mem);
 _vifT extern bool vifWrite32(u32 mem, u32 value);
@@ -94,7 +94,6 @@ extern void vif0Interrupt();
 extern void vif0Reset();
 
 extern void vif1Interrupt();
-extern void Vif1MskPath3();
 extern void vif1Reset();
 
 typedef int __fastcall FnType_VifCmdHandler(int pass, const u32 *data);

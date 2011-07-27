@@ -35,10 +35,11 @@ int Interpolation = 4;
 		3. hermite interpolation
 		4. catmull-rom interpolation
 */
-int ReverbMode = 0;
+
 bool EffectsDisabled = false;
 float FinalVolume;
 bool postprocess_filter_enabled = 1;
+bool postprocess_filter_dealias = false;
 
 // OUTPUT
 int SndOutLatencyMS = 150;
@@ -61,10 +62,10 @@ int numSpeakers = 0;
 void ReadSettings()
 {
 	Interpolation = CfgReadInt( L"MIXING",L"Interpolation", 4 );
-	ReverbMode = CfgReadInt( L"MIXING",L"Reverb_Mode", 0 );
 
 	SynchMode = CfgReadInt( L"OUTPUT", L"Synch_Mode", 0);
 	EffectsDisabled = CfgReadBool( L"MIXING", L"Disable_Effects", false );
+	postprocess_filter_dealias = CfgReadBool( L"MIXING", L"DealiasFilter", false );
 	FinalVolume = ((float)CfgReadInt( L"MIXING", L"FinalVolume", 100 )) / 100;
 		if ( FinalVolume > 1.0f) FinalVolume = 1.0f;
 	numSpeakers = CfgReadInt( L"OUTPUT", L"XAudio2_SpeakerConfiguration", 0);
@@ -108,9 +109,9 @@ void ReadSettings()
 void WriteSettings()
 {
 	CfgWriteInt(L"MIXING",L"Interpolation",Interpolation);
-	CfgWriteInt(L"MIXING",L"Reverb_Mode",ReverbMode);
 
 	CfgWriteBool(L"MIXING",L"Disable_Effects",EffectsDisabled);
+	CfgWriteBool(L"MIXING",L"DealiasFilter",postprocess_filter_dealias);
 	CfgWriteInt(L"MIXING",L"FinalVolume",(int)(FinalVolume * 100 + 0.5f));
 
 	CfgWriteStr(L"OUTPUT",L"Output_Module", mods[OutputModule]->GetIdent() );
@@ -151,11 +152,6 @@ BOOL CALLBACK ConfigProc(HWND hWnd,UINT uMsg,WPARAM wParam,LPARAM lParam)
 			SendDialogMsg( hWnd, IDC_INTERPOLATE, CB_ADDSTRING,0,(LPARAM) L"3 - Hermite (better highs)" );
 			SendDialogMsg( hWnd, IDC_INTERPOLATE, CB_ADDSTRING,0,(LPARAM) L"4 - Catmull-Rom (PS2-like/slow)" );
 			SendDialogMsg( hWnd, IDC_INTERPOLATE, CB_SETCURSEL,Interpolation,0 );
-
-			SendDialogMsg( hWnd, IDC_REVERB_MODE, CB_RESETCONTENT,0,0 );
-			SendDialogMsg( hWnd, IDC_REVERB_MODE, CB_ADDSTRING,0,(LPARAM) L"SPU2 Reverb" );
-			SendDialogMsg( hWnd, IDC_REVERB_MODE, CB_ADDSTRING,0,(LPARAM) L"Custom Reverb" );
-			SendDialogMsg( hWnd, IDC_REVERB_MODE, CB_SETCURSEL,ReverbMode,0 );
 
 			SendDialogMsg( hWnd, IDC_SYNCHMODE, CB_RESETCONTENT,0,0 );
 			SendDialogMsg( hWnd, IDC_SYNCHMODE, CB_ADDSTRING,0,(LPARAM) L"TimeStretch (Recommended)" );
@@ -200,6 +196,7 @@ BOOL CALLBACK ConfigProc(HWND hWnd,UINT uMsg,WPARAM wParam,LPARAM lParam)
 			EnableWindow( GetDlgItem( hWnd, IDC_OPEN_CONFIG_DEBUG ), DebugEnabled );
 
 			SET_CHECK(IDC_EFFECTS_DISABLE,	EffectsDisabled);
+			SET_CHECK(IDC_DEALIASFILTER,	postprocess_filter_dealias);
 			SET_CHECK(IDC_DEBUG_ENABLE,		DebugEnabled);
 			SET_CHECK(IDC_DSP_ENABLE,		dspPluginEnabled);
 		}
@@ -218,7 +215,6 @@ BOOL CALLBACK ConfigProc(HWND hWnd,UINT uMsg,WPARAM wParam,LPARAM lParam)
 					Clampify( SndOutLatencyMS, LATENCY_MIN, LATENCY_MAX );
 					FinalVolume = (float)(SendDialogMsg( hWnd, IDC_VOLUME_SLIDER, TBM_GETPOS, 0, 0 )) / 100;
 					Interpolation = (int)SendDialogMsg( hWnd, IDC_INTERPOLATE, CB_GETCURSEL,0,0 );
-					ReverbMode = (int)SendDialogMsg( hWnd, IDC_REVERB_MODE, CB_GETCURSEL,0,0 );
 					OutputModule = (int)SendDialogMsg( hWnd, IDC_OUTPUT, CB_GETCURSEL,0,0 );
 					SynchMode = (int)SendDialogMsg( hWnd, IDC_SYNCHMODE, CB_GETCURSEL,0,0 );
 					numSpeakers = (int)SendDialogMsg( hWnd, IDC_SPEAKERS, CB_GETCURSEL,0,0 );
@@ -256,6 +252,7 @@ BOOL CALLBACK ConfigProc(HWND hWnd,UINT uMsg,WPARAM wParam,LPARAM lParam)
 				break;
 
 				HANDLE_CHECK(IDC_EFFECTS_DISABLE,EffectsDisabled);
+				HANDLE_CHECK(IDC_DEALIASFILTER,postprocess_filter_dealias);
 				HANDLE_CHECK(IDC_DSP_ENABLE,dspPluginEnabled);
 				
 				// Fixme : Eh, how to update this based on drop list selections? :p

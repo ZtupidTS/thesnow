@@ -40,11 +40,6 @@ __forceinline s32 V_Core::RevbGetIndexer( s32 offset )
 	return pos;
 }
 
-u32 WrapAround(V_Core& thiscore, u32 offset)
-{
-	return (thiscore.ReverbX + offset) % thiscore.EffectsBufferSize;
-}
-
 void V_Core::Reverb_AdvanceBuffer()
 {
 	if( RevBuffers.NeedsUpdated )
@@ -61,11 +56,20 @@ void V_Core::Reverb_AdvanceBuffer()
 
 StereoOut32 V_Core::DoReverb( const StereoOut32& Input )
 {
+#if 0
 	static const s32 downcoeffs[8] =
 	{
 		1283,  5344,  10895, 15243,
 		15243, 10895,  5344,  1283
 	};
+#else
+	// 2/3 of the above
+	static const s32 downcoeffs[8] =
+	{
+		855,  3562,  7263, 10163,
+		10163, 7263,  3562,  855
+	};
+#endif
 
 	downbuf[dbpos] = Input;
 	dbpos = (dbpos+1) & 7;
@@ -183,10 +187,10 @@ StereoOut32 V_Core::DoReverb( const StereoOut32& Input )
 		s32 input_L = INPUT_SAMPLE.Left * Revb.IN_COEF_L;
 		s32 input_R = INPUT_SAMPLE.Right * Revb.IN_COEF_R;
 
-		const s32 IIR_INPUT_A0 = (((s32)_spu2mem[src_a0] * Revb.IIR_COEF) + input_L)>>15;
-		const s32 IIR_INPUT_A1 = (((s32)_spu2mem[src_a1] * Revb.IIR_COEF) + input_L)>>15;
-		const s32 IIR_INPUT_B0 = (((s32)_spu2mem[src_b0] * Revb.IIR_COEF) + input_R)>>15;
-		const s32 IIR_INPUT_B1 = (((s32)_spu2mem[src_b1] * Revb.IIR_COEF) + input_R)>>15;
+		const s32 IIR_INPUT_A0 = clamp_mix((((s32)_spu2mem[src_a0] * Revb.IIR_COEF) + input_L)>>15);
+		const s32 IIR_INPUT_A1 = clamp_mix((((s32)_spu2mem[src_a1] * Revb.IIR_COEF) + input_L)>>15);
+		const s32 IIR_INPUT_B0 = clamp_mix((((s32)_spu2mem[src_b0] * Revb.IIR_COEF) + input_R)>>15);
+		const s32 IIR_INPUT_B1 = clamp_mix((((s32)_spu2mem[src_b1] * Revb.IIR_COEF) + input_R)>>15);
 
 		const s32 src_dest_a0 = _spu2mem[dest_a0];
 		const s32 src_dest_a1 = _spu2mem[dest_a1];
@@ -204,14 +208,14 @@ StereoOut32 V_Core::DoReverb( const StereoOut32& Input )
 		_spu2mem[dest2_b0] = clamp_mix( IIR_B0 );
 		_spu2mem[dest2_b1] = clamp_mix( IIR_B1 );
 
-		const s32 ACC0 = (
+		const s32 ACC0 = clamp_mix(
 			((_spu2mem[acc_src_a0] * Revb.ACC_COEF_A) >> 15) +
 			((_spu2mem[acc_src_b0] * Revb.ACC_COEF_B) >> 15) +
 			((_spu2mem[acc_src_c0] * Revb.ACC_COEF_C) >> 15) +
 			((_spu2mem[acc_src_d0] * Revb.ACC_COEF_D) >> 15)
 		);
 
-		const s32 ACC1 = (
+		const s32 ACC1 = clamp_mix(
 			((_spu2mem[acc_src_a1] * Revb.ACC_COEF_A) >> 15) +
 			((_spu2mem[acc_src_b1] * Revb.ACC_COEF_B) >> 15) +
 			((_spu2mem[acc_src_c1] * Revb.ACC_COEF_C) >> 15) +
@@ -223,19 +227,22 @@ StereoOut32 V_Core::DoReverb( const StereoOut32& Input )
 
 		const s32 FB_A0 = _spu2mem[fb_src_a0];
 		const s32 FB_A1 = _spu2mem[fb_src_a1];
+		const s32 FB_B0 = _spu2mem[fb_src_b0];
+		const s32 FB_B1 = _spu2mem[fb_src_b1];
 
-		_spu2mem[mix_dest_a0] = clamp_mix( ACC0 - ((FB_A0 * Revb.FB_ALPHA) >> 15) );
-		_spu2mem[mix_dest_a1] = clamp_mix( ACC1 - ((FB_A1 * Revb.FB_ALPHA) >> 15) );
+		const s32 mix_a0 = clamp_mix(ACC0 - ((FB_A0 * Revb.FB_ALPHA) >> 15));
+		const s32 mix_a1 = clamp_mix(ACC1 - ((FB_A1 * Revb.FB_ALPHA) >> 15));
+		const s32 mix_b0 = clamp_mix(FB_A0 + (((ACC0 - FB_A0) * Revb.FB_ALPHA - FB_B0 * Revb.FB_X) >> 15));
+		const s32 mix_b1 = clamp_mix(FB_A1 + (((ACC1 - FB_A1) * Revb.FB_ALPHA - FB_B1 * Revb.FB_X) >> 15));
 
-		const s32 acc_fb_mix_a = FB_A0 + (((ACC0 - FB_A0) * Revb.FB_ALPHA) >> 15);
-		const s32 acc_fb_mix_b = FB_A1 + (((ACC1 - FB_A1) * Revb.FB_ALPHA) >> 15);
-
-		_spu2mem[mix_dest_b0] = clamp_mix((acc_fb_mix_a - (s32)_spu2mem[fb_src_b0] * Revb.FB_X) >> 15);
-		_spu2mem[mix_dest_b1] = clamp_mix((acc_fb_mix_b - (s32)_spu2mem[fb_src_b1] * Revb.FB_X) >> 15);
+		_spu2mem[mix_dest_a0] = mix_a0;
+		_spu2mem[mix_dest_a1] = mix_a1;
+		_spu2mem[mix_dest_b0] = mix_b0;
+		_spu2mem[mix_dest_b1] = mix_b1;
 
 		upbuf[ubpos] = clamp_mix( StereoOut32(
-			(_spu2mem[mix_dest_a0] + _spu2mem[mix_dest_b0]),	// left
-			(_spu2mem[mix_dest_a1] + _spu2mem[mix_dest_b1])		// right
+			mix_a0 + mix_b0,	// left
+			mix_a1 + mix_b1		// right
 		) );
 	}
 
@@ -274,122 +281,4 @@ StereoOut32 V_Core::DoReverb( const StereoOut32& Input )
 	ubpos = (ubpos+1) & 7;
 
 	return retval;
-}
-
-StereoOut32 V_Core::DoReverb_Fake( const StereoOut32& Input )
-{
-	if(!FakeReverbActive /*|| (Cycles&1) == 0*/)
-		return StereoOut32::Empty;
-
-	V_Core& thiscore(Cores[Index]);
-
-	s16* Base = GetMemPtr(thiscore.EffectsStartA);
-
-	s32 accL = 0;
-	s32 accR = 0;
-
-	///////////////////////////////////////////////////////////
-	// part 0: Parameters
-
-	// Input volumes
-	const s32 InputL = -0x3fff;
-	const s32 InputR = -0x3fff;
-
-	// Echo 1: Positive, short delay
-	const u32 Echo1L = 0x3700;
-	const u32 Echo1R = 0x2704;
-	const s32 Echo1A = 0x5000 / 8;
-
-	// Echo 2: Negative, slightly longer delay, quiet
-	const u32 Echo2L = 0x2f10;
-	const u32 Echo2R = 0x1f04;
-	const s32 Echo2A = 0x4c00 / 8;
-
-	// Echo 3: Negative, longer delay, full feedback
-	const u32 Echo3L = 0x2800;
-	const u32 Echo3R = 0x1b34;
-	const s32 Echo3A = 0xb800 / 8;
-
-	// Echo 4: Negative, longer delay, full feedback
-	const u32 Echo4L = 0x2708;
-	const u32 Echo4R = 0x1704;
-	const s32 Echo4A = 0xbc00 / 8;
-
-	// Output control:
-	const u32 Mix1L = thiscore.Revb.MIX_DEST_A0;
-	const u32 Mix1R = thiscore.Revb.MIX_DEST_A1;
-	const u32 Mix2L = thiscore.Revb.MIX_DEST_B0;
-	const u32 Mix2R = thiscore.Revb.MIX_DEST_B1;
-
-	const u32 CrossChannelL = 0x4694;
-	const u32 CrossChannelR = 0x52e4;
-	const u32 CrossChannelA = thiscore.Revb.FB_ALPHA / 8;
-
-	///////////////////////////////////////////////////////////
-	// part 1: input
-
-	const s32 inL = Input.Left  * InputL;
-	const s32 inR = Input.Right * InputR;
-
-	accL += inL;
-	accR += inR;
-
-	///////////////////////////////////////////////////////////
-	// part 2: straight echos
-
-	s32 e1L = Base[WrapAround(thiscore,Echo1L  )] * Echo1A;
-	s32 e1R = Base[WrapAround(thiscore,Echo1R+1)] * Echo1A;
-
-	accL += e1L;
-	accR += e1R;
-
-	s32 e2L = Base[WrapAround(thiscore,Echo2L  )] * Echo2A;
-	s32 e2R = Base[WrapAround(thiscore,Echo2R+1)] * Echo2A;
-
-	accL += e2L;
-	accR += e2R;
-
-	s32 e3L = Base[WrapAround(thiscore,Echo3L  )] * Echo3A;
-	s32 e3R = Base[WrapAround(thiscore,Echo3R+1)] * Echo3A;
-
-
-	accL += e3L;
-	accR += e3R;
-
-	s32 e4L = Base[WrapAround(thiscore,Echo4L  )] * Echo4A;
-	s32 e4R = Base[WrapAround(thiscore,Echo4R+1)] * Echo4A;
-
-	accL += e4L;
-	accR += e4R;
-
-	///////////////////////////////////////////////////////////
-	// part 4: cross-channel feedback
-
-	s32 ccL = Base[WrapAround(thiscore,CrossChannelL+1)] * CrossChannelA;
-	s32 ccR = Base[WrapAround(thiscore,CrossChannelR  )] * CrossChannelA;
-	accL += ccL;
-	accR += ccR;
-
-	///////////////////////////////////////////////////////////
-	// part N-1: normalize output
-
-	accL >>= 15;
-	accR >>= 15;
-
-	///////////////////////////////////////////////////////////
-	// part N: write output
-
-	s32 tmpL = accL>>5; //  reduce the volume
-	s32 tmpR = accR>>5;
-
-
-	Base[WrapAround(thiscore,Mix1L)] = clamp_mix(accL-tmpL);
-	Base[WrapAround(thiscore,Mix1R)] = clamp_mix(accR-tmpR);
-	Base[WrapAround(thiscore,Mix2L)] = clamp_mix(accL-tmpL);
-	Base[WrapAround(thiscore,Mix2R)] = clamp_mix(accR-tmpR);
-
-	s32 returnL = Base[WrapAround(thiscore,Mix1L)] + Base[WrapAround(thiscore,Mix2L)];
-	s32 returnR = Base[WrapAround(thiscore,Mix1R)] + Base[WrapAround(thiscore,Mix2R)];
-
-	return StereoOut32(returnL,returnR);
 }

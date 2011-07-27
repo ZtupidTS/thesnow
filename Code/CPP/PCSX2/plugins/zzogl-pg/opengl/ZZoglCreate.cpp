@@ -299,8 +299,19 @@ __forceinline bool LoadShadersFromDat()
 
 		if (fres == NULL)
 		{
-			ZZLog::Error_Log("Cannot find ps2hw.dat in working directory. Exiting.");
-			return false;
+			// Each linux distributions have his rules for path so we give them the possibility to
+			// change it with compilation flags. -- Gregory
+#ifdef PLUGIN_DIR_COMPILATION
+#define xPLUGIN_DIR_str(s) PLUGIN_DIR_str(s)
+#define PLUGIN_DIR_str(s) #s
+			const std::string shader_file = string(xPLUGIN_DIR_str(PLUGIN_DIR_COMPILATION)) + "/ps2hw.dat";
+			fres = fopen(shader_file.c_str(), "rb");
+#endif
+			if (fres == NULL)
+			{
+				ZZLog::Error_Log("Cannot find ps2hw.dat in working directory. Exiting.");
+				return false;
+			}
 		}
 	}
 

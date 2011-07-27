@@ -417,9 +417,9 @@ __forceinline void _TransferLocalLocal()
     if (PSMT_BITMODE(gs.srcbuf.psm) == 0) widthlimit = 2;
     if ((gs.imageWnew & widthlimit) != 0) return;
  
-    for(int i = gs.trxpos.sy, i2 = gs.trxpos.dy; i < maxY; i++, i2++)
+    for(u32 i = gs.trxpos.sy, i2 = gs.trxpos.dy; i < maxY; i++, i2++)
     {
-        for(int j = gs.trxpos.sx, j2 = gs.trxpos.dx; j < maxX; j += widthlimit, j2 += widthlimit)
+        for(u32 j = gs.trxpos.sx, j2 = gs.trxpos.dx; j < maxX; j += widthlimit, j2 += widthlimit)
         {
             wp(pDstBuf, j2%2048, i2%2048,
                rp(pSrcBuf, j%2048, i%2048, gs.srcbuf.bw), gs.dstbuf.bw);
@@ -452,9 +452,9 @@ __forceinline void _TransferLocalLocal_4()
  
     assert((gs.imageWnew % 8) == 0);
  
-    for(int i = gs.trxpos.sy, i2 = gs.trxpos.dy; i < maxY; ++i, ++i2)
+    for(u32 i = gs.trxpos.sy, i2 = gs.trxpos.dy; i < maxY; ++i, ++i2)
     {
-        for(int j = gs.trxpos.sx, j2 = gs.trxpos.dx; j < maxX; j += 8, j2 += 8)
+        for(u32 j = gs.trxpos.sx, j2 = gs.trxpos.dx; j < maxX; j += 8, j2 += 8)
         {
             /* NOTE: the 2 conseq 4bit values are in NOT in the same byte */
             u32 read = gsp(j%2048, i%2048, gs.srcbuf.bw);
