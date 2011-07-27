@@ -2391,10 +2391,12 @@ ColourAllocated Editor::TextBackground(ViewStyle &vsDraw, bool overrideBackgroun
 			return vsDraw.edgecolour.allocated;
 		if (inHotspot && vsDraw.hotspotBackgroundSet)
 			return vsDraw.hotspotBackground.allocated;
-		if (overrideBackground && (styleMain != STYLE_BRACELIGHT) && (styleMain != STYLE_BRACEBAD))
-			return background;
 	}
-	return vsDraw.styles[styleMain].back.allocated;
+	if (overrideBackground && (styleMain != STYLE_BRACELIGHT) && (styleMain != STYLE_BRACEBAD)) {
+		return background;
+	} else {
+		return vsDraw.styles[styleMain].back.allocated;
+	}
 }
 
 void Editor::DrawIndentGuide(Surface *surface, int lineVisible, int lineHeight, int start, PRectangle rcSegment, bool highlight) {
@@ -4797,6 +4799,8 @@ void Editor::NotifyMacroRecord(unsigned int iMessage, uptr_t wParam, sptr_t lPar
 	case SCI_VERTICALCENTRECARET:
 	case SCI_MOVESELECTEDLINESUP:
 	case SCI_MOVESELECTEDLINESDOWN:
+	case SCI_SCROLLTOSTART:
+	case SCI_SCROLLTOEND:
 		break;
 
 		// Filter out all others like display changes. Also, newlines are redundant
@@ -5535,6 +5539,12 @@ int Editor::KeyCommand(unsigned int iMessage) {
 		MovePositionTo(MovePositionSoVisible(
 		            StartEndDisplayLine(sel.MainCaret(), false), 1), Selection::selStream);
 		SetLastXChosen();
+		break;
+	case SCI_SCROLLTOSTART:
+		ScrollTo(0);
+		break;
+	case SCI_SCROLLTOEND:
+		ScrollTo(MaxScrollPos());
 		break;
 	}
 	return 0;
@@ -8507,6 +8517,8 @@ sptr_t Editor::WndProc(unsigned int iMessage, uptr_t wParam, sptr_t lParam) {
 	case SCI_DOCUMENTSTARTEXTEND:
 	case SCI_DOCUMENTEND:
 	case SCI_DOCUMENTENDEXTEND:
+	case SCI_SCROLLTOSTART:
+	case SCI_SCROLLTOEND:
 
 	case SCI_STUTTEREDPAGEUP:
 	case SCI_STUTTEREDPAGEUPEXTEND:
