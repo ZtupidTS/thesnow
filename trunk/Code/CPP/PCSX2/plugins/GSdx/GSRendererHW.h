@@ -158,7 +158,7 @@ class GSRendererHW : public GSRendererT<Vertex>
 		uint32 FBW = m_context->FRAME.FBW;
 		uint32 FPSM = m_context->FRAME.PSM;
 
-		if((FBP == 0x00f00 || FBP == 0x00100) && FPSM == PSM_PSMZ24) // ntsc 0xf00, pal 0x100
+		if((FBP == 0x00f00 || FBP == 0x00100 || FBP == 0x01280) && FPSM == PSM_PSMZ24) // ntsc 0xf00, pal 0x100, ntsc "HD" 0x1280
 		{
 			// z buffer clear
 
@@ -250,18 +250,16 @@ class GSRendererHW : public GSRendererT<Vertex>
 		uint32 FBP = m_context->FRAME.Block();
 		uint32 FPSM = m_context->FRAME.PSM;
 
-		if((FBP == 0x025a0 || FBP == 0x02a60) && FPSM == PSM_PSMCT32)
+		if((FBP == 0x025a0 || FBP == 0x02800) && FPSM == PSM_PSMCT32)	//0x2800 pal, 0x25a0 ntsc
 		{
 			//only top half of the screen clears
 			m_dev->ClearDepth(ds, 0);
-
-			return false;
 		}
 
 		return true;
 	}
 
-	bool OI_TyTasmanianTiger(GSTexture* rt, GSTexture* ds, GSTextureCache::Source* t)	//fbp 0x3680 ntsc, 0x3200 pal , PSM_PSMCT24
+	bool OI_TyTasmanianTiger(GSTexture* rt, GSTexture* ds, GSTextureCache::Source* t)
 	{
 		uint32 FBP = m_context->FRAME.Block();
 		uint32 FBW = m_context->FRAME.FBW;
@@ -277,6 +275,59 @@ class GSRendererHW : public GSRendererT<Vertex>
 
 		return true;
 	}
+
+	bool OI_DigimonRumbleArena2(GSTexture* rt, GSTexture* ds, GSTextureCache::Source* t)	
+	{
+		uint32 FBP = m_context->FRAME.Block();
+		uint32 FPSM = m_context->FRAME.PSM;
+
+		if(!PRIM->TME)
+		{
+			if((FBP == 0x02300 || FBP == 0x03fc0) && FPSM == PSM_PSMCT32)
+			{
+				//half height buffer clear
+				m_dev->ClearDepth(ds, 0);
+			}
+		}
+
+		return true;
+	}
+
+	bool OI_BlackHawkDown(GSTexture* rt, GSTexture* ds, GSTextureCache::Source* t)	
+	{
+		uint32 FBP = m_context->FRAME.Block();
+		uint32 FPSM = m_context->FRAME.PSM;
+
+		if(FBP == 0x02000 && FPSM == PSM_PSMZ24)
+		{
+			//half height buffer clear
+			m_dev->ClearDepth(ds, 0);
+
+			return false;
+		}
+
+		return true;
+	}
+
+	bool OI_StarWarsForceUnleashed(GSTexture* rt, GSTexture* ds, GSTextureCache::Source* t)	
+	{
+		uint32 FBP = m_context->FRAME.Block();
+		uint32 FPSM = m_context->FRAME.PSM;
+		
+		if(FPSM == PSM_PSMCT24 && FBP == 0x2bc0)
+		{
+			m_dev->ClearDepth(ds, 0);
+
+			return false;
+		}
+		else if((FBP == 0x36e0 || FBP == 0x34a0) && FPSM == PSM_PSMCT24)
+		{
+			m_dev->ClearDepth(ds, 0);
+		}
+		
+		return true;
+	}
+
 
 	bool OI_PointListPalette(GSTexture* rt, GSTexture* ds, GSTextureCache::Source* t)
 	{
@@ -460,6 +511,9 @@ class GSRendererHW : public GSRendererT<Vertex>
 			m_oi_list.push_back(HackEntry<OI_Ptr>(CRC::RozenMaidenGebetGarden, CRC::RegionCount, &GSRendererHW::OI_RozenMaidenGebetGarden));
 			m_oi_list.push_back(HackEntry<OI_Ptr>(CRC::SpidermanWoS, CRC::RegionCount, &GSRendererHW::OI_SpidermanWoS));
 			m_oi_list.push_back(HackEntry<OI_Ptr>(CRC::TyTasmanianTiger, CRC::RegionCount, &GSRendererHW::OI_TyTasmanianTiger));
+			m_oi_list.push_back(HackEntry<OI_Ptr>(CRC::DigimonRumbleArena2, CRC::RegionCount, &GSRendererHW::OI_DigimonRumbleArena2));
+			m_oi_list.push_back(HackEntry<OI_Ptr>(CRC::StarWarsForceUnleashed, CRC::RegionCount, &GSRendererHW::OI_StarWarsForceUnleashed));
+			m_oi_list.push_back(HackEntry<OI_Ptr>(CRC::BlackHawkDown, CRC::RegionCount, &GSRendererHW::OI_BlackHawkDown));
 
 			m_oo_list.push_back(HackEntry<OO_Ptr>(CRC::DBZBT2, CRC::RegionCount, &GSRendererHW::OO_DBZBT2));
 			m_oo_list.push_back(HackEntry<OO_Ptr>(CRC::MajokkoALaMode2, CRC::RegionCount, &GSRendererHW::OO_MajokkoALaMode2));
@@ -788,6 +842,7 @@ public:
 				m_height = 512 * m_upscale_multiplier; // 448 is also common, but this is not always detected right.
 			}
 		}
+		else m_upscale_multiplier = 1;
 	}
 
 	virtual ~GSRendererHW()

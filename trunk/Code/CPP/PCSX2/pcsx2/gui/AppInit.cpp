@@ -469,6 +469,7 @@ bool Pcsx2App::OnInit()
 		OpenProgramLog();
 		AllocateCoreStuffs();
 		if( m_UseGUI ) OpenMainFrame();
+
 		
 		(new GameDatabaseLoaderThread())->Start();
 

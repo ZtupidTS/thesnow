@@ -496,7 +496,6 @@ s32 cdvdCtrlTrayOpen()
 	DiscSwapTimerSeconds = cdvd.RTC.second; // remember the PS2 time when this happened
 	cdvd.Status = CDVD_STATUS_TRAY_OPEN;
 	cdvd.Ready = CDVD_NOTREADY;
-	trayState = 1;
 
 	return 0; // needs to be 0 for success according to homebrew test "CDVD"
 }
@@ -506,8 +505,7 @@ s32 cdvdCtrlTrayClose()
 	DevCon.WriteLn( Color_Green, L"Close virtual disk tray");
 	cdvd.Status = CDVD_STATUS_PAUSE;
 	cdvd.Ready = CDVD_READY1;
-	trayState = 0;
-
+	cdvd.TrayTimeout = 0; // Reset so it can't get closed twice by cdvdVsync()
 	return 0; // needs to be 0 for success according to homebrew test "CDVD"
 }
 
@@ -833,23 +831,26 @@ __fi void cdvdReadInterrupt()
 
 		// Any other value besides 0 should be considered invalid here (wtf is that wacky
 		// plugin trying to do?)
-		pxAssume( cdvd.RErr == 0 );
+		pxAssert( cdvd.RErr == 0 );
 	}
 
-	if (cdvdReadSector() == -1)
+	if (cdvd.nSectors > 0)
 	{
-		// This means that the BCR/DMA hasn't finished yet, and rather than fire off the
-		// sector-finished notice too early (which might overwrite game data) we delay a
-		// bit and try to read the sector again later.
-		// An arbitrary delay of some number of cycles probably makes more sense here,
-		// but for now it's based on the cdvd.ReadTime value. -- air
+		if (cdvdReadSector() == -1)
+		{
+			// This means that the BCR/DMA hasn't finished yet, and rather than fire off the
+			// sector-finished notice too early (which might overwrite game data) we delay a
+			// bit and try to read the sector again later.
+			// An arbitrary delay of some number of cycles probably makes more sense here,
+			// but for now it's based on the cdvd.ReadTime value. -- air
 
-		pxAssume((int)cdvd.ReadTime > 0 );
-		CDVDREAD_INT(cdvd.ReadTime/4);
-		return;
+			pxAssert((int)cdvd.ReadTime > 0 );
+			CDVDREAD_INT(cdvd.ReadTime/4);
+			return;
+		}
+
+		cdvd.Sector++;
 	}
-
-	cdvd.Sector++;
 
 	if (--cdvd.nSectors <= 0)
 	{
@@ -940,11 +941,13 @@ void cdvdVsync() {
 	cdvd.RTCcount = 0;
 
 	if ( cdvd.Status == CDVD_STATUS_TRAY_OPEN )
-	{	
-		if ( cdvd.RTC.second != DiscSwapTimerSeconds)
-		{
-			cdvdCtrlTrayClose();
-		}
+	{
+		cdvd.TrayTimeout++;
+	}
+	if (cdvd.TrayTimeout > 3)
+	{
+		cdvdCtrlTrayClose();
+		cdvd.TrayTimeout = 0;
 	}
 
 	cdvd.RTC.second++;
@@ -1023,8 +1026,11 @@ u8 cdvdRead(u8 key)
 
 		case 0x0B: // TRAY-STATE (if tray has been opened)
 		{
-			CDVD_LOG("cdvdRead0B(Tray) %x", trayState);
-			return /*tray*/ trayState;
+			CDVD_LOG("cdvdRead0B(Tray) (1 open, 0 closed): %x", cdvd.Status);
+			if (cdvd.Status == CDVD_STATUS_TRAY_OPEN)
+				return 1;
+			else
+				return 0;
 			break;
 		}
 		case 0x0C: // CRT MINUTE
@@ -1413,7 +1419,6 @@ static void cdvdWrite16(u8 rt)		 // SCOMMAND
 //	cdvdTN	diskInfo;
 //	cdvdTD	trackInfo;
 //	int i, lbn, type, min, sec, frm, address;
-	static bool oldTrayState = 0;
 	int address;
 	u8 tmp;
 
@@ -1471,18 +1476,30 @@ static void cdvdWrite16(u8 rt)		 // SCOMMAND
 
 		case 0x05: // CdTrayReqState  (0:1) - resets the tray open detection
 			
-			//Console.Warning("CdTrayReqState. trayState = %d oldTrayState = %d",trayState, oldTrayState);
+			// Fixme: This function is believed to change some status flag
+			// when the Tray state (stored as "1" in cdvd.Status) is different between 2 successive calls.
+			// Cdvd.Status can be different than 1 here, yet we may still have to report an open status.
+			// Gonna have to investigate further. (rama)
+			
+			//Console.Warning("CdTrayReqState. cdvd.Status = %d", cdvd.Status);
 			SetResultSize(1);
-			if (trayState != oldTrayState)
-				cdvd.Result[0] = 1;
-			else
-				cdvd.Result[0] = 0; // old behaviour was always this
 
-			oldTrayState = trayState;
+			if (cdvd.Status == CDVD_STATUS_TRAY_OPEN)
+			{
+				//Console.Warning( "reporting Open status" );
+				cdvd.Result[0] = 1;
+			}
+			else
+			{
+				//Console.Warning( "reporting Close status" );
+				cdvd.Result[0] = 0; // old behaviour was always this
+			}
+
 			break;
 
 		case 0x06: // CdTrayCtrl  (1:1)
 			SetResultSize(1);
+			//Console.Warning( "CdTrayCtrl, param = %d", cdvd.Param[0]);
 			if(cdvd.Param[0] == 0)
 				cdvd.Result[0] = cdvdCtrlTrayOpen();
 			else

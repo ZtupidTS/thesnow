@@ -17,6 +17,7 @@
 #include "Common.h"
 #include "Vif.h"
 #include "Gif.h"
+#include "Gif_Unit.h"
 #include "Vif_Dma.h"
 
 u16 vifqwc = 0;
@@ -254,54 +255,38 @@ void vifMFIFOInterrupt()
 	g_vifCycles = 0;
 	VIF_LOG("vif mfifo interrupt");
 
-	
-	if (dmacRegs.ctrl.MFD != MFD_VIF1)
-	{
+	if (dmacRegs.ctrl.MFD != MFD_VIF1) {
 		DevCon.Warning("Not in VIF MFIFO mode! Stopping VIF MFIFO");
 		return;
 	}
 
-	if(GSTransferStatus.PTH2 == PENDINGSTOP_MODE)
-	{
-		GSTransferStatus.PTH2 = STOPPED_MODE;
-
-		if(gifRegs.stat.APATH == GIF_APATH2)
-		{
-			if(gifRegs.stat.DIR == 0)gifRegs.stat.OPH = false;
-			gifRegs.stat.APATH = GIF_APATH_IDLE;
-			if(gifRegs.stat.P1Q) gsPath1Interrupt();
+	if (vif1ch.chcr.DIR) {
+		bool isDirect   = (vif1.cmd & 0x7f) == 0x50;
+		bool isDirectHL = (vif1.cmd & 0x7f) == 0x51;
+		if((isDirect   && !gifUnit.CanDoPath2())
+		|| (isDirectHL && !gifUnit.CanDoPath2HL())) {
+			GUNIT_WARN("vifMFIFOInterrupt() - Waiting for Path 2 to be ready");
+			CPU_INT(DMAC_MFIFO_VIF, 128);
+			return;
 		}
 	}
 
-	if (schedulepath3msk & 0x10) 
-	{
-		MSKPATH3_LOG("Scheduled Path3 Mask Firing on MFIFO VIF");
-		Vif1MskPath3();
-	}
+	// We need to check the direction, if it is downloading from the GS,
+	// we handle that separately (KH2 for testing)
 
-	if(vif1ch.chcr.DIR && CheckPath2GIF(DMAC_MFIFO_VIF) == false) 
-	{
-		SPR_LOG("Waiting for PATH to be ready");
-		return;
-	}
-	//We need to check the direction, if it is downloading from the GS, we handle that seperately (KH2 for testing)
-
-	//Simulated GS transfer time done, clear the flags
+	// Simulated GS transfer time done, clear the flags
 	
-	if (vif1.irq && vif1.tag.size == 0)
-	{
+	if (vif1.irq && vif1.tag.size == 0) {
 		SPR_LOG("VIF MFIFO Code Interrupt detected");
 		vif1Regs.stat.INT = true;
 		hwIntcIrq(INTC_VIF1);
 		--vif1.irq;
 
-		if (vif1Regs.stat.test(VIF1_STAT_VSS | VIF1_STAT_VIS | VIF1_STAT_VFS))
-		{
-			/*vif1Regs.stat.FQC = 0; // FQC=0
-			vif1ch.chcr.STR = false;*/
+		if (vif1Regs.stat.test(VIF1_STAT_VSS | VIF1_STAT_VIS | VIF1_STAT_VFS)) {
+			//vif1Regs.stat.FQC = 0; // FQC=0
+			//vif1ch.chcr.STR = false;
 			vif1Regs.stat.FQC = min((u16)0x10, vif1ch.qwc);
-			if((vif1ch.qwc > 0 || !vif1.done) && !(vif1.inprogress & 0x10))
-			{
+			if((vif1ch.qwc > 0 || !vif1.done) && !(vif1.inprogress & 0x10)) {
 				VIF_LOG("VIF1 MFIFO Stalled");
 				return;
 			}
@@ -309,29 +294,22 @@ void vifMFIFOInterrupt()
 	}
 
 	//Mirroring change to VIF0
-	if (vif1.cmd) 
-	{
-		if(vif1.done == true && vif1ch.qwc == 0)	vif1Regs.stat.VPS = VPS_WAITING;
+	if (vif1.cmd) {
+		if (vif1.done && vif1ch.qwc == 0) vif1Regs.stat.VPS = VPS_WAITING;
 	}
-	else		 
-	{
+	else {
 		vif1Regs.stat.VPS = VPS_IDLE;
 	}
 
-	if(vif1.inprogress & 0x10)
-	{
+	if(vif1.inprogress & 0x10) {
 		FireMFIFOEmpty();
 		if(!(vif1.done && vif1ch.qwc == 0))return;
 	}
 
-	if (vif1.done == false || vif1ch.qwc)
-	{
-		
-		switch(vif1.inprogress & 1)
-		{
+	if (vif1.done == false || vif1ch.qwc) {
+		switch(vif1.inprogress & 1) {
 			case 0: //Set up transfer
-				if (QWCinVIFMFIFO(vif1ch.tadr) == 0) 
-				{
+				if (QWCinVIFMFIFO(vif1ch.tadr) == 0) {
 					vif1.inprogress |= 0x10;
 					CPU_INT(DMAC_MFIFO_VIF, 4 );	
 					return;

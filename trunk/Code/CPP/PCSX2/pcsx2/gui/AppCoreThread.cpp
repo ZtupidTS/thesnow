@@ -387,6 +387,7 @@ void AppCoreThread::OnResumeInThread( bool isSuspended )
 	{
 		GetCorePlugins().Close( PluginId_CDVD );
 		CDVDsys_ChangeSource( g_Conf->CdvdSource );
+		cdvdCtrlTrayOpen();
 		m_resetCdvd = false;	
 	}
 
@@ -536,7 +537,7 @@ void SysExecEvent_CoreThreadPause::InvokeEvent()
 	if( CorePluginsAreOpen )
 	{
 		CorePluginsAreOpen = GetCorePlugins().AreOpen();
-		pxAssumeDev( CorePluginsAreOpen, "Invalid plugin close/shutdown detected during paused CoreThread; please Stop/Suspend the core instead." );
+		pxAssertDev( CorePluginsAreOpen, "Invalid plugin close/shutdown detected during paused CoreThread; please Stop/Suspend the core instead." );
 	}
 	paused_core.AllowResume();
 

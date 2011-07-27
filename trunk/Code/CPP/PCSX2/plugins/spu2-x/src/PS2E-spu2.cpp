@@ -20,8 +20,6 @@
 #include "Dma.h"
 #include "Dialogs.h"
 
-#include "x86emitter/tools.h"
-
 #ifdef _MSC_VER
 #	include "svnrev.h"
 #endif
@@ -365,7 +363,7 @@ EXPORT_C_(s32) SPU2init()
 
 #ifdef S2R_ENABLE
 	if(!replay_mode)
-		s2r_open("replay_dump.s2r");
+		s2r_open(Cycles,"replay_dump.s2r");
 #endif
 	return 0;
 }

@@ -7,7 +7,7 @@ endif(NOT TOP_CMAKE_WAS_SOURCED)
 
 
 # plugin name
-set(Output spu2x-1.5.0)
+set(Output spu2x-2.0.0)
 
 set(CommonFlags
     -fvisibility=hidden
@@ -108,12 +108,8 @@ add_library(${Output} SHARED
 			${spu2xLinuxHeaders})
 
 
-# set output directory
-set_target_properties(${Output} PROPERTIES
-					  LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin/plugins)
-
 # link target with project internal libraries
-target_link_libraries(${Output} Utilities x86emitter Utilities)
+target_link_libraries(${Output} Utilities Utilities)
 
 # link target with ALSA
 target_link_libraries(${Output} ${ALSA_LIBRARIES})
@@ -128,3 +124,9 @@ target_link_libraries(${Output} ${SOUNDTOUCH_LIBRARIES})
 if(NOT USER_CMAKE_LD_FLAGS STREQUAL "")
     target_link_libraries(${Output} "${USER_CMAKE_LD_FLAGS}")
 endif(NOT USER_CMAKE_LD_FLAGS STREQUAL "")
+
+if(PACKAGE_MODE)
+    install(TARGETS ${Output} DESTINATION ${PLUGIN_DIR})
+else(PACKAGE_MODE)
+    install(TARGETS ${Output} DESTINATION ${CMAKE_SOURCE_DIR}/bin/plugins)
+endif(PACKAGE_MODE)

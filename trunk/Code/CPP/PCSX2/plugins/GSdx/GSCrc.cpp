@@ -137,7 +137,8 @@ CRC::Game CRC::m_games[] =
 	{0x26689C87, Spartan, JP, 0},
 	{0x5ED8FB53, AceCombat4, JP, 0},
 	{0x1B9B7563, AceCombat4, NoRegion, 0},
-	{0xEC432B24, Drakengard2, NoRegion, 0},
+	{0xEC432B24, Drakengard2, EU, 0},
+	{0x1648E3C9, Drakengard2, US, 0},
 	{0xFC46EA61, Tekken5, JP, 0},
 	{0x1F88EE37, Tekken5, EU, 0},
 	{0x1F88BECD, Tekken5, EU, 0},	//language selector...
@@ -160,6 +161,8 @@ CRC::Game CRC::m_games[] =
 	{0xE96E55BD, GodOfWar2, JP, 0},
 	{0xF8CD3DF6, GodOfWar2, NoRegion, 0},
 	{0x0B82BFF7, GodOfWar2, NoRegion, 0},
+	{0x5990866f, GodOfWar2, NoRegion, 0},
+	{0xDCD9A9F7, GodOfWar2, NoRegion, 0},
 	{0x5D482F18, JackieChanAdv, NoRegion, 0},
 	{0xf0a6d880, HarvestMoon, US, 0},
 	{0x75c01a04, NamcoXCapcom, US, 0},
@@ -181,7 +184,8 @@ CRC::Game CRC::m_games[] =
 	{0x565B7E04, SimpsonsGame, IT, 0},
 	{0x206779D8, SimpsonsGame, EU, 0},
 	{0xBBE4D862, SimpsonsGame, US, 0},
-	{0xD71B57F4, Genji, NoRegion, 0},
+	{0xD71B57F4, Genji, US, 0},
+	{0xFADEBC45, Genji, EU, 0},
 	{0xB4776FC1, Genji, JP, 0},
 	{0xE04EA200, StarOcean3, EU, 0},
 	{0x23A97857, StarOcean3, US, 0},
@@ -199,7 +203,7 @@ CRC::Game CRC::m_games[] =
 	{0xF0A31EE3, SMTNocturne, EU, ZWriteMustNotClear},	// SMTNocturne (Lucifers Call in EU)
 	{0xAE0DE7B7, SMTNocturne, EU, ZWriteMustNotClear},	// SMTNocturne (Lucifers Call in EU)
 	{0xD60DA6D4, SMTNocturne, JP, ZWriteMustNotClear},	// SMTNocturne
-	{0x0e762e8d, SMTNocturne, JP, ZWriteMustNotClear},	// SMTNocturne Maniacs
+	{0x0E762E8D, SMTNocturne, JP, ZWriteMustNotClear},	// SMTNocturne Maniacs
 	{0x47BA9034, SMTNocturne, JP, ZWriteMustNotClear},	// SMTNocturne Maniacs Chronicle
 	{0xD7273511, SMTDDS1, US, ZWriteMustNotClear},		// SMT Digital Devil Saga
 	{0x1683A6BE, SMTDDS1, EU, ZWriteMustNotClear},		// SMT Digital Devil Saga
@@ -209,6 +213,7 @@ CRC::Game CRC::m_games[] =
 	{0xE47C1A9C, SMTDDS2, JP, ZWriteMustNotClear},		// SMT Digital Devil Saga 2
 	{0x0B8AB37B, RozenMaidenGebetGarden, JP, 0},
 	{0x1CC39DBD, SuikodenTactics, US, 0},
+	{0x3E205556, SuikodenTactics, EU, 0},
 	{0x64C58FB4, TenchuFS, US, 0},
 	{0xE7CCCB1E, TenchuFS, EU, 0},
 	{0x1969B19A, TenchuFS, ES, 0},		//PAL Spanish
@@ -216,11 +221,13 @@ CRC::Game CRC::m_games[] =
 	{0x525C1994, TenchuFS, ASIA, 0},
 	{0x767E383D, TenchuWoH, US, 0},
 	{0x83261085, TenchuWoH, EU, 0},		//PAL German
+	{0x7FA1510D, TenchuWoH, EU, 0},		//PAL ES, IT
 	{0x13DD9957, TenchuWoH, JP, 0},
 	{0x8BC95883, Sly3, US, 0},
 	{0x8164C614, Sly3, EU, 0},
 	{0x07652DD9, Sly2, US, 0},
 	{0xFDA1CBF6, Sly2, EU, 0},
+	{0x15DD1F6F, Sly2, NoRegion, 0},
 	{0xA9C82AB9, DemonStone, US, 0},
 	{0x7C7578F3, DemonStone, EU, 0},
 	{0x506644B3, BigMuthaTruckers, EU, 0},
@@ -234,9 +241,12 @@ CRC::Game CRC::m_games[] =
 	{0xDC43F2B8, LordOfTheRingsTwoTowers, EU, 0},
 	{0x9ABF90FB, LordOfTheRingsTwoTowers, ES, 0},
 	{0xC0E909E9, LordOfTheRingsTwoTowers, JP, 0},
+	{0xEB198738, LordOfTheRingsThirdAge, US, 0},
+	{0x614F4CF4, LordOfTheRingsThirdAge, EU, 0},
 	{0xE169BAF8, RedDeadRevolver, US, 0},
 	{0xE2E67E23, RedDeadRevolver, EU, 0},
 	{0xEDDD6573, SpidermanWoS, US, 0},	//Web of Shadows
+	{0xF14C1D82, SpidermanWoS, EU, 0},
 	{0xF56C7948, HeavyMetalThunder, JP, 0},
 	{0x2498951B, SilentHill3, US, 0},
 	{0x5088CCDB, SilentHill3, EU, 0},
@@ -258,6 +268,30 @@ CRC::Game CRC::m_games[] =
 	{0xB3A9F9ED, Black, JP, 0},
 	{0x4F755D39, TyTasmanianTiger, US, 0},
 	{0xD59D3252, TyTasmanianTiger, EU, 0},
+	{0x44A5FA15, FFVIIDoC, US, 0},
+	{0x33F7D21A, FFVIIDoC, EU, 0},
+	{0xAFAC88EF, FFVIIDoC, JP, 0},
+	{0x568A5C78, DigimonRumbleArena2, US, 0},
+	{0x785E22BB, DigimonRumbleArena2, EU, 0},
+	{0x879CDA5E, StarWarsForceUnleashed, US, 0},
+	{0x503BF9E1, StarWarsBattlefront, NoRegion, 0},		//EU and US versions have same CRC
+	{0x02F4B541, StarWarsBattlefront2, NoRegion, 0},	//EU and US versions have same CRC
+	{0xA8DB29DF, BlackHawkDown, EU, 0},
+	{0x25FC361B, DevilMayCry3, US, 0},	//SE
+	{0x18C9343F, DevilMayCry3, EU, 0},	//SE
+	{0x7ADCB24A, DevilMayCry3, EU, 0},
+	{0x79C952B0, DevilMayCry3, JP, 0},	//SE
+	{0x7F3DDEAB, DevilMayCry3, JP, 0},
+	{0xBEBF8793, BurnoutTakedown, US, 0},
+	{0x75BECC18, BurnoutTakedown, EU, 0},
+	{0xCE49B0DE, BurnoutTakedown, EU, 0},
+	{0xD224D348, BurnoutRevenge, US, 0},
+	{0x7E83CC5B, BurnoutRevenge, EU, 0},
+	{0x8C9576A1, BurnoutDominator, US, 0},
+	{0x8C9576B4, BurnoutDominator, EU, 0},
+	{0x4A0E5B3A, MidnightClub3, US, 0},	//dub
+	{0xEBE1972D, MidnightClub3, EU, 0},	//dub
+	{0x60A42FF5, MidnightClub3, US, 0},	//remix
 };
 
 hash_map<uint32, CRC::Game*> CRC::m_map;

@@ -39,19 +39,19 @@ endif(CMAKE_BUILD_TYPE STREQUAL Release)
 
 # onepad sources
 set(onepadSources
-	analog.cpp
 	controller.cpp
 	joystick.cpp
 	keyboard.cpp
+    KeyStatus.cpp
 	onepad.cpp)
 
 # onepad headers
 set(onepadHeaders
-	analog.h
 	bitwise.h
 	controller.h
 	joystick.h
 	keyboard.h
+    KeyStatus.h
 	onepad.h)
 
 # onepad Linux sources
@@ -82,10 +82,6 @@ add_library(${Output} SHARED
 			${onepadLinuxSources}
 			${onepadLinuxHeaders})
 
-# set output directory
-set_target_properties(${Output} PROPERTIES
-					  LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin/plugins)
-
 # link target with SDL
 target_link_libraries(${Output} ${SDL_LIBRARY})
 
@@ -93,3 +89,9 @@ target_link_libraries(${Output} ${SDL_LIBRARY})
 if(NOT USER_CMAKE_LD_FLAGS STREQUAL "")
     target_link_libraries(${Output} "${USER_CMAKE_LD_FLAGS}")
 endif(NOT USER_CMAKE_LD_FLAGS STREQUAL "")
+
+if(PACKAGE_MODE)
+    install(TARGETS ${Output} DESTINATION ${PLUGIN_DIR})
+else(PACKAGE_MODE)
+    install(TARGETS ${Output} DESTINATION ${CMAKE_SOURCE_DIR}/bin/plugins)
+endif(PACKAGE_MODE)

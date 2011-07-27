@@ -270,17 +270,11 @@ void V_Core::UpdateEffectsBufferSize()
 	RevBuffers.NeedsUpdated = false;
 	EffectsBufferSize = newbufsize;
 
-	if( EffectsBufferSize > 0 ){
-		//AnalyzeReverbPreset();
-		FakeReverbActive = true;
-	}
-	else 
-		FakeReverbActive = false;
-
 	if( EffectsBufferSize <= 0 ) return;
 
+	//AnalyzeReverbPreset();
+	
 	// Rebuild buffer indexers.
-
 	RevBuffers.ACC_SRC_A0 = EffectsBufferIndexer( Revb.ACC_SRC_A0 );
 	RevBuffers.ACC_SRC_A1 = EffectsBufferIndexer( Revb.ACC_SRC_A1 );
 	RevBuffers.ACC_SRC_B0 = EffectsBufferIndexer( Revb.ACC_SRC_B0 );
@@ -448,7 +442,7 @@ __forceinline void UpdateSpdifMode()
 	if(Spdif.Out&SPDIF_OUT_BYPASS)
 	{
 		PlayMode=2;
-		if(Spdif.Mode&SPDIF_MODE_BYPASS_BITSTREAM)
+		if(!(Spdif.Mode&SPDIF_MODE_BYPASS_BITSTREAM))
 			PlayMode=4; //bitstream bypass
 	}
 	else

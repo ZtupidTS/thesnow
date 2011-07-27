@@ -57,8 +57,8 @@ BEGIN
     PUSHBUTTON      "配置...",IDC_OUTCONF,236,40,54,12
     COMBOBOX        IDC_INTERPOLATE,14,26,114,84,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     CONTROL         "Slider2",IDC_LATENCY_SLIDER,"msctls_trackbar32",TBS_AUTOTICKS | WS_TABSTOP,166,94,116,10
-    CONTROL         "使用 Winamp DSP 插件",IDC_DSP_ENABLE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,149,223,126,11
-    CHECKBOX        "禁用特效处理",IDC_EFFECTS_DISABLE,14,47,112,10,NOT WS_TABSTOP
+    CONTROL         "Use a Winamp DSP plugin",IDC_DSP_ENABLE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,149,223,126,11
+    CHECKBOX        "Disable Effects Processing",IDC_EFFECTS_DISABLE,14,47,112,10
     LTEXT           "Latency:",IDC_STATIC,189,84,29,8,NOT WS_GROUP
     LTEXT           "Interpolation:",IDC_STATIC,12,16,55,10,NOT WS_GROUP
     LTEXT           "模块:",IDC_STATIC,161,16,50,9,NOT WS_GROUP
@@ -73,13 +73,13 @@ BEGIN
     LTEXT           "音频 Expansion 模式:",IDC_STATIC,161,176,135,9,NOT WS_GROUP
     COMBOBOX        IDC_SPEAKERS,163,185,135,84,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     LTEXT           "WIP - XAudio2 Only",IDC_STATIC,161,204,135,9,NOT WS_GROUP
-    COMBOBOX        IDC_REVERB_MODE,14,99,114,84,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    LTEXT           "Reverb Mode Selection:",IDC_STATIC,12,88,77,8,NOT WS_GROUP
     CONTROL         "Synchronizing Mode:",IDC_STATIC,"Static",SS_LEFTNOWORDWRAP | WS_GROUP,161,116,131,8
     COMBOBOX        IDC_SYNCHMODE,163,125,134,30,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     LTEXT           "音量:",IDC_STATIC,192,59,26,8,NOT WS_GROUP
     CTEXT           "100%",IDC_VOLUME_LABEL,224,59,58,9
     CONTROL         "",IDC_VOLUME_SLIDER,"msctls_trackbar32",TBS_AUTOTICKS | WS_TABSTOP,166,69,116,10
+    CONTROL         "Use the de-alias filter",IDC_DEALIASFILTER,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,13,92,112,10
+    LTEXT           "(overemphasizes the highs)",IDC_STATIC,26,104,100,12,NOT WS_GROUP
 END
 
 IDD_DEBUG DIALOGEX 0, 0, 303, 473
@@ -280,8 +280,8 @@ IDB_SPU2X_SMALL         BITMAP                  "..\\..\\spu2-x-sm.bmp"
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,5,0,SVN_REV
- PRODUCTVERSION 1,5,0,SVN_REV
+ FILEVERSION 2,0,0,SVN_REV
+ PRODUCTVERSION 2,0,0,SVN_REV
  FILEFLAGSMASK 0x17L
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -299,12 +299,12 @@ BEGIN
             VALUE "Comments", "SPU2 Plugin for PS2 Emulators"
             VALUE "CompanyName", "PCSX2 Dev Team"
             VALUE "FileDescription", "SPU2-X Plugin (svn build)"
-            VALUE "FileVersion", "1.5.SVN"
+            VALUE "FileVersion", "2.0.SVN"
             VALUE "InternalName", "SPU2-X"
             VALUE "LegalCopyright", "Copyright (C) 2011"
-            VALUE "OriginalFilename", "SPU2-X-1.5.dll"
+            VALUE "OriginalFilename", "SPU2-X-2.0.dll"
             VALUE "ProductName", "SPU2-X"
-            VALUE "ProductVersion", "1.5.SVN"
+            VALUE "ProductVersion", "2.0.SVN"
         END
     END
     BLOCK "VarFileInfo"
