@@ -163,7 +163,7 @@ public:
 
 		m_hWnd=CreateWindow(_T("CAsyncSocketEx Helper Window"), _T("CAsyncSocketEx Helper Window"), 0, 0, 0, 0, 0, 0, 0, 0, GetModuleHandle(0));
 		ASSERT(m_hWnd);
-		SetWindowLongPtr(m_hWnd, GWL_USERDATA, (LONG)this);
+		SetWindowLongPtr(m_hWnd, GWLP_USERDATA, (LONG_PTR)this);
 	};
 
 	virtual ~CAsyncSocketExHelperWindow()
@@ -291,7 +291,7 @@ public:
 		{
 			//Verify parameters
 			ASSERT(hWnd);
-			CAsyncSocketExHelperWindow *pWnd=(CAsyncSocketExHelperWindow *)GetWindowLongPtr(hWnd, GWL_USERDATA);
+			CAsyncSocketExHelperWindow *pWnd=(CAsyncSocketExHelperWindow *)GetWindowLongPtr(hWnd, GWLP_USERDATA);
 			ASSERT(pWnd);
 			
 			if (message<static_cast<UINT>(WM_SOCKETEX_NOTIFY+pWnd->m_nWindowDataSize)) //Index is within socket storage
@@ -499,7 +499,7 @@ public:
 			//Verify parameters, lookup socket and notification message
 			//Verify parameters
 			ASSERT(hWnd);
-			CAsyncSocketExHelperWindow *pWnd=(CAsyncSocketExHelperWindow *)GetWindowLongPtr(hWnd, GWL_USERDATA);
+			CAsyncSocketExHelperWindow *pWnd=(CAsyncSocketExHelperWindow *)GetWindowLongPtr(hWnd, GWLP_USERDATA);
 			ASSERT(pWnd);
 			
 			if (wParam >= static_cast<UINT>(pWnd->m_nWindowDataSize)) //Index is within socket storage
@@ -641,7 +641,7 @@ public:
 
 			// Verify parameters
 			ASSERT(hWnd);
-			CAsyncSocketExHelperWindow *pWnd = (CAsyncSocketExHelperWindow *)GetWindowLongPtr(hWnd, GWL_USERDATA);
+			CAsyncSocketExHelperWindow *pWnd = (CAsyncSocketExHelperWindow *)GetWindowLongPtr(hWnd, GWLP_USERDATA);
 			ASSERT(pWnd);
 
 			CAsyncSocketEx *pSocket = NULL;
@@ -686,7 +686,7 @@ public:
 			if (!hWnd)
 				return 0;
 
-			CAsyncSocketExHelperWindow *pWnd=(CAsyncSocketExHelperWindow *)GetWindowLongPtr(hWnd, GWL_USERDATA);
+			CAsyncSocketExHelperWindow *pWnd=(CAsyncSocketExHelperWindow *)GetWindowLongPtr(hWnd, GWLP_USERDATA);
 			if (!pWnd)
 				return 0;
 
@@ -708,7 +708,7 @@ public:
 				return 0;
 			
 			ASSERT(hWnd);
-			CAsyncSocketExHelperWindow *pWnd=(CAsyncSocketExHelperWindow *)GetWindowLongPtr(hWnd, GWL_USERDATA);
+			CAsyncSocketExHelperWindow *pWnd=(CAsyncSocketExHelperWindow *)GetWindowLongPtr(hWnd, GWLP_USERDATA);
 			ASSERT(pWnd);
 
 			if (pWnd->m_pThreadData->layerCloseNotify.empty())

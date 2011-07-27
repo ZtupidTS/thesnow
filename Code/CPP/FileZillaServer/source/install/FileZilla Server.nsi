@@ -5,24 +5,26 @@
 ;Basic Example Script
 ;Written by Joost Verburg
 
+;Set compressor before outputting anything
+SetCompressor /SOLID LZMA
+
 ;--------------------------------
 ;Include Modern UI
 
   !include "MUI.nsh"
-  !define MUI_LICENSEBKCOLOR /grey
 
 ;--------------------------------
 ;Product Info
 
-  !define PRODUCT_NAME  "FileZilla Server"
-  !define VERSION_MAJOR "0"
-  !define VERSION_MINOR "9"
-  !define VERSION_MICRO "39"
-  !define VERSION_NANO  "0"
-  !define PRODUCT_VERSION "beta 0.9.39"
-  !define VERSION_FULL  "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_MICRO}.${VERSION_NANO}"
-  !define PUBLISHER    "FileZilla Project"
-  !define WEBSITE_URL  "http://filezilla-project.org/"
+  !define PRODUCT_NAME    "FileZilla Server"
+  !define VERSION_MAJOR   "0"
+  !define VERSION_MINOR   "9"
+  !define VERSION_MICRO   "39"
+  !define VERSION_NANO    "0"
+  !define PRODUCT_VERSION "beta ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_MICRO}"
+  !define VERSION_FULL    "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_MICRO}.${VERSION_NANO}"
+  !define PUBLISHER       "FileZilla Project"
+  !define WEBSITE_URL     "http://filezilla-project.org/"
   !define PRODUCT_UNINSTALL "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
   Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
 
@@ -91,6 +93,8 @@ LangString StartOptionsTitle ${LANG_ENGLISH} ": Server startup settings"
   InstallDirRegKey HKLM "${PRODUCT_UNINSTALL}" "UninstallString"
 
   ShowInstDetails show
+
+  RequestExecutionLevel admin
 
 ;--------------------------------
 ;Reserve Files
@@ -244,6 +248,7 @@ SectionEnd
 ; optional section
 Section "Start Menu Shortcuts" SecStartMenu
 SectionIn 1 2 3 4
+  SetShellVarContext all
 
   CreateDirectory "$SMPROGRAMS\FileZilla Server"
   CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\Uninstall.lnk" "$INSTDIR\uninstall.exe" "" "$INSTDIR\uninstall.exe" 0
@@ -523,6 +528,7 @@ FunctionEnd
 ;Uninstaller Section
 
 Section "Uninstall"
+  SetShellvarContext all
 
   ; Stopping and uninstalling service
   DetailPrint "Stopping service..."

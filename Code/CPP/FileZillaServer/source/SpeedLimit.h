@@ -47,8 +47,8 @@ public:
 		int d;
 	} m_Date;
 
-	bool m_FromCheck;
-	bool m_ToCheck;
+	BOOL m_FromCheck;
+	BOOL m_ToCheck;
 
 	struct t_time
 	{
