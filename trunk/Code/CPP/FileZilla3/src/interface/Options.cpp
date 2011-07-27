@@ -817,7 +817,7 @@ void COptions::InitSettingsDir()
 	{
 #ifdef __WXMSW__
 		wxChar buffer[MAX_PATH * 2 + 1];
-
+/*
 		if (SUCCEEDED(SHGetFolderPath(0, CSIDL_APPDATA, 0, SHGFP_TYPE_CURRENT, buffer)))
 		{
 			fn = wxFileName(buffer, _T(""));
@@ -825,10 +825,12 @@ void COptions::InitSettingsDir()
 		}
 		else
 		{
+*/
 			// Fall back to directory where the executable is
 			if (GetModuleFileName(0, buffer, MAX_PATH * 2))
 				fn = buffer;
-		}
+				fn.AppendDir(_T("FileZillaDATA"));
+//		}
 #else
 		fn = wxFileName(wxGetHomeDir(), _T(""));
 		fn.AppendDir(_T(".filezilla"));

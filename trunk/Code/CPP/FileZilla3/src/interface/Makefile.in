@@ -106,12 +106,12 @@ am__filezilla_SOURCES_DIST = aboutdialog.cpp asyncrequestqueue.cpp \
 	sitemanager.cpp sitemanager_dialog.cpp sizeformatting.cpp \
 	speedlimits_dialog.cpp splitter.cpp state.cpp statusbar.cpp \
 	statuslinectrl.cpp StatusView.cpp systemimagelist.cpp \
-	themeprovider.cpp timeformatting.cpp toolbar.cpp \
-	treectrlex.cpp updatewizard.cpp verifycertdialog.cpp \
-	verifyhostkeydialog.cpp view.cpp viewheader.cpp \
-	volume_enumerator.cpp welcome_dialog.cpp \
+	textctrlex.cpp themeprovider.cpp timeformatting.cpp \
+	toolbar.cpp treectrlex.cpp updatewizard.cpp \
+	verifycertdialog.cpp verifyhostkeydialog.cpp view.cpp \
+	viewheader.cpp volume_enumerator.cpp welcome_dialog.cpp \
 	window_state_manager.cpp wrapengine.cpp xh_menu_ex.cpp \
-	xh_toolb_ex.cpp xmlfunctions.cpp prefix.cpp
+	xh_text_ex.cpp xh_toolb_ex.cpp xmlfunctions.cpp prefix.cpp
 am__dirstamp = $(am__leading_dot)dirstamp
 @USE_BINRELOC_TRUE@am__objects_1 = filezilla-prefix.$(OBJEXT)
 am_filezilla_OBJECTS = filezilla-aboutdialog.$(OBJEXT) \
@@ -189,6 +189,7 @@ am_filezilla_OBJECTS = filezilla-aboutdialog.$(OBJEXT) \
 	filezilla-statuslinectrl.$(OBJEXT) \
 	filezilla-StatusView.$(OBJEXT) \
 	filezilla-systemimagelist.$(OBJEXT) \
+	filezilla-textctrlex.$(OBJEXT) \
 	filezilla-themeprovider.$(OBJEXT) \
 	filezilla-timeformatting.$(OBJEXT) filezilla-toolbar.$(OBJEXT) \
 	filezilla-treectrlex.$(OBJEXT) \
@@ -200,7 +201,7 @@ am_filezilla_OBJECTS = filezilla-aboutdialog.$(OBJEXT) \
 	filezilla-welcome_dialog.$(OBJEXT) \
 	filezilla-window_state_manager.$(OBJEXT) \
 	filezilla-wrapengine.$(OBJEXT) filezilla-xh_menu_ex.$(OBJEXT) \
-	filezilla-xh_toolb_ex.$(OBJEXT) \
+	filezilla-xh_text_ex.$(OBJEXT) filezilla-xh_toolb_ex.$(OBJEXT) \
 	filezilla-xmlfunctions.$(OBJEXT) $(am__objects_1)
 filezilla_OBJECTS = $(am_filezilla_OBJECTS)
 filezilla_LDADD = $(LDADD)
@@ -476,12 +477,13 @@ filezilla_SOURCES = aboutdialog.cpp asyncrequestqueue.cpp \
 	sitemanager.cpp sitemanager_dialog.cpp sizeformatting.cpp \
 	speedlimits_dialog.cpp splitter.cpp state.cpp statusbar.cpp \
 	statuslinectrl.cpp StatusView.cpp systemimagelist.cpp \
-	themeprovider.cpp timeformatting.cpp toolbar.cpp \
-	treectrlex.cpp updatewizard.cpp verifycertdialog.cpp \
-	verifyhostkeydialog.cpp view.cpp viewheader.cpp \
-	volume_enumerator.cpp welcome_dialog.cpp \
+	textctrlex.cpp themeprovider.cpp timeformatting.cpp \
+	toolbar.cpp treectrlex.cpp updatewizard.cpp \
+	verifycertdialog.cpp verifyhostkeydialog.cpp view.cpp \
+	viewheader.cpp volume_enumerator.cpp welcome_dialog.cpp \
 	window_state_manager.cpp wrapengine.cpp xh_menu_ex.cpp \
-	xh_toolb_ex.cpp xmlfunctions.cpp $(am__append_1)
+	xh_text_ex.cpp xh_toolb_ex.cpp xmlfunctions.cpp \
+	$(am__append_1)
 noinst_HEADERS = aboutdialog.h \
 		 asyncrequestqueue.h \
 		 aui_notebook_ex.h \
@@ -572,6 +574,7 @@ noinst_HEADERS = aboutdialog.h \
 		 statusbar.h \
 		 StatusView.h \
 		 systemimagelist.h \
+		 textctrlex.h \
 		 themeprovider.h \
 		 timeformatting.h \
 		 toolbar.h \
@@ -586,6 +589,7 @@ noinst_HEADERS = aboutdialog.h \
 		 window_state_manager.h \
 		 wrapengine.h \
 		 xh_menu_ex.h \
+		 xh_text_ex.h \
 		 xh_toolb_ex.h \
 		 xmlfunctions.h
 
@@ -834,6 +838,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/filezilla-statusbar.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/filezilla-statuslinectrl.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/filezilla-systemimagelist.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/filezilla-textctrlex.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/filezilla-themeprovider.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/filezilla-timeformatting.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/filezilla-toolbar.Po@am__quote@
@@ -848,6 +853,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/filezilla-window_state_manager.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/filezilla-wrapengine.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/filezilla-xh_menu_ex.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/filezilla-xh_text_ex.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/filezilla-xh_toolb_ex.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/filezilla-xmlfunctions.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@settings/$(DEPDIR)/filezilla-optionspage.Po@am__quote@
@@ -2130,6 +2136,20 @@ filezilla-systemimagelist.obj: systemimagelist.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(filezilla_CPPFLAGS) $(CPPFLAGS) $(filezilla_CXXFLAGS) $(CXXFLAGS) -c -o filezilla-systemimagelist.obj `if test -f 'systemimagelist.cpp'; then $(CYGPATH_W) 'systemimagelist.cpp'; else $(CYGPATH_W) '$(srcdir)/systemimagelist.cpp'; fi`
 
+filezilla-textctrlex.o: textctrlex.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(filezilla_CPPFLAGS) $(CPPFLAGS) $(filezilla_CXXFLAGS) $(CXXFLAGS) -MT filezilla-textctrlex.o -MD -MP -MF $(DEPDIR)/filezilla-textctrlex.Tpo -c -o filezilla-textctrlex.o `test -f 'textctrlex.cpp' || echo '$(srcdir)/'`textctrlex.cpp
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/filezilla-textctrlex.Tpo $(DEPDIR)/filezilla-textctrlex.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='textctrlex.cpp' object='filezilla-textctrlex.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(filezilla_CPPFLAGS) $(CPPFLAGS) $(filezilla_CXXFLAGS) $(CXXFLAGS) -c -o filezilla-textctrlex.o `test -f 'textctrlex.cpp' || echo '$(srcdir)/'`textctrlex.cpp
+
+filezilla-textctrlex.obj: textctrlex.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(filezilla_CPPFLAGS) $(CPPFLAGS) $(filezilla_CXXFLAGS) $(CXXFLAGS) -MT filezilla-textctrlex.obj -MD -MP -MF $(DEPDIR)/filezilla-textctrlex.Tpo -c -o filezilla-textctrlex.obj `if test -f 'textctrlex.cpp'; then $(CYGPATH_W) 'textctrlex.cpp'; else $(CYGPATH_W) '$(srcdir)/textctrlex.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/filezilla-textctrlex.Tpo $(DEPDIR)/filezilla-textctrlex.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='textctrlex.cpp' object='filezilla-textctrlex.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(filezilla_CPPFLAGS) $(CPPFLAGS) $(filezilla_CXXFLAGS) $(CXXFLAGS) -c -o filezilla-textctrlex.obj `if test -f 'textctrlex.cpp'; then $(CYGPATH_W) 'textctrlex.cpp'; else $(CYGPATH_W) '$(srcdir)/textctrlex.cpp'; fi`
+
 filezilla-themeprovider.o: themeprovider.cpp
 @am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(filezilla_CPPFLAGS) $(CPPFLAGS) $(filezilla_CXXFLAGS) $(CXXFLAGS) -MT filezilla-themeprovider.o -MD -MP -MF $(DEPDIR)/filezilla-themeprovider.Tpo -c -o filezilla-themeprovider.o `test -f 'themeprovider.cpp' || echo '$(srcdir)/'`themeprovider.cpp
 @am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/filezilla-themeprovider.Tpo $(DEPDIR)/filezilla-themeprovider.Po
@@ -2325,6 +2345,20 @@ filezilla-xh_menu_ex.obj: xh_menu_ex.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='xh_menu_ex.cpp' object='filezilla-xh_menu_ex.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(filezilla_CPPFLAGS) $(CPPFLAGS) $(filezilla_CXXFLAGS) $(CXXFLAGS) -c -o filezilla-xh_menu_ex.obj `if test -f 'xh_menu_ex.cpp'; then $(CYGPATH_W) 'xh_menu_ex.cpp'; else $(CYGPATH_W) '$(srcdir)/xh_menu_ex.cpp'; fi`
+
+filezilla-xh_text_ex.o: xh_text_ex.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(filezilla_CPPFLAGS) $(CPPFLAGS) $(filezilla_CXXFLAGS) $(CXXFLAGS) -MT filezilla-xh_text_ex.o -MD -MP -MF $(DEPDIR)/filezilla-xh_text_ex.Tpo -c -o filezilla-xh_text_ex.o `test -f 'xh_text_ex.cpp' || echo '$(srcdir)/'`xh_text_ex.cpp
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/filezilla-xh_text_ex.Tpo $(DEPDIR)/filezilla-xh_text_ex.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='xh_text_ex.cpp' object='filezilla-xh_text_ex.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(filezilla_CPPFLAGS) $(CPPFLAGS) $(filezilla_CXXFLAGS) $(CXXFLAGS) -c -o filezilla-xh_text_ex.o `test -f 'xh_text_ex.cpp' || echo '$(srcdir)/'`xh_text_ex.cpp
+
+filezilla-xh_text_ex.obj: xh_text_ex.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(filezilla_CPPFLAGS) $(CPPFLAGS) $(filezilla_CXXFLAGS) $(CXXFLAGS) -MT filezilla-xh_text_ex.obj -MD -MP -MF $(DEPDIR)/filezilla-xh_text_ex.Tpo -c -o filezilla-xh_text_ex.obj `if test -f 'xh_text_ex.cpp'; then $(CYGPATH_W) 'xh_text_ex.cpp'; else $(CYGPATH_W) '$(srcdir)/xh_text_ex.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/filezilla-xh_text_ex.Tpo $(DEPDIR)/filezilla-xh_text_ex.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='xh_text_ex.cpp' object='filezilla-xh_text_ex.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(filezilla_CPPFLAGS) $(CPPFLAGS) $(filezilla_CXXFLAGS) $(CXXFLAGS) -c -o filezilla-xh_text_ex.obj `if test -f 'xh_text_ex.cpp'; then $(CYGPATH_W) 'xh_text_ex.cpp'; else $(CYGPATH_W) '$(srcdir)/xh_text_ex.cpp'; fi`
 
 filezilla-xh_toolb_ex.o: xh_toolb_ex.cpp
 @am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(filezilla_CPPFLAGS) $(CPPFLAGS) $(filezilla_CXXFLAGS) $(CXXFLAGS) -MT filezilla-xh_toolb_ex.o -MD -MP -MF $(DEPDIR)/filezilla-xh_toolb_ex.Tpo -c -o filezilla-xh_toolb_ex.o `test -f 'xh_toolb_ex.cpp' || echo '$(srcdir)/'`xh_toolb_ex.cpp
