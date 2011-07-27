@@ -374,7 +374,7 @@ void SciTEBase::SetAboutMessage(GUI::ScintillaWindow &wsci, const char *appTitle
 #endif
 		AddStyledText(wsci, GUI::UTF8FromString(L"程序版本: ").c_str(), trsSty);
 //		AddStyledText(wsci, GetTranslationToAbout("Version").c_str(), trsSty);
-		AddStyledText(wsci, " 2.27\n", 1);
+		AddStyledText(wsci, " " VERSION_SCITE "\n", 1);
 		AddStyledText(wsci, GUI::UTF8FromString(L"编译时间: ").c_str(), 1);
 		AddStyledText(wsci, " " __DATE__ " " __TIME__ "\n", 1);
 		SetAboutStyle(wsci, 2, ColourRGB(0, 0, 0));
@@ -383,7 +383,7 @@ void SciTEBase::SetAboutMessage(GUI::ScintillaWindow &wsci, const char *appTitle
 		AddStyledText(wsci, " Neil Hodgson.\n", 2);
 		SetAboutStyle(wsci, 3, ColourRGB(0, 0, 0));
 		AddStyledText(wsci, GUI::UTF8FromString(L"版权所有: ").c_str(), trsSty);
-		AddStyledText(wsci, " December 1998-June 2011.\n", 3);
+		AddStyledText(wsci, COPYRIGHT_DATES ".\n", 3);
 		SetAboutStyle(wsci, 4, ColourRGB(0, 0x7f, 0x7f));
 		AddStyledText(wsci, GUI::UTF8FromString(L"官方网站: ").c_str(), trsSty);
 		AddStyledText(wsci, " http://www.scintilla.org\n", 4);

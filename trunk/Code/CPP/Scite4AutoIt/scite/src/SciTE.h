@@ -8,6 +8,11 @@
 #ifndef SCITE_H
 #define SCITE_H
 
+// Version numbers and dates
+#define VERSION_SCITE "2.28"
+#define VERSION_WORDS 2, 2, 8, 0
+#define COPYRIGHT_DATES "December 1998-June 2011"
+#define COPYRIGHT_YEARS L"1998-2011"
 // ²Ëµ¥ ID.
 // These are located 100 apart. No one will want more than 100 in each menu ;)
 #define IDM_MRUFILE			1000
