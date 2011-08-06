@@ -57,9 +57,22 @@ bool PropSetFile::caseSensitiveFilenames = false;
 PropSetFile::PropSetFile(bool lowerKeys_) : lowerKeys(lowerKeys_), superPS(0) {
 }
 
+PropSetFile::PropSetFile(const PropSetFile &copy) : lowerKeys(copy.lowerKeys), props(copy.props), superPS(copy.superPS) {
+}
+
 PropSetFile::~PropSetFile() {
 	superPS = 0;
 	Clear();
+}
+
+PropSetFile &PropSetFile::operator=(const PropSetFile &assign) {
+	if (this != &assign) {
+		lowerKeys = assign.lowerKeys;
+		superPS = assign.superPS;
+		props = assign.props;
+		enumnext = "";
+	}
+	return *this;
 }
 
 void PropSetFile::Set(const char *key, const char *val, ptrdiff_t lenKey, ptrdiff_t lenVal) {
