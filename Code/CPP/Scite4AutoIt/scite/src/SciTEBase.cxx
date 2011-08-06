@@ -206,7 +206,8 @@ SciTEBase::SciTEBase(Extension *ext) : apis(true), extender(ext) {
 	propsUser.superPS = &propsBase;
 	propsDirectory.superPS = &propsUser;
 	propsLocal.superPS = &propsDirectory;
-	props.superPS = &propsLocal;
+	propsDiscovered.superPS = &propsLocal;
+	props.superPS = &propsDiscovered;
 
 	propsStatus.superPS = &props;
 
@@ -3318,6 +3319,12 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		break;
 
 	case IDM_SPLITVERTICAL:
+		{
+			GUI::Rectangle rcClient = GetClientRectangle();
+			heightOutput = splitVertical ?
+				int((double)heightOutput * rcClient.Height() / rcClient.Width() + 0.5) : 
+				int((double)heightOutput * rcClient.Width() / rcClient.Height() + 0.5);
+		}
 		splitVertical = !splitVertical;
 		heightOutput = NormaliseSplit(heightOutput);
 		SizeSubWindows();

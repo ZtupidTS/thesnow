@@ -306,6 +306,7 @@ const char *contributors[] = {
             "Thomas Linder Puls",
             "Artyom Zuikov",
             "Gerrit",
+            "Occam's Razor",
         };
 
 // AddStyledText only called from About so static size buffer is OK
@@ -391,11 +392,7 @@ void SciTEBase::SetAboutMessage(GUI::ScintillaWindow &wsci, const char *appTitle
 		AddStyledText(wsci, "    http://www.lua.org\n", 4);
 		SetAboutStyle(wsci, 5, ColourRGB(0, 0, 0));
 		AddStyledText(wsci, GUI::UTF8FromString(L"此中文化版本由 thesnoW 维护\n").c_str(), 3);
-#ifdef AUTOIT
 		AddStyledText(wsci, "    http://www.AutoitX.com\n", 4);
-#else
-		AddStyledText(wsci, "    thesnoW@QQ.com\n", 4);
-#endif
 		if (translator.length()) {
 			AddStyledText(wsci, translator.c_str(), trsSty);
 			AddStyledText(wsci, "\n", 5);
@@ -417,6 +414,6 @@ void SciTEBase::SetAboutMessage(GUI::ScintillaWindow &wsci, const char *appTitle
 			SetAboutStyle(wsci, sty + 50, ColourRGB(r, g, b));
 		}
 		wsci.Send(SCI_SETREADONLY, 1, 0);
-		wsci.Send(SCI_SETSCROLLWIDTH,200);
+		wsci.Send(SCI_SETSCROLLWIDTH,200);		//added
 	}
 }

@@ -57,7 +57,7 @@ inline bool IsOperator(int ch) {
 }
 
 static void GetTextSegment(Accessor &styler, unsigned int start, unsigned int end, char *s, size_t len) {
-	size_t i = 0;
+	unsigned int i = 0;
 	for (; (i < end - start + 1) && (i < len-1); i++) {
 		s[i] = static_cast<char>(MakeLowerCase(styler[start + i]));
 	}
@@ -66,7 +66,7 @@ static void GetTextSegment(Accessor &styler, unsigned int start, unsigned int en
 
 static const char *GetNextWord(Accessor &styler, unsigned int start, char *s, size_t sLen) {
 
-	size_t i = 0;
+	unsigned int i = 0;
 	for (; i < sLen-1; i++) {
 		char ch = static_cast<char>(styler.SafeGetCharAt(start + i));
 		if ((i == 0) && !IsAWordStart(ch))
@@ -960,8 +960,8 @@ static void ColouriseHyperTextDoc(unsigned int startPos, int length, int initSty
 			styler.ColourTo(i, SCE_H_ASP);
 
 			if (ch != '%' && ch != '$' && ch != '/') {
-				i += strlen(makoBlockType);
-				visibleChars += strlen(makoBlockType);
+				i += static_cast<int>(strlen(makoBlockType));
+				visibleChars += static_cast<int>(strlen(makoBlockType));
 				if (keywords4.InList(makoBlockType))
 					styler.ColourTo(i, SCE_HP_WORD);
 				else
