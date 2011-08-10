@@ -1983,7 +1983,7 @@ static void ColouriseHyperTextDoc(unsigned int startPos, int length, int initSty
 					styler.ColourTo(i, StateToPrint);
 					state = SCE_HPHP_DEFAULT;
 				} else if (isLineEnd(chPrev)) {
-				const int psdLength = strlen(phpStringDelimiter);
+					const int psdLength = static_cast<int>(strlen(phpStringDelimiter));
 					const char chAfterPsd = styler.SafeGetCharAt(i + psdLength);
 					const char chAfterPsd2 = styler.SafeGetCharAt(i + psdLength + 1);
 					if (isLineEnd(chAfterPsd) ||
@@ -2006,7 +2006,7 @@ static void ColouriseHyperTextDoc(unsigned int startPos, int length, int initSty
 					state = SCE_HPHP_DEFAULT;
 				}
 			} else if (isLineEnd(chPrev) && styler.Match(i, phpStringDelimiter)) {
-				const int psdLength = strlen(phpStringDelimiter);
+				const int psdLength = static_cast<int>(strlen(phpStringDelimiter));
 				const char chAfterPsd = styler.SafeGetCharAt(i + psdLength);
 				const char chAfterPsd2 = styler.SafeGetCharAt(i + psdLength + 1);
 				if (isLineEnd(chAfterPsd) ||
