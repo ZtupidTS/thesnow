@@ -3596,8 +3596,15 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 
 	case IDM_HELP: {
 			SelectionIntoProperties();
-			AddCommand(props.GetWild("command.help.", FileNameExt().AsUTF8().c_str()), "",
-			        SubsystemType("command.help.subsystem."));
+			if (strcmp(language.c_str(),"au3")==0 && strcmp(FileNameExt().AsUTF8().c_str(),"")==0)
+			{
+				AddCommand(props.GetWild("command.help.", ".au3"), "",SubsystemType('2'));
+			} 
+			else
+			{
+				AddCommand(props.GetWild("command.help.", FileNameExt().AsUTF8().c_str()), "",
+					SubsystemType("command.help.subsystem."));
+			}
 			if (jobQueue.commandCurrent > 0) {
 				jobQueue.isBuilding = true;
 				Execute();
