@@ -1,0 +1,9 @@
+LIBRARY	"isNoteBook"
+EXPORTS
+isNoteBook			@1
+HaveBattery			@2
+CPUNum				@3
+BatteryLifeTime		@4
+BatteryLifeTimePercent	@5
+ACLineStatus		@6
+CloseMe				@7
