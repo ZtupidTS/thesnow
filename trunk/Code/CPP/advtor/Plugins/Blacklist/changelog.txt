@@ -1,0 +1,4 @@
+2011-01-15 Blacklist v1.00
+
+- the function InternetOpen is now called with a string for User-Agent because some antiviruses "detect" blacklist.dll as malware if the User-Agent is not set (Emsisoft 5.1.0.1, Ikarus T3.1.1.97.0, McAfee 5.400.0.1158, McAfee-GW-Edition 2010.1C, Rising 22.82.04.04 source: http://www.virustotal.com/file-scan/report.html?id=2fe3c73b8e5658f0ea7c6aafac4b3bc9b2c287122140e2473327f5abee403906-1295051356).
+- the procedure that downloads a new blacklist now obtains the pointer to InternetReadFile using GetProcAddress because Avira "detects" it as malware if it doesn't do so.

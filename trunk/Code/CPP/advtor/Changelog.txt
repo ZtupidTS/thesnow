@@ -1,0 +1,358 @@
+2011-03-06 AdvTor 0.2.0.7
+
+- [tor-0.2.1.30] Stop sending a CLOCK_SKEW controller status event whenever we fetch directory information from a relay that has a wrong clock. Instead, only inform the controller when it's a trusted authority that claims our clock is wrong. Bugfix on 0.1.2.6-alpha; fixes the rest of bug 1074.
+- [tor-0.2.1.30] Fix a bounds-checking error that could allow an attacker to remotely crash a directory authority. Bugfix on 0.2.1.5-alpha. Found by "piebeer".
+- [tor-0.2.1.30] If relays set RelayBandwidthBurst but not RelayBandwidthRate, Tor would ignore their RelayBandwidthBurst setting, potentially using more bandwidth than expected. Bugfix on 0.2.0.1-alpha. Reported by Paul Wouters. Fixes bug 2470.
+- [tor-0.2.1.30] Adjust our TLS Diffie-Hellman parameters to match those used by Apache's mod_ssl.
+- [tor-0.2.1.30] Check for and reject overly long directory certificates and directory tokens before they have a chance to hit any assertions. Bugfix on 0.2.1.28. Found by "doorss".
+- [tor-0.2.1.30] Bring the logic that gathers routerinfos and assesses the acceptability of circuits into line. This prevents a Tor OP from getting locked in a cycle of choosing its local OR as an exit for a path (due to a .exit request) and then rejecting the circuit because its OR is not listed yet. It also prevents Tor clients from using an OR running in the same instance as an exit (due to a .exit request) if the OR does not meet the same requirements expected of an OR running elsewhere. Fixes bug 1859; bugfix on 0.1.0.1-rc.
+- geoip_c.h was updated with GeoIPCountryWhois.csv released on March 2nd
+- updated language strings: 2763
+
+2011-03-05 AdvTor 0.2.0.6
+
+- the list with filtered debug strings was moved from "System" to "Debug"
+- new configuration options: HotkeyRestore (default is Win+Ctrl+T, disabled), HotkeyNewIdentity (default is Win+N, disabled), HotkeyIntercept(default is Win+Ctrl+I, disabled), HotkeyRelease (default is Win+Ctrl+R, disabled)) (requested by jimjum)
+- settings related to hot keys were added to the System dialog ("Hide / restore Advanced TOR window", "New identity", "Intercept focused application", "Release focused application")
+- added: new option on exit node selection dialog: "Exit selection algorithm uses consecutive displayed nodes from this list", which updates IdentityFlags (disabled by default); this option affects chosen exits; if this option is enabled, AdvTor will always use a fixed exit that is changed only when choosing a new identity (requested by jimjum)
+- the blacklist plugin no longer shows a warning if it cannot load blacklist.txt (the log level was changed from LOG_WARN to LOG_INFO)
+- updated language strings: 2737, 2738, 2739, 2740, 2741, 2742, 2743, 2744, 2745, 2746, 2747, 2748, 2749, 2750, 2751, 2752, 2753, 2754, 2755, 2756, 2757, 2758, 2759, 2760, 2761, 2762
+
+2011-02-12 AdvTor 0.2.0.5
+
+- corrected: if all options related to publishing router descriptor were disabled, the dialog initialization procedure for the "Become a Server" dialog was initializing publishing options from a null pointer (thanks to jimjum for reporting this error)
+- corrected: if no name servers can be found when connecting to Tor network and Server mode is enabled, name servers will be configured at a later time (thanks to jimjum for reporting this error)
+- corrected: the function retry_all_listeners() was called while initializing dialog controls for the "Become a Server" dialog (thanks to jimjum for reporting this error)
+- corrected: changes from the "Become a Server" dialog that have non-reentrant calls to user32 and winsock32 functions are applied by run_scheduled_events() instead of being applied directly (thanks to jimjum for reporting this error)
+- corrected: the list with server descriptor settings was not re-initialized after clearing it (thanks to jimjum for reporting this error)
+- corrected: if no memory is allocated for packed_cell_t objects, statistics for cell pool memory usage are no longer logged
+- when best time delta is changed, timestamps for all existing connections are adjusted to be relative to current fake local time
+- the bandwith rate for banned routers is no longer shown in router selection dialogs
+- if the router list is sorted, all routers that are banned are sorted at the bottom of the list
+- if the router list is sorted and a router is selected, the list will be scrolled to place it in the center of the visible area
+- if Tor is started, "Start Tor" becomes "Stop Tor" (requested by TT)
+- new configuration option: WindowPos, which is used to store the size and position of the main dialog; this option is used only if it describes a window that has no parts outside the visible area of the screen (requested by TT)
+- directory connections now have an exclusivity key EXCLUSIVITY_DIRCONN and internal connections have EXCLUSIVITY_INTERNAL
+- plugins are not allowed to set EXCLUSIVITY_DIRCONN or EXCLUSIVITY_INTERNAL for accepted client connections (the connection will be closed)
+- geoip_c.h was updated with GeoIPCountryWhois.csv released on February 1st
+- updated language strings: 19, 1468, 2671, 2736
+
+2011-01-23 AdvTor 0.2.0.4
+
+- [tor-0.2.1.29] Fix a heap overflow bug where an adversary could cause heap corruption. This bug probably allows remote code execution attacks. Reported by "debuger". Fixes CVE-2011-0427. Bugfix on 0.1.2.10-rc.
+- [tor-0.2.1.29] Prevent a denial-of-service attack by disallowing any zlib-compressed data whose compression factor is implausibly high. Fixes part of bug 2324; reported by "doorss".
+- [tor-0.2.1.29] Zero out a few more keys in memory before freeing them. Fixes bug 2384 and part of bug 2385. These key instances found by "cypherpunks", based on Andrew Case's report about being able to find sensitive data in Tor's memory space if you have enough permissions. Bugfix on 0.0.2pre9.
+- [tor-0.2.1.29] Add a check for SIZE_T_MAX to tor_realloc() to try to avoid underflow errors there too. Fixes the other part of bug 2324.
+- [tor-0.2.1.29] Fix a bug where we would assert if we ever had a cached-descriptors.new file (or another file read directly into memory) of exactly SIZE_T_CEILING bytes. Fixes bug 2326; bugfix on 0.2.1.25. Found by doorss.
+- [tor-0.2.1.29] Fix some potential asserts and parsing issues with grossly malformed router caches. Fixes bug 2352; bugfix on Tor 0.2.1.27. Found by doorss.
+- [tor-0.2.1.29] Fix a bug with handling misformed replies to reverse DNS lookup requests in DNSPort. Bugfix on Tor 0.2.0.1-alpha. Related to a bug reported by doorss.
+- [tor-0.2.1.29] Fix compilation on mingw when a pthreads compatibility library has been installed. (We don't want to use it, so we shouldn't be including pthread.h.) Fixes bug 2313; bugfix on 0.1.0.1-rc.
+- [tor-0.2.1.29] Fix a bug where we would declare that we had run out of virtual addresses when the address space was only half-exhausted. Bugfix on 0.1.2.1-alpha.
+- [tor-0.2.1.29] Correctly handle the case where AutomapHostsOnResolve is set but no virtual addresses are available. Fixes bug 2328; bugfix on 0.1.2.1-alpha. Bug found by doorss.
+- [tor-0.2.1.29] Correctly handle wrapping around to when we run out of virtual address space. Found by cypherpunks, bugfix on 0.2.0.5-alpha.
+- [tor-0.2.1.29] Introduce output size checks on all of our decryption functions.
+- updated language strings: 2731, 2732, 2733, 2734, 2735
+
+2011-01-22 AdvTor 0.2.0.3
+
+- corrected: if no router descriptors were downloaded, the function choose_good_middle_server() no longer makes a list with excluded routers (used by the circuit builder dialog when estimating new circuits)
+- if a single router is selected as exit, the system tray menu option associated with this router will be checked
+- the circuit builder dialog has been re-designed; nodes can be edited or added using 3 new dialogs for selecting entry nodes, exit nodes and for selecting middle nodes from the big list of all nodes; details about estimated/inserted nodes are shown as comments
+- when selecting a new exit, the selection is added to AdvTor's title before trying to use the selection to estimate new circuits
+- updated language strings: 2727, 2728, 2729, 2730
+
+2011-01-05 AdvTor 0.2.0.2
+
+- [tor-0.2.1.28] Fix a remotely exploitable bug that could be used to crash instances of Tor remotely by overflowing on the heap. Remote-code execution hasn't been confirmed, but can't be ruled out. Everyone should upgrade. Bugfix on the 0.1.1 series and later.
+- [tor-0.2.1.28] Change IP address and ports for gabelmoo (v3 directory authority).
+- geoip_c.h was updated with GeoIPCountryWhois.csv released on Januray 3th
+- corrected: AdvTor.dll did not disconnect the pipe after receiving a command from another instance of AdvTor.exe
+- corrected: when TrackHostExits or AddressMap were used, circuit length became CircuitPathLength+1
+- added: new options on exit node selection dialog: "close all existing connections" and "expire tracked hosts", which update a new configuration option "IdentityFlags" (both are enabled by default)
+- added plugin callback functions that can be used by plugins, and plugin API, as described in plugins.txt (by default, newly added plugins have the rights for all functions enabled)
+- new configuration dialog: "Plugins", which allows unloading / reloading / disabling plugins and changing plugin priorities and rights
+- plugins can host hidden services without the need to open any ports on local machine; an example of a hidden service plugin is included in the source code archive (HiddenMessage.dll)
+- the hidden service selection dialog allows selecting hidden services hosted by plugins, if any; a plugin can host different hidden services
+- added: new plugin Blacklist.dll, which allows banning blacklisted routers and rejecting requests for addresses that resolve to a blacklisted IP
+- the default value for FavoriteExitNodesPriority was changed from 100 to 50
+- the default value for EnforceDistinctSubnets was changed from 1 to 2 (now the default is to use nodes from different countries in the same circuit)
+- updated language strings: 2694, 2695, 2696, 2697, 2698, 2699, 2700, 2701, 2702, 2703, 2704, 2705, 2706, 2707, 2708, 2709, 2710, 2711, 2712, 2713, 2714, 2715, 2716, 2717, 2718, 2719, 2720, 2721, 2722, 2723, 2724, 2725, 2726
+
+2010-12-05 AdvTor v0.2.0.1
+
+- corrected: when a NotifyFilter string was edited manually, the string returned by WideCharToMultiByte was not terminated correctly
+- corrected: when no NotifyFilter strings were added, a null pointer was used with SetDlgItemTextL when initializing the "System" dialog
+- corrected: the dialog that asks for the private key of a hidden service did not show the last letter of the hidden service's name (thanks to cc for reporting this problem)
+- corrected: when adding a new hidden service, the virtual ports were overwritten when registering the new service (thanks to cc for reporting this problem)
+- corrected: the prototype of ShowOpenPorts was changed to allow the caller to specify a parent dialog window and the dialog that contains the edit boxes that need to be changed (thanks to cc for reporting this problem)
+- new option for intercepting processes: "Exclusive exit", which determines AdvTor to always use exit nodes that are different than the exits used by other processes, to make sure that same exit node cannot know what different processes opened by same user are doing (default is off)
+- each intercepted process has a new generated exclusivity key, which, if used, is inherited by child processes; a child process will use the exit nodes used by parent process if possible, or new exits that are not used by processes that have different exclusivity keys
+- a process that is not intercepted or that was intercepted without using the exclusivity key has a default exclusivity key which causes its newly chosen exits to exclude exits associated with other keys
+- if a process uses an exclusivity key and a single exit node is selected for all connections, that process will exclude selected exit node and use a different one
+- if a process uses an exclusivity key and a random exit node from a country is selected for all connections, that process will always use a node from that country that is not already used by processes with different exclusivity keys or it will fail to choose an exit node
+- if an exclusivity key is used, it will be shown in debug when a process is intercepted and when an intercepted process creates a new process
+- updated language strings: 0100, 2693
+
+2010-12-03 AdvTor v0.2.0.0
+
+- [tor-0.2.1.27] Resolve an incompatibility with OpenSSL 0.9.8p and OpenSSL 1.0.0b: No longer set the tlsext_host_name extension on server SSL objects; but continue to set it on client SSL objects. Our goal in setting it was to imitate a browser, not a vhosting server. Fixes bug 2204; bugfix on 0.2.1.1-alpha. (tortls.c)
+- [tor-0.2.1.27] Do not log messages to the controller while shrinking buffer freelists. Doing so would sometimes make the controller connection try to allocate a buffer chunk, which would mess up the internals of the freelist and cause an assertion failure. Fixes bug 1125; fixed by Robert Ransom. Bugfix on 0.2.0.16-alpha. (buffers.c)
+- [tor-0.2.1.27] Learn our external IP address when we're a relay or bridge, even if we set PublishServerDescriptor to 0. Bugfix on 0.2.0.3-alpha, where we introduced bridge relays that don't need to publish to be useful. Fixes bug 2050. (config.c)
+- [tor-0.2.1.27] Allow handshaking OR connections to take a full KeepalivePeriod seconds to handshake. Previously, we would close them after IDLE_OR_CONN_TIMEOUT (180) seconds, the same timeout as if they were open. Bugfix on 0.2.1.26; fixes bug 1840. Thanks to mingw-san for analysis help. (main.c)
+- [tor-0.2.1.27] When you're using bridges and your network goes away and your bridges get marked as down, recover when you attempt a new socks connection (if the network is back), rather than waiting up to an hour to try fetching new descriptors for your bridges. Bugfix on 0.2.0.3-alpha; fixes bug 1981. (circuitbuild.c)
+- [tor-0.2.1.27] Fix an assertion failure that could occur in directory caches or bridge users when using a very short voting interval on a testing network. Diagnosed by Robert Hogan. Fixes bug 1141; bugfix on 0.2.0.8-alpha. (networkstatus.c)
+- [tor-0.2.1.27] Enforce multiplicity rules when parsing annotations. Bugfix on 0.2.0.8-alpha. Found by piebeer. (routerparse.c)
+- [tor-0.2.1.27] Exit nodes didn't recognize EHOSTUNREACH as a plausible error code, and so sent back END_STREAM_REASON_MISC. Clients now recognize a new stream ending reason for this case: END_STREAM_REASON_NOROUTE. Servers can start sending this code when enough clients recognize it. Bugfix on 0.1.0.1-rc; fixes part of bug 1793. (or.h, reasons.c, relay.c)
+- [tor-0.2.1.27] Set up maatuska (run by Linus Nordberg) as the eighth v3 directory authority. (dlg_authorities.c)
+- corrected: the version of AdvTor.dll was not correctly verified
+- geoip_c.h was updated with GeoIPCountryWhois.csv released on November 2nd
+- AdvTor.dll now keeps a cache with connection information received from intercepted processes
+- if an intercepted program keeps its own DNS cache and the process is released then re-intercepted, a warning will be shown when a connection attempt is made for a fake IP given by a previous instance of AdvTor.dll
+- if a program already has established connections before intercepting it, AdvTor.dll will give the option to close existing connections after intercepting it
+- client-side HTTP header filtering has been improved; "proxy-connection" is converted to "connection"; "connection: keep-alive" is replaced with "Connection: Close"; the following headers are removed: "x-forwarded-for", "via", "from", "proxy*" and "keep-alive"
+- all settings from all pages from main dialog window were moved to separate child dialogs; to improve startup time, AdvTor will only create and initialize a child dialog window when there is a need to show it
+- all procedures from dlg.h, dlg_bridges.h, dlg_graph.h and dlg_lang.h were moved to separate files that have procedures for child dialog windows; the procedures for the main dialog were moved to dlg_main.c; the procedures for the "Proxy" dialog were moved to dlg_proxy.c; the procedures for the "Authorities" dialog were moved to dlg_authorities.c; the procedures for the "Router restrictions" dialog were moved to dlg_routerres.c; the procedures for the "Circuit build" dialog were moved to dlg_circuitbuild.c; the procedures for the "Connections" dialog were moved to dlg_connections.c; the procedures for the "Bypass ISP filtering" dialog were moved to dlg_bridges.c; the procedures for the "Hidden services" dialog were moved to dlg_hs.c; the procedures for the "System" dialog were moved to dlg_system.c; the procedures for the "Force TOR" dialog were moved to dlg_forcetor.c; the procedures for the "Become a Server" dialog were moved to dlg_server.c; the procedures for the "Network information" dialog were moved to dlg_netinfo.c; the procedures for the "Debug" dialog were moved to dlg_debug.c; the procedures for the "About" dialog were moved to dlg_about.c; the procedures for the "Select an Exit Node" dialog were moved to dlg_routers.c;
+- the main AdvTor window and all child dialogs can be resized, each child dialog has its own resize information (dlg_resize.c)
+- updated language strings: 0060, 2687, 2688, 2689, 2690, 2691, 2692
+
+2010-11-19 AdvTor v0.1.0.13
+
+- when the exit is changed from system tray menu or from the exit node selection dialog, a notification message will show the selection in debug window
+- all file operations now use absolute paths because on some systems GetOpenFileName changes the directory even with OFN_NOCHANGEDIR flag set
+- addresses of websites can also be banned by IP
+- favorite routers are now added to the "Select IP" system tray menu and if there are less than 30 IPs added, other routers are added that are not in banlist
+- new configuration option: FavoriteExitNodesPriority which is a percent and it is used when selecting a random exit node to decide if an exit node from favorites will be selected when StrictExitNodes is disabled (default is 100)
+- new option for favorite exit nodes on "Router restrictions" page: "Priority" which allows changing FavoriteExitNodesPriority
+- added: context menus for circuit tree from "Network information" page that allow closing connections, destroying circuits, banning websites by hostname or IP, banning nodes, adding nodes to favorites, etc.
+- updated language strings: 1248, 2672, 2673, 2674, 2675, 2676, 2677, 2678, 2679, 2680, 2681, 2682, 2683, 2684, 2685, 2686
+
+2010-11-17 AdvTor v0.1.0.12a
+
+- corrected: connections that are marked for close are no longer added to circuit tree on "Network information" page (thanks to RoLex for reporting this error)
+- bridges are now sorted by country and then by IP and duplicates are removed (requested by jo)
+
+2010-11-16 AdvTor v0.1.0.12
+
+- corrected: if the option to start Tor automatically was enabled, the state of "Start Tor" button was not set to BST_CHECKED (thanks to mamont for reporting this error)
+- corrected: the option "Start Tor" from system tray menu did not set the state of "Start Tor" button to BST_CHECKED
+- corrected: when showing opened ports in hidden service selection dialog, the function ShowOpenPorts() did not use the buffer it re-allocated
+- the procedures that handle operations for connection tree items no longer use stored pointers related to last selected item
+- when changing identity, all existing connections of types OR, AP and EXIT are marked for close
+- the constant MAX_UNUSED_OPEN_CIRCUITS is now a configuration variable MaxUnusedOpenCircuits (default is 12)
+- the configuration variable DisablePredictedCircuits was removed; a value of 0 for MaxUnusedOpenCircuits means that predicted circuits are disabled
+- the option "Ports for services that have long-running connections" was moved from "Circuit build" to "Connections"
+- new option on "Circuit build" page: "Maximum number of unused predicted open circuits"
+- new bootstrap status: BOOTSTRAP_STATUS_STARTED; if MaxUnusedOpenCircuits is 0, starting Tor will set bootstrap status to 100% because no predicted circuits need to be created
+- added: new option "Stop Tor" available on system tray menus when Tor is started
+- updated language strings: 2669, 2670, 2671
+
+2010-11-14 AdvTor v0.1.0.11
+
+- corrected: the function add_all_streams() did not initialize the buffer it allocated for the string added to connection tree on Network Information page
+- the button "Start Tor" is no longer disabled after starting Tor, it is now a checkbox; stopping Tor means entering hibernation mode (requested by cc)
+- if an .onion address is specified, AdvTor will search existing hidden services for its private key (requested by cc)
+- if no private key for an entered .onion address is found, AdvTor will prompt the user to enter one (requested by cc)
+- updated language strings: 2664, 2665, 2666, 2667, 2668
+
+2010-11-12 AdvTor v0.1.0.10
+
+- corrected: if acting on one of config options failed, all remaining options were ignored (thanks to fonsjko for reporting this error)
+- added: new option to dump statistics to debug/log available in context menus
+- added: new page "Network information" which contains information about circuits, processes that have their traffic redirected to OR network and bandwidth usage
+- added: new circuit builder dialog which allows building a circuit by specifying all nodes and/or to estimate a new good circuit path having specified length
+- updated language strings: 0059, 2534, 2556, 2557, 2558, 2559, 2560, 2561, 2562, 2563, 2564, 2565, 2566, 2567, 2568, 2569, 2570, 2571, 2572, 2573, 2574, 2575, 2576, 2577, 2578, 2579, 2580, 2581, 2582, 2583, 2584, 2585, 2586, 2587, 2588, 2589, 2590, 2591, 2592, 2593, 2594, 2595, 2596, 2597, 2598, 2599, 2600, 2601, 2602, 2603, 2604, 2605, 2606, 2607, 2608, 2609, 2610, 2611, 2612, 2613, 2614, 2615, 2616, 2617, 2618, 2619, 2620, 2621, 2622, 2623, 2624, 2625, 2626, 2627, 2628, 2629, 2630, 2631, 2632, 2633, 2634, 2635, 2636, 2637, 2638, 2639, 2640, 2641, 2642, 2643, 2644, 2645, 2646, 2647, 2648, 2649, 2650, 2651, 2652, 2653, 2654, 2655, 2656, 2657, 2658, 2659, 2660, 2661, 2662, 2663
+
+2010-11-02 AdvTor v0.1.0.9c
+
+- the function rend_client_get_random_intro() could had selected a banned router as introduction point to a hidden service
+- the function onion_pick_cpath_exit() will no longer warn but fail if a requested exit router if found in banlist
+- the procedure for clearing the debug edit window will also send EM_SETHANDLE when needed, to prevent drawing UNICODE \0 on some systems (tested with Windows XP SP2)
+
+2010-11-01 AdvTor v0.1.0.9b
+
+- corrected: if a banned node was requested as exit (using ".exit" suffix) it was used by AdvTor to connect to specified address (thanks to fonsjko for reporting this problem)
+- updated language strings: 2555
+
+2010-10-31 AdvTor v0.1.0.9a
+
+- the strings for hidden service port selection dialog can now be loaded from language files (thanks to mamont for reporting this problem)
+- updated language strings: 1248,2548,2549,2550,2551,2552,2553,2554
+
+2010-10-29 AdvTor v0.1.0.9
+
+- new page: "Bypass ISP filtering" with options related to bridges and proxies
+- the options "Use bridges", "Update bridges from authority" and "All directory actions are private" were moved to the "Bypass ISP filtering" page
+- empty definitions found in loaded language file(s) are replaced with default strings
+- Updated language strings: 0058,0124,0125,2536,2537,2538,2539,2540,2541,2542,2543,2544,2545,2546
+
+2010-10-26 AdvTor v0.1.0.8a
+
+- the procedure for showing messages in debug window has been optimized to reduce CPU usage if too many strings are shown in a short period of time (for example, when selecting log level to "[8] Debug")
+- if no text is selected in debug window, the context menu will no longer show the option to filter selected text
+
+2010-10-23 AdvTor v0.1.0.8
+
+- corrected: the option LongLivedPorts could not be re-enabled after disabling it (thanks to mamont for reporting this error)
+
+2010-10-20 AdvTor v0.1.0.8test5
+
+- corrected: AdvTor.dll did not use the string 2517 from language file
+- corrected: the words "bridge" and "hidden" from "Become a server" page are now loaded from language file (thanks to mamont for reporting this error)
+- the function updateDirStatus() now converts status strings from UTF-8 to UNICODE
+- language strings changed: 0198, 0199
+
+2010-10-18 AdvTor v0.1.0.8test4
+
+- context menus for debug window will also load strings from language files if needed
+- NotifyFilter strings are now saved to AdvTor.ini as UTF-8
+- message filtering procedure for debug window was adjusted to handle UTF-8 text
+- language file strings added / changed: 2530, 2531, 2532, 2533, 2534, 2535
+
+ 2010-10-14 AdvTor v0.1.0.8test3
+
+- corrected: progressLog() did not convert language strings from UTF-8 to UNICODE (thanks to mamont for reporting this error)
+- corrected: a language-dependent debug message from get_lang_str() caused crashes when "Debug" log level was selected (thanks to mamont for reporting this error)
+- on some systems EM_REPLACESEL is ANSI only; for UNICODE / UTF-8 language files, AdvTor will attempt to access the memory allocated for the Debug edit window directly if possible
+- added: new option to avoid using nodes from same countries in same circuit
+- the option EnforceDistinctSubnets was converted from BOOL to UINT; a value of 1 means that AdvTor will avoid using nodes from same subnets in same circuit; a value of 2 means that AdvTor will avoid using nodes from same countries in same circuit
+
+ 2010-10-09 AdvTor v0.1.0.8test1
+
+- corrected: when parsing router information, geoip_get_country_by_ip() was not called with a reversed IP
+- corrected: geoip_get_country_by_ip() was not always converting the result to DWORD
+- added: new option to use language files, supported formats: ANSI, UNICODE, UTF-8
+- new command line parameter: --verify-lng to verify if a language file has formatting errors
+- banlist has priority over favorites
+
+2010-09-28 AdvTor v0.1.0.7c
+
+- corrected: if a specific country was selected in exit node selection dialog, the user needed to click on an item from node selection list to ban it even when a node was already selected.
+- corrected: attempting to ban the entry "random country" / "random router" caused an invalid entry to be added to banlist
+- countries can now be added to favorites or to banlist (requested by mamont)
+
+2010-09-27 AdvTor v0.1.0.7b
+
+- corrected: method 0xE0 was searched in Socks5 request buffer after it was cleared
+- added: new command line parameter "--select-exit" (requested by mamont)
+
+2010-09-26 AdvTor v0.1.0.7a
+
+- corrected: when a program was intercepted with the option to change icons enabled, AdvTor.dll did not disable that option if the user disabled it from "Force TOR" page (thanks to RoLex for reporting this error)
+- removed the string "Shell_TrayWnd" because Avira bans programs that use it; AdvTor.dll now creates this string using 4 DWORDs because of this
+
+2010-09-25 AdvTor v0.1.0.7
+
+- corrected: the functions count_usable_descriptors() and update_consensus_router_descriptor_downloads() could expire consensus information even when the user selected the option to not connect to directory servers automatically
+- corrected: in WSAAsyncSelect procedure, wrong parameters for the macro user32PostMessage could cause a message to be posted with an invalid window handle
+- corrected: connection state was not set when an intercepted connection was using an entry from AdvTor.dll's cache
+- removed: the option DataDirectory is useless, all data is written to AdvTor.exe's directory, and all files are prefixed by AdvTor.exe's file name (if AdvTor.exe is not renamed, the prefix is "AdvTor")
+- if AdvTor.exe is renamed, also the window title will have its new name
+- the range for generated fake IPs was changed from 127.* to 255.*
+- added: new page: "Hidden services" with options related to hidden services
+- options for hidden services are no longer saved in separate directories; HiddenServiceDir was renamed to HiddenServiceKey and it is an integer value specifying a unique key for each hidden service
+- added: new option on "Force TOR" page: "Change program icon to indicate AdvTor.dll presence" - if this option is enabled when intercepting a program, top-level windows created by the target process will have their icons changed (requested by Hitt)
+- for system tray icon animation, if changing icons is enabled, AdvTor.dll also intercepts Shell_NotifyIcon from shell32.dll if it is loaded in target process
+- new command line parameter: "--start" to connect to Tor network on startup (requested by Meka][Meka and mamont)
+- new command line parameter: "--minimize" to minimize AdvTor window on startup (requested by mamont)
+- multiple QuickStart options with quoted menu items as values are accepted as command line parameters to run at startup applications associated with requested QuickStart menu items (requested by Meka][Meka and mamont)
+- a brief description of supported command-line parameters can be accessed with "AdvTor --help" or "AdvTor /?"
+- added: new Socks5 extension: SOCKS_COMMAND_SELECT_ROUTER; for more information see socks-extensions.txt (5.)
+
+2010-09-06 AdvTor v0.1.0.6
+
+- corrected: the pointer for PostMessage was not initialized when needed in other processes
+- corrected: second different resolved .onion address by same process could not be accessed if "Force TOR" was enabled
+- corrected: if the option to download network status manually was enabled, network status still expired
+- corrected: if another instance of AdvTor was running from a different directory with the same name, AdvTor failed to create the pipe needed to communicate with intercepted processes
+- corrected: problems with Delphi libraries when AdvTor was resolving addresses to fake IPs (thanks to RoLex for reporting these problems)
+- corrected: high CPU usage when AdvTor could not create a pipe
+- AdvTor.dll also intercepts WinExec and it converts calls to WinExec to calls to CreateProcessA (WinExec would call CreateProcessInternalA instead of CreateProcessA)
+- AdvTor.dll now has a DNS cache; default expiration time for an entry that has a resolved IP is 120 seconds
+- removed: the option "Detect ASLR" - ASLR will always be handled by AdvTor.dll
+- if "no exit" is selected, no warnings will be shown about failure to select a good exit server
+- new configuration option: ForceFlags - used to specify the default options for faking local time, address IPs and for disallowing non-TCP sockets
+- new option: "Run" available on "Force TOR" page that allows starting a process protected by AdvTor
+- new option: "Resolve only to fake IPs" available on "Force TOR" page, which if enabled, returns an IP within range 127.16.* for all resolve requests instead of sending them to OR network; cache entries that have 127.16.* as IPs don't expire as long as resolving to fake IPs is enabled
+- new option: "Disallow non TCP sockets" available on "Force TOR" page, to protect against leaking the real IP through other protocols
+- new menu: "Quick start" available on "Force TOR" page and on system tray menu that allows starting applications protected by AdvTor with different settings for each favorite process (requested by Meka][Meka)
+- new configuration option: CircuitPathLength, also added to GUI on "Router restrictions" page - currently the maximum circuit length can be 10 routers, default is 3
+
+2010-08-28 AdvTor v0.1.0.5
+
+- corrected: if LoadLibrary failed in target process, it was still shown as intercepted
+- corrected: when unloading the AdvTor.dll, UnloadDLL did not wait for PipeThread to finish
+- corrected: high CPU usage if no running exit nodes were found (thanks to RoLex for reporting this problem)
+- corrected: system tray menus were not closed when the user clicked outside them
+- corrected: AdvTor.dll did not always close handles of remote threads
+- corrected: AdvTor.dll did not always free the memory it allocated in other processes
+- corrected: AdvTor.dll did not intercept process creation functions if the option to fake local time was disabled
+- corrected: intercepted processes that were not updated in GUI were not released when AdvTor exited
+- corrected: intercepting functions in suspended processes sometimes failed
+- corrected: AdvTor.dll could re-hook same procedure twice if a previous instance was terminated from task manager
+- corrected: AdvTor.exe will no longer attempt to intercept itself if the user selects it from process list (thanks to RoLex for reporting this error)
+- if no running exit nodes can be found for selected country, the notification message is shown only once, until a good exit node is found (thanks to RoLex for reporting this problem)
+- the confusing message "attempt to bypass proxy settings" is replaced with "redirecting connection from address" (thanks to Meka][Meka for reporting this problem)
+- system tray menu has a new submenu "Release" with all intercepted processes to allow unloading AdvTor.dll from them
+- AdvTor.dll now shows more information about interception failures
+- AdvTor.dll no longer loads user32.dll in intercepted processes
+- AdvTor.dll also intercepts functions gethostbyname, WSAAsyncGetHostByName, gethostbyaddr, WSAAsyncGetHostByAddr (Windows 2000+), getnameinfo, GetNameInfoW, getaddrinfo, GetAddrInfoW (Windows XP SP2+) (thanks to RoLex for helping with tests)
+- programs that are intercepted by AdvTor will have all DNS queries and reverse DNS queries resolved by OR network
+- programs that are intercepted can access .onion addresses, AdvTor.dll will resolve them to an IP within range 127.16.* (localhost) and will keep a cache with geneated IPs and corresponding .onion addresses to use in connection requests
+- process tree also shows PID values when selecting a window
+- when AdvTor.dll sends a notification about an intercepted process that doesn't respect proxy settings, it also shows the PID for that process (requested by RoLex)
+- the lists with exit nodes will also have an entry "no exit", for those who want only to see where an intercepted program would connect, but without allowing it to connect or to send anything
+- added verification for "localhost" so an intercepted process won't try to use OR network to resolve it (Opera resolves "localhost" every time you save a file)
+- added verification for "wpad" to prevent vulnerable applications from using OR network to resolve it (Chrome, IE, Yahoo Messenger, etc.)
+
+2010-08-21 AdvTor v0.1.0.4
+
+- GeoIP information is included as a pre-compiled search tree, GeoIP lookup functions are written in asm; also, a conversion program is included to convert a downloaded GeoIPCountryWhois.csv to geoip_c.h (csv2asm)
+- AdvTor now also intercepts CreateProcessAsUser from advapi32.dll
+- context menu from debug window has more options related to selected text if an address is found in it: track exit for selected_host (config option: TrackHostExits), remember/forget exit for selected_host (config option: AddressMap)
+- debug messages shown by AdvTor.dll have different severity levels
+- current exit node is shown in title bar
+- added a DialogBox for selecting a specific exit node or a country from which a random exit node will be chosen (accessible from "New identity" or from systray menu option "Advanced")
+- added a "Process Finder" DialogBox to help selecting a process by selecting a window it created
+- system tray menu has a list with 30 usable exit nodes
+- AdvTor verifies the minimum required version of AdvTor.dll (version 0.1.0.4 requires AdvTor.dll 0.1.0.4)
+
+2010-08-10 AdvTor v0.1.0.3
+
+- corrected: if Auto-Refresh was disabled, initialization progress was no longer shown
+- corrected: if Auto-Refresh was disabled, all log messages were shown as popup MessageBox'es
+- corrected: ASLR detection problems in Windows 2003 (thanks to RoLex for helping with tests)
+- corrected: the nickname was reset to local computer name if server options were changed (thanks to The Architect for reporting this error)
+- AdvTor can now force programs that use asynchronous sockets to use Tor
+- AdvTor also intercepts process creation functions, to set proxy restrictions on child processes created by a restricted process
+- if AdvTor.exe is renamed, AdvTor.dll must also be renamed
+
+2010-07-31 AdvTor v0.1.0.2
+- files were updated with changes relative to changelog for tor-0.2.1.26
+- updated libraries: libevent-1.4.14b-stable, openssl-1.0.0a, zlib-1.2.5
+- new page "Authorities" added for settings related to Directory Authorities
+- lock file functions were removed in favour of WIN32 mutex objects
+- the files "torrc" and "state" were merged as [torrc] and [state] sections of AdvTor.ini which is saved as a standard .ini file located in AdvTor's directory
+- all saved files have the prefix of AdvTor's executable name
+- changing file name of AdvTor.exe will cause it to change the names of all saved files (multiple different versions of AdvTor can exist in same directory, with different names).
+- new option added "LocalHost" that will be used by intercepted programs to resolve local IP address
+- added: new option for advertised OS: "<< Random >>" which will select a random OS at startup from a list with most frequently used ones
+- added: new option for advertised Tor version: "<< Auto >>" which will select a random recommended Tor version from the list received from authorities
+
+2009-05-21 AdvTor v0.1.0.1
+
+- AdvTor.dll can show the process name and the module that attempts to bypass proxy settings if "Force Tor" is enabled
+- AdvTor.dll supports more operating systems, including Vista
+- AdvTor.dll can also force system services to use Tor
+- added new page: "Become a Server", with options related to sharing bandwidth to help OR network
+- exit policies are split in 2 policy groups, "Accept only" and "Banned IPs / ports"
+
+2009-04-17 AdvTor v0.1.0.0
+
+Changes relative to Tor 0.2.1.13-alpha
+- all Tor related files are no longer hidden in "application data", they are located in AdvTor's install directory
+- Tor no longer creates a console window for status messages, it has a GUI, settings can be changed in real time without the need to restart the program
+- firewall rule groups "FirewallPorts", "ReachableORAddresses", "ReachableDirAddresses" and "ReachableAddresses" have been merged as "ReachableAddresses"
+- there is no longer any need for an external program to convert HTTP proxy traffic to Socks4/5 traffic, TOR also handles HTTP/HTTPS proxy requests on the Socks4/5 port
+- added: new log level "Proxy" that allows viewing in real time all connection/resolve attempts made by clients / browsers that use the TOR proxy
+- added: support for banlist for websites when using AdvTor as proxy
+- added: new option: "Force TOR" for processes, that injects AdvTor.dll in another process to hook Winsock calls and redirect them to AdvTor's proxy
