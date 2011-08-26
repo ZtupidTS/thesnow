@@ -1,0 +1,3 @@
+LIBRARY	"CloseMuTex"
+EXPORTS
+CloseMuTex			@1
