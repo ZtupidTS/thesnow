@@ -1,0 +1,17 @@
+EXPORTS
+  SetCompressionThreads
+  Set_compress_all_at_once
+  UpdateCRC
+  CalcCRC
+  lzma_compress
+  lzma_decompress
+  ppmd_compress2
+  ppmd_decompress2
+  grzip_compress
+  grzip_decompress
+  lzp_compress
+  lzp_decompress
+  dict_compress
+  dict_decompress
+  rep_compress
+  rep_decompress
