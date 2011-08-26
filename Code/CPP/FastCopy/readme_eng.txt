@@ -1,5 +1,5 @@
 ======================================================================
-                   FastCopy  ver2.06                   2010/11/16
+                   FastCopy  ver2.08                   2011/02/28
                                                  SHIROUZU Hiroaki
 ======================================================================
 
@@ -15,7 +15,7 @@
 
 License:
 	---------------------------------------------------------------
-	 Copyright 2004-2010 SHIROUZU Hiroaki All rights reserved.
+	 Copyright 2004-2011 SHIROUZU Hiroaki All rights reserved.
 
 	Redistribution and use in source and binary forms, with or
 	without modification, are permitted provided that the following

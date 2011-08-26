@@ -26,14 +26,16 @@
 #else
 #define FASTCOPY_TITLE		"FastCopy"
 #endif
-
 #define FASTCOPY_CLASS		"fastcopy_class"
-#define WM_FASTCOPY_MSG		(WM_USER + 100)
-#define WM_FASTCOPY_NOTIFY	(WM_USER + 101)
-#define WM_FASTCOPY_HIDDEN	(WM_USER + 102)
-#define WM_FASTCOPY_RUNAS	(WM_USER + 103)
-#define WM_FASTCOPY_STATUS	(WM_USER + 104)
-#define WM_FASTCOPY_KEY		(WM_USER + 105)
+
+#define WM_FASTCOPY_MSG				(WM_USER + 100)
+#define WM_FASTCOPY_NOTIFY			(WM_USER + 101)
+#define WM_FASTCOPY_HIDDEN			(WM_USER + 102)
+#define WM_FASTCOPY_RUNAS			(WM_USER + 103)
+#define WM_FASTCOPY_STATUS			(WM_USER + 104)
+#define WM_FASTCOPY_KEY				(WM_USER + 105)
+#define WM_FASTCOPY_PATHHISTCLEAR	(WM_USER + 106)
+#define WM_FASTCOPY_FILTERHISTCLEAR	(WM_USER + 107)
 
 #define FASTCOPY_TIMER		100
 #define FASTCOPY_NIM_ID		100
@@ -236,6 +238,7 @@ public:
 	virtual BOOL	EventInitMenu(UINT uMsg, HMENU hMenu, UINT uPos, BOOL fSystemMenu);
 	virtual BOOL	EventActivateApp(BOOL fActivate, DWORD dwThreadID);
 	virtual BOOL	EventUser(UINT uMsg, WPARAM wParam, LPARAM lParam);
+	virtual BOOL	EventSystem(UINT uMsg, WPARAM wParam, LPARAM lParam);
 	virtual void	Show(int mode = SW_SHOWDEFAULT);
 
 	BOOL	RunAsAdmin(DWORD flg = 0);
@@ -254,9 +257,10 @@ public:
 	_int64	GetDateInfo(void *buf, BOOL is_end);
 	_int64	GetSizeInfo(void *buf);
 	BOOL	SetInfo(BOOL is_task_tray=FALSE, BOOL is_finish_status=FALSE);
-	void	SetComboBox(int item, void **history, BOOL set_edit);
-	void	SetPathHistory(BOOL set_edit);
-	void	SetFilterHistory(BOOL set_edit);
+	enum	SetHistMode { SETHIST_LIST, SETHIST_EDIT, SETHIST_CLEAR };
+	void	SetComboBox(UINT item, void **history, SetHistMode mode);
+	void	SetPathHistory(SetHistMode mode, UINT item=0);
+	void	SetFilterHistory(SetHistMode mode, UINT item=0);
 	BOOL	TaskTray(int nimMode, HICON hSetIcon=NULL, LPCSTR tip=NULL);
 	CopyInfo *GetCopyInfo() { return copyInfo; }
 	void	SetFinAct(int idx);

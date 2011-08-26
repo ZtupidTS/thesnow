@@ -1,4 +1,4 @@
-static char *tap32u8_id = 
+ï»¿static char *tap32u8_id = 
 	"@(#)Copyright (C) 1996-2010 H.Shirouzu		tap32u8.cpp	Ver0.99";
 /* ========================================================================
 	Project  Name			: Win32 Lightweight  Class Library Test
@@ -13,7 +13,6 @@ static char *tap32u8_id =
 #include "tapi32u8.h"
 
 #include <stdio.h>
-#include <mbstring.h>
 #include <stdlib.h>
 #include <stddef.h>
 
@@ -275,8 +274,8 @@ BOOL GetSaveFileNameU8(LPOPENFILENAME ofn)
 }
 
 /*
-	ƒŠƒ“ƒN‚Ì‰ðŒˆ
-	‚ ‚ç‚©‚¶‚ßACoInitialize(NULL); ‚ðŽÀs‚µ‚Ä‚¨‚­‚±‚Æ
+	ãƒªãƒ³ã‚¯ã®è§£æ±º
+	ã‚ã‚‰ã‹ã˜ã‚ã€CoInitialize(NULL); ã‚’å®Ÿè¡Œã—ã¦ãŠãã“ã¨
 */
 BOOL ReadLinkU8(LPCSTR src, LPSTR dest, LPSTR arg)
 {
@@ -308,6 +307,12 @@ BOOL ReadLinkU8(LPCSTR src, LPSTR dest, LPSTR arg)
 	return	ret;
 }
 
+
+BOOL PlaySoundU8(const char *path, HMODULE hmod, DWORD flg)
+{
+	Wstr	path_w(path);
+	return	::PlaySoundW(path_w, hmod, flg);
+}
 
 /*=========================================================================
 	Win32(W) API UTF8 wrapper
@@ -366,7 +371,7 @@ LPSTR GetLoadStrU8(UINT resId, HINSTANCE hI)
 }
 
 /*=========================================================================
-	UCS2(W) - UTF-8(U8) - ANSI(A) ‘ŠŒÝ•ÏŠ·
+	UCS2(W) - UTF-8(U8) - ANSI(A) ç›¸äº’å¤‰æ›
 =========================================================================*/
 WCHAR *U8toW(const char *src, BOOL noStatic) {
 	static	WCHAR	*_wbuf = NULL;
@@ -381,7 +386,7 @@ WCHAR *U8toW(const char *src, BOOL noStatic) {
 
 	int		len;
 	if ((len = U8toW(src, NULL, 0)) > 0) {
-		wbuf = new WCHAR [len];
+		wbuf = new WCHAR [len + 1];
 		U8toW(src, wbuf, len);
 	}
 	return	wbuf;
@@ -400,7 +405,7 @@ char *WtoU8(const WCHAR *src, BOOL noStatic) {
 
 	int		len;
 	if ((len = WtoU8(src, NULL, 0)) > 0) {
-		buf = new char [len];
+		buf = new char [len + 1];
 		WtoU8(src, buf, len);
 	}
 	return	buf;
@@ -419,7 +424,7 @@ char *WtoA(const WCHAR *src, BOOL noStatic) {
 
 	int		len;
 	if ((len = WtoA(src, NULL, 0)) > 0) {
-		buf = new char [len];
+		buf = new char [len + 1];
 		WtoA(src, buf, len);
 	}
 	return	buf;
@@ -429,28 +434,28 @@ char *toA(const void *src, BOOL noStatic) {
 	if (IS_WINNT_V) {
 		return	WtoA((WCHAR *)src, noStatic);
 	}
-	return	(char *)(noStatic ? strdupV(src) : src);
+	return	noStatic ? strdupNew((char *)src) : (char *)src;
 }
 
 WCHAR *toW(const void *src, BOOL noStatic) {
 	if (!IS_WINNT_V) {
 		return	AtoW((char *)src, noStatic);
 	}
-	return	(WCHAR *)(noStatic ? strdupV(src) : src);
+	return	noStatic ? wcsdupNew((WCHAR *)src) : (WCHAR *)src;
 }
 
 void *toV(const char *src, BOOL noStatic) {
 	if (IS_WINNT_V) {
 		return	AtoW(src, noStatic);
 	}
-	return	noStatic ? strdupV(src) : (void *)src;
+	return	noStatic ? strdupNew(src) : (char *)src;
 }
 
 void *toV(const WCHAR *src, BOOL noStatic) {
 	if (!IS_WINNT_V) {
 		return	WtoA(src, noStatic);
 	}
-	return	noStatic ? strdupV(src) : (void *)src;
+	return	noStatic ? wcsdupNew(src) : (void *)src;
 }
 
 char *AtoU8(const char *src, BOOL noStatic) {

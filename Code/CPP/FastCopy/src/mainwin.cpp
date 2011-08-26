@@ -1,9 +1,9 @@
 ﻿static char *mainwin_id = 
-	"@(#)Copyright (C) 2004-2010 H.Shirouzu		mainwin.cpp	ver2.06";
+	"@(#)Copyright (C) 2004-2011 H.Shirouzu		mainwin.cpp	ver2.07";
 /* ========================================================================
 	Project  Name			: Fast/Force copy file and directory
 	Create					: 2004-09-15(Wed)
-	Update					: 2010-11-16(Tue)
+	Update					: 2011-02-21(Mon)
 	Copyright				: H.Shirouzu
 	Reference				: 
 	======================================================================== */
@@ -152,52 +152,61 @@ TMainDlg::~TMainDlg()
 {
 }
 
-void TMainDlg::SetPathHistory(BOOL set_edit)
+void TMainDlg::SetPathHistory(SetHistMode mode, UINT item)
 {
 	if (GetCopyMode() == FastCopy::DELETE_MODE) {
-		SetComboBox(SRC_COMBO, cfg.delPathHistory, set_edit);
+		if (!item || item == SRC_COMBO) SetComboBox(SRC_COMBO, cfg.delPathHistory, mode);
 	}
 	else {
-		SetComboBox(SRC_COMBO, cfg.srcPathHistory, set_edit);
-		SetComboBox(DST_COMBO, cfg.dstPathHistory, set_edit);
+		if (!item || item == SRC_COMBO) SetComboBox(SRC_COMBO, cfg.srcPathHistory, mode);
+		if (!item || item == DST_COMBO) SetComboBox(DST_COMBO, cfg.dstPathHistory, mode);
 	}
 }
 
-void TMainDlg::SetFilterHistory(BOOL set_edit)
+void TMainDlg::SetFilterHistory(SetHistMode mode, UINT item)
 {
-	SetComboBox(INCLUDE_COMBO,  cfg.includeHistory,  set_edit);
-	SetComboBox(EXCLUDE_COMBO,  cfg.excludeHistory,  set_edit);
-	SetComboBox(FROMDATE_COMBO, cfg.fromDateHistory, set_edit);
-	SetComboBox(TODATE_COMBO,   cfg.toDateHistory,   set_edit);
-	SetComboBox(MINSIZE_COMBO,  cfg.minSizeHistory,  set_edit);
-	SetComboBox(MAXSIZE_COMBO,  cfg.maxSizeHistory,  set_edit);
+	if (!item || item == INCLUDE_COMBO)  SetComboBox(INCLUDE_COMBO,  cfg.includeHistory,  mode);
+	if (!item || item == EXCLUDE_COMBO)  SetComboBox(EXCLUDE_COMBO,  cfg.excludeHistory,  mode);
+	if (!item || item == FROMDATE_COMBO) SetComboBox(FROMDATE_COMBO, cfg.fromDateHistory, mode);
+	if (!item || item == TODATE_COMBO)   SetComboBox(TODATE_COMBO,   cfg.toDateHistory,   mode);
+	if (!item || item == MINSIZE_COMBO)  SetComboBox(MINSIZE_COMBO,  cfg.minSizeHistory,  mode);
+	if (!item || item == MAXSIZE_COMBO)  SetComboBox(MAXSIZE_COMBO,  cfg.maxSizeHistory,  mode);
 }
 
-void TMainDlg::SetComboBox(int item, void **history, BOOL set_edit)
+void TMainDlg::SetComboBox(UINT item, void **history, SetHistMode mode)
 {
 	DWORD	len = 0;
 	WCHAR	*wbuf = NULL;
 
-	if (!set_edit) {
+	// backup editbox
+	if (mode == SETHIST_LIST || mode == SETHIST_CLEAR) {
 		len = ::GetWindowTextLengthV(GetDlgItem(item));
 		wbuf = new WCHAR [len + 1];
 		if (GetDlgItemTextV(item, wbuf, len + 1) != len)
 			return;
 	}
 
+	// clear listbox & editbox
 	SendDlgItemMessage(item, CB_RESETCONTENT, 0, 0);
 
-	for (int i=0; i < cfg.maxHistory; i++) {
-		if (GetChar(history[i], 0))
-			SendDlgItemMessageV(item, CB_INSERTSTRING, i, (LPARAM)history[i]);
-	}
-	if (!set_edit) {
-		if (!SetDlgItemTextV(item, wbuf)) {
-			SendDlgItemMessage(item, CB_RESETCONTENT, 0, 0);
+	// set listbox
+	if (mode == SETHIST_LIST) {
+		for (int i=0; i < cfg.maxHistory; i++) {
+			if (GetChar(history[i], 0))
+				SendDlgItemMessageV(item, CB_INSERTSTRING, i, (LPARAM)history[i]);
 		}
 	}
-	else if (cfg.maxHistory > 0 /* && ::IsWindowEnabled(GetDlgItem(item) */)
-		SetDlgItemTextV(item, history[0]);
+
+	// set editbox
+	if (mode == SETHIST_EDIT) {
+		if (cfg.maxHistory > 0 /* && ::IsWindowEnabled(GetDlgItem(item) */)
+			SetDlgItemTextV(item, history[0]);
+	}
+
+	// restore editbox
+	if (mode == SETHIST_LIST || mode == SETHIST_CLEAR) {
+		SetDlgItemTextV(item, wbuf);
+	}
 
 	delete [] wbuf;
 }
@@ -468,8 +477,8 @@ BOOL TMainDlg::EvCreate(LPARAM lParam)
 	errEdit.AttachWnd(GetDlgItem(ERR_EDIT));
 
 	// 履歴セット
-	SetPathHistory(TRUE);
-	SetFilterHistory(FALSE);
+	SetPathHistory(SETHIST_EDIT);
+//	SetFilterHistory(SETHIST_LIST);
 
 	RECT	path_rect, err_rect;
 	GetWindowRect(&rect);
@@ -666,6 +675,26 @@ BOOL TMainDlg::EvCommand(WORD wNotifyCode, WORD wID, LPARAM hwndCtl)
 		}
 		return	TRUE;
 
+	case SRC_COMBO: case DST_COMBO:
+		if (wNotifyCode == CBN_DROPDOWN) {
+			SetPathHistory(SETHIST_LIST, wID);
+		}
+		else if (wNotifyCode == CBN_CLOSEUP) {
+			PostMessage(WM_FASTCOPY_PATHHISTCLEAR, wID, 0);
+		}
+		return	TRUE;
+
+	case INCLUDE_COMBO:  case EXCLUDE_COMBO:
+	case FROMDATE_COMBO: case TODATE_COMBO:
+	case MINSIZE_COMBO:  case MAXSIZE_COMBO:
+		if (wNotifyCode == CBN_DROPDOWN) {
+			SetFilterHistory(SETHIST_LIST, wID);
+		}
+		else if (wNotifyCode == CBN_CLOSEUP) {
+			PostMessage(WM_FASTCOPY_FILTERHISTCLEAR, wID, 0);
+		}
+		return	TRUE;
+
 	case IDCANCEL: case CLOSE_MENUITEM:
 		if (!fastCopy.IsStarting()) {
 			EndDialog(wID);
@@ -687,7 +716,8 @@ BOOL TMainDlg::EvCommand(WORD wNotifyCode, WORD wID, LPARAM hwndCtl)
 		return	TRUE;
 
 	case SRC_FILE_BUTTON:
-		BrowseDirDlgV(this, SRC_COMBO, GetLoadStrV(IDS_SRC_SELECT), BRDIR_VQUOTE|BRDIR_FILESELECT);
+		BrowseDirDlgV(this, SRC_COMBO, GetLoadStrV(IDS_SRC_SELECT),
+						BRDIR_MULTIPATH|BRDIR_CTRLADD|BRDIR_FILESELECT);
 		return	TRUE;
 
 	case DST_FILE_BUTTON:
@@ -1435,11 +1465,12 @@ BOOL TMainDlg::ExecCopy(DWORD exec_flags)
 	}
 
 	if (ret) {
-		if (is_delete_mode ? cfg.EntryDelPathHistory(src) : cfg.EntryPathHistory(src, dst))
-			SetPathHistory(FALSE);
+		if (is_delete_mode ? cfg.EntryDelPathHistory(src) : cfg.EntryPathHistory(src, dst)) {
+		//	SetPathHistory(SETHIST_LIST);
+		}
 		if (is_filter) {
 			cfg.EntryFilterHistory(inc, exc, from_date, to_date, min_size, max_size);
-			SetFilterHistory(FALSE);
+		//	SetFilterHistory(SETHIST_LIST);
 		}
 		cfg.WriteIni();
 	}
@@ -1583,15 +1614,16 @@ BOOL TMainDlg::EndCopy(void)
 								&& (!is_starting || (ti.total.errFiles == 0 &&
 									ti.total.errDirs == 0 && errBufOffset == 0));
 
-	if (is_starting && !IsListing() && !isAbort) {
-		ExecFinalAction(is_auto_close);
+	if (!IsListing()) {
+		if (is_starting && !isAbort) {
+			ExecFinalAction(is_auto_close);
+		}
+		if (is_auto_close) {
+			PostMessage(WM_CLOSE, 0, 0);
+		}
+		autoCloseLevel = NO_CLOSE;
+		isShellExt = FALSE;
 	}
-
-	if (is_auto_close) {
-		PostMessage(WM_CLOSE, 0, 0);
-	}
-	autoCloseLevel = NO_CLOSE;
-	isShellExt = FALSE;
 	RefreshWindow(TRUE);
 	UpdateMenu();
 	CheckVerifyExtension();
@@ -1864,6 +1896,14 @@ BOOL TMainDlg::EventUser(UINT uMsg, WPARAM wParam, LPARAM lParam)
 		CheckVerifyExtension();
 		return	TRUE;
 
+	case WM_FASTCOPY_PATHHISTCLEAR:
+		SetPathHistory(SETHIST_CLEAR, (UINT)wParam);
+		return	TRUE;
+
+	case WM_FASTCOPY_FILTERHISTCLEAR:
+		SetFilterHistory(SETHIST_CLEAR, (UINT)wParam);
+		return	TRUE;
+
 	default:
 		if (uMsg == TaskBarCreateMsg)
 		{
@@ -1873,6 +1913,11 @@ BOOL TMainDlg::EventUser(UINT uMsg, WPARAM wParam, LPARAM lParam)
 			return	TRUE;
 		}
 	}
+	return	FALSE;
+}
+
+BOOL TMainDlg::EventSystem(UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
 	return	FALSE;
 }
 
@@ -2110,7 +2155,7 @@ BOOL TMainDlg::CommandLineExecV(int argc, void **argv)
 	BOOL	is_openwin			= FALSE;
 	BOOL	is_noexec			= FALSE;
 	BOOL	is_delete			= FALSE;
-	BOOL	is_estimate			= FALSE;
+	BOOL	is_estimate			= cfg.estimateMode;
 	DWORD	runas_flg			= 0;
 	int		filter_mode			= 0;
 	enum	{ NORMAL_FILTER=0x01, EXTEND_FILTER=0x02 };
@@ -2444,7 +2489,7 @@ BOOL TMainDlg::CommandLineExecV(int argc, void **argv)
 			UpdateMenu();
 
 		if (!is_delete && (is_estimate ||
-				!isShellExt && !is_noexec && cfg.estimateMode && !is_estimate))
+				!isShellExt && !is_noexec && cfg.estimateMode != is_estimate))
 			CheckDlgButton(ESTIMATE_CHECK, is_estimate);
 	}
 
@@ -3038,7 +3083,7 @@ void TMainDlg::SetItemEnable(BOOL is_delete)
 	::ShowWindow(GetDlgItem(STREAM_CHECK), is_delete ? SW_HIDE : SW_SHOW);
 	::ShowWindow(GetDlgItem(OWDEL_CHECK), is_delete ? SW_SHOW : SW_HIDE);
 
-	SetPathHistory(FALSE);
+//	SetPathHistory(SETHIST_LIST);
 
 	ReflectFilterCheck();
 }

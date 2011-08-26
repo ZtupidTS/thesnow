@@ -99,7 +99,7 @@ LRESULT TWin::WinProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 	case WM_NCDESTROY:
 		GetWindowRect(&rect);
-		if (EvNcDestroy() == FALSE)	// hWndを0にする前に呼び出す
+		if (!EvNcDestroy())	// hWndを0にする前に呼び出す
 			DefWindowProc(uMsg, wParam, lParam);
 		done = TRUE;
 		TApp::GetApp()->DelWin(this);
@@ -303,7 +303,7 @@ BOOL TWin::Sleep(UINT mSec)
 	if (mSec == 0 || sleepBusy)
 		return	TRUE;
 
-	if (::SetTimer(hWnd, TLIB_SLEEPTIMER, mSec, 0) == FALSE)
+	if (!::SetTimer(hWnd, TLIB_SLEEPTIMER, mSec, 0))
 		return	FALSE;
 	sleepBusy = TRUE;
 

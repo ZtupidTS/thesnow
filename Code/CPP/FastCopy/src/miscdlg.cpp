@@ -630,18 +630,20 @@ BOOL BrowseDirDlgV(TWin *parentWin, UINT editCtl, void *title, int flg)
 	if (SHBrowseForFolderV == NULL || SHGetPathFromIDListV == NULL)	// old version NT kernel.
 		return	FALSE;
 
-	WCHAR	fileBuf[MAX_PATH_EX] = L"", buf[MAX_PATH_EX] = L"";
-	BOOL	ret = FALSE;
-	void	*c_root_v = IS_WINNT_V ? (void *)L"C:\\" : (void *)"C:\\";
+	WCHAR		fileBuf[MAX_PATH_EX] = L"", buf[MAX_PATH_EX] = L"";
+	BOOL		ret = FALSE;
+	void		*c_root_v = IS_WINNT_V ? (void *)L"C:\\" : (void *)"C:\\";
+	PathArray	pathArray;
 
 	parentWin->GetDlgItemTextV(editCtl, fileBuf, MAX_PATH_EX);
-	if (GetChar(fileBuf, 0)) {
-		void	*tok, *p;
-		if ((flg & BRDIR_VQUOTE) && (tok = strtok_pathV(fileBuf, SEMICOLON_V, &p)))
-			strcpyV(fileBuf, tok);
+	pathArray.RegisterMultiPath(fileBuf);
+
+	if (pathArray.Num() > 0) {
+		strcpyV(fileBuf, pathArray.Path(0));
 	}
-	if (GetChar(fileBuf, 0) == 0)
+	else {
 		strcpyV(fileBuf, c_root_v);
+	}
 
 	DirFileMode mode = DIRSELECT;
 	TBrowseDirDlgV	dirDlg(title, fileBuf, flg, parentWin);
@@ -655,9 +657,13 @@ BOOL BrowseDirDlgV(TWin *parentWin, UINT editCtl, void *title, int flg)
 					MakePathV(buf, fileBuf, EMPTY_STR_V);
 					strcpyV(fileBuf, buf);
 				}
-				if ((flg & BRDIR_QUOTE) || (flg & BRDIR_VQUOTE) && lstrchrV(fileBuf, ';')) {
-					sprintfV(buf, FMT_QUOTE_STR_V, fileBuf);
-					strcpyV(fileBuf, buf);
+				if (flg & BRDIR_MULTIPATH) {
+					if ((flg & BRDIR_CTRLADD) == 0 ||
+						(::GetAsyncKeyState(VK_CONTROL) & 0x8000) == 0) {
+						pathArray.Init();
+					}
+					pathArray.RegisterPath(fileBuf);
+					pathArray.GetMultiPath(fileBuf, MAX_PATH_EX);
 				}
 				::SetDlgItemTextV(parentWin->hWnd, editCtl, fileBuf);
 				ret = TRUE;
@@ -935,23 +941,26 @@ BOOL TOpenFileDlg::Exec(UINT editCtl, void *title, void *filter, void *defaultDi
 	if (parent == NULL)
 		return FALSE;
 
+	parent->GetDlgItemTextV(editCtl, buf, MAX_OFNBUF);
+	pathArray.RegisterMultiPath(buf);
+
 	if (init_data) {
 		strcpyV(buf, init_data);
 	}
-	else {
-		parent->GetDlgItemTextV(editCtl, buf, MAX_OFNBUF);
-	}
-	if (pathArray.RegisterMultiPath(buf) >= 1) {
+	else if (pathArray.Num() > 0) {
 		strcpyV(buf, pathArray.Path(0));
-		pathArray.Init();
 	}
 
 	if (Exec(buf, title, filter, defaultDir) == FALSE)
 		return	FALSE;
 
+	if ((::GetAsyncKeyState(VK_CONTROL) & 0x8000) == 0) {
+		pathArray.Init();
+	}
+
 	if (defaultDir) {
 		int			dir_len = strlenV(defaultDir), offset = dir_len + 1;
-		if (GetChar(buf, offset)) {
+		if (GetChar(buf, offset)) {  // 複数ファイル
 			if (GetChar(buf, strlenV(buf) -1) != '\\')	// ドライブルートのみ例外
 				SetChar(buf, dir_len++, '\\');
 			for (; GetChar(buf, offset); offset++) {
@@ -965,6 +974,8 @@ BOOL TOpenFileDlg::Exec(UINT editCtl, void *title, void *filter, void *defaultDi
 			else return	MessageBox("Too Many files...\n"), FALSE;
 		}
 	}
+	pathArray.RegisterPath(buf);
+	pathArray.GetMultiPath(buf, MAX_OFNBUF);
 	parent->SetDlgItemTextV(editCtl, buf);
 	return	TRUE;
 }

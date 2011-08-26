@@ -15,6 +15,25 @@
 #define STRICT
 #endif
 
+// for debug allocator (like a efence)
+//#define REPLACE_DEBUG_ALLOCATOR
+#ifdef REPLACE_DEBUG_ALLOCATOR
+#define malloc  valloc
+#define calloc  vcalloc
+#define realloc vrealloc
+#define free    vfree
+#define strdup  vstrdup
+#define wcsdup  vwcsdup
+extern "C" {
+void *valloc(size_t size);
+void *vcalloc(size_t num, size_t ele);
+void *vrealloc(void *d, size_t size);
+void vfree(void *d);
+char *vstrdup(const char *s);
+//unsigned short *vwcsdup(const unsigned short *s);
+}
+#endif
+
 /* for crypto api */
 #define _WIN32_WINNT 0x0600
 

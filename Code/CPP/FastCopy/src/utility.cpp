@@ -273,6 +273,7 @@ PathArray::PathArray(void) : THashTbl(1000)
 {
 	num = 0;
 	pathArray = NULL;
+	flags = 0;
 }
 
 PathArray::PathArray(const PathArray &src) : THashTbl(1000)
@@ -280,6 +281,7 @@ PathArray::PathArray(const PathArray &src) : THashTbl(1000)
 	num = 0;
 	pathArray = NULL;
 	*this = src;
+	flags = 0;
 }
 
 PathArray::~PathArray()

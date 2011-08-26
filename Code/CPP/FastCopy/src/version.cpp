@@ -1,10 +1,10 @@
 static char *version_id = 
-	"@(#)Copyright (C) 20004-2010 H.Shirouzu	Version.cpp	ver2.06";
+	"@(#)Copyright (C) 2004-2011 H.Shirouzu	Version.cpp	ver2.08";
 /* ========================================================================
 	Project  Name			: Fast/Force copy file and directory
 	Module Name				: Version
 	Create					: 2010-06-13(Sun)
-	Update					: 2010-11-16(Tue)
+	Update					: 2011-02-06(Sun)
 	Copyright				: H.Shirouzu
 	Reference				: 
 	======================================================================== */
