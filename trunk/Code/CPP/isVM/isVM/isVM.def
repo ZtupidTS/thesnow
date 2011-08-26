@@ -1,0 +1,4 @@
+LIBRARY	"isVM"
+EXPORTS
+   fnisVM	@1
+
