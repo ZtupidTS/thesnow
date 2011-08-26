@@ -1,0 +1,63 @@
+include ../common.mak
+CC   = icl
+
+all: facompress.dll facompress_mt.dll
+
+CODE_FLAGS  = -EHsc -MT
+OPT_FLAGS   = -O2 -Gy -GR- -Qip -arch:IA32
+DEBUG_FLAGS =
+CFLAGS      = -c -DFREEARC_DLL $(CODE_FLAGS) $(OPT_FLAGS) $(DEBUG_FLAGS) $(DEFINES)
+
+DLL  = facompress.dll
+DEF  = facompress.def
+OBJS = Common.obj CompressionLibrary.obj 7zCrcT8U.obj C_LZMA.obj C_PPMD.obj C_GRZip.obj C_LZP.obj C_Dict.obj C_REP.obj
+$(DLL): $(DEF) $(OBJS)
+	cmd /c link -DLL -base:0x00400000 -DEF:$(DEF) -out:$(DLL) $(OBJS) user32.lib ole32.lib oleaut32.lib shell32.lib
+
+DLL2  = facompress_mt.dll
+DEF2  = facompress_mt.def
+OBJS2 = Common.obj CompressionLibrary.obj MultiThreading.obj 7zCrcT8U.obj C_PPMD_mt.obj
+$(DLL2): $(DEF2) $(OBJS2)
+	cmd /c link -DLL -base:0x00400000 -DEF:$(DEF2) -out:$(DLL2) $(OBJS2) user32.lib ole32.lib oleaut32.lib shell32.lib
+
+7zCrcT8U.obj: 7zCrcT8U.asm
+	ml -c 7zCrcT8U.asm
+
+Common.obj: Common.cpp Common.h Compression.h
+	$(CC) $(CFLAGS) $(CFLAGS) $<
+
+CompressionLibrary.obj: CompressionLibrary.cpp Common.h Compression.h
+	$(CC) $(CFLAGS) $(CFLAGS) $<
+
+MultiThreading.obj: MultiThreading.cpp
+	$(CC) $(CFLAGS) $(CFLAGS) $<
+
+C_LZMA.obj: LZMA2\C_LZMA.cpp
+	$(CC) $(CFLAGS) $<
+
+C_PPMD.obj: PPMD\C_PPMD.cpp PPMD\C_PPMD.h PPMD\PPMdType.h PPMD\PPMd.h PPMD\SubAlloc.hpp PPMD\Coder.hpp PPMD\Model.cpp
+	$(CC) $(CFLAGS) $<
+
+C_PPMD_mt.obj: PPMD\C_PPMD.cpp PPMD\C_PPMD.h PPMD\PPMdType.h PPMD\PPMd.h PPMD\SubAlloc.hpp PPMD\Coder.hpp PPMD\Model.cpp
+	$(CC) $(CFLAGS) -DPPMD_MT $< -FoC_PPMD_mt.obj
+
+C_GRZip.obj: GRZip\C_GRZip.cpp
+	$(CC) $(CFLAGS) $<
+
+C_LZP.obj: LZP\C_LZP.cpp
+	$(CC) $(CFLAGS) $<
+
+C_Dict.obj: Dict\C_Dict.cpp
+	$(CC) $(CFLAGS) $<
+
+C_REP.obj: REP\C_REP.cpp
+	$(CC) $(CFLAGS) $<
+
+C_Delta.obj: Delta\C_Delta.cpp
+	$(CC) $(CFLAGS) $<
+
+C_TTA.obj: MM\C_TTA.cpp
+	$(CC) $(CFLAGS) $<
+
+mmdet.obj: MM\mmdet.cpp
+	$(CC) $(CFLAGS) $<
