@@ -1,0 +1,4 @@
+LIBRARY	"GetCpuUsage"
+EXPORTS
+GetCpuUsage			@1
+DrawCpuUsage		@2
