@@ -1,0 +1,369 @@
+<html>
+<head>
+<title>CrystalDiskInfo</title>
+<link id="StyleSheet" href="../theme/default/Main.css" rel="stylesheet" type="text/css" />
+<style type="text/css">
+*
+{
+	margin: 0px;
+	padding: 0px;
+}
+
+h2
+{
+	line-height: 1.4;
+	font-size: 20px;
+	color: #444444;
+}
+
+div.drive a:hover
+{
+	color: #000000;
+	text-decoration: none;
+	background: #ffffff center center repeat-x;
+	background-position: 0px -48px;
+}
+
+table
+{
+	font-family: Tahoma, Meiryo;
+	font-size: 12px;
+	line-height: 1.0;
+}
+
+.inline
+{
+	display: inline;
+}
+
+.double
+{
+	font-size: 24px;
+	font-weight: bold;
+	font-family: Tahoma;
+	text-align: center;
+}
+
+#DiskStatus
+{
+	color: #333333;
+	font-size: 18px;
+	font-weight: bold;
+	font-family: Tahoma;
+	text-align: center;
+}
+
+div.diskStatusGood
+{
+	display: block;
+	padding-top: 20px;
+	width: 96px;
+	height: 58px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+div.diskStatusCaution
+{
+	display: block;
+	padding-top: 20px;
+	width: 96px;
+	height: 58px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+div.diskStatusBad
+{
+	display: block;
+	padding-top: 20px;
+	width: 96px;
+	height: 58px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+div.diskStatusUnknown
+{
+	display: block;
+	padding-top: 20px;
+	width: 96px;
+	height: 58px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+div.diskStatusLine1
+{
+	padding-top: 20px;
+	line-height: 1.0;
+}
+
+div.diskStatusLine2
+{
+	padding-top: 8px;
+	line-height: 1.2;
+}
+
+#Temperature
+{
+	display: block;
+	font-size: 24px;
+	font-weight: bold;
+	font-family: Tahoma;
+	text-align: center;
+}
+
+.temperatureGood
+{
+	padding-top: 7px;
+	width: 96px;
+	height: 38px;
+}
+
+.temperatureCaution
+{
+	padding-top: 7px;
+	width: 96px;
+	height: 38px;
+}
+
+.temperatureBad
+{
+	padding-top: 7px;
+	width: 96px;
+	height: 38px;
+}
+
+.temperatureUnknown
+{
+	padding-top: 7px;
+	width: 96px;
+	height: 38px;
+}
+
+div.label
+{
+	display: block;
+	padding-left: 0px;
+	padding-right: 2px;
+	padding-top: 2px;
+	padding-bottom: 0px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	font-size: 12px;
+	height: 18px;
+	line-height: 1.2;
+}
+
+div.valueL
+{
+	display: block;
+	text-align: left;
+	border-left: #cccccc 1px solid;
+	border-top: #f0f0f0 1px solid;
+	border-bottom: #dddddd 1px solid;
+	border-right: #f0f0f0 1px solid;
+	padding-left: 4px;
+	padding-right: 0px;
+	padding-top: 2px;
+	padding-bottom: 0px;
+	color: #111111;
+	font-family: Tahoma;
+	font-size: 12px;
+	height: 18px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	line-height: 1.2;
+}
+
+div.valueC
+{
+	display: block;
+	text-align: center;
+	border-left: #cccccc 1px solid;
+	border-top: #f0f0f0 1px solid;
+	border-bottom: #dddddd 1px solid;
+	border-right: #f0f0f0 1px solid;
+	padding-left: 2px;
+	padding-right: 2px;
+	padding-top: 2px;
+	padding-bottom: 0px;
+	color: #111111;
+	font-family: Tahoma;
+	font-size: 12px;
+	height: 18px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+div.valueR
+{
+	display: block;
+	text-align: right;
+	border-left: #cccccc 1px solid;
+	border-top: #f0f0f0 1px solid;
+	border-bottom: #dddddd 1px solid;
+	border-right: #f0f0f0 1px solid;
+	padding-left: 0px;
+	padding-right: 4px;
+	padding-top: 2px;
+	padding-bottom: 0px;
+	color: #111111;
+	font-family: Tahoma;
+	font-size: 12px;
+	height: 18px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+div.gray
+{
+	color: #888888;
+}
+
+.gray
+{
+	color: #888888;
+}
+
+#menuBar
+{
+	float: left;
+	width: 640px;
+	height: 48px;
+	list-style-type: none;
+	margin-bottom: 4px;
+	font-family: Tahoma, Arial, Helvetica, sans-serif;
+	font-weight: bold;
+	line-height: 1.20;
+	font-size: 12px;
+	text-align: center;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+#menuBar li
+{
+	display: inline;
+	margin: 0px;
+	padding: 0px;
+	margin-top: 10px;
+}
+
+#menuBar li a
+{
+	padding-top: 4px;
+	color: #333333;
+	text-decoration: none;
+	height: 48px;
+	width: 80px;
+}
+
+#DivPreDisk a
+{
+	display: inline;
+	height: 20px;
+	width: 20px;
+}
+
+#DivNextDisk a
+{
+	display: inline;
+	height: 20px;
+	width: 20px;
+}
+
+.hidden
+{
+	visibility: hidden;
+}
+
+.visible
+{
+	visibility: visible;
+}
+
+.unsupported
+{
+	color: #cccccc;
+}
+</style>
+</head>
+<body oncontextmenu="return false" onmousewheel="return !event.shiftKey" onselectstart="return false">
+<div id="mainMenu">
+  <ul id="menuBar">
+    <li id="LiDisk0"><a href="#" id="Disk0"></a></li>
+    <li id="LiDisk1"><a href="#" id="Disk1"></a></li>
+    <li id="LiDisk2"><a href="#" id="Disk2"></a></li>
+    <li id="LiDisk3"><a href="#" id="Disk3"></a></li>
+    <li id="LiDisk4"><a href="#" id="Disk4"></a></li>
+    <li id="LiDisk5"><a href="#" id="Disk5"></a></li>
+    <li id="LiDisk6"><a href="#" id="Disk6"></a></li>
+    <li id="LiDisk7"><a href="#" id="Disk7"></a></li>
+  </ul>
+</div>
+<table width="640" height="32" align="center">
+<tr>
+<td width="20" valign="top"><div id="DivPreDisk" class="hidden"><a href="#" id="PreDisk"></a></div></td>
+<td width="576" valign="bottom"><div align="center"><h2><div id="Model" class="inline"></div>&nbsp;&nbsp;<div id="Capacity" class="inline"></div></h2></div>
+</td>
+<td width="20" valign="top"><div id="DivNextDisk" class="hidden"><a href="#" id="NextDisk"></a></div></td>
+</table>
+<table width="620" align="center">
+<tr>
+  <td width="98"><div id="LabelHealthStatus" class="label">Health Status</div></td>
+  <td width="124" align="right"><div id="LabelFirmware" class="label">Firmware</div></td>
+  <td width="170"><div id="Firmware" class="valueC"></div></td>
+  <td width="124" align="right"><div id="LabelBufferSize" class="label">Buffer Size</div></td>
+  <td width="90"><div class="valueR"><span id="BufferSize">----</span></div></td>
+  </tr>
+<tr>
+  <td width="98" rowspan="3"><div id="DiskStatus"></div></td>
+  <td width="124" align="right"><div id="LabelSerialNumber" class="label">SerialNumber</div></td>
+  <td width="170"><div id="SerialNumber" class="valueC"></div></td>
+  <td width="124" align="right"><div id="LabelNvCacheSize" class="label">NV Cache Size</div></td>
+  <td width="90"><div id="NvCacheSzie" class="valueR"></div></td>
+</tr>
+<tr>
+  <td width="124" align="right"><div id="LabelInterface" class="label">Interface</div></td>
+  <td width="170"><div id="Interface" class="valueC"></div></td>
+  <td width="124" align="right"><div id="LabelRotationRate" class="label">Rotation Rate</div></td>
+  <td width="90"><div class="valueR"><span id="RotationRate">----</span></div>
+  </td>
+</tr>
+<tr>
+  <td width="124" align="right"><div id="LabelTransferMode" class="label">Transfer Mode</div></td>
+  <td width="170"><div id="TransferMode" class="valueC"></div></td>
+  <td width="124" align="right"><div id="LabelPowerOnCount" class="label">PowerOnCount</div></td>
+  <td width="90"><div id="PowerOnCount" class="valueR"></div></td>
+</tr>
+<tr>
+  <td width="98"><div id="LabelTemperature" class="label">Temperature</div></td>
+  <td width="124" align="right"><div id="LabelDriveMap" class="label">Drive Letter</div></td>
+  <td width="170"><div id="DriveMap" class="valueC"></div></td>
+  <td width="124" align="right"><div id="LabelPowerOnHours" class="label">Power On Hours</div></td>
+  <td width="90"><div id="PowerOnHours" class="valueR"></div></td>
+</tr>
+<tr>
+  <td width="98" rowspan="2"><div id="Temperature"></div></td>
+  <td width="124" align="right"><div id="LabelAtaAtapi" class="label">Standard</div></td>
+  <td colspan="3"><div id="AtaAtapi" class="valueL"></div></td>
+</tr>
+<tr>
+  <td width="124" align="right"><div id="LabelFeature" class="label">Feature</div></td>
+  <td colspan="3">
+    <div class="valueL">
+      <span title="Self-Monitoring, Analysis and Reporting Technology" id="FeatureSmart" class="unsupported">S.M.A.R.T.</span><span class="gray">,</span>
+      <span title="48bit Logical Block Addressing" id="Feature48Lba" class="unsupported">48bit LBA</span><span class="gray">,</span>
+      <span title="Advanced Power Management" id="FeatureApm" class="unsupported">APM</span><span class="gray">,</span>
+      <span title="Automatic Acoustic Management" id="FeatureAam" class="unsupported">AAM</span><span class="gray">,</span>
+      <span title="Native Command Queuing" id="FeatureNcq" class="unsupported">NCQ</span><span class="gray">,</span>
+      <span title="Trim function of DATA SET MANAGEMENT command" id="FeatureTrim" class="unsupported">TRIM</span>
+    </div>
+  </td>
+</tr>
+</table>
+</body>
+</html>
