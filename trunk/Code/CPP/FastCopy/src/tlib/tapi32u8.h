@@ -120,6 +120,7 @@ BOOL SetCurrentDirectoryU8(char *dir);
 BOOL GetOpenFileNameU8(LPOPENFILENAME ofn);
 BOOL GetSaveFileNameU8(LPOPENFILENAME ofn);
 BOOL ReadLinkU8(LPCSTR src, LPSTR dest, LPSTR arg);
+BOOL PlaySoundU8(const char *path, HMODULE hmod, DWORD flg);
 
 
 #endif

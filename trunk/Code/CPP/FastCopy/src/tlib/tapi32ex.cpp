@@ -12,7 +12,6 @@ static char *tap32ex_id =
 #include "tlib.h"
 
 #include <stdio.h>
-#include <mbstring.h>
 #include <stdlib.h>
 #include <stddef.h>
 #include <assert.h>

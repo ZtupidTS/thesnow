@@ -130,8 +130,8 @@ public:
 	static int CALLBACK BrowseDirDlg_Proc(HWND hWnd, UINT uMsg, LPARAM lParam, LPARAM data);
 };
 
-#define BRDIR_QUOTE			0x0001
-#define BRDIR_VQUOTE		0x0002
+#define BRDIR_MULTIPATH		0x0001
+#define BRDIR_CTRLADD		0x0002
 #define BRDIR_BACKSLASH		0x0004
 #define BRDIR_FILESELECT	0x0008
 BOOL BrowseDirDlgV(TWin *parentWin, UINT editCtl, void *title, int flg=0);

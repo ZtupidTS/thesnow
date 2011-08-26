@@ -847,7 +847,7 @@ BOOL FastCopy::MakeDigest(void *path, VBuf *vbuf, TDigest *digest, BYTE *val, _i
 	DWORD	flg = ((info.flags & USE_OSCACHE_READVERIFY) ? 0 : FILE_FLAG_NO_BUFFERING)
 					| FILE_FLAG_SEQUENTIAL_SCAN;
 	DWORD	share = FILE_SHARE_READ|FILE_SHARE_WRITE;
-	HANDLE	hFile = CreateFileWithRetry(path, GENERIC_READ, share, 0, OPEN_EXISTING, flg, 0);
+	HANDLE	hFile = CreateFileWithRetry(path, GENERIC_READ, share, 0, OPEN_EXISTING, flg, 0, 5);
 	BOOL	ret = FALSE;
 
 	memset(val, 0, digest->GetDigestSize());
@@ -3075,7 +3075,7 @@ BOOL FastCopy::MakeDigestAsync(DigestObj *obj)
 	if (obj->fileSize) {
 		BY_HANDLE_FILE_INFORMATION	bhi;
 		if ((hFile = CreateFileWithRetry(obj->path, GENERIC_READ, share, 0, OPEN_EXISTING, flg,
-						0)) == INVALID_HANDLE_VALUE) {
+						0, 5)) == INVALID_HANDLE_VALUE) {
 			ConfirmErr("OpenFile(digest)", MakeAddr(obj->path, dstPrefixLen));
 			ret = FALSE;
 		}

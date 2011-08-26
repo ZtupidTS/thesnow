@@ -12,7 +12,6 @@ static char *tmisc_id =
 #include "tlib.h"
 
 #include <stdio.h>
-#include <mbstring.h>
 #include <stdlib.h>
 #include <stddef.h>
 
@@ -212,7 +211,7 @@ int MakePath(char *dest, const char *dir, const char *file)
 
 	if (dir[len -1] == '\\')	// 表など、2byte目が'\\'で終る文字列対策
 	{
-		if (len >= 2 && IsDBCSLeadByte(dir[len -2]) == FALSE)
+		if (len >= 2 && !IsDBCSLeadByte(dir[len -2]))
 			separetor = FALSE;
 		else {
 			u_char *p=(u_char *)dir;
@@ -400,7 +399,6 @@ void DebugW(WCHAR *fmt,...)
 	::OutputDebugStringW(buf);
 }
 
-#ifdef DEBUG_U8
 void DebugU8(char *fmt,...)
 {
 	char buf[8192];
@@ -414,7 +412,6 @@ void DebugU8(char *fmt,...)
 	::OutputDebugStringW(wbuf);
 	delete [] wbuf;
 }
-#endif
 
 /*=========================================================================
 	例外情報取得
@@ -571,7 +568,7 @@ WCHAR *AtoW(const char *src, BOOL noStatic) {
 
 	int		len;
 	if ((len = AtoW(src, NULL, 0)) > 0) {
-		wbuf = new WCHAR [len];
+		wbuf = new WCHAR [len + 1];
 		AtoW(src, wbuf, len);
 	}
 	return	wbuf;
@@ -899,7 +896,7 @@ BOOL DeleteLinkV(void *path)
 {
 	WCHAR	dir[MAX_PATH];
 
-	if (DeleteFileV(path) == FALSE)
+	if (!DeleteFileV(path))
 		return	FALSE;
 
 	GetParentDirV(path, dir);
@@ -961,4 +958,164 @@ HWND ShowHelpV(HWND hOwner, void *help_dir, void *help_file, void *section)
 #endif
 	return	NULL;
 }
+
+#ifdef REPLACE_DEBUG_ALLOCATOR
+
+#define PAGE_SIZE  4096
+#define VALLOC_SIG 0x12345678
+#define ALLOC_ALIGN 4
+//#define NON_FREE
+#undef malloc
+#undef realloc
+#undef free
+
+extern "C" {
+void *malloc(size_t);
+void *realloc(void *, size_t);
+void free(void *);
+}
+
+inline size_t align_size(size_t size, size_t grain) {
+	return (size + grain -1) / grain * grain;
+}
+
+inline size_t alloc_size(size_t size) {
+	return	align_size((align_size(size, ALLOC_ALIGN) + 16 + PAGE_SIZE), PAGE_SIZE);
+}
+inline void *valloc_base(void *d)
+{
+	DWORD	org  = (DWORD)d;
+	DWORD	base = org & 0xfffff000;
+
+	if (org - base < 16) base -= PAGE_SIZE;
+
+	return	(void *)base;
+}
+inline size_t valloc_size(void *d)
+{
+	d = valloc_base(d);
+
+	if (((DWORD *)d)[0] != VALLOC_SIG) {
+		return	(size_t)-1;
+	}
+	return	((size_t *)d)[1];
+}
+
+
+void *valloc(size_t size)
+{
+	size_t	s = alloc_size(size);
+	void	*d = VirtualAlloc(0, s, MEM_RESERVE, PAGE_NOACCESS);
+
+	if (!d || !VirtualAlloc(d, s - PAGE_SIZE, MEM_COMMIT, PAGE_READWRITE)) {
+		Debug("valloc error(%x %d %d)\n", d, s, size);
+		return NULL;
+	}
+
+	((DWORD *)d)[0]  = VALLOC_SIG;
+	((size_t *)d)[1] = size;
+
+	Debug("valloc (%x %d %d)\n", d, s, size);
+
+	return (void *)((u_char *)d + s - PAGE_SIZE - align_size(size, ALLOC_ALIGN));
+}
+
+void *vcalloc(size_t num, size_t ele)
+{
+	size_t	size = num * ele;
+	void	*d = valloc(size);
+
+	if (d) {
+		memset(d, 0, size);
+	}
+	return	d;
+}
+
+void *vrealloc(void *d, size_t size)
+{
+	size_t	old_size = 0;
+
+	if (d) {
+		if ((old_size = valloc_size(d)) == -1) {
+			Debug("non vrealloc (%x %d %d)\n", d, old_size, size);
+			return realloc(d, size);
+		}
+		if (size == 0) {
+			vfree(d);
+			return NULL;
+		}
+	}
+
+	void	*new_d = valloc(size);
+
+	if (new_d && d) {
+		memcpy(new_d, d, min(size, old_size));
+	}
+	return new_d;
+}
+
+void vfree(void *d)
+{
+	if (!d) return;
+
+	size_t	size = valloc_size(d);
+
+	if (size == -1) {
+		Debug("vfree non vfree (%x)\n", d);
+		free(d);
+		return;
+	}
+	Debug(" vfree %x %d %d\n", valloc_base(d), alloc_size(size), size);
+
+#ifdef NON_FREE
+	VirtualFree(valloc_base(d), alloc_size(size), MEM_DECOMMIT);
+#else
+	VirtualFree(valloc_base(d), 0, MEM_RELEASE);
+#endif
+}
+
+char *vstrdup(const char *s)
+{
+	size_t	size = strlen(s) + 1;
+	void	*d = valloc(size);
+	if (d) {
+		memcpy(d, s, size);
+	}
+	return	(char *)d;
+}
+
+WCHAR *vwcsdup(const WCHAR *s)
+{
+	size_t	size = (wcslen(s) + 1) * sizeof(WCHAR);
+	void	*d = valloc(size);
+	if (d) {
+		memcpy(d, s, size);
+	}
+	return	(WCHAR *)d;
+}
+
+void *operator new(size_t size)
+{
+	return	valloc(size);
+}
+
+void operator delete(void *d)
+{
+	vfree(d);
+}
+
+#if _MSC_VER >= 1200
+void *operator new [](size_t size)
+{
+	return	valloc(size);
+}
+
+void operator delete [](void *d)
+{
+	vfree(d);
+}
+#endif
+
+#endif
+
 
