@@ -1,0 +1,141 @@
+To build AdvTor.dll install masm32 from http://www.masm32.com then execute DLL\a.bat
+
+
+## Instructions for building AdvTor with MinGW (http://www.mingw.org/)
+##
+
+Stage One:  Download and Install MinGW.
+---------------------------------------
+
+Download mingw:
+http://prdownloads.sf.net/mingw/MinGW-5.1.4.exe?download
+
+Download msys:
+http://prdownloads.sf.net/mingw/MSYS-1.0.10.exe?download
+
+Download the mingw developer tool kit:
+http://prdownloads.sf.net/mingw/msysDTK-1.0.1.exe?download
+
+Download the mingw autoconf-2.59 update:
+http://prdownloads.sf.net/mingw/msys-autoconf-2.59.tar.bz2?download
+
+Install mingw, msys and mingw-dtk.  Extract msys-autoconf-2.59.tar.bz2 into
+your mingw install location.  For example, if you installed mingw into
+/c/mingw/1.0/ you want to extract msys-autoconf-2.59.tar.bz2 into this
+directory.
+
+Create a directory called "AdvTor".
+
+Download masm32 from http://masm32.com/masmdl.htm
+
+Install masm32.
+
+
+
+
+Stage Two:  Download, extract, compile zlib
+---------------------------------------------
+
+Download zlib source:
+http://zlib.net/zlib-1.2.5.tar.gz
+
+Extract zlib:
+Copy the zlib tarball into the "AdvTor" directory
+Type "cd AdvTor/"
+Type "tar zxf zlib-1.2.5.tar.gz"
+
+CHOICE:
+
+Make zlib.a:
+Type "cd AdvTor/zlib-1.2.5/"
+Type "./configure"
+Type "make -f win32/Makefile.gcc"
+Assuming you have MingGW installed in c:/ :
+Type cp -iv zlib1.dll c:/mingw/bin
+Type cp -iv zconf.h zlib.h c:/mingw/include
+Type cp -iv libz.a c:/mingw/lib/libzlib.a
+
+OR 
+
+Make zlib1.dll:
+Type "cd AdvTor/zlib-1.2.5/"
+Type "./configure"
+Type "make -f win32/Makefile.gcc"
+
+Done.
+
+
+
+Stage Three:  Download, extract, compile openssl
+----------------------------------------------
+
+Download openssl:
+http://openssl.org/source/openssl-1.0.0a.tar.gz
+
+Extract openssl:
+Copy the openssl tarball into the "AdvTor" directory.
+Type "cd AdvTor/"
+Type "tar zxf openssl-1.0.0a.tar.gz"
+
+Edit MinGW/include/wincrypt.h and add the following lines:
+	typedef struct _PUBKEY {
+	DWORD magic ;
+	DWORD bitlen ;
+	} DSSPUBKEY ;
+
+	#define CERT_STORE_PROV_SYSTEM_A ((LPCSTR) 9)
+	#define CERT_STORE_READONLY_FLAG 0x00008000
+	BOOL WINAPI CryptEnumProvidersA( DWORD, DWORD *, DWORD, DWORD *, LPSTR, DWORD *) ;
+
+
+Make openssl libraries:
+Type "cd AdvTor/openssl-1.0.0a/"
+Type "rm engines/e_capi*"
+Edit crypto/engine/eng_all.c and remove "#if defined(OPENSSL_SYS_WIN32) && !defined(OPENSSL_NO_CAPIENG)	ENGINE_load_capi(); #endif"
+Type "./Configure -no-idea -no-rc5 -no-mdc2 mingw"
+Edit engines/Makefile and remove "e_capi.c", "e_capi.o", "e_capi_err.c" and "e_capi_err.h"
+Edit Makefile and remove the "test:" and "tests:" sections.
+Type "rm -rf ./test"
+Type "make depend"
+Type "cd crypto/"
+Type "find ./ -name "*.h" -exec cp {} ../include/openssl/ \;"
+Type "cd ../ssl/"
+Type "find ./ -name "*.h" -exec cp {} ../include/openssl/ \;"
+Type "cd .."
+Type "cp *.h include/openssl/"
+# The next steps can take up to 30 minutes to complete.
+Type "make"
+Type "make install"
+
+Alternatively:
+Download the pre-compiled openssl for win32.
+Install and proceed.
+
+
+Stage Four: Download, extract, and compile libevent-1.3e
+------------------------------------------------------
+
+Download the libevent 1.4.14b release:
+http://www.monkey.org/~provos/libevent-1.4.14b-stable.tar.gz
+
+Copy the libevent tarball into the "AdvTor" directory.
+Type "cd AdvTor"
+
+Extract libevent.
+
+Type "./configure --enable-static --disable-shared"
+Type "make"
+Type "make install"
+
+Stage Five:  Build AdvTor
+----------------------
+
+Download the current AdvTor release from https://sourceforge.net/projects/AdvTor/ .
+Extract AdvTor_src.zip into the "AdvTor" directory.
+
+cd AdvTor
+Type "./configure --disable-dependency-tracking"
+Type "make"
+
+You now have a AdvTor.exe in src/or/.
+
