@@ -138,8 +138,8 @@ DLGMSG	CNetPlayDlg::OnInitDialog( DLGMSGPARAM )
 	// レイテンシ
 	::SendDlgItemMessage( m_hWnd, IDC_NET_LATENCY_COMBO, CB_RESETCONTENT, 0, 0 ); 
 	for( i = 0; i < 9; i++ ) {
-		CHAR	szStr[64];
-		::wsprintfA( szStr,  "%d Frame buffer", i+1 );
+		TCHAR	szStr[64];
+		::wsprintf( szStr,  TEXT("%d Frame buffer"), i+1 );
 		::SendDlgItemMessage( m_hWnd, IDC_NET_LATENCY_COMBO, CB_INSERTSTRING, -1, (LPARAM)szStr );
 	}
 	::SendDlgItemMessage( m_hWnd, IDC_NET_LATENCY_COMBO, CB_SETCURSEL, 0, 0 ); 

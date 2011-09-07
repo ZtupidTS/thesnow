@@ -1,5 +1,5 @@
-//
-// ÉQÅ[ÉÄÉIÉvÉVÉáÉìÉ_ÉCÉAÉçÉOÉNÉâÉX
+Ôªø//
+// „Ç≤„Éº„É†„Ç™„Éó„Ç∑„Éß„É≥„ÉÄ„Ç§„Ç¢„É≠„Ç∞„ÇØ„É©„Çπ
 //
 //
 #define WIN32_LEAN_AND_MEAN
@@ -42,7 +42,7 @@ void	CGameOptionDlg::OnInitialMember()
 	::SendDlgItemMessage( m_hWnd, IDC_OPT_VIDEOMODE_COMBO, CB_RESETCONTENT, 0, 0 );
 
 	INT	i, j;
-	WCHAR	szStr[256];
+	TCHAR	szStr[MAX_PATH];
 	for( i = IDS_OPT_RENDER_POST_ALL, j = 0; i <= IDS_OPT_RENDER_TILE; i++, j++ ) {
 		CApp::LoadString( i, szStr, sizeof(szStr) );
 		::SendDlgItemMessage( m_hWnd, IDC_OPT_RENDER_COMBO, CB_INSERTSTRING, (WPARAM)j, (LPARAM)szStr );
@@ -82,13 +82,13 @@ DLGCMD	CGameOptionDlg::OnOK( DLGCMDPARAM )
 	GameOption.bVideoMode = (ret == 0)?FALSE:TRUE;
 	GameOption.bFrameIRQ = !IsBTNCHECK( IDC_OPT_FRAMEIRQ );
 
-	// ê›íËÇµÇÈ
+	// Ë®≠ÂÆö„Åó„Çã
 	Emu.GetNES()->SetRenderMethod( (NES::RENDERMETHOD)GameOption.nRenderMethod );
 	Emu.GetNES()->SetIrqType     ( GameOption.nIRQtype );
 	Emu.GetNES()->SetFrameIRQmode( GameOption.bFrameIRQ );
 	Emu.GetNES()->SetVideoMode   ( GameOption.bVideoMode );
 
-	// ÉZÅ[Éu
+	// „Çª„Éº„Éñ
 	if( Emu.GetNES()->rom->GetMapperNo() == 20 ) {
 		GameOption.Save( (LPCWSTR)Emu.GetNES()->rom->GetRomName(), Emu.GetNES()->rom->GetGameID(), Emu.GetNES()->rom->GetMakerID() );
 	} else if( Emu.GetNES()->rom->GetMapperNo() < 256 ) {
@@ -129,7 +129,7 @@ DLGCMD	CGameOptionDlg::OnNotSave( DLGCMDPARAM )
 	GameOption.bVideoMode = (ret == 0)?FALSE:TRUE;
 	GameOption.bFrameIRQ = !IsBTNCHECK( IDC_OPT_FRAMEIRQ );
 
-	// ê›íËÇµÇÈ
+	// Ë®≠ÂÆö„Åó„Çã
 	Emu.GetNES()->SetRenderMethod( (NES::RENDERMETHOD)GameOption.nRenderMethod );
 	Emu.GetNES()->SetIrqType     ( GameOption.nIRQtype );
 	Emu.GetNES()->SetFrameIRQmode( GameOption.bFrameIRQ );

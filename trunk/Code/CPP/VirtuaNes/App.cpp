@@ -65,7 +65,8 @@ TCHAR	CApp::m_ErrorString[ERRORSTRING_MAX][256];
 void	CApp::LoadErrorString()
 {
 	if( !m_hPlugin )
-		return;
+		OutputDebugStringW(L"未使用语言插件文本\n");
+//		return;
 
 	for( INT i = 0; m_ErrorStringTableID[i]; i++ ) {
 		LoadString( m_ErrorStringTableID[i], m_ErrorString[i], sizeof(m_ErrorString[i]) );

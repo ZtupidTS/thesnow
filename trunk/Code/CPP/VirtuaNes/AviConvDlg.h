@@ -1,5 +1,5 @@
-//
-// AVIЙфУQе└едевеэе░епеще╣
+я╗┐//
+// AVIхдЙцПЫуГАуВдуВвуГнуВ░уВпуГйуВ╣
 //
 #ifndef	__CAVICONVDLG_INCLUDED__
 #define	__CAVICONVDLG_INCLUDED__

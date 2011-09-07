@@ -1,5 +1,5 @@
-//
-// ÉÅÉCÉìÉEÉCÉìÉhÉEÉNÉâÉX
+Ôªø//
+// „É°„Ç§„É≥„Ç¶„Ç§„É≥„Éâ„Ç¶„ÇØ„É©„Çπ
 //
 #ifndef	__CMAINFRAME_INCLUDED__
 #define	__CMAINFRAME_INCLUDED__
@@ -92,6 +92,7 @@ protected:
 	WNDCMD		OnExit( WNDCMDPARAM );
 	WNDCMD		OnHelp( WNDCMDPARAM );
 	WNDCMD		OnAbout( WNDCMDPARAM );
+	WNDCMD		OnMoreGame( WNDCMDPARAM );
 	WNDCMD		OnFileOpen( WNDCMDPARAM );
 	WNDCMD		OnFileClose( WNDCMDPARAM );
 	WNDCMD		OnRecentOpen( WNDCMDPARAM );
