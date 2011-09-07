@@ -143,7 +143,7 @@ protected:
 	WCHAR		fullpath[_MAX_PATH];
 
 	//
-	void	FilenameCheck( const char* fname );
+	void	FilenameCheck( const TCHAR* fname );
 private:
 };
 

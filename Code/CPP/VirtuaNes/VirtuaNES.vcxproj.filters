@@ -1,35 +1,35 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="Header Files">
-      <UniqueIdentifier>{43560d86-7da8-4d1a-bfc0-36d42094ef15}</UniqueIdentifier>
-      <Extensions>h;hpp;hxx;hm;inl</Extensions>
-    </Filter>
-    <Filter Include="NES">
-      <UniqueIdentifier>{fe7c66d5-ec12-4aa0-a771-ebd35d0a355a}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="NES\ApuEx">
-      <UniqueIdentifier>{3530d2aa-9edd-4972-9c47-641c3b71f809}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="NES\ApuEx\emu2413">
-      <UniqueIdentifier>{e38bc076-e702-48da-99c9-42a3dcbdabc4}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="NES\Mapper">
-      <UniqueIdentifier>{b5fa2b20-d38b-4a07-93b1-cdcd62b18a2c}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="NES\PadEx">
-      <UniqueIdentifier>{74f06ba6-3b4a-4dc0-a004-f7672eafbde5}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Resource Files">
-      <UniqueIdentifier>{493f8399-10c5-487d-b4ea-fc7587b5c067}</UniqueIdentifier>
-      <Extensions>ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe</Extensions>
-    </Filter>
     <Filter Include="Source Files">
-      <UniqueIdentifier>{664e18cb-e945-43cc-886f-6a2b09b91789}</UniqueIdentifier>
+      <UniqueIdentifier>{6188a1c8-ff63-4579-beb9-13756cc276a8}</UniqueIdentifier>
       <Extensions>cpp;c;cxx;rc;def;r;odl;idl;hpj;bat</Extensions>
     </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{b293c22e-7932-4ef6-8c11-c54c10f69603}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{30c10de8-37bb-43bd-8f5e-b807bde4141b}</UniqueIdentifier>
+      <Extensions>ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe</Extensions>
+    </Filter>
+    <Filter Include="NES">
+      <UniqueIdentifier>{c9d85e0d-062d-4e82-878a-5147bcefd3ab}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="NES\Mapper">
+      <UniqueIdentifier>{000a1b2e-03a2-43b3-b014-473a218a9f9a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="NES\ApuEx">
+      <UniqueIdentifier>{c0636e48-ed2d-4a87-aabe-3e9ccfb87111}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="NES\ApuEx\emu2413">
+      <UniqueIdentifier>{e93fca20-bf43-4ccb-b642-174721fc29e3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="NES\PadEx">
+      <UniqueIdentifier>{7ebcdada-2466-4640-b883-b64e5b4622fe}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Zlib">
-      <UniqueIdentifier>{f0b158d7-ee4d-4d16-a4b2-a509f29a7546}</UniqueIdentifier>
+      <UniqueIdentifier>{4c802b87-829a-489f-9eba-84c295ed239f}</UniqueIdentifier>
       <Extensions>*.c *.cpp *.h</Extensions>
     </Filter>
   </ItemGroup>
@@ -127,37 +127,85 @@
     <ClCompile Include="NameTableView.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="NetPlay.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="NetPlayDlg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="PaletteEdit.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="PaletteView.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Pathlib.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="PatternView.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Plugin.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Recent.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Registry.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="RomInfoDlg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ShortcutDlg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SoundDlg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="WaveRec.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="WinMain.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Wnd.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="WndHook.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="NES\APU.cpp">
       <Filter>NES</Filter>
-    </ClCompile>
-    <ClCompile Include="NES\ApuEX\APU_FDS.cpp">
-      <Filter>NES\ApuEx</Filter>
-    </ClCompile>
-    <ClCompile Include="NES\ApuEX\APU_FME7.cpp">
-      <Filter>NES\ApuEx</Filter>
-    </ClCompile>
-    <ClCompile Include="NES\ApuEX\APU_INTERNAL.cpp">
-      <Filter>NES\ApuEx</Filter>
-    </ClCompile>
-    <ClCompile Include="NES\ApuEX\APU_MMC5.cpp">
-      <Filter>NES\ApuEx</Filter>
-    </ClCompile>
-    <ClCompile Include="NES\ApuEX\APU_N106.cpp">
-      <Filter>NES\ApuEx</Filter>
-    </ClCompile>
-    <ClCompile Include="NES\ApuEX\APU_VRC6.cpp">
-      <Filter>NES\ApuEx</Filter>
-    </ClCompile>
-    <ClCompile Include="NES\ApuEX\APU_VRC7.cpp">
-      <Filter>NES\ApuEx</Filter>
-    </ClCompile>
-    <ClCompile Include="NES\ApuEX\emu2413\emu2413.c">
-      <Filter>NES\ApuEx\emu2413</Filter>
     </ClCompile>
     <ClCompile Include="NES\Cpu.cpp">
       <Filter>NES</Filter>
     </ClCompile>
     <ClCompile Include="NES\IPS.cpp">
+      <Filter>NES</Filter>
+    </ClCompile>
+    <ClCompile Include="NES\MMU.cpp">
+      <Filter>NES</Filter>
+    </ClCompile>
+    <ClCompile Include="NES\Nes.cpp">
+      <Filter>NES</Filter>
+    </ClCompile>
+    <ClCompile Include="NES\PAD.cpp">
+      <Filter>NES</Filter>
+    </ClCompile>
+    <ClCompile Include="NES\PPU.cpp">
+      <Filter>NES</Filter>
+    </ClCompile>
+    <ClCompile Include="NES\ROM.cpp">
+      <Filter>NES</Filter>
+    </ClCompile>
+    <ClCompile Include="NES\ROM_Patch.cpp">
+      <Filter>NES</Filter>
+    </ClCompile>
+    <ClCompile Include="NES\ROMDB.cpp">
+      <Filter>NES</Filter>
+    </ClCompile>
+    <ClCompile Include="NES\VsUnisystem.cpp">
       <Filter>NES</Filter>
     </ClCompile>
     <ClCompile Include="NES\Mapper\Mapper.cpp">
@@ -610,14 +658,29 @@
     <ClCompile Include="NES\Mapper\MapperNSF.cpp">
       <Filter>NES\Mapper</Filter>
     </ClCompile>
-    <ClCompile Include="NES\MMU.cpp">
-      <Filter>NES</Filter>
+    <ClCompile Include="NES\ApuEX\APU_FDS.cpp">
+      <Filter>NES\ApuEx</Filter>
     </ClCompile>
-    <ClCompile Include="NES\Nes.cpp">
-      <Filter>NES</Filter>
+    <ClCompile Include="NES\ApuEX\APU_FME7.cpp">
+      <Filter>NES\ApuEx</Filter>
     </ClCompile>
-    <ClCompile Include="NES\PAD.cpp">
-      <Filter>NES</Filter>
+    <ClCompile Include="NES\ApuEX\APU_INTERNAL.cpp">
+      <Filter>NES\ApuEx</Filter>
+    </ClCompile>
+    <ClCompile Include="NES\ApuEX\APU_MMC5.cpp">
+      <Filter>NES\ApuEx</Filter>
+    </ClCompile>
+    <ClCompile Include="NES\ApuEX\APU_N106.cpp">
+      <Filter>NES\ApuEx</Filter>
+    </ClCompile>
+    <ClCompile Include="NES\ApuEX\APU_VRC6.cpp">
+      <Filter>NES\ApuEx</Filter>
+    </ClCompile>
+    <ClCompile Include="NES\ApuEX\APU_VRC7.cpp">
+      <Filter>NES\ApuEx</Filter>
+    </ClCompile>
+    <ClCompile Include="NES\ApuEX\emu2413\emu2413.c">
+      <Filter>NES\ApuEx\emu2413</Filter>
     </ClCompile>
     <ClCompile Include="NES\PadEX\EXPAD_CrazyClimber.cpp">
       <Filter>NES\PadEx</Filter>
@@ -666,72 +729,6 @@
     </ClCompile>
     <ClCompile Include="NES\PadEX\EXPAD_Zapper.cpp">
       <Filter>NES\PadEx</Filter>
-    </ClCompile>
-    <ClCompile Include="NES\PPU.cpp">
-      <Filter>NES</Filter>
-    </ClCompile>
-    <ClCompile Include="NES\ROM.cpp">
-      <Filter>NES</Filter>
-    </ClCompile>
-    <ClCompile Include="NES\ROMDB.cpp">
-      <Filter>NES</Filter>
-    </ClCompile>
-    <ClCompile Include="NES\ROM_Patch.cpp">
-      <Filter>NES</Filter>
-    </ClCompile>
-    <ClCompile Include="NES\VsUnisystem.cpp">
-      <Filter>NES</Filter>
-    </ClCompile>
-    <ClCompile Include="NetPlay.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="NetPlayDlg.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="PaletteEdit.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="PaletteView.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Pathlib.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="PatternView.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Plugin.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Recent.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Registry.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="RomInfoDlg.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ShortcutDlg.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="SimpleVirusChecker.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="SoundDlg.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="WaveRec.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="WinMain.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Wnd.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="WndHook.cpp">
-      <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="zlib\unzip.c">
       <Filter>Zlib</Filter>
@@ -855,81 +852,6 @@
     <ClInclude Include="NameTableView.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="NES\APU.h">
-      <Filter>NES</Filter>
-    </ClInclude>
-    <ClInclude Include="NES\ApuEX\APU_FDS.h">
-      <Filter>NES\ApuEx</Filter>
-    </ClInclude>
-    <ClInclude Include="NES\ApuEX\APU_FME7.h">
-      <Filter>NES\ApuEx</Filter>
-    </ClInclude>
-    <ClInclude Include="NES\ApuEX\APU_INTERFACE.h">
-      <Filter>NES\ApuEx</Filter>
-    </ClInclude>
-    <ClInclude Include="NES\ApuEX\APU_INTERNAL.h">
-      <Filter>NES\ApuEx</Filter>
-    </ClInclude>
-    <ClInclude Include="NES\ApuEX\APU_MMC5.h">
-      <Filter>NES\ApuEx</Filter>
-    </ClInclude>
-    <ClInclude Include="NES\ApuEX\APU_N106.h">
-      <Filter>NES\ApuEx</Filter>
-    </ClInclude>
-    <ClInclude Include="NES\ApuEX\APU_VRC6.h">
-      <Filter>NES\ApuEx</Filter>
-    </ClInclude>
-    <ClInclude Include="NES\ApuEX\APU_VRC7.h">
-      <Filter>NES\ApuEx</Filter>
-    </ClInclude>
-    <ClInclude Include="NES\ApuEX\emu2413\2413tone.h">
-      <Filter>NES\ApuEx\emu2413</Filter>
-    </ClInclude>
-    <ClInclude Include="NES\ApuEX\emu2413\emu2413.h">
-      <Filter>NES\ApuEx\emu2413</Filter>
-    </ClInclude>
-    <ClInclude Include="NES\ApuEX\emu2413\vrc7tone.h">
-      <Filter>NES\ApuEx\emu2413</Filter>
-    </ClInclude>
-    <ClInclude Include="NES\Cheat.h">
-      <Filter>NES</Filter>
-    </ClInclude>
-    <ClInclude Include="NES\CPU.h">
-      <Filter>NES</Filter>
-    </ClInclude>
-    <ClInclude Include="NES\IPS.h">
-      <Filter>NES</Filter>
-    </ClInclude>
-    <ClInclude Include="NES\Mapper\Mapper.h">
-      <Filter>NES\Mapper</Filter>
-    </ClInclude>
-    <ClInclude Include="NES\MMU.h">
-      <Filter>NES</Filter>
-    </ClInclude>
-    <ClInclude Include="NES\Nes.h">
-      <Filter>NES</Filter>
-    </ClInclude>
-    <ClInclude Include="NES\PAD.h">
-      <Filter>NES</Filter>
-    </ClInclude>
-    <ClInclude Include="NES\PPU.h">
-      <Filter>NES</Filter>
-    </ClInclude>
-    <ClInclude Include="NES\ROM.h">
-      <Filter>NES</Filter>
-    </ClInclude>
-    <ClInclude Include="NES\ROMDB.h">
-      <Filter>NES</Filter>
-    </ClInclude>
-    <ClInclude Include="NES\State.h">
-      <Filter>NES</Filter>
-    </ClInclude>
-    <ClInclude Include="NES\VsUnisystem.h">
-      <Filter>NES</Filter>
-    </ClInclude>
-    <ClInclude Include="NES\VS_Setting.h">
-      <Filter>NES</Filter>
-    </ClInclude>
     <ClInclude Include="NetPlay.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -1023,6 +945,81 @@
     <ClInclude Include="WndHook.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="NES\APU.h">
+      <Filter>NES</Filter>
+    </ClInclude>
+    <ClInclude Include="NES\Cheat.h">
+      <Filter>NES</Filter>
+    </ClInclude>
+    <ClInclude Include="NES\CPU.h">
+      <Filter>NES</Filter>
+    </ClInclude>
+    <ClInclude Include="NES\IPS.h">
+      <Filter>NES</Filter>
+    </ClInclude>
+    <ClInclude Include="NES\MMU.h">
+      <Filter>NES</Filter>
+    </ClInclude>
+    <ClInclude Include="NES\Nes.h">
+      <Filter>NES</Filter>
+    </ClInclude>
+    <ClInclude Include="NES\PAD.h">
+      <Filter>NES</Filter>
+    </ClInclude>
+    <ClInclude Include="NES\PPU.h">
+      <Filter>NES</Filter>
+    </ClInclude>
+    <ClInclude Include="NES\ROM.h">
+      <Filter>NES</Filter>
+    </ClInclude>
+    <ClInclude Include="NES\ROMDB.h">
+      <Filter>NES</Filter>
+    </ClInclude>
+    <ClInclude Include="NES\State.h">
+      <Filter>NES</Filter>
+    </ClInclude>
+    <ClInclude Include="NES\VS_Setting.h">
+      <Filter>NES</Filter>
+    </ClInclude>
+    <ClInclude Include="NES\VsUnisystem.h">
+      <Filter>NES</Filter>
+    </ClInclude>
+    <ClInclude Include="NES\Mapper\Mapper.h">
+      <Filter>NES\Mapper</Filter>
+    </ClInclude>
+    <ClInclude Include="NES\ApuEX\APU_FDS.h">
+      <Filter>NES\ApuEx</Filter>
+    </ClInclude>
+    <ClInclude Include="NES\ApuEX\APU_FME7.h">
+      <Filter>NES\ApuEx</Filter>
+    </ClInclude>
+    <ClInclude Include="NES\ApuEX\APU_INTERFACE.h">
+      <Filter>NES\ApuEx</Filter>
+    </ClInclude>
+    <ClInclude Include="NES\ApuEX\APU_INTERNAL.h">
+      <Filter>NES\ApuEx</Filter>
+    </ClInclude>
+    <ClInclude Include="NES\ApuEX\APU_MMC5.h">
+      <Filter>NES\ApuEx</Filter>
+    </ClInclude>
+    <ClInclude Include="NES\ApuEX\APU_N106.h">
+      <Filter>NES\ApuEx</Filter>
+    </ClInclude>
+    <ClInclude Include="NES\ApuEX\APU_VRC6.h">
+      <Filter>NES\ApuEx</Filter>
+    </ClInclude>
+    <ClInclude Include="NES\ApuEX\APU_VRC7.h">
+      <Filter>NES\ApuEx</Filter>
+    </ClInclude>
+    <ClInclude Include="NES\ApuEX\emu2413\2413tone.h">
+      <Filter>NES\ApuEx\emu2413</Filter>
+    </ClInclude>
+    <ClInclude Include="NES\ApuEX\emu2413\emu2413.h">
+      <Filter>NES\ApuEx\emu2413</Filter>
+    </ClInclude>
+    <ClInclude Include="NES\ApuEX\emu2413\vrc7tone.h">
+      <Filter>NES\ApuEx\emu2413</Filter>
+    </ClInclude>
     <ClInclude Include="zlib\unzip.h">
       <Filter>Zlib</Filter>
     </ClInclude>
@@ -1037,21 +1034,23 @@
     <None Include="CheatImageList.bmp">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="LauncherImageList.bmp">
-      <Filter>Resource Files</Filter>
-    </None>
     <None Include="res\header_down.ico">
       <Filter>Resource Files</Filter>
     </None>
     <None Include="res\header_up.ico">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="res\VirtuaNES.exe.manifest">
+    <None Include="LauncherImageList.bmp">
       <Filter>Resource Files</Filter>
     </None>
     <None Include="res\VirtuaNES.ico">
       <Filter>Resource Files</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Manifest Include="res\VirtuaNES.exe.manifest">
+      <Filter>Resource Files</Filter>
+    </Manifest>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="VirtuaNES.rc">
@@ -1064,503 +1063,503 @@
     </Library>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="NES\Mapper\EEPROM.h">
+    <CustomBuildStep Include="NES\Mapper\EEPROM.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper000.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper000.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper001.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper001.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper002.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper002.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper003.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper003.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper004.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper004.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper005.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper005.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper006.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper006.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper007.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper007.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper008.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper008.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper009.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper009.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper010.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper010.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper011.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper011.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper012.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper012.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper013.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper013.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper015.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper015.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper016.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper016.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper017.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper017.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper018.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper018.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper019.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper019.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper021.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper021.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper022.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper022.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper023.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper023.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper024.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper024.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper025.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper025.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper026.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper026.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper027.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper027.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper032.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper032.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper033.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper033.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper034.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper034.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper040.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper040.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper041.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper041.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper042.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper042.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper043.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper043.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper044.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper044.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper045.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper045.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper046.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper046.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper047.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper047.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper048.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper048.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper050.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper050.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper051.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper051.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper057.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper057.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper058.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper058.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper060.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper060.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper061.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper061.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper062.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper062.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper064.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper064.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper065.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper065.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper066.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper066.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper067.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper067.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper068.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper068.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper069.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper069.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper070.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper070.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper071.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper071.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper072.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper072.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper073.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper073.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper074.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper074.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper075.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper075.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper076.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper076.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper077.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper077.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper078.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper078.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper079.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper079.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper080.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper080.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper082.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper082.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper083.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper083.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper085.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper085.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper086.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper086.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper087.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper087.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper088.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper088.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper089.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper089.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper090.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper090.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper091.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper091.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper092.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper092.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper093.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper093.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper094.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper094.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper095.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper095.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper096.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper096.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper097.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper097.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper099.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper099.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper100.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper100.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper101.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper101.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper105.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper105.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper107.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper107.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper108.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper108.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper109.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper109.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper110.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper110.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper112.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper112.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper113.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper113.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper114.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper114.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper115.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper115.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper116.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper116.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper117.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper117.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper118.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper118.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper119.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper119.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper122.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper122.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper133.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper133.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper134.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper134.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper135.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper135.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper140.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper140.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper142.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper142.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper151.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper151.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper160.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper160.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper164.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper164.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper165.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper165.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper167.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper167.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper180.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper180.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper181.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper181.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper182.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper182.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper183.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper183.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper185.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper185.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper187.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper187.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper188.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper188.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper189.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper189.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper190.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper190.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper191.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper191.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper193.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper193.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper194.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper194.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper198.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper198.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper200.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper200.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper201.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper201.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper202.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper202.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper222.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper222.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper225.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper225.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper226.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper226.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper227.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper227.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper228.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper228.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper229.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper229.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper230.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper230.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper231.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper231.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper232.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper232.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper233.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper233.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper234.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper234.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper235.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper235.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper236.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper236.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper240.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper240.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper241.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper241.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper242.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper242.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper243.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper243.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper244.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper244.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper245.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper245.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper246.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper246.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper248.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper248.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper249.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper249.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper251.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper251.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper252.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper252.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper254.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper254.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\Mapper255.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\Mapper255.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\MapperFDS.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\MapperFDS.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\Mapper\MapperNSF.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\Mapper\MapperNSF.h">
       <Filter>NES\Mapper</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\PadEX\EXPAD.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\PadEX\EXPAD.h">
       <Filter>NES\PadEx</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\PadEX\EXPAD_CrazyClimber.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\PadEX\EXPAD_CrazyClimber.h">
       <Filter>NES\PadEx</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\PadEX\EXPAD_ExcitingBoxing.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\PadEX\EXPAD_ExcitingBoxing.h">
       <Filter>NES\PadEx</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\PadEX\EXPAD_FamlyTrainer.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\PadEX\EXPAD_FamlyTrainer.h">
       <Filter>NES\PadEx</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\PadEX\EXPAD_Gyromite.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\PadEX\EXPAD_Gyromite.h">
       <Filter>NES\PadEx</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\PadEX\EXPAD_HyperShot.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\PadEX\EXPAD_HyperShot.h">
       <Filter>NES\PadEx</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\PadEX\EXPAD_Keyboard.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\PadEX\EXPAD_Keyboard.h">
       <Filter>NES\PadEx</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\PadEX\EXPAD_Mahjang.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\PadEX\EXPAD_Mahjang.h">
       <Filter>NES\PadEx</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\PadEX\EXPAD_OekakidsTablet.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\PadEX\EXPAD_OekakidsTablet.h">
       <Filter>NES\PadEx</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\PadEX\EXPAD_Paddle.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\PadEX\EXPAD_Paddle.h">
       <Filter>NES\PadEx</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\PadEX\EXPAD_SpaceShadowGun.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\PadEX\EXPAD_SpaceShadowGun.h">
       <Filter>NES\PadEx</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\PadEX\EXPAD_Supor_Keyboard.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\PadEX\EXPAD_Supor_Keyboard.h">
       <Filter>NES\PadEx</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\PadEX\EXPAD_Toprider.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\PadEX\EXPAD_Toprider.h">
       <Filter>NES\PadEx</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\PadEX\EXPAD_TurboFile.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\PadEX\EXPAD_TurboFile.h">
       <Filter>NES\PadEx</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\PadEX\EXPAD_VSUnisystem.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\PadEX\EXPAD_VSUnisystem.h">
       <Filter>NES\PadEx</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\PadEX\EXPAD_VSZapper.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\PadEX\EXPAD_VSZapper.h">
       <Filter>NES\PadEx</Filter>
-    </CustomBuild>
-    <CustomBuild Include="NES\PadEX\EXPAD_Zapper.h">
+    </CustomBuildStep>
+    <CustomBuildStep Include="NES\PadEX\EXPAD_Zapper.h">
       <Filter>NES\PadEx</Filter>
-    </CustomBuild>
+    </CustomBuildStep>
   </ItemGroup>
 </Project>
