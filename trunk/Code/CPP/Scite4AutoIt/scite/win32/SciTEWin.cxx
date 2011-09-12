@@ -225,7 +225,7 @@ SciTEWin::SciTEWin(Extension *ext) : SciTEBase(ext) {
 			const void *pv = ::LockResource(hmem);
 			if (pv) {
 				propsEmbed.ReadFromMemory(
-				    reinterpret_cast<const char *>(pv), size, FilePath());
+				    reinterpret_cast<const char *>(pv), size, FilePath(), filter);
 			}
 		}
 		::FreeResource(handProps);
@@ -1244,7 +1244,8 @@ void SciTEWin::QuitProgram() {
 		if (fullScreen)	// Ensure tray visible on exit
 			FullScreenToggle();
 		::PostQuitMessage(0);
-		if (NoAnimateWindow == 0) {
+		//如果NoAnimateWindow为非0并且未在远程桌面下就显示淡出效果
+		if (NoAnimateWindow == 0 && GetSystemMetrics(SM_REMOTESESSION)==0) {
 			wSciTE.DestroySciTe();
 			}
 		else
