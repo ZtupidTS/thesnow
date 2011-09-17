@@ -841,7 +841,7 @@ NameError: mistake
        c:\os\scite\bin\Lua.properties.
     </p>
     <p>
-       All of the properties files in a direcory can be imported with "import *".
+       All of the properties files in a directory can be imported with "import *".
        This does not import generic properties files like user properties or abbreviations.
        The set of files that are imported can be controlled with the imports.include and imports.exclude
        properties.
@@ -3354,6 +3354,16 @@ groupundo - yes or no
 	ignoring comments and whitespace. Otherwise use the same indentation as the previous line.
 	This property overrides other indentation settings.
          </td>
+      </tr>
+      <tr>
+        <td>
+          os.x.home.end.keys
+        </td>
+        <td>
+	Chooses the standard OS X behaviour for the Home and End keys which is
+	to scroll the file to the start or end. This setting takes precedence over
+	vc.home.key.
+        </td>
       </tr>
       <tr>
         <td>
