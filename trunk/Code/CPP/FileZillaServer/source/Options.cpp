@@ -689,7 +689,7 @@ _int64 COptions::GetOptionVal(int nOptionID)
 				m_sOptionsCache[nOptionID-1].value = 1;
 				break;
 			case OPTION_AUTOBAN_ATTEMPTS:
-				m_sOptionsCache[nOptionID-1].value = 5;
+				m_sOptionsCache[nOptionID-1].value = 10;
 				break;
 			default:
 				m_sOptionsCache[nOptionID-1].value = 0;
