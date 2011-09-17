@@ -168,7 +168,7 @@ void SciTEBase::ReadGlobalPropFile() {
 
 		SString excludesRead = props.Get("imports.exclude");
 		SString includesRead = props.Get("imports.include");
-		if ((attempt > 0) && ((excludesRead == excludes) == (includesRead == includes)))
+		if ((attempt > 0) && ((excludesRead == excludes) && (includesRead == includes)))
 			break;
 
 		excludes = excludesRead;
@@ -1149,33 +1149,42 @@ void SciTEBase::ReadProperties() {
  	wEditor.Call(SCI_SETWRAPSTARTINDENT, props.GetInt("wrap.visual.startindent"));
  	wEditor.Call(SCI_SETWRAPINDENTMODE, props.GetInt("wrap.indent.mode"));
 
-	if (props.GetInt("wrap.aware.home.end.keys",0)) {
-		if (props.GetInt("vc.home.key", 1)) {
-			AssignKey(SCK_HOME, 0, SCI_VCHOMEWRAP);
-			AssignKey(SCK_HOME, SCMOD_SHIFT, SCI_VCHOMEWRAPEXTEND);
-			AssignKey(SCK_HOME, SCMOD_SHIFT | SCMOD_ALT, SCI_VCHOMERECTEXTEND);
-		} else {
-			AssignKey(SCK_HOME, 0, SCI_HOMEWRAP);
-			AssignKey(SCK_HOME, SCMOD_SHIFT, SCI_HOMEWRAPEXTEND);
-			AssignKey(SCK_HOME, SCMOD_SHIFT | SCMOD_ALT, SCI_HOMERECTEXTEND);
-		}
-		AssignKey(SCK_END, 0, SCI_LINEENDWRAP);
-		AssignKey(SCK_END, SCMOD_SHIFT, SCI_LINEENDWRAPEXTEND);
+	if (props.GetInt("os.x.home.end.keys")) {
+		AssignKey(SCK_HOME, 0, SCI_SCROLLTOSTART);
+		AssignKey(SCK_HOME, SCMOD_SHIFT, SCI_NULL);
+		AssignKey(SCK_HOME, SCMOD_SHIFT | SCMOD_ALT, SCI_NULL);
+		AssignKey(SCK_END, 0, SCI_SCROLLTOEND);
+		AssignKey(SCK_END, SCMOD_SHIFT, SCI_NULL);
 	} else {
-		if (props.GetInt("vc.home.key", 1)) {
-			AssignKey(SCK_HOME, 0, SCI_VCHOME);
-			AssignKey(SCK_HOME, SCMOD_SHIFT, SCI_VCHOMEEXTEND);
-			AssignKey(SCK_HOME, SCMOD_SHIFT | SCMOD_ALT, SCI_VCHOMERECTEXTEND);
+		if (props.GetInt("wrap.aware.home.end.keys",0)) {
+			if (props.GetInt("vc.home.key", 1)) {
+				AssignKey(SCK_HOME, 0, SCI_VCHOMEWRAP);
+				AssignKey(SCK_HOME, SCMOD_SHIFT, SCI_VCHOMEWRAPEXTEND);
+				AssignKey(SCK_HOME, SCMOD_SHIFT | SCMOD_ALT, SCI_VCHOMERECTEXTEND);
+			} else {
+				AssignKey(SCK_HOME, 0, SCI_HOMEWRAP);
+				AssignKey(SCK_HOME, SCMOD_SHIFT, SCI_HOMEWRAPEXTEND);
+				AssignKey(SCK_HOME, SCMOD_SHIFT | SCMOD_ALT, SCI_HOMERECTEXTEND);
+			}
+			AssignKey(SCK_END, 0, SCI_LINEENDWRAP);
+			AssignKey(SCK_END, SCMOD_SHIFT, SCI_LINEENDWRAPEXTEND);
 		} else {
-			AssignKey(SCK_HOME, 0, SCI_HOME);
-			AssignKey(SCK_HOME, SCMOD_SHIFT, SCI_HOMEEXTEND);
-			AssignKey(SCK_HOME, SCMOD_SHIFT | SCMOD_ALT, SCI_HOMERECTEXTEND);
+			if (props.GetInt("vc.home.key", 1)) {
+				AssignKey(SCK_HOME, 0, SCI_VCHOME);
+				AssignKey(SCK_HOME, SCMOD_SHIFT, SCI_VCHOMEEXTEND);
+				AssignKey(SCK_HOME, SCMOD_SHIFT | SCMOD_ALT, SCI_VCHOMERECTEXTEND);
+			} else {
+				AssignKey(SCK_HOME, 0, SCI_HOME);
+				AssignKey(SCK_HOME, SCMOD_SHIFT, SCI_HOMEEXTEND);
+				AssignKey(SCK_HOME, SCMOD_SHIFT | SCMOD_ALT, SCI_HOMERECTEXTEND);
+			}
+			AssignKey(SCK_END, 0, SCI_LINEEND);
+			AssignKey(SCK_END, SCMOD_SHIFT, SCI_LINEENDEXTEND);
 		}
-		AssignKey(SCK_END, 0, SCI_LINEEND);
-		AssignKey(SCK_END, SCMOD_SHIFT, SCI_LINEENDEXTEND);
 	}
 
 	AssignKey('L', SCMOD_SHIFT | SCMOD_CTRL, SCI_LINEDELETE);
+
 
 	scrollOutput = props.GetInt("output.scroll", 1);
 

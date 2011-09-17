@@ -400,9 +400,9 @@ bool IsPropertiesFile(const FilePath &filename) {
 
 static bool GenericPropertiesFile(const FilePath &filename) {
 	std::string name = filename.BaseName().AsUTF8();
-	if (name == "abbrev")
+	if (name == "abbrev" || name == "Embedded")
 		return true;
-	return filename.AsUTF8().find("SciTE") != std::string::npos;
+	return name.find("SciTE") != std::string::npos;
 }
 
 void PropSetFile::Import(FilePath filename, FilePath directoryForImports, const ImportFilter &filter, std::vector<FilePath> *imports) {
@@ -430,8 +430,8 @@ bool PropSetFile::ReadLine(const char *lineBuffer, bool ifIsTrue, FilePath direc
 			directoryForImports.List(directories, files);
 			for (size_t i = 0; i < files.size(); i ++) {
 				FilePath fpFile = files[i];
-				if (IsPropertiesFile(fpFile) && 
-					!GenericPropertiesFile(fpFile) && 
+				if (IsPropertiesFile(fpFile) &&
+					!GenericPropertiesFile(fpFile) &&
 					filter.IsValid(fpFile.BaseName().AsUTF8())) {
 					FilePath importPath(directoryForImports, fpFile);
 					Import(importPath, directoryForImports, filter, imports);
