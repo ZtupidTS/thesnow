@@ -573,7 +573,7 @@ void SciTEWin::Print(
 	                           ptDpi.y, 72);
 	HFONT fontHeader = ::CreateFontA(headerLineHeight,
 	                                0, 0, 0,
-	                                sdHeader.bold ? FW_BOLD : FW_NORMAL,
+	                                sdHeader.weight,
 	                                sdHeader.italics,
 	                                sdHeader.underlined,
 	                                0, 0, 0,
@@ -591,7 +591,7 @@ void SciTEWin::Print(
 	                           ptDpi.y, 72);
 	HFONT fontFooter = ::CreateFontA(footerLineHeight,
 	                                0, 0, 0,
-	                                sdFooter.bold ? FW_BOLD : FW_NORMAL,
+	                                sdFooter.weight,
 	                                sdFooter.italics,
 	                                sdFooter.underlined,
 	                                0, 0, 0,
@@ -658,8 +658,8 @@ void SciTEWin::Print(
 	bool printPage;
 	PropSetFile propsPrint;
 	propsPrint.superPS = &props;
-//	SetFileProperties(propsPrint);	//renamed ↓
-	SetFileAttrib(propsPrint);
+	SetFileProperties(propsPrint);
+
 	while (lengthPrinted < lengthDoc) {
 		printPage = (!(pdlg.Flags & PD_PAGENUMS) ||
 		             ((pageNum >= pdlg.nFromPage) && (pageNum <= pdlg.nToPage)));

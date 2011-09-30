@@ -190,7 +190,6 @@ SciTEBase::SciTEBase(Extension *ext) : apis(true), extender(ext) {
 	lineNumbers = true;
 	lineNumbersWidth = lineNumbersWidthDefault;
 	lineNumbersExpand = false;
-	usePalette = false;
 
 	abbrevInsert[0] = '\0';
 
@@ -2321,8 +2320,7 @@ void SciTEBase::SetTextProperties(
 void SciTEBase::UpdateStatusBar(bool bUpdateSlowData) {
 	if (sbVisible) {
 		if (bUpdateSlowData) {
-			//SetFileProperties(propsStatus); //renamed ↓
-			SetFileAttrib(propsStatus);
+			SetFileProperties(propsStatus);
 		}
 		SetTextProperties(propsStatus);
 		int caretPos = wEditor.Call(SCI_GETCURRENTPOS);
@@ -3683,24 +3681,28 @@ void SciTEBase::FoldChanged(int line, int levelNow, int levelPrev) {
 		if (!(levelPrev & SC_FOLDLEVELHEADERFLAG)) {
 			// Adding a fold point.
 			wEditor.Call(SCI_SETFOLDEXPANDED, line, 1);
-			Expand(line, true, false, 0, levelPrev);
+			if (!wEditor.Call(SCI_GETALLLINESVISIBLE))
+				Expand(line, true, false, 0, levelPrev);
 		}
 	} else if (levelPrev & SC_FOLDLEVELHEADERFLAG) {
 		if (!wEditor.Call(SCI_GETFOLDEXPANDED, line)) {
 			// Removing the fold from one that has been contracted so should expand
 			// otherwise lines are left invisible with no way to make them visible
 			wEditor.Call(SCI_SETFOLDEXPANDED, line, 1);
-			Expand(line, true, false, 0, levelPrev);
+			if (!wEditor.Call(SCI_GETALLLINESVISIBLE))
+				Expand(line, true, false, 0, levelPrev);
 		}
 	}
 	if (!(levelNow & SC_FOLDLEVELWHITEFLAG) &&
 	        ((levelPrev & SC_FOLDLEVELNUMBERMASK) > (levelNow & SC_FOLDLEVELNUMBERMASK))) {
-		// See if should still be hidden
-		int parentLine = wEditor.Call(SCI_GETFOLDPARENT, line);
-		if (parentLine < 0) {
-			wEditor.Call(SCI_SHOWLINES, line, line);
-		} else if (wEditor.Call(SCI_GETFOLDEXPANDED, parentLine) && wEditor.Call(SCI_GETLINEVISIBLE, parentLine)) {
-			wEditor.Call(SCI_SHOWLINES, line, line);
+		if (!wEditor.Call(SCI_GETALLLINESVISIBLE)) {
+			// See if should still be hidden
+			int parentLine = wEditor.Call(SCI_GETFOLDPARENT, line);
+			if (parentLine < 0) {
+				wEditor.Call(SCI_SHOWLINES, line, line);
+			} else if (wEditor.Call(SCI_GETFOLDEXPANDED, parentLine) && wEditor.Call(SCI_GETLINEVISIBLE, parentLine)) {
+				wEditor.Call(SCI_SHOWLINES, line, line);
+			}
 		}
 	}
 }

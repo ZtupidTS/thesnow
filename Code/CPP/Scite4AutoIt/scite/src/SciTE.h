@@ -180,7 +180,6 @@
 #define IDM_OPENPROPERTIES			466		//汉化添加--------
 //#define IDM_SELECTIONMARGIN		490
 //#define IDM_BUFFEREDDRAW			491
-//#define IDM_USEPALETTE			492
 
 // 缓冲区(面板窗口)
 #define IDM_PREVFILE		501

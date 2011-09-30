@@ -71,7 +71,7 @@
 #if defined(GTK)
 const GUI::gui_char propUserFileName[] = GUI_TEXT(".SciTEUser.properties");
 #elif defined(__APPLE__)
-const GUI::gui_char propUserFileName[] = GUI_TEXT("org.scintilla.SciTEUser.properties");
+const GUI::gui_char propUserFileName[] = GUI_TEXT("SciTEUser.properties");
 #else
 // Windows
 const GUI::gui_char propUserFileName[] = GUI_TEXT("用户设置.properties");	//moded
@@ -383,10 +383,6 @@ void SciTEBase::OpenFile(long fileSize, bool suppressMessage) {
 	if (!wEditor.Call(SCI_GETUNDOCOLLECTION)) {
 		wEditor.Call(SCI_SETUNDOCOLLECTION, 1);
 	}
-	// Flick focus to the output window and back to
-	// ensure palette realised correctly.
-	WindowSetFocus(wOutput);
-	WindowSetFocus(wEditor);
 	wEditor.Call(SCI_SETSAVEPOINT);
 	if (props.GetInt("fold.on.open") > 0) {
 		FoldAll();

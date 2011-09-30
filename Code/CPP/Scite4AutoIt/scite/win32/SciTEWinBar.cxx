@@ -10,8 +10,7 @@
 /**
  * Set up properties for FileTime, FileDate, CurrentTime, CurrentDate and FileAttr.
  */
-//void SciTEWin::SetFileProperties(		//renamed ↓
-void SciTEWin::SetFileAttrib(
+void SciTEWin::SetFileProperties(
     PropSetFile &ps) {			///< Property set to update.
 
 	const int TEMP_LEN = 100;
