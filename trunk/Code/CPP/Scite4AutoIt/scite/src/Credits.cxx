@@ -310,6 +310,7 @@ const char *contributors[] = {
             "Occam's Razor",
             "Ben Bluemel",
             "David Wolfendale",
+            "Chris Angelico",
         };
 
 // AddStyledText only called from About so static size buffer is OK
@@ -372,7 +373,7 @@ void SciTEBase::SetAboutMessage(GUI::ScintillaWindow &wsci, const char *appTitle
 				        reinterpret_cast<uptr_t>(sd.font.c_str()));
 			}
 			if (sd.specified & StyleDefinition::sdSize) {
-				wsci.Send(SCI_STYLESETSIZE, trsSty, sd.size);
+				wsci.Send(SCI_STYLESETSIZEFRACTIONAL, trsSty, sd.FractionalSize());
 			}
 		}
 #endif

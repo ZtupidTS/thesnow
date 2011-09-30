@@ -408,8 +408,7 @@ protected:
 	virtual FilePath GetSciteUserHome();
 	virtual FilePath GetAutoItPath();	//added
 
-//	virtual void SetFileProperties(PropSetFile &ps);	//renamed ↓
-	virtual void SetFileAttrib(PropSetFile &ps);
+	virtual void SetFileProperties(PropSetFile &ps);
 	virtual void SetStatusBarText(const char *s);
 
 	virtual void TabInsert(int index, const GUI::gui_char *title);

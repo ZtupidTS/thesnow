@@ -53,11 +53,7 @@
 #ifdef STATIC_BUILD
 const GUI::gui_char appName[] = GUI_TEXT("Sc1");
 #else
-#ifdef AUTOIT
 const GUI::gui_char appName[] = GUI_TEXT("SciTE(ACN)");
-#else
-const GUI::gui_char appName[] = GUI_TEXT("SciTE(thesnoW)");
-#endif
 #endif
 
 static GUI::gui_string GetErrorMessage(DWORD nRet) {

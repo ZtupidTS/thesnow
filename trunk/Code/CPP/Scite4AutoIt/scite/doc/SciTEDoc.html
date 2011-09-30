@@ -1196,18 +1196,6 @@ NameError: mistake
           The statusbar.number option defines how many texts are to be cycled through.
         </td>
       </tr>
-      <tr class="windowsonly">
-        <td>
-          use.palette
-        </td>
-        <td>
-          Setting this to 1 makes SciTE use a palette to enable it to display more colours on 8 bit
-          displays. Without this option SciTE will only display with colours already available
-          which is normally the 20 colour Windows system palette. The downside of turning on this
-          option is that there will be some flashing as windows are activated. This option has no
-          effect on GTK+ where a palette is always used.
-        </td>
-      </tr>
       <tr>
         <td>
           buffered.draw
@@ -1233,6 +1221,15 @@ NameError: mistake
         fixes this by drawing all the backgrounds first and then drawing the text in
         transparent mode. Two phase drawing may flicker more than single phase
         unless buffered drawing is on. The default is for drawing to be two phase.
+        </td>
+      </tr>
+      <tr class="windowsonly">
+        <td>
+          technology
+        </td>
+        <td>
+        On Windows Vista or newer, this can be set to 1 to use the Direct2D and DirectWrite APIs
+        for higher quality antialiased drawing. The default is 0.
         </td>
       </tr>
       <tr>
@@ -1967,6 +1964,10 @@ NameError: mistake
 	<tr>
 	<td>lexer.cpp.allow.dollars</td>
 	<td>Set to 0 to disallow the '$' character in identifiers with the cpp lexer.</td>
+	</tr>
+	<tr>
+	<td>lexer.cpp.hashquoted.strings</td>
+	<td>Set to 1 to enable highlighting of hash-quoted strings.</td>
 	</tr>
 	<tr>
 	<td>lexer.cpp.track.preprocessor</td>
@@ -2750,11 +2751,13 @@ imports.include=fortran lisp
           each lexer.<br />
            The value of each setting is a set of ',' separated fields, some of which have a
           subvalue after a ':'. The fields are font, size, fore, back, italics, notitalics, bold,
-          notbold, eolfilled, noteolfilled, underlined, notunderlined, and case.
+          notbold, weight, eolfilled, noteolfilled, underlined, notunderlined, and case.
         The font field has a subvalue which is the name of
-          the font, the fore and back have colour subvalues, the size field has a numeric size
-          subvalue, the case field has a subvalue of 'm', 'u', or 'l' for mixed, upper or lower case,
-        and the bold, italics and eolfilled fields have no subvalue. The value
+          the font, the fore and back have colour subvalues,
+          the size field has a (fractional) numeric size subvalue, 
+          the weight field has a numeric size subvalue (1.. 999: 100=light, 400=normal, 700=bold), 
+          the case field has a subvalue of 'm', 'u', or 'l' for mixed, upper or lower case,
+          and the bold, italics and eolfilled fields have no subvalue. The value
           "fore:#FF0000,font:Courier,size:14" represents 14 point, red Courier text.<br />
            A global style can be set up using style.*.<i>stylenumber</i>. Any style options set in
           the global style will be inherited by each lexer style unless overridden.<br />
