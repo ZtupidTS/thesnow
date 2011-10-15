@@ -52,19 +52,25 @@ enum {
     menuHelp = 8
 };
 
+struct SelectionRange {
+	int position;
+	int anchor;
+	SelectionRange(int position_= INVALID_POSITION, int anchor_= INVALID_POSITION) : 
+		position(position_), anchor(anchor_) {
+	}
+};
+
 class RecentFile : public FilePath {
 public:
-	Sci_CharacterRange selection;
+	SelectionRange selection;
 	int scrollPosition;
 	RecentFile() {
-		selection.cpMin = INVALID_POSITION;
-		selection.cpMax = INVALID_POSITION;
 		scrollPosition = 0;
 	}
 	void Init() {
 		FilePath::Init();
-		selection.cpMin = INVALID_POSITION;
-		selection.cpMax = INVALID_POSITION;
+		selection.position = INVALID_POSITION;
+		selection.anchor = INVALID_POSITION;
 		scrollPosition = 0;
 	}
 };
@@ -86,6 +92,7 @@ public:
 	enum { fmNone, fmMarked, fmModified} findMarks;
 	SString overrideExtension;	///< User has chosen to use a particular language
 	std::vector<int> foldState;
+	std::vector<int> bookmarks;
 	PropSetFile props;
 	Buffer() :
 			RecentFile(), doc(0), isDirty(false), useMonoFont(false),
@@ -338,6 +345,8 @@ protected:
 	SString apisFileNames;
 	SString functionDefinition;
 
+	enum { diagnosticStyleStart=256, diagnosticStyleEnd=diagnosticStyleStart+4-1};
+
 	bool indentOpening;
 	bool indentClosing;
 	bool indentMaintain;
@@ -587,6 +596,7 @@ protected:
 	virtual void Print(bool) {}
 	virtual void PrintSetup() {}
 	Sci_CharacterRange GetSelection();
+	SelectionRange GetSelectionRange();
 	void SetSelection(int anchor, int currentPos);
 	//	void SelectionExtend(char *sel, int len, char *notselchar);
 	void GetCTag(char *sel, int len);
@@ -644,6 +654,7 @@ protected:
 	void ClearJobQueue();
 	virtual void Execute();
 	virtual void StopExecute() = 0;
+	void ShowMessages(int line);
 	void GoMessage(int dir);
 	virtual bool StartCallTip();
 	char *GetNearestWords(const char *wordStart, int searchLen,
@@ -736,7 +747,7 @@ protected:
 	void SetFileStackMenu();
 	void DropFileStackTop();
 	bool AddFileToBuffer(FilePath file, int pos);
-	void AddFileToStack(FilePath file, Sci_CharacterRange selection, int scrollPos);
+	void AddFileToStack(FilePath file, SelectionRange selection, int scrollPos);
 	void RemoveFileFromStack(FilePath file);
 	RecentFile GetFilePosition();
 	void DisplayAround(const RecentFile &rf);
@@ -779,6 +790,7 @@ protected:
 	SString FindLanguageProperty(const char *pattern, const char *defaultValue = "");
 	virtual void ReadProperties();
 	void SetOneStyle(GUI::ScintillaWindow &win, int style, const StyleDefinition &sd);
+	void SetStyleBlock(GUI::ScintillaWindow &win, const char *lang, int start, int last);
 	void SetStyleFor(GUI::ScintillaWindow &win, const char *language);
 	void ReloadProperties();
 

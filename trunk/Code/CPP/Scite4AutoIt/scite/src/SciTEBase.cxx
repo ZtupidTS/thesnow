@@ -640,6 +640,13 @@ Sci_CharacterRange SciTEBase::GetSelection() {
 	return crange;
 }
 
+SelectionRange SciTEBase::GetSelectionRange() {
+	SelectionRange range;
+	range.position = wEditor.Call(SCI_GETCURRENTPOS);
+	range.anchor = wEditor.Call(SCI_GETANCHOR);
+	return range;
+}
+
 void SciTEBase::SetSelection(int anchor, int currentPos) {
 	wEditor.Call(SCI_SETSEL, anchor, currentPos);
 }
@@ -935,6 +942,7 @@ void SciTEBase::RemoveFindMarks() {
 		wEditor.Call(SCI_INDICATORCLEARRANGE, 0, LengthDocument());
 		CurrentBuffer()->findMarks = Buffer::fmNone;
 	}
+	wEditor.Call(SCI_ANNOTATIONCLEARALL);
 }
 
 int SciTEBase::MarkAll() {
