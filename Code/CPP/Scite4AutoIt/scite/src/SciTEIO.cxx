@@ -149,6 +149,8 @@ void SciTEBase::CountLineEnds(int &linesCR, int &linesLF, int &linesCRLF) {
 			if (chPrev != '\r') {
 				linesLF++;
 			}
+		} else if (i > 1000000) {
+			return;
 		}
 		chPrev = ch;
 	}
@@ -434,7 +436,7 @@ bool SciTEBase::Open(FilePath file, OpenFlags of) {
 	}
 
 	if (buffers.size == buffers.length) {
-		AddFileToStack(filePath, GetSelection(), GetCurrentScrollPosition());
+		AddFileToStack(filePath, GetSelectionRange(), GetCurrentScrollPosition());
 		ClearDocument();
 		if (extender)
 			extender->InitBuffer(buffers.Current());
