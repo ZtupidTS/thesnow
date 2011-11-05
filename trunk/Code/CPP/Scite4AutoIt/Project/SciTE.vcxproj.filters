@@ -1,0 +1,674 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="源文件">
+      <UniqueIdentifier>{83d65683-c625-4b36-b368-a551b1db3b91}</UniqueIdentifier>
+      <Extensions>cpp;c;cxx;rc;def;r;odl;idl;hpj;bat</Extensions>
+    </Filter>
+    <Filter Include="源文件\Extras">
+      <UniqueIdentifier>{1baaaf0c-f612-452a-81f3-96beb874c05f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\SciLexer">
+      <UniqueIdentifier>{d7240fd2-b955-4972-86e9-f248decf66c1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\LUA">
+      <UniqueIdentifier>{d109ddef-edc9-47fe-8d62-6a3c51f35f69}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\LUA\LIB">
+      <UniqueIdentifier>{6668bda1-19d8-4dcf-9448-a83b7d6da701}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\SciTe">
+      <UniqueIdentifier>{e18c1576-4400-446a-8280-ca715f1ff8ed}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件">
+      <UniqueIdentifier>{16580075-5be4-4742-9b4e-10b07edcfcd8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\Extras">
+      <UniqueIdentifier>{698389c1-eac8-4ed0-a326-a9c1a766b219}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\LUA">
+      <UniqueIdentifier>{7108519a-5ac7-4fdf-aff8-a4410139716f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\SciLexer">
+      <UniqueIdentifier>{e241801c-4791-47cf-96f2-576514756f34}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\SciTe">
+      <UniqueIdentifier>{4b398e88-16a3-4d60-ab14-61ce729c7da3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="资源文件">
+      <UniqueIdentifier>{e43cf0b4-0ca2-49c0-bcfd-f009726e8355}</UniqueIdentifier>
+      <Extensions>ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\SciTe\src\Extra.cxx">
+      <Filter>源文件\Extras</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexlib\Accessor.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\AutoComplete.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\CallTip.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\Catalogue.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\CellBuffer.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexlib\CharacterSet.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\CharClassify.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\ContractionState.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\Decoration.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\Document.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\Editor.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\ExternalLexer.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\Indicator.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\KeyMap.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexA68k.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexAbaqus.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexAda.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexAPDL.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexAsm.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexAsn1.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexASY.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexAU3.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexAVE.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexBaan.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexBash.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexBasic.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexBullant.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexCaml.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexCLW.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexCmake.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexCOBOL.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexConf.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexCPP.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexCrontab.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexCsound.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexCSS.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexD.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexEiffel.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexlib\LexerBase.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexErlang.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexlib\LexerModule.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexlib\LexerSimple.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexEScript.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexFlagship.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexForth.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexFortran.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexGAP.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexGui4Cli.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexHaskell.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexHTML.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexInno.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexKix.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexLisp.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexLout.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexLua.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexMagik.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexMarkdown.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexMatlab.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexMetapost.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexMMIXAL.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexModula.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexMPT.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexMSSQL.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexMySQL.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexNimrod.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexNsis.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexOpal.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexOthers.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexPascal.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexPB.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexPerl.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexPLM.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexPOV.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexPowerPro.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexPowerShell.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexProgress.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexPS.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexPython.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexR.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexRebol.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexRuby.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexScriptol.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexSmalltalk.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexSML.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexSorcus.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexSpecman.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexSpice.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexSQL.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexTACL.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexTADS3.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexTAL.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexTCL.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexTeX.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexTxt2tags.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexVB.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexVerilog.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexVHDL.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexYAML.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\LineMarker.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\Src\PerLine.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\Win32\PlatWin.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\Src\PositionCache.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexlib\PropSetSimple.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\RESearch.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\RunStyles.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\ScintillaBase.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\win32\ScintillaWin.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\Selection.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\Style.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexlib\StyleContext.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\Src\UniConversion.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\ViewStyle.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\Src\XPM.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scite\lua\src\lapi.c">
+      <Filter>源文件\LUA</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scite\lua\src\lcode.c">
+      <Filter>源文件\LUA</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scite\lua\src\ldebug.c">
+      <Filter>源文件\LUA</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scite\lua\src\ldo.c">
+      <Filter>源文件\LUA</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scite\lua\src\ldump.c">
+      <Filter>源文件\LUA</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scite\lua\src\lfunc.c">
+      <Filter>源文件\LUA</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scite\lua\src\lgc.c">
+      <Filter>源文件\LUA</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scite\lua\src\llex.c">
+      <Filter>源文件\LUA</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scite\lua\src\lmem.c">
+      <Filter>源文件\LUA</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scite\lua\src\lobject.c">
+      <Filter>源文件\LUA</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scite\lua\src\lopcodes.c">
+      <Filter>源文件\LUA</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scite\lua\src\lparser.c">
+      <Filter>源文件\LUA</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scite\lua\src\lstate.c">
+      <Filter>源文件\LUA</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scite\lua\src\lstring.c">
+      <Filter>源文件\LUA</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scite\lua\src\ltable.c">
+      <Filter>源文件\LUA</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scite\lua\src\ltm.c">
+      <Filter>源文件\LUA</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SciTe\src\LuaExtension.cxx">
+      <Filter>源文件\LUA</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scite\lua\src\lundump.c">
+      <Filter>源文件\LUA</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scite\lua\src\lvm.c">
+      <Filter>源文件\LUA</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scite\lua\src\lzio.c">
+      <Filter>源文件\LUA</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scite\lua\src\lib\lauxlib.c">
+      <Filter>源文件\LUA\LIB</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scite\lua\src\lib\lbaselib.c">
+      <Filter>源文件\LUA\LIB</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scite\lua\src\lib\ldblib.c">
+      <Filter>源文件\LUA\LIB</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scite\lua\src\lib\linit.c">
+      <Filter>源文件\LUA\LIB</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scite\lua\src\lib\liolib.c">
+      <Filter>源文件\LUA\LIB</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scite\lua\src\lib\lmathlib.c">
+      <Filter>源文件\LUA\LIB</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scite\lua\src\lib\loadlib.c">
+      <Filter>源文件\LUA\LIB</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scite\lua\src\lib\loslib.c">
+      <Filter>源文件\LUA\LIB</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scite\lua\src\lib\lstrlib.c">
+      <Filter>源文件\LUA\LIB</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scite\lua\src\lib\ltablib.c">
+      <Filter>源文件\LUA\LIB</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SciTe\src\Credits.cxx">
+      <Filter>源文件\SciTe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SciTe\Win32\DirectorExtension.cxx">
+      <Filter>源文件\SciTe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SciTe\src\Exporters.cxx">
+      <Filter>源文件\SciTe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SciTe\src\FilePath.cxx">
+      <Filter>源文件\SciTe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SciTe\Win32\GUIWin.cxx">
+      <Filter>源文件\SciTe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SciTe\src\IFaceTable.cxx">
+      <Filter>源文件\SciTe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scite\src\MultiplexExtension.cxx">
+      <Filter>源文件\SciTe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SciTe\src\PropSetFile.cxx">
+      <Filter>源文件\SciTe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SciTe\src\SciTEBase.cxx">
+      <Filter>源文件\SciTe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SciTe\src\SciTEBuffers.cxx">
+      <Filter>源文件\SciTe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SciTe\src\SciTEIO.cxx">
+      <Filter>源文件\SciTe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SciTe\src\SciTEProps.cxx">
+      <Filter>源文件\SciTe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SciTe\Win32\SciTEWin.cxx">
+      <Filter>源文件\SciTe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SciTe\Win32\SciTEWinBar.cxx">
+      <Filter>源文件\SciTe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SciTe\Win32\SciTEWinDlg.cxx">
+      <Filter>源文件\SciTe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SciTe\Win32\SingleThreadExtension.cxx">
+      <Filter>源文件\SciTe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SciTe\src\StringHelpers.cxx">
+      <Filter>源文件\SciTe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SciTe\src\StringList.cxx">
+      <Filter>源文件\SciTe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SciTe\src\StyleWriter.cxx">
+      <Filter>源文件\SciTe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SciTe\Win32\UniqueInstance.cxx">
+      <Filter>源文件\SciTe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SciTe\src\Utf8_16.cxx">
+      <Filter>源文件\SciTe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SciTe\Win32\WinMutex.cxx">
+      <Filter>源文件\SciTe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexlib\WordList.cxx">
+      <Filter>源文件\SciTe</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\SciTe\src\Extra.h">
+      <Filter>头文件\Extras</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SciTe\src\LuaExtension.h">
+      <Filter>头文件\LUA</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Scintilla\src\AutoComplete.h">
+      <Filter>头文件\SciLexer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Scintilla\src\CallTip.h">
+      <Filter>头文件\SciLexer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Scintilla\src\CellBuffer.h">
+      <Filter>头文件\SciLexer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Scintilla\src\ContractionState.h">
+      <Filter>头文件\SciLexer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Scintilla\src\Document.h">
+      <Filter>头文件\SciLexer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Scintilla\src\Editor.h">
+      <Filter>头文件\SciLexer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Scintilla\src\ExternalLexer.h">
+      <Filter>头文件\SciLexer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Scintilla\src\Indicator.h">
+      <Filter>头文件\SciLexer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Scintilla\src\KeyMap.h">
+      <Filter>头文件\SciLexer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Scintilla\src\LineMarker.h">
+      <Filter>头文件\SciLexer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Scintilla\Include\Platform.h">
+      <Filter>头文件\SciLexer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Scintilla\src\RESearch.h">
+      <Filter>头文件\SciLexer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Scintilla\Include\SciLexer.h">
+      <Filter>头文件\SciLexer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Scintilla\Include\Scintilla.h">
+      <Filter>头文件\SciLexer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Scintilla\src\ScintillaBase.h">
+      <Filter>头文件\SciLexer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Scintilla\lexlib\SparseState.h">
+      <Filter>头文件\SciLexer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Scintilla\src\Style.h">
+      <Filter>头文件\SciLexer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Scintilla\src\SVector.h">
+      <Filter>头文件\SciLexer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Scintilla\src\UniConversion.h">
+      <Filter>头文件\SciLexer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Scintilla\src\ViewStyle.h">
+      <Filter>头文件\SciLexer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Scintilla\src\XPM.h">
+      <Filter>头文件\SciLexer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SciTe\Win32\DirectorExtension.h">
+      <Filter>头文件\SciTe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SciTe\src\Extender.h">
+      <Filter>头文件\SciTe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SciTe\src\FilePath.h">
+      <Filter>头文件\SciTe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SciTe\src\IFaceTable.h">
+      <Filter>头文件\SciTe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SciTe\src\MultiplexExtension.h">
+      <Filter>头文件\SciTe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SciTe\src\SciTE.h">
+      <Filter>头文件\SciTe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SciTe\src\SciTEBase.h">
+      <Filter>头文件\SciTe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SciTe\src\SciTEKeys.h">
+      <Filter>头文件\SciTe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SciTe\Win32\SciTEWin.h">
+      <Filter>头文件\SciTe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SciTe\Win32\SingleThreadExtension.h">
+      <Filter>头文件\SciTe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SciTe\src\SString.h">
+      <Filter>头文件\SciTe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SciTe\src\StringHelpers.h">
+      <Filter>头文件\SciTe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SciTe\Win32\UniqueInstance.h">
+      <Filter>头文件\SciTe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SciTe\src\Utf8_16.h">
+      <Filter>头文件\SciTe</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\SciTe\Win32\SciBall.ico">
+      <Filter>资源文件</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Manifest Include="..\SciTe\win32\SciTE.exe.manifest">
+      <Filter>资源文件</Filter>
+    </Manifest>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\SciTe\Win32\SciTERes.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+</Project>
