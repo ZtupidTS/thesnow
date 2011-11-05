@@ -12,7 +12,6 @@
 #include <stdio.h>
 #include <time.h>
 #include <limits.h>
-#include <cmath>
 
 #ifdef _MSC_VER
 #pragma warning(disable: 4786)
@@ -193,25 +192,28 @@ struct FormatAndMetrics {
 };
 
 HFONT FormatAndMetrics::HFont() {
+	LOGFONTW lf;
+	memset(&lf, 0, sizeof(lf));
 #if defined(USE_D2D)
 	if (technology == SCWIN_TECH_GDI) {
-		return hfont;
-	} else {
-		LOGFONTW lf;
-		memset(&lf, 0, sizeof(lf));
-
-		HRESULT hr = pTextFormat->GetFontFamilyName(lf.lfFaceName, LF_FACESIZE);
-		if (SUCCEEDED(hr)) {
-			lf.lfWeight = pTextFormat->GetFontWeight();
-			lf.lfItalic = pTextFormat->GetFontStyle() == DWRITE_FONT_STYLE_ITALIC;
-			lf.lfHeight = -static_cast<int>(pTextFormat->GetFontSize());
-			return ::CreateFontIndirectW(&lf);
+		if (0 == ::GetObject(hfont, sizeof(lf), &lf)) {
+			return 0;
 		}
+	} else {
+		HRESULT hr = pTextFormat->GetFontFamilyName(lf.lfFaceName, LF_FACESIZE);
+		if (!SUCCEEDED(hr)) {
+			return 0;
+		}
+		lf.lfWeight = pTextFormat->GetFontWeight();
+		lf.lfItalic = pTextFormat->GetFontStyle() == DWRITE_FONT_STYLE_ITALIC;
+		lf.lfHeight = -static_cast<int>(pTextFormat->GetFontSize());
 	}
-	return 0;
 #else
-	return hfont;
+	if (0 == ::GetObject(hfont, sizeof(lf), &lf)) {
+		return 0;
+	}
 #endif
+	return ::CreateFontIndirectW(&lf);
 }
 
 #ifndef CLEARTYPE_QUALITY
@@ -681,7 +683,12 @@ void SurfaceGDI::LineTo(int x_, int y_) {
 void SurfaceGDI::Polygon(Point *pts, int npts, ColourDesired fore, ColourDesired back) {
 	PenColour(fore);
 	BrushColor(back);
-	::Polygon(hdc, reinterpret_cast<POINT *>(pts), npts);
+	std::vector<POINT> outline;
+	for (int i=0;i<npts;i++) {
+		POINT pt = {pts[i].x, pts[i].y};
+		outline.push_back(pt);
+	}
+	::Polygon(hdc, &outline[0], npts);
 }
 
 void SurfaceGDI::RectangleDraw(PRectangle rc, ColourDesired fore, ColourDesired back) {

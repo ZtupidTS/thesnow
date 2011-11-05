@@ -399,16 +399,20 @@ bool IsPropertiesFile(const FilePath &filename) {
 }
 
 static bool GenericPropertiesFile(const FilePath &filename) {
-	std::string name = filename.BaseName().AsUTF8();
-	if (name == "abbrev" || name == "Embedded")
+//**FIXED IT IN CHINESE VERSION,DO NOT CHANGE IT***
+	GUI::gui_string name = filename.BaseName().AsInternal();
+	if (name == L"abbrev" || name == L"Embedded"||name ==L"全局缩写" || name==L"全局设置")
 		return true;
-	return name.find("SciTE") != std::string::npos;
+	return name.find(L"SciTE") != std::wstring::npos;
+//**FIXED IT IN CHINESE VERSION,DO NOT CHANGE IT***
 }
 
 void PropSetFile::Import(FilePath filename, FilePath directoryForImports, const ImportFilter &filter, std::vector<FilePath> *imports) {
 	if (Read(filename, directoryForImports, filter, imports)) {
+		if (imports){
 		if (imports && (std::find(imports->begin(),imports->end(), filename) == imports->end())) {
 			imports->push_back(filename);
+		}
 		}
 	}
 }

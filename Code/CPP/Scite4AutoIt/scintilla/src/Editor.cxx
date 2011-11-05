@@ -3477,6 +3477,7 @@ void Editor::DrawCarets(Surface *surface, ViewStyle &vsDraw, int lineDoc, int xS
 void Editor::Paint(Surface *surfaceWindow, PRectangle rcArea) {
 	//Platform::DebugPrintf("Paint:%1d (%3d,%3d) ... (%3d,%3d)\n",
 	//	paintingAllText, rcArea.left, rcArea.top, rcArea.right, rcArea.bottom);
+	AllocateGraphics();
 
 	StyleToPositionInView(PositionAfterArea(rcArea));
 
@@ -8707,6 +8708,16 @@ sptr_t Editor::WndProc(unsigned int iMessage, uptr_t wParam, sptr_t lParam) {
 	case SCI_RELEASEDOCUMENT:
 		(reinterpret_cast<Document *>(lParam))->Release();
 		break;
+
+	case SCI_CREATELOADER: {
+			Document *doc = new Document();
+			if (doc) {
+				doc->AddRef();
+				doc->Allocate(wParam);
+				doc->SetUndoCollection(false);
+			}
+			return reinterpret_cast<sptr_t>(static_cast<ILoader *>(doc));
+		}
 
 	case SCI_SETMODEVENTMASK:
 		modEventMask = wParam;

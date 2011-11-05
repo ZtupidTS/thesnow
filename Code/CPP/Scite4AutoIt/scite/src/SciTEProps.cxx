@@ -24,6 +24,7 @@
 
 #include "Scintilla.h"
 #include "SciLexer.h"
+#include "ILexer.h"
 
 #include "GUI.h"
 
@@ -1446,6 +1447,10 @@ void SciTEBase::ReadFontProperties() {
 		wEditor.Send(SCI_STYLESETFORE, diagnosticStyleEnd, 0);	// Ensure styles allocated
 		SetStyleBlock(wEditor, "error", diagnosticStyleStart, diagnosticStyleEnd);
 	}
+
+	// Turn grey while loading
+	if (CurrentBuffer()->lifeState == Buffer::reading) 
+		wEditor.Call(SCI_STYLESETBACK, STYLE_DEFAULT, 0xEEEEEE);
 
 	wOutput.Call(SCI_STYLECLEARALL, 0, 0);
 
