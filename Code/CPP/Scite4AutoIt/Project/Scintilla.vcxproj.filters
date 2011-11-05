@@ -1,0 +1,382 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="源文件">
+      <UniqueIdentifier>{886e8f9e-84fe-47f2-b9c4-489e515d65e2}</UniqueIdentifier>
+      <Extensions>cpp;c;cxx;rc;def;r;odl;idl;hpj;bat</Extensions>
+    </Filter>
+    <Filter Include="源文件\LEX">
+      <UniqueIdentifier>{11d7037c-79bc-4889-a940-a533199e10ed}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件">
+      <UniqueIdentifier>{04097670-8308-4d26-b2a2-bb9dde88df48}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl</Extensions>
+    </Filter>
+    <Filter Include="资源文件">
+      <UniqueIdentifier>{5667de4f-33e0-49a1-b262-b479840e2eaa}</UniqueIdentifier>
+      <Extensions>ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\Scintilla\lexlib\Accessor.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\AutoComplete.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\CallTip.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\Catalogue.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\CellBuffer.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexlib\CharacterSet.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\CharClassify.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\ContractionState.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\Decoration.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\Document.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\Editor.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\ExternalLexer.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\Indicator.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\KeyMap.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\LineMarker.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\PerLine.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\win32\PlatWin.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\PositionCache.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexlib\PropSetSimple.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\RESearch.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\RunStyles.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\ScintillaBase.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\win32\ScintillaWin.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\Selection.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\Style.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexlib\StyleContext.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\UniConversion.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\ViewStyle.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexlib\WordList.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\XPM.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexA68k.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexAbaqus.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexAda.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexAPDL.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexAsm.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexAsn1.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexASY.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexAU3.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexAVE.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexBaan.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexBash.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexBasic.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexBullant.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexCaml.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexCLW.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexCmake.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexCOBOL.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexConf.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexCPP.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexCrontab.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexCsound.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexCSS.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexD.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexEiffel.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexlib\LexerBase.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexErlang.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexlib\LexerModule.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexlib\LexerSimple.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexEScript.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexFlagship.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexForth.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexFortran.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexGAP.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexGui4Cli.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexHaskell.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexHTML.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexInno.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexKix.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexLisp.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexLout.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexLua.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexMagik.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexMarkdown.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexMatlab.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexMetapost.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexMMIXAL.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexModula.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexMPT.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexMSSQL.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexMySQL.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexNimrod.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexNsis.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexOpal.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexOthers.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexPascal.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexPB.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexPerl.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexPLM.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexPOV.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexPowerPro.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexPowerShell.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexProgress.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexPS.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexPython.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexR.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexRebol.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexRuby.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexScriptol.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexSmalltalk.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexSML.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexSorcus.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexSpecman.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexSpice.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexSQL.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexTACL.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexTADS3.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexTAL.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexTCL.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexTeX.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexTxt2tags.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexVB.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexVerilog.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexVHDL.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexYAML.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\Scintilla\include\Platform.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Scintilla\lexlib\SparseState.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\Scintilla\win32\Margin.cur">
+      <Filter>资源文件</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\Scintilla\win32\ScintRes.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+</Project>

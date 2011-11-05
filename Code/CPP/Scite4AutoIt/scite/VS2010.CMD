@@ -93,6 +93,7 @@ EXIT
 :EnvOK
 @echo SciTe Compling ...
 @title SciTe Compling ...
+@md bin\ÊôĞÔÎÄ¼ş
 @cd win32
 @nmake -f scite.mak
 @echo Finished!Press any key to continue.
