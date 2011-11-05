@@ -32,6 +32,7 @@
 
 #include "Scintilla.h"
 #include "ScintillaWidget.h"
+#include "ILexer.h"
 
 #include "GUI.h"
 #include "SString.h"
@@ -410,6 +411,17 @@ public:
 	gboolean Focus(GtkDirectionType direction);
 };
 
+// Manage the use of the GDK thread lock within glib signal handlers
+class ThreadLockMinder {
+public:
+	ThreadLockMinder() {
+		gdk_threads_enter();
+	}
+	~ThreadLockMinder() {
+		gdk_threads_leave();
+	}
+};
+
 class SciTEGTK : public SciTEBase {
 
 protected:
@@ -659,6 +671,9 @@ public:
 	virtual void StopExecute();
 	static int PollTool(SciTEGTK *scitew);
 	static void ChildSignal(int);
+	virtual bool PerformOnNewThread(Worker *pWorker);
+	virtual void PostOnMainThread(int cmd, Worker *pWorker);
+	static gboolean PostCallback(void *ptr);
 	// Single instance
 	void SetStartupTime(const char *timestamp);
 };
@@ -2172,6 +2187,7 @@ void SciTEGTK::ContinueExecute(int fromPoll) {
 }
 
 gboolean SciTEGTK::IOSignal(GIOChannel *, GIOCondition, SciTEGTK *scitew) {
+	ThreadLockMinder minder;
 	scitew->ContinueExecute(FALSE);
 	return TRUE;
 }
@@ -4275,6 +4291,40 @@ void SciTEGTK::SetIcon() {
 	}
 }
 
+static void *WorkerThread(void *ptr) {
+	Worker *pWorker = static_cast<Worker *>(ptr);
+	pWorker->Execute();
+	return NULL;
+}
+
+bool SciTEGTK::PerformOnNewThread(Worker *pWorker) {
+	pthread_t tid;
+	pthread_create(&tid, NULL, WorkerThread, pWorker);
+	return tid != 0;
+}
+
+struct CallbackData {
+	SciTEGTK *pSciTE;
+	int cmd;
+	Worker *pWorker;
+	CallbackData(SciTEGTK *pSciTE_, int cmd_, Worker *pWorker_) : pSciTE(pSciTE_), cmd(cmd_), pWorker(pWorker_) {
+	}
+};
+
+void SciTEGTK::PostOnMainThread(int cmd, Worker *pWorker) {
+	CallbackData *pcbd = new CallbackData(this, cmd, pWorker);
+	gdk_threads_add_idle(PostCallback, pcbd);
+}
+
+gboolean SciTEGTK::PostCallback(void *ptr) {
+	// This callback was installed with gdk_threads_add_idle instead of g_idle_add
+	// so already holds the lock and does not need to call gdk_threads_enter/leave.
+	CallbackData *pcbd = static_cast<CallbackData *>(ptr);
+	pcbd->pSciTE->WorkerCommand(pcbd->cmd, pcbd->pWorker);
+	delete pcbd;
+	return FALSE;
+}
+
 void SciTEGTK::SetStartupTime(const char *timestamp) {
 	if (timestamp != NULL) {
 		char *end;
@@ -4448,7 +4498,10 @@ void SciTEGTK::Run(int argc, char *argv[]) {
 	SizeSubWindows();
 	SetFocus(wEditor);
 	gtk_widget_grab_focus(GTK_WIDGET(PWidget(wSciTE)));
+
+	gdk_threads_enter();
 	gtk_main();
+	gdk_threads_leave();
 }
 
 // Avoid zombie detached processes by reaping their exit statuses when
@@ -4466,6 +4519,7 @@ void SciTEGTK::ChildSignal(int) {
 
 // Detect if the tool has exited without producing any output
 int SciTEGTK::PollTool(SciTEGTK *scitew) {
+	ThreadLockMinder minder;
 	scitew->ContinueExecute(TRUE);
 	return TRUE;
 }
@@ -4486,6 +4540,10 @@ int main(int argc, char *argv[]) {				//程序开始,放最后是因为可以直
 #endif
 
 	signal(SIGCHLD, SciTEGTK::ChildSignal);			//函数,待研究
+
+	// Initialise threads	
+	g_thread_init(NULL);
+	gdk_threads_init();
 
 	// Get this now because gtk_init() clears it
 	const gchar *startup_id = g_getenv("DESKTOP_STARTUP_ID");

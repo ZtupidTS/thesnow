@@ -1222,6 +1222,21 @@ void SciTEWin::AddCommand(const SString &cmd, const SString &dir, JobSubsystem j
 		}
 	}
 }
+
+static void WorkerThread(void *ptr) {
+	Worker *pWorker = static_cast<Worker *>(ptr);
+	pWorker->Execute();
+}
+
+bool SciTEWin::PerformOnNewThread(Worker *pWorker) {
+	uintptr_t result = _beginthread(WorkerThread, 1024 * 1024, reinterpret_cast<void *>(pWorker));
+	return result != static_cast<uintptr_t>(-1);
+}
+
+void SciTEWin::PostOnMainThread(int cmd, Worker *pWorker) {
+	::PostMessage(reinterpret_cast<HWND>(wSciTE.GetID()), SCITE_WORKER, cmd, reinterpret_cast<LPARAM>(pWorker));
+}
+
 /*! removed ↓
 void SciTEWin::QuitProgram() {
 	if (SaveIfUnsureAll() != IDCANCEL) {
@@ -1502,7 +1517,7 @@ void SciTEWin::DropFiles(HDROP hdrop) {
 				}
 			}
 			if (isTempFile) {
-				if (!Open(pathDropped)) {
+				if (!Open(pathDropped, ofSynchronous)) {
 					break;
 				}
 			} else {
@@ -1856,6 +1871,10 @@ LRESULT SciTEWin::WndProc(UINT iMessage, WPARAM wParam, LPARAM lParam) {
 					WindowMessageBox(wSciTE, msg, MB_OK | MB_ICONWARNING);
 				}
 			}
+			break;
+
+		case SCITE_WORKER:
+			WorkerCommand(wParam, reinterpret_cast<Worker *>(lParam));
 			break;
 
 		case WM_NOTIFY:

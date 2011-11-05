@@ -55,6 +55,7 @@
 
 #include "Scintilla.h"
 #include "SciLexer.h"
+#include "ILexer.h"
 
 #include "GUI.h"
 
@@ -71,6 +72,15 @@
 #include "SciTEBase.h"
 
 const GUI::gui_char defaultSessionFileName[] = GUI_TEXT("SciTE.session");
+
+void Buffer::Cancel() {
+	// Complete any background loading
+	if (pFileLoader) {
+		pFileLoader->Cancel();
+	}
+	CompleteLoading();
+	lifeState = empty;
+}
 
 BufferList::BufferList() : current(0), stackcurrent(0), stack(0), buffers(0), size(0), length(0), initialised(false) {}
 
@@ -99,6 +109,15 @@ int BufferList::Add() {
 	return length - 1;
 }
 
+int BufferList::GetDocumentByLoader(FileLoader *pFileLoader) const {
+	for (int i = 0;i < length;i++) {
+		if (buffers[i].pFileLoader == pFileLoader) {
+			return i;
+		}
+	}
+	return -1;
+}
+
 int BufferList::GetDocumentByName(FilePath filename, bool excludeCurrent) {
 	if (!filename.IsSet()) {
 		return -1;
@@ -114,6 +133,7 @@ int BufferList::GetDocumentByName(FilePath filename, bool excludeCurrent) {
 void BufferList::RemoveCurrent() {
 	// Delete and move up to fill gap but ensure doc pointer is saved.
 	sptr_t currentDoc = buffers[current].doc;
+	buffers[current].CompleteLoading();
 	for (int i = current;i < length - 1;i++) {
 		buffers[i] = buffers[i + 1];
 	}
@@ -225,6 +245,20 @@ sptr_t SciTEBase::GetDocumentAt(int index) {
 	return buffers.buffers[index].doc;
 }
 
+void SciTEBase::SwitchDocumentAt(int index, sptr_t pdoc) {
+	if (index < 0 || index >= buffers.size) {
+		return;
+	}
+	sptr_t pdocOld = buffers.buffers[index].doc;
+	buffers.buffers[index].doc = pdoc;
+	if (pdocOld) {
+		wEditor.Call(SCI_RELEASEDOCUMENT, 0, pdocOld);
+	}
+	if (index == buffers.Current()) {
+		wEditor.Call(SCI_SETDOCPOINTER, 0, buffers.buffers[index].doc);
+	}
+}
+
 void SciTEBase::SetDocumentAt(int index, bool updateStack) {
 	int currentbuf = buffers.Current();
 
@@ -254,7 +288,14 @@ void SciTEBase::SetDocumentAt(int index, bool updateStack) {
 	propsDiscovered = bufferNext.props;
 	propsDiscovered.superPS = &propsLocal;
 	wEditor.Call(SCI_SETDOCPOINTER, 0, GetDocumentAt(buffers.Current()));
-	RestoreState(bufferNext);
+	bool restoreBookmarks = false;
+	if (bufferNext.lifeState == Buffer::readAll) {
+		restoreBookmarks = true;
+		CompleteOpen(ocCompleteSwitch);
+		if (extender)
+			extender->OnOpen(filePath.AsUTF8().c_str());
+	}
+	RestoreState(bufferNext, restoreBookmarks);
 
 	TabSelect(index);
 
@@ -262,6 +303,11 @@ void SciTEBase::SetDocumentAt(int index, bool updateStack) {
 		SetLineNumberWidth();
 
 	DisplayAround(bufferNext);
+	if (restoreBookmarks) {
+		// Restoring a session does not restore the scroll position
+		// so make the selection visible.
+		wEditor.Call(SCI_SCROLLCARET);
+	}
 
 	CheckMenus();
 	UpdateStatusBar(true);
@@ -275,14 +321,16 @@ void SciTEBase::UpdateBuffersCurrent() {
 	int currentbuf = buffers.Current();
 
 	if ((buffers.length > 0) && (currentbuf >= 0)) {
-		buffers.buffers[currentbuf].Set(filePath);
-		buffers.buffers[currentbuf].selection.position = wEditor.Call(SCI_GETCURRENTPOS);
-		buffers.buffers[currentbuf].selection.anchor = wEditor.Call(SCI_GETANCHOR);
-		buffers.buffers[currentbuf].scrollPosition = GetCurrentScrollPosition();
+		Buffer &bufferCurrent = buffers.buffers[currentbuf];
+		bufferCurrent.Set(filePath);
+		if (bufferCurrent.lifeState != Buffer::reading && bufferCurrent.lifeState != Buffer::readAll) {
+			bufferCurrent.selection.position = wEditor.Call(SCI_GETCURRENTPOS);
+			bufferCurrent.selection.anchor = wEditor.Call(SCI_GETANCHOR);
+			bufferCurrent.scrollPosition = GetCurrentScrollPosition();
 
 		// Retrieve fold state and store in buffer state info
 
-		std::vector<int> *f = &buffers.buffers[currentbuf].foldState;
+			std::vector<int> *f = &bufferCurrent.foldState;
 		f->clear();
 
 		if (props.GetInt("fold")) {
@@ -299,7 +347,8 @@ void SciTEBase::UpdateBuffersCurrent() {
 			buffers.buffers[buffers.Current()].bookmarks.clear();
 			int lineBookmark = -1;
 			while ((lineBookmark = wEditor.Call(SCI_MARKERNEXT, lineBookmark + 1, 1 << markerBookmark)) >= 0) {
-				buffers.buffers[buffers.Current()].bookmarks.push_back(lineBookmark);
+					bufferCurrent.bookmarks.push_back(lineBookmark);
+				}
 			}
 		}
 	}
@@ -409,66 +458,72 @@ void SciTEBase::RestoreRecentMenu() {
 	}
 }
 
+static std::vector<int> LinesFromString(const SString &s) {
+	std::vector<int> result;
+	if (s.length()) {
+		char *buf = new char[s.length() + 1];
+		strcpy(buf, s.c_str());
+		char *p = strtok(buf, ",");
+		while (p != NULL) {
+			int line = atoi(p) - 1;
+			result.push_back(line);
+			p = strtok(NULL, ",");
+		}
+		delete []buf;
+	}
+	return result;
+}
+
+void SciTEBase::RestoreFromSession(const Session &session) {
+	for (std::vector<BufferState>::const_iterator bs=session.buffers.begin(); bs != session.buffers.end(); ++bs)
+		AddFileToBuffer(*bs);
+	int iBuffer = buffers.GetDocumentByName(session.pathActive);
+	if (iBuffer >= 0)
+		SetDocumentAt(iBuffer);
+}
+
 void SciTEBase::RestoreSession() {
 	// Comment next line if you don't want to close all buffers before restoring session
 	CloseAllBuffers(true);
 
-	int curr = -1;
+	Session session;
+
 	for (int i = 0; i < bufferMax; i++) {
 		SString propKey = IndexPropKey("buffer", i, "path");
 		SString propStr = propsSession.Get(propKey.c_str());
 		if (propStr == "")
 			continue;
 
-		propKey = IndexPropKey("buffer", i, "position");
-		int pos = propsSession.GetInt(propKey.c_str());
-
-		if (!AddFileToBuffer(GUI::StringFromUTF8(propStr.c_str()), pos - 1))
-			continue;
+		BufferState bufferState;
+		bufferState.Set(GUI::StringFromUTF8(propStr.c_str()));
 
 		propKey = IndexPropKey("buffer", i, "current");
 		if (propsSession.GetInt(propKey.c_str()))
-			curr = i;
+			session.pathActive = bufferState;
+
+		propKey = IndexPropKey("buffer", i, "position");
+		int pos = propsSession.GetInt(propKey.c_str());
+
+		bufferState.selection.anchor = pos - 1;
+		bufferState.selection.position = bufferState.selection.anchor;
 
 		if (props.GetInt("session.bookmarks")) {
 			propKey = IndexPropKey("buffer", i, "bookmarks");
 			propStr = propsSession.Get(propKey.c_str());
-			if (propStr.length()) {
-				char *buf = new char[propStr.length() + 1];
-				strcpy(buf, propStr.c_str());
-				char *p = strtok(buf, ",");
-				while (p != NULL) {
-					int line = atoi(p) - 1;
-					wEditor.Call(SCI_MARKERADD, line, markerBookmark);
-					p = strtok(NULL, ",");
-				}
-				delete []buf;
-			}
+			bufferState.bookmarks = LinesFromString(propStr);
 		}
 
 		if (props.GetInt("fold") && !props.GetInt("fold.on.open") &&
 			props.GetInt("session.folds")) {
 			propKey = IndexPropKey("buffer", i, "folds");
 			propStr = propsSession.Get(propKey.c_str());
-			if (propStr.length()) {
-				wEditor.Call(SCI_COLOURISE, 0, -1);
-				char *buf = new char[propStr.length() + 1];
-				strcpy(buf, propStr.c_str());
-				char *p = strtok(buf, ",");
-				while (p != NULL) {
-					int line = atoi(p) - 1;
-					wEditor.Call(SCI_TOGGLEFOLD, line);
-					p = strtok(NULL, ",");
-				}
-				delete [] buf;
-			}
+			bufferState.foldState = LinesFromString(propStr);
 		}
 
-		wEditor.Call(SCI_SCROLLCARET);
+		session.buffers.push_back(bufferState);
 	}
 
-	if (curr != -1)
-		SetDocumentAt(curr);
+	RestoreFromSession(session);
 }
 
 void SciTEBase::SaveSessionFile(const GUI::gui_char *sessionName) {
@@ -534,7 +589,7 @@ void SciTEBase::SaveSessionFile(const GUI::gui_char *sessionName) {
 				if (props.GetInt("session.bookmarks")) {
 					bool found = false;
 					for (std::vector<int>::iterator itBM=buff.bookmarks.begin();
-						itBM != buff.bookmarks.end(); itBM++) {
+						itBM != buff.bookmarks.end(); ++itBM) {
 						if (!found) {
 							propKey = IndexPropKey("buffer", i, "bookmarks");
 							fprintf(sessionFile, "%s=%d", propKey.c_str(), *itBM + 1);
@@ -550,7 +605,7 @@ void SciTEBase::SaveSessionFile(const GUI::gui_char *sessionName) {
 				if (props.GetInt("fold") && props.GetInt("session.folds")) {
 					bool found = false;
 					for (std::vector<int>::iterator itF=buff.foldState.begin();
-						itF != buff.foldState.end(); itF++) {
+						itF != buff.foldState.end(); ++itF) {
 						if (!found) {
 							propKey = IndexPropKey("buffer", i, "folds");
 							fprintf(sessionFile, "%s=%d", propKey.c_str(), *itF + 1);
@@ -643,6 +698,7 @@ void SciTEBase::New() {
 	filePath.Set(curDirectory, GUI_TEXT(""));
 	SetFileName(filePath);
 	CurrentBuffer()->isDirty = false;
+	CurrentBuffer()->lifeState = Buffer::open;
 	jobQueue.isBuilding = false;
 	jobQueue.isBuilt = false;
 	isReadOnly = false;	// No sense to create an empty, read-only buffer...
@@ -654,7 +710,7 @@ void SciTEBase::New() {
 		extender->InitBuffer(buffers.Current());
 }
 
-void SciTEBase::RestoreState(const Buffer &buffer) {
+void SciTEBase::RestoreState(const Buffer &buffer, bool restoreBookmarks) {
 	SetWindowName();
 	ReadProperties();
 	if (CurrentBuffer()->unicodeMode != uni8Bit) {
@@ -665,13 +721,25 @@ void SciTEBase::RestoreState(const Buffer &buffer) {
 	isReadOnly = wEditor.Call(SCI_GETREADONLY);
 
 	// check to see whether there is saved fold state, restore
-	for (size_t fold = 0; fold < buffer.foldState.size(); fold++) {
-		wEditor.Call(SCI_TOGGLEFOLD, buffer.foldState[fold]);
+	if (!buffer.foldState.empty()) {
+		wEditor.Call(SCI_COLOURISE, 0, -1);
+		for (std::vector<int>::const_iterator fold=buffer.foldState.begin(); fold != buffer.foldState.end(); ++fold) {
+			wEditor.Call(SCI_TOGGLEFOLD, *fold);
+		}
+	}
+	if (restoreBookmarks) {
+		for (std::vector<int>::const_iterator mark=buffer.bookmarks.begin(); mark != buffer.bookmarks.end(); ++mark) {
+			wEditor.Call(SCI_MARKERADD, *mark, markerBookmark);
+		}
 	}
 }
 
 void SciTEBase::Close(bool updateUI, bool loadingSession, bool makingRoomForNew) {
 	bool closingLast = false;
+	int index = buffers.Current();
+	if (index >= 0) {
+		buffers.buffers[index].Cancel();
+	}
 
 	if (extender) {
 		extender->OnClose(filePath.AsUTF8().c_str());
@@ -719,7 +787,7 @@ void SciTEBase::Close(bool updateUI, bool loadingSession, bool makingRoomForNew)
 		if (updateUI)
 			CheckReload();
 		if (updateUI) {
-			RestoreState(bufferNext);
+			RestoreState(bufferNext, false);
 			DisplayAround(bufferNext);
 		}
 	}
@@ -982,14 +1050,23 @@ void SciTEBase::DropFileStackTop() {
 	SetFileStackMenu();
 }
 
-bool SciTEBase::AddFileToBuffer(FilePath file, int pos) {
+bool SciTEBase::AddFileToBuffer(const BufferState &bufferState) {
 	// Return whether file loads successfully
-	if (file.Exists() && Open(file, ofForceLoad)) {
-		wEditor.Call(SCI_GOTOPOS, pos);
-		return true;
-	} else {
-		return false;
+	bool opened = false;
+	if (bufferState.Exists()) {
+		opened = Open(bufferState, static_cast<OpenFlags>(ofForceLoad));
+		// If forced synchronous should set up position, foldState and bookmarks
+		if (opened) {
+			int iBuffer = buffers.GetDocumentByName(bufferState, false);
+			if (iBuffer >= 0) {
+				buffers.buffers[iBuffer].scrollPosition = 0;
+				buffers.buffers[iBuffer].selection = bufferState.selection;
+				buffers.buffers[iBuffer].foldState = bufferState.foldState;
+				buffers.buffers[iBuffer].bookmarks = bufferState.bookmarks;
+			}
+		}
 	}
+	return opened;
 }
 
 void SciTEBase::AddFileToStack(FilePath file, SelectionRange selection, int scrollPos) {
@@ -1788,7 +1865,7 @@ void SciTEBase::ShowMessages(int line) {
 				msgStyle = 2;
 			if (message.search("fatal") >= 0)
 				msgStyle = 3;
-			stylesCurrent += std::string(message.length(), msgStyle);
+			stylesCurrent += std::string(message.length(), static_cast<char>(msgStyle));
 			wEditor.CallString(SCI_ANNOTATIONSETTEXT, sourceLine, msgCurrent.c_str());
 			wEditor.CallString(SCI_ANNOTATIONSETSTYLES, sourceLine, stylesCurrent.c_str());
 		}
@@ -1854,7 +1931,7 @@ void SciTEBase::GoMessage(int dir) {
 						}
 					}
 					if (bExists) {
-						if (!Open(messagePath)) {
+						if (!Open(messagePath, ofSynchronous)) {
 							return;
 						}
 						CheckReload();

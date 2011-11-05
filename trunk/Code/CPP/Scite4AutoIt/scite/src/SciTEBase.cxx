@@ -58,6 +58,7 @@
 
 #include "Scintilla.h"
 #include "SciLexer.h"
+#include "ILexer.h"
 
 #include "GUI.h"
 #include "SString.h"
@@ -220,6 +221,12 @@ SciTEBase::~SciTEBase() {
 	delete []languageMenu;
 	delete []shortCutItemList;
 	popup.Destroy();
+}
+
+void SciTEBase::WorkerCommand(int cmd, Worker *pWorker) {
+	if (cmd == SCITE_FILEREAD) {
+		TextRead(static_cast<FileLoader *>(pWorker));
+	}
 }
 
 sptr_t SciTEBase::CallFocused(unsigned int msg, uptr_t wParam, sptr_t lParam) {
@@ -713,8 +720,9 @@ bool SciTEBase::iswordcharforsel(char ch) {
 // Doesn't accept all valid characters, as they are rarely used in source filenames...
 // Accept path separators '/' and '\', extension separator '.', and ':', MS drive unit
 // separator, and also used for separating the line number for grep. Same for '(' and ')' for cl.
+// Accept '?' and '%' which are used in URL.
 bool SciTEBase::isfilenamecharforsel(char ch) {
-	return !strchr("\t\n\r \"$%'*,;<>?[]^`{|}", ch);
+	return !strchr("\t\n\r \"$'*,;<>[]^`{|}", ch);
 }
 
 bool SciTEBase::islexerwordcharforsel(char ch) {
@@ -4276,7 +4284,7 @@ void SciTEBase::PerformOne(char *action) {
 		} else if (isprefix(action, "menucommand:")) {
 			MenuCommand(atoi(arg));
 		} else if (isprefix(action, "open:")) {
-			Open(GUI::StringFromUTF8(arg));
+			Open(GUI::StringFromUTF8(arg), ofSynchronous);
 		} else if (isprefix(action, "output:") && wOutput.Created()) {
 			wOutput.Call(SCI_REPLACESEL, 0, reinterpret_cast<sptr_t>(arg));
 		} else if (isprefix(action, "property:")) {
@@ -4657,7 +4665,7 @@ bool SciTEBase::ProcessCommandLine(GUI::gui_string &args, int phase) {
 				RestoreRecentMenu();
 
 			if (!PreOpenCheck(arg))
-				Open(arg, ofQuiet);
+				Open(arg, static_cast<OpenFlags>(ofQuiet|ofSynchronous));
 		}
 	}
 	if (phase == 1) {

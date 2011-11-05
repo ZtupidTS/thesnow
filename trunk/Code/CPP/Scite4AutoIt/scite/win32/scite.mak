@@ -15,7 +15,6 @@ PROPFILE=$(DIR_BIN)\属性文件
 PROG=$(DIR_BIN)\SciTE.exe
 PROGSTATIC=$(DIR_BIN)\Sc1.exe
 DLLS=$(DIR_BIN)\Scintilla.dll $(DIR_BIN)\SciLexer.dll
-
 WIDEFLAGS=-DUNICODE -D_UNICODE
 
 CC=cl
@@ -218,7 +217,7 @@ $(DIR_BIN)\全局设置.properties: ..\src\全局设置.properties
 	
 $(DIR_BIN)\全局缩写.properties: ..\src\全局缩写.properties
 	copy ..\src\abbrev.properties $@
-		
+
 {..\src}.properties{$(PROPFILE)}.properties:
 	copy $< $@
 
