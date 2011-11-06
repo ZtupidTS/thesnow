@@ -1,4 +1,4 @@
-// FileZilla Server - a Windows ftp server
+ï»¿// FileZilla Server - a Windows ftp server
 
 // Copyright (C) 2002-2004 - Tim Kosse <tim.kosse@gmx.de>
 
@@ -82,7 +82,7 @@ BEGIN_MESSAGE_MAP(CGroupsDlgGeneral, CSAPrefsSubDlg)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
-// Behandlungsroutinen für Nachrichten CGroupsDlgGeneral 
+// Behandlungsroutinen fÃ¼r Nachrichten CGroupsDlgGeneral 
 
 BOOL CGroupsDlgGeneral::OnInitDialog() 
 {
@@ -103,12 +103,12 @@ CString CGroupsDlgGeneral::Validate()
 	if (_ttoi(m_MaxConnCount)<0 || _ttoi(m_MaxConnCount)>999999999)
 	{
 		m_cMaxConnCount.SetFocus();
-		return _T("×î´óÓÃ»§ÊıÉèÖÃÇø¼äÎª 0 µ½ 999999999!");
+		return _T("æœ€å¤§ç”¨æˆ·æ•°è®¾ç½®åŒºé—´ä¸º 0 åˆ° 999999999!");
 	}
 	if (_ttoi(m_MaxConnCount)<0 || _ttoi(m_MaxConnCount)>999999999)
 	{
 		m_cIpLimit.SetFocus();
-		return _T("Ã¿ IP ×î´óÓÃ»§ÏŞÖÆÊıÉèÖÃÇø¼äÎª 0 µ½ 999999999!");
+		return _T("æ¯ IP æœ€å¤§ç”¨æˆ·é™åˆ¶æ•°è®¾ç½®åŒºé—´ä¸º 0 åˆ° 999999999!");
 	}
 	return _T("");
 }

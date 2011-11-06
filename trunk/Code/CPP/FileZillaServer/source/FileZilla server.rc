@@ -62,8 +62,8 @@ IDR_MAINFRAME           ICON                    "res\\FileZilla server.ico"
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 0,9,39,0
- PRODUCTVERSION 0,9,39,0
+ FILEVERSION 0,9,40,0
+ PRODUCTVERSION 0,9,40,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -81,12 +81,12 @@ BEGIN
             VALUE "Comments", "开源 FTP 服务器 for Windows"
             VALUE "CompanyName", "FileZilla 项目"
             VALUE "FileDescription", "FileZilla 服务器"
-            VALUE "FileVersion", "0, 9, 39, 0"
+            VALUE "FileVersion", "0, 9, 40, 0"
             VALUE "InternalName", "FileZilla 服务器"
             VALUE "LegalCopyright", "Copyright (C) 2001-2011"
             VALUE "OriginalFilename", "FileZilla server.exe"
             VALUE "ProductName", "FileZilla 服务器"
-            VALUE "ProductVersion", "0, 9, 39, 0"
+            VALUE "ProductVersion", "0, 9, 40, 0"
         END
     END
     BLOCK "VarFileInfo"

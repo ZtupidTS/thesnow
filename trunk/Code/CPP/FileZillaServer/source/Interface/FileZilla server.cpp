@@ -1,4 +1,4 @@
-// FileZilla Server - a Windows ftp server
+ï»¿// FileZilla Server - a Windows ftp server
 
 // Copyright (C) 2002-2004 - Tim Kosse <tim.kosse@gmx.de>
 
@@ -16,7 +16,7 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-// FileZilla server.cpp : Legt das Klassenverhalten für die Anwendung fest.
+// FileZilla server.cpp : Legt das Klassenverhalten fÃ¼r die Anwendung fest.
 //
 
 #include "stdafx.h"
@@ -39,8 +39,8 @@ static char THIS_FILE[] = __FILE__;
 BEGIN_MESSAGE_MAP(CFileZillaserverApp, CWinApp)
 	//{{AFX_MSG_MAP(CFileZillaserverApp)
 	ON_COMMAND(ID_APP_ABOUT, OnAppAbout)
-		// HINWEIS - Hier werden Mapping-Makros vom Klassen-Assistenten eingefügt und entfernt.
-		//    Innerhalb dieser generierten Quelltextabschnitte NICHTS VERÄNDERN!
+		// HINWEIS - Hier werden Mapping-Makros vom Klassen-Assistenten eingefÃ¼gt und entfernt.
+		//    Innerhalb dieser generierten Quelltextabschnitte NICHTS VERÃ„NDERN!
 	//}}AFX_MSG_MAP
 END_MESSAGE_MAP()
 
@@ -49,7 +49,7 @@ END_MESSAGE_MAP()
 
 CFileZillaserverApp::CFileZillaserverApp()
 {
-	// ZU ERLEDIGEN: Hier Code zur Konstruktion einfügen
+	// ZU ERLEDIGEN: Hier Code zur Konstruktion einfÃ¼gen
 	// Alle wichtigen Initialisierungen in InitInstance platzieren
 }
 
@@ -130,7 +130,7 @@ BOOL CFileZillaserverApp::InitInstance()
 
 
 /////////////////////////////////////////////////////////////////////////////
-// CAboutDlg-Dialog für Info über Anwendung
+// CAboutDlg-Dialog fÃ¼r Info Ã¼ber Anwendung
 
 class CAboutDlg : public CDialog
 {
@@ -149,10 +149,10 @@ public:
 
 	CHyperLink m_cDonate;
 	
-	// Überladungen für virtuelle Funktionen, die vom Anwendungs-Assistenten erzeugt wurden
+	// Ãœberladungen fÃ¼r virtuelle Funktionen, die vom Anwendungs-Assistenten erzeugt wurden
 	//{{AFX_VIRTUAL(CAboutDlg)
 	protected:
-	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV-Unterstützung
+	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV-UnterstÃ¼tzung
 	//}}AFX_VIRTUAL
 
 // Implementierung
@@ -185,7 +185,7 @@ BEGIN_MESSAGE_MAP(CAboutDlg, CDialog)
 	//}}AFX_MSG_MAP
 END_MESSAGE_MAP()
 
-// Anwendungsbefehl zum Ausführen des Dialogfelds
+// Anwendungsbefehl zum AusfÃ¼hren des Dialogfelds
 void CFileZillaserverApp::OnAppAbout()
 {
 	CAboutDlg aboutDlg;
@@ -218,10 +218,8 @@ BOOL CAboutDlg::OnInitDialog()
 	m_cDonate.SubclassDlgItem(IDC_DONATE, this, _T("https://www.paypal.com/xclick/business=Tim.Kosse%40gmx.de&item_name=FileZilla&cn=Enter+your+comments+here&tax=0&currency_code=USD"));
 	
 	m_cVersion.SetWindowText(GetVersionString());
-
-
 	return TRUE;  // return TRUE unless you set the focus to a control
-	              // EXCEPTION: OCX-Eigenschaftenseiten sollten FALSE zurückgeben
+	              // EXCEPTION: OCX-Eigenschaftenseiten sollten FALSE zurÃ¼ckgeben
 }
 
 

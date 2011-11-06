@@ -1,4 +1,4 @@
-// FileZilla Server - a Windows ftp server
+ï»¿// FileZilla Server - a Windows ftp server
 
 // Copyright (C) 2002-2004 - Tim Kosse <tim.kosse@gmx.de>
 
@@ -67,13 +67,13 @@ void CGenerateCertificateDlg::OnOK()
 	UpdateData(TRUE);
 	if (m_country.GetLength() != 2)
 	{
-		AfxMessageBox(_T("ÇëÊäÈëÁ½Î»Êı×Ö¹ú¼Ò´úÂë"));
+		AfxMessageBox(_T("è¯·è¾“å…¥ä¸¤ä½æ•°å­—å›½å®¶ä»£ç "));
 		return;
 	}
 
 	if (m_file == _T(""))
 	{
-		AfxMessageBox(_T("ÇëÊäÈëÒ»¸öÎÄ¼şÃû"));
+		AfxMessageBox(_T("è¯·è¾“å…¥ä¸€ä¸ªæ–‡ä»¶å"));
 		return;
 	}
 
@@ -91,15 +91,15 @@ void CGenerateCertificateDlg::OnOK()
 		(unsigned char*)T2CA(m_state), (unsigned char*)T2CA(m_city), (unsigned char*)T2CA(m_organization), (unsigned char*)T2CA(m_unit),
 		(unsigned char*)T2CA(m_cname), (unsigned char*)T2CA(m_email), error))
 	{
-		AfxMessageBox(_T("Ö¤Êé´´½¨³É¹¦."));
+		AfxMessageBox(_T("è¯ä¹¦åˆ›å»ºæˆåŠŸ."));
 		EndDialog(IDOK);
 	}
 	else
 	{
 		if (error != _T(""))
-			AfxMessageBox(_T("Ö¤ÊéÎŞ·¨Éú³É.\nÀíÓÉ: ") + error);
+			AfxMessageBox(_T("è¯ä¹¦æ— æ³•ç”Ÿæˆ.\nç†ç”±: ") + error);
 		else
-			AfxMessageBox(_T("Ö¤ÊéÎŞ·¨Éú³É."));
+			AfxMessageBox(_T("è¯ä¹¦æ— æ³•ç”Ÿæˆ."));
 	}
 }
 

@@ -321,7 +321,7 @@ BOOL CControlSocket::Send(LPCTSTR str, bool sendStatus /*=true*/)
 	int len;
 	if (m_useUTF8)
 	{
-		char* utf8 = ConvToNetwork(str);	//W2A
+		char* utf8 = ConvToNetwork(str);
 		if (!utf8)
 		{
 			Close();
@@ -2078,6 +2078,12 @@ void CControlSocket::ParseCommand()
 		}
 	case COMMAND_AUTH:
 		{
+			if (m_nRecvBufferPos || m_RecvLineBuffer.size() ) {
+				Send(_T("503 Bad sequence of commands. Received additional data after the AUTH command before this reply could be sent."));
+				ForceClose(-1);
+				break;
+			}
+
 			if (m_pGssLayer)
 			{
 				Send(_T("534 Authentication type already set to GSSAPI"));

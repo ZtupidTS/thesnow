@@ -1,4 +1,4 @@
-// FileZilla Server - a Windows ftp server
+ï»¿// FileZilla Server - a Windows ftp server
 
 // Copyright (C) 2002-2004 - Tim Kosse <tim.kosse@gmx.de>
 
@@ -59,14 +59,14 @@ void CAdminSocket::OnConnect(int nErrorCode)
 	{
 		if (!m_nConnectionState)
 		{
-			m_pMainFrame->ShowStatus(_T("ÒÑÁ¬½Ó,µÈ´ı·şÎñÆ÷ÈÏÖ¤"), 0);
+			m_pMainFrame->ShowStatus(_T("å·²è¿æ¥,ç­‰å¾…æœåŠ¡å™¨è®¤è¯"), 0);
 			m_nConnectionState = 1;
 		}
 		m_pMainFrame->OnAdminInterfaceConnected();
 	}
 	else
 	{
-		m_pMainFrame->ShowStatus(_T("´íÎó, ÎŞ·¨Á¬½Óµ½·şÎñÆ÷"), 1);
+		m_pMainFrame->ShowStatus(_T("é”™è¯¯, æ— æ³•è¿æ¥åˆ°æœåŠ¡å™¨"), 1);
 		Close();
 	}
 }
@@ -82,7 +82,7 @@ void CAdminSocket::OnReceive(int nErrorCode)
 	
 	if (!m_nConnectionState)
 	{
-		m_pMainFrame->ShowStatus(_T("ÒÑÁ¬½Ó,µÈ´ı·şÎñÆ÷ÈÏÖ¤"), 0);
+		m_pMainFrame->ShowStatus(_T("å·²è¿æ¥,ç­‰å¾…æœåŠ¡å™¨è®¤è¯"), 0);
 		m_nConnectionState = 1;
 	}
 
@@ -154,7 +154,7 @@ void CAdminSocket::OnSend(int nErrorCode)
 void CAdminSocket::Close()
 {
 	if (m_nConnectionState)
-		m_pMainFrame->ShowStatus(_T("¶Ï¿ªÓë·şÎñÆ÷µÄÁ¬½Ó."), 1);
+		m_pMainFrame->ShowStatus(_T("æ–­å¼€ä¸æœåŠ¡å™¨çš„è¿æ¥."), 1);
 	m_nConnectionState = 0;
 	if (!m_bClosed)
 	{

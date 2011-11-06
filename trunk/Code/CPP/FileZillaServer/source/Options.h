@@ -26,6 +26,8 @@
 #include "OptionTypes.h"
 #include "SpeedLimit.h"
 
+#include <list>
+
 class TiXmlElement;
 class COptionsHelperWindow;
 class COptions

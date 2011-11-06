@@ -1,4 +1,4 @@
-// FileZilla Server - a Windows ftp server
+ï»¿// FileZilla Server - a Windows ftp server
 
 // Copyright (C) 2002-2004 - Tim Kosse <tim.kosse@gmx.de>
 
@@ -95,7 +95,7 @@ BEGIN_MESSAGE_MAP(CUsersDlgGeneral, CSAPrefsSubDlg)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
-// Behandlungsroutinen f¨¹r Nachrichten CUsersDlgGeneral 
+// Behandlungsroutinen fÃ¼r Nachrichten CUsersDlgGeneral 
 
 BOOL CUsersDlgGeneral::OnInitDialog() 
 {
@@ -112,7 +112,7 @@ BOOL CUsersDlgGeneral::OnInitDialog()
 	SetCtrlState();
 
 	return TRUE;  // return TRUE unless you set the focus to a control
-	              // EXCEPTION: OCX-Eigenschaftenseiten sollten FALSE zur¨¹ckgeben
+	              // EXCEPTION: OCX-Eigenschaftenseiten sollten FALSE zurÃ¼ckgeben
 }
 
 void CUsersDlgGeneral::OnNeedpass() 
@@ -127,7 +127,7 @@ CString CUsersDlgGeneral::Validate()
 	if (m_bNeedpass && m_Pass == _T(""))
 	{
 		m_cPass.SetFocus();
-		return _T("²»ÔÊĞíÊ¹ÓÃ¿ÕÃÜÂë. ÇëÊäÈëÒ»¸öÃÜÂë!");
+		return _T("ä¸å…è®¸ä½¿ç”¨ç©ºå¯†ç . è¯·è¾“å…¥ä¸€ä¸ªå¯†ç !");
 	}
 	if (_ttoi(m_MaxConnCount) < 0 || _ttoi(m_MaxConnCount) > 999999999)
 	{

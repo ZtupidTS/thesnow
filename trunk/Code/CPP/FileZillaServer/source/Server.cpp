@@ -282,7 +282,7 @@ LRESULT CServer::OnServerMessage(CServerThread* pThread, WPARAM wParam, LPARAM l
 				t_connectiondata data;
 				data.userid = pConnOp->userid;
 				data.pThread = pThread;
-				_tcsncpy(data.ip, pData->ip, 16);
+				_tcsncpy(data.ip, pData->ip, 40);
 				data.port = pData->port;
 				data.transferMode = 0;
 				data.currentOffset = 0;
@@ -333,7 +333,7 @@ LRESULT CServer::OnServerMessage(CServerThread* pThread, WPARAM wParam, LPARAM l
 		case USERCONTROL_CONNOP_REMOVE:
 			{
 				std::map<int, t_connectiondata>::iterator iter = m_UsersList.find(pConnOp->userid);
-				if (iter!=m_UsersList.end())
+				if (iter != m_UsersList.end())
 					m_UsersList.erase(iter);
 
 				len = 6;
@@ -581,7 +581,7 @@ BOOL CServer::ProcessCommand(CAdminSocket *pAdminSocket, int nID, unsigned char 
 		{
 			int len = 3;
 			std::map<int, t_connectiondata>::iterator iter;
-			for (iter=m_UsersList.begin(); iter!=m_UsersList.end(); iter++)
+			for (iter = m_UsersList.begin(); iter != m_UsersList.end(); iter++)
 			{
 				const t_connectiondata& data = iter->second;
 				char* ip = ConvToNetwork(data.ip);

@@ -1,4 +1,4 @@
-// FileZilla Server - a Windows ftp server
+ï»¿// FileZilla Server - a Windows ftp server
 
 // Copyright (C) 2002-2004 - Tim Kosse <tim.kosse@gmx.de>
 
@@ -82,7 +82,7 @@ BEGIN_MESSAGE_MAP(COptionsPasvPage, COptionsPage)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
-// Behandlungsroutinen für Nachrichten COptionsPasvPage 
+// Behandlungsroutinen fÃ¼r Nachrichten COptionsPasvPage 
 
 void COptionsPasvPage::OnOptionsPasvIptype() 
 {
@@ -106,7 +106,7 @@ BOOL COptionsPasvPage::OnInitDialog()
 	OnOptionsPasvUseportrange();
 
 	return TRUE;  // return TRUE unless you set the focus to a control
-	              // EXCEPTION: OCX-Eigenschaftenseiten sollten FALSE zurückgeben
+	              // EXCEPTION: OCX-Eigenschaftenseiten sollten FALSE zurÃ¼ckgeben
 }
 
 BOOL COptionsPasvPage::IsDataValid()
@@ -118,7 +118,7 @@ BOOL COptionsPasvPage::IsDataValid()
 		{
 			m_pOptionsDlg->ShowPage(this);
 			GetDlgItem(IDC_OPTIONS_PASV_IP)->SetFocus();
-			AfxMessageBox(_T("ÇëÊäÈëÒ»¸öÓĞĞ§µÄ IP µØÖ·»òÕßÖ÷»úÃû³Æ!"));
+			AfxMessageBox(_T("è¯·è¾“å…¥ä¸€ä¸ªæœ‰æ•ˆçš„ IP åœ°å€æˆ–è€…ä¸»æœºåç§°!"));
 			return FALSE;
 		}
 	}

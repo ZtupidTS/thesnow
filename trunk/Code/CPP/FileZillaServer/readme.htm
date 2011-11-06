@@ -1,7 +1,7 @@
-<p align="center"><b><u>FileZilla Server version 0.9.39 beta</u></b></p>
+<p align="center"><b><u>FileZilla Server version 0.9.40 beta</u></b></p>
 <p align="center">Copyright 2001-2011<br>
-by <a href="mailto:Tim.Kosse@gmx.de">Tim Kosse</a><a href="http://sourceforge.net/projects/filezilla/"><br>
-http://sourceforge.net/projects/filezilla/</a></p>
+by <a href="mailto:tim.kosse@filezilla-project.org">Tim Kosse</a><a href="http://filezilla-project.org/"><br>
+http://filezilla-project.org/</a></p>
 <p align="left"><u><b>Features:</b></u></p>
 <ul>
   <li>almost unlimited number of users</li>
@@ -22,7 +22,7 @@ http://sourceforge.net/projects/filezilla/</a></p>
   <li>MODE Z file transfer compression</li>
 </ul>
 <p align="left"><u><b>Release Notes:</b></u></p>
-<p align="left">Please report any bugs immediately to <a href="mailto:Tim.Kosse@gmx.de">Tim.Kosse@gmx.de</a>
+<p align="left">Please report any bugs immediately to <a href="mailto:tim.kosse@filezilla-project.org">tim.kosse@filezilla-project.org</a>
 and don't forget to include some system details as it helps to identify the
 bugs.</p>
 <p align="left"><u><b>The tray icon</b></u></p>
@@ -67,6 +67,15 @@ as restoring it to normal size.</p>
 </table>
 <p align="left"><b><u>Version History:</u></b></p>
 <p>For a more detailed list of changes, please have a look at the CVS changelog located at <a href="http://filezilla-project.org/changelog.php?type=2">http://filezilla-project.org/changelog.php?type=2</a>.</p>
+<p><b>Version 0.9.40</b></p>
+<blockquote>
+  <u>Fixed bugs:</u>
+  <ul>
+    <li>The service no longer crashes if connecting with the administration interface when there are clients connected over IPv6</li>
+    <li>Close the connection if there is additional data in the input buffers when processing the AUTH command.</li>
+    <li>Display correct connection state item in administration interface when getting initial list of connected clients</li>
+  </ul>
+</blockquote
 <p><b>Version 0.9.39</b></p>
 <blockquote>
   <u>Fixed bugs:</u>
