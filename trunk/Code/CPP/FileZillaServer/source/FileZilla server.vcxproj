@@ -197,7 +197,7 @@ if EXIST "$(OutDir)FileZilla Server.exe" "$(OutDir)FileZilla Server.exe" /uninst
       <AdditionalDependencies>version.lib;ws2_32.lib;zlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>.\Release\BIN\FileZilla server.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <IgnoreSpecificDefaultLibraries>LIBCMT.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <IgnoreSpecificDefaultLibraries>MSVCRT.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>.\Release/FileZilla server.pdb</ProgramDatabaseFile>
       <GenerateMapFile>true</GenerateMapFile>
