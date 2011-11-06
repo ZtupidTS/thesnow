@@ -2,15 +2,15 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="Source Files">
-      <UniqueIdentifier>{7ce3b3ad-d111-49ac-8a6d-048f27bdc2c4}</UniqueIdentifier>
+      <UniqueIdentifier>{2f475d68-393f-4260-a8f4-3ea30a00807e}</UniqueIdentifier>
       <Extensions>cpp;c;cxx;rc;def;r;odl;idl;hpj;bat</Extensions>
     </Filter>
     <Filter Include="Header Files">
-      <UniqueIdentifier>{23139170-aaeb-49a0-8d2b-a933273b17e6}</UniqueIdentifier>
+      <UniqueIdentifier>{8b4e155e-1d7b-4280-81e1-f8cf004b1dcb}</UniqueIdentifier>
       <Extensions>h;hpp;hxx;hm;inl</Extensions>
     </Filter>
     <Filter Include="Resource Files">
-      <UniqueIdentifier>{d1a4a181-badf-48d7-9d5a-12cad4ebe746}</UniqueIdentifier>
+      <UniqueIdentifier>{6587fa61-16ad-4485-9617-28ddafe62587}</UniqueIdentifier>
       <Extensions>ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe</Extensions>
     </Filter>
   </ItemGroup>
@@ -214,25 +214,7 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="res\empty.ico">
-      <Filter>Resource Files</Filter>
-    </None>
     <None Include="res\FileZilla server.ico">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="res\green.ico">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="res\icon1.ico">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="res\red.ico">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="res\Toolbar.bmp">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="res\yellow.ico">
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>

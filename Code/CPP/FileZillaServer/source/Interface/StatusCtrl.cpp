@@ -299,7 +299,7 @@ int CStatusCtrl::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		return -1;
 
 	USES_CONVERSION;
-
+	
 	m_RTFHeader = "{\\rtf1\\ansi\\deff0";
 
 //	HFONT hSysFont = (HFONT)GetStockObject(SYSTEM_FONT );
@@ -321,7 +321,7 @@ int CStatusCtrl::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	}
 	m_RTFHeader += "}";
 	
-	int pointsize =(-m_lfFont.lfHeight*72/ GetDeviceCaps(GetDC()->GetSafeHdc(), LOGPIXELSY))*2;
+	int pointsize = (-m_lfFont.lfHeight*72/ GetDeviceCaps(GetDC()->GetSafeHdc(), LOGPIXELSY))*2;
 	CString tmp;
 	tmp.Format(_T("%d"), pointsize);
 	m_RTFHeader += "\\uc1\\pard\\fi-200\\li200\\tx200\\f0\\fs"+tmp; //180*m_nAvgCharWidth;

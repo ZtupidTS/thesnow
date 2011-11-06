@@ -1,4 +1,4 @@
-// FileZilla Server - a Windows ftp server
+ï»¿// FileZilla Server - a Windows ftp server
 
 // Copyright (C) 2002-2004 - Tim Kosse <tim.kosse@gmx.de>
 
@@ -50,10 +50,10 @@ CUsersDlg::CUsersDlg(CWnd* pParent, bool localConnection)
 	m_pSharedFoldersPage = new CUsersDlgSharedFolders(this);
 	m_pIpFilterPage = new CUsersDlgIpFilter(this);
 
-	AddPage(*m_pGeneralPage, _T("³£¹æÉèÖÃ"));
-	AddPage(*m_pSharedFoldersPage, _T("¹²ÏíÄ¿Â¼"));
-	AddPage(*m_pSpeedLimitPage, _T("ËÙ¶ÈÏŞÖÆ"));
-	AddPage(*m_pIpFilterPage, _T("µØÖ·¹ıÂË"));
+	AddPage(*m_pGeneralPage, _T("å¸¸è§„è®¾ç½®"));
+	AddPage(*m_pSharedFoldersPage, _T("å…±äº«ç›®å½•"));
+	AddPage(*m_pSpeedLimitPage, _T("é€Ÿåº¦é™åˆ¶"));
+	AddPage(*m_pIpFilterPage, _T("åœ°å€è¿‡æ»¤"));
 }
 
 CUsersDlg::~CUsersDlg()
@@ -90,7 +90,7 @@ BEGIN_MESSAGE_MAP(CUsersDlg, CSAPrefsDialog)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
-// Behandlungsroutinen für Nachrichten CUsersDlg 
+// Behandlungsroutinen fÃ¼r Nachrichten CUsersDlg 
 
 BOOL CUsersDlg::OnInitDialog() 
 {
@@ -115,7 +115,7 @@ BOOL CUsersDlg::OnInitDialog()
 	SetCtrlState();
 
 	return TRUE;  // return TRUE unless you set the focus to a control
-	              // EXCEPTION: OCX-Eigenschaftenseiten sollten FALSE zurückgeben
+	              // EXCEPTION: OCX-Eigenschaftenseiten sollten FALSE zuré»kgeben
 }
 
 BOOL CUsersDlg::Validate()

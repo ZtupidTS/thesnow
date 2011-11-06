@@ -1,4 +1,4 @@
-/*           CAsyncSslSocketLayer by Tim Kosse 
+﻿/*           CAsyncSslSocketLayer by Tim Kosse 
           mailto: tim.kosse@filezilla-project.org)
                  Version 2.0 (2005-02-27)
 -------------------------------------------------------------
@@ -1304,7 +1304,7 @@ void CAsyncSslSocketLayer::apps_ssl_info_callback(const SSL *s, int where, int r
 	if (!cur)
 	{
 		m_sCriticalSection.Unlock();
-		//MessageBox(0, _T("���ܲ�ѯ SSL �Ự!"), _T("Critical error"), MB_ICONEXCLAMATION);
+		//MessageBox(0, _T("不能查询 SSL 会话!"), _T("Critical error"), MB_ICONEXCLAMATION);
 		return;
 	}
 	else

@@ -389,7 +389,7 @@ void CMainFrame::OnEditSettings()
 	}
 	m_nEdit |= 0x04;
 	SendCommand(5, 0, 0);
-	ShowStatus(_T("Retrieving settings, please wait..."), 0);
+	ShowStatus(_T("解析设置中, 请骚等..."), 0);
 }
 
 void CMainFrame::OnActive() 

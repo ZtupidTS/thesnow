@@ -1,4 +1,4 @@
-// FileZilla Server - a Windows ftp server
+ï»¿// FileZilla Server - a Windows ftp server
 
 // Copyright (C) 2002-2004 - Tim Kosse <tim.kosse@gmx.de>
 
@@ -65,14 +65,14 @@ BEGIN_MESSAGE_MAP(CUsersDlgIpFilter, CSAPrefsSubDlg)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
-// Behandlungsroutinen f¨¹r Nachrichten CUsersDlgIpFilter 
+// Behandlungsroutinen fÃ¼r Nachrichten CUsersDlgIpFilter 
 
 BOOL CUsersDlgIpFilter::OnInitDialog() 
 {
 	CSAPrefsSubDlg::OnInitDialog();
 	
 	return TRUE;  // return TRUE unless you set the focus to a control
-	              // EXCEPTION: OCX-Eigenschaftenseiten sollten FALSE zur¨¹ckgeben
+	              // EXCEPTION: OCX-Eigenschaftenseiten sollten FALSE zurÃ¼ckgeben
 }
 
 CString CUsersDlgIpFilter::Validate()
@@ -82,13 +82,13 @@ CString CUsersDlgIpFilter::Validate()
 	if (!ParseIPFilter(m_DisallowedAddresses))
 	{
 		GetDlgItem(IDC_USERS_IPFILTER_DISALLOWED)->SetFocus();
-		return _T("ÎŞĞ§ IP µØÖ·/·¶Î§/ÑÚÂë");
+		return _T("æ— æ•ˆ IP åœ°å€/èŒƒå›´/æ©ç ");
 	}
 
 	if (!ParseIPFilter(m_AllowedAddresses))
 	{
 		GetDlgItem(IDC_USERS_IPFILTER_ALLOWED)->SetFocus();
-		return _T("ÎŞĞ§ IP µØÖ·/·¶Î§/ÑÚÂë");
+		return _T("æ— æ•ˆ IP åœ°å€/èŒƒå›´/æ©ç ");
 	}
 
 	return _T("");

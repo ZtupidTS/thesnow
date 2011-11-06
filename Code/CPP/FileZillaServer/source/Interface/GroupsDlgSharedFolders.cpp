@@ -1,4 +1,4 @@
-// FileZilla Server - a Windows ftp server
+ï»¿// FileZilla Server - a Windows ftp server
 
 // Copyright (C) 2002-2004 - Tim Kosse <tim.kosse@gmx.de>
 
@@ -107,14 +107,14 @@ BEGIN_MESSAGE_MAP(CGroupsDlgSharedFolders, CSAPrefsSubDlg)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
-// Behandlungsroutinen f¨¹r Nachrichten CGroupsDlgSharedFolders 
+// Behandlungsroutinen fÃ¼r Nachrichten CGroupsDlgSharedFolders 
 
 BOOL CGroupsDlgSharedFolders::OnInitDialog() 
 {
 	CSAPrefsSubDlg::OnInitDialog();
 	
-	m_cDirs.InsertColumn(0, _T("Ä¿Â¼"), LVCFMT_LEFT, 120);
-	m_cDirs.InsertColumn(1, _T("±ğÃû"), LVCFMT_LEFT, 200);
+	m_cDirs.InsertColumn(0, _T("ç›®å½•"), LVCFMT_LEFT, 120);
+	m_cDirs.InsertColumn(1, _T("åˆ«å"), LVCFMT_LEFT, 200);
 	UpdateData(FALSE);
 	
 	m_imagelist.Create(16, 16, ILC_MASK, 3, 3);
@@ -150,7 +150,7 @@ CString CGroupsDlgSharedFolders::Validate()
 		if (iter->dir == _T("") || iter->dir == _T("/") || iter->dir == _T("\\"))
 		{
 			m_cDirs.SetFocus();
-			return _T("ÖÁÉÙÓĞÒ»¸öÂ·¾¶²»ÊÇÒ»¸öÓĞĞ§µÄ±¾µØÂ·¾¶.");
+			return _T("è‡³å°‘æœ‰ä¸€ä¸ªè·¯å¾„ä¸æ˜¯ä¸€ä¸ªæœ‰æ•ˆçš„æœ¬åœ°è·¯å¾„.");
 		}
 
 		if (iter->bIsHome)
@@ -332,7 +332,7 @@ void CGroupsDlgSharedFolders::OnDirmenuAdd()
 	dir.bIsHome = m_cDirs.GetItemCount()?FALSE:TRUE;
 
 	pGroup->permissions.push_back(dir);
-	int nItem = m_cDirs.InsertItem(LVIF_TEXT |LVIF_PARAM|LVIF_IMAGE, 0, _T("<ĞÂ½¨Ä¿Â¼>"), 0, 0, dir.bIsHome?1:0, pGroup->permissions.size()-1);
+	int nItem = m_cDirs.InsertItem(LVIF_TEXT |LVIF_PARAM|LVIF_IMAGE, 0, _T("<æ–°å»ºç›®å½•>"), 0, 0, dir.bIsHome?1:0, pGroup->permissions.size()-1);
 	m_cDirs.SetItemState(nItem, LVIS_SELECTED,LVIS_SELECTED);
 	m_cDirs.SetItemState(nItem, LVIS_SELECTED,LVIS_SELECTED);
 	OnDblclkDirs(0, 0);	
@@ -418,7 +418,7 @@ void CGroupsDlgSharedFolders::OnEndlabeleditDirs(NMHDR* pNMHDR, LRESULT* pResult
 	{
 		if (pDispInfo->item.pszText[0] == 0)
 		{
-			AfxMessageBox(_T("ÇëÑ¡ÔñÒ»¸öÎÄ¼ş¼Ğ!"));
+			AfxMessageBox(_T("è¯·é€‰æ‹©ä¸€ä¸ªæ–‡ä»¶å¤¹!"));
 			*pResult = FALSE;
 		}
 		else
@@ -610,7 +610,7 @@ void CGroupsDlgSharedFolders::OnDirmenuEditAliases()
 
 	if (pGroup->permissions[index].bIsHome)
 	{
-		AfxMessageBox(_T("²»ÄÜÉèÖÃÖ÷Ä¿Â¼±ğÃû,Ëü½«»á´´½¨Ò»¸öµİ¹éÄ¿Â¼½á¹¹."));
+		AfxMessageBox(_T("ä¸èƒ½è®¾ç½®ä¸»ç›®å½•åˆ«å,å®ƒå°†ä¼šåˆ›å»ºä¸€ä¸ªé€’å½’ç›®å½•ç»“æ„."));
 		return;
 	}
 

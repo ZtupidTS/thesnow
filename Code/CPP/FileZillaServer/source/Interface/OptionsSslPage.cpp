@@ -1,4 +1,4 @@
-// FileZilla Server - a Windows ftp server
+Ôªø// FileZilla Server - a Windows ftp server
 
 // Copyright (C) 2002-2004 - Tim Kosse <tim.kosse@gmx.de>
 
@@ -178,13 +178,13 @@ BOOL COptionsSslPage::IsDataValid()
 		if (res == SSL_FAILURE_LOADDLLS)
 		{
 			m_pOptionsDlg->ShowPage(this);
-			AfxMessageBox(_T("‘ÿ»Î SSL ø‚ ß∞‹"));
+			AfxMessageBox(_T("ËΩΩÂÖ• SSL Â∫ìÂ§±Ë¥•"));
 			return FALSE;
 		}
 		else if (res == SSL_FAILURE_INITSSL)
 		{
 			m_pOptionsDlg->ShowPage(this);
-			AfxMessageBox(_T("≥ı ºªØ SSL ø‚ ß∞‹"));
+			AfxMessageBox(_T("ÂàùÂßãÂåñ SSL Â∫ìÂ§±Ë¥•"));
 			return FALSE;
 		}
 		else if (res == SSL_FAILURE_VERIFYCERT)

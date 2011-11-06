@@ -19,7 +19,7 @@ SetCompressor /SOLID LZMA
   !define PRODUCT_NAME    "FileZilla Server"
   !define VERSION_MAJOR   "0"
   !define VERSION_MINOR   "9"
-  !define VERSION_MICRO   "39"
+  !define VERSION_MICRO   "40"
   !define VERSION_NANO    "0"
   !define PRODUCT_VERSION "beta ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_MICRO}"
   !define VERSION_FULL    "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_MICRO}.${VERSION_NANO}"
