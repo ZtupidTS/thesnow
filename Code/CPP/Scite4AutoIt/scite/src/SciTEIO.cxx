@@ -111,7 +111,6 @@ void SciTEBase::SetFileName(FilePath openName, bool fixCase) {
 	SetWindowName();
 	if (buffers.buffers)
 		buffers.buffers[buffers.Current()].Set(filePath);
-	BuffersMenu();
 }
 
 // See if path exists.
@@ -362,7 +361,7 @@ void FileLoader::Execute() {
 		}
 	}
 	completed = true;
-	pSciTE->PostOnMainThread(SCITE_FILEREAD, this);
+	pSciTE->PostOnMainThread(WORK_FILEREAD, this);
 }
 
 double FileLoader::Duration() {
@@ -581,6 +580,7 @@ bool SciTEBase::Open(FilePath file, OpenFlags of) {
 	SetEol();
 	UpdateBuffersCurrent();
 	SizeSubWindows();
+	SetBuffersMenu();
 
 	bool asynchronous = false;
 	if (!filePath.IsUntitled()) {
@@ -1370,7 +1370,7 @@ void SciTEBase::InternalGrep(GrepFlags gf, const GUI::gui_char *directory, const
 		}
 		sExitMessage += "\n";
 		OutputAppendStringSynchronised(sExitMessage.c_str());
-		if (props.GetInt("output.scroll", 1) == 1 && returnOutputToCommand)
+		if ((gf & grepScroll) && returnOutputToCommand)
 			wOutput.Send(SCI_GOTOPOS, originalEnd, 0);
 	}
 }

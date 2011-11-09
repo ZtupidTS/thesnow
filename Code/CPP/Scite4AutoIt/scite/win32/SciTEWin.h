@@ -86,9 +86,30 @@ const int SCITE_TRAY = WM_APP + 0;
 const int SCITE_DROP = WM_APP + 1;
 const int SCITE_WORKER = WM_APP + 2;
 
-class Dialog;
+enum { 
+	WORK_EXECUTE = WORK_PLATFORM + 1
+};
 
 class SciTEWin;
+
+class CommandWorker : public Worker {
+public:
+	SciTEWin *pSciTE;
+	int icmd;
+	int originalEnd;
+	int exitStatus;
+	GUI::ElapsedTime commandTime;
+	std::string output;
+	int flags;
+	bool seenOutput;
+	int outputScroll;
+
+	CommandWorker();
+	void Initialise();
+	virtual void Execute();
+};
+
+class Dialog;
 
 inline HWND HwndOf(GUI::Window w) {
 	return reinterpret_cast<HWND>(w.GetID());
@@ -308,9 +329,9 @@ protected:
 	std::deque<GUI::gui_string> dropFilesQueue;
 
 	// Fields also used in tool execution thread
+	CommandWorker cmdWorker;
 	HANDLE hWriteSubProcess;
 	DWORD subProcessGroupId;
-	int outputScroll;
 
 	HACCEL hAccTable;
 
@@ -487,9 +508,11 @@ public:
 	void CreateUI();
 	/// Management of the command line parameters.
 	void Run(const GUI::gui_char *cmdLine);
-    int EventLoop();
+	int EventLoop();
 	void OutputAppendEncodedStringSynchronised(GUI::gui_string s, int codePage);
-	DWORD ExecuteOne(const Job &jobToRun, bool &seenOutput);
+	void ResetExecution();
+	void ExecuteNext();
+	DWORD ExecuteOne(const Job &jobToRun);
 	void ProcessExecute();
 	void ShellExec(const SString &cmd, const char *dir);
 	virtual void Execute();
@@ -498,6 +521,7 @@ public:
 
 	virtual bool PerformOnNewThread(Worker *pWorker);
 	virtual void PostOnMainThread(int cmd, Worker *pWorker);
+	virtual void WorkerCommand(int cmd, Worker *pWorker);
 
 	void Creation();
 	LRESULT KeyDown(WPARAM wParam);
