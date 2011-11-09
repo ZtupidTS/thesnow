@@ -977,10 +977,6 @@
 					>
 				</File>
 				<File
-					RelativePath="..\SciTe\Win32\SingleThreadExtension.cxx"
-					>
-				</File>
-				<File
 					RelativePath="..\SciTe\src\StringHelpers.cxx"
 					>
 				</File>
@@ -1154,10 +1150,6 @@
 				</File>
 				<File
 					RelativePath="..\SciTe\Win32\SciTEWin.h"
-					>
-				</File>
-				<File
-					RelativePath="..\SciTe\Win32\SingleThreadExtension.h"
 					>
 				</File>
 				<File

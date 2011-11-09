@@ -527,7 +527,6 @@ copy "$(SolutionDir)Properties\*.txt" "$(SolutionDir)Bin\*.properties" /y
     <ClCompile Include="..\SciTe\Win32\SciTEWin.cxx" />
     <ClCompile Include="..\SciTe\Win32\SciTEWinBar.cxx" />
     <ClCompile Include="..\SciTe\Win32\SciTEWinDlg.cxx" />
-    <ClCompile Include="..\SciTe\Win32\SingleThreadExtension.cxx" />
     <ClCompile Include="..\SciTe\src\StringHelpers.cxx" />
     <ClCompile Include="..\SciTe\src\StringList.cxx" />
     <ClCompile Include="..\SciTe\src\StyleWriter.cxx" />
@@ -569,7 +568,6 @@ copy "$(SolutionDir)Properties\*.txt" "$(SolutionDir)Bin\*.properties" /y
     <ClInclude Include="..\SciTe\src\SciTEBase.h" />
     <ClInclude Include="..\SciTe\src\SciTEKeys.h" />
     <ClInclude Include="..\SciTe\Win32\SciTEWin.h" />
-    <ClInclude Include="..\SciTe\Win32\SingleThreadExtension.h" />
     <ClInclude Include="..\SciTe\src\SString.h" />
     <ClInclude Include="..\SciTe\src\StringHelpers.h" />
     <ClInclude Include="..\SciTe\Win32\UniqueInstance.h" />

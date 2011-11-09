@@ -224,7 +224,7 @@ SciTEBase::~SciTEBase() {
 }
 
 void SciTEBase::WorkerCommand(int cmd, Worker *pWorker) {
-	if (cmd == SCITE_FILEREAD) {
+	if (cmd == WORK_FILEREAD) {
 		TextRead(static_cast<FileLoader *>(pWorker));
 	}
 }
@@ -3928,7 +3928,7 @@ void SciTEBase::Notify(SCNotification *notification) {
 		}
 		CheckMenus();
 		SetWindowName();
-		BuffersMenu();
+		SetBuffersMenu();
 		break;
 
 	case SCN_SAVEPOINTLEFT:
@@ -3942,7 +3942,7 @@ void SciTEBase::Notify(SCNotification *notification) {
 		}
 		CheckMenus();
 		SetWindowName();
-		BuffersMenu();
+		SetBuffersMenu();
 		break;
 
 	case SCN_DOUBLECLICK:

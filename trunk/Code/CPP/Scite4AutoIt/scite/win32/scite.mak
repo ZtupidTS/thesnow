@@ -15,6 +15,7 @@ PROPFILE=$(DIR_BIN)\属性文件
 PROG=$(DIR_BIN)\SciTE.exe
 PROGSTATIC=$(DIR_BIN)\Sc1.exe
 DLLS=$(DIR_BIN)\Scintilla.dll $(DIR_BIN)\SciLexer.dll
+
 WIDEFLAGS=-DUNICODE -D_UNICODE
 
 CC=cl
@@ -182,7 +183,7 @@ LUA_CORE_OBJS = lapi.obj lcode.obj ldebug.obj ldo.obj ldump.obj lfunc.obj lgc.ob
 LUA_LIB_OBJS =	lauxlib.obj lbaselib.obj ldblib.obj liolib.obj lmathlib.obj ltablib.obj \
                 lstrlib.obj loadlib.obj loslib.obj linit.obj
 
-LUA_OBJS = LuaExtension.obj SingleThreadExtension.obj $(LUA_CORE_OBJS) $(LUA_LIB_OBJS)
+LUA_OBJS = LuaExtension.obj $(LUA_CORE_OBJS) $(LUA_LIB_OBJS)
 
 OBJS = $(OBJS) $(LUA_OBJS)
 OBJSSTATIC = $(OBJSSTATIC) $(LUA_OBJS)
@@ -300,7 +301,6 @@ SciTEWin.obj: \
 	../src/MultiplexExtension.h \
 	../src/Extender.h \
 	DirectorExtension.h \
-	SingleThreadExtension.h \
 	../src/LuaExtension.h
 Sc1.obj: \
 	SciTEWin.cxx \
@@ -323,7 +323,6 @@ Sc1.obj: \
 	../src/MultiplexExtension.h \
 	../src/Extender.h \
 	DirectorExtension.h \
-	SingleThreadExtension.h \
 	../src/LuaExtension.h
 SciTEWinBar.obj: \
 	SciTEWinBar.cxx \
@@ -361,12 +360,6 @@ SciTEWinDlg.obj: \
 	../src/SciTEBase.h \
 	../src/SciTEKeys.h \
 	UniqueInstance.h
-SingleThreadExtension.obj: \
-	SingleThreadExtension.cxx \
-	../../scintilla/include/Scintilla.h \
-	../src/GUI.h \
-	SingleThreadExtension.h \
-	../src/Extender.h
 UniqueInstance.obj: \
 	UniqueInstance.cxx \
 	../../scintilla/include/Scintilla.h \
