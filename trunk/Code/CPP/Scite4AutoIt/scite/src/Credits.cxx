@@ -30,6 +30,8 @@
 #include "Mutex.h"
 #include "JobQueue.h"
 
+#include "Cookie.h"
+#include "Worker.h"
 #include "SciTEBase.h"
 
 // 捐助者名称(UTF-8编码)
@@ -313,6 +315,7 @@ const char *contributors[] = {
             "David Wolfendale",
             "Chris Angelico",
             "Marat Dukhan",
+            "Stefan Weil",
         };
 
 // AddStyledText only called from About so static size buffer is OK

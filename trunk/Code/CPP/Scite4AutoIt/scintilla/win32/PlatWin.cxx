@@ -16,6 +16,7 @@
 #ifdef _MSC_VER
 #pragma warning(disable: 4786)
 #endif
+#include <math.h>
 
 #include <vector>
 #include <map>
@@ -27,7 +28,7 @@
 #include <richedit.h>
 #include <windowsx.h>
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && (_MSC_VER > 1200)
 #define USE_D2D 1
 #endif
 

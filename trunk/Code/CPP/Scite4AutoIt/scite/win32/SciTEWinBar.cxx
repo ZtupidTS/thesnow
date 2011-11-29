@@ -97,7 +97,8 @@ void SciTEWin::Notify(SCNotification *notification) {
 	case TCN_SELCHANGE:
 		// Change of tab
 		if (notification->nmhdr.idFrom == IDM_TABWIN) {
-			int index = ::SendMessage(static_cast<HWND>(wTabBar.GetID()), TCM_GETCURSEL, (WPARAM)0, (LPARAM)0);
+			int index = static_cast<int>(
+				::SendMessage(static_cast<HWND>(wTabBar.GetID()), TCM_GETCURSEL, (WPARAM)0, (LPARAM)0));
 			SetDocumentAt(index);
 			CheckReload();
 		}
@@ -255,7 +256,8 @@ void SciTEWin::Notify(SCNotification *notification) {
 					TCHITTESTINFO info;
 					info.pt.x = ptClient.x;
 					info.pt.y = ptClient.y;
-					int index = ::SendMessage(static_cast<HWND>(wTabBar.GetID()), TCM_HITTEST, (WPARAM)0, (LPARAM) & info);
+					int index = static_cast<int>(
+						::SendMessage(static_cast<HWND>(wTabBar.GetID()), TCM_HITTEST, (WPARAM)0, (LPARAM) & info));
 					if (index >= 0) {
 						GUI::gui_string path = buffers.buffers[index].AsInternal();
 						// Handle '&' characters in path, since they are interpreted in
@@ -367,6 +369,7 @@ void SciTEWin::SizeSubWindows() {
 		TCM_ADJUSTRECT, TRUE, LPARAM(&r));
 	bands[bandTab].height = r.bottom - r.top - 4;
 
+	bands[bandBackground].visible = backgroundStrip.visible;
 	bands[bandSearch].visible = searchStrip.visible;
 	bands[bandFind].visible = findStrip.visible;
 	bands[bandReplace].visible = replaceStrip.visible;
@@ -936,7 +939,7 @@ static LRESULT PASCAL TabWndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM
 			thti.pt.x = pt.x;
 			thti.pt.y = pt.y;
 			thti.flags = 0;
-			st_iLastClickTab = ::SendMessage(hWnd, TCM_HITTEST, (WPARAM)0, (LPARAM) & thti);
+			st_iLastClickTab = static_cast<int>(::SendMessage(hWnd, TCM_HITTEST, (WPARAM)0, (LPARAM) & thti));
 		}
 		break;
 	}
@@ -958,7 +961,7 @@ static LRESULT PASCAL TabWndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM
 			thti.pt.x = pt.x;
 			thti.pt.y = pt.y;
 			thti.flags = 0;
-			int tab = ::SendMessage(hWnd, TCM_HITTEST, (WPARAM)0, (LPARAM) & thti);
+			int tab = static_cast<int>(::SendMessage(hWnd, TCM_HITTEST, (WPARAM)0, (LPARAM) & thti));
 			if (tab >= 0) {
 				::SendMessage(::GetParent(hWnd), WM_COMMAND, IDC_TABCLOSE, (LPARAM)tab);
 			}
@@ -977,7 +980,7 @@ static LRESULT PASCAL TabWndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM
 				thti.pt.x = pt.x;
 				thti.pt.y = pt.y;
 				thti.flags = 0;
-				int tab = ::SendMessage(hWnd, TCM_HITTEST, (WPARAM)0, (LPARAM) & thti);
+				int tab = static_cast<int>(::SendMessage(hWnd, TCM_HITTEST, (WPARAM)0, (LPARAM) & thti));
 				if (tab > -1 && st_iDraggingTab > -1 && st_iDraggingTab != tab) {
 					::SendMessage(::GetParent(hWnd),
 					        WM_COMMAND,
@@ -1011,8 +1014,8 @@ static LRESULT PASCAL TabWndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM
 			thti.pt.x = pt.x;
 			thti.pt.y = pt.y;
 			thti.flags = 0;
-			int tab = ::SendMessage(hWnd, TCM_HITTEST, (WPARAM)0, (LPARAM) & thti);
-			int tabcount = ::SendMessage(hWnd, TCM_GETITEMCOUNT, (WPARAM)0, (LPARAM)0);
+			int tab = static_cast<int>(::SendMessage(hWnd, TCM_HITTEST, (WPARAM)0, (LPARAM) & thti));
+			int tabcount = static_cast<int>(::SendMessage(hWnd, TCM_GETITEMCOUNT, (WPARAM)0, (LPARAM)0));
 
 			if (wParam == MK_LBUTTON &&
 			        tabcount > 1 &&
@@ -1051,7 +1054,7 @@ static LRESULT PASCAL TabWndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM
 				thti.pt.x = ptClient.x;
 				thti.pt.y = ptClient.y;
 				thti.flags = 0;
-				int tab = ::SendMessage(hWnd, TCM_HITTEST, (WPARAM)0, (LPARAM) & thti);
+				int tab = static_cast<int>(::SendMessage(hWnd, TCM_HITTEST, (WPARAM)0, (LPARAM) & thti));
 
 				RECT tabrc;
 				if (tab != -1 &&
@@ -1249,6 +1252,18 @@ void SciTEWin::Creation() {
 	::CreateWindowEx(
 	               0,
 	               classNameInternal,
+	               TEXT("backgroundStrip"),
+	               WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
+	               0, 0,
+	               100, 100,
+	               MainHWND(),
+	               reinterpret_cast<HMENU>(2001),
+	               hInstance,
+	               reinterpret_cast<LPSTR>(&backgroundStrip));
+
+	::CreateWindowEx(
+	               0,
+	               classNameInternal,
 	               TEXT("searchStrip"),
 	               WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
 	               0, 0,
@@ -1307,6 +1322,7 @@ void SciTEWin::Creation() {
 	bands.push_back(Band(true, heightTools, false, wToolBar));
 	bands.push_back(Band(true, heightTab, false, wTabBar));
 	bands.push_back(Band(true, 100, true, wContent));
+	bands.push_back(Band(true, backgroundStrip.Height(), false, backgroundStrip));
 	bands.push_back(Band(true, searchStrip.Height(), false, searchStrip));
 	bands.push_back(Band(true, findStrip.Height(), false, findStrip));
 	bands.push_back(Band(true, replaceStrip.Height(), false, replaceStrip));

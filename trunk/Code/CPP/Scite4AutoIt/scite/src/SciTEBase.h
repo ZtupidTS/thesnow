@@ -52,17 +52,17 @@ enum {
     menuHelp = 8
 };
 
-struct SelectionRange {
+struct SelectedRange {
 	int position;
 	int anchor;
-	SelectionRange(int position_= INVALID_POSITION, int anchor_= INVALID_POSITION) : 
+	SelectedRange(int position_= INVALID_POSITION, int anchor_= INVALID_POSITION) : 
 		position(position_), anchor(anchor_) {
 	}
 };
 
 class RecentFile : public FilePath {
 public:
-	SelectionRange selection;
+	SelectedRange selection;
 	int scrollPosition;
 	RecentFile() {
 		scrollPosition = 0;
@@ -73,43 +73,6 @@ public:
 		selection.anchor = INVALID_POSITION;
 		scrollPosition = 0;
 	}
-};
-
-// Related to Utf8_16::encodingType but with additional values at end
-enum UniMode {
-    uni8Bit = 0, uni16BE = 1, uni16LE = 2, uniUTF8 = 3,
-    uniCookie = 4
-};
-
-struct Worker {
-	virtual ~Worker() {}
-	virtual void Execute() {}
-};
-
-class SciTEBase;
-#ifdef SCI_NAMESPACE
-using Scintilla::ILoader;
-#endif
-
-class FileLoader : public Worker {
-public:
-	SciTEBase *pSciTE;
-	ILoader *pLoader;
-	FilePath path;
-	long size;
-	int err;
-	FILE *fp;
-	volatile bool completed;
-	volatile bool cancelling;
-	long readSoFar;
-	GUI::ElapsedTime et;
-	UniMode unicodeMode;
-
-	FileLoader(SciTEBase *pSciTE_, ILoader *pLoader_, FilePath path_, long size_, FILE *fp_);
-	virtual ~FileLoader();
-	virtual double Duration();
-	virtual void Execute();
-	void Cancel();
 };
 
 struct BufferState : public RecentFile {
@@ -124,6 +87,8 @@ public:
 	std::vector<BufferState> buffers;
 };
 
+struct FileWorker;
+
 class Buffer : public RecentFile {
 public:
 	sptr_t doc;
@@ -137,15 +102,15 @@ public:
 	SString overrideExtension;	///< User has chosen to use a particular language
 	std::vector<int> foldState;
 	std::vector<int> bookmarks;
-	FileLoader *pFileLoader;
+	FileWorker *pFileWorker;
 	PropSetFile props;
+	enum FutureDo { fdNone=0, fdFinishSave=1 } futureDo;
 	Buffer() :
 			RecentFile(), doc(0), isDirty(false), useMonoFont(false), lifeState(empty),
-			unicodeMode(uni8Bit), fileModTime(0), fileModLastAsk(0), findMarks(fmNone), pFileLoader(0) {}
+			unicodeMode(uni8Bit), fileModTime(0), fileModLastAsk(0), findMarks(fmNone), pFileWorker(0), futureDo(fdNone) {}
 
 	void Init() {
 		RecentFile::Init();
-		doc = 0;
 		isDirty = false;
 		useMonoFont = false;
 		lifeState = empty;
@@ -156,7 +121,8 @@ public:
 		overrideExtension = "";
 		foldState.clear();
 		bookmarks.clear();
-		pFileLoader = 0;
+		pFileWorker = 0;
+		futureDo = fdNone;
 	}
 
 	void SetTimeFromFile() {
@@ -164,17 +130,22 @@ public:
 		fileModLastAsk = fileModTime;
 	}
 
-	void CompleteLoading() {
-		lifeState = open;
-		delete pFileLoader;
-		pFileLoader = 0;
-	}
+	void CompleteLoading();
+	void CompleteStoring();
 
 	bool ShouldNotSave() const {
 		return lifeState != open;
 	}
 
-	void Cancel();
+	void CancelLoad();
+};
+
+struct BackgroundActivities {
+	int loaders;
+	int storers;
+	int totalWork;
+	int totalProgress;
+	GUI::gui_string fileNameLast;
 };
 
 class BufferList {
@@ -186,13 +157,16 @@ public:
 	Buffer *buffers;
 	int size;
 	int length;
+	int lengthVisible;
 	bool initialised;
+
 	BufferList();
 	~BufferList();
 	void Allocate(int maxSize);
 	int Add();
-	int GetDocumentByLoader(FileLoader *pFileLoader) const;
+	int GetDocumentByWorker(FileWorker *pFileWorker) const;
 	int GetDocumentByName(FilePath filename, bool excludeCurrent=false);
+	void RemoveInvisible(int index);
 	void RemoveCurrent();
 	int Current() const;
 	Buffer *CurrentBuffer();
@@ -202,6 +176,13 @@ public:
 	void CommitStackSelection();
 	void MoveToStackTop(int index);
 	void ShiftTo(int indexFrom, int indexTo);
+	void Swap(int indexA, int indexB);
+	BackgroundActivities CountBackgroundActivities() const;
+	bool SavingInBackground() const;
+	bool GetVisible(int index);
+	void SetVisible(int index, bool visible);
+	void AddFuture(int index, Buffer::FutureDo fd);
+	void FinishedFuture(int index, Buffer::FutureDo fd);
 private:
 	void PopStack();
 };
@@ -355,6 +336,14 @@ public:
 	bool &FlagFromCmd(int cmd);
 };
 
+// User interface for search options implemented as both buttons and popup menu items
+struct SearchOption {
+	enum { tWord, tCase, tRegExp, tBackslash, tWrap, tUp };
+	const char *label;
+	int cmd;	// Menu item
+	int id;	// Control in dialog
+};
+
 class SearchUI {
 protected:
 	Searcher *pSearcher;
@@ -366,12 +355,7 @@ public:
 	}
 };
 
-enum { 
-	WORK_FILEREAD = 1,
-	WORK_PLATFORM = 100
-};
-
-class SciTEBase : public ExtensionAPI, public Searcher {
+class SciTEBase : public ExtensionAPI, public Searcher, public WorkerListener {
 protected:
 	virtual void SetToolBar() = 0;	//!-add-[user.toolbar]
 	GUI::gui_string windowName;
@@ -462,6 +446,7 @@ protected:
 	enum { toolMax = 50 };
 	Extension *extender;
 	bool needReadProperties;
+	bool quitting;
 
 	int heightOutput;
 	int heightOutputStartDrag;
@@ -572,7 +557,7 @@ protected:
 	void ReadLocalPropFile();
 	void ReadDirectoryPropFile();
 
-	sptr_t CallFocused(unsigned int msg, uptr_t wParam = 0, sptr_t lParam = 0);
+	int CallFocused(unsigned int msg, uptr_t wParam = 0, sptr_t lParam = 0);
 	sptr_t CallPane(int destination, unsigned int msg, uptr_t wParam = 0, sptr_t lParam = 0);
 	void CallChildren(unsigned int msg, uptr_t wParam = 0, sptr_t lParam = 0);
 	SString GetTranslationToAbout(const char * const propname, bool retainIfNotFound = true);
@@ -628,7 +613,10 @@ protected:
 	    ofQuiet = 8,		// Avoid "Could not open file" message
 	    ofSynchronous = 16	// Force synchronous read
 	};
-	void TextRead(FileLoader *pFileLoader);
+	void TextRead(FileWorker *pFileLoader);
+	void TextWritten(FileWorker *pFileStorer);
+	void UpdateProgress(Worker *pWorker);
+	void PerformDeferredTasks();
 	enum OpenCompletion { ocSynchronous, ocCompleteCurrent, ocCompleteSwitch };
 	void CompleteOpen(OpenCompletion oc);
 	virtual bool PreOpenCheck(const GUI::gui_char *file);
@@ -646,7 +634,7 @@ protected:
 	void SaveToHTML(FilePath saveName);
 	void StripTrailingSpaces();
 	void EnsureFinalNewLine();
-	bool SaveBuffer(FilePath saveName);
+	bool SaveBuffer(FilePath saveName, bool asynchronous);
 	virtual void SaveAsHTML() = 0;
 	void SaveToRTF(FilePath saveName, int start = 0, int end = -1);
 	virtual void SaveAsRTF() = 0;
@@ -669,8 +657,9 @@ protected:
 	int GetMenuCommandAsInt(SString commandName);
 	virtual void Print(bool) {}
 	virtual void PrintSetup() {}
+	virtual void ShowBackgroundProgress(const GUI::gui_string & /* explanation */, int /* size */, int /* progress */) {}
 	Sci_CharacterRange GetSelection();
-	SelectionRange GetSelectionRange();
+	SelectedRange GetSelectedRange();
 	void SetSelection(int anchor, int currentPos);
 	//	void SelectionExtend(char *sel, int len, char *notselchar);
 	void GetCTag(char *sel, int len);
@@ -731,7 +720,7 @@ protected:
 	void ShowMessages(int line);
 	void GoMessage(int dir);
 	virtual bool StartCallTip();
-	char *GetNearestWords(const char *wordStart, int searchLen,
+	char *GetNearestWords(const char *wordStart, size_t searchLen,
 		const char *separators, bool ignoreCase=false, bool exactLen=false);
 	virtual void FillFunctionDefinition(int pos = -1);
 	void ContinueCallTip();
@@ -821,7 +810,7 @@ protected:
 	void SetFileStackMenu();
 	void DropFileStackTop();
 	bool AddFileToBuffer(const BufferState &bufferState);
-	void AddFileToStack(FilePath file, SelectionRange selection, int scrollPos);
+	void AddFileToStack(FilePath file, SelectedRange selection, int scrollPos);
 	void RemoveFileFromStack(FilePath file);
 	RecentFile GetFilePosition();
 	void DisplayAround(const RecentFile &rf);
@@ -941,9 +930,6 @@ private:
 	SciTEBase(const SciTEBase&);
 	void operator=(const SciTEBase&);
 };
-
-/// Base size of file I/O operations.
-const int blockSize = 131072;
 
 #if defined(__unix__)
 // MessageBox
