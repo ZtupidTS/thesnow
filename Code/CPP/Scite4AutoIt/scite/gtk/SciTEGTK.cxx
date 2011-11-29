@@ -62,6 +62,8 @@
 #include "pixmapsGNOME.h"
 #include "SciIcon.h"
 #include "Widget.h"
+#include "Cookie.h"
+#include "Worker.h"
 #include "SciTEBase.h"
 #include "SciTEKeys.h"
 
@@ -295,6 +297,17 @@ bool SciTEKeys::MatchKeyCode(long parsedKeyCode, int keyval, int modifiers) {
 	return parsedKeyCode && !(0xFFFF0000 & (keyval | modifiers)) && (parsedKeyCode == (keyval | (modifiers<<16)));
 }
 
+class BackgroundStrip : public Strip {
+public:
+	WStatic wExplanation;
+	WProgress wProgress;
+
+	BackgroundStrip() {
+	}
+	virtual void Creation(GtkWidget *container);
+	void SetProgress(const GUI::gui_string &explanation, int size, int progress);
+};
+
 class DialogGoto : public Dialog {
 public:
 	WEntry entryGoto;
@@ -451,6 +464,8 @@ protected:
 	// For single instance
 	char uniqueInstance[MAX_PATH];
 	guint32 startupTimestamp;
+	
+	BackgroundStrip backgroundStrip;
 
 	enum FileFormat { sfSource, sfCopy, sfHTML, sfRTF, sfPDF, sfTEX, sfXML } saveFormat;
 	Dialog dlgFileSelector;
@@ -578,6 +593,8 @@ protected:
 	void Command(unsigned long wParam, long lParam = 0);
 	void ContinueExecute(int fromPoll);
 
+	virtual void ShowBackgroundProgress(const GUI::gui_string &explanation, int size, int progress);
+
 	// Single instance
 	void SendFileName(int sendPipe, const char* filename);
 	bool CheckForRunningInstance(int argc, char* argv[]);
@@ -695,6 +712,7 @@ SciTEGTK::SciTEGTK(Extension *ext) : SciTEBase(ext) {
 	inputChannel = 0;
 	lastFlags = 0;
 
+	uniqueInstance[0] = '\0';
 	startupTimestamp = 0;
 
 	PropSetFile::SetCaseSensitiveFilenames(true);
@@ -1378,7 +1396,7 @@ bool SciTEGTK::OpenDialog(FilePath directory, const char *filter) {
 bool SciTEGTK::HandleSaveAs(const char *savePath) {
 	switch (saveFormat) {
 	case sfCopy:
-		SaveBuffer(savePath);
+		SaveBuffer(savePath, true);
 		break;
 	case sfHTML:
 		SaveToHTML(savePath);
@@ -1613,6 +1631,34 @@ SString SciTEGTK::EncodeString(const SString &s) {
 		reinterpret_cast<uptr_t>(s.c_str()), ret.ptr());
 	ret.ptr()[len] = '\0';
 	return SString(ret);
+}
+
+void BackgroundStrip::Creation(GtkWidget *container) {
+	WTable table(1, 2);
+	SetID(table);
+	Strip::Creation(container);
+	gtk_container_set_border_width(GTK_CONTAINER(GetID()), 1);
+	gtk_box_pack_start(GTK_BOX(container), GTK_WIDGET(GetID()), FALSE, FALSE, 0);
+	
+	wProgress.Create();
+	table.Add(wProgress, 1, false, 0, 0);
+	gtk_widget_show(wProgress);
+	
+	wExplanation.Create("");
+	table.Label(wExplanation);
+
+	//g_signal_connect(G_OBJECT(GetID()), "set-focus-child", G_CALLBACK(ChildFocusSignal), this);
+	//g_signal_connect(G_OBJECT(GetID()), "focus", G_CALLBACK(FocusSignal), this);
+
+	gtk_widget_show(GTK_WIDGET(GetID()));
+}
+
+void BackgroundStrip::SetProgress(const GUI::gui_string &explanation, int size, int progress) {
+	gtk_label_set_text(GTK_LABEL(wExplanation.GetID()), explanation.c_str());
+	if (size > 0) {
+		gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(wProgress.GetID()), 
+			static_cast<double>(progress) / static_cast<double>(size));
+	}
 }
 
 void DialogFindReplace::GrabFields() {
@@ -1973,14 +2019,7 @@ static const char * up_x_xpm[] = {
 ".......#@&......",
 "................"};
 
-struct Toggle {
-	enum { tWord, tCase, tRegExp, tBackslash, tWrap, tUp };
-	const char *label;
-	int cmd;
-	int id;
-};
-
-const static Toggle toggles[] = {
+const static SearchOption toggles[] = {
 	{"Match _whole word only", IDM_WHOLEWORD, IDWHOLEWORD},
 	{"Case sensiti_ve", IDM_MATCHCASE, IDMATCHCASE},
 	{"Regular _expression", IDM_REGEXP, IDREGEXP},
@@ -2076,12 +2115,12 @@ void SciTEGTK::FindInFiles() {
 	bool enableToggles = props.GetNewExpand("find.command") == "";
 
 	// Whole Word
-	dlgFindInFiles.toggleWord.Create(localiser.Text(toggles[Toggle::tWord].label));
+	dlgFindInFiles.toggleWord.Create(localiser.Text(toggles[SearchOption::tWord].label));
 	gtk_widget_set_sensitive(dlgFindInFiles.toggleWord, enableToggles);
 	table.Add(dlgFindInFiles.toggleWord, 1, true, 3, 0);
 
 	// Case Sensitive
-	dlgFindInFiles.toggleCase.Create(localiser.Text(toggles[Toggle::tCase].label));
+	dlgFindInFiles.toggleCase.Create(localiser.Text(toggles[SearchOption::tCase].label));
 	gtk_widget_set_sensitive(dlgFindInFiles.toggleCase, enableToggles);
 	table.Add(dlgFindInFiles.toggleCase, 1, true, 3, 0);
 
@@ -2183,6 +2222,16 @@ void SciTEGTK::ContinueExecute(int fromPoll) {
 		if (!fromPoll) {
 			OutputAppendString(">End Bad\n");
 		}
+	}
+}
+
+void SciTEGTK::ShowBackgroundProgress(const GUI::gui_string &explanation, int size, int progress) {
+	backgroundStrip.visible = !explanation.empty();
+	if (backgroundStrip.visible) {
+		backgroundStrip.Show(0);
+		backgroundStrip.SetProgress(explanation, size, progress);
+	} else {
+		backgroundStrip.Close();
 	}
 }
 
@@ -2616,30 +2665,30 @@ void SciTEGTK::FindReplace(bool replace) {
 	}
 
 	// Whole Word
-	dlgFindReplace.toggleWord.Create(localiser.Text(toggles[Toggle::tWord].label));
+	dlgFindReplace.toggleWord.Create(localiser.Text(toggles[SearchOption::tWord].label));
 	table.Add(dlgFindReplace.toggleWord, 2, false, 3, 0);
 
 	// Case Sensitive
-	dlgFindReplace.toggleCase.Create(localiser.Text(toggles[Toggle::tCase].label));
+	dlgFindReplace.toggleCase.Create(localiser.Text(toggles[SearchOption::tCase].label));
 	table.Add(dlgFindReplace.toggleCase, 2, false, 3, 0);
 
 	// Regular Expression
-	dlgFindReplace.toggleRegExp.Create(localiser.Text(toggles[Toggle::tRegExp].label));
+	dlgFindReplace.toggleRegExp.Create(localiser.Text(toggles[SearchOption::tRegExp].label));
 	table.Add(dlgFindReplace.toggleRegExp, 2, false, 3, 0);
 
 	// Transform backslash expressions
-	dlgFindReplace.toggleUnSlash.Create(localiser.Text(toggles[Toggle::tBackslash].label));
+	dlgFindReplace.toggleUnSlash.Create(localiser.Text(toggles[SearchOption::tBackslash].label));
 	table.Add(dlgFindReplace.toggleUnSlash, 2, false, 3, 0);
 
 	// Wrap Around
-	dlgFindReplace.toggleWrap.Create(localiser.Text(toggles[Toggle::tWrap].label));
+	dlgFindReplace.toggleWrap.Create(localiser.Text(toggles[SearchOption::tWrap].label));
 	table.Add(dlgFindReplace.toggleWrap, 2, false, 3, 0);
 
 	if (replace) {
 		dlgFindReplace.toggleReverse.SetID(0);
 	} else {
 		// Reverse
-		dlgFindReplace.toggleReverse.Create(localiser.Text(toggles[Toggle::tUp].label));
+		dlgFindReplace.toggleReverse.Create(localiser.Text(toggles[SearchOption::tUp].label));
 		table.Add(dlgFindReplace.toggleReverse, 2, false, 3, 0);
 	}
 
@@ -2763,7 +2812,11 @@ void SciTEGTK::AboutDialog() {
 
 void SciTEGTK::QuitProgram() {
 	if (SaveIfUnsureAll() != IDCANCEL) {
-		gtk_main_quit();
+		quitting = true;
+		// If ongoing saves, wait for them to complete.
+		if (!buffers.SavingInBackground()) {
+			gtk_main_quit();
+		}
 	}
 }
 
@@ -3667,7 +3720,7 @@ bool FindStrip::KeyDown(GdkEventKey *event) {
 		if (Strip::KeyDown(event))
 			return true;
 		if (event->state & GDK_MOD1_MASK) {
-			for (int i=Toggle::tWord; i<=Toggle::tUp; i++) {
+			for (int i=SearchOption::tWord; i<=SearchOption::tUp; i++) {
 				GUI::gui_string localised = localiser->Text(toggles[i].label);
 				char key = KeyFromLabel(localised);
 				if (static_cast<unsigned int>(key) == event->keyval) {
@@ -3717,7 +3770,7 @@ void FindStrip::SetToggles() {
 void FindStrip::ShowPopup() {
 	GUI::Menu popup;
 	popup.CreatePopUp();
-	for (int i=Toggle::tWord; i<=Toggle::tUp; i++) {
+	for (int i=SearchOption::tWord; i<=SearchOption::tUp; i++) {
 		AddToPopUp(popup, toggles[i].label, toggles[i].cmd, pSearcher->FlagFromCmd(toggles[i].cmd));
 	}
 	GUI::Rectangle rcButton = wCheck[0].GetPosition();
@@ -3802,9 +3855,9 @@ void ReplaceStrip::Creation(GtkWidget *container) {
 		wCheck[i].SetActive(pSearcher->FlagFromCmd(toggles[i].cmd));
 	}
 
-	tableReplace.Add(wCheck[Toggle::tWord], 1, false, 0, 0);
-	tableReplace.Add(wCheck[Toggle::tCase], 1, false, 0, 0);
-	tableReplace.Add(wCheck[Toggle::tRegExp], 1, false, 0, 0);
+	tableReplace.Add(wCheck[SearchOption::tWord], 1, false, 0, 0);
+	tableReplace.Add(wCheck[SearchOption::tCase], 1, false, 0, 0);
+	tableReplace.Add(wCheck[SearchOption::tRegExp], 1, false, 0, 0);
 
 	wStaticReplace.Create(localiser->Text(textReplacePrompt));
 	tableReplace.Label(wStaticReplace);
@@ -3830,8 +3883,8 @@ void ReplaceStrip::Creation(GtkWidget *container) {
 			G_CALLBACK(sigReplaceInSelection.Function), this);
 	tableReplace.Add(wButtonReplaceInSelection, 1, false, 0, 0);
 
-	tableReplace.Add(wCheck[Toggle::tBackslash], 1, false, 0, 0);
-	tableReplace.Add(wCheck[Toggle::tWrap], 1, false, 0, 0);
+	tableReplace.Add(wCheck[SearchOption::tBackslash], 1, false, 0, 0);
+	tableReplace.Add(wCheck[SearchOption::tWrap], 1, false, 0, 0);
 
 	// Make the fccus chain move down before moving right
 	GList *focusChain = 0;
@@ -3841,11 +3894,11 @@ void ReplaceStrip::Creation(GtkWidget *container) {
 	focusChain = g_list_append(focusChain, wButtonReplace.Pointer());
 	focusChain = g_list_append(focusChain, wButtonReplaceAll.Pointer());
 	focusChain = g_list_append(focusChain, wButtonReplaceInSelection.Pointer());
-	focusChain = g_list_append(focusChain, wCheck[Toggle::tWord].Pointer());
-	focusChain = g_list_append(focusChain, wCheck[Toggle::tBackslash].Pointer());
-	focusChain = g_list_append(focusChain, wCheck[Toggle::tCase].Pointer());
-	focusChain = g_list_append(focusChain, wCheck[Toggle::tWrap].Pointer());
-	focusChain = g_list_append(focusChain, wCheck[Toggle::tRegExp].Pointer());
+	focusChain = g_list_append(focusChain, wCheck[SearchOption::tWord].Pointer());
+	focusChain = g_list_append(focusChain, wCheck[SearchOption::tBackslash].Pointer());
+	focusChain = g_list_append(focusChain, wCheck[SearchOption::tCase].Pointer());
+	focusChain = g_list_append(focusChain, wCheck[SearchOption::tWrap].Pointer());
+	focusChain = g_list_append(focusChain, wCheck[SearchOption::tRegExp].Pointer());
 	gtk_container_set_focus_chain(GTK_CONTAINER(GetID()), focusChain);
 	g_list_free(focusChain);
 }
@@ -3894,7 +3947,7 @@ bool ReplaceStrip::KeyDown(GdkEventKey *event) {
 		if (Strip::KeyDown(event))
 			return true;
 		if (event->state & GDK_MOD1_MASK) {
-			for (int i=Toggle::tWord; i<=Toggle::tUp; i++) {
+			for (int i=SearchOption::tWord; i<=SearchOption::tUp; i++) {
 				GUI::gui_string localised = localiser->Text(toggles[i].label);
 				char key = KeyFromLabel(localised);
 				if (static_cast<unsigned int>(key) == event->keyval) {
@@ -3971,7 +4024,7 @@ void ReplaceStrip::ReplaceInSelectionCmd() {
 void ReplaceStrip::ShowPopup() {
 	GUI::Menu popup;
 	popup.CreatePopUp();
-	for (int i=Toggle::tWord; i<=Toggle::tWrap; i++) {
+	for (int i=SearchOption::tWord; i<=SearchOption::tWrap; i++) {
 		AddToPopUp(popup, toggles[i].label, toggles[i].cmd, pSearcher->FlagFromCmd(toggles[i].cmd));
 	}
 	GUI::Rectangle rcButton = wCheck[0].GetPosition();
@@ -3997,6 +4050,9 @@ gboolean ReplaceStrip::Focus(GtkDirectionType direction) {
 }
 
 void SciTEGTK::CreateStrips(GtkWidget *boxMain) {
+	backgroundStrip.SetLocalizer(&localiser);
+	backgroundStrip.Creation(boxMain);
+
 	findStrip.SetLocalizer(&localiser);
 	findStrip.SetSearcher(this);
 	findStrip.Creation(boxMain);
@@ -4030,10 +4086,18 @@ void SciTEGTK::LayoutUI() {
 	}
 
 	if (splitVertical) {
+#if GTK_CHECK_VERSION(3,0,0)
+		splitPane = gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);
+#else
 		splitPane = gtk_hpaned_new();
+#endif
 		gtk_widget_set_size_request(PWidget(wOutput), heightOutput, -1);
 	} else {
+#if GTK_CHECK_VERSION(3,0,0)
+		splitPane = gtk_paned_new(GTK_ORIENTATION_VERTICAL);
+#else
 		splitPane = gtk_vpaned_new();
+#endif
 		gtk_widget_set_size_request(PWidget(wOutput), -1, heightOutput);
 	}
 
@@ -4103,7 +4167,12 @@ void SciTEGTK::CreateUI() {
 	fileSelectorWidth = props.GetInt("fileselector.width", fileSelectorWidth);
 	fileSelectorHeight = props.GetInt("fileselector.height", fileSelectorHeight);
 
+#if GTK_CHECK_VERSION(3,0,0)
+	GtkWidget *boxMain = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+	gtk_box_set_homogeneous(GTK_BOX(boxMain), FALSE);
+#else
 	GtkWidget *boxMain = gtk_vbox_new(FALSE, 0);
+#endif
 	gtk_container_add(GTK_CONTAINER(PWidget(wSciTE)), boxMain);
 	WIDGET_SET_NO_FOCUS(boxMain);
 
@@ -4214,6 +4283,7 @@ void SciTEGTK::CreateUI() {
 	if (maximize)
 		gtk_window_maximize(GTK_WINDOW(PWidget(wSciTE)));
 
+	gtk_widget_hide(PWidget(backgroundStrip));
 	gtk_widget_hide(wIncrementPanel);
 	gtk_widget_hide(PWidget(findStrip));
 	gtk_widget_hide(PWidget(replaceStrip));
@@ -4492,7 +4562,9 @@ void SciTEGTK::Run(int argc, char *argv[]) {
 		unlink(uniqueInstance); // Unlock.
 
 	// Process remaining switches and files
+	gdk_threads_enter();
 	ProcessCommandLine(args, 1);
+	gdk_threads_leave();
 
 	CheckMenus();
 	SizeSubWindows();

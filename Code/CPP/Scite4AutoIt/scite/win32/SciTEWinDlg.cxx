@@ -170,7 +170,8 @@ bool SciTEWin::ModelessHandler(MSG *pmsg) {
 
 //  DoDialog is a bit like something in PC Magazine May 28, 1991, page 357
 int SciTEWin::DoDialog(HINSTANCE hInst, const TCHAR *resName, HWND hWnd, DLGPROC lpProc) {
-	int result = ::DialogBoxParam(hInst, resName, hWnd, lpProc, reinterpret_cast<LPARAM>(this));
+	int result = static_cast<int>(
+		::DialogBoxParam(hInst, resName, hWnd, lpProc, reinterpret_cast<LPARAM>(this)));
 
 	if (result == -1) {
 		GUI::gui_string errorNum = GUI::StringFromInteger(::GetLastError());
@@ -341,7 +342,7 @@ bool SciTEWin::SaveAsDialog() {
 void SciTEWin::SaveACopy() {
 	FilePath path = ChooseSaveName(filePath.Directory(), L"文件另存为");
 	if (path.IsSet()) {
-		SaveBuffer(path);
+		SaveBuffer(path, true);
 	}
 }
 
@@ -849,6 +850,13 @@ static void FillComboFromProps(HWND combo, PropSetFile &props) {
 	}
 }
 
+void SciTEWin::ShowBackgroundProgress(const GUI::gui_string &explanation, int size, int progress) {
+	backgroundStrip.visible = !explanation.empty();
+	SizeSubWindows();
+	if (backgroundStrip.visible)
+		backgroundStrip.SetProgress(explanation, size, progress);
+}
+
 class DialogFindReplace : public Dialog, public SearchUI  {
 	bool advanced;
 public:
@@ -935,7 +943,7 @@ BOOL SciTEWin::FindMessage(HWND hDlg, UINT message, WPARAM wParam) {
 		break;
 
 	case WM_COMMAND:
-		if (ControlIDOfCommand(wParam) == IDCANCEL) {
+		if (ControlIDOfWParam(wParam) == IDCANCEL) {
 //add ToolTip ↓		
 			for (int i=0;i<=9;i++)
 			{
@@ -945,19 +953,19 @@ BOOL SciTEWin::FindMessage(HWND hDlg, UINT message, WPARAM wParam) {
 			::EndDialog(hDlg, IDCANCEL);
 			wFindReplace.Destroy();
 			return FALSE;
-		} else if ( (ControlIDOfCommand(wParam) == IDOK) ||
-		            (ControlIDOfCommand(wParam) == IDMARKALL) ) {
+		} else if ( (ControlIDOfWParam(wParam) == IDOK) ||
+		            (ControlIDOfWParam(wParam) == IDMARKALL) ) {
 			dlg.GrabFields();
 			if (closeFind) {
 				::EndDialog(hDlg, IDOK);
 				wFindReplace.Destroy();
 			}
-			if (ControlIDOfCommand(wParam) == IDMARKALL){
+			if (ControlIDOfWParam(wParam) == IDMARKALL){
 				MarkAll();
 			}
 			FindNext(reverseFind ^ IsKeyDown(VK_SHIFT));
 			return TRUE;
-		} else if (ControlIDOfCommand(wParam) == IDFINDINSTYLE) {
+		} else if (ControlIDOfWParam(wParam) == IDFINDINSTYLE) {
 			if (FindReplaceAdvanced()) {
 				findInStyle = dlg.Checked(IDFINDINSTYLE);
 				dlg.Enable(IDFINDSTYLE, findInStyle);
@@ -965,7 +973,7 @@ BOOL SciTEWin::FindMessage(HWND hDlg, UINT message, WPARAM wParam) {
 			return TRUE;
 		}
 // add start
-		 else if (ControlIDOfCommand(wParam) == IDGOOGLE) {
+		 else if (ControlIDOfWParam(wParam) == IDGOOGLE) {
 			findWhat = dlg.ItemTextU(IDFINDWHAT);
 			wchar_t google[2048]= L"http://www.google.com/search?hl=en&q=";
 			::ShellExecute(0,NULL, wcscat(google,findWhat.w_str()),NULL,NULL,SW_SHOW);
@@ -973,7 +981,7 @@ BOOL SciTEWin::FindMessage(HWND hDlg, UINT message, WPARAM wParam) {
 			wFindReplace.Destroy();
 			return FALSE;
 		 }
-		 else if (ControlIDOfCommand(wParam) == IDMSDN) {
+		 else if (ControlIDOfWParam(wParam) == IDMSDN) {
 			findWhat = dlg.ItemTextU(IDFINDWHAT);
 			wchar_t msdn[2048]= L"http://social.msdn.microsoft.com/Search/en-US/?Refinement=86&Query=";
 			::ShellExecute(NULL,NULL, wcscat(msdn,findWhat.w_str()),NULL,NULL,SW_SHOW);
@@ -981,7 +989,7 @@ BOOL SciTEWin::FindMessage(HWND hDlg, UINT message, WPARAM wParam) {
 			wFindReplace.Destroy();
 			return FALSE;
 		 }
-		 else if (ControlIDOfCommand(wParam) == IDICIBA) {
+		 else if (ControlIDOfWParam(wParam) == IDICIBA) {
 			findWhat = dlg.ItemTextU(IDFINDWHAT);
 			wchar_t iciba[2048]= L"http://www.iciba.com/";
 			::ShellExecute(NULL,NULL, wcscat(iciba,findWhat.w_str()),NULL,NULL,SW_SHOW);
@@ -1053,20 +1061,20 @@ BOOL SciTEWin::ReplaceMessage(HWND hDlg, UINT message, WPARAM wParam) {
 		break;
 
 	case WM_COMMAND:
-		if (ControlIDOfCommand(wParam) == IDCANCEL) {
+		if (ControlIDOfWParam(wParam) == IDCANCEL) {
 			props.Set("Replacements", "");
 			UpdateStatusBar(false);
 			::EndDialog(hDlg, IDCANCEL);
 			wFindReplace.Destroy();
 			return FALSE;
-		} else if (ControlIDOfCommand(wParam) == IDFINDINSTYLE) {
+		} else if (ControlIDOfWParam(wParam) == IDFINDINSTYLE) {
 			if (FindReplaceAdvanced()) {
 				findInStyle = dlg.Checked(IDFINDINSTYLE);
 				dlg.Enable(IDFINDSTYLE, findInStyle);
 			}
 			return TRUE;
 		} else {
-			return HandleReplaceCommand(ControlIDOfCommand(wParam), IsKeyDown(VK_SHIFT));
+			return HandleReplaceCommand(ControlIDOfWParam(wParam), IsKeyDown(VK_SHIFT));
 		}
 	}
 
@@ -1225,12 +1233,12 @@ BOOL SciTEWin::GrepMessage(HWND hDlg, UINT message, WPARAM wParam) {
 		break;
 
 	case WM_COMMAND:
-		if (ControlIDOfCommand(wParam) == IDCANCEL) {
+		if (ControlIDOfWParam(wParam) == IDCANCEL) {
 			::EndDialog(hDlg, IDCANCEL);
 			wFindInFiles.Destroy();
 			return FALSE;
 
-		} else if (ControlIDOfCommand(wParam) == IDOK) {
+		} else if (ControlIDOfWParam(wParam) == IDOK) {
 			findWhat = dlg.ItemTextU(IDFINDWHAT);
 			props.Set("find.what", findWhat.c_str());
 			memFinds.Insert(findWhat.c_str());
@@ -1256,12 +1264,12 @@ BOOL SciTEWin::GrepMessage(HWND hDlg, UINT message, WPARAM wParam) {
 			} else {
 				return FALSE;
 			}
-		} else if (ControlIDOfCommand(wParam) == IDDOTDOT) {
+		} else if (ControlIDOfWParam(wParam) == IDDOTDOT) {
 			FilePath directory(dlg.ItemTextG(IDDIRECTORY));
 			directory = directory.Directory();
 			dlg.SetItemText(IDDIRECTORY, directory.AsInternal());
 
-		} else if (ControlIDOfCommand(wParam) == IDBROWSE) {
+		} else if (ControlIDOfWParam(wParam) == IDBROWSE) {
 
 			// This code was copied and slightly modifed from:
 			// http://www.bcbdev.com/faqs/faq62.htm
@@ -1405,10 +1413,10 @@ BOOL SciTEWin::GoLineMessage(HWND hDlg, UINT message, WPARAM wParam) {
 		break;
 
 	case WM_COMMAND:
-		if (ControlIDOfCommand(wParam) == IDCANCEL) {
+		if (ControlIDOfWParam(wParam) == IDCANCEL) {
 			::EndDialog(hDlg, IDCANCEL);
 			return FALSE;
-		} else if (ControlIDOfCommand(wParam) == IDOK) {
+		} else if (ControlIDOfWParam(wParam) == IDOK) {
 			BOOL bHasLine;
 			int lineNumber = static_cast<int>(
 			                     ::GetDlgItemInt(hDlg, IDGOLINE, &bHasLine, FALSE));
@@ -1466,10 +1474,10 @@ BOOL SciTEWin::AbbrevMessage(HWND hDlg, UINT message, WPARAM wParam) {
 		break;
 
 	case WM_COMMAND:
-		if (ControlIDOfCommand(wParam) == IDCANCEL) {
+		if (ControlIDOfWParam(wParam) == IDCANCEL) {
 			::EndDialog(hDlg, IDCANCEL);
 			return FALSE;
-		} else if (ControlIDOfCommand(wParam) == IDOK) {
+		} else if (ControlIDOfWParam(wParam) == IDOK) {
 			SString sAbbrev = dlg.ItemTextU(IDABBREV);
 			strncpy(abbrevInsert, sAbbrev.c_str(), sizeof(abbrevInsert));
 			abbrevInsert[sizeof(abbrevInsert) - 1] = '\0';
@@ -1521,11 +1529,11 @@ BOOL SciTEWin::TabSizeMessage(HWND hDlg, UINT message, WPARAM wParam) {
 		break;
 
 	case WM_COMMAND:
-		if (ControlIDOfCommand(wParam) == IDCANCEL) {
+		if (ControlIDOfWParam(wParam) == IDCANCEL) {
 			::EndDialog(hDlg, IDCANCEL);
 			return FALSE;
-		} else if ((ControlIDOfCommand(wParam) == IDCONVERT) ||
-			(ControlIDOfCommand(wParam) == IDOK)) {
+		} else if ((ControlIDOfWParam(wParam) == IDCONVERT) ||
+			(ControlIDOfWParam(wParam) == IDOK)) {
 			BOOL bOK;
 			int tabSize = static_cast<int>(::GetDlgItemInt(hDlg, IDTABSIZE, &bOK, FALSE));
 			if (tabSize > 0)
@@ -1535,10 +1543,10 @@ BOOL SciTEWin::TabSizeMessage(HWND hDlg, UINT message, WPARAM wParam) {
 				wEditor.Call(SCI_SETINDENT, indentSize);
 			bool useTabs = static_cast<bool>(::IsDlgButtonChecked(hDlg, IDUSETABS));
 			wEditor.Call(SCI_SETUSETABS, useTabs);
-			if (ControlIDOfCommand(wParam) == IDCONVERT) {
+			if (ControlIDOfWParam(wParam) == IDCONVERT) {
 				ConvertIndentation(tabSize, useTabs);
 			}
-			::EndDialog(hDlg, ControlIDOfCommand(wParam));
+			::EndDialog(hDlg, ControlIDOfWParam(wParam));
 			return TRUE;
 		}
 	}
@@ -1597,13 +1605,13 @@ BOOL SciTEWin::ParametersMessage(HWND hDlg, UINT message, WPARAM wParam) {
 		break;
 
 	case WM_COMMAND:
-		if (ControlIDOfCommand(wParam) == IDCANCEL) {
+		if (ControlIDOfWParam(wParam) == IDCANCEL) {
 			::EndDialog(hDlg, IDCANCEL);
 			if (!modalParameters) {
 				wParameters.Destroy();
 			}
 			return FALSE;
-		} else if (ControlIDOfCommand(wParam) == IDOK) {
+		} else if (ControlIDOfWParam(wParam) == IDOK) {
 			ParamGrab();
 			::EndDialog(hDlg, IDOK);
 			if (!modalParameters) {
@@ -1708,10 +1716,10 @@ BOOL SciTEWin::AboutMessage(HWND hDlg, UINT message, WPARAM wParam) {
 		break;
 
 	case WM_COMMAND:
-		if (ControlIDOfCommand(wParam) == IDOK) {
+		if (ControlIDOfWParam(wParam) == IDOK) {
 			::EndDialog(hDlg, IDOK);
 			return TRUE;
-		} else if (ControlIDOfCommand(wParam) == IDCANCEL) {
+		} else if (ControlIDOfWParam(wParam) == IDCANCEL) {
 			::EndDialog(hDlg, IDCANCEL);
 			return FALSE;
 		}

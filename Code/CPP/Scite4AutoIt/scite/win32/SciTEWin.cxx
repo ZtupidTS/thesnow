@@ -180,6 +180,7 @@ SciTEWin::SciTEWin(Extension *ext) : SciTEBase(ext) {
 
 	contents.SetSciTE(this);
 	contents.SetLocalizer(&localiser);
+	backgroundStrip.SetLocalizer(&localiser);
 	searchStrip.SetLocalizer(&localiser);
 	searchStrip.SetSearcher(this);
 	findStrip.SetLocalizer(&localiser);
@@ -607,7 +608,7 @@ HWND SciTEWin::MainHWND() {
 }
 
 void SciTEWin::Command(WPARAM wParam, LPARAM lParam) {
-	int cmdID = ControlIDOfCommand(wParam);
+	int cmdID = ControlIDOfWParam(wParam);
 	if (wParam & 0x10000) {
 		// From accelerator -> goes to focused pane.
 		menuSource = 0;
@@ -694,20 +695,21 @@ static UINT CodePageFromCharSet(DWORD characterSet, UINT documentCodePage) {
 }
 
 void SciTEWin::OutputAppendEncodedStringSynchronised(GUI::gui_string s, int codePage) {
-	int cchMulti = ::WideCharToMultiByte(codePage, 0, s.c_str(), s.size(), NULL, 0, NULL, NULL);
+	int cchMulti = ::WideCharToMultiByte(codePage, 0, s.c_str(), static_cast<int>(s.size()), NULL, 0, NULL, NULL);
 	char *pszMulti = new char[cchMulti + 1];
-	::WideCharToMultiByte(codePage, 0, s.c_str(), s.size(), pszMulti, cchMulti + 1, NULL, NULL);
+	::WideCharToMultiByte(codePage, 0, s.c_str(), static_cast<int>(s.size()), pszMulti, cchMulti + 1, NULL, NULL);
 	pszMulti[cchMulti] = 0;
 	OutputAppendStringSynchronised(pszMulti);
 	delete []pszMulti;
 }
 
 CommandWorker::CommandWorker() : pSciTE(NULL) {
-	Initialise();
+	Initialise(true);
 }
 
-void CommandWorker::Initialise() {
-    icmd = 0;
+void CommandWorker::Initialise(bool resetToStart) {
+	if (resetToStart)
+		icmd = 0;
     originalEnd = 0;
     exitStatus = 0;
     flags = 0;
@@ -720,7 +722,7 @@ void CommandWorker::Execute() {
 }
 
 void SciTEWin::ResetExecution() {
-	cmdWorker.Initialise();
+	cmdWorker.Initialise(true);
 	jobQueue.SetExecuting(false);
 	if (needReadProperties)
 		ReadProperties();
@@ -789,7 +791,7 @@ DWORD SciTEWin::ExecuteOne(const Job &jobToRun) {
 		return exitcode;
 	}
 
-	UINT codePage = wOutput.Send(SCI_GETCODEPAGE);
+	UINT codePage = static_cast<UINT>(wOutput.Send(SCI_GETCODEPAGE));
 	if (codePage != SC_CP_UTF8) {
 		codePage = CodePageFromCharSet(characterSet, codePage);
 	}
@@ -935,7 +937,7 @@ DWORD SciTEWin::ExecuteOne(const Job &jobToRun) {
 
 				int bTest = ::WriteFile(hWriteSubProcess,
 					    const_cast<char *>(jobToRun.input.c_str() + writingPosition),
-					    bytesToWrite, &bytesWrote, NULL);
+					    static_cast<DWORD>(bytesToWrite), &bytesWrote, NULL);
 
 				if (bTest) {
 					if ((writingPosition + bytesToWrite) / 1024 > writingPosition / 1024) {
@@ -1029,8 +1031,8 @@ DWORD SciTEWin::ExecuteOne(const Job &jobToRun) {
 				doRepSel = (0 == exitcode);
 
 			if (doRepSel) {
-				int cpMin = wEditor.Send(SCI_GETSELECTIONSTART, 0, 0);
-				wEditor.Send(SCI_REPLACESEL,0,(sptr_t)(repSelBuf.c_str()));
+				int cpMin = static_cast<int>(wEditor.Send(SCI_GETSELECTIONSTART, 0, 0));
+				wEditor.Send(SCI_REPLACESEL,0,reinterpret_cast<sptr_t>(repSelBuf.c_str()));
 				wEditor.Send(SCI_SETSEL, cpMin, cpMin+repSelBuf.length());
 			}
 		}
@@ -1100,7 +1102,7 @@ void SciTEWin::ShellExec(const SString &cmd, const char *dir) {
 	if (s == NULL)
 		s = strstr(mycmdcopy, ".com");
 	if ((s != NULL) && ((*(s + 4) == '\0') || (*(s + 4) == ' '))) {
-		int len_mycmd = s - mycmdcopy + 4;
+		ptrdiff_t len_mycmd = s - mycmdcopy + 4;
 		delete []mycmdcopy;
 		mycmdcopy = StringDup(cmd.c_str());
 		mycmd = mycmdcopy;
@@ -1172,11 +1174,15 @@ void SciTEWin::ShellExec(const SString &cmd, const char *dir) {
 }
 
 void SciTEWin::Execute() {
+	if (buffers.SavingInBackground())
+		// May be saving file that should be used by command so wait until all saved
+		return;
+
 	SciTEBase::Execute();
 
-	cmdWorker.Initialise();
+	cmdWorker.Initialise(false);
 	cmdWorker.outputScroll = props.GetInt("output.scroll", 1);
-	cmdWorker.originalEnd = wOutput.Send(SCI_GETTEXTLENGTH);
+	cmdWorker.originalEnd = wOutput.Call(SCI_GETTEXTLENGTH);
 	cmdWorker.commandTime.Duration(true);
 	cmdWorker.flags = jobQueue.jobQueue[cmdWorker.icmd].flags;
 	if (scrollOutput)
@@ -1753,11 +1759,11 @@ LRESULT SciTEWin::KeyDown(WPARAM wParam) {
 	    (IsKeyDown(VK_CONTROL) ? SCMOD_CTRL : 0) |
 	    (IsKeyDown(VK_MENU) ? SCMOD_ALT : 0);
 
-	if (extender && extender->OnKey(wParam, modifiers))
+	if (extender && extender->OnKey(static_cast<int>(wParam), modifiers))
 		return 1l;
 
 	for (int j = 0; j < languageItems; j++) {
-		if (KeyMatch(languageMenu[j].menuKey, wParam, modifiers)) {
+		if (KeyMatch(languageMenu[j].menuKey, static_cast<int>(wParam), modifiers)) {
 			SciTEBase::MenuCommand(IDM_LANGUAGE + j);
 			return 1l;
 		}
@@ -1771,7 +1777,7 @@ LRESULT SciTEWin::KeyDown(WPARAM wParam) {
 		mii.cbSize = sizeof(MENUITEMINFO);
 		mii.fMask = MIIM_DATA;
 		if (::GetMenuItemInfo(hToolsMenu, IDM_TOOLS+tool_i, FALSE, &mii) && mii.dwItemData) {
-			if (SciTEKeys::MatchKeyCode(reinterpret_cast<long&>(mii.dwItemData), wParam, modifiers)) {
+			if (SciTEKeys::MatchKeyCode(reinterpret_cast<long&>(mii.dwItemData), static_cast<int>(wParam), modifiers)) {
 				SciTEBase::MenuCommand(IDM_TOOLS+tool_i);
 				return 1l;
 			}
@@ -1781,7 +1787,7 @@ LRESULT SciTEWin::KeyDown(WPARAM wParam) {
 	// loop through the keyboard short cuts defined by user.. if found
 	// exec it the command defined
 	for (int cut_i = 0; cut_i < shortCutItems; cut_i++) {
-		if (KeyMatch(shortCutItemList[cut_i].menuKey, wParam, modifiers)) {
+		if (KeyMatch(shortCutItemList[cut_i].menuKey, static_cast<int>(wParam), modifiers)) {
 			int commandNum = SciTEBase::GetMenuCommandAsInt(shortCutItemList[cut_i].menuCommand);
 			if (commandNum != -1) {
 				// its possible that the command is for scintilla directly
@@ -1915,7 +1921,7 @@ LRESULT SciTEWin::WndProc(UINT iMessage, WPARAM wParam, LPARAM lParam) {
 			break;
 
 		case SCITE_WORKER:
-			WorkerCommand(wParam, reinterpret_cast<Worker *>(lParam));
+			WorkerCommand(static_cast<int>(wParam), reinterpret_cast<Worker *>(lParam));
 			break;
 
 		case WM_NOTIFY:
@@ -2009,7 +2015,7 @@ LRESULT SciTEWin::WndProc(UINT iMessage, WPARAM wParam, LPARAM lParam) {
 			return ::DefWindowProcW(MainHWND(), iMessage, wParam, lParam);
 		}
 	} catch (GUI::ScintillaFailure &sf) {
-		statusFailure = sf.status;
+		statusFailure = static_cast<int>(sf.status);
 	}
 	if ((statusFailure > 0) && (boxesVisible == 0)) {
 		boxesVisible++;
@@ -2118,7 +2124,7 @@ LRESULT ContentWin::WndProc(UINT iMessage, WPARAM wParam, LPARAM lParam) {
 		break;
 
 	case WM_SETCURSOR:
-		if (ControlIDOfCommand(lParam) == HTCLIENT) {
+		if (ControlIDOfCommand(static_cast<unsigned long>(lParam)) == HTCLIENT) {
 			GUI::Point ptCursor;
 			::GetCursorPos(reinterpret_cast<POINT *>(&ptCursor));
 			GUI::Point ptClient = ptCursor;
@@ -2163,6 +2169,17 @@ static int WidthControl(GUI::Window &w) {
 	return rc.Width();
 }
 
+static GUI::gui_string ControlGText(GUI::Window w) {
+	HWND wT = HwndOf(w);
+	int len = ::GetWindowTextLengthW(wT) + 1;
+	std::vector<GUI::gui_char> itemText(len);
+	GUI::gui_string gsText;
+	if (::GetWindowTextW(wT, &itemText[0], len)) {
+		gsText = GUI::gui_string(&itemText[0]);
+	}
+	return gsText;
+}
+
 static SString ControlText(GUI::Window w) {
 	HWND wT = HwndOf(w);
 	int len = ::GetWindowTextLengthW(wT) + 1;
@@ -2179,21 +2196,11 @@ static const char *textReplacePrompt = "Rep&lace:";
 static const char *textFindNext = "&Find Next";
 static const char *textMarkAll = "&Mark All";
 
-//~ static const char *textFind = "F&ind";
 static const char *textReplace = "&Replace";
 static const char *textReplaceAll = "Replace &All";
 static const char *textInSelection = "In &Selection";
-//~ static const char *textReplaceInBuffers = "Replace In &Buffers";
-//~ static const char *textClose = "Close";
 
-struct Toggle {
-	enum { tWord, tCase, tRegExp, tBackslash, tWrap, tUp };
-	const char *label;
-	int cmd;
-	int id;
-};
-
-static Toggle toggles[] = {
+static SearchOption toggles[] = {
 	{"Match &whole word only", IDM_WHOLEWORD, IDWHOLEWORD},
 	{"Case sensiti&ve", IDM_MATCHCASE, IDMATCHCASE},
 	{"Regular &expression", IDM_REGEXP, IDREGEXP},
@@ -2410,43 +2417,53 @@ void Strip::Paint(HDC hDC) {
 	::FillRect(hDC, &rc, hbrFace);
 	::DeleteObject(hbrFace);
 
-	// Draw close box
-	GUI::Rectangle rcClose = CloseArea();
-	if (hTheme) {
+	if (HasClose()){
+		// Draw close box
+		GUI::Rectangle rcClose = CloseArea();
+		if (hTheme) {
 #ifdef THEME_AVAILABLE
-		int closeAppearence = CBS_NORMAL;
-		if (closeState == csOver) {
-			closeAppearence = CBS_HOT;
-		} else if (closeState == csClickedOver) {
-			closeAppearence = CBS_PUSHED;
-		}
-		//DrawThemeBackground(htheme, hDC, WP_CLOSEBUTTON, closeAppearence,
-		//	reinterpret_cast<RECT *>(&rcClose), reinterpret_cast<RECT *>(&rcClose));
-		::DrawThemeBackground(hTheme, hDC, WP_SMALLCLOSEBUTTON, closeAppearence,
-			reinterpret_cast<RECT *>(&rcClose), NULL);
-		//::DrawThemeBackground(hTheme, hDC, WP_MDICLOSEBUTTON, closeAppearence,
-		//	reinterpret_cast<RECT *>(&rcClose), NULL);
+			int closeAppearence = CBS_NORMAL;
+			if (closeState == csOver) {
+				closeAppearence = CBS_HOT;
+			} else if (closeState == csClickedOver) {
+				closeAppearence = CBS_PUSHED;
+			}
+			//DrawThemeBackground(htheme, hDC, WP_CLOSEBUTTON, closeAppearence,
+			//	reinterpret_cast<RECT *>(&rcClose), reinterpret_cast<RECT *>(&rcClose));
+			::DrawThemeBackground(hTheme, hDC, WP_SMALLCLOSEBUTTON, closeAppearence,
+				reinterpret_cast<RECT *>(&rcClose), NULL);
+			//::DrawThemeBackground(hTheme, hDC, WP_MDICLOSEBUTTON, closeAppearence,
+			//	reinterpret_cast<RECT *>(&rcClose), NULL);
 #endif
-	} else {
-		int closeAppearence = 0;
-		if (closeState == csOver) {
-			closeAppearence = DFCS_HOT;
-		} else if (closeState == csClickedOver) {
-			closeAppearence = DFCS_PUSHED;
-		}
+		} else {
+			int closeAppearence = 0;
+			if (closeState == csOver) {
+				closeAppearence = DFCS_HOT;
+			} else if (closeState == csClickedOver) {
+				closeAppearence = DFCS_PUSHED;
+			}
 
-		DrawFrameControl(hDC, reinterpret_cast<RECT *>(&rcClose), DFC_CAPTION,
-			DFCS_CAPTIONCLOSE | closeAppearence);
+			DrawFrameControl(hDC, reinterpret_cast<RECT *>(&rcClose), DFC_CAPTION,
+				DFCS_CAPTIONCLOSE | closeAppearence);
+		}
 	}
 }
 
+bool Strip::HasClose() const {
+	return true;
+}
+
 GUI::Rectangle Strip::CloseArea() {
-	GUI::Rectangle rcClose = GetClientPosition();
-	rcClose.right -= 2;
-	rcClose.left = rcClose.right - closeSize.cx;
-	rcClose.top += 2;
-	rcClose.bottom = rcClose.top + closeSize.cy;
-	return rcClose;
+	if (HasClose()) {
+		GUI::Rectangle rcClose = GetClientPosition();
+		rcClose.right -= 2;
+		rcClose.left = rcClose.right - closeSize.cx;
+		rcClose.top += 2;
+		rcClose.bottom = rcClose.top + closeSize.cy;
+		return rcClose;
+	} else {
+		return GUI::Rectangle(-1,-1,-1,-1);
+	}
 }
 
 void Strip::InvalidateClose() {
@@ -2665,8 +2682,9 @@ LRESULT Strip::WndProc(UINT iMessage, WPARAM wParam, LPARAM lParam) {
 				return CustomDraw(pnmh);
 			} else if (pnmh->code == static_cast<unsigned int>(TTN_GETDISPINFO)) {
 				NMTTDISPINFOW *pnmtdi = (LPNMTTDISPINFO) lParam;
-				int idButton = (pnmtdi->uFlags & TTF_IDISHWND) ?
-					::GetDlgCtrlID(reinterpret_cast<HWND>(pnmtdi->hdr.idFrom)) : pnmtdi->hdr.idFrom;
+				int idButton = static_cast<int>(
+					(pnmtdi->uFlags & TTF_IDISHWND) ?
+					::GetDlgCtrlID(reinterpret_cast<HWND>(pnmtdi->hdr.idFrom)) : pnmtdi->hdr.idFrom);
 				for (size_t i=0; toggles[i].label; i++) {
 					if (toggles[i].id == idButton) {
 						GUI::gui_string localised = localiser->Text(toggles[i].label);
@@ -2684,6 +2702,103 @@ LRESULT Strip::WndProc(UINT iMessage, WPARAM wParam, LPARAM lParam) {
 	}
 
 	return 0l;
+}
+
+void BackgroundStrip::Creation() {
+	Strip::Creation();
+
+	wExplanation = ::CreateWindowEx(0, TEXT("Static"), TEXT(""),
+		WS_CHILD | WS_CLIPSIBLINGS,
+		2, 2, 100, 21,
+		Hwnd(), reinterpret_cast<HMENU>(0), ::GetModuleHandle(NULL), 0);
+	wExplanation.Show();
+	SetFontHandle(wExplanation, fontText);
+
+	wProgress = ::CreateWindowEx(0, PROGRESS_CLASS, TEXT(""),
+		WS_CHILD | WS_CLIPSIBLINGS | WS_VISIBLE,
+		2, 2, 100, 21,
+		Hwnd(), reinterpret_cast<HMENU>(0), ::GetModuleHandle(NULL), 0);
+}
+
+void BackgroundStrip::Destruction() {
+	Strip::Destruction();
+}
+
+void BackgroundStrip::Close() {
+	entered++;
+	::SetWindowText(HwndOf(wExplanation), TEXT(""));
+	entered--;
+	Strip::Close();
+}
+
+void BackgroundStrip::Size() {
+	if (!visible)
+		return;
+	Strip::Size();
+	GUI::Rectangle rcArea = GetPosition();
+
+	rcArea.bottom -= rcArea.top;
+	rcArea.right -= rcArea.left;
+
+	rcArea.left = 2;
+	rcArea.top = 2;
+	rcArea.right -= 2;
+	rcArea.bottom -= 2;
+
+	rcArea.right -= closeSize.cx + 2;	// Allow for close box and gap
+
+	const int progWidth = 200;
+
+	GUI::Rectangle rcProgress = rcArea;
+	rcProgress.right = rcProgress.left + progWidth;
+	wProgress.SetPosition(rcProgress);
+
+	GUI::Rectangle rcExplanation = rcArea;
+	rcExplanation.left += progWidth + 8;
+	rcExplanation.top -= 1;
+	rcExplanation.bottom += 1;
+	wExplanation.SetPosition(rcExplanation);
+
+	::InvalidateRect(Hwnd(), NULL, TRUE);
+}
+
+bool BackgroundStrip::HasClose() const {
+	return false;
+}
+
+void BackgroundStrip::Focus() {
+	::SetFocus(HwndOf(wExplanation));
+}
+
+bool BackgroundStrip::KeyDown(WPARAM key) {
+	if (!visible)
+		return false;
+	if (Strip::KeyDown(key))
+		return true;
+
+	return false;
+}
+
+bool BackgroundStrip::Command(WPARAM /* wParam */) {
+	return false;
+}
+
+LRESULT BackgroundStrip::WndProc(UINT iMessage, WPARAM wParam, LPARAM lParam) {
+	try {
+
+	return Strip::WndProc(iMessage, wParam, lParam);
+
+	} catch (...) {
+	}
+	return 0l;
+}
+
+void BackgroundStrip::SetProgress(const GUI::gui_string &explanation, int size, int progress) {
+	if (explanation != ControlGText(wExplanation)) {
+		::SetWindowTextW(HwndOf(wExplanation), explanation.c_str());
+	}
+	::SendMessage(HwndOf(wProgress), PBM_SETRANGE32, 0, size);
+	::SendMessage(HwndOf(wProgress), PBM_SETPOS, progress, 0);
 }
 
 void SearchStrip::Creation() {
@@ -2787,7 +2902,7 @@ void SearchStrip::Next(bool select) {
 
 	if (select) {
 		if (ffLastWhat.length()) {
-			pSearcher->MoveBack(ffLastWhat.length());
+			pSearcher->MoveBack(static_cast<int>(ffLastWhat.length()));
 		}
 	}
 	pSearcher->wholeWord = false;
@@ -2808,8 +2923,8 @@ void SearchStrip::Next(bool select) {
 bool SearchStrip::Command(WPARAM wParam) {
 	if (entered)
 		return false;
-	int control = ControlIDOfCommand(wParam);
-	int subCommand = wParam >> 16;
+	int control = ControlIDOfWParam(wParam);
+	int subCommand = static_cast<int>(wParam >> 16);
 	if (((control == IDC_INCFINDTEXT) && (subCommand == EN_CHANGE)) ||
 		(control == IDC_INCFINDBTNOK)) {
 		Next(control != IDC_INCFINDBTNOK);
@@ -2853,12 +2968,12 @@ void FindStrip::Creation() {
 	wButton = CreateButton(textFindNext, IDOK);
 	wButtonMarkAll = CreateButton(textMarkAll, IDMARKALL);
 
-	wCheckWord = CreateButton(toggles[Toggle::tWord].label, toggles[Toggle::tWord].id, true);
-	wCheckCase = CreateButton(toggles[Toggle::tCase].label, toggles[Toggle::tCase].id, true);
-	wCheckRE = CreateButton(toggles[Toggle::tRegExp].label, toggles[Toggle::tRegExp].id, true);
-	wCheckBE = CreateButton(toggles[Toggle::tBackslash].label, toggles[Toggle::tBackslash].id, true);
-	wCheckWrap = CreateButton(toggles[Toggle::tWrap].label, toggles[Toggle::tWrap].id, true);
-	wCheckUp = CreateButton(toggles[Toggle::tUp].label, toggles[Toggle::tUp].id, true);
+	wCheckWord = CreateButton(toggles[SearchOption::tWord].label, toggles[SearchOption::tWord].id, true);
+	wCheckCase = CreateButton(toggles[SearchOption::tCase].label, toggles[SearchOption::tCase].id, true);
+	wCheckRE = CreateButton(toggles[SearchOption::tRegExp].label, toggles[SearchOption::tRegExp].id, true);
+	wCheckBE = CreateButton(toggles[SearchOption::tBackslash].label, toggles[SearchOption::tBackslash].id, true);
+	wCheckWrap = CreateButton(toggles[SearchOption::tWrap].label, toggles[SearchOption::tWrap].id, true);
+	wCheckUp = CreateButton(toggles[SearchOption::tUp].label, toggles[SearchOption::tUp].id, true);
 }
 
 void FindStrip::Destruction() {
@@ -2988,7 +3103,7 @@ void FindStrip::AddToPopUp(GUI::Menu &popup, const char *label, int cmd, bool ch
 void FindStrip::ShowPopup() {
 	GUI::Menu popup;
 	popup.CreatePopUp();
-	for (int i=Toggle::tWord; i<=Toggle::tUp; i++) {
+	for (int i=SearchOption::tWord; i<=SearchOption::tUp; i++) {
 		AddToPopUp(popup, toggles[i].label, toggles[i].cmd, pSearcher->FlagFromCmd(toggles[i].cmd));
 	}
 	GUI::Rectangle rcButton = wButton.GetPosition();
@@ -2999,7 +3114,7 @@ void FindStrip::ShowPopup() {
 bool FindStrip::Command(WPARAM wParam) {
 	if (entered)
 		return false;
-	int control = ControlIDOfCommand(wParam);
+	int control = ControlIDOfWParam(wParam);
 	if ((control == IDOK) || (control == IDMARKALL)) {
 		Next(control == IDMARKALL, false);
 		return true;
@@ -3089,13 +3204,13 @@ void ReplaceStrip::Creation() {
 	wButtonReplaceAll = CreateButton(textReplaceAll, IDREPLACEALL);
 	wButtonReplaceInSelection = CreateButton(textInSelection, IDREPLACEINSEL);
 
-	wCheckWord = CreateButton(toggles[Toggle::tWord].label, toggles[Toggle::tWord].id, true);
-	wCheckRE = CreateButton(toggles[Toggle::tRegExp].label, toggles[Toggle::tRegExp].id, true);
+	wCheckWord = CreateButton(toggles[SearchOption::tWord].label, toggles[SearchOption::tWord].id, true);
+	wCheckRE = CreateButton(toggles[SearchOption::tRegExp].label, toggles[SearchOption::tRegExp].id, true);
 
-	wCheckCase = CreateButton(toggles[Toggle::tCase].label, toggles[Toggle::tCase].id, true);
-	wCheckBE = CreateButton(toggles[Toggle::tBackslash].label, toggles[Toggle::tBackslash].id, true);
+	wCheckCase = CreateButton(toggles[SearchOption::tCase].label, toggles[SearchOption::tCase].id, true);
+	wCheckBE = CreateButton(toggles[SearchOption::tBackslash].label, toggles[SearchOption::tBackslash].id, true);
 
-	wCheckWrap = CreateButton(toggles[Toggle::tWrap].label, toggles[Toggle::tWrap].id, true);
+	wCheckWrap = CreateButton(toggles[SearchOption::tWrap].label, toggles[SearchOption::tWrap].id, true);
 }
 
 void ReplaceStrip::Destruction() {
@@ -3261,7 +3376,7 @@ void ReplaceStrip::AddToPopUp(GUI::Menu &popup, const char *label, int cmd, bool
 void ReplaceStrip::ShowPopup() {
 	GUI::Menu popup;
 	popup.CreatePopUp();
-	for (int i=Toggle::tWord; i<=Toggle::tWrap; i++) {
+	for (int i=SearchOption::tWord; i<=SearchOption::tWrap; i++) {
 		AddToPopUp(popup, toggles[i].label, toggles[i].cmd, pSearcher->FlagFromCmd(toggles[i].cmd));
 	}
 	GUI::Rectangle rcButton = wCheckWord.GetPosition();
@@ -3292,7 +3407,7 @@ void ReplaceStrip::HandleReplaceCommand(int cmd, bool reverseFind) {
 bool ReplaceStrip::Command(WPARAM wParam) {
 	if (entered)
 		return false;
-	int control = ControlIDOfCommand(wParam);
+	int control = ControlIDOfWParam(wParam);
 	switch (control) {
 
 	case IDFINDWHAT:
@@ -3409,9 +3524,9 @@ SString SciTEWin::EncodeString(const SString &s) {
 	if (codePage != SC_CP_UTF8) {
 		codePage = CodePageFromCharSet(characterSet, codePage);
 
-		int cchWide = ::MultiByteToWideChar(CP_UTF8, 0, s.c_str(), s.length(), NULL, 0);
+		int cchWide = ::MultiByteToWideChar(CP_UTF8, 0, s.c_str(), static_cast<int>(s.length()), NULL, 0);
 		wchar_t *pszWide = new wchar_t[cchWide + 1];
-		::MultiByteToWideChar(CP_UTF8, 0, s.c_str(), s.length(), pszWide, cchWide + 1);
+		::MultiByteToWideChar(CP_UTF8, 0, s.c_str(), static_cast<int>(s.length()), pszWide, cchWide + 1);
 
 		int cchMulti = ::WideCharToMultiByte(codePage, 0, pszWide, cchWide, NULL, 0, NULL, NULL);
 		char *pszMulti = new char[cchMulti + 1];
@@ -3438,9 +3553,9 @@ SString SciTEWin::GetRangeInUIEncoding(GUI::ScintillaWindow &win, int selStart, 
 	if (codePage != SC_CP_UTF8) {
 		codePage = CodePageFromCharSet(characterSet, codePage);
 
-		int cchWide = ::MultiByteToWideChar(codePage, 0, s.c_str(), s.length(), NULL, 0);
+		int cchWide = ::MultiByteToWideChar(codePage, 0, s.c_str(), static_cast<int>(s.length()), NULL, 0);
 		wchar_t *pszWide = new wchar_t[cchWide + 1];
-		::MultiByteToWideChar(codePage, 0, s.c_str(), s.length(), pszWide, cchWide + 1);
+		::MultiByteToWideChar(codePage, 0, s.c_str(), static_cast<int>(s.length()), pszWide, cchWide + 1);
 
 		int cchMulti = ::WideCharToMultiByte(CP_UTF8, 0, pszWide, cchWide, NULL, 0, NULL, NULL);
 		char *pszMulti = new char[cchMulti + 1];
@@ -3457,7 +3572,7 @@ SString SciTEWin::GetRangeInUIEncoding(GUI::ScintillaWindow &win, int selStart, 
 	return s;
 }
 
-int SciTEWin::EventLoop() {
+uptr_t SciTEWin::EventLoop() {
 	MSG msg;
 	msg.wParam = 0;
 	bool going = true;
@@ -3515,7 +3630,7 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 			TEXT("载入 Scintilla 错误"), MB_OK | MB_ICONERROR);
 #endif
 
-	int result;
+	uptr_t result;
 	{
 		SciTEWin MainWind(extender);
 		LPTSTR lptszCmdLine = GetCommandLine();
@@ -3542,5 +3657,5 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 	::FreeLibrary(hmod);
 #endif
 
-	return result;
+	return static_cast<int>(result);
 }

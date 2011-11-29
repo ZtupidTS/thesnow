@@ -68,6 +68,8 @@ const GUI::gui_char menuAccessIndicator[] = GUI_TEXT("&");
 #include "IFaceTable.h"
 #include "Mutex.h"
 #include "JobQueue.h"
+#include "Cookie.h"
+#include "Worker.h"
 #include "SciTEBase.h"
 HMENU hmenuPop;	//added by SetImportMenu
 void SciTEBase::SetImportMenu() {
@@ -278,7 +280,7 @@ const char *SciTEBase::GetNextPropItem(
 	char *pPropItem,	///< pointer on a buffer receiving the requested prop item
 	int maxLen)			///< size of the above buffer
 {
-	long size = maxLen - 1;
+	ptrdiff_t size = maxLen - 1;
 
 	*pPropItem = '\0';
 	if (pStart == NULL) {
@@ -545,7 +547,7 @@ void SciTEBase::ReadAPI(const SString &fileNameForExtension) {
 		const char *apiFileName = sApiFileNames.c_str();
 		const char *nameEnd = apiFileName + nameLength;
 
-		int tlen = 0;    // total api length
+		size_t tlen = 0;    // total api length
 
 		// Calculate total length
 		while (apiFileName < nameEnd) {
@@ -555,7 +557,7 @@ void SciTEBase::ReadAPI(const SString &fileNameForExtension) {
 
 		// Load files
 		if (tlen > 0) {
-			char *buffer = apis.Allocate(tlen);
+			char *buffer = apis.Allocate(static_cast<int>(tlen));
 			if (buffer) {
 				apiFileName = sApiFileNames.c_str();
 				tlen = 0;
@@ -612,6 +614,7 @@ static const char *propertiesToForward[] = {
 	"fold.basic.explicit.end",
 	"fold.basic.explicit.start",
 	"fold.basic.syntax.based",
+	"fold.coffeescript.comment",
 	"fold.comment",
 	"fold.comment.nimrod",
 	"fold.comment.yaml",
@@ -806,7 +809,8 @@ void SciTEBase::ReadProperties() {
 				wEditor.CallString(SCI_SETLEXERLANGUAGE, 0, "lpeg");
 				lexLPeg = wEditor.Call(SCI_GETLEXER);
 				const char *lexer = language.c_str() + language.search("_") + 1;
-				wEditor.CallString(SCI_PRIVATELEXERCALL, SCI_SETLEXERLANGUAGE, lexer);
+				wEditor.CallReturnPointer(SCI_PRIVATELEXERCALL, SCI_SETLEXERLANGUAGE,
+					reinterpret_cast<sptr_t>(lexer));
 			}
 		} else {
 			wEditor.CallString(SCI_SETLEXERLANGUAGE, 0, language.c_str());
@@ -841,7 +845,7 @@ void SciTEBase::ReadProperties() {
 	props.Set("SciteDefaultHome", homepath.AsUTF8().c_str());
 	homepath = GetSciteUserHome();
 	props.Set("SciteUserHome", homepath.AsUTF8().c_str());
-//
+//added AutoIt Path
 	homepath = GetAutoItPath();
 	props.Set("AutoItPath", homepath.AsUTF8().c_str());
 //
@@ -1343,8 +1347,6 @@ void SciTEBase::ReadProperties() {
 		wEditor.CallString(SCI_MARKERDEFINEPIXMAP, markerBookmark,
 			reinterpret_cast<char *>(bookmarkBluegem));
 	}
-	wEditor.CallString(SCI_REGISTERIMAGE, 1,
-		reinterpret_cast<char *>(bookmarkBluegem));
 
 	wEditor.Call(SCI_SETSCROLLWIDTH, props.GetInt("horizontal.scroll.width", 2000));
 	wEditor.Call(SCI_SETSCROLLWIDTHTRACKING, props.GetInt("horizontal.scroll.width.tracking", 1));

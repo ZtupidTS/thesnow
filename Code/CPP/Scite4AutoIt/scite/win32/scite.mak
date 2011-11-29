@@ -55,6 +55,8 @@ INCLUDEDIRS=-I../../scintilla/include -I../../scintilla/win32 -I../src
 OBJS=\
 	Extra.obj \
 	SciTEBase.obj \
+	FileWorker.obj \
+	Cookie.obj \
 	Credits.obj \
 	FilePath.obj \
 	SciTEBuffers.obj \
@@ -81,6 +83,8 @@ LEXLIB=..\..\scintilla\win32\Lexers.lib
 OBJSSTATIC=\
 	Extra.obj \
 	SciTEBase.obj \
+	FileWorker.obj \
+	Cookie.obj \
 	Credits.obj \
 	FilePath.obj \
 	SciTEBuffers.obj \
@@ -438,10 +442,26 @@ SciTEBase.obj: \
 	../src/SciTE.h \
 	../src/Mutex.h \
 	../src/JobQueue.h \
+	../src/Worker.h \
 	../src/SciTEBase.h
 Extra.obj: \
 	../src/Extra.h\
 	../src/Extra.cxx
+FileWorker.obj: \
+	../src/FileWorker.cxx \
+	../../scintilla/include/Scintilla.h \
+	../../scintilla/include/SciLexer.h \
+	../src/GUI.h \
+	../src/SString.h \
+	../src/Worker.h \
+	../src/FileWorker.h
+Cookie.obj: \
+	../src/Cookie.cxx \
+	../../scintilla/include/Scintilla.h \
+	../../scintilla/include/SciLexer.h \
+	../src/GUI.h \
+	../src/SString.h \
+	../src/Cookie.h
 Credits.obj: \
 	../src/Credits.cxx \
 	../../scintilla/include/Scintilla.h \
@@ -488,6 +508,7 @@ SciTEIO.obj: \
 	../src/Mutex.h \
 	../src/JobQueue.h \
 	../src/SciTEBase.h \
+	../src/Cookie.h \
 	../src/Utf8_16.h
 SciTEProps.obj: \
 	../src/SciTEProps.cxx \

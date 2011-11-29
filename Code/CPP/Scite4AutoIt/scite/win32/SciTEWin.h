@@ -77,6 +77,9 @@ typedef HANDLE HTHEME;
 #include "SciTE.h"
 #include "Mutex.h"
 #include "JobQueue.h"
+#include "Cookie.h"
+#include "Worker.h"
+#include "FileWorker.h"
 #include "SciTEBase.h"
 #include "SciTEKeys.h"
 #include "UniqueInstance.h"
@@ -105,7 +108,7 @@ public:
 	int outputScroll;
 
 	CommandWorker();
-	void Initialise();
+	void Initialise(bool resetToStart);
 	virtual void Execute();
 };
 
@@ -164,6 +167,7 @@ protected:
 	virtual bool Command(WPARAM wParam);
 	virtual void Size();
 	virtual void Paint(HDC hDC);
+	virtual bool HasClose() const;
 	GUI::Rectangle CloseArea();
 	void InvalidateClose();
 	bool MouseInClose(GUI::Point pt);
@@ -180,6 +184,30 @@ public:
 	virtual int Height() {
 		return 25;
 	}
+};
+
+class BackgroundStrip : public Strip {
+	int entered;
+	int lineHeight;
+	GUI::Window wExplanation;
+	GUI::Window wProgress;
+public:
+	BackgroundStrip() : entered(0), lineHeight(20) {
+	}
+	virtual void Creation();
+	virtual void Destruction();
+	virtual void Close();
+	void Focus();
+	virtual bool KeyDown(WPARAM key);
+	virtual bool Command(WPARAM wParam);
+	virtual void Size();
+	//virtual void Paint(HDC hDC);
+	virtual bool HasClose() const;
+	virtual LRESULT WndProc(UINT iMessage, WPARAM wParam, LPARAM lParam);
+	virtual int Height() {
+		return lineHeight + 1;
+	}
+	void SetProgress(const GUI::gui_string &explanation, int size, int progress);
 };
 
 class SearchStrip : public Strip {
@@ -358,11 +386,12 @@ protected:
 	GUI::Window wParameters;
 
 	ContentWin contents;
+	BackgroundStrip backgroundStrip;
 	SearchStrip searchStrip;
 	FindStrip findStrip;
 	ReplaceStrip replaceStrip;
 
-	enum { bandTool, bandTab, bandContents, bandSearch, bandFind, bandReplace, bandStatus };
+	enum { bandTool, bandTab, bandContents, bandBackground, bandSearch, bandFind, bandReplace, bandStatus };
 	std::vector<Band> bands;
 
 	virtual void ReadLocalization();
@@ -454,6 +483,7 @@ protected:
 	void Command(WPARAM wParam, LPARAM lParam);
 	HWND MainHWND();
 
+	virtual void ShowBackgroundProgress(const GUI::gui_string &explanation, int size, int progress);
 	BOOL FindMessage(HWND hDlg, UINT message, WPARAM wParam);
 	static BOOL CALLBACK FindDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
 	BOOL ReplaceMessage(HWND hDlg, UINT message, WPARAM wParam);
@@ -508,7 +538,7 @@ public:
 	void CreateUI();
 	/// Management of the command line parameters.
 	void Run(const GUI::gui_char *cmdLine);
-	int EventLoop();
+	uptr_t EventLoop();
 	void OutputAppendEncodedStringSynchronised(GUI::gui_string s, int codePage);
 	void ResetExecution();
 	void ExecuteNext();
@@ -552,7 +582,10 @@ inline bool IsKeyDown(int key) {
 	return (::GetKeyState(key) & 0x80000000) != 0;
 }
 
-
-inline GUI::Point PointFromLong(long lPoint) {
+inline GUI::Point PointFromLong(LPARAM lPoint) {
 	return GUI::Point(static_cast<short>(LOWORD(lPoint)), static_cast<short>(HIWORD(lPoint)));
+}
+
+inline int ControlIDOfWParam(WPARAM wParam) {
+	return wParam & 0xffff;
 }
