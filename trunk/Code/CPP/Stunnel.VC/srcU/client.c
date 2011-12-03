@@ -219,7 +219,7 @@ static void init_local(CLI *c) {
             longjmp(c->err, 1);
         }
         /* ignore S_ENOTSOCK error so 'local' doesn't have to be a socket */
-        s_log(LOG_NOTICE, "服务 %s 已接受连接", c->opt->servname);
+        s_log(LOG_NOTICE, "本地服务 %s 已接受连接", c->opt->servname);
         return;
     }
     accepted_address=s_ntop(&c->peer_addr, c->peer_addr_len);
@@ -232,7 +232,7 @@ static void init_local(CLI *c) {
     libwrap_auth(c, accepted_address);
 #endif /* USE_LIBWRAP */
     auth_user(c, accepted_address);
-    s_log(LOG_NOTICE, "服务 %s 已接受来自 %s 的连接",
+    s_log(LOG_NOTICE, "本地服务 %s 已接受来自 %s 的连接",
         c->opt->servname, accepted_address);
     str_free(accepted_address);
 }
@@ -434,7 +434,7 @@ static void win_new_chain(CLI *c) {
     str_detach(chain); /* to prevent automatic deallocation of cached value */
     c->opt->chain=chain; /* this race condition is safe to ignore */
     PostMessage(hwnd, WM_NEW_CHAIN, c->opt->section_number, 0);
-    s_log(LOG_DEBUG, "Peer certificate was cached (%d bytes)", len);
+    s_log(LOG_DEBUG, "节点证书已被缓存(%d bytes)", len);
 }
 #endif
 
@@ -627,7 +627,7 @@ static void transfer(CLI *c) {
             num=writesocket(c->sock_wfd->fd, c->ssl_buff, c->ssl_ptr);
             switch(num) {
             case -1: /* error */
-                if(parse_socket_error(c, "writesocket"))
+                if(parse_socket_error(c, "写入套接字"))
                     break; /* a non-critical error: retry */
             case 0:
                 s_log(LOG_DEBUG, "Socket closed on write");

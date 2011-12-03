@@ -102,12 +102,38 @@
     <ClCompile Include="..\srcA\str.c" />
     <ClCompile Include="..\srcA\stunnel.c" />
     <ClCompile Include="..\srcA\verify.c" />
+    <ClCompile Include="..\srcA\zlib\adler32.c" />
+    <ClCompile Include="..\srcA\zlib\compress.c" />
+    <ClCompile Include="..\srcA\zlib\crc32.c" />
+    <ClCompile Include="..\srcA\zlib\deflate.c" />
+    <ClCompile Include="..\srcA\zlib\gzclose.c" />
+    <ClCompile Include="..\srcA\zlib\gzlib.c" />
+    <ClCompile Include="..\srcA\zlib\gzread.c" />
+    <ClCompile Include="..\srcA\zlib\gzwrite.c" />
+    <ClCompile Include="..\srcA\zlib\infback.c" />
+    <ClCompile Include="..\srcA\zlib\inffast.c" />
+    <ClCompile Include="..\srcA\zlib\inflate.c" />
+    <ClCompile Include="..\srcA\zlib\inftrees.c" />
+    <ClCompile Include="..\srcA\zlib\trees.c" />
+    <ClCompile Include="..\srcA\zlib\uncompr.c" />
+    <ClCompile Include="..\srcA\zlib\zutil.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\srcA\common.h" />
     <ClInclude Include="..\srcA\prototypes.h" />
     <ClInclude Include="..\srcA\resources.h" />
     <ClInclude Include="..\srcA\version.h" />
+    <ClInclude Include="..\srcA\zlib\crc32.h" />
+    <ClInclude Include="..\srcA\zlib\deflate.h" />
+    <ClInclude Include="..\srcA\zlib\gzguts.h" />
+    <ClInclude Include="..\srcA\zlib\inffast.h" />
+    <ClInclude Include="..\srcA\zlib\inffixed.h" />
+    <ClInclude Include="..\srcA\zlib\inflate.h" />
+    <ClInclude Include="..\srcA\zlib\inftrees.h" />
+    <ClInclude Include="..\srcA\zlib\trees.h" />
+    <ClInclude Include="..\srcA\zlib\zconf.h" />
+    <ClInclude Include="..\srcA\zlib\zlib.h" />
+    <ClInclude Include="..\srcA\zlib\zutil.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\srcA\resources.rc" />

@@ -44,7 +44,6 @@
 #pragma comment(lib, "Crypt32.lib")
 #pragma comment(lib, "../libeay32MT.lib")
 #pragma comment(lib, "../ssleay32MT.lib")
-#pragma comment(lib, "../zlibMT.lib")
 #pragma warning(disable:4005)
 #pragma warning(disable:4996)
 /**************************************** common constants */
