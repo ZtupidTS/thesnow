@@ -212,7 +212,7 @@ int WINAPI _tWinMain(HINSTANCE this_instance, HINSTANCE prev_instance,
     /* win32_name is needed for any error_box(), message_box(),
      * and the initial main window title */
     win32_name=TEXT("Stunnel ") TEXT(STUNNEL_VERSION) TEXT(" on ")
-        TEXT(STUNNEL_PLATFORM) TEXT(" (not configured)");
+        TEXT(STUNNEL_PLATFORM) TEXT(" (未配置)");
 
     parse_cmdline(command_line); /* setup global cmdline structure */
 
@@ -231,7 +231,7 @@ int WINAPI _tWinMain(HINSTANCE this_instance, HINSTANCE prev_instance,
 		errmsg = new TCHAR[500];
 		_stprintf(errmsg,TEXT("不能设置当前目录到 %s"), stunnel_exe_path);
         message_box(errmsg, MB_ICONERROR);
-        str_free(errmsg);
+		delete []errmsg;
         return 1;
     }
 
@@ -889,11 +889,11 @@ static LPTSTR log_txt(void) {
 
 static void daemon_thread(void *arg) {
     (void)arg; /* skip warning about unused parameter */
-
     if(main_initialize())
         fatal("Basic initialization failed", __FILE__, __LINE__);
     /* get a valid configuration */
-    while(main_configure(cmdline.config_file, NULL)) {
+	/* 使用 NULL 处理无效的配置文件问题[Stunnel.VCU.exe  -install] */
+    while(main_configure(NULL, NULL)) {
         unbind_ports(); /* in case initialization failed after bind_ports() */
         log_flush(LOG_MODE_ERROR); /* otherwise logs are buffered */
         PostMessage(hwnd, WM_INVALID_CONFIG, 0, 0); /* display error */
@@ -922,16 +922,16 @@ static void invalid_config() {
     update_tray_icon();
 
     win_log("");
-    s_log(LOG_ERR, "Server is down");
-    message_box("Stunnel server is down due to an error.\n"
-        "You need to exit and correct the problem.\n"
-        "Click OK to see the error log window.",
+    s_log(LOG_ERR, "服务已经关闭.");
+    message_box("Stunnel 服务因为出现了错误需要关闭.\n"
+        "你需要退出并处理问题.\n"
+        "点击确定查看错误日志窗口.",
         MB_ICONERROR);
 }
 
 static void valid_config() {
     /* update the main window title */
-    win32_name=TEXT("stunnel ") TEXT(STUNNEL_VERSION) TEXT(" on ")
+    win32_name=TEXT("Stunnel ") TEXT(STUNNEL_VERSION) TEXT(" on ")
         TEXT(STUNNEL_PLATFORM);
     SetWindowText(hwnd, win32_name);
 
@@ -1127,7 +1127,7 @@ static int service_install() {
         SERVICE_WIN32_OWN_PROCESS|SERVICE_INTERACTIVE_PROCESS,
         SERVICE_AUTO_START, SERVICE_ERROR_NORMAL, service_path,
         NULL, NULL, NULL, NULL, NULL);
-    str_free(service_path);
+//    str_free(service_path);
     if(!service) {
         error_box("CreateService");
         CloseServiceHandle(scm);
@@ -1271,7 +1271,6 @@ static int service_stop(void) {
 static void WINAPI service_main(DWORD argc, LPTSTR* argv) {
     (void)argc; /* skip warning about unused parameter */
     (void)argv; /* skip warning about unused parameter */
-
     /* initialise service status */
     serviceStatus.dwServiceType=SERVICE_WIN32;
     serviceStatus.dwCurrentState=SERVICE_STOPPED;

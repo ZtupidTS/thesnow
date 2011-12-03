@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="ZLIB">
+      <UniqueIdentifier>{a25fa7a7-3bd5-4c66-8489-3e2d8b29edf1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\srcU\client.c">
@@ -63,6 +66,51 @@
     <ClCompile Include="..\srcU\gui.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="..\srcU\zlib\adler32.c">
+      <Filter>ZLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="..\srcU\zlib\compress.c">
+      <Filter>ZLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="..\srcU\zlib\crc32.c">
+      <Filter>ZLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="..\srcU\zlib\deflate.c">
+      <Filter>ZLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="..\srcU\zlib\gzclose.c">
+      <Filter>ZLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="..\srcU\zlib\gzlib.c">
+      <Filter>ZLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="..\srcU\zlib\gzread.c">
+      <Filter>ZLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="..\srcU\zlib\gzwrite.c">
+      <Filter>ZLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="..\srcU\zlib\infback.c">
+      <Filter>ZLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="..\srcU\zlib\inffast.c">
+      <Filter>ZLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="..\srcU\zlib\inflate.c">
+      <Filter>ZLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="..\srcU\zlib\inftrees.c">
+      <Filter>ZLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="..\srcU\zlib\trees.c">
+      <Filter>ZLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="..\srcU\zlib\uncompr.c">
+      <Filter>ZLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="..\srcU\zlib\zutil.c">
+      <Filter>ZLIB</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\srcU\common.h">
@@ -76,6 +124,39 @@
     </ClInclude>
     <ClInclude Include="..\srcU\version.h">
       <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\srcU\zlib\crc32.h">
+      <Filter>ZLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="..\srcU\zlib\deflate.h">
+      <Filter>ZLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="..\srcU\zlib\gzguts.h">
+      <Filter>ZLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="..\srcU\zlib\inffast.h">
+      <Filter>ZLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="..\srcU\zlib\inffixed.h">
+      <Filter>ZLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="..\srcU\zlib\inflate.h">
+      <Filter>ZLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="..\srcU\zlib\inftrees.h">
+      <Filter>ZLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="..\srcU\zlib\trees.h">
+      <Filter>ZLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="..\srcU\zlib\zconf.h">
+      <Filter>ZLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="..\srcU\zlib\zlib.h">
+      <Filter>ZLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="..\srcU\zlib\zutil.h">
+      <Filter>ZLIB</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

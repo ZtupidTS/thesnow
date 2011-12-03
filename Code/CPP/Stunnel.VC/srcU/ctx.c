@@ -83,7 +83,7 @@ static void sslerror_log(unsigned long, char *);
 /**************************************** initialize section->ctx */
 
 int context_init(SERVICE_OPTIONS *section) { /* init SSL context */
-    s_log(LOG_INFO, "Initializing SSL context for service %s",
+    s_log(LOG_INFO, "为服务 %s 初始化 SSL 上下文",
         section->servname);
 
     /* create SSL context */
@@ -338,13 +338,13 @@ static int load_certificate(SERVICE_OPTIONS *section) {
 
     ui_data.section=section; /* setup current section for callbacks */
 
-    s_log(LOG_DEBUG, "Certificate: %s", section->cert);
+    s_log(LOG_DEBUG, "证书: %s", section->cert);
     if(!SSL_CTX_use_certificate_chain_file(section->ctx, section->cert)) {
-        s_log(LOG_ERR, "Error reading certificate file: %s", section->cert);
+        s_log(LOG_ERR, "读取证书文件 %s 时出现错误", section->cert);
         sslerror("SSL_CTX_use_certificate_chain_file");
         return 1; /* FAILED */
     }
-    s_log(LOG_DEBUG, "Certificate loaded");
+    s_log(LOG_DEBUG, "证书已载入");
 
     s_log(LOG_DEBUG, "Key file: %s", section->key);
 #if defined(USE_WIN32) || OPENSSL_VERSION_NUMBER>=0x0090700fL

@@ -102,6 +102,9 @@ static int init_compression(GLOBAL_OPTIONS *global) {
         s_log(LOG_ERR, "无法初始化 %s 压缩方式,您的OPENSSL库并不支持!", name);
         return 1;
     }
+//清空以前的压缩方式
+	sk_SSL_COMP_zero(SSL_COMP_get_compression_methods());
+//
     if(SSL_COMP_add_compression_method(id, cm)) {
         s_log(LOG_ERR, "添加 %s 压缩方式失败,杯具", name);
         return 1;
