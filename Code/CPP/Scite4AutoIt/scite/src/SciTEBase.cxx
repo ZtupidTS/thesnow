@@ -14,10 +14,6 @@
 #include <sys/stat.h>
 #include <time.h>
 
-#ifdef _MSC_VER
-#pragma warning(disable: 4786)
-#endif
-
 #include <string>
 #include <vector>
 #include <set>
@@ -2974,7 +2970,8 @@ void SciTEBase::SetLineNumberWidth() {
 		}
 
 		// The 4 here allows for spacing: 1 pixel on left and 3 on right.
-		int pixelWidth = 4 + lineNumWidth * wEditor.CallString(SCI_TEXTWIDTH, STYLE_LINENUMBER, "9");
+		std::string nNines(lineNumWidth, '9');
+		int pixelWidth = 4 + wEditor.CallString(SCI_TEXTWIDTH, STYLE_LINENUMBER, nNines.c_str());
 
 		wEditor.Call(SCI_SETMARGINWIDTHN, 0, pixelWidth);
 	} else {
