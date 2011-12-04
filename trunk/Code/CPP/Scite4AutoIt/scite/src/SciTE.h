@@ -9,9 +9,9 @@
 #define SCITE_H
 
 // Version numbers and dates
-#define VERSION_SCITE "3.0.1"
-#define VERSION_WORDS 3, 0, 1, 0
-#define COPYRIGHT_DATES "December 1998-November 2011"
+#define VERSION_SCITE "3.0.2"
+#define VERSION_WORDS 3, 0, 2, 0
+#define COPYRIGHT_DATES "December 1998-December 2011"
 #define COPYRIGHT_YEARS L"1998-2011"
 // ²Ëµ¥ ID.
 // These are located 100 apart. No one will want more than 100 in each menu ;)

@@ -12,10 +12,6 @@
 #include <fcntl.h>
 #include <time.h>
 
-#ifdef _MSC_VER
-#pragma warning(disable: 4786)
-#endif
-
 #include <string>
 #include <vector>
 #include <set>
@@ -320,6 +316,8 @@ void SciTEBase::OpenFile(long fileSize, bool suppressMessage, bool asynchronous)
 			lenFile = fread(data, 1, sizeof(data), fp);
 		}
 		fclose(fp);
+		wEditor.Call(SCI_ENDUNDOACTION);
+
 		CurrentBuffer()->unicodeMode = static_cast<UniMode>(
 			    static_cast<int>(convert.getEncoding()));
 		// Check the first two lines for coding cookies
