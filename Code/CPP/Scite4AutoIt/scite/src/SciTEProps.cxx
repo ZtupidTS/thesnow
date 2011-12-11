@@ -880,6 +880,8 @@ void SciTEBase::ReadProperties() {
 		codePage = SC_CP_UTF8;
 	}
 	wEditor.Call(SCI_SETCODEPAGE, codePage);
+
+	if (CurrentBuffer()->unicodeMode != uni8Bit) codePage = props.GetInt("code.page");	//added
 	int outputCodePage = props.GetInt("output.code.page", codePage);
 	wOutput.Call(SCI_SETCODEPAGE, outputCodePage);
 
