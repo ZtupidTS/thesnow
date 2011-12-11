@@ -10,10 +10,6 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <time.h>
-
-#ifdef _MSC_VER
-#pragma warning(disable: 4786)
-#endif
 #include <assert.h>
 
 #include <string>
@@ -662,8 +658,8 @@ void SciTEBase::SaveSessionFile(const GUI::gui_char *sessionName) {
 	FILE *sessionFile = sessionPathName.Open(fileWrite);
 	if (!sessionFile)
 		return;
-
-	fprintf(sessionFile, "# SciTE 会话文件\n");
+	//changed by thesnoW
+	fprintf(sessionFile, "\xEF\xBB\xBF# SciTE Session File #\n");
 
 	if (defaultSession && props.GetInt("save.position")) {
 		int top, left, width, height, maximize;
@@ -952,6 +948,7 @@ void SciTEBase::CloseTab(int tab) {
 	if (tab == tabCurrent) {
 		if (SaveIfUnsure() != IDCANCEL) {
 			Close();
+			WindowSetFocus(wEditor);
 		}
 	} else {
 		FilePath fpCurrent = buffers.buffers[tabCurrent].AbsolutePath();
@@ -1656,6 +1653,11 @@ int DecodeMessage(const char *cdoc, char *sourcePath, int format, int &column) {
 						strncpy(sourcePath, cdoc, i);
 						sourcePath[i] = 0;
 					}
+					i += 2;
+					while (isdigitchar(cdoc[i]))
+						++i;
+					if (cdoc[i] == ':' && isdigitchar(cdoc[i + 1]))
+						column = atoi(cdoc + i + 1) - 1;
 					return sourceNumber;
 				}
 			}
