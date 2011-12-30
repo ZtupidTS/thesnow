@@ -12,10 +12,6 @@
 #include <stdio.h>
 #include <time.h>
 #include <limits.h>
-
-#ifdef _MSC_VER
-#pragma warning(disable: 4786)
-#endif
 #include <math.h>
 
 #include <vector>
@@ -1718,7 +1714,7 @@ XYPOSITION SurfaceD2D::WidthChar(Font &font_, char ch) {
 			pTextLayout->Release();
 		}
 	}
-	return int(width + 0.5);
+	return width;
 }
 
 XYPOSITION SurfaceD2D::Ascent(Font &font_) {

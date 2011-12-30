@@ -13,10 +13,6 @@
 #include <time.h>
 #include <locale.h>
 
-#ifdef _MSC_VER
-#pragma warning(disable: 4786)
-#endif
-
 #include <string>
 #include <vector>
 #include <set>
@@ -1076,7 +1072,7 @@ void SciTEBase::ReadProperties() {
 	wOutput.Call(SCI_AUTOCSETIGNORECASE, 1);
 
 	int autoCChooseSingle = props.GetInt("autocomplete.choose.single");
-	wEditor.Call(SCI_AUTOCSETCHOOSESINGLE, autoCChooseSingle),
+	wEditor.Call(SCI_AUTOCSETCHOOSESINGLE, autoCChooseSingle);
 
 	wEditor.Call(SCI_AUTOCSETCANCELATSTART, 0);
 	wEditor.Call(SCI_AUTOCSETDROPRESTOFWORD, 0);
