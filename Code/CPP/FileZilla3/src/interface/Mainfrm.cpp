@@ -206,6 +206,7 @@ protected:
 };
 
 CMainFrame::CMainFrame()
+	: m_comparisonToggleAcceleratorId(wxNewId())
 {
 	wxRect screen_size = CWindowStateManager::GetScreenDimensions();
 
@@ -412,12 +413,13 @@ CMainFrame::CMainFrame()
 		SetDefaultSplitterPositions();
 
 	wxAcceleratorEntry entries[11];
-	entries[0].Set(wxACCEL_CMD | wxACCEL_SHIFT, 'I', XRCID("ID_MENU_VIEW_FILTERS"));
+	//entries[0].Set(wxACCEL_CMD | wxACCEL_SHIFT, 'I', XRCID("ID_MENU_VIEW_FILTERS"));
 	for (int i = 0; i < 10; i++)
 	{
 		tab_hotkey_ids[i] = wxNewId();
-		entries[i + 1].Set(wxACCEL_CMD, (int)'0' + i, tab_hotkey_ids[i]);
+		entries[i].Set(wxACCEL_CMD, (int)'0' + i, tab_hotkey_ids[i]);
 	}
+	entries[10].Set(wxACCEL_CMD | wxACCEL_SHIFT, 'O', m_comparisonToggleAcceleratorId);
 
 	wxAcceleratorTable accel(sizeof(entries) / sizeof(wxAcceleratorEntry), entries);
 	SetAcceleratorTable(accel);
@@ -877,6 +879,19 @@ void CMainFrame::OnMenuHandler(wxCommandEvent &event)
 	{
 		CSpeedLimitsDialog dlg;
 		dlg.Run(this);
+	}
+	else if (event.GetId() == m_comparisonToggleAcceleratorId)
+	{
+		CState* pState = CContextManager::Get()->GetCurrentContext();
+		if (!pState)
+			return;
+
+		int old_mode = COptions::Get()->GetOptionVal(OPTION_COMPARISONMODE);
+		COptions::Get()->SetOption(OPTION_COMPARISONMODE, old_mode ? 0 : 1);
+
+		CComparisonManager* pComparisonManager = pState->GetComparisonManager();
+		if (pComparisonManager && pComparisonManager->IsComparing())
+			pComparisonManager->CompareListings();
 	}
 	else
 	{
@@ -2433,8 +2448,11 @@ void CMainFrame::ProcessCommandLine()
 	wxString site;
 	if (pCommandLine->HasSwitch(CCommandLine::sitemanager))
 	{
-		Show();
-		OpenSiteManager();
+		if (!COptions::Get()->GetOptionVal(OPTION_INTERFACE_SITEMANAGER_ON_STARTUP) != 0)
+		{
+			Show();
+			OpenSiteManager();
+		}
 	}
 	else if ((site = pCommandLine->GetOption(CCommandLine::site)) != _T(""))
 	{
@@ -2653,6 +2671,12 @@ void CMainFrame::PostInitialize()
 	else
 		m_pUpdateWizard = 0;
 #endif //FZ_MANUALUPDATECHECK && FZ_AUTOUPDATECHECK
+
+	if (COptions::Get()->GetOptionVal(OPTION_INTERFACE_SITEMANAGER_ON_STARTUP) != 0)
+	{
+		Show();
+		OpenSiteManager();
+	}
 }
 
 void CMainFrame::OnMenuNewTab(wxCommandEvent& event)
@@ -2741,6 +2765,8 @@ void CMainFrame::OnToggleToolBar(wxCommandEvent& event)
 		m_pToolBar->Show( event.IsChecked() );
 #else
 	CreateToolBar();
+	if (m_pToolBar)
+		m_pToolBar->UpdateToolbarState();
 	HandleResize();
 #endif
 }

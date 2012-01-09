@@ -231,8 +231,13 @@ bool CServer::ParseUrl(wxString host, unsigned int port, wxString user, wxString
 	m_account = _T("");
 	if (m_logonType != ASK && m_logonType != INTERACTIVE)
 	{
-		if (m_user == _T("") || m_user == _T("anonymous"))
+		if (m_user == _T(""))
 			m_logonType = ANONYMOUS;
+		else if (m_user == _T("anonymous"))
+			if (m_pass.IsEmpty() || m_pass == _T("anonymous@example.com"))
+				m_logonType = ANONYMOUS;
+			else
+				m_logonType = NORMAL;
 		else
 			m_logonType = NORMAL;
 	}
@@ -466,12 +471,17 @@ bool CServer::EqualsNoPass(const CServer &op) const
 		return false;
 	else if (m_port != op.m_port)
 		return false;
-	else if (m_logonType != op.m_logonType)
+	else if ((m_logonType == ANONYMOUS) != (op.m_logonType == ANONYMOUS))
+		return false;
+	else if ((m_logonType == ACCOUNT) != (op.m_logonType == ACCOUNT))
 		return false;
 	else if (m_logonType != ANONYMOUS)
 	{
 		if (m_user != op.m_user)
 			return false;
+		if (m_logonType == ACCOUNT)
+			if (m_account != op.m_account)
+				return false;
 	}
 	if (m_timezoneOffset != op.m_timezoneOffset)
 		return false;

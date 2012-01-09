@@ -76,6 +76,7 @@ am_libengine_a_OBJECTS = libengine_a-backend.$(OBJEXT) \
 	libengine_a-local_filesys.$(OBJEXT) \
 	libengine_a-local_path.$(OBJEXT) libengine_a-logging.$(OBJEXT) \
 	libengine_a-misc.$(OBJEXT) libengine_a-notification.$(OBJEXT) \
+	libengine_a-option_change_event_handler.$(OBJEXT) \
 	libengine_a-pathcache.$(OBJEXT) libengine_a-proxy.$(OBJEXT) \
 	libengine_a-ratelimiter.$(OBJEXT) libengine_a-server.$(OBJEXT) \
 	libengine_a-serverpath.$(OBJEXT) \
@@ -289,6 +290,7 @@ libengine_a_SOURCES = \
 		local_path.cpp \
 		logging.cpp \
 		misc.cpp notification.cpp \
+		option_change_event_handler.cpp \
 		pathcache.cpp \
 		proxy.cpp \
 		ratelimiter.cpp \
@@ -388,6 +390,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libengine_a-logging.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libengine_a-misc.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libengine_a-notification.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libengine_a-option_change_event_handler.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libengine_a-pathcache.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libengine_a-proxy.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libengine_a-ratelimiter.Po@am__quote@
@@ -661,6 +664,20 @@ libengine_a-notification.obj: notification.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='notification.cpp' object='libengine_a-notification.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libengine_a_CPPFLAGS) $(CPPFLAGS) $(libengine_a_CXXFLAGS) $(CXXFLAGS) -c -o libengine_a-notification.obj `if test -f 'notification.cpp'; then $(CYGPATH_W) 'notification.cpp'; else $(CYGPATH_W) '$(srcdir)/notification.cpp'; fi`
+
+libengine_a-option_change_event_handler.o: option_change_event_handler.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libengine_a_CPPFLAGS) $(CPPFLAGS) $(libengine_a_CXXFLAGS) $(CXXFLAGS) -MT libengine_a-option_change_event_handler.o -MD -MP -MF $(DEPDIR)/libengine_a-option_change_event_handler.Tpo -c -o libengine_a-option_change_event_handler.o `test -f 'option_change_event_handler.cpp' || echo '$(srcdir)/'`option_change_event_handler.cpp
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/libengine_a-option_change_event_handler.Tpo $(DEPDIR)/libengine_a-option_change_event_handler.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='option_change_event_handler.cpp' object='libengine_a-option_change_event_handler.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libengine_a_CPPFLAGS) $(CPPFLAGS) $(libengine_a_CXXFLAGS) $(CXXFLAGS) -c -o libengine_a-option_change_event_handler.o `test -f 'option_change_event_handler.cpp' || echo '$(srcdir)/'`option_change_event_handler.cpp
+
+libengine_a-option_change_event_handler.obj: option_change_event_handler.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libengine_a_CPPFLAGS) $(CPPFLAGS) $(libengine_a_CXXFLAGS) $(CXXFLAGS) -MT libengine_a-option_change_event_handler.obj -MD -MP -MF $(DEPDIR)/libengine_a-option_change_event_handler.Tpo -c -o libengine_a-option_change_event_handler.obj `if test -f 'option_change_event_handler.cpp'; then $(CYGPATH_W) 'option_change_event_handler.cpp'; else $(CYGPATH_W) '$(srcdir)/option_change_event_handler.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/libengine_a-option_change_event_handler.Tpo $(DEPDIR)/libengine_a-option_change_event_handler.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='option_change_event_handler.cpp' object='libengine_a-option_change_event_handler.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libengine_a_CPPFLAGS) $(CPPFLAGS) $(libengine_a_CXXFLAGS) $(CXXFLAGS) -c -o libengine_a-option_change_event_handler.obj `if test -f 'option_change_event_handler.cpp'; then $(CYGPATH_W) 'option_change_event_handler.cpp'; else $(CYGPATH_W) '$(srcdir)/option_change_event_handler.cpp'; fi`
 
 libengine_a-pathcache.o: pathcache.cpp
 @am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libengine_a_CPPFLAGS) $(CPPFLAGS) $(libengine_a_CXXFLAGS) $(CXXFLAGS) -MT libengine_a-pathcache.o -MD -MP -MF $(DEPDIR)/libengine_a-pathcache.Tpo -c -o libengine_a-pathcache.o `test -f 'pathcache.cpp' || echo '$(srcdir)/'`pathcache.cpp

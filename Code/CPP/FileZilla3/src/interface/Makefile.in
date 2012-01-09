@@ -76,9 +76,8 @@ am__filezilla_SOURCES_DIST = aboutdialog.cpp asyncrequestqueue.cpp \
 	listctrlex.cpp listingcomparison.cpp locale_initializer.cpp \
 	LocalListView.cpp LocalTreeView.cpp loginmanager.cpp \
 	Mainfrm.cpp manual_transfer.cpp menu_bar.cpp netconfwizard.cpp \
-	option_change_event_handler.cpp Options.cpp \
-	power_management.cpp queue.cpp queue_storage.cpp QueueView.cpp \
-	queueview_failed.cpp queueview_successful.cpp \
+	Options.cpp power_management.cpp queue.cpp queue_storage.cpp \
+	QueueView.cpp queueview_failed.cpp queueview_successful.cpp \
 	quickconnectbar.cpp recentserverlist.cpp \
 	recursive_operation.cpp RemoteListView.cpp RemoteTreeView.cpp \
 	search.cpp settings/optionspage.cpp \
@@ -144,7 +143,6 @@ am_filezilla_OBJECTS = filezilla-aboutdialog.$(OBJEXT) \
 	filezilla-loginmanager.$(OBJEXT) filezilla-Mainfrm.$(OBJEXT) \
 	filezilla-manual_transfer.$(OBJEXT) \
 	filezilla-menu_bar.$(OBJEXT) filezilla-netconfwizard.$(OBJEXT) \
-	filezilla-option_change_event_handler.$(OBJEXT) \
 	filezilla-Options.$(OBJEXT) \
 	filezilla-power_management.$(OBJEXT) filezilla-queue.$(OBJEXT) \
 	filezilla-queue_storage.$(OBJEXT) \
@@ -447,9 +445,8 @@ filezilla_SOURCES = aboutdialog.cpp asyncrequestqueue.cpp \
 	listctrlex.cpp listingcomparison.cpp locale_initializer.cpp \
 	LocalListView.cpp LocalTreeView.cpp loginmanager.cpp \
 	Mainfrm.cpp manual_transfer.cpp menu_bar.cpp netconfwizard.cpp \
-	option_change_event_handler.cpp Options.cpp \
-	power_management.cpp queue.cpp queue_storage.cpp QueueView.cpp \
-	queueview_failed.cpp queueview_successful.cpp \
+	Options.cpp power_management.cpp queue.cpp queue_storage.cpp \
+	QueueView.cpp queueview_failed.cpp queueview_successful.cpp \
 	quickconnectbar.cpp recentserverlist.cpp \
 	recursive_operation.cpp RemoteListView.cpp RemoteTreeView.cpp \
 	search.cpp settings/optionspage.cpp \
@@ -525,7 +522,6 @@ noinst_HEADERS = aboutdialog.h \
 		 manual_transfer.h \
 		 menu_bar.h \
 		 netconfwizard.h \
-		 option_change_event_handler.h \
 		 Options.h \
 		 power_management.h \
 		 prefix.h \
@@ -817,7 +813,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/filezilla-manual_transfer.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/filezilla-menu_bar.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/filezilla-netconfwizard.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/filezilla-option_change_event_handler.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/filezilla-power_management.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/filezilla-prefix.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/filezilla-queue.Po@am__quote@
@@ -1463,20 +1458,6 @@ filezilla-netconfwizard.obj: netconfwizard.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='netconfwizard.cpp' object='filezilla-netconfwizard.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(filezilla_CPPFLAGS) $(CPPFLAGS) $(filezilla_CXXFLAGS) $(CXXFLAGS) -c -o filezilla-netconfwizard.obj `if test -f 'netconfwizard.cpp'; then $(CYGPATH_W) 'netconfwizard.cpp'; else $(CYGPATH_W) '$(srcdir)/netconfwizard.cpp'; fi`
-
-filezilla-option_change_event_handler.o: option_change_event_handler.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(filezilla_CPPFLAGS) $(CPPFLAGS) $(filezilla_CXXFLAGS) $(CXXFLAGS) -MT filezilla-option_change_event_handler.o -MD -MP -MF $(DEPDIR)/filezilla-option_change_event_handler.Tpo -c -o filezilla-option_change_event_handler.o `test -f 'option_change_event_handler.cpp' || echo '$(srcdir)/'`option_change_event_handler.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/filezilla-option_change_event_handler.Tpo $(DEPDIR)/filezilla-option_change_event_handler.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='option_change_event_handler.cpp' object='filezilla-option_change_event_handler.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(filezilla_CPPFLAGS) $(CPPFLAGS) $(filezilla_CXXFLAGS) $(CXXFLAGS) -c -o filezilla-option_change_event_handler.o `test -f 'option_change_event_handler.cpp' || echo '$(srcdir)/'`option_change_event_handler.cpp
-
-filezilla-option_change_event_handler.obj: option_change_event_handler.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(filezilla_CPPFLAGS) $(CPPFLAGS) $(filezilla_CXXFLAGS) $(CXXFLAGS) -MT filezilla-option_change_event_handler.obj -MD -MP -MF $(DEPDIR)/filezilla-option_change_event_handler.Tpo -c -o filezilla-option_change_event_handler.obj `if test -f 'option_change_event_handler.cpp'; then $(CYGPATH_W) 'option_change_event_handler.cpp'; else $(CYGPATH_W) '$(srcdir)/option_change_event_handler.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/filezilla-option_change_event_handler.Tpo $(DEPDIR)/filezilla-option_change_event_handler.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='option_change_event_handler.cpp' object='filezilla-option_change_event_handler.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(filezilla_CPPFLAGS) $(CPPFLAGS) $(filezilla_CXXFLAGS) $(CXXFLAGS) -c -o filezilla-option_change_event_handler.obj `if test -f 'option_change_event_handler.cpp'; then $(CYGPATH_W) 'option_change_event_handler.cpp'; else $(CYGPATH_W) '$(srcdir)/option_change_event_handler.cpp'; fi`
 
 filezilla-Options.o: Options.cpp
 @am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(filezilla_CPPFLAGS) $(CPPFLAGS) $(filezilla_CXXFLAGS) $(CXXFLAGS) -MT filezilla-Options.o -MD -MP -MF $(DEPDIR)/filezilla-Options.Tpo -c -o filezilla-Options.o `test -f 'Options.cpp' || echo '$(srcdir)/'`Options.cpp

@@ -4,7 +4,7 @@
 #include "filezillaapp.h"
 #include <wx/tokenzr.h>
 #include "ipcmutex.h"
-#include "option_change_event_handler.h"
+#include <option_change_event_handler.h>
 #include "sizeformatting.h"
 
 #include <string>
@@ -176,6 +176,7 @@ static const t_Option options[OPTIONS_NUM] =
 	{ "Display current speed", number, _T("0"), normal },
 	{ "Toolbar hidden", number, _T("0"), normal },
 	{ "Strip VMS revisions", number, _T("0"), normal },
+	{ "Show Site Manager on startup", number, _T("0"), normal },
 
 	// Default/internal options
 	{ "Config Location", string, _T(""), default_only },
@@ -278,7 +279,7 @@ bool COptions::SetOption(unsigned int nID, int value)
 
 	m_optionsCache[nID].numValue = value;
 
-	if (m_pXmlFile && options[nID].flags == normal)
+	if (m_pXmlFile && (options[nID].flags == normal || options[nID].flags == default_priority) )
 	{
 		SetXmlValue(nID, wxString::Format(_T("%d"), value));
 
