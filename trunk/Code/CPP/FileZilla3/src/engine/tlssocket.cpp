@@ -97,7 +97,7 @@ bool CTlsSocket::Init()
 		return false;
 	}
 
-	res = gnutls_priority_set_direct(m_session, "SECURE256:+CTYPE-X509:-CTYPE-OPENPGP", 0);
+	res = gnutls_priority_set_direct(m_session, "NORMAL:-3DES-CBC:-MD5:-SIGN-RSA-MD5:+CTYPE-X509:-CTYPE-OPENPGP", 0);
 	if (res)
 	{
 		LogError(res);
@@ -113,7 +113,9 @@ bool CTlsSocket::Init()
 	gnutls_transport_set_push_function(m_session, PushFunction);
 	gnutls_transport_set_pull_function(m_session, PullFunction);
 	gnutls_transport_set_ptr(m_session, (gnutls_transport_ptr_t)this);
+#if GNUTLS_VERSION_NUMBER < 0x020c00
 	gnutls_transport_set_lowat(m_session, 0);
+#endif
 
 	m_shutdown_requested = false;
 
@@ -421,6 +423,8 @@ bool CTlsSocket::CopySessionData(const CTlsSocket* pPrimarySocket)
 		return false;
 	}
 
+	m_pOwner->LogMessage(Debug_Info, _T("Trying to resume existing TLS session."));
+
 	return true;
 }
 
@@ -464,10 +468,10 @@ int CTlsSocket::ContinueHandshake()
 	int res = gnutls_handshake(m_session);
 	if (!res)
 	{
-		m_pOwner->LogMessage(Debug_Info, _T("Handshake successful"));
+		m_pOwner->LogMessage(Debug_Info, _T("TLS Handshake successful"));
 
 		if (ResumedSession())
-			m_pOwner->LogMessage(Debug_Info, _T("Session resumed"));
+			m_pOwner->LogMessage(Debug_Info, _T("TLS Session resumed"));
 
 		const wxString& cipherName = GetCipherName();
 		const wxString& macName = GetMacName();
