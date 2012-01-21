@@ -825,6 +825,7 @@ void SciTEBase::New() {
 	jobQueue.isBuilding = false;
 	jobQueue.isBuilt = false;
 	isReadOnly = false;	// No sense to create an empty, read-only buffer...
+	CurrentBuffer()->isReadOnly = false;
 
 	ClearDocument();
 	DeleteFileStackMenu();
@@ -841,7 +842,7 @@ void SciTEBase::RestoreState(const Buffer &buffer, bool restoreBookmarks) {
 		codePage = SC_CP_UTF8;
 		wEditor.Call(SCI_SETCODEPAGE, codePage);
 	}
-	isReadOnly = wEditor.Call(SCI_GETREADONLY);
+	isReadOnly = CurrentBuffer()->isReadOnly;
 
 	// check to see whether there is saved fold state, restore
 	if (!buffer.foldState.empty()) {
@@ -1944,10 +1945,10 @@ int DecodeMessage(const char *cdoc, char *sourcePath, int format, int &column) {
 		}
 
 	case SCE_ERR_DIFF_MESSAGE: {
-			// Diff file header, either +++ <filename>\t or --- <filename>\t
+			// Diff file header, either +++ <filename> or --- <filename>, may be followed by \t
 			// Often followed by a position line @@ <linenumber>
 			const char *startPath = cdoc + 4;
-			const char *endPath = strchr(startPath, '\t');
+			const char *endPath = strpbrk(startPath, "\t\r\n");
 			if (endPath) {
 				ptrdiff_t length = endPath - startPath;
 				strncpy(sourcePath, startPath, length);
@@ -2105,6 +2106,19 @@ void SciTEBase::GoMessage(int dir) {
 							//get linenumber for marker from found position
 							sourceLine = wEditor.Call(SCI_LINEFROMPOSITION, wEditor.Call(SCI_GETCURRENTPOS));
 						}
+					}
+				}
+
+				else if (style == SCE_ERR_DIFF_MESSAGE) {
+					bool isAdd = message.startswith("+++ ");
+					int atLine = lookLine + (isAdd ? 1 : 2); // lines are in this order: ---, +++, @@
+					SString atMessage = GetLine(wOutput, atLine);
+					if (atMessage.startswith("@@ -")) {
+						int atPos = (isAdd
+							? atMessage.search(" +", 7) + 2 // skip "@@ -1,1" and then " +"
+							: 4 // deleted position starts right after "@@ -"
+						);
+						sourceLine = atol(atMessage.c_str() + atPos) - 1;
 					}
 				}
 

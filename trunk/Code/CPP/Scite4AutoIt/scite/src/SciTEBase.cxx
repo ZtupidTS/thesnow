@@ -3419,6 +3419,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 
 	case IDM_READONLY:
 		isReadOnly = !isReadOnly;
+		CurrentBuffer()->isReadOnly = false;
 		wEditor.Call(SCI_SETREADONLY, isReadOnly);
 		UpdateStatusBar(true);
 		CheckMenus();

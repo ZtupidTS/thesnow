@@ -22,7 +22,7 @@ endif
 
 # For the Gnome desktop stuff to work, prefix must point to where Gnome thinks it is.
 CONFIGFLAGS:=$(shell pkg-config --cflags $(GTKVERSION))
-CONFIGLIB:=$(shell pkg-config --libs $(GTKVERSION) gthread-2.0)
+CONFIGLIB:=$(shell pkg-config --libs $(GTKVERSION) gthread-2.0 gmodule-no-export-2.0)
 CONFIGTHREADS:=
 gnomeprefix:=$(shell pkg-config --variable=prefix $(GTKVERSION) 2>/dev/null)
 ifndef prefix
@@ -53,9 +53,9 @@ endif
 CXXBASEFLAGS=-W -Wall -Wno-char-subscripts -pedantic -DGTK -DSCI_LEXER -DPIXMAP_PATH=\"$(pixmapdir)\" -DSYSCONF_PATH=\"$(SYSCONF_PATH)\" $(INCLUDEDIRS) $(DEPRECATED)
 
 ifdef DEBUG
-CXXTFLAGS=-DDEBUG -g $(CXXBASEFLAGS)
+CXXTFLAGS=-DDEBUG -g $(CXXFLAGS) $(CXXBASEFLAGS)
 else
-CXXTFLAGS=-DNDEBUG -Os $(CXXBASEFLAGS)
+CXXTFLAGS=-DNDEBUG -Os $(CXXFLAGS) $(CXXBASEFLAGS)
 endif
 
 ifndef NO_LUA
