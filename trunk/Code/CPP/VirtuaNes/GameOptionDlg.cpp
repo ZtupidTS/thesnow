@@ -90,9 +90,9 @@ DLGCMD	CGameOptionDlg::OnOK( DLGCMDPARAM )
 
 	// セーブ
 	if( Emu.GetNES()->rom->GetMapperNo() == 20 ) {
-		GameOption.Save( (LPCWSTR)Emu.GetNES()->rom->GetRomName(), Emu.GetNES()->rom->GetGameID(), Emu.GetNES()->rom->GetMakerID() );
+		GameOption.Save( Emu.GetNES()->rom->GetRomName(), Emu.GetNES()->rom->GetGameID(), Emu.GetNES()->rom->GetMakerID() );
 	} else if( Emu.GetNES()->rom->GetMapperNo() < 256 ) {
-		GameOption.Save( (LPCWSTR)Emu.GetNES()->rom->GetRomName(), Emu.GetNES()->rom->GetPROM_CRC() );
+		GameOption.Save( Emu.GetNES()->rom->GetRomName(), Emu.GetNES()->rom->GetPROM_CRC() );
 	}
 	//
 

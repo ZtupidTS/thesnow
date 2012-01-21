@@ -19,8 +19,8 @@ class	CPlugin
 public:
 	typedef	struct tagPLUGIN {
 		LCID	LocaleID;
-		WCHAR	Path[_MAX_PATH];
-		WCHAR	Language[256];
+		TCHAR	Path[_MAX_PATH];
+		TCHAR	Language[256];
 	} PLUGIN, *LPPLUGIN;
 
 	static	HINSTANCE LoadPlugin();
@@ -34,13 +34,13 @@ public:
 	static	void	SetPluginID( INT nID )	{ m_PluginID = nID; }
 
 	// デフォルトプラグイン
-	static	LPWSTR	GetPluginPath()		{ return m_Plugin[m_PluginID].Path; }
-	static	LPWSTR	GetPluginLanguage()	{ return m_Plugin[m_PluginID].Language; }
+	static	LPTSTR	GetPluginPath()		{ return m_Plugin[m_PluginID].Path; }
+	static	LPTSTR	GetPluginLanguage()	{ return m_Plugin[m_PluginID].Language; }
 	static	LCID	GetPluginLocaleID()	{ return m_Plugin[m_PluginID].LocaleID; }
 
 	// プラグインID指定
-	static	LPWSTR	GetPluginPath( INT nID )	{ return m_Plugin[nID].Path; }
-	static	LPWSTR	GetPluginLanguage( INT nID )	{ return m_Plugin[nID].Language; }
+	static	LPTSTR	GetPluginPath( INT nID )	{ return m_Plugin[nID].Path; }
+	static	LPTSTR	GetPluginLanguage( INT nID )	{ return m_Plugin[nID].Language; }
 	static	LCID	GetPluginLocaleID( INT nID )	{ return m_Plugin[nID].LocaleID; }
 
 

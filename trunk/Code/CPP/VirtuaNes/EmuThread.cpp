@@ -621,7 +621,7 @@ INT	nNetTimeoutCount = 0;
 				case	EV_STATE_LOAD:
 					if( g_nes ) {
 						if( !NetPlay.IsConnect() ) {
-							if( g_nes->LoadState( (const WCHAR*)Param ) ) {
+							if( g_nes->LoadState( (const TCHAR*)Param ) ) {
 								if( Param2 < 0 )
 									::wsprintfA( szStr, "State Load." );
 								else
@@ -639,7 +639,7 @@ INT	nNetTimeoutCount = 0;
 				case	EV_STATE_SAVE:
 					if( g_nes ) {
 						if( !NetPlay.IsConnect() ) {
-							if( g_nes->SaveState( (const WCHAR*)Param ) ) {
+							if( g_nes->SaveState( (const TCHAR*)Param ) ) {
 								if( Param2 < 0 )
 									::wsprintfA( szStr, "State Save." );
 								else
@@ -690,7 +690,7 @@ INT	nNetTimeoutCount = 0;
 				case	EV_MOVIE_PLAY:
 					if( g_nes ) {
 						if( !NetPlay.IsConnect() ) {
-							if( g_nes->MoviePlay( (const WCHAR*)Param ) ) {
+							if( g_nes->MoviePlay( (const TCHAR*)Param ) ) {
 								DirectDraw.SetMessageString( "Movie replay." );
 							}
 						}
@@ -701,7 +701,7 @@ INT	nNetTimeoutCount = 0;
 				case	EV_MOVIE_REC:
 					if( g_nes ) {
 						if( !NetPlay.IsConnect() ) {
-							if( g_nes->MovieRec( (const WCHAR*)Param ) ) {
+							if( g_nes->MovieRec( (const TCHAR*)Param ) ) {
 								DirectDraw.SetMessageString( "Movie record." );
 							}
 						}
@@ -712,7 +712,7 @@ INT	nNetTimeoutCount = 0;
 				case	EV_MOVIE_RECAPPEND:
 					if( g_nes ) {
 						if( !NetPlay.IsConnect() ) {
-							if( g_nes->MovieRecAppend( (const WCHAR*)Param ) ) {
+							if( g_nes->MovieRecAppend( (const TCHAR*)Param ) ) {
 								DirectDraw.SetMessageString( "Movie append record." );
 							}
 						}

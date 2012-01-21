@@ -451,7 +451,7 @@ DLGCMD	CPaletteEdit::OnLoad( DLGCMDPARAM )
 {
 //	DEBUGOUT( "CPaletteEdit::OnLoad\n" );
 
-	WCHAR	szFile[ _MAX_PATH ];
+	TCHAR	szFile[ _MAX_PATH ];
 	OPENFILENAME	ofn;
 	ZEROMEMORY( &ofn, sizeof(ofn) );
 
@@ -464,7 +464,7 @@ DLGCMD	CPaletteEdit::OnLoad( DLGCMDPARAM )
 	ofn.nMaxFile = sizeof(szFile);
 //	ofn.lpstrDefExt = ".pal";
 
-	WCHAR	szTitle[256];
+	TCHAR	szTitle[256];
 	CApp::LoadString( IDS_UI_OPENPALETTE, szTitle, sizeof(szTitle) );
 	ofn.lpstrTitle = szTitle;
 
@@ -475,7 +475,7 @@ DLGCMD	CPaletteEdit::OnLoad( DLGCMDPARAM )
 	if( ::GetOpenFileName( &ofn ) ) {
 		::memcpy( m_PaletteUndo, m_Palette, sizeof(m_Palette) );
 
-		DirectDraw.SetPaletteFile( (LPSTR)szFile );
+		DirectDraw.SetPaletteFile( szFile );
 		DirectDraw.GetPaletteTable( m_Palette );
 		OnChaneSelect();
 	}

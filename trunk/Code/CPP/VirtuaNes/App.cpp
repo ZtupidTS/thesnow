@@ -8,8 +8,6 @@
 HINSTANCE CApp::m_hInstance = NULL;
 HINSTANCE CApp::m_hPrevInstance = NULL;
 LPTSTR	CApp::m_lpCmdLine = NULL;
-
-
 INT	CApp::m_nCmdShow = 0;
 
 // 言語リソースプラグインのインスタンスハンドル
@@ -79,6 +77,6 @@ TCHAR*	CApp::GetErrorString( INT nID )
 		if( m_ErrorStringTableID[i] == nID )
 			return	m_ErrorString[i];
 	}
-	return	_T("");	// NULL ストリングとして渡す
+	return	TEXT("");	// NULL ストリングとして渡す
 }
 
