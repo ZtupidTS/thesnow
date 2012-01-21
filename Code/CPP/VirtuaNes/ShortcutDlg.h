@@ -1,5 +1,5 @@
-//
-// ƒVƒ‡[ƒgƒJƒbƒgƒ_ƒCƒAƒƒOƒNƒ‰ƒX
+ï»¿//
+// ã‚·ãƒ§ãƒ¼ãƒˆã‚«ãƒƒãƒˆãƒ€ã‚¤ã‚¢ãƒ­ã‚°ã‚¯ãƒ©ã‚¹
 //
 #ifndef	__CSHORTCUTDLG_INCLUDED__
 #define	__CSHORTCUTDLG_INCLUDED__
@@ -36,8 +36,8 @@ protected:
 	DLGCMD		OnDefault( DLGCMDPARAM );
 	//
 
-	WCHAR	m_szWindowTitle[256];
-	WCHAR	m_szMessage[256];
+	TCHAR	m_szWindowTitle[256];
+	TCHAR	m_szMessage[256];
 
 	BOOL	m_bCancelMode;
 	INT	m_SelectPos;

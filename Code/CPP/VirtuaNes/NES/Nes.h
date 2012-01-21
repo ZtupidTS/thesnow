@@ -74,7 +74,7 @@ public:
 
 	NESCONFIG* nescfg;
 public:
-	NES( const WCHAR* fname );
+	NES( const TCHAR* fname );
 	virtual	~NES();
 
 // メンバ関数
@@ -125,9 +125,9 @@ public:
 
 	// ステートファイル
 	// 0:ERROR 1:CRC OK -1:CRC ERR
-	static	INT	IsStateFile( const WCHAR* fname, ROM* rom );
-	BOOL	LoadState( const WCHAR* fname );
-	BOOL	SaveState( const WCHAR* fname );
+	static	INT	IsStateFile( const TCHAR* fname, ROM* rom );
+	BOOL	LoadState( const TCHAR* fname );
+	BOOL	SaveState( const TCHAR* fname );
 
 	INT	GetSAVERAM_SIZE()		{ return SAVERAM_SIZE; }
 	void	SetSAVERAM_SIZE( INT size )	{ SAVERAM_SIZE = size; }
@@ -142,13 +142,13 @@ public:
 
 	// For Movie
 	// 0:ERROR 1:CRC OK -1:CRC ERR
-	static	INT	IsMovieFile( const WCHAR* fname, ROM* rom );
+	static	INT	IsMovieFile( const TCHAR* fname, ROM* rom );
 
 	BOOL	IsMoviePlay() { return m_bMoviePlay; }
 	BOOL	IsMovieRec() { return m_bMovieRec; }
-	BOOL	MoviePlay( const WCHAR* fname );
-	BOOL	MovieRec( const WCHAR* fname );
-	BOOL	MovieRecAppend( const WCHAR* fname );
+	BOOL	MoviePlay( const TCHAR* fname );
+	BOOL	MovieRec( const TCHAR* fname );
+	BOOL	MovieRecAppend( const TCHAR* fname );
 	BOOL	MovieStop();
 
 	// その他コントロール

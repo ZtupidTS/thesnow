@@ -56,7 +56,7 @@ BOOL	CPatternView::Create( HWND hWndParent )
 	HWND hWnd = CreateWindowEx(
 			WS_EX_TOOLWINDOW,
 			VIRTUANES_WNDCLASS,
-			L"PatternView BG0",
+			TEXT("PatternView BG0"),
 			WS_OVERLAPPEDWINDOW,	// WindowägëÂèkè¨â¬î\
 			CW_USEDEFAULT,
 			CW_USEDEFAULT,
@@ -145,13 +145,13 @@ WNDMSG	CPatternView::OnLButtonDown( WNDMSGPARAM )
 	DEBUGOUT( "CPatternView::OnLButtonDown\n" );
 	m_SelectPal = (m_SelectPal+1)&7;
 
-	CHAR	szTitle[256];
+	TCHAR	szTitle[256];
 	if( m_SelectPal < 4 ) {
-		::wsprintfA( szTitle, "PatternView BG%01d", m_SelectPal&3 );
+		::wsprintf( szTitle, TEXT("PatternView BG%01d"), m_SelectPal&3 );
 	} else {
-		::wsprintfA( szTitle, "PatternView SP%01d", m_SelectPal&3 );
+		::wsprintf( szTitle, TEXT("PatternView SP%01d"), m_SelectPal&3 );
 	}
-	::SetWindowTextA( m_hWnd, szTitle );
+	::SetWindowText( m_hWnd, szTitle );
 
 	return	TRUE;
 }

@@ -89,7 +89,7 @@ public:
 	void	SetPaletteTable( LPBYTE pal );
 	void	SetPaletteTable( RGBQUAD* pal );
 	void	GetPaletteTable( RGBQUAD* pal );
-	void	SetPaletteFile( LPCSTR fname );
+	void	SetPaletteFile( LPCTSTR fname );
 
 	BOOL	SetFullScreenGDI( BOOL bMode );
 

@@ -144,15 +144,15 @@ DLGCMD	CFolderDlg::OnDefault( DLGCMDPARAM )
 DLGCMD	CFolderDlg::OnRomBrowse( DLGCMDPARAM )
 {
 //	DEBUGOUT( "CFolderDlg::OnRomBrowse\n" );
-	WCHAR	szTemp[_MAX_PATH];
+	TCHAR	szTemp[_MAX_PATH];
 	::GetDlgItemText( m_hWnd, IDC_FLD_ROM_EDIT, szTemp, _MAX_PATH );
 
-	WCHAR	szFolder[_MAX_PATH];
+	TCHAR	szFolder[_MAX_PATH];
 	string	pathstr = CPathlib::CreatePath( (LPCSTR)CApp::GetModulePath(),(LPSTR)szTemp );
 	::lstrcpy( szFolder,(LPTSTR) pathstr.c_str() );
 DEBUGOUT( "Path:%s\n", szFolder );
 
-	WCHAR	szTitle[256];
+	TCHAR	szTitle[256];
 	CApp::LoadString( IDS_UI_BROWSE, szTitle, sizeof(szTitle) );
 
 	if( CPathlib::SelectFolder( m_hWnd,(LPSTR) szTitle, (LPSTR)szFolder ) ) {
@@ -184,15 +184,15 @@ DEBUGOUT( "Path:%s\n", szFolder );
 DLGCMD	CFolderDlg::OnStateBrowse( DLGCMDPARAM )
 {
 //	DEBUGOUT( "CFolderDlg::OnStateBrowse\n" );
-	WCHAR	szTemp[_MAX_PATH];
+	TCHAR	szTemp[_MAX_PATH];
 	::GetDlgItemText( m_hWnd, IDC_FLD_STATE_EDIT, szTemp, _MAX_PATH );
 
-	WCHAR	szFolder[_MAX_PATH];
+	TCHAR	szFolder[_MAX_PATH];
 	string	pathstr = CPathlib::CreatePath( (LPCSTR)CApp::GetModulePath(), (LPSTR)szTemp );
 	::lstrcpy( szFolder, (LPTSTR)pathstr.c_str() );
 DEBUGOUT( "Path:%s\n", szFolder );
 
-	WCHAR	szTitle[256];
+	TCHAR	szTitle[256];
 	CApp::LoadString( IDS_UI_BROWSE, szTitle, sizeof(szTitle) );
 
 	if( CPathlib::SelectFolder( m_hWnd, (LPSTR)szTitle, (LPSTR)szFolder ) ) {
