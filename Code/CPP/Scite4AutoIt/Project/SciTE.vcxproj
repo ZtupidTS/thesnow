@@ -368,7 +368,9 @@ copy "$(SolutionDir)Properties\*.txt" "$(SolutionDir)Bin\*.properties" /y
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\Scintilla\lexers\LexAVS.cxx" />
     <ClCompile Include="..\Scintilla\lexers\LexCoffeeScript.cxx" />
+    <ClCompile Include="..\Scintilla\lexers\LexTCMD.cxx" />
     <ClCompile Include="..\SciTe\src\Cookie.cxx" />
     <ClCompile Include="..\SciTe\src\Extra.cxx" />
     <ClCompile Include="..\Scintilla\lexlib\Accessor.cxx" />
