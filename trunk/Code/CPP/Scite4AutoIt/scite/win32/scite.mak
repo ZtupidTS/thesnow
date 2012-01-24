@@ -144,7 +144,7 @@ OBJSSTATIC=\
 LEXPROPS=\
 $(PROPFILE)\abaqus.properties $(PROPFILE)\ada.properties \
 $(PROPFILE)\asm.properties $(PROPFILE)\asn1.properties $(PROPFILE)\au3.properties \
-$(PROPFILE)\ave.properties $(PROPFILE)\baan.properties \
+$(PROPFILE)\ave.properties $(PROPFILE)\avs.properties $(PROPFILE)\baan.properties \
 $(PROPFILE)\blitzbasic.properties $(PROPFILE)\bullant.properties \
 $(PROPFILE)\caml.properties $(PROPFILE)\cmake.properties \
 $(PROPFILE)\cobol.properties $(PROPFILE)\conf.properties \

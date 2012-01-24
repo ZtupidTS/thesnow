@@ -1042,7 +1042,6 @@ static LRESULT PASCAL TabWndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM
 			}
 		}
 		break;
-
 	case WM_PAINT: {
 			if (st_bDragBegin == TRUE && st_iDraggingTab != -1) {
 

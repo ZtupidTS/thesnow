@@ -548,6 +548,12 @@
     <ClCompile Include="..\SciTe\src\FileWorker.cxx">
       <Filter>源文件\SciTe</Filter>
     </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexAVS.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexTCMD.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\SciTe\src\Extra.h">
