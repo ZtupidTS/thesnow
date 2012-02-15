@@ -883,7 +883,7 @@ void CControlSocket::ParseCommand()
 			{
 				delete m_transferstatus.socket;
 				m_transferstatus.socket = NULL;
-				Send(_T("421 Can't create socket"));
+				Send(_T("421 Could not create socket, nno usable IP address found."));
 				m_transferstatus.pasv = -1;
 				break;
 			}
@@ -916,7 +916,7 @@ void CControlSocket::ParseCommand()
 			if (retries <= 0) {
 				delete m_transferstatus.socket;
 				m_transferstatus.socket = NULL;
-				Send(_T("421 Can't create socket"));
+				Send(_T("421 Could not create socket."));
 				m_transferstatus.pasv = -1;
 				break;
 			}
@@ -931,7 +931,7 @@ void CControlSocket::ParseCommand()
 			{
 				delete m_transferstatus.socket;
 				m_transferstatus.socket = NULL;
-				Send(_T("421 Can't create socket"));
+				Send(_T("421 Could not create socket, listening failed."));
 				m_transferstatus.pasv = -1;
 				break;
 			}
@@ -955,7 +955,7 @@ void CControlSocket::ParseCommand()
 			{
 				delete m_transferstatus.socket;
 				m_transferstatus.socket = NULL;
-				Send(_T("421 Can't create socket"));
+				Send(_T("421 Could not create socket, unable to query socket for used port."));
 				m_transferstatus.pasv = -1;
 				break;
 			}
@@ -1944,7 +1944,7 @@ void CControlSocket::ParseCommand()
 			if (retries <= 0) {
 				delete m_transferstatus.socket;
 				m_transferstatus.socket=0;
-				Send(_T("421 Can't create socket"));
+				Send(_T("421 Could not create socket."));
 				break;
 			}
 
@@ -1958,7 +1958,7 @@ void CControlSocket::ParseCommand()
 			{
 				delete m_transferstatus.socket;
 				m_transferstatus.socket=0;
-				Send(_T("421 Can't create socket"));
+				Send(_T("421 Could not create socket, listening failed."));
 				m_transferstatus.pasv = -1;
 				break;
 			}
@@ -1977,7 +1977,7 @@ void CControlSocket::ParseCommand()
 			{
 				delete m_transferstatus.socket;
 				m_transferstatus.socket=0;
-				Send(_T("421 Can't create socket"));
+				Send(_T("421 Could not create socket, unable to query socket for used port."));
 				m_transferstatus.pasv = -1;
 			}
 			break;
@@ -3324,7 +3324,7 @@ creation_fallback:
 		if (!pTransferSocket->Create(0, SOCK_STREAM, FD_CONNECT, controlIP, m_transferstatus.family, true))
 		{
 			// Give up
-			Send(_T("421 Can't create socket"));
+			Send(_T("421 Could not create socket."));
 			ResetTransferstatus();
 			return FALSE;
 		}

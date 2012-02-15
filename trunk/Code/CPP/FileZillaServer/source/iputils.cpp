@@ -341,7 +341,7 @@ CStdString GetIPV6LongForm(CStdString short_address)
 			return _T("");
 		*out-- = c;
 	}
-	if (!grouplength)
+	if (!grouplength && stop + 1 < len)
 	{
 		// Empty group length, not valid
 		return _T("");
@@ -522,7 +522,7 @@ CStdString GetIPV6ShortForm(const CStdString& ip)
 	*(out++) = ':';
 	*out = 0;
 
-	// Replace longest run of concesutive zeroes
+	// Replace longest run of consecutive zeroes
 	CStdString shortIp(outbuf);
 
 	CStdString s = _T(":0:0:0:0:0:0:0:0:");
@@ -537,9 +537,10 @@ CStdString GetIPV6ShortForm(const CStdString& ip)
 
 		s = s.Mid(2);
 	}
+	shortIp.Replace(_T(":::"), _T("::"));
 	if (shortIp[0] == ':' && shortIp[1] != ':')
 		shortIp = shortIp.Mid(1);
-	if (shortIp[shortIp.GetLength()-1] == ':' && shortIp[shortIp.GetLength()-2] != ':')
+	if (shortIp.GetLength() >= 2 && shortIp[shortIp.GetLength()-1] == ':' && shortIp[shortIp.GetLength()-2] != ':')
 		shortIp = shortIp.Left(shortIp.GetLength()-1);
 
 	return shortIp;
