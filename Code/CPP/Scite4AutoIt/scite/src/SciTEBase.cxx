@@ -213,9 +213,13 @@ SciTEBase::SciTEBase(Extension *ext) : apis(true), extender(ext) {
 
 	needReadProperties = false;
 	quitting = false;
+
+	timerMask = 0;
+	delayBeforeAutoSave = 0;
 }
 
 SciTEBase::~SciTEBase() {
+	TimerEnd(timerAutoSave);
 	if (extender)
 		extender->Finalise();
 	delete []languageMenu;
@@ -1326,13 +1330,6 @@ void SciTEBase::MakeOutputVisible() {
 	}
 }
 
-void SciTEBase::ClearJobQueue() {
-	for (int ic = 0; ic < jobQueue.commandMax; ic++) {
-		jobQueue.jobQueue[ic].Clear();
-	}
-	jobQueue.commandCurrent = 0;
-}
-
 void SciTEBase::Execute() {
 	props.Set("CurrentMessage", "");
 	dirNameForExecute = FilePath();
@@ -1351,7 +1348,7 @@ void SciTEBase::Execute() {
 	}
 	if (displayParameterDialog) {
 		if (!ParametersDialog(true)) {
-			ClearJobQueue();
+			jobQueue.ClearJobs();
 			return;
 		}
 	} else {
@@ -3026,6 +3023,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 	case IDM_CLOSEALL:
 		CloseAllBuffers();
 		break;
+//----------------------------------------
 	case IDM_OPENDIR:
 		if (!filePath.IsUntitled())
 		{
@@ -3034,7 +3032,8 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 			sfile += filePath.AsInternal();
 			ShellExecute(NULL,L"OPEN",L"Explorer.exe",sfile.c_str(),L"",SW_SHOW);
 		}
-		break;
+		break;		
+//----------------------------------------
 	case IDM_SAVE:
 		Save();
 		WindowSetFocus(wEditor);
@@ -3989,6 +3988,7 @@ void SciTEBase::Notify(SCNotification *notification) {
 		break;
 
 	case SCN_MODIFIED:
+		CurrentBuffer()->DocumentModified();
 		if (notification->modificationType & SC_LASTSTEPINUNDOREDO) {
 			//when the user hits undo or redo, several normal insert/delete
 			//notifications may fire, but we will end up here in the end
@@ -4076,6 +4076,10 @@ void SciTEBase::Notify(SCNotification *notification) {
 	case SCN_ZOOM:
 		SetLineNumberWidth();
 		break;
+
+	case SCN_MODIFYATTEMPTRO:
+		AbandonAutomaticSave();
+		break;
 	}
 }
 
@@ -4089,7 +4093,6 @@ void SciTEBase::CheckMenusClipboard() {
 
 void SciTEBase::CheckMenus() {
 	CheckMenusClipboard();
-	EnableAMenuItem(IDM_SAVE, CurrentBuffer()->isDirty);
 	EnableAMenuItem(IDM_UNDO, CallFocused(SCI_CANUNDO));
 	EnableAMenuItem(IDM_REDO, CallFocused(SCI_CANREDO));
 	EnableAMenuItem(IDM_DUPLICATE, !isReadOnly);
@@ -4203,6 +4206,30 @@ void SciTEBase::MoveSplit(GUI::Point ptNewDrag) {
 	}
 
 	previousHeightOutput = newHeightOutput;
+}
+
+void SciTEBase::TimerStart(int /* mask */) {
+}
+
+void SciTEBase::TimerEnd(int /* mask */) {
+}
+
+void SciTEBase::OnTimer() {
+	if (delayBeforeAutoSave) {
+		// First save the visible buffer to avoid any switching if not needed
+		if (CurrentBuffer()->NeedsSave(delayBeforeAutoSave)) {
+			Save(sfNone);
+		}
+		// Then look through the other buffers to save any that need to be saved
+		int currentBuffer = buffers.Current();
+		for (int i = 0; i < buffers.length; i++) {
+			if (buffers.buffers[i].NeedsSave(delayBeforeAutoSave)) {
+				SetDocumentAt(i);
+				Save(sfNone);
+			}
+		}
+		SetDocumentAt(currentBuffer);
+	}
 }
 
 void SciTEBase::UIAvailable() {

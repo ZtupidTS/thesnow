@@ -1405,6 +1405,14 @@ void SciTEBase::ReadProperties() {
 			}
 		}
 	}
+
+	delayBeforeAutoSave = props.GetInt("save.on.timer");
+	if (delayBeforeAutoSave) {
+		TimerStart(timerAutoSave);
+	} else {
+		TimerEnd(timerAutoSave);
+	}
+
 	firstPropertiesRead = false;
 	needReadProperties = false;
 }

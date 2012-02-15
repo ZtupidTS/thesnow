@@ -11,7 +11,7 @@
 // Version numbers and dates
 #define VERSION_SCITE "3.0.3"
 #define VERSION_WORDS 3, 0, 3, 0
-#define COPYRIGHT_DATES "December 1998-January 2012"
+#define COPYRIGHT_DATES L"1998年十二月 - 2012年二月"
 #define COPYRIGHT_YEARS L"1998-2012"
 // 菜单 ID.
 // These are located 100 apart. No one will want more than 100 in each menu ;)

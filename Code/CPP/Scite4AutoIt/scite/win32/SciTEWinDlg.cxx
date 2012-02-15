@@ -235,7 +235,7 @@ bool SciTEWin::OpenDialog(FilePath directory, const GUI::gui_char *filter) {
 	ofn.lpstrCustomFilter = openWhat;
 	ofn.nMaxCustFilter = ELEMENTS(openWhat);
 	ofn.nFilterIndex = filterDefault;
-//	GUI::gui_string translatedTitle = localiser.Text("打开文件");	//mod
+//	GUI::gui_string translatedTitle = localiser.Text("Open File");
 //	ofn.lpstrTitle = translatedTitle.c_str();
 	ofn.lpstrTitle =L"打开文件";
 	if (props.GetInt("open.dialog.in.file.directory")) {
@@ -343,7 +343,7 @@ bool SciTEWin::SaveAsDialog() {
 void SciTEWin::SaveACopy() {
 	FilePath path = ChooseSaveName(filePath.Directory(), L"文件另存为");
 	if (path.IsSet()) {
-		SaveBuffer(path, true);
+		SaveBuffer(path, sfNone);
 	}
 }
 
@@ -397,7 +397,7 @@ void SciTEWin::LoadSessionDialog() {
 	ofn.lpstrFile = openName;
 	ofn.nMaxFile = ELEMENTS(openName);
 	ofn.lpstrFilter = GUI_TEXT("会话列表 (.session)\0*.session\0");
-//	GUI::gui_string translatedTitle = localiser.Text("载入会话");	//mod
+//	GUI::gui_string translatedTitle = localiser.Text("Load Session");	//mod
 //	ofn.lpstrTitle = translatedTitle.c_str();
 	ofn.lpstrTitle = L"载入会话";
 	ofn.Flags = OFN_HIDEREADONLY | OFN_NOCHANGEDIR;
@@ -1287,7 +1287,7 @@ BOOL SciTEWin::GrepMessage(HWND hDlg, UINT message, WPARAM wParam) {
 				memset(&info, 0, sizeof(info));
 				info.hwndOwner = hDlg;
 				info.pidlRoot = NULL;
-				TCHAR szDisplayName[MAX_PATH];
+				TCHAR szDisplayName[MAX_PATH] = TEXT("");
 				info.pszDisplayName = szDisplayName;
 				info.lpszTitle = TEXT("您要搜索哪一个目录?");
 				info.ulFlags = 0;
@@ -1326,9 +1326,14 @@ BOOL CALLBACK SciTEWin::GrepDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM l
 }
 
 void SciTEWin::FindInFiles() {
-	if (wFindInFiles.Created())
-		return;
 	SelectionIntoFind();
+	if (wFindInFiles.Created()) {
+		HWND hDlg = reinterpret_cast<HWND>(wFindInFiles.GetID());
+		Dialog dlg(hDlg);
+		dlg.SetItemTextU(IDFINDWHAT, findWhat);
+		::SetFocus(hDlg);
+		return;
+	}
 	props.Set("find.what", findWhat.c_str());
 	FilePath findInDir = filePath.Directory();
 	props.Set("find.directory", findInDir.AsUTF8().c_str());
