@@ -728,7 +728,7 @@ void SciTEWin::ResetExecution() {
 		ReadProperties();
 	CheckReload();
 	CheckMenus();
-	ClearJobQueue();
+	jobQueue.ClearJobs();
 	::SendMessage(MainHWND(), WM_COMMAND, IDM_FINISHEDEXECUTE, 0);
 }
 
@@ -1179,6 +1179,9 @@ void SciTEWin::Execute() {
 		return;
 
 	SciTEBase::Execute();
+	if (cmdWorker.icmd >= jobQueue.commandCurrent)
+		// No commands to execute - possibly cancelled in SciTEBase::Execute
+		return;
 
 	cmdWorker.Initialise(false);
 	cmdWorker.outputScroll = props.GetInt("output.scroll", 1);
@@ -1286,21 +1289,31 @@ void SciTEWin::WorkerCommand(int cmd, Worker *pWorker) {
 
 /*! removed ↓
 void SciTEWin::QuitProgram() {
+	quitting = false;
 	if (SaveIfUnsureAll() != IDCANCEL) {
 		if (fullScreen)	// Ensure tray visible on exit
 			FullScreenToggle();
-		::PostQuitMessage(0);
-		wSciTE.Destroy();
+		quitting = true;
+		// If ongoing saves, wait for them to complete.
+		if (!buffers.SavingInBackground()) {
+			::PostQuitMessage(0);
+			wSciTE.Destroy();
+		}
 	}
-}
+}	
 */
 
 // added AnimateWindow ↓
 void SciTEWin::QuitProgram() {
+	quitting = false;
 	int NoAnimateWindow = props.GetInt("Exit.NoAnimateWindow",0);
 	if (SaveIfUnsureAll() != IDCANCEL) {
 		if (fullScreen)	// Ensure tray visible on exit
 			FullScreenToggle();
+				quitting = true;
+		// If ongoing saves, wait for them to complete.
+		if (!buffers.SavingInBackground()) {
+		
 		::PostQuitMessage(0);
 		//如果NoAnimateWindow为非0并且未在远程桌面下就显示淡出效果
 		if (NoAnimateWindow == 0 && GetSystemMetrics(SM_REMOTESESSION)==0) {
@@ -1309,6 +1322,7 @@ void SciTEWin::QuitProgram() {
 		else
 			{
 			wSciTE.Destroy();
+		}
 		};
 	}
 }
@@ -2002,6 +2016,10 @@ LRESULT SciTEWin::WndProc(UINT iMessage, WPARAM wParam, LPARAM lParam) {
 				else
 					::SetFocus(wFocus);
 			}
+			break;
+
+		case WM_TIMER:
+			OnTimer();
 			break;
 
 		case WM_DROPFILES:

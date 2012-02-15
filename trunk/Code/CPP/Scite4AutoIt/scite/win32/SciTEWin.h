@@ -13,10 +13,6 @@
 #include <stdarg.h>
 #include <sys/stat.h>
 
-#ifdef _MSC_VER
-#pragma warning(disable: 4786)
-#endif
-
 #include <string>
 #include <vector>
 #include <deque>
@@ -398,6 +394,9 @@ protected:
 	virtual void GetWindowPosition(int *left, int *top, int *width, int *height, int *maximize);
 
 	virtual void ReadProperties();
+
+	virtual void TimerStart(int mask);
+	virtual void TimerEnd(int mask);
 
 	virtual void SizeContentWindows();
 	virtual void SizeSubWindows();
