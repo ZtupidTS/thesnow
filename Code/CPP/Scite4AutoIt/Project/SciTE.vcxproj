@@ -370,6 +370,7 @@ copy "$(SolutionDir)Properties\*.txt" "$(SolutionDir)Bin\*.properties" /y
   <ItemGroup>
     <ClCompile Include="..\Scintilla\lexers\LexAVS.cxx" />
     <ClCompile Include="..\Scintilla\lexers\LexCoffeeScript.cxx" />
+    <ClCompile Include="..\Scintilla\lexers\LexECL.cxx" />
     <ClCompile Include="..\Scintilla\lexers\LexTCMD.cxx" />
     <ClCompile Include="..\SciTe\src\Cookie.cxx" />
     <ClCompile Include="..\SciTe\src\Extra.cxx" />
@@ -503,6 +504,7 @@ copy "$(SolutionDir)Properties\*.txt" "$(SolutionDir)Bin\*.properties" /y
     <ClCompile Include="..\scite\lua\src\ltable.c" />
     <ClCompile Include="..\scite\lua\src\ltm.c" />
     <ClCompile Include="..\SciTe\src\FileWorker.cxx" />
+    <ClCompile Include="..\SciTe\src\JobQueue.cxx" />
     <ClCompile Include="..\SciTe\src\LuaExtension.cxx" />
     <ClCompile Include="..\scite\lua\src\lundump.c" />
     <ClCompile Include="..\scite\lua\src\lvm.c" />
@@ -544,6 +546,7 @@ copy "$(SolutionDir)Properties\*.txt" "$(SolutionDir)Bin\*.properties" /y
     <ClInclude Include="..\SciTe\src\Cookie.h" />
     <ClInclude Include="..\SciTe\src\Extra.h" />
     <ClInclude Include="..\SciTe\src\FileWorker.h" />
+    <ClInclude Include="..\SciTe\src\JobQueue.h" />
     <ClInclude Include="..\SciTe\src\LuaExtension.h" />
     <ClInclude Include="..\Scintilla\src\AutoComplete.h" />
     <ClInclude Include="..\Scintilla\src\CallTip.h" />

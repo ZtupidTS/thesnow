@@ -678,6 +678,10 @@ protected:
 	int GetMenuCommandAsInt(SString commandName);
 	virtual void Print(bool) {}
 	virtual void PrintSetup() {}
+	virtual void UserStripShow(const char * /* description */) {}
+	virtual void UserStripSet(int /* control */, const char * /* value */) {}
+	virtual void UserStripSetList(int /* control */, const char * /* value */) {}
+	virtual const char *UserStripValue(int /* control */) { return 0; }
 	virtual void ShowBackgroundProgress(const GUI::gui_string & /* explanation */, int /* size */, int /* progress */) {}
 	Sci_CharacterRange GetSelection();
 	SelectedRange GetSelectedRange();
@@ -970,6 +974,7 @@ private:
 
 int ControlIDOfCommand(unsigned long);
 void LowerCaseString(char *s);
+std::vector<GUI::gui_string> ListFromString(const GUI::gui_string &args);
 long ColourOfProperty(PropSetFile &props, const char *key, Colour colourDefault);
 void WindowSetFocus(GUI::ScintillaWindow &w);
 

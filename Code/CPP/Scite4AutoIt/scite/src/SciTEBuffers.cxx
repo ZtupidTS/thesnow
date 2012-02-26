@@ -1235,6 +1235,7 @@ bool SciTEBase::AddFileToBuffer(const BufferState &bufferState) {
 			}
 		}
 	}
+	CheckMenus();
 	return opened;
 }
 
