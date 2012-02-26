@@ -68,7 +68,7 @@ static void DrawMinus(Surface *surface, int centreX, int centreY, int armSize, C
 	surface->FillRectangle(rcH, fore);
 }
 
-void LineMarker::Draw(Surface *surface, PRectangle &rcWhole, Font &fontForCharacter, typeOfFold tFold) {
+void LineMarker::Draw(Surface *surface, PRectangle &rcWhole, Font &fontForCharacter, typeOfFold tFold, int marginStyle) {
 	ColourDesired head = back;
 	ColourDesired body = back;
 	ColourDesired tail = back;
@@ -92,7 +92,6 @@ void LineMarker::Draw(Surface *surface, PRectangle &rcWhole, Font &fontForCharac
 		break;
 	}
 
-
 	if ((markType == SC_MARK_PIXMAP) && (pxpm)) {
 		pxpm->Draw(surface, rcWhole);
 		return;
@@ -113,8 +112,8 @@ void LineMarker::Draw(Surface *surface, PRectangle &rcWhole, Font &fontForCharac
 	int dimOn4 = minDim / 4;
 	int blobSize = dimOn2-1;
 	int armSize = dimOn2-2;
-	if (rc.Width() > (rc.Height() * 2)) {
-		// Wide column is line number so move to left to try to avoid overlapping number
+	if (marginStyle == SC_MARGIN_NUMBER || marginStyle == SC_MARGIN_TEXT || marginStyle == SC_MARGIN_RTEXT) {
+		// On textual margins move marker to the left to try to avoid overlapping the text
 		centreX = rc.left + dimOn2 + 1;
 	}
 	if (markType == SC_MARK_ROUNDRECT) {
@@ -195,17 +194,17 @@ void LineMarker::Draw(Surface *surface, PRectangle &rcWhole, Font &fontForCharac
 	} else if (markType == SC_MARK_LCORNER) {
 		surface->PenColour(tail);
 		surface->MoveTo(centreX, rcWhole.top);
-		surface->LineTo(centreX, rc.top + dimOn2);
-		surface->LineTo(rc.right - 2, rc.top + dimOn2);
+		surface->LineTo(centreX, centreY);
+		surface->LineTo(rc.right - 1, centreY);
 
 	} else if (markType == SC_MARK_TCORNER) {
 		surface->PenColour(tail);
-		surface->MoveTo(centreX, rc.top + dimOn2);
-		surface->LineTo(rc.right - 2, rc.top + dimOn2);
+		surface->MoveTo(centreX, centreY);
+		surface->LineTo(rc.right - 1, centreY);
 
 		surface->PenColour(body);
 		surface->MoveTo(centreX, rcWhole.top);
-		surface->LineTo(centreX, rc.top + dimOn2 + 1);
+		surface->LineTo(centreX, centreY + 1);
 
 		surface->PenColour(head);
 		surface->LineTo(centreX, rcWhole.bottom);
@@ -213,19 +212,19 @@ void LineMarker::Draw(Surface *surface, PRectangle &rcWhole, Font &fontForCharac
 	} else if (markType == SC_MARK_LCORNERCURVE) {
 		surface->PenColour(tail);
 		surface->MoveTo(centreX, rcWhole.top);
-		surface->LineTo(centreX, rc.top + dimOn2-3);
-		surface->LineTo(centreX+3, rc.top + dimOn2);
-		surface->LineTo(rc.right - 1, rc.top + dimOn2);
+		surface->LineTo(centreX, centreY-3);
+		surface->LineTo(centreX+3, centreY);
+		surface->LineTo(rc.right - 1, centreY);
 
 	} else if (markType == SC_MARK_TCORNERCURVE) {
 		surface->PenColour(tail);
-		surface->MoveTo(centreX, rc.top + dimOn2-3);
-		surface->LineTo(centreX+3, rc.top + dimOn2);
-		surface->LineTo(rc.right - 1, rc.top + dimOn2);
+		surface->MoveTo(centreX, centreY-3);
+		surface->LineTo(centreX+3, centreY);
+		surface->LineTo(rc.right - 1, centreY);
 
 		surface->PenColour(body);
 		surface->MoveTo(centreX, rcWhole.top);
-		surface->LineTo(centreX, rc.top + dimOn2-2);
+		surface->LineTo(centreX, centreY-2);
 
 		surface->PenColour(head);
 		surface->LineTo(centreX, rcWhole.bottom);
