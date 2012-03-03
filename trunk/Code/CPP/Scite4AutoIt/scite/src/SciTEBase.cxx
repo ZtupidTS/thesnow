@@ -173,8 +173,8 @@ SciTEBase::SciTEBase(Extension *ext) : apis(true), extender(ext) {
 
 	indentationWSVisible = true;
 	indentExamine = SC_IV_LOOKBOTH;
-
 	autoCompleteIgnoreCase = false;
+	callTipUseEscapes = false;
 	callTipIgnoreCase = false;
 	autoCCausedByOnlyOne = false;
 	startCalltipWord = 0;
@@ -978,6 +978,7 @@ int SciTEBase::MarkAll() {
 		CurrentBuffer()->findMarks = Buffer::fmMarked;
 	}
 	if (posFirstFound != -1) {
+		int posEndFound;
 		int posFound = posFirstFound;
 		do {
 			marked++;
@@ -987,7 +988,9 @@ int SciTEBase::MarkAll() {
 				wEditor.Call(SCI_INDICATORFILLRANGE, posFound, wEditor.Call(SCI_GETTARGETEND) - posFound);
 			}
 			posFound = FindNext(false, false);
-		} while ((posFound != -1) && (posFound != posFirstFound));
+			posEndFound = wEditor.Call(SCI_GETTARGETEND);
+			// Since start position may be within a match, terminate when match includes initial position
+		} while ((posFound != -1) && !((posFound <= posFirstFound) && (posFirstFound <= posEndFound)));
 	}
 	wEditor.Call(SCI_SETCURRENTPOS, posCurrent);
 	return marked;
@@ -1515,7 +1518,18 @@ void SciTEBase::FillFunctionDefinition(int pos /*= -1*/) {
 			} else if (maxCallTips > 1) {
 				functionDefinition.insert(1, "\002");
 			}
-			wEditor.CallString(SCI_CALLTIPSHOW, lastPosCallTip - currentCallTipWord.length(), functionDefinition.c_str());
+
+			SString definitionForDisplay;
+			if (callTipUseEscapes) {
+				char *sUnslashed = StringDup(functionDefinition.c_str());
+				UnSlash(sUnslashed);
+				definitionForDisplay = sUnslashed;
+				delete []sUnslashed;
+			} else {
+				definitionForDisplay = functionDefinition;
+			}
+
+			wEditor.CallString(SCI_CALLTIPSHOW, lastPosCallTip - currentCallTipWord.length(), definitionForDisplay.c_str());
 			ContinueCallTip();
 		}
 	}
@@ -1599,10 +1613,21 @@ void SciTEBase::ContinueCallTip() {
 	int endHighlight = startHighlight;
 	while (functionDefinition[endHighlight] && !calltipParametersSeparators.contains(functionDefinition[endHighlight]) && !calltipParametersEnd.contains(functionDefinition[endHighlight]))
 		endHighlight++;
+	if (callTipUseEscapes) {
+		char *sUnslashed = StringDup(functionDefinition.substr(0, startHighlight + 1).c_str());
+		int unslashedStartHighlight = UnSlash(sUnslashed) - 1;
+		delete []sUnslashed;
+
+		sUnslashed = StringDup(functionDefinition.substr(startHighlight, endHighlight - startHighlight + 1).c_str());
+		int unslashedEndHighlight = unslashedStartHighlight + UnSlash(sUnslashed) - 1;
+		delete []sUnslashed;
+
+		startHighlight = unslashedStartHighlight;
+		endHighlight = unslashedEndHighlight;
+	}
 
 	wEditor.Call(SCI_CALLTIPSETHLT, startHighlight, endHighlight);
 }
-
 void SciTEBase::EliminateDuplicateWords(char *words) {
 	char *firstWord = words;
 	char *firstSpace = strchr(firstWord, ' ');
@@ -2809,6 +2834,11 @@ bool SciTEBase::HandleXml(char ch) {
 		return false;
 	}
 
+	if (sel[nCaret - nMin - 2] == '-') {
+		// User typed something like "<a $this->"
+		return false;
+	}
+
 	SString strFound = FindOpenXmlTag(sel, nCaret - nMin);
 
 	if (strFound.length() > 0) {
@@ -2843,7 +2873,9 @@ SString SciTEBase::FindOpenXmlTag(const char sel[], int nSize) {
 		if (*pCur == '<') {
 			break;
 		} else if (*pCur == '>') {
-			break;
+			if (*(pCur - 1) != '-') {
+				break;
+			}
 		}
 		--pCur;
 	}
