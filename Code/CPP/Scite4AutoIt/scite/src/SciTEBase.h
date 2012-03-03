@@ -478,8 +478,8 @@ protected:
 
 	bool indentationWSVisible;
 	int indentExamine;
-
 	bool autoCompleteIgnoreCase;
+	bool callTipUseEscapes;
 	bool callTipIgnoreCase;
 	bool autoCCausedByOnlyOne;
 	SString calltipWordCharacters;
