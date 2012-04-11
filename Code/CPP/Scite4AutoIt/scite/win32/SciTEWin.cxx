@@ -640,10 +640,7 @@ void SciTEWin::Command(WPARAM wParam, LPARAM lParam) {
 			if (needReadProperties)
 				ReadProperties();
 			CheckMenus();
-			for (int icmd = 0; icmd < jobQueue.commandMax; icmd++) {
-				jobQueue.jobQueue[icmd].Clear();
-			}
-			jobQueue.commandCurrent = 0;
+			jobQueue.ClearJobs();
 			CheckReload();
 		}
 		break;
@@ -1179,7 +1176,7 @@ void SciTEWin::Execute() {
 		return;
 
 	SciTEBase::Execute();
-	if (cmdWorker.icmd >= jobQueue.commandCurrent)
+	if (!jobQueue.HasCommandToRun())
 		// No commands to execute - possibly cancelled in SciTEBase::Execute
 		return;
 
@@ -3619,12 +3616,14 @@ bool UserStrip::KeyDown(WPARAM key) {
 	if (Strip::KeyDown(key))
 		return true;
 	if (key == VK_RETURN) {
-		// Treat Enter as pressing the first button
-		for (std::vector<std::vector<UserControl> >::iterator line=psd->controls.begin(); line != psd->controls.end(); ++line) {
-			for (std::vector<UserControl>::iterator ctl=line->begin(); ctl != line->end(); ++ctl) {
-				if (ctl->controlType == UserControl::ucButton) {
-					extender->OnUserStrip(ctl->item, scClicked);
-					return true;
+		if (IsChild(Hwnd(), ::GetFocus())) {
+			// Treat Enter as pressing the first default button
+			for (std::vector<std::vector<UserControl> >::iterator line=psd->controls.begin(); line != psd->controls.end(); ++line) {
+				for (std::vector<UserControl>::iterator ctl=line->begin(); ctl != line->end(); ++ctl) {
+					if (ctl->controlType == UserControl::ucDefaultButton) {
+						extender->OnUserStrip(ctl->item, scClicked);
+						return true;
+					}
 				}
 			}
 		}
@@ -3681,6 +3680,7 @@ int UserStrip::Lines() {
 void UserStrip::SetDescription(const char *description) {
 	entered++;
 	GUI::gui_string sDescription = GUI::StringFromUTF8(description);
+	bool resetting = psd != 0;
 	if (psd) {
 		for (std::vector<std::vector<UserControl> >::iterator line=psd->controls.begin(); line != psd->controls.end(); ++line) {
 			for (std::vector<UserControl>::iterator ctl=line->begin(); ctl != line->end(); ++ctl) {
@@ -3715,11 +3715,13 @@ void UserStrip::SetDescription(const char *description) {
 				break;
 
 			case UserControl::ucButton:
+			case UserControl::ucDefaultButton:
 				puc->widthDesired = WidthText(fontText, puc->text.c_str()) + 
 					2 * ::GetSystemMetrics(SM_CXEDGE) +
 					2 * WidthText(fontText, TEXT(" "));
 				puc->w = ::CreateWindowEx(0, TEXT("Button"), puc->text.c_str(),
-					WS_CHILD | WS_TABSTOP | WS_CLIPSIBLINGS | BS_PUSHBUTTON,
+					WS_CHILD | WS_TABSTOP | WS_CLIPSIBLINGS | 
+					((puc->controlType == UserControl::ucDefaultButton) ? BS_DEFPUSHBUTTON : BS_PUSHBUTTON),
 					60 * control, line * lineHeight + 2, puc->widthDesired, 25,
 					Hwnd(), reinterpret_cast<HMENU>(controlID), ::GetModuleHandle(NULL), 0);
 				break;
@@ -3737,6 +3739,8 @@ void UserStrip::SetDescription(const char *description) {
 			controlID++;
 		}
 	}
+	if (resetting)
+		Size();
 	entered--;
 	Focus();
 }
@@ -3756,10 +3760,8 @@ UserControl *UserStrip::FindControl(int control) {
 void UserStrip::Set(int control, const char *value) {
 	UserControl *ctl = FindControl(control);
 	if (ctl) {
-		if (ctl->controlType == UserControl::ucEdit) {
-			GUI::gui_string sValue = GUI::StringFromUTF8(value);
-			::SetWindowTextW(HwndOf(ctl->w), sValue.c_str());
-		}
+		GUI::gui_string sValue = GUI::StringFromUTF8(value);
+		::SetWindowTextW(HwndOf(ctl->w), sValue.c_str());
 	}
 }
 
