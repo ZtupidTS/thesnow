@@ -37,6 +37,7 @@
 #define IDM_SAVEACOPY		116
 #define IDM_SAVEASXML		117
 #define IDM_COPYPATH		118
+#define IDM_ALLOWACCESS		119
 #define IDM_MRU_SEP			120
 #define IDM_MRU_SUB			121
 #define IDM_PRINTSETUP		130
@@ -205,6 +206,7 @@
 #define IDM_ABOUT			902
 #define IDM_HELP_SCITE		903
 #define IDM_DONATE			904		//汉化添加-----捐助的ID
+
 // Windows 特殊窗口选项
 #define IDM_ONTOP			960
 #define IDM_FULLSCREEN		961

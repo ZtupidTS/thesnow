@@ -1860,7 +1860,7 @@ void SciTEGTK::Print(bool) {
 	if (printCommand.length()) {
 		// Using a command to print
 		AddCommand(printCommand, "", SubsystemType("command.print.subsystem."));
-		if (jobQueue.commandCurrent > 0) {
+		if (jobQueue.HasCommandToRun()) {
 			jobQueue.isBuilding = true;
 			Execute();
 		}
@@ -2133,7 +2133,7 @@ void SciTEGTK::FindInFilesCmd() {
 		//~ fprintf(stderr, "%s\n", findCommand.c_str());
 	}
 	AddCommand(findCommand, props.Get("find.directory"), jobCLI);
-	if (jobQueue.commandCurrent > 0)
+	if (jobQueue.HasCommandToRun())
 		Execute();
 }
 
@@ -4429,6 +4429,7 @@ void UserStrip::Creation(GtkWidget *container) {
 	gtk_container_set_border_width(GTK_CONTAINER(GetID()), 1);
 	tableUser.PackInto(GTK_BOX(container), false);
 	g_signal_connect(G_OBJECT(GetID()), "set-focus-child", G_CALLBACK(ChildFocusSignal), this);
+	g_signal_connect(G_OBJECT(GetID()), "focus", G_CALLBACK(FocusSignal), this);
 }
 
 void UserStrip::Destruction() {
@@ -4445,7 +4446,7 @@ void UserStrip::Show(int buttonHeight) {
 			} else if (ctl->controlType == UserControl::ucCombo) {
 				GtkEntry *entry = GTK_ENTRY(gtk_bin_get_child(GTK_BIN(ctl->w.GetID())));
 				gtk_widget_set_size_request(GTK_WIDGET(entry), -1, buttonHeight);
-			} else if (ctl->controlType == UserControl::ucButton) {
+			} else if (ctl->controlType == UserControl::ucButton || ctl->controlType == UserControl::ucDefaultButton) {
 				gtk_widget_set_size_request(GTK_WIDGET(ctl->w.GetID()), -1, buttonHeight);
 			}
 		}
@@ -4469,10 +4470,10 @@ bool UserStrip::KeyDown(GdkEventKey *event) {
 }
 
 void UserStrip::ActivateSignal(GtkWidget *, UserStrip *pStrip) {
-	// Treat Enter as pressing the first button
+	// Treat Enter as pressing the first default button
 	for (std::vector<std::vector<UserControl> >::iterator line=pStrip->psd->controls.begin(); line != pStrip->psd->controls.end(); ++line) {
 		for (std::vector<UserControl>::iterator ctl=line->begin(); ctl != line->end(); ++ctl) {
-			if (ctl->controlType == UserControl::ucButton) {
+			if (ctl->controlType == UserControl::ucDefaultButton) {
 				pStrip->extender->OnUserStrip(ctl->item, scClicked);
 				return;
 			}
@@ -4506,8 +4507,37 @@ void UserStrip::ChildFocus(GtkWidget *widget) {
 	Strip::ChildFocus(widget);
 }
 
-gboolean UserStrip::Focus(GtkDirectionType /* direction */) {
-	// Can be used to loop focus around from last widget to first
+static bool WidgetHasFocus(UserControl *ctl) {
+	if (!ctl) {
+		return false;
+	} else if (ctl->controlType == UserControl::ucCombo) {
+		WComboBoxEntry *pwc = static_cast<WComboBoxEntry *>(&(ctl->w));
+		return pwc->HasFocusOnSelfOrChild();
+	} else {
+		return ctl->w.HasFocus();
+	}
+}
+
+gboolean UserStrip::Focus(GtkDirectionType direction) {
+	UserControl *ctlFirstFocus = 0;
+	UserControl *ctlLastFocus = 0;
+	for (std::vector<std::vector<UserControl> >::iterator line=psd->controls.begin(); line != psd->controls.end(); ++line) {
+		for (std::vector<UserControl>::iterator ctl=line->begin(); ctl != line->end(); ++ctl) {
+			if (ctl->controlType != UserControl::ucStatic) {
+				// Widget can have focus
+				ctlLastFocus = &*ctl;
+				if (!ctlFirstFocus)
+					ctlFirstFocus = ctlLastFocus;
+			}
+		}
+	}
+	if ((direction == GTK_DIR_TAB_BACKWARD) && WidgetHasFocus(ctlFirstFocus)) {
+		gtk_widget_grab_focus(GTK_WIDGET(ctlLastFocus->w.GetID()));
+		return TRUE;
+	} else if ((direction == GTK_DIR_TAB_FORWARD) && WidgetHasFocus(ctlLastFocus)) {
+		gtk_widget_grab_focus(GTK_WIDGET(ctlFirstFocus->w.GetID()));
+		return TRUE;
+	}
 	return FALSE;
 }
 
@@ -4523,13 +4553,12 @@ void UserStrip::SetDescription(const char *description) {
 	psd = new StripDefinition(description);
 	tableUser.Resize(psd->controls.size(), psd->columns);
 
-	int item = 0;
 	bool hasSetFocus = false;
+	GtkWidget *pwWithAccelerator = 0;
 	for (size_t line=0; line<psd->controls.size(); line++) {
 		std::vector<UserControl> &uc = psd->controls[line];
 		for (size_t control=0; control<uc.size(); control++) {
 			UserControl *puc = &(uc[control]);
-			puc->item = item;
 			SString sCaption = GtkFromWinCaption(puc->text.c_str());
 			switch (puc->controlType) {
 			case UserControl::ucEdit: {
@@ -4547,11 +4576,15 @@ void UserStrip::SetDescription(const char *description) {
 					tableUser.Add(wc, 1, true, 0, 0);
 					break;
 				}
-			case UserControl::ucButton: {
+			case UserControl::ucButton:
+			case UserControl::ucDefaultButton: {
 					WButton wb;
 					wb.Create(sCaption.c_str(), reinterpret_cast<GCallback>(UserStrip::ClickSignal), this);
 					puc->w.SetID(wb.GetID());
 					tableUser.Add(wb, 1, false, 0, 0);
+					if (puc->controlType == UserControl::ucDefaultButton) {
+						gtk_widget_grab_default(GTK_WIDGET(puc->w.GetID()));
+					}
 					break;
 				}
 			default: {
@@ -4560,6 +4593,8 @@ void UserStrip::SetDescription(const char *description) {
 					puc->w.SetID(ws.GetID());
 					gtk_misc_set_alignment(GTK_MISC(puc->w.GetID()), 1.0, 0.5);
 					tableUser.Add(ws, 1, false, 5, 0);
+					if (ws.HasMnemonic())
+						pwWithAccelerator = GTK_WIDGET(puc->w.GetID());
 				}
 			}
 			gtk_widget_show(GTK_WIDGET(puc->w.GetID()));
@@ -4567,7 +4602,10 @@ void UserStrip::SetDescription(const char *description) {
 				gtk_widget_grab_focus(GTK_WIDGET(puc->w.GetID()));
 				hasSetFocus = true;
 			}
-			item++;
+			if (pwWithAccelerator && (puc->controlType != UserControl::ucStatic)) {
+				gtk_label_set_mnemonic_widget(GTK_LABEL(pwWithAccelerator), GTK_WIDGET(puc->w.GetID()));
+				pwWithAccelerator = 0;
+			}
 		}
 		tableUser.NextLine() ;
 	}

@@ -1,4 +1,4 @@
-﻿// Scintilla source code edit control
+// Scintilla source code edit control
 /** @file Editor.cxx
  ** Main code for the edit control.
  **/
@@ -213,7 +213,6 @@ Editor::Editor() {
 	wrapVisualFlagsLocation = 0;
 	wrapVisualStartIndent = 0;
 	wrapIndentMode = SC_WRAPINDENT_FIXED;
-	wrapAddIndent = 0;
 
 	convertPastes = true;
 
@@ -296,15 +295,6 @@ void Editor::RefreshStyleData() {
 		AutoSurface surface(this);
 		if (surface) {
 			vs.Refresh(*surface);
-		}
-		if (wrapIndentMode == SC_WRAPINDENT_INDENT) {
-			wrapAddIndent = pdoc->IndentSize() * vs.spaceWidth;
-		} else if (wrapIndentMode == SC_WRAPINDENT_SAME) {
-			wrapAddIndent = 0;
-		} else { //SC_WRAPINDENT_FIXED
-			wrapAddIndent = wrapVisualStartIndent * vs.aveCharWidth;
-			if ((wrapVisualFlags & SC_WRAPVISUALFLAG_START) && (wrapAddIndent <= 0))
-				wrapAddIndent = vs.aveCharWidth; // must indent to show start visual
 		}
 		SetScrollBars();
 		SetRectangularRange();
@@ -1040,6 +1030,12 @@ void Editor::VerticalCentreCaret() {
 	}
 }
 
+// Avoid 64 bit compiler warnings.
+// Scintilla does not support text buffers larger than 2**31
+static int istrlen(const char *s) {
+	return static_cast<int>(strlen(s));
+}
+
 void Editor::MoveSelectedLines(int lineDelta) {
 
 	// if selection doesn't start at the beginning of the line, set the new start
@@ -1053,9 +1049,11 @@ void Editor::MoveSelectedLines(int lineDelta) {
 	int selectionEnd = SelectionEnd().Position();
 	int endLine = pdoc->LineFromPosition(selectionEnd);
 	int beginningOfEndLine = pdoc->LineStart(endLine);
+	bool appendEol = false;
 	if (selectionEnd > beginningOfEndLine
 		|| selectionStart == selectionEnd) {
 		selectionEnd = pdoc->LineStart(endLine + 1);
+		appendEol = (selectionEnd == pdoc->Length() && pdoc->LineFromPosition(selectionEnd) == endLine);
 	}
 
 	// if there's nowhere for the selection to move
@@ -1069,19 +1067,34 @@ void Editor::MoveSelectedLines(int lineDelta) {
 
 	UndoGroup ug(pdoc);
 
+	if (lineDelta > 0 && selectionEnd == pdoc->LineStart(pdoc->LinesTotal() - 1)) {
+		SetSelection(pdoc->MovePositionOutsideChar(selectionEnd - 1, -1), selectionEnd);
+		ClearSelection();
+		selectionEnd = CurrentPosition();
+	}
 	SetSelection(selectionStart, selectionEnd);
 
 	SelectionText selectedText;
 	CopySelectionRange(&selectedText);
 
 	int selectionLength = SelectionRange(selectionStart, selectionEnd).Length();
-	ClearSelection();
-
 	Point currentLocation = LocationFromPosition(CurrentPosition());
 	int currentLine = LineFromLocation(currentLocation);
+
+	if (appendEol)
+		SetSelection(pdoc->MovePositionOutsideChar(selectionStart - 1, -1), selectionEnd);
+	ClearSelection();
+
+	const char *eol = StringFromEOLMode(pdoc->eolMode);
+	if (currentLine + lineDelta >= pdoc->LinesTotal())
+		pdoc->InsertCString(pdoc->Length(), eol);
 	GoToLine(currentLine + lineDelta);
 
 	pdoc->InsertCString(CurrentPosition(), selectedText.s);
+	if (appendEol) {
+		pdoc->InsertCString(CurrentPosition() + selectionLength, eol);
+		selectionLength += istrlen(eol);
+	}
 	SetSelection(CurrentPosition(), CurrentPosition() + selectionLength);
 }
 
@@ -1644,12 +1657,6 @@ int Editor::SubstituteMarkerIfEmpty(int markerCheck, int markerDefault) {
 	if (vs.markers[markerCheck].markType == SC_MARK_EMPTY)
 		return markerDefault;
 	return markerCheck;
-}
-
-// Avoid 64 bit compiler warnings.
-// Scintilla does not support text buffers larger than 2**31
-static int istrlen(const char *s) {
-	return static_cast<int>(strlen(s));
 }
 
 bool ValidStyledText(ViewStyle &vs, size_t styleOffset, const StyledText &st) {
@@ -2328,6 +2335,12 @@ void Editor::LayoutLine(int line, Surface *surface, ViewStyle &vstyle, LineLayou
 			if (wrapVisualFlags & SC_WRAPVISUALFLAG_END) {
 				width -= static_cast<int>(vstyle.aveCharWidth); // take into account the space for end wrap mark
 			}
+			XYPOSITION wrapAddIndent = 0; // This will be added to initial indent of line
+			if (wrapIndentMode == SC_WRAPINDENT_INDENT) {
+				wrapAddIndent = pdoc->IndentSize() * vstyle.spaceWidth;
+			} else if (wrapIndentMode == SC_WRAPINDENT_FIXED) {
+				wrapAddIndent = wrapVisualStartIndent * vstyle.aveCharWidth;
+			}
 			ll->wrapIndent = wrapAddIndent;
 			if (wrapIndentMode != SC_WRAPINDENT_FIXED)
 				for (int i = 0; i < ll->numCharsInLine; i++) {
@@ -2633,8 +2646,8 @@ void Editor::DrawEOL(Surface *surface, ViewStyle &vsDraw, PRectangle rcLine, Lin
 			rcPlace.left = xEol + xStart + virtualSpace;
 			rcPlace.right = rcPlace.left + vsDraw.aveCharWidth;
 		} else {
-			// draw left of the right text margin, to avoid clipping by the current clip rect
-			rcPlace.right = rcLine.right - vs.rightMarginWidth;
+			// rcLine is clipped to text area
+			rcPlace.right = rcLine.right;
 			rcPlace.left = rcPlace.right - vsDraw.aveCharWidth;
 		}
 		DrawWrapMarker(surface, rcPlace, true, wrapColour);
@@ -3244,8 +3257,7 @@ void Editor::DrawLine(Surface *surface, ViewStyle &vsDraw, int line, int lineVis
 	}
 
 	// Draw any translucent whole line states
-	rcSegment.left = 0;
-	rcSegment.right = rcLine.right - 1;
+	rcSegment = rcLine;
 	if (caret.active && vsDraw.showCaretLineBackground && ll->containsCaret) {
 		SimpleAlphaRectangle(surface, rcSegment, vsDraw.caretLineBackground, vsDraw.caretLineAlpha);
 	}
@@ -3489,11 +3501,10 @@ void Editor::Paint(Surface *surfaceWindow, PRectangle rcArea) {
 	//	paintingAllText, rcArea.left, rcArea.top, rcArea.right, rcArea.bottom);
 	AllocateGraphics();
 
-	StyleToPositionInView(PositionAfterArea(rcArea));
-
-	pixmapLine->Release();
 	RefreshStyleData();
 	RefreshPixMaps(surfaceWindow);
+
+	StyleToPositionInView(PositionAfterArea(rcArea));
 
 	PRectangle rcClient = GetClientRectangle();
 	//Platform::DebugPrintf("Client: (%3d,%3d) ... (%3d,%3d)   %d\n",
@@ -3578,12 +3589,13 @@ void Editor::Paint(Surface *surfaceWindow, PRectangle rcArea) {
 			posCaret = posDrag;
 		int lineCaret = pdoc->LineFromPosition(posCaret.Position());
 
+		PRectangle rcTextArea = rcClient;
+		rcTextArea.left = vs.fixedColumnWidth;
+		rcTextArea.right -= vs.rightMarginWidth;
+
 		// Remove selection margin from drawing area so text will not be drawn
 		// on it in unbuffered mode.
 		if (!bufferedDraw) {
-			PRectangle rcTextArea = rcClient;
-			rcTextArea.left = vs.fixedColumnWidth;
-			rcTextArea.right -= vs.rightMarginWidth;
 			surfaceWindow->SetClip(rcTextArea);
 		}
 
@@ -3621,7 +3633,7 @@ void Editor::Paint(Surface *surfaceWindow, PRectangle rcArea) {
 
 				GetHotSpotRange(ll->hsStart, ll->hsEnd);
 
-				PRectangle rcLine = rcClient;
+				PRectangle rcLine = rcTextArea;
 				rcLine.top = ypos;
 				rcLine.bottom = ypos + vs.lineHeight;
 
@@ -3695,7 +3707,7 @@ void Editor::Paint(Surface *surfaceWindow, PRectangle rcArea) {
 		// Right column limit indicator
 		PRectangle rcBeyondEOF = rcClient;
 		rcBeyondEOF.left = vs.fixedColumnWidth;
-		rcBeyondEOF.right = rcBeyondEOF.right;
+		rcBeyondEOF.right = rcBeyondEOF.right - vs.rightMarginWidth;
 		rcBeyondEOF.top = (cs.LinesDisplayed() - topLine) * vs.lineHeight;
 		if (rcBeyondEOF.top < rcBeyondEOF.bottom) {
 			surfaceWindow->FillRectangle(rcBeyondEOF, vs.styles[STYLE_DEFAULT].back);
@@ -3737,10 +3749,10 @@ long Editor::FormatRange(bool draw, Sci_RangeToFormat *pfr) {
 	if (!pfr)
 		return 0;
 
-	AutoSurface surface(pfr->hdc, this);
+	AutoSurface surface(pfr->hdc, this, SC_TECHNOLOGY_DEFAULT);
 	if (!surface)
 		return 0;
-	AutoSurface surfaceMeasure(pfr->hdcTarget, this);
+	AutoSurface surfaceMeasure(pfr->hdcTarget, this, SC_TECHNOLOGY_DEFAULT);
 	if (!surfaceMeasure) {
 		return 0;
 	}
@@ -3749,6 +3761,7 @@ long Editor::FormatRange(bool draw, Sci_RangeToFormat *pfr) {
 	posCache.Clear();
 
 	ViewStyle vsPrint(vs);
+	vsPrint.technology = SC_TECHNOLOGY_DEFAULT;
 
 	// Modify the view style for printing as do not normally want any of the transient features to be printed
 	// Printing supports only the line number margin.
@@ -3760,9 +3773,10 @@ long Editor::FormatRange(bool draw, Sci_RangeToFormat *pfr) {
 			vsPrint.ms[margin].width = 0;
 		}
 	}
-	vsPrint.showMarkedLines = false;
 	vsPrint.fixedColumnWidth = 0;
 	vsPrint.zoomLevel = printMagnification;
+	// Don't show indentation guides
+	// If this ever gets changed, cached pixmap would need to be recreated if technology != SC_TECHNOLOGY_DEFAULT
 	vsPrint.viewIndentationGuides = ivNone;
 	// Don't show the selection when printing
 	vsPrint.selbackset = false;
