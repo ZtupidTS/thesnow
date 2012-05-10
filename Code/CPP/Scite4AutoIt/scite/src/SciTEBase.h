@@ -338,6 +338,7 @@ public:
 	virtual void ScrollEditorIfNeeded() = 0;
 
 	virtual int FindNext(bool reverseDirection, bool showWarnings = true, bool allowRegExp=true) = 0;
+	virtual void HideMatch() = 0;
 	virtual int MarkAll() = 0;
 	virtual int ReplaceAll(bool inSelection) = 0;
 	virtual void ReplaceOnce() = 0;
@@ -713,7 +714,8 @@ protected:
 	virtual void SetReplace(const char *sReplace);
 	virtual void MoveBack(int distance);
 	virtual void ScrollEditorIfNeeded();
-	int FindNext(bool reverseDirection, bool showWarnings = true, bool allowRegExp=true);
+	virtual int FindNext(bool reverseDirection, bool showWarnings = true, bool allowRegExp=true);
+	virtual void HideMatch();
 	virtual void FindIncrement() = 0;
 	int IncrementSearchMode();
 	virtual void FindInFiles() = 0;
@@ -737,7 +739,7 @@ protected:
 	void GoMatchingPreprocCond(int direction, bool select);
 	virtual void FindReplace(bool replace) = 0;
 	void OutputAppendString(const char *s, int len = -1);
-	void OutputAppendStringSynchronised(const char *s, int len = -1);
+	virtual void OutputAppendStringSynchronised(const char *s, int len = -1);
 	void MakeOutputVisible();
 	virtual void Execute();
 	virtual void StopExecute() = 0;
@@ -812,7 +814,7 @@ protected:
 	bool BookmarkPresent(int lineno = -1);
 	void BookmarkToggle(int lineno = -1);
 	void BookmarkNext(bool forwardScan = true, bool select = false);
-	void ToggleOutputVisible();
+	virtual void ToggleOutputVisible();
 	virtual void SizeContentWindows() = 0;
 	virtual void SizeSubWindows() = 0;
 
@@ -912,7 +914,8 @@ protected:
 	};
 	virtual bool GrepIntoDirectory(const FilePath &directory);
 	void GrepRecursive(GrepFlags gf, FilePath baseDir, const char *searchString, const GUI::gui_char *fileTypes);
-	void InternalGrep(GrepFlags gf, const GUI::gui_char *directory, const GUI::gui_char *files, const char *search);
+	void InternalGrep(GrepFlags gf, const GUI::gui_char *directory, const GUI::gui_char *files,
+			  const char *search, sptr_t &originalEnd);
 	void EnumProperties(const char *action);
 	void SendOneProperty(const char *kind, const char *key, const char *val);
 	void PropertyFromDirector(const char *arg);
@@ -973,7 +976,6 @@ private:
 #endif
 
 int ControlIDOfCommand(unsigned long);
-void LowerCaseString(char *s);
 std::vector<GUI::gui_string> ListFromString(const GUI::gui_string &args);
 long ColourOfProperty(PropSetFile &props, const char *key, Colour colourDefault);
 void WindowSetFocus(GUI::ScintillaWindow &w);
