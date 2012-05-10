@@ -1074,8 +1074,8 @@ bool ScintillaGTK::PaintContains(PRectangle rc) {
 				rc.right - rc.left, rc.bottom - rc.top};
 			contains = CRectListContains(rgnUpdate, grc);
 #else
-			GdkRectangle grc = {rc.left, rc.top,
-				rc.right - rc.left, rc.bottom - rc.top};
+			GdkRectangle grc = {static_cast<gint>(rc.left), static_cast<gint>(rc.top),
+				static_cast<gint>(rc.right - rc.left), static_cast<gint>(rc.bottom - rc.top)};
 			if (gdk_region_rect_in(rgnUpdate, &grc) != GDK_OVERLAP_RECTANGLE_IN) {
 				contains = false;
 			}
@@ -1967,6 +1967,13 @@ gint ScintillaGTK::ScrollEvent(GtkWidget *widget,
 			return FALSE;
 		}
 
+#if GTK_CHECK_VERSION(3,4,0)
+		// Smooth scrolling not supported
+		if (event->direction == GDK_SCROLL_SMOOTH) {
+			return FALSE;
+		}
+#endif
+
 		// Horizontal scrolling
 		if (event->direction == GDK_SCROLL_LEFT || event->direction == GDK_SCROLL_RIGHT) {
 			sciThis->HorizontalScrollTo(sciThis->xOffset + cLineScroll);
@@ -2000,7 +2007,12 @@ gint ScintillaGTK::Motion(GtkWidget *widget, GdkEventMotion *event) {
 		int y = 0;
 		GdkModifierType state;
 		if (event->is_hint) {
+#if GTK_CHECK_VERSION(3,0,0)
+			gdk_window_get_device_position(event->window, 
+				event->device, &x, &y, &state);
+#else
 			gdk_window_get_pointer(event->window, &x, &y, &state);
+#endif
 		} else {
 			x = static_cast<int>(event->x);
 			y = static_cast<int>(event->y);

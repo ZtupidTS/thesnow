@@ -1110,6 +1110,9 @@ int SciTEBase::FindNext(bool reverseDirection, bool showWarnings, bool allowRegE
 	return posFind;
 }
 
+void SciTEBase::HideMatch() {
+}
+
 void SciTEBase::ReplaceOnce() {
 	if (!FindHasText())
 		return;
@@ -1629,32 +1632,32 @@ void SciTEBase::ContinueCallTip() {
 
 	wEditor.Call(SCI_CALLTIPSETHLT, startHighlight, endHighlight);
 }
+
 void SciTEBase::EliminateDuplicateWords(char *words) {
-	char *firstWord = words;
-	char *firstSpace = strchr(firstWord, ' ');
-	char *secondWord;
-	char *secondSpace;
-	size_t firstLen, secondLen;
+	std::set<std::string> wordSet;
+	std::vector<char> wordsOut(strlen(words) + 1);
+	char *wordsWrite = &wordsOut[0];
 
-	while (firstSpace) {
-		firstLen = firstSpace - firstWord;
-		secondWord = firstWord + firstLen + 1;
-		secondSpace = strchr(secondWord, ' ');
-
-		if (secondSpace)
-			secondLen = secondSpace - secondWord;
-		else
-			secondLen = strlen(secondWord);
-
-		if (firstLen == secondLen &&
-		        !strncmp(firstWord, secondWord, firstLen)) {
-			strcpy(firstWord, secondWord);
-			firstSpace = strchr(firstWord, ' ');
-		} else {
-			firstWord = secondWord;
-			firstSpace = secondSpace;
+	char *wordCurrent = words;
+	while (*wordCurrent) {
+		char *afterWord = strchr(wordCurrent, ' ');
+		if (!afterWord)
+			afterWord = wordCurrent + strlen(wordCurrent);
+		std::string word(wordCurrent, afterWord);
+		if (wordSet.count(word) == 0) {
+			wordSet.insert(word);
+			if (wordsWrite != &wordsOut[0])
+				*wordsWrite++ = ' ';
+			strcpy(wordsWrite, word.c_str());
+			wordsWrite += word.length();
 		}
+		wordCurrent = afterWord;
+		if (*wordCurrent)
+			wordCurrent++;
 	}
+
+	*wordsWrite = '\0';
+	strcpy(words, &wordsOut[0]);
 }
 
 bool SciTEBase::StartAutoComplete() {
@@ -4707,7 +4710,8 @@ bool SciTEBase::ProcessCommandLine(GUI::gui_string &args, int phase) {
 				char unquoted[1000];
 				strcpy(unquoted, GUI::UTF8FromString(wlArgs[i+3].c_str()).c_str());
 				UnSlash(unquoted);
-				InternalGrep(gf, FilePath::GetWorkingDirectory().AsInternal(), wlArgs[i+2].c_str(), unquoted);
+				sptr_t originalEnd = 0;
+				InternalGrep(gf, FilePath::GetWorkingDirectory().AsInternal(), wlArgs[i+2].c_str(), unquoted, originalEnd);
 				exit(0);
 			} else {
 				if (AfterName(arg) == ':') {

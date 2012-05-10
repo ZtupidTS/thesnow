@@ -380,6 +380,9 @@
 				RelativePath="..\..\scintilla\lexers\LexOpal.cxx">
 			</File>
 			<File
+				RelativePath="..\..\scintilla\lexers\LexOScript.cxx">
+			</File>
+			<File
 				RelativePath="..\..\scintilla\lexers\LexOthers.cxx">
 			</File>
 			<File
@@ -471,6 +474,9 @@
 			</File>
 			<File
 				RelativePath="..\..\scintilla\lexers\LexVHDL.cxx">
+			</File>
+			<File
+				RelativePath="..\..\scintilla\lexers\LexVisualProlog.cxx">
 			</File>
 			<File
 				RelativePath="..\..\scintilla\lexers\LexYAML.cxx">
