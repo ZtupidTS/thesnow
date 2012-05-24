@@ -7588,6 +7588,7 @@ msgstr "wxWidgets:"
 #~ msgid "Use explicit FTP over TLS if available"
 #~ msgstr "如果可用，使用显式的 FTP over TLS"
 
+#: RemoteListView.cpp
 msgid "Is need copy password too?"
 msgstr "大爷是不是准备连密码也一起复制了哇?"
 
