@@ -655,6 +655,7 @@ wxString CServer::FormatServer(const bool always_include_prefix /*=false*/) cons
 
 	if (m_logonType != ANONYMOUS)
 		server = GetUser() + _T("@") + server;
+
 	const t_protocolInfo& info = GetProtocolInfo(m_protocol);
 	if (!info.prefix.empty())
 	{

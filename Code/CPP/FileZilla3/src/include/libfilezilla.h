@@ -8,7 +8,7 @@
 #ifndef PACKAGE_STRING
 #define PACKAGE_STRING "FileZilla 3"
 #endif
-#include <string.h>
+
 #include <wx/defs.h>
 
 // Include after defs.h so that __WXFOO__ is properly defined
@@ -17,6 +17,7 @@
 #ifdef __WXMSW__
 #include <windows.h>
 #endif
+
 #include <wx/datetime.h>
 #include <wx/event.h>
 #include <wx/string.h>
