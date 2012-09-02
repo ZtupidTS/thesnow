@@ -83,13 +83,9 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
     <_ProjectFileVersion>10.0.40219.1</_ProjectFileVersion>
-    <OutDir Condition="'$(Configuration)|$(Platform)'=='UNICODE Debug|Win32'">$(SolutionDir)$(Configuration)\</OutDir>
-    <IntDir Condition="'$(Configuration)|$(Platform)'=='UNICODE Debug|Win32'">$(Configuration)\</IntDir>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='UNICODE Debug|Win32'">false</LinkIncremental>
     <OutDir Condition="'$(Configuration)|$(Platform)'=='UNICODE Release|Win32'">$(SolutionDir)$(Configuration)\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='UNICODE Release|Win32'">$(Configuration)\</IntDir>
-    <OutDir Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">$(SolutionDir)$(Configuration)\</OutDir>
-    <IntDir Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">$(Configuration)\</IntDir>
     <OutDir Condition="'$(Configuration)|$(Platform)'=='UNICODE Debug|x64'">$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='UNICODE Debug|x64'">$(Platform)\$(Configuration)\</IntDir>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='UNICODE Debug|x64'">false</LinkIncremental>
@@ -199,7 +195,7 @@ copy "$(SolutionDir)Properties\*.txt" "$(SolutionDir)Bin\*.properties" /y
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <IntrinsicFunctions>false</IntrinsicFunctions>
       <AdditionalIncludeDirectories>..\SciTe\src;..\SciTe\lua\include;..\Scintilla\include;..\Scintilla\src;..\Scintilla\lexlib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>NDEBUG;WIN32;_WINDOWS;STATIC_BUILD;SCI_LEXER;LINK_LEXERS;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;LUA_USER_H="scite_lua_win.h";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;WIN32;_WINDOWS;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;LUA_USER_H="scite_lua_win.h";%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <ObjectFileName>$(IntDir)OBJ\</ObjectFileName>
@@ -231,8 +227,8 @@ copy "$(SolutionDir)Properties\*.txt" "$(SolutionDir)Bin\*.properties" /y
     </ManifestResourceCompile>
     <PostBuildEvent>
       <Command>md "$(SolutionDir)Bin\属性文件"
-copy "$(TargetDir)*.dll" "$(SolutionDir)Bin\*.dll" /y
-copy "$(TargetDir)*.exe" "$(SolutionDir)Bin\*.exe" /y
+copy "$(TargetDir)Bin\*.dll" "$(SolutionDir)Bin\*.dll" /y
+copy "$(TargetDir)Bin\*.exe" "$(SolutionDir)Bin\*.exe" /y
 copy "$(SolutionDir)Properties\*.properties" "$(SolutionDir)Bin\属性文件\*.properties" /y
 copy "$(SolutionDir)Properties\*.txt" "$(SolutionDir)Bin\*.properties" /y
 
@@ -368,16 +364,32 @@ copy "$(SolutionDir)Properties\*.txt" "$(SolutionDir)Bin\*.properties" /y
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\Scintilla\lexers\LexAVS.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexCoffeeScript.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexECL.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexTCMD.cxx" />
+    <ClCompile Include="..\Scintilla\lexers\LexAVS.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexCoffeeScript.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexECL.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexOScript.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexTCMD.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexVisualProlog.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\SciTe\src\Cookie.cxx" />
     <ClCompile Include="..\SciTe\src\Extra.cxx" />
     <ClCompile Include="..\Scintilla\lexlib\Accessor.cxx" />
     <ClCompile Include="..\Scintilla\src\AutoComplete.cxx" />
     <ClCompile Include="..\Scintilla\src\CallTip.cxx" />
-    <ClCompile Include="..\Scintilla\src\Catalogue.cxx" />
+    <ClCompile Include="..\Scintilla\src\Catalogue.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\Scintilla\src\CellBuffer.cxx" />
     <ClCompile Include="..\Scintilla\lexlib\CharacterSet.cxx" />
     <ClCompile Include="..\Scintilla\src\CharClassify.cxx" />
@@ -385,93 +397,263 @@ copy "$(SolutionDir)Properties\*.txt" "$(SolutionDir)Bin\*.properties" /y
     <ClCompile Include="..\Scintilla\src\Decoration.cxx" />
     <ClCompile Include="..\Scintilla\src\Document.cxx" />
     <ClCompile Include="..\Scintilla\src\Editor.cxx" />
-    <ClCompile Include="..\Scintilla\src\ExternalLexer.cxx" />
+    <ClCompile Include="..\Scintilla\src\ExternalLexer.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\Scintilla\src\Indicator.cxx" />
     <ClCompile Include="..\Scintilla\src\KeyMap.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexA68k.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexAbaqus.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexAda.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexAPDL.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexAsm.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexAsn1.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexASY.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexAU3.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexAVE.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexBaan.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexBash.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexBasic.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexBullant.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexCaml.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexCLW.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexCmake.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexCOBOL.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexConf.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexCPP.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexCrontab.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexCsound.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexCSS.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexD.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexEiffel.cxx" />
-    <ClCompile Include="..\Scintilla\lexlib\LexerBase.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexErlang.cxx" />
-    <ClCompile Include="..\Scintilla\lexlib\LexerModule.cxx" />
-    <ClCompile Include="..\Scintilla\lexlib\LexerSimple.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexEScript.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexFlagship.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexForth.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexFortran.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexGAP.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexGui4Cli.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexHaskell.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexHTML.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexInno.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexKix.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexLisp.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexLout.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexLua.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexMagik.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexMarkdown.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexMatlab.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexMetapost.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexMMIXAL.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexModula.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexMPT.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexMSSQL.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexMySQL.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexNimrod.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexNsis.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexOpal.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexOthers.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexPascal.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexPB.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexPerl.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexPLM.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexPOV.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexPowerPro.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexPowerShell.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexProgress.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexPS.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexPython.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexR.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexRebol.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexRuby.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexScriptol.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexSmalltalk.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexSML.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexSorcus.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexSpecman.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexSpice.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexSQL.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexTACL.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexTADS3.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexTAL.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexTCL.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexTeX.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexTxt2tags.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexVB.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexVerilog.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexVHDL.cxx" />
-    <ClCompile Include="..\Scintilla\lexers\LexYAML.cxx" />
+    <ClCompile Include="..\Scintilla\lexers\LexA68k.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexAbaqus.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexAda.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexAPDL.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexAsm.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexAsn1.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexASY.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexAU3.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexAVE.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexBaan.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexBash.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexBasic.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexBullant.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexCaml.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexCLW.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexCmake.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexCOBOL.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexConf.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexCPP.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexCrontab.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexCsound.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexCSS.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexD.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexEiffel.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexlib\LexerBase.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexErlang.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexlib\LexerModule.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexlib\LexerSimple.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexEScript.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexFlagship.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexForth.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexFortran.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexGAP.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexGui4Cli.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexHaskell.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexHTML.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexInno.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexKix.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexLisp.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexLout.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexLua.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexMagik.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexMarkdown.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexMatlab.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexMetapost.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexMMIXAL.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexModula.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexMPT.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexMSSQL.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexMySQL.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexNimrod.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexNsis.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexOpal.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexOthers.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexPascal.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexPB.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexPerl.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexPLM.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexPOV.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexPowerPro.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexPowerShell.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexProgress.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexPS.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexPython.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexR.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexRebol.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexRuby.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexScriptol.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexSmalltalk.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexSML.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexSorcus.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexSpecman.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexSpice.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexSQL.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexTACL.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexTADS3.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexTAL.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexTCL.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexTeX.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexTxt2tags.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexVB.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexVerilog.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexVHDL.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexYAML.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\Scintilla\src\LineMarker.cxx" />
     <ClCompile Include="..\Scintilla\Src\PerLine.cxx" />
     <ClCompile Include="..\Scintilla\Win32\PlatWin.cxx" />

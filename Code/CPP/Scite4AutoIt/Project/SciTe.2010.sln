@@ -7,6 +7,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "README", "README", "{684CCB
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SciTE", "SciTE.vcxproj", "{477613B2-DBA2-4A90-A5F9-CF8EC4EC6B56}"
+	ProjectSection(ProjectDependencies) = postProject
+		{EB309853-A408-4BBC-BDAA-6078D05B1DEB} = {EB309853-A408-4BBC-BDAA-6078D05B1DEB}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Scintilla", "Scintilla.vcxproj", "{EB309853-A408-4BBC-BDAA-6078D05B1DEB}"
 EndProject

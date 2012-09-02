@@ -360,6 +360,24 @@
     <ClCompile Include="..\Scintilla\lexers\LexYAML.cxx">
       <Filter>源文件\LEX</Filter>
     </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexOScript.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexVisualProlog.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexAVS.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexCoffeeScript.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexECL.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexTCMD.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Scintilla\include\Platform.h">
