@@ -254,7 +254,7 @@ void CServerThread::AddNewSocket(SOCKET sockethandle, bool ssl)
 
 	CStdString msg;
 	if (m_pOptions->GetOptionVal(OPTION_ENABLE_HASH))
-		msg = _T("EXPERIMANTAL BUILD\nNOT FOR PRODUCTION USE\n\nImplementing draft-bryan-ftp-hash-06");
+		msg = _T("EXPERIMENTAL BUILD\nNOT FOR PRODUCTION USE\n\nImplementing draft-bryan-ftp-hash-06");
 	else
 		msg = m_pOptions->GetOption(OPTION_WELCOMEMESSAGE);
 	if (m_RawWelcomeMessage != msg)
@@ -498,7 +498,7 @@ void CServerThread::OnTimer(WPARAM wParam,LPARAM lParam)
 
 			for (int i = 0; i < 2; i++)
 			{
-				int limit = m_lastLimits[i];
+				long long limit = m_lastLimits[i];
 
 				if (limit == -1)
 				{
@@ -515,8 +515,8 @@ void CServerThread::OnTimer(WPARAM wParam,LPARAM lParam)
 
 				limit *= 100;
 				
-				int nRemaining = limit;
-				int nThreadLimit = limit / m_sInstanceList.size();
+				long long nRemaining = limit;
+				long long nThreadLimit = limit / m_sInstanceList.size();
 				
 				std::list<CServerThread *> fullUsageList;
 				
@@ -524,7 +524,7 @@ void CServerThread::OnTimer(WPARAM wParam,LPARAM lParam)
 				{
 					CServerThread *pThread = *iter;
 					EnterCritSection(pThread->m_threadsync);
-					int r = pThread->m_SlQuotas[i].nBytesAllowedToTransfer - pThread->m_SlQuotas[i].nTransferred;
+					long long r = pThread->m_SlQuotas[i].nBytesAllowedToTransfer - pThread->m_SlQuotas[i].nTransferred;
 					if ( r > 0 && pThread->m_SlQuotas[i].nBytesAllowedToTransfer <= nThreadLimit)
 					{
 						pThread->m_SlQuotas[i].nBytesAllowedToTransfer = nThreadLimit;
@@ -556,7 +556,7 @@ void CServerThread::OnTimer(WPARAM wParam,LPARAM lParam)
 						CServerThread *pThread = *iter;
 
 						// Thread has already been locked
-						int r = pThread->m_SlQuotas[i].nBytesAllowedToTransfer - pThread->m_SlQuotas[i].nTransferred;
+						long long r = pThread->m_SlQuotas[i].nBytesAllowedToTransfer - pThread->m_SlQuotas[i].nTransferred;
 						if (r > 0)
 						{
 							if (pThread->m_SlQuotas[i].nTransferred > nThreadLimit)
@@ -711,15 +711,15 @@ void CServerThread::ProcessNewSlQuota()
 			continue;
 		}
 	
-		int nRemaining = m_SlQuotas[i].nBytesAllowedToTransfer;
-		int nThreadLimit = nRemaining / m_sInstanceList.size();
+		long long nRemaining = m_SlQuotas[i].nBytesAllowedToTransfer;
+		long long nThreadLimit = nRemaining / m_sInstanceList.size();
 			
 		std::list<CControlSocket *> fullUsageList;
 		
 		for (iter = m_LocalUserIDs.begin(); iter != m_LocalUserIDs.end(); iter++)
 		{
 			CControlSocket *pControlSocket = iter->second;
-			int r = pControlSocket->m_SlQuotas[i].nBytesAllowedToTransfer - pControlSocket->m_SlQuotas[i].nTransferred;
+			long long r = pControlSocket->m_SlQuotas[i].nBytesAllowedToTransfer - pControlSocket->m_SlQuotas[i].nTransferred;
 			if (pControlSocket->m_SlQuotas[i].nBytesAllowedToTransfer == -1)
 			{
 				pControlSocket->m_SlQuotas[i].nBytesAllowedToTransfer = nThreadLimit;
@@ -753,7 +753,7 @@ void CServerThread::ProcessNewSlQuota()
 			for (iter = fullUsageList.begin(); iter != fullUsageList.end(); iter++)
 			{	
 				CControlSocket *pControlSocket = *iter;
-				int r = pControlSocket->m_SlQuotas[i].nBytesAllowedToTransfer - pControlSocket->m_SlQuotas[i].nTransferred;
+				long long r = pControlSocket->m_SlQuotas[i].nBytesAllowedToTransfer - pControlSocket->m_SlQuotas[i].nTransferred;
 				if (r)
 				{
 					if (pControlSocket->m_SlQuotas[i].nTransferred > nThreadLimit)

@@ -382,6 +382,36 @@ void CPermissions::AddShortListingEntry(t_dirlisting *&pResult, bool isDir, cons
 	pResult->buffer[pResult->len++] = '\n';
 }
 
+bool is8dot3(const CStdString& file)
+{
+	int i;
+	for (i = 0; i < 8; i++)
+	{
+		if (!file[i])
+			return true;
+
+		if (file[i] == '.')
+			break;
+	}
+	if (!file[i])
+		return true;
+	if (file[i++] != '.')
+		return false;
+
+	for (int j = 0; j < 3; j++)
+	{
+		const TCHAR &c = file[i++];
+		if (!c)
+			return true;
+		if (c == '.')
+			return false;
+	}
+	if (file[i])
+		return false;
+
+	return true;
+}
+
 int CPermissions::GetDirectoryListing(LPCTSTR username, CStdString currentDir, CStdString dirToDisplay,
 									  t_dirlisting *&pResult, CStdString& physicalDir, 
 									  CStdString& logicalDir, void (*addFunc)(t_dirlisting *&pResult, bool isDir, const char* name, const t_directory& directory, __int64 size, FILETIME* pTime, const char* dirToDisplay, bool *enabledFacts),
@@ -530,7 +560,20 @@ int CPermissions::GetDirectoryListing(LPCTSTR username, CStdString currentDir, C
 		if (!_tcscmp(FindFileData.cFileName, _T(".")) || !_tcscmp(FindFileData.cFileName, _T("..")))
 			continue;
 
-		const CStdString& fn = FindFileData.cFileName;
+		CStdString fn;
+		if (user.b8plus3)
+		{
+			if (FindFileData.cAlternateFileName[0])
+				fn = FindFileData.cAlternateFileName;
+			else
+			{
+				if (!is8dot3(FindFileData.cFileName))
+					continue;
+				fn = FindFileData.cFileName;
+			}
+		}
+		else
+			fn = FindFileData.cFileName;
 		
 		if (FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
 		{
@@ -1239,6 +1282,7 @@ BOOL CPermissions::ParseUsersCommand(unsigned char *pData, DWORD dwDataLength)
 		SetKey(pGroup, _T("Enabled"), groupiter->nEnabled);
 		SetKey(pGroup, _T("Comments"), groupiter->comment);
 		SetKey(pGroup, _T("ForceSsl"), groupiter->forceSsl);
+		SetKey(pXML, _T("8plus3"), groupiter->b8plus3 ? 1 : 0);
 
 		SaveIpFilter(pGroup, *groupiter);		
 		SavePermissions(pGroup, *groupiter);
@@ -1267,6 +1311,7 @@ BOOL CPermissions::ParseUsersCommand(unsigned char *pData, DWORD dwDataLength)
 		SetKey(pUser, _T("Enabled"), iter->nEnabled);
 		SetKey(pUser, _T("Comments"), iter->comment);
 		SetKey(pUser, _T("ForceSsl"), iter->forceSsl);
+		SetKey(pXML, _T("8plus3"), iter->b8plus3 ? 1 : 0);
 
 		SaveIpFilter(pUser, *iter);
 		SavePermissions(pUser, *iter);
@@ -1473,7 +1518,11 @@ void CPermissions::ReadSpeedLimits(TiXmlElement *pXML, t_group &group)
 				group.nSpeedLimitType[i] = n;
 			str = pSpeedLimits->Attribute(ConvToNetwork(prefixes[i] + _T("Limit")));
 			n = _ttoi(str);
-			if (n > 0 && n < 65536)
+			if (n < 0)
+				group.nSpeedLimit[i] = 0;
+			else if (n > 1048576)
+				group.nSpeedLimit[i] = 1048576;
+			else
 				group.nSpeedLimit[i] = n;
 
 			str = pSpeedLimits->Attribute(ConvToNetwork(_T("Server") + prefixes[i] + _T("LimitBypass")));
@@ -1987,6 +2036,8 @@ void CPermissions::ReadSettings()
 				group.comment = value;
 			else if (name == _T("ForceSsl"))
 				group.forceSsl = _ttoi(value);
+			else if (name == _T("8plus3"))
+				group.b8plus3 = value != _T("0");
 		}
 		if (group.nUserLimit < 0 || group.nUserLimit > 999999999)
 			group.nUserLimit = 0;
@@ -2064,6 +2115,8 @@ void CPermissions::ReadSettings()
 				user.comment = value;
 			else if (name == _T("ForceSsl"))
 				user.forceSsl = _ttoi(value);
+			else if (name == _T("8plus3"))
+				user.b8plus3 = value != _T("0");
 		}
 		if (user.nUserLimit < 0 || user.nUserLimit > 999999999)
 			user.nUserLimit = 0;

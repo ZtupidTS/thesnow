@@ -19,6 +19,7 @@ t_group::t_group()
 	}
 	nEnabled = 1;
 	forceSsl = 0;
+	b8plus3 = false;
 }
 
 t_group& t_group::operator=(const t_group &a)
@@ -33,6 +34,7 @@ t_group& t_group::operator=(const t_group &a)
 	allowedIPs = a.allowedIPs;
 	comment = a.comment;
 	forceSsl = a.forceSsl;
+	b8plus3 = a.b8plus3;
 
 	for (int i = 0; i < 2; i++)
 	{
@@ -91,6 +93,7 @@ t_user& t_user::operator=(const t_user &a)
 	allowedIPs = a.allowedIPs;
 	comment = a.comment;
 	forceSsl = a.forceSsl;
+	b8plus3 = a.b8plus3;
 
 	for (int i = 0; i < 2; i++)
 	{
@@ -151,6 +154,11 @@ unsigned char * t_group::ParseBuffer(unsigned char *pBuffer, int length)
 		if (IsValidAddressFilter(ip) || ip == _T("*"))
 			allowedIPs.push_back(ip);
 	}
+
+	if ((endMarker - p) < 1)
+		return NULL;
+
+	b8plus3 = *p++ != 0;
 
 	if ((endMarker - p) < 2)
 		return NULL;
@@ -320,6 +328,8 @@ char * t_group::FillBuffer(char *p) const
 	for (ipLimitIter = allowedIPs.begin(); ipLimitIter != allowedIPs.end(); ipLimitIter++)
 		FillString(p, *ipLimitIter);
 
+	*p++ = b8plus3 ? 1 : 0;
+
 	*p++ = (char)(permissions.size() >> 8);
 	*p++ = (char)(permissions.size() & 0xff);
 	for (std::vector<t_directory>::const_iterator permissioniter = permissions.begin(); permissioniter!=permissions.end(); permissioniter++)
@@ -380,6 +390,8 @@ int t_group::GetRequiredBufferLen() const
 		len += GetRequiredStringBufferLen(*ipLimitIter);
 	for (ipLimitIter = allowedIPs.begin(); ipLimitIter != allowedIPs.end(); ipLimitIter++)
 		len += GetRequiredStringBufferLen(*ipLimitIter);
+
+	len++;
 
 	len += 2;
 	for (std::vector<t_directory>::const_iterator permissioniter = permissions.begin(); permissioniter!=permissions.end(); permissioniter++)

@@ -62,6 +62,8 @@ protected:
 	int		m_nEnabled;
 	CButton m_cForceSsl;
 	int		m_nForceSsl;
+	BOOL	m_b8plus3;
+	CButton m_c8plus3;
 	//}}AFX_DATA
 
 

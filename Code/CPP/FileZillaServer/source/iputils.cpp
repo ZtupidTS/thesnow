@@ -40,7 +40,7 @@ bool IsValidAddressFilter(CStdString& filter)
 	{
 		left = filter.Left(pos);
 		prefixLength = _ttoi(filter.Mid(pos + 1));
-		if (prefixLength <= 0 || prefixLength > 128)
+		if (prefixLength < 0 || prefixLength > 128)
 			return false;
 	}
 	else

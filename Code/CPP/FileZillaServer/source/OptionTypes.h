@@ -1,6 +1,6 @@
 // FileZilla Server - a Windows ftp server
 
-// Copyright (C) 2002-2011 - Tim Kosse <tim.kosse@filezilla-project.org>
+// Copyright (C) 2002-2012 - Tim Kosse <tim.kosse@filezilla-project.org>
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -98,8 +98,8 @@ struct t_Option
 	BOOL bOnlyLocal; //If TRUE, setting can only be changed from local connections
 };
 
-const DWORD SERVER_VERSION = 0x00094000;
-const DWORD PROTOCOL_VERSION = 0x00010C00;
+const DWORD SERVER_VERSION = 0x00094200;
+const DWORD PROTOCOL_VERSION = 0x00010E00;
 
 //												Name					Type		Not remotely
 //																(0=str, 1=numeric)   changeable

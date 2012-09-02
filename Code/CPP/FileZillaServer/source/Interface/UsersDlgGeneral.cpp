@@ -49,6 +49,7 @@ CUsersDlgGeneral::CUsersDlgGeneral(CUsersDlg* pOwner)
 	m_MaxConnCount = _T("");
 	m_IpLimit = _T("");
 	m_nEnabled = 0;
+	m_b8plus3 = FALSE;
 	//}}AFX_DATA_INIT
 
 	m_pUser = 0;
@@ -78,6 +79,8 @@ void CUsersDlgGeneral::DoDataExchange(CDataExchange* pDX)
 	DDV_MaxChars(pDX, m_IpLimit, 9);
 	DDX_Control(pDX, IDC_USERS_GENERAL_ENABLE, m_cEnabled);
 	DDX_Check(pDX, IDC_USERS_GENERAL_ENABLE, m_nEnabled);
+	DDX_Check(pDX, IDC_8PLUS3, m_b8plus3);
+	DDX_Control(pDX, IDC_8PLUS3, m_c8plus3);
 	//}}AFX_DATA_MAP
 	DDX_Control(pDX, IDC_USERS_GENERAL_COMMENTS, m_cComments);
 	DDX_Text(pDX, IDC_USERS_GENERAL_COMMENTS, m_Comments);
@@ -108,6 +111,8 @@ BOOL CUsersDlgGeneral::OnInitDialog()
 	m_cGroup.AddString(_T("<none>"));
 	for (CUsersDlg::t_GroupsList::iterator iter = m_pOwner->m_GroupsList.begin(); iter != m_pOwner->m_GroupsList.end(); iter++)
 		m_cGroup.AddString(iter->group);
+
+	m_c8plus3.ShowWindow(SW_HIDE);
 
 	SetCtrlState();
 
@@ -227,6 +232,7 @@ BOOL CUsersDlgGeneral::DisplayUser(t_user *pUser)
 		m_MaxConnCount = _T("");
 		m_Comments = _T("");
 		m_nForceSsl = 0;
+		m_b8plus3 = false;
 
 		UpdateData(FALSE);
 
@@ -259,6 +265,7 @@ BOOL CUsersDlgGeneral::DisplayUser(t_user *pUser)
 	m_IpLimit = str;
 	m_Comments = pUser->comment;
 	m_nForceSsl = pUser->forceSsl;
+	m_b8plus3 = pUser->b8plus3;
 
 	UpdateData(FALSE);
 	
@@ -303,6 +310,7 @@ BOOL CUsersDlgGeneral::SaveUser(t_user *pUser)
 	pUser->comment = m_Comments;
 
 	pUser->forceSsl = m_nForceSsl;
+	pUser->b8plus3 = m_b8plus3 ? TRUE : FALSE;
 	
 	return TRUE;
 }

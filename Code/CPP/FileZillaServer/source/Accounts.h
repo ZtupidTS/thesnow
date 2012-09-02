@@ -73,6 +73,8 @@ public:
 
 	t_group *pOwner;
 
+	bool b8plus3;
+
 protected:
 	bool ParseString(const unsigned char* endMarker, unsigned char *&p, CStdString &string);
 };

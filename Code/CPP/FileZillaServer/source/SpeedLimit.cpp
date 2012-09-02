@@ -107,7 +107,7 @@ bool CSpeedLimit::IsItActive(const SYSTEMTIME &time) const
 
 int CSpeedLimit::GetRequiredBufferLen() const
 {
-	return	2 + //Speed
+	return	4 + //Speed
 		    4 + //date
 			6 +	//2 * time
 			1;  //Weekday
@@ -116,7 +116,9 @@ int CSpeedLimit::GetRequiredBufferLen() const
 
 char * CSpeedLimit::FillBuffer(char *p) const
 {
-	*p++ = m_Speed >> 8;
+	*p++ = m_Speed >> 24;
+	*p++ = (m_Speed >> 16) % 256;
+	*p++ = (m_Speed >> 8) % 256;
 	*p++ = m_Speed % 256;
 
 	if (m_DateCheck)
@@ -168,8 +170,13 @@ unsigned char * CSpeedLimit::ParseBuffer(unsigned char *pBuffer, int length)
 
 	unsigned char *p = pBuffer;
 
-	m_Speed = *p++ << 8;
+	m_Speed = *p++ << 24;
+	m_Speed |= *p++ << 16;
+	m_Speed |= *p++ << 8;
 	m_Speed |= *p++;
+	
+	if (m_Speed > 1048576)
+		m_Speed = 1048576;
 
 	char tmp[4] = {0};
 
@@ -289,8 +296,10 @@ bool CSpeedLimit::Load(TiXmlElement* pElement)
 	CStdString str;
 	str = ConvFromNetwork(pElement->Attribute("Speed"));
 	int n = _ttoi(str);
-	if (n < 0 || n > 65535)
-		n = 10;
+	if (n < 0)
+		n = 0;
+	else if (n > 1048576)
+		n = 1048576;
 	m_Speed = n;
 
 	TiXmlElement* pDays = pElement->FirstChildElement("Days");

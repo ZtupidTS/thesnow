@@ -248,9 +248,9 @@ void CTransferSocket::OnSend(int nErrorCode)
 				if (len < m_nBufSize)
 					numsend = len;
 				
-				int nLimit = m_pOwner->GetSpeedLimit(download);
+				long long nLimit = m_pOwner->GetSpeedLimit(download);
 				if (nLimit != -1 && GetState() != aborted && numsend > nLimit)
-					numsend = nLimit;
+					numsend = static_cast<int>(nLimit);
 
 				if (!numsend)
 					return;
@@ -293,9 +293,9 @@ void CTransferSocket::OnSend(int nErrorCode)
 				if ((m_pDirListing->len - m_nBufferPos) < m_nBufSize)
 					numsend = m_pDirListing->len - m_nBufferPos;
 
-				int nLimit = m_pOwner->GetSpeedLimit(download);
+				long long nLimit = m_pOwner->GetSpeedLimit(download);
 				if (nLimit != -1 && GetState() != aborted && numsend > nLimit)
-					numsend = nLimit;
+					numsend = static_cast<int>(nLimit);
 
 				if (!numsend)
 					return;
@@ -445,9 +445,9 @@ void CTransferSocket::OnSend(int nErrorCode)
 				if (len < m_nBufSize)
 					numsend = len;
 				
-				int nLimit = m_pOwner->GetSpeedLimit(download);
+				long long nLimit = m_pOwner->GetSpeedLimit(download);
 				if (nLimit != -1 && GetState() != aborted && numsend > nLimit)
-					numsend = nLimit;
+					numsend = static_cast<int>(nLimit);
 
 				if (!numsend)
 					return;
@@ -531,9 +531,9 @@ void CTransferSocket::OnSend(int nErrorCode)
 				}
 
 				int numsend = numread;
-				int nLimit = m_pOwner->GetSpeedLimit(download);
+				long long nLimit = m_pOwner->GetSpeedLimit(download);
 				if (nLimit != -1 && GetState() != aborted && numsend > nLimit)
-					numsend = nLimit;
+					numsend = static_cast<int>(nLimit);
 
 				if (!numsend)
 				{
@@ -773,12 +773,12 @@ void CTransferSocket::OnReceive(int nErrorCode)
 		m_wasActiveSinceCheck = true;
 
 		int len = m_nBufSize;
-		int nLimit = -1;
+		long long nLimit = -1;
 		if (obeySpeedLimit)
 		{
 			nLimit = m_pOwner->GetSpeedLimit(upload);
 			if (nLimit != -1 && GetState() != aborted && len > nLimit)
-				len = nLimit;
+				len = static_cast<int>(nLimit);
 		}
 
 		if (!len)

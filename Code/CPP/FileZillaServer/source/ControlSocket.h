@@ -157,12 +157,12 @@ protected:
 	enum CHashThread::_algorithm m_hash_algorithm;
 
 public:
-	int GetSpeedLimit(enum sltype);
+	long long GetSpeedLimit(enum sltype);
 
 	typedef struct {
 		bool bContinue;
-		int nBytesAllowedToTransfer;
-		int nTransferred;
+		long long nBytesAllowedToTransfer;
+		long long nTransferred;
 		bool bBypassed;
 	} t_Quota;
 	t_Quota m_SlQuotas[2];
