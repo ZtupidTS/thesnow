@@ -191,8 +191,6 @@ SciTEBase::SciTEBase(Extension *ext) : apis(true), extender(ext) {
 	lineNumbersWidth = lineNumbersWidthDefault;
 	lineNumbersExpand = false;
 
-	abbrevInsert[0] = '\0';
-
 	languageMenu = 0;
 	languageItems = 0;
 
@@ -248,6 +246,15 @@ int SciTEBase::CallFocused(unsigned int msg, uptr_t wParam, sptr_t lParam) {
 		return wOutput.Call(msg, wParam, lParam);
 	else
 		return wEditor.Call(msg, wParam, lParam);
+}
+
+int SciTEBase::CallFocusedElseDefault(int defaultValue, unsigned int msg, uptr_t wParam, sptr_t lParam) {
+	if (wOutput.HasFocus())
+		return wOutput.Call(msg, wParam, lParam);
+	else if (wEditor.HasFocus())
+		return wEditor.Call(msg, wParam, lParam);
+	else
+		return defaultValue;
 }
 
 sptr_t SciTEBase::CallPane(int destination, unsigned int msg, uptr_t wParam, sptr_t lParam) {
@@ -669,7 +676,7 @@ void SciTEBase::SetSelection(int anchor, int currentPos) {
 	wEditor.Call(SCI_SETSEL, anchor, currentPos);
 }
 
-void SciTEBase::GetCTag(char *sel, int len) {
+SString SciTEBase::GetCTag() {
 	int lengthDoc, selStart, selEnd;
 	int mustStop = 0;
 	char c;
@@ -716,9 +723,10 @@ void SciTEBase::GetCTag(char *sel, int len) {
 		}
 	}
 
-	sel[0] = '\0';
-	if ((selStart < selEnd) && ((selEnd - selStart + 1) < len)) {
-		GetRange(wCurrent, selStart, selEnd, sel);
+	if (selStart < selEnd) {
+		return GetRange(wCurrent, selStart, selEnd);
+	} else {
+		return SString();
 	}
 }
 
@@ -779,10 +787,20 @@ void SciTEBase::HighlightCurrentWord(bool highlight) {
 	wCurrent.Call(SCI_SETSEARCHFLAGS, SCFIND_MATCHCASE | SCFIND_WHOLEWORD);
 	wCurrent.Call(SCI_SETTARGETSTART, 0);
 	wCurrent.Call(SCI_SETTARGETEND, lenDoc);
+
+	//Monitor the amount of time took by the search.
+	GUI::ElapsedTime searchElapsedTime;
+
 	// Find the first occurrence of word.
 	int indexOf = wCurrent.CallString(SCI_SEARCHINTARGET,
 	        wordToFind.length(), wordToFind.c_str());
 	while (indexOf != -1 && indexOf < lenDoc) {
+		// Limit the search duration to 250 ms. Avoid to freeze editor for large files.
+		if (searchElapsedTime.Duration() > 0.25) {
+			// Clear all indicators because timer has expired.
+			wCurrent.Call(SCI_INDICATORCLEARRANGE, 0, lenDoc);
+			break;
+		}
 		if (!currentWordHighlight.isOnlyWithSameStyle || selectedStyle ==
 		        wCurrent.Call(SCI_GETSTYLEAT, indexOf)) {
 			wCurrent.Call(SCI_INDICATORFILLRANGE, indexOf, wordToFind.length());
@@ -1600,7 +1618,7 @@ void SciTEBase::ContinueCallTip() {
 	int startHighlight = 0;
 	while (functionDefinition[startHighlight] && !calltipParametersStart.contains(functionDefinition[startHighlight]))
 		startHighlight++;
-	if (calltipParametersStart.contains(functionDefinition[startHighlight]))
+	if (functionDefinition[startHighlight] && calltipParametersStart.contains(functionDefinition[startHighlight]))
 		startHighlight++;
 	while (functionDefinition[startHighlight] && commas > 0) {
 		if (calltipParametersSeparators.contains(functionDefinition[startHighlight]))
@@ -1612,7 +1630,7 @@ void SciTEBase::ContinueCallTip() {
 		else
 			startHighlight++;
 	}
-	if (calltipParametersSeparators.contains(functionDefinition[startHighlight]))
+	if (functionDefinition[startHighlight] && calltipParametersSeparators.contains(functionDefinition[startHighlight]))
 		startHighlight++;
 	int endHighlight = startHighlight;
 	while (functionDefinition[endHighlight] && !calltipParametersSeparators.contains(functionDefinition[endHighlight]) && !calltipParametersEnd.contains(functionDefinition[endHighlight]))
@@ -1622,9 +1640,12 @@ void SciTEBase::ContinueCallTip() {
 		int unslashedStartHighlight = UnSlash(sUnslashed) - 1;
 		delete []sUnslashed;
 
-		sUnslashed = StringDup(functionDefinition.substr(startHighlight, endHighlight - startHighlight + 1).c_str());
-		int unslashedEndHighlight = unslashedStartHighlight + UnSlash(sUnslashed) - 1;
-		delete []sUnslashed;
+		int unslashedEndHighlight = unslashedStartHighlight;
+		if (startHighlight < endHighlight) {
+			sUnslashed = StringDup(functionDefinition.substr(startHighlight, endHighlight - startHighlight + 1).c_str());
+			unslashedEndHighlight = unslashedStartHighlight + UnSlash(sUnslashed) - 1;
+			delete []sUnslashed;
+		}
 
 		startHighlight = unslashedStartHighlight;
 		endHighlight = unslashedEndHighlight;
@@ -1768,12 +1789,8 @@ bool SciTEBase::StartAutoCompleteWord(bool onlyOneWord) {
 	return true;
 }
 
-bool SciTEBase::StartInsertAbbreviation() {
-	if (!AbbrevDialog()) {
-		return true;
-	}
-
-	SString data = propsAbbrev.Get(abbrevInsert);
+bool SciTEBase::PerformInsertAbbreviation() {
+	SString data = propsAbbrev.Get(abbrevInsert.c_str());
 	size_t dataLength = data.length();
 	if (dataLength == 0) {
 		return true; // returning if expanded abbreviation is empty
@@ -1891,6 +1908,14 @@ bool SciTEBase::StartInsertAbbreviation() {
 	wEditor.Call(SCI_ENDUNDOACTION);
 	delete []expbuf;
 	return true;
+}
+
+bool SciTEBase::StartInsertAbbreviation() {
+	if (!AbbrevDialog()) {
+		return true;
+	}
+
+	return PerformInsertAbbreviation();
 }
 
 bool SciTEBase::StartExpandAbbreviation() {
@@ -3068,7 +3093,10 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 			sfile += filePath.AsInternal();
 			ShellExecute(NULL,L"OPEN",L"Explorer.exe",sfile.c_str(),L"",SW_SHOW);
 		}
-		break;		
+		break;
+	case IDM_OPENLASTFILE:
+		StackMenu(0);
+		break;			
 //----------------------------------------
 	case IDM_SAVE:
 		Save();
@@ -3196,12 +3224,12 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		break;
 
 	case IDM_CUT:
-		if (CallPane(source, SCI_GETSELECTIONSTART) != CallPane(source, SCI_GETSELECTIONEND)) {
+		if (!CallPane(source, SCI_GETSELECTIONEMPTY)) {
 			CallPane(source, SCI_CUT);
 		}
 		break;
 	case IDM_COPY:
-		if (CallPane(source, SCI_GETSELECTIONSTART) != CallPane(source, SCI_GETSELECTIONEND)) {
+		if (!CallPane(source, SCI_GETSELECTIONEMPTY)) {
 			//fprintf(stderr, "Copy from %d\n", source);
 			CallPane(source, SCI_COPY);
 		}
@@ -3457,7 +3485,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 
 	case IDM_READONLY:
 		isReadOnly = !isReadOnly;
-		CurrentBuffer()->isReadOnly = false;
+		CurrentBuffer()->isReadOnly = isReadOnly;
 		wEditor.Call(SCI_SETREADONLY, isReadOnly);
 		UpdateStatusBar(true);
 		CheckMenus();
@@ -3919,15 +3947,18 @@ void SciTEBase::Notify(SCNotification *notification) {
 	bool handled = false;
 	switch (notification->nmhdr.code) {
 	case SCN_PAINTED:
-		// Manage delay before highlight when no user selection but there is word at the caret.
-		// So the Delay is based on the blinking of caret, scroll...
-		// If currentWordHighlight.statesOfDelay == currentWordHighlight.delay,
-		// then there is word at the caret without selection, and need some delay.
-		if (currentWordHighlight.statesOfDelay == currentWordHighlight.delay) {
-			if (currentWordHighlight.elapsedTimes.Duration() >= 0.5) {
-				currentWordHighlight.statesOfDelay = currentWordHighlight.delayJustEnded;
-				HighlightCurrentWord(true);
-				(wOutput.HasFocus() ? wOutput : wEditor).InvalidateAll();
+		if ((notification->nmhdr.idFrom == IDM_SRCWIN) == (wEditor.HasFocus())) {
+			// Obly highlight focussed pane.
+			// Manage delay before highlight when no user selection but there is word at the caret.
+			// So the Delay is based on the blinking of caret, scroll...
+			// If currentWordHighlight.statesOfDelay == currentWordHighlight.delay,
+			// then there is word at the caret without selection, and need some delay.
+			if (currentWordHighlight.statesOfDelay == currentWordHighlight.delay) {
+				if (currentWordHighlight.elapsedTimes.Duration() >= 0.5) {
+					currentWordHighlight.statesOfDelay = currentWordHighlight.delayJustEnded;
+					HighlightCurrentWord(true);
+					(wOutput.HasFocus() ? wOutput : wEditor).InvalidateAll();
+				}
 			}
 		}
 		break;
@@ -4017,22 +4048,26 @@ void SciTEBase::Notify(SCNotification *notification) {
 			RemoveFindMarks();
 		}
 		if (notification->updated & (SC_UPDATE_SELECTION | SC_UPDATE_CONTENT)) {
-			if (notification->updated & SC_UPDATE_SELECTION)
-				currentWordHighlight.statesOfDelay = currentWordHighlight.noDelay; // Selection has just been updated, so delay is disabled.
-			if (currentWordHighlight.statesOfDelay != currentWordHighlight.delayJustEnded)
-				HighlightCurrentWord(notification->updated != SC_UPDATE_CONTENT);
-			else
-				currentWordHighlight.statesOfDelay = currentWordHighlight.delayAlreadyElapsed;
+			if ((notification->nmhdr.idFrom == IDM_SRCWIN) == (wEditor.HasFocus())) {
+				// Obly highlight focussed pane.
+				if (notification->updated & SC_UPDATE_SELECTION)
+					currentWordHighlight.statesOfDelay = currentWordHighlight.noDelay; // Selection has just been updated, so delay is disabled.
+				if (currentWordHighlight.statesOfDelay != currentWordHighlight.delayJustEnded)
+					HighlightCurrentWord(notification->updated != SC_UPDATE_CONTENT);
+				else
+					currentWordHighlight.statesOfDelay = currentWordHighlight.delayAlreadyElapsed;
+			}
 		}
 		break;
 
 	case SCN_MODIFIED:
-		CurrentBuffer()->DocumentModified();
+		if (notification->nmhdr.idFrom == IDM_SRCWIN)
+			CurrentBuffer()->DocumentModified();
 		if (notification->modificationType & SC_LASTSTEPINUNDOREDO) {
 			//when the user hits undo or redo, several normal insert/delete
 			//notifications may fire, but we will end up here in the end
-			EnableAMenuItem(IDM_UNDO, CallFocused(SCI_CANUNDO));
-			EnableAMenuItem(IDM_REDO, CallFocused(SCI_CANREDO));
+			EnableAMenuItem(IDM_UNDO, CallFocusedElseDefault(true, SCI_CANUNDO));
+			EnableAMenuItem(IDM_REDO, CallFocusedElseDefault(true, SCI_CANREDO));
 		} else if (notification->modificationType & (SC_MOD_INSERTTEXT | SC_MOD_DELETETEXT)) {
 			//this will be called a lot, and usually means "typing".
 			EnableAMenuItem(IDM_UNDO, true);
@@ -4123,18 +4158,18 @@ void SciTEBase::Notify(SCNotification *notification) {
 }
 
 void SciTEBase::CheckMenusClipboard() {
-	bool hasSelection = CallFocused(SCI_GETSELECTIONSTART) != CallFocused(SCI_GETSELECTIONEND);
+	bool hasSelection = !CallFocusedElseDefault(false, SCI_GETSELECTIONEMPTY);
 	EnableAMenuItem(IDM_CUT, hasSelection);
 	EnableAMenuItem(IDM_COPY, hasSelection);
 	EnableAMenuItem(IDM_CLEAR, hasSelection);
-	EnableAMenuItem(IDM_PASTE, CallFocused(SCI_CANPASTE));
+	EnableAMenuItem(IDM_PASTE, CallFocusedElseDefault(true, SCI_CANPASTE));
 }
 
 void SciTEBase::CheckMenus() {
 	CheckMenusClipboard();
 	EnableAMenuItem(IDM_SAVE, CurrentBuffer()->isDirty); 		//DO NOT REMOVE!!
-	EnableAMenuItem(IDM_UNDO, CallFocused(SCI_CANUNDO));
-	EnableAMenuItem(IDM_REDO, CallFocused(SCI_CANREDO));
+	EnableAMenuItem(IDM_UNDO, CallFocusedElseDefault(true, SCI_CANUNDO));
+	EnableAMenuItem(IDM_REDO, CallFocusedElseDefault(true, SCI_CANREDO));
 	EnableAMenuItem(IDM_DUPLICATE, !isReadOnly);
 	EnableAMenuItem(IDM_SHOWCALLTIP, apis != 0);
 	EnableAMenuItem(IDM_COMPLETE, apis != 0);
@@ -4406,8 +4441,6 @@ static bool IsSwitchCharacter(GUI::gui_char ch) {
 
 // Called by SciTEBase::PerformOne when action="enumproperties:"
 void SciTEBase::EnumProperties(const char *propkind) {
-	const char *key = NULL;
-	const char *val = NULL;
 	PropSetFile *pf = NULL;
 
 	if (!extender)
@@ -4429,6 +4462,8 @@ void SciTEBase::EnumProperties(const char *propkind) {
 		pf = &propsAbbrev;
 
 	if (pf != NULL) {
+		const char *key = NULL;
+		const char *val = NULL;
 		bool b = pf->GetFirst(key, val);
 		while (b) {
 			SendOneProperty(propkind, key, val);

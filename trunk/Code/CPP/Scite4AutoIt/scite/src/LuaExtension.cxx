@@ -118,7 +118,7 @@ inline bool IFaceFunctionIsScriptable(const IFaceFunction &f) {
 }
 
 inline bool IFacePropertyIsScriptable(const IFaceProperty &p) {
-	return (((p.valueType > iface_void) && (p.valueType <= iface_string) && (p.valueType != iface_keymod)) &&
+	return (((p.valueType > iface_void) && (p.valueType <= iface_stringresult) && (p.valueType != iface_keymod)) &&
 	        ((p.paramType < iface_colour) || (p.paramType == iface_string) ||
 	                (p.paramType == iface_bool)) && (p.getter || p.setter));
 }
@@ -880,7 +880,7 @@ static int iface_function_helper(lua_State *L, const IFaceFunction &func) {
 		params[0] = lua_strlen(L, arg);
 		params[1] = reinterpret_cast<sptr_t>(params[0] ? lua_tostring(L, arg) : "");
 		loopParamCount = 0;
-	} else if (func.paramType[1] == iface_stringresult) {
+	} else if ((func.paramType[1] == iface_stringresult) || (func.returnType == iface_stringresult)) {
 		needStringResult = true;
 		// The buffer will be allocated later, so it won't leak if Lua does
 		// a longjmp in response to a bad arg.
@@ -1663,9 +1663,8 @@ bool LuaExtension::OnBeforeSave(const char *filename) {
 bool LuaExtension::OnSave(const char *filename) {
 	bool result = CallNamedFunction("OnSave", filename);
 
-	// should this be case insensitive on windows?  check for different
-	// ways of spelling a filename, e.g. short vs. long?
-	if (startupScript && 0 == strcmp(filename, startupScript)) {
+	FilePath fpSaving = FilePath(GUI::StringFromUTF8(filename)).NormalizePath();
+	if (startupScript && fpSaving == FilePath(GUI::StringFromUTF8(startupScript)).NormalizePath()) {
 		if (GetPropertyInt("ext.lua.auto.reload") > 0) {
 			InitGlobalScope(false, true);
 			if (extensionScript.length()) {

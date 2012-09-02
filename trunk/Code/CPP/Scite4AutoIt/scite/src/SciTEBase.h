@@ -388,7 +388,7 @@ protected:
 	ComboMemory memFiles;
 	ComboMemory memDirectory;
 	SString parameterisedCommand;
-	char abbrevInsert[200];
+	SString abbrevInsert;
 
 	enum { languageCmdID = IDM_LANGUAGE };
 	LanguageMenuItem *languageMenu;
@@ -573,6 +573,7 @@ protected:
 	void ReadDirectoryPropFile();
 
 	int CallFocused(unsigned int msg, uptr_t wParam = 0, sptr_t lParam = 0);
+	int CallFocusedElseDefault(int defaultValue, unsigned int msg, uptr_t wParam = 0, sptr_t lParam = 0);
 	sptr_t CallPane(int destination, unsigned int msg, uptr_t wParam = 0, sptr_t lParam = 0);
 	void CallChildren(unsigned int msg, uptr_t wParam = 0, sptr_t lParam = 0);
 	SString GetTranslationToAbout(const char * const propname, bool retainIfNotFound = true);
@@ -688,7 +689,7 @@ protected:
 	SelectedRange GetSelectedRange();
 	void SetSelection(int anchor, int currentPos);
 	//	void SelectionExtend(char *sel, int len, char *notselchar);
-	void GetCTag(char *sel, int len);
+	SString GetCTag();
 	SString GetRange(GUI::ScintillaWindow &win, int selStart, int selEnd);
 	virtual SString GetRangeInUIEncoding(GUI::ScintillaWindow &win, int selStart, int selEnd);
 	SString GetLine(GUI::ScintillaWindow &win, int line);
@@ -754,6 +755,7 @@ protected:
 	virtual bool StartAutoComplete();
 	virtual bool StartAutoCompleteWord(bool onlyOneWord);
 	virtual bool StartExpandAbbreviation();
+	bool PerformInsertAbbreviation();
 	virtual bool StartInsertAbbreviation();
 	virtual bool StartBlockComment();
 	virtual bool StartBoxComment();

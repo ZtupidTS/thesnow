@@ -1675,10 +1675,18 @@ NameError: mistake
        </tr>
        <tr id='property-strip.trailing.spaces'>
         <td>
-          strip.trailing.spaces
+          strip.trailing.spaces<br />
+          strip.trailing.spaces.<i>filepattern</i>
         </td>
         <td>
-          Strips trailing white spaces from the file while saving.
+          Strips trailing white spaces from the file while saving.<br />
+          The global strip.trailing.spaces property can be overridden for
+          files that match a pattern by using the file pattern forms: <br />
+          <div class="example">
+          strip.trailing.spaces.*.yaml=0<br />
+          or <br />
+          strip.trailing.spaces.$(file.patterns.yaml)=0<br />
+          </div>
         </td>
       </tr>
        <tr id='property-ensure.final.line.end'>
@@ -2061,6 +2069,14 @@ NameError: mistake
 	<td>lexer.cpp.update.preprocessor</td>
 	<td>Set to 1 to update preprocessor definitions when #define found.</td>
 	</tr>
+	<tr id='property-lexer.css.hss.language'>
+	<td>lexer.css.hss.language</td>
+	<td>Set to 1 for HSS (.hss)</td>
+	</tr>
+	<tr id='property-lexer.css.less.language'>
+	<td>lexer.css.less.language</td>
+	<td>Set to 1 for Less CSS (.less)</td>
+	</tr>
 	<tr id='property-lexer.css.scss.language'>
 	<td>lexer.css.scss.language</td>
 	<td>Set to 1 for Sassy CSS (.scss)</td>
@@ -2439,7 +2455,7 @@ Prev File|IDM_PREVFILE|<br/>
         Folding states are not restored if fold.on.open is set.
         </td>
       </tr>
-      <tr id='property-open.dialog.in.file.directory'>
+      <tr class="windowsonly" id='property-open.dialog.in.file.directory'>
         <td>
         open.dialog.in.file.directory
         </td>
@@ -2595,6 +2611,15 @@ c:\cygwin\bin\xargs -0 fgrep -G -n "$(find.what)"
         <td>
 	If find.in.binary is 1 then Find in Files displays matches in binary files.
 	For Find in Files, a binary file is a file that contains a NUL byte in the first 64K block read from the file.
+        </td>
+      </tr>
+      <tr id='property-find.in.directory'>
+        <td>
+          find.in.directory
+        </td>
+        <td>
+	If set then Find in Files directory will be prefilled by this value.
+	If not set then Find in Files directory will be prefilled by directory of current file.
         </td>
       </tr>
       <tr class="windowsonly" id='property-find.in.files.close.on.find'>

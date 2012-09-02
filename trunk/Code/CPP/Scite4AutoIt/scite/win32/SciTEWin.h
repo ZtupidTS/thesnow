@@ -25,17 +25,22 @@
 #endif
 
 #undef _WIN32_WINNT
-#define _WIN32_WINNT  0x0501
 #undef WINVER
+#ifdef WIN_TARGET
+#define _WIN32_WINNT WIN_TARGET
+#define WINVER WIN_TARGET
+#else
+#define _WIN32_WINNT  0x0501
 #define WINVER 0x0501
+#endif
 #ifdef _MSC_VER
 // windows.h, et al, use a lot of nameless struct/unions - can't fix it, so allow it
 #pragma warning(disable: 4201)
 #endif
 #include <windows.h>
-#if defined(_MSC_VER) && (_MSC_VER <= 1200)
+#if defined(DISABLE_THEMES) || (defined(_MSC_VER) && (_MSC_VER <= 1200))
 // Old compilers do not have Uxtheme.h
-typedef HANDLE HTHEME;
+typedef void *HTHEME;
 #else
 #include <uxtheme.h>
 #endif
