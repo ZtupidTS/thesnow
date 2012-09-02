@@ -640,6 +640,8 @@ static const char *propertiesToForward[] = {
 	"lexer.cpp.track.preprocessor",
 	"lexer.cpp.triplequoted.strings",
 	"lexer.cpp.update.preprocessor",
+	"lexer.css.hss.language",
+	"lexer.css.less.language",
 	"lexer.css.scss.language",
 	"lexer.d.fold.at.else",
 	"lexer.errorlist.value.separate",

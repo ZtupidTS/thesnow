@@ -24,6 +24,9 @@
 #define TS_CHECKED 5
 #define TS_HOTCHECKED 6
 #define TP_BUTTON 1
+#ifndef DFCS_HOT
+#define DFCS_HOT 1000
+#endif
 
 #ifndef WM_UPDATEUISTATE
 #define WM_UPDATEUISTATE 0x0128
@@ -529,8 +532,10 @@ void SciTEWin::CopyAsRTF() {
 				::OpenClipboard(MainHWND());
 				::EmptyClipboard();
 				char *ptr = static_cast<char *>(::GlobalLock(hand));
-				fread(ptr, 1, len, fp);
-				ptr[len] = '\0';
+				if (ptr) {
+					fread(ptr, 1, len, fp);
+					ptr[len] = '\0';
+				}
 				::GlobalUnlock(hand);
 				::SetClipboardData(::RegisterClipboardFormat(CF_RTF), hand);
 				::CloseClipboard();
@@ -552,7 +557,8 @@ void SciTEWin::CopyPath() {
 	if (hand && ::OpenClipboard(MainHWND())) {
 		::EmptyClipboard();
 		GUI::gui_char *ptr = static_cast<GUI::gui_char*>(::GlobalLock(hand));
-		memcpy(ptr, clipText.c_str(), blobSize);
+		if (ptr)
+			memcpy(ptr, clipText.c_str(), blobSize);
 		::GlobalUnlock(hand);
 		::SetClipboardData(CF_UNICODETEXT, hand);
 		::CloseClipboard();
@@ -616,6 +622,27 @@ void SciTEWin::Command(WPARAM wParam, LPARAM lParam) {
 	if (reinterpret_cast<HWND>(lParam) == wToolBar.GetID()) {
 		// From toolbar -> goes to focused pane.
 		menuSource = 0;
+	}
+	if (!menuSource) {
+		if (!wEditor.HasFocus() && !wOutput.HasFocus()) {
+			HWND wWithFocus = ::GetFocus();
+			enum { capSize = 2000 };
+			GUI::gui_char className[capSize];
+			::GetClassName(wWithFocus, className, capSize);
+			if (wcscmp(className, TEXT("Edit")) == 0) {
+				switch (cmdID) {
+				case IDM_UNDO:
+					::SendMessage(wWithFocus, EM_UNDO, 0, 0);
+					return;
+				case IDM_CUT:
+					::SendMessage(wWithFocus, WM_CUT, 0, 0);
+					return;
+				case IDM_COPY:
+					::SendMessage(wWithFocus, WM_COPY, 0, 0);
+					return;
+				}
+			}
+		}
 	}
 
 	switch (cmdID) {
@@ -797,7 +824,6 @@ DWORD SciTEWin::ExecuteOne(const Job &jobToRun) {
 	}
 
 	SECURITY_ATTRIBUTES sa = {sizeof(SECURITY_ATTRIBUTES), 0, 0};
-	char buffer[16384];
 	OutputAppendStringSynchronised(">");
 	OutputAppendEncodedStringSynchronised(GUI::StringFromUTF8(jobToRun.command.c_str()), codePage);
 	OutputAppendStringSynchronised("\n");
@@ -912,6 +938,7 @@ DWORD SciTEWin::ExecuteOne(const Job &jobToRun) {
 
 			DWORD bytesRead = 0;
 			DWORD bytesAvail = 0;
+			char buffer[16384];
 
 			if (!::PeekNamedPipe(hPipeRead, buffer,
 					     sizeof(buffer), &bytesRead, &bytesAvail, NULL)) {
@@ -1088,9 +1115,10 @@ void SciTEWin::ShellExec(const SString &cmd, const char *dir) {
 
 	// guess if cmd is an executable, if this succeeds it can
 	// contain spaces without enclosing it with "
-	char *mycmdcopy = StringDup(cmd.c_str());
-	strlwr(mycmdcopy);
-
+	SString cmdLower = cmd;
+	cmdLower.lowercase();
+	char *mycmdcopy = StringDup(cmdLower.c_str());
+	
 	char *mycmd_end = NULL;
 	char *myparams = NULL;
 
@@ -2289,7 +2317,7 @@ GUI::Window Strip::CreateButton(const char *text, int ident, bool check) {
 		2, 2, width, height,
 		Hwnd(), reinterpret_cast<HMENU>(ident), ::GetModuleHandle(NULL), 0));
 	if (check) {
-		int resNum = 0;
+		int resNum = IDBM_WORD;
 		switch (ident) {
 		case IDWHOLEWORD: resNum = IDBM_WORD; break;
 		case IDMATCHCASE: resNum = IDBM_CASE; break;
@@ -2544,7 +2572,7 @@ void Strip::SetTheme() {
 }
 
 static bool HideKeyboardCues() {
-	BOOL b;
+	BOOL b=FALSE;
 	::SystemParametersInfo(SPI_GETKEYBOARDCUES, 0, &b, 0);
 	return !b;
 }

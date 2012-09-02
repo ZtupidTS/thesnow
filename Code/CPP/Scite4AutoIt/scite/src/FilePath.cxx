@@ -394,10 +394,10 @@ bool FilePath::SetWorkingDirectory() const {
 void FilePath::List(FilePathSet &directories, FilePathSet &files) {
 #ifdef WIN32
 	FilePath wildCard(*this, GUI_TEXT("*.*"));
-	bool complete = false;
 	WIN32_FIND_DATAW findFileData;
 	HANDLE hFind = ::FindFirstFileW(wildCard.AsInternal(), &findFileData);
 	if (hFind != INVALID_HANDLE_VALUE) {
+		bool complete = false;
 		while (!complete) {
 			if ((strcmp(findFileData.cFileName, GUI_TEXT(".")) != 0) && (strcmp(findFileData.cFileName, GUI_TEXT("..")) != 0)) {
 				if (findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
@@ -571,8 +571,23 @@ bool FilePath::Matches(const GUI::gui_char *pattern) const {
  * false on failure, and copies the @a shortPath arg to the @a longPath buffer.
  */
 static bool MakeLongPath(const GUI::gui_char* shortPath, GUI::gui_char* longPath) {
+	typedef DWORD (STDAPICALLTYPE* GetLongSig)(const GUI::gui_char* lpszShortPath, GUI::gui_char* lpszLongPath, DWORD cchBuffer);
+	static GetLongSig pfnGetLong = NULL;
+	static bool kernelTried = false;
 
-	bool ok = ::GetLongPathNameW(shortPath, longPath, _MAX_PATH) != 0;
+	if (!kernelTried) {
+		kernelTried = true;
+		HMODULE hModule = ::GetModuleHandle(TEXT("kernel32.dll"));
+		if (hModule) {
+			// attempt to get GetLongPathNameW implemented in Windows 2000 or newer
+			pfnGetLong = (GetLongSig)::GetProcAddress(hModule, "GetLongPathNameW");
+		}
+	}
+
+	bool ok = false;
+	if (pfnGetLong) {
+		ok = (pfnGetLong)(shortPath, longPath, _MAX_PATH) != 0;
+	}
 
 	if (!ok) {
 		wcsncpy(longPath, shortPath, _MAX_PATH);
@@ -661,7 +676,7 @@ std::string CommandExecute(const GUI::gui_char *command, const GUI::gui_char *di
 			  (directoryForRun && directoryForRun[0]) ? directoryForRun : 0,
 			  &si, &pi);
 
-	if (running) {
+	if (running && pi.hProcess && pi.hThread) {
 		// Wait until child process exits but time out after 5 seconds.
 		::WaitForSingleObject(pi.hProcess, 5 * 1000);
 		
@@ -682,10 +697,10 @@ std::string CommandExecute(const GUI::gui_char *command, const GUI::gui_char *di
 				}
 			}
 		}
+		::CloseHandle(pi.hProcess);
+		::CloseHandle(pi.hThread);
 	}
 
-	::CloseHandle(pi.hProcess);
-	::CloseHandle(pi.hThread);
 	::CloseHandle(hPipeRead);
 	::CloseHandle(hPipeWrite);
 	::CloseHandle(hRead2);

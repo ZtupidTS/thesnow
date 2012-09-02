@@ -6,6 +6,7 @@
 // Copyright 1998-2010 by Neil Hodgson <neilh@scintilla.org>
 // The License.txt file describes the conditions under which this software may be distributed.
 
+#include <stdio.h>
 #include <time.h>
 
 #include <string>
@@ -160,13 +161,16 @@ std::string UTF8FromString(const gui_string &s) {
 }
 
 gui_string StringFromInteger(int i) {
-	gui_char number[32];
-#if defined(_MSC_VER) && (_MSC_VER > 1310)
-	swprintf(number, 30, L"%0d", i);
-#else
-	swprintf(number, L"%0d", i);
-#endif
-	return gui_string(number);
+	char number[32];
+	sprintf(number, "%0d", i);
+	gui_char gnumber[32];
+	size_t n=0;
+	while (number[n]) {
+		gnumber[n] = static_cast<gui_char>(number[n]);
+		n++;
+	}
+	gnumber[n] = 0;
+	return gui_string(gnumber);
 }
 
 void Window::Destroy() {

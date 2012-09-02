@@ -22,8 +22,8 @@ static void FlashThisWindow(
 		::GetClientRect(hWnd, &rc);
 		::FillRect(hDC, &rc, (HBRUSH)GetStockObject(BLACK_BRUSH));
 		::Sleep(duration);
+		::ReleaseDC(hWnd, hDC);
 	}
-	::ReleaseDC(hWnd, hDC);
 	::InvalidateRect(hWnd, NULL, true);
 }
 
@@ -219,16 +219,17 @@ bool SciTEWin::OpenDialog(FilePath directory, const GUI::gui_char *filter) {
 	if (!openWhat[0]) {
 		//wcscpy(openWhat, localiser.Text("自定义类型").c_str());
 		wcscpy(openWhat,TEXT("自定义类型"));
-		openWhat[wcslen(openWhat) + 1] = '\0';
+		// 2 NULs as there are 2 strings here: the display string and the filter string		
+		openWhat[wcslen(openWhat) + 1] = L'\0';
 	}
 
 	bool succeeded = false;
 	GUI::gui_char openName[maxBufferSize]; // maximum common dialog buffer size (says mfc..)
 	openName[0] = '\0';
 
-	OPENFILENAMEW ofn = {
-	       sizeof(ofn), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-	};
+	OPENFILENAMEW ofn;
+	memset(&ofn, 0, sizeof(ofn));
+	ofn.lStructSize = sizeof(ofn);
 	ofn.hwndOwner = MainHWND();
 	ofn.hInstance = hInstance;
 	ofn.lpstrFile = openName;
@@ -280,9 +281,9 @@ FilePath SciTEWin::ChooseSaveName(FilePath directory, const char *title, const G
 		if (!savePath.IsUntitled()) {
 			wcscpy(saveName, savePath.AsInternal());
 		}
-		OPENFILENAMEW ofn = {
-		                       sizeof(ofn), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-		                   };
+		OPENFILENAMEW ofn;
+		memset(&ofn, 0, sizeof(ofn));
+		ofn.lStructSize = sizeof(ofn);
 		ofn.hwndOwner = MainHWND();
 		ofn.hInstance = hInstance;
 		ofn.lpstrDefExt = GUI_TEXT("au3");		//这个是新增加的
@@ -391,9 +392,9 @@ void SciTEWin::SaveAsXML() {
 
 void SciTEWin::LoadSessionDialog() {
 	GUI::gui_char openName[MAX_PATH] = GUI_TEXT("");
-	OPENFILENAMEW ofn = {
-	                       sizeof(ofn), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-	                   };
+	OPENFILENAMEW ofn;
+	memset(&ofn, 0, sizeof(ofn));
+	ofn.lStructSize = sizeof(ofn);
 	ofn.hwndOwner = MainHWND();
 	ofn.hInstance = hInstance;
 	ofn.lpstrFile = openName;
@@ -412,9 +413,9 @@ void SciTEWin::LoadSessionDialog() {
 void SciTEWin::SaveSessionDialog() {
 	GUI::gui_char saveName[MAX_PATH] = GUI_TEXT("\0");
 	wcscpy(saveName, GUI_TEXT("SciTE.session"));
-	OPENFILENAMEW ofn = {
-			       sizeof(ofn), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-			   };
+	OPENFILENAMEW ofn;
+	memset(&ofn, 0, sizeof(ofn));
+	ofn.lStructSize = sizeof(ofn);
 	ofn.hwndOwner = MainHWND();
 	ofn.hInstance = hInstance;
 	ofn.lpstrDefExt = GUI_TEXT("session");
@@ -423,7 +424,7 @@ void SciTEWin::SaveSessionDialog() {
 //	GUI::gui_string translatedTitle = localiser.Text("保存当前会话");	//mod
 //	ofn.lpstrTitle = translatedTitle.c_str();
 	ofn.lpstrTitle = L"保存当前会话";
-	ofn.Flags = OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT;
+	ofn.Flags = OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
 	ofn.lpstrFilter = GUI_TEXT("会话列表 (.session)\0*.session\0");
 	if (::GetSaveFileNameW(&ofn)) {
 		SaveSessionFile(saveName);
@@ -1372,8 +1373,15 @@ void SciTEWin::FindInFiles() {
 		return;
 	}
 	props.Set("find.what", findWhat.c_str());
-	FilePath findInDir = filePath.Directory();
-	props.Set("find.directory", findInDir.AsUTF8().c_str());
+	
+	SString directory = props.Get("find.in.directory");
+	if (directory.length()) {
+		props.Set("find.directory", directory.c_str());
+	} else {
+		FilePath findInDir = filePath.Directory();
+		props.Set("find.directory", findInDir.AsUTF8().c_str());
+	}
+	
 	wFindInFiles = ::CreateDialogParam(hInstance, TEXT("Grep"), MainHWND(),
 		reinterpret_cast<DLGPROC>(GrepDlg), reinterpret_cast<sptr_t>(this));
 	wFindInFiles.Show();
@@ -1521,9 +1529,7 @@ BOOL SciTEWin::AbbrevMessage(HWND hDlg, UINT message, WPARAM wParam) {
 			::EndDialog(hDlg, IDCANCEL);
 			return FALSE;
 		} else if (ControlIDOfWParam(wParam) == IDOK) {
-			SString sAbbrev = dlg.ItemTextU(IDABBREV);
-			strncpy(abbrevInsert, sAbbrev.c_str(), sizeof(abbrevInsert));
-			abbrevInsert[sizeof(abbrevInsert) - 1] = '\0';
+			abbrevInsert = dlg.ItemTextU(IDABBREV);
 			::EndDialog(hDlg, IDOK);
 			return TRUE;
 		}

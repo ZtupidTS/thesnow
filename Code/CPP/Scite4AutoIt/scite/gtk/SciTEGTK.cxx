@@ -68,6 +68,11 @@
 #include "SciTEKeys.h"
 #include "StripDefinition.h"
 
+#if defined(__clang__)
+// Clang 3.0 incorrectly displays  sentinel warnings. Fixed by clang 3.1.
+#pragma GCC diagnostic ignored "-Wsentinel"
+#endif
+
 #if GTK_CHECK_VERSION(2,20,0)
 #define WIDGET_SET_NO_FOCUS(w) gtk_widget_set_can_focus(w, FALSE)
 #else
@@ -1443,7 +1448,6 @@ void SciTEGTK::OpenUriList(const char *list) {
 }
 
 bool SciTEGTK::OpenDialog(FilePath directory, const char *filter) {
-	directory.SetWorkingDirectory();
 	bool canceled = true;
 	if (!dlgFileSelector.Created()) {
 		GtkWidget *dlg = gtk_file_chooser_dialog_new(
@@ -1455,10 +1459,7 @@ bool SciTEGTK::OpenDialog(FilePath directory, const char *filter) {
 				      NULL);
 		gtk_file_chooser_set_select_multiple(GTK_FILE_CHOOSER(dlg), TRUE);
 		gtk_dialog_set_default_response(GTK_DIALOG(dlg), GTK_RESPONSE_ACCEPT);
-		if (props.GetInt("open.dialog.in.file.directory")) {
-			gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(dlg),
-				filePath.Directory().AsInternal());
-		}
+		gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(dlg), directory.AsInternal());
 
 		SString openFilter = filter;
 		if (openFilter.length()) {
@@ -1539,7 +1540,6 @@ bool SciTEGTK::HandleSaveAs(const char *savePath) {
 }
 
 bool SciTEGTK::SaveAsXXX(FileFormat fmt, const char *title, const char *ext) {
-	filePath.SetWorkingDirectory();
 	bool saved = false;
 	saveFormat = fmt;
 	if (!dlgFileSelector.Created()) {
@@ -1558,6 +1558,7 @@ bool SciTEGTK::SaveAsXXX(FileFormat fmt, const char *title, const char *ext) {
 		} else if (savePath.IsUntitled()) { // saving 'untitled'
 			gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(dlg), savePath.Directory().AsInternal());
 		} else {
+			gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(dlg), filePath.Directory().AsInternal());
 			gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(dlg), savePath.AsInternal());
 		}
 
@@ -1602,7 +1603,6 @@ void SciTEGTK::SaveAsXML() {
 }
 
 void SciTEGTK::LoadSessionDialog() {
-	filePath.SetWorkingDirectory();
 	if (!dlgFileSelector.Created()) {
 		GtkWidget *dlg = gtk_file_chooser_dialog_new(
 					localiser.Text("Load Session").c_str(),
@@ -1612,6 +1612,7 @@ void SciTEGTK::LoadSessionDialog() {
 				      GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
 				      NULL);
 
+		gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(dlg), filePath.Directory().AsInternal());
 		gtk_window_set_default_size(GTK_WINDOW(dlg), fileSelectorWidth, fileSelectorHeight);
 		if (gtk_dialog_run(GTK_DIALOG(dlg)) == GTK_RESPONSE_ACCEPT) {
 			char *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dlg));
@@ -1625,7 +1626,6 @@ void SciTEGTK::LoadSessionDialog() {
 }
 
 void SciTEGTK::SaveSessionDialog() {
-	filePath.SetWorkingDirectory();
 	if (!dlgFileSelector.Created()) {
 		GtkWidget *dlg = gtk_file_chooser_dialog_new(
 					localiser.Text("Save Session").c_str(),
@@ -1635,6 +1635,7 @@ void SciTEGTK::SaveSessionDialog() {
 				      GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
 				      NULL);
 
+		gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(dlg), filePath.Directory().AsInternal());
 		if (gtk_dialog_run(GTK_DIALOG(dlg)) == GTK_RESPONSE_ACCEPT) {
 			char *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dlg));
 
@@ -2396,6 +2397,10 @@ void SciTEGTK::FindInFiles() {
 	props.Set("find.what", findWhat.c_str());
 
 	FilePath findInDir = filePath.Directory().AbsolutePath();
+	SString directory = props.Get("find.in.directory");
+	if (directory.length()) {
+		findInDir = FilePath(directory.c_str());
+	}
 	props.Set("find.directory", findInDir.AsInternal());
 
 	dlgFindInFiles.Create(localiser.Text("Find in Files"));
@@ -2733,9 +2738,7 @@ void SciTEGTK::GoLineDialog() {
 }
 
 void SciTEGTK::AbbrevCmd() {
-	SString sAbbrev = dlgAbbrev.comboAbbrev.Text();
-	strncpy(abbrevInsert, sAbbrev.c_str(), sizeof(abbrevInsert));
-	abbrevInsert[sizeof(abbrevInsert) - 1] = '\0';
+	abbrevInsert = dlgAbbrev.comboAbbrev.Text();
 	dlgAbbrev.Destroy();
 }
 
@@ -2746,7 +2749,7 @@ void SciTEGTK::AbbrevResponse(int responseID) {
 			break;
 
 		case GTK_RESPONSE_CANCEL:
-			abbrevInsert[0] = '\0';
+			abbrevInsert = "";
 			dlgAbbrev.Destroy();
 			break;
 	}
@@ -3533,7 +3536,7 @@ GtkWidget *SciTEGTK::AddToolButton(const char *text, int cmd, GtkWidget *toolbar
 
 	g_signal_connect(G_OBJECT(button), "clicked",
 	                   G_CALLBACK(ButtonSignal),
-	                   (gpointer)cmd);
+	                   GINT_TO_POINTER(cmd));
 	return GTK_WIDGET(button);
 }
 
@@ -5006,9 +5009,14 @@ static void *WorkerThread(void *ptr) {
 }
 
 bool SciTEGTK::PerformOnNewThread(Worker *pWorker) {
-	pthread_t tid;
-	pthread_create(&tid, NULL, WorkerThread, pWorker);
-	return tid != 0;
+	GError *err = NULL;
+	GThread *pThread = g_thread_create(WorkerThread, pWorker,TRUE, &err);
+	if (pThread == NULL) {
+		fprintf(stderr, "g_thread_create failed: %s\n", err->message);
+		g_error_free(err) ;
+		return false;
+	}
+	return true;
 }
 
 struct CallbackData {
