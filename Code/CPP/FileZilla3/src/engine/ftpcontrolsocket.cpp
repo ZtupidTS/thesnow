@@ -1398,7 +1398,14 @@ int CFtpControlSocket::ListSubcommandResult(int prevResult)
 
 		delete m_pTransferSocket;
 		m_pTransferSocket = new CTransferSocket(m_pEngine, this, ::list);
-		pData->m_pDirectoryListingParser = new CDirectoryListingParser(this, *m_pCurrentServer);
+
+		// Assume that a server supporting UTF-8 does not send EBCDIC listings.
+		listingEncoding::type encoding = listingEncoding::unknown;
+		if (CServerCapabilities::GetCapability(*m_pCurrentServer, utf8_command) == yes)
+			encoding = listingEncoding::normal;
+
+		pData->m_pDirectoryListingParser = new CDirectoryListingParser(this, *m_pCurrentServer, encoding);
+
 		pData->m_pDirectoryListingParser->SetTimezoneOffset(GetTimezoneOffset());
 		m_pTransferSocket->m_pDirectoryListingParser = pData->m_pDirectoryListingParser;
 
@@ -1571,6 +1578,7 @@ int CFtpControlSocket::ListSubcommandResult(int prevResult)
 	}
 	else
 	{
+		LogMessage(__TFILE__, __LINE__, this, Debug_Warning, _("Wrong opState: %d"), pData->opState);
 		ResetOperation(FZ_REPLY_INTERNALERROR);
 		return FZ_REPLY_ERROR;
 	}
@@ -1615,6 +1623,8 @@ int CFtpControlSocket::ListSend()
 			ResetOperation(FZ_REPLY_OK);
 			return FZ_REPLY_OK;
 		}
+
+		pData->opState = list_waitcwd;
 
 		return ListSubcommandResult(FZ_REPLY_OK);
 	}
@@ -4365,7 +4375,34 @@ int CFtpControlSocket::Connect(const CServer &server)
 		(pData->ftp_proxy_type = m_pEngine->GetOptions()->GetOptionVal(OPTION_FTP_PROXY_TYPE)) && !server.GetBypassProxy())
 	{
 		pData->host = m_pEngine->GetOptions()->GetOption(OPTION_FTP_PROXY_HOST);
-		int pos = pData->host.Find(':');
+
+		int pos = -1;
+		if (pData->host[0] == '[')
+		{
+			// Probably IPv6 address
+			pos = pData->host.Find(']');
+			if (pos == -1)
+			{
+				LogMessage(::Error, _("Proxy host starts with '[' but no closing bracket found."));
+				DoClose(FZ_REPLY_CRITICALERROR);
+				return FZ_REPLY_ERROR;
+			}
+			if (pData->host[pos + 1])
+			{
+				if (pData->host[pos + 1] != ':')
+				{
+					LogMessage(::Error, _("Invalid proxy host, after closing bracket only colon and port may follow."));
+					DoClose(FZ_REPLY_CRITICALERROR);
+					return FZ_REPLY_ERROR;
+				}
+				++pos;
+			}
+			else
+				pos = -1;
+		}
+		else
+			pos = pData->host.Find(':');
+	
 		if (pos != -1)
 		{
 			unsigned long port = 0;
