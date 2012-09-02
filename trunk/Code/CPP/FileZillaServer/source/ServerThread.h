@@ -118,8 +118,8 @@ protected:
 
 	int m_lastLimits[2];
 	typedef struct {
-		int nBytesAllowedToTransfer;
-		int nTransferred;
+		long long nBytesAllowedToTransfer;
+		long long nTransferred;
 	} t_Quota;
 	t_Quota m_SlQuotas[2];
 

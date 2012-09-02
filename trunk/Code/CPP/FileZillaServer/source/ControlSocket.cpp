@@ -142,14 +142,14 @@ void CControlSocket::OnReceive(int nErrorCode)
 	}
 
 	int len = BUFFERSIZE;
-	int nLimit = GetSpeedLimit(upload);
+	long long nLimit = GetSpeedLimit(upload);
 	if (!nLimit)
 	{
 		ParseCommand();
 		return;
 	}
 	if (len > nLimit && nLimit != -1)
-		len = nLimit;
+		len = static_cast<int>(nLimit);
 
 	unsigned char *buffer = new unsigned char[BUFFERSIZE];
 	int numread = Receive(buffer, len);
@@ -160,7 +160,7 @@ void CControlSocket::OnReceive(int nErrorCode)
 
 		m_pOwner->IncRecvCount(numread);
 		//Parse all received bytes
-		for (int i = 0; i<numread; i++)
+		for (int i = 0; i < numread; i++)
 		{
 			if (!m_nRecvBufferPos)
 			{
@@ -369,7 +369,7 @@ BOOL CControlSocket::Send(LPCTSTR str, bool sendStatus /*=true*/)
 		return TRUE;
 	}
 
-	int nLimit = GetSpeedLimit(download);
+	long long nLimit = GetSpeedLimit(download);
 	if (!nLimit)
 	{
 		if (!m_pSendBuffer)
@@ -389,9 +389,9 @@ BOOL CControlSocket::Send(LPCTSTR str, bool sendStatus /*=true*/)
 		}
 		return TRUE;
 	}
-	int numsend = nLimit;
-	if (numsend == -1 || len < numsend)
-		numsend = len;
+	int numsend = len;
+	if (nLimit != -1 && numsend > nLimit)
+		numsend = static_cast<int>(nLimit);
 
 	int res = CAsyncSocketEx::Send(buffer, numsend);
 	if (res==SOCKET_ERROR && GetLastError() == WSAEWOULDBLOCK)
@@ -883,7 +883,7 @@ void CControlSocket::ParseCommand()
 			{
 				delete m_transferstatus.socket;
 				m_transferstatus.socket = NULL;
-				Send(_T("421 Could not create socket, nno usable IP address found."));
+				Send(_T("421 Could not create socket, no usable IP address found."));
 				m_transferstatus.pasv = -1;
 				break;
 			}
@@ -3068,13 +3068,14 @@ void CControlSocket::OnSend(int nErrorCode)
 {
 	if (m_nSendBufferLen && m_pSendBuffer)
 	{
-		int nLimit = GetSpeedLimit(download);
+		long long nLimit = GetSpeedLimit(download);
 		if (!nLimit)
 			return;
-		int numsend = nLimit;
+		int numsend;
 		if (nLimit == -1 || nLimit > m_nSendBufferLen)
 			numsend = m_nSendBufferLen;
-
+		else
+			numsend = static_cast<int>(nLimit);
 
 		int numsent = CAsyncSocketEx::Send(m_pSendBuffer, numsend);
 
@@ -3256,10 +3257,10 @@ void CControlSocket::Continue()
 	}
 }
 
-int CControlSocket::GetSpeedLimit(sltype mode)
+long long CControlSocket::GetSpeedLimit(sltype mode)
 {
 	CUser user;
-	int nLimit = -1;
+	long long nLimit = -1;
 	if (m_status.loggedon && m_pOwner->m_pPermissions->GetUser(m_status.user, user))
 	{
 		nLimit = user.GetCurrentSpeedLimit(mode);

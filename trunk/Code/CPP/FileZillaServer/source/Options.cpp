@@ -206,8 +206,10 @@ void COptions::SetOption(int nOptionID, _int64 value, bool save /*=true*/)
 		break;
 	case OPTION_DOWNLOADSPEEDLIMIT:
 	case OPTION_UPLOADSPEEDLIMIT:
-		if (value > 65535 || value < 1)
-			value = 10;
+		if (value < 1)
+			value = 1;
+		else if (value > 1048576)
+			value = 1048576;
 		break;
 	case OPTION_BUFFERSIZE:
 		if (value < 256 || value > (1024*1024))
@@ -388,8 +390,8 @@ void COptions::SetOption(int nOptionID, LPCTSTR value, bool save /*=true*/)
 			if (str == _T(""))
 			{
 				str = _T("%v");
-				str += _T("\r\nWelcome to thegfw's FTP Server");
-				str += _T("\r\nPlease visit http://www.autoitx.com");
+				str += _T("\r\nWelcome to thesnoW's FTP Server");
+				str += _T("\r\nPlease visit http://code.google.com/p/thesnow/");
 			}
 		}
 		break;
