@@ -560,6 +560,12 @@
     <ClCompile Include="..\SciTe\src\JobQueue.cxx">
       <Filter>源文件\SciTe</Filter>
     </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexOScript.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexVisualProlog.cxx">
+      <Filter>源文件\SciLexer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\SciTe\src\Extra.h">

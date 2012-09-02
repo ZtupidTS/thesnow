@@ -21,6 +21,7 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{EB309853-A408-4BBC-BDAA-6078D05B1DEB}</ProjectGuid>
     <RootNamespace>Scintilla</RootNamespace>
+    <ProjectName>SciLexer</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'" Label="Configuration">
@@ -61,8 +62,6 @@
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='UNICODE Debug|Win32'">true</LinkIncremental>
     <PostBuildEventUseInBuild Condition="'$(Configuration)|$(Platform)'=='UNICODE Debug|Win32'">false</PostBuildEventUseInBuild>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='UNICODE Debug|x64'">$(Platform)\$(Configuration)\</IntDir>
-    <OutDir Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">$(SolutionDir)$(Configuration)\</OutDir>
-    <IntDir Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">$(Configuration)\</IntDir>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|Win32'">false</LinkIncremental>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='UNICODE SHARE|x64'">$(Platform)\$(Configuration)\</IntDir>
     <CodeAnalysisRuleSet Condition="'$(Configuration)|$(Platform)'=='UNICODE Debug|Win32'">AllRules.ruleset</CodeAnalysisRuleSet>
@@ -131,6 +130,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\Scintilla\lexers\LexAVS.cxx" />
+    <ClCompile Include="..\Scintilla\lexers\LexCoffeeScript.cxx" />
+    <ClCompile Include="..\Scintilla\lexers\LexECL.cxx" />
+    <ClCompile Include="..\Scintilla\lexers\LexOScript.cxx" />
+    <ClCompile Include="..\Scintilla\lexers\LexTCMD.cxx" />
+    <ClCompile Include="..\Scintilla\lexers\LexVisualProlog.cxx" />
     <ClCompile Include="..\Scintilla\lexlib\Accessor.cxx" />
     <ClCompile Include="..\Scintilla\src\AutoComplete.cxx" />
     <ClCompile Include="..\Scintilla\src\CallTip.cxx" />
