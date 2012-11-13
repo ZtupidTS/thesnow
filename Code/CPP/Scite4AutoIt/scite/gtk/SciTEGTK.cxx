@@ -781,6 +781,7 @@ SciTEGTK::SciTEGTK(Extension *ext) : SciTEBase(ext) {
 
 	PropSetFile::SetCaseSensitiveFilenames(true);
 	propsEmbed.Set("PLAT_GTK", "1");
+	propsEmbed.Set("PLAT_UNIX", "1");
 
 	pathAbbreviations = GetAbbrevPropertiesFileName();
 

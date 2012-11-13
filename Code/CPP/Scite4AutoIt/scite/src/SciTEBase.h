@@ -896,6 +896,7 @@ protected:
 	virtual void TimerEnd(int mask);
 	void OnTimer();
 
+	void SetHomeProperties();
 	void UIAvailable();
 	void PerformOne(char *action);
 	void StartRecordMacro();
