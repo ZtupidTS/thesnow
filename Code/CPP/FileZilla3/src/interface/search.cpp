@@ -514,11 +514,12 @@ END_EVENT_TABLE()
 
 CSearchDialog::CSearchDialog(wxWindow* parent, CState* pState, CQueueView* pQueue)
 	: CStateEventHandler(pState)
+	, m_parent(parent)
+	, m_results(0)
+	, m_pQueue(pQueue)
+	, m_pWindowStateManager(0)
+	, m_searching(false)
 {
-	m_pQueue = pQueue;
-	m_parent = parent;
-	m_pWindowStateManager = 0;
-	m_searching = false;
 }
 
 CSearchDialog::~CSearchDialog()
@@ -625,7 +626,7 @@ void CSearchDialog::ProcessDirectoryListing()
 	// Do not process same directory multiple times
 	if (!m_visited.insert(listing->path).second)
 		return;
-	
+
 	int old_count = m_results->m_fileData.size();
 	int added = 0;
 
@@ -878,7 +879,7 @@ void CSearchDialog::ProcessSelection(std::list<int> &selected_files, std::list<C
 						continue;
 					}
 				}
-				iter++;
+				++iter;
 			}
 			if (!replaced)
 				selected_dirs.push_back(path);
@@ -889,11 +890,11 @@ void CSearchDialog::ProcessSelection(std::list<int> &selected_files, std::list<C
 
 	// Now in a second phase filter out all files that are also in a directory
 	std::list<int> selected_files_new;
-	for (std::list<int>::const_iterator iter = selected_files.begin(); iter != selected_files.end(); iter++)
+	for (std::list<int>::const_iterator iter = selected_files.begin(); iter != selected_files.end(); ++iter)
 	{
 		CServerPath path = m_results->m_fileData[*iter].path;
 		std::list<CServerPath>::const_iterator path_iter;
-		for (path_iter = selected_dirs.begin(); path_iter != selected_dirs.end(); path_iter++)
+		for (path_iter = selected_dirs.begin(); path_iter != selected_dirs.end(); ++path_iter)
 		{
 			if (*path_iter == path || path_iter->IsParentOf(path, false))
 				break;
@@ -902,7 +903,7 @@ void CSearchDialog::ProcessSelection(std::list<int> &selected_files, std::list<C
 			selected_files_new.push_back(*iter);
 	}
 	selected_files.swap(selected_files_new);
-	
+
 	// At this point selected_dirs contains uncomparable
 	// paths and selected_files contains only files not
 	// covered by any of those directories.
@@ -951,7 +952,7 @@ void CSearchDialog::OnDownload(wxCommandEvent& event)
 	bool start = XRCCTRL(dlg, "ID_QUEUE_START", wxRadioButton)->GetValue();
 	bool flatten = XRCCTRL(dlg, "ID_PATHS_FLATTEN", wxRadioButton)->GetValue();
 
-	for (std::list<int>::const_iterator iter = selected_files.begin(); iter != selected_files.end(); iter++)
+	for (std::list<int>::const_iterator iter = selected_files.begin(); iter != selected_files.end(); ++iter)
 	{
 		const CDirentry& entry = m_results->m_fileData[*iter].entry;
 
@@ -966,7 +967,7 @@ void CSearchDialog::OnDownload(wxCommandEvent& event)
 				segments.push_front(remote_path.GetLastSegment());
 				remote_path = remote_path.GetParent();
 			}
-			for (std::list<wxString>::const_iterator segment_iter = segments.begin(); segment_iter != segments.end(); segment_iter++)
+			for (std::list<wxString>::const_iterator segment_iter = segments.begin(); segment_iter != segments.end(); ++segment_iter)
 				target_path.AddSegment(*segment_iter);
 		}
 
@@ -987,7 +988,7 @@ void CSearchDialog::OnDownload(wxCommandEvent& event)
 	else
 		mode = start ? CRecursiveOperation::recursive_download : CRecursiveOperation::recursive_addtoqueue;
 
-	for (std::list<CServerPath>::const_iterator iter = selected_dirs.begin(); iter != selected_dirs.end(); iter++)
+	for (std::list<CServerPath>::const_iterator iter = selected_dirs.begin(); iter != selected_dirs.end(); ++iter)
 	{
 		CLocalPath target_path = path;
 		if (!flatten && iter->HasParent())
@@ -1020,20 +1021,20 @@ void CSearchDialog::OnDelete(wxCommandEvent& event)
 
 	wxString question;
 	if (selected_dirs.empty())
-		question.Printf(wxPLURAL("Really delete %d file?", "Really delete %d files?", selected_files.size()), selected_files.size());
+		question.Printf(wxPLURAL("Really delete %d file from the server?", "Really delete %d files from the server?", selected_files.size()), selected_files.size());
 	else if (selected_files.empty())
-		question.Printf(wxPLURAL("Really delete %d directory with its contents?", "Really delete %d directories with their contents?", selected_dirs.size()), selected_dirs.size());
+		question.Printf(wxPLURAL("Really delete %d directory with its contents from the server?", "Really delete %d directories with their contents from the server?", selected_dirs.size()), selected_dirs.size());
 	else
 	{
 		wxString files = wxString::Format(wxPLURAL("%d file", "%d files", selected_files.size()), selected_files.size());
 		wxString dirs = wxString::Format(wxPLURAL("%d directory with its contents", "%d directories with their contents", selected_dirs.size()), selected_dirs.size());
-		question.Printf(_("Really delete %s and %s?"), files.c_str(), dirs.c_str());
+		question.Printf(_("Really delete %s and %s from the server?"), files.c_str(), dirs.c_str());
 	}
 
 	if (wxMessageBox(question, _("Confirm deletion"), wxICON_QUESTION | wxYES_NO) != wxYES)
 		return;
 
-	for (std::list<int>::const_iterator iter = selected_files.begin(); iter != selected_files.end(); iter++)
+	for (std::list<int>::const_iterator iter = selected_files.begin(); iter != selected_files.end(); ++iter)
 	{
 		const CDirentry& entry = m_results->m_fileData[*iter].entry;
 		std::list<wxString> files_to_delete;
@@ -1041,7 +1042,7 @@ void CSearchDialog::OnDelete(wxCommandEvent& event)
 		m_pState->m_pCommandQueue->ProcessCommand(new CDeleteCommand(m_results->m_fileData[*iter].path, files_to_delete));
 	}
 
-	for (std::list<CServerPath>::const_iterator iter = selected_dirs.begin(); iter != selected_dirs.end(); iter++)
+	for (std::list<CServerPath>::const_iterator iter = selected_dirs.begin(); iter != selected_dirs.end(); ++iter)
 	{
 		CServerPath path = *iter;
 		if (!path.HasParent())
@@ -1087,7 +1088,7 @@ void CSearchDialog::LoadConditions()
 	CInterProcessMutex mutex(MUTEX_SEARCHCONDITIONS);
 
 	CXmlFile file;
-	
+
 	TiXmlElement* pDocument = file.Load(_T("search"));
 	if (!pDocument)
 	{
@@ -1108,7 +1109,7 @@ void CSearchDialog::SaveConditions()
 	CInterProcessMutex mutex(MUTEX_SEARCHCONDITIONS);
 
 	CXmlFile file;
-	
+
 	TiXmlElement* pDocument = file.Load(_T("search"));
 	if (!pDocument)
 	{

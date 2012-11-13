@@ -448,15 +448,15 @@ protected:
 };
 
 CDirectoryListingParser::CDirectoryListingParser(CControlSocket* pControlSocket, const CServer& server, listingEncoding::type encoding)
-	: m_pControlSocket(pControlSocket), m_server(server)
+	: m_pControlSocket(pControlSocket)
+	, m_currentOffset(0)
 	, m_totalData()
+	, m_prevLine(0)
+	, m_server(server)
+	, m_fileListOnly(true)
+	, m_maybeMultilineVms(false)
 	, m_listingEncoding(encoding)
 {
-	m_currentOffset = 0;
-	m_prevLine = 0;
-	m_fileListOnly = true;
-	m_maybeMultilineVms = false;
-
 	if (m_MonthNamesMap.empty())
 	{
 		//Fill the month names map
@@ -629,6 +629,9 @@ CDirectoryListingParser::CDirectoryListingParser(CControlSocket* pControlSocket,
 		m_MonthNamesMap[_T("spa")] = 10;
 		m_MonthNamesMap[_T("lap")] = 11;
 		m_MonthNamesMap[_T("grd")] = 12;
+
+		// Hungarian
+		m_MonthNamesMap[_T("szept")] = 9;
 
 		//There are more languages and thus month
 		//names, but as long as nobody reports a
@@ -1197,7 +1200,7 @@ bool CDirectoryListingParser::ParseUnixDateTime(CLine *pLine, int &index, CDiren
 			int fileDayOfYear = (month - 1) * 31 + day;
 
 			// We have to compare with an offset of one. In the worst case,
-			// the server's timezone might be up to 24 hours ahead of the 
+			// the server's timezone might be up to 24 hours ahead of the
 			// client.
 			// Problem: Servers which do send the time but not the year even
 			// one day away from getting 1 year old. This is far more uncommon
@@ -1684,7 +1687,7 @@ bool CDirectoryListingParser::ParseAsVms(CLine *pLine, CDirentry &entry)
 	// Current token is either size or date
 	bool gotSize = false;
 	pos = token.Find('/');
-	
+
 	if (!pos)
 		return false;
 
@@ -1842,7 +1845,7 @@ bool CDirectoryListingParser::ParseAsIbm(CLine *pLine, CDirentry &entry)
 		entry.name.RemoveLast();
 		entry.flags |= CDirentry::flag_dir;
 	}
-	
+
 	if (entry.has_time())
 		entry.time.Add(m_timezoneOffset);
 
@@ -2544,7 +2547,7 @@ bool CDirectoryListingParser::ParseAsIBM_MVS_Tape(CLine *pLine, CDirentry &entry
 	entry.ownerGroup = _T("");
 	entry.permissions = _T("");
 	entry.size = -1;
-	
+
 	if (pLine->GetToken(index++, token))
 		return false;
 
@@ -3016,9 +3019,9 @@ bool CDirectoryListingParser::GetMonthFromName(const wxString& name, int &month)
 		if (iter == m_MonthNamesMap.end())
 			return false;
 	}
-	
+
 	month = iter->second;
-	
+
 	return true;
 }
 
@@ -3061,8 +3064,6 @@ void CDirectoryListingParser::DeduceEncoding()
 
 	memset(&count, 0, sizeof(int)*256);
 
-	int count_us = 0;
-	int count_space = 0;
 	for (std::list<t_list>::const_iterator it = m_DataList.begin(); it != m_DataList.end(); ++it)
 	{
 		for (int i = 0; i < it->len; ++i)
@@ -3080,7 +3081,7 @@ void CDirectoryListingParser::DeduceEncoding()
 	for (int i = 'A'; i <= 'Z'; ++i ) {
 		count_normal += count[i];
 	}
-	
+
 	for (int i = 0x81; i <= 0x89; ++i ) {
 		count_ebcdic += count[i];
 	}
@@ -3102,7 +3103,7 @@ void CDirectoryListingParser::DeduceEncoding()
 	for (int i = 0xf0; i <= 0xf9; ++i ) {
 		count_ebcdic += count[i];
 	}
-		
+
 
 	if ((count[0x1f] || count[0x25]) && !count[0x0a] && count['@'] && count['@'] > count[' '] && count_ebcdic > count_normal)
 	{

@@ -62,7 +62,7 @@ bool CInterProcessMutex::Lock()
 		f.l_start = m_type;
 		f.l_len = 1;
 		f.l_pid = getpid();
-		
+
 		while (fcntl(m_fd, F_SETLKW, &f) == -1)
 		{
 			if (errno == EINTR) // Interrupted by signal, retry
@@ -155,12 +155,12 @@ CReentrantInterProcessMutexLocker::CReentrantInterProcessMutexLocker(enum t_ipcM
 	m_type = mutexType;
 
 	std::list<t_data>::iterator iter;
-	for (iter = m_mutexes.begin(); iter != m_mutexes.end(); iter++)
+	for (iter = m_mutexes.begin(); iter != m_mutexes.end(); ++iter)
 	{
 		if (iter->pMutex->GetType() == mutexType)
 			break;
 	}
-	
+
 	if (iter != m_mutexes.end())
 	{
 		iter->lockCount++;
@@ -177,12 +177,12 @@ CReentrantInterProcessMutexLocker::CReentrantInterProcessMutexLocker(enum t_ipcM
 CReentrantInterProcessMutexLocker::~CReentrantInterProcessMutexLocker()
 {
 	std::list<t_data>::iterator iter;
-	for (iter = m_mutexes.begin(); iter != m_mutexes.end(); iter++)
+	for (iter = m_mutexes.begin(); iter != m_mutexes.end(); ++iter)
 	{
 		if (iter->pMutex->GetType() == m_type)
 			break;
 	}
-	
+
 	wxASSERT(iter != m_mutexes.end());
 	if (iter == m_mutexes.end())
 		return;

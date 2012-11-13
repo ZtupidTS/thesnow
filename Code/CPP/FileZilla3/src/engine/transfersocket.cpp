@@ -66,7 +66,7 @@ CTransferSocket::~CTransferSocket()
 	{
 		if (m_transferMode == upload || m_transferMode == download)
 		{
-			CFtpFileTransferOpData *pData = static_cast<CFtpFileTransferOpData *>(static_cast<CRawTransferOpData *>(m_pControlSocket->m_pCurOpData)->pOldData);;
+			CFtpFileTransferOpData *pData = static_cast<CFtpFileTransferOpData *>(static_cast<CRawTransferOpData *>(m_pControlSocket->m_pCurOpData)->pOldData);
 			if (pData && pData->pIOThread)
 			{
 				if (m_transferMode == download)
@@ -83,9 +83,8 @@ wxString CTransferSocket::SetupActiveTransfer(const wxString& ip)
 	delete m_pSocket;
 	m_pSocket = 0;
 	delete m_pSocketServer;
-	m_pSocketServer = 0;
-
 	m_pSocketServer = CreateSocketServer();
+
 	if (!m_pSocketServer)
 	{
 		m_pControlSocket->LogMessage(::Debug_Warning, _T("CreateSocketServer failed"));
@@ -266,7 +265,7 @@ void CTransferSocket::OnReceive()
 
 	if (m_transferMode == list)
 	{
-		while (true)
+		for (;;)
 		{
 			char *pBuffer = new char[4096];
 			int error;
@@ -311,7 +310,7 @@ void CTransferSocket::OnReceive()
 	}
 	else if (m_transferMode == download)
 	{
-		while (true)
+		for (;;)
 		{
 			if (!CheckGetNextWriteBuffer())
 				return;
@@ -355,7 +354,7 @@ void CTransferSocket::OnReceive()
 	}
 	else if (m_transferMode == resumetest)
 	{
-		while (true)
+		for (;;)
 		{
 			char buffer[2];
 			int error;
@@ -539,7 +538,6 @@ bool CTransferSocket::SetupPassiveTransfer(wxString host, int port)
 {
 	// Void all previous attempts to createt a socket
 	delete m_pSocket;
-	m_pSocket = 0;
 	delete m_pSocketServer;
 	m_pSocketServer = 0;
 
@@ -587,7 +585,7 @@ void CTransferSocket::SetActive()
 		return;
 	if (m_transferMode == download || m_transferMode == upload)
 	{
-		CFtpFileTransferOpData *pData = static_cast<CFtpFileTransferOpData *>(static_cast<CRawTransferOpData *>(m_pControlSocket->m_pCurOpData)->pOldData);;
+		CFtpFileTransferOpData *pData = static_cast<CFtpFileTransferOpData *>(static_cast<CRawTransferOpData *>(m_pControlSocket->m_pCurOpData)->pOldData);
 		if (pData && pData->pIOThread)
 			pData->pIOThread->SetEventHandler(this);
 	}
@@ -595,7 +593,7 @@ void CTransferSocket::SetActive()
 	m_bActive = true;
 	if (!m_pSocket)
 		return;
-	
+
 	if (m_pSocket->GetState() == CSocket::connected || m_pSocket->GetState() == CSocket::closing)
 		TriggerPostponedEvents();
 }
@@ -618,7 +616,7 @@ void CTransferSocket::TransferEnd(enum TransferEndReason reason)
 	{
 		if (m_pBackend == m_pTlsSocket)
 			m_pBackend = 0;
-        delete m_pTlsSocket;
+		delete m_pTlsSocket;
 		m_pTlsSocket = 0;
 	}
 
@@ -696,7 +694,7 @@ CSocket* CTransferSocket::CreateSocketServer()
 
 bool CTransferSocket::CheckGetNextWriteBuffer()
 {
-	CFtpFileTransferOpData *pData = static_cast<CFtpFileTransferOpData *>(static_cast<CRawTransferOpData *>(m_pControlSocket->m_pCurOpData)->pOldData);;
+	CFtpFileTransferOpData *pData = static_cast<CFtpFileTransferOpData *>(static_cast<CRawTransferOpData *>(m_pControlSocket->m_pCurOpData)->pOldData);
 	if (!m_transferBufferLen)
 	{
 		int res = pData->pIOThread->GetNextWriteBuffer(&m_pTransferBuffer);
@@ -722,7 +720,7 @@ bool CTransferSocket::CheckGetNextWriteBuffer()
 
 bool CTransferSocket::CheckGetNextReadBuffer()
 {
-	CFtpFileTransferOpData *pData = static_cast<CFtpFileTransferOpData *>(static_cast<CRawTransferOpData *>(m_pControlSocket->m_pCurOpData)->pOldData);;
+	CFtpFileTransferOpData *pData = static_cast<CFtpFileTransferOpData *>(static_cast<CRawTransferOpData *>(m_pControlSocket->m_pCurOpData)->pOldData);
 	if (!m_transferBufferLen)
 	{
 		int res = pData->pIOThread->GetNextReadBuffer(&m_pTransferBuffer);
@@ -739,7 +737,7 @@ bool CTransferSocket::CheckGetNextReadBuffer()
 			if (m_pTlsSocket)
 			{
 				m_shutdown = true;
-				
+
 				int error = m_pTlsSocket->Shutdown();
 				if (error != 0)
 				{

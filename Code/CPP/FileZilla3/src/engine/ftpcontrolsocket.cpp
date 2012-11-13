@@ -167,7 +167,7 @@ public:
 	{
 	}
 
-	virtual ~CFtpDeleteOpData() { }
+	virtual ~CFtpDeleteOpData() {}
 
 	CServerPath path;
 	std::list<wxString> files;
@@ -213,7 +213,7 @@ void CFtpControlSocket::OnReceive()
 {
 	LogMessage(Debug_Verbose, _T("CFtpControlSocket::OnReceive()"));
 
-	while (true)
+	for (;;)
 	{
 		int error;
 		int read = m_pBackend->Read(m_receiveBuffer + m_bufferLen, RECVBUFFERSIZE - m_bufferLen, error);
@@ -745,7 +745,7 @@ int CFtpControlSocket::LogonParseResponse()
 		{
 			if (pData->opState == LOGON_AUTH_SSL)
 			{
-				if (m_pCurrentServer->GetProtocol() == FTP) 
+				if (m_pCurrentServer->GetProtocol() == FTP)
 				{
 					// For now. In future make TLS mandatory unless explicitly requested INSECURE_FTP as protocol
 					LogMessage(Status, _("Insecure server, it does not support FTP over TLS."));
@@ -924,7 +924,7 @@ int CFtpControlSocket::LogonParseResponse()
 			return SendNextCommand();
 	}
 
-	while (true)
+	for (;;)
 	{
 		++pData->opState;
 
@@ -1005,7 +1005,7 @@ int CFtpControlSocket::LogonParseResponse()
 					int delim = facts.Find(';');
 					if (delim == -1)
 						break;
-						
+
 					if (!delim)
 					{
 						facts = facts.Mid(1);
@@ -1578,7 +1578,7 @@ int CFtpControlSocket::ListSubcommandResult(int prevResult)
 	}
 	else
 	{
-		LogMessage(__TFILE__, __LINE__, this, Debug_Warning, _("Wrong opState: %d"), pData->opState);
+		LogMessage(__TFILE__, __LINE__, this, Debug_Warning, _T("Wrong opState: %d"), pData->opState);
 		ResetOperation(FZ_REPLY_INTERNALERROR);
 		return FZ_REPLY_ERROR;
 	}
@@ -3172,7 +3172,7 @@ public:
 	{
 	}
 
-	virtual ~CFtpRemoveDirOpData() { }
+	virtual ~CFtpRemoveDirOpData() {}
 
 	CServerPath path;
 	CServerPath fullPath;
@@ -3516,7 +3516,7 @@ public:
 		m_useAbsolute = false;
 	}
 
-	virtual ~CFtpRenameOpData() { }
+	virtual ~CFtpRenameOpData() {}
 
 	CRenameCommand m_cmd;
 	bool m_useAbsolute;
@@ -3669,7 +3669,7 @@ public:
 		m_useAbsolute = false;
 	}
 
-	virtual ~CFtpChmodOpData() { }
+	virtual ~CFtpChmodOpData() {}
 
 	CChmodCommand m_cmd;
 	bool m_useAbsolute;
@@ -3811,7 +3811,7 @@ bool CFtpControlSocket::ParseEpsvResponse(CRawTransferOpData* pData)
 	if (!number.ToULong(&port))
 		 return false;
 
-	if (port <= 0 || port > 65535)
+	if (port == 0 || port > 65535)
 	   return false;
 
 	pData->port = port;
@@ -3875,7 +3875,7 @@ bool CFtpControlSocket::ParsePasvResponse(CRawTransferOpData* pData)
 		// Always use server address
 		pData->host = peerIP;
 	}
-		
+
 
 	return true;
 }
@@ -4051,7 +4051,7 @@ int CFtpControlSocket::TransferParseResponse()
 	switch (pData->opState)
 	{
 	case rawtransfer_type:
-		if (code != 2 && code != 2)
+		if (code != 2 && code != 3)
 			error = true;
 		else
 		{
@@ -4402,7 +4402,7 @@ int CFtpControlSocket::Connect(const CServer &server)
 		}
 		else
 			pos = pData->host.Find(':');
-	
+
 		if (pos != -1)
 		{
 			unsigned long port = 0;

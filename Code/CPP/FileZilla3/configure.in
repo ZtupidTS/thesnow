@@ -1,4 +1,4 @@
-AC_INIT(FileZilla, 3.5.3, tim.kosse@filezilla-project.org)
+AC_INIT(FileZilla, 3.6.0-rc1, tim.kosse@filezilla-project.org)
 AC_CONFIG_HEADERS([src/include/config.h])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR(config)
@@ -194,21 +194,23 @@ if test "$buildmain" = "yes" -o "$shellextonly" = "yes"; then
   use_resourcefile=
   AC_MSG_CHECKING([whether to use windres])
   if echo $host_os | grep "cygwin\|mingw" > /dev/null 2>&1; then
-        if echo $WX_CPPFLAGS | grep __WXMSW__ > /dev/null 2>&1; then
-        if test -z "$host_alias"; then
-            hostaliaswindres=
-        else
-            hostaliaswindres="$host_alias-windres"
-        fi
-        AC_MSG_RESULT([yes])
-        AC_PATH_PROGS([WINDRES], [windres $hostaliaswindres $host_os-windres])
-        if test "x$WINDRES" = "x"; then
-            AC_MSG_ERROR([windres could not be found, please make sure this program is within your path.])
-        fi
-                use_resourcefile=true
-                parseflags $WX_CPPFLAGS
+    if echo $WX_CPPFLAGS | grep __WXMSW__ > /dev/null 2>&1; then
+      if test -z "$host_alias"; then
+        hostaliaswindres=
+      else
+        hostaliaswindres="$host_alias-windres"
+      fi
+      AC_MSG_RESULT([yes])
+      AC_PATH_PROGS([WINDRES], [windres $hostaliaswindres $host_os-windres])
+      if test "x$WINDRES" = "x"; then
+        AC_MSG_ERROR([windres could not be found, please make sure this program is within your path.])
+      fi
+      use_resourcefile=true
+      parseflags $WX_CPPFLAGS
+
+      FZ_CHECK_ICOPYHOOKW
     else
-        AC_MSG_RESULT([no])
+      AC_MSG_RESULT([no])
     fi
   else
     AC_MSG_RESULT([no])
@@ -576,6 +578,7 @@ src/interface/resources/blukis/Makefile
 src/interface/resources/lone/Makefile
 src/interface/resources/minimal/Makefile
 src/interface/resources/opencrystal/Makefile
+src/interface/resources/tango/Makefile
 src/putty/Makefile src/putty/unix/Makefile src/putty/windows/Makefile
 tests/Makefile src/interface/resources/version.rc
 src/interface/resources/MacInfo.plist

@@ -21,15 +21,16 @@ wxString CExternalIPResolver::m_ip;
 bool CExternalIPResolver::m_checked = false;
 
 CExternalIPResolver::CExternalIPResolver(wxEvtHandler* handler, int id /*=wxID_ANY*/)
-	: m_handler(handler), m_id(id)
+	: m_port(80)
+	, m_handler(handler)
+	, m_id(id)
+	, m_done(false)
+	, m_pSocket(0)
+	, m_pSendBuffer(0)
+	, m_sendBufferPos(0)
+	, m_pRecvBuffer(0)
+	, m_recvBufferPos(0)
 {
-	m_pSocket = 0;
-	m_done = false;
-	m_pSendBuffer = 0;
-	m_sendBufferPos = 0;
-	m_pRecvBuffer = 0;
-	m_recvBufferPos = 0;
-
 	ResetHttpData(true);
 }
 
@@ -257,7 +258,7 @@ void CExternalIPResolver::OnHeader()
 	// We do just the neccessary parsing and silently ignore most header fields
 	// Redirects are supported though if the server sends the Location field.
 
-	while (true)
+	for (;;)
 	{
 		// Find line ending
 		unsigned int i = 0;
@@ -469,7 +470,7 @@ void CExternalIPResolver::OnChunkedData()
 	char* p = m_pRecvBuffer;
 	unsigned int len = m_recvBufferPos;
 
-	while (true)
+	for (;;)
 	{
 		if (m_chunkData.size != 0)
 		{
@@ -480,7 +481,7 @@ void CExternalIPResolver::OnChunkedData()
 			if (!m_pRecvBuffer)
 				return;
 
-            m_chunkData.size -= dataLen;
+			m_chunkData.size -= dataLen;
 			p += dataLen;
 			len -= dataLen;
 

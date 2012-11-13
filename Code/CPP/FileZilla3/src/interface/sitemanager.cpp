@@ -582,7 +582,7 @@ bool CSiteManager::GetBookmarks(wxString sitePath, std::list<wxString> &bookmark
 		if (localPath.empty() && remotePath.IsEmpty())
 			continue;
 
-		bookmarks.push_back(name);		
+		bookmarks.push_back(name);
 	}
 
 	return true;
@@ -622,7 +622,7 @@ wxString CSiteManager::AddServer(CServer server)
 	wxString name = _("New site");
 	int i = 1;
 
-	while (true)
+	for (;;)
 	{
 		std::list<wxString>::const_iterator iter;
 		for (iter = names.begin(); iter != names.end(); ++iter)
@@ -658,7 +658,7 @@ wxString CSiteManager::AddServer(CServer server)
 		wxMessageBox(msg, _("Error writing xml file"), wxICON_ERROR);
 		return _T("");
 	}
-	
+
 	name.Replace(_T("\\"), _T("\\\\"));
 	name.Replace(_T("/"), _T("\\/"));
 
@@ -713,9 +713,7 @@ bool CSiteManager::AddBookmark(wxString sitePath, const wxString& name, const wx
 	CInterProcessMutex mutex(MUTEX_SITEMANAGER);
 
 	CXmlFile file;
-	TiXmlElement* pDocument = 0;
-
-	pDocument = file.Load(_T("sitemanager"));
+	TiXmlElement* pDocument = file.Load(_T("sitemanager"));
 
 	if (!pDocument)
 	{
@@ -800,9 +798,7 @@ bool CSiteManager::ClearBookmarks(wxString sitePath)
 	CInterProcessMutex mutex(MUTEX_SITEMANAGER);
 
 	CXmlFile file;
-	TiXmlElement* pDocument = 0;
-
-	pDocument = file.Load(_T("sitemanager"));
+	TiXmlElement* pDocument = file.Load(_T("sitemanager"));
 
 	if (!pDocument)
 	{

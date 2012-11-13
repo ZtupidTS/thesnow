@@ -31,8 +31,8 @@ class CLocalListViewDropTarget : public CListCtrlDropTarget
 {
 public:
 	CLocalListViewDropTarget(CLocalListView* pLocalListView)
-        : CListCtrlDropTarget(pLocalListView)
-        , m_pLocalListView(pLocalListView), m_pFileDataObject(new wxFileDataObject()),
+		: CListCtrlDropTarget(pLocalListView)
+		, m_pLocalListView(pLocalListView), m_pFileDataObject(new wxFileDataObject()),
 		m_pRemoteDataObject(new CRemoteDataObject())
 	{
 		m_pDataObject = new wxDataObjectComposite;
@@ -120,7 +120,7 @@ public:
 
 	virtual bool OnDrop(wxCoord x, wxCoord y)
 	{
-        CListCtrlDropTarget::OnDrop(x, y);
+		CListCtrlDropTarget::OnDrop(x, y);
 		ClearDropHighlight();
 
 		if (m_pLocalListView->m_fileData.empty())
@@ -129,12 +129,12 @@ public:
 		return true;
 	}
 
-    virtual void DisplayDropHighlight(wxPoint point)
-    {
-        DoDisplayDropHighlight(point);
-    }
+	virtual void DisplayDropHighlight(wxPoint point)
+	{
+		DoDisplayDropHighlight(point);
+	}
 
-    virtual wxString DoDisplayDropHighlight(wxPoint point)
+	virtual wxString DoDisplayDropHighlight(wxPoint point)
 	{
 		wxString subDir;
 
@@ -181,7 +181,7 @@ public:
 
 	virtual wxDragResult OnDragOver(wxCoord x, wxCoord y, wxDragResult def)
 	{
-        CListCtrlDropTarget::OnDragOver(x, y, def);
+		CListCtrlDropTarget::OnDragOver(x, y, def);
 
 		if (def == wxDragError ||
 			def == wxDragNone ||
@@ -197,7 +197,7 @@ public:
 			return wxDragNone;
 		}
 
-        const wxString& subdir = DoDisplayDropHighlight(wxPoint(x, y));
+		const wxString& subdir = DoDisplayDropHighlight(wxPoint(x, y));
 
 		CLocalPath dir = m_pLocalListView->m_pState->GetLocalDir();
 		if (subdir == _T(""))
@@ -223,13 +223,13 @@ public:
 
 	virtual void OnLeave()
 	{
-        CListCtrlDropTarget::OnLeave();
+		CListCtrlDropTarget::OnLeave();
 		ClearDropHighlight();
 	}
 
-    virtual wxDragResult OnEnter(wxCoord x, wxCoord y, wxDragResult def)
+	virtual wxDragResult OnEnter(wxCoord x, wxCoord y, wxDragResult def)
 	{
-        CListCtrlDropTarget::OnEnter(x, y, def);
+		CListCtrlDropTarget::OnEnter(x, y, def);
 		return OnDragOver(x, y, def);
 	}
 
@@ -494,7 +494,7 @@ void CLocalListView::OnItemActivated(wxListEvent &event)
 	bool back = false;
 
 	int item = -1;
-	while (true)
+	for (;;)
 	{
 		item = GetNextItem(item, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
 		if (item == -1)
@@ -802,7 +802,7 @@ public:
 	{
 	}
 
-	virtual ~CLocalListViewSort() { }
+	virtual ~CLocalListViewSort() {}
 
 	virtual bool operator()(int a, int b) const = 0;
 
@@ -1128,7 +1128,7 @@ void CLocalListView::OnContextMenu(wxContextMenuEvent& event)
 void CLocalListView::OnMenuUpload(wxCommandEvent& event)
 {
 	long item = -1;
-	while (true)
+	for (;;)
 	{
 		item = GetNextItem(item, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
 		if (item == -1)
@@ -1150,7 +1150,7 @@ void CLocalListView::OnMenuUpload(wxCommandEvent& event)
 	bool queue_only = event.GetId() == XRCID("ID_ADDTOQUEUE");
 
 	item = -1;
-	while (true)
+	for (;;)
 	{
 		item = GetNextItem(item, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
 		if (item == -1)
@@ -1493,7 +1493,7 @@ std::list<wxString> CLocalListView::RememberSelectedItems(wxString& focused)
 #endif
 	{
 		int item = -1;
-		while (true)
+		for (;;)
 		{
 			item = GetNextItem(item, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
 			if (item == -1)
@@ -1547,7 +1547,7 @@ void CLocalListView::ReselectItems(const std::list<wxString>& selectedNames, wxS
 	int firstSelected = -1;
 
 	int i = -1;
-	for (std::list<wxString>::const_iterator iter = selectedNames.begin(); iter != selectedNames.end(); iter++)
+	for (std::list<wxString>::const_iterator iter = selectedNames.begin(); iter != selectedNames.end(); ++iter)
 	{
 		while (++i < (int)m_indexMapping.size())
 		{
@@ -1604,7 +1604,7 @@ void CLocalListView::OnStateChange(CState* pState, enum t_statechange_notificati
 void CLocalListView::OnBeginDrag(wxListEvent& event)
 {
 	long item = -1;
-	while (true)
+	for (;;)
 	{
 		item = GetNextItem(item, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
 		if (item == -1)
@@ -1621,7 +1621,7 @@ void CLocalListView::OnBeginDrag(wxListEvent& event)
 	pDragDropManager->localParent = m_dir;
 
 	item = -1;
-	while (true)
+	for (;;)
 	{
 		item = GetNextItem(item, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
 		if (item == -1)
@@ -1689,7 +1689,7 @@ void CLocalListView::RefreshFile(const wxString& file)
 
 	// Look if file data already exists
 	unsigned int i = 0;
-	for (std::vector<CLocalFileData>::iterator iter = m_fileData.begin(); iter != m_fileData.end(); iter++, i++)
+	for (std::vector<CLocalFileData>::iterator iter = m_fileData.begin(); iter != m_fileData.end(); ++iter, ++i)
 	{
 		const CLocalFileData& oldData = *iter;
 		if (oldData.name != file)
@@ -1704,7 +1704,7 @@ void CLocalListView::RefreshFile(const wxString& file)
 #endif
 			{
 				int item = -1;
-				while (true)
+				for (;;)
 				{
 					item = GetNextItem(item, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
 					if (item == -1)
@@ -1774,7 +1774,7 @@ void CLocalListView::RefreshFile(const wxString& file)
 	// Find correct position in index mapping
 	std::vector<unsigned int>::iterator start = m_indexMapping.begin();
 	if (m_hasParent)
-		start++;
+		++start;
 	CFileListCtrl<CLocalFileData>::CSortComparisonObject compare = GetSortComparisonObject();
 	std::vector<unsigned int>::iterator insertPos = std::lower_bound(start, m_indexMapping.end(), index, compare);
 	compare.Destroy();
@@ -2022,7 +2022,7 @@ void CLocalListView::OnMenuEdit(wxCommandEvent& event)
 			return;
 	}
 
-	for (std::list<CLocalFileData>::const_iterator data = selected_item_list.begin(); data != selected_item_list.end(); data++)
+	for (std::list<CLocalFileData>::const_iterator data = selected_item_list.begin(); data != selected_item_list.end(); ++data)
 	{
 		wxFileName fn(m_dir, data->name);
 
@@ -2142,7 +2142,7 @@ void CLocalListView::OnMenuOpen(wxCommandEvent& event)
 			return;
 	}
 
-	for (std::list<CLocalFileData>::const_iterator data = selected_item_list.begin(); data != selected_item_list.end(); data++)
+	for (std::list<CLocalFileData>::const_iterator data = selected_item_list.begin(); data != selected_item_list.end(); ++data)
 	{
 		if (data->dir)
 		{
@@ -2215,7 +2215,7 @@ void CLocalListView::OnVolumesEnumerated(wxCommandEvent& event)
 	if (m_dir != _T("\\"))
 		return;
 
-	for (std::list<CVolumeDescriptionEnumeratorThread::t_VolumeInfo>::const_iterator iter = volumeInfo.begin(); iter != volumeInfo.end(); iter++)
+	for (std::list<CVolumeDescriptionEnumeratorThread::t_VolumeInfo>::const_iterator iter = volumeInfo.begin(); iter != volumeInfo.end(); ++iter)
 	{
 		wxString drive = iter->volume;
 
@@ -2230,7 +2230,7 @@ void CLocalListView::OnVolumesEnumerated(wxCommandEvent& event)
 			continue;
 
 		m_fileData[index].label = drive + _T(" (") + iter->volumeName + _T(")");
-		
+
 		RefreshItem(item);
 	}
 }

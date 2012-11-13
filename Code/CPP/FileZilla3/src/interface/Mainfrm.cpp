@@ -336,7 +336,7 @@ CMainFrame::CMainFrame()
 	m_pContextControl->CreateTab();
 
 	m_pContextControl->GetCurrentControls();
-	
+
 	switch (message_log_position)
 	{
 	case 1:
@@ -508,7 +508,7 @@ bool CMainFrame::CreateMenus()
 		delete m_pMenuBar;
 	}
 	m_pMenuBar = CMenuBar::Load(this);
-	
+
 	if (!m_pMenuBar)
 		return false;
 
@@ -623,6 +623,14 @@ void CMainFrame::OnMenuHandler(wxCommandEvent &event)
 		int *x = 0;
 		*x = 0;
 	}
+	else if (event.GetId() == XRCID("ID_CIPHERS"))
+	{
+		CInputDialog dlg;
+		dlg.Create(this, _T("Ciphers"), _T("Priority string:"));
+		dlg.AllowEmpty(true);
+		if (dlg.ShowModal() == wxID_OK)
+			wxMessageBox(ListTlsCiphers(dlg.GetValue()), _T("Ciphers"));
+	}
 	else if (event.GetId() == XRCID("ID_CLEARCACHE_LAYOUT"))
 	{
 		CWrapEngine::ClearCache();
@@ -674,7 +682,7 @@ void CMainFrame::OnMenuHandler(wxCommandEvent &event)
 
 		COptions::Get()->SetOption(OPTION_VIEW_HIDDEN_FILES, showHidden ? 1 : 0);
 		const std::vector<CState*> *pStates = CContextManager::Get()->GetAllStates();
-		for (std::vector<CState*>::const_iterator iter = pStates->begin(); iter != pStates->end(); iter++)
+		for (std::vector<CState*>::const_iterator iter = pStates->begin(); iter != pStates->end(); ++iter)
 		{
 			CState* pState = *iter;
 			CServerPath path = pState->GetRemotePath();
@@ -854,7 +862,7 @@ void CMainFrame::OnMenuHandler(wxCommandEvent &event)
 			CSiteManager::GetBookmarks(controls->site_bookmarks->path, controls->site_bookmarks->bookmarks);
 			if (m_pMenuBar)
 				m_pMenuBar->UpdateBookmarkMenu();
-		}	
+		}
 	}
 	else if (event.GetId() == XRCID("ID_MENU_HELP_WELCOME"))
 	{
@@ -942,11 +950,11 @@ void CMainFrame::OnEngineEvent(wxEvent &event)
 
 	const std::vector<CState*> *pStates = CContextManager::Get()->GetAllStates();
 	CState* pState = 0;
-	for (std::vector<CState*>::const_iterator iter = pStates->begin(); iter != pStates->end(); iter++)
+	for (std::vector<CState*>::const_iterator iter = pStates->begin(); iter != pStates->end(); ++iter)
 	{
 		if ((*iter)->m_pEngine != pEngine)
 			continue;
-		
+
 		pState = *iter;
 		break;
 	}
@@ -1140,7 +1148,7 @@ bool CMainFrame::CloseDialogsAndQuit(wxCloseEvent &event)
 			if (m_pQueuePane && pParent == m_pQueuePane)
 			{
 				// It's the AUI frame manager hint window. Ignore it
-				iter++;
+				++iter;
 				pTop = (wxTopLevelWindow*)(*iter);
 				continue;
 			}
@@ -1242,7 +1250,7 @@ void CMainFrame::OnClose(wxCloseEvent &event)
 		}
 
 		RememberSplitterPositions();
-		
+
 #ifdef __WXMAC__
 		if (m_pToolBar)
 			COptions::Get()->SetOption(OPTION_TOOLBAR_HIDDEN, m_pToolBar->IsShown() ? 0 : 1);
@@ -1282,7 +1290,7 @@ void CMainFrame::OnClose(wxCloseEvent &event)
 
 	bool res = true;
 	const std::vector<CState*> *pStates = CContextManager::Get()->GetAllStates();
-	for (std::vector<CState*>::const_iterator iter = pStates->begin(); iter != pStates->end(); iter++)
+	for (std::vector<CState*>::const_iterator iter = pStates->begin(); iter != pStates->end(); ++iter)
 	{
 		CState* pState = *iter;
 		if (!pState->m_pCommandQueue)
@@ -1306,7 +1314,7 @@ void CMainFrame::OnClose(wxCloseEvent &event)
 		COptions::Get()->SetOption(OPTION_LAST_CONNECTED_SITE, controls->site_bookmarks->path);
 	}
 
-	for (std::vector<CState*>::const_iterator iter = pStates->begin(); iter != pStates->end(); iter++)
+	for (std::vector<CState*>::const_iterator iter = pStates->begin(); iter != pStates->end(); ++iter)
 	{
 		CState *pState = *iter;
 		pState->DestroyEngine();
@@ -1586,7 +1594,7 @@ void CMainFrame::OnToggleLogView(wxCommandEvent& event)
 			shown = true;
 		}
 	}
-	
+
 	if (COptions::Get()->GetOptionVal(OPTION_MESSAGELOG_POSITION) != 2)
 		COptions::Get()->SetOption(OPTION_SHOW_MESSAGELOG, shown);
 }
@@ -1637,7 +1645,7 @@ void CMainFrame::ShowLocalTree()
 			continue;
 
 		controls->pLocalTreeViewPanel->SetHeader(controls->pLocalListViewPanel->DetachHeader());
-		
+
 		if (layout == 3 && swap)
 			controls->pLocalSplitter->SplitVertically(controls->pLocalListViewPanel, controls->pLocalTreeViewPanel);
 		else if (layout)
@@ -1801,12 +1809,12 @@ void CMainFrame::UpdateLayout(int layout /*=-1*/, int swap /*=-1*/, int messagel
 
 	if (messagelog_position == -1)
 		messagelog_position = COptions::Get()->GetOptionVal(OPTION_MESSAGELOG_POSITION);
-	
+
 	// First handle changes in message log position as it can make size of the other panes change
 	{
 		bool shown = m_pStatusView->IsShown();
 		wxWindow* parent = m_pStatusView->GetParent();
-	
+
 		bool changed;
 		if (parent == m_pTopSplitter && messagelog_position != 0)
 		{
@@ -1992,7 +2000,7 @@ void CMainFrame::OnSitemanagerDropdown(wxCommandEvent& event)
 	ShowDropdownMenu(pMenu, m_pToolBar, event);
 }
 
-bool CMainFrame::ConnectToSite(CSiteManagerItemData_Site* const pData)
+bool CMainFrame::ConnectToSite(CSiteManagerItemData_Site* const pData, bool newTab)
 {
 	wxASSERT(pData);
 
@@ -2002,6 +2010,9 @@ bool CMainFrame::ConnectToSite(CSiteManagerItemData_Site* const pData)
 		if (!CLoginManager::Get().GetPassword(pData->m_server, false, pData->m_server.GetName()))
 			return false;
 	}
+
+	if (newTab)
+		m_pContextControl->CreateTab();
 
 	if (!ConnectToServer(pData->m_server, pData->m_remoteDir))
 		return false;
@@ -2099,7 +2110,7 @@ void CMainFrame::OnNavigationKeyEvent(wxNavigationKeyEvent& event)
 	windowOrder.push_back(m_pQueuePane);
 
 	std::list<wxWindow*>::iterator iter;
-	for (iter = windowOrder.begin(); iter != windowOrder.end(); iter++)
+	for (iter = windowOrder.begin(); iter != windowOrder.end(); ++iter)
 	{
 		if (*iter == event.GetEventObject())
 			break;
@@ -2155,7 +2166,7 @@ void CMainFrame::OnChar(wxKeyEvent& event)
 	else
 	{
 		wxWindow *parent = focused->GetParent();
-		for (iter = windowOrder.begin(); iter != windowOrder.end(); iter++)
+		for (iter = windowOrder.begin(); iter != windowOrder.end(); ++iter)
 		{
 			if (*iter == focused || *iter == parent)
 			{
@@ -2182,7 +2193,7 @@ void CMainFrame::FocusNextEnabled(std::list<wxWindow*>& windowOrder, std::list<w
 		skipFirst = false;
 		if (forward)
 		{
-			iter++;
+			++iter;
 			if (iter == windowOrder.end())
 				iter = windowOrder.begin();
 		}
@@ -2190,7 +2201,7 @@ void CMainFrame::FocusNextEnabled(std::list<wxWindow*>& windowOrder, std::list<w
 		{
 			if (iter == windowOrder.begin())
 				iter = windowOrder.end();
-			iter--;
+			--iter;
 		}
 
 		if (iter == start)
@@ -2208,7 +2219,7 @@ void CMainFrame::RememberSplitterPositions()
 	CContextControl::_context_controls* controls = m_pContextControl->GetCurrentControls();
 	if (!controls)
 		return;
-	
+
 	wxString posString;
 
 	// top_pos
@@ -2554,7 +2565,7 @@ WXLRESULT CMainFrame::MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, WXLPARAM lPara
 		// create another instance of the module and call its Exit() member.
 		// After that, the next call to a wxDisplay will create a new factory and
 		// get the new display layout from Windows.
-		// 
+		//
 		// Note: Both the factory pattern as well as the dynamic object system
 		//       are perfect example of bad design.
 		//

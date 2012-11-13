@@ -5,17 +5,20 @@
 #define _UNICODE
 #endif
 
+
 //---------------------------------------------------------------------------
 #ifdef _MSC_VER
 	#include <objbase.h>
 	#define snprintf _snprintf
-	
-	// The decision what will get exported is done using fzshellext.def 
+
+	// The decision what will get exported is done using fzshellext.def
 	#define STDEXPORTAPI STDAPI
 #else
 	#define STDEXPORTAPI extern "C" __declspec(dllexport) HRESULT STDAPICALLTYPE
 
-	// Currently, the MinGW w32api has no unicode version of ICopyHook. As such,
+	#include <config.h>
+#if !HAVE_ICOPYHOOKW
+	// Some versions of the MinGW w32api have no unicode version of ICopyHook. As such,
 	// declare ICopyHookW manually.
 
 	// Use some #define magic to prevent LPCOPYHOOK being declared
@@ -33,6 +36,7 @@
 	};
 	#undef INTERFACE
 	typedef ICopyHookW *LPCOPYHOOK;
+#endif // !HAVE_ICOPYHOOKW
 
 #endif
 
@@ -58,11 +62,11 @@
 	{ \
 		DebugW(MSG); \
 	}
-	
+
 //---------------------------------------------------------------------------
 #define DRAG_EXT_REG_KEY _T("Software\\FileZilla 3\\fzshellext")
 #define DRAG_EXT_REG_KEY_PARENT _T("Software\\FileZilla 3")
-#define DRAG_EXT_NAME _T("FileZilla 3 Shell Extension")
+#define DRAG_EXT_NAME   _T("FileZilla 3 Shell Extension")
 #define THREADING_MODEL _T("Apartment")
 #define CLSID_SIZE 39
 
@@ -183,7 +187,7 @@ void DebugW(const wchar_t* Message)
 		Debug("WideCharToMultiByte failed");
 	else
 	{
-        buffer[written] = 0;
+		buffer[written] = 0;
 		Debug(buffer);
 	}
 	delete [] buffer;
@@ -226,7 +230,7 @@ void LogVersion(HINSTANCE HInstance)
 		Debug("LogVersion return: no fixed version info");
 		return;
 	}
-	
+
 	char VersionStr[100];
 	snprintf(VersionStr, sizeof(VersionStr), "LogVersion %d.%d.%d.%d",
 		HIWORD(VersionInfo->dwFileVersionMS),
@@ -434,24 +438,24 @@ STDEXPORTAPI DllRegisterServer()
 static bool RegDeleteEmptyKey(HKEY root, LPCTSTR name)
 {
 	HKEY key;
-	
+
 	// Can't use SHDeleteEmptyKey, it gives a linking error
 	if (RegOpenKeyEx(root, name, 0, KEY_READ, &key) != ERROR_SUCCESS)
 		return false;
 
 	DWORD subKeys, values;
 	int ret = RegQueryInfoKey(key, 0, 0, 0, &subKeys, 0, 0, &values, 0, 0, 0,0);
-	
+
 	RegCloseKey(key);
-	
+
 	if (ret != ERROR_SUCCESS)
 		return false;
-	
+
 	if (subKeys || values)
 		return false;
 
 	RegDeleteKey(root, name);
-	
+
 	return true;
 }
 
@@ -884,7 +888,7 @@ STDMETHODIMP_(UINT) CShellExt::CopyCallback(HWND Hwnd, UINT wFunc, UINT Flags,
 		DEBUG_MSG("CShellExt::CopyCallback mapview NOT created");
 	}
 
-	CloseHandle(MapFile);	
-	
+	CloseHandle(MapFile);
+
 	return Result;
 }

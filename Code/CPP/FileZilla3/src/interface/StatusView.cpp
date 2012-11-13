@@ -31,7 +31,7 @@ public:
 	{
 		DoSetSelection(from, to, false);
 
-		m_updatesCount = -2;        // suppress any update event
+		m_updatesCount = -2;		// suppress any update event
 
 		::SendMessage((HWND)GetHandle(), EM_REPLACESEL, 0, (LPARAM)_T(""));
 	}
@@ -94,7 +94,6 @@ END_EVENT_TABLE()
 CStatusView::CStatusView(wxWindow* parent, wxWindowID id)
 	: wxWindow(parent, id, wxDefaultPosition, wxDefaultSize, wxSUNKEN_BORDER)
 {
-	m_pTextCtrl = 0;
 	m_pTextCtrl = new CFastTextCtrl(this);
 
 #ifdef __WXMAC__
@@ -110,7 +109,7 @@ CStatusView::CStatusView(wxWindow* parent, wxWindowID id)
 	InitDefAttr();
 
 	m_shown = IsShown();
-	
+
 #ifdef __WXMAC__
 	m_insertionPoint = 0;
 #endif
@@ -172,7 +171,7 @@ void CStatusView::AddToLog(enum MessageType messagetype, const wxString& message
 #endif
 		m_pTextCtrl->Remove(0, oldLength + 1);
 		m_lineLengths.pop_front();
-		
+
 #ifdef __WXMAC__
 		m_pTextCtrl->SetInsertionPoint(m_insertionPoint);
 #endif
@@ -279,11 +278,10 @@ void CStatusView::InitDefAttr()
 		timestampWidth = width;
 	}
 
-	int maxWidth = 0;
 	wxCoord width = 0;
 	wxCoord height = 0;
 	dc.GetTextExtent(_("Error:"), &width, &height);
-	maxWidth = width;
+	int maxWidth = width;
 	dc.GetTextExtent(_("Command:"), &width, &height);
 	if (width > maxWidth)
 		maxWidth = width;
@@ -392,7 +390,7 @@ void CStatusView::OnClear(wxCommandEvent& event)
 		m_pTextCtrl->Clear();
 	m_nLineCount = 0;
 	m_lineLengths.clear();
-	
+
 #ifdef __WXMAC__
 	m_insertionPoint = 0;
 #endif
@@ -436,7 +434,7 @@ bool CStatusView::Show(bool show /*=true*/)
 			m_lineLengths.clear();
 		}
 
-		for (std::list<t_line>::const_iterator iter = m_hiddenLines.begin(); iter != m_hiddenLines.end(); iter++)
+		for (std::list<t_line>::const_iterator iter = m_hiddenLines.begin(); iter != m_hiddenLines.end(); ++iter)
 		{
 			AddToLog(iter->messagetype, iter->message, iter->time);
 		}

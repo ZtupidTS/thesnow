@@ -297,7 +297,7 @@ void CHttpControlSocket::OnConnect()
 	wxASSERT(GetCurrentCommandId() == cmd_connect);
 
 	CHttpConnectOpData *pData = static_cast<CHttpConnectOpData *>(m_pCurOpData);
-	
+
 	if (pData->tls)
 	{
 		if (!m_pTlsSocket)
@@ -460,9 +460,9 @@ int CHttpControlSocket::FileTransferSend()
 	if (pData->m_newLocation == _T(""))
 	{
 		if (m_pCurrentServer->GetProtocol() == HTTPS)
-			location = _T("https://") + m_pCurrentServer->FormatHost() + pData->remotePath.FormatFilename(pData->remoteFile).c_str();
+			location = _T("https://") + wxString(m_pCurrentServer->FormatHost()) + wxString(pData->remotePath.FormatFilename(pData->remoteFile).c_str());
 		else
-			location = _T("http://") + m_pCurrentServer->FormatHost() + pData->remotePath.FormatFilename(pData->remoteFile).c_str();
+			location = _T("http://") + wxString(m_pCurrentServer->FormatHost()) + wxString(pData->remotePath.FormatFilename(pData->remoteFile).c_str());
 		hostWithPort = wxString::Format(_T("%s:%d"), m_pCurrentServer->FormatHost(true).c_str(), m_pCurrentServer->GetPort());
 	}
 	else
@@ -522,7 +522,7 @@ int CHttpControlSocket::DoInternalConnect()
 
 	if (res && res != EINPROGRESS)
 		return ResetOperation(FZ_REPLY_ERROR);
-	
+
 	return FZ_REPLY_WOULDBLOCK;
 }
 
@@ -580,7 +580,7 @@ int CHttpControlSocket::ParseHeader(CHttpOpData* pData)
 	// We do just the neccessary parsing and silently ignore most header fields
 	// Redirects are supported though if the server sends the Location field.
 
-	while (true)
+	for (;;)
 	{
 		// Find line ending
 		unsigned int i = 0;
@@ -793,7 +793,7 @@ int CHttpControlSocket::OnChunkedData(CHttpOpData* pData)
 	char* p = m_pRecvBuffer;
 	unsigned int len = m_recvBufferPos;
 
-	while (true)
+	for (;;)
 	{
 		if (pData->m_chunkData.size != 0)
 		{
@@ -805,7 +805,7 @@ int CHttpControlSocket::OnChunkedData(CHttpOpData* pData)
 			if (res != FZ_REPLY_WOULDBLOCK)
 				return res;
 
-            pData->m_chunkData.size -= dataLen;
+			pData->m_chunkData.size -= dataLen;
 			p += dataLen;
 			len -= dataLen;
 
@@ -954,7 +954,7 @@ void CHttpControlSocket::OnClose(int error)
 		ResetOperation(FZ_REPLY_ERROR | FZ_REPLY_DISCONNECTED);
 		return;
 	}
-	
+
 	if (DoReceive() == FZ_REPLY_REDIRECTED)
 		return; // Socket got closed already
 

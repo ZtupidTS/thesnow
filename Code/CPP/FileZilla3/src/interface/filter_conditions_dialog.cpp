@@ -235,7 +235,7 @@ void CFilterConditionsDialog::OnRemove(int item)
 	std::set<int> selected;
 	selected.insert(item);
 	OnRemove(selected);
-	if (!m_filterControls.size())
+	if (m_filterControls.empty())
 		OnMore();
 }
 
@@ -515,7 +515,7 @@ void CFilterConditionsDialog::EditFilter(const CFilter& filter)
 	// Create new controls
 	m_currentFilter = filter;
 
-	if (!m_currentFilter.filters.size())
+	if (m_currentFilter.filters.empty())
 		m_currentFilter.filters.push_back(CFilterCondition());
 
 	for (unsigned int i = 0; i < m_currentFilter.filters.size(); i++)
@@ -603,7 +603,7 @@ CFilter CFilterConditionsDialog::GetFilter()
 
 		filter.filters.push_back(condition);
 	}
-	
+
 	switch (XRCCTRL(*this, "ID_MATCHTYPE", wxChoice)->GetSelection())
 	{
 	case 1:
@@ -782,7 +782,7 @@ void CFilterConditionsDialog::OnNavigationKeyEvent(wxNavigationKeyEvent& event)
 	{
 		if (source == m_pAdd)
 		{
-			if (m_filterControls.size())
+			if (!m_filterControls.empty())
 				target = m_filterControls[m_filterControls.size() - 1].pRemove;
 		}
 		else

@@ -18,16 +18,16 @@ struct CServerTypeTraits
 };
 
 static const CServerTypeTraits traits[SERVERTYPE_MAX] = {
-	{ _T("/"),  true,  0,    0,    false, 0, 0,   true,  false }, // Failsafe
-	{ _T("/"),  true,  0,    0,    false, 0, 0,   true,  false },
-	{ _T("."),  false, '[',  ']',  false, 0, '^', false, false },
-	{ _T("\\/"), false, 0,    0,    false, 0, 0,   true,  false },
-	{ _T("."),  false, '\'', '\'', true,  1, 0,   false, false },
-	{ _T("/"),  true,  0,    0,    false, 0, 0,   true,  false },
-	{ _T("/"),  true,  0,    0,    false, 0, 0,   true,  false }, // Same as Unix
-	{ _T("."),  false, 0,    0,    false, 0, 0,   false, false },
-	{ _T("\\"), true,  0,    0,    false, 0, 0,   true,  false },
-	{ _T("/"),  true,  0,    0,    false, 0, 0,   true,  true  } // Cygwin is like Unix but has optional prefix of form "//server"
+	{ _T("/"),   true,     0,    0,    false, 0, 0,   true,  false }, // Failsafe
+	{ _T("/"),   true,     0,    0,    false, 0, 0,   true,  false },
+	{ _T("."),   false,  '[',  ']',    false, 0, '^', false, false },
+	{ _T("\\/"), false,    0,    0,    false, 0, 0,   true,  false },
+	{ _T("."),   false, '\'', '\'',     true, 1, 0,   false, false },
+	{ _T("/"),   true,     0,    0,    false, 0, 0,   true,  false },
+	{ _T("/"),   true,     0,    0,    false, 0, 0,   true,  false }, // Same as Unix
+	{ _T("."),   false,    0,    0,    false, 0, 0,   false, false },
+	{ _T("\\"),  true,     0,    0,    false, 0, 0,   true,  false },
+	{ _T("/"),   true,     0,    0,    false, 0, 0,   true,  true  } // Cygwin is like Unix but has optional prefix of form "//server"
 };
 
 CServerPathData::CServerPathData()
@@ -35,9 +35,9 @@ CServerPathData::CServerPathData()
 }
 
 CServerPathData::CServerPathData(const CServerPathData& v)
+	: m_segments(v.m_segments)
+	, m_prefix(v.m_prefix)
 {
-	m_prefix = v.m_prefix;
-	m_segments = v.m_segments;
 }
 
 bool CServerPathData::operator==(const CServerPathData& cmp) const
@@ -52,17 +52,16 @@ bool CServerPathData::operator==(const CServerPathData& cmp) const
 }
 
 CServerPath::CServerPath()
+	: m_bEmpty(true)
+	, m_type(DEFAULT)
 {
-	m_type = DEFAULT;
-	m_bEmpty = true;
 }
 
 CServerPath::CServerPath(const CServerPath &path, wxString subdir)
-	: m_data(path.m_data)
+	: m_bEmpty(path.m_bEmpty)
+	, m_type(path.m_type)
+	, m_data(path.m_data)
 {
-	m_type = path.m_type;
-	m_bEmpty = path.m_bEmpty;
-
 	if (subdir == _T(""))
 		return;
 
@@ -71,16 +70,15 @@ CServerPath::CServerPath(const CServerPath &path, wxString subdir)
 }
 
 CServerPath::CServerPath(const CServerPath &path)
-	: m_data(path.m_data)
+	: m_bEmpty(path.m_bEmpty)
+	, m_type(path.m_type)
+	, m_data(path.m_data)
 {
-	m_type = path.m_type;
-	m_bEmpty = path.m_bEmpty;
 }
 
 CServerPath::CServerPath(wxString path, ServerType type /*=DEFAULT*/)
+	: m_type(m_type)
 {
-	m_type = type;
-
 	SetPath(path);
 }
 
@@ -380,7 +378,7 @@ bool CServerPath::SetSafePath(const wxString& path, bool coalesce)
 
 		p += prefix_len + 1;
 	}
-	
+
 	while (len > (p - begin))
 	{
 		int segment_len = 0;
@@ -926,7 +924,7 @@ CServerPath CServerPath::GetCommonParent(const CServerPath& path) const
 	parent.m_type = m_type;
 
 	CServerPathData& parentData = parent.m_data.Get();
-	
+
 	tConstSegmentIter last = m_data->m_segments.end();
 	tConstSegmentIter last2 = path.m_data->m_segments.end();
 	if (traits[m_type].prefixmode == 1)

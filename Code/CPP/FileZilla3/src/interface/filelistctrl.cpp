@@ -81,7 +81,7 @@ template<class CFileData> WXLRESULT CFileListCtrl<CFileData>::MSWWindowProc(WXUI
 
 		return wxListCtrlEx::MSWWindowProc(nMsg, wParam, lParam);
 	}
-	
+
 	return wxListCtrlEx::MSWWindowProc(nMsg, wParam, lParam);
 }
 
@@ -102,7 +102,7 @@ template<class CFileData> bool CFileListCtrl<CFileData>::MSWOnNotify(int idCtrl,
 
 		if (!m_pFilelistStatusBar)
 			return true;
-		
+
 		if (wxGetKeyState(WXK_CONTROL) && wxGetKeyState(WXK_SHIFT))
 		{
 			// The behavior of Ctrl+Shift+Click is highly erratic.
@@ -210,6 +210,7 @@ class CGtkEventCallbackProxyBase
 {
 public:
 	virtual void OnNavigationEvent(bool forward) = 0;
+	virtual ~CGtkEventCallbackProxyBase() {}
 };
 
 template <class CFileData> class CGtkEventCallbackProxy : public CGtkEventCallbackProxyBase
@@ -321,7 +322,7 @@ template<class CFileData> void CFileListCtrl<CFileData>::SortList(int column /*=
 
 #ifndef __WXMSW__
 		// GetNextItem is O(n) if nothing is selected, GetSelectedItemCount() is O(1)
-		if (GetSelectedItemCount())		
+		if (GetSelectedItemCount())
 #endif
 		{
 			int item = -1;
@@ -343,7 +344,7 @@ template<class CFileData> void CFileListCtrl<CFileData>::SortList(int column /*=
 		m_sortColumn = column;
 		std::vector<unsigned int>::iterator start = m_indexMapping.begin();
 		if (m_hasParent)
-			start++;
+			++start;
 		std::reverse(start, m_indexMapping.end());
 
 		if (updateSelections)
@@ -368,7 +369,7 @@ template<class CFileData> void CFileListCtrl<CFileData>::SortList(int column /*=
 
 	std::vector<unsigned int>::iterator start = m_indexMapping.begin();
 	if (m_hasParent)
-		start++;
+		++start;
 	CSortComparisonObject object = GetSortComparisonObject();
 	std::sort(start, m_indexMapping.end(), object);
 	object.Destroy();

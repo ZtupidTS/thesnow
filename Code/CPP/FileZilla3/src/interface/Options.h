@@ -82,6 +82,7 @@ enum interfaceOptions
 	OPTION_TOOLBAR_HIDDEN,
 	OPTION_STRIP_VMS_REVISION,
 	OPTION_INTERFACE_SITEMANAGER_ON_STARTUP,
+	OPTION_PROMPTPASSWORDSAVE,
 
 	// Default/internal options
 	OPTION_DEFAULT_SETTINGSDIR,
@@ -111,7 +112,7 @@ public:
 	virtual bool SetOption(unsigned int nID, wxString value);
 
 	bool OptionFromFzDefaultsXml(unsigned int nID);
-	
+
 	void SetLastServer(const CServer& server);
 	bool GetLastServer(CServer& server);
 

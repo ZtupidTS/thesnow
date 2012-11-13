@@ -64,7 +64,7 @@ void CQueueViewFailed::OnRemoveAll(wxCommandEvent& event)
 	if (pEditHandler)
 		pEditHandler->RemoveAll(CEditHandler::upload_and_remove_failed);
 
-	for (std::vector<CServerItem*>::iterator iter = m_serverList.begin(); iter != m_serverList.end(); iter++)
+	for (std::vector<CServerItem*>::iterator iter = m_serverList.begin(); iter != m_serverList.end(); ++iter)
 		delete *iter;
 	m_serverList.clear();
 
@@ -91,7 +91,7 @@ void CQueueViewFailed::OnRemoveSelected(wxCommandEvent& event)
 
 	std::list<CQueueItem*> selectedItems;
 	long item = -1;
-	while (true)
+	for (;;)
 	{
 		item = GetNextItem(item, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
 		if (item == -1)
@@ -232,7 +232,7 @@ bool CQueueViewFailed::RequeueServerItem(CServerItem* pServerItem)
 	delete pServerItem;
 
 	std::vector<CServerItem*>::iterator iter;
-	for (iter = m_serverList.begin(); iter != m_serverList.end(); iter++)
+	for (iter = m_serverList.begin(); iter != m_serverList.end(); ++iter)
 	{
 		if (*iter == pServerItem)
 			break;
@@ -261,7 +261,7 @@ void CQueueViewFailed::OnRequeueSelected(wxCommandEvent& event)
 	std::list<CQueueItem*> selectedItems;
 	long item = -1;
 	long skipTo = -1;
-	while (true)
+	for (;;)
 	{
 		item = GetNextItem(item, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
 		if (item == -1)
@@ -314,7 +314,7 @@ void CQueueViewFailed::OnRequeueSelected(wxCommandEvent& event)
 
 	if (pQueueView->IsActive())
 		pQueueView->AdvanceQueue(false);
-	
+
 	DisplayNumberQueuedFiles();
 	SaveSetItemCount(m_itemCount);
 	RefreshListOnly();
@@ -339,7 +339,7 @@ void CQueueViewFailed::OnRequeueAll(wxCommandEvent& event)
 
 	if (pQueueView->IsActive())
 		pQueueView->AdvanceQueue(false);
-	
+
 	DisplayNumberQueuedFiles();
 	SaveSetItemCount(m_itemCount);
 	RefreshListOnly();

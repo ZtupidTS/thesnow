@@ -14,7 +14,7 @@ class CThemeProvider : public wxArtProvider, protected COptionChangeEventHandler
 {
 public:
 	CThemeProvider();
-	virtual ~CThemeProvider() { }
+	virtual ~CThemeProvider() {}
 
 	static std::list<wxString> GetThemes();
 	static std::list<wxBitmap*> GetAllImages(const wxString& theme, const wxSize& size);
@@ -27,7 +27,7 @@ public:
 
 protected:
 	static wxString GetThemePath();
-	
+
 	wxBitmap CreateBitmap(const wxArtID& id, const wxArtClient& /*client*/, const wxSize& size);
 
 	std::list<wxString> GetSearchDirs(const wxSize& size);
