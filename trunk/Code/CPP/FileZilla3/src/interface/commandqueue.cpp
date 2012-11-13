@@ -24,7 +24,7 @@ CCommandQueue::CCommandQueue(CFileZillaEngine *pEngine, CMainFrame* pMainFrame, 
 
 CCommandQueue::~CCommandQueue()
 {
-	for (std::list<CCommand *>::iterator iter = m_CommandList.begin(); iter != m_CommandList.end(); iter++)
+	for (std::list<CCommand *>::iterator iter = m_CommandList.begin(); iter != m_CommandList.end(); ++iter)
 		delete *iter;
 }
 
@@ -71,7 +71,7 @@ void CCommandQueue::ProcessNextCommand()
 		CCommand *pCommand = m_CommandList.front();
 
 		int res = m_pEngine->Command(*pCommand);
-		
+
 		if (pCommand->GetId() != cmd_cancel &&
 			pCommand->GetId() != cmd_connect &&
 			pCommand->GetId() != cmd_disconnect)
@@ -116,7 +116,7 @@ void CCommandQueue::ProcessNextCommand()
 		else
 		{
 			wxBell();
-			
+
 			if (pCommand->GetId() == cmd_list)
 				m_pState->ListingFailed(res);
 
@@ -146,11 +146,11 @@ bool CCommandQueue::Cancel()
 
 	if (m_CommandList.empty())
 		return true;
-	
+
 	std::list<CCommand *>::iterator iter = m_CommandList.begin();
 	CCommand *pCommand = *(iter++);
 
-	for (; iter != m_CommandList.end(); iter++)
+	for (; iter != m_CommandList.end(); ++iter)
 		delete *iter;
 
 	m_CommandList.clear();
@@ -246,9 +246,9 @@ void CCommandQueue::Finish(COperationNotification *pNotification)
 	}
 	else
 		m_CommandList.pop_front();
-	
+
 	delete pCommand;
-	
+
 	delete pNotification;
 
 	m_inside_commandqueue = false;

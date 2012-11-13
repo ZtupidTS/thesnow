@@ -25,6 +25,9 @@
 /* Define to 1 if you have the `gettimeofday' function. */
 #undef HAVE_GETTIMEOFDAY
 
+/* Headers delare ICopyHookW */
+#undef HAVE_ICOPYHOOKW
+
 /* Define to 1 if you have the `in6addr_any' function. */
 #undef HAVE_IN6ADDR_ANY
 

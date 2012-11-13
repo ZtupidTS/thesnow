@@ -120,7 +120,7 @@ wxString CShellExtensionInterface::GetTarget()
 		target = wxString((wchar_t*)(data + 2), wxConvFile);
 #endif
 	}
-	
+
 	ReleaseMutex(m_hMutex);
 
 	UnmapViewOfFile(data);
@@ -174,7 +174,7 @@ CShellExtensionInterface* CShellExtensionInterface::CreateInitialized()
 		delete ext;
 		return 0;
 	}
-	
+
 	if (ext->InitDrag() == _T(""))
 	{
 		delete ext;
@@ -189,16 +189,19 @@ CShellExtensionInterface* CShellExtensionInterface::CreateInitialized()
 #endif //__WXMSW__
 
 CRemoteDataObject::CRemoteDataObject(const CServer& server, const CServerPath& path)
-	: wxDataObjectSimple(wxDataFormat(_T("FileZilla3RemoteDataObject"))),
-	  m_server(server), m_path(path), m_processId(wxGetProcessId())
+	: wxDataObjectSimple(wxDataFormat(_T("FileZilla3RemoteDataObject")))
+	, m_server(server)
+	, m_path(path)
+	, m_didSendData()
+	, m_processId(wxGetProcessId())
 {
-	m_didSendData = false;
 }
 
 CRemoteDataObject::CRemoteDataObject()
 	: wxDataObjectSimple(wxDataFormat(_T("FileZilla3RemoteDataObject")))
+	, m_didSendData()
+	, m_processId(wxGetProcessId())
 {
-	m_didSendData = false;
 }
 
 size_t CRemoteDataObject::GetDataSize() const
@@ -237,7 +240,7 @@ void CRemoteDataObject::Finalize()
 	AddTextElement(pElement, "Path", m_path.GetSafePath());
 
 	TiXmlElement* pFiles = pElement->LinkEndChild(new TiXmlElement("Files"))->ToElement();
-	for (std::list<t_fileInfo>::const_iterator iter = m_fileList.begin(); iter != m_fileList.end(); iter++)
+	for (std::list<t_fileInfo>::const_iterator iter = m_fileList.begin(); iter != m_fileList.end(); ++iter)
 	{
 		TiXmlElement* pFile = pFiles->LinkEndChild(new TiXmlElement("File"))->ToElement();
 		AddTextElement(pFile, "Name", iter->name);
@@ -267,7 +270,7 @@ bool CRemoteDataObject::SetData(size_t len, const void* buf)
 	TiXmlElement* pServer = pElement->FirstChildElement("Server");
 	if (!pServer || !::GetServer(pServer, m_server))
 		return false;
-	
+
 	wxString path = GetTextElement(pElement, "Path");
 	if (path == _T("") || !m_path.SetSafePath(path))
 		return false;

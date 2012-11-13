@@ -41,7 +41,7 @@ void wxStatusBarEx::SetFieldsCount(int number /*=1*/, const int* widths /*=NULL*
 
 	int oldCount = GetFieldsCount();
 	int* oldWidths = m_columnWidths;
-	
+
 	m_columnWidths = new int[number];
 	if (!widths)
 	{
@@ -233,16 +233,16 @@ void CWidgetsStatusBar::PositionChildren(int field)
 {
 	wxRect rect;
 	GetFieldRect(field, rect);
-	
+
 	int offset = 2;
 
 	if (field + 1 == GetFieldsCount())
 	{
-		rect.SetWidth(m_columnWidths[field]);	
+		rect.SetWidth(m_columnWidths[field]);
 		offset += 5 + GetGripperWidth();
 	}
 
-	for (std::map<int, struct t_statbar_child>::iterator iter = m_children.begin(); iter != m_children.end(); iter++)
+	for (std::map<int, struct t_statbar_child>::iterator iter = m_children.begin(); iter != m_children.end(); ++iter)
 	{
 		if (iter->second.field != field)
 			continue;
@@ -451,7 +451,7 @@ void CStatusBar::MeasureQueueSizeWidth()
 	dc.SetFont(GetFont());
 
 	wxSize s = dc.GetTextExtent(_("Queue: empty"));
-	
+
 	wxString tmp = _T(">8888");
 	if (m_sizeFormatDecimalPlaces)
 	{
@@ -496,7 +496,7 @@ void CStatusBar::DisplayEncrypted()
 
 void CStatusBar::UpdateSizeFormat()
 {
-	// 0 equals bytes, however just use IEC binary prefixes instead, 
+	// 0 equals bytes, however just use IEC binary prefixes instead,
 	// exact byte counts for queue make no sense.
 	m_sizeFormat = CSizeFormat::_format(COptions::Get()->GetOptionVal(OPTION_SIZE_FORMAT));
 	if (!m_sizeFormat)
@@ -544,7 +544,7 @@ void CStatusBar::OnHandleRightClick(wxWindow* pWnd)
 		wxMenu* pMenu = wxXmlResource::Get()->LoadMenu(_T("ID_MENU_TRANSFER_TYPE_CONTEXT"));
 		if (!pMenu)
 			return;
-	
+
 		const int type = COptions::Get()->GetOptionVal(OPTION_ASCIIBINARY);
 		switch (type)
 		{
@@ -610,7 +610,7 @@ void CStatusBar::UpdateSpeedLimitsIcon()
 		else
 			tooltip += _("Upload limit: none");
 	}
-	
+
 	if (!m_pSpeedLimitsIndicator)
 	{
 		m_pSpeedLimitsIndicator = new CIndicator(this, bmp);

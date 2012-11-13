@@ -27,7 +27,12 @@ public:
 class t_newEntry : public CFolderProcessingEntry
 {
 public:
-	t_newEntry() : CFolderProcessingEntry(CFolderProcessingEntry::file) {}
+	t_newEntry() 
+		: CFolderProcessingEntry(CFolderProcessingEntry::file)
+		, attributes()
+		, dir()
+	{}
+
 	wxString name;
 	wxLongLong size;
 	wxDateTime time;
@@ -223,7 +228,7 @@ protected:
 	void RemoveQueuedFolderItem(CFolderScanItem* pFolder);
 
 	CFolderProcessingThread *m_pFolderProcessingThread;
-	
+
 	/*
 	 * Don't update status line positions if m_waitStatusLineUpdate is true.
 	 * This assures we are updating the status line positions only once,

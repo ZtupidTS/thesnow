@@ -19,7 +19,7 @@ class wxImageListEx : public wxImageList
 public:
 	wxImageListEx();
 	wxImageListEx(int width, int height, const bool mask = true, int initialCount = 1);
-	virtual ~wxImageListEx() {  }
+	virtual ~wxImageListEx() {}
 
 #ifdef __WXMSW__
 	wxImageListEx(WXHIMAGELIST hList) { m_hImageList = hList; }
@@ -32,7 +32,7 @@ class CSystemImageList
 {
 public:
 	CSystemImageList(int size = -1);
-	
+
 	bool CreateSystemImageList(int size);
 	virtual ~CSystemImageList();
 

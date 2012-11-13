@@ -103,7 +103,7 @@ public:
 			}
 
 			const std::list<CRemoteDataObject::t_fileInfo>& files = m_pRemoteDataObject->GetFiles();
-			for (std::list<CRemoteDataObject::t_fileInfo>::const_iterator iter = files.begin(); iter != files.end(); iter++)
+			for (std::list<CRemoteDataObject::t_fileInfo>::const_iterator iter = files.begin(); iter != files.end(); ++iter)
 			{
 				const CRemoteDataObject::t_fileInfo& info = *iter;
 				if (info.dir)
@@ -118,7 +118,7 @@ public:
 				}
 			}
 
-			for (std::list<CRemoteDataObject::t_fileInfo>::const_iterator iter = files.begin(); iter != files.end(); iter++)
+			for (std::list<CRemoteDataObject::t_fileInfo>::const_iterator iter = files.begin(); iter != files.end(); ++iter)
 			{
 				const CRemoteDataObject::t_fileInfo& info = *iter;
 				m_pRemoteTreeView->m_pState->m_pCommandQueue->ProcessCommand(
@@ -374,7 +374,7 @@ wxTreeItemId CRemoteTreeView::MakeParent(CServerPath path, bool select)
 	const wxTreeItemId root = GetRootItem();
 	wxTreeItemId parent = root;
 
-	for (std::list<wxString>::const_iterator iter = pieces.begin(); iter != pieces.end(); iter++)
+	for (std::list<wxString>::const_iterator iter = pieces.begin(); iter != pieces.end(); ++iter)
 	{
 		if (iter != pieces.begin())
 			path.AddSegment(*iter);
@@ -411,7 +411,7 @@ wxTreeItemId CRemoteTreeView::MakeParent(CServerPath path, bool select)
 			SortChildren(parent);
 
 			std::list<wxString>::const_iterator nextIter = iter;
-			nextIter++;
+			++nextIter;
 			if (nextIter != pieces.end())
 				DisplayItem(child, listing);
 		}
@@ -470,7 +470,7 @@ wxBitmap CRemoteTreeView::CreateIcon(int index, const wxString& overlay /*=_T(""
 		dc.DrawBitmap(unknownIcon, 0, 0, true);
 	}
 
-    dc.SelectObject(wxNullBitmap);
+	dc.SelectObject(wxNullBitmap);
 	return bmp;
 }
 
@@ -617,7 +617,7 @@ void CRemoteTreeView::RefreshItem(wxTreeItemId parent, const CDirectoryListing& 
 				SetItemImages(child, true);
 
 			child = GetPrevSibling(child);
-			iter++;
+			++iter;
 		}
 		else if (cmp > 0)
 		{
@@ -652,7 +652,7 @@ void CRemoteTreeView::RefreshItem(wxTreeItemId parent, const CDirectoryListing& 
 					SetItemImages(child, true);
 			}
 
-			iter++;
+			++iter;
 			inserted = true;
 		}
 	}
@@ -687,7 +687,7 @@ void CRemoteTreeView::RefreshItem(wxTreeItemId parent, const CDirectoryListing& 
 			SetItemImages(child, true);
 		}
 
-		iter++;
+		++iter;
 		inserted = true;
 	}
 
@@ -750,7 +750,7 @@ void CRemoteTreeView::SetItemImages(wxTreeItemId item, bool unknown)
 void CRemoteTreeView::OnSelectionChanged(wxTreeEvent& event)
 {
 	if (event.GetItem() != m_ExpandAfterList)
-        m_ExpandAfterList = wxTreeItemId();
+		m_ExpandAfterList = wxTreeItemId();
 	if (m_busy)
 		return;
 
@@ -789,7 +789,7 @@ CServerPath CRemoteTreeView::GetPathFromItem(const wxTreeItemId& item) const
 		if (pData)
 		{
 			CServerPath path = pData->m_path;
-			for (std::list<wxString>::const_iterator iter = segments.begin(); iter != segments.end(); iter++)
+			for (std::list<wxString>::const_iterator iter = segments.begin(); iter != segments.end(); ++iter)
 			{
 				if (!path.AddSegment(*iter))
 					return CServerPath();
@@ -1120,13 +1120,13 @@ void CRemoteTreeView::OnMenuDelete(wxCommandEvent& event)
 	if (path.IsEmpty())
 		return;
 
-	if (wxMessageBox(_("Really delete all selected files and/or directories?"), _("Confirmation needed"), wxICON_QUESTION | wxYES_NO, this) != wxYES)
+	if (wxMessageBox(_("Really delete all selected files and/or directories from the server?"), _("Confirmation needed"), wxICON_QUESTION | wxYES_NO, this) != wxYES)
 		return;
 
 	const bool hasParent = path.HasParent();
 
 	CRecursiveOperation* pRecursiveOperation = m_pState->GetRecursiveOperationHandler();
-	
+
 	CServerPath startDir;
 	if (hasParent)
 	{
@@ -1250,7 +1250,7 @@ void CRemoteTreeView::OnEndLabelEdit(wxTreeEvent& event)
 		}
 		currentPath = parent;
 		currentPath.AddSegment(newName);
-		for (std::list<wxString>::const_iterator iter = subdirs.begin(); iter != subdirs.end(); iter++)
+		for (std::list<wxString>::const_iterator iter = subdirs.begin(); iter != subdirs.end(); ++iter)
 			currentPath.AddSegment(*iter);
 		m_pState->ChangeRemoteDir(currentPath);
 	}
@@ -1375,7 +1375,7 @@ void CRemoteTreeView::ApplyFilters()
 		dir.path = path;
 		parents.push_back(dir);
 	}
-	
+
 	CFilterManager filter;
 	while (!parents.empty())
 	{
@@ -1404,7 +1404,7 @@ void CRemoteTreeView::ApplyFilters()
 						continue;
 					}
 				}
-				
+
 				struct _parents dir;
 				dir.item = child;
 				dir.path = path;

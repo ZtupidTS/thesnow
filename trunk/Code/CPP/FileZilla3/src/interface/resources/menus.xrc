@@ -299,6 +299,10 @@
       <label>&amp;Create directory</label>
       <help>Create a new subdirectory in the current directory</help>
     </object>
+    <object class="wxMenuItem" name="ID_NEW_FILE">
+      <label>Crea&amp;te new file</label>
+      <help>Create a new, empty file in the current directory</help>
+    </object>
     <object class="wxMenuItem" name="ID_CONTEXT_REFRESH">
       <label>Re&amp;fresh</label>
     </object>
@@ -422,6 +426,11 @@
     <object class="wxMenuItem" name="ID_CRASH">
       <label>&amp;Crash</label>
       <help>Crashes FileZilla instantly. Only used to debug the exception handler</help>
+    </object>
+    <object class="separator"/>
+    <object class="wxMenuItem" name="ID_CIPHERS">
+      <label>&amp;TLS Ciphers</label>
+      <help>Shows available TLS ciphers</help>
     </object>
   </object>
   <object class="wxMenu" name="ID_MENU_QUEUE_FAILED">

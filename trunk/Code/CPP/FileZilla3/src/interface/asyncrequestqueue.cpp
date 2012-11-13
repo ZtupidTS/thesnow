@@ -67,7 +67,7 @@ bool CAsyncRequestQueue::ProcessDefaults(CFileZillaEngine *pEngine, CAsyncReques
 			}
 
 			pFileExistsNotification->overwriteAction = action;
-			
+
 			pEngine->SetAsyncRequestReply(pNotification);
 			delete pNotification;
 
@@ -80,7 +80,7 @@ bool CAsyncRequestQueue::ProcessDefaults(CFileZillaEngine *pEngine, CAsyncReques
 
 			if (!CVerifyHostkeyDialog::IsTrusted(pHostKeyNotification))
 				break;
-			
+
 			pHostKeyNotification->m_trust = true;
 			pHostKeyNotification->m_alwaysTrust = false;
 
@@ -100,7 +100,7 @@ bool CAsyncRequestQueue::ProcessDefaults(CFileZillaEngine *pEngine, CAsyncReques
 			pEngine->SetAsyncRequestReply(pNotification);
 			delete pNotification;
 
-			return true;			
+			return true;
 		}
 		break;
 	default:
@@ -190,7 +190,7 @@ bool CAsyncRequestQueue::ProcessNextRequest()
 					else
 					{
 						// For the notifications already in the request queue, we have to set the queue action directly
-						for (std::list<t_queueEntry>::iterator iter = ++m_requestList.begin(); iter != m_requestList.end(); iter++)
+						for (std::list<t_queueEntry>::iterator iter = ++m_requestList.begin(); iter != m_requestList.end(); ++iter)
 						{
 							if (pNotification->GetRequestID() != reqId_fileexists)
 								continue;
@@ -256,7 +256,7 @@ bool CAsyncRequestQueue::ProcessNextRequest()
 				wxTextEntryDialog dlg(m_pMainFrame, msg, _("Rename file"), defaultName);
 
 				// Repeat until user cancels or enters a new name
-				while (1)
+				for (;;)
 				{
 					int res = dlg.ShowModal();
 					if (res == wxID_OK)
@@ -265,7 +265,7 @@ bool CAsyncRequestQueue::ProcessNextRequest()
 							continue; // Disallow empty names
 						if (dlg.GetValue() == defaultName)
 						{
-							wxMessageDialog dlg2(m_pMainFrame, _("You did not enter a new name for the file. Overwrite the file instead?"), _("Filename unchanged"), 
+							wxMessageDialog dlg2(m_pMainFrame, _("You did not enter a new name for the file. Overwrite the file instead?"), _("Filename unchanged"),
 								wxYES_NO | wxNO_DEFAULT | wxICON_QUESTION | wxCANCEL);
 							int res = dlg2.ShowModal();
 
@@ -371,16 +371,16 @@ void CAsyncRequestQueue::ClearPending(const CFileZillaEngine *pEngine)
 {
 	if (m_requestList.empty())
 		return;
-	
+
 	// Remove older requests coming from the same engine, but never the first
 	// entry in the list as that one displays a dialog at this moment.
-	for (std::list<t_queueEntry>::iterator iter = ++m_requestList.begin(); iter != m_requestList.end(); iter++)
+	for (std::list<t_queueEntry>::iterator iter = ++m_requestList.begin(); iter != m_requestList.end(); ++iter)
 	{
 		if (iter->pEngine == pEngine)
 		{
 			m_requestList.erase(iter);
 
-			// At most one pending request per engine possible, 
+			// At most one pending request per engine possible,
 			// so we can stop here
 			break;
 		}
@@ -397,7 +397,7 @@ void CAsyncRequestQueue::RecheckDefaults()
 	while (cur != m_requestList.end())
 	{
 		next = cur;
-		next++;
+		++next;
 
 		if (ProcessDefaults(cur->pEngine, cur->pNotification))
 			m_requestList.erase(cur);

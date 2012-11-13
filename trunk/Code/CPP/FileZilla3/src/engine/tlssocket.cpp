@@ -6,6 +6,8 @@
 #include <gnutls/x509.h>
 #include <errno.h>
 
+char const ciphers[] = "SECURE256:+SECURE128:-3DES-CBC:-MD5:-SIGN-RSA-MD5:+CTYPE-X509:-CTYPE-OPENPGP";
+
 //#define TLSDEBUG 1
 #if TLSDEBUG
 // This is quite ugly
@@ -89,7 +91,19 @@ bool CTlsSocket::Init()
 		return false;
 	}
 
-	res = gnutls_init(&m_session, GNUTLS_CLIENT);
+	if (!InitSession())
+		return false;
+	
+	m_shutdown_requested = false;
+
+	// At this point, we can start shaking hands.
+
+	return true;
+}
+
+bool CTlsSocket::InitSession()
+{
+	int res = gnutls_init(&m_session, GNUTLS_CLIENT);
 	if (res)
 	{
 		LogError(res);
@@ -97,7 +111,13 @@ bool CTlsSocket::Init()
 		return false;
 	}
 
-	res = gnutls_priority_set_direct(m_session, "NORMAL:-3DES-CBC:-MD5:-SIGN-RSA-MD5:+CTYPE-X509:-CTYPE-OPENPGP", 0);
+	// Even though the name gnutls_db_set_cache_expiration
+	// implies expiration of some cache, it also governs
+	// the actual session lifetime, independend whether the
+	// session is cached or not.
+	gnutls_db_set_cache_expiration(m_session, 100000000);
+
+	res = gnutls_priority_set_direct(m_session, ciphers, 0);
 	if (res)
 	{
 		LogError(res);
@@ -117,20 +137,12 @@ bool CTlsSocket::Init()
 	gnutls_transport_set_lowat(m_session, 0);
 #endif
 
-	m_shutdown_requested = false;
-
-	// At this point, we can start shaking hands.
-
 	return true;
 }
 
 void CTlsSocket::Uninit()
 {
-	if (m_session)
-	{
-		gnutls_deinit(m_session);
-		m_session = 0;
-	}
+	UninitSession();
 
 	if (m_certCredentials)
 	{
@@ -155,6 +167,17 @@ void CTlsSocket::Uninit()
 
 	m_require_root_trust = false;
 }
+
+
+void CTlsSocket::UninitSession()
+{
+	if (m_session)
+	{
+		gnutls_deinit(m_session);
+		m_session = 0;
+	}
+}
+
 
 void CTlsSocket::LogError(int code)
 {
@@ -398,10 +421,10 @@ bool CTlsSocket::CopySessionData(const CTlsSocket* pPrimarySocket)
 
 	// Get buffer size
 	int res = gnutls_session_get_data(pPrimarySocket->m_session, 0, &session_data_size);
-	if (res)
+	if (res && res != GNUTLS_E_SHORT_MEMORY_BUFFER )
 	{
-		m_pOwner->LogMessage(Debug_Info, _T("gnutls_session_get_data on primary socket failed: %d"), res);
-		return false;
+		m_pOwner->LogMessage(Debug_Warning, _T("gnutls_session_get_data on primary socket failed: %d"), res);
+		return true;
 	}
 
 	// Get session data
@@ -410,20 +433,23 @@ bool CTlsSocket::CopySessionData(const CTlsSocket* pPrimarySocket)
 	if (res)
 	{
 		delete [] session_data;
-		m_pOwner->LogMessage(Debug_Info, _T("gnutls_session_get_data on primary socket failed: %d"), res);
-		return false;
+		m_pOwner->LogMessage(Debug_Warning, _T("gnutls_session_get_data on primary socket failed: %d"), res);
+		return true;
 	}
 
 	// Set session data
-	res = gnutls_session_set_data(m_session, session_data, session_data_size);
+	res = gnutls_session_set_data(m_session, session_data, session_data_size );
 	delete [] session_data;
 	if (res)
 	{
-		m_pOwner->LogMessage(Debug_Info, _T("gnutls_session_set_data failed: %d"), res);
-		return false;
+		m_pOwner->LogMessage(Debug_Info, _T("gnutls_session_set_data failed: %d. Going to reinitialize session."), res);
+		UninitSession();
+		if( !InitSession() ) {
+			return false;
+		}
 	}
-
-	m_pOwner->LogMessage(Debug_Info, _T("Trying to resume existing TLS session."));
+	else
+		m_pOwner->LogMessage(Debug_Info, _T("Trying to resume existing TLS session."));
 
 	return true;
 }
@@ -447,13 +473,17 @@ int CTlsSocket::Handshake(const CTlsSocket* pPrimarySocket /*=0*/, bool try_resu
 		const gnutls_datum_t* const cert_list = gnutls_certificate_get_peers(pPrimarySocket->m_session, &cert_list_size);
 		if (cert_list && cert_list_size)
 		{
+			delete [] m_implicitTrustedCert.data;
 			m_implicitTrustedCert.data = new unsigned char[cert_list[0].size];
 			memcpy(m_implicitTrustedCert.data, cert_list[0].data, cert_list[0].size);
 			m_implicitTrustedCert.size = cert_list[0].size;
 		}
 
 		if (try_resume)
-			CopySessionData(pPrimarySocket);
+		{
+			if (!CopySessionData(pPrimarySocket))
+				return FZ_REPLY_ERROR;
+		}
 	}
 
 	return ContinueHandshake();
@@ -1098,3 +1128,52 @@ bool CTlsSocket::AddTrustedRootCertificate(const wxString& cert)
 
 	return gnutls_certificate_set_x509_trust_mem(m_certCredentials, &datum, GNUTLS_X509_FMT_PEM) > 0;
 }
+
+wxString CTlsSocket::ListTlsCiphers(wxString priority)
+{
+	if (priority.IsEmpty())
+		priority = wxString::FromUTF8(ciphers);
+
+	wxString list = wxString::Format(_T("Ciphers for %s:\n"), priority.c_str());
+
+#if GNUTLS_VERSION_NUMBER >= 0x030009
+    gnutls_priority_t pcache;
+    const char *err = 0;
+	int ret = gnutls_priority_init(&pcache, priority.mb_str(), &err);
+	if (ret < 0)
+	{
+		list += wxString::Format(_T("gnutls_priority_init failed with code %d: %s"), ret, wxString::FromUTF8(err ? err : "").c_str());
+		return list;
+	}
+	else
+	{
+		for (size_t i = 0; ; i++)
+		{
+			unsigned int idx;
+			ret = gnutls_priority_get_cipher_suite_index(pcache, i, &idx);
+			if (ret == GNUTLS_E_REQUESTED_DATA_NOT_AVAILABLE)
+				break;
+			if (ret == GNUTLS_E_UNKNOWN_CIPHER_SUITE)
+				continue;
+            
+			gnutls_protocol_t version;
+			unsigned char id[2];
+			const char* name = gnutls_cipher_suite_info(idx, id, NULL, NULL, NULL, &version);
+
+			if (name != 0)
+			{
+				list += wxString::Format(
+					_T("%-50s    0x%02x, 0x%02x    %s\n"),
+					wxString::FromUTF8(name).c_str(),
+					(unsigned char)id[0],
+					(unsigned char)id[1],
+					wxString::FromUTF8(gnutls_protocol_get_name(version)).c_str());
+			}
+		}
+	}
+#else
+	list += _T("Unknown\n");
+#endif
+
+	return list;
+}	

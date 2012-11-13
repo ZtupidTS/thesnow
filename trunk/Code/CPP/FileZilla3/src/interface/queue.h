@@ -51,7 +51,7 @@ public:
 	CQueueItem* GetTopLevelItem();
 	const CQueueItem* GetTopLevelItem() const;
 	int GetItemIndex() const; // Return the visible item index relative to the topmost parent item.
-	virtual void SaveItem(TiXmlElement* pElement) const { }
+	virtual void SaveItem(TiXmlElement* pElement) const {}
 
 	virtual enum QueueItemType GetType() const = 0;
 
@@ -64,7 +64,7 @@ public:
 	int GetRemovedAtFront() const { return m_removed_at_front; }
 
 protected:
-	CQueueItem();
+	CQueueItem(CQueueItem* parent = 0);
 
 	CQueueItem* m_parent;
 
@@ -117,8 +117,6 @@ public:
 
 	void SetDefaultFileExistsAction(enum CFileExistsNotification::OverwriteAction action, const enum TransferDirection direction);
 
-	int m_activeCount;
-
 	virtual bool TryRemoveAll();
 
 	void DetachChildren();
@@ -126,6 +124,8 @@ public:
 	virtual void SetPriority(enum QueuePriority priority);
 
 	void SetChildPriority(CFileItem* pItem, enum QueuePriority oldPriority, enum QueuePriority newPriority);
+
+	int m_activeCount;
 
 protected:
 	void AddFileItemToList(CFileItem* pItem);
@@ -163,7 +163,7 @@ public:
 	const wxLongLong& GetSize() const { return m_size; }
 	void SetSize(wxLongLong size) { m_size = size; }
 	inline bool Download() const { return flags & flag_download; }
-	
+
 	inline bool queued() const { return (flags & flag_queued) != 0; }
 	inline void set_queued(bool q)
 	{
@@ -186,7 +186,7 @@ public:
 
 	bool IsActive() const { return (flags & flag_active) != 0; }
 	virtual void SetActive(bool active);
-	
+
 	virtual void SaveItem(TiXmlElement* pElement) const;
 
 	virtual bool TryRemoveAll(); // Removes a inactive childrens, queues active children for removal.
@@ -241,7 +241,7 @@ class CFolderItem : public CFileItem
 public:
 	CFolderItem(CServerItem* parent, bool queued, const CLocalPath& localPath);
 	CFolderItem(CServerItem* parent, bool queued, const CServerPath& remotePath, const wxString& remoteFile);
-	
+
 	virtual enum QueueItemType GetType() const { return QueueItemType_Folder; }
 
 	virtual void SaveItem(TiXmlElement* pElement) const;
@@ -253,7 +253,7 @@ class CFolderScanItem : public CQueueItem
 {
 public:
 	CFolderScanItem(CServerItem* parent, bool queued, bool download, const CLocalPath& localPath, const CServerPath& remotePath);
-	virtual ~CFolderScanItem() { }
+	virtual ~CFolderScanItem() {}
 
 	virtual enum QueueItemType GetType() const { return QueueItemType_FolderScan; }
 	CLocalPath GetLocalPath() const { return m_localPath; }

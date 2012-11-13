@@ -74,7 +74,7 @@ protected:
 	{
 		if (event.GetKeyCode() == WXK_TAB)
 			return;
-			
+
 #ifdef __WXMAC__
 		if (event.GetKeyCode() == 'v' && event.GetModifiers() == wxMOD_CMD)
 		{
@@ -298,7 +298,7 @@ void CViewHeader::AddRecentDirectory(const wxString &directory)
 	const int len = directory.Len();
 
 	// Check if directory is already in the list
-	for (std::list<wxString>::const_iterator iter = m_recentDirectories.begin(); iter != m_recentDirectories.end(); iter++)
+	for (std::list<wxString>::const_iterator iter = m_recentDirectories.begin(); iter != m_recentDirectories.end(); ++iter)
 	{
 		if (*iter == directory)
 		{

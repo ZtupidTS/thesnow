@@ -15,16 +15,17 @@ const wxChar CLocalFileSystem::path_separator = '/';
 #endif
 
 CLocalFileSystem::CLocalFileSystem()
-{
-	m_dirs_only = false;
+	: m_dirs_only()
 #ifdef __WXMSW__
-	m_found = false;
-	m_hFind = INVALID_HANDLE_VALUE;
+	, m_hFind(INVALID_HANDLE_VALUE)
+	, m_found()
 #else
-	m_raw_path = 0;
-	m_file_part = 0;
-	m_dir = 0;
+	, m_raw_path()
+	, m_file_part()
+	, m_buffer_length()
+	, m_dir()
 #endif
+{
 }
 
 CLocalFileSystem::~CLocalFileSystem()
@@ -85,7 +86,6 @@ bool CLocalFileSystem::RecursiveDelete(std::list<wxString> dirsToVisit, wxWindow
 	// SHFileOperation accepts a list of null-terminated strings. Go through all
 	// paths to get the required buffer length
 
-	;
 	int len = 1; // String list terminated by empty string
 
 	for (std::list<wxString>::const_iterator const_iter = dirsToVisit.begin(); const_iter != dirsToVisit.end(); ++const_iter)
@@ -133,7 +133,7 @@ bool CLocalFileSystem::RecursiveDelete(std::list<wxString> dirsToVisit, wxWindow
 #else
 	if (parent)
 	{
-		if (wxMessageBox(_("Really delete all selected files and/or directories?"), _("Confirmation needed"), wxICON_QUESTION | wxYES_NO, parent) != wxYES)
+		if (wxMessageBox(_("Really delete all selected files and/or directories from your computer?"), _("Confirmation needed"), wxICON_QUESTION | wxYES_NO, parent) != wxYES)
 			return true;
 	}
 
@@ -355,8 +355,8 @@ bool CLocalFileSystem::BeginFindFiles(wxString path, bool dirs_only)
 		m_found = false;
 		return false;
 	}
-	
-	m_found = true;	
+
+	m_found = true;
 	return true;
 #else
 	if (path != _T("/") && path.Last() == '/')
@@ -428,7 +428,7 @@ bool CLocalFileSystem::GetNextFile(wxString& name)
 		m_found = FindNextFile(m_hFind, &m_find_data) != 0;
 		return true;
 	} while ((m_found = FindNextFile(m_hFind, &m_find_data) != 0));
-	
+
 	return false;
 #else
 	if (!m_dir)
@@ -517,7 +517,7 @@ bool CLocalFileSystem::GetNextFile(wxString& name, bool &isLink, bool &is_dir, w
 		m_found = FindNextFile(m_hFind, &m_find_data) != 0;
 		return true;
 	} while ((m_found = FindNextFile(m_hFind, &m_find_data) != 0));
-	
+
 	return false;
 #else
 	if (!m_dir)
@@ -571,10 +571,10 @@ bool CLocalFileSystem::GetNextFile(wxString& name, bool &isLink, bool &is_dir, w
 				*mode = 0;
 		}
 		if (m_dirs_only && type != dir)
-			continue;	
+			continue;
 
 		is_dir = type == dir;
-		
+
 		name = wxString(entry->d_name, *wxConvFileName);
 
 		return true;

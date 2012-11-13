@@ -556,7 +556,7 @@ wxString CLocalTreeView::HasSubdir(const wxString& dirname)
 	wxLogNull nullLog;
 
 	CFilterManager filter;
-	
+
 	CLocalFileSystem local_filesystem;
 	if (!local_filesystem.BeginFindFiles(dirname, true))
 		return _T("");
@@ -769,7 +769,7 @@ void CLocalTreeView::Refresh()
 
 		std::list<wxString> dirs;
 
-		
+
 		wxString file;
 		const wxLongLong size(-1);
 		bool was_link;
@@ -789,7 +789,7 @@ void CLocalTreeView::Refresh()
 
 			dirs.push_back(file);
 		}
-		dirs.sort(sortfunc);		
+		dirs.sort(sortfunc);
 
 		bool inserted = false;
 
@@ -823,7 +823,7 @@ void CLocalTreeView::Refresh()
 					dirsToCheck.push_front(subdir);
 				}
 				child = GetPrevSibling(child);
-				iter++;
+				++iter;
 			}
 			else if (cmp > 0)
 			{
@@ -847,7 +847,7 @@ void CLocalTreeView::Refresh()
 					);
 
 				CheckSubdirStatus(newItem, fullname);
-				iter++;
+				++iter;
 				inserted = true;
 			}
 		}
@@ -873,7 +873,7 @@ void CLocalTreeView::Refresh()
 				);
 
 			CheckSubdirStatus(newItem, fullname);
-			iter++;
+			++iter;
 			inserted = true;
 		}
 		if (inserted)
@@ -1026,7 +1026,7 @@ wxString CLocalTreeView::GetSpecialFolder(int folder, int &iconIndex, int &openI
 	wxString name = shFinfo.szDisplayName;
 
 	LPMALLOC pMalloc;
-    SHGetMalloc(&pMalloc);
+	SHGetMalloc(&pMalloc);
 
 	if (pMalloc)
 	{
@@ -1091,7 +1091,7 @@ void CLocalTreeView::OnVolumesEnumerated(wxCommandEvent& event)
 		m_pVolumeEnumeratorThread = 0;
 	}
 
-	for (std::list<CVolumeDescriptionEnumeratorThread::t_VolumeInfo>::const_iterator iter = volumeInfo.begin(); iter != volumeInfo.end(); iter++)
+	for (std::list<CVolumeDescriptionEnumeratorThread::t_VolumeInfo>::const_iterator iter = volumeInfo.begin(); iter != volumeInfo.end(); ++iter)
 	{
 		wxString drive = iter->volume;
 

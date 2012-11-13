@@ -7,9 +7,9 @@
 
 CVerifyCertDialog::~CVerifyCertDialog()
 {
-	for (std::list<t_certData>::iterator iter = m_trustedCerts.begin(); iter != m_trustedCerts.end(); iter++)
+	for (std::list<t_certData>::iterator iter = m_trustedCerts.begin(); iter != m_trustedCerts.end(); ++iter)
 		delete [] iter->data;
-	for (std::list<t_certData>::iterator iter = m_sessionTrustedCerts.begin(); iter != m_sessionTrustedCerts.end(); iter++)
+	for (std::list<t_certData>::iterator iter = m_sessionTrustedCerts.begin(); iter != m_sessionTrustedCerts.end(); ++iter)
 		delete [] iter->data;
 }
 
@@ -187,13 +187,13 @@ void CVerifyCertDialog::ParseDN(wxDialog* pDlg, const wxString& dn, wxSizer* pSi
 	ParseDN_by_prefix(pDlg, tokenlist, _T("EMAIL"), _("E-Mail:"), pSizer);
 	ParseDN_by_prefix(pDlg, tokenlist, _T("serialNumber"), _("Serial number:"), pSizer);
 	ParseDN_by_prefix(pDlg, tokenlist, _T("1.3.6.1.4.1.311.60.2.1.3"), _("Jurisdiction country:"), pSizer, true);
-	ParseDN_by_prefix(pDlg, tokenlist, _T("1.3.6.1.4.1.311.60.2.1.2"), _("Jurisdiction state or province:"), pSizer, true);	
+	ParseDN_by_prefix(pDlg, tokenlist, _T("1.3.6.1.4.1.311.60.2.1.2"), _("Jurisdiction state or province:"), pSizer, true);
 	ParseDN_by_prefix(pDlg, tokenlist, _T("1.3.6.1.4.1.311.60.2.1.1"), _("Jurisdiction locality:"), pSizer, true);
 
 	if (!tokenlist.empty())
 	{
 		wxString value = tokenlist.front();
-		for (std::list<wxString>::const_iterator iter = ++tokenlist.begin(); iter != tokenlist.end(); iter++)
+		for (std::list<wxString>::const_iterator iter = ++tokenlist.begin(); iter != tokenlist.end(); ++iter)
 			value += _T(",") + *iter;
 
 		pSizer->Add(new wxStaticText(pDlg, wxID_ANY, _("Other:")));
@@ -205,7 +205,7 @@ void CVerifyCertDialog::ParseDN_by_prefix(wxDialog* pDlg, std::list<wxString>& t
 {
 	prefix += _T("=");
 	int len = prefix.Length();
-	
+
 	wxString value;
 
 	bool append = false;
@@ -217,7 +217,7 @@ void CVerifyCertDialog::ParseDN_by_prefix(wxDialog* pDlg, std::list<wxString>& t
 		{
 			if (iter->Left(len) != prefix)
 			{
-				iter++;
+				++iter;
 				continue;
 			}
 
@@ -268,7 +268,7 @@ bool CVerifyCertDialog::IsTrusted(CCertificateNotification* pNotification)
 
 bool CVerifyCertDialog::IsTrusted(const wxString& host, int port, const unsigned char* data, unsigned int len, bool permanentOnly)
 {
-	for (std::list<t_certData>::const_iterator iter = m_trustedCerts.begin(); iter != m_trustedCerts.end(); iter++)
+	for (std::list<t_certData>::const_iterator iter = m_trustedCerts.begin(); iter != m_trustedCerts.end(); ++iter)
 	{
 		if (host != iter->host)
 			continue;
@@ -286,7 +286,7 @@ bool CVerifyCertDialog::IsTrusted(const wxString& host, int port, const unsigned
 	if (permanentOnly)
 		return false;
 
-	for (std::list<t_certData>::const_iterator iter = m_sessionTrustedCerts.begin(); iter != m_sessionTrustedCerts.end(); iter++)
+	for (std::list<t_certData>::const_iterator iter = m_sessionTrustedCerts.begin(); iter != m_sessionTrustedCerts.end(); ++iter)
 	{
 		if (host != iter->host)
 			continue;
@@ -394,7 +394,7 @@ void CVerifyCertDialog::LoadTrustedCerts(bool close /*=true*/)
 		wxString value = GetTextElement(pCert, "Data");
 
 		TiXmlElement* pRemove = 0;
-		
+
 		t_certData data;
 		if (value == _T("") || !(data.data = ConvertStringToHex(value, data.len)))
 			pRemove = pCert;
@@ -419,7 +419,7 @@ void CVerifyCertDialog::LoadTrustedCerts(bool close /*=true*/)
 			m_trustedCerts.push_back(data);
 		else
 			delete [] data.data;
-		
+
 		pCert = pCert->NextSiblingElement("Certificate");
 
 		if (pRemove)

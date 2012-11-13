@@ -133,7 +133,7 @@ public:
 			if (!pState)
 				return wxDragNone;
 			if (!pState->GetLocalDir().IsWriteable())
-				return wxDragNone;			
+				return wxDragNone;
 		}
 
 		def = wxDragCopy;
@@ -227,9 +227,9 @@ public:
 
 	virtual ~CFolderProcessingThread()
 	{
-		for (std::list<CFolderProcessingEntry*>::iterator iter = m_entryList.begin(); iter != m_entryList.end(); iter++)
+		for (std::list<CFolderProcessingEntry*>::iterator iter = m_entryList.begin(); iter != m_entryList.end(); ++iter)
 			delete *iter;
-		for (std::list<t_internalDirPair*>::iterator iter = m_dirsToCheck.begin(); iter != m_dirsToCheck.end(); iter++)
+		for (std::list<t_internalDirPair*>::iterator iter = m_dirsToCheck.begin(); iter != m_dirsToCheck.end(); ++iter)
 			delete *iter;
 	}
 
@@ -398,8 +398,9 @@ protected:
 			}
 
 			t_dirPair* pair2 = new t_dirPair;
-	
+
 			{
+				// wx' refcounted wxString isn't thread-safe. Force a deep copy.
 				pair2->localPath = pair->localPath.c_str();
 				pair2->remotePath = pair->remotePath.GetSafePath().c_str();
 			}
@@ -415,6 +416,7 @@ protected:
 			{
 				if (is_link)
 					continue;
+				// wx' refcounted wxString isn't thread-safe. Force a deep copy.
 				entry->name = name.c_str();
 				entry->dir = is_dir;
 
@@ -598,7 +600,7 @@ bool CQueueView::QueueFiles(const bool queueOnly, const CLocalPath& localPath, c
 
 	const std::list<CRemoteDataObject::t_fileInfo>& files = dataObject.GetFiles();
 
-	for (std::list<CRemoteDataObject::t_fileInfo>::const_iterator iter = files.begin(); iter != files.end(); iter++)
+	for (std::list<CRemoteDataObject::t_fileInfo>::const_iterator iter = files.begin(); iter != files.end(); ++iter)
 	{
 		if (iter->dir)
 			continue;
@@ -624,7 +626,7 @@ bool CQueueView::QueueFiles(const bool queueOnly, const CLocalPath& localPath, c
 void CQueueView::OnEngineEvent(wxEvent &event)
 {
 	std::vector<t_EngineData*>::iterator iter;
-	for (iter = m_engineData.begin(); iter != m_engineData.end(); iter++)
+	for (iter = m_engineData.begin(); iter != m_engineData.end(); ++iter)
 	{
 		if ((wxObject *)(*iter)->pEngine == event.GetEventObject())
 			break;
@@ -736,7 +738,7 @@ void CQueueView::ProcessNotification(t_EngineData* pEngineData, CNotification* p
 
 			if (pEngineData->active)
 			{
-				if (pStatus && pStatus->madeProgress && !pStatus->list && 
+				if (pStatus && pStatus->madeProgress && !pStatus->list &&
 					pEngineData->pItem->GetType() == QueueItemType_File)
 				{
 					CFileItem* pItem = (CFileItem*)pEngineData->pItem;
@@ -751,7 +753,7 @@ void CQueueView::ProcessNotification(t_EngineData* pEngineData, CNotification* p
 		{
 			CLocalDirCreatedNotification *pLocalDirCreatedNotification = reinterpret_cast<CLocalDirCreatedNotification *>(pNotification);
 			const std::vector<CState*> *pStates = CContextManager::Get()->GetAllStates();
-			for (std::vector<CState*>::const_iterator iter = pStates->begin(); iter != pStates->end(); iter++)
+			for (std::vector<CState*>::const_iterator iter = pStates->begin(); iter != pStates->end(); ++iter)
 				(*iter)->LocalDirCreated(pLocalDirCreatedNotification->dir);
 		}
 		delete pNotification;
@@ -774,7 +776,7 @@ bool CQueueView::CanStartTransfer(const CServerItem& server_item, struct t_Engin
 	bool browsing_on_same = false;
 	const std::vector<CState*> *pStates = CContextManager::Get()->GetAllStates();
 	CState* pState = 0;
-	for (std::vector<CState*>::const_iterator iter = pStates->begin(); iter != pStates->end(); iter++)
+	for (std::vector<CState*>::const_iterator iter = pStates->begin(); iter != pStates->end(); ++iter)
 	{
 		pState = *iter;
 		const CServer* pBrowsingServer = pState->GetServer();
@@ -855,7 +857,7 @@ bool CQueueView::TryStartNextTransfer()
 
 	// Find inactive file. Check all servers for
 	// the file with the highest priority
-	for (std::vector<CServerItem*>::iterator iter = m_serverList.begin(); iter != m_serverList.end(); iter++)
+	for (std::vector<CServerItem*>::iterator iter = m_serverList.begin(); iter != m_serverList.end(); ++iter)
 	{
 		t_EngineData* pEngineData = 0;
 		CServerItem* currentServerItem = *iter;
@@ -871,7 +873,7 @@ bool CQueueView::TryStartNextTransfer()
 			localPath.AddSegment(newFileItem->GetLocalFile());
 			wxFileName::Mkdir(localPath.GetPath(), 0777, wxPATH_MKDIR_FULL);
 			const std::vector<CState*> *pStates = CContextManager::Get()->GetAllStates();
-			for (std::vector<CState*>::const_iterator iter = pStates->begin(); iter != pStates->end(); iter++)
+			for (std::vector<CState*>::const_iterator iter = pStates->begin(); iter != pStates->end(); ++iter)
 				(*iter)->RefreshLocalFile(localPath.GetPath());
 			if (RemoveItem(newFileItem, true))
 			{
@@ -1214,7 +1216,7 @@ void CQueueView::ResetEngine(t_EngineData& data, const enum ResetReason reason)
 		if (data.pItem->GetType() == QueueItemType_File)
 		{
 			wxASSERT(data.pStatusLineCtrl);
-			for (std::list<CStatusLineCtrl*>::iterator iter = m_statusLineList.begin(); iter != m_statusLineList.end(); iter++)
+			for (std::list<CStatusLineCtrl*>::iterator iter = m_statusLineList.begin(); iter != m_statusLineList.end(); ++iter)
 			{
 				if (*iter == data.pStatusLineCtrl)
 				{
@@ -1235,7 +1237,7 @@ void CQueueView::ResetEngine(t_EngineData& data, const enum ResetReason reason)
 			if (pFileItem->Download())
 			{
 				const std::vector<CState*> *pStates = CContextManager::Get()->GetAllStates();
-				for (std::vector<CState*>::const_iterator iter = pStates->begin(); iter != pStates->end(); iter++)
+				for (std::vector<CState*>::const_iterator iter = pStates->begin(); iter != pStates->end(); ++iter)
 					(*iter)->RefreshLocalFile(pFileItem->GetLocalPath().GetPath() + pFileItem->GetLocalFile());
 			}
 
@@ -1337,7 +1339,7 @@ void CQueueView::ResetEngine(t_EngineData& data, const enum ResetReason reason)
 	if (data.state == t_EngineData::waitprimary && data.pEngine)
 	{
 		const std::vector<CState*> *pStates = CContextManager::Get()->GetAllStates();
-		for (std::vector<CState*>::const_iterator iter = pStates->begin(); iter != pStates->end(); iter++)
+		for (std::vector<CState*>::const_iterator iter = pStates->begin(); iter != pStates->end(); ++iter)
 		{
 			CState* pState = *iter;
 			if (pState->m_pEngine != data.pEngine)
@@ -1391,7 +1393,7 @@ bool CQueueView::RemoveItem(CQueueItem* item, bool destroy, bool updateItemCount
 
 void CQueueView::SendNextCommand(t_EngineData& engineData)
 {
-	while (true)
+	for (;;)
 	{
 		if (engineData.state == t_EngineData::waitprimary)
 		{
@@ -1406,7 +1408,7 @@ void CQueueView::SendNextCommand(t_EngineData& engineData)
 
 			CState* pState = 0;
 			const std::vector<CState*> *pStates = CContextManager::Get()->GetAllStates();
-			for (std::vector<CState*>::const_iterator iter = pStates->begin(); iter != pStates->end(); iter++)
+			for (std::vector<CState*>::const_iterator iter = pStates->begin(); iter != pStates->end(); ++iter)
 			{
 				if ((*iter)->m_pEngine != engineData.pEngine)
 					continue;
@@ -1563,11 +1565,11 @@ bool CQueueView::SetActive(bool active /*=true*/)
 	if (!active)
 	{
 		m_activeMode = 0;
-		for (std::vector<CServerItem*>::iterator iter = m_serverList.begin(); iter != m_serverList.end(); iter++)
+		for (std::vector<CServerItem*>::iterator iter = m_serverList.begin(); iter != m_serverList.end(); ++iter)
 			(*iter)->QueueImmediateFiles();
 
 		const std::vector<CState*> *pStates = CContextManager::Get()->GetAllStates();
-		for (std::vector<CState*>::const_iterator iter = pStates->begin(); iter != pStates->end(); iter++)
+		for (std::vector<CState*>::const_iterator iter = pStates->begin(); iter != pStates->end(); ++iter)
 		{
 			CState* pState = *iter;
 
@@ -1649,7 +1651,7 @@ bool CQueueView::Quit()
 		if (!m_queuedFolders[i].empty())
 		{
 			canQuit = false;
-			for (std::list<CFolderScanItem*>::iterator iter = m_queuedFolders[i].begin(); iter != m_queuedFolders[i].end(); iter++)
+			for (std::list<CFolderScanItem*>::iterator iter = m_queuedFolders[i].begin(); iter != m_queuedFolders[i].end(); ++iter)
 				(*iter)->m_remove = true;
 		}
 	}
@@ -1732,7 +1734,7 @@ void CQueueView::UpdateStatusLinePositions()
 	m_lastTopItem = GetTopItem();
 	int bottomItem = m_lastTopItem + GetCountPerPage();
 
-	for (std::list<CStatusLineCtrl*>::iterator iter = m_statusLineList.begin(); iter != m_statusLineList.end(); iter++)
+	for (std::list<CStatusLineCtrl*>::iterator iter = m_statusLineList.begin(); iter != m_statusLineList.end(); ++iter)
 	{
 		CStatusLineCtrl *pCtrl = *iter;
 		int index = GetItemIndex(pCtrl->GetItem()) + 1;
@@ -1765,7 +1767,7 @@ void CQueueView::CalculateQueueSize()
 	m_folderScanCount = 0;
 
 	m_filesWithUnknownSize = 0;
-	for (std::vector<CServerItem*>::const_iterator iter = m_serverList.begin(); iter != m_serverList.end(); iter++)
+	for (std::vector<CServerItem*>::const_iterator iter = m_serverList.begin(); iter != m_serverList.end(); ++iter)
 		m_totalQueueSize += (*iter)->GetTotalSize(m_filesWithUnknownSize, m_fileCount, m_folderScanCount);
 
 	DisplayQueueSize();
@@ -1870,13 +1872,13 @@ void CQueueView::OnFolderThreadComplete(wxCommandEvent& event)
 int CQueueView::QueueFiles(const std::list<CFolderProcessingEntry*> &entryList, bool queueOnly, bool download, CServerItem* pServerItem, const enum CFileExistsNotification::OverwriteAction defaultFileExistsAction)
 {
 	wxASSERT(pServerItem);
-	
+
 	CFolderScanItem* pFolderScanItem = m_pFolderProcessingThread->GetFolderScanItem();
 
 	int added = 0;
 
 	CFilterManager filters;
-	for (std::list<CFolderProcessingEntry*>::const_iterator iter = entryList.begin(); iter != entryList.end(); iter++)
+	for (std::list<CFolderProcessingEntry*>::const_iterator iter = entryList.begin(); iter != entryList.end(); ++iter)
 	{
 		const CFolderProcessingEntry* entry = *iter;
 		if (entry->m_type == CFolderProcessingEntry::dir)
@@ -2040,7 +2042,7 @@ void CQueueView::LoadQueue()
 		if (!m_queue_storage.Vacuum())
 			error = true;
 	}
-	
+
 	m_insertionStart = -1;
 	m_insertionCount = 0;
 	CommitChanges();
@@ -2080,7 +2082,7 @@ void CQueueView::ImportQueue(TiXmlElement* pElement, bool updateSelections)
 
 				int dataType = GetTextElementInt(pFile, "DataType", -1);
 				if (dataType == -1)
-					dataType = GetTextElementInt(pFile, "TransferMode", 1); 
+					dataType = GetTextElementInt(pFile, "TransferMode", 1);
 				bool binary = dataType != 0;
 				int overwrite_action = GetTextElementInt(pFile, "OverwriteAction", CFileExistsNotification::unknown);
 
@@ -2331,7 +2333,7 @@ void CQueueView::RemoveAll()
 
 	std::vector<CServerItem*> newServerList;
 	m_itemCount = 0;
-	for (std::vector<CServerItem*>::iterator iter = m_serverList.begin(); iter != m_serverList.end(); iter++)
+	for (std::vector<CServerItem*>::iterator iter = m_serverList.begin(); iter != m_serverList.end(); ++iter)
 	{
 		if ((*iter)->TryRemoveAll())
 			delete *iter;
@@ -2368,7 +2370,7 @@ void CQueueView::RemoveQueuedFolderItem(CFolderScanItem* pFolder)
 {
 	for (unsigned int i = 0; i < 2; i++)
 	{
-		for (std::list<CFolderScanItem*>::iterator iter = m_queuedFolders[i].begin(); iter != m_queuedFolders[i].end(); iter++)
+		for (std::list<CFolderScanItem*>::iterator iter = m_queuedFolders[i].begin(); iter != m_queuedFolders[i].end(); ++iter)
 		{
 			if (*iter != pFolder)
 				continue;
@@ -2389,7 +2391,7 @@ void CQueueView::OnRemoveSelected(wxCommandEvent& event)
 
 	std::list<CQueueItem*> selectedItems;
 	long item = -1;
-	while (true)
+	for (;;)
 	{
 		item = GetNextItem(item, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
 		if (item == -1)
@@ -2491,7 +2493,7 @@ bool CQueueView::StopItem(CServerItem* pServerItem)
 	for (unsigned int i = 0; i < pServerItem->GetChildrenCount(false); i++)
 		items.push_back(pServerItem->GetChild(i, false));
 
-	for (std::list<CQueueItem*>::reverse_iterator iter = items.rbegin(); iter != items.rend(); iter++)
+	for (std::list<CQueueItem*>::reverse_iterator iter = items.rbegin(); iter != items.rend(); ++iter)
 	{
 		CQueueItem* pItem = *iter;
 		if (pItem->GetType() == QueueItemType_FolderScan)
@@ -2552,7 +2554,7 @@ void CQueueView::OnFolderThreadFiles(wxCommandEvent& event)
 
 void CQueueView::SetDefaultFileExistsAction(enum CFileExistsNotification::OverwriteAction action, const enum TransferDirection direction)
 {
-	for (std::vector<CServerItem*>::iterator iter = m_serverList.begin(); iter != m_serverList.end(); iter++)
+	for (std::vector<CServerItem*>::iterator iter = m_serverList.begin(); iter != m_serverList.end(); ++iter)
 		(*iter)->SetDefaultFileExistsAction(action, direction);
 }
 
@@ -2574,7 +2576,7 @@ void CQueueView::OnSetDefaultFileExistsAction(wxCommandEvent &event)
 	bool upload_unknown = false;
 
 	long item = -1;
-	while (true)
+	for (;;)
 	{
 		item = GetNextItem(item, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
 		if (item == -1)
@@ -2635,7 +2637,7 @@ void CQueueView::OnSetDefaultFileExistsAction(wxCommandEvent &event)
 		return;
 
 	item = -1;
-	while (true)
+	for (;;)
 	{
 		item = GetNextItem(item, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
 		if (item == -1)
@@ -2713,7 +2715,7 @@ void CQueueView::TryRefreshListings()
 		return;
 
 	const std::vector<CState*> *pStates = CContextManager::Get()->GetAllStates();
-	for (std::vector<CState*>::const_iterator iter = pStates->begin(); iter != pStates->end(); iter++)
+	for (std::vector<CState*>::const_iterator iter = pStates->begin(); iter != pStates->end(); ++iter)
 	{
 		CState* pState = *iter;
 
@@ -2779,7 +2781,7 @@ void CQueueView::OnAskPassword(wxCommandEvent& event)
 		const CFileZillaEngine* const pEngine = m_waitingForPassword.front();
 
 		std::vector<t_EngineData*>::iterator iter;
-		for (iter = m_engineData.begin(); iter != m_engineData.end(); iter++)
+		for (iter = m_engineData.begin(); iter != m_engineData.end(); ++iter)
 		{
 			if ((*iter)->pEngine == pEngine)
 				break;
@@ -2981,7 +2983,7 @@ void CQueueView::WriteToFile(TiXmlElement* pElement) const
 
 	wxASSERT(pQueue);
 
-	for (std::vector<CServerItem*>::const_iterator iter = m_serverList.begin(); iter != m_serverList.end(); iter++)
+	for (std::vector<CServerItem*>::const_iterator iter = m_serverList.begin(); iter != m_serverList.end(); ++iter)
 		(*iter)->SaveItem(pQueue);
 }
 
@@ -3037,7 +3039,7 @@ void CQueueView::OnExclusiveEngineRequestGranted(wxCommandEvent& event)
 	CState* pState;
 	CCommandQueue* pCommandQueue;
 	const std::vector<CState*> *pStates = CContextManager::Get()->GetAllStates();
-	for (std::vector<CState*>::const_iterator iter = pStates->begin(); iter != pStates->end(); iter++)
+	for (std::vector<CState*>::const_iterator iter = pStates->begin(); iter != pStates->end(); ++iter)
 	{
 		pState = *iter;
 		pCommandQueue = pState->m_pCommandQueue;
@@ -3150,7 +3152,7 @@ void CQueueView::ActionAfter(bool warned /*=false*/)
 		case ActionAfterState_Disconnect:
 		{
 			const std::vector<CState*> *pStates = CContextManager::Get()->GetAllStates();
-			for (std::vector<CState*>::const_iterator iter = pStates->begin(); iter != pStates->end(); iter++)
+			for (std::vector<CState*>::const_iterator iter = pStates->begin(); iter != pStates->end(); ++iter)
 			{
 				CState* pState = *iter;
 				if (pState->IsRemoteConnected() && pState->IsRemoteIdle())
@@ -3292,8 +3294,8 @@ bool CQueueView::SwitchEngine(t_EngineData** ppEngineData)
 	t_EngineData* pEngineData = *ppEngineData;
 
 	std::vector<t_EngineData*>::iterator iter = m_engineData.begin();
-	iter++;
-	for (; iter != m_engineData.end(); iter++)
+	++iter;
+	for (; iter != m_engineData.end(); ++iter)
 	{
 		t_EngineData* pNewEngineData = *iter;
 		if (pNewEngineData == pEngineData)
@@ -3346,7 +3348,7 @@ bool CQueueView::SwitchEngine(t_EngineData** ppEngineData)
 
 bool CQueueView::IsOtherEngineConnected(t_EngineData* pEngineData)
 {
-	for (std::vector<t_EngineData*>::iterator iter = m_engineData.begin(); iter != m_engineData.end(); iter++)
+	for (std::vector<t_EngineData*>::iterator iter = m_engineData.begin(); iter != m_engineData.end(); ++iter)
 	{
 		t_EngineData* current = *iter;
 
@@ -3409,7 +3411,7 @@ void CQueueView::OnSize(wxSizeEvent& event)
 void CQueueView::RenameFileInTransfer(CFileZillaEngine *pEngine, const wxString& newName, bool local)
 {
 	std::vector<t_EngineData*>::iterator iter;
-	for (iter = m_engineData.begin(); iter != m_engineData.end(); iter++)
+	for (iter = m_engineData.begin(); iter != m_engineData.end(); ++iter)
 	{
 		if ((*iter)->pEngine == pEngine)
 			break;
@@ -3420,7 +3422,7 @@ void CQueueView::RenameFileInTransfer(CFileZillaEngine *pEngine, const wxString&
 	t_EngineData* const pEngineData = *iter;
 	if (!pEngineData->pItem)
 		return;
-	
+
 	if (pEngineData->pItem->GetType() != QueueItemType_File)
 		return;
 
@@ -3495,7 +3497,7 @@ void CQueueView::ReleaseExclusiveEngineLock(CFileZillaEngine* pEngine)
 		return;
 
 	const std::vector<CState*> *pStates = CContextManager::Get()->GetAllStates();
-	for (std::vector<CState*>::const_iterator iter = pStates->begin(); iter != pStates->end(); iter++)
+	for (std::vector<CState*>::const_iterator iter = pStates->begin(); iter != pStates->end(); ++iter)
 	{
 		CState* pState = *iter;
 		if (pState->m_pEngine != pEngine)
@@ -3511,7 +3513,7 @@ void CQueueView::ReleaseExclusiveEngineLock(CFileZillaEngine* pEngine)
 #ifdef __WXMSW__
 
 #ifndef WM_DWMCOMPOSITIONCHANGED
-#define WM_DWMCOMPOSITIONCHANGED        0x031E
+#define WM_DWMCOMPOSITIONCHANGED		0x031E
 #endif // WM_DWMCOMPOSITIONCHANGED
 
 WXLRESULT CQueueView::MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, WXLPARAM lParam)
@@ -3524,7 +3526,7 @@ WXLRESULT CQueueView::MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, WXLPARAM lPara
 	}
 	else if (nMsg == WM_LBUTTONDOWN)
 	{
-		// If clicking a partially selected item, Windows starts an internal timer with the double-click interval (as seen in the 
+		// If clicking a partially selected item, Windows starts an internal timer with the double-click interval (as seen in the
 		// disassembly). After the timer expires, the given item is selected. But there's a huge bug in Windows: We don't get
 		// notified about this change in scroll position in any way (verified using Spy++), so on left button down, start our
 		// own timer with a slightly higher interval.

@@ -143,7 +143,7 @@ public:
 		}
 
 		const std::list<CRemoteDataObject::t_fileInfo>& files = m_pRemoteDataObject->GetFiles();
-		for (std::list<CRemoteDataObject::t_fileInfo>::const_iterator iter = files.begin(); iter != files.end(); iter++)
+		for (std::list<CRemoteDataObject::t_fileInfo>::const_iterator iter = files.begin(); iter != files.end(); ++iter)
 		{
 			const CRemoteDataObject::t_fileInfo& info = *iter;
 			if (info.dir)
@@ -158,7 +158,7 @@ public:
 			}
 		}
 
-		for (std::list<CRemoteDataObject::t_fileInfo>::const_iterator iter = files.begin(); iter != files.end(); iter++)
+		for (std::list<CRemoteDataObject::t_fileInfo>::const_iterator iter = files.begin(); iter != files.end(); ++iter)
 		{
 			const CRemoteDataObject::t_fileInfo& info = *iter;
 			m_pRemoteListView->m_pState->m_pCommandQueue->ProcessCommand(
@@ -338,6 +338,7 @@ BEGIN_EVENT_TABLE(CRemoteListView, CFileListCtrl<CGenericFileData>)
 	EVT_MENU(XRCID("ID_DOWNLOAD"), CRemoteListView::OnMenuDownload)
 	EVT_MENU(XRCID("ID_ADDTOQUEUE"), CRemoteListView::OnMenuDownload)
 	EVT_MENU(XRCID("ID_MKDIR"), CRemoteListView::OnMenuMkdir)
+	EVT_MENU(XRCID("ID_NEW_FILE"), CRemoteListView::OnMenuNewfile)
 	EVT_MENU(XRCID("ID_DELETE"), CRemoteListView::OnMenuDelete)
 	EVT_MENU(XRCID("ID_RENAME"), CRemoteListView::OnMenuRename)
 	EVT_MENU(XRCID("ID_CHMOD"), CRemoteListView::OnMenuChmod)
@@ -485,7 +486,7 @@ void CRemoteListView::UpdateDirectoryListing_Added(const CSharedPointer<const CD
 		// Find correct position in index mapping
 		std::vector<unsigned int>::iterator start = m_indexMapping.begin();
 		if (m_hasParent)
-			start++;
+			++start;
 		CFileListCtrl<CGenericFileData>::CSortComparisonObject compare = GetSortComparisonObject();
 		std::vector<unsigned int>::iterator insertPos = std::lower_bound(start, m_indexMapping.end(), i, compare);
 		compare.Destroy();
@@ -493,7 +494,7 @@ void CRemoteListView::UpdateDirectoryListing_Added(const CSharedPointer<const CD
 		const int item = insertPos - m_indexMapping.begin();
 		m_indexMapping.insert(insertPos, i);
 
-		for (std::list<unsigned int>::iterator iter = added.begin(); iter != added.end(); iter++)
+		for (std::list<unsigned int>::iterator iter = added.begin(); iter != added.end(); ++iter)
 		{
 			unsigned int &pos = *iter;
 			if (pos >= (unsigned int)item)
@@ -583,7 +584,7 @@ void CRemoteListView::UpdateDirectoryListing_Removed(const CSharedPointer<const 
 
 		// j is the offset the index has to be adjusted
 		int j = 0;
-		for (std::list<unsigned int>::const_iterator iter = removedItems.begin(); iter != removedItems.end(); iter++, j++)
+		for (std::list<unsigned int>::const_iterator iter = removedItems.begin(); iter != removedItems.end(); ++iter, ++j)
 		{
 			if (*iter > index)
 				break;
@@ -599,7 +600,7 @@ void CRemoteListView::UpdateDirectoryListing_Removed(const CSharedPointer<const 
 
 		// Get old selection
 		bool isSelected = GetItemState(i, wxLIST_STATE_SELECTED) != 0;
-		
+
 		// Update statusbar info
 		if (removed && m_pFilelistStatusBar)
 		{
@@ -645,7 +646,7 @@ void CRemoteListView::UpdateDirectoryListing_Removed(const CSharedPointer<const 
 	}
 
 	// Erase file data
-	for (std::list<unsigned int>::reverse_iterator iter = removedItems.rbegin(); iter != removedItems.rend(); iter++)
+	for (std::list<unsigned int>::reverse_iterator iter = removedItems.rbegin(); iter != removedItems.rend(); ++iter)
 	{
 		m_fileData.erase(m_fileData.begin() + *iter);
 	}
@@ -653,7 +654,7 @@ void CRemoteListView::UpdateDirectoryListing_Removed(const CSharedPointer<const 
 	// Erase indexes
 	wxASSERT(!toRemove);
 	wxASSERT(removedIndexes.size() == removed);
-	for (std::list<int>::iterator iter = removedIndexes.begin(); iter != removedIndexes.end(); iter++)
+	for (std::list<int>::iterator iter = removedIndexes.begin(); iter != removedIndexes.end(); ++iter)
 	{
 		m_indexMapping.erase(m_indexMapping.begin() + *iter);
 	}
@@ -695,7 +696,7 @@ bool CRemoteListView::UpdateDirectoryListing(const CSharedPointer<const CDirecto
 		wxASSERT(pDirectoryListing->GetCount() == m_pDirectoryListing->GetCount());
 		if (pDirectoryListing->GetCount() != m_pDirectoryListing->GetCount())
 			return false;
-		
+
 		m_pDirectoryListing = pDirectoryListing;
 
 		// We don't have to do anything
@@ -767,7 +768,7 @@ void CRemoteListView::SetDirectoryListing(const CSharedPointer<const CDirectoryL
 	if (m_pFilelistStatusBar)
 	{
 		m_pFilelistStatusBar->UnselectAll();
-		m_pFilelistStatusBar->SetConnected(pDirectoryListing); 
+		m_pFilelistStatusBar->SetConnected(pDirectoryListing);
 	}
 
 	m_pDirectoryListing = pDirectoryListing;
@@ -1204,7 +1205,7 @@ void CRemoteListView::OnItemActivated(wxListEvent &event)
 	bool back = false;
 
 	int item = -1;
-	while (true)
+	for (;;)
 	{
 		item = GetNextItem(item, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
 		if (item == -1)
@@ -1415,6 +1416,7 @@ void CRemoteListView::OnContextMenu(wxContextMenuEvent& event)
 		pMenu->Enable(XRCID("ID_EDIT"), false);
 		pMenu->Enable(XRCID("ID_GETURL"), false);
 		pMenu->Enable(XRCID("ID_CONTEXT_REFRESH"), false);
+		pMenu->Enable(XRCID("ID_NEW_FILE"), false);
 	}
 	else if ((GetItemCount() && GetItemState(0, wxLIST_STATE_SELECTED)))
 	{
@@ -1506,7 +1508,7 @@ void CRemoteListView::OnMenuDownload(wxCommandEvent& event)
 	}
 
 	long item = -1;
-	while (true)
+	for (;;)
 	{
 		item = GetNextItem(item, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
 		if (item == -1)
@@ -1552,7 +1554,7 @@ void CRemoteListView::TransferSelectedFiles(const CLocalPath& local_parent, bool
 	bool added = false;
 	bool startRecursive = false;
 	long item = -1;
-	while (true)
+	for (;;)
 	{
 		item = GetNextItem(item, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
 		if (item == -1)
@@ -1667,7 +1669,7 @@ void CRemoteListView::OnMenuDelete(wxCommandEvent& event)
 	bool selected_link = false;
 
 	long item = -1;
-	while (true)
+	for (;;)
 	{
 		item = GetNextItem(item, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
 		if (item == -1)
@@ -1698,14 +1700,14 @@ void CRemoteListView::OnMenuDelete(wxCommandEvent& event)
 
 	wxString question;
 	if (!count_dirs)
-		question.Printf(wxPLURAL("Really delete %d file?", "Really delete %d files?", count_files), count_files);
+		question.Printf(wxPLURAL("Really delete %d file from the server?", "Really delete %d files from the server?", count_files), count_files);
 	else if (!count_files)
-		question.Printf(wxPLURAL("Really delete %d directory with its contents?", "Really delete %d directories with their contents?", count_dirs), count_dirs);
+		question.Printf(wxPLURAL("Really delete %d directory with its contents from the server?", "Really delete %d directories with their contents from the server?", count_dirs), count_dirs);
 	else
 	{
 		wxString files = wxString::Format(wxPLURAL("%d file", "%d files", count_files), count_files);
 		wxString dirs = wxString::Format(wxPLURAL("%d directory with its contents", "%d directories with their contents", count_dirs), count_dirs);
-		question.Printf(_("Really delete %s and %s?"), files.c_str(), dirs.c_str());
+		question.Printf(_("Really delete %s and %s from the server?"), files.c_str(), dirs.c_str());
 	}
 
 	if (wxMessageBox(question, _("Confirmation needed"), wxICON_QUESTION | wxYES_NO, this) != wxYES)
@@ -1733,7 +1735,7 @@ void CRemoteListView::OnMenuDelete(wxCommandEvent& event)
 
 	bool startRecursive = false;
 	item = -1;
-	while (true)
+	for (;;)
 	{
 		item = GetNextItem(item, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
 		if (item == -1)
@@ -1944,7 +1946,7 @@ void CRemoteListView::OnMenuChmod(wxCommandEvent& event)
 	char permissions[9] = {0};
 
 	long item = -1;
-	while (true)
+	for (;;)
 	{
 		item = GetNextItem(item, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
 		if (item == -1)
@@ -2019,7 +2021,7 @@ void CRemoteListView::OnMenuChmod(wxCommandEvent& event)
 	wxASSERT(pRecursiveOperation);
 
 	item = -1;
-	while (true)
+	for (;;)
 	{
 		item = GetNextItem(item, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
 		if (item == -1)
@@ -2246,7 +2248,7 @@ void CRemoteListView::ReselectItems(std::list<wxString>& selectedNames, wxString
 	// Reselect previous items if neccessary.
 	// Sorting direction did not change. We just have to scan through items once
 	unsigned int i = 0;
-	for (std::list<wxString>::const_iterator iter = selectedNames.begin(); iter != selectedNames.end(); iter++)
+	for (std::list<wxString>::const_iterator iter = selectedNames.begin(); iter != selectedNames.end(); ++iter)
 	{
 		while (++i < m_indexMapping.size())
 		{
@@ -2265,7 +2267,7 @@ void CRemoteListView::ReselectItems(std::list<wxString>& selectedNames, wxString
 					firstSelected = i;
 				if (m_pFilelistStatusBar)
 					m_pFilelistStatusBar->SelectDirectory();
-                SetSelection(i, true);
+				SetSelection(i, true);
 				break;
 			}
 			else if (*iter == (_T("-") + entry.name))
@@ -2403,7 +2405,7 @@ void CRemoteListView::OnBeginDrag(wxListEvent& event)
 
 	long item = -1;
 	int count = 0;
-	while (true)
+	for (;;)
 	{
 		item = GetNextItem(item, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
 		if (item == -1)
@@ -2450,7 +2452,7 @@ void CRemoteListView::OnBeginDrag(wxListEvent& event)
 
 	// Add files to remote data object
 	item = -1;
-	while (true)
+	for (;;)
 	{
 		item = GetNextItem(item, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
 		if (item == -1)
@@ -2522,7 +2524,7 @@ void CRemoteListView::OnBeginDrag(wxListEvent& event)
 			bool idle = m_pState->m_pCommandQueue->Idle();
 
 			long item = -1;
-			while (true)
+			for (;;)
 			{
 				item = GetNextItem(item, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
 				if (item == -1)
@@ -2581,7 +2583,7 @@ void CRemoteListView::OnMenuEdit(wxCommandEvent& event)
 	}
 
 	long item = -1;
-	
+
 	std::list<CDirentry> selected_item_list;
 	while ((item = GetNextItem(item, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED)) != -1)
 	{
@@ -2640,7 +2642,7 @@ void CRemoteListView::OnMenuEdit(wxCommandEvent& event)
 			return;
 	}
 
-	for (std::list<CDirentry>::const_iterator iter = selected_item_list.begin(); iter != selected_item_list.end(); iter++)
+	for (std::list<CDirentry>::const_iterator iter = selected_item_list.begin(); iter != selected_item_list.end(); ++iter)
 	{
 		const CDirentry& entry = *iter;
 
@@ -3072,7 +3074,7 @@ void CRemoteListView::OnMenuGeturl(wxCommandEvent& event)
 	}
 
 	const CServerPath& path = m_pDirectoryListing->path;
-	//~ const wxString server = pServer->FormatServer(true,true);
+	// const wxString server = pServer->FormatServer(true,true);
 	wxString server;// = pServer->FormatServerPasswd(true,true);
 	int answer = wxMessageBox(_("Is need copy password too?"), _("Copy password?"), wxYES_NO|wxICON_QUESTION);
 	if (answer==wxYES)
@@ -3092,7 +3094,7 @@ void CRemoteListView::OnMenuGeturl(wxCommandEvent& event)
 	else
 	{
 		wxString urls;
-		for (std::list<CDirentry>::const_iterator iter = selected_item_list.begin(); iter != selected_item_list.end(); iter++)
+		for (std::list<CDirentry>::const_iterator iter = selected_item_list.begin(); iter != selected_item_list.end(); ++iter)
 		{
 			urls += server;
 			urls += path.FormatFilename(iter->name, false);
@@ -3153,4 +3155,75 @@ void CRemoteListView::OnNavigationEvent(bool forward)
 
 		m_pState->ChangeRemoteDir(m_pDirectoryListing->path, _T(".."));
 	}
+}
+
+void CRemoteListView::OnMenuNewfile(wxCommandEvent& event)
+{
+	if (!m_pState->IsRemoteIdle())
+	{
+		wxBell();
+		return;
+	}
+
+	CInputDialog dlg;
+	if (!dlg.Create(this, _("Create empty file"), _("Please enter the name of the file which should be created:")))
+		return;
+	
+	if (dlg.ShowModal() != wxID_OK)
+		return;
+	
+	if (dlg.GetValue() == _T(""))
+	{
+		wxBell();
+		return;
+	}
+	
+	wxString newFileName = dlg.GetValue();
+	
+	// Copied from elsewhere in the source, checks for characters that Windows deems invalid
+	if ((newFileName.Find('/')  != -1) ||
+		(newFileName.Find('\\') != -1) ||
+		(newFileName.Find(':')  != -1) ||
+		(newFileName.Find('*')  != -1) ||
+		(newFileName.Find('?')  != -1) ||
+		(newFileName.Find('"')  != -1) ||
+		(newFileName.Find('<')  != -1) ||
+		(newFileName.Find('>')  != -1) ||
+		(newFileName.Find('|')  != -1))
+	{
+		wxMessageBox(_("Filename may not contain any of the following characters: / \\ : * ? \" < > |"), _("Invalid filename"), wxICON_EXCLAMATION);
+		return;
+	}
+
+	// Check if target file already exists
+	for (unsigned int i = 0; i < m_pDirectoryListing->GetCount(); i++)
+	{
+		if (newFileName == (*m_pDirectoryListing)[i].name)
+		{
+			wxMessageBox(_("Target filename already exists!"));
+			return;
+		}
+	}
+	
+	CEditHandler* edithandler = CEditHandler::Get(); // Used to get the temporary folder
+	
+	wxString emptyfile_name = _T("empty_file_yq744zm");
+	wxString emptyfile = edithandler->GetLocalDirectory() + emptyfile_name;
+	
+	// Create the empty temporary file
+	{
+		wxFile file;
+		wxLogNull log;
+		file.Create(emptyfile);
+	}
+	
+	const CServer* pServer = m_pState->GetServer();
+	if (!pServer)
+	{
+		wxBell();
+		return;
+	}
+	
+	CFileTransferCommand *cmd = new CFileTransferCommand(emptyfile, m_pDirectoryListing->path, newFileName, false, CFileTransferCommand::t_transferSettings());
+	m_pState->m_pCommandQueue->ProcessCommand(cmd);
 }

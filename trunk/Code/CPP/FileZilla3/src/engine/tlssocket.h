@@ -1,7 +1,6 @@
 #ifndef __TLSSOCKET_H__
 #define __TLSSOCKET_H__
 
-#define ssize_t long
 #include <gnutls/gnutls.h>
 #include "backend.h"
 #include "socket.h"
@@ -42,18 +41,23 @@ public:
 	wxString GetMacName();
 
 	bool ResumedSession() const;
-	
+
 	// PEM formatted
 	bool AddTrustedRootCertificate(const wxString& cert);
+
+	static wxString ListTlsCiphers(wxString priority);
+
 protected:
 
+	bool InitSession();
+	void UninitSession();
 	bool CopySessionData(const CTlsSocket* pPrimarySocket);
 
 	virtual void OnRateAvailable(enum CRateLimiter::rate_direction direction);
 
 	int ContinueHandshake();
 	void ContinueShutdown();
-	
+
 	int VerifyCertificate();
 
 	enum TlsState m_tlsState;
@@ -67,7 +71,7 @@ protected:
 
 	void LogError(int code);
 	void PrintAlert();
-	
+
 	// Failure logs the error, uninits the session and sends a close event
 	void Failure(int code, int socket_error);
 

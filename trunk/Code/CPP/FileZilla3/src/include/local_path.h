@@ -9,7 +9,7 @@
 class CLocalPath
 {
 public:
-	CLocalPath() { }
+	CLocalPath() {}
 	CLocalPath(const CLocalPath &path);
 
 	// Creates path. If the path is not syntactically
@@ -24,7 +24,7 @@ public:
 
 	bool empty() const;
 	void clear();
-	
+
 	// On failure the path is undefined
 	bool ChangePath(const wxString& path);
 

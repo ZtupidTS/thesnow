@@ -12,7 +12,7 @@ bool CLoginManager::GetPassword(CServer &server, bool silent, wxString name /*=_
 	if (server.GetLogonType() == ASK)
 	{
 		std::list<t_passwordcache>::const_iterator iter;
-		for (iter = m_passwordCache.begin(); iter != m_passwordCache.end(); iter++)
+		for (iter = m_passwordCache.begin(); iter != m_passwordCache.end(); ++iter)
 		{
 			if (iter->host != server.GetHost())
 				continue;
@@ -20,7 +20,7 @@ bool CLoginManager::GetPassword(CServer &server, bool silent, wxString name /*=_
 				continue;
 			if (iter->user != server.GetUser())
 				continue;
-	
+
 			server.SetUser(server.GetUser(), iter->password);
 			return true;
 		}
@@ -128,8 +128,8 @@ void CLoginManager::CachedPasswordFailed(const CServer& server)
 {
 	if (server.GetLogonType() != ASK)
 		return;
-	
-	for (std::list<t_passwordcache>::iterator iter = m_passwordCache.begin(); iter != m_passwordCache.end(); iter++)
+
+	for (std::list<t_passwordcache>::iterator iter = m_passwordCache.begin(); iter != m_passwordCache.end(); ++iter)
 	{
 		if (iter->host != server.GetHost())
 			continue;
@@ -137,7 +137,7 @@ void CLoginManager::CachedPasswordFailed(const CServer& server)
 			continue;
 		if (iter->user != server.GetUser())
 			continue;
-	
+
 		m_passwordCache.erase(iter);
 		return;
 	}

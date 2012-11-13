@@ -55,12 +55,12 @@ public:
 	void ProcessCommandLine();
 
 	void PostInitialize();
-	
+
 	bool ConnectToServer(const CServer& server, const CServerPath& path = CServerPath());
 
 	CContextControl* GetContextControl() { return m_pContextControl; }
 
-	bool ConnectToSite(CSiteManagerItemData_Site* const pData);
+	bool ConnectToSite(CSiteManagerItemData_Site* const pData, bool newTab = false);
 
 protected:
 	bool CloseDialogsAndQuit(wxCloseEvent &event);
