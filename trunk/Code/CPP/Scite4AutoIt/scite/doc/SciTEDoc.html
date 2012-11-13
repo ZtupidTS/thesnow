@@ -858,6 +858,7 @@ NameError: mistake
       string or not present symbol evaluates to 0. Into the very top property set
       is inserted one of 'PLAT_GTK' with value '1',
       'PLAT_WIN' with value '1', or 'PLAT_MAC' with value '1'.
+      For both PLAT_GTK and PLAT_MAC, 'PLAT_UNIX' is inserted with value '1'.
       If the test succeeds then following indented statements are executed. When a
       non-indented statement is found the if clause is finished. Only simple set
       statements are allowed in if clauses. The evaluation of if statements occurs
@@ -3589,7 +3590,13 @@ groupundo - yes or no
         </td>
         <td>
           Set the name of the localisation file. For a multi-user installation
-	this allows each user to set a preferred user interface language.
+	this allows each user to set a preferred user interface language.<br />
+	On OS X, localisation files for some languages are installed in the translations
+	subdirectory of the user home directory which allows setting
+	the user interface to, for example, German with
+		<div class="example">
+		locale.properties=$(SciteUserHome)/translations/locale.de.properties
+		</div>
         </td>
       </tr>
       <tr id='property-translation.missing'>
