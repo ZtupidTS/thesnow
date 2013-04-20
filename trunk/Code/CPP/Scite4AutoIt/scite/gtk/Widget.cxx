@@ -39,10 +39,6 @@ bool WBase::Sensitive() {
 	return IS_WIDGET_SENSITIVE(Pointer());
 }
 
-void WBase::SetSensitive(bool sensitive) {
-	gtk_widget_set_sensitive(Pointer(), sensitive);
-}
-
 void WStatic::Create(GUI::gui_string text) {
 	SetID(gtk_label_new_with_mnemonic(text.c_str()));
 }
@@ -473,23 +469,42 @@ gboolean WCheckDraw::ExposeEvent(GtkWidget *widget, GdkEventExpose *event, WChec
 
 #endif
 
+#if GTK_CHECK_VERSION(3,4,0)
+#define USE_GRID 1
+#else
+#define USE_GRID 0
+#endif
+
 WTable::WTable(int rows_, int columns_) :
 	rows(rows_), columns(columns_), next(0) {
+#if USE_GRID
+	SetID(gtk_grid_new());
+#else
 	SetID(gtk_table_new(rows, columns, FALSE));
+#endif
 }
 
 void WTable::Add(GtkWidget *child, int width, bool expand, int xpadding, int ypadding) {
-	GtkAttachOptions opts = static_cast<GtkAttachOptions>(
-		GTK_SHRINK | GTK_FILL);
-	GtkAttachOptions optsExpand = static_cast<GtkAttachOptions>(
-		GTK_SHRINK | GTK_FILL | GTK_EXPAND);
-
 	if (child) {
+#if USE_GRID
+		gtk_widget_set_hexpand(child, expand);
+		gtk_widget_set_margin_right(child, xpadding);
+		gtk_widget_set_margin_bottom(child, ypadding);
+		gtk_grid_attach(GTK_GRID(GetID()), child,
+			next % columns, next / columns,
+			width, 1);
+#else
+		GtkAttachOptions opts = static_cast<GtkAttachOptions>(
+			GTK_SHRINK | GTK_FILL);
+		GtkAttachOptions optsExpand = static_cast<GtkAttachOptions>(
+			GTK_SHRINK | GTK_FILL | GTK_EXPAND);
+
 		gtk_table_attach(GTK_TABLE(GetID()), child,
 			next % columns, next % columns + width,
 			next / columns, (next / columns) + 1,
 			expand ? optsExpand : opts, opts,
 			xpadding, ypadding);
+#endif
 	}
 	next += width;
 }
@@ -506,7 +521,9 @@ void WTable::PackInto(GtkBox *box, gboolean expand) {
 void WTable::Resize(int rows_, int columns_) {
 	rows = rows_;
 	columns = columns_;
+#if !USE_GRID
 	gtk_table_resize(GTK_TABLE(GetID()), rows, columns);
+#endif
 	next = 0;
 }
 
@@ -562,13 +579,6 @@ GtkWidget *Dialog::ContentArea() {
 void Dialog::SignalDestroy(GtkWidget *, Dialog *d) {
 	if (d) {
 		d->SetID(0);
-	}
-}
-
-void DestroyDialog(GtkWidget *, gpointer *window) {
-	if (window) {
-		GUI::Window *pwin = reinterpret_cast<GUI::Window *>(window);
-		*(pwin) = 0;
 	}
 }
 

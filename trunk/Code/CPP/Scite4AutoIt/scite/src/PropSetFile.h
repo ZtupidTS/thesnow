@@ -32,7 +32,6 @@ public:
 	void Set(const char *key, const char *val, ptrdiff_t lenKey=-1, ptrdiff_t lenVal=-1);
 	void Set(const char *keyVal);
 	void Unset(const char *key, int lenKey=-1);
-	void SetMultiple(const char *s);
 	bool Exists(const char *key) const;
 	SString Get(const char *key) const;
 	SString Evaluate(const char *key) const;
@@ -40,7 +39,6 @@ public:
 	SString Expand(const char *withVars, int maxExpands=100) const;
 	int GetInt(const char *key, int defaultValue=0) const;
 	void Clear();
-	char *ToString() const;	// Caller must delete[] the return value
 
 	bool ReadLine(const char *data, bool ifIsTrue, FilePath directoryForImports, const ImportFilter &filter, std::vector<FilePath> *imports=0);
 	void ReadFromMemory(const char *data, size_t len, FilePath directoryForImports, const ImportFilter &filter, std::vector<FilePath> *imports=0);

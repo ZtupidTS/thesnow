@@ -1,6 +1,6 @@
 ﻿// SciTE - Scintilla based Text Editor
 /** @file GTKMutex.cxx
- ** 定义互斥体
+ ** Define mutex
  **/
 // SciTE & Scintilla copyright 1998-2003 by Neil Hodgson <neilh@scintilla.org>
 // Copyright 2007 by Neil Hodgson <neilh@scintilla.org>, from April White <april_white@sympatico.ca>

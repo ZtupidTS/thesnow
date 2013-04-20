@@ -110,6 +110,8 @@
 	<p>int editor.<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_GETCHARAT'>CharAt</a>[position pos] read-only</p>
 	<p>int editor.<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_GETSTYLEAT'>StyleAt</a>[position pos] read-only</p>
 	<p>int editor.<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_SETSTYLEBITS'>StyleBits</a><span class="comment"> -- Divide each styling byte into lexical class bits (default: 5) and indicator bits (default: 3). If a lexer requires more than 32 lexical states, then this is used to expand the possible states.</span></p>
+	<p>editor:<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_RELEASEALLEXTENDEDSTYLES'>ReleaseAllExtendedStyles</a>()<span class="comment"> -- Release all extended (>255) style numbers</span></p>
+	<p>int editor:<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_ALLOCATEEXTENDEDSTYLES'>AllocateExtendedStyles</a>(int numberStyles)<span class="comment"> -- Allocate some extended (>255) style numbers and return the start of the range</span></p>
 	<p>string editor:<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_TARGETASUTF8'>TargetAsUTF8</a>()<span class="comment"> -- Returns the target converted to UTF8. Return the length in bytes.</span></p>
 	<p>string editor:<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_ENCODEDFROMUTF8'>EncodedFromUTF8</a>(string utf8)<span class="comment"> -- Translates a UTF8 string into the document encoding. Return the length of the result in bytes. On error return 0.</span></p>
 	<p>editor:<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_SETLENGTHFORENCODE'>SetLengthForEncode</a>(int bytes)<span class="comment"> -- Set the length of the utf8 argument for calling EncodedFromUTF8. Set to -1 and the string will be measured to the first nul.</span></p>
@@ -228,6 +230,7 @@
 	<h2>Scrolling and automatic scrolling</h2>
 	<p>editor:<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_LINESCROLL'>LineScroll</a>(int columns, int lines)<span class="comment"> -- Scroll horizontally and vertically.</span></p>
 	<p>editor:<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_SCROLLCARET'>ScrollCaret</a>()<span class="comment"> -- Ensure the caret is visible.</span></p>
+	<p>editor:<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_SCROLLRANGE'>ScrollRange</a>(position secondary, position primary)<span class="comment"> -- Scroll the argument positions and the range between them into view giving priority to the primary position then the secondary position. This may be used to make a search match visible.</span></p>
 	<p>editor:<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_SETXCARETPOLICY'>SetXCaretPolicy</a>(int caretPolicy, int caretSlop)<span class="comment"> -- Set the way the caret is kept visible when going sideways. The exclusion zone is given in pixels.</span></p>
 	<p>editor:<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_SETYCARETPOLICY'>SetYCaretPolicy</a>(int caretPolicy, int caretSlop)<span class="comment"> -- Set the way the line the caret is on is kept visible. The exclusion zone is given in lines.</span></p>
 	<p>editor:<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_SETVISIBLEPOLICY'>SetVisiblePolicy</a>(int visiblePolicy, int visibleSlop)<span class="comment"> -- Set the way the display area is determined when a particular line is to be moved to by Find, FindNext, GotoLine, etc.</span></p>
@@ -252,6 +255,9 @@
 	<p>int editor.<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_SETEOLMODE'>EOLMode</a><span class="comment"> -- Set the current end of line mode.</span></p>
 	<p>editor:<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_CONVERTEOLS'>ConvertEOLs</a>(int eolMode)<span class="comment"> -- Convert all line endings in the document to one mode.</span></p>
 	<p>bool editor.<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_SETVIEWEOL'>ViewEOL</a><span class="comment"> -- Make the end of line characters visible or invisible.</span></p>
+	<p>int editor.<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_GETLINEENDTYPESSUPPORTED'>LineEndTypesSupported</a> read-only</p>
+	<p>int editor.<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_SETLINEENDTYPESALLOWED'>LineEndTypesAllowed</a><span class="comment"> -- Set the line end types that the application wants to use. May not be used if incompatible with lexer or encoding.</span></p>
+	<p>int editor.<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_GETLINEENDTYPESACTIVE'>LineEndTypesActive</a> read-only</p>
 	<h2>Styling</h2>
 	<p>position editor.<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_GETENDSTYLED'>EndStyled</a> read-only</p>
 	<p>editor:<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_STARTSTYLING'>StartStyling</a>(position pos, int mask)<span class="comment"> -- Set the current styling position to pos and the styling mask to mask. The styling mask can be used to protect some bits in each styling byte from modification.</span></p>
@@ -286,6 +292,7 @@
 	<p>bool editor.<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_SETCARETLINEVISIBLE'>CaretLineVisible</a><span class="comment"> -- Display the background of the line containing the caret in a different colour.</span></p>
 	<p>colour editor.<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_SETCARETLINEBACK'>CaretLineBack</a><span class="comment"> -- Set the colour of the background of the line containing the caret.</span></p>
 	<p>int editor.<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_SETCARETLINEBACKALPHA'>CaretLineBackAlpha</a><span class="comment"> -- Set background alpha of the caret line.</span></p>
+	<p>bool editor.<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_SETCARETLINEVISIBLEALWAYS'>CaretLineVisibleAlways</a><span class="comment"> -- Sets the caret line to always visible.</span></p>
 	<p>int editor.<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_SETCARETPERIOD'>CaretPeriod</a><span class="comment"> -- Get the time in milliseconds that the caret is on and off. 0 = steady on.</span></p>
 	<p>int editor.<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_SETCARETSTYLE'>CaretStyle</a><span class="comment"> -- Set the style of the caret to be drawn.</span></p>
 	<p>int editor.<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_SETCARETWIDTH'>CaretWidth</a><span class="comment"> -- Set the width of the insert mode caret.</span></p>
@@ -404,6 +411,7 @@
 	<p>bool editor.<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_AUTOCSETCHOOSESINGLE'>AutoCChooseSingle</a><span class="comment"> -- Should a single item auto-completion list automatically choose the item.</span></p>
 	<p>bool editor.<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_AUTOCSETIGNORECASE'>AutoCIgnoreCase</a><span class="comment"> -- Set whether case is significant when performing auto-completion searches.</span></p>
 	<p>int editor.<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_AUTOCSETCASEINSENSITIVEBEHAVIOUR'>AutoCCaseInsensitiveBehaviour</a><span class="comment"> -- Set auto-completion case insensitive behaviour to either prefer case-sensitive matches or have no preference.</span></p>
+	<p>int editor.<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_AUTOCSETORDER'>AutoCOrder</a><span class="comment"> -- Set the way autocompletion lists are ordered.</span></p>
 	<p>bool editor.<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_AUTOCSETAUTOHIDE'>AutoCAutoHide</a><span class="comment"> -- Set whether or not autocompletion is hidden automatically when nothing matches.</span></p>
 	<p>bool editor.<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_AUTOCSETDROPRESTOFWORD'>AutoCDropRestOfWord</a><span class="comment"> -- Set whether or not autocompletion deletes any word characters after the inserted text upon completion.</span></p>
 	<p>editor:<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_REGISTERIMAGE'>RegisterImage</a>(int type, string xpmData)<span class="comment"> -- Register an XPM image for use in autocompletion lists.</span></p>
@@ -502,6 +510,13 @@
 	<p>string editor.<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_SETKEYWORDS'>KeyWords</a>[int keywordSet] write-only<span class="comment"> -- Set up the key words used by the lexer.</span></p>
 	<p>string editor:<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_DESCRIBEKEYWORDSETS'>DescribeKeyWordSets</a>()<span class="comment"> -- Retrieve a '\n' separated list of descriptions of the keyword sets understood by the current lexer.</span></p>
 	<p>int editor.<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_GETSTYLEBITSNEEDED'>StyleBitsNeeded</a> read-only</p>
+	<p>string editor.<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_GETSUBSTYLEBASES'>SubStyleBases</a> read-only</p>
+	<p>int editor.<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_DISTANCETOSECONDARYSTYLES'>DistanceToSecondaryStyles</a> read-only</p>
+	<p>int editor:<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_ALLOCATESUBSTYLES'>AllocateSubStyles</a>(int styleBase, int numberStyles)<span class="comment"> -- Allocate a set of sub styles for a particular base style, returning start of range</span></p>
+	<p>editor:<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_FREESUBSTYLES'>FreeSubStyles</a>()<span class="comment"> -- Free allocated sub styles</span></p>
+	<p>int editor.<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_GETSUBSTYLESSTART'>SubStylesStart</a>[int styleBase] read-only</p>
+	<p>int editor.<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_GETSUBSTYLESLENGTH'>SubStylesLength</a>[int styleBase] read-only</p>
+	<p>string editor.<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_SETIDENTIFIERS'>Identifiers</a>[int style] write-only<span class="comment"> -- Set the identifiers that are shown in a particular style</span></p>
 	<h2>Notifications</h2>
 	<p>int editor.<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_SETIDENTIFIER'>Identifier</a><span class="comment"> -- Set the identifier reported as idFrom in notification messages.</span></p>
 	<p>int editor.<a href='http://www.scintilla.org/ScintillaDoc.html#SCI_SETMODEVENTMASK'>ModEventMask</a><span class="comment"> -- Set which document modification events are sent to the container.</span></p>

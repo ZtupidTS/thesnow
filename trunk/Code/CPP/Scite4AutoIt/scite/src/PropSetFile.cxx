@@ -133,16 +133,6 @@ void PropSetFile::Unset(const char *key, int lenKey) {
 		props.erase(keyPos);
 }
 
-void PropSetFile::SetMultiple(const char *s) {
-	const char *eol = strchr(s, '\n');
-	while (eol) {
-		Set(s);
-		s = eol + 1;
-		eol = strchr(s, '\n');
-	}
-	Set(s);
-}
-
 bool PropSetFile::Exists(const char *key) const {
 	mapss::const_iterator keyPos = props.find(std::string(key));
 	if (keyPos != props.end()) {
@@ -329,19 +319,6 @@ void PropSetFile::Clear() {
 	props.clear();
 }
 
-char *PropSetFile::ToString() const {
-	std::string sval;
-	for (mapss::const_iterator it=props.begin(); it != props.end(); ++it) {
-		sval += it->first;
-		sval += "=";
-		sval += it->second;
-		sval += "\n";
-	}
-	char *ret = new char [sval.size() + 1];
-	strcpy(ret, sval.c_str());
-	return ret;
-}
-
 /**
  * Get a line of input. If end of line escaped with '\\' then continue reading.
  */
@@ -478,7 +455,7 @@ bool PropSetFile::Read(FilePath filename, FilePath directoryForImports,
 		std::vector<char> propsData(sizeFile);
 		int lenFile = static_cast<int>(fread(&propsData[0], 1, propsData.size(), rcfile));
 		fclose(rcfile);
-		const char *data = propsData.data();
+		const char *data = &propsData[0];
 		if (memcmp(data, "\xef\xbb\xbf", 3) == 0) {
 			data += 3;
 			lenFile -= 3;
@@ -649,9 +626,6 @@ bool PropSetFile::GetNext(const char *&key, const char *&val) {
 	return false;
 }
 
-static inline bool IsLetter(char ch) {
-	return ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z'));
-}
 //added
 const wchar_t * SString::w_str(){
 	DWORD dwNum = ::MultiByteToWideChar (CP_ACP, 0, s, -1, NULL, 0);
@@ -826,6 +800,7 @@ SString &SString::append(const char *sOther, lenpos_t sLenOther, char sep) {
 			s[sLen] = sep;
 			sLen++;
 		}
+		assert(s);
 		memcpy(&s[sLen], sOther, sLenOther);
 		sLen += sLenOther;
 		s[sLen] = '\0';
@@ -880,14 +855,6 @@ bool SString::startswith(const char *prefix) {
 		return false;
 	}
 	return strncmp(s, prefix, lenPrefix) == 0;
-}
-
-bool SString::endswith(const char *suffix) {
-	lenpos_t lenSuffix = strlen(suffix);
-	if (lenSuffix > sLen) {
-		return false;
-	}
-	return strncmp(s + sLen - lenSuffix, suffix, lenSuffix) == 0;
 }
 
 int SString::search(const char *sFind, lenpos_t start) const {

@@ -803,8 +803,12 @@ FilePath SciTEBase::SaveName(const char *ext) {
 }
 
 int SciTEBase::SaveIfUnsure(bool forceQuestion) {
-	if (CurrentBuffer()->pFileWorker && !CurrentBuffer()->pFileWorker->IsLoading()) {
-		return IDNO;
+	if (CurrentBuffer()->pFileWorker) {
+		if (CurrentBuffer()->pFileWorker->IsLoading())
+			// In semi-loaded state so refuse to save
+			return IDCANCEL;
+		else
+			return IDNO;
 	}
 	if ((CurrentBuffer()->isDirty) && (LengthDocument() || !filePath.IsUntitled() || forceQuestion)) {
 		if (props.GetInt("are.you.sure", 1) ||
@@ -1054,7 +1058,8 @@ bool SciTEBase::Save(SaveFlags sf) {
 			}
 		}
 
-		if (LengthDocument() <= props.GetInt("background.save.size", -1))
+		if ((LengthDocument() <= props.GetInt("background.save.size", -1)) ||
+			(buffers.SingleBuffer()))
 			sf = static_cast<SaveFlags>(sf | sfSynchronous);
 		if (SaveBuffer(filePath, sf)) {
 			CurrentBuffer()->SetTimeFromFile();
@@ -1184,13 +1189,13 @@ void SciTEBase::OpenFromStdin(bool UseOutputPane) {
 
 void SciTEBase::OpenFilesFromStdin() {
 	char data[blockSize];
-	char *pNL;
 
 	/* if stdin is blocked, do not execute this method */
 	if (IsStdinBlocked())
 		return;
 
 	while (fgets(data, sizeof(data) - 1, stdin)) {
+		char *pNL;
 		if ((pNL = strchr(data, '\n')) != NULL)
 			* pNL = '\0';
 		Open(GUI::StringFromUTF8(data).c_str(), ofQuiet);
@@ -1262,6 +1267,8 @@ class FileReader {
 	char lineToCompare[bufLen+1];
 	char lineToShow[bufLen+1];
 	bool caseSensitive;
+	// Private so FileReader objects can not be copied
+	FileReader(const FileReader &);
 public:
 
 	FileReader(FilePath fPath, bool caseSensitive_) {

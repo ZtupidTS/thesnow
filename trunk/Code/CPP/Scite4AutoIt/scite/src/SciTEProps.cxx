@@ -618,6 +618,8 @@ static const char *propertiesToForward[] = {
 	"fold.d.explicit.start",
 	"fold.d.syntax.based",
 	"fold.directive",
+	"fold.haskell.imports",
+	"fold.haskell.imports.indented",
 	"fold.html",
 	"fold.html.preprocessor",
 	"fold.hypertext.comment",
@@ -646,6 +648,10 @@ static const char *propertiesToForward[] = {
 	"lexer.d.fold.at.else",
 	"lexer.errorlist.value.separate",
 	"lexer.flagship.styling.within.preprocessor",
+	"lexer.haskell.allow.hash",
+	"lexer.haskell.allow.questionmark",
+	"lexer.haskell.allow.quotes",
+	"lexer.haskell.import.safe",
 	"lexer.html.django",
 	"lexer.html.mako",
 	"lexer.metapost.comment.process",
@@ -870,7 +876,7 @@ void SciTEBase::ReadProperties() {
 	}
 	wEditor.Call(SCI_SETCODEPAGE, codePage);
 
-	if (CurrentBuffer()->unicodeMode != uni8Bit) codePage = props.GetInt("code.page");	//added
+//	if (CurrentBuffer()->unicodeMode != uni8Bit) codePage = props.GetInt("code.page");	//added
 	int outputCodePage = props.GetInt("output.code.page", codePage);
 	wOutput.Call(SCI_SETCODEPAGE, outputCodePage);
 
@@ -1446,8 +1452,9 @@ void SciTEBase::ReadFontProperties() {
 	SetStyleFor(wEditor, "*");
 	SetStyleFor(wEditor, languageName);
 	if (props.GetInt("error.inline")) {
-		wEditor.Send(SCI_STYLESETFORE, diagnosticStyleEnd, 0);	// Ensure styles allocated
-		SetStyleBlock(wEditor, "error", diagnosticStyleStart, diagnosticStyleEnd);
+		wEditor.Call(SCI_RELEASEALLEXTENDEDSTYLES, 0, 0);
+		diagnosticStyleStart = wEditor.Call(SCI_ALLOCATEEXTENDEDSTYLES, diagnosticStyles, 0);
+		SetStyleBlock(wEditor, "error", diagnosticStyleStart, diagnosticStyleStart+diagnosticStyles-1);
 	}
 
 	// Turn grey while loading

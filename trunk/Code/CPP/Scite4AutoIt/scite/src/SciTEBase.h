@@ -187,6 +187,7 @@ public:
 	void MoveToStackTop(int index);
 	void ShiftTo(int indexFrom, int indexTo);
 	void Swap(int indexA, int indexB);
+	bool SingleBuffer() const;
 	BackgroundActivities CountBackgroundActivities() const;
 	bool SavingInBackground() const;
 	bool GetVisible(int index);
@@ -407,7 +408,8 @@ protected:
 	SString apisFileNames;
 	SString functionDefinition;
 
-	enum { diagnosticStyleStart=256, diagnosticStyleEnd=diagnosticStyleStart+4-1};
+	int diagnosticStyleStart;
+	enum { diagnosticStyles=4};
 
 	bool indentOpening;
 	bool indentClosing;
@@ -696,8 +698,6 @@ protected:
 	SString RangeExtendAndGrab(GUI::ScintillaWindow &wCurrent, int &selStart, int &selEnd,
 	        bool (SciTEBase::*ischarforsel)(char ch), bool stripEol = true);
 	SString SelectionExtend(bool (SciTEBase::*ischarforsel)(char ch), bool stripEol = true);
-	void FindWordAtCaret(int &start, int &end);
-	bool SelectWordAtCaret();
 	SString SelectionWord(bool stripEol = true);
 	SString SelectionFilename();
 	void SelectionIntoProperties();
@@ -836,7 +836,6 @@ protected:
 
 	void DeleteFileStackMenu();
 	void SetFileStackMenu();
-	void DropFileStackTop();
 	bool AddFileToBuffer(const BufferState &bufferState);
 	void AddFileToStack(FilePath file, SelectedRange selection, int scrollPos);
 	void RemoveFileFromStack(FilePath file);

@@ -166,10 +166,6 @@ long SciTEKeys::ParseKeyCode(const char *mnemonic) {
 }
 
 bool SciTEKeys::MatchKeyCode(long parsedKeyCode, int keyval, int modifiers) {
-	// TODO: are the 0x11 and 0x10 special cases needed, or are they
-	// just short-circuits?  If not needed, this test could removed.
-	if (keyval == 0x11 || keyval == 0x10)
-		return false;
 	return parsedKeyCode && !(0xFFFF0000 & (keyval | modifiers)) && (parsedKeyCode == (keyval | (modifiers<<16)));
 }
 
@@ -702,7 +698,7 @@ void SciTEWin::Command(WPARAM wParam, LPARAM lParam) {
 // from ScintillaWin.cxx
 static UINT CodePageFromCharSet(DWORD characterSet, UINT documentCodePage) {
 	CHARSETINFO ci = { 0, 0, { { 0, 0, 0, 0 }, { 0, 0 } } };
-	BOOL bci = ::TranslateCharsetInfo((DWORD*)characterSet,
+	BOOL bci = ::TranslateCharsetInfo(reinterpret_cast<DWORD*>(static_cast<uptr_t>(characterSet)),
 	                                  &ci, TCI_SRCCHARSET);
 
 	UINT cp;
@@ -1819,7 +1815,7 @@ LRESULT SciTEWin::KeyDown(WPARAM wParam) {
 		mii.cbSize = sizeof(MENUITEMINFO);
 		mii.fMask = MIIM_DATA;
 		if (::GetMenuItemInfo(hToolsMenu, IDM_TOOLS+tool_i, FALSE, &mii) && mii.dwItemData) {
-			if (SciTEKeys::MatchKeyCode(reinterpret_cast<long&>(mii.dwItemData), static_cast<int>(wParam), modifiers)) {
+			if (SciTEKeys::MatchKeyCode(static_cast<long>(mii.dwItemData), static_cast<int>(wParam), modifiers)) {
 				SciTEBase::MenuCommand(IDM_TOOLS+tool_i);
 				return 1l;
 			}
@@ -3917,11 +3913,14 @@ uptr_t SciTEWin::EventLoop() {
 int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 
 	typedef BOOL (WINAPI *SetDllDirectorySig)(LPCTSTR lpPathName);
-	SetDllDirectorySig SetDllDirectoryFn = (SetDllDirectorySig)::GetProcAddress(
-		::GetModuleHandle(TEXT("kernel32.dll")), "SetDllDirectoryW");
-	if (SetDllDirectoryFn) {
-		// For security, remove current directory from the DLL search path
-		SetDllDirectoryFn(TEXT(""));
+	HMODULE kernel32 = ::GetModuleHandle(TEXT("kernel32.dll"));
+	if (kernel32) {
+		SetDllDirectorySig SetDllDirectoryFn = (SetDllDirectorySig)::GetProcAddress(
+			kernel32, "SetDllDirectoryW");
+		if (SetDllDirectoryFn) {
+			// For security, remove current directory from the DLL search path
+			SetDllDirectoryFn(TEXT(""));
+		}
 	}
 
 #ifdef NO_EXTENSIONS

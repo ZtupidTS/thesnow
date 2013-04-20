@@ -6,11 +6,8 @@
 
 .SUFFIXES: .cxx .o .h .a .c
 ifdef CLANG
-ifdef CLANG_ANALYZE
-ANALYZE=--analyze
-endif
-CC = clang $(ANALYZE)
-CCOMP = clang $(ANALYZE)
+CC = clang --std=c++0x
+CCOMP = clang -Wno-empty-body
 else
 CC = g++
 CCOMP = gcc
@@ -56,9 +53,9 @@ endif
 CXXBASEFLAGS=-W -Wall -Wno-char-subscripts -pedantic -DGTK -DSCI_LEXER -DPIXMAP_PATH=\"$(pixmapdir)\" -DSYSCONF_PATH=\"$(SYSCONF_PATH)\" $(INCLUDEDIRS) $(DEPRECATED)
 
 ifdef DEBUG
-CXXTFLAGS=-DDEBUG -g $(CXXFLAGS) $(CXXBASEFLAGS)
+CXXTFLAGS=-DDEBUG -g $(CXXBASEFLAGS)
 else
-CXXTFLAGS=-DNDEBUG -Os $(CXXFLAGS) $(CXXBASEFLAGS)
+CXXTFLAGS=-DNDEBUG -Os $(CXXBASEFLAGS)
 endif
 
 ifndef NO_LUA
@@ -82,7 +79,7 @@ else
 CXXTFLAGS+=-DNO_LUA
 endif
 
-CXXTFLAGS:=$(CXXTFLAGS) -Wno-long-long
+CXXTFLAGS:=$(CXXTFLAGS)
 
 UNAME:=$(shell uname -s)
 ifeq ($(UNAME), Linux)
@@ -93,10 +90,15 @@ CXXTFLAGS:=$(CXXTFLAGS) -Dunix
 endif
 
 .cxx.o:
-	$(CC) $(CONFIGFLAGS) $(CXXTFLAGS) -c $< -o $@
+	$(CC) $(CONFIGFLAGS) $(CXXTFLAGS) $(CXXFLAGS) -c $< -o $@
 
 clean:
-	rm -f *.o $(PROG)
+	rm -f *.o *.plist $(PROG)
+
+analyze:
+	clang --analyze $(CONFIGFLAGS) $(CXXTFLAGS) $(CXXFLAGS) *.cxx ../src/*.cxx
+	# Could analyze Lua implementation as well but won't be fixing the warnings so its just noise
+	#clang --analyze $(CONFIGFLAGS) $(CXXTFLAGS) $(CXXFLAGS) *.cxx ../src/*.cxx ../lua/src/*.c ../lua/src/lib/*.c
 
 deps:
 	$(CC) -MM $(CONFIGFLAGS) $(CXXTFLAGS) *.cxx ../src/*.cxx | sed -e 's/\/usr.* //' | grep [a-zA-Z] >deps.mak
@@ -108,7 +110,7 @@ $(PROG): SciTEGTK.o GUIGTK.o Widget.o \
 FilePath.o SciTEBase.o FileWorker.o Cookie.o Credits.o SciTEBuffers.o SciTEIO.o StringList.o Exporters.o StringHelpers.o \
 PropSetFile.o MultiplexExtension.o DirectorExtension.o SciTEProps.o StyleWriter.o Utf8_16.o \
 	JobQueue.o GTKMutex.o IFaceTable.o $(COMPLIB) $(LUA_OBJS)
-	$(CC) `$(CONFIGTHREADS)` -rdynamic -Wl,--as-needed -Wl,--version-script lua.vers -DGTK $^ -o $@ $(CONFIGLIB) $(LIBDL) -lstdc++
+	$(CC) `$(CONFIGTHREADS)` -rdynamic -Wl,--as-needed -Wl,--version-script lua.vers -DGTK $^ -o $@ $(CONFIGLIB) $(LIBDL) -lm -lstdc++
 
 # Automatically generate header dependencies with "make deps"
 include deps.mak

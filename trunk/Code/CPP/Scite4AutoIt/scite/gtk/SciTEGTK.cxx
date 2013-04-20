@@ -461,12 +461,14 @@ public:
 // Manage the use of the GDK thread lock within glib signal handlers
 class ThreadLockMinder {
 public:
+#ifndef GDK_VERSION_3_6
 	ThreadLockMinder() {
 		gdk_threads_enter();
 	}
 	~ThreadLockMinder() {
 		gdk_threads_leave();
 	}
+#endif
 };
 
 class SciTEGTK : public SciTEBase {
@@ -611,11 +613,9 @@ protected:
 	bool FindReplaceAdvanced();
 	virtual SString EncodeString(const SString &s);
 	void FindReplaceGrabFields();
-	void HandleFindReplace();
 	virtual void Find();
 	virtual void UIClosed();
 	virtual void UIHasFocus();
-	void TranslatedSetTitle(GtkWindow *w, const char *original);
 	GtkWidget *TranslatedLabel(const char *original);
 	virtual void FindIncrement();
 	void FindInFilesResponse(int responseID);
@@ -683,7 +683,6 @@ protected:
 	static gboolean FindIncrementFocusOutSignal(GtkWidget *w);
 	static gboolean FindIncrementEscapeSignal(GtkWidget *w, GdkEventKey *event, SciTEGTK *scitew);
 
-	void FRCancelCmd();
 	void FRFindCmd();
 	void FRReplaceCmd();
 	void FRReplaceAllCmd();
@@ -1896,8 +1895,6 @@ SString SciTEGTK::GetRangeInUIEncoding(GUI::ScintillaWindow &win, int selStart, 
 	return sel;
 }
 
-void SciTEGTK::HandleFindReplace() {}
-
 void SciTEGTK::Find() {
 	if (dlgFindReplace.Created()) {
 		dlgFindReplace.Present();
@@ -1925,10 +1922,6 @@ void SciTEGTK::UIClosed() {
 
 void SciTEGTK::UIHasFocus() {
 	CheckMenusClipboard();
-}
-
-void SciTEGTK::TranslatedSetTitle(GtkWindow *w, const char *original) {
-	gtk_window_set_title(w, localiser.Text(original).c_str());
 }
 
 GtkWidget *SciTEGTK::TranslatedLabel(const char *original) {
@@ -2033,10 +2026,6 @@ void DialogFindReplace::FillFields() {
 
 void SciTEGTK::FindReplaceGrabFields() {
 	dlgFindReplace.GrabFields();
-}
-
-void SciTEGTK::FRCancelCmd() {
-	dlgFindReplace.Destroy();
 }
 
 void SciTEGTK::FRFindCmd() {
@@ -2609,7 +2598,9 @@ void SciTEGTK::UserStripClosed() {
 }
 
 gboolean SciTEGTK::IOSignal(GIOChannel *, GIOCondition, SciTEGTK *scitew) {
+#ifndef GDK_VERSION_3_6
 	ThreadLockMinder minder;
+#endif
 	scitew->ContinueExecute(FALSE);
 	return TRUE;
 }
@@ -4824,16 +4815,8 @@ void SciTEGTK::CreateUI() {
 	// The Toolbar
 	wToolBar = gtk_toolbar_new();
 	gtk_toolbar_set_style(GTK_TOOLBAR(PWidget(wToolBar)), GTK_TOOLBAR_ICONS);
-	toolbarDetachable = props.GetInt("toolbar.detachable");
-	if (toolbarDetachable == 1) {
-		wToolBarBox = gtk_handle_box_new();
-		gtk_container_add(GTK_CONTAINER(PWidget(wToolBarBox)), PWidget(wToolBar));
-		gtk_box_pack_start(GTK_BOX(boxMain), PWidget(wToolBarBox), FALSE, FALSE, 0);
-		gtk_widget_hide(GTK_WIDGET(PWidget(wToolBarBox)));
-	} else {
-		gtk_box_pack_start(GTK_BOX(boxMain), PWidget(wToolBar), FALSE, FALSE, 0);
-		gtk_widget_hide(GTK_WIDGET(PWidget(wToolBar)));
-	}
+	gtk_box_pack_start(GTK_BOX(boxMain), PWidget(wToolBar), FALSE, FALSE, 0);
+	gtk_widget_hide(GTK_WIDGET(PWidget(wToolBar)));
 	gtk_container_set_border_width(GTK_CONTAINER(PWidget(wToolBar)), 0);
 	tbVisible = false;
 
@@ -5011,7 +4994,11 @@ static void *WorkerThread(void *ptr) {
 
 bool SciTEGTK::PerformOnNewThread(Worker *pWorker) {
 	GError *err = NULL;
+#if GLIB_CHECK_VERSION(2,31,0)
+	GThread *pThread = g_thread_try_new("SciTEWorker", WorkerThread, pWorker, &err);
+#else
 	GThread *pThread = g_thread_create(WorkerThread, pWorker,TRUE, &err);
+#endif
 	if (pThread == NULL) {
 		fprintf(stderr, "g_thread_create failed: %s\n", err->message);
 		g_error_free(err) ;
@@ -5034,7 +5021,9 @@ void SciTEGTK::PostOnMainThread(int cmd, Worker *pWorker) {
 }
 
 gboolean SciTEGTK::PostCallback(void *ptr) {
+#ifndef GDK_VERSION_3_6
 	ThreadLockMinder minder;
+#endif
 	CallbackData *pcbd = static_cast<CallbackData *>(ptr);
 	pcbd->pSciTE->WorkerCommand(pcbd->cmd, pcbd->pWorker);
 	delete pcbd;
@@ -5104,8 +5093,7 @@ bool SciTEGTK::CheckForRunningInstance(int argc, char *argv[]) {
 
 	char *pipeFileName = NULL;
 	const char *filename;
-
-	sprintf(uniqueInstance,"%s/SciTE.ensure.unique.instance.for.%s", g_get_tmp_dir(), getenv("USER"));
+	snprintf(uniqueInstance, MAX_PATH, "%s/SciTE.ensure.unique.instance.for.%s", g_get_tmp_dir(), getenv("USER"));
 	int fd;
 	bool isLocked;
 	do {
@@ -5208,18 +5196,26 @@ void SciTEGTK::Run(int argc, char *argv[]) {
 		unlink(uniqueInstance); // Unlock.
 
 	// Process remaining switches and files
+#ifndef GDK_VERSION_3_6
 	gdk_threads_enter();
+#endif
 	ProcessCommandLine(args, 1);
+#ifndef GDK_VERSION_3_6
 	gdk_threads_leave();
+#endif
 
 	CheckMenus();
 	SizeSubWindows();
 	SetFocus(wEditor);
 	gtk_widget_grab_focus(GTK_WIDGET(PWidget(wSciTE)));
 
+#ifndef GDK_VERSION_3_6
 	gdk_threads_enter();
+#endif
 	gtk_main();
+#ifndef GDK_VERSION_3_6
 	gdk_threads_leave();
+#endif
 }
 
 // Avoid zombie detached processes by reaping their exit statuses when
@@ -5237,7 +5233,9 @@ void SciTEGTK::ChildSignal(int) {
 
 // Detect if the tool has exited without producing any output
 int SciTEGTK::PollTool(SciTEGTK *scitew) {
+#ifndef GDK_VERSION_3_6
 	ThreadLockMinder minder;
+#endif
 	scitew->ContinueExecute(TRUE);
 	return TRUE;
 }
@@ -5260,8 +5258,12 @@ int main(int argc, char *argv[]) {				//程序开始,放最后是因为可以直
 	signal(SIGCHLD, SciTEGTK::ChildSignal);			//函数,待研究
 
 	// Initialise threads	
+#if !GLIB_CHECK_VERSION(2,31,0)
 	g_thread_init(NULL);
+#endif
+#ifndef GDK_VERSION_3_6
 	gdk_threads_init();
+#endif
 
 	// Get this now because gtk_init() clears it
 	const gchar *startup_id = g_getenv("DESKTOP_STARTUP_ID");
