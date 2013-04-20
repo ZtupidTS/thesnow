@@ -1146,14 +1146,6 @@ NameError: mistake
           Setting this to 1 makes the tool bar visible at start up.
         </td>
       </tr>
-      <tr class="gtkonly" id='property-toolbar.detachable'>
-        <td>
-          toolbar.detachable
-        </td>
-        <td>
-          Setting this to 1 makes the tool bar detachable from the main window.
-        </td>
-      </tr>
       <tr class="gtkonly" id='property-toolbar.usestockicons'>
         <td>
           toolbar.usestockicons
@@ -1998,6 +1990,14 @@ NameError: mistake
 	<td>fold.d.syntax.based</td>
 	<td>Set this property to 0 to disable syntax based folding.</td>
 	</tr>
+	<tr id='property-fold.haskell.imports'>
+	<td>fold.haskell.imports</td>
+	<td>Set to 1 to enable folding of import declarations</td>
+	</tr>
+	<tr id='property-fold.haskell.imports.indented'>
+	<td>fold.haskell.imports.indented</td>
+	<td>Set this property to 0 to disable folding imports not starting at column 0 when fold.haskell.imports=1</td>
+	</tr>
 	<tr id='property-fold.html'>
 	<td>fold.html</td>
 	<td>Folding is turned on or off for HTML and XML files with this option. The fold option must also be on for folding to occur.</td>
@@ -2093,6 +2093,22 @@ NameError: mistake
 	<tr id='property-lexer.flagship.styling.within.preprocessor'>
 	<td>lexer.flagship.styling.within.preprocessor</td>
 	<td>For Harbour code, determines whether all preprocessor code is styled in the preprocessor style (0) or only from the initial # to the end of the command word(1, the default). It also determines how to present text, dump, and disabled code.</td>
+	</tr>
+	<tr id='property-lexer.haskell.allow.hash'>
+	<td>lexer.haskell.allow.hash</td>
+	<td>Set to 0 to disallow the '#' character at the end of identifiers and literals with the haskell lexer (GHC -XMagicHash extension)</td>
+	</tr>
+	<tr id='property-lexer.haskell.allow.questionmark'>
+	<td>lexer.haskell.allow.questionmark</td>
+	<td>Set to 1 to allow the '?' character at the start of identifiers with the haskell lexer (GHC & Hugs -XImplicitParams extension)</td>
+	</tr>
+	<tr id='property-lexer.haskell.allow.quotes'>
+	<td>lexer.haskell.allow.quotes</td>
+	<td>Set to 0 to disable highlighting of Template Haskell name quotations and promoted constructors (GHC -XTemplateHaskell and -XDataKinds extensions)</td>
+	</tr>
+	<tr id='property-lexer.haskell.import.safe'>
+	<td>lexer.haskell.import.safe</td>
+	<td>Set to 0 to disallow "safe" keyword in imports (GHC -XSafe, -XTrustworthy, -XUnsafe extensions)</td>
 	</tr>
 	<tr id='property-lexer.html.django'>
 	<td>lexer.html.django</td>

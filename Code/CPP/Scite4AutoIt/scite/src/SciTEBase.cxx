@@ -124,6 +124,7 @@ SciTEBase::SciTEBase(Extension *ext) : apis(true), extender(ext) {
 	lexLanguage = SCLEX_AU3;				//扩展语言
 	lexLPeg = -1;
 	functionDefinition = 0;
+	diagnosticStyleStart = 0;
 	indentOpening = true;
 	indentClosing = true;
 	indentMaintain = false;
@@ -381,7 +382,6 @@ void SciTEBase::GetRange(GUI::ScintillaWindow &win, int start, int end, char *te
  */
 int SciTEBase::IsLinePreprocessorCondition(char *line) {
 	char *currChar = line;
-	char word[32];
 
 	if (!currChar) {
 		return false;
@@ -394,6 +394,7 @@ int SciTEBase::IsLinePreprocessorCondition(char *line) {
 		while (isspacechar(*currChar) && *currChar) {
 			currChar++;
 		}
+		char word[32];
 		size_t i = 0;
 		while (!isspacechar(*currChar) && *currChar && (i < (sizeof(word) - 1))) {
 			word[i++] = *currChar++;
@@ -425,13 +426,13 @@ bool SciTEBase::FindMatchingPreprocessorCondition(
 
 	bool isInside = false;
 	char line[800];	// No need for full line
-	int status, level = 0;
+	int level = 0;
 	int maxLines = wEditor.Call(SCI_GETLINECOUNT) - 1;
 
 	while (curLine < maxLines && curLine > 0 && !isInside) {
 		curLine += direction;	// Increment or decrement
 		GetLine(line, sizeof(line), curLine);
-		status = IsLinePreprocessorCondition(line);
+		int status = IsLinePreprocessorCondition(line);
 
 		if ((direction == 1 && status == ppcStart) || (direction == -1 && status == ppcEnd)) {
 			level++;
@@ -893,24 +894,6 @@ SString SciTEBase::SelectionExtend(
 	return RangeExtendAndGrab(wCurrent, selStart, selEnd, ischarforsel, stripEol);
 }
 
-void SciTEBase::FindWordAtCaret(int &start, int &end) {
-
-	GUI::ScintillaWindow &wCurrent = wOutput.HasFocus() ? wOutput : wEditor;
-
-	start = wCurrent.Call(SCI_GETSELECTIONSTART);
-	end = wCurrent.Call(SCI_GETSELECTIONEND);
-	// Call just to update start & end
-	RangeExtendAndGrab(wCurrent, start, end, &SciTEBase::iswordcharforsel, false);
-}
-
-bool SciTEBase::SelectWordAtCaret() {
-	int selStart = 0;
-	int selEnd = 0;
-	FindWordAtCaret(selStart, selEnd);
-	SetSelection(selStart, selEnd);
-	return selStart != selEnd;
-}
-
 SString SciTEBase::SelectionWord(bool stripEol /*=true*/) {
 	return SelectionExtend(&SciTEBase::islexerwordcharforsel, stripEol);
 }
@@ -1119,7 +1102,12 @@ int SciTEBase::FindNext(bool reverseDirection, bool showWarnings, bool allowRegE
 		havefound = true;
 		int start = wEditor.Call(SCI_GETTARGETSTART);
 		int end = wEditor.Call(SCI_GETTARGETEND);
+		// Ensure found text is styled so that caret will be made visible.
+		int endStyled = wEditor.Call(SCI_GETENDSTYLED);
+		if (endStyled < end)
+			wEditor.Call(SCI_COLOURISE, endStyled, end);
 		EnsureRangeVisible(wEditor, start, end);
+		wEditor.Call(SCI_SCROLLRANGE, start, end);
 		SetSelection(start, end);
 		if (!replacing && closeFind) {
 			DestroyFindReplace();
@@ -1563,9 +1551,8 @@ bool SciTEBase::StartCallTip() {
 	SString line = GetLine();
 	int current = GetCaretInLine();
 	int pos = wEditor.Call(SCI_GETCURRENTPOS);
-	int braces;
 	do {
-		braces = 0;
+		int braces = 0;
 		while (current > 0 && (braces || !calltipParametersStart.contains(line[current - 1]))) {
 			if (calltipParametersStart.contains(line[current - 1]))
 				braces--;
@@ -4823,13 +4810,10 @@ char *SciTEBase::Range(Pane p, int start, int end) {
 }
 
 void SciTEBase::Remove(Pane p, int start, int end) {
-	// Should have a scintilla call for this
 	if (p == paneEditor) {
-		wEditor.Call(SCI_SETSEL, start, end);
-		wEditor.Call(SCI_CLEAR);
+		wEditor.Call(SCI_DELETERANGE, start, end-start);
 	} else {
-		wOutput.Call(SCI_SETSEL, start, end);
-		wOutput.Call(SCI_CLEAR);
+		wOutput.Call(SCI_DELETERANGE, start, end-start);
 	}
 }
 

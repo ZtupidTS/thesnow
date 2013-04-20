@@ -7,6 +7,8 @@
 
 #include <string.h>
 
+#include <algorithm>
+
 #include "Platform.h"
 
 #include "Scintilla.h"
@@ -41,17 +43,6 @@ int MarkerHandleSet::Length() const {
 		mhn = mhn->next;
 	}
 	return c;
-}
-
-int MarkerHandleSet::NumberFromHandle(int handle) const {
-	MarkerHandleNumber *mhn = root;
-	while (mhn) {
-		if (mhn->handle == handle) {
-			return mhn->number;
-		}
-		mhn = mhn->next;
-	}
-	return - 1;
 }
 
 int MarkerHandleSet::MarkValue() const {
@@ -387,10 +378,6 @@ void LineAnnotation::RemoveLine(int line) {
 		delete []annotations[line];
 		annotations.Delete(line);
 	}
-}
-
-bool LineAnnotation::AnySet() const {
-	return annotations.Length() > 0;
 }
 
 bool LineAnnotation::MultipleStyles(int line) const {

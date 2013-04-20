@@ -186,7 +186,6 @@ private:
 	virtual bool PaintContains(PRectangle rc);
 	void FullPaint();
 	virtual PRectangle GetClientRectangle();
-	void SyncPaint(PRectangle rc);
 	virtual void ScrollText(int linesToMove);
 	virtual void SetVerticalScrollPos();
 	virtual void SetHorizontalScrollPos();
@@ -280,7 +279,6 @@ private:
 	static void SelectionGet(GtkWidget *widget, GtkSelectionData *selection_data,
 	                         guint info, guint time);
 	static gint SelectionClear(GtkWidget *widget, GdkEventSelection *selection_event);
-	static void DragBegin(GtkWidget *widget, GdkDragContext *context);
 	gboolean DragMotionThis(GdkDragContext *context, gint x, gint y, guint dragtime);
 	static gboolean DragMotion(GtkWidget *widget, GdkDragContext *context,
 	                           gint x, gint y, guint dragtime);
@@ -296,7 +294,7 @@ private:
 	static gboolean TimeOut(ScintillaGTK *sciThis);
 	static gboolean IdleCallback(ScintillaGTK *sciThis);
 	static gboolean StyleIdle(ScintillaGTK *sciThis);
-	virtual void QueueStyling(int upTo);
+	virtual void QueueIdleWork(WorkNeeded::workItems items, int upTo);
 	static void PopUpCB(GtkMenuItem *menuItem, ScintillaGTK *sciThis);
 
 #if GTK_CHECK_VERSION(3,0,0)
@@ -1109,35 +1107,12 @@ PRectangle ScintillaGTK::GetClientRectangle() {
 	return rc;
 }
 
-// Synchronously paint a rectangle of the window.
-void ScintillaGTK::SyncPaint(PRectangle rc) {
-	paintState = painting;
-	rcPaint = rc;
-	PRectangle rcClient = GetClientRectangle();
-	paintingAllText = rcPaint.Contains(rcClient);
-	if (PWindow(wText)) {
-		Surface *sw = Surface::Allocate(SC_TECHNOLOGY_DEFAULT);
-		if (sw) {
-			cairo_t *cr = gdk_cairo_create(PWindow(wText));
-			sw->Init(cr, PWidget(wText));
-			Paint(sw, rc);
-			sw->Release();
-			delete sw;
-			cairo_destroy(cr);
-		}
-	}
-	if (paintState == paintAbandoned) {
-		// Painting area was insufficient to cover new styling or brace highlight positions
-		FullPaint();
-	}
-	paintState = notPainting;
-}
-
 void ScintillaGTK::ScrollText(int linesToMove) {
 	int diff = vs.lineHeight * -linesToMove;
 	//Platform::DebugPrintf("ScintillaGTK::ScrollText %d %d %0d,%0d %0d,%0d\n", linesToMove, diff,
 	//	rc.left, rc.top, rc.right, rc.bottom);
 	GtkWidget *wi = PWidget(wText);
+	NotifyUpdateUI();
 
 	if (IS_WIDGET_REALIZED(wi)) {
 		gdk_window_scroll(WindowFromWidget(wi), 0, -diff);
@@ -2616,10 +2591,6 @@ gint ScintillaGTK::SelectionClear(GtkWidget *widget, GdkEventSelection *selectio
 	return TRUE;
 }
 
-void ScintillaGTK::DragBegin(GtkWidget *, GdkDragContext *) {
-	//Platform::DebugPrintf("DragBegin\n");
-}
-
 gboolean ScintillaGTK::DragMotionThis(GdkDragContext *context,
                                  gint x, gint y, guint dragtime) {
 	try {
@@ -2740,7 +2711,9 @@ int ScintillaGTK::TimeOut(ScintillaGTK *sciThis) {
 gboolean ScintillaGTK::IdleCallback(ScintillaGTK *sciThis) {
 	// Idler will be automatically stopped, if there is nothing
 	// to do while idle.
+#ifndef GDK_VERSION_3_6
 	gdk_threads_enter();
+#endif
 	bool ret = sciThis->Idle();
 	if (ret == false) {
 		// FIXME: This will remove the idler from GTK, we don't want to
@@ -2748,23 +2721,29 @@ gboolean ScintillaGTK::IdleCallback(ScintillaGTK *sciThis) {
 		// returns false (although, it should be harmless).
 		sciThis->SetIdle(false);
 	}
+#ifndef GDK_VERSION_3_6
 	gdk_threads_leave();
+#endif
 	return ret;
 }
 
 gboolean ScintillaGTK::StyleIdle(ScintillaGTK *sciThis) {
+#ifndef GDK_VERSION_3_6
 	gdk_threads_enter();
-	sciThis->IdleStyling();
+#endif
+	sciThis->IdleWork();
+#ifndef GDK_VERSION_3_6
 	gdk_threads_leave();
+#endif
 	// Idler will be automatically stopped
 	return FALSE;
 }
 
-void ScintillaGTK::QueueStyling(int upTo) {
-	Editor::QueueStyling(upTo);
-	if (!styleNeeded.active) {
+void ScintillaGTK::QueueIdleWork(WorkNeeded::workItems items, int upTo) {
+	Editor::QueueIdleWork(items, upTo);
+	if (!workNeeded.active) {
 		// Only allow one style needed to be queued
-		styleNeeded.active = true;
+		workNeeded.active = true;
 		g_idle_add_full(G_PRIORITY_HIGH_IDLE,
 			reinterpret_cast<GSourceFunc>(StyleIdle), this, NULL);
 	}
