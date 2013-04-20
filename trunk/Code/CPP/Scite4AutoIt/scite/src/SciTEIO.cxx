@@ -269,7 +269,7 @@ void SciTEBase::OpenFile(long fileSize, bool suppressMessage, bool asynchronous)
 	if (CurrentBuffer()->pFileWorker) {
 		// Already performing an asynchronous load or save so do not restart load
 		if (!suppressMessage) {
-			GUI::gui_string msg = LocaliseMessage("Could not open file '^0'.", filePath.AsInternal());
+			GUI::gui_string msg = LocaliseMessage(L"不能打开文件 '^0'.", filePath.AsInternal());
 			WindowMessageBox(wSciTE, msg, MB_OK | MB_ICONWARNING);
 		}
 		return;
@@ -278,7 +278,7 @@ void SciTEBase::OpenFile(long fileSize, bool suppressMessage, bool asynchronous)
 	FILE *fp = filePath.Open(fileRead);
 	if (!fp) {
 		if (!suppressMessage) {
-			GUI::gui_string msg = LocaliseMessage("Could not open file '^0'.", filePath.AsInternal());
+			GUI::gui_string msg = LocaliseMessage(L"不能打开文件 '^0'.", filePath.AsInternal());
 			WindowMessageBox(wSciTE, msg, MB_OK | MB_ICONWARNING);
 		}
 		if (!wEditor.Call(SCI_GETUNDOCOLLECTION)) {
