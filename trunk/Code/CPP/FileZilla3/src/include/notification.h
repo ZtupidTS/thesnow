@@ -280,11 +280,14 @@ protected:
 class CCertificate
 {
 public:
+	CCertificate();
+
 	CCertificate(
 		const unsigned char* rawData, unsigned int len,
 		wxDateTime activationTime, wxDateTime expirationTime,
 		const wxString& serial,
 		const wxString& pkalgoname, unsigned int bits,
+		const wxString& signalgoname,
 		const wxString& fingerprint_md5,
 		const wxString& fingerprint_sha1,
 		const wxString& subject,
@@ -299,6 +302,8 @@ public:
 	const wxString& GetSerial() const { return m_serial; }
 	const wxString& GetPkAlgoName() const { return m_pkalgoname; }
 	unsigned int GetPkAlgoBits() const { return m_pkalgobits; }
+
+	const wxString& GetSignatureAlgorithm() const { return m_signalgoname; }
 
 	const wxString& GetFingerPrintMD5() const { return m_fingerprint_md5; }
 	const wxString& GetFingerPrintSHA1() const { return m_fingerprint_sha1; }
@@ -319,6 +324,8 @@ private:
 	wxString m_pkalgoname;
 	unsigned int m_pkalgobits;
 
+	wxString m_signalgoname;
+
 	wxString m_fingerprint_md5;
 	wxString m_fingerprint_sha1;
 
@@ -330,6 +337,8 @@ class CCertificateNotification : public CAsyncRequestNotification
 {
 public:
 	CCertificateNotification(const wxString& host, unsigned int port,
+		const wxString& protocol,
+		const wxString& keyExchange,
 		const wxString& sessionCipher,
 		const wxString& sessionMac,
 		const std::vector<CCertificate> &certificates);
@@ -346,10 +355,15 @@ public:
 
 	const std::vector<CCertificate> GetCertificates() const { return m_certificates; }
 
+	const wxString& GetProtocol() const { return m_protocol; }
+	const wxString& GetKeyExchange() const { return m_keyExchange; }
+
 protected:
 	wxString m_host;
 	unsigned int m_port;
 
+	wxString m_protocol;
+	wxString m_keyExchange;
 	wxString m_sessionCipher;
 	wxString m_sessionMac;
 

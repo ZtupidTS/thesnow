@@ -265,6 +265,7 @@ CLocalListView::CLocalListView(wxWindow* pParent, CState *pState, CQueueView *pQ
 	: CFileListCtrl<CLocalFileData>(pParent, pState, pQueue),
 	CStateEventHandler(pState)
 {
+	wxGetApp().AddStartupProfileRecord(_T("CLocalListView::CLocalListView"));
 	m_pState->RegisterHandler(this, STATECHANGE_LOCAL_DIR);
 	m_pState->RegisterHandler(this, STATECHANGE_APPLYFILTER);
 	m_pState->RegisterHandler(this, STATECHANGE_LOCAL_REFRESH_FILE);
@@ -310,6 +311,7 @@ bool CLocalListView::DisplayDir(wxString dirname)
 
 	wxString focused;
 	std::list<wxString> selectedNames;
+	bool ensureVisible = false;
 	if (m_dir != dirname)
 	{
 		ResetSearchPrefix();
@@ -318,7 +320,10 @@ bool CLocalListView::DisplayDir(wxString dirname)
 			ExitComparisonMode();
 
 		ClearSelection();
-		focused = _T("..");
+		focused = m_pState->GetPreviouslyVisitedLocalSubdir();
+		ensureVisible = !focused.IsEmpty();
+		if (focused.IsEmpty())
+			focused = _T("..");
 
 		if (GetItemCount())
 			EnsureVisible(0);
@@ -454,7 +459,7 @@ regular_dir:
 		RefreshComparison();
 	}
 
-	ReselectItems(selectedNames, focused);
+	ReselectItems(selectedNames, focused, ensureVisible);
 
 	RefreshListOnly();
 
@@ -1085,16 +1090,13 @@ void CLocalListView::OnContextMenu(wxContextMenuEvent& event)
 		const CLocalFileData* const data = GetData(index);
 		if (!data || (!index && m_hasParent))
 		{
-			pMenu->Enable(XRCID("ID_UPLOAD"), false);
-			pMenu->Enable(XRCID("ID_ADDTOQUEUE"), false);
-			pMenu->Enable(XRCID("ID_DELETE"), false);
-			pMenu->Enable(XRCID("ID_RENAME"), false);
 			pMenu->Enable(XRCID("ID_OPEN"), false);
+			pMenu->Enable(XRCID("ID_RENAME"), false);
 			pMenu->Enable(XRCID("ID_EDIT"), false);
 		}
-		if (data->flags == fill)
+		if (data && data->flags == fill || (!index && m_hasParent))
 			fillCount++;
-		if (data->dir)
+		if (data && data->dir)
 			selectedDir = true;
 		index = GetNextItem(index, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
 	}
@@ -1127,17 +1129,6 @@ void CLocalListView::OnContextMenu(wxContextMenuEvent& event)
 
 void CLocalListView::OnMenuUpload(wxCommandEvent& event)
 {
-	long item = -1;
-	for (;;)
-	{
-		item = GetNextItem(item, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
-		if (item == -1)
-			break;
-
-		if (!item && m_hasParent)
-			return;
-	}
-
 	const CServer* pServer = m_pState->GetServer();
 	if (!pServer)
 	{
@@ -1149,10 +1140,12 @@ void CLocalListView::OnMenuUpload(wxCommandEvent& event)
 
 	bool queue_only = event.GetId() == XRCID("ID_ADDTOQUEUE");
 
-	item = -1;
+	long item = -1;
 	for (;;)
 	{
 		item = GetNextItem(item, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+		if (!item && m_hasParent)
+			continue;
 		if (item == -1)
 			break;
 
@@ -1523,7 +1516,7 @@ std::list<wxString> CLocalListView::RememberSelectedItems(wxString& focused)
 	return selectedNames;
 }
 
-void CLocalListView::ReselectItems(const std::list<wxString>& selectedNames, wxString focused)
+void CLocalListView::ReselectItems(const std::list<wxString>& selectedNames, wxString focused, bool ensureVisible)
 {
 	// Reselect previous items if neccessary.
 	// Sorting direction did not change. We just have to scan through items once
@@ -1538,6 +1531,8 @@ void CLocalListView::ReselectItems(const std::list<wxString>& selectedNames, wxS
 			if (data.name == focused)
 			{
 				SetItemState(i, wxLIST_STATE_FOCUSED, wxLIST_STATE_FOCUSED);
+				if (ensureVisible)
+					EnsureVisible(i);
 				return;
 			}
 		}
@@ -1555,6 +1550,8 @@ void CLocalListView::ReselectItems(const std::list<wxString>& selectedNames, wxS
 			if (data.name == focused)
 			{
 				SetItemState(i, wxLIST_STATE_FOCUSED, wxLIST_STATE_FOCUSED);
+				if (ensureVisible)
+					EnsureVisible(i);
 				focused = _T("");
 			}
 			if (data.dir && *iter == (_T("d") + data.name))
@@ -2093,7 +2090,7 @@ void CLocalListView::OnMenuOpen(wxCommandEvent& event)
 	long item = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
 	if (item == -1)
 	{
-		wxLaunchDefaultBrowser(CState::GetAsURL(m_dir));
+		CState::OpenInFileManager(m_dir);
 		return;
 	}
 
@@ -2153,7 +2150,7 @@ void CLocalListView::OnMenuOpen(wxCommandEvent& event)
 				continue;
 			}
 
-			wxLaunchDefaultBrowser(CState::GetAsURL(path.GetPath()));
+			CState::OpenInFileManager(path.GetPath());
 			continue;
 		}
 

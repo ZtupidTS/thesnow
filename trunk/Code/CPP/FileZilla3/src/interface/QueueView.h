@@ -27,7 +27,7 @@ public:
 class t_newEntry : public CFolderProcessingEntry
 {
 public:
-	t_newEntry() 
+	t_newEntry()
 		: CFolderProcessingEntry(CFolderProcessingEntry::file)
 		, attributes()
 		, dir()
@@ -60,8 +60,28 @@ class CStatusLineCtrl;
 class CFileItem;
 struct t_EngineData
 {
+	t_EngineData()
+		: pEngine()
+		, active()
+		, transient()
+		, state(t_EngineData::none)
+		, pItem()
+		, pStatusLineCtrl()
+		, m_idleDisconnectTimer()
+	{
+	}
+
+	~t_EngineData()
+	{
+		wxASSERT(!active);
+		if (!transient)
+			delete pEngine;
+		delete m_idleDisconnectTimer;
+	}
+
 	CFileZillaEngine* pEngine;
 	bool active;
+	bool transient;
 
 	enum EngineDataState
 	{
@@ -103,7 +123,8 @@ public:
 	bool QueueFile(const bool queueOnly, const bool download,
 		const wxString& localFile, const wxString& remoteFile,
 		const CLocalPath& localPath, const CServerPath& remotePath,
-		const CServer& server, const wxLongLong size, enum CEditHandler::fileType edit = CEditHandler::none);
+		const CServer& server, const wxLongLong size, enum CEditHandler::fileType edit = CEditHandler::none,
+		QueuePriority priority = priority_normal);
 
 	void QueueFile_Finish(const bool start); // Need to be called after QueueFile
 	bool QueueFiles(const bool queueOnly, const CLocalPath& localPath, const CRemoteDataObject& dataObject);
@@ -137,11 +158,19 @@ public:
 
 	void WriteToFile(TiXmlElement* pElement) const;
 
-	void ProcessNotification(CNotification* pNotification);
+	void ProcessNotification(CFileZillaEngine* pEngine, CNotification* pNotification);
 
 	void RenameFileInTransfer(CFileZillaEngine *pEngine, const wxString& newName, bool local);
 
 	static wxString ReplaceInvalidCharacters(const wxString& filename);
+
+	// Get the current download speed as the sum of all active downloads.
+	// Unit is byte/s.
+	wxFileOffset GetCurrentDownloadSpeed();
+
+	// Get the current upload speed as the sum of all active uploads.
+	// Unit is byte/s.
+	wxFileOffset GetCurrentUploadSpeed();
 
 protected:
 
@@ -213,7 +242,8 @@ protected:
 
 	bool IsOtherEngineConnected(t_EngineData* pEngineData);
 
-	t_EngineData* GetIdleEngine(const CServer* pServer = 0);
+	t_EngineData* GetIdleEngine(const CServer* pServer = 0, bool allowTransient = false);
+	t_EngineData* GetEngineData(const CFileZillaEngine* pEngine);
 
 	std::vector<t_EngineData*> m_engineData;
 	std::list<CStatusLineCtrl*> m_statusLineList;
@@ -282,7 +312,11 @@ protected:
 
 	CQueueStorage m_queue_storage;
 
-	DECLARE_EVENT_TABLE();
+	// Get the current transfer speed.
+	// Unit is byte/s.
+	wxFileOffset GetCurrentSpeed(bool countDownload, bool countUpload);
+
+	DECLARE_EVENT_TABLE()
 	void OnEngineEvent(wxEvent &event);
 	void OnFolderThreadComplete(wxCommandEvent& event);
 	void OnFolderThreadFiles(wxCommandEvent& event);

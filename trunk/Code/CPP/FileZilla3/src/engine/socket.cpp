@@ -141,6 +141,8 @@ static int ConvertMSWErrorCode(int error)
 		return EFAULT;
 	case WSAEACCES:
 		return EACCES;
+	case WSAETIMEDOUT:
+		return ETIMEDOUT;
 	default:
 		return error;
 	}
@@ -937,6 +939,8 @@ protected:
 			return;
 		if (m_triggered & WAIT_READ)
 		{
+			if (m_pSocket->m_synchronous_read_cb)
+				m_pSocket->m_synchronous_read_cb->cb();
 			CSocketEvent *evt = new CSocketEvent(m_pSocket->m_pEvtHandler, m_pSocket, CSocketEvent::read, m_triggered_errors[1]);
 			CSocketEventDispatcher::Get().SendEvent(evt);
 			m_triggered &= ~WAIT_READ;
@@ -1077,10 +1081,13 @@ protected:
 
 	// Thread waits for instructions
 	bool m_threadwait;
+
+	CCallback* m_synchronous_read_cb;
 };
 
 CSocket::CSocket(CSocketEventHandler* pEvtHandler)
 	: m_pEvtHandler(pEvtHandler)
+	, m_synchronous_read_cb()
 {
 #ifdef ERRORCODETEST
 	CErrorCodeTest test;
@@ -1343,6 +1350,7 @@ static struct Error_table error_table[] =
 	ERRORDECL(WSAEPROTOTYPE, "Protocol not supported on given socket type")
 	ERRORDECL(WSAESOCKTNOSUPPORT, "Socket type not supported for address family")
 	ERRORDECL(WSAEADDRNOTAVAIL, "Cannot assign requested address")
+	ERRORDECL(ERROR_NETNAME_DELETED, "The specified network name is no longer available")
 #endif
 	{ 0, 0, 0 }
 };
@@ -1956,4 +1964,15 @@ int CSocket::DoSetBufferSizes(int fd, int size_read, int size_write)
 	}
 
 	return 0;
+}
+
+void CSocket::SetSynchronousReadCallback(CCallback* cb)
+{
+	if (m_pSocketThread)
+		m_pSocketThread->m_sync.Lock();
+
+	m_synchronous_read_cb = cb;
+
+	if (m_pSocketThread)
+		m_pSocketThread->m_sync.Unlock();
 }

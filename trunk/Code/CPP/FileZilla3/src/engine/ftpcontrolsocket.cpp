@@ -38,7 +38,7 @@
 BEGIN_EVENT_TABLE(CFtpControlSocket, CRealControlSocket)
 EVT_FZ_EXTERNALIPRESOLVE(wxID_ANY, CFtpControlSocket::OnExternalIPAddress)
 EVT_TIMER(wxID_ANY, CFtpControlSocket::OnIdleTimer)
-END_EVENT_TABLE();
+END_EVENT_TABLE()
 
 CRawTransferOpData::CRawTransferOpData()
 	: COpData(cmd_rawtransfer)
@@ -200,10 +200,16 @@ CFtpControlSocket::CFtpControlSocket(CFileZillaEnginePrivate *pEngine) : CRealCo
 	// Enable SO_KEEPALIVE, lots of clueless users have broken routers and
 	// firewalls which terminate the control connection on long transfers.
 	m_pSocket->SetFlags(CSocket::flag_nodelay | CSocket::flag_keepalive);
+
+	// The GUI and file operations can easily block our thread. But the socket has an
+	// internal thread. Register read callback to get timely update to rtt.
+	m_pSocket->SetSynchronousReadCallback(&m_rtt);
 }
 
 CFtpControlSocket::~CFtpControlSocket()
 {
+	m_pSocket->SetSynchronousReadCallback(0);
+
 	DoClose();
 
 	m_idleTimer.Stop();
@@ -278,6 +284,7 @@ void CFtpControlSocket::OnReceive()
 
 void CFtpControlSocket::ParseLine(wxString line)
 {
+	m_rtt.Stop();
 	LogMessageRaw(Response, line);
 	SetAlive();
 
@@ -910,7 +917,10 @@ int CFtpControlSocket::LogonParseResponse()
 
 		const enum CharsetEncoding encoding = m_pCurrentServer->GetEncodingType();
 		if (encoding == ENCODING_AUTO && CServerCapabilities::GetCapability(*m_pCurrentServer, utf8_command) != yes)
+		{
+			LogMessage(Status, _("Server does not support non-ASCII characters."));
 			m_useUTF8 = false;
+		}
 	}
 	else if (pData->opState == LOGON_PROT)
 	{
@@ -932,6 +942,7 @@ int CFtpControlSocket::LogonParseResponse()
 		{
 			LogMessage(Status, _("Connected"));
 			ResetOperation(FZ_REPLY_OK);
+			LogMessage(Debug_Info, _T("Measured latency of %d ms"), m_rtt.GetLatency());
 			return true;
 		}
 
@@ -967,6 +978,12 @@ int CFtpControlSocket::LogonParseResponse()
 			enum capabilities cap = CServerCapabilities::GetCapability(*GetCurrentServer(), feat_command);
 			if (cap == unknown)
 				break;
+			const enum CharsetEncoding encoding = m_pCurrentServer->GetEncodingType();
+			if (encoding == ENCODING_AUTO && CServerCapabilities::GetCapability(*m_pCurrentServer, utf8_command) != yes)
+			{
+				LogMessage(Status, _("Server does not support non-ASCII characters."));
+				m_useUTF8 = false;
+			}
 		}
 		else if (pData->opState == LOGON_CLNT)
 		{
@@ -1086,10 +1103,10 @@ int CFtpControlSocket::LogonSend()
 		LogMessage(Debug_Info, _T("LogonSend() called during LOGON_AUTH_WAIT, ignoring"));
 		break;
 	case LOGON_AUTH_TLS:
-		res = Send(_T("AUTH TLS"));
+		res = Send(_T("AUTH TLS"), false, false);
 		break;
 	case LOGON_AUTH_SSL:
-		res = Send(_T("AUTH SSL"));
+		res = Send(_T("AUTH SSL"), false, false);
 		break;
 	case LOGON_SYST:
 		res = Send(_T("SYST"));
@@ -1213,7 +1230,7 @@ int CFtpControlSocket::GetReplyCode() const
 	return m_Response[0] - '0';
 }
 
-bool CFtpControlSocket::Send(wxString str, bool maskArgs /*=false*/)
+bool CFtpControlSocket::Send(wxString str, bool maskArgs, bool measureRTT)
 {
 	int pos;
 	if (maskArgs && (pos = str.Find(_T(" "))) != -1)
@@ -1235,6 +1252,10 @@ bool CFtpControlSocket::Send(wxString str, bool maskArgs /*=false*/)
 	bool res = CRealControlSocket::Send(buffer, len);
 	if (res)
 		++m_pendingReplies;
+
+	if (measureRTT)
+		m_rtt.Start();
+
 	return res;
 }
 
@@ -3019,7 +3040,7 @@ int CFtpControlSocket::RawCommandSend()
 
 	CRawCommandOpData *pData = static_cast<CRawCommandOpData *>(m_pCurOpData);
 
-	if (!Send(pData->m_command))
+	if (!Send(pData->m_command, false, false))
 		return FZ_REPLY_ERROR;
 
 	return FZ_REPLY_WOULDBLOCK;
@@ -4200,6 +4221,7 @@ int CFtpControlSocket::TransferSend()
 	LogMessage(Debug_Debug, _T("  state = %d"), pData->opState);
 
 	wxString cmd;
+	bool measureRTT = false;
 	switch (pData->opState)
 	{
 	case rawtransfer_type:
@@ -4208,6 +4230,7 @@ int CFtpControlSocket::TransferSend()
 			cmd = _T("TYPE I");
 		else
 			cmd = _T("TYPE A");
+		measureRTT = true;
 		break;
 	case rawtransfer_port_pasv:
 		if (pData->bPasv)
@@ -4258,6 +4281,7 @@ int CFtpControlSocket::TransferSend()
 		cmd = _T("REST ") + pData->pOldData->resumeOffset.ToString();
 		if (pData->pOldData->resumeOffset > 0)
 			m_sentRestartOffset = true;
+		measureRTT = true;
 		break;
 	case rawtransfer_transfer:
 		if (pData->bPasv)
@@ -4287,7 +4311,7 @@ int CFtpControlSocket::TransferSend()
 		return FZ_REPLY_ERROR;
 	}
 	if (cmd != _T(""))
-		if (!Send(cmd))
+		if (!Send(cmd, false, measureRTT))
 			return FZ_REPLY_ERROR;
 
 	return FZ_REPLY_WOULDBLOCK;

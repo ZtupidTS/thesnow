@@ -10,13 +10,15 @@ public:
 	{
 		sitemanager,
 		close,
-		version
+		version,
+		debug_startup
 	};
 
 	enum t_option
 	{
 		logontype,
-		site
+		site,
+		local
 	};
 
 	CCommandLine(int argc, wxChar** argv);

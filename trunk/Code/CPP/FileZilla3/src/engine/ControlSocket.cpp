@@ -30,7 +30,7 @@ std::list<CControlSocket::t_lockInfo> CControlSocket::m_lockInfoList;
 BEGIN_EVENT_TABLE(CControlSocket, wxEvtHandler)
 	EVT_TIMER(wxID_ANY, CControlSocket::OnTimer)
 	EVT_COMMAND(wxID_ANY, fzOBTAINLOCK, CControlSocket::OnObtainLock)
-END_EVENT_TABLE();
+END_EVENT_TABLE()
 
 COpData::COpData(enum Command op_Id)
 	: opId(op_Id)
@@ -405,7 +405,10 @@ bool CControlSocket::ParsePwdReply(wxString reply, bool unquoted /*=false*/, con
 				reply = _T("");
 		}
 		else
+		{
 			reply = reply.Mid(pos1 + 1, pos2 - pos1 - 1);
+			reply.Replace(_T("\"\""), _T("\""));
+		}
 	}
 
 	m_CurrentPath.SetType(m_pCurrentServer->GetType());
@@ -536,6 +539,16 @@ wxString CControlSocket::ConvToLocal(const char* buffer)
 			wxString str = out;
 			delete [] out;
 			return str;
+		}
+		else if(m_pCSConv)
+		{
+			out = ConvToLocalBuffer(buffer, *m_pCSConv);
+			if (out)
+			{
+				wxString str = out;
+				delete [] out;
+				return str;
+			}
 		}
 
 		// Fall back to local charset on error
@@ -1141,7 +1154,10 @@ int CRealControlSocket::Connect(const CServer &server)
 	SetWait(true);
 
 	if (server.GetEncodingType() == ENCODING_CUSTOM)
+	{
+		LogMessage(Debug_Info, _T("Using custom encoding: %s"), server.GetCustomEncoding().c_str());
 		m_pCSConv = new wxCSConv(server.GetCustomEncoding());
+	}
 
 	delete m_pCurrentServer;
 	m_pCurrentServer = new CServer(server);
@@ -1437,4 +1453,46 @@ void CControlSocket::CreateLocalDir(const wxString &local_file)
 	CLocalDirCreatedNotification *n = new CLocalDirCreatedNotification;
 	n->dir = last_successful;
 	m_pEngine->AddNotification(n);
+}
+
+int CControlSocket::List(CServerPath, wxString, int)
+{
+	return FZ_REPLY_NOTSUPPORTED;
+}
+
+int CControlSocket::FileTransfer(const wxString, const CServerPath &,
+					const wxString &, bool,
+					const CFileTransferCommand::t_transferSettings&)
+{
+	return FZ_REPLY_NOTSUPPORTED;
+}
+
+int CControlSocket::RawCommand(const wxString&)
+{
+	return FZ_REPLY_NOTSUPPORTED;
+}
+
+int CControlSocket::Delete(const CServerPath&, const std::list<wxString>&)
+{
+	return FZ_REPLY_NOTSUPPORTED;
+}
+
+int CControlSocket::RemoveDir(const CServerPath&, const wxString&)
+{
+	return FZ_REPLY_NOTSUPPORTED;
+}
+
+int CControlSocket::Mkdir(const CServerPath&)
+{
+	return FZ_REPLY_NOTSUPPORTED;
+}
+
+int CControlSocket::Rename(const CRenameCommand&)
+{
+	return FZ_REPLY_NOTSUPPORTED;
+}
+
+int CControlSocket::Chmod(const CChmodCommand&)
+{
+	return FZ_REPLY_NOTSUPPORTED;
 }

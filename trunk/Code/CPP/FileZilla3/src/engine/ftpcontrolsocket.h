@@ -4,6 +4,7 @@
 #include "logging_private.h"
 #include "ControlSocket.h"
 #include "externalipresolver.h"
+#include "rtt.h"
 
 #define RECVBUFFERSIZE 4096
 #define MAXLINELEN 2000
@@ -12,6 +13,7 @@ class CTransferSocket;
 class CFtpTransferOpData;
 class CRawTransferOpData;
 class CTlsSocket;
+
 class CFtpControlSocket : public CRealControlSocket
 {
 	friend class CTransferSocket;
@@ -81,7 +83,7 @@ protected:
 	virtual void OnConnect();
 	virtual void OnReceive();
 
-	virtual bool Send(wxString str, bool maskArgs = false);
+	virtual bool Send(wxString str, bool maskArgs = false, bool measureRTT = true);
 
 	// Parse the latest reply line from the server
 	void ParseLine(wxString line);
@@ -147,7 +149,9 @@ protected:
 
 	wxTimer m_idleTimer;
 
-	DECLARE_EVENT_TABLE();
+	CLatencyMeasurement m_rtt;
+
+	DECLARE_EVENT_TABLE()
 	void OnExternalIPAddress(fzExternalIPResolveEvent& event);
 	void OnIdleTimer(wxTimerEvent& event);
 };

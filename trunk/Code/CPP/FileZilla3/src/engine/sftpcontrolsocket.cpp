@@ -50,7 +50,7 @@ DEFINE_EVENT_TYPE(fzEVT_SFTP)
 BEGIN_EVENT_TABLE(CSftpControlSocket, CControlSocket)
 EVT_COMMAND(wxID_ANY, fzEVT_SFTP, CSftpControlSocket::OnSftpEvent)
 EVT_END_PROCESS(wxID_ANY, CSftpControlSocket::OnTerminate)
-END_EVENT_TABLE();
+END_EVENT_TABLE()
 
 class CSftpInputThread : public wxThreadEx
 {
@@ -399,6 +399,7 @@ int CSftpControlSocket::Connect(const CServer &server)
 	delete m_pCSConv;
 	if (server.GetEncodingType() == ENCODING_CUSTOM)
 	{
+		LogMessage(Debug_Info, _T("Using custom encoding: %s"), server.GetCustomEncoding().c_str());
 		m_pCSConv = new wxCSConv(server.GetCustomEncoding());
 		m_useUTF8 = false;
 	}

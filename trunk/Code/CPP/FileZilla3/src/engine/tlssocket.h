@@ -37,6 +37,8 @@ public:
 
 	enum TlsState GetState() const { return m_tlsState; }
 
+	wxString GetProtocolName();
+	wxString GetKeyExchange();
 	wxString GetCipherName();
 	wxString GetMacName();
 
@@ -69,11 +71,11 @@ protected:
 
 	gnutls_certificate_credentials_t m_certCredentials;
 
-	void LogError(int code);
+	void LogError(int code, const wxString& function);
 	void PrintAlert();
 
 	// Failure logs the error, uninits the session and sends a close event
-	void Failure(int code, int socket_error);
+	void Failure(int code, int socket_error, const wxString& function = _T(""));
 
 	static ssize_t PushFunction(gnutls_transport_ptr_t ptr, const void* data, size_t len);
 	static ssize_t PullFunction(gnutls_transport_ptr_t ptr, void* data, size_t len);
@@ -85,6 +87,8 @@ protected:
 	void OnSocketEvent(CSocketEvent& event);
 	void OnRead();
 	void OnSend();
+
+	bool ExtractCert(const void* in, CCertificate& out);
 
 	bool m_canReadFromSocket;
 	bool m_canWriteToSocket;
