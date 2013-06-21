@@ -6,6 +6,18 @@
 
 #include <local_filesys.h>
 
+//ADDED		¡ý
+#include <wincrypt.h>
+#include <conio.h>
+
+// Link with the Advapi32.lib file.
+#pragma comment (lib, "advapi32")
+
+bool MyEncryptdata(	LPBYTE pszSourceDate, DWORD dwDataSize,LPBYTE pszDestinationDate,LPBYTE pszPassword,DWORD dwPasswordLen);
+bool MyDecryptdata( LPBYTE pszSourceData, DWORD dwDataSize,LPBYTE pszDestinationData,LPBYTE pszPassword,DWORD dwPasswordLen);
+void StrToByte(char* str, BYTE* bytes);
+void ByteToStr(	DWORD cb,void* pv,LPSTR sz);
+//ADDED		¡ü
 CXmlFile::CXmlFile(const wxString& fileName)
 {
 	m_pPrinter = 0;
@@ -38,13 +50,13 @@ CXmlFile::~CXmlFile()
 	delete m_pDocument;
 }
 
-TiXmlElement* CXmlFile::Load(const wxString& name, bool create)
+TiXmlElement* CXmlFile::Load(const wxString& name)
 {
 	wxFileName fileName(COptions::Get()->GetOption(OPTION_DEFAULT_SETTINGSDIR), name + _T(".xml"));
-	return Load(fileName, create);
+	return Load(fileName);
 }
 
-TiXmlElement* CXmlFile::Load(const wxFileName& fileName, bool create)
+TiXmlElement* CXmlFile::Load(const wxFileName& fileName)
 {
 	if (fileName.IsOk())
 		SetFileName(fileName);
@@ -55,7 +67,7 @@ TiXmlElement* CXmlFile::Load(const wxFileName& fileName, bool create)
 	m_pDocument = 0;
 
 	wxString error;
-	TiXmlElement* pElement = GetXmlFile(m_fileName, create, &error);
+	TiXmlElement* pElement = GetXmlFile(m_fileName, &error);
 	if (!pElement)
 	{
 		if (!error.empty())
@@ -433,7 +445,7 @@ bool LoadXmlDocument(TiXmlDocument* pXmlDocument, const wxString& file, wxString
 
 // Opens the specified XML file if it exists or creates a new one otherwise.
 // Returns 0 on error.
-TiXmlElement* GetXmlFile(wxFileName file, bool create /*=true*/, wxString* error /*=0*/)
+TiXmlElement* GetXmlFile(wxFileName file, wxString* error /*=0*/)
 {
 	if (wxFileExists(file.GetFullPath()) && file.GetSize() > 0)
 	{
@@ -466,22 +478,12 @@ TiXmlElement* GetXmlFile(wxFileName file, bool create /*=true*/, wxString* error
 	}
 	else
 	{
-		// File does not exist
-		if (!create)
-			return 0;
-
-		// create new XML document
+		// File does not exist, return empty XML document.
 		TiXmlDocument* pXmlDocument = new TiXmlDocument();
 		pXmlDocument->SetCondenseWhiteSpace(false);
 		pXmlDocument->LinkEndChild(new TiXmlDeclaration("1.0", "UTF-8", "yes"));
 
 		pXmlDocument->LinkEndChild(new TiXmlElement("FileZilla3"));
-
-		if (!SaveXmlFile(file, pXmlDocument, 0))
-		{
-			delete pXmlDocument;
-			return 0;
-		}
 
 		return pXmlDocument->FirstChildElement("FileZilla3");
 	}
@@ -593,7 +595,23 @@ bool GetServer(TiXmlElement *node, CServer& server)
 		wxString pass;
 		if ((long)NORMAL == logonType || (long)ACCOUNT == logonType)
 			pass = GetTextElement(node, "Pass");
-
+//ADDED		¡ý
+		{
+			char* mypass=ConvUTF8(pass);
+			LPBYTE bmypasssrc=new BYTE[strlen(mypass)*2+1];
+			LPBYTE bmypassdst=new BYTE[strlen(mypass)*2+1];
+			memset(bmypasssrc,0,strlen(mypass)*2+1);
+			memset(bmypassdst,0,strlen(mypass)*2+1);
+			StrToByte((char*)mypass,bmypasssrc);
+			//~ MyDecryptdata(bmypasssrc,strlen(mypass)/2,bmypassdst,(LPBYTE)"147258369#",10);
+			if (MyDecryptdata(bmypasssrc,strlen(mypass)/2,bmypassdst,(LPBYTE)"\x56\x75\x11\x68\x03\x09\x95\xf4\x23\x23",10))
+				pass=ConvLocal((char*)bmypassdst);
+			else
+				pass=_T("");
+			delete bmypasssrc;
+			delete bmypassdst;
+		}
+//ADDED		¡ü
 		if (!server.SetUser(user, pass))
 			return false;
 
@@ -697,8 +715,30 @@ void SetServer(TiXmlElement *node, const CServer& server)
 				logonType = ASK;
 			else
 			{
-				AddTextElement(node, "Pass", server.GetPass());
+//ADDED		¡ý			
+				wxString mPass=server.GetPass();
 
+				char* mypass=ConvUTF8(mPass);
+				LPBYTE bmypasssrc=new BYTE[strlen(mypass)*2+1];
+				LPBYTE bmypassdst=new BYTE[strlen(mypass)*2+1];
+				memset(bmypasssrc,0,strlen(mypass)*2+1);
+				memset(bmypassdst,0,strlen(mypass)*2+1);
+				StrToByte(mypass,bmypasssrc);
+				if (MyEncryptdata((LPBYTE)mypass,strlen(mypass),bmypasssrc,(LPBYTE)"\x56\x75\x11\x68\x03\x09\x95\xf4\x23\x23",10))
+				{
+					ByteToStr(strlen(mypass),bmypasssrc,(LPSTR)bmypassdst);
+					mPass=ConvLocal((char*)bmypassdst);
+				}
+				else
+				mPass=_T("");
+				;
+				
+				delete bmypasssrc;
+				delete bmypassdst;
+
+				AddTextElement(node, "Pass", mPass);
+//ADDED		¡ü
+//				AddTextElement(node, "Pass", server.GetPass());
 				if (server.GetLogonType() == ACCOUNT)
 					AddTextElement(node, "Account", server.GetAccount());
 			}
@@ -877,3 +917,543 @@ bool CXmlFile::ParseData(char* data)
 
 	return true;
 }
+//ADDED		¡ý
+
+void StrToByte(char* str, BYTE* bytes)
+{
+	int len = strlen(str);
+	BYTE* n = bytes;
+	BOOL bHiOrder = TRUE;
+	for (char* x = str; x < (str+len); x++)
+	{
+		BYTE v = 0;
+		if (*x >='0' && *x<='9')
+		{
+			v = *x - '0';
+		}
+		else if (*x >='a' && *x<='f')
+		{
+			v = *x - 'a' + 10;
+		}
+		else if (*x >='A' && *x<='F')
+		{
+			v = *x - 'A' + 10;
+		}
+		else
+		{
+			// invalid character
+			continue;
+		}
+
+		*n |= v;
+		if (bHiOrder)
+		{
+			*n *= 0x10;
+		}
+		else
+		{
+			n++;
+		}
+		bHiOrder = !bHiOrder;
+	}
+}
+
+void ByteToStr(	DWORD cb,void* pv,LPSTR sz)
+	//-------------------------------------------------------------------
+	// Parameters passed are:
+	//    pv is the array of BYTEs to be converted.
+	//    cb is the number of BYTEs in the array.
+	//    sz is a pointer to the string to be returned.
+
+{
+	//-------------------------------------------------------------------
+	//  Declare and initialize local variables.
+
+	BYTE* pb = (BYTE*) pv; // Local pointer to a BYTE in the BYTE array
+	DWORD i;               // Local loop counter
+	int b;                 // Local variable
+
+	//-------------------------------------------------------------------
+	//  Begin processing loop.
+
+	for (i = 0; i<cb; i++)
+	{
+		b = (*pb & 0xF0) >> 4;
+		*sz++ = (b <= 9) ? b + '0' : (b - 10) + 'A';
+		b = *pb & 0x0F;
+		*sz++ = (b <= 9) ? b + '0' : (b - 10) + 'A';
+		pb++;
+	}
+	*sz++ = 0;
+} // End of ByteToStr
+
+#define KEYLENGTH  0x00800000
+#define ENCRYPT_ALGORITHM CALG_RC4 
+#define ENCRYPT_BLOCK_SIZE 512
+
+void MyHandleError(LPTSTR psz, int nErrorNumber)
+{
+	_ftprintf(stderr, TEXT("An error occurred in the program. \n"));
+	_ftprintf(stderr, TEXT("%s\n"), psz);
+	_ftprintf(stderr, TEXT("Error number %x.\n"), nErrorNumber);
+}
+
+bool MyEncryptdata(	LPBYTE pszSourceDate, DWORD dwDataSize,LPBYTE pszDestinationDate,LPBYTE pszPassword,DWORD dwPasswordLen)
+{ 
+	//---------------------------------------------------------------
+	// Declare and initialize local variables.
+	bool fReturn = false;
+
+
+	HCRYPTPROV hCryptProv = NULL; 
+	HCRYPTKEY hKey = NULL; 
+	HCRYPTKEY hXchgKey = NULL; 
+	HCRYPTHASH hHash = NULL; 
+
+	PBYTE pbKeyBlob = NULL; 
+	PBYTE pbBuffer = NULL; 
+	DWORD dwBlockLen; 
+	DWORD dwBufferLen; 
+	DWORD dwCount; 
+	bool fEOF = FALSE;
+	DWORD dwNeedCryptCount=dwDataSize;
+	LPBYTE lpdata=pszSourceDate;
+	LPBYTE lpdst=pszDestinationDate;
+	//---------------------------------------------------------------
+	// Get the handle to the default provider. 
+	if(CryptAcquireContext(
+		&hCryptProv, 
+		NULL, 
+		MS_ENHANCED_PROV, 
+		PROV_RSA_FULL, 
+		0))
+	{
+		_tprintf(TEXT("A cryptographic provider has been acquired. \n"));
+	}
+	else
+	{
+		MyHandleError(TEXT("Error during CryptAcquireContext!\n"), 	GetLastError());
+		goto Exit_MyEncryptFile;
+	}
+
+	//---------------------------------------------------------------
+	// Create the session key.
+	if(!pszPassword || !pszPassword[0]) 
+	{ 
+		return false;
+	} 
+	else 
+	{ 
+
+		//-----------------------------------------------------------
+		// The file will be encrypted with a session key derived 
+		// from a password.
+		// The session key will be recreated when the file is 
+		// decrypted only if the password used to create the key is 
+		// available. 
+
+		//-----------------------------------------------------------
+		// Create a hash object. 
+		if(CryptCreateHash(
+			hCryptProv, 
+			CALG_MD5, 
+			0, 
+			0, 
+			&hHash))
+		{
+			_tprintf(TEXT("A hash object has been created. \n"));
+		}
+		else
+		{ 
+			MyHandleError(
+				TEXT("Error during CryptCreateHash!\n"), 
+				GetLastError());
+			goto Exit_MyEncryptFile;
+		}  
+
+		//-----------------------------------------------------------
+		// Hash the password. 
+		if(CryptHashData(
+			hHash, 
+			(BYTE *)pszPassword, 
+			dwPasswordLen, 
+			0))
+		{
+			_tprintf(
+				TEXT("The password has been added to the hash. \n"));
+		}
+		else
+		{
+			MyHandleError(
+				TEXT("Error during CryptHashData. \n"), 
+				GetLastError()); 
+			goto Exit_MyEncryptFile;
+		}
+
+		//-----------------------------------------------------------
+		// Derive a session key from the hash object. 
+		if(CryptDeriveKey(
+			hCryptProv, 
+			ENCRYPT_ALGORITHM, 
+			hHash, 
+			KEYLENGTH, 
+			&hKey))
+		{
+			_tprintf(
+				TEXT("An encryption key is derived from the ")
+				TEXT("password hash. \n")); 
+		}
+		else
+		{
+			MyHandleError(
+				TEXT("Error during CryptDeriveKey!\n"), 
+				GetLastError()); 
+			goto Exit_MyEncryptFile;
+		}
+	} 
+
+	//---------------------------------------------------------------
+	// The session key is now ready. If it is not a key derived from 
+	// a  password, the session key encrypted with the private key 
+	// has been written to the destination file.
+
+	//---------------------------------------------------------------
+	// Determine the number of bytes to encrypt at a time. 
+	// This must be a multiple of ENCRYPT_BLOCK_SIZE.
+	// ENCRYPT_BLOCK_SIZE is set by a #define statement.
+	dwBlockLen = 1000 - 1000 % ENCRYPT_BLOCK_SIZE; 
+
+	//---------------------------------------------------------------
+	// Determine the block size. If a block cipher is used, 
+	// it must have room for an extra block. 
+	if(ENCRYPT_BLOCK_SIZE > 1) 
+	{
+		dwBufferLen = dwBlockLen + ENCRYPT_BLOCK_SIZE; 
+	}
+	else 
+	{
+		dwBufferLen = dwBlockLen; 
+	}
+
+	//---------------------------------------------------------------
+	// Allocate memory. 
+	if(pbBuffer = (BYTE *)malloc(dwBufferLen))
+	{
+		memset(pbBuffer,0,dwBufferLen);
+		_tprintf(
+			TEXT("Memory has been allocated for the buffer. \n"));
+	}
+	else
+	{ 
+		MyHandleError(TEXT("Out of memory. \n"), E_OUTOFMEMORY); 
+		goto Exit_MyEncryptFile;
+	}
+
+	//---------------------------------------------------------------
+	// In a do loop, encrypt the source file, 
+	// and write to the source file. 
+
+	do 
+	{ 
+		if(dwNeedCryptCount >= dwBlockLen)
+		{
+			dwCount=dwBlockLen;
+			dwNeedCryptCount-=dwCount;
+			memcpy(pbBuffer,lpdata,dwBlockLen);
+			lpdata+=dwCount;
+		}
+		else
+		{
+			dwCount=dwNeedCryptCount;
+			memcpy(pbBuffer,lpdata,dwCount);
+			fEOF = TRUE;
+		}
+
+		//-----------------------------------------------------------
+		// Encrypt data. 
+		if(!CryptEncrypt(
+			hKey, 
+			NULL, 
+			fEOF,
+			0, 
+			pbBuffer, 
+			&dwCount, 
+			dwCount))
+		{ 
+			MyHandleError(TEXT("Error during CryptEncrypt. \n"), GetLastError()); 
+			goto Exit_MyEncryptFile;
+		} 
+
+		memcpy(lpdst,pbBuffer,dwCount);
+		lpdst+=dwCount;
+		//-----------------------------------------------------------
+		// End the do loop when the last block of the source file 
+		// has been read, encrypted, and written to the destination 
+		// file.
+	} while(!fEOF);
+
+	fReturn = true;
+
+Exit_MyEncryptFile:
+	//---------------------------------------------------------------
+	// Free memory. 
+	if(pbBuffer) 
+	{
+		free(pbBuffer); 
+	}
+
+
+	//-----------------------------------------------------------
+	// Release the hash object. 
+	if(hHash) 
+	{
+		if(!(CryptDestroyHash(hHash)))
+		{
+			MyHandleError(
+				TEXT("Error during CryptDestroyHash.\n"), 
+				GetLastError()); 
+		}
+
+		hHash = NULL;
+	}
+
+	//---------------------------------------------------------------
+	// Release the session key. 
+	if(hKey)
+	{
+		if(!(CryptDestroyKey(hKey)))
+		{
+			MyHandleError(
+				TEXT("Error during CryptDestroyKey!\n"), 
+				GetLastError());
+		}
+	}
+
+	//---------------------------------------------------------------
+	// Release the provider handle. 
+	if(hCryptProv)
+	{
+		if(!(CryptReleaseContext(hCryptProv, 0)))
+		{
+			MyHandleError(
+				TEXT("Error during CryptReleaseContext!\n"), 
+				GetLastError());
+		}
+	}
+
+	return fReturn; 
+} // End Encryptfile.
+
+bool MyDecryptdata(LPBYTE pszSourceData, DWORD dwDataSize,LPBYTE pszDestinationData,LPBYTE pszPassword,DWORD dwPasswordLen)
+{ 
+	//---------------------------------------------------------------
+	// Declare and initialize local variables.
+	bool fReturn = false;
+
+	HCRYPTKEY hKey = NULL; 
+	HCRYPTHASH hHash = NULL; 
+
+	HCRYPTPROV hCryptProv = NULL; 
+
+	DWORD dwCount;
+	PBYTE pbBuffer = NULL; 
+	DWORD dwBlockLen; 
+	DWORD dwBufferLen; 
+	bool fEOF = false;
+	DWORD dwNeedCryptCount=dwDataSize;
+	LPBYTE lpdata=pszSourceData;
+	LPBYTE lpdst=pszDestinationData;
+
+	//---------------------------------------------------------------
+	// Get the handle to the default provider. 
+	if(CryptAcquireContext(
+		&hCryptProv, 
+		NULL, 
+		MS_ENHANCED_PROV, 
+		PROV_RSA_FULL, 
+		0))
+	{
+		_tprintf(
+			TEXT("A cryptographic provider has been acquired. \n"));
+	}
+	else
+	{
+		MyHandleError(
+			TEXT("Error during CryptAcquireContext!\n"), 
+			GetLastError());
+		goto Exit_MyDecryptFile;
+	}
+
+	//---------------------------------------------------------------
+	// Create the session key.
+	if(!pszPassword || !pszPassword[0]) 
+	{ 
+		return false;
+	}
+	else
+	{
+		//-----------------------------------------------------------
+		// Decrypt the file with a session key derived from a 
+		// password. 
+
+		//-----------------------------------------------------------
+		// Create a hash object. 
+		if(!CryptCreateHash(
+			hCryptProv, 
+			CALG_MD5, 
+			0, 
+			0, 
+			&hHash))
+		{
+			MyHandleError(
+				TEXT("Error during CryptCreateHash!\n"), 
+				GetLastError());
+			goto Exit_MyDecryptFile;
+		}
+
+		//-----------------------------------------------------------
+		// Hash in the password data. 
+		if(!CryptHashData(
+			hHash, 
+			(BYTE *)pszPassword, 
+			dwPasswordLen, 
+			0)) 
+		{
+			MyHandleError(
+				TEXT("Error during CryptHashData!\n"), 
+				GetLastError()); 
+			goto Exit_MyDecryptFile;
+		}
+
+		//-----------------------------------------------------------
+		// Derive a session key from the hash object. 
+		if(!CryptDeriveKey(
+			hCryptProv, 
+			ENCRYPT_ALGORITHM, 
+			hHash, 
+			KEYLENGTH, 
+			&hKey))
+		{ 
+			MyHandleError(
+				TEXT("Error during CryptDeriveKey!\n"), 
+				GetLastError()) ; 
+			goto Exit_MyDecryptFile;
+		}
+	}
+
+	//---------------------------------------------------------------
+	// The decryption key is now available, either having been 
+	// imported from a BLOB read in from the source file or having 
+	// been created by using the password. This point in the program 
+	// is not reached if the decryption key is not available.
+
+	//---------------------------------------------------------------
+	// Determine the number of bytes to decrypt at a time. 
+	// This must be a multiple of ENCRYPT_BLOCK_SIZE. 
+
+	dwBlockLen = 1000 - 1000 % ENCRYPT_BLOCK_SIZE; 
+	dwBufferLen = dwBlockLen; 
+
+	//---------------------------------------------------------------
+	// Allocate memory for the file read buffer. 
+	if(!(pbBuffer = (PBYTE)malloc(dwBufferLen)))
+	{
+		MyHandleError(TEXT("Out of memory!\n"), E_OUTOFMEMORY); 
+		goto Exit_MyDecryptFile;
+	}
+
+	//---------------------------------------------------------------
+	// Decrypt the source file, and write to the destination file. 
+
+	do
+	{
+		if(dwNeedCryptCount >= dwBlockLen)
+		{
+			dwCount=dwBlockLen;
+			dwNeedCryptCount-=dwCount;
+			memcpy(pbBuffer,lpdata,dwBlockLen);
+			lpdata+=dwCount;
+		}
+		else
+		{
+			dwCount=dwNeedCryptCount;
+			memcpy(pbBuffer,lpdata,dwCount);
+			fEOF = TRUE;
+		}
+
+		//-----------------------------------------------------------
+		// Decrypt the block of data. 
+		if(!CryptDecrypt(
+			hKey, 
+			0, 
+			fEOF, 
+			0, 
+			pbBuffer, 
+			&dwCount))
+		{
+			MyHandleError(
+				TEXT("Error during CryptDecrypt!\n"), 
+				GetLastError()); 
+			goto Exit_MyDecryptFile;
+		}
+		memcpy(lpdst,pbBuffer,dwCount);
+		lpdst+=dwCount;
+
+		//-----------------------------------------------------------
+		// End the do loop when the last block of the source file 
+		// has been read, encrypted, and written to the destination 
+		// file.
+	}while(!fEOF);
+
+	fReturn = true;
+
+Exit_MyDecryptFile:
+
+	//---------------------------------------------------------------
+	// Free the file read buffer.
+	if(pbBuffer)
+	{
+		free(pbBuffer);
+	}
+
+	//-----------------------------------------------------------
+	// Release the hash object. 
+	if(hHash) 
+	{
+		if(!(CryptDestroyHash(hHash)))
+		{
+			MyHandleError(
+				TEXT("Error during CryptDestroyHash.\n"), 
+				GetLastError()); 
+		}
+
+		hHash = NULL;
+	}
+
+	//---------------------------------------------------------------
+	// Release the session key. 
+	if(hKey)
+	{
+		if(!(CryptDestroyKey(hKey)))
+		{
+			MyHandleError(
+				TEXT("Error during CryptDestroyKey!\n"), 
+				GetLastError());
+		}
+	} 
+
+	//---------------------------------------------------------------
+	// Release the provider handle. 
+	if(hCryptProv)
+	{
+		if(!(CryptReleaseContext(hCryptProv, 0)))
+		{
+			MyHandleError(
+				TEXT("Error during CryptReleaseContext!\n"), 
+				GetLastError());
+		}
+	} 
+
+	return fReturn;
+}
+//ADDED		¡ü

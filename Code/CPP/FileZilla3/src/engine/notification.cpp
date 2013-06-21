@@ -184,11 +184,19 @@ char* CDataNotification::Detach(int& len)
 	return pData;
 }
 
+CCertificate::CCertificate()
+	: m_rawData()
+	, m_len()
+	, m_pkalgobits()
+{
+}
+
 CCertificate::CCertificate(
 		const unsigned char* rawData, unsigned int len,
 		wxDateTime activationTime, wxDateTime expirationTime,
 		const wxString& serial,
 		const wxString& pkalgoname, unsigned int bits,
+		const wxString& signalgoname,
 		const wxString& fingerprint_md5,
 		const wxString& fingerprint_sha1,
 		const wxString& subject,
@@ -210,6 +218,8 @@ CCertificate::CCertificate(
 	m_serial = serial;
 	m_pkalgoname = pkalgoname;
 	m_pkalgobits = bits;
+
+	m_signalgoname = signalgoname;
 
 	m_fingerprint_md5 = fingerprint_md5;
 	m_fingerprint_sha1 = fingerprint_sha1;
@@ -241,6 +251,8 @@ CCertificate::CCertificate(const CCertificate &op)
 	m_serial = op.m_serial;
 	m_pkalgoname = op.m_pkalgoname;
 	m_pkalgobits = op.m_pkalgobits;
+
+	m_signalgoname = op.m_signalgoname;
 
 	m_fingerprint_md5 = op.m_fingerprint_md5;
 	m_fingerprint_sha1 = op.m_fingerprint_sha1;
@@ -282,6 +294,8 @@ CCertificate& CCertificate::operator=(const CCertificate &op)
 	m_pkalgoname = op.m_pkalgoname;
 	m_pkalgobits = op.m_pkalgobits;
 
+	m_signalgoname = op.m_signalgoname;
+
 	m_fingerprint_md5 = op.m_fingerprint_md5;
 	m_fingerprint_sha1 = op.m_fingerprint_sha1;
 
@@ -292,9 +306,13 @@ CCertificate& CCertificate::operator=(const CCertificate &op)
 }
 
 CCertificateNotification::CCertificateNotification(const wxString& host, unsigned int port,
+		const wxString& protocol,
+		const wxString& keyExchange,
 		const wxString& sessionCipher,
 		const wxString& sessionMac,
 		const std::vector<CCertificate> &certificates)
+	: m_protocol( protocol )
+	, m_keyExchange( keyExchange )
 {
 	m_host = host;
 	m_port = port;

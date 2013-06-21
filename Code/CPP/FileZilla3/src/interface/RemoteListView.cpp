@@ -150,7 +150,9 @@ public:
 			{
 				CServerPath dir = m_pRemoteDataObject->GetServerPath();
 				dir.AddSegment(info.name);
-				if (dir == target || dir.IsParentOf(target, false))
+				if (dir == target)
+					return wxDragNone;
+				else if (dir.IsParentOf(target, false))
 				{
 					wxMessageBox(_("A directory cannot be dragged into one of its subdirectories."));
 					return wxDragNone;
@@ -324,7 +326,7 @@ protected:
 
 	wxSize m_textSize;
 
-	DECLARE_EVENT_TABLE();
+	DECLARE_EVENT_TABLE()
 };
 
 BEGIN_EVENT_TABLE(CInfoText, wxWindow)
@@ -750,6 +752,7 @@ void CRemoteListView::SetDirectoryListing(const CSharedPointer<const CDirectoryL
 
 	wxString prevFocused;
 	std::list<wxString> selectedNames;
+	bool ensureVisible = false;
 	if (reset)
 	{
 		ResetSearchPrefix();
@@ -758,6 +761,9 @@ void CRemoteListView::SetDirectoryListing(const CSharedPointer<const CDirectoryL
 			ExitComparisonMode();
 
 		ClearSelection();
+
+		prevFocused = m_pState->GetPreviouslyVisitedRemoteSubdir();
+		ensureVisible = !prevFocused.IsEmpty();
 	}
 	else
 	{
@@ -880,11 +886,11 @@ void CRemoteListView::SetDirectoryListing(const CSharedPointer<const CDirectoryL
 	{
 		m_originalIndexMapping.clear();
 		RefreshComparison();
-		ReselectItems(selectedNames, prevFocused);
+		ReselectItems(selectedNames, prevFocused, ensureVisible);
 	}
 	else
 	{
-		ReselectItems(selectedNames, prevFocused);
+		ReselectItems(selectedNames, prevFocused, ensureVisible);
 		RefreshListOnly(eraseBackground);
 	}
 }
@@ -1418,16 +1424,6 @@ void CRemoteListView::OnContextMenu(wxContextMenuEvent& event)
 		pMenu->Enable(XRCID("ID_CONTEXT_REFRESH"), false);
 		pMenu->Enable(XRCID("ID_NEW_FILE"), false);
 	}
-	else if ((GetItemCount() && GetItemState(0, wxLIST_STATE_SELECTED)))
-	{
-		pMenu->Enable(XRCID("ID_DOWNLOAD"), false);
-		pMenu->Enable(XRCID("ID_ADDTOQUEUE"), false);
-		pMenu->Enable(XRCID("ID_DELETE"), false);
-		pMenu->Enable(XRCID("ID_RENAME"), false);
-		pMenu->Enable(XRCID("ID_CHMOD"), false);
-		pMenu->Enable(XRCID("ID_EDIT"), false);
-		pMenu->Enable(XRCID("ID_GETURL"), false);
-	}
 	else if (GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED) == -1)
 	{
 		pMenu->Delete(XRCID("ID_ENTER"));
@@ -1441,12 +1437,27 @@ void CRemoteListView::OnContextMenu(wxContextMenuEvent& event)
 	}
 	else
 	{
+		if ((GetItemCount() && GetItemState(0, wxLIST_STATE_SELECTED)))
+		{
+			pMenu->Enable(XRCID("ID_RENAME"), false);
+			pMenu->Enable(XRCID("ID_CHMOD"), false);
+			pMenu->Enable(XRCID("ID_EDIT"), false);
+			pMenu->Enable(XRCID("ID_GETURL"), false);
+		}
+
 		int count = 0;
 		int fillCount = 0;
 		bool selectedDir = false;
 		int item = -1;
 		while ((item = GetNextItem(item, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED)) != -1)
 		{
+			if (!item)
+			{
+				++count;
+				++fillCount;
+				continue;
+			}
+
 			int index = GetItemIndex(item);
 			if (index == -1)
 				continue;
@@ -1515,10 +1526,7 @@ void CRemoteListView::OnMenuDownload(wxCommandEvent& event)
 			break;
 
 		if (!item)
-		{
-			wxBell();
-			return;
-		}
+			continue;
 
 		int index = GetItemIndex(item);
 		if (index == -1)
@@ -1559,6 +1567,8 @@ void CRemoteListView::TransferSelectedFiles(const CLocalPath& local_parent, bool
 		item = GetNextItem(item, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
 		if (item == -1)
 			break;
+		if (!item)
+			continue;
 
 		int index = GetItemIndex(item);
 		if (index == -1)
@@ -1672,10 +1682,12 @@ void CRemoteListView::OnMenuDelete(wxCommandEvent& event)
 	for (;;)
 	{
 		item = GetNextItem(item, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+		if (!item)
+			continue;
 		if (item == -1)
 			break;
 
-		if (!item || !IsItemValid(item))
+		if (!IsItemValid(item))
 		{
 			wxBell();
 			return;
@@ -1738,6 +1750,8 @@ void CRemoteListView::OnMenuDelete(wxCommandEvent& event)
 	for (;;)
 	{
 		item = GetNextItem(item, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+		if (!item)
+			continue;
 		if (item == -1)
 			break;
 
@@ -2206,7 +2220,7 @@ std::list<wxString> CRemoteListView::RememberSelectedItems(wxString& focused)
 	return selectedNames;
 }
 
-void CRemoteListView::ReselectItems(std::list<wxString>& selectedNames, wxString focused)
+void CRemoteListView::ReselectItems(std::list<wxString>& selectedNames, wxString focused, bool ensureVisible)
 {
 	if (!GetItemCount())
 		return;
@@ -2231,6 +2245,8 @@ void CRemoteListView::ReselectItems(std::list<wxString>& selectedNames, wxString
 			if ((*m_pDirectoryListing)[index].name == focused)
 			{
 				SetItemState(i, wxLIST_STATE_FOCUSED, wxLIST_STATE_FOCUSED);
+				if (ensureVisible)
+					EnsureVisible(i);
 				return;
 			}
 		}
@@ -2259,6 +2275,8 @@ void CRemoteListView::ReselectItems(std::list<wxString>& selectedNames, wxString
 			if (entry.name == focused)
 			{
 				SetItemState(i, wxLIST_STATE_FOCUSED, wxLIST_STATE_FOCUSED);
+				if (ensureVisible)
+					EnsureVisible(i);
 				focused = _T("");
 			}
 			if (entry.is_dir() && *iter == (_T("d") + entry.name))
@@ -2739,7 +2757,7 @@ void CRemoteListView::OnMenuEdit(wxCommandEvent& event)
 		CLocalPath localPath(file, &localFile);
 
 		m_pQueue->QueueFile(false, true, entry.name, (localFile != entry.name) ? localFile : wxString(),
-			localPath, path, server, entry.size, CEditHandler::remote);
+			localPath, path, server, entry.size, CEditHandler::remote, priority_high);
 		m_pQueue->QueueFile_Finish(true);
 	}
 }
@@ -3168,18 +3186,18 @@ void CRemoteListView::OnMenuNewfile(wxCommandEvent& event)
 	CInputDialog dlg;
 	if (!dlg.Create(this, _("Create empty file"), _("Please enter the name of the file which should be created:")))
 		return;
-	
+
 	if (dlg.ShowModal() != wxID_OK)
 		return;
-	
+
 	if (dlg.GetValue() == _T(""))
 	{
 		wxBell();
 		return;
 	}
-	
+
 	wxString newFileName = dlg.GetValue();
-	
+
 	// Copied from elsewhere in the source, checks for characters that Windows deems invalid
 	if ((newFileName.Find('/')  != -1) ||
 		(newFileName.Find('\\') != -1) ||
@@ -3204,26 +3222,26 @@ void CRemoteListView::OnMenuNewfile(wxCommandEvent& event)
 			return;
 		}
 	}
-	
+
 	CEditHandler* edithandler = CEditHandler::Get(); // Used to get the temporary folder
-	
+
 	wxString emptyfile_name = _T("empty_file_yq744zm");
 	wxString emptyfile = edithandler->GetLocalDirectory() + emptyfile_name;
-	
+
 	// Create the empty temporary file
 	{
 		wxFile file;
 		wxLogNull log;
 		file.Create(emptyfile);
 	}
-	
+
 	const CServer* pServer = m_pState->GetServer();
 	if (!pServer)
 	{
 		wxBell();
 		return;
 	}
-	
+
 	CFileTransferCommand *cmd = new CFileTransferCommand(emptyfile, m_pDirectoryListing->path, newFileName, false, CFileTransferCommand::t_transferSettings());
 	m_pState->m_pCommandQueue->ProcessCommand(cmd);
 }

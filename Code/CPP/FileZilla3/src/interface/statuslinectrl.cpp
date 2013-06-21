@@ -99,9 +99,9 @@ void CStatusLineCtrl::OnPaint(wxPaintEvent& event)
 		delete m_mdc;
 		m_data = wxBitmap(rect.GetWidth(), rect.GetHeight());
 		m_mdc = new wxMemoryDC(m_data);
-		// Use same layout direction as the DC which bitmap is drawn on. 
-		// This avoids problem with mirrored characters on RTL locales. 
-		m_mdc->SetLayoutDirection(dc.GetLayoutDirection()); 
+		// Use same layout direction as the DC which bitmap is drawn on.
+		// This avoids problem with mirrored characters on RTL locales.
+		m_mdc->SetLayoutDirection(dc.GetLayoutDirection());
 		refresh = 31;
 	}
 
@@ -176,12 +176,14 @@ void CStatusLineCtrl::OnPaint(wxPaintEvent& event)
 		const wxString bytestr = CSizeFormat::Format(m_pStatus->currentOffset, true, CSizeFormat::bytes, COptions::Get()->GetOptionVal(OPTION_SIZE_USETHOUSANDSEP) != 0, 0);
 		if (elapsed_seconds && rate > -1)
 		{
-			if (rate > (1000*1000))
-				bytes_and_rate.Printf(_("%s (%d.%d MB/s)"), bytestr.c_str(), (int)(rate / 1000 / 1000), (int)((rate / 1000 / 100) % 10));
-			else if (rate > 1000)
-				bytes_and_rate.Printf(_("%s (%d.%d KB/s)"), bytestr.c_str(), (int)(rate / 1000), (int)((rate / 100) % 10));
-			else
-				bytes_and_rate.Printf(_("%s (%d B/s)"), bytestr.c_str(), (int)rate);
+			CSizeFormat::_format format = static_cast<CSizeFormat::_format>(COptions::Get()->GetOptionVal(OPTION_SIZE_FORMAT));
+			if (format == CSizeFormat::bytes)
+				format = CSizeFormat::iec;
+			const wxString ratestr = CSizeFormat::Format(rate, true,
+														 format,
+														 COptions::Get()->GetOptionVal(OPTION_SIZE_USETHOUSANDSEP) != 0,
+														 COptions::Get()->GetOptionVal(OPTION_SIZE_DECIMALPLACES));
+			bytes_and_rate.Printf(_("%s (%s/s)"), bytestr.c_str(), ratestr.c_str() );
 		}
 		else
 			bytes_and_rate.Printf(_("%s (? B/s)"), bytestr.c_str());

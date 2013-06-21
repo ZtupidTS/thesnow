@@ -31,7 +31,7 @@ EVT_BUTTON(XRCID("ID_LOCAL_ENABLEALL"), CFilterDialog::OnChangeAll)
 EVT_BUTTON(XRCID("ID_LOCAL_DISABLEALL"), CFilterDialog::OnChangeAll)
 EVT_BUTTON(XRCID("ID_REMOTE_ENABLEALL"), CFilterDialog::OnChangeAll)
 EVT_BUTTON(XRCID("ID_REMOTE_DISABLEALL"), CFilterDialog::OnChangeAll)
-END_EVENT_TABLE();
+END_EVENT_TABLE()
 
 CFilterCondition::CFilterCondition()
 {
@@ -1023,19 +1023,8 @@ void CFilterManager::LoadFilters()
 	CInterProcessMutex mutex(MUTEX_FILTERS);
 
 	wxFileName file(COptions::Get()->GetOption(OPTION_DEFAULT_SETTINGSDIR), _T("filters.xml"));
-	if (!file.FileExists())
-	{
-		wxFileName defaults(wxGetApp().GetResourceDir(), _T("defaultfilters.xml"));
-		if (defaults.FileExists())
-		{
-			TiXmlElement* pDocument = GetXmlFile(defaults);
-			if (pDocument)
-			{
-				SaveXmlFile(file, pDocument);
-				delete pDocument->GetDocument();
-			}
-		}
-	}
+	if (!file.FileExists() || file.GetSize() == 0)
+		file = wxFileName(wxGetApp().GetResourceDir(), _T("defaultfilters.xml"));
 
 	CXmlFile xml(file);
 	TiXmlElement* pDocument = xml.Load();

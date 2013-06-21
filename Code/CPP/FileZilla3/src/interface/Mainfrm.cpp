@@ -73,6 +73,7 @@ BEGIN_EVENT_TABLE(CMainFrame, wxFrame)
 	EVT_SIZE(CMainFrame::OnSize)
 	EVT_MENU(wxID_ANY, CMainFrame::OnMenuHandler)
 	EVT_FZ_NOTIFICATION(wxID_ANY, CMainFrame::OnEngineEvent)
+	EVT_COMMAND(wxID_ANY, fzEVT_UPDATE_LED_TOOLTIP, CMainFrame::OnUpdateLedTooltip)
 	EVT_TOOL(XRCID("ID_TOOLBAR_DISCONNECT"), CMainFrame::OnDisconnect)
 	EVT_MENU(XRCID("ID_MENU_SERVER_DISCONNECT"), CMainFrame::OnDisconnect)
 	EVT_TOOL(XRCID("ID_TOOLBAR_CANCEL"), CMainFrame::OnCancel)
@@ -208,6 +209,7 @@ protected:
 CMainFrame::CMainFrame()
 	: m_comparisonToggleAcceleratorId(wxNewId())
 {
+	wxGetApp().AddStartupProfileRecord(_T("CMainFrame::CMainFrame"));
 	wxRect screen_size = CWindowStateManager::GetScreenDimensions();
 
 	wxSize initial_size;
@@ -335,8 +337,6 @@ CMainFrame::CMainFrame()
 
 	m_pContextControl->CreateTab();
 
-	m_pContextControl->GetCurrentControls();
-
 	switch (message_log_position)
 	{
 	case 1:
@@ -405,10 +405,8 @@ CMainFrame::CMainFrame()
 
 	m_pWindowStateManager = new CWindowStateManager(this);
 	m_pWindowStateManager->Restore(OPTION_MAINWINDOW_POSITION);
-
 	Layout();
 	HandleResize();
-
 	if (!RestoreSplitterPositions())
 		SetDefaultSplitterPositions();
 
@@ -502,6 +500,7 @@ void CMainFrame::OnSize(wxSizeEvent &event)
 
 bool CMainFrame::CreateMenus()
 {
+	wxGetApp().AddStartupProfileRecord(_T("CMainFrame::CreateMenus"));
 	if (m_pMenuBar)
 	{
 		SetMenuBar(0);
@@ -523,6 +522,7 @@ bool CMainFrame::CreateMenus()
 
 bool CMainFrame::CreateQuickconnectBar()
 {
+	wxGetApp().AddStartupProfileRecord(_T("CMainFrame::CreateQuickconnectBar"));
 	delete m_pQuickconnectBar;
 
 	m_pQuickconnectBar = new CQuickconnectBar();
@@ -1008,7 +1008,7 @@ void CMainFrame::OnEngineEvent(wxEvent &event)
 			{
 				CAsyncRequestNotification* pAsyncRequest = reinterpret_cast<CAsyncRequestNotification *>(pNotification);
 				if (pAsyncRequest->GetRequestID() == reqId_fileexists)
-					m_pQueueView->ProcessNotification(pNotification);
+					m_pQueueView->ProcessNotification(pEngine, pNotification);
 				else
 				{
 					if (pAsyncRequest->GetRequestID() == reqId_certificate)
@@ -1025,7 +1025,7 @@ void CMainFrame::OnEngineEvent(wxEvent &event)
 			}
 			break;
 		case nId_transferstatus:
-			m_pQueueView->ProcessNotification(pNotification);
+			m_pQueueView->ProcessNotification(pEngine, pNotification);
 			break;
 		case nId_sftp_encryption:
 			{
@@ -1050,8 +1050,32 @@ void CMainFrame::OnEngineEvent(wxEvent &event)
 	}
 }
 
+void CMainFrame::OnUpdateLedTooltip(wxCommandEvent& event)
+{
+	wxString tooltipText;
+
+	wxFileOffset downloadSpeed = m_pQueueView->GetCurrentDownloadSpeed();
+	wxFileOffset uploadSpeed = m_pQueueView->GetCurrentUploadSpeed();
+
+	CSizeFormat::_format format = static_cast<CSizeFormat::_format>(COptions::Get()->GetOptionVal(OPTION_SIZE_FORMAT));
+	if (format == CSizeFormat::bytes)
+		format = CSizeFormat::iec;
+
+	const wxString downloadSpeedStr = CSizeFormat::Format(downloadSpeed, true, format,
+														  COptions::Get()->GetOptionVal(OPTION_SIZE_USETHOUSANDSEP) != 0,
+														  COptions::Get()->GetOptionVal(OPTION_SIZE_DECIMALPLACES));
+	const wxString uploadSpeedStr = CSizeFormat::Format(uploadSpeed, true, format,
+														COptions::Get()->GetOptionVal(OPTION_SIZE_USETHOUSANDSEP) != 0,
+														COptions::Get()->GetOptionVal(OPTION_SIZE_DECIMALPLACES));
+	tooltipText.Printf(_("Download speed: %s/s\nUpload speed: %s/s"), downloadSpeedStr.c_str(), uploadSpeedStr.c_str());
+
+	m_pActivityLed[0]->SetToolTip(tooltipText);
+	m_pActivityLed[1]->SetToolTip(tooltipText);
+}
+
 bool CMainFrame::CreateToolBar()
 {
+	wxGetApp().AddStartupProfileRecord(_T("CMainFrame::CreateToolBar"));
 	if (m_pToolBar)
 	{
 #ifdef __WXMAC__
@@ -1129,40 +1153,56 @@ BOOL CALLBACK FzEnumThreadWndProc(HWND hwnd, LPARAM lParam)
 
 bool CMainFrame::CloseDialogsAndQuit(wxCloseEvent &event)
 {
+#ifndef __WXMAC__
+	if (m_taskBarIcon)
+	{
+		delete m_taskBarIcon;
+		m_taskBarIcon = 0;
+		m_closeEvent = event.GetEventType();
+		m_closeEventTimer.Start(1, true);
+		return false;
+	}
+#endif
+
 	// We need to close all other top level windows on the stack before closing the main frame.
 	// In other words, all open dialogs need to be closed.
 	static int prev_size = 0;
 
 	int size = wxTopLevelWindows.size();
 	static wxTopLevelWindow* pLast = 0;
-	wxWindowList::reverse_iterator iter = wxTopLevelWindows.rbegin();
-	wxTopLevelWindow* pTop = (wxTopLevelWindow*)(*iter);
-	while (pTop != this && (size != prev_size || pLast != pTop))
+	if (wxTopLevelWindows.size())
 	{
-		wxDialog* pDialog = wxDynamicCast(pTop, wxDialog);
-		if (pDialog)
-			pDialog->EndModal(wxID_CANCEL);
-		else
+		wxWindowList::reverse_iterator iter = wxTopLevelWindows.rbegin();
+		wxTopLevelWindow* pTop = (wxTopLevelWindow*)(*iter);
+		while (pTop != this && (size != prev_size || pLast != pTop))
 		{
-			wxWindow* pParent = pTop->GetParent();
-			if (m_pQueuePane && pParent == m_pQueuePane)
+			wxDialog* pDialog = wxDynamicCast(pTop, wxDialog);
+			if (pDialog)
+				pDialog->EndModal(wxID_CANCEL);
+			else
 			{
-				// It's the AUI frame manager hint window. Ignore it
-				++iter;
-				pTop = (wxTopLevelWindow*)(*iter);
-				continue;
+				wxWindow* pParent = pTop->GetParent();
+				if (m_pQueuePane && pParent == m_pQueuePane)
+				{
+					// It's the AUI frame manager hint window. Ignore it
+					++iter;
+					if (iter == wxTopLevelWindows.rend())
+						break;
+					pTop = (wxTopLevelWindow*)(*iter);
+					continue;
+				}
+				wxString title = pTop->GetTitle();
+				pTop->Destroy();
 			}
-			wxString title = pTop->GetTitle();
-			pTop->Destroy();
+
+			prev_size = size;
+			pLast = pTop;
+
+			m_closeEvent = event.GetEventType();
+			m_closeEventTimer.Start(1, true);
+
+			return false;
 		}
-
-		prev_size = size;
-		pLast = pTop;
-
-		m_closeEvent = event.GetEventType();
-		m_closeEventTimer.Start(1, true);
-
-		return false;
 	}
 
 #ifdef __WXMSW__
@@ -2461,6 +2501,25 @@ void CMainFrame::ProcessCommandLine()
 	if (!pCommandLine)
 		return;
 
+	wxString local;
+	if ((local = pCommandLine->GetOption(CCommandLine::local)) != _T(""))
+	{
+		
+		if (!wxDir::Exists(local))
+		{
+			wxString str = _("Path not found:");
+			str += _T("\n") + local;
+			wxMessageBox(str, _("Syntax error in command line"));
+			return;
+		}
+		
+		CState *pState = CContextManager::Get()->GetCurrentContext();
+		if (!pState)
+			return;
+			
+		pState->SetLocalDir(local);
+	}	
+	
 	wxString site;
 	if (pCommandLine->HasSwitch(CCommandLine::sitemanager))
 	{
@@ -2567,7 +2626,7 @@ WXLRESULT CMainFrame::MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, WXLPARAM lPara
 		// get the new display layout from Windows.
 		//
 		// Note: Both the factory pattern as well as the dynamic object system
-		//       are perfect example of bad design.
+		//	   are perfect example of bad design.
 		//
 		wxModule* pDisplayModule = (wxModule*)wxCreateDynamicObject(_T("wxDisplayModule"));
 		if (pDisplayModule)
@@ -2688,6 +2747,17 @@ void CMainFrame::PostInitialize()
 		m_pUpdateWizard = 0;
 #endif //FZ_MANUALUPDATECHECK && FZ_AUTOUPDATECHECK
 
+/*
+	{
+		CInputDialog dlg;
+		dlg.Create(this, _T("Enter Password"), _T("Enter FileZilla Password:"));
+		dlg.SetPasswordMode(true);
+		dlg.AllowEmpty(true);
+		if (dlg.ShowModal() == wxID_OK)
+			wxMessageBox(dlg.GetValue(), _T("Password"));
+	}
+*/	
+	
 	if (COptions::Get()->GetOptionVal(OPTION_INTERFACE_SITEMANAGER_ON_STARTUP) != 0)
 	{
 		Show();

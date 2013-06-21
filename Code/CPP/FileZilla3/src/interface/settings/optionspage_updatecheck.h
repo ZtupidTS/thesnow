@@ -9,13 +9,11 @@ public:
 	virtual wxString GetResourceName() { return _T("ID_SETTINGS_UPDATECHECK"); }
 	virtual bool LoadPage();
 	virtual bool SavePage();
-	virtual bool Validate();
 
 protected:
 	void OnRunUpdateCheck(wxCommandEvent& event);
-	void OnCheckBeta(wxCommandEvent& event);
 
-	DECLARE_EVENT_TABLE();
+	DECLARE_EVENT_TABLE()
 };
 
 #endif //FZ_MANUALUPDATECHECK && FZ_AUTOUPDATECHECK
