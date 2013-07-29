@@ -502,9 +502,9 @@ protected:
 	// For single instance
 	char uniqueInstance[MAX_PATH];
 	guint32 startupTimestamp;
-	
+
 	guint timerID;
-	
+
 	BackgroundStrip backgroundStrip;
 	UserStrip userStrip;
 
@@ -536,7 +536,7 @@ protected:
 
 	gint	fileSelectorWidth;
 	gint	fileSelectorHeight;
-	
+
 #if GTK_CHECK_VERSION(2,10,0)
 	GtkPrintSettings *printSettings;
 	GtkPageSetup *pageSetup;
@@ -775,7 +775,7 @@ SciTEGTK::SciTEGTK(Extension *ext) : SciTEBase(ext) {
 
 	uniqueInstance[0] = '\0';
 	startupTimestamp = 0;
-	
+
 	timerID = 0;
 
 	PropSetFile::SetCaseSensitiveFilenames(true);
@@ -1744,7 +1744,7 @@ void SciTEGTK::BeginPrintThis(GtkPrintOperation *operation, GtkPrintContext *con
 	}
 	pageStarts.push_back(lengthPrinted);
 
-	gtk_print_operation_set_n_pages(operation, pageStarts.size()-1);				
+	gtk_print_operation_set_n_pages(operation, pageStarts.size()-1);
 }
 
 void SciTEGTK::BeginPrint(GtkPrintOperation *operation, GtkPrintContext *context, SciTEGTK *scitew) {
@@ -1839,7 +1839,7 @@ void SciTEGTK::Print(bool) {
 	if (printSettings != NULL)
 		gtk_print_operation_set_print_settings(printOp, printSettings);
 	if (pageSetup != NULL)
-		gtk_print_operation_set_default_page_setup(printOp, pageSetup); 
+		gtk_print_operation_set_default_page_setup(printOp, pageSetup);
 
 	g_signal_connect(printOp, "begin_print", G_CALLBACK(BeginPrint), this);
 	g_signal_connect(printOp, "draw_page", G_CALLBACK(DrawPage), this);
@@ -1972,11 +1972,11 @@ void BackgroundStrip::Creation(GtkWidget *container) {
 	Strip::Creation(container);
 	gtk_container_set_border_width(GTK_CONTAINER(GetID()), 1);
 	gtk_box_pack_start(GTK_BOX(container), GTK_WIDGET(GetID()), FALSE, FALSE, 0);
-	
+
 	wProgress.Create();
 	table.Add(wProgress, 1, false, 0, 0);
 	gtk_widget_show(wProgress);
-	
+
 	wExplanation.Create("");
 	table.Label(wExplanation);
 
@@ -1989,7 +1989,7 @@ void BackgroundStrip::Creation(GtkWidget *container) {
 void BackgroundStrip::SetProgress(const GUI::gui_string &explanation, int size, int progress) {
 	gtk_label_set_text(GTK_LABEL(wExplanation.GetID()), explanation.c_str());
 	if (size > 0) {
-		gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(wProgress.GetID()), 
+		gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(wProgress.GetID()),
 			static_cast<double>(progress) / static_cast<double>(size));
 	}
 }
@@ -3379,7 +3379,7 @@ gint SciTEGTK::Key(GdkEventKey *event) {
 	}
 
 	// check user defined keys
-	for (int cut_i = 0; cut_i < shortCutItems; cut_i++) {
+	for (size_t cut_i = 0; cut_i < shortCutItemList.size(); cut_i++) {
 		if (KeyMatch(shortCutItemList[cut_i].menuKey.c_str(), event->keyval, modifiers)) {
 			int commandNum = SciTEBase::GetMenuCommandAsInt(shortCutItemList[cut_i].menuCommand);
 			if (commandNum != -1) {

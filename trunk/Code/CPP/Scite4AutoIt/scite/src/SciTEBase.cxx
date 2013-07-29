@@ -131,10 +131,10 @@ SciTEBase::SciTEBase(Extension *ext) : apis(true), extender(ext) {
 	statementLookback = 10;
 	preprocessorSymbol = '\0';
 
-	tbVisible = true;
-	sbVisible = true;
-	tabVisible = true;						//标签可见
-	tabHideOne = true;
+	tbVisible = false;
+	sbVisible = false;
+	tabVisible = false;
+	tabHideOne = false;
 	tabMultiLine = false;
 	sbNum = 1;
 	visHeightTools = 0;
@@ -143,7 +143,7 @@ SciTEBase::SciTEBase(Extension *ext) : apis(true), extender(ext) {
 	visHeightEditor = 1;
 	heightBar = 7;
 	dialogsOnScreen = 0;
-	topMost = true;							//窗口置顶,官方为 false
+	topMost = false;
 	wrap = false;
 	wrapOutput = false;
 	wrapStyle = SC_WRAP_WORD;
@@ -188,15 +188,12 @@ SciTEBase::SciTEBase(Extension *ext) : apis(true), extender(ext) {
 	marginWidth = marginWidthDefault;
 	foldMargin = true;
 	foldMarginWidth = foldMarginWidthDefault;
-	lineNumbers = true;
+	lineNumbers = false;
 	lineNumbersWidth = lineNumbersWidthDefault;
 	lineNumbersExpand = false;
 
 	languageMenu = 0;
 	languageItems = 0;
-
-	shortCutItemList = 0;
-	shortCutItems = 0;
 
 	macrosEnabled = false;
 	recording = false;
@@ -222,7 +219,6 @@ SciTEBase::~SciTEBase() {
 	if (extender)
 		extender->Finalise();
 	delete []languageMenu;
-	delete []shortCutItemList;
 	popup.Destroy();
 }
 
@@ -3013,7 +3009,8 @@ void SciTEBase::SetLineNumberWidth() {
 				lineNumWidth = lineNumbersWidth;
 			}
 		}
-
+		if (lineNumWidth < 0)
+			lineNumWidth = 0;
 		// The 4 here allows for spacing: 1 pixel on left and 3 on right.
 		std::string nNines(lineNumWidth, '9');
 		int pixelWidth = 4 + wEditor.CallString(SCI_TEXTWIDTH, STYLE_LINENUMBER, nNines.c_str());
@@ -3681,7 +3678,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 			SelectionIntoProperties();
 			if (strcmp(language.c_str(),"au3")==0 && strcmp(FileNameExt().AsUTF8().c_str(),"")==0)
 			{
-				AddCommand(props.GetWild("command.help.", ".au3"), "",SubsystemType('2'));
+				AddCommand(props.GetWild("command.help.", ".au3"), "",SubsystemType("2"));
 			} 
 			else
 			{
@@ -3703,7 +3700,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 			::MessageBox((HWND)wSciTE.GetID(),TEXT("艹,谁把这个项目的定义删除了."),TEXT("我擦,出错了."),MB_OK|MB_ICONERROR);
 		}else {
 			AddCommand(props.Get("command.scite.donate"), "",
-				SubsystemType(props.Get("command.scite.help.subsystem")[0]));
+				SubsystemType(props.Get("command.scite.help.subsystem").c_str()));
 			if (jobQueue.HasCommandToRun()) {
 				jobQueue.isBuilding = true;
 				Execute();
@@ -3717,7 +3714,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		::MessageBox((HWND)wSciTE.GetID(),TEXT("艹,谁把这个说明的定义删除了."),TEXT("我擦,出错了."),MB_OK|MB_ICONERROR);
 		}else {
 		AddCommand(props.Get("command.scite.readme"), "",
-		SubsystemType(props.Get("command.scite.help.subsystem")[0]));
+		SubsystemType(props.Get("command.scite.help.subsystem").c_str()));
 		if (jobQueue.HasCommandToRun()) {
 			jobQueue.isBuilding = true;
 			Execute();
@@ -3729,7 +3726,7 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 	case IDM_HELP_SCITE: {
 			SelectionIntoProperties();
 			AddCommand(props.Get("command.scite.help"), "",
-			        SubsystemType(props.Get("command.scite.help.subsystem")[0]));
+			        SubsystemFromChar(props.Get("command.scite.help.subsystem")[0]));
 			if (jobQueue.HasCommandToRun()) {
 				jobQueue.isBuilding = true;
 				Execute();
@@ -4187,7 +4184,7 @@ void SciTEBase::CheckMenus() {
 	        props.GetWild("command.go.", FileNameExt().AsUTF8().c_str()).size() != 0);
 	EnableAMenuItem(IDM_OPENDIRECTORYPROPERTIES, props.GetInt("properties.directory.enable") != 0);
 	for (int toolItem = 0; toolItem < toolMax; toolItem++)
-		EnableAMenuItem(IDM_TOOLS + toolItem, !jobQueue.IsExecuting());
+		EnableAMenuItem(IDM_TOOLS + toolItem, ToolIsImmediate(toolItem) || !jobQueue.IsExecuting());
 	EnableAMenuItem(IDM_STOPEXECUTE, jobQueue.IsExecuting());
 	if (buffers.size > 0) {
 		TabSelect(buffers.Current());
@@ -4673,26 +4670,6 @@ void SciTEBase::ExecuteMacroCommand(const char *command) {
 	delete []tbuff;
 }
 
-std::vector<GUI::gui_string> ListFromString(const GUI::gui_string &args) {
-	// Split on \n
-	std::vector<GUI::gui_string> vs;
-	GUI::gui_string s;
-	bool lastNewLine = false;
-	for (size_t i=0; i<args.size(); i++) {
-		lastNewLine = args[i] == '\n';
-		if (lastNewLine) {
-			vs.push_back(s);
-			s = GUI::gui_string();
-		} else {
-			s += args[i];
-		}
-	}
-	if ((s.size() > 0) || lastNewLine) {
-		vs.push_back(s);
-	}
-	return vs;
-}
-
 /**
  * Process all the command line arguments.
  * Arguments that start with '-' (also '/' on Windows) are switches or commands with
@@ -4765,9 +4742,11 @@ bool SciTEBase::ProcessCommandLine(GUI::gui_string &args, int phase) {
 			else
 				evaluate = true;
 
-			InitialiseBuffers();
-			if (props.GetInt("save.recent"))
-				RestoreRecentMenu();
+			if (!buffers.initialised) {
+				InitialiseBuffers();
+				if (props.GetInt("save.recent"))
+					RestoreRecentMenu();
+			}
 
 			if (!PreOpenCheck(arg))
 				Open(arg, static_cast<OpenFlags>(ofQuiet|ofSynchronous));

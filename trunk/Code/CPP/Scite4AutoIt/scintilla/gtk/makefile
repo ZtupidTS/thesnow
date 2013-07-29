@@ -8,7 +8,7 @@
 
 .SUFFIXES: .cxx .c .o .h .a
 ifdef CLANG
-CC = clang --std=c++0x
+CC = clang
 CCOMP = clang
 else
 CC = g++
@@ -55,12 +55,17 @@ THREADFLAGS=
 endif
 
 ifdef DEBUG
-CXXTFLAGS=-DDEBUG -g $(CXXBASEFLAGS) $(THREADFLAGS)
+ifdef CLANG
+CTFLAGS=-DDEBUG -g -fsanitize=address $(CXXBASEFLAGS) $(THREADFLAGS)
 else
-CXXTFLAGS=-DNDEBUG -Os $(CXXBASEFLAGS) $(THREADFLAGS)
+CTFLAGS=-DDEBUG -g $(CXXBASEFLAGS) $(THREADFLAGS)
+endif
+else
+CTFLAGS=-DNDEBUG -Os $(CXXBASEFLAGS) $(THREADFLAGS)
 endif
 
-CFLAGS:=$(CXXTFLAGS)
+CFLAGS:=$(CTFLAGS)
+CXXTFLAGS:=--std=c++0x $(CTFLAGS)
 
 CONFIGFLAGS:=$(shell pkg-config --cflags $(GTKVERSION))
 MARSHALLER=scintilla-marshal.o
@@ -84,9 +89,9 @@ deps:
 	$(CC) -MM $(CONFIGFLAGS) $(CXXTFLAGS) *.cxx ../src/*.cxx | sed -e 's/\/usr.* //' | grep [a-zA-Z] >deps.mak
 
 $(COMPLIB): Accessor.o CharacterSet.o LexerBase.o LexerModule.o LexerSimple.o StyleContext.o WordList.o \
-	CharClassify.o Decoration.o Document.o PerLine.o Catalogue.o CallTip.o \
+	CharClassify.o Decoration.o Document.o PerLine.o Catalogue.o CallTip.o CaseConvert.o CaseFolder.o \
 	ScintillaBase.o ContractionState.o Editor.o ExternalLexer.o PropSetSimple.o PlatGTK.o \
-	KeyMap.o LineMarker.o PositionCache.o ScintillaGTK.o CellBuffer.o ViewStyle.o \
+	KeyMap.o LineMarker.o PositionCache.o ScintillaGTK.o CellBuffer.o CharacterCategory.o ViewStyle.o \
 	RESearch.o RunStyles.o Selection.o Style.o Indicator.o AutoComplete.o UniConversion.o XPM.o \
 	$(MARSHALLER) $(LEXOBJS)
 	$(AR) rc $@ $^

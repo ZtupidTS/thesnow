@@ -48,7 +48,7 @@ extern NSString *SCIUpdateUINotification;
  * InnerView is the Cocoa interface to the Scintilla backend. It handles text input and
  * provides a canvas for painting the output.
  */
-@interface InnerView : NSView <NSTextInputClient>
+@interface InnerView : NSView <NSTextInputClient, NSUserInterfaceValidations>
 {
 @private
   ScintillaView* mOwner;
@@ -131,6 +131,9 @@ extern NSString *SCIUpdateUINotification;
 // Native call through to the backend.
 + (sptr_t) directCall: (ScintillaView*) sender message: (unsigned int) message wParam: (uptr_t) wParam
                lParam: (sptr_t) lParam;
+- (sptr_t) message: (unsigned int) message wParam: (uptr_t) wParam lParam: (sptr_t) lParam;
+- (sptr_t) message: (unsigned int) message wParam: (uptr_t) wParam;
+- (sptr_t) message: (unsigned int) message;
 
 // Back end properties getters and setters.
 - (void) setGeneralProperty: (int) property parameter: (long) parameter value: (long) value;

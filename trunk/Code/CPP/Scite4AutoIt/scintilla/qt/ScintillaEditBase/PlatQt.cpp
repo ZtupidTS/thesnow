@@ -460,7 +460,7 @@ void SurfaceImpl::MeasureWidths(Font &font,
 		return;
 	SetCodec(font);
 	QString su = codec->toUnicode(s, len);
-	QTextLayout tlay(su, *FontPointer(font));
+	QTextLayout tlay(su, *FontPointer(font), GetPaintDevice());
 	tlay.beginLayout();
 	QTextLine tl = tlay.createLine();
 	tlay.endLayout();
@@ -647,25 +647,22 @@ void Window::SetPositionRelative(PRectangle rc, Window relativeTo)
 	int ox = oPos.x();
 	int oy = oPos.y();
 	ox += rc.left;
-	if (ox < 0)
-		ox = 0;
 	oy += rc.top;
-	if (oy < 0)
-		oy = 0;
 
 	QDesktopWidget *desktop = QApplication::desktop();
-	QRect rectDesk = desktop->availableGeometry(window(wid));
+	QRect rectDesk = desktop->availableGeometry(QPoint(ox, oy));
 	/* do some corrections to fit into screen */
 	int sizex = rc.right - rc.left;
 	int sizey = rc.bottom - rc.top;
 	int screenWidth = rectDesk.width();
-	int screenHeight = rectDesk.height();
+	if (ox < rectDesk.x())
+		ox = rectDesk.x();
 	if (sizex > screenWidth)
-		ox = 0; /* the best we can do */
-	else if (ox + sizex > screenWidth)
-		ox = screenWidth - sizex;
-	if (oy + sizey > screenHeight)
-		oy = screenHeight - sizey;
+		ox = rectDesk.x(); /* the best we can do */
+	else if (ox + sizex > rectDesk.right())
+		ox = rectDesk.right() - sizex;
+	if (oy + sizey > rectDesk.bottom())
+		oy = rectDesk.bottom() - sizey;
 
 	Q_ASSERT(wid);
 	window(wid)->move(ox, oy);
@@ -982,30 +979,26 @@ void ListBoxImpl::SetList(const char *list, char separator, char typesep)
 	// It is borrowed from the GTK implementation.
 	Clear();
 	int count = strlen(list) + 1;
-	char *words = new char[count];
-	if (words) {
-		memcpy(words, list, count);
-		char *startword = words;
-		char *numword = NULL;
-		int i = 0;
-		for (; words[i]; i++) {
-			if (words[i] == separator) {
-				words[i] = '\0';
-				if (numword)
-					*numword = '\0';
-				Append(startword, numword?atoi(numword + 1):-1);
-				startword = words + i + 1;
-				numword = NULL;
-			} else if (words[i] == typesep) {
-				numword = words + i;
-			}
-		}
-		if (startword) {
+	std::vector<char> words(list, list+count);
+	char *startword = &words[0];
+	char *numword = NULL;
+	int i = 0;
+	for (; words[i]; i++) {
+		if (words[i] == separator) {
+			words[i] = '\0';
 			if (numword)
 				*numword = '\0';
 			Append(startword, numword?atoi(numword + 1):-1);
+			startword = &words[0] + i + 1;
+			numword = NULL;
+		} else if (words[i] == typesep) {
+			numword = &words[0] + i;
 		}
-		delete []words;
+	}
+	if (startword) {
+		if (numword)
+			*numword = '\0';
+		Append(startword, numword?atoi(numword + 1):-1);
 	}
 }
 
@@ -1089,8 +1082,17 @@ public:
 
 	virtual Function FindFunction(const char *name) {
 		if (lib) {
-			void *fnAddress = lib->resolve(name);
-			return static_cast<Function>(fnAddress);
+			// C++ standard doesn't like casts betwen function pointers and void pointers so use a union
+			union {
+#if QT_VERSION >= QT_VERSION_CHECK(5, 0, 0)
+				QFunctionPointer fp;
+#else
+				void *fp;
+#endif
+				Function f;
+			} fnConv;
+			fnConv.fp = lib->resolve(name);
+			return fnConv.f;
 		}
 		return NULL;
 	}
@@ -1122,7 +1124,7 @@ const char *Platform::DefaultFont()
 	static char fontNameDefault[200] = "";
 	if (!fontNameDefault[0]) {
 		QFont font = QApplication::font();
-		strcpy(fontNameDefault, font.family().toAscii());
+		strcpy(fontNameDefault, font.family().toUtf8());
 	}
 	return fontNameDefault;
 }
@@ -1262,7 +1264,7 @@ int Platform::DBCSCharMaxLength()
 
 static QTime timer;
 
-ElapsedTime::ElapsedTime()
+ElapsedTime::ElapsedTime() : bigBit(0), littleBit(0)
 {
 	timer.start();
 }

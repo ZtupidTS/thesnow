@@ -260,11 +260,11 @@ bool SciTEWin::OpenDialog(FilePath directory, const GUI::gui_char *filter) {
 		if (wcslen(openName) > static_cast<size_t>(ofn.nFileOffset)) {
 			Open(openName);
 		} else {
-			FilePath directory(openName);
+			FilePath directoryOpen(openName);
 			GUI::gui_char *p = openName + wcslen(openName) + 1;
 			while (*p) {
 				// make path+file, add it to the list
-				Open(FilePath(directory, FilePath(p)));
+				Open(FilePath(directoryOpen, FilePath(p)));
 				// goto next char pos after \0
 				p += wcslen(p) + 1;
 			}
@@ -1372,7 +1372,7 @@ void SciTEWin::FindInFiles() {
 		return;
 	}
 	props.Set("find.what", findWhat.c_str());
-	
+
 	SString directory = props.Get("find.in.directory");
 	if (directory.length()) {
 		props.Set("find.directory", directory.c_str());
@@ -1380,7 +1380,7 @@ void SciTEWin::FindInFiles() {
 		FilePath findInDir = filePath.Directory();
 		props.Set("find.directory", findInDir.AsUTF8().c_str());
 	}
-	
+
 	wFindInFiles = ::CreateDialogParam(hInstance, TEXT("Grep"), MainHWND(),
 		reinterpret_cast<DLGPROC>(GrepDlg), reinterpret_cast<sptr_t>(this));
 	wFindInFiles.Show();

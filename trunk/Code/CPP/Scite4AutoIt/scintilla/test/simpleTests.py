@@ -5,12 +5,15 @@ from __future__ import unicode_literals
 
 import codecs, ctypes, os, sys, unittest
 
-import XiteWin
+if sys.platform == "win32":
+	import XiteWin as Xite
+else:
+	import XiteQt as Xite
 
 class TestSimple(unittest.TestCase):
 
 	def setUp(self):
-		self.xite = XiteWin.xiteFrame
+		self.xite = Xite.xiteFrame
 		self.ed = self.xite.ed
 		self.ed.ClearAll()
 		self.ed.EmptyUndoBuffer()
@@ -19,7 +22,7 @@ class TestSimple(unittest.TestCase):
 		self.assertEquals(self.ed.Length, 0)
 
 	def testAddText(self):
-		self.ed.AddText(1, "x")
+		self.ed.AddText(1, b"x")
 		self.assertEquals(self.ed.Length, 1)
 		self.assertEquals(self.ed.GetCharAt(0), ord("x"))
 		self.assertEquals(self.ed.GetStyleAt(0), 0)
@@ -65,7 +68,7 @@ class TestSimple(unittest.TestCase):
 	def testPosition(self):
 		self.assertEquals(self.ed.CurrentPos, 0)
 		self.assertEquals(self.ed.Anchor, 0)
-		self.ed.AddText(1, "x")
+		self.ed.AddText(1, b"x")
 		# Caret has automatically moved
 		self.assertEquals(self.ed.CurrentPos, 1)
 		self.assertEquals(self.ed.Anchor, 1)
@@ -88,7 +91,7 @@ class TestSimple(unittest.TestCase):
 		self.assertEquals(self.ed.Anchor, 0)
 		self.assertEquals(self.ed.SelectionStart, 0)
 		self.assertEquals(self.ed.SelectionEnd, 0)
-		self.ed.AddText(1, "x")
+		self.ed.AddText(1, b"x")
 		self.ed.SelectionStart = 0
 		self.assertEquals(self.ed.CurrentPos, 1)
 		self.assertEquals(self.ed.Anchor, 0)
@@ -109,10 +112,8 @@ class TestSimple(unittest.TestCase):
 		self.ed.SetSel(1, 3)
 		self.assertEquals(self.ed.SelectionStart, 1)
 		self.assertEquals(self.ed.SelectionEnd, 3)
-		result = b"\0" * 5
-		length = self.ed.GetSelText(0, result)
-		self.assertEquals(length, 3)
-		self.assertEquals(result[:length], b"bc\0")
+		result = self.ed.GetSelText(0)
+		self.assertEquals(result, b"bc\0")
 		self.ed.ReplaceSel(0, b"1234")
 		self.assertEquals(self.ed.Length, 6)
 		self.assertEquals(self.ed.Contents(), b"a1234d")
@@ -253,19 +254,16 @@ class TestSimple(unittest.TestCase):
 
 	def testGetCurLine(self):
 		self.ed.AddText(1, b"x")
-		data = b"\0" * 100
+		data = ctypes.create_string_buffer(b"\0" * 100)
 		caret = self.ed.GetCurLine(len(data), data)
-		data = data.rstrip(b"\0")
 		self.assertEquals(caret, 1)
-		self.assertEquals(data, b"x")
+		self.assertEquals(data.value, b"x")
 
 	def testGetLine(self):
 		self.ed.AddText(1, b"x")
-		data = b"\0" * 100
-		length = self.ed.GetLine(0, data)
-		self.assertEquals(length, 1)
-		data = data[:length]
-		self.assertEquals(data, b"x")
+		data = ctypes.create_string_buffer(b"\0" * 100)
+		self.ed.GetLine(0, data)
+		self.assertEquals(data.value, b"x")
 
 	def testLineEnds(self):
 		self.ed.AddText(3, b"x\ny")
@@ -273,7 +271,10 @@ class TestSimple(unittest.TestCase):
 		self.assertEquals(self.ed.GetLineEndPosition(1), 3)
 		self.assertEquals(self.ed.LineLength(0), 2)
 		self.assertEquals(self.ed.LineLength(1), 1)
-		self.assertEquals(self.ed.EOLMode, self.ed.SC_EOL_CRLF)
+		if sys.platform == "win32":
+			self.assertEquals(self.ed.EOLMode, self.ed.SC_EOL_CRLF)
+		else:
+			self.assertEquals(self.ed.EOLMode, self.ed.SC_EOL_LF)
 		lineEnds = [b"\r\n", b"\r", b"\n"]
 		for lineEndType in [self.ed.SC_EOL_CR, self.ed.SC_EOL_LF, self.ed.SC_EOL_CRLF]:
 			self.ed.EOLMode = lineEndType
@@ -489,6 +490,7 @@ class TestSimple(unittest.TestCase):
 		self.ed.AddText(5, b"a1b2c")
 		self.ed.SetSel(1,3)
 		self.ed.Cut()
+		self.xite.DoEvents()
 		self.assertEquals(self.ed.CanPaste(), 1)
 		self.ed.SetSel(0, 0)
 		self.ed.Paste()
@@ -502,16 +504,41 @@ class TestSimple(unittest.TestCase):
 		self.ed.Clear()
 		self.assertEquals(self.ed.Contents(), b"1c")
 
+	def testCopyAllowLine(self):
+		self.xite.DoEvents()
+		lineEndType = self.ed.EOLMode
+		self.ed.EOLMode = self.ed.SC_EOL_LF
+		self.ed.AddText(5, b"a1\nb2")
+		self.ed.SetSel(1,1)
+		self.ed.CopyAllowLine()
+		self.xite.DoEvents()
+		self.assertEquals(self.ed.CanPaste(), 1)
+		self.ed.SetSel(0, 0)
+		self.ed.Paste()
+		self.ed.EOLMode = lineEndType
+		self.assertEquals(self.ed.Contents(), b"a1\na1\nb2")
+
+	def testDuplicate(self):
+		self.ed.AddText(3, b"1b2")
+		self.ed.SetSel(1,2)
+		self.ed.SelectionDuplicate()
+		self.assertEquals(self.ed.Contents(), b"1bb2")
+
+	def testTransposeLines(self):
+		self.ed.AddText(8, b"a1\nb2\nc3")
+		self.ed.SetSel(3,3)
+		self.ed.LineTranspose()
+		self.assertEquals(self.ed.Contents(), b"b2\na1\nc3")
+
 	def testGetSet(self):
-		self.ed.SetText(0, b"abc")
+		self.ed.SetContents(b"abc")
 		self.assertEquals(self.ed.TextLength, 3)
-		result = b"\0" * 5
+		result = ctypes.create_string_buffer(b"\0" * 5)
 		length = self.ed.GetText(4, result)
-		result = result[:length]
-		self.assertEquals(result, b"abc")
+		self.assertEquals(result.value, b"abc")
 
 	def testAppend(self):
-		self.ed.SetText(0, b"abc")
+		self.ed.SetContents(b"abc")
 		self.assertEquals(self.ed.SelectionStart, 0)
 		self.assertEquals(self.ed.SelectionEnd, 0)
 		text = b"12"
@@ -521,7 +548,7 @@ class TestSimple(unittest.TestCase):
 		self.assertEquals(self.ed.Contents(), b"abc12")
 
 	def testTarget(self):
-		self.ed.SetText(0, b"abcd")
+		self.ed.SetContents(b"abcd")
 		self.ed.TargetStart = 1
 		self.ed.TargetEnd = 3
 		self.assertEquals(self.ed.TargetStart, 1)
@@ -534,9 +561,7 @@ class TestSimple(unittest.TestCase):
 		searchString = b"\([1-9]+\)"
 		pos = self.ed.SearchInTarget(len(searchString), searchString)
 		self.assertEquals(1, pos)
-		tagString = b"abcdefghijklmnop"
-		lenTag = self.ed.GetTag(1, tagString)
-		tagString = tagString[:lenTag]
+		tagString = self.ed.GetTag(1)
 		self.assertEquals(tagString, b"321")
 		rep = b"\\1"
 		self.ed.TargetStart = 0
@@ -550,7 +575,7 @@ class TestSimple(unittest.TestCase):
 
 	def testTargetEscape(self):
 		# Checks that a literal \ can be in the replacement. Bug #2959876
-		self.ed.SetText(0, b"abcd")
+		self.ed.SetContents(b"abcd")
 		self.ed.TargetStart = 1
 		self.ed.TargetEnd = 3
 		rep = b"\\\\n"
@@ -598,7 +623,7 @@ REDO = 4
 class TestContainerUndo(unittest.TestCase):
 
 	def setUp(self):
-		self.xite = XiteWin.xiteFrame
+		self.xite = Xite.xiteFrame
 		self.ed = self.xite.ed
 		self.ed.ClearAll()
 		self.ed.EmptyUndoBuffer()
@@ -753,7 +778,7 @@ class TestKeyCommands(unittest.TestCase):
 	""" These commands are normally assigned to keys and take no arguments """
 
 	def setUp(self):
-		self.xite = XiteWin.xiteFrame
+		self.xite = Xite.xiteFrame
 		self.ed = self.xite.ed
 		self.ed.ClearAll()
 		self.ed.EmptyUndoBuffer()
@@ -834,7 +859,7 @@ class TestKeyCommands(unittest.TestCase):
 class TestMarkers(unittest.TestCase):
 
 	def setUp(self):
-		self.xite = XiteWin.xiteFrame
+		self.xite = Xite.xiteFrame
 		self.ed = self.xite.ed
 		self.ed.ClearAll()
 		self.ed.EmptyUndoBuffer()
@@ -919,7 +944,7 @@ class TestMarkers(unittest.TestCase):
 class TestIndicators(unittest.TestCase):
 
 	def setUp(self):
-		self.xite = XiteWin.xiteFrame
+		self.xite = Xite.xiteFrame
 		self.ed = self.xite.ed
 		self.ed.ClearAll()
 		self.ed.EmptyUndoBuffer()
@@ -968,7 +993,7 @@ class TestIndicators(unittest.TestCase):
 class TestScrolling(unittest.TestCase):
 
 	def setUp(self):
-		self.xite = XiteWin.xiteFrame
+		self.xite = Xite.xiteFrame
 		self.ed = self.xite.ed
 		self.ed.ClearAll()
 		self.ed.EmptyUndoBuffer()
@@ -999,7 +1024,7 @@ class TestScrolling(unittest.TestCase):
 class TestSearch(unittest.TestCase):
 
 	def setUp(self):
-		self.xite = XiteWin.xiteFrame
+		self.xite = Xite.xiteFrame
 		self.ed = self.xite.ed
 		self.ed.ClearAll()
 		self.ed.EmptyUndoBuffer()
@@ -1079,10 +1104,36 @@ class TestSearch(unittest.TestCase):
 		self.assertEquals(-1, self.ed.FindBytes(0, self.ed.Length, b"\\xAB", flags))
 		self.assertEquals(0, self.ed.FindBytes(0, self.ed.Length, b"\\xAD", flags))
 
+class TestRepresentations(unittest.TestCase):
+
+	def setUp(self):
+		self.xite = Xite.xiteFrame
+		self.ed = self.xite.ed
+		self.ed.ClearAll()
+		self.ed.EmptyUndoBuffer()
+
+	def testGetControl(self):
+		result = self.ed.GetRepresentation(b"\001")
+		self.assertEquals(result, b"SOH")
+
+	def testClearControl(self):
+		result = self.ed.GetRepresentation(b"\002")
+		self.assertEquals(result, b"STX")
+		self.ed.ClearRepresentation(b"\002")
+		result = self.ed.GetRepresentation(b"\002")
+		self.assertEquals(result, b"")
+
+	def testSetOhm(self):
+		ohmSign = b"\xe2\x84\xa6"
+		ohmExplained = b"U+2126 \xe2\x84\xa6"
+		self.ed.SetRepresentation(ohmSign, ohmExplained)
+		result = self.ed.GetRepresentation(ohmSign)
+		self.assertEquals(result, ohmExplained)
+
 class TestProperties(unittest.TestCase):
 
 	def setUp(self):
-		self.xite = XiteWin.xiteFrame
+		self.xite = Xite.xiteFrame
 		self.ed = self.xite.ed
 		self.ed.ClearAll()
 		self.ed.EmptyUndoBuffer()
@@ -1090,20 +1141,16 @@ class TestProperties(unittest.TestCase):
 	def testSet(self):
 		self.ed.SetProperty(b"test", b"12")
 		self.assertEquals(self.ed.GetPropertyInt(b"test"), 12)
-		result = b"\0" * 10
-		length = self.ed.GetProperty(b"test", result)
-		result = result[:length]
+		result = self.ed.GetProperty(b"test")
 		self.assertEquals(result, b"12")
 		self.ed.SetProperty(b"test.plus", b"[$(test)]")
-		result = b"\0" * 10
-		length = self.ed.GetPropertyExpanded(b"test.plus", result)
-		result = result[:length]
+		result = self.ed.GetPropertyExpanded(b"test.plus")
 		self.assertEquals(result, b"[12]")
 
 class TestTextMargin(unittest.TestCase):
 
 	def setUp(self):
-		self.xite = XiteWin.xiteFrame
+		self.xite = Xite.xiteFrame
 		self.ed = self.xite.ed
 		self.ed.ClearAll()
 		self.ed.EmptyUndoBuffer()
@@ -1112,7 +1159,6 @@ class TestTextMargin(unittest.TestCase):
 
 	def testAscent(self):
 		lineHeight = self.ed.TextHeight(0)
-		self.ed.ExtraAscent
 		self.assertEquals(self.ed.ExtraAscent, 0)
 		self.assertEquals(self.ed.ExtraDescent, 0)
 		self.ed.ExtraAscent = 1
@@ -1126,9 +1172,7 @@ class TestTextMargin(unittest.TestCase):
 
 	def testTextMargin(self):
 		self.ed.MarginSetText(0, self.txt)
-		result = b"\0" * 10
-		length = self.ed.MarginGetText(0, result)
-		result = result[:length]
+		result = self.ed.MarginGetText(0)
 		self.assertEquals(result, self.txt)
 		self.ed.MarginTextClearAll()
 
@@ -1142,9 +1186,7 @@ class TestTextMargin(unittest.TestCase):
 		styles = b"\001\002\003\004"
 		self.ed.MarginSetText(0, self.txt)
 		self.ed.MarginSetStyles(0, styles)
-		result = b"\0" * 10
-		length = self.ed.MarginGetStyles(0, result)
-		result = result[:length]
+		result = self.ed.MarginGetStyles(0)
 		self.assertEquals(result, styles)
 		self.ed.MarginTextClearAll()
 
@@ -1155,7 +1197,7 @@ class TestTextMargin(unittest.TestCase):
 class TestAnnotation(unittest.TestCase):
 
 	def setUp(self):
-		self.xite = XiteWin.xiteFrame
+		self.xite = Xite.xiteFrame
 		self.ed = self.xite.ed
 		self.ed.ClearAll()
 		self.ed.EmptyUndoBuffer()
@@ -1166,10 +1208,8 @@ class TestAnnotation(unittest.TestCase):
 		self.assertEquals(self.ed.AnnotationGetLines(), 0)
 		self.ed.AnnotationSetText(0, self.txt)
 		self.assertEquals(self.ed.AnnotationGetLines(), 1)
-		result = b"\0" * 10
-		length = self.ed.AnnotationGetText(0, result)
-		self.assertEquals(length, 4)
-		result = result[:length]
+		result = self.ed.AnnotationGetText(0)
+		self.assertEquals(len(result), 4)
 		self.assertEquals(result, self.txt)
 		self.ed.AnnotationClearAll()
 
@@ -1183,9 +1223,7 @@ class TestAnnotation(unittest.TestCase):
 		styles = b"\001\002\003\004"
 		self.ed.AnnotationSetText(0, self.txt)
 		self.ed.AnnotationSetStyles(0, styles)
-		result = b"\0" * 10
-		length = self.ed.AnnotationGetStyles(0, result)
-		result = result[:length]
+		result = self.ed.AnnotationGetStyles(0)
 		self.assertEquals(result, styles)
 		self.ed.AnnotationClearAll()
 
@@ -1214,7 +1252,7 @@ class TestAnnotation(unittest.TestCase):
 class TestMultiSelection(unittest.TestCase):
 
 	def setUp(self):
-		self.xite = XiteWin.xiteFrame
+		self.xite = Xite.xiteFrame
 		self.ed = self.xite.ed
 		self.ed.ClearAll()
 		self.ed.EmptyUndoBuffer()
@@ -1340,7 +1378,7 @@ class TestMultiSelection(unittest.TestCase):
 
 class TestCaseMapping(unittest.TestCase):
 	def setUp(self):
-		self.xite = XiteWin.xiteFrame
+		self.xite = Xite.xiteFrame
 		self.ed = self.xite.ed
 		self.ed.ClearAll()
 		self.ed.EmptyUndoBuffer()
@@ -1352,13 +1390,13 @@ class TestCaseMapping(unittest.TestCase):
 	def testEmpty(self):
 		# Trying to upper case an empty string caused a crash at one stage
 		t = b"x"
-		self.ed.SetText(len(t), t)
+		self.ed.SetContents(t)
 		self.ed.UpperCase()
 		self.assertEquals(self.ed.Contents(), b"x")
 
 	def testASCII(self):
 		t = b"x"
-		self.ed.SetText(len(t), t)
+		self.ed.SetContents(t)
 		self.ed.SetSel(0,1)
 		self.ed.UpperCase()
 		self.assertEquals(self.ed.Contents(), b"X")
@@ -1366,16 +1404,19 @@ class TestCaseMapping(unittest.TestCase):
 	def testLatin1(self):
 		t = "å".encode("Latin-1")
 		r = "Å".encode("Latin-1")
-		self.ed.SetText(len(t), t)
+		self.ed.SetContents(t)
 		self.ed.SetSel(0,1)
 		self.ed.UpperCase()
 		self.assertEquals(self.ed.Contents(), r)
 
 	def testRussian(self):
-		self.ed.StyleSetCharacterSet(self.ed.STYLE_DEFAULT, self.ed.SC_CHARSET_RUSSIAN)
+		if sys.platform == "win32":
+			self.ed.StyleSetCharacterSet(self.ed.STYLE_DEFAULT, self.ed.SC_CHARSET_RUSSIAN)
+		else:
+			self.ed.StyleSetCharacterSet(self.ed.STYLE_DEFAULT, self.ed.SC_CHARSET_CYRILLIC)
 		t = "Б".encode("Windows-1251")
 		r = "б".encode("Windows-1251")
-		self.ed.SetText(len(t), t)
+		self.ed.SetContents(t)
 		self.ed.SetSel(0,1)
 		self.ed.LowerCase()
 		self.assertEquals(self.ed.Contents(), r)
@@ -1384,7 +1425,7 @@ class TestCaseMapping(unittest.TestCase):
 		self.ed.SetCodePage(65001)
 		t = "å".encode("UTF-8")
 		r = "Å".encode("UTF-8")
-		self.ed.SetText(len(t), t)
+		self.ed.SetContents(t)
 		self.ed.SetSel(0,2)
 		self.ed.UpperCase()
 		self.assertEquals(self.ed.Contents(), r)
@@ -1393,16 +1434,47 @@ class TestCaseMapping(unittest.TestCase):
 		self.ed.SetCodePage(65001)
 		t = "ı".encode("UTF-8")
 		r = "I".encode("UTF-8")
-		self.ed.SetText(len(t), t)
+		self.ed.SetContents(t)
 		self.assertEquals(self.ed.Length, 2)
 		self.ed.SetSel(0,2)
 		self.ed.UpperCase()
 		self.assertEquals(self.ed.Length, 1)
 		self.assertEquals(self.ed.Contents(), r)
 
+	def testUTFGrows(self):
+		# This crashed at one point in debug builds due to looking past end of shorter string
+		self.ed.SetCodePage(65001)
+		# ﬖ is a single character ligature taking 3 bytes in UTF8: EF AC 96 
+		t = 'ﬖﬖ'.encode("UTF-8")
+		self.ed.SetContents(t)
+		self.assertEquals(self.ed.Length, 6)
+		self.ed.SetSel(0,self.ed.Length)
+		self.ed.UpperCase()
+		# To convert to upper case the ligature is separated into վ and ն then uppercased to Վ and Ն
+		# each of which takes 2 bytes in UTF-8: D5 8E D5 86
+		r = 'ՎՆՎՆ'.encode("UTF-8")
+		self.assertEquals(self.ed.Length, 8)
+		self.assertEquals(self.ed.Contents(), r)
+		self.assertEquals(self.ed.SelectionEnd, self.ed.Length)
+
+	def testUTFShrinks(self):
+		self.ed.SetCodePage(65001)
+		# ﬁ is a single character ligature taking 3 bytes in UTF8: EF AC 81
+		t = 'ﬁﬁ'.encode("UTF-8")
+		self.ed.SetContents(t)
+		self.assertEquals(self.ed.Length, 6)
+		self.ed.SetSel(0,self.ed.Length)
+		self.ed.UpperCase()
+		# To convert to upper case the ligature is separated into f and i then uppercased to F and I
+		# each of which takes 1 byte in UTF-8: 46 49
+		r = 'FIFI'.encode("UTF-8")
+		self.assertEquals(self.ed.Length, 4)
+		self.assertEquals(self.ed.Contents(), r)
+		self.assertEquals(self.ed.SelectionEnd, self.ed.Length)
+
 class TestCaseInsensitiveSearch(unittest.TestCase):
 	def setUp(self):
-		self.xite = XiteWin.xiteFrame
+		self.xite = Xite.xiteFrame
 		self.ed = self.xite.ed
 		self.ed.ClearAll()
 		self.ed.EmptyUndoBuffer()
@@ -1414,7 +1486,7 @@ class TestCaseInsensitiveSearch(unittest.TestCase):
 	def testEmpty(self):
 		text = b" x X"
 		searchString = b""
-		self.ed.SetText(len(text), text)
+		self.ed.SetContents(text)
 		self.ed.TargetStart = 0
 		self.ed.TargetEnd = self.ed.Length-1
 		self.ed.SearchFlags = 0
@@ -1424,7 +1496,7 @@ class TestCaseInsensitiveSearch(unittest.TestCase):
 	def testASCII(self):
 		text = b" x X"
 		searchString = b"X"
-		self.ed.SetText(len(text), text)
+		self.ed.SetContents(text)
 		self.ed.TargetStart = 0
 		self.ed.TargetEnd = self.ed.Length-1
 		self.ed.SearchFlags = 0
@@ -1434,7 +1506,7 @@ class TestCaseInsensitiveSearch(unittest.TestCase):
 	def testLatin1(self):
 		text = "Frånd Åå".encode("Latin-1")
 		searchString = "Å".encode("Latin-1")
-		self.ed.SetText(len(text), text)
+		self.ed.SetContents(text)
 		self.ed.TargetStart = 0
 		self.ed.TargetEnd = self.ed.Length-1
 		self.ed.SearchFlags = 0
@@ -1445,7 +1517,7 @@ class TestCaseInsensitiveSearch(unittest.TestCase):
 		self.ed.StyleSetCharacterSet(self.ed.STYLE_DEFAULT, self.ed.SC_CHARSET_RUSSIAN)
 		text = "=(Б tex б)".encode("Windows-1251")
 		searchString = "б".encode("Windows-1251")
-		self.ed.SetText(len(text), text)
+		self.ed.SetContents(text)
 		self.ed.TargetStart = 0
 		self.ed.TargetEnd = self.ed.Length-1
 		self.ed.SearchFlags = 0
@@ -1456,7 +1528,7 @@ class TestCaseInsensitiveSearch(unittest.TestCase):
 		self.ed.SetCodePage(65001)
 		text = "Frånd Åå".encode("UTF-8")
 		searchString = "Å".encode("UTF-8")
-		self.ed.SetText(len(text), text)
+		self.ed.SetContents(text)
 		self.ed.TargetStart = 0
 		self.ed.TargetEnd = self.ed.Length-1
 		self.ed.SearchFlags = 0
@@ -1464,13 +1536,14 @@ class TestCaseInsensitiveSearch(unittest.TestCase):
 		self.assertEquals(2, pos)
 
 	def testUTFDifferentLength(self):
-		# Searching for a two byte string "ı" finds a single byte "I"
+		# Searching for a two byte string finds a single byte
 		self.ed.SetCodePage(65001)
-		text = "Fråndi Ååİ $".encode("UTF-8")
+		# two byte string "ſ" single byte "s"
+		text = "Frånds Ååſ $".encode("UTF-8")
+		searchString = "ſ".encode("UTF-8")
 		firstPosition = len("Frånd".encode("UTF-8"))
-		searchString = "İ".encode("UTF-8")
 		self.assertEquals(len(searchString), 2)
-		self.ed.SetText(len(text), text)
+		self.ed.SetContents(text)
 		self.ed.TargetStart = 0
 		self.ed.TargetEnd = self.ed.Length-1
 		self.ed.SearchFlags = 0
@@ -1480,7 +1553,7 @@ class TestCaseInsensitiveSearch(unittest.TestCase):
 
 class TestLexer(unittest.TestCase):
 	def setUp(self):
-		self.xite = XiteWin.xiteFrame
+		self.xite = Xite.xiteFrame
 		self.ed = self.xite.ed
 		self.ed.ClearAll()
 		self.ed.EmptyUndoBuffer()
@@ -1492,15 +1565,27 @@ class TestLexer(unittest.TestCase):
 	def testLexerName(self):
 		self.ed.LexerLanguage = b"cpp"
 		self.assertEquals(self.ed.GetLexer(), self.ed.SCLEX_CPP)
-		name = b"-" * 100
-		length = self.ed.GetLexerLanguage(0, name)
-		name = name[:length]
+		name = self.ed.GetLexerLanguage(0)
 		self.assertEquals(name, b"cpp")
+	
+	def testPropertyNames(self):
+		propertyNames = self.ed.PropertyNames()
+		self.assertNotEquals(propertyNames, b"")
+		# The cpp lexer has a boolean property named lexer.cpp.allow.dollars
+		propNameDollars = b"lexer.cpp.allow.dollars"
+		propertyType = self.ed.PropertyType(propNameDollars)
+		self.assertEquals(propertyType, self.ed.SC_TYPE_BOOLEAN)
+		propertyDescription = self.ed.DescribeProperty(propNameDollars)
+		self.assertNotEquals(propertyDescription, b"")
+
+	def testWordListDescriptions(self):
+		wordSet = self.ed.DescribeKeyWordSets()
+		self.assertNotEquals(wordSet, b"")
 
 class TestAutoComplete(unittest.TestCase):
 
 	def setUp(self):
-		self.xite = XiteWin.xiteFrame
+		self.xite = Xite.xiteFrame
 		self.ed = self.xite.ed
 		self.ed.ClearAll()
 		self.ed.EmptyUndoBuffer()
@@ -1555,10 +1640,9 @@ class TestAutoComplete(unittest.TestCase):
 		#~ time.sleep(2)
 		self.assertEquals(self.ed.AutoCPosStart(), 0)
 		self.assertEquals(self.ed.AutoCGetCurrent(), 0)
-		t = b"xxx"
-		l = self.ed.AutoCGetCurrentText(5, t)
+		t = self.ed.AutoCGetCurrentText(5)
 		#~ self.assertEquals(l, 3)
-		self.assertEquals(t, b"za\0")
+		self.assertEquals(t, b"za")
 		self.ed.AutoCCancel()
 		self.assertEquals(self.ed.AutoCActive(), 0)
 
@@ -1586,14 +1670,14 @@ class TestAutoComplete(unittest.TestCase):
 class TestDirectAccess(unittest.TestCase):
 
 	def setUp(self):
-		self.xite = XiteWin.xiteFrame
+		self.xite = Xite.xiteFrame
 		self.ed = self.xite.ed
 		self.ed.ClearAll()
 		self.ed.EmptyUndoBuffer()
 
 	def testGapPosition(self):
 		text = b"abcd"
-		self.ed.SetText(len(text), text)
+		self.ed.SetContents(text)
 		self.assertEquals(self.ed.GapPosition, 4)
 		self.ed.TargetStart = 1
 		self.ed.TargetEnd = 1
@@ -1603,7 +1687,7 @@ class TestDirectAccess(unittest.TestCase):
 
 	def testCharacterPointerAndRangePointer(self):
 		text = b"abcd"
-		self.ed.SetText(len(text), text)
+		self.ed.SetContents(text)
 		characterPointer = self.ed.CharacterPointer
 		rangePointer = self.ed.GetRangePointer(0,3)
 		self.assertEquals(characterPointer, rangePointer)
@@ -1616,7 +1700,7 @@ class TestDirectAccess(unittest.TestCase):
 
 class TestWordChars(unittest.TestCase):
 	def setUp(self):
-		self.xite = XiteWin.xiteFrame
+		self.xite = Xite.xiteFrame
 		self.ed = self.xite.ed
 		self.ed.ClearAll()
 		self.ed.EmptyUndoBuffer()
@@ -1656,10 +1740,7 @@ class TestWordChars(unittest.TestCase):
 	def testDefaultWordChars(self):
 		# check that the default word chars are as expected
 		import string
-		dataLen = self.ed.GetWordChars(None, None)
-		data = b"\0" * dataLen
-		self.ed.GetWordChars(None, data)
-		self.assertEquals(dataLen, len(data))
+		data = self.ed.GetWordChars(None)
 		expected = set(string.digits + string.ascii_letters + '_') | \
 			set(chr(x) for x in range(0x80, 0x100))
 		self.assertCharSetsEqual(data, expected)
@@ -1667,10 +1748,7 @@ class TestWordChars(unittest.TestCase):
 	def testDefaultWhitespaceChars(self):
 		# check that the default whitespace chars are as expected
 		import string
-		dataLen = self.ed.GetWhitespaceChars(None, None)
-		data = b"\0" * dataLen
-		self.ed.GetWhitespaceChars(None, data)
-		self.assertEquals(dataLen, len(data))
+		data = self.ed.GetWhitespaceChars(None)
 		expected = (set(chr(x) for x in (range(0, 0x20))) | set(' ')) - \
 			set(['\r', '\n'])
 		self.assertCharSetsEqual(data, expected)
@@ -1678,10 +1756,7 @@ class TestWordChars(unittest.TestCase):
 	def testDefaultPunctuationChars(self):
 		# check that the default punctuation chars are as expected
 		import string
-		dataLen = self.ed.GetPunctuationChars(None, None)
-		data = b"\0" * dataLen
-		self.ed.GetPunctuationChars(None, data)
-		self.assertEquals(dataLen, len(data))
+		data = self.ed.GetPunctuationChars(None)
 		expected = set(chr(x) for x in range(0x20, 0x80)) - \
 			set(string.ascii_letters + string.digits + "\r\n_ ")
 		self.assertCharSetsEqual(data, expected)
@@ -1689,19 +1764,13 @@ class TestWordChars(unittest.TestCase):
 	def testCustomWordChars(self):
 		# check that setting things to whitespace chars makes them not words
 		self._setChars("whitespace", range(1, 0x100))
-		dataLen = self.ed.GetWordChars(None, None)
-		data = b"\0" * dataLen
-		self.ed.GetWordChars(None, data)
-		self.assertEquals(dataLen, len(data))
+		data = self.ed.GetWordChars(None)
 		expected = set()
 		self.assertCharSetsEqual(data, expected)
 		# and now set something to make sure that works too
 		expected = set(range(1, 0x100, 2))
 		self._setChars("word", expected)
-		dataLen = self.ed.GetWordChars(None, None)
-		data = b"\0" * dataLen
-		self.ed.GetWordChars(None, data)
-		self.assertEquals(dataLen, len(data))
+		data = self.ed.GetWordChars(None)
 		self.assertCharSetsEqual(data, expected)
 
 	def testCustomWhitespaceChars(self):
@@ -1709,45 +1778,28 @@ class TestWordChars(unittest.TestCase):
 		self._setChars("word", range(1, 0x100))
 		# we can't change chr(0) from being anything but whitespace
 		expected = set([0])
-		dataLen = self.ed.GetWhitespaceChars(None, None)
-		data = b"\0" * dataLen
-		self.ed.GetWhitespaceChars(None, data)
-		self.assertEquals(dataLen, len(data))
+		data = self.ed.GetWhitespaceChars(None)
 		self.assertCharSetsEqual(data, expected)
 		# now try to set it to something custom
 		expected = set(range(1, 0x100, 2)) | set([0])
 		self._setChars("whitespace", expected)
-		dataLen = self.ed.GetWhitespaceChars(None, None)
-		data = b"\0" * dataLen
-		self.ed.GetWhitespaceChars(None, data)
-		self.assertEquals(dataLen, len(data))
+		data = self.ed.GetWhitespaceChars(None)
 		self.assertCharSetsEqual(data, expected)
 
 	def testCustomPunctuationChars(self):
 		# check setting punctuation chars to non-default values
 		self._setChars("word", range(1, 0x100))
 		expected = set()
-		dataLen = self.ed.GetPunctuationChars(None, None)
-		data = b"\0" * dataLen
-		self.ed.GetPunctuationChars(None, data)
-		self.assertEquals(dataLen, len(data))
+		data = self.ed.GetPunctuationChars(0)
 		self.assertEquals(set(data), expected)
 		# now try to set it to something custom
 		expected = set(range(1, 0x100, 1))
 		self._setChars("punctuation", expected)
-		dataLen = self.ed.GetPunctuationChars(None, None)
-		data = b"\0" * dataLen
-		self.ed.GetPunctuationChars(None, data)
-		self.assertEquals(dataLen, len(data))
+		data = self.ed.GetPunctuationChars(None)
 		self.assertCharSetsEqual(data, expected)
 
-#~ import os
-#~ for x in os.getenv("PATH").split(";"):
-	#~ n = "scilexer.dll"
-	#~ nf = x + "\\" + n
-	#~ print os.access(nf, os.R_OK), nf
 if __name__ == '__main__':
-	uu = XiteWin.main("simpleTests")
+	uu = Xite.main("simpleTests")
 	#~ for x in sorted(uu.keys()):
 		#~ print(x, uu[x])
 	#~ print()
