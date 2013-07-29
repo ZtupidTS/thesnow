@@ -781,7 +781,7 @@ void SciTEBase::Activate(bool activeApp) {
 	}
 }
 
-FilePath SciTEBase::SaveName(const char *ext) {
+FilePath SciTEBase::SaveName(const char *ext) const {
 	GUI::gui_string savePath = filePath.AsInternal();
 	if (ext) {
 		int dot = static_cast<int>(savePath.length() - 1);
@@ -1001,7 +1001,7 @@ bool SciTEBase::SaveBuffer(FilePath saveName, SaveFlags sf) {
 		}
 	}
 
-	if (retVal && extender) {
+	if (retVal && extender && (sf & sfSynchronous)) {
 		extender->OnSave(saveName.AsUTF8().c_str());
 	}
 	UpdateStatusBar(true);
@@ -1239,7 +1239,7 @@ public:
 		}
 		fp = NULL;
 	}
-	bool Exhausted() {
+	bool Exhausted() const {
 		return exhausted;
 	}
 	int NextByte() {
@@ -1312,7 +1312,7 @@ public:
 	int LineNumber() const {
 		return lineNum;
 	}
-	const char *Original() {
+	const char *Original() const {
 		return lineToShow;
 	}
 	bool BufferContainsNull() {

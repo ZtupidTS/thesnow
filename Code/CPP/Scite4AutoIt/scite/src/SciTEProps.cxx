@@ -17,6 +17,7 @@
 #include <vector>
 #include <set>
 #include <map>
+#include <algorithm>
 
 #include "Scintilla.h"
 #include "SciLexer.h"
@@ -619,7 +620,6 @@ static const char *propertiesToForward[] = {
 	"fold.d.syntax.based",
 	"fold.directive",
 	"fold.haskell.imports",
-	"fold.haskell.imports.indented",
 	"fold.html",
 	"fold.html.preprocessor",
 	"fold.hypertext.comment",
@@ -651,6 +651,7 @@ static const char *propertiesToForward[] = {
 	"lexer.haskell.allow.hash",
 	"lexer.haskell.allow.questionmark",
 	"lexer.haskell.allow.quotes",
+	"lexer.haskell.cpp",
 	"lexer.haskell.import.safe",
 	"lexer.html.django",
 	"lexer.html.mako",
@@ -1435,6 +1436,10 @@ void SciTEBase::ReadFontProperties() {
 	// Set styles
 	// For each window set the global default style, then the language default style, then the other global styles, then the other language styles
 
+	int fontQuality = props.GetInt("font.quality");
+	wEditor.Call(SCI_SETFONTQUALITY, fontQuality);
+	wOutput.Call(SCI_SETFONTQUALITY, fontQuality);
+
 	wEditor.Call(SCI_STYLERESETDEFAULT, 0, 0);
 	wOutput.Call(SCI_STYLERESETDEFAULT, 0, 0);
 
@@ -1646,20 +1651,17 @@ void SciTEBase::ReadPropertiesInitial() {
 	// load the user defined short cut props
 	SString shortCutProp = props.GetNewExpand("user.shortcuts");
 	if (shortCutProp.length()) {
-		shortCutItems = 0;
-		for (unsigned int i = 0; i < shortCutProp.length(); i++) {
-			if (shortCutProp[i] == '|')
-				shortCutItems++;
-		}
-		shortCutItems /= 2;
-		shortCutItemList = new ShortcutItem[shortCutItems];
+		size_t pipes = std::count(shortCutProp.c_str(),
+			shortCutProp.c_str()+shortCutProp.length(), '|');
 		shortCutProp.substitute('|', '\0');
 		const char *sShortCutProp = shortCutProp.c_str();
-		for (int item = 0; item < shortCutItems; item++) {
-			shortCutItemList[item].menuKey = sShortCutProp;
+		for (size_t item = 0; item < pipes/2; item++) {
+			ShortcutItem sci;
+			sci.menuKey = sShortCutProp;
 			sShortCutProp += strlen(sShortCutProp) + 1;
-			shortCutItemList[item].menuCommand = sShortCutProp;
+			sci.menuCommand = sShortCutProp;
 			sShortCutProp += strlen(sShortCutProp) + 1;
+			shortCutItemList.push_back(sci);
 		}
 	}
 	// end load the user defined short cut props

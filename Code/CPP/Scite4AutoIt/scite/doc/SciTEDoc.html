@@ -31,6 +31,9 @@
         .osxonly {
             background: #FFE7E7;
         }
+        .windows-osx {
+            background: #FFF3FF;
+        }
         .example {
             color: #008000;
             font-weight: bold;
@@ -186,7 +189,7 @@ NameError: mistake
     </h3>
     <p>
     Tools can be executed in various modes by SciTE which are called "subsystems". Different
-    subsystems are supported on Windows and GTK+. The default subsystem is 0.
+    subsystems are supported on Windows, GTK+ and OS X. The default subsystem is 0.
     </p>
     <table class="windowsonly" cellpadding="0" cellspacing="0" border="1" summary="Command line commands">
     <thead><tr><td colspan="3">Windows</td></tr></thead>
@@ -202,12 +205,15 @@ NameError: mistake
     </td></tr>
     <tr><td>5</td><td>winhelp</td><td>Open with WinHelp function<br />
     Two part command similar to subsystem 4</td></tr>
+    <tr><td>7</td><td>immediate</td><td>Internal script that is executed immediately instead of being queued.</td></tr>
     </table>
     <br />
     <table class="gtkonly" cellpadding="0" cellspacing="0" border="1" summary="Command line commands">
-    <thead><tr><td colspan="3">GTK+</td></tr></thead>
+    <thead><tr><td colspan="3">GTK+ and OS X</td></tr></thead>
     <tr><td>0</td><td>console</td><td>Execute tool and wait for it to finish</td></tr>
     <tr><td>2</td><td>shellexec</td><td>Execute in background</td></tr>
+    <tr><td>3</td><td>lua<br />director</td><td>Internal extension or director extension</td></tr>
+    <tr><td>7</td><td>immediate</td><td>Internal script that is executed immediately instead of being queued.</td></tr>
     </table>
     <h3 id="CommandLineArguments">
        Command line arguments
@@ -1994,10 +2000,6 @@ NameError: mistake
 	<td>fold.haskell.imports</td>
 	<td>Set to 1 to enable folding of import declarations</td>
 	</tr>
-	<tr id='property-fold.haskell.imports.indented'>
-	<td>fold.haskell.imports.indented</td>
-	<td>Set this property to 0 to disable folding imports not starting at column 0 when fold.haskell.imports=1</td>
-	</tr>
 	<tr id='property-fold.html'>
 	<td>fold.html</td>
 	<td>Folding is turned on or off for HTML and XML files with this option. The fold option must also be on for folding to occur.</td>
@@ -2105,6 +2107,10 @@ NameError: mistake
 	<tr id='property-lexer.haskell.allow.quotes'>
 	<td>lexer.haskell.allow.quotes</td>
 	<td>Set to 0 to disable highlighting of Template Haskell name quotations and promoted constructors (GHC -XTemplateHaskell and -XDataKinds extensions)</td>
+	</tr>
+	<tr id='property-lexer.haskell.cpp'>
+	<td>lexer.haskell.cpp</td>
+	<td>Set to 0 to disable C-preprocessor highlighting (-XCPP extension)</td>
 	</tr>
 	<tr id='property-lexer.haskell.import.safe'>
 	<td>lexer.haskell.import.safe</td>
@@ -2563,6 +2569,7 @@ Prev File|IDM_PREVFILE|<br/>
           Controls the animated golden match indicator on OS X.
 	The default value, 1, shows and animates the find indicator then fades it away so surrounding text can be seen clearly.
 	Use the value 0 to disable the find indicator and the value 2 to keep the find indicator displayed.
+          This setting is not available on OS X 10.6.
         </td>
       </tr>
       <tr id='property-find.command'>
@@ -2942,6 +2949,23 @@ imports.include=fortran lisp
            A * can be used instead of a lexer to indicate a global style setting.
         </td>
       </tr>
+      <tr class="windows-osx" id='property-font.quality'>
+        <td>
+          font.quality
+        </td>
+        <td>
+        This setting allows choosing different ways of drawing text on Windows and OS X.
+        The appearance will depend on platform settings and, on Windows, the technology setting.
+        This setting does not currently have any effect on GTK+.
+	  <table>
+	  <thead><tr><th>Value</th><th>Meaning</th></tr></thead>
+	  <tr><td>0</td><td>Default</td></tr>
+	  <tr><td>1</td><td>Non-antialiased</td></tr>
+	  <tr><td>2</td><td>Antialiased</td></tr>
+	  <tr><td>3</td><td>LCD Optimized</td></tr>
+	  </table>
+        </td>
+      </tr>
        <tr id='property-braces.check'>
         <td>
           <a name='property-braces.sloppy'></a>
@@ -3076,7 +3100,7 @@ filter - accepts keyword arguments yes and no<br />
 quiet - accepts keyword arguments yes and no<br />
 replaceselection - accepts yes, no, and auto<br />
 savebefore - accepts yes, no, and prompt<br />
-subsystem - console, windows, shellexec, lua, director, winhelp, htmlhelp<br />
+subsystem - console, windows, shellexec, lua, director, winhelp, htmlhelp, immediate<br />
 groupundo - yes or no
 </div>
         Currently, all of these except groupundo are based on individual properties with

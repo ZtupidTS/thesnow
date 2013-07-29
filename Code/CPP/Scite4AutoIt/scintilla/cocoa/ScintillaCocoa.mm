@@ -21,8 +21,8 @@
 #import <QuartzCore/CAAnimation.h>
 #import <QuartzCore/CATransaction.h>
 
-#include "ScintillaView.h"
-#include "PlatCocoa.h"
+#import "ScintillaView.h"
+#import "PlatCocoa.h"
 
 using namespace Scintilla;
 
@@ -522,37 +522,6 @@ static char *EncodedBytes(CFStringRef cfsRef, CFStringEncoding encoding) {
  * Case folders.
  */
 
-class CaseFolderUTF8 : public CaseFolderTable {
-public:
-	CaseFolderUTF8() {
-		StandardASCII();
-	}
-	virtual size_t Fold(char *folded, size_t sizeFolded, const char *mixed, size_t lenMixed) {
-		if ((lenMixed == 1) && (sizeFolded > 0)) {
-			folded[0] = mapping[static_cast<unsigned char>(mixed[0])];
-			return 1;
-		} else {
-            CFStringRef cfsVal = CFStringCreateWithBytes(kCFAllocatorDefault,
-                                                         reinterpret_cast<const UInt8 *>(mixed), 
-                                                         lenMixed, kCFStringEncodingUTF8, false);
-
-            NSString *sMapped = [(NSString *)cfsVal stringByFoldingWithOptions:NSCaseInsensitiveSearch
-                                                            locale:[NSLocale currentLocale]];
-
-            const char *cpMapped = [sMapped UTF8String];
-			size_t lenMapped = cpMapped ? strlen(cpMapped) : 0;
-			if (lenMapped < sizeFolded) {
-				memcpy(folded, cpMapped,  lenMapped);
-			} else {
-				lenMapped = 0;
-			}
-			if (cfsVal)
-				CFRelease(cfsVal);
-			return lenMapped;
-		}
-	}
-};
-
 class CaseFolderDBCS : public CaseFolderTable {
 	CFStringEncoding encoding;
 public:
@@ -592,7 +561,7 @@ public:
 
 CaseFolder *ScintillaCocoa::CaseFolderForEncoding() {
 	if (pdoc->dbcsCodePage == SC_CP_UTF8) {
-		return new CaseFolderUTF8();
+		return new CaseFolderUnicode();
 	} else {
         CFStringEncoding encoding = EncodingFromCharacterSet(IsUnicodeMode(),
                                                              vs.styles[STYLE_DEFAULT].characterSet);
@@ -606,6 +575,8 @@ CaseFolder *ScintillaCocoa::CaseFolderForEncoding() {
                 CFStringRef cfsVal = CFStringCreateWithBytes(kCFAllocatorDefault,
                                                              reinterpret_cast<const UInt8 *>(sCharacter), 
                                                              1, encoding, false);
+                if (!cfsVal)
+                        continue;
                 
                 NSString *sMapped = [(NSString *)cfsVal stringByFoldingWithOptions:NSCaseInsensitiveSearch
                                                                             locale:[NSLocale currentLocale]];
@@ -635,6 +606,17 @@ CaseFolder *ScintillaCocoa::CaseFolderForEncoding() {
  */
 std::string ScintillaCocoa::CaseMapString(const std::string &s, int caseMapping)
 {
+  if ((s.size() == 0) || (caseMapping == cmSame))
+    return s;
+  
+  if (IsUnicodeMode()) {
+    std::string retMapped(s.length() * maxExpansionCaseConversion, 0);
+    size_t lenMapped = CaseConvertString(&retMapped[0], retMapped.length(), s.c_str(), s.length(), 
+      (caseMapping == cmUpper) ? CaseConversionUpper : CaseConversionLower);
+    retMapped.resize(lenMapped);
+    return retMapped;
+  }
+
   CFStringEncoding encoding = EncodingFromCharacterSet(IsUnicodeMode(),
                                                        vs.styles[STYLE_DEFAULT].characterSet);
   CFStringRef cfsVal = CFStringCreateWithBytes(kCFAllocatorDefault,
@@ -956,20 +938,20 @@ void ScintillaCocoa::Paste(bool forceRectangular)
   if (forceRectangular)
     selectedText.rectangular = forceRectangular;
   
-  if (!ok || !selectedText.s)
+  if (!ok || selectedText.Empty())
     // No data or no flavor we support.
     return;
   
   pdoc->BeginUndoAction();
   ClearSelection(false);
-  int length = selectedText.len - 1; // One less to avoid inserting the terminating 0 character.
+  int length = selectedText.Length();
   if (selectedText.rectangular)
   {
     SelectionPosition selStart = sel.RangeMain().Start();
-    PasteRectangular(selStart, selectedText.s, length);
+    PasteRectangular(selStart, selectedText.Data(), length);
   }
   else 
-    if (pdoc->InsertString(sel.RangeMain().caret.Position(), selectedText.s, length))
+    if (pdoc->InsertString(sel.RangeMain().caret.Position(), selectedText.Data(), length))
       SetEmptySelection(sel.RangeMain().caret.Position() + length);
   
   pdoc->EndUndoAction();
@@ -1410,12 +1392,12 @@ bool ScintillaCocoa::PerformDragOperation(id <NSDraggingInfo> info)
     SelectionText text;
     GetPasteboardData(pasteboard, &text);
     
-    if (text.len > 0)
+    if (text.Length() > 0)
     {
       NSDragOperation operation = [info draggingSourceOperationMask];
       bool moving = (operation & NSDragOperationMove) != 0;
       
-      DropAt(posDrag, text.s, moving, text.rectangular);
+      DropAt(posDrag, text.Data(), text.Length(), moving, text.rectangular);
     };
   }
 
@@ -1426,14 +1408,14 @@ bool ScintillaCocoa::PerformDragOperation(id <NSDraggingInfo> info)
 
 void ScintillaCocoa::SetPasteboardData(NSPasteboard* board, const SelectionText &selectedText)
 {
-  if (selectedText.len == 0)
+  if (selectedText.Length() == 0)
     return;
 
   CFStringEncoding encoding = EncodingFromCharacterSet(selectedText.codePage == SC_CP_UTF8,
                                                        selectedText.characterSet);
   CFStringRef cfsVal = CFStringCreateWithBytes(kCFAllocatorDefault,
-                                               reinterpret_cast<const UInt8 *>(selectedText.s), 
-                                               selectedText.len-1, encoding, false);
+                                               reinterpret_cast<const UInt8 *>(selectedText.Data()),
+                                               selectedText.Length(), encoding, false);
 
   NSArray *pbTypes = selectedText.rectangular ?
     [NSArray arrayWithObjects: NSStringPboardType, ScintillaRecPboardType, nil] :
@@ -1476,19 +1458,18 @@ bool ScintillaCocoa::GetPasteboardData(NSPasteboard* board, SelectionText* selec
       CFStringGetBytes((CFStringRef)data, rangeAll, encoding, '?',
                        false, NULL, 0, &usedLen);
 
-      UInt8 *buffer = new UInt8[usedLen];
+      std::vector<UInt8> buffer(usedLen);
     
       CFStringGetBytes((CFStringRef)data, rangeAll, encoding, '?',
-                       false, buffer,usedLen, NULL);
+                       false, buffer.data(),usedLen, NULL);
 
       bool rectangular = bestType == ScintillaRecPboardType;
 
       int len = static_cast<int>(usedLen);
-      char *dest = Document::TransformLineEnds(&len, (char *)buffer, len, pdoc->eolMode);
+      std::string dest = Document::TransformLineEnds((char *)buffer.data(), len, pdoc->eolMode);
 
-      selectedText->Set(dest, len+1, pdoc->dbcsCodePage, 
+      selectedText->Copy(dest, pdoc->dbcsCodePage,
                          vs.styles[STYLE_DEFAULT].characterSet , rectangular, false);
-      delete []buffer;
     }
     return true;
   }
@@ -1525,6 +1506,16 @@ bool ScintillaCocoa::SyncPaint(void* gc, PRectangle rc)
   Surface *sw = Surface::Allocate(SC_TECHNOLOGY_DEFAULT);
   if (sw)
   {
+    CGContextSetAllowsAntialiasing((CGContextRef)gc,
+                                   vs.extraFontFlag != SC_EFF_QUALITY_NON_ANTIALIASED);
+    CGContextSetAllowsFontSmoothing((CGContextRef)gc,
+                                    vs.extraFontFlag == SC_EFF_QUALITY_LCD_OPTIMIZED);
+#if MAC_OS_X_VERSION_MAX_ALLOWED > MAC_OS_X_VERSION_10_5
+    if (CGContextSetAllowsFontSubpixelPositioning != NULL)
+      CGContextSetAllowsFontSubpixelPositioning((CGContextRef)gc,
+						vs.extraFontFlag == SC_EFF_QUALITY_DEFAULT ||
+						vs.extraFontFlag == SC_EFF_QUALITY_LCD_OPTIMIZED);
+#endif
     sw->Init(gc, wMain.GetID());
     Paint(sw, rc);
     succeeded = paintState != paintAbandoned;
@@ -1634,7 +1625,7 @@ bool ScintillaCocoa::SetScrollingSize(void) {
 		NSScrollView *scrollView = ScrollContainer();
 		NSClipView *clipView = [ScrollContainer() contentView];
 		NSRect clipRect = [clipView bounds];
-		int docHeight = (cs.LinesDisplayed()+1) * vs.lineHeight;
+		CGFloat docHeight = (cs.LinesDisplayed()+1) * vs.lineHeight;
 		if (!endAtLastLine)
 			docHeight += (int([scrollView bounds].size.height / vs.lineHeight)-3) * vs.lineHeight;
 		// Allow extra space so that last scroll position places whole line at top
@@ -1643,7 +1634,7 @@ bool ScintillaCocoa::SetScrollingSize(void) {
 		// Ensure all of clipRect covered by Scintilla drawing
 		if (docHeight < clipRect.size.height)
 			docHeight = clipRect.size.height;
-		int docWidth = scrollWidth;
+		CGFloat docWidth = scrollWidth;
 		bool showHorizontalScroll = horizontalScrollBarVisible &&
 			(wrapState == eWrapNone);
 		if (!showHorizontalScroll)
@@ -1904,13 +1895,12 @@ int ScintillaCocoa::InsertText(NSString* input)
   CFStringGetBytes((CFStringRef)input, rangeAll, encoding, '?',
                    false, NULL, 0, &usedLen);
     
-  UInt8 *buffer = new UInt8[usedLen];
+  std::vector<UInt8> buffer(usedLen);
     
   CFStringGetBytes((CFStringRef)input, rangeAll, encoding, '?',
-                     false, buffer,usedLen, NULL);
+                     false, buffer.data(),usedLen, NULL);
     
-  AddCharUTF((char*) buffer, static_cast<unsigned int>(usedLen), false);
-  delete []buffer;
+  AddCharUTF((char*) buffer.data(), static_cast<unsigned int>(usedLen), false);
   return static_cast<int>(usedLen);
 }
 

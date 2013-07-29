@@ -341,8 +341,15 @@ static NSCursor *cursorFromEnum(Window::Cursor cursor)
 					 wParam: 0
 					 lParam: 0];
   rect = [[[self superview] superview] convertRect:rect toView:nil];
-  rect = [self.window convertRectToScreen:rect];
-  
+#if MAC_OS_X_VERSION_MAX_ALLOWED > MAC_OS_X_VERSION_10_6
+  if ([self.window respondsToSelector:@selector(convertRectToScreen:)])
+      rect = [self.window convertRectToScreen:rect];
+  else // convertRectToScreen not available on 10.6
+      rect.origin = [self.window convertBaseToScreen:rect.origin];
+#else
+  rect.origin = [self.window convertBaseToScreen:rect.origin];
+#endif
+
   return rect;
 }
 
@@ -787,6 +794,28 @@ static NSCursor *cursorFromEnum(Window::Cursor cursor)
   return mOwner.backend->CanRedo();
 }
 
+- (BOOL) validateUserInterfaceItem: (id <NSValidatedUserInterfaceItem>) anItem
+{
+  SEL action = [anItem action];
+  if (action==@selector(undo:)) {
+    return [self canUndo];
+  }
+  else if (action==@selector(redo:)) {
+    return [self canRedo];
+  }
+  else if (action==@selector(cut:) || action==@selector(copy:) || action==@selector(clear:)) {
+    return mOwner.backend->HasSelection();
+  }
+  else if (action==@selector(paste:)) {
+    return mOwner.backend->CanPaste();
+  }
+  return YES;
+}
+
+- (void) clear: (id) sender
+{
+  [self deleteBackward:sender];
+}
 
 - (BOOL) isEditable
 {
@@ -1128,7 +1157,7 @@ static void notification(intptr_t windowid, unsigned int iMessage, uintptr_t wPa
 
   // Horizontal offset of the content. Almost always 0 unless the vertical scroller
   // is on the left side.
-  int contentX = 0;
+  CGFloat contentX = 0;
   NSRect scrollRect = {contentX, 0, size.width, size.height};
 
   // Info bar frame.
@@ -1201,22 +1230,18 @@ static void notification(intptr_t windowid, unsigned int iMessage, uintptr_t wPa
 {
   NSString *result = @"";
   
-  char *buffer(0);
   const long length = mBackend->WndProc(SCI_GETSELTEXT, 0, 0);
   if (length > 0)
   {
-    buffer = new char[length + 1];
+    std::string buffer(length + 1, '\0');
     try
     {
-      mBackend->WndProc(SCI_GETSELTEXT, length + 1, (sptr_t) buffer);
+      mBackend->WndProc(SCI_GETSELTEXT, length + 1, (sptr_t) &buffer[0]);
       
-      result = [NSString stringWithUTF8String: buffer];
-      delete[] buffer;
+      result = [NSString stringWithUTF8String: buffer.c_str()];
     }
     catch (...)
     {
-      delete[] buffer;
-      buffer = 0;
     }
   }
   
@@ -1233,22 +1258,18 @@ static void notification(intptr_t windowid, unsigned int iMessage, uintptr_t wPa
 {
   NSString *result = @"";
   
-  char *buffer(0);
   const long length = mBackend->WndProc(SCI_GETLENGTH, 0, 0);
   if (length > 0)
   {
-    buffer = new char[length + 1];
+    std::string buffer(length + 1, '\0');
     try
     {
-      mBackend->WndProc(SCI_GETTEXT, length + 1, (sptr_t) buffer);
+      mBackend->WndProc(SCI_GETTEXT, length + 1, (sptr_t) &buffer[0]);
       
-      result = [NSString stringWithUTF8String: buffer];
-      delete[] buffer;
+      result = [NSString stringWithUTF8String: buffer.c_str()];
     }
     catch (...)
     {
-      delete[] buffer;
-      buffer = 0;
     }
   }
   
@@ -1306,6 +1327,21 @@ static void notification(intptr_t windowid, unsigned int iMessage, uintptr_t wPa
                lParam: (sptr_t) lParam
 {
   return ScintillaCocoa::DirectFunction(sender->mBackend, message, wParam, lParam);
+}
+
+- (sptr_t) message: (unsigned int) message wParam: (uptr_t) wParam lParam: (sptr_t) lParam
+{
+  return mBackend->WndProc(message, wParam, lParam);
+}
+
+- (sptr_t) message: (unsigned int) message wParam: (uptr_t) wParam
+{
+  return mBackend->WndProc(message, wParam, 0);
+}
+
+- (sptr_t) message: (unsigned int) message
+{
+  return mBackend->WndProc(message, 0, 0);
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -1589,7 +1625,7 @@ static void notification(intptr_t windowid, unsigned int iMessage, uintptr_t wPa
 
 - (void)insertText: (NSString*)text
 {
-  [mContent insertText: text];
+  mBackend->InsertText(text);
 }
 
 //--------------------------------------------------------------------------------------------------

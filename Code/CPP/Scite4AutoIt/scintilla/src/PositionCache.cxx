@@ -32,7 +32,9 @@
 #include "CharClassify.h"
 #include "Decoration.h"
 #include "ILexer.h"
+#include "CaseFolder.h"
 #include "Document.h"
+#include "UniConversion.h"
 #include "Selection.h"
 #include "PositionCache.h"
 
@@ -207,7 +209,7 @@ int LineLayout::EndLineStyle() const {
 }
 
 LineLayoutCache::LineLayoutCache() :
-	level(0), length(0), size(0), cache(0),
+	level(0),
 	allInvalidated(false), styleClock(-1), useCount(0) {
 	Allocate(0);
 }
@@ -216,24 +218,15 @@ LineLayoutCache::~LineLayoutCache() {
 	Deallocate();
 }
 
-void LineLayoutCache::Allocate(int length_) {
-	PLATFORM_ASSERT(cache == NULL);
+void LineLayoutCache::Allocate(size_t length_) {
+	PLATFORM_ASSERT(cache.empty());
 	allInvalidated = false;
-	length = length_;
-	size = length;
-	if (size > 1) {
-		size = (size / 16 + 1) * 16;
-	}
-	if (size > 0) {
-		cache = new LineLayout * [size];
-	}
-	for (int i = 0; i < size; i++)
-		cache[i] = 0;
+	cache.resize(length_);
 }
 
 void LineLayoutCache::AllocateForLevel(int linesOnScreen, int linesInDoc) {
 	PLATFORM_ASSERT(useCount == 0);
-	int lengthForLevel = 0;
+	size_t lengthForLevel = 0;
 	if (level == llcCaret) {
 		lengthForLevel = 1;
 	} else if (level == llcPage) {
@@ -241,35 +234,31 @@ void LineLayoutCache::AllocateForLevel(int linesOnScreen, int linesInDoc) {
 	} else if (level == llcDocument) {
 		lengthForLevel = linesInDoc;
 	}
-	if (lengthForLevel > size) {
+	if (lengthForLevel > cache.size()) {
 		Deallocate();
 		Allocate(lengthForLevel);
 	} else {
-		if (lengthForLevel < length) {
-			for (int i = lengthForLevel; i < length; i++) {
+		if (lengthForLevel < cache.size()) {
+			for (size_t i = lengthForLevel; i < cache.size(); i++) {
 				delete cache[i];
 				cache[i] = 0;
 			}
 		}
-		length = lengthForLevel;
+		cache.resize(lengthForLevel);
 	}
-	PLATFORM_ASSERT(length == lengthForLevel);
-	PLATFORM_ASSERT(cache != NULL || length == 0);
+	PLATFORM_ASSERT(cache.size() == lengthForLevel);
 }
 
 void LineLayoutCache::Deallocate() {
 	PLATFORM_ASSERT(useCount == 0);
-	for (int i = 0; i < length; i++)
+	for (size_t i = 0; i < cache.size(); i++)
 		delete cache[i];
-	delete []cache;
-	cache = 0;
-	length = 0;
-	size = 0;
+	cache.clear();
 }
 
 void LineLayoutCache::Invalidate(LineLayout::validLevel validity_) {
-	if (cache && !allInvalidated) {
-		for (int i = 0; i < length; i++) {
+	if (!cache.empty() && !allInvalidated) {
+		for (size_t i = 0; i < cache.size(); i++) {
 			if (cache[i]) {
 				cache[i]->Invalidate(validity_);
 			}
@@ -303,15 +292,15 @@ LineLayout *LineLayoutCache::Retrieve(int lineNumber, int lineCaret, int maxChar
 	} else if (level == llcPage) {
 		if (lineNumber == lineCaret) {
 			pos = 0;
-		} else if (length > 1) {
-			pos = 1 + (lineNumber % (length - 1));
+		} else if (cache.size() > 1) {
+			pos = 1 + (lineNumber % (cache.size() - 1));
 		}
 	} else if (level == llcDocument) {
 		pos = lineNumber;
 	}
 	if (pos >= 0) {
 		PLATFORM_ASSERT(useCount == 0);
-		if (cache && (pos < length)) {
+		if (!cache.empty() && (pos < static_cast<int>(cache.size()))) {
 			if (cache[pos]) {
 				if ((cache[pos]->lineNumber != lineNumber) ||
 				        (cache[pos]->maxLineLength < maxChars)) {
@@ -322,12 +311,10 @@ LineLayout *LineLayoutCache::Retrieve(int lineNumber, int lineCaret, int maxChar
 			if (!cache[pos]) {
 				cache[pos] = new LineLayout(maxChars);
 			}
-			if (cache[pos]) {
-				cache[pos]->lineNumber = lineNumber;
-				cache[pos]->inCache = true;
-				ret = cache[pos];
-				useCount++;
-			}
+			cache[pos]->lineNumber = lineNumber;
+			cache[pos]->inCache = true;
+			ret = cache[pos];
+			useCount++;
 		}
 	}
 
@@ -350,37 +337,79 @@ void LineLayoutCache::Dispose(LineLayout *ll) {
 	}
 }
 
-void BreakFinder::Insert(int val) {
-	// Expand if needed
-	if (saeLen >= saeSize) {
-		saeSize *= 2;
-		int *selAndEdgeNew = new int[saeSize];
-		for (unsigned int j = 0; j<saeLen; j++) {
-			selAndEdgeNew[j] = selAndEdge[j];
-		}
-		delete []selAndEdge;
-		selAndEdge = selAndEdgeNew;
+// Simply pack the (maximum 4) character bytes into an int
+static inline int KeyFromString(const char *charBytes, size_t len) {
+	PLATFORM_ASSERT(len <= 4);
+	int k=0;
+	for (size_t i=0; i<len && charBytes[i]; i++) {
+		k = k * 0x100;
+		k += charBytes[i];
 	}
+	return k;
+}
 
+SpecialRepresentations::SpecialRepresentations() {
+	std::fill(startByteHasReprs, startByteHasReprs+0x100, 0);
+}
+
+void SpecialRepresentations::SetRepresentation(const char *charBytes, const char *value) {
+	MapRepresentation::iterator it = mapReprs.find(KeyFromString(charBytes, UTF8MaxBytes));
+	if (it == mapReprs.end()) {
+		// New entry so increment for first byte
+		startByteHasReprs[static_cast<unsigned char>(charBytes[0])]++;
+	}
+	mapReprs[KeyFromString(charBytes, UTF8MaxBytes)] = value;
+}
+
+void SpecialRepresentations::ClearRepresentation(const char *charBytes) {
+	MapRepresentation::iterator it = mapReprs.find(KeyFromString(charBytes, UTF8MaxBytes));
+	if (it != mapReprs.end()) {
+		mapReprs.erase(it);
+		startByteHasReprs[static_cast<unsigned char>(charBytes[0])]--;
+	}
+}
+
+Representation *SpecialRepresentations::RepresentationFromCharacter(const char *charBytes, size_t len) {
+	PLATFORM_ASSERT(len <= 4);
+	if (!startByteHasReprs[static_cast<unsigned char>(charBytes[0])])
+		return 0;
+	MapRepresentation::iterator it = mapReprs.find(KeyFromString(charBytes, len));
+	if (it != mapReprs.end()) {
+		return &(it->second);
+	}
+	return 0;
+}
+
+bool SpecialRepresentations::Contains(const char *charBytes, size_t len) const {
+	PLATFORM_ASSERT(len <= 4);
+	if (!startByteHasReprs[static_cast<unsigned char>(charBytes[0])])
+		return false;
+	MapRepresentation::const_iterator it = mapReprs.find(KeyFromString(charBytes, len));
+	return it != mapReprs.end();
+}
+
+void SpecialRepresentations::Clear() {
+	mapReprs.clear();
+	std::fill(startByteHasReprs, startByteHasReprs+0x100, 0);
+}
+
+void BreakFinder::Insert(int val) {
 	if (val >= nextBreak) {
-		for (unsigned int j = 0; j<saeLen; j++) {
-			if (val == selAndEdge[j]) {
+		for (std::vector<int>::iterator it = selAndEdge.begin(); it != selAndEdge.end(); ++it) {
+			if (val == *it) {
 				return;
 			}
-			if (val < selAndEdge[j]) {
-				for (unsigned int k = saeLen; k>j; k--) {
-					selAndEdge[k] = selAndEdge[k-1];
-				}
-				saeLen++;
-				selAndEdge[j] = val;
+			if (val <*it) {
+				selAndEdge.insert(it, 1, val);
 				return;
 			}
 		}
 		// Not less than any so append
-		selAndEdge[saeLen++] = val;
+		selAndEdge.push_back(val);
 	}
 }
 
+/*
 extern bool BadUTF(const char *s, int len, int &trailBytes);
 
 static int NextBadU(const char *s, int p, int len, int &trailBytes) {
@@ -391,25 +420,20 @@ static int NextBadU(const char *s, int p, int len, int &trailBytes) {
 	}
 	return -1;
 }
+*/
 
 BreakFinder::BreakFinder(LineLayout *ll_, int lineStart_, int lineEnd_, int posLineStart_,
-	int xStart, bool breakForSelection, Document *pdoc_) :
+	int xStart, bool breakForSelection, Document *pdoc_, SpecialRepresentations *preprs_) :
 	ll(ll_),
 	lineStart(lineStart_),
 	lineEnd(lineEnd_),
 	posLineStart(posLineStart_),
 	nextBreak(lineStart_),
-	saeSize(0),
-	saeLen(0),
 	saeCurrentPos(0),
 	saeNext(0),
 	subBreak(-1),
-	pdoc(pdoc_) {
-	saeSize = 8;
-	selAndEdge = new int[saeSize];
-	for (unsigned int j=0; j < saeSize; j++) {
-		selAndEdge[j] = 0;
-	}
+	pdoc(pdoc_),
+	preprs(preprs_) {
 
 	// Search for first visible break
 	// First find the first visible character
@@ -437,21 +461,25 @@ BreakFinder::BreakFinder(LineLayout *ll_, int lineStart_, int lineEnd_, int posL
 	Insert(ll->edgeColumn - 1);
 	Insert(lineEnd - 1);
 
-	if (pdoc && (SC_CP_UTF8 == pdoc->dbcsCodePage)) {
-		int trailBytes=0;
-		for (int pos = -1;;) {
-			pos = NextBadU(ll->chars, pos, lineEnd, trailBytes);
-			if (pos < 0)
-				break;
-			Insert(pos-1);
-			Insert(pos);
+	if (pdoc && preprs) {
+		EncodingFamily encodingFamily = pdoc->CodePageFamily();
+		for (int posRepr=0; posRepr<lineEnd;) {
+			int charWidth = 1;
+			if (encodingFamily == efUnicode)
+				charWidth = UTF8DrawBytes(reinterpret_cast<unsigned char *>(ll->chars) + posRepr, lineEnd - posRepr);
+			else if (encodingFamily == efDBCS)
+				charWidth = pdoc->IsDBCSLeadByte(ll->chars[posRepr]) ? 2 : 1;
+			if (preprs->Contains(ll->chars + posRepr, charWidth)) {
+				Insert(posRepr - 1);
+				Insert(posRepr + charWidth - 1);
+			}
+			posRepr += charWidth;
 		}
 	}
-	saeNext = (saeLen > 0) ? selAndEdge[0] : -1;
+	saeNext = (!selAndEdge.empty()) ? selAndEdge[0] : -1;
 }
 
 BreakFinder::~BreakFinder() {
-	delete []selAndEdge;
 }
 
 int BreakFinder::First() const {
@@ -467,7 +495,7 @@ int BreakFinder::Next() {
 					IsControlCharacter(ll->chars[nextBreak]) || IsControlCharacter(ll->chars[nextBreak + 1])) {
 				if (nextBreak == saeNext) {
 					saeCurrentPos++;
-					saeNext = (saeLen > saeCurrentPos) ? selAndEdge[saeCurrentPos] : -1;
+					saeNext = (saeCurrentPos < selAndEdge.size()) ? selAndEdge[saeCurrentPos] : -1;
 				}
 				nextBreak++;
 				if ((nextBreak - prev) < lengthStartSubdivision) {
@@ -509,7 +537,7 @@ void PositionCacheEntry::Set(unsigned int styleNumber_, const char *s_,
 	len = len_;
 	clock = clock_;
 	if (s_ && positions_) {
-		positions = new XYPOSITION[len + (len + 1) / 2];
+		positions = new XYPOSITION[len + (len / 4) + 1];
 		for (unsigned int i=0; i<len; i++) {
 			positions[i] = static_cast<XYPOSITION>(positions_[i]);
 		}
@@ -566,20 +594,18 @@ void PositionCacheEntry::ResetClock() {
 }
 
 PositionCache::PositionCache() {
-	size = 0x400;
 	clock = 1;
-	pces = new PositionCacheEntry[size];
+	pces.resize(0x400);
 	allClear = true;
 }
 
 PositionCache::~PositionCache() {
 	Clear();
-	delete []pces;
 }
 
 void PositionCache::Clear() {
 	if (!allClear) {
-		for (size_t i=0; i<size; i++) {
+		for (size_t i=0; i<pces.size(); i++) {
 			pces[i].Clear();
 		}
 	}
@@ -589,9 +615,7 @@ void PositionCache::Clear() {
 
 void PositionCache::SetSize(size_t size_) {
 	Clear();
-	delete []pces;
-	size = size_;
-	pces = new PositionCacheEntry[size];
+	pces.resize(size_);
 }
 
 void PositionCache::MeasureWidths(Surface *surface, ViewStyle &vstyle, unsigned int styleNumber,
@@ -599,17 +623,17 @@ void PositionCache::MeasureWidths(Surface *surface, ViewStyle &vstyle, unsigned 
 
 	allClear = false;
 	int probe = -1;
-	if ((size > 0) && (len < 30)) {
+	if ((!pces.empty()) && (len < 30)) {
 		// Only store short strings in the cache so it doesn't churn with
 		// long comments with only a single comment.
 
 		// Two way associative: try two probe positions.
 		int hashValue = PositionCacheEntry::Hash(styleNumber, s, len);
-		probe = static_cast<int>(hashValue % size);
+		probe = static_cast<int>(hashValue % pces.size());
 		if (pces[probe].Retrieve(styleNumber, s, len, positions)) {
 			return;
 		}
-		int probe2 = static_cast<int>((hashValue * 37) % size);
+		int probe2 = static_cast<int>((hashValue * 37) % pces.size());
 		if (pces[probe2].Retrieve(styleNumber, s, len, positions)) {
 			return;
 		}
@@ -639,7 +663,7 @@ void PositionCache::MeasureWidths(Surface *surface, ViewStyle &vstyle, unsigned 
 		if (clock > 60000) {
 			// Since there are only 16 bits for the clock, wrap it round and
 			// reset all cache entries so none get stuck with a high clock.
-			for (size_t i=0; i<size; i++) {
+			for (size_t i=0; i<pces.size(); i++) {
 				pces[i].ResetClock();
 			}
 			clock = 2;

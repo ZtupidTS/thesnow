@@ -91,7 +91,7 @@ const int SCITE_TRAY = WM_APP + 0;
 const int SCITE_DROP = WM_APP + 1;
 const int SCITE_WORKER = WM_APP + 2;
 
-enum { 
+enum {
 	WORK_EXECUTE = WORK_PLATFORM + 1
 };
 
@@ -337,7 +337,7 @@ public:
 	virtual int Height() {
 		return lineHeight * Lines() + 1;
 	}
-	int Lines();
+	int Lines() const;
 	void SetDescription(const char *description);
 	void SetExtender(Extension *extender_);
 	void SetSciTE(SciTEWin *pSciTEWin_);
@@ -449,8 +449,6 @@ protected:
 	virtual void EnableAMenuItem(int wIDCheckItem, bool val);
 	virtual void CheckMenus();
 
-	void LocaliseAccelerators();
-	GUI::gui_string LocaliseAccelerator(const GUI::gui_char *Accelerator, int cmd);
 	void LocaliseMenu(HMENU hmenu);
 	void LocaliseMenus();
 	void LocaliseControl(HWND w);
@@ -491,7 +489,7 @@ protected:
 	void DropFiles(HDROP hdrop);
 	void MinimizeToTray();
 	void RestoreFromTray();
-	GUI::gui_string ProcessArgs(const GUI::gui_char *cmdLine);
+	static GUI::gui_string ProcessArgs(const GUI::gui_char *cmdLine);
 	virtual void QuitProgram();
 
 	virtual FilePath GetDefaultDirectory();
@@ -567,8 +565,6 @@ protected:
 	static BOOL CALLBACK AboutDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
 	void AboutDialogWithBuild(int staticBuild);
 
-	void MakeAccelerator(SString sKey, ACCEL &Accel);
-
 	void RestorePosition();
 
 public:
@@ -576,7 +572,7 @@ public:
 	SciTEWin(Extension *ext = 0);
 	~SciTEWin();
 
-	bool DialogHandled(GUI::WindowID id, MSG *pmsg);
+	static bool DialogHandled(GUI::WindowID id, MSG *pmsg);
 	bool ModelessHandler(MSG *pmsg);
 
 	void CreateUI();
