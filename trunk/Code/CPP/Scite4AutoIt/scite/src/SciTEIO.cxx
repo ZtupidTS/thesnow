@@ -448,6 +448,7 @@ void SciTEBase::TextWritten(FileWorker *pFileWorker) {
 					extender->OnSave(buffers.buffers[iBuffer].AsUTF8().c_str());
 			} else {
 				buffers.buffers[iBuffer].isDirty = false;
+				buffers.buffers[iBuffer].failedSave = false;
 				// Need to make writable and set save point when next receive focus.
 				buffers.AddFuture(iBuffer, Buffer::fdFinishSave);
 				SetBuffersMenu();
@@ -545,6 +546,7 @@ bool SciTEBase::Open(FilePath file, OpenFlags of) {
 	if (buffers.size == buffers.length) {
 		AddFileToStack(filePath, GetSelectedRange(), GetCurrentScrollPosition());
 		ClearDocument();
+		CurrentBuffer()->lifeState = Buffer::open;
 		if (extender)
 			extender->InitBuffer(buffers.Current());
 	} else {
@@ -1070,6 +1072,7 @@ bool SciTEBase::Save(SaveFlags sf) {
 				}
 			}
 		} else {
+			CurrentBuffer()->failedSave = true;
 			msg = LocaliseMessage(
 //			            "Could not save file '^0'. Save under a different name?", filePath.AsInternal());
 			            L"不能保存文件[ '^0' ]. 需要使用一个不同的文件名来保存吗?", filePath.AsInternal());

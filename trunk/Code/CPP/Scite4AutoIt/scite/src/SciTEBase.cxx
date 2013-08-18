@@ -4273,7 +4273,7 @@ void SciTEBase::TimerEnd(int /* mask */) {
 }
 
 void SciTEBase::OnTimer() {
-	if (delayBeforeAutoSave) {
+	if (delayBeforeAutoSave && (0 == dialogsOnScreen)) {
 		// First save the visible buffer to avoid any switching if not needed
 		if (CurrentBuffer()->NeedsSave(delayBeforeAutoSave)) {
 			Save(sfNone);

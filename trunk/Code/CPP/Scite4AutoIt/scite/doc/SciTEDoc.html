@@ -951,7 +951,7 @@ NameError: mistake
         Values outside this range are clamped to be within the range.
         The default is 1 which turns off UI features concerned with buffers.<br />
         This value is read only once, early in the startup process and only from the
-        global properties files. So after changing it, restart SciTE to see the effect.
+        global and user properties files. So after changing it, restart SciTE to see the effect.
         </td>
       </tr>
       <tr id='property-buffers.zorder.switching'>
@@ -1465,6 +1465,15 @@ NameError: mistake
         </td>
         <td>
           Sets the width of the caret in pixels. Only values of 1, 2, or 3 work.
+        </td>
+      </tr>
+      <tr id='property-selection.rectangular.switch.mouse'>
+        <td>
+          selection.rectangular.switch.mouse
+        </td>
+        <td>
+          Sets whether switching to rectangular selection mode while making a selection with the mouse is
+          allowed (1) or not (0). Default is 0.
         </td>
       </tr>
       <tr id='property-selection.multiple'>
