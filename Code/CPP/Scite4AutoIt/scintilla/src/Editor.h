@@ -160,6 +160,13 @@ struct WrapPending {
 	}
 };
 
+struct PrintParameters {
+	int magnification;
+	int colourMode;
+	WrapMode wrapState;
+	PrintParameters();
+};
+
 /**
  */
 class Editor : public DocWatcher {
@@ -182,11 +189,9 @@ protected:	// ScintillaBase subclass needs access to much of Editor
 	Point sizeRGBAImage;
 	float scaleRGBAImage;
 
-	int printMagnification;
-	int printColourMode;
-	int printWrapState;
+	PrintParameters printParameters;
+
 	int cursorMode;
-	int controlCharSymbol;
 
 	// Highlight current folding block
 	HighlightDelimiter highlightDelimiter;
@@ -214,6 +219,7 @@ protected:	// ScintillaBase subclass needs access to much of Editor
 	bool endAtLastLine;
 	int caretSticky;
 	int marginOptions;
+	bool mouseSelectionRectangularSwitch;
 	bool multipleSelection;
 	bool additionalSelectionTyping;
 	int multiPasteMode;
@@ -272,8 +278,6 @@ protected:	// ScintillaBase subclass needs access to much of Editor
 	int bracesMatchStyle;
 	int highlightGuideColumn;
 
-	int theEdge;
-
 	enum { notPainting, painting, paintAbandoned } paintState;
 	bool paintAbandonedByStyling;
 	PRectangle rcPaint;
@@ -309,19 +313,10 @@ protected:	// ScintillaBase subclass needs access to much of Editor
 	int hsEnd;
 
 	// Wrapping support
-	enum { eWrapNone, eWrapWord, eWrapChar } wrapState;
 	int wrapWidth;
 	WrapPending wrapPending;
-	int wrapVisualFlags;
-	int wrapVisualFlagsLocation;
-	int wrapVisualStartIndent;
-	int wrapIndentMode; // SC_WRAPINDENT_FIXED, _SAME, _INDENT
 
 	bool convertPastes;
-
-	int marginNumberPadding; // the right-side padding of the number margin
-	int ctrlCharPadding; // the padding around control character text blobs
-	int lastSegItalicsOffset; // the offset so as not to clip italic characters at EOLs
 
 	Document *pdoc;
 
@@ -426,6 +421,7 @@ protected:	// ScintillaBase subclass needs access to much of Editor
 	void InvalidateCaret();
 	virtual void UpdateSystemCaret();
 
+	bool Wrapping() const;
 	void NeedWrapping(int docLineStart=0, int docLineEnd=WrapPending::lineLarge);
 	bool WrapOneLine(Surface *surface, int lineToWrap);
 	enum wrapScope {wsAll, wsVisible, wsIdle};
@@ -571,6 +567,7 @@ protected:	// ScintillaBase subclass needs access to much of Editor
 	void DwellEnd(bool mouseMoved);
 	void MouseLeave();
 	virtual void ButtonDown(Point pt, unsigned int curTime, bool shift, bool ctrl, bool alt);
+	void ButtonMoveWithModifiers(Point pt, int modifiers);
 	void ButtonMove(Point pt);
 	void ButtonUp(Point pt, unsigned int curTime, bool ctrl);
 

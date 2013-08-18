@@ -428,6 +428,7 @@
       </tr><tr>
 	<td>Brian Griffin</td>
 	<td>Özgür Emir</td>
+	<td>Neomi</td>
     </tr>
     </table>
     <p>
@@ -451,16 +452,67 @@
 	In Unicode mode C1 control characters are represented by their mnemonics.
 	</li>
 	<li>
+	Option to allow mouse selection to switch to rectangular by pressing Alt after start of gesture.
+	<a href="http://sourceforge.net/p/scintilla/feature-requests/1007/">Feature #1007.</a>
+	</li>
+	<li>
 	Bash lexer fixed quoted HereDoc delimiters.
 	<a href="http://sourceforge.net/p/scintilla/bugs/1500/">Bug #1500</a>.
 	</li>
 	<li>
+	MS SQL lexer fixed ';' to appear as an operator.
+	<a href="http://sourceforge.net/p/scintilla/bugs/1509/">Bug #1509</a>.
+	</li>
+	<li>
+	Structured Text lexer fixed styling of enumeration members.
+	<a href="http://sourceforge.net/p/scintilla/bugs/1508/">Bug #1508</a>.
+	</li>
+	<li>
+	Fixed bug with horizontal caret position when margin changed.
+	<a href="http://sourceforge.net/p/scintilla/bugs/1512/">Bug #1512</a>.
+	</li>
+	<li>
+	Ensure selection redrawn correctly in two cases.
+	When switching from stream to rectangular selection with Alt+Shift+Up.
+	When reducing the range of an additional selection by moving mouse up.
+	<a href="http://sourceforge.net/p/scintilla/feature-requests/1007/">Feature #1007.</a>
+	</li>
+	<li>
 	Copy and paste of rectangular selections compatible with Borland Delphi IDE on Windows.
 	<a href="http://sourceforge.net/p/scintilla/feature-requests/1002/">Feature #1002.</a>
+	<a href="http://sourceforge.net/p/scintilla/bugs/1513/">Bug #1513</a>.
+	</li>
+	<li>
+	Initialize extended styles to the default style.
+	</li>
+	<li>
+	On Windows, fix painting on an explicit HDC when first paint attempt abandoned.
+	</li>
+	<li>
+	Qt bindings in ScintillaEdit made to work on 64-bit Unix systems.
+	</li>
+	<li>
+	Easier access to printing on Qt with formatRange method.
+	</li>
+	<li>
+	Fixed SciTE failure to save initial buffer in single buffer mode.
+	<a href="http://sourceforge.net/p/scintilla/bugs/1339/">Bug #1339</a>.
+	</li>
+	<li>
+	Fixed compilation problem with Visual C++ in non-English locales.
+	<a href="http://sourceforge.net/p/scintilla/bugs/1506/">Bug #1506</a>.
 	</li>
 	<li>
 	SciTE crash fixed for negative line.margin.width.
 	<a href="http://sourceforge.net/p/scintilla/bugs/1504/">Bug #1504</a>.
+	</li>
+	<li>
+	SciTE fix for infinite dialog boxes when failing to automatically save a file.
+	<a href="http://sourceforge.net/p/scintilla/bugs/1503/">Bug #1503</a>.
+	</li>
+	<li>
+	SciTE settings buffered.draw, two.phase.draw, and technology are applied to the
+	output pane as well as the edit pane.
 	</li>
     </ul>
     <h3>

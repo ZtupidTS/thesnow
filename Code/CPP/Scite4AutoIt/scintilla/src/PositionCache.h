@@ -134,6 +134,18 @@ public:
 	void Clear();
 };
 
+struct TextSegment {
+	int start;
+	int length;
+	Representation *representation;
+	TextSegment(int start_=0, int length_=0, Representation *representation_=0) :
+		start(start_), length(length_), representation(representation_) {
+	}
+	int end() const {
+		return start + length;
+	}
+};
+
 // Class to break a line of text into shorter runs at sensible places.
 class BreakFinder {
 	LineLayout *ll;
@@ -146,6 +158,7 @@ class BreakFinder {
 	int saeNext;
 	int subBreak;
 	Document *pdoc;
+	EncodingFamily encodingFamily;
 	SpecialRepresentations *preprs;
 	void Insert(int val);
 	// Private so BreakFinder objects can not be copied
@@ -159,8 +172,8 @@ public:
 	BreakFinder(LineLayout *ll_, int lineStart_, int lineEnd_, int posLineStart_,
 		int xStart, bool breakForSelection, Document *pdoc_, SpecialRepresentations *preprs_);
 	~BreakFinder();
-	int First() const;
-	int Next();
+	TextSegment Next();
+	bool More() const;
 };
 
 class PositionCache {
