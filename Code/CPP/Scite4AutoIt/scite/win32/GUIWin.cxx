@@ -144,7 +144,10 @@ static size_t UTF16FromUTF8(const char *s, size_t len, gui_char *tbuf, size_t tl
 }
 
 gui_string StringFromUTF8(const char *s) {
-	size_t sLen = s ? strlen(s) : 0;
+	if (!s) {
+		return gui_string();
+	}
+	size_t sLen = strlen(s);
 	size_t wideLen = UTF16Length(s, static_cast<int>(sLen));
 	std::vector<gui_char> vgc(wideLen + 1);
 	size_t outLen = UTF16FromUTF8(s, sLen, &vgc[0], wideLen);
@@ -259,6 +262,7 @@ ElapsedTime::ElapsedTime() {
 		littleBit = timeVal.LowPart;
 	} else {
 		bigBit = clock();
+		littleBit = 0;
 	}
 }
 

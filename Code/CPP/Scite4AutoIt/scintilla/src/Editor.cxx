@@ -4578,7 +4578,7 @@ void Editor::NotifyDwelling(Point pt, bool state) {
 	SCNotification scn = {0};
 	scn.nmhdr.code = state ? SCN_DWELLSTART : SCN_DWELLEND;
 	scn.position = PositionFromLocation(pt, true);
-	scn.x = pt.x;
+	scn.x = pt.x + vs.ExternalMarginWidth();
 	scn.y = pt.y;
 	NotifyParent(scn);
 }
@@ -7605,6 +7605,9 @@ sptr_t Editor::WndProc(unsigned int iMessage, uptr_t wParam, sptr_t lParam) {
 	case SCI_POSITIONAFTER:
 		return pdoc->MovePositionOutsideChar(wParam + 1, 1, true);
 
+	case SCI_POSITIONRELATIVE:
+		return Platform::Clamp(pdoc->GetRelativePosition(wParam, lParam), 0, pdoc->Length());
+
 	case SCI_LINESCROLL:
 		ScrollTo(topLine + lParam);
 		HorizontalScrollTo(xOffset + static_cast<int>(wParam) * vs.spaceWidth);
@@ -7935,16 +7938,20 @@ sptr_t Editor::WndProc(unsigned int iMessage, uptr_t wParam, sptr_t lParam) {
 		break;
 
 	case SCI_POSITIONFROMPOINT:
-		return PositionFromLocation(Point(wParam, lParam), false, false);
+		return PositionFromLocation(Point(wParam - vs.ExternalMarginWidth(), lParam),
+					    false, false);
 
 	case SCI_POSITIONFROMPOINTCLOSE:
-		return PositionFromLocation(Point(wParam, lParam), true, false);
+		return PositionFromLocation(Point(wParam - vs.ExternalMarginWidth(), lParam),
+					    true, false);
 
 	case SCI_CHARPOSITIONFROMPOINT:
-		return PositionFromLocation(Point(wParam, lParam), false, true);
+		return PositionFromLocation(Point(wParam - vs.ExternalMarginWidth(), lParam),
+					    false, true);
 
 	case SCI_CHARPOSITIONFROMPOINTCLOSE:
-		return PositionFromLocation(Point(wParam, lParam), true, true);
+		return PositionFromLocation(Point(wParam - vs.ExternalMarginWidth(), lParam),
+					    true, true);
 
 	case SCI_GOTOLINE:
 		GoToLine(wParam);
