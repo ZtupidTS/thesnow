@@ -127,7 +127,7 @@ class SString : protected SContainer {
 	lenpos_t sizeGrowth;	///< Minimum growth size when appending strings
 	enum { sizeGrowthDefault = 64 };
 
-	bool grow(lenpos_t lenNew);
+	void grow(lenpos_t lenNew);
 	SString &assign(const char *sOther, lenpos_t sSize_=measure_length);
 
 public:
@@ -277,5 +277,19 @@ inline char *StringDup(
 bool isprefix(const char *target, const char *prefix);
 int CompareNoCase(const char *a, const char *b);
 bool EqualCaseInsensitive(const char *a, const char *b);
+
+// Safer version of string copy functions like strcpy, wcsncpy, etc.
+// Instantiate over fixed length strings of both char and wchar_t.
+// May truncate if source doesn't fit into dest with room for NUL.
+
+template <typename T, size_t count>
+void StringCopy(T (&dest)[count], const T* source) {
+	for (size_t i=0; i<count; i++) {
+		dest[i] = source[i];
+		if (!source[i])
+			break;
+	}
+	dest[count-1] = 0;
+}
 
 #endif

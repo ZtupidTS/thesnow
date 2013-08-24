@@ -385,6 +385,7 @@ protected:
 	WINDOWPLACEMENT winPlace;
 	RECT rcWorkArea;
 	GUI::gui_char openWhat[200];
+	GUI::gui_char tooltipText[MAX_PATH*2 + 1];
 	bool modalParameters;
 	int filterDefault;
 	bool staticBuild;
@@ -410,7 +411,6 @@ protected:
 	HMODULE hMM;
 
 	// Tab Bar
-	TCITEM tie;
 	HFONT fontTabs;
 
 	/// Preserve focus during deactivation
