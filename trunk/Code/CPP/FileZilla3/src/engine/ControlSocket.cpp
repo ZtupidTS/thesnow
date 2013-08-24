@@ -540,16 +540,6 @@ wxString CControlSocket::ConvToLocal(const char* buffer)
 			delete [] out;
 			return str;
 		}
-		else if(m_pCSConv)
-		{
-			out = ConvToLocalBuffer(buffer, *m_pCSConv);
-			if (out)
-			{
-				wxString str = out;
-				delete [] out;
-				return str;
-			}
-		}
 
 		// Fall back to local charset on error
 		if (m_pCurrentServer->GetEncodingType() != ENCODING_UTF8)
