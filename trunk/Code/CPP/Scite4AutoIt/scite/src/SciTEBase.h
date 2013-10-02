@@ -23,8 +23,6 @@ extern const GUI::gui_char propAbbrevFileName[];
 #endif
 #endif
 
-#define ELEMENTS(a) (sizeof(a) / sizeof(a[0]))
-
 inline int Minimum(int a, int b) {
 	return (a < b) ? a : b;
 }
@@ -35,11 +33,6 @@ inline int Maximum(int a, int b) {
 
 inline long LongFromTwoShorts(short a,short b) {
 	return (a) | ((b) << 16);
-}
-
-typedef long Colour;
-inline Colour ColourRGB(unsigned int red, unsigned int green, unsigned int blue) {
-	return red | (green << 8) | (blue << 16);
 }
 
 /**
@@ -240,34 +233,6 @@ enum IndentationStatus {
     isKeyWordStart	// Keywords that cause indentation
 };
 
-int IntFromHexDigit(int ch);
-int IntFromHexByte(const char *hexByte);
-
-class StyleDefinition {
-public:
-	SString font;
-	float sizeFractional;
-	int size;
-	SString fore;
-	SString back;
-	int weight;
-	bool italics;
-	bool eolfilled;
-	bool underlined;
-	int caseForce;
-	bool visible;
-	bool changeable;
-	enum flags { sdNone = 0, sdFont = 0x1, sdSize = 0x2, sdFore = 0x4, sdBack = 0x8,
-	        sdWeight = 0x10, sdItalics = 0x20, sdEOLFilled = 0x40, sdUnderlined = 0x80,
-	        sdCaseForce = 0x100, sdVisible = 0x200, sdChangeable = 0x400} specified;
-	StyleDefinition(const char *definition);
-	bool ParseStyleDefinition(const char *definition);
-	long ForeAsLong() const;
-	long BackAsLong() const;
-	int FractionalSize() const;
-	bool IsBold() const;
-};
-
 struct StyleAndWords {
 	int styleNumber;
 	SString words;
@@ -323,6 +288,7 @@ public:
 	bool wrapFind;
 	bool reverseFind;
 
+	int searchStartPosition;
 	bool replacing;
 	bool havefound;
 	bool findInStyle;
@@ -338,7 +304,8 @@ public:
 	virtual void SetFind(const char *sFind) = 0;
 	virtual bool FindHasText() const = 0;
 	virtual void SetReplace(const char *sReplace) = 0;
-	virtual void MoveBack(int distance) = 0;
+	virtual void SetCaretAsStart() = 0;
+	virtual void MoveBack() = 0;
 	virtual void ScrollEditorIfNeeded() = 0;
 
 	virtual int FindNext(bool reverseDirection, bool showWarnings = true, bool allowRegExp=true) = 0;
@@ -387,7 +354,10 @@ protected:
 	enum { importCmdID = IDM_IMPORT };
 	ImportFilter filter;
 
-	enum { indicatorMatch = INDIC_CONTAINER, indicatorHightlightCurrentWord, indicatorSentinel };
+	enum { indicatorMatch = INDIC_CONTAINER,
+		indicatorHightlightCurrentWord,
+		indicatorSpellingMistake,
+		indicatorSentinel };
 	enum { markerBookmark = 1 };
 	ComboMemory memFiles;
 	ComboMemory memDirectory;
@@ -455,7 +425,6 @@ protected:
 	bool wrap;
 	bool wrapOutput;
 	int wrapStyle;
-	bool isReadOnly;
 	bool openFilesHere;
 	bool fullScreen;
 	enum { toolMax = 50 };
@@ -644,16 +613,16 @@ protected:
 	bool OpenSelected();
 	void Revert();
 	FilePath SaveName(const char *ext) const;
-	int SaveIfUnsure(bool forceQuestion = false);
-	int SaveIfUnsureAll(bool forceQuestion = false);
-	int SaveIfUnsureForBuilt();
-	bool SaveIfNotOpen(const FilePath &destFile, bool fixCase);
-	void AbandonAutomaticSave();
 	enum SaveFlags {
 	    sfNone = 0, 		// Default
 	    sfProgressVisible = 1, 	// Show in background save strip
 	    sfSynchronous = 16	// Write synchronously blocking UI
 	};
+	int SaveIfUnsure(bool forceQuestion = false, SaveFlags sf = sfProgressVisible);
+	int SaveIfUnsureAll(bool forceQuestion = false);
+	int SaveIfUnsureForBuilt();
+	bool SaveIfNotOpen(const FilePath &destFile, bool fixCase);
+	void AbandonAutomaticSave();
 	bool Save(SaveFlags sf = sfProgressVisible);
 	void SaveAs(const GUI::gui_char *file, bool fixCase);
 	virtual void SaveACopy() = 0;
@@ -714,7 +683,8 @@ protected:
 	virtual void SetFind(const char *sFind);
 	virtual bool FindHasText() const;
 	virtual void SetReplace(const char *sReplace);
-	virtual void MoveBack(int distance);
+	virtual void SetCaretAsStart();
+	virtual void MoveBack();
 	virtual void ScrollEditorIfNeeded();
 	virtual int FindNext(bool reverseDirection, bool showWarnings = true, bool allowRegExp=true);
 	virtual void HideMatch();
@@ -883,6 +853,7 @@ protected:
 	void SetOneStyle(GUI::ScintillaWindow &win, int style, const StyleDefinition &sd);
 	void SetStyleBlock(GUI::ScintillaWindow &win, const char *lang, int start, int last);
 	void SetStyleFor(GUI::ScintillaWindow &win, const char *language);
+	static void SetOneIndicator(GUI::ScintillaWindow &win, int indicator, const IndicatorDefinition &ind);
 	void ReloadProperties();
 
 	void CheckReload();

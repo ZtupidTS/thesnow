@@ -21,14 +21,12 @@
 #import <QuartzCore/CAAnimation.h>
 #import <QuartzCore/CATransaction.h>
 
+#import "Platform.h"
 #import "ScintillaView.h"
+#import "ScintillaCocoa.h"
 #import "PlatCocoa.h"
 
 using namespace Scintilla;
-
-#ifndef WM_UNICHAR
-#define WM_UNICHAR 0x0109
-#endif
 
 NSString* ScintillaRecPboardType = @"com.scintilla.utf16-plain-text.rectangular";
 
@@ -386,6 +384,7 @@ ScintillaCocoa::ScintillaCocoa(InnerView* view, MarginView* viewMargin)
   wMargin = viewMargin;
   timerTarget = [[TimerTarget alloc] init: this];
   lastMouseEvent = NULL;
+  delegate = NULL;
   notifyObj = NULL;
   notifyProc = NULL;
   capturedMouse = false;
@@ -731,7 +730,7 @@ Scintilla::Point ScintillaCocoa::ConvertPoint(NSPoint point)
 
 /**
  * A function to directly execute code that would usually go the long way via window messages.
- * However this is a Windows metapher and not used here, hence we just call our fake
+ * However this is a Windows metaphor and not used here, hence we just call our fake
  * window proc. The given parameters directly reflect the message parameters used on Windows.
  *
  * @param sciThis The target which is to be called.
@@ -766,7 +765,7 @@ sptr_t scintilla_send_message(void* sci, unsigned int iMessage, uptr_t wParam, s
  * commands (also used to synchronize UI and background threads), which is not the case in Cocoa.
  *
  * Messages handled here are almost solely for special commands of the backend. Everything which
- * would be sytem messages on Windows (e.g. for key down, mouse move etc.) are handled by
+ * would be system messages on Windows (e.g. for key down, mouse move etc.) are handled by
  * directly calling appropriate handlers.
  */
 sptr_t ScintillaCocoa::WndProc(unsigned int iMessage, uptr_t wParam, sptr_t lParam)
@@ -798,19 +797,6 @@ sptr_t ScintillaCocoa::WndProc(unsigned int iMessage, uptr_t wParam, sptr_t lPar
       
     case SCI_FINDINDICATORHIDE:
       HideFindIndicator();
-      return 0;
-      
-    case WM_UNICHAR:
-      // Special case not used normally. Characters passed in this way will be inserted
-      // regardless of their value or modifier states. That means no command interpretation is
-      // performed.
-      if (IsUnicodeMode())
-      {
-        NSString* input = [NSString stringWithCharacters: (const unichar*) &wParam length: 1];
-        const char* utf8 = [input UTF8String];
-        AddCharUTF((char*) utf8, static_cast<unsigned int>(strlen(utf8)), false);
-        return 1;
-      }
       return 0;
       
     default:
@@ -1168,7 +1154,7 @@ void ScintillaCocoa::StartDrag()
   int endLine = pdoc->LineFromPosition(selEnd);
   Point pt;
   long startPos, endPos, ep;
-  Rect rcSel;
+  PRectangle rcSel;
   
   if (startLine==endLine && WndProc(SCI_GETWRAPMODE, 0, 0) != SC_WRAP_NONE) {
     // Komodo bug http://bugs.activestate.com/show_bug.cgi?id=87571
@@ -1229,15 +1215,12 @@ void ScintillaCocoa::StartDrag()
   }
   // must convert to global coordinates for drag regions, but also save the
   // image rectangle for further calculations and copy operations
-  PRectangle localRectangle = PRectangle(rcSel.left, rcSel.top, rcSel.right, rcSel.bottom);
     
   // Prepare drag image.
-  NSRect selectionRectangle = PRectangleToNSRect(localRectangle);
+  NSRect selectionRectangle = PRectangleToNSRect(rcSel);
   
   NSView* content = ContentView();
     
-#if 1
-
   // To get a bitmap of the text we're dragging, we just use Paint on a pixmap surface.
   SurfaceImpl *sw = new SurfaceImpl();
   SurfaceImpl *pixmap = NULL;
@@ -1249,7 +1232,7 @@ void ScintillaCocoa::StartDrag()
     pixmap = new SurfaceImpl();
     if (pixmap)
     {
-      PRectangle imageRect = NSRectToPRectangle(selectionRectangle);
+      PRectangle imageRect = rcSel;
       paintState = painting;
       sw->InitPixMap(client.Width(), client.Height(), NULL, NULL);
       paintingAllText = true;
@@ -1259,6 +1242,7 @@ void ScintillaCocoa::StartDrag()
       NSGraphicsContext *nsgc = [NSGraphicsContext graphicsContextWithGraphicsPort: gcsw 
                                                                            flipped: YES];
       [NSGraphicsContext setCurrentContext:nsgc];
+      CGContextTranslateCTM(gcsw, -client.left, -client.top);
       Paint(sw, client);
       paintState = notPainting;
       
@@ -1288,15 +1272,6 @@ void ScintillaCocoa::StartDrag()
     pixmap->Release();
     delete pixmap;
   }
-#else
-  
-  // Poor man's drag image: take a snapshot of the content view.
-  [content lockFocus];
-  NSBitmapImageRep* bitmap = [[[NSBitmapImageRep alloc] initWithFocusedViewRect: selectionRectangle] autorelease];
-  [bitmap setColorSpaceName: NSDeviceRGBColorSpace];
-  [content unlockFocus];
-  
-#endif
   
   NSImage* image = [[[NSImage alloc] initWithSize: selectionRectangle.size] autorelease];
   [image addRepresentation: bitmap];
@@ -1308,8 +1283,8 @@ void ScintillaCocoa::StartDrag()
   [dragImage unlockFocus];
   
   NSPoint startPoint;
-  startPoint.x = selectionRectangle.origin.x;
-  startPoint.y = selectionRectangle.origin.y + selectionRectangle.size.height;
+  startPoint.x = selectionRectangle.origin.x + client.left;
+  startPoint.y = selectionRectangle.origin.y + selectionRectangle.size.height + client.top;
   [content dragImage: dragImage 
                   at: startPoint
               offset: NSZeroSize
@@ -1678,8 +1653,23 @@ void ScintillaCocoa::UpdateForScroll() {
 //--------------------------------------------------------------------------------------------------
 
 /**
+ * Register a delegate that will be called for notifications and commands.
+ * This provides similar functionality to RegisterNotifyCallback but in an
+ * Objective C way.
+ *
+ * @param delegate_ A pointer to an object that implements ScintillaNotificationProtocol.
+ */
+
+void ScintillaCocoa::SetDelegate(id<ScintillaNotificationProtocol> delegate_)
+{
+  delegate = delegate_;
+}
+
+//--------------------------------------------------------------------------------------------------
+
+/**
  * Used to register a callback function for a given window. This is used to emulate the way
- * Windows notfies other controls (mainly up in the view hierarchy) about certain events.
+ * Windows notifies other controls (mainly up in the view hierarchy) about certain events.
  *
  * @param windowid A handle to a window. That value is generic and can be anything. It is passed
  *                 through to the callback.
@@ -1708,6 +1698,8 @@ void ScintillaCocoa::NotifyFocus(bool focus)
   if (notifyProc != NULL)
     notifyProc(notifyObj, WM_COMMAND, Platform::LongFromTwoShorts(GetCtrlID(), (focus ? SCEN_SETFOCUS : SCEN_KILLFOCUS)),
 	       (uintptr_t) this);
+
+  Editor::NotifyFocus(focus);
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -1720,12 +1712,12 @@ void ScintillaCocoa::NotifyFocus(bool focus)
  */
 void ScintillaCocoa::NotifyParent(SCNotification scn)
 { 
+  scn.nmhdr.hwndFrom = (void*) this;
+  scn.nmhdr.idFrom = GetCtrlID();
   if (notifyProc != NULL)
-  {
-    scn.nmhdr.hwndFrom = (void*) this;
-    scn.nmhdr.idFrom = GetCtrlID();
-    notifyProc(notifyObj, WM_NOTIFY, (uintptr_t) 0, (uintptr_t) &scn);
-  }
+    notifyProc(notifyObj, WM_NOTIFY, GetCtrlID(), (uintptr_t) &scn);
+  if (delegate)
+    [delegate notification:&scn];
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -1869,7 +1861,7 @@ bool ScintillaCocoa::KeyboardInput(NSEvent* event)
   
   bool handled = false;
   
-  // Handle each entry individually. Usually we only have one entry anway.
+  // Handle each entry individually. Usually we only have one entry anyway.
   for (size_t i = 0; i < input.length; i++)
   {
     const UniChar originalKey = [input characterAtIndex: i];

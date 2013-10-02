@@ -56,6 +56,7 @@
 #include "StringList.h"
 #include "StringHelpers.h"
 #include "FilePath.h"
+#include "StyleDefinition.h"
 #include "PropSetFile.h"
 #include "StyleWriter.h"
 #include "Extender.h"
@@ -366,7 +367,7 @@ void SciTEBase::PerformDeferredTasks() {
 }
 
 void SciTEBase::CompleteOpen(OpenCompletion oc) {
-	wEditor.Call(SCI_SETREADONLY, isReadOnly);
+	wEditor.Call(SCI_SETREADONLY, CurrentBuffer()->isReadOnly);
 
 	if (oc != ocSynchronous) {
 		ReadProperties();
@@ -442,8 +443,10 @@ void SciTEBase::TextWritten(FileWorker *pFileWorker) {
 				buffers.RemoveInvisible(iBuffer);
 			}
 			if (iBuffer == buffers.Current()) {
-				wEditor.Call(SCI_SETSAVEPOINT);
 				wEditor.Call(SCI_SETREADONLY, CurrentBuffer()->isReadOnly);
+				if (pathSaved.SameNameAs(CurrentBuffer()->AsInternal())) {
+					wEditor.Call(SCI_SETSAVEPOINT);
+				}
 				if (extender)
 					extender->OnSave(buffers.buffers[iBuffer].AsUTF8().c_str());
 			} else {
@@ -595,9 +598,8 @@ bool SciTEBase::Open(FilePath file, OpenFlags of) {
 		} else {
 			wEditor.Call(SCI_EMPTYUNDOBUFFER);
 		}
-		isReadOnly = props.GetInt("read.only");
-		CurrentBuffer()->isReadOnly = isReadOnly;
-		wEditor.Call(SCI_SETREADONLY, isReadOnly);
+		CurrentBuffer()->isReadOnly = props.GetInt("read.only");
+		wEditor.Call(SCI_SETREADONLY, CurrentBuffer()->isReadOnly);
 	}
 	RemoveFileFromStack(filePath);
 	DeleteFileStackMenu();
@@ -804,7 +806,7 @@ FilePath SciTEBase::SaveName(const char *ext) const {
 	return FilePath(savePath.c_str());
 }
 
-int SciTEBase::SaveIfUnsure(bool forceQuestion) {
+int SciTEBase::SaveIfUnsure(bool forceQuestion, SaveFlags sf) {
 	if (CurrentBuffer()->pFileWorker) {
 		if (CurrentBuffer()->pFileWorker->IsLoading())
 			// In semi-loaded state so refuse to save
@@ -826,12 +828,12 @@ int SciTEBase::SaveIfUnsure(bool forceQuestion) {
 			}
 			int decision = WindowMessageBox(wSciTE, msg, MB_YESNOCANCEL | MB_ICONQUESTION);
 			if (decision == IDYES) {
-				if (!Save())
+				if (!Save(sf))
 					decision = IDCANCEL;
 			}
 			return decision;
 		} else {
-			if (!Save())
+			if (!Save(sf))
 				return IDCANCEL;
 		}
 	}
@@ -967,12 +969,12 @@ bool SciTEBase::SaveBuffer(FilePath saveName, SaveFlags sf) {
 			if (!(sf & sfSynchronous)) {
 				wEditor.Call(SCI_SETREADONLY, 1);
 				const char *documentBytes = reinterpret_cast<const char *>(wEditor.CallReturnPointer(SCI_GETCHARACTERPOINTER));
-				CurrentBuffer()->pFileWorker = new FileStorer(this, documentBytes, filePath, lengthDoc, fp, CurrentBuffer()->unicodeMode, (sf & sfProgressVisible));
+				CurrentBuffer()->pFileWorker = new FileStorer(this, documentBytes, saveName, lengthDoc, fp, CurrentBuffer()->unicodeMode, (sf & sfProgressVisible));
 				CurrentBuffer()->pFileWorker->sleepTime = props.GetInt("asynchronous.sleep");
 				if (PerformOnNewThread(CurrentBuffer()->pFileWorker)) {
 					retVal = true;
 				} else {
-					GUI::gui_string msg = LocaliseMessage("Failed to save file '^0' as thread could not be started.", filePath.AsInternal());
+					GUI::gui_string msg = LocaliseMessage("Failed to save file '^0' as thread could not be started.", saveName.AsInternal());
 					WindowMessageBox(wSciTE, msg, MB_OK | MB_ICONWARNING);
 				}
 			} else {

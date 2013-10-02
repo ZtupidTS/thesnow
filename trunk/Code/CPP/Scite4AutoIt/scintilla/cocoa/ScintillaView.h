@@ -11,16 +11,38 @@
 
 #import <Cocoa/Cocoa.h>
 
-#import "Platform.h"
 #import "Scintilla.h"
 #import "SciLexer.h"
 
 #import "InfoBarCommunicator.h"
-#import "ScintillaCocoa.h"
+
+/**
+ * Scintilla sends these two messages to the notify handler. Please refer
+ * to the Windows API doc for details about the message format.
+ */
+#define WM_COMMAND 1001
+#define WM_NOTIFY 1002
+
+namespace Scintilla {
+/**
+ * On the Mac, there is no WM_COMMAND or WM_NOTIFY message that can be sent
+ * back to the parent. Therefore, there must be a callback handler that acts
+ * like a Windows WndProc, where Scintilla can send notifications to. Use
+ * ScintillaView registerNotifyCallback() to register such a handler.
+ * Message format is:
+ * <br>
+ * WM_COMMAND: HIWORD (wParam) = notification code, LOWORD (wParam) = control ID, lParam = ScintillaCocoa*
+ * <br>
+ * WM_NOTIFY: wParam = control ID, lParam = ptr to SCNotification structure, with hwndFrom set to ScintillaCocoa*
+ */
+typedef void(*SciNotifyFunc) (intptr_t windowid, unsigned int iMessage, uintptr_t wParam, uintptr_t lParam);
+
+class ScintillaCocoa;
+}
 
 @class ScintillaView;
 
-extern NSString *SCIUpdateUINotification;
+extern NSString *const SCIUpdateUINotification;
 
 @protocol ScintillaNotificationProtocol
 - (void)notification: (Scintilla::SCNotification*)notification;
@@ -62,16 +84,15 @@ extern NSString *SCIUpdateUINotification;
 
 @property (nonatomic, assign) ScintillaView* owner;
 
-- (void) dealloc;
 - (void) removeMarkedText;
-- (void) setCursor: (Scintilla::Window::Cursor) cursor;
+- (void) setCursor: (int) cursor;
 
 - (BOOL) canUndo;
 - (BOOL) canRedo;
 
 @end
 
-@interface ScintillaView : NSView <InfoBarCommunicator>
+@interface ScintillaView : NSView <InfoBarCommunicator, ScintillaNotificationProtocol>
 {
 @private
   // The back end is kind of a controller and model in one.
@@ -89,7 +110,6 @@ extern NSString *SCIUpdateUINotification;
   // Area to display additional controls (e.g. zoom info, caret position, status info).
   NSView <InfoBarCommunicator>* mInfoBar;
   BOOL mInfoBarAtTop;
-  int mInitialInfoBarWidth;
 
   id<ScintillaNotificationProtocol> mDelegate;
 }
@@ -98,7 +118,6 @@ extern NSString *SCIUpdateUINotification;
 @property (nonatomic, assign) id<ScintillaNotificationProtocol> delegate;
 @property (nonatomic, readonly) NSScrollView *scrollView;
 
-- (void) dealloc;
 - (void) positionSubViews;
 
 - (void) sendNotification: (NSString*) notificationName;
@@ -107,6 +126,7 @@ extern NSString *SCIUpdateUINotification;
 - (void) setCallback: (id <InfoBarCommunicator>) callback;
 
 - (void) suspendDrawing: (BOOL) suspend;
+- (void) notification: (Scintilla::SCNotification*) notification;
 
 // Scroller handling
 - (void) setMarginWidth: (int) width;
@@ -153,6 +173,7 @@ extern NSString *SCIUpdateUINotification;
 - (void) setLexerProperty: (NSString*) name value: (NSString*) value;
 - (NSString*) getLexerProperty: (NSString*) name;
 
+// The delegate property should be used instead of registerNotifyCallback which will be deprecated.
 - (void) registerNotifyCallback: (intptr_t) windowid value: (Scintilla::SciNotifyFunc) callback;
 
 - (void) setInfoBar: (NSView <InfoBarCommunicator>*) aView top: (BOOL) top;

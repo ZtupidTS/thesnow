@@ -39,6 +39,7 @@
 #include "StringList.h"
 #include "StringHelpers.h"
 #include "FilePath.h"
+#include "StyleDefinition.h"
 #include "PropSetFile.h"
 
 #include "Extender.h"
@@ -517,6 +518,7 @@ protected:
 
 	GtkWidget *wIncrementPanel;
 	GtkWidget *IncSearchEntry;
+	GtkWidget *IncSearchBtnNext;
 
 	FindStrip findStrip;
 	ReplaceStrip replaceStrip;
@@ -677,8 +679,9 @@ protected:
 	void TabSizeCmd();
 	void TabSizeConvertCmd();
 	void TabSizeResponse(int responseID);
-	void FindIncrementSetColour(const GdkColor colourBack);
-	void FindIncrementCmd();
+	void FindIncrementSetColour(bool valid);
+	void FindIncrementNext(bool select);
+	void FindIncrementChanged();
 	void FindIncrementCompleteCmd();
 	static gboolean FindIncrementFocusOutSignal(GtkWidget *w);
 	static gboolean FindIncrementEscapeSignal(GtkWidget *w, GdkEventKey *event, SciTEGTK *scitew);
@@ -703,8 +706,7 @@ protected:
 	static gint QuitSignal(GtkWidget *w, GdkEventAny *e, SciTEGTK *scitew);
 	static void ButtonSignal(GtkWidget *widget, gpointer data);
 	static void MenuSignal(GtkMenuItem *menuitem, SciTEGTK *scitew);
-	static void CommandSignal(GtkWidget *w, gint wParam, gpointer lParam, SciTEGTK *scitew);
-	static void NotifySignal(GtkWidget *w, gint wParam, gpointer lParam, SciTEGTK *scitew);
+	static void NotifySignal(GtkWidget *w, gint wParam, SCNotification *notification, SciTEGTK *scitew);
 	static gint KeyPress(GtkWidget *widget, GdkEventKey *event, SciTEGTK *scitew);
 	static gint KeyRelease(GtkWidget *widget, GdkEventKey *event, SciTEGTK *scitew);
 	gint Key(GdkEventKey *event);
@@ -790,6 +792,7 @@ SciTEGTK::SciTEGTK(Extension *ext) : SciTEBase(ext) {
 	saveFormat = sfSource;
 	wIncrementPanel = 0;
 	IncSearchEntry = 0;
+	IncSearchBtnNext = 0;
 	btnCompile = 0;
 	btnBuild = 0;
 	btnStop = 0;
@@ -1008,6 +1011,13 @@ void SciTEGTK::UpdateStatusBar(bool bUpdateSlowData) {
 }
 
 void SciTEGTK::Notify(SCNotification *notification) {
+	if (notification->nmhdr.idFrom == IDM_SRCWIN) {
+		if (notification->nmhdr.code == SCN_FOCUSIN)
+			Activate(true);
+		else if (notification->nmhdr.code == SCN_FOCUSOUT)
+			Activate(false);
+	}
+
 	SciTEBase::Notify(notification);
 }
 
@@ -1095,22 +1105,7 @@ bool &SciTEGTK::FlagFromCmd(int cmd) {
 
 void SciTEGTK::Command(unsigned long wParam, long) {
 	int cmdID = ControlIDOfCommand(wParam);
-	int notifyCode = wParam >> 16;
 	switch (cmdID) {
-
-	case IDM_SRCWIN:
-		if (notifyCode == SCEN_SETFOCUS) {
-			Activate(true);
-			CheckMenus();
-		} else if (notifyCode == SCEN_KILLFOCUS) {
-			Activate(false);
-		}
-		break;
-
-	case IDM_RUNWIN:
-		if (notifyCode == SCEN_SETFOCUS)
-			CheckMenus();
-		break;
 
 	case IDM_FULLSCREEN:
 		fullScreen = !fullScreen;
@@ -1137,11 +1132,9 @@ void SciTEGTK::Command(unsigned long wParam, long) {
 		SciTEBase::MenuCommand(cmdID, menuSource);
 		menuSource = 0;
 	}
-	if (notifyCode != SCEN_CHANGE) {
-		// Changes to document produce SCN_UPDATEUI as well as SCEN_CHANGE
-		// and SCN_UPDATEUI updates the status bar but not too frequently.
-		UpdateStatusBar(true);
-	}
+	// Changes to document produce SCN_UPDATEUI which updates the status
+	// bar but not too frequently.
+	UpdateStatusBar(true);
 }
 
 void SciTEGTK::ReadLocalization() {
@@ -3260,13 +3253,8 @@ void SciTEGTK::MenuSignal(GtkMenuItem *menuitem, SciTEGTK *scitew) {
 	}
 }
 
-void SciTEGTK::CommandSignal(GtkWidget *, gint wParam, gpointer lParam, SciTEGTK *scitew) {
-
-	scitew->Command(wParam, reinterpret_cast<long>(lParam));
-}
-
-void SciTEGTK::NotifySignal(GtkWidget *, gint /*wParam*/, gpointer lParam, SciTEGTK *scitew) {
-	scitew->Notify(reinterpret_cast<SCNotification *>(lParam));
+void SciTEGTK::NotifySignal(GtkWidget *, gint /*wParam*/, SCNotification *notification, SciTEGTK *scitew) {
+	scitew->Notify(notification);
 }
 
 gint SciTEGTK::KeyPress(GtkWidget * /*widget*/, GdkEventKey *event, SciTEGTK *scitew) {
@@ -4047,10 +4035,14 @@ void FindStrip::Creation(GtkWidget *container) {
 	wButtonMarkAll.Create(localiser->Text(textMarkAll), G_CALLBACK(sigMarkAll.Function), this);
 	table.Add(wButtonMarkAll, 1, false, 0, 0);
 
+#if !GTK_CHECK_VERSION(3,4,0)
 	gtk_widget_ensure_style(wButton);
+#endif
 
 	for (int i=0;i<checks;i++) {
-#if GTK_CHECK_VERSION(3,0,0)
+#if GTK_CHECK_VERSION(3,4,0)
+		wCheck[i].Create(xpmImages[i], localiser->Text(toggles[i].label), NULL);
+#elif GTK_CHECK_VERSION(3,0,0)
 		wCheck[i].Create(xpmImages[i], localiser->Text(toggles[i].label), gtk_widget_get_style(wButton.Pointer()));
 #else
 		wCheck[i].Create(xpmImages[i], localiser->Text(toggles[i].label), wButton.Pointer()->style);
@@ -4217,10 +4209,14 @@ void ReplaceStrip::Creation(GtkWidget *container) {
 			G_CALLBACK(sigReplaceAll.Function), this);
 	tableReplace.Add(wButtonReplaceAll, 1, false, 0, 0);
 
+#if !GTK_CHECK_VERSION(3,4,0)
 	gtk_widget_ensure_style(wButtonFind);
+#endif
 
 	for (int i=0;i<checks;i++) {
-#if GTK_CHECK_VERSION(3,0,0)
+#if GTK_CHECK_VERSION(3,4,0)
+		wCheck[i].Create(xpmImages[i], localiser->Text(toggles[i].label), NULL);
+#elif GTK_CHECK_VERSION(3,0,0)
 		wCheck[i].Create(xpmImages[i], localiser->Text(toggles[i].label), gtk_widget_get_style(wButtonFind.Pointer()));
 #else
 		wCheck[i].Create(xpmImages[i], localiser->Text(toggles[i].label), wButtonFind.Pointer()->style);
@@ -4843,8 +4839,6 @@ void SciTEGTK::CreateUI() {
 	scintilla_set_id(SCINTILLA(PWidget(wEditor)), IDM_SRCWIN);
 	wEditor.Call(SCI_USEPOPUP, 0);
 
-	g_signal_connect(G_OBJECT(PWidget(wEditor)), "command",
-	                   G_CALLBACK(CommandSignal), this);
 	g_signal_connect(G_OBJECT(PWidget(wEditor)), SCINTILLA_NOTIFY,
 	                   G_CALLBACK(NotifySignal), this);
 
@@ -4853,15 +4847,13 @@ void SciTEGTK::CreateUI() {
 	g_object_ref(G_OBJECT(PWidget(wOutput)));
 	scintilla_set_id(SCINTILLA(PWidget(wOutput)), IDM_RUNWIN);
 	wOutput.Call(SCI_USEPOPUP, 0);
-	g_signal_connect(G_OBJECT(PWidget(wOutput)), "command",
-	                   G_CALLBACK(CommandSignal), this);
 	g_signal_connect(G_OBJECT(PWidget(wOutput)), SCINTILLA_NOTIFY,
 	                   G_CALLBACK(NotifySignal), this);
 
 	splitVertical = props.GetInt("split.vertical", 0);
 	LayoutUI();
 
-	WTable table(1, 2);
+	WTable table(1, 3);
 	wIncrementPanel = table;
 	table.PackInto(GTK_BOX(boxMain), false);
 	table.Label(TranslatedLabel("Find:"));
@@ -4871,10 +4863,17 @@ void SciTEGTK::CreateUI() {
 	Signal<&SciTEGTK::FindIncrementCompleteCmd> sigFindIncrementComplete;
 	g_signal_connect(G_OBJECT(IncSearchEntry),"activate", G_CALLBACK(sigFindIncrementComplete.Function), this);
 	g_signal_connect(G_OBJECT(IncSearchEntry), "key-press-event", G_CALLBACK(FindIncrementEscapeSignal), this);
-	Signal<&SciTEGTK::FindIncrementCmd> sigFindIncrement;
-	g_signal_connect(G_OBJECT(IncSearchEntry),"changed", G_CALLBACK(sigFindIncrement.Function), this);
+	Signal<&SciTEGTK::FindIncrementChanged> sigFindIncrementChanged;
+	g_signal_connect(G_OBJECT(IncSearchEntry),"changed", G_CALLBACK(sigFindIncrementChanged.Function), this);
 	g_signal_connect(G_OBJECT(IncSearchEntry),"focus-out-event", G_CALLBACK(FindIncrementFocusOutSignal), NULL);
 	gtk_widget_show(IncSearchEntry);
+	
+	GUI::gui_string translated = localiser.Text("Find Next");
+	IncSearchBtnNext = gtk_button_new_with_mnemonic(translated.c_str());
+	table.Add(IncSearchBtnNext, 1, false, 5, 1);
+	g_signal_connect(G_OBJECT(IncSearchBtnNext), "clicked",
+		G_CALLBACK(sigFindIncrementComplete.Function), this);
+	gtk_widget_show(IncSearchBtnNext);
 
 	CreateStrips(boxMain);
 
@@ -4916,29 +4915,44 @@ void SciTEGTK::CreateUI() {
 	UIAvailable();
 }
 
-void SciTEGTK::FindIncrementSetColour(const GdkColor colourBack) {
+void SciTEGTK::FindIncrementSetColour(bool valid) {
 #if GTK_CHECK_VERSION(3,0,0)
-	GdkRGBA colour = {colourBack.red / 65535.0, colourBack.green / 65535.0, colourBack.blue / 65535.0, 1.0 };
-	gtk_widget_override_background_color(GTK_WIDGET(IncSearchEntry), GTK_STATE_FLAG_FOCUSED, &colour);
+	if (valid) {
+		GdkRGBA black = { 0, 0, 0, 1};
+		gtk_widget_override_color(GTK_WIDGET(IncSearchEntry), (GtkStateFlags)GTK_STATE_NORMAL, &black);
+	} else {
+		GdkRGBA red = { 1.0, 0, 0, 1};
+		gtk_widget_override_color(GTK_WIDGET(IncSearchEntry), (GtkStateFlags)GTK_STATE_NORMAL, &red);
+	}
 #else
-	gtk_widget_modify_base(GTK_WIDGET(IncSearchEntry), GTK_STATE_NORMAL, &colourBack);
+	if (valid) {
+		GdkColor white = { 0, 0xFFFF, 0xFFFF, 0xFFFF};
+		gtk_widget_modify_base(GTK_WIDGET(IncSearchEntry), GTK_STATE_NORMAL, &white);
+	} else {
+		GdkColor red = { 0, 0xFFFF, 0x6666, 0x6666 };
+		gtk_widget_modify_base(GTK_WIDGET(IncSearchEntry), GTK_STATE_NORMAL, &red);
+	}
 #endif
 }
 
-void SciTEGTK::FindIncrementCmd() {
+void SciTEGTK::FindIncrementNext(bool select) {
+	if (select) {
+		MoveBack();
+	}
 	const char *lineEntry = gtk_entry_get_text(GTK_ENTRY(IncSearchEntry));
 	findWhat = lineEntry;
 	wholeWord = false;
-	if (findWhat != "") {
+	if (FindHasText()) {
 		FindNext(false, false);
-		if (!havefound) {
-			GdkColor red = { 0, 0xFFFF, 0x8888, 0x8888 };
-			FindIncrementSetColour(red);
-		} else {
-			GdkColor white = { 0, 0xFFFF, 0xFFFF, 0xFFFF};
-			FindIncrementSetColour(white);
+		if (!select) {
+			SetCaretAsStart();
 		}
 	}
+	FindIncrementSetColour(!FindHasText() || havefound);
+}
+
+void SciTEGTK::FindIncrementChanged() {
+	FindIncrementNext(true);
 }
 
 gboolean SciTEGTK::FindIncrementEscapeSignal(GtkWidget *w, GdkEventKey *event, SciTEGTK *scitew) {
@@ -4951,15 +4965,14 @@ gboolean SciTEGTK::FindIncrementEscapeSignal(GtkWidget *w, GdkEventKey *event, S
 }
 
 void SciTEGTK::FindIncrementCompleteCmd() {
-	gtk_widget_hide(wIncrementPanel);
-	SetFocus(wEditor);
+	FindIncrementNext(false);
 }
 
-gboolean SciTEGTK::FindIncrementFocusOutSignal(GtkWidget *w) {
+gboolean SciTEGTK::FindIncrementFocusOutSignal(GtkWidget *) {
 #if GTK_CHECK_VERSION(3,0,0)
-	gtk_widget_hide(gtk_widget_get_parent(w));
+	//gtk_widget_hide(gtk_widget_get_parent(w));
 #else
-	gtk_widget_hide(w->parent);
+	//gtk_widget_hide(w->parent);
 #endif
 	return FALSE;
 }
@@ -4967,8 +4980,7 @@ gboolean SciTEGTK::FindIncrementFocusOutSignal(GtkWidget *w) {
 void SciTEGTK::FindIncrement() {
 	findStrip.Close();
 	replaceStrip.Close();
-	GdkColor white = { 0, 0xFFFF, 0xFFFF, 0xFFFF};
-	FindIncrementSetColour(white);
+	FindIncrementSetColour(true);
 	gtk_widget_show(wIncrementPanel);
 	gtk_widget_grab_focus(GTK_WIDGET(IncSearchEntry));
 	gtk_entry_set_text(GTK_ENTRY(IncSearchEntry), "");

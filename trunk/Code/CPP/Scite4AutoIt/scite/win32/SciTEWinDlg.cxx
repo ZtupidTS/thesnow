@@ -279,7 +279,7 @@ FilePath SciTEWin::ChooseSaveName(FilePath directory, const char *title, const G
 		GUI::gui_char saveName[MAX_PATH] = GUI_TEXT("");
 		FilePath savePath = SaveName(ext);
 		if (!savePath.IsUntitled()) {
-			wcscpy(saveName, savePath.AsInternal());
+			StringCopy(saveName, savePath.AsInternal());
 		}
 		OPENFILENAMEW ofn;
 		memset(&ofn, 0, sizeof(ofn));
@@ -412,7 +412,7 @@ void SciTEWin::LoadSessionDialog() {
 
 void SciTEWin::SaveSessionDialog() {
 	GUI::gui_char saveName[MAX_PATH] = GUI_TEXT("\0");
-	wcscpy(saveName, GUI_TEXT("SciTE.session"));
+	StringCopy(saveName, GUI_TEXT("SciTE.session"));
 	OPENFILENAMEW ofn;
 	memset(&ofn, 0, sizeof(ofn));
 	ofn.lStructSize = sizeof(ofn);
@@ -1140,6 +1140,8 @@ void SciTEWin::FindIncrement() {
 	searchStrip.visible = !searchStrip.visible;
 	SizeSubWindows();
 	if (searchStrip.visible) {
+		SetCaretAsStart();
+		findWhat = "";
 		searchStrip.Focus();
 	} else {
 		WindowSetFocus(wEditor);

@@ -344,6 +344,9 @@
 				RelativePath="..\..\scintilla\lexers\LexKix.cxx">
 			</File>
 			<File
+				RelativePath="..\..\scintilla\lexers\LexKVIrc.cxx">
+			</File>
+			<File
 				RelativePath="..\..\scintilla\lexers\LexLaTeX.cxx">
 			</File>
 			<File
@@ -645,10 +648,16 @@
 				RelativePath="..\src\StringList.cxx">
 			</File>
 			<File
+				RelativePath="..\win32\Strips.cxx">
+			</File>
+			<File
 				RelativePath="..\..\scintilla\src\Style.cxx">
 			</File>
 			<File
 				RelativePath="..\..\scintilla\lexlib\StyleContext.cxx">
+			</File>
+			<File
+				RelativePath="..\Src\StyleDefinition.cxx">
 			</File>
 			<File
 				RelativePath="..\Src\StyleWriter.cxx">

@@ -9,7 +9,9 @@
  * This file is dual licensed under LGPL v2.1 and the Scintilla license (http://www.scintilla.org/License.txt).
  */
 
+#import "Platform.h"
 #import "ScintillaView.h"
+#import "ScintillaCocoa.h"
 
 using namespace Scintilla;
 
@@ -20,7 +22,7 @@ static NSCursor* waitCursor;
 // The scintilla indicator used for keyboard input.
 #define INPUT_INDICATOR INDIC_MAX - 1
 
-NSString *SCIUpdateUINotification = @"SCIUpdateUI";
+NSString *const SCIUpdateUINotification = @"SCIUpdateUI";
 
 /**
  * Provide an NSCursor object that matches the Window::Cursor enumeration.
@@ -195,12 +197,13 @@ static NSCursor *cursorFromEnum(Window::Cursor cursor)
 /**
  * Called by the backend if a new cursor must be set for the view.
  */
-- (void) setCursor: (Window::Cursor) cursor
+- (void) setCursor: (int) cursor
 {
+  Window::Cursor eCursor = (Window::Cursor)cursor;
   [mCurrentCursor autorelease];
-  mCurrentCursor = cursorFromEnum(cursor);
+  mCurrentCursor = cursorFromEnum(eCursor);
   [mCurrentCursor retain];
-  
+
   // Trigger recreation of the cursor rectangle(s).
   [[self window] invalidateCursorRectsForView: self];
 }
@@ -374,7 +377,7 @@ static NSCursor *cursorFromEnum(Window::Cursor cursor)
 
 	if (replacementRange.location == (NSNotFound-1))
 		// This occurs when the accent popup is visible and menu selected.
-		// Its replacing a non-existant position so do nothing.
+		// Its replacing a non-existent position so do nothing.
 		return;
 
 	if (replacementRange.length > 0)
@@ -953,90 +956,70 @@ static NSCursor *cursorFromEnum(Window::Cursor cursor)
 //--------------------------------------------------------------------------------------------------
 
 /**
- * Notification function used by Scintilla to call us back (e.g. for handling clicks on the 
+ * Method receives notifications from Scintilla (e.g. for handling clicks on the
  * folder margin or changes in the editor).
  * A delegate can be set to receive all notifications. If set no handling takes place here, except
  * for action pertaining to internal stuff (like the info bar).
  */
-static void notification(intptr_t windowid, unsigned int iMessage, uintptr_t wParam, uintptr_t lParam)
+- (void) notification: (Scintilla::SCNotification*)scn
 {
-  // WM_NOTIFY means we got a parent notification with a special notification structure.
-  // Here we don't really differentiate between parent and own notifications and handle both.
-  ScintillaView* editor;
-  switch (iMessage)
+  // Parent notification. Details are passed as SCNotification structure.
+  
+  if (mDelegate != nil)
   {
-    case WM_NOTIFY:
+    [mDelegate notification: scn];
+    if (scn->nmhdr.code != SCN_ZOOM && scn->nmhdr.code != SCN_UPDATEUI)
+      return;
+  }
+  
+  switch (scn->nmhdr.code)
+  {
+    case SCN_MARGINCLICK:
     {
-      // Parent notification. Details are passed as SCNotification structure.
-      SCNotification* scn = reinterpret_cast<SCNotification*>(lParam);
-      ScintillaCocoa *psc = reinterpret_cast<ScintillaCocoa*>(scn->nmhdr.hwndFrom);
-      editor = reinterpret_cast<InnerView*>(psc->ContentView()).owner;
-
-      if (editor.delegate != nil)
+      if (scn->margin == 2)
       {
-        [editor.delegate notification: scn];
-        if (scn->nmhdr.code != SCN_ZOOM && scn->nmhdr.code != SCN_UPDATEUI)
-          return;
+	// Click on the folder margin. Toggle the current line if possible.
+	long line = [self getGeneralProperty: SCI_LINEFROMPOSITION parameter: scn->position];
+	[self setGeneralProperty: SCI_TOGGLEFOLD value: line];
       }
-      
-      switch (scn->nmhdr.code)
+      break;
+    };
+    case SCN_MODIFIED:
+    {
+      // Decide depending on the modification type what to do.
+      // There can be more than one modification carried by one notification.
+      if (scn->modificationType & (SC_MOD_INSERTTEXT | SC_MOD_DELETETEXT))
+	[self sendNotification: NSTextDidChangeNotification];
+      break;
+    }
+    case SCN_ZOOM:
+    {
+      // A zoom change happened. Notify info bar if there is one.
+      float zoom = [self getGeneralProperty: SCI_GETZOOM parameter: 0];
+      long fontSize = [self getGeneralProperty: SCI_STYLEGETSIZE parameter: STYLE_DEFAULT];
+      float factor = (zoom / fontSize) + 1;
+      [mInfoBar notify: IBNZoomChanged message: nil location: NSZeroPoint value: factor];
+      break;
+    }
+    case SCN_UPDATEUI:
+    {
+      // Triggered whenever changes in the UI state need to be reflected.
+      // These can be: caret changes, selection changes etc.
+      NSPoint caretPosition = mBackend->GetCaretPosition();
+      [mInfoBar notify: IBNCaretChanged message: nil location: caretPosition value: 0];
+      [self sendNotification: SCIUpdateUINotification];
+      if (scn->updated & (SC_UPDATE_SELECTION | SC_UPDATE_CONTENT))
       {
-        case SCN_MARGINCLICK:
-        {
-          if (scn->margin == 2)
-          {
-            // Click on the folder margin. Toggle the current line if possible.
-            long line = [editor getGeneralProperty: SCI_LINEFROMPOSITION parameter: scn->position];
-            [editor setGeneralProperty: SCI_TOGGLEFOLD value: line];
-          }
-          break;
-          };
-        case SCN_MODIFIED:
-        {
-          // Decide depending on the modification type what to do.
-          // There can be more than one modification carried by one notification.
-          if (scn->modificationType & (SC_MOD_INSERTTEXT | SC_MOD_DELETETEXT))
-            [editor sendNotification: NSTextDidChangeNotification];
-          break;
-        }
-        case SCN_ZOOM:
-        {
-          // A zoom change happend. Notify info bar if there is one.
-          float zoom = [editor getGeneralProperty: SCI_GETZOOM parameter: 0];
-          long fontSize = [editor getGeneralProperty: SCI_STYLEGETSIZE parameter: STYLE_DEFAULT];
-          float factor = (zoom / fontSize) + 1;
-          [editor->mInfoBar notify: IBNZoomChanged message: nil location: NSZeroPoint value: factor];
-          break;
-        }
-        case SCN_UPDATEUI:
-        {
-          // Triggered whenever changes in the UI state need to be reflected.
-          // These can be: caret changes, selection changes etc.
-          NSPoint caretPosition = editor->mBackend->GetCaretPosition();
-          [editor->mInfoBar notify: IBNCaretChanged message: nil location: caretPosition value: 0];
-          [editor sendNotification: SCIUpdateUINotification];
-          [editor sendNotification: NSTextViewDidChangeSelectionNotification];
-          break;
-      }
+	[self sendNotification: NSTextViewDidChangeSelectionNotification];
       }
       break;
     }
-    case WM_COMMAND:
-    {
-      // Notifications for the editor itself.
-      ScintillaCocoa* backend = reinterpret_cast<ScintillaCocoa*>(lParam);
-      editor = backend->TopContainer();
-      switch (wParam >> 16)
-      {
-        case SCEN_KILLFOCUS:
-          [editor sendNotification: NSTextDidEndEditingNotification];
-          break;
-        case SCEN_SETFOCUS: // Nothing to do for now.
-          break;
-      }
+    case SCN_FOCUSOUT:
+      [self sendNotification: NSTextDidEndEditingNotification];
       break;
-    }
-  };
+    case SCN_FOCUSIN: // Nothing to do for now.
+      break;
+  }
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -1078,7 +1061,7 @@ static void notification(intptr_t windowid, unsigned int iMessage, uintptr_t wPa
 
     // Establish a connection from the back end to this container so we can handle situations
     // which require our attention.
-    mBackend->RegisterNotifyCallback(nil, notification);
+    mBackend->SetDelegate(self);
     
     // Setup a special indicator used in the editor to provide visual feedback for 
     // input composition, depending on language, keyboard etc.
@@ -1113,6 +1096,7 @@ static void notification(intptr_t windowid, unsigned int iMessage, uintptr_t wPa
 {
   [[NSNotificationCenter defaultCenter] removeObserver:self];
   delete mBackend;
+  [marginView release];
   [super dealloc];
 }
 
@@ -1577,9 +1561,6 @@ static void notification(intptr_t windowid, unsigned int iMessage, uintptr_t wPa
 /**
  * Sets the new control which is displayed as info bar at the top or bottom of the editor.
  * Set newBar to nil if you want to hide the bar again.
- * When aligned to bottom position then the info bar and the horizontal scroller share the available
- * space. The info bar will then only get the width it is currently set to less a minimal amount
- * reserved for the scroller. At the top position it gets the full width of the control.
  * The info bar's height is set to the height of the scrollbar.
  */
 - (void) setInfoBar: (NSView <InfoBarCommunicator>*) newBar top: (BOOL) top
@@ -1594,9 +1575,6 @@ static void notification(intptr_t windowid, unsigned int iMessage, uintptr_t wPa
     {
       [self addSubview: mInfoBar];
       [mInfoBar setCallback: self];
-      
-      // Keep the initial width as reference for layout changes.
-      mInitialInfoBarWidth = [mInfoBar frame].size.width;
     }
     
     [self positionSubViews];
@@ -1650,7 +1628,7 @@ static void notification(intptr_t windowid, unsigned int iMessage, uintptr_t wPa
 //--------------------------------------------------------------------------------------------------
 
 /**
- * Searches and marks the first occurance of the given text and optionally scrolls it into view.
+ * Searches and marks the first occurrence of the given text and optionally scrolls it into view.
  *
  * @result YES if something was found, NO otherwise.
  */
@@ -1670,7 +1648,7 @@ static void notification(intptr_t windowid, unsigned int iMessage, uintptr_t wPa
   int selectionStart = [self getGeneralProperty: SCI_GETSELECTIONSTART parameter: 0];
   int selectionEnd = [self getGeneralProperty: SCI_GETSELECTIONEND parameter: 0];
   
-  // Sets the start point for the comming search to the begin of the current selection.
+  // Sets the start point for the coming search to the beginning of the current selection.
   // For forward searches we have therefore to set the selection start to the current selection end
   // for proper incremental search. This does not harm as we either get a new selection if something
   // is found or the previous selection is restored.
@@ -1745,13 +1723,13 @@ static void notification(intptr_t windowid, unsigned int iMessage, uintptr_t wPa
                  wholeWord: (BOOL) wholeWord
                      doAll: (BOOL) doAll
 {
-  // The current position is where we start searching for single occurences. Otherwise we start at
+  // The current position is where we start searching for single occurrences. Otherwise we start at
   // the beginning of the document.
   int startPosition;
   if (doAll)
     startPosition = 0; // Start at the beginning of the text if we replace all occurrences.
   else
-    // For a signle replacement we start at the current caret position.
+    // For a single replacement we start at the current caret position.
     startPosition = [self getGeneralProperty: SCI_GETCURRENTPOS];
   int endPosition = [self getGeneralProperty: SCI_GETTEXTLENGTH];
 
@@ -1788,7 +1766,7 @@ static void notification(intptr_t windowid, unsigned int iMessage, uintptr_t wPa
                                   wParam: targetLength
                                   lParam: (sptr_t) replacement];
 
-      // The replacement changes the target range to the replaced text. Continue after that til the end.
+      // The replacement changes the target range to the replaced text. Continue after that till the end.
       // The text length might be changed by the replacement so make sure the target end is the actual
       // text end.
       [self setGeneralProperty: SCI_SETTARGETSTART value: [self getGeneralProperty: SCI_GETTARGETEND]];

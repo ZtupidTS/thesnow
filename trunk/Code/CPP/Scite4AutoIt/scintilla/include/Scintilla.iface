@@ -4372,6 +4372,8 @@ evt void IndicatorRelease=2024(int modifiers, int position)
 evt void AutoCCancelled=2025(void)
 evt void AutoCCharDeleted=2026(void)
 evt void HotSpotReleaseClick=2027(int modifiers, int position)
+evt void FocusIn=2028(void)
+evt void FocusOut=2029(void)
 
 cat Provisional
 
@@ -4403,6 +4405,12 @@ get int GetSubStylesStart=4021(int styleBase,)
 
 # The number of sub styles associated with a base style
 get int GetSubStylesLength=4022(int styleBase,)
+
+# For a sub style, return the base style, else return the argument.
+get int GetStyleFromSubStyle=4027(int subStyle,)
+
+# For a secondary style, return the primary style, else return the argument.
+get int GetPrimaryStyleFromStyle=4028(int style,)
 
 # Free allocated sub styles
 fun void FreeSubStyles=4023(,)
