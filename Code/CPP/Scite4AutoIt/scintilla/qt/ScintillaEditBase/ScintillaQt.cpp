@@ -49,6 +49,7 @@ ScintillaQt::ScintillaQt(QAbstractScrollArea *parent)
 ScintillaQt::~ScintillaQt()
 {
 	SetTicking(false);
+	SetIdle(false);
 }
 
 void ScintillaQt::tick()
@@ -391,6 +392,8 @@ void ScintillaQt::NotifyFocus(bool focus)
 			Platform::LongFromTwoShorts
 					(GetCtrlID(), focus ? SCEN_SETFOCUS : SCEN_KILLFOCUS),
 			reinterpret_cast<sptr_t>(wMain.GetID()));
+
+	Editor::NotifyFocus(focus);
 }
 
 void ScintillaQt::NotifyParent(SCNotification scn)

@@ -61,6 +61,7 @@
 #include "StringList.h"
 #include "StringHelpers.h"
 #include "FilePath.h"
+#include "StyleDefinition.h"
 #include "PropSetFile.h"
 #include "StyleWriter.h"
 #include "Extender.h"
@@ -81,6 +82,7 @@ Searcher::Searcher() {
 	wrapFind = true;
 	reverseFind = false;
 
+	searchStartPosition = 0;
 	replacing = false;
 	havefound = false;
 	findInStyle = false;
@@ -147,7 +149,6 @@ SciTEBase::SciTEBase(Extension *ext) : apis(true), extender(ext) {
 	wrap = false;
 	wrapOutput = false;
 	wrapStyle = SC_WRAP_WORD;
-	isReadOnly = false;
 	openFilesHere = false;
 	fullScreen = false;
 
@@ -969,7 +970,8 @@ int SciTEBase::MarkAll() {
 	int posFirstFound = FindNext(false, false);
 
 	SString findMark = props.Get("find.mark");
-	if (findMark.length()) {
+	SString findMarkindicator = props.Get("find.mark.indicator");
+	if (findMark.length() || findMarkindicator.length()) {
 		wEditor.Call(SCI_SETINDICATORCURRENT, indicatorMatch);
 		RemoveFindMarks();
 		CurrentBuffer()->findMarks = Buffer::fmMarked;
@@ -981,7 +983,7 @@ int SciTEBase::MarkAll() {
 			marked++;
 			int line = wEditor.Call(SCI_LINEFROMPOSITION, posFound);
 			BookmarkAdd(line);
-			if (findMark.length()) {
+			if (findMark.length() || findMarkindicator.length()) {
 				wEditor.Call(SCI_INDICATORFILLRANGE, posFound, wEditor.Call(SCI_GETTARGETEND) - posFound);
 			}
 			posFound = FindNext(false, false);
@@ -1030,10 +1032,13 @@ void SciTEBase::SetReplace(const char *sReplace) {
 	memReplaces.Insert(replaceWhat.c_str());
 }
 
-void SciTEBase::MoveBack(int distance) {
+void SciTEBase::SetCaretAsStart() {
 	Sci_CharacterRange cr = GetSelection();
-	int caret = static_cast<int>(cr.cpMin) - distance;
-	SetSelection(caret, caret);
+	searchStartPosition = static_cast<int>(cr.cpMin);
+}
+
+void SciTEBase::MoveBack() {
+	SetSelection(searchStartPosition, searchStartPosition);
 }
 
 void SciTEBase::ScrollEditorIfNeeded() {
@@ -2337,7 +2342,7 @@ void SciTEBase::SetTextProperties(
 	char temp[TEMP_LEN];
 
 	std::string ro = GUI::UTF8FromString(localiser.Text("READ"));
-	ps.Set("ReadOnly", isReadOnly ? ro.c_str() : "");
+	ps.Set("ReadOnly", CurrentBuffer()->isReadOnly ? ro.c_str() : "");
 
 	int eolMode = wEditor.Call(SCI_GETEOLMODE);
 	ps.Set("EOLMode", eolMode == SC_EOL_CRLF ? "CR+LF" : (eolMode == SC_EOL_LF ? "LF" : "CR"));
@@ -3468,9 +3473,8 @@ void SciTEBase::MenuCommand(int cmdID, int source) {
 		break;
 
 	case IDM_READONLY:
-		isReadOnly = !isReadOnly;
-		CurrentBuffer()->isReadOnly = isReadOnly;
-		wEditor.Call(SCI_SETREADONLY, isReadOnly);
+		CurrentBuffer()->isReadOnly = !CurrentBuffer()->isReadOnly;
+		wEditor.Call(SCI_SETREADONLY, CurrentBuffer()->isReadOnly);
 		UpdateStatusBar(true);
 		CheckMenus();
 		break;
@@ -3946,8 +3950,9 @@ void SciTEBase::Notify(SCNotification *notification) {
 			}
 		}
 		break;
-	case SCEN_SETFOCUS:
-	case SCEN_KILLFOCUS:
+
+	case SCN_FOCUSIN:
+	case SCN_FOCUSOUT:
 		CheckMenus();
 		break;
 
@@ -4154,7 +4159,7 @@ void SciTEBase::CheckMenus() {
 	EnableAMenuItem(IDM_SAVE, CurrentBuffer()->isDirty); 		//DO NOT REMOVE!!
 	EnableAMenuItem(IDM_UNDO, CallFocusedElseDefault(true, SCI_CANUNDO));
 	EnableAMenuItem(IDM_REDO, CallFocusedElseDefault(true, SCI_CANREDO));
-	EnableAMenuItem(IDM_DUPLICATE, !isReadOnly);
+	EnableAMenuItem(IDM_DUPLICATE, CurrentBuffer()->isReadOnly);
 	EnableAMenuItem(IDM_SHOWCALLTIP, apis != 0);
 	EnableAMenuItem(IDM_COMPLETE, apis != 0);
 	CheckAMenuItem(IDM_SPLITVERTICAL, splitVertical);
@@ -4162,7 +4167,7 @@ void SciTEBase::CheckMenus() {
 	CheckAMenuItem(IDM_OPENFILESHERE, openFilesHere);
 	CheckAMenuItem(IDM_WRAP, wrap);
 	CheckAMenuItem(IDM_WRAPOUTPUT, wrapOutput);
-	CheckAMenuItem(IDM_READONLY, isReadOnly);
+	CheckAMenuItem(IDM_READONLY, CurrentBuffer()->isReadOnly);
 	CheckAMenuItem(IDM_FULLSCREEN, fullScreen);
 	CheckAMenuItem(IDM_VIEWTOOLBAR, tbVisible);
 	CheckAMenuItem(IDM_VIEWTABBAR, tabVisible);
@@ -4711,7 +4716,7 @@ bool SciTEBase::ProcessCommandLine(GUI::gui_string &args, int phase) {
 				if (wlArgs[i+1][3] == 'b')
 					gf = static_cast<GrepFlags>(gf | grepBinary);
 				char unquoted[1000];
-				strcpy(unquoted, GUI::UTF8FromString(wlArgs[i+3].c_str()).c_str());
+				StringCopy(unquoted, GUI::UTF8FromString(wlArgs[i+3].c_str()).c_str());
 				UnSlash(unquoted);
 				sptr_t originalEnd = 0;
 				InternalGrep(gf, FilePath::GetWorkingDirectory().AsInternal(), wlArgs[i+2].c_str(), unquoted, originalEnd);

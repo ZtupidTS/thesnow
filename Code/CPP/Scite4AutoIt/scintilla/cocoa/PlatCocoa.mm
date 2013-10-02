@@ -12,7 +12,9 @@
  * This file is dual licensed under LGPL v2.1 and the Scintilla license (http://www.scintilla.org/License.txt).
  */
 
+#import "Platform.h"
 #import "ScintillaView.h"
+#import "ScintillaCocoa.h"
 #import "PlatCocoa.h"
 
 #include <cstring>
@@ -55,7 +57,7 @@ PRectangle NSRectToPRectangle(NSRect& rc)
 //--------------------------------------------------------------------------------------------------
 
 /**
- * Converts a PRctangle as used by Scintilla to a Quartz-style rectangle.
+ * Converts a PRectangle as used by Scintilla to a Quartz-style rectangle.
  */
 inline CGRect PRectangleToCGRect(PRectangle& rc)
 {
@@ -196,10 +198,10 @@ bool SurfaceImpl::Initialised()
 void SurfaceImpl::Init(WindowID)
 {
   // To be able to draw, the surface must get a CGContext handle.  We save the graphics port,
-  // then aquire/release the context on an as-need basis (see above).
+  // then acquire/release the context on an as-need basis (see above).
   // XXX Docs on QDBeginCGContext are light, a better way to do this would be good.
   // AFAIK we should not hold onto a context retrieved this way, thus the need for
-  // aquire/release of the context.
+  // acquire/release of the context.
   
   Release();
 }
@@ -387,7 +389,7 @@ void SurfaceImpl::LineTo(int x_, int y_)
   
   // Because Quartz is based on floating point, lines are drawn with half their colour
   // on each side of the line. Integer coordinates specify the INTERSECTION of the pixel
-  // divison lines. If you specify exact pixel values, you get a line that
+  // division lines. If you specify exact pixel values, you get a line that
   // is twice as thick but half as intense. To get pixel aligned rendering,
   // we render the "middle" of the pixels by adding 0.5 to the coordinates.
   CGContextMoveToPoint( gc, x + 0.5, y + 0.5 );
@@ -591,19 +593,101 @@ void SurfaceImpl::RoundedRectangle(PRectangle rc, ColourDesired fore, ColourDesi
   CGContextDrawPath( gc, kCGPathFillStroke );
 }
 
-void Scintilla::SurfaceImpl::AlphaRectangle(PRectangle rc, int /*cornerSize*/, ColourDesired fill, int alphaFill,
-                                            ColourDesired /*outline*/, int /*alphaOutline*/, int /*flags*/)
+// DrawChamferedRectangle is a helper function for AlphaRectangle that either fills or strokes a
+// rectangle with its corners chamfered at 45 degrees.
+static void DrawChamferedRectangle(CGContextRef gc, PRectangle rc, int cornerSize, CGPathDrawingMode mode) {
+  // Points go clockwise, starting from just below the top left
+  CGPoint corners[4][2] =
+  {
+    {
+      { rc.left, rc.top + cornerSize },
+      { rc.left + cornerSize, rc.top },
+    },
+    {
+      { rc.right - cornerSize - 1, rc.top },
+      { rc.right - 1, rc.top + cornerSize },
+    },
+    {
+      { rc.right - 1, rc.bottom - cornerSize - 1 },
+      { rc.right - cornerSize - 1, rc.bottom - 1 },
+    },
+    {
+      { rc.left + cornerSize, rc.bottom - 1 },
+      { rc.left, rc.bottom - cornerSize - 1 },
+    },
+  };
+  
+  // Align the points in the middle of the pixels
+  for( int i = 0; i < 4; ++ i )
+  {
+    for( int j = 0; j < 2; ++ j )
+    {
+      corners[i][j].x += 0.5;
+      corners[i][j].y += 0.5;
+    }
+  }
+
+  // Move to the last point to begin the path
+  CGContextBeginPath( gc );
+  CGContextMoveToPoint( gc, corners[3][1].x, corners[3][1].y );
+  
+  for ( int i = 0; i < 4; ++ i )
+  {
+    CGContextAddLineToPoint( gc, corners[i][0].x, corners[i][0].y );
+    CGContextAddLineToPoint( gc, corners[i][1].x, corners[i][1].y );
+  }
+  
+  // Close the path to enclose it for stroking and for filling, then draw it
+  CGContextClosePath( gc );
+  CGContextDrawPath( gc, mode );
+}
+
+void Scintilla::SurfaceImpl::AlphaRectangle(PRectangle rc, int cornerSize, ColourDesired fill, int alphaFill,
+                                            ColourDesired outline, int alphaOutline, int /*flags*/)
 {
   if ( gc ) {
-    ColourDesired colour( fill.AsLong() );
- 
     // Snap rectangle boundaries to nearest int
     rc.left = lround(rc.left);
     rc.right = lround(rc.right);
     // Set the Fill color to match
-    CGContextSetRGBFillColor( gc, colour.GetRed() / 255.0, colour.GetGreen() / 255.0, colour.GetBlue() / 255.0, alphaFill / 255.0 );
-    CGRect rect = PRectangleToCGRect( rc );
-    CGContextFillRect( gc, rect );
+    CGContextSetRGBFillColor( gc, fill.GetRed() / 255.0, fill.GetGreen() / 255.0, fill.GetBlue() / 255.0, alphaFill / 255.0 );
+    CGContextSetRGBStrokeColor( gc, outline.GetRed() / 255.0, outline.GetGreen() / 255.0, outline.GetBlue() / 255.0, alphaOutline / 255.0 );
+    PRectangle rcFill = rc;
+    if (cornerSize == 0) {
+      // A simple rectangle, no rounded corners
+      if ((fill == outline) && (alphaFill == alphaOutline)) {
+        // Optimization for simple case
+        CGRect rect = PRectangleToCGRect( rcFill );
+        CGContextFillRect( gc, rect );
+      } else {
+        rcFill.left += 1.0;
+        rcFill.top += 1.0;
+        rcFill.right -= 1.0;
+        rcFill.bottom -= 1.0;
+        CGRect rect = PRectangleToCGRect( rcFill );
+        CGContextFillRect( gc, rect );
+        CGContextAddRect( gc, CGRectMake( rc.left + 0.5, rc.top + 0.5, rc.Width() - 1, rc.Height() - 1 ) );
+        CGContextStrokePath( gc );
+      }
+    } else {
+      // Approximate rounded corners with 45 degree chamfers.
+      // Drawing real circular arcs often leaves some over- or under-drawn pixels.
+      if ((fill == outline) && (alphaFill == alphaOutline)) {
+        // Specializing this case avoids a few stray light/dark pixels in corners.
+        rcFill.left -= 0.5;
+        rcFill.top -= 0.5;
+        rcFill.right += 0.5;
+        rcFill.bottom += 0.5;
+        DrawChamferedRectangle( gc, rcFill, cornerSize, kCGPathFill );
+      } else {
+        rcFill.left += 0.5;
+        rcFill.top += 0.5;
+        rcFill.right -= 0.5;
+        rcFill.bottom -= 0.5;
+        DrawChamferedRectangle( gc, rcFill, cornerSize-1, kCGPathFill );
+        DrawChamferedRectangle( gc, rc, cornerSize, kCGPathStroke );
+      }
+    }
   }
 }
 
@@ -1869,7 +1953,7 @@ ListBox* ListBox::Allocate()
 @implementation ScintillaContextMenu : NSMenu
 
 // This NSMenu subclass serves also as target for menu commands and forwards them as
-// notfication messages to the front end.
+// notification messages to the front end.
 
 - (void) handleCommand: (NSMenuItem*) sender
 {
@@ -1984,7 +2068,7 @@ int Platform::DefaultFontSize()
 //--------------------------------------------------------------------------------------------------
 
 /**
- * Returns the time span in which two consequtive mouse clicks must occur to be considered as
+ * Returns the time span in which two consecutive mouse clicks must occur to be considered as
  * double click.
  *
  * @return
@@ -2159,7 +2243,7 @@ int Platform::Clamp(int val, int minVal, int maxVal)
  * Implements the platform specific part of library loading.
  * 
  * @param modulePath The path to the module to load.
- * @return A library instance or NULL if the module could not be found or another problem occured.
+ * @return A library instance or NULL if the module could not be found or another problem occurred.
  */
 DynamicLibrary* DynamicLibrary::Load(const char* /* modulePath */)
 {

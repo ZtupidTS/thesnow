@@ -86,6 +86,12 @@ class TestSimple(unittest.TestCase):
 		self.assertEquals(self.ed.Anchor, 0)
 		self.assertEquals(self.ed.CurrentPos, 1)
 
+	def testBeyonEnd(self):
+		self.ed.AddText(1, b"x")
+		self.assertEquals(self.ed.GetLineEndPosition(0), 1)
+		self.assertEquals(self.ed.GetLineEndPosition(1), 1)
+		self.assertEquals(self.ed.GetLineEndPosition(2), 1)
+
 	def testSelection(self):
 		self.assertEquals(self.ed.CurrentPos, 0)
 		self.assertEquals(self.ed.Anchor, 0)
@@ -303,6 +309,7 @@ class TestSimple(unittest.TestCase):
 		self.assertEquals(self.ed.LineCount, 1)
 		self.assertEquals(self.ed.LineLength(0), 2)
 		self.assertEquals(self.ed.GetLineEndPosition(0), 2)
+		self.assertEquals(self.ed.LineEndTypesSupported, 1)
 
 	def testUnicodeLineEndsWithCodePage0(self):
 		# Try the Unicode line ends when not in Unicode mode -> should remain 1 line
@@ -1626,6 +1633,57 @@ class TestLexer(unittest.TestCase):
 	def testWordListDescriptions(self):
 		wordSet = self.ed.DescribeKeyWordSets()
 		self.assertNotEquals(wordSet, b"")
+
+class TestSubStyles(unittest.TestCase):
+	''' These tests include knowledge of the current implementation in the cpp lexer
+	and may have to change when that implementation changes.
+	Currently supports subStyles for IDENTIFIER 11 and COMMENTDOCKEYWORD 17 '''
+	def setUp(self):
+		self.xite = Xite.xiteFrame
+		self.ed = self.xite.ed
+		self.ed.ClearAll()
+		self.ed.EmptyUndoBuffer()
+
+	def testInfo(self):
+		self.ed.Lexer = self.ed.SCLEX_CPP
+		bases = self.ed.GetSubStyleBases()
+		self.assertEquals(bases, b"\x0b\x11")	# 11, 17
+		self.assertEquals(self.ed.DistanceToSecondaryStyles(), 0x40)
+
+	def testAllocate(self):
+		firstSubStyle = 0x80	# Current implementation
+		self.ed.Lexer = self.ed.SCLEX_CPP
+		self.assertEquals(self.ed.GetStyleFromSubStyle(firstSubStyle), firstSubStyle)
+		self.assertEquals(self.ed.GetSubStylesStart(self.ed.SCE_C_IDENTIFIER), 0)
+		self.assertEquals(self.ed.GetSubStylesLength(self.ed.SCE_C_IDENTIFIER), 0)
+		numSubStyles = 5
+		subs = self.ed.AllocateSubStyles(self.ed.SCE_C_IDENTIFIER, numSubStyles)
+		self.assertEquals(subs, firstSubStyle)
+		self.assertEquals(self.ed.GetSubStylesStart(self.ed.SCE_C_IDENTIFIER), firstSubStyle)
+		self.assertEquals(self.ed.GetSubStylesLength(self.ed.SCE_C_IDENTIFIER), numSubStyles)
+		self.assertEquals(self.ed.GetStyleFromSubStyle(subs), self.ed.SCE_C_IDENTIFIER)
+		self.assertEquals(self.ed.GetStyleFromSubStyle(subs+numSubStyles-1), self.ed.SCE_C_IDENTIFIER)
+		self.assertEquals(self.ed.GetStyleFromSubStyle(self.ed.SCE_C_IDENTIFIER), self.ed.SCE_C_IDENTIFIER)
+		# Now free and check same as start
+		self.ed.FreeSubStyles()
+		self.assertEquals(self.ed.GetStyleFromSubStyle(subs), subs)
+		self.assertEquals(self.ed.GetSubStylesStart(self.ed.SCE_C_IDENTIFIER), 0)
+		self.assertEquals(self.ed.GetSubStylesLength(self.ed.SCE_C_IDENTIFIER), 0)
+
+	def testInactive(self):
+		firstSubStyle = 0x80	# Current implementation
+		inactiveDistance = self.ed.DistanceToSecondaryStyles()
+		self.ed.Lexer = self.ed.SCLEX_CPP
+		numSubStyles = 5
+		subs = self.ed.AllocateSubStyles(self.ed.SCE_C_IDENTIFIER, numSubStyles)
+		self.assertEquals(subs, firstSubStyle)
+		self.assertEquals(self.ed.GetStyleFromSubStyle(subs), self.ed.SCE_C_IDENTIFIER)
+		self.assertEquals(self.ed.GetStyleFromSubStyle(subs+inactiveDistance), self.ed.SCE_C_IDENTIFIER+inactiveDistance)
+		self.ed.FreeSubStyles()
+
+	def testSecondary(self):
+		inactiveDistance = self.ed.DistanceToSecondaryStyles()
+		self.assertEquals(self.ed.GetPrimaryStyleFromStyle(self.ed.SCE_C_IDENTIFIER+inactiveDistance), self.ed.SCE_C_IDENTIFIER)
 
 class TestAutoComplete(unittest.TestCase):
 

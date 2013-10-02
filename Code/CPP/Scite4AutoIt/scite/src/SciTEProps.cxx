@@ -58,6 +58,7 @@ const GUI::gui_char menuAccessIndicator[] = GUI_TEXT("&");
 #include "StringList.h"
 #include "StringHelpers.h"
 #include "FilePath.h"
+#include "StyleDefinition.h"
 #include "PropSetFile.h"
 #include "StyleWriter.h"
 #include "Extender.h"
@@ -231,33 +232,6 @@ void SciTEBase::ReadLocalPropFile() {
 	props.Set("ChromeHighlight", "#FFFFFF");
 }
 
-int IntFromHexDigit(int ch) {
-	if ((ch >= '0') && (ch <= '9')) {
-		return ch - '0';
-	} else if (ch >= 'A' && ch <= 'F') {
-		return ch - 'A' + 10;
-	} else if (ch >= 'a' && ch <= 'f') {
-		return ch - 'a' + 10;
-	} else {
-		return 0;
-	}
-}
-
-int IntFromHexByte(const char *hexByte) {
-	return IntFromHexDigit(hexByte[0]) * 16 + IntFromHexDigit(hexByte[1]);
-}
-
-static Colour ColourFromString(const SString &s) {
-	if (s.length()) {
-		int r = IntFromHexByte(s.c_str() + 1);
-		int g = IntFromHexByte(s.c_str() + 3);
-		int b = IntFromHexByte(s.c_str() + 5);
-		return ColourRGB(r, g, b);
-	} else {
-		return 0;
-	}
-}
-
 Colour ColourOfProperty(PropSetFile &props, const char *key, Colour colourDefault) {
 	SString colour = props.GetExpanded(key);
 	if (colour.length()) {
@@ -294,139 +268,6 @@ const char *SciTEBase::GetNextPropItem(
 	strncpy(pPropItem, pStart, size);
 	pPropItem[size] = '\0';
 	return pNext;
-}
-
-StyleDefinition::StyleDefinition(const char *definition) :
-		sizeFractional(10.0), size(10), fore("#000000"), back("#FFFFFF"),
-		weight(SC_WEIGHT_NORMAL), italics(false), eolfilled(false), underlined(false),
-		caseForce(SC_CASE_MIXED),
-		visible(true), changeable(true),
-		specified(sdNone) {
-	ParseStyleDefinition(definition);
-}
-
-bool StyleDefinition::ParseStyleDefinition(const char *definition) {
-	if (definition == NULL || *definition == '\0') {
-		return false;
-	}
-	char *val = StringDup(definition);
-	char *opt = val;
-	while (opt) {
-		// Find attribute separator
-		char *cpComma = strchr(opt, ',');
-		if (cpComma) {
-			// If found, we terminate the current attribute (opt) string
-			*cpComma = '\0';
-		}
-		// Find attribute name/value separator
-		char *colon = strchr(opt, ':');
-		if (colon) {
-			// If found, we terminate the current attribute name and point on the value
-			*colon++ = '\0';
-		}
-		if (0 == strcmp(opt, "italics")) {
-			specified = static_cast<flags>(specified | sdItalics);
-			italics = true;
-		}
-		if (0 == strcmp(opt, "notitalics")) {
-			specified = static_cast<flags>(specified | sdItalics);
-			italics = false;
-		}
-		if (0 == strcmp(opt, "bold")) {
-			specified = static_cast<flags>(specified | sdWeight);
-			weight = SC_WEIGHT_BOLD;
-		}
-		if (0 == strcmp(opt, "notbold")) {
-			specified = static_cast<flags>(specified | sdWeight);
-			weight = SC_WEIGHT_NORMAL;
-		}
-		if ((0 == strcmp(opt, "weight")) && colon) {
-			specified = static_cast<flags>(specified | sdWeight);
-			weight = atoi(colon);
-		}
-		if (0 == strcmp(opt, "font")) {
-			specified = static_cast<flags>(specified | sdFont);
-			font = colon;
-			font.substitute('|', ',');
-		}
-		if (0 == strcmp(opt, "fore")) {
-			specified = static_cast<flags>(specified | sdFore);
-			fore = colon;
-		}
-		if (0 == strcmp(opt, "back")) {
-			specified = static_cast<flags>(specified | sdBack);
-			back = colon;
-		}
-		if ((0 == strcmp(opt, "size")) && colon) {
-			specified = static_cast<flags>(specified | sdSize);
-			sizeFractional = static_cast<float>(atof(colon));
-			size = static_cast<int>(sizeFractional);
-		}
-		if (0 == strcmp(opt, "eolfilled")) {
-			specified = static_cast<flags>(specified | sdEOLFilled);
-			eolfilled = true;
-		}
-		if (0 == strcmp(opt, "noteolfilled")) {
-			specified = static_cast<flags>(specified | sdEOLFilled);
-			eolfilled = false;
-		}
-		if (0 == strcmp(opt, "underlined")) {
-			specified = static_cast<flags>(specified | sdUnderlined);
-			underlined = true;
-		}
-		if (0 == strcmp(opt, "notunderlined")) {
-			specified = static_cast<flags>(specified | sdUnderlined);
-			underlined = false;
-		}
-		if (0 == strcmp(opt, "case")) {
-			specified = static_cast<flags>(specified | sdCaseForce);
-			caseForce = SC_CASE_MIXED;
-			if (colon) {
-				if (*colon == 'u')
-					caseForce = SC_CASE_UPPER;
-				else if (*colon == 'l')
-					caseForce = SC_CASE_LOWER;
-			}
-		}
-		if (0 == strcmp(opt, "visible")) {
-			specified = static_cast<flags>(specified | sdVisible);
-			visible = true;
-		}
-		if (0 == strcmp(opt, "notvisible")) {
-			specified = static_cast<flags>(specified | sdVisible);
-			visible = false;
-		}
-		if (0 == strcmp(opt, "changeable")) {
-			specified = static_cast<flags>(specified | sdChangeable);
-			changeable = true;
-		}
-		if (0 == strcmp(opt, "notchangeable")) {
-			specified = static_cast<flags>(specified | sdChangeable);
-			changeable = false;
-		}
-		if (cpComma)
-			opt = cpComma + 1;
-		else
-			opt = 0;
-	}
-	delete []val;
-	return true;
-}
-
-long StyleDefinition::ForeAsLong() const {
-	return ColourFromString(fore);
-}
-
-long StyleDefinition::BackAsLong() const {
-	return ColourFromString(back);
-}
-
-int StyleDefinition::FractionalSize() const {
-	return static_cast<int>(sizeFractional * SC_FONT_SIZE_MULTIPLIER);
-}
-
-bool StyleDefinition::IsBold() const {
-	return weight > SC_WEIGHT_NORMAL;
 }
 
 void SciTEBase::SetOneStyle(GUI::ScintillaWindow &win, int style, const StyleDefinition &sd) {
@@ -474,6 +315,14 @@ void SciTEBase::SetStyleFor(GUI::ScintillaWindow &win, const char *lang) {
 	if (maxStyle < STYLE_LASTPREDEFINED)
 		maxStyle = STYLE_LASTPREDEFINED;
 	SetStyleBlock(win, lang, 0, maxStyle);
+}
+
+void SciTEBase::SetOneIndicator(GUI::ScintillaWindow &win, int indicator, const IndicatorDefinition &ind) {
+	win.Call(SCI_INDICSETSTYLE, indicator, ind.style);
+	win.Call(SCI_INDICSETFORE, indicator, ind.colour);
+	win.Call(SCI_INDICSETALPHA, indicator, ind.fillAlpha);
+	win.Call(SCI_INDICSETOUTLINEALPHA, indicator, ind.outlineAlpha);
+	win.Call(SCI_INDICSETUNDER, indicator, ind.under);
 }
 
 SString SciTEBase::ExtensionFileName() {
@@ -923,18 +772,18 @@ void SciTEBase::ReadProperties() {
 	if (alphaIndicator < 0 || 255 < alphaIndicator) // If invalid value,
 		alphaIndicator = 30; //then set default value.
 	bool underIndicator = props.GetInt("indicators.under", 0) == 1;
-	for (int index = INDIC_CONTAINER; index < indicatorSentinel; ++index) {
-		wEditor.Call(SCI_INDICSETALPHA, index, alphaIndicator);
-		wOutput.Call(SCI_INDICSETALPHA, index, alphaIndicator);
-		wEditor.Call(SCI_INDICSETUNDER, index, underIndicator);
-		wOutput.Call(SCI_INDICSETUNDER, index, underIndicator);
-	}
 
-	SString findMark = props.Get("find.mark");
-	if (findMark.length()) {
-		wEditor.Call(SCI_INDICSETSTYLE, indicatorMatch, INDIC_ROUNDBOX);
-		wEditor.Call(SCI_INDICSETFORE, indicatorMatch, ColourFromString(findMark));
+	SString findIndicatorString = props.Get("find.mark.indicator");
+	IndicatorDefinition findIndicator(findIndicatorString.c_str());
+	if (!findIndicatorString.length()) {
+		findIndicator.style = INDIC_ROUNDBOX;
+		SString findMark = props.Get("find.mark");
+		if (findMark.length())
+			findIndicator.colour = ColourFromString(findMark);
+		findIndicator.fillAlpha = alphaIndicator;
+		findIndicator.under = underIndicator;
 	}
+	SetOneIndicator(wEditor, indicatorMatch, findIndicator);
 
 	closeFind = props.GetInt("find.close.on.find", 1);
 
@@ -1372,17 +1221,21 @@ void SciTEBase::ReadProperties() {
 
 	currentWordHighlight.isEnabled = props.GetInt("highlight.current.word", 0) == 1;
 	if (currentWordHighlight.isEnabled) {
-		SString highlightCurrentWordColourString = props.Get("highlight.current.word.colour");
-		if (highlightCurrentWordColourString.length() == 0) {
-			// Set default colour for highlight.
-			highlightCurrentWordColourString = "#A0A000";
+		SString highlightCurrentWordIndicatorString = props.Get("highlight.current.word.indicator");
+		IndicatorDefinition highlightCurrentWordIndicator(highlightCurrentWordIndicatorString.c_str());
+		if (highlightCurrentWordIndicatorString.length() == 0) {
+			highlightCurrentWordIndicator.style = INDIC_ROUNDBOX;
+			SString highlightCurrentWordColourString = props.Get("highlight.current.word.colour");
+			if (highlightCurrentWordColourString.length() == 0) {
+				// Set default colour for highlight.
+				highlightCurrentWordColourString = "#A0A000";
+			}
+			highlightCurrentWordIndicator.colour = ColourFromString(highlightCurrentWordColourString);
+			highlightCurrentWordIndicator.fillAlpha = alphaIndicator;
+			highlightCurrentWordIndicator.under = underIndicator;
 		}
-		Colour highlightCurrentWordColour = ColourFromString(highlightCurrentWordColourString);
-
-		wEditor.Call(SCI_INDICSETSTYLE, indicatorHightlightCurrentWord, INDIC_ROUNDBOX);
-		wEditor.Call(SCI_INDICSETFORE, indicatorHightlightCurrentWord, highlightCurrentWordColour);
-		wOutput.Call(SCI_INDICSETSTYLE, indicatorHightlightCurrentWord, INDIC_ROUNDBOX);
-		wOutput.Call(SCI_INDICSETFORE, indicatorHightlightCurrentWord, highlightCurrentWordColour);
+		SetOneIndicator(wEditor, indicatorHightlightCurrentWord, highlightCurrentWordIndicator);
+		SetOneIndicator(wOutput, indicatorHightlightCurrentWord, highlightCurrentWordIndicator);
 		currentWordHighlight.isOnlyWithSameStyle = props.GetInt("highlight.current.word.by.style", 0) == 1;
 		HighlightCurrentWord(true);
 	}

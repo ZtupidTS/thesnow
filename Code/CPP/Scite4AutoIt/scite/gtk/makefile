@@ -50,7 +50,7 @@ INCLUDEDIRS=-I ../../scintilla/include -I ../src
 ifdef CHECK_DEPRECATED
 DEPRECATED=-DGDK_PIXBUF_DISABLE_DEPRECATED -DGDK_DISABLE_DEPRECATED -DGTK_DISABLE_DEPRECATED
 endif
-CXXBASEFLAGS=-W -Wall -Wno-char-subscripts -pedantic -DGTK -DSCI_LEXER -DPIXMAP_PATH=\"$(pixmapdir)\" -DSYSCONF_PATH=\"$(SYSCONF_PATH)\" $(INCLUDEDIRS) $(DEPRECATED)
+CXXBASEFLAGS=-W -Wall -pedantic -DGTK -DSCI_LEXER -DPIXMAP_PATH=\"$(pixmapdir)\" -DSYSCONF_PATH=\"$(SYSCONF_PATH)\" $(INCLUDEDIRS) $(DEPRECATED)
 
 ifdef DEBUG
 ifdef CLANG
@@ -89,6 +89,9 @@ UNAME:=$(shell uname -s)
 ifeq ($(UNAME), Linux)
 LIBDL:=-ldl
 endif
+ifneq (,$(findstring GNU,$(UNAME)))
+LIBDL:=-ldl
+endif
 ifeq ($(UNAME), Darwin)
 CXXTFLAGS:=$(CXXTFLAGS) -Dunix
 endif
@@ -112,7 +115,7 @@ COMPLIB=../../scintilla/bin/scintilla.a
 
 $(PROG): SciTEGTK.o GUIGTK.o Widget.o \
 FilePath.o SciTEBase.o FileWorker.o Cookie.o Credits.o SciTEBuffers.o SciTEIO.o StringList.o Exporters.o StringHelpers.o \
-PropSetFile.o MultiplexExtension.o DirectorExtension.o SciTEProps.o StyleWriter.o Utf8_16.o \
+PropSetFile.o MultiplexExtension.o DirectorExtension.o SciTEProps.o StyleDefinition.o StyleWriter.o Utf8_16.o \
 	JobQueue.o GTKMutex.o IFaceTable.o $(COMPLIB) $(LUA_OBJS)
 	$(CC) `$(CONFIGTHREADS)` -rdynamic -Wl,--as-needed -Wl,--version-script lua.vers -DGTK $^ -o $@ $(CONFIGLIB) $(LIBDL) -lm -lstdc++
 
