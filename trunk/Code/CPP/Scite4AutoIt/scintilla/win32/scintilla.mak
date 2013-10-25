@@ -115,6 +115,7 @@ LEXOBJS=\
 	$(DIR_O)\LexCsound.obj \
 	$(DIR_O)\LexCSS.obj \
 	$(DIR_O)\LexD.obj \
+	$(DIR_O)\LexDMAP.obj \
 	$(DIR_O)\LexECL.obj \
 	$(DIR_O)\LexEiffel.obj \
 	$(DIR_O)\LexErlang.obj \
@@ -161,6 +162,7 @@ LEXOBJS=\
 	$(DIR_O)\LexR.obj \
 	$(DIR_O)\LexRebol.obj \
 	$(DIR_O)\LexRuby.obj \
+	$(DIR_O)\LexRust.obj \
 	$(DIR_O)\LexScriptol.obj \
 	$(DIR_O)\LexSmalltalk.obj \
 	$(DIR_O)\LexSML.obj \
@@ -365,6 +367,8 @@ $(DIR_O)\LexCSS.obj: ..\lexers\LexCSS.cxx $(LEX_HEADERS)
 
 $(DIR_O)\LexD.obj: ..\lexers\LexD.cxx $(LEX_HEADERS)
 
+$(DIR_O)\LexDMAP.obj: ..\lexers\LexDMAP.cxx $(LEX_HEADERS)
+
 $(DIR_O)\LexECL.obj: ..\lexers\LexECL.cxx $(LEX_HEADERS)
 
 $(DIR_O)\LexEiffel.obj: ..\lexers\LexEiffel.cxx $(LEX_HEADERS)
@@ -456,6 +460,8 @@ $(DIR_O)\LexR.obj: ..\lexers\LexR.cxx $(LEX_HEADERS)
 $(DIR_O)\LexRebol.obj: ..\lexers\LexRebol.cxx $(LEX_HEADERS)
 
 $(DIR_O)\LexRuby.obj: ..\lexers\LexRuby.cxx $(LEX_HEADERS)
+
+$(DIR_O)\LexRust.obj: ..\lexers\LexRust.cxx $(LEX_HEADERS)
 
 $(DIR_O)\LexScriptol.obj: ..\lexers\LexScriptol.cxx $(LEX_HEADERS)
 

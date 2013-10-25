@@ -430,6 +430,11 @@
 	<td>Özgür Emir</td>
 	<td>Neomi</td>
 	<td>OmegaPhil</td>
+      </tr><tr>
+	<td>SiegeLord</td>
+	<td>Erik</td>
+	<td>TJF</td>
+	<td>Mark Robinson</td>
     </tr>
     </table>
     <p>
@@ -442,11 +447,51 @@
       </li>
     </ul>
     <h3>
+       <a href="http://prdownloads.sourceforge.net/scintilla/scite337.zip?download">Release 3.3.7</a>
+    </h3>
+    <ul>
+	<li>
+	Released 15 October 2013.
+	</li>
+	<li>
+	Lexer added for DMAP language.
+	<a href="http://sourceforge.net/p/scintilla/feature-requests/1026/">Feature #1026.</a>
+	</li>
+	<li>
+	Basic lexer supports multiline comments in FreeBASIC.
+	<a href="http://sourceforge.net/p/scintilla/feature-requests/1023/">Feature #1023.</a>
+	</li>
+	<li>
+	C++ lexer fixes bug with #include statements without " or &gt; terminating filename.
+	<a href="http://sourceforge.net/p/scintilla/bugs/1538/">Bug #1538</a>.
+	</li>
+	<li>
+	For DirectWrite, use the GDI ClearType gamma value for SC_EFF_QUALITY_LCD_OPTIMIZED as
+	this results in text that is similar in colour intensity to GDI.
+	For the duller default DirectWrite ClearType text appearance, use SC_EFF_QUALITY_DEFAULT.
+	<a href="http://sourceforge.net/p/scintilla/feature-requests/887/">Feature #887.</a>
+	</li>
+	<li>
+	When scroll width is tracked, take width of annotation lines into account.
+	</li>
+	<li>
+	On Cocoa, multipaste mode now works.
+	<a href="http://sourceforge.net/p/scintilla/bugs/1541/">Bug #1541</a>.
+	</li>
+	<li>
+	On Qt, bug fixed with finding monitor rectangle which could lead to autocomplete showing at wrong location.
+	</li>
+	<li>
+	SciTE fix for multiple message boxes when failing to save a file with save.on.deactivate.
+	<a href="http://sourceforge.net/p/scintilla/bugs/1540/">Bug #1540</a>.
+	</li>
+    <ul>
+    <h3>
        <a href="http://prdownloads.sourceforge.net/scintilla/scite336.zip?download">Release 3.3.6</a>
     </h3>
     <ul>
 	<li>
-	Released 3 September 2013.
+	Released 15 October 2013.
 	</li>
 	<li>
 	Added functions to help convert between substyles and base styles and between secondary and primary styles.
@@ -456,23 +501,35 @@
 	StyleFromSubStyle and PrimaryStyleFromStyle methods were added to ILexerWithSubStyles so each lexer can implement these.
 	</li>
 	<li>
+	Lexer added for Rust language.
+	<a href="http://sourceforge.net/p/scintilla/feature-requests/1024/">Feature #1024.</a>
+	</li>
+	<li>
 	Avoid false matches in errorlist lexer which is used for the SciTE output pane
 	by stricter checking of ctags lines.
+	</li>
+	<li>
+	Perl lexer fixes bugs with multi-byte characters, including in HEREDOCs and PODs.
+	<a href="http://sourceforge.net/p/scintilla/bugs/1528/">Bug #1528</a>.
 	</li>
 	<li>
 	SQL folder folds 'create view' statements.
 	<a href="http://sourceforge.net/p/scintilla/feature-requests/1020/">Feature #1020.</a>
 	</li>
 	<li>
+	Visual Prolog lexer updated with better support for string literals and Unicode.
+	<a href="http://sourceforge.net/p/scintilla/feature-requests/1025/">Feature #1025.</a>
+	</li>
+	<li>
 	For SCI_SETIDENTIFIERS, \t, \r, and \n are allowed as well as space between identifiers.
 	<a href="http://sourceforge.net/p/scintilla/bugs/1521/">Bug #1521</a>.
 	</li>
 	<li>
-	Gaining and losing focus is now reported as a notification with the code set to SCN_FOCUSIN 
+	Gaining and losing focus is now reported as a notification with the code set to SCN_FOCUSIN
 	or SCN_FOCUSOUT.
 	This allows clients to uniformly use notifications instead of commands.
 	Since there is no longer a need for commands they will be deprecated in a future version.
-	Clients should switch any code that currently uses SCEN_SETFOCUS or SCEN_KILLFOCUS. 
+	Clients should switch any code that currently uses SCEN_SETFOCUS or SCEN_KILLFOCUS.
 	</li>
 	<li>
 	On Cocoa, clients should use the delegate mechanism or subclass ScintillaView in preference
@@ -480,7 +537,13 @@
 	</li>
 	<li>
 	On Cocoa, the ScintillaView.h header hides internal implementation details from Platform.h and ScintillaCocoa.h.
+	InnerView was renamed to SCIContentView and MarginView was renamed to SCIMarginView.
 	dealloc removed from @interface.
+	</li>
+	<li>
+	On Cocoa, clients may customize SCIContentView by subclassing both SCIContentView and ScintillaView
+	and implementing the contentViewClass class method on the ScintillaView subclass to return the class of
+	the SCIContentView subclass.
 	</li>
 	<li>
 	On Cocoa, fixed appearance of alpha rectangles to use specified alpha and colour for outline as well as corner size.
@@ -488,6 +551,10 @@
 	</li>
 	<li>
 	On Cocoa, memory leak fixed for MarginView.
+	</li>
+	<li>
+	On Cocoa, make drag and drop work when destination view is empty.
+	<a href="http://sourceforge.net/p/scintilla/bugs/1534/">Bug #1534</a>.
 	</li>
 	<li>
 	On Cocoa, drag image fixed when view scrolled.
@@ -526,6 +593,10 @@
 	<li>
 	Fix linking SciTE on non-Linux Unix systems with GNU toolchain by linking to libdl.
 	<a href="http://sourceforge.net/p/scintilla/bugs/1523/">Bug #1523</a>.
+	</li>
+	<li>
+	On Windows, SciTE's Incremental Search displays match failures by changing the background colour
+	instead of not adding the character that caused failure.
 	</li>
 	<li>
 	Fix SciTE on GTK+ 3.x incremental search to change foreground colour when no match as
