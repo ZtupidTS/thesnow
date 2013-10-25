@@ -1074,6 +1074,7 @@ bool SciTEBase::Save(SaveFlags sf) {
 				}
 			}
 		} else {
+			if (!CurrentBuffer()->failedSave) {
 			CurrentBuffer()->failedSave = true;
 			msg = LocaliseMessage(
 //			            "Could not save file '^0'. Save under a different name?", filePath.AsInternal());
@@ -1081,6 +1082,7 @@ bool SciTEBase::Save(SaveFlags sf) {
 			decision = WindowMessageBox(wSciTE, msg, MB_YESNO | MB_ICONWARNING);
 			if (decision == IDYES) {
 				return SaveAsDialog();
+				}
 			}
 			return false;
 		}

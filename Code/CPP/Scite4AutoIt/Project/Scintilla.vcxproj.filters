@@ -378,6 +378,39 @@
     <ClCompile Include="..\Scintilla\lexers\LexTCMD.cxx">
       <Filter>源文件\LEX</Filter>
     </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexDMAP.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexKVIrc.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexLaTeX.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexPO.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexRust.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexers\LexSTTXT.cxx">
+      <Filter>源文件\LEX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\win32\CheckD2D.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\CaseFolder.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\src\CaseConvert.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexlib\LexerNoExceptions.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Scintilla\lexlib\CharacterCategory.cxx">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Scintilla\include\Platform.h">

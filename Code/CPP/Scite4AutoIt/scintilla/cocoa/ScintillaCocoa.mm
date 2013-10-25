@@ -377,7 +377,7 @@ const CGFloat paddingHighlightY = 2;
 
 //----------------- ScintillaCocoa -----------------------------------------------------------------
 
-ScintillaCocoa::ScintillaCocoa(InnerView* view, MarginView* viewMargin)
+ScintillaCocoa::ScintillaCocoa(SCIContentView* view, SCIMarginView* viewMargin)
 {
   vs.marginInside = false;
   wMain = view; // Don't retain since we're owned by view, which would cause a cycle
@@ -679,9 +679,9 @@ NSScrollView* ScintillaCocoa::ScrollContainer() {
 /**
  * Helper function to get the inner container which represents the actual "canvas" we work with.
  */
-InnerView* ScintillaCocoa::ContentView()
+SCIContentView* ScintillaCocoa::ContentView()
 {
-  return static_cast<InnerView*>(wMain.GetID());
+  return static_cast<SCIContentView*>(wMain.GetID());
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -931,15 +931,15 @@ void ScintillaCocoa::Paste(bool forceRectangular)
   pdoc->BeginUndoAction();
   ClearSelection(false);
   int length = selectedText.Length();
+  SelectionPosition selStart = sel.RangeMain().Start();
   if (selectedText.rectangular)
   {
-    SelectionPosition selStart = sel.RangeMain().Start();
     PasteRectangular(selStart, selectedText.Data(), length);
   }
-  else 
-    if (pdoc->InsertString(sel.RangeMain().caret.Position(), selectedText.Data(), length))
-      SetEmptySelection(sel.RangeMain().caret.Position() + length);
-  
+  else
+  {
+    InsertPaste(selStart, selectedText.Data(), length);
+  }
   pdoc->EndUndoAction();
   
   Redraw();
@@ -1140,6 +1140,8 @@ void ScintillaCocoa::StartDrag()
   if (sel.Empty())
     return;
 
+  inDragDrop = ddDragging;
+
   // Put the data to be dragged on the drag pasteboard.
   SelectionText selectedText;
   NSPasteboard* pasteboard = [NSPasteboard pasteboardWithName: NSDragPboard];
@@ -1279,7 +1281,7 @@ void ScintillaCocoa::StartDrag()
   NSImage* dragImage = [[[NSImage alloc] initWithSize: selectionRectangle.size] autorelease];
   [dragImage setBackgroundColor: [NSColor clearColor]];
   [dragImage lockFocus];
-  [image dissolveToPoint: NSMakePoint(0.0, 0.0) fraction: 0.5];
+  [image drawAtPoint: NSZeroPoint fromRect: NSZeroRect operation: NSCompositeSourceOver fraction: 0.5];
   [dragImage unlockFocus];
   
   NSPoint startPoint;
@@ -1301,7 +1303,6 @@ void ScintillaCocoa::StartDrag()
  */
 NSDragOperation ScintillaCocoa::DraggingEntered(id <NSDraggingInfo> info)
 {
-  inDragDrop = ddDragging;
   return DraggingUpdated(info);
 }
 
@@ -1509,7 +1510,7 @@ bool ScintillaCocoa::SyncPaint(void* gc, PRectangle rc)
 //--------------------------------------------------------------------------------------------------
 
 /**
- * Paint the margin into the MarginView space.
+ * Paint the margin into the SCIMarginView space.
  */
 void ScintillaCocoa::PaintMargin(NSRect aRect)
 {
@@ -1594,7 +1595,7 @@ bool ScintillaCocoa::ModifyScrollBars(int nMax, int nPage)
 
 bool ScintillaCocoa::SetScrollingSize(void) {
 	bool changes = false;
-	InnerView *inner = ContentView();
+	SCIContentView *inner = ContentView();
 	if (!enteredSetScrollingSize) {
 		enteredSetScrollingSize = true;
 		NSScrollView *scrollView = ScrollContainer();
@@ -1926,7 +1927,7 @@ void ScintillaCocoa::SetDocPointer(Document *document)
   // Drop input composition.
   NSTextInputContext *inctxt = [NSTextInputContext currentInputContext];
   [inctxt discardMarkedText];
-  InnerView *inner = ContentView();
+  SCIContentView *inner = ContentView();
   [inner unmarkText];
   Editor::SetDocPointer(document);
 }

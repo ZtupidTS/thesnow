@@ -132,13 +132,23 @@
   <ItemGroup>
     <ClCompile Include="..\Scintilla\lexers\LexAVS.cxx" />
     <ClCompile Include="..\Scintilla\lexers\LexCoffeeScript.cxx" />
+    <ClCompile Include="..\Scintilla\lexers\LexDMAP.cxx" />
     <ClCompile Include="..\Scintilla\lexers\LexECL.cxx" />
+    <ClCompile Include="..\Scintilla\lexers\LexKVIrc.cxx" />
+    <ClCompile Include="..\Scintilla\lexers\LexLaTeX.cxx" />
     <ClCompile Include="..\Scintilla\lexers\LexOScript.cxx" />
+    <ClCompile Include="..\Scintilla\lexers\LexPO.cxx" />
+    <ClCompile Include="..\Scintilla\lexers\LexRust.cxx" />
+    <ClCompile Include="..\Scintilla\lexers\LexSTTXT.cxx" />
     <ClCompile Include="..\Scintilla\lexers\LexTCMD.cxx" />
     <ClCompile Include="..\Scintilla\lexers\LexVisualProlog.cxx" />
     <ClCompile Include="..\Scintilla\lexlib\Accessor.cxx" />
+    <ClCompile Include="..\Scintilla\lexlib\CharacterCategory.cxx" />
+    <ClCompile Include="..\Scintilla\lexlib\LexerNoExceptions.cxx" />
     <ClCompile Include="..\Scintilla\src\AutoComplete.cxx" />
     <ClCompile Include="..\Scintilla\src\CallTip.cxx" />
+    <ClCompile Include="..\Scintilla\src\CaseConvert.cxx" />
+    <ClCompile Include="..\Scintilla\src\CaseFolder.cxx" />
     <ClCompile Include="..\Scintilla\src\Catalogue.cxx" />
     <ClCompile Include="..\Scintilla\src\CellBuffer.cxx" />
     <ClCompile Include="..\Scintilla\lexlib\CharacterSet.cxx" />
@@ -152,6 +162,7 @@
     <ClCompile Include="..\Scintilla\src\KeyMap.cxx" />
     <ClCompile Include="..\Scintilla\src\LineMarker.cxx" />
     <ClCompile Include="..\Scintilla\src\PerLine.cxx" />
+    <ClCompile Include="..\Scintilla\win32\CheckD2D.cxx" />
     <ClCompile Include="..\Scintilla\win32\PlatWin.cxx" />
     <ClCompile Include="..\Scintilla\src\PositionCache.cxx" />
     <ClCompile Include="..\Scintilla\lexlib\PropSetSimple.cxx" />
