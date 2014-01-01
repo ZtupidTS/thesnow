@@ -84,6 +84,7 @@ protected:
 	virtual void AddToPopUp(const wchar_t *label, int cmd=0, bool enabled=true) = 0;	//added
 	void ContextMenu(Point pt);
 
+	virtual void ButtonDownWithModifiers(Point pt, unsigned int curTime, int modifiers);
 	virtual void ButtonDown(Point pt, unsigned int curTime, bool shift, bool ctrl, bool alt);
 
 	void NotifyStyleToNeeded(int endStyleNeeded);

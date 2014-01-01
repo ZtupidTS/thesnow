@@ -2787,7 +2787,7 @@ void SciTEBase::CharAddedOutput(int ch) {
 		// Potential autocompletion of symbols when $( typed
 		int selStart = wOutput.Call(SCI_GETSELECTIONSTART);
 		if ((selStart > 1) && (wOutput.Call(SCI_GETCHARAT, selStart - 2, 0) == '$')) {
-			SString symbols;
+			std::string symbols;
 			const char *key = NULL;
 			const char *val = NULL;
 			bool b = props.GetFirst(key, val);
@@ -4673,6 +4673,7 @@ void SciTEBase::ExecuteMacroCommand(const char *command) {
 		sprintf(tbuff + alen, "%0d", rep);
 	extender->OnMacro("macro", tbuff);
 	delete []tbuff;
+	delete []string1;
 }
 
 /**

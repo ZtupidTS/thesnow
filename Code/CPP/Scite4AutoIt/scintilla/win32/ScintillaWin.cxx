@@ -45,6 +45,7 @@
 #include "SciLexer.h"
 #include "LexerModule.h"
 #endif
+#include "StringCopy.h"
 #include "SplitVector.h"
 #include "Partitioning.h"
 #include "RunStyles.h"
@@ -212,7 +213,7 @@ class ScintillaWin :
 	bool renderTargetValid;
 #endif
 
-	ScintillaWin(HWND hwnd);
+	explicit ScintillaWin(HWND hwnd);
 	ScintillaWin(const ScintillaWin &);
 	virtual ~ScintillaWin();
 	ScintillaWin &operator=(const ScintillaWin &);
@@ -601,19 +602,16 @@ LRESULT ScintillaWin::WndPaint(uptr_t wParam) {
 		}
 	} else {
 #if defined(USE_D2D)
-		for (int attempt=0;attempt<2;attempt++) {
-			EnsureRenderTarget();
-			AutoSurface surfaceWindow(pRenderTarget, this);
-			if (surfaceWindow) {
-				pRenderTarget->BeginDraw();
-				Paint(surfaceWindow, rcPaint);
-				surfaceWindow->Release();
-				HRESULT hr = pRenderTarget->EndDraw();
-				if (hr == D2DERR_RECREATE_TARGET) {
-					DropRenderTarget();
-				} else {
-					break;
-				}
+		EnsureRenderTarget();
+		AutoSurface surfaceWindow(pRenderTarget, this);
+		if (surfaceWindow) {
+			pRenderTarget->BeginDraw();
+			Paint(surfaceWindow, rcPaint);
+			surfaceWindow->Release();
+			HRESULT hr = pRenderTarget->EndDraw();
+			if (hr == D2DERR_RECREATE_TARGET) {
+				DropRenderTarget();
+				paintState = paintAbandoned;
 			}
 		}
 #endif
@@ -1465,7 +1463,7 @@ class CaseFolderDBCS : public CaseFolderTable {
 	std::vector<wchar_t> utf16Folded;
 	UINT cp;
 public:
-	CaseFolderDBCS(UINT cp_) : cp(cp_) {
+	explicit CaseFolderDBCS(UINT cp_) : cp(cp_) {
 		StandardASCII();
 	}
 	virtual size_t Fold(char *folded, size_t sizeFolded, const char *mixed, size_t lenMixed) {
@@ -1496,9 +1494,9 @@ public:
 					// Maximum length of a case conversion is 6 bytes, 3 characters
 					wchar_t wFolded[20];
 					unsigned int charsConverted = UTF16FromUTF8(foldedUTF8,
-							static_cast<unsigned int>(strlen(foldedUTF8)), 
+							static_cast<unsigned int>(strlen(foldedUTF8)),
 							wFolded, sizeof(wFolded)/sizeof(wFolded[0]));
-					for (size_t j=0;j<charsConverted;j++)
+					for (size_t j=0; j<charsConverted; j++)
 						utf16Folded[lenFlat++] = wFolded[j];
 				} else {
 					utf16Folded[lenFlat++] = utf16Mixed[mixIndex];
@@ -1542,7 +1540,7 @@ CaseFolder *ScintillaWin::CaseFolderForEncoding() {
 					if (caseFolded) {
 						wchar_t wLower[20];
 						unsigned int charsConverted = UTF16FromUTF8(caseFolded,
-							static_cast<unsigned int>(strlen(caseFolded)), 
+							static_cast<unsigned int>(strlen(caseFolded)),
 							wLower, sizeof(wLower)/sizeof(wLower[0]));
 						if (charsConverted == 1) {
 							char sCharacterLowered[20];
@@ -1570,7 +1568,7 @@ std::string ScintillaWin::CaseMapString(const std::string &s, int caseMapping) {
 	UINT cpDoc = CodePageOfDocument();
 	if (cpDoc == SC_CP_UTF8) {
 		std::string retMapped(s.length() * maxExpansionCaseConversion, 0);
-		size_t lenMapped = CaseConvertString(&retMapped[0], retMapped.length(), s.c_str(), s.length(), 
+		size_t lenMapped = CaseConvertString(&retMapped[0], retMapped.length(), s.c_str(), s.length(),
 			(caseMapping == cmUpper) ? CaseConversionUpper : CaseConversionLower);
 		retMapped.resize(lenMapped);
 		return retMapped;
@@ -1638,7 +1636,7 @@ public:
 	void *ptr;
 	GlobalMemory() : hand(0), ptr(0) {
 	}
-	GlobalMemory(HGLOBAL hand_) : hand(hand_), ptr(0) {
+	explicit GlobalMemory(HGLOBAL hand_) : hand(hand_), ptr(0) {
 		if (hand) {
 			ptr = ::GlobalLock(hand);
 		}
@@ -2165,8 +2163,8 @@ void ScintillaWin::ImeStartComposition() {
 			lf.lfItalic = static_cast<BYTE>(vs.styles[styleHere].italic ? 1 : 0);
 			lf.lfCharSet = DEFAULT_CHARSET;
 			lf.lfFaceName[0] = '\0';
-			if (vs.styles[styleHere].fontName && (strlen(vs.styles[styleHere].fontName) < sizeof(lf.lfFaceName)))
-				strcpy(lf.lfFaceName, vs.styles[styleHere].fontName);
+			if (vs.styles[styleHere].fontName)
+				StringCopy(lf.lfFaceName, vs.styles[styleHere].fontName);
 
 			::ImmSetCompositionFontA(hIMC, &lf);
 		}

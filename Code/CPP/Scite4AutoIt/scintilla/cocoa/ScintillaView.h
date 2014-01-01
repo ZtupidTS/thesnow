@@ -98,15 +98,15 @@ extern NSString *const SCIUpdateUINotification;
   // The back end is kind of a controller and model in one.
   // It uses the content view for display.
   Scintilla::ScintillaCocoa* mBackend;
-  
+
   // This is the actual content to which the backend renders itself.
   SCIContentView* mContent;
-  
+
   NSScrollView *scrollView;
   SCIMarginView *marginView;
-  
+
   CGFloat zoomDelta;
-  
+
   // Area to display additional controls (e.g. zoom info, caret position, status info).
   NSView <InfoBarCommunicator>* mInfoBar;
   BOOL mInfoBarAtTop;
@@ -134,6 +134,7 @@ extern NSString *const SCIUpdateUINotification;
 - (void) setMarginWidth: (int) width;
 - (void) scrollerAction: (id) sender;
 - (SCIContentView*) content;
+- (void) updateMarginCursors;
 
 // NSTextView compatibility layer.
 - (NSString*) string;
