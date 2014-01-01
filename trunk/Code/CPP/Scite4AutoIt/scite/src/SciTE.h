@@ -9,8 +9,8 @@
 #define SCITE_H
 
 // Version numbers and dates
-#define VERSION_SCITE "3.3.6"
-#define VERSION_WORDS 3, 3, 6, 0
+#define VERSION_SCITE "3.3.7"
+#define VERSION_WORDS 3, 3, 7, 0
 #define COPYRIGHT_DATES L"1998年十二月 - 2013年十月"
 #define COPYRIGHT_YEARS L"1998-2013"
 // 菜单 ID.

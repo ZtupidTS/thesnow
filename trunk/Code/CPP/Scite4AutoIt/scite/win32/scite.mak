@@ -152,21 +152,22 @@ OBJSSTATIC=\
 #**LEXPROPS=\\\n\($(DIR_BIN)\\\* \)
 LEXPROPS=\
 $(PROPFILE)\abaqus.properties $(PROPFILE)\ada.properties \
-$(PROPFILE)\asm.properties $(PROPFILE)\asn1.properties $(PROPFILE)\au3.properties \
-$(PROPFILE)\ave.properties $(PROPFILE)\avs.properties $(PROPFILE)\baan.properties \
-$(PROPFILE)\blitzbasic.properties $(PROPFILE)\bullant.properties \
-$(PROPFILE)\caml.properties $(PROPFILE)\cmake.properties \
-$(PROPFILE)\cobol.properties $(PROPFILE)\conf.properties \
-$(PROPFILE)\cpp.properties $(PROPFILE)\csound.properties \
-$(PROPFILE)\css.properties $(PROPFILE)\d.properties $(PROPFILE)\ecl.properties \
-$(PROPFILE)\eiffel.properties $(PROPFILE)\erlang.properties \
-$(PROPFILE)\escript.properties $(PROPFILE)\flagship.properties \
-$(PROPFILE)\forth.properties $(PROPFILE)\fortran.properties \
-$(PROPFILE)\freebasic.properties $(PROPFILE)\gap.properties \
-$(PROPFILE)\haskell.properties $(PROPFILE)\html.properties \
-$(PROPFILE)\inno.properties $(PROPFILE)\kix.properties \
-$(PROPFILE)\latex.properties $(PROPFILE)\lisp.properties \
-$(PROPFILE)\lot.properties $(PROPFILE)\lout.properties $(PROPFILE)\lua.properties \
+$(PROPFILE)\asl.properties $(PROPFILE)\asm.properties $(PROPFILE)\asn1.properties \
+$(PROPFILE)\au3.properties $(PROPFILE)\ave.properties $(PROPFILE)\avs.properties \
+$(PROPFILE)\baan.properties $(PROPFILE)\blitzbasic.properties \
+$(PROPFILE)\bullant.properties $(PROPFILE)\caml.properties \
+$(PROPFILE)\cmake.properties $(PROPFILE)\cobol.properties \
+$(PROPFILE)\conf.properties $(PROPFILE)\cpp.properties \
+$(PROPFILE)\csound.properties $(PROPFILE)\css.properties $(PROPFILE)\d.properties \
+$(PROPFILE)\ecl.properties $(PROPFILE)\eiffel.properties \
+$(PROPFILE)\erlang.properties $(PROPFILE)\escript.properties \
+$(PROPFILE)\flagship.properties $(PROPFILE)\forth.properties \
+$(PROPFILE)\fortran.properties $(PROPFILE)\freebasic.properties \
+$(PROPFILE)\gap.properties $(PROPFILE)\haskell.properties \
+$(PROPFILE)\html.properties $(PROPFILE)\inno.properties \
+$(PROPFILE)\kix.properties $(PROPFILE)\latex.properties \
+$(PROPFILE)\lisp.properties $(PROPFILE)\lot.properties \
+$(PROPFILE)\lout.properties $(PROPFILE)\lua.properties \
 $(PROPFILE)\matlab.properties $(PROPFILE)\metapost.properties \
 $(PROPFILE)\mmixal.properties $(PROPFILE)\modula3.properties \
 $(PROPFILE)\nimrod.properties $(PROPFILE)\nncrontab.properties \

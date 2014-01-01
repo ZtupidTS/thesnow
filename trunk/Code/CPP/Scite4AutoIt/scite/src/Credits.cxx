@@ -356,6 +356,9 @@ const char *contributors[] = {
             "Erik",
             "TJF",
             "Mark Robinson",
+            "Thomas Martitz",
+            "felix",
+            "Christian Walther",
         };
 
 // AddStyledText only called from About so static size buffer is OK
@@ -409,20 +412,6 @@ void SciTEBase::SetAboutMessage(GUI::ScintillaWindow &wsci, const char *appTitle
 		int trsSty = 5; // define the stylenumber to assign font for translators.
 		SString translator = GetTranslationToAbout("TranslationCredit", false);
 		SetAboutStyle(wsci, trsSty, ColourRGB(0, 0, 0));
-#if !defined(GTK)
-		// On Windows Me (maybe 9x also), we must assign another font to display translation.
-		if (translator.length()) {
-			SString fontBase = props.GetExpanded("font.translators");
-			StyleDefinition sd(fontBase.c_str());
-			if (sd.specified & StyleDefinition::sdFont) {
-				wsci.Send(SCI_STYLESETFONT, trsSty,
-				        reinterpret_cast<uptr_t>(sd.font.c_str()));
-			}
-			if (sd.specified & StyleDefinition::sdSize) {
-				wsci.Send(SCI_STYLESETSIZEFRACTIONAL, trsSty, sd.FractionalSize());
-			}
-		}
-#endif
 		AddStyledText(wsci, GUI::UTF8FromString(L"程序版本: ").c_str(), trsSty);
 //		AddStyledText(wsci, GetTranslationToAbout("Version").c_str(), trsSty);
 		AddStyledText(wsci, " " VERSION_SCITE "\n", 1);
