@@ -1,2 +1,0 @@
-BASED ON buildtorrent 0.8
-FIXED BIG FILE FAILED.
